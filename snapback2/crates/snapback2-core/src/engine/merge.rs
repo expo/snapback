@@ -19,6 +19,7 @@ struct Lane {
     visible: Vec<Value>,
     returned: Vec<Value>,
 }
+
 struct Head {
     lane: usize,
     row: Value,
@@ -60,7 +61,12 @@ impl Runner<'_> {
                     self.env_provenance = provenance;
                     self.consts = consts;
                 }
-                if !prefixes.insert(canonical_json(&input.prefix)) {
+                if !prefixes.insert(canonical_json(&(
+                    &input.prefix,
+                    &input.after,
+                    &input.before,
+                    input.range.as_ref().map(|r| (&r.gt, &r.gte, &r.lt, &r.lte)),
+                ))) {
                     continue;
                 }
                 let read = self
@@ -96,6 +102,8 @@ impl Runner<'_> {
                 self.env.remove(&lane.binding);
             }
         }
+        // The first distinct lane supplies the evaluated take; all descriptors share
+        // its bound, whose maximum the certificate prices from the first static lane.
         let take = lanes
             .first()
             .map_or(merge.take() as usize, |lane| lane.input.take);
@@ -295,7 +303,12 @@ impl Runner<'_> {
         let index = table.index(&scan.index).expect("checked index");
         let visible_ids = row_ids(&lane.visible)?;
         let returned_ids = row_ids(&lane.returned)?;
-        let remaining = &lane.visible[lane.returned.len()..];
+        let end = returned_ids
+            .last()
+            .and_then(|last| visible_ids.iter().rposition(|id| id == last))
+            .map_or(0, |position| position + 1);
+        let remaining = &lane.visible[end..];
+        // The halo may start on an id-duplicate emitted by another lane.
         let halo = remaining.first().map(|row| RowRecord {
             table: scan.table.clone(),
             id: row.field("id").unwrap().as_str().unwrap().to_owned(),
@@ -359,5 +372,116 @@ impl Runner<'_> {
         }
         self.trace.ranges.push(range);
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::{Ceilings, Checker, object};
+
+    #[test]
+    fn system_merge_reads_denied_table_without_rule_probes() {
+        let frozen: serde_json::Value = serde_json::from_str(include_str!(
+            "../../../../corpus/merge-runtime-overlap-deduped.json"
+        ))
+        .unwrap();
+        let mut schema: Schema = serde_json::from_value(frozen["schema"].clone()).unwrap();
+        schema.tables.get_mut("posts").unwrap().rules.read = RuleExpr::Deny;
+        let program: Program = serde_json::from_value(frozen["program"].clone()).unwrap();
+        let certificate = Checker::new(&schema, Ceilings::default())
+            .check(&program)
+            .unwrap();
+        let mut engine = Engine::memory(schema).unwrap();
+        let receipt: ClosureReceipt = serde_json::from_value(frozen["receipt"].clone()).unwrap();
+        for row in receipt.rows {
+            engine.seed(&row.table, row.row).unwrap();
+        }
+        let result = engine
+            .execute(&program, &certificate, Context::system())
+            .unwrap();
+        assert_eq!(
+            row_ids(result.result.as_array().unwrap()).unwrap(),
+            ["a1", "a3"]
+        );
+        assert_eq!(result.state, ExecutionState::Complete);
+        assert_eq!(result.trace.rule_probes, 0);
+    }
+
+    #[test]
+    fn overlapping_lanes_record_remainder_after_last_returned_id() {
+        let frozen: serde_json::Value = serde_json::from_str(include_str!(
+            "../../../../corpus/merge-runtime-overlap-deduped.json"
+        ))
+        .unwrap();
+        let schema: Schema = serde_json::from_value(frozen["schema"].clone()).unwrap();
+        let program: Program = serde_json::from_value(frozen["program"].clone()).unwrap();
+        let certificate = Checker::new(&schema, Ceilings::default())
+            .check(&program)
+            .unwrap();
+        let Stmt::Return(Expr::Merge(merge)) = &program.body[0] else {
+            unreachable!()
+        };
+        let mut connection = rusqlite::Connection::open_in_memory().unwrap();
+        let tx = connection.transaction().unwrap();
+        let mut runner = Runner::new(
+            &tx,
+            &schema,
+            &certificate,
+            Context::query(Actor::new("u1", "user").unwrap(), Default::default()),
+            &[],
+            &[],
+            RuleAuthority::StoreAuthoritative,
+            0,
+        );
+        let rows: Vec<_> = ["a", "b", "c"]
+            .into_iter()
+            .map(|id| {
+                object([
+                    ("id", Value::Id(id.into())),
+                    ("author", Value::Id("u1".into())),
+                    ("at", Value::Int(1)),
+                ])
+            })
+            .collect();
+        // Inject equal-prefix lanes directly, bypassing prefixes.insert. The heap's
+        // id-dedupe can skip a visible prefix before this lane wins a later row.
+        for (lane, returned) in [
+            (0, vec![rows[0].clone(), rows[2].clone()]),
+            (1, vec![rows[1].clone()]),
+        ] {
+            let scan = merge.lanes[lane].scan.clone();
+            let input = runner.evaluate_scan(&scan).unwrap();
+            runner
+                .record_merge_lane(Lane {
+                    scan,
+                    input,
+                    uniform: true,
+                    allowed: Some(true),
+                    probes: 0,
+                    exhausted: true,
+                    examined: vec!["a".into(), "b".into(), "c".into()],
+                    visible: rows.clone(),
+                    returned,
+                })
+                .unwrap();
+        }
+        let ranges = &runner.receipt.ranges;
+        assert_eq!(ranges[0].stop, StopReason::Exhausted);
+        assert!(ranges[0].halo.is_none());
+        assert!(ranges[0].n2_key.is_none());
+        assert_eq!(ranges[1].stop, StopReason::Limit);
+        assert_eq!(ranges[1].halo.as_ref().unwrap().id, "c");
+        assert!(ranges[1].n2_key.is_none());
+        runner.trace.merges.push(MergeTrace {
+            site: merge.site.clone(),
+            deduplicated_union_len: 3,
+            last_returned_suffix: None,
+        });
+        // The second lane still has a (globally duplicate) halo: conservatively capped.
+        assert_eq!(
+            query_state(&runner.trace, &certificate, false),
+            ExecutionState::Capped
+        );
     }
 }

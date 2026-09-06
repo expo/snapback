@@ -1370,7 +1370,7 @@ fn every_frozen_corpus_case_replays_its_certification_outcome() {
     }
     assert_eq!(
         cases.len(),
-        210,
+        216,
         "the complete frozen corpus must be checked"
     );
     assert!(

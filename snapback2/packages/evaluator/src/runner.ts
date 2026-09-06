@@ -1,4 +1,4 @@
-import { mergeStreams } from "./merge";
+import { mergeRemainder, mergeStreams } from "./merge";
 import coreIrContract from "../../../crates/snapback2-core/ir-contract.json" with { type: "json" };
 import { EvalError, requireRowIdentity } from "./errors";
 import { cursorSuffix, decodeCursorFor, encodeCursor } from "./cursor";
@@ -567,6 +567,8 @@ export class Runner {
   }
 
   private merge(merge: any): Value {
+    const certificate = this.certificate;
+    if (!certificate) throw new EvalError("E_TRACE_SUBSET", `merge ${merge.site} requires a certificate; check the program before local execution`);
     const lanes: any[] = [];
     const prefixes = new Set<string>();
     for (const lane of merge.lanes) {
@@ -580,14 +582,18 @@ export class Runner {
         const input = this.scanInput(lane.scan);
         if (env) { this.env.clear(); for (const [key, value] of env) this.env.set(key, value); }
         if (consts) { this.consts.clear(); for (const key of consts) this.consts.add(key); }
-        const key = canonicalValues(input.prefix);
+        const r = input.evaluatedRange;
+        const key = canonicalJson([input.prefix, input.after, input.before,
+          r ? [r.gt, r.gte, r.lt, r.lte] : null]);
         if (prefixes.has(key)) continue;
         prefixes.add(key);
-        const read = this.certificate?.read_sites?.find((s: any) => s.site === lane.scan.site) ?? { hoist: false };
+        const read = certificate.read_sites.find((s: any) => s.site === lane.scan.site);
+        if (!read) throw new EvalError("E_TRACE_SUBSET", `undeclared merge lane ${lane.scan.site}`);
         const table = this.schema.tables[lane.scan.table];
-        const publicRule = ["Allow", "Public"].includes(variant(table.rules.read)[0]);
+        const publicRule = this.context.viewer === coreIrContract.systemPrincipalId
+          || ["Allow", "Public"].includes(variant(table.rules.read)[0]);
         const values = this.store.scan(lane.scan.table, lane.scan.index, input.prefix, input.after,
-          input.before, input.evaluatedRange, lane.scan.order, this.certificate?.max_examined ?? 10240);
+          input.before, input.evaluatedRange, lane.scan.order, certificate.max_examined);
         lanes.push({ scan: lane.scan, input, values: values[Symbol.iterator](), read,
           uniform: read.hoist || publicRule, allowed: publicRule ? true : undefined,
           exhausted: false, visible: [], returned: [] });
@@ -595,11 +601,13 @@ export class Runner {
       if (previous !== undefined) this.env.set(lane.binding, previous); else this.env.delete(lane.binding);
     }
     const first = merge.lanes[0].scan;
-    const take = lanes[0]?.input.take ?? variant(first.take)[1];
+    // The first distinct lane evaluates the shared bound; certification prices
+    // the first static lane's maximum. With no lanes there is nothing to emit.
+    const take = lanes[0]?.input.take ?? 0;
     const step = (): void => this.step();
     const next = lanes.map((lane) => (): Value | null => {
-      while (!lane.exhausted && (this.trace.examined ?? 0) < (this.certificate?.max_examined ?? 10240)) {
-        if (lane.allowed === undefined && (this.certificate?.max_rule_probes ?? 10240) - (this.trace.rule_probes ?? 0)
+      while (!lane.exhausted && (this.trace.examined ?? 0) < certificate.max_examined) {
+        if (lane.allowed === undefined && certificate.max_rule_probes - (this.trace.rule_probes ?? 0)
           < (lane.read.rule_probes_per_candidate ?? 0)) return null;
         step();
         const next = lane.values.next();
@@ -623,12 +631,13 @@ export class Runner {
     for (const lane of lanes) {
       const { scan, input } = lane;
       const r = input.evaluatedRange;
+      const remaining = mergeRemainder(lane.visible, lane.returned);
       this.trace.ranges.push({ site: scan.site, table: scan.table, index: scan.index,
         provenance: scan.provenance, prefix: input.prefix, order: scan.order, take: input.take,
         after: input.after, before: input.before, gt: r?.gt ?? null, gte: r?.gte ?? null,
         lt: r?.lt ?? null, lte: r?.lte ?? null,
         rule_hash: scopedRuleHash(this.schema, this.schema.tables[scan.table].rules.read),
-        stop: lane.exhausted && lane.visible.length === lane.returned.length ? "exhausted" : "limit",
+        stop: lane.exhausted && remaining.length === 0 ? "exhausted" : "limit",
         lastReturnedSuffix: lane.returned.length ? suffix.map((c) => field(lane.returned.at(-1), c.name)) : null,
       });
     }

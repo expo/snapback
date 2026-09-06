@@ -386,6 +386,18 @@ fn retained_merge_page_keeps_the_structural_closure_repair() {
     let schema = schema();
     let mut lane = scan("messages", 1100);
     lane.merge_site = Some("retained.merge".into());
+    let scan_shaped = program(vec![Stmt::Return(Expr::Scan(lane.clone()))]);
+    let errors = Checker::new(&schema, Ceilings::default())
+        .check_all(&scan_shaped)
+        .unwrap_err();
+    let closure = errors
+        .iter()
+        .find(|e| e.message.starts_with("closure bytes"))
+        .unwrap();
+    assert!(
+        !closure.message.contains("lanes ×"),
+        "scan-shaped retention revived the eager merge label: {closure}"
+    );
     let p = program(vec![
         Stmt::Let {
             name: "page".into(),

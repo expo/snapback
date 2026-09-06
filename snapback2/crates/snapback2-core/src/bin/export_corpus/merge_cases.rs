@@ -3,6 +3,7 @@ use super::*;
 pub(super) fn add_merge_and_opaque_cursor_cases(cases: &mut Vec<CorpusCase>) {
     add_merge_cases(cases);
     add_lazy_merge_cases(cases);
+    add_review_merge_cases(cases);
     add_opaque_cursor_cases(cases);
 }
 
@@ -909,4 +910,216 @@ fn add_lazy_merge_cases(cases: &mut Vec<CorpusCase>) {
         None,
         None,
     ));
+}
+
+fn add_review_merge_cases(cases: &mut Vec<CorpusCase>) {
+    let schema = merge_schema();
+    let mut page = merge_program(
+        "merge.review",
+        "merge.review",
+        ["u1", "u2"]
+            .into_iter()
+            .enumerate()
+            .map(|(i, author)| {
+                lane_scan(
+                    &format!("merge.review.{i}"),
+                    literal_id(author),
+                    2,
+                    None,
+                    "merge.review",
+                )
+            })
+            .collect(),
+        2,
+    );
+    page.args
+        .insert("c".into(), ArgType::Optional(Box::new(ArgType::Cursor)));
+    page.result_page_site = Some("merge.review".into());
+    let Stmt::Return(Expr::Merge(merge)) = &mut page.body[0] else {
+        unreachable!()
+    };
+    for lane in &mut merge.lanes {
+        lane.scan.after = Some(Box::new(var("c")));
+        lane.scan.opaque_cursor = true;
+    }
+    let rows: Vec<_> = (0..6)
+        .map(|n| post(&format!("p{n}"), if n % 2 == 0 { "u1" } else { "u2" }, n))
+        .collect();
+    let context = cursor_context(Value::Null);
+    let first = execute_seeded(&schema, &rows, &page, context.clone());
+    assert!(first.next.is_some());
+    let delete = |id_value: &str| PreludeStep {
+        program: Program {
+            name: "remove".into(),
+            kind: ProgramKind::Mutation,
+            args: BTreeMap::new(),
+            read_time_granularity_ms: None,
+            result_page_site: None,
+            body: vec![Stmt::Delete {
+                table: "posts".into(),
+                key: literal_id(id_value),
+            }],
+        },
+        context: mutation_context([], Vec::<String>::new()),
+        expected_state: "predicted".into(),
+    };
+    let deleted = case_from_parts(
+        "merge-multilane-local-deletion",
+        "merge",
+        schema.clone(),
+        page.clone(),
+        context.clone(),
+        first.receipt,
+        vec![delete("p0")],
+        None,
+        None,
+    );
+    assert_eq!(deleted.expected.local_state, "fresh");
+    assert_eq!(
+        row_ids(deleted.expected.local_result.as_ref()),
+        ["p1", "p2"]
+    );
+    assert!(deleted.expected.next.is_some());
+    cases.push(deleted);
+
+    // Global local-pagination rule: a plain scan, with two covered deletions,
+    // still has a nonempty capped result but may no longer mint a continuation.
+    let scan = opaque_cursor_program("local.partial", Order::Asc, 2);
+    let mut first = execute_seeded(&schema, &rows, &scan, context.clone());
+    // Later rows are held from another page, but its range was not retained.
+    // Enough rows remain to mint a cursor internally after the two deletions.
+    for (table, row) in &rows[3..] {
+        first.receipt.rows.push(RowRecord {
+            table: (*table).into(),
+            id: row.field("id").unwrap().as_str().unwrap().into(),
+            row: row.clone(),
+        });
+    }
+    let certificate = Checker::new(&schema, Ceilings::default())
+        .check(&scan)
+        .unwrap();
+    let mut client = ClientStore::hydrate(schema.clone(), &first.receipt).unwrap();
+    for id_value in ["p0", "p1"] {
+        let step = delete(id_value);
+        let cert = Checker::new(&schema, Ceilings::default())
+            .check(&step.program)
+            .unwrap();
+        client
+            .apply_mutation(&step.program, &cert, step.context)
+            .unwrap();
+    }
+    let (state, replay) = client
+        .reexecute(&scan, &certificate, context.clone())
+        .unwrap();
+    assert!(matches!(state, LocalState::Partial(_)));
+    assert_eq!(row_ids(Some(&replay.result)), ["p2", "p3"]);
+    assert_eq!(replay.state, ExecutionState::Capped);
+    assert_eq!(replay.next, None);
+    let partial = case_from_parts(
+        "local-pagination-partial-clears-next",
+        "scenario",
+        schema.clone(),
+        scan,
+        context.clone(),
+        first.receipt,
+        vec![delete("p0"), delete("p1")],
+        None,
+        None,
+    );
+    assert_eq!(partial.expected.local_state, "partial");
+    assert_eq!(partial.expected.next, None);
+    cases.push(partial);
+
+    let mut argument = page.clone();
+    argument.args.insert("n".into(), ArgType::Int);
+    let Stmt::Return(Expr::Merge(merge)) = &mut argument.body[0] else {
+        unreachable!()
+    };
+    for lane in &mut merge.lanes {
+        lane.scan.take = Bound::Arg {
+            name: "n".into(),
+            max: 20,
+        };
+    }
+    for (n, state) in [(2, ExecutionState::Capped), (3, ExecutionState::Complete)] {
+        let mut context = context.clone();
+        context.args.insert("n".into(), Value::Int(n));
+        let case = frozen_query(
+            &format!("merge-argument-take-{n}"),
+            schema.clone(),
+            rows[..3].to_vec(),
+            argument.clone(),
+            context,
+            state,
+        );
+        assert_eq!(
+            row_ids(case.expected.local_result.as_ref()).len(),
+            n as usize
+        );
+        assert_eq!(case.expected.next.is_some(), n == 2);
+        cases.push(case);
+    }
+
+    let mut repeated = for_lane_limit_case(schema.clone()).program;
+    repeated
+        .args
+        .insert("c".into(), ArgType::Optional(Box::new(ArgType::Cursor)));
+    let Stmt::Return(Expr::Merge(merge)) = &mut repeated.body[0] else {
+        unreachable!()
+    };
+    repeated.result_page_site = Some(merge.site.clone());
+    let lane = &mut merge.lanes[0];
+    lane.source.as_mut().unwrap().take = Bound::Literal(500);
+    lane.scan.take = Bound::Literal(20);
+    lane.scan.after = Some(Box::new(var("c")));
+    lane.scan.opaque_cursor = true;
+    let authors = ["u1", "u2", "u3"];
+    let mut rows = Vec::new();
+    for n in 0..500 {
+        rows.push((
+            "follows",
+            row([
+                ("id", id(&format!("f{n:03}"))),
+                ("follower", id("u1")),
+                ("followed", id(authors[n % 3])),
+                ("at", Value::Int(n as i64)),
+            ]),
+        ));
+    }
+    for n in 0..90 {
+        rows.push(post(&format!("p{n:03}"), authors[n % 3], n as i64));
+    }
+    let mut context = context;
+    for page in 0..2 {
+        let execution = execute_seeded(&schema, &rows, &repeated, context.clone());
+        assert_eq!(execution.trace.examined, 500 + 3 + 22);
+        assert_eq!(
+            execution
+                .trace
+                .ranges
+                .iter()
+                .filter(|r| r.table == "posts")
+                .count(),
+            3
+        );
+        let expected: Vec<_> = (page * 20..page * 20 + 20)
+            .map(|n| format!("p{n:03}"))
+            .collect();
+        assert_eq!(row_ids(Some(&execution.result)), expected);
+        let next = execution.next.clone().unwrap();
+        let case = case_from_parts(
+            &format!("merge-500-prefixes-three-authors-page-{}", page + 1),
+            "merge",
+            schema.clone(),
+            repeated.clone(),
+            context.clone(),
+            execution.receipt,
+            vec![],
+            None,
+            None,
+        );
+        assert_eq!(row_ids(case.expected.local_result.as_ref()), expected);
+        cases.push(case);
+        context.args.insert("c".into(), Value::String(next));
+    }
 }

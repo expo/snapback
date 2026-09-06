@@ -239,7 +239,7 @@
     "max_steps": 94,
     "max_heap_bytes": 3008,
     "max_output_bytes": 718,
-    "max_closure_bytes": 704,
+    "max_closure_bytes": 2112,
     "completeness": "Page",
     "prediction_sites": [],
     "read_time_granularity_ms": null,

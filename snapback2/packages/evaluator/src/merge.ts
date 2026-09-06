@@ -1,6 +1,19 @@
 import { field, totalCompare, asString } from "./value-runtime";
 import type { Value } from "./types";
 
+export function mergeRemainder(visible: Value[], returned: Value[]): Value[] {
+  const last = returned.at(-1);
+  let end = 0;
+  if (last) {
+    const id = asString(field(last, "id"));
+    for (let i = visible.length - 1; i >= 0; i--) {
+      if (asString(field(visible[i]!, "id")) === id) { end = i + 1; break; }
+    }
+  }
+  // A halo at the start of this remainder may be an id-duplicate emitted by another lane.
+  return visible.slice(end);
+}
+
 // @ref LLP 1010#a5-the-merged-feed — the twin advances precisely the winning stream, including two lookahead rows.
 export function mergeStreams(
   next: Array<() => Value | null>, suffix: string[], order: "Asc" | "Desc", take: number,

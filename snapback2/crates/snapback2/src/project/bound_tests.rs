@@ -420,6 +420,32 @@ query following(c: cursor ?):
     assert!(execution.trace.examined <= certificate.max_examined);
     assert!(execution.trace.steps <= certificate.max_steps);
     assert!(execution.next.is_some());
+    assert!(execution.trace.examined <= 1_185);
+    let second = engine
+        .execute(
+            program,
+            certificate,
+            Context::query(
+                Actor::new("viewer", "user").unwrap(),
+                BTreeMap::from([("c".into(), Value::String(execution.next.unwrap()))]),
+            ),
+        )
+        .unwrap();
+    let expected: Vec<_> = (460..480)
+        .rev()
+        .map(|n| Value::Id(format!("e{n:04}")))
+        .collect();
+    let actual: Vec<_> = second
+        .result
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|r| r.field("id").unwrap().clone())
+        .collect();
+    assert_eq!(actual, expected);
+    assert!(second.trace.examined <= 1_185);
+    assert!(second.trace.steps <= certificate.max_steps);
+    assert!(second.next.is_some());
     drop(worker);
     fs::remove_dir_all(root).unwrap();
 }

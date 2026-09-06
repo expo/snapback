@@ -1,5 +1,6 @@
 // @ts-ignore
 import manifest from "../../../corpus/manifest.json";
+import "./test-merge";
 import {
   ClientStore,
   canonicalValue,
@@ -64,6 +65,7 @@ for (const testCase of cases.filter((c) => JSON.stringify(c.program).includes('"
   assert((replay.execution.trace.examined ?? 0) <= certificate.max_examined, `${testCase.name}: merge examined bound`);
   assert((replay.execution.trace.examined ?? 0) <= certificate.max_index_entries, `${testCase.name}: merge index bound`);
   assert((replay.execution.trace.steps ?? 0) <= certificate.max_steps, `${testCase.name}: heap steps bound`);
+  assert((replay.execution.trace.rule_probes ?? 0) <= certificate.max_rule_probes, `${testCase.name}: merge rule-probe bound`);
 }
 
 const cursorPageTwo = cases.find((testCase) => testCase.name === "opaque-cursor-page-two-no-overlap");

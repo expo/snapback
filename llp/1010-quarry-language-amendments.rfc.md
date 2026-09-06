@@ -326,7 +326,7 @@ query followingFeed(c: cursor ?):
   same suffix — for `byAuthorTime: author, at, id` the suffix is `(at,
   id)`. An empty block refuses. Two lanes with the same prefix expression
   refuse at certify time (`E_QUARRY_TYPE`, drop-lane rewrite).
-- **Semantics (Clique L10, 2026-09-05).** Runtime duplicate prefixes
+- **Semantics (Clique L10, 2026-09-05).** Equal runtime prefixes and bounds
   collapse to one stream. Each lane has a SQLite prepared cursor with the
   header's order and cursor. A heap emits the least/greatest shared suffix,
   deduplicates intrinsic `id` on emission, then advances that lane only. Stop
@@ -352,7 +352,8 @@ query followingFeed(c: cursor ?):
   52 + 51 + 20 + 2 = **125** before shaped reads; a self lane and 500 follows
   cost 502 + 501 + 20 + 2 = **1,025**. Non-uniform lanes keep conservative
   per-lane accounting; ceilings are unchanged. Heap comparisons/advances
-  consume runtime steps. Retention prices the emitted page, not L×N rows.
+  consume runtime steps. Retention prices heads, the emitted page, lookahead,
+  and discovery pages with their halos (LLP 1001 §3).
 - **The capped lane list.** `follows[viewer] first 50` omits the 51st
   followee and the query reports `capped`. The certificate and the guide's
   recipe say so, with the number, and say that it does not meet the later

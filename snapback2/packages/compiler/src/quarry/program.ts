@@ -721,9 +721,8 @@ ${localWriter.lines.join("\n")}
 return ${scan.code};
 }` : scan.code} }`);
   }
-  const suffix = index.columns.slice(width);
   return {
-    code: `mergeByIndex([${lanes.join(", ")}], ${JSON.stringify(suffix)}, ${JSON.stringify(expr.order)}, ${expr.take}, ${JSON.stringify(mergeSite)}, ${JSON.stringify(expr.table)})`,
+    code: `mergeByIndex([${lanes.join(", ")}], ${expr.take}, ${JSON.stringify(mergeSite)})`,
     type: { kind: "page", table: expr.table },
   };
 }

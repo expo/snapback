@@ -5,7 +5,7 @@
 **Systems:** `snapback2/crates/snapback2-core` (`store`, `registry`, `live`, `identity`, `successor`, the engine, the IR)
 **Author:** Claude Fable 5 (orchestrator) — implementer: codex gpt-5.6-sol, lane A
 **Date:** 2026-08-29
-**Revised:** 2026-09-05 (Clique L10 — lazy merge; Clique L3 — honest bound refusals and patch-sensitive cap metering; LLP 1016 J2 — §1's system tables gain `_jobs` and `_timers`; LLP 1017 §1, then §2 and §3)
+**Revised:** 2026-09-05 (Clique L10 — lazy merge, receipt retention and global local-pagination cursor rule; Clique L3 — honest bound refusals and patch-sensitive cap metering; LLP 1016 J2 — §1's system tables gain `_jobs` and `_timers`; LLP 1017 §1, then §2 and §3)
 **Related:** LLP 1000, LLP 1002 (the loop that serves this), LLP 1003 (effects
 through the outbox this spec defines), LLP 0329.014.004 §7 (runtime), LLP
 0329.014.000 §6 (execution, trace, states), LLP 0329.016 §5.6 (no silent
@@ -207,6 +207,10 @@ no examined/storage-position continuation and no server-held scan state. The
 engine may internally distinguish take, ceiling, and exhaustion stops, but the
 result label, wire, and receipt may not.
 
+Local pagination has one rule for all queries: if `ClientStore::reexecute`
+reports `Partial` after a coverage miss or local deletion, clear `next`.
+A cursor requires covered replay; this rule is not specific to merge.
+
 **Certified bound, aligned 2026-09-05.** A hoisted site certifies its computed
 reserve (`take + 2` examined and index entries per call); only a program with a
 non-uniform site certifies the examined, index-entry, rule-probe, and step
@@ -221,7 +225,7 @@ probe row.
 
 **Lazy merge (Clique L10, implemented by GPT-6 Astra, 2026-09-05).**
 `Expr::Merge` owns its bounded lane discovery and scans. Evaluate and normalize
-runtime prefixes before opening one SQLite prepared cursor per distinct prefix.
+runtime prefixes and bounds before opening one SQLite prepared cursor per distinct stream.
 A heap compares lane heads by the common post-prefix suffix; emit the winning
 row, deduplicate intrinsic ids on emission, and advance only that cursor. Stop
 at the page plus two lookahead rows. Uniform lanes certify at most L heads + N
@@ -229,8 +233,9 @@ advances + 2 lookahead per merge call, plus discovery and shaped point reads;
 non-uniform lanes retain the conservative per-lane reserve and opaque capped
 semantics. The trace charges actual stepped candidates and heap work under
 `steps`. The merge summary records the lane maximum and uniformity. Retention
-prices the emitted N-row collection rather than a concatenated L×N union;
-lane heads and halo handling remain runtime/receipt work. `MergeTrace` keeps
+prices L retained heads, the emitted N rows, two lookahead rows, and each
+discovery page at its declared take plus its retained halo. It does not price
+a concatenated L×N union. `MergeTrace` keeps
 its shape: observed deduplicated union length (bounded by N+2) and the last
 returned suffix. All streams must exhaust with union length at most N for
 `complete`; an unfinished stream or truncated discovery makes the result

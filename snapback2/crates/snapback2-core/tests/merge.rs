@@ -1,3 +1,4 @@
+use snapback2_core::engine::ClosureReceipt;
 use snapback2_core::*;
 use std::collections::BTreeMap;
 
@@ -85,9 +86,11 @@ fn following_twenty_over_five_hundred_follows_is_additive_and_matches_sorted_uni
         .check(&program)
         .unwrap();
     assert_eq!(certificate.max_examined, 502 + 501 + 20 + 2);
+    assert_eq!(certificate.max_closure_bytes, 439_606);
     assert_eq!(
         certificate.max_closure_bytes,
-        20 * declared_serialized_row_max(&schema, "posts")
+        (501 + 20 + 2) * declared_serialized_row_max(&schema, "posts")
+            + 501 * declared_serialized_row_max(&schema, "follows")
     );
     let mut engine = Engine::memory(schema.clone()).unwrap();
     let mut all = Vec::new();
@@ -196,6 +199,13 @@ fn nonuniform_hidden_rows_remain_capped_and_revocation_between_pages_rechecks_la
         .unwrap();
     assert!(ids(&second.result).is_empty());
     assert_eq!(second.state, ExecutionState::Capped);
+    assert!(
+        second
+            .trace
+            .ranges
+            .iter()
+            .any(|r| r.examined_ids.contains(&"a".into()))
+    );
     check_trace(&second, &certificate);
 }
 
@@ -215,13 +225,16 @@ fn merge_rejects_mismatched_stream_descriptors() {
 
 #[test]
 fn merge_lookahead_preserves_capped_state_after_one_local_deletion() {
-    let (schema, program) = fixture(0, 2);
+    let (schema, program) = fixture(1, 2);
     let certificate = Checker::new(&schema, Ceilings::default())
         .check(&program)
         .unwrap();
     let mut engine = Engine::memory(schema.clone()).unwrap();
-    for id in ["a", "b", "c", "d", "e", "f"] {
-        engine.seed("posts", entry(id, "u1", 1)).unwrap();
+    seed_follow(&mut engine, 0, "u2");
+    for (n, id) in ["a", "b", "c", "d", "e", "f"].into_iter().enumerate() {
+        engine
+            .seed("posts", entry(id, if n % 2 == 0 { "u1" } else { "u2" }, 1))
+            .unwrap();
     }
     let first = engine.execute(&program, &certificate, ctx(None)).unwrap();
     let mut client = ClientStore::hydrate(schema.clone(), &first.receipt).unwrap();
@@ -251,4 +264,248 @@ fn merge_lookahead_preserves_capped_state_after_one_local_deletion() {
     assert_eq!(ids(&replay.result), ["e", "d"]);
     assert_eq!(replay.state, ExecutionState::Capped);
     assert!(replay.next.is_some());
+}
+
+#[test]
+fn duplicate_prefixes_at_scale_match_two_pages_and_exact_work() {
+    let (schema, program) = fixture(500, 20);
+    let certificate = Checker::new(&schema, Ceilings::default())
+        .check(&program)
+        .unwrap();
+    let mut engine = Engine::memory(schema).unwrap();
+    let authors = ["u1", "u2", "u3"];
+    for n in 0..500 {
+        seed_follow(&mut engine, n, authors[n as usize % 3]);
+    }
+    for n in 0..90 {
+        engine
+            .seed(
+                "posts",
+                entry(&format!("p{n:03}"), authors[n % 3], n as i64),
+            )
+            .unwrap();
+    }
+    let mut cursor = None;
+    for page in 0..2 {
+        let result = engine.execute(&program, &certificate, ctx(cursor)).unwrap();
+        let expected: Vec<_> = (0..90)
+            .rev()
+            .skip(page * 20)
+            .take(20)
+            .map(|n| format!("p{n:03}"))
+            .collect();
+        assert_eq!(ids(&result.result), expected);
+        assert_eq!(
+            result
+                .trace
+                .ranges
+                .iter()
+                .filter(|r| r.table == "posts")
+                .count(),
+            3
+        );
+        assert_eq!(result.trace.examined, 500 + 3 + 22);
+        check_trace(&result, &certificate);
+        cursor = Some(result.next.expect("more union rows"));
+    }
+}
+
+#[test]
+fn nonuniform_five_hundred_lanes_with_hidden_majority_stop_at_certificate() {
+    // N=17 keeps the conservative 500 × (N+2) plus discovery below 10240.
+    let (mut schema, mut program) = fixture(500, 17);
+    let Stmt::Return(Expr::Merge(merge)) = &mut program.body[0] else {
+        unreachable!()
+    };
+    merge.lanes.remove(0);
+    schema.tables.get_mut("posts").unwrap().rules.read = RuleExpr::Eq(
+        RuleTerm::Field("at".into()),
+        RuleTerm::Literal(Value::Int(1)),
+    );
+    let certificate = Checker::new(&schema, Ceilings::default())
+        .check(&program)
+        .unwrap();
+    assert!(
+        certificate
+            .bound_product
+            .as_ref()
+            .unwrap()
+            .contains("500 lanes × (17 + 2)")
+    );
+    let mut engine = Engine::memory(schema).unwrap();
+    for n in 0..500 {
+        let author = format!("actor{n:04}");
+        seed_follow(&mut engine, n, &author);
+        for k in 0..30 {
+            let hidden = k % 10 != 0;
+            engine
+                .seed(
+                    "posts",
+                    entry(
+                        &format!(
+                            "{}-{n:04}-{k:02}",
+                            if hidden { "hidden" } else { "visible" }
+                        ),
+                        &author,
+                        if hidden { 2 } else { 1 },
+                    ),
+                )
+                .unwrap();
+        }
+    }
+    let result = engine.execute(&program, &certificate, ctx(None)).unwrap();
+    assert_eq!(result.state, ExecutionState::Capped);
+    assert_eq!(result.trace.examined, certificate.max_examined);
+    assert!(
+        !result
+            .trace
+            .rows
+            .iter()
+            .chain(&result.receipt.rows)
+            .any(|r| r.id.starts_with("hidden"))
+    );
+    check_trace(&result, &certificate);
+}
+
+#[test]
+fn merge_argument_take_uses_evaluated_page_size_and_completeness() {
+    let (schema, mut program) = fixture(1, 20);
+    let Stmt::Return(Expr::Merge(merge)) = &mut program.body[0] else {
+        unreachable!()
+    };
+    for lane in &mut merge.lanes {
+        lane.scan.take = Bound::Arg {
+            name: "n".into(),
+            max: 20,
+        };
+    }
+    program.args.insert("n".into(), ArgType::Int);
+    let certificate = Checker::new(&schema, Ceilings::default())
+        .check(&program)
+        .unwrap();
+    let mut engine = Engine::memory(schema).unwrap();
+    seed_follow(&mut engine, 0, "u2");
+    for (n, author) in ["u1", "u2", "u1"].into_iter().enumerate() {
+        engine
+            .seed("posts", entry(&format!("p{n}"), author, n as i64))
+            .unwrap();
+    }
+    for (take, expected_state) in [(2, ExecutionState::Capped), (3, ExecutionState::Complete)] {
+        let mut context = ctx(None);
+        context.args.insert("n".into(), Value::Int(take));
+        let result = engine.execute(&program, &certificate, context).unwrap();
+        assert_eq!(ids(&result.result).len(), take as usize);
+        assert_eq!(result.trace.merges[0].deduplicated_union_len, 3);
+        assert_eq!(result.state, expected_state);
+        assert_eq!(result.next.is_some(), take == 2);
+        check_trace(&result, &certificate);
+    }
+}
+
+#[test]
+fn merge_prefix_collapse_includes_evaluated_after_before_and_range() {
+    for bound in ["after", "before", "range"] {
+        let (schema, mut program) = fixture(2, 3);
+        program.result_page_site = None;
+        let Stmt::Return(Expr::Merge(merge)) = &mut program.body[0] else {
+            unreachable!()
+        };
+        merge.lanes.remove(0);
+        let lane = &mut merge.lanes[0];
+        let at = Expr::Field {
+            base: Box::new(var(&lane.binding)),
+            name: "at".into(),
+        };
+        let cursor = Box::new(Expr::Array(vec![
+            at.clone(),
+            Expr::Literal(Value::Id("boundary".into())),
+        ]));
+        lane.scan.after = None;
+        lane.scan.opaque_cursor = false;
+        match bound {
+            "after" => lane.scan.after = Some(cursor),
+            "before" => lane.scan.before = Some(cursor),
+            _ => {
+                lane.scan.range = Some(Range {
+                    gt: Some(Box::new(at)),
+                    gte: None,
+                    lt: None,
+                    lte: None,
+                })
+            }
+        }
+        let certificate = Checker::new(&schema, Ceilings::default())
+            .check(&program)
+            .unwrap();
+        let mut engine = Engine::memory(schema).unwrap();
+        for n in 0..2 {
+            seed_follow(&mut engine, n, "u2");
+        }
+        for n in 0..3 {
+            engine
+                .seed("posts", entry(&format!("p{n}"), "u2", n))
+                .unwrap();
+        }
+        let result = engine.execute(&program, &certificate, ctx(None)).unwrap();
+        assert_eq!(
+            result
+                .trace
+                .ranges
+                .iter()
+                .filter(|r| r.table == "posts")
+                .count(),
+            2,
+            "{bound}"
+        );
+        check_trace(&result, &certificate);
+    }
+}
+
+#[test]
+fn partial_reexecute_clears_next_for_plain_scan() {
+    let frozen: serde_json::Value = serde_json::from_str(include_str!(
+        "../../../corpus/local-pagination-partial-clears-next.json"
+    ))
+    .unwrap();
+    let schema: Schema = serde_json::from_value(frozen["schema"].clone()).unwrap();
+    let program: Program = serde_json::from_value(frozen["program"].clone()).unwrap();
+    let receipt: ClosureReceipt = serde_json::from_value(frozen["receipt"].clone()).unwrap();
+    let context = ctx(None);
+    let certificate = Checker::new(&schema, Ceilings::default())
+        .check(&program)
+        .unwrap();
+    let mut client = ClientStore::hydrate(schema.clone(), &receipt).unwrap();
+    assert!(
+        client
+            .reexecute(&program, &certificate, context.clone())
+            .unwrap()
+            .1
+            .next
+            .is_some()
+    );
+    for step in frozen["prelude"].as_array().unwrap() {
+        let mutation: Program = serde_json::from_value(step["program"].clone()).unwrap();
+        let context = Context::mutation(Actor::new("u1", "user").unwrap(), BTreeMap::new());
+        let cert = Checker::new(&schema, Ceilings::default())
+            .check(&mutation)
+            .unwrap();
+        assert_eq!(
+            client.apply_mutation(&mutation, &cert, context).unwrap().0,
+            LocalState::Predicted
+        );
+    }
+    let mut raw = Engine::memory(schema).unwrap();
+    for row in client.rows("posts").unwrap() {
+        raw.seed("posts", row).unwrap();
+    }
+    assert!(
+        raw.execute(&program, &certificate, context.clone())
+            .unwrap()
+            .next
+            .is_some()
+    );
+    let (state, replay) = client.reexecute(&program, &certificate, context).unwrap();
+    assert!(matches!(state, LocalState::Partial(_)));
+    assert_eq!(ids(&replay.result), ["p2", "p3"]);
+    assert_eq!(replay.next, None);
 }

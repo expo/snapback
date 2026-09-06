@@ -11,7 +11,7 @@ export function lowerMergeByIndex(
   lowerBlock: (node: ts.Block, env: Environment, hint: string) => LoweredValue,
 ): LoweredValue {
   const input = call.arguments[0] && unwrapExpression(call.arguments[0]);
-  const site = stringArgument(call.arguments[4]);
+  const site = stringArgument(call.arguments[2]);
   if (!input || !ts.isArrayLiteralExpression(input) || !site)
     refuse(env, "E_OPAQUE", call, "mergeByIndex requires static lane descriptors and a site");
   const statements: import("../ir").Stmt[] = [];

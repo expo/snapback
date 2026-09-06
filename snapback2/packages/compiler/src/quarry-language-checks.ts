@@ -42,13 +42,13 @@ const id = (value: string): Value => ({ Id: value });
 function compile(source: string, declarations = schema) {
   return compileInline([{ fileName: "snapback/schema.q", source: declarations }, { fileName: "snapback/probe.q", source }]);
 }
-async function project(source: string, run: (result: Extract<Awaited<ReturnType<typeof lowerProject>>, { ok: true }>) => void, declarations = schema) {
+async function project(source: string, run: (result: Extract<Awaited<ReturnType<typeof lowerProject>>, { ok: true }>, checked: ReturnType<typeof rustCheck>) => void, declarations = schema) {
   await withProject({ "snapback/schema.q": declarations, "snapback/probe.q": source }, async (root) => {
     const lowered = await lowerProject(root);
     assert(lowered.ok, lowered.ok ? "" : diagnosticsText(lowered.diagnostics));
     const checked = rustCheck(lowered.project.programs, "synthetic", lowered.project.schema);
     assert(checked.every((item) => !item.error), JSON.stringify(checked));
-    run(lowered);
+    run(lowered, checked);
   });
 }
 function refusal(source: string, text: string, declarations = schema) {
@@ -299,10 +299,10 @@ schedule expire on posts at .expiresAt: receive(.other)
   test("Quarry merge Id literal prefixes accept positional and named keys, refusing computed text", async () => {
     const declarations = schema.replace("  by byAuthor:", "  by byParent: parent, id\n  by byAuthor:");
     for (const prefix of ["'post'", "parent = 'post'"]) {
-      await project(`query probe():\n  return merge posts first 10 by byParent:\n    [${prefix}]\n`, (lowered) => {
+      await project(`query probe():\n  return merge posts first 10 by byParent:\n    [${prefix}]\n`, (lowered, checked) => {
         const post = row({ id: id("reply"), author: id("alice"), at: { Int: 0 }, parent: id("post"), tags: "Null" });
         const result = new ClientStore(lowered.project.schema, { ...empty, rows: [{ table: "posts", id: "reply", row: post }] })
-          .reexecute(lowered.project.programs[0]!, context).execution;
+          .reexecute(lowered.project.programs[0]!, context, checked[0]!.certificate).execution;
         equal(result.result, { Array: [post] });
       }, declarations);
     }

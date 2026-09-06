@@ -315,7 +315,7 @@
     "max_steps": 51278,
     "max_heap_bytes": 1640896,
     "max_output_bytes": 772,
-    "max_closure_bytes": 758,
+    "max_closure_bytes": 2653,
     "completeness": "Capped",
     "prediction_sites": [],
     "read_time_granularity_ms": null,

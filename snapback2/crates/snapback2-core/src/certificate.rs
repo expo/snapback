@@ -374,27 +374,17 @@ impl<'a> Checker<'a> {
                 .values()
                 .find(|merge| child.label.contains(&format!(" at {}:", merge.site)))
             {
-                child.label = format!("merge {}: emitted page; {}", merge.site, child.label);
+                child.label = format!(
+                    "merge {}: emitted page + heads + lookahead; {}",
+                    merge.site, child.label
+                );
             }
             for read in summary.reads.values() {
                 if child.label.contains(&format!(" at {}:", read.site)) {
-                    let merge = analyzer
-                        .merge_sites
-                        .values()
-                        .find(|m| m.lane_sites.contains(&read.site));
-                    let source = merge
-                        .map(|m| {
-                            format!(
-                                "merge {}: {} lanes × {} rows",
-                                m.site, read.max_calls, read.take
-                            )
-                        })
-                        .unwrap_or_else(|| {
-                            format!(
-                                "{} take {} × {} calls",
-                                read.site, read.take, read.max_calls
-                            )
-                        });
+                    let source = format!(
+                        "{} take {} × {} calls",
+                        read.site, read.take, read.max_calls
+                    );
                     child.label = format!("{source}; {}", child.label);
                     break;
                 }

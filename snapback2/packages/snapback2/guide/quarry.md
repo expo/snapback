@@ -133,15 +133,17 @@ typed post-prefix suffix, and last returned row—never a hidden examined
 position. A mismatched or noncanonical token is `E_INPUT` before any scan.
 Tokens are not operation-site-bound. The index must be total (end in `id` or be
 unique); `after` follows scan order.
+Local `partial` results clear `next` for every query.
 
 `merge table [after cursor] first|last N by index:` fan-ins one or more
 lanes with named or positional `[prefix keys]`, optionally `for name in` a bounded
-range read. Prefixes must have equal widths and types, leave an index suffix,
-and not be structurally identical. Runtime duplicate prefixes collapse to one
-lane. A heap lazily merges SQLite streams by their shared suffix, deduplicates
+range read. Prefixes share widths/types, leave a suffix, and differ structurally.
+Equal evaluated prefixes and bounds collapse to one lane.
+A heap lazily merges SQLite streams by their shared suffix, deduplicates
 intrinsic `id`, and returns N rows. Uniform lanes cost at most L heads + N
 advances + 2 lookahead, plus lane discovery; non-uniform lanes keep conservative
-per-lane reserves. Retention prices the emitted page. Shapes, `for`, and `count`
+per-lane reserves. Retention prices heads, discovery, the page, and lookahead.
+Local merges require a certificate. Shapes, `for`, and `count`
 work as for range pages. A pageable index ends in `id`; one shared cursor
 applies unchanged to every lane.
 

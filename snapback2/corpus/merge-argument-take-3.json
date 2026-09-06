@@ -1,0 +1,477 @@
+{
+  "corpusVersion": 1,
+  "name": "merge-argument-take-3",
+  "category": "merge",
+  "randomSeed": null,
+  "schema": {
+    "tables": {
+      "follows": {
+        "columns": {
+          "at": "Int",
+          "followed": "Principal",
+          "follower": "Principal",
+          "id": "Id"
+        },
+        "indexes": {
+          "byFollower": {
+            "columns": [
+              "follower",
+              "at",
+              "id"
+            ],
+            "unique": false
+          },
+          "byId": {
+            "columns": [
+              "id"
+            ],
+            "unique": true
+          }
+        },
+        "rules": {
+          "read": {
+            "Public": {
+              "reason": "merge corpus fixture"
+            }
+          },
+          "insert": {
+            "Public": {
+              "reason": "merge corpus fixture"
+            }
+          },
+          "update": {
+            "Public": {
+              "reason": "merge corpus fixture"
+            }
+          },
+          "delete": {
+            "Public": {
+              "reason": "merge corpus fixture"
+            }
+          }
+        },
+        "constraints": [],
+        "retain": "until-revoked"
+      },
+      "posts": {
+        "columns": {
+          "at": "Int",
+          "author": "Principal",
+          "id": "Id"
+        },
+        "indexes": {
+          "byAt": {
+            "columns": [
+              "at",
+              "id"
+            ],
+            "unique": false
+          },
+          "byAuthorAt": {
+            "columns": [
+              "author",
+              "at",
+              "id"
+            ],
+            "unique": false
+          },
+          "byId": {
+            "columns": [
+              "id"
+            ],
+            "unique": true
+          }
+        },
+        "rules": {
+          "read": {
+            "Public": {
+              "reason": "merge corpus fixture"
+            }
+          },
+          "insert": {
+            "Public": {
+              "reason": "merge corpus fixture"
+            }
+          },
+          "update": {
+            "Public": {
+              "reason": "merge corpus fixture"
+            }
+          },
+          "delete": {
+            "Public": {
+              "reason": "merge corpus fixture"
+            }
+          }
+        },
+        "constraints": [],
+        "retain": "until-revoked"
+      }
+    },
+    "maintains": []
+  },
+  "program": {
+    "name": "merge.review",
+    "kind": "Query",
+    "args": {
+      "c": {
+        "Optional": "Cursor"
+      },
+      "n": "Int"
+    },
+    "read_time_granularity_ms": null,
+    "result_page_site": "merge.review",
+    "body": [
+      {
+        "Return": {
+          "Merge": {
+            "site": "merge.review",
+            "lanes": [
+              {
+                "scan": {
+                  "site": "merge.review.0",
+                  "table": "posts",
+                  "index": "byAuthorAt",
+                  "prefix": [
+                    {
+                      "Literal": {
+                        "Id": "u1"
+                      }
+                    }
+                  ],
+                  "order": "Asc",
+                  "take": {
+                    "Arg": {
+                      "name": "n",
+                      "max": 20
+                    }
+                  },
+                  "after": {
+                    "Variable": "c"
+                  },
+                  "before": null,
+                  "range": null,
+                  "opaque_cursor": true,
+                  "merge_site": "merge.review",
+                  "provenance": "Const"
+                },
+                "source": null,
+                "binding": ""
+              },
+              {
+                "scan": {
+                  "site": "merge.review.1",
+                  "table": "posts",
+                  "index": "byAuthorAt",
+                  "prefix": [
+                    {
+                      "Literal": {
+                        "Id": "u2"
+                      }
+                    }
+                  ],
+                  "order": "Asc",
+                  "take": {
+                    "Arg": {
+                      "name": "n",
+                      "max": 20
+                    }
+                  },
+                  "after": {
+                    "Variable": "c"
+                  },
+                  "before": null,
+                  "range": null,
+                  "opaque_cursor": true,
+                  "merge_site": "merge.review",
+                  "provenance": "Const"
+                },
+                "source": null,
+                "binding": ""
+              }
+            ]
+          }
+        }
+      }
+    ]
+  },
+  "certificate": {
+    "program": "merge.review",
+    "plan_hash": "f838d66c0f4e4d6cf79dece8994f7fe767b97036d9a184e0bc5638a376cc553c",
+    "schema_hash": "f7c842236978e842a20695dbea23d49d1277bd8bdbc0c342ee6422331cb188f8",
+    "tables": {
+      "follows": {
+        "retain": "until-revoked"
+      },
+      "posts": {
+        "retain": "until-revoked"
+      }
+    },
+    "rule_hashes": {
+      "posts.read": "fd79905c6b2537749a4f00979344bce28f421b3d1fee4a30a4fbf41e3fc8f8a6"
+    },
+    "evaluator_version": "bounded-spike-rust-1",
+    "value_model_version": "i53-codepoint-bytes-v2",
+    "read_sites": [
+      {
+        "site": "merge.review.0",
+        "table": "posts",
+        "index": "byAuthorAt",
+        "prefix_template": "Const",
+        "take": 20,
+        "max_calls": 1,
+        "rule_probes_per_candidate": 0,
+        "hoist": true,
+        "complete": false
+      },
+      {
+        "site": "merge.review.1",
+        "table": "posts",
+        "index": "byAuthorAt",
+        "prefix_template": "Const",
+        "take": 20,
+        "max_calls": 1,
+        "rule_probes_per_candidate": 0,
+        "hoist": true,
+        "complete": false
+      }
+    ],
+    "merge_sites": [
+      {
+        "site": "merge.review",
+        "lane_sites": [
+          "merge.review.0",
+          "merge.review.1"
+        ],
+        "take": 20,
+        "max_lanes": 2,
+        "uniform": true
+      }
+    ],
+    "result_page_site": {
+      "site": "merge.review",
+      "table": "posts",
+      "index": "byAuthorAt",
+      "order": "Asc",
+      "suffix": [
+        {
+          "name": "at",
+          "kind": "Int"
+        },
+        {
+          "name": "id",
+          "kind": "Id"
+        }
+      ],
+      "merge": true
+    },
+    "write_sites": [],
+    "maintained_amplification": 0,
+    "constraint_checks": [],
+    "max_examined": 24,
+    "max_index_entries": 24,
+    "max_rule_probes": 0,
+    "max_steps": 366,
+    "max_heap_bytes": 11712,
+    "max_output_bytes": 7072,
+    "max_closure_bytes": 8448,
+    "completeness": "Page",
+    "prediction_sites": [],
+    "read_time_granularity_ms": null,
+    "halo_rows": 1,
+    "indexes_required": [
+      "posts.byAuthorAt"
+    ],
+    "disclosures": [],
+    "bound_product": "merge merge.review: 2 lanes heads + 20 advances + 2 lookahead × 1 calls (merge.review.0 × 1; merge.review.1 × 1) = 24"
+  },
+  "context": {
+    "viewer": "u1",
+    "principal_kind": "user",
+    "auth_epoch": 1,
+    "args": {
+      "c": "Null",
+      "n": {
+        "Int": 3
+      }
+    },
+    "now": null,
+    "new_ids": [],
+    "read_time": null
+  },
+  "receipt": {
+    "schema_hash": "f7c842236978e842a20695dbea23d49d1277bd8bdbc0c342ee6422331cb188f8",
+    "rows": [
+      {
+        "table": "posts",
+        "id": "p0",
+        "row": {
+          "Row": {
+            "at": {
+              "Int": 0
+            },
+            "author": {
+              "Id": "u1"
+            },
+            "id": {
+              "Id": "p0"
+            }
+          }
+        }
+      },
+      {
+        "table": "posts",
+        "id": "p2",
+        "row": {
+          "Row": {
+            "at": {
+              "Int": 2
+            },
+            "author": {
+              "Id": "u1"
+            },
+            "id": {
+              "Id": "p2"
+            }
+          }
+        }
+      },
+      {
+        "table": "posts",
+        "id": "p1",
+        "row": {
+          "Row": {
+            "at": {
+              "Int": 1
+            },
+            "author": {
+              "Id": "u2"
+            },
+            "id": {
+              "Id": "p1"
+            }
+          }
+        }
+      }
+    ],
+    "ranges": [
+      {
+        "site": "merge.review.0",
+        "table": "posts",
+        "index": "byAuthorAt",
+        "prefix": [
+          {
+            "Id": "u1"
+          }
+        ],
+        "order": "Asc",
+        "take": 3,
+        "after": null,
+        "before": null,
+        "gt": null,
+        "gte": null,
+        "lt": null,
+        "lte": null,
+        "rule_hash": "fd79905c6b2537749a4f00979344bce28f421b3d1fee4a30a4fbf41e3fc8f8a6",
+        "row_ids": [
+          "p0",
+          "p2"
+        ],
+        "stop": "Exhausted",
+        "absence": false,
+        "halo": null,
+        "n2_key": null
+      },
+      {
+        "site": "merge.review.1",
+        "table": "posts",
+        "index": "byAuthorAt",
+        "prefix": [
+          {
+            "Id": "u2"
+          }
+        ],
+        "order": "Asc",
+        "take": 3,
+        "after": null,
+        "before": null,
+        "gt": null,
+        "gte": null,
+        "lt": null,
+        "lte": null,
+        "rule_hash": "fd79905c6b2537749a4f00979344bce28f421b3d1fee4a30a4fbf41e3fc8f8a6",
+        "row_ids": [
+          "p1"
+        ],
+        "stop": "Exhausted",
+        "absence": false,
+        "halo": null,
+        "n2_key": null
+      }
+    ],
+    "absences": [],
+    "verdicts": []
+  },
+  "prelude": [],
+  "replacementReceipt": null,
+  "expected": {
+    "localResult": {
+      "Array": [
+        {
+          "Row": {
+            "at": {
+              "Int": 0
+            },
+            "author": {
+              "Id": "u1"
+            },
+            "id": {
+              "Id": "p0"
+            }
+          }
+        },
+        {
+          "Row": {
+            "at": {
+              "Int": 1
+            },
+            "author": {
+              "Id": "u2"
+            },
+            "id": {
+              "Id": "p1"
+            }
+          }
+        },
+        {
+          "Row": {
+            "at": {
+              "Int": 2
+            },
+            "author": {
+              "Id": "u1"
+            },
+            "id": {
+              "Id": "p2"
+            }
+          }
+        }
+      ]
+    },
+    "errorCode": null,
+    "localState": "fresh",
+    "partialSites": [],
+    "canonicalResult": "{\"Array\":[{\"Row\":{\"at\":{\"Int\":0},\"author\":{\"Id\":\"u1\"},\"id\":{\"Id\":\"p0\"}}},{\"Row\":{\"at\":{\"Int\":1},\"author\":{\"Id\":\"u2\"},\"id\":{\"Id\":\"p1\"}}},{\"Row\":{\"at\":{\"Int\":2},\"author\":{\"Id\":\"u1\"},\"id\":{\"Id\":\"p2\"}}}]}",
+    "digest": "0b7d7ea3498103a10a4fd69b865bb6ba2fc47a349a8fecd89a22e0de48825d69",
+    "rangeStops": {
+      "merge.review.0": [
+        "exhausted"
+      ],
+      "merge.review.1": [
+        "exhausted"
+      ]
+    },
+    "evictedRows": null,
+    "next": null
+  }
+}
