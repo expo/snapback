@@ -1311,7 +1311,7 @@ for (const automatic of [false, true]) for (const stage of ["fetch", "body"] as 
           const response = await owner.fetch(input, init);
           if (path === "/api/manifest") {
             const value = await response.json();
-            value.ops["deliveries.post"].args = { photo: { Image: { max: 16 } } };
+            value.ops["deliveries.post"] = { kind: "mutation", planHash: "f".repeat(64), args: { photo: { Image: { max: 16 } } } };
             return json(value);
           }
           return response;
