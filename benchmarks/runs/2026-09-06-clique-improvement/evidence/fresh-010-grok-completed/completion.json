@@ -1,0 +1,45 @@
+{
+  "observedEpoch": 1788713862.5719318,
+  "sourceFiles": 170,
+  "sourceManifestSha256": "a977485e4d38071c6335cf760de6bd69dcd74586174d84f915528356b5629d07",
+  "sourceSealScope": "enumerated selected app source; frozen instrument/UI/choreography remain original, state/dependencies/evidence excluded; further grader admission pending",
+  "installedExpectedFiles": 154,
+  "installedMismatches": [],
+  "terminal": {
+    "pid": 69815,
+    "exitCode": 0,
+    "startedEpoch": 1788700669.7391129,
+    "endedEpoch": 1788713545.2813241,
+    "elapsedSeconds": 12875.542211294174
+  },
+  "grade": "none; builder results only, no comparative score",
+  "cleanup": {
+    "69815": {
+      "exitCode": 1,
+      "stdout": "",
+      "stderr": ""
+    },
+    "65920": {
+      "exitCode": 1,
+      "stdout": "",
+      "stderr": ""
+    },
+    "59034": {
+      "exitCode": 1,
+      "stdout": "",
+      "stderr": ""
+    },
+    "23239": {
+      "exitCode": 1,
+      "stdout": "",
+      "stderr": ""
+    },
+    "ports": {
+      "exitCode": 1,
+      "stdout": "",
+      "stderr": ""
+    }
+  },
+  "finalReportSha256": "67718e0822516ef3480f01a8b0b10d5476c0059c42241860a721d172eda5b708",
+  "essaySha256": "a2ead7d10238b5450bb6d766e36e8f0a38619f0374eb2a0bff2d7b14957b723f"
+}

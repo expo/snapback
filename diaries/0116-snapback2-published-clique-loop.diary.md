@@ -466,7 +466,7 @@ bounded retained seek accounting. Published0.0.10 passed its sole production
 dry run, then actual publication and a fresh registry install: all154 packed
 files match and the installed Hermes/media/Expo chat checks pass. The first
 shim-processing E404 is retained; there was no repack or republish. A fresh
-Grok4.6 xhigh full Clique build started at13:17:49Z on the exact public release,
+Grok 4.6 xhigh full Clique build started at13:17:49Z on the exact public release,
 with the frozen instrument and isolated ports. No comparative win is established.
 
 The earlier46838gzip search checkpoint was still incomplete: it omitted parts
@@ -593,7 +593,7 @@ and resume attribution separately from the scorer’s builder-based labels.
 
 ## 2026-09-06 — Independent 0.0.8 outcome audit
 
-The fresh Grok4.6 xhigh audit finished:93 assertions passed,13 failed and13
+The fresh Grok 4.6 xhigh audit finished:93 assertions passed,13 failed and13
 were not run. This diagnostic result is separate from the narrative score.
 The removed-member live-message check failed despite denied API reads; its
 cause needs investigation. Starter search indexes were empty until a separate
@@ -643,3 +643,36 @@ grader’s missing trace. The remaining question is the app/SDK completion
 contract across full-page unload. No native authorization repair is justified
 by this evidence. The untouched assertion failure and failed control setup
 remain retained, and all owned diagnostic servers were stopped.
+
+
+## 2026-09-06 — Grok 0.0.10 completed; migration regression correction
+
+The fresh native Grok 4.6 xhigh run completed in 12,875.542 seconds. Only M1 and
+M2 achieved both suite and required choreography green. Later suites passed,
+but live membership/media/insights choreography remained failing or unproven;
+native M6/M8 and M7 were missing. The scale adapter skipped 56,900 actions, so
+its named-subset check does not qualify the full corpus. All 154 installed
+package files still match the release; recorded services are stopped.
+
+The builder liked asset arguments, maintained counts, policy declarations and
+the durable offline queue. It struggled with certifier bounds, prefix-search
+postings, web/native imports and schema evolution. Its reported global upload
+staging exhaustion and text-bound widening failures now have a separate tiny
+published-package reproduction lane. These are observations to diagnose, not
+yet proven product causes or reasons to raise bounds blindly.
+
+The 0.0.8 M7 builder completed its poll/migration implementation but reported
+regression failure. I had overextended a preclock restriction: original
+regression suites intentionally call idempotent seed helpers, and my global
+no-reseed rule blocked those calls. I archived the complete first attempt and
+resumed the same medium session with that restriction corrected, unchanged
+assertions and the original four-hour deadline. Original historical suite
+receipts now accompany the correction. No database reset, cleaner baseline or
+historical application repair is authorized; original failures remain visible.
+
+Fresh client review also exposed another sequence-integrity case: a later row
+move can hide an earlier contradictory checked absence in one batch. The
+synthetic public-frame repro uses actual native certificates and reproduces
+warm and after reopening. The sole writer is repairing this and measuring a
+shared compact-tree implementation against the unchanged 66,000-byte gzip
+ceiling; the reviewed 66,681-byte build still fails that ceiling.
