@@ -12,3 +12,7 @@ An asset can occupy one cell, so a recipient-specific view-once grant could not 
 
 ## Fix shape
 Either admit N-cell references to one asset under a declared grant table, or give view-once a first-class delivery primitive; LLP 1006's asset RFC should rule which.
+
+## Resolution
+
+Resolved 2026-09-06 by lane L11: `image <=N once` gives server one-use delivery per authenticated principal (410 `E_ASSET_VIEWED` after), one upload and one owning row; the client `viewOnce` stand-in is deleted; main 50d5c628e (LLP 1006 §2a.1).

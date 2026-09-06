@@ -29,3 +29,7 @@ conversation).
    must certify.
 
 Related: LLP 1017 §3 (metering), LLP 1001 §9 (ceilings).
+
+## Partly addressed (2026-09-06, Clique findings program)
+
+wave 1 L3 made cap metering patch-sensitive (only writes touching the cap key are charged; main 53748c499, LLP 1017 §2.4); the per-insert N charge this ticket describes is unchanged and still open.

@@ -12,3 +12,7 @@
 
 ## Fix shape
 Admit the bounded string methods (they are pure and length-bounded by the input) in the effect subset; document the admitted method list on the effects guide page.
+
+## Resolution
+
+Resolved 2026-09-05 by wave 1 lane L5: the effect body library is ES2020 (63 globals kept, string methods included), main 4bb2ae094.

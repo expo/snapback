@@ -12,3 +12,7 @@ An effect body authored a `fetch` with an `idempotency-key` header and a JSON co
 
 ## Fix shape
 The effect runtime's fetch must forward every authored header and the authored body encoding verbatim; add a corpus/effects test that asserts the provider-side receipt headers equal the authored ones.
+
+## Resolution
+
+Resolved 2026-09-05 by wave 1: Ibex fetch takes an engine-owned Headers handle (expo/ibex ae72807ae) and the effect prelude passes authored headers with the redirect/credential matrix (main b6a97bd29, LLP 1003). The earlier ticket 20260901-…-fetch-drops-authored-request was closed then.

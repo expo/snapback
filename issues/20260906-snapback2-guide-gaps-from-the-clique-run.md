@@ -23,3 +23,7 @@ One guide page per item or a capability-index row; the README outbox sentence is
 12. The chat template's dev seed personas occupy handles the fixture pack uses (`alice`), so real signup fails until they are renamed (grok M1). The template should namespace its dev personas or the guide should say to.
 13. The backend re-encodes uploaded PNGs; byte-for-byte comparisons fail while decoded pixels match, and video bytes are exact (astra scale verification). The assets page should say which formats are normalized.
 14. The choreography-visible cost of `E_ASSET_IN_USE` single-cell custody and the cap-times-inserts metering are tracked in their own tickets; both need a guide sentence at the point of first use (assets page, cap page).
+
+## Partly addressed (2026-09-06, Clique findings program)
+
+items 1–3 (README outbox line, `guide maintain`, `byId` literal) wave 1 L4/L2; item 4 (text search) L9 `words` + the channels-page recipe; item 5 (token restoration retry) L7 + the auth page; item 6 (presence) L12 `connected`; item 7 (`divmod(now)`) L9. Open: 8–14.

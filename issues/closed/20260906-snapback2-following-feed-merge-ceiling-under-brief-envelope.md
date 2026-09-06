@@ -12,3 +12,7 @@ A 500-follow user's Following feed as a 20-row enriched merge refused `E_BOUND` 
 
 ## Fix shape
 Either the merge's examined accounting is too coarse for a fan-in whose lanes are prefix-keyed (each lane is a hoisted scan; the union bound need not be lanes × reserve), or the brief's envelope needs a documented partitioned-feed recipe. Decide which and paste the recipe in the refusal.
+
+## Resolution
+
+Resolved 2026-09-06 by lane L10: `merge` is a lazy k-way heap over one cursor per distinct prefix; 500 follows + self at take 20 certifies at 1,025 examined (1,185 with card reads), main 859f0ab7d (LLP 1001 merge section, LLP 1010 A5).

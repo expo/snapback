@@ -24,3 +24,7 @@ exposes a `revalidating` flag), or the guide says loudly that it does not.
 3. Guide note on the auth page about viewer stability across reconnects, with the retry path
    (`20260906-snapback2-guide-gaps-from-the-clique-run.md` already asks for the token-restoration
    retry path).
+
+## Resolution
+
+Resolved 2026-09-05 by wave 1 lane L7: one auth machine per client (`snapshot.auth`), the token-bound principal is retained as `restoringViewer` while `me()` revalidates with backoff, a failed transition never parks a valid bearer in `refused`; main 7e98893dd (LLP 1002 §9).

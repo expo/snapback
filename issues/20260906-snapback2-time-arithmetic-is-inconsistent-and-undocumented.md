@@ -27,3 +27,7 @@ author no blessed way to do the one thing every app with a chart needs.
    by side.
 3. If day bucketing is added, the Insights shape in the Clique brief (seven day buckets maintained
    by the server) is the regression fixture.
+
+## Partly addressed (2026-09-06, Clique findings program)
+
+wave 1 L2 typed `time − time` and the time rules on the grammar page (main 0f5e6d27a); L9's `divmod(time, int)` yields int so a UTC day bucket is `divmod(now, 86400000).quotient` (main, pending L9 landing). Open: whether `0 + now` should refuse; the side-by-side accepted/refused table on the grammar page.
