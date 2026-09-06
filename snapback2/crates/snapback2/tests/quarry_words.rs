@@ -1,10 +1,69 @@
 mod common;
 
 use common::Project;
-use serde_json::Value as Json;
+use serde_json::{Value as Json, json};
+use snapback2_core::engine::ClosureReceipt;
 use snapback2_core::*;
 use std::collections::BTreeMap;
 use std::fs;
+use std::io::Write;
+use std::process::{Command, Stdio};
+
+fn rows(engine: &Engine, schema: &Schema) -> Json {
+    schema
+        .tables
+        .keys()
+        .map(|table| {
+            let rows: BTreeMap<_, _> = engine
+                .rows(table)
+                .unwrap()
+                .into_iter()
+                .map(|row| (row.field("id").unwrap().as_str().unwrap().to_owned(), row))
+                .collect();
+            (table.clone(), serde_json::to_value(rows).unwrap())
+        })
+        .collect()
+}
+
+// Hydrate the actual compiled IR and the pre-execution rows; compare both results
+// and committed rows against the engine, so a no-op mutation cannot pass parity.
+fn twin(input: Json) {
+    let mut child = Command::new("bun").args(["-e", r#"
+        import { ClientStore } from './src/evaluator';
+        import { canonicalJson } from './src/value-runtime';
+        const input = await Bun.stdin.json();
+        const store = new ClientStore(input.schema, input.receipt);
+        let result;
+        try {
+            const local = input.program.kind === 'Mutation'
+                ? store.applyMutation(input.program, input.context)
+                : store.reexecute(input.program, input.context, input.certificate);
+            if (!['predicted', 'fresh'].includes(local.state)) throw new Error(JSON.stringify(local));
+            result = { value: local.execution.result };
+        } catch (error) { result = { error: error.authoredCode ?? error.code ?? error.message }; }
+        if (canonicalJson(result) !== canonicalJson(input.expected))
+            throw new Error(`${input.program.name}: ${canonicalJson(result)} != ${canonicalJson(input.expected)}`);
+        if (input.rows) {
+            const rows = Object.fromEntries(Object.keys(input.schema.tables).map(table => [table,
+                Object.fromEntries(store.rows(table).map(row => [row.Row.id.Id, row]))]));
+            if (canonicalJson(rows) !== canonicalJson(input.rows)) throw new Error('engine/twin rows differ');
+        }
+    "#]).current_dir(std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../packages/evaluator"))
+        .stdin(Stdio::piped()).stdout(Stdio::piped()).stderr(Stdio::piped()).spawn().unwrap();
+    child
+        .stdin
+        .take()
+        .unwrap()
+        .write_all(input.to_string().as_bytes())
+        .unwrap();
+    let output = child.wait_with_output().unwrap();
+    assert!(
+        output.status.success(),
+        "{}{}",
+        String::from_utf8_lossy(&output.stdout),
+        String::from_utf8_lossy(&output.stderr)
+    );
+}
 
 fn text(value: &str) -> Value {
     Value::String(value.into())
@@ -40,7 +99,11 @@ fn execute(
     static NEXT: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
     let batch = NEXT.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
     context.new_ids = (0..1001).map(|n| format!("word-{batch}-{n}")).collect();
-    let result = engine.execute(program, &certificate, context).unwrap();
+    let before: Vec<_> = schema.tables.keys().flat_map(|table| engine.rows(table).unwrap().into_iter()
+        .map(move |row| json!({ "table": table, "id": row.field("id").unwrap().as_str().unwrap(), "row": row }))).collect();
+    let result = engine
+        .execute(program, &certificate, context.clone())
+        .unwrap();
     assert!(
         matches!(
             result.state,
@@ -53,6 +116,23 @@ fn execute(
     assert!(result.trace.rule_probes <= certificate.max_rule_probes);
     assert!(result.trace.steps <= certificate.max_steps);
     assert!(canonical_json(&result.result).len() as u64 <= certificate.max_output_bytes);
+    // Closure pricing follows retained result/collection values, not the read
+    // receipt or transient write inputs (retention.rs::statements).
+    let held_bytes = match &result.result {
+        Value::Null | Value::Bool(_) | Value::Int(_) => 0,
+        value => canonical_json(value).len() as u64,
+    };
+    assert!(
+        held_bytes <= certificate.max_closure_bytes,
+        "held {held_bytes}, certificate {}",
+        certificate.max_closure_bytes
+    );
+    let mut receipt = serde_json::to_value(&result.receipt).unwrap();
+    receipt["rows"] = json!(before);
+    twin(
+        json!({ "schema": schema, "program": program, "context": context, "certificate": certificate,
+        "receipt": receipt, "expected": { "value": result.result }, "rows": rows(engine, schema) }),
+    );
     result
 }
 
@@ -110,7 +190,8 @@ fn quarry_words_recipe_indexes_edits_and_searches_inside_its_certificate() {
     let indexed = execute(&mut engine, &schema, program("index"), arguments(&body));
     assert_eq!(indexed.trace.writes["searchWords"], 6);
     // Repeated indexing upserts the same six keys.
-    execute(&mut engine, &schema, program("index"), arguments(&body));
+    let reindexed = execute(&mut engine, &schema, program("index"), arguments(&body));
+    assert_eq!(reindexed.trace.writes["searchWords"], 6);
     let search = |engine: &mut Engine, term: &str| {
         execute(
             engine,
@@ -135,6 +216,7 @@ fn quarry_words_recipe_indexes_edits_and_searches_inside_its_certificate() {
         assert_eq!(search(&mut engine, term), found);
     }
     assert_eq!(search(&mut engine, "hel"), Value::Array(vec![]));
+    assert_eq!(search(&mut engine, "HELLO"), Value::Array(vec![]));
     let edited = execute(
         &mut engine,
         &schema,
@@ -151,7 +233,53 @@ fn quarry_words_recipe_indexes_edits_and_searches_inside_its_certificate() {
         assert_eq!(search(&mut engine, term), found);
     }
     execute(&mut engine, &schema, program("edit"), arguments(""));
-    assert_eq!(search(&mut engine, "world"), Value::Array(vec![]));
+    for term in ["world", "caf", "na", "ve", "a", "b", "3"] {
+        assert_eq!(search(&mut engine, term), Value::Array(vec![]));
+    }
+    // A pre-existing nonempty message has never been indexed.
+    engine
+        .seed(
+            "messages",
+            row([
+                ("id", id("m2")),
+                ("conversationId", id("c1")),
+                ("author", id("alice")),
+                ("body", text("Never indexed")),
+                ("at", Value::Int(2)),
+            ]),
+        )
+        .unwrap();
+    let certificate = Checker::new(&schema, Ceilings::default())
+        .check(program("edit"))
+        .unwrap();
+    let error = engine
+        .execute(
+            program("edit"),
+            &certificate,
+            Context::mutation(
+                Actor::user("alice").unwrap(),
+                BTreeMap::from([
+                    ("messageId".into(), id("m2")),
+                    ("body".into(), text("changed")),
+                ]),
+            ),
+        )
+        .unwrap_err();
+    assert!(
+        matches!(error, RuntimeError::Require { ref code } if code == "NOT_FOUND"),
+        "{error}"
+    );
+    assert_eq!(
+        engine
+            .rows("messages")
+            .unwrap()
+            .iter()
+            .find(|r| r.field("id").unwrap() == &id("m2"))
+            .unwrap()
+            .field("body")
+            .unwrap(),
+        &text("Never indexed")
+    );
 }
 
 #[test]
@@ -231,5 +359,188 @@ fn words_loop_elements_keep_the_whole_input_width_through_aliases() {
             BTreeMap::from([("body".into(), text(&"A".repeat(2000)))]),
         );
         assert_eq!(result.result, text(&"a".repeat(2000)));
+        let certificate = Checker::new(&schema, Ceilings::default())
+            .check(&program)
+            .unwrap();
+        let domain = Value::Array(vec![text(&"a".repeat(2000))]);
+        let held = canonical_json(&domain).len() + canonical_json(&result.result).len();
+        assert!(
+            held as u64 <= certificate.max_closure_bytes,
+            "{held} > {}",
+            certificate.max_closure_bytes
+        );
     }
+}
+
+#[test]
+fn words_dense_inputs_dedupe_and_stay_inside_output_and_closure_bounds() {
+    let schema = Schema::default();
+    let program = Program {
+        name: "words.dense".into(),
+        kind: ProgramKind::Query,
+        args: BTreeMap::from([("body".into(), ArgType::Text { max: 2000 })]),
+        read_time_granularity_ms: None,
+        result_page_site: None,
+        body: vec![Stmt::Return(Expr::Builtin {
+            builtin: Builtin::Words,
+            args: vec![Expr::Variable("body".into())],
+        })],
+    };
+    // ASCII lowercase dedupe admits only 36 distinct single-character words.
+    // After those, distinct two-character runs maximize the remaining density.
+    let alphabet = "abcdefghijklmnopqrstuvwxyz0123456789";
+    let mut terms: Vec<String> = alphabet.chars().map(|c| c.to_string()).collect();
+    for a in alphabet.chars() {
+        for b in alphabet.chars() {
+            terms.push(format!("{a}{b}"));
+        }
+    }
+    let dense = terms[..678].join(" "); // 1997 scalars; another term would reach 2000.
+    let dense = format!("{dense} {}", terms[678]);
+    assert_eq!(dense.chars().count(), 2000);
+    for (body, expected) in [("a ".repeat(1000), 1), (dense, 679)] {
+        let mut engine = Engine::memory(schema.clone()).unwrap();
+        let result = execute(
+            &mut engine,
+            &schema,
+            &program,
+            BTreeMap::from([("body".into(), text(&body))]),
+        );
+        assert_eq!(result.result.as_array().unwrap().len(), expected);
+        let certificate = Checker::new(&schema, Ceilings::default())
+            .check(&program)
+            .unwrap();
+        assert!(canonical_json(&result.result).len() as u64 <= certificate.max_closure_bytes);
+    }
+}
+
+#[test]
+fn words_text_plus_ir_refuses_identically_in_engine_and_twin() {
+    let schema = Schema::default();
+    let plus = Expr::Binary {
+        op: BinaryOp::Add,
+        left: Box::new(Expr::Variable("a".into())),
+        right: Box::new(Expr::Variable("b".into())),
+    };
+    for value in [
+        plus.clone(),
+        Expr::Builtin {
+            builtin: Builtin::Words,
+            args: vec![plus],
+        },
+    ] {
+        let program = Program {
+            name: "words.plus".into(),
+            kind: ProgramKind::Query,
+            args: BTreeMap::from([
+                ("a".into(), ArgType::Text { max: 4 }),
+                ("b".into(), ArgType::Text { max: 4 }),
+            ]),
+            read_time_granularity_ms: None,
+            result_page_site: None,
+            body: vec![Stmt::Return(value)],
+        };
+        let certificate = Checker::new(&schema, Ceilings::default())
+            .check(&program)
+            .unwrap();
+        let context = Context::query(
+            Actor::user("alice").unwrap(),
+            BTreeMap::from([("a".into(), text("a b ")), ("b".into(), text("c d"))]),
+        );
+        let error = Engine::memory(schema.clone())
+            .unwrap()
+            .execute(&program, &certificate, context.clone())
+            .unwrap_err();
+        assert!(error.to_string().contains("E_TYPE"), "{error}");
+        twin(
+            json!({ "schema": schema, "program": program, "certificate": certificate,
+            "context": context, "receipt": ClosureReceipt::default(), "expected": { "error": "E_TYPE" } }),
+        );
+    }
+}
+
+#[test]
+fn words_narrow_column_refuses_the_whole_token_and_rolls_back() {
+    let project = Project::new();
+    fs::create_dir(project.path.join("snapback")).unwrap();
+    fs::write(
+        project.path.join("snapback/schema.q"),
+        "table terms:\n  term: text <=64\n  public\n  insert <- allow\n",
+    )
+    .unwrap();
+    fs::write(project.path.join("snapback/probe.q"), "mutation probe(body: text <=2000):\n  for term in words(body):\n    insert terms { term }\n  return true\n").unwrap();
+    let checked = project.run(&["check", "--json"]);
+    assert!(
+        checked.status.success(),
+        "{}",
+        String::from_utf8_lossy(&checked.stderr)
+    );
+    let compiled: Json = serde_json::from_slice(
+        &fs::read(project.path.join(".snapback/build/project.json")).unwrap(),
+    )
+    .unwrap();
+    let schema: Schema = serde_json::from_value(compiled["schema"].clone()).unwrap();
+    let program: Program = serde_json::from_value(compiled["programs"][0].clone()).unwrap();
+    let certificate = Checker::new(&schema, Ceilings::default())
+        .check(&program)
+        .unwrap();
+    let mut engine = Engine::memory(schema.clone()).unwrap();
+    let mut context = Context::mutation(
+        Actor::user("alice").unwrap(),
+        BTreeMap::from([("body".into(), text(&format!("ok {}", "A".repeat(70))))]),
+    );
+    context.new_ids = ["short".into(), "long".into()].into();
+    let error = engine
+        .execute(&program, &certificate, context.clone())
+        .unwrap_err();
+    assert!(
+        matches!(error, RuntimeError::Input(ref message) if message == "terms.term violates Text { max: 64 }"),
+        "{error}"
+    );
+    assert!(
+        engine.rows("terms").unwrap().is_empty(),
+        "partial insert or truncated token escaped rollback"
+    );
+    twin(
+        json!({ "schema": schema, "program": program, "certificate": certificate, "context": context,
+        "receipt": ClosureReceipt::default(), "expected": { "error": "E_INPUT" }, "rows": rows(&engine, &schema) }),
+    );
+}
+
+#[test]
+fn words_benchmark_upsert_certifies_the_6008_rule_probe_product() {
+    let project = Project::new();
+    let fixture = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("../../packages/compiler/fixtures/quarry-words/snapback");
+    fs::create_dir(project.path.join("snapback")).unwrap();
+    let schema = fs::read_to_string(fixture.join("schema.q")).unwrap()
+        .replace("  public\n  insert <- allow\n  update <- allow\n  delete <- allow", "  read <- exists memberships[.conversationId, viewer]\n  insert <- exists memberships[.conversationId, viewer]\n  update <- exists memberships[.conversationId, viewer]\n  delete <- exists memberships[.conversationId, viewer]");
+    let schema = schema.replace(
+        "  public\n  insert <- .author = viewer",
+        "  read <- exists memberships[.conversationId, viewer]\n  insert <- .author = viewer",
+    );
+    fs::write(project.path.join("snapback/schema.q"), format!("{schema}\ntable memberships:\n  conversationId: conversations\n  principal: principal\n  unique byConversationPrincipal: conversationId, principal\n  read <- exists memberships[.conversationId, viewer]\n")).unwrap();
+    // Only the benchmark's index mutation; edit has a different probe product.
+    let source = fs::read_to_string(fixture.join("search.q")).unwrap();
+    fs::write(
+        project.path.join("snapback/search.q"),
+        source.split("mutation edit").next().unwrap(),
+    )
+    .unwrap();
+    let checked = project.run(&["check", "--json"]);
+    assert!(
+        checked.status.success(),
+        "{}",
+        String::from_utf8_lossy(&checked.stderr)
+    );
+    let compiled: Json = serde_json::from_slice(
+        &fs::read(project.path.join(".snapback/build/project.json")).unwrap(),
+    )
+    .unwrap();
+    let schema: Schema = serde_json::from_value(compiled["schema"].clone()).unwrap();
+    let program: Program = serde_json::from_value(compiled["programs"][0].clone()).unwrap();
+    let certificate = Checker::new(&schema, Ceilings::default())
+        .check(&program)
+        .unwrap();
+    assert_eq!(certificate.max_rule_probes, 6008); // 1001 × (4 + 2) + 2
 }

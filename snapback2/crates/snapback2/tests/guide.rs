@@ -66,6 +66,12 @@ fn refusal_code_guide_prints_the_wrong_and_right_pair() {
 #[test]
 fn quarry_keywords_print_grammar_and_definitions_beside_symbol_help() {
     let project = Project::new();
+    let quarry = include_str!("../../../packages/snapback2/guide/quarry.md");
+    assert!(quarry.contains("`share`, and `words`"));
+    assert!(quarry.contains("rather than redrawn"));
+    let search = include_str!("../../../packages/snapback2/guide/live-query.md");
+    assert!(search.contains("already-lowercased ASCII word"));
+    assert!(search.contains("unindexed nonempty body refuses `NOT_FOUND`"));
     let definitions = [
         ("maintain", "count/sum"),
         ("cap", "holds every group at N rows"),
@@ -121,12 +127,17 @@ fn quarry_keywords_print_grammar_and_definitions_beside_symbol_help() {
         definitions.len(),
         "cover every grammar construct"
     );
+    assert!(lines.iter().find(|(name, _)| *name == "for").unwrap().1.contains("tokens/words"));
     for (keyword, definition) in definitions {
         let output = project.run(&["guide", keyword, "--json"]);
         let page = json_stdout(&output);
         assert!(output.status.success(), "{keyword}: {page}");
         assert_eq!(page["page"], keyword);
         let content = page["content"].as_str().unwrap();
+        if keyword == "words" {
+            assert!(content.contains("refuses `+`/template-built text"));
+            assert!(content.contains("body: text <=N"));
+        }
         assert_eq!(
             content
                 .lines()

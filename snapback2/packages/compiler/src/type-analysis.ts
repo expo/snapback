@@ -263,7 +263,7 @@ class Analyzer {
         );
         return unknownType;
       }
-      return { kind: "string" };
+      return { kind: "string", builtText: true };
     }
     if (ts.isArrayLiteralExpression(value)) {
       const elementTarget = target?.kind === "list" ? target.of : undefined;
@@ -419,6 +419,7 @@ class Analyzer {
       if (left.kind === "string") right = this.expression(node.right, env, left);
       if (right.kind === "string") left = this.expression(node.left, env, right);
       if (left.kind === "unknown") return unknownType;
+      if (left.kind === "string" && right.kind === "string" && right.builtText) return { ...left, builtText: true };
       return left.kind === "null" ? right : left;
     }
     const comparison = [
@@ -430,6 +431,9 @@ class Analyzer {
     if (right.kind === "enum" && ts.isStringLiteralLike(unwrapExpression(node.left))) this.enumVariant(unwrapExpression(node.left) as ts.StringLiteralLike, right);
     if (left.kind === "decimal" || right.kind === "decimal") {
       return this.decimalBinary(node, left, right, comparison);
+    }
+    if (operator === ts.SyntaxKind.PlusToken && (left.kind === "string" || right.kind === "string")) {
+      return { kind: "string", builtText: true };
     }
     return comparison ? { kind: "bool" } : commonType([left, right]);
   }
@@ -575,6 +579,11 @@ class Analyzer {
     }
     if (name === "words" && !env.variables.has(name) && call.arguments.length === 1) {
       const input = this.expression(call.arguments[0]!, env);
+      if (input.kind === "string" && input.builtText) {
+        this.add("E_QUARRY_TYPE", call, "words requires a declared text bound; + or template-built text has no declared maximum",
+          "use words(body) with body declared as t.text(N) in an argument or column");
+        return unknownType;
+      }
       if (input.kind === "string" && !input.id && input.max !== undefined) {
         return { kind: "list", of: input, max: Math.floor(input.max / 2) + 1 };
       }
@@ -905,7 +914,7 @@ class Analyzer {
     return replaceNode(this.module.source, node, replacement);
   }
 
-  private add(code: "E_DECIMAL_SCALE" | "E_ENUM_VARIANT" | "E_ARGS_TYPE" | "E_ARGS_ID_SCALAR" | "E_ARGS_ID_TEXT" | "E_OPAQUE", node: ts.Node, message: string, rewrite: string): void {
+  private add(code: "E_QUARRY_TYPE" | "E_DECIMAL_SCALE" | "E_ENUM_VARIANT" | "E_ARGS_TYPE" | "E_ARGS_ID_SCALAR" | "E_ARGS_ID_TEXT" | "E_OPAQUE", node: ts.Node, message: string, rewrite: string): void {
     const key = `${code}:${node.getStart(this.module.sourceFile)}:${message}`;
     if (this.seen.has(key)) return;
     this.seen.add(key);

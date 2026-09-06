@@ -22,7 +22,7 @@ type ObjectType = { kind: "object"; fields: Map<string, ValueType>; nullable: bo
 type SequenceType = { kind: "sequence"; item: ValueType; max: number };
 type NumericLiteralType = { kind: "numeric-literal"; fractionalDigits: number };
 type ValueType =
-  | ScalarType
+  | (ScalarType & { builtText?: true })
   | { kind: "row"; table: string; nullable: boolean }
   | { kind: "page"; table: string }
   | SequenceType
@@ -357,7 +357,9 @@ function emitBinary(expr: Extract<Expr, { kind: "binary" }>, env: Environment, w
       typeError(expr.right.site, `Id fallback requires ${valueTypeName(left.type)}; got ${valueTypeName(right.type)}`,
         "use a non-empty text literal or a reference to the same table");
     }
-    return { code: `(${left.code} ?? ${right.code})`, type: nonNullable(left.type) };
+    const type = nonNullable(left.type);
+    if (type.kind === "text" && right.type.kind === "text" && right.type.builtText) type.builtText = true;
+    return { code: `(${left.code} ?? ${right.code})`, type };
   }
   const operator = expr.op === "=" ? "===" : expr.op === "!=" ? "!==" : expr.op;
   // @ref LLP 1010#a2-total-equality--program-only — program equality is total;
@@ -455,7 +457,8 @@ function emitBinary(expr: Extract<Expr, { kind: "binary" }>, env: Environment, w
     }
     return { code: `(${left.code} * ${right.code})`, type: branded };
   }
-  return { code: `(${left.code} ${expr.op} ${right.code})`, type: left.type };
+  return { code: `(${left.code} ${expr.op} ${right.code})`,
+    type: expr.op === "+" && left.type.kind === "text" ? { ...left.type, builtText: true } : left.type };
 }
 
 function emitMember(expr: Extract<Expr, { kind: "member" }>, env: Environment, writer: Writer): Emitted {
@@ -576,6 +579,11 @@ function emitCall(expr: Extract<Expr, { kind: "call" }>, env: Environment, write
     if (args.length !== 1 || input?.type.kind !== "text" || input.type.optional) {
       typeError(expr.site, "words(text) requires exactly one present bounded text argument",
         "use words(body) with body: text <=N; use words(body ?? '') for optional text");
+    }
+    // The integer-only Add runtime refusal is not evidence of a text bound.
+    if (input.type.builtText) {
+      typeError(expr.site, "words requires a declared text bound; + or template-built text has no declared maximum",
+        "use words(body) with body: text <=N declared as an argument or column");
     }
     // @ref LLP 1001#pure-builtins — whole tokens keep the input width; separators bound cardinality.
     return { code: `words(${input.code})`, type: { kind: "list",

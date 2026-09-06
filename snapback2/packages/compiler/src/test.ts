@@ -32,6 +32,7 @@ import type { SnapbackClient } from "../../snapback2/src/types";
 import * as reactSurface from "../../snapback2/src/react";
 import * as testSurface from "../../snapback2/src/test";
 import ts from "typescript";
+import { registerQuarryWordsChecks } from "./quarry-words-checks";
 
 const frontend = decodeURIComponent(new URL("../", import.meta.url).pathname);
 const crate = decodeURIComponent(new URL("../../../", import.meta.url).pathname);
@@ -1401,52 +1402,7 @@ test("worker refuses every TypeScript-authored export and serves the next Quarry
   });
 });
 
-for (const [label, domain, max] of [
-  ["direct", "words(body)", 1001], ["alias", "terms", 1001], ["column", "words(row.body)", 1001],
-  ["literal", "words('A b')", 2], ["odd", "words('a b c')", 3], ["empty", "words('')", 1],
-  ["optional fallback", "words(maybe ?? '')", 11], ["Unicode scalars", "words('🙂A 🙂b')", 3],
-] as const) {
-  test(`Quarry words derives a ${max}-item text list and ${label} for domain`, async () => {
-    await withProject({
-      "snapback/schema.q": `table docs:
-  body: text <=2000
-  terms: [text <=2000] <=1001
-  public
-  insert <- allow
-`,
-      "snapback/probe.q": `mutation probe(body: text <=2000, maybe: text <=20 ?):
-  terms = words(body)
-  row = insert docs { body, terms }
-  for term in ${domain}:
-    require term != '' else EMPTY
-  return { terms, count: count(words(body)) }
-`,
-    }, async (root) => {
-      const result = await lowerProject(root);
-      assert(result.ok, JSON.stringify(result));
-      const program = result.project.programs[0]!;
-      const ir = JSON.stringify(program);
-      assert(ir.includes('"builtin":"Words"'), ir);
-      const loop = program.body.find((statement) => typeof statement === "object" && "For" in statement);
-      assert(loop && typeof loop === "object" && "For" in loop && "DerivedArray" in loop.For.domain && loop.For.domain.DerivedArray.max === max, ir);
-      const checked = rustCheck([program], "synthetic", result.project.schema);
-      assert(checked.every((item) => !item.error), JSON.stringify(checked));
-    });
-  });
-}
-test("Quarry words refuses non-text, optional text and wrong arity with a rewrite", async () => {
-  for (const call of ["words(n)", "words(maybe)", "words()", "words('a', 'b')"]) {
-    await withProject({
-      "snapback/schema.q": "table docs:\n  body: text <=2000\n  public\n",
-      "snapback/probe.q": `query probe(n: int, maybe: text <=20 ?):\n  return ${call}\n`,
-    }, async (root) => {
-      const result = await lowerProject(root);
-      assert(!result.ok, `${call} admitted`);
-      assert(result.diagnostics.some((d) => d.code === "E_QUARRY_TYPE"
-        && d.message.includes("words") && d.rewrite?.includes("words")), JSON.stringify(result));
-    });
-  }
-});
+registerQuarryWordsChecks(test, libText);
 
 registerPackageGuideChecks(test, assert, withProject, crate);
 

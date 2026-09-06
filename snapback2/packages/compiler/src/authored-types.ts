@@ -5,7 +5,7 @@ export type AuthoredType =
   | { kind: "int" }
   | { kind: "decimal"; scale: number; currency?: string }
   | { kind: "enum"; variants: string[] }
-  | { kind: "string"; max?: number; id?: true }
+  | { kind: "string"; max?: number; id?: true; builtText?: true }
   | { kind: "principal" }
   | { kind: "bytes"; max: number }
   | { kind: "asset"; asset: "image" | "video"; max: number }

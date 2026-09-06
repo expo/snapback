@@ -48,8 +48,8 @@ unacknowledged message.
 ## Whole-word search
 
 `words(text)` returns `[A-Za-z0-9]+` runs, lowercase, deduplicated in first-occurrence
-order. This is whole-word, case-folded ASCII matching, not prefix search;
-non-ASCII letters split words. Empty input yields `[]`. For `text <=N`, the
+order. Whole-word ASCII matching, not prefix search; non-ASCII splits words.
+Empty input yields `[]`. For `text <=N`, the
 bound is `floor(N/2)+1` (2000 → 1001), valid in lists and `for`.
 Runs stay whole beyond 64 characters: the index column must be wide enough
 or the program must filter. `tokens(text)` remains the `@` mention extractor.
@@ -92,5 +92,5 @@ query search(conversationId: conversations, term: text <=2000):
   return searchWords[conversationId, term] last 20 by byConversationTermTime { messageId }
 ```
 
-Index at creation; edit assumes old terms were indexed. Pass a lowercase
-ASCII word to search. Public-conversation rules.
+Index at creation; editing an unindexed nonempty body refuses `NOT_FOUND`.
+`search` takes an already-lowercased ASCII word. Public-conversation rules.

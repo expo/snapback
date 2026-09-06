@@ -5,7 +5,7 @@
 **Systems:** `snapback2/crates/snapback2-core` (`store`, `registry`, `live`, `identity`, `successor`, the engine, the IR)
 **Author:** Claude Fable 5 (orchestrator) — implementer: codex gpt-5.6-sol, lane A
 **Date:** 2026-08-29
-**Revised:** 2026-09-05 (Clique L9 — bounded ASCII words builtin; Clique L3 — honest bound refusals and patch-sensitive cap metering; LLP 1016 J2 — §1's system tables gain `_jobs` and `_timers`; LLP 1017 §1, then §2 and §3)
+**Revised:** 2026-09-05 (Clique L9 — bounded ASCII words builtin and constructed-text boundary; Clique L3 — honest bound refusals and patch-sensitive cap metering; LLP 1016 J2 — §1's system tables gain `_jobs` and `_timers`; LLP 1017 §1, then §2 and §3)
 **Related:** LLP 1000, LLP 1002 (the loop that serves this), LLP 1003 (effects
 through the outbox this spec defines), LLP 0329.014.004 §7 (runtime), LLP
 0329.014.000 §6 (execution, trace, states), LLP 0329.016 §5.6 (no silent
@@ -833,7 +833,10 @@ For a required text argument/expression with declared maximum N Unicode scalar
 values, the list maximum is `floor(N / 2) + 1`: nonempty runs need separating
 characters. Each output term has the input's maximum width. The front end carries
 both bounds through list positions, aliases, and `for` domains and refuses
-non-text/optional arguments with a repair. Serialized output is bounded by eight
+non-text/optional arguments with a repair. Text built with `+` or interpolation
+has no declared bound and is refused at `words`, including through aliases;
+the repair names a declared bounded text argument or column. A wider literal
+`??` fallback refuses against the left text bound. Serialized output is bounded by eight
 times the input's serialized maximum, covering tagged one-letter strings and
 array separators even for literals; tokens are never truncated to fit a bound.
 Loop element pricing keeps that whole-width reserve through aliases and branches:
@@ -856,7 +859,7 @@ a single word may occupy the whole input, so division by the list maximum is uns
   `tests/rbac_cases/`, avoiding redundant test-binary links without combining
   their fixtures or cases; malformed maintain shapes live in that consolidated
   lane.
-- The 106-case shared corpus is regenerated whenever serialization or
+- The shared corpus (`snapback2/corpus/manifest.json`) is regenerated whenever serialization or
   certification changes; the Rust engine and TypeScript evaluator must agree
   on every case.
   It preserves the original semantic inventory while removing authored
