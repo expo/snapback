@@ -1,0 +1,406 @@
+{
+  "date": "2026-09-06T12:42:49.459Z",
+  "node": "v22.23.2",
+  "zlib": "1.3.1-e00f703",
+  "esbuild": "0.25.9",
+  "settings": "bundle/minify,neutral,ESM,es2022,gzip9; write:false",
+  "base": "1f9b4b95c54ba7a5a9d0ece41e9463b29078cfa4",
+  "baselineExpanded": "Legacy Twin plus full existing ProjectionCache and toClosureReceipt exports. No new implementation modules exist at base. This is boundary context, not a retroactive budget substitution.",
+  "cases": {
+    "baseLegacy": {
+      "entry": "snapback2/packages/snapback2/src/twin.ts",
+      "minified": 65974,
+      "gzip": 21745,
+      "sha256": "036268b563da70037821e4f4d1f0a90f61cf67a1344dcf0e5fdcaf27fd2b8004",
+      "sourceHashes": {
+        "snapback2/packages/snapback2/src/store/asset-policy.ts": "e21f1f893e65a3680b1887d6ef543afc96976be1760c27745feec61f787da4d0",
+        "snapback2/crates/snapback2-core/ir-contract.json": "d09c63f52622b9b8fb2762b94b17b4e2c8882e9feecf0737d24470ec2bde0252",
+        "snapback2/packages/evaluator/src/errors.ts": "a2dc2e8ef8522ad82af1740c6f8656dc6b05418454226b50571630e777fe0795",
+        "snapback2/packages/evaluator/src/certificate-identity.ts": "c619d5181f31ded0ad593bbaa0d4e7349bdb13e0347fb1fb162575eb38f32730",
+        "snapback2/packages/evaluator/src/hash.ts": "fc3cea8b05458f5fa00867d8c284bc27a3a00d6d1a4d4d3d50182ff5f3294fe2",
+        "snapback2/packages/evaluator/src/cursor.ts": "d9deb9f9e91ed5d4493f60106023d1797d6cbc302a1da2f13f1934f547c2997b",
+        "snapback2/packages/evaluator/src/value-runtime.ts": "691b15a681781f2347dea54e8b07b1ce746fb4708fce8173bd3d3893f3bf4308",
+        "snapback2/packages/snapback2/src/offline-schema.ts": "a7ab61de526abb3948ea565258eef44bcbce0263d14fc2d485bf7604ca5d9111",
+        "snapback2/packages/snapback2/src/store/row-values.ts": "54fce7162e6b044dda4e05e28a838a2ac6fc9e7e2fc65f41e06529dec3fc5be9",
+        "snapback2/packages/snapback2/src/offline-protocol.ts": "9e3ff9e71c96d2f846b74c8c0fbb282f75cad381aeaa4298391a524757c9755e",
+        "snapback2/packages/evaluator/src/merge.ts": "a2363d11564f095e3fb705b0fd34e029f5d470162aa01e161ac65e87ba4cdecf",
+        "snapback2/packages/evaluator/src/text.ts": "564578922bb4fe9b2522d8e2e4bc42e8111cd3aa804f9de76e9e11d010cc3c8e",
+        "snapback2/packages/evaluator/src/runner.ts": "641d248245b8947079d1ea37be6a6c13bc1d5209b8cd67eaede6308fa7ecf362",
+        "snapback2/packages/evaluator/src/authority.ts": "16ba69cfd87551d51cdfba3e956b7f7e3abadee15c89e1bce3437bde321c8848",
+        "snapback2/packages/evaluator/src/store.ts": "2d06cf6dbad9d5b424d6e900e9e4741ada710f1e31e7fd5a8e86f4516cb302b9",
+        "snapback2/packages/snapback2/src/store/outbox.ts": "835417fd8b915241abc651187fb66680d26d263c9f61f871b4c60b4ba6dc3e81",
+        "snapback2/packages/snapback2/src/twin-hydrate.ts": "a2ed1a8f9cd8342665ae5ac05bb41e348b782462e72f022291ede81937d7eb0b",
+        "snapback2/packages/snapback2/src/twin.ts": "4efa5872ab0f9c12ed3f8882a92cab5fbe30ffd8a04a40f87c512864a45621f1"
+      },
+      "minifiedAttribution": [
+        {
+          "path": "snapback2/packages/evaluator/src/runner.ts",
+          "minifiedContribution": 22556
+        },
+        {
+          "path": "snapback2/packages/evaluator/src/value-runtime.ts",
+          "minifiedContribution": 10359
+        },
+        {
+          "path": "snapback2/packages/evaluator/src/store.ts",
+          "minifiedContribution": 8642
+        },
+        {
+          "path": "snapback2/packages/evaluator/src/cursor.ts",
+          "minifiedContribution": 5534
+        },
+        {
+          "path": "snapback2/packages/evaluator/src/certificate-identity.ts",
+          "minifiedContribution": 4763
+        },
+        {
+          "path": "snapback2/packages/snapback2/src/twin.ts",
+          "minifiedContribution": 3987
+        },
+        {
+          "path": "snapback2/packages/snapback2/src/offline-protocol.ts",
+          "minifiedContribution": 3239
+        },
+        {
+          "path": "snapback2/packages/snapback2/src/twin-hydrate.ts",
+          "minifiedContribution": 2404
+        },
+        {
+          "path": "snapback2/packages/evaluator/src/hash.ts",
+          "minifiedContribution": 1932
+        },
+        {
+          "path": "snapback2/packages/evaluator/src/merge.ts",
+          "minifiedContribution": 793
+        },
+        {
+          "path": "snapback2/packages/snapback2/src/store/asset-policy.ts",
+          "minifiedContribution": 714
+        },
+        {
+          "path": "snapback2/packages/evaluator/src/text.ts",
+          "minifiedContribution": 359
+        },
+        {
+          "path": "snapback2/packages/evaluator/src/authority.ts",
+          "minifiedContribution": 214
+        },
+        {
+          "path": "snapback2/packages/evaluator/src/errors.ts",
+          "minifiedContribution": 205
+        },
+        {
+          "path": "snapback2/crates/snapback2-core/ir-contract.json",
+          "minifiedContribution": 135
+        },
+        {
+          "path": "snapback2/packages/snapback2/src/store/outbox.ts",
+          "minifiedContribution": 44
+        },
+        {
+          "path": "snapback2/packages/snapback2/src/offline-schema.ts",
+          "minifiedContribution": 31
+        }
+      ]
+    },
+    "baseExpanded": {
+      "entry": "expanded.ts",
+      "minified": 72946,
+      "gzip": 24094,
+      "sha256": "be48b75de10bbcd0434d54f9481dd263c4bffa4536de349ed92a66dff1eaaf5c",
+      "sourceHashes": {
+        "snapback2/packages/snapback2/src/store/asset-policy.ts": "e21f1f893e65a3680b1887d6ef543afc96976be1760c27745feec61f787da4d0",
+        "snapback2/crates/snapback2-core/ir-contract.json": "d09c63f52622b9b8fb2762b94b17b4e2c8882e9feecf0737d24470ec2bde0252",
+        "snapback2/packages/evaluator/src/errors.ts": "a2dc2e8ef8522ad82af1740c6f8656dc6b05418454226b50571630e777fe0795",
+        "snapback2/packages/evaluator/src/certificate-identity.ts": "c619d5181f31ded0ad593bbaa0d4e7349bdb13e0347fb1fb162575eb38f32730",
+        "snapback2/packages/evaluator/src/hash.ts": "fc3cea8b05458f5fa00867d8c284bc27a3a00d6d1a4d4d3d50182ff5f3294fe2",
+        "snapback2/packages/evaluator/src/cursor.ts": "d9deb9f9e91ed5d4493f60106023d1797d6cbc302a1da2f13f1934f547c2997b",
+        "snapback2/packages/evaluator/src/value-runtime.ts": "691b15a681781f2347dea54e8b07b1ce746fb4708fce8173bd3d3893f3bf4308",
+        "snapback2/packages/snapback2/src/offline-schema.ts": "a7ab61de526abb3948ea565258eef44bcbce0263d14fc2d485bf7604ca5d9111",
+        "snapback2/packages/snapback2/src/store/row-values.ts": "54fce7162e6b044dda4e05e28a838a2ac6fc9e7e2fc65f41e06529dec3fc5be9",
+        "snapback2/packages/snapback2/src/offline-protocol.ts": "9e3ff9e71c96d2f846b74c8c0fbb282f75cad381aeaa4298391a524757c9755e",
+        "snapback2/packages/evaluator/src/merge.ts": "a2363d11564f095e3fb705b0fd34e029f5d470162aa01e161ac65e87ba4cdecf",
+        "snapback2/packages/evaluator/src/text.ts": "564578922bb4fe9b2522d8e2e4bc42e8111cd3aa804f9de76e9e11d010cc3c8e",
+        "snapback2/packages/evaluator/src/runner.ts": "641d248245b8947079d1ea37be6a6c13bc1d5209b8cd67eaede6308fa7ecf362",
+        "snapback2/packages/evaluator/src/authority.ts": "16ba69cfd87551d51cdfba3e956b7f7e3abadee15c89e1bce3437bde321c8848",
+        "snapback2/packages/evaluator/src/store.ts": "2d06cf6dbad9d5b424d6e900e9e4741ada710f1e31e7fd5a8e86f4516cb302b9",
+        "snapback2/packages/snapback2/src/store/outbox.ts": "835417fd8b915241abc651187fb66680d26d263c9f61f871b4c60b4ba6dc3e81",
+        "snapback2/packages/snapback2/src/twin-hydrate.ts": "a2ed1a8f9cd8342665ae5ac05bb41e348b782462e72f022291ede81937d7eb0b",
+        "snapback2/packages/snapback2/src/twin.ts": "4efa5872ab0f9c12ed3f8882a92cab5fbe30ffd8a04a40f87c512864a45621f1",
+        "snapback2/packages/snapback2/src/store/byte-cache.ts": "70aa1dae3baec0ed00796b51bad0af6e8ed4c325b551b702f72cc25676315967",
+        "snapback2/packages/snapback2/src/store/canonical.ts": "a0b38f5da995c3d8cc9fbbf5c6e144941caba36a2482e06a857f4e114330c07c",
+        "snapback2/packages/snapback2/src/store/overlay-retirement.ts": "3963d2cf4f8805d320bb0886981f6b86aca48709aee50d9d3dda7f5c5dc9cb51",
+        "snapback2/packages/snapback2/src/store/range-store.ts": "f157461e647b767c105230ac9a5463fe0208b2dce997fb919db1fd23806dec19",
+        "snapback2/packages/snapback2/src/store/projection.ts": "88da266c971919cea4e2a0cef5862fbe18970dbc8293226f0c097219e79ccd80",
+        "expanded.ts": "d561b302562b22475f406eef6a33633b86d09891ac0f3aeeec681bfa23bf361d"
+      },
+      "minifiedAttribution": [
+        {
+          "path": "snapback2/packages/evaluator/src/runner.ts",
+          "minifiedContribution": 22556
+        },
+        {
+          "path": "snapback2/packages/evaluator/src/value-runtime.ts",
+          "minifiedContribution": 10359
+        },
+        {
+          "path": "snapback2/packages/snapback2/src/offline-protocol.ts",
+          "minifiedContribution": 8985
+        },
+        {
+          "path": "snapback2/packages/evaluator/src/store.ts",
+          "minifiedContribution": 8642
+        },
+        {
+          "path": "snapback2/packages/evaluator/src/cursor.ts",
+          "minifiedContribution": 5534
+        },
+        {
+          "path": "snapback2/packages/evaluator/src/certificate-identity.ts",
+          "minifiedContribution": 4789
+        },
+        {
+          "path": "snapback2/packages/snapback2/src/twin.ts",
+          "minifiedContribution": 3987
+        },
+        {
+          "path": "snapback2/packages/snapback2/src/twin-hydrate.ts",
+          "minifiedContribution": 2404
+        },
+        {
+          "path": "snapback2/packages/evaluator/src/hash.ts",
+          "minifiedContribution": 1932
+        },
+        {
+          "path": "snapback2/packages/snapback2/src/store/projection.ts",
+          "minifiedContribution": 1155
+        },
+        {
+          "path": "snapback2/packages/evaluator/src/merge.ts",
+          "minifiedContribution": 793
+        },
+        {
+          "path": "snapback2/packages/snapback2/src/store/asset-policy.ts",
+          "minifiedContribution": 714
+        },
+        {
+          "path": "snapback2/packages/evaluator/src/text.ts",
+          "minifiedContribution": 359
+        },
+        {
+          "path": "snapback2/packages/evaluator/src/authority.ts",
+          "minifiedContribution": 214
+        },
+        {
+          "path": "snapback2/packages/evaluator/src/errors.ts",
+          "minifiedContribution": 205
+        },
+        {
+          "path": "snapback2/crates/snapback2-core/ir-contract.json",
+          "minifiedContribution": 135
+        },
+        {
+          "path": "snapback2/packages/snapback2/src/store/outbox.ts",
+          "minifiedContribution": 44
+        },
+        {
+          "path": "snapback2/packages/snapback2/src/offline-schema.ts",
+          "minifiedContribution": 31
+        },
+        {
+          "path": "expanded.ts",
+          "minifiedContribution": 0
+        }
+      ]
+    },
+    "currentWip": {
+      "entry": "snapback2/packages/snapback2/src/twin.ts",
+      "minified": 138082,
+      "gzip": 46838,
+      "sha256": "c23ba8d6f070c77f9d503aa49ede49889e1d54084027cf9cd1fe947c8ebee1e2",
+      "sourceHashes": {
+        "snapback2/packages/evaluator/src/hash.ts": "470e2f7973cc86a35be29e9ba901f3c86f759e6e65796051f188cb3a68a75214",
+        "snapback2/packages/evaluator/src/errors.ts": "a2dc2e8ef8522ad82af1740c6f8656dc6b05418454226b50571630e777fe0795",
+        "snapback2/packages/evaluator/src/certificate-identity.ts": "e7693a42452ba4f74444fc0bfb04af86520901187c7610577873c0a382b7d9f8",
+        "snapback2/crates/snapback2-core/ir-contract.json": "d09c63f52622b9b8fb2762b94b17b4e2c8882e9feecf0737d24470ec2bde0252",
+        "snapback2/packages/evaluator/src/cursor.ts": "0acdcfce2879fce11ab2a2271f0c0faba8767786bbd17671af42c73f4cababb6",
+        "snapback2/packages/evaluator/dist/unicode-tables.ts": "9eccdccd99e9b936a40dcbf8ae63c55d980086df1ae71f92019f9ab040f6a521",
+        "snapback2/packages/evaluator/src/unicode-tables.ts": "ab99f5f9a78ebe52ec3102525d51b6c9dd7c59cbd9f1b26932042982476b8412",
+        "snapback2/packages/evaluator/src/unicode.ts": "5c17bfa9c0385ed179344dead423a48cbb2bf86abc5089511af934522831c724",
+        "snapback2/packages/evaluator/src/value-runtime.ts": "a9233e741a4e2f9f5fbc73d35dcd3f0897f03816b57308034242d13410c9feb0",
+        "snapback2/packages/evaluator/src/merge.ts": "a2363d11564f095e3fb705b0fd34e029f5d470162aa01e161ac65e87ba4cdecf",
+        "snapback2/packages/evaluator/src/text.ts": "6c86ff2050d214161658f8bbb9382c82d0adb602b85de4a4dacf7fe2b1ee1741",
+        "snapback2/packages/evaluator/src/search-key.ts": "347cd64b12798d7b46d120d56f142a912ca810f33e2bd0ce6673861bd032e871",
+        "snapback2/packages/evaluator/src/search-runtime.ts": "eee7b07c5cf0649ccc4161bfca06cef080ed83d8f443bed2cf3b074d428ea6c2",
+        "snapback2/packages/evaluator/src/ordered.ts": "83954c8a6b8fb6fd73ab663b971c0a366da851e97adbd09bb626542da7467059",
+        "snapback2/packages/evaluator/src/index-store.ts": "a617270a565df9e3e6aa9c6126ed74705c9153a3d7d8213feb220f1d1f337f86",
+        "snapback2/packages/evaluator/src/runner.ts": "1630f6dce0c9d8f1c50af04fa438c2ae08417cde660176cba1f127c71fb36357",
+        "snapback2/packages/snapback2/src/offline-schema.ts": "a7ab61de526abb3948ea565258eef44bcbce0263d14fc2d485bf7604ca5d9111",
+        "snapback2/packages/snapback2/src/held-program.ts": "a7d88981677945980355795f8c63b74ecd912841cc92138667a5b713d8d85a94",
+        "snapback2/packages/snapback2/src/local-cursor.ts": "b5cb5aaab995a418c7d2beb684bb2cdc88ea4780c97a6a42bd620ea644cb27a6",
+        "snapback2/packages/snapback2/src/store/canonical.ts": "a0b38f5da995c3d8cc9fbbf5c6e144941caba36a2482e06a857f4e114330c07c",
+        "snapback2/packages/snapback2/src/types.ts": "d32085b58a952dd284e96778ad7bae188e25da73f560ee1e6512e294ff31459a",
+        "snapback2/packages/snapback2/src/store/asset-policy.ts": "ba76b1c6cc0a9322b03db40fc406670d4625303fcbf7670d35c2713bc29e72a1",
+        "snapback2/packages/evaluator/src/held-directory.ts": "695212b4aa7a429ee8c45a2179b029ff9e8444b862f06554239c41eddebb73d1",
+        "snapback2/packages/evaluator/src/coverage-spans.ts": "1e6ba0a14d23f14b811db8250bbb0bdce1860d9039f12e3d6d5875bce1e7f94c",
+        "snapback2/packages/evaluator/src/coverage.ts": "7f8da8d5571724fe13e20f1a85232e30542bac6edbc49bb70f5c70e5f0d2dd8e",
+        "snapback2/packages/evaluator/src/store.ts": "4bb0308a763c922ce82b6ae0bdcc8d38663cde1f6d1c32c0bfe8d28a500bf392",
+        "snapback2/packages/snapback2/src/store/row-values.ts": "54fce7162e6b044dda4e05e28a838a2ac6fc9e7e2fc65f41e06529dec3fc5be9",
+        "snapback2/packages/snapback2/src/offline-protocol.ts": "6ae048a8bdacfdb1da41b82254706d6ce53dc751c1aa6a374cb831714464cba7",
+        "snapback2/packages/snapback2/src/twin-hydrate.ts": "bb3f402d04c0ce93c979965d9567565318488030251198298adaa4d02ac5c59c",
+        "snapback2/packages/snapback2/src/twin-store.ts": "56d57dcdea688850c2c828b988188234ef0e37375d691268e68f1ca8e358a5b3",
+        "snapback2/packages/snapback2/src/store/metadata.ts": "9289fceb80124fc0aa3fbcdc3870d672bac4be818547563b7f4e594b318e901a",
+        "snapback2/packages/snapback2/src/store/carrier-index.ts": "081c77ee65530819a8c573472eb4bcf6be1ba4b43b6ff0069f5cb283d66ffe21",
+        "snapback2/packages/snapback2/src/store/swap-journal.ts": "45c761dbc94d6cd87ffdb7b9db89ac805a23425cfcb6180b57ebc44faba1cf50",
+        "snapback2/packages/snapback2/src/store/outbox.ts": "835417fd8b915241abc651187fb66680d26d263c9f61f871b4c60b4ba6dc3e81",
+        "snapback2/packages/snapback2/src/store/byte-cache.ts": "70aa1dae3baec0ed00796b51bad0af6e8ed4c325b551b702f72cc25676315967",
+        "snapback2/packages/snapback2/src/store/overlay-retirement.ts": "43fb0ab507b2299d4bc91be9d32cbb0f9ed4ee448c9de611c57675beece68b13",
+        "snapback2/packages/snapback2/src/store/range-store.ts": "6e49aff6a4d1f1dde10c13fb602bc48a5149ca285f211187466e5e576371bc5d",
+        "snapback2/packages/snapback2/src/store/projection.ts": "7de0f27819ec7bfa1c5ad48d483647aad88cd67fb7982f6a615110520206f917",
+        "snapback2/packages/snapback2/src/twin.ts": "969ef627725777a8ae93722961a42c68092623a42dde273bd91b36c9e4a212dd"
+      },
+      "minifiedAttribution": [
+        {
+          "path": "snapback2/packages/evaluator/src/runner.ts",
+          "minifiedContribution": 25174
+        },
+        {
+          "path": "snapback2/packages/evaluator/dist/unicode-tables.ts",
+          "minifiedContribution": 17186
+        },
+        {
+          "path": "snapback2/packages/evaluator/src/value-runtime.ts",
+          "minifiedContribution": 10475
+        },
+        {
+          "path": "snapback2/packages/snapback2/src/offline-protocol.ts",
+          "minifiedContribution": 9951
+        },
+        {
+          "path": "snapback2/packages/evaluator/src/certificate-identity.ts",
+          "minifiedContribution": 8561
+        },
+        {
+          "path": "snapback2/packages/evaluator/src/store.ts",
+          "minifiedContribution": 7379
+        },
+        {
+          "path": "snapback2/packages/snapback2/src/twin-store.ts",
+          "minifiedContribution": 6278
+        },
+        {
+          "path": "snapback2/packages/evaluator/src/cursor.ts",
+          "minifiedContribution": 5497
+        },
+        {
+          "path": "snapback2/packages/evaluator/src/coverage.ts",
+          "minifiedContribution": 5360
+        },
+        {
+          "path": "snapback2/packages/evaluator/src/index-store.ts",
+          "minifiedContribution": 5294
+        },
+        {
+          "path": "snapback2/packages/evaluator/src/unicode.ts",
+          "minifiedContribution": 4760
+        },
+        {
+          "path": "snapback2/packages/snapback2/src/twin.ts",
+          "minifiedContribution": 4265
+        },
+        {
+          "path": "snapback2/packages/snapback2/src/store/carrier-index.ts",
+          "minifiedContribution": 3702
+        },
+        {
+          "path": "snapback2/packages/snapback2/src/store/swap-journal.ts",
+          "minifiedContribution": 2945
+        },
+        {
+          "path": "snapback2/packages/snapback2/src/local-cursor.ts",
+          "minifiedContribution": 2445
+        },
+        {
+          "path": "snapback2/packages/evaluator/src/hash.ts",
+          "minifiedContribution": 2183
+        },
+        {
+          "path": "snapback2/packages/snapback2/src/twin-hydrate.ts",
+          "minifiedContribution": 1970
+        },
+        {
+          "path": "snapback2/packages/evaluator/src/held-directory.ts",
+          "minifiedContribution": 1759
+        },
+        {
+          "path": "snapback2/packages/snapback2/src/store/projection.ts",
+          "minifiedContribution": 1488
+        },
+        {
+          "path": "snapback2/packages/evaluator/src/ordered.ts",
+          "minifiedContribution": 1412
+        },
+        {
+          "path": "snapback2/packages/snapback2/src/types.ts",
+          "minifiedContribution": 1340
+        },
+        {
+          "path": "snapback2/packages/evaluator/src/unicode-tables.ts",
+          "minifiedContribution": 1339
+        },
+        {
+          "path": "snapback2/packages/snapback2/src/store/asset-policy.ts",
+          "minifiedContribution": 1254
+        },
+        {
+          "path": "snapback2/packages/evaluator/src/search-key.ts",
+          "minifiedContribution": 1221
+        },
+        {
+          "path": "snapback2/packages/snapback2/src/store/metadata.ts",
+          "minifiedContribution": 861
+        },
+        {
+          "path": "snapback2/packages/evaluator/src/search-runtime.ts",
+          "minifiedContribution": 849
+        },
+        {
+          "path": "snapback2/packages/evaluator/src/merge.ts",
+          "minifiedContribution": 793
+        },
+        {
+          "path": "snapback2/packages/snapback2/src/held-program.ts",
+          "minifiedContribution": 685
+        },
+        {
+          "path": "snapback2/packages/evaluator/src/coverage-spans.ts",
+          "minifiedContribution": 465
+        },
+        {
+          "path": "snapback2/packages/evaluator/src/text.ts",
+          "minifiedContribution": 269
+        },
+        {
+          "path": "snapback2/packages/snapback2/src/store/canonical.ts",
+          "minifiedContribution": 215
+        },
+        {
+          "path": "snapback2/packages/evaluator/src/errors.ts",
+          "minifiedContribution": 205
+        },
+        {
+          "path": "snapback2/crates/snapback2-core/ir-contract.json",
+          "minifiedContribution": 135
+        },
+        {
+          "path": "snapback2/packages/snapback2/src/store/outbox.ts",
+          "minifiedContribution": 44
+        },
+        {
+          "path": "snapback2/packages/snapback2/src/offline-schema.ts",
+          "minifiedContribution": 31
+        }
+      ]
+    }
+  }
+}

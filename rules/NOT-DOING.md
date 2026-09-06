@@ -76,13 +76,15 @@ the third on 2026-09-04, LLP 1012 §12):
   about twelve recipes with CI-executed snippets. No million-word corpus, no embedded
   20 MB guide in the binary, no calendar freshness dates.
 - **WASM anywhere.** The client evaluator is the TypeScript twin. The 2026-09-06
-  session-delegated search trade sets **34,000 bytes gzip total**, with **30,000
+  session-delegated search trade sets **50,000 bytes gzip total**, with **48,000
   the optimization target**, replacing the 2026-09-04 ceiling for this work.
   All normalization data, decoding, indexes, incremental state, prediction and
   local cursors participate in the measured entry; relocating required bytes
   does not count as a saving. Historical measurements remain in
   `snapback2/metrics/twin.jsonl`; the complete search integration is not yet
-  measured. Exceeding 34,000 requires a new explicit scope decision.
+  qualified. The measured scope revision in LLP1012 records why the earlier
+  34,000 allocation was replaced; exceeding50,000 requires a new explicit scope
+  decision.
 
 ## Process not doing
 
@@ -150,3 +152,11 @@ PR. If nothing can come off, the answer is no.
   current session under the user's explicit delegation, not earlier author
   rulings. The foundation implements shared Unicode/key primitives first;
   engine, compiler and held-twin integration/qualification follow.
+
+- 2026-09-06 — **Measured revision to the search trade:**50,000 bytes gzip total
+  twin,48,000 target replaces the earlier34,000/30,000 allocation. Exact pinned
+  WIP measurement is46,838 with required projection/receipt bodies retained;
+  earlier44,290 omitted bodies and remains an incomplete result. Full payload
+  stays measured; no feature or runtime-resource limit is removed. Rationale
+  and exact evidence are in LLP1012, "Indexed held search". This is Root's
+  current delegated decision, not a historical author ruling or a final pass.
