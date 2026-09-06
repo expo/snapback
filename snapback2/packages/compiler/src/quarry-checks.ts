@@ -207,7 +207,7 @@ query page(c: cursor ?):
         "shape-only modules generated API operations");
       assert(compiled.modules[0]!.lineMap.some((site) => site?.file === "snapback/cards.q"),
         "imported reads lost their definition source sites");
-      assert(operation(lowered.project.programs, "ops.page").result_page_site,
+      assert(rustCheck([operation(lowered.project.programs, "ops.page")], "synthetic", lowered.project.schema)[0]?.certificate?.result_pages,
         "imported page projection lost cursor provenance");
       const checked = rustCheck(lowered.project.programs, "synthetic", lowered.project.schema);
       assert(checked.every((item) => !item.error), `imported shapes did not certify: ${JSON.stringify(checked)}`);

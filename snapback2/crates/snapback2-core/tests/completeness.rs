@@ -104,7 +104,6 @@ fn page_program(take: u32, with_after: bool) -> Program {
         kind: ProgramKind::Query,
         args,
         read_time_granularity_ms: None,
-        result_page_site: None,
         body: vec![Stmt::Return(Expr::Scan(page(
             with_after.then(|| Expr::Array(vec![var("afterOrder"), var("afterId")])),
             take,
@@ -427,7 +426,6 @@ fn capped_only_counts_branches_and_writes_reuse_the_structural_fact_refusal() {
         kind: ProgramKind::Query,
         args: BTreeMap::from([("scope".to_owned(), ArgType::Scalar)]),
         read_time_granularity_ms: None,
-        result_page_site: None,
         body: vec![Stmt::Return(Expr::Builtin {
             builtin: Builtin::Count,
             args: vec![scan.clone()],
@@ -438,7 +436,6 @@ fn capped_only_counts_branches_and_writes_reuse_the_structural_fact_refusal() {
         kind: ProgramKind::Query,
         args: BTreeMap::from([("scope".to_owned(), ArgType::Scalar)]),
         read_time_granularity_ms: None,
-        result_page_site: None,
         body: vec![
             Stmt::Let {
                 name: "page".to_owned(),
@@ -463,7 +460,6 @@ fn capped_only_counts_branches_and_writes_reuse_the_structural_fact_refusal() {
         kind: ProgramKind::Query,
         args: BTreeMap::from([("scope".to_owned(), ArgType::Scalar)]),
         read_time_granularity_ms: None,
-        result_page_site: None,
         body: vec![
             Stmt::Let {
                 name: "page".to_owned(),
@@ -484,7 +480,6 @@ fn capped_only_counts_branches_and_writes_reuse_the_structural_fact_refusal() {
         kind: ProgramKind::Mutation,
         args: BTreeMap::from([("scope".to_owned(), ArgType::Scalar)]),
         read_time_granularity_ms: None,
-        result_page_site: None,
         body: vec![Stmt::Insert {
             table: "counts".to_owned(),
             row: Expr::Object(BTreeMap::from([
@@ -507,7 +502,6 @@ fn capped_only_counts_branches_and_writes_reuse_the_structural_fact_refusal() {
         kind: ProgramKind::Query,
         args: BTreeMap::from([("scope".to_owned(), ArgType::Scalar)]),
         read_time_granularity_ms: None,
-        result_page_site: None,
         body: vec![Stmt::Return(Expr::Builtin {
             builtin: Builtin::Len,
             args: vec![Expr::Field {
@@ -569,7 +563,6 @@ fn capped_only_counts_branches_and_writes_reuse_the_structural_fact_refusal() {
             kind: ProgramKind::Query,
             args: BTreeMap::from([("scope".to_owned(), ArgType::Scalar)]),
             read_time_granularity_ms: None,
-            result_page_site: None,
             body: vec![Stmt::Return(Expr::Builtin {
                 builtin: Builtin::Count,
                 args: vec![Expr::Scan(page(None, 10))],
@@ -623,7 +616,6 @@ fn collected_capped_page_may_return_but_cannot_cross_a_durable_sink() {
         kind: ProgramKind::Query,
         args: BTreeMap::from([("scope".to_owned(), ArgType::Scalar)]),
         read_time_granularity_ms: None,
-        result_page_site: None,
         body: returning_body,
     };
     let certificate = Checker::new(&non_uniform_schema, Ceilings::default())
@@ -647,7 +639,6 @@ fn collected_capped_page_may_return_but_cannot_cross_a_durable_sink() {
         kind: ProgramKind::Mutation,
         args: BTreeMap::from([("scope".to_owned(), ArgType::Scalar)]),
         read_time_granularity_ms: None,
-        result_page_site: None,
         body: inserting_body,
     };
     let errors = Checker::new(&non_uniform_schema, Ceilings::default())
@@ -1101,7 +1092,6 @@ fn enriched_post_shape_require_refuses() {
 fn enriched_capped_page_cursors_follow_only_returned_rows() {
     let schema = enriched_schema(false);
     let mut program = enriched_program();
-    program.result_page_site = Some("docs.page".to_owned());
     program
         .args
         .insert("c".to_owned(), ArgType::Optional(Box::new(ArgType::Cursor)));

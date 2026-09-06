@@ -28,7 +28,6 @@ fn delivery_refuses_when_the_located_cell_no_longer_contains_the_asset_id() {
             ("asset".to_owned(), ArgType::Image { max: 1_000 }),
         ]),
         read_time_granularity_ms: None,
-        result_page_site: None,
         body: vec![Stmt::Insert {
             table: "media".to_owned(),
             row: Expr::Object(BTreeMap::from([

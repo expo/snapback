@@ -29,7 +29,6 @@ fn generation(tables: BTreeMap<String, Table>, maintains: Vec<Maintain>) -> Gene
             kind: ProgramKind::Query,
             args: BTreeMap::from([("id".to_owned(), ArgType::Scalar)]),
             read_time_granularity_ms: None,
-            result_page_site: None,
             body: vec![Stmt::Return(Expr::Get(Read {
                 site: "totals.get".to_owned(),
                 table: "totals".to_owned(),

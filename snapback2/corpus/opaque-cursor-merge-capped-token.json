@@ -119,7 +119,6 @@
       }
     },
     "read_time_granularity_ms": null,
-    "result_page_site": "opaque-cursor-merge-capped-token",
     "body": [
       {
         "Return": {
@@ -190,7 +189,7 @@
   },
   "certificate": {
     "program": "opaque-cursor-merge-capped-token",
-    "plan_hash": "1a9c372b55533965e742f282e297a08d9789aff4cebc29b8b1b3ad81ff512e0a",
+    "plan_hash": "55cc9e6fb68af7a0cf8ccb22a44cfdaa03aeea370731ec629ac0ee3e306d48da",
     "schema_hash": "f7c842236978e842a20695dbea23d49d1277bd8bdbc0c342ee6422331cb188f8",
     "tables": {
       "follows": {
@@ -243,22 +242,24 @@
         "uniform": true
       }
     ],
-    "result_page_site": {
-      "site": "opaque-cursor-merge-capped-token",
-      "table": "posts",
-      "index": "byAuthorAt",
-      "order": "Asc",
-      "suffix": [
-        {
-          "name": "at",
-          "kind": "Int"
-        },
-        {
-          "name": "id",
-          "kind": "Id"
-        }
-      ],
-      "merge": true
+    "result_pages": {
+      "0": {
+        "site": "opaque-cursor-merge-capped-token",
+        "table": "posts",
+        "index": "byAuthorAt",
+        "order": "Asc",
+        "suffix": [
+          {
+            "name": "at",
+            "kind": "Int"
+          },
+          {
+            "name": "id",
+            "kind": "Id"
+          }
+        ],
+        "merge": true
+      }
     },
     "write_sites": [],
     "maintained_amplification": 0,

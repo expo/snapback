@@ -1230,7 +1230,6 @@ mod tests {
                 ),
             ]),
             read_time_granularity_ms: None,
-            result_page_site: None,
             body: Vec::new(),
         };
         let seed = SeedData {
@@ -1274,7 +1273,6 @@ mod tests {
                 ),
             ]),
             read_time_granularity_ms: None,
-            result_page_site: None,
             body: Vec::new(),
         };
         let seed = SeedData {

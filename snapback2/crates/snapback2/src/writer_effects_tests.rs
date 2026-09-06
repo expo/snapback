@@ -14,7 +14,6 @@ fn fractional_json_result_settles_running_before_then_conversion() {
         kind: ProgramKind::Mutation,
         args: BTreeMap::new(),
         read_time_granularity_ms: None,
-        result_page_site: None,
         body: vec![Stmt::Emit {
             effect: "effects.run".to_owned(),
             payload: Expr::Literal(Value::Null),
@@ -76,7 +75,6 @@ fn claim_serialization_failure_requeues_and_logs_the_claimed_row() {
         kind: ProgramKind::Mutation,
         args: BTreeMap::new(),
         read_time_granularity_ms: None,
-        result_page_site: None,
         body: vec![Stmt::Emit {
             effect: "effects.run".to_owned(),
             payload: Expr::Literal(Value::Null),

@@ -391,7 +391,6 @@ pub(crate) fn upper_scan(scan: &Scan) -> Scan {
 fn chunk_program(program: &Program, statement: &Stmt, scan: &Scan) -> Program {
     Program {
         kind: ProgramKind::Mutation,
-        result_page_site: None,
         body: vec![
             Stmt::Const {
                 name: "__job_upper".into(),

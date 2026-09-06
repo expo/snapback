@@ -8,7 +8,6 @@ pub(super) fn add_connected_case(cases: &mut Vec<CorpusCase>) {
         kind: ProgramKind::Query,
         args: BTreeMap::new(),
         read_time_granularity_ms: None,
-        result_page_site: None,
         body: vec![Stmt::Return(Expr::Exists(Read {
             site: "connected".into(),
             table: CONNECTED_TABLE.into(),
@@ -174,7 +173,6 @@ fn add_missing_authority_results(cases: &mut Vec<CorpusCase>) {
             kind: ProgramKind::Query,
             args: BTreeMap::new(),
             read_time_granularity_ms: None,
-            result_page_site: None,
             body,
         };
         let certificate = Checker::new(&schema, Ceilings::default())
@@ -249,7 +247,6 @@ fn add_text_control_refusal_case(cases: &mut Vec<CorpusCase>) {
         kind: ProgramKind::Mutation,
         args: BTreeMap::from([("body".to_owned(), ArgType::Text { max: 1 })]),
         read_time_granularity_ms: None,
-        result_page_site: None,
         body: vec![Stmt::Insert {
             table: "notes".to_owned(),
             row: Expr::Object(BTreeMap::from([
@@ -368,7 +365,6 @@ fn add_same_mutation_sum_read_twin_case(cases: &mut Vec<CorpusCase>) {
         kind: ProgramKind::Mutation,
         args: BTreeMap::new(),
         read_time_granularity_ms: None,
-        result_page_site: None,
         body: vec![
             Stmt::Insert {
                 table: "ledger".to_owned(),
@@ -462,7 +458,6 @@ fn add_rbac_twin_cases(cases: &mut Vec<CorpusCase>) {
         kind: ProgramKind::Mutation,
         args: BTreeMap::new(),
         read_time_granularity_ms: None,
-        result_page_site: None,
         body,
     };
     let committed = || Stmt::Return(Expr::Literal(Value::Bool(true)));
@@ -857,7 +852,6 @@ fn add_constraint_and_memo_twin_cases(cases: &mut Vec<CorpusCase>) {
         kind: ProgramKind::Mutation,
         args: BTreeMap::new(),
         read_time_granularity_ms: None,
-        result_page_site: None,
         body: vec![Stmt::Insert {
             table: "profiles".to_owned(),
             row: Expr::Literal(row([
@@ -954,7 +948,6 @@ fn add_constraint_and_memo_twin_cases(cases: &mut Vec<CorpusCase>) {
         kind: ProgramKind::Mutation,
         args: BTreeMap::new(),
         read_time_granularity_ms: None,
-        result_page_site: None,
         body: vec![
             Stmt::Insert {
                 table: "events".to_owned(),
@@ -1090,7 +1083,6 @@ fn add_rule_memo_twin_cases(cases: &mut Vec<CorpusCase>, public: RuleExpr) {
             kind: ProgramKind::Mutation,
             args: BTreeMap::new(),
             read_time_granularity_ms: None,
-            result_page_site: None,
             body: vec![
                 probe(),
                 Stmt::Delete {
@@ -1122,7 +1114,6 @@ fn add_rule_memo_twin_cases(cases: &mut Vec<CorpusCase>, public: RuleExpr) {
             kind: ProgramKind::Mutation,
             args: BTreeMap::new(),
             read_time_granularity_ms: None,
-            result_page_site: None,
             body: vec![
                 probe(),
                 Stmt::Insert {
@@ -1222,7 +1213,6 @@ fn add_optional_maintain_twin_case(cases: &mut Vec<CorpusCase>) {
         kind: ProgramKind::Mutation,
         args: BTreeMap::new(),
         read_time_granularity_ms: None,
-        result_page_site: None,
         body: vec![
             Stmt::Insert {
                 table: "events".to_owned(),

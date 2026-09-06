@@ -13,8 +13,6 @@ pub struct Program {
     #[serde(default)]
     pub args: BTreeMap<String, ArgType>,
     pub read_time_granularity_ms: Option<u64>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub result_page_site: Option<String>,
     pub body: Vec<Stmt>,
 }
 

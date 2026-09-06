@@ -23,7 +23,6 @@ fn program(name: &str, kind: ProgramKind, body: Vec<Stmt>) -> Program {
         args: BTreeMap::new(),
         body,
         read_time_granularity_ms: None,
-        result_page_site: None,
     }
 }
 fn get(table: &str, id: &str) -> Expr {

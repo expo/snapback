@@ -127,7 +127,6 @@
       }
     },
     "read_time_granularity_ms": null,
-    "result_page_site": "merge.hidden",
     "body": [
       {
         "Return": {
@@ -226,7 +225,7 @@
   },
   "certificate": {
     "program": "merge.hidden",
-    "plan_hash": "5e8ff99c9df6aa4f0fabb9cd8f4284cf08792b10022951ad44ad8e6a8614511e",
+    "plan_hash": "989a4f9fb510a225be260828d3f6092cf87edc4699eaecd81630c4957eca489c",
     "schema_hash": "4b10270ba1790c01621e4406d0f5dd057dd7e4a7959da1262fb64de9aeb807ba",
     "tables": {
       "follows": {
@@ -289,22 +288,24 @@
         "uniform": false
       }
     ],
-    "result_page_site": {
-      "site": "merge.hidden",
-      "table": "posts",
-      "index": "byAuthorAt",
-      "order": "Asc",
-      "suffix": [
-        {
-          "name": "at",
-          "kind": "Int"
-        },
-        {
-          "name": "id",
-          "kind": "Id"
-        }
-      ],
-      "merge": true
+    "result_pages": {
+      "0": {
+        "site": "merge.hidden",
+        "table": "posts",
+        "index": "byAuthorAt",
+        "order": "Asc",
+        "suffix": [
+          {
+            "name": "at",
+            "kind": "Int"
+          },
+          {
+            "name": "id",
+            "kind": "Id"
+          }
+        ],
+        "merge": true
+      }
     },
     "write_sites": [],
     "maintained_amplification": 0,

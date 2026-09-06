@@ -250,7 +250,6 @@ fn point_read_key_arity_is_rejected_at_certify_and_runtime() {
         kind: ProgramKind::Query,
         args: BTreeMap::new(),
         read_time_granularity_ms: None,
-        result_page_site: None,
         body: vec![Stmt::Return(Expr::Get(Read {
             site: "programs.overlongPoint.0".to_owned(),
             table: "items".to_owned(),
@@ -387,7 +386,6 @@ fn engine_rejects_non_indexable_point_prefix_range_and_indexed_write_values() {
         kind: ProgramKind::Query,
         args: BTreeMap::new(),
         read_time_granularity_ms: None,
-        result_page_site: None,
         body: vec![Stmt::Return(Expr::Get(Read {
             site: "programs.nonScalarPoint.0".to_owned(),
             table: "items".to_owned(),
@@ -431,7 +429,6 @@ fn engine_rejects_non_indexable_point_prefix_range_and_indexed_write_values() {
         kind: ProgramKind::Mutation,
         args: BTreeMap::new(),
         read_time_granularity_ms: None,
-        result_page_site: None,
         body: vec![
             Stmt::Insert {
                 table: "items".to_owned(),
@@ -510,7 +507,6 @@ fn uncursored_scan_program(name: &str, prefix: Vec<Expr>, range: Option<Range>) 
         kind: ProgramKind::Query,
         args: BTreeMap::new(),
         read_time_granularity_ms: None,
-        result_page_site: None,
         body: vec![Stmt::Return(Expr::Scan(Scan {
             site: format!("programs.{name}.0"),
             table: "items".to_owned(),
@@ -597,7 +593,6 @@ fn scan_program(name: &str, index: &str, prefix: Vec<Expr>, after: Expr) -> Prog
         kind: ProgramKind::Query,
         args: BTreeMap::new(),
         read_time_granularity_ms: None,
-        result_page_site: None,
         body: vec![Stmt::Return(Expr::Scan(Scan {
             site: format!("programs.{name}.0"),
             table: "items".to_owned(),

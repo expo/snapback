@@ -58,7 +58,6 @@ import {
   unwrapExpression,
 } from "./syntax";
 import type { Expr, FrontendDiagnostic, LowerResult, Program, Stmt } from "./ir";
-import { attachResultPageSite } from "./result-page";
 export type { TableInfo } from "./authored-types";
 export type {
   CollectionEscapeSite, CollectionMutationCounts, Environment, FunctionLike, LoweredValue, LowerSourceOptions, ProvenanceOrigin, Substitution, VariableInfo,
@@ -263,13 +262,13 @@ function lowerOperation(
     const lowered = lowerValue(handler.body, environment, `${name}.result`);
     body = [...lowered.statements, { Return: lowered.expression }];
   }
-  return attachResultPageSite({
+  return {
     name,
     kind: environment.kind,
     args,
     read_time_granularity_ms: environment.kind === "Query" && JSON.stringify(body).includes('"Input":"ReadTime"') ? 1 : null,
     body,
-  });
+  };
 }
 
 function lowerStatements(nodes: ts.NodeArray<ts.Statement> | readonly ts.Statement[], env: Environment): Stmt[] {

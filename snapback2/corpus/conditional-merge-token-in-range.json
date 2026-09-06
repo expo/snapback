@@ -1,0 +1,505 @@
+{
+  "corpusVersion": 1,
+  "name": "conditional-merge-token-in-range",
+  "category": "scenario",
+  "randomSeed": null,
+  "schema": {
+    "tables": {
+      "follows": {
+        "columns": {
+          "followed": "Principal",
+          "follower": "Principal",
+          "id": "Id"
+        },
+        "indexes": {
+          "byFollower": {
+            "columns": [
+              "follower",
+              "id"
+            ],
+            "unique": false
+          },
+          "byId": {
+            "columns": [
+              "id"
+            ],
+            "unique": true
+          }
+        },
+        "rules": {
+          "read": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          },
+          "insert": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          },
+          "update": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          },
+          "delete": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          }
+        },
+        "constraints": [],
+        "retain": "until-revoked"
+      },
+      "posts": {
+        "columns": {
+          "at": "Time",
+          "author": "Principal",
+          "body": {
+            "Text": {
+              "max": 20
+            }
+          },
+          "id": "Id"
+        },
+        "indexes": {
+          "byAt": {
+            "columns": [
+              "at",
+              "id"
+            ],
+            "unique": false
+          },
+          "byAuthorAt": {
+            "columns": [
+              "author",
+              "at",
+              "id"
+            ],
+            "unique": false
+          },
+          "byId": {
+            "columns": [
+              "id"
+            ],
+            "unique": true
+          }
+        },
+        "rules": {
+          "read": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          },
+          "insert": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          },
+          "update": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          },
+          "delete": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          }
+        },
+        "constraints": [],
+        "retain": "until-revoked"
+      }
+    },
+    "maintains": []
+  },
+  "program": {
+    "name": "feed.conditional",
+    "kind": "Query",
+    "args": {
+      "c": {
+        "Optional": "Cursor"
+      },
+      "global": "Bool"
+    },
+    "read_time_granularity_ms": null,
+    "body": [
+      {
+        "Const": {
+          "name": "position",
+          "value": {
+            "Variable": "c"
+          }
+        }
+      },
+      {
+        "If": {
+          "condition": {
+            "Variable": "global"
+          },
+          "then_body": [
+            {
+              "Const": {
+                "name": "page",
+                "value": {
+                  "Scan": {
+                    "site": "feed.global",
+                    "table": "posts",
+                    "index": "byAt",
+                    "prefix": [],
+                    "order": "Desc",
+                    "take": {
+                      "Literal": 20
+                    },
+                    "after": {
+                      "Variable": "position"
+                    },
+                    "before": null,
+                    "range": null,
+                    "opaque_cursor": true,
+                    "merge_site": null,
+                    "provenance": "Const"
+                  }
+                }
+              }
+            },
+            {
+              "Const": {
+                "name": "alias",
+                "value": {
+                  "Variable": "page"
+                }
+              }
+            },
+            {
+              "Let": {
+                "name": "rows",
+                "value": {
+                  "Array": []
+                }
+              }
+            },
+            {
+              "For": {
+                "binding": "item",
+                "domain": {
+                  "DerivedArray": {
+                    "value": {
+                      "Variable": "alias"
+                    },
+                    "max": 20,
+                    "bound_source": "page"
+                  }
+                },
+                "body": [
+                  {
+                    "Push": {
+                      "target": "rows",
+                      "value": {
+                        "Object": {
+                          "body": {
+                            "Field": {
+                              "base": {
+                                "Variable": "item"
+                              },
+                              "name": "body"
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                ]
+              }
+            },
+            {
+              "Return": {
+                "Variable": "rows"
+              }
+            }
+          ],
+          "else_body": [
+            {
+              "Const": {
+                "name": "page",
+                "value": {
+                  "Merge": {
+                    "site": "feed.following",
+                    "lanes": [
+                      {
+                        "scan": {
+                          "site": "feed.following.lane",
+                          "table": "posts",
+                          "index": "byAuthorAt",
+                          "prefix": [
+                            {
+                              "Field": {
+                                "base": {
+                                  "Variable": "follow"
+                                },
+                                "name": "followed"
+                              }
+                            }
+                          ],
+                          "order": "Desc",
+                          "take": {
+                            "Literal": 20
+                          },
+                          "after": {
+                            "Variable": "position"
+                          },
+                          "before": null,
+                          "range": null,
+                          "opaque_cursor": true,
+                          "merge_site": "feed.following",
+                          "provenance": "Shape"
+                        },
+                        "source": {
+                          "site": "feed.follows",
+                          "table": "follows",
+                          "index": "byFollower",
+                          "prefix": [
+                            {
+                              "Literal": {
+                                "Id": "u1"
+                              }
+                            }
+                          ],
+                          "order": "Asc",
+                          "take": {
+                            "Literal": 500
+                          },
+                          "after": null,
+                          "before": null,
+                          "range": null,
+                          "merge_site": null,
+                          "provenance": "Const"
+                        },
+                        "binding": "follow"
+                      }
+                    ]
+                  }
+                }
+              }
+            },
+            {
+              "Const": {
+                "name": "alias",
+                "value": {
+                  "Variable": "page"
+                }
+              }
+            },
+            {
+              "Let": {
+                "name": "rows",
+                "value": {
+                  "Array": []
+                }
+              }
+            },
+            {
+              "For": {
+                "binding": "item",
+                "domain": {
+                  "DerivedArray": {
+                    "value": {
+                      "Variable": "alias"
+                    },
+                    "max": 20,
+                    "bound_source": "page"
+                  }
+                },
+                "body": [
+                  {
+                    "Push": {
+                      "target": "rows",
+                      "value": {
+                        "Object": {
+                          "body": {
+                            "Field": {
+                              "base": {
+                                "Variable": "item"
+                              },
+                              "name": "body"
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                ]
+              }
+            },
+            {
+              "Return": {
+                "Variable": "rows"
+              }
+            }
+          ]
+        }
+      }
+    ]
+  },
+  "certificate": {
+    "program": "feed.conditional",
+    "plan_hash": "22a6f8f56c51150dfcebf2033d238bdc0fa4413c50ac0af7c520874564f5ee11",
+    "schema_hash": "d703f2ee1bb54a66048cae4ae8b0b043ca0c81d418c55e2e151d825c05b4f707",
+    "tables": {
+      "follows": {
+        "retain": "until-revoked"
+      },
+      "posts": {
+        "retain": "until-revoked"
+      }
+    },
+    "rule_hashes": {
+      "follows.read": "9d98a4b1da82abe893ed0f13ef4b82780837aa71f09e1616e7e42949f743e382",
+      "posts.read": "9d98a4b1da82abe893ed0f13ef4b82780837aa71f09e1616e7e42949f743e382"
+    },
+    "evaluator_version": "bounded-spike-rust-1",
+    "value_model_version": "i53-codepoint-bytes-v2",
+    "read_sites": [
+      {
+        "site": "feed.following.lane",
+        "table": "posts",
+        "index": "byAuthorAt",
+        "prefix_template": "Shape",
+        "take": 20,
+        "max_calls": 500,
+        "rule_probes_per_candidate": 0,
+        "hoist": true,
+        "decided_true": true,
+        "complete": false
+      },
+      {
+        "site": "feed.follows",
+        "table": "follows",
+        "index": "byFollower",
+        "prefix_template": "Const",
+        "take": 500,
+        "max_calls": 1,
+        "rule_probes_per_candidate": 0,
+        "hoist": true,
+        "decided_true": true,
+        "complete": false
+      },
+      {
+        "site": "feed.global",
+        "table": "posts",
+        "index": "byAt",
+        "prefix_template": "Const",
+        "take": 20,
+        "max_calls": 1,
+        "rule_probes_per_candidate": 0,
+        "hoist": true,
+        "decided_true": true,
+        "complete": false
+      }
+    ],
+    "merge_sites": [
+      {
+        "site": "feed.following",
+        "lane_sites": [
+          "feed.following.lane"
+        ],
+        "take": 20,
+        "max_lanes": 500,
+        "uniform": true
+      }
+    ],
+    "result_pages": {
+      "1/else/4": {
+        "site": "feed.following",
+        "table": "posts",
+        "index": "byAuthorAt",
+        "order": "Desc",
+        "suffix": [
+          {
+            "name": "at",
+            "kind": "Time"
+          },
+          {
+            "name": "id",
+            "kind": "Id"
+          }
+        ],
+        "merge": true
+      },
+      "1/then/4": {
+        "site": "feed.global",
+        "table": "posts",
+        "index": "byAt",
+        "order": "Desc",
+        "suffix": [
+          {
+            "name": "at",
+            "kind": "Time"
+          },
+          {
+            "name": "id",
+            "kind": "Id"
+          }
+        ],
+        "merge": false
+      }
+    },
+    "write_sites": [],
+    "maintained_amplification": 0,
+    "constraint_checks": [],
+    "max_examined": 1024,
+    "max_index_entries": 1024,
+    "max_rule_probes": 0,
+    "max_steps": 22897,
+    "max_heap_bytes": 732704,
+    "max_output_bytes": 2312,
+    "max_closure_bytes": 1059248,
+    "completeness": "Page",
+    "prediction_sites": [],
+    "read_time_granularity_ms": null,
+    "halo_rows": 1,
+    "indexes_required": [
+      "follows.byFollower",
+      "posts.byAt",
+      "posts.byAuthorAt"
+    ],
+    "disclosures": [],
+    "bound_product": "merge feed.following: 500 lanes heads + 20 advances + 2 lookahead × 1 calls (feed.following.lane × 500) = 522 + feed.follows take 500 (+2 reserve) × 1 calls on follows = 502"
+  },
+  "context": {
+    "viewer": "u1",
+    "principal_kind": "user",
+    "auth_epoch": 1,
+    "args": {
+      "c": {
+        "String": "WzEsInBvc3RzIiwiYnlBdXRob3JBdCIsIkRlc2MiLFt7Im5hbWUiOiJhdCIsImtpbmQiOiJUaW1lIn0seyJuYW1lIjoiaWQiLCJraW5kIjoiSWQifV0sW3siSW50IjoyM30seyJJZCI6InAyMyJ9XV0"
+      },
+      "global": {
+        "Bool": true
+      }
+    },
+    "now": null,
+    "new_ids": [],
+    "read_time": null
+  },
+  "receipt": {
+    "schema_hash": "d703f2ee1bb54a66048cae4ae8b0b043ca0c81d418c55e2e151d825c05b4f707",
+    "rows": [],
+    "ranges": [],
+    "absences": [],
+    "verdicts": []
+  },
+  "prelude": [],
+  "replacementReceipt": null,
+  "expected": {
+    "localResult": null,
+    "errorCode": "E_INPUT",
+    "localState": "refused",
+    "partialSites": [],
+    "canonicalResult": "{\"Error\":\"E_INPUT\"}",
+    "digest": "5ee5e4d7b111ebf8faeecb0490fe79766aeb97067ec8f13fafa649c346209d78",
+    "rangeStops": {},
+    "evictedRows": null,
+    "next": null
+  }
+}

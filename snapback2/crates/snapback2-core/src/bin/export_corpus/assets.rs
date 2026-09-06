@@ -82,7 +82,6 @@ fn write_program(name: &str, column: &str, kind: ArgType, replace: bool) -> Prog
             ("asset".to_owned(), kind),
         ]),
         read_time_granularity_ms: None,
-        result_page_site: None,
         body: vec![write, Stmt::Return(var("asset"))],
     }
 }
@@ -230,7 +229,6 @@ fn add_valid_write_cases(cases: &mut Vec<CorpusCase>) {
             ("asset".to_owned(), ArgType::Image { max: 5_000_000 }),
         ]),
         read_time_granularity_ms: None,
-        result_page_site: None,
         body: vec![Stmt::Insert {
             table: "media".to_owned(),
             row: Expr::Object(BTreeMap::from([
@@ -652,7 +650,6 @@ fn add_engine_only_cases(cases: &mut Vec<CorpusCase>) {
             kind: ProgramKind::Mutation,
             args: BTreeMap::from([("rowId".to_owned(), ArgType::Id)]),
             read_time_granularity_ms: None,
-            result_page_site: None,
             body: vec![Stmt::Delete {
                 table: "media".to_owned(),
                 key: var("rowId"),
@@ -722,7 +719,6 @@ fn certification_refusal_case(
         kind: ProgramKind::Query,
         args: BTreeMap::new(),
         read_time_granularity_ms: None,
-        result_page_site: None,
         body: vec![Stmt::Return(Expr::Literal(Value::Null))],
     };
     let errors = Generation::certify(
@@ -775,7 +771,6 @@ fn arg_case(name: &str, kind: ArgType, value: Value) -> CorpusCase {
         kind: ProgramKind::Query,
         args: BTreeMap::from([("asset".to_owned(), kind)]),
         read_time_granularity_ms: None,
-        result_page_site: None,
         body: vec![Stmt::Return(var("asset"))],
     };
     case_from_parts(
@@ -891,7 +886,6 @@ fn add_member_case(cases: &mut Vec<CorpusCase>) {
         kind: ProgramKind::Query,
         args: BTreeMap::from([("clip".to_owned(), ArgType::Video { max: 25_000_000 })]),
         read_time_granularity_ms: None,
-        result_page_site: None,
         body: vec![
             Stmt::Require {
                 condition: Expr::Binary {
@@ -923,7 +917,6 @@ fn authority_program(max: u32) -> Program {
         kind: ProgramKind::Mutation,
         args: BTreeMap::from([("asset".to_owned(), ArgType::Image { max })]),
         read_time_granularity_ms: None,
-        result_page_site: None,
         body: vec![Stmt::Return(var("asset"))],
     }
 }
@@ -1082,7 +1075,6 @@ fn forged_first_require_case() -> CorpusCase {
         kind: ProgramKind::Mutation,
         args: BTreeMap::from([("clip".to_owned(), ArgType::Video { max: 1_000 })]),
         read_time_granularity_ms: None,
-        result_page_site: None,
         body: vec![
             Stmt::Require {
                 condition: Expr::Binary {

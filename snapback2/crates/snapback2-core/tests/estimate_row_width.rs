@@ -219,7 +219,6 @@ fn program(name: &str, body: Vec<Stmt>) -> Program {
         kind: ProgramKind::Query,
         args: BTreeMap::new(),
         read_time_granularity_ms: None,
-        result_page_site: None,
         body,
     }
 }
@@ -431,7 +430,6 @@ fn text_arguments_use_the_four_byte_code_point_bound() {
             },
         )]),
         read_time_granularity_ms: None,
-        result_page_site: None,
         body: vec![Stmt::Return(Expr::Variable("txt".to_owned()))],
     };
     let certificate = Checker::new(&schema, Ceilings::default())

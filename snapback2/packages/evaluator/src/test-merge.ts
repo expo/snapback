@@ -44,7 +44,6 @@ function recertify(c: any): any {
 for (const read of ["Deny", { Eq: [{ Field: "at" }, { Literal: { Int: 1 } }] }]) {
   const c = fixture();
   c.schema.tables.posts.rules.read = read;
-  c.program.result_page_site = c.program.body[0].Return.Merge.site;
   for (const lane of c.program.body[0].Return.Merge.lanes) {
     lane.scan.opaque_cursor = true;
     lane.scan.after = { Variable: "c" };

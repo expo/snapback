@@ -89,6 +89,9 @@ pub struct EmitRecord {
 
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct AuthoritativeTrace {
+    /// Runtime-only return identity for page minting; never a receipt or wire field.
+    #[serde(skip)]
+    pub result_page_return: Option<String>,
     /// Operator diagnostics only: the last attempted write, including one refused before it touched rows.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub last_write_attempt: Option<crate::certificate::WriteSite>,

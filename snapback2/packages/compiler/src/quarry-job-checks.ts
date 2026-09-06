@@ -70,7 +70,7 @@ export function registerJobChecks(test: Test, frontend: string): void {
       { name: "admin.trailing", body: [chunk, { Return: { Variable: "nothing" } }], statement: 2, detail: "plain statement" },
       { name: "admin.crossing", body: [chunk, crossing], statement: 2, detail: `it names \`${chunk.For.binding}\`, which another statement binds` },
     ];
-    const checked = rustCheck(shapes.map(({ name, body }) => ({ name, kind: "job" as const, args: {}, read_time_granularity_ms: null, result_page_site: null, body })), "synthetic", lowered.project.schema);
+    const checked = rustCheck(shapes.map(({ name, body }) => ({ name, kind: "job" as const, args: {}, read_time_granularity_ms: null, body })), "synthetic", lowered.project.schema);
     for (const [i, shape] of shapes.entries()) {
       const error = checked[i]!.error;
       assert(error?.code === "E_JOB_SHAPE" && error.family === "job" && error.guide === "job", JSON.stringify(checked[i]));
@@ -80,7 +80,7 @@ export function registerJobChecks(test: Test, frontend: string): void {
       assert(error.rewrite.includes("one or more `chunk` blocks and nothing else"), error.rewrite);
     }
     // An empty body sites the job itself.
-    const empty = rustCheck([{ name: "admin.empty", kind: "job", args: {}, read_time_granularity_ms: null, result_page_site: null, body: [] }], "synthetic", lowered.project.schema)[0]!.error;
+    const empty = rustCheck([{ name: "admin.empty", kind: "job", args: {}, read_time_granularity_ms: null, body: [] }], "synthetic", lowered.project.schema)[0]!.error;
     assert(empty?.code === "E_JOB_SHAPE" && empty.site === "admin.empty", JSON.stringify(empty));
   });
   test("No chat template mutation patches an immutable messages key", async () => {

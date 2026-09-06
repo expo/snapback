@@ -2,6 +2,7 @@
 use super::*;
 
 pub(super) fn add_enriched_page_case(cases: &mut Vec<CorpusCase>) {
+    add_conditional_page_cases(cases);
     let mut items = table(
         [
             ("group", ColumnType::Id),
@@ -37,7 +38,6 @@ pub(super) fn add_enriched_page_case(cases: &mut Vec<CorpusCase>) {
         kind: ProgramKind::Query,
         args: BTreeMap::new(),
         read_time_granularity_ms: None,
-        result_page_site: None,
         body: vec![
             Stmt::Let {
                 name: "rows".to_owned(),
@@ -171,6 +171,63 @@ pub(super) fn add_enriched_page_case(cases: &mut Vec<CorpusCase>) {
             .unwrap()
             .contains("Secret")
     );
+    let mut conditional = program.clone();
+    conditional.args = BTreeMap::from([
+        ("global".into(), ArgType::Bool),
+        ("c".into(), ArgType::Optional(Box::new(ArgType::Cursor))),
+    ]);
+    let Stmt::For {
+        domain: LoopDomain::Page(scan),
+        ..
+    } = &mut conditional.body[1]
+    else {
+        unreachable!()
+    };
+    scan.opaque_cursor = true;
+    scan.after = Some(Box::new(var("c")));
+    conditional.body = vec![Stmt::If {
+        condition: var("global"),
+        then_body: conditional.body,
+        else_body: vec![Stmt::Return(Expr::Array(vec![]))],
+    }];
+    let mut page_context = query_context([("global", Value::Bool(true)), ("c", Value::Null)]);
+    for page in 1..=2 {
+        let served = authoritative(&mut engine, &schema, &conditional, page_context.clone());
+        assert_eq!(served.state, ExecutionState::Capped);
+        if page == 1 {
+            assert_eq!(served.result, execution.result);
+            let token = served.next.as_ref().unwrap();
+            let position = snapback2_core::cursor::decode_cursor(token).unwrap();
+            assert_eq!(
+                position.values.last(),
+                Some(&id("i2")),
+                "hidden i3 is never a cursor anchor"
+            );
+        } else {
+            assert_eq!(served.result, Value::Array(vec![]));
+            assert_eq!(served.next, None);
+        }
+        let case = case_from_parts(
+            &format!("conditional-enriched-hidden-page-{page}"),
+            "scenario",
+            schema.clone(),
+            conditional.clone(),
+            page_context.clone(),
+            served.receipt,
+            vec![],
+            None,
+            None,
+        );
+        assert_eq!(
+            case.expected.next, None,
+            "incomplete local authorization cannot mint a cursor"
+        );
+        cases.push(case);
+        page_context.args.insert(
+            "c".into(),
+            served.next.map(Value::String).unwrap_or(Value::Null),
+        );
+    }
     let case = case_from_parts(
         "enriched-capped-page-hidden-point-null",
         "scenario",
@@ -213,4 +270,293 @@ fn table<const N: usize, const M: usize>(
             })
             .collect(),
     )
+}
+
+// @ref LLP 1011#b1-opaque-cursors — both engines use the selected return's
+// certified origin, including branch aliases, shapes and an auxiliary page.
+fn add_conditional_page_cases(cases: &mut Vec<CorpusCase>) {
+    let schema = Schema {
+        tables: BTreeMap::from([
+            (
+                "posts".into(),
+                table(
+                    [
+                        ("author", ColumnType::Principal),
+                        ("at", ColumnType::Time),
+                        ("body", ColumnType::Text { max: 20 }),
+                    ],
+                    [
+                        ("byAt", vec!["at", "id"], false),
+                        ("byAuthorAt", vec!["author", "at", "id"], false),
+                    ],
+                ),
+            ),
+            (
+                "follows".into(),
+                table(
+                    [
+                        ("follower", ColumnType::Principal),
+                        ("followed", ColumnType::Principal),
+                    ],
+                    [("byFollower", vec!["follower", "id"], false)],
+                ),
+            ),
+        ]),
+        ..Schema::default()
+    };
+    let range = Scan {
+        site: "feed.global".into(),
+        table: "posts".into(),
+        index: "byAt".into(),
+        prefix: vec![],
+        order: Order::Desc,
+        take: Bound::Literal(20),
+        after: Some(Box::new(var("position"))),
+        before: None,
+        range: None,
+        opaque_cursor: true,
+        merge_site: None,
+        provenance: KeyProvenance::Const,
+    };
+    let merge = Merge {
+        site: "feed.following".into(),
+        lanes: vec![MergeLane {
+            source: Some(Scan {
+                site: "feed.follows".into(),
+                table: "follows".into(),
+                index: "byFollower".into(),
+                prefix: vec![lit(id("u1"))],
+                order: Order::Asc,
+                take: Bound::Literal(500),
+                after: None,
+                before: None,
+                range: None,
+                opaque_cursor: false,
+                merge_site: None,
+                provenance: KeyProvenance::Const,
+            }),
+            binding: "follow".into(),
+            setup: vec![],
+            scan: Scan {
+                site: "feed.following.lane".into(),
+                index: "byAuthorAt".into(),
+                prefix: vec![field(var("follow"), "followed")],
+                merge_site: Some("feed.following".into()),
+                provenance: KeyProvenance::Shape,
+                ..range.clone()
+            },
+        }],
+    };
+    let shaped = |page| {
+        vec![
+            Stmt::Const {
+                name: "page".into(),
+                value: page,
+            },
+            Stmt::Const {
+                name: "alias".into(),
+                value: var("page"),
+            },
+            Stmt::Let {
+                name: "rows".into(),
+                value: Expr::Array(vec![]),
+            },
+            Stmt::For {
+                binding: "item".into(),
+                domain: LoopDomain::DerivedArray {
+                    value: var("alias"),
+                    max: 20,
+                    bound_source: "page".into(),
+                },
+                body: vec![Stmt::Push {
+                    target: "rows".into(),
+                    value: Expr::Object(BTreeMap::from([(
+                        "body".into(),
+                        field(var("item"), "body"),
+                    )])),
+                }],
+            },
+            Stmt::Return(var("rows")),
+        ]
+    };
+    let program = Program {
+        name: "feed.conditional".into(),
+        kind: ProgramKind::Query,
+        args: BTreeMap::from([
+            ("global".into(), ArgType::Bool),
+            ("c".into(), ArgType::Optional(Box::new(ArgType::Cursor))),
+        ]),
+        read_time_granularity_ms: None,
+        body: vec![
+            Stmt::Const {
+                name: "position".into(),
+                value: var("c"),
+            },
+            Stmt::If {
+                condition: var("global"),
+                then_body: shaped(Expr::Scan(range.clone())),
+                else_body: shaped(Expr::Merge(merge)),
+            },
+        ],
+    };
+    let certificate = Checker::new(&schema, Ceilings::default())
+        .check(&program)
+        .unwrap();
+    assert_eq!(certificate.result_pages.len(), 2);
+    let mut engine = Engine::memory(schema.clone()).unwrap();
+    for n in 0..47 {
+        engine
+            .seed(
+                "posts",
+                row([
+                    ("id", id(&format!("p{n}"))),
+                    ("author", id(if n < 43 { "u2" } else { "u3" })),
+                    ("at", Value::Int(n)),
+                    ("body", text(&format!("entry-{n}"))),
+                ]),
+            )
+            .unwrap();
+    }
+    engine
+        .seed(
+            "follows",
+            row([
+                ("id", id("f1")),
+                ("follower", id("u1")),
+                ("followed", id("u2")),
+            ]),
+        )
+        .unwrap();
+    let mut tokens = Vec::new();
+    for global in [true, false] {
+        let mut context = query_context([("global", Value::Bool(global)), ("c", Value::Null)]);
+        for page in 0..3 {
+            let execution = authoritative(&mut engine, &schema, &program, context.clone());
+            let total = if global { 47 } else { 43 };
+            let expected = (page * 20..std::cmp::min((page + 1) * 20, total))
+                .map(|n| row([("body", text(&format!("entry-{}", total - 1 - n)))]))
+                .collect::<Vec<_>>();
+            assert_eq!(execution.result, Value::Array(expected));
+            assert_eq!(
+                execution.state,
+                if page < 2 {
+                    ExecutionState::Capped
+                } else {
+                    ExecutionState::Complete
+                }
+            );
+            assert_eq!(execution.next.is_some(), page < 2);
+            let case = case_from_parts(
+                &format!(
+                    "conditional-{}-page-{}",
+                    if global { "range" } else { "merge" },
+                    page + 1
+                ),
+                "scenario",
+                schema.clone(),
+                program.clone(),
+                context.clone(),
+                execution.receipt.clone(),
+                vec![],
+                None,
+                None,
+            );
+            assert_eq!(case.expected.local_result, Some(execution.result.clone()));
+            assert_eq!(case.expected.next, execution.next);
+            cases.push(case);
+            if page == 0 {
+                tokens.push(execution.next.clone().unwrap());
+                let deletion = case_from_parts(
+                    &format!(
+                        "conditional-{}-partial-clears-next",
+                        if global { "range" } else { "merge" }
+                    ),
+                    "scenario",
+                    schema.clone(),
+                    program.clone(),
+                    context.clone(),
+                    execution.receipt,
+                    (0..3)
+                        .map(|offset| PreludeStep {
+                            program: Program {
+                                name: "remove".into(),
+                                kind: ProgramKind::Mutation,
+                                args: BTreeMap::new(),
+                                read_time_granularity_ms: None,
+                                body: vec![Stmt::Delete {
+                                    table: "posts".into(),
+                                    key: lit(id(&format!("p{}", total - 1 - offset))),
+                                }],
+                            },
+                            context: mutation_context([], Vec::<String>::new()),
+                            expected_state: "predicted".into(),
+                        })
+                        .collect(),
+                    None,
+                    None,
+                );
+                assert_eq!(deletion.expected.local_state, "partial");
+                assert_eq!(deletion.expected.next, None);
+                cases.push(deletion);
+            }
+            context.args.insert(
+                "c".into(),
+                execution.next.map(Value::String).unwrap_or(Value::Null),
+            );
+        }
+    }
+    for (name, global, token) in [
+        ("range-token-in-merge", false, tokens[0].clone()),
+        ("merge-token-in-range", true, tokens[1].clone()),
+        ("noncanonical-token", true, format!("{}=", tokens[0])),
+    ] {
+        let context = query_context([("global", Value::Bool(global)), ("c", Value::String(token))]);
+        assert!(matches!(
+            engine.execute(&program, &certificate, context.clone()),
+            Err(RuntimeError::Input(_))
+        ));
+        let case = case_from_parts(
+            &format!("conditional-{name}"),
+            "scenario",
+            schema.clone(),
+            program.clone(),
+            context,
+            ClosureReceipt::default(),
+            vec![],
+            None,
+            None,
+        );
+        assert_eq!(case.expected.error_code.as_deref(), Some("E_INPUT"));
+        cases.push(case);
+    }
+    // Evaluate an auxiliary page after the returned page. A trace-order guess
+    // would mint from the auxiliary row and skip the rest of the real page.
+    let mut auxiliary = program.clone();
+    let Stmt::If { then_body, .. } = &mut auxiliary.body[1] else {
+        unreachable!()
+    };
+    let mut aux_scan = range.clone();
+    aux_scan.site = "feed.auxiliary".into();
+    aux_scan.take = Bound::Literal(1);
+    then_body.insert(
+        1,
+        Stmt::Const {
+            name: "auxiliary".into(),
+            value: Expr::Scan(aux_scan),
+        },
+    );
+    let context = query_context([("global", Value::Bool(true)), ("c", Value::Null)]);
+    let execution = authoritative(&mut engine, &schema, &auxiliary, context.clone());
+    assert_eq!(execution.next, Some(tokens[0].clone()));
+    cases.push(case_from_parts(
+        "conditional-auxiliary-page-is-not-result",
+        "scenario",
+        schema.clone(),
+        auxiliary,
+        context,
+        execution.receipt,
+        vec![],
+        None,
+        None,
+    ));
 }

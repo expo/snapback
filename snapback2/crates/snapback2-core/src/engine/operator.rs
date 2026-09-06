@@ -57,7 +57,6 @@ mod tests {
             kind: ProgramKind::Query,
             args: BTreeMap::new(),
             read_time_granularity_ms: None,
-            result_page_site: None,
             body: vec![Stmt::Return(Expr::Scan(Scan {
                 site: "records.range".into(),
                 table: "records".into(),
@@ -139,7 +138,6 @@ mod tests {
             kind: ProgramKind::Mutation,
             args: BTreeMap::new(),
             read_time_granularity_ms: None,
-            result_page_site: None,
             body: vec![Stmt::Insert {
                 table: "records".into(),
                 row: Expr::Literal(object([("id", Value::Id("r1".into()))])),

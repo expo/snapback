@@ -48,7 +48,6 @@ fn job(take: u32) -> Program {
         kind: ProgramKind::Job,
         args: BTreeMap::new(),
         read_time_granularity_ms: None,
-        result_page_site: None,
         body: vec![Stmt::For {
             binding: "row".into(),
             domain: LoopDomain::Page(Scan {
@@ -170,7 +169,6 @@ fn values(runtime: &mut Runtime) -> BTreeMap<String, i64> {
         args: BTreeMap::new(),
         body: vec![Stmt::Return(Expr::Scan(scan))],
         read_time_granularity_ms: None,
-        result_page_site: None,
     };
     let Value::Array(rows) = runtime
         .read_operator(&q, BTreeMap::new(), OperatorId("tester".into()), 1)
@@ -194,7 +192,6 @@ fn operate(runtime: &mut Runtime, body: Vec<Stmt>) {
         kind: ProgramKind::Mutation,
         args: BTreeMap::new(),
         read_time_granularity_ms: None,
-        result_page_site: None,
         body,
     };
     let result = runtime

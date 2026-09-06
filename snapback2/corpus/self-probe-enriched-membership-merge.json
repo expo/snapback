@@ -194,7 +194,6 @@
     "kind": "Query",
     "args": {},
     "read_time_granularity_ms": null,
-    "result_page_site": "words.merge",
     "body": [
       {
         "Let": {
@@ -378,7 +377,7 @@
   },
   "certificate": {
     "program": "self-probe-enriched-membership-merge",
-    "plan_hash": "826f1b52ed416307ac6868e68bfa183381cf717cec36ffabe0c993ef3be6d2d1",
+    "plan_hash": "472f430657bfc1a07aca1ba24cb799e93b7b50b6c912ca46531d1b10ab597c6d",
     "schema_hash": "c5ea2c3c8a3b77a098094a697f4029ba3aadc2e07229c63325d667b48dcc75b4",
     "tables": {
       "conversations": {
@@ -445,23 +444,6 @@
         "uniform": true
       }
     ],
-    "result_page_site": {
-      "site": "words.merge",
-      "table": "words",
-      "index": "byConversationTermTime",
-      "order": "Asc",
-      "suffix": [
-        {
-          "name": "at",
-          "kind": "Time"
-        },
-        {
-          "name": "id",
-          "kind": "Id"
-        }
-      ],
-      "merge": true
-    },
     "write_sites": [],
     "maintained_amplification": 0,
     "constraint_checks": [],

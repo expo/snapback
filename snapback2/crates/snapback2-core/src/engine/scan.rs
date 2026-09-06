@@ -13,7 +13,51 @@ pub(super) struct EvaluatedScan {
 use super::runner::{Runner, TrackedValue};
 
 impl Runner<'_> {
+    // Validate the selected scope before its page or lane discovery opens. The
+    // argument decoder already rejected malformed tokens before any execution.
+    pub(super) fn validate_scan_cursor(&self, scan: &Scan) -> Result<(), RuntimeError> {
+        if !scan.opaque_cursor {
+            return Ok(());
+        }
+        if scan.before.is_some() {
+            return Err(RuntimeError::Input(
+                "opaque cursors may be used only with after".into(),
+            ));
+        }
+        let value = match scan.after.as_deref() {
+            Some(Expr::Variable(name)) => self.env.get(name),
+            Some(Expr::Literal(value)) => Some(value),
+            _ => None,
+        }
+        .ok_or_else(|| {
+            RuntimeError::Input(
+                "opaque cursor expression must derive from an operation argument".into(),
+            )
+        })?;
+        if value == &Value::Null {
+            return Ok(());
+        }
+        let Value::String(token) = value else {
+            return Err(RuntimeError::Input(
+                "opaque cursor value must be a string or null".into(),
+            ));
+        };
+        let table = self.schema.table(&scan.table).expect("certified table");
+        let index = table.index(&scan.index).expect("certified index");
+        let suffix = index.columns[scan.prefix.len()..]
+            .iter()
+            .map(|name| crate::cursor::CursorColumn {
+                name: name.clone(),
+                kind: table.columns[name].clone(),
+            })
+            .collect::<Vec<_>>();
+        decode_cursor_for(token, &scan.table, &scan.index, scan.order, &suffix)
+            .map(|_| ())
+            .map_err(|error| RuntimeError::Input(error.to_string()))
+    }
+
     pub(super) fn evaluate_scan(&mut self, scan: &Scan) -> Result<EvaluatedScan, RuntimeError> {
+        self.validate_scan_cursor(scan)?;
         let prefix = scan
             .prefix
             .iter()

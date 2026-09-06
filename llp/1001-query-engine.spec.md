@@ -5,7 +5,7 @@
 **Systems:** `snapback2/crates/snapback2-core` (`store`, `registry`, `live`, `identity`, `successor`, the engine, the IR)
 **Author:** Claude Fable 5 (orchestrator) — implementer: codex gpt-5.6-sol, lane A
 **Date:** 2026-08-29
-**Revised:** 2026-09-05 (Clique L12 — §3 receipt-only null invariant and §5.1 `connected`); 2026-09-05 (Clique L9 — bounded ASCII words builtin and constructed-text boundary); 2026-09-05 (Clique L10 — lazy merge, receipt retention and global local-pagination cursor rule); 2026-09-05 (Clique L8b — nested point-read shapes preserve page state; early exits preserve capped taint); 2026-09-05 (Clique L8a — prefix-local self-probe and decided-disjunction visibility proofs); 2026-09-05 (Clique L3 — honest bound refusals and patch-sensitive cap metering; LLP 1016 J2 — §1's system tables gain `_jobs` and `_timers`; LLP 1017 §1, then §2 and §3)
+**Revised:** 2026-09-06 (conditional result-page provenance and branch-scoped cursor validation); 2026-09-05 (Clique L12 — §3 receipt-only null invariant and §5.1 `connected`); 2026-09-05 (Clique L9 — bounded ASCII words builtin and constructed-text boundary); 2026-09-05 (Clique L10 — lazy merge, receipt retention and global local-pagination cursor rule); 2026-09-05 (Clique L8b — nested point-read shapes preserve page state; early exits preserve capped taint); 2026-09-05 (Clique L8a — prefix-local self-probe and decided-disjunction visibility proofs); 2026-09-05 (Clique L3 — honest bound refusals and patch-sensitive cap metering; LLP 1016 J2 — §1's system tables gain `_jobs` and `_timers`; LLP 1017 §1, then §2 and §3)
 **Related:** LLP 1000, LLP 1002 (the loop that serves this), LLP 1003 (effects
 through the outbox this spec defines), LLP 0329.014.004 §7 (runtime), LLP
 0329.014.000 §6 (execution, trace, states), LLP 0329.016 §5.6 (no silent
@@ -232,6 +232,10 @@ result label, wire, and receipt may not.
 Local pagination has one rule for all queries: if `ClientStore::reexecute`
 reports `Partial` after a coverage miss or local deletion, clear `next`.
 A cursor requires covered replay; this rule is not specific to merge.
+The certifier derives a page site for each return through branch-local aliases
+and one-to-one shapes (LLP 1011 §B1). Execution selects the actual return,
+never the last auxiliary scan. An unexecuted merge does not count as an
+unfinished union; non-page returns have no continuation.
 
 **Certified bound, aligned 2026-09-05.** A hoisted site certifies its computed
 reserve (`take + 2` examined and index entries per call); only a program with a
@@ -287,8 +291,10 @@ An opaque cursor is canonical base64url of the tagged, versioned encoding
 `[version, table, index, order, suffix descriptor, suffix values]`. Values keep
 their index-column types, including nominal `Id` versus `String`; decode is
 size-bounded and must canonically re-encode. Version, table, index, order, and
-the exact post-prefix descriptor must match before any scan or the request is
-`E_INPUT`. Tokens are not site-bound. `after: c` selects rows following the
+the exact post-prefix descriptor must match before the selected page or its
+merge lane discovery opens, including empty discovery, or the request is
+`E_INPUT`. Canonical argument decoding happens before execution; unselected
+branches do not constrain the cursor scope. Tokens are not site-bound. `after: c` selects rows following the
 position in requested order (`>` ascending, `<` descending). The index is a
 total order (ending in `id`, or unique); pageable merge indexes end in intrinsic
 `id`. Raw IR retains tuple `after`/`before` as lowering targets. Explicit

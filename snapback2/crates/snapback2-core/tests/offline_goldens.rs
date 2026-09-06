@@ -566,7 +566,6 @@ fn point_program(name: &str, table: &str, index: &str, key: Value) -> Program {
         kind: ProgramKind::Query,
         args: BTreeMap::new(),
         read_time_granularity_ms: None,
-        result_page_site: None,
         body: vec![Stmt::Return(Expr::Get(Read {
             site: format!("{name}.point"),
             table: table.to_owned(),
@@ -584,7 +583,6 @@ fn scan_program(name: &str, index: &str, prefix: Vec<Value>, take: u32) -> Progr
         kind: ProgramKind::Query,
         args: BTreeMap::new(),
         read_time_granularity_ms: None,
-        result_page_site: None,
         body: vec![Stmt::Return(Expr::Scan(Scan {
             site,
             table: "messages".to_owned(),
@@ -816,7 +814,6 @@ fn hidden_candidate_memo_rollback_preserves_envelope_receipt_replay() {
         kind: ProgramKind::Query,
         args: BTreeMap::new(),
         read_time_granularity_ms: None,
-        result_page_site: None,
         body: vec![
             Stmt::Let {
                 name: "discarded".to_owned(),
@@ -842,7 +839,6 @@ fn hidden_candidate_memo_rollback_preserves_envelope_receipt_replay() {
         kind: ProgramKind::Query,
         args: BTreeMap::new(),
         read_time_granularity_ms: None,
-        result_page_site: None,
         body: vec![Stmt::Return(Expr::Scan(Scan {
             site: "documents.rangeMemo.rows".to_owned(),
             table: "documents".to_owned(),
@@ -968,7 +964,6 @@ fn engine_result_provenance_distinguishes_identical_rows_from_two_tables() {
         kind: ProgramKind::Query,
         args: BTreeMap::new(),
         read_time_granularity_ms: None,
-        result_page_site: None,
         body: vec![Stmt::Return(Expr::Builtin {
             builtin: Builtin::Concat,
             args: vec![
@@ -1178,7 +1173,6 @@ fn certified_program_generation_binds_ir_without_changing_schema_generation() {
                     kind: ProgramKind::Query,
                     args: BTreeMap::new(),
                     read_time_granularity_ms: None,
-                    result_page_site: None,
                     body: vec![Stmt::Return(Expr::Literal(Value::Int(value)))],
                 }],
                 effects: Vec::new(),

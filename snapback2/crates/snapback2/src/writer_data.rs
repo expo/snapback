@@ -106,7 +106,6 @@ impl State {
             kind: ProgramKind::Query,
             args,
             read_time_granularity_ms: None,
-            result_page_site: pageable.then(|| site.clone()),
             body: vec![Stmt::Return(Expr::Scan(Scan {
                 site,
                 table: table_name,

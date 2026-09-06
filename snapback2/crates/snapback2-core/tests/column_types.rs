@@ -78,7 +78,6 @@ fn create_program() -> Program {
             ),
         ]),
         read_time_granularity_ms: None,
-        result_page_site: None,
         body: vec![
             Stmt::Insert {
                 table: "items".to_owned(),
@@ -100,7 +99,6 @@ fn get_program(name: &str, index: &str, arg: &str, kind: ArgType) -> Program {
         kind: ProgramKind::Query,
         args: BTreeMap::from([(arg.to_owned(), kind)]),
         read_time_granularity_ms: None,
-        result_page_site: None,
         body: vec![Stmt::Return(Expr::Get(Read {
             site: name.to_owned(),
             table: "items".to_owned(),
@@ -117,7 +115,6 @@ fn scan_program(name: &str, index: &str, arg: &str, kind: ArgType) -> Program {
         kind: ProgramKind::Query,
         args: BTreeMap::from([(arg.to_owned(), kind)]),
         read_time_granularity_ms: None,
-        result_page_site: None,
         body: vec![Stmt::Return(Expr::Scan(Scan {
             site: name.to_owned(),
             table: "items".to_owned(),
@@ -360,7 +357,6 @@ fn principal_schema_and_argument_types_keep_the_id_scalar_wire_encoding() {
         kind: ProgramKind::Query,
         args: BTreeMap::from([("target".to_owned(), ArgType::Principal)]),
         read_time_granularity_ms: None,
-        result_page_site: None,
         body: vec![Stmt::Return(var("target"))],
     };
     let generation = Generation::certify(
@@ -464,7 +460,6 @@ fn bytes_programs() -> Vec<Program> {
                 ("payload".to_owned(), ArgType::Bytes { max: 8 }),
             ]),
             read_time_granularity_ms: None,
-            result_page_site: None,
             body: vec![Stmt::Insert {
                 table: "blobs".to_owned(),
                 row: Expr::Object(BTreeMap::from([
@@ -481,7 +476,6 @@ fn bytes_programs() -> Vec<Program> {
                 ("payload".to_owned(), ArgType::Bytes { max: 8 }),
             ]),
             read_time_granularity_ms: None,
-            result_page_site: None,
             body: vec![Stmt::Update {
                 table: "blobs".to_owned(),
                 key: var("id"),
@@ -493,7 +487,6 @@ fn bytes_programs() -> Vec<Program> {
             kind: ProgramKind::Query,
             args: BTreeMap::new(),
             read_time_granularity_ms: None,
-            result_page_site: None,
             body: vec![Stmt::Return(Expr::Scan(Scan {
                 site: "blobs.scan".to_owned(),
                 table: "blobs".to_owned(),

@@ -119,7 +119,6 @@
       }
     },
     "read_time_granularity_ms": null,
-    "result_page_site": "local.partial",
     "body": [
       {
         "Return": {
@@ -147,7 +146,7 @@
   },
   "certificate": {
     "program": "local.partial",
-    "plan_hash": "46dc650fcf91762d1b455899f7cabfa6bb5c16618d8f1b456fec31a45114a219",
+    "plan_hash": "6284e2ecb9e5aa97d7d253f6ffa1fcc770ec37a2747f9f43081239803ea0af75",
     "schema_hash": "f7c842236978e842a20695dbea23d49d1277bd8bdbc0c342ee6422331cb188f8",
     "tables": {
       "follows": {
@@ -176,22 +175,24 @@
         "complete": false
       }
     ],
-    "result_page_site": {
-      "site": "local.partial",
-      "table": "posts",
-      "index": "byAt",
-      "order": "Asc",
-      "suffix": [
-        {
-          "name": "at",
-          "kind": "Int"
-        },
-        {
-          "name": "id",
-          "kind": "Id"
-        }
-      ],
-      "merge": false
+    "result_pages": {
+      "0": {
+        "site": "local.partial",
+        "table": "posts",
+        "index": "byAt",
+        "order": "Asc",
+        "suffix": [
+          {
+            "name": "at",
+            "kind": "Int"
+          },
+          {
+            "name": "id",
+            "kind": "Id"
+          }
+        ],
+        "merge": false
+      }
     },
     "write_sites": [],
     "maintained_amplification": 0,

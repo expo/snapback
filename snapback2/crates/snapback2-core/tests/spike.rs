@@ -722,7 +722,6 @@ fn visibility_probe_case(
         kind: ProgramKind::Query,
         args: BTreeMap::from([("id".to_owned(), ArgType::Id)]),
         read_time_granularity_ms: None,
-        result_page_site: None,
         body: vec![Stmt::Return(Expr::Get(Read {
             site: "documents.get".to_owned(),
             table: "documents".to_owned(),
@@ -1370,7 +1369,7 @@ fn every_frozen_corpus_case_replays_its_certification_outcome() {
     }
     assert_eq!(
         cases.len(),
-        226,
+        240,
         "the complete frozen corpus must be checked"
     );
     assert!(
@@ -1390,7 +1389,6 @@ fn write_program(name: &str, body: Vec<Stmt>) -> Program {
         kind: ProgramKind::Mutation,
         args: BTreeMap::new(),
         read_time_granularity_ms: None,
-        result_page_site: None,
         body,
     }
 }

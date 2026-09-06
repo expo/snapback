@@ -58,7 +58,6 @@ fn insert_program(column: &str, kind: ArgType) -> Program {
             ("asset".to_owned(), kind),
         ]),
         read_time_granularity_ms: None,
-        result_page_site: None,
         body: vec![Stmt::Insert {
             table: "media".to_owned(),
             row: Expr::Object(BTreeMap::from([
@@ -78,7 +77,6 @@ fn replace_program(column: &str, kind: ArgType) -> Program {
             ("asset".to_owned(), kind),
         ]),
         read_time_granularity_ms: None,
-        result_page_site: None,
         body: vec![Stmt::Update {
             table: "media".to_owned(),
             key: var("rowId"),
@@ -93,7 +91,6 @@ fn delete_program() -> Program {
         kind: ProgramKind::Mutation,
         args: BTreeMap::from([("rowId".to_owned(), ArgType::Id)]),
         read_time_granularity_ms: None,
-        result_page_site: None,
         body: vec![Stmt::Delete {
             table: "media".to_owned(),
             key: var("rowId"),
@@ -276,7 +273,6 @@ fn asset_member_access_is_closed_and_evaluates() {
         kind: ProgramKind::Query,
         args: BTreeMap::from([("clip".to_owned(), ArgType::Video { max: 1_000 })]),
         read_time_granularity_ms: None,
-        result_page_site: None,
         body: vec![Stmt::Return(Expr::Field {
             base: Box::new(var("clip")),
             name: "duration".to_owned(),
@@ -384,7 +380,6 @@ fn asset_id_is_text_and_object_literal_reconstruction_is_refused_at_check() {
             ("asset".to_owned(), ArgType::Image { max: 1_000 }),
         ]),
         read_time_granularity_ms: None,
-        result_page_site: None,
         body: vec![Stmt::Insert {
             table: "media".to_owned(),
             row: Expr::Object(BTreeMap::from([
@@ -572,7 +567,6 @@ fn first_require_cannot_observe_forged_asset_facts_or_run_later_effects() {
         kind: ProgramKind::Mutation,
         args: BTreeMap::from([("clip".to_owned(), ArgType::Video { max: 1_000 })]),
         read_time_granularity_ms: None,
-        result_page_site: None,
         body: vec![
             Stmt::Require {
                 condition: Expr::Binary {
@@ -640,7 +634,6 @@ fn entry_validation_recurses_through_optional_lists() {
         kind: ProgramKind::Mutation,
         args: BTreeMap::from([("assets".to_owned(), kind)]),
         read_time_granularity_ms: None,
-        result_page_site: None,
         body: vec![Stmt::Return(var("assets"))],
     };
     let generation = generation(Schema::default(), vec![program]);
@@ -985,7 +978,6 @@ fn delivery_uses_locator_cell_and_certified_read_rule() {
             ("asset".to_owned(), ArgType::Image { max: 1_000 }),
         ]),
         read_time_granularity_ms: None,
-        result_page_site: None,
         body: vec![Stmt::Insert {
             table: "media".to_owned(),
             row: Expr::Object(BTreeMap::from([

@@ -77,7 +77,6 @@ fn generated_args_exercises_every_arg_type_variant() {
             ("scalar".to_owned(), ArgType::Scalar),
         ]),
         read_time_granularity_ms: None,
-        result_page_site: None,
         body: vec![snapback2_core::Stmt::Return(snapback2_core::Expr::Literal(
             Value::Null,
         ))],
@@ -100,7 +99,6 @@ fn generated_args_exercises_every_arg_type_variant() {
 #[test]
 fn asset_probe_skip_recognizes_nested_asset_arguments_and_records_the_reason() {
     let program = Program {
-        result_page_site: None,
         name: "assets.send".to_owned(),
         kind: ProgramKind::Mutation,
         args: BTreeMap::from([(
@@ -132,7 +130,6 @@ fn bare_named_id_uses_the_matching_seed_table_instead_of_btree_first() {
         kind: ProgramKind::Query,
         args: BTreeMap::from([("todoId".to_owned(), ArgType::Id)]),
         read_time_granularity_ms: None,
-        result_page_site: None,
         body: vec![snapback2_core::Stmt::Return(snapback2_core::Expr::Literal(
             Value::Null,
         ))],
@@ -158,7 +155,6 @@ fn unmatched_named_id_blocks_instead_of_guessing_an_unrelated_seed_table() {
         kind: ProgramKind::Query,
         args: BTreeMap::from([("ownerId".to_owned(), ArgType::Id)]),
         read_time_granularity_ms: None,
-        result_page_site: None,
         body: vec![snapback2_core::Stmt::Return(snapback2_core::Expr::Literal(
             Value::Null,
         ))],
@@ -249,7 +245,6 @@ fn invalidation_probe_selects_a_recipient_from_the_selected_conversation() {
             ),
         ]),
         read_time_granularity_ms: None,
-        result_page_site: None,
         body: Vec::new(),
     };
     let seeded = SeedData {

@@ -349,7 +349,6 @@ fn then_generation_with_cap(
         kind: ProgramKind::Mutation,
         args: BTreeMap::new(),
         read_time_granularity_ms: None,
-        result_page_site: None,
         body: vec![Stmt::Emit {
             effect: "notifications.notify".to_owned(),
             payload: Expr::Literal(Value::Null),
@@ -364,7 +363,6 @@ fn then_generation_with_cap(
             ("result".to_owned(), ArgType::Json { max_bytes: 1_000 }),
         ]),
         read_time_granularity_ms: None,
-        result_page_site: None,
         body: if reject {
             vec![Stmt::Require {
                 condition: Expr::Literal(Value::Bool(false)),
@@ -385,7 +383,6 @@ fn then_generation_with_cap(
         kind: ProgramKind::Query,
         args: BTreeMap::new(),
         read_time_granularity_ms: None,
-        result_page_site: None,
         body: vec![Stmt::Return(Expr::Scan(Scan {
             site: "notifications.list".to_owned(),
             table: "notifications".to_owned(),

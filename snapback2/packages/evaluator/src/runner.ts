@@ -32,7 +32,7 @@ import {
   startsWith,
   totalCompare,
   validHttpUrl,
-  validateWriteRow,
+  validateWriteRow, validateScanCursor,
   valueText,
   variant, wireJson,
 } from "./value-runtime";
@@ -51,6 +51,7 @@ const NEXT: Flow = { kind: "next" };
 export class Runner {
   private readonly env = new Map<string, Value>();
   private readonly consts = new Set<string>();
+  private returnPath: string | null = null;
   private readonly context: Context;
   readonly trace: Trace = { ranges: [], absences: [], points: [], merges: [], verdicts: [] };
   private readonly ruleMemo = new Map<string, boolean>();
@@ -89,7 +90,7 @@ export class Runner {
     return {
       result: this.partial.size === 0 && flow.kind === "return" ? flow.value : "Null",
       trace: this.trace,
-      next: mintNext(this.context.viewer, this.certificate, this.trace),
+      next: mintNext(this.context.viewer, this.certificate, this.trace, this.returnPath),
       writes: [...this.writes.values()],
     };
   }
@@ -109,8 +110,9 @@ export class Runner {
       throw new EvalError("E_STEPS", "certified step budget exceeded");
   }
 
-  private statements(statements: any[]): Flow {
-    for (const statement of statements) {
+  private statements(statements: any[], prefix = ""): Flow {
+    for (const [index, statement] of statements.entries()) {
+      const path = `${prefix}${index}`;
       this.step();
       const [kind, data] = variant(statement);
       let flow: Flow = NEXT;
@@ -134,15 +136,15 @@ export class Runner {
           target.Array.push(this.expr(data.value));
           break;
         }
-        case "If":
-          flow = this.statements(
-            asBool(this.expr(data.condition)) ? data.then_body : data.else_body,
-          );
+        case "If": {
+          const arm = asBool(this.expr(data.condition)) ? "then" : "else";
+          flow = this.statements(data[`${arm}_body`], `${path}/${arm}/`);
           break;
+        }
         case "For": {
           for (const value of this.domain(data.domain)) {
             this.env.set(data.binding, value);
-            const bodyFlow = this.statements(data.body);
+            const bodyFlow = this.statements(data.body, `${path}/body/`);
             if (bodyFlow.kind === "continue" || bodyFlow.kind === "next") continue;
             if (bodyFlow.kind === "break") break;
             flow = bodyFlow;
@@ -179,6 +181,7 @@ export class Runner {
           break;
         case "Return":
           flow = { kind: "return", value: this.expr(data) };
+          this.returnPath = path;
           break;
         case "Break":
           flow = { kind: "break" };
@@ -509,6 +512,7 @@ export class Runner {
   }
 
   private scanInput(scan: any): any {
+    validateScanCursor(this.schema, scan, this.env);
     const prefix = scan.prefix.map((value: any) => this.expr(value));
     let after = scan.after === null ? null : this.expr(scan.after);
     const before = scan.before === null ? null : this.expr(scan.before);
@@ -575,6 +579,7 @@ export class Runner {
   private merge(merge: any): Value {
     const certificate = this.certificate;
     if (!certificate) throw new EvalError("E_TRACE_SUBSET", `merge ${merge.site} requires a certificate; check the program before local execution`);
+    for (const lane of merge.lanes) validateScanCursor(this.schema, lane.scan, this.env);
     const lanes: any[] = [];
     const prefixes = new Set<string>();
     for (const lane of merge.lanes) {
@@ -647,7 +652,7 @@ export class Runner {
         lastReturnedSuffix: lane.returned.length ? suffix.map((c) => field(lane.returned.at(-1), c.name)) : null,
       });
     }
-    const page = this.certificate?.result_page_site;
+    const page: any = Object.values(this.certificate?.result_pages ?? {}).find((page: any) => page.merge && page.site === merge.site);
     this.trace.merges.push({ site: merge.site, deduplicated_union_len: result.union,
       last_returned_suffix: page?.merge && page.site === merge.site && result.rows.length
         ? suffix.map((c) => clone(field(result.rows.at(-1)!, c.name))) : null });
@@ -1103,8 +1108,8 @@ function substituteRuleTerm(term: any, columns: string[], probeKey: any[]): any 
   return position < 0 || position >= probeKey.length ? null : clone(probeKey[position]);
 }
 
-function mintNext(viewer: string, certificate: any, trace: Trace): string | null {
-  const page = certificate?.result_page_site;
+function mintNext(viewer: string, certificate: any, trace: Trace, path: string | null): string | null {
+  const page = path === null ? undefined : certificate?.result_pages?.[path];
   if (!page || !queryCapped(certificate, trace, viewer)) return null;
   const values = page.merge
     ? trace.merges.slice().reverse().find((entry) => entry.site === page.site)?.last_returned_suffix
@@ -1132,7 +1137,7 @@ function queryCapped(certificate: any, trace: Trace, viewer: string): boolean {
       || (!system && !certificate.read_sites?.find((site: any) => site.site === range.site)?.hoist))) return true;
   return (certificate.merge_sites ?? []).some((site: any) => {
     const merge = trace.merges.find((entry) => entry.site === site.site);
-    const unionTooLarge = merge === undefined || merge.deduplicated_union_len > site.take;
+    const unionTooLarge = merge !== undefined && merge.deduplicated_union_len > site.take;
     const laneLimited = trace.ranges.some((range) => site.lane_sites.includes(range.site) && range.stop !== "exhausted");
     return unionTooLarge || laneLimited;
   });

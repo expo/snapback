@@ -594,7 +594,6 @@ mod tests {
             kind: ProgramKind::Mutation,
             args: BTreeMap::new(),
             read_time_granularity_ms: None,
-            result_page_site: None,
             body: vec![Stmt::Insert {
                 table: "secretDocs".to_owned(),
                 row: Expr::Literal(object([

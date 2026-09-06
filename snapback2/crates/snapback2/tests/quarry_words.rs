@@ -332,7 +332,6 @@ fn words_loop_elements_keep_the_whole_input_width_through_aliases() {
             kind: ProgramKind::Query,
             args: BTreeMap::from([("body".into(), ArgType::Text { max: 2000 })]),
             read_time_granularity_ms: None,
-            result_page_site: None,
             body: vec![],
         };
         if alias > 0 {
@@ -400,7 +399,6 @@ fn words_dense_inputs_dedupe_and_stay_inside_output_and_closure_bounds() {
         kind: ProgramKind::Query,
         args: BTreeMap::from([("body".into(), ArgType::Text { max: 2000 })]),
         read_time_granularity_ms: None,
-        result_page_site: None,
         body: vec![Stmt::Return(Expr::Builtin {
             builtin: Builtin::Words,
             args: vec![Expr::Variable("body".into())],
@@ -530,7 +528,6 @@ fn words_text_plus_ir_refuses_identically_in_engine_and_twin() {
                 ("b".into(), ArgType::Text { max: 4 }),
             ]),
             read_time_granularity_ms: None,
-            result_page_site: None,
             body: vec![Stmt::Return(value)],
         };
         let certificate = Checker::new(&schema, Ceilings::default())

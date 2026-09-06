@@ -23,7 +23,7 @@ fn fixture(lanes: u32, take: u32) -> (Schema, Program) {
     own.source = None;
     own.binding.clear();
     merge.lanes.insert(0, own);
-    program.result_page_site = Some(merge.site.clone());
+
     program
         .args
         .insert("c".into(), ArgType::Optional(Box::new(ArgType::Cursor)));
@@ -301,7 +301,6 @@ fn merge_lookahead_preserves_capped_state_after_one_local_deletion() {
         kind: ProgramKind::Mutation,
         args: BTreeMap::new(),
         read_time_granularity_ms: None,
-        result_page_site: None,
         body: vec![Stmt::Delete {
             table: "posts".into(),
             key: Expr::Literal(Value::Id("f".into())),
@@ -464,7 +463,7 @@ fn merge_argument_take_uses_evaluated_page_size_and_completeness() {
 fn merge_prefix_collapse_includes_evaluated_after_before_and_range() {
     for bound in ["after", "before", "range"] {
         let (schema, mut program) = fixture(2, 3);
-        program.result_page_site = None;
+
         let Stmt::Return(Expr::Merge(merge)) = &mut program.body[0] else {
             unreachable!()
         };
@@ -566,4 +565,103 @@ fn partial_reexecute_clears_next_for_plain_scan() {
     assert!(matches!(state, LocalState::Partial(_)));
     assert_eq!(ids(&replay.result), ["p2", "p3"]);
     assert_eq!(replay.next, None);
+}
+
+#[test]
+fn page_provenance_is_derived_and_requires_an_unmodified_ordered_collector() {
+    let (schema, program) = fixture(2, 3);
+    let Stmt::Return(page) = &program.body[0] else {
+        unreachable!()
+    };
+    let push = Stmt::Push {
+        target: "rows".into(),
+        value: var("entry"),
+    };
+    for (name, initial, body, expected) in [
+        ("shape", Expr::Array(vec![]), vec![push.clone()], true),
+        (
+            "double-push",
+            Expr::Array(vec![]),
+            vec![push.clone(), push.clone()],
+            false,
+        ),
+        (
+            "truncated",
+            Expr::Array(vec![]),
+            vec![push.clone(), Stmt::Break],
+            false,
+        ),
+        (
+            "conditional-push",
+            Expr::Array(vec![]),
+            vec![Stmt::If {
+                condition: Expr::Literal(Value::Bool(true)),
+                then_body: vec![push.clone()],
+                else_body: vec![],
+            }],
+            false,
+        ),
+        (
+            "prepopulated",
+            Expr::Array(vec![Expr::Literal(Value::Null)]),
+            vec![push.clone()],
+            false,
+        ),
+        (
+            "overwritten",
+            Expr::Array(vec![]),
+            vec![
+                Stmt::Assign {
+                    name: "rows".into(),
+                    value: Expr::Array(vec![]),
+                },
+                push,
+            ],
+            false,
+        ),
+    ] {
+        let mut shaped = program.clone();
+        shaped.name = name.into();
+        shaped.body = vec![
+            Stmt::Const {
+                name: "page".into(),
+                value: page.clone(),
+            },
+            Stmt::Let {
+                name: "rows".into(),
+                value: initial,
+            },
+            Stmt::For {
+                binding: "entry".into(),
+                domain: LoopDomain::DerivedArray {
+                    value: var("page"),
+                    max: 3,
+                    bound_source: "page".into(),
+                },
+                body,
+            },
+            Stmt::Return(var("rows")),
+        ];
+        // A raw IR client cannot bless a lossy collector with the removed hint.
+        let mut encoded = serde_json::to_value(&shaped).unwrap();
+        encoded["result_page_site"] = serde_json::json!("merge.for-limit");
+        let forged: Program = serde_json::from_value(encoded).unwrap();
+        let certificate = Checker::new(&schema, Ceilings::default())
+            .check(&forged)
+            .unwrap();
+        assert_eq!(!certificate.result_pages.is_empty(), expected, "{name}");
+    }
+}
+
+#[test]
+fn repeated_page_site_cannot_select_an_auxiliary_scan_or_merge() {
+    let (schema, mut program) = fixture(2, 3);
+    let Stmt::Return(page) = &program.body[0] else { unreachable!() };
+    program.body = vec![
+        Stmt::Const { name: "returned".into(), value: page.clone() },
+        Stmt::Const { name: "auxiliary".into(), value: page.clone() },
+        Stmt::Return(var("returned")),
+    ];
+    let errors = Checker::new(&schema, Ceilings::default()).check(&program).unwrap_err();
+    assert_eq!(errors.code, "E_TRACE_SUBSET");
 }

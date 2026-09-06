@@ -42,7 +42,6 @@ fn project(handle_column: ColumnType, min: u32) -> ProjectJson {
                 ),
             ]),
             read_time_granularity_ms: None,
-            result_page_site: None,
             body: vec![
                 Stmt::Insert {
                     table: "profiles".to_owned(),
@@ -150,7 +149,6 @@ fn text_values_reject_disallowed_c0_controls_and_accept_the_priced_set() {
         kind: ProgramKind::Query,
         args: BTreeMap::from([("body".to_owned(), ArgType::Text { max: 1 })]),
         read_time_granularity_ms: None,
-        result_page_site: None,
         body: vec![Stmt::Return(var("body"))],
     };
     let certificate = Checker::new(&schema, Ceilings::default())

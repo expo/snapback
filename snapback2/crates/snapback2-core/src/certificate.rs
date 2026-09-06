@@ -16,7 +16,7 @@ mod merge;
 mod output;
 mod page;
 use diagnostic::{Cost, WorkTerms};
-use page::resolve_result_page_site;
+use page::result_pages;
 
 // Heap is calibrated; output/closure use declared maxima. These are admission bounds, not allocator/serializer proofs.
 const HEAP_BYTES_PER_STEP: u64 = 32;
@@ -71,8 +71,9 @@ pub struct Certificate {
     pub read_sites: Vec<ReadSite>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub merge_sites: Vec<MergeSite>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub result_page_site: Option<ResultPageSite>,
+    /// Certified page for each structural return path; never declared by the compiler.
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub result_pages: BTreeMap<String, ResultPageSite>,
     pub write_sites: Vec<WriteSite>,
     pub maintained_amplification: u64,
     #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
@@ -305,10 +306,7 @@ impl<'a> Checker<'a> {
                 max_rows: timer_writes,
             });
         }
-        let result_page_site = match &program.result_page_site {
-            Some(site) => Some(resolve_result_page_site(self.schema, &program.body, site)?),
-            None => None,
-        };
+        let result_pages = result_pages(self.schema, program)?;
         // @ref LLP 1001#2-what-a-commit-records — certification accounts for
         // both old and new maintained-target applications of update/upsert,
         // and preserves the bound per physical target table.
@@ -630,7 +628,7 @@ impl<'a> Checker<'a> {
             value_model_version: CURRENT_VALUE_MODEL_VERSION.to_string(),
             read_sites,
             merge_sites: analyzer.merge_sites.into_values().collect(),
-            result_page_site,
+            result_pages,
             write_sites: summary.writes,
             maintained_amplification,
             maintained_writes,

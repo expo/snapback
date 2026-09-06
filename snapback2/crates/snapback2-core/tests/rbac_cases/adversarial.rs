@@ -138,7 +138,6 @@ fn scan_program(name: &str, table: &str, take: u32) -> Program {
         kind: ProgramKind::Query,
         args: BTreeMap::from([("group".to_owned(), ArgType::Id)]),
         read_time_granularity_ms: None,
-        result_page_site: None,
         body: vec![Stmt::Return(Expr::Scan(Scan {
             site: name.to_owned(),
             table: table.to_owned(),
@@ -194,7 +193,6 @@ fn owner_scan_program(
         kind: ProgramKind::Query,
         args: BTreeMap::new(),
         read_time_granularity_ms: None,
-        result_page_site: None,
         body: vec![
             Stmt::Let {
                 name: "narrow".to_owned(),
@@ -230,7 +228,6 @@ fn certificate_refuses_incompatible_duplicate_read_sites_but_aggregates_equal_sh
         kind: ProgramKind::Query,
         args: BTreeMap::new(),
         read_time_granularity_ms: None,
-        result_page_site: None,
         body: vec![
             Stmt::Let {
                 name: "first".to_owned(),
@@ -445,7 +442,6 @@ fn later_nonuniform_scan_makes_an_earlier_detailed_cap_opaque() {
         kind: ProgramKind::Query,
         args: BTreeMap::new(),
         read_time_granularity_ms: None,
-        result_page_site: None,
         body: vec![
             Stmt::Let {
                 name: "publicPage".to_owned(),
@@ -542,7 +538,6 @@ fn get_program(name: &str, table: &str) -> Program {
         kind: ProgramKind::Query,
         args: BTreeMap::from([("id".to_owned(), ArgType::Id)]),
         read_time_granularity_ms: None,
-        result_page_site: None,
         body: vec![Stmt::Return(Expr::Get(Read {
             site: name.to_owned(),
             table: table.to_owned(),
@@ -559,7 +554,6 @@ fn required_get_program(name: &str, table: &str) -> Program {
         kind: ProgramKind::Query,
         args: BTreeMap::from([("id".to_owned(), ArgType::Id)]),
         read_time_granularity_ms: None,
-        result_page_site: None,
         body: vec![
             Stmt::Let {
                 name: "document".to_owned(),
@@ -701,7 +695,6 @@ fn create_grant_program() -> Program {
             ("principal".to_owned(), ArgType::Principal),
         ]),
         read_time_granularity_ms: None,
-        result_page_site: None,
         body: vec![
             Stmt::Let {
                 name: "grantId".to_owned(),
@@ -730,7 +723,6 @@ fn grant_handle_program(name: &str, statement: Stmt) -> Program {
         kind: ProgramKind::Mutation,
         args: BTreeMap::from([("grantId".to_owned(), ArgType::Id)]),
         read_time_granularity_ms: None,
-        result_page_site: None,
         body: vec![statement, Stmt::Return(Expr::Literal(Value::Null))],
     }
 }

@@ -20,7 +20,9 @@ export const thread = query({ conversationId: t.ref(conversations) }, ({ db, ctx
 `complete` and `capped` receipts carry `next: Cursor | null`. Pass that opaque
 token back as the cursor argument for the next page. It represents the last
 returned row, is bound to the table/index/order, and must not be inspected or
-constructed by application code.
+constructed by application code. A conditional query can return a different
+range or merge from each branch, through aliases and shapes; `next` follows the
+branch that returns. Reset the cursor to `null` when switching index or order.
 
 Subscribe through `client.subscribe(api.messages.thread, args, listener)`.
 Each SSE data frame is a query response or refusal. Connection `live`/`stale`

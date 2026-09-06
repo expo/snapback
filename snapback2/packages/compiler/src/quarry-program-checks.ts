@@ -67,11 +67,10 @@ query aliased(author: principal, c: cursor ?):
       assert(lowered.ok, `opaque cursor project refused: ${lowered.ok ? "" : diagnosticsText(lowered.diagnostics)}`);
       const program = operation(lowered.project.programs, "ops.page");
       const aliased = operation(lowered.project.programs, "ops.aliased");
-      assert(JSON.stringify(program.args.c) === JSON.stringify({ Optional: "Cursor" })
-        && program.result_page_site === "ops.page.0", `cursor IR/certificate provenance changed: ${JSON.stringify(program)}`);
+      assert(JSON.stringify(program.args.c) === JSON.stringify({ Optional: "Cursor" }), `cursor IR/certificate provenance changed: ${JSON.stringify(program)}`);
       const checked = rustCheck([program, aliased], "synthetic", lowered.project.schema);
       assert(checked.every((item) => !item.error)
-        && (checked[0]!.certificate as any).result_page_site?.site === "ops.page.0",
+        && (Object.values(checked[0]!.certificate!.result_pages as any)[0] as any)?.site === "ops.page.0",
       `opaque pages did not certify: ${JSON.stringify(checked)}`);
       assert(JSON.stringify(aliased.body).includes('"Variable":"position"'),
         `cursor expression alias was not preserved for preflight: ${JSON.stringify(aliased)}`);
@@ -154,14 +153,105 @@ query consumed(c: cursor ?):
     await withProject({ "snapback/schema.q": schema, "snapback/ops.q": operations }, async (root) => {
       const lowered = await lowerProject(root);
       assert(lowered.ok, `page provenance fixture was refused: ${lowered.ok ? "" : diagnosticsText(lowered.diagnostics)}`);
-      const failures = rustCheck(lowered.project.programs, "synthetic", lowered.project.schema).filter((item) => item.error);
+      const certificates = rustCheck(lowered.project.programs, "synthetic", lowered.project.schema);
+      const failures = certificates.filter((item) => item.error);
       assert(failures.length === 0, `page provenance failed certification: ${JSON.stringify(failures)}`);
-      for (const name of ["ops.direct", "ops.shaped", "ops.merged"])
-        assert(operation(lowered.project.programs, name).result_page_site, `${name} lost result-page provenance`);
-      for (const name of ["ops.nested", "ops.branched", "ops.consumed"])
-        assert(!operation(lowered.project.programs, name).result_page_site, `${name} incorrectly gained result-page provenance`);
+      for (const name of ["ops.direct", "ops.shaped", "ops.merged", "ops.branched"])
+        assert(Object.keys(certificates.find((item) => item.program === name)!.certificate!.result_pages as any).length, `${name} lost result-page provenance`);
+      for (const name of ["ops.nested", "ops.consumed"])
+        assert(!certificates.find((item) => item.program === name)!.certificate!.result_pages, `${name} incorrectly gained result-page provenance`);
       const merged = rustCheck([operation(lowered.project.programs, "ops.merged")], "synthetic", lowered.project.schema)[0]!;
-      assert((merged.certificate as any)?.result_page_site?.merge === true, `merge provenance did not name its merge: ${JSON.stringify(merged)}`);
+      assert((Object.values(merged.certificate!.result_pages as any)[0] as any)?.merge === true, `merge provenance did not name its merge: ${JSON.stringify(merged)}`);
+    });
+  });
+
+  test("Quarry conditional range and discovered merge pages keep branch-local shapes and cursor scope", async () => {
+    const schema = `table follows:
+  follower: principal
+  followed: principal
+  by byFollower: follower, id
+  public
+table posts:
+  author: principal
+  at: time
+  body: text <=20
+  by byAt: at, id
+  by byAuthorAt: author, at, id
+  public
+`;
+    const queries = `query feed(global: bool, c: cursor ?):
+  if global:
+    page = posts[] after c last 20 by byAt
+    alias = page
+    return alias { body }
+  else:
+    page = merge posts after c last 20 by byAuthorAt:
+      [viewer]
+      [f.followed] for f in follows[viewer] first 500 by byFollower
+    alias = page
+    return alias { body }
+
+query empty(global: bool, c: cursor ?):
+  if global:
+    return posts[] after c first 20 by byAt { body }
+  return []
+`;
+    await withProject({ "snapback/schema.q": schema, "snapback/feed.q": queries }, async (root) => {
+      const lowered = await lowerProject(root);
+      assert(lowered.ok, `conditional feed refused: ${lowered.ok ? "" : diagnosticsText(lowered.diagnostics)}`);
+      const program = operation(lowered.project.programs, "feed.feed");
+      const checked = rustCheck([program], "synthetic", lowered.project.schema)[0]!;
+      assert(!checked.error, `conditional feed certification failed: ${JSON.stringify(checked)}`);
+      const pages = Object.values(checked.certificate!.result_pages as any) as any[];
+      assert(pages.length === 2 && pages.some((page) => page.merge) && pages.some((page) => !page.merge),
+        `conditional page certificate lost a branch: ${JSON.stringify(checked.certificate)}`);
+      const receipt: ClosureReceipt = { rows: [
+        { table: "follows", id: "f1", row: { Row: { id: { Id: "f1" }, follower: { Id: "u1" }, followed: { Id: "u2" } } } },
+        ...Array.from({ length: 47 }, (_, at) => ({ table: "posts", id: `p${at}`, row: { Row: {
+          id: { Id: `p${at}` }, author: { Id: at < 43 ? (at % 2 ? "u1" : "u2") : "u3" },
+          at: { Int: at }, body: { String: `entry-${at}` },
+        } } })),
+      ], ranges: [], absences: [], verdicts: [] };
+      for (const table of ["follows", "posts"]) receipt.ranges.push({
+        site: `held.${table}`, table, index: "byId", prefix: [], order: "Asc", take: 100,
+        after: null, before: null, gt: null, gte: null, lt: null, lte: null,
+        rule_hash: scopedRuleHash(lowered.project.schema, (lowered.project.schema.tables as any)[table].rules.read),
+        row_ids: receipt.rows.filter((row) => row.table === table).map((row) => row.id),
+        stop: "Exhausted", absence: false, halo: null, n2_key: null,
+      });
+      const store = new ClientStore(lowered.project.schema, receipt);
+      const context: Context = { viewer: "u1", principal_kind: "user", auth_epoch: 1,
+        args: { global: { Bool: true }, c: "Null" }, now: 1, new_ids: [], read_time: 1 };
+      const tokens: string[] = [];
+      for (const global of [true, false]) {
+        context.args = { global: { Bool: global }, c: "Null" };
+        const seen: Value[] = [];
+        for (let page = 0; page < 3; page++) {
+          const replay = store.reexecute(program, context, checked.certificate);
+          const data = (replay.execution.result as { Array: Value[] }).Array;
+          assert(data.length === (page < 2 ? 20 : global ? 7 : 3), `wrong conditional page size: ${JSON.stringify(replay)}`);
+          seen.push(...data);
+          if (page < 2) {
+            assert(replay.execution.next, "nonempty conditional page lost its continuation");
+            if (page === 0) tokens.push(replay.execution.next);
+            context.args.c = { String: replay.execution.next };
+          } else assert(!replay.execution.next, "terminal conditional page kept a cursor");
+        }
+        deepStrictEqual(seen, Array.from({ length: global ? 47 : 43 }, (_, n) =>
+          ({ Row: { body: { String: `entry-${(global ? 46 : 42) - n}` } } })), "conditional page order, shape, or membership changed");
+      }
+      for (const [global, token] of [[false, tokens[0]], [true, tokens[1]], [true, `${tokens[0]}=`]] as const) {
+        context.args = { global: { Bool: global }, c: { String: token! } };
+        let refusal: any;
+        try { store.reexecute(program, context, checked.certificate); } catch (error) { refusal = error; }
+        assert(refusal?.code === "E_INPUT", `conditional cursor scope accepted ${JSON.stringify(context.args)}`);
+      }
+      const empty = operation(lowered.project.programs, "feed.empty");
+      const emptyCertificate = rustCheck([empty], "synthetic", lowered.project.schema)[0]!.certificate;
+      context.args = { global: { Bool: false }, c: { String: tokens[1]! } };
+      const noPage = store.reexecute(empty, context, emptyCertificate).execution;
+      deepStrictEqual(noPage.result, { Array: [] });
+      assert(noPage.next === null, "a non-page return borrowed another branch's cursor");
     });
   });
 
@@ -779,7 +869,7 @@ query direct(value: time ?, upTo: time):
       assert(lowered.ok, `applying both repairs did not compile: ${lowered.ok ? "" : diagnosticsText(lowered.diagnostics)}`);
       const program = operation(lowered.project.programs, "feed.page");
       const checked = rustCheck([program], "synthetic", lowered.project.schema)[0]!;
-      assert(!checked.error && program.result_page_site,
+      assert(!checked.error && checked.certificate?.result_pages,
         `repaired projection lost certification or continuation: ${JSON.stringify(checked)}`);
       const receipt: ClosureReceipt = {
         rows: [

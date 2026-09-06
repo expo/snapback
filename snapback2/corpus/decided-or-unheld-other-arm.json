@@ -238,7 +238,6 @@
     "kind": "Query",
     "args": {},
     "read_time_granularity_ms": null,
-    "result_page_site": "members.page",
     "body": [
       {
         "Return": {
@@ -267,7 +266,7 @@
   },
   "certificate": {
     "program": "decided-or-unheld-other-arm",
-    "plan_hash": "1d82da9866824fddf16af6ddd5814ed13ca24b80644a5397b16e32b519f2368e",
+    "plan_hash": "b1f0531509551cf7cef07d110736863e559b45279aba7148690729e27c6e73b5",
     "schema_hash": "8f330278e8b31ee7c4260b8101a053dfc84c2cb744512d6d2952b8f12056676a",
     "tables": {
       "conversations": {
@@ -302,19 +301,6 @@
         "complete": false
       }
     ],
-    "result_page_site": {
-      "site": "members.page",
-      "table": "memberships",
-      "index": "byPrincipalConversation",
-      "order": "Asc",
-      "suffix": [
-        {
-          "name": "conversationId",
-          "kind": "Id"
-        }
-      ],
-      "merge": false
-    },
     "write_sites": [],
     "maintained_amplification": 0,
     "constraint_checks": [],

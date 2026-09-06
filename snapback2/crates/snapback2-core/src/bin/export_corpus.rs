@@ -217,7 +217,6 @@ fn add_cursor_cases(cases: &mut Vec<CorpusCase>) {
             kind: ProgramKind::Query,
             args: BTreeMap::new(),
             read_time_granularity_ms: None,
-            result_page_site: None,
             body: vec![Stmt::Return(Expr::Array(pages.into()))],
         };
         let mut fixture = Fixture::new();
@@ -437,7 +436,6 @@ fn named_uniform_maintained_inbox_case() -> CorpusCase {
         kind: ProgramKind::Query,
         args: BTreeMap::new(),
         read_time_granularity_ms: None,
-        result_page_site: None,
         body: vec![
             Stmt::Let {
                 name: "result".to_owned(),
@@ -549,7 +547,6 @@ fn named_emit_case() -> CorpusCase {
         kind: ProgramKind::Mutation,
         args: BTreeMap::from([("body".to_owned(), ArgType::Scalar)]),
         read_time_granularity_ms: None,
-        result_page_site: None,
         body: vec![
             Stmt::Const {
                 name: "firstId".to_owned(),
@@ -1250,7 +1247,6 @@ fn pure_program(name: &str, expression: Expr, args: &BTreeMap<String, Value>) ->
             .map(|name| (name.clone(), ArgType::Scalar))
             .collect(),
         read_time_granularity_ms: None,
-        result_page_site: None,
         body: vec![Stmt::Return(expression)],
     }
 }

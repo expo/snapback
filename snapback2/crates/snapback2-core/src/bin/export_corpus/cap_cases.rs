@@ -486,7 +486,6 @@ fn program(name: &str, body: Vec<Stmt>) -> Program {
         kind: ProgramKind::Mutation,
         args: BTreeMap::new(),
         read_time_granularity_ms: None,
-        result_page_site: None,
         body,
     }
 }

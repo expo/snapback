@@ -938,7 +938,6 @@ mod tests {
                 ("asset".to_owned(), ArgType::Image { max: 1_000 }),
             ]),
             read_time_granularity_ms: None,
-            result_page_site: None,
             body: vec![Stmt::Insert {
                 table: "media".to_owned(),
                 row: Expr::Object(BTreeMap::from([
@@ -1117,7 +1116,6 @@ mod tests {
                 ("asset".to_owned(), ArgType::Image { max: 1_000 }),
             ]),
             read_time_granularity_ms: None,
-            result_page_site: None,
             body: vec![Stmt::Insert {
                 table: "media".to_owned(),
                 row: Expr::Object(BTreeMap::from([
