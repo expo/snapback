@@ -108,10 +108,13 @@ export class ClientAuth {
     await options.install(session);
     const { token: _, ...confirmed } = session;
     this.reset({ state: "authenticated", ...confirmed });
-    // Login already confirmed this bearer. Metadata failures cannot revoke it.
-    try { await options.metadata(); }
-    catch (error) { if (!isSnapbackRefusal(error) || !error.retryable) throw error; }
     options.validated();
+    // Prepare offline writes as before, but an installed bearer is a successful
+    // session even when metadata refuses. Its failure remains on lastRefusal.
+    try { await options.metadata(); }
+    catch (error) {
+      if (this.custody().token !== session.token || this.value.state !== "authenticated") throw error;
+    }
     return session;
   }
 

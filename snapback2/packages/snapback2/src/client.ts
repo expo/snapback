@@ -131,6 +131,7 @@ class Client implements SnapbackClient {
   private readonly live: SharedSse;
   private readonly mounted = new Map<string, MountedQuery>();
   private offlineMetadataLoaded = false;
+  private offlineStartupPending = false;
   private resumeTail: Promise<void> = Promise.resolve();
   private resumeFlight?: Promise<void>;
   private resumeController?: AbortController;
@@ -210,18 +211,25 @@ class Client implements SnapbackClient {
 
   async query<Args, Result>(ref: Op<Args, Result>, args: Args): Promise<QueryResult<Result>> {
     await this.localReady;
+    // Cold held reads may bypass restoration, never an explicit account transition.
+    while (true) {
+      const transition = this.transitionTail;
+      await transition;
+      if (transition === this.transitionTail) break;
+    }
     this.ensureOpen();
     const op = referenceName(ref);
+    const localAuthority = { authGeneration: this.authGeneration, custodyGeneration: this.custodyGeneration,
+      fence: this.operationFence, token: this.currentToken };
     if (this.currentToken && this.authState.value.state === "hydrating" && this.offlineRuntime
       && (this.startupComplete || this.offlineRuntime.principal)) {
-      const authority = { authGeneration: this.authGeneration, custodyGeneration: this.custodyGeneration,
-        fence: this.operationFence, token: this.currentToken };
       const held = await answerOffline<Result>(this.offlineRuntime, op, args, error => this.offlineRefusal(error));
-      this.ensureAuthority(authority);
+      this.ensureAuthority(localAuthority);
       return held;
     }
     if (!this.startupComplete && this.offlineRuntime?.principal !== undefined) {
       const held = await answerOffline(this.offlineRuntime, op, args, (error) => this.offlineRefusal(error, "client.query.local"));
+      this.ensureAuthority(localAuthority);
       if (held.state !== "hydrating") return held as QueryResult<Result>;
     }
     const authority = await this.operationAuthority(false);
@@ -671,7 +679,7 @@ class Client implements SnapbackClient {
 
   private async session(path: string, input: unknown): Promise<AuthSession> {
     ensureBearerTransition(this, path.slice("/api/auth/".length));
-    return this.transition(authority => this.authState.session(path, {
+    const session = await this.transition(authority => this.authState.session(path, {
       request: async () => captureGrant(this.offlineRuntime,
         await this.json(path, { method: "POST", body: JSON.stringify(input) }, authority, false, false)),
       install: async session => {
@@ -681,9 +689,13 @@ class Client implements SnapbackClient {
         this.authGeneration += 1;
       },
       metadata: () => this.ensureOfflineMetadata({ authGeneration: this.authGeneration,
-        custodyGeneration: this.custodyGeneration, fence: this.operationFence, token: this.currentToken }),
+        custodyGeneration: this.custodyGeneration, fence: this.operationFence, token: this.currentToken })
+        .catch(error => { throw this.offlineRefusal(error); }),
       validated: () => this.validated(undefined),
     }));
+    this.ensureOpen();
+    if (this.offlineMetadataLoaded) this.resumeAfterAuth();
+    return session;
   }
 
   private async logout(): Promise<{ ok: boolean }> {
@@ -699,7 +711,20 @@ class Client implements SnapbackClient {
   private async me(current = () => true): Promise<AuthMe> {
     const authority = await this.operationAuthority();
     if (!current()) throw this.supersededRefusal();
-    return this.confirmAuth(authority);
+    const result = await this.confirmAuth(authority);
+    this.resumeAfterAuth();
+    return result;
+  }
+
+  // @ref LLP 1012#7-writes-offline — confirmation after an interrupted startup
+  // must recover program custody and resume the outbox without a mounted query.
+  private resumeAfterAuth(): void {
+    if (!this.offlineStartupPending || this.closed || this.authState.value.state !== "authenticated" || !this.offlineRuntime?.principal) return;
+    const authority = { authGeneration: this.authGeneration, custodyGeneration: this.custodyGeneration,
+      fence: this.operationFence, token: this.currentToken };
+    // Auth has settled. The shared resume owns offline failures on lastRefusal;
+    // they cannot turn an installed session into a rejected login promise.
+    this.resumeTail = this.performResume(authority).catch(() => undefined);
   }
 
   private confirmAuth(authority: Authority): Promise<AuthMe> {
@@ -1000,7 +1025,9 @@ class Client implements SnapbackClient {
   }
 
   private async initializeOffline(): Promise<void> {
-    if (!this.offlineRuntime || this.operationFence > 0) return;
+    if (!this.offlineRuntime) return;
+    this.offlineStartupPending = true;
+    if (this.operationFence > 0) return;
     const authority = {
       authGeneration: this.authGeneration,
       custodyGeneration: this.custodyGeneration,
@@ -1015,6 +1042,7 @@ class Client implements SnapbackClient {
       resume: () => this.performResume(authority),
       cut: () => this.forcedOffline && this.startupController.signal.aborted,
     });
+    if (!this.currentToken && !this.offlineRuntime.principal) this.offlineStartupPending = false;
   }
 
   private async openOffline(principal: Principal, authenticated = false, authEpoch?: number): Promise<void> {
@@ -1064,6 +1092,7 @@ class Client implements SnapbackClient {
     const run = this.resumeOffline(authority, controller.signal).then(() => {
       throwIfAborted(controller.signal);
       this.ensureAuthority(authority);
+      this.offlineStartupPending = false;
       this.resetRefusal = undefined;
       this.validated(authority);
     }, (error) => {

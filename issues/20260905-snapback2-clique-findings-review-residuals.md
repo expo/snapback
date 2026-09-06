@@ -60,24 +60,35 @@ third round are collected here so they are not lost.
 
 ## L7 — auth machine (Muse r2, Grok r2)
 
-- Grok r2: `initializeOffline` returns immediately when `operationFence > 0` (`client.ts` ~1012),
+- **Resolved 2026-09-05 (auth startup follow-up):** `initializeOffline` returns immediately when `operationFence > 0` (`client.ts` ~1012),
   so a `login`/`signup`/`guest` started before `ready` skips confirm, metadata, and resume for
   that client; restoration later retries `me` but resume is not retried unless something calls
   `online()`. After a failed racing login, run metadata/resume once custody is restored, or run
   them from the post-`ready` `me` path (test: a login submitted during startup then outbox/resume).
-- Grok r2: `ClientAuth.session` publishes `authenticated` before metadata and then throws on a
+  Startup now retains pending sync; a successful session or restored bearer joins the
+  existing metadata/resume flight. SQLite restart regressions cover successful and failed
+  login both before hydration and during a pending `me`, with a durable intent replayed
+  exactly once without `online()` or mounted queries. Ordinary re-login keeps its explicit
+  resume contract for a past-fence queue.
+- **Resolved 2026-09-05 (auth startup follow-up):** `ClientAuth.session` publishes `authenticated` before metadata and then throws on a
   non-retryable metadata failure (offline runtime only): resolve after install and leave metadata
   to `ready`, or fail the promise only when custody did not settle.
+  Metadata preparation remains awaited so immediate offline writes keep their certificates;
+  a metadata refusal remains on `lastRefusal` while installed custody resolves successfully.
+  Login, signup, and guest regressions pin malformed metadata; expiry and close still reject.
 - Grok r2: `useQuery` lists `restoring` as an effect dependency (`react-core.tsx` ~185, ~226); a
   non-live `client.query` waiting on the lifetime controller is not aborted by cleanup, so
   confirmation can double-dispatch the read. Drop the dependency and let `settled` resume the
   wait, or abort the in-flight read on cleanup.
 
-- The early-held query path (`client.ts` ~217-224) answers from held coverage before awaiting
+- **Resolved 2026-09-05 (auth startup follow-up):** the early-held query path (`client.ts` ~217-224) answers from held coverage before awaiting
   `operationAuthority`, so a query issued mid-login-transition can read predecessor-principal
   held coverage instead of waiting for successor authority (device-held data, labelled
   held/`hydrating`; React identity re-keys on the generation bump). Gate the early path on a
   settled transition tail, or document why predecessor coverage is acceptable there.
+  Both early paths now wait for a stable transition tail and check authority after reading.
+  Regressions hold login open, prove the read remains pending, then prove a failed login
+  reads retained coverage and an account replacement dispatches only the successor bearer.
 - A failed transition during backoff restarts the backoff at 1 s (`suspend` → `stop` → `cancel`
   resets it); spec-conformant but unpinned — add a test either way.
 - `auth.md` has 6 bytes of headroom (4,090 of 4,096).
