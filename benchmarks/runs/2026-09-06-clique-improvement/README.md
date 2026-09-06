@@ -49,9 +49,9 @@ and migration command discovery
 
 | Lane | Review target | Current evidence |
 | --- | --- | --- |
-| Auth startup | `9b22e7b48`, branch `s2/clique-auth` | Nine new cancellation regressions fail before/pass after; 181 affected tests pass; revision in independent Astra/Grok review |
-| Abandoned assets | `f7d251394`, branch `s2/clique-assets` | Full script and measurements pass; Astra resolves prior residuals but finds terminal invalidation under supersession; next revision underway, Grok review running |
-| Conditional cursors | `bbe2f85aa`, branch `s2/clique-cursors` | Consolidated run: Rust 743 pass, compiler 400 pass, evaluator 216 pass; package 379 pass/one 10s timeout. Astra finds duplicate-site provenance and malformed-prefix panic; Grok READY; Astra residuals still require revision, now underway under the extended round limit |
+| Auth startup | `9b22e7b48`, branch `s2/clique-auth` | Nine new cancellation regressions fail before/pass after; 181 affected tests pass; both independent reviewers READY; integrating with asset/cursor fixes |
+| Abandoned assets | `6351b2d49`, branch `s2/clique-assets` | Fullf7 script/measurement pass; final JS134 and Rust35 affected tests pass; AstraREADY, Grok final review running |
+| Conditional cursors | `f997292c6`, branch `s2/clique-cursors` | Consolidated run: Rust 743 pass, compiler 400 pass, evaluator 216 pass; package 379 pass/one 10s timeout. Nested operand/prefix regressions fixed;72Rust/216evaluator/400compiler pass; both independent reviewers READY |
 
 Received auth and asset reviews are retained under `reviews/`, exactly as received.
 They are static reviews, not test execution. New interleaving regressions must
