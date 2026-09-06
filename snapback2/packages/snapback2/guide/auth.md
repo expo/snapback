@@ -37,6 +37,13 @@ need `loadPrincipalBinding()` and `savePrincipal(principal, token)` for cold rea
 No login rate limit. Wrong passwords/unknown emails yield
 `E_AUTH_INVALID`, which proves no account absence.
 
+Signup installs an authenticated session before your separate profile mutation.
+Route an authenticated user with no profile to editable onboarding. Check the
+profile mutation's `state`: show a `rejected` result's message, and enter the
+app only after profile creation commits. A duplicate handle leaves the account
+authenticated; let that account retry profile creation with another handle,
+without repeating signup. Missing profile data is not a loading state forever.
+
 Use `principal` from `viewer`, not a profile reference. Keep login email private:
 
 ```q

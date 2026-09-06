@@ -73,3 +73,13 @@ Evidence: M5 `/Users/ccheever/clique-full-008-20260906/logs/astra-snapback2.ndjs
 initial `guide app` and subsequent `check`/`guide app` command records.
 The standalone `evidence/guide-app.txt` is empty because the refusal went to
 stderr; the captured command records retain the actual diagnostic.
+
+18. Independent grading of the frozen 0.0.6 app found duplicate-handle signup
+    leaving an authenticated session with no visible profile error, and a
+    missing-profile edit screen stuck loading. The auth guide now explains
+    that signup and profile creation are separate, profile mutation rejection
+    must be shown, and the existing account can retry onboarding without
+    signing up again. This documents the current contract; it does not claim
+    to repair or requalify the frozen application. Evidence:
+    `/Users/ccheever/clique-improvement/grading/astra-006/grader-report.md`,
+    defects d-01/d-02 and the isolated duplicate-email correction.
