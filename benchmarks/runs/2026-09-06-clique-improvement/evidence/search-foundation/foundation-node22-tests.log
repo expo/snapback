@@ -1,0 +1,2441 @@
+== blocking script self-test
+== compiler type checking
+== compiler tests
+test script self-test ok
+== bundle the compiler worker + client (the owner tests load dist/)
+== package offline protocol + store + bytes + outbox + twin + real owner
+TAP version 13
+# react-test-renderer is deprecated. See https://react.dev/warnings/react-test-renderer
+# Subtest: browser token custody is explicit and no storage is selected by default
+ok 1 - browser token custody is explicit and no storage is selected by default
+  ---
+  duration_ms: 1.32175
+  type: 'test'
+  ...
+# Subtest: dev personas cannot be combined with bearer custody
+ok 2 - dev personas cannot be combined with bearer custody
+  ---
+  duration_ms: 0.102
+  type: 'test'
+  ...
+# Subtest: SnapbackProvider rejects a runtime persona and bearer combination
+ok 3 - SnapbackProvider rejects a runtime persona and bearer combination
+  ---
+  duration_ms: 14.782208
+  type: 'test'
+  ...
+# Subtest: an invalid explicit bearer cannot poison persistent custody
+ok 4 - an invalid explicit bearer cannot poison persistent custody
+  ---
+  duration_ms: 0.593917
+  type: 'test'
+  ...
+# Subtest: dev persona clients refuse bearer-session transitions without sending a request
+ok 5 - dev persona clients refuse bearer-session transitions without sending a request
+  ---
+  duration_ms: 0.373375
+  type: 'test'
+  ...
+# Subtest: ready blocks every data transport until explicit token restore settles
+ok 6 - ready blocks every data transport until explicit token restore settles
+  ---
+  duration_ms: 27.16775
+  type: 'test'
+  ...
+# Subtest: a relaunched client restores the explicitly stored bearer
+ok 7 - a relaunched client restores the explicitly stored bearer
+  ---
+  duration_ms: 1.91175
+  type: 'test'
+  ...
+# Subtest: principal replacement fences streams, suppresses delayed old reads, and waits for persistence
+ok 8 - principal replacement fences streams, suppresses delayed old reads, and waits for persistence
+  ---
+  duration_ms: 4.995
+  type: 'test'
+  ...
+# Subtest: delayed malformed response bodies cannot overwrite newer auth custody
+ok 9 - delayed malformed response bodies cannot overwrite newer auth custody
+  ---
+  duration_ms: 15.3145
+  type: 'test'
+  ...
+# Subtest: delayed malformed response bodies cannot mutate a closed client
+ok 10 - delayed malformed response bodies cannot mutate a closed client
+  ---
+  duration_ms: 1.974083
+  type: 'test'
+  ...
+# Subtest: delayed subscription opens cannot mutate a closed client
+ok 11 - delayed subscription opens cannot mutate a closed client
+  ---
+  duration_ms: 6.994458
+  type: 'test'
+  ...
+# Subtest: delayed subscription opens cannot mutate an individually closed subscription
+ok 12 - delayed subscription opens cannot mutate an individually closed subscription
+  ---
+  duration_ms: 2.672208
+  type: 'test'
+  ...
+# Subtest: delayed malformed subscription refusals cannot pollute a newer bearer
+ok 13 - delayed malformed subscription refusals cannot pollute a newer bearer
+  ---
+  duration_ms: 2.140791
+  type: 'test'
+  ...
+# Subtest: a delayed valid subscription expiry clears custody after a failed replacement
+ok 14 - a delayed valid subscription expiry clears custody after a failed replacement
+  ---
+  duration_ms: 1.668875
+  type: 'test'
+  ...
+# Subtest: an already-read terminal subscription frame survives a replacement fence
+ok 15 - an already-read terminal subscription frame survives a replacement fence
+  ---
+  duration_ms: 2.394584
+  type: 'test'
+  ...
+# Subtest: an individually closed subscription still applies already-read terminal evidence
+ok 16 - an individually closed subscription still applies already-read terminal evidence
+  ---
+  duration_ms: 3.614208
+  type: 'test'
+  ...
+# Subtest: whole-client close still applies already-read terminal evidence without delivery
+ok 17 - whole-client close still applies already-read terminal evidence without delivery
+  ---
+  duration_ms: 2.709167
+  type: 'test'
+  ...
+# Subtest: E_AUTH_SESSION clears custody only for the auth refusal family
+ok 18 - E_AUTH_SESSION clears custody only for the auth refusal family
+  ---
+  duration_ms: 1.982333
+  type: 'test'
+  ...
+# Subtest: auth transitions serialize and already-dispatched writes settle before replacement
+ok 19 - auth transitions serialize and already-dispatched writes settle before replacement
+  ---
+  duration_ms: 1.165417
+  type: 'test'
+  ...
+# Subtest: a delayed terminal write clears the old bearer before a failed replacement
+ok 20 - a delayed terminal write clears the old bearer before a failed replacement
+  ---
+  duration_ms: 0.792167
+  type: 'test'
+  ...
+# Subtest: a delayed terminal read cannot clear a successfully replaced bearer
+ok 21 - a delayed terminal read cannot clear a successfully replaced bearer
+  ---
+  duration_ms: 0.789459
+  type: 'test'
+  ...
+# Subtest: a transition during slow terminal cleanup suppresses typed mutation and channel receipts
+ok 22 - a transition during slow terminal cleanup suppresses typed mutation and channel receipts
+  ---
+  duration_ms: 1.612417
+  type: 'test'
+  ...
+# Subtest: close during token persistence never resurrects the client
+ok 23 - close during token persistence never resurrects the client
+  ---
+  duration_ms: 0.368
+  type: 'test'
+  ...
+# Subtest: predecessor expiry cannot erase a durably saved replacement after close
+ok 24 - predecessor expiry cannot erase a durably saved replacement after close
+  ---
+  duration_ms: 0.819208
+  type: 'test'
+  ...
+# Subtest: predecessor expiry clears the old bearer after replacement persistence fails
+ok 25 - predecessor expiry clears the old bearer after replacement persistence fails
+  ---
+  duration_ms: 2.351667
+  type: 'test'
+  ...
+# Subtest: predecessor expiry clears the old bearer after replacement persistence fails across close
+ok 26 - predecessor expiry clears the old bearer after replacement persistence fails across close
+  ---
+  duration_ms: 0.810792
+  type: 'test'
+  ...
+# Subtest: close during terminal subscription cleanup stays offline and suppresses late delivery
+ok 27 - close during terminal subscription cleanup stays offline and suppresses late delivery
+  ---
+  duration_ms: 3.340708
+  type: 'test'
+  ...
+# Subtest: logout and terminal session expiry clear custody and stop old-bearer reconnect
+ok 28 - logout and terminal session expiry clear custody and stop old-bearer reconnect
+  ---
+  duration_ms: 303.453042
+  type: 'test'
+  ...
+# Subtest: token-store clear failures stay visible on every request-based terminal path
+ok 29 - token-store clear failures stay visible on every request-based terminal path
+  ---
+  duration_ms: 1.933583
+  type: 'test'
+  ...
+# react-test-renderer is deprecated. See https://react.dev/warnings/react-test-renderer
+# Subtest: terminal expiry remains terminal when persisted custody cannot be cleared
+ok 30 - terminal expiry remains terminal when persisted custody cannot be cleared
+  ---
+  duration_ms: 302.933917
+  type: 'test'
+  ...
+# Subtest: React query identity moves to a hydrating auth-generation partition
+ok 31 - React query identity moves to a hydrating auth-generation partition
+  ---
+  duration_ms: 8.550292
+  type: 'test'
+  ...
+# (node:31735) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+# (Use `node --trace-warnings ...` to show where the warning was created)
+# (node:31735) ExperimentalWarning: The MockTimers API is an experimental feature and might change at any time
+# react-test-renderer is deprecated. See https://react.dev/warnings/react-test-renderer
+# Subtest: parent and later child auth hooks agree across a restoration cut and reconnect
+ok 32 - parent and later child auth hooks agree across a restoration cut and reconnect
+  ---
+  duration_ms: 55.246166
+  type: 'test'
+  ...
+# Subtest: headless restoration retries at 1, 2, 4, 8, 16, 30, 30 seconds and close clears its timer
+ok 33 - headless restoration retries at 1, 2, 4, 8, 16, 30, 30 seconds and close clears its timer
+  ---
+  duration_ms: 4.103
+  type: 'test'
+  ...
+# Subtest: restoration coalesces simultaneous me callers and a reconnect while pending
+ok 34 - restoration coalesces simultaneous me callers and a reconnect while pending
+  ---
+  duration_ms: 1.496083
+  type: 'test'
+  ...
+# Subtest: only missing or expired authentication becomes anonymous and clears token custody
+ok 35 - only missing or expired authentication becomes anonymous and clears token custody
+  ---
+  duration_ms: 4.268125
+  type: 'test'
+  ...
+# Subtest: coded refusals stay visible and retry once per reconnect without a self-cycle
+ok 36 - coded refusals stay visible and retry once per reconnect without a self-cycle
+  ---
+  duration_ms: 1.535083
+  type: 'test'
+  ...
+# Subtest: storage and protocol failures are refused without restoration timers
+ok 37 - storage and protocol failures are refused without restoration timers
+  ---
+  duration_ms: 2.40625
+  type: 'test'
+  ...
+# Subtest: logout, account replacement and close ignore a pending predecessor me response
+ok 38 - logout, account replacement and close ignore a pending predecessor me response
+  ---
+  duration_ms: 3.954459
+  type: 'test'
+  ...
+# Subtest: a mismatched stored binding never renders another token's restoring viewer
+ok 39 - a mismatched stored binding never renders another token's restoring viewer
+  ---
+  duration_ms: 0.566542
+  type: 'test'
+  ...
+# Subtest: mounted queries during restoration use held coverage and only me retries carry the bearer
+ok 40 - mounted queries during restoration use held coverage and only me retries carry the bearer
+  ---
+  duration_ms: 12.85275
+  type: 'test'
+  ...
+# Subtest: HTTP 503 restoration retries, and authority replacement cancels the old backoff
+ok 41 - HTTP 503 restoration retries, and authority replacement cancels the old backoff
+  ---
+  duration_ms: 11.610334
+  type: 'test'
+  ...
+# Subtest: late terminal me evidence clears only custody that still holds that bearer
+ok 42 - late terminal me evidence clears only custody that still holds that bearer
+  ---
+  duration_ms: 7.2305
+  type: 'test'
+  ...
+# Subtest: failed login preserves authenticated bearer custody and restoration
+ok 43 - failed login preserves authenticated bearer custody and restoration
+  ---
+  duration_ms: 2.944916
+  type: 'test'
+  ...
+# Subtest: failed signup preserves authenticated bearer custody and restoration
+ok 44 - failed signup preserves authenticated bearer custody and restoration
+  ---
+  duration_ms: 5.422291
+  type: 'test'
+  ...
+# Subtest: failed guest preserves authenticated bearer custody and restoration
+ok 45 - failed guest preserves authenticated bearer custody and restoration
+  ---
+  duration_ms: 4.91875
+  type: 'test'
+  ...
+# Subtest: failed login preserves backoff bearer custody and restoration
+ok 46 - failed login preserves backoff bearer custody and restoration
+  ---
+  duration_ms: 2.501042
+  type: 'test'
+  ...
+# Subtest: failed signup preserves backoff bearer custody and restoration
+ok 47 - failed signup preserves backoff bearer custody and restoration
+  ---
+  duration_ms: 2.427625
+  type: 'test'
+  ...
+# Subtest: failed guest preserves backoff bearer custody and restoration
+ok 48 - failed guest preserves backoff bearer custody and restoration
+  ---
+  duration_ms: 3.274833
+  type: 'test'
+  ...
+# Subtest: failed login preserves pending bearer custody and restoration
+ok 49 - failed login preserves pending bearer custody and restoration
+  ---
+  duration_ms: 2.308917
+  type: 'test'
+  ...
+# Subtest: failed signup preserves pending bearer custody and restoration
+ok 50 - failed signup preserves pending bearer custody and restoration
+  ---
+  duration_ms: 1.917792
+  type: 'test'
+  ...
+# Subtest: failed guest preserves pending bearer custody and restoration
+ok 51 - failed guest preserves pending bearer custody and restoration
+  ---
+  duration_ms: 1.086417
+  type: 'test'
+  ...
+# Subtest: startup metadata failure rejects ready without replacing confirmed auth
+ok 52 - startup metadata failure rejects ready without replacing confirmed auth
+  ---
+  duration_ms: 5.6695
+  type: 'test'
+  ...
+# Subtest: refused restoration recovers its display viewer from bearer custody
+ok 53 - refused restoration recovers its display viewer from bearer custody
+  ---
+  duration_ms: 2.822792
+  type: 'test'
+  ...
+# react-test-renderer is deprecated. See https://react.dev/warnings/react-test-renderer
+# Subtest: restart of an offline device drops both retry clocks and waits for reconnect
+ok 54 - restart of an offline device drops both retry clocks and waits for reconnect
+  ---
+  duration_ms: 5.73975
+  type: 'test'
+  ...
+# Subtest: two persona hooks share the lazy me flight
+ok 55 - two persona hooks share the lazy me flight
+  ---
+  duration_ms: 5.574541
+  type: 'test'
+  ...
+# Subtest: load/save-only custody restores without an unbound viewer and recovers on reconnect
+ok 56 - load/save-only custody restores without an unbound viewer and recovers on reconnect
+  ---
+  duration_ms: 1.697291
+  type: 'test'
+  ...
+# Subtest: explicit me cancels the old backoff deadline and schedules its own retry
+ok 57 - explicit me cancels the old backoff deadline and schedules its own retry
+  ---
+  duration_ms: 0.975209
+  type: 'test'
+  ...
+# Subtest: non-auth coded restoration refusal retains custody and retries once per reconnect
+ok 58 - non-auth coded restoration refusal retains custody and retries once per reconnect
+  ---
+  duration_ms: 7.059208
+  type: 'test'
+  ...
+# react-test-renderer is deprecated. See https://react.dev/warnings/react-test-renderer
+# Subtest: Provider manifest reconnect after network retries me once without self-cycling
+ok 59 - Provider manifest reconnect after network retries me once without self-cycling
+  ---
+  duration_ms: 12.031833
+  type: 'test'
+  ...
+# react-test-renderer is deprecated. See https://react.dev/warnings/react-test-renderer
+# Subtest: Provider manifest reconnect after 503 retries me once without self-cycling
+ok 60 - Provider manifest reconnect after 503 retries me once without self-cycling
+  ---
+  duration_ms: 6.562209
+  type: 'test'
+  ...
+# Subtest: close one millisecond before the retry deadline starts no fetch
+ok 61 - close one millisecond before the retry deadline starts no fetch
+  ---
+  duration_ms: 0.606875
+  type: 'test'
+  ...
+# react-test-renderer is deprecated. See https://react.dev/warnings/react-test-renderer
+# Subtest: logout one millisecond before the retry deadline starts no fetch
+ok 62 - logout one millisecond before the retry deadline starts no fetch
+  ---
+  duration_ms: 0.792417
+  type: 'test'
+  ...
+# Subtest: hooks recheck lazy me after an asynchronous token load and offline startup confirmation
+ok 63 - hooks recheck lazy me after an asynchronous token load and offline startup confirmation
+  ---
+  duration_ms: 7.605834
+  type: 'test'
+  ...
+# react-test-renderer is deprecated. See https://react.dev/warnings/react-test-renderer
+# Subtest: session success publishes token, kind and authEpoch together to hooks
+ok 64 - session success publishes token, kind and authEpoch together to hooks
+  ---
+  duration_ms: 1.835584
+  type: 'test'
+  ...
+# Subtest: startup resume failure rejects ready without replacing confirmed auth
+ok 65 - startup resume failure rejects ready without replacing confirmed auth
+  ---
+  duration_ms: 8.800833
+  type: 'test'
+  ...
+# Subtest: a session response without kind is refused before replacing custody
+ok 66 - a session response without kind is refused before replacing custody
+  ---
+  duration_ms: 0.6955
+  type: 'test'
+  ...
+# Subtest: failed login during offline startup before hydrate resumes retained bearer restoration
+ok 67 - failed login during offline startup before hydrate resumes retained bearer restoration
+  ---
+  duration_ms: 4.24575
+  type: 'test'
+  ...
+# Subtest: failed login during offline startup pending me resumes retained bearer restoration
+ok 68 - failed login during offline startup pending me resumes retained bearer restoration
+  ---
+  duration_ms: 4.172625
+  type: 'test'
+  ...
+# react-test-renderer is deprecated. See https://react.dev/warnings/react-test-renderer
+# Subtest: an offline query hook leaves hydration when the stored bearer is confirmed
+ok 69 - an offline query hook leaves hydration when the stored bearer is confirmed
+  ---
+  duration_ms: 9.032917
+  type: 'test'
+  ...
+# Subtest: a terminal write wakes a read waiting on restoration without dispatching it
+ok 70 - a terminal write wakes a read waiting on restoration without dispatching it
+  ---
+  duration_ms: 2.26975
+  type: 'test'
+  ...
+# Subtest: online restart cancels the predecessor clock and starts only the new client's restoration
+ok 71 - online restart cancels the predecessor clock and starts only the new client's restoration
+  ---
+  duration_ms: 6.599
+  type: 'test'
+  ...
+# Subtest: logout custody-clear failure cannot keep an authenticated view after clearing memory
+ok 72 - logout custody-clear failure cannot keep an authenticated view after clearing memory
+  ---
+  duration_ms: 1.20475
+  type: 'test'
+  ...
+# An update to Re inside a test was not wrapped in act(...).
+# When testing, code that causes React state updates should be wrapped into act(...):
+# act(() => {
+#   /* fire events that update state */
+# });
+# /* assert on the output */
+# This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+# An update to Thread inside a test was not wrapped in act(...).
+# When testing, code that causes React state updates should be wrapped into act(...):
+# act(() => {
+#   /* fire events that update state */
+# });
+# /* assert on the output */
+# This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+# An update to Composer inside a test was not wrapped in act(...).
+# When testing, code that causes React state updates should be wrapped into act(...):
+# act(() => {
+#   /* fire events that update state */
+# });
+# /* assert on the output */
+# This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+# An update to Thread inside a test was not wrapped in act(...).
+# When testing, code that causes React state updates should be wrapped into act(...):
+# act(() => {
+#   /* fire events that update state */
+# });
+# /* assert on the output */
+# This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+# An update to Thread inside a test was not wrapped in act(...).
+# When testing, code that causes React state updates should be wrapped into act(...):
+# act(() => {
+#   /* fire events that update state */
+# });
+# /* assert on the output */
+# This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+# An update to App inside a test was not wrapped in act(...).
+# When testing, code that causes React state updates should be wrapped into act(...):
+# act(() => {
+#   /* fire events that update state */
+# });
+# /* assert on the output */
+# This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+# An update to Thread inside a test was not wrapped in act(...).
+# When testing, code that causes React state updates should be wrapped into act(...):
+# act(() => {
+#   /* fire events that update state */
+# });
+# /* assert on the output */
+# This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+# An update to Thread inside a test was not wrapped in act(...).
+# When testing, code that causes React state updates should be wrapped into act(...):
+# act(() => {
+#   /* fire events that update state */
+# });
+# /* assert on the output */
+# This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+# An update to Composer inside a test was not wrapped in act(...).
+# When testing, code that causes React state updates should be wrapped into act(...):
+# act(() => {
+#   /* fire events that update state */
+# });
+# /* assert on the output */
+# This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+# An update to Thread inside a test was not wrapped in act(...).
+# When testing, code that causes React state updates should be wrapped into act(...):
+# act(() => {
+#   /* fire events that update state */
+# });
+# /* assert on the output */
+# This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+# An update to Thread inside a test was not wrapped in act(...).
+# When testing, code that causes React state updates should be wrapped into act(...):
+# act(() => {
+#   /* fire events that update state */
+# });
+# /* assert on the output */
+# This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+# Subtest: the chat screens render the log, queue offline sends as pinned bubbles, settle them in place, and search the held log
+ok 73 - the chat screens render the log, queue offline sends as pinned bubbles, settle them in place, and search the held log
+  ---
+  duration_ms: 428.743042
+  type: 'test'
+  ...
+# An update to Re inside a test was not wrapped in act(...).
+# When testing, code that causes React state updates should be wrapped into act(...):
+# act(() => {
+#   /* fire events that update state */
+# });
+# /* assert on the output */
+# This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+# Subtest: the composer is disabled until the inbox drain catches up and the first grant exists, then enabled
+ok 74 - the composer is disabled until the inbox drain catches up and the first grant exists, then enabled
+  ---
+  duration_ms: 56.192209
+  type: 'test'
+  ...
+# Subtest: a refused send keeps the draft and shows the recovery advice
+ok 75 - a refused send keeps the draft and shows the recovery advice
+  ---
+  duration_ms: 63.983167
+  type: 'test'
+  ...
+# (node:31738) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+# (Use `node --trace-warnings ...` to show where the warning was created)
+# react-test-renderer is deprecated. See https://react.dev/warnings/react-test-renderer
+# Subtest: built Expo under Hermes-like globals logs in, drains, and views a photo
+ok 76 - built Expo under Hermes-like globals logs in, drains, and views a photo
+  ---
+  duration_ms: 188.263625
+  type: 'test'
+  ...
+# Subtest: Expo app shows a readiness error after the client is already constructed
+ok 77 - Expo app shows a readiness error after the client is already constructed
+  ---
+  duration_ms: 11.029791
+  type: 'test'
+  ...
+# Subtest: witness source map contains the portable conformance runner under src and no tests
+ok 78 - witness source map contains the portable conformance runner under src and no tests
+  ---
+  duration_ms: 1.71575
+  type: 'test'
+  ...
+# Subtest: native file queue rechecks view-once after a waiting materialization
+ok 79 - native file queue rechecks view-once after a waiting materialization
+  ---
+  duration_ms: 24.782417
+  type: 'test'
+  ...
+# react-test-renderer is deprecated. See https://react.dev/warnings/react-test-renderer
+# Subtest: MediaView ordinary onLoad waits for its file source; undefined source reports loaded false
+ok 80 - MediaView ordinary onLoad waits for its file source; undefined source reports loaded false
+  ---
+  duration_ms: 18.389833
+  type: 'test'
+  ...
+# react-test-renderer is deprecated. See https://react.dev/warnings/react-test-renderer
+# Subtest: MediaView observes native video playback and cannot reopen a viewed photo or video
+ok 81 - MediaView observes native video playback and cannot reopen a viewed photo or video
+  ---
+  duration_ms: 15.638041
+  type: 'test'
+  ...
+# Subtest: witness configuration temp rename preserves the prior version on failure and merges serialized patches
+ok 82 - witness configuration temp rename preserves the prior version on failure and merges serialized patches
+  ---
+  duration_ms: 0.973417
+  type: 'test'
+  ...
+# Subtest: attribution regex matches actual esbuild input-map sources and excludes non-twin client modules
+ok 83 - attribution regex matches actual esbuild input-map sources and excludes non-twin client modules
+  ---
+  duration_ms: 2.134708
+  type: 'test'
+  ...
+# Subtest: container-wide witness scan finds private payloads in URLSession cache, tmp, Documents, and remuxed video
+ok 84 - container-wide witness scan finds private payloads in URLSession cache, tmp, Documents, and remuxed video
+  ---
+  duration_ms: 21.584875
+  type: 'test'
+  ...
+# Subtest: fresh chat Expo scaffold from dist resolves every relative import including shared JS
+ok 85 - fresh chat Expo scaffold from dist resolves every relative import including shared JS
+  ---
+  duration_ms: 1455.292792
+  type: 'test'
+  ...
+# Subtest: control server refuses a second socket without replacing the active controller
+ok 86 - control server refuses a second socket without replacing the active controller
+  ---
+  duration_ms: 25.366166
+  type: 'test'
+  ...
+# Subtest: control reset after kill closes a stale socket and accepts the relaunched app
+ok 87 - control reset after kill closes a stale socket and accepts the relaunched app
+  ---
+  duration_ms: 32.288792
+  type: 'test'
+  ...
+# Subtest: useAssetUrl array types require callers to handle refused positions
+ok 88 - useAssetUrl array types require callers to handle refused positions
+  ---
+  duration_ms: 467.311042
+  type: 'test'
+  ...
+# Subtest: witness connects before construction; persistent faults are reported over the surviving control connection
+ok 89 - witness connects before construction; persistent faults are reported over the surviving control connection
+  ---
+  duration_ms: 163.018541
+  type: 'test'
+  ...
+# Subtest: witness barrier remains parked on socket close and only barrier(off) releases it
+ok 90 - witness barrier remains parked on socket close and only barrier(off) releases it
+  ---
+  duration_ms: 284.240375
+  type: 'test'
+  ...
+# (node:31740) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+# (Use `node --trace-warnings ...` to show where the warning was created)
+# Subtest: Expo SecureStore uses legal keys, caches reads, bounds values, and deletes token plus principal
+ok 91 - Expo SecureStore uses legal keys, caches reads, bounds values, and deletes token plus principal
+  ---
+  duration_ms: 1.478417
+  type: 'test'
+  ...
+# Subtest: Expo driver scopes statements to the exclusive executor and normalizes null
+ok 92 - Expo driver scopes statements to the exclusive executor and normalizes null
+  ---
+  duration_ms: 1.038291
+  type: 'test'
+  ...
+# Subtest: Expo COMMIT failure rolls back its exclusive connection and the next queued transaction succeeds
+ok 93 - Expo COMMIT failure rolls back its exclusive connection and the next queued transaction succeeds
+  ---
+  duration_ms: 5.970792
+  type: 'test'
+  ...
+# Subtest: built native entries exclude node and IndexedDB, share react-core, and ship source maps
+ok 94 - built native entries exclude node and IndexedDB, share react-core, and ship source maps
+  ---
+  duration_ms: 5.629583
+  type: 'test'
+  ...
+# Subtest: built Expo entry exports every native component and hook by name
+ok 95 - built Expo entry exports every native component and hook by name
+  ---
+  duration_ms: 0.219041
+  type: 'test'
+  ...
+# Subtest: emitted web declarations exclude node modules and SQLite test exports
+ok 96 - emitted web declarations exclude node modules and SQLite test exports
+  ---
+  duration_ms: 1.140167
+  type: 'test'
+  ...
+# Subtest: compiler source imports no Expo fetch or filesystem modules
+ok 97 - compiler source imports no Expo fetch or filesystem modules
+  ---
+  duration_ms: 217.123583
+  type: 'test'
+  ...
+# Subtest: native development dependencies match Expo SDK 54 and use real expo-sqlite declarations
+ok 98 - native development dependencies match Expo SDK 54 and use real expo-sqlite declarations
+  ---
+  duration_ms: 5.6825
+  type: 'test'
+  ...
+# react-test-renderer is deprecated. See https://react.dev/warnings/react-test-renderer
+# Subtest: built witness conformance opens two connections and reports WAL plus every check name
+ok 99 - built witness conformance opens two connections and reports WAL plus every check name
+  ---
+  duration_ms: 49.120542
+  type: 'test'
+  ...
+# react-test-renderer is deprecated. See https://react.dev/warnings/react-test-renderer
+# Subtest: replacing a supplied client clears authentication, mutations, and outbox readiness before delayed work settles
+ok 100 - replacing a supplied client clears authentication, mutations, and outbox readiness before delayed work settles
+  ---
+  duration_ms: 21.755167
+  type: 'test'
+  ...
+# Subtest: built Expo provider and native hook share one context; supplied client remains caller-owned
+ok 101 - built Expo provider and native hook share one context; supplied client remains caller-owned
+  ---
+  duration_ms: 8.941334
+  type: 'test'
+  ...
+# Subtest: createExpoClient defaults to Expo fetch and secure custody, preserves overrides, and never adds tokenStore beside as
+ok 102 - createExpoClient defaults to Expo fetch and secure custody, preserves overrides, and never adds tokenStore beside as
+  ---
+  duration_ms: 9.322625
+  type: 'test'
+  ...
+# Subtest: createExpoClient defaults to the SQLite carrier and refuses a native open failure
+ok 103 - createExpoClient defaults to the SQLite carrier and refuses a native open failure
+  ---
+  duration_ms: 1.39325
+  type: 'test'
+  ...
+# Subtest: browser and SecureStore principal records retain the authenticating token across a stale writer
+ok 104 - browser and SecureStore principal records retain the authenticating token across a stale writer
+  ---
+  duration_ms: 0.381459
+  type: 'test'
+  ...
+# (node:31740) ExperimentalWarning: The MockTimers API is an experimental feature and might change at any time
+# react-test-renderer is deprecated. See https://react.dev/warnings/react-test-renderer
+# Subtest: Expo provider and two native auth hooks share one cut/reconnect flight
+ok 105 - Expo provider and two native auth hooks share one cut/reconnect flight
+  ---
+  duration_ms: 5.368708
+  type: 'test'
+  ...
+# (node:31741) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+# (Use `node --trace-warnings ...` to show where the warning was created)
+# Subtest: transport stops and successful retries report their remaining queue and preserve exactly-once writes
+ok 106 - transport stops and successful retries report their remaining queue and preserve exactly-once writes
+  ---
+  duration_ms: 80.698
+  type: 'test'
+  ...
+# Subtest: grant expiry and exhausted IDs expose actionable admission without consuming an intent
+ok 107 - grant expiry and exhausted IDs expose actionable admission without consuming an intent
+  ---
+  duration_ms: 42.90975
+  type: 'test'
+  ...
+# Subtest: retained reads, readiness and offline escape do not wait on stalled authenticated startup; sealed custody stays hidden
+ok 108 - retained reads, readiness and offline escape do not wait on stalled authenticated startup; sealed custody stays hidden
+  ---
+  duration_ms: 12.994084
+  type: 'test'
+  ...
+# Subtest: repeated drain cursors refuse instead of looping or replacing the server watermark
+ok 109 - repeated drain cursors refuse instead of looping or replacing the server watermark
+  ---
+  duration_ms: 25.402542
+  type: 'test'
+  ...
+# Subtest: tests/local-data-recovery.test.ts
+not ok 7 - tests/local-data-recovery.test.ts
+  ---
+  duration_ms: 10001.673833
+  type: 'test'
+  location: '/Users/ccheever/projects/snapback-worktrees/clique-search-foundation/snapback2/packages/snapback2/tests/local-data-recovery.test.ts:1:1'
+  failureType: 'testTimeoutFailure'
+  error: 'test timed out after 10000ms'
+  code: 'ERR_TEST_FAILURE'
+  ...
+# Subtest: Expo File mock is Blob-shaped without inheriting from web Blob, and file:// upload uses expo/fetch without progress
+ok 111 - Expo File mock is Blob-shaped without inheriting from web Blob, and file:// upload uses expo/fetch without progress
+  ---
+  duration_ms: 15.7495
+  type: 'test'
+  ...
+# Subtest: a direct Expo File with progress uses expo/fetch and never constructs XMLHttpRequest
+ok 112 - a direct Expo File with progress uses expo/fetch and never constructs XMLHttpRequest
+  ---
+  duration_ms: 1.463458
+  type: 'test'
+  ...
+# Subtest: content:// Expo File upload uses Content-Length and whole-body progress
+ok 113 - content:// Expo File upload uses Content-Length and whole-body progress
+  ---
+  duration_ms: 1.141792
+  type: 'test'
+  ...
+# Subtest: native source length comes from Expo File and refuses oversize or inaccessible URIs before upload
+ok 114 - native source length comes from Expo File and refuses oversize or inaccessible URIs before upload
+  ---
+  duration_ms: 3.968792
+  type: 'test'
+  ...
+# react-test-renderer is deprecated. See https://react.dev/warnings/react-test-renderer
+# Subtest: file:// clip runs through Expo File upload, mutation substitution, and carrier URL
+ok 115 - file:// clip runs through Expo File upload, mutation substitution, and carrier URL
+  ---
+  duration_ms: 3.26875
+  type: 'test'
+  ...
+# react-test-renderer is deprecated. See https://react.dev/warnings/react-test-renderer
+# Subtest: native AssetImage fetches bytes with persona headers and renders an in-memory source without Blob
+ok 116 - native AssetImage fetches bytes with persona headers and renders an in-memory source without Blob
+  ---
+  duration_ms: 12.169959
+  type: 'test'
+  ...
+# react-test-renderer is deprecated. See https://react.dev/warnings/react-test-renderer
+# Subtest: native AssetImage exposes bearer restoration failure without fetching unauthenticated bytes
+ok 117 - native AssetImage exposes bearer restoration failure without fetching unauthenticated bytes
+  ---
+  duration_ms: 3.957167
+  type: 'test'
+  ...
+# Subtest: native AssetImage waits for bearer bytes and keeps its source across callback changes
+ok 118 - native AssetImage waits for bearer bytes and keeps its source across callback changes
+  ---
+  duration_ms: 3.202584
+  type: 'test'
+  ...
+# Subtest: native URI refuses E_ASSET_NATIVE_FILE_API when expo-file-system has no File constructor
+ok 119 - native URI refuses E_ASSET_NATIVE_FILE_API when expo-file-system has no File constructor
+  ---
+  duration_ms: 0.944084
+  type: 'test'
+  ...
+# (node:31742) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+# (Use `node --trace-warnings ...` to show where the warning was created)
+# react-test-renderer is deprecated. See https://react.dev/warnings/react-test-renderer
+# Subtest: native AssetImage and ordinary AssetVideo serve cached files and clear mounted sources on custody change
+ok 120 - native AssetImage and ordinary AssetVideo serve cached files and clear mounted sources on custody change
+  ---
+  duration_ms: 40.754083
+  type: 'test'
+  ...
+# (node:31743) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+# (Use `node --trace-warnings ...` to show where the warning was created)
+# react-test-renderer is deprecated. See https://react.dev/warnings/react-test-renderer
+# Subtest: view-once delayed fetch tombstoned before admission renders nothing
+ok 121 - view-once delayed fetch tombstoned before admission renders nothing
+  ---
+  duration_ms: 35.534583
+  type: 'test'
+  ...
+# react-test-renderer is deprecated. See https://react.dev/warnings/react-test-renderer
+# react-test-renderer is deprecated. See https://react.dev/warnings/react-test-renderer
+# react-test-renderer is deprecated. See https://react.dev/warnings/react-test-renderer
+# Subtest: failed durable viewed mark renders nothing; reopen grants only one successful viewing
+ok 122 - failed durable viewed mark renders nothing; reopen grants only one successful viewing
+  ---
+  duration_ms: 27.094417
+  type: 'test'
+  ...
+# react-test-renderer is deprecated. See https://react.dev/warnings/react-test-renderer
+# react-test-renderer is deprecated. See https://react.dev/warnings/react-test-renderer
+# Subtest: ordinary oversize media renders uncached memory and a later mount retries
+ok 123 - ordinary oversize media renders uncached memory and a later mount retries
+  ---
+  duration_ms: 13.79725
+  type: 'test'
+  ...
+# react-test-renderer is deprecated. See https://react.dev/warnings/react-test-renderer
+# Subtest: unrelated message and watermark swaps keep the ordinary video player and position
+ok 124 - unrelated message and watermark swaps keep the ordinary video player and position
+  ---
+  duration_ms: 12.130459
+  type: 'test'
+  ...
+# react-test-renderer is deprecated. See https://react.dev/warnings/react-test-renderer
+# react-test-renderer is deprecated. See https://react.dev/warnings/react-test-renderer
+# react-test-renderer is deprecated. See https://react.dev/warnings/react-test-renderer
+# Subtest: combined byte, file, and hook custody: seal mid-write, principal swap mid-read, wipe mid-materialization
+ok 125 - combined byte, file, and hook custody: seal mid-write, principal swap mid-read, wipe mid-materialization
+  ---
+  duration_ms: 22.914291
+  type: 'test'
+  ...
+# react-test-renderer is deprecated. See https://react.dev/warnings/react-test-renderer
+# Subtest: a seal cannot resurrect an uncached source even when getBytes still holds bytes
+ok 126 - a seal cannot resurrect an uncached source even when getBytes still holds bytes
+  ---
+  duration_ms: 9.682125
+  type: 'test'
+  ...
+# react-test-renderer is deprecated. See https://react.dev/warnings/react-test-renderer
+# react-test-renderer is deprecated. See https://react.dev/warnings/react-test-renderer
+# Subtest: native second viewing instance cannot borrow the first instance's session
+ok 127 - native second viewing instance cannot borrow the first instance's session
+  ---
+  duration_ms: 10.792042
+  type: 'test'
+  ...
+# Subtest: concurrent byte consumers acquire exactly one view-once allowance
+ok 128 - concurrent byte consumers acquire exactly one view-once allowance
+  ---
+  duration_ms: 9.374167
+  type: 'test'
+  ...
+# react-test-renderer is deprecated. See https://react.dev/warnings/react-test-renderer
+# Subtest: schema once image column keeps native media off disk
+ok 129 - schema once image column keeps native media off disk
+  ---
+  duration_ms: 14.64925
+  type: 'test'
+  ...
+# react-test-renderer is deprecated. See https://react.dev/warnings/react-test-renderer
+# Subtest: native viewing survives layout width changing after fallback admission
+ok 130 - native viewing survives layout width changing after fallback admission
+  ---
+  duration_ms: 14.236041
+  type: 'test'
+  ...
+# Subtest: ordinary fetch changed to view-once with a failed durable mark returns no bytes on either consumer
+ok 131 - ordinary fetch changed to view-once with a failed durable mark returns no bytes on either consumer
+  ---
+  duration_ms: 13.625084
+  type: 'test'
+  ...
+# react-test-renderer is deprecated. See https://react.dev/warnings/react-test-renderer
+# Subtest: native ordinary image changed to view-once during fetch with a failed mark has no source
+ok 132 - native ordinary image changed to view-once during fetch with a failed mark has no source
+  ---
+  duration_ms: 6.253959
+  type: 'test'
+  ...
+# react-test-renderer is deprecated. See https://react.dev/warnings/react-test-renderer
+# Subtest: native ordinary layout changes still select a new derivative without a new viewing token
+ok 133 - native ordinary layout changes still select a new derivative without a new viewing token
+  ---
+  duration_ms: 7.539583
+  type: 'test'
+  ...
+# Subtest: both byte consumers suppress a view-once fetch whose row is tombstoned before admission
+ok 134 - both byte consumers suppress a view-once fetch whose row is tombstoned before admission
+  ---
+  duration_ms: 12.688666
+  type: 'test'
+  ...
+# react-test-renderer is deprecated. See https://react.dev/warnings/react-test-renderer
+# Subtest: view-once native video protects admission and memory on missing-module
+ok 135 - view-once native video protects admission and memory on missing-module
+  ---
+  duration_ms: 9.681
+  type: 'test'
+  ...
+# react-test-renderer is deprecated. See https://react.dev/warnings/react-test-renderer
+# Subtest: view-once native video protects admission and memory on commit
+ok 136 - view-once native video protects admission and memory on commit
+  ---
+  duration_ms: 9.70025
+  type: 'test'
+  ...
+# react-test-renderer is deprecated. See https://react.dev/warnings/react-test-renderer
+# Subtest: view-once native video protects admission and memory on seal
+ok 137 - view-once native video protects admission and memory on seal
+  ---
+  duration_ms: 11.185208
+  type: 'test'
+  ...
+# react-test-renderer is deprecated. See https://react.dev/warnings/react-test-renderer
+# react-test-renderer is deprecated. See https://react.dev/warnings/react-test-renderer
+# Subtest: view-once native video protects admission and memory on unmount
+ok 138 - view-once native video protects admission and memory on unmount
+  ---
+  duration_ms: 25.559791
+  type: 'test'
+  ...
+# (node:31744) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+# (Use `node --trace-warnings ...` to show where the warning was created)
+# Subtest: native file bridge writes bytes without Blob; eviction deletes only after SQLite commit
+ok 139 - native file bridge writes bytes without Blob; eviction deletes only after SQLite commit
+  ---
+  duration_ms: 109.294125
+  type: 'test'
+  ...
+# Subtest: native file wipe drops either partition and the open partition closes its backend
+ok 140 - native file wipe drops either partition and the open partition closes its backend
+  ---
+  duration_ms: 9.626042
+  type: 'test'
+  ...
+# Subtest: native startup sweeps orphans and a missing carrier payload is deleted instead of served
+ok 141 - native startup sweeps orphans and a missing carrier payload is deleted instead of served
+  ---
+  duration_ms: 13.426792
+  type: 'test'
+  ...
+# Subtest: native in-flight file write is fenced on seal and consumers receive custody invalidation
+ok 142 - native in-flight file write is fenced on seal and consumers receive custody invalidation
+  ---
+  duration_ms: 8.443167
+  type: 'test'
+  ...
+# Subtest: view-once native bytes stay in memory, are never written, and disappear on custody change
+ok 143 - view-once native bytes stay in memory, are never written, and disappear on custody change
+  ---
+  duration_ms: 18.424375
+  type: 'test'
+  ...
+# Subtest: native once image lists consume per asset and keep the original across width changes
+ok 144 - native once image lists consume per asset and keep the original across width changes
+  ---
+  duration_ms: 13.420084
+  type: 'test'
+  ...
+# (node:31745) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+# (Use `node --trace-warnings ...` to show where the warning was created)
+# Subtest: byte puts land only under a held row's lease, reads order the LRU, and the ceiling evicts least-recently-read on all three carriers
+ok 145 - byte puts land only under a held row's lease, reads order the LRU, and the ceiling evicts least-recently-read on all three carriers
+  ---
+  duration_ms: 56.812541
+  type: 'test'
+  ...
+# Subtest: bytes leave in the commit that evicts their row: absence, range hole, tombstone, hidden, reset, and wipe
+ok 146 - bytes leave in the commit that evicts their row: absence, range hole, tombstone, hidden, reset, and wipe
+  ---
+  duration_ms: 96.567708
+  type: 'test'
+  ...
+# Subtest: a sealed partition hides its bytes until the same principal returns, across a cold open
+ok 147 - a sealed partition hides its bytes until the same principal returns, across a cold open
+  ---
+  duration_ms: 5.491042
+  type: 'test'
+  ...
+# Subtest: assetBlob reads the byte cache before the network, fills it after a fetch, and answers offline from it
+ok 148 - assetBlob reads the byte cache before the network, fills it after a fetch, and answers offline from it
+  ---
+  duration_ms: 19.662708
+  type: 'test'
+  ...
+# Subtest: a view-once row renders once: its bytes are never cached, a restart refuses them, and the held answer omits the row
+ok 149 - a view-once row renders once: its bytes are never cached, a restart refuses them, and the held answer omits the row
+  ---
+  duration_ms: 13.248042
+  type: 'test'
+  ...
+# Subtest: the IndexedDB carrier upgrades a version-1 database, keeps payloads in their own store, and rolls bytes back with the swap
+ok 150 - the IndexedDB carrier upgrades a version-1 database, keeps payloads in their own store, and rolls bytes back with the swap
+  ---
+  duration_ms: 7.712791
+  type: 'test'
+  ...
+# Subtest: a cache read stamps the LRU in memory without rewriting the carrier; the next swap persists the order
+ok 151 - a cache read stamps the LRU in memory without rewriting the carrier; the next swap persists the order
+  ---
+  duration_ms: 14.482584
+  type: 'test'
+  ...
+# Subtest: AssetImage, AssetVideo, and useAssetUrl render held renditions from the byte cache offline without the network
+ok 152 - AssetImage, AssetVideo, and useAssetUrl render held renditions from the byte cache offline without the network
+  ---
+  duration_ms: 104.253417
+  type: 'test'
+  ...
+# Subtest: schema once excludes raw byte puts before viewing and purges on successor, durably
+ok 153 - schema once excludes raw byte puts before viewing and purges on successor, durably
+  ---
+  duration_ms: 5.058083
+  type: 'test'
+  ...
+# Subtest: offline envelope goldens round-trip byte-identically and rebuild ClosureReceipt
+ok 154 - offline envelope goldens round-trip byte-identically and rebuild ClosureReceipt
+  ---
+  duration_ms: 61.886667
+  type: 'test'
+  ...
+# Subtest: offline envelope decoder refuses unknown protocols and malformed shapes
+ok 155 - offline envelope decoder refuses unknown protocols and malformed shapes
+  ---
+  duration_ms: 2.025791
+  type: 'test'
+  ...
+# Subtest: all-column-kind golden tags closed asset records by their declared field types
+ok 156 - all-column-kind golden tags closed asset records by their declared field types
+  ---
+  duration_ms: 1.247333
+  type: 'test'
+  ...
+# Subtest: offline delivery decoder accepts the conditional unchanged marker
+ok 157 - offline delivery decoder accepts the conditional unchanged marker
+  ---
+  duration_ms: 0.090833
+  type: 'test'
+  ...
+# Subtest: offline decoder enforces range, authority, and schema coherence
+ok 158 - offline decoder enforces range, authority, and schema coherence
+  ---
+  duration_ms: 1.939292
+  type: 'test'
+  ...
+# Subtest: Limit range extent is derived from pooled rows and the generation schema
+ok 159 - Limit range extent is derived from pooled rows and the generation schema
+  ---
+  duration_ms: 0.837875
+  type: 'test'
+  ...
+# Subtest: application JSON shaped like a row reference round-trips unchanged
+ok 160 - application JSON shaped like a row reference round-trips unchanged
+  ---
+  duration_ms: 0.570125
+  type: 'test'
+  ...
+# Subtest: expandRows restores pooled wire rows
+ok 161 - expandRows restores pooled wire rows
+  ---
+  duration_ms: 0.390208
+  type: 'test'
+  ...
+# Subtest: offline protocol values and types are exported from the package index
+ok 162 - offline protocol values and types are exported from the package index
+  ---
+  duration_ms: 1726.560542
+  type: 'test'
+  ...
+# Subtest: verdict inputs digest is sha256(canonical([table, index, key])) over wire values and matches the Rust goldens
+ok 163 - verdict inputs digest is sha256(canonical([table, index, key])) over wire values and matches the Rust goldens
+  ---
+  duration_ms: 8.37025
+  type: 'test'
+  ...
+# Subtest: a resume answered with the tail after the watermark is held under the cursor args and never replaces the drained first page
+ok 164 - a resume answered with the tail after the watermark is held under the cursor args and never replaces the drained first page
+  ---
+  duration_ms: 103.907542
+  type: 'test'
+  ...
+# Subtest: the drain and the resume tail key the cursor by the argument the manifest types Cursor, never by the name c
+ok 165 - the drain and the resume tail key the cursor by the argument the manifest types Cursor, never by the name c
+  ---
+  duration_ms: 34.3535
+  type: 'test'
+  ...
+# (node:31748) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+# (Use `node --trace-warnings ...` to show where the warning was created)
+# Subtest: RangeStore stores rows once and shares them across answers on all three carriers
+ok 166 - RangeStore stores rows once and shares them across answers on all three carriers
+  ---
+  duration_ms: 39.855375
+  type: 'test'
+  ...
+# Subtest: the IndexedDB carrier keeps rows, answers, outbox, meta, and bytes; the version-2 projection stores are deleted and never written
+ok 167 - the IndexedDB carrier keeps rows, answers, outbox, meta, and bytes; the version-2 projection stores are deleted and never written
+  ---
+  duration_ms: 5.797208
+  type: 'test'
+  ...
+# Subtest: a pooled row no answer references any more leaves the swap: a replaced closure drops what it stopped pooling, a dropped answer drops its pool
+ok 168 - a pooled row no answer references any more leaves the swap: a replaced closure drops what it stopped pooling, a dropped answer drops its pool
+  ---
+  duration_ms: 8.037083
+  type: 'test'
+  ...
+# Subtest: file and IndexedDB swaps are atomic when persistence fails
+ok 169 - file and IndexedDB swaps are atomic when persistence fails
+  ---
+  duration_ms: 14.717459
+  type: 'test'
+  ...
+# Subtest: a process killed between file write and rename leaves the previous snapshot
+ok 170 - a process killed between file write and rename leaves the previous snapshot
+  ---
+  duration_ms: 68.872083
+  type: 'test'
+  ...
+# Subtest: all three carriers apply the four swap rules with until-revoked and delivered-history
+ok 171 - all three carriers apply the four swap rules with until-revoked and delivered-history
+  ---
+  duration_ms: 61.705375
+  type: 'test'
+  ...
+# Subtest: O1a golden ranges evict only holes inside Exhausted bounds and the returned Limit extent
+ok 172 - O1a golden ranges evict only holes inside Exhausted bounds and the returned Limit extent
+  ---
+  duration_ms: 14.819291
+  type: 'test'
+  ...
+# Subtest: the O1a whole-answer-null golden is hidden evidence and delivered-history restores it
+ok 173 - the O1a whole-answer-null golden is hidden evidence and delivered-history restores it
+  ---
+  duration_ms: 4.174583
+  type: 'test'
+  ...
+# Subtest: sequence fences make absence, hidden, and tombstone evidence monotonic and deliveries idempotent
+ok 174 - sequence fences make absence, hidden, and tombstone evidence monotonic and deliveries idempotent
+  ---
+  duration_ms: 16.559708
+  type: 'test'
+  ...
+# Subtest: shrunk arrays and denied answers emit the hidden signal
+ok 175 - shrunk arrays and denied answers emit the hidden signal
+  ---
+  duration_ms: 7.622875
+  type: 'test'
+  ...
+# Subtest: seal survives a cold open, confirmed re-auth unseals, and wipe deletes the partition
+ok 176 - seal survives a cold open, confirmed re-auth unseals, and wipe deletes the partition
+  ---
+  duration_ms: 25.072417
+  type: 'test'
+  ...
+# Subtest: carrier open failures and a second web lock holder refuse loudly
+ok 177 - carrier open failures and a second web lock holder refuse loudly
+  ---
+  duration_ms: 32.159458
+  type: 'test'
+  ...
+# Subtest: offline option shape and fenceDays bounds are TypeErrors
+ok 178 - offline option shape and fenceDays bounds are TypeErrors
+  ---
+  duration_ms: 0.191583
+  type: 'test'
+  ...
+# Subtest: a sealed cold start stays unreadable until auth.me confirms the same bearer principal
+ok 179 - a sealed cold start stays unreadable until auth.me confirms the same bearer principal
+  ---
+  duration_ms: 12.081791
+  type: 'test'
+  ...
+# Subtest: an envelope cannot switch the open principal partition: E_OFFLINE_AUTHORITY, and the held coverage survives
+ok 180 - an envelope cannot switch the open principal partition: E_OFFLINE_AUTHORITY, and the held coverage survives
+  ---
+  duration_ms: 11.425084
+  type: 'test'
+  ...
+# Subtest: manifest retention is loaded before the first commit without an app manifest call
+ok 181 - manifest retention is loaded before the first commit without an app manifest call
+  ---
+  duration_ms: 9.261666
+  type: 'test'
+  ...
+# Subtest: conditional unchanged branches before envelope decoding and refreshes the held seq
+ok 182 - conditional unchanged branches before envelope decoding and refreshes the held seq
+  ---
+  duration_ms: 8.615917
+  type: 'test'
+  ...
+# Subtest: a subscription conditional unchanged frame reuses the held pooled answer
+ok 183 - a subscription conditional unchanged frame reuses the held pooled answer
+  ---
+  duration_ms: 8.999125
+  type: 'test'
+  ...
+# Subtest: an auth-epoch mismatch cannot replace held coverage; a generation mismatch supersedes it without a refusal
+ok 184 - an auth-epoch mismatch cannot replace held coverage; a generation mismatch supersedes it without a refusal
+  ---
+  duration_ms: 8.029125
+  type: 'test'
+  ...
+# Subtest: held and unheld offline reads expose since and fenceDays never blocks reading
+ok 185 - held and unheld offline reads expose since and fenceDays never blocks reading
+  ---
+  duration_ms: 4.722458
+  type: 'test'
+  ...
+# Subtest: the client tombstone hook evicts the named body in the same delivery swap
+ok 186 - the client tombstone hook evicts the named body in the same delivery swap
+  ---
+  duration_ms: 12.811375
+  type: 'test'
+  ...
+# Subtest: the frozen delivery decoder rejects malformed custody facts
+ok 187 - the frozen delivery decoder rejects malformed custody facts
+  ---
+  duration_ms: 3.177042
+  type: 'test'
+  ...
+# Subtest: drain true follows five pages, persists the watermark, and follows a new tail page
+ok 188 - drain true follows five pages, persists the watermark, and follows a new tail page
+  ---
+  duration_ms: 23.047375
+  type: 'test'
+  ...
+# Subtest: cold resume sends the bounded shape before subscribe and a 404 falls back with validator
+ok 189 - cold resume sends the bounded shape before subscribe and a 404 falls back with validator
+  ---
+  duration_ms: 30.839333
+  type: 'test'
+  ...
+# Subtest: resume excludes its drain mount and atomically preserves a full log watermark and validator
+ok 190 - resume excludes its drain mount and atomically preserves a full log watermark and validator
+  ---
+  duration_ms: 14.033875
+  type: 'test'
+  ...
+# Subtest: E_OFFLINE_RESET drops coverage but preserves the durable outbox slot
+ok 191 - E_OFFLINE_RESET drops coverage but preserves the durable outbox slot
+  ---
+  duration_ms: 18.53225
+  type: 'test'
+  ...
+# Subtest: E_OFFLINE_RESET cold-drains a mounted drain from the null cursor
+ok 192 - E_OFFLINE_RESET cold-drains a mounted drain from the null cursor
+  ---
+  duration_ms: 15.172916
+  type: 'test'
+  ...
+# Subtest: E_OFFLINE_RESUME honors which and cap and initial consecutive 413s do not wedge ready
+ok 193 - E_OFFLINE_RESUME honors which and cap and initial consecutive 413s do not wedge ready
+  ---
+  duration_ms: 17.613
+  type: 'test'
+  ...
+# Subtest: a second consecutive E_OFFLINE_RESUME settles online as a refusal and leaves the client usable
+ok 194 - a second consecutive E_OFFLINE_RESUME settles online as a refusal and leaves the client usable
+  ---
+  duration_ms: 9.08775
+  type: 'test'
+  ...
+# Subtest: resume applies its mounted swap before online resolves
+ok 195 - resume applies its mounted swap before online resolves
+  ---
+  duration_ms: 19.503542
+  type: 'test'
+  ...
+# Subtest: clients without offline storage preserve query bytes and logical subscription arguments
+ok 196 - clients without offline storage preserve query bytes and logical subscription arguments
+  ---
+  duration_ms: 7.493084
+  type: 'test'
+  ...
+# Subtest: web assetBlob and byte fetch read the transport cut after readiness resolves
+ok 197 - web assetBlob and byte fetch read the transport cut after readiness resolves
+  ---
+  duration_ms: 2.275458
+  type: 'test'
+  ...
+# Subtest: web viewed allowance belongs to its viewing instance, never a second consumer or URL hook
+ok 198 - web viewed allowance belongs to its viewing instance, never a second consumer or URL hook
+  ---
+  duration_ms: 24.911125
+  type: 'test'
+  ...
+# Subtest: a row viewed during URL minting cannot shift another asset's URL onto its list entry
+ok 199 - a row viewed during URL minting cannot shift another asset's URL onto its list entry
+  ---
+  duration_ms: 53.765667
+  type: 'test'
+  ...
+# Subtest: the view-once session allowance obeys custody: a partition switch, a wipe, and a seal all drop it
+ok 200 - the view-once session allowance obeys custody: a partition switch, a wipe, and a seal all drop it
+  ---
+  duration_ms: 17.103667
+  type: 'test'
+  ...
+# Subtest: a byte read in flight during a partition change never serves the previous principal's session blob
+ok 201 - a byte read in flight during a partition change never serves the previous principal's session blob
+  ---
+  duration_ms: 8.524833
+  type: 'test'
+  ...
+# Subtest: blob: URLs are revoked and re-minted when the client identity or the partition changes, not only on unmount
+ok 202 - blob: URLs are revoked and re-minted when the client identity or the partition changes, not only on unmount
+  ---
+  duration_ms: 72.9545
+  type: 'test'
+  ...
+# Subtest: a viewed view-once row reads null on a fresh query, a conditional read, and a live frame, not only from the held answer
+ok 203 - a viewed view-once row reads null on a fresh query, a conditional read, and a live frame, not only from the held answer
+  ---
+  duration_ms: 16.023041
+  type: 'test'
+  ...
+# Subtest: coverage() hides a viewed view-once row from the twin and marks it absent
+ok 204 - coverage() hides a viewed view-once row from the twin and marks it absent
+  ---
+  duration_ms: 3.111375
+  type: 'test'
+  ...
+# Subtest: web byte consumers refuse missing viewing tokens before fetching; ordinary assets need none
+ok 205 - web byte consumers refuse missing viewing tokens before fetching; ordinary assets need none
+  ---
+  duration_ms: 5.482792
+  type: 'test'
+  ...
+# An update to Re inside a test was not wrapped in act(...).
+# When testing, code that causes React state updates should be wrapped into act(...):
+# act(() => {
+#   /* fire events that update state */
+# });
+# /* assert on the output */
+# This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+# (node:31749) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+# (Use `node --trace-warnings ...` to show where the warning was created)
+# Subtest: web mounted image holds one viewing token; a second consumer and a remount cannot re-show it
+ok 206 - web mounted image holds one viewing token; a second consumer and a remount cannot re-show it
+  ---
+  duration_ms: 137.372875
+  type: 'test'
+  ...
+# Subtest: web asset fetch reads the live transport cut after a paused cache miss
+ok 207 - web asset fetch reads the live transport cut after a paused cache miss
+  ---
+  duration_ms: 9.532166
+  type: 'test'
+  ...
+# Subtest: late asset validation never changes a completed offline cut back to connected
+ok 208 - late asset validation never changes a completed offline cut back to connected
+  ---
+  duration_ms: 0.441791
+  type: 'test'
+  ...
+# (node:31750) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+# (Use `node --trace-warnings ...` to show where the warning was created)
+# Subtest: two overlapping enqueues consume distinct grant slices: both entries exist and used advances by the sum
+ok 209 - two overlapping enqueues consume distinct grant slices: both entries exist and used advances by the sum
+  ---
+  duration_ms: 145.317959
+  type: 'test'
+  ...
+# Subtest: a committed reply whose tail fetch fails leaves the intent queued with no rows; the retry is the same bytes and lands rows and entry in one swap
+ok 210 - a committed reply whose tail fetch fails leaves the intent queued with no rows; the retry is the same bytes and lands rows and entry in one swap
+  ---
+  duration_ms: 121.663375
+  type: 'test'
+  ...
+# Subtest: the settlement tail and the resume log both name the first-mounted drained query, never the newest page
+ok 211 - the settlement tail and the resume log both name the first-mounted drained query, never the newest page
+  ---
+  duration_ms: 455.570834
+  type: 'test'
+  ...
+# Subtest: settled() rejects with the non-retryable refusal that stopped the replay and leaves the intent queued; a retryable transport failure still resolves
+ok 212 - settled() rejects with the non-retryable refusal that stopped the replay and leaves the intent queued; a retryable transport failure still resolves
+  ---
+  duration_ms: 37.328541
+  type: 'test'
+  ...
+# Subtest: the prediction overlay is dropped in the same swap as a rejected or server-expired settlement
+ok 213 - the prediction overlay is dropped in the same swap as a rejected or server-expired settlement
+  ---
+  duration_ms: 150.766583
+  type: 'test'
+  ...
+# react-test-renderer is deprecated. See https://react.dev/warnings/react-test-renderer
+# Subtest: a cold start with the owner cut prices its slice from the persisted write bound; without one the enqueue refuses E_OFFLINE_ID_BLOCK
+ok 214 - a cold start with the owner cut prices its slice from the persisted write bound; without one the enqueue refuses E_OFFLINE_ID_BLOCK
+  ---
+  duration_ms: 311.741792
+  type: 'test'
+  ...
+# Subtest: SnapbackProvider constructs exactly one client across StrictMode's double mount and a parent re-render with an inline offline object
+ok 215 - SnapbackProvider constructs exactly one client across StrictMode's double mount and a parent re-render with an inline offline object
+  ---
+  duration_ms: 75.345583
+  type: 'test'
+  ...
+# Subtest: online() replays a queue held under a login grant when no resume can be built: zero deliveries, no facts, no /api/resume
+ok 216 - online() replays a queue held under a login grant when no resume can be built: zero deliveries, no facts, no /api/resume
+  ---
+  duration_ms: 32.064333
+  type: 'test'
+  ...
+# (node:31751) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+# (Use `node --trace-warnings ...` to show where the warning was created)
+# Subtest: a resume whose grant persistence crosses a seal cannot restore trust; the next login waits for its own resume on both carriers
+ok 217 - a resume whose grant persistence crosses a seal cannot restore trust; the next login waits for its own resume on both carriers
+  ---
+  duration_ms: 127.06575
+  type: 'test'
+  ...
+# Subtest: no-facts recovery chooses the mounted drain ahead of another mounted candidate, then the recorded log, manifest Cursor, or optional query on both carriers
+ok 218 - no-facts recovery chooses the mounted drain ahead of another mounted candidate, then the recorded log, manifest Cursor, or optional query on both carriers
+  ---
+  duration_ms: 211.360792
+  type: 'test'
+  ...
+# Subtest: cold no-facts recovery exposes E_OFFLINE_RESUME in lastRefusal and online rejects while keeping the queue on both carriers
+ok 219 - cold no-facts recovery exposes E_OFFLINE_RESUME in lastRefusal and online rejects while keeping the queue on both carriers
+  ---
+  duration_ms: 38.17075
+  type: 'test'
+  ...
+# Subtest: live transport and a fresh login grant cannot release old intents; a grantless resume opens the fence and restart closes it on both carriers
+ok 220 - live transport and a fresh login grant cannot release old intents; a grantless resume opens the fence and restart closes it on both carriers
+  ---
+  duration_ms: 91.140709
+  type: 'test'
+  ...
+# Subtest: partition change, seal, and wipe never inherit a successful resume for drain or prediction on both carriers
+ok 221 - partition change, seal, and wipe never inherit a successful resume for drain or prediction on both carriers
+  ---
+  duration_ms: 239.889291
+  type: 'test'
+  ...
+# Subtest: login then offline before any delivery resumes a three-day queue, including after reset, on both carriers
+ok 222 - login then offline before any delivery resumes a three-day queue, including after reset, on both carriers
+  ---
+  duration_ms: 56.787625
+  type: 'test'
+  ...
+# Subtest: online refuses E_OFFLINE_RESUME and retains a past-fence queue when no query can supply resume facts
+ok 223 - online refuses E_OFFLINE_RESUME and retains a past-fence queue when no query can supply resume facts
+  ---
+  duration_ms: 29.773666
+  type: 'test'
+  ...
+# Subtest: missing grant trust waits for resume and the client clock never expires an intent on both carriers
+ok 224 - missing grant trust waits for resume and the client clock never expires an intent on both carriers
+  ---
+  duration_ms: 34.461292
+  type: 'test'
+  ...
+# react-test-renderer is deprecated. See https://react.dev/warnings/react-test-renderer
+# Subtest: useOutbox exposes fence inside and past while ready stays true, then updates after grantless resume
+ok 225 - useOutbox exposes fence inside and past while ready stays true, then updates after grantless resume
+  ---
+  duration_ms: 15.482
+  type: 'test'
+  ...
+# Subtest: enqueue consumes a grant slice of 1 + maxNewIds and refuses E_OFFLINE_ID_BLOCK when the grant is spent
+ok 226 - enqueue consumes a grant slice of 1 + maxNewIds and refuses E_OFFLINE_ID_BLOCK when the grant is spent
+  ---
+  duration_ms: 30.546709
+  type: 'test'
+  ...
+# Subtest: a fresh partition without a grant refuses offline writes loudly and earns one on the drained log
+ok 227 - a fresh partition without a grant refuses offline writes loudly and earns one on the drained log
+  ---
+  duration_ms: 27.873333
+  type: 'test'
+  ...
+# react-test-renderer is deprecated. See https://react.dev/warnings/react-test-renderer
+# Subtest: a grant arriving without an outbox entry change flips useOutbox().ready
+ok 228 - a grant arriving without an outbox entry change flips useOutbox().ready
+  ---
+  duration_ms: 29.989042
+  type: 'test'
+  ...
+# Subtest: the drain replays FIFO after resume, one envelope per request, and both settle committed in order
+ok 229 - the drain replays FIFO after resume, one envelope per request, and both settle committed in order
+  ---
+  duration_ms: 44.126292
+  type: 'test'
+  ...
+# Subtest: a 503 after a commit leaves the intent queued, stops the drain, and the retry is the same envelope exactly once
+ok 230 - a 503 after a commit leaves the intent queued, stops the drain, and the retry is the same envelope exactly once
+  ---
+  duration_ms: 41.8295
+  type: 'test'
+  ...
+# Subtest: a rejection and a trace conflict settle only their own intent and the drain continues
+ok 231 - a rejection and a trace conflict settle only their own intent and the drain continues
+  ---
+  duration_ms: 86.422958
+  type: 'test'
+  ...
+# Subtest: a three-day-old queue under fenceDays 1 waits for resume without prediction, then replays FIFO and commits on both carriers
+ok 232 - a three-day-old queue under fenceDays 1 waits for resume without prediction, then replays FIFO and commits on both carriers
+  ---
+  duration_ms: 87.576416
+  type: 'test'
+  ...
+# Subtest: only the owner's E_OFFLINE_INTENT_EXPIRED refusal expires an intent and the drain continues on both carriers
+ok 233 - only the owner's E_OFFLINE_INTENT_EXPIRED refusal expires an intent and the drain continues on both carriers
+  ---
+  duration_ms: 56.862625
+  type: 'test'
+  ...
+# Subtest: a committed settlement lands in the same swap as the log tail rows, or not at all
+ok 234 - a committed settlement lands in the same swap as the log tail rows, or not at all
+  ---
+  duration_ms: 17.579125
+  type: 'test'
+  ...
+# Subtest: the settlement log tail uses its recorded cursor name even when the live manifest changes
+ok 235 - the settlement log tail uses its recorded cursor name even when the live manifest changes
+  ---
+  duration_ms: 21.551375
+  type: 'test'
+  ...
+# Subtest: online writes carry the replay envelope under custody; a transport failure enqueues; a queued outbox keeps FIFO
+ok 236 - online writes carry the replay envelope under custody; a transport failure enqueues; a queued outbox keeps FIFO
+  ---
+  duration_ms: 16.098167
+  type: 'test'
+  ...
+# Subtest: a store with an open partition never sends plain bytes: no grant or no bound refuses E_OFFLINE_ID_BLOCK with no request; a client with no store sends today's bytes
+ok 237 - a store with an open partition never sends plain bytes: no grant or no bound refuses E_OFFLINE_ID_BLOCK with no request; a client with no store sends today's bytes
+  ---
+  duration_ms: 7.046292
+  type: 'test'
+  ...
+# react-test-renderer is deprecated. See https://react.dev/warnings/react-test-renderer
+# react-test-renderer is deprecated. See https://react.dev/warnings/react-test-renderer
+# Subtest: useMutation resolves last queued offline with pending filtered by op, and useOutbox lists the outbox at cold start
+ok 238 - useMutation resolves last queued offline with pending filtered by op, and useOutbox lists the outbox at cold start
+  ---
+  duration_ms: 55.01525
+  type: 'test'
+  ...
+# react-test-renderer is deprecated. See https://react.dev/warnings/react-test-renderer
+# Subtest: useOutbox survives restart(): the queue is intact and settles through the restarted client
+ok 239 - useOutbox survives restart(): the queue is intact and settles through the restarted client
+  ---
+  duration_ms: 22.113166
+  type: 'test'
+  ...
+# Subtest: SnapbackProvider under StrictMode creates one lock-holding client and survives the simulated unmount
+ok 240 - SnapbackProvider under StrictMode creates one lock-holding client and survives the simulated unmount
+  ---
+  duration_ms: 37.867708
+  type: 'test'
+  ...
+# Subtest: a cold start with the owner unreachable serves the held log and the outbox before any metadata arrives
+ok 241 - a cold start with the owner unreachable serves the held log and the outbox before any metadata arrives
+  ---
+  duration_ms: 321.00575
+  type: 'test'
+  ...
+# Subtest: tail-page retirement requires a non-empty page at a manifest-named position past the commit watermark on both carriers
+ok 242 - tail-page retirement requires a non-empty page at a manifest-named position past the commit watermark on both carriers
+  ---
+  duration_ms: 35.213041
+  type: 'test'
+  ...
+# Subtest: only proven forward marks of the tail chooser consume patience; duplicate and backward marks do not on both carriers
+ok 243 - only proven forward marks of the tail chooser consume patience; duplicate and backward marks do not on both carriers
+  ---
+  duration_ms: 35.29625
+  type: 'test'
+  ...
+# Subtest: authoritative predicted-row arrival clears predicted while retaining the committed entry and row on both carriers
+ok 244 - authoritative predicted-row arrival clears predicted while retaining the committed entry and row on both carriers
+  ---
+  duration_ms: 13.023166
+  type: 'test'
+  ...
+# Subtest: a second nullable string argument cannot impersonate the manifest cursor on either carrier
+ok 245 - a second nullable string argument cannot impersonate the manifest cursor on either carrier
+  ---
+  duration_ms: 15.03725
+  type: 'test'
+  ...
+# Subtest: queued primary absence survives duplicate delivery and cold reopen until settlement on both carriers
+ok 246 - queued primary absence survives duplicate delivery and cold reopen until settlement on both carriers
+  ---
+  duration_ms: 18.865167
+  type: 'test'
+  ...
+# Subtest: queued tombstone survives duplicate delivery and cold reopen until settlement on both carriers
+ok 247 - queued tombstone survives duplicate delivery and cold reopen until settlement on both carriers
+  ---
+  duration_ms: 19.436125
+  type: 'test'
+  ...
+# Subtest: queued predicted deletion survives duplicate delivery and cold reopen until settlement on both carriers
+ok 248 - queued predicted deletion survives duplicate delivery and cold reopen until settlement on both carriers
+  ---
+  duration_ms: 23.37125
+  type: 'test'
+  ...
+# Subtest: queued conditional refresh survives duplicate delivery and cold reopen until settlement on both carriers
+ok 249 - queued conditional refresh survives duplicate delivery and cold reopen until settlement on both carriers
+  ---
+  duration_ms: 23.203084
+  type: 'test'
+  ...
+# Subtest: a conditional primary absence refreshed after settlement retires at its validated seq on both carriers
+ok 250 - a conditional primary absence refreshed after settlement retires at its validated seq on both carriers
+  ---
+  duration_ms: 14.473292
+  type: 'test'
+  ...
+# Subtest: a queued hidden-row eviction is not durable authoritative negative evidence on both carriers
+ok 251 - a queued hidden-row eviction is not durable authoritative negative evidence on both carriers
+  ---
+  duration_ms: 16.928
+  type: 'test'
+  ...
+# Subtest: object and array arguments, including object-entry arrays, cannot supply another query's chain on both carriers
+ok 252 - object and array arguments, including object-entry arrays, cannot supply another query's chain on both carriers
+  ---
+  duration_ms: 40.671541
+  type: 'test'
+  ...
+# Subtest: an ambiguous link preserves the proven prefix but cannot advance beyond it on both carriers
+ok 253 - an ambiguous link preserves the proven prefix but cannot advance beyond it on both carriers
+  ---
+  duration_ms: 24.321167
+  type: 'test'
+  ...
+# Subtest: evicting the progress page re-anchors at surviving consumed positions on both carriers
+ok 254 - evicting the progress page re-anchors at surviving consumed positions on both carriers
+  ---
+  duration_ms: 25.567709
+  type: 'test'
+  ...
+# Subtest: consumed progress survives cold reopen and a repeated position never double-counts on both carriers
+ok 255 - consumed progress survives cold reopen and a repeated position never double-counts on both carriers
+  ---
+  duration_ms: 31.863166
+  type: 'test'
+  ...
+# Subtest: a re-served page replaces its next link and conditional refresh cannot renew a pre-commit link on both carriers
+ok 256 - a re-served page replaces its next link and conditional refresh cannot renew a pre-commit link on both carriers
+  ---
+  duration_ms: 26.342625
+  type: 'test'
+  ...
+# Subtest: nonempty scalar projections use held closure rows to prove tail progress on both carriers
+ok 257 - nonempty scalar projections use held closure rows to prove tail progress on both carriers
+  ---
+  duration_ms: 14.983292
+  type: 'test'
+  ...
+# Subtest: a denied delivered-history answer cannot confirm arrival of a committed edit on both carriers
+ok 258 - a denied delivered-history answer cannot confirm arrival of a committed edit on both carriers
+  ---
+  duration_ms: 16.651583
+  type: 'test'
+  ...
+# Subtest: a 60-row resume followed by a 50-row-page remount cannot count the backward mark or duplicate delivery as progress on both carriers
+ok 259 - a 60-row resume followed by a 50-row-page remount cannot count the backward mark or duplicate delivery as progress on both carriers
+  ---
+  duration_ms: 145.456042
+  type: 'test'
+  ...
+# Subtest: missing and pre-commit links prove nothing; a cycle keeps only its proven prefix on both carriers
+ok 260 - missing and pre-commit links prove nothing; a cycle keeps only its proven prefix on both carriers
+  ---
+  duration_ms: 32.339042
+  type: 'test'
+  ...
+# Subtest: the commit snapshot round-trips after the tail moved and retires against the persisted position on both carriers
+ok 261 - the commit snapshot round-trips after the tail moved and retires against the persisted position on both carriers
+  ---
+  duration_ms: 20.320625
+  type: 'test'
+  ...
+# Subtest: primary absence retires the committed overlay in its swap and after cold reopen on both carriers
+ok 262 - primary absence retires the committed overlay in its swap and after cold reopen on both carriers
+  ---
+  duration_ms: 15.8385
+  type: 'test'
+  ...
+# Subtest: tombstone retires the committed overlay in its swap and after cold reopen on both carriers
+ok 263 - tombstone retires the committed overlay in its swap and after cold reopen on both carriers
+  ---
+  duration_ms: 14.050833
+  type: 'test'
+  ...
+# Subtest: predicted deletion retires the committed overlay in its swap and after cold reopen on both carriers
+ok 264 - predicted deletion retires the committed overlay in its swap and after cold reopen on both carriers
+  ---
+  duration_ms: 24.247833
+  type: 'test'
+  ...
+# Subtest: empty answers and hidden alternate-key lookups are not authoritative absence on both carriers
+ok 265 - empty answers and hidden alternate-key lookups are not authoritative absence on both carriers
+  ---
+  duration_ms: 34.184542
+  type: 'test'
+  ...
+# Subtest: resetCoverage rebases the snapshot and patience for a new tail op and cursor name on both carriers
+ok 266 - resetCoverage rebases the snapshot and patience for a new tail op and cursor name on both carriers
+  ---
+  duration_ms: 20.390917
+  type: 'test'
+  ...
+# Subtest: unchanged quiet-tail resumes strictly past commit consume one miss across each cold client on both carriers
+ok 267 - unchanged quiet-tail resumes strictly past commit consume one miss across each cold client on both carriers
+  ---
+  duration_ms: 40.754167
+  type: 'test'
+  ...
+# Subtest: repeated online resumes at the commit seq do not consume misses in one session on both carriers
+ok 268 - repeated online resumes at the commit seq do not consume misses in one session on both carriers
+  ---
+  duration_ms: 24.787625
+  type: 'test'
+  ...
+# Subtest: a pre-manifest c snapshot needs fresh correctly named links after reopening with an after manifest on both carriers
+ok 269 - a pre-manifest c snapshot needs fresh correctly named links after reopening with an after manifest on both carriers
+  ---
+  duration_ms: 23.319291
+  type: 'test'
+  ...
+# Subtest: file: ready() and ready(op) return false on sealed custody
+ok 270 - file: ready() and ready(op) return false on sealed custody
+  ---
+  duration_ms: 27.991667
+  type: 'test'
+  ...
+# Subtest: IndexedDB: ready() and ready(op) return false on sealed custody
+ok 271 - IndexedDB: ready() and ready(op) return false on sealed custody
+  ---
+  duration_ms: 16.124083
+  type: 'test'
+  ...
+# react-test-renderer is deprecated. See https://react.dev/warnings/react-test-renderer
+# Subtest: bound adoption alone updates useMutation.ready without an entries change
+ok 272 - bound adoption alone updates useMutation.ready without an entries change
+  ---
+  duration_ms: 61.115417
+  type: 'test'
+  ...
+# react-test-renderer is deprecated. See https://react.dev/warnings/react-test-renderer
+# Subtest: operation change mid-probe hides old readiness and ignores superseded completions
+ok 273 - operation change mid-probe hides old readiness and ignores superseded completions
+  ---
+  duration_ms: 72.889584
+  type: 'test'
+  ...
+# react-test-renderer is deprecated. See https://react.dev/warnings/react-test-renderer
+# (node:31789) ExperimentalWarning: The MockTimers API is an experimental feature and might change at any time
+# (Use `node --trace-warnings ...` to show where the warning was created)
+# Subtest: time alone notifies mounted hooks at the fence boundary: the fence turns past, expiry invalidates ready
+ok 274 - time alone notifies mounted hooks at the fence boundary: the fence turns past, expiry invalidates ready
+  ---
+  duration_ms: 18.268875
+  type: 'test'
+  ...
+# react-test-renderer is deprecated. See https://react.dev/warnings/react-test-renderer
+# Subtest: time alone notifies mounted hooks at the expiresAt boundary: the fence turns past, expiry invalidates ready
+ok 275 - time alone notifies mounted hooks at the expiresAt boundary: the fence turns past, expiry invalidates ready
+  ---
+  duration_ms: 16.543667
+  type: 'test'
+  ...
+# Subtest: sixty live queries and a channel share one connection through add, remove and reconnect
+ok 276 - sixty live queries and a channel share one connection through add, remove and reconnect
+  ---
+  duration_ms: 1028.267792
+  type: 'test'
+  ...
+# Subtest: real owner private asset bytes and conditional responses forbid HTTP cache storage
+ok 277 - real owner private asset bytes and conditional responses forbid HTTP cache storage
+  ---
+  duration_ms: 55.515667
+  type: 'test'
+  ...
+# Subtest: chat once photo uses one message and upload, each member gets one server delivery, and web stores no bytes
+ok 278 - chat once photo uses one message and upload, each member gets one server delivery, and web stores no bytes
+  ---
+  duration_ms: 186.112667
+  type: 'test'
+  ...
+# Subtest: offline sendOncePhoto prediction under the message alias has null media and makes no asset fetch
+ok 279 - offline sendOncePhoto prediction under the message alias has null media and makes no asset fetch
+  ---
+  duration_ms: 68.0315
+  type: 'test'
+  ...
+# Subtest: tests/real-owner.test.ts
+not ok 20 - tests/real-owner.test.ts
+  ---
+  duration_ms: 10001.167958
+  type: 'test'
+  location: '/Users/ccheever/projects/snapback-worktrees/clique-search-foundation/snapback2/packages/snapback2/tests/real-owner.test.ts:1:1'
+  failureType: 'testTimeoutFailure'
+  error: 'test timed out after 10000ms'
+  code: 'ERR_TEST_FAILURE'
+  ...
+# (node:31812) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+# (Use `node --trace-warnings ...` to show where the warning was created)
+# Subtest: SQLite driver conformance: BLOBs, JSON keys, rollback, late beforeCommit, and journal mode
+ok 281 - SQLite driver conformance: BLOBs, JSON keys, rollback, late beforeCommit, and journal mode
+  ---
+  duration_ms: 59.651875
+  type: 'test'
+  ...
+# journal_mode=wal; journal_mode readback, BLOB 1, BLOB 1048576, BLOB 0, JSON tuple key round trip, missing row is undefined, rollback on throw, body-ended transaction rejects and next transaction succeeds, late beforeCommit holds transaction, transaction result
+# Subtest: every PersistedRangeState field round-trips on file, IndexedDB, and SQLite
+ok 282 - every PersistedRangeState field round-trips on file, IndexedDB, and SQLite
+  ---
+  duration_ms: 32.187584
+  type: 'test'
+  ...
+# Subtest: IndexedDB rows without meta survive open with version 1 and default maps on every carrier
+ok 283 - IndexedDB rows without meta survive open with version 1 and default maps on every carrier
+  ---
+  duration_ms: 12.0625
+  type: 'test'
+  ...
+# Subtest: warm and reopened coverage, answers, and twin hydration agree on undefined and null on all three carriers
+ok 284 - warm and reopened coverage, answers, and twin hydration agree on undefined and null on all three carriers
+  ---
+  duration_ms: 25.634666
+  type: 'test'
+  ...
+# Subtest: Node COMMIT failure rolls back, preserves the original error, and the next queued BEGIN succeeds
+ok 285 - Node COMMIT failure rolls back, preserves the original error, and the next queued BEGIN succeeds
+  ---
+  duration_ms: 5.721709
+  type: 'test'
+  ...
+# Subtest: SQLite replace rolls state and byte deltas back when beforeCommit throws
+ok 286 - SQLite replace rolls state and byte deltas back when beforeCommit throws
+  ---
+  duration_ms: 7.106583
+  type: 'test'
+  ...
+# Subtest: SIGKILL before COMMIT preserves exactly the pre-swap rows and bytes
+ok 287 - SIGKILL before COMMIT preserves exactly the pre-swap rows and bytes
+  ---
+  duration_ms: 48.511208
+  type: 'test'
+  ...
+# Subtest: SIGKILL after COMMIT preserves exactly the post-swap rows and bytes
+ok 288 - SIGKILL after COMMIT preserves exactly the post-swap rows and bytes
+  ---
+  duration_ms: 37.962542
+  type: 'test'
+  ...
+# Subtest: in-process locks refuse a second client on the partition and release on close
+ok 289 - in-process locks refuse a second client on the partition and release on close
+  ---
+  duration_ms: 106.587375
+  type: 'test'
+  ...
+# Subtest: in-process locks scope one partition to its database across separate factories
+ok 290 - in-process locks scope one partition to its database across separate factories
+  ---
+  duration_ms: 16.241416
+  type: 'test'
+  ...
+# Subtest: custom factories share database identity locks while distinct databases do not conflict
+ok 291 - custom factories share database identity locks while distinct databases do not conflict
+  ---
+  duration_ms: 17.210667
+  type: 'test'
+  ...
+# Subtest: Node realpath identity collapses a symlink and uses the deliberate scoped lock symbol
+ok 292 - Node realpath identity collapses a symlink and uses the deliberate scoped lock symbol
+  ---
+  duration_ms: 5.396667
+  type: 'test'
+  ...
+# Subtest: SQLite refuses an identity-less custom driver before reading or writing the database
+ok 293 - SQLite refuses an identity-less custom driver before reading or writing the database
+  ---
+  duration_ms: 0.62625
+  type: 'test'
+  ...
+# Subtest: SQLite refuses unopenable files, a journal mismatch, and competing writes as E_OFFLINE_CARRIER
+ok 294 - SQLite refuses unopenable files, a journal mismatch, and competing writes as E_OFFLINE_CARRIER
+  ---
+  duration_ms: 9.375708
+  type: 'test'
+  ...
+# Subtest: SQLite wipe deletes only the named partition; shared database and sidecars remain
+ok 295 - SQLite wipe deletes only the named partition; shared database and sidecars remain
+  ---
+  duration_ms: 7.096209
+  type: 'test'
+  ...
+# (node:31821) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+# (Use `node --trace-warnings ...` to show where the warning was created)
+# Subtest: authoritative evictions purge pooled bodies and derived literals on every carrier
+ok 296 - authoritative evictions purge pooled bodies and derived literals on every carrier
+  ---
+  duration_ms: 53.446458
+  type: 'test'
+  ...
+# Subtest: array deletion, reordering and limiting preserve fresh identities and independently held rows
+ok 297 - array deletion, reordering and limiting preserve fresh identities and independently held rows
+  ---
+  duration_ms: 6.310625
+  type: 'test'
+  ...
+# Subtest: uniform range eviction uses engine ordering for Unicode, Bytes and optional values
+ok 298 - uniform range eviction uses engine ordering for Unicode, Bytes and optional values
+  ---
+  duration_ms: 10.767334
+  type: 'test'
+  ...
+# Subtest: escaped objects remain literals through collection, viewing, eviction and carrier reopen
+ok 299 - escaped objects remain literals through collection, viewing, eviction and carrier reopen
+  ---
+  duration_ms: 32.522292
+  type: 'test'
+  ...
+# Subtest: held answer callers cannot mutate the store's immutable committed rows
+ok 300 - held answer callers cannot mutate the store's immutable committed rows
+  ---
+  duration_ms: 10.9895
+  type: 'test'
+  ...
+# Subtest: the first metadata-only swap persists normalization of a legacy plaintext fingerprint
+ok 301 - the first metadata-only swap persists normalization of a legacy plaintext fingerprint
+  ---
+  duration_ms: 25.67375
+  type: 'test'
+  ...
+# Subtest: a new authenticated epoch accepts a same-seq revalidation then restores duplicate conflict checks
+ok 302 - a new authenticated epoch accepts a same-seq revalidation then restores duplicate conflict checks
+  ---
+  duration_ms: 23.102833
+  type: 'test'
+  ...
+# Subtest: outbox-only SQLite swaps write no unchanged history and do not clone it
+ok 303 - outbox-only SQLite swaps write no unchanged history and do not clone it
+  ---
+  duration_ms: 148.768583
+  type: 'test'
+  ...
+# Subtest: outbox-only IndexedDB swaps update only the entry and scalar header, including after reopen
+ok 304 - outbox-only IndexedDB swaps update only the entry and scalar header, including after reopen
+  ---
+  duration_ms: 74.565458
+  type: 'test'
+  ...
+# Subtest: file: query-only successor rebuilds overlapping rows at unchanged seq without a watermark
+ok 305 - file: query-only successor rebuilds overlapping rows at unchanged seq without a watermark
+  ---
+  duration_ms: 58.072667
+  type: 'test'
+  ...
+# Subtest: IndexedDB: query-only successor rebuilds overlapping rows at unchanged seq without a watermark
+ok 306 - IndexedDB: query-only successor rebuilds overlapping rows at unchanged seq without a watermark
+  ---
+  duration_ms: 22.259
+  type: 'test'
+  ...
+# Subtest: concurrent G2 and G3 deliveries coalesce into one reset with only G3 answers held
+ok 307 - concurrent G2 and G3 deliveries coalesce into one reset with only G3 answers held
+  ---
+  duration_ms: 32.876334
+  type: 'test'
+  ...
+# Subtest: a predecessor response completing after reset is re-issued without reinstalling facts or resetting again
+ok 308 - a predecessor response completing after reset is re-issued without reinstalling facts or resetting again
+  ---
+  duration_ms: 113.466667
+  type: 'test'
+  ...
+# Subtest: transport reset failure preserves the live read and snapshot refusal; the next query retries
+ok 309 - transport reset failure preserves the live read and snapshot refusal; the next query retries
+  ---
+  duration_ms: 39.491583
+  type: 'test'
+  ...
+# Subtest: refusal reset failure preserves the live read and snapshot refusal; the next query retries
+ok 310 - refusal reset failure preserves the live read and snapshot refusal; the next query retries
+  ---
+  duration_ms: 36.746291
+  type: 'test'
+  ...
+# Subtest: principal replacement clears pending reads and an in-flight reset cannot cross partitions
+ok 311 - principal replacement clears pending reads and an in-flight reset cannot cross partitions
+  ---
+  duration_ms: 28.979041
+  type: 'test'
+  ...
+# Subtest: a mounted subscription cold-opens after supersession without Last-Event-ID or an old validator
+ok 312 - a mounted subscription cold-opens after supersession without Last-Event-ID or an old validator
+  ---
+  duration_ms: 33.487875
+  type: 'test'
+  ...
+# Subtest: tracked Snapback 2 source contains no literal NUL bytes
+ok 313 - tracked Snapback 2 source contains no literal NUL bytes
+  ---
+  duration_ms: 505.548334
+  type: 'test'
+  ...
+# Subtest: a reset during the initial drain page cancels old cursors and leaves one tail
+ok 314 - a reset during the initial drain page cancels old cursors and leaves one tail
+  ---
+  duration_ms: 34.393541
+  type: 'test'
+  ...
+# Subtest: a reset during the subsequent drain page cancels old cursors and leaves one tail
+ok 315 - a reset during the subsequent drain page cancels old cursors and leaves one tail
+  ---
+  duration_ms: 38.104083
+  type: 'test'
+  ...
+# Subtest: failed program reload keeps the durable reset marker and online retries the reset
+ok 316 - failed program reload keeps the durable reset marker and online retries the reset
+  ---
+  duration_ms: 19.350167
+  type: 'test'
+  ...
+# Subtest: a terminal reset refusal seals custody while the completed live read stays successful
+ok 317 - a terminal reset refusal seals custody while the completed live read stays successful
+  ---
+  duration_ms: 18.94025
+  type: 'test'
+  ...
+# Subtest: a second successor between manifest and program coalesces into the same reset
+ok 318 - a second successor between manifest and program coalesces into the same reset
+  ---
+  duration_ms: 17.374959
+  type: 'test'
+  ...
+# Subtest: a held-answer probe completing after supersession cannot send its old validator
+ok 319 - a held-answer probe completing after supersession cannot send its old validator
+  ---
+  duration_ms: 27.122416
+  type: 'test'
+  ...
+# Subtest: file: reset drops G1 hidden evidence at N so a successor can disclose at the same N, while viewed custody survives
+ok 320 - file: reset drops G1 hidden evidence at N so a successor can disclose at the same N, while viewed custody survives
+  ---
+  duration_ms: 20.900417
+  type: 'test'
+  ...
+# Subtest: IndexedDB: reset drops G1 hidden evidence at N so a successor can disclose at the same N, while viewed custody survives
+ok 321 - IndexedDB: reset drops G1 hidden evidence at N so a successor can disclose at the same N, while viewed custody survives
+  ---
+  duration_ms: 31.815917
+  type: 'test'
+  ...
+# Subtest: a successor after program load and before the fresh query commits converges within the same flight
+ok 322 - a successor after program load and before the fresh query commits converges within the same flight
+  ---
+  duration_ms: 20.353709
+  type: 'test'
+  ...
+# Subtest: a mounted cold reopen discovering G3 during the fresh G2 query feeds the active reset flight
+ok 323 - a mounted cold reopen discovering G3 during the fresh G2 query feeds the active reset flight
+  ---
+  duration_ms: 29.843167
+  type: 'test'
+  ...
+# Subtest: three fresh-query rotations record a durable refusal instead of reporting convergence
+ok 324 - three fresh-query rotations record a durable refusal instead of reporting convergence
+  ---
+  duration_ms: 23.1725
+  type: 'test'
+  ...
+# Subtest: file: cold-start convergence exhaustion resolves ready and online retries on the same client
+ok 325 - file: cold-start convergence exhaustion resolves ready and online retries on the same client
+  ---
+  duration_ms: 24.839583
+  type: 'test'
+  ...
+# Subtest: file: cancelled reset program adoption and settlement racing login with a grant cannot deadlock the ledger
+ok 326 - file: cancelled reset program adoption and settlement racing login with a grant cannot deadlock the ledger
+  ---
+  duration_ms: 14.647375
+  type: 'test'
+  ...
+# Subtest: IndexedDB: cold-start convergence exhaustion resolves ready and online retries on the same client
+ok 327 - IndexedDB: cold-start convergence exhaustion resolves ready and online retries on the same client
+  ---
+  duration_ms: 39.114209
+  type: 'test'
+  ...
+# Subtest: IndexedDB: cancelled reset program adoption and settlement racing login with a grant cannot deadlock the ledger
+ok 328 - IndexedDB: cancelled reset program adoption and settlement racing login with a grant cannot deadlock the ledger
+  ---
+  duration_ms: 26.701958
+  type: 'test'
+  ...
+# Subtest: file: an obsolete settlement tail stays queued and cannot supersede G3; retry settles atomically with G3 rows
+ok 329 - file: an obsolete settlement tail stays queued and cannot supersede G3; retry settles atomically with G3 rows
+  ---
+  duration_ms: 42.467083
+  type: 'test'
+  ...
+# Subtest: IndexedDB: an obsolete settlement tail stays queued and cannot supersede G3; retry settles atomically with G3 rows
+ok 330 - IndexedDB: an obsolete settlement tail stays queued and cannot supersede G3; retry settles atomically with G3 rows
+  ---
+  duration_ms: 56.463208
+  type: 'test'
+  ...
+# Subtest: login aborts a reset during program reload and late work never crosses custody
+ok 331 - login aborts a reset during program reload and late work never crosses custody
+  ---
+  duration_ms: 23.916
+  type: 'test'
+  ...
+# Subtest: login aborts a reset during fresh query and late work never crosses custody
+ok 332 - login aborts a reset during fresh query and late work never crosses custody
+  ---
+  duration_ms: 18.396708
+  type: 'test'
+  ...
+# Subtest: logout aborts a reset during program reload and late work never crosses custody
+ok 333 - logout aborts a reset during program reload and late work never crosses custody
+  ---
+  duration_ms: 16.919459
+  type: 'test'
+  ...
+# Subtest: logout aborts a reset during fresh query and late work never crosses custody
+ok 334 - logout aborts a reset during fresh query and late work never crosses custody
+  ---
+  duration_ms: 15.742959
+  type: 'test'
+  ...
+# Subtest: close aborts a reset during program reload and late work never crosses custody
+ok 335 - close aborts a reset during program reload and late work never crosses custody
+  ---
+  duration_ms: 15.997666
+  type: 'test'
+  ...
+# Subtest: close aborts a reset during fresh query and late work never crosses custody
+ok 336 - close aborts a reset during fresh query and late work never crosses custody
+  ---
+  duration_ms: 15.302625
+  type: 'test'
+  ...
+# Subtest: file: cold reopen mid-rebuild preserves the pending marker and reruns mounted coverage before clearing it
+ok 337 - file: cold reopen mid-rebuild preserves the pending marker and reruns mounted coverage before clearing it
+  ---
+  duration_ms: 18.768166
+  type: 'test'
+  ...
+# Subtest: file: a failed program custody swap preserves the predecessor and refuses the reset until retry
+ok 338 - file: a failed program custody swap preserves the predecessor and refuses the reset until retry
+  ---
+  duration_ms: 20.361375
+  type: 'test'
+  ...
+# Subtest: IndexedDB: cold reopen mid-rebuild preserves the pending marker and reruns mounted coverage before clearing it
+ok 339 - IndexedDB: cold reopen mid-rebuild preserves the pending marker and reruns mounted coverage before clearing it
+  ---
+  duration_ms: 29.748875
+  type: 'test'
+  ...
+# Subtest: IndexedDB: a failed program custody swap preserves the predecessor and refuses the reset until retry
+ok 340 - IndexedDB: a failed program custody swap preserves the predecessor and refuses the reset until retry
+  ---
+  duration_ms: 33.288167
+  type: 'test'
+  ...
+# Subtest: first facts after reset must match the epoch authenticated by the predecessor and reset probe
+ok 341 - first facts after reset must match the epoch authenticated by the predecessor and reset probe
+  ---
+  duration_ms: 18.516958
+  type: 'test'
+  ...
+# Subtest: an actual owner epoch transition refuses resume before generation and seals the old session
+ok 342 - an actual owner epoch transition refuses resume before generation and seals the old session
+  ---
+  duration_ms: 10.811708
+  type: 'test'
+  ...
+# Subtest: reset clears a terminal subscription latch and cold-opens it again
+ok 343 - reset clears a terminal subscription latch and cold-opens it again
+  ---
+  duration_ms: 21.533625
+  type: 'test'
+  ...
+# Subtest: a frame decoding across reopen cannot commit or restore the predecessor event id
+ok 344 - a frame decoding across reopen cannot commit or restore the predecessor event id
+  ---
+  duration_ms: 285.525958
+  type: 'test'
+  ...
+# Subtest: a terminal session frame already decoding across reset still retires the bearer and seals custody
+ok 345 - a terminal session frame already decoding across reset still retires the bearer and seals custody
+  ---
+  duration_ms: 27.182375
+  type: 'test'
+  ...
+# (node:31851) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+# (Use `node --trace-warnings ...` to show where the warning was created)
+# Subtest: hydration from coverage rebuilds every envelope golden's ClosureReceipt byte-identically
+ok 346 - hydration from coverage rebuilds every envelope golden's ClosureReceipt byte-identically
+  ---
+  duration_ms: 168.458459
+  type: 'test'
+  ...
+# Subtest: a json column shaped like the byte variant rebuilds as application data, never as bytes
+ok 347 - a json column shaped like the byte variant rebuilds as application data, never as bytes
+  ---
+  duration_ms: 7.809625
+  type: 'test'
+  ...
+# Subtest: every corpus query round-trips through the store; replay matches its inputs and an unpinned read clock refuses
+ok 348 - every corpus query round-trips through the store; replay matches its inputs and an unpinned read clock refuses
+  ---
+  duration_ms: 1160.323292
+  type: 'test'
+  ...
+# Subtest: program custody is fetched, held per generation on all three carriers, serves a cold start with the owner cut, and is fenced by generation and auth epoch
+ok 349 - program custody is fetched, held per generation on all three carriers, serves a cold start with the owner cut, and is fenced by generation and auth epoch
+  ---
+  duration_ms: 64.184792
+  type: 'test'
+  ...
+# Subtest: partial reads name their reason: never-held, computed-key, and evicted
+ok 350 - partial reads name their reason: never-held, computed-key, and evicted
+  ---
+  duration_ms: 16.401875
+  type: 'test'
+  ...
+# Subtest: an offline send is predicted into the thread in order with its trace, a delete is predicted out, an uncovered read queues without a trace, and the overlay leaves when the rows arrive
+ok 351 - an offline send is predicted into the thread in order with its trace, a delete is predicted out, an uncovered read queues without a trace, and the overlay leaves when the rows arrive
+  ---
+  duration_ms: 30.838833
+  type: 'test'
+  ...
+# Subtest: a committed intent's overlay survives unrelated answers and an empty current-tail page; leaves with its predicted row; and two resumes retire a stranded prediction
+ok 352 - a committed intent's overlay survives unrelated answers and an empty current-tail page; leaves with its predicted row; and two resumes retire a stranded prediction
+  ---
+  duration_ms: 33.098542
+  type: 'test'
+  ...
+# Subtest: a ReferenceError from tagArguments surfaces on query and mutation, never as hydrating or an empty trace
+ok 353 - a ReferenceError from tagArguments surfaces on query and mutation, never as hydrating or an empty trace
+  ---
+  duration_ms: 5.236208
+  type: 'test'
+  ...
+# Subtest: an online query under a new generation immediately resets and rebuilds fresh coverage without an explicit online()
+ok 354 - an online query under a new generation immediately resets and rebuilds fresh coverage without an explicit online()
+  ---
+  duration_ms: 33.065041
+  type: 'test'
+  ...
+# Subtest: a settlement swap that also carries a prediction never resurrects what it settled
+ok 355 - a settlement swap that also carries a prediction never resurrects what it settled
+  ---
+  duration_ms: 2.20525
+  type: 'test'
+  ...
+# Subtest: E_OFFLINE_RESET re-fetches the live generation's program, replaces the bounds whole, and drains the queue
+ok 356 - E_OFFLINE_RESET re-fetches the live generation's program, replaces the bounds whole, and drains the queue
+  ---
+  duration_ms: 14.754958
+  type: 'test'
+  ...
+# Subtest: an unseen schema shape is hydrating: a novel index field or column payload is refused, never hashes as the known shape, and a write queues without a prediction
+ok 357 - an unseen schema shape is hydrating: a novel index field or column payload is refused, never hashes as the known shape, and a write queues without a prediction
+  ---
+  duration_ms: 20.032375
+  type: 'test'
+  ...
+# Subtest: evicting a middle row of a drained page makes the never-opened thread partial with reason evicted, not fresh
+ok 358 - evicting a middle row of a drained page makes the never-opened thread partial with reason evicted, not fresh
+  ---
+  duration_ms: 7.210083
+  type: 'test'
+  ...
+# Subtest: a connected subscription without a local store becomes hydrating on transport loss
+ok 359 - a connected subscription without a local store becomes hydrating on transport loss
+  ---
+  duration_ms: 3.495709
+  type: 'test'
+  ...
+# Subtest: a no-store subscription clears connected on its next ordinary frame before transport loss
+ok 360 - a no-store subscription clears connected on its next ordinary frame before transport loss
+  ---
+  duration_ms: 0.925333
+  type: 'test'
+  ...
+# Subtest: connected envelopes never enter coverage, including with missing program custody and repeated durable seq
+ok 361 - connected envelopes never enter coverage, including with missing program custody and repeated durable seq
+  ---
+  duration_ms: 5.122875
+  type: 'test'
+  ...
+# Subtest: a delivery whose generation has no held program is hydrating until the program lands
+ok 362 - a delivery whose generation has no held program is hydrating until the program lands
+  ---
+  duration_ms: 9.717041
+  type: 'test'
+  ...
+# Subtest: connected stays hydrating despite a cached zero or count, cold reopen, and never predicts a gated mutation
+ok 363 - connected stays hydrating despite a cached zero or count, cold reopen, and never predicts a gated mutation
+  ---
+  duration_ms: 14.6635
+  type: 'test'
+  ...
+# Subtest: covered evaluation errors surface; typed local mutation refusals omit prediction and JS bugs propagate
+ok 364 - covered evaluation errors surface; typed local mutation refusals omit prediction and JS bugs propagate
+  ---
+  duration_ms: 4.804125
+  type: 'test'
+  ...
+# Subtest: file: a G1 prediction overlay fails closed after a schema reset until it is retired
+ok 365 - file: a G1 prediction overlay fails closed after a schema reset until it is retired
+  ---
+  duration_ms: 20.57925
+  type: 'test'
+  ...
+# Subtest: SQLite: a G1 prediction overlay fails closed after a schema reset until it is retired
+ok 366 - SQLite: a G1 prediction overlay fails closed after a schema reset until it is retired
+  ---
+  duration_ms: 17.360209
+  type: 'test'
+  ...
+# Subtest: IndexedDB: a G1 prediction overlay fails closed after a schema reset until it is retired
+ok 367 - IndexedDB: a G1 prediction overlay fails closed after a schema reset until it is retired
+  ---
+  duration_ms: 28.576458
+  type: 'test'
+  ...
+# Subtest: overlay put and remove bugs escape the hydrate catch boundary
+ok 368 - overlay put and remove bugs escape the hydrate catch boundary
+  ---
+  duration_ms: 8.811583
+  type: 'test'
+  ...
+1..368
+# tests 368
+# suites 0
+# pass 366
+# fail 0
+# cancelled 2
+# skipped 0
+# todo 0
+# duration_ms 10635.758958
+== cargo-nextest workspace tests (parallel, no fail-fast)
+   Compiling snapback2-core v0.0.7 (/Users/ccheever/projects/snapback-worktrees/clique-search-foundation/snapback2/crates/snapback2-core)
+   Compiling snapback2-effects v0.0.7 (/Users/ccheever/projects/snapback-worktrees/clique-search-foundation/snapback2/crates/snapback2-effects)
+   Compiling snapback2 v0.0.7 (/Users/ccheever/projects/snapback-worktrees/clique-search-foundation/snapback2/crates/snapback2)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 6.09s
+────────────
+ Nextest run ID b36418f7-01d9-4699-9c80-402eaea1b423 with nextest profile: local-proof
+    Starting 753 tests across 43 binaries (4 tests skipped)
+────────────
+     Summary [  59.646s] 753 tests run: 753 passed, 4 skipped
+== cargo workspace doctests (no fail-fast)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+== evaluator (IR twin vs corpus)
+Unicode/search foundation: 20034 normalization rows + unlisted scalars, 1512 C/S folds, bounds and logical keys; tables 29bb626cbddaec2bce2cc1efcac329a9ea07ee725322155b791005cd7781b9e8
+{"visibilityChecks":2,"passed":2,"failed":0}
+{"cases":202,"passed":202,"serverOnly":24,"failed":0,"corruptionPath":"replay-mismatch"}
+== compiler type checking
+$ node ../snapback2/build.mjs --unicode-only && tsc -p tsconfig.json
+== compiler tests
+{"checks":400,"passed":400,"failed":0,"names":["preparatory search contracts preserve explicit components and independent operation Q","transition rules and final-exists constraints lower to the approved IR","transition-only rule terms are rejected outside their table effects","created probes certify target, index, arity, and nominal key types","final-exists constraints preserve malformed semantic shapes and certify them","transition authoring declarations distinguish created table identifiers from final table names","removed system rule refuses in the parser with a deny rewrite","Quarry todos and full surface lower in memory and certify","Quarry named shapes expand in every use position and print as authored","Quarry named shapes refuse placement, cycles, depth, and carry definition plus use sites","Quarry imported shapes share lexical projections, unique temporaries, and page provenance","Quarry imported-shape lowering refusals rewrite the definition and identify its caller","Quarry shape imports refuse missing declarations, cycles, captures, and expansion blowups","image once is column custody, carries through lowering, and video refuses with a range repair","Quarry accepts word writes and refuses every write sigil with the word forms","Quarry image/video spellings lower as closed records through IR, manifest descriptors, and API types","asset IR rustCheck round trip — SKIP while lane A rejects Image","asset index and maintain.by matrices refuse scalar, video, optional, and list forms","Quarry recursively rejects image/video assignment mismatches and literal record forges","the TypeScript lowering twin diagnoses missing asset fields and preserves descriptor/API shapes","seed assets use E_SCHEMA_ASSET_SEED recursively while optional null remains allowed","asset records reject unknown fields with a typed Quarry rewrite and have no legacy URL compatibility","Quarry money and decimal spellings preserve scale through IR and API types","Quarry money and decimal refusals are nominal, exact-scale, and sited","Quarry composite unique-key writes lower through row identity and certify","Quarry addressed key columns refuse disagreement and paste drop-field rewrites","Quarry upsert rows refuse every authored id with a drop-field rewrite","Quarry Clique M1-M3 plus Pay regression fixture lowers and certifies all 38 operations","Quarry Clique nested row shapes use selected column widths","Quarry effects, maintains, aggregate sugar, returns, objects, and count reach IR","Quarry cursor arguments lower as opaque values and certify a result-page site","Quarry range modifiers refuse permutations and repeats with the complete canonical read","Quarry refuses before with a forward after rewrite","Quarry result-page provenance covers bindings, shapes, merges, nesting, branches, and consumers","Quarry merge keeps nullable lane-prefix guards inside each discovered lane","Quarry merge lowers bounded lanes, records its certificate site, and refuses malformed lanes","Quarry cursors require a total index and pageable merges end in id","Quarry alternate-key unreadable updates are NOT_FOUND while direct-id updates are E_RULE","Quarry alternate-key update and upsert id fields are front-end refusals","Quarry consumed updates and upserts return authorized row snapshots with one evaluation","Quarry maps platform refusals and operation source sites back to .q","Quarry parser recovers and every refusal envelope is complete","Quarry conditions require Boolean operands and null is an explicit presence test","Quarry optional-column equality and inequality execute with total semantics","Quarry ordered comparison refuses an optional operand with an assertion rewrite","Quarry null equality works in either operand position without weakening nominal types","Quarry if presence tests narrow only the then-branch binding identity","Quarry where emits the schema index and indexed-prefix repairs","Quarry filter repairs preserve named keys, ordering, and pageable result provenance","Quarry filter repairs do not hoist row work or suggest non-scalar indexes","Quarry rule binders use focal dot and two-binding updates retain row images","Quarry maintain readable rules are typed against the materialized target","Quarry result annotations are refused because results are inferred","Quarry channel properties recover per line","Quarry index inference prefers an exact-length probe over a longer prefix","Quarry index inference matches known reference tables","Quarry refuses every reserved generated binding with a sited rename rewrite","Quarry validates compound and range keys against the selected index types","Quarry reference-table identity rejects named, inferred, and ranged cross-table keys","Quarry focal detection covers every expression container used by patches","Quarry focal patch preludes remain callback-local and preserve field order","Quarry shaped pages retain spread/override field types and reference identity","Quarry walked rows and shaped page rows stay row/object values","Quarry mid-body matches discard arm values and accept write-only arms","every Quarry diagnostic family rewrite is fenced parseable Quarry","principal remains nominal in Quarry rules and program values","db.insert row expressions are bound once and share the returned variable","Quarry mutually exclusive branch writes share the certifier/runtime bound","Quarry-only authoring and module placement are exact","Quarry jobs lower independent sweeps with typed prefixes and per-chunk engine writes","Quarry jobs refuse statements between chunks and cross-chunk bindings","Job guide recipe is the compiled fixture and mutable keys refuse at check","The narrowing refusal's pasted job lowers with its typed argument, enum quoting included, and certifies","A job that is not only chunk blocks refuses as E_JOB_SHAPE in the job family, naming the statement","No chat template mutation patches an immutable messages key","Quarry schedules lower row and period triggers into certified bindings on the schema","Quarry schedules refuse non-time columns, bad targets, and sub-minute or calendar durations with the schedule family","Schedule guide snippets are the compiled fixture and the chat template's server-side expiry","Quarry money builtins and branded multiplication preserve descriptors in TypeScript and IR","Quarry money builtins refuse arity, nominal, divisor, and currency-squared errors with rewrites","Quarry negation and fractional-rate refusals name the exact numeric forms","literal amounts widen through divmod and share so literal comparisons type-check","Quarry rejects a decimal literal beyond its scale at the authored q site","Quarry caps decimal and money descriptors at scale 12","operation money arguments are minor-unit numbers while results remain branded","computed money results retain named brands in generated API declarations","maintained money operands hoist absence fallback before exact builtins","Clique Pay lowers and certifies the exact 38-operation inventory","connected schema declarations refuse instead of disappearing in the TS lowerer","connected refuses Quarry maintains and table rules with a site and rewrite","connected rule refusal preserves exists connected[viewer]","connected rule refusal preserves created connected[viewer]","connected rule refusal preserves exists connected[.owner]","connected rule refusal preserves created connected[principal = .owner]","connected certifies one probe per principal read and refuses nonprogram surfaces","Quarry time difference and epoch divmod have integer parts","Quarry time arithmetic refuses undefined and absent operands with the rule","Quarry null selects optional maintained, point, exists, rule and cap keys","Quarry null equality in write objects is not a required Id sink","Quarry null cap probes remain true after the twin refuses a third omitted-parent row","Quarry optional access lowers in nested objects, comparisons, defaults and calls","Quarry optional access lowers in update patches without a coalesce workaround","Callback write keys hoist optional access once before reading the current row","Optional call operands evaluate a clock base once inside the original branch","Quarry divmod tuple binds once and preserves decimal and money parts","Quarry non-empty Id literals work in named and positional keys, equality and fallback","Quarry Id positions refuse empty literals, computed text and other-table references","Quarry naming rewrites contain catalog types and preserve a concrete repair","Unexpected Quarry failures preserve the caught message as guidance","Schedule arguments preserve generic ids while rejecting a different nominal table","Quarry merge Id literal prefixes accept positional and named keys, refusing computed text","Quarry optional list domains refuse before an omitted column can reach array execution","Argument list domains retain ArgList identity while column defaults carry max 8","Quarry bounded list columns survive aliases, optional narrowing, coalescing and nested shapes","Quarry json lists still lack a static cardinality","generated API types every Clique shaped result without any-typed fields","generated API types surface pages, collisions, and walk results","generated API types preserve branded assets through rows and shaped pages","an empty-list return arm is absorbed into its sibling array type","spread overrides omit every colliding row key","structured inference preserves exact money builtin results","single-path inference deliberately types chat insert branches","a Clique journey consumes shaped money rows with nominal result types","template journeys resolve real API types and expose optional partial data","Quarry retention policies are single tokens and parse with an omitted default","Quarry retention refusals are sited and rewrite to both valid spellings","Quarry retention words are contextual and subtraction keeps its token shape","Quarry retention lowers into every project JSON table","Quarry cap syntax and grouping refusals retain their declaration site","Quarry cap lowers once and Rust admits indexes even without writers","implicit id is an indexable cap column alone and in a tuple","unsupported rule prefix repairs give direction without unbound pasted names","chat groupCreate reserves fifty times fifty cap candidates","Quarry fanout uncapped refuses and its pasted repair certifies","Quarry fanout below cap refuses and its pasted repair certifies","Quarry fanout let-bound uncapped refuses and its pasted repair certifies","Quarry fanout nonuniform rule refuses and its pasted repair certifies","Quarry fanout cursor refuses and its pasted repair certifies","Quarry fanout nonuniform elsewhere refuses and its pasted repair certifies","Quarry complete pages certify directly, through identities and shapes, and over longer prefixes; queries are uncapped","fanout raw argument bound and known transformed binding paste literal/head repairs; unknown and merge honestly refuse","effect ES2020 witness compiles every admitted global and the full prelude response shape","effect refusals keep their family inside locals and reject non-runtime globals","effects use ES2020 types while Quarry and its generated checker retain the subset","effect public globals agree with Hermes and the guide/spec in exact order","one effect signature supplies all three metadata fields","authored helper modules get ES2020 with or without an effect export","static imports inside run refuse E_EFFECT_IMPORT","Quarry and effect diagnostics are each reported once by their own checker","the benchmark notification payload can project body.substring inside run","TextDecoder exposes no unwitnessed constructor or streaming options","compiler and Rust distinguish lowered viewer identity from a shadowed ctx","compiler uniformity mirror decides self probes and Or arms from actual prefix values","compiler self probe requires the complete nonoptional unique key on the same table","compiler literal truth uses column scaling instead of the numeric source spelling","Quarry membership self-probe enriched page","Quarry membership self-probe enriched merge","Quarry membership self-probe covering fanout","Quarry membership self-probe short fanout","F21 evaluator preserves colons in authored require codes","F8 only an exact authority-issued byId absence initializes a maintained target","F6 Cap checks updates entering full single- and multi-field groups","F15 certificate identity canonicalizes Rust BTreeMap fields","schema index width is refused before storage","authored update patches cannot carry id","F14 upsert certification distinguishes separately consuming identities","F14 evaluator rejects upsert identity divergence atomically","collection operands lower once and Map/Set preserve JavaScript uniqueness","Map.set evaluates key before setup-bearing value","Map and Set use JavaScript SameValueZero for primitive authored values","composite Map keys and Set values refuse before identity is lost","builtin arities are enforced and variadic min/max lower without truncation","Quarry-shaped Id composites certify and execute without scalar false positives","the evaluator refuses a sliced short tuple cursor exactly like the engine","cursor and viewer parity accepts valid values and rejects known wrong domains","every remaining args refusal predicate is also runtime-red","cursor-index and Id-text guide right forms type-check, lower, and certify","Decimal and Money rule literals use their schema scale","journey output cleanup refuses symlinked project components","optional row access returns null instead of dereferencing absence","optional row access guards the remainder of its property chain","authored __proto__, constructor, and prototype keys survive every lowering boundary","recurse accepts only the bound row and the operation db binding","row fields named length lower as fields","nested known object fields named length lower as fields","logical and nullish expressions guard all right-hand work","single-interpolation templates always return strings","sort comparators must use opposite parameters and one field","unsafe authored integer literals are refused before Number rounding","unsupported array callback index parameters refuse at compile time","filter executes lowered predicate setup inside each iteration","generated row aliases reject normalized collisions","journey import rewriting touches only module specifiers","F18 journey checking does not publish a successor API before owner admission","nested operation modules are diagnosed instead of omitted","unknown scan order strings are refused","seed validation checks personas, tables, rows, and every schema value shape","decimal and money seeds normalize whole-unit numbers and strings recursively","seed Bytes values require one exact externally tagged key","seed object spreads preserve authored rows and text maxima count Unicode scalars","F9 Rust package fixtures reclaim a dead package-build owner","F10 concurrent stale reclaimers cannot remove the winner's live lock","F19 blocking self-test uses a GNU-portable nonempty mktemp fixture","F20 publish self-test preserves a durable resume across dry-run staging","a killed package builder leaves a lock that the next build reclaims","publish builds its clean package snapshot before doctor and resumes a partial pair","the package shim reports spawn errors and preserves child signals","Page has no certify-time hasMore property","tuple cursors refuse only statically known runtime-invalid arity","missing point-read cursors stay runtime-authoritative while objects refuse","twin rejects every non-indexable index ingress with engine wording","valid tuple cursors lower and certify","module-helper tuple cursors use a structural return shape","loop-bound rows retain their table fact for tuple cursors","raw IR refuses known cursor arity and domains while staying silent on unknown shapes","cursor rewrites ignore rows from other tables and add typed cursor arguments","shared string literals lower per Id and Text sink in either property order","Id arithmetic refuses while runtime-valid Id textualization stays silent outside an Id sink","Id scalar rewrites bind the actual context and paste cleanly","shorthand insert Id rewrites to a property and assigned Id bindings stay runtime-authoritative","array-destructuring types follow helper structure rather than helper spelling","viewer aliases inhabit every runtime Id and Ref position","runtime-accepted read-key scalars and viewer authority are never rewritten","raw IR write certification rejects invalid Id literals and Id concatenation","stable let, helper, and inline array prefixes lower the same Id cursor and page","a reassigned let prefix keeps unknown arity silent","a full-prefix cursor rewrite removes both bounds and both twins reject the raw IR","overlong scan prefixes and point keys refuse before cursor analysis in the twin and certifier","one-column wrong-domain cursor repair is typed and not a no-op","IndexableScalar declarations admit Json while lowering refuses known object cursors","identity retargeting cannot overwrite a parent Bool cursor component","Decimal cursor components structurally match Int index columns","raw page field access is certify-red and twin-red","identity equality retargets text literals in every operand position","an optional Id nullish fallback lowers as an Id value","S1 project preserves all 17 bodies and certificate bounds with native argument types","the authored module requires imports and keeps the deterministic subset","optional property access lowers to a null-guarded conditional","one module reports every policy refusal instead of failing fast","one operation reports every lowering refusal and marks diagnostic truncation","multi-declarations and unbraced control bodies report every lowering refusal","all first-attempt refusals carry complete envelopes and mechanical rewrites","bound and collection callback fixtures still certify","count and reduce retain O(1) closure through page bindings","structural policy admits prefix-uniform private scans and refuses non-uniform twins","actual collection lowerings preserve capped page provenance through structural sinks","authored collected capped pages may return but cannot be inserted","loop collection refusals name bounds and fields without replacing the result","bound rewrite uses the refusing table's declared row width","object and array spreads lower only from static shapes and preserve override order","argument spreads expand module constants or refuse without dropping fields","non-static table and index references are sited opaque refusals, never thrown errors","snapback2 constructors resolve through named aliases and namespace imports, while empty modules refuse","the thenable property name is reserved at every generated API path","application require codes cannot impersonate platform auth refusals","schema and program namespace imports resolve table, index, emit, and then references","effect globals are available with the one-parameter run form","compiler lowering is split below the one-thousand-line source budget","project type diagnostics choose schema, args, opaque, and effect families by site","single-file type diagnostics choose the same family from the authored site","client, React, and test modules expose their real callable surfaces","authenticated client viewers inhabit generated Principal arguments","schema and effect refusals rewrite only the failing declaration","chat and todos lower schema, channels, effects, emit, API types, seed, and journeys","ref operation arguments retain their schema table in the engine IR","Principal columns and arguments stay nominal across lowering and generated APIs","ordinary strings and table refs cannot fill Principal insert, update, or argument values","Decimal, Money, and Enum descriptors type APIs and lower fractional literals to integer wire values","invalid Principal, Decimal, Money, and Enum descriptors refuse with sited descriptor rewrites","seed text values reject disallowed C0 controls and accept the priced set","Decimal, Money, and Enum descriptors type APIs and lower fractional literals to integer wire values","Decimal type facts follow lexical args and ctx bindings instead of identifier spelling","nested handler destructuring refuses with an explicit-access rewrite","duplicate operation composite bindings refuse in both orders with a single-binding rewrite","parenthesized and asserted operation composites preserve Decimal scales","helper literals are scaled per expansion context in both call orders","loop domains distinguish shadowed locals from the operation args composite","API result inference honors lexical args shadowing","long binary chains are linear-time, preserve Decimal scaling, and stop at the analysis guard","helper DAG expansion is bounded by contextual visits","Bytes descriptors lower for columns and args with the existing schema refusal family","rule literals encode Bytes only at Bytes schema positions","schema descriptor maxima stop at the Rust u32 representation","invalid Decimal, Money, and Enum descriptors refuse with sited descriptor rewrites","ambiguous provenance refuses with a complete envelope and compiling direct-origin rewrite","the real LLP 0329.017 C4 trio is body-derived and reproducible","identical helper bodies classify identically regardless of helper name","unknown origins stay ambiguous through immutable aliases and composite properties","property provenance follows composite members while proven row fields stay Shape","memberOf combines its actual members so explicit transforms dominate","loop and orderedPair bindings retain mutable-origin ambiguity","later object spreads resolve required args and refuse optional overrides","args and ctx are composites through unwrap, helpers, aliases, and spreads","nested immutable composites follow the selected leaf","collection elements are classified as alternatives at the selected path","stable let bindings, lexical shadowing, and renamed handler composites are spelling-independent","block-local shadowing ends at the block boundary","block-local declarations are unavailable after the block","reads inside a block use the block-local initializer","if-branch shadowing ends at the branch boundary","block updates preserve collection bounds on outer bindings","block updates preserve db.require narrowing on outer bindings","if-branch updates preserve conservative collection bounds on outer bindings","if-branch updates preserve db.require narrowing on outer bindings","orderedPair defaults refuse instead of disappearing from IR","recursive provenance expansion refuses with an envelope and finite depth","identity maps and filters preserve rows while transformed maps classify their return elements","slice, sort, and flatMap retain row and transformed-element origins","ordinary elements and directly mapped spreads classify each alternative","renamed args list domains retain their declared ArgList bound","nested literal and immutable object collection bounds compose","mutable rewrite candidates include every assigned direct origin","immutable aliases classify in their bind-time lexical environment","mutation and db recognition follow lexical binding identity","push couples static bounds and per-element provenance","ambiguous rewrites never guess an argument from a selected member name","deep operation-argument paths deliberately retain Arg origin","filter preserves row proof through aliases and a second filtering layer","update operands allocate sites in source order and callback keys lower once","ambiguous helper rewrites are scoped to the authored scan key","adversarial extra alias, helper, spread, and specialization layers stay uniform","site and certificate identity survive helper rename, extraction, inline, and reformat","read ordinals follow source order and carry each read's provenance into its certificate","nested nullish reads allocate ordinals left to right","site ordinals count writes in the export's source order","project lowering refuses duplicate module basenames before site identities can collide","loop-bound pushes retain every real candidate and paste a refusal","ternary members over loop bindings retain complete candidate origins","conditional members retain real candidates without an argument-name guess","push never widens a bounded argument collection without element origins","collection mutation refuses both alias copy-semantics divergence directions","unaliased literal accumulators compile while alias-of-copy mutation refuses","helper-return, object-wrapper, and ternary escapes refuse later mutation","mutation before a final helper escape and return stays green","later escapes in a loop body poison earlier mutations in the same cyclic body","escape-only loops and accumulators returned after a loop stay green","escape-only reads stay green while two-helper and branch escapes close mutation","push after an ordered spread override keeps both actual element origins","collection facts use the same ordered spread override as lowering","mutable collection reassignment merges origins and refuses disagreement","array literal element origins snapshot their bind-time environment","mixed collection rewrites name every real origin and stay non-lowerable","mutually exclusive push arms contribute their maximum delta","branch ambiguity names origins from both ambiguous and known arms","conditional-expression push arms merge like if branches","an inner loop sees the enclosing loop's proven end bound","a collection mutated in a loop keeps its end bound after the loop","nested loops see body-local spread copies and literal batches","two-deep mutation products reserve a later in-loop domain","branch mutation reserves the later in-loop domain","a collection mutated by its own growing iteration domain refuses","a top-level self-growing domain refuses while a different accumulator stays bounded","nested loop mutation deltas multiply and the certified program runs","three-deep nested loop mutation deltas remain multiplicative","an immutable scalar alias captures provenance before later reassignment","Decimal multiplication keeps int multipliers and refuses bare branded products","Decimal scaling requires a verified target and exponential literals classify by numeric value","Decimal scale rules and Enum membership refuse every unsupported expression form","decimal helper scales from the number string and refuses excess precision","Decimal authoring JSDoc states that numeric literals are whole units","project compilation aggregates refusals across every failing module","project diagnostic cap ends with an explicit truncation refusal","schema lowering refuses malformed constraints and every skipped authored shape","maintain lowering closes source, target, type, and ownership shapes","rule input visibility is derived and cannot be authored into the IR","reciprocal table rules accept only the current row id as its nominal Ref","rule terms and exists keys are checked against nominal schema types","rule literals respect Enum, Decimal, Money, Json, Id, and Ref domains","text constraints lower minimum, handle, and URL validation and reject invalid targets","implicit id and byId cannot be overwritten, including by update patches","effect authoring reports grants, closure, imports, and then arguments together","effect source expands JSON constant spreads and scopes every nested function and catch binding","effect closure ignores non-computed destructuring property names","effect closure refusals include parameter, destructuring, and computed-name defaults","worker refuses every TypeScript-authored export and serves the next Quarry request","Quarry words derives a 1001-item text list and direct for domain","Quarry words derives a 1001-item text list and alias for domain","Quarry words derives a 1001-item text list and column for domain","Quarry words derives a 2-item text list and literal for domain","Quarry words derives a 3-item text list and odd for domain","Quarry words derives a 1-item text list and empty for domain","Quarry words derives a 11-item text list and optional fallback for domain","Quarry words derives a 3-item text list and Unicode scalars for domain","Quarry words derives a 1001-item text list and wider column fallback for domain","Quarry words derives a 1001-item text list and narrower column fallback for domain","Quarry words derives a 1001-item text list and wider argument-to-column fallback for domain","words refuses constructed text at the Quarry boundary with a declared-bound repair","words refuses equal-max TS plus, aliases and templates with a declared-bound repair","words refuses a wider optional literal fallback rather than deriving the left bound","Quarry words refuses non-text, optional text and wrong arity with a rewrite","README mutation example typechecks with queued pending entries and an inFlight button","the built keyword guide resolves every grammar construct","the guide spec lists the CLI's current recipes","npm pack from a clean dist builds every exported module and declaration","client, React, and test imports typecheck against distinct real declarations","the React template typechecks against the built snapback2/react package","the chat template's React and Expo apps typecheck against the built package and generated API","guide validation reports every family and page failure before it fails","binary check certifies every compiler program and reads IR only from stdin or --ir","the 30-shape gauntlet remains measured"]}
+real 129.57
+user 480.78
+sys 90.51

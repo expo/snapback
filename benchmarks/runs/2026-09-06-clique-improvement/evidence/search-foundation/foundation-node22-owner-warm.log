@@ -1,0 +1,151 @@
+TAP version 13
+# (node:60792) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+# (Use `node --trace-warnings ...` to show where the warning was created)
+# Subtest: transport stops and successful retries report their remaining queue and preserve exactly-once writes
+ok 1 - transport stops and successful retries report their remaining queue and preserve exactly-once writes
+  ---
+  duration_ms: 24.514417
+  type: 'test'
+  ...
+# Subtest: grant expiry and exhausted IDs expose actionable admission without consuming an intent
+ok 2 - grant expiry and exhausted IDs expose actionable admission without consuming an intent
+  ---
+  duration_ms: 7.446458
+  type: 'test'
+  ...
+# Subtest: retained reads, readiness and offline escape do not wait on stalled authenticated startup; sealed custody stays hidden
+ok 3 - retained reads, readiness and offline escape do not wait on stalled authenticated startup; sealed custody stays hidden
+  ---
+  duration_ms: 2.648125
+  type: 'test'
+  ...
+# Subtest: repeated drain cursors refuse instead of looping or replacing the server watermark
+ok 4 - repeated drain cursors refuse instead of looping or replacing the server watermark
+  ---
+  duration_ms: 6.02625
+  type: 'test'
+  ...
+# Subtest: real sessions change epochs across re-login, seal and cold auth; custom cursor custody drains offline on every carrier
+ok 5 - real sessions change epochs across re-login, seal and cold auth; custom cursor custody drains offline on every carrier
+  ---
+  duration_ms: 4789.36075
+  type: 'test'
+  ...
+# Subtest: replacing an explicit bearer clears the old principal before persistence, so stalled cold auth cannot reveal its history
+ok 6 - replacing an explicit bearer clears the old principal before persistence, so stalled cold auth cannot reveal its history
+  ---
+  duration_ms: 27.30325
+  type: 'test'
+  ...
+# (node:60792) ExperimentalWarning: The MockTimers API is an experimental feature and might change at any time
+# Subtest: readiness still observes grant expiry after the earlier fence timer fired
+ok 7 - readiness still observes grant expiry after the earlier fence timer fired
+  ---
+  duration_ms: 3.617375
+  type: 'test'
+  ...
+# Subtest: authenticated startup restores a cleared token binding across restart and a later cold offline open
+ok 8 - authenticated startup restores a cleared token binding across restart and a later cold offline open
+  ---
+  duration_ms: 3.812084
+  type: 'test'
+  ...
+# Subtest: a token-store write crossing hydration discards the mixed principal snapshot before early reads
+ok 9 - a token-store write crossing hydration discards the mixed principal snapshot before early reads
+  ---
+  duration_ms: 28.614083
+  type: 'test'
+  ...
+# Subtest: settled waits for cold local custody before reporting an offline queue
+ok 10 - settled waits for cold local custody before reporting an offline queue
+  ---
+  duration_ms: 32.895333
+  type: 'test'
+  ...
+# Subtest: sixty live queries and a channel share one connection through add, remove and reconnect
+ok 11 - sixty live queries and a channel share one connection through add, remove and reconnect
+  ---
+  duration_ms: 1012.674083
+  type: 'test'
+  ...
+# Subtest: real owner private asset bytes and conditional responses forbid HTTP cache storage
+ok 12 - real owner private asset bytes and conditional responses forbid HTTP cache storage
+  ---
+  duration_ms: 54.2435
+  type: 'test'
+  ...
+# Subtest: chat once photo uses one message and upload, each member gets one server delivery, and web stores no bytes
+ok 13 - chat once photo uses one message and upload, each member gets one server delivery, and web stores no bytes
+  ---
+  duration_ms: 191.294583
+  type: 'test'
+  ...
+# Subtest: offline sendOncePhoto prediction under the message alias has null media and makes no asset fetch
+ok 14 - offline sendOncePhoto prediction under the message alias has null media and makes no asset fetch
+  ---
+  duration_ms: 73.828791
+  type: 'test'
+  ...
+# Subtest: Expo witness seed leaves Alice's schema-once image unconsumed and keeps its clip ordinary
+ok 15 - Expo witness seed leaves Alice's schema-once image unconsumed and keeps its clip ordinary
+  ---
+  duration_ms: 2766.542167
+  type: 'test'
+  ...
+# Subtest: the package suite is pointed at a checked real owner
+ok 16 - the package suite is pointed at a checked real owner
+  ---
+  duration_ms: 7.540375
+  type: 'test'
+  ...
+# real-owner mode=self-started url=http://127.0.0.1:63790
+# Subtest: a real rejected mutation carries the complete refusal envelope
+ok 17 - a real rejected mutation carries the complete refusal envelope
+  ---
+  duration_ms: 3.756417
+  type: 'test'
+  ...
+# Subtest: real owner stop and restart yields stale then a full first re-delivery
+ok 18 - real owner stop and restart yields stale then a full first re-delivery
+  ---
+  duration_ms: 773.955625
+  type: 'test'
+  ...
+# owner performs a full query re-delivery after reconnect; Last-Event-ID is not a delta-resume contract
+# Subtest: React-free hook driver reduces eight real-owner transitions including live capped and denied
+ok 19 - React-free hook driver reduces eight real-owner transitions including live capped and denied
+  ---
+  duration_ms: 797.664542
+  type: 'test'
+  ...
+# hook-driver transitions=hydrating -> complete -> complete -> stale -> complete -> capped -> denied -> refused
+# Subtest: real channel membership revocation ends the subscriber with a refusal
+ok 20 - real channel membership revocation ends the subscriber with a refusal
+  ---
+  duration_ms: 24.960458
+  type: 'test'
+  ...
+# Subtest: a real stored session restores after a cut with identical snapshot views and no mounted query
+ok 21 - a real stored session restores after a cut with identical snapshot views and no mounted query
+  ---
+  duration_ms: 7.746625
+  type: 'test'
+  ...
+# Subtest: serve mode refuses a persona-bound real client
+ok 22 - serve mode refuses a persona-bound real client
+  ---
+  duration_ms: 718.9555
+  type: 'test'
+  ...
+1..22
+# tests 22
+# suites 0
+# pass 22
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 9134.461541
+real 9.16
+user 14.85
+sys 0.89

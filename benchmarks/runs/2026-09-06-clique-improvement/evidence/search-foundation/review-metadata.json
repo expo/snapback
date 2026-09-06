@@ -1,0 +1,26 @@
+{
+  "revision": "69060c4b1f83c2962ce2b406ff15bd37b598c84b",
+  "base": "62fa434d842e4cefd8656d5fe18aaf2b567a6690",
+  "blind": true,
+  "astra": {
+    "configured_model": "gpt-6-astra",
+    "reasoning_effort": "xhigh",
+    "session": "01a07645-66b3-71f0-a7fa-531d61ebbb59",
+    "tool": 13701,
+    "launcher_pid": 99795,
+    "native_pid": 99799,
+    "exit": 0,
+    "verdict": "READY",
+    "sha256": "a9dc64832568e1b2e7f778fa1d99e398c347da9bb9b486e3f4818633d7e5e3e7"
+  },
+  "grok": {
+    "configured_model": "grok-4.6",
+    "reasoning_effort": "xhigh",
+    "tool": 29402,
+    "m5_launcher_pid": 31003,
+    "exit": 0,
+    "verdict": "READY",
+    "sha256": "f987f5a3b93f8fc4f65f625ae5f53fcdd4b0bca715ecd526f7163e04d2d44d44",
+    "extraction": "verbatim final response from **Review:** through end of grok.stdout.log; raw stdout retained"
+  }
+}
