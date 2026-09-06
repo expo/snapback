@@ -62,6 +62,7 @@ export function lowerSchema(source: string, fileName: string, quarry = false): L
       diagnostics.push(diagnostic(module, "E_SCHEMA_RESERVED", tableCalls.get(name)!,
         "connected is a built-in virtual table and cannot be declared",
         "remove the connected table declaration; use #connected[p] in a Quarry program"));
+      continue;
     }
     if (name.startsWith("_")) {
       diagnostics.push(schemaDiagnostic(module, "E_SCHEMA_RESERVED", tableCalls.get(name)!, `table ${name} uses the reserved _ prefix`));
@@ -71,6 +72,7 @@ export function lowerSchema(source: string, fileName: string, quarry = false): L
 
   const tableJson: Record<string, TableJson> = Object.create(null);
   for (const [name, call] of tableCalls) {
+    if (!tables.has(name)) continue;
     const lowered = lowerTable(module, name, call, tables, diagnostics);
     if (lowered) {
       if (name !== "connected") tableJson[name] = lowered.value;

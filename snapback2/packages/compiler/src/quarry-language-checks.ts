@@ -64,6 +64,8 @@ export const connected = table({ columns: { value: t.int() } });
 export default schema({ tables: { connected } });`, "snapback/schema.ts");
     const refusal = result.diagnostics.find(item => item.code === "E_SCHEMA_RESERVED");
     assert(refusal?.site?.startsWith("snapback/schema.ts:") && !!refusal.rewrite, JSON.stringify(result));
+    assert(!result.tables.has("connected") && ![...result.tables.values()].some(table => table.name === "_connected"),
+      `refused connected declaration entered the catalog: ${JSON.stringify([...result.tables])}`);
   });
   test("connected refuses Quarry maintains and table rules with a site and rewrite", () => {
     for (const declarations of [
@@ -77,6 +79,17 @@ export default schema({ tables: { connected } });`, "snapback/schema.ts");
         && item.rewrite?.includes("query") && !!item.family && !!item.guide), diagnosticsText(result.diagnostics));
     }
   });
+  for (const probe of ["exists connected[viewer]", "created connected[viewer]", "exists connected[.owner]", "created connected[principal = .owner]"]) {
+    test(`connected rule refusal preserves ${probe}`, () => {
+      const result = compile("query ok():\n  return true\n",
+        `use identity\ntable notes:\n  owner: principal\n  read <- ${probe}\n`);
+      assert(!result.ok, "connected admitted a table rule");
+      const refusal = result.diagnostics.find(item => item.message === "connected is only readable in queries and mutations, not rules");
+      assert(refusal?.site === "snapback/schema.q:4:11" && refusal.family === "quarry" && refusal.guide === "quarry/names",
+        JSON.stringify(result.diagnostics));
+      deepStrictEqual(refusal.rewrite, `-- move ${probe} into a query or mutation; keep table rules based on durable facts`);
+    });
+  }
   test("connected certifies one probe per principal read and refuses nonprogram surfaces", async () => {
     await project("query count(p: principal):\n  return #connected[p]\nquery online():\n  return exists connected[viewer]\nmutation gate(p: principal):\n  require exists connected[p] else OFFLINE\n  return #connected[p]\n", result => {
       assert(!("connected" in result.project.schema.tables) && !("_connected" in result.project.schema.tables), "virtual table leaked into durable schema");

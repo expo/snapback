@@ -453,7 +453,15 @@ fn connected_silent_socket_shutdown_and_legacy_close_drop_counts_slow() {
         let mut query =
             Sse::open_bearer(port, "/api/subscribe?op=presence.ping&args=%7B%7D", token);
         query.event();
-        let channel = Sse::open_bearer(port, "/api/channel/activity/subscribe?args=%7B%7D", token);
+        let mut channel = Sse::open_bearer(port, "/api/channel/activity/subscribe?args=%7B%7D", token);
+        // Legacy channels have no initial frame; publish one to witness delivery.
+        call(
+            port,
+            "/api/channel/activity/publish",
+            json!({"args":{}, "payload":{"ready":true}}),
+            Some(token),
+        );
+        assert_eq!(channel.event()["payload"], json!({"ready":true}));
         assert_eq!(count(port, principal), 3);
         live.shutdown();
         query.shutdown();

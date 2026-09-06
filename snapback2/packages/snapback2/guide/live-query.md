@@ -48,7 +48,9 @@ check for an unacknowledged message.
 `connected` is a read-only virtual table: `exists connected[p]` tests whether
 principal `p` has a live connection; `#connected[p]` counts connections. Pass one
 nonoptional principal (for yourself, `viewer`) in a query or mutation. Programs
-choose what to expose; rules and maintains cannot read it. It counts authenticated
+choose what to expose; rules and maintains cannot read it. Do not declare this
+built-in in your schema. For a rule refusal, move the named probe into a program
+and keep the rule based on durable facts. It counts authenticated
 SSE transports (including personas via `--as`), once per transport regardless of query/channel subscriptions,
 from identity establishment until stream close; revocation cuts that session's
 streams. A silent partition is detected on a failed write, with no latency

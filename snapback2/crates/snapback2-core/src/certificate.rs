@@ -658,8 +658,8 @@ impl<'a> Checker<'a> {
         mutation: &Program,
     ) -> Result<Certificate, CheckError> {
         let mut certificate = self.check(query)?;
-        // Partial describes incomplete closure, not permission to predict. The
-        // twin refuses every program with a _connected read site (LLP 1001 §5.1).
+        // @ref LLP 1001#51-connected — Partial describes incomplete closure, not
+        // permission to predict; the twin refuses every program with a _connected read site.
         let computed: Vec<_> = certificate
             .read_sites
             .iter()
