@@ -260,7 +260,11 @@ total order (ending in `id`, or unique); pageable merge indexes end in intrinsic
 A query or mutation that returns or writes a count, an emptiness/has-more
 branch, or another absence-dependent result from a capped-only site is refused
 at certification with the existing `E_STRUCTURAL_COUNT` family. This includes
-collected pages truncated by `break` or `continue` under capped-dependent control. Its pasted
+a page collected in a capped loop that any `break` or `continue` can truncate — every
+early exit in a capped loop taints that loop's collectors, whatever its condition,
+because the flow analysis cannot see that a condition such as a nested read being
+`null` depends on hidden rows (a coarse rule on purpose; collecting only
+capped-dependent control would re-admit the null-guard break). Its pasted
 rewrite is to denormalize the authorization scope into the index prefix so the
 rule becomes uniform, or to read a maintained aggregate. Hidden rows remain in
 the authoritative trace for invalidation and OCC and remain absent from the
