@@ -1,9 +1,9 @@
 import ts from "typescript";
 import { diagnostic } from "./diagnostics";
-import type { FrontendDiagnostic } from "./ir";
+import type { Expr, FrontendDiagnostic } from "./ir";
 import type { TableInfo } from "./compiler";
 import type { AuthoredType } from "./authored-types";
-import { operationCompositeBindings } from "./lower/operation-context";
+import type { ModuleInfo } from "./lower/module";
 import { scaledRuleLiteral } from "./lower/schema";
 import {
   applyEdits,
@@ -32,7 +32,10 @@ type PolicyModule = {
   source: string;
   fileName: string;
   tables: Map<string, TableInfo>;
+  loweredScanPrefixes: ModuleInfo["loweredScanPrefixes"];
 };
+
+type PinnedExpression = { source: ts.Expression | undefined; lowered: Expr | undefined };
 
 export function mechanicalBoundRewrite(source: string): string {
   const sourceFile = ts.createSourceFile("bound-rewrite.ts", source, ts.ScriptTarget.ES2022, true);
@@ -336,14 +339,15 @@ function scanIsPrivate(module: PolicyModule, scan: ts.CallExpression): boolean {
     return true;
   }
   const pinned = new Set(columns.slice(0, prefix.elements.length));
-  const expressions = new Map(columns.map((column, i) => [column, prefix.elements[i]]));
-  if (ruleDecidedTrue(info.readRule, info, expressions)) return false;
+  const lowered = module.loweredScanPrefixes.get(scan);
+  if (lowered?.length && lowered.every((values) => ruleDecidedTrue(info.readRule, info,
+    new Map(columns.map((column, i) => [column, { source: prefix.elements[i], lowered: values[i] }]))))) return false;
   return [...ruleFields(info.readRule)].some((field) => !pinned.has(field));
 }
 
 // @ref LLP 1001#3-read-and-write-states-no-silent-states — mirror the core's
 // prefix-local proof; one pinned disjunct alone does not establish uniformity.
-function ruleDecidedTrue(rule: any, table: TableInfo, pinned: Map<string, ts.Expression | undefined>): boolean {
+function ruleDecidedTrue(rule: any, table: TableInfo, pinned: Map<string, PinnedExpression>): boolean {
   if (rule === "Allow" || (rule && typeof rule === "object" && "Public" in rule)) return true;
   if (!rule || typeof rule !== "object") return false;
   if (Array.isArray(rule.Or)) return rule.Or.some((arm: unknown) => ruleDecidedTrue(arm, table, pinned));
@@ -360,14 +364,13 @@ function ruleDecidedTrue(rule: any, table: TableInfo, pinned: Map<string, ts.Exp
     });
 }
 
-function pinnedRuleTerm(term: any, expression: ts.Expression | undefined, type: AuthoredType | undefined): boolean {
-  if (!expression) return false;
-  const node = unwrapExpression(expression);
+function pinnedRuleTerm(term: any, expression: PinnedExpression | undefined, type: AuthoredType | undefined): boolean {
+  if (!expression?.source) return false;
   if (term === "Viewer") {
-    if (!ts.isPropertyAccessExpression(node) || node.name.text !== "viewer" || !ts.isIdentifier(node.expression)) return false;
-    const handler = findAncestor(node, isFunctionLike);
-    return !!handler && operationCompositeBindings(handler).ctx === node.expression.text;
+    const lowered = expression.lowered;
+    return !!lowered && "Input" in lowered && lowered.Input === "Viewer";
   }
+  const node = unwrapExpression(expression.source);
   if (!term || typeof term !== "object" || !("Literal" in term)) return false;
   const literal = term.Literal;
   const required = type?.kind === "optional" ? type.of : type;

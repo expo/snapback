@@ -542,7 +542,8 @@ export class Runner {
     );
     const stop = examined.length > take ? "limit" : "exhausted";
     // The proof belongs to this scan; point reads still evaluate their row policy.
-    const decidedTrue = this.certificate?.read_sites?.find((site: any) => site.site === scan.site)?.decided_true === true;
+    const readSite = this.certificate?.read_sites?.find((site: any) => site.site === scan.site);
+    const decidedTrue = readSite?.hoist === true && readSite.decided_true === true;
     const visible = examined.filter((row) => decidedTrue || this.checkRule(scan.table, "read", null, row));
     const returned = visible.slice(0, take);
     const suffix = cursorSuffix(this.schema, scan);

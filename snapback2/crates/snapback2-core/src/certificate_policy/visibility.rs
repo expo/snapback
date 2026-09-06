@@ -22,6 +22,7 @@ pub(crate) fn scan_visibility(schema: &Schema, scan: &Scan) -> Visibility {
     let Some(index) = table.index(&scan.index) else {
         return Visibility::default();
     };
+    // Column names let a differently ordered probe unique index resolve the same pins.
     let pinned: BTreeMap<_, _> = index.columns.iter().zip(&scan.prefix).collect();
     let decided_true = rule_true(&table.rules.read, &scan.table, table, &pinned);
     let mut used = BTreeSet::new();

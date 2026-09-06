@@ -1090,7 +1090,7 @@ impl<'a> Runner<'a> {
         let system = self.context.viewer.is_system();
         let uniform = system || read_site.hoist;
         let always_visible = system
-            || read_site.decided_true
+            || (read_site.hoist && read_site.decided_true)
             || matches!(table.rules.read, RuleExpr::Public { .. } | RuleExpr::Allow);
         let take = match &scan.take {
             Bound::Literal(value) => *value as usize,

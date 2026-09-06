@@ -83,7 +83,7 @@ names binders.
 Rule `exists`/`created` accepts any index whose leading columns match the key;
 when several match, add `by index`. Parentheses allow multiline rules.
 Reciprocal references and rule dependencies are supported.
-Membership self-probes on nonoptional unique keys are uniform over one's rows;
+Self-probes on a full unique key of nonoptional columns are uniform over own rows;
 so is an `or` with an arm proven true by the prefix.
 
 `use identity` enables passwords and guests. `use identity password` and

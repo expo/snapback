@@ -48,6 +48,29 @@ table words:
 `;
 
 export function registerVisibilityChecks(test: Test): void {
+  test("compiler and Rust distinguish lowered viewer identity from a shadowed ctx", async () => {
+    const fixture = await Bun.file(new URL("../../../corpus/self-probe-enriched-membership-page.json", import.meta.url)).json();
+    for (const shadowed of [false, true]) {
+      const source = `import { query, principal } from "snapback2";
+        export const count = query({ owner: principal() }, ({ db, ctx, args }) => {
+          { ${shadowed ? "const ctx = { viewer: args.owner };" : ""}
+            return db.scan(memberships.byPrincipalConversation, [ctx.viewer], { take: 100 }).count();
+          }
+        });`;
+      // Disable only the mirror to get the identical lowered program to the Rust checker.
+      const unchecked = lowerSource(source, "visibility.ts", undefined, { tables: new Map([
+        ["memberships", { ...table(selfProbe), private: false }],
+      ]) });
+      assert(unchecked.ok, JSON.stringify(unchecked));
+      const checked = rustCheck(unchecked.programs, "synthetic", fixture.schema);
+      assert(shadowed ? checked.some((c) => c.error?.code === "E_STRUCTURAL_COUNT")
+        : checked.every((c) => !c.error), JSON.stringify(checked));
+      const mirrored = lowerSource(source, "visibility.ts", undefined, { tables: new Map([["memberships", table(selfProbe)]]) });
+      assert(mirrored.ok === !shadowed, JSON.stringify(mirrored));
+      if (!mirrored.ok) assert(mirrored.diagnostics.some((d) => d.code === "E_STRUCTURAL_COUNT"), diagnosticsText(mirrored.diagnostics));
+    }
+  });
+
   test("compiler uniformity mirror decides self probes and Or arms from actual prefix values", () => {
     const cases: Array<[string, unknown, string, string, boolean]> = [
       ["self", selfProbe, "byPrincipalConversation", "ctx.viewer", true],

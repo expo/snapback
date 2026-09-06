@@ -77,7 +77,7 @@ export function lowerSource(
 ): LowerResult {
   const sourceFile = ts.createSourceFile(fileName, source, ts.ScriptTarget.ES2022, true);
   const module = inspectModule(sourceFile, source, fileName, options);
-  const diagnostics = findPolicyRefusals(module, Number.MAX_SAFE_INTEGER);
+  const diagnostics: FrontendDiagnostic[] = []; // Policy refusals follow lexical prefix lowering.
   const operationSpans: Array<{ name: string; call: ts.CallExpression }> = [];
   if (libText !== undefined) {
     const typed = typecheckSource(source, fileName, libText);
@@ -154,6 +154,7 @@ export function lowerSource(
       "export const operation = query({}, ({ args }) => args);",
     ));
   }
+  diagnostics.unshift(...findPolicyRefusals(module, Number.MAX_SAFE_INTEGER));
   const bounded = boundOperationDiagnostics(diagnostics, operationSpans, module);
   return bounded.length > 0 ? { ok: false, diagnostics: boundedDiagnostics(bounded, 50, "refusals in this module") } : { ok: true, programs };
 }

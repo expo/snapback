@@ -179,6 +179,65 @@ fn membership_self_probe_is_decided_true_only_over_own_rows() {
 }
 
 #[test]
+fn decided_true_without_hoist_still_checks_hidden_candidates() {
+    let schema = schema(membership_rule());
+    let mut other = scan();
+    other.prefix = vec![Expr::Literal(id("bob"))];
+    let p = page(other);
+    let mut cert = certificate(&schema, &p);
+    assert!(!cert.read_sites[0].hoist);
+    assert!(cert.read_sites[0].rule_probes_per_candidate > 0);
+    cert.read_sites[0].decided_true = true;
+    let result = seeded(&schema)
+        .execute(
+            &p,
+            &cert,
+            Context::query(Actor::user("alice").unwrap(), BTreeMap::new()),
+        )
+        .unwrap();
+    assert_eq!(result.result, Value::Array(vec![]));
+    assert_eq!(result.trace.rule_probes, 1);
+}
+
+#[test]
+fn uniform_undecided_membership_scan_evaluates_one_verdict() {
+    let schema = schema(membership_rule());
+    let mut by_conversation = scan();
+    by_conversation.index = "byConversationPrincipal".into();
+    by_conversation.prefix = vec![Expr::Literal(id("c1"))];
+    let p = page(by_conversation);
+    let cert = certificate(&schema, &p);
+    assert!(cert.read_sites[0].hoist);
+    assert!(!cert.read_sites[0].decided_true);
+    assert!(cert.read_sites[0].rule_probes_per_candidate > 0);
+    let mut engine = seeded(&schema);
+    for (viewer, expected, probes) in [
+        ("bob", vec![], 1),
+        (
+            "alice",
+            vec![row([
+                ("id", id("m1")),
+                ("conversationId", id("c1")),
+                ("principal", id("alice")),
+            ])],
+            2,
+        ),
+    ] {
+        let result = engine
+            .execute(
+                &p,
+                &cert,
+                Context::query(Actor::user(viewer).unwrap(), BTreeMap::new()),
+            )
+            .unwrap();
+        assert_eq!(result.state, ExecutionState::Complete);
+        assert_eq!(result.result, Value::Array(expected));
+        // A hit also meters the matched membership's self-referential read policy.
+        assert_eq!(result.trace.rule_probes, probes);
+    }
+}
+
+#[test]
 fn self_probe_accepts_own_fields_and_matching_literal_pins() {
     let mut rule = membership_rule();
     let RuleExpr::Exists { key, .. } = &mut rule else {
@@ -485,6 +544,30 @@ fn decided_scan_executes_with_zero_probes_and_never_rewrites_point_policy() {
     }))]);
     let point_cert = certificate(&schema, &point);
     assert_eq!(point_cert.max_rule_probes, 2);
+    let case: serde_json::Value = serde_json::from_str(include_str!(
+        "../../../corpus/self-probe-enriched-membership-page.json"
+    ))
+    .unwrap();
+    let enriched: Program = serde_json::from_value(case["program"].clone()).unwrap();
+    let enriched_cert = certificate(&schema, &enriched);
+    let conversation_site = enriched_cert
+        .read_sites
+        .iter()
+        .find(|site| site.site == "conversation.point")
+        .unwrap();
+    assert!(!conversation_site.hoist && !conversation_site.decided_true);
+    let enriched_before = engine
+        .execute(&enriched, &enriched_cert, context())
+        .unwrap();
+    assert_eq!(enriched_before.state, ExecutionState::Complete);
+    assert_eq!(
+        enriched_before.result,
+        Value::Array(vec![row([
+            ("id", id("m1")),
+            ("conversation", row([("title", text("c1"))]))
+        ])])
+    );
+    assert_eq!(enriched_before.trace.rule_probes, 2);
     assert_ne!(
         engine
             .execute(&point, &point_cert, context())
@@ -519,6 +602,12 @@ fn decided_scan_executes_with_zero_probes_and_never_rewrites_point_policy() {
         engine.execute(&p, &cert, context()).unwrap().result,
         Value::Array(vec![])
     );
+    let enriched_after = engine
+        .execute(&enriched, &enriched_cert, context())
+        .unwrap();
+    assert_eq!(enriched_after.result, Value::Array(vec![]));
+    assert_eq!(enriched_after.state, ExecutionState::Complete);
+    assert!(!conversation_site.decided_true);
 }
 
 #[test]
