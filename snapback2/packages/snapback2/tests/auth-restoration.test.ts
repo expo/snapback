@@ -1371,3 +1371,46 @@ for (const stage of ["replay", "tail"] as const) {
     } finally { release.resolve(); await Promise.allSettled([mutation, sibling]); await client.close(); }
   });
 }
+
+for (const stage of ["replay", "tail"] as const) {
+  test(`FIFO ${stage} expiry reaches the new mutation before enqueue and keeps only the older intent`, async context => {
+    const factory = offlineStore(context), owner = fakeOwner(), store = custody("dev:alice");
+    await seededStore(factory);
+    let mode: "transport" | "expiry" | "recovery" = "transport";
+    const replays: string[] = [];
+    const client = createClient({ url: "http://auth.test", tokenStore: store, offline: { store: factory },
+      fetch: async (input, init) => {
+        const path = new URL(String(input)).pathname;
+        if (path === "/api/mutation") {
+          replays.push(String(init?.body));
+          if (mode === "transport") return new Response("cut", { status: 503 });
+          if (mode === "expiry" && stage === "replay") return refusal("E_AUTH_SESSION");
+        }
+        if (mode === "expiry" && stage === "tail" && path === "/api/query") return refusal("E_AUTH_SESSION");
+        return owner.fetch(input, init);
+      } });
+    try {
+      await client.ready; await client.auth.me(); await client.outbox.settled();
+      const older = await client.mutation(api.deliveries.post, { conversationId: "conversation-1", body: "older durable intent" });
+      assert.equal(older.state, "queued");
+      const queued = await client.outbox.entries();
+      assert.equal(queued.length, 1); assert.equal(queued[0].state, "queued");
+      mode = "expiry";
+      await assert.rejects(client.mutation(api.deliveries.post, { conversationId: "conversation-1", body: "new unaccepted intent" }),
+        (error: any) => error.code === "E_AUTH_SESSION", "FIFO session death is not an older intent's ordinary refusal");
+      await assert.rejects(client.outbox.settled(), (error: any) => error.code === "E_AUTH_SESSION");
+      assert.equal(client.snapshot.lastRefusal?.code, "E_AUTH_SESSION");
+      assert.equal(client.snapshot.auth.state, "anonymous"); assert.equal(store.load(), null);
+      assert.equal((await client.outbox.status()).reason, "sealed");
+      assert.equal(replays.length, 2); assert.equal(replays[1], replays[0]);
+      mode = "recovery";
+      await client.auth.login({ email: "alice@example.com", password: "password" }); await client.online();
+      assert.deepEqual(await client.outbox.settled(), { stopped: false, remaining: 0 });
+      assert.equal(replays[2], replays[0], "recovery must retry the exact older envelope");
+      assert.deepEqual(owner.executions.map(entry => (entry.args as any).body), ["older durable intent"],
+        "the refused new call must never have entered durable custody or reached the owner");
+      assert.equal(owner.messages.size, 1, "a tail failure after commit still executes the older intent only once");
+      assert.equal(store.load(), "token-alice");
+    } finally { await client.close(); }
+  });
+}
