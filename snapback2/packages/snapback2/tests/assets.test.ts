@@ -755,3 +755,105 @@ for (const cleanupExpires of [false, true]) {
     } finally { client.close(); }
   });
 }
+
+for (const stage of ["fetch", "body"] as const) {
+  for (const mode of ["terminal", "replacement", "terminal-replacement"] as const) {
+    test(`automatic cleanup bounds an ignored ${stage} abort during ${mode}`, async context => {
+      const replacing = mode !== "terminal", terminal = mode !== "replacement";
+      const rejected = { state: "rejected", code: terminal ? "E_AUTH_SESSION" : "E_REQUIRE:NOT_MEMBER",
+        family: terminal ? "auth" : "rule", message: "refused", guide: "quarry" };
+      const expired = { code: "E_AUTH_SESSION", family: "auth", message: "expired", guide: "auth" };
+      let token: string | null = "session", cleanupSignal: AbortSignal | null | undefined;
+      let begin!: () => void, release!: () => void;
+      const started = new Promise<void>(resolve => { begin = resolve; });
+      const blocked = new Promise<void>(resolve => { release = resolve; });
+      const saves: Array<string | null> = [];
+      const flush = () => new Promise<void>(resolve => setImmediate(resolve));
+      let mutationDone = false, replacementDone = false, result: unknown, failure: any, loginCalls = 0;
+      let mutation: Promise<void> | undefined, replacement: Promise<unknown> | undefined;
+      const client = createClient({ url: "http://assets.test", tokenStore: {
+        load: () => token, save: value => { saves.push(value); token = value; },
+      }, fetch: async (input, init) => {
+        const path = new URL(String(input)).pathname;
+        if (path === "/api/auth/me") return json({ viewer: "alice", kind: "user" });
+        if (path === "/api/auth/login") { loginCalls++; return json({ token: "successor", viewer: "bob", kind: "user" }); }
+        if (path === "/api/manifest") return json(manifest());
+        if (path === "/api/upload") return json(image);
+        if (path === "/api/mutation") return json(rejected);
+        if (path === "/api/uploads/discard") {
+          assert.equal(new Headers(init?.headers).get("Authorization"), "Bearer session");
+          cleanupSignal = init?.signal;
+          const response = json(expired, 401);
+          if (stage === "body") response.json = async () => { begin(); await blocked; return expired; };
+          else { begin(); await blocked; }
+          return response;
+        }
+        throw new Error(`unexpected path ${path}`);
+      } });
+      try {
+        await client.ready; await client.auth.me();
+        context.mock.timers.enable({ apis: ["setTimeout"] });
+        mutation = client.mutation(api.assets.send, { photo: new File(["a"], "photo.png") } as any)
+          .then(value => { result = value; mutationDone = true; }, error => { failure = error; mutationDone = true; });
+        await started;
+        if (replacing) {
+          replacement = client.auth.login({ email: "bob@example.com", password: "password" })
+            .then(value => { replacementDone = true; return value; });
+          void replacement.catch(() => undefined);
+        }
+        context.mock.timers.tick(1_999); await flush();
+        assert.equal(mutationDone, false); assert.equal(loginCalls, 0);
+        context.mock.timers.tick(1); await flush(); await flush();
+        assert.equal(cleanupSignal?.aborted, true);
+        assert.equal(mutationDone, true, "cleanup must settle while its obsolete fetch or body is still withheld");
+        await mutation;
+        if (terminal && replacing) assert.equal(failure?.code, "E_AUTH_SUPERSEDED");
+        else { assert.equal(failure, undefined); assert.deepEqual(result, rejected); }
+        if (replacing) {
+          assert.equal(replacementDone, true, "auth replacement cannot remain behind timed-out cleanup");
+          await replacement;
+          assert.equal(token, "successor"); assert.equal(client.snapshot.auth.viewer, "bob");
+        } else {
+          assert.equal(token, null); assert.equal(client.snapshot.auth.state, "anonymous");
+        }
+        if (terminal) assert.ok(saves.includes(null), "terminal evidence clears captured durable custody");
+        const snapshot = client.snapshot, saved = [...saves];
+        release(); await flush(); await flush();
+        assert.deepEqual(client.snapshot, snapshot, "late cleanup must not change successor auth or refusal state");
+        assert.deepEqual(saves, saved, "late cleanup must not clear durable successor custody");
+      } finally {
+        release(); await Promise.allSettled([mutation, replacement]);
+        await client.close(); context.mock.timers.reset();
+      }
+    });
+  }
+}
+
+for (const stage of ["mutation", "first-upload"] as const) {
+  test(`owner-shaped ${stage} HTTP 401 clears custody after this call's cleanup`, async () => {
+    const expired = { code: "E_AUTH_SESSION", family: "auth", message: "expired", guide: "auth" };
+    let token: string | null = "session";
+    const events: string[] = [];
+    const client = createClient({ url: "http://assets.test", tokenStore: {
+      load: () => token, save: value => { events.push(`save:${value}`); token = value; },
+    }, fetch: async (input, init) => {
+      const path = new URL(String(input)).pathname;
+      if (path === "/api/auth/me") return json({ viewer: "alice", kind: "user" });
+      if (path === "/api/manifest") return json(manifest());
+      if (path === "/api/upload") return stage === "first-upload" ? json(expired, 401) : json(image);
+      if (path === "/api/mutation") return json(expired, 401);
+      if (path === "/api/uploads/discard") {
+        events.push(`discard:${new Headers(init?.headers).get("Authorization")}`);
+        return json({ discarded: true });
+      }
+      throw new Error(`unexpected path ${path}`);
+    } });
+    try {
+      await client.ready; await client.auth.me();
+      await assert.rejects(client.mutation(api.assets.send, { photo: new File(["a"], "photo.png") } as any),
+        (error: any) => error.code === "E_AUTH_SESSION");
+      assert.deepEqual(events, stage === "mutation" ? ["discard:Bearer session", "save:null"] : ["save:null"]);
+      assert.equal(token, null); assert.equal(client.snapshot.auth.state, "anonymous");
+    } finally { await client.close(); }
+  });
+}

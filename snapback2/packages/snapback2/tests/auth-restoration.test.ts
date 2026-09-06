@@ -1216,3 +1216,67 @@ for (const body of ["terminal-refusal", "invalid-refusal-json", "invalid-success
     } finally { release.resolve(); await reconnect?.catch(() => undefined); await client.close(); }
   });
 }
+
+for (const stage of ["replay-fetch", "replay-body", "tail-fetch"] as const) {
+  for (const interruption of ["offline", "failed-login", "close"] as const) {
+    test(`${interruption} releases a mutation-owned drain during ignored ${stage} abort`, async context => {
+      const factory = offlineStore(context), owner = fakeOwner(), store = custody("dev:alice");
+      await seededStore(factory);
+      const started = deferred<void>(), release = deferred<void>();
+      const replays: string[] = [];
+      let armed = false, held = false, mutationDone = false, transitionDone = false;
+      let oldSignal: AbortSignal | null | undefined;
+      let mutation: Promise<unknown> | undefined, transition: Promise<unknown> | undefined;
+      const fetch: typeof globalThis.fetch = async (input, init) => {
+        const path = new URL(String(input)).pathname;
+        if (path === "/api/auth/login") return refusal("E_AUTH_INVALID");
+        if (path === "/api/mutation") replays.push(String(init?.body));
+        const response = await owner.fetch(input, init);
+        const target = stage === "tail-fetch" ? path === "/api/query" && replays.length > 0 : path === "/api/mutation";
+        if (armed && target && !held) {
+          held = true; oldSignal = init?.signal;
+          if (stage === "replay-body") {
+            const parse = response.json.bind(response);
+            response.json = async () => { started.resolve(); await release.promise; return parse(); };
+          } else { started.resolve(); await release.promise; }
+        }
+        return response;
+      };
+      const options = { url: "http://auth.test", tokenStore: store, offline: { store: factory }, fetch };
+      const client = createClient(options);
+      let successor: SnapbackClient | undefined;
+      try {
+        await client.ready; await client.auth.me(); await client.outbox.settled();
+        armed = true;
+        mutation = client.mutation(api.deliveries.post, { conversationId: "conversation-1", body: "direct online send" })
+          .then(value => { mutationDone = true; return value; }, error => { mutationDone = true; return error; });
+        await started.promise;
+        assert.equal(owner.executions.length, 1, "the request committed before its response or tail was withheld");
+        assert.equal((await client.outbox.entries()).filter(entry => entry.state === "queued").length, 1);
+        transition = (interruption === "failed-login"
+          ? assert.rejects(client.auth.login({ email: "alice@example.com", password: "wrong" }), (error: any) => error.code === "E_AUTH_INVALID")
+          : interruption === "close" ? client.close() : client.offline()).then(() => { transitionDone = true; });
+        void transition.catch(() => undefined);
+        for (let i = 0; i < 30 && !(mutationDone && transitionDone); i++) await flush();
+        assert.equal(oldSignal?.aborted, true, "every mutation drain carries the cancellation signal");
+        assert.equal(mutationDone, true, "the tracked write must release without the obsolete transport cooperating");
+        assert.equal(transitionDone, true, "auth transition must not remain behind the tracked write");
+        await transition; await mutation;
+        let active = client;
+        if (interruption === "close") { successor = createClient(options); active = successor; await successor.ready; }
+        else await client.online();
+        assert.deepEqual(await active.outbox.settled(), { stopped: false, remaining: 0 });
+        assert.equal(replays[1], replays[0], "recovery retries the same envelope after the uncertain commit");
+        assert.equal(owner.executions.length, 1, "the committed intent executes exactly once");
+        const snapshot = active.snapshot, entries = await active.outbox.entries(), requests = replays.length;
+        release.resolve(); await flush(); await flush();
+        assert.deepEqual(active.snapshot, snapshot);
+        assert.deepEqual(await active.outbox.entries(), entries);
+        assert.equal(replays.length, requests, "the obsolete drain cannot advance or settle again");
+      } finally {
+        release.resolve(); await Promise.allSettled([mutation, transition]);
+        await client.close(); await successor?.close();
+      }
+    });
+  }
+}
