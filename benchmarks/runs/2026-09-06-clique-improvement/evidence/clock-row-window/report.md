@@ -26,3 +26,15 @@ Exact native inputs, complete private carrier data and prior fixture setup
 failures remain under
 `/Users/ccheever/clique-improvement/revisions/inbox-restore/native-clock/row-window/`.
 No raw auth database or credentials are copied into this evidence directory.
+
+## Subsequent frozen-source witness
+
+A separate Node22.23.2 run uses bundle
+`25784b3a693a90670ac4e3e8a40d451db08d7eab6954bda5b4902ebbfc7daf54`.
+The esbuild loader retained the exact45 source byte sequences it returned to
+the bundler. Root verified every retained snapshot's size/hash, bundle identity,
+and that only Node builtins remain external. Both warm/cold runs pass the same
+native-input and anchor/pool/no-negative assertions. The frozen result and
+root verification are retained separately; the original moving-source result
+remains unchanged. This closes source-recording limits for the subsequent
+witness, without expanding it into full package or device qualification.

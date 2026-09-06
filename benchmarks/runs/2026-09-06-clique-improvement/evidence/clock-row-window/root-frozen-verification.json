@@ -1,0 +1,20 @@
+{
+  "sourceCount": 45,
+  "snapshotsAllMatch": true,
+  "bundleMatches": true,
+  "externalImports": [
+    "node:assert/strict",
+    "node:crypto",
+    "node:fs",
+    "node:fs/promises",
+    "node:path"
+  ],
+  "runtimeNode": "22.23.2",
+  "warmColdErrors": [
+    null,
+    null
+  ],
+  "resultSha256": "3148e01ce8c2e0161e67f4cf45e2e2cbdbc909b73d2dee482e84c62ff8fbe8fc",
+  "bundleSha256": "25784b3a693a90670ac4e3e8a40d451db08d7eab6954bda5b4902ebbfc7daf54",
+  "scope": "frozen consumed source graph, actual native inputs, file carrier warm/cold; not full package or device qualification"
+}
