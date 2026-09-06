@@ -1,0 +1,21 @@
+{
+  "pid": 5293,
+  "command": [
+    "/Users/ccheever/.volta/bin/codex",
+    "exec",
+    "resume",
+    "--dangerously-bypass-approvals-and-sandbox",
+    "--skip-git-repo-check",
+    "-m",
+    "gpt-6-astra",
+    "-c",
+    "model_reasoning_effort=medium",
+    "-o",
+    "/Users/ccheever/clique-improvement/next-run/astra-006-m7/recording-supplement/final-answer.md",
+    "01a07673-5a3f-7be3-92d4-28a9d8852bb2",
+    "-"
+  ],
+  "startedEpoch": 1788695448.7292118,
+  "purpose": "recording only; original authoring clock remains stopped",
+  "promptSha256": "ef6037cf6d0b10e7c3e0a650ac3f153e455d193cba48977ce42b4f2dafe03b64"
+}

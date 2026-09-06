@@ -1,0 +1,123 @@
+{
+  "model": "gpt-6-astra",
+  "effort": "medium",
+  "sourceThread": {
+    "taskPath": "/root",
+    "description": "The same fresh Astra-medium Clique M7 session in /Users/ccheever/clique-astra006-m7, followed by this recording-only continuation.",
+    "nativeThreadId": null,
+    "nativeThreadIdReason": "An opaque native thread identifier is not exposed in the supplied context; none is invented."
+  },
+  "timestamp": "2026-09-06T11:52:18.788442+00:00",
+  "essayHashVerified": true,
+  "diaryHashVerified": true,
+  "verification": {
+    "sealPath": "/Users/ccheever/clique-improvement/next-run/astra-006-m7/m7-run/essay-seal.json",
+    "verifiedBeforeNumericRecording": true,
+    "files": {
+      "diary.md": {
+        "sha256": "99126c0fe1964c35e545101d19a5a2e978e7b698749da5141a69f0bde440eacd",
+        "matchesSeal": true
+      },
+      "closing-essay.md": {
+        "sha256": "bffff24dcd0586471467b888df8eac9c0cec0f517b4ff26d5ba3dce649570e1e",
+        "matchesSeal": true
+      }
+    }
+  },
+  "B8": 78,
+  "B8Explanation": {
+    "scope": "Day-2 schema-change-against-live-data experience during this M7 interval only.",
+    "explanation": "The migration was successful and largely declarative: the emitted plan admitted the enum change, rebuilt persisted counts, and left the immediate API comparison difference set unchanged. Generated types were usable, and no manual record surgery was needed. I place the experience below routine additive evolution because the compiler/owner admission split classified an enum expansion as destructive, required an explicit plan, and left me relying on post-application comparison rather than an exercised dry-run and rollback. The initial JSX and web-prop errors were app integration errors, not evidence that code generation fought the schema change. Environment startup and inherited suite prerequisites are kept outside this B8 judgment.",
+    "citations": [
+      {
+        "path": "/Users/ccheever/clique-improvement/next-run/astra-006-m7/m7-run/closing-essay.md",
+        "narrativeParagraph": 1
+      },
+      {
+        "path": "/Users/ccheever/clique-improvement/next-run/astra-006-m7/m7-run/closing-essay.md",
+        "narrativeParagraph": 2
+      },
+      {
+        "path": "/Users/ccheever/clique-improvement/next-run/astra-006-m7/m7-run/diary.md",
+        "narrativeParagraph": 3
+      }
+    ]
+  },
+  "M7OnlyHolistic": 70,
+  "M7OnlyHolisticExplanation": {
+    "scope": "What this M7 interval was actually like; independently judged, not computed from B8 or any other dimension.",
+    "explanation": "It was a productive but uneven experience. I could deliver and demonstrate both features using the existing message lifecycle and offline queue, yet runtime admission, observable UI state, and regression attribution each required attention. The resulting evidence is useful, but the interval did not feel like a smooth, fully certifiable change.",
+    "moments": [
+      {
+        "moment": "The compiler accepted the poll enum while the owner kept the old generation until the explicit plan was applied. That was a recoverable but consequential interruption to the expected additive workflow.",
+        "citations": [
+          {
+            "path": "/Users/ccheever/clique-improvement/next-run/astra-006-m7/m7-run/closing-essay.md",
+            "narrativeParagraph": 1
+          }
+        ]
+      },
+      {
+        "moment": "The real browser queue settled votes correctly, while the frozen display still needed an accessibility-adapter correction before pending state became observable. Functional reuse was strong; verification exposed an additional integration boundary.",
+        "citations": [
+          {
+            "path": "/Users/ccheever/clique-improvement/next-run/astra-006-m7/m7-run/closing-essay.md",
+            "narrativeParagraph": 3
+          },
+          {
+            "path": "/Users/ccheever/clique-improvement/next-run/astra-006-m7/m7-run/diary.md",
+            "narrativeParagraph": 4
+          }
+        ]
+      },
+      {
+        "moment": "Starter-state suite assumptions and regression actions complicated confidence: unavailable seed-based checks, receipt advances, and settings changes had to remain explicit instead of becoming a clean preservation claim. This lowered the overall M7 experience without being treated as schema-migration damage.",
+        "citations": [
+          {
+            "path": "/Users/ccheever/clique-improvement/next-run/astra-006-m7/m7-run/closing-essay.md",
+            "narrativeParagraph": 4
+          },
+          {
+            "path": "/Users/ccheever/clique-improvement/next-run/astra-006-m7/m7-run/diary.md",
+            "narrativeParagraph": 2
+          },
+          {
+            "path": "/Users/ccheever/clique-improvement/next-run/astra-006-m7/m7-run/diary.md",
+            "narrativeParagraph": 5
+          }
+        ]
+      }
+    ]
+  },
+  "scopeAndLimits": {
+    "terminalStatus": "diagnostic_complete_not_green",
+    "eligibilityChanged": false,
+    "originalResultsChanged": false,
+    "authoringStopUnchanged": {
+      "epoch": 1788694871.06574,
+      "utc": "2026-09-06T11:41:11.065742+00:00",
+      "path": "/Users/ccheever/clique-improvement/next-run/astra-006-m7/m7-run/stop.json"
+    },
+    "strictComparison": "Initial comparison: 914 checks and zero differences. Immediate pre-migration and post-migration comparisons both had the same two baseline-induced differences. The final comparison strictly failed with 68 differences: 48 raw-receipt comparison entries, eight aggregate receipt fields, two disappearing projections, two profile projections, four accent projections, and four background projections. No final pristine-snapshot pass is claimed.",
+    "preservationLimit": "The migration boundary added no comparison differences. Subsequent regression actions advanced receipts and changed profile/settings values. The starter had no message media or reactions, so empty-baseline preservation does not prove nonempty preservation.",
+    "priorGaps": "Regression limitations remain; native M6 capability failure and unresolved M8 are not repaired or recertified.",
+    "holisticExclusions": [
+      "Complete M1\u2013M8 experience",
+      "Three-backend comparison",
+      "Weighted totals or other dimensions"
+    ],
+    "numericProtocolSource": "Only the frozen B8 anchors and M7-scoped holistic recording protocol supplied in the current user message.",
+    "otherScoresOrTotalsConsulted": false,
+    "nativeUsageBinding": "Owned separately by Root; no usage estimate or cap-compliance claim is made here."
+  },
+  "originalAssessmentPath": "/Users/ccheever/clique-improvement/next-run/astra-006-m7/m7-run/experience-assessment.json",
+  "reasonForSupplementalRecording": "The original allowed handoff omitted the numerical recording scale, so the original assessment correctly retained null numeric values. Root has now supplied only the missing protocol; these numbers supplement that record without overwriting it.",
+  "recordingOnlyActions": {
+    "writeDirectory": "/Users/ccheever/clique-improvement/next-run/astra-006-m7/recording-supplement",
+    "applicationSourceEdits": false,
+    "schemaFixtureAssertionPackageEdits": false,
+    "testsRun": false,
+    "servicesAccessed": false,
+    "originalReportsAssessmentsOrSealOverwritten": false
+  }
+}
