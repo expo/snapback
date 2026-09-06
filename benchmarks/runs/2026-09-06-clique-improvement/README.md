@@ -112,3 +112,13 @@ exceeded0.5s, second0.057s; all other budgets passed. That red is retained
 and under investigation before publication. Assets final candidate is now
 f52d6dcd8(134affectedJS pass), but Grok identified a separate per-id unlink
 error escaping through the background writer turn; that revision is underway.
+
+CLI landing: both independent Astra/Grok reviews are READY. Fullscript is
+green. After the initial doctor budget miss, an unchanged-binary focused
+comparison retained all four samples(CLI0.093/0.056s, asset0.069/0.056s).
+One canonical warm confirmation then exited0: doctor0.151/0.056s,
+check0.540s, incremental2.410s; every budget passed. The initial red is
+retained; its cause is unproven, so this does not claim every cold launch
+passes. The CLI commit was cherry-picked to main with no semantic changes
+under snapback2/. Production0.0.7 dry-run is in progress; publication is
+not yet claimed.
