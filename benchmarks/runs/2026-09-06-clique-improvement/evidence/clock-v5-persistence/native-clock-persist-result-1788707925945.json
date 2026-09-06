@@ -1,0 +1,82 @@
+{
+  "scope": "Actual final26c9 native v5 HTTP/SSE/conditional frames and authenticated program custody through file carrier warm/cold; same-seq clock growth, exact replay, older-clock refusal, untimed control. No current live native process or phone claim.",
+  "node": "v22.23.2",
+  "nativeInputSha256": "67d15c61046a711eda7ec25420a76020cb9359e04bcdc6ced39d2809fbd96ec7",
+  "ownerSha256": "4d0f8f0176921b56305e9969da0fcb2dd5ecedae1f65d983f537e613d0c6e46e",
+  "bundleSha256": "cb5c4244494a6c5a2d4e2961b9b1ba10368546817d9118a75a6f89635f4cb4d5",
+  "sourceManifest": "/Users/ccheever/clique-improvement/revisions/search-twin-v5/native-clock-persist-r1.mjs.inputs.json",
+  "result": [
+    {
+      "cold": false,
+      "error": null,
+      "stages": [
+        {
+          "key": "first",
+          "rows": 1,
+          "now": 1788704570204,
+          "state": "complete"
+        },
+        {
+          "key": "initialSse",
+          "rows": 1,
+          "now": 1788704570206,
+          "state": "complete"
+        },
+        {
+          "key": "continuingSse",
+          "rows": 2,
+          "now": 1788704770207,
+          "state": "complete"
+        },
+        {
+          "key": "conditionalFull",
+          "rows": 2,
+          "now": 1788704770208,
+          "state": "complete"
+        },
+        {
+          "key": "initialConditionalFull",
+          "rows": 2,
+          "now": 1788704770209,
+          "state": "complete"
+        }
+      ]
+    },
+    {
+      "cold": true,
+      "error": null,
+      "stages": [
+        {
+          "key": "first",
+          "rows": 1,
+          "now": 1788704570204,
+          "state": "complete"
+        },
+        {
+          "key": "initialSse",
+          "rows": 1,
+          "now": 1788704570206,
+          "state": "complete"
+        },
+        {
+          "key": "continuingSse",
+          "rows": 2,
+          "now": 1788704770207,
+          "state": "complete"
+        },
+        {
+          "key": "conditionalFull",
+          "rows": 2,
+          "now": 1788704770208,
+          "state": "complete"
+        },
+        {
+          "key": "initialConditionalFull",
+          "rows": 2,
+          "now": 1788704770209,
+          "state": "complete"
+        }
+      ]
+    }
+  ]
+}

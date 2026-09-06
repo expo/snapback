@@ -1,0 +1,18 @@
+{
+  "observedAt": "2026-09-06T15:19:04.611236+00:00",
+  "sessions": [
+    {
+      "sessionId": "c87b4ef0-c99a-4c77-93ed-12eab9e82002",
+      "metadataPath": "/Users/ccheever/.grok/sessions/%2FUsers%2Fccheever%2Fclique-full-010-grok-20260906%2Flanes%2Fgrok-snapback2/c87b4ef0-c99a-4c77-93ed-12eab9e82002/summary.json",
+      "current_model_id": "grok-4.6",
+      "reasoning_effort": "xhigh"
+    },
+    {
+      "sessionId": "2d5466a1-ff8d-4029-b0fb-c497ac1537f8",
+      "metadataPath": "/Users/ccheever/.grok/sessions/%2FUsers%2Fccheever%2Fclique-improvement%2Fgrading%2Fastra-008%2Foutcome/2d5466a1-ff8d-4029-b0fb-c497ac1537f8/summary.json",
+      "current_model_id": "grok-4.6",
+      "reasoning_effort": "xhigh"
+    }
+  ],
+  "scope": "Native CLI session metadata, not an inference from requested arguments; no raw chat/tool log read."
+}

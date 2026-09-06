@@ -1,0 +1,1352 @@
+{
+  "method": "esbuild onLoad returns exactly the captured bytes; source snapshots retained externally beside bundle; immutable bundle execution binds this graph",
+  "esbuild": "0.25.9",
+  "input": "/Users/ccheever/clique-improvement/revisions/search-twin-v5/native-clock-persist.ts",
+  "output": "/Users/ccheever/clique-improvement/revisions/search-twin-v5/native-clock-persist-r1.mjs",
+  "bundleSha256": "cb5c4244494a6c5a2d4e2961b9b1ba10368546817d9118a75a6f89635f4cb4d5",
+  "sourceFiles": {
+    "/Users/ccheever/clique-improvement/revisions/search-twin-v5/native-clock-persist.ts": {
+      "sha256": "20839fc1e9b2842fb4bdae7426507c8812c84563439b910df7f99b08a785ec8c",
+      "bytes": 3447
+    },
+    "/Users/ccheever/projects/snapback-worktrees/clique-search-twin/snapback2/packages/snapback2/src/store/file.ts": {
+      "sha256": "8bd5cf87e47fd77ab153552e956c12c51275d4f8043d5cb41cbd9737cf544270",
+      "bytes": 5008
+    },
+    "/Users/ccheever/projects/snapback-worktrees/clique-search-twin/snapback2/packages/snapback2/src/offline.ts": {
+      "sha256": "1f28f20599756abded33c068c691c45b586a4a28a103a141da0063fecf026660",
+      "bytes": 42078
+    },
+    "/Users/ccheever/projects/snapback-worktrees/clique-search-twin/snapback2/packages/snapback2/src/store/projection.ts": {
+      "sha256": "7de0f27819ec7bfa1c5ad48d483647aad88cd67fb7982f6a615110520206f917",
+      "bytes": 5687
+    },
+    "/Users/ccheever/projects/snapback-worktrees/clique-search-twin/snapback2/packages/snapback2/src/store/range-store.ts": {
+      "sha256": "860e0e67fa9e1af22a92221944cbef241fac2ae16a4aa3d6a039d169d4b66ada",
+      "bytes": 61704
+    },
+    "/Users/ccheever/projects/snapback-worktrees/clique-search-twin/snapback2/packages/snapback2/src/store/metadata.ts": {
+      "sha256": "9289fceb80124fc0aa3fbcdc3870d672bac4be818547563b7f4e594b318e901a",
+      "bytes": 2131
+    },
+    "/Users/ccheever/projects/snapback-worktrees/clique-search-twin/snapback2/packages/snapback2/src/client-wire.ts": {
+      "sha256": "7fd567440aaa4b88f9cb97fc2e3602fea801667fac6e998a243235e318bad2c9",
+      "bytes": 15027
+    },
+    "/Users/ccheever/projects/snapback-worktrees/clique-search-twin/snapback2/packages/snapback2/src/held-program.ts": {
+      "sha256": "cd5ffc54870809afc2c41a5901c3ff61f1f06e90d566e42f9089708e3f755665",
+      "bytes": 2578
+    },
+    "/Users/ccheever/projects/snapback-worktrees/clique-search-twin/snapback2/packages/snapback2/src/store/outbox.ts": {
+      "sha256": "835417fd8b915241abc651187fb66680d26d263c9f61f871b4c60b4ba6dc3e81",
+      "bytes": 16931
+    },
+    "/Users/ccheever/projects/snapback-worktrees/clique-search-twin/snapback2/packages/snapback2/src/twin.ts": {
+      "sha256": "2b75b19950c7d38af0bba7fed55f25fff5eccf693b4ffa787fcb78f6fca29342",
+      "bytes": 13919
+    },
+    "/Users/ccheever/projects/snapback-worktrees/clique-search-twin/snapback2/packages/snapback2/src/store/byte-cache.ts": {
+      "sha256": "70aa1dae3baec0ed00796b51bad0af6e8ed4c325b551b702f72cc25676315967",
+      "bytes": 18897
+    },
+    "/Users/ccheever/projects/snapback-worktrees/clique-search-twin/snapback2/packages/snapback2/src/offline-protocol.ts": {
+      "sha256": "9d2db2b328b208f09ab971c0a6be88b43f7fe2259c9938c4f21e6ff91e2bdc47",
+      "bytes": 29456
+    },
+    "/Users/ccheever/projects/snapback-worktrees/clique-search-twin/snapback2/packages/snapback2/src/store/fact-integrity.ts": {
+      "sha256": "8825e703ab40d0ee9c7751dee7be4acae678364d31e41d27f0995678c1f3fca3",
+      "bytes": 4136
+    },
+    "/Users/ccheever/projects/snapback-worktrees/clique-search-twin/snapback2/packages/snapback2/src/store/asset-policy.ts": {
+      "sha256": "ba76b1c6cc0a9322b03db40fc406670d4625303fcbf7670d35c2713bc29e72a1",
+      "bytes": 3065
+    },
+    "/Users/ccheever/projects/snapback-worktrees/clique-search-twin/snapback2/packages/snapback2/src/store/swap-journal.ts": {
+      "sha256": "45c761dbc94d6cd87ffdb7b9db89ac805a23425cfcb6180b57ebc44faba1cf50",
+      "bytes": 6928
+    },
+    "/Users/ccheever/projects/snapback-worktrees/clique-search-twin/snapback2/packages/snapback2/src/store/carrier-index.ts": {
+      "sha256": "39d913b6f1b136f9ac78457f03ad75f605f654e7fe0870f1c586d4e2ae46d4d6",
+      "bytes": 7954
+    },
+    "/Users/ccheever/projects/snapback-worktrees/clique-search-twin/snapback2/packages/evaluator/src/value-runtime.ts": {
+      "sha256": "19199d26cfa25b9014c03509aa152d7ee81a275944ba93c8b723bff3753878f4",
+      "bytes": 23616
+    },
+    "/Users/ccheever/projects/snapback-worktrees/clique-search-twin/snapback2/packages/snapback2/src/store/overlay-retirement.ts": {
+      "sha256": "43fb0ab507b2299d4bc91be9d32cbb0f9ed4ee448c9de611c57675beece68b13",
+      "bytes": 3977
+    },
+    "/Users/ccheever/projects/snapback-worktrees/clique-search-twin/snapback2/packages/snapback2/src/store/row-values.ts": {
+      "sha256": "54fce7162e6b044dda4e05e28a838a2ac6fc9e7e2fc65f41e06529dec3fc5be9",
+      "bytes": 2356
+    },
+    "/Users/ccheever/projects/snapback-worktrees/clique-search-twin/snapback2/packages/evaluator/src/hash.ts": {
+      "sha256": "470e2f7973cc86a35be29e9ba901f3c86f759e6e65796051f188cb3a68a75214",
+      "bytes": 4328
+    },
+    "/Users/ccheever/projects/snapback-worktrees/clique-search-twin/snapback2/packages/snapback2/src/store/canonical.ts": {
+      "sha256": "a0b38f5da995c3d8cc9fbbf5c6e144941caba36a2482e06a857f4e114330c07c",
+      "bytes": 501
+    },
+    "/Users/ccheever/projects/snapback-worktrees/clique-search-twin/snapback2/packages/evaluator/src/certificate-identity.ts": {
+      "sha256": "f80407e5c2e289c24ac09fde2e0252c015e543c6722d33d995f178e3531a5eb0",
+      "bytes": 18228
+    },
+    "/Users/ccheever/projects/snapback-worktrees/clique-search-twin/snapback2/packages/snapback2/src/offline-schema.ts": {
+      "sha256": "a7ab61de526abb3948ea565258eef44bcbce0263d14fc2d485bf7604ca5d9111",
+      "bytes": 556
+    },
+    "/Users/ccheever/projects/snapback-worktrees/clique-search-twin/snapback2/packages/evaluator/src/runner.ts": {
+      "sha256": "85a1bb58b5c8ba279c8acd9b6347a2a528bce2d99ef6a77b1940f1a0777ab56e",
+      "bytes": 51841
+    },
+    "/Users/ccheever/projects/snapback-worktrees/clique-search-twin/snapback2/packages/snapback2/src/twin-hydrate.ts": {
+      "sha256": "4f36f8cd2d446fcf0a4b9e26e1b78a06cc0470cbb60b4996e1d5abc9571e7939",
+      "bytes": 4536
+    },
+    "/Users/ccheever/projects/snapback-worktrees/clique-search-twin/snapback2/packages/snapback2/src/local-cursor.ts": {
+      "sha256": "245f1fac9cbf8512967ebef1ddc482609284a533b09ef5a98502607375113165",
+      "bytes": 7000
+    },
+    "/Users/ccheever/projects/snapback-worktrees/clique-search-twin/snapback2/packages/evaluator/src/errors.ts": {
+      "sha256": "a2dc2e8ef8522ad82af1740c6f8656dc6b05418454226b50571630e777fe0795",
+      "bytes": 759
+    },
+    "/Users/ccheever/projects/snapback-worktrees/clique-search-twin/snapback2/packages/evaluator/src/search-runtime.ts": {
+      "sha256": "e8a5749614e0f233330da391514cb109f6bf5dda79b2688d03146e032d05e0df",
+      "bytes": 2607
+    },
+    "/Users/ccheever/projects/snapback-worktrees/clique-search-twin/snapback2/packages/snapback2/src/twin-store.ts": {
+      "sha256": "1622e6274fbf85d152e218965c2a31d984af26e9b651a2e90f167185a4c69c04",
+      "bytes": 12560
+    },
+    "/Users/ccheever/projects/snapback-worktrees/clique-search-twin/snapback2/packages/evaluator/src/coverage.ts": {
+      "sha256": "c6a2c4659cd7e03c5091ecc1195b6fb752568194057ec5e869670137481034c2",
+      "bytes": 11774
+    },
+    "/Users/ccheever/projects/snapback-worktrees/clique-search-twin/snapback2/packages/evaluator/src/index-store.ts": {
+      "sha256": "94fd6ecb70d7c9b452a4f2ad0ff04cf108305950ad6b8a33671c7f3f1ec3ed33",
+      "bytes": 11365
+    },
+    "/Users/ccheever/projects/snapback-worktrees/clique-search-twin/snapback2/packages/evaluator/src/unicode.ts": {
+      "sha256": "5c17bfa9c0385ed179344dead423a48cbb2bf86abc5089511af934522831c724",
+      "bytes": 11468
+    },
+    "/Users/ccheever/projects/snapback-worktrees/clique-search-twin/snapback2/crates/snapback2-core/ir-contract.json": {
+      "sha256": "d09c63f52622b9b8fb2762b94b17b4e2c8882e9feecf0737d24470ec2bde0252",
+      "bytes": 148
+    },
+    "/Users/ccheever/projects/snapback-worktrees/clique-search-twin/snapback2/packages/evaluator/src/cursor.ts": {
+      "sha256": "94f0efe7b7ff947c77294fdcc99f38f3493615d87e1c97c13bc3ee146aaa2b3f",
+      "bytes": 10419
+    },
+    "/Users/ccheever/projects/snapback-worktrees/clique-search-twin/snapback2/packages/evaluator/src/search-key.ts": {
+      "sha256": "347cd64b12798d7b46d120d56f142a912ca810f33e2bd0ce6673861bd032e871",
+      "bytes": 6040
+    },
+    "/Users/ccheever/projects/snapback-worktrees/clique-search-twin/snapback2/packages/evaluator/src/prefix-dictionary.ts": {
+      "sha256": "0ac0f7f7c8650b3df5712890bd42ce4d0ed0078d00db2fdd356ea1bdf3429473",
+      "bytes": 4271
+    },
+    "/Users/ccheever/projects/snapback-worktrees/clique-search-twin/snapback2/packages/evaluator/src/ordered.ts": {
+      "sha256": "83954c8a6b8fb6fd73ab663b971c0a366da851e97adbd09bb626542da7467059",
+      "bytes": 3493
+    },
+    "/Users/ccheever/projects/snapback-worktrees/clique-search-twin/snapback2/packages/evaluator/src/posting-tree.ts": {
+      "sha256": "187e14a9fde5720e3edc17989c25408792dac72b450fece2cd5eaa550ffe7e57",
+      "bytes": 4417
+    },
+    "/Users/ccheever/projects/snapback-worktrees/clique-search-twin/snapback2/packages/evaluator/src/coverage-spans.ts": {
+      "sha256": "4261606a117545f2dfab9f366a84468e8b24d22da1d9e3076f480eb1aad21a8f",
+      "bytes": 2023
+    },
+    "/Users/ccheever/projects/snapback-worktrees/clique-search-twin/snapback2/packages/evaluator/src/store.ts": {
+      "sha256": "475dfacb607655962469f14280bcd165723f46f85f3929a57a48973264174124",
+      "bytes": 14358
+    },
+    "/Users/ccheever/projects/snapback-worktrees/clique-search-twin/snapback2/packages/evaluator/src/unicode-tables.ts": {
+      "sha256": "ab99f5f9a78ebe52ec3102525d51b6c9dd7c59cbd9f1b26932042982476b8412",
+      "bytes": 3128
+    },
+    "/Users/ccheever/projects/snapback-worktrees/clique-search-twin/snapback2/packages/evaluator/src/text.ts": {
+      "sha256": "c48d2672ce08544ab55b894ec29c1f63e01ea868e6e78552f99879e77796d152",
+      "bytes": 755
+    },
+    "/Users/ccheever/projects/snapback-worktrees/clique-search-twin/snapback2/packages/evaluator/src/merge.ts": {
+      "sha256": "a2363d11564f095e3fb705b0fd34e029f5d470162aa01e161ac65e87ba4cdecf",
+      "bytes": 2324
+    },
+    "/Users/ccheever/projects/snapback-worktrees/clique-search-twin/snapback2/packages/evaluator/dist/unicode-tables.ts": {
+      "sha256": "9eccdccd99e9b936a40dcbf8ae63c55d980086df1ae71f92019f9ab040f6a521",
+      "bytes": 17460
+    },
+    "/Users/ccheever/projects/snapback-worktrees/clique-search-twin/snapback2/packages/evaluator/src/held-directory.ts": {
+      "sha256": "695212b4aa7a429ee8c45a2179b029ff9e8444b862f06554239c41eddebb73d1",
+      "bytes": 3920
+    }
+  },
+  "metafile": {
+    "inputs": {
+      "../snapback-worktrees/clique-search-twin/snapback2/packages/evaluator/src/hash.ts": {
+        "bytes": 4328,
+        "imports": [],
+        "format": "esm"
+      },
+      "../snapback-worktrees/clique-search-twin/snapback2/packages/evaluator/src/errors.ts": {
+        "bytes": 759,
+        "imports": [],
+        "format": "esm"
+      },
+      "../snapback-worktrees/clique-search-twin/snapback2/packages/evaluator/src/certificate-identity.ts": {
+        "bytes": 18228,
+        "imports": [
+          {
+            "path": "../snapback-worktrees/clique-search-twin/snapback2/packages/evaluator/src/hash.ts",
+            "kind": "import-statement",
+            "original": "./hash"
+          },
+          {
+            "path": "../snapback-worktrees/clique-search-twin/snapback2/packages/evaluator/src/errors.ts",
+            "kind": "import-statement",
+            "original": "./errors"
+          }
+        ],
+        "format": "esm"
+      },
+      "../snapback-worktrees/clique-search-twin/snapback2/crates/snapback2-core/ir-contract.json": {
+        "bytes": 148,
+        "imports": [],
+        "with": {
+          "type": "json"
+        }
+      },
+      "../snapback-worktrees/clique-search-twin/snapback2/packages/evaluator/src/cursor.ts": {
+        "bytes": 10419,
+        "imports": [
+          {
+            "path": "../snapback-worktrees/clique-search-twin/snapback2/packages/evaluator/src/hash.ts",
+            "kind": "import-statement",
+            "original": "./hash"
+          },
+          {
+            "path": "../snapback-worktrees/clique-search-twin/snapback2/packages/evaluator/src/errors.ts",
+            "kind": "import-statement",
+            "original": "./errors"
+          },
+          {
+            "path": "../snapback-worktrees/clique-search-twin/snapback2/packages/evaluator/src/value-runtime.ts",
+            "kind": "import-statement",
+            "original": "./value-runtime"
+          }
+        ],
+        "format": "esm"
+      },
+      "../snapback-worktrees/clique-search-twin/snapback2/packages/evaluator/dist/unicode-tables.ts": {
+        "bytes": 17460,
+        "imports": [],
+        "format": "esm"
+      },
+      "../snapback-worktrees/clique-search-twin/snapback2/packages/evaluator/src/unicode-tables.ts": {
+        "bytes": 3128,
+        "imports": [
+          {
+            "path": "../snapback-worktrees/clique-search-twin/snapback2/packages/evaluator/dist/unicode-tables.ts",
+            "kind": "import-statement",
+            "original": "../dist/unicode-tables"
+          },
+          {
+            "path": "../snapback-worktrees/clique-search-twin/snapback2/packages/evaluator/dist/unicode-tables.ts",
+            "kind": "import-statement",
+            "original": "../dist/unicode-tables"
+          }
+        ],
+        "format": "esm"
+      },
+      "../snapback-worktrees/clique-search-twin/snapback2/packages/evaluator/src/unicode.ts": {
+        "bytes": 11468,
+        "imports": [
+          {
+            "path": "../snapback-worktrees/clique-search-twin/snapback2/packages/evaluator/src/unicode-tables.ts",
+            "kind": "import-statement",
+            "original": "./unicode-tables"
+          },
+          {
+            "path": "../snapback-worktrees/clique-search-twin/snapback2/packages/evaluator/src/unicode-tables.ts",
+            "kind": "import-statement",
+            "original": "./unicode-tables"
+          }
+        ],
+        "format": "esm"
+      },
+      "../snapback-worktrees/clique-search-twin/snapback2/packages/evaluator/src/value-runtime.ts": {
+        "bytes": 23616,
+        "imports": [
+          {
+            "path": "../snapback-worktrees/clique-search-twin/snapback2/packages/evaluator/src/hash.ts",
+            "kind": "import-statement",
+            "original": "./hash"
+          },
+          {
+            "path": "../snapback-worktrees/clique-search-twin/snapback2/packages/evaluator/src/hash.ts",
+            "kind": "import-statement",
+            "original": "./hash"
+          },
+          {
+            "path": "../snapback-worktrees/clique-search-twin/snapback2/crates/snapback2-core/ir-contract.json",
+            "kind": "import-statement",
+            "original": "../../../crates/snapback2-core/ir-contract.json",
+            "with": {
+              "type": "json"
+            }
+          },
+          {
+            "path": "../snapback-worktrees/clique-search-twin/snapback2/packages/evaluator/src/certificate-identity.ts",
+            "kind": "import-statement",
+            "original": "./certificate-identity"
+          },
+          {
+            "path": "../snapback-worktrees/clique-search-twin/snapback2/packages/evaluator/src/errors.ts",
+            "kind": "import-statement",
+            "original": "./errors"
+          },
+          {
+            "path": "../snapback-worktrees/clique-search-twin/snapback2/packages/evaluator/src/hash.ts",
+            "kind": "import-statement",
+            "original": "./hash"
+          },
+          {
+            "path": "../snapback-worktrees/clique-search-twin/snapback2/packages/evaluator/src/cursor.ts",
+            "kind": "import-statement",
+            "original": "./cursor"
+          },
+          {
+            "path": "../snapback-worktrees/clique-search-twin/snapback2/packages/evaluator/src/unicode.ts",
+            "kind": "import-statement",
+            "original": "./unicode"
+          }
+        ],
+        "format": "esm"
+      },
+      "../snapback-worktrees/clique-search-twin/snapback2/packages/evaluator/src/merge.ts": {
+        "bytes": 2324,
+        "imports": [
+          {
+            "path": "../snapback-worktrees/clique-search-twin/snapback2/packages/evaluator/src/value-runtime.ts",
+            "kind": "import-statement",
+            "original": "./value-runtime"
+          }
+        ],
+        "format": "esm"
+      },
+      "../snapback-worktrees/clique-search-twin/snapback2/packages/evaluator/src/text.ts": {
+        "bytes": 755,
+        "imports": [],
+        "format": "esm"
+      },
+      "../snapback-worktrees/clique-search-twin/snapback2/packages/evaluator/src/search-key.ts": {
+        "bytes": 6040,
+        "imports": [
+          {
+            "path": "../snapback-worktrees/clique-search-twin/snapback2/packages/evaluator/src/value-runtime.ts",
+            "kind": "import-statement",
+            "original": "./value-runtime"
+          },
+          {
+            "path": "../snapback-worktrees/clique-search-twin/snapback2/packages/evaluator/src/hash.ts",
+            "kind": "import-statement",
+            "original": "./hash"
+          },
+          {
+            "path": "../snapback-worktrees/clique-search-twin/snapback2/packages/evaluator/src/unicode.ts",
+            "kind": "import-statement",
+            "original": "./unicode"
+          },
+          {
+            "path": "../snapback-worktrees/clique-search-twin/snapback2/packages/evaluator/src/unicode.ts",
+            "kind": "import-statement",
+            "original": "./unicode"
+          }
+        ],
+        "format": "esm"
+      },
+      "../snapback-worktrees/clique-search-twin/snapback2/packages/evaluator/src/search-runtime.ts": {
+        "bytes": 2607,
+        "imports": [
+          {
+            "path": "../snapback-worktrees/clique-search-twin/snapback2/packages/evaluator/src/unicode.ts",
+            "kind": "import-statement",
+            "original": "./unicode"
+          },
+          {
+            "path": "../snapback-worktrees/clique-search-twin/snapback2/packages/evaluator/src/search-key.ts",
+            "kind": "import-statement",
+            "original": "./search-key"
+          },
+          {
+            "path": "../snapback-worktrees/clique-search-twin/snapback2/packages/evaluator/src/errors.ts",
+            "kind": "import-statement",
+            "original": "./errors"
+          }
+        ],
+        "format": "esm"
+      },
+      "../snapback-worktrees/clique-search-twin/snapback2/packages/evaluator/src/ordered.ts": {
+        "bytes": 3493,
+        "imports": [],
+        "format": "esm"
+      },
+      "../snapback-worktrees/clique-search-twin/snapback2/packages/evaluator/src/posting-tree.ts": {
+        "bytes": 4417,
+        "imports": [],
+        "format": "esm"
+      },
+      "../snapback-worktrees/clique-search-twin/snapback2/packages/evaluator/src/prefix-dictionary.ts": {
+        "bytes": 4271,
+        "imports": [],
+        "format": "esm"
+      },
+      "../snapback-worktrees/clique-search-twin/snapback2/packages/evaluator/src/index-store.ts": {
+        "bytes": 11365,
+        "imports": [
+          {
+            "path": "../snapback-worktrees/clique-search-twin/snapback2/packages/evaluator/src/ordered.ts",
+            "kind": "import-statement",
+            "original": "./ordered"
+          },
+          {
+            "path": "../snapback-worktrees/clique-search-twin/snapback2/packages/evaluator/src/posting-tree.ts",
+            "kind": "import-statement",
+            "original": "./posting-tree"
+          },
+          {
+            "path": "../snapback-worktrees/clique-search-twin/snapback2/packages/evaluator/src/prefix-dictionary.ts",
+            "kind": "import-statement",
+            "original": "./prefix-dictionary"
+          },
+          {
+            "path": "../snapback-worktrees/clique-search-twin/snapback2/packages/evaluator/src/errors.ts",
+            "kind": "import-statement",
+            "original": "./errors"
+          },
+          {
+            "path": "../snapback-worktrees/clique-search-twin/snapback2/packages/evaluator/src/value-runtime.ts",
+            "kind": "import-statement",
+            "original": "./value-runtime"
+          },
+          {
+            "path": "../snapback-worktrees/clique-search-twin/snapback2/packages/evaluator/src/search-key.ts",
+            "kind": "import-statement",
+            "original": "./search-key"
+          },
+          {
+            "path": "../snapback-worktrees/clique-search-twin/snapback2/packages/evaluator/src/unicode.ts",
+            "kind": "import-statement",
+            "original": "./unicode"
+          }
+        ],
+        "format": "esm"
+      },
+      "../snapback-worktrees/clique-search-twin/snapback2/packages/evaluator/src/runner.ts": {
+        "bytes": 51841,
+        "imports": [
+          {
+            "path": "../snapback-worktrees/clique-search-twin/snapback2/packages/evaluator/src/merge.ts",
+            "kind": "import-statement",
+            "original": "./merge"
+          },
+          {
+            "path": "../snapback-worktrees/clique-search-twin/snapback2/crates/snapback2-core/ir-contract.json",
+            "kind": "import-statement",
+            "original": "../../../crates/snapback2-core/ir-contract.json",
+            "with": {
+              "type": "json"
+            }
+          },
+          {
+            "path": "../snapback-worktrees/clique-search-twin/snapback2/packages/evaluator/src/errors.ts",
+            "kind": "import-statement",
+            "original": "./errors"
+          },
+          {
+            "path": "../snapback-worktrees/clique-search-twin/snapback2/packages/evaluator/src/cursor.ts",
+            "kind": "import-statement",
+            "original": "./cursor"
+          },
+          {
+            "path": "../snapback-worktrees/clique-search-twin/snapback2/packages/evaluator/src/hash.ts",
+            "kind": "import-statement",
+            "original": "./hash"
+          },
+          {
+            "path": "../snapback-worktrees/clique-search-twin/snapback2/packages/evaluator/src/text.ts",
+            "kind": "import-statement",
+            "original": "./text"
+          },
+          {
+            "path": "../snapback-worktrees/clique-search-twin/snapback2/packages/evaluator/src/unicode.ts",
+            "kind": "import-statement",
+            "original": "./unicode"
+          },
+          {
+            "path": "../snapback-worktrees/clique-search-twin/snapback2/packages/evaluator/src/search-runtime.ts",
+            "kind": "import-statement",
+            "original": "./search-runtime"
+          },
+          {
+            "path": "../snapback-worktrees/clique-search-twin/snapback2/packages/evaluator/src/index-store.ts",
+            "kind": "import-statement",
+            "original": "./index-store"
+          },
+          {
+            "path": "../snapback-worktrees/clique-search-twin/snapback2/packages/evaluator/src/value-runtime.ts",
+            "kind": "import-statement",
+            "original": "./value-runtime"
+          }
+        ],
+        "format": "esm"
+      },
+      "../snapback-worktrees/clique-search-twin/snapback2/packages/snapback2/src/offline-schema.ts": {
+        "bytes": 556,
+        "imports": [
+          {
+            "path": "../snapback-worktrees/clique-search-twin/snapback2/packages/evaluator/src/certificate-identity.ts",
+            "kind": "import-statement",
+            "original": "../../evaluator/src/certificate-identity.js"
+          },
+          {
+            "path": "../snapback-worktrees/clique-search-twin/snapback2/packages/evaluator/src/hash.ts",
+            "kind": "import-statement",
+            "original": "../../evaluator/src/hash.js"
+          }
+        ],
+        "format": "esm"
+      },
+      "../snapback-worktrees/clique-search-twin/snapback2/packages/snapback2/src/held-program.ts": {
+        "bytes": 2578,
+        "imports": [
+          {
+            "path": "../snapback-worktrees/clique-search-twin/snapback2/packages/evaluator/src/certificate-identity.ts",
+            "kind": "import-statement",
+            "original": "../../evaluator/src/certificate-identity.js"
+          },
+          {
+            "path": "../snapback-worktrees/clique-search-twin/snapback2/packages/evaluator/src/hash.ts",
+            "kind": "import-statement",
+            "original": "../../evaluator/src/hash.js"
+          },
+          {
+            "path": "../snapback-worktrees/clique-search-twin/snapback2/packages/evaluator/src/runner.ts",
+            "kind": "import-statement",
+            "original": "../../evaluator/src/runner.js"
+          },
+          {
+            "path": "../snapback-worktrees/clique-search-twin/snapback2/packages/snapback2/src/offline-schema.ts",
+            "kind": "import-statement",
+            "original": "./offline-schema.js"
+          }
+        ],
+        "format": "esm"
+      },
+      "../snapback-worktrees/clique-search-twin/snapback2/packages/snapback2/src/client-wire.ts": {
+        "bytes": 15027,
+        "imports": [],
+        "format": "esm"
+      },
+      "../snapback-worktrees/clique-search-twin/snapback2/packages/snapback2/src/store/canonical.ts": {
+        "bytes": 501,
+        "imports": [],
+        "format": "esm"
+      },
+      "../snapback-worktrees/clique-search-twin/snapback2/packages/snapback2/src/store/fact-integrity.ts": {
+        "bytes": 4136,
+        "imports": [
+          {
+            "path": "../snapback-worktrees/clique-search-twin/snapback2/packages/evaluator/src/hash.ts",
+            "kind": "import-statement",
+            "original": "../../../evaluator/src/hash.js"
+          },
+          {
+            "path": "../snapback-worktrees/clique-search-twin/snapback2/packages/snapback2/src/store/canonical.ts",
+            "kind": "import-statement",
+            "original": "./canonical.js"
+          }
+        ],
+        "format": "esm"
+      },
+      "../snapback-worktrees/clique-search-twin/snapback2/packages/evaluator/src/coverage-spans.ts": {
+        "bytes": 2023,
+        "imports": [
+          {
+            "path": "../snapback-worktrees/clique-search-twin/snapback2/packages/evaluator/src/ordered.ts",
+            "kind": "import-statement",
+            "original": "./ordered"
+          },
+          {
+            "path": "../snapback-worktrees/clique-search-twin/snapback2/packages/evaluator/src/value-runtime.ts",
+            "kind": "import-statement",
+            "original": "./value-runtime"
+          }
+        ],
+        "format": "esm"
+      },
+      "../snapback-worktrees/clique-search-twin/snapback2/packages/evaluator/src/coverage.ts": {
+        "bytes": 11774,
+        "imports": [
+          {
+            "path": "../snapback-worktrees/clique-search-twin/snapback2/packages/evaluator/src/value-runtime.ts",
+            "kind": "import-statement",
+            "original": "./value-runtime"
+          },
+          {
+            "path": "../snapback-worktrees/clique-search-twin/snapback2/packages/evaluator/src/index-store.ts",
+            "kind": "import-statement",
+            "original": "./index-store"
+          },
+          {
+            "path": "../snapback-worktrees/clique-search-twin/snapback2/packages/evaluator/src/errors.ts",
+            "kind": "import-statement",
+            "original": "./errors"
+          },
+          {
+            "path": "../snapback-worktrees/clique-search-twin/snapback2/packages/evaluator/src/search-runtime.ts",
+            "kind": "import-statement",
+            "original": "./search-runtime"
+          },
+          {
+            "path": "../snapback-worktrees/clique-search-twin/snapback2/packages/evaluator/src/coverage-spans.ts",
+            "kind": "import-statement",
+            "original": "./coverage-spans"
+          }
+        ],
+        "format": "esm"
+      },
+      "../snapback-worktrees/clique-search-twin/snapback2/packages/snapback2/src/store/row-values.ts": {
+        "bytes": 2356,
+        "imports": [],
+        "format": "esm"
+      },
+      "../snapback-worktrees/clique-search-twin/snapback2/packages/snapback2/src/offline-protocol.ts": {
+        "bytes": 29456,
+        "imports": [
+          {
+            "path": "../snapback-worktrees/clique-search-twin/snapback2/packages/evaluator/src/errors.ts",
+            "kind": "import-statement",
+            "original": "../../evaluator/src/errors.js"
+          },
+          {
+            "path": "../snapback-worktrees/clique-search-twin/snapback2/packages/evaluator/src/hash.ts",
+            "kind": "import-statement",
+            "original": "../../evaluator/src/hash.js"
+          },
+          {
+            "path": "../snapback-worktrees/clique-search-twin/snapback2/packages/evaluator/src/index-store.ts",
+            "kind": "import-statement",
+            "original": "../../evaluator/src/index-store.js"
+          },
+          {
+            "path": "../snapback-worktrees/clique-search-twin/snapback2/packages/evaluator/src/coverage.ts",
+            "kind": "import-statement",
+            "original": "../../evaluator/src/coverage.js"
+          },
+          {
+            "path": "../snapback-worktrees/clique-search-twin/snapback2/packages/evaluator/src/value-runtime.ts",
+            "kind": "import-statement",
+            "original": "../../evaluator/src/value-runtime.js"
+          },
+          {
+            "path": "../snapback-worktrees/clique-search-twin/snapback2/packages/snapback2/src/offline-schema.ts",
+            "kind": "import-statement",
+            "original": "./offline-schema.js"
+          },
+          {
+            "path": "../snapback-worktrees/clique-search-twin/snapback2/packages/snapback2/src/store/row-values.ts",
+            "kind": "import-statement",
+            "original": "./store/row-values.js"
+          }
+        ],
+        "format": "esm"
+      },
+      "../snapback-worktrees/clique-search-twin/snapback2/packages/snapback2/src/store/outbox.ts": {
+        "bytes": 16931,
+        "imports": [],
+        "format": "esm"
+      },
+      "../snapback-worktrees/clique-search-twin/snapback2/packages/snapback2/src/store/asset-policy.ts": {
+        "bytes": 3065,
+        "imports": [],
+        "format": "esm"
+      },
+      "../snapback-worktrees/clique-search-twin/snapback2/packages/snapback2/src/store/carrier-index.ts": {
+        "bytes": 7954,
+        "imports": [
+          {
+            "path": "../snapback-worktrees/clique-search-twin/snapback2/packages/evaluator/src/index-store.ts",
+            "kind": "import-statement",
+            "original": "../../../evaluator/src/index-store.js"
+          },
+          {
+            "path": "../snapback-worktrees/clique-search-twin/snapback2/packages/evaluator/src/coverage.ts",
+            "kind": "import-statement",
+            "original": "../../../evaluator/src/coverage.js"
+          },
+          {
+            "path": "../snapback-worktrees/clique-search-twin/snapback2/packages/evaluator/src/value-runtime.ts",
+            "kind": "import-statement",
+            "original": "../../../evaluator/src/value-runtime.js"
+          },
+          {
+            "path": "../snapback-worktrees/clique-search-twin/snapback2/packages/evaluator/src/unicode.ts",
+            "kind": "import-statement",
+            "original": "../../../evaluator/src/unicode.js"
+          },
+          {
+            "path": "../snapback-worktrees/clique-search-twin/snapback2/packages/snapback2/src/offline-protocol.ts",
+            "kind": "import-statement",
+            "original": "../offline-protocol.js"
+          },
+          {
+            "path": "../snapback-worktrees/clique-search-twin/snapback2/packages/snapback2/src/store/asset-policy.ts",
+            "kind": "import-statement",
+            "original": "./asset-policy.js"
+          },
+          {
+            "path": "../snapback-worktrees/clique-search-twin/snapback2/packages/snapback2/src/store/canonical.ts",
+            "kind": "import-statement",
+            "original": "./canonical.js"
+          },
+          {
+            "path": "../snapback-worktrees/clique-search-twin/snapback2/packages/snapback2/src/store/fact-integrity.ts",
+            "kind": "import-statement",
+            "original": "./fact-integrity.js"
+          }
+        ],
+        "format": "esm"
+      },
+      "../snapback-worktrees/clique-search-twin/snapback2/packages/snapback2/src/store/swap-journal.ts": {
+        "bytes": 6928,
+        "imports": [],
+        "format": "esm"
+      },
+      "../snapback-worktrees/clique-search-twin/snapback2/packages/snapback2/src/store/byte-cache.ts": {
+        "bytes": 18897,
+        "imports": [
+          {
+            "path": "../snapback-worktrees/clique-search-twin/snapback2/packages/snapback2/src/store/asset-policy.ts",
+            "kind": "import-statement",
+            "original": "./asset-policy.js"
+          }
+        ],
+        "format": "esm"
+      },
+      "../snapback-worktrees/clique-search-twin/snapback2/packages/snapback2/src/store/overlay-retirement.ts": {
+        "bytes": 3977,
+        "imports": [
+          {
+            "path": "../snapback-worktrees/clique-search-twin/snapback2/packages/snapback2/src/store/canonical.ts",
+            "kind": "import-statement",
+            "original": "./canonical.js"
+          }
+        ],
+        "format": "esm"
+      },
+      "../snapback-worktrees/clique-search-twin/snapback2/packages/snapback2/src/store/range-store.ts": {
+        "bytes": 61704,
+        "imports": [
+          {
+            "path": "../snapback-worktrees/clique-search-twin/snapback2/packages/snapback2/src/store/carrier-index.ts",
+            "kind": "import-statement",
+            "original": "./carrier-index.js"
+          },
+          {
+            "path": "../snapback-worktrees/clique-search-twin/snapback2/packages/snapback2/src/held-program.ts",
+            "kind": "import-statement",
+            "original": "../held-program.js"
+          },
+          {
+            "path": "../snapback-worktrees/clique-search-twin/snapback2/packages/snapback2/src/store/fact-integrity.ts",
+            "kind": "import-statement",
+            "original": "./fact-integrity.js"
+          },
+          {
+            "path": "../snapback-worktrees/clique-search-twin/snapback2/packages/snapback2/src/store/swap-journal.ts",
+            "kind": "import-statement",
+            "original": "./swap-journal.js"
+          },
+          {
+            "path": "../snapback-worktrees/clique-search-twin/snapback2/packages/snapback2/src/store/asset-policy.ts",
+            "kind": "import-statement",
+            "original": "./asset-policy.js"
+          },
+          {
+            "path": "../snapback-worktrees/clique-search-twin/snapback2/packages/snapback2/src/store/byte-cache.ts",
+            "kind": "import-statement",
+            "original": "./byte-cache.js"
+          },
+          {
+            "path": "../snapback-worktrees/clique-search-twin/snapback2/packages/snapback2/src/store/overlay-retirement.ts",
+            "kind": "import-statement",
+            "original": "./overlay-retirement.js"
+          },
+          {
+            "path": "../snapback-worktrees/clique-search-twin/snapback2/packages/snapback2/src/store/canonical.ts",
+            "kind": "import-statement",
+            "original": "./canonical.js"
+          },
+          {
+            "path": "../snapback-worktrees/clique-search-twin/snapback2/packages/evaluator/src/hash.ts",
+            "kind": "import-statement",
+            "original": "../../../evaluator/src/hash.js"
+          },
+          {
+            "path": "../snapback-worktrees/clique-search-twin/snapback2/packages/evaluator/src/value-runtime.ts",
+            "kind": "import-statement",
+            "original": "../../../evaluator/src/value-runtime.js"
+          },
+          {
+            "path": "../offline-protocol.js",
+            "kind": "import-statement",
+            "external": true
+          },
+          {
+            "path": "../snapback-worktrees/clique-search-twin/snapback2/packages/snapback2/src/store/row-values.ts",
+            "kind": "import-statement",
+            "original": "./row-values.js"
+          }
+        ],
+        "format": "esm"
+      },
+      "../snapback-worktrees/clique-search-twin/snapback2/packages/snapback2/src/local-cursor.ts": {
+        "bytes": 7000,
+        "imports": [
+          {
+            "path": "../snapback-worktrees/clique-search-twin/snapback2/packages/evaluator/src/cursor.ts",
+            "kind": "import-statement",
+            "original": "../../evaluator/src/cursor.js"
+          },
+          {
+            "path": "../snapback-worktrees/clique-search-twin/snapback2/packages/evaluator/src/errors.ts",
+            "kind": "import-statement",
+            "original": "../../evaluator/src/errors.js"
+          },
+          {
+            "path": "../snapback-worktrees/clique-search-twin/snapback2/packages/evaluator/src/hash.ts",
+            "kind": "import-statement",
+            "original": "../../evaluator/src/hash.js"
+          },
+          {
+            "path": "../snapback-worktrees/clique-search-twin/snapback2/packages/evaluator/src/value-runtime.ts",
+            "kind": "import-statement",
+            "original": "../../evaluator/src/value-runtime.js"
+          },
+          {
+            "path": "../snapback-worktrees/clique-search-twin/snapback2/packages/evaluator/src/search-runtime.ts",
+            "kind": "import-statement",
+            "original": "../../evaluator/src/search-runtime.js"
+          }
+        ],
+        "format": "esm"
+      },
+      "../snapback-worktrees/clique-search-twin/snapback2/packages/evaluator/src/held-directory.ts": {
+        "bytes": 3920,
+        "imports": [
+          {
+            "path": "../snapback-worktrees/clique-search-twin/snapback2/packages/evaluator/src/hash.ts",
+            "kind": "import-statement",
+            "original": "./hash"
+          },
+          {
+            "path": "../snapback-worktrees/clique-search-twin/snapback2/packages/evaluator/src/ordered.ts",
+            "kind": "import-statement",
+            "original": "./ordered"
+          },
+          {
+            "path": "../snapback-worktrees/clique-search-twin/snapback2/packages/evaluator/src/value-runtime.ts",
+            "kind": "import-statement",
+            "original": "./value-runtime"
+          },
+          {
+            "path": "../snapback-worktrees/clique-search-twin/snapback2/packages/evaluator/src/index-store.ts",
+            "kind": "import-statement",
+            "original": "./index-store"
+          }
+        ],
+        "format": "esm"
+      },
+      "../snapback-worktrees/clique-search-twin/snapback2/packages/evaluator/src/store.ts": {
+        "bytes": 14358,
+        "imports": [
+          {
+            "path": "../snapback-worktrees/clique-search-twin/snapback2/packages/evaluator/src/held-directory.ts",
+            "kind": "import-statement",
+            "original": "./held-directory"
+          },
+          {
+            "path": "../snapback-worktrees/clique-search-twin/snapback2/packages/evaluator/src/certificate-identity.ts",
+            "kind": "import-statement",
+            "original": "./certificate-identity"
+          },
+          {
+            "path": "../snapback-worktrees/clique-search-twin/snapback2/packages/evaluator/src/coverage.ts",
+            "kind": "import-statement",
+            "original": "./coverage"
+          },
+          {
+            "path": "../snapback-worktrees/clique-search-twin/snapback2/packages/evaluator/src/errors.ts",
+            "kind": "import-statement",
+            "original": "./errors"
+          },
+          {
+            "path": "../snapback-worktrees/clique-search-twin/snapback2/packages/evaluator/src/hash.ts",
+            "kind": "import-statement",
+            "original": "./hash"
+          },
+          {
+            "path": "../snapback-worktrees/clique-search-twin/snapback2/packages/evaluator/src/index-store.ts",
+            "kind": "import-statement",
+            "original": "./index-store"
+          },
+          {
+            "path": "../snapback-worktrees/clique-search-twin/snapback2/packages/evaluator/src/runner.ts",
+            "kind": "import-statement",
+            "original": "./runner"
+          },
+          {
+            "path": "../snapback-worktrees/clique-search-twin/snapback2/packages/evaluator/src/value-runtime.ts",
+            "kind": "import-statement",
+            "original": "./value-runtime"
+          }
+        ],
+        "format": "esm"
+      },
+      "../snapback-worktrees/clique-search-twin/snapback2/packages/snapback2/src/twin-hydrate.ts": {
+        "bytes": 4536,
+        "imports": [
+          {
+            "path": "../snapback-worktrees/clique-search-twin/snapback2/packages/snapback2/src/offline-protocol.ts",
+            "kind": "import-statement",
+            "original": "./offline-protocol.js"
+          }
+        ],
+        "format": "esm"
+      },
+      "../snapback-worktrees/clique-search-twin/snapback2/packages/snapback2/src/twin-store.ts": {
+        "bytes": 12560,
+        "imports": [
+          {
+            "path": "../snapback-worktrees/clique-search-twin/snapback2/packages/evaluator/src/store.ts",
+            "kind": "import-statement",
+            "original": "../../evaluator/src/store.js"
+          },
+          {
+            "path": "../snapback-worktrees/clique-search-twin/snapback2/packages/evaluator/src/ordered.ts",
+            "kind": "import-statement",
+            "original": "../../evaluator/src/ordered.js"
+          },
+          {
+            "path": "../snapback-worktrees/clique-search-twin/snapback2/packages/evaluator/src/coverage.ts",
+            "kind": "import-statement",
+            "original": "../../evaluator/src/coverage.js"
+          },
+          {
+            "path": "../snapback-worktrees/clique-search-twin/snapback2/packages/evaluator/src/index-store.ts",
+            "kind": "import-statement",
+            "original": "../../evaluator/src/index-store.js"
+          },
+          {
+            "path": "../snapback-worktrees/clique-search-twin/snapback2/packages/evaluator/src/hash.ts",
+            "kind": "import-statement",
+            "original": "../../evaluator/src/hash.js"
+          },
+          {
+            "path": "../snapback-worktrees/clique-search-twin/snapback2/packages/evaluator/src/value-runtime.ts",
+            "kind": "import-statement",
+            "original": "../../evaluator/src/value-runtime.js"
+          },
+          {
+            "path": "../snapback-worktrees/clique-search-twin/snapback2/packages/snapback2/src/offline-schema.ts",
+            "kind": "import-statement",
+            "original": "./offline-schema.js"
+          },
+          {
+            "path": "../snapback-worktrees/clique-search-twin/snapback2/packages/snapback2/src/twin-hydrate.ts",
+            "kind": "import-statement",
+            "original": "./twin-hydrate.js"
+          },
+          {
+            "path": "../snapback-worktrees/clique-search-twin/snapback2/packages/snapback2/src/offline-protocol.ts",
+            "kind": "import-statement",
+            "original": "./offline-protocol.js"
+          },
+          {
+            "path": "../snapback-worktrees/clique-search-twin/snapback2/packages/snapback2/src/store/asset-policy.ts",
+            "kind": "import-statement",
+            "original": "./store/asset-policy.js"
+          }
+        ],
+        "format": "esm"
+      },
+      "../snapback-worktrees/clique-search-twin/snapback2/packages/snapback2/src/twin.ts": {
+        "bytes": 13919,
+        "imports": [
+          {
+            "path": "../snapback-worktrees/clique-search-twin/snapback2/packages/snapback2/src/store/asset-policy.ts",
+            "kind": "import-statement",
+            "original": "./store/asset-policy.js"
+          },
+          {
+            "path": "../snapback-worktrees/clique-search-twin/snapback2/packages/evaluator/src/value-runtime.ts",
+            "kind": "import-statement",
+            "original": "../../evaluator/src/value-runtime.js"
+          },
+          {
+            "path": "../snapback-worktrees/clique-search-twin/snapback2/packages/snapback2/src/local-cursor.ts",
+            "kind": "import-statement",
+            "original": "./local-cursor.js"
+          },
+          {
+            "path": "../snapback-worktrees/clique-search-twin/snapback2/packages/evaluator/src/errors.ts",
+            "kind": "import-statement",
+            "original": "../../evaluator/src/errors.js"
+          },
+          {
+            "path": "../snapback-worktrees/clique-search-twin/snapback2/packages/snapback2/src/held-program.ts",
+            "kind": "import-statement",
+            "original": "./held-program.js"
+          },
+          {
+            "path": "../snapback-worktrees/clique-search-twin/snapback2/packages/evaluator/src/runner.ts",
+            "kind": "import-statement",
+            "original": "../../evaluator/src/runner.js"
+          },
+          {
+            "path": "../../evaluator/src/store.js",
+            "kind": "import-statement",
+            "external": true
+          },
+          {
+            "path": "../snapback-worktrees/clique-search-twin/snapback2/packages/evaluator/src/search-runtime.ts",
+            "kind": "import-statement",
+            "original": "../../evaluator/src/search-runtime.js"
+          },
+          {
+            "path": "../snapback-worktrees/clique-search-twin/snapback2/packages/snapback2/src/twin-store.ts",
+            "kind": "import-statement",
+            "original": "./twin-store.js"
+          },
+          {
+            "path": "../snapback-worktrees/clique-search-twin/snapback2/packages/snapback2/src/store/outbox.ts",
+            "kind": "import-statement",
+            "original": "./store/outbox.js"
+          },
+          {
+            "path": "../snapback-worktrees/clique-search-twin/snapback2/packages/snapback2/src/twin-hydrate.ts",
+            "kind": "import-statement",
+            "original": "./twin-hydrate.js"
+          }
+        ],
+        "format": "esm"
+      },
+      "../snapback-worktrees/clique-search-twin/snapback2/packages/snapback2/src/offline.ts": {
+        "bytes": 42078,
+        "imports": [
+          {
+            "path": "../snapback-worktrees/clique-search-twin/snapback2/packages/snapback2/src/held-program.ts",
+            "kind": "import-statement",
+            "original": "./held-program.js"
+          },
+          {
+            "path": "../snapback-worktrees/clique-search-twin/snapback2/packages/snapback2/src/held-program.ts",
+            "kind": "import-statement",
+            "original": "./held-program.js"
+          },
+          {
+            "path": "../snapback-worktrees/clique-search-twin/snapback2/packages/snapback2/src/client-wire.ts",
+            "kind": "import-statement",
+            "original": "./client-wire.js"
+          },
+          {
+            "path": "../snapback-worktrees/clique-search-twin/snapback2/packages/snapback2/src/store/fact-integrity.ts",
+            "kind": "import-statement",
+            "original": "./store/fact-integrity.js"
+          },
+          {
+            "path": "../snapback-worktrees/clique-search-twin/snapback2/packages/snapback2/src/offline-protocol.ts",
+            "kind": "import-statement",
+            "original": "./offline-protocol.js"
+          },
+          {
+            "path": "../snapback-worktrees/clique-search-twin/snapback2/packages/snapback2/src/store/outbox.ts",
+            "kind": "import-statement",
+            "original": "./store/outbox.js"
+          },
+          {
+            "path": "../snapback-worktrees/clique-search-twin/snapback2/packages/snapback2/src/store/range-store.ts",
+            "kind": "import-statement",
+            "original": "./store/range-store.js"
+          },
+          {
+            "path": "../snapback-worktrees/clique-search-twin/snapback2/packages/snapback2/src/store/byte-cache.ts",
+            "kind": "import-statement",
+            "original": "./store/byte-cache.js"
+          },
+          {
+            "path": "../snapback-worktrees/clique-search-twin/snapback2/packages/snapback2/src/twin.ts",
+            "kind": "import-statement",
+            "original": "./twin.js"
+          }
+        ],
+        "format": "esm"
+      },
+      "../snapback-worktrees/clique-search-twin/snapback2/packages/snapback2/src/store/metadata.ts": {
+        "bytes": 2131,
+        "imports": [],
+        "format": "esm"
+      },
+      "../snapback-worktrees/clique-search-twin/snapback2/packages/snapback2/src/store/projection.ts": {
+        "bytes": 5687,
+        "imports": [
+          {
+            "path": "../snapback-worktrees/clique-search-twin/snapback2/packages/snapback2/src/store/metadata.ts",
+            "kind": "import-statement",
+            "original": "./metadata.js"
+          },
+          {
+            "path": "../snapback-worktrees/clique-search-twin/snapback2/packages/snapback2/src/store/range-store.ts",
+            "kind": "import-statement",
+            "original": "./range-store.js"
+          }
+        ],
+        "format": "esm"
+      },
+      "../snapback-worktrees/clique-search-twin/snapback2/packages/snapback2/src/store/file.ts": {
+        "bytes": 5008,
+        "imports": [
+          {
+            "path": "node:fs/promises",
+            "kind": "import-statement",
+            "external": true
+          },
+          {
+            "path": "node:path",
+            "kind": "import-statement",
+            "external": true
+          },
+          {
+            "path": "../snapback-worktrees/clique-search-twin/snapback2/packages/snapback2/src/store/range-store.ts",
+            "kind": "import-statement",
+            "original": "./range-store.js"
+          },
+          {
+            "path": "../snapback-worktrees/clique-search-twin/snapback2/packages/snapback2/src/store/projection.ts",
+            "kind": "import-statement",
+            "original": "./projection.js"
+          }
+        ],
+        "format": "esm"
+      },
+      "../../clique-improvement/revisions/search-twin-v5/native-clock-persist.ts": {
+        "bytes": 3447,
+        "imports": [
+          {
+            "path": "node:fs",
+            "kind": "import-statement",
+            "external": true
+          },
+          {
+            "path": "node:crypto",
+            "kind": "import-statement",
+            "external": true
+          },
+          {
+            "path": "node:assert/strict",
+            "kind": "import-statement",
+            "external": true
+          },
+          {
+            "path": "../snapback-worktrees/clique-search-twin/snapback2/packages/snapback2/src/offline.ts",
+            "kind": "import-statement",
+            "original": "/Users/ccheever/projects/snapback-worktrees/clique-search-twin/snapback2/packages/snapback2/src/offline.ts"
+          },
+          {
+            "path": "../snapback-worktrees/clique-search-twin/snapback2/packages/snapback2/src/store/file.ts",
+            "kind": "import-statement",
+            "original": "/Users/ccheever/projects/snapback-worktrees/clique-search-twin/snapback2/packages/snapback2/src/store/file.ts"
+          }
+        ],
+        "format": "esm"
+      }
+    },
+    "outputs": {
+      "../../clique-improvement/revisions/search-twin-v5/native-clock-persist-r1.mjs": {
+        "imports": [
+          {
+            "path": "node:fs",
+            "kind": "import-statement",
+            "external": true
+          },
+          {
+            "path": "node:crypto",
+            "kind": "import-statement",
+            "external": true
+          },
+          {
+            "path": "node:assert/strict",
+            "kind": "import-statement",
+            "external": true
+          },
+          {
+            "path": "node:fs/promises",
+            "kind": "import-statement",
+            "external": true
+          },
+          {
+            "path": "node:path",
+            "kind": "import-statement",
+            "external": true
+          }
+        ],
+        "exports": [],
+        "entryPoint": "../../clique-improvement/revisions/search-twin-v5/native-clock-persist.ts",
+        "inputs": {
+          "../../clique-improvement/revisions/search-twin-v5/native-clock-persist.ts": {
+            "bytesInOutput": 3436
+          },
+          "../snapback-worktrees/clique-search-twin/snapback2/packages/evaluator/src/hash.ts": {
+            "bytesInOutput": 4113
+          },
+          "../snapback-worktrees/clique-search-twin/snapback2/packages/evaluator/src/errors.ts": {
+            "bytesInOutput": 389
+          },
+          "../snapback-worktrees/clique-search-twin/snapback2/packages/evaluator/src/certificate-identity.ts": {
+            "bytesInOutput": 15743
+          },
+          "../snapback-worktrees/clique-search-twin/snapback2/packages/evaluator/src/value-runtime.ts": {
+            "bytesInOutput": 19665
+          },
+          "../snapback-worktrees/clique-search-twin/snapback2/crates/snapback2-core/ir-contract.json": {
+            "bytesInOutput": 169
+          },
+          "../snapback-worktrees/clique-search-twin/snapback2/packages/evaluator/src/cursor.ts": {
+            "bytesInOutput": 9272
+          },
+          "../snapback-worktrees/clique-search-twin/snapback2/packages/evaluator/dist/unicode-tables.ts": {
+            "bytesInOutput": 17199
+          },
+          "../snapback-worktrees/clique-search-twin/snapback2/packages/evaluator/src/unicode-tables.ts": {
+            "bytesInOutput": 2596
+          },
+          "../snapback-worktrees/clique-search-twin/snapback2/packages/evaluator/src/unicode.ts": {
+            "bytesInOutput": 8247
+          },
+          "../snapback-worktrees/clique-search-twin/snapback2/packages/evaluator/src/merge.ts": {
+            "bytesInOutput": 1761
+          },
+          "../snapback-worktrees/clique-search-twin/snapback2/packages/evaluator/src/text.ts": {
+            "bytesInOutput": 617
+          },
+          "../snapback-worktrees/clique-search-twin/snapback2/packages/evaluator/src/search-key.ts": {
+            "bytesInOutput": 2222
+          },
+          "../snapback-worktrees/clique-search-twin/snapback2/packages/evaluator/src/search-runtime.ts": {
+            "bytesInOutput": 1997
+          },
+          "../snapback-worktrees/clique-search-twin/snapback2/packages/evaluator/src/ordered.ts": {
+            "bytesInOutput": 2873
+          },
+          "../snapback-worktrees/clique-search-twin/snapback2/packages/evaluator/src/posting-tree.ts": {
+            "bytesInOutput": 4004
+          },
+          "../snapback-worktrees/clique-search-twin/snapback2/packages/evaluator/src/prefix-dictionary.ts": {
+            "bytesInOutput": 3743
+          },
+          "../snapback-worktrees/clique-search-twin/snapback2/packages/evaluator/src/index-store.ts": {
+            "bytesInOutput": 9843
+          },
+          "../snapback-worktrees/clique-search-twin/snapback2/packages/evaluator/src/runner.ts": {
+            "bytesInOutput": 46314
+          },
+          "../snapback-worktrees/clique-search-twin/snapback2/packages/snapback2/src/offline-schema.ts": {
+            "bytesInOutput": 80
+          },
+          "../snapback-worktrees/clique-search-twin/snapback2/packages/snapback2/src/held-program.ts": {
+            "bytesInOutput": 1543
+          },
+          "../snapback-worktrees/clique-search-twin/snapback2/packages/snapback2/src/offline.ts": {
+            "bytesInOutput": 29785
+          },
+          "../snapback-worktrees/clique-search-twin/snapback2/packages/snapback2/src/client-wire.ts": {
+            "bytesInOutput": 859
+          },
+          "../snapback-worktrees/clique-search-twin/snapback2/packages/snapback2/src/store/canonical.ts": {
+            "bytesInOutput": 346
+          },
+          "../snapback-worktrees/clique-search-twin/snapback2/packages/snapback2/src/store/fact-integrity.ts": {
+            "bytesInOutput": 3249
+          },
+          "../snapback-worktrees/clique-search-twin/snapback2/packages/evaluator/src/coverage-spans.ts": {
+            "bytesInOutput": 1452
+          },
+          "../snapback-worktrees/clique-search-twin/snapback2/packages/evaluator/src/coverage.ts": {
+            "bytesInOutput": 9999
+          },
+          "../snapback-worktrees/clique-search-twin/snapback2/packages/snapback2/src/store/row-values.ts": {
+            "bytesInOutput": 1739
+          },
+          "../snapback-worktrees/clique-search-twin/snapback2/packages/snapback2/src/offline-protocol.ts": {
+            "bytesInOutput": 17116
+          },
+          "../snapback-worktrees/clique-search-twin/snapback2/packages/snapback2/src/store/outbox.ts": {
+            "bytesInOutput": 12578
+          },
+          "../snapback-worktrees/clique-search-twin/snapback2/packages/snapback2/src/store/asset-policy.ts": {
+            "bytesInOutput": 2373
+          },
+          "../snapback-worktrees/clique-search-twin/snapback2/packages/snapback2/src/store/carrier-index.ts": {
+            "bytesInOutput": 6674
+          },
+          "../snapback-worktrees/clique-search-twin/snapback2/packages/snapback2/src/store/swap-journal.ts": {
+            "bytesInOutput": 5900
+          },
+          "../snapback-worktrees/clique-search-twin/snapback2/packages/snapback2/src/store/byte-cache.ts": {
+            "bytesInOutput": 12142
+          },
+          "../snapback-worktrees/clique-search-twin/snapback2/packages/snapback2/src/store/overlay-retirement.ts": {
+            "bytesInOutput": 2253
+          },
+          "../snapback-worktrees/clique-search-twin/snapback2/packages/snapback2/src/store/range-store.ts": {
+            "bytesInOutput": 41105
+          },
+          "../snapback-worktrees/clique-search-twin/snapback2/packages/snapback2/src/local-cursor.ts": {
+            "bytesInOutput": 5029
+          },
+          "../snapback-worktrees/clique-search-twin/snapback2/packages/evaluator/src/held-directory.ts": {
+            "bytesInOutput": 3067
+          },
+          "../snapback-worktrees/clique-search-twin/snapback2/packages/evaluator/src/store.ts": {
+            "bytesInOutput": 12234
+          },
+          "../snapback-worktrees/clique-search-twin/snapback2/packages/snapback2/src/twin-hydrate.ts": {
+            "bytesInOutput": 2720
+          },
+          "../snapback-worktrees/clique-search-twin/snapback2/packages/snapback2/src/twin-store.ts": {
+            "bytesInOutput": 10802
+          },
+          "../snapback-worktrees/clique-search-twin/snapback2/packages/snapback2/src/twin.ts": {
+            "bytesInOutput": 9311
+          },
+          "../snapback-worktrees/clique-search-twin/snapback2/packages/snapback2/src/store/file.ts": {
+            "bytesInOutput": 3815
+          },
+          "../snapback-worktrees/clique-search-twin/snapback2/packages/snapback2/src/store/metadata.ts": {
+            "bytesInOutput": 923
+          },
+          "../snapback-worktrees/clique-search-twin/snapback2/packages/snapback2/src/store/projection.ts": {
+            "bytesInOutput": 821
+          }
+        },
+        "bytes": 356510
+      }
+    }
+  }
+}
