@@ -1,0 +1,31 @@
+{
+  "runtime_commit": "ea35e15b1d37cd546a05ad13f687a41431559d6d",
+  "measurement": {
+    "commit": "ea35e15b1",
+    "proofCommit": "617f61b4d61132eceb13e619ee97628d4198f401",
+    "at": "2026-09-06T08:46:31.483Z",
+    "command": "node scripts/measure.mjs --check",
+    "exit": 0,
+    "attempts": 1,
+    "duration_s": 61.16,
+    "warm_build_s": 25.25,
+    "package_build_s": 1.333,
+    "incremental_build_s": 2.55,
+    "consumer_smoke_s": 28.57,
+    "check_project_s": 0.521,
+    "doctor_samples_s": [
+      0.393,
+      0.061
+    ],
+    "init_to_dev_s": 1.138,
+    "scope": "Existing budgets all pass; no instrumentation or timeout changes. Measurement completed before parent notice that separate native build started. Chat receipt blocked effects is expected accepted engine-off consumer outcome.",
+    "logs": "ea35e15b1-measure.log/.exit, ea35e15b1-measure-row.jsonl, ea35e15b1-measure-source.txt retained locally and remotely."
+  },
+  "new_regressions": {
+    "passed": 18,
+    "demonstrated_red_before": 17
+  },
+  "package_selected_passed": 431,
+  "assets_passed": 36,
+  "review_status": "Astra CHANGES_REQUIRED; second family pending. These tests do not prove the newly identified superseded-upload401 and expiry/sibling-drain cases."
+}

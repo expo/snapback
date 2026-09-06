@@ -169,3 +169,20 @@ and both same-sequence SDK refusal observations remain recorded as friction.
 The pinned package stays0.0.6. Native is explicitly not-recorded; the iOS
 Hermes export is not execution evidence. M8 has started; no holistic score
 or independent acceptance grade yet.
+
+
+Integrated revisionea35e15b1 passes431 selected client tests plus36assets,
+including18 new regressions(17 demonstrated red before repair). First existing
+measurement run exits0 in61.16s: projectcheck0.521s, doctor0.393/0.061s;
+all original budgets pass. Proof-only617f61b4d appends its existing metric row.
+Fresh Astra review finds two further static cases: upload supersession can
+lose terminal bearer evidence, and terminal expiry leaves sibling drains
+waiting. They are being reproduced and repaired; no clearance is claimed.
+Version0.0.8 is prepared in the separate release lane atf01cf97a3, with warm
+production dependencies but no build or publication.
+
+Named-shape fixb48d95526 has compiler402/evaluator216plus2/core382plus1skip
+passing and Astra READY. Second-family review is pending. Search feasibility
+now has exact Unicode17 conformance and real100k fixture layout measurements;
+fullengine closure, client budget and cursor design still require resolution.
+Independent design reviews are underway, with no search implementation claim.
