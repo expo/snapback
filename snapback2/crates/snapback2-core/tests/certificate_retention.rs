@@ -110,7 +110,6 @@ fn program(name: &str, body: Vec<Stmt>) -> Program {
         kind: ProgramKind::Query,
         args: BTreeMap::new(),
         read_time_granularity_ms: None,
-        result_page_site: None,
         body,
     }
 }
@@ -121,7 +120,6 @@ fn program_with_args(name: &str, args: BTreeMap<String, ArgType>, body: Vec<Stmt
         kind: ProgramKind::Query,
         args,
         read_time_granularity_ms: None,
-        result_page_site: None,
         body,
     }
 }

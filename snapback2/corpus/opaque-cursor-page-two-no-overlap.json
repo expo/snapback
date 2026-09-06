@@ -119,7 +119,6 @@
       }
     },
     "read_time_granularity_ms": null,
-    "result_page_site": "opaque-cursor-page-two-no-overlap",
     "body": [
       {
         "Return": {
@@ -147,7 +146,7 @@
   },
   "certificate": {
     "program": "opaque-cursor-page-two-no-overlap",
-    "plan_hash": "a6f0db299ea412abf4b365028a7f987de03481b1ac05936a905dae973e90c945",
+    "plan_hash": "4087471ca55454b3fb97f74464e9e7ca9d9751bd01d6052bfbbb757df0f8c01e",
     "schema_hash": "f7c842236978e842a20695dbea23d49d1277bd8bdbc0c342ee6422331cb188f8",
     "tables": {
       "follows": {
@@ -176,22 +175,24 @@
         "complete": false
       }
     ],
-    "result_page_site": {
-      "site": "opaque-cursor-page-two-no-overlap",
-      "table": "posts",
-      "index": "byAt",
-      "order": "Asc",
-      "suffix": [
-        {
-          "name": "at",
-          "kind": "Int"
-        },
-        {
-          "name": "id",
-          "kind": "Id"
-        }
-      ],
-      "merge": false
+    "result_pages": {
+      "0": {
+        "site": "opaque-cursor-page-two-no-overlap",
+        "table": "posts",
+        "index": "byAt",
+        "order": "Asc",
+        "suffix": [
+          {
+            "name": "at",
+            "kind": "Int"
+          },
+          {
+            "name": "id",
+            "kind": "Id"
+          }
+        ],
+        "merge": false
+      }
     },
     "write_sites": [],
     "maintained_amplification": 0,

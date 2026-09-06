@@ -174,6 +174,19 @@ export interface Manifest {
 }
 
 export type AssetRecord = ImageAsset | VideoAsset;
+export interface UnclaimedUpload {
+  readonly id: string;
+  readonly kind: AssetKind;
+  readonly state: "receiving" | "ready";
+  readonly bytes: number;
+  readonly createdAt: number;
+}
+export interface UploadListing {
+  readonly uploads: readonly UnclaimedUpload[];
+  readonly usage: { readonly objects: number; readonly bytes: number };
+  readonly limits: { readonly objects: number; readonly bytes: number };
+  readonly next: string | null;
+}
 export interface NativeAssetSource {
   readonly uri: string;
   readonly size?: number;
@@ -329,6 +342,10 @@ export interface SnapbackClient {
   upload(source: AssetUploadSource, options: AssetUploadOptions & { readonly kind: "image" }): Promise<ImageAsset>;
   upload(source: AssetUploadSource, options: AssetUploadOptions & { readonly kind: "video" }): Promise<VideoAsset>;
   upload(source: AssetUploadSource, options?: AssetUploadOptions): Promise<AssetRecord>;
+  /** Lists this account's unclaimed uploads, at most 100 per page, including after restart. */
+  listUploads(options?: { after?: string }): Promise<UploadListing>;
+  /** Discards own unclaimed bytes; running finalizers retain quota until closed. Missing/foreign ids return false. */
+  discardUpload(id: string): Promise<boolean>;
   assetUrl(asset: AssetRecord | null | undefined, options?: AssetUrlOptions): Promise<string | undefined>;
   assetUrl(assets: readonly AssetRecord[], options?: AssetUrlOptions): Promise<string[]>;
   /** Authentication headers for a native image source; carriers stay reserved for players/downloads. */

@@ -76,7 +76,6 @@ fn reidentify_program() -> Program {
             ("name".to_owned(), ArgType::Scalar),
         ]),
         read_time_granularity_ms: None,
-        result_page_site: None,
         body: vec![Stmt::Update {
             table: "items".to_owned(),
             key: var("key"),
@@ -98,7 +97,6 @@ fn upsert_at_program() -> Program {
             ("name".to_owned(), ArgType::Scalar),
         ]),
         read_time_granularity_ms: None,
-        result_page_site: None,
         body: vec![Stmt::Upsert {
             table: "items".to_owned(),
             key: var("key"),
@@ -119,7 +117,6 @@ fn generation() -> Generation {
             ("name".to_owned(), ArgType::Scalar),
         ]),
         read_time_granularity_ms: None,
-        result_page_site: None,
         body: vec![
             Stmt::Insert {
                 table: "items".to_owned(),
@@ -140,7 +137,6 @@ fn generation() -> Generation {
         kind: ProgramKind::Query,
         args: BTreeMap::new(),
         read_time_granularity_ms: None,
-        result_page_site: None,
         body: vec![Stmt::Return(Expr::Scan(Scan {
             site: "items.list".to_owned(),
             table: "items".to_owned(),
@@ -164,7 +160,6 @@ fn generation() -> Generation {
             ("name".to_owned(), ArgType::Scalar),
         ]),
         read_time_granularity_ms: None,
-        result_page_site: None,
         body: vec![Stmt::Update {
             table: "items".to_owned(),
             key: var("id"),
@@ -176,7 +171,6 @@ fn generation() -> Generation {
         kind: ProgramKind::Mutation,
         args: BTreeMap::from([("name".to_owned(), ArgType::Scalar)]),
         read_time_granularity_ms: None,
-        result_page_site: None,
         body: vec![
             Stmt::Let {
                 name: "allocated".to_owned(),
@@ -201,7 +195,6 @@ fn generation() -> Generation {
         kind: ProgramKind::Mutation,
         args: BTreeMap::from([("name".to_owned(), ArgType::Scalar)]),
         read_time_granularity_ms: None,
-        result_page_site: None,
         body: vec![
             Stmt::Let {
                 name: "allocated".to_owned(),
@@ -225,7 +218,6 @@ fn generation() -> Generation {
         kind: ProgramKind::Mutation,
         args: BTreeMap::from([("id".to_owned(), ArgType::Scalar)]),
         read_time_granularity_ms: None,
-        result_page_site: None,
         body: vec![Stmt::Delete {
             table: "items".to_owned(),
             key: var("id"),

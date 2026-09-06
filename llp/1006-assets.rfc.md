@@ -12,7 +12,8 @@ decode helper executable, §14a), `packages/compiler` (the column types),
 revisions (f)–(j) by Claude Fable 5.1 at the author's rulings, in session,
 2026-09-03
 **Date:** 2026-08-31
-**Revised:** 2026-09-05 (q — image once, server one-use delivery, lane L11);
+**Revised:** 2026-09-06 (r — upload recovery, physical custody and definitive-refusal cleanup);
+2026-09-05 (q — image once, server one-use delivery, lane L11);
 2026-09-04 (p/o — two-phase typed upload and descriptor fence; n — device
 byte cache; m/l — finalized-byte reservation, reclamation, helper safety);
 2026-09-03 (k — static decoder publication; j — second panel and author
@@ -814,9 +815,13 @@ uploads that were never referenced. An asset held for a year therefore still
 gets the full grace after replacement. **Liveness buys space and never
 authority** — an unreferenced asset is already
 undeliverable (§2), so a reclamation pass that lags or crashes is a disk cost,
-not a disclosure. Snapback 1's equivalent bug is open today: a partial reset
-wipe leaves orphans that are never reclaimed *and* undetectable
-(`issues/20260821-orphan-blob-reclamation-after-reset.md`).
+not a disclosure. `GET /api/uploads` lists only the authenticated creator's unclaimed
+receiving/ready uploads (100 per page with `after`/`next`), usage and limits;
+`POST /api/uploads/discard { id }` atomically tombstones only that creator's unclaimed
+id, refuses claimed ids, and treats missing/foreign ids identically. Receiving bytes
+close before quota release; running finalizers retain charges and resist sweep until
+physical release. Failed deletion retains its path and charge for disposal or grace-sweep retry;
+sweeps skip that id without stopping the writer or siblings. Ready ids use the fork-aware sweep; restart preserves discovery.
 
 ### 9a. Where bytes live (author ruling, 2026-09-03)
 
@@ -961,11 +966,12 @@ the upload implies a false atomicity. Grok's counter is the one that decides
 it: *"requiring `upload()` then `mutate()` is `attach()` renamed"* — and
 LLP 1005 §5b is a whole section on what a mandatory second call cost Snapback 1.
 An agent that must call two functions will eventually call one. Codex's
-atomicity objection is answered by the failure shape: an upload or transport
-failure throws before anything is sent; a server refusal resolves to the
-ordinary `MutationRejected` result — mutations do not throw in this client —
-and either way no row is written and the siblings are reclaimed, the same
-shape as any rejected mutation.
+atomicity objection is answered by the failure shape: before mutation submission,
+sibling uploads and failed pre-persistence admission/prediction are discarded, as
+are this call's uploads after definitive rejection. Wire custody starts at fetch,
+after serialization and local checks; attempted persistence, queued intents and
+ambiguous responses retain bytes. Current-authority terminal expiry follows discard for HTTP 401 and rejected receipts; each complete discard races its 2s signal even when fetch or body parsing ignores abort.
+Superseded receipts still invalidate captured custody; cleanup expiry preserves the settled outcome. `client.listUploads()` and `client.discardUpload(id)` recover abandoned ids.
 
 Rendering is one component per kind (§2a). `<AssetImage asset={photo} />`
 measures its own box and requests a matching width (§8) — the author names no

@@ -449,6 +449,24 @@ fn handle(mut request: Request, context: Context, streams: live::Streams) {
             },
             200,
         ),
+        ("GET", "/api/uploads") => call_json(
+            request,
+            &context,
+            Action::ListUploads {
+                identity,
+                after: query.get("after").unwrap_or_default().to_owned(),
+            },
+            200,
+        ),
+        ("POST", "/api/uploads/discard") => call_json(
+            request,
+            &context,
+            Action::DiscardUpload {
+                identity,
+                id: string_field(&body, "id"),
+            },
+            200,
+        ),
         ("GET", "/api/auth/me") => call_json(request, &context, Action::Me { identity }, 200),
         ("POST", "/api/auth/asset-session") => {
             call_json(request, &context, Action::AssetSession { identity }, 200)

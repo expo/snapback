@@ -42,7 +42,6 @@ fn omitted_parent_rows_share_the_null_cap_group_and_remain_visible_after_refusal
         name: "buckets.insert".into(),
         kind: ProgramKind::Mutation,
         args: BTreeMap::new(),
-        result_page_site: None,
         read_time_granularity_ms: None,
         body: vec![Stmt::Insert {
             table: "buckets".into(),
@@ -72,7 +71,6 @@ fn omitted_parent_rows_share_the_null_cap_group_and_remain_visible_after_refusal
         name: "buckets.exists".into(),
         kind: ProgramKind::Query,
         args: BTreeMap::new(),
-        result_page_site: None,
         read_time_granularity_ms: None,
         body: vec![Stmt::Return(Expr::Exists(Read {
             site: "buckets.null".into(),
@@ -160,7 +158,6 @@ fn refusing_cap_probe_is_charged_before_returning_constraint_error() {
         name: "cap.refusing".into(),
         kind: ProgramKind::Mutation,
         args: BTreeMap::new(),
-        result_page_site: None,
         read_time_granularity_ms: None,
         body: vec![Stmt::Insert {
             table: "memberships".into(),

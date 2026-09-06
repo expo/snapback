@@ -130,7 +130,6 @@ fn bytes_insert_program() -> Program {
             ("payload".to_owned(), ArgType::Scalar),
         ]),
         read_time_granularity_ms: None,
-        result_page_site: None,
         body: vec![
             Stmt::Insert {
                 table: "blobs".to_owned(),
@@ -150,7 +149,6 @@ fn bytes_scan_program(name: &str) -> Program {
         kind: ProgramKind::Query,
         args: BTreeMap::new(),
         read_time_granularity_ms: None,
-        result_page_site: None,
         body: vec![Stmt::Return(Expr::Scan(Scan {
             site: format!("{name}.blobs"),
             table: "blobs".to_owned(),

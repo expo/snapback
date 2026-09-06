@@ -89,21 +89,32 @@ impl State {
             .map_err(|error| Refusal::from_runtime(&error))?
             .into_iter()
             .collect();
+        let mut deletable = BTreeSet::new();
+        for id in &self.pending_asset_deletes {
+            // Running finalizers and failed unlinks stay pending and charged.
+            // Retry next interval without stopping the writer or sibling GC;
+            // explicit discard still reports the per-upload I/O refusal.
+            if matches!(self.staging.cancel_upload(id), Ok(true)) {
+                deletable.insert(id.clone());
+            }
+        }
         let remaining = crate::asset_gc::sweep_asset_blobs(
             &self.root,
             self.blobs.as_ref(),
             &live_ids,
-            &self.pending_asset_deletes,
+            &deletable,
         )?;
-        let finished = self
-            .pending_asset_deletes
+        let finished = deletable
             .difference(&remaining)
             .cloned()
             .collect::<Vec<_>>();
         self.runtime_mut()
             .finish_asset_reclaims(&finished)
             .map_err(|error| Refusal::from_runtime(&error))?;
-        self.pending_asset_deletes = remaining;
+        for id in finished {
+            self.pending_asset_deletes.remove(&id);
+            self.staging.finish_upload(&id);
+        }
         Ok(())
     }
 
@@ -173,6 +184,58 @@ impl State {
         Ok(json!(null))
     }
 
+    pub(super) fn list_uploads(
+        &mut self,
+        identity: Identity,
+        after: &str,
+    ) -> Result<Json, Refusal> {
+        let authority = self.resolve_authority(identity)?;
+        let actor = actor(&authority.principal)?;
+        let usage = self
+            .runtime()
+            .asset_staging_usage(&actor)
+            .map_err(|error| Refusal::from_runtime(&error))?;
+        let mut uploads = self
+            .runtime()
+            .store()
+            .unclaimed_uploads(actor.id(), after)
+            .map_err(|error| Refusal::from_runtime(&error))?;
+        let next = (uploads.len() > 100).then(|| uploads[99].id.clone());
+        uploads.truncate(100);
+        Ok(
+            json!({ "uploads": uploads, "usage": usage.creator, "next": next,
+            "limits": { "objects": snapback2_core::STAGING_PER_PRINCIPAL_OBJECTS,
+                        "bytes": snapback2_core::STAGING_PER_PRINCIPAL_BYTES } }),
+        )
+    }
+
+    pub(super) fn discard_upload(&mut self, identity: Identity, id: &str) -> Result<Json, Refusal> {
+        let authority = self.resolve_authority(identity)?;
+        let actor = actor(&authority.principal)?;
+        let discarded = self
+            .runtime_mut()
+            .discard_upload(&actor, id)
+            .map_err(|error| Refusal::from_runtime(&error))?;
+        if discarded {
+            self.pending_asset_deletes.insert(id.to_owned());
+            // Receiving tombstones remain charged until the shared handle has
+            // closed/unlinked staging, or the finalizer reports physical release.
+            if self.staging.cancel_upload(id)?
+                && self
+                    .runtime()
+                    .store()
+                    .asset(id)
+                    .map_err(|error| Refusal::from_runtime(&error))?
+                    .is_some_and(|row| row.state == snapback2_core::AssetState::Receiving)
+            {
+                self.runtime_mut()
+                    .mark_asset_failed(id)
+                    .map_err(|error| Refusal::from_runtime(&error))?;
+            }
+        }
+        Ok(json!({ "discarded": discarded }))
+    }
+
     pub(super) fn asset_upload_authorize(
         &mut self,
         bytes: u64,
@@ -191,6 +254,10 @@ impl State {
                 "Content-Length {bytes} exceeds the generation's {max} byte asset ceiling"
             )));
         }
+        self.runtime()
+            .store()
+            .enforce_staging_caps(authority.principal.id.as_str(), bytes)
+            .map_err(|error| Refusal::from_runtime(&error))?;
         Ok(json!({
             "principal": authority.principal.id,
             "maxBytes": max,
@@ -204,6 +271,7 @@ impl State {
         kind: AssetKind,
         bytes: u64,
         identity: Identity,
+        custody: crate::blob_store::UploadCustody,
     ) -> Result<Json, Refusal> {
         let authority = self.resolve_authority(identity)?;
         let (image_max, video_max) = generation_asset_maxima(self.runtime().generation());
@@ -222,6 +290,7 @@ impl State {
             .runtime_mut()
             .begin_asset_charged(kind, &actor, now, bytes)
             .map_err(|error| Refusal::from_runtime(&error))?;
+        self.staging.register_upload(id.clone(), custody);
         Ok(json!({ "id": id, "maxBytes": max }))
     }
 }
@@ -623,6 +692,211 @@ mod tests {
     }
 
     #[test]
+    fn a_discarded_finalizer_retains_charge_and_survives_sweeps_until_bytes_close() {
+        use crate::blob_store::UploadCustody;
+        let root = once_root("discard-finalizing");
+        let (mut state, _) = once_state(&root);
+        let mut file = state.staging.create().unwrap();
+        std::io::Write::write_all(file.file_mut(), &[0_u8; 100]).unwrap();
+        let custody = UploadCustody::new(file);
+        let begun = state
+            .asset_upload_begin(
+                AssetKind::Image,
+                100,
+                Identity::Persona("alice".into()),
+                custody.clone(),
+            )
+            .unwrap();
+        let id = begun["id"].as_str().unwrap();
+        let mut finalizing = custody.finalize().unwrap();
+        state
+            .discard_upload(Identity::Persona("alice".into()), id)
+            .unwrap();
+        let actor = snapback2_core::Actor::persona("alice").unwrap();
+        assert_eq!(
+            state
+                .runtime()
+                .asset_staging_usage(&actor)
+                .unwrap()
+                .creator
+                .bytes,
+            100
+        );
+        state.sweep_assets_now().unwrap();
+        assert!(state.runtime().store().asset(id).unwrap().is_some());
+        assert_eq!(std::fs::metadata(finalizing.path()).unwrap().len(), 100);
+        finalizing.discard().unwrap();
+        custody.finish(Some(finalizing)).unwrap();
+        state
+            .handle(Action::AssetUploadFailed { id: id.into() })
+            .unwrap();
+        assert_eq!(
+            state
+                .runtime()
+                .asset_staging_usage(&actor)
+                .unwrap()
+                .creator
+                .bytes,
+            0
+        );
+        state.sweep_assets_now().unwrap();
+        assert!(state.runtime().store().asset(id).unwrap().is_none());
+        drop(state);
+        std::fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    #[cfg(unix)]
+    fn failed_finalizer_cleanup_is_retryable_after_worker_exit_by_disposal_and_sweep() {
+        use crate::blob_store::UploadCustody;
+        use std::os::unix::fs::PermissionsExt;
+        for dispose in [true, false] {
+            let root = once_root(if dispose {
+                "retry-disposal"
+            } else {
+                "retry-sweep"
+            });
+            let (mut state, _) = once_state(&root);
+            let mut file = state.staging.create().unwrap();
+            std::io::Write::write_all(file.file_mut(), &[0_u8; 100]).unwrap();
+            let path = file.path().to_owned();
+            let custody = UploadCustody::new(file);
+            let begun = state
+                .asset_upload_begin(
+                    AssetKind::Image,
+                    100,
+                    Identity::Persona("alice".into()),
+                    custody.clone(),
+                )
+                .unwrap();
+            let id = begun["id"].as_str().unwrap();
+            let mut finalizing = custody.finalize().unwrap();
+            finalizing.sync_and_close().unwrap();
+            state
+                .runtime_mut()
+                .reserve_asset_finalized_bytes(id, 100)
+                .unwrap();
+            state.blobs.put(id, &mut Cursor::new([0_u8; 100])).unwrap();
+            let actor = snapback2_core::Actor::persona("alice").unwrap();
+            let now = state.now();
+            let sibling = state
+                .runtime_mut()
+                .begin_asset(AssetKind::Image, &actor, now)
+                .unwrap();
+            state
+                .runtime_mut()
+                .reserve_asset_finalized_bytes(&sibling, 2)
+                .unwrap();
+            state
+                .runtime_mut()
+                .mark_asset_ready(
+                    &sibling,
+                    &AssetReadyFacts {
+                        media_type: "image/png".into(),
+                        bytes: 2,
+                        width: 1,
+                        height: 1,
+                        duration: None,
+                    },
+                )
+                .unwrap();
+            state.blobs.put(&sibling, &mut Cursor::new(b"xy")).unwrap();
+            state
+                .discard_upload(Identity::Persona("alice".into()), &sibling)
+                .unwrap();
+            let directory = root.join(".snapback/staging");
+            std::fs::set_permissions(&directory, std::fs::Permissions::from_mode(0o500)).unwrap();
+            let worker = std::thread::spawn(move || custody.finish(Some(finalizing)));
+            let failed = worker.join().unwrap();
+            let charged = state
+                .runtime()
+                .asset_staging_usage(&actor)
+                .unwrap()
+                .creator
+                .bytes;
+            let retry = if dispose {
+                state
+                    .discard_upload(Identity::Persona("alice".into()), id)
+                    .map(|_| ())
+            } else {
+                state.clock_offset_ms = ASSET_RECLAIM_GRACE_MS + 1;
+                state.sweep_assets_now()
+            };
+            // Exercise the real background failure boundary, then a queued read.
+            // Closing admission lets drive return after servicing that request.
+            let (requests, incoming) = mpsc::channel();
+            let (reply, response) = mpsc::channel();
+            requests
+                .send(Request {
+                    action: Action::Status,
+                    reply,
+                })
+                .unwrap();
+            drop(requests);
+            state.next_asset_sweep = Instant::now();
+            writer_jobs::drive(&mut state, incoming);
+            let served = response.try_recv();
+            let stopped = state.stop.load(Ordering::SeqCst);
+            let sibling_reclaimed = state.runtime().store().asset(&sibling).unwrap().is_none()
+                && state.blobs.get(&sibling, None).is_err()
+                && !state.pending_asset_deletes.contains(&sibling);
+            let retained = path.exists()
+                && state.blobs.get(id, None).is_ok()
+                && state.pending_asset_deletes.contains(id);
+            let still_charged = state
+                .runtime()
+                .asset_staging_usage(&actor)
+                .unwrap()
+                .creator
+                .bytes;
+            std::fs::set_permissions(&directory, std::fs::Permissions::from_mode(0o700)).unwrap();
+            assert_eq!(failed.unwrap_err().code, "E_OWNER_ASSET_IO");
+            assert!(!stopped, "a per-upload unlink failure stopped the writer");
+            assert!(
+                matches!(served, Ok(Ok(_))),
+                "the writer must still serve its queued read: {served:?}"
+            );
+            assert!(
+                sibling_reclaimed,
+                "one failed unlink must not block sibling reclamation"
+            );
+            assert!(
+                retained,
+                "failed cleanup must retain the path, blob and pending id"
+            );
+            assert_eq!((charged, still_charged), (100, 100));
+            if dispose {
+                state
+                    .discard_upload(Identity::Persona("alice".into()), id)
+                    .unwrap();
+            }
+            state.sweep_assets_now().unwrap();
+            assert_eq!(
+                state
+                    .runtime()
+                    .asset_staging_usage(&actor)
+                    .unwrap()
+                    .creator
+                    .bytes,
+                0
+            );
+            assert!(
+                !path.exists(),
+                "the exited worker's staging path must be retried"
+            );
+            assert!(state.blobs.get(id, None).is_err());
+            assert!(state.runtime().store().asset(id).unwrap().is_none());
+            if dispose {
+                assert_eq!(retry.unwrap_err().code, "E_OWNER_ASSET_IO");
+            } else {
+                retry.unwrap();
+            }
+            drop(state);
+            std::fs::remove_dir_all(root).unwrap();
+        }
+    }
+
+    #[test]
     fn reset_and_reclaim_return_asset_ids_to_the_owner() {
         assert_eq!(
             reset_response(7, vec!["asset-reset".to_owned()]),
@@ -664,7 +938,6 @@ mod tests {
                 ("asset".to_owned(), ArgType::Image { max: 1_000 }),
             ]),
             read_time_granularity_ms: None,
-            result_page_site: None,
             body: vec![Stmt::Insert {
                 table: "media".to_owned(),
                 row: Expr::Object(BTreeMap::from([
@@ -843,7 +1116,6 @@ mod tests {
                 ("asset".to_owned(), ArgType::Image { max: 1_000 }),
             ]),
             read_time_granularity_ms: None,
-            result_page_site: None,
             body: vec![Stmt::Insert {
                 table: "media".to_owned(),
                 row: Expr::Object(BTreeMap::from([

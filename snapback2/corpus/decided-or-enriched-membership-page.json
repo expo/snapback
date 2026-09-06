@@ -205,7 +205,6 @@
     "kind": "Query",
     "args": {},
     "read_time_granularity_ms": null,
-    "result_page_site": "members.page",
     "body": [
       {
         "Let": {
@@ -338,7 +337,7 @@
   },
   "certificate": {
     "program": "decided-or-enriched-membership-page",
-    "plan_hash": "c29e0835a8d1cc5d3971eddfd9c5c034fbf55f231b1486fbdb3b859a4d8aad57",
+    "plan_hash": "b5ca1b01e6b09361fdbe3f68ce4f4986ee2b8dcbedaaa0ca64e706276b96f5b8",
     "schema_hash": "e74e143b7d5b445620d3831ec57582d8f711c631f455d3dbb432474777162e10",
     "tables": {
       "conversations": {
@@ -382,19 +381,6 @@
         "complete": false
       }
     ],
-    "result_page_site": {
-      "site": "members.page",
-      "table": "memberships",
-      "index": "byPrincipalConversation",
-      "order": "Asc",
-      "suffix": [
-        {
-          "name": "conversationId",
-          "kind": "Id"
-        }
-      ],
-      "merge": false
-    },
     "write_sites": [],
     "maintained_amplification": 0,
     "constraint_checks": [],

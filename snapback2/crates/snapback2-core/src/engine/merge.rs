@@ -31,6 +31,9 @@ impl Runner<'_> {
         &mut self,
         merge: &Merge,
     ) -> Result<Vec<TrackedValue>, RuntimeError> {
+        for lane in &merge.lanes {
+            self.validate_scan_cursor(&lane.scan)?;
+        }
         let mut lanes = Vec::new();
         let mut prefixes = BTreeSet::new();
         for lane in &merge.lanes {
@@ -159,9 +162,9 @@ impl Runner<'_> {
         let page = self
             .certificate
             .unwrap()
-            .result_page_site
-            .as_ref()
-            .filter(|page| page.merge && page.site == merge.site);
+            .result_pages
+            .values()
+            .find(|page| page.merge && page.site == merge.site);
         let last_returned_suffix = page
             .and_then(|page| {
                 returned.last().map(|row| {
@@ -400,7 +403,7 @@ mod tests {
             let Stmt::Return(Expr::Merge(merge)) = &mut program.body[0] else {
                 unreachable!()
             };
-            program.result_page_site = Some(merge.site.clone());
+
             for lane in &mut merge.lanes {
                 lane.scan.opaque_cursor = true;
                 lane.scan.after = Some(Box::new(Expr::Variable("c".into())));

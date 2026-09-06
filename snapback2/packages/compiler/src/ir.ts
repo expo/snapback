@@ -119,7 +119,6 @@ export type Program = {
   kind: ProgramKind;
   args: Record<string, ArgType>;
   read_time_granularity_ms: number | null;
-  result_page_site?: string | null;
   body: Stmt[];
 };
 

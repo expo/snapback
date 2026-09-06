@@ -9,8 +9,8 @@ inspection copy in `.snapback/build/quarry/`, and puts no generated files in `sn
 Other `.q` files hold operations or reusable shapes; stems are API namespaces:
 `snapback/messages.q` exports `api.messages.thread`.
 
-TypeScript under `snapback/` is limited to `seed.ts`, `tests/*.test.ts`, and
-effect modules that export effects only. Effect bodies remain JavaScript I/O;
+TypeScript in `snapback/` is limited to `seed.ts`, `tests/*.test.ts`, and
+modules exporting only effects. Effect bodies are JavaScript I/O;
 tables, rules, channels, maintains, queries, and mutations are Quarry. An
 effect module's stem must differ from every `.q` stem.
 
@@ -32,7 +32,7 @@ adds integer-millisecond `duration`. Both admit `?` and bounded lists, but no
 indexes or `maintain.by`. `once` is image-column-only, never on arguments.
 Authenticated readers get one original 200, `private, no-store`;
 anonymous gets 404 on public rows too. HEAD is free; width, Range and
-conditionals cannot bypass 410 `E_ASSET_VIEWED`. Video `once` refuses. Add `once`: prior views unrecorded; removal is destructive.
+conditionals cannot bypass 410 `E_ASSET_VIEWED`. Recovery: `guide operator`. Add `once`: prior views unrecorded; removal is destructive.
 
 ```q
 mutation inspect(photo: image <=5000000, clip: video <=50000000):
@@ -117,10 +117,8 @@ need a complete unique key. Range order is `[after cursor] first|last N
 `by index`; `exists table[keys]` accepts an index prefix. Shapes use `{ * }`,
 bare fields, or `name: expression`; nested point reads keep the page's
 `complete`/`capped` state; hidden rows yield `null`; any early exit,
-count, or `require` refuses. Byte ceilings
-bound canonical JSON: a shape is priced by the fields it selects and `*` by
-every column at its declared maximum (text at `4·max + 16` bytes), so focused
-shapes certify larger pages. `first N` scans ascending; `last N` scans descending.
+count, or `require` refuses. Byte ceilings price canonical JSON by selected fields (`*` selects all),
+at declared maxima (text: `4·max + 16` bytes). `first N` scans ascending; `last N` scans descending.
 
 `shape card = { fields }` defines a reusable shape for `row card`, `page card`,
 or a field value; `...card` splices it. `shape card from cards` imports
@@ -129,13 +127,16 @@ in their defining module. Shapes use the focal row and context built-ins, never
 caller arguments or locals. Expansion keeps definition sites, refuses cycles, and is bounded (depth 8,
 4,096 nodes).
 
-A pageable query declares `c: cursor ?` and reads `after c`; absent means page
-one. `complete` and `capped` results carry `next`, either a server-minted opaque
-cursor or `null`. Pass it back unchanged; it encodes table, index, order, the typed suffix, and
-the last returned row, never a hidden examined position. A mismatched or noncanonical token is `E_INPUT` before any scan.
-Tokens are not operation-site-bound. The index must be total (end in `id` or be
-unique); `after` follows scan order.
-Local `partial` results clear `next` for every query.
+`after` follows scan order: `after c` with `c: cursor ?`; `null` starts page one.
+Pass `next` unchanged. It encodes table/index/order, typed suffix, and last returned
+row, never a hidden position. `E_INPUT` rejects noncanonical arguments before
+execution and scope mismatches before the selected page or merge discovery.
+Tokens may cross sites; indexes must end in `id` or be unique.
+
+An `if`/`else` can return a range or merge through aliases and shapes.
+`next` follows that return, never an auxiliary read; shapes may omit index
+columns. Reset `c` when changing index/order. Non-page and local `partial`
+results have no continuation.
 
 `merge table [after cursor] first|last N by index:` fan-ins one or more structurally
 distinct `[prefix keys]` lanes (named or positional), optionally `for name in` a

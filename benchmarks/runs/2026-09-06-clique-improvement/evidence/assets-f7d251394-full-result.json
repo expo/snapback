@@ -1,0 +1,23 @@
+{
+  "sha": "f7d25139496dc9f05cba33bb73e829b6e955ff28",
+  "pre_status": "",
+  "command": "scripts/test.sh",
+  "started": "2026-09-06T07:50:59.141200+00:00",
+  "load_before": [
+    26.3447265625,
+    13.33984375,
+    11.90673828125
+  ],
+  "nextest": "cargo-nextest 0.9.143\nrelease: 0.9.143\nhost: aarch64-apple-darwin",
+  "log": "/tmp/clique-assets-f7d251394-full.log",
+  "pid": 16322,
+  "status": 0,
+  "seconds": 199.533,
+  "finished": "2026-09-06T07:54:18.686065+00:00",
+  "load_after": [
+    29.56884765625,
+    23.49853515625,
+    16.6162109375
+  ],
+  "post_status": ""
+}

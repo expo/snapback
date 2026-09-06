@@ -24,7 +24,6 @@ fn program(name: &str, kind: ProgramKind, body: Vec<Stmt>) -> Program {
         args: BTreeMap::new(),
         body,
         read_time_granularity_ms: (kind == ProgramKind::Query).then_some(1),
-        result_page_site: None,
     }
 }
 fn sweep(table: &str, body: Vec<Stmt>) -> Stmt {

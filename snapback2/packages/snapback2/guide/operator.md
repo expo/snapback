@@ -28,3 +28,28 @@ its null count and up to ten IDs; absent fields count as null. The primary site
 names the first conflict in table/column order. Its pasted fill job accepts the
 typed replacement value as an argument. A refused
 application keeps the previous generation and appears in `dev --status --json`.
+
+## Recovering abandoned media uploads
+
+Clients accept a browser `File` or Expo picker `{ uri, size?/fileSize? }` directly
+in asset arguments: `client.mutation(api.messages.sendPhoto, { conversationId, photo: file })`.
+Uploads from that call are discarded after a definitive refusal, sibling failure,
+or failed outbox admission/prediction before persistence. Queued intents and
+ambiguous network or storage outcomes retain their uploads for replay.
+
+For two-phase progress UIs, use `client.upload(file, { kind: "image", onProgress })`.
+To recover abandoned uploads (including after an owner restart), authenticate as
+the same account and inspect `await client.listUploads()`: `uploads` gives id,
+kind, state, bytes and creation time; `usage` and `limits` give byte/object counts.
+Pass `{ after: page.next }` for the next page when `next` is non-null. Explicitly
+release an abandoned id with `await client.discardUpload(id)`; the writer refuses
+`E_ASSET_IN_USE` if any row claims it. Missing/foreign ids return `false`.
+Only discard uploads whose pending mutation or queued intent you have abandoned.
+Disposal closes a receiving body's staging file and fences late body writes before
+freeing quota. A finalizer already running keeps its charge until its files close;
+`usage` shows that pending charge. Ready uploads release quota immediately and
+the existing sweep removes their blobs. Cleanup session expiry does not replace
+an already settled mutation result.
+Otherwise unclaimed uploads expire after 24 hours. `E_ASSET_TOO_LARGE` names the
+current usage and recovery call when the staging ceiling, rather than the column
+bound, was reached. Other accounts must recover their own staging allowance.

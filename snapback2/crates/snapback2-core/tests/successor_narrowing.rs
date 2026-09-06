@@ -52,7 +52,6 @@ fn read_values(runtime: &mut Runtime) -> Value {
         kind: ProgramKind::Query,
         args: BTreeMap::new(),
         read_time_granularity_ms: None,
-        result_page_site: None,
         body: vec![Stmt::Return(Expr::Scan(Scan {
             site: "items".into(),
             table: "items".into(),

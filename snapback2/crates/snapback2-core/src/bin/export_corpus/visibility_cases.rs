@@ -374,7 +374,6 @@ fn membership_page(name: &str, merge: bool) -> Program {
         args: BTreeMap::new(),
         body,
         read_time_granularity_ms: None,
-        result_page_site: Some(if merge { "words.merge" } else { "members.page" }.into()),
     }
 }
 

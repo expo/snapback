@@ -9,17 +9,17 @@ import {
   isBlobLike,
   isBrowserFile,
   isNativeAssetSource,
-  prepareAssetSource,
+  prepareAssetSource, mayNeedAssetPlanning, planAssetArguments, substituteAssetRecords,
   preparedBody,
   withProgress,
   type PreparedAssetSource,
 } from "./assets.js";
 import { assetBlobTarget, cachedAssetBlob, cachedAssetBytes, viewedAssetIds, type AssetBlobTarget } from "./client-assets.js";
 import { offlineNetworkRefusal } from "./client-offline.js";
-import { SnapbackRefusal, isSnapbackRefusal, responseRefusal, wireAssetSession } from "./client-wire.js";
+import { SnapbackRefusal, isSnapbackRefusal, responseRefusal, wireAssetSession, wireObject, wireShape, withAbort } from "./client-wire.js";
 import type { AssetBytes, AssetFetchOptions, ByteCache } from "./store/byte-cache.js";
 import type {
-  AssetRecord,
+  AssetRecord, Manifest, MutationResult, UploadListing,
   AssetUploadOptions,
   AssetUploadSource,
   AssetUrlOptions,
@@ -57,6 +57,87 @@ export interface UploadHost {
   validated(authority: Authority | undefined): void;
   networkRefusal(message: string): SnapbackRefusal;
   transportRefusal(message: string): SnapbackRefusal;
+}
+
+/** Recovery uses normal principal authentication, never a media session carrier. */
+export async function listUploadsFor(host: UploadHost, options: { after?: string }, authority: Authority): Promise<UploadListing> {
+  const query = options.after === undefined ? "" : `?after=${encodeURIComponent(options.after)}`;
+  const result = wireObject(await host.json(`/api/uploads${query}`, { method: "GET" }, authority), "upload listing");
+  const count = (value: unknown) => Number.isSafeInteger(value) && Number(value) >= 0;
+  for (const key of ["usage", "limits"]) {
+    const usage = wireObject(result[key], `upload listing.${key}`);
+    if (!count(usage.bytes) || !count(usage.objects)) throw wireShape(`upload listing.${key} must contain byte and object counts`);
+  }
+  if (!Array.isArray(result.uploads) || result.uploads.length > 100) throw wireShape("upload listing.uploads must contain at most 100 uploads");
+  for (const value of result.uploads) {
+    const upload = wireObject(value, "unclaimed upload");
+    if (typeof upload.id !== "string" || !upload.id || (upload.kind !== "image" && upload.kind !== "video")
+      || (upload.state !== "receiving" && upload.state !== "ready") || !count(upload.bytes)
+      || !Number.isSafeInteger(upload.createdAt)) throw wireShape("invalid unclaimed upload");
+  }
+  if (result.next !== null && (typeof result.next !== "string" || !result.next)) throw wireShape("upload listing.next must be a cursor or null");
+  return result as unknown as UploadListing;
+}
+
+export async function discardUploadFor(host: UploadHost, id: string, authority: Authority, signal?: AbortSignal): Promise<boolean> {
+  const result = wireObject(await host.json("/api/uploads/discard", {
+    method: "POST", body: JSON.stringify({ id }), signal,
+  }, authority), "discard upload response");
+  if (typeof result.discarded !== "boolean") throw wireShape("discard upload response.discarded must be a boolean");
+  return result.discarded;
+}
+
+async function discardAutomaticUploads(host: UploadHost, records: readonly AssetRecord[], authority: Authority): Promise<void> {
+  // Best effort with a bounded wait. Lost credentials/transport leave discoverable
+  // uploads; cleanup must not replace the mutation's original result or error.
+  for (const record of records) {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 2_000);
+    try { await withAbort(controller.signal, () => discardUploadFor(host, record.id, authority, controller.signal)); }
+    catch { /* Explicit recovery and the grace sweep remain available. */ }
+    finally { clearTimeout(timer); }
+  }
+}
+
+// @ref LLP 1006#10-clients — substitute under the descriptor fence and dispose
+// only uploads made by this call after a definitive refusal or before submission.
+export async function withMutationUploads<Result>(
+  host: UploadHost, operation: string, args: unknown, authority: Authority,
+  manifest: () => Promise<Manifest>,
+  submit: (args: unknown, onCustody: (kind: "wire" | "outbox") => void) => Promise<MutationResult<Result>>,
+): Promise<MutationResult<Result>> {
+  const records: AssetRecord[] = [];
+  let custody: "wire" | "outbox" | undefined;
+  try {
+    let mutationArgs = args;
+    if (mayNeedAssetPlanning(args)) {
+      const descriptorManifest = await manifest();
+      const descriptor = descriptorManifest.ops[operation]?.args;
+      if (descriptor === undefined) throw assetInput(host, new AssetInputError("E_ASSET_TYPE",
+        `manifest generation ${descriptorManifest.generation} has no argument descriptor for ${operation}`));
+      const placements = await planAssetArguments(args, descriptor)
+        .catch((error) => { throw assetInput(host, error); });
+      if (placements.length > 0) {
+        for (const placement of placements) records.push(await uploadPrepared(host, placement.prepared, {}, authority));
+        const current = await manifest();
+        if (current.generation !== descriptorManifest.generation) throw assetInput(host, new AssetInputError("E_ASSET_NOT_READY",
+          `descriptor generation changed from ${descriptorManifest.generation} to ${current.generation} during asset upload`));
+        mutationArgs = substituteAssetRecords(args, placements, records);
+      }
+    }
+    const result = await submit(mutationArgs, (kind) => { custody = kind; });
+    if (result.state === "rejected") await discardAutomaticUploads(host, records, authority);
+    return result;
+  } catch (error) {
+    // Admission/prediction failures precede custody. Once persistence or the
+    // network is attempted, ambiguous failures retain bytes for possible replay.
+    if (custody === undefined || (custody === "wire" && isSnapbackRefusal(error) && !error.retryable
+      && error.code !== "E_WIRE_SHAPE" && error.status !== undefined && error.status >= 400 && error.status < 500)) {
+      await discardAutomaticUploads(host, records, authority);
+      if (isSnapbackRefusal(error)) host.recordRefusal(error.envelope);
+    }
+    throw error;
+  }
 }
 
 export async function uploadAsset(
@@ -214,6 +295,7 @@ export async function uploadPrepared(
     const record = assetRecord(value);
     const produced = Object.hasOwn(record, "duration") ? "video" : "image";
     if (options.kind && options.kind !== produced) {
+      await discardAutomaticUploads(host, [record], authority);
       throw new AssetInputError("E_ASSET_TYPE", `upload produced ${produced === "image" ? "an image" : "a video"} asset but kind ${options.kind} was requested`);
     }
     host.validated(authority);

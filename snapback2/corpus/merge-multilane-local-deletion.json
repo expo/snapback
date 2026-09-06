@@ -119,7 +119,6 @@
       }
     },
     "read_time_granularity_ms": null,
-    "result_page_site": "merge.review",
     "body": [
       {
         "Return": {
@@ -190,7 +189,7 @@
   },
   "certificate": {
     "program": "merge.review",
-    "plan_hash": "4dbf59aaf078ba8a667d01cde8ba2089ae5e6379a2b5534284867f83bc2d1897",
+    "plan_hash": "3dcb1c35a8fda338cdd6b9d4d0fa210f1e21e396d152fcaf80e2f67eb6a579bc",
     "schema_hash": "f7c842236978e842a20695dbea23d49d1277bd8bdbc0c342ee6422331cb188f8",
     "tables": {
       "follows": {
@@ -243,22 +242,24 @@
         "uniform": true
       }
     ],
-    "result_page_site": {
-      "site": "merge.review",
-      "table": "posts",
-      "index": "byAuthorAt",
-      "order": "Asc",
-      "suffix": [
-        {
-          "name": "at",
-          "kind": "Int"
-        },
-        {
-          "name": "id",
-          "kind": "Id"
-        }
-      ],
-      "merge": true
+    "result_pages": {
+      "0": {
+        "site": "merge.review",
+        "table": "posts",
+        "index": "byAuthorAt",
+        "order": "Asc",
+        "suffix": [
+          {
+            "name": "at",
+            "kind": "Int"
+          },
+          {
+            "name": "id",
+            "kind": "Id"
+          }
+        ],
+        "merge": true
+      }
     },
     "write_sites": [],
     "maintained_amplification": 0,

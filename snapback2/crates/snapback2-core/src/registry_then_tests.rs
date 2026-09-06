@@ -118,7 +118,6 @@ fn timed_then_generation() -> Generation {
                     kind: ProgramKind::Mutation,
                     args: BTreeMap::new(),
                     read_time_granularity_ms: None,
-                    result_page_site: None,
                     body: vec![Stmt::Emit {
                         effect: "clock.effect".to_owned(),
                         payload: Expr::Literal(Value::Null),
@@ -129,7 +128,6 @@ fn timed_then_generation() -> Generation {
                     kind: ProgramKind::Mutation,
                     args: BTreeMap::new(),
                     read_time_granularity_ms: None,
-                    result_page_site: None,
                     body: vec![Stmt::Require {
                         condition: Expr::Binary {
                             op: crate::ir::BinaryOp::Gte,

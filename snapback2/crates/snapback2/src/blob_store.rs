@@ -1,7 +1,7 @@
 //! Streaming blob custody for local Snapback 2 assets.
 
 use crate::protocol::Refusal;
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
 use std::fs::{self, File, OpenOptions};
 use std::io::{self, Read, Seek, SeekFrom, Write};
 use std::path::{Path, PathBuf};
@@ -58,6 +58,7 @@ pub struct FileBlobStore {
 #[derive(Clone, Debug)]
 pub struct LocalStaging {
     staging: PathBuf,
+    uploads: Arc<Mutex<BTreeMap<String, UploadCustody>>>,
 }
 
 impl FileBlobStore {
@@ -88,7 +89,26 @@ impl LocalStaging {
         let owner = project.join(".snapback");
         let staging = secure_child_directory(&owner, "staging")?;
         sweep_named_temporaries(&staging, is_staging_temporary)?;
-        Ok(Self { staging })
+        Ok(Self {
+            staging,
+            uploads: Default::default(),
+        })
+    }
+
+    pub fn register_upload(&self, id: String, custody: UploadCustody) {
+        self.uploads
+            .lock()
+            .expect("uploads lock")
+            .insert(id, custody);
+    }
+
+    pub fn cancel_upload(&self, id: &str) -> Result<bool, Refusal> {
+        let custody = self.uploads.lock().expect("uploads lock").get(id).cloned();
+        custody.map_or(Ok(true), |custody| custody.cancel())
+    }
+
+    pub fn finish_upload(&self, id: &str) {
+        self.uploads.lock().expect("uploads lock").remove(id);
     }
 
     pub fn create(&self) -> Result<StagingFile, Refusal> {
@@ -392,12 +412,122 @@ impl Drop for ActivePut {
     }
 }
 
+// @ref LLP 1006#9-lifecycle-finalize-off-the-writer-and-reclamation — disposal closes receiving bytes under the write lock; off-writer finalization retains custody until its file is removed.
+#[derive(Clone, Debug)]
+pub struct UploadCustody(Arc<Mutex<UploadBytes>>);
+
+#[derive(Debug)]
+struct UploadBytes {
+    receiving: Option<StagingFile>,
+    cancelled: bool,
+    finished: bool,
+}
+
+impl UploadCustody {
+    pub fn new(file: StagingFile) -> Self {
+        Self(Arc::new(Mutex::new(UploadBytes {
+            receiving: Some(file),
+            cancelled: false,
+            finished: false,
+        })))
+    }
+
+    pub fn copy_from(&self, input: &mut dyn Read) -> io::Result<u64> {
+        let mut total = 0;
+        let mut buffer = [0_u8; 64 * 1024];
+        loop {
+            if self.0.lock().expect("upload custody lock").cancelled {
+                return Err(io::Error::new(
+                    io::ErrorKind::Interrupted,
+                    "upload was discarded",
+                ));
+            }
+            // Never hold custody while waiting on a paused socket. Disposal
+            // can close and unlink the file; this read cannot write afterwards.
+            let read = input.read(&mut buffer)?;
+            let mut bytes = self.0.lock().expect("upload custody lock");
+            if bytes.cancelled {
+                return Err(io::Error::new(
+                    io::ErrorKind::Interrupted,
+                    "upload was discarded",
+                ));
+            }
+            if read == 0 {
+                return Ok(total);
+            }
+            bytes
+                .receiving
+                .as_mut()
+                .expect("receiving upload")
+                .file_mut()
+                .write_all(&buffer[..read])?;
+            total += read as u64;
+        }
+    }
+
+    pub fn finalize(&self) -> Result<StagingFile, Refusal> {
+        let mut bytes = self.0.lock().expect("upload custody lock");
+        if bytes.cancelled {
+            return Err(Refusal::new(
+                "E_ASSET_NOT_READY",
+                "input",
+                "upload was discarded",
+                "upload the media again if it is still wanted",
+                "operator",
+            ));
+        }
+        // The worker owns the file while finalization runs. Cancellation marks
+        // intent but must retain quota until that worker closes/removes its bytes.
+        Ok(bytes.receiving.take().expect("receiving upload"))
+    }
+
+    pub fn cancel(&self) -> Result<bool, Refusal> {
+        let mut bytes = self.0.lock().expect("upload custody lock");
+        bytes.cancelled = true;
+        if let Some(file) = &mut bytes.receiving {
+            file.discard()?;
+            bytes.receiving = None;
+            bytes.finished = true;
+        }
+        Ok(bytes.finished)
+    }
+
+    pub fn finish(&self, finalizing: Option<StagingFile>) -> Result<(), Refusal> {
+        let mut bytes = self.0.lock().expect("upload custody lock");
+        // The worker has stopped using this file. Return custody before deletion:
+        // a failed unlink must retain its path for disposal or the grace sweep.
+        bytes.cancelled = true;
+        if let Some(file) = finalizing {
+            bytes.receiving = Some(file);
+        }
+        if let Some(file) = &mut bytes.receiving {
+            file.discard()?;
+        }
+        bytes.receiving = None;
+        bytes.finished = true;
+        Ok(())
+    }
+}
+
+#[derive(Debug)]
 pub struct StagingFile {
     path: PathBuf,
     file: Option<File>,
 }
 
 impl StagingFile {
+    pub fn discard(&mut self) -> Result<(), Refusal> {
+        self.file.take();
+        match fs::remove_file(&self.path) {
+            Ok(()) => Ok(()),
+            Err(error) if error.kind() == io::ErrorKind::NotFound => Ok(()),
+            Err(error) => Err(asset_io(
+                format!("cannot discard staging file: {error}"),
+                "repair .snapback/staging permissions and retry disposal",
+            )),
+        }
+    }
+
     pub fn path(&self) -> &Path {
         &self.path
     }
@@ -432,7 +562,7 @@ impl StagingFile {
 
 impl Drop for StagingFile {
     fn drop(&mut self) {
-        let _ = fs::remove_file(&self.path);
+        let _ = self.discard();
     }
 }
 

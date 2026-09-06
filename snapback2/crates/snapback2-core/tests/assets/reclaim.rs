@@ -202,9 +202,19 @@ fn durable_staging_charge_covers_guest_churn_claim_reclaim_and_restart() {
             .asset_staging_usage(&user("guest-0"))
             .unwrap()
             .global,
-        AssetStagingUsage::default()
+        AssetStagingUsage {
+            bytes: u64::from(STAGING_GLOBAL_OBJECTS),
+            objects: STAGING_GLOBAL_OBJECTS
+        }
     );
     runtime.finish_asset_reclaims(&reclaiming).unwrap();
+    assert_eq!(
+        runtime
+            .asset_staging_usage(&user("guest-0"))
+            .unwrap()
+            .global,
+        AssetStagingUsage::default()
+    );
 
     let photo_id = runtime
         .begin_asset_charged(AssetKind::Image, &claimed_actor, 1, 10)
@@ -318,4 +328,90 @@ fn finalized_growth_cannot_cross_the_durable_staging_byte_cap() {
         runtime.store().asset(&id).unwrap().unwrap().state,
         AssetState::Receiving
     );
+}
+
+#[test]
+fn explicit_discard_fences_late_finalize_and_claim_without_touching_another_creator() {
+    let generation = generation(
+        schema_with(table_with(
+            "photo",
+            ColumnType::Image {
+                max: 1_000,
+                once: false,
+            },
+        )),
+        vec![insert_program("photo", ArgType::Image { max: 1_000 })],
+    );
+    let mut runtime = Runtime::open(Store::memory().unwrap(), generation).unwrap();
+    let alice = user("alice");
+    let bob = user("bob");
+    let receiving = runtime
+        .begin_asset_charged(AssetKind::Image, &alice, 0, 100)
+        .unwrap();
+    assert!(!runtime.discard_upload(&bob, &receiving).unwrap());
+    assert_eq!(
+        runtime.asset_staging_usage(&alice).unwrap().creator.objects,
+        1
+    );
+    assert!(runtime.discard_upload(&alice, &receiving).unwrap());
+    assert_eq!(
+        runtime.asset_staging_usage(&alice).unwrap().creator.objects,
+        1
+    );
+    assert!(
+        runtime
+            .reserve_asset_finalized_bytes(&receiving, 100)
+            .is_err()
+    );
+
+    // A receiving tombstone retains its reservation until the worker reports
+    // that physical custody ended; a marker alone cannot release disk quota.
+    runtime.mark_asset_failed(&receiving).unwrap();
+    assert_eq!(
+        runtime.asset_staging_usage(&alice).unwrap().creator.objects,
+        0
+    );
+    let photo = image(&mut runtime, &alice, 50, 10, 20);
+    let id = asset_id(&photo);
+    assert!(runtime.discard_upload(&alice, &id).unwrap());
+    assert_state(
+        runtime
+            .execute(
+                "media.insert",
+                Context::mutation(alice.clone(), args("row-1", photo)),
+            )
+            .unwrap(),
+        "E_ASSET_NOT_READY",
+    );
+    let photo = image(&mut runtime, &alice, 50, 10, 20);
+    let claimed = asset_id(&photo);
+    assert!(matches!(
+        runtime
+            .execute(
+                "media.insert",
+                Context::mutation(alice.clone(), args("row-2", photo))
+            )
+            .unwrap()
+            .state,
+        ExecutionState::Committed { .. }
+    ));
+    assert!(!runtime.discard_upload(&bob, &claimed).unwrap());
+    assert!(matches!(
+        runtime.discard_upload(&alice, &claimed),
+        Err(RuntimeError::AssetInUse(_))
+    ));
+    assert!(
+        runtime
+            .store()
+            .asset(&claimed)
+            .unwrap()
+            .unwrap()
+            .locator
+            .is_some()
+    );
+    let reclaimed = runtime.reclaim_assets(0).unwrap();
+    assert!(reclaimed.contains(&receiving) && reclaimed.contains(&id));
+    assert!(!reclaimed.contains(&claimed));
+    runtime.finish_asset_reclaims(&reclaimed).unwrap();
+    assert!(!runtime.discard_upload(&alice, &id).unwrap());
 }

@@ -21,7 +21,7 @@ ultra, grok-4.6 at xhigh), `llp/reviews/1011-quarry-ergonomics.*`
 **Implementer:** codex gpt-5.6-sol (xhigh), lane `s2/quarry-ergo`
 (`~/projects/snapback-s2`), orchestrated and landed by Claude Fable 5.1
 **Date:** 2026-09-03
-**Revised:** 2026-09-05 (null keys and non-empty Id literals implemented by GPT-6 Astra, Clique L2); 2026-09-05 (d — Codex implements imported shapes, read-authorized
+**Revised:** 2026-09-06 (conditional page returns implemented by GPT-6 Astra; certification-derived provenance); 2026-09-05 (null keys and non-empty Id literals implemented by GPT-6 Astra, Clique L2); 2026-09-05 (d — Codex implements imported shapes, read-authorized
 write results, and order-preserving filter repairs under the author's request
 to advance Quarry); 2026-09-03 (c — implemented: §8 records the two lane commits
 and the one re-pinned expectation); 2026-09-03 (b — after the panel: `fn` deferred and `shape` kept;
@@ -121,12 +121,25 @@ chat `globalFeed`/`followingFeed`, Clique `globalFeed`/`followingFeed`/
   whose union exceeded N is `capped` and therefore mints — from the last
   returned merged row, a new anchor the merge trace records (today it
   records only the union length, `engine/runner.rs`, `DedupeById`).
-- **Page provenance.** The compiler tracks the result page from one scan or
-  merge through bindings and one-to-one shapes to the top-level `return`,
-  and records that site in the certificate as the operation's
-  **result-page site**. Two scans in `if`/`else`, a page nested inside an
-  object, or a page consumed by `for` yield no site and no `next`; the
-  reference says so. A merge's site is the merge site.
+- **Page provenance (implemented amendment, 2026-09-06).** The Rust
+  certifier derives a map from structural return paths to result-page sites
+  directly from the IR. The compiler's single-site hint and duplicate
+  provenance pass are removed. Each `if`/`else` or early-return branch can
+  return its own range or merge, through branch-local bindings and one-to-one
+  shapes, including nullable point enrichment. The engine and twin select the
+  map entry for the return that actually executed; an auxiliary page read
+  cannot select the cursor. The uniqueness proof visits every evaluated operand,
+  including `Get`/`Exists` keys, scan prefixes and bounds, and merge discovery
+  and lane operands. A repeated result-page site refuses with `E_TRACE_SUBSET`
+  even when its expressions are identical: reassigned bindings can make their
+  runtime positions differ. An overlong prefix also refuses page derivation
+  without losing the structural checker's accumulated diagnostics.
+  A shape collector must start empty and receive
+  exactly one unconditional push per row without early exits or other writes.
+  Nesting a page in an object, truncating/reordering it, or returning a
+  non-page value yields no cursor for that return. An unexecuted merge is not
+  counted as an unfinished union. The return path stays internal; result
+  shapes need not expose index columns and receipts gain no hidden position.
 - **The token.** Canonical, versioned, tagged: version, table, index, scan
   order, the exact remaining-suffix descriptor, and the suffix values typed
   by the index's columns — because the wire collapses ids and strings
@@ -137,7 +150,10 @@ chat `globalFeed`/`followingFeed`, Clique `globalFeed`/`followingFeed`/
   re-encoding. **Not bound to the site**: a token is a position in an
   index; two operations paging the same index with the same suffix
   descriptor may share one, and a descriptor mismatch is `E_INPUT` before
-  any scan.
+  the selected page or its merge lane discovery opens, even when discovery
+  would find no lanes. Canonical decoding of cursor arguments still happens
+  before execution. Scope validation follows executed control flow: a token
+  need not match an unselected branch's different index.
 - **Reads** take `after c` where `c` is an argument typed `cursor ?`:
   `posts[author] after c first 20 by byAuthorAt`. Absent means page one.
   The merge header takes the same; the token's suffix is applied unchanged

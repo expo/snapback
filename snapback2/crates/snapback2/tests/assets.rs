@@ -14,6 +14,8 @@ use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 mod common;
 #[path = "assets/once.rs"]
 mod once;
+#[path = "assets/recovery.rs"]
+mod recovery;
 
 static NEXT_ROOT: AtomicU64 = AtomicU64::new(0);
 
@@ -24,7 +26,13 @@ struct Owner {
 
 impl Owner {
     fn spawn(root: &Path, helper: &Path) -> Self {
-        let compiler = common::isolated_compiler(&root.join(".test-package"));
+        let package = root.join(".test-package");
+        let compiler = package.join("dist/compiler.mjs");
+        let compiler = if compiler.is_file() {
+            compiler
+        } else {
+            common::isolated_compiler(&package)
+        };
         let binary = env!("CARGO_BIN_EXE_snapback2");
         let mut child = Command::new(binary)
             .args(["dev", "--project"])

@@ -48,7 +48,6 @@ pub(super) fn add_incomplete_constraint_cases(cases: &mut Vec<CorpusCase>) {
         kind: ProgramKind::Mutation,
         args: BTreeMap::from([("slug".to_owned(), ArgType::Scalar)]),
         read_time_granularity_ms: None,
-        result_page_site: None,
         body: vec![Stmt::Insert {
             table: "items".to_owned(),
             row: Expr::Object(BTreeMap::from([
@@ -108,7 +107,6 @@ pub(super) fn add_incomplete_constraint_cases(cases: &mut Vec<CorpusCase>) {
         kind: ProgramKind::Mutation,
         args: BTreeMap::new(),
         read_time_granularity_ms: None,
-        result_page_site: None,
         body: vec![Stmt::Insert {
             table: "members".to_owned(),
             row: Expr::Object(BTreeMap::from([

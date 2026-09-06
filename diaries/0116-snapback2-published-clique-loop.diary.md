@@ -190,3 +190,47 @@ the restored custody. The exact review is retained with the run. This lane
 has reached the repository's three-round rule; further auth edits are held
 pending the author's explicit extension. Other implementation and benchmark
 work continues. No auth landing or publication is claimed.
+
+
+### Unattended continuation, 2026-09-06
+
+The author explicitly authorized unattended decisions and extending fix loops
+beyond three rounds for this session. Auth and cursor revisions resumed under
+Astra xhigh in their existing named lanes. Asset final revision and CLI help /
+migration discovery fixes continue independently. M5 now compiles and applies,
+with acceptance still pending. The builder reports a substantial search cost:
+Unicode prefix keys need application-maintained hashing/index writes because
+the published words primitive supplies ASCII whole words. This is a product
+design finding to evaluate after the run, not evidence that search acceptance
+has passed.
+
+
+Asset revision `f7d251394` fixes serialization-before-custody, retryable staging
+deletion after worker exit, and terminal-result cleanup ordering. All three
+residuals reproduced on preceding code; 99 JS and 62 Rust affected tests pass.
+The terminal HTTP 200 rejection is a supported client contract exercised by
+injected transport; the current owner normally returns HTTP 401 for an
+expired session. Independent final reviews and full verification remain.
+
+
+### M5 green, 2026-09-06
+
+Published0.0.6 passes the full frozen M5 web choreography, backed by the
+six-ID suite. Shared color/background, one-view behavior, warm-offline search
+and real five-minute expiry/reopen are exercised. Suite hash verified before
+retaining evidence. The builder corrected its Map serialization and web
+accessibility/image-root bridge after two application-red browser runs and
+one auth-setup fatal; these were recorded separately from platform friction.
+M6 is next; native simulator execution is still absent.
+
+
+### CLI improvement landing, 2026-09-06
+
+Both reviewers cleared the CLI help and executable migration recovery change.
+Full tests passed; the initial doctor timing miss is retained alongside a
+focused unchanged-binary comparison and one passing canonical warm check.
+The source delta integrates unchanged on main. Production0.0.7 qualification
+first stopped because staged doctor could not resolve declared TypeScript
+through Bun's isolated layout. Release preparation is provisioning the same
+locked dependencies through the supported hoisted layout and repeating the
+qualified path, without bypassing staged doctor or consumer isolation.

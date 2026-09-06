@@ -23,7 +23,7 @@ fn fixture(lanes: u32, take: u32) -> (Schema, Program) {
     own.source = None;
     own.binding.clear();
     merge.lanes.insert(0, own);
-    program.result_page_site = Some(merge.site.clone());
+
     program
         .args
         .insert("c".into(), ArgType::Optional(Box::new(ArgType::Cursor)));
@@ -301,7 +301,6 @@ fn merge_lookahead_preserves_capped_state_after_one_local_deletion() {
         kind: ProgramKind::Mutation,
         args: BTreeMap::new(),
         read_time_granularity_ms: None,
-        result_page_site: None,
         body: vec![Stmt::Delete {
             table: "posts".into(),
             key: Expr::Literal(Value::Id("f".into())),
@@ -464,7 +463,7 @@ fn merge_argument_take_uses_evaluated_page_size_and_completeness() {
 fn merge_prefix_collapse_includes_evaluated_after_before_and_range() {
     for bound in ["after", "before", "range"] {
         let (schema, mut program) = fixture(2, 3);
-        program.result_page_site = None;
+
         let Stmt::Return(Expr::Merge(merge)) = &mut program.body[0] else {
             unreachable!()
         };
@@ -566,4 +565,389 @@ fn partial_reexecute_clears_next_for_plain_scan() {
     assert!(matches!(state, LocalState::Partial(_)));
     assert_eq!(ids(&replay.result), ["p2", "p3"]);
     assert_eq!(replay.next, None);
+}
+
+#[test]
+fn page_provenance_is_derived_and_requires_an_unmodified_ordered_collector() {
+    let (schema, program) = fixture(2, 3);
+    let Stmt::Return(page) = &program.body[0] else {
+        unreachable!()
+    };
+    let push = Stmt::Push {
+        target: "rows".into(),
+        value: var("entry"),
+    };
+    for (name, initial, body, expected) in [
+        ("shape", Expr::Array(vec![]), vec![push.clone()], true),
+        (
+            "double-push",
+            Expr::Array(vec![]),
+            vec![push.clone(), push.clone()],
+            false,
+        ),
+        (
+            "truncated",
+            Expr::Array(vec![]),
+            vec![push.clone(), Stmt::Break],
+            false,
+        ),
+        (
+            "conditional-push",
+            Expr::Array(vec![]),
+            vec![Stmt::If {
+                condition: Expr::Literal(Value::Bool(true)),
+                then_body: vec![push.clone()],
+                else_body: vec![],
+            }],
+            false,
+        ),
+        (
+            "prepopulated",
+            Expr::Array(vec![Expr::Literal(Value::Null)]),
+            vec![push.clone()],
+            false,
+        ),
+        (
+            "overwritten",
+            Expr::Array(vec![]),
+            vec![
+                Stmt::Assign {
+                    name: "rows".into(),
+                    value: Expr::Array(vec![]),
+                },
+                push,
+            ],
+            false,
+        ),
+    ] {
+        let mut shaped = program.clone();
+        shaped.name = name.into();
+        shaped.body = vec![
+            Stmt::Const {
+                name: "page".into(),
+                value: page.clone(),
+            },
+            Stmt::Let {
+                name: "rows".into(),
+                value: initial,
+            },
+            Stmt::For {
+                binding: "entry".into(),
+                domain: LoopDomain::DerivedArray {
+                    value: var("page"),
+                    max: 3,
+                    bound_source: "page".into(),
+                },
+                body,
+            },
+            Stmt::Return(var("rows")),
+        ];
+        // A raw IR client cannot bless a lossy collector with the removed hint.
+        let mut encoded = serde_json::to_value(&shaped).unwrap();
+        encoded["result_page_site"] = serde_json::json!("merge.for-limit");
+        let forged: Program = serde_json::from_value(encoded).unwrap();
+        let certificate = Checker::new(&schema, Ceilings::default())
+            .check(&forged)
+            .unwrap();
+        assert_eq!(!certificate.result_pages.is_empty(), expected, "{name}");
+    }
+}
+
+#[test]
+fn repeated_page_site_cannot_select_an_auxiliary_scan_or_merge() {
+    let (schema, mut program) = fixture(2, 3);
+    let Stmt::Return(page) = &program.body[0] else { unreachable!() };
+    program.body = vec![
+        Stmt::Const { name: "returned".into(), value: page.clone() },
+        Stmt::Const { name: "auxiliary".into(), value: page.clone() },
+        Stmt::Return(var("returned")),
+    ];
+    let errors = Checker::new(&schema, Ceilings::default()).check(&program).unwrap_err();
+    assert_eq!(errors.code, "E_TRACE_SUBSET");
+}
+
+fn nested_auxiliary_page(operand: &str, duplicate: bool) -> (Schema, Program) {
+    let (mut schema, mut program) = fixture(2, 2);
+    schema.tables.get_mut("posts").unwrap().indexes.insert(
+        "byUniqueAt".into(),
+        Index {
+            columns: vec!["at".into()],
+            unique: true,
+        },
+    );
+    let Stmt::Return(Expr::Merge(merge)) = &program.body[0] else {
+        unreachable!()
+    };
+    let mut page = merge.lanes[0].scan.clone();
+    page.site = "page".into();
+    page.merge_site = None;
+    page.prefix = vec![var("who")];
+    page.order = Order::Asc;
+    let mut nested = page.clone();
+    if !duplicate {
+        nested.site = "nested".into();
+    }
+    let count = Expr::Builtin {
+        builtin: Builtin::Len,
+        args: vec![Expr::Scan(nested)],
+    };
+    let point = Read {
+        site: "point".into(),
+        table: "posts".into(),
+        index: "byUniqueAt".into(),
+        key: vec![count.clone()],
+        provenance: KeyProvenance::Computed,
+    };
+    let mut outer = page.clone();
+    outer.site = "outer".into();
+    outer.index = "byAt".into();
+    outer.prefix.clear();
+    outer.opaque_cursor = false;
+    outer.after = None;
+    let position = Expr::Array(vec![count.clone(), lit(Value::Id("boundary".into()))]);
+    let field = operand.rsplit('-').next().unwrap();
+    match field {
+        "prefix" => outer.prefix = vec![count.clone()],
+        "after" => outer.after = Some(Box::new(position.clone())),
+        "before" => outer.before = Some(Box::new(position)),
+        "gt" | "gte" | "lt" | "lte" => {
+            let mut range = Range {
+                gt: None,
+                gte: None,
+                lt: None,
+                lte: None,
+            };
+            *match field {
+                "gt" => &mut range.gt,
+                "gte" => &mut range.gte,
+                "lt" => &mut range.lt,
+                _ => &mut range.lte,
+            } = Some(Box::new(count));
+            outer.range = Some(range);
+        }
+        _ => {}
+    }
+    let auxiliary = if operand == "loop-prefix" {
+        Stmt::For {
+            binding: "unused".into(),
+            domain: LoopDomain::Page(outer),
+            body: vec![],
+        }
+    } else {
+        let value = if operand == "get" {
+            Expr::Get(point)
+        } else if operand == "exists" {
+            Expr::Exists(point)
+        } else if operand.starts_with("merge-") {
+            let mut lane = merge.lanes[0].clone();
+            lane.scan = if operand.starts_with("merge-scan-") {
+                outer.clone()
+            } else {
+                let mut scan = page.clone();
+                scan.site = "lane".into();
+                scan
+            };
+            lane.scan.merge_site = Some("auxiliary-merge".into());
+            lane.binding = "source".into();
+            lane.source = operand.starts_with("merge-source-").then_some(outer);
+            if operand == "merge-setup-get" {
+                lane.setup = vec![Stmt::Const {
+                    name: "point".into(),
+                    value: Expr::Get(point),
+                }];
+            }
+            Expr::Merge(Merge {
+                site: "auxiliary-merge".into(),
+                lanes: vec![lane],
+            })
+        } else {
+            Expr::Scan(outer)
+        };
+        Stmt::Const {
+            name: "auxiliary".into(),
+            value,
+        }
+    };
+    program.args.insert("a".into(), ArgType::Principal);
+    program.args.insert("b".into(), ArgType::Principal);
+    program.body = vec![
+        Stmt::Let {
+            name: "who".into(),
+            value: var("a"),
+        },
+        Stmt::Const {
+            name: "returned".into(),
+            value: Expr::Scan(page),
+        },
+        Stmt::Assign {
+            name: "who".into(),
+            value: var("b"),
+        },
+        auxiliary,
+        Stmt::Return(var("returned")),
+    ];
+    (schema, program)
+}
+
+#[test]
+fn nested_auxiliary_page_sites_are_refused_in_every_read_operand() {
+    let mut failures = Vec::new();
+    for operand in [
+        "get",
+        "exists",
+        "prefix",
+        "after",
+        "before",
+        "gt",
+        "gte",
+        "lt",
+        "lte",
+        "loop-prefix",
+        "merge-source-prefix",
+        "merge-source-after",
+        "merge-source-before",
+        "merge-source-gt",
+        "merge-source-gte",
+        "merge-source-lt",
+        "merge-source-lte",
+        "merge-scan-prefix",
+        "merge-scan-after",
+        "merge-scan-before",
+        "merge-scan-gt",
+        "merge-scan-gte",
+        "merge-scan-lt",
+        "merge-scan-lte",
+        "merge-setup-get",
+    ] {
+        let (schema, program) = nested_auxiliary_page(operand, true);
+        match Checker::new(&schema, Ceilings::default()).check_all(&program) {
+            Err(errors)
+                if errors.iter().any(|e| {
+                    e.code == "E_TRACE_SUBSET" && e.message.contains("result-page site page")
+                }) => {}
+            Ok(certificate) => {
+                let mut evidence = String::new();
+                if matches!(operand, "get" | "exists") {
+                    let mut engine = Engine::memory(schema).unwrap();
+                    for (author, base) in [("A", 0), ("B", 99)] {
+                        for n in 1..=3 {
+                            engine
+                                .seed("posts", entry(&format!("{author}{n}"), author, base + n))
+                                .unwrap();
+                        }
+                    }
+                    let mut context = ctx(None);
+                    context.args.extend([
+                        ("a".into(), Value::Id("A".into())),
+                        ("b".into(), Value::Id("B".into())),
+                    ]);
+                    let result = engine.execute(&program, &certificate, context).unwrap();
+                    evidence = format!(
+                        "; returned {:?}, cursor {:?}",
+                        ids(&result.result),
+                        cursor::decode_cursor(result.next.as_ref().unwrap())
+                            .unwrap()
+                            .values
+                    );
+                }
+                failures.push(format!("{operand}: accepted duplicate page site{evidence}"));
+            }
+            Err(errors) => failures.push(format!("{operand}: {errors:?}")),
+        }
+    }
+    assert!(failures.is_empty(), "{}", failures.join("\n"));
+}
+
+#[test]
+fn distinct_nested_auxiliary_page_preserves_returned_cursor_and_cross_operation_reuse() {
+    for operand in ["get", "exists"] {
+        let (schema, program) = nested_auxiliary_page(operand, false);
+        let certificate = Checker::new(&schema, Ceilings::default())
+            .check(&program)
+            .unwrap();
+        let mut engine = Engine::memory(schema.clone()).unwrap();
+        for (author, base) in [("A", 0), ("B", 99)] {
+            for n in 1..=3 {
+                engine
+                    .seed("posts", entry(&format!("{author}{n}"), author, base + n))
+                    .unwrap();
+            }
+        }
+        let context = |cursor| {
+            let mut context = ctx(cursor);
+            context.args.extend([
+                ("a".into(), Value::Id("A".into())),
+                ("b".into(), Value::Id("B".into())),
+            ]);
+            context
+        };
+        let first = engine
+            .execute(&program, &certificate, context(None))
+            .unwrap();
+        assert_eq!(ids(&first.result), ["A1", "A2"]);
+        assert_eq!(
+            cursor::decode_cursor(first.next.as_ref().unwrap())
+                .unwrap()
+                .values,
+            vec![Value::Int(2), Value::Id("A2".into())]
+        );
+        // The token is a position, so another operation and site can continue it.
+        let mut successor = program.clone();
+        successor.name = "other-operation".into();
+        let Stmt::Const {
+            value: Expr::Scan(scan),
+            ..
+        } = &mut successor.body[1]
+        else {
+            unreachable!()
+        };
+        scan.site = "other-page".into();
+        let other = Checker::new(&schema, Ceilings::default())
+            .check(&successor)
+            .unwrap();
+        let second = engine
+            .execute(&successor, &other, context(first.next))
+            .unwrap();
+        assert_eq!(ids(&second.result), ["A3"]);
+        assert_eq!(
+            cursor::decode_cursor(second.next.as_ref().unwrap())
+                .unwrap()
+                .values,
+            vec![Value::Int(3), Value::Id("A3".into())]
+        );
+        let terminal = engine
+            .execute(&successor, &other, context(second.next))
+            .unwrap();
+        assert!(ids(&terminal.result).is_empty());
+        assert_eq!(terminal.next, None);
+    }
+}
+
+#[test]
+fn malformed_opaque_page_prefix_returns_accumulated_diagnostics() {
+    let frozen: serde_json::Value = serde_json::from_str(include_str!(
+        "../../../corpus/opaque-cursor-complete-next-null.json"
+    ))
+    .unwrap();
+    let schema: Schema = serde_json::from_value(frozen["schema"].clone()).unwrap();
+    let mut program: Program = serde_json::from_value(frozen["program"].clone()).unwrap();
+    let Stmt::Return(Expr::Scan(scan)) = &mut program.body[0] else {
+        unreachable!()
+    };
+    scan.prefix = vec![lit(Value::Int(1)); 3];
+    let errors = Checker::new(&schema, Ceilings::default())
+        .check_all(&program)
+        .unwrap_err();
+    assert!(
+        errors
+            .iter()
+            .any(|e| e.code == "E_ARGS_TYPE" && e.message.contains("prefix supplies 3 components")),
+        "{errors:?}"
+    );
+    assert!(
+        errors
+            .iter()
+            .any(|e| e.code == "E_TRACE_SUBSET" && e.message.contains("result-page site")),
+        "{errors:?}"
+    );
 }

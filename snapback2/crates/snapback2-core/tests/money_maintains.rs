@@ -122,7 +122,6 @@ fn programs() -> Vec<Program> {
                 ("amount".to_owned(), money_arg),
             ]),
             read_time_granularity_ms: None,
-            result_page_site: None,
             body: add_body,
         },
         Program {
@@ -130,7 +129,6 @@ fn programs() -> Vec<Program> {
             kind: ProgramKind::Query,
             args: BTreeMap::from([("owner".to_owned(), ArgType::Principal)]),
             read_time_granularity_ms: None,
-            result_page_site: None,
             body: balance_expr(var("owner"), "balances.read"),
         },
     ]

@@ -150,7 +150,6 @@ fn generated_args_exercises_every_arg_type_variant() {
             ("scalar".to_owned(), ArgType::Scalar),
         ]),
         read_time_granularity_ms: None,
-        result_page_site: None,
         body: vec![snapback2_core::Stmt::Return(snapback2_core::Expr::Literal(
             Value::Null,
         ))],

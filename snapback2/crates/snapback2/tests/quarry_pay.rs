@@ -45,7 +45,6 @@ fn execute_share(
         kind: ProgramKind::Query,
         args: BTreeMap::new(),
         read_time_granularity_ms: None,
-        result_page_site: None,
         body: vec![Stmt::Return(Expr::Builtin {
             builtin: Builtin::DeterministicShare,
             args: vec![

@@ -8,7 +8,7 @@ import TestRenderer, { act } from "react-test-renderer";
 import { api, createClient, type SnapbackClient } from "../dist/client.mjs";
 import { SnapbackProvider, useAuth, useQuery, type UseAuthResult } from "../dist/react.mjs";
 
-import { fakeOwner, seededStore } from "./fake-owner.ts";
+import { DAY, fakeOwner, seededStore } from "./fake-owner.ts";
 import { nodeSqliteDriver, sqliteRangeStore } from "../dist/sqlite-test.mjs";
 
 (globalThis as any).IS_REACT_ACT_ENVIRONMENT = true;
@@ -265,23 +265,30 @@ test("HTTP 503 restoration retries, and authority replacement cancels the old ba
 });
 
 test("late terminal me evidence clears only custody that still holds that bearer", async () => {
-  for (const replacement of ["failed", "succeeded"] as const) {
+  for (const stage of ["fetch", "body"] as const) for (const replacement of ["failed", "succeeded"] as const) {
     const response = deferred<Response>();
+    const started = deferred<void>(), release = deferred<void>();
     const store = custody();
     const client = createClient({ url: "http://auth.test", tokenStore: store, fetch: async input => {
-      if (String(input).endsWith("/api/auth/me")) return response.promise;
+      if (String(input).endsWith("/api/auth/me")) {
+        if (stage === "fetch") return response.promise;
+        const terminal = refusal("E_AUTH_SESSION"), parse = terminal.json.bind(terminal);
+        terminal.json = async () => { started.resolve(); await release.promise; return parse(); };
+        return terminal;
+      }
       return replacement === "failed" ? refusal("E_AUTH_INVALID") : json({ token: "token-b", viewer: "bob", kind: "user" });
     } });
     try {
       await restored(client);
+      if (stage === "body") await started.promise;
       const login = client.auth.login({ email: "bob@example.com", password: "password" });
       if (replacement === "failed") await assert.rejects(login, (error: any) => error.code === "E_AUTH_INVALID");
       else await login;
-      response.resolve(refusal("E_AUTH_SESSION")); await flush();
+      response.resolve(refusal("E_AUTH_SESSION")); release.resolve(); await flush();
       assert.equal(store.load(), replacement === "failed" ? null : "token-b");
       assert.equal(client.snapshot.auth.state, replacement === "failed" ? "anonymous" : "authenticated");
       assert.equal(client.snapshot.auth.viewer, replacement === "failed" ? undefined : "bob");
-    } finally { response.resolve(refusal("E_AUTH_SESSION")); await client.close(); }
+    } finally { response.resolve(refusal("E_AUTH_SESSION")); release.resolve(); await client.close(); }
   }
 });
 
@@ -706,3 +713,570 @@ test("logout custody-clear failure cannot keep an authenticated view after clear
     assert.equal(client.snapshot.auth.retryAt, undefined);
   } finally { await client.close(); }
 });
+
+for (const outcome of ["failed", "successful"] as const) for (const timing of ["before hydrate", "pending me"] as const) {
+  test(`${outcome} startup login ${timing} restores metadata and resumes the durable outbox`, async context => {
+    const factory = offlineStore(context), owner = fakeOwner();
+    await seededStore(factory);
+    const seed = createClient({ url: "http://auth.test", as: "alice", offline: { store: factory }, fetch: owner.fetch });
+    await seed.ready;
+    await seed.offline();
+    const queued = await seed.mutation(api.deliveries.post, { conversationId: "conversation-1", body: "before restart" });
+    assert.equal(queued.state, "queued");
+    await seed.close();
+    context.mock.timers.enable({ apis: ["setTimeout", "Date"], now: Date.now() });
+    const started = deferred<void>(), oldResponse = deferred<Response>();
+    const paths: string[] = [];
+    let holdMe = timing === "pending me";
+    const client = createClient({ url: "http://auth.test", tokenStore: custody("dev:alice"), offline: { store: factory },
+      fetch: async (input, init) => {
+        const path = new URL(String(input)).pathname; paths.push(path);
+        if (path === "/api/auth/login" && outcome === "failed") return refusal("E_AUTH_INVALID");
+        if (path === "/api/auth/me" && holdMe) { holdMe = false; started.resolve(); return oldResponse.promise; }
+        return owner.fetch(input, init);
+      } });
+    try {
+      if (timing === "pending me") await started.promise;
+      const login = client.auth.login({ email: "alice@example.com", password: outcome === "failed" ? "wrong" : "password" });
+      if (outcome === "failed") await assert.rejects(login, (error: any) => error.code === "E_AUTH_INVALID");
+      else await login;
+      context.mock.timers.tick(1_000);
+      for (let i = 0; i < 20 && owner.executions.length === 0; i++) await flush();
+      assert.equal(client.snapshot.auth.state, "authenticated");
+      assert.equal(paths.filter(path => path === "/api/manifest").length, 1);
+      assert.equal(paths.filter(path => path === "/api/resume").length, 1);
+      assert.equal(owner.executions.length, 1, "restoration replays the held intent without online() or a mounted query");
+      assert.equal((owner.executions[0].args as any).body, "before restart");
+    } finally { oldResponse.resolve(me("dev:alice")); await client.close(); }
+  });
+}
+
+for (const action of ["login", "signup", "guest"] as const) {
+  test(`startup ${action} keeps installed custody successful when offline metadata fails`, async context => {
+    const metadata = deferred<Response>(), started = deferred<void>();
+    const client = createClient({ url: "http://auth.test", offline: { store: offlineStore(context) },
+      fetch: async input => {
+        if (new URL(String(input)).pathname === "/api/manifest") { started.resolve(); return metadata.promise; }
+        return json({ token: "token-b", viewer: "bob", kind: "user", authEpoch: 8 });
+      } });
+    let result: any;
+    const session = (action === "guest" ? client.auth.guest() : client.auth[action]({ email: "bob@example.com", password: "password" }))
+      .then(value => { result = value; });
+    // Attach the rejection observer before injecting a malformed response.
+    void session.catch(() => undefined);
+    try {
+      await started.promise; await flush();
+      assert.equal(client.snapshot.auth.state, "authenticated");
+      assert.equal(client.snapshot.token, "token-b");
+      metadata.resolve(json({ malformed: true }));
+      await session;
+      assert.equal(result?.token, "token-b", "a metadata failure cannot reject an installed session");
+      for (let i = 0; i < 10 && !client.snapshot.lastRefusal; i++) await flush();
+      assert.equal(client.snapshot.auth.state, "authenticated");
+      assert.equal(client.snapshot.auth.viewer, "bob");
+      assert.equal(client.snapshot.token, "token-b");
+      assert.equal(client.snapshot.lastRefusal?.code, "E_WIRE_SHAPE");
+    } finally { metadata.resolve(json({ malformed: true })); await session.catch(() => undefined); await client.close(); }
+  });
+}
+
+for (const outcome of ["failed", "successful"] as const) test(`held queries during a ${outcome} startup login wait for its authority`, async context => {
+  const factory = offlineStore(context);
+  await seededPrivateStore(factory);
+  const loginResponse = deferred<Response>(), started = deferred<void>();
+  const client = createClient({ url: "http://auth.test", tokenStore: custody("dev:alice"), offline: { store: factory },
+    fetch: async (input, init) => {
+      if (String(input).endsWith("/login")) { started.resolve(); return loginResponse.promise; }
+      if (new URL(String(input)).pathname === "/api/query") {
+        assert.equal(new Headers(init?.headers).get("Authorization"), "Bearer token-b");
+        return json({ state: "complete", data: ["bob's answer"], next: null, seq: 4 });
+      }
+      throw new TypeError("cut");
+    } });
+  const attempt = client.auth.login({ email: "bob@example.com", password: "password" });
+  const login = outcome === "failed" ? assert.rejects(attempt, (error: any) => error.code === "E_AUTH_INVALID") : attempt;
+  let settled = false;
+  let read: Promise<unknown> | undefined;
+  try {
+    await started.promise;
+    read = client.query(api.deliveries.inbox, { c: null }).then(value => { settled = true; return value; });
+    await flush(); await flush();
+    assert.equal(settled, false, "the predecessor's held answer cannot bypass an active login");
+    loginResponse.resolve(outcome === "failed" ? refusal("E_AUTH_INVALID")
+      : json({ token: "token-b", viewer: "bob", kind: "user", authEpoch: 8 }));
+    await login;
+    const held: any = await read;
+    assert.equal(held.state, "complete");
+    assert.deepEqual(held.data, outcome === "failed" ? [{ body: "Alice's private held message" }] : ["bob's answer"]);
+  } finally { loginResponse.resolve(refusal("E_AUTH_INVALID")); await login; await read?.catch(() => undefined); await client.close(); }
+});
+
+for (const failure of ["expired", "closed"] as const) test(`metadata cannot report session success after custody is ${failure}`, async context => {
+  const started = deferred<void>(), metadata = deferred<Response>();
+  const client = createClient({ url: "http://auth.test", offline: { store: offlineStore(context) },
+    fetch: async input => {
+      if (String(input).endsWith("/api/manifest")) { started.resolve(); return metadata.promise; }
+      return json({ token: "token-b", viewer: "bob", kind: "user", authEpoch: 8 });
+    } });
+  const login = assert.rejects(client.auth.login({ email: "bob@example.com", password: "password" }),
+    (error: any) => error.code === (failure === "expired" ? "E_AUTH_SESSION" : "E_CLIENT_CLOSED"));
+  try {
+    await started.promise;
+    if (failure === "closed") await client.close();
+    metadata.resolve(failure === "expired" ? refusal("E_AUTH_SESSION") : json({ malformed: true }));
+    await login;
+    if (failure === "expired") {
+      assert.equal(client.snapshot.auth.state, "anonymous");
+      assert.equal(client.snapshot.token, undefined);
+    }
+  } finally { metadata.resolve(refusal("E_AUTH_SESSION")); await login; await client.close(); }
+});
+
+async function queuedStartup(context: TestContext, bodies = ["held before startup"]) {
+  const factory = offlineStore(context), owner = fakeOwner();
+  await seededStore(factory);
+  const seed = createClient({ url: "http://auth.test", as: "alice", offline: { store: factory }, fetch: owner.fetch });
+  try {
+    await seed.ready; await seed.offline();
+    for (const body of bodies) await seed.mutation(api.deliveries.post, { conversationId: "conversation-1", body });
+  } finally { await seed.close(); }
+  return { factory, owner };
+}
+
+async function seededPrivateStore(factory: ReturnType<typeof offlineStore>) {
+  await seededStore(factory);
+  const store = factory();
+  await store.open("dev:alice");
+  try {
+    await store.commit({ deliveries: [{ op: "deliveries.inbox", args: { c: null }, state: "complete",
+      data: [{ body: "Alice's private held message" }], next: null, seq: 4, validator: "2".repeat(64),
+      receipt: { ranges: [], absences: [], verdicts: [] } }] });
+  } finally { await store.close?.(); }
+}
+
+test("startup session retries one failed metadata fetch through the pending recovery flight", async context => {
+  const { factory, owner } = await queuedStartup(context);
+  let manifests = 0;
+  const client = createClient({ url: "http://auth.test", tokenStore: custody("dev:alice"), offline: { store: factory },
+    fetch: async (input, init) => {
+      if (new URL(String(input)).pathname === "/api/manifest" && ++manifests === 1) throw new TypeError("one metadata cut");
+      return owner.fetch(input, init);
+    } });
+  try {
+    await client.auth.login({ email: "alice@example.com", password: "password" });
+    for (let i = 0; i < 20 && owner.executions.length === 0; i++) await flush();
+    assert.equal(manifests, 2);
+    assert.equal(owner.executions.length, 1);
+    assert.equal(client.snapshot.auth.state, "authenticated");
+  } finally { await client.close(); }
+});
+
+for (const outcome of ["failed", "successful"] as const) test(`live held reads wait for a ${outcome} startup login`, async context => {
+  const factory = offlineStore(context);
+  await seededPrivateStore(factory);
+  const started = deferred<void>(), loginResponse = deferred<Response>();
+  const events: any[] = [];
+  const client = createClient({ url: "http://auth.test", tokenStore: custody("dev:alice"), offline: { store: factory },
+    fetch: async input => {
+      if (String(input).endsWith("/login")) { started.resolve(); return loginResponse.promise; }
+      throw new TypeError("cut");
+    } });
+  const attempt = client.auth.login({ email: "bob@example.com", password: "password" });
+  const login = outcome === "failed" ? assert.rejects(attempt, (error: any) => error.code === "E_AUTH_INVALID") : attempt;
+  let subscription: ReturnType<SnapbackClient["subscribe"]> | undefined;
+  try {
+    await started.promise;
+    subscription = client.subscribe(api.deliveries.inbox, { c: null }, event => events.push(event));
+    await flush(); await flush();
+    assert.equal(events.some(event => event.data?.length), false, "live reads cannot flash predecessor rows during login");
+    loginResponse.resolve(outcome === "failed" ? refusal("E_AUTH_INVALID")
+      : json({ token: "token-b", viewer: "bob", kind: "user", authEpoch: 8 }));
+    await login; await flush(); await flush();
+    const data = events.flatMap(event => event.data ?? []);
+    assert.deepEqual(data, outcome === "failed" ? [{ body: "Alice's private held message" }] : []);
+  } finally { loginResponse.resolve(refusal("E_AUTH_INVALID")); await login; subscription?.close(); await client.close(); }
+});
+
+test("startup recovery waits for a queued successor login before choosing its bearer", async context => {
+  const { factory, owner } = await queuedStartup(context);
+  const bobStarted = deferred<void>(), bobResponse = deferred<Response>();
+  let resumes = 0;
+  const client = createClient({ url: "http://auth.test", tokenStore: custody("dev:alice"), offline: { store: factory },
+    fetch: async (input, init) => {
+      const path = new URL(String(input)).pathname;
+      if (path === "/api/auth/login" && JSON.parse(String(init?.body)).email.startsWith("bob")) {
+        bobStarted.resolve(); return bobResponse.promise;
+      }
+      if (path === "/api/resume") resumes++;
+      return owner.fetch(input, init);
+    } });
+  const alice = client.auth.login({ email: "alice@example.com", password: "password" });
+  const bob = client.auth.login({ email: "bob@example.com", password: "password" });
+  try {
+    await alice; await bobStarted.promise;
+    for (let i = 0; i < 10; i++) await flush();
+    assert.equal(resumes, 0, "Alice's recovery cannot dispatch after Bob's transition was queued");
+    assert.equal(owner.executions.length, 0);
+    bobResponse.resolve(json({ token: "token-b", viewer: "bob", kind: "user", authEpoch: 8 }));
+    await bob; await flush();
+    assert.equal(client.snapshot.auth.viewer, "bob");
+    assert.equal(owner.executions.length, 0, "replacement wipes Alice's queue without replaying it");
+  } finally { bobResponse.resolve(json({ token: "token-b", viewer: "bob", kind: "user", authEpoch: 8 })); await Promise.allSettled([alice, bob]); await client.close(); }
+});
+
+test("failed login during authenticated deferred resume restarts pending startup recovery", async context => {
+  const { factory, owner } = await queuedStartup(context);
+  const resumeStarted = deferred<void>(), oldResponse = deferred<Response>();
+  let resumes = 0, saved: Response | undefined;
+  const client = createClient({ url: "http://auth.test", tokenStore: custody("dev:alice"), offline: { store: factory },
+    fetch: async (input, init) => {
+      const path = new URL(String(input)).pathname;
+      if (path === "/api/auth/login" && JSON.parse(String(init?.body)).password === "wrong") return refusal("E_AUTH_INVALID");
+      const response = await owner.fetch(input, init);
+      if (path === "/api/resume" && ++resumes === 1) {
+        saved = response; resumeStarted.resolve(); return oldResponse.promise;
+      }
+      return response;
+    } });
+  try {
+    await client.auth.login({ email: "alice@example.com", password: "password" });
+    await resumeStarted.promise;
+    assert.equal(client.snapshot.auth.state, "authenticated");
+    await assert.rejects(client.auth.login({ email: "alice@example.com", password: "wrong" }), (error: any) => error.code === "E_AUTH_INVALID");
+    for (let i = 0; i < 20 && owner.executions.length === 0; i++) await flush();
+    assert.equal(resumes, 2, "a failed transition reschedules the startup work it aborted");
+    assert.equal(owner.executions.length, 1);
+    oldResponse.resolve(saved!); await flush(); await flush();
+    assert.equal(owner.executions.length, 1, "the obsolete resume cannot replay twice");
+  } finally { oldResponse.resolve(saved ?? json({})); await client.close(); }
+});
+
+for (const stage of ["manifest", "resume"] as const) for (const outcome of ["failed", "successful"] as const) {
+  test(`${outcome} login cuts pending initial ${stage} without poisoning ready`, async context => {
+    const { factory, owner } = await queuedStartup(context);
+    const started = deferred<void>(), oldResponse = deferred<Response>();
+    let held = false, saved: Response | undefined;
+    let completion: Promise<unknown> | undefined;
+    const client = createClient({ url: "http://auth.test", tokenStore: custody("dev:alice"), offline: { store: factory },
+      fetch: async (input, init) => {
+        const path = new URL(String(input)).pathname;
+        if (path === "/api/auth/login" && outcome === "failed") return refusal("E_AUTH_INVALID");
+        const response = await owner.fetch(input, init);
+        if (path === `/api/${stage}` && !held) {
+          held = true; saved = response; started.resolve(); return oldResponse.promise;
+        }
+        return response;
+      } });
+    try {
+      await started.promise;
+      assert.equal(client.snapshot.auth.state, "authenticated");
+      const login = client.auth.login({ email: "alice@example.com", password: "password" });
+      let settled = false;
+      completion = (outcome === "failed" ? assert.rejects(login, (error: any) => error.code === "E_AUTH_INVALID") : login)
+        .finally(() => { settled = true; });
+      void completion.catch(() => undefined);
+      for (let i = 0; i < 20 && !settled; i++) await flush();
+      assert.equal(settled, true, "startup yields to the transition without waiting for the old response");
+      await completion;
+      await client.ready;
+      for (let i = 0; i < 20 && owner.executions.length === 0; i++) await flush();
+      assert.equal(owner.executions.length, 1, "recovery does not wait for the aborted transport to cooperate");
+      oldResponse.resolve(saved!); await flush(); await flush();
+      assert.equal(owner.executions.length, 1);
+      assert.equal(client.snapshot.auth.state, "authenticated");
+    } finally { oldResponse.resolve(saved ?? json({})); await completion?.catch(() => undefined); await client.close(); }
+  });
+}
+
+test("completed startup recovery leaves ordinary past-fence relogin waiting for explicit resume", async context => {
+  const { factory, owner } = await queuedStartup(context);
+  context.mock.timers.enable({ apis: ["setTimeout", "Date"], now: Date.now() });
+  const client = createClient({ url: "http://auth.test", tokenStore: custody("dev:alice"),
+    offline: { store: factory, fenceDays: 1 }, fetch: owner.fetch });
+  try {
+    await client.auth.login({ email: "alice@example.com", password: "password" });
+    for (let i = 0; i < 20 && owner.executions.length === 0; i++) await flush();
+    assert.equal(owner.executions.length, 1);
+    await client.outbox.settled();
+    context.mock.timers.tick(2 * DAY);
+    await client.mutation(api.deliveries.post, { conversationId: "conversation-1", body: "past the fence" });
+    const resumes = owner.requests.filter(path => path === "/api/resume").length;
+    await client.auth.login({ email: "alice@example.com", password: "password" });
+    assert.equal(owner.requests.filter(path => path === "/api/resume").length, resumes);
+    assert.equal((await client.outbox.drain()).stopped, "fence");
+    assert.equal(owner.executions.length, 1, "the new grant alone never releases the old queue");
+    await client.online();
+    assert.equal(owner.executions.length, 2);
+  } finally { await client.close(); }
+});
+
+for (const state of ["hydrating", "confirmed"] as const) test(`${state} held reads reject a transition that begins during carrier I/O`, async context => {
+  const factory = offlineStore(context);
+  await seededPrivateStore(factory);
+  const readStarted = deferred<void>(), releaseRead = deferred<void>();
+  const metadataStarted = deferred<void>(), metadata = deferred<Response>();
+  let holdRead = true, holdMetadata = true;
+  const client = createClient({ url: "http://auth.test", tokenStore: custody("dev:alice"), offline: { store: () => {
+    const store = factory(), answer = store.answer.bind(store);
+    store.answer = async (op, args) => {
+      const value = await answer(op, args);
+      if (holdRead) { holdRead = false; readStarted.resolve(); await releaseRead.promise; }
+      return value;
+    };
+    return store;
+  } }, fetch: async input => {
+    const path = new URL(String(input)).pathname;
+    if (path === "/api/auth/login") return refusal("E_AUTH_INVALID");
+    if (path === "/api/auth/me" && state === "confirmed") return json({ viewer: "dev:alice", kind: "user", authEpoch: 7 });
+    if (path === "/api/manifest" && holdMetadata) { holdMetadata = false; metadataStarted.resolve(); return metadata.promise; }
+    throw new TypeError("cut");
+  } });
+  let read: Promise<void> | undefined;
+  try {
+    if (state === "hydrating") await restored(client); else await metadataStarted.promise;
+    read = assert.rejects(client.query(api.deliveries.inbox, { c: null }), (error: any) => error.code === "E_AUTH_SUPERSEDED");
+    await readStarted.promise;
+    await assert.rejects(client.auth.login({ email: "alice@example.com", password: "wrong" }), (error: any) => error.code === "E_AUTH_INVALID");
+    releaseRead.resolve();
+    await read;
+  } finally { releaseRead.resolve(); metadata.resolve(json({})); await read?.catch(() => undefined); await client.close(); }
+});
+
+for (const interruption of ["offline", "failed-login"] as const) test(`${interruption} wakes recovery waiters before an obsolete transport responds`, async context => {
+  const { factory, owner } = await queuedStartup(context);
+  const oldStarted = deferred<void>(), oldResponse = deferred<Response>(), newResponse = deferred<Response>();
+  let resumes = 0, oldSaved: Response | undefined, newSaved: Response | undefined;
+  let waiterDone = false, reconnectDone = false;
+  const pending: Promise<unknown>[] = [];
+  const client = createClient({ url: "http://auth.test", tokenStore: custody("dev:alice"), offline: { store: factory },
+    fetch: async (input, init) => {
+      const path = new URL(String(input)).pathname;
+      if (path === "/api/auth/login" && JSON.parse(String(init?.body)).password === "wrong") return refusal("E_AUTH_INVALID");
+      const response = await owner.fetch(input, init);
+      if (path === "/api/resume") {
+        resumes++;
+        if (resumes === 1) { oldSaved = response; oldStarted.resolve(); return oldResponse.promise; }
+        if (resumes === 2) { newSaved = response; return newResponse.promise; }
+      }
+      return response;
+    } });
+  try {
+    await client.auth.login({ email: "alice@example.com", password: "password" });
+    await oldStarted.promise;
+    if (interruption === "failed-login") {
+      const waiter = client.mutation(api.deliveries.post, { conversationId: "conversation-1", body: "waiting through cancellation" })
+        .then(value => { waiterDone = true; return value; });
+      void waiter.catch(() => undefined); pending.push(waiter);
+      await flush();
+      assert.equal(waiterDone, false, "the existing caller waits on the original recovery barrier");
+      await assert.rejects(client.auth.login({ email: "alice@example.com", password: "wrong" }), (error: any) => error.code === "E_AUTH_INVALID");
+    } else {
+      await client.offline();
+      const reconnect = client.online().then(() => { reconnectDone = true; });
+      void reconnect.catch(() => undefined); pending.push(reconnect);
+    }
+    for (let i = 0; i < 20 && !newSaved; i++) await flush();
+    assert.equal(resumes, 2, "replacement recovery starts without the cancelled response");
+    await flush(); await flush();
+    assert.equal(waiterDone, false, "a woken caller joins the replacement barrier before dispatching");
+    assert.equal(reconnectDone, false);
+    assert.equal(owner.executions.length, 0);
+    newResponse.resolve(newSaved!);
+    for (let i = 0; i < 30 && !(interruption === "offline" ? reconnectDone : waiterDone); i++) await flush();
+    assert.equal(interruption === "offline" ? reconnectDone : waiterDone, true, "even existing waiters finish while the old transport stays pending");
+    await Promise.all(pending);
+    await client.outbox.settled();
+    assert.deepEqual(owner.executions.map(entry => (entry.args as any).body), interruption === "offline"
+      ? ["held before startup"] : ["held before startup", "waiting through cancellation"]);
+    const snapshot = client.snapshot, entries = await client.outbox.entries();
+    oldResponse.resolve(interruption === "offline" ? refusal("E_AUTH_SESSION") : oldSaved!);
+    await flush(); await flush();
+    assert.deepEqual(client.snapshot, snapshot, "a late cancelled response cannot alter auth, connection, or lastRefusal");
+    assert.deepEqual(await client.outbox.entries(), entries, "a late cancelled response cannot replay or alter settled intents");
+  } finally {
+    oldResponse.resolve(oldSaved ?? json({})); newResponse.resolve(newSaved ?? json({}));
+    await Promise.allSettled(pending); await client.close();
+  }
+});
+
+for (const stage of ["replay-fetch", "replay-body", "tail-fetch"] as const) {
+  for (const interruption of ["offline", "failed-login"] as const) {
+    test(`${interruption} releases the drain before cancelled ${stage} returns`, async context => {
+      const bodies = ["first held intent", "second held intent"];
+      const { factory, owner } = await queuedStartup(context, bodies);
+      const started = deferred<void>(), release = deferred<void>();
+      const replays: string[] = [];
+      let held = false, resumed = false, done = false;
+      let oldSignal: AbortSignal | null | undefined;
+      let completion: Promise<unknown> | undefined;
+      const store = custody("dev:alice");
+      const client = createClient({ url: "http://auth.test", tokenStore: store, offline: { store: factory },
+        fetch: async (input, init) => {
+          const path = new URL(String(input)).pathname;
+          if (path === "/api/auth/login" && JSON.parse(String(init?.body)).password === "wrong") return refusal("E_AUTH_INVALID");
+          if (path === "/api/resume") resumed = true;
+          if (path === "/api/mutation") replays.push(String(init?.body));
+          const response = await owner.fetch(input, init);
+          const target = stage === "tail-fetch" ? path === "/api/query" && replays.length > 0 : path === "/api/mutation";
+          if (resumed && target && !held) {
+            held = true; oldSignal = init?.signal;
+            if (stage === "replay-body") {
+              const parse = response.json.bind(response);
+              response.json = async () => { started.resolve(); await release.promise; return parse(); };
+            } else { started.resolve(); await release.promise; }
+          }
+          return response;
+        } });
+      try {
+        await client.auth.login({ email: "alice@example.com", password: "password" });
+        await started.promise;
+        assert.equal(owner.executions.length, 1, "the first intent committed before its response was withheld");
+        assert.equal((await client.outbox.entries()).filter(entry => entry.state === "queued").length, 2);
+        if (interruption === "offline") {
+          await client.offline();
+          completion = client.online().then(() => { done = true; });
+        } else {
+          completion = client.mutation(api.deliveries.post, { conversationId: "conversation-1", body: "waiting behind recovery" })
+            .then(value => { done = true; return value; });
+          void completion.catch(() => undefined);
+          await flush();
+          assert.equal(done, false);
+          await assert.rejects(client.auth.login({ email: "alice@example.com", password: "wrong" }), (error: any) => error.code === "E_AUTH_INVALID");
+        }
+        void completion.catch(() => undefined);
+        assert.equal(oldSignal?.aborted, true);
+        for (let i = 0; i < 30 && !done; i++) await flush();
+        assert.equal(done, true, "replacement recovery and its waiter must finish with the old replay still withheld");
+        await completion;
+        assert.deepEqual(await client.outbox.settled(), { stopped: false, remaining: 0 });
+        assert.equal(replays[1], replays[0], "replacement retries the exact committed envelope before advancing FIFO");
+        assert.deepEqual(owner.executions.map(entry => (entry.args as any).body), interruption === "offline"
+          ? bodies : [...bodies, "waiting behind recovery"]);
+        assert.equal(owner.messages.size, interruption === "offline" ? 2 : 3, "each intent executes exactly once");
+        const snapshot = client.snapshot, entries = await client.outbox.entries(), requests = replays.length;
+        release.resolve(); await flush(); await flush();
+        assert.deepEqual(client.snapshot, snapshot, "late cancelled replay cannot change auth or sync status");
+        assert.deepEqual(await client.outbox.entries(), entries, "late cancelled replay cannot settle an intent again");
+        assert.equal(replays.length, requests, "the obsolete drain cannot advance after its late response");
+        assert.equal(store.load(), snapshot.token);
+      } finally { release.resolve(); await completion?.catch(() => undefined); await client.close(); }
+    });
+  }
+}
+
+for (const body of ["terminal-refusal", "invalid-refusal-json", "invalid-success-json"] as const) {
+  test(`cancelled resume ignores delayed ${body} after replacement recovery`, async context => {
+    const { factory, owner } = await queuedStartup(context);
+    const started = deferred<void>(), release = deferred<void>();
+    const store = custody("dev:alice");
+    let held = false, parsed = false, done = false;
+    let oldSignal: AbortSignal | null | undefined;
+    let reconnect: Promise<void> | undefined;
+    const client = createClient({ url: "http://auth.test", tokenStore: store, offline: { store: factory },
+      fetch: async (input, init) => {
+        if (new URL(String(input)).pathname === "/api/resume" && !held) {
+          held = true; oldSignal = init?.signal;
+          const response = body === "terminal-refusal" ? refusal("E_AUTH_SESSION")
+            : new Response("invalid JSON", { status: body === "invalid-refusal-json" ? 401 : 200 });
+          const parse = response.json.bind(response);
+          response.json = async () => {
+            started.resolve(); await release.promise;
+            try { return await parse(); } finally { parsed = true; }
+          };
+          return response;
+        }
+        return owner.fetch(input, init);
+      } });
+    try {
+      await client.auth.login({ email: "alice@example.com", password: "password" });
+      await started.promise;
+      await client.offline();
+      reconnect = client.online().then(() => { done = true; });
+      void reconnect.catch(() => undefined);
+      for (let i = 0; i < 30 && !done; i++) await flush();
+      assert.equal(done, true, "replacement recovery completes before the old body is released");
+      await reconnect;
+      await client.outbox.settled();
+      assert.equal(oldSignal?.aborted, true);
+      assert.equal(parsed, false);
+      assert.equal(client.snapshot.auth.state, "authenticated");
+      assert.equal(owner.executions.length, 1);
+      const snapshot = client.snapshot, entries = await client.outbox.entries(), status = await client.outbox.status();
+      const token = store.load(), binding = store.loadPrincipalBinding();
+      release.resolve();
+      for (let i = 0; i < 30 && !parsed; i++) await flush();
+      assert.equal(parsed, true);
+      await flush(); await flush();
+      assert.equal(store.load(), token, "cancelled resume cannot clear recovered bearer custody");
+      assert.deepEqual(store.loadPrincipalBinding(), binding);
+      assert.deepEqual(client.snapshot, snapshot, "late parsing cannot alter auth, connection, or lastRefusal");
+      assert.deepEqual(await client.outbox.status(), status, "cancelled resume cannot seal the recovered partition");
+      assert.deepEqual(await client.outbox.entries(), entries);
+      assert.equal(owner.executions.length, 1);
+    } finally { release.resolve(); await reconnect?.catch(() => undefined); await client.close(); }
+  });
+}
+
+for (const stage of ["replay-fetch", "replay-body", "tail-fetch"] as const) {
+  for (const interruption of ["offline", "failed-login", "close"] as const) {
+    test(`${interruption} releases a mutation-owned drain during ignored ${stage} abort`, async context => {
+      const factory = offlineStore(context), owner = fakeOwner(), store = custody("dev:alice");
+      await seededStore(factory);
+      const started = deferred<void>(), release = deferred<void>();
+      const replays: string[] = [];
+      let armed = false, held = false, mutationDone = false, transitionDone = false;
+      let oldSignal: AbortSignal | null | undefined;
+      let mutation: Promise<unknown> | undefined, transition: Promise<unknown> | undefined;
+      const fetch: typeof globalThis.fetch = async (input, init) => {
+        const path = new URL(String(input)).pathname;
+        if (path === "/api/auth/login") return refusal("E_AUTH_INVALID");
+        if (path === "/api/mutation") replays.push(String(init?.body));
+        const response = await owner.fetch(input, init);
+        const target = stage === "tail-fetch" ? path === "/api/query" && replays.length > 0 : path === "/api/mutation";
+        if (armed && target && !held) {
+          held = true; oldSignal = init?.signal;
+          if (stage === "replay-body") {
+            const parse = response.json.bind(response);
+            response.json = async () => { started.resolve(); await release.promise; return parse(); };
+          } else { started.resolve(); await release.promise; }
+        }
+        return response;
+      };
+      const options = { url: "http://auth.test", tokenStore: store, offline: { store: factory }, fetch };
+      const client = createClient(options);
+      let successor: SnapbackClient | undefined;
+      try {
+        await client.ready; await client.auth.me(); await client.outbox.settled();
+        armed = true;
+        mutation = client.mutation(api.deliveries.post, { conversationId: "conversation-1", body: "direct online send" })
+          .then(value => { mutationDone = true; return value; }, error => { mutationDone = true; return error; });
+        await started.promise;
+        assert.equal(owner.executions.length, 1, "the request committed before its response or tail was withheld");
+        assert.equal((await client.outbox.entries()).filter(entry => entry.state === "queued").length, 1);
+        transition = (interruption === "failed-login"
+          ? assert.rejects(client.auth.login({ email: "alice@example.com", password: "wrong" }), (error: any) => error.code === "E_AUTH_INVALID")
+          : interruption === "close" ? client.close() : client.offline()).then(() => { transitionDone = true; });
+        void transition.catch(() => undefined);
+        for (let i = 0; i < 30 && !(mutationDone && transitionDone); i++) await flush();
+        assert.equal(oldSignal?.aborted, true, "every mutation drain carries the cancellation signal");
+        assert.equal(mutationDone, true, "the tracked write must release without the obsolete transport cooperating");
+        assert.equal(transitionDone, true, "auth transition must not remain behind the tracked write");
+        await transition; await mutation;
+        let active = client;
+        if (interruption === "close") { successor = createClient(options); active = successor; await successor.ready; }
+        else await client.online();
+        assert.deepEqual(await active.outbox.settled(), { stopped: false, remaining: 0 });
+        assert.equal(replays[1], replays[0], "recovery retries the same envelope after the uncertain commit");
+        assert.equal(owner.executions.length, 1, "the committed intent executes exactly once");
+        const snapshot = active.snapshot, entries = await active.outbox.entries(), requests = replays.length;
+        release.resolve(); await flush(); await flush();
+        assert.deepEqual(active.snapshot, snapshot);
+        assert.deepEqual(await active.outbox.entries(), entries);
+        assert.equal(replays.length, requests, "the obsolete drain cannot advance or settle again");
+      } finally {
+        release.resolve(); await Promise.allSettled([mutation, transition]);
+        await client.close(); await successor?.close();
+      }
+    });
+  }
+}

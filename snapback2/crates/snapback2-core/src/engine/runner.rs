@@ -170,7 +170,12 @@ impl<'a> Runner<'a> {
     }
 
     pub(super) fn statements(&mut self, statements: &[Stmt]) -> Result<Flow, RuntimeError> {
-        for statement in statements {
+        self.statements_at(statements, "")
+    }
+
+    fn statements_at(&mut self, statements: &[Stmt], prefix: &str) -> Result<Flow, RuntimeError> {
+        for (index, statement) in statements.iter().enumerate() {
+            let path = format!("{prefix}{index}");
             // @ref LLP 1016#d6--the-operator-seat-ad-hoc-programs-and-rehearsal — preserve the attempted write site even when validation refuses before a row is touched.
             if self.context.operator_by.is_some() {
                 use crate::certificate::WriteKind;
@@ -269,12 +274,12 @@ impl<'a> Runner<'a> {
                     then_body,
                     else_body,
                 } => {
-                    let branch = if self.expr(condition)?.as_bool()? {
-                        then_body
+                    let (branch, arm) = if self.expr(condition)?.as_bool()? {
+                        (then_body, "then")
                     } else {
-                        else_body
+                        (else_body, "else")
                     };
-                    self.statements(branch)?
+                    self.statements_at(branch, &format!("{path}/{arm}/"))?
                 }
                 Stmt::For {
                     binding,
@@ -287,7 +292,7 @@ impl<'a> Runner<'a> {
                         self.env.insert(binding.clone(), tracked.value);
                         self.env_provenance
                             .insert(binding.clone(), tracked.provenance);
-                        match self.statements(body)? {
+                        match self.statements_at(body, &format!("{path}/body/"))? {
                             Flow::Next | Flow::Continue => {}
                             Flow::Break => break,
                             returned @ Flow::Return(..) => {
@@ -333,6 +338,7 @@ impl<'a> Runner<'a> {
                 }
                 Stmt::Return(value) => {
                     let tracked = self.expr_tracked(value)?;
+                    self.trace.result_page_return = Some(path);
                     Flow::Return(tracked.value, tracked.provenance)
                 }
                 Stmt::Break => Flow::Break,

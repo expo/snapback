@@ -60,24 +60,65 @@ third round are collected here so they are not lost.
 
 ## L7 — auth machine (Muse r2, Grok r2)
 
-- Grok r2: `initializeOffline` returns immediately when `operationFence > 0` (`client.ts` ~1012),
+- **Resolved 2026-09-05 (auth startup follow-up):** `initializeOffline` returns immediately when `operationFence > 0` (`client.ts` ~1012),
   so a `login`/`signup`/`guest` started before `ready` skips confirm, metadata, and resume for
   that client; restoration later retries `me` but resume is not retried unless something calls
   `online()`. After a failed racing login, run metadata/resume once custody is restored, or run
   them from the post-`ready` `me` path (test: a login submitted during startup then outbox/resume).
-- Grok r2: `ClientAuth.session` publishes `authenticated` before metadata and then throws on a
+  Startup now retains pending sync; a successful session or restored bearer joins the
+  existing metadata/resume flight. SQLite restart regressions cover successful and failed
+  login both before hydration and during a pending `me`, with a durable intent replayed
+  exactly once without `online()` or mounted queries. Ordinary re-login keeps its explicit
+  resume contract for a past-fence queue.
+  Review follow-up (2026-09-06, Astra + Grok): interruption during initial metadata/resume
+  releases `ready` even when fetch ignores abort. Recovery captures authority only after
+  the latest queued transition settles, retries metadata through that flight, and restarts
+  after a failed transition preserves authenticated custody. Regressions cover queued Alice/Bob
+  logins, failure during deferred resume, both outcomes during initial metadata/resume, and
+  one failed manifest fetch.
+  Round-2 cancellation follow-up (2026-09-06, Astra + Grok): the resume flight now
+  races cancellation, so reconnect and already-waiting operations wake without the
+  obsolete transport returning. Recovery installs its barrier before waiting for the
+  transition tail, and awakened callers recheck both authority and the current barrier.
+  Two regressions withhold the obsolete response until reconnect/replay or a waiting
+  mutation completes, then release a late success/expiry response and prove no duplicate
+  replay or snapshot/outbox change.
+  Round-3 cancellation follow-up (2026-09-06, Astra; reproduced from source):
+  resume-owned replay and log-tail awaits now race cancellation, releasing the
+  existing serialized outbox drain. Delayed resume refusal bodies and JSON failures
+  check cancellation before custody, partition, or snapshot effects. Nine regressions
+  fail on `0e6cebfcd` and pass with the fix: offline and failed-login interruptions at
+  replay fetch, replay body, and tail fetch; delayed terminal 401, invalid 401 JSON,
+  and invalid 200 JSON bodies. Every case completes replacement recovery while the
+  old response/body remains withheld; retries preserve FIFO and exactly-once execution.
+  Late `me()` terminal evidence remains bearer-keyed, including a delayed body across
+  successful or failed replacement.
+  Integration follow-up (2026-09-06, Grok): mutation-owned drains now carry the
+  same cancellation fence as resume drains. Offline, close and account transitions
+  release noncooperative replay fetches/bodies and log tails without losing the
+  queued intent. A mutation passes its captured authority into its own drain;
+  waiting for an auth transition there would deadlock the transition's write barrier.
+- **Resolved 2026-09-05 (auth startup follow-up):** `ClientAuth.session` publishes `authenticated` before metadata and then throws on a
   non-retryable metadata failure (offline runtime only): resolve after install and leave metadata
   to `ready`, or fail the promise only when custody did not settle.
+  Metadata preparation remains awaited so immediate offline writes keep their certificates;
+  a metadata refusal remains on `lastRefusal` while installed custody resolves successfully.
+  Login, signup, and guest regressions pin malformed metadata; expiry and close still reject.
 - Grok r2: `useQuery` lists `restoring` as an effect dependency (`react-core.tsx` ~185, ~226); a
   non-live `client.query` waiting on the lifetime controller is not aborted by cleanup, so
   confirmation can double-dispatch the read. Drop the dependency and let `settled` resume the
   wait, or abort the in-flight read on cleanup.
 
-- The early-held query path (`client.ts` ~217-224) answers from held coverage before awaiting
+- **Resolved 2026-09-05 (auth startup follow-up):** the early-held query path (`client.ts` ~217-224) answers from held coverage before awaiting
   `operationAuthority`, so a query issued mid-login-transition can read predecessor-principal
   held coverage instead of waiting for successor authority (device-held data, labelled
   held/`hydrating`; React identity re-keys on the generation bump). Gate the early path on a
   settled transition tail, or document why predecessor coverage is acceptable there.
+  Both query paths and the live subscription shortcut now wait for a stable transition tail
+  and check authority after reading.
+  Regressions hold login open, prove the read remains pending, then prove a failed login
+  reads nonempty retained coverage and an account replacement dispatches only the successor
+  bearer. Live regressions prove predecessor messages are not delivered during login.
 - A failed transition during backoff restarts the backoff at 1 s (`suspend` → `stop` → `cancel`
   resets it); spec-conformant but unpinned — add a test either way.
 - `auth.md` has 6 bytes of headroom (4,090 of 4,096).

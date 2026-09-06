@@ -20,7 +20,6 @@ fn emit_program(kind: ProgramKind, effect: &str) -> Program {
         kind,
         args: BTreeMap::new(),
         read_time_granularity_ms: None,
-        result_page_site: None,
         body: vec![
             Stmt::Emit {
                 effect: effect.to_owned(),
@@ -78,7 +77,6 @@ fn ceiling_scan(take: u32) -> Program {
         kind: ProgramKind::Query,
         args: BTreeMap::new(),
         read_time_granularity_ms: None,
-        result_page_site: None,
         body: vec![Stmt::Return(Expr::Scan(Scan {
             site: "items.overCeiling".to_owned(),
             table: "items".to_owned(),
@@ -312,7 +310,6 @@ fn duplicate_program_is_still_checked_and_reports_all_its_own_refusals() {
         kind: ProgramKind::Mutation,
         args: BTreeMap::new(),
         read_time_granularity_ms: None,
-        result_page_site: None,
         body: vec![Stmt::Return(Expr::Literal(Value::Null))],
     };
     let duplicate = Program {
@@ -320,7 +317,6 @@ fn duplicate_program_is_still_checked_and_reports_all_its_own_refusals() {
         kind: ProgramKind::Query,
         args: BTreeMap::new(),
         read_time_granularity_ms: None,
-        result_page_site: None,
         body: vec![Stmt::Emit {
             effect: "missing".to_owned(),
             payload: Expr::Literal(Value::Null),
@@ -365,7 +361,6 @@ fn checker_and_generation_report_all_refusals_per_program() {
         kind: ProgramKind::Query,
         args: BTreeMap::new(),
         read_time_granularity_ms: None,
-        result_page_site: None,
         body: vec![
             Stmt::Insert {
                 table: "items".to_owned(),
@@ -443,7 +438,6 @@ fn checker_and_generation_report_all_refusals_per_program() {
         kind: ProgramKind::Query,
         args: BTreeMap::new(),
         read_time_granularity_ms: None,
-        result_page_site: None,
         body: vec![Stmt::For {
             binding: "item".to_owned(),
             domain: LoopDomain::Page(Scan {
@@ -551,7 +545,6 @@ fn one_valid_program_reports_every_default_ceiling_refusal() {
         kind: ProgramKind::Mutation,
         args: BTreeMap::new(),
         read_time_granularity_ms: None,
-        result_page_site: None,
         body: vec![
             Stmt::Let {
                 name: "rows".to_owned(),
@@ -642,7 +635,6 @@ fn checker_reports_recurse_read_refusals_with_other_errors() {
         kind: ProgramKind::Query,
         args: BTreeMap::new(),
         read_time_granularity_ms: None,
-        result_page_site: None,
         body: vec![
             Stmt::Let {
                 name: "ambient".to_owned(),
@@ -679,7 +671,6 @@ fn mutation_value_errors_are_rejected_but_query_value_errors_remain_errors() {
             kind,
             args: BTreeMap::new(),
             read_time_granularity_ms: None,
-            result_page_site: None,
             body: vec![Stmt::Return(expression)],
         }
     }
@@ -754,7 +745,6 @@ fn mutation_refusal_is_a_typed_rejected_execution_without_a_commit() {
         kind: ProgramKind::Mutation,
         args: BTreeMap::new(),
         read_time_granularity_ms: None,
-        result_page_site: None,
         body: vec![Stmt::Require {
             condition: Expr::Literal(Value::Bool(false)),
             code: "NOPE".to_owned(),
@@ -788,7 +778,6 @@ fn auth_refusal_namespace_is_reserved_at_the_raw_ir_certificate_boundary() {
         kind: ProgramKind::Mutation,
         args: BTreeMap::new(),
         read_time_granularity_ms: None,
-        result_page_site: None,
         body: vec![Stmt::If {
             condition: Expr::Literal(Value::Bool(true)),
             then_body: vec![Stmt::Require {
@@ -841,7 +830,6 @@ fn query_require_is_a_typed_denied_execution() {
         kind: ProgramKind::Query,
         args: BTreeMap::new(),
         read_time_granularity_ms: None,
-        result_page_site: None,
         body: vec![Stmt::Require {
             condition: Expr::Literal(Value::Bool(false)),
             code: "QUERY_REFUSED".to_owned(),
@@ -890,7 +878,6 @@ fn sqlite_and_declared_unique_constraints_are_typed_mutation_rejections() {
         kind: ProgramKind::Mutation,
         args: BTreeMap::new(),
         read_time_granularity_ms: None,
-        result_page_site: None,
         body: vec![
             Stmt::Insert {
                 table: "users".to_owned(),
@@ -940,7 +927,6 @@ fn sqlite_and_declared_unique_constraints_are_typed_mutation_rejections() {
         kind: ProgramKind::Mutation,
         args: BTreeMap::new(),
         read_time_granularity_ms: None,
-        result_page_site: None,
         body: vec![
             Stmt::Emit {
                 effect: "audit".to_owned(),
@@ -993,7 +979,6 @@ fn sqlite_and_declared_unique_constraints_are_typed_mutation_rejections() {
         kind: ProgramKind::Mutation,
         args: BTreeMap::new(),
         read_time_granularity_ms: None,
-        result_page_site: None,
         body: vec![
             Stmt::Insert {
                 table: "users".to_owned(),

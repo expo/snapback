@@ -318,3 +318,15 @@ export function throwIfAborted(signal?: AbortSignal | null): void {
   error.name = "AbortError";
   throw error;
 }
+
+/** Release every waiter on cancellation, even when the transport ignores its signal. */
+export async function withAbort<T>(signal: AbortSignal, run: () => Promise<T>): Promise<T> {
+  throwIfAborted(signal);
+  let abort!: () => void;
+  const cancelled = new Promise<never>((_, reject) => {
+    abort = () => { try { throwIfAborted(signal); } catch (error) { reject(error); } };
+    signal.addEventListener("abort", abort, { once: true });
+  });
+  try { return await Promise.race([run(), cancelled]); }
+  finally { signal.removeEventListener("abort", abort); }
+}

@@ -243,11 +243,13 @@ test("an upload refusal rejects the call and never invokes the mutation", async 
   client.close();
 });
 
-test("a second sibling upload refusal leaves the first as a reclaimable orphan and sends no mutation", async () => {
+test("a second sibling upload refusal discards the first and sends no mutation", async () => {
   let uploads = 0;
   let mutations = 0;
-  const fetch = async (input: string | URL | Request) => {
+  const discarded: string[] = [];
+  const fetch = async (input: string | URL | Request, init?: RequestInit) => {
     const path = new URL(String(input)).pathname;
+    if (path === "/api/uploads/discard") { discarded.push(JSON.parse(String(init?.body)).id); return json({ discarded: true }); }
     if (path === "/api/manifest") return json(manifest());
     if (path === "/api/upload" && ++uploads === 1) return json(image);
     if (path === "/api/upload") return json({
@@ -269,7 +271,8 @@ test("a second sibling upload refusal leaves the first as a reclaimable orphan a
     (error: unknown) => error instanceof SnapbackRefusal && error.code === "E_ASSET_TYPE",
   );
   assert.equal(uploads, 2);
-  assert.equal(mutations, 0, "the owner reclaims the first successful upload because no row can claim the orphan");
+  assert.equal(mutations, 0);
+  assert.deepEqual(discarded, [image.id]);
   client.close();
 });
 
@@ -636,3 +639,222 @@ test("useAssetUrl and web asset components render in a DOM with the intended aut
     dom.window.close();
   }
 });
+
+test("local serialization failure discards automatic uploads before any mutation request", async () => {
+  const staged = new Map<string, number>();
+  let uploads = 0;
+  let mutations = 0;
+  const client = createClient({ url: "http://assets.test", as: "alice", fetch: async (input, init) => {
+    const path = new URL(String(input)).pathname;
+    if (path === "/api/manifest") return json(manifest());
+    if (path === "/api/upload") {
+      uploads++;
+      staged.set(image.id, Number(new Headers(init?.headers).get("Content-Length")));
+      return json(image);
+    }
+    if (path === "/api/mutation") { mutations++; return json({ state: "committed", seq: 1, data: null }); }
+    if (path === "/api/uploads/discard") return json({ discarded: staged.delete(JSON.parse(String(init?.body)).id) });
+    throw new Error(`unexpected path ${path}`);
+  } });
+  const cyclic: any = {};
+  cyclic.self = cyclic;
+  try {
+    for (let attempt = 0; attempt < 3; attempt++) {
+      await assert.rejects(client.mutation(api.assets.send, {
+        photo: new File(["a"], "photo.png"), metadata: cyclic,
+      } as any), TypeError);
+      assert.equal(staged.size, 0, "failed local submission must release staged objects and bytes");
+    }
+    assert.equal(uploads, 3);
+    assert.equal(mutations, 0);
+  } finally { client.close(); }
+});
+
+for (const status of [200, 422, 503]) {
+  test(`automatic uploads are kept for an ambiguous HTTP ${status} mutation response`, async () => {
+    let discards = 0;
+    const client = createClient({ url: "http://assets.test", as: "alice", fetch: async (input) => {
+      const path = new URL(String(input)).pathname;
+      if (path === "/api/manifest") return json(manifest());
+      if (path === "/api/upload") return json(image);
+      if (path === "/api/mutation") return new Response("lost response", { status });
+      if (path === "/api/uploads/discard") { discards++; return json({ discarded: true }); }
+      throw new Error(`unexpected path ${path}`);
+    } });
+    try {
+      await assert.rejects(client.mutation(api.assets.send, { photo: new File(["a"], "photo.png") } as any));
+      assert.equal(discards, 0);
+    } finally { client.close(); }
+  });
+}
+
+test("a definitive HTTP refusal discards only this call's upload, preserving supplied records", async () => {
+  const discarded: string[] = [];
+  const client = createClient({ url: "http://assets.test", as: "alice", fetch: async (input, init) => {
+    const path = new URL(String(input)).pathname;
+    if (path === "/api/manifest") return json(manifest());
+    if (path === "/api/upload") return json(image);
+    if (path === "/api/mutation") return json({ code: "E_INPUT", family: "input", message: "refused", guide: "quarry" }, 422);
+    if (path === "/api/uploads/discard") { discarded.push(JSON.parse(String(init?.body)).id); return json({ discarded: true }); }
+    throw new Error(`unexpected path ${path}`);
+  } });
+  try {
+    await assert.rejects(client.mutation(api.assets.send, { photo: new File(["a"], "photo.png"), optional: secondImage } as any),
+      (error: any) => error.code === "E_INPUT");
+    assert.deepEqual(discarded, [image.id]);
+  } finally { client.close(); }
+});
+
+test("cleanup session expiry preserves the already settled mutation rejection", async () => {
+  const rejected = { state: "rejected", code: "E_REQUIRE:NOT_MEMBER", family: "rule", message: "membership required", guide: "quarry" };
+  let discards = 0;
+  const client = createClient({ url: "http://assets.test", token: "old-session", fetch: async (input) => {
+    const path = new URL(String(input)).pathname;
+    if (path === "/api/auth/me") return json({ viewer: "alice", kind: "user" });
+    if (path === "/api/manifest") return json(manifest());
+    if (path === "/api/upload") return json(image);
+    if (path === "/api/mutation") return json(rejected);
+    if (path === "/api/uploads/discard") {
+      discards++;
+      return json({ code: "E_AUTH_SESSION", family: "auth", message: "expired", guide: "auth" }, 401);
+    }
+    throw new Error(`unexpected path ${path}`);
+  } });
+  try {
+    assert.deepEqual(await client.mutation(api.assets.send, { photo: new File(["a"], "photo.png") } as any), rejected);
+    assert.equal(discards, 1);
+    assert.equal(client.snapshot.token, undefined, "cleanup still expires the invalid session");
+  } finally { client.close(); }
+});
+
+for (const cleanupExpires of [false, true]) {
+  test(`terminal mutation rejection discards with its bearer before expiry (cleanup expires: ${cleanupExpires})`, async () => {
+    const rejected = { state: "rejected", code: "E_AUTH_SESSION", family: "auth", message: "expired", guide: "auth" };
+    const staged = new Set<string>();
+    let discards = 0;
+    const client = createClient({ url: "http://assets.test", token: "session", fetch: async (input, init) => {
+      const path = new URL(String(input)).pathname;
+      if (path === "/api/auth/me") return json({ viewer: "alice", kind: "user" });
+      if (path === "/api/manifest") return json(manifest());
+      if (path === "/api/upload") { staged.add(image.id); return json(image); }
+      if (path === "/api/mutation") return json(rejected);
+      if (path === "/api/uploads/discard") {
+        discards++;
+        assert.equal(new Headers(init?.headers).get("Authorization"), "Bearer session");
+        if (cleanupExpires) return json(rejected, 401);
+        return json({ discarded: staged.delete(JSON.parse(String(init?.body)).id) });
+      }
+      throw new Error(`unexpected path ${path}`);
+    } });
+    try {
+      assert.deepEqual(await client.mutation(api.assets.send, { photo: new File(["a"], "photo.png") } as any), rejected);
+      assert.equal(discards, 1);
+      assert.equal(staged.size, cleanupExpires ? 1 : 0, "only refused cleanup leaves bytes for explicit recovery");
+      assert.equal(client.snapshot.token, undefined);
+      assert.equal(client.snapshot.lastRefusal?.code, "E_AUTH_SESSION");
+    } finally { client.close(); }
+  });
+}
+
+for (const stage of ["fetch", "body"] as const) {
+  for (const mode of ["terminal", "replacement", "terminal-replacement"] as const) {
+    test(`automatic cleanup bounds an ignored ${stage} abort during ${mode}`, async context => {
+      const replacing = mode !== "terminal", terminal = mode !== "replacement";
+      const rejected = { state: "rejected", code: terminal ? "E_AUTH_SESSION" : "E_REQUIRE:NOT_MEMBER",
+        family: terminal ? "auth" : "rule", message: "refused", guide: "quarry" };
+      const expired = { code: "E_AUTH_SESSION", family: "auth", message: "expired", guide: "auth" };
+      let token: string | null = "session", cleanupSignal: AbortSignal | null | undefined;
+      let begin!: () => void, release!: () => void;
+      const started = new Promise<void>(resolve => { begin = resolve; });
+      const blocked = new Promise<void>(resolve => { release = resolve; });
+      const saves: Array<string | null> = [];
+      const flush = () => new Promise<void>(resolve => setImmediate(resolve));
+      let mutationDone = false, replacementDone = false, result: unknown, failure: any, loginCalls = 0;
+      let mutation: Promise<void> | undefined, replacement: Promise<unknown> | undefined;
+      const client = createClient({ url: "http://assets.test", tokenStore: {
+        load: () => token, save: value => { saves.push(value); token = value; },
+      }, fetch: async (input, init) => {
+        const path = new URL(String(input)).pathname;
+        if (path === "/api/auth/me") return json({ viewer: "alice", kind: "user" });
+        if (path === "/api/auth/login") { loginCalls++; return json({ token: "successor", viewer: "bob", kind: "user" }); }
+        if (path === "/api/manifest") return json(manifest());
+        if (path === "/api/upload") return json(image);
+        if (path === "/api/mutation") return json(rejected);
+        if (path === "/api/uploads/discard") {
+          assert.equal(new Headers(init?.headers).get("Authorization"), "Bearer session");
+          cleanupSignal = init?.signal;
+          const response = json(expired, 401);
+          if (stage === "body") response.json = async () => { begin(); await blocked; return expired; };
+          else { begin(); await blocked; }
+          return response;
+        }
+        throw new Error(`unexpected path ${path}`);
+      } });
+      try {
+        await client.ready; await client.auth.me();
+        context.mock.timers.enable({ apis: ["setTimeout"] });
+        mutation = client.mutation(api.assets.send, { photo: new File(["a"], "photo.png") } as any)
+          .then(value => { result = value; mutationDone = true; }, error => { failure = error; mutationDone = true; });
+        await started;
+        if (replacing) {
+          replacement = client.auth.login({ email: "bob@example.com", password: "password" })
+            .then(value => { replacementDone = true; return value; });
+          void replacement.catch(() => undefined);
+        }
+        context.mock.timers.tick(1_999); await flush();
+        assert.equal(mutationDone, false); assert.equal(loginCalls, 0);
+        context.mock.timers.tick(1); await flush(); await flush();
+        assert.equal(cleanupSignal?.aborted, true);
+        assert.equal(mutationDone, true, "cleanup must settle while its obsolete fetch or body is still withheld");
+        await mutation;
+        if (terminal && replacing) assert.equal(failure?.code, "E_AUTH_SUPERSEDED");
+        else { assert.equal(failure, undefined); assert.deepEqual(result, rejected); }
+        if (replacing) {
+          assert.equal(replacementDone, true, "auth replacement cannot remain behind timed-out cleanup");
+          await replacement;
+          assert.equal(token, "successor"); assert.equal(client.snapshot.auth.viewer, "bob");
+        } else {
+          assert.equal(token, null); assert.equal(client.snapshot.auth.state, "anonymous");
+        }
+        if (terminal) assert.ok(saves.includes(null), "terminal evidence clears captured durable custody");
+        const snapshot = client.snapshot, saved = [...saves];
+        release(); await flush(); await flush();
+        assert.deepEqual(client.snapshot, snapshot, "late cleanup must not change successor auth or refusal state");
+        assert.deepEqual(saves, saved, "late cleanup must not clear durable successor custody");
+      } finally {
+        release(); await Promise.allSettled([mutation, replacement]);
+        await client.close(); context.mock.timers.reset();
+      }
+    });
+  }
+}
+
+for (const stage of ["mutation", "first-upload", "direct-upload"] as const) {
+  test(`owner-shaped ${stage} HTTP 401 clears custody after this call's cleanup`, async () => {
+    const expired = { code: "E_AUTH_SESSION", family: "auth", message: "expired", guide: "auth" };
+    let token: string | null = "session";
+    const events: string[] = [];
+    const client = createClient({ url: "http://assets.test", tokenStore: {
+      load: () => token, save: value => { events.push(`save:${value}`); token = value; },
+    }, fetch: async (input, init) => {
+      const path = new URL(String(input)).pathname;
+      if (path === "/api/auth/me") return json({ viewer: "alice", kind: "user" });
+      if (path === "/api/manifest") return json(manifest());
+      if (path === "/api/upload") return stage !== "mutation" ? json(expired, 401) : json(image);
+      if (path === "/api/mutation") return json(expired, 401);
+      if (path === "/api/uploads/discard") {
+        events.push(`discard:${new Headers(init?.headers).get("Authorization")}`);
+        return json({ discarded: true });
+      }
+      throw new Error(`unexpected path ${path}`);
+    } });
+    try {
+      await client.ready; await client.auth.me();
+      const source = new File(["a"], "photo.png");
+      await assert.rejects(stage === "direct-upload" ? client.upload(source) : client.mutation(api.assets.send, { photo: source } as any),
+        (error: any) => error.code === "E_AUTH_SESSION");
+      assert.deepEqual(events, stage === "mutation" ? ["discard:Bearer session", "save:null"] : ["save:null"]);
+      assert.equal(token, null); assert.equal(client.snapshot.auth.state, "anonymous");
+    } finally { await client.close(); }
+  });
+}

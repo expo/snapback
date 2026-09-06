@@ -1,0 +1,41 @@
+{
+  "headBefore": "1296ec51af5427ed500b3bd9e084a6309512016d",
+  "statusBefore": "",
+  "loadBefore": "2:01  up 3 days, 13:26, 95 users, load averages: 6.55 11.36 13.20",
+  "nextest": "cargo-nextest 0.9.143\nrelease: 0.9.143\nhost: aarch64-apple-darwin",
+  "steps": [
+    {
+      "name": "test",
+      "command": [
+        "scripts/test.sh"
+      ],
+      "log": "/tmp/clique-cli-1296ec51a-full-20260906T080145Z-test.log",
+      "startedAt": "2026-09-06T08:01:45.730799+00:00",
+      "loadBefore": "2:01  up 3 days, 13:26, 95 users, load averages: 6.55 11.36 13.20",
+      "exit": 0,
+      "seconds": 152.56,
+      "endedAt": "2026-09-06T08:04:18.299086+00:00",
+      "loadAfter": "2:04  up 3 days, 13:28, 95 users, load averages: 15.76 12.92 13.48",
+      "statusAfter": ""
+    },
+    {
+      "name": "measure",
+      "command": [
+        "node",
+        "scripts/measure.mjs",
+        "--check"
+      ],
+      "log": "/tmp/clique-cli-1296ec51a-full-20260906T080145Z-measure.log",
+      "startedAt": "2026-09-06T08:04:18.497928+00:00",
+      "loadBefore": "2:04  up 3 days, 13:28, 95 users, load averages: 15.76 12.92 13.48",
+      "exit": 1,
+      "seconds": 67.583,
+      "endedAt": "2026-09-06T08:05:26.087618+00:00",
+      "loadAfter": "2:05  up 3 days, 13:29, 95 users, load averages: 10.35 11.98 13.08",
+      "statusAfter": "M snapback2/metrics/loop.jsonl"
+    }
+  ],
+  "metadata": "/tmp/clique-cli-1296ec51a-full-20260906T080145Z.json",
+  "headAfter": "1296ec51af5427ed500b3bd9e084a6309512016d",
+  "statusAfter": "M snapback2/metrics/loop.jsonl"
+}

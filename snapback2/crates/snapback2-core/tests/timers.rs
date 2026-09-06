@@ -67,7 +67,6 @@ fn program(name: &str, kind: ProgramKind, args: Vec<(&str, ArgType)>, body: Vec<
         kind,
         args: args.into_iter().map(|(k, v)| (k.into(), v)).collect(),
         read_time_granularity_ms: None,
-        result_page_site: None,
         body,
     }
 }

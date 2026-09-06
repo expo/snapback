@@ -21,7 +21,7 @@ pub(super) fn query_state(
                 .merges
                 .iter()
                 .find(|entry| entry.site == site.site)
-                .is_none_or(|entry| entry.deduplicated_union_len > site.take);
+                .is_some_and(|entry| entry.deduplicated_union_len > site.take);
             let lane_limited = trace.ranges.iter().any(|range| {
                 site.lane_sites.contains(&range.site) && range.stop != StopReason::Exhausted
             });
@@ -41,7 +41,11 @@ pub(super) fn next_cursor(
     if !matches!(state, ExecutionState::Capped) {
         return Ok(None);
     }
-    let Some(page) = &certificate.result_page_site else {
+    let Some(page) = trace
+        .result_page_return
+        .as_ref()
+        .and_then(|path| certificate.result_pages.get(path))
+    else {
         return Ok(None);
     };
     let values = if page.merge {

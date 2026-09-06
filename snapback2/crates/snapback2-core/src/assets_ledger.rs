@@ -16,6 +16,16 @@ pub const STAGING_PER_PRINCIPAL_OBJECTS: u32 = 20;
 pub const STAGING_GLOBAL_BYTES: u64 = 512 * 1024 * 1024;
 pub const STAGING_GLOBAL_OBJECTS: u32 = 40;
 
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AssetUpload {
+    pub id: String,
+    pub kind: String,
+    pub state: String,
+    pub bytes: u64,
+    pub created_at: i64,
+}
+
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AssetStagingUsage {
@@ -201,20 +211,22 @@ impl Store {
         Ok(())
     }
 
-    fn enforce_staging_caps(&self, created_by: &str, bytes: u64) -> Result<(), RuntimeError> {
+    pub fn enforce_staging_caps(&self, created_by: &str, bytes: u64) -> Result<(), RuntimeError> {
         let usage = self.asset_staging_usage(created_by)?;
         if bytes > STAGING_PER_PRINCIPAL_BYTES.saturating_sub(usage.creator.bytes)
             || usage.creator.objects >= STAGING_PER_PRINCIPAL_OBJECTS
         {
             return Err(RuntimeError::AssetTooLarge(format!(
-                "principal {created_by} has reached the {STAGING_PER_PRINCIPAL_BYTES} byte or {STAGING_PER_PRINCIPAL_OBJECTS} object staging ceiling"
+                "your staging usage is {} / {STAGING_PER_PRINCIPAL_OBJECTS} objects and {} / {STAGING_PER_PRINCIPAL_BYTES} bytes; requested {bytes} bytes. List abandoned uploads with client.listUploads(), then client.discardUpload(id) to free quota immediately",
+                usage.creator.objects, usage.creator.bytes
             )));
         }
         if bytes > STAGING_GLOBAL_BYTES.saturating_sub(usage.global.bytes)
             || usage.global.objects >= STAGING_GLOBAL_OBJECTS
         {
             return Err(RuntimeError::AssetTooLarge(format!(
-                "the owner has reached the {STAGING_GLOBAL_BYTES} byte or {STAGING_GLOBAL_OBJECTS} object staging ceiling"
+                "the owner staging ceiling is full ({STAGING_GLOBAL_OBJECTS} objects or {STAGING_GLOBAL_BYTES} bytes); your usage is {} objects and {} bytes; requested {bytes} bytes. Use client.listUploads() and client.discardUpload(id); other accounts must discard their own abandoned uploads",
+                usage.creator.objects, usage.creator.bytes
             )));
         }
         Ok(())
@@ -234,8 +246,8 @@ impl Store {
                 connection.query_row(
                     "SELECT COALESCE(SUM(MAX(staged_bytes, COALESCE(bytes, 0))), 0), COUNT(*)
                      FROM _assets
-                     WHERE reclaiming = 0 AND locator_table IS NULL
-                       AND state IN ('receiving', 'ready') AND created_by = ?1",
+                     WHERE locator_table IS NULL
+                       AND (state = 'receiving' OR (state = 'ready' AND reclaiming = 0)) AND created_by = ?1",
                     [creator],
                     |row| Ok((row.get(0)?, row.get(1)?)),
                 )?
@@ -243,8 +255,8 @@ impl Store {
                 connection.query_row(
                     "SELECT COALESCE(SUM(MAX(staged_bytes, COALESCE(bytes, 0))), 0), COUNT(*)
                      FROM _assets
-                     WHERE reclaiming = 0 AND locator_table IS NULL
-                       AND state IN ('receiving', 'ready')",
+                     WHERE locator_table IS NULL
+                       AND (state = 'receiving' OR (state = 'ready' AND reclaiming = 0))",
                     [],
                     |row| Ok((row.get(0)?, row.get(1)?)),
                 )?
@@ -385,6 +397,52 @@ impl Store {
         Ok(statement
             .query_map([], |row| row.get::<_, String>(0))?
             .collect::<Result<Vec<_>, _>>()?)
+    }
+
+    /// Only the caller's unclaimed receiving/ready uploads; bounded by the page size.
+    pub fn unclaimed_uploads(
+        &self,
+        creator: &str,
+        after: &str,
+    ) -> Result<Vec<AssetUpload>, RuntimeError> {
+        let mut statement = self.conn.prepare(
+            "SELECT id, kind, state, MAX(staged_bytes, COALESCE(bytes, 0)), created_at
+             FROM _assets WHERE created_by = ?1 AND locator_table IS NULL
+               AND (state = 'receiving' OR (state = 'ready' AND reclaiming = 0)) AND id > ?2
+             ORDER BY id LIMIT 101",
+        )?;
+        Ok(statement
+            .query_map(params![creator, after], |row| {
+                Ok(AssetUpload {
+                    id: row.get(0)?,
+                    kind: row.get(1)?,
+                    state: row.get(2)?,
+                    bytes: row.get(3)?,
+                    created_at: row.get(4)?,
+                })
+            })?
+            .collect::<Result<Vec<_>, _>>()?)
+    }
+
+    // @ref LLP 1006#9-lifecycle-finalize-off-the-writer-and-reclamation — explicit owner disposal uses the same durable tombstone as grace-based reclamation.
+    pub(crate) fn discard_upload(&mut self, creator: &str, id: &str) -> Result<bool, RuntimeError> {
+        let transaction = self
+            .conn
+            .transaction_with_behavior(rusqlite::TransactionBehavior::Immediate)?;
+        let changed = transaction.execute(
+            "UPDATE _assets SET reclaiming = 1
+             WHERE id = ?1 AND created_by = ?2 AND locator_table IS NULL",
+            params![id, creator],
+        )?;
+        if changed == 0
+            && asset_row(&transaction, id)?
+                .is_some_and(|row| row.created_by == creator && row.locator.is_some())
+        {
+            return Err(RuntimeError::AssetInUse(id.to_owned()));
+        }
+        transaction.commit()?;
+        // Missing and foreign ids have the same answer, including after a retry.
+        Ok(changed > 0)
     }
 
     // @ref LLP 1006#9-lifecycle-finalize-off-the-writer-and-reclamation — unclaimed rows age out without scanning application tables.

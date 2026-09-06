@@ -163,7 +163,6 @@ fn add_merge_cases(cases: &mut Vec<CorpusCase>) {
         kind: ProgramKind::Query,
         args: BTreeMap::new(),
         read_time_granularity_ms: None,
-        result_page_site: None,
         body: vec![Stmt::Return(Expr::Array(vec![first, second]))],
     };
     let pages = frozen_query(
@@ -232,7 +231,6 @@ fn add_opaque_cursor_cases(cases: &mut Vec<CorpusCase>) {
 
     let mut raw = opaque_cursor_program("tuple-cursor-comparison", Order::Asc, 2);
     raw.args.clear();
-    raw.result_page_site = None;
     let Stmt::Return(Expr::Scan(scan)) = &mut raw.body[0] else {
         unreachable!()
     };
@@ -455,7 +453,6 @@ fn merge_program(name: &str, site: &str, lanes: Vec<Expr>, take: u32) -> Program
         kind: ProgramKind::Query,
         args: BTreeMap::new(),
         read_time_granularity_ms: None,
-        result_page_site: None,
         body: vec![Stmt::Return(merged(site, lanes, take))],
     }
 }
@@ -498,7 +495,6 @@ fn for_lane_limit_case(schema: Schema) -> CorpusCase {
         kind: ProgramKind::Query,
         args: BTreeMap::new(),
         read_time_granularity_ms: None,
-        result_page_site: None,
         body: vec![Stmt::Return(Expr::Merge(Merge {
             site: site.into(),
             lanes: vec![MergeLane {
@@ -546,7 +542,6 @@ fn opaque_cursor_program(name: &str, order: Order, take: u32) -> Program {
         kind: ProgramKind::Query,
         args: BTreeMap::from([("c".to_owned(), ArgType::Optional(Box::new(ArgType::Cursor)))]),
         read_time_granularity_ms: None,
-        result_page_site: Some(name.to_owned()),
         body: vec![Stmt::Return(Expr::Scan(Scan {
             site: name.to_owned(),
             table: "posts".to_owned(),
@@ -632,7 +627,6 @@ fn add_opaque_merge_pages(cases: &mut Vec<CorpusCase>, schema: Schema) {
         program
             .args
             .insert("c".to_owned(), ArgType::Optional(Box::new(ArgType::Cursor)));
-        program.result_page_site = Some(name.to_owned());
         program
     };
     let first_name = "opaque-cursor-merge-capped-token";
@@ -842,7 +836,6 @@ fn add_lazy_merge_cases(cases: &mut Vec<CorpusCase>) {
     hidden_program
         .args
         .insert("c".into(), ArgType::Optional(Box::new(ArgType::Cursor)));
-    hidden_program.result_page_site = Some("merge.hidden".into());
     let Stmt::Return(Expr::Merge(merge)) = &mut hidden_program.body[0] else {
         unreachable!()
     };
@@ -934,7 +927,6 @@ fn add_review_merge_cases(cases: &mut Vec<CorpusCase>) {
     );
     page.args
         .insert("c".into(), ArgType::Optional(Box::new(ArgType::Cursor)));
-    page.result_page_site = Some("merge.review".into());
     let Stmt::Return(Expr::Merge(merge)) = &mut page.body[0] else {
         unreachable!()
     };
@@ -954,7 +946,6 @@ fn add_review_merge_cases(cases: &mut Vec<CorpusCase>) {
             kind: ProgramKind::Mutation,
             args: BTreeMap::new(),
             read_time_granularity_ms: None,
-            result_page_site: None,
             body: vec![Stmt::Delete {
                 table: "posts".into(),
                 key: literal_id(id_value),
@@ -1067,7 +1058,6 @@ fn add_review_merge_cases(cases: &mut Vec<CorpusCase>) {
     let Stmt::Return(Expr::Merge(merge)) = &mut repeated.body[0] else {
         unreachable!()
     };
-    repeated.result_page_site = Some(merge.site.clone());
     let lane = &mut merge.lanes[0];
     lane.source.as_mut().unwrap().take = Bound::Literal(500);
     lane.scan.take = Bound::Literal(20);

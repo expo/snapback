@@ -256,7 +256,6 @@ pub fn thread_program(take: u32) -> Program {
         kind: ProgramKind::Query,
         args: BTreeMap::from([("conversationId".to_owned(), ArgType::Scalar)]),
         read_time_granularity_ms: None,
-        result_page_site: None,
         body: vec![
             Stmt::Let {
                 name: "result".to_owned(),
@@ -427,7 +426,6 @@ pub fn send_program(with_unread: bool) -> Program {
             ("at".to_owned(), ArgType::Scalar),
         ]),
         read_time_granularity_ms: None,
-        result_page_site: None,
         body,
     }
 }
@@ -442,7 +440,6 @@ pub fn mark_read_program() -> Program {
             ("messageId".to_owned(), ArgType::Id),
         ]),
         read_time_granularity_ms: None,
-        result_page_site: None,
         body: vec![
             Stmt::Update {
                 table: "memberships".to_owned(),
@@ -512,7 +509,6 @@ pub fn inbox_program(maintained: bool) -> Program {
         kind: ProgramKind::Query,
         args: BTreeMap::new(),
         read_time_granularity_ms: None,
-        result_page_site: None,
         body: vec![
             Stmt::Let {
                 name: "result".to_owned(),
@@ -559,7 +555,6 @@ pub fn start_dm_program() -> Program {
             ("hi".to_owned(), ArgType::Principal),
         ]),
         read_time_granularity_ms: None,
-        result_page_site: None,
         body: vec![
             Stmt::Let {
                 name: "existing".to_owned(),
@@ -679,7 +674,6 @@ fn nested_board_program(summary: bool) -> Program {
         kind: ProgramKind::Query,
         args: BTreeMap::from([("boardId".to_owned(), ArgType::Scalar)]),
         read_time_granularity_ms: None,
-        result_page_site: None,
         body: vec![
             Stmt::Let {
                 name: "result".to_owned(),
@@ -717,7 +711,6 @@ pub fn ledger_program() -> Program {
         kind: ProgramKind::Query,
         args: BTreeMap::from([("groupId".to_owned(), ArgType::Scalar)]),
         read_time_granularity_ms: None,
-        result_page_site: None,
         body: vec![Stmt::Return(Expr::Scan(Scan {
             site: "programs.ledger.0".to_owned(),
             table: "owed".to_owned(),
@@ -745,7 +738,6 @@ pub fn add_expense_program() -> Program {
             ("recipients".to_owned(), ArgType::List { of: None, max: 50 }),
         ]),
         read_time_granularity_ms: None,
-        result_page_site: None,
         body: vec![
             Stmt::Let {
                 name: "expenseId".to_owned(),
@@ -800,7 +792,6 @@ pub fn ancestors_program() -> Program {
         kind: ProgramKind::Query,
         args: BTreeMap::from([("accountId".to_owned(), ArgType::Scalar)]),
         read_time_granularity_ms: None,
-        result_page_site: None,
         body: vec![
             Stmt::Let {
                 name: "result".to_owned(),
@@ -834,7 +825,6 @@ pub fn mention_scan_program() -> Program {
         kind: ProgramKind::Query,
         args: BTreeMap::from([("handle".to_owned(), ArgType::Scalar)]),
         read_time_granularity_ms: None,
-        result_page_site: None,
         body: vec![
             Stmt::Let {
                 name: "result".to_owned(),
@@ -878,7 +868,6 @@ pub fn nested_expenses_program() -> Program {
         kind: ProgramKind::Query,
         args: BTreeMap::from([("groupId".to_owned(), ArgType::Scalar)]),
         read_time_granularity_ms: None,
-        result_page_site: None,
         body: vec![Stmt::For {
             binding: "expense".to_owned(),
             domain: LoopDomain::Page(Scan {
@@ -938,7 +927,6 @@ pub fn helper_wrapped_scan_program() -> Program {
         kind: ProgramKind::Query,
         args: BTreeMap::from([("columnId".to_owned(), ArgType::Scalar)]),
         read_time_granularity_ms: None,
-        result_page_site: None,
         body: vec![Stmt::Return(Expr::Scan(helper()))],
     }
 }
@@ -949,7 +937,6 @@ pub fn structural_waitlist_count_program() -> Program {
         kind: ProgramKind::Query,
         args: BTreeMap::from([("resourceId".to_owned(), ArgType::Scalar)]),
         read_time_granularity_ms: None,
-        result_page_site: None,
         body: vec![Stmt::Return(Expr::Builtin {
             builtin: Builtin::Count,
             args: vec![Expr::Scan(Scan {
@@ -976,7 +963,6 @@ pub fn maintained_waitlist_count_program() -> Program {
         kind: ProgramKind::Query,
         args: BTreeMap::from([("resourceId".to_owned(), ArgType::Scalar)]),
         read_time_granularity_ms: None,
-        result_page_site: None,
         body: vec![Stmt::Return(Expr::Get(Read {
             site: "programs.maintainedWaitlistDepth.0".to_owned(),
             table: "waitCounts".to_owned(),
@@ -993,7 +979,6 @@ pub fn hidden_rule_program() -> Program {
         kind: ProgramKind::Query,
         args: BTreeMap::from([("id".to_owned(), ArgType::Scalar)]),
         read_time_granularity_ms: None,
-        result_page_site: None,
         body: vec![Stmt::Return(Expr::Get(Read {
             site: "programs.hiddenRuleDocument.0".to_owned(),
             table: "secretDocs".to_owned(),
@@ -1010,7 +995,6 @@ pub fn delete_message_program() -> Program {
         kind: ProgramKind::Mutation,
         args: BTreeMap::from([("id".to_owned(), ArgType::Scalar)]),
         read_time_granularity_ms: None,
-        result_page_site: None,
         body: vec![Stmt::Delete {
             table: "messages".to_owned(),
             key: var("id"),

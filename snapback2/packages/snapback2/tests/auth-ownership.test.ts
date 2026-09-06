@@ -828,6 +828,57 @@ test("a delayed terminal write clears the old bearer before a failed replacement
   value.close();
 });
 
+for (const replacementSucceeds of [false, true]) {
+  test(`a status-listener replacement cannot bypass terminal mutation invalidation (replacement succeeds: ${replacementSucceeds})`, async () => {
+    let stored: string | null = "expired-token";
+    let mutations = 0;
+    let loginOutcome: Promise<{ error?: any }> | undefined;
+    const loginBearers: Array<string | null> = [];
+    const value = rawClient({
+      url: "http://auth.test",
+      tokenStore: { load: () => stored, save: token => { stored = token; } },
+      fetch: async (input, init) => {
+        const path = pathOf(input);
+        if (path === "/api/auth/me") return json({ viewer: "principal-old", kind: "user" });
+        if (path === "/api/mutation") {
+          if (++mutations === 1) throw new TypeError("network disconnected");
+          return json({ state: "rejected", ...refusal("E_AUTH_SESSION") });
+        }
+        if (path === "/api/auth/login") {
+          loginBearers.push(bearer(init));
+          return replacementSucceeds
+            ? json({ token: "replacement-token", viewer: "principal-new", kind: "user" })
+            : json(refusal("E_AUTH_INVALID"), 401);
+        }
+        throw new Error(`unexpected path ${path}`);
+      },
+    });
+    let unsubscribe = () => {};
+    try {
+      await value.ready;
+      await value.auth.me();
+      await assert.rejects(value.mutation(api.messages.send, {}), isCode("E_NETWORK"));
+      assert.equal(value.snapshot.connection, "reconnecting");
+      let armed = true;
+      unsubscribe = value.subscribeStatus(snapshot => {
+        if (armed && snapshot.connection === "connected") {
+          armed = false;
+          loginOutcome = value.auth.login({ email: "a@example.com", password: "password" })
+            .then(() => ({}), error => ({ error }));
+        }
+      });
+      await assert.rejects(value.mutation(api.messages.send, {}), isCode("E_AUTH_SUPERSEDED"));
+      assert.ok(loginOutcome, "the connected notification must start the replacement");
+      const outcome = await loginOutcome;
+      assert.equal(outcome.error?.code, replacementSucceeds ? undefined : "E_AUTH_INVALID");
+      assert.deepEqual(loginBearers, [null], "known-invalid custody is cleared before replacement dispatch");
+      assert.equal(stored, replacementSucceeds ? "replacement-token" : null);
+      assert.equal(value.snapshot.token, replacementSucceeds ? "replacement-token" : undefined);
+      assert.equal(value.snapshot.auth.state, replacementSucceeds ? "authenticated" : "anonymous");
+    } finally { unsubscribe(); value.close(); }
+  });
+}
+
 test("a delayed terminal read cannot clear a successfully replaced bearer", async () => {
   const oldResponse = deferred<Response>();
   let stored: string | null = "expired-token";

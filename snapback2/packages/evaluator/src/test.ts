@@ -59,7 +59,7 @@ for (const testCase of cases) {
 }
 
 // Every merge corpus replay must stay under the same certified meters as the engine.
-for (const testCase of cases.filter((c) => JSON.stringify(c.program).includes('"Merge"'))) {
+for (const testCase of cases.filter((c) => c.expected.errorCode === null && JSON.stringify(c.program).includes('"Merge"'))) {
   const certificate = testCase.certificate as any;
   const replay = new ClientStore(testCase.schema, testCase.receipt)
     .reexecute(testCase.program, testCase.context, certificate);

@@ -665,6 +665,10 @@ impl Runtime {
         self.engine.store().asset_staging_usage(actor.id())
     }
 
+    pub fn discard_upload(&mut self, actor: &crate::Actor, id: &str) -> Result<bool, RuntimeError> {
+        self.engine.store_mut().discard_upload(actor.id(), id)
+    }
+
     pub fn asset_ids(&self) -> Result<Vec<String>, RuntimeError> {
         self.engine.store().asset_ids()
     }
@@ -1158,7 +1162,6 @@ fn seed_program(
         kind: ProgramKind::Mutation,
         args: BTreeMap::new(),
         read_time_granularity_ms: None,
-        result_page_site: None,
         body: rows
             .iter()
             .map(|(table, row)| {
@@ -1373,7 +1376,6 @@ mod tests {
             kind: ProgramKind::Query,
             args: BTreeMap::new(),
             read_time_granularity_ms: None,
-            result_page_site: None,
             body: vec![Stmt::Return(Expr::Literal(Value::Int(42)))],
         };
 

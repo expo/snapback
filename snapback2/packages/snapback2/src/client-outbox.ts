@@ -51,7 +51,7 @@ export function wireReplayResponse<Result>(value: unknown): MutationResult<Resul
   return { ...result, ...intent };
 }
 
-type Transport = (path: string, init: RequestInit) => Promise<unknown>;
+type Transport = (path: string, init: RequestInit, onSend?: () => void) => Promise<unknown>;
 export type DrainResult = { stopped: boolean; reason?: Exclude<OutboxSettlement["stopped"], false>; remaining: number };
 
 export interface SubmitMutationOptions {
@@ -63,6 +63,7 @@ export interface SubmitMutationOptions {
   json: Transport;
   failure(error: unknown): Error;
   drain(): Promise<{ stopped: boolean }>;
+  onCustody?(kind: "wire" | "outbox"): void;
 }
 
 /**
@@ -79,16 +80,19 @@ export interface SubmitMutationOptions {
  */
 export async function submitMutation<Result>(options: SubmitMutationOptions): Promise<MutationResult<Result>> {
   const { runtime } = options;
-  const plain = async () => wireMutation<Result>(await options.json("/api/mutation", {
-    method: "POST",
-    body: JSON.stringify({ op: options.op, args: options.args }),
-  }));
+  const plain = async () => {
+    return wireMutation<Result>(await options.json("/api/mutation", {
+      method: "POST",
+      body: JSON.stringify({ op: options.op, args: options.args }),
+    }, () => options.onCustody?.("wire")));
+  };
   if (!runtime || runtime.principal === undefined) return plain();
   const enqueue = async (): Promise<OutboxEntry> => {
     try {
       return await runtime.outbox.enqueue(
         { op: options.op, args: options.args, issuedSeq: runtime.seq },
         (ids) => runtime.predict(options.op, options.args, ids),
+        () => options.onCustody?.("outbox"),
       );
     } catch (error) {
       throw options.failure(error);

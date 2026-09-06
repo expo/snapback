@@ -3,8 +3,8 @@
 // authenticates and re-authorizes the log plus mounted queries without
 // reopening subscriptions.
 
-use super::*;
 use super::writer_auth::ResolvedAuthority;
+use super::*;
 use serde::Deserialize;
 use snapback2_core::{CursorPosition, Order, encode_cursor};
 
@@ -91,11 +91,14 @@ impl State {
             .with_detail("cap", json!(MAX_MOUNTED)));
         }
         let log_args = match &request.log {
-            Some(held) => Some(self.log_page(&held.op, held.args.clone(), held.watermark.as_deref())?),
+            Some(held) => {
+                Some(self.log_page(&held.op, held.args.clone(), held.watermark.as_deref())?)
+            }
             None => None,
         };
 
-        let grant = self.grant_if_low(authority.principal.id.as_str(), request.remaining.as_ref())?;
+        let grant =
+            self.grant_if_low(authority.principal.id.as_str(), request.remaining.as_ref())?;
         let log = match (&request.log, log_args) {
             (Some(held), Some(args)) => self.resume_log(held, args, &authority)?,
             _ => Json::Null,
@@ -250,27 +253,32 @@ impl State {
                 || matches!(kind, ArgType::Optional(boxed) if matches!(boxed.as_ref(), ArgType::Cursor)))
             .then(|| name.clone())
         });
-        let page = certificate.result_page_site.as_ref();
-        let take = page.and_then(|page| {
-            certificate
-                .read_sites
-                .iter()
-                .find(|site| site.site == page.site)
-                .map(|site| site.take)
-                .or_else(|| {
-                    certificate
-                        .merge_sites
-                        .iter()
-                        .find(|site| site.site == page.site)
-                        .map(|site| site.take)
-                })
-        });
-        let shape = match (page, take, &cursor) {
-            (Some(page), Some(take), Some(_)) if page.order == Order::Asc && take <= MAX_LOG_PAGE => Ok(()),
-            (None, _, _) => Err("returns no page"),
-            (_, _, None) => Err("has no cursor argument"),
-            (Some(page), _, _) if page.order != Order::Asc => Err("pages backwards (last N)"),
-            _ => Err("pages more than 50 rows"),
+        let shape = if certificate.result_pages.is_empty() {
+            Err("returns no page")
+        } else if cursor.is_none() {
+            Err("has no cursor argument")
+        } else {
+            certificate.result_pages.values().try_for_each(|page| {
+                let take = certificate
+                    .read_sites
+                    .iter()
+                    .find(|site| site.site == page.site)
+                    .map(|site| site.take)
+                    .or_else(|| {
+                        certificate
+                            .merge_sites
+                            .iter()
+                            .find(|site| site.site == page.site)
+                            .map(|site| site.take)
+                    });
+                if page.order != Order::Asc {
+                    Err("pages backwards (last N)")
+                } else if take.is_none_or(|take| take > MAX_LOG_PAGE) {
+                    Err("pages more than 50 rows")
+                } else {
+                    Ok(())
+                }
+            })
         };
         if let Err(reason) = shape {
             return Err(Refusal::new(
@@ -285,7 +293,10 @@ impl State {
             .with_detail("cap", json!(MAX_LOG_PAGE)));
         }
         let object = args.as_object_mut().ok_or_else(|| {
-            Refusal::input("resume log args must be an object", "pass the query's named args")
+            Refusal::input(
+                "resume log args must be an object",
+                "pass the query's named args",
+            )
         })?;
         object.insert(
             cursor.expect("checked above"),
@@ -294,7 +305,11 @@ impl State {
         Ok(args)
     }
 
-    fn delivery_watermark(&self, op: &str, execution: &Execution) -> Result<Option<String>, Refusal> {
+    fn delivery_watermark(
+        &self,
+        op: &str,
+        execution: &Execution,
+    ) -> Result<Option<String>, Refusal> {
         let certificate = &self
             .runtime()
             .generation()
@@ -302,7 +317,12 @@ impl State {
             .get(op)
             .expect("resume operation was resolved")
             .1;
-        let Some(page) = &certificate.result_page_site else {
+        let Some(page) = execution
+            .trace
+            .result_page_return
+            .as_ref()
+            .and_then(|path| certificate.result_pages.get(path))
+        else {
             return Ok(None);
         };
         let values = if page.merge {
@@ -404,6 +424,8 @@ fn byte_length(value: &Json) -> Result<usize, Refusal> {
     serde_json::to_vec(value)
         .map(|bytes| bytes.len())
         .map_err(|error| {
-            Refusal::from_runtime(&snapback2_core::RuntimeError::Serialization(error.to_string()))
+            Refusal::from_runtime(&snapback2_core::RuntimeError::Serialization(
+                error.to_string(),
+            ))
         })
 }

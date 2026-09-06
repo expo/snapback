@@ -287,84 +287,21 @@ export function validateInputs(schema: any, program: any, inputs: Record<string,
     if (value === undefined) throw new EvalError("E_INPUT", `missing arg ${name}`);
     validateTypedValue(descriptor, value, `arg ${name}`, true);
   }
-  validateOpaqueCursors(schema, program.body, inputs);
 }
 
-function validateOpaqueCursors(schema: any, value: any, inputs: Record<string, Value>): void {
-  const visitValue = (candidate: any, values: Record<string, Value>): void => {
-    if (Array.isArray(candidate)) {
-      for (const item of candidate) visitValue(item, values);
-      return;
-    }
-    if (candidate === null || typeof candidate !== "object") return;
-    if (candidate.Merge) {
-      for (const lane of candidate.Merge.lanes) {
-        visitBody(lane.setup ?? [], { ...values });
-        if (lane.source) visitValue({ Scan: lane.source }, values);
-        visitValue({ Scan: lane.scan }, values);
-      }
-    }
-    const scan = candidate.Scan;
-    if (scan?.opaque_cursor) {
-      if (scan.before !== null) throw new EvalError("E_INPUT", "opaque cursors only support after");
-      const cursor = scan.after === null ? "Null" : inputExpression(scan.after, values);
-      if (cursor !== "Null") {
-        if (!isVariant(cursor, "String")) throw new EvalError("E_INPUT", "opaque cursor must be a string");
-        decodeCursorFor(cursor.String, {
-          table: scan.table,
-          index: scan.index,
-          order: scan.order,
-          suffix: cursorSuffix(schema, scan),
-        });
-      }
-    }
-    for (const child of Object.values(candidate)) visitValue(child, values);
-  };
-  const visitBody = (statements: any[], values: Record<string, Value>): void => {
-    for (const statement of statements) {
-      if (statement === null || typeof statement !== "object") continue;
-      const binding = statement.Const ?? statement.Let ?? statement.Assign;
-      if (binding) {
-        visitValue(binding.value, values);
-        const resolved = staticInputExpression(binding.value, values);
-        if (resolved === undefined) delete values[binding.name];
-        else values[binding.name] = resolved;
-        continue;
-      }
-      if (statement.If) {
-        visitValue(statement.If.condition, values);
-        const thenValues = { ...values };
-        const elseValues = { ...values };
-        visitBody(statement.If.then_body, thenValues);
-        visitBody(statement.If.else_body, elseValues);
-        for (const name of Object.keys(values)) {
-          if (!(name in thenValues) || !(name in elseValues)
-            || canonicalValue(thenValues[name]) !== canonicalValue(elseValues[name])) delete values[name];
-        }
-        continue;
-      }
-      if (statement.For) {
-        visitValue(statement.For.domain, values);
-        visitBody(statement.For.body, { ...values });
-        continue;
-      }
-      visitValue(statement, values);
-    }
-  };
-  visitBody(value, { ...inputs });
+/** Cursor scope follows executed control flow, including an empty merge. */
+export function validateScanCursor(schema: any, scan: any, bindings: Map<string, Value>): void {
+  if (!scan.opaque_cursor) return;
+  if (scan.before !== null) throw new EvalError("E_INPUT", "opaque cursors only support after");
+  const cursor = scan.after?.Variable !== undefined ? bindings.get(scan.after.Variable) : scan.after?.Literal;
+  if (cursor === undefined) throw new EvalError("E_INPUT", "opaque cursor expression must derive from an operation argument");
+  if (cursor === "Null") return;
+  if (!isVariant(cursor, "String")) throw new EvalError("E_INPUT", "opaque cursor must be a string");
+  decodeCursorFor(cursor.String, {
+    table: scan.table, index: scan.index, order: scan.order, suffix: cursorSuffix(schema, scan),
+  });
 }
 
-function inputExpression(expression: any, inputs: Record<string, Value>): Value {
-  const value = staticInputExpression(expression, inputs);
-  if (value !== undefined) return value;
-  throw new EvalError("E_INPUT", "opaque cursor expression must derive from an operation argument");
-}
-
-function staticInputExpression(expression: any, inputs: Record<string, Value>): Value | undefined {
-  if (expression?.Variable !== undefined) return inputs[expression.Variable];
-  if (expression?.Literal !== undefined) return expression.Literal;
-  return undefined;
-}
 
 export function validateTypedValue(
   descriptor: any,

@@ -21,7 +21,6 @@ fn unhoisted_insert_and_return_evaluate_new_id_twice() {
         kind: ProgramKind::Mutation,
         args: BTreeMap::new(),
         read_time_granularity_ms: None,
-        result_page_site: None,
         // This is the raw duplicated IR shape the compiler must prevent by hoisting.
         body: vec![
             Stmt::Insert {
@@ -62,7 +61,6 @@ fn insert_row_expression_is_shared_by_storage_and_return() {
         kind: ProgramKind::Mutation,
         args: BTreeMap::new(),
         read_time_granularity_ms: None,
-        result_page_site: None,
         body: vec![
             Stmt::Let {
                 name: "row".to_owned(),
@@ -113,7 +111,6 @@ fn mutually_exclusive_branch_writes_certify_and_execute_at_the_same_bound() {
         kind: ProgramKind::Mutation,
         args: BTreeMap::from([("chooseFirst".to_owned(), ArgType::Bool)]),
         read_time_granularity_ms: None,
-        result_page_site: None,
         body: vec![
             Stmt::If {
                 condition: Expr::Variable("chooseFirst".to_owned()),
@@ -149,7 +146,6 @@ fn receipt_absence_missing_from_trace_is_rejected() {
         kind: ProgramKind::Query,
         args: BTreeMap::new(),
         read_time_granularity_ms: None,
-        result_page_site: None,
         body: vec![Stmt::Return(Expr::Literal(Value::Null))],
     };
     let certificate = Checker::new(&schema, Ceilings::default())
@@ -185,7 +181,6 @@ fn maintained_update_program() -> Program {
         kind: ProgramKind::Mutation,
         args: BTreeMap::new(),
         read_time_granularity_ms: None,
-        result_page_site: None,
         body: vec![Stmt::Update {
             table: "cards".to_owned(),
             key: Expr::Literal(Value::Id("card-1".to_owned())),
