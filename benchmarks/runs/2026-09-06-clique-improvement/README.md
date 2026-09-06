@@ -49,9 +49,9 @@ and migration command discovery
 
 | Lane | Review target | Current evidence |
 | --- | --- | --- |
-| Auth startup | `0e6cebfcd`, branch `s2/clique-auth` | 173 affected tests pass; final Astra review finds held replay and late response-body cancellation gaps; Grok review running; further auth edits held pending author extension of the three-round limit |
-| Abandoned assets | `2e671c5c6`, branch `s2/clique-assets` | Revision passes 66 JS / 53 Rust affected tests; second Astra review finds two cleanup leaks; Grok finds terminal-refusal cleanup ordering; final combined revision underway |
-| Conditional cursors | `bbe2f85aa`, branch `s2/clique-cursors` | Consolidated run: Rust 743 pass, compiler 400 pass, evaluator 216 pass; package 379 pass/one 10s timeout. Astra finds duplicate-site provenance and malformed-prefix panic; Grok review running. Further edits held pending three-round extension |
+| Auth startup | `0e6cebfcd`, branch `s2/clique-auth` | 173 affected tests pass; final Astra review finds held replay and late response-body cancellation gaps; Grok review running; author extended the round limit for this session; next revision underway |
+| Abandoned assets | `f7d251394`, branch `s2/clique-assets` | All three residuals have failing-before regressions; 99 JS / 62 Rust affected tests pass; final Astra/Grok reviews and full verification underway |
+| Conditional cursors | `bbe2f85aa`, branch `s2/clique-cursors` | Consolidated run: Rust 743 pass, compiler 400 pass, evaluator 216 pass; package 379 pass/one 10s timeout. Astra finds duplicate-site provenance and malformed-prefix panic; Grok review running. Author extended the round limit for this session; next revision underway |
 
 Received auth and asset reviews are retained under `reviews/`, exactly as received.
 They are static reviews, not test execution. New interleaving regressions must
@@ -80,3 +80,8 @@ Do not label those xhigh runs or reviews as ultra. The requested Muse ultra
 comparison remains outstanding even if other lanes later win.
 
 Cursor consolidated evidence at `bbe2f85aa` is `/tmp/clique-cursors-bbe2f85aa-consolidated.log` on the M5. The complete script exited 1; no timing phase witness identifies the package timeout cause. Host load sampled afterward suggests contention but does not prove it. No timeout increase or aggregate-green claim. The next independent CLI lane addresses help and migration-command discovery only.
+
+Session authorization: the author explicitly requested unattended operation and
+authorized overriding the three-round fix limit as needed. Auth and cursor
+revisions resumed in their existing named lanes; the override does not claim
+that their review findings are resolved or alter verification evidence.

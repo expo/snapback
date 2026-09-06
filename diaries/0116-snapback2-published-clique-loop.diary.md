@@ -190,3 +190,24 @@ the restored custody. The exact review is retained with the run. This lane
 has reached the repository's three-round rule; further auth edits are held
 pending the author's explicit extension. Other implementation and benchmark
 work continues. No auth landing or publication is claimed.
+
+
+### Unattended continuation, 2026-09-06
+
+The author explicitly authorized unattended decisions and extending fix loops
+beyond three rounds for this session. Auth and cursor revisions resumed under
+Astra xhigh in their existing named lanes. Asset final revision and CLI help /
+migration discovery fixes continue independently. M5 now compiles and applies,
+with acceptance still pending. The builder reports a substantial search cost:
+Unicode prefix keys need application-maintained hashing/index writes because
+the published words primitive supplies ASCII whole words. This is a product
+design finding to evaluate after the run, not evidence that search acceptance
+has passed.
+
+
+Asset revision `f7d251394` fixes serialization-before-custody, retryable staging
+deletion after worker exit, and terminal-result cleanup ordering. All three
+residuals reproduced on preceding code; 99 JS and 62 Rust affected tests pass.
+The terminal HTTP 200 rejection is a supported client contract exercised by
+injected transport; the current owner normally returns HTTP 401 for an
+expired session. Independent final reviews and full verification remain.
