@@ -1,0 +1,12 @@
+{
+  "reviewedCommit": "6f0c0b4e9de16d49879c631606ae26aa0fc60c72",
+  "model": "grok-4.6",
+  "effort": "xhigh",
+  "verdict": "CHANGES_REQUIRED",
+  "rootReadFullReport": true,
+  "reviewSha256": "38eec5be068558b1c2aa561a6205ddfd9a920294d9fb6b72c6aca2e93b5136a2",
+  "scope": "independent capture review; no v5 or complete runtime qualification",
+  "attributionLimit": "Several new-regression claims lack executed e6 comparisons. R5 must distinguish inherited defects from introduced deltas. Accepted-value scaling errors remain material regardless of attribution. Conservative held ineligibility/TS-only ternary refusal does not authorize a new public language surface.",
+  "reportCorrection": "Displayed external evaluator overlay SHA omits initial3; known complete hash is3591f1e83fc0b0aa4223e290e9958a76c9ca0ab50496983ae1edb56663cb980b. Original report preserved.",
+  "next": "Astra repair lane compares original probes and fixes confirmed same-family semantic defects before fresh reviews"
+}
