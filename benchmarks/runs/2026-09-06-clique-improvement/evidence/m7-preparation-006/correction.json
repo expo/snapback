@@ -1,0 +1,12 @@
+{
+  "at": "2026-09-06T11:20:33.687033+00:00",
+  "reason": "Preparation-only backend restriction accidentally propagated to M7, preventing full contract verification. Corrected before launch. Aggregate M6 failure/M8 unresolved preserved; diagnostic M7 allowed without fabricating prerequisite green.",
+  "applicationOrSnapshotChanges": false,
+  "originalsRetained": [
+    "launch/m7-prompt.md",
+    "launch/launch.py",
+    "launch/root-launch-context.template.json",
+    "launch/command.md",
+    "hashes/preparation-seal.json"
+  ]
+}

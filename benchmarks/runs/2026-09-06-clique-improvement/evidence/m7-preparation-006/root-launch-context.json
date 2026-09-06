@@ -1,0 +1,20 @@
+{
+  "continuousGradingComplete": true,
+  "model": "gpt-6-astra",
+  "effort": "medium",
+  "aidCondition": "installed-only",
+  "priorMilestones": {
+    "m1": "green",
+    "m2": "green",
+    "m3": "green",
+    "m4": "green",
+    "m5": "green",
+    "m6": "capability-failure",
+    "m8": "unresolved"
+  },
+  "wallCapSeconds": null,
+  "tokenCap": null,
+  "capProvenance": "Populate only from original run authority; supplied frozen brief contains numeric placeholders.",
+  "executionPolicy": "full-benchmark-scope",
+  "notes": "M1-M6 web suites were green; native M6 failed and M8 remains unqualified. M7 is a diagnostic continuation, not a claim that aggregate M6 eligibility passed. No calibrated numeric caps were available in original authority."
+}

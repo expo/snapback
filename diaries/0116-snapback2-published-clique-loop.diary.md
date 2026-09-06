@@ -351,3 +351,29 @@ authorization/receipt semantics; its 2.36-times mean-cost estimate is not an
 executed result. Full scale, fresh M7, and comparative holistic wins remain
 unproven. Search work targets the separate application posting-maintenance
 burden; its Unicode foundation is implemented but search is not active yet.
+
+## 2026-09-06 — Completed scale evidence and the next repair boundary
+
+The old published 0.0.6 scale run completed 167,244 settled actions with no
+failed actions and all checkpoint invariants passing. Following-feed p95
+ratios missed the 3× target at every checkpoint. A source-frozen engine repair
+reduced the first 10% client ratio to 2.754× with all ten full-output comparisons
+byte-identical. Its first larger-checkpoint results were 3.208× and 3.246×,
+so the full performance target remains unmet. We retained all samples and
+started a separate residual repair; the 10% pass is not a full-curve claim.
+
+The guide timer repair and shared Unicode foundation passed both independent
+Astra xhigh and Grok 4.6 xhigh reviews and landed on main. The guide now agrees
+with its cache writer about public operations. The fresh published 0.0.8 builder
+reports M1–M4 web green and has reached M5; it still needs an application-owned
+prefix index and offline matching. Engine/compiler/twin integration aims to
+remove that duplicated authoring burden, but it is not yet qualified.
+
+A separate fresh Astra-medium M7 session launched against frozen 0.0.6 after
+independent continuous grading. Preparation used only the original starter log
+and exported per-persona API snapshots. Its 390 API and 914 preservation checks
+passed before the authoring clock. A preparation-only backend restriction had
+accidentally propagated into the proposed M7 handoff; corrected before launch,
+with original handoff files retained. Full M7 web/native verification is allowed.
+Aggregate native M6 and M8 qualification gaps remain explicit; this diagnostic
+continuation does not turn them green. No comparative win has been established.
