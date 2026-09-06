@@ -2,6 +2,7 @@ import type { AssetFetchOptions } from "./store/byte-cache.js";
 import type { Channel as ChannelRef, Op } from "./api.js";
 import type { AssetCache, ByteCacheEntry, ByteCacheStatus } from "./store/byte-cache.js";
 import type { OutboxEntry, RangeStoreFactory, RowRef, StoredRow } from "./store/range-store.js";
+import { canonical } from "./store/canonical.js";
 
 export type { OutboxEntry, OutboxGrant, OutboxState, OutboxTrace } from "./store/range-store.js";
 
@@ -393,19 +394,7 @@ export function initialQueryState<Result>(): QueryView<Result> {
   return { state: "hydrating", live: false };
 }
 
-function canonical(value: unknown): string {
-  if (value === undefined) return "undefined";
-  if (value === null || typeof value !== "object") return JSON.stringify(value);
-  if (Array.isArray(value)) return `[${value.map(canonical).join(",")}]`;
-  return `{${Object.keys(value as object)
-    .sort()
-    .map((key) => `${JSON.stringify(key)}:${canonical((value as Record<string, unknown>)[key])}`)
-    .join(",")}}`;
-}
-
-export function stableSerialize(value: unknown): string {
-  return canonical(value);
-}
+export { canonical as stableSerialize };
 
 // @ref LLP 1002#9-the-client-snapback2client-snapback2react-snapback2test — React preserves data identity while exposing every receipt-backed state.
 export function reduceQueryState<Result>(
