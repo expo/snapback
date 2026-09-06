@@ -1,0 +1,72 @@
+{
+  "ok": true,
+  "version": "0.0.7",
+  "registry_integrity_matches": true,
+  "checks": [
+    {
+      "name": "snapback2 registry install integrity",
+      "ok": true,
+      "integrity": "sha512-vC9FiSNV4XjocMcO3ZJ6CMfqJublHH+ObTkdHNVUO+SxpBiQ5ZrLucaJvJNpIPWDfkwCi+ZvgVUPR4IyPVFLxA=="
+    },
+    {
+      "name": "snapback2-darwin-arm64 registry install integrity",
+      "ok": true,
+      "integrity": "sha512-LsxVLSjZlID6M2rNrCyrSWxFhVmtArUMYbDeL2LqGtM4zdiEyrtIKZjFDLg67LYvr8tCautVRxVweLkcvcl8lw=="
+    },
+    {
+      "name": "version",
+      "ok": true,
+      "seconds": 12.893042667012196
+    },
+    {
+      "name": "doctor",
+      "ok": true,
+      "seconds": 0.1434341249987483
+    },
+    {
+      "name": "top-help",
+      "ok": true,
+      "seconds": 0.06775383302010596
+    },
+    {
+      "name": "dev-help",
+      "ok": true,
+      "seconds": 0.058930791972670704
+    },
+    {
+      "name": "guide-init",
+      "ok": true,
+      "seconds": 0.06342095899162814
+    },
+    {
+      "name": "guide-dev",
+      "ok": true,
+      "seconds": 0.07351945800473914
+    },
+    {
+      "name": "guide-check",
+      "ok": true,
+      "seconds": 0.07991575001506135
+    },
+    {
+      "name": "guide-migration",
+      "ok": true,
+      "seconds": 0.08311824995325878
+    },
+    {
+      "name": "snapback2 installed bytes",
+      "ok": true,
+      "sha256": "99c9b2aaa739ad7530e4f0f5ecf76d5312300291d2c449952d135ce66c2e95df"
+    },
+    {
+      "name": "snapback2-media installed bytes",
+      "ok": true,
+      "sha256": "dc1419e2fde6352e77abc62f6aae75624a91aba7bb865923219e115a48524a11"
+    }
+  ],
+  "media": {
+    "heic": true,
+    "images": true
+  },
+  "consumer_directory": "/Users/ccheever/projects/snapback-artifacts/clique-release/0.0.7-7f59d3a42/installed-consumer"
+}

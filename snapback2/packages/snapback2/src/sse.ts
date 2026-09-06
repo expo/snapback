@@ -1,10 +1,10 @@
-import { parseSse } from "./sse-parser.js";
+import { parseSse, type SseResponse } from "./sse-parser.js";
 import type { Subscription } from "./types.js";
 
 interface ParsedEvent { id?: string; data: string }
 interface ErrorDecision<Event> { event?: Event; failure?: Error; retry: boolean }
 export interface ReconnectingSseOptions<Event> {
-  open(lastEventId: string | undefined, signal: AbortSignal): Promise<Response>;
+  open(lastEventId: string | undefined, signal: AbortSignal): Promise<SseResponse>;
   decode(event: ParsedEvent, current: () => boolean): Event | Promise<Event>;
   bufferedTerminal?(event: ParsedEvent): Error | undefined;
   onError(error: unknown, hadDelivery: boolean): Promise<ErrorDecision<Event>> | ErrorDecision<Event>;

@@ -1,0 +1,189 @@
+{
+  "branch": "s2/clique-integration",
+  "localLane": "/Users/ccheever/projects/snapback-worktrees/clique-integration",
+  "baseMain": "5510cdf7f88c659bccc188338bffa3f2f68e2f06",
+  "currentCommit": "d1499f395c155fda9ae8a26c8f7216db80294684",
+  "version": "0.0.7",
+  "remote": "ccheever@100.88.75.121",
+  "remoteLane": "/Users/ccheever/projects/snapback-worktrees/clique-integration",
+  "remoteLogs": "/Users/ccheever/clique-integration-logs",
+  "fullRunHandle": 5071,
+  "remoteFullPid": 12498,
+  "remoteNextestPid": 17814,
+  "conflicts": [
+    "LLP1002 Revised header on auth a6a46b5a3 and9052d09a6; union preserves CLI and auth records"
+  ],
+  "codeAudit": "Final auth, asset custody and cursor source preserved; common writer-assets Program constructors drop removed result_page_site field. json onSend callback remains seventh parameter, before fetch.",
+  "guideFix": "Combined quarry guide 15878 exceeded 15872-byte cap. Commit21b21abd3 restores exact tested intro and compacts TypeScript scope paragraph; final15863 bytes. Cursor and asset recovery prose preserved.",
+  "passed": [
+    "caps eff96 and754",
+    "ref-check eff96 and754:0 errors,0 unchecked",
+    "git diff --check",
+    "cargo build24.34s",
+    "422 selected package tests29.303s",
+    "27 assets package tests1.005s"
+  ],
+  "fullStatus": "Original eff96aab7 full script exited1 in390.98s; six-byte guide overage corrected in21b21abd3; all affected failures pass in targeted reruns. No whole-script green claim on final commit.",
+  "sourceEditsAfterRuntimeCommit": "Only append-only metrics row in d1499f395; local andM5 namedlanes clean.",
+  "rustAggregate": {
+    "executed": 753,
+    "passed": 753,
+    "failed": 0,
+    "ignored": 4
+  },
+  "compiler": "Final400/400 pass; typecheck passed in original full run",
+  "evaluator": "216/216 corpus+2/2visibility pass,24server-only",
+  "packageTests": "12c01f469 affected byte/native/auth-ownership5files100/100 plusassets50/50 pass at originaltimeouts. Parent38dselected package+assets all green; unchanged source retains that evidence.",
+  "finalChecks": "12c01f469 packagebuild,caps,ref-check,diff pass;411LLPs7650refs0errors0unchecked. Originalshape/compiler/reconnectsource preserved exactly. No broadRust/compiler/evaluator rerun.",
+  "status": "R3residual fixed;18newcases green (11before-failing); affected100+assets50 green; packagebuild/caps/refs/diff and singlemeasurement green. Parent owns freshreviews/landing/publication. Shape+reconnect unchanged, version0.0.7 unchanged.",
+  "integratedRuntimeBeforeReview": "eff96aab737fc44257218bd008748c061897450b",
+  "previousReviewRevision": {
+    "reproductionCommit": "93d399efc",
+    "fixCommit": "ea35e15b1",
+    "findings": [
+      "Noncooperative automatic discard fetch/body holds mutation and auth barriers past existing two-second bound",
+      "Owner-shaped HTTP401 expires captured token before automatic discard; first upload401 leaves token current",
+      "Mutation-triggered outbox drain lacks cancellation and can hold write/auth barriers"
+    ],
+    "fixes": [
+      "Race whole automatic discard operation with existing withAbort, preserving original refusal and late cleanup fences",
+      "Defer current mutation HTTP401 expiry through discard, preserve superseded terminal evidence, and expire terminal first or explicit upload failures",
+      "Track and abort outbox drain controllers across offline/auth/close transitions, race fetch and body, and capture authority before mutation drain waits"
+    ],
+    "before": "17 new material regressions failed on unchanged integration client runtime; auth9 repeated at original10000ms timeout. Logs93d399efc-repros-before and93d399efc-auth-before retained.",
+    "after": "All18 added regressions pass, including additional explicit-upload401 case.",
+    "llpsUpdated": [
+      "1006",
+      "1012"
+    ],
+    "independentReviews": "Parent launched fresh blind Astra/Grok reviews on ea35e15b1; pending at handoff."
+  },
+  "reviewRevision": {
+    "base": "38d406d79a7f7b8f4b53e154b96633250be32e23",
+    "baseMeasureProof": "7f8fc10d92fd91173a988c5e53c111878ddb18e4",
+    "reproductionCommit": "e34032be6",
+    "fixCommit": "12c01f469b6ef66cce13aa0df7cbf70e45b23654",
+    "finding": "Uncached assetBlob bypasses post-conversion authority checks, and cached delivery guards omit signal cancellation.",
+    "fix": "The existing shared byte helper checks authority+signal before/after complete network conversion, final Blob construction, cache hits, admission, and each final lease/viewed check. No asynchronous conversion remains after final Blob guard.",
+    "before": "18focused tests on unchanged38d runtime at original10000ms:11fail7pass,0timeouts,0cancelled; loge34032be6-bytes-before.",
+    "after": "All18newcases green; affected5files100/100 in0.818s at original10000ms; assets50/50 in0.322s at original120000ms.",
+    "independentReviews": "Parent owns fresh scoped reviews; r3Astrafinding addressed; liveGrok review not read."
+  },
+  "previousMeasurement": {
+    "commit": "ea35e15b1",
+    "proofCommit": "617f61b4d61132eceb13e619ee97628d4198f401",
+    "at": "2026-09-06T08:46:31.483Z",
+    "command": "node scripts/measure.mjs --check",
+    "exit": 0,
+    "attempts": 1,
+    "duration_s": 61.16,
+    "warm_build_s": 25.25,
+    "package_build_s": 1.333,
+    "incremental_build_s": 2.55,
+    "consumer_smoke_s": 28.57,
+    "check_project_s": 0.521,
+    "doctor_samples_s": [
+      0.393,
+      0.061
+    ],
+    "init_to_dev_s": 1.138,
+    "scope": "Existing budgets all pass; no instrumentation or timeout changes. Measurement completed before parent notice that separate native build started. Chat receipt blocked effects is expected accepted engine-off consumer outcome.",
+    "logs": "ea35e15b1-measure.log/.exit, ea35e15b1-measure-row.jsonl, ea35e15b1-measure-source.txt retained locally and remotely."
+  },
+  "measurement": {
+    "commit": "12c01f469b6ef66cce13aa0df7cbf70e45b23654",
+    "proofCommit": "d1499f395c155fda9ae8a26c8f7216db80294684",
+    "at": "2026-09-06T09:25:43.831Z",
+    "command": "node scripts/measure.mjs --check",
+    "handle": 10606,
+    "exit": 0,
+    "actualScriptAttempts": 1,
+    "duration_s": 28.54,
+    "warm_build_s": 0.22,
+    "package_build_s": 1.216,
+    "incremental_build_s": 2.39,
+    "consumer_smoke_s": 21.41,
+    "check_project_s": 0.537,
+    "doctor_samples_s": [
+      0.139,
+      0.055
+    ],
+    "init_to_dev_s": 1.16,
+    "scope": "All existingbudgets passed first actualrun; originaltimeouts/instrumentation. Latestcombinedshape+reconnectclientruntime. Exact source/pre-run status/load and logs retained.",
+    "logs": "12c01f469-measure.log/.exit,12c01f469-measure-row.jsonl,12c01f469-measure-source.txt retained locally and remotely."
+  },
+  "clientRuntimeCommit": "12c01f469b6ef66cce13aa0df7cbf70e45b23654",
+  "runtimeCommit": "12c01f469b6ef66cce13aa0df7cbf70e45b23654",
+  "shapesIntegration": {
+    "authoredCommit": "b48d9552627802eec86e9c3a50f768cfdac73ebf",
+    "integratedCommit": "c64268ec48b5b118efb2dcc496d95fe62d45f8eb",
+    "conflicts": [],
+    "semanticEquality": "All3compiler files andLLP1011 exactly match authoredb48; all client source exactly matches reviewed9b.",
+    "evidence": "Parent verified both shape reviewsREADY. Authored compiler402/402, evaluator216/216+2visibility, core382/382 retained; no unrelated client/engine rerun.",
+    "checks": "Integratedcaps pass; ref-check411LLPs7648refs0errors0unchecked; diff check and source equality pass."
+  },
+  "reviewHistory": [
+    {
+      "base": "617f61b4d61132eceb13e619ee97628d4198f401",
+      "reproductionCommits": [
+        "2d9b6d3fb",
+        "6eee3e925",
+        "634d154e9",
+        "966b4aa67"
+      ],
+      "fixCommit": "9b0c74269a34dc2b9ea2023d77fe748486869c1e",
+      "findings": [
+        "Raw fetch and XHR authority checking before terminal parsing loses captured upload401 evidence across failed login",
+        "Terminal upload expiry leaves sibling replay/body/tail drains pending",
+        "Raw asset refused and successful bodies can cross successor authority",
+        "Outbox read after terminal seal replaces original E_AUTH_SESSION with E_OFFLINE_CARRIER"
+      ],
+      "fixes": [
+        "Share checkedAssetResponse between fetch and XHR, defer upload expiry through automatic sibling cleanup, fence nonterminal and successful bodies including uncached blob",
+        "Cancel sync and sibling drain signals inside bearer-keyed expireSession; retain originating signal/controller until its request completes",
+        "Preserve originating terminal outbox refusal without rereading sealed store",
+        "Replace positional JSON flags/onSend with named JsonRequestOptions; onSend remains immediately before fetch"
+      ],
+      "before": "Corrected fake-owner manifest descriptor in6eee3e925;13auth regressions run original10000ms:9fail4pass.14assets regressions on966b4aa67 original120000ms:10fail4pass. Initial2d9b6d3fb fixture failure logs retained, not counted as product reproduction.",
+      "after": "All27 new cases pass; auth-restoration97/97 and assets50/50 at original timeouts.",
+      "llpsUpdated": [
+        "1002",
+        "1006",
+        "1012"
+      ],
+      "independentReviews": "Parent invited to launch fresh blind scoped reviews on9b0c74269; r2 Astra changes addressed, r2 GrokREADY retained by parent."
+    }
+  ],
+  "reconnectIntegration": {
+    "authoredCommit": "6b0a8e2937d3754e575aba9b2ffe51cee0c7b1ef",
+    "integratedCommit": "38d406d79a7f7b8f4b53e154b96633250be32e23",
+    "owner": "parent",
+    "reviews": "Parent verified bothREADY",
+    "combinedProof": "38d406d79-combined.json:packagebuild,selected,assets,measurement all exit0; originalhandles21380,launcher88546; measurement row preserved in7f8fc10d9."
+  },
+  "measurementHistory": [
+    {
+      "commit": "9b0c74269a34dc2b9ea2023d77fe748486869c1e",
+      "proofCommit": "9287799e090367c3c941aee0b50213efe8ca80b0",
+      "at": "2026-09-06T09:09:39.934Z",
+      "command": "node scripts/measure.mjs --check",
+      "handle": 47584,
+      "exit": 0,
+      "actualScriptAttempts": 1,
+      "duration_s": 28.26,
+      "warm_build_s": 0.2,
+      "package_build_s": 1.267,
+      "incremental_build_s": 2.27,
+      "consumer_smoke_s": 20.9,
+      "check_project_s": 0.635,
+      "doctor_samples_s": [
+        0.145,
+        0.053
+      ],
+      "init_to_dev_s": 1.386,
+      "invocationError": "Initial zsh time -p invocation exited127 before measure.mjs ran or appended a row. Preserved *-measure-invocation-error* evidence; used /usr/bin/time -p for actual run. No budget retry.",
+      "scope": "All existing budgets pass on client runtime9b0c74269 before independently reviewed shapes cherry-pick. No instrumentation/timeout changes. Source/uptime/process CPU+comm preserved.",
+      "logs": "9b0c74269-measure.log/.exit,9b0c74269-measure-row.jsonl,9b0c74269-measure-source.txt retained locally and remotely."
+    }
+  ]
+}

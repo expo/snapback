@@ -1,0 +1,62 @@
+{
+  "format": "clique-builder-requalification-addendum.v1",
+  "status": "non-green",
+  "originalSuiteRecovery": "Exact original hash not found; no reconstruction attempted",
+  "applicationSourceUnchanged": true,
+  "allOriginalHandoffFileHashesUnchanged": true,
+  "originalArchiveSha256": "c64b7b1e82a5f4588dfe7f0f07110ad149c0c7c3e0764424be678160f2f75b61",
+  "originalHandoffSha256": "6219bb55011d221d5d92a1a77bbbb6df275838ecf574c196bd1232e5657cc4f2",
+  "startedAt": "2026-09-06T09:20:55.160043+00:00",
+  "completedAt": "2026-09-06T09:23:41.208848+00:00",
+  "durationSecondsFromRecordedStart": 166.048805,
+  "qualificationClockNote": "This is a later evidence-repair attempt. Original continuous boundary remains sealed; this attempt did not establish a new green boundary. Recovery search preceded the recorded start.",
+  "failedAssertions": [
+    "m8-a15-dual-offline-convergence",
+    "m8-a16-dual-offline-receipts"
+  ],
+  "cause": "Frozen compact summary reports application timeout awaiting dual-offline message convergence; dependent receipt assertion had no receipted messages. No app-versus-SDK root cause diagnosed.",
+  "failedRawInspected": false,
+  "files": [
+    {
+      "path": "evidence/m8-requalification-1788686455148/suite.json",
+      "sha256": "9370c41b59c8247b8e37767ee5d72574f1bec7ef69a3be4c724724ffb6e423f8",
+      "bytes": 1542
+    },
+    {
+      "path": "evidence/m8-requalification-1788686455148/suite-status.json",
+      "sha256": "4e9a73d9d9c83852057b7afb9451bdf4d3ee9e921a0e5093886703390fa12f29",
+      "bytes": 47
+    },
+    {
+      "path": "evidence/m8-requalification-1788686455148/coverage.json",
+      "sha256": "db436ea33e52931ac8483b65da2c139b3db03e4f7d2e4eca8ff27a618d1c33be",
+      "bytes": 157
+    },
+    {
+      "path": "evidence/m8-requalification-1788686455148/start.json",
+      "sha256": "7bbf342c73e2f6b4843fd91aaa5e56fc57c20528a1263ca4d633451ec0220893",
+      "bytes": 577
+    },
+    {
+      "path": "evidence/m8-requalification-1788686455148/precondition.json",
+      "sha256": "ca38bdcc194405cf9b216696fe882f29c7b37473c4d2234c63ad4f0c9f7924ca",
+      "bytes": 227
+    },
+    {
+      "path": "evidence/m8-requalification-1788686455148/run.mjs",
+      "sha256": "ecfece617860ae87bb4a8091421633223f269fc86b231c064a3c73f5c2a98c8f",
+      "bytes": 1394
+    },
+    {
+      "path": "evidence/m8-requalification-1788686455148/run.log",
+      "sha256": "0733bb73c1c578a92f805a21add2b2b915ed5e444918a3ffc41162c18e7f68eb",
+      "bytes": 1443
+    },
+    {
+      "path": "evidence/m8-requalification-1788686455148/choreography.jsonl",
+      "sha256": "8462bcce8070dbba5f75f2ea003fafb60e230a77e3fab4ccbfb9da7dd301f9e8",
+      "bytes": 5377
+    }
+  ],
+  "nextStatus": "Independent grading still lacks a recovered or newly green suite-bound M8 receipt. No app edits or further reruns performed in this bounded request."
+}

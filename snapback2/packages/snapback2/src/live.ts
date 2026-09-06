@@ -1,5 +1,5 @@
 // @ref LLP 1002#4-the-wire — one physical SSE stream, independently fenced logical streams.
-import { parseSse } from "./sse-parser.js";
+import { parseSse, type SseResponse } from "./sse-parser.js";
 import { responseRefusal, wireShape, wireRefusalEnvelope, isTerminalSession, SnapbackRefusal } from "./client-wire.js";
 
 interface Entry {
@@ -31,7 +31,7 @@ export class SharedSse {
   private next = 0;
   constructor(private readonly url: string, private readonly fetch: typeof globalThis.fetch) {}
 
-  open(path: string, lastEventId: string | undefined, signal: AbortSignal, headers: Headers, terminal: Connection["terminal"]): Promise<Response> {
+  open(path: string, lastEventId: string | undefined, signal: AbortSignal, headers: Headers, terminal: Connection["terminal"]): Promise<SseResponse> {
     if (signal.aborted) throw aborted();
     const key = JSON.stringify([...headers].filter(([name]) => name !== "last-event-id"));
     if (this.connection && this.connection.key !== key) this.close();
@@ -46,10 +46,10 @@ export class SharedSse {
     const current = connection;
     const id = String(++this.next);
     let entry: Entry;
-    let response: Response;
-    let resolve!: (response: Response) => void;
+    let response: SseResponse;
+    let resolve!: (response: SseResponse) => void;
     let reject!: (error: unknown) => void;
-    const ready = new Promise<Response>((yes, no) => { resolve = yes; reject = no; });
+    const ready = new Promise<SseResponse>((yes, no) => { resolve = yes; reject = no; });
     const remove = () => {
       if (entry.closed) return;
       entry.closed = true;
@@ -76,7 +76,9 @@ export class SharedSse {
       cancel: remove,
     }, { highWaterMark: 2 });
     this.schedule(current);
-    response = new Response(body, { headers: { "Content-Type": "text/event-stream" } });
+    // React Native's global Response does not expose a streaming body, even
+    // when fetch itself streams. A logical child needs only this parser input.
+    response = { ok: true, body };
     if (current.session) entry!.ready();
     return ready;
   }

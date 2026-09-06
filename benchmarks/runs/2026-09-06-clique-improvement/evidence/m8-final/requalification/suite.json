@@ -1,0 +1,74 @@
+{
+  "pass": true,
+  "completed": [
+    "m8-a01",
+    "m8-a03",
+    "m8-a04",
+    "m8-a05",
+    "m8-a07",
+    "m8-a06"
+  ],
+  "expected": {
+    "posts": 96,
+    "likesReceived": 45,
+    "repostsReceived": 19,
+    "repliesReceived": 27,
+    "followers": 4,
+    "following": 2
+  },
+  "actual": {
+    "followers": 4,
+    "following": 2,
+    "likesReceived": 45,
+    "posts": 96,
+    "principal": "user:GNsmJHG_7usB-7sSuRFjyA",
+    "repliesReceived": 27,
+    "repostsReceived": 19
+  },
+  "days": [
+    {
+      "day": 20702,
+      "likesReceived": 45,
+      "posts": 97,
+      "principal": "user:GNsmJHG_7usB-7sSuRFjyA"
+    },
+    {
+      "day": 20701,
+      "likesReceived": 0,
+      "posts": 0,
+      "principal": "user:GNsmJHG_7usB-7sSuRFjyA"
+    },
+    {
+      "day": 20700,
+      "likesReceived": 0,
+      "posts": 1,
+      "principal": "user:GNsmJHG_7usB-7sSuRFjyA"
+    },
+    {
+      "day": 20699,
+      "likesReceived": 0,
+      "posts": 0,
+      "principal": "user:GNsmJHG_7usB-7sSuRFjyA"
+    },
+    {
+      "day": 20698,
+      "likesReceived": 0,
+      "posts": 0,
+      "principal": "user:GNsmJHG_7usB-7sSuRFjyA"
+    },
+    {
+      "day": 20697,
+      "likesReceived": 0,
+      "posts": 0,
+      "principal": "user:GNsmJHG_7usB-7sSuRFjyA"
+    },
+    {
+      "day": 20696,
+      "likesReceived": 0,
+      "posts": 0,
+      "principal": "user:GNsmJHG_7usB-7sSuRFjyA"
+    }
+  ],
+  "at": "2026-09-06T09:14:40.539Z",
+  "oldFixture": "Operator-only fixture inserts an actual two-day-old post; four real user likes; excluded by expiry timer."
+}

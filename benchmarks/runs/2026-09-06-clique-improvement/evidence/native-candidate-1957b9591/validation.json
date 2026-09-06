@@ -1,0 +1,449 @@
+{
+  "at": "2026-09-06T10:02:52.585713+00:00",
+  "status": "PASS",
+  "checks": {
+    "releaseHermes": true,
+    "globalResponseHasNoBody": true,
+    "physicalExpoLiveResponseHasReader": true,
+    "sharedSseHistoryControlObserved": true,
+    "nativeFixtureMembership": true,
+    "originalThreeInNativeCallback": true,
+    "firstFixtureCallbackIsLive": true,
+    "markerCallbackIsLive": true,
+    "markerCallbackSeqAtLeastMutation": true,
+    "markerAbsentBeforeSend": true,
+    "oneOrdinarySendCommitted": true,
+    "markerInLaterNativeCallback": true,
+    "sameNativeProcess": true,
+    "noWitnessError": true,
+    "report": true,
+    "evidence": true,
+    "frozen": true,
+    "buildPackage": true,
+    "packageLock": true,
+    "fixtureDatabase": true,
+    "all71FrozenFilesInCandidateUnchanged": true,
+    "candidateAppPackageLockUnchanged": true,
+    "onlySnapbackDistChangedInNodeModules": true,
+    "candidateDistMatchesSourceBuild": true,
+    "nativeSequenceComplete": true,
+    "exactlyTwoNativeCallbacks": true,
+    "onePhysicalLiveStream": true,
+    "noNativeRefusal": true,
+    "sameFiveRowsPlusMarker": true,
+    "noMarkerInBeforeSendLog": true,
+    "successfulRecorderFailureDisclosed": true,
+    "sourceBuildCleanAndBound": true,
+    "nativeEntrySourceMapsBound": true,
+    "archivedNativeAppHashesMatch": true,
+    "nativeSqliteContainsSixMessagesAndMarker": true,
+    "recordedProcessCleanup": true
+  },
+  "callbackSequence": [
+    {
+      "nativeSequence": 16,
+      "at": "2026-09-06T09:58:59.686Z",
+      "state": "capped",
+      "live": true,
+      "seq": 21,
+      "rows": 5
+    },
+    {
+      "nativeSequence": 17,
+      "at": "2026-09-06T09:59:02.439Z",
+      "state": "capped",
+      "live": true,
+      "seq": 22,
+      "rows": 6
+    }
+  ],
+  "sourceMapBindings": {
+    "client": [
+      {
+        "source": "snapback2/packages/snapback2/src/client-wire.ts",
+        "sha256": "ab2e87689aa87df2122ae8f109679fba7dcbe4b9051bfc4958e8f7114bb25b04",
+        "matches": true
+      },
+      {
+        "source": "snapback2/packages/snapback2/src/client-auth.ts",
+        "sha256": "4e05bcf8b9c172887cae87396c0c63bb29518533c5e11865111090ca7f595d5a",
+        "matches": true
+      },
+      {
+        "source": "snapback2/packages/snapback2/src/sse-parser.ts",
+        "sha256": "b128751cd87b46e0c3ed30f2d46664195c48fd46209fc53890d63061131c627b",
+        "matches": true
+      },
+      {
+        "source": "snapback2/packages/snapback2/src/live.ts",
+        "sha256": "e4796bc313f49affbcaed0ecc0e00cde792d4c2e9437ff732c833cb13491ff95",
+        "matches": true
+      },
+      {
+        "source": "snapback2/packages/snapback2/src/api.ts",
+        "sha256": "a52f71467e02b8ade7ece42007794cc10e57682364c3dd4e1306a4552ac315f4",
+        "matches": true
+      },
+      {
+        "source": "snapback2/packages/snapback2/src/assets.ts",
+        "sha256": "64946b0637024a84a2273793824f5c7e08f77e5086c42fb07eef6e5e910ac791",
+        "matches": true
+      },
+      {
+        "source": "snapback2/packages/evaluator/src/errors.ts",
+        "sha256": "a2dc2e8ef8522ad82af1740c6f8656dc6b05418454226b50571630e777fe0795",
+        "matches": true
+      },
+      {
+        "source": "snapback2/packages/evaluator/src/certificate-identity.ts",
+        "sha256": "c619d5181f31ded0ad593bbaa0d4e7349bdb13e0347fb1fb162575eb38f32730",
+        "matches": true
+      },
+      {
+        "source": "snapback2/packages/evaluator/src/hash.ts",
+        "sha256": "fc3cea8b05458f5fa00867d8c284bc27a3a00d6d1a4d4d3d50182ff5f3294fe2",
+        "matches": true
+      },
+      {
+        "source": "snapback2/packages/snapback2/src/offline-schema.ts",
+        "sha256": "a7ab61de526abb3948ea565258eef44bcbce0263d14fc2d485bf7604ca5d9111",
+        "matches": true
+      },
+      {
+        "source": "snapback2/packages/snapback2/src/store/row-values.ts",
+        "sha256": "54fce7162e6b044dda4e05e28a838a2ac6fc9e7e2fc65f41e06529dec3fc5be9",
+        "matches": true
+      },
+      {
+        "source": "snapback2/packages/snapback2/src/offline-protocol.ts",
+        "sha256": "9e3ff9e71c96d2f846b74c8c0fbb282f75cad381aeaa4298391a524757c9755e",
+        "matches": true
+      },
+      {
+        "source": "snapback2/packages/snapback2/src/store/outbox.ts",
+        "sha256": "a6a0195ba9497ecea5d3fc7c2a2b7793202b8624dcec9d5ef89970c7ed5cc328",
+        "matches": true
+      },
+      {
+        "source": "snapback2/packages/snapback2/src/store/asset-policy.ts",
+        "sha256": "e21f1f893e65a3680b1887d6ef543afc96976be1760c27745feec61f787da4d0",
+        "matches": true
+      },
+      {
+        "source": "snapback2/packages/snapback2/src/store/byte-cache.ts",
+        "sha256": "70aa1dae3baec0ed00796b51bad0af6e8ed4c325b551b702f72cc25676315967",
+        "matches": true
+      },
+      {
+        "source": "snapback2/packages/snapback2/src/store/canonical.ts",
+        "sha256": "a0b38f5da995c3d8cc9fbbf5c6e144941caba36a2482e06a857f4e114330c07c",
+        "matches": true
+      },
+      {
+        "source": "snapback2/crates/snapback2-core/ir-contract.json",
+        "sha256": "d09c63f52622b9b8fb2762b94b17b4e2c8882e9feecf0737d24470ec2bde0252",
+        "matches": true
+      },
+      {
+        "source": "snapback2/packages/evaluator/src/cursor.ts",
+        "sha256": "d9deb9f9e91ed5d4493f60106023d1797d6cbc302a1da2f13f1934f547c2997b",
+        "matches": true
+      },
+      {
+        "source": "snapback2/packages/evaluator/src/value-runtime.ts",
+        "sha256": "9cce7655e25bd95caa5dbfa72a1ddbca9063739049087dbd40768d7066dde376",
+        "matches": true
+      },
+      {
+        "source": "snapback2/packages/snapback2/src/store/range-store.ts",
+        "sha256": "0d8be2961c827709bf3b628d261df7f9e8fee64ececaa66491c3664973beabb8",
+        "matches": true
+      },
+      {
+        "source": "snapback2/packages/evaluator/src/merge.ts",
+        "sha256": "a2363d11564f095e3fb705b0fd34e029f5d470162aa01e161ac65e87ba4cdecf",
+        "matches": true
+      },
+      {
+        "source": "snapback2/packages/evaluator/src/text.ts",
+        "sha256": "564578922bb4fe9b2522d8e2e4bc42e8111cd3aa804f9de76e9e11d010cc3c8e",
+        "matches": true
+      },
+      {
+        "source": "snapback2/packages/evaluator/src/runner.ts",
+        "sha256": "6c29254f00365d55d9267686f87f135cfe86463b49754e9137b7a3f8e1d38a44",
+        "matches": true
+      },
+      {
+        "source": "snapback2/packages/evaluator/src/authority.ts",
+        "sha256": "16ba69cfd87551d51cdfba3e956b7f7e3abadee15c89e1bce3437bde321c8848",
+        "matches": true
+      },
+      {
+        "source": "snapback2/packages/evaluator/src/store.ts",
+        "sha256": "2d06cf6dbad9d5b424d6e900e9e4741ada710f1e31e7fd5a8e86f4516cb302b9",
+        "matches": true
+      },
+      {
+        "source": "snapback2/packages/snapback2/src/twin-hydrate.ts",
+        "sha256": "a2ed1a8f9cd8342665ae5ac05bb41e348b782462e72f022291ede81937d7eb0b",
+        "matches": true
+      },
+      {
+        "source": "snapback2/packages/snapback2/src/twin.ts",
+        "sha256": "4efa5872ab0f9c12ed3f8882a92cab5fbe30ffd8a04a40f87c512864a45621f1",
+        "matches": true
+      },
+      {
+        "source": "snapback2/packages/snapback2/src/offline.ts",
+        "sha256": "8edd9759b8003e73a2c10456195e73970fad398b9b641c86124de5ac4d9b746d",
+        "matches": true
+      },
+      {
+        "source": "snapback2/packages/snapback2/src/client-outbox.ts",
+        "sha256": "f72b647e84dc6f19cbec708281780cd1883f241d19f2d0568a87975e7f1e864c",
+        "matches": true
+      },
+      {
+        "source": "snapback2/packages/snapback2/src/drain.ts",
+        "sha256": "10cfb92f16bcc34de4c00abbb3684899a7fe8b5fc39ab38621e701348f64f8e1",
+        "matches": true
+      },
+      {
+        "source": "snapback2/packages/snapback2/src/types.ts",
+        "sha256": "9b52e167abf01638a3083de492f02377993e686261e3f47c498eaad786587dd5",
+        "matches": true
+      },
+      {
+        "source": "snapback2/packages/snapback2/src/client-offline.ts",
+        "sha256": "653ffe2e51da680b53a29c1fddac52d51f01138740b58b8a6816f2498d5395ae",
+        "matches": true
+      },
+      {
+        "source": "snapback2/packages/snapback2/src/client-assets.ts",
+        "sha256": "e271e8efb11afa888f2ff406ba65a5177b45ef03240fca47e92b03677b25d9a5",
+        "matches": true
+      },
+      {
+        "source": "snapback2/packages/snapback2/src/client-upload.ts",
+        "sha256": "0952af842609ccd27faf17f07581f230142aa70a3b3f43d2d894629ada0c9974",
+        "matches": true
+      },
+      {
+        "source": "snapback2/packages/snapback2/src/sse.ts",
+        "sha256": "88c3a7bcef3dc99f3d463e562113a3e16a1380845ff9fe5b03db2cbfa98720b0",
+        "matches": true
+      },
+      {
+        "source": "snapback2/packages/snapback2/src/token-store.ts",
+        "sha256": "731243d2c1e60058c188508e297d4e04b95ac516f0f03b66c91547f66795b2ce",
+        "matches": true
+      },
+      {
+        "source": "snapback2/packages/snapback2/src/client.ts",
+        "sha256": "cb84edf3d43de78a07824725738cc6690c8436a2addf84b5e89e61e2c48c4e20",
+        "matches": true
+      }
+    ],
+    "expo": [
+      {
+        "source": "snapback2/packages/snapback2/src/expo.ts",
+        "sha256": "3f2b10895d6913f92c3130823f1b9212a3457e5721642a2d9f0e30d494b86415",
+        "matches": true
+      },
+      {
+        "source": "snapback2/packages/snapback2/src/react-native.tsx",
+        "sha256": "caf509969b0f3bdd51376d067514dcdb50fc72a40d6ee6a95d4a933df521dd54",
+        "matches": true
+      },
+      {
+        "source": "snapback2/packages/snapback2/src/react-native/components.tsx",
+        "sha256": "351eb0f85d35e79cf1beaaccb108bb13446be4d93a2a7a30f594514388082fbb",
+        "matches": true
+      },
+      {
+        "source": "snapback2/packages/snapback2/src/react-native/memory-video.tsx",
+        "sha256": "6caa2f269a5a1b2781005026eeadafe8b3736115d255606c4227d17d2b5a2646",
+        "matches": true
+      },
+      {
+        "source": "snapback2/packages/snapback2/src/react-native/source.ts",
+        "sha256": "99b79f4eed2d90aed925c76f24c13f4cec1acdc841dd03697ef7ddfb5adaccd6",
+        "matches": true
+      },
+      {
+        "source": "snapback2/packages/snapback2/src/store/asset-policy.ts",
+        "sha256": "e21f1f893e65a3680b1887d6ef543afc96976be1760c27745feec61f787da4d0",
+        "matches": true
+      },
+      {
+        "source": "snapback2/packages/snapback2/src/store/byte-cache.ts",
+        "sha256": "70aa1dae3baec0ed00796b51bad0af6e8ed4c325b551b702f72cc25676315967",
+        "matches": true
+      },
+      {
+        "source": "snapback2/packages/snapback2/src/react-native/files.ts",
+        "sha256": "6d37f34b234fafde06f5e102d6669c682958117727f43f4d7abf1713ec3b32a6",
+        "matches": true
+      },
+      {
+        "source": "snapback2/packages/snapback2/src/expo/index.ts",
+        "sha256": "6d83c7f7635e7e51724cb07cbc09af43e92e397356290ee617ba1d5f8dead868",
+        "matches": true
+      },
+      {
+        "source": "snapback2/packages/snapback2/src/store/sqlite-expo.ts",
+        "sha256": "e89167aa7bf42c386490724aea737d0224e1753106092e78e226669f79dbfcf5",
+        "matches": true
+      },
+      {
+        "source": "snapback2/packages/snapback2/src/store/sqlite-driver.ts",
+        "sha256": "f6752ebfdfe5a1486ceb83e163af709c8974ee34e08097dcadf6640322a58563",
+        "matches": true
+      },
+      {
+        "source": "snapback2/packages/snapback2/src/expo/token-store.ts",
+        "sha256": "ebb9a5bd7e8e7944d9ca5be160cd86715b9488c38cea258396017f1a148bbd63",
+        "matches": true
+      },
+      {
+        "source": "snapback2/packages/snapback2/src/token-store.ts",
+        "sha256": "731243d2c1e60058c188508e297d4e04b95ac516f0f03b66c91547f66795b2ce",
+        "matches": true
+      },
+      {
+        "source": "snapback2/packages/snapback2/src/store/canonical.ts",
+        "sha256": "a0b38f5da995c3d8cc9fbbf5c6e144941caba36a2482e06a857f4e114330c07c",
+        "matches": true
+      },
+      {
+        "source": "snapback2/packages/snapback2/src/store/overlay-retirement.ts",
+        "sha256": "3963d2cf4f8805d320bb0886981f6b86aca48709aee50d9d3dda7f5c5dc9cb51",
+        "matches": true
+      },
+      {
+        "source": "snapback2/packages/evaluator/src/hash.ts",
+        "sha256": "fc3cea8b05458f5fa00867d8c284bc27a3a00d6d1a4d4d3d50182ff5f3294fe2",
+        "matches": true
+      },
+      {
+        "source": "snapback2/packages/evaluator/src/errors.ts",
+        "sha256": "a2dc2e8ef8522ad82af1740c6f8656dc6b05418454226b50571630e777fe0795",
+        "matches": true
+      },
+      {
+        "source": "snapback2/packages/evaluator/src/value-runtime.ts",
+        "sha256": "9cce7655e25bd95caa5dbfa72a1ddbca9063739049087dbd40768d7066dde376",
+        "matches": true
+      },
+      {
+        "source": "snapback2/packages/snapback2/src/store/row-values.ts",
+        "sha256": "54fce7162e6b044dda4e05e28a838a2ac6fc9e7e2fc65f41e06529dec3fc5be9",
+        "matches": true
+      },
+      {
+        "source": "snapback2/packages/snapback2/src/offline-protocol.ts",
+        "sha256": "9e3ff9e71c96d2f846b74c8c0fbb282f75cad381aeaa4298391a524757c9755e",
+        "matches": true
+      },
+      {
+        "source": "snapback2/packages/snapback2/src/store/range-store.ts",
+        "sha256": "0d8be2961c827709bf3b628d261df7f9e8fee64ececaa66491c3664973beabb8",
+        "matches": true
+      },
+      {
+        "source": "snapback2/packages/snapback2/src/store/locks.ts",
+        "sha256": "dfb922b4285d5b5b9503b0f2c6c63b2c2a2d53cf5c61f250f13f3b53cdba7160",
+        "matches": true
+      },
+      {
+        "source": "snapback2/packages/snapback2/src/store/projection.ts",
+        "sha256": "88da266c971919cea4e2a0cef5862fbe18970dbc8293226f0c097219e79ccd80",
+        "matches": true
+      },
+      {
+        "source": "snapback2/packages/snapback2/src/store/sqlite.ts",
+        "sha256": "5297cb8b6d2f8e3d070f21ab9dd5f196c45c24842cc320fea949c89dd8af7a7b",
+        "matches": true
+      },
+      {
+        "source": "snapback2/packages/snapback2/src/expo/files.ts",
+        "sha256": "5727c499abe0bfb8afefa2834e6b50b6cc8b6780ec329c07fea5e4b826257a13",
+        "matches": true
+      }
+    ],
+    "react-core": [
+      {
+        "source": "snapback2/packages/snapback2/src/react-core.tsx",
+        "sha256": "c03df287b45fafad77cce7eea84658ccdf9f6358318dac3b0694141c23f8d88c",
+        "matches": true
+      },
+      {
+        "source": "snapback2/packages/snapback2/src/client-wire.ts",
+        "sha256": "ab2e87689aa87df2122ae8f109679fba7dcbe4b9051bfc4958e8f7114bb25b04",
+        "matches": true
+      },
+      {
+        "source": "snapback2/packages/snapback2/src/store/byte-cache.ts",
+        "sha256": "70aa1dae3baec0ed00796b51bad0af6e8ed4c325b551b702f72cc25676315967",
+        "matches": true
+      },
+      {
+        "source": "snapback2/packages/snapback2/src/client-assets.ts",
+        "sha256": "e271e8efb11afa888f2ff406ba65a5177b45ef03240fca47e92b03677b25d9a5",
+        "matches": true
+      },
+      {
+        "source": "snapback2/packages/snapback2/src/api.ts",
+        "sha256": "a52f71467e02b8ade7ece42007794cc10e57682364c3dd4e1306a4552ac315f4",
+        "matches": true
+      },
+      {
+        "source": "snapback2/packages/snapback2/src/types.ts",
+        "sha256": "9b52e167abf01638a3083de492f02377993e686261e3f47c498eaad786587dd5",
+        "matches": true
+      }
+    ],
+    "react-native": [
+      {
+        "source": "snapback2/packages/snapback2/src/react-native.tsx",
+        "sha256": "caf509969b0f3bdd51376d067514dcdb50fc72a40d6ee6a95d4a933df521dd54",
+        "matches": true
+      },
+      {
+        "source": "snapback2/packages/snapback2/src/react-native/components.tsx",
+        "sha256": "351eb0f85d35e79cf1beaaccb108bb13446be4d93a2a7a30f594514388082fbb",
+        "matches": true
+      },
+      {
+        "source": "snapback2/packages/snapback2/src/react-native/memory-video.tsx",
+        "sha256": "6caa2f269a5a1b2781005026eeadafe8b3736115d255606c4227d17d2b5a2646",
+        "matches": true
+      },
+      {
+        "source": "snapback2/packages/snapback2/src/react-native/source.ts",
+        "sha256": "99b79f4eed2d90aed925c76f24c13f4cec1acdc841dd03697ef7ddfb5adaccd6",
+        "matches": true
+      },
+      {
+        "source": "snapback2/packages/snapback2/src/react-native/files.ts",
+        "sha256": "6d37f34b234fafde06f5e102d6669c682958117727f43f4d7abf1713ec3b32a6",
+        "matches": true
+      }
+    ]
+  },
+  "visualReview": {
+    "reviewedBy": "GPT-6 Astra",
+    "screenshots": [
+      "native-before-send.png",
+      "native-after-send.png"
+    ],
+    "observation": "Before shows original three and old two queued rows, live true and marker waiting. After shows same rows plus exact marker, live true and marker observed."
+  },
+  "limits": [
+    "Candidate-only narrow witness; original published006 M6 acceptance FAILED unchanged",
+    "No successful transition video; screenshots and complete native callbacks substantiate the transition",
+    "First observer attempt invalidated by JSON response body observation; preserved",
+    "No offline, process-kill acceptance, media rendering, tick correctness or publication claim"
+  ]
+}

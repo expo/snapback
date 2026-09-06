@@ -5,6 +5,13 @@ and Supabase for each requested builder: Astra medium, Grok 4.6 xhigh, and
 Muse 1.3 ultra. **Not achieved.** Retain the full canonical Clique scope,
 including independent grading and the fresh-session M7 evolution phase.
 
+Current checkpoint (2026-09-06): published version remains 0.0.7. The pinned
+0.0.6 builder has frozen its continuous artifact. M1–M6 have verified web
+receipts; M8 qualification is unresolved and native M6 failed. Independent
+outcome and full-scale grading are running on private M5 copies. M7 and the
+requested three-family comparative win remain unproven. Entries below retain
+the chronology, including superseded intermediate statuses.
+
 ## Baseline
 
 The earlier 0.0.4 narrative scores and original scorer prompt are retained in
@@ -49,9 +56,9 @@ and migration command discovery
 
 | Lane | Review target | Current evidence |
 | --- | --- | --- |
-| Auth startup | `9b22e7b48`, branch `s2/clique-auth` | Nine new cancellation regressions fail before/pass after; 181 affected tests pass; revision in independent Astra/Grok review |
-| Abandoned assets | `f7d251394`, branch `s2/clique-assets` | Full script and measurements pass; Astra resolves prior residuals but finds terminal invalidation under supersession; next revision underway, Grok review running |
-| Conditional cursors | `bbe2f85aa`, branch `s2/clique-cursors` | Consolidated run: Rust 743 pass, compiler 400 pass, evaluator 216 pass; package 379 pass/one 10s timeout. Astra finds duplicate-site provenance and malformed-prefix panic; Grok READY; Astra residuals still require revision, now underway under the extended round limit |
+| Auth startup | `9b22e7b48`, branch `s2/clique-auth` | Nine new cancellation regressions fail before/pass after; 181 affected tests pass; both independent reviewers READY; integrating with asset/cursor fixes |
+| Abandoned assets | `6351b2d49`, branch `s2/clique-assets` | Fullf7 script/measurement pass; final JS134 and Rust35 affected tests pass; AstraREADY, Grok final review running |
+| Conditional cursors | `f997292c6`, branch `s2/clique-cursors` | Consolidated run: Rust 743 pass, compiler 400 pass, evaluator 216 pass; package 379 pass/one 10s timeout. Nested operand/prefix regressions fixed;72Rust/216evaluator/400compiler pass; both independent reviewers READY |
 
 Received auth and asset reviews are retained under `reviews/`, exactly as received.
 They are static reviews, not test execution. New interleaving regressions must
@@ -122,3 +129,133 @@ retained; its cause is unproven, so this does not claim every cold launch
 passes. The CLI commit was cherry-picked to main with no semantic changes
 under snapback2/. Production0.0.7 dry-run is in progress; publication is
 not yet claimed.
+
+## Published0.0.7
+
+`snapback2@0.0.7` and `snapback2-darwin-arm64@0.0.7` are both published
+and tagged latest. Source7f59d3a42 has the same Snapback2 tree as
+landed5510cdf7f. Exact prepared tarballs were consumer-qualified and
+published through the existing resume/convergence path; registry SRI and
+fresh installed binary bytes match. Production Hermes/media, help, and
+migration guidance checks pass. Evidence is under `evidence/npm-0.0.7/`.
+
+This release contains CLI help and migration discoverability, not the pending
+auth/cursor/asset integration. The running benchmark remains pinned0.0.6.
+The first staged doctor failed with Bun isolated dependency layout; the same
+locked dependencies in the supported hoisted layout passed. One external
+launcher accidentally repeated dry-run, retained as such. Actual publication
+took27s; npm processing delayed shim visibility for several minutes.
+A fresh installed version invocation took12.893s; subsequent doctor took
+0.143s and help roughly0.06s. No cause is assigned to that first-launch delay
+and no universal cold-launch latency claim follows from warm measurements.
+
+
+Integration verification at21b21abd3 retains the original failed full run and
+its targeted corrections. All753 Rust test identities passed across the
+original588, first rerun164, and final guide-contract test1; four are ignored.
+Compiler400, evaluator216 plus visibility2, package422 plus separate assets27,
+and final package build/caps/ref-check pass. The two corrections changed only
+guide prose; this is combined affected evidence, not a final fullscript exit0.
+Asset6351b2d49 now has both independent READY reviews retained.
+
+The integration Astra review found an additional interaction: automatic upload
+discard can wait indefinitely when its transport ignores timeout cancellation,
+blocking auth replacement and terminal expiry. The finding is static, with
+reproduction and repair underway; integration is not yet cleared for release.
+M6 has five passing required suite IDs but offline reconnect choreography is
+not green: the pinned0.0.6 client reports conflicting inbox deliveries at the
+same sequence. Exact evidence and an independent reduction are pending.
+
+
+M6 web green at2026-09-06T08:42:36.122Z: frozen choreography passes
+the two-send offline queue/ordered-flush assertion and its five required
+suite IDs. Root verified the suite hash and frozen M6 source SHA256 before
+retaining receipts. Three drain:true subscriptions were replaced with
+explicit cursor-page live subscriptions in application code; this workaround
+and both same-sequence SDK refusal observations remain recorded as friction.
+The pinned package stays0.0.6. Native is explicitly not-recorded; the iOS
+Hermes export is not execution evidence. M8 has started; no holistic score
+or independent acceptance grade yet.
+
+
+Integrated revisionea35e15b1 passes431 selected client tests plus36assets,
+including18 new regressions(17 demonstrated red before repair). First existing
+measurement run exits0 in61.16s: projectcheck0.521s, doctor0.393/0.061s;
+all original budgets pass. Proof-only617f61b4d appends its existing metric row.
+Fresh Astra review finds two further static cases: upload supersession can
+lose terminal bearer evidence, and terminal expiry leaves sibling drains
+waiting. They are being reproduced and repaired; no clearance is claimed.
+Version0.0.8 is prepared in the separate release lane atf01cf97a3, with warm
+production dependencies but no build or publication.
+
+Named-shape fixb48d95526 has compiler402/evaluator216plus2/core382plus1skip
+passing and Astra READY. Second-family review is pending. Search feasibility
+now has exact Unicode17 conformance and real100k fixture layout measurements;
+fullengine closure, client budget and cursor design still require resolution.
+Independent design reviews are underway, with no search implementation claim.
+
+## Frozen artifact and native failure
+
+Final source archive SHA256 is
+`c64b7b1e82a5f4588dfe7f0f07110ad149c0c7c3e0764424be678160f2f75b61`.
+The builder's original green M8 choreography referred to a suite file that was
+subsequently overwritten. Its exact bound suite could not be recovered. An
+unchanged-source requalification failed dual-offline convergence and the
+dependent receipt assertion. The addendum and uniquely named raw evidence are
+retained under `evidence/m8-final/requalification/`; their hashes were checked
+before copying. Do not claim a verified M8 pass from the earlier green report.
+
+Independent native M6 execution used the frozen M6 artifact on an M5 iOS
+simulator with a Release Hermes app and an uninterrupted 197-second recording.
+The evidence validates, but acceptance fails: native subscriptions report
+`SSE response has no body`, preventing the history/media/search preconditions;
+read ticks also precede server confirmation. Two pending messages and an
+exactly-once ordered manual flush pass. Four assertions pass, two fail, and
+four are not recorded. The verbatim report and compact receipts are under
+`evidence/native-m6/`; large app/video artifacts remain at its documented
+external location. This older M6 artifact does not qualify final M8 source.
+
+## Integration and search checkpoint
+
+Shape and reconnect fixes now have both independent READY reviews retained.
+The combined runtime at `38d406d79` passes its package build, selected client
+tests, assets tests, and existing measurement run. The later byte-delivery fix
+at `12c01f469` adds 18 passing cases, 11 demonstrated failing before repair;
+100 affected tests and 50 assets tests pass. Its measurement passes in 28.54s.
+Proof-only `d1499f395` preserves the result. These are scoped execution claims,
+not a newly green full-script claim or publication clearance.
+
+Both third-round integration reviews are retained. Astra identified the byte
+conversion gap addressed above. Grok identified a separate FIFO pre-enqueue
+catch that replaces an originating session-expiry refusal with a sealed-store
+error; its reproduction and repair are underway. Overlay-retirement changes
+at `44cd420ae` are also under fresh independent review.
+
+Search design revision 2 resolves the two design reviews into shared Unicode17
+normalization, engine-maintained prefix postings, and an indexed held client
+execution path. Foundation implementation has started. The current session's
+delegated trade is a 34,000-byte total twin ceiling with a 30,000-byte target,
+deferring Exact 2 until search qualifies; existing resource ceilings remain.
+The proposed closure allocation is not an integrated measurement. No search
+qualification or improvement in comparative score is claimed.
+
+Both independent overlay reviews now report READY for `44cd420ae`; they are
+retained verbatim under `reviews/`. Integration revision `220186033` fixes
+the thrown-401 FIFO case, but its fourth Astra review identifies the supported
+HTTP-200 typed terminal response bypass. Five representative cases reproduce
+that broader defect without timeouts. Repair and affected verification continue;
+the 0.0.8 production dry run has not started.
+
+Native stream fix `1957b9591` removes the internal dependency on the global
+Response constructor. Its two native-specific regressions fail before and pass
+after. Independent reviews and a real candidate Release Hermes witness are
+running. The initial broader verification had two file cancellations; a later
+189-test run used a longer timeout and excluded one real-session recovery case.
+Original-deadline verification is therefore being completed explicitly, rather
+than presenting that run as unchanged-deadline evidence.
+
+An independent source-integrity check compared all 328 supplied regular files
+in both live grading copies with the retained filtered source archive: no
+changed or missing files. This proves source preservation only. Starter
+invariants pass in the outcome grader; scale replay is underway, without a
+completed scale or performance qualification claim.

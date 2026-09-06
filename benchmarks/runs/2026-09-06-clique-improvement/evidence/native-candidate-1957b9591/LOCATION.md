@@ -1,0 +1,1 @@
+Verbatim source report and selected compact evidence. Original relative evidence links resolve under `/Users/ccheever/clique-improvement/native/candidate-live-sync/`, retained locally and on M5. Logs, screenshots, app and video remain there. This is candidate SDK evidence, not a published-package or full M6 pass.

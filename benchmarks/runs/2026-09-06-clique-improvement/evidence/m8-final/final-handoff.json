@@ -1,0 +1,220 @@
+{
+  "format": "clique-builder-final-handoff.v1",
+  "createdAt": "2026-09-06T09:17:37.903244+00:00",
+  "model": "gpt-6-astra",
+  "reasoningEffort": "medium",
+  "package": "snapback2@0.0.6",
+  "applicationEditsStopped": true,
+  "sourceFileVerification": true,
+  "milestones": [
+    {
+      "milestone": "M1",
+      "status": "green",
+      "endedAt": "2026-09-06T06:39:31.402Z",
+      "suite": "m1-suite.json",
+      "choreography": "m1-choreo-2.jsonl",
+      "ios": "m1-ios/metadata.json",
+      "correctedSetupChoreography": "m1-choreo-1788678027172.jsonl",
+      "setupCorrectionNote": "Earlier boundary clock retained; corrected custody metadata requalified later during M2. Original overstatement retracted in diary.",
+      "startedAt": "2026-09-06T06:30:10Z"
+    },
+    {
+      "milestone": "M2",
+      "startedAt": "2026-09-06T06:39:31.403Z",
+      "status": "green",
+      "endedAt": "2026-09-06T07:02:25.669Z",
+      "suite": "m2-suite.json",
+      "choreography": "m2-choreo-1788678055207.jsonl",
+      "ios": "m2-ios-reviewed/metadata.json"
+    },
+    {
+      "milestone": "M3",
+      "startedAt": "2026-09-06T07:02:25.670Z",
+      "status": "green",
+      "endedAt": "2026-09-06T07:21:02.170Z",
+      "suite": "m3-suite.json",
+      "choreography": "m3-choreo-1788679178197.jsonl",
+      "ios": "m3-ios-final/metadata.json"
+    },
+    {
+      "milestone": "M4",
+      "startedAt": "2026-09-06T07:21:02.171Z",
+      "status": "green",
+      "endedAt": "2026-09-06T07:30:59.439Z",
+      "suite": "m4-suite.json",
+      "choreography": "m4-choreo-1788679742647.jsonl",
+      "ios": "m4-ios/metadata.json"
+    },
+    {
+      "milestone": "M5",
+      "startedAt": "2026-09-06T07:30:59.440Z",
+      "status": "green",
+      "endedAt": "2026-09-06T08:07:46.384Z",
+      "suite": "m5-suite.json",
+      "choreography": "m5-choreo-1788681650363.jsonl",
+      "ios": "m5-ios-qualified/metadata.json"
+    },
+    {
+      "milestone": "M6",
+      "startedAt": "2026-09-06T08:08:20.887Z",
+      "status": "green",
+      "endedAt": "2026-09-06T08:43:54.538382+00:00",
+      "suite": "m6-suite.json",
+      "choreography": "m6-choreo-1788684138491.jsonl",
+      "ios": "m6-ios/metadata.json"
+    },
+    {
+      "milestone": "M8",
+      "startedAt": "2026-09-06T08:43:54.784139+00:00",
+      "status": "green",
+      "endedAt": "2026-09-06T09:16:56.419775+00:00",
+      "suite": "m8-suite.json",
+      "choreography": "m8-choreo-1788685993894.jsonl",
+      "choreographySummary": "m8-choreo-10.log",
+      "ios": "final-ios/metadata.json",
+      "nativeRuntime": "not executed; unclaimed"
+    },
+    {
+      "milestone": "M7",
+      "status": "not-run",
+      "reason": "Deferred to fresh independent session after continuous grading; not a builder capability-failure."
+    }
+  ],
+  "files": [
+    {
+      "path": "evidence/final-source.tar.gz",
+      "sha256": "c64b7b1e82a5f4588dfe7f0f07110ad149c0c7c3e0764424be678160f2f75b61",
+      "bytes": 3849613
+    },
+    {
+      "path": "evidence/final-source-files.json",
+      "sha256": "a1ffe888ff504216fada31daf0d6a4c4f479ae16014432bd4e19a9d52cd6caa6",
+      "bytes": 16167
+    },
+    {
+      "path": "evidence/m8-choreo-1788685993894.jsonl",
+      "sha256": "bf1b2a5e8469ce55df7bb7ce123ecfd9921f59a7c88dc434147727a66dacb896",
+      "bytes": 5029
+    },
+    {
+      "path": "evidence/m8-choreo-10.log",
+      "sha256": "c7c17878400597ae2c63ca07086363f608462109b9fa5908b9ffb2dff1bd4ce9",
+      "bytes": 177
+    },
+    {
+      "path": "evidence/m8-suite.json",
+      "sha256": "9370c41b59c8247b8e37767ee5d72574f1bec7ef69a3be4c724724ffb6e423f8",
+      "bytes": 1542
+    },
+    {
+      "path": "evidence/m8-suite-final.log",
+      "sha256": "bf7e5e8cea15d3917504a393375005dbfb78e3123f281d1084d48ce606671df2",
+      "bytes": 79
+    },
+    {
+      "path": "evidence/m8-suite-status.json",
+      "sha256": "3f05fb100fc3e620217590cf035c4b5257bf639a550c3fbd0f2b4a2578625019",
+      "bytes": 46
+    },
+    {
+      "path": "evidence/m8-coverage.json",
+      "sha256": "db436ea33e52931ac8483b65da2c139b3db03e4f7d2e4eca8ff27a618d1c33be",
+      "bytes": 157
+    },
+    {
+      "path": "evidence/final-ios/metadata.json",
+      "sha256": "d36e89f40e1796366116e49d733a1a0fe489a3506b96dde69c1be642617db7e7",
+      "bytes": 1779
+    },
+    {
+      "path": "evidence/final-types-sealed.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "evidence/m8-check-7.log",
+      "sha256": "d68d85037e3d86cbf12095d2aa1d2a4943e2da4adee86c4267b0a039aed873b4",
+      "bytes": 19
+    },
+    {
+      "path": "evidence/boundaries.json",
+      "sha256": "5f22b92e306065844eeb08408f31ce7e2fa13c7bc8642b973041025eff8ad349",
+      "bytes": 2354
+    },
+    {
+      "path": "setup-identity.json",
+      "sha256": "695a67fc2d103eea8096cf0666039fa56e427192178310b60e001340bf7a2317",
+      "bytes": 1390
+    },
+    {
+      "path": "API.md",
+      "sha256": "33d1676f7a0ad11016c6259a2200dc79701eb9d0261903cbb8531efafdba05ad",
+      "bytes": 7491
+    },
+    {
+      "path": "HANDOFF.md",
+      "sha256": "764f5a2d71fb536c9d078c70a9981dab978b5faa920c11bd4b75b246f8af7163",
+      "bytes": 4844
+    },
+    {
+      "path": "FINAL-REPORT.md",
+      "sha256": "b94bafa5cf37354778448297239ece73654be2aac2023ba57362b04b40cacd8f",
+      "bytes": 8921
+    },
+    {
+      "path": "evidence/closing-essay.md",
+      "sha256": "de137e5115042375f120c0dec297d6a1f6c78ce455a1bae90a79ff6adf360901",
+      "bytes": 4496
+    },
+    {
+      "path": "evidence/builder-dimensions.json",
+      "sha256": "54930a33302416d2edac0c5af4970eb02aab4c86e9499cf25925119a6f2bb212",
+      "bytes": 2294
+    },
+    {
+      "path": "evidence/builder-holistic.json",
+      "sha256": "81f9cde72ccd56f83538b7c1ca4a989f4d2a05c40bf074ed0031698b6a326897",
+      "bytes": 804
+    },
+    {
+      "path": "evidence/assessment-sequence.json",
+      "sha256": "88ee66d673ebdafde82c355d8064ad71627ad0a82a8abdd627ac1591c4d991d7",
+      "bytes": 327
+    }
+  ],
+  "scope": "Continuous builder M1-M6 then M8. Independent outcome grading/full scale replay/native runtime/M7 deferred.",
+  "notClaimed": [
+    "native runtime pass",
+    "O4",
+    "full scale conformance/performance",
+    "M7",
+    "weighted total",
+    "token usage",
+    "calibrated cap compliance"
+  ],
+  "sourceArchiveIncludes": [
+    "app",
+    "components",
+    "backend declarations",
+    "scripts",
+    "config",
+    "frozen kit",
+    "frozen instrument",
+    "package lock",
+    "Expo/Babel config",
+    "docs/diary"
+  ],
+  "sourceArchiveExcludes": [
+    "node_modules",
+    ".snapback live database",
+    "bulk evidence"
+  ],
+  "evidenceLocations": {
+    "carrierConflict": "evidence/m6-delivery-conflict/README.md",
+    "insightsStartup": "evidence/m8-insights-startup/README.md",
+    "insightsQualification": "evidence/m8-insights-startup/QUALIFICATION.md",
+    "scaleAdapter": "scripts/replay-adapter.mjs",
+    "invariants": "instrument/benchmarks/fixtures/social-messenger/invariant-manifest-combined.json",
+    "cleanClient": "evidence/m6-clean-client-demo.log"
+  }
+}
