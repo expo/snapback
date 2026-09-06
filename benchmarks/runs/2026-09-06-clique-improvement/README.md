@@ -47,8 +47,8 @@ and migration command discovery
 
 | Lane | Review target | Current evidence |
 | --- | --- | --- |
-| Auth startup | `a6a46b5a3`, branch `s2/clique-auth` | 118 affected tests passed, then independent Astra/Grok reviews both required changes; revision in progress |
-| Abandoned assets | `184d88c9c`, branch `s2/clique-assets` | Complete test script green on isolated M5 lane; Astra review requires changes, Grok pending; branch pushed, not landed |
+| Auth startup | `9052d09a6` after `a6a46b5a3`, branch `s2/clique-auth` | Revised 130 affected tests pass; second Astra review finds a remaining cancellation barrier; second Grok review pending |
+| Abandoned assets | `184d88c9c`, branch `s2/clique-assets` | Complete test script green on isolated M5 lane; first Astra/Grok reviews require changes; combined revision being tested; branch pushed, not landed |
 | Conditional cursors | branch `s2/clique-cursors` | Implementing executed-return page provenance; no passing result claimed |
 
 Received auth and asset reviews are retained under `reviews/`, exactly as received.
@@ -60,6 +60,14 @@ Assets verification on the M5 retained `/tmp/clique-assets-full.log`: 743 Rust
 tests passed (four existing skips), doctests, 202 evaluator cases, two
 visibility checks, 399 compiler checks, and the package suite. This proves the
 asset branch, not a future integrated auth/cursor build or an npm publication.
+
+Auth revision `9052d09a6` remote verification retained
+`/tmp/clique-auth-9052-full.log`: 741/741 Rust tests and 399/399 compiler checks
+passed; the overall script exited nonzero because one package real-owner test
+exceeded its 10-second deadline. A quiet rerun of that file passed 10/10 under
+the unchanged deadline (`/tmp/clique-auth-9052-recovery.log`). This is not an
+unconditionally green full-script result. The second Astra review's retained
+fetch-after-cancellation interleaving remains to be fixed before landing.
 
 ## Muse limitation
 
