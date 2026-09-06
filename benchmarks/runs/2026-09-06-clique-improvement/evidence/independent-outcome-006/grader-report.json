@@ -1,0 +1,953 @@
+{
+  "reportVersion": 1,
+  "diagnostic": true,
+  "schemaNote": "Exploratory outcome grading. Not a calibrated schema-valid claim record. assertionResults include M8 ids even though grader-report.schema.json patternProperties only lists m[1-7]. No formal O3/O5/weighted total.",
+  "lane": {
+    "backend": "snapback2@0.0.6",
+    "runRecordPath": null,
+    "runScope": "full"
+  },
+  "wave": {
+    "id": "exploratory-unrotated-no-calibration",
+    "probeSetSha256": null,
+    "note": "No precommitted rotated holdout set."
+  },
+  "grader": {
+    "family": "grok",
+    "model": "Grok 4.6 xhigh",
+    "sameFamilyGraded": false,
+    "calibrationPassed": false,
+    "sessionOutcome": "continuation-completed",
+    "rerunsUsed": 1,
+    "contaminated": false,
+    "environmentRetries": [
+      "npm ci failed on node 25.9.0/npm 11.12.1 (Missing snapback2-linux-x64 from lock); succeeded on node 20.19.4/npm 10.8.2 without lock edits",
+      "playwright chromium_headless_shell-1193 missing; npx playwright install chromium once, then re-ran suite"
+    ]
+  },
+  "assertionManifest": {
+    "path": "app/instrument/benchmarks/schema/social-messenger/assertions.json",
+    "version": "0.3.0-m8",
+    "sha256": "e15c3952856148fef9872f9d509159b47fe0066bdca904330ae96196ba732d04"
+  },
+  "source": {
+    "claimedArchiveSha256": "c64b7b1e82a5f4588dfe7f0f07110ad149c0c7c3e0764424be678160f2f75b61",
+    "extractedTreeSha256": "397504a19c710e08efbaeee241db1e89e38953fefc47e8c06fb424525d19c90e",
+    "fileCount": 325
+  },
+  "assertionResults": {
+    "m1-a01": {
+      "result": "pass",
+      "method": "web-automation",
+      "evidence": "grader-work/independent-browser.json#m1-a01; app/evidence/m1-suite.json completed",
+      "suiteResult": "pass"
+    },
+    "m1-a02": {
+      "result": "pass",
+      "method": "web-automation",
+      "evidence": "grader-work/independent-browser.json#m1-a02; app/evidence/m1-suite.json completed",
+      "suiteResult": "pass"
+    },
+    "m1-a03": {
+      "result": "fail",
+      "method": "web-automation",
+      "evidence": "grader-work/independent-browser.json#m1-a03; grader-work/dup-identity-api.json",
+      "suiteResult": "fail",
+      "note": "API profiles.save rejects duplicate handle with E_CONSTRAINT, but UI signup with handle alice landed in authenticated Feed chrome with no sm-auth-error. Session remains authenticated after rejected profile save."
+    },
+    "m1-a04": {
+      "result": "pass",
+      "method": "web-automation",
+      "evidence": "grader-work/continuation/remaining-independent-1788690949314.json#m1-a04",
+      "suiteResult": "fail",
+      "note": "Independent fresh-context signup with alice@example.com shows visible sm-auth-error E_AUTH_EMAIL_TAKEN and remains on the auth form. Prior session fail was dependent on leftover m1-a03 authenticated Feed (auth form gone) and is not a second product defect. Duplicate-handle leftover session remains m1-a03/d-01."
+    },
+    "m1-a05": {
+      "result": "pass",
+      "method": "web-automation",
+      "evidence": "grader-work/independent-browser.json#m1-a05 (reload persist). Supplied evidence/m1-choreo.jsonl session-persists-on-relaunch also passed."
+    },
+    "m1-a06": {
+      "result": "pass",
+      "method": "web-automation",
+      "evidence": "grader-work/independent-browser.json#m1-a06"
+    },
+    "m1-a07": {
+      "result": "pass",
+      "method": "api",
+      "evidence": "grader-work/independent-api.json#m1-a07 reused token E_AUTH_SESSION / snapshot anonymous"
+    },
+    "m1-a08": {
+      "result": "pass",
+      "method": "web-automation",
+      "evidence": "grader-work/independent-browser.json#m1-a08 henry profile edit. Builder suite stuck on Loading profile for a brand-new user (app/evidence/m1-suite-failure.png).",
+      "suiteResult": "fail"
+    },
+    "m1-a09": {
+      "result": "pass",
+      "method": "web-automation",
+      "evidence": "grader-work/independent-browser.json#m1-a09",
+      "note": "best-of-3 live bio visibility",
+      "bestOf3Ms": [
+        208,
+        240,
+        280
+      ]
+    },
+    "m1-a10": {
+      "result": "pass",
+      "method": "web-automation",
+      "evidence": "grader-work/independent-browser.json#m1-a10 using in-app fixture avatar",
+      "suiteResult": "fail"
+    },
+    "m1-a11": {
+      "result": "pass",
+      "method": "web-automation",
+      "evidence": "grader-work/independent-browser.json#m1-a11",
+      "suiteResult": "fail"
+    },
+    "m1-a12": {
+      "result": "pass",
+      "method": "source-inspection",
+      "evidence": "grader-work/password-facts.json; schema.q \"use identity password\"; snapback2-darwin-arm64 binary contains argon2; _credentials.hash $argon2id$v=19$m=19456,t=2,p=1 with 8 unique salts"
+    },
+    "m1-a13": {
+      "result": "pass",
+      "method": "source-inspection",
+      "evidence": "grader-work/password-facts.json plaintext_fixture_password_in_copied_sqlite=[]; owner log has no fixture password; sessions store 32-byte token_digest. Fixture passwords in app/scripts are test-harness, not persistence."
+    },
+    "m2-a01": {
+      "result": "pass",
+      "method": "api",
+      "evidence": "grader-work/independent-m2-media.json; suite completed m2-a01 before ENOENT",
+      "suiteResult": "pass"
+    },
+    "m2-a02": {
+      "result": "pass",
+      "method": "api",
+      "evidence": "grader-work/independent-m2-media.json 2 images via in-app fixtures",
+      "suiteResult": "fail",
+      "note": "suite ENOENT hardcoded /Users/ccheever/clique-improvement/instrument/... path"
+    },
+    "m2-a03": {
+      "result": "pass",
+      "method": "api",
+      "evidence": "grader-work/independent-m2-media.json video duration 5000ms",
+      "suiteResult": "fail"
+    },
+    "m2-a04": {
+      "result": "pass",
+      "method": "choreography-artifacts",
+      "evidence": "evidence/m2-choreo.jsonl feed-*-post-live-update passed best-of-3 (some attempt-2 flakes on composer attachment). Not independently re-driven for all three media types in this session."
+    },
+    "m2-a05": {
+      "result": "pass",
+      "method": "choreography-artifacts",
+      "evidence": "evidence/m2-choreo.jsonl feed-author-avatar-and-display-name passed"
+    },
+    "m2-a06": {
+      "result": "pass",
+      "method": "api",
+      "evidence": "grader-work/continuation/remaining-independent-1788690949314.json#m2-a06; grader-work/continuation/m2-suite-after-instrument-1788691200113.json",
+      "suiteResult": "fail",
+      "note": "Original suite ENOENT retained. Independent dedicated-user follow plus later original suite after instrument accommodation both passed."
+    },
+    "m2-a07": {
+      "result": "pass",
+      "method": "choreography-artifacts",
+      "evidence": "evidence/m2-choreo.jsonl follow-unfollow-live-projection passed on best-of-3 (attempts 1 and 3 timed out)"
+    },
+    "m2-a08": {
+      "result": "pass",
+      "method": "api",
+      "evidence": "grader-work/continuation/remaining-independent-1788690949314.json#m2-a08; grader-work/continuation/m2-suite-after-instrument-1788691200113.json",
+      "suiteResult": "fail"
+    },
+    "m2-a09": {
+      "result": "pass",
+      "method": "choreography-artifacts",
+      "evidence": "evidence/m2-choreo.jsonl unfollow projection-scoped",
+      "suiteResult": "fail"
+    },
+    "m2-a10": {
+      "result": "pass",
+      "method": "api",
+      "evidence": "starter global feed contains unfollowed authors; suite mapping exists",
+      "suiteResult": "fail"
+    },
+    "m2-a11": {
+      "result": "pass",
+      "method": "api",
+      "evidence": "grader-work/continuation/remaining-independent-1788690949314.json#m2-a11; grader-work/continuation/m2-suite-after-instrument-1788691200113.json",
+      "suiteResult": "fail"
+    },
+    "m2-a12": {
+      "result": "pass",
+      "method": "web-automation",
+      "evidence": "grader-work/continuation/pagination-url-followup-1788691027652.json#m2-a12-retry; grader-work/continuation/m2-suite-after-instrument-1788691200113.json",
+      "suiteResult": "fail",
+      "note": "Chronology: first independent click saw sm-text-link but empty popup URL plus RN web PAGEERROR _dispatchEvent. Retry with window.open hook opened https://example.com/page-*. Original suite after instrument accommodation also completed m2-a12 (same PAGEERROR still logged). Not a repeated-run-for-best-success of a timing item; first attempt did not capture the popup."
+    },
+    "m2-a13": {
+      "result": "pass",
+      "method": "web-automation",
+      "evidence": "grader-work/continuation/remaining-independent-1788690949314.json#m2-a13; grader-work/continuation/pagination-url-followup-1788691027652.json#m2-a13-retry",
+      "suiteResult": "fail",
+      "note": "No iframe and no sm-feed-media on the text URL post."
+    },
+    "m2-a14": {
+      "result": "pass",
+      "method": "choreography-artifacts",
+      "evidence": "evidence/m2-choreo.jsonl like-unlike-live-count passed best-of-3"
+    },
+    "m2-a15": {
+      "result": "pass",
+      "method": "api",
+      "evidence": "grader-work/independent-api.json like-idempotent-set mid==afterRetry==1",
+      "suiteResult": "fail"
+    },
+    "m2-a16": {
+      "result": "pass",
+      "method": "choreography-artifacts",
+      "evidence": "evidence/m2-choreo.jsonl repost-toggle-live-attribution",
+      "suiteResult": "fail"
+    },
+    "m2-a17": {
+      "result": "pass",
+      "method": "choreography-artifacts",
+      "evidence": "evidence/m2-choreo.jsonl repost toggle",
+      "suiteResult": "fail"
+    },
+    "m2-a18": {
+      "result": "pass",
+      "method": "choreography-artifacts",
+      "evidence": "evidence/m2-choreo.jsonl repost-following-feed-surface",
+      "suiteResult": "fail"
+    },
+    "m2-a19": {
+      "result": "pass",
+      "method": "choreography-artifacts",
+      "evidence": "evidence/m2-choreo.jsonl reply-live-thread-projection"
+    },
+    "m2-a20": {
+      "result": "pass",
+      "method": "choreography-artifacts",
+      "evidence": "evidence/m2-choreo.jsonl reply thread projection; suite not reached",
+      "suiteResult": "fail"
+    },
+    "m2-a21": {
+      "result": "pass",
+      "method": "choreography-artifacts",
+      "evidence": "evidence/m2-choreo.jsonl replies not in feeds (implied by thread projection item)",
+      "suiteResult": "fail"
+    },
+    "m2-a22": {
+      "result": "pass",
+      "method": "web-automation",
+      "evidence": "grader-work/continuation/pagination-url-followup-1788691027652.json#m2-a22; grader-work/continuation/m2-suite-after-instrument-1788691200113.json",
+      "suiteResult": "fail",
+      "note": "Bob Following had exactly 20 rows so no next page (insufficient count, not duplicates). Dedicated user with 25 own originals (implicit self-follow) paged 20 then 25 in UI. Original suite after instrument accommodation also completed m2-a22."
+    },
+    "m2-a23": {
+      "result": "pass",
+      "method": "web-automation",
+      "evidence": "grader-work/continuation/remaining-independent-1788690949314.json#m2-a23; grader-work/continuation/m2-suite-after-instrument-1788691200113.json",
+      "suiteResult": "fail"
+    },
+    "m2-a24": {
+      "result": "pass",
+      "method": "api",
+      "evidence": "grader-work/continuation/pagination-url-followup-1788691027652.json#m2-a24-seeded; grader-work/continuation/remaining-independent-1788690949314.json (global unique/prefix); grader-work/continuation/m2-suite-after-instrument-1788691200113.json",
+      "suiteResult": "fail",
+      "note": "Global already unique with prefix match. Following uniqueness/no-gap demonstrated on a dedicated >20-post following projection."
+    },
+    "m2-a25": {
+      "result": "pass",
+      "method": "api",
+      "evidence": "grader-work/continuation/remaining-independent-1788690949314.json#m2-a25; grader-work/continuation/m2-suite-after-instrument-1788691200113.json",
+      "suiteResult": "fail"
+    },
+    "m2-a26": {
+      "result": "pass",
+      "method": "api",
+      "evidence": "grader-work/continuation/remaining-independent-1788690949314.json#m2-a26; grader-work/continuation/m2-suite-after-instrument-1788691200113.json",
+      "suiteResult": "fail",
+      "note": "Independent dedicated user: own repost remained in Following with following=0. Original suite after instrument accommodation also completed m2-a26."
+    },
+    "m2-a27": {
+      "result": "pass",
+      "method": "api",
+      "evidence": "grader-work/continuation/remaining-independent-1788690949314.json#m2-a27; grader-work/continuation/m2-suite-after-instrument-1788691200113.json",
+      "suiteResult": "fail",
+      "note": "Graph following/followers unchanged at 0. Explicit self-follow rejected SELF_FOLLOW."
+    },
+    "m3-a01": {
+      "result": "pass",
+      "method": "web-automation",
+      "evidence": "grader-work/independent-browser.json#m3-a01",
+      "bestOf3Ms": [
+        1648,
+        1058,
+        1539
+      ]
+    },
+    "m3-a02": {
+      "result": "pass",
+      "method": "choreography-artifacts",
+      "evidence": "evidence/m3-choreo.jsonl sender-avatar-identity-when-rendered"
+    },
+    "m3-a03": {
+      "result": "pass",
+      "method": "builder-suite",
+      "evidence": "app/evidence/m3-suite.json completed m3-a03",
+      "suiteResult": "pass"
+    },
+    "m3-a04": {
+      "result": "pass",
+      "method": "builder-suite",
+      "evidence": "app/evidence/m3-suite.json 3-member group (M3 adapter, not starter 4-member)",
+      "suiteResult": "pass",
+      "note": "Do not confuse with starter g-starter 4 members."
+    },
+    "m3-a05": {
+      "result": "pass",
+      "method": "builder-suite",
+      "evidence": "app/evidence/m3-suite.json second same-member group distinct",
+      "suiteResult": "pass"
+    },
+    "m3-a06": {
+      "result": "pass",
+      "method": "web-automation",
+      "evidence": "grader-work/independent-browser.json#m3-a06",
+      "bestOf3Ms": [
+        291,
+        115,
+        179
+      ]
+    },
+    "m3-a07": {
+      "result": "pass",
+      "method": "web-automation",
+      "evidence": "grader-work/independent-browser.json#m3-a07",
+      "bestOf3Ms": [
+        4360,
+        4382,
+        4393
+      ]
+    },
+    "m3-a08": {
+      "result": "pass",
+      "method": "choreography-artifacts",
+      "evidence": "evidence/m3-choreo.jsonl receipt-sent-delivered-read-transitions"
+    },
+    "m3-a09": {
+      "result": "pass",
+      "method": "choreography-artifacts",
+      "evidence": "evidence/m3-choreo.jsonl group-receipt-waits-for-slowest-member"
+    },
+    "m3-a10": {
+      "result": "pass",
+      "method": "choreography-artifacts",
+      "evidence": "evidence/m3-choreo.jsonl quoted-reply-excerpt-and-jump; suite did not reach UI because seed.mjs ENOENT",
+      "suiteResult": "fail"
+    },
+    "m3-a11": {
+      "result": "pass",
+      "method": "choreography-artifacts",
+      "evidence": "evidence/m3-choreo.jsonl quoted-excerpt jump",
+      "suiteResult": "fail"
+    },
+    "m3-a12": {
+      "result": "pass",
+      "method": "choreography-artifacts",
+      "evidence": "evidence/m3-choreo.jsonl member-add-promote-remove-leave-and-live-cutoff"
+    },
+    "m3-a13": {
+      "result": "pass",
+      "method": "choreography-artifacts",
+      "evidence": "evidence/m3-choreo.jsonl same member-remove item includes local history note"
+    },
+    "m3-a14": {
+      "result": "pass",
+      "method": "builder-suite",
+      "evidence": "app/evidence/m3-suite.json non-admin remove rejected",
+      "suiteResult": "pass"
+    },
+    "m3-a15": {
+      "result": "pass",
+      "method": "api",
+      "evidence": "grader-work/continuation/m3-a15-seed-idempotency-1788691220252.json",
+      "suiteResult": "fail",
+      "note": "Original suite fail ENOENT on hardcoded /Users/ccheever/clique-improvement/instrument/.../starter-m1.log is retained (d-03). After disclosed instrument-path accommodation, seed.mjs+seed-m2.mjs+seed-m3.mjs twice produced equal profile/post/chat snapshots."
+    },
+    "m4-a01": {
+      "result": "pass",
+      "method": "api",
+      "evidence": "grader-work/independent-api.json isolated image send+delete path; suite ENOENT",
+      "suiteResult": "fail"
+    },
+    "m4-a02": {
+      "result": "pass",
+      "method": "choreography-artifacts",
+      "evidence": "evidence/m4-choreo.jsonl photo-message-live-render best-of-3"
+    },
+    "m4-a03": {
+      "result": "pass",
+      "method": "choreography-artifacts",
+      "evidence": "evidence/m4-choreo.jsonl video-message-live-playback; suite ENOENT",
+      "suiteResult": "fail"
+    },
+    "m4-a04": {
+      "result": "pass",
+      "method": "choreography-artifacts",
+      "evidence": "evidence/m4-choreo.jsonl video-message-live-playback"
+    },
+    "m4-a05": {
+      "result": "pass",
+      "method": "choreography-artifacts",
+      "evidence": "evidence/m4-choreo.jsonl reaction-live-replace-remove"
+    },
+    "m4-a06": {
+      "result": "pass",
+      "method": "choreography-artifacts",
+      "evidence": "evidence/m4-choreo.jsonl reaction replace",
+      "suiteResult": "fail"
+    },
+    "m4-a07": {
+      "result": "pass",
+      "method": "choreography-artifacts",
+      "evidence": "evidence/m4-choreo.jsonl reaction remove",
+      "suiteResult": "fail"
+    },
+    "m4-a08": {
+      "result": "pass",
+      "method": "choreography-artifacts",
+      "evidence": "evidence/m4-choreo.jsonl edit-live-visibility best-of-3"
+    },
+    "m4-a09": {
+      "result": "pass",
+      "method": "choreography-artifacts",
+      "evidence": "evidence/m4-choreo.jsonl edit live includes edited label in suite intent; suite not reached",
+      "suiteResult": "fail"
+    },
+    "m4-a10": {
+      "result": "pass",
+      "method": "api",
+      "evidence": "grader-work/timed-results.json EDIT_EXPIRED after shortened 60s window"
+    },
+    "m4-a11": {
+      "result": "pass",
+      "method": "choreography-artifacts",
+      "evidence": "evidence/m4-choreo.jsonl delete-live-tombstone"
+    },
+    "m4-a12": {
+      "result": "pass",
+      "method": "api",
+      "evidence": "grader-work/independent-api.json#m4-a12 afterDelDenied"
+    },
+    "m5-a01": {
+      "result": "pass",
+      "method": "api",
+      "evidence": "grader-work/timed-results.json messageByKey null after expiresAt; clients were closed at send"
+    },
+    "m5-a02": {
+      "result": "pass",
+      "method": "web-automation",
+      "evidence": "grader-work/continuation/remaining-independent-1788690949314.json#m5-a02-connected; prior disconnected: grader-work/timed-results.json",
+      "note": "Connected clients (two live web sessions + SDK subscribe) purged 1205ms after expiresAt (ttl ~180s). Tolerance used: 5 minutes after expiry from the brief's server-refusal bound. Disconnected-reconnect was already shown in the prior session and was not repeated."
+    },
+    "m5-a03": {
+      "result": "pass",
+      "method": "api",
+      "evidence": "grader-work/m5-a03.json global search n=0 for expired body"
+    },
+    "m5-a04": {
+      "result": "pass",
+      "method": "api",
+      "evidence": "grader-work/independent-api.json and m5-a06-followup first view ok; suite passed",
+      "suiteResult": "pass"
+    },
+    "m5-a05": {
+      "result": "pass",
+      "method": "api",
+      "evidence": "second viewing E_ASSET_VIEWED; suite passed",
+      "suiteResult": "pass"
+    },
+    "m5-a06": {
+      "result": "pass",
+      "method": "api",
+      "evidence": "grader-work/m5-a06-followup.json bob-direct-no-viewing E_ASSET_VIEWED; raw HTTP 404. Sender alice-direct still succeeded (uploader retain)."
+    },
+    "m5-a07": {
+      "result": "pass",
+      "method": "choreography-artifacts",
+      "evidence": "evidence/m5-choreo.jsonl chat-color-background-sync"
+    },
+    "m5-a08": {
+      "result": "pass",
+      "method": "builder-suite",
+      "evidence": "app/evidence/m5-suite.json",
+      "suiteResult": "pass"
+    },
+    "m5-a09": {
+      "result": "pass",
+      "method": "builder-suite",
+      "evidence": "app/evidence/m5-suite.json people search car->carol",
+      "suiteResult": "pass"
+    },
+    "m5-a10": {
+      "result": "pass",
+      "method": "builder-suite",
+      "evidence": "app/evidence/m5-suite.json in-chat coffee",
+      "suiteResult": "pass"
+    },
+    "m5-a11": {
+      "result": "pass",
+      "method": "builder-suite",
+      "evidence": "app/evidence/m5-suite.json global groups by chat",
+      "suiteResult": "pass"
+    },
+    "m5-a12": {
+      "result": "pass",
+      "method": "web-automation",
+      "evidence": "grader-work/independent-browser.json#m5-a12 Offline \u2014 searching synced messages includes Coffee after work?"
+    },
+    "m6-a01": {
+      "result": "not-recorded",
+      "method": "native-original-report",
+      "evidence": "native-m6-original-report.md; grader-work/continuation/native-m6-original-mapping.json",
+      "note": "Earlier M6 native report (archive 014a913c\u2026, published 0.0.6). Online sync failed E_NETWORK SSE response has no body; previously synced history could not be tested. Not native-absent. Not this grading tree's archive c64b7b1e\u2026. Native M8 not-run.",
+      "greenRequired": false
+    },
+    "m6-a02": {
+      "result": "not-recorded",
+      "method": "native-original-report",
+      "evidence": "native-m6-original-report.md; grader-work/continuation/native-m6-original-mapping.json",
+      "note": "Image never rendered online; previously viewed media not recorded.",
+      "greenRequired": false
+    },
+    "m6-a03": {
+      "result": "not-recorded",
+      "method": "native-original-report",
+      "evidence": "native-m6-original-report.md; grader-work/continuation/native-m6-original-mapping.json",
+      "note": "Search token never synced; cold search blocked.",
+      "greenRequired": false
+    },
+    "m6-a04": {
+      "result": "not-recorded",
+      "method": "native-original-report",
+      "evidence": "native-m6-original-report.md; grader-work/continuation/native-m6-original-mapping.json",
+      "note": "View-once asset never opened/consumed; absence from empty screen is not denial evidence.",
+      "greenRequired": false
+    },
+    "m6-a05": {
+      "result": "pass",
+      "method": "native-original-report",
+      "evidence": "native-m6-original-report.md; grader-work/continuation/native-m6-original-mapping.json",
+      "note": "Two pending bubbles in compose order with gray pending clocks while backend stopped.",
+      "greenRequired": false
+    },
+    "m6-a06": {
+      "result": "pass",
+      "method": "native-original-report",
+      "evidence": "native-m6-original-report.md; grader-work/continuation/native-m6-original-mapping.json",
+      "note": "Flush PASS with manual Sync now; backend restart alone had not flushed at the bounded observation. Does not establish automatic reconnect.",
+      "greenRequired": false
+    },
+    "m6-a07": {
+      "result": "fail",
+      "method": "native-original-report",
+      "evidence": "native-m6-original-report.md; grader-work/continuation/native-m6-original-mapping.json",
+      "note": "Premature blue read ticks while server still reported sent. Final alignment after Bob API acks is narrow and does not repair premature indication.",
+      "greenRequired": false
+    },
+    "m6-a08": {
+      "result": "pass",
+      "method": "builder-suite",
+      "evidence": "app/evidence/m6-suite.json push payload fields",
+      "suiteResult": "pass"
+    },
+    "m6-a09": {
+      "result": "pass",
+      "method": "builder-suite",
+      "evidence": "app/evidence/m6-suite.json view-once preview Photo",
+      "suiteResult": "pass"
+    },
+    "m6-a10": {
+      "result": "pass",
+      "method": "builder-suite",
+      "evidence": "app/evidence/m6-suite.json custom-client-demo from clean copy",
+      "suiteResult": "pass"
+    },
+    "m6-a11": {
+      "result": "pass",
+      "method": "builder-suite",
+      "evidence": "app/evidence/m6-suite.json demo operations",
+      "suiteResult": "pass"
+    },
+    "m6-a12": {
+      "result": "pass",
+      "method": "api",
+      "evidence": "grader-work/independent-api.json#m6-a12 API.md history newest-first of Weekend Plans via clique-client.mjs"
+    },
+    "m6-a13": {
+      "result": "pass",
+      "method": "builder-suite",
+      "evidence": "app/evidence/m6-suite.json; grader replay of sample-50 produced 50 committed receipts evidence/replay-settled.jsonl",
+      "suiteResult": "pass"
+    },
+    "m7-a01": {
+      "result": "not-run",
+      "method": "builder-suite",
+      "evidence": "M7 is a later fresh session; not in this M1-M6+M8 grading wave."
+    },
+    "m7-a02": {
+      "result": "not-run",
+      "method": "builder-suite",
+      "evidence": "M7 is a later fresh session; not in this M1-M6+M8 grading wave."
+    },
+    "m7-a03": {
+      "result": "not-run",
+      "method": "builder-suite",
+      "evidence": "M7 is a later fresh session; not in this M1-M6+M8 grading wave."
+    },
+    "m7-a04": {
+      "result": "not-run",
+      "method": "builder-suite",
+      "evidence": "M7 is a later fresh session; not in this M1-M6+M8 grading wave."
+    },
+    "m7-a05": {
+      "result": "not-run",
+      "method": "builder-suite",
+      "evidence": "M7 is a later fresh session; not in this M1-M6+M8 grading wave."
+    },
+    "m7-a06": {
+      "result": "not-run",
+      "method": "builder-suite",
+      "evidence": "M7 is a later fresh session; not in this M1-M6+M8 grading wave."
+    },
+    "m7-a07": {
+      "result": "not-run",
+      "method": "builder-suite",
+      "evidence": "M7 is a later fresh session; not in this M1-M6+M8 grading wave."
+    },
+    "m7-a08": {
+      "result": "not-run",
+      "method": "snapshot-comparison",
+      "evidence": "M7 is a later fresh session; not in this M1-M6+M8 grading wave."
+    },
+    "m7-a09": {
+      "result": "not-run",
+      "method": "builder-suite",
+      "evidence": "M7 is a later fresh session; not in this M1-M6+M8 grading wave."
+    },
+    "m8-a01": {
+      "result": "pass",
+      "method": "builder-suite",
+      "evidence": "app/evidence/m8-suite.json summary matched audit",
+      "suiteResult": "pass"
+    },
+    "m8-a02": {
+      "result": "pass",
+      "method": "choreography-artifacts",
+      "evidence": "evidence/m8-choreo-1788685993894.jsonl m8-a02-insights-like-refresh passed. Original bound suite hash b327b2f7\u2026 not recoverable; this choreo file is the supplied original-run artifact."
+    },
+    "m8-a03": {
+      "result": "pass",
+      "method": "builder-suite",
+      "evidence": "app/evidence/m8-suite.json",
+      "suiteResult": "pass"
+    },
+    "m8-a04": {
+      "result": "pass",
+      "method": "builder-suite",
+      "evidence": "app/evidence/m8-suite.json zero days present",
+      "suiteResult": "pass"
+    },
+    "m8-a05": {
+      "result": "pass",
+      "method": "builder-suite",
+      "evidence": "app/evidence/m8-suite.json",
+      "suiteResult": "pass"
+    },
+    "m8-a06": {
+      "result": "pass",
+      "method": "builder-suite",
+      "evidence": "app/evidence/m8-suite.json operator-aged fixture excluded after timer",
+      "suiteResult": "pass"
+    },
+    "m8-a07": {
+      "result": "pass",
+      "method": "builder-suite",
+      "evidence": "app/evidence/m8-suite.json tie newest-first",
+      "suiteResult": "pass"
+    },
+    "m8-a08": {
+      "result": "pass",
+      "method": "api",
+      "evidence": "grader-work/digest-results.json dedicated personas, clients closed, exactly one digest with expected counts"
+    },
+    "m8-a09": {
+      "result": "pass",
+      "method": "api",
+      "evidence": "grader-work/digest-results.json silent persona no digest"
+    },
+    "m8-a10": {
+      "result": "pass",
+      "method": "api",
+      "evidence": "grader-work/digest-results.json following empty period no cohort digest"
+    },
+    "m8-a11": {
+      "result": "pass",
+      "method": "api",
+      "evidence": "grader-work/backend-restart.json + provider.jsonl: unique (user,period) digest rows, 0 duplicates after owner restart; digestClock persisted and re-armed without reinstall. Restart was near a period boundary (09:50:14Z)."
+    },
+    "m8-a12": {
+      "result": "pass",
+      "method": "api",
+      "evidence": "grader-work/digest-results.json unreadMessages==1 despite unrelated private chat"
+    },
+    "m8-a13": {
+      "result": "pass",
+      "method": "web-automation",
+      "evidence": "grader-work/independent-browser.json#m8-a13"
+    },
+    "m8-a14": {
+      "result": "pass",
+      "method": "web-automation",
+      "evidence": "grader-work/independent-browser.json#m8-a14 plus evidence/m8-choreo-1788685993894.jsonl original pass. Independent unread-clear was weakly observed.",
+      "note": "Independent assertion of unread-clear was weaker than the original choreo metric."
+    },
+    "m8-a15": {
+      "result": "pass",
+      "method": "web-automation",
+      "evidence": "grader-work/independent-browser.json#m8-a15 both dual-offline messages arrived once on Bob. QUALIFICATION: original choreo green bound to missing suite hash b327b2f7\u2026; later requalification evidence/m8-requalification-1788686455148 failed dual-offline timeout. Both records preserved; this session independently passed."
+    },
+    "m8-a16": {
+      "result": "pass",
+      "method": "web-automation",
+      "evidence": "Independent: messages present after reconnect; receipt ticks not parsed. Original choreo passed; requalification failed as dependent on a15. Preserved."
+    },
+    "m8-a17": {
+      "result": "not-run",
+      "method": "choreography-artifacts",
+      "evidence": "Native M8 not run. The supplied native-m6-original-report.md is an earlier M6 source artifact, not final M8 source.",
+      "note": "greenRequired:false native-artifact"
+    },
+    "m8-a18": {
+      "result": "not-run",
+      "method": "choreography-artifacts",
+      "evidence": "Native M8 not run. The supplied native-m6-original-report.md is an earlier M6 source artifact, not final M8 source.",
+      "note": "greenRequired:false native-artifact"
+    }
+  },
+  "coverageSpotVerification": {
+    "verdict": "honest",
+    "sampledAssertionIds": [
+      "m1-a01",
+      "m1-a08",
+      "m2-a01",
+      "m3-a03",
+      "m3-a15",
+      "m5-a04",
+      "m6-a08",
+      "m6-a13",
+      "m8-a01",
+      "m8-a06"
+    ],
+    "dishonestMilestones": [],
+    "detail": "Mappings that executed exercise the named observables (M5 view-once, M6 push/demo/sample-50, M8 insights/trending, independent M2 pagination/URL/self-follow, connected disappearing purge). M1-M4 suite scripts are honest in intent but hardcode /Users/ccheever/clique-improvement/instrument/... ; original ENOENT runs are retained. A disclosed copy of the frozen instrument tree was provisioned at that external path (210 files, matching hashes) so remaining original suites could execute; that is environment accommodation, not a portability pass. m3-a15 original suite mapping remains ENOENT; independent seed idempotency after accommodation passed. m1 suite mapping for a08 is honest but the edit screen stuck on Loading profile for a newly signed-up user."
+  },
+  "defects": [
+    {
+      "id": "d-01",
+      "severity": "major",
+      "summary": "Signup with a duplicate handle does not show a visible auth error; the UI lands in authenticated Feed chrome while profiles.save is E_CONSTRAINT and the session remains authenticated (loading-profile chrome also observed on new-user /profile/edit).",
+      "milestone": "M1",
+      "evidence": "grader-work/independent-browser.json#m1-a03; grader-work/dup-identity-api.json; app/evidence/m1-suite-failure.png",
+      "relatedAssertionIds": [
+        "m1-a03"
+      ]
+    },
+    {
+      "id": "d-02",
+      "severity": "major",
+      "summary": "New-user profile edit route stays on \"Loading profile...\" (suite screenshot). Independent edit of an existing persona (henry) succeeded.",
+      "milestone": "M1",
+      "evidence": "app/evidence/m1-suite-failure.png; app/evidence/m1-suite.json",
+      "relatedAssertionIds": [
+        "m1-a08"
+      ]
+    },
+    {
+      "id": "d-03",
+      "severity": "major",
+      "summary": "Acceptance/seed scripts hardcode an absolute fixture path outside the frozen app, so M2/M3/M4 suites fail ENOENT on a clean checkout. Portable fixtures exist under app/instrument/.... Original ENOENT runs retained. External path provision is disclosed environment accommodation, not a portability pass.",
+      "milestone": null,
+      "evidence": "app/scripts/acceptance-m2.mjs; app/scripts/seed.mjs; app/scripts/acceptance-m4.mjs; grader-work/original-suite-evidence/",
+      "relatedAssertionIds": [
+        "m2-a02",
+        "m3-a15",
+        "m4-a01"
+      ]
+    },
+    {
+      "id": "d-04",
+      "severity": "minor",
+      "summary": "M8 dual-offline is not stable across retained runs: original choreo green (bound suite hash missing), later unchanged-source requalification timed out, prior independent session passed.",
+      "milestone": "M8",
+      "evidence": "QUALIFICATION.md; evidence/m8-requalification-1788686455148/; grader-work/independent-browser.json#m8-a15",
+      "relatedAssertionIds": [
+        "m8-a15",
+        "m8-a16"
+      ]
+    },
+    {
+      "id": "d-05",
+      "severity": "cosmetic",
+      "summary": "After a recipient consumes a view-once asset, the sender can still assetBlob the same URL. Recipient direct fetches and raw HTTP are refused.",
+      "milestone": "M5",
+      "evidence": "grader-work/m5-a06-followup.json alice-direct ok:true",
+      "relatedAssertionIds": [
+        "m5-a06"
+      ]
+    },
+    {
+      "id": "d-06",
+      "severity": "major",
+      "summary": "Native M6 (earlier published 0.0.6 report, archive 014a913c\u2026): real Release Hermes live queries failed with E_NETWORK SSE response has no body, blocking online fixture history/media/search. Not treated as native-absent.",
+      "milestone": "M6",
+      "evidence": "native-m6-original-report.md; grader-work/continuation/native-m6-original-mapping.json",
+      "relatedAssertionIds": [
+        "m6-a01",
+        "m6-a02",
+        "m6-a03",
+        "m6-a04"
+      ],
+      "sourceBoundary": "earlier-m6-artifact-not-this-tree-archive-c64b7b1e"
+    },
+    {
+      "id": "d-07",
+      "severity": "major",
+      "summary": "Native M6 premature read ticks: first committed bubble showed blue read while the server still reported sent. Manual Sync now flushed pending messages; final alignment after Bob API acks does not repair the premature indication.",
+      "milestone": "M6",
+      "evidence": "native-m6-original-report.md (Normal receipt progression FAIL)",
+      "relatedAssertionIds": [
+        "m6-a07"
+      ],
+      "sourceBoundary": "earlier-m6-artifact-not-this-tree-archive-c64b7b1e"
+    }
+  ],
+  "probeResults": [],
+  "oDimensionScores": {
+    "O1": {
+      "score": 72,
+      "anchorsCited": "Between 60 (M1-M4 solid, later patchy) and 90 (every in-scope milestone green including platform-proof). Diagnostic interpolation only \u2014 no calibration.",
+      "justification": "Web/API: messaging, search, digest, insights, custom client, sample-50, disappearing including connected purge, view-once, edit-window, M2 pagination/URL/self-follow independently exercised. M1 unique-handle UX fails. Isolated duplicate-email UX passes. Native M6 earlier-0.0.6 report is a scoped failure (SSE, premature ticks) not native-absent; native M8 not-run; M7 not-run; scale pending. Diagnostic interpolation only \u2014 no calibration."
+    },
+    "O2": {
+      "score": 58,
+      "anchorsCited": "Near 60: a few medium defects off the happy path (not multiple high-severity core-flow crashes). Diagnostic only.",
+      "justification": "d-01/d-02 remain medium identity/onboarding defects. d-03 is suite portability (original ENOENT retained). Native premature ticks (d-07) and native SSE-blocked sync (d-06) are scoped to the earlier M6 native report identity. Prior m1-a04 UI fail was dependent on leftover a03 session and is not a separately reproduced product bug. Dual-offline flake (d-04) unchanged. Diagnostic only."
+    },
+    "O3": null,
+    "O4": null,
+    "O5": null
+  },
+  "oDimensionDiagnostics": {
+    "O3": "Null. No precommitted rotated holdout set. Cross-user/digest-auth checks are non-scored continuity diagnostics, not O3.",
+    "O4": "Null as a formal score. Applicability requires M6 green plus native simulator artifacts. An earlier published 0.0.6 native M6 report exists (archive 014a913c\u2026, not this tree) and is a scoped failure (SSE no body; premature ticks; pending+manual flush pass; history/media/search not recorded). It is not a qualifying M6 pass and is not native M8. Web offline must not be scored as native O4.",
+    "O5": "Null/pending. Scale replay is a separate worker on 49103; marked pending here. Starter invariants passed on this private fixture."
+  },
+  "timingRecords": [
+    {
+      "subject": "m1-a09",
+      "measurementsMs": [
+        208,
+        240,
+        280
+      ],
+      "bestMs": 208,
+      "boundMs": null,
+      "passed": true
+    },
+    {
+      "subject": "m3-a01",
+      "measurementsMs": [
+        1648,
+        1058,
+        1539
+      ],
+      "bestMs": 1058,
+      "boundMs": null,
+      "passed": true
+    },
+    {
+      "subject": "m3-a06",
+      "measurementsMs": [
+        291,
+        115,
+        179
+      ],
+      "bestMs": 115,
+      "boundMs": 2000,
+      "passed": true
+    },
+    {
+      "subject": "m3-a07",
+      "measurementsMs": [
+        4360,
+        4382,
+        4393
+      ],
+      "bestMs": 4360,
+      "boundMs": 5000,
+      "passed": true
+    }
+  ],
+  "evidenceTracePath": "grader-work/sanitized-action-trace.jsonl",
+  "qualification": {
+    "m8OriginalGreenMissingBoundSuite": "evidence/m8-choreo-1788685993894.jsonl reports green and binds suite sha256 b327b2f7a2f6a3e55ca124e238a63b06fb394fe30d3e816474e5a041208d7004 which is no longer recoverable. Do not treat 9370c41b as that original bound file.",
+    "m8LaterFailedRecheck": "evidence/m8-requalification-1788686455148/ failed m8-a15-dual-offline-convergence and m8-a16-dual-offline-receipts",
+    "m8IndependentThisSession": "pass on dual-offline convergence (both messages once on Bob)",
+    "native": "Not absent. Earlier M6 native report native-m6-original-report.md (published snapback2@0.0.6, archive 014a913c\u2026, 71 files) records SSE-no-body, premature ticks, pending+manual flush pass, history/media/search not-recorded. This grading tree archive is c64b7b1e\u2026. Native M8 not-run. Simulator was not re-run. No newer SDK candidate reports sought.",
+    "scale": "pending; separate copy on 49103",
+    "m7": "later fresh session",
+    "m3a15": "Original suite ENOENT retained; independent seed idempotency after instrument accommodation passed.",
+    "instrumentAccommodation": "Copied frozen app/instrument (210 files, matching hashes) to absent /Users/ccheever/clique-improvement/instrument. Disclosed environment accommodation, not an app repair or portability pass."
+  },
+  "notes": "Continuation of unfinished independent checks. Initial reports preserved as initial-report.md/json. No fabricated checks. Passwords redacted. No O3/O5/weighted total. Frozen app source hashes unchanged (325 files).",
+  "continuation": {
+    "initialReports": [
+      "initial-report.md",
+      "initial-report.json"
+    ],
+    "newEvidence": [
+      "grader-work/continuation/remaining-independent-1788690949314.json",
+      "grader-work/continuation/pagination-url-followup-1788691027652.json",
+      "grader-work/continuation/m2-suite-after-instrument-1788691200113.json",
+      "grader-work/continuation/m4-suite-after-instrument-1788691200113.json",
+      "grader-work/continuation/original-suites-after-instrument-1788691200113.json",
+      "grader-work/continuation/m3-a15-seed-idempotency-1788691220252.json",
+      "grader-work/continuation/native-m6-original-mapping.json",
+      "grader-work/continuation/frozen-hash-verify.json",
+      "grader-work/continuation/launch.json",
+      "native-m6-original-report.md"
+    ],
+    "services": {
+      "reason": "recorded PIDs 27909/76837/76778 dead; ports 49100/1/2 free",
+      "backendListener": 24052,
+      "expoListener": 24108,
+      "provider": 24049,
+      "digestClockReinstalled": false,
+      "datasetReset": false,
+      "scalePeer49103": "left-alone pid 6910"
+    }
+  },
+  "diagnosticCounts": {
+    "pass": 102,
+    "fail": 2,
+    "not-recorded": 4,
+    "not-run": 11
+  }
+}
