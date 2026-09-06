@@ -179,3 +179,14 @@ evaluator, and package suites green; consolidated verification and review remain
 Asset review caught local serialization taking custody too early and finalizer
 cleanup becoming unretryable after a filesystem failure. A final bounded revision
 is in progress. None of these candidate fixes is yet claimed as published.
+
+
+### Auth final-review hold, 2026-09-06
+
+Astra's review of `0e6cebfcd` found two cancellation cases beyond the
+fetch-level regression tests: an aborted outbox replay can retain the drain
+barrier, and a 401 body parsed after replacement recovery can still expire
+the restored custody. The exact review is retained with the run. This lane
+has reached the repository's three-round rule; further auth edits are held
+pending the author's explicit extension. Other implementation and benchmark
+work continues. No auth landing or publication is claimed.

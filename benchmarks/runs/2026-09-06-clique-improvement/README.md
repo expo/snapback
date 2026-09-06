@@ -49,7 +49,7 @@ and migration command discovery
 
 | Lane | Review target | Current evidence |
 | --- | --- | --- |
-| Auth startup | `0e6cebfcd`, branch `s2/clique-auth` | 173 affected tests pass; cancellation regressions fail on predecessor and pass now; final Astra/Grok reviews running |
+| Auth startup | `0e6cebfcd`, branch `s2/clique-auth` | 173 affected tests pass; final Astra review finds held replay and late response-body cancellation gaps; Grok review running; further auth edits held pending author extension of the three-round limit |
 | Abandoned assets | `2e671c5c6`, branch `s2/clique-assets` | Revision passes 66 JS / 53 Rust affected tests; second Astra review finds two cleanup leaks, final revision underway; second Grok review running |
 | Conditional cursors | `bbe2f85aa`, branch `s2/clique-cursors` | Compiler 400/400, evaluator 216/216, package 380/380; aggregate Rust 741/743 then both corrected affected tests pass; consolidated run and independent reviews running |
 
