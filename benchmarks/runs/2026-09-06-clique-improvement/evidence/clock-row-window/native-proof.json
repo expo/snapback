@@ -1,0 +1,45 @@
+{
+  "ownerSha256": "7e6f0cba7676b97bf5b6a5e54adb94dadf447406fa6f266d54fb662393b1e1b6",
+  "proof": "Actual immutable native owner06; same-sequence row omission and conditional no-read result, untimed anchor retains shared row; client persistence qualification pending coherent source.",
+  "pairs": {
+    "clock.window": {
+      "seq": [
+        1,
+        1
+      ],
+      "rowPoolCounts": [
+        1,
+        0
+      ],
+      "readTimes": [
+        1788704328685,
+        1788707928694
+      ],
+      "validatorChanged": true
+    },
+    "clock.conditional": {
+      "seq": [
+        1,
+        1
+      ],
+      "rowPoolCounts": [
+        1,
+        0
+      ],
+      "readTimes": [
+        1788704328690,
+        1788707928696
+      ],
+      "validatorChanged": true
+    }
+  },
+  "inputs": {
+    "run.py": "25b193ab538f6c350fbcb0804241c16da230dd15d9ead52b62819b381a0cbda7",
+    "project-template.json": "c733d7b7af205748d6a199937509e3f35d2729f3562b24d05bba616893e2f90c",
+    "compiler.mjs": "f88ed923e9f6f86c3dfd16fde422cd0965850583e3b3779a532282eb5aa9334c",
+    "run-20260906T141848Z/project.json": "12b97012ba1b8e887a9a72013fb66e597d29492476952f6e5f170600fde35f2f",
+    "run-20260906T141848Z/compiler.mjs": "f88ed923e9f6f86c3dfd16fde422cd0965850583e3b3779a532282eb5aa9334c",
+    "run-20260906T141848Z/envelopes.json": "8b68d1d6194aba4dfd32991b40a2f535f4f6e18b1cfced91650b939e52a8b23d",
+    "run-20260906T141848Z/program-envelope.json": "f77aaa9ceea3b491921abc3d336f3b1e09c34fc4d753594666e94969987dc83c"
+  }
+}

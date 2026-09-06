@@ -1,0 +1,143 @@
+{
+  "proof": "Actual owner06 row-bearing same-seq moving window and conditional-no-read envelopes, actual trusted program and file carrier; untimed shared-row anchor must survive warm/cold updates",
+  "inputs": {
+    "envelopes.json": "8b68d1d6194aba4dfd32991b40a2f535f4f6e18b1cfced91650b939e52a8b23d",
+    "program-envelope.json": "f77aaa9ceea3b491921abc3d336f3b1e09c34fc4d753594666e94969987dc83c"
+  },
+  "sourceFiles": {
+    "offline.ts": "a6d8373d64e34a5f7707bb10ced0871a2341a15bc8b8433af9cd7b77d58cb0c4",
+    "offline-protocol.ts": "7b14aa78370a27f3ab9bbff46d83298a1dd03a4ff7902038320d85b437cdb246",
+    "store/range-store.ts": "f56d34527ad07d38835716bdf06f0918e5c472ac32c71bcb93d1b2dd1992177e",
+    "store/fact-integrity.ts": "e725f65ed5a1afeb00bf7b28b98799b77b0f1763bd235b9d80cd04fd6b6cebe6"
+  },
+  "results": [
+    {
+      "cold": false,
+      "error": null,
+      "answers": {
+        "clock.window": {
+          "op": "clock.window",
+          "args": {},
+          "state": "complete",
+          "next": null,
+          "nextSeq": 1,
+          "seq": 1,
+          "readTime": 1788707928694,
+          "clockPlanHash": "183bb26ce9dbbe2fb1ad5500d841b51d475aedbcd3c129447278c690a5d90b3a",
+          "validator": "48e6518ff12ea6d9098bb04dff1de10f8bce762150c2bce9f249509f17890898",
+          "receipt": {
+            "absences": [],
+            "ranges": [
+              {
+                "absence": true,
+                "after": null,
+                "before": null,
+                "gt": null,
+                "gte": 1788707328694,
+                "index": "byAt",
+                "lt": 1788707928694,
+                "lte": null,
+                "order": "Asc",
+                "prefix": [],
+                "rowIds": [],
+                "ruleHash": "75127f113f0cdaab190e505b9cd62b78c7a92d6a43028a5db3d98dcd342c95ca",
+                "site": "window.range",
+                "stop": "Exhausted",
+                "table": "events",
+                "take": 10
+              }
+            ],
+            "verdicts": []
+          },
+          "deliveredAt": 1788704746483,
+          "data": {
+            "now": 1788707928694,
+            "rows": []
+          }
+        },
+        "clock.conditional": {
+          "op": "clock.conditional",
+          "args": {},
+          "state": "complete",
+          "next": null,
+          "nextSeq": 1,
+          "seq": 1,
+          "readTime": 1788707928696,
+          "clockPlanHash": "a50e87498dc07316bc10a4b1704da4dba3ab474a8ad855bf0b174a5ad8a5c817",
+          "validator": "5e7d741045dd305704732caed7967459b4cf160bc336d6fb456d97abd8ced9fc",
+          "receipt": {
+            "absences": [],
+            "ranges": [],
+            "verdicts": []
+          },
+          "deliveredAt": 1788704746487,
+          "data": null
+        }
+      }
+    },
+    {
+      "cold": true,
+      "error": null,
+      "answers": {
+        "clock.window": {
+          "op": "clock.window",
+          "args": {},
+          "state": "complete",
+          "next": null,
+          "nextSeq": 1,
+          "seq": 1,
+          "readTime": 1788707928694,
+          "clockPlanHash": "183bb26ce9dbbe2fb1ad5500d841b51d475aedbcd3c129447278c690a5d90b3a",
+          "validator": "48e6518ff12ea6d9098bb04dff1de10f8bce762150c2bce9f249509f17890898",
+          "receipt": {
+            "absences": [],
+            "ranges": [
+              {
+                "absence": true,
+                "after": null,
+                "before": null,
+                "gt": null,
+                "gte": 1788707328694,
+                "index": "byAt",
+                "lt": 1788707928694,
+                "lte": null,
+                "order": "Asc",
+                "prefix": [],
+                "rowIds": [],
+                "ruleHash": "75127f113f0cdaab190e505b9cd62b78c7a92d6a43028a5db3d98dcd342c95ca",
+                "site": "window.range",
+                "stop": "Exhausted",
+                "table": "events",
+                "take": 10
+              }
+            ],
+            "verdicts": []
+          },
+          "deliveredAt": 1788704746529,
+          "data": {
+            "now": 1788707928694,
+            "rows": []
+          }
+        },
+        "clock.conditional": {
+          "op": "clock.conditional",
+          "args": {},
+          "state": "complete",
+          "next": null,
+          "nextSeq": 1,
+          "seq": 1,
+          "readTime": 1788707928696,
+          "clockPlanHash": "a50e87498dc07316bc10a4b1704da4dba3ab474a8ad855bf0b174a5ad8a5c817",
+          "validator": "5e7d741045dd305704732caed7967459b4cf160bc336d6fb456d97abd8ced9fc",
+          "receipt": {
+            "absences": [],
+            "ranges": [],
+            "verdicts": []
+          },
+          "deliveredAt": 1788704746532,
+          "data": null
+        }
+      }
+    }
+  ]
+}

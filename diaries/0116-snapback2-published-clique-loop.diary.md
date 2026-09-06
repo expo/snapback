@@ -543,3 +543,15 @@ are being coordinated. Version identities protect matched compiled custody;
 they cannot retrofit strict decoding into old raw-IR owners. Silent acceptance
 of ignored constraints is more costly for an app builder than an actionable
 compiler diagnostic, because a successful check gives false confidence.
+
+
+## 2026-09-06 — Real clock updates survive persistent reopen
+
+The new native execution timestamp now lets a candidate file carrier accept a
+moving window becoming empty at the same database sequence, both warm and after
+reopen. A second timed query stops reading its row, while the untimed history
+anchor and shared durable row remain intact. This is the behavior an app author
+expects from clock-sensitive data without separate cache plumbing. The focused
+proof is retained with its source-custody limits; guard/revalidation tests and
+final package qualification remain pending. It does not establish the cause of
+the original published inbox failure.
