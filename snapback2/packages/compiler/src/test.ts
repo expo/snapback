@@ -23,6 +23,8 @@ import { registerApiShapeChecks } from "./api-shape-checks";
 import { registerQuarryFanoutChecks } from "./quarry-fanout-checks";
 import { registerRetentionChecks } from "./retention-checks";
 import { registerEffectLanguageChecks } from "./test-effects";
+import { registerVisibilityChecks } from "./visibility-checks";
+import { registerPackageGuideChecks } from "./test-package-guide";
 import { decimal } from "../../snapback2/src/index";
 import type { Principal } from "../../snapback2/src/index";
 import type { Op } from "../../snapback2/src/api";
@@ -49,6 +51,7 @@ registerApiShapeChecks(test, frontend);
 registerRetentionChecks(test);
 registerQuarryFanoutChecks(test, frontend);
 registerEffectLanguageChecks(test, withProject, frontend, libText);
+registerVisibilityChecks(test);
 
 function assert(condition: unknown, message: string): asserts condition {
   if (!condition) throw new Error(message);
@@ -1400,65 +1403,7 @@ test("worker refuses every TypeScript-authored export and serves the next Quarry
   });
 });
 
-test("npm pack from a clean dist builds every exported module and declaration", async () => {
-  const packageRoot = `${crate}packages/snapback2`;
-  const packed = Bun.spawnSync({
-    cmd: ["npm", "pack", "--dry-run", "--json"],
-    cwd: packageRoot,
-    env: { ...process.env, npm_config_cache: resolve(tmpdir(), "snapback2-npm-test-cache") },
-    stdout: "pipe",
-    stderr: "pipe",
-  });
-  assert(packed.exitCode === 0, `npm pack --dry-run failed: ${new TextDecoder().decode(packed.stderr)}`);
-  const report = JSON.parse(new TextDecoder().decode(packed.stdout));
-  const files = new Set((report[0]?.files ?? []).map((item: { path: string }) => item.path));
-  for (const path of [
-    "dist/compiler.mjs", "dist/compiler-core.mjs", "dist/index.mjs", "dist/client.mjs", "dist/react.mjs", "dist/test.mjs",
-    "dist/test-runner.mjs", "dist/index.d.ts", "dist/client.d.ts", "dist/react.d.ts", "dist/test.d.ts",
-    "dist/compiler-lib.d.ts", "expo-module.config.json", "ios/MemoryVideoSource.swift",
-    "ios/SnapbackMemoryVideoModule.swift", "ios/SnapbackMemoryVideo.podspec",
-    "android/build.gradle", "android/src/main/java/expo/modules/snapback2/SnapbackMemoryVideoModule.kt",
-  ]) assert(files.has(path), `npm pack omitted ${path}`);
-  assert(!files.has("dist/placeholder.d.ts"), "npm pack still contains the obsolete placeholder declarations");
-});
-
-test("client, React, and test imports typecheck against distinct real declarations", async () => {
-  const packageRoot = resolve(crate, "packages/snapback2");
-  await withProject({
-    "surfaces.ts": `import { api, createClient } from "snapback2/client";
-      import { DevOverlay, SnapbackProvider, useAuth, useChannel, useMutation, useQuery } from "snapback2/react";
-      import { journey } from "snapback2/test";
-      const client = createClient({ url: "http://127.0.0.1:3210" });
-      journey("real declarations", ({ as }) => { const same: typeof client = as("alice"); void same; });
-      void [api, DevOverlay, SnapbackProvider, useAuth, useChannel, useMutation, useQuery];`,
-    "wrong-surface.ts": `import { createClient } from "snapback2/react"; void createClient;`,
-  }, async (root) => {
-    await mkdir(resolve(root, "node_modules"));
-    await symlink(packageRoot, resolve(root, "node_modules/snapback2"), "dir");
-    const options: ts.CompilerOptions = {
-      baseUrl: root,
-      lib: ["lib.es2022.d.ts", "lib.dom.d.ts", "lib.dom.iterable.d.ts"],
-      module: ts.ModuleKind.ESNext,
-      moduleResolution: ts.ModuleResolutionKind.Bundler,
-      noEmit: true,
-      skipLibCheck: true,
-      strict: true,
-      target: ts.ScriptTarget.ES2022,
-      types: ["react"],
-    };
-    const sample = resolve(root, "surfaces.ts");
-    const diagnostics = ts.getPreEmitDiagnostics(ts.createProgram({ rootNames: [sample], options }))
-      .filter((item) => item.file?.fileName === sample);
-    assert(diagnostics.length === 0,
-      `real package declarations did not typecheck:\n${diagnostics.map((item) => ts.flattenDiagnosticMessageText(item.messageText, "\n")).join("\n")}`);
-
-    const wrong = resolve(root, "wrong-surface.ts");
-    const wrongDiagnostics = ts.getPreEmitDiagnostics(ts.createProgram({ rootNames: [wrong], options }))
-      .filter((item) => item.file?.fileName === wrong);
-    assert(wrongDiagnostics.some((item) => ts.flattenDiagnosticMessageText(item.messageText, "\n").includes("no exported member 'createClient'")),
-      "snapback2/react still aliases the client declaration surface");
-  });
-});
+registerPackageGuideChecks(test, assert, withProject, crate);
 
 registerFinalGateChecks(test, legacyLib);
 

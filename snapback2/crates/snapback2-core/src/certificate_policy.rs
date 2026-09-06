@@ -2,11 +2,14 @@
 
 use crate::certificate::{CheckError, Checker};
 use crate::ir::*;
-use crate::schema::{ColumnType, RuleExpr, RuleTerm, Schema};
+use crate::schema::{ColumnType, Schema};
 use crate::value::{I53_MAX, I53_MIN, Value};
 use std::collections::{BTreeMap, BTreeSet};
 
 mod cursors;
+mod visibility;
+use visibility::rule_fields;
+pub(crate) use visibility::{scan_visibility, uniform_visibility};
 #[path = "certificate_policy/fanout.rs"]
 pub(crate) mod fanout;
 
@@ -62,48 +65,6 @@ impl Fact {
     fn made_structural(mut self) -> Self {
         self.structural.append(&mut self.pages);
         self
-    }
-}
-
-pub(crate) fn uniform_visibility(schema: &Schema, scan: &Scan) -> bool {
-    let Some(table) = schema.table(&scan.table) else {
-        return false;
-    };
-    let Some(index) = table.index(&scan.index) else {
-        return false;
-    };
-    let pinned: BTreeSet<_> = index
-        .columns
-        .iter()
-        .take(scan.prefix.len())
-        .cloned()
-        .collect();
-    let mut used = BTreeSet::new();
-    rule_fields(&table.rules.read, &mut used);
-    used.is_subset(&pinned)
-}
-
-fn rule_fields(rule: &RuleExpr, out: &mut BTreeSet<String>) {
-    match rule {
-        RuleExpr::Eq(left, right) | RuleExpr::Ne(left, right) => {
-            for term in [left, right] {
-                if let RuleTerm::Field(name) = term {
-                    out.insert(name.clone());
-                }
-            }
-        }
-        RuleExpr::Exists { key, .. } | RuleExpr::Created { key, .. } => {
-            for term in key {
-                if let RuleTerm::Field(name) = term {
-                    out.insert(name.clone());
-                }
-            }
-        }
-        RuleExpr::And(rules) | RuleExpr::Or(rules) => {
-            rules.iter().for_each(|rule| rule_fields(rule, out));
-        }
-        RuleExpr::Not(rule) => rule_fields(rule, out),
-        RuleExpr::Public { .. } | RuleExpr::Allow | RuleExpr::Deny => {}
     }
 }
 

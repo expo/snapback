@@ -1089,8 +1089,9 @@ impl<'a> Runner<'a> {
         // @ref LLP 1016#d1--the-system-principal-is-the-stores-owner — owner ranges never filter or spend rule probes; ordinary trace bounds still apply.
         let system = self.context.viewer.is_system();
         let uniform = system || read_site.hoist;
-        let always_visible =
-            system || matches!(table.rules.read, RuleExpr::Public { .. } | RuleExpr::Allow);
+        let always_visible = system
+            || (read_site.hoist && read_site.decided_true)
+            || matches!(table.rules.read, RuleExpr::Public { .. } | RuleExpr::Allow);
         let take = match &scan.take {
             Bound::Literal(value) => *value as usize,
             Bound::Arg { name, max } => {
@@ -1140,7 +1141,7 @@ impl<'a> Runner<'a> {
         // A hoisted rule has one verdict for the entire prefix. Probe one
         // candidate first so a uniformly false range can terminate without
         // fetching or charging the hidden population row by row.
-        let mut uniform_result = None;
+        let mut uniform_result = always_visible.then_some(true);
         let mut uniform_false_row = None;
         let mut uniform_empty = false;
         if uniform && !always_visible && fetch_limit > 0 {

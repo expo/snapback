@@ -1,7 +1,9 @@
 # Quarry grammar
 
-`snapback/schema.q` holds schema; `snapback/<module>.q` holds programs.
-Seeds, tests, effect bodies: TypeScript; effect `then`: Quarry.
+Schema: `snapback/schema.q`. Programs/shapes: `snapback/<module>.q`.
+Seeds, tests and effect bodies use TypeScript.
+Use `snapback2 guide <keyword>` for grammar and a defining paragraph.
+Symbols work without a valid index; misses list help.
 
 ```q
 use identity
@@ -14,45 +16,46 @@ table todos:
   read <- .ownerId = viewer
 ```
 
-Schema uses `use identity [password|guests]`, `table`, `maintain`, and `channel`.
-Tables hold columns, indexes, `unique`, `immutable`, `cap N by cols`, rules,
-`after insert <- exists`, and `retain until-revoked` (default) or
-`retain delivered-history`. Only the latter keeps hidden rows; both evict
-absences, uniform-range holes, and tombstones. `.` is the row. Maintains
-count/sum by fields. Channels use `publish`, `subscribe`, and `ttl Ns`.
-
 Types: `principal`, `id`, table references, `int`, `time`, `bool`,
 `decimal <scale>`, `money <CUR> [scale]`, `text <=N`, `text M..N`, `json <=N`,
-`bytes <=N`, `image <=N`, `video <=N`, `enum(...)`, `[type] <=N`, and
-`cursor` (operations only). Text may add a format; `?` means optional.
+`bytes <=N`, `image <=N`, `video <=N`, `enum(...)`, `[type] <=N`; `?` is
+optional. Text may add a format. `cursor` is operation-only.
+`shape`, `fn`, and `cursor` are reserved bindings.
+
+## Constructs
+
+- `maintain`: `maintain name = count table by fields:`; sum uses `sum table of column`.
+- `cap`: `cap N by columns` bounds each table group.
+- `unique`: `unique [name:] columns` declares a unique index.
+- `immutable`: `immutable columns` forbids changes.
+- `public`: `public ['reason']` declares public reads.
+- `retain`: `retain until-revoked|delivered-history` controls hidden-row custody.
+- `channel`: `channel name(args):` declares publish, subscribe and ttl.
+- `schedule`: `schedule name on table at .column:` or `every Nm|Nh|Nd:`.
+- `job`: `job name(args):` declares independent sweeps.
+- `chunk`: `chunk row in table[prefix] first N by index:`.
+- `shape`: `shape name = { fields }`; `shape name from module`; `...name` splices.
+- `merge`: `merge table [after cursor] first|last N by index:` with indented lanes.
+- `after`: `table[keys] after cursor` resumes an opaque page cursor.
+- `first`: `table[keys] first N [by index]` scans ascending.
+- `last`: `table[keys] last N [by index]` scans descending.
+- `require`: `require condition else CODE` aborts on false.
+- `match`: `match read:` branches into `some name:` and `none:`.
+- `for`: `for name in bounded-list-or-page:` iterates.
+- `emit`: `emit effect { payload }` durably queues I/O.
+- `tokens`: `tokens(text)` splits whitespace-delimited tokens.
+- `divmod`: `divmod(a, b)` returns quotient and remainder; `(q, r) = divmod(a, b)` binds both once; `divmod(time, int)` splits epoch milliseconds into int parts.
 
 ```q
 query list():
   return todos[viewer] first 50
 ```
 
-`effect name from module`, `query`, `mutation`: programs.
-`shape name = { fields }` projects rows/pages or splices as `...name`.
-`shape name from module` imports it.
-Statements: bindings, `return`, `require`, `if/else`, bounded `for`, `match`,
-`emit`. Expressions: objects, arrays, reads/shapes, `exists`, `#maintain[key]`,
-word writes,
-`! [else CODE]`, `??`, `merge`, and bounded built-ins.
-
-Reads use `table[value, …]` or `table[column = value, …]` plus `[after cursor]
-first|last N [by index]`; point reads allow `by index`.
-`merge table [after cursor] first|last N by index:` has indented lanes. Declare
-`c: cursor ?`; absent starts page one. Pass opaque `next` back unchanged. A
-pageable merge index ends in `id`.
-Equality is total; ordered comparisons need nonoptional operands or direct
-`if x != null:` narrowing. `where` refuses with index/read rewrites. Upserts
-cannot spell `id`. Consumed update/upsert yields a read-visible row or absence;
-ignored writes add no read. Decimal/money seeds use whole units, wire args minor
-units. `sorted` is
-`(lo, hi) = sorted(a, b)`; `(q, r) = divmod(a, b)` binds both parts once.
-`shape`, `fn`, `cursor` are reserved.
-
-`time - time` yields int milliseconds; `time + int`, `time - int`, and
-`int + time` yield time; other time arithmetic refuses. `divmod(time, int)`
-splits epoch milliseconds into int parts. Null keys select optional-column
-groups in point/maintain reads, `exists`, and `cap`; required columns refuse null.
+Keys are positional or named (`[column = value]`); point reads may add `by index`.
+`! [else CODE]` requires presence; `??` supplies a fallback. Statements also
+bind, `return`, `if/else`, and write with `insert`, `update`, `upsert`, `delete`.
+`=`/`!=` are total; ordered comparisons need nonoptional operands. `where`
+refuses with index/read rewrites. `sorted` uses `(lo, hi) = sorted(a, b)`.
+`time - time` yields int milliseconds; `time + int`, `time - int`, and `int + time`
+yield time; other time arithmetic refuses. Null keys select optional-column groups in
+point/maintain reads, `exists`, and `cap`; required columns refuse null.

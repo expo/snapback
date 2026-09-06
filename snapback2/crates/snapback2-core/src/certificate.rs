@@ -134,6 +134,9 @@ pub struct ReadSite {
     pub rule_probes_per_candidate: u64,
     /// True only when the read rule is certified uniform over the scan prefix.
     pub hoist: bool,
+    /// The scan prefix proves the entire read rule true without a rule probe.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub decided_true: bool,
     #[serde(default)]
     pub complete: bool,
 }
@@ -716,6 +719,7 @@ impl Summary {
                         .rule_probes_per_candidate
                         .max(site.rule_probes_per_candidate);
                     existing.hoist &= site.hoist;
+                    existing.decided_true &= site.decided_true;
                 })
                 .or_insert(site);
         }
@@ -749,6 +753,7 @@ impl Summary {
                         .rule_probes_per_candidate
                         .max(site.rule_probes_per_candidate);
                     existing.hoist &= site.hoist;
+                    existing.decided_true &= site.decided_true;
                 })
                 .or_insert(site);
         }
@@ -1010,6 +1015,7 @@ impl<'a> Analyzer<'a> {
                 max_calls: calls,
                 rule_probes_per_candidate: self.table_read_rule_probe_bound(&read.table),
                 hoist: false,
+                decided_true: false,
                 complete: false,
             },
         );
@@ -1062,8 +1068,13 @@ impl<'a> Analyzer<'a> {
         }
         let take = scan.take.maximum();
         let reserve = take.saturating_add(2);
-        let hoist = crate::certificate_policy::uniform_visibility(self.schema, scan);
-        let probe_bound = self.table_read_rule_probe_bound(&scan.table);
+        let visibility = crate::certificate_policy::scan_visibility(self.schema, scan);
+        let hoist = visibility.uniform;
+        let probe_bound = if visibility.decided_true {
+            0
+        } else {
+            self.table_read_rule_probe_bound(&scan.table)
+        };
         let rule_probes = if probe_bound > 0 {
             if hoist {
                 calls.saturating_mul(probe_bound)
@@ -1084,6 +1095,7 @@ impl<'a> Analyzer<'a> {
                 max_calls: calls,
                 rule_probes_per_candidate: probe_bound,
                 hoist,
+                decided_true: visibility.decided_true,
                 complete: false,
             },
         );

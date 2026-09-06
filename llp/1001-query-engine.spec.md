@@ -5,7 +5,7 @@
 **Systems:** `snapback2/crates/snapback2-core` (`store`, `registry`, `live`, `identity`, `successor`, the engine, the IR)
 **Author:** Claude Fable 5 (orchestrator) — implementer: codex gpt-5.6-sol, lane A
 **Date:** 2026-08-29
-**Revised:** 2026-09-05 (Clique L8b — nested point-read shapes preserve page state; early exits preserve capped taint; Clique L3 — honest bound refusals and patch-sensitive cap metering; LLP 1016 J2 — §1's system tables gain `_jobs` and `_timers`; LLP 1017 §1, then §2 and §3)
+**Revised:** 2026-09-05 (Clique L8b — nested point-read shapes preserve page state; early exits preserve capped taint); 2026-09-05 (Clique L8a — prefix-local self-probe and decided-disjunction visibility proofs); 2026-09-05 (Clique L3 — honest bound refusals and patch-sensitive cap metering; LLP 1016 J2 — §1's system tables gain `_jobs` and `_timers`; LLP 1017 §1, then §2 and §3)
 **Related:** LLP 1000, LLP 1002 (the loop that serves this), LLP 1003 (effects
 through the outbox this spec defines), LLP 0329.014.004 §7 (runtime), LLP
 0329.014.000 §6 (execution, trace, states), LLP 0329.016 §5.6 (no silent
@@ -185,12 +185,27 @@ reads into a certificate that only one of them can execute.
 **Amendment — Ruled by the author 2026-08-30.** `take` counts visible rows
 only. A denied candidate consumes the certified examined and rule-probe budgets,
 never `take`. A rule may be evaluated once for a range only when the existing
-hoist analysis proves every rule input pinned by that range's prefix. When that
+hoist analysis proves every rule input pinned by that range's prefix, or the
+prefix proves the rule true as below. When a runtime-determined
 hoisted verdict is uniformly false for the viewer, the range halts after the
 single determination without fetching or charging the hidden population row by
 row, records `Exhausted`, and returns the same complete empty receipt as a
 physically empty range. Empty, two-hidden-row, and at-least-examined-ceiling
 ranges are therefore viewer-observably identical in that case.
+
+**Prefix-local truth (Clique L8a, 2026-09-05).** A scan also proves its read
+rule true when an `exists` on the scanned table addresses that row's own full
+unique key: each key term is its corresponding row field, or `viewer`/a
+literal equal to the expression pinning that column in the scan prefix.
+Every key column must be nonoptional. An `or` is uniformly true when any arm
+is so decided: this self-probe, `allow`/`public`, or equality of a row field
+to `viewer`/a literal pinned to that same value. Merely pinning one arm does
+not suffice; the existing all-rule-fields-pinned proof remains sufficient
+for uniformity with a runtime verdict. The certificate records `decided_true`
+on the read site and reserves zero rule probes there; the engine and twin
+skip that site's rule evaluation without rewriting the table policy. Point
+reads still check visibility, including after membership revocation. Write
+fan-out still requires the unchanged covering-cap proof (LLP 1017 §3).
 
 A non-uniform site is capped-only regardless of what its runtime candidates
 happen to show. Shaping a page with nested, rule-authorized point reads does not
