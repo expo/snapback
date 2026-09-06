@@ -1,0 +1,9 @@
+{
+  "source": "2cd0872d2f8a5cad1e0bf6730a3d5e84385cc064",
+  "sourceMetricCommit": "04bc9d930753326e1069a74f5ee3d8108587acc1",
+  "integrationBeforeDocs": "c61d70da70e68cbacd92941fa94500eed5cdd82c",
+  "coreTree": "0da2ac92064bf53f39fb4badef4439c1a19ec8f1",
+  "candidateCoreTree": "0da2ac92064bf53f39fb4badef4439c1a19ec8f1",
+  "conflicts": "One append-only loop.jsonl conflict, both original rows preserved; no code conflict",
+  "reviewStatus": "Astra READY; Grok pending, no main landing yet"
+}

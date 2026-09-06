@@ -17,7 +17,7 @@ grok-4.6 at xhigh), `llp/reviews/1010-quarry-language-amendments.*`
 **Implementer:** codex gpt-5.6-sol (xhigh), lane `s2/quarry-amend`
 (`~/projects/snapback-s2`), orchestrated and landed by Claude Fable 5.1
 **Date:** 2026-09-03
-**Revised:** 2026-09-05 (Clique L10 — lazy merge implemented by GPT-6 Astra); 2026-09-05 (time arithmetic and divmod tuple rules implemented by GPT-6 Astra, Clique L2); 2026-09-03 (d — A6's optional cursor group was replaced by LLP
+**Revised:** 2026-09-06 (pooled logical merge streams and bounded shared seek template); 2026-09-05 (Clique L10 — lazy merge implemented by GPT-6 Astra); 2026-09-05 (time arithmetic and divmod tuple rules implemented by GPT-6 Astra, Clique L2); 2026-09-03 (d — A6's optional cursor group was replaced by LLP
 1011 B1's opaque, forward-only cursor); 2026-09-03 (c — implemented: §8 records the two landing commits
 and the one departure from the brief, the guide budget); 2026-09-03 (b — after the panel: bounds-first withdrawn; A2
 restated as program-only because rules and the IR already compare totally;
@@ -327,8 +327,11 @@ query followingFeed(c: cursor ?):
   id)`. An empty block refuses. Two lanes with the same prefix expression
   refuse at certify time (`E_QUARRY_TYPE`, drop-lane rewrite).
 - **Semantics (Clique L10, 2026-09-05).** Equal runtime prefixes and bounds
-  collapse to one stream. Each lane has a SQLite prepared cursor with the
-  header's order and cursor. A heap emits the least/greatest shared suffix,
+  collapse to one stream. Each lane retains the header's order and logical
+  position. Uniform intrinsic-id-ended lanes use pooled one-row seeks; other
+  lanes keep a live SQLite cursor. A bounded shared initial template and its
+  strict-seek fallback preserve those semantics (LLP 1001 §3). A heap emits
+  the least/greatest shared suffix,
   deduplicates intrinsic `id` on emission, then advances that lane only. Stop
   after N plus two lookahead rows; return the first N. The own-posts lane
   stays explicit as `[viewer]`. This is the true top-N of the sorted streams.

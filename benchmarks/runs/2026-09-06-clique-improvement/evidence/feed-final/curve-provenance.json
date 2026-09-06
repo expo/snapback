@@ -1,0 +1,46 @@
+{
+  "checkedAt": "2026-09-06T12:43:52.794089+00:00",
+  "frozenOriginalPackageFiles": {
+    "package-lock.json": "5382638179bb43155d2bdd08cb1e8d4eb834fafa949cb98b43a4c746e4292c49",
+    "node_modules/snapback2-darwin-arm64/bin/snapback2": "52d7de9c0c31c3e1cd4df59a3afb438d664f428b25bc68994952ece14ace4955",
+    "node_modules/snapback2/dist/compiler.mjs": "9c93d2adc425eab14d977a2a8b0d1228a0a5c8c27c4e59bc889efe9863490a78",
+    "node_modules/snapback2/dist/client.mjs": "2a2e7e7c3ed65232b1d6c03bb933896ded12ea2332645d98aedc1e27c7fc2f80",
+    "snapback/chats.q": "eda3a9f0389f9901306b0344a5a47ceec3d279d051b002b68643d5d213b4572a",
+    "snapback/config.q": "ac14f066cea1cc5a3f34078e5fee968dcdebef53ad9fa50ee58db3d7a708ce14",
+    "snapback/digest.q": "540df9243d93447f1d8b63f95a2b9e4b08aea2b57698df4fc601d51d200f6121",
+    "snapback/ephemeral.q": "68a368a2f8e08c598d634cc0b1f454aa7eb008df6971e99f44813de53307260b",
+    "snapback/insights.q": "f787b91d681581d8880e96edbaec6c0702f2baf6bbafda237db6b9a550301ca2",
+    "snapback/media.q": "4ae3f6ff1ad5076efd7e13230b3b44e982f707d35e2a787ea14e88c88eb41882",
+    "snapback/profiles.q": "06f81e6b5059a192a8c9de46bece6f674ec03674fd0b6d3abe453227837a4510",
+    "snapback/push.q": "34c2d02584d7cfc0277541cbff674ffb9085777a9b53275e449a785eefd1fdaf",
+    "snapback/schema.q": "f3c4cefb22a80c57feb5ad2604bcddeae025be9e2a5d46cc9efd412b5694f564",
+    "snapback/search.q": "ce07adafdd6d95f134f581063f8ca50980cec4b91ee2ed3b91df7f325ac3567e",
+    "snapback/social.q": "7a302dbc2e4e263eca223d578861dcf80d0b01e421b9cdd34c63e6eac8c5b031"
+  },
+  "matchesRetainedR3FrozenBindings": true,
+  "node": "/Users/ccheever/.volta/tools/image/node/20.19.4/bin/node",
+  "nodeSha256": "d1c54537f00093999715de0617c0ef2191dbf1875720201d4c2fde16195a9287",
+  "curveArtifacts": {
+    "10": {
+      "run-candidate-r5.json": "9c249d0248636388d89bc8f4dfd65d0394770e568e9afb073bba4ec1f3ba0f9c",
+      "candidate-r5-client-timings.json": "571583632eff7c83560945df1b11e87d0c71703a0779c856d8f8b0d5527f3d52",
+      "top20-oracle-candidate-r5.json": "4ff0b537d360c8397ae7c75020367c5356b783a4223bd62835128127abbf03c7",
+      "candidate-r5-u0005-result.json": "ca208b37ea5936de13ad1efa1c8b9948c645c2580feccf089ea5fc3fbf17edf5",
+      "candidate-r5-u0500-result.json": "695044e41363fa2c64d1d00ec000deb8ef14f55724fa0ab68f450c9848cc9407"
+    },
+    "50": {
+      "run-candidate-r5.json": "54957850eaf5832a5c35b431bad2c6c7e9813eba26ca8ee1eb9f1a5563c9769d",
+      "candidate-r5-client-timings.json": "e737f93a038265f8f150c72408f802e1822a27d7318a1756297aab8336da19a9",
+      "top20-oracle-candidate-r5.json": "b0e92ebd81ecc6b8871ac3d7ed362fa9a9fad8b868844a906f775af7f2b72bfd",
+      "candidate-r5-u0005-result.json": "5ceff3b3a50c81c18198324f3174b4aeba127227ee50aaf618a48e109b4bb0fc",
+      "candidate-r5-u0500-result.json": "8ce7f4451233bb654ff7092295b9f0e5b5fec80d361a63be8aa3d88fbce93988"
+    },
+    "100": {
+      "run-candidate-r5.json": "e589e635c799389cf600b399b84658a5bdbc80803038ae2ae75f67404695eaa0",
+      "candidate-r5-client-timings.json": "ea79d32f383c22564b59ea6333b56fdf0440ffd77c98c376a40dbc7f46da722f",
+      "top20-oracle-candidate-r5.json": "84d7933f303620675e01d99f16aea74a6970562f6f5bfa26c73f6d46d5e703f3",
+      "candidate-r5-u0005-result.json": "20acca70a966e3cb503a34ff0b4052330cc0affc1ae4e803d37204160cbe1312",
+      "candidate-r5-u0500-result.json": "266408238afdff2bd2c32ee72ebdc0e942bffb1e7fe2328f3741c4aef174fac1"
+    }
+  }
+}

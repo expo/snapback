@@ -5,7 +5,7 @@
 **Systems:** `snapback2/crates/snapback2-core` (`store`, `registry`, `live`, `identity`, `successor`, the engine, the IR)
 **Author:** Claude Fable 5 (orchestrator) — implementer: codex gpt-5.6-sol, lane A
 **Date:** 2026-08-29
-**Revised:** 2026-09-06 (measured full-entry search trade: 50,000-byte ceiling, 48,000 target); 2026-09-06 (session-delegated Unicode/search foundation and downstream contracts); 2026-09-06 (conditional result-page provenance and branch-scoped cursor validation); 2026-09-05 (Clique L12 — §3 receipt-only null invariant and §5.1 `connected`); 2026-09-05 (Clique L9 — bounded ASCII words builtin and constructed-text boundary); 2026-09-05 (Clique L10 — lazy merge, receipt retention and global local-pagination cursor rule); 2026-09-05 (Clique L8b — nested point-read shapes preserve page state; early exits preserve capped taint); 2026-09-05 (Clique L8a — prefix-local self-probe and decided-disjunction visibility proofs); 2026-09-05 (Clique L3 — honest bound refusals and patch-sensitive cap metering; LLP 1016 J2 — §1's system tables gain `_jobs` and `_timers`; LLP 1017 §1, then §2 and §3)
+**Revised:** 2026-09-06 (generation-owned policy hashes, pooled merge seeks and bounded shared templates); 2026-09-06 (measured full-entry search trade: 50,000-byte ceiling, 48,000 target); 2026-09-06 (session-delegated Unicode/search foundation and downstream contracts); 2026-09-06 (conditional result-page provenance and branch-scoped cursor validation); 2026-09-05 (Clique L12 — §3 receipt-only null invariant and §5.1 `connected`); 2026-09-05 (Clique L9 — bounded ASCII words builtin and constructed-text boundary); 2026-09-05 (Clique L10 — lazy merge, receipt retention and global local-pagination cursor rule); 2026-09-05 (Clique L8b — nested point-read shapes preserve page state; early exits preserve capped taint); 2026-09-05 (Clique L8a — prefix-local self-probe and decided-disjunction visibility proofs); 2026-09-05 (Clique L3 — honest bound refusals and patch-sensitive cap metering; LLP 1016 J2 — §1's system tables gain `_jobs` and `_timers`; LLP 1017 §1, then §2 and §3)
 **Related:** LLP 1000, LLP 1002 (the loop that serves this), LLP 1003 (effects
 through the outbox this spec defines), LLP 0329.014.004 §7 (runtime), LLP
 0329.014.000 §6 (execution, trace, states), LLP 0329.016 §5.6 (no silent
@@ -256,9 +256,11 @@ probe row.
 
 **Lazy merge (Clique L10, implemented by GPT-6 Astra, 2026-09-05).**
 `Expr::Merge` owns its bounded lane discovery and scans. Evaluate and normalize
-runtime prefixes and bounds before opening one SQLite prepared cursor per distinct stream.
+runtime prefixes and bounds before opening a logical stream for each distinct key.
+Uniform lanes whose index ends in intrinsic id use the connection's bounded
+statement cache for one-row seeks; other lanes keep an ordinary live cursor.
 A heap compares lane heads by the common post-prefix suffix; emit the winning
-row, deduplicate intrinsic ids on emission, and advance only that cursor. Stop
+row, deduplicate intrinsic ids on emission, and advance only that stream. Stop
 at the page plus two lookahead rows. Uniform lanes certify at most L heads + N
 advances + 2 lookahead per merge call, plus discovery and shaped point reads;
 non-uniform lanes retain the conservative per-lane reserve and opaque capped
@@ -272,6 +274,24 @@ returned suffix. All streams must exhaust with union length at most N for
 `complete`; an unfinished stream or truncated discovery makes the result
 `capped`. The twin uses the same heap over held ordered streams. Cursor encoding,
 `after`, and authorization on every new page are unchanged.
+
+**Feed execution refinement (GPT-6 Astra, 2026-09-06).** One optional initial
+SQL template is shared across the merge. It retains no equality-prefix encodings,
+checks equality of evaluated after/before/range bounds, and falls back to strict
+seek for differing bounds, refills or storage refusal. Its complete retained
+capacity fits both one fixed-work unit of the existing merge heap reserve and
+the inline storage saved by borrowing the actual lane descriptors. Borrowed
+bounds are preflighted before cloning. This is accounted storage within the
+existing calibrated heap model, not a whole-process allocator bound.
+
+Runtime owns the policy-hash cache for its certified schema generation; reuse
+cannot cross a successor or accept caller-supplied hashes. Independent trace
+and receipt membership indexes preserve each collection's first disclosed row
+image and rollback behavior. Heap entries address retained rows by index,
+avoiding transient copies without changing ordering or evidence. Certificate,
+trace, receipt, authority, result and opaque-cursor semantics remain unchanged.
+The integrated core bytes match the tested candidate; first full curves and
+byte-exact output comparisons are retained in the feed evidence record.
 
 **Bound refusals (Clique L3, 2026-09-05).** Each exceeded meter gets its own
 line: examined entries, index entries, rule probes, steps, heap bytes, output

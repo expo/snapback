@@ -1,0 +1,338 @@
+[
+  {
+    "stage": "10",
+    "baseline": "residual-r1",
+    "kind": "certificate",
+    "exactSerializedBytes": true,
+    "beforeSha256": "d2d1a4a05ffcd1c227becdc269b9348c4aa974528de08d59ccfaf69cc5f6213d",
+    "afterSha256": "d2d1a4a05ffcd1c227becdc269b9348c4aa974528de08d59ccfaf69cc5f6213d"
+  },
+  {
+    "stage": "10",
+    "baseline": "residual-r1",
+    "kind": "u0500-execution",
+    "exactSerializedBytes": true,
+    "beforeSha256": "306c78e640c7c17e37acc30140462b928f5df64a055314339d6e5f5a444e15bc",
+    "afterSha256": "306c78e640c7c17e37acc30140462b928f5df64a055314339d6e5f5a444e15bc"
+  },
+  {
+    "stage": "10",
+    "baseline": "residual-r1",
+    "kind": "u0500-envelope",
+    "exactSerializedBytes": true,
+    "beforeSha256": "5e7d8c37a6bfb048dcf5e8e0dc3176937fcede498ee0f0d39037d7e86303b287",
+    "afterSha256": "5e7d8c37a6bfb048dcf5e8e0dc3176937fcede498ee0f0d39037d7e86303b287"
+  },
+  {
+    "stage": "10",
+    "baseline": "residual-r1",
+    "kind": "u0500-wire",
+    "exactSerializedBytes": true,
+    "beforeSha256": "8092441e523cdf1c475b398870197168cd2d3ea253ddc5502b8e7071ff604db9",
+    "afterSha256": "8092441e523cdf1c475b398870197168cd2d3ea253ddc5502b8e7071ff604db9"
+  },
+  {
+    "stage": "10",
+    "baseline": "residual-r1",
+    "kind": "u0005-execution",
+    "exactSerializedBytes": true,
+    "beforeSha256": "a1b3c4671c72f2f22dc2d1ead4a33231f3acada0b1f1f6f7f5e9c98a22056f5b",
+    "afterSha256": "a1b3c4671c72f2f22dc2d1ead4a33231f3acada0b1f1f6f7f5e9c98a22056f5b"
+  },
+  {
+    "stage": "10",
+    "baseline": "residual-r1",
+    "kind": "u0005-envelope",
+    "exactSerializedBytes": true,
+    "beforeSha256": "24d591e6331b996e4ec78c0d01e60f808fb8872510c8c704ff9eabfac0577db5",
+    "afterSha256": "24d591e6331b996e4ec78c0d01e60f808fb8872510c8c704ff9eabfac0577db5"
+  },
+  {
+    "stage": "10",
+    "baseline": "residual-r1",
+    "kind": "u0005-wire",
+    "exactSerializedBytes": true,
+    "beforeSha256": "cd5471c519c96dd1cbc742a455d28acd113c3bd76cb3b32ee807e9d37162297a",
+    "afterSha256": "cd5471c519c96dd1cbc742a455d28acd113c3bd76cb3b32ee807e9d37162297a"
+  },
+  {
+    "stage": "10",
+    "baseline": "candidate-r3",
+    "kind": "certificate",
+    "exactSerializedBytes": true,
+    "beforeSha256": "d2d1a4a05ffcd1c227becdc269b9348c4aa974528de08d59ccfaf69cc5f6213d",
+    "afterSha256": "d2d1a4a05ffcd1c227becdc269b9348c4aa974528de08d59ccfaf69cc5f6213d"
+  },
+  {
+    "stage": "10",
+    "baseline": "candidate-r3",
+    "kind": "u0500-execution",
+    "exactSerializedBytes": true,
+    "beforeSha256": "306c78e640c7c17e37acc30140462b928f5df64a055314339d6e5f5a444e15bc",
+    "afterSha256": "306c78e640c7c17e37acc30140462b928f5df64a055314339d6e5f5a444e15bc"
+  },
+  {
+    "stage": "10",
+    "baseline": "candidate-r3",
+    "kind": "u0500-envelope",
+    "exactSerializedBytes": true,
+    "beforeSha256": "5e7d8c37a6bfb048dcf5e8e0dc3176937fcede498ee0f0d39037d7e86303b287",
+    "afterSha256": "5e7d8c37a6bfb048dcf5e8e0dc3176937fcede498ee0f0d39037d7e86303b287"
+  },
+  {
+    "stage": "10",
+    "baseline": "candidate-r3",
+    "kind": "u0500-wire",
+    "exactSerializedBytes": true,
+    "beforeSha256": "8092441e523cdf1c475b398870197168cd2d3ea253ddc5502b8e7071ff604db9",
+    "afterSha256": "8092441e523cdf1c475b398870197168cd2d3ea253ddc5502b8e7071ff604db9"
+  },
+  {
+    "stage": "10",
+    "baseline": "candidate-r3",
+    "kind": "u0005-execution",
+    "exactSerializedBytes": true,
+    "beforeSha256": "a1b3c4671c72f2f22dc2d1ead4a33231f3acada0b1f1f6f7f5e9c98a22056f5b",
+    "afterSha256": "a1b3c4671c72f2f22dc2d1ead4a33231f3acada0b1f1f6f7f5e9c98a22056f5b"
+  },
+  {
+    "stage": "10",
+    "baseline": "candidate-r3",
+    "kind": "u0005-envelope",
+    "exactSerializedBytes": true,
+    "beforeSha256": "24d591e6331b996e4ec78c0d01e60f808fb8872510c8c704ff9eabfac0577db5",
+    "afterSha256": "24d591e6331b996e4ec78c0d01e60f808fb8872510c8c704ff9eabfac0577db5"
+  },
+  {
+    "stage": "10",
+    "baseline": "candidate-r3",
+    "kind": "u0005-wire",
+    "exactSerializedBytes": true,
+    "beforeSha256": "cd5471c519c96dd1cbc742a455d28acd113c3bd76cb3b32ee807e9d37162297a",
+    "afterSha256": "cd5471c519c96dd1cbc742a455d28acd113c3bd76cb3b32ee807e9d37162297a"
+  },
+  {
+    "stage": "50",
+    "baseline": "residual-r1",
+    "kind": "certificate",
+    "exactSerializedBytes": true,
+    "beforeSha256": "d2d1a4a05ffcd1c227becdc269b9348c4aa974528de08d59ccfaf69cc5f6213d",
+    "afterSha256": "d2d1a4a05ffcd1c227becdc269b9348c4aa974528de08d59ccfaf69cc5f6213d"
+  },
+  {
+    "stage": "50",
+    "baseline": "residual-r1",
+    "kind": "u0500-execution",
+    "exactSerializedBytes": true,
+    "beforeSha256": "d8a34677f40c54f2e3f9626eac19178865cfd91b5c472b42897c327ba4fce2f4",
+    "afterSha256": "d8a34677f40c54f2e3f9626eac19178865cfd91b5c472b42897c327ba4fce2f4"
+  },
+  {
+    "stage": "50",
+    "baseline": "residual-r1",
+    "kind": "u0500-envelope",
+    "exactSerializedBytes": true,
+    "beforeSha256": "6d199fd81593c4f83a998ee4425a74abb31810d8dd53c9c8ebe866ecc1835f29",
+    "afterSha256": "6d199fd81593c4f83a998ee4425a74abb31810d8dd53c9c8ebe866ecc1835f29"
+  },
+  {
+    "stage": "50",
+    "baseline": "residual-r1",
+    "kind": "u0500-wire",
+    "exactSerializedBytes": true,
+    "beforeSha256": "1124f3cbd3ad16729b909632ec28a6de201b399814b543f57e515119bd57da12",
+    "afterSha256": "1124f3cbd3ad16729b909632ec28a6de201b399814b543f57e515119bd57da12"
+  },
+  {
+    "stage": "50",
+    "baseline": "residual-r1",
+    "kind": "u0005-execution",
+    "exactSerializedBytes": true,
+    "beforeSha256": "727697cda24cd6cd398c41ed26ebfbe4569cffa00ebe7c0350f58b82183fcb8a",
+    "afterSha256": "727697cda24cd6cd398c41ed26ebfbe4569cffa00ebe7c0350f58b82183fcb8a"
+  },
+  {
+    "stage": "50",
+    "baseline": "residual-r1",
+    "kind": "u0005-envelope",
+    "exactSerializedBytes": true,
+    "beforeSha256": "99c12b4c54ec19f18b9130dbcb6669936c903e53a222d18e848f5eac52953546",
+    "afterSha256": "99c12b4c54ec19f18b9130dbcb6669936c903e53a222d18e848f5eac52953546"
+  },
+  {
+    "stage": "50",
+    "baseline": "residual-r1",
+    "kind": "u0005-wire",
+    "exactSerializedBytes": true,
+    "beforeSha256": "290ed89951c7cbea0f0be95e7993e9fe945ca3802d2000cda60b61d81ece5cb4",
+    "afterSha256": "290ed89951c7cbea0f0be95e7993e9fe945ca3802d2000cda60b61d81ece5cb4"
+  },
+  {
+    "stage": "50",
+    "baseline": "candidate-r3",
+    "kind": "certificate",
+    "exactSerializedBytes": true,
+    "beforeSha256": "d2d1a4a05ffcd1c227becdc269b9348c4aa974528de08d59ccfaf69cc5f6213d",
+    "afterSha256": "d2d1a4a05ffcd1c227becdc269b9348c4aa974528de08d59ccfaf69cc5f6213d"
+  },
+  {
+    "stage": "50",
+    "baseline": "candidate-r3",
+    "kind": "u0500-execution",
+    "exactSerializedBytes": true,
+    "beforeSha256": "d8a34677f40c54f2e3f9626eac19178865cfd91b5c472b42897c327ba4fce2f4",
+    "afterSha256": "d8a34677f40c54f2e3f9626eac19178865cfd91b5c472b42897c327ba4fce2f4"
+  },
+  {
+    "stage": "50",
+    "baseline": "candidate-r3",
+    "kind": "u0500-envelope",
+    "exactSerializedBytes": true,
+    "beforeSha256": "6d199fd81593c4f83a998ee4425a74abb31810d8dd53c9c8ebe866ecc1835f29",
+    "afterSha256": "6d199fd81593c4f83a998ee4425a74abb31810d8dd53c9c8ebe866ecc1835f29"
+  },
+  {
+    "stage": "50",
+    "baseline": "candidate-r3",
+    "kind": "u0500-wire",
+    "exactSerializedBytes": true,
+    "beforeSha256": "1124f3cbd3ad16729b909632ec28a6de201b399814b543f57e515119bd57da12",
+    "afterSha256": "1124f3cbd3ad16729b909632ec28a6de201b399814b543f57e515119bd57da12"
+  },
+  {
+    "stage": "50",
+    "baseline": "candidate-r3",
+    "kind": "u0005-execution",
+    "exactSerializedBytes": true,
+    "beforeSha256": "727697cda24cd6cd398c41ed26ebfbe4569cffa00ebe7c0350f58b82183fcb8a",
+    "afterSha256": "727697cda24cd6cd398c41ed26ebfbe4569cffa00ebe7c0350f58b82183fcb8a"
+  },
+  {
+    "stage": "50",
+    "baseline": "candidate-r3",
+    "kind": "u0005-envelope",
+    "exactSerializedBytes": true,
+    "beforeSha256": "99c12b4c54ec19f18b9130dbcb6669936c903e53a222d18e848f5eac52953546",
+    "afterSha256": "99c12b4c54ec19f18b9130dbcb6669936c903e53a222d18e848f5eac52953546"
+  },
+  {
+    "stage": "50",
+    "baseline": "candidate-r3",
+    "kind": "u0005-wire",
+    "exactSerializedBytes": true,
+    "beforeSha256": "290ed89951c7cbea0f0be95e7993e9fe945ca3802d2000cda60b61d81ece5cb4",
+    "afterSha256": "290ed89951c7cbea0f0be95e7993e9fe945ca3802d2000cda60b61d81ece5cb4"
+  },
+  {
+    "stage": "100",
+    "baseline": "residual-r1",
+    "kind": "certificate",
+    "exactSerializedBytes": true,
+    "beforeSha256": "d2d1a4a05ffcd1c227becdc269b9348c4aa974528de08d59ccfaf69cc5f6213d",
+    "afterSha256": "d2d1a4a05ffcd1c227becdc269b9348c4aa974528de08d59ccfaf69cc5f6213d"
+  },
+  {
+    "stage": "100",
+    "baseline": "residual-r1",
+    "kind": "u0500-execution",
+    "exactSerializedBytes": true,
+    "beforeSha256": "7becfce6927c4dc141f286397269176f45c1cc29fd59b691dd076f2ce70d344a",
+    "afterSha256": "7becfce6927c4dc141f286397269176f45c1cc29fd59b691dd076f2ce70d344a"
+  },
+  {
+    "stage": "100",
+    "baseline": "residual-r1",
+    "kind": "u0500-envelope",
+    "exactSerializedBytes": true,
+    "beforeSha256": "0271ffd3ee7f6ddbfb9ea189d91b7e18f4dbcce3cf1b012e267be253be383334",
+    "afterSha256": "0271ffd3ee7f6ddbfb9ea189d91b7e18f4dbcce3cf1b012e267be253be383334"
+  },
+  {
+    "stage": "100",
+    "baseline": "residual-r1",
+    "kind": "u0500-wire",
+    "exactSerializedBytes": true,
+    "beforeSha256": "6a12bc188dbdf7a1032b50b40ec12e1b221fad712ce0854865eb7d5c66a09c94",
+    "afterSha256": "6a12bc188dbdf7a1032b50b40ec12e1b221fad712ce0854865eb7d5c66a09c94"
+  },
+  {
+    "stage": "100",
+    "baseline": "residual-r1",
+    "kind": "u0005-execution",
+    "exactSerializedBytes": true,
+    "beforeSha256": "f0ab6d06a0a3f8e24c9f615a4f1fd17685407e75741518fb02da987b2905cd05",
+    "afterSha256": "f0ab6d06a0a3f8e24c9f615a4f1fd17685407e75741518fb02da987b2905cd05"
+  },
+  {
+    "stage": "100",
+    "baseline": "residual-r1",
+    "kind": "u0005-envelope",
+    "exactSerializedBytes": true,
+    "beforeSha256": "846ddc29a720acaa1c264d56954948ee9947ccd9e959d803936a5b927f99b2b8",
+    "afterSha256": "846ddc29a720acaa1c264d56954948ee9947ccd9e959d803936a5b927f99b2b8"
+  },
+  {
+    "stage": "100",
+    "baseline": "residual-r1",
+    "kind": "u0005-wire",
+    "exactSerializedBytes": true,
+    "beforeSha256": "f88b82c4fbe5a175d6aba6c9e6eedb6e34717adfca25ddb91d0003cf8c2a5d1b",
+    "afterSha256": "f88b82c4fbe5a175d6aba6c9e6eedb6e34717adfca25ddb91d0003cf8c2a5d1b"
+  },
+  {
+    "stage": "100",
+    "baseline": "candidate-r3",
+    "kind": "certificate",
+    "exactSerializedBytes": true,
+    "beforeSha256": "d2d1a4a05ffcd1c227becdc269b9348c4aa974528de08d59ccfaf69cc5f6213d",
+    "afterSha256": "d2d1a4a05ffcd1c227becdc269b9348c4aa974528de08d59ccfaf69cc5f6213d"
+  },
+  {
+    "stage": "100",
+    "baseline": "candidate-r3",
+    "kind": "u0500-execution",
+    "exactSerializedBytes": true,
+    "beforeSha256": "7becfce6927c4dc141f286397269176f45c1cc29fd59b691dd076f2ce70d344a",
+    "afterSha256": "7becfce6927c4dc141f286397269176f45c1cc29fd59b691dd076f2ce70d344a"
+  },
+  {
+    "stage": "100",
+    "baseline": "candidate-r3",
+    "kind": "u0500-envelope",
+    "exactSerializedBytes": true,
+    "beforeSha256": "0271ffd3ee7f6ddbfb9ea189d91b7e18f4dbcce3cf1b012e267be253be383334",
+    "afterSha256": "0271ffd3ee7f6ddbfb9ea189d91b7e18f4dbcce3cf1b012e267be253be383334"
+  },
+  {
+    "stage": "100",
+    "baseline": "candidate-r3",
+    "kind": "u0500-wire",
+    "exactSerializedBytes": true,
+    "beforeSha256": "6a12bc188dbdf7a1032b50b40ec12e1b221fad712ce0854865eb7d5c66a09c94",
+    "afterSha256": "6a12bc188dbdf7a1032b50b40ec12e1b221fad712ce0854865eb7d5c66a09c94"
+  },
+  {
+    "stage": "100",
+    "baseline": "candidate-r3",
+    "kind": "u0005-execution",
+    "exactSerializedBytes": true,
+    "beforeSha256": "f0ab6d06a0a3f8e24c9f615a4f1fd17685407e75741518fb02da987b2905cd05",
+    "afterSha256": "f0ab6d06a0a3f8e24c9f615a4f1fd17685407e75741518fb02da987b2905cd05"
+  },
+  {
+    "stage": "100",
+    "baseline": "candidate-r3",
+    "kind": "u0005-envelope",
+    "exactSerializedBytes": true,
+    "beforeSha256": "846ddc29a720acaa1c264d56954948ee9947ccd9e959d803936a5b927f99b2b8",
+    "afterSha256": "846ddc29a720acaa1c264d56954948ee9947ccd9e959d803936a5b927f99b2b8"
+  },
+  {
+    "stage": "100",
+    "baseline": "candidate-r3",
+    "kind": "u0005-wire",
+    "exactSerializedBytes": true,
+    "beforeSha256": "f88b82c4fbe5a175d6aba6c9e6eedb6e34717adfca25ddb91d0003cf8c2a5d1b",
+    "afterSha256": "f88b82c4fbe5a175d6aba6c9e6eedb6e34717adfca25ddb91d0003cf8c2a5d1b"
+  }
+]

@@ -1,0 +1,18 @@
+{
+  "preparedAt": "2026-09-06T12:36:27.699692+00:00",
+  "productionStatPath": "/Users/ccheever/clique-improvement/revisions/feed-residual/target/production/snapback2",
+  "productionStatSha256": "1d680a9388d84d1391f85f4e4ec4ade200064651563150cc0e0201fa0ca46288",
+  "priorStatArtifactPreserved": "/Users/ccheever/clique-improvement/revisions/feed-residual/repair-r5/prior-target-production-snapback2",
+  "note": "Existing measure reads target/production/snapback2 for size. Its prior stale starter binary was preserved externally, then the frozen Hermes production artifact was copied to this private stat path. Timed product operations use the normal separately warm release target; no benchmark inputs or instrument edits.",
+  "source": "2cd0872d2f8a5cad1e0bf6730a3d5e84385cc064",
+  "metricRowsBefore": 208,
+  "metricSha256Before": "0fa7ede9edc5ae86fed251e051590ee8de981e99f352eb00d2c5f061d5cec152",
+  "files": {
+    "snapback2/target/release/snapback2": "d43ca7cf45e2e962b30d02fa4acb2a675933501eeab1ee95f3d4f566f5f41469",
+    "snapback2/target/release/snapback2-media": "e0fc4b79b1d820d06a302c941936678c465ba18f5ca5dcdf1395955405655865",
+    "snapback2/packages/snapback2/dist/compiler.mjs": "9c93d2adc425eab14d977a2a8b0d1228a0a5c8c27c4e59bc889efe9863490a78",
+    "snapback2/packages/snapback2/dist/client.mjs": "5aaa45d49028733f2cde0e6c5fc9ec89d8a85ab439c40f1dc477d5a87f2038f9",
+    "snapback2/scripts/measure.mjs": "dd833f7091ac131e7ac790f406f62fb1cbebe5198cb58d67404f221351fc7be6",
+    "snapback2/scripts/consumer-smoke.mjs": "c26bbf0e64d18cbb9557c5cf97e40ecfc045ff271ade77b749235c70dc044cf3"
+  }
+}

@@ -1,0 +1,19 @@
+{
+  "sourceCommit": "2cd0872d2f8a5cad1e0bf6730a3d5e84385cc064",
+  "metricsCommit": "04bc9d930753326e1069a74f5ee3d8108587acc1",
+  "head": "04bc9d930753326e1069a74f5ee3d8108587acc1",
+  "branch": "s2/clique-feed-residual",
+  "clean": true,
+  "bundle": "/Users/ccheever/clique-improvement/revisions/feed-residual/source-final-r5.bundle",
+  "bundleSha256": "c24aa10fda045968e72f5bacc9fa0eb3361384f53e801d39ae309407a23cacf6",
+  "bundlePrerequisite": "d9ed822aa66ebb5dfd0367a59bc0e454ba1ecd18",
+  "sourceDiffSha256": "a537f302f7f861a69200e5c5c8f6f9ec95e9850eed7149efe4e2599804064594",
+  "metricsRowLine": 209,
+  "productionSha256": "1d680a9388d84d1391f85f4e4ec4ade200064651563150cc0e0201fa0ca46288",
+  "nativeSha256": "d0e668eb04bff80e9767bf3eb2eb0174a08950ea071b1b8270d103bc2f78aa4c",
+  "mediaSha256": "177be2e3d26cab362cf45be471af5725e94f50255eb897977d7a37bdc4cfc4cf",
+  "all42ExactEquivalence": true,
+  "allThreeFirstCurvesPass": true,
+  "allTaskServersStopped": true,
+  "allTaskSessionsRemoved": true
+}

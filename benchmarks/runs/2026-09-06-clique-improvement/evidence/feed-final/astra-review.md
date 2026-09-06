@@ -1,0 +1,12 @@
+READY 2cd0872d2f8a5cad1e0bf6730a3d5e84385cc064
+
+No material issues found in the bounded source review. The prior retained-template finding is resolved.
+
+- **Resource accounting:** [index.rs:194](/Users/ccheever/clique-improvement/reviews/feed-r3/astra/snapback2/crates/snapback2-core/src/engine/index.rs:194) discards unused prefix encodings, counts allocation capacities and typed bounds, and preflights before cloning. Rejected construction drops before ordinary-seek fallback. The [reserve calculation](/Users/ccheever/clique-improvement/reviews/feed-r3/astra/snapback2/crates/snapback2-core/src/engine/merge.rs:30) ties retention to both existing certified work and descriptor storage removed from actual lanes. This is a defensible accounted trade, including empty lanes, few actual lanes under a large static bound, and many authored lanes. Zero evaluated lanes construct no template.
+- **Sharing and ordering:** [Certification](/Users/ccheever/clique-improvement/reviews/feed-r3/astra/snapback2/crates/snapback2-core/src/certificate/merge.rs:20) fixes the required scan shape. Parameter positions remain correct after prefix removal; null encoding is unchanged. Runtime bound mismatches fall back, and refills preserve all original bounds plus strict advancement.
+- **First-feed semantics:** No regression found in suffix ties, id deduplication, evaluated take, N+2 lookahead, halo/n2 facts, or completion. Heap indices address append-only retained rows safely across vector growth. Ordinary scans retain the same evidence before moving returned values.
+- **Authority and receipts:** Hidden-run handling, independent trace/receipt first images, rollback, and steps/examined accounting remain intact. Runtime policy hashes come from the engine’s schema; successor fences remain enforced.
+
+**Optional suggestion:** Add a focused assertion for the reserve’s actual-lane cap when `max_lanes` is large but only one distinct stream is evaluated.
+
+Independently verified all four source hashes, both patch hashes, and current-side patch hunks. No product tests, builds, or measurements ran during this review; supplied execution results remain author/orchestrator claims. Refusal adds one template-construction attempt before fallback, but I infer no timing effect. Historical `72c2a11c` performance is not attributed to this source; final performance qualification remains separate.
