@@ -1340,8 +1340,8 @@ for (const automatic of [false, true]) for (const stage of ["fetch", "body"] as 
   }
 }
 
-for (const stage of ["replay", "tail"] as const) {
-  test(`terminal ${stage} cancels sibling drains while preserving its own refusal`, async context => {
+for (const format of ["HTTP 401", "typed HTTP 200"] as const) for (const stage of ["replay", "tail"] as const) {
+  test(`${format} terminal ${stage} cancels sibling drains while preserving its own refusal`, async context => {
     const factory = offlineStore(context), owner = fakeOwner(), store = custody("dev:alice");
     await seededStore(factory);
     const started = deferred<void>(), release = deferred<void>();
@@ -1352,7 +1352,8 @@ for (const stage of ["replay", "tail"] as const) {
         if (path === "/api/mutation") mutations++;
         if (armed && (stage === "replay" ? path === "/api/mutation" : path === "/api/query" && mutations > 0)) {
           originSignal = init?.signal; started.resolve(); await release.promise;
-          return refusal("E_AUTH_SESSION");
+          return format === "HTTP 401" ? refusal("E_AUTH_SESSION")
+            : json({ state: stage === "replay" ? "rejected" : "refused", code: "E_AUTH_SESSION", family: "auth", message: "expired", guide: "auth/session" });
         }
         return owner.fetch(input, init);
       } });
@@ -1372,21 +1373,23 @@ for (const stage of ["replay", "tail"] as const) {
   });
 }
 
-for (const stage of ["replay", "tail"] as const) {
-  test(`FIFO ${stage} expiry reaches the new mutation before enqueue and keeps only the older intent`, async context => {
+for (const format of ["HTTP 401", "typed HTTP 200"] as const) for (const stage of ["replay", "tail"] as const) {
+  test(`${format} FIFO ${stage} expiry reaches the new mutation before enqueue and keeps only the older intent`, async context => {
     const factory = offlineStore(context), owner = fakeOwner(), store = custody("dev:alice");
     await seededStore(factory);
     let mode: "transport" | "expiry" | "recovery" = "transport";
     const replays: string[] = [];
+    const terminal = (intent?: string) => format === "HTTP 401" ? refusal("E_AUTH_SESSION")
+      : json({ state: stage === "replay" ? "rejected" : "refused", code: "E_AUTH_SESSION", family: "auth", message: "expired", guide: "auth/session", ...(intent ? { intent } : {}) });
     const client = createClient({ url: "http://auth.test", tokenStore: store, offline: { store: factory },
       fetch: async (input, init) => {
         const path = new URL(String(input)).pathname;
         if (path === "/api/mutation") {
           replays.push(String(init?.body));
           if (mode === "transport") return new Response("cut", { status: 503 });
-          if (mode === "expiry" && stage === "replay") return refusal("E_AUTH_SESSION");
+          if (mode === "expiry" && stage === "replay") return terminal(JSON.parse(String(init?.body)).intent);
         }
-        if (mode === "expiry" && stage === "tail" && path === "/api/query") return refusal("E_AUTH_SESSION");
+        if (mode === "expiry" && stage === "tail" && path === "/api/query") return terminal();
         return owner.fetch(input, init);
       } });
     try {
@@ -1414,3 +1417,38 @@ for (const stage of ["replay", "tail"] as const) {
     } finally { await client.close(); }
   });
 }
+
+
+test("typed HTTP 200 resume expiry seals queued custody and retries the exact envelope after login", async context => {
+  const factory = offlineStore(context), owner = fakeOwner(), store = custody("dev:alice");
+  await seededStore(factory);
+  let expire = false;
+  const replays: string[] = [];
+  const client = createClient({ url: "http://auth.test", tokenStore: store, offline: { store: factory },
+    fetch: async (input, init) => {
+      const path = new URL(String(input)).pathname;
+      if (expire && path === "/api/resume") return json({ state: "refused", code: "E_AUTH_SESSION",
+        family: "auth", message: "expired at resume", guide: "auth/session" });
+      if (path === "/api/mutation") replays.push(String(init?.body));
+      return owner.fetch(input, init);
+    } });
+  try {
+    await client.ready; await client.auth.me(); await client.outbox.settled(); await client.offline();
+    assert.equal((await client.mutation(api.deliveries.post, { conversationId: "conversation-1", body: "resume survivor" })).state, "queued");
+    const before = await client.outbox.entries();
+    expire = true;
+    await assert.rejects(client.online(), (error: any) => error.code === "E_AUTH_SESSION");
+    assert.equal(client.snapshot.auth.state, "anonymous"); assert.equal(store.load(), null);
+    assert.equal(client.snapshot.lastRefusal?.code, "E_AUTH_SESSION");
+    assert.equal((await client.outbox.status()).reason, "sealed"); assert.equal(replays.length, 0);
+    expire = false;
+    await client.auth.login({ email: "alice@example.com", password: "password" }); await client.online();
+    assert.deepEqual(await client.outbox.settled(), { stopped: false, remaining: 0 });
+    assert.equal(replays.length, 1);
+    const replay = JSON.parse(replays[0]);
+    for (const key of ["intent", "op", "args", "grant", "ids", "trace", "issuedSeq"] as const) {
+      assert.deepEqual(replay[key], before[0][key], `resume preserves ${key}`);
+    }
+    assert.deepEqual(owner.executions.map(entry => (entry.args as any).body), ["resume survivor"]);
+  } finally { await client.close(); }
+});
