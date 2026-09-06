@@ -82,3 +82,8 @@ suppression; failed overlapping login cannot restore the invalid bearer, and a
 completed successor remains untouched. The shared raw asset response boundary
 also fences refused and successful body completion. Terminal expiry cancels
 sibling outbox waits while preserving the originating refusal and durable intent.
+
+The byte-delivery follow-up fences the complete Blob-to-ArrayBuffer conversion,
+including the no-cache/bypassed-cache return, and supplies the same authority plus
+cancellation guard to cache hits, admission, and final lease reads. A successor
+login or abort during any of those waits suppresses public delivery.

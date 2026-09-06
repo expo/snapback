@@ -927,7 +927,9 @@ originals — keyed `(assetId, width)`, in a `ByteCache` that is **not** part
 of the `RangeStore` interface (lane O4 owns it) but joins the same swap by
 row lease: when §5 evicts a row, its bytes leave in the same commit. The
 fence does not touch bytes. One ceiling, `offline: { maxAssetBytes }`,
-default 256 MiB, LRU by the byte entry's own last-read time. **Once rows
+default 256 MiB, LRU by the byte entry's own last-read time. Asset delivery checks
+authority and cancellation after complete byte conversion and each cache await,
+including uncached reads and cache hits, before returning public bytes. **Once rows
 never enter the byte cache**, even before viewing. LLP 1006 §2a.1 implements
 server one-use images: `image <=N once` comes from the manifest / program
 schema, replacing the deleted client `viewOnce` option. Offline their media

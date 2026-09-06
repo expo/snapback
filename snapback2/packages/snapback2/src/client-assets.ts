@@ -68,8 +68,10 @@ export async function cachedAssetBlob(
 ): Promise<Blob> {
   const value = await cachedAssetBytes(cache, target, async () => {
     const blob = await network();
+    current();
     return { bytes: new Uint8Array(await blob.arrayBuffer()), type: blob.type };
   }, record, current, viewing);
+  current();
   return new Blob([value.bytes as BlobPart], { type: value.type });
 }
 
@@ -78,7 +80,12 @@ export async function cachedAssetBytes(
   cache: ByteCache | undefined, target: AssetBlobTarget, network: () => Promise<AssetBytes>,
   record: (refusal: RefusalEnvelope) => void, current: () => void, viewing?: object,
 ): Promise<AssetBytes> {
-  if (!cache || target.assetId === "") return network();
+  current();
+  if (!cache || target.assetId === "") {
+    const value = await network();
+    current();
+    return value;
+  }
   const held = await cache.getBytes(target.assetId, target.width, viewing);
   current();
   if (held) return held;
@@ -90,6 +97,7 @@ export async function cachedAssetBytes(
     throw refusal;
   }
   const initiallyOnce = await cache.viewOnce(target.assetId);
+  current();
   if (initiallyOnce && !viewing) {
     const refusal = new SnapbackRefusal({ code: "E_ASSET_TYPE", family: "input", site: "assetBlob",
       message: "view-once bytes require a mounted viewing instance",
@@ -105,7 +113,9 @@ export async function cachedAssetBytes(
   const admitted = await cache.putBytes(target.assetId, target.width, value, viewing);
   current();
   const once = await cache.viewOnce(target.assetId);
+  current();
   const viewedNow = await cache.viewed(target.assetId);
+  current();
   const allowed = await cache.canServe(target.assetId, viewing);
   current();
   if ((once && admitted !== "viewed" && admitted !== "cached") || ((leased || once || viewedNow || admitted === "viewed") && !allowed)) {

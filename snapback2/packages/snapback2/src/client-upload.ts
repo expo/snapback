@@ -216,7 +216,7 @@ export async function assetBlobFor(
     throwIfAborted(options.signal);
     host.validated(authority);
     return blob;
-  }, (refusal) => host.recordRefusal(refusal), () => host.ensureAuthority(authority), options.viewing);
+  }, (refusal) => host.recordRefusal(refusal), () => { throwIfAborted(options.signal); host.ensureAuthority(authority); }, options.viewing);
 }
 
 export async function assetBytesFor(
@@ -238,7 +238,7 @@ export async function assetBytesFor(
     host.ensureAuthority(authority);
     host.validated(authority);
     return { bytes, type: response.headers.get("Content-Type") ?? "application/octet-stream" };
-  }, (refusal) => host.recordRefusal(refusal), () => host.ensureAuthority(authority), options.viewing);
+  }, (refusal) => host.recordRefusal(refusal), () => { throwIfAborted(options.signal); host.ensureAuthority(authority); }, options.viewing);
 }
 
 export async function uploadPrepared(
