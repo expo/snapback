@@ -13,12 +13,12 @@
 **Battery gate:** `snapback-cli-real-server`
 **Failure signature:** `sha256:1561dacbeda033f49ef0cf0fa8e95d8bd95ed60da0f92147f8ace25d71101ee6`
 **First observed run:** `local.20260829T140951Z.cace7b53cf00`
-**Last observed run:** `local.20260905T203247Z.810fbda46e64`
-**Last processed run:** `local.20260905T203247Z.810fbda46e64`
+**Last observed run:** `local.20260906T052615Z.c519d102c963`
+**Last processed run:** `local.20260906T052615Z.c519d102c963`
 **Detected at revision:** `cace7b53cf008e7692e4cb633c14b4c2400fdd5c`
-**Last observed revision:** `810fbda46e64ae6865094ccc9e578b1d5781caf5`
-**Consecutive red runs:** `3`
-**Escalation:** `pending (3/4)`
+**Last observed revision:** `c519d102c963f1cc4e597feb9d799a5376a4c3eb`
+**Consecutive red runs:** `4`
+**Escalation:** `AUTHOR_ESCALATION_REQUIRED`
 **Related:** LLP 0189 D-1, LLP 0175 D2.3
 
 ## Summary
@@ -44,3 +44,8 @@ env SNAPBACK_RUNTIME_BINARY=/Users/ccheever/.snapback-local-proof-backstop/repo/
 
 Fix forward, rerun the complete battery, and let the next determinate pass close
 this signature. Four consecutive red observations require author escalation.
+
+## Author escalation
+
+This root-failure signature remained red for 4 consecutive scheduled
+battery runs. Escalate to the author (Charlie Cheever) before the next run.
