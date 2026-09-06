@@ -10,7 +10,6 @@ use std::collections::BTreeSet;
 
 struct Lane<'a> {
     scan: &'a Scan,
-    template: usize,
     input: EvaluatedScan,
     uniform: bool,
     allowed: Option<bool>,
@@ -28,6 +27,15 @@ struct Head {
     key: Value,
 }
 
+fn initial_seek_reserve(merge: &Merge, lanes: usize) -> u64 {
+    // Borrowing the immutable Scan replaced an owned descriptor in every Lane.
+    // Spend at most those saved inline bytes, even when no lane has a head;
+    // leave all removed descriptor backing allocations as additional savings.
+    // Also stay within one fixed unit of the existing certified merge reserve.
+    let saved = std::mem::size_of::<Scan>() - std::mem::size_of::<&Scan>();
+    crate::certificate::initial_seek_reserve(merge).min((lanes as u64).saturating_mul(saved as u64))
+}
+
 impl Runner<'_> {
     pub(super) fn merge_tracked(
         &mut self,
@@ -38,7 +46,7 @@ impl Runner<'_> {
         }
         let mut lanes = Vec::new();
         let mut prefixes = BTreeSet::new();
-        for (template, lane) in merge.lanes.iter().enumerate() {
+        for lane in &merge.lanes {
             let source = match &lane.source {
                 Some(source) => self
                     .scan_tracked(source)?
@@ -91,7 +99,6 @@ impl Runner<'_> {
                     || matches!(table.rules.read, RuleExpr::Allow | RuleExpr::Public { .. });
                 lanes.push(Lane {
                     scan: &lane.scan,
-                    template,
                     input,
                     uniform: public || read.hoist,
                     allowed: public.then_some(true),
@@ -147,11 +154,22 @@ impl Runner<'_> {
             .map(|statement| statement.as_mut().map(|statement| statement.raw_query()))
             .collect::<Vec<_>>();
         let mut heap = Vec::new();
-        let mut seeks: Vec<Option<index::InitialSeek>> =
-            merge.lanes.iter().map(|_| None).collect();
+        // Certification fixes the table/index/order/prefix width across authored
+        // lanes. Bounds may evaluate differently: one bounded template suffices,
+        // with ordinary seek for every mismatch or admission refusal.
+        let seek = lanes.iter().zip(&cursors).find(|(_, rows)| rows.is_none())
+            .map(|(lane, _)| {
+                let table = schema.table(&lane.scan.table).expect("checked table");
+                let index = table.index(&lane.scan.index).expect("checked index");
+                index::InitialSeek::new(
+                    &lane.scan.table, &lane.scan.index, table, index,
+                    &lane.input.prefix, lane.input.after.as_ref(), lane.input.before.as_ref(),
+                    lane.input.range.as_ref(), lane.scan.order,
+                    initial_seek_reserve(merge, lanes.len()),
+                )
+            }).transpose()?.flatten();
         for (i, lane) in lanes.iter_mut().enumerate() {
-            let seek = &mut seeks[lane.template];
-            if let Some(head) = self.merge_head(i, lane, cursors[i].as_mut(), seek)? {
+            if let Some(head) = self.merge_head(i, lane, cursors[i].as_mut(), seek.as_deref())? {
                 self.heap_push(&mut heap, head, lane.scan.order)?;
             }
         }
@@ -168,9 +186,8 @@ impl Runner<'_> {
                 lane.returned.push(id);
                 returned.push(row.clone());
             }
-            let seek = &mut seeks[lanes[head.lane].template];
             if let Some(next) =
-                self.merge_head(head.lane, &mut lanes[head.lane], cursors[head.lane].as_mut(), seek)?
+                self.merge_head(head.lane, &mut lanes[head.lane], cursors[head.lane].as_mut(), seek.as_deref())?
             {
                 self.heap_push(&mut heap, next, order)?;
             }
@@ -218,7 +235,7 @@ impl Runner<'_> {
         lane_id: usize,
         lane: &mut Lane<'_>,
         mut rows: Option<&mut rusqlite::Rows<'_>>,
-        seek: &mut Option<index::InitialSeek>,
+        seek: Option<&index::InitialSeek>,
     ) -> Result<Option<Head>, RuntimeError> {
         let certificate = self.certificate.unwrap();
         loop {
@@ -243,16 +260,9 @@ impl Runner<'_> {
                     serde_json::from_str(&data).map_err(|e| RuntimeError::Schema(e.to_string()))
                 }).transpose()?
             } else if lane.last_examined.is_none() {
-                if seek.is_none() {
-                    *seek = Some(index::InitialSeek::new(
-                        &lane.scan.table, &lane.scan.index, table, index,
-                        &lane.input.prefix, lane.input.after.as_ref(), lane.input.before.as_ref(),
-                        lane.input.range.as_ref(), lane.scan.order,
-                    )?);
-                }
-                let initial = seek.as_ref().unwrap();
-                if initial.matches(&lane.input.prefix, lane.input.after.as_ref(),
-                    lane.input.before.as_ref(), lane.input.range.as_ref()) {
+                if let Some(initial) = seek.filter(|initial| initial.matches(
+                    &lane.input.prefix, lane.input.after.as_ref(),
+                    lane.input.before.as_ref(), lane.input.range.as_ref())) {
                     initial.seek(self.tx, &lane.input.prefix)?
                 } else {
                     index::seek_scan_indexed(
@@ -440,6 +450,58 @@ mod tests {
     use crate::{Ceilings, Checker, object};
 
     #[test]
+    fn empty_wide_merge_templates_fit_admitted_heap() {
+        let frozen: serde_json::Value = serde_json::from_str(include_str!(
+            "../../../../corpus/merge-runtime-overlap-deduped.json"
+        )).unwrap();
+        let mut schema: Schema = serde_json::from_value(frozen["schema"].clone()).unwrap();
+        let table = schema.tables.get_mut("posts").unwrap();
+        table.columns.insert("author".into(), ColumnType::Text { max: 8192 });
+        let mut program: Program = serde_json::from_value(frozen["program"].clone()).unwrap();
+        program.args.insert("scope".into(), ArgType::Text { max: 8192 });
+        let Stmt::Return(Expr::Merge(merge)) = &mut program.body[0] else { unreachable!() };
+        let mut lane = merge.lanes[0].clone();
+        lane.source = None;
+        lane.scan.take = Bound::Literal(1);
+        merge.lanes = (0..64).map(|bucket| {
+            let mut lane = lane.clone();
+            lane.scan.site = format!("wide-{bucket}");
+            lane.scan.prefix = vec![Expr::Variable("scope".into()), Expr::Literal(Value::Int(bucket))];
+            lane
+        }).collect();
+        let certificate = Checker::new(&schema, Ceilings::default()).check(&program).unwrap();
+        let Stmt::Return(Expr::Merge(merge)) = &program.body[0] else { unreachable!() };
+        let wide = Value::String("𐀀".repeat(8192));
+        let table = &schema.tables["posts"];
+        let index = &table.indexes[&merge.lanes[0].scan.index];
+        let reserve = initial_seek_reserve(merge, 64);
+        let initial = index::InitialSeek::new("posts", &merge.lanes[0].scan.index, table, index,
+            &[wide.clone(), Value::Int(0)], None, None, None, Order::Asc, reserve).unwrap().unwrap();
+        let retained = initial.retained_bytes().unwrap();
+        assert!(retained <= reserve && reserve <= certificate.max_heap_bytes);
+        // Every authored lane shares the one shape, even though none has a head.
+        for bucket in 0..64 {
+            assert!(initial.matches(&[wide.clone(), Value::Int(bucket)], None, None, None));
+        }
+        let mut engine = Engine::memory(schema.clone()).unwrap();
+        let execution = engine.execute(&program, &certificate, Context::query(
+            Actor::new("u1", "user").unwrap(), [("scope".into(), wide.clone())].into())).unwrap();
+        assert_eq!(execution.state, ExecutionState::Complete);
+        assert!(execution.result.as_array().unwrap().is_empty());
+        assert_eq!(execution.trace.ranges.len(), 64);
+        assert_eq!(execution.trace.examined, 0);
+        eprintln!("retained_template_capacity_bytes={retained} template_reserve={reserve} admitted_heap_bytes={} admitted_steps={} authored_lanes=64 heads=0", certificate.max_heap_bytes, certificate.max_steps);
+        assert!(retained as u64 <= certificate.max_heap_bytes);
+        for (id, bucket) in [("a", 0), ("z", 63)] {
+            engine.seed("posts", object([("id", Value::Id(id.into())),
+                ("author", wide.clone()), ("at", Value::Int(bucket))])).unwrap();
+        }
+        let tx = engine.store.conn.transaction().unwrap();
+        assert_eq!(initial.seek(&tx, &[wide.clone(), Value::Int(0)]).unwrap().unwrap().field("id").unwrap(), &Value::Id("a".into()));
+        assert_eq!(initial.seek(&tx, &[wide, Value::Int(63)]).unwrap().unwrap().field("id").unwrap(), &Value::Id("z".into()));
+    }
+
+    #[test]
     fn pooled_seeks_match_live_cursor_with_ties_and_intersecting_bounds() {
         let frozen: serde_json::Value = serde_json::from_str(include_str!(
             "../../../../corpus/merge-runtime-overlap-deduped.json"
@@ -468,16 +530,16 @@ mod tests {
         let tx = engine.store.conn.transaction().unwrap();
         for order in [Order::Asc, Order::Desc] {
             let initial = index::InitialSeek::new("posts", index_name, table, index,
-                &[Value::Id("u1".into())], None, None, None, order).unwrap();
+                &[Value::Id("u1".into())], None, None, None, order, u64::MAX).unwrap().unwrap();
             for actor in ["u1", "u2", "empty", "u1"] {
                 for bounded in [false, true] {
                     let prefix = vec![Value::Id(actor.into())];
-                    let low = Value::Array(vec![Value::Int(1), Value::Id(format!("{actor}-1-a"))]);
-                    let high = Value::Array(vec![Value::Int(4), Value::Id(format!("{actor}-4-é"))]);
+                    let low = Value::Array(vec![Value::Int(1), Value::Id(format!("{actor}-1-a").into_boxed_str().into_string())]);
+                    let high = Value::Array(vec![Value::Int(4), Value::Id(format!("{actor}-4-é").into_boxed_str().into_string())]);
                     let (after, before) = if order == Order::Asc { (&low, &high) } else { (&high, &low) };
                     let after = bounded.then_some(after);
                     let before = bounded.then_some(before);
-                    let range = EvaluatedRange { gt: None, gte: Some(Value::Int(2)), lt: Some(Value::Int(5)), lte: None };
+                    let range = EvaluatedRange { gt: Some(Value::Int(1)), gte: Some(Value::Int(2)), lt: Some(Value::Int(5)), lte: Some(Value::Int(4)) };
                     let range = bounded.then_some(&range);
                     let expected = index::scan_indexed(&tx, "posts", index_name, table, index,
                         &prefix, after, before, range, order, 100).unwrap();
@@ -486,9 +548,23 @@ mod tests {
                         assert_eq!(initial.seek(&tx, &prefix).unwrap(), expected.first().cloned());
                     }
                     let bounded_initial = index::InitialSeek::new("posts", index_name, table,
-                        index, &prefix, after, before, range, order).unwrap();
+                        index, &prefix, after, before, range, order, u64::MAX).unwrap().unwrap();
                     assert!(bounded_initial.matches(&prefix, after, before, range));
                     assert_eq!(bounded_initial.seek(&tx, &prefix).unwrap(), expected.first().cloned());
+                    let bytes = bounded_initial.retained_bytes().unwrap();
+                    assert!(index::InitialSeek::new("posts", index_name, table, index,
+                        &prefix, after, before, range, order, bytes).unwrap().is_some());
+                    assert!(index::InitialSeek::new("posts", index_name, table, index,
+                        &prefix, after, before, range, order, bytes - 1).unwrap().is_none());
+                    assert!(index::InitialSeek::new(&"p".repeat(8192), index_name, table, index,
+                        &prefix, after, before, range, order, bytes).unwrap().is_none());
+                    assert!(index::InitialSeek::new("posts", &"i".repeat(8192), table, index,
+                        &prefix, after, before, range, order, bytes).unwrap().is_none());
+                    if bounded {
+                        assert!(!bounded_initial.matches(&prefix, None, before, range));
+                        assert!(!bounded_initial.matches(&prefix, after, None, range));
+                        assert!(!bounded_initial.matches(&prefix, after, before, None));
+                    }
                     let mut actual = Vec::new();
                     let mut last = None;
                     while let Some(row) = index::seek_scan_indexed(&tx, "posts", index_name, table, index,
@@ -501,6 +577,73 @@ mod tests {
                 }
             }
         }
+    }
+
+    #[test]
+    fn wide_bound_template_refusal_keeps_merge_heads_and_refills() {
+        let frozen: serde_json::Value = serde_json::from_str(include_str!(
+            "../../../../corpus/merge-runtime-overlap-deduped.json"
+        )).unwrap();
+        let mut schema: Schema = serde_json::from_value(frozen["schema"].clone()).unwrap();
+        schema.tables.get_mut("posts").unwrap().columns.insert("at".into(), ColumnType::Text { max: 8192 });
+        let mut program: Program = serde_json::from_value(frozen["program"].clone()).unwrap();
+        program.args.insert("low".into(), ArgType::Text { max: 8192 });
+        program.args.insert("high".into(), ArgType::Text { max: 8192 });
+        let Stmt::Return(Expr::Merge(merge)) = &mut program.body[0] else { unreachable!() };
+        let mut lane = merge.lanes[0].clone();
+        lane.source = None;
+        lane.scan.take = Bound::Literal(1);
+        lane.scan.after = Some(Box::new(Expr::Array(vec![Expr::Variable("low".into()), Expr::Literal(Value::Id("".into()))])));
+        lane.scan.before = Some(Box::new(Expr::Array(vec![Expr::Variable("high".into()), Expr::Literal(Value::Id("z".into()))])));
+        lane.scan.range = Some(Range { gt: None, gte: Some(Box::new(Expr::Variable("low".into()))),
+            lt: Some(Box::new(Expr::Variable("high".into()))), lte: None });
+        merge.lanes = (0..64).map(|actor| {
+            let mut lane = lane.clone();
+            lane.scan.site = format!("bounded-{actor}");
+            lane.scan.prefix = vec![Expr::Literal(Value::Id(format!("u{actor}")))];
+            lane
+        }).collect();
+        let certificate = Checker::new(&schema, Ceilings::default()).check(&program).unwrap();
+        let Stmt::Return(Expr::Merge(merge)) = &program.body[0] else { unreachable!() };
+        let table = &schema.tables["posts"];
+        let scan = &merge.lanes[0].scan;
+        let index = &table.indexes[&scan.index];
+        let reserve = initial_seek_reserve(merge, 64);
+        let low = Value::String("𐀀".repeat(8192));
+        let high = Value::String("𐀁".repeat(8192));
+        let after = Value::Array(vec![low.clone(), Value::Id("".into())]);
+        let before = Value::Array(vec![high.clone(), Value::Id("z".into())]);
+        let range = EvaluatedRange { gt: None, gte: Some(low.clone()), lt: Some(high.clone()), lte: None };
+        let prefix = [Value::Id("u0".into())];
+        let unbounded = index::InitialSeek::new("posts", &scan.index, table, index, &prefix,
+            Some(&after), Some(&before), Some(&range), Order::Asc, u64::MAX).unwrap().unwrap();
+        let retained = unbounded.retained_bytes().unwrap();
+        assert!(retained > reserve);
+        assert!(index::InitialSeek::new("posts", &scan.index, table, index, &prefix,
+            Some(&after), Some(&before), Some(&range), Order::Asc, reserve).unwrap().is_none());
+        eprintln!("wide_bound_capacity_bytes={retained} template_reserve={reserve} admission=fallback");
+        let mut engine = Engine::memory(schema.clone()).unwrap();
+        for (id, at) in [("a", low.clone()), ("b", low.clone()), ("c", low.clone()), ("outside", high.clone())] {
+            engine.seed("posts", object([("id", Value::Id(id.into())),
+                ("author", Value::Id("u0".into())), ("at", at)])).unwrap();
+        }
+        {
+            let tx = engine.store.conn.transaction().unwrap();
+            let expected = index::scan_indexed(&tx, "posts", &scan.index, table, index, &prefix,
+                Some(&after), Some(&before), Some(&range), Order::Asc, 10).unwrap();
+            assert_eq!(row_ids(&expected).unwrap(), ["a", "b", "c"]);
+        }
+        let result = engine.execute(&program, &certificate, Context::query(
+            Actor::new("u1", "user").unwrap(), [("low".into(), low), ("high".into(), high)].into())).unwrap();
+        assert_eq!(row_ids(result.result.as_array().unwrap()).unwrap(), ["a"]);
+        assert_eq!(result.state, ExecutionState::Capped);
+        assert_eq!(result.trace.ranges.len(), 64);
+        assert_eq!(result.trace.ranges[0].examined_ids, ["a", "b", "c"]);
+        assert_eq!(result.trace.examined, 3);
+        assert_eq!(result.receipt.rows.len(), 3);
+        // This raw-IR range has no opaque result-page descriptor.
+        assert!(certificate.result_pages.is_empty());
+        assert!(result.next.is_none());
     }
 
     #[test]
@@ -518,6 +661,11 @@ mod tests {
                 base: Box::new(Expr::Variable(lane.binding.clone())), name: "at".into(),
             })),
         });
+        let at = Expr::Field { base: Box::new(Expr::Variable(lane.binding.clone())), name: "at".into() };
+        lane.scan.after = Some(Box::new(Expr::Array(vec![at.clone(), Expr::Literal(Value::Id("".into()))])));
+        lane.scan.before = Some(Box::new(Expr::Array(vec![Expr::Binary {
+            op: BinaryOp::Add, left: Box::new(at), right: Box::new(Expr::Literal(Value::Int(7))),
+        }, Expr::Literal(Value::Id("z".into()))])));
         let certificate = Checker::new(&schema, Ceilings::default()).check(&program).unwrap();
         let mut engine = Engine::memory(schema).unwrap();
         for (id, actor, at) in [("f1", "a", 1), ("f2", "a", 3), ("f3", "b", 4)] {
@@ -659,7 +807,6 @@ mod tests {
             runner
                 .record_merge_lane(Lane {
                     scan: &scan,
-                    template: 0,
                     input,
                     uniform: true,
                     allowed: Some(true),

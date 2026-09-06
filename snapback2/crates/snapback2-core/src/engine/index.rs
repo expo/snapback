@@ -178,7 +178,7 @@ pub(super) fn intrinsic_id_order(table: &Table, index: &Index) -> bool {
 }
 
 // Initial heads with the same bounds differ only in their equality prefix.
-// Own one query template per authored merge lane, not one per discovered actor.
+// Share one query template across the merge's statically identical scan shapes.
 // Runtime-varying bounds fall back to the ordinary seek, as do all refills.
 pub(super) struct InitialSeek {
     sql: String,
@@ -194,14 +194,53 @@ impl InitialSeek {
     pub(super) fn new(
         table_name: &str, index_name: &str, table: &Table, index: &Index,
         prefix: &[Value], after: Option<&Value>, before: Option<&Value>,
-        range: Option<&EvaluatedRange>, order: Order,
-    ) -> Result<Self, RuntimeError> {
-        let (sql, parameters) = scan_query(
+        range: Option<&EvaluatedRange>, order: Order, reserve: u64,
+    ) -> Result<Option<Box<Self>>, RuntimeError> {
+        let (sql, mut parameters) = scan_query(
             table_name, index_name, table, index, prefix, after, before, range,
             order, 1, None, true,
         )?;
-        Ok(Self { sql, parameters, prefix_width: prefix.len(),
-            after: after.cloned(), before: before.cloned(), range: range.cloned() })
+        // These encodings are rebound for every stream. Retaining them would
+        // charge a second, unused copy of arbitrarily wide equality keys.
+        parameters.drain(2..2 + prefix.len());
+        // Inspect borrowed bounds before cloning: a refused wide template must
+        // not allocate typed copies merely to discover it cannot retain them.
+        if !Self::retained_parts(&sql, &parameters, after, before, range)
+            .is_some_and(|bytes| bytes <= reserve)
+        {
+            return Ok(None);
+        }
+        let initial = Self { sql, parameters, prefix_width: prefix.len(),
+            after: after.cloned(), before: before.cloned(), range: range.cloned() };
+        Ok(initial.retained_bytes().is_some_and(|bytes| bytes <= reserve)
+            .then(|| Box::new(initial)))
+    }
+
+    pub(super) fn retained_bytes(&self) -> Option<u64> {
+        Self::retained_parts(&self.sql, &self.parameters, self.after.as_ref(),
+            self.before.as_ref(), self.range.as_ref())
+    }
+
+    fn retained_parts(sql: &String, parameters: &Vec<String>, after: Option<&Value>,
+        before: Option<&Value>, range: Option<&EvaluatedRange>) -> Option<u64>
+    {
+        // Include the sole optional box, its inline fields, all allocation
+        // capacities (not lengths), names and both encoded and typed bounds.
+        // Rejected templates die before the next lane; no authored-count vector.
+        let mut bytes = (std::mem::size_of::<Option<Box<Self>>>() + std::mem::size_of::<Self>()) as u64;
+        bytes = bytes.checked_add(sql.capacity() as u64)?;
+        bytes = bytes.checked_add(parameters.capacity().checked_mul(std::mem::size_of::<String>())? as u64)?;
+        for parameter in parameters {
+            bytes = bytes.checked_add(parameter.capacity() as u64)?;
+        }
+        for value in [after, before,
+            range.and_then(|r| r.gt.as_ref()), range.and_then(|r| r.gte.as_ref()),
+            range.and_then(|r| r.lt.as_ref()), range.and_then(|r| r.lte.as_ref())]
+            .into_iter().flatten()
+        {
+            bytes = bytes.checked_add(bound_capacity(value)?)?;
+        }
+        Some(bytes)
     }
 
     pub(super) fn matches(
@@ -217,9 +256,8 @@ impl InitialSeek {
     ) -> Result<Option<Value>, RuntimeError> {
         let mut statement = connection.prepare_cached(&self.sql)?;
         for (offset, value) in self.parameters.iter().enumerate() {
-            if offset < 2 || offset >= 2 + self.prefix_width {
-                statement.raw_bind_parameter(offset + 1, value)?;
-            }
+            let position = offset + 1 + if offset < 2 { 0 } else { self.prefix_width };
+            statement.raw_bind_parameter(position, value)?;
         }
         for (offset, value) in prefix.iter().enumerate() {
             statement.raw_bind_parameter(offset + 3, encode_index_value(value)?)?;
@@ -229,6 +267,21 @@ impl InitialSeek {
             let data: String = row.get(0)?;
             serde_json::from_str(&data).map_err(|error| RuntimeError::Schema(error.to_string()))
         }).transpose()
+    }
+}
+
+fn bound_capacity(value: &Value) -> Option<u64> {
+    match value {
+        Value::Null | Value::Bool(_) | Value::Int(_) => Some(0),
+        Value::String(value) | Value::Id(value) => Some(value.capacity() as u64),
+        Value::Bytes(value) => Some(value.capacity() as u64),
+        Value::Array(values) => values.iter().try_fold(
+            values.capacity().checked_mul(std::mem::size_of::<Value>())? as u64,
+            |bytes, value| bytes.checked_add(bound_capacity(value)?),
+        ),
+        // Index bounds are scalars or scalar tuples. If that domain ever grows,
+        // keep ordinary seek until its retained representation is priced here.
+        Value::Row(_) | Value::Map(_) => None,
     }
 }
 

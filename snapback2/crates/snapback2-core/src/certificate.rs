@@ -21,6 +21,15 @@ use page::result_pages;
 // Heap is calibrated; output/closure use declared maxima. These are admission bounds, not allocator/serializer proofs.
 const HEAP_BYTES_PER_STEP: u64 = 32;
 
+// @ref LLP 1010#a5-the-merged-feed — one of the four fixed work units in
+// certificate/merge.rs's (L + N + 2) * (3 * height + 4) term accommodates
+// the shared initial SQL template. This is part of, not added to, the existing
+// calibrated heap reserve. It is independent of actual heads, including zero.
+pub(crate) fn initial_seek_reserve(merge: &Merge) -> u64 {
+    merge.max_lanes().saturating_add(merge.take().saturating_add(2))
+        .saturating_mul(HEAP_BYTES_PER_STEP)
+}
+
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Ceilings {
     pub examined: u64,
