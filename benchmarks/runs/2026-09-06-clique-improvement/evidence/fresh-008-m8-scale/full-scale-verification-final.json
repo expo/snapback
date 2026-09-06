@@ -1,0 +1,19 @@
+{
+  "checkpoint": "final",
+  "pass": true,
+  "startEpoch": 1788700941,
+  "endEpoch": 1788701263,
+  "checks": [
+    "all entity counts",
+    "every user following count",
+    "every user conversation count",
+    "every chat message count",
+    "every group roster count",
+    "named profiles",
+    "named posts and all social counts",
+    "named messages, quotes and reactions",
+    "named rosters and chat metadata",
+    "exact celebrity and celebrity follower fixtures",
+    "busy chat full public API paging"
+  ]
+}

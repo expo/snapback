@@ -33,3 +33,15 @@ refusals and authority/custody boundaries. Qualification should reproduce the
 reload sequence, establish its cause, and verify a repair against both the
 failing case and actual disagreement controls before closing this ticket.
 Do not steer or repair the benchmark builder's app from the product lane.
+
+
+Independent diagnosis found a separate unpublished candidate regression: the
+same synthetic delivery envelope conflicts after program arrival because local
+receipt filtering changes its stored fingerprint. The repro uses an actual
+native-certified v4 minimum program and a synthetic no-row envelope. Base1f9
+always forwarded that receipt, so this does not establish the0.0.8 cause.
+The sole client writer is repairing stable raw identity while preserving
+conditional coverage admission and equivocation checks. See retained
+`evidence/inbox-restore/independent-report.md` and its source-bound result.
+The later descending-log `E_OFFLINE_RESUME` is a separate app configuration
+finding. Keep the original3264 attribution open without the failing envelope pair.

@@ -1,0 +1,13 @@
+{
+  "description": "Exact same envelope before trusted program, then cold reopen + native-certified program acquisition. Synthetic envelope validator, actual native v4 certificate. Independent WIP regression, NOT attribution of builder inbox observation.",
+  "fixtureHash": "8f84bc34e07c23e4bc7ad26504ac38734f9956261edef25b15dc6a70d35c10b3",
+  "heldOperation": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+  "error": {
+    "name": "TypeError",
+    "message": "conflicting deliveries for minimum at seq 3264"
+  },
+  "sources": {
+    "offline.ts": "4fc5c9e59578fbc3b0549a2fd4e24620e47071875d399ecf871ccb017509ad42",
+    "store/range-store.ts": "28bc29f952ed852a573d70e0f12afcd17f8639ad2fe13708d615ad8b2ddb7772"
+  }
+}

@@ -484,3 +484,20 @@ diagnostic and provenance are retained in the inbox-restore ticket. The builder'
 attribution is evidence to investigate, not a confirmed cause. The M8 scale
 replay had152000/167244 actions and zero failures at13:18:31Z; completion and
 independent grading remain separate.
+
+
+## 2026-09-06 — Full M8 replay completed
+
+The second, completed-M8 replay on published0.0.8 settled all167244 actions with
+zero failures and all11 final invariant groups passing. Its own clock was2471s;
+546.979s of probes are recorded. Final API latency samples are retained unchanged,
+including the older slow following-feed result. These do not borrow the new
+0.0.10 repair's numbers. The builder is still finishing regressions and reporting;
+independent full-app grading and native qualification remain outstanding.
+
+The inbox investigation reproduced a separate candidate-only custody bug: an
+identical delivery could conflict after its program arrived because local receipt
+filtering changed the stored fingerprint. The fix must preserve raw identity
+without prematurely granting coverage. It does not establish the cause of the
+original published0.0.8 error. The later descending resume-log refusal was an app
+configuration mistake; an ascending sync anchor adds another authoring obligation.
