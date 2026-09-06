@@ -166,7 +166,14 @@ test("the settlement tail and the resume log both name the first-mounted drained
         const path = new URL(String(input)).pathname;
         if (path === "/api/query") queries.push(JSON.parse(String(init?.body)));
         if (path === "/api/resume") resumes.push(JSON.parse(String(init?.body)));
-        return owner.fetch(input, init);
+        const response = await owner.fetch(input, init);
+        if (path === "/api/program") {
+          const program = await response.json();
+          // This double's second query is also an ascending log, independent of its name.
+          program.programs["deliveries.thread"] = program.programs["deliveries.inbox"];
+          return new Response(JSON.stringify(program), { status: 200 });
+        }
+        return response;
       },
     });
     await client.ready;
@@ -320,7 +327,7 @@ test("a cold start with the owner cut prices its slice from the persisted write 
       },
     });
     await cold.ready;
-    assert.deepEqual(await held.store().outbox.bounds(), { "deliveries.post": 51, "deliveries.edit": 50 }, `${carrier.name}: the bound is durable`);
+    assert.deepEqual(await held.store().outbox.bounds(), { "deliveries.inbox": 0, "deliveries.post": 51, "deliveries.edit": 50 }, `${carrier.name}: the bound is durable`);
     const queued = await cold.mutation(api.deliveries.post as any, post("cold"));
     assert.equal(queued.state, "queued", `${carrier.name}: the cut network enqueued`);
     assert.equal(queued.state === "queued" && queued.ids.length, 52, `${carrier.name}: 1 + maxNewIds exactly, never the engine's 1,024`);

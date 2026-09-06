@@ -6,14 +6,11 @@
 use super::writer_auth::ResolvedAuthority;
 use super::*;
 use serde::Deserialize;
-use snapback2_core::{CursorPosition, Order, encode_cursor};
+use snapback2_core::certificate::resumable_log_cursor;
+use snapback2_core::{CursorPosition, encode_cursor};
 
 const MAX_MOUNTED: usize = 32;
 const MAX_RESUME_BYTES: usize = 1_048_576;
-/// The log tail is `after watermark first 50`: a certified ascending page of
-/// at most this many rows, keyed by a cursor argument.
-const MAX_LOG_PAGE: u64 = 50;
-
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 struct ResumeRequest {
@@ -48,7 +45,39 @@ struct ResumeMounted {
     validator: String,
 }
 
+pub(super) fn drain_metadata(
+    program: &snapback2_core::Program,
+    certificate: &snapback2_core::Certificate,
+) -> Json {
+    match resumable_log_cursor(program, certificate) {
+        Ok(cursor) => json!({ "cursor": cursor }),
+        Err(shape) => json!({ "reason": shape }),
+    }
+}
+
+fn unsupported_log(op: &str, shape: &str) -> Refusal {
+    Refusal::new("E_OFFLINE_RESUME", "offline",
+        format!("operation {op} cannot drain/resume a log ({shape}); every returned page must ascend after the same cursor with at most 50 rows"),
+        "use an ascending delivery log (after c first N, N <= 50); subscribe normally at c: null for newest-first data; queued writes are kept",
+        "offline")
+        .with_site("/api/resume.log").with_detail("which", json!("log"))
+        .with_detail("reason", json!("unsupported-log")).with_detail("shape", json!(shape))
+        .with_detail("op", json!(op))
+}
+
 impl State {
+    pub(super) fn admit_drain(&self, op: &str) -> Result<(), Refusal> {
+        let (program, certificate) = self
+            .runtime()
+            .generation()
+            .programs()
+            .get(op)
+            .ok_or_else(|| unknown_op(op))?;
+        resumable_log_cursor(program, certificate)
+            .map(|_| ())
+            .map_err(|shape| unsupported_log(op, shape))
+    }
+
     pub(super) fn resume(&mut self, body: Json, identity: Identity) -> Result<Json, Refusal> {
         let request: ResumeRequest = serde_json::from_value(body).map_err(|error| {
             Refusal::input(
@@ -87,6 +116,7 @@ impl State {
                     request.mounted.len()
                 ),
             )
+            .with_detail("reason", json!("limit"))
             .with_detail("which", json!("mounted"))
             .with_detail("cap", json!(MAX_MOUNTED)));
         }
@@ -236,7 +266,7 @@ impl State {
     }
 
     /// The log op must be the drained range: a certified ascending page of at
-    /// most `MAX_LOG_PAGE` rows with a cursor argument, which the watermark
+    /// most 50 rows with a cursor argument, which the watermark
     /// fills. Page size is certified, never requested, so the tail is
     /// `after watermark first ≤ 50` whatever the request's args say.
     // @ref LLP 1012#8-the-delivery-envelope-the-validator-and-resume — the
@@ -248,50 +278,8 @@ impl State {
             .programs()
             .get(op)
             .ok_or_else(|| unknown_op(op))?;
-        let cursor = program.args.iter().find_map(|(name, kind)| {
-            (matches!(kind, ArgType::Cursor)
-                || matches!(kind, ArgType::Optional(boxed) if matches!(boxed.as_ref(), ArgType::Cursor)))
-            .then(|| name.clone())
-        });
-        let shape = if certificate.result_pages.is_empty() {
-            Err("returns no page")
-        } else if cursor.is_none() {
-            Err("has no cursor argument")
-        } else {
-            certificate.result_pages.values().try_for_each(|page| {
-                let take = certificate
-                    .read_sites
-                    .iter()
-                    .find(|site| site.site == page.site)
-                    .map(|site| site.take)
-                    .or_else(|| {
-                        certificate
-                            .merge_sites
-                            .iter()
-                            .find(|site| site.site == page.site)
-                            .map(|site| site.take)
-                    });
-                if page.order != Order::Asc {
-                    Err("pages backwards (last N)")
-                } else if take.is_none_or(|take| take > MAX_LOG_PAGE) {
-                    Err("pages more than 50 rows")
-                } else {
-                    Ok(())
-                }
-            })
-        };
-        if let Err(reason) = shape {
-            return Err(Refusal::new(
-                "E_OFFLINE_RESUME",
-                "offline",
-                format!("resume log operation {op} {reason}; the log is an ascending page of at most {MAX_LOG_PAGE} rows after a cursor"),
-                "use the drained delivery log (after c first 50) as the resume log, or omit log",
-                "offline",
-            )
-            .with_site("/api/resume.log")
-            .with_detail("which", json!("log"))
-            .with_detail("cap", json!(MAX_LOG_PAGE)));
-        }
+        let cursor = resumable_log_cursor(program, certificate)
+            .map_err(|shape| unsupported_log(op, shape))?;
         let object = args.as_object_mut().ok_or_else(|| {
             Refusal::input(
                 "resume log args must be an object",
@@ -299,7 +287,7 @@ impl State {
             )
         })?;
         object.insert(
-            cursor.expect("checked above"),
+            cursor,
             watermark.map_or(Json::Null, |value| Json::String(value.to_owned())),
         );
         Ok(args)

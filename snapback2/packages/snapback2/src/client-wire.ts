@@ -99,7 +99,7 @@ export function wireRefusalEnvelope(value: unknown, surface: string): RefusalEnv
     message: stringField(record, "message", surface),
     guide: stringField(record, "guide", surface),
   };
-  for (const field of ["site", "rule", "rewrite"] as const) {
+  for (const field of ["site", "rule", "rewrite", "reason", "op", "shape"] as const) {
     const item = optionalString(record, field, surface);
     if (item !== undefined) envelope[field] = item;
   }
@@ -117,6 +117,7 @@ export function copyRefusal(envelope: RefusalEnvelope): RefusalEnvelope {
   if (envelope.site !== undefined) refusal.site = envelope.site;
   if (envelope.rule !== undefined) refusal.rule = envelope.rule;
   if (envelope.rewrite !== undefined) refusal.rewrite = envelope.rewrite;
+  for (const field of ["reason", "op", "shape"] as const) if (envelope[field] !== undefined) refusal[field] = envelope[field];
   if (envelope.which !== undefined) refusal.which = envelope.which;
   if (envelope.cap !== undefined) refusal.cap = envelope.cap;
   return refusal;

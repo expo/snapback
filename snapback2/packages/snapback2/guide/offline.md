@@ -1,83 +1,76 @@
 # Offline
 
-`offline.store`: IndexedDB on web, SQLite on Expo, test files in Node.
-Session expiry seals; sign-out or replacement wipes. One writer per partition
-(`E_OFFLINE_LOCK`). `offline.fenceDays` (1..30) bounds trust: past it, held
-reads are stale and prediction/replay wait for resume; queued writes survive.
-Held reads and `offline()` do not wait for startup authentication.
+`offline.store`: web IndexedDB, Expo SQLite, Node files.
+Expiry seals; sign-out/replacement wipes. One writer (E_OFFLINE_LOCK). `fenceDays` (1..30) bounds trust: past it, reads are stale
+and prediction/replay wait for resume. Queued writes survive; held reads/`offline()` bypass startup auth.
 
-`useQuery(op, args, { drain: true })` follows its Cursor to null, then watches
-the tail. Cold offline starts restore the cursor name from the held program;
-a repeated cursor refuses. Offline traversal preserves the server watermark.
-Covered reads are exact; others partial.
+## Drain
 
-## Sending and recovery
+`client.subscribe(op, args, listener, { drain: true })` and
+`useQuery(op, args, { drain: true })` download pages then watch the final tail.
+Use an ascending append log (`after c first N`, N <=50); append edit/removal
+events for history. Callbacks/hooks emit one page; the store holds coverage. History is not kept live.
 
-Offline `run()` resolves `{ state: "queued", intent, ids }`; replay is FIFO.
-`useOutbox()` exposes entries, dismiss, ready, status and fence (inside/past).
-`useMutation(op).status` or `client.outbox.status(op)` explains readiness:
+Every possible return must continue a certified ascending page through the
+same Cursor argument, through aliases/shapes/branches. Auxiliary reads confer none. Mixed-order/non-page returns refuse E_OFFLINE_RESUME with
+`reason: "unsupported-log"`, `op`, `shape`, before watermark/catch-up.
+For newest-first data, subscribe normally at `c: null`; fetch older pages
+with opaque `next`, keeping scope/state/freshness. `last N` stays valid. `caughtUp` means exhaustion; `live` means an active tail.
 
-- reason: ready, sealed, grant-missing, grant-expired, ids-exhausted, program-missing;
-- action: none, login, resume, load-program;
-- remaining: queued count; fence: inside/past.
+Offline drains need held eligibility metadata; missing metadata needs reconnect. Repeated cursors refuse; offline traversal preserves the
+server watermark. Covered reads are exact; others partial.
 
-Expired grants disable new writes; existing intents await the server's verdict.
-A queued entry's predicted flag marks a preview; committed confirms acceptance.
-`outbox.drain()` and `settled()` return `{ stopped, remaining }`: false means
-drained; fence, transport, authority, offline or pending explains a pause. Transport
-pauses keep queued bytes. Use `client.online()` to resume and retry,
-or `outbox.drain()` to retry online. Subscription reconnect alone does not
-promise replay. The chat offers **Sync now** and keeps refused drafts.
+## Recovery
+
+`run()` queues offline: `{ state: "queued", intent, ids }`; replay is FIFO.
+`useOutbox()` exposes entries/dismiss/ready/status/fence (inside/past).
+`useMutation(op).status` and `client.outbox.status(op)` explain readiness:
+reason ready/sealed/grant-missing/grant-expired/ids-exhausted/program-missing;
+action none/login/resume/load-program; remaining queued count and fence.
+Expired grants stop new writes; the owner judges queued intents.
+Predicted previews; committed confirms.
+
+`outbox.drain()`/`settled()` return `{ stopped, remaining }`: false means drained;
+fence/transport/authority/offline/pending explains a pause. Transport pauses keep
+queued bytes. Retry via `online()` or online `outbox.drain()`. Reconnect alone promises no
+replay. Chat offers **Sync now** and keeps refused drafts.
 
 ## Resume and custody
 
-An equal receipt validator yields unchanged.
-`GET /api/program?generation=` supplies schema, IR and certificates;
-`/api/manifest` carries retention.
+Equal validators yield unchanged. `/api/manifest` carries retention;
+`GET /api/program?generation=` supplies schema, IR, certificates and drain metadata.
 
 `POST /api/resume { protocol: 1, generation, schemaHash, authEpoch, remaining?,
 log?: { op, args, watermark, validator }, mounted: [{ op, args, validator }] }`
-is one owner action: log tail, then mounted queries, to 1 MiB (more past it).
-The log pages ascending, first <=50; mounted caps at 32 (E_OFFLINE_RESUME).
-E_OFFLINE_RESET: drop coverage, keep the outbox, fetch `/api/program`,
-re-resume. Stale authEpoch seals (E_AUTH_SESSION); another partition's
-delivery refuses E_OFFLINE_AUTHORITY, keeping coverage. Without facts, query
-for a receipt then resume; without a query, refuse and keep the queue.
+runs log then mounted, to 1 MiB (`more` past it).
+Only E_OFFLINE_RESUME `{ reason: "limit", which: "mounted", cap }` permits one
+smaller retry (mounted <=32). Other refusals never drop log.
+Backward watermarks keep the hook refused and `online()`
+rejected across reopen. Coverage, valid grants, pinned IDs and queued bytes stay.
+Explicit `outbox.drain()` may replay within existing trust,
+skipping an unsupported settlement tail. Write success leaves
+`online()` rejected.
 
-## Grants and conflicts
+E_OFFLINE_RESET drops coverage, keeps outbox, fetches program, re-resumes.
+Stale authEpoch seals (E_AUTH_SESSION); foreign delivery refuses
+E_OFFLINE_AUTHORITY, preserving coverage. Without facts, query a receipt then
+resume; without a query, refuse and keep the queue.
 
-Login, guest and resume mint principal-bound grants for 30 days when
-remaining IDs are absent or below 1024. Mutation replay carries `{ grant, offset, count, intent, trace }`.
-Same bytes return the stored terminal, even after operation/schema changes;
-a live session is still required. Other bytes refuse E_OFFLINE_INTENT_REUSE.
-E_OFFLINE_ID_BLOCK refuses invalid slices; E_OFFLINE_INTENT_EXPIRED is the
-server's expiry verdict. A 503 after commit never double-sends.
+## Grants, conflicts and bytes
 
-Changed traced points/verdicts reject as conflict (E_OFFLINE_CONFLICT).
-Ranges execute on current rows. Past-fence traces are empty; program checks
-still apply. For edits:
+Login/guest/resume mint principal-bound grants for 30 days when remaining IDs
+are absent or below1024. Replay carries `{ grant, offset, count, intent, trace }`.
+Identical bytes return the stored terminal despite operation/schema changes;
+session required. Different bytes: E_OFFLINE_INTENT_REUSE. Invalid
+slice: E_OFFLINE_ID_BLOCK. Owner expiry: E_OFFLINE_INTENT_EXPIRED. A 503 after
+commit never double-sends. Changed traced points/verdicts: E_OFFLINE_CONFLICT;
+ranges re-execute. Past-fence traces are empty; program checks still apply.
+Use compare-and-set `require msg.body = baseBody else CONFLICT` for edits.
 
-```q
-mutation edit(messageId: messages, body: text <=4000, baseBody: text <=4000):
-  msg = messages[messageId] ! else NOT_FOUND
-  require msg.authorId = viewer else NOT_AUTHOR
-  require msg.body = baseBody else CONFLICT
-  update messages[msg] { body }
-  for m in memberships[msg.conversationId] first 50 by byConversationPrincipal:
-    insert deliveries { recipient: m.principal, conversationId: msg.conversationId, messageId, kind: 'edit', at: now }
-  return null
-```
-
-The loop covers the group because memberships is capped at 50 per conversation.
-
-## Bytes and diagnostics
-
-Bytes share their row's lease, keyed (assetId, width), under maxAssetBytes
-(256 MiB LRU). `image <=N once` comes from the manifest/program schema; there
-is no client viewOnce option. Web and native caches refuse such rows even before
-viewing. Offline media is null, even in aliases and predictions; no fetch. The image stays in its viewing instance's memory; repeats refuse
-E_ASSET_VIEWED (assets family, HTTP 410).
-E_OFFLINE_CARRIER means install/configure the carrier. E_OFFLINE_STATE means
-preserve and inspect persisted state; E_OFFLINE_DELIVERY means retry an
-authenticated query; E_OFFLINE_LIFECYCLE means sign in or reopen. Refusals
-name the operation and recovery; preserve queued writes.
+Bytes share row leases, keyed (assetId,width), under maxAssetBytes (256 MiB LRU).
+`image <=N once` is schema-owned: no cache or offline fetch, including aliases
+and predictions. Offline media is null; online bytes stay in the viewing
+instance's memory. Repeats: E_ASSET_VIEWED (assets,410).
+E_OFFLINE_CARRIER: configure carrier. E_OFFLINE_STATE: preserve/inspect state.
+E_OFFLINE_DELIVERY: retry authenticated query. E_OFFLINE_LIFECYCLE: sign in/reopen.
+Keep queued writes.

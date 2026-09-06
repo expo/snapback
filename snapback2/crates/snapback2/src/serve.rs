@@ -819,6 +819,7 @@ fn string_field(value: &Json, name: &str) -> String {
 
 fn offline_options(body: &Json, query: &Query) -> OfflineOptions {
     OfflineOptions {
+        drain: query.get("drain") == Some("1"),
         receipt: body.get("receipt").and_then(Json::as_bool) == Some(true)
             || query.get("receipt") == Some("1"),
         validator: body

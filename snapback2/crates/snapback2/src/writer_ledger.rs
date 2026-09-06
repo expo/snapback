@@ -253,6 +253,7 @@ impl State {
                     json!({
                         "kind": match program.kind { ProgramKind::Query => "query", ProgramKind::Job => "job", ProgramKind::Mutation => "mutation" },
                         "args": program.args,
+                        "drain": writer_resume::drain_metadata(program, certificate),
                         "planHash": certificate.plan_hash,
                     }),
                 )

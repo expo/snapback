@@ -277,7 +277,7 @@ async function logTail(options: DrainOptions, revision: number) {
   // nothing delivered can progress (LLP 1012 §7); the prediction overlay
   // stays until the server's rows arrive, so it is not a stranded queue and
   // must not be "fixed" into one.
-  if (!watermark) return undefined;
+  if (!watermark || runtime.unsupportedLog(watermark.op)) return undefined;
   const cursor = watermark.cursorArg ?? runtime.cursorArg(watermark.op);
   const args = watermark.watermark === null
     ? watermark.args

@@ -29,6 +29,10 @@ export interface RefusalEnvelope {
   guide: string;
   /** Offline resume detail identifying the request member that exceeded a cap. */
   which?: string;
+  /** Stable resume discrimination; only limit/mounted is automatically adjustable. */
+  reason?: string;
+  op?: string;
+  shape?: string;
   /** Offline resume detail limiting the next bounded request. */
   cap?: number;
 }
@@ -117,15 +121,8 @@ export type StaleDelivery<Result> = {
   data?: Result;
   seq?: number;
 };
-export type RefusedDelivery = {
+export type RefusedDelivery = RefusalEnvelope & {
   state: "refused";
-  code: string;
-  family: string;
-  message: string;
-  site?: string;
-  rule?: string;
-  rewrite?: string;
-  guide: string;
   seq?: number;
 };
 export type QueryRefusedDelivery = RefusedDelivery & { live: false };
@@ -161,7 +158,8 @@ export interface ChannelHandle<Payload = unknown> {
   subscribe(callback: (event: ChannelDelivery<Payload>) => void): Subscription<ChannelDelivery<Payload>>;
 }
 
-export interface ManifestOperation { kind: string; args: unknown; planHash: string }
+export type DrainContract = { cursor: string } | { reason: string };
+export interface ManifestOperation { kind: string; args: unknown; planHash: string; drain?: DrainContract }
 export interface ManifestTable { retain?: "until-revoked" | "delivered-history"; [key: string]: unknown }
 export interface Manifest {
   generation: string;
@@ -358,6 +356,9 @@ export interface SnapbackClient {
   /** The partition's byte cache when the client has an offline store; components read it before the network. */
   readonly assetCache: AssetCache | undefined;
   /** Delivers validated query receipt states with `live: true`; transport loss is client-made `stale`. */
+  /** Drain follows an ascending append log (after c first N, N <= 50), then watches its tail.
+   * Each event is one page. Unsupported returned-page shapes refuse E_OFFLINE_RESUME;
+   * use an ordinary c:null subscription for newest-first data and fetch older pages separately. */
   subscribe<Args, Result>(
     ref: Op<Args, Result>,
     args: NoInfer<Args>,
@@ -370,6 +371,7 @@ export interface SnapbackClient {
   /** Cut only this client's transport; the owner remains running. */
   offline(): Promise<void>;
   /** Restore transport and perform resume before new subscription opens. */
+  /** Re-authorizes held data and replays writes; rejects unsupported saved logs without dropping them. */
   online(): Promise<void>;
   /** Close and reopen this logical device on the same durable partition. */
   restart(): Promise<SnapbackClient>;
@@ -441,6 +443,8 @@ export function reduceQueryState<Result>(
       if (event.site !== undefined) refusal.site = event.site;
       if (event.rule !== undefined) refusal.rule = event.rule;
       if (event.rewrite !== undefined) refusal.rewrite = event.rewrite;
+      for (const field of ["reason", "op", "shape", "which"] as const) if (event[field] !== undefined) refusal[field] = event[field];
+      if (event.cap !== undefined) refusal.cap = event.cap;
       next = { state: "refused", live: false, refusal };
       break;
     }

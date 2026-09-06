@@ -53,7 +53,7 @@ async function fixture(carrier: "file" | "IndexedDB" = "file", bearer = false) {
     if (url.pathname === "/api/program") {
       await hooks.program?.(init);
       if (url.searchParams.get("generation") !== state.generation) return json({ code: "E_OP_UNKNOWN", family: "op", message: "not active", guide: "op/manifest" }, 404);
-      return json({ generation: state.generation, schemaHash: state.schemaHash, schema: { tables: {} }, programs: {} });
+      return json({ generation: state.generation, schemaHash: state.schemaHash, schema: { tables: {} }, programs: { "messages.log": { kind: "query", planHash: hex(5), ir: { args: { c: { Optional: "Cursor" } } }, certificate: { plan_hash: hex(5) }, drain: { cursor: "c" } } } });
     }
     if (url.pathname === "/api/query") {
       const request = JSON.parse(String(init?.body));
