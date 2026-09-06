@@ -708,7 +708,8 @@ before they can settle intents, advance the drain, or change the client snapshot
 The same cancellation applies to mutation-owned and explicit outbox drains on
 offline, close, an auth transition, or terminal expiry. Expiry cancels sibling
 drains while the request that observed the terminal keeps its original refusal;
-it does not reread an already sealed store to settle that outcome. A tracked mutation lends its captured
+it neither rereads a sealed store nor enqueues a new call behind an older intent
+after that terminal. Ordinary intent refusals remain local to that intent. A tracked mutation lends its captured
 authority to its drain, so it cannot wait on the transition that is waiting for
 that write. Cancellation keeps the durable intent and releases the serialized
 drain; fresh recovery still retries the identical envelope.

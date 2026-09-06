@@ -87,3 +87,11 @@ The byte-delivery follow-up fences the complete Blob-to-ArrayBuffer conversion,
 including the no-cache/bypassed-cache return, and supplies the same authority plus
 cancellation guard to cache hits, admission, and final lease reads. A successor
 login or abort during any of those waits suppresses public delivery.
+
+FIFO session death now propagates before a new mutation acquires outbox custody,
+matching the post-enqueue guard. Replay and log-tail regressions preserve the
+original terminal, seal custody, and recover only the older exact envelope once.
+The optional sibling-abort/seal diagnostic race remains nonblocking: a secondary
+cancelled call may see the sealed carrier refusal, while its accepted intent
+stays durable. The ordinary FIFO stop policy is retained so an offline cut can
+still queue new work; this fix changes originating terminal evidence only.

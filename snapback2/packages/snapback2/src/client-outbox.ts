@@ -102,12 +102,13 @@ export async function submitMutation<Result>(options: SubmitMutationOptions): Pr
   if (options.offline) return queued(await enqueue());
   if ((await runtime.queuedIntents()).length > 0) {
     // FIFO: an intent issued behind queued ones must not overtake them. An
-    // older intent's refusal is its own: it reaches `settled()` and
-    // `useOutbox()`, never this call, which queues behind it.
+    // older intent's ordinary refusal reaches `settled()` and `useOutbox()`;
+    // session death instead fences this call before it can acquire custody.
     let stopped = true;
     try {
       ({ stopped } = await options.drain());
-    } catch {
+    } catch (error) {
+      if (isSnapbackRefusal(error) && isTerminalSession(error.envelope)) throw error;
       stopped = true;
     }
     if (stopped) return queued(await enqueue());
