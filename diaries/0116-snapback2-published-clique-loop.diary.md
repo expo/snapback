@@ -625,3 +625,21 @@ conflicting facts at an earlier sequence in the same batch. Both captured
 45-source graphs and results are retained in the review evidence; the existing
 writer owns the remaining repair. These are synthetic transport controls with
 actual native v5 inputs, not claims that the native owner emitted contradictions.
+
+
+## 2026-09-06 — Live-cutoff failure traced to unfinished removal
+
+The unchanged M3 browser assertion failed again on sealed 0.0.8. Its next
+full-page navigation began about 2.3 ms after the remove call, before any
+observed removal request, durable intent, or result. Authenticated follow-up
+reads showed the member still present. The subsequent live message therefore
+arrived while that membership still authorized it.
+
+A separate control waited for the removal commitment at sequence 403 before
+sending at 404. The removed member received no new payload or bubble and kept
+the prior message exactly once; its API query was denied. This is a causal
+control, not a replacement acceptance pass or a reconstruction of the original
+grader’s missing trace. The remaining question is the app/SDK completion
+contract across full-page unload. No native authorization repair is justified
+by this evidence. The untouched assertion failure and failed control setup
+remain retained, and all owned diagnostic servers were stopped.

@@ -1,0 +1,37 @@
+{
+  "digestDefinition": "SHA-256 of UTF-8 JSON path\u2192sha256 map, sorted keys, separators comma/colon (no whitespace)",
+  "source": {
+    "pass": true,
+    "checkedAuthoredFiles": 238,
+    "differences": [],
+    "sourceDigest": "cd2944f17361cd862c500804c51cf979e81cd54909455eeb7d79c16a9e3e52dd",
+    "mappedSourceDigest": "29f19e93a83aa2bebbd59663e069c3fa4ea0d47afe31ce27fc5264c8005b00be"
+  },
+  "installed": {
+    "files": 153,
+    "equal": true,
+    "treeSha256": "daca1dba27bf05ca26cb1c6507a141072d8c4195064d2f3a9521f464d7f5cf4c"
+  },
+  "instrument": {
+    "files": 170,
+    "equal": true,
+    "treeSha256": "679e5afcd1db16914ceafa48f58149e954945d22e9a6bc3da1e23bfb6174359b"
+  },
+  "files": {
+    "app/package-lock.json": "60d2f516f26bb0f3cbb2e8464885cb4b57adf9eb67fc7986e691cb2cee009473",
+    "app/choreography/package-lock.json": "198138fca1ba6d371a32b7410e77e563c9dc0d5d7877d4db0a134ff0eac07b58",
+    "app/choreography/choreography.mjs": "8caf5ebdc9a85a2757fe5109740184bdac37977ac98d0a583f16f9dea383177f",
+    "app/scripts/instrument-loader.mjs": "75dd80fdca16e2e83b97da7642cf19203533a5e31d7dbe400e14d3bfb6c38152",
+    "app/scripts/json-schema.mjs": "5056fad1eb0a05a32d3eae6af26492b86a170733adf96667639bb0fe70801050",
+    "app/node_modules/snapback2/dist/client.mjs": "5aaa45d49028733f2cde0e6c5fc9ec89d8a85ab439c40f1dc477d5a87f2038f9",
+    "app/node_modules/snapback2/dist/client.mjs.map": "f86648349ea6cf2e318315eeb5cb489a6146220fb5b6487f8318ae5970aa1951",
+    "app/node_modules/snapback2-darwin-arm64/bin/snapback2": "6fb5550675c723dd89a1108058148448d180986a8b1d128ca3d35d32d7a7f377",
+    "diagnostic/observer.mjs": "d788d0058434e95fe58f34a80da2261edb6354492c20e98edacc65de94291fe4",
+    "diagnostic/canonical-runner.mjs": "401dc500493516b538d0eb993faa3675642ca33601b37956bdd8616e0dab8f61",
+    "diagnostic/commit-control.mjs": "e9198503ba70a6fbbbbc37cdcf6128ba4d667d7ad7f1b288ace28fd9a1bb57ab",
+    "diagnostic/read-state.mjs": "d27b3bca8ddd83781171177f217f185b95430402448d912467a006748ec06f70",
+    "diagnostic/invariant-check.mjs": "af2cb09fda1aadfa2842b370d14da869e4ba1cfa9efaa9bddb4c8eaf66f88143",
+    "diagnostic/run.py": "1252359c916b15d8d1b9e7219079ac2394b293064fc4a3aef7cc29509590dc8a",
+    "diagnostic/summarize.py": "5af93c47cd307c94b7f78f0d5e96ff99c1cc59be8481f4ec1516005b1fe1c186"
+  }
+}

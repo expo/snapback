@@ -1,0 +1,307 @@
+{
+  "runId": "4e9ce85c-c461-4528-bf6f-55a82ffd9985",
+  "assertion": {
+    "version": "0.3.6-m8",
+    "runId": "4e9ce85c-c461-4528-bf6f-55a82ffd9985",
+    "recordedAt": "2026-09-06T15:52:16.463Z",
+    "type": "assertion",
+    "segment": "m3",
+    "assertion": "member-add-promote-remove-leave-and-live-cutoff",
+    "implemented": true,
+    "required": true,
+    "status": "failed",
+    "pass": false,
+    "outcomeClass": "application",
+    "timings": [
+      {
+        "attempt": 1,
+        "pass": false,
+        "startedAt": "2026-09-06T15:52:14.190Z",
+        "durationMs": 2273.1,
+        "settlementWaitMs": 1597.4,
+        "metrics": {},
+        "error": "removed member received a new live group message",
+        "outcomeClass": "application"
+      }
+    ],
+    "bestOf": 1,
+    "details": {
+      "selection": "only attempt",
+      "selectedAttempt": null,
+      "reason": null
+    }
+  },
+  "groupId": "s2id-850aded7e59b47d68bf9e91e100f5ea3-0000000000053001",
+  "remove": {
+    "event": 6834,
+    "type": "sdk-start",
+    "label": "alice",
+    "page": "alice-1",
+    "hostMonoNs": "335781532329666",
+    "hostPerformanceMs": 25948.723917,
+    "hostWallMs": 1788709935028,
+    "pageMonoMs": 205.60000002384186,
+    "pageTimeOrigin": 1788709934822.8,
+    "url": "/conversation/group/Weekend%20Plans%20Proof/settings",
+    "op": "chats.memberRemove",
+    "args": {
+      "conversationId": "s2id-850aded7e59b47d68bf9e91e100f5ea3-0000000000053001",
+      "principal": "user:wuNFsEyykeS45TUaqRlPXQ"
+    }
+  },
+  "removeNetworkRequests": [],
+  "removeOutboxObservations": [],
+  "removeSdkSettlements": [],
+  "newDocument": {
+    "event": 6846,
+    "type": "dom",
+    "label": "alice",
+    "page": "alice-1",
+    "hostMonoNs": "335781545281541",
+    "hostPerformanceMs": 25961.676375,
+    "hostWallMs": 1788709935041,
+    "pageMonoMs": 10.899999976158142,
+    "pageTimeOrigin": 1788709935030.7,
+    "url": "/conversation/group/Weekend%20Plans%20Proof"
+  },
+  "newDocumentOriginAfterCallMs": 2.3,
+  "afterSendStart": {
+    "event": 6995,
+    "type": "sdk-start",
+    "label": "alice",
+    "page": "alice-1",
+    "hostMonoNs": "335781664106166",
+    "hostPerformanceMs": 26080.501209,
+    "hostWallMs": 1788709935160,
+    "pageMonoMs": 128.5,
+    "pageTimeOrigin": 1788709935030.7,
+    "url": "/conversation/group/Weekend%20Plans%20Proof",
+    "op": "messages.send",
+    "args": {
+      "key": "mtpzpn3r-9zfgx2w3qwm-k0dkh1i24wi",
+      "conversationId": "s2id-850aded7e59b47d68bf9e91e100f5ea3-0000000000053001",
+      "body": "choreo-4e9ce85c-c461-4528-bf6f-55a82ffd9985-m3-after-remove",
+      "quote": null
+    }
+  },
+  "afterSendCommitted": {
+    "event": 7302,
+    "type": "net-response",
+    "label": "alice",
+    "page": "alice-1",
+    "hostMonoNs": "335782018326250",
+    "hostPerformanceMs": 26434.720709,
+    "hostWallMs": 1788709935514,
+    "op": "messages.send",
+    "requestId": "96163.620",
+    "cdpMonoSeconds": 321221.748542,
+    "response": {
+      "data": {
+        "at": 1788709935284,
+        "author": "user:pC8ZW6MKgw7KOqeDaqp-Hw",
+        "body": "choreo-4e9ce85c-c461-4528-bf6f-55a82ffd9985-m3-after-remove",
+        "conversationId": "s2id-850aded7e59b47d68bf9e91e100f5ea3-0000000000053001",
+        "expiresAt": null,
+        "id": "s2id-850aded7e59b47d68bf9e91e100f5ea3-0000000000094c02",
+        "key": "mtpzpn3r-9zfgx2w3qwm-k0dkh1i24wi",
+        "quote": null
+      },
+      "intent": "s2id-850aded7e59b47d68bf9e91e100f5ea3-0000000000094c01:1",
+      "seq": 276,
+      "state": "committed"
+    }
+  },
+  "firstAuthenticatedDaveThreadSse": {
+    "event": 7174,
+    "type": "net-sse",
+    "label": "dave",
+    "page": "dave-1",
+    "hostMonoNs": "335781845432291",
+    "hostPerformanceMs": 26261.827959,
+    "hostWallMs": 1788709935342,
+    "requestId": "96174.68",
+    "authority": {
+      "authEpoch": 33,
+      "principal": "user:wuNFsEyykeS45TUaqRlPXQ"
+    },
+    "seq": 276,
+    "rows": [
+      {
+        "id": "s2id-850aded7e59b47d68bf9e91e100f5ea3-000000000008c401",
+        "row": {
+          "conversationId": "s2id-850aded7e59b47d68bf9e91e100f5ea3-0000000000053001",
+          "deliveredAt": 1788709934741,
+          "id": "s2id-850aded7e59b47d68bf9e91e100f5ea3-000000000008c401",
+          "joinedAt": 1788709934386,
+          "principal": "user:wuNFsEyykeS45TUaqRlPXQ",
+          "readAt": 1788709934741,
+          "role": "admin"
+        },
+        "table": "memberships"
+      },
+      {
+        "id": "s2id-850aded7e59b47d68bf9e91e100f5ea3-0000000000094c02",
+        "row": {
+          "at": 1788709935284,
+          "author": "user:pC8ZW6MKgw7KOqeDaqp-Hw",
+          "body": "choreo-4e9ce85c-c461-4528-bf6f-55a82ffd9985-m3-after-remove",
+          "clip": null,
+          "conversationId": "s2id-850aded7e59b47d68bf9e91e100f5ea3-0000000000053001",
+          "edited": null,
+          "expiresAt": null,
+          "id": "s2id-850aded7e59b47d68bf9e91e100f5ea3-0000000000094c02",
+          "key": "mtpzpn3r-9zfgx2w3qwm-k0dkh1i24wi",
+          "kind": null,
+          "oncePhoto": null,
+          "photo": null,
+          "quote": null,
+          "tombstone": null
+        },
+        "table": "messages"
+      }
+    ]
+  },
+  "firstDaveSdkThreadDelivery": {
+    "event": 7180,
+    "type": "sdk-delivery",
+    "label": "dave",
+    "page": "dave-1",
+    "hostMonoNs": "335781853459708",
+    "hostPerformanceMs": 26269.85525,
+    "hostWallMs": 1788709935350,
+    "pageMonoMs": 733.1000000238419,
+    "pageTimeOrigin": 1788709934614.8,
+    "url": "/conversation/group/Weekend%20Plans%20Proof",
+    "op": "messages.thread",
+    "args": {
+      "conversationId": "s2id-850aded7e59b47d68bf9e91e100f5ea3-0000000000053001",
+      "c": null
+    },
+    "result": {
+      "state": "complete",
+      "data": [
+        {
+          "at": 1788709935284,
+          "author": "user:pC8ZW6MKgw7KOqeDaqp-Hw",
+          "body": "choreo-4e9ce85c-c461-4528-bf6f-55a82ffd9985-m3-after-remove",
+          "clip": null,
+          "conversationId": "s2id-850aded7e59b47d68bf9e91e100f5ea3-0000000000053001",
+          "edited": null,
+          "expiresAt": null,
+          "id": "s2id-850aded7e59b47d68bf9e91e100f5ea3-0000000000094c02",
+          "key": "mtpzpn3r-9zfgx2w3qwm-k0dkh1i24wi",
+          "kind": null,
+          "oncePhoto": null,
+          "photo": null,
+          "profile": {
+            "avatar": {
+              "height": 256,
+              "id": "s2id-850aded7e59b47d68bf9e91e100f5ea3-0000000000001401",
+              "width": 256
+            },
+            "displayName": "Alice Alvarez",
+            "handle": "alice",
+            "principal": "user:pC8ZW6MKgw7KOqeDaqp-Hw"
+          },
+          "quote": null,
+          "quoted": null,
+          "tombstone": null
+        },
+        {
+          "at": 1788709934741,
+          "author": "user:pC8ZW6MKgw7KOqeDaqp-Hw",
+          "body": "choreo-4e9ce85c-c461-4528-bf6f-55a82ffd9985-m3-before-remove",
+          "clip": null,
+          "conversationId": "s2id-850aded7e59b47d68bf9e91e100f5ea3-0000000000053001",
+          "edited": null,
+          "expiresAt": null,
+          "id": "s2id-850aded7e59b47d68bf9e91e100f5ea3-000000000008e401",
+          "key": "mtpzpms2-3m1wltoah7l-6tmwa4n7qn2",
+          "kind": null,
+          "oncePhoto": null,
+          "photo": null,
+          "profile": {
+            "avatar": {
+              "height": 256,
+              "id": "s2id-850aded7e59b47d68bf9e91e100f5ea3-0000000000001401",
+              "width": 256
+            },
+            "displayName": "Alice Alvarez",
+            "handle": "alice",
+            "principal": "user:pC8ZW6MKgw7KOqeDaqp-Hw"
+          },
+          "quote": null,
+          "quoted": null,
+          "tombstone": null
+        },
+        {
+          "at": 1788709933733,
+          "author": "user:pC8ZW6MKgw7KOqeDaqp-Hw",
+          "body": "choreo-4e9ce85c-c461-4528-bf6f-55a82ffd9985-m3-group-receipt",
+          "clip": null,
+          "conversationId": "s2id-850aded7e59b47d68bf9e91e100f5ea3-0000000000053001",
+          "edited": null,
+          "expiresAt": null,
+          "id": "s2id-850aded7e59b47d68bf9e91e100f5ea3-0000000000085c01",
+          "key": "mtpzplzx-834xxjbsljv-23qhkwj5dui",
+          "kind": null,
+          "oncePhoto": null,
+          "photo": null,
+          "profile": {
+            "avatar": {
+              "height": 256,
+              "id": "s2id-850aded7e59b47d68bf9e91e100f5ea3-0000000000001401",
+              "width": 256
+            },
+            "displayName": "Alice Alvarez",
+            "handle": "alice",
+            "principal": "user:pC8ZW6MKgw7KOqeDaqp-Hw"
+          },
+          "quote": null,
+          "quoted": null,
+          "tombstone": null
+        }
+      ],
+      "seq": 276,
+      "next": null,
+      "live": true
+    }
+  },
+  "firstDaveRender": {
+    "event": 7189,
+    "type": "dom",
+    "label": "dave",
+    "page": "dave-1",
+    "hostMonoNs": "335781861301916",
+    "hostPerformanceMs": 26277.697834,
+    "hostWallMs": 1788709935357,
+    "pageMonoMs": 742.6999999880791,
+    "pageTimeOrigin": 1788709934614.8,
+    "url": "/conversation/group/Weekend%20Plans%20Proof",
+    "bubbles": [
+      {
+        "id": "message-s2id-850aded7e59b47d68bf9e91e100f5ea3-0000000000085c01",
+        "text": "Alice Alvarez\nchoreo-4e9ce85c-c461-4528-bf6f-55a82ffd9985-m3-group-receipt\n9:52:13 AM\nReply\nReact",
+        "pending": false
+      },
+      {
+        "id": "message-s2id-850aded7e59b47d68bf9e91e100f5ea3-000000000008e401",
+        "text": "Alice Alvarez\nchoreo-4e9ce85c-c461-4528-bf6f-55a82ffd9985-m3-before-remove\n9:52:14 AM\nReply\nReact",
+        "pending": false
+      },
+      {
+        "id": "message-s2id-850aded7e59b47d68bf9e91e100f5ea3-0000000000094c02",
+        "text": "Alice Alvarez\nchoreo-4e9ce85c-c461-4528-bf6f-55a82ffd9985-m3-after-remove\n9:52:15 AM\nReply\nReact",
+        "pending": false
+      }
+    ]
+  },
+  "daveOutboxAtClose": [],
+  "networkCollection": {
+    "sseFrames": 2067,
+    "sseStreamingErrors": 0,
+    "bodyReadErrors": {
+      "cdpSession.send: Protocol error (Network.getResponseBody): No resource with given identifier found": 88
+    }
+  }
+}

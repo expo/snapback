@@ -1,0 +1,47 @@
+{
+  "reviewedEpoch": 1788711106.1192589,
+  "reviewScope": "Full report read; decisive canonical events, complete control analysis, cleanup and authored-source summary inspected. No root re-execution of browser assertions.",
+  "files": {
+    "report.md": {
+      "bytes": 20471,
+      "sha256": "b1b9a4a7c765983981490453159236ab03d6029e4000196ee62599f0ff5b7ba7"
+    },
+    "terminal.json": {
+      "bytes": 109,
+      "sha256": "70f7fee1e0dbd4725735bf3b2751a67acbd9e17a447cf6d959c1e9ff0d5ca723"
+    },
+    "canonical-analysis.json": {
+      "bytes": 10078,
+      "sha256": "a22321965e5c9cbada5bd2da8bb8b7618340990022e9c0646df962c3bec1b26d"
+    },
+    "commit-control-analysis.json": {
+      "bytes": 4404,
+      "sha256": "61282e4d924d76e51a4e1d8ade79361ba3d7814b821535d8869ec81022b03429"
+    },
+    "cleanup.json": {
+      "bytes": 934,
+      "sha256": "d60f414ec1a6b23c0df7a7704fec38decd02110f39082fbd3e86a8fae992d75f"
+    },
+    "source-integrity-after.json": {
+      "bytes": 248,
+      "sha256": "317a732f132757b1444cb34c2712366a040fffb6e54bc800418f80e28a9e42d7"
+    },
+    "identity-summary.json": {
+      "bytes": 2311,
+      "sha256": "f4b9d753cfd598c688c021c84a9962a1b1047460048a1a1473dc9ff5d9b3ec28"
+    }
+  },
+  "rootVerifiedCleanup": {
+    "pidsAbsent": [
+      58752,
+      58753,
+      69683
+    ],
+    "portsWithoutListeners": [
+      51100,
+      51101
+    ]
+  },
+  "conclusion": "Canonical reproduction lost removal before durable/request custody during full document replacement; successful commit barrier is causal diagnostic only. Original independent historical trace remains insufficient to assign its exact mechanism. App/SDK unload contract ownership unresolved; no native authorization patch justified.",
+  "canonicalAcceptance": "Original failed assertion retained. Control does not replace it. M3 suite intentionally not run because it reseeds."
+}

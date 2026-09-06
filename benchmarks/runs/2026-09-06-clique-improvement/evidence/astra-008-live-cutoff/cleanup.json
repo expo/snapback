@@ -1,0 +1,26 @@
+{
+  "utc": "2026-09-06T15:58:53Z",
+  "actions": [
+    {
+      "pid": 69683,
+      "verifiedIdentity": "69683     1 Sun Sep  6 09:49:01 2026     /opt/homebrew/Cellar/node/25.9.0_3/bin/node scripts/serve.mjs",
+      "cwdVerified": "/Users/ccheever/clique-improvement/revisions/008-live-cutoff/app",
+      "signal": "SIGTERM"
+    },
+    {
+      "pid": 58752,
+      "verifiedIdentity": "58752     1 Sun Sep  6 09:47:54 2026     /Users/ccheever/clique-improvement/revisions/008-live-cutoff/app/node_modules/snapback2-darwin-arm64/bin/snapback2 dev --project /Users/ccheever/clique-improvement/revisions/008-live-cutoff/app --foreground --owner-child --json --port 51100",
+      "cwdVerified": "/Users/ccheever/clique-improvement/revisions/008-live-cutoff/app",
+      "signal": "SIGTERM"
+    }
+  ],
+  "remainingIdentities": {
+    "58752": "",
+    "58753": "",
+    "69683": ""
+  },
+  "ports": {
+    "51100": "free",
+    "51101": "free"
+  }
+}

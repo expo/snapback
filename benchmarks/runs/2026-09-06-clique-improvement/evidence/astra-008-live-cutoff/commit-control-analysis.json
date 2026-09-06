@@ -1,0 +1,139 @@
+{
+  "pass": true,
+  "removeSeq": 403,
+  "afterSeq": 404,
+  "progressSeq": 413,
+  "removeIntent": "s2id-850aded7e59b47d68bf9e91e100f5ea3-00000000000d1401:0",
+  "afterMessage": {
+    "at": 1788710237638,
+    "author": "user:pC8ZW6MKgw7KOqeDaqp-Hw",
+    "body": "diagnostic-commit-control-1788710236419-after-remove",
+    "conversationId": "s2id-850aded7e59b47d68bf9e91e100f5ea3-0000000000053001",
+    "expiresAt": null,
+    "id": "s2id-850aded7e59b47d68bf9e91e100f5ea3-00000000000d3401",
+    "key": "mtpzw4hl-bnxdjxrn4sl-zxzhfn430lq",
+    "quote": null
+  },
+  "daveNewPayloadEvents": [],
+  "checks": [
+    {
+      "name": "removed member retains exactly one before message",
+      "actual": 1,
+      "expected": 1,
+      "pass": true
+    },
+    {
+      "name": "removed member sees no post-commit new message after independent DM progress",
+      "actual": 0,
+      "expected": 0,
+      "pass": true
+    }
+  ],
+  "originalBeforeRetained": 1,
+  "originalAfterRetainedAsNowPriorHistory": 1,
+  "daveOutboxAtClose": [],
+  "daveFinalThread": {
+    "state": "denied",
+    "seq": 419,
+    "rule": "NOT_MEMBER"
+  },
+  "serverMissingMembershipProbe": {
+    "name": "api-result",
+    "monoNs": "336083711116375",
+    "wallMs": 1788710237213,
+    "label": "alice",
+    "op": "chats.members",
+    "args": {
+      "conversationId": "s2id-850aded7e59b47d68bf9e91e100f5ea3-0000000000053001"
+    },
+    "result": {
+      "state": "complete",
+      "data": [
+        {
+          "conversationId": "s2id-850aded7e59b47d68bf9e91e100f5ea3-0000000000053001",
+          "deliveredAt": 1788709935284,
+          "id": "s2id-850aded7e59b47d68bf9e91e100f5ea3-0000000000053003",
+          "joinedAt": 1788709754944,
+          "principal": "user:lm8yP3VKKwN8NzLGWpcg8g",
+          "profile": {
+            "avatar": {
+              "height": 256,
+              "id": "s2id-850aded7e59b47d68bf9e91e100f5ea3-0000000000001c01",
+              "width": 256
+            },
+            "displayName": "Bob Bennett",
+            "handle": "bob",
+            "principal": "user:lm8yP3VKKwN8NzLGWpcg8g"
+          },
+          "readAt": 1788709935284,
+          "role": "member"
+        },
+        {
+          "conversationId": "s2id-850aded7e59b47d68bf9e91e100f5ea3-0000000000053001",
+          "deliveredAt": 1788709935284,
+          "id": "s2id-850aded7e59b47d68bf9e91e100f5ea3-0000000000053004",
+          "joinedAt": 1788709754944,
+          "principal": "user:p62TTlYGtIGMxwdbYwc19Q",
+          "profile": {
+            "avatar": {
+              "height": 256,
+              "id": "s2id-850aded7e59b47d68bf9e91e100f5ea3-0000000000002401",
+              "width": 256
+            },
+            "displayName": "Carol Chen",
+            "handle": "carol",
+            "principal": "user:p62TTlYGtIGMxwdbYwc19Q"
+          },
+          "readAt": 1788709935284,
+          "role": "member"
+        },
+        {
+          "conversationId": "s2id-850aded7e59b47d68bf9e91e100f5ea3-0000000000053001",
+          "deliveredAt": 1788710236570,
+          "id": "s2id-850aded7e59b47d68bf9e91e100f5ea3-0000000000053002",
+          "joinedAt": 1788709754944,
+          "principal": "user:pC8ZW6MKgw7KOqeDaqp-Hw",
+          "profile": {
+            "avatar": {
+              "height": 256,
+              "id": "s2id-850aded7e59b47d68bf9e91e100f5ea3-0000000000001401",
+              "width": 256
+            },
+            "displayName": "Alice Alvarez",
+            "handle": "alice",
+            "principal": "user:pC8ZW6MKgw7KOqeDaqp-Hw"
+          },
+          "readAt": 1788710236570,
+          "role": "admin"
+        }
+      ],
+      "seq": 403,
+      "next": null
+    }
+  },
+  "sdkRemovalSettlements": [
+    {
+      "event": 834,
+      "type": "sdk-result",
+      "label": "alice",
+      "page": "alice-1",
+      "hostMonoNs": "336083838205750",
+      "hostPerformanceMs": 2084.893416,
+      "hostWallMs": 1788710237341,
+      "pageMonoMs": 293.39999997615814,
+      "pageTimeOrigin": 1788710236964.4,
+      "url": "/conversation/group/Weekend%20Plans%20Proof/settings",
+      "op": "chats.memberRemove",
+      "args": {
+        "conversationId": "s2id-850aded7e59b47d68bf9e91e100f5ea3-0000000000053001",
+        "principal": "user:wuNFsEyykeS45TUaqRlPXQ"
+      },
+      "result": {
+        "state": "committed",
+        "data": null,
+        "seq": 403,
+        "intent": "s2id-850aded7e59b47d68bf9e91e100f5ea3-00000000000d1401:0"
+      }
+    }
+  ]
+}
