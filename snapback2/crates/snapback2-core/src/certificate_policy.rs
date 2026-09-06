@@ -138,6 +138,7 @@ impl Checker<'_> {
         let mut flow = CompletenessFlow {
             schema: self.schema,
             env: BTreeMap::new(),
+            loop_exits: BTreeSet::new(),
             errors: &mut errors,
         };
         flow.statements(
@@ -153,6 +154,7 @@ impl Checker<'_> {
 struct CompletenessFlow<'a, 'b> {
     schema: &'a Schema,
     env: BTreeMap<String, Fact>,
+    loop_exits: BTreeSet<CappedSite>,
     errors: &'b mut Vec<CheckError>,
 }
 
@@ -237,12 +239,21 @@ impl CompletenessFlow<'_, '_> {
                     let mut nested_loop_pages = loop_pages.clone();
                     nested_loop_pages.extend(domain.pages.iter().cloned());
                     let previous = self.env.insert(binding.clone(), Fact::default());
+                    let outer_exits = std::mem::take(&mut self.loop_exits);
+                    // If-branch Lets do not merge into iteration_locals (fail-closed).
                     let locals = self.statements(
                         body,
                         &nested_control,
                         &nested_loop_pages,
                         &BTreeSet::new(),
                     );
+                    let exits = std::mem::replace(&mut self.loop_exits, outer_exits);
+                    let mut targets = BTreeSet::new();
+                    assigned_targets(body, &mut targets);
+                    for target in targets {
+                        self.env.entry(target).or_default().structural
+                            .extend(exits.iter().cloned());
+                    }
                     // Raw IR can name a temporary after its loop. Only values already
                     // pushed during the iteration get the local-assignment exemption.
                     for name in &locals {
@@ -290,7 +301,11 @@ impl CompletenessFlow<'_, '_> {
                     let fact = self.expr(payload).made_structural();
                     self.refuse_sink("emitted value", &fact.structural, control, loop_pages);
                 }
-                Stmt::Break | Stmt::Continue => {}
+                Stmt::Break | Stmt::Continue => {
+                    // Early exits change which rows reach every collector in this loop.
+                    self.loop_exits
+                        .extend(control.iter().chain(loop_pages).cloned());
+                }
             }
         }
         bindings

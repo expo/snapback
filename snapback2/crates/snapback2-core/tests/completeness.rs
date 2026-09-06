@@ -832,14 +832,30 @@ fn enriched_capped_page_keeps_hidden_profile_null_and_out_of_receipt() {
         ])
     );
     assert!(
-        !execution
-            .receipt
-            .rows
+        execution
+            .trace
+            .points
             .iter()
-            .any(|row| row.table == "profiles" && row.id == "u2")
+            .any(|point| point.table == "profiles"
+                && point.key == vec![Value::Id("u2".to_owned())]
+                && !point.visible)
     );
+    let receipt = serde_json::to_value(&execution.receipt).unwrap();
+    for set in ["rows", "ranges", "absences", "verdicts"] {
+        for record in receipt[set].as_array().unwrap() {
+            let mut keys = record.clone();
+            if set == "rows" {
+                keys.as_object_mut().unwrap().remove("row");
+            }
+            assert!(
+                !serde_json::to_string(&keys).unwrap().contains("\"u2\""),
+                "{set}: {keys}"
+            );
+        }
+    }
+    assert!(!receipt.to_string().contains("Secret"));
     assert!(
-        !serde_json::to_string(&execution.receipt)
+        !serde_json::to_string(&execution.result)
             .unwrap()
             .contains("Secret")
     );
@@ -857,6 +873,12 @@ fn enriched_uniform_page_stays_complete() {
         .unwrap();
     assert_eq!(execution.state, ExecutionState::Complete);
     assert_eq!(execution.result.as_array().unwrap().len(), 3);
+    assert_eq!(
+        execution.result.as_array().unwrap()[1]
+            .field("owner")
+            .unwrap(),
+        &Value::Null
+    );
 }
 
 fn assert_capped_refusal(program: Program, sink: &str) {
@@ -864,9 +886,9 @@ fn assert_capped_refusal(program: Program, sink: &str) {
         .check_all(&program)
         .unwrap_err();
     assert!(
-        errors
-            .iter()
-            .any(|error| error.code == "E_STRUCTURAL_COUNT" && error.message.starts_with(sink)),
+        errors.iter().any(|error| error.code == "E_STRUCTURAL_COUNT"
+            && error.message.starts_with(sink)
+            && error.message.contains("docs.page")),
         "{errors:?}"
     );
 }
@@ -990,4 +1012,188 @@ fn iteration_local_assignment_cannot_escape_its_loop_as_a_scalar() {
     program.body.pop();
     program.body.push(Stmt::Return(var("shape")));
     assert_capped_refusal(program, "returned result");
+}
+
+fn enriched_early_exit(exit: Stmt, count_condition: bool) -> Program {
+    let mut program = enriched_program();
+    if let Stmt::For { body, .. } = &mut program.body[1] {
+        if let Stmt::If {
+            condition,
+            then_body,
+            ..
+        } = &mut body[2]
+        {
+            *then_body = vec![exit];
+            if count_condition {
+                *condition = binary(BinaryOp::Gt, count_page(), lit(Value::Int(0)));
+            }
+        }
+    }
+    program
+}
+
+#[test]
+fn enriched_null_guard_break_refuses() {
+    assert_capped_refusal(enriched_early_exit(Stmt::Break, false), "returned result");
+}
+
+#[test]
+fn enriched_page_count_break_refuses() {
+    assert_capped_refusal(enriched_early_exit(Stmt::Break, true), "returned result");
+}
+
+#[test]
+fn enriched_null_guard_continue_refuses() {
+    assert_capped_refusal(
+        enriched_early_exit(Stmt::Continue, false),
+        "returned result",
+    );
+}
+
+#[test]
+fn enriched_page_count_continue_refuses() {
+    assert_capped_refusal(enriched_early_exit(Stmt::Continue, true), "returned result");
+}
+
+fn count_collected() -> Expr {
+    Expr::Builtin {
+        builtin: Builtin::Count,
+        args: vec![var("collected")],
+    }
+}
+
+#[test]
+fn enriched_post_shape_count_refuses() {
+    let mut program = enriched_program();
+    *program.body.last_mut().unwrap() = Stmt::Return(count_collected());
+    assert_capped_refusal(program, "returned result");
+}
+
+#[test]
+fn enriched_post_shape_require_refuses() {
+    let mut program = enriched_program();
+    program.body.insert(
+        2,
+        Stmt::Require {
+            condition: binary(BinaryOp::Gt, count_collected(), lit(Value::Int(0))),
+            code: "EMPTY".to_owned(),
+        },
+    );
+    assert_capped_refusal(program, "require branch");
+}
+
+#[test]
+fn enriched_capped_page_cursors_follow_only_returned_rows() {
+    let schema = enriched_schema(false);
+    let mut program = enriched_program();
+    program.result_page_site = Some("docs.page".to_owned());
+    program
+        .args
+        .insert("c".to_owned(), ArgType::Optional(Box::new(ArgType::Cursor)));
+    if let Stmt::For {
+        domain: LoopDomain::Page(scan),
+        ..
+    } = &mut program.body[1]
+    {
+        scan.take = Bound::Literal(1);
+        scan.after = Some(Box::new(var("c")));
+        scan.opaque_cursor = true;
+    }
+    let certificate = Checker::new(&schema, Ceilings::default())
+        .check(&program)
+        .unwrap();
+    let mut engine = enriched_engine(schema.clone());
+    engine
+        .seed("docs", doc("hidden-before", "g1", "u2", 0))
+        .unwrap();
+    let mut cursor = Value::Null;
+    for (id, order, owner) in [
+        (
+            "d1",
+            1,
+            object([("name", Value::String("Visible".to_owned()))]),
+        ),
+        ("d2", 2, Value::Null),
+    ] {
+        let mut context = context("g1", None);
+        context.args.insert("c".to_owned(), cursor);
+        let execution = engine
+            .execute(&program, &certificate, context.clone())
+            .unwrap();
+        assert_eq!(execution.state, ExecutionState::Capped);
+        assert_eq!(
+            execution.result,
+            Value::Array(vec![object([
+                ("id", Value::Id(id.to_owned())),
+                ("owner", owner)
+            ])])
+        );
+        let next = execution
+            .next
+            .as_ref()
+            .expect("nonempty capped page has a cursor");
+        let position = decode_cursor(next).unwrap();
+        assert_eq!(
+            position.values,
+            vec![Value::Int(order), Value::Id(id.to_owned())]
+        );
+        assert!(!format!("{position:?}").contains("hidden-before"));
+        let (state, local) = ClientStore::hydrate(schema.clone(), &execution.receipt)
+            .unwrap()
+            .reexecute(&program, &certificate, context.clone())
+            .unwrap();
+        assert!(matches!(state, LocalState::Partial(_)));
+        assert_eq!(local.state, ExecutionState::Capped);
+        assert_eq!(local.result, execution.result);
+        assert_eq!(local.next, execution.next);
+        // The ticket's two-runtime reproduction consumes these packets with --nocapture.
+        println!(
+            "CURSOR_REPLAY {}",
+            serde_json::json!({
+                "schema": schema, "program": program, "certificate": certificate,
+                "context": context, "receipt": execution.receipt,
+                "result": execution.result, "next": execution.next, "localState": format!("{state:?}"),
+            })
+        );
+        cursor = Value::String(next.clone());
+    }
+}
+
+#[test]
+fn enriched_early_exit_taints_rows_collected_before_the_exit() {
+    let mut program = enriched_early_exit(Stmt::Break, false);
+    if let Stmt::For { body, .. } = &mut program.body[1] {
+        body.swap(2, 3);
+    }
+    assert_capped_refusal(program, "returned result");
+}
+
+#[test]
+fn uniform_enriched_early_exit_stays_returnable() {
+    let certificate = Checker::new(&enriched_schema(true), Ceilings::default())
+        .check(&enriched_early_exit(Stmt::Break, false))
+        .unwrap();
+    assert_eq!(certificate.completeness, Completeness::Page);
+}
+
+#[test]
+fn inner_loop_exit_does_not_taint_an_unaffected_outer_collector() {
+    let mut program = enriched_program();
+    if let Stmt::For { body, .. } = &mut program.body[1] {
+        body.insert(
+            0,
+            Stmt::For {
+                binding: "inner".to_owned(),
+                domain: LoopDomain::LiteralRange {
+                    start: 0,
+                    end_exclusive: 2,
+                },
+                body: vec![Stmt::Break],
+            },
+        );
+    }
+    let certificate = Checker::new(&enriched_schema(false), Ceilings::default())
+        .check(&program)
+        .unwrap();
+    assert_eq!(certificate.completeness, Completeness::Capped);
 }

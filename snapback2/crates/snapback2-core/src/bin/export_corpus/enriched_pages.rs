@@ -57,6 +57,7 @@ pub(super) fn add_enriched_page_case(cases: &mut Vec<CorpusCase>) {
                     range: None,
                     opaque_cursor: false,
                     merge_site: None,
+                    // Fixed corpus prefix; the engine regression also covers Arg provenance.
                     provenance: KeyProvenance::Const,
                 }),
                 body: vec![
@@ -146,7 +147,27 @@ pub(super) fn add_enriched_page_case(cases: &mut Vec<CorpusCase>) {
         ])
     );
     assert!(
-        !serde_json::to_string(&execution.receipt)
+        execution
+            .trace
+            .points
+            .iter()
+            .any(|point| point.table == "profiles"
+                && point.key == vec![id("u2")]
+                && !point.visible)
+    );
+    let receipt = serde_json::to_value(&execution.receipt).unwrap();
+    for set in ["rows", "ranges", "absences", "verdicts"] {
+        for record in receipt[set].as_array().unwrap() {
+            let mut keys = record.clone();
+            if set == "rows" {
+                keys.as_object_mut().unwrap().remove("row");
+            }
+            assert!(!keys.to_string().contains("\"u2\""), "{set}: {keys}");
+        }
+    }
+    assert!(!receipt.to_string().contains("Secret"));
+    assert!(
+        !serde_json::to_string(&execution.result)
             .unwrap()
             .contains("Secret")
     );

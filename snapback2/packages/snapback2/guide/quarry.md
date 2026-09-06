@@ -116,7 +116,8 @@ need a complete unique key. Range order is `[after cursor] first|last N
 [by index]`; repeats/permutations refuse. Point reads may add
 `by index`; `exists table[keys]` accepts an index prefix. Shapes use `{ * }`,
 bare fields, or `name: expression`; nested point reads preserve the page's
-`complete` or `capped` state and yield `null` for hidden rows. Byte ceilings
+`complete`/`capped` state; hidden rows yield `null`. Capped-dependent exits,
+counts and `require` refuse. Byte ceilings
 bound canonical JSON: a shape is priced by the fields it selects and `*` by
 every column at its declared maximum (text at `4·max + 16` bytes), so focused
 shapes certify larger pages. A module may declare
