@@ -140,7 +140,11 @@ export class DrainSubscription<Args, Result> implements Subscription<Subscriptio
       await this.options.mark(this.watermark, () => this.current(generation), offline);
       if (!this.current(generation)) return;
       this.deliver({ ...page, live: false, caughtUp: true, watermark: this.watermark });
-      this.watchTail(generation);
+      // The tail is watched from the page chain's own last cursor. Online that is the
+      // watermark; offline the adopted store watermark is the resume position, and a
+      // tail opened there would answer only the rows past it and replace the caught-up
+      // page on screen (the browser witness saw a cold inbox shrink to one chat).
+      this.watchTail(generation, cursor);
       return;
     }
   }
@@ -155,10 +159,10 @@ export class DrainSubscription<Args, Result> implements Subscription<Subscriptio
     return refusal;
   }
 
-  private watchTail(generation: number): void {
+  private watchTail(generation: number, from: Cursor | null = this.watermark): void {
     if (!this.current(generation)) return;
     this.tail?.close();
-    const args = { ...(this.options.args as Record<string, unknown>), [this.cursorName]: this.watermark } as Args;
+    const args = { ...(this.options.args as Record<string, unknown>), [this.cursorName]: from } as Args;
     this.tail = this.options.subscribe(args, (event) => {
       if (!this.current(generation)) return;
       if (event.state === "refused") { this.refuse(event); return; }

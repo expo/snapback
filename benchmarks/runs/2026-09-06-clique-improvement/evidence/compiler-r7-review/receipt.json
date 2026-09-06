@@ -1,0 +1,18 @@
+{
+  "astra-review.md": {
+    "bytes": 27711,
+    "sha256": "7d501a4cb078570f21ffee0b6fd5ff85b35ba9f728cee5861740722dd418557b"
+  },
+  "review-evidence-manifest.json": {
+    "bytes": 199077,
+    "sha256": "43a15376e905f0ee8f66f888d375ecfb2037c181f6bd645bcea622b3df240e54"
+  },
+  "terminal-identity.json": {
+    "bytes": 1416,
+    "sha256": "c10c1b10315c9d1cbff84cad57c470a3e22efd1d8ac278a79f4c3473e693bf3c"
+  },
+  "actual-turn-context.json": {
+    "bytes": 313,
+    "sha256": "a37add6950df1d421541ace525e73266ac94c26b656fdb9d33e403b140ec0064"
+  }
+}
