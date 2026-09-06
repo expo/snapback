@@ -76,3 +76,9 @@ or its auth transition. The owner-shaped mutation HTTP 401 defers current-token
 expiry until cleanup, while superseded terminal evidence still clears only
 captured custody. First-upload HTTP 401 also expires custody, including explicit
 uploads; late cancelled cleanup never changes the successor snapshot or token.
+
+Integration follow-up: fetch and XHR parse upload HTTP 401 before authority
+suppression; failed overlapping login cannot restore the invalid bearer, and a
+completed successor remains untouched. The shared raw asset response boundary
+also fences refused and successful body completion. Terminal expiry cancels
+sibling outbox waits while preserving the originating refusal and durable intent.

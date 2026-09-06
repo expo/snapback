@@ -330,3 +330,11 @@ export async function withAbort<T>(signal: AbortSignal, run: () => Promise<T>): 
   try { return await Promise.race([run(), cancelled]); }
   finally { signal.removeEventListener("abort", abort); }
 }
+
+/** Named policy at JSON request boundaries; onSend is the exact wire-custody handoff. */
+export interface JsonRequestOptions {
+  enforceAuthority?: boolean;
+  terminalSession?: "expire" | "after-cleanup" | "keep";
+  authRestoration?: boolean;
+  onSend?: () => void;
+}

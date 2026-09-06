@@ -4,7 +4,7 @@
 import { throwIfAborted } from "./client-wire.js";
 import {
   SnapbackRefusal,
-  isSnapbackRefusal,
+  isSnapbackRefusal, isTerminalSession,
   wireMutation,
   wireObject,
   wireQuery,
@@ -119,6 +119,8 @@ export async function submitMutation<Result>(options: SubmitMutationOptions): Pr
   } catch (error) {
     // A refusal that stopped the replay belongs to the intent that drew it;
     // this one is durable and reports through its entry.
+    // Session expiry sealed the store; preserve its refusal instead of reading through that seal.
+    if (isSnapbackRefusal(error) && isTerminalSession(error.envelope)) throw error;
     const own = await runtime.store.outbox.get(entry.intent);
     if (own && own.state !== "queued") return settledResult<Result>(own, runtime);
     throw error;

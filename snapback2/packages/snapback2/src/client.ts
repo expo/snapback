@@ -34,7 +34,7 @@ import {
   fallbackRefusal,
   isSnapbackRefusal,
   isTerminalSession,
-  responseRefusal,
+  responseRefusal, type JsonRequestOptions,
   sseObject,
   terminalSessionEnvelope,
   wireAuthMe,
@@ -286,7 +286,7 @@ class Client implements SnapbackClient {
           () => this.manifestFor(authority), async (mutationArgs, onCustody) => {
             const result = await submitMutation<Result>({
               runtime: this.offlineRuntime, offline: this.forcedOffline, op: referenceName(ref), args: mutationArgs,
-              json: (path, init, onSend) => this.json(path, init, authority, true, "after-cleanup", false, onSend),
+              json: (path, init, onSend) => this.json(path, init, authority, { terminalSession: "after-cleanup", onSend }),
               failure: (error) => this.offlineRefusal(error),
               drain: () => this.drainNow(authority), onCustody,
             });
@@ -301,10 +301,10 @@ class Client implements SnapbackClient {
             }
             return result;
           });
-        if (result.state === "rejected" && isTerminalSession(result)) await this.terminalAfterCleanup(authority, result);
+        if (result.state === "rejected" && isTerminalSession(result)) await this.terminalRefusal(authority, result, { preserveOutcome: true });
         return result;
       } catch (error) {
-        if (isSnapbackRefusal(error) && isTerminalSession(error.envelope)) await this.terminalAfterCleanup(authority, error.envelope);
+        if (isSnapbackRefusal(error) && isTerminalSession(error.envelope)) await this.terminalRefusal(authority, error.envelope, { preserveOutcome: true });
         if (isSnapbackRefusal(error) && error.code === "E_WIRE_SHAPE") {
           const ambiguous = new SnapbackRefusal(copyRefusal(error.envelope), true);
           this.patchSnapshot({
@@ -324,7 +324,7 @@ class Client implements SnapbackClient {
   async upload(source: AssetUploadSource, options: AssetUploadOptions = {}): Promise<AssetRecord> {
     const authority = await this.operationAuthority();
     return this.trackWrite(() => uploadAsset(this, source, options, authority).catch(async error => {
-      if (isSnapbackRefusal(error) && isTerminalSession(error.envelope)) await this.terminalAfterCleanup(authority, error.envelope);
+      if (isSnapbackRefusal(error) && isTerminalSession(error.envelope)) await this.terminalRefusal(authority, error.envelope);
       throw error;
     }));
   }
@@ -676,7 +676,7 @@ class Client implements SnapbackClient {
     ensureBearerTransition(this, path.slice("/api/auth/".length));
     const session = await this.transition(authority => this.authState.session(path, {
       request: async () => captureGrant(this.offlineRuntime,
-        await this.json(path, { method: "POST", body: JSON.stringify(input) }, authority, false, false)),
+        await this.json(path, { method: "POST", body: JSON.stringify(input) }, authority, { enforceAuthority: false, terminalSession: "keep" })),
       install: async session => {
         await this.openOffline(session.viewer, true, session.authEpoch);
         await this.installToken(session.token, session.viewer);
@@ -696,7 +696,7 @@ class Client implements SnapbackClient {
   private async logout(): Promise<{ ok: boolean }> {
     ensureBearerTransition(this, "logout");
     return this.transition(authority => this.authState.logout({
-      request: () => this.json("/api/auth/logout", { method: "POST" }, authority, false, false),
+      request: () => this.json("/api/auth/logout", { method: "POST" }, authority, { enforceAuthority: false, terminalSession: "keep" }),
       wipe: () => this.wipeOffline(),
       clear: async () => { await this.clearToken(); this.ensureOpen(); this.authGeneration += 1; },
       validated: () => this.validated(undefined),
@@ -727,7 +727,7 @@ class Client implements SnapbackClient {
   private confirmAuth(authority: Authority): Promise<AuthMe> {
     return this.authState.confirm(async signal => {
       try {
-        const result = wireAuthMe(await this.json("/api/auth/me", { signal }, authority, true, true, true));
+        const result = wireAuthMe(await this.json("/api/auth/me", { signal }, authority, { authRestoration: true }));
         throwIfAborted(signal);
         await this.openOffline(result.viewer, true, result.authEpoch);
         this.ensureAuthority(authority);
@@ -737,7 +737,7 @@ class Client implements SnapbackClient {
         this.validated(authority);
         return result;
       } catch (error) {
-        if (anonymousAuth(error) && this.authorityCurrent(authority)) await this.expireSession(authority, undefined, true);
+        if (anonymousAuth(error) && this.authorityCurrent(authority)) await this.expireSession(authority, { fromAuth: true });
         throw error;
       }
     });
@@ -827,11 +827,9 @@ class Client implements SnapbackClient {
     path: string,
     init: RequestInit,
     authority: Authority,
-    enforceAuthority = true,
-    clearTerminalSession: boolean | "after-cleanup" = true,
-    authRestoration = false,
-    onSend?: () => void,
+    options: JsonRequestOptions = {},
   ): Promise<unknown> {
+    const { enforceAuthority = true, terminalSession = "expire", authRestoration = false, onSend } = options;
     throwIfAborted(init.signal);
     if (enforceAuthority) this.ensureAuthority(authority);
     else this.ensureOpen();
@@ -874,15 +872,15 @@ class Client implements SnapbackClient {
         if (!authRestoration) throwIfAborted(init.signal);
         const wasCurrent = !enforceAuthority || this.authorityCurrent(authority);
         let expiration: SessionExpiration | undefined;
-        if (clearTerminalSession && authority.token !== undefined && isTerminalSession(refusal.envelope)
-          && (clearTerminalSession === true || !wasCurrent)) {
-          expiration = await this.expireSession(authority, undefined, authRestoration && this.authorityCurrent(authority));
+        if (terminalSession !== "keep" && authority.token !== undefined && isTerminalSession(refusal.envelope)
+          && (terminalSession === "expire" || !wasCurrent)) {
+          expiration = await this.expireSession(authority, { signal: init.signal, fromAuth: authRestoration && this.authorityCurrent(authority) });
         }
         if (enforceAuthority && (!wasCurrent
           || (expiration !== undefined && !this.expirationCurrent(expiration)))) {
           throw this.supersededRefusal();
         }
-        if (enforceAuthority && !(clearTerminalSession === true && isTerminalSession(refusal.envelope))) {
+        if (enforceAuthority && !(terminalSession === "expire" && isTerminalSession(refusal.envelope))) {
           this.ensureAuthority(authority);
         }
         else this.ensureOpen();
@@ -914,7 +912,7 @@ class Client implements SnapbackClient {
     if (!authRestoration) throwIfAborted(init.signal);
     let terminal: RefusalEnvelope | undefined;
     try {
-      terminal = clearTerminalSession ? terminalSessionEnvelope(value) : undefined;
+      terminal = terminalSession !== "keep" ? terminalSessionEnvelope(value) : undefined;
     } catch (error) {
       throwIfAborted(init.signal);
       if (enforceAuthority) this.ensureAuthority(authority);
@@ -988,7 +986,7 @@ class Client implements SnapbackClient {
       const wasCurrent = this.authorityCurrent(authority);
       let expiration: SessionExpiration;
       try {
-        expiration = await this.expireSession(authority, origin);
+        expiration = await this.expireSession(authority, { origin });
       } catch (error) {
         if (this.closed) {
           return { retry: false, refusal: this.supersededRefusal() };
@@ -1118,11 +1116,11 @@ class Client implements SnapbackClient {
     return run;
   }
 
-  private abortSync(): void {
-    this.resumeController?.abort();
-    for (const controller of this.drainControllers) controller.abort();
-    this.resumeController = undefined;
-    this.resumeFlight = undefined;
+  private abortSync(except?: AbortSignal | null): void {
+    if (this.resumeController?.signal !== except) {
+      this.resumeController?.abort(); this.resumeController = undefined; this.resumeFlight = undefined;
+    }
+    for (const controller of this.drainControllers) if (controller.signal !== except) controller.abort();
   }
 
   private async resumeOffline(authority: Authority, signal: AbortSignal): Promise<void> {
@@ -1218,11 +1216,11 @@ class Client implements SnapbackClient {
     } finally { this.drainControllers.delete(controller); }
   }
 
-  private async terminalAfterCleanup(authority: Authority, refusal: RefusalEnvelope): Promise<void> {
+  async terminalRefusal(authority: Authority, refusal: RefusalEnvelope, options: { preserveOutcome?: boolean } = {}): Promise<void> {
     // Discard first; cleanup expiry preserves the already settled outcome.
     const wasCurrent = this.authorityCurrent(authority);
     const expiration = await this.expireSession(authority);
-    if (expiration.cleared && (!wasCurrent || !this.expirationCurrent(expiration))) throw this.supersededRefusal();
+    if (expiration.cleared ? (!wasCurrent || !this.expirationCurrent(expiration)) : (!wasCurrent && !options.preserveOutcome)) throw this.supersededRefusal();
     this.recordRefusal(refusal);
   }
 
@@ -1313,16 +1311,17 @@ class Client implements SnapbackClient {
     return run;
   }
 
-  private async expireSession(authority: Authority, origin?: Subscription<unknown>, fromAuth = false): Promise<SessionExpiration> {
+  private async expireSession(authority: Authority, options: { origin?: Subscription<unknown>; fromAuth?: boolean; signal?: AbortSignal | null } = {}): Promise<SessionExpiration> {
     if (authority.token === undefined) return { cleared: false };
     return this.custody(async () => {
       if (this.currentToken !== authority.token
         || this.custodyGeneration !== authority.custodyGeneration) return { cleared: false };
       this.operationFence += 1;
-      if (!fromAuth) this.authState.reset({ state: "hydrating" });
+      this.abortSync(options.signal);
+      if (!options.fromAuth) this.authState.reset({ state: "hydrating" });
       const fence = this.operationFence;
       const authGeneration = this.authGeneration + 1;
-      this.closeTransports(origin);
+      this.closeTransports(options.origin);
       let sealFailure: unknown;
       let anonymous = false;
       try {
