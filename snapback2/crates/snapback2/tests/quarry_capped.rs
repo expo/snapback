@@ -284,7 +284,7 @@ export const list = query({ group: t.ref(groups) }, ({ db, args }) => {
         r#"
 import {{ lowerSource }} from {lower};
 import {{ lowerSchema }} from {schema};
-const schema = lowerSchema(await Bun.file({schema_file}).text(), "schema.ts");
+const schema = lowerSchema(await Bun.file({schema_file}).text(), "schema.ts", true);
 if (schema.diagnostics.length) throw new Error(JSON.stringify(schema.diagnostics));
 const result = lowerSource({source}, "items.ts", undefined, {{ tables: schema.tables }});
 if (!result.ok) throw new Error(JSON.stringify(result.diagnostics));
