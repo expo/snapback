@@ -1,0 +1,23 @@
+{
+  "pid": 71045,
+  "startedAt": "2026-09-06T15:17:18.848986+00:00",
+  "command": [
+    "/Users/ccheever/.volta/bin/codex",
+    "exec",
+    "--sandbox",
+    "read-only",
+    "--skip-git-repo-check",
+    "--color",
+    "never",
+    "-m",
+    "gpt-6-astra",
+    "-c",
+    "model_reasoning_effort=\"xhigh\"",
+    "-C",
+    "/Users/ccheever/clique-improvement/scoring/astra-008-historical-controls-r2/inputs",
+    "-o",
+    "/Users/ccheever/clique-improvement/scoring/astra-008-historical-controls-r2/score.md",
+    "-"
+  ],
+  "scope": "Historical-control interim narrative rescore; not full goal completion"
+}

@@ -1,0 +1,3200 @@
+{
+  "createdAt": "2026-09-06T15:16:49.539273+00:00",
+  "classification": "Historical-control interim narrative rescore, N=1, no full M7 or concurrent matched-control claim. Independent grader outputs excluded.",
+  "sources": {
+    "astra-snapback2": "/Users/ccheever/clique-improvement/grading/astra-008/sealed/source",
+    "astra-convex": "/Users/ccheever/clique-full-20260905/lanes/astra-convex",
+    "astra-supabase": "/Users/ccheever/clique-full-20260905/lanes/astra-supabase"
+  },
+  "sourceSelection": "All five original narratives verbatim; bounded source/config text for claim checking, no secrets/state/build/evidence directories. Nothing executed.",
+  "files": [
+    {
+      "lane": "astra-snapback2",
+      "path": "App.tsx",
+      "bytes": 1371,
+      "sha256": "d6dbff9f99632f2e6ef174829072b0f5f74fd6f6748e6ef26476ad98c01e6e6b"
+    },
+    {
+      "lane": "astra-snapback2",
+      "path": "app.json",
+      "bytes": 374,
+      "sha256": "43aec7032d4c2f2ffce58d7eff622024955aa9588cc59fb3dad31ed8fc54f252"
+    },
+    {
+      "lane": "astra-snapback2",
+      "path": "final-report.md",
+      "bytes": 27691,
+      "sha256": "8eb6bdb89476ae3ebf6aa53c4b66c7f164ce9a6a05a786300dffe8a0acee65c1"
+    },
+    {
+      "lane": "astra-snapback2",
+      "path": "index.js",
+      "bytes": 99,
+      "sha256": "af10e01cf5fa6d399a83829926cc80d935c1dca8fb01313ab7cb54aab84c028b"
+    },
+    {
+      "lane": "astra-snapback2",
+      "path": "essay.md",
+      "bytes": 9113,
+      "sha256": "65712c1822f41906197c42f7e50de5ab23666756c253294eed678cbdfdfb2c13"
+    },
+    {
+      "lane": "astra-snapback2",
+      "path": "metro.config.js",
+      "bytes": 1085,
+      "sha256": "d36566d01da50f342719481be9217318c74d2bc49c70587e1dc739727ff3d74f"
+    },
+    {
+      "lane": "astra-snapback2",
+      "path": "package-lock.json",
+      "bytes": 396184,
+      "sha256": "60d2f516f26bb0f3cbb2e8464885cb4b57adf9eb67fc7986e691cb2cee009473"
+    },
+    {
+      "lane": "astra-snapback2",
+      "path": "package.json",
+      "bytes": 1345,
+      "sha256": "24161346901ad21cb330ec91ef5cc5007bbcbd91214e3582d80bda78ac9cbdcf"
+    },
+    {
+      "lane": "astra-snapback2",
+      "path": "run-log.md",
+      "bytes": 25961,
+      "sha256": "ed0d71e90439bd6781c10a59c3fe714abf070d2c5c6de5bf323a4b68e9dfdaf5"
+    },
+    {
+      "lane": "astra-snapback2",
+      "path": "tsconfig.json",
+      "bytes": 186,
+      "sha256": "f44d57ecb1dc09291db4fae7c8fe9cea4058a1fc0a759631b15c998647595124"
+    },
+    {
+      "lane": "astra-snapback2",
+      "path": "diary.md",
+      "bytes": 15875,
+      "sha256": "7fa2502ef0dea6a0c475d43b5d9aed1c1daa07daf5c585372d4d27c400cb2a28"
+    },
+    {
+      "lane": "astra-snapback2",
+      "path": "run-record.json",
+      "bytes": 12269,
+      "sha256": "6b1f5fb978f1c1466ea30dfc19ea6071659a926f63f90b407777be2620399d0c"
+    },
+    {
+      "lane": "astra-snapback2",
+      "path": "ui/package-lock.json",
+      "bytes": 107273,
+      "sha256": "7f85af6400935faf9e2938402dbb32a697040bf51fff2ff8f2ebf99a133e710d"
+    },
+    {
+      "lane": "astra-snapback2",
+      "path": "ui/package.json",
+      "bytes": 577,
+      "sha256": "15fa8a0fc0b19bdebb1b1e22caa29c7c3870c654448ecf3e65d8efa7c8d3bdbb"
+    },
+    {
+      "lane": "astra-snapback2",
+      "path": "ui/tsconfig.json",
+      "bytes": 483,
+      "sha256": "2cc903a9988d9a855b708f4db8acd679dd015a691cb4ee26a6bfb5cd3074ef52"
+    },
+    {
+      "lane": "astra-snapback2",
+      "path": "ui/index.ts",
+      "bytes": 836,
+      "sha256": "ddefaf68b4cbcf90bfc60de0f3d1cfd87101eae71a63971354e8c008eec1f26b"
+    },
+    {
+      "lane": "astra-snapback2",
+      "path": "ui/test/observability-contract.test.mjs",
+      "bytes": 2201,
+      "sha256": "c2e97def1b1751b1bdcb0512040337fd1b2f0835843511a3df4004b4683f21ba"
+    },
+    {
+      "lane": "astra-snapback2",
+      "path": "ui/test/quoted-reply.test.mjs",
+      "bytes": 862,
+      "sha256": "981b75d68007c9d128b9f79ac1ede2c2d0fe4363a81ac95c2340166088f1ea20"
+    },
+    {
+      "lane": "astra-snapback2",
+      "path": "ui/src/ReactionPicker.tsx",
+      "bytes": 3123,
+      "sha256": "b9915553325c3ff09dcfa9234a307e2c947f4f423c25359393cf5c9ba2d6bcfb"
+    },
+    {
+      "lane": "astra-snapback2",
+      "path": "ui/src/PollDisplay.tsx",
+      "bytes": 4402,
+      "sha256": "7e925c52b426fa8e5d2e371fcc60e3fb32d6349ad59567c56e5e3f67c38aa531"
+    },
+    {
+      "lane": "astra-snapback2",
+      "path": "ui/src/ReceiptTicks.tsx",
+      "bytes": 1700,
+      "sha256": "a1ac8a8d039b1db716d46325228ed8169a068d9aea05137391cb7b5ed02a4ce1"
+    },
+    {
+      "lane": "astra-snapback2",
+      "path": "ui/src/InsightsSummary.tsx",
+      "bytes": 2060,
+      "sha256": "2be73279d8b4fcec36253d0e7f19218e32bcaf5d79a756d9433e0852d22da605"
+    },
+    {
+      "lane": "astra-snapback2",
+      "path": "ui/src/FeedCard.tsx",
+      "bytes": 9249,
+      "sha256": "13be800f84dba8fbad13b545982690a5c1301fcedd0d6d8cdc2741474bba04ff"
+    },
+    {
+      "lane": "astra-snapback2",
+      "path": "ui/src/ChatSettingsForm.tsx",
+      "bytes": 15197,
+      "sha256": "5aec6478ea056eefc9b6f6e7bbcfd56d8d635e5558c017e261725ec2879e1a9a"
+    },
+    {
+      "lane": "astra-snapback2",
+      "path": "ui/src/FeedTabs.tsx",
+      "bytes": 2417,
+      "sha256": "ddd5ef212c8cd97927538d56432f1c989e90e8611c7033f5f5e8ab40af077da7"
+    },
+    {
+      "lane": "astra-snapback2",
+      "path": "ui/src/InsightsBarList.tsx",
+      "bytes": 3580,
+      "sha256": "503f0cf202b0e4cf316dd8537b544ea45bb9e8f0e45c51b0f2666fe88778e242"
+    },
+    {
+      "lane": "astra-snapback2",
+      "path": "ui/src/ChatListRow.tsx",
+      "bytes": 4035,
+      "sha256": "0649e3f59b209997dd88b690cdb8292a22af4240a2e1856bb39c573847d59c2f"
+    },
+    {
+      "lane": "astra-snapback2",
+      "path": "ui/src/ProfileForm.tsx",
+      "bytes": 11452,
+      "sha256": "2d4eed03035a3fbcf700d9bce8eb9bc52afac88c81739dd025f8c8cf198c6bb7"
+    },
+    {
+      "lane": "astra-snapback2",
+      "path": "ui/src/SearchBar.tsx",
+      "bytes": 6284,
+      "sha256": "c0327283375be77223811c282de46cb6b7c20385088026c359fe1aa9d79cd420"
+    },
+    {
+      "lane": "astra-snapback2",
+      "path": "ui/src/TrendingRow.tsx",
+      "bytes": 2351,
+      "sha256": "cdaf53d7e9c6c8432cefca5662f41cd72fda689e3462cb90f506b37ec597a1f8"
+    },
+    {
+      "lane": "astra-snapback2",
+      "path": "ui/src/QuotedReply.tsx",
+      "bytes": 1998,
+      "sha256": "65e24e92c10d2773582854b05a56574630b351945699d4b1a158760c3e0213ec"
+    },
+    {
+      "lane": "astra-snapback2",
+      "path": "ui/src/AuthForm.tsx",
+      "bytes": 4535,
+      "sha256": "c222139ae5f5bd1ab2aaad81e9b473f9eaa3596c3999d581ace23225e9d78efb"
+    },
+    {
+      "lane": "astra-snapback2",
+      "path": "ui/src/tokens.ts",
+      "bytes": 1935,
+      "sha256": "dd5f86492fe4a7e4595c255f0b0c48f3ab563a726765230eb528d41f80773c02"
+    },
+    {
+      "lane": "astra-snapback2",
+      "path": "ui/src/PollCompose.tsx",
+      "bytes": 5401,
+      "sha256": "5a143045095ae1bae8e640317799fbbed49db436594a0dd72226b9620f525054"
+    },
+    {
+      "lane": "astra-snapback2",
+      "path": "ui/src/MessageBubble.tsx",
+      "bytes": 10810,
+      "sha256": "7e59f6154708cc1efe659ea5e6dffe5f533394451b4801b419d0bd68f07dec6d"
+    },
+    {
+      "lane": "astra-snapback2",
+      "path": "ui/src/Avatar.tsx",
+      "bytes": 2089,
+      "sha256": "f2fd0c6507bc727cb3066ca4f33edae05fc3e963ba3d51e8efcc62256b6411f5"
+    },
+    {
+      "lane": "astra-snapback2",
+      "path": "ui/src/Composer.tsx",
+      "bytes": 6858,
+      "sha256": "0c9179e47bb78a42a42e6743f512ecc497d814cfb007ed45f9155410e00074c2"
+    },
+    {
+      "lane": "astra-snapback2",
+      "path": "ui/src/TypingIndicator.tsx",
+      "bytes": 2625,
+      "sha256": "9c792b0a53c87482008c9f2effce9943b329fab6fd600b7411a8e6ada76078d9"
+    },
+    {
+      "lane": "astra-snapback2",
+      "path": "ui/src/linkify.tsx",
+      "bytes": 1060,
+      "sha256": "5e705a9336b230c74fcd2a5cb00fd9096b78fd526b54882e77b8e48158428717"
+    },
+    {
+      "lane": "astra-snapback2",
+      "path": "template-reference/snapback/seed.ts",
+      "bytes": 2593,
+      "sha256": "669b7f9c19209d59f5cbda0b9798ac2929a9117784c12cdedea36284cd774436"
+    },
+    {
+      "lane": "astra-snapback2",
+      "path": "template-reference/snapback/groups.q",
+      "bytes": 2117,
+      "sha256": "f6d1b3325d3aec1ffb63cd70fd3de39a70be2c55d3982081125b4202bc06c381"
+    },
+    {
+      "lane": "astra-snapback2",
+      "path": "template-reference/snapback/profiles.q",
+      "bytes": 919,
+      "sha256": "dc474dc4b739bd5346efb98d4bbfbc10850a91aa1833ae911aa5adf11af03e53"
+    },
+    {
+      "lane": "astra-snapback2",
+      "path": "template-reference/snapback/notifications.q",
+      "bytes": 184,
+      "sha256": "02cf8894ae5ed7d28ea8e56e7258dbc7e973f5ae6f253eadd7e34e94d2fa7347"
+    },
+    {
+      "lane": "astra-snapback2",
+      "path": "template-reference/snapback/feeds.q",
+      "bytes": 424,
+      "sha256": "bfe02e3eec0c441572bc2215d51eb41b8262119590e28eb4febc3cfd1d39008b"
+    },
+    {
+      "lane": "astra-snapback2",
+      "path": "template-reference/snapback/messages.q",
+      "bytes": 2227,
+      "sha256": "cd698245480cbbe1fae20375bdb4607dd1a03886aa10320fd7c2f968a4628406"
+    },
+    {
+      "lane": "astra-snapback2",
+      "path": "template-reference/snapback/deliveries.q",
+      "bytes": 2437,
+      "sha256": "765a7807e84f358926bb304477c2479d797b8aec3483a8305cf7290f0427c498"
+    },
+    {
+      "lane": "astra-snapback2",
+      "path": "template-reference/snapback/posts.q",
+      "bytes": 208,
+      "sha256": "683a4ab4e9733e88ad2f387d95d5a525725b1917dd79401ede09721b8d7a0df6"
+    },
+    {
+      "lane": "astra-snapback2",
+      "path": "template-reference/snapback/follows.q",
+      "bytes": 413,
+      "sha256": "4e5faec00894e94c1c860bb9d21dde330c665767276bb7dc7372ef59b78c73f0"
+    },
+    {
+      "lane": "astra-snapback2",
+      "path": "template-reference/snapback/delivery.ts",
+      "bytes": 1148,
+      "sha256": "ad73441f683c6a6024f8b54f0ea23dc037c01a89aa24364f2aec6d50d666a528"
+    },
+    {
+      "lane": "astra-snapback2",
+      "path": "template-reference/snapback/schema.q",
+      "bytes": 3962,
+      "sha256": "f4625d0f8a45175536ee3cd26f013df6da4fa91a5c6697391b509b09616e8e04"
+    },
+    {
+      "lane": "astra-snapback2",
+      "path": "template-reference/snapback/tests/chat.test.ts",
+      "bytes": 43787,
+      "sha256": "73b5c728d98c10e0fee67eda8e288777868f4bb4f6603fd0c3c69d05d7d504f9"
+    },
+    {
+      "lane": "astra-snapback2",
+      "path": "app/settings.tsx",
+      "bytes": 691,
+      "sha256": "c034b78b7074822f5982dd4b89b2bcf21bb0f61d07d8423d5fe40b5225d9ccd9"
+    },
+    {
+      "lane": "astra-snapback2",
+      "path": "app/index.tsx",
+      "bytes": 40,
+      "sha256": "a92705a167d831d094bd155b4cf99bcbb06f003c07927528afb014afc6d9f5ba"
+    },
+    {
+      "lane": "astra-snapback2",
+      "path": "app/chats.tsx",
+      "bytes": 41,
+      "sha256": "68cc482fa2ac3e031275d28e2da7d9ac89001eec21561dc73026eed8b1b2f2d9"
+    },
+    {
+      "lane": "astra-snapback2",
+      "path": "app/new-chat.tsx",
+      "bytes": 1514,
+      "sha256": "1e26a54493e8abbb66e587572272f93042c760efd22344a27843106d472c1c32"
+    },
+    {
+      "lane": "astra-snapback2",
+      "path": "app/search.tsx",
+      "bytes": 42,
+      "sha256": "451f416ed4d3743a1c3babdf9a17bb55e848267df4106fc3b030cbaf33962918"
+    },
+    {
+      "lane": "astra-snapback2",
+      "path": "app/insights.tsx",
+      "bytes": 43,
+      "sha256": "85a269d7d538750cda2ce1ba7dc32272c09c330ff8875581f777f3ee9f6cec0f"
+    },
+    {
+      "lane": "astra-snapback2",
+      "path": "app/_layout.tsx",
+      "bytes": 3273,
+      "sha256": "81ed7d8f2c7b6307e3bdaecbf45e58230220deea1187019f633d37d0237d87df"
+    },
+    {
+      "lane": "astra-snapback2",
+      "path": "app/post/[id].tsx",
+      "bytes": 655,
+      "sha256": "1685ff7c274c31214bd4c04a2cbf373463240014098c528e1b71315de7a560ca"
+    },
+    {
+      "lane": "astra-snapback2",
+      "path": "app/profile/[handle].tsx",
+      "bytes": 224,
+      "sha256": "5977066b8d246d7709013e665ba202514c222c7a444ca729d04fe5fce6be5617"
+    },
+    {
+      "lane": "astra-snapback2",
+      "path": "app/profile/edit.tsx",
+      "bytes": 138,
+      "sha256": "36e9024ec7833b2fa8637b10d2b913c94169034f8ff8cd5ef9ab0c2f64fc3d7e"
+    },
+    {
+      "lane": "astra-snapback2",
+      "path": "app/conversation/[handle].tsx",
+      "bytes": 215,
+      "sha256": "714739fa66849e428ab87244f42961391a00c120209348fc0c6c5915e7ea2a2a"
+    },
+    {
+      "lane": "astra-snapback2",
+      "path": "app/conversation/group/[group]/settings.tsx",
+      "bytes": 228,
+      "sha256": "393cda3850019123aeac4e3919625057bf8269079bfa72f3e325f5c70aab1aaf"
+    },
+    {
+      "lane": "astra-snapback2",
+      "path": "app/conversation/group/[group]/index.tsx",
+      "bytes": 219,
+      "sha256": "6f818b6d033584e0cb44bd3f8c3970975e4aeb402bb9a7574b26b0d65c861cef"
+    },
+    {
+      "lane": "astra-snapback2",
+      "path": "app/conversation/id/[id]/settings.tsx",
+      "bytes": 222,
+      "sha256": "b66be82cfde4b12f763cbba1c07db1c8bad6538333d62d953a3fc98bac21c929"
+    },
+    {
+      "lane": "astra-snapback2",
+      "path": "app/conversation/id/[id]/index.tsx",
+      "bytes": 213,
+      "sha256": "9a639b02a2fd2c77a017dd23bc8c74b159abe02623836696313ffa890726ba49"
+    },
+    {
+      "lane": "astra-snapback2",
+      "path": "shared/offline.js",
+      "bytes": 1346,
+      "sha256": "3fc8f970044627aab41d2c7a4f079c9d6cfeab303715f4955400cad89770afa2"
+    },
+    {
+      "lane": "astra-snapback2",
+      "path": "shared/log.js",
+      "bytes": 4010,
+      "sha256": "37ae65c8d755e5fb9a793c415a7a116b499628ccbd8946d6c25d954a6a5cc37b"
+    },
+    {
+      "lane": "astra-snapback2",
+      "path": "shared/offline.ts",
+      "bytes": 1608,
+      "sha256": "04d78283ba4ba52228d8a1ddcb1ca9758242358694d31e6c6e809eaf20333fd6"
+    },
+    {
+      "lane": "astra-snapback2",
+      "path": "shared/log.ts",
+      "bytes": 6454,
+      "sha256": "7a3fe9c8461bd98166d69832b65ab6054e49ccb9c98a00be315f13ac4f87f5aa"
+    },
+    {
+      "lane": "astra-snapback2",
+      "path": "ios/Podfile.properties.json",
+      "bytes": 77,
+      "sha256": "4222d802ab80961762b71603a713160c16c0fa3ce5d6c74a111c67785872331a"
+    },
+    {
+      "lane": "astra-snapback2",
+      "path": "ios/CliqueProofTests/CliqueProofTests.swift",
+      "bytes": 2127,
+      "sha256": "e85c72b4d8f885ca7b09046472625a68821fdc5b929503efd2f8a6a1b671557a"
+    },
+    {
+      "lane": "astra-snapback2",
+      "path": "ios/Clique/AppDelegate.swift",
+      "bytes": 2275,
+      "sha256": "614cbb9b09ac561c762a384c658d3c2a0cd28b30cc29b6e72cb25def9783e3d5"
+    },
+    {
+      "lane": "astra-snapback2",
+      "path": "ios/Clique/Images.xcassets/Contents.json",
+      "bytes": 62,
+      "sha256": "632a1481b9e3b957f3b34267728744d61272e3db32751432551b9eb7c58ad7a2"
+    },
+    {
+      "lane": "astra-snapback2",
+      "path": "ios/Clique/Images.xcassets/AppIcon.appiconset/Contents.json",
+      "bytes": 215,
+      "sha256": "344a731ecf43e614be1d95fc1549918fae139fc41bce5db8d00c8359f712e3b2"
+    },
+    {
+      "lane": "astra-snapback2",
+      "path": "ios/Clique/Images.xcassets/SplashScreenBackground.colorset/Contents.json",
+      "bytes": 348,
+      "sha256": "82bdb39c90d2095ac1811d817b07da32d401c7cb37f100efd31c19410465b14f"
+    },
+    {
+      "lane": "astra-snapback2",
+      "path": "scripts/inspect-offline.mjs",
+      "bytes": 2067,
+      "sha256": "a80c58aeaf5acbc42a40c23f981a6b5675e27e5c21935699b00e0b0450c2fa03"
+    },
+    {
+      "lane": "astra-snapback2",
+      "path": "scripts/seed.mjs",
+      "bytes": 91,
+      "sha256": "8d102ed2c421176cc3b7e1e985c9dc92e3528df84f92a5edf53fbd6dd5150471"
+    },
+    {
+      "lane": "astra-snapback2",
+      "path": "scripts/restore-production.mjs",
+      "bytes": 1570,
+      "sha256": "10d4d5f7fb4b053cb6dc5983763f0848b7578fac539ddeefa5b8a6c71fe9a1e1"
+    },
+    {
+      "lane": "astra-snapback2",
+      "path": "scripts/configure.cjs",
+      "bytes": 801,
+      "sha256": "e1a05fec3c550cf66a2e234fa6d65972d2ab1ba42fcd94810a4ec806cb0ff28b"
+    },
+    {
+      "lane": "astra-snapback2",
+      "path": "scripts/cleanup-fixture-uploads.mjs",
+      "bytes": 832,
+      "sha256": "8e0da32d284ef720c637350ec9d7d1cc13f9ea1170d654f1e53cba0d4a450e6e"
+    },
+    {
+      "lane": "astra-snapback2",
+      "path": "scripts/acceptance.mjs",
+      "bytes": 122,
+      "sha256": "14a0c7c5964802a984459d858dec6c186af498d8d2bd718923c377a94447372a"
+    },
+    {
+      "lane": "astra-snapback2",
+      "path": "scripts/digest-proof.mjs",
+      "bytes": 4553,
+      "sha256": "5679f2953fd4efd81f2eaab70a60ff7d65cab773e9492a3105284b3d3c1e9289"
+    },
+    {
+      "lane": "astra-snapback2",
+      "path": "scripts/inspect-follow.mjs",
+      "bytes": 1986,
+      "sha256": "1a4638d7e3df43027bb850463a2d4f7b2ea23eeb30a56ff20c4a6281c6d84c69"
+    },
+    {
+      "lane": "astra-snapback2",
+      "path": "scripts/inspect-follow-diff.mjs",
+      "bytes": 2227,
+      "sha256": "ccc89303a6af9faed6eca4b5b1e787ee5bb89ad8f69c836d2e8015b8a3d17bf8"
+    },
+    {
+      "lane": "astra-snapback2",
+      "path": "scripts/scale-extra-probes.mjs",
+      "bytes": 1827,
+      "sha256": "872d8469dac5a7c5f60786cff30ecdd71a88b623c7f21c98d59ae1a3db3bbe70"
+    },
+    {
+      "lane": "astra-snapback2",
+      "path": "scripts/report-data.mjs",
+      "bytes": 11229,
+      "sha256": "bcefcc46b6f57002c280ad6fdf4930d23718ba764d3cd3ecba047900f8d176db"
+    },
+    {
+      "lane": "astra-snapback2",
+      "path": "scripts/choreography.mjs",
+      "bytes": 767,
+      "sha256": "3c2c2cae2cce5f8c14ba16e89f75902207ce1d4c48a1f6ca4063108b8cc09c04"
+    },
+    {
+      "lane": "astra-snapback2",
+      "path": "scripts/reset-choreo-roster.mjs",
+      "bytes": 743,
+      "sha256": "94d2ee7e2077f47585985abc0c3a51c11110af86a039c68dbf686eeb1883689b"
+    },
+    {
+      "lane": "astra-snapback2",
+      "path": "scripts/two-tab-proof.mjs",
+      "bytes": 1304,
+      "sha256": "99bfae675b1b13b7873eab76e741e205d80a2c2efb543c94d7dd70cbb4922eee"
+    },
+    {
+      "lane": "astra-snapback2",
+      "path": "scripts/acceptance-m8.mjs",
+      "bytes": 100,
+      "sha256": "1a0a68608753f01667e16c9f9ed86286981c648facbc3cc75643f602dd5073b2"
+    },
+    {
+      "lane": "astra-snapback2",
+      "path": "scripts/scale-observer.mjs",
+      "bytes": 6011,
+      "sha256": "4bfb15b326f45bf70e23f9db129d5c14d9a2c19c2ffe05a381c911e7dfa2594d"
+    },
+    {
+      "lane": "astra-snapback2",
+      "path": "scripts/choreo-fixtures.mjs",
+      "bytes": 1099,
+      "sha256": "30ae22d443456251abf8a5413240d868af4af4b9c173e6d9ce95c1fa06a7baa8"
+    },
+    {
+      "lane": "astra-snapback2",
+      "path": "scripts/inspect-ui.mjs",
+      "bytes": 1043,
+      "sha256": "8844631402c22bb30fc694df0e407591d81960044977b76c87e5b71c66ba6969"
+    },
+    {
+      "lane": "astra-snapback2",
+      "path": "scripts/inspect-search.mjs",
+      "bytes": 1050,
+      "sha256": "72abe6de290a15b3c68da1ef64479cf83106779b0b13fe684b2bf518b2a20554"
+    },
+    {
+      "lane": "astra-snapback2",
+      "path": "scripts/configure-runtime.mjs",
+      "bytes": 717,
+      "sha256": "332b0de321266539ddce20a3d25d8140e0388714ee6f13a49fb0a742416e2aaf"
+    },
+    {
+      "lane": "astra-snapback2",
+      "path": "scripts/verify-scale.mjs",
+      "bytes": 7421,
+      "sha256": "7dd6f84394456b08e74ee11b23a525de1487ab51b2663d6d1760f895f8b266ee"
+    },
+    {
+      "lane": "astra-snapback2",
+      "path": "scripts/setup-identity.cjs",
+      "bytes": 931,
+      "sha256": "6f2f3facbb6ab0862d6f37303f571c14b5ffd583df937e11c7ab8cba97dfd368"
+    },
+    {
+      "lane": "astra-snapback2",
+      "path": "scripts/validate-run-record.mjs",
+      "bytes": 1317,
+      "sha256": "a5b220b3dda16e0940a82c7807815c8234d2627e4a3722c69de84920393e988f"
+    },
+    {
+      "lane": "astra-snapback2",
+      "path": "scripts/inspect-sync.mjs",
+      "bytes": 1506,
+      "sha256": "078e7a37df4f224a72a0a5a67e01d9742fc7024e5de1c70887437f0fe9b02700"
+    },
+    {
+      "lane": "astra-snapback2",
+      "path": "scripts/scale-cold-web.mjs",
+      "bytes": 1776,
+      "sha256": "7e9634c45fff67ab2db9e099b6508be658cfed6a6ad6f677e47938ee7f811083"
+    },
+    {
+      "lane": "astra-snapback2",
+      "path": "scripts/inspect-settings-direct.mjs",
+      "bytes": 1075,
+      "sha256": "b70973bfb2c3cce38c854bcf9b17ee67fd22c4e426a2fa8e32fed05387970572"
+    },
+    {
+      "lane": "astra-snapback2",
+      "path": "scripts/inspect-group-alice.mjs",
+      "bytes": 1148,
+      "sha256": "2016cc4d1e7542c9b7e2bf60cf35f9223b5b9c37bca1f07d2042bbdde6a50e53"
+    },
+    {
+      "lane": "astra-snapback2",
+      "path": "scripts/summarize-performance.mjs",
+      "bytes": 3593,
+      "sha256": "1e58eda31e63c746de48b86fe5ec8b42411ca797ae0a22d48e0627b90d50fee7"
+    },
+    {
+      "lane": "astra-snapback2",
+      "path": "scripts/custom-client.mjs",
+      "bytes": 1130,
+      "sha256": "5d88f5c4063744a300eafa111db4cd6e1a5c519f861244f6a37e34ac33fa703d"
+    },
+    {
+      "lane": "astra-snapback2",
+      "path": "scripts/search-text.mjs",
+      "bytes": 242,
+      "sha256": "b781a9e6bf869fc264941a4a83e529d0215169b01857cf96ce2741e93323b6e9"
+    },
+    {
+      "lane": "astra-snapback2",
+      "path": "scripts/replay.mjs",
+      "bytes": 6952,
+      "sha256": "1bea966b6ca710b42862d74c339620e583fe0e1111b88e2c60a91ebc9cf161ab"
+    },
+    {
+      "lane": "astra-snapback2",
+      "path": "scripts/post-scale.mjs",
+      "bytes": 2441,
+      "sha256": "ca8b5ba892b0bfc375944f48855bcacba55fb0b878040cb3134df5b3ab447876"
+    },
+    {
+      "lane": "astra-snapback2",
+      "path": "scripts/custom-client-demo.mjs",
+      "bytes": 1464,
+      "sha256": "8d4b3854b27cea1f4c1049fd5fba8a39a14895f6e3ea7fb0209499d438bab9a3"
+    },
+    {
+      "lane": "astra-snapback2",
+      "path": "scripts/json-schema.mjs",
+      "bytes": 290,
+      "sha256": "5056fad1eb0a05a32d3eae6af26492b86a170733adf96667639bb0fe70801050"
+    },
+    {
+      "lane": "astra-snapback2",
+      "path": "scripts/finalize-report.mjs",
+      "bytes": 20689,
+      "sha256": "35b9ab88d4bf831d1a017b9579dd9b4e229a5faa3e4898363d7f0f96dc527c6f"
+    },
+    {
+      "lane": "astra-snapback2",
+      "path": "scripts/inspect-background.mjs",
+      "bytes": 1074,
+      "sha256": "9a6b7c062cf133ea049fbeb62fb66cb63a5d998afd81fa0ea2d92064a97faa8d"
+    },
+    {
+      "lane": "astra-snapback2",
+      "path": "scripts/performance-writes.mjs",
+      "bytes": 3932,
+      "sha256": "b850d582b4b4a83cdf41583ced1420fadb538587abf607c3ec932aa384bdb40d"
+    },
+    {
+      "lane": "astra-snapback2",
+      "path": "scripts/acceptance-m4.mjs",
+      "bytes": 100,
+      "sha256": "1854a33a086583fafa4b3312b76815f530f13a7dc625f06556fb38f5626d59d7"
+    },
+    {
+      "lane": "astra-snapback2",
+      "path": "scripts/acceptance-m5.mjs",
+      "bytes": 100,
+      "sha256": "6072f05f475d5e72555ba62fcf41270302a706ba8bfa88a557036b35f512aa19"
+    },
+    {
+      "lane": "astra-snapback2",
+      "path": "scripts/index-fixtures.mjs",
+      "bytes": 1170,
+      "sha256": "d84ed8191781a7b7f95545baf30804f4b524c7721b3af03e0e0eae0e4857462e"
+    },
+    {
+      "lane": "astra-snapback2",
+      "path": "scripts/cleanup-servers.mjs",
+      "bytes": 2305,
+      "sha256": "1d885023292ac221ca48e5a2e00340ce7134c9156912511e356630d6d9665b55"
+    },
+    {
+      "lane": "astra-snapback2",
+      "path": "scripts/inspect-once.mjs",
+      "bytes": 1131,
+      "sha256": "3fe011d24cc9bfe7621278ca9f7fd348d6279302ebad9faa5ee2d7c5e10ac424"
+    },
+    {
+      "lane": "astra-snapback2",
+      "path": "scripts/reset-choreo-background.mjs",
+      "bytes": 733,
+      "sha256": "d7029a42ddffa188e927bd9355af2680843d2f7d4507942d05e69862922633a4"
+    },
+    {
+      "lane": "astra-snapback2",
+      "path": "scripts/inspect-group-settings-reload.mjs",
+      "bytes": 1157,
+      "sha256": "31dfdceecd3ad57b134f41506bd5732c06d8ce24f6ce455d500b5fec8664811c"
+    },
+    {
+      "lane": "astra-snapback2",
+      "path": "scripts/acceptance-m6.mjs",
+      "bytes": 100,
+      "sha256": "179c2343eafb7e627a4a6c9d4f94b2da064e5091ccc858e8f890772fca823088"
+    },
+    {
+      "lane": "astra-snapback2",
+      "path": "scripts/acceptance-m2.mjs",
+      "bytes": 100,
+      "sha256": "1fda0f3393a865507b5f7745eb2775ace5ad0015db5332d78d984cd512001b68"
+    },
+    {
+      "lane": "astra-snapback2",
+      "path": "scripts/clock-control.mjs",
+      "bytes": 419,
+      "sha256": "44f4d60aaec7bd4eca52d51276fc7aba8c6d57aea732bdf41dec0124d4e361a9"
+    },
+    {
+      "lane": "astra-snapback2",
+      "path": "scripts/configure-digest.mjs",
+      "bytes": 810,
+      "sha256": "f672a12a477c1f0d7905cfba3e2b80c62d5528cd9716f884a2b4f80c091b1e03"
+    },
+    {
+      "lane": "astra-snapback2",
+      "path": "scripts/acceptance-m3.mjs",
+      "bytes": 100,
+      "sha256": "e1f54dff67ba79d9594ad2dcc3fa6dc16daee64aec4e1a66681cdf1f45593695"
+    },
+    {
+      "lane": "astra-snapback2",
+      "path": "scripts/durable-web-proof.mjs",
+      "bytes": 3258,
+      "sha256": "1e2c265bd82f47eb45dbdb2f0b403140918be8e5781a0e9c1d8dc686d04b24de"
+    },
+    {
+      "lane": "astra-snapback2",
+      "path": "scripts/serve.mjs",
+      "bytes": 1404,
+      "sha256": "3db40f229992ef7d42420747882d143c14170f2da527e54a95b5e97d670e5efe"
+    },
+    {
+      "lane": "astra-snapback2",
+      "path": "scripts/browser-observer.mjs",
+      "bytes": 730,
+      "sha256": "8c4a0fa20f4cbc1cdc31b64771daa5be6de9acda2751301dc952d283dedb79ac"
+    },
+    {
+      "lane": "astra-snapback2",
+      "path": "scripts/instrument-loader.mjs",
+      "bytes": 227,
+      "sha256": "75dd80fdca16e2e83b97da7642cf19203533a5e31d7dbe400e14d3bfb6c38152"
+    },
+    {
+      "lane": "astra-snapback2",
+      "path": "scripts/inspect-group-reload.mjs",
+      "bytes": 1148,
+      "sha256": "39454848f489492b3dd6220093da8edf4fd53a19b62f50a6a4304205e8f7cc22"
+    },
+    {
+      "lane": "astra-snapback2",
+      "path": "scripts/coverage-manifest.mjs",
+      "bytes": 1449,
+      "sha256": "a6701e25ad00e5ecba7638600b2ef7f11d1b4ddaf4a6e9308abc93300f5743e0"
+    },
+    {
+      "lane": "astra-snapback2",
+      "path": "scripts/acceptance-m1.mjs",
+      "bytes": 100,
+      "sha256": "404585cb1d239dc3ea86547ef4150ef333d6eaaa3f5a2922ee7b9707fe88aacf"
+    },
+    {
+      "lane": "astra-snapback2",
+      "path": "scripts/inspect-group-dave.mjs",
+      "bytes": 1157,
+      "sha256": "f177ded4e86dc3fce074ac36f1db5e03adb0d8cf15ce4dc87563f44d8803288b"
+    },
+    {
+      "lane": "astra-snapback2",
+      "path": "choreography/choreography.mjs",
+      "bytes": 116248,
+      "sha256": "8caf5ebdc9a85a2757fe5109740184bdac37977ac98d0a583f16f9dea383177f"
+    },
+    {
+      "lane": "astra-snapback2",
+      "path": "choreography/setup-identity.mjs",
+      "bytes": 6793,
+      "sha256": "0c0b4fe28c3c519ac3e58f7a6a2f2af8967ee505b8770b1a5413f5a0cd896fe8"
+    },
+    {
+      "lane": "astra-snapback2",
+      "path": "choreography/receipts.schema.json",
+      "bytes": 23872,
+      "sha256": "e56cdd388b429840d53571bd69b6332ee767d0bc2f9333ea04fc3e4bc9da3d1c"
+    },
+    {
+      "lane": "astra-snapback2",
+      "path": "choreography/w9-coterie-browser.mjs",
+      "bytes": 8543,
+      "sha256": "0bb80fcfb1a0587b588f5c7d4b56b91a90d2e1088bfc44243d9ede4497ab8d89"
+    },
+    {
+      "lane": "astra-snapback2",
+      "path": "choreography/startup.test.mjs",
+      "bytes": 8320,
+      "sha256": "691eee62378778a275811e0c4974569edc32c6aecc592bf300b1942e4c15da06"
+    },
+    {
+      "lane": "astra-snapback2",
+      "path": "choreography/control-lane.mjs",
+      "bytes": 38354,
+      "sha256": "35383c39fb717ecd3e7a6a7ead7839006ec18f3af5f2c5d6ae1ade2cce2680a7"
+    },
+    {
+      "lane": "astra-snapback2",
+      "path": "choreography/package-lock.json",
+      "bytes": 3871,
+      "sha256": "198138fca1ba6d371a32b7410e77e563c9dc0d5d7877d4db0a134ff0eac07b58"
+    },
+    {
+      "lane": "astra-snapback2",
+      "path": "choreography/package.json",
+      "bytes": 302,
+      "sha256": "68fb1999baf36bb87f814b3138ef96078f3c2dd9993dc04a0ac0fd81f5561e12"
+    },
+    {
+      "lane": "astra-snapback2",
+      "path": "choreography/w9-host-preflight.mjs",
+      "bytes": 3803,
+      "sha256": "4d8b8d0105892f899e7f3a171d0215788984880b8f2e2e4e33a5f7846668913a"
+    },
+    {
+      "lane": "astra-snapback2",
+      "path": "choreography/self-test.mjs",
+      "bytes": 43101,
+      "sha256": "1e865e9ca174c0baff4963fe8e9d67c5105024446a6676ab515f143279eb70ff"
+    },
+    {
+      "lane": "astra-snapback2",
+      "path": "choreography/setup-identity.schema.json",
+      "bytes": 4167,
+      "sha256": "783cb67672aa94ca91f61149cac76a1942a235631a09c7f43f237a0371e60b43"
+    },
+    {
+      "lane": "astra-snapback2",
+      "path": "choreography/w9-native-host.mjs",
+      "bytes": 8601,
+      "sha256": "1afdf0852a7469352609be725fbdb977da177d5b4f4eb81b33874db4894db924"
+    },
+    {
+      "lane": "astra-snapback2",
+      "path": "client/native-web-bridge.js",
+      "bytes": 998,
+      "sha256": "7e6cb0bbb63ec9a2b28adba6ab09f2a7ebdde95316d973209446210faef4c500"
+    },
+    {
+      "lane": "astra-snapback2",
+      "path": "client/Outbox.tsx",
+      "bytes": 1332,
+      "sha256": "bc6c6927e95aad02034261dd932e22478f8d6fb17b45eb4c702fcdc98e89a0d8"
+    },
+    {
+      "lane": "astra-snapback2",
+      "path": "client/PostCard.tsx",
+      "bytes": 1804,
+      "sha256": "8d1d3ee57a1c64c3bd44566664daea00d5e69afd022699b28850e91e1f6c556d"
+    },
+    {
+      "lane": "astra-snapback2",
+      "path": "client/accessibility-Image.js",
+      "bytes": 54,
+      "sha256": "d5ce27d2f723f4db7715500a3ac8bb9b389d48f817e9acf6c2d23286a346d630"
+    },
+    {
+      "lane": "astra-snapback2",
+      "path": "client/Feed.tsx",
+      "bytes": 1378,
+      "sha256": "82ed7df60314b45a29f22ec5aa93d58eb0382d56c38316ec2cc3a319da5ebe80"
+    },
+    {
+      "lane": "astra-snapback2",
+      "path": "client/indexing.ts",
+      "bytes": 522,
+      "sha256": "5bd50f4c32a0ddfd295248b2885e9d4db9f760042d81f1d30bd8fd38e40a492f"
+    },
+    {
+      "lane": "astra-snapback2",
+      "path": "client/accessibility-View.js",
+      "bytes": 53,
+      "sha256": "4d6b1b33209280fea4a449569a42c1c5f3fe2c173a8725d5f15aab42ab7436a7"
+    },
+    {
+      "lane": "astra-snapback2",
+      "path": "client/web-types.d.ts",
+      "bytes": 448,
+      "sha256": "492ebb70e91dc93d7ed35f67f79c1ec26586103373608816dbe520ffafbffdb5"
+    },
+    {
+      "lane": "astra-snapback2",
+      "path": "client/accessibility-TextInput.js",
+      "bytes": 58,
+      "sha256": "1259d17b3b3c1b5ff271b14e1e00c065f2aff080d63bb0473d212ad7a875e7fe"
+    },
+    {
+      "lane": "astra-snapback2",
+      "path": "client/Search.tsx",
+      "bytes": 4320,
+      "sha256": "d8750a750adabd23abcea1d837c8f1d9d659b82655ab27be024e566c4ef2ffd9"
+    },
+    {
+      "lane": "astra-snapback2",
+      "path": "client/server-query.ts",
+      "bytes": 349,
+      "sha256": "8304bb744336fa0ced3edc35f301f52c98c373e5f3104a297161aacb311393db"
+    },
+    {
+      "lane": "astra-snapback2",
+      "path": "client/images.ts",
+      "bytes": 719,
+      "sha256": "64cf9bd4fbef2d17c1b3e6f06d3354269d843dff4e40366679a065f346c93eef"
+    },
+    {
+      "lane": "astra-snapback2",
+      "path": "client/inbox-cache.native.ts",
+      "bytes": 671,
+      "sha256": "b5fee24a231ecf91c0a2c811a3112ff13fe179b69256a20d218e39f8ee4beb7e"
+    },
+    {
+      "lane": "astra-snapback2",
+      "path": "client/Inbox.tsx",
+      "bytes": 1756,
+      "sha256": "44c62dcb213203cdcdaf5f56c4f4a0c645520c1f4596e04b6530b03e02cf6c40"
+    },
+    {
+      "lane": "astra-snapback2",
+      "path": "client/Media.native.tsx",
+      "bytes": 559,
+      "sha256": "767df39187e1a3a045ad8afdbd10bfef4fbb769ff0ca8bb9c270cd0a51a95638"
+    },
+    {
+      "lane": "astra-snapback2",
+      "path": "client/inbox-cache.ts",
+      "bytes": 427,
+      "sha256": "cc02b45b8ee4a619ade8227db608bb747a936456adf313906e8a51ebf3b1d1d9"
+    },
+    {
+      "lane": "astra-snapback2",
+      "path": "client/accessibility-Text.js",
+      "bytes": 53,
+      "sha256": "5366ce49620d8bb33e717e2bf746d883f96e23987b0280038b1948b11c50afad"
+    },
+    {
+      "lane": "astra-snapback2",
+      "path": "client/use-inbox.ts",
+      "bytes": 1415,
+      "sha256": "87dcb19e7733a42b719a9ca113393685c3be2059c56b46f2ed13b910c347a047"
+    },
+    {
+      "lane": "astra-snapback2",
+      "path": "client/ConversationRoute.tsx",
+      "bytes": 1697,
+      "sha256": "29bcceac20d3db4c097381e70cd32b110f1222b5bbf280ed9473439a8be22c49"
+    },
+    {
+      "lane": "astra-snapback2",
+      "path": "client/Conversation.tsx",
+      "bytes": 9595,
+      "sha256": "8626af71babb4336aac1ec7f7565ab12d75d6a2e81ba5efc156cc4f27cf976d9"
+    },
+    {
+      "lane": "astra-snapback2",
+      "path": "client/Profile.tsx",
+      "bytes": 3132,
+      "sha256": "137df8ec67aeab07320e12f6b6b9499f2037f5f7d3f7f7b2a8ab01631757864e"
+    },
+    {
+      "lane": "astra-snapback2",
+      "path": "client/transport.native.ts",
+      "bytes": 271,
+      "sha256": "a2698fad27ccdd1db1e2964f6613513b88a26bccf9bbf9ff05d8e272c335962a"
+    },
+    {
+      "lane": "astra-snapback2",
+      "path": "client/History.tsx",
+      "bytes": 793,
+      "sha256": "6d7674d8bb03f31ca82f0ca429ab9d2e1ead593fc13699214f66d66828b25373"
+    },
+    {
+      "lane": "astra-snapback2",
+      "path": "client/Insights.tsx",
+      "bytes": 1392,
+      "sha256": "7a1cc510bc8816aafab0a55dd9f7e76fa33b7c8d106b9c4955ba3ee32cf1c125"
+    },
+    {
+      "lane": "astra-snapback2",
+      "path": "client/transport.ts",
+      "bytes": 213,
+      "sha256": "6017568ac61a29ca957d43a89b2c076da1c45d1a38ac7b5ce5a17ebe2f78c650"
+    },
+    {
+      "lane": "astra-snapback2",
+      "path": "client/images.native.ts",
+      "bytes": 342,
+      "sha256": "9f0c61da4c4c2fd94627631fb85f8da4ed0e91861d11c00856c6aa1e14faf36e"
+    },
+    {
+      "lane": "astra-snapback2",
+      "path": "client/id.ts",
+      "bytes": 224,
+      "sha256": "5aee5d128c9cb295be61e6433e5c6c365466c90f50cba0fc9f1dbfafbdf31fc1"
+    },
+    {
+      "lane": "astra-snapback2",
+      "path": "client/backend.ts",
+      "bytes": 1968,
+      "sha256": "1eb48e68b172531567b76f129af78f200c6d3cd9ff4ab782392927298d6194b3"
+    },
+    {
+      "lane": "astra-snapback2",
+      "path": "client/common.tsx",
+      "bytes": 626,
+      "sha256": "f3cf82de0ae6568d2c33b8381f0d8d2ef64ab412da4910863c018a91fd6b8670"
+    },
+    {
+      "lane": "astra-snapback2",
+      "path": "client/accessibility-Pressable.js",
+      "bytes": 58,
+      "sha256": "194290fb611f923b0a48fa2ad4bd4e212de72e2f44dcdce146f9749f1f7c52fc"
+    },
+    {
+      "lane": "astra-snapback2",
+      "path": "client/ChatSettings.tsx",
+      "bytes": 3500,
+      "sha256": "e72266d70782276665cccb33bf585efd6f1a823325906ed48a2d1523ead2ead8"
+    },
+    {
+      "lane": "astra-snapback2",
+      "path": "client/backend.native.ts",
+      "bytes": 403,
+      "sha256": "4d6d4b110b192ef9f7f38805b10f8339c32927b6a0b61ad98ed5a54d3580d6e2"
+    },
+    {
+      "lane": "astra-snapback2",
+      "path": "client/Trending.tsx",
+      "bytes": 950,
+      "sha256": "87db19ac8b3811cf56b8dd0298b0d7524a2bed83fadf60b741368311631190be"
+    },
+    {
+      "lane": "astra-snapback2",
+      "path": "client/PostComposer.tsx",
+      "bytes": 2242,
+      "sha256": "e8cd15d45f22ada7504e1e761ee36c0f2c4e40800846813e5acabce454d9afba"
+    },
+    {
+      "lane": "astra-snapback2",
+      "path": "client/search-text.ts",
+      "bytes": 488,
+      "sha256": "4163a0c0fee370a20e559b19ec8371729b39aa6e9becf4495c4b814198b2bd55"
+    },
+    {
+      "lane": "astra-snapback2",
+      "path": "client/Media.tsx",
+      "bytes": 760,
+      "sha256": "8d5b93db57ea559f6fc02c32db918858224ba394106ea8e5048991cfe038b360"
+    },
+    {
+      "lane": "astra-snapback2",
+      "path": "snapback/push.q",
+      "bytes": 421,
+      "sha256": "b0b9265672b0ea93e395c49ea4778c39b50a4ff0df600554bb5f15e0ec36ff8f"
+    },
+    {
+      "lane": "astra-snapback2",
+      "path": "snapback/chats.q",
+      "bytes": 3491,
+      "sha256": "6a252e2c4890dc486e5267705436e8d3fb4ed4e424d8857cb8a06f4e0e2c9553"
+    },
+    {
+      "lane": "astra-snapback2",
+      "path": "snapback/insights.q",
+      "bytes": 1884,
+      "sha256": "64f18d5a7db03bc79ddf7ef4de0e40c5b092e9e96d9287a12911e6d2cb35e6d8"
+    },
+    {
+      "lane": "astra-snapback2",
+      "path": "snapback/social.q",
+      "bytes": 4563,
+      "sha256": "0f7e0a6293f665ae6cfee862a0620d35a52d4246d872418de582a92e5281e5bc"
+    },
+    {
+      "lane": "astra-snapback2",
+      "path": "snapback/seed.ts",
+      "bytes": 97,
+      "sha256": "db2f59dae2e5fe35e6261759630dde98e094c3cf59eab30665de964bdec7c84e"
+    },
+    {
+      "lane": "astra-snapback2",
+      "path": "snapback/search.q",
+      "bytes": 1379,
+      "sha256": "e153f8f393cdea2e46755991f7115fe6a5a0f87b3cb9f4a9c217956cb7e72552"
+    },
+    {
+      "lane": "astra-snapback2",
+      "path": "snapback/profiles.q",
+      "bytes": 431,
+      "sha256": "2a2d76956f2735d898c4e8ec9930df630ca1f5ba8b6347807cda4bb4c55edeb3"
+    },
+    {
+      "lane": "astra-snapback2",
+      "path": "snapback/settings.q",
+      "bytes": 1074,
+      "sha256": "b1696d64e53fe6d0c507214b62b6e4270a6ac510ad3a2848c5156f1612845903"
+    },
+    {
+      "lane": "astra-snapback2",
+      "path": "snapback/messages.q",
+      "bytes": 13084,
+      "sha256": "090ca2e5c0f136686f899ea0e1cd576b582976f9a9b4c97d5ce5d529490ee041"
+    },
+    {
+      "lane": "astra-snapback2",
+      "path": "snapback/digest.q",
+      "bytes": 4586,
+      "sha256": "decd08895d50a1acf4dc5c12a7442ac412cfe154e0a676f3a7123cc52241c6b3"
+    },
+    {
+      "lane": "astra-snapback2",
+      "path": "snapback/delivery.ts",
+      "bytes": 799,
+      "sha256": "89570523769cad72bf5905ffe8c87347151224d1e052b465b127c0e677d7215a"
+    },
+    {
+      "lane": "astra-snapback2",
+      "path": "snapback/schema.q",
+      "bytes": 9658,
+      "sha256": "f3fb0c5a7395a7d1a7770d98d1280b0fdb1d6604fbd134a724501c0804b443ff"
+    },
+    {
+      "lane": "astra-snapback2",
+      "path": "src/Witness.tsx",
+      "bytes": 8426,
+      "sha256": "8450b82ef7699811d96591385201e0c783c72b03c69f1e6d63c33b9b8866a1ba"
+    },
+    {
+      "lane": "astra-snapback2",
+      "path": "src/Composer.tsx",
+      "bytes": 2213,
+      "sha256": "29173755ededf6c9593682132b64ab7c1e64f47ed7aec2c960acf5cd9f9545da"
+    },
+    {
+      "lane": "astra-snapback2",
+      "path": "src/Chat.tsx",
+      "bytes": 1242,
+      "sha256": "1c4c152710915dc142a9ceb129c1ddf729808db5e8c6648784a99104c22cfae8"
+    },
+    {
+      "lane": "astra-snapback2",
+      "path": "src/MediaView.tsx",
+      "bytes": 1639,
+      "sha256": "adb2c30346bf7e86607b80ce9b0b5e541e5826bd373ff13f2edb5b38e57eb947"
+    },
+    {
+      "lane": "astra-snapback2",
+      "path": "src/witness-state.ts",
+      "bytes": 4398,
+      "sha256": "6c021e679738bc152059ace701d5276023732d654162a1902cbefcf2b6e2f40c"
+    },
+    {
+      "lane": "astra-snapback2",
+      "path": "src/screens/Search.tsx",
+      "bytes": 672,
+      "sha256": "476beab04341b6fe017bc37b8a7d92c7b85de99cf8fb4d0dad2dba660866735b"
+    },
+    {
+      "lane": "astra-snapback2",
+      "path": "src/screens/Inbox.tsx",
+      "bytes": 675,
+      "sha256": "f72af0b86e4a57dd5b9b8c65b1a28cd6de7c2a7321963bce60791215cb0b6ec1"
+    },
+    {
+      "lane": "astra-snapback2",
+      "path": "src/screens/Thread.tsx",
+      "bytes": 1931,
+      "sha256": "1d04683a10e7ffdfdc9adcd0085981d0358f2f430c02db888a6e70337bad73b4"
+    },
+    {
+      "lane": "astra-convex",
+      "path": "app.json",
+      "bytes": 216,
+      "sha256": "65c2ed87245b94b82dccb5f07e2789ec5aba56f64fc536726a4c6903070011ab"
+    },
+    {
+      "lane": "astra-convex",
+      "path": "final-report.md",
+      "bytes": 25824,
+      "sha256": "f7131ef9f3e627cdfd3e5f6e52cf8ba0679a478d2375dcd17ee71e85ce2dac94"
+    },
+    {
+      "lane": "astra-convex",
+      "path": "essay.md",
+      "bytes": 8801,
+      "sha256": "f6ddc6ed889c01cb2e3f41ed949e3de990e0f2b39f8fc5cb5f1adf5250a88116"
+    },
+    {
+      "lane": "astra-convex",
+      "path": "package-lock.json",
+      "bytes": 361440,
+      "sha256": "62f054f905036b3fe76f768d0bcc5392758f3513237a1ba5edae9700ec485da3"
+    },
+    {
+      "lane": "astra-convex",
+      "path": "package.json",
+      "bytes": 876,
+      "sha256": "361ba0b8a0c5a132aced5218255a3e8e93e6d0e309918104187d45ed41c3a856"
+    },
+    {
+      "lane": "astra-convex",
+      "path": "run-log.md",
+      "bytes": 13122,
+      "sha256": "24b667891c1009a42091b0df92a524bc48c36167ed779e892ce31cc8d5edbe81"
+    },
+    {
+      "lane": "astra-convex",
+      "path": "tsconfig.json",
+      "bytes": 127,
+      "sha256": "8f067ebf1385771bf049258686b6c1c4d6925c559bd81ec00b1eaa620720c9ae"
+    },
+    {
+      "lane": "astra-convex",
+      "path": "diary.md",
+      "bytes": 9535,
+      "sha256": "81e580cd6d6efd57997bc66ee0bad2961bfb41da9785f9c9c66b7762faa1d366"
+    },
+    {
+      "lane": "astra-convex",
+      "path": "run-record.json",
+      "bytes": 7776,
+      "sha256": "e8f04eca4933a67afb8cfde9af93909b0a29d2cb8d21d2003b0e3de624764d89"
+    },
+    {
+      "lane": "astra-convex",
+      "path": "app/index.tsx",
+      "bytes": 38,
+      "sha256": "d1316165f2573ce2d4414be5183202d83e06f1913a20b47b4e595ceed023ea7d"
+    },
+    {
+      "lane": "astra-convex",
+      "path": "app/[...route].tsx",
+      "bytes": 6470,
+      "sha256": "2b5cbea0763233479a2cacde7c24653507181a311cc30a7068bfee922d2997ec"
+    },
+    {
+      "lane": "astra-convex",
+      "path": "app/_layout.tsx",
+      "bytes": 770,
+      "sha256": "3d14172c920579567e7ab856203a52b843a9705a40e544da4f432933dcad2954"
+    },
+    {
+      "lane": "astra-convex",
+      "path": "config/digest.production.json",
+      "bytes": 177,
+      "sha256": "c389728f1505612d3ac2a44597efa12a83042666a34432f27cf832e54fdfdc21"
+    },
+    {
+      "lane": "astra-convex",
+      "path": "config/windows.production.json",
+      "bytes": 438,
+      "sha256": "c43a0ae50d80488f7e52f652d682b8e9d443b00e95269c71a4f98ac4fb870764"
+    },
+    {
+      "lane": "astra-convex",
+      "path": "config/windows.shortened.json",
+      "bytes": 484,
+      "sha256": "22dfdde4ef58026081f52eddbbabe9491624d6a00215522b6279c0f21f4c0bd9"
+    },
+    {
+      "lane": "astra-convex",
+      "path": "config/digest.shortened.json",
+      "bytes": 182,
+      "sha256": "f5ddbd66bd4d791056a39b8cd4e77488c6822e6cbcdf65d97689be489851ea60"
+    },
+    {
+      "lane": "astra-convex",
+      "path": "observability/scale-status.schema.json",
+      "bytes": 1247,
+      "sha256": "9be0d28146ff2cdc854e64720982174c27eaeda9db37e9811352d222391f4174"
+    },
+    {
+      "lane": "astra-convex",
+      "path": "observability/scale-observer.mjs",
+      "bytes": 6011,
+      "sha256": "4bfb15b326f45bf70e23f9db129d5c14d9a2c19c2ffe05a381c911e7dfa2594d"
+    },
+    {
+      "lane": "astra-convex",
+      "path": "observability/generate-aggregates.mjs",
+      "bytes": 4640,
+      "sha256": "a28c5f0dd54b4d87efb12f98cfd827920ea03db26bb9569bffe7bf8e04244e45"
+    },
+    {
+      "lane": "astra-convex",
+      "path": "observability/observability.test.mjs",
+      "bytes": 2215,
+      "sha256": "712643e4553fb538376c0c857b059487cb92ee8b144c8041c3611b0a8183e959"
+    },
+    {
+      "lane": "astra-convex",
+      "path": "ios/Podfile.properties.json",
+      "bytes": 77,
+      "sha256": "4222d802ab80961762b71603a713160c16c0fa3ce5d6c74a111c67785872331a"
+    },
+    {
+      "lane": "astra-convex",
+      "path": "ios/Clique/AppDelegate.swift",
+      "bytes": 2228,
+      "sha256": "510895dbd9aec82fe5c8143baf7cc4740449433f4a59a7299dd3dc1c6a408aeb"
+    },
+    {
+      "lane": "astra-convex",
+      "path": "ios/Clique/Images.xcassets/Contents.json",
+      "bytes": 62,
+      "sha256": "632a1481b9e3b957f3b34267728744d61272e3db32751432551b9eb7c58ad7a2"
+    },
+    {
+      "lane": "astra-convex",
+      "path": "ios/Clique/Images.xcassets/AppIcon.appiconset/Contents.json",
+      "bytes": 215,
+      "sha256": "344a731ecf43e614be1d95fc1549918fae139fc41bce5db8d00c8359f712e3b2"
+    },
+    {
+      "lane": "astra-convex",
+      "path": "ios/Clique/Images.xcassets/SplashScreenBackground.colorset/Contents.json",
+      "bytes": 348,
+      "sha256": "82bdb39c90d2095ac1811d817b07da32d401c7cb37f100efd31c19410465b14f"
+    },
+    {
+      "lane": "astra-convex",
+      "path": "scale-instance/package.json",
+      "bytes": 876,
+      "sha256": "361ba0b8a0c5a132aced5218255a3e8e93e6d0e309918104187d45ed41c3a856"
+    },
+    {
+      "lane": "astra-convex",
+      "path": "scale-instance/config/digest.production.json",
+      "bytes": 177,
+      "sha256": "c389728f1505612d3ac2a44597efa12a83042666a34432f27cf832e54fdfdc21"
+    },
+    {
+      "lane": "astra-convex",
+      "path": "scale-instance/config/windows.production.json",
+      "bytes": 438,
+      "sha256": "c43a0ae50d80488f7e52f652d682b8e9d443b00e95269c71a4f98ac4fb870764"
+    },
+    {
+      "lane": "astra-convex",
+      "path": "scale-instance/config/windows.shortened.json",
+      "bytes": 484,
+      "sha256": "22dfdde4ef58026081f52eddbbabe9491624d6a00215522b6279c0f21f4c0bd9"
+    },
+    {
+      "lane": "astra-convex",
+      "path": "scale-instance/config/digest.shortened.json",
+      "bytes": 182,
+      "sha256": "f5ddbd66bd4d791056a39b8cd4e77488c6822e6cbcdf65d97689be489851ea60"
+    },
+    {
+      "lane": "astra-convex",
+      "path": "scale-instance/convex/schema.ts",
+      "bytes": 3548,
+      "sha256": "bea2ceeba2a92e46cd3f74624cc845e30b599c2672693cdbd28d9a40cc2851e8"
+    },
+    {
+      "lane": "astra-convex",
+      "path": "scale-instance/convex/push.ts",
+      "bytes": 1794,
+      "sha256": "8542c9c9d5ba6bff70c7b661a266c16b4025bb3d8cd90ba295d2cf96e7795eb8"
+    },
+    {
+      "lane": "astra-convex",
+      "path": "scale-instance/convex/profiles.ts",
+      "bytes": 2402,
+      "sha256": "384b5dc9305ddfb84f4ca87c76052616e829ad82b596fb1b2454f5c56413cd96"
+    },
+    {
+      "lane": "astra-convex",
+      "path": "scale-instance/convex/crons.ts",
+      "bytes": 198,
+      "sha256": "eee686420dcff6a61c1a8bd9c51ee30bacb2eac85e2682fe61fbe19fdb79528f"
+    },
+    {
+      "lane": "astra-convex",
+      "path": "scale-instance/convex/auth.config.ts",
+      "bytes": 90,
+      "sha256": "b240f298a39bb3157398a0c052bbfe2a58f2bc0dcc5d610fa3ad7fe7d1c248f6"
+    },
+    {
+      "lane": "astra-convex",
+      "path": "scale-instance/convex/authChecks.ts",
+      "bytes": 259,
+      "sha256": "141555d7d91db94762a66d058d4985b976c91ffbd8d15abb2910ffb7afa40fdd"
+    },
+    {
+      "lane": "astra-convex",
+      "path": "scale-instance/convex/http.ts",
+      "bytes": 532,
+      "sha256": "53ab04e33a2467175cf6392da872a35b7af52906bafd10cc47bd8dad18c85d00"
+    },
+    {
+      "lane": "astra-convex",
+      "path": "scale-instance/convex/chat.ts",
+      "bytes": 8759,
+      "sha256": "89a2508bd50ca933379643bcb4cd073786de6edd86b11e0152eacc2cb5412e02"
+    },
+    {
+      "lane": "astra-convex",
+      "path": "scale-instance/convex/mediaMessages.ts",
+      "bytes": 3508,
+      "sha256": "8f8f6e4d564e74ad2249ed472c1493fbf667932399e6cc95519e54df679140de"
+    },
+    {
+      "lane": "astra-convex",
+      "path": "scale-instance/convex/trendingPolicy.ts",
+      "bytes": 280,
+      "sha256": "c97925aa8e74b844040a470d8084e29ac1140dc4f01786535918c99196c35db9"
+    },
+    {
+      "lane": "astra-convex",
+      "path": "scale-instance/convex/tsconfig.json",
+      "bytes": 760,
+      "sha256": "b7f94282db5106a68d95d522bf16d9518d9ef3eca014b8b26d9c92e2ccf62a95"
+    },
+    {
+      "lane": "astra-convex",
+      "path": "scale-instance/convex/ephemeral.ts",
+      "bytes": 4079,
+      "sha256": "8f7b5728b233f4ae5e51ee42ed29061b720385c5aecb28023fa398d8052f5a9a"
+    },
+    {
+      "lane": "astra-convex",
+      "path": "scale-instance/convex/social.ts",
+      "bytes": 7301,
+      "sha256": "fe41d314938b8ec5ad1fc4618cf5ac60406274dab9a96dfaf7b917b5bcd551ba"
+    },
+    {
+      "lane": "astra-convex",
+      "path": "scale-instance/convex/metrics.ts",
+      "bytes": 3330,
+      "sha256": "ae14f2a4c6f5e8f2709c6a3779511c6a54114be286ef783cd119ace962b237b8"
+    },
+    {
+      "lane": "astra-convex",
+      "path": "scale-instance/convex/auth.ts",
+      "bytes": 621,
+      "sha256": "7cd243a8662fb29f5f3ad4af4f382da5cc767d7bee5c6a565bb4fa4f1fe52a29"
+    },
+    {
+      "lane": "astra-convex",
+      "path": "scale-instance/convex/digest.ts",
+      "bytes": 2960,
+      "sha256": "3799ac94bc5d2776519f34192d38824f3fec39568eedcdecdb937efeb53fe01f"
+    },
+    {
+      "lane": "astra-convex",
+      "path": "scale-instance/convex/_generated/dataModel.d.ts",
+      "bytes": 1736,
+      "sha256": "db177073d16a4393c7a96bcdc3a2a904e88c2432d54d138ca7715cc431982c17"
+    },
+    {
+      "lane": "astra-convex",
+      "path": "scale-instance/convex/_generated/api.d.ts",
+      "bytes": 1836,
+      "sha256": "d5a8b3d4c21d4cf5a25b7ce98ecc7d783ec2e3708a4607f747cda6ee942be47b"
+    },
+    {
+      "lane": "astra-convex",
+      "path": "scale-instance/convex/_generated/server.d.ts",
+      "bytes": 6008,
+      "sha256": "2b536ee08d434dd044efe0302aeaf4ccb00cd08af10c9f8c7bc7a6734e4aa49b"
+    },
+    {
+      "lane": "astra-convex",
+      "path": "scale-instance/convex/_generated/server.js",
+      "bytes": 3872,
+      "sha256": "0cdd1d842b9458d8a6f2444c35eb9929312316a384ca76a4b1d964bedde8a6f2"
+    },
+    {
+      "lane": "astra-convex",
+      "path": "scale-instance/convex/_generated/api.js",
+      "bytes": 480,
+      "sha256": "f513058549831e85376f8d19cafaf2a4a770b6eb1b859fb371141f2c9dec0d70"
+    },
+    {
+      "lane": "astra-convex",
+      "path": "convex/schema.ts",
+      "bytes": 3548,
+      "sha256": "bea2ceeba2a92e46cd3f74624cc845e30b599c2672693cdbd28d9a40cc2851e8"
+    },
+    {
+      "lane": "astra-convex",
+      "path": "convex/push.ts",
+      "bytes": 1794,
+      "sha256": "8542c9c9d5ba6bff70c7b661a266c16b4025bb3d8cd90ba295d2cf96e7795eb8"
+    },
+    {
+      "lane": "astra-convex",
+      "path": "convex/profiles.ts",
+      "bytes": 2402,
+      "sha256": "384b5dc9305ddfb84f4ca87c76052616e829ad82b596fb1b2454f5c56413cd96"
+    },
+    {
+      "lane": "astra-convex",
+      "path": "convex/crons.ts",
+      "bytes": 198,
+      "sha256": "eee686420dcff6a61c1a8bd9c51ee30bacb2eac85e2682fe61fbe19fdb79528f"
+    },
+    {
+      "lane": "astra-convex",
+      "path": "convex/auth.config.ts",
+      "bytes": 90,
+      "sha256": "b240f298a39bb3157398a0c052bbfe2a58f2bc0dcc5d610fa3ad7fe7d1c248f6"
+    },
+    {
+      "lane": "astra-convex",
+      "path": "convex/authChecks.ts",
+      "bytes": 259,
+      "sha256": "141555d7d91db94762a66d058d4985b976c91ffbd8d15abb2910ffb7afa40fdd"
+    },
+    {
+      "lane": "astra-convex",
+      "path": "convex/http.ts",
+      "bytes": 532,
+      "sha256": "53ab04e33a2467175cf6392da872a35b7af52906bafd10cc47bd8dad18c85d00"
+    },
+    {
+      "lane": "astra-convex",
+      "path": "convex/chat.ts",
+      "bytes": 8831,
+      "sha256": "35f96e5f63684bd73a4bd9115c57d650d8796f8b05ea88156742c2c3508488ab"
+    },
+    {
+      "lane": "astra-convex",
+      "path": "convex/mediaMessages.ts",
+      "bytes": 3508,
+      "sha256": "8f8f6e4d564e74ad2249ed472c1493fbf667932399e6cc95519e54df679140de"
+    },
+    {
+      "lane": "astra-convex",
+      "path": "convex/trendingPolicy.ts",
+      "bytes": 280,
+      "sha256": "c97925aa8e74b844040a470d8084e29ac1140dc4f01786535918c99196c35db9"
+    },
+    {
+      "lane": "astra-convex",
+      "path": "convex/tsconfig.json",
+      "bytes": 760,
+      "sha256": "b7f94282db5106a68d95d522bf16d9518d9ef3eca014b8b26d9c92e2ccf62a95"
+    },
+    {
+      "lane": "astra-convex",
+      "path": "convex/ephemeral.ts",
+      "bytes": 4079,
+      "sha256": "8f7b5728b233f4ae5e51ee42ed29061b720385c5aecb28023fa398d8052f5a9a"
+    },
+    {
+      "lane": "astra-convex",
+      "path": "convex/social.ts",
+      "bytes": 7301,
+      "sha256": "fe41d314938b8ec5ad1fc4618cf5ac60406274dab9a96dfaf7b917b5bcd551ba"
+    },
+    {
+      "lane": "astra-convex",
+      "path": "convex/metrics.ts",
+      "bytes": 2618,
+      "sha256": "49cbcb99c309a65220698711267e5fc3660f07f2a9e0ef64930ade984bb87370"
+    },
+    {
+      "lane": "astra-convex",
+      "path": "convex/auth.ts",
+      "bytes": 621,
+      "sha256": "7cd243a8662fb29f5f3ad4af4f382da5cc767d7bee5c6a565bb4fa4f1fe52a29"
+    },
+    {
+      "lane": "astra-convex",
+      "path": "convex/digest.ts",
+      "bytes": 2960,
+      "sha256": "3799ac94bc5d2776519f34192d38824f3fec39568eedcdecdb937efeb53fe01f"
+    },
+    {
+      "lane": "astra-convex",
+      "path": "convex/_generated/dataModel.d.ts",
+      "bytes": 1736,
+      "sha256": "db177073d16a4393c7a96bcdc3a2a904e88c2432d54d138ca7715cc431982c17"
+    },
+    {
+      "lane": "astra-convex",
+      "path": "convex/_generated/api.d.ts",
+      "bytes": 1836,
+      "sha256": "d5a8b3d4c21d4cf5a25b7ce98ecc7d783ec2e3708a4607f747cda6ee942be47b"
+    },
+    {
+      "lane": "astra-convex",
+      "path": "convex/_generated/server.d.ts",
+      "bytes": 6008,
+      "sha256": "2b536ee08d434dd044efe0302aeaf4ccb00cd08af10c9f8c7bc7a6734e4aa49b"
+    },
+    {
+      "lane": "astra-convex",
+      "path": "convex/_generated/server.js",
+      "bytes": 3872,
+      "sha256": "0cdd1d842b9458d8a6f2444c35eb9929312316a384ca76a4b1d964bedde8a6f2"
+    },
+    {
+      "lane": "astra-convex",
+      "path": "convex/_generated/api.js",
+      "bytes": 480,
+      "sha256": "f513058549831e85376f8d19cafaf2a4a770b6eb1b859fb371141f2c9dec0d70"
+    },
+    {
+      "lane": "astra-convex",
+      "path": "components/Search.tsx",
+      "bytes": 1585,
+      "sha256": "67a9d692204f9dcbb477aa2d1f23d4a01e856d5ca11b3032d36968f180fe9b45"
+    },
+    {
+      "lane": "astra-convex",
+      "path": "components/nativeMedia.ts",
+      "bytes": 747,
+      "sha256": "04a306365a2005c5b7e1ed8600c4d71092c46b6c1abb374833315dbc3bd627d8"
+    },
+    {
+      "lane": "astra-convex",
+      "path": "components/Sync.tsx",
+      "bytes": 1173,
+      "sha256": "87dfaf6f81336bdcebb5350733651e027f2f5d25312adc448c9a8ab86275f10b"
+    },
+    {
+      "lane": "astra-convex",
+      "path": "components/offline.ts",
+      "bytes": 2226,
+      "sha256": "60d095fea68b196ef516dbd1af12dd0f5bd1c76614baa0857ba0e32ca5ad7b0a"
+    },
+    {
+      "lane": "astra-convex",
+      "path": "components/cache.ts",
+      "bytes": 1606,
+      "sha256": "7dd4197a2505066b196d1710ad3d8cd2bf32057175b51f9204570a977e764dd1"
+    },
+    {
+      "lane": "astra-convex",
+      "path": "components/Insights.tsx",
+      "bytes": 982,
+      "sha256": "8080b3241229b798ac8945f53811a47fa5fceb31c88b0fd337cc2796af9c32c0"
+    },
+    {
+      "lane": "astra-convex",
+      "path": "components/Chat.tsx",
+      "bytes": 12528,
+      "sha256": "14ee60f7aac5e87dae085c02b49a9f0d30bf867251da2b358f07f67c3e992ac3"
+    },
+    {
+      "lane": "astra-convex",
+      "path": "components/Social.tsx",
+      "bytes": 5991,
+      "sha256": "d4f9cb5618649004fbcbbf1a36a06a8ce5ebbc98eefde6ff54632c9197042342"
+    },
+    {
+      "lane": "astra-convex",
+      "path": "components/cachePolicy.ts",
+      "bytes": 333,
+      "sha256": "bf697cd9974e1c8fa2636c7e6d7a62fe547308dbb31ff9e4e892e32e79b8750b"
+    },
+    {
+      "lane": "astra-convex",
+      "path": "scripts/seed.mjs",
+      "bytes": 2612,
+      "sha256": "6ee9a32434d27d680be96155cdfbb0a59369af5be4aef4ee24167b1e13ec020b"
+    },
+    {
+      "lane": "astra-convex",
+      "path": "scripts/verify-sample.mjs",
+      "bytes": 3477,
+      "sha256": "a708b8c7384929bb80695abfd7d525ffc20557497fba148d2563b31ad437725b"
+    },
+    {
+      "lane": "astra-convex",
+      "path": "scripts/media-debug.mjs",
+      "bytes": 856,
+      "sha256": "de2398aa74204b2cc03e69d3ffd8a2a093d39d94e4527b1c6d36b4dc13866d02"
+    },
+    {
+      "lane": "astra-convex",
+      "path": "scripts/acceptance.mjs",
+      "bytes": 304,
+      "sha256": "6bcab4af553a7791da60e4e4885b624a57dce1b001b26974764dc2883d79a111"
+    },
+    {
+      "lane": "astra-convex",
+      "path": "scripts/dup-debug.mjs",
+      "bytes": 307,
+      "sha256": "7cc290be9723bbc6f324f97c199fd065eb153003965c62e1a0239caf0885dd0f"
+    },
+    {
+      "lane": "astra-convex",
+      "path": "scripts/settings-debug.mjs",
+      "bytes": 922,
+      "sha256": "e9fd4e2c9763f917ec6383d75ad3664518603b294e1483383e34e78c87ed1359"
+    },
+    {
+      "lane": "astra-convex",
+      "path": "scripts/cleanup-celebrity-probe.mjs",
+      "bytes": 407,
+      "sha256": "4cbfb675ab32a0f74b325c3e43e8129d6bd15503e546b0b5570e695e4f8bdcf8"
+    },
+    {
+      "lane": "astra-convex",
+      "path": "scripts/digest-probe.mjs",
+      "bytes": 1865,
+      "sha256": "4788f2f618ef9b904b79b04a5d72c061e28171e12c5ad2deeabb40e7bbc098f4"
+    },
+    {
+      "lane": "astra-convex",
+      "path": "scripts/acceptance-m8.mjs",
+      "bytes": 3644,
+      "sha256": "372fe2700ea17a48373b33985aa2869026b71ed2c741124932e7630ea25188bc"
+    },
+    {
+      "lane": "astra-convex",
+      "path": "scripts/scale-m8-probes.mjs",
+      "bytes": 732,
+      "sha256": "fb844f94a99eba8723d25ec583ac243bba56e26756023b010003953082843166"
+    },
+    {
+      "lane": "astra-convex",
+      "path": "scripts/celebrity-probe.mjs",
+      "bytes": 953,
+      "sha256": "b9dfe3131c2cf9e653e4cfac1afbd06d9fd26108599fb538ee11c3bcea935922"
+    },
+    {
+      "lane": "astra-convex",
+      "path": "scripts/window-probe.mjs",
+      "bytes": 945,
+      "sha256": "0c3377ad87c949b0ac74ad5dfc9ae8c094837550b0f44a46023c1968e63b7a9e"
+    },
+    {
+      "lane": "astra-convex",
+      "path": "scripts/finalize-scale.mjs",
+      "bytes": 1614,
+      "sha256": "0cada7e517e2e036f1430da4dcdbf62f0fbbe1d6afc23abbf7e54cffd587e13f"
+    },
+    {
+      "lane": "astra-convex",
+      "path": "scripts/client.mjs",
+      "bytes": 732,
+      "sha256": "a519bf59692cc180dafba97f0b991b542f7c807401e116758a30fc0898831188"
+    },
+    {
+      "lane": "astra-convex",
+      "path": "scripts/validate-delivery.mjs",
+      "bytes": 1917,
+      "sha256": "dbe5c6e690aada94a5cc37c136d5810e1132fdf4394d206f19e56e85e3ce222e"
+    },
+    {
+      "lane": "astra-convex",
+      "path": "scripts/setup-auth.mjs",
+      "bytes": 570,
+      "sha256": "3a125e19df99a5b46060024c04c2cb23400fbaa793dc3f57478427978daa3521"
+    },
+    {
+      "lane": "astra-convex",
+      "path": "scripts/backfill-metrics.mjs",
+      "bytes": 392,
+      "sha256": "77af6e54487713378206dacd6fb90cf53b9cb7ecb7d7fc4017f13f1278cb90c6"
+    },
+    {
+      "lane": "astra-convex",
+      "path": "scripts/summarize-scale-probes.mjs",
+      "bytes": 1254,
+      "sha256": "650feb0425054d0f69d4f809968197a5608daeee6f5e9241d6731ae36c6dacee"
+    },
+    {
+      "lane": "astra-convex",
+      "path": "scripts/choreo.mjs",
+      "bytes": 1142,
+      "sha256": "383dcc94a85ef1496c6cf407cf4b4172d6fc003e87263d4aa2a64fb3a33c818c"
+    },
+    {
+      "lane": "astra-convex",
+      "path": "scripts/replay.mjs",
+      "bytes": 5686,
+      "sha256": "af19773ad6afb7c6ad1f92fa9b3ecf5e3ca2ad8ff164a52347a5f8f815aabacd"
+    },
+    {
+      "lane": "astra-convex",
+      "path": "scripts/custom-client-demo.mjs",
+      "bytes": 1108,
+      "sha256": "f4888f5aa4c0bd7edae1ea498e4becb66c11897c60622df8fe8fdda618652e8d"
+    },
+    {
+      "lane": "astra-convex",
+      "path": "scripts/verify-scale-media.mjs",
+      "bytes": 1945,
+      "sha256": "da055bb6e2898a965a4a3ea8ec38817269a02e2a114aa4185281325745b330fd"
+    },
+    {
+      "lane": "astra-convex",
+      "path": "scripts/acceptance-m4.mjs",
+      "bytes": 2799,
+      "sha256": "344c7a94821881f8ed5e970ca6484d7520d0ab84dbcabf2099c498791ab645e0"
+    },
+    {
+      "lane": "astra-convex",
+      "path": "scripts/testkit.mjs",
+      "bytes": 1149,
+      "sha256": "efbd1da2fa4620ea10f742b9991b8c4f4bae4ef109021204d4503bb3e3b74e05"
+    },
+    {
+      "lane": "astra-convex",
+      "path": "scripts/acceptance-m5.mjs",
+      "bytes": 2134,
+      "sha256": "abf25f6a76fefc8a685dfd063f128cb4c5a7a1f402e3b04e76992133b614ebf3"
+    },
+    {
+      "lane": "astra-convex",
+      "path": "scripts/boundary.mjs",
+      "bytes": 892,
+      "sha256": "8eab2bdd9e9d70a168cec243830479a4108283c2984699feca8d7b6a83a3ccb4"
+    },
+    {
+      "lane": "astra-convex",
+      "path": "scripts/acceptance-m6.mjs",
+      "bytes": 2356,
+      "sha256": "fcc2f48e7010730cbc71100d16cb22af9ec424a5f60f452cabdf62a20b75bd89"
+    },
+    {
+      "lane": "astra-convex",
+      "path": "scripts/acceptance-m2.mjs",
+      "bytes": 7607,
+      "sha256": "193b0313f8c25b7dbaa2c7c7cbee5ed7c9fb0c7a1dc7c6d28df23ff9d7cb2e0c"
+    },
+    {
+      "lane": "astra-convex",
+      "path": "scripts/feed-debug.mjs",
+      "bytes": 657,
+      "sha256": "9fdab6a96aaffd2b278ab667bb8f390af493909d9c58490801a87b018b0ba589"
+    },
+    {
+      "lane": "astra-convex",
+      "path": "scripts/acceptance-m3.mjs",
+      "bytes": 4410,
+      "sha256": "88a31151a069f28bb330895f13da880bab7b0218678d71492ed426db3961fa1d"
+    },
+    {
+      "lane": "astra-convex",
+      "path": "scripts/inspect.mjs",
+      "bytes": 437,
+      "sha256": "12fd1423afa764542a602a802805a2d0b6e8c95934ec458850ecaf06b00af3de"
+    },
+    {
+      "lane": "astra-convex",
+      "path": "scripts/scale-probes.mjs",
+      "bytes": 1846,
+      "sha256": "5ffe4e9d0adbaabb61575628dd15efa4f31b62e6a84b4097c2ea1947f182f4d4"
+    },
+    {
+      "lane": "astra-convex",
+      "path": "scripts/acceptance-m1.mjs",
+      "bytes": 4045,
+      "sha256": "2c352ec09f6d1092a3df9f4d01e042c60a2c98928fc7258f97b7e4fdd58e5329"
+    },
+    {
+      "lane": "astra-convex",
+      "path": "scripts/backfill-metrics-direct.mjs",
+      "bytes": 473,
+      "sha256": "f7f436715985b870671b85ce1389c231fbdbdd1628329b7e5ccb6f2d702c7035"
+    },
+    {
+      "lane": "astra-convex",
+      "path": "metering/r2-cell-admission.mjs",
+      "bytes": 85141,
+      "sha256": "ac122d032692838343fd910fe0657b8aba25f66f6cb3447eefb7a9c3d1b0e54f"
+    },
+    {
+      "lane": "astra-convex",
+      "path": "metering/counts.mjs",
+      "bytes": 2419,
+      "sha256": "caa946b19932d38a2e0e17c1935ef4f24ee1d116fbababa767e8b11bcbe1884b"
+    },
+    {
+      "lane": "astra-convex",
+      "path": "metering/r2-finalize-existing.mjs",
+      "bytes": 49738,
+      "sha256": "e8adb8be16501c3d3c022e15542ba736491f5283a6e8c18b71c1429dfe3308e8"
+    },
+    {
+      "lane": "astra-convex",
+      "path": "metering/r2-private-paths.mjs",
+      "bytes": 4863,
+      "sha256": "744f0098fb663281f40ea9a459a2d5be40814d9f9cfefdf73a241a52a0ea1012"
+    },
+    {
+      "lane": "astra-convex",
+      "path": "metering/boundaries.mjs",
+      "bytes": 8798,
+      "sha256": "174e88965a2abe81b556a2843c4f8bbd42a11b1a2aa13621eef913b1b5bdad0b"
+    },
+    {
+      "lane": "astra-convex",
+      "path": "metering/r2-finalize-retained-familiar.mjs",
+      "bytes": 19996,
+      "sha256": "b01fb773c73a7062324f4a3434c34c8d2eeabe45e1690178ce72ecb20e8c076d"
+    },
+    {
+      "lane": "astra-convex",
+      "path": "metering/watchdog.mjs",
+      "bytes": 10533,
+      "sha256": "c11b04211f254661a4194e0babcd890098bc75f351face6bb63dabeabae88d14"
+    },
+    {
+      "lane": "astra-convex",
+      "path": "metering/mutation-guard.mjs",
+      "bytes": 1202,
+      "sha256": "48a4b3f8c7c0f81763a48b70330c458b258c026d9a94cee98c9cc1d17c97b228"
+    },
+    {
+      "lane": "astra-convex",
+      "path": "metering/joiner.mjs",
+      "bytes": 19143,
+      "sha256": "713095fb4b331808a12871fbe4ff997566103b299dfcd6b9dea96d0d203a68be"
+    },
+    {
+      "lane": "astra-convex",
+      "path": "metering/finalization-diagnostics.mjs",
+      "bytes": 4067,
+      "sha256": "3006a8ffb3905c7877f115e076d290c5fc0d9a8d3d05ffdee339151644feb707"
+    },
+    {
+      "lane": "astra-convex",
+      "path": "metering/r2-execution-environment.mjs",
+      "bytes": 1938,
+      "sha256": "1544435cf2f4badcd732901947dc162f0fb80616e1f09ce5e10b8451f4b83be5"
+    },
+    {
+      "lane": "astra-convex",
+      "path": "metering/r2-host-lock.mjs",
+      "bytes": 14675,
+      "sha256": "6d42cfa31e7c819a0ff0effe396cbf2947029ccce3533ad299372aadceab96b2"
+    },
+    {
+      "lane": "astra-convex",
+      "path": "metering/lane-controller.mjs",
+      "bytes": 43744,
+      "sha256": "a948153ea3ec9e4b2ce39ce7ad1d01a9a07dfee0eb5554273c57c85614771f71"
+    },
+    {
+      "lane": "astra-convex",
+      "path": "metering/observations.mjs",
+      "bytes": 37056,
+      "sha256": "0da327f35b27a292b805903cf74a83485eb8873e3dbfcc895040d71741f8dc60"
+    },
+    {
+      "lane": "astra-convex",
+      "path": "metering/journey-contract.mjs",
+      "bytes": 2369,
+      "sha256": "01c55aef89e30a2e890f5f4a9a18a3541143b3e959a86642bac1d76f4e8b218e"
+    },
+    {
+      "lane": "astra-convex",
+      "path": "metering/sources.mjs",
+      "bytes": 552,
+      "sha256": "2433dc8d5ac775fea9321e332a88cdffc15d77a37a63eb18cc226e08f241cc6f"
+    },
+    {
+      "lane": "astra-convex",
+      "path": "metering/r2-cell-driver.mjs",
+      "bytes": 82829,
+      "sha256": "1eb192f9eaef2c67cf727f29ec642d21618617c0f37c3fa72c89fe07421de458"
+    },
+    {
+      "lane": "astra-convex",
+      "path": "metering/scale-replay-evidence.mjs",
+      "bytes": 5734,
+      "sha256": "545d4c797c54259c4e9981ad7876c8560c1b3c485c52464257ec1bcd0b7954d9"
+    },
+    {
+      "lane": "astra-convex",
+      "path": "metering/codex-native-evidence.mjs",
+      "bytes": 14521,
+      "sha256": "052a5fa8c3a78b71769405421fd17730c0537c92567705bd498713f9aa387ad3"
+    },
+    {
+      "lane": "astra-convex",
+      "path": "metering/meter.mjs",
+      "bytes": 1898,
+      "sha256": "d19aa6764c513af489e43b00ef15f8560d347dc84998254d1cceb4bf9e4d5a62"
+    },
+    {
+      "lane": "astra-convex",
+      "path": "metering/manifest.mjs",
+      "bytes": 55673,
+      "sha256": "35ac0d88ed9deff8bdb88dc80889e0f4b1e553a99777f0869e9099f44f39aba2"
+    },
+    {
+      "lane": "astra-convex",
+      "path": "metering/r2-cell-signal.mjs",
+      "bytes": 3424,
+      "sha256": "f2f835538bc92cd5ea2af0098e43ca0e97cf3934101c713f6c13ede55066a712"
+    },
+    {
+      "lane": "astra-convex",
+      "path": "metering/r2-finalized-cell.mjs",
+      "bytes": 27094,
+      "sha256": "9ca156073f18fd581f413b4b4b537d397a13c78317688fe91f1da2f1bb349bd2"
+    },
+    {
+      "lane": "astra-convex",
+      "path": "metering/coverage-manifest.mjs",
+      "bytes": 1885,
+      "sha256": "e3274036359213d6444c248a97913bad156a54f36456897d9f4c51ad87c9ab0c"
+    },
+    {
+      "lane": "astra-convex",
+      "path": "metering/jsonl.mjs",
+      "bytes": 1047,
+      "sha256": "9a54aa643fc838f0234bc6126b52ecd1cbfae50707ce9688e48dc11318059590"
+    },
+    {
+      "lane": "astra-convex",
+      "path": "metering/test/r3-packet.test.mjs",
+      "bytes": 28458,
+      "sha256": "990f5433a151c3cd7b6fb5055d7534610f4f4514c769e2f6bb2b3df8502ae03c"
+    },
+    {
+      "lane": "astra-convex",
+      "path": "metering/test/metering-portability.test.mjs",
+      "bytes": 59670,
+      "sha256": "69e6861743f0046d4965efb5652ad41c07932b2a30fcb957b54430ef01f784a9"
+    },
+    {
+      "lane": "astra-convex",
+      "path": "metering/test/metering.test.mjs",
+      "bytes": 212713,
+      "sha256": "38989cd2fc88a0261ac957bc9d0a288b13772bcd89233945bfbca93a571659ea"
+    },
+    {
+      "lane": "astra-convex",
+      "path": "metering/test/fixtures/unavailable-manifest.json",
+      "bytes": 1402,
+      "sha256": "b05fd463390de835fa67d316c701e177aee9e5efeecf83720eaa0cff195635d4"
+    },
+    {
+      "lane": "astra-convex",
+      "path": "metering/test/fixtures/first-product-edit.json",
+      "bytes": 183,
+      "sha256": "7a53f1322cbd57f086391f161cd97433a329c02bea40fa736b3c419554bdf1b8"
+    },
+    {
+      "lane": "astra-convex",
+      "path": "metering/test/fixtures/boundaries.json",
+      "bytes": 778,
+      "sha256": "efe3bb3cb3ec0e3b8de6c13906375576c1157be8b91662841cf68fe312f2b2fd"
+    },
+    {
+      "lane": "astra-convex",
+      "path": "metering/test/fixtures/post-terminal-channel.json",
+      "bytes": 557,
+      "sha256": "0c70b376da665c924429c327644847f87499467bdad9e1de68939deb59c34156"
+    },
+    {
+      "lane": "astra-convex",
+      "path": "metering/test/fixtures/real-claude-tree-boundaries.json",
+      "bytes": 455,
+      "sha256": "c5c836de0797a12f51cbfce478bcd5dc791997cc4fccdd5702ad7eee3a85f110"
+    },
+    {
+      "lane": "astra-convex",
+      "path": "metering/test/fixtures/real-grok-clique-familiar-suite-finalization.json",
+      "bytes": 1616,
+      "sha256": "e09ebbedd5900052fc22e96b248a213037a224527ea284aef6fca504deb89f28"
+    },
+    {
+      "lane": "astra-convex",
+      "path": "metering/test/fixtures/non-green-boundaries.json",
+      "bytes": 1012,
+      "sha256": "173d9c760356cc88d09fc3243e6a4d08215276e45c4b0b5ba5f4df8ee37de436"
+    },
+    {
+      "lane": "astra-convex",
+      "path": "metering/test/fixtures/real-grok-clique-explicit-suite-finalization.json",
+      "bytes": 1248,
+      "sha256": "2bfa41fa526ed3e8eb07ad5ec488713dba3afd626521cf46943941e7b7e24eb6"
+    },
+    {
+      "lane": "astra-convex",
+      "path": "metering/test/fixtures/real-grok-coterie-familiar-after-boundary-telemetry.json",
+      "bytes": 1277,
+      "sha256": "18e06fbef24e41459644a31414ac6a9100568dab2642b314b08eb83587a61a83"
+    },
+    {
+      "lane": "astra-convex",
+      "path": "metering/test/fixtures/real-claude-tree-manifest.json",
+      "bytes": 1728,
+      "sha256": "c4a90446ac73f83db2f2355061fe35f136ea7d91869eb4a1e24fb956ae7299e6"
+    },
+    {
+      "lane": "astra-convex",
+      "path": "metering/test/fixtures/real-opus-coterie-familiar-after-boundary-semantic.json",
+      "bytes": 798,
+      "sha256": "4cb2a9c1dcaa7ee2b69f4f60bf18e4b5deae0e49a79e3ab153ac3ed4f377e678"
+    },
+    {
+      "lane": "astra-convex",
+      "path": "metering/adapters/unavailable.mjs",
+      "bytes": 675,
+      "sha256": "2e503ad705a69c6e6c63c61c584c03d4818e6d6b25c2f76cb3491fdeee784c6f"
+    },
+    {
+      "lane": "astra-convex",
+      "path": "metering/adapters/codex-session.mjs",
+      "bytes": 9836,
+      "sha256": "4cf1069c5250d7aec23979348594abc89363742c4d3d4d22721f16961f5a2dea"
+    },
+    {
+      "lane": "astra-convex",
+      "path": "metering/adapters/claude-session.mjs",
+      "bytes": 3525,
+      "sha256": "4674ec0dbf2c99cbcc5fc03fdab3108eaa2cf55c8716d4fc042429d9939f1c68"
+    },
+    {
+      "lane": "astra-convex",
+      "path": "choreography/choreography.mjs",
+      "bytes": 116248,
+      "sha256": "8caf5ebdc9a85a2757fe5109740184bdac37977ac98d0a583f16f9dea383177f"
+    },
+    {
+      "lane": "astra-convex",
+      "path": "choreography/setup-identity.mjs",
+      "bytes": 6797,
+      "sha256": "1e15b1081e5c7c70a1f77d5c810c73c0e53cbf99a9a0193cd606b9d891dfaee6"
+    },
+    {
+      "lane": "astra-convex",
+      "path": "choreography/receipts.schema.json",
+      "bytes": 23872,
+      "sha256": "e56cdd388b429840d53571bd69b6332ee767d0bc2f9333ea04fc3e4bc9da3d1c"
+    },
+    {
+      "lane": "astra-convex",
+      "path": "choreography/w9-coterie-browser.mjs",
+      "bytes": 8543,
+      "sha256": "0bb80fcfb1a0587b588f5c7d4b56b91a90d2e1088bfc44243d9ede4497ab8d89"
+    },
+    {
+      "lane": "astra-convex",
+      "path": "choreography/startup.test.mjs",
+      "bytes": 8320,
+      "sha256": "691eee62378778a275811e0c4974569edc32c6aecc592bf300b1942e4c15da06"
+    },
+    {
+      "lane": "astra-convex",
+      "path": "choreography/json-schema-portability.mjs",
+      "bytes": 414,
+      "sha256": "c38686d74d0bee05af817ca2325958bdacee6d391decd923d78a227361483d90"
+    },
+    {
+      "lane": "astra-convex",
+      "path": "choreography/control-lane.mjs",
+      "bytes": 38354,
+      "sha256": "35383c39fb717ecd3e7a6a7ead7839006ec18f3af5f2c5d6ae1ade2cce2680a7"
+    },
+    {
+      "lane": "astra-convex",
+      "path": "choreography/package-lock.json",
+      "bytes": 3871,
+      "sha256": "198138fca1ba6d371a32b7410e77e563c9dc0d5d7877d4db0a134ff0eac07b58"
+    },
+    {
+      "lane": "astra-convex",
+      "path": "choreography/package.json",
+      "bytes": 302,
+      "sha256": "68fb1999baf36bb87f814b3138ef96078f3c2dd9993dc04a0ac0fd81f5561e12"
+    },
+    {
+      "lane": "astra-convex",
+      "path": "choreography/w9-host-preflight.mjs",
+      "bytes": 3803,
+      "sha256": "4d8b8d0105892f899e7f3a171d0215788984880b8f2e2e4e33a5f7846668913a"
+    },
+    {
+      "lane": "astra-convex",
+      "path": "choreography/self-test.mjs",
+      "bytes": 43101,
+      "sha256": "1e865e9ca174c0baff4963fe8e9d67c5105024446a6676ab515f143279eb70ff"
+    },
+    {
+      "lane": "astra-convex",
+      "path": "choreography/setup-identity.schema.json",
+      "bytes": 4167,
+      "sha256": "783cb67672aa94ca91f61149cac76a1942a235631a09c7f43f237a0371e60b43"
+    },
+    {
+      "lane": "astra-convex",
+      "path": "choreography/w9-native-host.mjs",
+      "bytes": 8601,
+      "sha256": "1afdf0852a7469352609be725fbdb977da177d5b4f4eb81b33874db4894db924"
+    },
+    {
+      "lane": "astra-convex",
+      "path": "vendor/ui/package-lock.json",
+      "bytes": 107273,
+      "sha256": "7f85af6400935faf9e2938402dbb32a697040bf51fff2ff8f2ebf99a133e710d"
+    },
+    {
+      "lane": "astra-convex",
+      "path": "vendor/ui/package.json",
+      "bytes": 577,
+      "sha256": "15fa8a0fc0b19bdebb1b1e22caa29c7c3870c654448ecf3e65d8efa7c8d3bdbb"
+    },
+    {
+      "lane": "astra-convex",
+      "path": "vendor/ui/tsconfig.json",
+      "bytes": 483,
+      "sha256": "2cc903a9988d9a855b708f4db8acd679dd015a691cb4ee26a6bfb5cd3074ef52"
+    },
+    {
+      "lane": "astra-convex",
+      "path": "vendor/ui/index.ts",
+      "bytes": 836,
+      "sha256": "ddefaf68b4cbcf90bfc60de0f3d1cfd87101eae71a63971354e8c008eec1f26b"
+    },
+    {
+      "lane": "astra-convex",
+      "path": "vendor/ui/test/observability-contract.test.mjs",
+      "bytes": 2201,
+      "sha256": "c2e97def1b1751b1bdcb0512040337fd1b2f0835843511a3df4004b4683f21ba"
+    },
+    {
+      "lane": "astra-convex",
+      "path": "vendor/ui/test/quoted-reply.test.mjs",
+      "bytes": 862,
+      "sha256": "981b75d68007c9d128b9f79ac1ede2c2d0fe4363a81ac95c2340166088f1ea20"
+    },
+    {
+      "lane": "astra-convex",
+      "path": "vendor/ui/src/ReactionPicker.tsx",
+      "bytes": 3148,
+      "sha256": "3aadc27eceab18ab19f488d2329c4af65b44e571c0ce9a2ddfba3465632ebba7"
+    },
+    {
+      "lane": "astra-convex",
+      "path": "vendor/ui/src/PollDisplay.tsx",
+      "bytes": 4498,
+      "sha256": "e01ea9a2ef2874933e4e429d5e98ddbaa37c297c69ccf8b7a013f007ff829b24"
+    },
+    {
+      "lane": "astra-convex",
+      "path": "vendor/ui/src/ReceiptTicks.tsx",
+      "bytes": 1723,
+      "sha256": "002c51d916a93748c7560a089427daf67b874a248b78bb49c733db1df1371111"
+    },
+    {
+      "lane": "astra-convex",
+      "path": "vendor/ui/src/InsightsSummary.tsx",
+      "bytes": 2060,
+      "sha256": "2be73279d8b4fcec36253d0e7f19218e32bcaf5d79a756d9433e0852d22da605"
+    },
+    {
+      "lane": "astra-convex",
+      "path": "vendor/ui/src/FeedCard.tsx",
+      "bytes": 9358,
+      "sha256": "8892d4a4e0e01383234981b22a26a23a4e2a9f499fefa3b406b19962cb7da9a3"
+    },
+    {
+      "lane": "astra-convex",
+      "path": "vendor/ui/src/ChatSettingsForm.tsx",
+      "bytes": 15402,
+      "sha256": "860c686e052c38040b86664e3d0a7d348e9a0dcc53649eb2069c2fdaef69c4d4"
+    },
+    {
+      "lane": "astra-convex",
+      "path": "vendor/ui/src/FeedTabs.tsx",
+      "bytes": 2442,
+      "sha256": "e39cec82705dc31401d489c98c3302650e89b269118590b7c35a9c1af4e8fb20"
+    },
+    {
+      "lane": "astra-convex",
+      "path": "vendor/ui/src/InsightsBarList.tsx",
+      "bytes": 3580,
+      "sha256": "503f0cf202b0e4cf316dd8537b544ea45bb9e8f0e45c51b0f2666fe88778e242"
+    },
+    {
+      "lane": "astra-convex",
+      "path": "vendor/ui/src/ChatListRow.tsx",
+      "bytes": 4061,
+      "sha256": "eeb41edd614656fd6e0c6c80b154cca7a5592643089ee9d512a97641d2bb1dc1"
+    },
+    {
+      "lane": "astra-convex",
+      "path": "vendor/ui/src/ProfileForm.tsx",
+      "bytes": 11452,
+      "sha256": "2d4eed03035a3fbcf700d9bce8eb9bc52afac88c81739dd025f8c8cf198c6bb7"
+    },
+    {
+      "lane": "astra-convex",
+      "path": "vendor/ui/src/SearchBar.tsx",
+      "bytes": 6284,
+      "sha256": "c0327283375be77223811c282de46cb6b7c20385088026c359fe1aa9d79cd420"
+    },
+    {
+      "lane": "astra-convex",
+      "path": "vendor/ui/src/TrendingRow.tsx",
+      "bytes": 2351,
+      "sha256": "cdaf53d7e9c6c8432cefca5662f41cd72fda689e3462cb90f506b37ec597a1f8"
+    },
+    {
+      "lane": "astra-convex",
+      "path": "vendor/ui/src/QuotedReply.tsx",
+      "bytes": 1998,
+      "sha256": "65e24e92c10d2773582854b05a56574630b351945699d4b1a158760c3e0213ec"
+    },
+    {
+      "lane": "astra-convex",
+      "path": "vendor/ui/src/AuthForm.tsx",
+      "bytes": 4535,
+      "sha256": "c222139ae5f5bd1ab2aaad81e9b473f9eaa3596c3999d581ace23225e9d78efb"
+    },
+    {
+      "lane": "astra-convex",
+      "path": "vendor/ui/src/tokens.ts",
+      "bytes": 1935,
+      "sha256": "dd5f86492fe4a7e4595c255f0b0c48f3ab563a726765230eb528d41f80773c02"
+    },
+    {
+      "lane": "astra-convex",
+      "path": "vendor/ui/src/PollCompose.tsx",
+      "bytes": 5401,
+      "sha256": "5a143045095ae1bae8e640317799fbbed49db436594a0dd72226b9620f525054"
+    },
+    {
+      "lane": "astra-convex",
+      "path": "vendor/ui/src/MessageBubble.tsx",
+      "bytes": 10866,
+      "sha256": "c5e0274450c4bdc390a0b5e4fbc8703af78b2ba29226d17b8340aeb67571104b"
+    },
+    {
+      "lane": "astra-convex",
+      "path": "vendor/ui/src/Avatar.tsx",
+      "bytes": 2145,
+      "sha256": "9a62816e255ea2cffe34c40874ae39f17ba87fd034f3f17225909fba79aba639"
+    },
+    {
+      "lane": "astra-convex",
+      "path": "vendor/ui/src/Composer.tsx",
+      "bytes": 6884,
+      "sha256": "2a2ad4e66755a0e22e9d834619b17ccdac150f5489aa7735445332cc4cd2f844"
+    },
+    {
+      "lane": "astra-convex",
+      "path": "vendor/ui/src/TypingIndicator.tsx",
+      "bytes": 2625,
+      "sha256": "9c792b0a53c87482008c9f2effce9943b329fab6fd600b7411a8e6ada76078d9"
+    },
+    {
+      "lane": "astra-convex",
+      "path": "vendor/ui/src/linkify.tsx",
+      "bytes": 1060,
+      "sha256": "5e705a9336b230c74fcd2a5cb00fd9096b78fd526b54882e77b8e48158428717"
+    },
+    {
+      "lane": "astra-supabase",
+      "path": "suite-status.json",
+      "bytes": 513,
+      "sha256": "4ab60df48ab3e5d7335b4a0b9a7b32f58980227ccba12ea8efb41fba27029409"
+    },
+    {
+      "lane": "astra-supabase",
+      "path": "app.json",
+      "bytes": 290,
+      "sha256": "71e1d8a2a70540ccef3abff68b38e12b9ae04ddfc847dafa3b134c6ad1e57826"
+    },
+    {
+      "lane": "astra-supabase",
+      "path": "coverage-manifest.json",
+      "bytes": 8750,
+      "sha256": "32f8439741084489d65bf7a6dcc451a209a628655ebd536fadee3c11dc5a84ba"
+    },
+    {
+      "lane": "astra-supabase",
+      "path": "final-report.md",
+      "bytes": 33139,
+      "sha256": "91db50eb456ae20c7c2003e0bd8ec6154fb0627dabbea0d7d63f03c455440767"
+    },
+    {
+      "lane": "astra-supabase",
+      "path": "schema.sql",
+      "bytes": 9625,
+      "sha256": "02431660c98991a7accaa483926696aea6d17db99ca0e49c62d9846cdfb10756"
+    },
+    {
+      "lane": "astra-supabase",
+      "path": "essay.md",
+      "bytes": 10603,
+      "sha256": "09e758c588ff930f30460187bf612b9e093907246fcad87da618accf55e06fe3"
+    },
+    {
+      "lane": "astra-supabase",
+      "path": "package-lock.json",
+      "bytes": 380230,
+      "sha256": "3e77aeaf0b804783f34f06d4657cd09c5d72a47ac9bab5e1e8eff369914a9753"
+    },
+    {
+      "lane": "astra-supabase",
+      "path": "package.json",
+      "bytes": 1083,
+      "sha256": "07084ea9faf90e3cd958aaa740d4bc911dc4a9de93a01ce768c8a59189bc72e5"
+    },
+    {
+      "lane": "astra-supabase",
+      "path": "run-log.md",
+      "bytes": 35530,
+      "sha256": "2cb10270f2b3e774e213ccc834619d9f37be6bec96442e228f03262bb808caa0"
+    },
+    {
+      "lane": "astra-supabase",
+      "path": "copied-source-edits.json",
+      "bytes": 2116,
+      "sha256": "2539b84cde1313e1a88d82321cd976d581286e311e4296303205f2c4fd66b99a"
+    },
+    {
+      "lane": "astra-supabase",
+      "path": "simulator-status.json",
+      "bytes": 570,
+      "sha256": "3bfc832caa4de221a4b204c15f6e4b1a475737b70cd1cec457ff68f613fe4224"
+    },
+    {
+      "lane": "astra-supabase",
+      "path": "setup-identity.json",
+      "bytes": 975,
+      "sha256": "694e12cdd5d1bd469c3636a24267d111e399c1995ad3c73e952a3f34c2083b8d"
+    },
+    {
+      "lane": "astra-supabase",
+      "path": "tsconfig.json",
+      "bytes": 124,
+      "sha256": "216fab874ce76966f069c940f8e59e584d087473311f5022159f79bba3e3d974"
+    },
+    {
+      "lane": "astra-supabase",
+      "path": "resolved-pins.json",
+      "bytes": 1237,
+      "sha256": "86b3ca8b31fcce428cb782b2b611b3dc95f5f163ab8d0547d99c104aeaa7899e"
+    },
+    {
+      "lane": "astra-supabase",
+      "path": "choreography-adapter.json",
+      "bytes": 257,
+      "sha256": "0f853321956a2ecb8fd93dac2b1d0a677f37d4fa052e2778b3e405b3c5f665c9"
+    },
+    {
+      "lane": "astra-supabase",
+      "path": "diary.md",
+      "bytes": 10279,
+      "sha256": "5699214e572543511407ea2528588008fe8a7877f816e1b1e5298897ecf83fc4"
+    },
+    {
+      "lane": "astra-supabase",
+      "path": "hand-authored-lines.json",
+      "bytes": 12951,
+      "sha256": "3cc085b7a772a49da9a083862bc5addc96d4f12f661795b5fceae971c955e83f"
+    },
+    {
+      "lane": "astra-supabase",
+      "path": "milestone-clocks.json",
+      "bytes": 5412,
+      "sha256": "4d9e2db9deb01ac94ebe4bd6f3a580e385d5aa405174f333a0478bd8d8ae401e"
+    },
+    {
+      "lane": "astra-supabase",
+      "path": "run-record.json",
+      "bytes": 43389,
+      "sha256": "c80dd4942ec5f202c6b49f9ff42f5ff037fe4023c73544726b1853ac3018b18b"
+    },
+    {
+      "lane": "astra-supabase",
+      "path": "ui/package-lock.json",
+      "bytes": 107273,
+      "sha256": "7f85af6400935faf9e2938402dbb32a697040bf51fff2ff8f2ebf99a133e710d"
+    },
+    {
+      "lane": "astra-supabase",
+      "path": "ui/package.json",
+      "bytes": 577,
+      "sha256": "15fa8a0fc0b19bdebb1b1e22caa29c7c3870c654448ecf3e65d8efa7c8d3bdbb"
+    },
+    {
+      "lane": "astra-supabase",
+      "path": "ui/tsconfig.json",
+      "bytes": 483,
+      "sha256": "2cc903a9988d9a855b708f4db8acd679dd015a691cb4ee26a6bfb5cd3074ef52"
+    },
+    {
+      "lane": "astra-supabase",
+      "path": "ui/index.ts",
+      "bytes": 836,
+      "sha256": "ddefaf68b4cbcf90bfc60de0f3d1cfd87101eae71a63971354e8c008eec1f26b"
+    },
+    {
+      "lane": "astra-supabase",
+      "path": "ui/test/observability-contract.test.mjs",
+      "bytes": 2201,
+      "sha256": "c2e97def1b1751b1bdcb0512040337fd1b2f0835843511a3df4004b4683f21ba"
+    },
+    {
+      "lane": "astra-supabase",
+      "path": "ui/test/quoted-reply.test.mjs",
+      "bytes": 862,
+      "sha256": "981b75d68007c9d128b9f79ac1ede2c2d0fe4363a81ac95c2340166088f1ea20"
+    },
+    {
+      "lane": "astra-supabase",
+      "path": "ui/src/ReactionPicker.tsx",
+      "bytes": 3148,
+      "sha256": "76d61c848eeeb692a554fd45bda8f481a7865e5eab5ff87e4c76d9667d0eac50"
+    },
+    {
+      "lane": "astra-supabase",
+      "path": "ui/src/PollDisplay.tsx",
+      "bytes": 4402,
+      "sha256": "7e925c52b426fa8e5d2e371fcc60e3fb32d6349ad59567c56e5e3f67c38aa531"
+    },
+    {
+      "lane": "astra-supabase",
+      "path": "ui/src/ReceiptTicks.tsx",
+      "bytes": 1723,
+      "sha256": "4ce7ecc92fd56830d3667c80397538990387bb8a774d7b6738ee09bd11c1e459"
+    },
+    {
+      "lane": "astra-supabase",
+      "path": "ui/src/InsightsSummary.tsx",
+      "bytes": 2060,
+      "sha256": "2be73279d8b4fcec36253d0e7f19218e32bcaf5d79a756d9433e0852d22da605"
+    },
+    {
+      "lane": "astra-supabase",
+      "path": "ui/src/FeedCard.tsx",
+      "bytes": 9358,
+      "sha256": "60841e12c9c9f8e5c2aaeef49684a08c0a541debbfde50e826f1465798c8743a"
+    },
+    {
+      "lane": "astra-supabase",
+      "path": "ui/src/ChatSettingsForm.tsx",
+      "bytes": 15416,
+      "sha256": "eaf773cdb4ed3fc0153712ac3a281ca041760213697014a625a635e08c502210"
+    },
+    {
+      "lane": "astra-supabase",
+      "path": "ui/src/FeedTabs.tsx",
+      "bytes": 2442,
+      "sha256": "e1a8c112f7de1a2bdafad9956e48145b3dd6b0ee8d9fcf1905bb555fbeed3123"
+    },
+    {
+      "lane": "astra-supabase",
+      "path": "ui/src/InsightsBarList.tsx",
+      "bytes": 3580,
+      "sha256": "503f0cf202b0e4cf316dd8537b544ea45bb9e8f0e45c51b0f2666fe88778e242"
+    },
+    {
+      "lane": "astra-supabase",
+      "path": "ui/src/ChatListRow.tsx",
+      "bytes": 4061,
+      "sha256": "1aa06ed3a294255551f7b4b28a6cf7bc0b5e000badd7cd3db33984e16d06fd7c"
+    },
+    {
+      "lane": "astra-supabase",
+      "path": "ui/src/ProfileForm.tsx",
+      "bytes": 11452,
+      "sha256": "2d4eed03035a3fbcf700d9bce8eb9bc52afac88c81739dd025f8c8cf198c6bb7"
+    },
+    {
+      "lane": "astra-supabase",
+      "path": "ui/src/SearchBar.tsx",
+      "bytes": 6284,
+      "sha256": "c0327283375be77223811c282de46cb6b7c20385088026c359fe1aa9d79cd420"
+    },
+    {
+      "lane": "astra-supabase",
+      "path": "ui/src/TrendingRow.tsx",
+      "bytes": 2351,
+      "sha256": "cdaf53d7e9c6c8432cefca5662f41cd72fda689e3462cb90f506b37ec597a1f8"
+    },
+    {
+      "lane": "astra-supabase",
+      "path": "ui/src/QuotedReply.tsx",
+      "bytes": 1998,
+      "sha256": "65e24e92c10d2773582854b05a56574630b351945699d4b1a158760c3e0213ec"
+    },
+    {
+      "lane": "astra-supabase",
+      "path": "ui/src/AuthForm.tsx",
+      "bytes": 4535,
+      "sha256": "c222139ae5f5bd1ab2aaad81e9b473f9eaa3596c3999d581ace23225e9d78efb"
+    },
+    {
+      "lane": "astra-supabase",
+      "path": "ui/src/tokens.ts",
+      "bytes": 1935,
+      "sha256": "dd5f86492fe4a7e4595c255f0b0c48f3ab563a726765230eb528d41f80773c02"
+    },
+    {
+      "lane": "astra-supabase",
+      "path": "ui/src/PollCompose.tsx",
+      "bytes": 5401,
+      "sha256": "5a143045095ae1bae8e640317799fbbed49db436594a0dd72226b9620f525054"
+    },
+    {
+      "lane": "astra-supabase",
+      "path": "ui/src/MessageBubble.tsx",
+      "bytes": 10866,
+      "sha256": "f4374514e2ac4e533efe694ae3e68ae5a64f43a76e1f3038f948708591266f35"
+    },
+    {
+      "lane": "astra-supabase",
+      "path": "ui/src/Avatar.tsx",
+      "bytes": 2145,
+      "sha256": "2cc0c6e4a490c4af33d26f7c1c491cc5065e3b8372a488f8376030ccf2db3f90"
+    },
+    {
+      "lane": "astra-supabase",
+      "path": "ui/src/Composer.tsx",
+      "bytes": 6884,
+      "sha256": "8cf1c8260192dfc8065d3f8d990e9cca4a04e7b1394a02caf7855d106c953bd4"
+    },
+    {
+      "lane": "astra-supabase",
+      "path": "ui/src/TypingIndicator.tsx",
+      "bytes": 2625,
+      "sha256": "9c792b0a53c87482008c9f2effce9943b329fab6fd600b7411a8e6ada76078d9"
+    },
+    {
+      "lane": "astra-supabase",
+      "path": "ui/src/linkify.tsx",
+      "bytes": 1060,
+      "sha256": "5e705a9336b230c74fcd2a5cb00fd9096b78fd526b54882e77b8e48158428717"
+    },
+    {
+      "lane": "astra-supabase",
+      "path": "app/index.tsx",
+      "bytes": 39,
+      "sha256": "2ac6fedac6fe5d002a68541583a3b7615bc62ac41ad2823f3c12efb64e7b2f95"
+    },
+    {
+      "lane": "astra-supabase",
+      "path": "app/[...route].tsx",
+      "bytes": 39,
+      "sha256": "2ac6fedac6fe5d002a68541583a3b7615bc62ac41ad2823f3c12efb64e7b2f95"
+    },
+    {
+      "lane": "astra-supabase",
+      "path": "app/_layout.tsx",
+      "bytes": 83,
+      "sha256": "a335d0b70f6243475a2ebe7affa440417502f31f08020c349714da11181f9914"
+    },
+    {
+      "lane": "astra-supabase",
+      "path": "config/digest.production.json",
+      "bytes": 177,
+      "sha256": "c389728f1505612d3ac2a44597efa12a83042666a34432f27cf832e54fdfdc21"
+    },
+    {
+      "lane": "astra-supabase",
+      "path": "config/windows.production.json",
+      "bytes": 438,
+      "sha256": "c43a0ae50d80488f7e52f652d682b8e9d443b00e95269c71a4f98ac4fb870764"
+    },
+    {
+      "lane": "astra-supabase",
+      "path": "config/windows.shortened.json",
+      "bytes": 484,
+      "sha256": "22dfdde4ef58026081f52eddbbabe9491624d6a00215522b6279c0f21f4c0bd9"
+    },
+    {
+      "lane": "astra-supabase",
+      "path": "config/digest.shortened.json",
+      "bytes": 182,
+      "sha256": "f5ddbd66bd4d791056a39b8cd4e77488c6822e6cbcdf65d97689be489851ea60"
+    },
+    {
+      "lane": "astra-supabase",
+      "path": "ios/Podfile.properties.json",
+      "bytes": 77,
+      "sha256": "4222d802ab80961762b71603a713160c16c0fa3ce5d6c74a111c67785872331a"
+    },
+    {
+      "lane": "astra-supabase",
+      "path": "ios/CliqueUITests/CliqueOfflineTests.swift",
+      "bytes": 6973,
+      "sha256": "debc345da1815dbb91fc2c44203d08166e3391f9d08501c2eb1418a410fa1b14"
+    },
+    {
+      "lane": "astra-supabase",
+      "path": "ios/Clique/AppDelegate.swift",
+      "bytes": 2228,
+      "sha256": "510895dbd9aec82fe5c8143baf7cc4740449433f4a59a7299dd3dc1c6a408aeb"
+    },
+    {
+      "lane": "astra-supabase",
+      "path": "ios/Clique/Images.xcassets/Contents.json",
+      "bytes": 62,
+      "sha256": "632a1481b9e3b957f3b34267728744d61272e3db32751432551b9eb7c58ad7a2"
+    },
+    {
+      "lane": "astra-supabase",
+      "path": "ios/Clique/Images.xcassets/AppIcon.appiconset/Contents.json",
+      "bytes": 215,
+      "sha256": "344a731ecf43e614be1d95fc1549918fae139fc41bce5db8d00c8359f712e3b2"
+    },
+    {
+      "lane": "astra-supabase",
+      "path": "ios/Clique/Images.xcassets/SplashScreenBackground.colorset/Contents.json",
+      "bytes": 348,
+      "sha256": "82bdb39c90d2095ac1811d817b07da32d401c7cb37f100efd31c19410465b14f"
+    },
+    {
+      "lane": "astra-supabase",
+      "path": "scripts/aggregates.mjs",
+      "bytes": 4048,
+      "sha256": "46f5e6039598adcde88ac055334930419958bcdc325c62db49f57d6748860b46"
+    },
+    {
+      "lane": "astra-supabase",
+      "path": "scripts/seed.mjs",
+      "bytes": 3377,
+      "sha256": "c42828d70e2c170a7526e9990a97ffdaaea772e9deb8447629410490eda9a5c7"
+    },
+    {
+      "lane": "astra-supabase",
+      "path": "scripts/db.mjs",
+      "bytes": 509,
+      "sha256": "9ee9531579ab3bfd27c870de0636f5d042df18e8af5be8e250e236b9f6af3ce9"
+    },
+    {
+      "lane": "astra-supabase",
+      "path": "scripts/debug-settings.mjs",
+      "bytes": 632,
+      "sha256": "39c58db2a8df3a38430a5f0c04ba8d0fdf6dff1bc9adb0c79a0b2f3c8740c7bf"
+    },
+    {
+      "lane": "astra-supabase",
+      "path": "scripts/acceptance.mjs",
+      "bytes": 4931,
+      "sha256": "c97b8d6c7e2dd61fa2da7926d73655da9bfc64ac0ae64ad536bc33df9068ab42"
+    },
+    {
+      "lane": "astra-supabase",
+      "path": "scripts/debug-m8-two.mjs",
+      "bytes": 1135,
+      "sha256": "e860726bb4784d29dbafd5c96774dfce63b46b55aea5b5941c73c15be5b32033"
+    },
+    {
+      "lane": "astra-supabase",
+      "path": "scripts/pool-recovery-probe.mjs",
+      "bytes": 866,
+      "sha256": "3551c6dd4f523cc9c33d81761af6f82a1087a0c4550e206c27e8b63aa7828cc4"
+    },
+    {
+      "lane": "astra-supabase",
+      "path": "scripts/validate-record.mjs",
+      "bytes": 962,
+      "sha256": "5f66cf1a5e0bc57ec51e935ddfd50259701e8c321ae2c0461d67689eda2dc1ab"
+    },
+    {
+      "lane": "astra-supabase",
+      "path": "scripts/static-web.mjs",
+      "bytes": 416,
+      "sha256": "863f94c477be9d6179a005c0f8165dcbbf3a20527cb9239bf7494035437e6951"
+    },
+    {
+      "lane": "astra-supabase",
+      "path": "scripts/auth-cache-probe.mjs",
+      "bytes": 1377,
+      "sha256": "293fa637afd1f0d6923d23ca3ba40708bdcc4edfe1e07d70cc5606301a55f20d"
+    },
+    {
+      "lane": "astra-supabase",
+      "path": "scripts/presence.mjs",
+      "bytes": 1030,
+      "sha256": "c6005fc5c5481dc4ab07af3ed6fc2ab85d019b0d3b32a6dbdf24e100fedd4b93"
+    },
+    {
+      "lane": "astra-supabase",
+      "path": "scripts/digest-probe.mjs",
+      "bytes": 3540,
+      "sha256": "b0646e1a154c01d4fd61a722309200cfa380390f1d2586360ad41bc48a84b5e8"
+    },
+    {
+      "lane": "astra-supabase",
+      "path": "scripts/native-controller.mjs",
+      "bytes": 4562,
+      "sha256": "c8fd47c9d9d0e28f1a4b2cb3900b9b79679733d03f80a3ada72e4b46c9e758e3"
+    },
+    {
+      "lane": "astra-supabase",
+      "path": "scripts/test-m4.mjs",
+      "bytes": 2504,
+      "sha256": "90319961b47548d996684cd21c7862772624739a5bb423eaca709597b822b27e"
+    },
+    {
+      "lane": "astra-supabase",
+      "path": "scripts/media.mjs",
+      "bytes": 4031,
+      "sha256": "48c5363c93a88897e88172724ec2dc08ba7aaadffd26f37f66d940a342320d42"
+    },
+    {
+      "lane": "astra-supabase",
+      "path": "scripts/scale-run.mjs",
+      "bytes": 2927,
+      "sha256": "c8c0db747697d4025fc48dc55493cc2e5e189d14357e87d4066bdb0dd641fc53"
+    },
+    {
+      "lane": "astra-supabase",
+      "path": "scripts/debug-m8.mjs",
+      "bytes": 920,
+      "sha256": "cc5b865f380a49273a5df7fc707ba654f4493c3c10ec564fa427d28a6e9b8a30"
+    },
+    {
+      "lane": "astra-supabase",
+      "path": "scripts/window-probe.mjs",
+      "bytes": 1474,
+      "sha256": "33c4359054508c10b439b54a8266abf2b356fba67bec2dd45d96214477d91cac"
+    },
+    {
+      "lane": "astra-supabase",
+      "path": "scripts/setup-identity.mjs",
+      "bytes": 912,
+      "sha256": "0f011846a2e2485e8b23d80abe65fbc0814d63e0581957476e20a9fdccad5d5d"
+    },
+    {
+      "lane": "astra-supabase",
+      "path": "scripts/test-m5.mjs",
+      "bytes": 2098,
+      "sha256": "1fe0f124960fa88995830aea1646f62dbde830b68aa552b9c2a20740c3c13403"
+    },
+    {
+      "lane": "astra-supabase",
+      "path": "scripts/test-m6.mjs",
+      "bytes": 4794,
+      "sha256": "a53ef4e80a83f12883b0febd478ef0112d3e8c2dc59a708d8a37bd9562d3ea13"
+    },
+    {
+      "lane": "astra-supabase",
+      "path": "scripts/web-final-smoke.mjs",
+      "bytes": 1298,
+      "sha256": "e7f5ef5829da76aca90e6998c03a5b481150d33de4c267812ab8a0ab659ba542"
+    },
+    {
+      "lane": "astra-supabase",
+      "path": "scripts/test-m2.mjs",
+      "bytes": 6481,
+      "sha256": "e7486b264516df2cdd8e4037747960534945e59dfe724f8ac1ef75326f93100d"
+    },
+    {
+      "lane": "astra-supabase",
+      "path": "scripts/social.mjs",
+      "bytes": 4038,
+      "sha256": "6140c246f7714228e3ae113aa5f4cd38d58db5a6b80575e028537cae4eac784d"
+    },
+    {
+      "lane": "astra-supabase",
+      "path": "scripts/debug-live-media.mjs",
+      "bytes": 1294,
+      "sha256": "3dc50b60e3186bf3a4104b810881aa35cce4f0b9f9060d9e1eaa91ab5926673b"
+    },
+    {
+      "lane": "astra-supabase",
+      "path": "scripts/test-m3.mjs",
+      "bytes": 3038,
+      "sha256": "cedbe2790c27ad3dd9d7c6df1da3450649f3e7ea7bd0593f6b62c4e0088d8ec0"
+    },
+    {
+      "lane": "astra-supabase",
+      "path": "scripts/scale-receipt-verify.mjs",
+      "bytes": 1467,
+      "sha256": "8700b3b120293c8f59a4bf342a17a7c7f96a4e69c16063834d0c2b245f52ff17"
+    },
+    {
+      "lane": "astra-supabase",
+      "path": "scripts/mutations.sql",
+      "bytes": 9343,
+      "sha256": "9ddd4777d986a4f79ae6691d06e0872ea0b1d9cfb4263e04d9b488e9490a11ce"
+    },
+    {
+      "lane": "astra-supabase",
+      "path": "scripts/report.mjs",
+      "bytes": 20549,
+      "sha256": "19328a1c229f099614cb4d2438ed8e4fe5b9c9e5c5e85126401fd49330ec54ec"
+    },
+    {
+      "lane": "astra-supabase",
+      "path": "scripts/probe-customization.mjs",
+      "bytes": 1513,
+      "sha256": "68e271e768148184de4a06719812d941bbf11330a368147a65766491f22592ae"
+    },
+    {
+      "lane": "astra-supabase",
+      "path": "scripts/ephemeral.mjs",
+      "bytes": 3960,
+      "sha256": "1db2e204c04af62788162f114b5f32370ee7ca3cfd419e2884f89300f80a5c68"
+    },
+    {
+      "lane": "astra-supabase",
+      "path": "scripts/scale-auth-verify.mjs",
+      "bytes": 1211,
+      "sha256": "c6127ae946ad041152bd54dca697bdb5db7410a2b6d771ff3beab881dc9f3d78"
+    },
+    {
+      "lane": "astra-supabase",
+      "path": "scripts/choreo.mjs",
+      "bytes": 888,
+      "sha256": "89d6b856661f0f9fa870e2fbafb7ec7272a36184e4671a7d37321b88e5fb885c"
+    },
+    {
+      "lane": "astra-supabase",
+      "path": "scripts/video-poster.mjs",
+      "bytes": 738,
+      "sha256": "864e48ed25a5b79293ad29ca8ef1c9bab4382e7ed7db307757914999616aa77f"
+    },
+    {
+      "lane": "astra-supabase",
+      "path": "scripts/validate-media.mjs",
+      "bytes": 880,
+      "sha256": "0ec92871e7a4bd729e009023146387b934f3b2d44ffda016f6d69cee605b65b5"
+    },
+    {
+      "lane": "astra-supabase",
+      "path": "scripts/replay.mjs",
+      "bytes": 7853,
+      "sha256": "d422ed44a2a1316cd980e21aef8cdc0baf37798a3f0532c2f06af6c2e7a81971"
+    },
+    {
+      "lane": "astra-supabase",
+      "path": "scripts/custom-client-demo.mjs",
+      "bytes": 1045,
+      "sha256": "c6d84b17c3594d0ed4e561f8e03040be4ddc905d41850154f3a92afd616be2cd"
+    },
+    {
+      "lane": "astra-supabase",
+      "path": "scripts/test-m8.mjs",
+      "bytes": 3526,
+      "sha256": "744ad5b816ae4719ca5a7f9f5ffb3834ed42745875306c3034b8108e49468b33"
+    },
+    {
+      "lane": "astra-supabase",
+      "path": "scripts/scale-compare.mjs",
+      "bytes": 1350,
+      "sha256": "107eee13e8f501e37be49ba76cae69055e3a1f72afb7b4fc504442a0d7b10b6d"
+    },
+    {
+      "lane": "astra-supabase",
+      "path": "scripts/debug-video.mjs",
+      "bytes": 687,
+      "sha256": "68fc58228e1625727cc34d7d5306b2a37bdfaa87629cb8d58fbb8afe54404be1"
+    },
+    {
+      "lane": "astra-supabase",
+      "path": "scripts/scale-verify.mjs",
+      "bytes": 6053,
+      "sha256": "b141078f5659e888c7a1576bec7d2ab4e9a0348f8ad6bdfb9008a45372396cb3"
+    },
+    {
+      "lane": "astra-supabase",
+      "path": "scripts/server.mjs",
+      "bytes": 7751,
+      "sha256": "82c16792945c1d27e5982c7087019c377cee383e6a98d19245eef320320cbf76"
+    },
+    {
+      "lane": "astra-supabase",
+      "path": "scripts/messaging.mjs",
+      "bytes": 8703,
+      "sha256": "ac8fddc95e8743178362cea8edd49e68ef2012055c960b47b3defc888a1c5883"
+    },
+    {
+      "lane": "astra-supabase",
+      "path": "scripts/cleanup.mjs",
+      "bytes": 4878,
+      "sha256": "a28ab780e90dc82017de684d5800e0c7c3ed9e69ee2031bdf82066bd9dd87214"
+    },
+    {
+      "lane": "astra-supabase",
+      "path": "scripts/debug-background.mjs",
+      "bytes": 666,
+      "sha256": "6135c5530e15aa14eaf316c2a05b145e81c11d9f73136097ee8611fc8762828b"
+    },
+    {
+      "lane": "astra-supabase",
+      "path": "scripts/debug-media.mjs",
+      "bytes": 969,
+      "sha256": "0f794efa0cbe26ecbaf9c737b2338d2032da0bfae788ef9e80daf5a0297e00b6"
+    },
+    {
+      "lane": "astra-supabase",
+      "path": "scripts/env.mjs",
+      "bytes": 205,
+      "sha256": "0a10f55054338271a6fe72aa82adbf0dea4c068fc2c89f8df4a64db3736dae8a"
+    },
+    {
+      "lane": "astra-supabase",
+      "path": "scripts/test-helpers.mjs",
+      "bytes": 1124,
+      "sha256": "29eb00d2b95860364e0ef914b3c999224ac638b26953dc2cc5c0db5a47386e61"
+    },
+    {
+      "lane": "astra-supabase",
+      "path": "scripts/scale-probes.mjs",
+      "bytes": 2547,
+      "sha256": "76049ef19df29c2b995f1e8c0f456f150d36f65416616883f35a61d65935338e"
+    },
+    {
+      "lane": "astra-supabase",
+      "path": "scripts/migrate.mjs",
+      "bytes": 338,
+      "sha256": "d1ff58b9ca5f8b0405d084bfacd38c8fbb6945b413ea398498ae4ca307444a8a"
+    },
+    {
+      "lane": "astra-supabase",
+      "path": "lib/Messaging.tsx",
+      "bytes": 13178,
+      "sha256": "7c5e9ce754a850f45c7b9bc8f4a553a7f7f1bd1995244867a92b09f25f7d6bb0"
+    },
+    {
+      "lane": "astra-supabase",
+      "path": "lib/Connection.tsx",
+      "bytes": 1400,
+      "sha256": "e727dfbba6f94c66db82511ce4035d2b8f6302c12a8ecd900eacbf282f5ab1a0"
+    },
+    {
+      "lane": "astra-supabase",
+      "path": "lib/Search.tsx",
+      "bytes": 2505,
+      "sha256": "8caedbbc7a7d9067c32db2399322a32b466b0622c2cff9db2ce7aaa9b50eb9c0"
+    },
+    {
+      "lane": "astra-supabase",
+      "path": "lib/asset-cache.ts",
+      "bytes": 1274,
+      "sha256": "d17e9f01caba160d29e62e42ff3aad47519d5374066936319b8396a0d25fa1ac"
+    },
+    {
+      "lane": "astra-supabase",
+      "path": "lib/api.ts",
+      "bytes": 1625,
+      "sha256": "71988f97b91fbb1ebab0f64288a0ff80765c7f0d7ba8bc9c08ab57abc3c51fd6"
+    },
+    {
+      "lane": "astra-supabase",
+      "path": "lib/offline.ts",
+      "bytes": 1619,
+      "sha256": "e413dcf10b8f2df27a8d26d59e79a3cd44ee8612f72aae1cdf7fe6798bc6dde9"
+    },
+    {
+      "lane": "astra-supabase",
+      "path": "lib/cache.ts",
+      "bytes": 1754,
+      "sha256": "7946796ce728aba5f61bb5572ae4e6a2e2c0b0d7ce72ff78f675a30c9528a3c8"
+    },
+    {
+      "lane": "astra-supabase",
+      "path": "lib/Insights.tsx",
+      "bytes": 1237,
+      "sha256": "1a311bf9ebb9f9d6e98b27b2ae4c2037a616b7c549d04441559532e3a4bd3f71"
+    },
+    {
+      "lane": "astra-supabase",
+      "path": "lib/Screen.tsx",
+      "bytes": 5949,
+      "sha256": "a7b455ae643d9fe1a90a21b8487f226fbccadcd26337192605b76c322a563900"
+    },
+    {
+      "lane": "astra-supabase",
+      "path": "lib/Social.tsx",
+      "bytes": 4639,
+      "sha256": "eec6cfb99025a4990a44b6163c2b0e47757a486b7b1abc42df7670ccb106a45b"
+    },
+    {
+      "lane": "astra-supabase",
+      "path": "lib/Media.tsx",
+      "bytes": 1877,
+      "sha256": "83b008e198a5ba877da153123499a84e283c29706a4c13e3f1cfc4f8fb07f0e4"
+    },
+    {
+      "lane": "astra-supabase",
+      "path": "choreography/choreography.mjs",
+      "bytes": 116259,
+      "sha256": "16d177b3efca304747387240d90110a66b32b56bd2743c24c7e38bfc713988af"
+    },
+    {
+      "lane": "astra-supabase",
+      "path": "choreography/setup-identity.mjs",
+      "bytes": 6785,
+      "sha256": "991fe423c439b83b95497779fb74372673eb899b323e62b9c2e1519f1a613dd2"
+    },
+    {
+      "lane": "astra-supabase",
+      "path": "choreography/receipts.schema.json",
+      "bytes": 23872,
+      "sha256": "e56cdd388b429840d53571bd69b6332ee767d0bc2f9333ea04fc3e4bc9da3d1c"
+    },
+    {
+      "lane": "astra-supabase",
+      "path": "choreography/w9-coterie-browser.mjs",
+      "bytes": 8543,
+      "sha256": "0bb80fcfb1a0587b588f5c7d4b56b91a90d2e1088bfc44243d9ede4497ab8d89"
+    },
+    {
+      "lane": "astra-supabase",
+      "path": "choreography/startup.test.mjs",
+      "bytes": 8320,
+      "sha256": "691eee62378778a275811e0c4974569edc32c6aecc592bf300b1942e4c15da06"
+    },
+    {
+      "lane": "astra-supabase",
+      "path": "choreography/control-lane.mjs",
+      "bytes": 38354,
+      "sha256": "35383c39fb717ecd3e7a6a7ead7839006ec18f3af5f2c5d6ae1ade2cce2680a7"
+    },
+    {
+      "lane": "astra-supabase",
+      "path": "choreography/package-lock.json",
+      "bytes": 3871,
+      "sha256": "198138fca1ba6d371a32b7410e77e563c9dc0d5d7877d4db0a134ff0eac07b58"
+    },
+    {
+      "lane": "astra-supabase",
+      "path": "choreography/package.json",
+      "bytes": 302,
+      "sha256": "68fb1999baf36bb87f814b3138ef96078f3c2dd9993dc04a0ac0fd81f5561e12"
+    },
+    {
+      "lane": "astra-supabase",
+      "path": "choreography/json-schema.mjs",
+      "bytes": 350,
+      "sha256": "11eed37e49f77b2ec9ca5d8f9ea9288bbb01d040efe4d601390db4e9237fb7ff"
+    },
+    {
+      "lane": "astra-supabase",
+      "path": "choreography/w9-host-preflight.mjs",
+      "bytes": 3803,
+      "sha256": "4d8b8d0105892f899e7f3a171d0215788984880b8f2e2e4e33a5f7846668913a"
+    },
+    {
+      "lane": "astra-supabase",
+      "path": "choreography/self-test.mjs",
+      "bytes": 43101,
+      "sha256": "1e865e9ca174c0baff4963fe8e9d67c5105024446a6676ab515f143279eb70ff"
+    },
+    {
+      "lane": "astra-supabase",
+      "path": "choreography/setup-identity.schema.json",
+      "bytes": 4167,
+      "sha256": "783cb67672aa94ca91f61149cac76a1942a235631a09c7f43f237a0371e60b43"
+    },
+    {
+      "lane": "astra-supabase",
+      "path": "choreography/w9-native-host.mjs",
+      "bytes": 8601,
+      "sha256": "1afdf0852a7469352609be725fbdb977da177d5b4f4eb81b33874db4894db924"
+    }
+  ],
+  "briefSha256": "129fd79c5a2b19c7312fc41ed931647b79e2c4afc611c3cc431e0e26a452fbc6",
+  "promptSha256": "81f92dda7296dbd7c0d76818bfe81018de0cb3aa0e39f20f2c07a1f0f98c4ae9"
+}

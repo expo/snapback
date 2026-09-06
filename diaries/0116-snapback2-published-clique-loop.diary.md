@@ -574,3 +574,18 @@ The candidate persistent client now passes38 checks under its original10-second
 deadline on M5, but its full runtime remains457 bytes over the66,000-byte limit.
 These observations identify remaining work; they do not establish a win over
 Convex or Supabase.
+
+
+## 2026-09-06 — Interim Astra holistic rescore: 72 / 83 / 74
+
+The completed published0.0.8 Snapback run scored72, against83 for the retained
+Convex run and74 for Supabase, using the original neutral rubric. The prior
+baseline was64/84/77; this is a new narrative rescore with historical controls,
+not a controlled estimate of improvement. M7 remains absent for allthree.
+
+The reviewer valued integrated row authority, media and durable queues. Search
+postings authored by the client, live/offline query workarounds, diagnostic
+friction and the500-follow ratio reduced the score. Those findings support the
+current indexed-search, clock/custody and compiler work. Later published0.0.10
+feed fixes do not receive retrospective credit. Root retains unresolved inbox
+and resume attribution separately from the scorer’s builder-based labels.

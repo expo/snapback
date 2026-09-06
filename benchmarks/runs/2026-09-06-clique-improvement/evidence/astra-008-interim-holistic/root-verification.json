@@ -1,0 +1,13 @@
+{
+  "observedAt": "2026-09-06T15:28:25.531800+00:00",
+  "sourceFilesVerified": 531,
+  "sourceMismatches": [],
+  "scoreSha256": "385282603ef0244606dcac7181b5594b16e84ce0a6d9707791b198efcd62023c",
+  "overall": {
+    "snapback2": 72,
+    "convex": 83,
+    "supabase": 74
+  },
+  "validation": "All13categories present with integer0-100 scores for allthreebackends; source files unchanged after scorer completion. PID71045 absent, score final present. Launcher did not retain exitcode; no inferred exit0.",
+  "scope": "Historical-control interim narrative rescore. Not concurrentmatchedcontrols, independentoutcomegrade, M7completion or comparativegoalwin."
+}
