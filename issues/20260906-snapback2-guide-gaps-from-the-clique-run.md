@@ -83,3 +83,16 @@ stderr; the captured command records retain the actual diagnostic.
     to repair or requalify the frozen application. Evidence:
     `/Users/ccheever/clique-improvement/grading/astra-006/grader-report.md`,
     defects d-01/d-02 and the isolated duplicate-email correction.
+
+## App guide resolution (2026-09-06)
+
+Item 17 is repaired in authored revision `f7c7b10611` (integrated `4fd1a1918`).
+The guide uses the certified public operation inventory shared with the cache
+writer and checks each certificate against fresh certification. Internal timer
+bindings are excluded by declaration identity; public timer targets and exposed
+operations with timer-like names remain required. Missing or corrupt public
+certificates and invalid seed facts still refuse. The untouched chat Expo cache
+now works without rewriting it. Thirteen guide tests, six project tests, and
+nine private owner/cache assertions pass; both independent Astra xhigh and
+Grok 4.6 xhigh reviews are READY. See the run's `evidence/guide-timer/`.
+This source repair is not yet in the published 0.0.8 benchmark installation.

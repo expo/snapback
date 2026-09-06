@@ -12,8 +12,11 @@ M5 host at 10:30:01Z, using the unchanged baseline instrument and published
 0.0.8. Concurrent host load is disclosed, not claimed identical. The pinned
 0.0.6 builder has frozen its continuous artifact. M1–M6 have verified web
 receipts; M8 qualification is unresolved and native M6 failed. Independent
-outcome and full-scale grading are running on private M5 copies. M7 and the
-requested three-family comparative win remain unproven. Entries below retain
+outcome grading is complete: 102 pass, 2 fail, 4 not recorded, 11 not run.
+Full-scale replay settled 167,244 receipts with zero failed; invariants pass,
+but the following-feed performance target fails at all three checkpoints.
+Fresh-session M7 preparation is underway. The requested three-family
+comparative win remains unproven. Entries below retain
 the chronology, including superseded intermediate statuses.
 
 Latest release evidence: [`evidence/npm-0.0.8/`](evidence/npm-0.0.8/).
