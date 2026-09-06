@@ -1,0 +1,490 @@
+{
+  "assertionId": "m7-a08",
+  "verdict": "pass",
+  "method": "snapshot-comparison",
+  "executor": "grader",
+  "checklistItem": 4,
+  "assertionText": "Pre-existing messages, media, receipts, and reactions are intact after the migration, compared against the pre-M7 snapshot exported through the custom-client API over the M6 field manifest.",
+  "grader": {
+    "family": "grok",
+    "model": "grok-4.6",
+    "reasoningEffort": "xhigh",
+    "sameFamilyAsBuilder": false,
+    "session": "ee721c82-1b8c-4e69-b5f1-0262a8167ed1",
+    "launchPid": 70649,
+    "cwd": "/Users/ccheever/clique-improvement/grading/astra-008/m7-preservation",
+    "host": "Apple M5 Max",
+    "subagents": false
+  },
+  "notInferred": [
+    "complete M7",
+    "native M6",
+    "native M8",
+    "metering",
+    "O-score",
+    "comparative eligibility"
+  ],
+  "scope": {
+    "baselineUniqueMessages": 15,
+    "baselinePerPersonaMessageObjects": 48,
+    "baselineMessageMediaNonNull": 0,
+    "baselineMessageReactionsNonEmpty": 0,
+    "emptyFieldPreservationDoesNotProvePopulatedMediaOrReactions": true,
+    "preclockIsNotPostmigrationSuccessReceipt": true,
+    "sqliteUsed": false,
+    "mutationsIssued": []
+  },
+  "runtime": {
+    "app": "/Users/ccheever/clique-astra008-m7",
+    "endpoint": "http://127.0.0.1:51000",
+    "ownerPid": 27250,
+    "ownerPpid": 1,
+    "ownerUser": "ccheever",
+    "ownerUid": 501,
+    "ownerStarted": "Sun Sep  6 09:44:39 2026",
+    "ownerCommand": "/Users/ccheever/clique-astra008-m7/node_modules/snapback2-darwin-arm64/bin/snapback2 dev --project /Users/ccheever/clique-astra008-m7 --foreground --owner-child --json --port 51000",
+    "ownerCwd": "/Users/ccheever/clique-astra008-m7",
+    "listener": "127.0.0.1:51000",
+    "generationFromPrepMetadata": "b1eb2a35096dcf4c8236a74a49d5f3c3ae0c68c11b9730581877d20560c79afa",
+    "writerPid5361": "absent",
+    "writerPid77770": "absent",
+    "ownerUnchangedAfter": true,
+    "ownerNotRestartedOrReseeded": true
+  },
+  "snapshotIdentity": {
+    "canonicalPath": "/Users/ccheever/clique-improvement/next-run/astra-008-m7/private/snapshot-01.canonical.json",
+    "canonicalSha256": "85cc884596c8afb0165da078e542199f79069f5e24fe20dd9c1900ad6d3f2c93",
+    "canonicalBytes": 31818,
+    "canonicalMatch": true,
+    "supplementaryPath": "/Users/ccheever/clique-improvement/next-run/astra-008-m7/private/snapshot-01.supplementary.canonical.json",
+    "supplementarySha256": "a0023045e587351043ed8630fa8b7c488b2065e0c2cff471d5fd0d548e569c45",
+    "supplementaryBytes": 40324,
+    "supplementaryMatch": true,
+    "identityFileSha256": "9a8a69a0707a2ae9dac10bdb97c18bd499914306853628957ef720fe3acffb82",
+    "exportStarterSha256": "ebe6e817ebb3ac246ec0ab069b4b8730bc1121fd55b94c3196bfbd4dcf60f366",
+    "canonicalization": "UTF-8 JSON; recursive lexicographic object keys; personas by persona ID; conversations/messages/members/reactions deterministically sorted; no whitespace or trailing newline",
+    "transport": "CUSTOM-CLIENT API; original documented history composition, using EACH persona bearer token"
+  },
+  "installedPackage": {
+    "name": "snapback2",
+    "version": "0.0.8",
+    "nativePackage": "snapback2-darwin-arm64",
+    "nativeVersion": "0.0.8",
+    "listedFiles": 153,
+    "snapback2Files": 150,
+    "nativeFiles": 3,
+    "beforePass": true,
+    "afterPass": true,
+    "mismatches": [],
+    "missing": [],
+    "extraFiles": []
+  },
+  "sourceIntegrity": {
+    "root": "/Users/ccheever/clique-astra008-m7",
+    "fileCount": 245,
+    "listingSha256": "d68c23c816619a6dc5ae5e31af11f29ab77d84b5b43ffb97f69de51143de1df6",
+    "changed": 0,
+    "added": 0,
+    "removed": 0,
+    "customClientSha256": "5d88f5c4063744a300eafa111db4cd6e1a5c519f861244f6a37e34ac33fa703d",
+    "packageJsonSha256": "24161346901ad21cb330ec91ef5cc5007bbcbd91214e3582d80bda78ac9cbdcf",
+    "packageLockSha256": "60d2f516f26bb0f3cbb2e8464885cb4b57adf9eb67fc7986e691cb2cee009473"
+  },
+  "observation": {
+    "startedEpoch": 1788715153.961,
+    "finishedEpoch": 1788715157.179,
+    "node": "v24.18.0",
+    "exportPid": 37977,
+    "script": "/Users/ccheever/clique-improvement/grading/astra-008/m7-preservation/work/export-compare.mjs",
+    "scriptSha256": "16c88c7235172be413f67a566a903cea057db476449a45731560b6b10ebc3ef5",
+    "observedCanonicalSha256": "bec8161031352e5f32b73e29bf04add7854bee3893b2af796e7c64b541f99ff3",
+    "observedCanonicalBytes": 175692,
+    "observedSupplementarySha256": "b073ed070cfd2d7c67eba2b14cb61b04f777cdefddd6ecd16097dea1d0e187cf",
+    "observedSupplementaryBytes": 104587,
+    "auditSha256": "4ec05f1d7f764c08d0245ba3375d5b829ff4031661ebd9061735bc936e5d7f72",
+    "auditRows": 274,
+    "auditOperations": [
+      "chats.info",
+      "chats.list",
+      "chats.members",
+      "custom-client.history",
+      "messages.receipt",
+      "messages.thread",
+      "profiles.mine",
+      "profiles.people",
+      "social.counts",
+      "social.own"
+    ],
+    "uniqueObservedRawMessages": 73,
+    "perPersonaMessageObjectsObserved": 176,
+    "credentialRetention": "none; tokens only in memory; export contains no raw auth",
+    "builderComparatorExecuted": false
+  },
+  "principals": {
+    "alice": "user:3aAkP0trJsLX382SvJ7gcQ",
+    "bob": "user:hcLyGIAkkqWoZUWR6qmOiw",
+    "carol": "user:HmWZUnXKLKLyhu9Rdf8aWQ",
+    "dave": "user:yeThEGAJeOjnGYGTsKtkzQ",
+    "erin": "user:M3v_Po_jky6aaQYGVpsjIw",
+    "frank": "user:bSYoFnMqu3hZ7UgcuFIKig",
+    "grace": "user:DpaTy6b3B6qXQpgpIAn_5A",
+    "henry": "user:VDDal7Bm9xDcufu_ZurflA"
+  },
+  "originalConversations": [
+    {
+      "key": "d-alice-bob",
+      "id": "s2id-c892da222fc55cacb93d3bbba58ee31d-000000000002bc01",
+      "kind": "dm",
+      "title": "Direct chat",
+      "baselineMessageCount": 6,
+      "observedOriginalIdsPresent": 6,
+      "newMessagesInThread": 40,
+      "observedMessageCountField": 46,
+      "identityEqual": true,
+      "addedFields": [
+        "messageCount"
+      ],
+      "owningPersonas": [
+        "alice",
+        "bob"
+      ]
+    },
+    {
+      "key": "g-starter",
+      "id": "s2id-c892da222fc55cacb93d3bbba58ee31d-000000000002c001",
+      "kind": "group",
+      "title": "Weekend Plans",
+      "baselineMessageCount": 9,
+      "observedOriginalIdsPresent": 9,
+      "newMessagesInThread": 0,
+      "observedMessageCountField": 9,
+      "identityEqual": true,
+      "addedFields": [
+        "messageCount"
+      ],
+      "owningPersonas": [
+        "alice",
+        "bob",
+        "carol",
+        "erin"
+      ]
+    }
+  ],
+  "emptyPersonasStillEmpty": [
+    "dave",
+    "frank",
+    "grace",
+    "henry"
+  ],
+  "originalMessageIds": [
+    "s2id-c892da222fc55cacb93d3bbba58ee31d-000000000002cc01",
+    "s2id-c892da222fc55cacb93d3bbba58ee31d-000000000002f401",
+    "s2id-c892da222fc55cacb93d3bbba58ee31d-000000000002fc01",
+    "s2id-c892da222fc55cacb93d3bbba58ee31d-0000000000030401",
+    "s2id-c892da222fc55cacb93d3bbba58ee31d-0000000000030c01",
+    "s2id-c892da222fc55cacb93d3bbba58ee31d-0000000000031401",
+    "s2id-c892da222fc55cacb93d3bbba58ee31d-0000000000031c01",
+    "s2id-c892da222fc55cacb93d3bbba58ee31d-0000000000034801",
+    "s2id-c892da222fc55cacb93d3bbba58ee31d-0000000000037401",
+    "s2id-c892da222fc55cacb93d3bbba58ee31d-0000000000037c01",
+    "s2id-c892da222fc55cacb93d3bbba58ee31d-0000000000038801",
+    "s2id-c892da222fc55cacb93d3bbba58ee31d-0000000000039001",
+    "s2id-c892da222fc55cacb93d3bbba58ee31d-0000000000039801",
+    "s2id-c892da222fc55cacb93d3bbba58ee31d-000000000003a001",
+    "s2id-c892da222fc55cacb93d3bbba58ee31d-000000000003a801"
+  ],
+  "comparisons": {
+    "originalMessagesPresentPerPersona": 48,
+    "originalMessagesMissing": 0,
+    "originalMessageCoreEqual": 48,
+    "originalMessageReactionsEqual": 48,
+    "receipts": {
+      "otherNullPreserved": 33,
+      "ownUnchanged": 9,
+      "ownPermittedProgression": 6,
+      "unexpected": 0,
+      "changedDuringThisDrain": false,
+      "notSubstitutedAcrossPersonas": true,
+      "progressions": [
+        {
+          "persona": "alice",
+          "messageId": "s2id-c892da222fc55cacb93d3bbba58ee31d-000000000002cc01",
+          "baseline": "sent",
+          "observed": "delivered"
+        },
+        {
+          "persona": "alice",
+          "messageId": "s2id-c892da222fc55cacb93d3bbba58ee31d-000000000002fc01",
+          "baseline": "sent",
+          "observed": "delivered"
+        },
+        {
+          "persona": "alice",
+          "messageId": "s2id-c892da222fc55cacb93d3bbba58ee31d-0000000000030c01",
+          "baseline": "sent",
+          "observed": "delivered"
+        },
+        {
+          "persona": "bob",
+          "messageId": "s2id-c892da222fc55cacb93d3bbba58ee31d-000000000002f401",
+          "baseline": "sent",
+          "observed": "read"
+        },
+        {
+          "persona": "bob",
+          "messageId": "s2id-c892da222fc55cacb93d3bbba58ee31d-0000000000030401",
+          "baseline": "sent",
+          "observed": "read"
+        },
+        {
+          "persona": "bob",
+          "messageId": "s2id-c892da222fc55cacb93d3bbba58ee31d-0000000000031401",
+          "baseline": "sent",
+          "observed": "read"
+        }
+      ]
+    },
+    "memberships": {
+      "originalRows": 20,
+      "identityEqual": 20,
+      "watermarkNondecreasing": 20,
+      "missing": 0,
+      "newMembersInOriginalConversations": 0
+    },
+    "profiles": {
+      "original": 8,
+      "present": 8,
+      "equal": 8
+    },
+    "posts": {
+      "original": 28,
+      "present": 28,
+      "identityEqual": 28,
+      "engagementEqual": 28,
+      "newPosts": 0
+    },
+    "socialCounts": {
+      "original": 8,
+      "equal": 8
+    },
+    "media": {
+      "referencedOriginalAssets": 18,
+      "downloaded": 18,
+      "baselineApiByteMatch": 18,
+      "comparedAgainst": "preclock private/api-media hashes, not fixture-file hashes",
+      "assets": [
+        {
+          "id": "s2id-c892da222fc55cacb93d3bbba58ee31d-0000000000001401",
+          "bytes": 767,
+          "sha256": "49bc61e66f9f4149ad05827edeb06867d34a735068cb0a38275f01b31549f941",
+          "source": "profile.avatar:alice"
+        },
+        {
+          "id": "s2id-c892da222fc55cacb93d3bbba58ee31d-0000000000001c01",
+          "bytes": 796,
+          "sha256": "5e914eced908aef8c84b0e5948b0fa79e412a86a0785a2e8e47a5745d6512e9a",
+          "source": "profile.avatar:bob"
+        },
+        {
+          "id": "s2id-c892da222fc55cacb93d3bbba58ee31d-0000000000002401",
+          "bytes": 767,
+          "sha256": "49bc61e66f9f4149ad05827edeb06867d34a735068cb0a38275f01b31549f941",
+          "source": "profile.avatar:carol"
+        },
+        {
+          "id": "s2id-c892da222fc55cacb93d3bbba58ee31d-0000000000002c01",
+          "bytes": 796,
+          "sha256": "5e914eced908aef8c84b0e5948b0fa79e412a86a0785a2e8e47a5745d6512e9a",
+          "source": "profile.avatar:dave"
+        },
+        {
+          "id": "s2id-c892da222fc55cacb93d3bbba58ee31d-0000000000003401",
+          "bytes": 767,
+          "sha256": "49bc61e66f9f4149ad05827edeb06867d34a735068cb0a38275f01b31549f941",
+          "source": "profile.avatar:erin"
+        },
+        {
+          "id": "s2id-c892da222fc55cacb93d3bbba58ee31d-0000000000003c01",
+          "bytes": 796,
+          "sha256": "5e914eced908aef8c84b0e5948b0fa79e412a86a0785a2e8e47a5745d6512e9a",
+          "source": "profile.avatar:frank"
+        },
+        {
+          "id": "s2id-c892da222fc55cacb93d3bbba58ee31d-0000000000004401",
+          "bytes": 767,
+          "sha256": "49bc61e66f9f4149ad05827edeb06867d34a735068cb0a38275f01b31549f941",
+          "source": "profile.avatar:grace"
+        },
+        {
+          "id": "s2id-c892da222fc55cacb93d3bbba58ee31d-0000000000004c01",
+          "bytes": 796,
+          "sha256": "5e914eced908aef8c84b0e5948b0fa79e412a86a0785a2e8e47a5745d6512e9a",
+          "source": "profile.avatar:henry"
+        },
+        {
+          "id": "s2id-c892da222fc55cacb93d3bbba58ee31d-000000000001d801",
+          "bytes": 2118,
+          "sha256": "5dbaca29bf4ae4b15a9c11b0fc767781e0cdf01ab4af9b83430c243288cd72df",
+          "source": "post.images[0]:sp0002"
+        },
+        {
+          "id": "s2id-c892da222fc55cacb93d3bbba58ee31d-000000000001dc01",
+          "bytes": 2125,
+          "sha256": "3cb5eed569e22512018524d101580f9aa990248a6af3f2c29481eb9fa32aa87a",
+          "source": "post.images[1]:sp0002"
+        },
+        {
+          "id": "s2id-c892da222fc55cacb93d3bbba58ee31d-000000000001e401",
+          "bytes": 49779,
+          "sha256": "7e22b943746b2c858910252162f624cac396eb9e4f4100ae80e70431b7883d5f",
+          "source": "post.clip:sp0003"
+        },
+        {
+          "id": "s2id-c892da222fc55cacb93d3bbba58ee31d-0000000000020001",
+          "bytes": 2118,
+          "sha256": "5dbaca29bf4ae4b15a9c11b0fc767781e0cdf01ab4af9b83430c243288cd72df",
+          "source": "post.images[0]:sp0008"
+        },
+        {
+          "id": "s2id-c892da222fc55cacb93d3bbba58ee31d-000000000001fc01",
+          "bytes": 2125,
+          "sha256": "3cb5eed569e22512018524d101580f9aa990248a6af3f2c29481eb9fa32aa87a",
+          "source": "post.images[1]:sp0008"
+        },
+        {
+          "id": "s2id-c892da222fc55cacb93d3bbba58ee31d-0000000000020801",
+          "bytes": 49779,
+          "sha256": "7e22b943746b2c858910252162f624cac396eb9e4f4100ae80e70431b7883d5f",
+          "source": "post.clip:sp0009"
+        },
+        {
+          "id": "s2id-c892da222fc55cacb93d3bbba58ee31d-0000000000022401",
+          "bytes": 2118,
+          "sha256": "5dbaca29bf4ae4b15a9c11b0fc767781e0cdf01ab4af9b83430c243288cd72df",
+          "source": "post image sp0014"
+        },
+        {
+          "id": "s2id-c892da222fc55cacb93d3bbba58ee31d-0000000000022001",
+          "bytes": 2125,
+          "sha256": "3cb5eed569e22512018524d101580f9aa990248a6af3f2c29481eb9fa32aa87a",
+          "source": "post image sp0014"
+        },
+        {
+          "id": "s2id-c892da222fc55cacb93d3bbba58ee31d-0000000000024401",
+          "bytes": 2118,
+          "sha256": "5dbaca29bf4ae4b15a9c11b0fc767781e0cdf01ab4af9b83430c243288cd72df",
+          "source": "post image sp0020"
+        },
+        {
+          "id": "s2id-c892da222fc55cacb93d3bbba58ee31d-0000000000024001",
+          "bytes": 2125,
+          "sha256": "3cb5eed569e22512018524d101580f9aa990248a6af3f2c29481eb9fa32aa87a",
+          "source": "post image sp0020"
+        }
+      ]
+    }
+  },
+  "explainedDifferences": [
+    {
+      "kind": "own-receipt-progression",
+      "count": 6,
+      "explanation": "Alice own DM messages sent->delivered; Bob own DM messages sent->read. Already present at first observation; receipt recheck during this drain did not change them. Watermarks 1788713835628/1788713849445 are after preclock and before this export. Permitted login/read ladder; not backwards; non-own receipts remain null."
+    },
+    {
+      "kind": "membership-watermark-nondecreasing",
+      "explanation": "DM Alice readAt/deliveredAt and Bob deliveredAt advanced to M7-session suite times before this export. Group Alice/Bob deliveredAt advanced 163ms to last original group message timestamp. Identity fields unchanged."
+    },
+    {
+      "kind": "additive-m7-fields",
+      "fields": [
+        "messageCount",
+        "visibleContribution",
+        "pollOptions"
+      ],
+      "explanation": "Original conversation identity and raw message keys unchanged. chats.info.messageCount is 46 on d-alice-bob (6 original + 40 new) and 9 on g-starter. Original raw messages have visibleContribution 1 and pollOptions null."
+    },
+    {
+      "kind": "new-regression-and-poll-entities",
+      "explanation": "58 new unique messages and 14 new conversations from M7-session suite/choreography/expiry/demo traffic. They do not erase or rewrite the original 15 IDs. g-starter has zero extras."
+    }
+  ],
+  "newEntities": {
+    "uniqueNewConversations": 14,
+    "uniqueNewMessages": 58,
+    "uniqueNewPolls": 13,
+    "uniqueNewTypes": {
+      "text": 41,
+      "poll": 13,
+      "image": 3,
+      "video": 1
+    },
+    "newConversationKeys": [
+      "group1-1788711309800",
+      "group1-1788713835206",
+      "group2-1788711309800",
+      "group2-1788713835206",
+      "m7-bounds-1788711215461",
+      "m7-choreo-1788711162028",
+      "m7-choreo-1788711244896",
+      "m7-choreo-1788711564020",
+      "m7-choreo-1788713916248",
+      "m7-expiry-1788711348521",
+      "m7-suite-1788711162028",
+      "m7-suite-1788711244896",
+      "m7-suite-1788711564020",
+      "m7-suite-1788713916248"
+    ],
+    "newPollIds": [
+      "s2id-c892da222fc55cacb93d3bbba58ee31d-000000000009e804",
+      "s2id-c892da222fc55cacb93d3bbba58ee31d-00000000000a1c01",
+      "s2id-c892da222fc55cacb93d3bbba58ee31d-00000000000a7801",
+      "s2id-c892da222fc55cacb93d3bbba58ee31d-00000000000ab001",
+      "s2id-c892da222fc55cacb93d3bbba58ee31d-00000000000b3c07",
+      "s2id-c892da222fc55cacb93d3bbba58ee31d-00000000000b7801",
+      "s2id-c892da222fc55cacb93d3bbba58ee31d-00000000000bd401",
+      "s2id-c892da222fc55cacb93d3bbba58ee31d-0000000000106c01",
+      "s2id-c892da222fc55cacb93d3bbba58ee31d-000000000010b001",
+      "s2id-c892da222fc55cacb93d3bbba58ee31d-0000000000111801",
+      "s2id-c892da222fc55cacb93d3bbba58ee31d-0000000000421402",
+      "s2id-c892da222fc55cacb93d3bbba58ee31d-0000000000425801",
+      "s2id-c892da222fc55cacb93d3bbba58ee31d-000000000042c001"
+    ],
+    "newMessagesInOriginalDm": 40,
+    "newMessagesInOriginalGroup": 0
+  },
+  "failures": [],
+  "limits": [
+    "Baseline has 15 distinct messages and no message media or reactions; empty-field preservation cannot prove behavior on populated message-media or populated reactions.",
+    "Populated media proven only for original profile avatars and post image/clip payloads (18 API assets vs preclock API bytes).",
+    "Receipt progressions on six own DM messages were already present at first observation; this drain did not advance them further. Login itself is not separately snapshotted from prior M7-session reads.",
+    "This result does not adjudicate m7-a01..a07 or m7-a09, native M6/M8, metering, or O-scores."
+  ],
+  "hashes": {
+    "m7-assertions.json": "4e23d853855d6df8d64d69e8322492e7b68704d5280befda31a83da5a22ccc30",
+    "M7-frozen-brief.md": "79e9d2885d2a2438aa6e8bcc08c747fb3d205fb604c79cdca2a728cec6b465fa",
+    "M6-frozen-field-manifest.md": "59b5dea03cca724861c9a7c9ff9d865bb777a4d7ceccf942fd7608431fa46ca2",
+    "snapshot-01.canonical.json": "85cc884596c8afb0165da078e542199f79069f5e24fe20dd9c1900ad6d3f2c93",
+    "snapshot-01.supplementary.canonical.json": "a0023045e587351043ed8630fa8b7c488b2065e0c2cff471d5fd0d548e569c45",
+    "snapshot-identity.json": "9a8a69a0707a2ae9dac10bdb97c18bd499914306853628957ef720fe3acffb82",
+    "export-starter.mjs": "ebe6e817ebb3ac246ec0ab069b4b8730bc1121fd55b94c3196bfbd4dcf60f366",
+    "installed-expected.json": "7d4a4fcc31f5ab0efdebeac54b8cf2c4057a055ea935f5d1c0d1ac36c58faed1",
+    "personas.json": "605e4dedeba7c75625ee34ddfd711c4af51937321c69f97949741ef3ccef32a7",
+    "custom-client.mjs": "5d88f5c4063744a300eafa111db4cd6e1a5c519f861244f6a37e34ac33fa703d",
+    "API.md": "a27454957f01d5f0d9a2cc98e1c2393fe7bb3532343f1b9aaca9815fe6bbd7a9",
+    "export-compare.mjs": "16c88c7235172be413f67a566a903cea057db476449a45731560b6b10ebc3ef5",
+    "observed.canonical.json": "bec8161031352e5f32b73e29bf04add7854bee3893b2af796e7c64b541f99ff3",
+    "observed.supplementary.canonical.json": "b073ed070cfd2d7c67eba2b14cb61b04f777cdefddd6ecd16097dea1d0e187cf",
+    "observed.api-audit.json": "4ec05f1d7f764c08d0245ba3375d5b829ff4031661ebd9061735bc936e5d7f72",
+    "comparison.json": "2b73d5825fb207da915f68d02a810636a4294fc9f6d00ec692ba74b21a8a68d5",
+    "report.md": "c5ea98e8297e72f335bde03762b9f7042c6e4f2f16883ad7d1e25068b43f28d9",
+    "report.mdBytes": 21833
+  },
+  "evidencePaths": {
+    "report": "/Users/ccheever/clique-improvement/grading/astra-008/m7-preservation/report.md",
+    "comparison": "/Users/ccheever/clique-improvement/grading/astra-008/m7-preservation/work/comparison.json",
+    "observedCanonical": "/Users/ccheever/clique-improvement/grading/astra-008/m7-preservation/private/observed.canonical.json",
+    "observedSupplementary": "/Users/ccheever/clique-improvement/grading/astra-008/m7-preservation/private/observed.supplementary.canonical.json",
+    "apiAudit": "/Users/ccheever/clique-improvement/grading/astra-008/m7-preservation/private/observed.api-audit.json",
+    "mediaDir": "/Users/ccheever/clique-improvement/grading/astra-008/m7-preservation/private/api-media"
+  }
+}

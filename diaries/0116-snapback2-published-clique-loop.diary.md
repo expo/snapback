@@ -693,3 +693,36 @@ alternate constructor spellings that silently erase the descriptor; that
 repair is still underway, and a later compiler must be qualified separately.
 No package, native source-review, offline, or comparative benchmark pass is
 inferred from the format matrix.
+
+
+## 2026-09-06 — Independent migration preservation and targeted repairs
+
+The independent native Grok xhigh API audit passed m7-a08 on the completed
+Astra medium 0.0.8 continuation: all 15 original messages survived across 48
+persona views, and all 18 original profile/post asset downloads match the
+preclock API bytes. Caller-specific receipts only advanced lawfully. There
+were no preclock message attachments or reactions, so their populated cases
+remain unproven. The resumed native meter has a backward counter; final totals
+stay null, with no invented estimate or new comparative score.
+
+Tiny installed 0.0.10 investigations now explain two concrete friction points.
+Released assets share the small pending-upload count until their grace period
+ends, so ordinary avatar replacement or deletion can exhaust staging despite
+few live assets. Required Text maximum widening is also classified as a
+destructive type change even when every existing value fits; explicit apply
+then fails required-column admission and rolls back safely. Separate Astra
+xhigh lanes are repairing successor compatibility and designing bounded asset
+grace accounting. These reproductions do not prove every original benchmark
+failure had the same cause.
+
+The bounded background loader passed its first real native proof: 537 source
+actions, full 16-profile/64-follow/64-post batches, 38 messages including an
+image and video, pagination, member denial, and duplicate-ID atomic rollback.
+Its separate full search curve is running under the unchanged sample counts,
+ratios and population cap. Original results remain intact. This remains a
+native search projection, not full Clique action replay or a holistic win.
+
+The user clarified that valid Convex/Supabase baseline scores should be reused.
+Fresh control rebuilding is therefore shelved; effort stays on Snapback
+repairs and new Snapback measurements. Targeted missing evidence can be
+collected when it changes comparison validity.
