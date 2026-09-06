@@ -1,0 +1,16 @@
+{
+  "rootRead": "Both fullGrok reports and publicadmission probe report/result read. NativeGrokxhigh and supplementalPihigh are distinct independent reviews, neither READY.",
+  "nativeGrokVerdict": "NEEDS_CHANGES",
+  "supplementalGrokVerdict": "NEEDS_CHANGES",
+  "confirmedFinding": "A correctly shaped synthetic contradictory same-sequence complete extent passes publicadmission and purges a guarded row warm/cold. Actual native control retains row; native emission of contradiction not claimed.",
+  "repairDecision": "Include inferred checked-hole negatives in immutable fact conflict validation; reject whole same-sequence transaction, keep valid latersequence holes. Blanket clockOnly inferred-eviction suppression rejected because contract preserves checked sameextent holes.",
+  "evidenceTransferLimits": "Original review environment lacked some externally retained row-window and source-bound M5 deadline receipts. Those transfer gaps are documented separately; original review text retained.",
+  "size": "Frozen0fa66457 fails66000; newer e1a66485 also fails; neither waived.",
+  "externalProbeRoot": "/Users/ccheever/clique-improvement/reviews/search-twin-r1/clock-extent-admission",
+  "retainedHashes": {
+    "report.md": "7c32452f3cd4b1178cc0d9ef7db6b183b7a363e99b2ffdd792a418928778d8ee",
+    "result.json": "d66e611be5c87931b905e06798bea5b9cd4c8dc95ab5608e838c82a0a7ab9ce4",
+    "source-verification.json": "81049df6fbd5c747850f71dcf6be491b02440f0bad86ef1d1e527f244996014b"
+  },
+  "whitespaceCheck": "Five original Markdown double-space hard breaks in verbatim supplemental review trigger diff --check; preserved as received. No product code changed."
+}

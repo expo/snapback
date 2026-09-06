@@ -1,0 +1,36 @@
+{
+  "requested": {
+    "provider": "openrouter",
+    "model": "x-ai/grok-4.6",
+    "thinking": "xhigh"
+  },
+  "actualSession": {
+    "id": "01a0773e-fca0-7929-8fc2-39177df417b0",
+    "thinkingLevel": "high"
+  },
+  "cause": {
+    "source": "/Users/ccheever/.volta/tools/image/packages/@mariozechner/pi-coding-agent/lib/node_modules/@earendil-works/pi-coding-agent/node_modules/@earendil-works/pi-ai/dist/models.js",
+    "sha256": "3640032062f2aced8e15f111eebc6e92ce373241987c4a1443df248be225f56d",
+    "lines": [
+      548,
+      560
+    ],
+    "logic": "xhigh/max supported only with explicit thinkingLevelMap entry; absent entry removes them and clamp falls back to high",
+    "modelStore": {
+      "id": "x-ai/grok-4.6",
+      "provider": "openrouter",
+      "api": "openai-completions",
+      "reasoning": true,
+      "thinkingLevelMap": null
+    }
+  },
+  "liveSessionModified": false,
+  "conclusion": "Actual high review; do not label effective xhigh. Prior requested settings alone do not prove effective levels.",
+  "cold010": {
+    "launcher": "/Users/ccheever/.local/bin/grok",
+    "requestedEffort": "xhigh",
+    "samePiLauncher": false,
+    "source": "/Users/ccheever/clique-improvement/next-run/grok-010/launch-record.json",
+    "effectiveEffort": "not inferred from Pi mapping"
+  }
+}

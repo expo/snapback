@@ -1,0 +1,63 @@
+{
+  "commit": "0fa68e928e9ff59c3bc5bc2edada49f96ecec6ef",
+  "bundleSha256": "444024337ab7b6382a0621d18cd8940916916d39a45b89c5bbe94149a1f967ec",
+  "trackedSourcesMatched": [
+    "snapback2/packages/snapback2/src/store/file.ts",
+    "snapback2/packages/snapback2/src/offline.ts",
+    "snapback2/packages/snapback2/src/store/projection.ts",
+    "snapback2/packages/snapback2/src/store/range-store.ts",
+    "snapback2/packages/snapback2/src/store/metadata.ts",
+    "snapback2/packages/snapback2/src/twin.ts",
+    "snapback2/packages/snapback2/src/store/fact-integrity.ts",
+    "snapback2/packages/snapback2/src/offline-protocol.ts",
+    "snapback2/packages/snapback2/src/held-program.ts",
+    "snapback2/packages/snapback2/src/store/outbox.ts",
+    "snapback2/packages/snapback2/src/store/byte-cache.ts",
+    "snapback2/packages/snapback2/src/client-wire.ts",
+    "snapback2/packages/snapback2/src/store/carrier-index.ts",
+    "snapback2/packages/snapback2/src/store/row-values.ts",
+    "snapback2/packages/snapback2/src/store/canonical.ts",
+    "snapback2/packages/snapback2/src/store/swap-journal.ts",
+    "snapback2/packages/evaluator/src/hash.ts",
+    "snapback2/packages/snapback2/src/store/overlay-retirement.ts",
+    "snapback2/packages/snapback2/src/store/asset-policy.ts",
+    "snapback2/packages/evaluator/src/value-runtime.ts",
+    "snapback2/packages/snapback2/src/twin-hydrate.ts",
+    "snapback2/packages/evaluator/src/search-runtime.ts",
+    "snapback2/packages/snapback2/src/local-cursor.ts",
+    "snapback2/packages/snapback2/src/twin-store.ts",
+    "snapback2/packages/evaluator/src/errors.ts",
+    "snapback2/packages/evaluator/src/runner.ts",
+    "snapback2/packages/evaluator/src/certificate-identity.ts",
+    "snapback2/packages/snapback2/src/offline-schema.ts",
+    "snapback2/packages/evaluator/src/coverage.ts",
+    "snapback2/packages/evaluator/src/index-store.ts",
+    "snapback2/packages/evaluator/src/unicode.ts",
+    "snapback2/packages/evaluator/src/cursor.ts",
+    "snapback2/crates/snapback2-core/ir-contract.json",
+    "snapback2/packages/evaluator/src/search-key.ts",
+    "snapback2/packages/evaluator/src/store.ts",
+    "snapback2/packages/evaluator/src/ordered.ts",
+    "snapback2/packages/evaluator/src/unicode-tables.ts",
+    "snapback2/packages/evaluator/src/posting-tree.ts",
+    "snapback2/packages/evaluator/src/prefix-dictionary.ts",
+    "snapback2/packages/evaluator/src/coverage-spans.ts",
+    "snapback2/packages/evaluator/src/text.ts",
+    "snapback2/packages/evaluator/src/merge.ts",
+    "snapback2/packages/evaluator/src/held-directory.ts"
+  ],
+  "externalInputs": [
+    {
+      "path": "/Users/ccheever/clique-improvement/reviews/search-twin-r1/clock-extent-admission/probe.ts",
+      "sha256": "d3aa4d980e84d12d9e9b6ded3a3a605a655c89e4c7f8fedb80d76007e8b16f28",
+      "bytes": 3392
+    },
+    {
+      "path": "/Users/ccheever/clique-improvement/lanes/search-twin/carrier-history-scale-r2.mjs.sources/Users/ccheever/projects/snapback-worktrees/clique-search-twin/snapback2/packages/evaluator/dist/unicode-tables.ts",
+      "sha256": "9eccdccd99e9b936a40dcbf8ae63c55d980086df1ae71f92019f9ab040f6a521",
+      "bytes": 17460
+    }
+  ],
+  "resultSha256": "d66e611be5c87931b905e06798bea5b9cd4c8dc95ab5608e838c82a0a7ab9ce4",
+  "nativeOwnerSha256": "7e6f0cba7676b97bf5b6a5e54adb94dadf447406fa6f266d54fb662393b1e1b6"
+}

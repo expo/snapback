@@ -1,0 +1,17 @@
+{
+  "host": "M5",
+  "pid": 33869,
+  "session": "2fc3df99-9cec-4c93-aade-a0e226187179",
+  "tool": 91195,
+  "source": "0fa68e928e9ff59c3bc5bc2edada49f96ecec6ef",
+  "launcher": "/Users/ccheever/.local/bin/grok",
+  "requestedModel": "grok-4.6",
+  "requestedEffort": "xhigh",
+  "actualSummary": {
+    "current_model_id": "grok-4.6",
+    "reasoning_effort": "xhigh"
+  },
+  "metadataPath": "/Users/ccheever/.grok/sessions/%2FUsers%2Fccheever%2Fprojects%2Fsnapback-worktrees%2Fclique-search-twin/2fc3df99-9cec-4c93-aade-a0e226187179/summary.json",
+  "peerOutputSupplied": false,
+  "scope": "fresh readonly full delta review; Pi high retained separately"
+}

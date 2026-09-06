@@ -1,0 +1,88 @@
+{
+  "sourceCommit": "0fa68e928e9ff59c3bc5bc2edada49f96ecec6ef",
+  "node": "v22.23.2",
+  "bundle": "444024337ab7b6382a0621d18cd8940916916d39a45b89c5bbe94149a1f967ec",
+  "inputHashes": {
+    "envelopes.json": "f6036d0e1588caa582b97d43724a032aff3608e3d19b2bbc51b81d8baae95561",
+    "program-envelope.json": "bc259b03993cbfcc388448536817fed21df5b5662c1a29ae0713c1f6c50b69e3",
+    "project.json": "11e868f5a1fb937f53f512b6459fc3231ce0101c48e9e94b4f1336a9a9cd211a"
+  },
+  "scope": "Actual v4 native certified fixed-extent query and frames first pass public admission; synthetic authenticated test transport then contradicts its same-seq complete extent. Not a claim native emits contradiction; no blanket disabling same-extent holes.",
+  "results": [
+    {
+      "mode": "same-seq-warm",
+      "actualNativeControlPassed": true,
+      "syntheticContradiction": true,
+      "publicAdmissionPassed": true,
+      "error": null,
+      "atomicStateUnchanged": false,
+      "anchor": null,
+      "rows": [],
+      "evicted": [
+        {
+          "table": "events",
+          "id": "event1"
+        }
+      ],
+      "guards": {
+        "[\"row\",\"events\",{\"Id\":\"event1\"}]": {
+          "seq": 1,
+          "digest": "dd0493620db7004f21d09c2d334ff5daff1242bf1b34ccdd28a8d8bd208c5852"
+        }
+      },
+      "negative": {
+        "events\u0000event1": 1
+      }
+    },
+    {
+      "mode": "same-seq-cold",
+      "actualNativeControlPassed": true,
+      "syntheticContradiction": true,
+      "publicAdmissionPassed": true,
+      "error": null,
+      "atomicStateUnchanged": false,
+      "anchor": null,
+      "rows": [],
+      "evicted": [
+        {
+          "table": "events",
+          "id": "event1"
+        }
+      ],
+      "guards": {
+        "[\"row\",\"events\",{\"Id\":\"event1\"}]": {
+          "seq": 1,
+          "digest": "dd0493620db7004f21d09c2d334ff5daff1242bf1b34ccdd28a8d8bd208c5852"
+        }
+      },
+      "negative": {
+        "events\u0000event1": 1
+      }
+    },
+    {
+      "mode": "higher-seq-hole",
+      "actualNativeControlPassed": true,
+      "syntheticContradiction": true,
+      "publicAdmissionPassed": true,
+      "error": null,
+      "atomicStateUnchanged": false,
+      "anchor": null,
+      "rows": [],
+      "evicted": [
+        {
+          "table": "events",
+          "id": "event1"
+        }
+      ],
+      "guards": {
+        "[\"row\",\"events\",{\"Id\":\"event1\"}]": {
+          "seq": 1,
+          "digest": "dd0493620db7004f21d09c2d334ff5daff1242bf1b34ccdd28a8d8bd208c5852"
+        }
+      },
+      "negative": {
+        "events\u0000event1": 2
+      }
+    }
+  ]
+}
