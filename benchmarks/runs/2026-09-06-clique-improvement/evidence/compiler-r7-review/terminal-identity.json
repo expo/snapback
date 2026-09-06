@@ -1,0 +1,28 @@
+{
+  "recordedAt": "2026-09-06T19:16:20.466681+00:00",
+  "tool": "tools.write_stdin",
+  "sessionId": 16419,
+  "observedCompletion": {
+    "exit_code": 0,
+    "chunk_id": "3a0265",
+    "wall_time_seconds": 4.708e-06,
+    "output": ""
+  },
+  "model": "gpt-6-astra",
+  "reasoningEffort": "xhigh",
+  "threadId": "01a0780a-6437-78f1-bccc-00b4361a2d49",
+  "reviewedCommit": "aa18e57a084fb2719625cab206dcc38695220d98",
+  "verdict": "CHANGES_REQUIRED",
+  "files": {
+    "prompt.md": "18f67b12a7dfb6af9ef334fd9168c6032768b08792e7d4aca7b16c6df9b2cc1d",
+    "review.md": "7d501a4cb078570f21ffee0b6fd5ff85b35ba9f728cee5861740722dd418557b",
+    "final-answer.md": "9495af4a6c5f99e3edd4dc47ed6ff23db7b4195bd525808ff20c723023583497",
+    "stdout.log": "af91129b61b9b9983e271c413712b19849156789f36ced273ca056f994caff5e",
+    "stderr.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "review-evidence-manifest.json": "43a15376e905f0ee8f66f888d375ecfb2037c181f6bd645bcea622b3df240e54"
+  },
+  "originalEvidenceDirectory": "/Users/ccheever/clique-improvement/reviews/search-compiler-r7/astra-evidence-aa18e57",
+  "copiedEvidenceDirectory": "/Users/ccheever/clique-improvement/reviews/search-compiler-r7/astra/review-evidence",
+  "copiedEvidenceFiles": 1612,
+  "qualification": "Actual terminal tool observation; model/effort bound to launch command and thread.started raw log; no peer review was supplied."
+}
