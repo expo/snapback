@@ -1,0 +1,37 @@
+TAP version 13
+# {"probe":"warm-verdict-lookup","answers":20,"rows":1,"verdictRecordsInspected":20}
+# {"probe":"warm-verdict-lookup","answers":80,"rows":1,"verdictRecordsInspected":80}
+# {"probe":"warm-verdict-lookup","answers":2000,"rows":1,"verdictRecordsInspected":2000}
+# Subtest: /tmp/clique-frozen-v4-independent-review/authority-probe.ts.mjs
+ok 1 - /tmp/clique-frozen-v4-independent-review/authority-probe.ts.mjs
+  ---
+  duration_ms: 330.383375
+  type: 'test'
+  ...
+# {"probe":"native-clock-cold-plus-controls","initiallyTrusted":true,"result":"pass","pool":1,"evicted":0}
+# {"probe":"native-clock-cold-plus-controls","initiallyTrusted":false,"result":"pass","pool":1,"evicted":0}
+# Subtest: /tmp/clique-frozen-v4-independent-review/clock-probes.ts.mjs
+ok 2 - /tmp/clique-frozen-v4-independent-review/clock-probes.ts.mjs
+  ---
+  duration_ms: 77.691583
+  type: 'test'
+  ...
+# {"probe":"eq-authority","authority":true,"localState":"partial","partialSites":["missing-authority","search.findPeople.0"],"result":"Null"}
+# {"probe":"warm-direct-first-use","heldScopes":20,"firstQueryDirectoryRefreshes":20,"laterQueryDirectoryRefreshes":0,"result":{"state":"held","data":[{"at":0,"body":"Café","caption":null,"conversation":"c0","id":"m0"}],"next":null,"seq":1}}
+# {"probe":"warm-direct-first-use","heldScopes":80,"firstQueryDirectoryRefreshes":80,"laterQueryDirectoryRefreshes":0,"result":{"state":"held","data":[{"at":0,"body":"Café","caption":null,"conversation":"c0","id":"m0"}],"next":null,"seq":1}}
+# {"probe":"scope-deletion","rows":0,"directoryEntries":0,"allowed":0,"unknown":0,"dependencyKeys":2000,"digestKeys":2000,"emptyDependencySets":2000}
+# Subtest: /tmp/clique-frozen-v4-independent-review/directory-probes.ts.mjs
+ok 3 - /tmp/clique-frozen-v4-independent-review/directory-probes.ts.mjs
+  ---
+  duration_ms: 555.05725
+  type: 'test'
+  ...
+1..3
+# tests 3
+# suites 0
+# pass 3
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 968.123416

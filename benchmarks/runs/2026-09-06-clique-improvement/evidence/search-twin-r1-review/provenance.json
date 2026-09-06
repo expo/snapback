@@ -1,0 +1,11 @@
+{
+  "source": "0fa68e928e9ff59c3bc5bc2edada49f96ecec6ef",
+  "base": "1f9b4b95c54ba7a5a9d0ece41e9463b29078cfa4",
+  "verdict": "NEEDS_CHANGES",
+  "rootRead": "Full review and probe log read; all14 retained probe artifacts verified against manifest. Synthetic defect probes; green harness execution records defective behavior, not a green product verdict.",
+  "externalProbeRoot": "/Users/ccheever/clique-improvement/reviews/search-twin-r1/astra-probes",
+  "verifiedArtifacts": 14,
+  "hashMismatches": [],
+  "remaining": "Four correctness/history-scaling fixes and complete runtime size required; independent Grok reviews still live. No final package/device claim.",
+  "whitespaceCheck": "git diff --check reports five original Markdown double-space hard line breaks in the verbatim review. Preserved as reviewer output; no product code changed."
+}
