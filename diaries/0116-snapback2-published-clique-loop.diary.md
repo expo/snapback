@@ -886,3 +886,10 @@ Astra reproduced duplicate-absence removal and malformed standalone rehydration 
 Version 0.0.13 passed the unchanged production dry run in 607.143 seconds, including the full media engine and standard installed consumers. The original packages also pass untouched Expo tooling; their shipped offline and live-query guides match the reviewed drain source exactly. Root independently matched all 154 installed files to those packages. The completed pinned Hermes install was reused without another Hermes source build.
 
 An external receipt-path mistake failed before installation and was corrected without repeating production qualification. The complete report retains that failure and the separate postprocessing mistakes. [Preparation evidence](../benchmarks/runs/2026-09-06-clique-improvement/evidence/release-preparation-013/README.md). Actual publication and registry verification follow; no native acceptance, search resource closure or new holistic score is claimed.
+
+
+### 2026-09-06 — Published drain release enters a cold full run
+
+The unchanged publisher resumed the qualified 0.0.13 artifacts in 72.770 seconds. npm accepted both packages before the shim was visible; two E404 observations remain in the record, followed by matching integrity and a fresh registry Expo pass. All 154 installed files match. Reusing completed production qualification kept this release incremental while still exercising standard consumers. [Publication evidence](../benchmarks/runs/2026-09-06-clique-improvement/evidence/release-publication-013/README.md).
+
+The next cold full Astra-medium build actually launched against this published version at 23:31:31Z. Its native identity confirms medium and M1 begins at 23:32:00Z. Original Convex/Supabase baselines stay fixed; another diagnostic rescore must not silently replace them. The M1 host differs from the historical M5, so elapsed-time differences cannot be attributed solely to the backend. No new milestone, native proof or holistic win is claimed yet.

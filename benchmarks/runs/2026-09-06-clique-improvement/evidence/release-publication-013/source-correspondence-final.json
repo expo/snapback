@@ -1,0 +1,23 @@
+{
+  "commit": "ae7d86a11eecb898f4d91d21195a56017e23bee5",
+  "branch": "s2/clique-release-013",
+  "tree": "37af894afb0c25d7d729d4c5e514b36376608b0d",
+  "snapback2Tree": "6255e5b9a1c9209326f12fcf4c8f91da22ec6aa9",
+  "clean": true,
+  "publisherSha256": "fc24c2c192119d11a6029ad7edfe91b7219a5623f8f91c1425607734c45bb3d2",
+  "consumerSha256": "c26bbf0e64d18cbb9557c5cf97e40ecfc045ff271ade77b749235c70dc044cf3",
+  "priorRefs": "79b95a6cf679981e2dfd3e2b07e6121c62f16f2c refs/heads/s2/clique-drain-main-independent\n60f4835dea903db24c755a81a5a020d2723b71fe refs/heads/s2/clique-release-next\n97fa0f66a73d89f5d7b42171280fb62101cd90cc refs/heads/s2/clique-release-ordering-drain\n",
+  "finalClean": true,
+  "finalStatus": "",
+  "productFilesChanged": 0,
+  "versionFilesChanged": 0,
+  "guideFilesChanged": 0,
+  "priorRefsPreserved": true,
+  "preparationManifest": {
+    "path": "/Users/ccheever/clique-improvement/revisions/release-preparation-013/source-manifest.json",
+    "sha256": "f63587d55b49cd2359567c7702d886a16d91e9665705312155459362a56da610",
+    "reuseBasis": "same clean ae7 commit/tree; no source mutations, builds or repacks this turn"
+  },
+  "ownMetricReceipt": "metric-custody.json",
+  "rootLandedEquivalentVersion": "7048a70df (user-recorded; no fetch/rebase/ref mutation)"
+}

@@ -1,0 +1,28 @@
+{
+  "atEpoch": 1788737491.869975,
+  "nodeVersion": "v24.18.0",
+  "ports": [
+    52300,
+    52319
+  ],
+  "listenerAbsence": true,
+  "load": [
+    5.55859375,
+    12.85888671875,
+    20.09228515625
+  ],
+  "metadataSha256": "b9666389611bf87c04913c565c9976d1fcda40fe396844fec697ee8ffd275614",
+  "launcherSha256": "bfba759f709e43cadcce7e5f6cd9e6d8965f6baaa6b8318d680bbe76495da21e",
+  "environment": {
+    "PATH": "/Users/ccheever/.volta/tools/image/node/24.18.0/bin:/Users/ccheever/.bun/bin:/opt/homebrew/bin:/Users/ccheever/.volta/bin:/Users/ccheever/.cargo/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin",
+    "DEVELOPER_DIR": "/Applications/Xcode.app/Contents/Developer",
+    "NPM_CONFIG_CACHE": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/.npm-cache"
+  },
+  "limits": {
+    "perMilestoneWallSeconds": 14400,
+    "continuousAcrossResume": true,
+    "globalWallTimeoutSeconds": null,
+    "consecutiveCapabilityFailures": 2,
+    "ownership": "Root supervision uses original run-log/native milestone-start timestamps; launcher neither invents nor resets milestones"
+  }
+}

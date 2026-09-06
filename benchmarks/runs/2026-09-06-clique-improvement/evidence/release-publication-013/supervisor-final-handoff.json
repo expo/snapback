@@ -1,0 +1,79 @@
+{
+  "at": "2026-09-06T23:31:29.285588+00:00",
+  "source": "ae7d86a11eecb898f4d91d21195a56017e23bee5",
+  "clean": true,
+  "writerTerminal": {
+    "pid": 47275,
+    "exitCode": 0,
+    "endedEpoch": 1788737432.0143218,
+    "elapsedSeconds": 1244.185584783554
+  },
+  "writerPsExit": 1,
+  "writerPsOutput": "",
+  "reportFullRead": true,
+  "evidence": {
+    "implementation-report.md": {
+      "sha256": "9cfabb0e434339aacda5a51be5e265ee0ae9aa7c3c653f397e67cc77cd45bb11",
+      "bytes": 10196
+    },
+    "terminal.json": {
+      "sha256": "41a41bcf6cca6e0521c7c86c24732d048637ee02529af80c6116c289decc8299",
+      "bytes": 111
+    },
+    "phase.json": {
+      "sha256": "611b97b845bcd2a537a97e59a8277efc146d87966fdadb218c8f296c50c5a9e1",
+      "bytes": 1549
+    },
+    "actual-identity.json": {
+      "sha256": "31a7b66cbc5994642db1a768c9fc63d18f37e66d266640e1ae52fee07e4bcdf5",
+      "bytes": 538
+    },
+    "publisher-original-metric-row.jsonl": {
+      "sha256": "187a1993d49931f7354755b8f841cbfb4b4c0bdc5f9bfbc0002d497719168caa",
+      "bytes": 266
+    },
+    "metric-custody.json": {
+      "sha256": "e421764f0272e93e02d9773abe5fe1212f114a23f227932979022f7c4bc92125",
+      "bytes": 825
+    },
+    "cleanup-receipt.json": {
+      "sha256": "7ebfa0a1a4e94df13cb6c6413c6b91cb9c4bf519224adae93683bfa24fdca679",
+      "bytes": 16478
+    },
+    "source-correspondence-final.json": {
+      "sha256": "ba06fb18dfb83b979af46704328ca4ca8edec2e824ff59d7f4d31283cb3e83de",
+      "bytes": 1282
+    },
+    "artifact-custody-final.json": {
+      "sha256": "948290c063c64b95e6b77a552aebc08540db524720f44bae8889ee33b54370fa",
+      "bytes": 2208
+    },
+    "receipts/actual-publish.json": {
+      "sha256": "a4408970ea9033a069ea2aeb23bd3adc1c20f76eebfd2f1a93695beafe055c38",
+      "bytes": 4260
+    },
+    "receipts/registry-observation-3.json": {
+      "sha256": "29797ffa724533e180bd03e720bdb7b4c3f3f67fdbf44bb6ecf28fb40daf535f",
+      "bytes": 3715
+    },
+    "installed-expo-verification.json": {
+      "sha256": "d85548001f97bfc8be0db5021808703cf8a0f6935916791949eff37996727046",
+      "bytes": 18764
+    },
+    "receipts/registry-expo.json": {
+      "sha256": "9a824bb1e4d5fd48bb56b05986f02d9c695311e4a1441b1a7635c85ab17f3ad6",
+      "bytes": 593
+    }
+  },
+  "benchmarkPreparedFiles": {
+    "launch-metadata.json": "b9666389611bf87c04913c565c9976d1fcda40fe396844fec697ee8ffd275614",
+    "static-validation.json": "6558a193afeae86d75a4b36620cf563bcbec7e789b71d884c2affddadbd77d30",
+    "prompt-version-only.diff": "add3bcde3509a2a2c893f1a26bb62f55b6e119c42c8bd0e4a088e5b8c3e96c2a",
+    "prompt.md": "c48fff5026d2f9d7d6b69ea4cf8bb663d77465c121a0d2efd065ee7f5b17c319",
+    "README.md": "2b559f52b8230629ef8372a76115e0451b90404d32f02793e0ba512fe532b616",
+    "launch.py": "bfba759f709e43cadcce7e5f6cd9e6d8965f6baaa6b8318d680bbe76495da21e",
+    "meter-own-session.mjs": "1ec3f1a211544817abb681f8cd82a73f8e09eec0855a3012f6dd470040a04a7f"
+  },
+  "noAdditionalProductTestsOrRegistryQueries": true,
+  "phaseNote": "Legacy registryInstall:\"pending\" field remains stale in verbatim phase; current complete-writer-released and registryInstalledExpo exit0 are authoritative and backed by actual receipts. No report/phase alteration."
+}

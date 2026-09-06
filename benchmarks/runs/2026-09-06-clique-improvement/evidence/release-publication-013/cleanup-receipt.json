@@ -1,0 +1,572 @@
+{
+  "atEpoch": 1788737213.158303,
+  "recordedIdentitiesChecked": 74,
+  "ownedIdentities": [
+    {
+      "pid": 53431,
+      "start": "Sun Sep 6 16:14:57 2026",
+      "basis": "publisher descendant/own owner record",
+      "sameStartedProcessAlive": false,
+      "action": "none"
+    },
+    {
+      "pid": 53434,
+      "start": "Sun Sep 6 16:14:57 2026",
+      "basis": "publisher descendant/own owner record",
+      "sameStartedProcessAlive": false,
+      "action": "none"
+    },
+    {
+      "pid": 53454,
+      "start": "Sun Sep 6 16:14:57 2026",
+      "basis": "publisher descendant/own owner record",
+      "sameStartedProcessAlive": false,
+      "action": "none"
+    },
+    {
+      "pid": 53553,
+      "start": "Sun Sep 6 16:14:58 2026",
+      "basis": "publisher descendant/own owner record",
+      "sameStartedProcessAlive": false,
+      "action": "none"
+    },
+    {
+      "pid": 53754,
+      "start": "Sun Sep 6 16:15:05 2026",
+      "basis": "publisher descendant/own owner record",
+      "sameStartedProcessAlive": false,
+      "action": "none"
+    },
+    {
+      "pid": 53755,
+      "start": "Sun Sep 6 16:15:05 2026",
+      "basis": "publisher descendant/own owner record",
+      "sameStartedProcessAlive": false,
+      "action": "none"
+    },
+    {
+      "pid": 53799,
+      "start": "Sun Sep 6 16:15:06 2026",
+      "basis": "publisher descendant/own owner record",
+      "sameStartedProcessAlive": false,
+      "action": "none"
+    },
+    {
+      "pid": 53810,
+      "start": "Sun Sep 6 16:15:06 2026",
+      "basis": "publisher descendant/own owner record",
+      "sameStartedProcessAlive": false,
+      "action": "none"
+    },
+    {
+      "pid": 53812,
+      "start": "Sun Sep 6 16:15:06 2026",
+      "basis": "publisher descendant/own owner record",
+      "sameStartedProcessAlive": false,
+      "action": "none"
+    },
+    {
+      "pid": 53835,
+      "start": "Sun Sep 6 16:15:07 2026",
+      "basis": "publisher descendant/own owner record",
+      "sameStartedProcessAlive": false,
+      "action": "none"
+    },
+    {
+      "pid": 53897,
+      "start": "Sun Sep 6 16:15:09 2026",
+      "basis": "publisher descendant/own owner record",
+      "sameStartedProcessAlive": false,
+      "action": "none"
+    },
+    {
+      "pid": 53900,
+      "start": "Sun Sep 6 16:15:09 2026",
+      "basis": "publisher descendant/own owner record",
+      "sameStartedProcessAlive": false,
+      "action": "none"
+    },
+    {
+      "pid": 53924,
+      "start": "Sun Sep 6 16:15:09 2026",
+      "basis": "publisher descendant/own owner record",
+      "sameStartedProcessAlive": false,
+      "action": "none"
+    },
+    {
+      "pid": 53976,
+      "start": "Sun Sep 6 16:15:12 2026",
+      "basis": "publisher descendant/own owner record",
+      "sameStartedProcessAlive": false,
+      "action": "none"
+    },
+    {
+      "pid": 54012,
+      "start": "Sun Sep 6 16:15:13 2026",
+      "basis": "publisher descendant/own owner record",
+      "sameStartedProcessAlive": false,
+      "action": "none"
+    },
+    {
+      "pid": 54087,
+      "start": "Sun Sep 6 16:15:17 2026",
+      "basis": "publisher descendant/own owner record",
+      "sameStartedProcessAlive": false,
+      "action": "none"
+    },
+    {
+      "pid": 54090,
+      "start": "Sun Sep 6 16:15:17 2026",
+      "basis": "publisher descendant/own owner record",
+      "sameStartedProcessAlive": false,
+      "action": "none"
+    },
+    {
+      "pid": 54092,
+      "start": "Sun Sep 6 16:15:17 2026",
+      "basis": "publisher descendant/own owner record",
+      "sameStartedProcessAlive": false,
+      "action": "none"
+    },
+    {
+      "pid": 54114,
+      "start": "Sun Sep 6 16:15:17 2026",
+      "basis": "publisher descendant/own owner record",
+      "sameStartedProcessAlive": false,
+      "action": "none"
+    },
+    {
+      "pid": 54163,
+      "start": "Sun Sep 6 16:15:19 2026",
+      "basis": "publisher descendant/own owner record",
+      "sameStartedProcessAlive": false,
+      "action": "none"
+    },
+    {
+      "pid": 54164,
+      "start": "Sun Sep 6 16:15:19 2026",
+      "basis": "publisher descendant/own owner record",
+      "sameStartedProcessAlive": false,
+      "action": "none"
+    },
+    {
+      "pid": 54186,
+      "start": "Sun Sep 6 16:15:19 2026",
+      "basis": "publisher descendant/own owner record",
+      "sameStartedProcessAlive": false,
+      "action": "none"
+    },
+    {
+      "pid": 54217,
+      "start": "Sun Sep 6 16:15:20 2026",
+      "basis": "publisher descendant/own owner record",
+      "sameStartedProcessAlive": false,
+      "action": "none"
+    },
+    {
+      "pid": 54241,
+      "start": "Sun Sep 6 16:15:20 2026",
+      "basis": "publisher descendant/own owner record",
+      "sameStartedProcessAlive": false,
+      "action": "none"
+    },
+    {
+      "pid": 54333,
+      "start": "Sun Sep 6 16:15:22 2026",
+      "basis": "publisher descendant/own owner record",
+      "sameStartedProcessAlive": false,
+      "action": "none"
+    },
+    {
+      "pid": 54357,
+      "start": "Sun Sep 6 16:15:22 2026",
+      "basis": "publisher descendant/own owner record",
+      "sameStartedProcessAlive": false,
+      "action": "none"
+    },
+    {
+      "pid": 54363,
+      "start": "Sun Sep 6 16:15:23 2026",
+      "basis": "publisher descendant/own owner record",
+      "sameStartedProcessAlive": false,
+      "action": "none"
+    },
+    {
+      "pid": 54386,
+      "start": "Sun Sep 6 16:15:23 2026",
+      "basis": "publisher descendant/own owner record",
+      "sameStartedProcessAlive": false,
+      "action": "none"
+    },
+    {
+      "pid": 54480,
+      "start": "Sun Sep 6 16:15:27 2026",
+      "basis": "publisher descendant/own owner record",
+      "sameStartedProcessAlive": false,
+      "action": "none"
+    },
+    {
+      "pid": 54484,
+      "start": "Sun Sep 6 16:15:27 2026",
+      "basis": "publisher descendant/own owner record",
+      "sameStartedProcessAlive": false,
+      "action": "none"
+    },
+    {
+      "pid": 54508,
+      "start": "Sun Sep 6 16:15:27 2026",
+      "basis": "publisher descendant/own owner record",
+      "sameStartedProcessAlive": false,
+      "action": "none"
+    },
+    {
+      "pid": 54602,
+      "start": "Sun Sep 6 16:15:31 2026",
+      "basis": "publisher descendant/own owner record",
+      "sameStartedProcessAlive": false,
+      "action": "none"
+    },
+    {
+      "pid": 54613,
+      "start": "Sun Sep 6 16:15:31 2026",
+      "basis": "publisher descendant/own owner record",
+      "sameStartedProcessAlive": false,
+      "action": "none"
+    },
+    {
+      "pid": 54664,
+      "start": "Sun Sep 6 16:15:34 2026",
+      "basis": "publisher descendant/own owner record",
+      "sameStartedProcessAlive": false,
+      "action": "none"
+    },
+    {
+      "pid": 54668,
+      "start": "Sun Sep 6 16:15:34 2026",
+      "basis": "publisher descendant/own owner record",
+      "sameStartedProcessAlive": false,
+      "action": "none"
+    },
+    {
+      "pid": 54672,
+      "start": "Sun Sep 6 16:15:34 2026",
+      "basis": "publisher descendant/own owner record",
+      "sameStartedProcessAlive": false,
+      "action": "none"
+    },
+    {
+      "pid": 54697,
+      "start": "Sun Sep 6 16:15:34 2026",
+      "basis": "publisher descendant/own owner record",
+      "sameStartedProcessAlive": false,
+      "action": "none"
+    },
+    {
+      "pid": 54770,
+      "start": "Sun Sep 6 16:15:37 2026",
+      "basis": "publisher descendant/own owner record",
+      "sameStartedProcessAlive": false,
+      "action": "none"
+    },
+    {
+      "pid": 54773,
+      "start": "Sun Sep 6 16:15:37 2026",
+      "basis": "publisher descendant/own owner record",
+      "sameStartedProcessAlive": false,
+      "action": "none"
+    },
+    {
+      "pid": 54797,
+      "start": "Sun Sep 6 16:15:37 2026",
+      "basis": "publisher descendant/own owner record",
+      "sameStartedProcessAlive": false,
+      "action": "none"
+    },
+    {
+      "pid": 54861,
+      "start": "Sun Sep 6 16:15:39 2026",
+      "basis": "publisher descendant/own owner record",
+      "sameStartedProcessAlive": false,
+      "action": "none"
+    },
+    {
+      "pid": 54884,
+      "start": "Sun Sep 6 16:15:40 2026",
+      "basis": "publisher descendant/own owner record",
+      "sameStartedProcessAlive": false,
+      "action": "none"
+    },
+    {
+      "pid": 55470,
+      "start": "Sun Sep 6 16:15:53 2026",
+      "basis": "publisher descendant/own owner record",
+      "sameStartedProcessAlive": false,
+      "action": "none"
+    },
+    {
+      "pid": 55543,
+      "start": "Sun Sep 6 16:15:54 2026",
+      "basis": "publisher descendant/own owner record",
+      "sameStartedProcessAlive": false,
+      "action": "none"
+    },
+    {
+      "pid": 55588,
+      "start": "Sun Sep 6 16:15:54 2026",
+      "basis": "publisher descendant/own owner record",
+      "sameStartedProcessAlive": false,
+      "action": "none"
+    },
+    {
+      "pid": 55685,
+      "start": "Sun Sep 6 16:15:56 2026",
+      "basis": "publisher descendant/own owner record",
+      "sameStartedProcessAlive": false,
+      "action": "none"
+    },
+    {
+      "pid": 55841,
+      "start": "Sun Sep 6 16:15:59 2026",
+      "basis": "publisher descendant/own owner record",
+      "sameStartedProcessAlive": false,
+      "action": "none"
+    },
+    {
+      "pid": 55903,
+      "start": "Sun Sep 6 16:16:00 2026",
+      "basis": "publisher descendant/own owner record",
+      "sameStartedProcessAlive": false,
+      "action": "none"
+    },
+    {
+      "pid": 55945,
+      "start": "Sun Sep 6 16:16:01 2026",
+      "basis": "publisher descendant/own owner record",
+      "sameStartedProcessAlive": false,
+      "action": "none"
+    },
+    {
+      "pid": 56077,
+      "start": "Sun Sep 6 16:16:05 2026",
+      "basis": "publisher descendant/own owner record",
+      "sameStartedProcessAlive": false,
+      "action": "none"
+    },
+    {
+      "pid": 56124,
+      "start": "Sun Sep 6 16:16:06 2026",
+      "basis": "publisher descendant/own owner record",
+      "sameStartedProcessAlive": false,
+      "action": "none"
+    },
+    {
+      "pid": 60888,
+      "start": "Sun Sep 6 16:19:12 2026",
+      "basis": "fresh installed command receipt",
+      "sameStartedProcessAlive": false,
+      "action": "none"
+    },
+    {
+      "pid": 60909,
+      "start": "Sun Sep 6 16:19:13 2026",
+      "basis": "fresh installed command receipt",
+      "sameStartedProcessAlive": false,
+      "action": "none"
+    },
+    {
+      "pid": 60932,
+      "start": "Sun Sep 6 16:19:14 2026",
+      "basis": "fresh installed command receipt",
+      "sameStartedProcessAlive": false,
+      "action": "none"
+    },
+    {
+      "pid": 60962,
+      "start": "Sun Sep 6 16:19:15 2026",
+      "basis": "fresh installed command receipt",
+      "sameStartedProcessAlive": false,
+      "action": "none"
+    },
+    {
+      "pid": 61061,
+      "start": "Sun Sep 6 16:19:17 2026",
+      "basis": "fresh installed command receipt",
+      "sameStartedProcessAlive": false,
+      "action": "none"
+    },
+    {
+      "pid": 61097,
+      "start": "Sun Sep 6 16:19:18 2026",
+      "basis": "fresh installed command receipt",
+      "sameStartedProcessAlive": false,
+      "action": "none"
+    },
+    {
+      "pid": 61116,
+      "start": "Sun Sep 6 16:19:18 2026",
+      "basis": "fresh installed command receipt",
+      "sameStartedProcessAlive": false,
+      "action": "none"
+    },
+    {
+      "pid": 61126,
+      "start": "Sun Sep 6 16:19:18 2026",
+      "basis": "fresh installed command receipt",
+      "sameStartedProcessAlive": false,
+      "action": "none"
+    },
+    {
+      "pid": 61171,
+      "start": "Sun Sep 6 16:19:19 2026",
+      "basis": "fresh installed command receipt",
+      "sameStartedProcessAlive": false,
+      "action": "none"
+    },
+    {
+      "pid": 61196,
+      "start": "Sun Sep 6 16:19:19 2026",
+      "basis": "fresh installed command receipt",
+      "sameStartedProcessAlive": false,
+      "action": "none"
+    },
+    {
+      "pid": 61371,
+      "start": "Sun Sep 6 16:19:23 2026",
+      "basis": "fresh installed command receipt",
+      "sameStartedProcessAlive": false,
+      "action": "none"
+    },
+    {
+      "pid": 61446,
+      "start": "Sun Sep 6 16:19:24 2026",
+      "basis": "fresh installed command receipt",
+      "sameStartedProcessAlive": false,
+      "action": "none"
+    },
+    {
+      "pid": 61566,
+      "start": "Sun Sep 6 16:19:28 2026",
+      "basis": "fresh installed command receipt",
+      "sameStartedProcessAlive": false,
+      "action": "none"
+    },
+    {
+      "pid": 56888,
+      "start": "Sun Sep 6 16:16:39 2026",
+      "basis": "own read-only registry observation",
+      "sameStartedProcessAlive": false,
+      "action": "none"
+    },
+    {
+      "pid": 56926,
+      "start": "Sun Sep 6 16:16:41 2026",
+      "basis": "own read-only registry observation",
+      "sameStartedProcessAlive": false,
+      "action": "none"
+    },
+    {
+      "pid": 58751,
+      "start": "Sun Sep 6 16:17:36 2026",
+      "basis": "own read-only registry observation",
+      "sameStartedProcessAlive": false,
+      "action": "none"
+    },
+    {
+      "pid": 58782,
+      "start": "Sun Sep 6 16:17:37 2026",
+      "basis": "own read-only registry observation",
+      "sameStartedProcessAlive": false,
+      "action": "none"
+    },
+    {
+      "pid": 59853,
+      "start": "Sun Sep 6 16:18:32 2026",
+      "basis": "own read-only registry observation",
+      "sameStartedProcessAlive": false,
+      "action": "none"
+    },
+    {
+      "pid": 59873,
+      "start": "Sun Sep 6 16:18:32 2026",
+      "basis": "own read-only registry observation",
+      "sameStartedProcessAlive": false,
+      "action": "none"
+    },
+    {
+      "pid": 53397,
+      "start": "Sun Sep 6 16:14:55 2026",
+      "basis": "own receipt observer",
+      "sameStartedProcessAlive": false,
+      "action": "none"
+    },
+    {
+      "pid": 53414,
+      "start": null,
+      "basis": "recorded publication/Expo driver Popen PID; completed real terminal",
+      "sameStartedProcessAlive": false,
+      "action": "none"
+    },
+    {
+      "pid": 60858,
+      "start": null,
+      "basis": "recorded publication/Expo driver Popen PID; completed real terminal",
+      "sameStartedProcessAlive": false,
+      "action": "none"
+    },
+    {
+      "pid": 60881,
+      "start": null,
+      "basis": "recorded publication/Expo driver Popen PID; completed real terminal",
+      "sameStartedProcessAlive": false,
+      "action": "none"
+    }
+  ],
+  "allRecordedStartedIdentitiesAbsent": true,
+  "ownedStandardConsumers": [
+    {
+      "path": "/Users/ccheever/clique-improvement/revisions/release-publication-013/tmp/snapback2-consumer-oRCUsI/todos/.snapback/owner.json",
+      "observed_epoch": 1788736518.900231,
+      "record": {
+        "pid": 54092,
+        "port": 58976,
+        "url": "http://127.0.0.1:58976",
+        "startedAt": 1788736517311,
+        "mode": "dev",
+        "project": "/Users/ccheever/clique-improvement/revisions/release-publication-013/tmp/snapback2-consumer-oRCUsI/todos"
+      },
+      "finalOwnListenerCheck": ""
+    },
+    {
+      "path": "/Users/ccheever/clique-improvement/revisions/release-publication-013/tmp/snapback2-consumer-oRCUsI/chat/.snapback/owner.json",
+      "observed_epoch": 1788736538.253212,
+      "record": {
+        "pid": 54672,
+        "port": 59024,
+        "url": "http://127.0.0.1:59024",
+        "startedAt": 1788736534476,
+        "mode": "dev",
+        "project": "/Users/ccheever/clique-improvement/revisions/release-publication-013/tmp/snapback2-consumer-oRCUsI/chat"
+      },
+      "finalOwnListenerCheck": ""
+    }
+  ],
+  "standardConsumerDirectories": [
+    {
+      "path": "/Users/ccheever/clique-improvement/revisions/release-publication-013/tmp/snapback2-consumer-oRCUsI",
+      "absent": true
+    }
+  ],
+  "originalStandardStopReceiptsPassed": true,
+  "receiptObserverExitCode": 0,
+  "signalsSent": [],
+  "foreignProcessActions": false,
+  "inspectionScope": "ps -p/lsof -p only recorded own IDs; no global process inspection",
+  "samplingLimit": "Very short-lived publisher descendants may be missed; registry commands record direct PIDs. No claim to inspect unrelated processes or every transient child.",
+  "retained": "Original0444 pair/resume,0644 working resume,private caches,immutable qualified binaries,registry installed packages/chat Expo fixture and new evidence",
+  "writerCli": {
+    "pid": 47275,
+    "stillUnderRootTerminalCustody": true,
+    "notAHelperToStop": true
+  },
+  "benchmark": "PREPARED_NOT_LAUNCHED; runtime absent; no model/builder/owner/benchmark started"
+}

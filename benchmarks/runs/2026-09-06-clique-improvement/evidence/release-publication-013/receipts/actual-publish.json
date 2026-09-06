@@ -1,0 +1,67 @@
+{
+  "argv": [
+    "node",
+    "scripts/publish.mjs"
+  ],
+  "cwd": "/Users/ccheever/projects/snapback-worktrees/clique-release-next/snapback2",
+  "started_epoch": 1788736497.169766,
+  "outer_timeout_seconds": 1800,
+  "consumer_step_timeout_seconds": 30,
+  "consumer_fetch_timeout_ms": 15000,
+  "consumer_fetch_retries": 0,
+  "publisher_sha256": "fc24c2c192119d11a6029ad7edfe91b7219a5623f8f91c1425607734c45bb3d2",
+  "npm_override_removed_in_child_only": true,
+  "override_was_present": false,
+  "node": "/Users/ccheever/.volta/bin/node",
+  "npm": "/Users/ccheever/.volta/bin/npm",
+  "cargo_build_jobs": "2",
+  "resume": "/Users/ccheever/projects/snapback-worktrees/clique-release-next/snapback2/dist/npm/publish-snapback2-darwin-arm64-0.0.13/resume.json",
+  "driver_pid": 53414,
+  "source": "ae7d86a11eecb898f4d91d21195a56017e23bee5",
+  "start_load": [
+    31.80322265625,
+    26.70556640625,
+    19.2158203125
+  ],
+  "environment": {
+    "PATH": "/Users/ccheever/.bun/bin:/opt/homebrew/bin:/Users/ccheever/.volta/bin:/Users/ccheever/.cargo/bin:/Users/ccheever/.bun/bin:/Users/ccheever/.volta/bin:/Users/ccheever/.volta/tools/image/packages/@openai/codex/lib/node_modules/@openai/codex/node_modules/@openai/codex-darwin-arm64/vendor/aarch64-apple-darwin/codex-path:/Users/ccheever/.local/bin:/usr/local/bin:/System/Cryptexes/App/usr/bin:/usr/bin:/bin:/usr/sbin:/sbin:/var/run/com.apple.security.cryptexd/codex.system/bootstrap/usr/local/bin:/var/run/com.apple.security.cryptexd/codex.system/bootstrap/usr/bin:/var/run/com.apple.security.cryptexd/codex.system/bootstrap/usr/appleinternal/bin:/pkg/env/global/bin:/Library/Apple/usr/bin:/opt/homebrew/bin:/Users/ccheever/.bun/bin:/Users/ccheever/.volta/bin:/Users/ccheever/.codex/tmp/arg0/codex-arg0c1FL28:/Users/ccheever/.volta/tools/image/packages/@openai/codex/lib/node_modules/@openai/codex/node_modules/@openai/codex-darwin-arm64/vendor/aarch64-apple-darwin/codex-path:/Users/ccheever/.volta/tools/image/node/22.23.2/bin:/Users/ccheever/.cargo/bin:/Users/ccheever/.local/bin:/Users/ccheever/.codex/tmp/arg0/codex-arg00PxoQh:/opt/homebrew/bin:/opt/homebrew/bin",
+    "CARGO_BUILD_JOBS": "2",
+    "CMAKE_BUILD_PARALLEL_LEVEL": "2",
+    "NEXTEST_TEST_THREADS": "2",
+    "DEVELOPER_DIR": "/Applications/Xcode.app/Contents/Developer",
+    "PKG_CONFIG": "/Users/ccheever/projects/snapback-worktrees/clique-release-next/snapback2/target/publish-tools/pkgconf/bin/pkgconf",
+    "IBEX2_VANILLA_HERMES_DIR": "/Users/ccheever/clique-improvement/revisions/asset-release-hermes/install/Frameworks-vanilla",
+    "IBEX2_HERMESC": "/Users/ccheever/clique-improvement/revisions/asset-release-hermes/install/bin/hermesc-macos-arm64",
+    "NPM_CONFIG_CACHE": "/Users/ccheever/projects/snapback-worktrees/clique-release-next/snapback2/target/npm-cache",
+    "TMPDIR": "/Users/ccheever/clique-improvement/revisions/release-publication-013/tmp"
+  },
+  "scrubbed_keys": [
+    "NODE_PATH"
+  ],
+  "hermes_binding": {
+    "manifest": "/Users/ccheever/clique-improvement/revisions/asset-release-hermes/installed-hermes-artifacts.json",
+    "manifestSha256": "c31977c7210d959c15e07e76a5236a58ab5fc00a17f040ccd87d1f56b7366345",
+    "ibexCommit": "ae72807aeaef7a2215d3f0dcf5f4e548ffc4c218",
+    "hermesCommit": "6badada762121682b5481b6124e6c3a991ae6046",
+    "frameworks": "/Users/ccheever/clique-improvement/revisions/asset-release-hermes/install/Frameworks-vanilla",
+    "hermesc": "/Users/ccheever/clique-improvement/revisions/asset-release-hermes/install/bin/hermesc-macos-arm64",
+    "hermescSha256": "fa070c2feddee6968c6a5aef1c92bfb84c075be1471c4733ad0361b680d73132",
+    "archive": "/Users/ccheever/clique-improvement/revisions/asset-release-hermes/install/Frameworks-vanilla/macos-static/libhermesvm_a.a",
+    "archiveSha256": "9153b23a3dfdd4a0706018fc99401269f96b43190587a52b906bdeea6928a277",
+    "readOnlyQualifiedInstall": true,
+    "symbolHeaderAuditRepeated": false,
+    "hermesSourceBuildRequested": false
+  },
+  "pid": 53431,
+  "end_load": [
+    42.65283203125,
+    31.1796875,
+    21.5
+  ],
+  "exit_code": 0,
+  "child_returncode": 0,
+  "elapsed_seconds": 72.770422958,
+  "ended_epoch": 1788736569.94068,
+  "log_sha256": "81571c0d82fc39d5e123d0afe208147637027e424db3ec83f8a637066832accf",
+  "outer_timeout_reached": false
+}

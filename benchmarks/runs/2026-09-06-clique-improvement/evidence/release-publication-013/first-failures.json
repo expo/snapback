@@ -1,0 +1,16 @@
+{
+  "current": [
+    {
+      "scope": "first read-only postpublication registry observation",
+      "package": "snapback2@0.0.13",
+      "exitCode": 1,
+      "diagnostic": "E404 while npm asynchronous processing",
+      "receipt": "receipts/registry-observation-1.json",
+      "publicationRetried": false,
+      "repeatedObservation": "receipts/registry-observation-2.json",
+      "resolvedObservation": "receipts/registry-observation-3.json",
+      "laterBothExactIntegrity": true
+    }
+  ],
+  "prior": "All preparation and prior drain/integration/asset/declaration/twin failures remain in original immutable reports; no waiver or rerun"
+}

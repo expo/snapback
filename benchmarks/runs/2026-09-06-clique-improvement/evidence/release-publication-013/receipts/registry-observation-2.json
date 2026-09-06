@@ -1,0 +1,76 @@
+{
+  "ok": false,
+  "observations": [
+    {
+      "argv": [
+        "npm",
+        "view",
+        "snapback2-darwin-arm64@0.0.13",
+        "version",
+        "dist",
+        "dist-tags",
+        "--json",
+        "--prefer-online",
+        "--fetch-retries=0",
+        "--fetch-timeout=15000"
+      ],
+      "cwd": "/Users/ccheever/clique-improvement/revisions/release-publication-013",
+      "started_epoch": 1788736656.59794,
+      "timeout_seconds": 30,
+      "fetch_retries": 0,
+      "fetch_timeout_ms": 15000,
+      "reason": "Read-only exact registry observation after actual publisher completion; no republish",
+      "pid": 58751,
+      "process_identity": "58751 Sun Sep  6 16:17:36 2026     npm view snapback2-darwin-arm64@0.0.13 version dist dist-tags --json --prefer-online --fetch-retries=0 --fetch-timeout=15000",
+      "exit_code": 0,
+      "elapsed_seconds": 0.9716248749999998,
+      "log_sha256": "eb5f130cedfdcd58f755921bce13dcbb45943c978bb238479838f66cf06843c3",
+      "registry": {
+        "version": "0.0.13",
+        "dist": {
+          "integrity": "sha512-P96OqaI3RqtbRayIV5edFOs79hVafhqgmxpEdXEYnCRUg9zIZCjB/Ofibnf7/UXkCIrbjxgnsqpXItjQ1RLRPQ==",
+          "shasum": "a8a68e5618977f26e7884ec01e8fbb7065578fbd",
+          "tarball": "https://registry.npmjs.org/snapback2-darwin-arm64/-/snapback2-darwin-arm64-0.0.13.tgz",
+          "fileCount": 3,
+          "unpackedSize": 9194667,
+          "signatures": [
+            {
+              "keyid": "SHA256:DhQ8wR5APBvFHLF/+Tc+AYvPOdTpcIDqOhxsBHRwC7U",
+              "sig": "MEUCIDEtzvCHy4rlQ07X5QBlIWBVtEkqZyi3Cb8LHs2xAvUWAiEAzK4phwJtrHpCWYX0W+/gADiDmg78TQan2LsNAElXaDk="
+            }
+          ]
+        },
+        "dist-tags": {
+          "latest": "0.0.13"
+        }
+      },
+      "matches_retained": true
+    },
+    {
+      "argv": [
+        "npm",
+        "view",
+        "snapback2@0.0.13",
+        "version",
+        "dist",
+        "dist-tags",
+        "--json",
+        "--prefer-online",
+        "--fetch-retries=0",
+        "--fetch-timeout=15000"
+      ],
+      "cwd": "/Users/ccheever/clique-improvement/revisions/release-publication-013",
+      "started_epoch": 1788736657.570286,
+      "timeout_seconds": 30,
+      "fetch_retries": 0,
+      "fetch_timeout_ms": 15000,
+      "reason": "Read-only exact registry observation after actual publisher completion; no republish",
+      "pid": 58782,
+      "process_identity": "58782 Sun Sep  6 16:17:37 2026     npm view snapback2@0.0.13 version dist dist-tags --json --prefer-online --fetch-retries=0 --fetch-timeout=15000",
+      "exit_code": 1,
+      "elapsed_seconds": 0.818883083,
+      "log_sha256": "23f9b4f5a3540a42bdda8fcf87648c56652a3b3d8b14375c22d4e25fcc3016ea",
+      "e404": true
+    }
+  ]
+}

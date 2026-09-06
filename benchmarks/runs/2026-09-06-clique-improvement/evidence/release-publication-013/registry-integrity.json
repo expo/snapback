@@ -1,0 +1,48 @@
+{
+  "registry": "https://registry.npmjs.org/",
+  "at_epoch": 1788736755.0250912,
+  "packages": [
+    {
+      "package": "snapback2-darwin-arm64",
+      "version": "0.0.13",
+      "dist": {
+        "integrity": "sha512-P96OqaI3RqtbRayIV5edFOs79hVafhqgmxpEdXEYnCRUg9zIZCjB/Ofibnf7/UXkCIrbjxgnsqpXItjQ1RLRPQ==",
+        "shasum": "a8a68e5618977f26e7884ec01e8fbb7065578fbd",
+        "tarball": "https://registry.npmjs.org/snapback2-darwin-arm64/-/snapback2-darwin-arm64-0.0.13.tgz",
+        "fileCount": 3,
+        "unpackedSize": 9194667,
+        "signatures": [
+          {
+            "keyid": "SHA256:DhQ8wR5APBvFHLF/+Tc+AYvPOdTpcIDqOhxsBHRwC7U",
+            "sig": "MEUCIDEtzvCHy4rlQ07X5QBlIWBVtEkqZyi3Cb8LHs2xAvUWAiEAzK4phwJtrHpCWYX0W+/gADiDmg78TQan2LsNAElXaDk="
+          }
+        ]
+      },
+      "retained_integrity": "sha512-P96OqaI3RqtbRayIV5edFOs79hVafhqgmxpEdXEYnCRUg9zIZCjB/Ofibnf7/UXkCIrbjxgnsqpXItjQ1RLRPQ==",
+      "exact_integrity_match": true
+    },
+    {
+      "package": "snapback2",
+      "version": "0.0.13",
+      "dist": {
+        "shasum": "8bcc59d3e7ed52dfe310b189dd9be5c0861fcae1",
+        "tarball": "https://registry.npmjs.org/snapback2/-/snapback2-0.0.13.tgz",
+        "fileCount": 151,
+        "integrity": "sha512-Ipm8NxbwWjNBSUqYdkmtwduNGGICNB3oNVFV8P/U/SiSQaEgEQEY70k2kA6kWKGzd1F7JfYwui81ItfRULIyDw==",
+        "signatures": [
+          {
+            "sig": "MEQCIH04qFlEugNWSuwSZ9xL1RCmsN3bxc+bMzZF35H7jH3dAiBfny2JdY5Q2UBiFO7iCInwMymFBPX2nN0Lv8XWHA1zUw==",
+            "keyid": "SHA256:DhQ8wR5APBvFHLF/+Tc+AYvPOdTpcIDqOhxsBHRwC7U"
+          },
+          {
+            "keyid": "SHA256:DhQ8wR5APBvFHLF/+Tc+AYvPOdTpcIDqOhxsBHRwC7U",
+            "sig": "MEUCIQCbP5g7ndRl0d15mikyzpxwIph6/X5PcCJB5z4mOzSejgIgQ+lLsIkKvVuPJUyCFrGP5tjc6wMmeOF5ca2Ga/VgpQw="
+          }
+        ],
+        "unpackedSize": 7412408
+      },
+      "retained_integrity": "sha512-Ipm8NxbwWjNBSUqYdkmtwduNGGICNB3oNVFV8P/U/SiSQaEgEQEY70k2kA6kWKGzd1F7JfYwui81ItfRULIyDw==",
+      "exact_integrity_match": true
+    }
+  ]
+}

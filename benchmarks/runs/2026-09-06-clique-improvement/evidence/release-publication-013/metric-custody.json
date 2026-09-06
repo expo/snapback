@@ -1,0 +1,23 @@
+{
+  "originalRows": 215,
+  "postRows": 216,
+  "ownAppendRows": 1,
+  "multiplicityPreserved": true,
+  "exactBeforePlusOwnLineEquality": true,
+  "onlyOwnAppendRestored": true,
+  "beforeSha256": "31e37a52835fa3ecb9c18e94c5942fdb663497d18b1f0212853e11a62aff0228",
+  "afterSha256": "5cf23d49b18fedde8c60c0c0c3e58080177b96d0999b8e71d5fd585bf894d99c",
+  "ownAppendSha256": "187a1993d49931f7354755b8f841cbfb4b4c0bdc5f9bfbc0002d497719168caa",
+  "retainedModes": "0444",
+  "rootOwnsMetricLanding": true,
+  "metric": {
+    "at": "2026-09-06T23:16:09.685Z",
+    "publish_s": 72.4,
+    "production_binary_bytes": 7046336,
+    "production_binary_without_engine_bytes": 3812208,
+    "production_binary_with_engine_bytes": 7046336,
+    "production_media_binary_bytes": 2147984,
+    "engine": "ibex2 + vanilla hermes",
+    "dry": false
+  }
+}

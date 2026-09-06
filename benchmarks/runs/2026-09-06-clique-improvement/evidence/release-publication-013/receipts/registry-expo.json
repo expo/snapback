@@ -1,0 +1,18 @@
+{
+  "argv": [
+    "python3",
+    "/Users/ccheever/clique-improvement/revisions/release-publication-013/verify-registry-expo.py"
+  ],
+  "cwd": "/Users/ccheever/clique-improvement/revisions/release-publication-013",
+  "driver_pid": 60858,
+  "started_epoch": 1788736752.39285,
+  "external_timeout_seconds": 300,
+  "per_command_timeout_seconds": 30,
+  "npm_fetch_timeout_ms": 15000,
+  "npm_fetch_retries": 0,
+  "pid": 60881,
+  "exit_code": 0,
+  "elapsed_seconds": 17.5392405,
+  "ended_epoch": 1788736769.932221,
+  "log_sha256": "ae6836fb33ccaa8f7615d39e03cc7ea240375c48dd364f8ec884268023d6e1a3"
+}

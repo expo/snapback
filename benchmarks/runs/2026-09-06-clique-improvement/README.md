@@ -5,7 +5,19 @@ and Supabase for each requested builder: Astra medium, Grok 4.6 xhigh, and
 Muse 1.3 ultra. **Not achieved.** Retain the full canonical Clique scope,
 including independent grading and the fresh-session M7 evolution phase.
 
-## Current checkpoint — 2026-09-06, 22:46Z
+## Current checkpoint — 2026-09-06, 23:35Z
+
+**0.0.13 is published and verified**, from source `ae7d86a11`, with the reviewed drain improvement and prior pending-slot repair. Actual publication passed in 72.770 seconds; after two retained processing E404s, both registry packages matched the original integrity values. The fresh registry Expo procedure passed in 17.539 seconds and all 154 installed files matched. The [complete publication evidence](evidence/release-publication-013/README.md) includes the original producer metric and actual writer terminal. This qualifies installed tooling, not full Clique or native-device acceptance.
+
+The cold full Astra medium run actually launched at 23:31:31Z on the primary M1 Max, pinned to public `snapback2@0.0.13`. Native session `01a07910-1413-7ee0-846b-2ad93b1924ea` confirms the requested model and medium effort. M1 started at 23:32:00Z; its original four-hour deadline remains 03:32:00Z across any resume. No milestone result is claimed at this checkpoint. The full frozen instrument, native attempts, independent grading and separate fresh M7 remain required. Initial host load was 5.56/12.86/20.09; this host differs from the historical M5, so wall-time comparisons require that limitation.
+
+Original competitor baselines remain fixed: Astra Convex 84 / Supabase 77; Grok Convex 78 / Supabase 47. Snapback fixes alone do not invalidate them. The later diagnostic Astra 0.0.8 rescore of 72 / 83 / 74 remains historical and does not silently lower the original comparison bar. No new holistic score or three-family win is proven; Muse 1.3 ultra remains unavailable.
+
+Compiler source-custody correction `a6d542a8` is complete. The next candidate makes all six original bounded joins pass the unchanged native certificate check, but final behavioral verification and fresh independent reviews are pending. Carrier transaction preparation is frozen at `4fb998f2`: 50 focused tests pass and seven state checkpoints match; the full bundle is 72,367 gzip bytes, 6,367 over its unchanged limit. Its earlier-candidate movement timeout remains failed. Inherited coverage rollback repairs are active; realistic resident qualification remains open.
+
+The M5 peer's existing remote owners remain unresolved while it is offline. The combined succession candidate remains held by the unresolved uniqueness finding. The full requested goal is **not achieved**.
+
+## Historical checkpoint — 2026-09-06, 22:46Z
 
 The latest verified published release is **0.0.12**, source
 `6954679b09aedf975783ec04650aa3e7728ba9d5`. Its asset pending-slot repair passed

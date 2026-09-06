@@ -1,0 +1,51 @@
+{
+  "originalPair": [
+    {
+      "name": "snapback2-darwin-arm64",
+      "version": "0.0.13",
+      "tarball": "/Users/ccheever/projects/snapback-artifacts/clique-release/0.0.13-ae7d86a11/snapback2-darwin-arm64-0.0.13.tgz",
+      "integrity": "sha512-P96OqaI3RqtbRayIV5edFOs79hVafhqgmxpEdXEYnCRUg9zIZCjB/Ofibnf7/UXkCIrbjxgnsqpXItjQ1RLRPQ==",
+      "sha256": "30f8d7e773298a2be6fa709844930c666701ac09c1e3dfdee5fc56dd5e1a6c6e",
+      "bytes": 4824711,
+      "mode": "0o444"
+    },
+    {
+      "name": "snapback2",
+      "version": "0.0.13",
+      "tarball": "/Users/ccheever/projects/snapback-artifacts/clique-release/0.0.13-ae7d86a11/snapback2-0.0.13.tgz",
+      "integrity": "sha512-Ipm8NxbwWjNBSUqYdkmtwduNGGICNB3oNVFV8P/U/SiSQaEgEQEY70k2kA6kWKGzd1F7JfYwui81ItfRULIyDw==",
+      "sha256": "4c379cba193ad57e996145e378e7c58c606a8b1027ca69fb82404b08d72d38c5",
+      "bytes": 1796603,
+      "mode": "0o444"
+    }
+  ],
+  "originalResume": {
+    "path": "/Users/ccheever/projects/snapback-artifacts/clique-release/0.0.13-ae7d86a11/resume-ready.json",
+    "sha256": "e9b3f16e37c18f8c7b43693030c3d734132fdb1f280ecabceae5a370d7b28d78",
+    "mode": "0444"
+  },
+  "originalsByteIdentical": true,
+  "originalsMode": "0444",
+  "workingResume": {
+    "path": "/Users/ccheever/projects/snapback-worktrees/clique-release-next/snapback2/dist/npm/publish-snapback2-darwin-arm64-0.0.13/resume.json",
+    "sha256": "e9b3f16e37c18f8c7b43693030c3d734132fdb1f280ecabceae5a370d7b28d78",
+    "mode": "0644",
+    "equalOriginal": true
+  },
+  "retainedBinaries": [
+    {
+      "path": "/Users/ccheever/projects/snapback-artifacts/clique-release/0.0.13-ae7d86a11/qualified-artifacts/platform/package/bin/snapback2",
+      "sha256": "aa00f56ffa6edf07c4e89fb189145c2145eef35b01a112cb93144653adc624c7",
+      "bytes": 7046336
+    },
+    {
+      "path": "/Users/ccheever/projects/snapback-artifacts/clique-release/0.0.13-ae7d86a11/qualified-artifacts/platform/package/bin/snapback2-media",
+      "sha256": "c5e115fbd92260918f3233ba105c5c45c0d32e2fe62f4373d98eb16067a00737",
+      "bytes": 2147984
+    }
+  ],
+  "rebuilds": 0,
+  "repackOperations": 0,
+  "actualPublishAttempts": 1,
+  "registryIntegrityReceipt": "registry-integrity.json"
+}
