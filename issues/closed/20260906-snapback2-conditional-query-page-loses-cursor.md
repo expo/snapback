@@ -88,3 +88,7 @@ completeness, spike), 216 evaluator scenarios plus the new nested-read checks,
 measurement were not rerun for this revision; no timeout was changed. The
 parent owns the pending Grok review and integration; this revision is not a
 new full-battery or publication claim.
+
+Integration with asset recovery exceeded the Quarry guide's 15,872-byte budget
+by six bytes. Its introduction was compacted, preserving the conditional cursor
+instructions and asset recovery pointer; no runtime or timeout changed.

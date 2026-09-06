@@ -1,7 +1,7 @@
 # Quarry v0.3
 
-Quarry is the only backend language. `check` compiles `.q` in memory, writes an
-inspection copy in `.snapback/build/quarry/`, and puts no generated files in `snapback/`.
+Quarry is the only backend language. `check` compiles `.q` in memory; inspection
+copies go to `.snapback/build/quarry/`, never `snapback/`.
 
 ## Project
 
