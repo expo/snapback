@@ -501,3 +501,15 @@ filtering changed the stored fingerprint. The fix must preserve raw identity
 without prematurely granting coverage. It does not establish the cause of the
 original published0.0.8 error. The later descending resume-log refusal was an app
 configuration mistake; an ascending sync anchor adds another authoring obligation.
+
+
+## 2026-09-06 — Clock-sensitive persistent delivery reproduced
+
+A real native query that reads the clock returns a different result and range
+receipt when time advances, even with no database commit. Both warm and
+cold-reopened file carriers reject that legitimate same-sequence delivery.
+This is now a source-bound native reproduction, separate from the earlier
+synthetic pre-program custody case and from the still-unattributed published
+inbox failure. The repair needs authoritative execution identity while retaining
+same-sequence durable-data disagreement controls. Clock-aware Insights should
+not require authors to split their data flow merely to avoid cache conflicts.

@@ -1,0 +1,14 @@
+{
+  "pid": 74958,
+  "port": 50865,
+  "signals": [
+    "SIGTERM"
+  ],
+  "exit": 0,
+  "stopped": true,
+  "connectAfterCleanup": 61,
+  "portClosed": true,
+  "at": "2026-09-06T13:32:47.440127+00:00",
+  "terminateDeadlineSeconds": 3,
+  "killDeadlineSeconds": 3
+}

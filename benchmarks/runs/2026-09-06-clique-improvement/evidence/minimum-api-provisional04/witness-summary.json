@@ -1,0 +1,93 @@
+{
+  "status": "passed-scoped-actual-api-witness",
+  "responses": 74,
+  "passed": 74,
+  "accepted": 32,
+  "refused": 42,
+  "families": {
+    "job": {
+      "total": 12,
+      "accepted": 4,
+      "refused": 8,
+      "passed": 12
+    },
+    "mutation": {
+      "total": 19,
+      "accepted": 7,
+      "refused": 12,
+      "passed": 19
+    },
+    "query": {
+      "total": 43,
+      "accepted": 21,
+      "refused": 22,
+      "passed": 43
+    }
+  },
+  "originalBaselineCases": 45,
+  "originalMinimumMissesReplayed": 12,
+  "allRefusalsNoDurableDelta": true,
+  "jobRecords": 4,
+  "allPositiveJobsDone": true,
+  "identity": {
+    "value_model_version": "i53-codepoint-bytes-unicode-search-text-min-v4",
+    "evaluator_version": "bounded-spike-rust-search-text-min-3"
+  },
+  "certificateChecks": {
+    "ops.add": true,
+    "ops.inspect": true,
+    "ops.optional": true,
+    "ops.optionalList": true,
+    "ops.send": true,
+    "ops.sweep": true,
+    "ops.two": true,
+    "ops.zero": true
+  },
+  "allCertificatesMatch": true,
+  "countsBefore": {
+    "rows": 0,
+    "index_entries": 0,
+    "_commits": 0,
+    "_jobs": 0,
+    "_outbox": 0,
+    "records": 0,
+    "commitSeq": 0,
+    "outboxAttempts": 0
+  },
+  "countsAfter": {
+    "rows": 4,
+    "index_entries": 4,
+    "_commits": 15,
+    "_jobs": 4,
+    "_outbox": 3,
+    "records": 4,
+    "commitSeq": 15,
+    "outboxAttempts": 0
+  },
+  "effectsEngine": "none",
+  "effectExecutions": 0,
+  "channelAdmission": {
+    "exercised": false,
+    "reason": "Exact frozen fixture schema.channels is empty; no fixture edits authorized."
+  },
+  "deadlines": {
+    "perHttpSeconds": 4,
+    "ownerStartupSeconds": 8,
+    "privateRunSeconds": 60,
+    "emptyJobCompletionSeconds": 4,
+    "shutdownSeconds": 3,
+    "scopedCommandsSeconds": 30
+  },
+  "observedSeconds": {
+    "privateRun": 0.5580594170023687,
+    "maxAdmissionHttp": 0.0021176249720156193
+  },
+  "failureCount": 0,
+  "failures": [],
+  "summaryCorrection": "The runtime harness expected a wrapped job response. Four exact HTTP 200 top-level queued job records were originally misclassified. This audit recognizes the saved actual response and verifies each persisted enqueue delta; no owner rerun or raw response edit.",
+  "rawApiResultsSha256": "9edd5fa52880b69381fe8e202d6a180c53704964dde83731b4605b5d56c163cd",
+  "runtimeScriptSha256": "d9fe4970c68b417d89dbf0c7be0594c0e52ac735552dc50dcd4ade928b2be0e4",
+  "publicationQualification": false,
+  "fullSuiteRun": false,
+  "compilerRecompiled": false
+}

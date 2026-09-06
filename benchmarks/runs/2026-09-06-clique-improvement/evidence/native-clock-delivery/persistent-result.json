@@ -1,0 +1,109 @@
+{
+  "description": "Actual native same-subscription clock frames committed through actual persistent file carrier; issuing program trusted before firstdelivery; no synthetic envelope/validator or absent-program condition",
+  "inputHashes": {
+    "envelopes.json": "ea7c4c6adb90286abb6ccdd867ca9a5e03f8783495c7b4689818a710b0c7838b",
+    "program-envelope.json": "5f947ee61acbc6a549d86293e9e98fa3f98f827bb08e0f68f2d88e65b9dc516a",
+    "project.json": "c54a37acc30dde7fb99cdfe13506ea1dbd2877c078aba70d83d30f5e647021cf",
+    "compiler.mjs": "04f9037d0d243a4b4b357c7778c8f812c4c652811fddd4aed0885892e80f5df8",
+    "run.py": "91a2f3235620a7d83d2c4392725c1d6c8e7cff706ce5e698c4607ada77572258",
+    "persist.ts": "bd9992f3e796c04092fe83547ed64237c1df910e915ec6006574a4e79b4be2e8"
+  },
+  "results": [
+    {
+      "cold": false,
+      "firstReplay": "pass",
+      "error": {
+        "name": "TypeError",
+        "message": "conflicting deliveries for clock.read at seq 1"
+      },
+      "stored": {
+        "op": "clock.read",
+        "args": {},
+        "state": "complete",
+        "next": null,
+        "nextSeq": 1,
+        "seq": 1,
+        "validator": "dfad2503a9c6431e8125c2cfd3f54a9152bea7cc35aaddd0ed697a03108fe3af",
+        "receipt": {
+          "absences": [],
+          "ranges": [
+            {
+              "absence": true,
+              "after": null,
+              "before": null,
+              "gt": null,
+              "gte": null,
+              "index": "byAt",
+              "lt": 1788701712598,
+              "lte": null,
+              "order": "Asc",
+              "prefix": [],
+              "rowIds": [],
+              "ruleHash": "75127f113f0cdaab190e505b9cd62b78c7a92d6a43028a5db3d98dcd342c95ca",
+              "site": "clock.range",
+              "stop": "Exhausted",
+              "table": "events",
+              "take": 10
+            }
+          ],
+          "verdicts": []
+        },
+        "deliveredAt": 1788701759098,
+        "data": {
+          "now": 1788701712598,
+          "rows": []
+        }
+      }
+    },
+    {
+      "cold": true,
+      "firstReplay": "pass",
+      "error": {
+        "name": "TypeError",
+        "message": "conflicting deliveries for clock.read at seq 1"
+      },
+      "stored": {
+        "op": "clock.read",
+        "args": {},
+        "state": "complete",
+        "next": null,
+        "nextSeq": 1,
+        "seq": 1,
+        "validator": "dfad2503a9c6431e8125c2cfd3f54a9152bea7cc35aaddd0ed697a03108fe3af",
+        "receipt": {
+          "absences": [],
+          "ranges": [
+            {
+              "absence": true,
+              "after": null,
+              "before": null,
+              "gt": null,
+              "gte": null,
+              "index": "byAt",
+              "lt": 1788701712598,
+              "lte": null,
+              "order": "Asc",
+              "prefix": [],
+              "rowIds": [],
+              "ruleHash": "75127f113f0cdaab190e505b9cd62b78c7a92d6a43028a5db3d98dcd342c95ca",
+              "site": "clock.range",
+              "stop": "Exhausted",
+              "table": "events",
+              "take": 10
+            }
+          ],
+          "verdicts": []
+        },
+        "deliveredAt": 1788701759117,
+        "data": {
+          "now": 1788701712598,
+          "rows": []
+        }
+      }
+    }
+  ],
+  "sources": {
+    "offline.ts": "e0128b8f8d7785ef2800bc22e433f80f1e429f8d8dd4eedfeeea594b6631bb9c",
+    "store/range-store.ts": "747e0e2e6b833d3c433652580fe79c90cd4416ed540d4d2deae7c4003b9037cf"
+  }
+}
