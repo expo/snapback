@@ -682,6 +682,7 @@ impl<'a> Runner<'a> {
         if self.context.viewer.is_system() {
             return Ok(true);
         }
+        let table_name = table;
         let table = self
             .schema
             .table(table)
@@ -693,11 +694,11 @@ impl<'a> Runner<'a> {
         if let Some(old) = &mut old {
             materialize_optional_fields(old, table);
         }
-        let rule_hash = self.schema.rule_hash(&rule);
+        let rule_hash = self.hashes.table(table_name, effect);
         let authority_miss_serial = self.authority_miss_serial;
         let allowed = self.eval_rule(
             &rule,
-            &rule_hash,
+            rule_hash,
             old.as_ref(),
             &next,
             effect == Effect::Insert,
@@ -872,8 +873,8 @@ impl<'a> Runner<'a> {
         let Some(found) = found else {
             return Ok(());
         };
-        let hash = self.schema.rule_hash(&read);
-        self.eval_visibility_rule(&read, &hash, found)?;
+        let hash = self.hashes.table(table, Effect::Read);
+        self.eval_visibility_rule(&read, hash, found)?;
         Ok(())
     }
 
@@ -1030,28 +1031,7 @@ impl<'a> Runner<'a> {
     }
 
     pub(super) fn record_row(&mut self, table: &str, id: &str, row: &Value, client: bool) {
-        let record = RowRecord {
-            table: table.to_owned(),
-            id: id.to_owned(),
-            row: row.clone(),
-        };
-        if !self
-            .trace
-            .rows
-            .iter()
-            .any(|existing| existing.table == table && existing.id == id)
-        {
-            self.trace.rows.push(record.clone());
-        }
-        if client
-            && !self
-                .receipt
-                .rows
-                .iter()
-                .any(|existing| existing.table == table && existing.id == id)
-        {
-            self.receipt.rows.push(record);
-        }
+        self.row_membership.record(&mut self.trace.rows, &mut self.receipt.rows, table, id, row, client);
     }
 
     pub(super) fn bump_write(&mut self, table: &str) {
@@ -1227,11 +1207,7 @@ impl<'a> Runner<'a> {
             }
         }
         for row in &self.receipt.rows {
-            if !self
-                .trace
-                .rows
-                .iter()
-                .any(|trace| trace.table == row.table && trace.id == row.id)
+            if !self.row_membership.contains(&self.trace.rows, &row.table, &row.id)
             {
                 return Err(RuntimeError::TraceSubset(format!(
                     "receipt row {}.{} absent from trace",

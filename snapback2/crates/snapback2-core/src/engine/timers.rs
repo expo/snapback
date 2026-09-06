@@ -79,6 +79,7 @@ impl Engine {
             let mut binder = Runner::new(
                 &tx,
                 &self.schema,
+                &self.hashes,
                 binding_certificate,
                 context.clone(),
                 &self.verdicts,
@@ -140,6 +141,7 @@ impl Engine {
             let mut runner = Runner::new(
                 &tx,
                 &self.schema,
+                &self.hashes,
                 certificate,
                 context,
                 &self.verdicts,

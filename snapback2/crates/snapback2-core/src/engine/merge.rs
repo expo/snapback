@@ -1,4 +1,4 @@
-// @ref LLP 1010#a5-the-merged-feed — one cursor per distinct prefix; heap heads establish the true suffix top-N.
+// @ref LLP 1010#a5-the-merged-feed — one logical lane per distinct prefix; heap heads establish the true suffix top-N.
 use super::runner::{Runner, TrackedValue};
 use super::scan::EvaluatedScan;
 use super::*;
@@ -15,6 +15,7 @@ struct Lane {
     allowed: Option<bool>,
     probes: u64,
     exhausted: bool,
+    last_examined: Option<Vec<Value>>,
     examined: Vec<String>,
     visible: Vec<Value>,
     returned: Vec<Value>,
@@ -94,6 +95,7 @@ impl Runner<'_> {
                     allowed: public.then_some(true),
                     probes: read.rule_probes_per_candidate,
                     exhausted: false,
+                    last_examined: None,
                     examined: Vec::new(),
                     visible: Vec::new(),
                     returned: Vec::new(),
@@ -117,6 +119,9 @@ impl Runner<'_> {
             .map(|lane| {
                 let table = schema.table(&lane.scan.table).expect("checked table");
                 let index = table.index(&lane.scan.index).expect("checked index");
+                if lane.uniform && index::intrinsic_id_order(table, index) {
+                    return Ok(None);
+                }
                 index::prepare_scan_indexed(
                     tx,
                     &lane.scan.table,
@@ -129,17 +134,19 @@ impl Runner<'_> {
                     lane.input.range.as_ref(),
                     lane.scan.order,
                     self.certificate.unwrap().max_examined as usize,
-                )
+                ).map(Some)
             })
             .collect::<Result<Vec<_>, _>>()?;
-        // Statements live in their own stable vector; Rows borrows each statement once.
+        // Uniform, intrinsically ordered lanes use pooled one-row seeks. Keep the
+        // existing physical cursor for nonuniform lanes (including hidden runs).
+        // Both paths share logical head/refill, metering, authority and receipts.
         let mut cursors = statements
             .iter_mut()
-            .map(|statement| statement.raw_query())
+            .map(|statement| statement.as_mut().map(|statement| statement.raw_query()))
             .collect::<Vec<_>>();
         let mut heap = Vec::new();
         for (i, lane) in lanes.iter_mut().enumerate() {
-            if let Some(head) = self.merge_head(i, lane, &mut cursors[i])? {
+            if let Some(head) = self.merge_head(i, lane, cursors[i].as_mut())? {
                 self.heap_push(&mut heap, head, lane.scan.order)?;
             }
         }
@@ -154,7 +161,7 @@ impl Runner<'_> {
                 returned.push(head.row);
             }
             if let Some(next) =
-                self.merge_head(head.lane, &mut lanes[head.lane], &mut cursors[head.lane])?
+                self.merge_head(head.lane, &mut lanes[head.lane], cursors[head.lane].as_mut())?
             {
                 self.heap_push(&mut heap, next, order)?;
             }
@@ -201,7 +208,7 @@ impl Runner<'_> {
         &mut self,
         lane_id: usize,
         lane: &mut Lane,
-        rows: &mut rusqlite::Rows<'_>,
+        mut rows: Option<&mut rusqlite::Rows<'_>>,
     ) -> Result<Option<Head>, RuntimeError> {
         let certificate = self.certificate.unwrap();
         loop {
@@ -218,14 +225,27 @@ impl Runner<'_> {
                 return Ok(None);
             }
             self.step(1)?;
-            let Some(record) = rows.next()? else {
+            let table = self.schema.table(&lane.scan.table).expect("checked table");
+            let index = table.index(&lane.scan.index).expect("checked index");
+            let row = if let Some(rows) = rows.as_mut() {
+                rows.next()?.map(|record| {
+                    let data: String = record.get(0)?;
+                    serde_json::from_str(&data).map_err(|e| RuntimeError::Schema(e.to_string()))
+                }).transpose()?
+            } else {
+                index::seek_scan_indexed(
+                    self.tx, &lane.scan.table, &lane.scan.index, table, index,
+                    &lane.input.prefix, lane.input.after.as_ref(), lane.input.before.as_ref(),
+                    lane.input.range.as_ref(), lane.scan.order, lane.last_examined.as_deref(),
+                )?
+            };
+            let Some(mut row) = row else {
                 lane.exhausted = true;
                 return Ok(None);
             };
-            let data: String = record.get(0)?;
-            let mut row: Value =
-                serde_json::from_str(&data).map_err(|e| RuntimeError::Schema(e.to_string()))?;
-            let table = self.schema.table(&lane.scan.table).expect("checked table");
+            if rows.is_none() {
+                lane.last_examined = Some(index_values(&row, index));
+            }
             materialize_optional_fields(&mut row, table);
             self.trace.examined += 1;
             lane.examined.push(row.field("id")?.as_str()?.to_owned());
@@ -329,6 +349,7 @@ impl Runner<'_> {
             self.record_row(&scan.table, row.field("id")?.as_str()?, row, true);
         }
         let input = lane.input;
+        let rule_hash = self.hashes.table(&scan.table, Effect::Read).to_owned();
         let range = TraceRange {
             site: scan.site,
             table: scan.table,
@@ -342,7 +363,7 @@ impl Runner<'_> {
             gte: input.range.as_ref().and_then(|r| r.gte.clone()),
             lt: input.range.as_ref().and_then(|r| r.lt.clone()),
             lte: input.range.as_ref().and_then(|r| r.lte.clone()),
-            rule_hash: self.schema.rule_hash(&table.rules.read),
+            rule_hash,
             examined_ids: lane.examined,
             visible_ids,
             returned_ids: returned_ids.clone(),
@@ -382,6 +403,60 @@ impl Runner<'_> {
 mod tests {
     use super::*;
     use crate::{Ceilings, Checker, object};
+
+    #[test]
+    fn pooled_seeks_match_live_cursor_with_ties_and_intersecting_bounds() {
+        let frozen: serde_json::Value = serde_json::from_str(include_str!(
+            "../../../../corpus/merge-runtime-overlap-deduped.json"
+        )).unwrap();
+        let schema: Schema = serde_json::from_value(frozen["schema"].clone()).unwrap();
+        let program: Program = serde_json::from_value(frozen["program"].clone()).unwrap();
+        let Stmt::Return(Expr::Merge(merge)) = &program.body[0] else { unreachable!() };
+        let index_name = &merge.lanes[0].scan.index;
+        let table = &schema.tables["posts"];
+        let index = &table.indexes[index_name];
+        assert!(index::intrinsic_id_order(table, index));
+        let mut non_total = index.clone();
+        non_total.columns.pop();
+        assert!(!index::intrinsic_id_order(table, &non_total));
+        let mut engine = Engine::memory(schema.clone()).unwrap();
+        for actor in ["u1", "u2"] {
+            for at in 0..6 {
+                for id in ["a", "z", "é", "𐀀"] {
+                    engine.seed("posts", object([
+                        ("id", Value::Id(format!("{actor}-{at}-{id}"))),
+                        ("author", Value::Id(actor.into())), ("at", Value::Int(at)),
+                    ])).unwrap();
+                }
+            }
+        }
+        let tx = engine.store.conn.transaction().unwrap();
+        for order in [Order::Asc, Order::Desc] {
+            for actor in ["u1", "u2", "empty", "u1"] {
+                for bounded in [false, true] {
+                    let prefix = vec![Value::Id(actor.into())];
+                    let low = Value::Array(vec![Value::Int(1), Value::Id(format!("{actor}-1-a"))]);
+                    let high = Value::Array(vec![Value::Int(4), Value::Id(format!("{actor}-4-é"))]);
+                    let (after, before) = if order == Order::Asc { (&low, &high) } else { (&high, &low) };
+                    let after = bounded.then_some(after);
+                    let before = bounded.then_some(before);
+                    let range = EvaluatedRange { gt: None, gte: Some(Value::Int(2)), lt: Some(Value::Int(5)), lte: None };
+                    let range = bounded.then_some(&range);
+                    let expected = index::scan_indexed(&tx, "posts", index_name, table, index,
+                        &prefix, after, before, range, order, 100).unwrap();
+                    let mut actual = Vec::new();
+                    let mut last = None;
+                    while let Some(row) = index::seek_scan_indexed(&tx, "posts", index_name, table, index,
+                        &prefix, after, before, range, order, last.as_deref()).unwrap() {
+                        last = Some(index_values(&row, index));
+                        actual.push(row);
+                        assert!(actual.len() <= 100, "seek did not move strictly");
+                    }
+                    assert_eq!(actual, expected, "{actor} {order:?} bounded={bounded}");
+                }
+            }
+        }
+    }
 
     #[test]
     fn system_merge_reads_denied_and_nonuniform_tables_without_rule_probes() {
@@ -463,9 +538,11 @@ mod tests {
         };
         let mut connection = rusqlite::Connection::open_in_memory().unwrap();
         let tx = connection.transaction().unwrap();
+        let hashes = hashes::PolicyHashes::new(&schema);
         let mut runner = Runner::new(
             &tx,
             &schema,
+            &hashes,
             &certificate,
             Context::query(Actor::new("u1", "user").unwrap(), Default::default()),
             &[],
@@ -499,6 +576,7 @@ mod tests {
                     allowed: Some(true),
                     probes: 0,
                     exhausted: true,
+                    last_examined: None,
                     examined: vec!["a".into(), "b".into(), "c".into()],
                     visible: rows.clone(),
                     returned,

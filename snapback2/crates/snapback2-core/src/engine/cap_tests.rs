@@ -168,9 +168,11 @@ fn refusing_cap_probe_is_charged_before_returning_constraint_error() {
         .check(&program)
         .unwrap();
     let tx = engine.store.conn.transaction().unwrap();
+    let hashes = hashes::PolicyHashes::new(&schema);
     let mut runner = Runner::new(
         &tx,
         &schema,
+        &hashes,
         &certificate,
         Context::mutation(Actor::user("u1").unwrap(), BTreeMap::new()),
         &[],

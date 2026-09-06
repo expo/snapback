@@ -160,6 +160,74 @@ pub(super) fn prepare_scan_indexed<'a>(
     order: Order,
     limit: usize,
 ) -> Result<rusqlite::Statement<'a>, RuntimeError> {
+    let (sql, parameters) = scan_query(
+        table_name, index_name, table, index, prefix, after, before, range, order, limit,
+        None, false,
+    )?;
+    let mut statement = connection.prepare(&sql)?;
+    bind_scan(&mut statement, &parameters)?;
+    Ok(statement)
+}
+
+// @ref LLP 1001#1-store-storers — validated intrinsic ids equal storage addresses;
+// a full index key ending in that id is a total order without a row_id tie term.
+// Other indexes keep the original SQL, even if another proof could suffice.
+pub(super) fn intrinsic_id_order(table: &Table, index: &Index) -> bool {
+    index.columns.last().is_some_and(|column| column == "id")
+        && table.columns.get("id") == Some(&ColumnType::Id)
+}
+
+#[allow(clippy::too_many_arguments)]
+pub(super) fn seek_scan_indexed(
+    connection: &Connection,
+    table_name: &str,
+    index_name: &str,
+    table: &Table,
+    index: &Index,
+    prefix: &[Value],
+    after: Option<&Value>,
+    before: Option<&Value>,
+    range: Option<&EvaluatedRange>,
+    order: Order,
+    last_examined: Option<&[Value]>,
+) -> Result<Option<Value>, RuntimeError> {
+    let (sql, parameters) = scan_query(
+        table_name, index_name, table, index, prefix, after, before, range, order, 1,
+        last_examined, true,
+    )?;
+    // The connection's bounded statement cache keys SQL shapes, never actor
+    // values. Drop Rows and return the statement before another lane seeks.
+    let mut statement = connection.prepare_cached(&sql)?;
+    bind_scan(&mut statement, &parameters)?;
+    let mut rows = statement.raw_query();
+    rows.next()?.map(|row| {
+        let data: String = row.get(0)?;
+        serde_json::from_str(&data).map_err(|error| RuntimeError::Schema(error.to_string()))
+    }).transpose()
+}
+
+fn bind_scan(statement: &mut rusqlite::Statement<'_>, parameters: &[String]) -> Result<(), RuntimeError> {
+    for (i, value) in parameters.iter().enumerate() {
+        statement.raw_bind_parameter(i + 1, value)?;
+    }
+    Ok(())
+}
+
+#[allow(clippy::too_many_arguments)]
+fn scan_query(
+    table_name: &str,
+    index_name: &str,
+    table: &Table,
+    index: &Index,
+    prefix: &[Value],
+    after: Option<&Value>,
+    before: Option<&Value>,
+    range: Option<&EvaluatedRange>,
+    order: Order,
+    limit: usize,
+    last_examined: Option<&[Value]>,
+    intrinsic_order: bool,
+) -> Result<(String, Vec<String>), RuntimeError> {
     if prefix.len() > index.columns.len() {
         return Err(RuntimeError::Schema(format!(
             "scan {table_name}.{index_name} prefix has too many columns"
@@ -220,10 +288,18 @@ pub(super) fn prepare_scan_indexed<'a>(
             }
         }
     }
+    if let Some(key) = last_examined {
+        // This extra bound intersects (never replaces) all original bounds.
+        // Equality-prefix + the entire index key includes the intrinsic id.
+        push_cursor_bound(&mut parameters, &mut predicates, 0,
+            if order == Order::Asc { ">" } else { "<" },
+            &Value::Array(key.to_vec()), table_name, index_name, table, index)?;
+    }
     let direction = if order == Order::Asc { "ASC" } else { "DESC" };
     let ordering = (0..index.columns.len())
         .map(|offset| format!("ie.c{offset} {direction}"))
-        .chain(std::iter::once(format!("ie.row_id {direction}")))
+        .chain((!intrinsic_order || !intrinsic_id_order(table, index))
+            .then(|| format!("ie.row_id {direction}")))
         .collect::<Vec<_>>()
         .join(", ");
     let suffix = if predicates.is_empty() {
@@ -244,11 +320,7 @@ pub(super) fn prepare_scan_indexed<'a>(
          ORDER BY {ordering}
          LIMIT {limit}"
     );
-    let mut statement = connection.prepare(&sql)?;
-    for (i, value) in parameters.iter().enumerate() {
-        statement.raw_bind_parameter(i + 1, value)?;
-    }
-    Ok(statement)
+    Ok((sql, parameters))
 }
 
 fn push_index_bound(

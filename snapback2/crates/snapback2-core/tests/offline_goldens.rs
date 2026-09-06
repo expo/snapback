@@ -855,7 +855,10 @@ fn hidden_candidate_memo_rollback_preserves_envelope_receipt_replay() {
         }))],
     };
 
-    for program in [&point, &range] {
+    for readable in [false, true] {
+      let mut schema = schema.clone();
+      if readable { schema.tables.get_mut("grants").unwrap().rules.read = RuleExpr::Allow; }
+      for program in [&point, &range] {
         let certificate = Checker::new(&schema, Ceilings::default())
             .check(program)
             .unwrap();
@@ -887,7 +890,14 @@ fn hidden_candidate_memo_rollback_preserves_envelope_receipt_replay() {
         let served = server
             .execute(program, &certificate, context.clone())
             .unwrap();
-        assert_eq!(served.receipt.verdicts.len(), 1, "{}", program.name);
+        assert_eq!(served.receipt.verdicts.len(), usize::from(!readable), "{}", program.name);
+        assert_eq!(served.receipt.rows.iter().filter(|r| r.table == "grants").count(), usize::from(readable));
+        if readable {
+            // The denied first candidate recorded then rolled back this exact
+            // row. The visible candidate must deliver it again, in order.
+            assert_eq!(served.receipt.rows[0].id, "grant-shared");
+            assert_eq!(served.trace.rows.iter().filter(|r| r.table == "grants").count(), 1);
+        }
         assert!(
             served
                 .receipt
@@ -918,11 +928,12 @@ fn hidden_candidate_memo_rollback_preserves_envelope_receipt_replay() {
         )
         .unwrap();
         let delivered = public_receipt(&served, &envelope);
-        assert_eq!(delivered.verdicts.len(), 1, "{}", program.name);
+        assert_eq!(delivered.verdicts.len(), usize::from(!readable), "{}", program.name);
         let mut client = ClientStore::hydrate(schema.clone(), &delivered).unwrap();
         let (_, replayed) = client.reexecute(program, &certificate, context).unwrap();
         assert_eq!(replayed.result, served.result, "{}", program.name);
     }
+  }
 }
 
 #[test]

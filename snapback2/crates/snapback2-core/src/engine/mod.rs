@@ -219,6 +219,7 @@ pub struct Engine {
     connected: std::sync::Arc<BTreeMap<String, u64>>,
     store: Store,
     schema: Schema,
+    hashes: hashes::PolicyHashes,
     verdicts: Vec<Verdict>,
     authority_absences: Vec<(String, String, Vec<Value>)>,
     rule_authority: RuleAuthority,
@@ -235,6 +236,7 @@ impl Engine {
         Ok(Self {
             connected: Default::default(),
             store,
+            hashes: hashes::PolicyHashes::new(&schema),
             schema,
             verdicts: Vec::new(),
             authority_absences: Vec::new(),
@@ -255,6 +257,7 @@ impl Engine {
             connected: self.connected.clone(),
             store: self.store.memory_copy()?,
             schema: self.schema.clone(),
+            hashes: self.hashes.clone(),
             verdicts: self.verdicts.clone(),
             authority_absences: self.authority_absences.clone(),
             rule_authority: self.rule_authority,
@@ -281,6 +284,7 @@ impl Engine {
 
     pub(crate) fn set_schema(&mut self, schema: Schema) -> Result<(), RuntimeError> {
         validate_schema(&schema).map_err(first_schema_error)?;
+        self.hashes = hashes::PolicyHashes::new(&schema);
         self.schema = schema;
         Ok(())
     }
@@ -354,8 +358,8 @@ impl Engine {
         let certificate = certificates
             .get(&locator.table)
             .ok_or_else(asset_unavailable)?;
-        if certificate.schema_hash != self.schema.hash()
-            || certificate.rule_hash != self.schema.rule_hash(&rule)
+        if certificate.schema_hash != self.hashes.schema
+            || certificate.rule_hash != self.hashes.rule(&rule)
         {
             return Err(RuntimeError::TraceSubset(
                 "asset delivery rule certificate mismatch".to_owned(),
@@ -377,6 +381,7 @@ impl Engine {
                 let mut runner = Runner::probe(
                     &transaction,
                     &self.schema,
+                    &self.hashes,
                     context,
                     &self.verdicts,
                     &self.authority_absences,
@@ -581,7 +586,7 @@ impl Engine {
         if certificate.plan_hash != digest(program) {
             return Err(RuntimeError::TraceSubset("plan hash mismatch".to_owned()));
         }
-        if certificate.schema_hash != self.schema.hash() {
+        if certificate.schema_hash != self.hashes.schema {
             return Err(RuntimeError::TraceSubset("schema hash mismatch".to_owned()));
         }
         if program.kind == ProgramKind::Query && !certificate.write_sites.is_empty() {
@@ -617,6 +622,7 @@ impl Engine {
         let mut runner = Runner::new(
             &transaction,
             &self.schema,
+            &self.hashes,
             certificate,
             context,
             &self.verdicts,
@@ -831,7 +837,7 @@ impl Engine {
         if certificate.plan_hash != digest(program) {
             return Err(RuntimeError::TraceSubset("plan hash mismatch".to_owned()));
         }
-        if certificate.schema_hash != self.schema.hash() {
+        if certificate.schema_hash != self.hashes.schema {
             return Err(RuntimeError::TraceSubset("schema hash mismatch".to_owned()));
         }
         let principal = context.viewer.clone();
@@ -859,6 +865,7 @@ impl Engine {
         let mut runner = Runner::new(
             &transaction,
             &self.schema,
+            &self.hashes,
             certificate,
             context,
             &self.verdicts,
@@ -917,10 +924,10 @@ impl Engine {
         certificate: Option<&RuleCertificate>,
     ) -> Result<(bool, AuthoritativeTrace), RuntimeError> {
         if let Some(certificate) = certificate {
-            if certificate.schema_hash != self.schema.hash() {
+            if certificate.schema_hash != self.hashes.schema {
                 return Err(RuntimeError::TraceSubset("schema hash mismatch".to_owned()));
             }
-            if certificate.rule_hash != self.schema.rule_hash(rule) {
+            if certificate.rule_hash != self.hashes.rule(rule) {
                 return Err(RuntimeError::TraceSubset("rule hash mismatch".to_owned()));
             }
         }
@@ -929,6 +936,7 @@ impl Engine {
         let mut runner = Runner::probe(
             &transaction,
             &self.schema,
+            &self.hashes,
             context,
             &self.verdicts,
             &self.authority_absences,
@@ -936,7 +944,7 @@ impl Engine {
             seq,
             certificate,
         );
-        let result = runner.eval_rule(rule, &self.schema.rule_hash(rule), None, row, false)?;
+        let result = runner.eval_rule(rule, &self.hashes.rule(rule), None, row, false)?;
         if certificate.is_some() {
             runner.assert_rule_bounds()?;
         }
@@ -960,9 +968,11 @@ pub(crate) fn rebuild_owned_aggregate_target<'a>(
     owned_ids: &BTreeSet<String>,
     rows: Vec<Value>,
 ) -> Result<(), RuntimeError> {
+    let hashes = hashes::PolicyHashes::new(schema);
     let mut runner = Runner::probe(
         transaction,
         schema,
+        &hashes,
         Context::system(),
         &[],
         &[],
@@ -1242,6 +1252,8 @@ fn first_schema_error(errors: Vec<RuntimeError>) -> RuntimeError {
 mod cap_tests;
 #[cfg(test)]
 mod delivery_tests;
+mod hashes;
+mod row_membership;
 mod index;
 mod merge;
 mod provenance;

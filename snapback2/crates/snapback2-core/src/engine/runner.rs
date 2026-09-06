@@ -50,6 +50,8 @@ impl TrackedValue {
 pub(super) struct Runner<'a> {
     pub(super) tx: &'a Transaction<'a>,
     pub(super) schema: &'a Schema,
+    pub(super) hashes: &'a hashes::PolicyHashes,
+    pub(super) row_membership: row_membership::RowMembership,
     pub(super) certificate: Option<&'a Certificate>,
     pub(super) rule_certificate: Option<&'a RuleCertificate>,
     pub(super) context: Context,
@@ -88,6 +90,7 @@ impl<'a> Runner<'a> {
     pub(super) fn new(
         tx: &'a Transaction<'a>,
         schema: &'a Schema,
+        hashes: &'a hashes::PolicyHashes,
         certificate: &'a Certificate,
         context: Context,
         verdicts: &'a [Verdict],
@@ -99,6 +102,8 @@ impl<'a> Runner<'a> {
         Self {
             tx,
             schema,
+            hashes,
+            row_membership: Default::default(),
             certificate: Some(certificate),
             rule_certificate: None,
             context,
@@ -107,7 +112,7 @@ impl<'a> Runner<'a> {
             consts: BTreeSet::new(),
             trace: AuthoritativeTrace::default(),
             receipt: ClosureReceipt {
-                schema_hash: Some(schema.hash()),
+                schema_hash: Some(hashes.schema.clone()),
                 ..ClosureReceipt::default()
             },
             rule_memo: BTreeMap::new(),
@@ -130,6 +135,7 @@ impl<'a> Runner<'a> {
     pub(super) fn probe(
         tx: &'a Transaction<'a>,
         schema: &'a Schema,
+        hashes: &'a hashes::PolicyHashes,
         context: Context,
         verdicts: &'a [Verdict],
         authority_absences: &'a [(String, String, Vec<Value>)],
@@ -141,6 +147,8 @@ impl<'a> Runner<'a> {
         Self {
             tx,
             schema,
+            hashes,
+            row_membership: Default::default(),
             certificate: None,
             rule_certificate,
             context,
@@ -149,7 +157,7 @@ impl<'a> Runner<'a> {
             consts: BTreeSet::new(),
             trace: AuthoritativeTrace::default(),
             receipt: ClosureReceipt {
-                schema_hash: Some(schema.hash()),
+                schema_hash: Some(hashes.schema.clone()),
                 ..ClosureReceipt::default()
             },
             rule_memo: BTreeMap::new(),
@@ -986,7 +994,9 @@ impl<'a> Runner<'a> {
             self.discarded_rule_inputs
                 .push(checkpoint.rule_inputs..self.trace.rule_inputs.len());
         }
-        self.receipt.rows.truncate(checkpoint.rows);
+        for row in self.receipt.rows.drain(checkpoint.rows..) {
+            self.row_membership.remove_receipt(&self.trace.rows, &row.table, &row.id);
+        }
         self.receipt.ranges.truncate(checkpoint.ranges);
         self.receipt.absences.truncate(checkpoint.absences);
         self.receipt.verdicts.truncate(checkpoint.verdicts);

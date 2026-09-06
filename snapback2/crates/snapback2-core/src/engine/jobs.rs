@@ -15,7 +15,7 @@ impl Engine {
     ) -> Result<ChunkOutcome, RuntimeError> {
         if program.kind != ProgramKind::Job
             || certificate.plan_hash != bound_hash(program, certificate, &self.schema)
-            || certificate.schema_hash != self.schema.hash()
+            || certificate.schema_hash != self.hashes.schema
             || bound_hash(program, certificate, &self.schema) != job.program_hash
         {
             return Err(RuntimeError::TraceSubset(
@@ -56,6 +56,7 @@ impl Engine {
         let mut runner = Runner::new(
             &tx,
             &self.schema,
+            &self.hashes,
             chunk_certificate,
             context,
             &self.verdicts,

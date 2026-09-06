@@ -338,7 +338,7 @@ impl Runner<'_> {
                 .to_owned(),
             row,
         });
-        let rule_hash = self.schema.rule_hash(&table.rules.read);
+        let rule_hash = self.hashes.table(&scan.table, Effect::Read).to_owned();
         let evaluated_take = u32::try_from(take).map_err(|_| RuntimeError::Fanout)?;
         let range = TraceRange {
             site: scan.site.clone(),
