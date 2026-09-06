@@ -457,10 +457,13 @@ export class OfflineRuntime {
       if (!held || held.validator !== raw.validator) {
         throw new DeliveryEnvelopeDecodeError("$.validator", "does not match the held answer");
       }
+      // The held envelope carries `next` for every state (LLP 1012 §8, the frozen envelope);
+      // the wire shape a query answers with carries it only on a page, so a replayed denied
+      // or partial answer must not resurface the envelope's `next: null` (E_WIRE_SHAPE).
       const result = {
         state: held.state,
         ...(held.data === undefined ? {} : { data: held.data }),
-        ...(held.next === undefined ? {} : { next: held.next }),
+        ...((held.state === "complete" || held.state === "capped") && held.next !== undefined ? { next: held.next } : {}),
         seq: raw.seq as number,
         ...(held.reason === undefined ? {} : { reason: held.reason }),
         ...(held.rule === undefined ? {} : { rule: held.rule }),

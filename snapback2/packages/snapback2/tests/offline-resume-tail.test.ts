@@ -260,3 +260,43 @@ test("an offline cold-start drain keeps the drained first page on screen while r
     }
   } finally { await rm(root, { recursive: true, force: true }); }
 });
+
+// @ref LLP 1012#8-the-delivery-envelope-the-validator-and-resume — the frozen envelope carries
+// `next` for every state; a conditional `unchanged` replays the held denied answer through the
+// plain wire shape, which forbids `next` on denied. The second ask of a room the viewer is not a
+// member of threw E_WIRE_SHAPE "query response.denied must not carry next" on 0.0.10.
+test("a conditional unchanged reply on a held denied answer is a typed denied, not a wire-shape throw", async () => {
+  const root = await mkdtemp(join(tmpdir(), "snapback2-denied-unchanged-"));
+  const asks: unknown[] = [];
+  const client = createClient({
+    url: "http://denied-unchanged.test", as: "alice", offline: { store: fileRangeStore(root) },
+    fetch: async (input, init) => {
+      const url = new URL(String(input));
+      const metadata = metadataResponse(url);
+      if (metadata) return metadata;
+      if (url.pathname === "/api/query") {
+        const body = JSON.parse(String(init?.body));
+        asks.push(body.validator ?? null);
+        if (body.validator === "3".repeat(64)) {
+          return new Response(JSON.stringify({ state: "unchanged", seq: 4, validator: "3".repeat(64) }), { status: 200 });
+        }
+        // The owner's receipt envelope for a denied read: `next: null` and no data, as the real owner sends it.
+        const { data: _data, ...denied } = envelope(null, "3".repeat(64), 4);
+        return new Response(JSON.stringify({ ...denied, state: "denied", data: null, rule: "MEMBERSHIP_REQUIRED" }), { status: 200 });
+      }
+      throw new Error(`unexpected path ${url.pathname}`);
+    },
+  });
+  try {
+    await client.ready;
+    const first = await client.query<any, any>(api.deliveries.thread as any, { conversationId: "conversation-2", c: null });
+    assert.equal(first.state, "denied");
+    const second = await client.query<any, any>(api.deliveries.thread as any, { conversationId: "conversation-2", c: null });
+    assert.equal(second.state, "denied", "the replayed held answer is the typed denied the first ask returned");
+    assert.equal("next" in second, false, "a denied answer never carries next");
+    assert.deepEqual(asks, [null, "3".repeat(64)], "the second ask was conditional on the held validator");
+  } finally {
+    client.close();
+    await rm(root, { recursive: true, force: true });
+  }
+});
