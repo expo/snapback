@@ -589,3 +589,19 @@ friction and the500-follow ratio reduced the score. Those findings support the
 current indexed-search, clock/custody and compiler work. Later published0.0.10
 feed fixes do not receive retrospective credit. Root retains unresolved inbox
 and resume attribution separately from the scorer’s builder-based labels.
+
+
+## 2026-09-06 — Independent 0.0.8 outcome audit
+
+The fresh Grok4.6 xhigh audit finished:93 assertions passed,13 failed and13
+were not run. This diagnostic result is separate from the narrative score.
+The removed-member live-message check failed despite denied API reads; its
+cause needs investigation. Starter search indexes were empty until a separate
+indexing script ran, confirming the cost of app-authored search maintenance.
+M6 push coverage claimed closed clients while keeping the recipient open.
+Native cold-start and durable-queue restart remained unproven.
+
+Original suite failures and all accommodations are retained. The audit did not
+change product sources. M7 preparation now uses a fresh starter-only copy and
+per-persona API snapshots; missing M6 qualification stays explicit. These
+findings prevent treating the builder’s green summaries as complete proof.

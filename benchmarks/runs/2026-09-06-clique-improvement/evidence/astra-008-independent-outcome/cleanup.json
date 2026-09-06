@@ -1,0 +1,61 @@
+{
+  "stoppedAt": "2026-09-06T15:32:00Z",
+  "method": "SIGTERM of identity-verified owned PIDs only; no foreign listeners inspected or stopped; prohibited cleanup-servers.mjs not executed",
+  "node": {
+    "path": "/opt/homebrew/Cellar/node/25.9.0_3/bin/node",
+    "version": "v25.9.0"
+  },
+  "ownedServices": [
+    {
+      "name": "snapback2-dev",
+      "port": 50800,
+      "pid": 69630,
+      "signal": "SIGTERM",
+      "aliveAfter": false
+    },
+    {
+      "name": "web-static",
+      "port": 50801,
+      "pid": 92902,
+      "signal": "SIGTERM",
+      "aliveAfter": false
+    },
+    {
+      "name": "snapback2-clock-isolated",
+      "port": 50806,
+      "pid": 45737,
+      "signal": "SIGTERM",
+      "aliveAfter": false
+    },
+    {
+      "name": "snapback2-digest-isolated",
+      "port": 50808,
+      "pid": 63683,
+      "signal": "SIGTERM",
+      "aliveAfter": false
+    }
+  ],
+  "assignedPorts50800to50819AfterStop": {
+    "50800": "FREE",
+    "50801": "FREE",
+    "50802": "FREE",
+    "50803": "FREE",
+    "50804": "FREE",
+    "50805": "FREE",
+    "50806": "FREE",
+    "50807": "FREE",
+    "50808": "FREE",
+    "50809": "FREE",
+    "50810": "FREE",
+    "50811": "FREE",
+    "50812": "FREE",
+    "50813": "FREE",
+    "50814": "FREE",
+    "50815": "FREE",
+    "50816": "FREE",
+    "50817": "FREE",
+    "50818": "FREE",
+    "50819": "FREE"
+  },
+  "foreignListenersStopped": false
+}

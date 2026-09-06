@@ -1,0 +1,23 @@
+{
+  "scope": "Completed diagnostic independent outcome grade; not a calibrated holistic/O3/O5 score and not full M7 completion.",
+  "rootRead": "Full narrative report, cleanup record, source diff and all result status counts read. Detailed119 evidence claims not all independently rerun by root.",
+  "assertionCount": 119,
+  "counts": {
+    "pass": 93,
+    "fail": 13,
+    "not-run": 13
+  },
+  "exitCode": 0,
+  "cleanup": "Allfour reported servicePIDs absent at root verification.",
+  "sourceIntegrity": "Grader reports 0 changed/0 removed product files; 43 runtime evidence additions. Prior exact153 installed package verification retained separately.",
+  "attributionLimits": "Live cutoff observed, root cause not yet established. Starter indexing failure is app seeding/workflow gap; native engine search candidate separate. Missingnativeproof is not proof nativefeature impossible. Effect50403port finding may involve preparation endpoint mapping; investigate before product attribution.",
+  "next": "FreshM7preparation launched Astraxhigh84457, supervisor84408; diagnostic M6 prerequisite gap explicit, no M7 timed builder yet.",
+  "artifactHashes": {
+    "evidence-trace.md": "a27b79400984f5a3c125a9b2c8896b0a8e9ede13edf6a961fa8fde6a2404ecc5",
+    "grader-report.json": "2e2525ae7ef6fce962b568bc1d64c249a0fff41fa05d65fb9fbe5e66d25b0911",
+    "source-integrity-diff.json": "15ebc3691429225c663146ddb9731e5d2afe3d193f2504ca5e209d7444c994a7",
+    "cleanup.json": "a4c981e07ecac81bf72ba51bfdb3d3e8425280d61ecee818f93d7eec305303de",
+    "terminal.json": "47b9bf22645ad2340cd65242a76a48d7de72102518de4c560b6b9230f371b489",
+    "grader-report.md": "6622a1ebd48a0f1b52cd668ce56caaf39fc60b6065e4be36cefa55d1af7c53c8"
+  }
+}
