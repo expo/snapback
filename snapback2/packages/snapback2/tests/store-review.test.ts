@@ -25,6 +25,52 @@ async function carriers() {
     sqliteFactory(join(root, "state.db"))] };
 }
 
+test("conditional refresh then same-sequence redelivery survives reopen without accepting equivocation", async (context) => {
+  const { root, factories } = await carriers();
+  try {
+    for (const factory of factories) await context.test(factory.carrier, async () => {
+      let store = factory();
+      await store.open("alice");
+      const first = { ...delivery("inbox", ["one"], 10), next: "page-one", validator: "a".repeat(64) };
+      await store.commit({ deliveries: [first] });
+      await store.commit({ refreshes: [{ op: first.op, args: first.args, seq: 11, validator: first.validator }] });
+      await store.close();
+      store = factory();
+      await store.open("alice");
+      try {
+        assert.equal((await store.answer(first.op, first.args))?.seq, 11);
+        assert.equal(Object.values((store as any).state.answers)[0].nextSeq, 10, "revalidation does not renew continuation evidence");
+        // The strong validator excludes seq. A nonempty resume log returns its
+        // full envelope even on validator equality, after an unrelated commit.
+        const repeated = { ...first, seq: 11 };
+        await store.commit({ deliveries: [repeated] });
+        assert.equal(Object.values((store as any).state.answers)[0].nextSeq, 11, "a full delivery renews continuation evidence");
+        const before = await store.coverage();
+        await store.close();
+        store = factory();
+        await store.open("alice");
+        await store.commit({ deliveries: [repeated] });
+        assert.deepEqual(await store.coverage(), before, `${factory.carrier}: equal content is an idempotent replay`);
+        for (const changed of [
+          { data: [] }, { state: "capped" }, { next: "other-page" },
+          { validator: "b".repeat(64) }, { rows: [row("one", "different")] },
+          { receipt: { ...receipt(), absences: [["messages", "byId", ["missing"]]] } },
+          { reason: "different" }, { rule: "different" },
+        ]) {
+          await assert.rejects(store.commit({ deliveries: [{ ...repeated, ...changed }] }), /conflicting deliveries/);
+          assert.deepEqual(await store.coverage(), before, "a conflicting envelope cannot partly commit");
+        }
+        await assert.rejects(store.commit({ deliveries: [{ ...repeated, op: "other", rows: [row("one", "conflicting")] }] }), /conflicting row/);
+        assert.deepEqual(await store.coverage(), before, "the full delivery also binds pooled rows at its new seq");
+        await store.commit({ deliveries: [first] });
+        assert.equal((await store.answer(first.op, first.args))?.seq, 11, "late old frames cannot rewind seq");
+        await store.commit({ deliveries: [{ ...first, seq: 12, rows: [row("one", "newer")] }] });
+        assert.equal((await store.answer(first.op, first.args))?.data[0].body, "newer");
+      } finally { await store.close(); }
+    });
+  } finally { await rm(root, { recursive: true, force: true }); }
+});
+
 test("authoritative evictions purge pooled bodies and derived literals on every carrier", async () => {
   const { root, factories } = await carriers();
   try {

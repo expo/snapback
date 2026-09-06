@@ -387,6 +387,27 @@ test("a re-served page replaces its next link and conditional refresh cannot ren
   });
 });
 
+test("a full delivery at a refreshed seq renews continuation evidence only after content validation", async () => {
+  await carriers(async (name, create) => {
+    let store = create();
+    const partition = `${name}:full-after-refresh`;
+    const item = prediction(partition);
+    try {
+      await seed(store, partition, item, { op: "deliveries.inbox", args: { c: null }, cursorArg: "c", watermark: "a", updatedAt: 1 });
+      const link = { ...page("deliveries.inbox", { c: "a" }, 29, [row("deliveries", "link")], "b"), validator: "old" };
+      await store.commit({ deliveries: [link] });
+      await store.commit({ refreshes: [{ op: link.op, args: link.args, seq: 31, validator: link.validator }] });
+      store = await reopen(store, create, partition);
+      await store.commit({ deliveries: [page("deliveries.inbox", { c: "b" }, 31, [row("deliveries", "beyond")])] });
+      assert.ok((await store.outbox.overlay())[item.intent], "unchanged cannot renew a pre-commit link");
+      await assert.rejects(store.commit({ deliveries: [{ ...link, seq: 31, next: "forged" }] }), /conflicting deliveries/);
+      assert.ok((await store.outbox.overlay())[item.intent], "conflicting full content proves no progress");
+      await store.commit({ deliveries: [{ ...link, seq: 31 }] });
+      await assertRetired(store, item.intent, name);
+    } finally { await store.close?.(); }
+  });
+});
+
 test("nonempty scalar projections use held closure rows to prove tail progress on both carriers", async () => {
   await carriers(async (name, create) => {
     const store = create();

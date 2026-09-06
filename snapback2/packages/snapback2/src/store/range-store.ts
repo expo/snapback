@@ -86,7 +86,7 @@ export interface StoredAnswer extends Omit<HeldAnswer, "data"> {
   fingerprint?: string;
   /** Cursor argument used when this page was filed, before or after manifest load. */
   cursorArg?: string;
-  /** Seq of the delivery that recorded `next`; conditional refreshes cannot renew a link. */
+  /** Seq of the full delivery behind the fingerprint and `next`; unchanged cannot renew either. */
   nextSeq?: number;
 }
 
@@ -1062,15 +1062,24 @@ export class PersistentRangeStore implements RangeStore {
       }
       const key = canonicalAnswerKey(delivery.op, delivery.args);
       const old = before[key];
-      const fingerprint = sha256(canonical({
+      const fingerprintPayload = {
         op: delivery.op, args: delivery.args, state: delivery.state, data: delivery.data,
         next: delivery.next, seq: delivery.seq, validator: delivery.validator,
         receipt: delivery.receipt, rows: delivery.rows, reason: delivery.reason, rule: delivery.rule,
-      }));
+      };
+      const fingerprint = sha256(canonical(fingerprintPayload));
       if (old && delivery.seq < old.seq) continue;
       if (old && delivery.seq === old.seq && old.fingerprint !== undefined) {
         if (old.fingerprint === fingerprint) continue;
-        throw new TypeError(`conflicting deliveries for ${delivery.op} at seq ${delivery.seq}`);
+        // @ref LLP 1012#8-the-delivery-envelope-the-validator-and-resume — an
+        // unchanged response advances seq, retaining the full delivery's digest.
+        // Compare every content field at that original seq, then install this
+        // full delivery normally: its rows and next link now have fresh evidence.
+        const fullSeq = old.nextSeq ?? old.seq;
+        if (fullSeq === delivery.seq
+          || old.fingerprint !== sha256(canonical({ ...fingerprintPayload, seq: fullSeq }))) {
+          throw new TypeError(`conflicting deliveries for ${delivery.op} at seq ${delivery.seq}`);
+        }
       }
       for (const row of delivery.rows ?? []) {
         if (!row.table || !row.id || !row.row || typeof row.row !== "object") {
