@@ -520,46 +520,13 @@ impl<'a> Runner<'a> {
                 Constraint::Text { field, min, format }
                     if matches!(effect, Effect::Insert | Effect::Update) =>
                 {
-                    let value = new.as_object()?.get(field);
-                    if let Some(value) = value.filter(|value| !matches!(value, Value::Null)) {
-                        let text = value.as_str()?;
-                        if text.chars().count() < *min as usize {
-                            return Err(RuntimeError::Constraint(format!(
-                                "{table_name}.{field} must contain at least {min} characters"
-                            )));
-                        }
-                        let valid = match format {
-                            None => true,
-                            Some(TextFormat::Handle) => text.bytes().all(|byte| {
-                                byte.is_ascii_lowercase() || byte.is_ascii_digit() || byte == b'_'
-                            }),
-                            Some(TextFormat::Url) => {
-                                let rest = text
-                                    .strip_prefix("https://")
-                                    .or_else(|| text.strip_prefix("http://"));
-                                rest.is_some_and(|rest| {
-                                    !rest.is_empty()
-                                        && rest.chars().all(|character| {
-                                            !character.is_whitespace() && !character.is_control()
-                                        })
-                                })
-                            }
-                        };
-                        if !valid {
-                            let expected = match format {
-                                Some(TextFormat::Handle) => {
-                                    "lowercase a-z, digits, and underscore only"
-                                }
-                                Some(TextFormat::Url) => {
-                                    "one absolute http:// or https:// URL without whitespace"
-                                }
-                                None => unreachable!(),
-                            };
-                            return Err(RuntimeError::Constraint(format!(
-                                "{table_name}.{field} must use {expected}"
-                            )));
-                        }
-                    }
+                    validate_text_constraint(
+                        table_name,
+                        field,
+                        *min,
+                        *format,
+                        new.as_object()?.get(field),
+                    )?;
                 }
                 _ => {}
             }

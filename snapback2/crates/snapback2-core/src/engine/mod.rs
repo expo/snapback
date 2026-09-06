@@ -1275,7 +1275,7 @@ use index::{EvaluatedRange, delete_index_row, lookup_indexed, row_ids, scan_inde
 #[allow(unused_imports)]
 pub(crate) use index::{
     fetch_table_connection, index_values, materialize_optional_fields, reindex_row,
-    validate_column_value, validate_row,
+    validate_column_value, validate_row, validate_text_constraint,
 };
 #[allow(unused_imports)]
 use runner::{Flow, Runner};

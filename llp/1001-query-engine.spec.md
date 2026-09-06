@@ -5,7 +5,7 @@
 **Systems:** `snapback2/crates/snapback2-core` (`store`, `registry`, `live`, `identity`, `successor`, the engine, the IR)
 **Author:** Claude Fable 5 (orchestrator) — implementer: codex gpt-5.6-sol, lane A
 **Date:** 2026-08-29
-**Revised:** 2026-09-06 (fixed complete local-runtime measurement roots: 66,000-byte ceiling, 64,000 target); 2026-09-06 (generation-owned policy hashes, pooled merge seeks and bounded shared templates); 2026-09-06 (measured full-entry search trade: 50,000-byte ceiling, 48,000 target); 2026-09-06 (session-delegated Unicode/search foundation and downstream contracts); 2026-09-06 (conditional result-page provenance and branch-scoped cursor validation); 2026-09-05 (Clique L12 — §3 receipt-only null invariant and §5.1 `connected`); 2026-09-05 (Clique L9 — bounded ASCII words builtin and constructed-text boundary); 2026-09-05 (Clique L10 — lazy merge, receipt retention and global local-pagination cursor rule); 2026-09-05 (Clique L8b — nested point-read shapes preserve page state; early exits preserve capped taint); 2026-09-05 (Clique L8a — prefix-local self-probe and decided-disjunction visibility proofs); 2026-09-05 (Clique L3 — honest bound refusals and patch-sensitive cap metering; LLP 1016 J2 — §1's system tables gain `_jobs` and `_timers`; LLP 1017 §1, then §2 and §3)
+**Revised:** 2026-09-06 (value-preserving text maximum widening and retained text-constraint admission); 2026-09-06 (fixed complete local-runtime measurement roots: 66,000-byte ceiling, 64,000 target); 2026-09-06 (generation-owned policy hashes, pooled merge seeks and bounded shared templates); 2026-09-06 (measured full-entry search trade: 50,000-byte ceiling, 48,000 target); 2026-09-06 (session-delegated Unicode/search foundation and downstream contracts); 2026-09-06 (conditional result-page provenance and branch-scoped cursor validation); 2026-09-05 (Clique L12 — §3 receipt-only null invariant and §5.1 `connected`); 2026-09-05 (Clique L9 — bounded ASCII words builtin and constructed-text boundary); 2026-09-05 (Clique L10 — lazy merge, receipt retention and global local-pagination cursor rule); 2026-09-05 (Clique L8b — nested point-read shapes preserve page state; early exits preserve capped taint); 2026-09-05 (Clique L8a — prefix-local self-probe and decided-disjunction visibility proofs); 2026-09-05 (Clique L3 — honest bound refusals and patch-sensitive cap metering; LLP 1016 J2 — §1's system tables gain `_jobs` and `_timers`; LLP 1017 §1, then §2 and §3)
 **Related:** LLP 1000, LLP 1002 (the loop that serves this), LLP 1003 (effects
 through the outbox this spec defines), LLP 0329.014.004 §7 (runtime), LLP
 0329.014.000 §6 (execution, trace, states), LLP 0329.016 §5.6 (no silent
@@ -438,9 +438,9 @@ the core unit test presents a predecessor certificate to `Engine` under the
 successor schema and requires `E_TRACE_SUBSET`.
 
 **Successors.** A successor is *additive* when every existing table keeps its
-columns and their types, every existing index keeps its columns, and nothing
+columns and their types (or the value-preserving text widening below), every existing index keeps its columns, and nothing
 is dropped; programs, rules, constraints, maintains, channels, effects, and
-new tables/columns/indexes may change freely. Additive successors apply in
+new tables/columns/indexes may change subject to admission. Additive successors apply in
 place: new indexes are populated from `rows` in the same transaction. Any
 added, removed, or changed maintain causes each affected engine-owned target
 to be transactionally replaced from all declarations in the next generation;
@@ -469,6 +469,44 @@ against the successor type, including the reserved-principal walk. A required
 retyped column therefore refuses rather than installing an absent value; an
 optional retyped column may install as `Null`. Never a prompt,
 never a silent drop, never a fresh database (LLP 0329.016 §5.4).
+
+**Value-preserving text maximum widening (implemented 2026-09-06, Astra,
+successor-widening lane).** `Text(max=a) → Text(max=b)` with `b >= a` keeps
+the stored values, row IDs, and commit sequence. Both plan generation and
+additive admission recognize this relation. It recurses through identical
+`Optional` and `List` constructors, with every list maximum unchanged: a
+nullable text, nullable list, nullable element, or nested list retains the
+same null/absence and collection domain while the text domain expands.
+Maximums count Unicode scalar values, as on writes. This deliberately narrow
+relation does not add optionality, change list bounds, or bless numeric
+scales/currencies, enums, references, JSON, bytes, or assets. Even a larger
+list bound stays an explicit retype in this slice. Outer `Optional(T) → T`
+with an otherwise identical type keeps its separate non-null admission under
+LLP 1016 D4; combining that contraction with text widening requires separate
+successors. This text exception amends D4's earlier blanket statement that
+other retypes remain destructive; the existing image `once` exception is unchanged.
+
+Retained widened columns still pass stored-value validation, including
+required presence, nested element/list bounds, reserved-principal and text
+control checks. Text minimum/format constraints are separate from the maximum:
+admission rechecks those on validated columns and any newly added or changed
+text constraint, using the same validator as writes (`E_SUCCESSOR_ROW_INVALID`
+on failure). Unique/cap admission, maintained-target validation/rebuild,
+certification, generation swap and rollback remain in force. Widening a table
+column does not widen an operation argument; its authored signature and newly
+certified resource bounds still bind. Changes to constraints are not classified
+as lossless by the text relation and must satisfy their own admission checks.
+
+`apply_migration` recomputes the exact destructive delta before any drop. An old
+plan containing a now-safe text `TypeChange` is rejected as a mismatched plan,
+even for optional text where dropping values could otherwise succeed. An empty
+current plan, or an exact plan for other intended drops alongside a widening,
+uses the same retained-value admission. Focused proofs live in the existing
+`successor.rs` unit tests and `tests/successor_narrowing.rs`: boundary text,
+recursive wrappers, stale plans, mixed-drop rollback, incompatible retypes,
+and minimum/format/unique/cap admission. A wider schema may fail certification
+if its new declared maxima exceed a program's resource ceilings.
+
 The owner passes one sample of its logical mutation clock as `released_at`, so
 asset releases caused by every drop age on the same clock as writes and
 reclamation (LLP 1006 §9).

@@ -57,6 +57,8 @@ Start or attach to the one owner and print SNAPBACK_URL. By default it detaches;
 The owner watches sources and installs valid successors. A refused successor
 keeps the previous generation serving even when snapback2 check passes.
 --status shows the active generation and any pending refusal.
+Increasing only a text maximum preserves stored values and row IDs, including
+inside unchanged optional/list wrappers. Operation arguments keep their own bounds.
 
 For E_SUCCESSOR_DESTRUCTIVE, keep the owner running and inspect its migrationFile
 from snapback2 dev --status --json. Review the plan, then run its applyCommand.
