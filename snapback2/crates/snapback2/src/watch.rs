@@ -77,7 +77,7 @@ pub fn spawn(
                                     }),
                                 );
                             }
-                            Err(error) => {
+                            Err(mut error) => {
                                 if error.code == "E_OWNER_STATE"
                                     && error.detail.get("applied") == Some(&Json::Bool(true))
                                 {
@@ -92,7 +92,7 @@ pub fn spawn(
                                     continue;
                                 }
                                 if error.code == "E_SUCCESSOR_DESTRUCTIVE" {
-                                    write_migration(&root, &generation, &project, &error);
+                                    write_migration(&root, &generation, &project, &mut error);
                                 }
                                 refuse(&handle, &root, generation, vec![error]);
                             }
@@ -141,7 +141,7 @@ fn write_migration(
     root: &Path,
     generation: &str,
     project: &snapback2_core::ProjectJson,
-    refusal: &Refusal,
+    refusal: &mut Refusal,
 ) {
     let plan = refusal
         .detail
@@ -158,11 +158,34 @@ fn write_migration(
     }))
     .unwrap_or_default();
     if let Err(error) = fs::write(&path, bytes) {
+        refusal.rewrite = Some(format!(
+            "cannot write {}: {error}; fix the path and save the sources again; the owner still serves the previous generation",
+            path.display(),
+        ));
         log(
             root,
             json!({ "migrationWriteError": error.to_string(), "path": path }),
         );
     } else {
+        // @ref LLP 1002#5-the-owner — offer an executable repair only after its plan exists.
+        let quote = |path: &Path| format!("'{}'", path.to_string_lossy().replace('\'', "'\\''"));
+        let command = format!(
+            "snapback2 dev --project {} --apply-migration {}",
+            quote(root),
+            quote(&path),
+        );
+        refusal.rewrite = Some(format!(
+            "check validates sources; the owner still serves the previous generation. Review {}, then apply with: {command}. Inspect the active generation with snapback2 dev --status --project {}",
+            path.display(),
+            quote(root),
+        ));
+        refusal.guide = "E_SUCCESSOR_DESTRUCTIVE".to_owned();
+        refusal
+            .detail
+            .insert("migrationFile".to_owned(), json!(path));
+        refusal
+            .detail
+            .insert("applyCommand".to_owned(), json!(command));
         log(root, json!({ "migration": path }));
     }
 }

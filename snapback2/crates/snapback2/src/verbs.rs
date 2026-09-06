@@ -10,6 +10,111 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::path::{Path, PathBuf};
 use std::process::ExitCode;
 
+pub(crate) const TOP_HELP: &str = "usage: snapback2 <command> [options]
+
+  init [dir]         Create or adopt a project (defaults: todos, React)
+  check              Validate sources and refresh the build cache
+  dev                Start or attach to the owner; watch and install successors
+  run <op> [json]     Execute an operation with --as <persona|system>
+  test               Prove derived checks and authored journeys
+  why <query> [json]  Explain a query with --as <persona|system>
+  trace <latest|id>   Inspect a commit, job, or timer
+  data <table>       Page through rows with --as <persona|system>
+  logs               Read the owner's logs
+  persona list       List development personas
+  reset              Clear application data and reapply the seed
+  guide [topic]      Read grammar, recipes, symbols, or refusal recovery
+  doctor             Check the installed toolchain
+  version            Print the version
+
+Use snapback2 <command> --help (or -h) for options and examples.
+Start here: snapback2 guide init";
+
+pub(crate) fn command_help(command: &str) -> Option<&'static str> {
+    Some(match command {
+        "init" => {
+            "usage: snapback2 init [dir] [--template todos|chat] [--client react|expo|none] [--json]
+
+Add the selected template, preserve authored files, and run check.
+Defaults: current directory, todos template, React client. Expo requires chat.
+
+  snapback2 init my-app --template chat --client react
+  cd my-app
+  npm install
+  npx snapback2 dev
+
+dev prints SNAPBACK_URL. Start your client bundler separately.
+Backends live in snapback/*.q; read snapback2 guide quarry next."
+        }
+        "dev" => {
+            "usage: snapback2 dev [--project dir] [--port N] [--foreground] [--serve] [--json]
+       snapback2 dev [--project dir] --status [--json]
+       snapback2 dev [--project dir] --stop [--json]
+       snapback2 dev [--project dir] --apply-migration file [--json]
+
+Start or attach to the one owner and print SNAPBACK_URL. By default it detaches;
+--foreground stays attached. --serve refuses development persona headers.
+The owner watches sources and installs valid successors. A refused successor
+keeps the previous generation serving even when snapback2 check passes.
+--status shows the active generation and any pending refusal.
+
+For E_SUCCESSOR_DESTRUCTIVE, keep the owner running and inspect its migrationFile
+from snapback2 dev --status --json. Review the plan, then run its applyCommand.
+Relative --apply-migration paths resolve from your working directory, even with
+--project. Read snapback2 guide E_SUCCESSOR_DESTRUCTIVE for the full sequence."
+        }
+        "check" => {
+            "usage: snapback2 check [--project dir] [--json]
+       snapback2 check --ir [file] [--json]
+
+Compile, certify, and refresh .snapback/build, including api.d.ts.
+check validates sources; it does not install them in the running owner.
+Use snapback2 dev --status to see the active generation and successor refusals.
+--ir validates project JSON from a file or stdin instead of authored sources."
+        }
+        "run" => {
+            "usage: snapback2 run <op> [args-json] --as <persona|system> [--project dir] [--json]
+       snapback2 run <job> [args-json] --as system [--plan|--wait|--dry-run]
+       snapback2 run --file path.q [args-json] --as system [--plan|--wait|--dry-run]
+       snapback2 run --cancel|--resume job_id --as system
+
+Execute through the owner. --plan inspects; --wait streams chunk receipts;
+--dry-run rehearses on a discarded snapshot. Read snapback2 guide job."
+        }
+        "test" => {
+            "usage: snapback2 test [--project dir] [--blocked reason] [--journeys-only|--derived-only] [--json]\n\nProve the project and write a receipt. Read snapback2 guide testing."
+        }
+        "why" => {
+            "usage: snapback2 why <query> [args-json] --as <persona|system> [--project dir] [--json]\n\nExplain query rows, rules, and bounds through the owner."
+        }
+        "trace" => {
+            "usage: snapback2 trace <seq|latest|job_id|timer:id> [--project dir] [--json]\n\nInspect commit delivery, job progress, or a timer."
+        }
+        "data" => {
+            "usage: snapback2 data <table> --as <persona|system> [--index name] [--prefix json] [--after token] [--limit 50] [--project dir] [--json]\n\nRead a bounded, rule-checked page. The maximum limit is 500."
+        }
+        "logs" => {
+            "usage: snapback2 logs [--since seq] [--limit 100] [--project dir] [--json]\n\nRead structured owner logs and commits."
+        }
+        "persona" => {
+            "usage: snapback2 persona list [--project dir] [--json]\n\nList development personas. First use creates a persona; read snapback2 guide personas."
+        }
+        "reset" => {
+            "usage: snapback2 reset [--project dir] [--json]\n\nClear application data and jobs, then reapply the seed through the owner."
+        }
+        "guide" => {
+            "usage: snapback2 guide [grammar|init|dev|check|app|<keyword>|<symbol>|<E_CODE>|<recipe>] [--project dir] [--json]\n\nRead installed help; app reads the checked build cache. Default: grammar."
+        }
+        "doctor" => {
+            "usage: snapback2 doctor [--json]\n\nCheck the compiler, engine, and owner when present."
+        }
+        "version" | "-V" => {
+            "usage: snapback2 version [--json]\n       snapback2 -V\n\nPrint the installed version."
+        }
+        _ => return None,
+    })
+}
+
 pub fn dev(args: &[String]) -> ExitCode {
     let options = match parse_options(
         args,
