@@ -803,3 +803,31 @@ sweep cost and late rung/view/scratch custody remain open in
 `issues/20260906-snapback2-asset-custody-gc-follow-up.md`. The original reseed ticket
 remains open for benchmark attribution; none of its previous failures became a
 pass by changing expectations.
+
+
+### 2026-09-06 — Local composition preserves the three repair boundaries
+
+The local composition combines the fixed-main handoff, pending-asset repair and
+corrected successor admission with the frozen drain integration. The prior drain
+candidate stays on its original branch for its independent reviews. Ordinary
+three-way merges preserved the concurrent diary and LLP history. The offline
+guide needed tighter wording to retain both structured drain refusal and media
+expiry guidance within its unchanged 4,352-byte cap.
+
+A focused integration regression joins the two server repairs: when a widened
+maintained target has an invalid legacy survivor, a simultaneous drop of an
+asset-owning table rolls back the locator, byte accounting and generation. A
+valid survivor permits the drop, retains original-byte charges and once-view
+history, and starts the full release grace. A later ordinary delete also works
+after refusal. The public three-generation successor witness and authenticated
+headless browser drain controls pass against the combined owner/client.
+
+The complete public 43-claim asset file exceeded its original 10-second deadline
+twice. Its first attempt reached 40 releases, zero pending slots, 6,240 retained
+bytes and the byte-admission refusal, then timed out during restart. The failure
+stores remain; this is not a completed combined public asset qualification.
+Focused core/client passes do not erase that deadline or the earlier declaration
+and whole-twin failures. Asset physical-custody debt and all original report
+limits remain explicit; no benchmark, publication or overall clearance follows.
+Full source correspondence, test receipts and cleanup are in
+`/Users/ccheever/clique-improvement/revisions/release-local-composition/implementation-report.md`.

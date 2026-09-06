@@ -9,6 +9,8 @@ mod pending;
 mod reclaim;
 #[path = "assets/release_clock.rs"]
 mod release_clock;
+#[path = "assets/successor_rollback.rs"]
+mod successor_rollback;
 
 fn schema_with(table: Table) -> Schema {
     Schema {
