@@ -755,3 +755,51 @@ The widening repair now refuses an invalid legacy row that survives maintained-t
 Compiler descriptor review still found false native-constructor trust through mutable/container aliases and other modules, plus a migration suggestion that silently widens an authored list maximum from 2 to 100. These are complete-project counterexamples, not merely type-check concerns. The next repair must bind origin to the actual project and validate the entire migration wrapper. No Convex/Supabase behavior was measured by these probes; valid baseline scores remain reused.
 
 Full reports and exact source identities: [local handoffs](../benchmarks/runs/2026-09-06-clique-improvement/evidence/local-fix-handoffs/README.md). The full Clique objective, production publication and offline client resource qualification remain open.
+## 2026-09-06 — Pending asset slots repaired without release admission
+
+Astra, isolated `clique-asset-pending` lane, implemented root's decision in
+`/Users/ccheever/clique-improvement/revisions/asset-pending-r1/root-decision.md`.
+The full Clique outcome bar remains unchanged. This source repair is not a
+published-package or benchmark qualification.
+
+The durable ledger made the defect easy to isolate: 43 successful claims and
+40 deletes left 40 pending objects before the patch, despite only 2,000 charged
+bytes in the core fixture. Receiving uploads (including cancellation custody)
+keep their slots; never-claimed ready uploads keep theirs; released ready
+originals now retain their byte charge without consuming pending object slots.
+No quotas, grace interval, affine ownership, automatic cleanup/replay boundary,
+or release/reset admission policy changed. The original proposed broader policy
+was rejected, not implemented with its difficult guarantees silently removed.
+
+The authored public Quarry witness made 43 distinct claims, released 40, and
+reported zero pending objects with 6,240 charged original bytes. A declared
+256 MiB upload was refused before its body because those released bytes still
+counted. Restart preserved the originals and release timestamps; a fresh account
+uploaded a small image, and the creator re-claimed the identical old record and
+received its original bytes. True creator/owner pending limits and successful
+replacements have separate public controls. Core logical-time tests cover the
+full grace boundary and retained once history; these are not 24-hour endurance
+or physical-device observations.
+
+Automatic File substitution and transactional ownership kept the Quarry fixture
+small. The misleading part was operational: `listUploads()` also lists releases,
+so its page length is not pending usage. The new release/cancellation fields and
+concise guide now explain that distinction. Immutable equal-content uploads are
+still distinct IDs; this is a deliberate difference from content-addressed
+storage, not a deduplication repair. No Exact or Contract work occurred here.
+
+The first core failure is retained. The package build first timed out at 60s,
+then exposed the offline guide's exact byte budget; the concise version passed
+without raising that budget. Initial witness authoring missed an await on
+`assetUrl`; the combined test file then exceeded its original 10s bound and left
+an owned process. A retry encountered that same owned port before cleanup.
+Those failures remain recorded; only launch-recorded owners were stopped.
+Splitting independent cap/replacement coverage keeps the original timeout bound.
+
+Proofs, hashes, commands, exits and cleanup are in the same revision directory's
+`implementation-report.md`, `source-receipt.json`, and `receipts/`. The inherited
+reset ordering, ready/failed cleanup accounting, failed-delete sibling progress,
+sweep cost and late rung/view/scratch custody remain open in
+`issues/20260906-snapback2-asset-custody-gc-follow-up.md`. The original reseed ticket
+remains open for benchmark attribution; none of its previous failures became a
+pass by changing expectations.

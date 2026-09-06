@@ -74,7 +74,9 @@ export async function listUploadsFor(host: UploadHost, options: { after?: string
     const upload = wireObject(value, "unclaimed upload");
     if (typeof upload.id !== "string" || !upload.id || (upload.kind !== "image" && upload.kind !== "video")
       || (upload.state !== "receiving" && upload.state !== "ready") || !count(upload.bytes)
-      || !Number.isSafeInteger(upload.createdAt)) throw wireShape("invalid unclaimed upload");
+      || !Number.isSafeInteger(upload.createdAt)
+      || (upload.releasedAt !== null && !Number.isSafeInteger(upload.releasedAt))
+      || typeof upload.reclaiming !== "boolean") throw wireShape("invalid unclaimed upload");
   }
   if (result.next !== null && (typeof result.next !== "string" || !result.next)) throw wireShape("upload listing.next must be a cursor or null");
   return result as unknown as UploadListing;

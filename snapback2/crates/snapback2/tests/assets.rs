@@ -34,8 +34,13 @@ impl Owner {
             common::isolated_compiler(&package)
         };
         let binary = env!("CARGO_BIN_EXE_snapback2");
-        let mut child = Command::new(binary)
-            .args(["dev", "--project"])
+        let mut command = Command::new(binary);
+        command.arg("dev");
+        if let Ok(port) = std::env::var("SNAPBACK2_TEST_PORT") {
+            command.args(["--port", &port]);
+        }
+        let mut child = command
+            .arg("--project")
             .arg(root)
             .arg("--foreground")
             .env("SNAPBACK2_COMPILER", compiler)
@@ -45,6 +50,13 @@ impl Owner {
             .stderr(Stdio::piped())
             .spawn()
             .unwrap();
+        if let Ok(port) = std::env::var("SNAPBACK2_TEST_PORT") {
+            eprintln!(
+                "test owner launched pid={} port={port} project={}",
+                child.id(),
+                root.display()
+            );
+        }
         let stdout = BufReader::new(child.stdout.take().unwrap());
         Self { child, stdout }
     }
@@ -65,6 +77,9 @@ impl Drop for Owner {
         if self.child.try_wait().ok().flatten().is_none() {
             let _ = self.child.kill();
             let _ = self.child.wait();
+        }
+        if std::env::var_os("SNAPBACK2_TEST_PORT").is_some() {
+            eprintln!("test owner stopped pid={}", self.child.id());
         }
     }
 }

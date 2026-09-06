@@ -3,6 +3,8 @@ use std::collections::{BTreeMap, VecDeque};
 
 #[path = "assets/once.rs"]
 mod once;
+#[path = "assets/pending.rs"]
+mod pending;
 #[path = "assets/reclaim.rs"]
 mod reclaim;
 #[path = "assets/release_clock.rs"]

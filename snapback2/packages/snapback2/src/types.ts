@@ -179,9 +179,14 @@ export interface UnclaimedUpload {
   readonly state: "receiving" | "ready";
   readonly bytes: number;
   readonly createdAt: number;
+  /** Null until claimed then released; a ready release uses bytes but no pending slot. */
+  readonly releasedAt: number | null;
+  /** A receiving cancellation can still own a pending slot until its files close. */
+  readonly reclaiming: boolean;
 }
 export interface UploadListing {
   readonly uploads: readonly UnclaimedUpload[];
+  /** Creator totals across all pages: pending objects and charged original bytes (including releases). */
   readonly usage: { readonly objects: number; readonly bytes: number };
   readonly limits: { readonly objects: number; readonly bytes: number };
   readonly next: string | null;

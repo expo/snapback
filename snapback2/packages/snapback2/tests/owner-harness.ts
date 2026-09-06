@@ -85,7 +85,7 @@ export class RealOwnerHarness {
     this.mode = options.mode;
   }
 
-  static async create(options: { fullChat?: boolean; withDeliveries?: boolean } = {}): Promise<RealOwnerHarness> {
+  static async create(options: { fullChat?: boolean; withDeliveries?: boolean; fixture?: string } = {}): Promise<RealOwnerHarness> {
     const external = process.env.SNAPBACK_URL;
     if (external) return new RealOwnerHarness({ owned: false, url: external, mode: "external" });
 
@@ -93,8 +93,8 @@ export class RealOwnerHarness {
     assert.equal(built.status, 0, `cargo build failed\n${built.stdout}\n${built.stderr}`);
     const root = await mkdtemp(join(tmpdir(), "snapback2-client-owner-"));
     try {
-      await cp(options.fullChat ? join(packageRoot, "templates/chat/snapback") : join(fixture, "snapback"), join(root, "snapback"), { recursive: true });
-      await addIntegrationOperations(root, options.withDeliveries ?? false);
+      await cp(options.fixture ?? (options.fullChat ? join(packageRoot, "templates/chat/snapback") : join(fixture, "snapback")), join(root, "snapback"), { recursive: true });
+      if (!options.fixture) await addIntegrationOperations(root, options.withDeliveries ?? false);
       const checked = command([binary, "check", "--project", root], {
         env: { ...process.env, SNAPBACK2_COMPILER: compiler },
       });
@@ -112,7 +112,7 @@ export class RealOwnerHarness {
   async start(serve: boolean): Promise<void> {
     assert.ok(this.owned && this.root, "an external owner cannot be started by the harness");
     assert.equal(this.child, undefined, "owner is already running");
-    const args = ["dev", "--project", this.root, "--foreground", "--port", String(this.port ?? 0)];
+    const args = ["dev", "--project", this.root, "--foreground", "--port", String(this.port ?? process.env.SNAPBACK2_TEST_PORT ?? 0)];
     if (serve) args.push("--serve");
     const child = spawn(binary, args, {
       cwd: workspaceRoot,
@@ -120,6 +120,7 @@ export class RealOwnerHarness {
       stdio: ["ignore", "pipe", "pipe"],
     });
     this.child = child;
+    if (process.env.SNAPBACK2_TEST_PORT) console.error(`test owner launched pid=${child.pid} port=${args.at(-1)} project=${this.root}`);
     let stderr = "";
     child.stderr.setEncoding("utf8");
     const onStderr = (chunk: string) => { stderr += chunk; };
@@ -185,6 +186,7 @@ export class RealOwnerHarness {
     });
     assert.equal(status, 0, `snapback2 dev --stop failed\n${stdout}\n${stderr}`);
     await exited(child);
+    if (process.env.SNAPBACK2_TEST_PORT) console.error(`test owner stopped pid=${child.pid} port=${this.port}`);
     this.child = undefined;
   }
 

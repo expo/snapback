@@ -12,7 +12,7 @@ decode helper executable, §14a), `packages/compiler` (the column types),
 revisions (f)–(j) by Claude Fable 5.1 at the author's rulings, in session,
 2026-09-03
 **Date:** 2026-08-31
-**Revised:** 2026-09-06 (r — upload recovery, physical custody and definitive-refusal cleanup);
+**Revised:** 2026-09-06 (s — pending object slots exclude successful releases; original-byte admission unchanged; Astra, asset-pending lane); (r — upload recovery and definitive-refusal cleanup);
 2026-09-05 (q — image once, server one-use delivery, lane L11);
 2026-09-04 (p/o — two-phase typed upload and descriptor fence; n — device
 byte cache; m/l — finalized-byte reservation, reclamation, helper safety);
@@ -568,10 +568,10 @@ the decision rather than mandating it.
 **Upload authority is "an authenticated principal," with no knob.** An asset
 nobody references is undeliverable and reclaimed, so an upload on its own grants
 nothing; the authorization that matters is the `insert`/`update` rule on the
-mutation that references it. The residual exposure is disk, bounded by a
-per-principal staging cap *and* a global one (§14) — numbers, not rules. The
-global cap exists because `/api/auth/guest` mints principals for free, so a
-per-principal cap alone bounds nothing on a public development URL.
+mutation that references it. Upload admission has creator and owner pending-object
+and original-byte ceilings (§14). Free guest principals cannot bypass the owner
+ceiling. These are admission controls, not a total physical-storage bound: ordinary
+release does not check capacity, and cleanup/derived bytes have separate limitations.
 
 ## 5. Upload: one POST
 
@@ -815,13 +815,18 @@ uploads that were never referenced. An asset held for a year therefore still
 gets the full grace after replacement. **Liveness buys space and never
 authority** — an unreferenced asset is already
 undeliverable (§2), so a reclamation pass that lags or crashes is a disk cost,
-not a disclosure. `GET /api/uploads` lists only the authenticated creator's unclaimed
-receiving/ready uploads (100 per page with `after`/`next`), usage and limits;
-`POST /api/uploads/discard { id }` atomically tombstones only that creator's unclaimed
-id, refuses claimed ids, and treats missing/foreign ids identically. Receiving bytes
-close before quota release; running finalizers retain charges and resist sweep until
-physical release. Failed deletion retains its path and charge for disposal or grace-sweep retry;
-sweeps skip that id without stopping the writer or siblings. Ready ids use the fork-aware sweep; restart preserves discovery.
+not a disclosure. Grace is 86,400,000 ms; pressure never shortens it.
+`GET /api/uploads` lists only the creator's unlocated receiving/available ready rows
+(100 per page with `after`/`next`), including successful releases. `releasedAt` is
+nullable; `reclaiming` marks receiving cancellation custody. `usage.objects` counts
+pending slots, not listed rows; `usage.bytes` includes released ready originals (§14).
+`POST /api/uploads/discard { id }` tombstones only the creator's unclaimed id,
+refuses claimed ids, and treats missing/foreign ids identically. Receiving cancellation
+retains its slot/charge until physical closure; staging unlink failures retain custody.
+Ready tombstones and failed rows leave admission accounting before blob deletion.
+Staging cancellation failures are skipped per id; blob-sweep errors can abort siblings.
+These inherited custody/GC gaps remain open in
+`issues/20260906-snapback2-asset-custody-gc-follow-up.md`; this revision does not fix them.
 
 ### 9a. Where bytes live (author ruling, 2026-09-03)
 
@@ -829,22 +834,19 @@ sweeps skip that id without stopping the writer or siblings. Ready ids use the f
 through the server in both cases.** One trait, streaming-first, three
 publication operations — put a stream and get back a key, get a key with an
 optional byte range as a stream, delete a key — plus the sweep's deliberate
-fourth operation, bounded callback `enumerate(prefix, visitor)`. Enumeration
-never returns an unbounded key vector: the sweep builds the live/fork referrer
-set once and visits the directory once for reclaims, orphans, and stale publish
-temporaries. This is revision (m), 2026-09-04, and is the enumeration primitive
-already implied by "a key in the directory and in no ledger is garbage by
-definition." No whole-object buffer appears anywhere in the trait, so v1's
-`read → Vec → put` debt (LLP 1005 §9) cannot be written against it.
+fourth operation, callback `enumerate(prefix, visitor)`. It avoids a returned key
+vector, but the sweep materializes all live/fork ids and walks the full directory
+synchronously, without continuation; it is not a bounded whole-sweep guarantee.
+Revision (m), 2026-09-04, supplies streaming blob I/O; the open follow-up in §9
+covers failure progress, reset ordering, scratch custody and late physical work.
 
 - **Keys are asset ids** (author decision, 2026-09-03, on the second panel's
   split). The ledger row is written first, in `receiving`; finalize then
   durably records its byte size on that receiving row (including any
   normalization growth), the blob is put under the asset's id, and only then
-  does the row flip to `ready` — so every key and its full quota charge are
-  known to the ledger before the blob exists, and a crash can never orphan a
-  key or undercount surviving bytes. A derived width is keyed by id and rung. Blobs
-  are immutable. Revision (g) chose content addresses for deduplication and
+  does the row flip to `ready`: original growth is durably charged before publication.
+  Derived widths use id/rung keys and currently have no byte reservation; failed
+  cleanup is not a complete physical-custody envelope. Blobs are immutable. Revision (g) chose content addresses for deduplication and
   cheap forks; the panel showed that immutable ids give the same fork sharing,
   that a content address cannot be known until the stored bytes are hashed
   (so orphans need a directory listing the trait does not offer), and that
@@ -876,20 +878,18 @@ definition." No whole-object buffer appears anywhere in the trait, so v1's
   request evaluates the rule" false for the token's lifetime. A CDN is a
   deployment choice in front of the public path — `public, immutable`
   responses are already shaped for one — and never a place authority lives.
-- **Reclamation** keeps its trigger — `locator IS NULL` over `_assets` (§9) —
-  and deletes a blob when the ledger row that names it is deleted, provided
-  no fork ledger names it too (below).
-- **`reset`** clears the live `_assets` and empties `.snapback/staging/` in
-  the same operation that clears the rows, then runs the ordinary sweep. It
-  does **not** empty `.snapback/blobs/`: revision (g) said it did, and the
-  second panel found that this deleted every blob a fork still referenced.
-  v1's orphan-after-reset bug is still a leak the sweep can see — a key in the
-  directory and in no ledger is garbage by definition — without breaking a
-  fork.
-- **`fork`** is a snapshot of the store into `.snapback/forks/<name>.sqlite`,
-  not a copy of the blobs. Blobs are immutable, so a fork shares them; the
-  sweep treats every ledger under `.snapback/` — live or fork — as a referrer,
-  so restoring a fork never restores a row whose bytes are gone.
+- **Reclamation** marks unlocated rows `reclaiming` before physical deletion.
+  Only successful fork-aware cleanup finishes those ledger rows and their view
+  history; admission accounting has the exclusions documented in §9/§14.
+- **`reset`** tombstones live assets and clears application rows/view history,
+  then uses the ordinary fork-aware sweep; it never wipes `.snapback/blobs/`.
+  Owner staging unlink currently precedes core reset/seed validation, an inherited
+  ordering defect tracked in §9's follow-up. No capacity-admission refusal is added.
+  Tombstones survive cleanup failure; existing fork references still protect blobs.
+- **Existing fork snapshots** under `.snapback/forks/<name>.sqlite` share immutable
+  blobs. Their ledgers remain referrers for GC. The `fork` CLI was removed by
+  LLP 1016; a future writable restore must rotate its namespace before minting ids.
+
 
 ### 9b. Bytes on the device (author ruling, 2026-09-04)
 
@@ -1295,43 +1295,41 @@ nothing in slice 1 changes meaning when it lands.
 
 - **No new blocking check.** `rules/RULES.md` allows five; assets add none.
 - **No certificate version bump and no new `Value` variant** (§1).
-- **`check` stays under 1 s.** Two schema node kinds in slice 1, and the
-  inventory is honest: `ColumnType` and argument types, static typing, the
-  retention bound, JSON conversion, the index refusal, the compiler's
-  lowering, and the twin all gain an arm — "three validation arms" understated
-  lanes A and C, and §15 now says so.
+- **`check` stays under 1 s.** The two schema nodes affect `ColumnType`, arguments,
+  static typing, retention, JSON conversion, index refusal, lowering and the twin (§15).
 - **One new engine primitive** — the certified delivery point-read (§2) — and
   one lifecycle reconciler (§2a). Both are named machinery, not "none".
-- **Two executables.** The engine and the media helper ship together; the
-  helper is where image size lives (§14a). Video needs no helper: the walker
-  decodes nothing.
+- **Two executables.** Engine and image helper (§14a); video needs no decoder.
 - **A spawn per HEIC upload and per first rung** — milliseconds, against a
   decode of hundreds (§14a).
 - **One bodiless round trip per private image render** (§2): the price of
   keeping revocation exact on the viewer's own device.
-- **Fifty-megabyte bodies through the HTTP layer.** `snapback2` reads request
-  bodies into a 1 MiB JSON buffer today; uploads branch before it into their
-  own worker class with a streaming body path to staging (§5), so lane B is
-  larger than "two routes" suggests.
-- **About 900 lines of walker**, ported with its tests and three corrections
-  (§9), and a real iPhone MOV — portrait — in the corpus.
+- **Fifty-megabyte HTTP bodies.** Uploads branch before the 1 MiB JSON buffer
+  into their own worker class and stream to staging (§5).
+- **About 900 lines of walker**, three corrections and a real portrait MOV (§9).
 - **One credential in a URL.** The session carrier (§2b) is the only secret
   this design puts in a query string; it is scoped to video and downloads,
   bound to an identity epoch, and kept out of logs.
 - **An orientation acceptance matrix** (§4) before the strip mechanism is
   trusted, and a re-encode fallback if it fails.
-- **Full-resolution originals, always** (§4), under one fixed internal
-  safety ceiling. An app that wants smaller originals downscales on the
-  device.
+- **Full-resolution originals** under a fixed safety ceiling (§4); downscale on device.
 - **The C decoders in the one published helper** (§14a), for HEIC.
 - **Two blob-store implementations over time, one now** (§9a), and one
   namespace-rotation invariant the first writable fork must honor.
 - **A dropped upload retries in full** (§5), now including a 50 MB clip; the
   return trigger for resume is recorded there.
 - **An empty first paint** until bytes arrive (§7).
-- **Staging disk**: a per-principal cap (e.g. 256 MB or 20 objects) and a
-  global cap bound what can be staged before reclamation. Both panels asked
-  for these numbers; they are internal, not authored.
+- **Upload admission** (root decision, 2026-09-06; implementer Astra, same date):
+  **20 pending objects / 256 MiB per creator; 40 / 512 MiB per owner**, unchanged.
+  With no locator, receiving rows (including reclaiming ones) consume a slot;
+  ready rows consume a slot only if `released_at IS NULL` and not reclaiming.
+  Bytes remain `max(staged_bytes, finalized bytes)` over unlocated receiving and
+  non-reclaiming ready rows, including released originals. Claims clear release
+  time; later releases set it anew. Same-cell retention changes neither (§2a).
+  Byte growth is reserved before publication. Releases/replacements/reset gain
+  no capacity refusal. These SQL totals survive restart without new counters.
+  Failed rows/ready tombstones, derived widths, once history and scratch are not
+  covered by this byte sum; it is not an aggregate physical-storage limit.
 - **Denormalized dimensions**, a few dozen immutable bytes per reference.
 
 ### 14a. Codecs live in a separate executable; the type does not
