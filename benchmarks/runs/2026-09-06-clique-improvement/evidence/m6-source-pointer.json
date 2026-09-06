@@ -1,0 +1,6 @@
+{
+  "path": "/Users/ccheever/clique-improvement/lanes/astra-snapback2-006/evidence/m6-source.tar.gz",
+  "sha256": "014a913c309a6aecb64d76bcaed50a68db53ed1bb0fe17c9f26fdcd95e8cd55c",
+  "native": "not recorded; Hermes export is not simulator proof",
+  "workaround": "Explicit cursor-page live subscriptions replace three drain:true subscriptions; original conflicts retained externally in m6-delivery-conflict"
+}

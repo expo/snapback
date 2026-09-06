@@ -1,0 +1,423 @@
+{
+  "runId": "candidate-live-b60e28337c124f32-r2",
+  "commit": "1957b95910044ffbb0292ad8a814da303a34dbdc",
+  "startedAt": "2026-09-06T09:58:56.047621+00:00",
+  "scope": "Narrow candidate Release Hermes iOS native live subscription witness; not frozen006 or M6 acceptance",
+  "simulator": "A0659883-FDEB-4ED2-B560-831A778226DA",
+  "bundleIdentifier": "dev.clique.candidate.livesync.r2",
+  "dataContainer": "/Users/ccheever/Library/Developer/CoreSimulator/Devices/A0659883-FDEB-4ED2-B560-831A778226DA/data/Containers/Data/Application/70BE47A4-148D-4F12-BDE4-BA08E9C9428F",
+  "appPid": 6410,
+  "firstFixtureCallback": {
+    "at": "2026-09-06T09:58:59.686Z",
+    "sequence": 16,
+    "event": "subscription-callback",
+    "op": "chats.history",
+    "args": {
+      "conversation": "s2id-e189fc9ee08fef3149432845aaf0d980-0000000000004801",
+      "c": null
+    },
+    "delivery": {
+      "state": "capped",
+      "data": [
+        {
+          "at": 1788685592629,
+          "author": {
+            "avatar": {
+              "height": 256,
+              "id": "s2id-e189fc9ee08fef3149432845aaf0d980-0000000000003001",
+              "width": 256
+            },
+            "displayName": "Alice Alvarez",
+            "handle": "alice",
+            "principal": "user:hDIg97OkRARe1bGeTyek4Q"
+          },
+          "body": "M6 queue second 006",
+          "clip": null,
+          "conversation": "s2id-e189fc9ee08fef3149432845aaf0d980-0000000000004801",
+          "edited": false,
+          "expired": false,
+          "expiresAt": null,
+          "id": "s2id-e189fc9ee08fef3149432845aaf0d980-0000000000006836",
+          "key": "intent-1788685530363-0.22021051785160417",
+          "kind": "text",
+          "oncePhoto": null,
+          "photo": null,
+          "quote": null,
+          "quoted": null,
+          "revokedAt": null,
+          "sender": "user:hDIg97OkRARe1bGeTyek4Q",
+          "tombstone": false
+        },
+        {
+          "at": 1788685592553,
+          "author": {
+            "avatar": {
+              "height": 256,
+              "id": "s2id-e189fc9ee08fef3149432845aaf0d980-0000000000003001",
+              "width": 256
+            },
+            "displayName": "Alice Alvarez",
+            "handle": "alice",
+            "principal": "user:hDIg97OkRARe1bGeTyek4Q"
+          },
+          "body": "M6 queue first 006",
+          "clip": null,
+          "conversation": "s2id-e189fc9ee08fef3149432845aaf0d980-0000000000004801",
+          "edited": false,
+          "expired": false,
+          "expiresAt": null,
+          "id": "s2id-e189fc9ee08fef3149432845aaf0d980-0000000000006801",
+          "key": "intent-1788685479996-0.5266739041953148",
+          "kind": "text",
+          "oncePhoto": null,
+          "photo": null,
+          "quote": null,
+          "quoted": null,
+          "revokedAt": null,
+          "sender": "user:hDIg97OkRARe1bGeTyek4Q",
+          "tombstone": false
+        },
+        {
+          "at": 1788684647995,
+          "author": {
+            "avatar": {
+              "height": 256,
+              "id": "s2id-e189fc9ee08fef3149432845aaf0d980-0000000000003c01",
+              "width": 256
+            },
+            "displayName": "Bob Bennett",
+            "handle": "bob",
+            "principal": "user:R2dF-QwDoSS7yvHnUgXsag"
+          },
+          "body": "M6 view once image 006",
+          "clip": null,
+          "conversation": "s2id-e189fc9ee08fef3149432845aaf0d980-0000000000004801",
+          "edited": false,
+          "expired": false,
+          "expiresAt": null,
+          "id": "s2id-e189fc9ee08fef3149432845aaf0d980-0000000000006401",
+          "key": "m6-once-006",
+          "kind": "image",
+          "oncePhoto": {
+            "height": 480,
+            "id": "s2id-e189fc9ee08fef3149432845aaf0d980-0000000000006001",
+            "width": 640
+          },
+          "photo": null,
+          "quote": null,
+          "quoted": null,
+          "revokedAt": null,
+          "sender": "user:R2dF-QwDoSS7yvHnUgXsag",
+          "tombstone": false
+        },
+        {
+          "at": 1788684647959,
+          "author": {
+            "avatar": {
+              "height": 256,
+              "id": "s2id-e189fc9ee08fef3149432845aaf0d980-0000000000003c01",
+              "width": 256
+            },
+            "displayName": "Bob Bennett",
+            "handle": "bob",
+            "principal": "user:R2dF-QwDoSS7yvHnUgXsag"
+          },
+          "body": "M6 ordinary image 006",
+          "clip": null,
+          "conversation": "s2id-e189fc9ee08fef3149432845aaf0d980-0000000000004801",
+          "edited": false,
+          "expired": false,
+          "expiresAt": null,
+          "id": "s2id-e189fc9ee08fef3149432845aaf0d980-0000000000005c01",
+          "key": "m6-ordinary-006",
+          "kind": "image",
+          "oncePhoto": null,
+          "photo": {
+            "height": 480,
+            "id": "s2id-e189fc9ee08fef3149432845aaf0d980-0000000000005801",
+            "width": 640
+          },
+          "quote": null,
+          "quoted": null,
+          "revokedAt": null,
+          "sender": "user:R2dF-QwDoSS7yvHnUgXsag",
+          "tombstone": false
+        },
+        {
+          "at": 1788684647916,
+          "author": {
+            "avatar": {
+              "height": 256,
+              "id": "s2id-e189fc9ee08fef3149432845aaf0d980-0000000000003c01",
+              "width": 256
+            },
+            "displayName": "Bob Bennett",
+            "handle": "bob",
+            "principal": "user:R2dF-QwDoSS7yvHnUgXsag"
+          },
+          "body": "m6nativequartz synced history 006",
+          "clip": null,
+          "conversation": "s2id-e189fc9ee08fef3149432845aaf0d980-0000000000004801",
+          "edited": false,
+          "expired": false,
+          "expiresAt": null,
+          "id": "s2id-e189fc9ee08fef3149432845aaf0d980-0000000000005001",
+          "key": "m6-history-006",
+          "kind": "text",
+          "oncePhoto": null,
+          "photo": null,
+          "quote": null,
+          "quoted": null,
+          "revokedAt": null,
+          "sender": "user:R2dF-QwDoSS7yvHnUgXsag",
+          "tombstone": false
+        }
+      ],
+      "seq": 21,
+      "next": "WzEsIm1lc3NhZ2VzIiwiYnlDb252ZXJzYXRpb24iLCJEZXNjIixbeyJuYW1lIjoiYXQiLCJraW5kIjoiVGltZSJ9LHsibmFtZSI6ImlkIiwia2luZCI6IklkIn1dLFt7IkludCI6MTc4ODY4NDY0NzkxNn0seyJJZCI6InMyaWQtZTE4OWZjOWVlMDhmZWYzMTQ5NDMyODQ1YWFmMGQ5ODAtMDAwMDAwMDAwMDAwNTAwMSJ9XV0",
+      "live": true
+    }
+  },
+  "ordinaryMutation": {
+    "state": "committed",
+    "data": {
+      "at": 1788688742392,
+      "body": "Native candidate live marker candidate-live-b60e28337c124f32-r2",
+      "clip": null,
+      "conversation": "s2id-e189fc9ee08fef3149432845aaf0d980-0000000000004801",
+      "edited": false,
+      "expired": false,
+      "id": "s2id-e189fc9ee08fef3149432845aaf0d980-000000000001f001",
+      "key": "candidate-live-b60e28337c124f32-r2",
+      "kind": "text",
+      "photo": null,
+      "quote": null,
+      "sender": "user:hDIg97OkRARe1bGeTyek4Q",
+      "tombstone": false
+    },
+    "seq": 22
+  },
+  "markerCallback": {
+    "at": "2026-09-06T09:59:02.439Z",
+    "sequence": 17,
+    "event": "subscription-callback",
+    "op": "chats.history",
+    "args": {
+      "conversation": "s2id-e189fc9ee08fef3149432845aaf0d980-0000000000004801",
+      "c": null
+    },
+    "delivery": {
+      "state": "capped",
+      "data": [
+        {
+          "at": 1788688742392,
+          "author": {
+            "avatar": {
+              "height": 256,
+              "id": "s2id-e189fc9ee08fef3149432845aaf0d980-0000000000003001",
+              "width": 256
+            },
+            "displayName": "Alice Alvarez",
+            "handle": "alice",
+            "principal": "user:hDIg97OkRARe1bGeTyek4Q"
+          },
+          "body": "Native candidate live marker candidate-live-b60e28337c124f32-r2",
+          "clip": null,
+          "conversation": "s2id-e189fc9ee08fef3149432845aaf0d980-0000000000004801",
+          "edited": false,
+          "expired": false,
+          "expiresAt": null,
+          "id": "s2id-e189fc9ee08fef3149432845aaf0d980-000000000001f001",
+          "key": "candidate-live-b60e28337c124f32-r2",
+          "kind": "text",
+          "oncePhoto": null,
+          "photo": null,
+          "quote": null,
+          "quoted": null,
+          "revokedAt": null,
+          "sender": "user:hDIg97OkRARe1bGeTyek4Q",
+          "tombstone": false
+        },
+        {
+          "at": 1788685592629,
+          "author": {
+            "avatar": {
+              "height": 256,
+              "id": "s2id-e189fc9ee08fef3149432845aaf0d980-0000000000003001",
+              "width": 256
+            },
+            "displayName": "Alice Alvarez",
+            "handle": "alice",
+            "principal": "user:hDIg97OkRARe1bGeTyek4Q"
+          },
+          "body": "M6 queue second 006",
+          "clip": null,
+          "conversation": "s2id-e189fc9ee08fef3149432845aaf0d980-0000000000004801",
+          "edited": false,
+          "expired": false,
+          "expiresAt": null,
+          "id": "s2id-e189fc9ee08fef3149432845aaf0d980-0000000000006836",
+          "key": "intent-1788685530363-0.22021051785160417",
+          "kind": "text",
+          "oncePhoto": null,
+          "photo": null,
+          "quote": null,
+          "quoted": null,
+          "revokedAt": null,
+          "sender": "user:hDIg97OkRARe1bGeTyek4Q",
+          "tombstone": false
+        },
+        {
+          "at": 1788685592553,
+          "author": {
+            "avatar": {
+              "height": 256,
+              "id": "s2id-e189fc9ee08fef3149432845aaf0d980-0000000000003001",
+              "width": 256
+            },
+            "displayName": "Alice Alvarez",
+            "handle": "alice",
+            "principal": "user:hDIg97OkRARe1bGeTyek4Q"
+          },
+          "body": "M6 queue first 006",
+          "clip": null,
+          "conversation": "s2id-e189fc9ee08fef3149432845aaf0d980-0000000000004801",
+          "edited": false,
+          "expired": false,
+          "expiresAt": null,
+          "id": "s2id-e189fc9ee08fef3149432845aaf0d980-0000000000006801",
+          "key": "intent-1788685479996-0.5266739041953148",
+          "kind": "text",
+          "oncePhoto": null,
+          "photo": null,
+          "quote": null,
+          "quoted": null,
+          "revokedAt": null,
+          "sender": "user:hDIg97OkRARe1bGeTyek4Q",
+          "tombstone": false
+        },
+        {
+          "at": 1788684647995,
+          "author": {
+            "avatar": {
+              "height": 256,
+              "id": "s2id-e189fc9ee08fef3149432845aaf0d980-0000000000003c01",
+              "width": 256
+            },
+            "displayName": "Bob Bennett",
+            "handle": "bob",
+            "principal": "user:R2dF-QwDoSS7yvHnUgXsag"
+          },
+          "body": "M6 view once image 006",
+          "clip": null,
+          "conversation": "s2id-e189fc9ee08fef3149432845aaf0d980-0000000000004801",
+          "edited": false,
+          "expired": false,
+          "expiresAt": null,
+          "id": "s2id-e189fc9ee08fef3149432845aaf0d980-0000000000006401",
+          "key": "m6-once-006",
+          "kind": "image",
+          "oncePhoto": {
+            "height": 480,
+            "id": "s2id-e189fc9ee08fef3149432845aaf0d980-0000000000006001",
+            "width": 640
+          },
+          "photo": null,
+          "quote": null,
+          "quoted": null,
+          "revokedAt": null,
+          "sender": "user:R2dF-QwDoSS7yvHnUgXsag",
+          "tombstone": false
+        },
+        {
+          "at": 1788684647959,
+          "author": {
+            "avatar": {
+              "height": 256,
+              "id": "s2id-e189fc9ee08fef3149432845aaf0d980-0000000000003c01",
+              "width": 256
+            },
+            "displayName": "Bob Bennett",
+            "handle": "bob",
+            "principal": "user:R2dF-QwDoSS7yvHnUgXsag"
+          },
+          "body": "M6 ordinary image 006",
+          "clip": null,
+          "conversation": "s2id-e189fc9ee08fef3149432845aaf0d980-0000000000004801",
+          "edited": false,
+          "expired": false,
+          "expiresAt": null,
+          "id": "s2id-e189fc9ee08fef3149432845aaf0d980-0000000000005c01",
+          "key": "m6-ordinary-006",
+          "kind": "image",
+          "oncePhoto": null,
+          "photo": {
+            "height": 480,
+            "id": "s2id-e189fc9ee08fef3149432845aaf0d980-0000000000005801",
+            "width": 640
+          },
+          "quote": null,
+          "quoted": null,
+          "revokedAt": null,
+          "sender": "user:R2dF-QwDoSS7yvHnUgXsag",
+          "tombstone": false
+        },
+        {
+          "at": 1788684647916,
+          "author": {
+            "avatar": {
+              "height": 256,
+              "id": "s2id-e189fc9ee08fef3149432845aaf0d980-0000000000003c01",
+              "width": 256
+            },
+            "displayName": "Bob Bennett",
+            "handle": "bob",
+            "principal": "user:R2dF-QwDoSS7yvHnUgXsag"
+          },
+          "body": "m6nativequartz synced history 006",
+          "clip": null,
+          "conversation": "s2id-e189fc9ee08fef3149432845aaf0d980-0000000000004801",
+          "edited": false,
+          "expired": false,
+          "expiresAt": null,
+          "id": "s2id-e189fc9ee08fef3149432845aaf0d980-0000000000005001",
+          "key": "m6-history-006",
+          "kind": "text",
+          "oncePhoto": null,
+          "photo": null,
+          "quote": null,
+          "quoted": null,
+          "revokedAt": null,
+          "sender": "user:R2dF-QwDoSS7yvHnUgXsag",
+          "tombstone": false
+        }
+      ],
+      "seq": 22,
+      "next": "WzEsIm1lc3NhZ2VzIiwiYnlDb252ZXJzYXRpb24iLCJEZXNjIixbeyJuYW1lIjoiYXQiLCJraW5kIjoiVGltZSJ9LHsibmFtZSI6ImlkIiwia2luZCI6IklkIn1dLFt7IkludCI6MTc4ODY4NDY0NzkxNn0seyJJZCI6InMyaWQtZTE4OWZjOWVlMDhmZWYzMTQ5NDMyODQ1YWFmMGQ5ODAtMDAwMDAwMDAwMDAwNTAwMSJ9XV0",
+      "live": true
+    }
+  },
+  "appAfterSend": "6410 11306 /Users/ccheever/Library/Developer/CoreSimulator/Devices/A0659883-FDEB-4ED2-B560-831A778226DA/data/Containers/Bundle/Application/733FF3DF-BC0F-4CF5-BB5B-0B8C1286FAB4/Clique006M6.app/Clique006M6",
+  "checks": {
+    "releaseHermes": true,
+    "globalResponseHasNoBody": true,
+    "physicalExpoLiveResponseHasReader": true,
+    "sharedSseHistoryControlObserved": true,
+    "nativeFixtureMembership": true,
+    "originalThreeInNativeCallback": true,
+    "firstFixtureCallbackIsLive": true,
+    "markerCallbackIsLive": true,
+    "markerCallbackSeqAtLeastMutation": true,
+    "markerAbsentBeforeSend": true,
+    "oneOrdinarySendCommitted": true,
+    "markerInLaterNativeCallback": true,
+    "sameNativeProcess": true,
+    "noWitnessError": true
+  },
+  "status": "PASS",
+  "nativeSqlite": {
+    "path": "/Users/ccheever/Library/Developer/CoreSimulator/Devices/A0659883-FDEB-4ED2-B560-831A778226DA/data/Containers/Data/Application/70BE47A4-148D-4F12-BDE4-BA08E9C9428F/Documents/SQLite/snapback2.db",
+    "snapshotSha256": "ccd4bd89bfcca1ef1b9daf32ebeccd204a852d397123c9e3a129c48cdee0389f"
+  },
+  "finishedAt": "2026-09-06T09:59:06.293289+00:00"
+}

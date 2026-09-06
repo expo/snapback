@@ -234,3 +234,85 @@ first stopped because staged doctor could not resolve declared TypeScript
 through Bun's isolated layout. Release preparation is provisioning the same
 locked dependencies through the supported hoisted layout and repeating the
 qualified path, without bypassing staged doctor or consumer isolation.
+
+
+### Published0.0.7, 2026-09-06
+
+The CLI help and migration-command improvement is published in both npm
+packages. Registry integrity and fresh installed bytes match the qualified
+production tarballs, with Hermes, media codecs, and installed guide/help
+checks passing. Original failed staging/dependency layout and first doctor
+timing samples are retained; dependency provisioning changed only the private
+release lane. The current cold build stays on0.0.6 through M6/M8. Auth, cursor,
+and asset work is now combined on an integration branch; its source merged
+without conflicts, while a six-byte guide budget overflow needed a prose
+trim before the affected checks can pass.
+
+
+### Integration and M6 follow-up, 2026-09-06
+
+Combined verification exposed a guide budget overflow and then an existing
+test's exact prose contract; both were repaired through prose only. The
+affected test evidence is green, while independent integration review found
+an upload-cleanup cancellation interaction that individual lane reviews had
+missed. Repair continues before publication. The builder's M6 required suite
+is green, but real offline reconnect still fails on conflicting inbox
+deliveries in published0.0.6. A passing suite is insufficient to claim that
+user workflow works; retain the browser failure and investigate separately.
+
+
+### M6 web green, 2026-09-06
+
+The real two-message offline queue and ordered reconnect flush now pass the
+frozen choreography, with all five required suite IDs passing. Avoiding SDK
+drain:true in three queries through explicit page subscriptions unblocked the
+app; preserving the membership reference shape alone did not. The second
+conflict was on a flat revocation query, so join shape is not a sufficient
+diagnosis. Product reproduction/repair continues independently. Frozen source
+and receipt hashes are retained; the native simulator artifact is still absent.
+M8 is underway on the same published0.0.6 continuous build.
+
+### Frozen M8 and independent native evidence, 2026-09-06
+
+The builder completed and froze its continuous application, but its original
+green M8 receipt lost the exact bound suite when that file was overwritten.
+An unchanged-source repeat failed two-device offline convergence and its
+dependent receipt check. Preserve both observations; the final artifact is
+not a verified M8 pass. Independent outcome and scale grading now run from
+the frozen application with builder narratives excluded.
+
+Native M6 supplied evidence the web run could not: real Release Hermes
+execution failed to populate history because subscriptions reported a missing
+SSE response body. Two durable pending bubbles and ordered manual flush worked;
+history, media restoration, and search remained unqualified. Premature read
+ticks were also observed. These failures illustrate why successful web tests
+and a Hermes export cannot substitute for the Expo workflow. Product transport
+attribution and the separate application receipt handling are being checked.
+
+The SDK repair loop is exposing interactions between authority transitions,
+asset conversion, and queued writes that isolated tests missed. Before/after
+regressions now cover the complete byte conversion boundary; a further FIFO
+terminal-error case remains in repair. The author explicitly permits more
+than three rounds. Search foundation work has started to remove application
+posting maintenance rather than preserve that ergonomic burden as a recipe.
+No fresh matched Convex/Supabase comparison or Muse ultra score is available.
+
+### Native transport repair and candidate witness, 2026-09-06
+
+Both independent reviewers cleared the native logical-stream fix. Expo's
+physical fetch already streamed correctly; reconstructing each subscription
+with React Native's global Response discarded its readable body. The client
+now retains the logical stream directly. The new regressions are registered
+in both existing test entrypoints, so ordinary verification will exercise them.
+
+The candidate ran in an actual Release Hermes iOS app. One process received
+five existing history rows, including the three original fixtures, then a
+sixth row through a later live callback after an ordinary backend send. Native
+SQLite held the six messages. Before/after screenshots and complete callbacks
+are the primary evidence; a recorder filename collision prevented a video of
+the successful transition. The original frozen 0.0.6 M6 failure remains intact.
+
+All 189 selected tests pass at their original deadlines. A separate recovery
+case passes its assertions on Node22 but its file remains alive until timeout;
+uncleared timers in the existing owner harness are being investigated and
+repaired separately. This does not become a full-suite green claim.

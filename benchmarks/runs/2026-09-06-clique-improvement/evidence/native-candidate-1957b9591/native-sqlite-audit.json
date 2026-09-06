@@ -1,0 +1,551 @@
+{
+  "snapshotSha256": "ccd4bd89bfcca1ef1b9daf32ebeccd204a852d397123c9e3a129c48cdee0389f",
+  "integrityCheck": "ok",
+  "partitions": [
+    [
+      "user:hDIg97OkRARe1bGeTyek4Q",
+      11
+    ]
+  ],
+  "heldMessages": [
+    {
+      "id": "s2id-e189fc9ee08fef3149432845aaf0d980-0000000000005001",
+      "row": {
+        "at": 1788684647916,
+        "body": "m6nativequartz synced history 006",
+        "clip": null,
+        "conversation": "s2id-e189fc9ee08fef3149432845aaf0d980-0000000000004801",
+        "edited": false,
+        "expired": false,
+        "expiresAt": null,
+        "id": "s2id-e189fc9ee08fef3149432845aaf0d980-0000000000005001",
+        "key": "m6-history-006",
+        "kind": "text",
+        "oncePhoto": null,
+        "photo": null,
+        "quote": null,
+        "revokedAt": null,
+        "sender": "user:R2dF-QwDoSS7yvHnUgXsag",
+        "tombstone": false
+      },
+      "table": "messages"
+    },
+    {
+      "id": "s2id-e189fc9ee08fef3149432845aaf0d980-0000000000005c01",
+      "row": {
+        "at": 1788684647959,
+        "body": "M6 ordinary image 006",
+        "clip": null,
+        "conversation": "s2id-e189fc9ee08fef3149432845aaf0d980-0000000000004801",
+        "edited": false,
+        "expired": false,
+        "expiresAt": null,
+        "id": "s2id-e189fc9ee08fef3149432845aaf0d980-0000000000005c01",
+        "key": "m6-ordinary-006",
+        "kind": "image",
+        "oncePhoto": null,
+        "photo": {
+          "height": 480,
+          "id": "s2id-e189fc9ee08fef3149432845aaf0d980-0000000000005801",
+          "width": 640
+        },
+        "quote": null,
+        "revokedAt": null,
+        "sender": "user:R2dF-QwDoSS7yvHnUgXsag",
+        "tombstone": false
+      },
+      "table": "messages"
+    },
+    {
+      "id": "s2id-e189fc9ee08fef3149432845aaf0d980-0000000000006401",
+      "row": {
+        "at": 1788684647995,
+        "body": "M6 view once image 006",
+        "clip": null,
+        "conversation": "s2id-e189fc9ee08fef3149432845aaf0d980-0000000000004801",
+        "edited": false,
+        "expired": false,
+        "expiresAt": null,
+        "id": "s2id-e189fc9ee08fef3149432845aaf0d980-0000000000006401",
+        "key": "m6-once-006",
+        "kind": "image",
+        "oncePhoto": {
+          "height": 480,
+          "id": "s2id-e189fc9ee08fef3149432845aaf0d980-0000000000006001",
+          "width": 640
+        },
+        "photo": null,
+        "quote": null,
+        "revokedAt": null,
+        "sender": "user:R2dF-QwDoSS7yvHnUgXsag",
+        "tombstone": false
+      },
+      "table": "messages"
+    },
+    {
+      "id": "s2id-e189fc9ee08fef3149432845aaf0d980-0000000000006801",
+      "row": {
+        "at": 1788685592553,
+        "body": "M6 queue first 006",
+        "clip": null,
+        "conversation": "s2id-e189fc9ee08fef3149432845aaf0d980-0000000000004801",
+        "edited": false,
+        "expired": false,
+        "expiresAt": null,
+        "id": "s2id-e189fc9ee08fef3149432845aaf0d980-0000000000006801",
+        "key": "intent-1788685479996-0.5266739041953148",
+        "kind": "text",
+        "oncePhoto": null,
+        "photo": null,
+        "quote": null,
+        "revokedAt": null,
+        "sender": "user:hDIg97OkRARe1bGeTyek4Q",
+        "tombstone": false
+      },
+      "table": "messages"
+    },
+    {
+      "id": "s2id-e189fc9ee08fef3149432845aaf0d980-0000000000006836",
+      "row": {
+        "at": 1788685592629,
+        "body": "M6 queue second 006",
+        "clip": null,
+        "conversation": "s2id-e189fc9ee08fef3149432845aaf0d980-0000000000004801",
+        "edited": false,
+        "expired": false,
+        "expiresAt": null,
+        "id": "s2id-e189fc9ee08fef3149432845aaf0d980-0000000000006836",
+        "key": "intent-1788685530363-0.22021051785160417",
+        "kind": "text",
+        "oncePhoto": null,
+        "photo": null,
+        "quote": null,
+        "revokedAt": null,
+        "sender": "user:hDIg97OkRARe1bGeTyek4Q",
+        "tombstone": false
+      },
+      "table": "messages"
+    },
+    {
+      "id": "s2id-e189fc9ee08fef3149432845aaf0d980-000000000001f001",
+      "row": {
+        "at": 1788688742392,
+        "body": "Native candidate live marker candidate-live-b60e28337c124f32-r2",
+        "clip": null,
+        "conversation": "s2id-e189fc9ee08fef3149432845aaf0d980-0000000000004801",
+        "edited": false,
+        "expired": false,
+        "expiresAt": null,
+        "id": "s2id-e189fc9ee08fef3149432845aaf0d980-000000000001f001",
+        "key": "candidate-live-b60e28337c124f32-r2",
+        "kind": "text",
+        "oncePhoto": null,
+        "photo": null,
+        "quote": null,
+        "revokedAt": null,
+        "sender": "user:hDIg97OkRARe1bGeTyek4Q",
+        "tombstone": false
+      },
+      "table": "messages"
+    }
+  ],
+  "heldAnswers": [
+    {
+      "op": "chats.details",
+      "cursorArg": "c",
+      "args": {
+        "conversation": "s2id-e189fc9ee08fef3149432845aaf0d980-0000000000004801"
+      },
+      "state": "complete",
+      "data": {
+        "chat": {
+          "$row": {
+            "id": "s2id-e189fc9ee08fef3149432845aaf0d980-0000000000004801",
+            "table": "conversations"
+          }
+        },
+        "members": [
+          {
+            "conversation": "s2id-e189fc9ee08fef3149432845aaf0d980-0000000000004801",
+            "id": "s2id-e189fc9ee08fef3149432845aaf0d980-0000000000004803",
+            "joinedAt": 1788684647910,
+            "principal": "user:R2dF-QwDoSS7yvHnUgXsag",
+            "profile": {
+              "avatar": {
+                "height": 256,
+                "id": "s2id-e189fc9ee08fef3149432845aaf0d980-0000000000003c01",
+                "width": 256
+              },
+              "displayName": "Bob Bennett",
+              "handle": "bob",
+              "principal": "user:R2dF-QwDoSS7yvHnUgXsag"
+            },
+            "role": "member"
+          },
+          {
+            "conversation": "s2id-e189fc9ee08fef3149432845aaf0d980-0000000000004801",
+            "id": "s2id-e189fc9ee08fef3149432845aaf0d980-0000000000004802",
+            "joinedAt": 1788684647910,
+            "principal": "user:hDIg97OkRARe1bGeTyek4Q",
+            "profile": {
+              "avatar": {
+                "height": 256,
+                "id": "s2id-e189fc9ee08fef3149432845aaf0d980-0000000000003001",
+                "width": 256
+              },
+              "displayName": "Alice Alvarez",
+              "handle": "alice",
+              "principal": "user:hDIg97OkRARe1bGeTyek4Q"
+            },
+            "role": "admin"
+          }
+        ]
+      },
+      "next": null,
+      "nextSeq": 21,
+      "seq": 21,
+      "validator": "8c7cfb8294fa6aa50d8fbb31129b97b3922a70e7ce807a3b6be1349732a1b279",
+      "receipt": {
+        "absences": [],
+        "ranges": [
+          {
+            "absence": false,
+            "after": null,
+            "before": null,
+            "gt": null,
+            "gte": null,
+            "index": "byPair",
+            "lt": null,
+            "lte": null,
+            "order": "Asc",
+            "prefix": [
+              "s2id-e189fc9ee08fef3149432845aaf0d980-0000000000004801"
+            ],
+            "rowIds": [
+              "s2id-e189fc9ee08fef3149432845aaf0d980-0000000000004803",
+              "s2id-e189fc9ee08fef3149432845aaf0d980-0000000000004802"
+            ],
+            "ruleHash": "a222e6fc6b96bdebc98fd44e7f3960164e4ffd4a92c7deedad3d614be5116978",
+            "site": "chats.details.0",
+            "stop": "Exhausted",
+            "table": "members",
+            "take": 50
+          }
+        ],
+        "verdicts": []
+      },
+      "deliveredAt": 1788688739569,
+      "refs": [
+        {
+          "table": "conversations",
+          "id": "s2id-e189fc9ee08fef3149432845aaf0d980-0000000000004801"
+        },
+        {
+          "table": "members",
+          "id": "s2id-e189fc9ee08fef3149432845aaf0d980-0000000000004803"
+        },
+        {
+          "table": "members",
+          "id": "s2id-e189fc9ee08fef3149432845aaf0d980-0000000000004802"
+        },
+        {
+          "table": "profiles",
+          "id": "s2id-e189fc9ee08fef3149432845aaf0d980-0000000000000c01"
+        },
+        {
+          "table": "profiles",
+          "id": "s2id-e189fc9ee08fef3149432845aaf0d980-0000000000004001"
+        }
+      ],
+      "order": 1,
+      "fingerprint": "c398ba2be003f63d081b41592c3d992a394c54701bf823b41606424ca1ee55f8"
+    },
+    {
+      "op": "chats.history",
+      "cursorArg": "c",
+      "args": {
+        "conversation": "s2id-e189fc9ee08fef3149432845aaf0d980-0000000000004801",
+        "c": null
+      },
+      "state": "capped",
+      "data": [
+        {
+          "at": 1788688742392,
+          "author": {
+            "avatar": {
+              "height": 256,
+              "id": "s2id-e189fc9ee08fef3149432845aaf0d980-0000000000003001",
+              "width": 256
+            },
+            "displayName": "Alice Alvarez",
+            "handle": "alice",
+            "principal": "user:hDIg97OkRARe1bGeTyek4Q"
+          },
+          "body": "Native candidate live marker candidate-live-b60e28337c124f32-r2",
+          "clip": null,
+          "conversation": "s2id-e189fc9ee08fef3149432845aaf0d980-0000000000004801",
+          "edited": false,
+          "expired": false,
+          "expiresAt": null,
+          "id": "s2id-e189fc9ee08fef3149432845aaf0d980-000000000001f001",
+          "key": "candidate-live-b60e28337c124f32-r2",
+          "kind": "text",
+          "oncePhoto": null,
+          "photo": null,
+          "quote": null,
+          "quoted": null,
+          "revokedAt": null,
+          "sender": "user:hDIg97OkRARe1bGeTyek4Q",
+          "tombstone": false
+        },
+        {
+          "at": 1788685592629,
+          "author": {
+            "avatar": {
+              "height": 256,
+              "id": "s2id-e189fc9ee08fef3149432845aaf0d980-0000000000003001",
+              "width": 256
+            },
+            "displayName": "Alice Alvarez",
+            "handle": "alice",
+            "principal": "user:hDIg97OkRARe1bGeTyek4Q"
+          },
+          "body": "M6 queue second 006",
+          "clip": null,
+          "conversation": "s2id-e189fc9ee08fef3149432845aaf0d980-0000000000004801",
+          "edited": false,
+          "expired": false,
+          "expiresAt": null,
+          "id": "s2id-e189fc9ee08fef3149432845aaf0d980-0000000000006836",
+          "key": "intent-1788685530363-0.22021051785160417",
+          "kind": "text",
+          "oncePhoto": null,
+          "photo": null,
+          "quote": null,
+          "quoted": null,
+          "revokedAt": null,
+          "sender": "user:hDIg97OkRARe1bGeTyek4Q",
+          "tombstone": false
+        },
+        {
+          "at": 1788685592553,
+          "author": {
+            "avatar": {
+              "height": 256,
+              "id": "s2id-e189fc9ee08fef3149432845aaf0d980-0000000000003001",
+              "width": 256
+            },
+            "displayName": "Alice Alvarez",
+            "handle": "alice",
+            "principal": "user:hDIg97OkRARe1bGeTyek4Q"
+          },
+          "body": "M6 queue first 006",
+          "clip": null,
+          "conversation": "s2id-e189fc9ee08fef3149432845aaf0d980-0000000000004801",
+          "edited": false,
+          "expired": false,
+          "expiresAt": null,
+          "id": "s2id-e189fc9ee08fef3149432845aaf0d980-0000000000006801",
+          "key": "intent-1788685479996-0.5266739041953148",
+          "kind": "text",
+          "oncePhoto": null,
+          "photo": null,
+          "quote": null,
+          "quoted": null,
+          "revokedAt": null,
+          "sender": "user:hDIg97OkRARe1bGeTyek4Q",
+          "tombstone": false
+        },
+        {
+          "at": 1788684647995,
+          "author": {
+            "avatar": {
+              "height": 256,
+              "id": "s2id-e189fc9ee08fef3149432845aaf0d980-0000000000003c01",
+              "width": 256
+            },
+            "displayName": "Bob Bennett",
+            "handle": "bob",
+            "principal": "user:R2dF-QwDoSS7yvHnUgXsag"
+          },
+          "body": "M6 view once image 006",
+          "clip": null,
+          "conversation": "s2id-e189fc9ee08fef3149432845aaf0d980-0000000000004801",
+          "edited": false,
+          "expired": false,
+          "expiresAt": null,
+          "id": "s2id-e189fc9ee08fef3149432845aaf0d980-0000000000006401",
+          "key": "m6-once-006",
+          "kind": "image",
+          "oncePhoto": {
+            "height": 480,
+            "id": "s2id-e189fc9ee08fef3149432845aaf0d980-0000000000006001",
+            "width": 640
+          },
+          "photo": null,
+          "quote": null,
+          "quoted": null,
+          "revokedAt": null,
+          "sender": "user:R2dF-QwDoSS7yvHnUgXsag",
+          "tombstone": false
+        },
+        {
+          "at": 1788684647959,
+          "author": {
+            "avatar": {
+              "height": 256,
+              "id": "s2id-e189fc9ee08fef3149432845aaf0d980-0000000000003c01",
+              "width": 256
+            },
+            "displayName": "Bob Bennett",
+            "handle": "bob",
+            "principal": "user:R2dF-QwDoSS7yvHnUgXsag"
+          },
+          "body": "M6 ordinary image 006",
+          "clip": null,
+          "conversation": "s2id-e189fc9ee08fef3149432845aaf0d980-0000000000004801",
+          "edited": false,
+          "expired": false,
+          "expiresAt": null,
+          "id": "s2id-e189fc9ee08fef3149432845aaf0d980-0000000000005c01",
+          "key": "m6-ordinary-006",
+          "kind": "image",
+          "oncePhoto": null,
+          "photo": {
+            "height": 480,
+            "id": "s2id-e189fc9ee08fef3149432845aaf0d980-0000000000005801",
+            "width": 640
+          },
+          "quote": null,
+          "quoted": null,
+          "revokedAt": null,
+          "sender": "user:R2dF-QwDoSS7yvHnUgXsag",
+          "tombstone": false
+        },
+        {
+          "at": 1788684647916,
+          "author": {
+            "avatar": {
+              "height": 256,
+              "id": "s2id-e189fc9ee08fef3149432845aaf0d980-0000000000003c01",
+              "width": 256
+            },
+            "displayName": "Bob Bennett",
+            "handle": "bob",
+            "principal": "user:R2dF-QwDoSS7yvHnUgXsag"
+          },
+          "body": "m6nativequartz synced history 006",
+          "clip": null,
+          "conversation": "s2id-e189fc9ee08fef3149432845aaf0d980-0000000000004801",
+          "edited": false,
+          "expired": false,
+          "expiresAt": null,
+          "id": "s2id-e189fc9ee08fef3149432845aaf0d980-0000000000005001",
+          "key": "m6-history-006",
+          "kind": "text",
+          "oncePhoto": null,
+          "photo": null,
+          "quote": null,
+          "quoted": null,
+          "revokedAt": null,
+          "sender": "user:R2dF-QwDoSS7yvHnUgXsag",
+          "tombstone": false
+        }
+      ],
+      "next": "WzEsIm1lc3NhZ2VzIiwiYnlDb252ZXJzYXRpb24iLCJEZXNjIixbeyJuYW1lIjoiYXQiLCJraW5kIjoiVGltZSJ9LHsibmFtZSI6ImlkIiwia2luZCI6IklkIn1dLFt7IkludCI6MTc4ODY4NDY0NzkxNn0seyJJZCI6InMyaWQtZTE4OWZjOWVlMDhmZWYzMTQ5NDMyODQ1YWFmMGQ5ODAtMDAwMDAwMDAwMDAwNTAwMSJ9XV0",
+      "nextSeq": 22,
+      "seq": 22,
+      "validator": "c81b32382ef443448732b3bf7ab3fefbcc0c5437449a141d26dfa3b0e69ada15",
+      "receipt": {
+        "absences": [
+          [
+            "messages",
+            "byId",
+            [
+              null
+            ]
+          ],
+          [
+            "messages",
+            "byId",
+            [
+              null
+            ]
+          ],
+          [
+            "messages",
+            "byId",
+            [
+              null
+            ]
+          ],
+          [
+            "messages",
+            "byId",
+            [
+              null
+            ]
+          ],
+          [
+            "messages",
+            "byId",
+            [
+              null
+            ]
+          ],
+          [
+            "messages",
+            "byId",
+            [
+              null
+            ]
+          ]
+        ],
+        "ranges": [],
+        "verdicts": []
+      },
+      "deliveredAt": 1788688742404,
+      "refs": [
+        {
+          "table": "members",
+          "id": "s2id-e189fc9ee08fef3149432845aaf0d980-0000000000004802"
+        },
+        {
+          "table": "messages",
+          "id": "s2id-e189fc9ee08fef3149432845aaf0d980-0000000000005001"
+        },
+        {
+          "table": "messages",
+          "id": "s2id-e189fc9ee08fef3149432845aaf0d980-0000000000005c01"
+        },
+        {
+          "table": "messages",
+          "id": "s2id-e189fc9ee08fef3149432845aaf0d980-0000000000006401"
+        },
+        {
+          "table": "messages",
+          "id": "s2id-e189fc9ee08fef3149432845aaf0d980-0000000000006801"
+        },
+        {
+          "table": "messages",
+          "id": "s2id-e189fc9ee08fef3149432845aaf0d980-0000000000006836"
+        },
+        {
+          "table": "messages",
+          "id": "s2id-e189fc9ee08fef3149432845aaf0d980-000000000001f001"
+        },
+        {
+          "table": "profiles",
+          "id": "s2id-e189fc9ee08fef3149432845aaf0d980-0000000000000c01"
+        },
+        {
+          "table": "profiles",
+          "id": "s2id-e189fc9ee08fef3149432845aaf0d980-0000000000004001"
+        }
+      ],
+      "order": 3,
+      "fingerprint": "1c10c420ab81228467345ff54bd8cef6d5d144737a58928d0dd747125c348109"
+    }
+  ],
+  "outboxCount": 0
+}

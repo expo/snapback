@@ -1,0 +1,16 @@
+{
+  "at": "2026-09-06T09:47:10.315183+00:00",
+  "method": "Each regular file from retained filtered app-source.tar.gz SHA256 compared to each live remote grading app",
+  "sourceFiles": 328,
+  "lanes": {
+    "astra-006": {
+      "changed": [],
+      "missing": []
+    },
+    "astra-006-scale": {
+      "changed": [],
+      "missing": []
+    }
+  },
+  "scope": "source immutability only; no acceptance or grading result inferred"
+}

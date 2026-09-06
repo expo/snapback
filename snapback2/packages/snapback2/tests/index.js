@@ -2,6 +2,7 @@ import { configureRealOwner } from "./owner-harness.ts";
 
 await configureRealOwner();
 await import("./client.test.ts");
+await import("./client-regressions.test.ts");
 await import("./assets.test.ts");
 await import("./auth-ownership.test.ts");
 await import("./typing.test.ts");

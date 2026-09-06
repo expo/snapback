@@ -1,0 +1,8 @@
+{
+  "startedAt": "2026-09-06T09:20:55.160043+00:00",
+  "reason": "Run10 bound a suite receipt overwritten by the subsequent unchanged-source aggregate rerun; exact old hash not found in retained evidence. Requalification binds immutable copied final suite.",
+  "missingOriginalSuiteSha256": "b327b2f7a2f6a3e55ca124e238a63b06fb394fe30d3e816474e5a041208d7004",
+  "copiedSuiteSha256": "9370c41b59c8247b8e37767ee5d72574f1bec7ef69a3be4c724724ffb6e423f8",
+  "sourceFilesUnchanged": true,
+  "originalArchiveSha256": "c64b7b1e82a5f4588dfe7f0f07110ad149c0c7c3e0764424be678160f2f75b61"
+}

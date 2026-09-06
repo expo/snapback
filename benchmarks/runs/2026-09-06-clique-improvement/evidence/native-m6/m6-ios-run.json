@@ -1,0 +1,273 @@
+{
+  "schemaVersion": "clique.m6-native-run.v1",
+  "runId": "7aba86ce-61b6-4d66-a81c-a9e0e01b9feb",
+  "status": "failed",
+  "pass": false,
+  "qualifyingContractRun": false,
+  "reason": "Online native sync failed with SSE response has no body; media/history/search preconditions were unmet; UI read ticks preceded server read state.",
+  "startedAt": "2026-09-06T09:03:50.134075+00:00",
+  "endedAt": "2026-09-06T09:07:07.340609+00:00",
+  "bundleId": "dev.clique.frozen006.m6",
+  "appVersion": "0.0.6",
+  "appBuildNumber": "1",
+  "simulator": {
+    "name": "Clique-006-M6",
+    "udid": "A0659883-FDEB-4ED2-B560-831A778226DA",
+    "deviceType": "iPhone 17 Pro",
+    "runtime": "com.apple.CoreSimulator.SimRuntime.iOS-26-5",
+    "runtimeVersion": "26.5",
+    "runtimeBuild": "23F77"
+  },
+  "host": {
+    "hostname": "Charlies-MacBook-Pro-M5Max-Black.local",
+    "ssh": "ccheever@100.88.75.121",
+    "model": "Mac17,6",
+    "macOS": "26.6.2 (25G83)",
+    "architecture": "arm64",
+    "memoryBytes": 137438953472,
+    "cpuCount": 18
+  },
+  "build": {
+    "configuration": "Release",
+    "hermes": true,
+    "reactNative": "0.81.5",
+    "expo": "54.0.37",
+    "snapback2": "0.0.6",
+    "xcode": "26.6 (17F113)",
+    "simulatorSDK": "26.5 (23F81a)",
+    "buildJobs": 3,
+    "metroWorkers": 2,
+    "node": "v25.9.0",
+    "npmCi": "10.9.8",
+    "cocoapods": "1.17.0",
+    "executableSha256": "6d8d9ec2221da23e53f77d5ef5fdc05120c8c9fdabd88da649e8fb6c10d0ac9a",
+    "hermesBundleSha256": "10265434832053cfdddaf0beec3b7674e219220e5a1b08e3174b7bdc0401329b",
+    "hermesFrameworkSha256": "cded3f9fff59eb5ab73e8575299ddf1f56c08b693ea1171469617b8a1118654a",
+    "arm64MachOUUID": "5F1C1775-752C-3460-B721-FD69DCAC772F",
+    "observedAppArchive": "Clique006M6-observed.app.zip",
+    "unobservedAppArchive": "Clique006M6-unobserved.app.zip"
+  },
+  "source": {
+    "archive": "../source.tar.gz",
+    "sha256": "014a913c309a6aecb64d76bcaed50a68db53ed1bb0fe17c9f26fdcd95e8cd55c",
+    "originalFileCount": 71,
+    "originalHashesPreserved": true,
+    "packageLockSha256": "5382638179bb43155d2bdd08cb1e8d4eb834fafa949cb98b43a4c746e4292c49",
+    "identityFile": "identity.json",
+    "harnessDiff": "native-instrumentation.diff",
+    "harnessSource": "../harness/native-observer.cjs"
+  },
+  "backend": {
+    "origin": "http://127.0.0.1:49606",
+    "command": [
+      "node",
+      "node_modules/snapback2/bin/snapback2.mjs",
+      "dev",
+      "--foreground",
+      "--port",
+      "49606"
+    ],
+    "cwd": "/Users/ccheever/clique-improvement/native/astra-006-m6/build-app",
+    "fixtureStore": "/Users/ccheever/clique-improvement/native/astra-006-m6/build-app/.snapback",
+    "initialWrapperPID": 92018,
+    "initialListenerPID": 92062,
+    "restartWrapperPID": 70581,
+    "restartListenerPID": 70617,
+    "notificationReplaySuppression": true,
+    "manualSyncNowRequiredInObservedSequence": true
+  },
+  "processes": {
+    "onlineApp": 42937,
+    "coldApp": 47893,
+    "recording": 47768,
+    "idbCompanion": 92512,
+    "appPIDPreservedAcrossReconnect": true
+  },
+  "fixtures": {
+    "createdAt": "2026-09-06T08:50:48.003Z",
+    "origin": "http://127.0.0.1:49606",
+    "conversation": {
+      "id": "s2id-e189fc9ee08fef3149432845aaf0d980-0000000000004801"
+    },
+    "profiles": {
+      "alice": "user:hDIg97OkRARe1bGeTyek4Q",
+      "bob": "user:R2dF-QwDoSS7yvHnUgXsag"
+    },
+    "searchToken": "m6nativequartz",
+    "queuedBodies": [
+      "M6 queue first 006",
+      "M6 queue second 006"
+    ],
+    "messages": {
+      "text": {
+        "at": 1788684647916,
+        "body": "m6nativequartz synced history 006",
+        "clip": null,
+        "conversation": "s2id-e189fc9ee08fef3149432845aaf0d980-0000000000004801",
+        "edited": false,
+        "expired": false,
+        "id": "s2id-e189fc9ee08fef3149432845aaf0d980-0000000000005001",
+        "key": "m6-history-006",
+        "kind": "text",
+        "photo": null,
+        "quote": null,
+        "sender": "user:R2dF-QwDoSS7yvHnUgXsag",
+        "tombstone": false
+      },
+      "ordinary": {
+        "at": 1788684647959,
+        "body": "M6 ordinary image 006",
+        "clip": null,
+        "conversation": "s2id-e189fc9ee08fef3149432845aaf0d980-0000000000004801",
+        "edited": false,
+        "expired": false,
+        "id": "s2id-e189fc9ee08fef3149432845aaf0d980-0000000000005c01",
+        "key": "m6-ordinary-006",
+        "kind": "image",
+        "photo": {
+          "height": 480,
+          "id": "s2id-e189fc9ee08fef3149432845aaf0d980-0000000000005801",
+          "width": 640
+        },
+        "quote": null,
+        "sender": "user:R2dF-QwDoSS7yvHnUgXsag",
+        "tombstone": false
+      },
+      "once": {
+        "at": 1788684647995,
+        "body": "M6 view once image 006",
+        "conversation": "s2id-e189fc9ee08fef3149432845aaf0d980-0000000000004801",
+        "edited": false,
+        "expired": false,
+        "id": "s2id-e189fc9ee08fef3149432845aaf0d980-0000000000006401",
+        "key": "m6-once-006",
+        "kind": "image",
+        "oncePhoto": {
+          "height": 480,
+          "id": "s2id-e189fc9ee08fef3149432845aaf0d980-0000000000006001",
+          "width": 640
+        },
+        "quote": null,
+        "sender": "user:R2dF-QwDoSS7yvHnUgXsag",
+        "tombstone": false
+      }
+    },
+    "events": [
+      {
+        "at": "2026-09-06T08:50:47.827Z",
+        "args": {
+          "displayName": "Alice Alvarez",
+          "handle": "alice",
+          "bio": "Coffee, cameras, and neighborhood walks.",
+          "location": "Oakland, CA",
+          "link": "https://example.com/alice",
+          "avatar": "s2id-e189fc9ee08fef3149432845aaf0d980-0000000000003001"
+        },
+        "state": "committed",
+        "id": "s2id-e189fc9ee08fef3149432845aaf0d980-0000000000000c01"
+      },
+      {
+        "at": "2026-09-06T08:50:47.903Z",
+        "args": {
+          "displayName": "Bob Bennett",
+          "handle": "bob",
+          "bio": "Bikes, bread, and tiny software tools.",
+          "location": "Berkeley, CA",
+          "link": "https://example.com/bob",
+          "avatar": "s2id-e189fc9ee08fef3149432845aaf0d980-0000000000003c01"
+        },
+        "state": "committed",
+        "id": "s2id-e189fc9ee08fef3149432845aaf0d980-0000000000004001"
+      },
+      {
+        "at": "2026-09-06T08:50:47.913Z",
+        "args": {
+          "key": "m6-native-frozen-006",
+          "name": "M6 Frozen 006",
+          "description": "Independent native verification fixture",
+          "others": [
+            "user:R2dF-QwDoSS7yvHnUgXsag"
+          ]
+        },
+        "state": "committed",
+        "id": "s2id-e189fc9ee08fef3149432845aaf0d980-0000000000004801"
+      },
+      {
+        "at": "2026-09-06T08:50:47.916Z",
+        "args": {
+          "conversation": "s2id-e189fc9ee08fef3149432845aaf0d980-0000000000004801",
+          "accent": null,
+          "background": null,
+          "disappearing": "off"
+        },
+        "state": "committed"
+      },
+      {
+        "at": "2026-09-06T08:50:47.921Z",
+        "args": {
+          "key": "m6-history-006",
+          "conversation": "s2id-e189fc9ee08fef3149432845aaf0d980-0000000000004801",
+          "body": "m6nativequartz synced history 006",
+          "quote": null
+        },
+        "state": "committed",
+        "id": "s2id-e189fc9ee08fef3149432845aaf0d980-0000000000005001"
+      },
+      {
+        "at": "2026-09-06T08:50:47.966Z",
+        "args": {
+          "key": "m6-ordinary-006",
+          "conversation": "s2id-e189fc9ee08fef3149432845aaf0d980-0000000000004801",
+          "body": "M6 ordinary image 006",
+          "quote": null,
+          "kind": "image",
+          "photo": "s2id-e189fc9ee08fef3149432845aaf0d980-0000000000005801",
+          "clip": null
+        },
+        "state": "committed",
+        "id": "s2id-e189fc9ee08fef3149432845aaf0d980-0000000000005c01"
+      },
+      {
+        "at": "2026-09-06T08:50:48.002Z",
+        "args": {
+          "key": "m6-once-006",
+          "conversation": "s2id-e189fc9ee08fef3149432845aaf0d980-0000000000004801",
+          "body": "M6 view once image 006",
+          "quote": null,
+          "photo": "s2id-e189fc9ee08fef3149432845aaf0d980-0000000000006001"
+        },
+        "state": "committed",
+        "id": "s2id-e189fc9ee08fef3149432845aaf0d980-0000000000006401"
+      }
+    ]
+  },
+  "assertionCounts": {
+    "passed": 4,
+    "failed": 2,
+    "not-recorded": 4
+  },
+  "limitations": [
+    "Online preconditions failed; this is a bound failure artifact, not a qualifying M6 pass.",
+    "Ordinary and view-once media were never rendered/viewed; no denial or media-cache success is claimed.",
+    "Cold search showed no result but the token had never successfully synced.",
+    "Ordered flush needed the existing Sync now control.",
+    "Bob used documented authenticated API calls, not a second native simulator UI.",
+    "Visual glyph review supplements grouped native accessibility and OCR; SDK state alone is never used as screen evidence.",
+    "Video is original variable-frame-rate simctl output. Static screens produce long gaps between frames; no edits or concatenation."
+  ],
+  "sha256": {
+    "m6-ios-screen.mp4": "1190c74783f692894f404dcbb668ed5e979d4c98b3d00ab530d035371af1fa81",
+    "m6-ios-receipts.jsonl": "8bfe1d4614a3bffda675a085ef2036b5ecafdf22575ce3f32e00ad9c0239b62c",
+    "m6-ios-observations.json": "3908ac4a8105c0f51d8e72dc4fddbccf16bab116aaf6c4ca090a4d7a026f5854",
+    "identity.json": "5a69a8af777c2bde54cf36331eba5304ab0f20886548e90a83010c4f2d2c7f42",
+    "native-instrumentation.diff": "6e8b51dbbf229d7129fed99df32190f93bc618a699eeb3fa01438a64cbee8109",
+    "instrument-integrity.json": "2752740bcd91417296191064a291d1ba4aef5e7041da3c68219fc4561bb47d12",
+    "fixture.json": "02da3274de20325142a63240a36a95677a1abf9353d85079785aee16f3b6b414",
+    "lifecycle.jsonl": "ca1f003b49704e071ac8a229e46a0502cbaf2e8f1b66af43dd2f3b367feb7aaa",
+    "native-actions.jsonl": "bcee075e41d07dbdeeca20ec6f4c67a208ccb9a703a5808ebaac2209074417e6",
+    "video-audit.json": "bbb3b1a8a764d72a81d0a4008705553ff0ff2c26ec7ddd63ee97964b0707761d",
+    "cleanup.json": "86f5e6e3098df89310aabe910bd9debf5b1cd6494e4dce837858e75867dd56c1",
+    "Clique006M6-observed.app.zip": "564502a918aafe84c8eaceac51a174b884c589981b49d7c6c44d9469163ce839",
+    "Clique006M6-unobserved.app.zip": "fe8674c671825c4a23ee9b1a0a3cefbe7e55157a5eb0e8b06d91f4fcaee0c0e3"
+  }
+}
