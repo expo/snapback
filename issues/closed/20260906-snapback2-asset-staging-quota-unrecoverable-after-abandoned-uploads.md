@@ -76,3 +76,22 @@ or its auth transition. The owner-shaped mutation HTTP 401 defers current-token
 expiry until cleanup, while superseded terminal evidence still clears only
 captured custody. First-upload HTTP 401 also expires custody, including explicit
 uploads; late cancelled cleanup never changes the successor snapshot or token.
+
+Integration follow-up: fetch and XHR parse upload HTTP 401 before authority
+suppression; failed overlapping login cannot restore the invalid bearer, and a
+completed successor remains untouched. The shared raw asset response boundary
+also fences refused and successful body completion. Terminal expiry cancels
+sibling outbox waits while preserving the originating refusal and durable intent.
+
+The byte-delivery follow-up fences the complete Blob-to-ArrayBuffer conversion,
+including the no-cache/bypassed-cache return, and supplies the same authority plus
+cancellation guard to cache hits, admission, and final lease reads. A successor
+login or abort during any of those waits suppresses public delivery.
+
+FIFO session death now propagates before a new mutation acquires outbox custody,
+matching the post-enqueue guard. Replay and log-tail regressions preserve the
+original terminal, seal custody, and recover only the older exact envelope once.
+The optional sibling-abort/seal diagnostic race remains nonblocking: a secondary
+cancelled call may see the sealed carrier refusal, while its accepted intent
+stays durable. The ordinary FIFO stop policy is retained so an offline cut can
+still queue new work; this fix changes originating terminal evidence only.

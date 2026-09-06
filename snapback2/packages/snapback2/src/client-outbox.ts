@@ -4,7 +4,7 @@
 import { throwIfAborted } from "./client-wire.js";
 import {
   SnapbackRefusal,
-  isSnapbackRefusal,
+  isSnapbackRefusal, isTerminalSession,
   wireMutation,
   wireObject,
   wireQuery,
@@ -102,12 +102,13 @@ export async function submitMutation<Result>(options: SubmitMutationOptions): Pr
   if (options.offline) return queued(await enqueue());
   if ((await runtime.queuedIntents()).length > 0) {
     // FIFO: an intent issued behind queued ones must not overtake them. An
-    // older intent's refusal is its own: it reaches `settled()` and
-    // `useOutbox()`, never this call, which queues behind it.
+    // older intent's ordinary refusal reaches `settled()` and `useOutbox()`;
+    // session death instead fences this call before it can acquire custody.
     let stopped = true;
     try {
       ({ stopped } = await options.drain());
-    } catch {
+    } catch (error) {
+      if (isSnapbackRefusal(error) && isTerminalSession(error.envelope)) throw error;
       stopped = true;
     }
     if (stopped) return queued(await enqueue());
@@ -119,6 +120,8 @@ export async function submitMutation<Result>(options: SubmitMutationOptions): Pr
   } catch (error) {
     // A refusal that stopped the replay belongs to the intent that drew it;
     // this one is durable and reports through its entry.
+    // Session expiry sealed the store; preserve its refusal instead of reading through that seal.
+    if (isSnapbackRefusal(error) && isTerminalSession(error.envelope)) throw error;
     const own = await runtime.store.outbox.get(entry.intent);
     if (own && own.state !== "queued") return settledResult<Result>(own, runtime);
     throw error;

@@ -1,6 +1,7 @@
+import { deepStrictEqual } from "node:assert";
 import { existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
-import { ClientStore, type ClosureReceipt, type Context } from "../../evaluator/src/evaluator";
+import { ClientStore, scopedRuleHash, type ClosureReceipt, type Context, type Value } from "../../evaluator/src/evaluator";
 import { lowerSource } from "./compiler";
 import { lowerProject } from "./project";
 import { rustCheck } from "./rust-check";
@@ -121,6 +122,141 @@ query nested(id: posts):
         const serialized = JSON.stringify(operation(lowered.project.programs, name));
         assert(serialized.includes("displayName"), `${name} lost the named projection: ${serialized}`);
       }
+    });
+  });
+
+  test("Quarry nested named-shape collections isolate expansions and iterations under RBAC and cursors", async () => {
+    // Reduced from the immutable published-m3-check.log, retaining its messageCard and both page contexts.
+    const schema = `table profiles:
+  principal: principal
+  displayName: text <=20
+  handle: text <=20
+  avatar: text <=20
+  visible: bool
+  unique byPrincipal: principal
+  read <- .visible = true
+table conversations:
+  public
+table members:
+  conversation: conversations
+  principal: principal
+  by byPrincipal: principal, id
+  public
+table messages:
+  conversation: conversations
+  sender: principal
+  body: text <=20
+  quote: messages ?
+  at: time
+  by byConversation: conversation, at, id
+  public
+table targets:
+  conversation: conversations
+  message: messages
+  recipient: principal
+  reader: principal
+  membership: members
+  state: text <=10
+  by byConversationMessage: conversation, message, id
+  read <- .reader = viewer
+`;
+    const cards = `shape person = { principal, displayName, handle, avatar }
+shape target = { recipient, state, active: exists members[.membership] }
+shape messageCard = { *, author: profiles[.sender] person, quoted: messages[.quote] { id, body, sender }, targets: targets[.conversation, .id] first 50 by byConversationMessage target }
+`;
+    const queries = `query history(conversation: conversations, c: cursor ?):
+  return messages[conversation] after c last 20 by byConversation messageCard
+query inbox(c: cursor ?):
+  return members[viewer] after c first 2 by byPrincipal { id, recent: messages[.conversation] last 1 by byConversation messageCard }
+query pair(a: messages, b: messages):
+  return { first: messages[a] messageCard, second: messages[b] messageCard }
+`;
+    for (const imported of [false, true]) await withProject({
+      "snapback/schema.q": schema,
+      ...(imported ? { "snapback/cards.q": cards } : {}),
+      "snapback/chats.q": `${imported ? "shape messageCard from cards\n" : cards}${queries}`,
+    }, async (root) => {
+      const lowered = await lowerProject(root);
+      assert(lowered.ok, `nested named collections refused (imported=${imported}): ${lowered.ok ? "" : diagnosticsText(lowered.diagnostics)}`);
+      const { programs, schema: irSchema } = lowered.project;
+      const checked = rustCheck(programs, "synthetic", irSchema);
+      assert(checked.every((item) => !item.error), `nested shapes did not certify: ${JSON.stringify(checked)}`);
+      const certificate = (name: string) => checked.find((item) => item.program === `chats.${name}`)!.certificate;
+      for (const name of ["history", "inbox"]) {
+        const pages = Object.values(certificate(name)!.result_pages as Record<string, { table: string }>);
+        assert(pages.length === 1 && pages[0]!.table === (name === "history" ? "messages" : "members"),
+          `nested targets or recent messages stole ${name}'s cursor: ${JSON.stringify(pages)}`);
+      }
+      assert(!certificate("pair")!.result_pages, "object-nested pages acquired a result cursor");
+      const tooSmall = rustCheck([operation(programs, "chats.history")], "synthetic", irSchema, { examined: 10 });
+      assert(tooSmall[0]?.error, "nested shape reads escaped their resource ceiling");
+      const receipt: ClosureReceipt = { rows: [], ranges: [], verdicts: [],
+        schema_hash: certificate("history")!.schema_hash as string,
+        absences: [["members", "byId", [{ Id: "gone" }]], ["messages", "byId", ["Null"]]],
+      };
+      const add = (table: string, id: string, row: Record<string, Value>) => receipt.rows.push({
+        table, id, row: { Row: { id: { Id: id }, ...row } },
+      });
+      for (const id of ["a", "b"]) {
+        add("conversations", id, {});
+        add("members", id, { conversation: { Id: id }, principal: { Id: "u1" } });
+      }
+      for (const [id, visible] of [["u1", true], ["u2", false]] as const) add("profiles", id, {
+        principal: { Id: id }, displayName: { String: id }, handle: { String: id }, avatar: { String: id }, visible: { Bool: visible },
+      });
+      for (let i = 0; i < 23; i++) {
+        const conversation = { Id: i < 21 ? "a" : "b" };
+        add("messages", `m${i}`, { conversation, sender: { Id: i % 2 ? "u2" : "u1" }, body: { String: `body${i}` },
+          quote: i ? { Id: `m${i - 1}` } : "Null", at: { Int: i } });
+        if (i > 0) add("targets", `t${i}`, { conversation, message: { Id: `m${i}` }, recipient: { Id: `recipient${i}` }, reader: { Id: "u1" },
+          membership: { Id: i % 2 ? "gone" : "a" }, state: { String: i % 2 ? "read" : "sent" } });
+        add("targets", `hidden${i}`, { conversation, message: { Id: `m${i}` }, recipient: { Id: "hidden" }, reader: { Id: "u2" },
+          membership: { Id: "b" }, state: { String: "hidden" } });
+      }
+      for (const table of Object.keys(irSchema.tables as object)) receipt.ranges.push({
+        site: `held.${table}`, table, index: "byId", prefix: [], order: "Asc", take: 100,
+        after: null, before: null, gt: null, gte: null, lt: null, lte: null,
+        rule_hash: scopedRuleHash(irSchema, (irSchema.tables as any)[table].rules.read),
+        row_ids: receipt.rows.filter((row) => row.table === table).map((row) => row.id),
+        stop: "Exhausted", absence: false, halo: null, n2_key: null,
+      });
+      const store = new ClientStore(irSchema, receipt);
+      const run = (name: string, args: Context["args"]) => {
+        const replay = store.reexecute(operation(programs, `chats.${name}`), {
+          viewer: "u1", principal_kind: "user", auth_epoch: 1, args, now: 1, new_ids: [], read_time: 1,
+        }, certificate(name));
+        assert(replay.state === "fresh", `fixture lacks coverage for ${name}: ${JSON.stringify(replay.partialSites)}`);
+        return replay.execution;
+      };
+      const expectCard = (value: Value, i: number) => {
+        const card = (value as { Row: Record<string, Value> }).Row;
+        deepStrictEqual(card.id, { Id: `m${i}` });
+        deepStrictEqual(card.targets, { Array: i ? [{ Row: {
+          recipient: { Id: `recipient${i}` }, state: { String: i % 2 ? "read" : "sent" }, active: { Bool: i % 2 === 0 },
+        } }] : [] }, "targets leaked across iterations or RBAC");
+        deepStrictEqual(card.author, i % 2 ? "Null" : { Row: {
+          principal: { Id: "u1" }, displayName: { String: "u1" }, handle: { String: "u1" }, avatar: { String: "u1" },
+        } });
+        deepStrictEqual(card.quoted, i ? { Row: { id: { Id: `m${i - 1}` }, body: { String: `body${i - 1}` },
+          sender: { Id: (i - 1) % 2 ? "u2" : "u1" } } } : "Null");
+      };
+      const first = run("history", { conversation: { Id: "a" }, c: "Null" });
+      const history = (first.result as { Array: Value[] }).Array;
+      assert(history?.length === 20 && first.next, `history page failed: ${JSON.stringify(first)}`);
+      history.forEach((card, n) => expectCard(card, 20 - n));
+      const second = run("history", { conversation: { Id: "a" }, c: { String: first.next } });
+      const remaining = (second.result as { Array: Value[] }).Array;
+      assert(remaining?.length === 1, `history cursor followed a nested page: ${JSON.stringify(second)}`);
+      expectCard(remaining[0]!, 0);
+      const inbox = (run("inbox", { c: "Null" }).result as { Array: Array<{ Row: { recent: { Array: Value[] } } }> }).Array;
+      assert(inbox?.length === 2, "inbox lost a membership");
+      for (const [n, i] of [20, 22].entries()) {
+        assert(inbox[n]!.Row.recent.Array.length === 1, "recent page accumulated a prior iteration");
+        expectCard(inbox[n]!.Row.recent.Array[0]!, i);
+      }
+      const pair = (run("pair", { a: { Id: "m0" }, b: { Id: "m1" } }).result as { Row: Record<string, Value> }).Row;
+      expectCard(pair.first!, 0);
+      expectCard(pair.second!, 1);
     });
   });
 

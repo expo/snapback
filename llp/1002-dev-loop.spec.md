@@ -854,7 +854,9 @@ not discarded merely because an overlapping transition already fenced its
 request: cleanup runs on its own serialized custody queue, clears only while
 that bearer remains current, and carries a completion marker so a replacement
 started during slow persistence still suppresses the old response. Successful
-replacement custody is never cleared by a delayed predecessor response.
+replacement custody is never cleared by a delayed predecessor response. Raw asset
+fetch and XHR follow that same rule before suppressing delivery; successful byte
+bodies recheck authority before leaving the client, including without a cache.
 Closing during persistence never resurrects the instance or changes it from
 `offline`; a login token whose durable save completed may remain available to
 a future client's explicit restore, while the closed operation rejects.

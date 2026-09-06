@@ -12,6 +12,75 @@ import { configureRealOwner, RealOwnerHarness } from "./owner-harness.ts";
 const owner = await configureRealOwner();
 after(async () => owner.close());
 
+// @ref LLP 1012#8-the-delivery-envelope-the-validator-and-resume — a conditional
+// refresh advances seq; a nonempty resume log still returns the full envelope.
+test("reconnect after a conditional refresh replays a queued send for joined and plain inboxes", async (context) => {
+  if (!owner.owned) return context.skip("requires the self-started inbox reduction");
+  const { mkdtemp, rm } = await import("node:fs/promises");
+  const { tmpdir } = await import("node:os");
+  const { join } = await import("node:path");
+  const { fileRangeStore } = await import("../dist/test.mjs");
+  for (const name of ["inbox", "inboxHeld", "inboxPlain"]) await context.test(name, async (t) => {
+    const directory = await mkdtemp(join(tmpdir(), "snapback-reconnect-"));
+    const op = `integration.${name}`;
+    const query = api.integration[name];
+    const args = { c: null };
+    const reads: any[] = [];
+    const resumes: any[] = [];
+    const client = createClient({ url: owner.url, as: "alice", offline: { store: fileRangeStore(directory) },
+      fetch: async (input, init) => {
+        const response = await fetch(input, init);
+        const path = new URL(String(input)).pathname;
+        if (path === "/api/resume") resumes.push(await response.clone().json());
+        if (path === "/api/query" && JSON.parse(String(init?.body)).op === op) reads.push(await response.clone().json());
+        return response;
+      },
+    });
+    const other = createClient({ url: owner.url, as: "alice" });
+    let drain: any;
+    try {
+      await client.ready;
+      drain = client.subscribe(query, args, () => {}, { drain: true });
+      await drain.until((event: any) => event.live === true, 3_000);
+      drain.close();
+      // The grant is now warm. Remounting a drained, nonempty first page
+      // records null as its current tail; the next resume re-delivers it.
+      drain = client.subscribe(query, args, () => {}, { drain: true });
+      await drain.until((event: any) => event.live === true, 3_000);
+      const first = reads.find((read) => read.protocol === 1);
+      assert.ok(first?.data.length > 0);
+      await other.mutation(api.posts.createPost, { body: `unrelated-${name}` });
+      await client.query(query, args);
+      const refreshed = reads.at(-1);
+      assert.equal(refreshed.state, "unchanged");
+      assert.ok(refreshed.seq > first.seq);
+      assert.equal(refreshed.validator, first.validator);
+      await client.offline();
+      const body = `reconnect-${name}-${crypto.randomUUID()}`;
+      const queued = await client.mutation(api.messages.send, { conversationId: "conversation-1", recipientId: "profile-bob", body });
+      assert.equal(queued.state, "queued");
+      let recoveryError: unknown;
+      try { await client.online(); } catch (error) { recoveryError = error; }
+      const { watermark, ...full } = resumes.at(-1).log;
+      assert.equal(typeof watermark, "string");
+      assert.equal(full.seq, refreshed.seq, "resume uses the refreshed seq without another data commit");
+      const fields = Object.keys(first).filter((field) => JSON.stringify(first[field]) !== JSON.stringify(full[field]));
+      assert.deepEqual(fields, ["seq"], "data, pool, receipt, validator and next are byte-identical");
+      assert.deepEqual({ ...full, seq: first.seq }, first);
+      t.diagnostic(`${op}: full seq ${first.seq} -> unchanged/full seq ${full.seq}; differing fields: ${fields.join(", ")}`);
+      assert.equal(recoveryError, undefined, "equivalent re-delivery must release outbox replay");
+      assert.equal((await client.outbox.entries()).find((entry: any) => entry.intent === queued.intent)?.state, "committed");
+      const thread: any = await other.query(api.messages.thread, { conversationId: "conversation-1", c: null });
+      assert.equal(thread.data.filter((row: any) => row.body === body).length, 1);
+      const held = await (client as any).offlineRuntime.store.answer(op, args);
+      assert.ok(held.data.length >= first.data.length, "the resume tail cannot replace the base page");
+    } finally {
+      drain?.close(); await client.close(); await other.close();
+      await rm(directory, { recursive: true, force: true });
+    }
+  });
+});
+
 test("sixty live queries and a channel share one connection through add, remove and reconnect", async (context) => {
   if (!owner.owned) return context.skip("the multi-query probe uses the self-started chat fixture");
   let streams = 0;

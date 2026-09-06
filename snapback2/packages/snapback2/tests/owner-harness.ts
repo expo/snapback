@@ -29,6 +29,15 @@ async function addIntegrationOperations(root: string, withDeliveries: boolean): 
 query denied(conversationId: id):
   require exists memberships[conversationId, viewer] else MEMBERSHIP_REQUIRED
   return true
+
+query inbox(c: cursor ?):
+  return deliveries[viewer] after c first 20 by byRecipientAt { id, conversationId: conversations[.conversationId] { *, creatorProfile: profiles[.creatorId] } }
+
+query inboxHeld(c: cursor ?):
+  return deliveries[viewer] after c first 20 by byRecipientAt { id, conversationId, chat: conversations[.conversationId] { *, creatorProfile: profiles[.creatorId] } }
+
+query inboxPlain(c: cursor ?):
+  return deliveries[viewer] after c first 20 by byRecipientAt
 ${withDeliveries ? `
 mutation logMessage(messageId: messages):
   msg = messages[messageId] ! else NOT_FOUND

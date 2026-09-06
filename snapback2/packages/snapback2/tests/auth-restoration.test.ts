@@ -1218,7 +1218,7 @@ for (const body of ["terminal-refusal", "invalid-refusal-json", "invalid-success
 }
 
 for (const stage of ["replay-fetch", "replay-body", "tail-fetch"] as const) {
-  for (const interruption of ["offline", "failed-login", "close"] as const) {
+  for (const interruption of ["offline", "failed-login", "close", "expiry"] as const) {
     test(`${interruption} releases a mutation-owned drain during ignored ${stage} abort`, async context => {
       const factory = offlineStore(context), owner = fakeOwner(), store = custody("dev:alice");
       await seededStore(factory);
@@ -1229,7 +1229,8 @@ for (const stage of ["replay-fetch", "replay-body", "tail-fetch"] as const) {
       let mutation: Promise<unknown> | undefined, transition: Promise<unknown> | undefined;
       const fetch: typeof globalThis.fetch = async (input, init) => {
         const path = new URL(String(input)).pathname;
-        if (path === "/api/auth/login") return refusal("E_AUTH_INVALID");
+        if (path === "/api/auth/login" && interruption === "failed-login") return refusal("E_AUTH_INVALID");
+        if (path === "/api/upload") return refusal("E_AUTH_SESSION");
         if (path === "/api/mutation") replays.push(String(init?.body));
         const response = await owner.fetch(input, init);
         const target = stage === "tail-fetch" ? path === "/api/query" && replays.length > 0 : path === "/api/mutation";
@@ -1255,6 +1256,7 @@ for (const stage of ["replay-fetch", "replay-body", "tail-fetch"] as const) {
         assert.equal((await client.outbox.entries()).filter(entry => entry.state === "queued").length, 1);
         transition = (interruption === "failed-login"
           ? assert.rejects(client.auth.login({ email: "alice@example.com", password: "wrong" }), (error: any) => error.code === "E_AUTH_INVALID")
+          : interruption === "expiry" ? assert.rejects(client.upload(new File(["a"], "photo.png")), (error: any) => error.code === "E_AUTH_SESSION")
           : interruption === "close" ? client.close() : client.offline()).then(() => { transitionDone = true; });
         void transition.catch(() => undefined);
         for (let i = 0; i < 30 && !(mutationDone && transitionDone); i++) await flush();
@@ -1262,6 +1264,11 @@ for (const stage of ["replay-fetch", "replay-body", "tail-fetch"] as const) {
         assert.equal(mutationDone, true, "the tracked write must release without the obsolete transport cooperating");
         assert.equal(transitionDone, true, "auth transition must not remain behind the tracked write");
         await transition; await mutation;
+        if (interruption === "expiry") {
+          assert.equal(store.load(), null); assert.equal(client.snapshot.auth.state, "anonymous");
+          await assert.rejects(client.outbox.settled(), (error: any) => error.name === "AbortError");
+          await client.auth.login({ email: "alice@example.com", password: "password" });
+        }
         let active = client;
         if (interruption === "close") { successor = createClient(options); active = successor; await successor.ready; }
         else await client.online();
@@ -1279,4 +1286,131 @@ for (const stage of ["replay-fetch", "replay-body", "tail-fetch"] as const) {
       }
     });
   }
+}
+
+for (const automatic of [false, true]) for (const stage of ["fetch", "body"] as const) {
+  for (const replacement of ["failed", "successful"] as const) {
+    test(`${automatic ? "automatic" : "direct"} upload retains terminal ${stage} evidence during ${replacement} login`, async context => {
+      const factory = offlineStore(context), owner = fakeOwner(), store = custody("dev:alice");
+      await seededStore(factory);
+      const started = deferred<void>(), release = deferred<void>();
+      const saves: Array<string | null> = [], save = store.save;
+      store.save = value => { saves.push(value); save(value); };
+      const client = createClient({ url: "http://auth.test", tokenStore: store, offline: { store: factory },
+        fetch: async (input, init) => {
+          const path = new URL(String(input)).pathname;
+          if (path === "/api/upload") {
+            const response = refusal("E_AUTH_SESSION");
+            if (stage === "body") {
+              const parse = response.json.bind(response);
+              response.json = async () => { started.resolve(); await release.promise; return parse(); };
+            } else { started.resolve(); await release.promise; }
+            return response;
+          }
+          if (path === "/api/auth/login" && replacement === "failed") return refusal("E_AUTH_INVALID");
+          const response = await owner.fetch(input, init);
+          if (path === "/api/manifest") {
+            const value = await response.json();
+            value.ops["deliveries.post"] = { kind: "mutation", planHash: "f".repeat(64), args: { photo: { Image: { max: 16 } } } };
+            return json(value);
+          }
+          return response;
+        } });
+      let upload: Promise<any> | undefined, login: Promise<any> | undefined;
+      try {
+        await client.ready; await client.auth.me(); await client.outbox.settled();
+        const source = new File(["a"], "photo.png");
+        upload = (automatic ? client.mutation(api.deliveries.post, { photo: source }) : client.upload(source))
+          .then(value => value, error => error);
+        await started.promise;
+        login = client.auth.login({ email: "alice@example.com", password: "password" }).then(value => value, error => error);
+        release.resolve();
+        assert.equal((await upload).code, "E_AUTH_SUPERSEDED");
+        await login;
+        assert.ok(saves.includes(null), "terminal evidence must clear captured custody before the transition completes");
+        if (replacement === "failed") {
+          assert.equal(store.load(), null); assert.equal(client.snapshot.auth.state, "anonymous");
+          assert.equal((await client.outbox.status()).reason, "sealed", "expired offline custody stays sealed");
+        } else {
+          assert.equal(store.load(), "token-alice"); assert.equal(client.snapshot.auth.state, "authenticated");
+          assert.equal(saves.at(-1), "token-alice", "predecessor evidence cannot clear installed successor custody");
+        }
+      } finally { release.resolve(); await Promise.allSettled([upload, login]); await client.close(); }
+    });
+  }
+}
+
+for (const stage of ["replay", "tail"] as const) {
+  test(`terminal ${stage} cancels sibling drains while preserving its own refusal`, async context => {
+    const factory = offlineStore(context), owner = fakeOwner(), store = custody("dev:alice");
+    await seededStore(factory);
+    const started = deferred<void>(), release = deferred<void>();
+    let armed = false, mutations = 0, originSignal: AbortSignal | null | undefined;
+    const client = createClient({ url: "http://auth.test", tokenStore: store, offline: { store: factory },
+      fetch: async (input, init) => {
+        const path = new URL(String(input)).pathname;
+        if (path === "/api/mutation") mutations++;
+        if (armed && (stage === "replay" ? path === "/api/mutation" : path === "/api/query" && mutations > 0)) {
+          originSignal = init?.signal; started.resolve(); await release.promise;
+          return refusal("E_AUTH_SESSION");
+        }
+        return owner.fetch(input, init);
+      } });
+    let mutation: Promise<any> | undefined, sibling: Promise<any> | undefined;
+    try {
+      await client.ready; await client.auth.me(); await client.outbox.settled(); armed = true;
+      mutation = client.mutation(api.deliveries.post, { conversationId: "conversation-1", body: "terminal" }).catch(error => error);
+      await started.promise;
+      sibling = client.outbox.drain().catch(error => error);
+      await flush(); release.resolve();
+      assert.equal((await mutation).code, "E_AUTH_SESSION", "originating terminal evidence must not become AbortError");
+      assert.equal(originSignal?.aborted, false);
+      assert.equal((await sibling).name, "AbortError", "the queued sibling drain must be released by expiry");
+      assert.equal(store.load(), null); assert.equal(client.snapshot.lastRefusal?.code, "E_AUTH_SESSION");
+      assert.equal((await client.outbox.status()).reason, "sealed");
+    } finally { release.resolve(); await Promise.allSettled([mutation, sibling]); await client.close(); }
+  });
+}
+
+for (const stage of ["replay", "tail"] as const) {
+  test(`FIFO ${stage} expiry reaches the new mutation before enqueue and keeps only the older intent`, async context => {
+    const factory = offlineStore(context), owner = fakeOwner(), store = custody("dev:alice");
+    await seededStore(factory);
+    let mode: "transport" | "expiry" | "recovery" = "transport";
+    const replays: string[] = [];
+    const client = createClient({ url: "http://auth.test", tokenStore: store, offline: { store: factory },
+      fetch: async (input, init) => {
+        const path = new URL(String(input)).pathname;
+        if (path === "/api/mutation") {
+          replays.push(String(init?.body));
+          if (mode === "transport") return new Response("cut", { status: 503 });
+          if (mode === "expiry" && stage === "replay") return refusal("E_AUTH_SESSION");
+        }
+        if (mode === "expiry" && stage === "tail" && path === "/api/query") return refusal("E_AUTH_SESSION");
+        return owner.fetch(input, init);
+      } });
+    try {
+      await client.ready; await client.auth.me(); await client.outbox.settled();
+      const older = await client.mutation(api.deliveries.post, { conversationId: "conversation-1", body: "older durable intent" });
+      assert.equal(older.state, "queued");
+      const queued = await client.outbox.entries();
+      assert.equal(queued.length, 1); assert.equal(queued[0].state, "queued");
+      mode = "expiry";
+      await assert.rejects(client.mutation(api.deliveries.post, { conversationId: "conversation-1", body: "new unaccepted intent" }),
+        (error: any) => error.code === "E_AUTH_SESSION", "FIFO session death is not an older intent's ordinary refusal");
+      await assert.rejects(client.outbox.settled(), (error: any) => error.code === "E_AUTH_SESSION");
+      assert.equal(client.snapshot.lastRefusal?.code, "E_AUTH_SESSION");
+      assert.equal(client.snapshot.auth.state, "anonymous"); assert.equal(store.load(), null);
+      assert.equal((await client.outbox.status()).reason, "sealed");
+      assert.equal(replays.length, 2); assert.equal(replays[1], replays[0]);
+      mode = "recovery";
+      await client.auth.login({ email: "alice@example.com", password: "password" }); await client.online();
+      assert.deepEqual(await client.outbox.settled(), { stopped: false, remaining: 0 });
+      assert.equal(replays[2], replays[0], "recovery must retry the exact older envelope");
+      assert.deepEqual(owner.executions.map(entry => (entry.args as any).body), ["older durable intent"],
+        "the refused new call must never have entered durable custody or reached the owner");
+      assert.equal(owner.messages.size, 1, "a tail failure after commit still executes the older intent only once");
+      assert.equal(store.load(), "token-alice");
+    } finally { await client.close(); }
+  });
 }

@@ -21,7 +21,7 @@ ultra, grok-4.6 at xhigh), `llp/reviews/1011-quarry-ergonomics.*`
 **Implementer:** codex gpt-5.6-sol (xhigh), lane `s2/quarry-ergo`
 (`~/projects/snapback-s2`), orchestrated and landed by Claude Fable 5.1
 **Date:** 2026-09-03
-**Revised:** 2026-09-06 (conditional page returns implemented by GPT-6 Astra; certification-derived provenance); 2026-09-05 (null keys and non-empty Id literals implemented by GPT-6 Astra, Clique L2); 2026-09-05 (d — Codex implements imported shapes, read-authorized
+**Revised:** 2026-09-06 (nested named-shape collection snapshots implemented by GPT-6 Astra; conditional page returns implemented by GPT-6 Astra; certification-derived provenance); 2026-09-05 (null keys and non-empty Id literals implemented by GPT-6 Astra, Clique L2); 2026-09-05 (d — Codex implements imported shapes, read-authorized
 write results, and order-preserving filter repairs under the author's request
 to advance Quarry); 2026-09-03 (c — implemented: §8 records the two lane commits
 and the one re-pinned expectation); 2026-09-03 (b — after the panel: `fn` deferred and `shape` kept;
@@ -238,6 +238,16 @@ Expanded instances receive distinct temporaries while retaining definition
 and use sites. The depth-8 limit is joined by a 4,096-node expansion bound so
 a broad acyclic shape cannot explode the compilation work. The Clique fixture
 shares its author and feed cards across modules as executed coverage.
+
+Nested collection fields use an explicit spread copy at the generated binding
+that preserves the field's diagnostic site. That binding must not alias the
+mutable shape collector (LLP 1002 §2's collection mutation ruling); internal
+name spelling grants no exemption. Each expansion and enclosing row iteration
+keeps its own collection, including when a named shape contains both point
+enrichment and another named collection shape. Every nested read still counts
+toward the certificate and obeys its read rule; a nested page cannot take over
+the enclosing result's cursor. The compiler regression covers local/imported
+message cards in history, inbox recent-message pages, and repeated point uses.
 
 ## B3. One missing-row rule; no `id` in an upsert row
 

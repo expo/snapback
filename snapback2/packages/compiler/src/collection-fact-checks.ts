@@ -175,6 +175,25 @@ export const lookup = query({ first: t.text(40), second: t.text(40) }, ({ db, ar
     assert(ownerPaste.ok, `later-alias copy rewrite did not compile: ${JSON.stringify(ownerPaste)}`);
   });
 
+  test("generated-looking collection names retain ordinary alias and escape safety", () => {
+    for (const sharing of [
+      "const __q_shapeField_3_178_s42 = __q_rows_3_178_s41;",
+      "const box = { targets: __q_rows_3_178_s41 };",
+    ]) {
+      const result = lowerSource(`import { query, t } from "snapback2";
+export const collect = query({ key: t.text(40) }, ({ args }) => {
+  const __q_rows_3_178_s41 = [];
+  ${sharing}
+  __q_rows_3_178_s41.push(args.key);
+  return __q_rows_3_178_s41;
+});`, "generated-looking-alias.ts");
+      const diagnostic = mutationDiagnostic(result);
+      assert(diagnostic.site.startsWith("generated-looking-alias.ts:5:"), "name spelling bypassed alias safety");
+      assert(diagnostic.rewrite.includes("[...__q_rows_3_178_s41]"), "real sharing lost its explicit copy repair");
+      assert(lowerSource(diagnostic.rewrite, "generated-looking-alias.ts").ok, "copy repair still refused");
+    }
+  });
+
   test("unaliased literal accumulators compile while alias-of-copy mutation refuses", () => {
     const accumulator = lowerOne(`import { query, t } from "snapback2";
 export const lookup = query({ key: t.text(40) }, ({ db, args }) => {
