@@ -836,7 +836,10 @@ function shapeObject(fields: ShapeField[], focal: Binding, env: Environment, wri
         const value = emitExpr(field.value, env, writer);
         if (field.site.expandedFrom) {
           const projected = temporary("shapeField", field.site);
-          writer.statement(`const ${projected} = ${value.code};`, field.site);
+          // @ref LLP 1011#shape-imports-and-hygiene-2026-09-05 — a diagnostic-site binding must copy a nested collector, never alias its mutable owner.
+          const snapshot = value.type.kind === "sequence" || value.type.kind === "page"
+            ? `[...${value.code}]` : value.code;
+          writer.statement(`const ${projected} = ${snapshot};`, field.site);
           properties.push(`${property(field.name)}: ${projected}`);
         } else properties.push(`${property(field.name)}: ${value.code}`);
         types.set(field.name, value.type);
