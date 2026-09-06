@@ -160,6 +160,9 @@ function ruleExpr(expr: Expr, catalog: TableCatalog, context: RuleContext): stri
     return `rule.${expr.op === "=" ? "eq" : "ne"}(${left.code}, ${right.code})`;
   }
   if (expr.kind === "exists" || expr.kind === "created") {
+    if (expr.read.table === "connected") refuse(expr.site,
+      "connected is only readable in queries and mutations, not rules",
+      "move exists connected[viewer] into a query or mutation; keep table rules based on durable facts");
     const index = selectIndex(catalog, expr.read.table, expr.read.keys, "exists", expr.read.index, (value) => ruleTermType(value, context), expr.site);
     const keys = expr.read.keys.map((key) => ruleTerm(key.value, context).code).join(", ");
     return `rule.${expr.kind}(${expr.read.table}, ${JSON.stringify(index.name)}, [${keys}])`;

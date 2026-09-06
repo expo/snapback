@@ -3,6 +3,7 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { canonicalValue, ClientStore, type Context, type Value } from "../../evaluator/src/evaluator";
 import { lowerSource, type TableInfo } from "./compiler";
+import { lowerSchema } from "./lower/schema";
 import { lowerProject } from "./project";
 import { rustCheck } from "./rust-check";
 import { assert, compileInline, diagnosticsText, operation, withProject, type Test } from "./quarry-check-helpers";
@@ -57,6 +58,25 @@ function refusal(source: string, text: string, declarations = schema) {
 }
 
 export function registerQuarryLanguageChecks(test: Test, frontend: string): void {
+  test("connected schema declarations refuse instead of disappearing in the TS lowerer", () => {
+    const result = lowerSchema(`import { schema, table, t } from "snapback2";
+export const connected = table({ columns: { value: t.int() } });
+export default schema({ tables: { connected } });`, "snapback/schema.ts");
+    const refusal = result.diagnostics.find(item => item.code === "E_SCHEMA_RESERVED");
+    assert(refusal?.site?.startsWith("snapback/schema.ts:") && !!refusal.rewrite, JSON.stringify(result));
+  });
+  test("connected refuses Quarry maintains and table rules with a site and rewrite", () => {
+    for (const declarations of [
+      schema + "\nmaintain counts = count connected by principal:\n  read <- allow\n",
+      "use identity\ntable notes:\n  body: text <=100\n  read <- exists connected[viewer]\n",
+    ]) {
+      const result = compile("query ok():\n  return true\n", declarations);
+      assert(!result.ok, "connected admitted a nonprogram surface");
+      if (!result.ok) assert(result.diagnostics.some(item =>
+        /^snapback\/schema\.q:[1-9][0-9]*:[1-9][0-9]*$/.test(item.site ?? "")
+        && item.rewrite?.includes("query") && !!item.family && !!item.guide), diagnosticsText(result.diagnostics));
+    }
+  });
   test("connected certifies one probe per principal read and refuses nonprogram surfaces", async () => {
     await project("query count(p: principal):\n  return #connected[p]\nquery online():\n  return exists connected[viewer]\nmutation gate(p: principal):\n  require exists connected[p] else OFFLINE\n  return #connected[p]\n", result => {
       assert(!("connected" in result.project.schema.tables) && !("_connected" in result.project.schema.tables), "virtual table leaked into durable schema");

@@ -43,16 +43,18 @@ when `connected` is not enough; its lag is the heartbeat interval plus the expir
 delay; disconnects are seen late. Do not gate delivery solely on it: use durable receipts and a delayed
 check for an unacknowledged message.
 
+## Connected
+
 `connected` is a read-only virtual table: `exists connected[p]` tests whether
 principal `p` has a live connection; `#connected[p]` counts connections. Pass one
 nonoptional principal (for yourself, `viewer`) in a query or mutation. Programs
-choose what to expose; the virtual table has no rules. It counts authenticated
-SSE transports, once per transport regardless of query/channel subscriptions,
+choose what to expose; rules and maintains cannot read it. It counts authenticated
+SSE transports (including personas via `--as`), once per transport regardless of query/channel subscriptions,
 from identity establishment until stream close; revocation cuts that session's
 streams. A silent partition is detected on a failed write, with no latency
 guarantee. Each read charges one probe and touches `_connected` at that principal.
-Connect/close invalidates those live queries with a one-second coalesce. Every
-program sees one owner-turn snapshot; changes during it appear next turn. Offline,
+Each program sees one immutable snapshot per program run. Connect/close is
+visible to the next execute; live reruns wait up to 1 s to coalesce changes. Offline,
 a program reading `connected` is `hydrating` and never predicted, even with a
 cached answer. Connections say nothing about foreground/idle state or delivery
 guarantees; this adds no channel kind or subscriber-set broadcast.

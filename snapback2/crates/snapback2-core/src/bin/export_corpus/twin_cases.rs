@@ -1,6 +1,7 @@
 use super::*;
 
 pub(super) fn add_connected_case(cases: &mut Vec<CorpusCase>) {
+    add_missing_authority_results(cases);
     let schema = Schema::default();
     let program = Program {
         name: "connected-live-registry".into(),
@@ -48,6 +49,177 @@ pub(super) fn add_connected_case(cases: &mut Vec<CorpusCase>) {
     assert_eq!(case.expected.local_state, "partial");
     assert_eq!(case.expected.partial_sites, vec!["missing-authority"]);
     cases.push(case);
+}
+
+fn add_missing_authority_results(cases: &mut Vec<CorpusCase>) {
+    let mut schema = Schema {
+        tables: BTreeMap::from([(
+            "notes".into(),
+            public_table(
+                BTreeMap::from([
+                    ("id".into(), ColumnType::Id),
+                    ("name".into(), ColumnType::Text { max: 20 }),
+                ]),
+                BTreeMap::from([(
+                    "byId".into(),
+                    Index {
+                        columns: vec!["id".into()],
+                        unique: true,
+                    },
+                )]),
+            ),
+        )]),
+        ..Schema::default()
+    };
+    let mut grants = public_table(
+        BTreeMap::from([("id".into(), ColumnType::Id)]),
+        BTreeMap::from([(
+            "byId".into(),
+            Index {
+                columns: vec!["id".into()],
+                unique: true,
+            },
+        )]),
+    );
+    grants.rules.read = RuleExpr::Deny;
+    schema.tables.insert("grants".into(), grants);
+    schema.tables.get_mut("notes").unwrap().rules.read = RuleExpr::Exists {
+        table: "grants".into(),
+        index: "byId".into(),
+        key: vec![RuleTerm::Literal(Value::Id("grant".into()))],
+        provenance: KeyProvenance::Const,
+    };
+    let durable = Read {
+        site: "note".into(),
+        table: "notes".into(),
+        index: "byId".into(),
+        key: vec![Expr::Literal(Value::Id("note1".into()))],
+        provenance: KeyProvenance::Const,
+    };
+    let connected = Read {
+        site: "connected".into(),
+        table: CONNECTED_TABLE.into(),
+        index: CONNECTED_INDEX.into(),
+        key: vec![Expr::Input(Input::Viewer)],
+        provenance: KeyProvenance::Viewer,
+    };
+    let mut engine = Engine::memory(schema.clone()).unwrap();
+    engine
+        .seed(
+            "notes",
+            object([
+                ("id", Value::Id("note1".into())),
+                ("name", Value::String("Alice".into())),
+            ]),
+        )
+        .unwrap();
+    engine
+        .seed("grants", object([("id", Value::Id("grant".into()))]))
+        .unwrap();
+    engine.set_connected(BTreeMap::from([("alice".into(), 2)]));
+    for mixed in [false, true] {
+        let name = if mixed {
+            "connected-mixed-receipt-null"
+        } else {
+            "durable-missing-authority-result-null"
+        };
+        let field_when_present = |binding: &str, field: &str, target: &str| Stmt::If {
+            condition: Expr::Binary {
+                op: BinaryOp::Ne,
+                left: Box::new(var(binding)),
+                right: Box::new(Expr::Literal(Value::Null)),
+            },
+            then_body: vec![Stmt::Assign {
+                name: target.into(),
+                value: Expr::Field {
+                    base: Box::new(var(binding)),
+                    name: field.into(),
+                },
+            }],
+            else_body: vec![],
+        };
+        let mut body = vec![
+            Stmt::Let {
+                name: "note".into(),
+                value: Expr::Get(durable.clone()),
+            },
+            Stmt::Let {
+                name: "name".into(),
+                value: Expr::Literal(Value::Null),
+            },
+            field_when_present("note", "name", "name"),
+            Stmt::Let {
+                name: "n".into(),
+                value: Expr::Literal(Value::Int(0)),
+            },
+        ];
+        if mixed {
+            body.push(Stmt::Let {
+                name: "connection".into(),
+                value: Expr::Get(connected.clone()),
+            });
+            body.push(field_when_present("connection", "value", "n"));
+        } else {
+            body.push(Stmt::Assign {
+                name: "n".into(),
+                value: Expr::Literal(Value::Int(7)),
+            });
+        }
+        body.push(Stmt::Return(Expr::Object(BTreeMap::from([
+            ("name".into(), var("name")),
+            ("n".into(), var("n")),
+        ]))));
+        let program = Program {
+            name: name.into(),
+            kind: ProgramKind::Query,
+            args: BTreeMap::new(),
+            read_time_granularity_ms: None,
+            result_page_site: None,
+            body,
+        };
+        let certificate = Checker::new(&schema, Ceilings::default())
+            .check(&program)
+            .unwrap();
+        let context = Context::query(Actor::user("alice").unwrap(), BTreeMap::new());
+        let execution = engine
+            .execute(&program, &certificate, context.clone())
+            .unwrap();
+        assert_eq!(
+            execution.result.field("name").unwrap(),
+            &Value::String("Alice".into())
+        );
+        let mut receipt = execution.receipt;
+        if !mixed {
+            assert!(!receipt.verdicts.is_empty());
+            receipt.verdicts.clear();
+        }
+        assert!(
+            !receipt.rows.is_empty(),
+            "the partial query retains its durable row"
+        );
+        let case = case_from_parts(
+            name,
+            if mixed { "connected" } else { "authority" },
+            schema.clone(),
+            program,
+            context,
+            receipt,
+            vec![],
+            None,
+            None,
+        );
+        assert_eq!(case.expected.local_state, "partial");
+        assert_eq!(case.expected.partial_sites, vec!["missing-authority"]);
+        assert_eq!(case.expected.local_result, Some(Value::Null));
+        cases.push(case);
+    }
+}
+
+#[test]
+fn missing_authority_discards_computed_durable_and_mixed_results() {
+    let mut cases = Vec::new();
+    add_missing_authority_results(&mut cases);
+    assert_eq!(cases.len(), 2);
 }
 
 pub(super) fn add_twin_cases(cases: &mut Vec<CorpusCase>) {

@@ -93,7 +93,7 @@ export async function lowerProject(root: string, options: LowerProjectOptions = 
     sourceFile: ts.createSourceFile(path, source, ts.ScriptTarget.ES2022, true),
   }));
   const schemaFileName = relativeSite(projectRoot, schemaPath);
-  const schema = lowerSchema(schemaSource, schemaFileName);
+  const schema = lowerSchema(schemaSource, schemaFileName, hasQuarrySchema);
   const programPaths = [...tsModulePaths, ...quarryPaths.filter((path) => basename(path) !== "schema.q")];
   const diagnostics = [
     ...schema.diagnostics,
@@ -333,6 +333,7 @@ export async function lowerSeed(root: string): Promise<
   }
 
   let schemaSource: string;
+  let quarrySchema = false;
   try {
     schemaSource = await readFile(join(projectRoot, "snapback", "schema.ts"), "utf8");
   } catch {
@@ -346,8 +347,9 @@ export async function lowerSeed(root: string): Promise<
     const compiled = compileQuarry(inputs);
     if (!compiled.ok) return { ok: false, diagnostics: compiled.diagnostics };
     schemaSource = compiled.schema.source;
+    quarrySchema = true;
   }
-  const loweredSchema = lowerSchema(schemaSource, "snapback/schema.ts");
+  const loweredSchema = lowerSchema(schemaSource, "snapback/schema.ts", quarrySchema);
   if (loweredSchema.diagnostics.length > 0) return { ok: false, diagnostics: loweredSchema.diagnostics };
   const tables = loweredSchema.schema.tables as Record<string, { columns?: Record<string, unknown> }>;
   const rows = record.rows as Record<string, unknown>;

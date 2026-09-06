@@ -1,0 +1,291 @@
+{
+  "corpusVersion": 1,
+  "name": "durable-missing-authority-result-null",
+  "category": "authority",
+  "randomSeed": null,
+  "schema": {
+    "tables": {
+      "grants": {
+        "columns": {
+          "id": "Id"
+        },
+        "indexes": {
+          "byId": {
+            "columns": [
+              "id"
+            ],
+            "unique": true
+          }
+        },
+        "rules": {
+          "read": "Deny",
+          "insert": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          },
+          "update": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          },
+          "delete": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          }
+        },
+        "constraints": [],
+        "retain": "until-revoked"
+      },
+      "notes": {
+        "columns": {
+          "id": "Id",
+          "name": {
+            "Text": {
+              "max": 20
+            }
+          }
+        },
+        "indexes": {
+          "byId": {
+            "columns": [
+              "id"
+            ],
+            "unique": true
+          }
+        },
+        "rules": {
+          "read": {
+            "Exists": {
+              "table": "grants",
+              "index": "byId",
+              "key": [
+                {
+                  "Literal": {
+                    "Id": "grant"
+                  }
+                }
+              ],
+              "provenance": "Const"
+            }
+          },
+          "insert": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          },
+          "update": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          },
+          "delete": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          }
+        },
+        "constraints": [],
+        "retain": "until-revoked"
+      }
+    },
+    "maintains": []
+  },
+  "program": {
+    "name": "durable-missing-authority-result-null",
+    "kind": "Query",
+    "args": {},
+    "read_time_granularity_ms": null,
+    "body": [
+      {
+        "Let": {
+          "name": "note",
+          "value": {
+            "Get": {
+              "site": "note",
+              "table": "notes",
+              "index": "byId",
+              "key": [
+                {
+                  "Literal": {
+                    "Id": "note1"
+                  }
+                }
+              ],
+              "provenance": "Const"
+            }
+          }
+        }
+      },
+      {
+        "Let": {
+          "name": "name",
+          "value": {
+            "Literal": "Null"
+          }
+        }
+      },
+      {
+        "If": {
+          "condition": {
+            "Binary": {
+              "op": "Ne",
+              "left": {
+                "Variable": "note"
+              },
+              "right": {
+                "Literal": "Null"
+              }
+            }
+          },
+          "then_body": [
+            {
+              "Assign": {
+                "name": "name",
+                "value": {
+                  "Field": {
+                    "base": {
+                      "Variable": "note"
+                    },
+                    "name": "name"
+                  }
+                }
+              }
+            }
+          ],
+          "else_body": []
+        }
+      },
+      {
+        "Let": {
+          "name": "n",
+          "value": {
+            "Literal": {
+              "Int": 0
+            }
+          }
+        }
+      },
+      {
+        "Assign": {
+          "name": "n",
+          "value": {
+            "Literal": {
+              "Int": 7
+            }
+          }
+        }
+      },
+      {
+        "Return": {
+          "Object": {
+            "n": {
+              "Variable": "n"
+            },
+            "name": {
+              "Variable": "name"
+            }
+          }
+        }
+      }
+    ]
+  },
+  "certificate": {
+    "program": "durable-missing-authority-result-null",
+    "plan_hash": "741297efee387ba2f5eb5f70083a36dd07da4b1a899ce433bf16fda00b86bf77",
+    "schema_hash": "e31413ea38ae07d0a81828ea716c3f35a2cf07bfb4c40acba68a07b449098d6e",
+    "tables": {
+      "grants": {
+        "retain": "until-revoked"
+      },
+      "notes": {
+        "retain": "until-revoked"
+      }
+    },
+    "rule_hashes": {
+      "notes.read": "87253ac38610ad7138935323d40dbf53821fc25be498f0b521f959aad73c6c39"
+    },
+    "evaluator_version": "bounded-spike-rust-1",
+    "value_model_version": "i53-codepoint-bytes-v2",
+    "read_sites": [
+      {
+        "site": "note",
+        "table": "notes",
+        "index": "byId",
+        "prefix_template": "Const",
+        "take": 1,
+        "max_calls": 1,
+        "rule_probes_per_candidate": 1,
+        "hoist": false,
+        "complete": false
+      }
+    ],
+    "write_sites": [],
+    "maintained_amplification": 0,
+    "constraint_checks": [],
+    "max_examined": 1,
+    "max_index_entries": 1,
+    "max_rule_probes": 1,
+    "max_steps": 24,
+    "max_heap_bytes": 768,
+    "max_output_bytes": 136,
+    "max_closure_bytes": 104,
+    "completeness": "Page",
+    "prediction_sites": [],
+    "read_time_granularity_ms": null,
+    "halo_rows": 1,
+    "indexes_required": [
+      "grants.byId",
+      "notes.byId"
+    ],
+    "disclosures": [],
+    "bound_product": "note point read on notes × 1 calls = 1"
+  },
+  "context": {
+    "viewer": "alice",
+    "principal_kind": "user",
+    "auth_epoch": 1,
+    "args": {},
+    "now": null,
+    "new_ids": [],
+    "read_time": null
+  },
+  "receipt": {
+    "schema_hash": "e31413ea38ae07d0a81828ea716c3f35a2cf07bfb4c40acba68a07b449098d6e",
+    "rows": [
+      {
+        "table": "notes",
+        "id": "note1",
+        "row": {
+          "Row": {
+            "id": {
+              "Id": "note1"
+            },
+            "name": {
+              "String": "Alice"
+            }
+          }
+        }
+      }
+    ],
+    "ranges": [],
+    "absences": [],
+    "verdicts": []
+  },
+  "prelude": [],
+  "replacementReceipt": null,
+  "expected": {
+    "localResult": "Null",
+    "errorCode": null,
+    "localState": "partial",
+    "partialSites": [
+      "missing-authority"
+    ],
+    "canonicalResult": "\"Null\"",
+    "digest": "6c7382d463fdb189bd1075f11b73b2335f49de592445abdd337b62ff8b9c5ece",
+    "rangeStops": {},
+    "evictedRows": null,
+    "next": null
+  }
+}

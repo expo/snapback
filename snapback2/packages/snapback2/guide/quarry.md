@@ -1,7 +1,7 @@
 # Quarry v0.3
 
-Quarry is Snapback 2's only backend authoring language. `snapback2 check` compiles `.q`
-in memory and writes an inspection copy under `.snapback/build/quarry/`.
+Quarry is the only backend language. `check` compiles `.q` in memory, writes an
+inspection copy in `.snapback/build/quarry/`, and puts no generated files in `snapback/`.
 
 ## Project
 

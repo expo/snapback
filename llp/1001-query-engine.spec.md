@@ -5,7 +5,7 @@
 **Systems:** `snapback2/crates/snapback2-core` (`store`, `registry`, `live`, `identity`, `successor`, the engine, the IR)
 **Author:** Claude Fable 5 (orchestrator) — implementer: codex gpt-5.6-sol, lane A
 **Date:** 2026-08-29
-**Revised:** 2026-09-05 (Clique L12 — §5.1 specifies `connected`; Clique L3 — honest bound refusals and patch-sensitive cap metering; LLP 1016 J2 — §1's system tables gain `_jobs` and `_timers`; LLP 1017 §1, then §2 and §3)
+**Revised:** 2026-09-05 (Clique L12 — §3 receipt-only null invariant and §5.1 `connected`; Clique L3 — honest bound refusals and patch-sensitive cap metering; LLP 1016 J2 — §1's system tables gain `_jobs` and `_timers`; LLP 1017 §1, then §2 and §3)
 **Related:** LLP 1000, LLP 1002 (the loop that serves this), LLP 1003 (effects
 through the outbox this spec defines), LLP 0329.014.004 §7 (runtime), LLP
 0329.014.000 §6 (execution, trace, states), LLP 0329.016 §5.6 (no silent
@@ -181,6 +181,11 @@ reads into a certificate that only one of them can execute.
 | `Capped` | the certificate marks any site capped-only because its rule is not provably uniform over the scanned prefix, or an authoritative-trace range stopped `Limit`; this is one opaque label with no site, stop reason, or take echo |
 | `Partial { reason }` | reserved for the client twin (coverage miss); the server never returns it |
 | `Denied { rule }` | `RuntimeError::Rule` on a read site, or `RuntimeError::Require { code }` raised inside a query (`rule = code`) — the program refusing is the honest "denied" (review ruling 2026-08-30, M1) |
+
+A local receipt-only re-execution with missing authority yields `Null`, never
+a computed partial value, in both the Rust engine and TypeScript evaluator.
+This holds for ordinary durable reads and mixed durable/`connected` results;
+the partial state records the missing authority separately.
 
 **Amendment — Ruled by the author 2026-08-30.** `take` counts visible rows
 only. A denied candidate consumes the certified examined and rule-probe budgets,

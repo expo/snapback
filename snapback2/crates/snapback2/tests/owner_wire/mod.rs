@@ -145,6 +145,14 @@ impl Sse {
         Self::open_with_header(port, path, "X-Snapback-As", persona)
     }
 
+    pub(super) fn live_anonymous(port: u16) -> Self {
+        Self::open_stream(port, "POST", "/api/live", "Accept", "text/event-stream")
+    }
+
+    pub(super) fn shutdown(&self) {
+        self.reader.get_ref().shutdown(Shutdown::Both).unwrap();
+    }
+
     pub(super) fn open_bearer(port: u16, path: &str, token: &str) -> Self {
         let authorization = format!("Bearer {token}");
         Self::open_with_header(port, path, "Authorization", &authorization)

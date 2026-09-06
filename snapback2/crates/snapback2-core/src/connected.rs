@@ -110,6 +110,46 @@ mod tests {
     }
 
     #[test]
+    fn execute_uses_one_immutable_snapshot_and_next_execute_refreshes_it() {
+        let schema = Schema::default();
+        let query = program(Expr::Array(vec![
+            Expr::Get(read()),
+            Expr::Get(read()),
+            Expr::Exists(read()),
+        ]));
+        let checker = Checker::new(&schema, Ceilings::default());
+        let certificate = checker.check(&query).unwrap();
+        let mut mutation = program(Expr::Literal(Value::Null));
+        mutation.kind = ProgramKind::Mutation;
+        let paired = checker.check_pair(&query, &mutation).unwrap();
+        assert_eq!(paired.prediction_sites[0].mode, PredictionMode::Partial);
+        let mut engine = Engine::memory(schema).unwrap();
+        let context = context();
+        let mut results = Vec::new();
+        for count in [1, 2, 0] {
+            // Engine exclusively borrows itself for execute: owner actions can
+            // only replace the snapshot between runs, never halfway through one.
+            engine.set_connected(BTreeMap::from([("alice".into(), count)]));
+            let execution = engine
+                .execute(&query, &certificate, context.clone())
+                .unwrap();
+            let Value::Array(values) = &execution.result else {
+                panic!("array result")
+            };
+            assert_eq!(values[0], values[1]);
+            assert_eq!(values[2], Value::Bool(count > 0));
+            if count > 0 {
+                assert_eq!(values[0].field("value").unwrap(), &Value::Int(count as i64));
+            } else {
+                assert_eq!(values[0], Value::Null);
+            }
+            results.push(execution.result);
+        }
+        assert_ne!(results[0], results[1]);
+        assert_ne!(results[1], results[2]);
+    }
+
+    #[test]
     fn raw_ir_refuses_nonprincipal_keys_scans_writes_and_rule_probes() {
         let schema = Schema::default();
         let checker = Checker::new(&schema, Ceilings::default());

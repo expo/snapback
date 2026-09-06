@@ -1011,6 +1011,33 @@ test("a connected subscription without a local store becomes hydrating on transp
   } finally { subscription.close(); await client.close(); }
 });
 
+test("a no-store subscription clears connected on its next ordinary frame before transport loss", async () => {
+  let stream: ReadableStreamDefaultController<Uint8Array> | undefined;
+  let dead = false;
+  const frame = (value: object) => new TextEncoder().encode(`data: ${JSON.stringify(value)}\n\n`);
+  const client = fixtureClient({ url: "http://connected-frame.test", as: "alice", fetch: async input => {
+    if (dead) throw new TypeError("offline");
+    if (new URL(String(input)).pathname === "/api/manifest") return new Response(JSON.stringify({ ops: { online: { kind: "query", args: {} } }, auth: {}, channels: {} }));
+    return new Response(new ReadableStream({ start(controller) {
+      stream = controller;
+      controller.enqueue(frame({ state: "complete", data: 1, seq: 1, next: null, connected: true }));
+    } }), { headers: { "content-type": "text/event-stream" } });
+  } });
+  const subscription = client.subscribe((api as any).online, {}, () => {});
+  try {
+    await subscription.until(event => event.state === "complete", 2_000);
+    const ordinary = subscription.until((event: any) => event.state === "complete" && event.seq === 2, 2_000);
+    stream!.enqueue(frame({ state: "complete", data: "durable", seq: 2, next: null }));
+    await ordinary;
+    const lost = subscription.until(event => event.state === "stale" || event.state === "hydrating", 2_000);
+    dead = true; stream!.error(new TypeError("offline"));
+    const result: any = await lost;
+    assert.equal(result.state, "stale");
+    assert.equal(result.data, "durable");
+    assert.equal(result.seq, 2);
+  } finally { subscription.close(); await client.close(); }
+});
+
 test("connected envelopes never enter coverage, including with missing program custody and repeated durable seq", async () => {
   const fixture = (await corpus()).find(item => item.name === "connected-live-registry");
   const generation = hex("c"), schemaHash = fixture.certificate.schema_hash;

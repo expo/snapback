@@ -154,6 +154,9 @@ function materializeMaintains(documents: Document[]): void {
   const schema = documents.find((document) => basename(document.file) === "schema.q")!;
   // @ref LLP 1004#money-and-decimal-worked-out-2026-09-03 — a sum target inherits the source's exact numeric descriptor.
   for (const declaration of schema.maintains) {
+    if (declaration.source === "connected") throw new QuarryError(declaration.site,
+      "connected cannot be a maintained source", "E_QUARRY_UNKNOWN",
+      "replace the maintain with a query returning #connected[p] for p: principal", "quarry/names");
     if (schema.tables.some((table) => table.name === declaration.name)) throw new QuarryError(declaration.site, `maintain target ${declaration.name} duplicates a table`);
     const source = schema.tables.find((table) => table.name === declaration.source);
     if (!source) throw new QuarryError(declaration.site, `maintain ${declaration.name} names unknown source table ${declaration.source}`);

@@ -27,7 +27,7 @@ type LoweredSchema = {
   diagnostics: FrontendDiagnostic[];
 };
 
-export function lowerSchema(source: string, fileName: string): LoweredSchema {
+export function lowerSchema(source: string, fileName: string, quarry = false): LoweredSchema {
   const sourceFile = ts.createSourceFile(fileName, source, ts.ScriptTarget.ES2022, true);
   const module = { sourceFile, source, fileName };
   const diagnostics: FrontendDiagnostic[] = [];
@@ -58,6 +58,11 @@ export function lowerSchema(source: string, fileName: string): LoweredSchema {
 
   const tables = new Map<string, TableInfo>();
   for (const name of tableCalls.keys()) {
+    if (name === "connected" && !quarry) {
+      diagnostics.push(diagnostic(module, "E_SCHEMA_RESERVED", tableCalls.get(name)!,
+        "connected is a built-in virtual table and cannot be declared",
+        "remove the connected table declaration; use #connected[p] in a Quarry program"));
+    }
     if (name.startsWith("_")) {
       diagnostics.push(schemaDiagnostic(module, "E_SCHEMA_RESERVED", tableCalls.get(name)!, `table ${name} uses the reserved _ prefix`));
     }

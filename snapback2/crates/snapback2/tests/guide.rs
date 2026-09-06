@@ -151,6 +151,12 @@ fn quarry_keywords_print_grammar_and_definitions_beside_symbol_help() {
         };
         let paragraph = paragraph.split_whitespace().collect::<Vec<_>>().join(" ");
         assert!(paragraph.contains(definition), "{keyword}: {paragraph}");
+        if keyword == "connected" {
+            assert!(content.contains("## live-query: Connected\n"), "{content}");
+            for needle in ["immutable snapshot per program run", "next execute", "up to 1 s", "--as"] {
+                assert!(paragraph.contains(needle), "connected lacks {needle}: {paragraph}");
+            }
+        }
         if keyword == "channel" {
             for needle in [
                 "recent activity",
@@ -277,7 +283,7 @@ fn live_query_guide_explains_connected_and_the_activity_workaround() {
         "read-only virtual table",
         "`#connected[p]`",
         "`hydrating` and never predicted",
-        "one-second coalesce",
+        "live reruns wait up to 1 s",
         "durable receipts",
         "workaround",
     ] {
@@ -295,8 +301,10 @@ fn quarry_grammar_and_refusal_guides_ship_without_double_fences() {
     assert!(quarry.status.success());
     assert!(
         String::from_utf8_lossy(&quarry.stdout)
-            .contains("Quarry is Snapback 2's only backend authoring language")
+            .contains("Quarry is the only backend language")
     );
+    assert!(String::from_utf8_lossy(&quarry.stdout)
+        .contains("puts no generated files in `snapback/`"));
     for page in ["grammar"] {
         let output = project.run(&["guide", page]);
         assert!(output.status.success(), "{page}");
