@@ -196,13 +196,14 @@ const guidePages = await Promise.all(
     name,
     markdown: await readFile(resolve(guideSource, `${name}.md`), "utf8"),
     // LLP 1017 adds cap invariants and complete mutation loops to the reference.
-    limit: name === "grammar" ? 2560 : name === "quarry" ? 15872 : name === "offline" ? 4352 : 4096,
+    limit: name === "grammar" ? 3072 : name === "quarry" ? 15872 : name === "offline" ? 4352 : 4096,
   })),
 );
 const guideErrors = [...familyErrors, ...quarryFamilyFailures(families, parseDocument), ...guideFailures(guidePages, tsFixtureText, quarryFixtureText, parseDocument)];
 if (guideErrors.length > 0) {
   throw new Error(`guide validation failed:\n${guideErrors.join("\n")}`);
 }
+await writeFile(resolve(guide, "keywords.json"), `${JSON.stringify(guideKeywords(guidePages), null, 2)}\n`);
 
 const snapshot = process.env.SNAPBACK2_PACKAGE_BUILD_SNAPSHOT;
 if (snapshot) {
@@ -228,6 +229,19 @@ if (snapshot) {
 }
 
 if (process.argv.includes("--self-test")) {
+  const keywordFixture = guideKeywords([
+    { name: "grammar", markdown: "- `spark`: `spark value`\n- `sparks`: an alias" },
+    { name: "quarry", markdown: "# Quarry\n\n```q\n`spark value` is ignored.\n```\n\n## Spark\n\n`spark value` defines a signal.\n\n## Elsewhere\n\nUnrelated prose." },
+  ]);
+  if (!keywordFixture.spark.includes("`spark value` defines a signal.")
+    || !keywordFixture.sparks.includes("## quarry: Spark")
+    || keywordFixture.spark.includes("ignored") || keywordFixture.spark.includes("Unrelated")) {
+    throw new Error("guide keyword extraction lost the defining paragraph");
+  }
+  let missingDefinition = false;
+  try { guideKeywords([{ name: "grammar", markdown: "- `spark`: `spark value`" }]); }
+  catch (error) { missingDefinition = error.message.includes("spark has no defining paragraph"); }
+  if (!missingDefinition) throw new Error("guide keyword extraction admitted an undefined construct");
   const failures = [
     ...quarryFamilyFailures([{ family: "bound", language: "q", code: "E_BAD_CAP", right: "cap 50 by conversationId // invalid" }], parseDocument),
     ...familyFailures([
@@ -418,6 +432,40 @@ function guideFailures(pages, tsFixturesText, quarryFixturesText, parseDocument)
     if (reasons.length > 0) failures.push(`guide/${name}.md: ${reasons.join("; ")}`);
   }
   return failures;
+}
+
+// @ref LLP 1002#8-why-trace-guide — derive keyword help from shipped prose at build time.
+function guideKeywords(pages) {
+  const grammar = pages.find((page) => page.name === "grammar")?.markdown ?? "";
+  const definitions = [];
+  for (const { name, markdown } of pages) {
+    if (!["quarry", "schedule", "job", "effects", "live-query"].includes(name)) continue;
+    let heading = name;
+    for (const block of markdown.replace(/```[^\n]*\n[\s\S]*?\n```/g, "").split(/\n\s*\n/)) {
+      const paragraph = block.trim();
+      const title = /^#{1,6} (.+)$/.exec(paragraph);
+      if (title) heading = title[1];
+      else if (paragraph) definitions.push({ name, heading, paragraph });
+    }
+  }
+  const keywords = Object.create(null);
+  for (const line of grammar.split("\n")) {
+    const entry = /^- `([a-z][a-z0-9-]*)`: /.exec(line);
+    if (!entry) continue;
+    const keyword = entry[1];
+    const starts = new RegExp("^`" + keyword + "(?=[`(\\s])");
+    const sentence = new RegExp("(?:^|[.!?;]\\s+)`" + keyword + "(?=[`(\\s])");
+    const definition = definitions.map((definition) => {
+      const words = definition.heading.toLowerCase().match(/[a-z][a-z0-9-]*/g) ?? [];
+      const headingMatch = words.some((word) => word === keyword || word === `${keyword}s` || `${word}s` === keyword);
+      return { ...definition, score: starts.test(definition.paragraph) ? 3 : sentence.test(definition.paragraph) ? 2 : headingMatch ? 1 : 0 };
+    }).filter((definition) => definition.score > 0).sort((a, b) => b.score - a.score)[0];
+    if (!definition) throw new Error(`guide/grammar.md: ${keyword} has no defining paragraph; define it on its guide page`);
+    if (Object.hasOwn(keywords, keyword)) throw new Error(`guide/grammar.md: duplicate construct ${keyword}`);
+    keywords[keyword] = `# \`${keyword}\`\n\n${line.slice(2)}\n\n## ${definition.name}: ${definition.heading}\n\n${definition.paragraph}\n`;
+  }
+  if (Object.keys(keywords).length === 0) throw new Error("guide/grammar.md: no construct lines");
+  return keywords;
 }
 
 async function loadQuarryParser() {

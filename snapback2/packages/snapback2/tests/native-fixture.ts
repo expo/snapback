@@ -17,7 +17,7 @@ export const delivery = (id = "m1", asset = photo) => ({ op: "thread", args: { i
   state: "complete" as const, next: null, rows: [{ table: "messages", id, row: { id, photo: asset } }],
   data: [{ $row: { table: "messages", id } }], receipt: { ranges: [], absences: [], verdicts: [] } });
 
-export async function nativeFixture(options: { mediaType?: string; once?: boolean; viewOnce?: (table: string, row: Record<string, unknown>) => boolean; maxAssetBytes?: number } = {}) {
+export async function nativeFixture(options: { mediaType?: string; once?: boolean; maxAssetBytes?: number } = {}) {
   const root = await mkdtemp(join(tmpdir(), "e2-fix1-"));
   const data = new Map<string, Uint8Array>(), writes: string[] = [], requests: RequestInit[] = [];
   const hooks = { write: undefined as undefined | (() => Promise<void>),
@@ -34,7 +34,7 @@ export async function nativeFixture(options: { mediaType?: string; once?: boolea
   backend.readBytes = async (key) => { const bytes = await read(key); await hooks.read?.(); return bytes; };
   const store = new PersistentRangeStore(fileBackend(backend, files)); attachAssetFiles(store, files);
   const client = createClient({ url: "http://assets.test", as: "alice",
-    offline: { store: () => store, viewOnce: options.viewOnce ?? (() => options.once === true), maxAssetBytes: options.maxAssetBytes },
+    offline: { store: () => store, maxAssetBytes: options.maxAssetBytes },
     fetch: async (input, init) => {
       const path = new URL(String(input)).pathname;
       if (path === "/api/manifest") return json({ generation: "native", programGeneration: "program-test", ops: {}, auth: {}, channels: {} });
@@ -42,7 +42,9 @@ export async function nativeFixture(options: { mediaType?: string; once?: boolea
       requests.push(init ?? {}); await hooks.network?.();
       return new Response(payload.bytes, { headers: { "Content-Type": options.mediaType ?? payload.type } });
     } });
-  await client.ready; await store.commit({ deliveries: [delivery()] });
+  await client.ready; await store.commit({ schema: { tables: { messages: { columns: {
+    photo: { Image: { max: 5000000, ...(options.once ? { once: true } : {}) } },
+  } } } }, deliveries: [delivery()] });
   return { root, files, store, client, backend, data, writes, requests, hooks,
     async close() { await client.close(); await rm(root, { recursive: true, force: true }); } };
 }

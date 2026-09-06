@@ -183,7 +183,9 @@ pub(crate) fn plan(
                     name: column.clone(),
                 }),
                 Some(next_type)
-                    if next_type != column_type && !is_narrowing(column_type, next_type) =>
+                    if next_type != column_type
+                        && !adding_once(column_type, next_type)
+                        && !is_narrowing(column_type, next_type) =>
                 {
                     drops.push(Drop::TypeChange {
                         table: table_name.clone(),
@@ -244,7 +246,9 @@ pub(crate) fn additive_refusal(
                 .columns
                 .get(*column)
                 .is_none_or(|current_kind| {
-                    current_kind != *kind && !is_narrowing(current_kind, kind)
+                    current_kind != *kind
+                        && !adding_once(current_kind, kind)
+                        && !is_narrowing(current_kind, kind)
                 })
                 && !matches!(kind, ColumnType::Optional(_))
         });
@@ -787,3 +791,21 @@ pub use caps::CapConflict;
 mod narrowing;
 pub use narrowing::NarrowingConflict;
 use narrowing::{is_narrowing, narrowing_refusal};
+
+// @ref LLP 1006#2a1-one-use-image-delivery-clique-f3-2026-09-05 — existing images have no recorded prior views.
+fn adding_once(current: &ColumnType, next: &ColumnType) -> bool {
+    match (current, next) {
+        (
+            ColumnType::Image {
+                max: a,
+                once: false,
+            },
+            ColumnType::Image { max: b, once: true },
+        ) => a == b,
+        (ColumnType::Optional(a), ColumnType::Optional(b)) => adding_once(a, b),
+        (ColumnType::List { of: a, max: am }, ColumnType::List { of: b, max: bm }) => {
+            am == bm && adding_once(a, b)
+        }
+        _ => false,
+    }
+}

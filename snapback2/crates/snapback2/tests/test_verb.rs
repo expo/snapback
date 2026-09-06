@@ -1110,7 +1110,7 @@ fn blocked_without_a_reason_is_usage() {
 }
 
 #[test]
-fn clique_sized_seed_and_68_operations_have_bounded_honest_derived_coverage() {
+fn clique_sized_seed_and_69_operations_have_bounded_honest_derived_coverage() {
     let project = Project::new();
     assert!(project.init("chat", "none").status.success());
     // The reduced Clique bar has no external I/O. Retain the real template's
@@ -1158,8 +1158,8 @@ fn clique_sized_seed_and_68_operations_have_bounded_honest_derived_coverage() {
     let elapsed = started.elapsed();
     let receipt = json_stdout(&output);
     assert!(output.status.success(), "{receipt}");
-    // 24 template operations less the removed notifications module, plus 44 sends.
-    assert_eq!(check(&receipt, "certify")["detail"]["operations"], 68);
+    // 25 template operations after removing notifications, plus 44 sends.
+    assert_eq!(check(&receipt, "certify")["detail"]["operations"], 69);
     let rules = check(&receipt, "rules");
     assert_eq!(rules["detail"]["tables"]["messages"]["probes"], 32 * 4);
     let invalidation = check(&receipt, "invalidation");

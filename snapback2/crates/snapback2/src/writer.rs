@@ -267,6 +267,10 @@ pub enum Action {
     AssetSession {
         identity: Identity,
     },
+    AssetConsume {
+        id: String,
+        principal: String,
+    },
     AssetDelivery {
         id: String,
         identity: Identity,
@@ -457,7 +461,8 @@ fn session_json(
     auth_epoch: u64,
     grant: Option<snapback2_core::ReplayGrant>,
 ) -> Json {
-    let mut response = json!({ "token": token, "viewer": viewer, "kind": kind, "authEpoch": auth_epoch });
+    let mut response =
+        json!({ "token": token, "viewer": viewer, "kind": kind, "authEpoch": auth_epoch });
     if let Some(grant) = grant {
         response["grant"] = json!(grant);
     }
@@ -739,6 +744,7 @@ impl State {
             }
             Action::AssetSession { identity } => self.mint_asset_carrier(identity),
             Action::AssetDelivery { id, identity } => self.asset_delivery(&id, identity),
+            Action::AssetConsume { id, principal } => self.asset_consume(&id, &principal),
             Action::Data {
                 table,
                 index,

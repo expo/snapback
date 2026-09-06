@@ -653,3 +653,549 @@ fn collected_capped_page_may_return_but_cannot_cross_a_durable_sink() {
     );
     assert!(errors[1].rewrite.contains("maintained aggregate"));
 }
+
+fn enriched_schema(uniform: bool) -> Schema {
+    let mut schema = schema("group");
+    let mut profiles = public_table(
+        BTreeMap::from([
+            ("id".to_owned(), ColumnType::Id),
+            ("name".to_owned(), ColumnType::Text { max: 20 }),
+        ]),
+        BTreeMap::from([(
+            "byId".to_owned(),
+            Index {
+                columns: vec!["id".to_owned()],
+                unique: true,
+            },
+        )]),
+    );
+    profiles.rules.read = RuleExpr::Eq(RuleTerm::Field("id".to_owned()), RuleTerm::Viewer);
+    schema.tables.insert("profiles".to_owned(), profiles);
+    schema.tables.insert(
+        "shares".to_owned(),
+        public_table(
+            BTreeMap::from([
+                ("id".to_owned(), ColumnType::Id),
+                ("doc".to_owned(), ColumnType::Id),
+                ("viewer".to_owned(), ColumnType::Principal),
+            ]),
+            BTreeMap::from([(
+                "byDocViewer".to_owned(),
+                Index {
+                    columns: vec!["doc".to_owned(), "viewer".to_owned()],
+                    unique: true,
+                },
+            )]),
+        ),
+    );
+    schema.tables.get_mut("docs").unwrap().rules.read = if uniform {
+        RuleExpr::Allow
+    } else {
+        // A different table keyed by the row id stays non-uniform after self-probe proofs.
+        RuleExpr::Exists {
+            table: "shares".to_owned(),
+            index: "byDocViewer".to_owned(),
+            key: vec![RuleTerm::Field("id".to_owned()), RuleTerm::Viewer],
+            provenance: KeyProvenance::Shape,
+        }
+    };
+    schema
+}
+
+fn enriched_program() -> Program {
+    let mut program = page_program(50, false);
+    program.body = vec![
+        Stmt::Let {
+            name: "collected".to_owned(),
+            value: Expr::Array(Vec::new()),
+        },
+        Stmt::For {
+            binding: "item".to_owned(),
+            domain: LoopDomain::Page(page(None, 50)),
+            body: vec![
+                Stmt::Const {
+                    name: "profile".to_owned(),
+                    value: Expr::Get(Read {
+                        site: "profiles.owner".to_owned(),
+                        table: "profiles".to_owned(),
+                        index: "byId".to_owned(),
+                        key: vec![field(var("item"), "owner")],
+                        provenance: KeyProvenance::Shape,
+                    }),
+                },
+                Stmt::Let {
+                    name: "shape".to_owned(),
+                    value: lit(Value::Null),
+                },
+                Stmt::If {
+                    condition: binary(BinaryOp::Ne, var("profile"), lit(Value::Null)),
+                    then_body: vec![Stmt::Assign {
+                        name: "shape".to_owned(),
+                        value: Expr::Object(BTreeMap::from([(
+                            "name".to_owned(),
+                            field(var("profile"), "name"),
+                        )])),
+                    }],
+                    else_body: Vec::new(),
+                },
+                Stmt::Push {
+                    target: "collected".to_owned(),
+                    value: Expr::Object(BTreeMap::from([
+                        ("id".to_owned(), field(var("item"), "id")),
+                        ("owner".to_owned(), var("shape")),
+                    ])),
+                },
+            ],
+        },
+        Stmt::Return(var("collected")),
+    ];
+    program
+}
+
+fn binary(op: BinaryOp, left: Expr, right: Expr) -> Expr {
+    Expr::Binary {
+        op,
+        left: Box::new(left),
+        right: Box::new(right),
+    }
+}
+
+fn enriched_engine(schema: Schema) -> Engine {
+    let mut engine = Engine::memory(schema).unwrap();
+    for (id, owner, order) in [("d1", "u1", 1), ("d2", "u2", 2), ("d3", "u1", 3)] {
+        engine.seed("docs", doc(id, "g1", owner, order)).unwrap();
+        if id != "d3" {
+            engine
+                .seed(
+                    "shares",
+                    object([
+                        ("id", Value::Id(format!("share-{id}"))),
+                        ("doc", Value::Id(id.to_owned())),
+                        ("viewer", Value::Id("u1".to_owned())),
+                    ]),
+                )
+                .unwrap();
+        }
+    }
+    for (id, name) in [("u1", "Visible"), ("u2", "Secret")] {
+        engine
+            .seed(
+                "profiles",
+                object([
+                    ("id", Value::Id(id.to_owned())),
+                    ("name", Value::String(name.to_owned())),
+                ]),
+            )
+            .unwrap();
+    }
+    engine
+}
+
+#[test]
+fn nonuniform_share_rule_bare_page_stays_capped() {
+    let schema = enriched_schema(false);
+    let program = page_program(50, false);
+    let certificate = Checker::new(&schema, Ceilings::default())
+        .check(&program)
+        .unwrap();
+    assert!(!certificate.read_sites[0].hoist);
+    let execution = enriched_engine(schema)
+        .execute(&program, &certificate, context("g1", None))
+        .unwrap();
+    assert_eq!(execution.state, ExecutionState::Capped);
+    assert_eq!(execution.result.as_array().unwrap().len(), 2);
+}
+
+#[test]
+fn enriched_capped_page_keeps_hidden_profile_null_and_out_of_receipt() {
+    let schema = enriched_schema(false);
+    let program = enriched_program();
+    let certificate = Checker::new(&schema, Ceilings::default())
+        .check(&program)
+        .unwrap();
+    assert_eq!(certificate.completeness, Completeness::Capped);
+    let execution = enriched_engine(schema)
+        .execute(&program, &certificate, context("g1", None))
+        .unwrap();
+    assert_eq!(execution.state, ExecutionState::Capped);
+    assert_eq!(
+        execution.result,
+        Value::Array(vec![
+            object([
+                ("id", Value::Id("d1".to_owned())),
+                (
+                    "owner",
+                    object([("name", Value::String("Visible".to_owned()))])
+                )
+            ]),
+            object([("id", Value::Id("d2".to_owned())), ("owner", Value::Null)]),
+        ])
+    );
+    assert!(
+        execution
+            .trace
+            .points
+            .iter()
+            .any(|point| point.table == "profiles"
+                && point.key == vec![Value::Id("u2".to_owned())]
+                && !point.visible)
+    );
+    let receipt = serde_json::to_value(&execution.receipt).unwrap();
+    for set in ["rows", "ranges", "absences", "verdicts"] {
+        for record in receipt[set].as_array().unwrap() {
+            let mut keys = record.clone();
+            if set == "rows" {
+                keys.as_object_mut().unwrap().remove("row");
+            }
+            assert!(
+                !serde_json::to_string(&keys).unwrap().contains("\"u2\""),
+                "{set}: {keys}"
+            );
+        }
+    }
+    assert!(!receipt.to_string().contains("Secret"));
+    assert!(
+        !serde_json::to_string(&execution.result)
+            .unwrap()
+            .contains("Secret")
+    );
+}
+
+#[test]
+fn enriched_uniform_page_stays_complete() {
+    let schema = enriched_schema(true);
+    let program = enriched_program();
+    let certificate = Checker::new(&schema, Ceilings::default())
+        .check(&program)
+        .unwrap();
+    let execution = enriched_engine(schema)
+        .execute(&program, &certificate, context("g1", None))
+        .unwrap();
+    assert_eq!(execution.state, ExecutionState::Complete);
+    assert_eq!(execution.result.as_array().unwrap().len(), 3);
+    assert_eq!(
+        execution.result.as_array().unwrap()[1]
+            .field("owner")
+            .unwrap(),
+        &Value::Null
+    );
+}
+
+fn assert_capped_refusal(program: Program, sink: &str) {
+    let errors = Checker::new(&enriched_schema(false), Ceilings::default())
+        .check_all(&program)
+        .unwrap_err();
+    assert!(
+        errors.iter().any(|error| error.code == "E_STRUCTURAL_COUNT"
+            && error.message.starts_with(sink)
+            && error.message.contains("docs.page")),
+        "{errors:?}"
+    );
+}
+
+fn count_page() -> Expr {
+    Expr::Builtin {
+        builtin: Builtin::Count,
+        args: vec![Expr::Scan(page(None, 50))],
+    }
+}
+
+#[test]
+fn nonuniform_share_rule_count_still_refuses() {
+    let mut program = page_program(50, false);
+    program.body = vec![Stmt::Return(count_page())];
+    assert_capped_refusal(program, "returned result");
+}
+
+#[test]
+fn nonuniform_share_rule_emptiness_still_refuses() {
+    let mut program = page_program(50, false);
+    program.body = vec![Stmt::Return(binary(
+        BinaryOp::Gt,
+        count_page(),
+        lit(Value::Int(0)),
+    ))];
+    assert_capped_refusal(program, "returned result");
+}
+
+#[test]
+fn nonuniform_share_rule_require_still_refuses() {
+    let mut program = page_program(50, false);
+    program.body = vec![Stmt::Require {
+        condition: binary(BinaryOp::Gt, count_page(), lit(Value::Int(0))),
+        code: "EMPTY".to_owned(),
+    }];
+    assert_capped_refusal(program, "require branch");
+}
+
+#[test]
+fn enriched_capped_page_insert_still_refuses() {
+    let mut program = enriched_program();
+    program.kind = ProgramKind::Mutation;
+    program.body.pop();
+    program.body.push(Stmt::Insert {
+        table: "snapshots".to_owned(),
+        row: Expr::Object(BTreeMap::from([
+            ("id".to_owned(), lit(Value::Id("snapshot".to_owned()))),
+            ("items".to_owned(), var("collected")),
+        ])),
+    });
+    assert_capped_refusal(program, "inserted value");
+}
+
+fn accumulator_program() -> Program {
+    let mut program = page_program(50, false);
+    program.body = vec![
+        Stmt::Let {
+            name: "total".to_owned(),
+            value: lit(Value::Int(0)),
+        },
+        Stmt::For {
+            binding: "item".to_owned(),
+            domain: LoopDomain::Page(page(None, 50)),
+            body: vec![Stmt::Assign {
+                name: "total".to_owned(),
+                value: binary(BinaryOp::Add, var("total"), lit(Value::Int(1))),
+            }],
+        },
+        Stmt::Return(var("total")),
+    ];
+    program
+}
+
+#[test]
+fn capped_loop_accumulator_still_refuses() {
+    assert_capped_refusal(accumulator_program(), "returned result");
+}
+
+#[test]
+fn binding_in_outer_loop_is_still_an_inner_loop_accumulator() {
+    let mut program = accumulator_program();
+    let outer_body = program.body;
+    program.body = vec![Stmt::For {
+        binding: "outer".to_owned(),
+        domain: LoopDomain::LiteralRange {
+            start: 0,
+            end_exclusive: 1,
+        },
+        body: outer_body,
+    }];
+    assert_capped_refusal(program, "returned result");
+}
+
+#[test]
+fn iteration_local_assignment_under_capped_condition_still_refuses() {
+    let mut program = enriched_program();
+    if let Stmt::For { body, .. } = &mut program.body[1] {
+        if let Stmt::If { condition, .. } = &mut body[2] {
+            *condition = binary(BinaryOp::Gt, count_page(), lit(Value::Int(0)));
+        }
+    }
+    assert_capped_refusal(program, "returned result");
+}
+
+#[test]
+fn loop_carried_control_still_refuses() {
+    let mut program = accumulator_program();
+    program.body.pop();
+    program.body.push(Stmt::If {
+        condition: binary(BinaryOp::Gt, var("total"), lit(Value::Int(0))),
+        then_body: vec![Stmt::Return(lit(Value::Bool(true)))],
+        else_body: vec![Stmt::Return(lit(Value::Bool(false)))],
+    });
+    assert_capped_refusal(program, "returned result");
+}
+
+#[test]
+fn iteration_local_assignment_cannot_escape_its_loop_as_a_scalar() {
+    let mut program = enriched_program();
+    program.body.pop();
+    program.body.push(Stmt::Return(var("shape")));
+    assert_capped_refusal(program, "returned result");
+}
+
+fn enriched_early_exit(exit: Stmt, count_condition: bool) -> Program {
+    let mut program = enriched_program();
+    if let Stmt::For { body, .. } = &mut program.body[1] {
+        if let Stmt::If {
+            condition,
+            then_body,
+            ..
+        } = &mut body[2]
+        {
+            *then_body = vec![exit];
+            if count_condition {
+                *condition = binary(BinaryOp::Gt, count_page(), lit(Value::Int(0)));
+            }
+        }
+    }
+    program
+}
+
+#[test]
+fn enriched_null_guard_break_refuses() {
+    assert_capped_refusal(enriched_early_exit(Stmt::Break, false), "returned result");
+}
+
+#[test]
+fn enriched_page_count_break_refuses() {
+    assert_capped_refusal(enriched_early_exit(Stmt::Break, true), "returned result");
+}
+
+#[test]
+fn enriched_null_guard_continue_refuses() {
+    assert_capped_refusal(
+        enriched_early_exit(Stmt::Continue, false),
+        "returned result",
+    );
+}
+
+#[test]
+fn enriched_page_count_continue_refuses() {
+    assert_capped_refusal(enriched_early_exit(Stmt::Continue, true), "returned result");
+}
+
+fn count_collected() -> Expr {
+    Expr::Builtin {
+        builtin: Builtin::Count,
+        args: vec![var("collected")],
+    }
+}
+
+#[test]
+fn enriched_post_shape_count_refuses() {
+    let mut program = enriched_program();
+    *program.body.last_mut().unwrap() = Stmt::Return(count_collected());
+    assert_capped_refusal(program, "returned result");
+}
+
+#[test]
+fn enriched_post_shape_require_refuses() {
+    let mut program = enriched_program();
+    program.body.insert(
+        2,
+        Stmt::Require {
+            condition: binary(BinaryOp::Gt, count_collected(), lit(Value::Int(0))),
+            code: "EMPTY".to_owned(),
+        },
+    );
+    assert_capped_refusal(program, "require branch");
+}
+
+#[test]
+fn enriched_capped_page_cursors_follow_only_returned_rows() {
+    let schema = enriched_schema(false);
+    let mut program = enriched_program();
+    program.result_page_site = Some("docs.page".to_owned());
+    program
+        .args
+        .insert("c".to_owned(), ArgType::Optional(Box::new(ArgType::Cursor)));
+    if let Stmt::For {
+        domain: LoopDomain::Page(scan),
+        ..
+    } = &mut program.body[1]
+    {
+        scan.take = Bound::Literal(1);
+        scan.after = Some(Box::new(var("c")));
+        scan.opaque_cursor = true;
+    }
+    let certificate = Checker::new(&schema, Ceilings::default())
+        .check(&program)
+        .unwrap();
+    let mut engine = enriched_engine(schema.clone());
+    engine
+        .seed("docs", doc("hidden-before", "g1", "u2", 0))
+        .unwrap();
+    let mut cursor = Value::Null;
+    for (id, order, owner) in [
+        (
+            "d1",
+            1,
+            object([("name", Value::String("Visible".to_owned()))]),
+        ),
+        ("d2", 2, Value::Null),
+    ] {
+        let mut context = context("g1", None);
+        context.args.insert("c".to_owned(), cursor);
+        let execution = engine
+            .execute(&program, &certificate, context.clone())
+            .unwrap();
+        assert_eq!(execution.state, ExecutionState::Capped);
+        assert_eq!(
+            execution.result,
+            Value::Array(vec![object([
+                ("id", Value::Id(id.to_owned())),
+                ("owner", owner)
+            ])])
+        );
+        let next = execution
+            .next
+            .as_ref()
+            .expect("nonempty capped page has a cursor");
+        let position = decode_cursor(next).unwrap();
+        assert_eq!(
+            position.values,
+            vec![Value::Int(order), Value::Id(id.to_owned())]
+        );
+        assert!(!format!("{position:?}").contains("hidden-before"));
+        let (state, local) = ClientStore::hydrate(schema.clone(), &execution.receipt)
+            .unwrap()
+            .reexecute(&program, &certificate, context.clone())
+            .unwrap();
+        assert!(matches!(state, LocalState::Partial(_)));
+        assert_eq!(local.state, ExecutionState::Capped);
+        assert_eq!(local.result, execution.result);
+        // A partial local re-execution carries no cursor in either runtime (L10's rule);
+        // the authoritative journey above keeps its cursor.
+        assert_eq!(local.next, None);
+        // The ticket's two-runtime reproduction consumes these packets with --nocapture.
+        println!(
+            "CURSOR_REPLAY {}",
+            serde_json::json!({
+                "schema": schema, "program": program, "certificate": certificate,
+                "context": context, "receipt": execution.receipt,
+                "result": execution.result, "next": execution.next, "localState": format!("{state:?}"),
+            })
+        );
+        cursor = Value::String(next.clone());
+    }
+}
+
+#[test]
+fn enriched_early_exit_taints_rows_collected_before_the_exit() {
+    let mut program = enriched_early_exit(Stmt::Break, false);
+    if let Stmt::For { body, .. } = &mut program.body[1] {
+        body.swap(2, 3);
+    }
+    assert_capped_refusal(program, "returned result");
+}
+
+#[test]
+fn uniform_enriched_early_exit_stays_returnable() {
+    let certificate = Checker::new(&enriched_schema(true), Ceilings::default())
+        .check(&enriched_early_exit(Stmt::Break, false))
+        .unwrap();
+    assert_eq!(certificate.completeness, Completeness::Page);
+}
+
+#[test]
+fn inner_loop_exit_does_not_taint_an_unaffected_outer_collector() {
+    let mut program = enriched_program();
+    if let Stmt::For { body, .. } = &mut program.body[1] {
+        body.insert(
+            0,
+            Stmt::For {
+                binding: "inner".to_owned(),
+                domain: LoopDomain::LiteralRange {
+                    start: 0,
+                    end_exclusive: 2,
+                },
+                body: vec![Stmt::Break],
+            },
+        );
+    }
+    let certificate = Checker::new(&enriched_schema(false), Ceilings::default())
+        .check(&program)
+        .unwrap();
+    assert_eq!(certificate.completeness, Completeness::Capped);
+}

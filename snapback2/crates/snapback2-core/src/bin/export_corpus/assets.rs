@@ -88,7 +88,13 @@ fn write_program(name: &str, column: &str, kind: ArgType, replace: bool) -> Prog
 }
 
 fn add_valid_write_cases(cases: &mut Vec<CorpusCase>) {
-    let schema = asset_table("photo", ColumnType::Image { max: 5_000_000 });
+    let schema = asset_table(
+        "photo",
+        ColumnType::Image {
+            max: 5_000_000,
+            once: false,
+        },
+    );
     cases.push(case_from_parts(
         "asset-valid-image-insert",
         "asset",
@@ -101,6 +107,32 @@ fn add_valid_write_cases(cases: &mut Vec<CorpusCase>) {
         ),
         mutation_context(
             [("rowId", id("media-1")), ("asset", image())],
+            Vec::<String>::new(),
+        ),
+        ClosureReceipt::default(),
+        Vec::new(),
+        None,
+        None,
+    ));
+
+    cases.push(case_from_parts(
+        "asset-once-image-insert",
+        "asset",
+        asset_table(
+            "photo",
+            ColumnType::Image {
+                max: 5_000_000,
+                once: true,
+            },
+        ),
+        write_program(
+            "media.insertOnceImage",
+            "photo",
+            ArgType::Image { max: 5_000_000 },
+            false,
+        ),
+        mutation_context(
+            [("rowId", id("media-once")), ("asset", image())],
             Vec::<String>::new(),
         ),
         ClosureReceipt::default(),
@@ -177,7 +209,13 @@ fn add_valid_write_cases(cases: &mut Vec<CorpusCase>) {
                 BTreeMap::from([
                     ("id".to_owned(), ColumnType::Id),
                     ("assetId".to_owned(), ColumnType::Text { max: 80 }),
-                    ("photo".to_owned(), ColumnType::Image { max: 5_000_000 }),
+                    (
+                        "photo".to_owned(),
+                        ColumnType::Image {
+                            max: 5_000_000,
+                            once: false,
+                        },
+                    ),
                 ]),
                 BTreeMap::new(),
             ),
@@ -229,7 +267,10 @@ fn add_valid_write_cases(cases: &mut Vec<CorpusCase>) {
         "asset",
         asset_table(
             "photo",
-            ColumnType::Optional(Box::new(ColumnType::Image { max: 5_000_000 })),
+            ColumnType::Optional(Box::new(ColumnType::Image {
+                max: 5_000_000,
+                once: false,
+            })),
         ),
         write_program(
             "media.clearImage",
@@ -363,7 +404,10 @@ fn add_engine_only_cases(cases: &mut Vec<CorpusCase>) {
     let alice = Actor::user("u1").unwrap();
     let optional_schema = asset_table(
         "photo",
-        ColumnType::Optional(Box::new(ColumnType::Image { max: 5_000_000 })),
+        ColumnType::Optional(Box::new(ColumnType::Image {
+            max: 5_000_000,
+            once: false,
+        })),
     );
     let optional_arg = ArgType::Optional(Box::new(ArgType::Image { max: 5_000_000 }));
     let insert_optional =
@@ -401,7 +445,10 @@ fn add_engine_only_cases(cases: &mut Vec<CorpusCase>) {
     assert!(released.locator.is_none());
     assert_eq!(released.released_at, Some(10));
 
-    let image_kind = ColumnType::Image { max: 5_000_000 };
+    let image_kind = ColumnType::Image {
+        max: 5_000_000,
+        once: false,
+    };
     let image_arg = ArgType::Image { max: 5_000_000 };
     let image_schema = asset_table("photo", image_kind);
     let insert_image = write_program("media.insertImage", "photo", image_arg.clone(), false);
@@ -630,12 +677,18 @@ fn add_index_refusal_cases(cases: &mut Vec<CorpusCase>) {
     let specifications = [
         (
             "asset-index-optional-refused",
-            ColumnType::Optional(Box::new(ColumnType::Image { max: 5_000_000 })),
+            ColumnType::Optional(Box::new(ColumnType::Image {
+                max: 5_000_000,
+                once: false,
+            })),
         ),
         (
             "asset-index-list-refused",
             ColumnType::List {
-                of: Box::new(ColumnType::Image { max: 5_000_000 }),
+                of: Box::new(ColumnType::Image {
+                    max: 5_000_000,
+                    once: false,
+                }),
                 max: 4,
             },
         ),

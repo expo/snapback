@@ -1,3 +1,4 @@
+import { onceColumns, onceAssetIds, nullOnceMedia } from "./store/asset-policy.js";
 // @ref LLP 1012#6-reads-offline — the twin is the client: with the backend
 // unreachable the certified program runs here over `coverage()`; a read inside
 // coverage is exact, a read outside is `partial` at that site with its reason.
@@ -65,6 +66,7 @@ interface Hydrated {
   coverage: Coverage;
   store: ClientStore;
   predicted: string[];
+  onceAssets: Set<string>;
 }
 
 function tagged<T>(call: (...args: any[]) => T, ...args: any[]): T | undefined {
@@ -118,7 +120,7 @@ export class Twin {
     try {
       const local = hydrated.store.reexecute(ir, context, operation.certificate);
       const result = local.execution.result;
-      const data = result === "Null" && local.state !== "fresh" ? undefined : wireJson(result);
+      const data = result === "Null" && local.state !== "fresh" ? undefined : nullOnceMedia(wireJson(result), hydrated.onceAssets);
       if (local.state === "fresh") {
         return { state: queryState(operation.certificate, local.execution.trace, context.viewer), data, next: local.execution.next, ...base };
       }
@@ -181,6 +183,7 @@ export class Twin {
     if (blocking.length) return { ...none, uncovered: partialReasons(blocking, trace, hydrated.coverage) };
     return {
       predicted: true,
+      // Keep typed writes for replay; hydrate collects their once IDs and evaluate nulls their media.
       overlay: local.execution.writes.map((write) => write.row === null
         ? { table: write.table, id: write.id, row: {}, removed: true as const }
         : { table: write.table, id: write.id, row: wireJson(write.row) as Record<string, unknown> }),
@@ -258,6 +261,9 @@ export class Twin {
       }
       predicted.push(entry.intent);
     }
-    return { program, coverage, store, predicted };
+    const onceAssets = onceAssetIds(onceColumns(program.schema), [
+      ...coverage.rows, ...Object.values(overlay).flat().filter(row => !row.removed).map(row => ({ table: row.table, id: row.id, row: row.row! })),
+    ]);
+    return { program, coverage, store, predicted, onceAssets };
   }
 }

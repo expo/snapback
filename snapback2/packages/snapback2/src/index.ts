@@ -62,7 +62,7 @@ export const t = Object.freeze({
   text: (max: number) => inert("text", { max }),
   bytes: (max: number) => inert("bytes", { max }),
   // @ref LLP 1006#3-authoring-surface — image/video are unconditional lowering descriptors, independent of installed codecs.
-  image: (max: number) => inert("image", { max }),
+  image: (max: number, options?: { once: true }) => inert("image", { max, ...options }),
   video: (max: number) => inert("video", { max }),
   int: () => inert("int"),
   bool: () => inert("bool"),

@@ -133,7 +133,7 @@ fn collect_column_uses(
             }
             require_unique(&uses[start..], label)
         }
-        ColumnType::Image { max } => {
+        ColumnType::Image { max, .. } => {
             let value = value.ok_or_else(|| asset_type(format!("{label} is required")))?;
             uses.push(AssetUse {
                 record: parse_asset_record(AssetKind::Image, value, label)?,

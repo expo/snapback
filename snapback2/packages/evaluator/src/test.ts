@@ -18,6 +18,7 @@ import {
 } from "./evaluator";
 import { canonicalSchemaJson } from "./certificate-identity";
 import { EvalError } from "./errors";
+import { queryState } from "./runner";
 
 function assert(condition: unknown, message: string): asserts condition {
   if (!condition) throw new Error(message);
@@ -67,6 +68,68 @@ for (const testCase of cases.filter((c) => JSON.stringify(c.program).includes('"
   assert((replay.execution.trace.steps ?? 0) <= certificate.max_steps, `${testCase.name}: heap steps bound`);
   assert((replay.execution.trace.rule_probes ?? 0) <= certificate.max_rule_probes, `${testCase.name}: merge rule-probe bound`);
 }
+
+
+const enrichedPage = cases.find((item) => item.name === "enriched-capped-page-hidden-point-null");
+assert(enrichedPage !== undefined, "enriched capped page case is absent from the corpus");
+const enrichedReplay = new ClientStore(enrichedPage.schema, enrichedPage.receipt)
+  .reexecute(enrichedPage.program, enrichedPage.context, enrichedPage.certificate);
+assert(queryState(enrichedPage.certificate, enrichedReplay.execution.trace) === "capped",
+  "nested point-read shaping changed the non-uniform page's read state");
+assert(canonicalValue(enrichedReplay.execution.result) === enrichedPage.expected.canonicalResult,
+  "enriched capped page did not preserve the authorized shape and hidden point null");
+
+{
+  const fixture = cases.find((item) => item.name === "decided-or-unheld-other-arm");
+  assert(fixture, "decided Or fixture is absent");
+  assert(fixture.receipt.verdicts.length === 0 && fixture.receipt.rows.every((row) => row.table === "memberships"),
+    "the unused arm must have neither held rows nor authority");
+  const store = new ClientStore(fixture.schema, fixture.receipt);
+  const withDecision = store.reexecute(fixture.program, fixture.context, fixture.certificate);
+  assert(withDecision.state === "fresh" && withDecision.partialSites.length === 0,
+    `decided arm requested unused authority: ${JSON.stringify(withDecision)}`);
+  assert(canonicalValue(withDecision.execution.result) === canonicalValue(fixture.expected.localResult!), "decided arm lost its rows");
+  const certificate = structuredClone(fixture.certificate);
+  for (const site of certificate.read_sites) delete site.decided_true;
+  const withoutDecision = store.reexecute(fixture.program, fixture.context, certificate);
+  assert(withoutDecision.state === "partial" && JSON.stringify(withoutDecision.partialSites) === '["missing-authority"]',
+    `undecided arm failed to request authority: ${JSON.stringify(withoutDecision)}`);
+}
+
+{
+  const fixture = cases.find((item) => item.name === "self-probe-enriched-membership-page");
+  assert(fixture, "self-probe fixture is absent");
+  const program = structuredClone(fixture.program);
+  const scan = program.body[1].For.domain.Page;
+  scan.prefix = [{ Literal: { Id: "u1" } }];
+  program.body = [{ Return: { Scan: scan } }];
+  const context = { ...fixture.context, viewer: "outsider" };
+  const receipt = structuredClone(fixture.receipt);
+  for (const conversation of ["c1", "c2"]) {
+    receipt.absences.push(["memberships", "byConversationPrincipal", [{ Id: conversation }, { Id: "outsider" }]]);
+  }
+  const certificate = structuredClone(fixture.certificate);
+  certificate.completeness = "Capped";
+  certificate.read_sites = certificate.read_sites.filter((site: any) => site.site === scan.site);
+  const site = certificate.read_sites[0];
+  site.decided_true = true;
+  for (const hoist of [false, undefined]) {
+    site.hoist = hoist;
+    const store = new ClientStore(fixture.schema, receipt);
+    let probes = 0;
+    const lookup = store.lookup.bind(store);
+    store.lookup = (table, index, key) => {
+      if (table === "memberships" && index === "byConversationPrincipal") probes += 1;
+      return lookup(table, index, key);
+    };
+    const result = store.reexecute(program, context, certificate);
+    assert(result.state === "fresh" && canonicalValue(result.execution.result) === canonicalValue({ Array: [] }),
+      `decided_true without hoist disclosed a hidden row: ${JSON.stringify(result)}`);
+    // The twin has no rule-probe budget counter; count the actual authority lookups.
+    assert(probes === 2, `decided_true without hoist skipped rule probes: ${probes}`);
+  }
+}
+console.log(JSON.stringify({ visibilityChecks: 2, passed: 2, failed: 0 }));
 
 const cursorPageTwo = cases.find((testCase) => testCase.name === "opaque-cursor-page-two-no-overlap");
 assert(cursorPageTwo !== undefined, "opaque cursor page-two case is absent from the corpus");

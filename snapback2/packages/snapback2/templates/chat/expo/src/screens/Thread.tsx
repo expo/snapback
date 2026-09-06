@@ -1,10 +1,11 @@
-import React from "react";
-import { ScrollView, Text, View } from "react-native";
+import React, { useState } from "react";
+import { Button, ScrollView, Text, View } from "react-native";
 import { api } from "snapback2/client";
 import { AssetImage, AssetVideo, useOutbox, useQuery } from "snapback2/react-native";
 import { intentLabel, threadBubbles, type LogRow } from "../../shared/log.js";
 import { Composer } from "../Composer";
 export function Thread({ conversationId }: { conversationId: string }) {
+  const [opened, setOpened] = useState<string[]>([]);
   const result = useQuery(api.deliveries.thread, { conversationId, c: null });
   const { entries } = useOutbox();
   const rows: LogRow[] = "data" in result && Array.isArray(result.data) ? result.data : [];
@@ -14,6 +15,9 @@ export function Thread({ conversationId }: { conversationId: string }) {
     {threadBubbles(rows, entries, conversationId).map((bubble) => <View key={bubble.key} testID={`message-${bubble.key}`} style={{ padding: 12, marginVertical: 4, backgroundColor: "#e7edff", borderRadius: 12 }}>
       {bubble.kind === "pending" ? <><Text>{bubble.body}</Text><Text>{intentLabel(bubble.entry)}</Text></>
         : <><Text>{bubble.message.body}</Text>
+          {bubble.message.oncePhoto ? opened.includes(bubble.key)
+            ? <AssetImage asset={bubble.message.oncePhoto} width={240} />
+            : <Button title="View photo once" onPress={() => setOpened(ids => [...ids, bubble.key])} /> : null}
           {bubble.message.photo ? <AssetImage asset={bubble.message.photo} width={240} /> : null}
           {bubble.message.clip ? <AssetVideo asset={bubble.message.clip} width={240} /> : null}
           <Text>{new Date(bubble.at).toLocaleTimeString()}</Text></>}

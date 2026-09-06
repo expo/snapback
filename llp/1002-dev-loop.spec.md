@@ -5,7 +5,7 @@
 **Systems:** `snapback2/crates/snapback2` (the binary: owner, server, verbs), `snapback2/packages/compiler` (project lowering, worker), `snapback2/packages/snapback2` (authoring runtime, client, React, test runner, shim), `snapback2/scripts/measure.mjs`
 **Author:** Claude Fable 5 (orchestrator) — implementers: codex gpt-5.6-sol, lanes B0 (compiler + authoring surface), B1 (owner + server + verbs), B2 (`init`, `test`, `why`, `trace`, `guide`), D (client + React + evaluator)
 **Date:** 2026-08-29
-**Revised:** 2026-09-05 (auth review: failed-transition custody, read restoration barrier, session kind, paused offline retries); 2026-09-05 (client-owned auth restoration and retry lifecycle; catalog naming rewrites, Clique L2; shared live transport, bounded derived verification, mutation-read guidance, installed consumer qualification)
+**Revised:** 2026-09-05 (keyword index fallback and recipe list; generated Quarry keyword guide, landed outbox/client custody; auth review: failed-transition custody, read restoration barrier, session kind, paused offline retries; client-owned auth restoration and retry lifecycle; catalog naming rewrites, Clique L2; shared live transport, bounded derived verification, mutation-read guidance, installed consumer qualification)
 **Related:** LLP 1000, LLP 1001 (the engine this serves), LLP 1003 (effects),
 LLP 0329.016 §5 (the design this implements verbatim where it can), LLP
 0329.016 §5.11 (the verb table — no verb exists without its row), LLP
@@ -701,8 +701,17 @@ verdict: "pass" | "fail" | "blocked", ms, detail }], arms: ["headless"], verdict
   (tables, rules, ops with bounds, channels, personas — from the generation),
   `<symbol>` (the JSDoc on the `snapback2` module's declaration), `<E_CODE>`
   (the family's wrong/right pair), `<recipe>` (`auth`, `live-query`,
-  `effects`, `personas`, `testing` — ≤ 4 KB Markdown files shipped in the
-  package). Served from the package, not embedded in the binary.
+  `effects`, `offline`, `personas`, `operator`, `job`, `schedule`, `quarry`,
+  `testing` — budgeted Markdown files shipped in the package). After page, refusal,
+  and symbol lookup, `<keyword>` serves its grammar line and defining paragraph
+  from an index generated at package build time from
+  the existing guide pages; a matching symbol keeps its declaration and gains that
+  excerpt under one header. Missing, unreadable, or invalid keyword indexes never
+  suppress a symbol hit. A keyword-only lookup with a missing index is unknown;
+  unreadable or invalid indexes return `E_OWNER_GUIDE` only when keyword help is
+  needed. Unknown-name guidance includes index keys when readable. `--json` keeps
+  `{ page, content }`; no pages are scanned at lookup time.
+  Served from the package, not embedded in the binary.
 
 ## 9. The client (`snapback2/client`, `snapback2/react`, `snapback2/test`)
 
@@ -711,7 +720,7 @@ const client = createClient({ url, token?, tokenStore? } | { url, as }) // stora
 await client.ready                                  // restore barrier before any data request
 client.auth.signup / login / guest / logout / me
 await client.query(api.todos.list, { take: 50 })       // → { state, data, seq, … } — never throws on a typed state
-await client.mutation(api.todos.add, { title })       // → committed | rejected
+await client.mutation(api.todos.add, { title })       // → committed | rejected | queued
 const sub = client.subscribe(api.todos.list, args, (r) => …)   // SSE; { state: live|stale|refused|partial }; sub.close(); sub.until(pred)
 client.channel(api.typing, args).publish(payload) / .subscribe(cb)
 ```
@@ -728,13 +737,17 @@ subscription is connected and this view is its latest delivery — the RFC's
 `live: true`) and `connection`. A transport failure (network, HTTP 5xx, a
 stream idle past 2× the heartbeat) is `stale(since)` with reconnect and
 backoff; only a 4xx envelope on the stream is a terminal `refused`; `useMutation` returns
-`{ run, pending, last, transport }` with `last: committed | rejected` — only
-ever the server's receipt; a transport failure (network, 5xx) leaves `last`
-untouched, sets `transport` (a `SnapbackRefusal`, `retryable: true`, cleared
-on the next successful run) and rejects `run()` — a 503 after a commit must
-never look like a rejection, since a retry could duplicate the write.
-`queued` is reserved for the offline outbox (LLP 1012 §7, lane O2) and never claimed
-before it exists (review rulings 2026-08-30). Every 4xx envelope on `query()`/`mutation()`
+`{ run, inFlight, pending, ready, status, last, transport }`: `inFlight` marks an
+active call, `pending` lists this operation's durable queued intents, and `last`
+is `committed | rejected | queued`. With local-first custody (LLP 1012 §7),
+`queued` means saved on the device for FIFO replay after resume; transport loss
+keeps the same intent for retry. `status: OutboxStatus` explains readiness,
+the next action, queued count, and fence; `useOutbox()` exposes entries, and
+`outbox.drain()`/`settled()` return `{ stopped, remaining }` (`OutboxSettlement`).
+A thrown transport failure leaves `last` untouched, sets `transport` (a
+retryable `SnapbackRefusal`, cleared by a successful run), and rejects `run()`;
+a 503 after commit must never look like a server rejection.
+Every 4xx envelope on `query()`/`mutation()`
 throws `SnapbackRefusal`; subscriptions deliver `refused`. **Transport status
 is not a query state**: hooks and the provider expose `connection: connected |
 reconnecting | offline` separately, and a network failure leaves a query
@@ -814,11 +827,9 @@ dispatched writes to settle; operations queued behind the barrier use only the
 successor authority. A locally suppressed response is never represented as a
 server `rejected` mutation because it may already have committed.
 
-There is no offline outbox or durable private-row snapshot in this slice (LLP
-1012 specifies both; this paragraph stands until its lanes land), so
-the client makes no claim about destroying or replay-fencing surfaces that do
-not exist. Its guarantee covers current in-memory transports, queued client
-calls, React cache identity, and the explicitly supplied token store.
+Local-first custody is implemented in LLP 1012: the durable range store and
+FIFO outbox follow its partition sealing, wiping, and replay-fence rules
+(§§4–7), alongside the in-memory transport and React cache identity fences.
 
 Three rulings folded 2026-08-30 from the client-tier arc (LLP 0329.018–.023):
 
@@ -833,10 +844,9 @@ Three rulings folded 2026-08-30 from the client-tier arc (LLP 0329.018–.023):
 - **Evaluator per arm** (LLP 0329.018 F1): web and Expo host a JS runtime
   and are assigned the standalone TypeScript twin; the Contract-native
   (Exact 2) arm hosts none and links `snapback2-core`'s interpreter. Both run
-  the merged RBAC, Bytes, and capped-completeness corpus. The current public
-  web client remains server-backed and does not yet carry the certified
-  program/receipt custody needed to run that twin; wiring it is tracked in
-  `issues/20260830-snapback2-wire-evaluator-into-public-client.md`. Two
+  the merged RBAC, Bytes, and capped-completeness corpus. The public web and
+  Expo clients carry certified programs and held receipts for the twin's
+  offline reads and queued mutation predictions (LLP 1012 §§6–7). Two
   evaluator implementations, assigned by runtime, never a third.
 - **Coverage is client-issuable; absence and authorization are not**
   (LLP 0329.021 P5): the twin never manufactures an absence or a verdict; a

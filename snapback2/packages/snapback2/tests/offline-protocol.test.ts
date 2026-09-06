@@ -172,6 +172,12 @@ test("offline protocol values and types are exported from the package index", as
     await writeFile(sample, `
       import { decodeDeliveryEnvelope, type DeliveryEnvelopeV1 } from "snapback2";
       import type { QueryReceiptRequest, SubscribeReceiptRequest } from "snapback2/client";
+      import { journey } from "snapback2/test";
+      journey("image custody", ({ as }) => {
+        as("alice", { store: "file" });
+        // @ts-expect-error schema custody replaced the client option
+        as("alice", { viewOnce: () => true });
+      });
       declare const input: unknown;
       const envelope: DeliveryEnvelopeV1 = decodeDeliveryEnvelope(input);
       const protocol: 1 = envelope.protocol;
@@ -192,13 +198,14 @@ test("offline protocol values and types are exported from the package index", as
         paths: {
           snapback2: [resolve(packageRoot, "dist/index.d.ts")],
           "snapback2/client": [resolve(packageRoot, "dist/client.d.ts")],
+          "snapback2/test": [resolve(packageRoot, "dist/test.d.ts")],
         },
-        skipLibCheck: true,
+        skipLibCheck: false,
         strict: true,
         target: ts.ScriptTarget.ES2022,
       },
     });
-    const diagnostics = ts.getPreEmitDiagnostics(program).filter((item) => item.file?.fileName === sample);
+    const diagnostics = ts.getPreEmitDiagnostics(program).filter((item) => item.file?.fileName === sample || item.file?.fileName === resolve(packageRoot, "dist/test.d.ts"));
     assert.deepEqual(
       diagnostics.map((item) => ts.flattenDiagnosticMessageText(item.messageText, "\n")),
       [],

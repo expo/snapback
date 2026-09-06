@@ -208,7 +208,7 @@ export class OfflineRuntime {
     this.store = options.store();
     this.fenceDays = options.fenceDays ?? 7;
     this.maxAssetBytes = options.maxAssetBytes ?? 256 * 1024 * 1024;
-    this.bytes = new ByteCache(this.store, { maxAssetBytes: this.maxAssetBytes, viewOnce: options.viewOnce });
+    this.bytes = new ByteCache(this.store, { maxAssetBytes: this.maxAssetBytes });
     this.outbox = new OutboxLedger(this.store, {
       now: () => Date.now(),
       fenceMs: this.fenceDays * 24 * 60 * 60 * 1_000,
@@ -393,7 +393,8 @@ export class OfflineRuntime {
       if (!Object.values(operation.args).every((arg) => object(arg) && "Optional" in arg)) return [];
       return [{ op, args: Object.fromEntries(Object.keys(operation.args).map((key) => [key, null])), drain: false }];
     });
-    if (value.schema?.tables) this.schema = value.schema as OfflineSchema;
+    // Manifest tables carry current columns: replace stale schema custody even without a full schema.
+    this.schema = (value.schema?.tables ? value.schema : { tables }) as OfflineSchema;
   }
 
   /**

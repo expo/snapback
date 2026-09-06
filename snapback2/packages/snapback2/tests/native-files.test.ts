@@ -26,9 +26,9 @@ async function fixture(once = false) {
   let reject = false;
   const backend = new SqliteBackend(() => nodeSqliteDriver(join(root, "native.db")), { beforeCommit() { if (reject) throw new Error("rollback"); } });
   const store = new PersistentRangeStore(fileBackend(backend, files));
-  const cache = new ByteCache(store, { maxAssetBytes: 100, viewOnce: () => once });
+  const cache = new ByteCache(store, { maxAssetBytes: 100 });
   await store.open("dev:alice"); cache.bind("dev:alice");
-  await store.commit({ deliveries: [{ op: "thread", args: {}, seq: 1, state: "complete", next: null,
+  await store.commit({ schema: { tables: { messages: { columns: { photo: { Image: { max: 5000000, ...(once ? { once: true } : {}) } } } } } }, deliveries: [{ op: "thread", args: {}, seq: 1, state: "complete", next: null,
     data: [{ $row: { table: "messages", id: "m1" } }], rows: [{ table: "messages", id: "m1", row: { id: "m1", photo: asset } }],
     receipt: { ranges: [], absences: [], verdicts: [] } }] });
   return { fs, files, store, cache, backend, root, fail(value: boolean) { reject = value; }, async close() { await store.close(); await rm(root, { recursive: true, force: true }); } };
@@ -123,5 +123,30 @@ test("view-once native bytes stay in memory, are never written, and disappear on
     f.cache.forget();
     assert.equal(await f.cache.getBytes(asset.id, 8), undefined);
     assert.equal((await f.store.bytes()).entries.length, 0);
+  } finally { await f.close(); }
+});
+
+test("native once image lists consume per asset and keep the original across width changes", async () => {
+  const f = await fixture(true);
+  const second = { ...asset, id: asset.id.slice(0, -1) + "2" };
+  const clip = { ...asset, id: asset.id.slice(0, -1) + "3", duration: 1000 };
+  try {
+    await f.store.commit({ schema: { tables: { messages: { columns: { photos: { List: { of: { Image: { max: 5000000, once: true } }, max: 2 } } } } } },
+      deliveries: [{ op: "thread", args: {}, seq: 2, state: "complete", next: null,
+        data: [{ $row: { table: "messages", id: "m1" } }],
+        rows: [{ table: "messages", id: "m1", row: { id: "m1", photos: [asset, second], clip } }],
+        receipt: { ranges: [], absences: [], verdicts: [] } }] });
+    assert.equal(await f.cache.viewOnce(clip.id), false, "the modifier belongs to the image column");
+    assert.equal(await f.cache.putBytes(clip.id, 8, payload), "refused", "the whole once row is excluded from the byte cache");
+    const viewing = {};
+    assert.equal(await f.cache.putBytes(asset.id, 8, payload, viewing), "viewed");
+    assert.equal(await f.cache.viewed(asset.id), true);
+    assert.equal(await f.cache.viewed(second.id), false);
+    assert.equal(await f.cache.viewOnce(second.id), true);
+    assert.deepEqual((await f.cache.getBytes(asset.id, 240, viewing))?.bytes, payload.bytes);
+    assert.equal(await f.cache.putBytes(second.id, 8, payload, {}), "viewed");
+    assert.equal(await f.cache.viewed(second.id), true);
+    assert.deepEqual(f.fs.writes, []);
+    assert.deepEqual((await f.cache.status()).entries, []);
   } finally { await f.close(); }
 });

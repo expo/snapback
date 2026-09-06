@@ -117,6 +117,9 @@ impl State {
             Identity::Carrier(token) => self.resolve_asset_carrier(&token)?,
             identity => Some(self.resolve_authority(identity)?),
         };
+        let principal = authority
+            .as_ref()
+            .map(|authority| authority.principal.id.to_string());
         let delivery = if let Some(authority) = authority {
             let context = self.execution_context(&authority, BTreeMap::new())?;
             self.runtime_mut().asset_delivery(id, context)
@@ -124,16 +127,50 @@ impl State {
             self.runtime_mut().public_asset_delivery(id)
         }
         .map_err(|error| Refusal::from_runtime(&error))?;
-        if carrier && !delivery.public && delivery.kind == AssetKind::Image {
+        if delivery.once
+            && let Some(principal) = &principal
+        {
+            if self
+                .runtime()
+                .store()
+                .asset_viewed(id, principal)
+                .map_err(|error| Refusal::from_runtime(&error))?
+            {
+                return Err(Refusal::from_runtime(
+                    &snapback2_core::RuntimeError::AssetViewed(id.to_owned()),
+                ));
+            }
+        }
+        if carrier && (!delivery.public || delivery.once) && delivery.kind == AssetKind::Image {
             return Err(Refusal::from_runtime(
                 &snapback2_core::RuntimeError::AssetNotReady("asset is unavailable".to_owned()),
             ));
         }
-        serde_json::to_value(delivery).map_err(|error| {
+        let once = delivery.once;
+        let mut result = serde_json::to_value(delivery).map_err(|error| {
             Refusal::from_runtime(&snapback2_core::RuntimeError::Serialization(
                 error.to_string(),
             ))
-        })
+        })?;
+        if once {
+            result["principal"] = json!(principal.expect("authorized once principal"));
+        }
+        Ok(result)
+    }
+
+    pub(super) fn asset_consume(&mut self, id: &str, principal: &str) -> Result<Json, Refusal> {
+        let now = self.now();
+        let result = self.runtime_mut().record_asset_view(id, principal, now);
+        // A failed durable commit after bytes moved must not allow a retry in this owner.
+        if matches!(
+            &result,
+            Err(snapback2_core::RuntimeError::Sql(_)
+                | snapback2_core::RuntimeError::Serialization(_))
+        ) {
+            self.stop.store(true, std::sync::atomic::Ordering::SeqCst);
+        }
+        result.map_err(|error| Refusal::from_runtime(&error))?;
+        Ok(json!(null))
     }
 
     pub(super) fn asset_upload_authorize(
@@ -231,7 +268,7 @@ fn generation_asset_maxima(generation: &Generation) -> (u64, u64) {
 
 fn column_asset_maxima(kind: &ColumnType, maxima: &mut (u64, u64)) {
     match kind {
-        ColumnType::Image { max } => maxima.0 = maxima.0.max(u64::from(*max)),
+        ColumnType::Image { max, .. } => maxima.0 = maxima.0.max(u64::from(*max)),
         ColumnType::Video { max } => maxima.1 = maxima.1.max(u64::from(*max)),
         ColumnType::Optional(inner) | ColumnType::List { of: inner, .. } => {
             column_asset_maxima(inner, maxima)
@@ -340,6 +377,222 @@ mod tests {
         }
     }
 
+    fn once_state(root: &std::path::Path) -> (State, String) {
+        let case: Json =
+            serde_json::from_str(include_str!("../../../corpus/asset-once-image-insert.json"))
+                .unwrap();
+        let project = ProjectJson {
+            version: 1,
+            schema: serde_json::from_value(case["schema"].clone()).unwrap(),
+            programs: vec![serde_json::from_value(case["program"].clone()).unwrap()],
+            effects: vec![],
+            auth: Auth::default(),
+        };
+        let generation = Generation::certify(&project, Ceilings::default()).unwrap();
+        std::fs::create_dir_all(root.join(".snapback")).unwrap();
+        let mut runtime = Runtime::open(
+            Store::open(&root.join("store.db")).unwrap(),
+            generation.clone(),
+        )
+        .unwrap();
+        let actor = snapback2_core::Actor::persona("alice").unwrap();
+        let id = runtime
+            .begin_asset(AssetKind::Image, &actor, unix_millis())
+            .unwrap();
+        runtime.reserve_asset_finalized_bytes(&id, 2).unwrap();
+        runtime
+            .mark_asset_ready(
+                &id,
+                &AssetReadyFacts {
+                    media_type: "image/png".into(),
+                    bytes: 2,
+                    width: 1,
+                    height: 1,
+                    duration: None,
+                },
+            )
+            .unwrap();
+        let blobs = Arc::new(FileBlobStore::open(root).unwrap());
+        blobs.put(&id, &mut Cursor::new(b"xy")).unwrap();
+        runtime
+            .execute(
+                "media.insertOnceImage",
+                Context::mutation(
+                    actor,
+                    BTreeMap::from([
+                        ("rowId".into(), Value::Id("row1".into())),
+                        (
+                            "asset".into(),
+                            Value::Map(BTreeMap::from([
+                                ("id".into(), Value::String(id.clone())),
+                                ("width".into(), Value::Int(1)),
+                                ("height".into(), Value::Int(1)),
+                            ])),
+                        ),
+                    ]),
+                ),
+            )
+            .unwrap();
+        (
+            state_with_assets(root.to_path_buf(), runtime, project, generation, blobs),
+            id,
+        )
+    }
+
+    fn once_root(label: &str) -> PathBuf {
+        std::env::temp_dir().join(format!(
+            "snapback2-once-{label}-{}-{}",
+            std::process::id(),
+            unix_millis()
+        ))
+    }
+
+    // Raw TCP sees any accidental HEAD/body bytes; no HTTP client discards them for us.
+    fn socket_request(server: &tiny_http::Server) -> std::thread::JoinHandle<Vec<u8>> {
+        let address = server.server_addr().to_ip().unwrap();
+        std::thread::spawn(move || {
+            use std::io::Write;
+            let mut socket = std::net::TcpStream::connect(address).unwrap();
+            socket
+                .set_read_timeout(Some(Duration::from_secs(5)))
+                .unwrap();
+            socket
+                .write_all(
+                    b"GET /api/asset/test HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n\r\n",
+                )
+                .unwrap();
+            let mut response = Vec::new();
+            socket.read_to_end(&mut response).unwrap();
+            response
+        })
+    }
+
+    #[test]
+    fn duplicate_once_consume_refuses_410_without_stopping_owner() {
+        let root = once_root("duplicate");
+        let (mut state, id) = once_state(&root);
+        let action = || Action::AssetConsume {
+            id: id.clone(),
+            principal: "dev:alice".into(),
+        };
+        state.handle(action()).unwrap();
+        let error = state.handle(action()).unwrap_err();
+        assert_eq!(error.code, "E_ASSET_VIEWED");
+        assert!(
+            !state.stop.load(Ordering::SeqCst),
+            "duplicate claim stopped the owner"
+        );
+        let server = tiny_http::Server::http("127.0.0.1:0").unwrap();
+        let client = socket_request(&server);
+        crate::asset_http::respond_once_refusal(server.recv().unwrap(), error, "dev");
+        let response = String::from_utf8(client.join().unwrap()).unwrap();
+        assert!(response.starts_with("HTTP/1.1 410"), "{response}");
+        // A second principal still receives a delivery from the same owner state.
+        assert!(
+            state
+                .handle(Action::AssetDelivery {
+                    id,
+                    identity: Identity::Persona("bob".into())
+                })
+                .is_ok()
+        );
+        drop(state);
+        std::fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn once_durable_write_failure_stops_owner() {
+        let root = once_root("io-failure");
+        let (state, id) = once_state(&root);
+        let project = state.compiled.project.clone();
+        let generation = state.compiled.generation.clone();
+        let blobs = state.blobs.clone();
+        drop(state); // The owner uses exclusive SQLite custody; install the fault while it is closed.
+        let connection = rusqlite::Connection::open(root.join("store.db")).unwrap();
+        connection.execute_batch("CREATE TRIGGER refuse_view BEFORE INSERT ON _asset_views BEGIN SELECT RAISE(FAIL, 'failed durable write'); END;").unwrap();
+        drop(connection);
+        let runtime = Runtime::open(
+            Store::open(&root.join("store.db")).unwrap(),
+            generation.clone(),
+        )
+        .unwrap();
+        let mut state = state_with_assets(root.clone(), runtime, project, generation, blobs);
+        let error = state
+            .handle(Action::AssetConsume {
+                id,
+                principal: "dev:alice".into(),
+            })
+            .unwrap_err();
+        assert_eq!(error.code, "E_CONSTRAINT");
+        assert!(
+            state.stop.load(Ordering::SeqCst),
+            "failed durable write left the owner retryable"
+        );
+        drop(state);
+        std::fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn once_commit_survives_owner_restart_while_completion_is_withheld() {
+        let root = once_root("fence");
+        let (mut state, id) = once_state(&root);
+        let project = state.compiled.project.clone();
+        let generation = state.compiled.generation.clone();
+        let blobs = state.blobs.clone();
+        let server = tiny_http::Server::http("127.0.0.1:0").unwrap();
+        let client = socket_request(&server);
+        let delivery = state
+            .handle(Action::AssetDelivery {
+                id: id.clone(),
+                identity: Identity::Persona("alice".into()),
+            })
+            .unwrap();
+        let (consumed, finish) = crate::asset_http::write_once_body(
+            server.recv().unwrap(),
+            blobs.get(&id, None).unwrap(),
+            &delivery,
+            "dev",
+        );
+        assert!(consumed);
+        state
+            .handle(Action::AssetConsume {
+                id: id.clone(),
+                principal: "dev:alice".into(),
+            })
+            .unwrap();
+        // The test owns the continuation: restart at the exact durable-claim / finish boundary,
+        // without a production barrier, timing race, or sleep. All owner state and its DB close.
+        drop(state);
+        let runtime = Runtime::open(
+            Store::open(&root.join("store.db")).unwrap(),
+            generation.clone(),
+        )
+        .unwrap();
+        let mut restarted = state_with_assets(root.clone(), runtime, project, generation, blobs);
+        drop(finish); // The old HTTP worker dies with the owner; the last byte never escapes.
+        let response = client.join().unwrap();
+        let start = response.windows(4).position(|w| w == b"\r\n\r\n").unwrap() + 4;
+        assert!(response.starts_with(b"HTTP/1.1 200"));
+        assert!(String::from_utf8_lossy(&response[..start]).contains("Content-Length: 2"));
+        assert_eq!(
+            &response[start..],
+            b"x",
+            "client observed a complete body before finish"
+        );
+        let retry = socket_request(&server);
+        let error = restarted
+            .handle(Action::AssetDelivery {
+                id,
+                identity: Identity::Persona("alice".into()),
+            })
+            .unwrap_err();
+        assert_eq!(error.code, "E_ASSET_VIEWED");
+        crate::asset_http::respond_once_refusal(server.recv().unwrap(), error, "dev");
+        assert!(retry.join().unwrap().starts_with(b"HTTP/1.1 410"));
+        drop(restarted);
+        std::fs::remove_dir_all(root).unwrap();
+    }
+
     struct CountingBlobStore {
         inner: FileBlobStore,
         enumerations: AtomicUsize,
@@ -424,7 +677,13 @@ mod tests {
                 "media".to_owned(),
                 table(BTreeMap::from([
                     ("id".to_owned(), ColumnType::Id),
-                    ("photo".to_owned(), ColumnType::Image { max: 1_000 }),
+                    (
+                        "photo".to_owned(),
+                        ColumnType::Image {
+                            max: 1_000,
+                            once: false,
+                        },
+                    ),
                 ])),
             )]),
             ..Schema::default()
@@ -549,7 +808,13 @@ mod tests {
         let table = Table {
             columns: BTreeMap::from([
                 ("id".to_owned(), ColumnType::Id),
-                ("photo".to_owned(), ColumnType::Image { max: 1_000 }),
+                (
+                    "photo".to_owned(),
+                    ColumnType::Image {
+                        max: 1_000,
+                        once: false,
+                    },
+                ),
             ]),
             indexes: BTreeMap::from([(
                 "byId".to_owned(),

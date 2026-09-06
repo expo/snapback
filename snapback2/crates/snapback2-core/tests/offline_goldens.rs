@@ -1032,7 +1032,13 @@ fn all_types_schema() -> Schema {
                             max: 2,
                         },
                     ),
-                    ("image".to_owned(), ColumnType::Image { max: 10_000 }),
+                    (
+                        "image".to_owned(),
+                        ColumnType::Image {
+                            max: 10_000,
+                            once: false,
+                        },
+                    ),
                     ("video".to_owned(), ColumnType::Video { max: 10_000 }),
                     ("json".to_owned(), ColumnType::Json { max_bytes: 256 }),
                     ("decimal".to_owned(), ColumnType::Decimal { scale: 2 }),

@@ -104,7 +104,7 @@ declare module "snapback2" {
     principal(): Column<Principal>;
     text(max: number): Column<string>;
     bytes(max: number): Column<Bytes>;
-    image(max: number): Column<ImageAsset>;
+    image(max: number, options?: { once: true }): Column<ImageAsset>;
     video(max: number): Column<VideoAsset>;
     int(): Column<number>;
     bool(): Column<boolean>;

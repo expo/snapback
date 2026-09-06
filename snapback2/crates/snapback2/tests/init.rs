@@ -80,10 +80,10 @@ fn assert_rendering(template: &str, chat: bool) {
             .iter()
             .filter_map(|program| program["name"].as_str())
             .collect::<BTreeSet<_>>();
-        // 25 operations plus the expiry schedule's binding program (never an API operation).
+        // 26 operations plus the expiry schedule's binding program (never an API operation).
         assert_eq!(
             operations.len(),
-            26,
+            27,
             "unexpected chat operation set: {operations:?}"
         );
         for operation in [
@@ -782,28 +782,63 @@ fn init_refuses_unreadable_managed_text_without_changing_bytes() {
 fn chat_expo_scaffolds_flattened_app_shared_reducers_and_sdk54_dependencies() {
     let project = Project::new();
     let output = project.init("chat", "expo");
-    assert!(output.status.success(), "{}{}", String::from_utf8_lossy(&output.stdout), String::from_utf8_lossy(&output.stderr));
-    for path in ["App.tsx", "app.json", "index.js", "src/Composer.tsx", "src/screens/Inbox.tsx", "src/screens/Thread.tsx",
-        "src/screens/Search.tsx", "shared/log.ts", "shared/log.js", "shared/offline.js"] {
+    assert!(
+        output.status.success(),
+        "{}{}",
+        String::from_utf8_lossy(&output.stdout),
+        String::from_utf8_lossy(&output.stderr)
+    );
+    for path in [
+        "App.tsx",
+        "app.json",
+        "index.js",
+        "src/Composer.tsx",
+        "src/screens/Inbox.tsx",
+        "src/screens/Thread.tsx",
+        "src/screens/Search.tsx",
+        "shared/log.ts",
+        "shared/log.js",
+        "shared/offline.js",
+    ] {
         assert!(project.path.join(path).is_file(), "missing {path}");
     }
-    let package: Json = serde_json::from_slice(&std::fs::read(project.path.join("package.json")).unwrap()).unwrap();
+    let package: Json =
+        serde_json::from_slice(&std::fs::read(project.path.join("package.json")).unwrap()).unwrap();
     assert_eq!(package["main"], "index.js");
     assert_eq!(package["dependencies"]["expo"], "~54.0.37");
     assert_eq!(package["dependencies"]["react-native"], "0.81.5");
     assert_eq!(package["scripts"]["dev"], "expo start");
     assert!(package["dependencies"].get("react-native-web").is_none());
-    let config: Json = serde_json::from_slice(&std::fs::read(project.path.join("tsconfig.json")).unwrap()).unwrap();
-    assert!(config["include"].as_array().unwrap().contains(&serde_json::json!(".snapback/build/api.d.ts")));
-    assert!(std::fs::read_to_string(project.path.join("src/Composer.tsx")).unwrap().contains("post.ready"));
+    let config: Json =
+        serde_json::from_slice(&std::fs::read(project.path.join("tsconfig.json")).unwrap())
+            .unwrap();
+    assert!(
+        config["include"]
+            .as_array()
+            .unwrap()
+            .contains(&serde_json::json!(".snapback/build/api.d.ts"))
+    );
+    assert!(
+        std::fs::read_to_string(project.path.join("src/Composer.tsx"))
+            .unwrap()
+            .contains("post.ready")
+    );
 }
 
 #[test]
 fn chat_react_keeps_shared_reducer_imports_after_flattening() {
     let project = Project::new();
     let output = project.init("chat", "react");
-    assert!(output.status.success(), "{}", String::from_utf8_lossy(&output.stderr));
+    assert!(
+        output.status.success(),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
     assert!(project.path.join("shared/log.ts").is_file());
     assert!(project.path.join("shared/log.js").is_file());
-    assert!(std::fs::read_to_string(project.path.join("src/Thread.tsx")).unwrap().contains("../shared/log.js"));
+    assert!(
+        std::fs::read_to_string(project.path.join("src/Thread.tsx"))
+            .unwrap()
+            .contains("../shared/log.js")
+    );
 }

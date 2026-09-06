@@ -534,8 +534,10 @@ fn closure_and_output_estimates_follow_retained_shape_and_declared_maxima() {
 #[test]
 fn one_valid_program_reports_every_default_ceiling_refusal() {
     let mut schema = ceiling_schema(1024);
+    // A self-key probe is now free; use another table to exercise the probe ceiling.
+    schema.tables.insert("probes".to_owned(), schema.tables["items"].clone());
     schema.tables.get_mut("items").unwrap().rules.read = RuleExpr::Exists {
-        table: "items".to_owned(),
+        table: "probes".to_owned(),
         index: "byId".to_owned(),
         key: vec![RuleTerm::Field("id".to_owned())],
         provenance: KeyProvenance::Shape,

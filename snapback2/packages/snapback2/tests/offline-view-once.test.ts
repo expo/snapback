@@ -33,7 +33,7 @@ const bytes = async (blob: Blob) => [...new Uint8Array(await blob.arrayBuffer())
 const messageRow = (id: string, media: Record<string, unknown>) => ({
   table: "messages",
   id,
-  row: { id, conversationId: "c1", at: Number(id.slice(1)), ...media },
+  row: { id, conversationId: "c1", at: Number(id.slice(1)), ...media, ...(id === "m2" && media.photo ? { oncePhoto: media.photo, photo: null } : {}) },
 });
 const json = (value: unknown, status = 200) => new Response(JSON.stringify(value), { status });
 const THREAD_ARGS = { conversationId: "c1", c: null };
@@ -56,7 +56,7 @@ test("web assetBlob and byte fetch read the transport cut after readiness resolv
 test("web viewed allowance belongs to its viewing instance, never a second consumer or URL hook", async () => {
   const root = await tempRoot(); const owner = bearerServer();
   const client = createClient({ url: "http://assets.test", token: "token-a", offlinePrincipal: "principal-a",
-    fetch: owner.fetch, offline: { store: fileRangeStore(root), viewOnce: (_table, row) => row.id === "m2" } });
+    fetch: owner.fetch, offline: { store: fileRangeStore(root) } });
   const viewing = {};
   try {
     await client.ready;
@@ -64,7 +64,8 @@ test("web viewed allowance belongs to its viewing instance, never a second consu
     const url = (await client.assetUrl(photo(B)))!;
     const shown = await client.assetBlob(url, { viewing });
     assert.deepEqual(await bytes(shown), [5, 5, 5, 5]);
-    await assert.rejects(client.assetBlob(url), (error: unknown) => error instanceof SnapbackRefusal && error.code === "E_ASSET_VIEWED");
+    await assert.rejects(client.assetBlob(url), (error: unknown) => error instanceof SnapbackRefusal && error.code === "E_ASSET_VIEWED"
+      && error.envelope.rewrite === "render this image once; request a new image for another delivery");
     await assert.rejects(client.assetBytes(url, { viewing: {} }), (error: unknown) => error instanceof SnapbackRefusal && error.code === "E_ASSET_VIEWED");
     assert.equal(await client.assetCache!.get(B, null), undefined);
     assert.equal(await client.assetUrl(photo(B)), undefined);
@@ -76,7 +77,7 @@ test("web viewed allowance belongs to its viewing instance, never a second consu
 test("a row viewed during URL minting cannot shift another asset's URL onto its list entry", async () => {
   const directory = await tempRoot(); const owner = bearerServer(); const env = domEnvironment();
   const client = createClient({ url: "http://assets.test", token: "token-a", offlinePrincipal: "principal-a",
-    fetch: owner.fetch, offline: { store: fileRangeStore(directory), viewOnce: (_table, row) => row.id === "m2" } });
+    fetch: owner.fetch, offline: { store: fileRangeStore(directory) } });
   const root = createRoot(env.dom.window.document.getElementById("root")!);
   let urls: Array<string | undefined> | undefined;
   function Probe() { urls = useAssetUrl([photo(B), photo(A)]); return null; }
@@ -107,7 +108,7 @@ function metadataResponse(url: URL): Response | undefined {
   if (url.pathname === "/api/manifest") {
     return json({
       generation: "schema-generation", programGeneration: generation, ops: {}, channels: {}, auth: {},
-      tables: { messages: { retain: "until-revoked" } },
+      tables: { messages: { retain: "until-revoked", columns: { oncePhoto: { Optional: { Image: { max: 5000000, once: true } } } } } },
     });
   }
   if (url.pathname === "/api/program") {
@@ -192,7 +193,7 @@ test("the view-once session allowance obeys custody: a partition switch, a wipe,
     const { state, fetch } = bearerServer();
     const client = createClient({
       url: "http://custody.test", tokenStore: memoryTokenStore(),
-      offline: { store: fileRangeStore(root), viewOnce: (_table, row) => row.id === "m2" }, fetch,
+      offline: { store: fileRangeStore(root) }, fetch,
     });
     await client.auth.login({ email: "a@example.com", password: "pw" });
     await client.query(api.messages.thread, THREAD_ARGS);
@@ -262,7 +263,7 @@ test("a byte read in flight during a partition change never serves the previous 
     };
     client = createClient({
       url: "http://custody-race.test", tokenStore: memoryTokenStore(),
-      offline: { store, viewOnce: (_table, row) => row.id === "m2" }, fetch,
+      offline: { store }, fetch,
     });
     // b views the clip once, so b's partition records it viewed while still holding the row.
     state.fill = 6;
@@ -284,95 +285,7 @@ test("a byte read in flight during a partition change never serves the previous 
   } finally { await rm(root, { recursive: true, force: true }); }
 });
 
-test("web AssetVideo admits view-once bytes on a play request; ordinary video keeps its carrier and cache", async () => {
-  const root = await tempRoot();
-  const env = domEnvironment();
-  const assetFetches: string[] = [];
-  let carrierCalls = 0;
-  const viewOnce = (_table: string, row: Record<string, unknown>) => row.id === "m2";
-  const fetch = async (input: string | URL | Request) => {
-    const url = new URL(String(input));
-    const metadata = metadataResponse(url);
-    if (metadata) return metadata;
-    if (url.pathname === "/api/query") {
-      return json(envelope(
-        [ref("messages", "m1"), ref("messages", "m2"), ref("messages", "m3")],
-        [messageRow("m1", { photo: photo(A) }), messageRow("m2", { clip: clip(V) }), messageRow("m3", { clip: clip(W) })],
-      ));
-    }
-    if (url.pathname === "/api/auth/asset-session") {
-      carrierCalls += 1;
-      return json({ token: "carrier", expiresAt: Date.now() + 120_000 });
-    }
-    if (url.pathname.startsWith("/api/asset/")) {
-      assetFetches.push(url.pathname);
-      return new Response(bytesOf(6, 1), { status: 200, headers: { "Content-Type": "video/mp4" } });
-    }
-    throw new Error(`unexpected path ${url.pathname}`);
-  };
-  const offline = { store: fileRangeStore(root), viewOnce };
-  const provider = (children: React.ReactNode) => React.createElement(
-    SnapbackProvider, { url: "http://assets.test", as: "alice", fetch, offline } as any, children,
-  );
-  let reactRoot: Root | undefined;
-  try {
-    const seed = createClient({ url: "http://assets.test", as: "alice", offline, fetch });
-    await seed.ready;
-    await seed.query(api.messages.thread, THREAD_ARGS);
-    seed.close();
-    const document = env.dom.window.document;
-    reactRoot = createRoot(document.getElementById("root")!);
-    await act(async () => {
-      reactRoot!.render(provider(React.createElement(React.Fragment, null,
-        React.createElement(AssetVideo, { asset: clip(V) as any, "aria-label": "once" }),
-        React.createElement(AssetVideo, { asset: clip(W) as any, "aria-label": "ordinary" }),
-      )));
-    });
-    const once = () => document.querySelector('video[aria-label="once"]') as HTMLVideoElement;
-    const ordinary = () => document.querySelector('video[aria-label="ordinary"]') as HTMLVideoElement;
-    assert.ok(await until(() => !once().getAttribute("src") && ordinary().src.includes("?s=") && assetFetches.includes(`/api/asset/${W}`)), "only the ordinary clip has a carrier and fills the cache");
-    await settle(5);
-    assert.deepEqual(assetFetches, [`/api/asset/${W}`], "the view-once clip is never prefetched");
-    assert.deepEqual(await inspect(root), { assets: [W], viewed: [] }, "mounting a view-once clip does not view it");
-    await act(async () => { document.querySelector("button")!.click(); });
-    let marked = false;
-    for (let attempt = 0; attempt < 60 && !marked; attempt += 1) {
-      marked = (await inspect(root)).viewed.includes("m2");
-      if (!marked) await settle();
-    }
-    assert.ok(marked, "the play request admits the durable viewed mark");
-    assert.ok(await until(() => once().src.startsWith("blob:")), "only admitted bytes become playable");
-    assert.deepEqual(await inspect(root), { assets: [W], viewed: ["m2"] }, "the ordinary clip stays cached; the view-once clip never is");
-    assert.deepEqual(assetFetches, [`/api/asset/${W}`, `/api/asset/${V}`], "the play request fetched the one-use bytes");
-    await act(async () => reactRoot!.unmount());
 
-    // Every byte path: a tokenless or carrier URL for the viewed row is refused at the hook.
-    const carriersBefore = carrierCalls;
-    function Probe({ asset, label, carrier }: { asset: any; label: string; carrier?: boolean }) {
-      const url = useAssetUrl(asset, carrier ? { carrier: true } : {});
-      return React.createElement("span", { "data-label": label, "data-url": url ?? "" });
-    }
-    reactRoot = createRoot(document.getElementById("root")!);
-    await act(async () => {
-      reactRoot!.render(provider(React.createElement(React.Fragment, null,
-        React.createElement(Probe, { asset: clip(V), label: "once-carrier", carrier: true }),
-        React.createElement(Probe, { asset: clip(V), label: "once-tokenless" }),
-        React.createElement(Probe, { asset: clip(W), label: "ordinary-carrier", carrier: true }),
-      )));
-    });
-    const probe = (label: string) => document.querySelector(`span[data-label="${label}"]`)!.getAttribute("data-url");
-    assert.ok(await until(() => (probe("ordinary-carrier") ?? "").startsWith("blob:")), "the ordinary clip resolves from the byte cache");
-    await settle(5);
-    assert.equal(probe("once-carrier"), "", "no carrier URL is minted for a viewed view-once clip");
-    assert.equal(probe("once-tokenless"), "", "no tokenless URL is minted for a viewed view-once clip");
-    assert.equal(carrierCalls, carriersBefore, "a held ordinary clip needs no carrier; the viewed clip gets none");
-    assert.deepEqual(assetFetches, [`/api/asset/${W}`, `/api/asset/${V}`], "nothing more was fetched for the viewed clip");
-  } finally {
-    if (reactRoot) await act(async () => reactRoot!.unmount());
-    env.restore();
-    await rm(root, { recursive: true, force: true });
-  }
-});
 
 test("blob: URLs are revoked and re-minted when the client identity or the partition changes, not only on unmount", async () => {
   const root = await tempRoot();
@@ -481,7 +394,7 @@ test("a viewed view-once row reads null on a fresh query, a conditional read, an
     const frame = () => envelope([ref("messages", "m1"), ref("messages", "m2")], [messageRow("m1", { photo: photo(A) }), messageRow("m2", { photo: photo(B) })]);
     const client = createClient({
       url: "http://live.test", as: "alice",
-      offline: { store: fileRangeStore(root), viewOnce: (_table, row) => row.id === "m2" },
+      offline: { store: fileRangeStore(root) },
       fetch: async (input, init) => {
         const url = new URL(String(input));
         const metadata = metadataResponse(url);
@@ -534,61 +447,12 @@ test("coverage() hides a viewed view-once row from the twin and marks it absent"
   } finally { await rm(root, { recursive: true, force: true }); }
 });
 
-test("view-once is per row: an ordinary row sharing the asset id keeps its lease and its bytes until it leaves", async () => {
-  const root = await tempRoot();
-  try {
-    let evictOrdinary = false;
-    const client = createClient({
-      url: "http://per-row.test", as: "alice",
-      offline: { store: fileRangeStore(root), viewOnce: (_table, row) => row.id === "m2" },
-      fetch: async (input) => {
-        const url = new URL(String(input));
-        const metadata = metadataResponse(url);
-        if (metadata) return metadata;
-        if (url.pathname === "/api/query") {
-          if (evictOrdinary) {
-            const fresh = envelope([ref("messages", "m1"), ref("messages", "m2")], [messageRow("m1", { photo: photo(A) }), messageRow("m2", { photo: photo(B) })], "dev:alice", 4, "2".repeat(64));
-            fresh.receipt = { ranges: [], absences: [["messages", "byId", ["m5"]]], verdicts: [] };
-            return json(fresh);
-          }
-          return json(envelope(
-            [ref("messages", "m1"), ref("messages", "m2"), ref("messages", "m5")],
-            [messageRow("m1", { photo: photo(A) }), messageRow("m2", { photo: photo(B) }), messageRow("m5", { photo: photo(B) })],
-          ));
-        }
-        if (url.pathname.startsWith("/api/asset/")) {
-          return new Response(bytesOf(4, 5), { status: 200, headers: { "Content-Type": "image/jpeg" } });
-        }
-        throw new Error(`unexpected path ${url.pathname}`);
-      },
-    });
-    await client.ready;
-    await client.query(api.messages.thread, THREAD_ARGS);
-    const urlB = (await client.assetUrl(photo(B) as any, { width: 8 }))!;
-    await client.assetBlob(urlB, { viewing: {} });
-    const status = await client.assetCache!.status();
-    assert.deepEqual(status.entries.map((entry) => entry.assetId), [B], "the ordinary row leases the bytes");
-    assert.deepEqual(status.viewed, [{ table: "messages", id: "m2" }], "the view-once row is viewed");
-    assert.equal(await client.assetCache!.viewed(B), false, "the asset is not refused while an ordinary row carries it");
-    await client.offline();
-    const cold = await client.restart();
-    assert.deepEqual(await bytes(await cold.assetBlob(urlB)), [5, 5, 5, 5], "a cold start renders the ordinary row's bytes from the cache");
-    const held = await cold.query<any, any>(api.messages.thread as any, THREAD_ARGS);
-    assert.deepEqual(("data" in held ? held.data : []).map((row: any) => row?.id ?? null), ["m1", null, "m5"], "only the view-once row is hidden");
-    evictOrdinary = true;
-    await cold.online();
-    await cold.query(api.messages.thread, THREAD_ARGS);
-    assert.deepEqual((await cold.assetCache!.status()).entries, [], "once the ordinary row leaves, the viewed row's bytes leave with it");
-    await cold.offline();
-    await assert.rejects(cold.assetBlob(urlB), (error: unknown) => error instanceof SnapbackRefusal && error.code === "E_ASSET_VIEWED");
-    cold.close();
-  } finally { await rm(root, { recursive: true, force: true }); }
-});
+
 
 test("web byte consumers refuse missing viewing tokens before fetching; ordinary assets need none", async () => {
   const directory = await tempRoot(); const owner = bearerServer();
   const client = createClient({ url: "http://assets.test", token: "token-a", offlinePrincipal: "principal-a",
-    fetch: owner.fetch, offline: { store: fileRangeStore(directory), viewOnce: (_table, row) => row.id === "m2" } });
+    fetch: owner.fetch, offline: { store: fileRangeStore(directory) } });
   try {
     await client.ready;
     await client.query(api.messages.thread, THREAD_ARGS);
@@ -604,7 +468,7 @@ test("web byte consumers refuse missing viewing tokens before fetching; ordinary
 test("web mounted image holds one viewing token; a second consumer and a remount cannot re-show it", async () => {
   const directory = await tempRoot(); const owner = bearerServer(); const env = domEnvironment();
   const client = createClient({ url: "http://assets.test", token: "token-a", offlinePrincipal: "principal-a",
-    fetch: owner.fetch, offline: { store: fileRangeStore(directory), viewOnce: (_table, row) => row.id === "m2" } });
+    fetch: owner.fetch, offline: { store: fileRangeStore(directory) } });
   const root = createRoot(env.dom.window.document.getElementById("root")!);
   const tokens: object[] = []; const fetch = client.assetBlob.bind(client);
   client.assetBlob = async (url, options) => { tokens.push(options?.viewing); return fetch(url, options); };
@@ -625,37 +489,7 @@ test("web mounted image holds one viewing token; a second consumer and a remount
   } finally { await act(async () => root.unmount()); await client.close(); env.restore(); await rm(directory, { recursive: true, force: true }); }
 });
 
-test("web view-once video failed persistence gives no playable source; concurrent players admit only one instance", async () => {
-  const { nativeFixture, delivery, clip: nativeClip, deferred } = await import("./native-fixture.ts");
-  for (const failed of [true, false]) {
-    const f = await nativeFixture({ once: true }); const env = domEnvironment();
-    const root = createRoot(env.dom.window.document.getElementById("root")!);
-    const gate = deferred(); const refusals: any[] = [];
-    f.hooks.network = () => gate.promise;
-    try {
-      await f.store.commit({ deliveries: [delivery("video", nativeClip)] }); f.hooks.failCommit = failed;
-      await act(async () => root.render(React.createElement(SnapbackProvider, { client: f.client },
-        React.createElement(React.Fragment, null, ...[1, 2].map((key) => React.createElement(AssetVideo, {
-          key, asset: nativeClip, onRefusal: (error) => refusals.push(error.envelope) }))))));
-      const document = env.dom.window.document;
-      assert.ok(await until(() => document.querySelectorAll("button").length === 2));
-      assert.equal(f.requests.length, 0); assert.ok([...document.querySelectorAll("video")].every((v) => !v.getAttribute("src")));
-      await act(async () => { for (const button of document.querySelectorAll("button")) button.click(); });
-      assert.ok(await until(() => f.requests.length === 2)); gate.resolve();
-      assert.ok(await until(() => refusals.length >= (failed ? 2 : 1)));
-      const sources = [...document.querySelectorAll("video")].map((v) => v.getAttribute("src")).filter(Boolean);
-      assert.equal(sources.length, failed ? 0 : 1);
-      assert.ok(refusals.every((r) => r.code === (failed ? "E_OFFLINE_CARRIER" : "E_ASSET_VIEWED")));
-      assert.equal(await f.client.assetCache!.viewed(nativeClip.id), !failed); assert.deepEqual(f.writes, []);
-      if (!failed) {
-        assert.match(sources[0]!, /^blob:/);
-        await act(async () => f.client.assetCache!.forget()); await settle();
-        assert.ok(env.revoked.includes(sources[0]!));
-        assert.ok([...document.querySelectorAll("video")].every((v) => !v.getAttribute("src")));
-      }
-    } finally { gate.resolve(); await act(async () => root.unmount()); await f.close(); env.restore(); }
-  }
-});
+
 
 test("web asset fetch reads the live transport cut after a paused cache miss", async () => {
   const { deferred } = await import("./native-fixture.ts");

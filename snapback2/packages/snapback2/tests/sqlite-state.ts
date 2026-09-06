@@ -11,7 +11,7 @@ export function sqliteState(clock = 1): PersistedRangeState {
   const facts = { generation: "g", schemaHash: "s", authEpoch: 2 };
   const intent = `grant:${clock}`;
   return {
-    version: 1, sealed: false, clock,
+    version: 1, sealed: false, clock, onceColumns: { secretPhotos: ["photo"] },
     rows: { [`messages\u0000${id}`]: row, "messages\u0000plain": { table: "messages", id: "plain", row: { id: "plain" } } },
     answers: { [answerKey]: { op: "thread", args, state: "complete", data: { $row: { table: "messages", id } },
       next: null, seq: clock, validator: "v", receipt: { ranges: [], absences: [["messages", "byId", ["absent"]]], verdicts: [true] },

@@ -1,15 +1,14 @@
 # Quarry v0.3
 
-Quarry is Snapback 2's only backend authoring language. It is a bounded
-front end to the compiler, checker, evaluator, and server. `snapback2 check`
-compiles `.q` in memory; it
-does not place generated files in `snapback/`. `snapback2 check` writes an inspection copy under `.snapback/build/quarry/`.
+Quarry is Snapback 2's only backend authoring language, a bounded front end to
+the compiler and runtime. `snapback2 check` compiles `.q` in memory, places no
+generated files in `snapback/`, and writes an inspection copy under
+`.snapback/build/quarry/`.
 
 ## Project
 
-A project has one schema, `snapback/schema.q`. Declarations (`use identity`,
-tables, maintains, channels) belong only there. Other `.q` files declare
-operations or reusable shapes; operation stems are API namespaces. Thus
+`snapback/schema.q` holds `use identity`, tables, maintains and channels.
+Other `.q` files hold operations or reusable shapes; stems are API namespaces:
 `snapback/messages.q` exports `api.messages.thread`.
 
 TypeScript under `snapback/` is limited to `seed.ts`, `tests/*.test.ts`, and
@@ -22,17 +21,18 @@ effect module's stem must differ from every `.q` stem.
 Columns and arguments use `principal`, `id`, table references, `int`, `time`,
 `bool`, `decimal <scale>`, `money <CUR> [scale]`, `text <=N`, `text M..N`,
 `json <=N`, `bytes <=N`, `enum(...)`, and bounded lists `[type] <=N`. Decimal
-and money scales are integers from 0 through 12; money defaults to scale 2 and
-its currency is exactly three uppercase letters. Add `?` for optional. Text
-can add `format handle` or `format url` after its bound. A minimum and a format
-become enforced text constraints; maximums remain part of the column type.
-Text values may not contain C0 control characters other than tab, newline,
-and carriage return.
+and money scales are integers 0–12 (money defaults to 2; its currency is three
+uppercase letters). Add `?` for optional. Text may add `format handle` or
+`format url` after its bound; minimums and formats are enforced constraints,
+maximums stay part of the type.
+Text forbids C0 controls except tab, newline, and CR.
 
 `image <=N` is a byte-bounded closed record `{ id, width, height }`; `video <=N`
-adds integer-millisecond `duration`. Both compose with `?` and bounded lists,
-and their fields work in expressions. Asset columns cannot be indexed or used
-in `maintain.by`.
+adds integer-millisecond `duration`. Both admit `?` and bounded lists, but no
+indexes or `maintain.by`. `once` is image-column-only, never on arguments.
+Authenticated readers get one original 200, `private, no-store`;
+anonymous gets 404 on public rows too. HEAD is free; width, Range and
+conditionals cannot bypass 410 `E_ASSET_VIEWED`. Video `once` refuses. Add `once`: prior views unrecorded; removal is destructive.
 
 ```q
 mutation inspect(photo: image <=5000000, clip: video <=50000000):
@@ -51,16 +51,16 @@ nonnegative; quotient equals floor for positive divisors. `share` keeps the
 amount brand, requires matching bounded recipients, and assigns remainder units
 by ascending value. Share/branded multiplication floor because divisors are
 positive; i53 products can overflow. Wire arguments use integer minor units.
-Decimal/money seeds use whole-unit JSON numbers or decimal strings and are
-exactly normalized to minor units; exponent notation and excess precision refuse.
-Shaped rows and pages are typed and keep their brands.
+Seeds use whole-unit JSON numbers or decimal strings, normalized exactly to
+minor units; exponent notation and excess precision refuse. Shaped rows and
+pages keep their brands.
 
-`principal` is the nominal type of `viewer`. It is neither a table reference
-nor `id`, even though all three have ID-shaped wire values. A column compared
-with `viewer`, or assigned `viewer`, must be `principal`.
+`principal` is the nominal type of `viewer`, distinct from table references and
+`id` despite the shared ID-shaped wire value; a column compared with or assigned
+`viewer` must be `principal`.
 A non-empty text literal in an Id position (key, merge prefix, equality,
 or `??` fallback) is an Id on the wire; text expressions and wrong-table refs
-refuse. `after` takes an opaque cursor, never an Id literal.
+refuse. A cursor position takes the opaque token, never an Id literal.
 
 Tables get `id` and `byId` implicitly. `by name: a, b` declares a named
 ordering; `by a, b` infers `byAB`. `unique name: a, b` declares a named unique
@@ -82,14 +82,15 @@ arguments. `created` is insert-only. Table rules omit a binder (`read <- …`);
 names binders.
 Rule `exists`/`created` accepts any index whose leading columns match the key;
 when several match, add `by index`. Parentheses allow multiline rules.
-Reciprocal references and rule dependencies are supported.
+Self-probes on a full unique key of nonoptional columns are uniform over own rows;
+so is an `or` with an arm proven true by the prefix.
 
-`use identity` enables passwords and guests. `use identity password` and
-`use identity guests` select only that method.
+`use identity` enables passwords and guests; `use identity password` or
+`use identity guests` selects one.
 
 ## Maintains
 
-Count/sum maintains copy group types into a target: count value is int; sum
+`maintain` builds count/sum targets with the source's group types: count is int; sum
 value matches its int/decimal/money source. The group
 index is unique; the block gives its read rule; user writes are denied.
 
@@ -110,40 +111,42 @@ maintain messageCounts = count messages by conversationId:
 
 ## Programs
 
-Keys are positional (`table[value, …]`) or named
-(`table[column = value, …]`), as in `users[principal = viewer]`. Point reads
+Keys are positional (`table[value, …]`) or named (`table[column = value, …]`).
+Point reads
 need a complete unique key. Range order is `[after cursor] first|last N
 [by index]`; repeats/permutations refuse. Point reads may add
 `by index`; `exists table[keys]` accepts an index prefix. Shapes use `{ * }`,
-bare fields, or `name: expression`; nested work stays bounded. Byte ceilings
+bare fields, or `name: expression`; nested point reads keep the page's
+`complete`/`capped` state; hidden rows yield `null`; any early exit,
+count, or `require` refuses. Byte ceilings
 bound canonical JSON: a shape is priced by the fields it selects and `*` by
 every column at its declared maximum (text at `4·max + 16` bytes), so focused
-shapes certify larger pages. A module may declare
-`shape card = { fields }`, use `row card`, `page card`, or a named shape as a
-field value, and splice it with `...card`. `shape card from cards` imports
+shapes certify larger pages. `first N` scans ascending; `last N` scans descending.
+
+`shape card = { fields }` defines a reusable shape for `row card`, `page card`,
+or a field value; `...card` splices it. `shape card from cards` imports
 from `cards.q`; shape-only modules add no API operations. Nested shapes resolve
 in their defining module. Shapes use the focal row and context built-ins, never
-caller arguments or locals. Expansion retains definition sites, refuses cycles,
-and is bounded by depth 8 and 4,096 expanded nodes.
+caller arguments or locals. Expansion keeps definition sites, refuses cycles, and is bounded (depth 8,
+4,096 nodes).
 
 A pageable query declares `c: cursor ?` and reads `after c`; absent means page
 one. `complete` and `capped` results carry `next`, either a server-minted opaque
-cursor or `null`. Pass it back unchanged. It encodes the table, index, order,
-typed post-prefix suffix, and last returned row—never a hidden examined
-position. A mismatched or noncanonical token is `E_INPUT` before any scan.
+cursor or `null`. Pass it back unchanged; it encodes table, index, order, the typed suffix, and
+the last returned row, never a hidden examined position. A mismatched or noncanonical token is `E_INPUT` before any scan.
 Tokens are not operation-site-bound. The index must be total (end in `id` or be
 unique); `after` follows scan order.
 Local `partial` results clear `next` for every query.
 
-`merge table [after cursor] first|last N by index:` joins structurally distinct
-`[prefix keys]` lanes (named or positional), optionally `for name in` a bounded
-range. Prefixes share widths/types and leave a suffix; equal evaluated prefixes
-and bounds collapse. A heap merges SQLite streams by suffix, deduplicates `id`,
+`merge table [after cursor] first|last N by index:` fan-ins one or more structurally
+distinct `[prefix keys]` lanes (named or positional), optionally `for name in` a
+bounded range. Prefixes share widths/types and leave a suffix; equal prefixes and
+bounds collapse. A heap merges SQLite streams by suffix, deduplicates `id`,
 and returns N rows. Uniform cost is at most L heads + N advances + 2 lookahead, plus
 discovery; non-uniform lanes keep per-lane reserves. Retention prices heads,
-discovery, page, and lookahead. Local merges require a certificate.
+discovery, page, and lookahead. Local merges need a certificate.
 System reads bypass rule-based capping; execution limits still cap.
-Without runtime lanes, the page is empty. Shapes, `for`, and `count` work as for
+No runtime lanes: empty page. Shapes, `for`, and `count` work as for
 ranges. A pageable index ends in `id`; one shared cursor applies to every lane.
 
 ```q
@@ -154,26 +157,25 @@ query followingFeed(c: cursor ?):
   return page { post: ., author: profiles[.author] authorCard }
 ```
 
-This recipe admits 50 follows; exceeding that limit reports `capped`. A merge is `complete` only when every member lane scan exhausted and
-the deduplicated union had at most N rows; otherwise it is `capped`.
+The recipe admits 50 follows; more reports `capped`. A merge is `complete` only
+when every lane exhausted and the deduplicated union had at most N rows.
 
-Statements are expression bindings, tuple bindings from `sorted`, `return`,
-`require condition else CODE`, `if/else`, bounded `for`, and
-`match read: some name: … none: …`. `return` is valid at top level and inside
-all arms. The last expression of any body is an implicit return. Match is a
-statement, not a binding expression.
+`require condition else CODE` aborts when false. `match read: some name: … none: …`
+branches on presence; it is a statement, not a binding expression. Other statements
+bind expressions or `sorted` tuples, `return`, `if/else`, or bounded `for`;
+`return` works in all arms and a body's last expression is an implicit return.
 
-Object literals work anywhere expressions do; `{ id: conversationId,
-creatorMembershipId }` uses shorthand for the second field. `count(x)` is
-`x.length` for bounded lists and pages. Other built-ins are `tokens`, `range`,
-`min`, `max`, `divmod`, and `share`. `sorted` is only the two-name form
-`(lo, hi) = sorted(a, b)`. `walk table[seed] up .parent depth N` is bounded.
+Object literals work anywhere; `{ id: conversationId, creatorMembershipId }`
+uses shorthand. `count(x)` is
+`x.length` for bounded lists and pages. Other built-ins are `range`,
+`min`, `max`, `divmod`, and `share`. `sorted` is only `(lo, hi) = sorted(a, b)`. `walk table[seed] up .parent depth N` is bounded.
 `!` or `! else CODE` requires a present value; `??` supplies an absence
-fallback. Program `=`/`!=` are total: absent equals absent and differs from
-present; `!=` is `not (=)`. Ordered comparison refuses an optional operand;
-use `!` or `??` first. A direct `if x != null:` narrows a bound name or one-hop
-row field in that then branch; it does not narrow an `and` operand or the else.
-Conditions require Booleans.
+fallback. Program `=`/`!=` are total: absent equals absent, differs from present;
+`!=` is `not (=)`. Ordered comparison refuses an optional operand;
+use `!` or `??` first. A direct `if x != null:` narrows a bound name or one-hop row field in
+that then branch only, not an `and` operand or the else.
+
+`tokens(text)` splits on whitespace, preserving case, punctuation and duplicates.
 
 `now` is the read clock in queries and the commit clock in mutations; `commit`
 is the commit clock. In a mutation they are the same instant. `now` is pinned
@@ -265,15 +267,13 @@ existence-oracle case is by-id unreadable → `E_RULE`, alternate-key unreadable
 missing maintained group is zero only through `#`; the ordinary target-table
 read remains absent.
 
-Scans, lists, text, JSON, and bytes are bounded. `for` takes bounded
-lists/pages/range/tokens; optional lists require `?? []` or `if` presence narrowing.
+Scans, lists, text, JSON, and bytes are bounded. `for` iterates only a bounded
+list/page/range/tokens result; optional lists require `?? []` or `if` presence narrowing.
 List-column maxima survive aliases and shapes; JSON supplies no list bound.
 Ceiling refusals price sites and fields: merges need structural repair
 (smaller lanes/page, two reads/two snapshots, or a maintained feed), caps a fitting
 chunk, nested scans `maintain.count/sum`, byte bounds narrower collections/fields,
 and non-uniform reserves a uniform prefix; never a pasted `return null;`.
-Queries and mutations retain certificate, trace, and runtime budgets.
-
 In a mutation, `for` over a page must cover its range: the table is capped over
 the pinned prefix, the rule is uniform there, the bound is a literal at least the
 cap, and no scan in the mutation is non-uniform. Cursors and key ranges cut the

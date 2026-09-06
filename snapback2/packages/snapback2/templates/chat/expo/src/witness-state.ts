@@ -3,9 +3,9 @@ import { expoSqliteDriver } from "snapback2/expo";
 import type { AssetRecord, OutboxEntry, RangeStore, StoreSwap } from "snapback2/client";
 
 export const DATABASE = "snapback2-witness.db";
-export interface Configuration { offline: boolean; fault: "carrier" | "none"; name: string; once: string[]; assets: AssetRecord[] }
+export interface Configuration { offline: boolean; fault: "carrier" | "none"; name: string; assets: AssetRecord[] }
 const configDirectory = () => new Directory(Paths.document, "snapback2-witness-config");
-const defaultConfiguration = (): Configuration => ({ offline: false, fault: "none", name: "alice", once: [], assets: [] });
+const defaultConfiguration = (): Configuration => ({ offline: false, fault: "none", name: "alice", assets: [] });
 function versions(): File[] {
   const directory = configDirectory();
   return directory.exists ? directory.list().filter((file): file is File => file instanceof File && /\/\d{16}\.json$/.test(file.uri)).sort((a, b) => a.uri.localeCompare(b.uri)) : [];

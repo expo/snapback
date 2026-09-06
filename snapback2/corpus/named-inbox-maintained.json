@@ -1117,8 +1117,9 @@
         "prefix_template": "Viewer",
         "take": 50,
         "max_calls": 1,
-        "rule_probes_per_candidate": 2,
-        "hoist": false,
+        "rule_probes_per_candidate": 0,
+        "hoist": true,
+        "decided_true": true,
         "complete": false
       },
       {
@@ -1147,14 +1148,14 @@
     "write_sites": [],
     "maintained_amplification": 0,
     "constraint_checks": [],
-    "max_examined": 10240,
-    "max_index_entries": 10240,
-    "max_rule_probes": 10240,
-    "max_steps": 51606,
-    "max_heap_bytes": 1651392,
+    "max_examined": 252,
+    "max_index_entries": 252,
+    "max_rule_probes": 100,
+    "max_steps": 1666,
+    "max_heap_bytes": 53312,
     "max_output_bytes": 106262,
     "max_closure_bytes": 104050,
-    "completeness": "Capped",
+    "completeness": "Page",
     "prediction_sites": [],
     "read_time_granularity_ms": null,
     "halo_rows": 1,
@@ -1274,6 +1275,32 @@
     ],
     "ranges": [
       {
+        "site": "programs.inboxMaintained.0",
+        "table": "memberships",
+        "index": "byUserActivity",
+        "prefix": [
+          {
+            "Id": "u1"
+          }
+        ],
+        "order": "Desc",
+        "take": 50,
+        "after": null,
+        "before": null,
+        "gt": null,
+        "gte": null,
+        "lt": null,
+        "lte": null,
+        "rule_hash": "345883b8a6345a48150a97f59340e4bb0904add5a14904d1fdb04a98ba277fc5",
+        "row_ids": [
+          "m1"
+        ],
+        "stop": "Exhausted",
+        "absence": false,
+        "halo": null,
+        "n2_key": null
+      },
+      {
         "site": "programs.inboxMaintained.1",
         "table": "messages",
         "index": "byConvTime",
@@ -1386,10 +1413,8 @@
       ]
     },
     "errorCode": null,
-    "localState": "partial",
-    "partialSites": [
-      "programs.inboxMaintained.0"
-    ],
+    "localState": "fresh",
+    "partialSites": [],
     "canonicalResult": "{\"Array\":[{\"Row\":{\"latest\":{\"Array\":[{\"Row\":{\"at\":{\"Int\":5},\"authorId\":{\"Id\":\"u1\"},\"body\":{\"String\":\"message 4\"},\"conversationId\":{\"Id\":\"c1\"},\"id\":{\"Id\":\"message-00004\"}}}]},\"unread\":{\"Row\":{\"conversationId\":{\"Id\":\"c1\"},\"id\":{\"Id\":\"c1:u1\"},\"userId\":{\"Id\":\"u1\"},\"value\":{\"Int\":5}}}}}]}",
     "digest": "3b446c6d197891cf6d3bbe6c627e40cea795c0c339010626a2f48988c3a8dd77",
     "rangeStops": {
