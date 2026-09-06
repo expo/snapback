@@ -1,0 +1,11 @@
+{
+  "reviewedCommit": "6f0c0b4e9de16d49879c631606ae26aa0fc60c72",
+  "model": "gpt-6-astra",
+  "effort": "xhigh",
+  "verdict": "CHANGES_REQUIRED",
+  "rootReadFullReport": true,
+  "reviewSha256": "4998f8a0cc65c5d7a9901432e8e4a21028ed2876ad9c42c7c7f96901da5710ef",
+  "scope": "capture repair; four blockers; separate mutable-key defect unchanged; Grok not yet terminal",
+  "externalProbes": "/Users/ccheever/clique-improvement/reviews/search-compiler-r4/astra/review-work",
+  "next": "coherent mutable-key repair then R5 for four confirmed capture regressions before v5 integration"
+}
