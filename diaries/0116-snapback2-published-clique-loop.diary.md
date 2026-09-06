@@ -872,3 +872,10 @@ Both complete [R4 review reports and disposition](../benchmarks/runs/2026-09-06-
 The pending-slot fix is now published as 0.0.12. Reusing the exact qualified production packages made actual publication an 84.408-second operation, with all standard consumer checks still executed. The first shim lookup returned E404 while npm processed the accepted publication; preserving that failure and checking visibility later avoided an unnecessary republish. The later fresh registry installation matches all 154 original packed files and the untouched Expo template passes init/check/guide with 26 public operations.
 
 Private pinned Hermes preparation was expensive, but its completed artifacts now provide a reusable qualified build input for the next release. The separate drain fix is preparing as 0.0.13; it is absent from 0.0.12. These checks establish installed tooling, not native app execution or a full Clique win. [Publication evidence](../benchmarks/runs/2026-09-06-clique-improvement/evidence/asset-publication-012/README.md). Existing Convex/Supabase baselines stay fixed unless a material comparison change invalidates them.
+
+
+### 2026-09-06 — Receipt ownership review closes, rollback repairs remain
+
+Both fresh independent reviews approve removal of the duplicate retained receipt-body map. The deterministic ownership regression supports that removal, but the complete runtime grew by 30 gzip bytes to 72,229, still 6,229 over budget. Removing a retained instance can help ownership without reducing emitted code; neither result establishes realistic resident memory.
+
+Astra reproduced duplicate-absence removal and malformed standalone rehydration losing prior state on both parent and candidate. Grok independently identifies the same inherited defects by source. They are tracked for the next sequential repair, while the current carrier stage consolidates repeated transaction preparation. [Full reviews and disposition](../benchmarks/runs/2026-09-06-clique-improvement/evidence/receipt-ownership-review/README.md). No full Clique score, native qualification or competitor rerun was produced.

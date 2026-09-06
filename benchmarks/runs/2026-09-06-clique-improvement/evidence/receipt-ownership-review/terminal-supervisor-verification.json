@@ -1,0 +1,103 @@
+{
+  "verifiedUtc": "2026-09-06T22:58:30.618476+00:00",
+  "commit": "02a5b980b705d4cfacea6d06dd04e0d9ae654e6d",
+  "base": "4e927c26df5b1cec4f2ce885f9521474586b54a3",
+  "packetFiles": 392,
+  "packetErrors": [],
+  "models": {
+    "observedUtc": "2026-09-06T22:49:45.659344+00:00",
+    "records": [
+      {
+        "family": "astra",
+        "session": "01a078e5-71f2-7210-9cdf-dee9ee02226e",
+        "source": "/Users/ccheever/.codex/sessions/2026/09/06/rollout-2026-09-06T15-44-57-01a078e5-71f2-7210-9cdf-dee9ee02226e.jsonl",
+        "actualModel": "gpt-6-astra",
+        "actualEffort": "xhigh",
+        "contextSha256": "deeac2d7ec4b22d63e015788beab2b36c9ed15002c50f72d71755e326d0f98a3"
+      },
+      {
+        "family": "grok",
+        "session": "a18a401f-72c0-40cf-b579-f9cf40d41efa",
+        "source": "/Users/ccheever/.grok/sessions/%2FUsers%2Fccheever%2Fclique-improvement%2Freviews%2Freceipt-ownership-02a5-r1%2Fgrok/a18a401f-72c0-40cf-b579-f9cf40d41efa/summary.json",
+        "actualModel": "grok-4.6",
+        "actualEffort": "xhigh",
+        "summarySha256": "5ae682deb64df1ba6f21f6754b1726747fa781b26b102999d9a21617c2643d6d"
+      }
+    ]
+  },
+  "reviews": {
+    "astra": {
+      "terminal": {
+        "pid": 65279,
+        "exitCode": 0,
+        "endedEpoch": 1788735113.928672,
+        "elapsedSeconds": 416.28075790405273
+      },
+      "artifacts": {
+        "REPORT.md": {
+          "sha256": "578b524856d4ea5afc9f8c476827601339f7b58532195014142fbe9228b1649a",
+          "bytes": 12301
+        },
+        "prompt.md": {
+          "sha256": "b04b171c316a17810b5d7e97db6cd4a9402a13647c045f7c9eaf8a121ab6b491",
+          "bytes": 309
+        },
+        "launch.json": {
+          "sha256": "e85754937996bf0b6b4f3a89ce1538e27a271efa79476b38844697ffafc6d80a",
+          "bytes": 888
+        },
+        "stdout.log": {
+          "sha256": "c24b779545ff09cad0d5775f0315a564b23172dfc5580545e658aabf72385dc7",
+          "bytes": 579204
+        },
+        "stderr.log": {
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "bytes": 0
+        },
+        "terminal.json": {
+          "sha256": "2bcdac3c2e4ccbcd443e5c6cb2ba0e4fafe281c4b352213932c6c1a9c9efd521",
+          "bytes": 111
+        }
+      },
+      "verdict": "READY focused three-file delta; no overall resource/landing clearance"
+    },
+    "grok": {
+      "terminal": {
+        "pid": 65274,
+        "exitCode": 0,
+        "endedEpoch": 1788735429.668683,
+        "elapsedSeconds": 732.1014542579651
+      },
+      "artifacts": {
+        "REPORT.md": {
+          "sha256": "d7669503cd2c6a271f21f43449000e71e2825012e254daec42352b8ff9c15bb6",
+          "bytes": 12620
+        },
+        "prompt.md": {
+          "sha256": "e9a99f18689ad93445f45c907c1a28bcfed9ff8ba165c89f82ab9f782aed6ce1",
+          "bytes": 307
+        },
+        "launch.json": {
+          "sha256": "085a9fb3c2093c2ad92996c6beaa5f3f15fac173a94d0d87f1e638f4ed3e9a36",
+          "bytes": 890
+        },
+        "stdout.log": {
+          "sha256": "baab1aafb408ae4c4d68533f513e3d463f574c7e65cd8bfab23694fe53728bb9",
+          "bytes": 2126707
+        },
+        "stderr.log": {
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "bytes": 0
+        },
+        "terminal.json": {
+          "sha256": "c99b299960abe2f38fa9ef36578f75235d37f9e8e172604f3e389b8ed237760d",
+          "bytes": 110
+        }
+      },
+      "verdict": "READY focused three-file delta; no overall resource/landing clearance"
+    }
+  },
+  "grokUsageModelLabel": "grok-4.6-build (terminal modelUsage); native summary current_model_id grok-4.6, reasoning_effort xhigh",
+  "noTestsRerunBySupervisor": true,
+  "pending": "Root-authorized inherited fixes after carrier stage terminal/release; full combined review/resource qualification remain"
+}

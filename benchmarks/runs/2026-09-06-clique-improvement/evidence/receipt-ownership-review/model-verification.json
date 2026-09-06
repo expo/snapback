@@ -1,0 +1,21 @@
+{
+  "observedUtc": "2026-09-06T22:49:45.659344+00:00",
+  "records": [
+    {
+      "family": "astra",
+      "session": "01a078e5-71f2-7210-9cdf-dee9ee02226e",
+      "source": "/Users/ccheever/.codex/sessions/2026/09/06/rollout-2026-09-06T15-44-57-01a078e5-71f2-7210-9cdf-dee9ee02226e.jsonl",
+      "actualModel": "gpt-6-astra",
+      "actualEffort": "xhigh",
+      "contextSha256": "deeac2d7ec4b22d63e015788beab2b36c9ed15002c50f72d71755e326d0f98a3"
+    },
+    {
+      "family": "grok",
+      "session": "a18a401f-72c0-40cf-b579-f9cf40d41efa",
+      "source": "/Users/ccheever/.grok/sessions/%2FUsers%2Fccheever%2Fclique-improvement%2Freviews%2Freceipt-ownership-02a5-r1%2Fgrok/a18a401f-72c0-40cf-b579-f9cf40d41efa/summary.json",
+      "actualModel": "grok-4.6",
+      "actualEffort": "xhigh",
+      "summarySha256": "5ae682deb64df1ba6f21f6754b1726747fa781b26b102999d9a21617c2643d6d"
+    }
+  ]
+}

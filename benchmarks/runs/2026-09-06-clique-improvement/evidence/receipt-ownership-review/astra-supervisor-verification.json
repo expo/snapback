@@ -1,0 +1,36 @@
+{
+  "checkedUtc": "2026-09-06T22:53:44.491921+00:00",
+  "commit": "02a5b980b705d4cfacea6d06dd04e0d9ae654e6d",
+  "packetFilesVerified": 392,
+  "astraVariantSourceCopies": 54,
+  "errors": [],
+  "reports": {
+    "REPORT.md": {
+      "sha256": "578b524856d4ea5afc9f8c476827601339f7b58532195014142fbe9228b1649a",
+      "bytes": 12301
+    },
+    "probe.ts": {
+      "sha256": "754b7d22615270537c0fa2267e6f6be25a5013821e316d70f472f2b158f37ae9",
+      "bytes": 3295
+    },
+    "probe.log": {
+      "sha256": "fd1326cedf305a48546e082039367458d4d43daf96fcaa71230cb1dac99ada6c",
+      "bytes": 532
+    },
+    "probe-inputs.json": {
+      "sha256": "5fa5f66f0142c96d8d1e7c91422d32ca05037adb8b1dd8a578aba764386d3ae2",
+      "bytes": 10120
+    },
+    "terminal.json": {
+      "sha256": "2bcdac3c2e4ccbcd443e5c6cb2ba0e4fafe281c4b352213932c6c1a9c9efd521",
+      "bytes": 111
+    }
+  },
+  "scope": "source/probe custody verification only; no test rerun",
+  "pending": "Grok terminal report; inherited fixes queued after carrier stage release",
+  "executable": {
+    "path": "/Users/ccheever/.bun/bin/bun",
+    "actualSha256": "39e644cea4e6db24a3af36013695655d6f789b4b98f1f13bacb882ac6e5c3c18",
+    "matches": true
+  }
+}

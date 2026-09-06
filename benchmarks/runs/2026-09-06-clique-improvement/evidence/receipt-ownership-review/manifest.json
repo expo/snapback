@@ -1,0 +1,54 @@
+{
+  "commit": "02a5b980b705d4cfacea6d06dd04e0d9ae654e6d",
+  "parent": "4e927c26df5b1cec4f2ce885f9521474586b54a3",
+  "files": [
+    {
+      "path": "astra-review.md",
+      "sha256": "578b524856d4ea5afc9f8c476827601339f7b58532195014142fbe9228b1649a",
+      "bytes": 12301,
+      "source": "/Users/ccheever/clique-improvement/reviews/receipt-ownership-02a5-r1/astra/REPORT.md"
+    },
+    {
+      "path": "grok-review.md",
+      "sha256": "d7669503cd2c6a271f21f43449000e71e2825012e254daec42352b8ff9c15bb6",
+      "bytes": 12620,
+      "source": "/Users/ccheever/clique-improvement/reviews/receipt-ownership-02a5-r1/grok/REPORT.md"
+    },
+    {
+      "path": "astra-terminal.json",
+      "sha256": "2bcdac3c2e4ccbcd443e5c6cb2ba0e4fafe281c4b352213932c6c1a9c9efd521",
+      "bytes": 111,
+      "source": "/Users/ccheever/clique-improvement/reviews/receipt-ownership-02a5-r1/astra/terminal.json"
+    },
+    {
+      "path": "grok-terminal.json",
+      "sha256": "c99b299960abe2f38fa9ef36578f75235d37f9e8e172604f3e389b8ed237760d",
+      "bytes": 110,
+      "source": "/Users/ccheever/clique-improvement/reviews/receipt-ownership-02a5-r1/grok/terminal.json"
+    },
+    {
+      "path": "supervisor-handoff.md",
+      "sha256": "9c3e46294d514ead1180ae63f0a7558942e2234f0ff652e4a43465769797cf20",
+      "bytes": 2939,
+      "source": "/Users/ccheever/clique-improvement/reviews/receipt-ownership-02a5-r1/supervisor-handoff.md"
+    },
+    {
+      "path": "terminal-supervisor-verification.json",
+      "sha256": "d6174ae99e4d31761ade9bc2014def3ffaeffeb657b9f30148a40ac498e5184d",
+      "bytes": 3841,
+      "source": "/Users/ccheever/clique-improvement/reviews/receipt-ownership-02a5-r1/terminal-supervisor-verification.json"
+    },
+    {
+      "path": "model-verification.json",
+      "sha256": "94e14f8b48c441866d84a3853e3ffe6cc346175e1bcd84ecbec247ac6118d674",
+      "bytes": 894,
+      "source": "/Users/ccheever/clique-improvement/reviews/receipt-ownership-02a5-r1/model-verification.json"
+    },
+    {
+      "path": "astra-supervisor-verification.json",
+      "sha256": "d98b3894000386336516c3224681a47a9593cc906b15313091dbe24299b0e195",
+      "bytes": 1203,
+      "source": "/Users/ccheever/clique-improvement/reviews/receipt-ownership-02a5-r1/astra-supervisor-verification.json"
+    }
+  ]
+}
