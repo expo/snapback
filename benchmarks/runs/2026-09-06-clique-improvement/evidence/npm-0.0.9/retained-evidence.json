@@ -1,0 +1,63 @@
+{
+  "root": "/Users/ccheever/projects/snapback-artifacts/clique-release/0.0.9-793f707e0",
+  "files": {
+    "publish.log": {
+      "sha256": "806aca27a768b0436e1d3a7e4a858761818e147edbedf85aea8036427c5fa4cc",
+      "bytes": 9802
+    },
+    "publication-attempt1/publish.log": {
+      "sha256": "8d2b89deea704347f034b5eefe6f6c33c0ae065c214b9ae324c94c72d0491810",
+      "bytes": 170
+    },
+    "publication-attempt1/publish-run.json": {
+      "sha256": "ef84131e970a97210e0b8bc3f4846f73c44b42e10eb961eed4f396e7dba55ff7",
+      "bytes": 396
+    },
+    "registry-pending-attempt1/registry-snapback2.log": {
+      "sha256": "62dc2e7aabb436886e1bff0bd2b4f060fbcc51df3748a7643ed5dffba7bce786",
+      "bytes": 795
+    },
+    "registry-pending-attempt1/installed-verification.json": {
+      "sha256": "2ac6b0060dc031a23c1b54ca4cd4de3f9ea5eb7e5ebb58f69037ce025ad7f12b",
+      "bytes": 939
+    },
+    "installed-chat-expo-init.log": {
+      "sha256": "8a9c3c41fcd81aa3d35dcd799528173f1354099cb7640163f6c0943e978d2161",
+      "bytes": 573
+    },
+    "installed-chat-expo-guide-before-check.log": {
+      "sha256": "a6cfdb8e3879b0bbe40a1309ce8ece929066e662f080c1691c7f91f5b069fed8",
+      "bytes": 55306
+    },
+    "installed-chat-expo-check.log": {
+      "sha256": "c1b6c15c185444544e54939c23c15e8e43ce19f8342dce577cd8335c04180346",
+      "bytes": 413
+    },
+    "installed-chat-expo-guide-after-check.log": {
+      "sha256": "a6cfdb8e3879b0bbe40a1309ce8ece929066e662f080c1691c7f91f5b069fed8",
+      "bytes": 55306
+    },
+    "installed-file-hashes.json": {
+      "sha256": "3a5c5fd5c0521075d2444ba0c9c6f1af59c8732883f352accabf1f038960b6d7",
+      "bytes": 24916
+    }
+  },
+  "immutable_pair": [
+    {
+      "name": "snapback2-darwin-arm64",
+      "version": "0.0.9",
+      "tarball": "/Users/ccheever/projects/snapback-artifacts/clique-release/0.0.9-793f707e0/snapback2-darwin-arm64-0.0.9.tgz",
+      "bytes": 4639896,
+      "sha256": "39e62d13b146b869b27db5c1cf5c50c15eedba675c369043a9676bb300f3bac3",
+      "integrity": "sha512-alzgtdWPe2wbOB4Z5NNoLacViR0Jjx8drfw3rGFPD0vi8piaQZl5fGvQQHPx1jMb6r3AIaOiz6wzidTJHki7jA=="
+    },
+    {
+      "name": "snapback2",
+      "version": "0.0.9",
+      "tarball": "/Users/ccheever/projects/snapback-artifacts/clique-release/0.0.9-793f707e0/snapback2-0.0.9.tgz",
+      "bytes": 1784418,
+      "sha256": "90c090b51b9193cd886bf8b8069c3713ceb890cdd9b81357704f76aa499a723c",
+      "integrity": "sha512-EYd52UT6ohl+DTuhWM8H8N4TRjWHdL+4FPalunvbxm5AY+MZmk9sG7UItUjuYGAqROpALH82UVP9zuFyRgqRnQ=="
+    }
+  ]
+}

@@ -1,0 +1,14 @@
+{
+  "started": 1788694849.650815,
+  "source_commit": "5bcdf41a251f8ced10f829b85a8f728a94a93116",
+  "command": [
+    "node",
+    "scripts/publish.mjs"
+  ],
+  "cwd": "/Users/ccheever/projects/snapback-worktrees/clique-release/snapback2",
+  "launcher_pid": 8382,
+  "qualified_source": "793f707e0daec035933c242762e62b057448716e",
+  "pid": 8391,
+  "exit_code": 0,
+  "finished": 1788694880.735113
+}

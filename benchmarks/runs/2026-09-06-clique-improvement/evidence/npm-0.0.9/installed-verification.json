@@ -1,0 +1,214 @@
+{
+  "version": "0.0.9",
+  "qualified_source": "793f707e0daec035933c242762e62b057448716e",
+  "ok": true,
+  "consumer_directory": "/Users/ccheever/projects/snapback-artifacts/clique-release/0.0.9-793f707e0/installed-consumer-verified",
+  "checks": [
+    {
+      "name": "registry-snapback2-darwin-arm64",
+      "ok": true,
+      "seconds": 0.2812562500475906,
+      "exit": 0
+    },
+    {
+      "name": "registry-tags-snapback2-darwin-arm64",
+      "ok": true,
+      "seconds": 0.24171925004338846,
+      "exit": 0
+    },
+    {
+      "name": "snapback2-darwin-arm64 registry SRI",
+      "ok": true,
+      "integrity": "sha512-alzgtdWPe2wbOB4Z5NNoLacViR0Jjx8drfw3rGFPD0vi8piaQZl5fGvQQHPx1jMb6r3AIaOiz6wzidTJHki7jA==",
+      "latest": "0.0.9"
+    },
+    {
+      "name": "registry-snapback2",
+      "ok": true,
+      "seconds": 0.2625634160358459,
+      "exit": 0
+    },
+    {
+      "name": "registry-tags-snapback2",
+      "ok": true,
+      "seconds": 0.31546708301175386,
+      "exit": 0
+    },
+    {
+      "name": "snapback2 registry SRI",
+      "ok": true,
+      "integrity": "sha512-EYd52UT6ohl+DTuhWM8H8N4TRjWHdL+4FPalunvbxm5AY+MZmk9sG7UItUjuYGAqROpALH82UVP9zuFyRgqRnQ==",
+      "latest": "0.0.9"
+    },
+    {
+      "name": "registry-install",
+      "ok": true,
+      "seconds": 2.6615087499958463,
+      "exit": 0
+    },
+    {
+      "name": "snapback2-darwin-arm64 all packed files byte equality",
+      "ok": true,
+      "files": 3,
+      "integrity": "sha512-alzgtdWPe2wbOB4Z5NNoLacViR0Jjx8drfw3rGFPD0vi8piaQZl5fGvQQHPx1jMb6r3AIaOiz6wzidTJHki7jA=="
+    },
+    {
+      "name": "snapback2 all packed files byte equality",
+      "ok": true,
+      "files": 151,
+      "integrity": "sha512-EYd52UT6ohl+DTuhWM8H8N4TRjWHdL+4FPalunvbxm5AY+MZmk9sG7UItUjuYGAqROpALH82UVP9zuFyRgqRnQ=="
+    },
+    {
+      "name": "installed-version",
+      "ok": true,
+      "seconds": 0.3161963329766877,
+      "exit": 0
+    },
+    {
+      "name": "installed-doctor",
+      "ok": true,
+      "seconds": 0.11176979099400342,
+      "exit": 0
+    },
+    {
+      "name": "installed-media",
+      "ok": true,
+      "seconds": 0.19055495801148936,
+      "exit": 0
+    },
+    {
+      "name": "engine installed SHA256",
+      "ok": true,
+      "sha256": "8d0db96161b2d4929502df3c2a062ac83e2f1de90f1c35cb2afe233a6e1b7aa3",
+      "bytes": 6996528
+    },
+    {
+      "name": "media installed SHA256",
+      "ok": true,
+      "sha256": "e2142f0e980962172b8645c3e7565720054e0d187377b7faadec5d8de8ce7b08",
+      "bytes": 2147984
+    },
+    {
+      "name": "client installed SHA256",
+      "ok": true,
+      "sha256": "5aaa45d49028733f2cde0e6c5fc9ec89d8a85ab439c40f1dc477d5a87f2038f9",
+      "bytes": 185368
+    },
+    {
+      "name": "installed-chat-expo-init",
+      "ok": true,
+      "seconds": 0.6318322499864735,
+      "exit": 0
+    },
+    {
+      "name": "installed-chat-expo-guide-before-check",
+      "ok": true,
+      "seconds": 0.24635629099793732,
+      "exit": 0
+    },
+    {
+      "name": "installed-chat-expo-check",
+      "ok": true,
+      "seconds": 0.6350230000098236,
+      "exit": 0
+    },
+    {
+      "name": "installed-chat-expo-guide-after-check",
+      "ok": true,
+      "seconds": 0.24555691698333248,
+      "exit": 0
+    }
+  ],
+  "started": 1788695125.9978318,
+  "media": {
+    "heic": true,
+    "images": true
+  },
+  "guideRepair": {
+    "ok": true,
+    "project": "/Users/ccheever/projects/snapback-artifacts/clique-release/0.0.9-793f707e0/installed-consumer-verified/chat-expo",
+    "checks": [
+      {
+        "phase": "before-check",
+        "internalBinding": "deliveries._timerBinding_expireMessage",
+        "rawBindingPresent": true,
+        "bindingAbsentFromOperations": true,
+        "publicPurgeRetained": true,
+        "operationCount": 26,
+        "exactCertifiedOperationSet": true,
+        "cacheUnchanged": true,
+        "backendUnchanged": true,
+        "operationNames": [
+          "deliveries.edit",
+          "deliveries.inbox",
+          "deliveries.post",
+          "deliveries.purgeMessage",
+          "deliveries.thread",
+          "deliveries.unsend",
+          "feeds.followingFeed",
+          "feeds.globalFeed",
+          "follows.setFollow",
+          "groups.groupCreate",
+          "groups.memberAdd",
+          "groups.memberLeave",
+          "groups.memberPromote",
+          "groups.memberRemove",
+          "messages.send",
+          "messages.sendClip",
+          "messages.sendOncePhoto",
+          "messages.sendPhoto",
+          "messages.summary",
+          "messages.thread",
+          "notifications.recordNotified",
+          "posts.createPost",
+          "profiles.byHandle",
+          "profiles.createMyProfile",
+          "profiles.mine",
+          "profiles.updateMyProfile"
+        ]
+      },
+      {
+        "phase": "after-check",
+        "internalBinding": "deliveries._timerBinding_expireMessage",
+        "rawBindingPresent": true,
+        "bindingAbsentFromOperations": true,
+        "publicPurgeRetained": true,
+        "operationCount": 26,
+        "exactCertifiedOperationSet": true,
+        "cacheUnchanged": true,
+        "backendUnchanged": true,
+        "operationNames": [
+          "deliveries.edit",
+          "deliveries.inbox",
+          "deliveries.post",
+          "deliveries.purgeMessage",
+          "deliveries.thread",
+          "deliveries.unsend",
+          "feeds.followingFeed",
+          "feeds.globalFeed",
+          "follows.setFollow",
+          "groups.groupCreate",
+          "groups.memberAdd",
+          "groups.memberLeave",
+          "groups.memberPromote",
+          "groups.memberRemove",
+          "messages.send",
+          "messages.sendClip",
+          "messages.sendOncePhoto",
+          "messages.sendPhoto",
+          "messages.summary",
+          "messages.thread",
+          "notifications.recordNotified",
+          "posts.createPost",
+          "profiles.byHandle",
+          "profiles.createMyProfile",
+          "profiles.mine",
+          "profiles.updateMyProfile"
+        ]
+      }
+    ]
+  },
+  "registry_integrity_matches": true,
+  "published_exact_final_pair": true,
+  "finished": 1788695132.191097
+}

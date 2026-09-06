@@ -1,0 +1,249 @@
+{
+  "qualified_source": "793f707e0daec035933c242762e62b057448716e",
+  "landed_version_commit": "b749912eb46f",
+  "source_only_version_delta": "Four version files above both-reviewed main3e81b5b023ce; no feed/search WIP.",
+  "dry_run": {
+    "exit": 0,
+    "attempts": 1,
+    "seconds": 126.75458097457886,
+    "consumer": {
+      "steps": [
+        {
+          "name": "install tarballs",
+          "seconds": 1.1963474170000117,
+          "ok": true
+        },
+        {
+          "name": "doctor",
+          "seconds": 0.28217775000000256,
+          "ok": true
+        },
+        {
+          "name": "guide auth",
+          "seconds": 0.0518722909999924,
+          "ok": true
+        },
+        {
+          "name": "public client and React exports",
+          "seconds": 0.04767545799999789,
+          "ok": true
+        },
+        {
+          "name": "todos init",
+          "seconds": 0.45722662499999567,
+          "ok": true
+        },
+        {
+          "name": "todos check",
+          "seconds": 0.5018930419999961,
+          "ok": true
+        },
+        {
+          "name": "todos React bundle",
+          "seconds": 1.2835130419999914,
+          "ok": true
+        },
+        {
+          "name": "todos dev",
+          "seconds": 0.34524462500000663,
+          "ok": true
+        },
+        {
+          "name": "React live query round trip",
+          "seconds": 0.12097425000001386,
+          "ok": true
+        },
+        {
+          "name": "todos receipt",
+          "accepted": true,
+          "verdict": "pass"
+        },
+        {
+          "name": "todos test",
+          "seconds": 1.1881373750000057,
+          "ok": true
+        },
+        {
+          "name": "todos stop",
+          "seconds": 0.18294208300000173,
+          "ok": true
+        },
+        {
+          "name": "chat init",
+          "seconds": 0.6798572920000006,
+          "ok": true
+        },
+        {
+          "name": "chat check",
+          "seconds": 0.6673196669999888,
+          "ok": true
+        },
+        {
+          "name": "chat React bundle",
+          "seconds": 0.5706923329999991,
+          "ok": true
+        },
+        {
+          "name": "chat dev",
+          "seconds": 0.6334226669999916,
+          "ok": true
+        },
+        {
+          "name": "chat receipt",
+          "accepted": true,
+          "verdict": "pass"
+        },
+        {
+          "name": "chat test",
+          "seconds": 9.615390250000011,
+          "ok": true
+        },
+        {
+          "name": "chat stop",
+          "seconds": 0.18328062499999942,
+          "ok": true
+        }
+      ]
+    }
+  },
+  "actual_publication": {
+    "exit": 0,
+    "attempts": 2,
+    "seconds": 31.08429789543152,
+    "consumer": {
+      "steps": [
+        {
+          "name": "install tarballs",
+          "seconds": 1.2270018329999999,
+          "ok": true
+        },
+        {
+          "name": "doctor",
+          "seconds": 0.3517009170000001,
+          "ok": true
+        },
+        {
+          "name": "guide auth",
+          "seconds": 0.05448391600000014,
+          "ok": true
+        },
+        {
+          "name": "public client and React exports",
+          "seconds": 0.05187670900000012,
+          "ok": true
+        },
+        {
+          "name": "todos init",
+          "seconds": 0.45459079199999974,
+          "ok": true
+        },
+        {
+          "name": "todos check",
+          "seconds": 0.44045170800000005,
+          "ok": true
+        },
+        {
+          "name": "todos React bundle",
+          "seconds": 1.1193341669999999,
+          "ok": true
+        },
+        {
+          "name": "todos dev",
+          "seconds": 0.3334069159999999,
+          "ok": true
+        },
+        {
+          "name": "React live query round trip",
+          "seconds": 0.12349633399999947,
+          "ok": true
+        },
+        {
+          "name": "todos receipt",
+          "accepted": true,
+          "verdict": "pass"
+        },
+        {
+          "name": "todos test",
+          "seconds": 1.1892028330000002,
+          "ok": true
+        },
+        {
+          "name": "todos stop",
+          "seconds": 0.194414041,
+          "ok": true
+        },
+        {
+          "name": "chat init",
+          "seconds": 0.6790168749999993,
+          "ok": true
+        },
+        {
+          "name": "chat check",
+          "seconds": 0.6622439169999997,
+          "ok": true
+        },
+        {
+          "name": "chat React bundle",
+          "seconds": 0.5628322079999998,
+          "ok": true
+        },
+        {
+          "name": "chat dev",
+          "seconds": 0.6279908329999989,
+          "ok": true
+        },
+        {
+          "name": "chat receipt",
+          "accepted": true,
+          "verdict": "pass"
+        },
+        {
+          "name": "chat test",
+          "seconds": 9.470520542,
+          "ok": true
+        },
+        {
+          "name": "chat stop",
+          "seconds": 0.23197237499999757,
+          "ok": true
+        }
+      ]
+    }
+  },
+  "production_effects": "ibex2 + vanilla hermes",
+  "media_features": [
+    "images",
+    "heic"
+  ],
+  "retained_packed_files": 154,
+  "fresh_installed_files": 154,
+  "guide_repair": {
+    "ok": true,
+    "before_and_after_check": true,
+    "operation_count": 26,
+    "internal_binding_excluded": "deliveries._timerBinding_expireMessage",
+    "public_operation_retained": "deliveries.purgeMessage",
+    "cache_and_backend_unchanged": true
+  },
+  "source_checks": "hoisted frozen install, caps, ref-check and diff check passed; existing independent guide/foundation reviews retained elsewhere in this benchmark run.",
+  "failures_and_recovery": [
+    {
+      "failedAttempt": 1,
+      "failure": "Publisher working resume inherited0444 fromimmutable retained original; standardwrite refused EACCES before registry",
+      "repair": "chmod0644 ONLY task-owned workingresume; contents unchanged",
+      "workingResume": "/Users/ccheever/projects/snapback-worktrees/clique-release/snapback2/dist/npm/publish-snapback2-darwin-arm64-0.0.9/resume.json",
+      "resumeSha256": "90ef5a5f519c5560d27e76649c6c6f00ece104f8554abc38a2d313e65a0e1052",
+      "immutableResumeMode": "0o444",
+      "firstAttemptPath": "/Users/ccheever/projects/snapback-artifacts/clique-release/0.0.9-793f707e0/publication-attempt1",
+      "retryAuthorization": "Same exactqualifiedpair; necessary reversible filesystemrepair; no product edit or qualificationbypass"
+    },
+    {
+      "firstObservation": "ShimE404 while npmprocessing;platform exactSRI/latest passed",
+      "firstAttempt": "/Users/ccheever/projects/snapback-artifacts/clique-release/0.0.9-793f707e0/registry-pending-attempt1",
+      "stateChange": "Read-only availability probe now returns exact shimSRI",
+      "resumedAction": "Fresh registryinstall and directguideverification; no republish/repack/dryrun"
+    }
+  ],
+  "limits": "darwin-arm64 publication qualified; no Linux, active search or fullcurve feed performance claim.",
+  "external_artifacts": "/Users/ccheever/projects/snapback-artifacts/clique-release/0.0.9-793f707e0"
+}
