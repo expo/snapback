@@ -546,7 +546,7 @@ accepted implementation direction, not a completed held-search capability.
 34,000/30,000 allocation under the same unattended delegation. A pinned
 Node22.23.2/esbuild0.25.9/gzip9 checkpoint reproduces the legacy entry at21,745
 bytes, that baseline with existing projection/receipt bodies retained at24,094,
-and the complete current WIP entry at46,838. Its minified bytes are138,082;
+and the then-measured WIP entry at46,838. Its minified bytes are138,082;
 minified attribution is not additive gzip attribution. The earlier44,290 figure
 omitted required `ProjectionCache.prepare` and `toClosureReceipt` bodies despite
 including their modules; retain it as an incomplete measurement, not a pass.
@@ -555,7 +555,10 @@ supporting that estimate. The revised50,000 ceiling/48,000 target pays for the
 complete indexed, Unicode, receipt and carrier behavior instead of deleting it.
 This is a new scope decision, not retroactive compliance with34,000. Exact2
 remains deferred; 1M steps/4MiB closure/8MiB heap/1MiB output are unchanged.
-The checkpoint is WIP, not qualified final bytes. Integrated measurement must
+A subsequent boundary audit found that the46,838 entry still omitted edited
+PersistentRangeStore commit/applySwap/retirement bodies; it is also incomplete.
+The50,000 decision above remains historical pending a complete boundary audit,
+not evidence of compliance. Integrated measurement must
 retain every required body and data payload. Evidence:
 [exact checkpoint](../benchmarks/runs/2026-09-06-clique-improvement/evidence/search-byte-decision/byte-checkpoint.json).
 

@@ -5,5 +5,6 @@
   "coreTree": "0da2ac92064bf53f39fb4badef4439c1a19ec8f1",
   "candidateCoreTree": "0da2ac92064bf53f39fb4badef4439c1a19ec8f1",
   "conflicts": "One append-only loop.jsonl conflict, both original rows preserved; no code conflict",
-  "reviewStatus": "Astra READY; Grok pending, no main landing yet"
+  "reviewStatus": "Both Astra and Grok READY on exact2cd, full reports read by Root. Both static reviews; execution evidence separately bound.",
+  "grokSplit": "grok-progress-prefix.txt + grok-review.md byte-equals grok-raw.md"
 }
