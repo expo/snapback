@@ -28,7 +28,7 @@ Muse scores are absent. These are N=1 observations, not statistical rankings.
 - Numeric caps in the supplied brief remain placeholders. Actual clocks and
   missing token metering are recorded; no invented cap compliance.
 
-M1–M4 are green. Copied receipts under `evidence/` bind their passing
+M1–M5 are green. Copied receipts under `evidence/` bind their passing
 suites: M1 passed all three required choreography assertions at
 2026-09-06T07:00:35.177Z; M2 passed all nine at 2026-09-06T07:02:06.871Z;
 M3 passed all seven implemented assertions (five required) at
@@ -38,7 +38,7 @@ the builder. Earlier receipts overstated setup/prepack qualification; these
 reruns use the builder's corrected metadata and make no such claim.
 The iOS Hermes bundle exported; simulator execution is unavailable on this
 host (`simctl` exit 72), so there is no physical/native runtime claim.
-M4 passed all five required choreography assertions at 2026-09-06T07:29:19.964Z; its suite hash was verified before copying. M5 is in progress. No new holistic score exists yet.
+M4 passed all five required choreography assertions at 2026-09-06T07:29:19.964Z; its suite hash was verified before copying. M5 is green; its retained choreography receipt and suite hash were verified. M6 is next. No new holistic score exists yet.
 
 Findings already recorded: conditional page returns lose their cursor
 (`issues/20260906-snapback2-conditional-query-page-loses-cursor.md`), and help
@@ -105,3 +105,10 @@ resolve the newer static-review auth ordering finding.
 CLI candidate `1296ec51a` has package-build,11guide and86owner tests passing
 (two pre-existing ignores). Independent reviews and full verification are
 running. It can land independently if ready before the asset revision.
+
+CLI fullscript at1296ec51a exited0:380package,743Rust,399compiler,
+doctests/evaluator pass. Measurement exited1: doctor first sample0.549s
+exceeded0.5s, second0.057s; all other budgets passed. That red is retained
+and under investigation before publication. Assets final candidate is now
+f52d6dcd8(134affectedJS pass), but Grok identified a separate per-id unlink
+error escaping through the background writer turn; that revision is underway.
