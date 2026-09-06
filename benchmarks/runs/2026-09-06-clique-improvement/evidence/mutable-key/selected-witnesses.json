@@ -1,0 +1,228 @@
+{
+  "before-mutation-results.json": {
+    "originalSha256": "920d5f4c8f43e2dc9da97c0db5aa8ad1a3500b7979d056abda06331fd77a1124",
+    "case": {
+      "name": "tuple-push",
+      "source": "import {mutation,t} from 'snapback2'; declare const people:any; declare const records:any;  export const probe=mutation({term:t.text(2000)},({db,args})=>{const key=['x']; key.push('y'); const page=db.scan(people.ordinary,key,{take:2}); return {key,page};});",
+      "full": {
+        "ok": true,
+        "programs": [
+          {
+            "name": "probe",
+            "kind": "Mutation",
+            "args": {
+              "term": {
+                "Text": {
+                  "max": 2000
+                }
+              }
+            },
+            "read_time_granularity_ms": null,
+            "body": [
+              {
+                "Const": {
+                  "name": "key",
+                  "value": {
+                    "Array": [
+                      {
+                        "Literal": {
+                          "String": "x"
+                        }
+                      }
+                    ]
+                  }
+                }
+              },
+              {
+                "Push": {
+                  "target": "key",
+                  "value": {
+                    "Literal": {
+                      "String": "y"
+                    }
+                  }
+                }
+              },
+              {
+                "Const": {
+                  "name": "page",
+                  "value": {
+                    "Scan": {
+                      "site": "probe.probe.0",
+                      "table": "people",
+                      "index": "ordinary",
+                      "prefix": [
+                        {
+                          "Scalar": {
+                            "Literal": {
+                              "String": "x"
+                            }
+                          }
+                        }
+                      ],
+                      "order": "Asc",
+                      "take": {
+                        "Literal": 2
+                      },
+                      "after": null,
+                      "before": null,
+                      "range": null,
+                      "merge_site": null,
+                      "provenance": "Const"
+                    }
+                  }
+                }
+              },
+              {
+                "Return": {
+                  "Object": {
+                    "key": {
+                      "Variable": "key"
+                    },
+                    "page": {
+                      "Variable": "page"
+                    }
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "actual": {
+        "result": {
+          "key": [
+            "x",
+            "y"
+          ],
+          "page": []
+        },
+        "scans": [
+          {
+            "table": "people",
+            "prefix": [
+              {
+                "scalar": "x"
+              }
+            ]
+          }
+        ],
+        "writes": []
+      },
+      "error": null
+    }
+  },
+  "r6-mutation-results.json": {
+    "originalSha256": "271b94d37d1bc358b25a1060600d39eb28c37060f956f36c8ac2cedfa62d901d",
+    "case": {
+      "name": "tuple-push",
+      "source": "import {mutation,t} from 'snapback2'; declare const people:any; declare const records:any;  export const probe=mutation({term:t.text(2000)},({db,args})=>{const key=['x']; key.push('y'); const page=db.scan(people.ordinary,key,{take:2}); return {key,page};});",
+      "full": {
+        "ok": true,
+        "programs": [
+          {
+            "name": "probe",
+            "kind": "Mutation",
+            "args": {
+              "term": {
+                "Text": {
+                  "max": 2000
+                }
+              }
+            },
+            "read_time_granularity_ms": null,
+            "body": [
+              {
+                "Const": {
+                  "name": "key",
+                  "value": {
+                    "Array": [
+                      {
+                        "Literal": {
+                          "String": "x"
+                        }
+                      }
+                    ]
+                  }
+                }
+              },
+              {
+                "Push": {
+                  "target": "key",
+                  "value": {
+                    "Literal": {
+                      "String": "y"
+                    }
+                  }
+                }
+              },
+              {
+                "Const": {
+                  "name": "page",
+                  "value": {
+                    "Scan": {
+                      "site": "probe.probe.0",
+                      "table": "people",
+                      "index": "ordinary",
+                      "prefix": [
+                        {
+                          "Scalar": {
+                            "Literal": {
+                              "String": "x"
+                            }
+                          }
+                        }
+                      ],
+                      "order": "Asc",
+                      "take": {
+                        "Literal": 2
+                      },
+                      "after": null,
+                      "before": null,
+                      "range": null,
+                      "merge_site": null,
+                      "provenance": "Const"
+                    }
+                  }
+                }
+              },
+              {
+                "Return": {
+                  "Object": {
+                    "key": {
+                      "Variable": "key"
+                    },
+                    "page": {
+                      "Variable": "page"
+                    }
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "actual": {
+        "result": {
+          "key": [
+            "x",
+            "y"
+          ],
+          "page": []
+        },
+        "scans": [
+          {
+            "table": "people",
+            "prefix": [
+              {
+                "scalar": "x"
+              }
+            ]
+          }
+        ],
+        "writes": []
+      },
+      "error": null
+    }
+  }
+}

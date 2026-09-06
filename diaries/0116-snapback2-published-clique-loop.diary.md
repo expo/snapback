@@ -525,3 +525,21 @@ results show declared text minima reaching actual admission rather than relying
 on UI validation or a job body running. The candidate is still unpublished.
 The witness also notes an authored channel argument format is absent from its
 IR; a bounded semantics audit is pending, with no format-enforcement claim.
+
+
+## 2026-09-06 — Compiler capture and argument audit
+
+The immutable-capture repair now preserves actual tuple values through shadows
+and prevents later destination types from inflating earlier search bounds. Its
+112 focused checks pass; the full comparison adds43 passes with the same183
+inherited dependency failures. Independent review and integration remain pending.
+An additional private harness case still silently scans an array's initializer
+instead of its mutated components. That counterexample remains an open repair,
+with no claim yet that public Quarry can express it.
+
+The format audit confirmed that accepted query, mutation, job and channel
+arguments lose authored handle/URL formats. Native, compiler and client support
+are being coordinated. Version identities protect matched compiled custody;
+they cannot retrofit strict decoding into old raw-IR owners. Silent acceptance
+of ignored constraints is more costly for an app builder than an actionable
+compiler diagnostic, because a successful check gives false confidence.

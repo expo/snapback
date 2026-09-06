@@ -26,8 +26,10 @@ and twin owners agreed on new identities:
 - `i53-codepoint-bytes-unicode-search-text-refinements-v5`
 - `bounded-spike-rust-search-text-refinements-4`
 
-The identity change must prevent an old v4 decoder from silently discarding
-format constraints. Existing v4 witnesses remain version-bound historical
+Use the matched new compiler, owner and client. Certificate/value/evaluator
+identities fence compiled program custody, but cannot retroactively repair old
+raw ProjectJson v1 decoders that ignore unknown Text members when recertifying.
+Arbitrary mixed-version raw-IR compatibility remains unsupported. Existing v4 witnesses remain version-bound historical
 evidence. New native/client checks must verify valid controls, recursive
 refusals and no side effects, using the existing error families. Keep this
 ticket open until the coherent implementation is reviewed and landed.
