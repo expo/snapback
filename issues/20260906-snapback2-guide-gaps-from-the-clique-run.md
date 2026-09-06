@@ -27,3 +27,23 @@ One guide page per item or a capability-index row; the README outbox sentence is
 ## Partly addressed (2026-09-06, Clique findings program)
 
 items 1–3 (README outbox line, `guide maintain`, `byId` literal) wave 1 L4/L2; item 4 (text search) L9 `words` + the channels-page recipe; item 5 (token restoration retry) L7 + the auth page; item 6 (presence) L12 `connected`; item 7 (`divmod(now)`) L9. Open: 8–14.
+
+## Fresh 0.0.6 Astra-medium run (2026-09-06)
+
+15. `snapback2 init --help` and `dev --help` reject the help flag; the top-level
+    help only lists verbs. `guide init` responds with the symbol catalog rather
+    than the initialization recipe. The builder used the README to initialize.
+16. Replacing a unique index correctly triggers `E_SUCCESSOR_DESTRUCTIVE`, but
+    `guide E_SUCCESSOR_DESTRUCTIVE` says to apply the plan without showing the
+    executable command. After rejected `--apply` and `--migration` guesses,
+    the builder inspected strings in the installed binary to discover
+    `--apply-migration`. `check` accepted the new project while the running
+    owner retained its prior generation; the builder needed `dev --status`
+    to discover that state. The recovery diagnostic should show the exact
+    existing application command and distinguish validation from installation.
+
+Evidence: office M1
+`/Users/ccheever/clique-improvement/lanes/astra-snapback2-006/diaries/run.md`,
+M1 setup and M2 platform experience; `evidence/m2-migration.log` and
+`evidence/m2-owner-status.json`. This is a cold published-only build; no
+repository source or previous app was supplied to the builder.
