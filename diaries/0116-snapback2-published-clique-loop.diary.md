@@ -858,3 +858,10 @@ The exact checkpoint is72,199gzip bytes,6,199over the fixed66,000 limit. Central
 Unsupported offline drain shapes now produce structured refusals while preserving coverage, grants, watermarks and queued writes. Valid bounded ascending pages keep their certified cursor, including cold-start tail handling. The correction preserves the full52-note owner budget exercise; its independent-main run passes in17.95s. Seven unchanged client cases retain their earlier source-bound passes.
 
 All28 changed files match the reviewed implementation and correction. Main's migration implementation is unchanged, so the unresolved uniqueness issue remains open rather than holding this independent improvement. The guide retains pending-upload versus retained-byte distinctions and unclaimed-media expiry wording. [Landing evidence and review disposition](../benchmarks/runs/2026-09-06-clique-improvement/evidence/drain-independent-landing/README.md). Production publication and full Clique qualification remain separate; existing competitor baselines stay reused.
+
+
+### 2026-09-06 — Equivalent source names still hide a type error
+
+The next independent compiler review found that `./bounded-lib.d.ts` and `child/../bounded-lib.d.ts` can lose the supplied declaration while the canonical filename works. A missing type then gets a false clean type-check result. The candidate's later lowering refuses rather than publishing a program, so this is a source/type-analysis defect, not a demonstrated native exploit. The next correction must preserve distinct authored/library identities after normalization or refuse before substitution.
+
+Both complete [R4 review reports and disposition](../benchmarks/runs/2026-09-06-clique-improvement/evidence/compiler-r4-review/README.md) are retained. Grok approves the scoped descriptor/migration repair; Astra requires the additional custody correction. Separate native checking also showed that the optional-list fallback needs faithful guarded lowering before it can pass the actual owner certificate. Neither compiler-only successes nor the existing competitor scores are relabeled by these findings.

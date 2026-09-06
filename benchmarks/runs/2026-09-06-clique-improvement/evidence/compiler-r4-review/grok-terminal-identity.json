@@ -1,0 +1,29 @@
+{
+  "observedAt": "2026-09-06T22:02:50.239964+00:00",
+  "toolSession": 11829,
+  "terminalExit": 0,
+  "terminalToolChunk": "684d1a",
+  "sessionUuid": "81425405-ab59-498f-aa58-a79fb69c572e",
+  "model": "grok-4.6",
+  "reasoningEffort": "xhigh",
+  "nativeSummaryPath": "/Users/ccheever/.grok/sessions/%2FUsers%2Fccheever%2Fclique-improvement%2Freviews%2Fcompiler-argument-format-r4%2Fgrok/81425405-ab59-498f-aa58-a79fb69c572e/summary.json",
+  "nativeSummarySha256": "7cb0ce68a75ad40447e2db0c1ef1f7068cd73492f88f25659ea09639919d276d",
+  "candidate": "9afc84c2fe04ec48e8d373674b32323a804dcb38",
+  "verdict": "READY scoped, not whole compiler or package",
+  "reportBytes": 19298,
+  "evidenceFiles": 1987,
+  "reportReadFull": true,
+  "hashes": {
+    "review.md": "e623108a602bfa51360e7b1f6bd5bea527b770648a2dd5ee6afccc324d8ecb2d",
+    "stdout.log": "accba8f8b99c91ec2d884d4446e4ec6981b70ca685856d870d17fa78605666c9",
+    "stderr.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "final-answer.md": "c0323c615f01fed03135d25745ed56a0ebe64b3f4b399b00081630adf7837cfb",
+    "review-evidence-manifest.json": "8b07727d3f5eee7302ae1ed20caac73cd360e11cc94e763d7f72113bb7ee9e30"
+  },
+  "scopeLimitations": [
+    "No normalized ./bounded-lib.d.ts alias probe shown; exact-name library controls do not refute live Astra finding",
+    "Archive SHA not independently reproduced by reviewer;208 actual compiler files matched",
+    "No native runtime or representation qualification",
+    "Parent mutation/channel matrices not reprobed after initial import failure"
+  ]
+}

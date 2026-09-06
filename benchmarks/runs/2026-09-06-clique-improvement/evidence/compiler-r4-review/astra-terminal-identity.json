@@ -1,0 +1,28 @@
+{
+  "observedAt": "2026-09-06T22:17:32.177565+00:00",
+  "toolSession": 16159,
+  "terminalExit": 0,
+  "terminalToolChunk": "90d6bc",
+  "thread": "01a078a9-3d72-7b11-814e-fc14f0992158",
+  "rolloutPath": "/Users/ccheever/.codex/sessions/2026/09/06/rollout-2026-09-06T14-39-12-01a078a9-3d72-7b11-814e-fc14f0992158.jsonl",
+  "actualTurnContexts": [
+    {
+      "model": "gpt-6-astra",
+      "effort": "xhigh",
+      "cwd": "/Users/ccheever/clique-improvement/reviews/compiler-argument-format-r4/astra"
+    }
+  ],
+  "candidate": "9afc84c2fe04ec48e8d373674b32323a804dcb38",
+  "verdict": "CHANGES_REQUIRED",
+  "reportBytes": 22774,
+  "fullReportRead": true,
+  "durableEvidencePath": "/Users/ccheever/clique-improvement/reviews/compiler-argument-format-r4/astra/private-scratch",
+  "hashes": {
+    "review.md": "b26f15b267397b55c7be499bbccf02beb2989623fccc00d337d84e654dc63135",
+    "final-answer.md": "679232b5252950f5bd0e399e3642c446fcd426d1ae7d0e754cbf07c88586332f",
+    "stdout.log": "b6f410c99d0801a25b18616f87b06a885d861fbf903412d67ebc5d9b55640bd0",
+    "stderr.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "private-scratch/evidence-sha256.json": "df9eaac9c68fb7501588d13737c9b0a169b943d884852fa83000d3d1a1d2bc9c"
+  },
+  "scope": "Normalized equivalent path custody loses authored declaration; typecheck misses MissingType; candidate lowering E_OP_NONE, no fabricated program or native exploit observed. Inherited adjacent gap."
+}

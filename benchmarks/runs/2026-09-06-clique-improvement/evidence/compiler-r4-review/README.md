@@ -1,0 +1,9 @@
+Compiler R4 independent review disposition
+
+Candidate `9afc84c2fe04ec48e8d373674b32323a804dcb38` has a scoped Grok4.6 xhigh READY and an Astra xhigh CHANGES_REQUIRED. Both native processes exited0; root read both complete reports. The existing [handoff](../compiler-r4-handoff/README.md) records independent root verification of all208 committed/archived compiler files. The reviewers did not receive the archive itself; their inability to independently reproduce its archive digest is not a source-file mismatch.
+
+The remaining concrete issue is normalized-path authored-source custody. `export declare const marker: MissingType;` produces TS2304 with ordinary or canonical bounded-lib.d.ts names, but produces no diagnostic with ./bounded-lib.d.ts or child/../bounded-lib.d.ts because the supplied source is replaced by the library. The candidate's companion lowerSource check refuses E_OP_NONE; no usable fabricated program/API or native exploit was observed. The bug is inherited and the literal-path repair is incomplete. Grok's exact-name collision controls do not refute the normalized-alias case.
+
+The scoped descriptor and migration improvements remain credited: unsafe owner/global flows refuse, valid public Quarry metadata survives, and invalid list wrappers no longer receive invented widened signatures. R4 remains held for the precise source-custody correction; separate variadic push, callback grammar and native-compatible optional-list work continues under one compiler writer. No whole-compiler, native/package or benchmark clearance follows.
+
+Reports are copied verbatim. Their relative probe links resolve in the original workspace under /Users/ccheever/clique-improvement/reviews/compiler-argument-format-r4/{astra,grok}; full immutable probe sources, outputs and deadline receipts remain there. All original setup failures and original30s limits are retained.
