@@ -1,0 +1,32 @@
+{
+  "current": [
+    {
+      "path": "expo-wrapper-first-failure.json",
+      "actualExitCode": 1,
+      "stage": "External Expo wrapper preflight, before any install/consumer creation; old receipt path corrected only in private copy.",
+      "subsequentActualOriginalBoundExecution": "logs/installed-expo-ready.json",
+      "originalFailureRetained": true
+    },
+    {
+      "path": "receipt-audit-first-failure.json",
+      "stage": "External postprocessing assumed todos had an effects check; retained originals show todos6 and chat30, with one effects pass in chat.",
+      "qualificationRepeated": false
+    },
+    {
+      "path": "report-generation-tooling.json",
+      "stage": "Tool invocation syntax before execution; no build/test repeated."
+    }
+  ],
+  "expectedNegativeGuardChecks": "npm-wrapper-custody.json: two exit97 refusals, no real npm spawned.",
+  "preparationReadDisplayLimits": "Some combined discovery reads exceeded display budget; governing documents were reread scoped. No source/test result inferred from truncated display.",
+  "productionDryRunFailures": [],
+  "actualInstalledRuntimeFailures": [],
+  "priorEvidence": "prior-evidence-binding.json preserves original failure/qualification indexes and report hashes",
+  "priorLimitsRemain": [
+    "Both prior10s public-asset failures remain actual failures.",
+    "Declaration-export and whole-twin deadline failures remain unqualified.",
+    "Prior owner red-green and broader compiler/browser/setup failures retain original attribution."
+  ],
+  "noSupersedingByScopedReleasePass": true,
+  "providerBlockedRequest": "Untouched; no resumption, analysis or clearance."
+}

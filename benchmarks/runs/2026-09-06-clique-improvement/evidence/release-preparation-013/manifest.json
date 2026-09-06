@@ -1,0 +1,90 @@
+{
+  "source": "ae7d86a11eecb898f4d91d21195a56017e23bee5",
+  "files": [
+    {
+      "path": "implementation-report.md",
+      "sha256": "24e71646fc535e2e5cd816e9e83d30b396046afcbb2b26c0f06a1a19432da8cb",
+      "bytes": 17032
+    },
+    {
+      "path": "terminal.json",
+      "sha256": "48759ea49510478ffab17786edb11b3456f4db6b6be9c155729ccc6f261e96e5",
+      "bytes": 112
+    },
+    {
+      "path": "phase.json",
+      "sha256": "b082b6c4850206516fb88f20fd77395c4ef8fe543bf35d41f3927efb611a62d1",
+      "bytes": 2123
+    },
+    {
+      "path": "version-receipt.json",
+      "sha256": "ae6852cee68d6c57f2185464dad9c87f7a72bd6f9c0f7b583cdcd3b39f2dbd36",
+      "bytes": 713
+    },
+    {
+      "path": "qualification-receipt.json",
+      "sha256": "696286be2ed004ee986c28984461d6c69227dab903bc37f69744b741af0aa106",
+      "bytes": 1317
+    },
+    {
+      "path": "artifact-receipt.json",
+      "sha256": "415137117e8905b02f81ec54964620337b354af58b3de282231fd74fb122edd3",
+      "bytes": 3020
+    },
+    {
+      "path": "original-pack-receipts.json",
+      "sha256": "18bacbe7afa7e961a8a645de2366de2887e83ee9b8706c40d9ce54b129842043",
+      "bytes": 21570
+    },
+    {
+      "path": "installed-expo-verification.json",
+      "sha256": "225acce39e8e2b261ba791c571f8f3db5ba54f14b13f168d6f961bdabba3a0e5",
+      "bytes": 15059
+    },
+    {
+      "path": "standard-installed-react-consumer.json",
+      "sha256": "281c7017ed67ec4f14cbd12ca69c419d08ebcc727a47232743700fede7d7b664",
+      "bytes": 1864
+    },
+    {
+      "path": "installed-effects-receipts.json",
+      "sha256": "80af91c659517e7112782816b5da8035012801655b951c6ea3dff7884ad4078d",
+      "bytes": 1224
+    },
+    {
+      "path": "metric-custody.json",
+      "sha256": "2882cf7cf5bb2f20b473a32911ed628d0100cfcb06cdc8dafbfd72e520e9f235",
+      "bytes": 928
+    },
+    {
+      "path": "cleanup-receipt.json",
+      "sha256": "82fa533672d80ac069958e05f9fdbcc6eaf7aab95acaccddaf046d95ec4e2a56",
+      "bytes": 205450
+    },
+    {
+      "path": "final-audit.json",
+      "sha256": "ef240fa9dab40b5a47a9320184592f37d0d1d64221abb7c1c941f59fb67b8829",
+      "bytes": 1398
+    },
+    {
+      "path": "root-original-tarball-verification.json",
+      "sha256": "2f036adffb3de1066defe44f9844a497ff2b6ed454879917c7a961907c0ccaaf",
+      "bytes": 916
+    },
+    {
+      "path": "first-failures.json",
+      "sha256": "dde1377a8ba1ff5fa4dd8a54d0dcae70ccf1a531c19b0460b1e45943323bbc6a",
+      "bytes": 1647
+    },
+    {
+      "path": "actual-identity.json",
+      "sha256": "2995e9d87935a8bee59037c0667fb9fe8287dd02730413847a5276f5069a0f87",
+      "bytes": 480
+    },
+    {
+      "path": "receipts/production-dry-run.json",
+      "sha256": "9e316fecf0d05cb537a9ae060dd6c7efcab02f8a6ffc871e099ec57eb11f15c2",
+      "bytes": 3410
+    }
+  ]
+}

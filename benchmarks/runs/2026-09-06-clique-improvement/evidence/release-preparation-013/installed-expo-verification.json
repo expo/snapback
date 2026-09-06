@@ -1,0 +1,329 @@
+{
+  "version": "0.0.13",
+  "source": "ae7d86a11eecb898f4d91d21195a56017e23bee5",
+  "ok": true,
+  "scope": "installed original tarballs, untouched chat Expo init/check/guide; no native device execution or registry publication claim",
+  "consumer_directory": "/Users/ccheever/projects/snapback-artifacts/clique-release/0.0.13-ae7d86a11/installed-expo-consumer",
+  "checks": [
+    {
+      "name": "expo-tarball-install",
+      "argv": [
+        "/Users/ccheever/clique-improvement/revisions/release-preparation-013/npm-capture.py",
+        "install",
+        "--ignore-scripts",
+        "--no-audit",
+        "--no-fund",
+        "--legacy-peer-deps",
+        "--prefer-offline",
+        "--fetch-retries=0",
+        "--fetch-timeout=15000",
+        "/Users/ccheever/projects/snapback-artifacts/clique-release/0.0.13-ae7d86a11/snapback2-darwin-arm64-0.0.13.tgz",
+        "/Users/ccheever/projects/snapback-artifacts/clique-release/0.0.13-ae7d86a11/snapback2-0.0.13.tgz"
+      ],
+      "cwd": "/Users/ccheever/projects/snapback-artifacts/clique-release/0.0.13-ae7d86a11/installed-expo-consumer",
+      "timeout_seconds": 30,
+      "started_epoch": 1788735193.6827478,
+      "pid": 99483,
+      "process_identity": "99483 Sun Sep  6 15:53:13 2026     python3 /Users/ccheever/clique-improvement/revisions/release-preparation-013/npm-capture.py install --ignore-scripts --no-audit --no-fund --legacy-peer-deps --prefer-offline --fetch-retries=0 --fetch-timeout=15000 /Users/ccheever/projects/snapback-artifacts/clique-release/0.0.13-ae7d86a11/snapback2-darwin-arm64-0.0.13.tgz /Users/ccheever/projects/snapback-artifacts/clique-release/0.0.13-ae7d86a11/snapback2-0.0.13.tgz",
+      "exit_code": 0,
+      "elapsed_seconds": 2.498075083,
+      "log_sha256": "c59541a7d8bfc9987c0aa47adf2cdd2858be8b66de5abc0331d5a6484ae63ab6"
+    },
+    {
+      "name": "snapback2-darwin-arm64 all packed file equality",
+      "ok": true,
+      "files": 3
+    },
+    {
+      "name": "snapback2 all packed file equality",
+      "ok": true,
+      "files": 151
+    },
+    {
+      "name": "installed-guide-offline",
+      "argv": [
+        "node",
+        "/Users/ccheever/projects/snapback-artifacts/clique-release/0.0.13-ae7d86a11/installed-expo-consumer/node_modules/snapback2/bin/snapback2.mjs",
+        "guide",
+        "offline",
+        "--json"
+      ],
+      "cwd": "/Users/ccheever/projects/snapback-artifacts/clique-release/0.0.13-ae7d86a11/installed-expo-consumer",
+      "timeout_seconds": 30,
+      "started_epoch": 1788735196.261178,
+      "pid": 99661,
+      "process_identity": "99661 Sun Sep  6 15:53:16 2026     node /Users/ccheever/projects/snapback-artifacts/clique-release/0.0.13-ae7d86a11/installed-expo-consumer/node_modules/snapback2/bin/snapback2.mjs guide offline --json",
+      "exit_code": 0,
+      "elapsed_seconds": 0.791730083,
+      "log_sha256": "34d81e9e38cd8c30952c865a47a8e8054a05c0bf03aaa60cb3f59d60125097a5"
+    },
+    {
+      "name": "installed-guide-live-query",
+      "argv": [
+        "node",
+        "/Users/ccheever/projects/snapback-artifacts/clique-release/0.0.13-ae7d86a11/installed-expo-consumer/node_modules/snapback2/bin/snapback2.mjs",
+        "guide",
+        "live-query",
+        "--json"
+      ],
+      "cwd": "/Users/ccheever/projects/snapback-artifacts/clique-release/0.0.13-ae7d86a11/installed-expo-consumer",
+      "timeout_seconds": 30,
+      "started_epoch": 1788735197.0990741,
+      "pid": 99715,
+      "process_identity": "99715 Sun Sep  6 15:53:17 2026     node /Users/ccheever/projects/snapback-artifacts/clique-release/0.0.13-ae7d86a11/installed-expo-consumer/node_modules/snapback2/bin/snapback2.mjs guide live-query --json",
+      "exit_code": 0,
+      "elapsed_seconds": 0.1639132919999997,
+      "log_sha256": "abe122dbae58fa445289ea8e2b7c056bb8c9f26263795953f6bdaad6d32fcece"
+    },
+    {
+      "name": "expo-installed-version",
+      "argv": [
+        "node",
+        "/Users/ccheever/projects/snapback-artifacts/clique-release/0.0.13-ae7d86a11/installed-expo-consumer/node_modules/snapback2/bin/snapback2.mjs",
+        "version"
+      ],
+      "cwd": "/Users/ccheever/projects/snapback-artifacts/clique-release/0.0.13-ae7d86a11/installed-expo-consumer",
+      "timeout_seconds": 30,
+      "started_epoch": 1788735197.307511,
+      "pid": 99733,
+      "process_identity": "99733 Sun Sep  6 15:53:17 2026     node /Users/ccheever/projects/snapback-artifacts/clique-release/0.0.13-ae7d86a11/installed-expo-consumer/node_modules/snapback2/bin/snapback2.mjs version",
+      "exit_code": 0,
+      "elapsed_seconds": 0.16323508299999956,
+      "log_sha256": "4e18c5acfd7ba3f7295c40592879d31d2b3e028ba70e8e781b5f9818f3647068"
+    },
+    {
+      "name": "expo-installed-doctor",
+      "argv": [
+        "node",
+        "/Users/ccheever/projects/snapback-artifacts/clique-release/0.0.13-ae7d86a11/installed-expo-consumer/node_modules/snapback2/bin/snapback2.mjs",
+        "doctor",
+        "--json"
+      ],
+      "cwd": "/Users/ccheever/projects/snapback-artifacts/clique-release/0.0.13-ae7d86a11/installed-expo-consumer",
+      "timeout_seconds": 30,
+      "started_epoch": 1788735197.472376,
+      "pid": 99750,
+      "process_identity": "99750 Sun Sep  6 15:53:17 2026     node /Users/ccheever/projects/snapback-artifacts/clique-release/0.0.13-ae7d86a11/installed-expo-consumer/node_modules/snapback2/bin/snapback2.mjs doctor --json",
+      "exit_code": 0,
+      "elapsed_seconds": 0.31472999999999995,
+      "log_sha256": "b049b5e3a6e0aa8c08adbd75e16cf5fddd4b7a3d3803b0ec11e76545823e64f4"
+    },
+    {
+      "name": "expo-installed-media",
+      "argv": [
+        "/Users/ccheever/projects/snapback-artifacts/clique-release/0.0.13-ae7d86a11/installed-expo-consumer/node_modules/snapback2-darwin-arm64/bin/snapback2-media",
+        "capabilities"
+      ],
+      "cwd": "/Users/ccheever/projects/snapback-artifacts/clique-release/0.0.13-ae7d86a11/installed-expo-consumer",
+      "timeout_seconds": 30,
+      "started_epoch": 1788735197.788508,
+      "pid": 99795,
+      "process_identity": "99795 Sun Sep  6 15:53:17 2026     /Users/ccheever/projects/snapback-artifacts/clique-release/0.0.13-ae7d86a11/installed-expo-consumer/node_modules/snapback2-darwin-arm64/bin/snapback2-media capabilities",
+      "exit_code": 0,
+      "elapsed_seconds": 0.5070047080000002,
+      "log_sha256": "a3145da94d0da5767e824df99dce5294b9f13dfe6b280dc3d16fb0aa9307d0cb"
+    },
+    {
+      "name": "expo-installed-init",
+      "argv": [
+        "node",
+        "/Users/ccheever/projects/snapback-artifacts/clique-release/0.0.13-ae7d86a11/installed-expo-consumer/node_modules/snapback2/bin/snapback2.mjs",
+        "init",
+        "/Users/ccheever/projects/snapback-artifacts/clique-release/0.0.13-ae7d86a11/installed-expo-consumer/chat-expo",
+        "--template",
+        "chat",
+        "--client",
+        "expo",
+        "--json"
+      ],
+      "cwd": "/Users/ccheever/projects/snapback-artifacts/clique-release/0.0.13-ae7d86a11/installed-expo-consumer",
+      "timeout_seconds": 30,
+      "started_epoch": 1788735198.298503,
+      "pid": 99833,
+      "process_identity": "99833 Sun Sep  6 15:53:18 2026     node /Users/ccheever/projects/snapback-artifacts/clique-release/0.0.13-ae7d86a11/installed-expo-consumer/node_modules/snapback2/bin/snapback2.mjs init /Users/ccheever/projects/snapback-artifacts/clique-release/0.0.13-ae7d86a11/installed-expo-consumer/chat-expo --template chat --client expo --json",
+      "exit_code": 0,
+      "elapsed_seconds": 3.586589041,
+      "log_sha256": "eb8dcf66359b0d939cc7cdc7d07455e17a327427879122174be410466c3ab989"
+    },
+    {
+      "name": "expo-installed-guide-before-check",
+      "argv": [
+        "node",
+        "/Users/ccheever/projects/snapback-artifacts/clique-release/0.0.13-ae7d86a11/installed-expo-consumer/node_modules/snapback2/bin/snapback2.mjs",
+        "guide",
+        "app",
+        "--project",
+        "/Users/ccheever/projects/snapback-artifacts/clique-release/0.0.13-ae7d86a11/installed-expo-consumer/chat-expo",
+        "--json"
+      ],
+      "cwd": "/Users/ccheever/projects/snapback-artifacts/clique-release/0.0.13-ae7d86a11/installed-expo-consumer",
+      "timeout_seconds": 30,
+      "started_epoch": 1788735201.908557,
+      "pid": 99984,
+      "process_identity": "99984 Sun Sep  6 15:53:21 2026     node /Users/ccheever/projects/snapback-artifacts/clique-release/0.0.13-ae7d86a11/installed-expo-consumer/node_modules/snapback2/bin/snapback2.mjs guide app --project /Users/ccheever/projects/snapback-artifacts/clique-release/0.0.13-ae7d86a11/installed-expo-consumer/chat-expo --json",
+      "exit_code": 0,
+      "elapsed_seconds": 1.1314121669999988,
+      "log_sha256": "a6cfdb8e3879b0bbe40a1309ce8ece929066e662f080c1691c7f91f5b069fed8"
+    },
+    {
+      "name": "expo-installed-check",
+      "argv": [
+        "node",
+        "/Users/ccheever/projects/snapback-artifacts/clique-release/0.0.13-ae7d86a11/installed-expo-consumer/node_modules/snapback2/bin/snapback2.mjs",
+        "check",
+        "--project",
+        "/Users/ccheever/projects/snapback-artifacts/clique-release/0.0.13-ae7d86a11/installed-expo-consumer/chat-expo",
+        "--json"
+      ],
+      "cwd": "/Users/ccheever/projects/snapback-artifacts/clique-release/0.0.13-ae7d86a11/installed-expo-consumer",
+      "timeout_seconds": 30,
+      "started_epoch": 1788735203.052675,
+      "pid": 166,
+      "process_identity": "166 Sun Sep  6 15:53:23 2026     node /Users/ccheever/projects/snapback-artifacts/clique-release/0.0.13-ae7d86a11/installed-expo-consumer/node_modules/snapback2/bin/snapback2.mjs check --project /Users/ccheever/projects/snapback-artifacts/clique-release/0.0.13-ae7d86a11/installed-expo-consumer/chat-expo --json",
+      "exit_code": 0,
+      "elapsed_seconds": 3.6004805829999995,
+      "log_sha256": "a7e68326f5a5a2941b52a1d39f13425cfc2df04fcf1f94c3cfa316a5e0acd341"
+    },
+    {
+      "name": "expo-installed-guide-after-check",
+      "argv": [
+        "node",
+        "/Users/ccheever/projects/snapback-artifacts/clique-release/0.0.13-ae7d86a11/installed-expo-consumer/node_modules/snapback2/bin/snapback2.mjs",
+        "guide",
+        "app",
+        "--project",
+        "/Users/ccheever/projects/snapback-artifacts/clique-release/0.0.13-ae7d86a11/installed-expo-consumer/chat-expo",
+        "--json"
+      ],
+      "cwd": "/Users/ccheever/projects/snapback-artifacts/clique-release/0.0.13-ae7d86a11/installed-expo-consumer",
+      "timeout_seconds": 30,
+      "started_epoch": 1788735206.6625469,
+      "pid": 302,
+      "process_identity": "302 Sun Sep  6 15:53:26 2026     node /Users/ccheever/projects/snapback-artifacts/clique-release/0.0.13-ae7d86a11/installed-expo-consumer/node_modules/snapback2/bin/snapback2.mjs guide app --project /Users/ccheever/projects/snapback-artifacts/clique-release/0.0.13-ae7d86a11/installed-expo-consumer/chat-expo --json",
+      "exit_code": 0,
+      "elapsed_seconds": 1.1320260419999997,
+      "log_sha256": "a6cfdb8e3879b0bbe40a1309ce8ece929066e662f080c1691c7f91f5b069fed8"
+    }
+  ],
+  "started_epoch": 1788735193.522015,
+  "tarballs": [
+    {
+      "package": "snapback2-darwin-arm64",
+      "path": "/Users/ccheever/projects/snapback-artifacts/clique-release/0.0.13-ae7d86a11/snapback2-darwin-arm64-0.0.13.tgz",
+      "sha256": "30f8d7e773298a2be6fa709844930c666701ac09c1e3dfdee5fc56dd5e1a6c6e",
+      "bytes": 4824711,
+      "integrity": "sha512-P96OqaI3RqtbRayIV5edFOs79hVafhqgmxpEdXEYnCRUg9zIZCjB/Ofibnf7/UXkCIrbjxgnsqpXItjQ1RLRPQ=="
+    },
+    {
+      "package": "snapback2",
+      "path": "/Users/ccheever/projects/snapback-artifacts/clique-release/0.0.13-ae7d86a11/snapback2-0.0.13.tgz",
+      "sha256": "4c379cba193ad57e996145e378e7c58c606a8b1027ca69fb82404b08d72d38c5",
+      "bytes": 1796603,
+      "integrity": "sha512-Ipm8NxbwWjNBSUqYdkmtwduNGGICNB3oNVFV8P/U/SiSQaEgEQEY70k2kA6kWKGzd1F7JfYwui81ItfRULIyDw=="
+    }
+  ],
+  "installed_drain_guide_equality": [
+    {
+      "page": "offline",
+      "bytes": 4342,
+      "sha256": "f97c9c8b39937aba56a2c1d69cbecf16930d054e337478c305f75851510bd437",
+      "exact32bfSource": true
+    },
+    {
+      "page": "live-query",
+      "bytes": 5480,
+      "sha256": "df0f5fb16ca2e30aa99b440f94780f36b77cdb446e10d53dd7eaa5d49277a2a8",
+      "exact32bfSource": true
+    }
+  ],
+  "media": {
+    "heic": true,
+    "images": true
+  },
+  "expected_operations_receipt": "/Users/ccheever/projects/snapback-artifacts/clique-release/0.0.10-967f857e6/installed-verification.json",
+  "expected_operations_receipt_sha256": "dd1ac25a814f906a9adf372d30a701922c0136ea0f623ee3230cfe62cd4cc11e",
+  "guide_checks": [
+    {
+      "phase": "before-check",
+      "internalBinding": "deliveries._timerBinding_expireMessage",
+      "rawBindingPresent": true,
+      "bindingAbsentFromPublicOperations": true,
+      "publicPurgeRetained": true,
+      "operationCount": 26,
+      "exactCertifiedOperationSet": true,
+      "cacheUnchanged": true,
+      "backendUnchanged": true,
+      "operations": [
+        "deliveries.edit",
+        "deliveries.inbox",
+        "deliveries.post",
+        "deliveries.purgeMessage",
+        "deliveries.thread",
+        "deliveries.unsend",
+        "feeds.followingFeed",
+        "feeds.globalFeed",
+        "follows.setFollow",
+        "groups.groupCreate",
+        "groups.memberAdd",
+        "groups.memberLeave",
+        "groups.memberPromote",
+        "groups.memberRemove",
+        "messages.send",
+        "messages.sendClip",
+        "messages.sendOncePhoto",
+        "messages.sendPhoto",
+        "messages.summary",
+        "messages.thread",
+        "notifications.recordNotified",
+        "posts.createPost",
+        "profiles.byHandle",
+        "profiles.createMyProfile",
+        "profiles.mine",
+        "profiles.updateMyProfile"
+      ]
+    },
+    {
+      "phase": "after-check",
+      "internalBinding": "deliveries._timerBinding_expireMessage",
+      "rawBindingPresent": true,
+      "bindingAbsentFromPublicOperations": true,
+      "publicPurgeRetained": true,
+      "operationCount": 26,
+      "exactCertifiedOperationSet": true,
+      "cacheUnchanged": true,
+      "backendUnchanged": true,
+      "operations": [
+        "deliveries.edit",
+        "deliveries.inbox",
+        "deliveries.post",
+        "deliveries.purgeMessage",
+        "deliveries.thread",
+        "deliveries.unsend",
+        "feeds.followingFeed",
+        "feeds.globalFeed",
+        "follows.setFollow",
+        "groups.groupCreate",
+        "groups.memberAdd",
+        "groups.memberLeave",
+        "groups.memberPromote",
+        "groups.memberRemove",
+        "messages.send",
+        "messages.sendClip",
+        "messages.sendOncePhoto",
+        "messages.sendPhoto",
+        "messages.summary",
+        "messages.thread",
+        "notifications.recordNotified",
+        "posts.createPost",
+        "profiles.byHandle",
+        "profiles.createMyProfile",
+        "profiles.mine",
+        "profiles.updateMyProfile"
+      ]
+    }
+  ],
+  "installed_packages_unchanged": true,
+  "tarballs_unchanged": true,
+  "backend_unchanged": true,
+  "finished_epoch": 1788735207.8860931
+}

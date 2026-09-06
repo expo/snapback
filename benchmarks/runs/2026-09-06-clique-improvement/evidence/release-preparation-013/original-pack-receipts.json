@@ -1,0 +1,815 @@
+{
+  "source": "ae7d86a11eecb898f4d91d21195a56017e23bee5",
+  "packs": [
+    {
+      "captureReceipt": "/Users/ccheever/projects/snapback-artifacts/clique-release/0.0.13-ae7d86a11/npm-calls/1788735057591053000-87880.json",
+      "captureReceiptSha256": "39132a1021f814ebf827edbb3763233a67effeb579511e789c4f4e37b2a5232f",
+      "originalPackReport": "/Users/ccheever/projects/snapback-artifacts/clique-release/0.0.13-ae7d86a11/npm-calls/1788735057591053000-87880.stdout",
+      "originalPackReportSha256": "4849f3a10ebf8cd6664d590e82009c003e5262776f612bcb9f2af8f1ed9c04bc",
+      "report": {
+        "id": "snapback2-darwin-arm64@0.0.13",
+        "name": "snapback2-darwin-arm64",
+        "version": "0.0.13",
+        "size": 4824711,
+        "unpackedSize": 9194667,
+        "shasum": "a8a68e5618977f26e7884ec01e8fbb7065578fbd",
+        "integrity": "sha512-P96OqaI3RqtbRayIV5edFOs79hVafhqgmxpEdXEYnCRUg9zIZCjB/Ofibnf7/UXkCIrbjxgnsqpXItjQ1RLRPQ==",
+        "filename": "snapback2-darwin-arm64-0.0.13.tgz",
+        "files": [
+          {
+            "path": "bin/snapback2",
+            "size": 7046336,
+            "mode": 493
+          },
+          {
+            "path": "bin/snapback2-media",
+            "size": 2147984,
+            "mode": 493
+          },
+          {
+            "path": "package.json",
+            "size": 347,
+            "mode": 420
+          }
+        ],
+        "entryCount": 3,
+        "bundled": []
+      }
+    },
+    {
+      "captureReceipt": "/Users/ccheever/projects/snapback-artifacts/clique-release/0.0.13-ae7d86a11/npm-calls/1788735060340558000-88097.json",
+      "captureReceiptSha256": "bda4ec6ace9f3e79e95f5a7294866c73033e16b849552dc095b39285c99789ed",
+      "originalPackReport": "/Users/ccheever/projects/snapback-artifacts/clique-release/0.0.13-ae7d86a11/npm-calls/1788735060340558000-88097.stdout",
+      "originalPackReportSha256": "4a1e3a91daf6279767afc8ef30648568cb3a0e81b31acc7bae0de16b2a3a4342",
+      "report": {
+        "id": "snapback2@0.0.13",
+        "name": "snapback2",
+        "version": "0.0.13",
+        "size": 1796603,
+        "unpackedSize": 7412408,
+        "shasum": "8bcc59d3e7ed52dfe310b189dd9be5c0861fcae1",
+        "integrity": "sha512-Ipm8NxbwWjNBSUqYdkmtwduNGGICNB3oNVFV8P/U/SiSQaEgEQEY70k2kA6kWKGzd1F7JfYwui81ItfRULIyDw==",
+        "filename": "snapback2-0.0.13.tgz",
+        "files": [
+          {
+            "path": "README.md",
+            "size": 6767,
+            "mode": 420
+          },
+          {
+            "path": "android/build.gradle",
+            "size": 326,
+            "mode": 420
+          },
+          {
+            "path": "android/src/main/AndroidManifest.xml",
+            "size": 72,
+            "mode": 420
+          },
+          {
+            "path": "android/src/main/java/expo/modules/snapback2/SnapbackMemoryVideoModule.kt",
+            "size": 5123,
+            "mode": 420
+          },
+          {
+            "path": "bin/snapback2.mjs",
+            "size": 1516,
+            "mode": 493
+          },
+          {
+            "path": "dist/api.d.ts",
+            "size": 625,
+            "mode": 420
+          },
+          {
+            "path": "dist/assets.d.ts",
+            "size": 2249,
+            "mode": 420
+          },
+          {
+            "path": "dist/client-assets.d.ts",
+            "size": 1791,
+            "mode": 420
+          },
+          {
+            "path": "dist/client-auth.d.ts",
+            "size": 2747,
+            "mode": 420
+          },
+          {
+            "path": "dist/client-offline.d.ts",
+            "size": 4665,
+            "mode": 420
+          },
+          {
+            "path": "dist/client-outbox.d.ts",
+            "size": 2922,
+            "mode": 420
+          },
+          {
+            "path": "dist/client-upload.d.ts",
+            "size": 3405,
+            "mode": 420
+          },
+          {
+            "path": "dist/client-wire.d.ts",
+            "size": 3223,
+            "mode": 420
+          },
+          {
+            "path": "dist/client.d.ts",
+            "size": 865,
+            "mode": 420
+          },
+          {
+            "path": "dist/client.mjs",
+            "size": 187453,
+            "mode": 420
+          },
+          {
+            "path": "dist/client.mjs.map",
+            "size": 818209,
+            "mode": 420
+          },
+          {
+            "path": "dist/compiler-core.mjs",
+            "size": 352276,
+            "mode": 420
+          },
+          {
+            "path": "dist/compiler-core.mjs.map",
+            "size": 1289743,
+            "mode": 420
+          },
+          {
+            "path": "dist/compiler-lib.d.ts",
+            "size": 3297,
+            "mode": 420
+          },
+          {
+            "path": "dist/compiler.mjs",
+            "size": 2351,
+            "mode": 493
+          },
+          {
+            "path": "dist/compiler.mjs.map",
+            "size": 7738,
+            "mode": 420
+          },
+          {
+            "path": "dist/drain.d.ts",
+            "size": 1700,
+            "mode": 420
+          },
+          {
+            "path": "dist/effects-lib.d.ts",
+            "size": 434975,
+            "mode": 420
+          },
+          {
+            "path": "dist/expo.d.ts",
+            "size": 215,
+            "mode": 420
+          },
+          {
+            "path": "dist/expo.mjs",
+            "size": 52308,
+            "mode": 420
+          },
+          {
+            "path": "dist/expo.mjs.map",
+            "size": 276581,
+            "mode": 420
+          },
+          {
+            "path": "dist/expo/files.d.ts",
+            "size": 217,
+            "mode": 420
+          },
+          {
+            "path": "dist/expo/index.d.ts",
+            "size": 1121,
+            "mode": 420
+          },
+          {
+            "path": "dist/expo/token-store.d.ts",
+            "size": 363,
+            "mode": 420
+          },
+          {
+            "path": "dist/expo/witness.d.ts",
+            "size": 1392,
+            "mode": 420
+          },
+          {
+            "path": "dist/expo/witness.mjs",
+            "size": 5628,
+            "mode": 420
+          },
+          {
+            "path": "dist/expo/witness.mjs.map",
+            "size": 105182,
+            "mode": 420
+          },
+          {
+            "path": "dist/guide/auth.md",
+            "size": 4081,
+            "mode": 420
+          },
+          {
+            "path": "dist/guide/effects.md",
+            "size": 4052,
+            "mode": 420
+          },
+          {
+            "path": "dist/guide/families.json",
+            "size": 21227,
+            "mode": 420
+          },
+          {
+            "path": "dist/guide/grammar.md",
+            "size": 3284,
+            "mode": 420
+          },
+          {
+            "path": "dist/guide/job.md",
+            "size": 3944,
+            "mode": 420
+          },
+          {
+            "path": "dist/guide/keywords.json",
+            "size": 14745,
+            "mode": 420
+          },
+          {
+            "path": "dist/guide/live-query.md",
+            "size": 5480,
+            "mode": 420
+          },
+          {
+            "path": "dist/guide/offline.md",
+            "size": 4342,
+            "mode": 420
+          },
+          {
+            "path": "dist/guide/operator.md",
+            "size": 4466,
+            "mode": 420
+          },
+          {
+            "path": "dist/guide/personas.md",
+            "size": 495,
+            "mode": 420
+          },
+          {
+            "path": "dist/guide/quarry.md",
+            "size": 15863,
+            "mode": 420
+          },
+          {
+            "path": "dist/guide/schedule.md",
+            "size": 2713,
+            "mode": 420
+          },
+          {
+            "path": "dist/guide/testing.md",
+            "size": 3439,
+            "mode": 420
+          },
+          {
+            "path": "dist/index.d.ts",
+            "size": 17624,
+            "mode": 420
+          },
+          {
+            "path": "dist/index.mjs",
+            "size": 23443,
+            "mode": 420
+          },
+          {
+            "path": "dist/index.mjs.map",
+            "size": 105977,
+            "mode": 420
+          },
+          {
+            "path": "dist/live.d.ts",
+            "size": 1105,
+            "mode": 420
+          },
+          {
+            "path": "dist/offline-protocol.d.ts",
+            "size": 6483,
+            "mode": 420
+          },
+          {
+            "path": "dist/offline-schema.d.ts",
+            "size": 59,
+            "mode": 420
+          },
+          {
+            "path": "dist/offline.d.ts",
+            "size": 8322,
+            "mode": 420
+          },
+          {
+            "path": "dist/react-core.d.ts",
+            "size": 4330,
+            "mode": 420
+          },
+          {
+            "path": "dist/react-core.mjs",
+            "size": 8677,
+            "mode": 420
+          },
+          {
+            "path": "dist/react-core.mjs.map",
+            "size": 99921,
+            "mode": 420
+          },
+          {
+            "path": "dist/react-native.d.ts",
+            "size": 247,
+            "mode": 420
+          },
+          {
+            "path": "dist/react-native.mjs",
+            "size": 7072,
+            "mode": 420
+          },
+          {
+            "path": "dist/react-native.mjs.map",
+            "size": 34848,
+            "mode": 420
+          },
+          {
+            "path": "dist/react-native/components.d.ts",
+            "size": 1125,
+            "mode": 420
+          },
+          {
+            "path": "dist/react-native/files.d.ts",
+            "size": 1984,
+            "mode": 420
+          },
+          {
+            "path": "dist/react-native/memory-video.d.ts",
+            "size": 429,
+            "mode": 420
+          },
+          {
+            "path": "dist/react-native/source.d.ts",
+            "size": 680,
+            "mode": 420
+          },
+          {
+            "path": "dist/react.d.ts",
+            "size": 993,
+            "mode": 420
+          },
+          {
+            "path": "dist/react.mjs",
+            "size": 40661,
+            "mode": 420
+          },
+          {
+            "path": "dist/react.mjs.map",
+            "size": 254350,
+            "mode": 420
+          },
+          {
+            "path": "dist/sqlite-test.mjs",
+            "size": 94069,
+            "mode": 420
+          },
+          {
+            "path": "dist/sqlite-test.mjs.map",
+            "size": 252809,
+            "mode": 420
+          },
+          {
+            "path": "dist/sse-parser.d.ts",
+            "size": 330,
+            "mode": 420
+          },
+          {
+            "path": "dist/sse.d.ts",
+            "size": 1604,
+            "mode": 420
+          },
+          {
+            "path": "dist/store/asset-policy.d.ts",
+            "size": 594,
+            "mode": 420
+          },
+          {
+            "path": "dist/store/byte-cache.d.ts",
+            "size": 7626,
+            "mode": 420
+          },
+          {
+            "path": "dist/store/canonical.d.ts",
+            "size": 144,
+            "mode": 420
+          },
+          {
+            "path": "dist/store/indexeddb.d.ts",
+            "size": 928,
+            "mode": 420
+          },
+          {
+            "path": "dist/store/locks.d.ts",
+            "size": 429,
+            "mode": 420
+          },
+          {
+            "path": "dist/store/outbox.d.ts",
+            "size": 5782,
+            "mode": 420
+          },
+          {
+            "path": "dist/store/overlay-retirement.d.ts",
+            "size": 1128,
+            "mode": 420
+          },
+          {
+            "path": "dist/store/projection.d.ts",
+            "size": 1225,
+            "mode": 420
+          },
+          {
+            "path": "dist/store/range-store.d.ts",
+            "size": 15152,
+            "mode": 420
+          },
+          {
+            "path": "dist/store/row-values.d.ts",
+            "size": 613,
+            "mode": 420
+          },
+          {
+            "path": "dist/store/sqlite-driver.conformance.d.ts",
+            "size": 387,
+            "mode": 420
+          },
+          {
+            "path": "dist/store/sqlite-driver.d.ts",
+            "size": 877,
+            "mode": 420
+          },
+          {
+            "path": "dist/store/sqlite-expo.d.ts",
+            "size": 206,
+            "mode": 420
+          },
+          {
+            "path": "dist/store/sqlite.d.ts",
+            "size": 1672,
+            "mode": 420
+          },
+          {
+            "path": "dist/templates/chat/expo/app.json",
+            "size": 305,
+            "mode": 420
+          },
+          {
+            "path": "dist/templates/chat/expo/App.tsx",
+            "size": 1371,
+            "mode": 420
+          },
+          {
+            "path": "dist/templates/chat/expo/index.js",
+            "size": 99,
+            "mode": 420
+          },
+          {
+            "path": "dist/templates/chat/expo/shared/log.js",
+            "size": 4010,
+            "mode": 420
+          },
+          {
+            "path": "dist/templates/chat/expo/shared/log.ts",
+            "size": 6454,
+            "mode": 420
+          },
+          {
+            "path": "dist/templates/chat/expo/shared/offline.js",
+            "size": 1346,
+            "mode": 420
+          },
+          {
+            "path": "dist/templates/chat/expo/shared/offline.ts",
+            "size": 1608,
+            "mode": 420
+          },
+          {
+            "path": "dist/templates/chat/expo/src/Chat.tsx",
+            "size": 1242,
+            "mode": 420
+          },
+          {
+            "path": "dist/templates/chat/expo/src/Composer.tsx",
+            "size": 2213,
+            "mode": 420
+          },
+          {
+            "path": "dist/templates/chat/expo/src/MediaView.tsx",
+            "size": 1639,
+            "mode": 420
+          },
+          {
+            "path": "dist/templates/chat/expo/src/screens/Inbox.tsx",
+            "size": 675,
+            "mode": 420
+          },
+          {
+            "path": "dist/templates/chat/expo/src/screens/Search.tsx",
+            "size": 672,
+            "mode": 420
+          },
+          {
+            "path": "dist/templates/chat/expo/src/screens/Thread.tsx",
+            "size": 1931,
+            "mode": 420
+          },
+          {
+            "path": "dist/templates/chat/expo/src/witness-state.ts",
+            "size": 4398,
+            "mode": 420
+          },
+          {
+            "path": "dist/templates/chat/expo/src/Witness.tsx",
+            "size": 8426,
+            "mode": 420
+          },
+          {
+            "path": "dist/templates/chat/expo/tsconfig.json",
+            "size": 172,
+            "mode": 420
+          },
+          {
+            "path": "dist/templates/chat/react/index.html",
+            "size": 271,
+            "mode": 420
+          },
+          {
+            "path": "dist/templates/chat/react/shared/log.js",
+            "size": 4010,
+            "mode": 420
+          },
+          {
+            "path": "dist/templates/chat/react/shared/log.ts",
+            "size": 6454,
+            "mode": 420
+          },
+          {
+            "path": "dist/templates/chat/react/shared/offline.js",
+            "size": 1346,
+            "mode": 420
+          },
+          {
+            "path": "dist/templates/chat/react/shared/offline.ts",
+            "size": 1608,
+            "mode": 420
+          },
+          {
+            "path": "dist/templates/chat/react/src/App.tsx",
+            "size": 1608,
+            "mode": 420
+          },
+          {
+            "path": "dist/templates/chat/react/src/Composer.tsx",
+            "size": 2845,
+            "mode": 420
+          },
+          {
+            "path": "dist/templates/chat/react/src/env.d.ts",
+            "size": 79,
+            "mode": 420
+          },
+          {
+            "path": "dist/templates/chat/react/src/Inbox.tsx",
+            "size": 839,
+            "mode": 420
+          },
+          {
+            "path": "dist/templates/chat/react/src/main.tsx",
+            "size": 933,
+            "mode": 420
+          },
+          {
+            "path": "dist/templates/chat/react/src/Search.tsx",
+            "size": 1085,
+            "mode": 420
+          },
+          {
+            "path": "dist/templates/chat/react/src/Thread.tsx",
+            "size": 5466,
+            "mode": 420
+          },
+          {
+            "path": "dist/templates/chat/shared/log.js",
+            "size": 4010,
+            "mode": 420
+          },
+          {
+            "path": "dist/templates/chat/shared/log.ts",
+            "size": 6454,
+            "mode": 420
+          },
+          {
+            "path": "dist/templates/chat/shared/offline.js",
+            "size": 1346,
+            "mode": 420
+          },
+          {
+            "path": "dist/templates/chat/shared/offline.ts",
+            "size": 1608,
+            "mode": 420
+          },
+          {
+            "path": "dist/templates/chat/snapback/deliveries.q",
+            "size": 2437,
+            "mode": 420
+          },
+          {
+            "path": "dist/templates/chat/snapback/delivery.ts",
+            "size": 1148,
+            "mode": 420
+          },
+          {
+            "path": "dist/templates/chat/snapback/feeds.q",
+            "size": 424,
+            "mode": 420
+          },
+          {
+            "path": "dist/templates/chat/snapback/follows.q",
+            "size": 413,
+            "mode": 420
+          },
+          {
+            "path": "dist/templates/chat/snapback/groups.q",
+            "size": 2117,
+            "mode": 420
+          },
+          {
+            "path": "dist/templates/chat/snapback/messages.q",
+            "size": 2227,
+            "mode": 420
+          },
+          {
+            "path": "dist/templates/chat/snapback/notifications.q",
+            "size": 184,
+            "mode": 420
+          },
+          {
+            "path": "dist/templates/chat/snapback/posts.q",
+            "size": 208,
+            "mode": 420
+          },
+          {
+            "path": "dist/templates/chat/snapback/profiles.q",
+            "size": 919,
+            "mode": 420
+          },
+          {
+            "path": "dist/templates/chat/snapback/schema.q",
+            "size": 3962,
+            "mode": 420
+          },
+          {
+            "path": "dist/templates/chat/snapback/seed.ts",
+            "size": 2593,
+            "mode": 420
+          },
+          {
+            "path": "dist/templates/chat/snapback/tests/chat.test.ts",
+            "size": 43787,
+            "mode": 420
+          },
+          {
+            "path": "dist/templates/react/index.html",
+            "size": 266,
+            "mode": 420
+          },
+          {
+            "path": "dist/templates/react/src/App.tsx",
+            "size": 164,
+            "mode": 420
+          },
+          {
+            "path": "dist/templates/react/src/main.tsx",
+            "size": 773,
+            "mode": 420
+          },
+          {
+            "path": "dist/templates/todos/snapback/schema.q",
+            "size": 212,
+            "mode": 420
+          },
+          {
+            "path": "dist/templates/todos/snapback/seed.ts",
+            "size": 204,
+            "mode": 420
+          },
+          {
+            "path": "dist/templates/todos/snapback/tests/todos.test.ts",
+            "size": 560,
+            "mode": 420
+          },
+          {
+            "path": "dist/templates/todos/snapback/todos.q",
+            "size": 165,
+            "mode": 420
+          },
+          {
+            "path": "dist/test-runner.mjs",
+            "size": 399410,
+            "mode": 420
+          },
+          {
+            "path": "dist/test-runner.mjs.map",
+            "size": 849297,
+            "mode": 420
+          },
+          {
+            "path": "dist/test.d.ts",
+            "size": 1205,
+            "mode": 420
+          },
+          {
+            "path": "dist/test.mjs",
+            "size": 399403,
+            "mode": 420
+          },
+          {
+            "path": "dist/test.mjs.map",
+            "size": 849297,
+            "mode": 420
+          },
+          {
+            "path": "dist/token-store.d.ts",
+            "size": 498,
+            "mode": 420
+          },
+          {
+            "path": "dist/twin-hydrate.d.ts",
+            "size": 2022,
+            "mode": 420
+          },
+          {
+            "path": "dist/twin.d.ts",
+            "size": 3318,
+            "mode": 420
+          },
+          {
+            "path": "dist/types.d.ts",
+            "size": 18787,
+            "mode": 420
+          },
+          {
+            "path": "dist/unicode-LICENSE.txt",
+            "size": 1995,
+            "mode": 420
+          },
+          {
+            "path": "dist/witness-test.mjs",
+            "size": 16117,
+            "mode": 420
+          },
+          {
+            "path": "dist/witness-test.mjs.map",
+            "size": 54012,
+            "mode": 420
+          },
+          {
+            "path": "expo-module.config.json",
+            "size": 179,
+            "mode": 420
+          },
+          {
+            "path": "ios/MemoryVideoSource.swift",
+            "size": 1461,
+            "mode": 420
+          },
+          {
+            "path": "ios/SnapbackMemoryVideo.podspec",
+            "size": 716,
+            "mode": 420
+          },
+          {
+            "path": "ios/SnapbackMemoryVideoModule.swift",
+            "size": 3459,
+            "mode": 420
+          },
+          {
+            "path": "package.json",
+            "size": 2865,
+            "mode": 420
+          }
+        ],
+        "entryCount": 151,
+        "bundled": []
+      }
+    }
+  ]
+}

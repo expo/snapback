@@ -1,0 +1,37 @@
+{
+  "sourceCommit": "ae7d86a11eecb898f4d91d21195a56017e23bee5",
+  "sourceTree": "37af894afb0c25d7d729d4c5e514b36376608b0d",
+  "snapback2Tree": "6255e5b9a1c9209326f12fcf4c8f91da22ec6aa9",
+  "version": "0.0.13",
+  "platform": "darwin-arm64",
+  "standardDryRun": "receipts/production-dry-run.json",
+  "standardDryRunAttempts": 1,
+  "standardExitCode": 0,
+  "outerSeconds": 607.1429886660001,
+  "outerBoundSeconds": 1800,
+  "originalConsumerBounds": {
+    "stepSeconds": 30,
+    "fetchSeconds": 15,
+    "retries": 0
+  },
+  "fullMediaCli": {
+    "passed": 4,
+    "skipped": 0
+  },
+  "productionEngine": "ibex2 + vanilla hermes",
+  "macosDeploymentTarget": "11.0",
+  "standardConsumer": "standard-installed-react-consumer.json",
+  "fullInstalledReceipts": "installed-test-receipts.json",
+  "effects": "installed-effects-receipts.json",
+  "expo": "installed-expo-verification.json",
+  "expoOuterSeconds": 14.735737085342407,
+  "expoOuterBoundSeconds": 300,
+  "expoStepBoundSeconds": 30,
+  "expoPreflightFirstFailure": "expo-wrapper-first-failure.json",
+  "shippedGuides": "Exact32bf offline4342 bytes/live-query5480 bytes",
+  "status": "scoped preparation passed",
+  "actualNpmPublication": false,
+  "registry013InstallClaim": false,
+  "broaderSearchMigrationDeviceCliqueClearance": false,
+  "runtimeSourceRepairs": false
+}

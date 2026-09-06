@@ -1,0 +1,19 @@
+{
+  "producer": "unchanged scripts/publish.mjs --dry-run",
+  "sourceCommit": "ae7d86a11eecb898f4d91d21195a56017e23bee5",
+  "before": "loop-before.jsonl",
+  "after": "loop-after-publisher.jsonl",
+  "ownSoleAppend": "publisher-original-metric-row.jsonl",
+  "beforeSha256": "31e37a52835fa3ecb9c18e94c5942fdb663497d18b1f0212853e11a62aff0228",
+  "afterSha256": "02897eb556fd4469c9e352094434ae243bc54acd5ecba37085cf39a29645611e",
+  "rowSha256": "64804234f5346a2b964497801c130378e1cbdb9b04aba0014b1ddc2d67db3be8",
+  "beforeRows": 215,
+  "afterRows": 216,
+  "ownAppendRows": 1,
+  "fullPostEqualsBeforePlusExactOwnRow": true,
+  "oldRowMultiplicityPreserved": true,
+  "worktreeRestoredOnlyAfterExactOwnAppendProof": true,
+  "reason": "Authorized same custody as012: preserve source snapshot clean; exact original metric append and full post-file retained for Root landing.",
+  "rootOwnsMetricLanding": true,
+  "noPriorRowRemoved": true
+}

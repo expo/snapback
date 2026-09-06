@@ -1,0 +1,26 @@
+{
+  "source": "ae7d86a11eecb898f4d91d21195a56017e23bee5",
+  "version": "0.0.13",
+  "epoch": 1788735274.577448,
+  "tarballs_and_installed_files": [
+    {
+      "package": "snapback2-darwin-arm64",
+      "bytes": 4824711,
+      "sha256": "30f8d7e773298a2be6fa709844930c666701ac09c1e3dfdee5fc56dd5e1a6c6e",
+      "integrity": "sha512-P96OqaI3RqtbRayIV5edFOs79hVafhqgmxpEdXEYnCRUg9zIZCjB/Ofibnf7/UXkCIrbjxgnsqpXItjQ1RLRPQ==",
+      "matched_installed_files": 3,
+      "mode": "0o444"
+    },
+    {
+      "package": "snapback2",
+      "bytes": 1796603,
+      "sha256": "4c379cba193ad57e996145e378e7c58c606a8b1027ca69fb82404b08d72d38c5",
+      "integrity": "sha512-Ipm8NxbwWjNBSUqYdkmtwduNGGICNB3oNVFV8P/U/SiSQaEgEQEY70k2kA6kWKGzd1F7JfYwui81ItfRULIyDw==",
+      "matched_installed_files": 151,
+      "mode": "0o444"
+    }
+  ],
+  "installed_expo_receipt_ok": true,
+  "actual_publication": false,
+  "new_checks_run": false
+}

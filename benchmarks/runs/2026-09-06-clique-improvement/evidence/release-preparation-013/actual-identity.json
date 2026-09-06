@@ -1,0 +1,11 @@
+{
+  "source": "/Users/ccheever/.codex/sessions/2026/09/06/rollout-2026-09-06T12-42-41-01a0783e-90b6-70b3-a096-c7a980574ceb.jsonl",
+  "line": 1821,
+  "timestamp": "2026-09-06T22:34:46.398Z",
+  "actualModel": "gpt-6-astra",
+  "effort": "xhigh",
+  "cwd": "/Users/ccheever/projects/snapback-worktrees/clique-release-next",
+  "session": "01a0783e-90b6-70b3-a096-c7a980574ceb",
+  "pid": 10237,
+  "turnContextSha256": "326cbbf471ebb4d77495ad003f67d1e689ddf0f3d1c0c5ed6bde4612e29d1cf1"
+}

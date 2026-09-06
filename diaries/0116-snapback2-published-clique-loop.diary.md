@@ -879,3 +879,10 @@ Private pinned Hermes preparation was expensive, but its completed artifacts now
 Both fresh independent reviews approve removal of the duplicate retained receipt-body map. The deterministic ownership regression supports that removal, but the complete runtime grew by 30 gzip bytes to 72,229, still 6,229 over budget. Removing a retained instance can help ownership without reducing emitted code; neither result establishes realistic resident memory.
 
 Astra reproduced duplicate-absence removal and malformed standalone rehydration losing prior state on both parent and candidate. Grok independently identifies the same inherited defects by source. They are tracked for the next sequential repair, while the current carrier stage consolidates repeated transaction preparation. [Full reviews and disposition](../benchmarks/runs/2026-09-06-clique-improvement/evidence/receipt-ownership-review/README.md). No full Clique score, native qualification or competitor rerun was produced.
+
+
+### 2026-09-06 — Drain release production qualification passes
+
+Version 0.0.13 passed the unchanged production dry run in 607.143 seconds, including the full media engine and standard installed consumers. The original packages also pass untouched Expo tooling; their shipped offline and live-query guides match the reviewed drain source exactly. Root independently matched all 154 installed files to those packages. The completed pinned Hermes install was reused without another Hermes source build.
+
+An external receipt-path mistake failed before installation and was corrected without repeating production qualification. The complete report retains that failure and the separate postprocessing mistakes. [Preparation evidence](../benchmarks/runs/2026-09-06-clique-improvement/evidence/release-preparation-013/README.md). Actual publication and registry verification follow; no native acceptance, search resource closure or new holistic score is claimed.
