@@ -858,3 +858,44 @@ for (const stage of ["mutation", "first-upload", "direct-upload"] as const) {
     } finally { await client.close(); }
   });
 }
+
+for (const replacement of ["failed", "successful"] as const) {
+  test(`XHR upload keeps terminal bearer evidence across ${replacement} login`, async context => {
+    const originalXhr = globalThis.XMLHttpRequest;
+    const expired = { code: "E_AUTH_SESSION", family: "auth", message: "expired", guide: "auth" };
+    let begin!: () => void, release!: () => void;
+    const started = new Promise<void>(resolve => { begin = resolve; });
+    const saves: Array<string | null> = [];
+    let token: string | null = "session";
+    class FakeXhr {
+      upload = {}; status = 401; responseText = JSON.stringify(expired); onload!: () => void;
+      open() {} setRequestHeader() {} getResponseHeader() { return "application/json"; }
+      send() { release = () => this.onload(); begin(); }
+    }
+    globalThis.XMLHttpRequest = FakeXhr as any;
+    context.mock.method(globalThis, "fetch", async (input: any) => {
+      const path = new URL(String(input)).pathname;
+      if (path === "/api/auth/me") return json({ viewer: "alice", kind: "user" });
+      if (path === "/api/auth/login") return replacement === "failed"
+        ? json({ code: "E_AUTH_INVALID", family: "auth", message: "wrong password", guide: "auth" }, 401)
+        : json({ token: "successor", viewer: "bob", kind: "user" });
+      if (path === "/api/manifest") return json(manifest());
+      throw new Error(`unexpected path ${path}`);
+    });
+    const client = createClient({ url: "http://assets.test", tokenStore: {
+      load: () => token, save: value => { saves.push(value); token = value; },
+    } });
+    let upload: Promise<any> | undefined, login: Promise<any> | undefined;
+    try {
+      await client.ready; await client.auth.me();
+      upload = client.upload(new File(["a"], "photo.png"), { onProgress() {} }).catch(error => error);
+      await started;
+      login = client.auth.login({ email: "bob@example.com", password: "password" }).catch(error => error);
+      release();
+      assert.equal((await upload).code, "E_AUTH_SUPERSEDED"); await login;
+      assert.ok(saves.includes(null), "XHR terminal evidence clears captured custody despite supersession");
+      assert.equal(token, replacement === "failed" ? null : "successor");
+      assert.equal(client.snapshot.auth.state, replacement === "failed" ? "anonymous" : "authenticated");
+    } finally { release?.(); await Promise.allSettled([upload, login]); await client.close(); globalThis.XMLHttpRequest = originalXhr; }
+  });
+}
