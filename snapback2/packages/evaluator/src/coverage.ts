@@ -44,13 +44,14 @@ export function prepareRange(schema: any, range: Pick<ReceiptRange, 'site' | 'ta
   return preparePrefix(schema, range.table, range.index, range.prefix, site?.bounds ?? [], search?.atom);
 }
 type Range = { value: ReceiptRange; logical: LogicalIndexAtom[]; identity: string; group: string; expected: Map<string, Value[]>; lost: Set<string>; exact: boolean; last?: Value[] | null; extent?: [Value[] | null, Value[] | null] };
+type Owner = { ranges: Range[]; absences: string[]; verdicts: [string, boolean][] };
 type Group = { count: number; spans: CoverageSpans; summary: string };
 const whole = (r: ReceiptRange): boolean => !r.evicted_ids?.length;
 const boundsKey = (r: ReceiptRange | TraceRange): string => JSON.stringify([r.order, r.take, r.after, r.before, r.gt, r.gte, r.lt, r.lte, r.rule_hash]);
 const pointKey = (table: string, index: string, key: Value[]): string => JSON.stringify([table, index, key]);
 const verdictKey = (v: Verdict): string => JSON.stringify([v.rule_hash, v.pinned_inputs_digest, v.principal, v.auth_epoch]);
 export class CoverageIndex {
-  private owners = new Map<string, { ranges: Range[]; absences: string[]; verdicts: [string, boolean][] }>();
+  private owners = new Map<string, Owner>();
   private exact = new Map<string, number>();
   private groups = new Map<string, Group>();
   private complete = new Map<string, number>();
@@ -71,7 +72,7 @@ export class CoverageIndex {
       this.patterns.set(table, [...patterns.values()]);
     }
   }
-  set(owner: string, receipt: ClosureReceipt | undefined, program?: any): void {
+  set(owner: string, receipt: ClosureReceipt | undefined, program?: any): Array<Pick<Owner, 'absences' | 'verdicts'> | undefined> {
     const verdicts = (receipt?.verdicts ?? []).map((v): [string, boolean] => {
       if (typeof v.result !== 'boolean') throw new EvalError('E_INPUT', 'verdict result must be boolean');
       return [verdictKey(v), v.result];
@@ -113,7 +114,7 @@ export class CoverageIndex {
       for (const [key, result] of old.verdicts) this.verdictCount(key, result, -1);
       this.owners.delete(owner);
     }
-    if (!receipt) return;
+    if (!receipt) return [old];
     const held = { ranges, absences: [] as string[], verdicts };
     for (const r of ranges) this.range(r, 1);
     for (const [table, index, values] of receipt.absences) {
@@ -122,7 +123,10 @@ export class CoverageIndex {
     }
     for (const [key, result] of verdicts) this.verdictCount(key, result, 1);
     this.owners.set(owner, held);
+    // Reuse the owners' compact identities; immediate directory refresh must see final counts.
+    return [old, held];
   }
+  authorityOwners(): Iterable<Pick<Owner, 'absences' | 'verdicts'>> { return this.owners.values(); }
   private verdictCount(key: string, result: boolean, delta: number): void {
     const counts: [number, number] = this.verdicts.get(key) ?? [0, 0]; counts[Number(result)] += delta;
     if (counts[0] || counts[1]) this.verdicts.set(key, counts); else this.verdicts.delete(key);

@@ -837,6 +837,119 @@ sharedDirectory.refresh(scope('left')); shared.setReceipt('proof', sharedReceipt
 assert.deepEqual(sharedDirectory.select([], 10).scopes, [scope('left')]);
 console.log('2000 deleted scopes reclaim directory metadata; shared dependency touch/digest, denial, clear and repopulation passed');
 
+{
+  const held = new ClientStore(authoritySchema);
+  held.registerHeld({ global: { ir: searchFixtures.operations['search.global'].program } }, context);
+  held.put('messages', tagWireRow(authoritySchema, 'messages', { id: 'one', conversation: 'room', body: 'Café', caption: null, at: 1 }));
+  const directory: any = [...(held as any).directories.values()][0];
+  const receipt: any = { schema_hash: authorityHash, rows: [], ranges: [], absences: [], verdicts: [authorityVerdict] };
+  const selection = () => directory.select([], 10);
+  const check = (expected: boolean | null) => {
+    assert.equal(held.verdict(authorityRule, authorityDigest, authorityContext), expected);
+    assert.deepEqual(selection(), { scopes: expected === true ? [[{ Id: 'room' }]] : [], overflow: false, missing: expected === null });
+  };
+  check(null); held.setReceipt('proof', receipt); check(true);
+  const refresh = directory.refresh, observed: Array<boolean | null> = [];
+  directory.refresh = function(scope: any) {
+    observed.push(held.verdict(authorityRule, authorityDigest, authorityContext)); return refresh.call(this, scope);
+  };
+  held.setReceipt('proof', { ...receipt, verdicts: [{ ...authorityVerdict, result: false }] }); check(false);
+  assert(observed.length > 0); assert(observed.every(v => v === false), 'old and new invalidations see installed denial');
+  held.setReceipt('proof', receipt); check(true);
+  const range = { ...ordinaryReceipt.ranges[0], table: 'messages', index: 'byConversationWords', prefix: [], row_ids: ['one'] };
+  for (const malformed of [
+    { ...receipt, ranges: [range] }, // A held row elsewhere is not the replacement's receipt pool.
+    { ...receipt, ranges: [{ ...range, row_ids: [], halo: { table: 'messages', id: 'one' } }] },
+    { ...receipt, ranges: [{ ...range, row_ids: [], halo: { table: 'memberships', id: 'one' } }] },
+    { ...receipt, ranges: [{ ...range, site: 'missing-Q', row_ids: [], prefix: [{ Scalar: { Id: 'room' } }, atoms('café')[1]] }] },
+    { ...receipt, verdicts: [{ ...authorityVerdict, result: 1 }] },
+  ]) {
+    observed.length = 0;
+    assert.throws(() => held.setReceipt('proof', malformed), { code: 'E_INPUT' });
+    assert.deepEqual(observed, [], 'invalid replacement must notify no directory'); check(true);
+  }
+  observed.length = 0; held.setReceipt('proof'); check(null);
+  assert(observed.length > 0); assert(observed.every(v => v === null));
+  held.remove('messages', 'one');
+  for (const name of ['entries', 'allowed', 'unknown', 'dependencies', 'digests']) assert.equal(directory[name].size, 0, name);
+
+  // Readable authority points use absence invalidation, including removal of the old point.
+  const points = new ClientStore(membershipSchema);
+  points.registerHeld({ global: { ir: globalIr } }, context); points.put('messages', typed('one', 'Café'));
+  const pointDirectory: any = [...(points as any).directories.values()][0];
+  const absent = { schema_hash: sha256(canonicalSchemaJson(membershipSchema)), rows: [], ranges: [],
+    absences: [['members', 'byRoomViewer', [{ String: 'r' }, { Id: 'viewer' }]]], verdicts: [] } as any;
+  assert(pointDirectory.select([], 10).missing);
+  points.setReceipt('point', absent); assert.equal(pointDirectory.select([], 10).missing, false);
+  points.setReceipt('point', { ...absent, absences: [['members', 'byRoomViewer', [{ String: 'other' }, { Id: 'viewer' }]]] });
+  assert(pointDirectory.select([], 10).missing, 'replacement invalidates the removed authority point');
+  points.setReceipt('point', absent); points.setReceipt('point'); assert(pointDirectory.select([], 10).missing);
+}
+console.log('registered directory receipt replacement observes final authority and failed admission changes nothing passed');
+
+// Deterministic strong-reference witness over own data properties, Maps and Sets;
+// it does not depend on GC scheduling and does not claim a whole-process heap measurement.
+function reachableValue(root: unknown, predicate: (value: any) => boolean): boolean {
+  const seen = new Set<object>(), pending: unknown[] = [root];
+  while (pending.length) {
+    const value = pending.pop(); if (predicate(value)) return true;
+    if (!value || typeof value !== 'object' || seen.has(value)) continue;
+    seen.add(value);
+    if (value instanceof Map) for (const [key, item] of value) pending.push(key, item);
+    else if (value instanceof Set) pending.push(...value);
+    else if (!ArrayBuffer.isView(value)) for (const property of Object.values(Object.getOwnPropertyDescriptors(value)))
+      if ('value' in property) pending.push(property.value);
+  }
+  return false;
+}
+{
+  const row = tagWireRow(authoritySchema, 'messages', { id: 'one', conversation: 'room', body: 'Café', caption: null, at: 1 });
+  const receipt = { schema_hash: authorityHash, rows: [{ table: 'messages', id: 'one', row }], ranges: [], absences: [], verdicts: [authorityVerdict] };
+  const held = new ClientStore(authoritySchema, receipt);
+  held.registerHeld({ global: { ir: searchFixtures.operations['search.global'].program } }, context);
+  const directory: any = [...(held as any).directories.values()][0];
+  assert.equal(directory.select([], 10).scopes.length, 1);
+  assert.equal(held.rehydrate({ ...receipt, verdicts: [] }), 0);
+  assert.equal(held.verdict(authorityRule, authorityDigest, authorityContext), null);
+  assert.deepEqual(directory.select([], 10), { scopes: [], missing: true, overflow: false });
+  held.setReceipt('later-owner', receipt);
+  assert.equal(directory.select([], 10).scopes.length, 1);
+  held.rehydrate({ ...receipt, verdicts: [] });
+  assert.deepEqual(directory.select([], 10), { scopes: [], missing: true, overflow: false });
+  held.rehydrate({ ...receipt, rows: [], verdicts: [] });
+  for (const name of ['entries', 'allowed', 'unknown', 'dependencies', 'digests']) assert.equal(directory[name].size, 0, name);
+}
+console.log('standalone rehydrate invalidates removed receipt authority after installing replacement coverage passed');
+{
+  const held = new ClientStore(schema), payload = 'obsolete receipt body with several distinct words';
+  const query = { ...pageIr, body: [{ Return: { Scan: { ...pageScan, take: { Literal: 2 } } } }] };
+  (() => {
+    const rows = ['owned-a', 'owned-b', 'owned-halo'].map((id, at) => ({ table: 'messages', id, row: typed(id, payload, at) }));
+    for (const row of rows) held.put(row.table, row.row);
+    held.setReceipt('page', { ...ordinaryReceipt, rows, ranges: [{ ...ordinaryReceipt.ranges[0], site: 'page', take: 2,
+      row_ids: ['owned-a', 'owned-b'], stop: 'Limit', halo: { table: 'messages', id: 'owned-halo' } }],
+      absences: [['messages', 'byId', [{ Id: 'missing' }]]],
+      verdicts: [{ rule_hash: 'retained-rule', pinned_inputs_digest: 'retained-inputs', principal: 'viewer', auth_epoch: 0, result: true }] });
+  })(); // No test-owned receipt/row object survives this input lifetime.
+  assert.equal(held.reexecute(query, context, pageCert).state, 'fresh');
+  assert(reachableValue(held, value => value === payload), 'current row table owns the live payload');
+  for (const id of ['owned-a', 'owned-b', 'owned-halo']) held.remove('messages', id);
+  assert.equal(held.rows('messages').length, 0);
+  assert.equal(held.reexecute(query, context, pageCert).state, 'partial', 'lost member/halo coverage remains in force');
+  assert(held.hasAbsence('messages', 'byId', [{ Id: 'missing' }]));
+  assert.equal(held.verdict('retained-rule', 'retained-inputs', context), true);
+  assert(reachableValue(held, value => value?.Id === 'owned-a'), 'coverage keeps the expected ordinary index key');
+  assert.equal(reachableValue(held, value => value === payload), false, 'no obsolete full receipt payload survives current-row removal');
+  assert.equal(reachableValue(held, value => !!value && typeof value === 'object' && Object.hasOwn(value, 'Row')), false);
+  for (const [at, id] of ['owned-a', 'owned-b', 'owned-halo'].entries()) held.put('messages', typed(id, 'replacement payload', at));
+  assert.equal(held.reexecute(query, context, pageCert).state, 'fresh', 'expected positions still restore exact coverage');
+  held.setReceipt('page');
+  assert.equal(held.reexecute(query, context, pageCert).state, 'partial');
+  assert.equal(held.hasAbsence('messages', 'byId', [{ Id: 'missing' }]), false);
+  assert.equal(held.verdict('retained-rule', 'retained-inputs', context), null);
+}
+console.log('receipt coverage retains expected keys and authority without retaining removed full row bodies passed');
+
 // Closed-extent admission seeks in both directions; the independent oracle uses plain scoped numeric intervals.
 const { FactIndex } = await import('../../snapback2/src/store/fact-index');
 const { ExtentIndex } = await import('../../snapback2/src/store/extent-index');

@@ -32,7 +32,6 @@ export class ClientStore {
   private journal?: Map<string, { table: string; id: string; row: Value | null }>;
   private readonly schemaHash: string;
   private directories = new Map<any, ReadableDirectory>();
-  private receipts = new Map<string, ClosureReceipt>();
   constructor(readonly schema: any, receipt: ClosureReceipt = empty(), private readonly options: ClientStoreOptions = {}) {
     this.schemaHash = sha256(canonicalSchemaJson(schema));
     this.readableTables = new Set(options.readable ?? []);
@@ -56,12 +55,18 @@ export class ClientStore {
         throw new EvalError('E_INPUT', 'halo must reference the same receipt row pool');
       if (receipt.schema_hash !== this.schemaHash) receipt = { ...receipt, absences: [] };
     }
-    const old = this.receipts.get(owner);
-    this.facts.set(owner, receipt, program);
-    if (receipt) this.receipts.set(owner, receipt); else this.receipts.delete(owner);
-    for (const r of [old, receipt]) if (r) {
-      for (const [table, index, key] of r.absences) this.touchAuthority(table, index, key);
-      for (const v of r.verdicts) for (const d of this.directories.values()) d.touchDigest(v.pinned_inputs_digest);
+    this.touchProofs(this.facts.set(owner, receipt, program));
+  }
+  // @ref LLP 1012#indexed-held-search — coverage owns proof keys, never a second full receipt row pool.
+  private touchProofs(changes: Iterable<ReturnType<CoverageIndex['set']>[number]>): void {
+    for (const changed of changes) if (changed) {
+      for (const point of changed.absences) {
+        const [table, index, key] = JSON.parse(point); this.touchAuthority(table, index, key);
+      }
+      for (const [key] of changed.verdicts) {
+        const digest = JSON.parse(key)[1];
+        for (const d of this.directories.values()) d.touchDigest(digest);
+      }
     }
   }
   rehydrate(receipt: ClosureReceipt): number {
@@ -69,8 +74,10 @@ export class ClientStore {
     let removed = 0;
     for (const [table, rows] of this.tables) for (const id of rows.keys()) if (!ids.has(JSON.stringify([table, id]))) { this.remove(table, id); removed++; }
     for (const r of receipt.rows) this.put(r.table, r.row);
+    const old = this.facts.authorityOwners();
     this.facts = new CoverageIndex(this.schema, (r, logical, id) => this.index(r.table, r.index).position(id, logical));
     this.setReceipt('seed', receipt, this.options.program);
+    this.touchProofs(old);
     return removed;
   }
   applyMutation(program: any, context: Context, preview = false, certificate: any = null): LocalExecution {
