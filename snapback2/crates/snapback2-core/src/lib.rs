@@ -26,6 +26,9 @@ pub use connected::{CONNECTED_INDEX, CONNECTED_TABLE};
 pub mod store;
 pub mod successor;
 pub mod value;
+pub mod unicode;
+mod unicode_tables;
+pub mod search_key;
 
 pub use assets::AssetKind;
 pub use assets_ledger::{

@@ -49,10 +49,13 @@ the third on 2026-09-04, LLP 1012 §12):
 - **An auth *mode*.** Authentication is always on; development has personas (`--as`).
 - **A supervised bundler.** The server never spawns, proxies, or watches Metro or Vite.
   The client contract is `SNAPBACK_URL`.
-- **Client arms beyond React web, Expo, and Exact 2** — in that order. No Swift, no
-  Kotlin, no Dart until the three are green on the bar.
-- **Media collections, push, cron, vector/search, hosted control planes, multi-region,
-  federation.** Assets (typed intent), one `channel` kind, one `schedule` kind, one
+- **Exact 2 until Unicode prefix search qualifies on React web and Expo**, and
+  client arms beyond those three. The 2026-09-06 session-delegated move below
+  postpones Exact 2 to fund coherent indexed online/offline search. No Swift,
+  Kotlin, or Dart.
+- **Media collections, push, cron, vector/ranked search, hosted control planes,
+  multi-region, federation.** Exact Unicode word-prefix indexing is the narrow
+  2026-09-06 search exception below. Assets (typed intent), one `channel` kind, one `schedule` kind, one
   hosted target: that is the feature list until the bar is met. Exception (author ruling 2026-09-05, LLP 1015 §7, §8.7): lane H0 of the
   control plane — `deploy` to a directory, the release ledger, snapshots, `rollback`,
   `secret`, and token admission in `serve` mode; no provider, no registry — may start
@@ -62,8 +65,8 @@ the third on 2026-09-04, LLP 1012 §12):
   `delivered-history` retention, digest-checked re-authorization at reconnect, a
   FIFO outbox settled by OCC, local evaluation by the twin, and asset bytes under
   the owning row's lease. Not built until a brief's number asks (LLP 1012 §11):
-  hold sets, the dependency-aware outbox, per-row delta resume with tombstones, a
-  local token index, per-field `unheld`, a store budget with eviction priority,
+  hold sets, the dependency-aware outbox, per-row delta resume with tombstones,
+  per-field `unheld`, a store budget with eviction priority,
   cancel/`asOf`, `purge-on-block`, `all-owned`, `merge` modes and `sequence`, any
   at-rest encryption claim, and device-to-device sync.
 - **Observability and analytics beyond `why`, `trace`, `logs`, and `data`** (LLP
@@ -72,11 +75,14 @@ the third on 2026-09-04, LLP 1012 §12):
 - **A guide.** `snapback2 guide` serves the compiler's facts, a one-screen grammar, and
   about twelve recipes with CI-executed snippets. No million-word corpus, no embedded
   20 MB guide in the binary, no calendar freshness dates.
-- **WASM anywhere.** The client evaluator is the TypeScript twin, under a **30 KB gzip
-  ceiling** (author ruling 2026-09-04): 19.7 KB measured at landings 5–6 of LLP 1012
-  (`snapback2/metrics/twin.jsonl`, with the method; the RBAC-complete, trace-producing
-  successor to spike S3's 7.8 KB and the 9.7 KB first measurement). A lane that would
-  cross 30 KB files the move here first.
+- **WASM anywhere.** The client evaluator is the TypeScript twin. The 2026-09-06
+  session-delegated search trade sets **34,000 bytes gzip total**, with **30,000
+  the optimization target**, replacing the 2026-09-04 ceiling for this work.
+  All normalization data, decoding, indexes, incremental state, prediction and
+  local cursors participate in the measured entry; relocating required bytes
+  does not count as a saving. Historical measurements remain in
+  `snapback2/metrics/twin.jsonl`; the complete search integration is not yet
+  measured. Exceeding 34,000 requires a new explicit scope decision.
 
 ## Process not doing
 
@@ -131,3 +137,16 @@ PR. If nothing can come off, the answer is no.
 - 2026-09-05 — Native view-once video returns on the author's explicit request
   to fix playback. The in-memory native view completes the existing asset arm;
   temp-file playback, new media formats, and additional client arms stay out.
+
+- 2026-09-06 — **on:** engine-maintained Unicode `wordPrefixes` indexing and the
+  persistent indexed twin, including exact held-search reads and local cursors;
+  unblocks the same named search on already-synced messages warm and cold offline
+  (brief M5/M6). **off:** Exact 2 until this search qualifies on React web and
+  Expo. **Budget:** 34,000 bytes gzip total twin, 30,000 target; the 1M-step,
+  4 MiB closure, 8 MiB heap and 1 MiB output ceilings stay. **Build exception:**
+  one ordinary `snapback2-core/build.rs` for pinned Unicode inputs to ignored
+  build artifacts, coordinated with existing `build.mjs`; no new Unicode crate,
+  gate, registry, service or runtime generator. These are decisions made in the
+  current session under the user's explicit delegation, not earlier author
+  rulings. The foundation implements shared Unicode/key primitives first;
+  engine, compiler and held-twin integration/qualification follow.

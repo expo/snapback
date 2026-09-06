@@ -5,7 +5,7 @@
 **Systems:** `snapback2/crates/snapback2-core` (`store`, `registry`, `live`, `identity`, `successor`, the engine, the IR)
 **Author:** Claude Fable 5 (orchestrator) — implementer: codex gpt-5.6-sol, lane A
 **Date:** 2026-08-29
-**Revised:** 2026-09-06 (conditional result-page provenance and branch-scoped cursor validation); 2026-09-05 (Clique L12 — §3 receipt-only null invariant and §5.1 `connected`); 2026-09-05 (Clique L9 — bounded ASCII words builtin and constructed-text boundary); 2026-09-05 (Clique L10 — lazy merge, receipt retention and global local-pagination cursor rule); 2026-09-05 (Clique L8b — nested point-read shapes preserve page state; early exits preserve capped taint); 2026-09-05 (Clique L8a — prefix-local self-probe and decided-disjunction visibility proofs); 2026-09-05 (Clique L3 — honest bound refusals and patch-sensitive cap metering; LLP 1016 J2 — §1's system tables gain `_jobs` and `_timers`; LLP 1017 §1, then §2 and §3)
+**Revised:** 2026-09-06 (session-delegated Unicode/search foundation and downstream contracts); 2026-09-06 (conditional result-page provenance and branch-scoped cursor validation); 2026-09-05 (Clique L12 — §3 receipt-only null invariant and §5.1 `connected`); 2026-09-05 (Clique L9 — bounded ASCII words builtin and constructed-text boundary); 2026-09-05 (Clique L10 — lazy merge, receipt retention and global local-pagination cursor rule); 2026-09-05 (Clique L8b — nested point-read shapes preserve page state; early exits preserve capped taint); 2026-09-05 (Clique L8a — prefix-local self-probe and decided-disjunction visibility proofs); 2026-09-05 (Clique L3 — honest bound refusals and patch-sensitive cap metering; LLP 1016 J2 — §1's system tables gain `_jobs` and `_timers`; LLP 1017 §1, then §2 and §3)
 **Related:** LLP 1000, LLP 1002 (the loop that serves this), LLP 1003 (effects
 through the outbox this spec defines), LLP 0329.014.004 §7 (runtime), LLP
 0329.014.000 §6 (execution, trace, states), LLP 0329.016 §5.6 (no silent
@@ -928,6 +928,119 @@ times the input's serialized maximum, covering tagged one-letter strings and
 array separators even for literals; tokens are never truncated to fit a bound.
 Loop element pricing keeps that whole-width reserve through aliases and branches:
 a single word may occupy the whole input, so division by the list maximum is unsound.
+
+### Unicode search foundation
+
+**Decision and scope, 2026-09-06.** The user explicitly delegated implementation
+choices in the current session. Codex accepted engine-maintained `wordPrefixes`
+plus the persistent indexed held-row twin, with Exact 2 deferred until search
+qualifies on React web and Expo. The total twin ceiling is 34,000 bytes gzip,
+with 30,000 the optimization target; 1M steps, 4 MiB closure, 8 MiB heap and
+1 MiB output remain. This is a current session decision, not an earlier author
+ruling. **Implementer:** Codex gpt-6-astra at xhigh, named
+`clique-search-foundation` lane, 2026-09-06; engine/compiler/twin lanes follow.
+The foundation supplies shared Unicode and logical-key primitives; existing
+`words()` and `Index.columns` remain active until their coherent migration.
+`wordPrefixes` is not yet an accepted Quarry declaration in this foundation.
+
+The pinned contract is `u17-nfc-scf-nfc-wsp-p`: Unicode 17.0.0
+`NFC(simpleFold(NFC(text)))`, C/S case-fold mappings only, boundaries at
+`White_Space ∪ General_Category P*`, accents preserved. Symbols are tokens;
+underscores, apostrophes and hyphens separate them. No host ICU, locale casing,
+Unicode-property regex, or new Unicode crate. Shared official UCD inputs carry
+their exact hashes; Cargo's new, narrowly approved `snapback2-core/build.rs`
+and the existing package build create ignored table artifacts ahead of time.
+This one build integration is the session exception recorded in RULES; it is
+not a new gate, registry, service or runtime generator.
+
+Each optional indexed text field normalizes independently; null contributes
+nothing. Output words deduplicate in first-occurrence order; query validation
+counts occurrences **before** deduplication, so `foo foo` is invalid, zero
+tokens mean no matches, and one token supplies the key. Query bound Q is
+independent of indexed field bounds: a decomposed query exceeding a source
+column's raw maximum remains valid within its own Q. No prefix truncation.
+Invalid Unicode scalar strings, including JS unpaired surrogates, refuse.
+Low-level NFC remains total over valid scalars for conformance. Search inputs
+and wire source descriptors also obey the existing Text domain: C0 controls
+except TAB/LF/CR refuse. That existing restriction makes each source scalar
+occupy at most four JSON bytes; a descriptor reserves `4Q+63`, independently
+of indexed field maxima. Official Unicode tables and normalization do not
+silently redefine the language's Text admission rule.
+
+The finite UCD facts establish `U = 4 × sum(declared scalar maxima)`: canonical
+full decomposition expands by at most four and C/S folds do not increase NFD
+length. Stable counting passes by combining class and starter segment give
+linear ordering and explicit scratch rather than quadratic mark insertion.
+Official normalization identities, all C/S folds and these finite bounds are
+executable foundation tests. Downstream `words()` migration must carry U through
+list/loop aliases: W ≤ `floor(U/2)+1`, per-element bytes `4U+16`, and whole-list
+bytes `4U+17W+2`; dividing an element width by W is unsound.
+
+The frozen index contracts distinguish ordinary `Column` components from
+`WordPrefixes { fields, contract }`, scalar expressions from bounded
+`WordPrefix { source, contract, source_max }` expressions, and ordinary Value
+atoms from an engine-owned logical atom:
+
+```json
+{"WordPrefix":{"contract":"u17-nfc-scf-nfc-wsp-p","source":"…"}}
+```
+
+That descriptor is not an application Value or physical trie id. Equality and
+prefix containment compare its exact normalized meaning, not raw source JSON.
+Scan preflight, stream deduplication, trace/receipt containment, coverage maps,
+drained-prefix inference and local cursor comparisons use the same API. A
+complete ordinary source scope covers any search term; a complete search-term
+range never implies the entire source scope. Validators may remain bound to
+original arguments. Only foundation types/helpers are introduced now; replacing
+active schema/IR fields and their hashes belongs to coherent integration.
+
+The reusable entry points are core `unicode::{SearchNormalizer,
+normalize_search, search_words, search_field_words, search_query_token}` and
+`search_key::{prepare_index_atom, decode_index_atom, index_keys_equal,
+index_key_starts_with, compare_scalar_atoms}`; evaluator `unicode.ts` and
+`search-key.ts` expose the corresponding camel-case functions. Prepared
+`LogicalIndexAtom` values carry comparison meaning only and never replace the
+source descriptor on the wire. `NormalizedWordPrefix` keeps empty distinct
+from every token, and scalar suffix ordering refuses a derived atom. Native
+postings, certificate ledgers, authoring acceptance, receipt validators and
+held indexes must integrate these APIs together in the subsequent lanes.
+`decode_index_atom` consumes canonical tagged JSON, using the existing cursor
+read/re-encode convention to reject duplicate members and alternate encodings;
+`prepare_index_atom` validates parsed descriptors. Canonical wire encoding does
+not canonicalize source text: equivalent spellings still compare by prepared
+meaning. `word_prefix_wire_max(Q)` exposes the source descriptor byte bound.
+
+The normalizer uses u32 positions, so its implementation ceiling is
+`MAX_SEARCH_SOURCE_SCALARS = 0x3fffffff`; resource certification gives usable
+operations much smaller bounds. With the pinned decomposition depth three,
+`normalization_step_bound(Q)` is `166Q + 1028 + ceil(Q/32)` logical pass work.
+`normalization_scratch_bytes(Q)` is `96Q + 3108 + 24 ceil(Q/32)`, covering typed
+buffers and the shared UTF-16 chunk-conversion model; input, returned strings
+and immutable tables are separate. These helpers describe normalization only:
+search wrappers additionally validate Text in two scalar passes and tokenize /
+deduplicate, and native index maintenance adds its own ledger. A reused
+normalizer's scratch uses the largest input processed during its lifetime, not
+a later smaller Q. This model does not claim a measured VM/process heap peak;
+full search heap qualification still includes runtime/table/store overhead.
+
+**Downstream obligations, not current capability claims.** One nonunique derived
+component must be equality-bound after ordinary scopes and before ordinary
+ordering suffixes. It cannot supply a unique/point/write/cap key, range position,
+or authorization fact about its source field. Exact `(parent,scalar)` trie
+postings are native source-write maintenance; ordinary suffixes end in intrinsic
+id. Cheap `L+K+2` merge requires a single lane-invariant normalized term and
+coalesced disjoint ordinary scopes, not uniform authorization alone. Scope-range
+touches invalidate deeper search ranges without serializing expanded prefixes.
+Successors stay atomic; no incomplete index is exposed. Points and verdicts
+retain current OCC comparison; ranges re-execute and are never snapshot-compared.
+
+Receipt integration must enforce identity widths, pool halos as row references,
+retain secondary suffixes without duplicate prefixes, price every serialized
+source descriptor and authority/reference record, and prove actual whole
+media-bearing schemas under 4 MiB. Derived work contributes named step/scratch
+terms: do not confuse it with scan-entry/application-row counts or multiply all
+new scalar work by the legacy 32-bytes-per-step heap estimate. The persistent
+twin/held-state and local cursor contract is LLP 1012 §"Indexed held search".
 
 ## 10. What binds, and how it is checked
 

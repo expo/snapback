@@ -3,7 +3,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "check": "tsc -p tsconfig.json",
+    "check": "node ../snapback2/build.mjs --unicode-only && tsc -p tsconfig.json",
     "test": "bun src/test.ts"
   },
   "devDependencies": {

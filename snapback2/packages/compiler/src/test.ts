@@ -44,6 +44,12 @@ const lowerProject = (root: string) => lowerAuthoredProject(root, { authoring: "
 type Check = { name: string; run: () => void | Promise<void> };
 const checks: Check[] = [];
 const test = (name: string, run: Check["run"]) => checks.push({ name, run });
+// Build first even for the documented direct `bun src/test.ts` entry point.
+// @ts-ignore — build-only JS implementation is outside the runtime compiler.
+const { generateUnicodeTables } = await import('../../evaluator/unicode-build.mjs');
+generateUnicodeTables();
+const { registerSearchFoundationChecks } = await import('./test-search-foundation');
+registerSearchFoundationChecks(test);
 registerRuleTransitionChecks(test, libText);
 registerQuarryChecks(test, frontend);
 registerQuarryMoneyChecks(test, frontend);

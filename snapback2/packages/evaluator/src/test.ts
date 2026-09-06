@@ -1,6 +1,11 @@
 // @ts-ignore
 import manifest from "../../../corpus/manifest.json";
-import "./test-merge";
+// Build prerequisite also runs for the documented direct `bun src/test.ts` entry point.
+// @ts-ignore — build-only JS implementation has no runtime evaluator dependency.
+import { generateUnicodeTables } from '../unicode-build.mjs';
+generateUnicodeTables();
+await import('./test-search-foundation');
+await import('./test-merge');
 import {
   ClientStore,
   canonicalValue,

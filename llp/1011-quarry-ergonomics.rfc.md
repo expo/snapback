@@ -21,7 +21,7 @@ ultra, grok-4.6 at xhigh), `llp/reviews/1011-quarry-ergonomics.*`
 **Implementer:** codex gpt-5.6-sol (xhigh), lane `s2/quarry-ergo`
 (`~/projects/snapback-s2`), orchestrated and landed by Claude Fable 5.1
 **Date:** 2026-09-03
-**Revised:** 2026-09-06 (nested named-shape collection snapshots implemented by GPT-6 Astra; conditional page returns implemented by GPT-6 Astra; certification-derived provenance); 2026-09-05 (null keys and non-empty Id literals implemented by GPT-6 Astra, Clique L2); 2026-09-05 (d — Codex implements imported shapes, read-authorized
+**Revised:** 2026-09-06 (session-delegated Unicode key/cursor integration contract, foundation only); 2026-09-06 (nested named-shape collection snapshots implemented by GPT-6 Astra; conditional page returns implemented by GPT-6 Astra; certification-derived provenance); 2026-09-05 (null keys and non-empty Id literals implemented by GPT-6 Astra, Clique L2); 2026-09-05 (d — Codex implements imported shapes, read-authorized
 write results, and order-preserving filter repairs under the author's request
 to advance Quarry); 2026-09-03 (c — implemented: §8 records the two lane commits
 and the one re-pinned expectation); 2026-09-03 (b — after the panel: `fn` deferred and `shape` kept;
@@ -186,6 +186,22 @@ expressions and both chat `thread` copies; the journeys that page; LLP
 1001/1002 text. `program.ts` is 1,293 of 1,500 lines and `quarry.md` is
 13,455 of 14,336 bytes: the provenance pass goes in a new file and the
 reference is compressed before anything grows.
+
+### Unicode search cursor integration (2026-09-06 session decision)
+
+LLP 1001 §"Unicode search foundation" supplies preparatory component/key types;
+it does not yet change Quarry's accepted index declarations or existing cursors.
+The downstream `wordPrefixes` component is equality-bound and absent from the
+ordered suffix. Server cursors keep their typed ordinary suffix, size limit and
+site-free identity. A derived binding does not bind the source column for rules.
+
+LLP 1012 §"Indexed held search" specifies a distinct local `h1` continuation,
+exact query bindings and revision/partition/incarnation fences. Server preflight
+rejects it before any discovery; ordinary partial results still have no cursor.
+Compiler migration must price independent query text Q, optional indexed fields,
+and key semantic equality together with the engine; the foundation alone does
+not make a new word valid in the grammar. B6 repairs may propose the new index
+only after that coherent integration; the current repair behavior stays active.
 
 ## B2. `shape`
 

@@ -62,6 +62,10 @@ A regression is a P0 with a name on it.
 
 - **Agents remove apparatus freely and add none.** An agent PR that adds a check, script,
   registry, config file, or design doc needs explicit human approval saying so. **[review]**
+- **2026-09-06 session exception:** the user delegated the search implementation
+  decisions; one `snapback2-core/build.rs` may generate pinned Unicode tables at
+  build time, alongside the existing package build. No new gate, registry,
+  runtime generator, or Unicode dependency is authorized by this exception. **[review]**
 - **Snapback 2 LLPs are numbered 1000 and up**; `llp-create` must be told. **[review]**
 
 ## Shared machines

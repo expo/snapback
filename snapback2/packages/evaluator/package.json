@@ -3,7 +3,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "build": "esbuild src/evaluator.ts --bundle --format=esm --platform=neutral --target=es2020 --minify --outfile=dist/evaluator.mjs && esbuild src/run-corpus.ts --bundle --format=iife --platform=neutral --target=es2020 --outfile=dist/corpus-runner.js",
+    "build": "node ../snapback2/build.mjs --unicode-only && esbuild src/evaluator.ts --bundle --format=esm --platform=neutral --target=es2020 --minify --outfile=dist/evaluator.mjs && esbuild src/run-corpus.ts --bundle --format=iife --platform=neutral --target=es2020 --outfile=dist/corpus-runner.js",
     "test": "bun src/test.ts",
     "corpus:node": "node dist/corpus-runner.js"
   },

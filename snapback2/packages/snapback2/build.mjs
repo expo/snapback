@@ -5,6 +5,10 @@ import { fileURLToPath } from "node:url";
 import { dirname, isAbsolute, relative, resolve, sep } from "node:path";
 import { build } from "esbuild";
 import ts from "typescript";
+import { generateUnicodeTables } from "../evaluator/unicode-build.mjs";
+
+generateUnicodeTables();
+if (process.argv.includes("--unicode-only")) process.exit(0);
 
 const here = dirname(fileURLToPath(import.meta.url));
 const dist = resolve(here, "dist");
@@ -15,6 +19,7 @@ const packageBuildToken = packageBuildLockHeld ? undefined : await acquirePackag
 try {
 await rm(dist, { recursive: true, force: true });
 await mkdir(dist, { recursive: true });
+await cp(resolve(here, '../../unicode/17.0.0/LICENSE.txt'), resolve(dist, 'unicode-LICENSE.txt'));
 
 const externalClient = {
   name: "external-client",
