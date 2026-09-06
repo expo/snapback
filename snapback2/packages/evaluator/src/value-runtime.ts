@@ -344,6 +344,9 @@ export function validateTypedValue(
     // Argument refinements apply recursively before any program body executes; column Text is unchanged.
     if (fanoutForLongList && length < (descriptor.Text.min ?? 0))
       throw new EvalError("E_INPUT", `${label} is shorter than text min ${descriptor.Text.min}`);
+    if (fanoutForLongList && descriptor.Text.format !== undefined && !(descriptor.Text.format === 'handle'
+      ? /^[a-z0-9_]*$/.test(value.String) : descriptor.Text.format === 'url' && validHttpUrl(value.String)))
+      throw new EvalError('E_INPUT', `${label} has invalid ${String(descriptor.Text.format)} format`);
     return;
   }
   if (descriptor?.Bytes !== undefined) {
@@ -397,32 +400,32 @@ function validateAssetTypedValue(descriptor: any, value: Value, label: string): 
     return value === "Null" ? [] : validateAssetTypedValue(descriptor.Optional, value, label);
   }
   if (descriptor?.List !== undefined) {
-    if (!isVariant(value, "Array")) throw assetType(`${label} must be a list`);
+    if (!isVariant(value, "Array")) throw assetType(label, "must be a list");
     if (value.Array.length > descriptor.List.max)
-      throw assetType(`${label} exceeds list max ${descriptor.List.max}`);
+      throw assetType(label, `exceeds list max ${descriptor.List.max}`);
     const ids = value.Array.flatMap((item, index) =>
       validateAssetTypedValue(descriptor.List.of, item, `${label}[${index}]`),
     );
     const seen = new Set<string>();
     const duplicate = ids.find((id) => seen.has(id) || !seen.add(id));
     if (duplicate !== undefined)
-      throw assetType(`${label} repeats asset id ${duplicate}; asset ids in a list must be unique`);
+      throw assetType(label, `repeats asset id ${duplicate}; asset ids in a list must be unique`);
     return ids;
   }
   const kind = descriptor?.Image !== undefined ? "image" : descriptor?.Video !== undefined ? "video" : null;
   if (kind === null) throw new EvalError("E_SCHEMA", `unsupported asset type for ${label}`);
-  if (!isVariant(value, "Map")) throw assetType(`${label} must be a closed ${kind} asset map`);
+  if (!isVariant(value, "Map")) throw assetType(label, `must be a closed ${kind} asset map`);
   const expected = kind === "image" ? ["height", "id", "width"] : ["duration", "height", "id", "width"];
   const actual = Object.keys(value.Map).sort(compareCodepoints);
   if (actual.length !== expected.length || actual.some((name, index) => name !== expected[index]))
-    throw assetType(`${label} must contain exactly ${expected.join(", ")}`);
+    throw assetType(label, `must contain exactly ${expected.join(", ")}`);
   const idValue = value.Map.id;
   const id = isVariant(idValue, "String") ? idValue.String : "";
-  if (!validEngineId(id)) throw assetType(`${label}.id must be a minted s2id`);
+  if (!validEngineId(id)) throw assetType(`${label}.id`, "must be a minted s2id");
   for (const field of kind === "image" ? ["width", "height"] : ["width", "height", "duration"]) {
     const member = value.Map[field];
     if (!isVariant(member, "Int") || !Number.isSafeInteger(member.Int) || member.Int <= 0)
-      throw assetType(`${label}.${field} must be a positive i53 integer`);
+      throw assetType(`${label}.${field}`, "must be a positive i53 integer");
   }
   return [id];
 }
@@ -431,8 +434,8 @@ function validEngineId(id: string): boolean {
   return /^s2id-[0-9a-f]{32}-[0-9a-f]{16}$/.test(id) && !id.endsWith("-0000000000000000");
 }
 
-function assetType(message: string): EvalError {
-  return new EvalError("E_ASSET_TYPE", message);
+function assetType(path: string, message: string): EvalError {
+  return Object.assign(new EvalError("E_ASSET_TYPE", `${path} ${message}`), { path });
 }
 
 export function assertValue(value: Value, label: string): void {

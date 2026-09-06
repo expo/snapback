@@ -1268,9 +1268,9 @@ test("overlay put and remove bugs escape the hydrate catch boundary", async () =
   } finally { await client?.close(); await rm(root, { recursive: true, force: true }); }
 });
 
-// Transport double using actual provisional03 native v4 certificate and public recipe IR.
+// Transport double using actual final26c9 native v5 certificate and public recipe IR.
 test('h1 stays local across query transport, subscription reconnect and cold reopen', async context => {
-  const fixture = JSON.parse(await readFile(new URL('../../evaluator/src/test-search-v4-fixtures.json', import.meta.url), 'utf8'));
+  const fixture = JSON.parse(await readFile(new URL('../../evaluator/src/test-search-v5-fixtures.json', import.meta.url), 'utf8'));
   const op = 'search.findPeople', original = fixture.operations[op];
   const schemaHash = schemaDigest(fixture.schema), planHash = original.certificate.plan_hash, generation = hex('9');
   const certificate = original.certificate;
@@ -1316,7 +1316,7 @@ test('h1 stays local across query transport, subscription reconnect and cold reo
 });
 
 test('enrolled ordinary conditionals fetch one authenticated full reply without a validator across query and SSE', async context => {
-  const { clock: packet } = JSON.parse(await readFile(new URL('../../evaluator/src/test-search-v4-fixtures.json', import.meta.url), 'utf8'));
+  const { clock: packet } = JSON.parse(await readFile(new URL('../../evaluator/src/test-search-v5-fixtures.json', import.meta.url), 'utf8'));
   for (const mode of ['query', 'subscription', 'failed-full']) await context.test(mode, async () => {
     const root = await tempRoot();
     const factory = fileRangeStore(root), store = factory(); await store.open('viewer');

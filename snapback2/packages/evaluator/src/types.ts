@@ -1,5 +1,15 @@
 import type { IndexAtom } from './search-key';
 export type { IndexAtom, IndexComponent, IndexKeyExpr } from './search-key';
+// @ref LLP 1001#10-what-binds-and-how-it-is-checked — argument refinements are certified IR, including inside containers; column Text stays max-only.
+export type ArgType =
+  | 'Cursor' | 'Id' | 'Principal' | 'Int' | 'Bool' | 'Time' | 'Scalar'
+  | { Ref: { table: string } }
+  | { Text: { max: number; min?: number; format?: 'handle' | 'url' } }
+  | { Bytes: { max: number } } | { Image: { max: number } } | { Video: { max: number } }
+  | { Json: { max_bytes: number } } | { Enum: { variants: string[] } }
+  | { Decimal: { scale: number } } | { Money: { currency: string; scale: number } }
+  | { Optional: ArgType } | { List: { of?: ArgType | null; max: number } };
+
 export type Value =
   | "Null"
   | { Bool: boolean }

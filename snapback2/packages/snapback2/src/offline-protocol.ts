@@ -1,3 +1,4 @@
+import { EvalError } from "../../evaluator/src/errors.js";
 import { utf8Length } from "../../evaluator/src/hash.js";
 // @ref LLP 1012#8-the-delivery-envelope-the-validator-and-resume — this is the strict public mirror of the frozen server envelope.
 
@@ -274,7 +275,13 @@ export function toClosureReceipt(envelope: DeliveryEnvelopeV1, schema: any, prog
     const tagged = { table: row.table, id: row.id, row: tagRow(schema, row.table, row.row) };
     taggedRows.set(poolKey(row.table, row.id), tagged);
   }
-  const ranges = decoded.receipt.ranges.map((range) => ({
+  return { schema_hash: decoded.schemaHash, rows: Array.from(taggedRows.values()).map(clone),
+    ...tagReceipt(schema, decoded.receipt, program) };
+}
+
+/** Shared live/durable receipt conversion. The caller admits the envelope or supplies its already-held receipt. */
+export function tagReceipt(schema: any, receipt: DeliveryReceipt, program?: any): Pick<ClosureReceipt, 'ranges' | 'absences' | 'verdicts'> {
+  const ranges = receipt.ranges.map((range) => ({
     site: range.site,
     table: range.table,
     index: range.index,
@@ -297,15 +304,13 @@ export function toClosureReceipt(envelope: DeliveryEnvelopeV1, schema: any, prog
     n2_suffix: null,
   }));
   return {
-    schema_hash: decoded.schemaHash,
-    rows: Array.from(taggedRows.values()).map(clone),
     ranges,
-    absences: decoded.receipt.absences.map(([table, index, key]) => [
+    absences: receipt.absences.map(([table, index, key]) => [
       table,
       index,
       tagIndexValues(schema, table, index, key, 0),
     ]),
-    verdicts: decoded.receipt.verdicts.map((verdict) => ({
+    verdicts: receipt.verdicts.map((verdict) => ({
       rule_hash: verdict.ruleHash,
       pinned_inputs_digest: verdict.pinnedInputsDigest,
       principal: verdict.principal,
@@ -355,7 +360,9 @@ export function deliveryRangeExtent(
   const rows = new Map(decoded.rows.map((row) => [poolKey(row.table, row.id), row]));
   const key = (id: string): WireValue[] => {
     const row = rows.get(poolKey(selected.table, id))!;
-    return indexColumns(schema, selected.table, selected.index).slice(selected.prefix.length).map((column) => {
+    // Ordinary extents retain their full key; a derived component has only an ordinary suffix position.
+    const offset = selected.prefix.some(atom => "WordPrefix" in atom) ? selected.prefix.length : 0;
+    return indexColumns(schema, selected.table, selected.index).slice(offset).map((column) => {
       if (!(column in row.row)) fail(`$.rows.${selected.table}/${id}.${column}`, "is required by the range index");
       return clone(row.row[column]!);
     });
@@ -501,7 +508,12 @@ function tagTyped(descriptor: any, value: WireValue, path: string): TaggedValue 
   }
   if (plain(descriptor) && ("Image" in descriptor || "Video" in descriptor)) {
     const tagged = tagJson(value);
-    validateTypedValue(descriptor, tagged, path, false);
+    try { validateTypedValue(descriptor, tagged, path, false); }
+    catch (error) {
+      // Preserve the public decoder's path-bearing TypeError while sharing evaluator asset validation.
+      if (error instanceof EvalError && error.code === 'E_ASSET_TYPE') fail((error as any).path ?? path, error.message);
+      throw error;
+    }
     return tagged;
   }
   // @ref LLP 1012#8-the-delivery-envelope-the-validator-and-resume — tag by

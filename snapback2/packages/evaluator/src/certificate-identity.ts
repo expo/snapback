@@ -227,10 +227,12 @@ function normalizeArgType(arg: any): any {
   const [kind, data] = tagged(arg);
   if (kind === "Optional") return { Optional: normalizeArgType(data) };
   if (kind === "Text") {
-    known(data, ["max", "min"], "arg.Text");
+    known(data, ["max", "min", "format"], "arg.Text");
     if (data.min !== undefined && (!Number.isInteger(data.min) || data.min < 0 || data.min > 0xffffffff))
       throw new TypeError("arg.Text.min must be u32");
-    return { Text: { max: data.max, ...(data.min ? { min: data.min } : {}) } };
+    if (data.format !== undefined && data.format !== 'handle' && data.format !== 'url')
+      throw new TypeError('arg.Text.format must be handle or url');
+    return { Text: { max: data.max, ...(data.min ? { min: data.min } : {}), ...(data.format === undefined ? {} : { format: data.format }) } };
   }
   if (kind === "List") {
     // `ArgType::List { of: Option<Box<ArgType>>, max }`: `of` is skipped when

@@ -41,8 +41,8 @@ import {
 } from "./value-runtime";
 import type { Context, Execution, Trace, TraceVerdict, TraceWrite, Value } from "./types";
 
-export const CURRENT_VALUE_MODEL_VERSION = "i53-codepoint-bytes-unicode-search-text-min-v4";
-export const CURRENT_EVALUATOR = "bounded-spike-rust-search-text-min-3";
+export const CURRENT_VALUE_MODEL_VERSION = "i53-codepoint-bytes-unicode-search-text-refinements-v5";
+export const CURRENT_EVALUATOR = "bounded-spike-rust-search-text-refinements-4";
 
 type Flow =
   | { kind: "next" }
@@ -564,7 +564,8 @@ export class Runner {
   }
 
   private scan(scan: any): Value {
-    const { prefix, logical, after, before, evaluatedRange, take } = this.scanInput(scan);
+    const input = this.scanInput(scan);
+    const { logical, after, before, evaluatedRange, take } = input;
     const examined = this.store.scan(
       scan.table,
       scan.index,
@@ -583,28 +584,7 @@ export class Runner {
     const visible = examined.filter((row) => decidedTrue || this.checkRule(scan.table, "read", null, row));
     const returned = visible.slice(0, take);
     const suffix = cursorSuffix(this.schema, scan);
-    for (const row of visible) this.pool(scan.table, row);
-    this.trace.ranges.push({
-      halo: visible[take] ? { table: scan.table, id: asString(field(visible[take], "id")) } : null,
-      n2_suffix: visible[take + 1] ? suffix.map(c => field(visible[take + 1], c.name)) : null,
-      site: scan.site,
-      table: scan.table,
-      index: scan.index,
-      ...(typeof scan.provenance === "string" ? { provenance: scan.provenance } : {}),
-      prefix,
-      order: scan.order,
-      take,
-      after,
-      before,
-      gt: evaluatedRange?.gt ?? null,
-      gte: evaluatedRange?.gte ?? null,
-      lt: evaluatedRange?.lt ?? null,
-      lte: evaluatedRange?.lte ?? null,
-      rule_hash: scopedRuleHash(this.schema, this.schema.tables[scan.table].rules.read),
-      stop,
-      lastReturnedSuffix: returned.length === 0 ? null
-        : suffix.map((column) => clone(field(returned[returned.length - 1]!, column.name))),
-    });
+    this.recordRange(scan, input, suffix, visible, returned, visible.slice(take), stop);
     return { Array: returned.map(clone) };
   }
 
@@ -687,25 +667,43 @@ export class Runner {
     const result = mergeStreams(next, suffix.map((c) => c.name), first.order, take, step,
       (lane, row) => lanes[lane].returned.push(row));
     for (const lane of lanes) {
-      const { scan, input } = lane;
-      const r = input.evaluatedRange;
       const remaining = mergeRemainder(lane.visible, lane.returned);
-      for (const row of lane.visible) this.pool(scan.table, row);
-      this.trace.ranges.push({ halo: remaining[0] ? { table: scan.table, id: asString(field(remaining[0], "id")) } : null,
-        n2_suffix: remaining[1] ? suffix.map(c => field(remaining[1], c.name)) : null, site: scan.site, table: scan.table, index: scan.index,
-        provenance: scan.provenance, prefix: input.prefix, order: scan.order, take: input.take,
-        after: input.after, before: input.before, gt: r?.gt ?? null, gte: r?.gte ?? null,
-        lt: r?.lt ?? null, lte: r?.lte ?? null,
-        rule_hash: scopedRuleHash(this.schema, this.schema.tables[scan.table].rules.read),
-        stop: lane.exhausted && remaining.length === 0 ? "exhausted" : "limit",
-        lastReturnedSuffix: lane.returned.length ? suffix.map((c) => field(lane.returned.at(-1), c.name)) : null,
-      });
+      this.recordRange(lane.scan, lane.input, suffix, lane.visible, lane.returned, remaining,
+        lane.exhausted && remaining.length === 0 ? 'exhausted' : 'limit');
     }
     const page: any = Object.values(this.certificate?.result_pages ?? {}).find((page: any) => page.merge && page.site === merge.site);
     this.trace.merges.push({ site: merge.site, deduplicated_union_len: result.union,
       last_returned_suffix: page?.merge && page.site === merge.site && result.rows.length
         ? suffix.map((c) => clone(field(result.rows.at(-1)!, c.name))) : null });
     return { Array: result.rows.map(clone) };
+  }
+
+  /** Scans and merge lanes disclose the same immutable row/halo receipt shape. */
+  private recordRange(scan: any, input: any, suffix: ReturnType<typeof cursorSuffix>, visible: Value[],
+    returned: Value[], remaining: Value[], stop: 'limit' | 'exhausted'): void {
+    const { prefix, take, after, before, evaluatedRange } = input;
+    for (const row of visible) this.pool(scan.table, row);
+    this.trace.ranges.push({
+      halo: remaining[0] ? { table: scan.table, id: asString(field(remaining[0], "id")) } : null,
+      n2_suffix: remaining[1] ? suffix.map(c => field(remaining[1], c.name)) : null,
+      site: scan.site,
+      table: scan.table,
+      index: scan.index,
+      ...(typeof scan.provenance === "string" ? { provenance: scan.provenance } : {}),
+      prefix,
+      order: scan.order,
+      take,
+      after,
+      before,
+      gt: evaluatedRange?.gt ?? null,
+      gte: evaluatedRange?.gte ?? null,
+      lt: evaluatedRange?.lt ?? null,
+      lte: evaluatedRange?.lte ?? null,
+      rule_hash: scopedRuleHash(this.schema, this.schema.tables[scan.table].rules.read),
+      stop,
+      lastReturnedSuffix: returned.length === 0 ? null
+        : suffix.map((column) => clone(field(returned[returned.length - 1]!, column.name))),
+    });
   }
 
   private evaluateRange(range: any): any {

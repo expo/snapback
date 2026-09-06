@@ -32,7 +32,7 @@ const postIr = { name: "deliveries.post", kind: "Mutation", args: { body: { Text
 const editIr = { name: "deliveries.edit", kind: "Mutation", args: {}, read_time_granularity_ms: null, body: [] };
 const certificate = (ir: unknown, kind: string) => ({
   plan_hash: createHash('sha256').update(JSON.stringify(ir)).digest('hex'), schema_hash: schemaHash,
-  evaluator_version: 'bounded-spike-rust-search-text-min-3', value_model_version: 'i53-codepoint-bytes-unicode-search-text-min-v4',
+  evaluator_version: 'bounded-spike-rust-search-text-refinements-4', value_model_version: 'i53-codepoint-bytes-unicode-search-text-refinements-v5',
   max_steps: 1000000, max_heap_bytes: 8388608, max_closure_bytes: 4194304, max_output_bytes: 1048576,
   write_sites: [{ table: 'messages', kind, max_rows: 1 }, { table: 'deliveries', kind: 'Insert', max_rows: 50 }],
 });

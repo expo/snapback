@@ -14,9 +14,10 @@ import { prepareRange } from './coverage';
 import { queryState } from './runner';
 import { encodeCursor, decodeCursor } from './cursor';
 import historicalFixtures from './test-search-fixtures.json';
-import searchFixtures from './test-search-v4-fixtures.json';
+import v4Fixtures from './test-search-v4-fixtures.json';
+import searchFixtures from './test-search-v5-fixtures.json';
 import { decodeHeldProgram } from '../../snapback2/src/held-program';
-import { tagWireRow } from '../../snapback2/src/offline-protocol';
+import { tagWireRow, deliveryRangeExtent } from '../../snapback2/src/offline-protocol';
 import { tagArguments } from '../../snapback2/src/twin-hydrate';
 import { tagWireRangePrefix } from '../../snapback2/src/offline-protocol';
 const col = (Column: string) => ({ Column });
@@ -51,6 +52,17 @@ const ir: any = { name: 'search', kind: 'Query', args: { room: { Text: { max: 20
 const schemaHash = sha256(canonicalSchemaJson(schema)), planHash = sha256(canonicalProgramJson(ir));
 const operation: any = { kind: 'query', planHash, ir, certificate: { plan_hash: planHash, schema_hash: schemaHash, completeness: 'Complete', max_steps: 1_000_000, read_sites: [{ site: 'search', hoist: true, decided_true: true }], result_pages: { '0': { site: 'search', table: 'messages', index: 'search', order: 'Asc', suffix: [{ name: 'at', kind: 'Int' }, { name: 'id', kind: 'Id' }] } } } };
 const program: any = { generation: 'g', schemaHash, schema, programs: { search: operation } };
+// Public derived extents order by ordinary suffix values; the query descriptor remains an equality meaning.
+const extentRows = ['e0', 'e1', 'e2'].map((id, at) => ({ table: 'messages', id, row: wireJson(typed(id, 'café', at)) }));
+const extentRange: any = { site: 'search', table: 'messages', index: 'search', prefix: [{ Scalar: 'r' },
+  { WordPrefix: { source: 'CAFE\u0301', contract: SEARCH_CONTRACT } }], order: 'Asc', take: 2,
+  after: null, before: null, gt: null, gte: null, lt: null, lte: null, ruleHash: scopedRuleHash(schema, rules.read),
+  rowIds: ['e0', 'e1'], stop: 'Limit', absence: false, haloId: 'e2' };
+const extentEnvelope: any = { protocol: 1, generation: 'a'.repeat(64), schemaHash, planHash, authority: { principal: 'viewer', authEpoch: 0 },
+  state: 'capped', data: [], next: null, seq: 1, rows: extentRows, receipt: { ranges: [extentRange], absences: [], verdicts: [] }, validator: 'b'.repeat(64) };
+assert.deepEqual(deliveryRangeExtent(extentEnvelope, schema, extentRange, ir), { stop: 'Limit', prefix: extentRange.prefix,
+  firstKey: [0, 'e0'], lastKey: [1, 'e1'], presentIds: ['e0', 'e1', 'e2'] });
+assert.throws(() => deliveryRangeExtent(extentEnvelope, schema, extentRange), /issuing/);
 const state = emptyState(), changes = new StoreChanges<typeof state>(); changes.reset();
 for (let i = 0; i < 4; i++) { state.rows[`messages\0m${i}`] = { table: 'messages', id: `m${i}`, row: wireJson(typed(`m${i}`, 'café', i)) as any }; state.rowSeq[`messages\0m${i}`] = 1; }
 state.facts = { generation: 'g', schemaHash, authEpoch: 0 };
@@ -460,17 +472,17 @@ validateWriteRow(schema, 'messages', typed('empty-column', ''));
 assert.throws(() => canonicalSchemaJson({ ...schema, tables: { messages: { ...schema.tables.messages, columns: { ...schema.tables.messages.columns, body: { Text: { max: 2000, min: 1 } } } } } }));
 // Synthetic custody control, explicitly not an engine-emitted certificate.
 const minHash = sha256(canonicalProgramJson(minIr));
-const minPacket = { generation: 'synthetic-v4', schema: clockSchema, schemaHash: clockSchemaHash, programs: { minimum: { kind: 'query', planHash: minHash, ir: minIr,
+const minPacket = { generation: 'synthetic-v5', schema: clockSchema, schemaHash: clockSchemaHash, programs: { minimum: { kind: 'query', planHash: minHash, ir: minIr,
   certificate: { plan_hash: minHash, schema_hash: clockSchemaHash, evaluator_version: CURRENT_EVALUATOR, value_model_version: CURRENT_VALUE_MODEL_VERSION } } } };
 assert.equal(Object.keys(decodeHeldProgram(minPacket)!.programs).length, 1);
 assert.equal(Object.keys(decodeHeldProgram({ ...minPacket, programs: { minimum: { ...minPacket.programs.minimum, ir: { ...minIr, args: absentMin.args } } } })!.programs).length, 0);
-console.log('public direct/global h1 normalization, reused ordinary site, pinned clock and v4 recursive Text.min regressions passed');
+console.log('public direct/global h1 normalization, reused ordinary site, pinned clock and v5 recursive Text.min regressions passed');
 
-// Actual native minimum query plus channel schema proves JS canonical positive-min custody against emitted v4 hashes.
+// Actual native minimum query plus channel schema proves JS canonical positive-min custody against newly emitted v5 hashes.
 const minimum = searchFixtures.minimum, minimumHash = sha256(canonicalSchemaJson(minimum.schema));
 assert.equal(minimumHash, minimum.certificate.schema_hash);
 assert.equal(sha256(canonicalProgramJson(minimum.program)), minimum.certificate.plan_hash);
-const minimumPacket = { generation: 'engine-provisional-03-minimum', schema: minimum.schema, schemaHash: minimumHash,
+const minimumPacket = { generation: 'engine-final-26c9-minimum', schema: minimum.schema, schemaHash: minimumHash,
   programs: { minimum: { kind: 'query', ir: minimum.program, planHash: minimum.certificate.plan_hash, certificate: minimum.certificate } } };
 assert.equal(Object.keys(decodeHeldProgram(minimumPacket)!.programs).length, 1);
 const minimumStore = new ClientStore(minimum.schema);
@@ -478,7 +490,63 @@ for (const term of ['ab', '😀😀', 'e\u0301']) assert.deepEqual(minimumStore.
   { ...context, args: { term: { String: term } } }, minimum.certificate).execution.result, { String: term });
 for (const term of ['', 'a', '😀', '12345', '\ud800']) assert.throws(() => minimumStore.reexecute(minimum.program,
   { ...context, args: { term: { String: term } } }, minimum.certificate), { code: 'E_INPUT' });
-console.log('actual native v4 minimum/query/channel schema identities and scalar admission passed');
+console.log('actual native v5 minimum/query/channel schema identities and scalar admission passed');
+
+// Actual V5 format certificates bind recursive query/channel refinements. The final native raw-IR admission rejects null format.
+const formats = searchFixtures.format, formatStore = new ClientStore(formats.schema);
+for (const fixture of [formats]) {
+  assert.equal(sha256(canonicalProgramJson(fixture.program)), fixture.certificate.plan_hash);
+  assert.equal(sha256(canonicalSchemaJson(fixture.schema)), fixture.certificate.schema_hash);
+}
+const formatPacket = { generation: 'engine-final-26c9-format', schema: formats.schema, schemaHash: formats.certificate.schema_hash,
+  programs: { formats: { kind: 'query', ir: formats.program, planHash: formats.certificate.plan_hash, certificate: formats.certificate } } };
+assert.equal(Object.keys(decodeHeldProgram(formatPacket)!.programs).length, 1);
+const replacedFormat = (format: any) => ({ ...formats.program, args: { ...formats.program.args, handle: { Text: { max: 200, format } } } });
+for (const format of [undefined, 'url']) assert.equal(Object.keys(decodeHeldProgram({ ...formatPacket, programs: { formats: {
+  ...formatPacket.programs.formats, ir: replacedFormat(format),
+} } })!.programs).length, 0, 'omitting or changing a certified format loses custody');
+for (const key of ['value_model_version', 'evaluator_version']) assert.equal(Object.keys(decodeHeldProgram({ ...formatPacket,
+  programs: { formats: { ...formatPacket.programs.formats, certificate: { ...formats.certificate,
+    [key]: (v4Fixtures.minimum.certificate as any)[key] } } } })!.programs).length, 0, `old ${key} cannot admit refined execution`);
+assert.equal(Object.keys(decodeHeldProgram({ ...minimumPacket, programs: { minimum: { ...minimumPacket.programs.minimum,
+  certificate: v4Fixtures.minimum.certificate } } })!.programs).length, 0, 'historical actual V4 custody is refused');
+assert.throws(() => canonicalProgramJson(replacedFormat(null)), /format/);
+assert.throws(() => canonicalProgramJson(replacedFormat('email')), /format/);
+assert.match(canonicalProgramJson({ ...formats.program, args: { handle: { Text: { format: 'handle', min: 1, max: 200 } } } }),
+  /"Text":\{"max":200,"min":1,"format":"handle"\}/);
+assert.throws(() => canonicalSchemaJson({ ...schema, tables: { messages: { ...schema.tables.messages,
+  columns: { ...schema.tables.messages.columns, body: { Text: { max: 2000, format: 'handle' } } } } } }));
+const formatArgs = { handle: { String: 'valid_09' }, items: { Array: [{ String: '' }, { String: 'ok' }] }, link: 'Null' } as any;
+const runFormat = (args: any) => formatStore.reexecute(formats.program, { ...context, args }, formats.certificate).execution.result;
+assert.equal(runFormat(formatArgs), 'Null');
+for (const handle of ['', 'a', '_0', 'a'.repeat(200)]) assert.equal(runFormat({ ...formatArgs, handle: { String: handle } }), 'Null');
+for (const handle of ['A', 'é', 'a-b', 'a.b', 'a b', '\t', '\n', '\r', '😀', '\ud800', 'a'.repeat(201)]) {
+  assert.throws(() => runFormat({ ...formatArgs, handle: { String: handle } }), { code: 'E_INPUT' });
+  assert.throws(() => runFormat({ ...formatArgs, items: { Array: [{ String: handle }] } }), { code: 'E_INPUT' });
+}
+// These are the existing lexical URL rules: no parser, trim or JS \s (FEFF is admitted; NEL is not).
+for (const link of ['http://x', 'https:///', 'https://\u180e', 'https://\u200b', 'https://\ufeff', 'https://😀'])
+  assert.deepEqual(runFormat({ ...formatArgs, link: { String: link } }), { String: link });
+for (const link of ['', 'http://', 'https://', 'HTTP://x', ' https://x', ...[0, 9, 10, 13, 32, 0x7f, 0x85, 0xa0, 0x1680,
+  0x2000, 0x200a, 0x2028, 0x2029, 0x202f, 0x205f, 0x3000, 0xd800].map(c => `https://x${String.fromCharCode(c)}`)])
+  assert.throws(() => runFormat({ ...formatArgs, link: { String: link } }), { code: 'E_INPUT' });
+const guardedFormat = { ...formats.program, kind: 'Mutation', body: [{ Require: { condition: { Literal: { Bool: false } }, code: 'BODY_EXECUTED' } }] };
+assert.throws(() => formatStore.applyMutation(guardedFormat, { ...context, args: { ...formatArgs, handle: { String: 'BAD' } } }), { code: 'E_INPUT' });
+assert.throws(() => formatStore.applyMutation(guardedFormat, { ...context, args: formatArgs }), { code: 'E_REQUIRE' });
+const refinedText = { Text: { max: 10, min: 1, format: 'handle' } };
+const nestedFormats = { ...formats.program, args: { nested: { Optional: { List: { max: 2, of: { Optional: refinedText } } } } } };
+validateInputs(formats.schema, nestedFormats, { nested: { Array: ['Null', { String: 'good_0' }] } });
+for (const value of ['', 'BAD']) assert.throws(() => validateInputs(formats.schema, nestedFormats,
+  { nested: { Array: ['Null', { String: value }] } }), { code: 'E_INPUT' });
+assert.throws(() => validateInputs(formats.schema, replacedFormat(null), formatArgs), { code: 'E_INPUT' });
+const formatState = emptyState(), formatChanges = new StoreChanges<typeof formatState>(); formatChanges.reset();
+formatState.facts = { generation: formatPacket.generation, schemaHash: formatPacket.schemaHash, authEpoch: 0 };
+const formatTwin = new Twin({ program: () => decodeHeldProgram(formatPacket), changes: async since => formatChanges.read(formatState, since),
+  principal: () => 'viewer', now: () => 1, seq: () => 1 });
+assert.equal((await formatTwin.evaluate('formats', { handle: '', items: ['a'], link: 'https://\ufeff' }))?.data, 'https://\ufeff');
+for (const args of [{ handle: 'UPPER', items: [], link: null }, { handle: 'a', items: ['BAD'], link: null },
+  { handle: 'a', items: [], link: 'https://\u0085' }]) await assert.rejects(formatTwin.evaluate('formats', args), /E_INPUT/);
+console.log('actual native V5 format/channel custody, recursive scalar admission, preexecution refusal and public Twin parity passed');
 
 // Public is a struct rule, and an explicit Deny is known authority even for an unseen term.
 const peopleOp = actualProgram.programs['search.findPeople'];

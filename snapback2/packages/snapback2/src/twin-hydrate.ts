@@ -1,6 +1,6 @@
 // @ref LLP 1012#indexed-held-search — receipt admission uses the issuing operation's trusted query bound.
-import { tagWireBoundary, tagWireIndexValues, tagWireRangePrefix,
-  tagWireRow, tagWireValue, type EvaluatorClosureReceipt, type TaggedValue, type WireValue } from "./offline-protocol.js";
+import { tagReceipt, tagWireRow, tagWireValue,
+  type DeliveryReceipt, type EvaluatorClosureReceipt, type TaggedValue, type WireValue } from "./offline-protocol.js";
 import type { StoredAnswer, StoredRow } from "./store/range-store.js";
 
 /** Retag one changed receipt, including its own halo pool; never collect the partition history. */
@@ -11,22 +11,15 @@ export function closureFromAnswer(answer: StoredAnswer, schema: any, schemaHash:
     return body ? [{ ...ref, row: tagWireRow(schema, ref.table, body.row as Record<string, WireValue>) }] : [];
   });
   const pool = new Set(rows.map(r => `${r.table}\0${r.id}`));
-  return { schema_hash: schemaHash, rows,
-    ranges: (answer.receipt?.ranges ?? []).map(range => {
-      const boundary = (value: any) => value == null ? null : tagWireBoundary(schema, range as any, value);
-      return { site: range.site, table: range.table, index: range.index,
-        prefix: tagWireRangePrefix(schema, range as any, program), order: range.order, take: range.take,
-        after: boundary(range.after), before: boundary(range.before), gt: boundary(range.gt), gte: boundary(range.gte),
-        lt: boundary(range.lt), lte: boundary(range.lte), rule_hash: range.ruleHash, row_ids: range.rowIds,
-        stop: range.stop, absence: range.absence,
-        halo: range.haloId !== undefined && pool.has(`${range.table}\0${range.haloId}`) ? { table: range.table, id: range.haloId } : null,
-        n2_suffix: null, ...(range.heldSuffix ? { held_suffix: range.heldSuffix } : {}), ...(range.evictedIds?.length ? { evicted_ids: range.evictedIds } : {}),
-      };
-    }),
-    absences: (answer.receipt?.absences ?? []).map(([table, index, key]) => [table, index, tagWireIndexValues(schema, table, index, key as WireValue[], 0)]),
-    verdicts: (answer.receipt?.verdicts ?? []).map((v: any) => ({ rule_hash: v.ruleHash, pinned_inputs_digest: v.pinnedInputsDigest,
-      principal: v.principal, auth_epoch: v.authEpoch, result: v.result })),
-  };
+  const receipt = tagReceipt(schema, (answer.receipt ?? { ranges: [], absences: [], verdicts: [] }) as DeliveryReceipt, program);
+  // Only durable page metadata may survive local eviction; public delivery shape never admits these fields.
+  for (let i = 0; i < receipt.ranges.length; i++) {
+    const range = receipt.ranges[i]!, held = answer.receipt!.ranges[i]!;
+    if (range.halo && !pool.has(`${range.halo.table}\0${range.halo.id}`)) range.halo = null;
+    if (held.heldSuffix) range.held_suffix = held.heldSuffix;
+    if (held.evictedIds?.length) range.evicted_ids = held.evictedIds;
+  }
+  return { schema_hash: schemaHash, rows, ...receipt };
 }
 
 /** Tag one operation argument by the IR's descriptor (`Cursor`, `Optional`, or a column type). */
