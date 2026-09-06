@@ -1,0 +1,9 @@
+{
+  "before": "/Users/ccheever/clique-improvement/grading/astra-006-scale/app/node_modules/snapback2-darwin-arm64/bin/snapback2 dev --foreground --port 49103 --json",
+  "recordedPid": 6910,
+  "time": 1788692666.652176,
+  "exit": 0,
+  "stdout": "{\"exited\":\"snapback2 dev --stop\",\"ok\":true}\n",
+  "stderr": "",
+  "after": ""
+}

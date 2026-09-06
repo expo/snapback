@@ -1,0 +1,262 @@
+{
+  "schemaVersion": "astra-006-scale.scale-report.v1",
+  "role": "independent-scale-replay-verifier",
+  "model": "Grok4.6 xhigh",
+  "archiveClaimed": "c64b7b1e82a5f4588dfe7f0f07110ad149c0c7c3e0764424be678160f2f75b61",
+  "snapback2": "0.0.6",
+  "port": 49103,
+  "qualificationLimits": {
+    "formalO3O5WeightedTotal": false,
+    "preregisteredHoldouts": false,
+    "calibration": false,
+    "exploratoryUncalibrated": true,
+    "reason": "QUALIFICATION.md: exploratory wave has no precommitted rotated holdout set or completed calibration. Published degradation measurements are diagnostics only."
+  },
+  "workload": {
+    "completed": true,
+    "starterActions": 87,
+    "scaleActions": 167157,
+    "totalSettled": 167244,
+    "failedReceipts": 0,
+    "replaySummaryPass": true,
+    "receiptsSha256": "sha256:53f035a3828115dc702a1f5d40fd557b144364ca17ea340e755984356717e6e0",
+    "scaleLogSha256": "sha256:b26bf1ae8ccf2d64c8ca34bca6562b63a5174956a40c33c123aff8050b6abba9",
+    "immutableCopies": {
+      "liveReceipts": "sha256:53f035a3828115dc702a1f5d40fd557b144364ca17ea340e755984356717e6e0",
+      "copy10pct": "sha256:8f3a9031f479420c64e2a681e29834d7714546aeb98e396a45c2d7cb406a23da",
+      "copyDeath63760": "sha256:19d7fe8d99951309e8ac884c501a91c97ffc1e2c6e999a6715505f28235a3306",
+      "copy50pct": "sha256:22f45c5478c1c050658b1fdccc4985837575a03e40a15aeedbae6e0273ee6651",
+      "copy100pct": "sha256:53f035a3828115dc702a1f5d40fd557b144364ca17ea340e755984356717e6e0"
+    }
+  },
+  "clocks": {
+    "firstReceiptAt": "2026-09-06T09:47:47.999Z",
+    "lastReceiptAt": "2026-09-06T10:51:41.079Z",
+    "attempt1": {
+      "adapterPid": 95503,
+      "backendPids": {
+        "wrapper": 74231,
+        "binary": 74249
+      },
+      "applyStart": "2026-09-06T09:47:47.999Z",
+      "deathAt": "2026-09-06T10:07:45.729Z",
+      "settledPrefix": 63760,
+      "disposition": "aborted",
+      "abortClassification": "environment/tooling",
+      "applySecondsExcluding10pctWait": 1075.73,
+      "rawSecondsIncluding10pctWait": 1197.73,
+      "checkpoint10WaitSeconds": 122.064
+    },
+    "environmentalDeathGapSeconds": 742.757,
+    "attempt2RetryOnce": {
+      "adapterPid": 14210,
+      "backendPids": {
+        "wrapper": 6906,
+        "binary": 6910
+      },
+      "loginStart": "2026-09-06T10:20:08.486Z",
+      "applyStart": "2026-09-06T10:20:29.859Z",
+      "finishedAt": "2026-09-06T10:51:41.079Z",
+      "settledPrefix": 167244,
+      "disposition": "completed",
+      "loginSeconds": 21.373,
+      "applySecondsExcluding50pctWait": 1724.406,
+      "checkpoint50WaitSeconds": 146.814,
+      "resumedAfterIndex": 63760,
+      "appliedAfterResume": 103484
+    },
+    "probeWallSeconds": {
+      "checkpoint10VerifierMs": 30530.554042,
+      "checkpoint50VerifierMs": 61440.286917,
+      "checkpoint100VerifierMs": 97305.776291,
+      "checkpointWaitsExcludedFromReplaySeconds": 268.878,
+      "finalProbeAfterCompletion": true
+    },
+    "replayApplySecondsExcludedCheckpointWaits": 2800.136,
+    "rawReplayOwnedSecondsIncludingCheckpointWaitsExcludingDeathGap": 3068.95
+  },
+  "environmentalRetry": {
+    "attempt": 1,
+    "classification": "environment/tooling",
+    "backendExited": "signal",
+    "originalAdapterPid": 95503,
+    "originalAdapterChild": null,
+    "originalBackendWrapperPid": 74231,
+    "originalBackendBinaryPid": 74249,
+    "previousGrokSessionId": "01a07614-5721-7052-ba29-836575282532",
+    "previousGrokLastActiveAt": "2026-09-06T10:07:46.721965Z",
+    "deathBoundaryReceiptIndex": 63760,
+    "retryBackendWrapperPid": 6906,
+    "retryBackendBinaryPid": 6910,
+    "retryAdapterPid": 14210,
+    "generationUnchanged": "0d1036d3cd17b1478f2b4d15c841f6eff896ea2d15c796adeb1e907f2d60b14e",
+    "databaseWiped": false,
+    "reconfigured": false,
+    "actorMapRebuiltViaLogin": true,
+    "sameReceiptsFileAppended": true
+  },
+  "checkpoints": {
+    "10%": {
+      "settled": 24864,
+      "invariantsPassRaw": false,
+      "namedSpotEntitiesRawPass": false,
+      "perEntityCounts": true,
+      "namedO5Fixtures": true,
+      "sampledChatsAsAlice": true,
+      "envelopeReachedAfterAliceReconciliation": true,
+      "followScalingRule": {
+        "p95U0500": 194.78175000000192,
+        "p95U0005": 18.90362499999901,
+        "ratio": 10.30393641431271,
+        "pass": false
+      },
+      "deepPagingRule": {
+        "p95Page1": 22.567665999999917,
+        "p95Page50": 14.71979100000135,
+        "ratio": 0.6522513670665546,
+        "pass": true
+      },
+      "celebrityReadRule": {
+        "p95U0901": 15.723750000001019,
+        "p95U0005": 18.90362499999901,
+        "ratio": 0.8317849089791953,
+        "pass": true
+      },
+      "dbSizes": {
+        "sqliteBytes": 1444577280,
+        "walBytes": 5718592,
+        "shmBytes": null,
+        "copiedAt": "2026-09-06T09:54:44.558Z"
+      },
+      "verifierWallMs": 30530.554042,
+      "receiptsSha256": "sha256:8f3a9031f479420c64e2a681e29834d7714546aeb98e396a45c2d7cb406a23da",
+      "preservedOriginalReds": [
+        "namedSpotEntities.pass=false because d-alice-bob and g-starter queried as non-member u0001",
+        "followScalingRule ratio 10.30393641431271 failed 3x bound"
+      ]
+    },
+    "50%": {
+      "settled": 88144,
+      "invariantsPass": true,
+      "namedSpotEntitiesPassAsAlice": true,
+      "perEntityCounts": true,
+      "namedO5Fixtures": true,
+      "sampledChats": true,
+      "followScalingRule": {
+        "p95U0500": 134.42154200000368,
+        "p95U0005": 19.064833000004,
+        "ratio": 7.05075895498143,
+        "pass": false
+      },
+      "deepPagingRule": {
+        "p95Page1": 34.57729200000176,
+        "p95Page50": 31.15191600000253,
+        "ratio": 0.9009356776696377,
+        "pass": true
+      },
+      "celebrityReadRule": {
+        "p95U0901": 19.056665999996767,
+        "p95U0005": 19.064833000004,
+        "ratio": 0.9995716196408733,
+        "pass": true
+      },
+      "dbSizes": {
+        "sqliteBytes": 6271455232,
+        "walBytes": 4775112,
+        "shmBytes": 32768,
+        "copiedAt": "2026-09-06T10:27:27.010Z"
+      },
+      "verifierWallMs": 61440.286917,
+      "receiptsSha256": "sha256:22f45c5478c1c050658b1fdccc4985837575a03e40a15aeedbae6e0273ee6651",
+      "scalePrefixSha256Match": true
+    },
+    "100%": {
+      "settled": 167244,
+      "invariantsPass": true,
+      "namedSpotEntitiesPassAsAlice": true,
+      "perEntityCounts": true,
+      "namedO5Fixtures": true,
+      "sampledChats": true,
+      "followScalingRule": {
+        "p95U0500": 139.53008399999817,
+        "p95U0005": 16.69404200000281,
+        "ratio": 8.358076731804957,
+        "pass": false
+      },
+      "deepPagingRule": {
+        "p95Page1": 33.1172080000033,
+        "p95Page50": 34.82362499998999,
+        "ratio": 1.0515265960822096,
+        "pass": true
+      },
+      "celebrityReadRule": {
+        "p95U0901": 18.32499999999709,
+        "p95U0005": 16.69404200000281,
+        "ratio": 1.097697010705616,
+        "pass": true
+      },
+      "coldStartU0500": {
+        "wallMs": 72.55945800000336,
+        "conversations": 100,
+        "pages": 5,
+        "pass": true
+      },
+      "dbSizes": {
+        "sqliteBytes": 12323409920,
+        "walBytes": 6250072,
+        "shmBytes": 32768,
+        "copiedAt": "2026-09-06T10:52:11.097Z"
+      },
+      "verifierWallMs": 97305.776291,
+      "receiptsSha256": "sha256:53f035a3828115dc702a1f5d40fd557b144364ca17ea340e755984356717e6e0",
+      "perEntityActual": {
+        "users": 1008,
+        "profiles": 1008,
+        "followEdges": 5921,
+        "posts": 50228,
+        "topLevelPosts": 48224,
+        "replies": 2004,
+        "activeLikes": 5008,
+        "activeReposts": 1004,
+        "conversations": 1002,
+        "dms": 901,
+        "groups": 101,
+        "memberships": 2054,
+        "messages": 100015,
+        "textMessages": 99105,
+        "mediaMessages": 910,
+        "quotedReplies": 2736,
+        "activeReactions": 2000,
+        "disappearingSettingsEnabled": 0
+      }
+    }
+  },
+  "performanceDiagnosticsAllCheckpoints": {
+    "rule": "u0500 following-feed p95 <= 3x u0005; not a calibrated O5 score",
+    "10pct": {
+      "ratio": 10.30393641431271,
+      "pass": false
+    },
+    "50pct": {
+      "ratio": 7.05075895498143,
+      "pass": false
+    },
+    "100pct": {
+      "ratio": 8.358076731804957,
+      "pass": false
+    },
+    "failuresNotAdjustedToPasses": true
+  },
+  "artifacts": {
+    "launchMetadata": "independent/launch-metadata.json",
+    "state": "independent/state.json",
+    "checkpoint10": "independent/checkpoints/10%/",
+    "checkpoint50": "independent/checkpoints/50%/",
+    "checkpoint100": "independent/checkpoints/100%/",
+    "deathBoundary": "independent/checkpoints/death-63760/",
+    "receiptsLive": "app/evidence/scale-replay-settled.jsonl",
+    "replaySummary": "app/evidence/replay-summary.json",
+    "sanitizedTrace": "independent/action-trace.sanitized.json",
+    "verifier": "independent/verify-checkpoint.mjs"
+  }
+}
