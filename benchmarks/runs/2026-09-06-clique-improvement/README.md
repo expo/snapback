@@ -5,12 +5,21 @@ and Supabase for each requested builder: Astra medium, Grok 4.6 xhigh, and
 Muse 1.3 ultra. **Not achieved.** Retain the full canonical Clique scope,
 including independent grading and the fresh-session M7 evolution phase.
 
-Current checkpoint (2026-09-06): published version remains 0.0.7. The pinned
+Current checkpoint (2026-09-06): 0.0.8 is published and verified from npm;
+all 153 packed files match the qualified artifacts and installed doctor,
+Hermes, and media checks pass. A fresh Astra-medium run began on the baseline
+M5 host at 10:30:01Z, using the unchanged baseline instrument and published
+0.0.8. Concurrent host load is disclosed, not claimed identical. The pinned
 0.0.6 builder has frozen its continuous artifact. M1–M6 have verified web
 receipts; M8 qualification is unresolved and native M6 failed. Independent
 outcome and full-scale grading are running on private M5 copies. M7 and the
 requested three-family comparative win remain unproven. Entries below retain
 the chronology, including superseded intermediate statuses.
+
+Latest release evidence: [`evidence/npm-0.0.8/`](evidence/npm-0.0.8/).
+The fresh run lives at `/Users/ccheever/clique-full-008-20260906` on M5;
+its launch receipt and preparation are retained locally under
+`/Users/ccheever/clique-improvement/next-run/astra-008/`.
 
 ## Baseline
 

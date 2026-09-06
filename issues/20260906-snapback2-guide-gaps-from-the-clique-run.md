@@ -59,3 +59,17 @@ refreshes the build cache while `dev --status` identifies the installed generati
 The owner migration test runs that emitted command, including paths with spaces
 and quotes, after proving a passing check leaves the prior generation active.
 Other unresolved items in this ticket remain open.
+
+## Fresh 0.0.8 Astra-medium run (2026-09-06)
+
+17. On the untouched chat Expo template, `guide app` refuses with
+    `E_GUIDE_STALE`: `certificates.json is missing operation(s):
+    deliveries._timerBinding_expireMessage`. Its suggested `check` succeeds
+    but does not repair the guide. The builder reads installed guide files
+    instead. Repair is underway in `s2/clique-guide`; retain stale-cache
+    refusals for genuinely missing public certificates and invalid seed facts.
+
+Evidence: M5 `/Users/ccheever/clique-full-008-20260906/logs/astra-snapback2.ndjson`,
+initial `guide app` and subsequent `check`/`guide app` command records.
+The standalone `evidence/guide-app.txt` is empty because the refusal went to
+stderr; the captured command records retain the actual diagnostic.

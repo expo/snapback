@@ -316,3 +316,38 @@ All 189 selected tests pass at their original deadlines. A separate recovery
 case passes its assertions on Node22 but its file remains alive until timeout;
 uncleared timers in the existing owner harness are being investigated and
 repaired separately. This does not become a full-suite green claim.
+
+### Published 0.0.8 and the next cold run, 2026-09-06
+
+The integrated auth, asset, cursor, shape, reconnect, overlay, and native fixes
+are published as 0.0.8. Both independent final integration reviews are READY.
+Fresh npm installation matches all 153 packed files; installed version,
+Hermes doctor, and media checks pass. Initial npm processing delay and an
+unsupported verification-command spelling remain in the release record.
+
+The separate owner harness repair clears losing timers and failed-start
+children. Its affected 200 cases pass; the matching Node22 recovery case
+passes at the original 10-second deadline. This repairs test lifecycle
+bookkeeping, not a claimed product speedup. Later search-lane full runs still
+have owner-file deadline failures under shared load; those are retained and
+investigated rather than erased by the earlier scoped green result.
+
+A new Astra-medium build started at 10:30:01Z on the original M5 host, with
+the original fixtures/assertions and no previous app, score, or fix notes.
+Its first concrete platform friction is `guide app`: the untouched chat
+template reports a missing internal timer-binding certificate even after
+`check` succeeds. Reading installed guide files lets the builder continue,
+but that workaround defeats the intended app-aware discovery path. A separate
+product lane is reproducing and repairing the inventory mismatch; the blind
+builder remains on published 0.0.8.
+
+Independent grading of the old 0.0.6 artifact reached the 50% scale checkpoint
+with all data invariants passing and zero failed receipts. Following-feed
+scaling still fails: the 500-follow p95 is 7.05 times the five-follow p95.
+Private profiling reproduces the failure and attributes most native cost to
+repeated whole-schema policy hashing, SQLite cursor lifecycle, and quadratic
+row-membership bookkeeping. The proposed repair preserves the query and its
+authorization/receipt semantics; its 2.36-times mean-cost estimate is not an
+executed result. Full scale, fresh M7, and comparative holistic wins remain
+unproven. Search work targets the separate application posting-maintenance
+burden; its Unicode foundation is implemented but search is not active yet.
