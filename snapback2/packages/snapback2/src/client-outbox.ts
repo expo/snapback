@@ -51,7 +51,7 @@ export function wireReplayResponse<Result>(value: unknown): MutationResult<Resul
   return { ...result, ...intent };
 }
 
-type Transport = (path: string, init: RequestInit) => Promise<unknown>;
+type Transport = (path: string, init: RequestInit, onSend?: () => void) => Promise<unknown>;
 export type DrainResult = { stopped: boolean; reason?: Exclude<OutboxSettlement["stopped"], false>; remaining: number };
 
 export interface SubmitMutationOptions {
@@ -81,11 +81,10 @@ export interface SubmitMutationOptions {
 export async function submitMutation<Result>(options: SubmitMutationOptions): Promise<MutationResult<Result>> {
   const { runtime } = options;
   const plain = async () => {
-    options.onCustody?.("wire");
     return wireMutation<Result>(await options.json("/api/mutation", {
       method: "POST",
       body: JSON.stringify({ op: options.op, args: options.args }),
-    }));
+    }, () => options.onCustody?.("wire")));
   };
   if (!runtime || runtime.principal === undefined) return plain();
   const enqueue = async (): Promise<OutboxEntry> => {

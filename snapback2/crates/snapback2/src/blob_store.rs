@@ -107,14 +107,6 @@ impl LocalStaging {
         custody.map_or(Ok(true), |custody| custody.cancel())
     }
 
-    pub fn upload_active(&self, id: &str) -> bool {
-        self.uploads
-            .lock()
-            .expect("uploads lock")
-            .get(id)
-            .is_some_and(|custody| !custody.0.lock().expect("upload custody lock").finished)
-    }
-
     pub fn finish_upload(&self, id: &str) {
         self.uploads.lock().expect("uploads lock").remove(id);
     }
@@ -500,8 +492,14 @@ impl UploadCustody {
         Ok(bytes.finished)
     }
 
-    pub fn finish(&self) -> Result<(), Refusal> {
+    pub fn finish(&self, finalizing: Option<StagingFile>) -> Result<(), Refusal> {
         let mut bytes = self.0.lock().expect("upload custody lock");
+        // The worker has stopped using this file. Return custody before deletion:
+        // a failed unlink must retain its path for disposal or the grace sweep.
+        bytes.cancelled = true;
+        if let Some(file) = finalizing {
+            bytes.receiving = Some(file);
+        }
         if let Some(file) = &mut bytes.receiving {
             file.discard()?;
         }

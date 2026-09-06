@@ -89,12 +89,14 @@ impl State {
             .map_err(|error| Refusal::from_runtime(&error))?
             .into_iter()
             .collect();
-        let deletable = self
-            .pending_asset_deletes
-            .iter()
-            .filter(|id| !self.staging.upload_active(id))
-            .cloned()
-            .collect::<BTreeSet<_>>();
+        let mut deletable = BTreeSet::new();
+        for id in &self.pending_asset_deletes {
+            // This retries an exited worker's failed unlink but leaves a running
+            // finalizer charged and fenced until it hands its file back.
+            if self.staging.cancel_upload(id)? {
+                deletable.insert(id.clone());
+            }
+        }
         let remaining = crate::asset_gc::sweep_asset_blobs(
             &self.root,
             self.blobs.as_ref(),
@@ -110,6 +112,7 @@ impl State {
             .map_err(|error| Refusal::from_runtime(&error))?;
         for id in finished {
             self.pending_asset_deletes.remove(&id);
+            self.staging.finish_upload(&id);
         }
         Ok(())
     }
@@ -722,7 +725,7 @@ mod tests {
         assert!(state.runtime().store().asset(id).unwrap().is_some());
         assert_eq!(std::fs::metadata(finalizing.path()).unwrap().len(), 100);
         finalizing.discard().unwrap();
-        custody.finish().unwrap();
+        custody.finish(Some(finalizing)).unwrap();
         state
             .handle(Action::AssetUploadFailed { id: id.into() })
             .unwrap();
@@ -739,6 +742,93 @@ mod tests {
         assert!(state.runtime().store().asset(id).unwrap().is_none());
         drop(state);
         std::fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    #[cfg(unix)]
+    fn failed_finalizer_cleanup_is_retryable_after_worker_exit_by_disposal_and_sweep() {
+        use crate::blob_store::UploadCustody;
+        use std::os::unix::fs::PermissionsExt;
+        for dispose in [true, false] {
+            let root = once_root(if dispose {
+                "retry-disposal"
+            } else {
+                "retry-sweep"
+            });
+            let (mut state, _) = once_state(&root);
+            let mut file = state.staging.create().unwrap();
+            std::io::Write::write_all(file.file_mut(), &[0_u8; 100]).unwrap();
+            let path = file.path().to_owned();
+            let custody = UploadCustody::new(file);
+            let begun = state
+                .asset_upload_begin(
+                    AssetKind::Image,
+                    100,
+                    Identity::Persona("alice".into()),
+                    custody.clone(),
+                )
+                .unwrap();
+            let id = begun["id"].as_str().unwrap();
+            let mut finalizing = custody.finalize().unwrap();
+            finalizing.sync_and_close().unwrap();
+            state
+                .runtime_mut()
+                .reserve_asset_finalized_bytes(id, 100)
+                .unwrap();
+            state.blobs.put(id, &mut Cursor::new([0_u8; 100])).unwrap();
+            let directory = root.join(".snapback/staging");
+            std::fs::set_permissions(&directory, std::fs::Permissions::from_mode(0o500)).unwrap();
+            let worker = std::thread::spawn(move || custody.finish(Some(finalizing)));
+            let failed = worker.join().unwrap();
+            let actor = snapback2_core::Actor::persona("alice").unwrap();
+            let charged = state
+                .runtime()
+                .asset_staging_usage(&actor)
+                .unwrap()
+                .creator
+                .bytes;
+            let retry = if dispose {
+                state
+                    .discard_upload(Identity::Persona("alice".into()), id)
+                    .map(|_| ())
+            } else {
+                state.clock_offset_ms = ASSET_RECLAIM_GRACE_MS + 1;
+                state.sweep_assets_now()
+            };
+            let still_charged = state
+                .runtime()
+                .asset_staging_usage(&actor)
+                .unwrap()
+                .creator
+                .bytes;
+            std::fs::set_permissions(&directory, std::fs::Permissions::from_mode(0o700)).unwrap();
+            assert_eq!(failed.unwrap_err().code, "E_OWNER_ASSET_IO");
+            assert_eq!((charged, still_charged), (100, 100));
+            if dispose {
+                state
+                    .discard_upload(Identity::Persona("alice".into()), id)
+                    .unwrap();
+            }
+            state.sweep_assets_now().unwrap();
+            assert_eq!(
+                state
+                    .runtime()
+                    .asset_staging_usage(&actor)
+                    .unwrap()
+                    .creator
+                    .bytes,
+                0
+            );
+            assert!(
+                !path.exists(),
+                "the exited worker's staging path must be retried"
+            );
+            assert!(state.blobs.get(id, None).is_err());
+            assert!(state.runtime().store().asset(id).unwrap().is_none());
+            assert_eq!(retry.unwrap_err().code, "E_OWNER_ASSET_IO");
+            drop(state);
+            std::fs::remove_dir_all(root).unwrap();
+        }
     }
 
     #[test]

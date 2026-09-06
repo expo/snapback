@@ -279,25 +279,28 @@ class Client implements SnapbackClient {
     const authority = await this.operationAuthority();
     return this.trackWrite(async () => {
       try {
-        return await withMutationUploads(this, referenceName(ref), args, authority,
+        const result = await withMutationUploads(this, referenceName(ref), args, authority,
           () => this.manifestFor(authority), async (mutationArgs, onCustody) => {
             const result = await submitMutation<Result>({
               runtime: this.offlineRuntime, offline: this.forcedOffline, op: referenceName(ref), args: mutationArgs,
-              json: (path, init) => this.json(path, init, authority), failure: (error) => this.offlineRefusal(error),
+              json: (path, init, onSend) => this.json(path, init, authority, true, true, false, onSend),
+              failure: (error) => this.offlineRefusal(error),
               drain: () => this.drainNow(), onCustody,
             });
-            if (result.state === "rejected" && isTerminalSession(result)) {
-              const wasCurrent = this.authorityCurrent(authority);
-              const expiration = await this.expireSession(authority);
-              if (!wasCurrent || !this.expirationCurrent(expiration)) throw this.supersededRefusal();
-              this.recordRefusal(result);
-              return result;
-            }
             // Settle authority before best-effort cleanup, whose 401 may expire
             // the session without invalidating this already received outcome.
             this.validated(authority);
             return result;
           });
+        if (result.state === "rejected" && isTerminalSession(result)) {
+          // Discard first while its bearer is still current. Cleanup may already
+          // have expired it; that no-op must preserve the settled rejection.
+          const wasCurrent = this.authorityCurrent(authority);
+          const expiration = await this.expireSession(authority);
+          if (expiration.cleared && (!wasCurrent || !this.expirationCurrent(expiration))) throw this.supersededRefusal();
+          this.recordRefusal(result);
+        }
+        return result;
       } catch (error) {
         if (isSnapbackRefusal(error) && error.code === "E_WIRE_SHAPE") {
           const ambiguous = new SnapbackRefusal(copyRefusal(error.envelope), true);
@@ -799,17 +802,17 @@ class Client implements SnapbackClient {
     enforceAuthority = true,
     clearTerminalSession = true,
     authRestoration = false,
+    onSend?: () => void,
   ): Promise<unknown> {
     throwIfAborted(init.signal);
     if (enforceAuthority) this.ensureAuthority(authority);
     else this.ensureOpen();
     if (this.forcedOffline) throw offlineNetworkRefusal();
+    const request = { ...init, headers: this.headers(authority, false, init.body !== undefined && init.body !== null) };
     let response: Response;
     try {
-      response = await this.fetchImpl(`${this.url}${path}`, {
-        ...init,
-        headers: this.headers(authority, false, init.body !== undefined && init.body !== null),
-      });
+      onSend?.();
+      response = await this.fetchImpl(`${this.url}${path}`, request);
     } catch (error) {
       throwIfAborted(init.signal);
       if (enforceAuthority) this.ensureAuthority(authority);

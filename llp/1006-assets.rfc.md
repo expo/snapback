@@ -820,7 +820,8 @@ receiving/ready uploads (100 per page with `after`/`next`), usage and limits;
 `POST /api/uploads/discard { id }` atomically tombstones only that creator's unclaimed
 id, refuses claimed ids, and treats missing/foreign ids identically. Receiving bytes
 close before quota release; running finalizers retain charges and resist sweep until
-physical release. Ready ids use the fork-aware sweep; restart preserves discovery.
+physical release. Failed deletion returns the exited worker's path to custody for
+disposal or grace-sweep retry. Ready ids use the fork-aware sweep; restart preserves discovery.
 
 ### 9a. Where bytes live (author ruling, 2026-09-03)
 
@@ -967,9 +968,10 @@ LLP 1005 §5b is a whole section on what a mandatory second call cost Snapback 1
 An agent that must call two functions will eventually call one. Codex's
 atomicity objection is answered by the failure shape: before mutation submission,
 sibling uploads and failed pre-persistence admission/prediction are discarded, as
-are this call's uploads after definitive rejection. Attempted persistence, queued
-intents and ambiguous responses retain bytes. Cleanup expiry preserves the settled
-outcome. `client.listUploads()` and `client.discardUpload(id)` recover abandoned ids.
+are this call's uploads after definitive rejection. Wire custody starts at fetch,
+after serialization and local checks; attempted persistence, queued intents and
+ambiguous responses retain bytes. Terminal-result session expiry follows discard;
+cleanup expiry preserves the settled outcome. `client.listUploads()` and `client.discardUpload(id)` recover abandoned ids.
 
 Rendering is one component per kind (§2a). `<AssetImage asset={photo} />`
 measures its own box and requests a matching width (§8) — the author names no

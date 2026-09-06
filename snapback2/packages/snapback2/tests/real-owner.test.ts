@@ -98,6 +98,33 @@ test("twenty-four refused File mutations recover their staging quota immediately
   } finally { await client.close(); }
 });
 
+test("cyclic mutation arguments release uploaded bytes without sending a mutation", async () => {
+  const { readFile } = await import("node:fs/promises");
+  let mutations = 0;
+  let uploads = 0;
+  const client = createClient({ url: owner.url, as: "upload-serialization", fetch: async (input, init) => {
+    const path = new URL(String(input)).pathname;
+    if (path === "/api/mutation") mutations++;
+    if (path === "/api/upload") uploads++;
+    return fetch(input, init);
+  } });
+  const metadata: any = {};
+  metadata.self = metadata;
+  try {
+    const png = await readFile(new URL("../../../scripts/witness-expo/view-once.png", import.meta.url));
+    for (let index = 0; index < 24; index++) {
+      await assert.rejects(client.mutation(api.messages.sendPhoto, {
+        conversationId: "conversation-1", photo: new File([png], "photo.png"), metadata,
+      } as any), TypeError);
+      const listing = await client.listUploads();
+      assert.deepEqual(listing.usage, { bytes: 0, objects: 0 });
+      assert.deepEqual(listing.uploads, []);
+    }
+    assert.equal(uploads, 24);
+    assert.equal(mutations, 0);
+  } finally { await client.close(); }
+});
+
 test("failed outbox admission or prediction leaves no upload, intent, or mutation request", async () => {
   const { readFile, mkdtemp, rm } = await import("node:fs/promises");
   const { tmpdir } = await import("node:os");

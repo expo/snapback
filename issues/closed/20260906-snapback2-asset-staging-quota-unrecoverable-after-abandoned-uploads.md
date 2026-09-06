@@ -59,3 +59,9 @@ file under the same lock as writes, so late chunks cannot recreate it. The
 sweeper retains active finalizers and their charges until physical release.
 Focused regressions cover each case, including a storage acknowledgement lost
 after an intent committed and three discarded uploads with sockets still paused.
+
+Final review corrections: wire custody starts immediately before fetch, after
+serialization and local checks; 24 cyclic-argument File mutations leave zero
+staging usage and send no mutation. Terminal-result expiry follows automatic
+discard. Failed finalizer deletion returns its path to shared custody, retaining
+quota until disposal or the grace sweep can retry after permissions are repaired.

@@ -127,10 +127,7 @@ struct UploadLedgerGuard {
 
 impl UploadLedgerGuard {
     fn finish_bytes(&mut self) -> Result<(), Refusal> {
-        if let Some(file) = &mut self.finalizing {
-            file.discard()?;
-        }
-        self.custody.finish()
+        self.custody.finish(self.finalizing.take())
     }
 }
 

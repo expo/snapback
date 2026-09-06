@@ -640,6 +640,36 @@ test("useAssetUrl and web asset components render in a DOM with the intended aut
   }
 });
 
+test("local serialization failure discards automatic uploads before any mutation request", async () => {
+  const staged = new Map<string, number>();
+  let uploads = 0;
+  let mutations = 0;
+  const client = createClient({ url: "http://assets.test", as: "alice", fetch: async (input, init) => {
+    const path = new URL(String(input)).pathname;
+    if (path === "/api/manifest") return json(manifest());
+    if (path === "/api/upload") {
+      uploads++;
+      staged.set(image.id, Number(new Headers(init?.headers).get("Content-Length")));
+      return json(image);
+    }
+    if (path === "/api/mutation") { mutations++; return json({ state: "committed", seq: 1, data: null }); }
+    if (path === "/api/uploads/discard") return json({ discarded: staged.delete(JSON.parse(String(init?.body)).id) });
+    throw new Error(`unexpected path ${path}`);
+  } });
+  const cyclic: any = {};
+  cyclic.self = cyclic;
+  try {
+    for (let attempt = 0; attempt < 3; attempt++) {
+      await assert.rejects(client.mutation(api.assets.send, {
+        photo: new File(["a"], "photo.png"), metadata: cyclic,
+      } as any), TypeError);
+      assert.equal(staged.size, 0, "failed local submission must release staged objects and bytes");
+    }
+    assert.equal(uploads, 3);
+    assert.equal(mutations, 0);
+  } finally { client.close(); }
+});
+
 for (const status of [200, 422, 503]) {
   test(`automatic uploads are kept for an ambiguous HTTP ${status} mutation response`, async () => {
     let discards = 0;
@@ -696,3 +726,32 @@ test("cleanup session expiry preserves the already settled mutation rejection", 
     assert.equal(client.snapshot.token, undefined, "cleanup still expires the invalid session");
   } finally { client.close(); }
 });
+
+for (const cleanupExpires of [false, true]) {
+  test(`terminal mutation rejection discards with its bearer before expiry (cleanup expires: ${cleanupExpires})`, async () => {
+    const rejected = { state: "rejected", code: "E_AUTH_SESSION", family: "auth", message: "expired", guide: "auth" };
+    const staged = new Set<string>();
+    let discards = 0;
+    const client = createClient({ url: "http://assets.test", token: "session", fetch: async (input, init) => {
+      const path = new URL(String(input)).pathname;
+      if (path === "/api/auth/me") return json({ viewer: "alice", kind: "user" });
+      if (path === "/api/manifest") return json(manifest());
+      if (path === "/api/upload") { staged.add(image.id); return json(image); }
+      if (path === "/api/mutation") return json(rejected);
+      if (path === "/api/uploads/discard") {
+        discards++;
+        assert.equal(new Headers(init?.headers).get("Authorization"), "Bearer session");
+        if (cleanupExpires) return json(rejected, 401);
+        return json({ discarded: staged.delete(JSON.parse(String(init?.body)).id) });
+      }
+      throw new Error(`unexpected path ${path}`);
+    } });
+    try {
+      assert.deepEqual(await client.mutation(api.assets.send, { photo: new File(["a"], "photo.png") } as any), rejected);
+      assert.equal(discards, 1);
+      assert.equal(staged.size, cleanupExpires ? 1 : 0, "only refused cleanup leaves bytes for explicit recovery");
+      assert.equal(client.snapshot.token, undefined);
+      assert.equal(client.snapshot.lastRefusal?.code, "E_AUTH_SESSION");
+    } finally { client.close(); }
+  });
+}
