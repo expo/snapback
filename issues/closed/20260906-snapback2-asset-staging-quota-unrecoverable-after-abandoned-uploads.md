@@ -95,3 +95,14 @@ The optional sibling-abort/seal diagnostic race remains nonblocking: a secondary
 cancelled call may see the sealed carrier refusal, while its accepted intent
 stays durable. The ordinary FIFO stop policy is retained so an offline cut can
 still queue new work; this fix changes originating terminal evidence only.
+
+
+The typed-terminal audit shares JSON expiry and delivery fencing between HTTP
+401 and supported HTTP 200 terminal receipts. Replay and log-tail receipts now
+stop before ordinary settlement; resume receipts stop before renewed trust.
+Expiry releases sibling waiters and seals the exact queued envelope for login
+recovery. Direct mutation/channel receipts retain their typed public result,
+and automatic upload cleanup retains its earlier bearer and ordering. Existing
+cancellation and captured-successor fences apply before terminal interpretation.
+Five added cases cover first replay/tail with sibling drains, FIFO admission, and
+resume recovery; ordinary rejections still settle only their own intent.

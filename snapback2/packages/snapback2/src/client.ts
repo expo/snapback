@@ -512,7 +512,7 @@ class Client implements SnapbackClient {
           const result = wireChannelPublish(await this.json(`/api/channel/${name}/publish`, {
             method: "POST",
             body: JSON.stringify({ args, payload }),
-          }, authority));
+          }, authority, { terminalSession: "typed-result" }));
           if ("state" in result) {
             if (isTerminalSession(result)) {
               const wasCurrent = this.authorityCurrent(authority);
@@ -868,26 +868,7 @@ class Client implements SnapbackClient {
           }
           throw error;
         }
-        // @ref LLP 1002#9-the-client-snapback2client-snapback2react-snapback2test — me() retains late terminal evidence across cancellation.
-        if (!authRestoration) throwIfAborted(init.signal);
-        const wasCurrent = !enforceAuthority || this.authorityCurrent(authority);
-        let expiration: SessionExpiration | undefined;
-        if (terminalSession !== "keep" && authority.token !== undefined && isTerminalSession(refusal.envelope)
-          && (terminalSession === "expire" || !wasCurrent)) {
-          expiration = await this.expireSession(authority, { signal: init.signal, fromAuth: authRestoration && this.authorityCurrent(authority) });
-        }
-        if (enforceAuthority && (!wasCurrent
-          || (expiration !== undefined && !this.expirationCurrent(expiration)))) {
-          throw this.supersededRefusal();
-        }
-        if (enforceAuthority && !(terminalSession === "expire" && isTerminalSession(refusal.envelope))) {
-          this.ensureAuthority(authority);
-        }
-        else this.ensureOpen();
-        throwIfAborted(init.signal);
-        this.patchSnapshot({ connection: "connected" });
-        this.recordRefusal(refusal.envelope);
-        throw refusal;
+        return this.refuseJson(refusal, authority, init.signal, options);
       }
       if (enforceAuthority) this.ensureAuthority(authority);
       else this.ensureOpen();
@@ -919,15 +900,34 @@ class Client implements SnapbackClient {
       else this.ensureOpen();
       throw error;
     }
-    if (terminal !== undefined && enforceAuthority && !this.authorityCurrent(authority)) {
-      await this.expireSession(authority);
-      throw this.supersededRefusal();
+    if (terminal && (terminalSession === "expire" || (enforceAuthority && !this.authorityCurrent(authority)))) {
+      return this.refuseJson(new SnapbackRefusal(terminal), authority, init.signal, options);
     }
     if (enforceAuthority) this.ensureAuthority(authority);
     else this.ensureOpen();
     throwIfAborted(init.signal);
     this.patchSnapshot({ connection: "connected" });
     return value;
+  }
+
+  // @ref LLP 1012#7-writes-offline — typed session terminals and HTTP refusals stop before settlement; cancellation preserves the exact queued envelope.
+  private async refuseJson(refusal: SnapbackRefusal, authority: Authority, signal: AbortSignal | null | undefined, options: JsonRequestOptions): Promise<never> {
+    const { enforceAuthority = true, terminalSession = "expire", authRestoration = false } = options;
+    // @ref LLP 1002#9-the-client-snapback2client-snapback2react-snapback2test — me() retains late terminal evidence across cancellation.
+    if (!authRestoration) throwIfAborted(signal);
+    const wasCurrent = !enforceAuthority || this.authorityCurrent(authority);
+    const expire = terminalSession !== "keep" && terminalSession !== "after-cleanup" && isTerminalSession(refusal.envelope);
+    let expiration: SessionExpiration | undefined;
+    if (terminalSession !== "keep" && authority.token !== undefined && isTerminalSession(refusal.envelope) && (expire || !wasCurrent)) {
+      expiration = await this.expireSession(authority, { signal, fromAuth: authRestoration && this.authorityCurrent(authority) });
+    }
+    if (enforceAuthority && (!wasCurrent || (expiration !== undefined && !this.expirationCurrent(expiration)))) throw this.supersededRefusal();
+    if (enforceAuthority && !expire) this.ensureAuthority(authority);
+    else this.ensureOpen();
+    throwIfAborted(signal);
+    this.patchSnapshot({ connection: "connected" });
+    this.recordRefusal(refusal.envelope);
+    throw refusal;
   }
 
   private async stream(

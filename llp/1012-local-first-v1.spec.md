@@ -709,7 +709,12 @@ The same cancellation applies to mutation-owned and explicit outbox drains on
 offline, close, an auth transition, or terminal expiry. Expiry cancels sibling
 drains while the request that observed the terminal keeps its original refusal;
 it neither rereads a sealed store nor enqueues a new call behind an older intent
-after that terminal. Ordinary intent refusals remain local to that intent. A tracked mutation lends its captured
+after that terminal. This includes typed HTTP 200 `rejected`/`refused` session
+terminals: the JSON boundary applies the same captured-custody expiry as HTTP
+401 before replay settlement, resume admission, or log-tail decoding. The
+exact durable envelope stays queued, including after an owner commit whose
+tail refused; fresh same-principal login retries it through the ledger. Ordinary
+intent refusals remain local to that intent. A tracked mutation lends its captured
 authority to its drain, so it cannot wait on the transition that is waiting for
 that write. Cancellation keeps the durable intent and releases the serialized
 drain; fresh recovery still retries the identical envelope.

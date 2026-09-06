@@ -764,8 +764,11 @@ A thrown transport failure leaves `last` untouched, sets `transport` (a
 retryable `SnapbackRefusal`, cleared by a successful run), and rejects `run()`;
 a 503 after commit must never look like a server rejection.
 Every 4xx envelope on `query()`/`mutation()`
-throws `SnapbackRefusal`; subscriptions deliver `refused`. **Transport status
-is not a query state**: hooks and the provider expose `connection: connected |
+throws `SnapbackRefusal`; subscriptions deliver `refused`. Typed HTTP 200
+session terminals expire captured custody at the same JSON boundary before
+internal replay/resume settlement. Direct mutation and channel calls keep their
+typed terminal result; automatic mutation cleanup still precedes expiry.
+**Transport status is not a query state**: hooks and the provider expose `connection: connected |
 reconnecting | offline` separately, and a network failure leaves a query
 `hydrating` with `connection: reconnecting`, never `refused`.
 
