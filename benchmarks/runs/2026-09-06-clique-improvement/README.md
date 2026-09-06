@@ -28,15 +28,17 @@ Muse scores are absent. These are N=1 observations, not statistical rankings.
 - Numeric caps in the supplied brief remain placeholders. Actual clocks and
   missing token metering are recorded; no invented cap compliance.
 
-M1 and M2 are green. Copied receipts under `evidence/` bind their passing
+M1, M2, and M3 are green. Copied receipts under `evidence/` bind their passing
 suites: M1 passed all three required choreography assertions at
-2026-09-06T07:00:35.177Z; M2 passed all nine at 2026-09-06T07:02:06.871Z.
+2026-09-06T07:00:35.177Z; M2 passed all nine at 2026-09-06T07:02:06.871Z;
+M3 passed all seven implemented assertions (five required) at
+2026-09-06T07:20:12.911Z, including group receipts and the removal cutoff.
 The first M1 choreography failure was an app form-hydration race, corrected by
 the builder. Earlier receipts overstated setup/prepack qualification; these
 reruns use the builder's corrected metadata and make no such claim.
 The iOS Hermes bundle exported; simulator execution is unavailable on this
 host (`simctl` exit 72), so there is no physical/native runtime claim.
-M3 is in progress. No new holistic score exists yet.
+M4 is in progress. No new holistic score exists yet.
 
 Findings already recorded: conditional page returns lose their cursor
 (`issues/20260906-snapback2-conditional-query-page-loses-cursor.md`), and help
