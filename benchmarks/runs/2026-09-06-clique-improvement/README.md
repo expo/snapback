@@ -28,7 +28,7 @@ Muse scores are absent. These are N=1 observations, not statistical rankings.
 - Numeric caps in the supplied brief remain placeholders. Actual clocks and
   missing token metering are recorded; no invented cap compliance.
 
-M1, M2, and M3 are green. Copied receipts under `evidence/` bind their passing
+M1–M4 are green. Copied receipts under `evidence/` bind their passing
 suites: M1 passed all three required choreography assertions at
 2026-09-06T07:00:35.177Z; M2 passed all nine at 2026-09-06T07:02:06.871Z;
 M3 passed all seven implemented assertions (five required) at
@@ -38,7 +38,7 @@ the builder. Earlier receipts overstated setup/prepack qualification; these
 reruns use the builder's corrected metadata and make no such claim.
 The iOS Hermes bundle exported; simulator execution is unavailable on this
 host (`simctl` exit 72), so there is no physical/native runtime claim.
-M4 is in progress. No new holistic score exists yet.
+M4 passed all five required choreography assertions at 2026-09-06T07:29:19.964Z; its suite hash was verified before copying. M5 is in progress. No new holistic score exists yet.
 
 Findings already recorded: conditional page returns lose their cursor
 (`issues/20260906-snapback2-conditional-query-page-loses-cursor.md`), and help
@@ -49,9 +49,9 @@ and migration command discovery
 
 | Lane | Review target | Current evidence |
 | --- | --- | --- |
-| Auth startup | `9052d09a6` after `a6a46b5a3`, branch `s2/clique-auth` | Revised 130 affected tests pass; second Astra review finds a remaining cancellation barrier; second Grok review pending |
-| Abandoned assets | `184d88c9c`, branch `s2/clique-assets` | Complete test script green on isolated M5 lane; first Astra/Grok reviews require changes; combined revision being tested; branch pushed, not landed |
-| Conditional cursors | branch `s2/clique-cursors` | Implementing executed-return page provenance; no passing result claimed |
+| Auth startup | `0e6cebfcd`, branch `s2/clique-auth` | 173 affected tests pass; cancellation regressions fail on predecessor and pass now; final Astra/Grok reviews running |
+| Abandoned assets | `2e671c5c6`, branch `s2/clique-assets` | Revision passes 66 JS / 53 Rust affected tests; second Astra review finds two cleanup leaks, final revision underway; second Grok review running |
+| Conditional cursors | `bbe2f85aa`, branch `s2/clique-cursors` | Compiler 400/400, evaluator 216/216, package 380/380; aggregate Rust 741/743 then both corrected affected tests pass; consolidated run and independent reviews running |
 
 Received auth and asset reviews are retained under `reviews/`, exactly as received.
 They are static reviews, not test execution. New interleaving regressions must
@@ -68,8 +68,7 @@ Auth revision `9052d09a6` remote verification retained
 passed; the overall script exited nonzero because one package real-owner test
 exceeded its 10-second deadline. A quiet rerun of that file passed 10/10 under
 the unchanged deadline (`/tmp/clique-auth-9052-recovery.log`). This is not an
-unconditionally green full-script result. The second Astra review's retained
-fetch-after-cancellation interleaving remains to be fixed before landing.
+unconditionally green full-script result. Both second-round reviewers identified the same retained-fetch cancellation barrier; revision `0e6cebfcd` fixes it and awaits final review.
 
 ## Muse limitation
 

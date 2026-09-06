@@ -156,3 +156,26 @@ are held for revision, rather than treating broad green tests as evidence
 that every lifecycle case is correct. Received reviews and current targets
 are retained in the improvement run directory. M3 is underway; no new
 holistic score or overall comparison win is claimed.
+
+
+### M3–M4 evidence and bounded revisions, 2026-09-06
+
+Published 0.0.6 now passes the M3 and M4 browser choreography. M4 passes all
+five required assertions: photo render, video playback, live reactions, edits,
+and deletion. Its suite hash and raw receipt are retained in the improvement
+run directory. iOS bundle export remains distinct from native execution. M5
+is underway; independent scoring and fresh-session M7 remain outstanding.
+
+M3 needed separate per-message receipt and latest-message queries after nested
+shape alias refusals and nested pagination disrupted inbox draining. M4's
+ordinary media upload was compact; authenticated image bytes needed an app
+resolver for the frozen kit's URI interface. Operation names `delete` and
+`reactions` caused reserved-word/import-collision refusals. These are concrete
+authoring costs to address, not benchmark-suite failures to conceal.
+
+Auth cancellation now has failing-before/passing-after regressions and 173
+affected tests green. Cursor provenance has a committed candidate with compiler,
+evaluator, and package suites green; consolidated verification and review remain.
+Asset review caught local serialization taking custody too early and finalizer
+cleanup becoming unretryable after a filesystem failure. A final bounded revision
+is in progress. None of these candidate fixes is yet claimed as published.
