@@ -1,0 +1,7 @@
+{
+  "rootReadCompleteReport": true,
+  "reportSha256": "dde8e22f15640d67e3bda3b2ea84f94384e3b07e661eb7e239c521b5d216a1a4",
+  "phaseSha256": "b4cacbf2d90d9c4c0f7fdb223a1d5b2e532898546f1ce63f7f2062fcdecb138f",
+  "scope": "645 actual native admission responses and141 actual SSE events, frozen ad705 compiler and26c9 owner; public argument semantics only",
+  "remaining": "New compilerR6 and descriptor repairs require their own source/review qualification. No native source review supplied by this witness; prior blocked Astra review remains missing. No final package, frontend, physical offline, benchmark or publication clearance."
+}

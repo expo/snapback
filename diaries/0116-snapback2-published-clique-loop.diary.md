@@ -676,3 +676,20 @@ synthetic public-frame repro uses actual native certificates and reproduces
 warm and after reopening. The sole writer is repairing this and measuring a
 shared compact-tree implementation against the unchanged 66,000-byte gzip
 ceiling; the reviewed 66,681-byte build still fails that ceiling.
+
+
+## 2026-09-06 — Native text arguments verified across operation kinds
+
+The frozen v5 compiler/native fixture now has actual HTTP/SSE proof across
+queries, mutations, jobs and channel subscription/publication: 645 primary
+admission responses matched the expected 270 accepts and 375 refusals. The
+141 observed channel events matched their expected payloads; invalid jobs
+left the empty queue/state unchanged, and invalid publishes were paired with
+quiet windows and valid liveness controls. This verifies the same public
+argument contract across operation kinds without adding handler guards.
+
+The evidence is deliberately scoped. A separate compiler review found private
+alternate constructor spellings that silently erase the descriptor; that
+repair is still underway, and a later compiler must be qualified separately.
+No package, native source-review, offline, or comparative benchmark pass is
+inferred from the format matrix.

@@ -1,0 +1,231 @@
+{
+  "status": "complete",
+  "phase": "fresh frozen-compiler v5 actual native HTTP/SSE format witness complete",
+  "updatedAt": "2026-09-06T16:46:25.185401+00:00",
+  "report": "report.md",
+  "finalAnswer": "final-answer.md",
+  "host": "ccheever@100.88.75.121 (M5)",
+  "witnessRoot": "/Users/ccheever/clique-improvement/revisions/compiler-argument-format/candidate-witness",
+  "compilerFreezeVerifiedBeforeUse": true,
+  "movingWorktreeCompiled": false,
+  "newPublicFixture": true,
+  "formatLeavesRetained": 48,
+  "runtimeComplete": true,
+  "productCounterexamples": [],
+  "counts": {
+    "families": {
+      "job": {
+        "cases": 129,
+        "admitted": 54,
+        "refused": 75
+      },
+      "query": {
+        "cases": 129,
+        "admitted": 54,
+        "refused": 75
+      },
+      "mutation": {
+        "cases": 129,
+        "admitted": 54,
+        "refused": 75
+      },
+      "channel": {
+        "pairs": 129,
+        "admittedPairs": 54,
+        "refusedPairs": 75
+      }
+    },
+    "primaryAdmissionResponses": 645,
+    "allNonSubscribeHttpResponses": 2191,
+    "allSubscribeHttpResponses": 130,
+    "allHttpResponses": 2321,
+    "actualSseEvents": 141,
+    "invalidPublishQuietWindows": 75,
+    "ownerSnapshots": 1035,
+    "routes": {
+      "/control/status": 444,
+      "/control/fork": 1035,
+      "/control/job": 129,
+      "/control/job/<id>": 54,
+      "/api/query": 129,
+      "/api/mutation": 129,
+      "/api/channel/formats/publish": 271
+    },
+    "finalState": {
+      "rows": 54,
+      "index_entries": 54,
+      "_commits": 162,
+      "_jobs": 54,
+      "_outbox": 0,
+      "commitSeq": 162,
+      "outboxAttempts": 0
+    }
+  },
+  "primaryAdmittedResponses": 270,
+  "primaryRefusedResponses": 375,
+  "firstRuntimeAttempt": {
+    "admissionCases": 0,
+    "httpResponses": 2,
+    "events": 0,
+    "classification": "harness snapshot read failure",
+    "preserved": "attempts/runtime-01/"
+  },
+  "totalHttpResponsesIncludingFirstAttempt": 2323,
+  "audits": {
+    "m5Checks": 32290,
+    "localChecks": 31255,
+    "failures": [],
+    "rawBytesUnchangedThroughOfflineCorrection": true
+  },
+  "state": {
+    "invalidJobsRefusedBeforeQueueOnEmptyTable": 75,
+    "validJobsActuallyQueuedAndDone": 54,
+    "successfulJobResponse": "top-level state queued",
+    "everyRefusalPreservedObservedDurableTables": true,
+    "queryMutationExactAuthoredReturns": true,
+    "jobPersistedArgsExact": true,
+    "channelInvalidSubscribesEstablishedNoChannel": 75,
+    "channelInvalidPublishesNoEvents": 75,
+    "invalidPublishQuietWindowSeconds": 0.12,
+    "actualEvents": 141,
+    "sender": "dev:format-witness-v5",
+    "eventSequence": "162 (durable sequence, not per-message ordinal)",
+    "final": {
+      "rows": 54,
+      "index_entries": 54,
+      "_commits": 162,
+      "_jobs": 54,
+      "_outbox": 0,
+      "commitSeq": 162,
+      "outboxAttempts": 0
+    },
+    "effectsEngine": "none",
+    "externalEffects": 0
+  },
+  "bindings": {
+    "compilerCommit": "ad7050ab0a9e7b46fdf98386ebd24bd4748249d9",
+    "compilerArchiveSha256": "0b06a347f6931ac0bf17966477c75f72a7737d5566653d2360a79ce07403bb44",
+    "compilerManifestSha256": "6db3b897414d891b663bc32a17ac270656a6360be215bb2a461b0d11eb032276",
+    "compilerFiles": 199,
+    "dependencyArchiveSha256": "a42ca7fadc7f15529140b271135cc9afc5ab3cc2f59ede1ee35484adbf795a7c",
+    "dependencyManifestSha256": "72bbe9da456482b9411c4b11698b7ce0a8c618bfd00ddeabf5b2207505812849",
+    "dependencyFiles": 580,
+    "approvedEvaluatorTypesSha256": "afc6bc7ffd25fc007787b10e0fc8bdafbe4ae61cb12f7d2442f2c2df95686618",
+    "privateTypescriptFiles": 132,
+    "attestedTypescriptLibrariesMatched": 112,
+    "fixtureSourceSha256": {
+      "schema.q": "13fdf77cc1a806c4eb43ac98a61c4898b268fb6eb5189d524b2235eb5cc1e0c2",
+      "ops.q": "388076da22181293098dd718ecc06c692e192c16bbb3402a6bcc552e7cdb4950"
+    },
+    "compileResultSha256": "fe146632b4c380d4b310597c9022d137bb5ad33eb44aadbbef7639cf7095d161",
+    "projectSha256": "1a8c351797acb55b1338ba69d9dc497c45059b0cb8f21df93b1d723244de1c27",
+    "owner": {
+      "executable": "/Users/ccheever/clique-improvement/revisions/search-engine/final-snapshot/snapback2-owner",
+      "executableSha256": "4d0f8f0176921b56305e9969da0fcb2dd5ecedae1f65d983f537e613d0c6e46e",
+      "sourceCommit": "26c9fd5e0d3922ce7680493c0e8f7371f4793d59",
+      "sourceGraphSha256": "07d985316ae2d74494980a0c4871a13a877237ca0de15f97e2d12ad337518e70",
+      "sourceFileCount": 261,
+      "inputsSha256": "e663bd6e02bce9c415ba969b272398759893d6bca77051834e48dba19946f1d3",
+      "archiveSha256": "350bb0a90f5b35e5f6db004637342da9d5931936536eef49ac5477f1b38746e0",
+      "packageVersion": "0.0.8",
+      "valueModelVersion": "i53-codepoint-bytes-unicode-search-text-refinements-v5",
+      "evaluatorIdentity": "bounded-spike-rust-search-text-refinements-4"
+    },
+    "nativeSchemaHash": "12ec865419add8dfdd25cbf754dfbe1a6043e0e48a4a8905bab9302fccf097a6",
+    "installedCertificatesSha256": "37f32fefcc15ca97c0be520a493bb7dbce7b5c7a1ab6b1fc0d0028c6b8747998",
+    "schemaCertificateFileSha256": "a39c475e0db93dc086de828510a988f10eb814fd0e2cb6d72ee9160aba3dd410",
+    "rawResponseSha256": "daeddf0b1c64ef507c3249a97507a9771fc02460e937b80f74a37ad98239a918",
+    "rawSseRecordsSha256": "4a65f6094053459c35724f26e4f931a5c24a8fb784dbb1a41792df3fcf74de7c"
+  },
+  "ports": {
+    "allowed": [
+      50880,
+      50881,
+      50882,
+      50883,
+      50884,
+      50885
+    ],
+    "used": [
+      50880,
+      50881
+    ],
+    "allFreeBeforeAndAfter": true
+  },
+  "ownedProcesses": [
+    {
+      "pid": 41064,
+      "port": 50881,
+      "exit": 0,
+      "signals": [
+        "SIGTERM"
+      ],
+      "psExit": 1,
+      "psStdout": "",
+      "psStderr": ""
+    },
+    {
+      "pid": 16010,
+      "port": 50880,
+      "exit": 0,
+      "signals": [
+        "SIGTERM"
+      ],
+      "psExit": 1,
+      "psStdout": "",
+      "psStderr": ""
+    }
+  ],
+  "deadlines": {
+    "startupSeconds": 8,
+    "httpAndSseSeconds": 4,
+    "jobCompletionSeconds": 4,
+    "quietWindowSeconds": 0.12,
+    "eventTailSeconds": 0.04,
+    "wholeRunSeconds": 120,
+    "actualCompleteRunSeconds": 32.870066125,
+    "terminateSeconds": 3,
+    "killFallbackSeconds": 3
+  },
+  "historicalV4": {
+    "api74Unchanged": true,
+    "channel77Unchanged": true,
+    "beforeAfterHashes": {
+      "local": {
+        "candidate-api-witness": 238,
+        "candidate-channel-witness": 545
+      },
+      "m5": {
+        "candidate-api-witness": 720,
+        "candidate-channel-witness": 557
+      }
+    }
+  },
+  "preservedHarnessFailures": [
+    "attempts/setup-01/",
+    "attempts/preflight-01/",
+    "attempts/preflight-02/",
+    "attempts/transfer-01/",
+    "attempts/runtime-01/",
+    "attempts/audit-01/",
+    "attempts/closure-01/",
+    "attempts/mirror-01/",
+    "commands/pull-evidence-01.json"
+  ],
+  "limits": [
+    "Bounded argument admission and authored-string preservation for this exact compiler/fixture/owner graph only.",
+    "Direct, optional scalar, list, optional outer list, optional outer nested list; no optional list elements or optional inner lists.",
+    "No separate private raw-IR decode probe; format:null is not a public fixture success.",
+    "Individual channel admission certificates remain internal; emitted/installed channel descriptors and full-schema certificate binding verified.",
+    "No nonempty-table job-body, production bearer-auth, reconnect/replay, stress/concurrency, frontend, app, benchmark, package or publication qualification.",
+    "Snapshot table-state proof covers rows, index_entries, _commits, _jobs and _outbox.",
+    "No independent native source review or reproducible-build claim; supplied 26c9 source/archive/binary binding independently byte-verified."
+  ],
+  "noProductRepositoryBenchmarkEdits": true,
+  "noRustBuild": true,
+  "noPushPublication": true,
+  "noCredentialsCopied": true,
+  "artifactManifest": "evidence-manifest.json",
+  "manifestExcludesLiveCliStdoutStderr": true,
+  "privateDatabasesRemainM5": true
+}
