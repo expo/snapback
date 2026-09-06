@@ -12,7 +12,7 @@
 **Failure signature:** `sha256:28481316e7f1aa3d7115aa7085d7a556b05f179758534d2cc03c510379e742c7`
 **Causal landing:** `9159d5e3a60048924a19eb1fbe1f790a57b4f90c` (feat(engine,server): W5 runtime-cost recorder and server observations)
 **Detected at:** `057ce5898fcc7217dea8dddd7bd4b02deadb4eb7`
-**Last observed:** `b411d6e70e0d30308f92d43191ad78d265463e30`
+**Last observed:** `d2de9deafef84d96e86e024553c7b050c171e5f0`
 **Attribution:** `first-parent-signature-epoch`
 **Related:** LLP 0175 §D2.1
 
