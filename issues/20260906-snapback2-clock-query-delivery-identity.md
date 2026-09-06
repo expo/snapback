@@ -38,3 +38,45 @@ Keep this open until the coherent engine/client repair is independently
 reviewed and verified with the actual native case and disagreement controls.
 This does not attribute the original published0.0.8 `chats.list` error, whose
 failing envelope pair remains unavailable.
+
+## Public-SDK reproduction on the published package (independent verification, 2026-09-06)
+
+The refusal is reachable through ordinary public Quarry, not only through the
+probe's explicit IR. A two-line query certifies on the published
+`snapback2@0.0.10` owner:
+
+```
+query serverNow():
+  return { now: now }
+```
+
+With any offline store (`fileRangeStore` from `snapback2/test`; the client
+created with `createClient({ url, as, offline: { store } })`), the second read
+of that query refuses:
+
+```
+E_OFFLINE_DELIVERY: conflicting deliveries for clock.serverNow at seq 1
+site: client.query.commit
+```
+
+No `/control/clock` is required. Two reads 50 ms apart trigger it, because
+`now` differs on every execution while the durable sequence stays 1. Once
+refused, the query stays refused warm, after a cold reopen of the same
+partition, and on a byte-identical re-read; the rewrite hint ("retry an
+authenticated query") does not recover it.
+
+Impact for app builders: any offline-store app whose query reads the clock
+(expiry banners, countdowns, "valid until" checks) breaks on its second read
+of that query. Non-timed queries on the same client keep working.
+
+Identity: `snapback2@0.0.10` + `snapback2-darwin-arm64@0.0.10` from npm
+(published 2026-09-06T13:15Z), dev owner started with the same install's
+`snapback2 dev`. Platform: macOS, Node file carrier. Classification: product
+defect (engine/client delivery identity), same mechanism as above.
+
+Retained repro and evidence (outside the repository, per scratch policy):
+`~/verify-snapback2-liveoffline-20260906/harness/d2-clock-conflict.mjs` and
+`evidence-D/` (`d2-clock-conflict-0.0.10.log`, `control-ordinary-time.txt`).
+The script fails on 0.0.10 and is retained unchanged so a published repair can
+be confirmed with the same test. The unpublished candidate under
+`evidence/clock-v5-persistence/` has not been verified through this path.
