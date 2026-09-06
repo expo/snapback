@@ -16,7 +16,7 @@ import {
 } from "./assets.js";
 import { assetBlobTarget, cachedAssetBlob, cachedAssetBytes, viewedAssetIds, type AssetBlobTarget } from "./client-assets.js";
 import { offlineNetworkRefusal } from "./client-offline.js";
-import { SnapbackRefusal, isSnapbackRefusal, responseRefusal, wireAssetSession, wireObject, wireShape } from "./client-wire.js";
+import { SnapbackRefusal, isSnapbackRefusal, responseRefusal, wireAssetSession, wireObject, wireShape, withAbort } from "./client-wire.js";
 import type { AssetBytes, AssetFetchOptions, ByteCache } from "./store/byte-cache.js";
 import type {
   AssetRecord, Manifest, MutationResult, UploadListing,
@@ -93,7 +93,7 @@ async function discardAutomaticUploads(host: UploadHost, records: readonly Asset
   for (const record of records) {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), 2_000);
-    try { await discardUploadFor(host, record.id, authority, controller.signal); }
+    try { await withAbort(controller.signal, () => discardUploadFor(host, record.id, authority, controller.signal)); }
     catch { /* Explicit recovery and the grace sweep remain available. */ }
     finally { clearTimeout(timer); }
   }

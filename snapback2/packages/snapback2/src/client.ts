@@ -135,6 +135,7 @@ class Client implements SnapbackClient {
   private resumeTail: Promise<void> = Promise.resolve();
   private resumeFlight?: Promise<void>;
   private resumeController?: AbortController;
+  private readonly drainControllers = new Set<AbortController>();
   private resetRefusal?: RefusalEnvelope;
   // Pending reads, never buffered authority-bearing responses. Custody is per principal.
   private readonly supersessionQueries = new Map<string, { principal: string; op: string; args: unknown }>();
@@ -285,9 +286,9 @@ class Client implements SnapbackClient {
           () => this.manifestFor(authority), async (mutationArgs, onCustody) => {
             const result = await submitMutation<Result>({
               runtime: this.offlineRuntime, offline: this.forcedOffline, op: referenceName(ref), args: mutationArgs,
-              json: (path, init, onSend) => this.json(path, init, authority, true, true, false, onSend),
+              json: (path, init, onSend) => this.json(path, init, authority, true, "after-cleanup", false, onSend),
               failure: (error) => this.offlineRefusal(error),
-              drain: () => this.drainNow(), onCustody,
+              drain: () => this.drainNow(authority), onCustody,
             });
             // Settle authority before best-effort cleanup, whose 401 may expire
             // the session without invalidating this already received outcome.
@@ -300,16 +301,10 @@ class Client implements SnapbackClient {
             }
             return result;
           });
-        if (result.state === "rejected" && isTerminalSession(result)) {
-          // Discard first while its bearer is still current. Cleanup may already
-          // have expired it; that no-op must preserve the settled rejection.
-          const wasCurrent = this.authorityCurrent(authority);
-          const expiration = await this.expireSession(authority);
-          if (expiration.cleared && (!wasCurrent || !this.expirationCurrent(expiration))) throw this.supersededRefusal();
-          this.recordRefusal(result);
-        }
+        if (result.state === "rejected" && isTerminalSession(result)) await this.terminalAfterCleanup(authority, result);
         return result;
       } catch (error) {
+        if (isSnapbackRefusal(error) && isTerminalSession(error.envelope)) await this.terminalAfterCleanup(authority, error.envelope);
         if (isSnapbackRefusal(error) && error.code === "E_WIRE_SHAPE") {
           const ambiguous = new SnapbackRefusal(copyRefusal(error.envelope), true);
           this.patchSnapshot({
@@ -328,7 +323,10 @@ class Client implements SnapbackClient {
   upload(source: AssetUploadSource, options?: AssetUploadOptions): Promise<AssetRecord>;
   async upload(source: AssetUploadSource, options: AssetUploadOptions = {}): Promise<AssetRecord> {
     const authority = await this.operationAuthority();
-    return this.trackWrite(() => uploadAsset(this, source, options, authority));
+    return this.trackWrite(() => uploadAsset(this, source, options, authority).catch(async error => {
+      if (isSnapbackRefusal(error) && isTerminalSession(error.envelope)) await this.terminalAfterCleanup(authority, error.envelope);
+      throw error;
+    }));
   }
 
   async listUploads(options: { after?: string } = {}) {
@@ -586,7 +584,7 @@ class Client implements SnapbackClient {
     this.authState.offline();
     this.live.close();
     this.startupController.abort();
-    this.abortResume();
+    this.abortSync();
     return goOffline({
       ready: this.localReady,
       ensureOpen: () => this.ensureOpen(),
@@ -618,7 +616,7 @@ class Client implements SnapbackClient {
         this.closed = true;
         this.lifetimeController.abort();
         this.authState.stop();
-        this.abortResume();
+        this.abortSync();
         this.operationFence += 1;
         this.closeTransports();
         this.patchSnapshot({ connection: "offline" });
@@ -654,7 +652,7 @@ class Client implements SnapbackClient {
     this.lifetimeController.abort();
     this.startupController.abort();
     this.authState.stop();
-    this.abortResume();
+    this.abortSync();
     this.operationFence += 1;
     this.closeTransports();
     this.patchSnapshot({ connection: "offline" });
@@ -830,7 +828,7 @@ class Client implements SnapbackClient {
     init: RequestInit,
     authority: Authority,
     enforceAuthority = true,
-    clearTerminalSession = true,
+    clearTerminalSession: boolean | "after-cleanup" = true,
     authRestoration = false,
     onSend?: () => void,
   ): Promise<unknown> {
@@ -876,14 +874,15 @@ class Client implements SnapbackClient {
         if (!authRestoration) throwIfAborted(init.signal);
         const wasCurrent = !enforceAuthority || this.authorityCurrent(authority);
         let expiration: SessionExpiration | undefined;
-        if (clearTerminalSession && authority.token !== undefined && isTerminalSession(refusal.envelope)) {
+        if (clearTerminalSession && authority.token !== undefined && isTerminalSession(refusal.envelope)
+          && (clearTerminalSession === true || !wasCurrent)) {
           expiration = await this.expireSession(authority, undefined, authRestoration && this.authorityCurrent(authority));
         }
         if (enforceAuthority && (!wasCurrent
           || (expiration !== undefined && !this.expirationCurrent(expiration)))) {
           throw this.supersededRefusal();
         }
-        if (enforceAuthority && !(clearTerminalSession && isTerminalSession(refusal.envelope))) {
+        if (enforceAuthority && !(clearTerminalSession === true && isTerminalSession(refusal.envelope))) {
           this.ensureAuthority(authority);
         }
         else this.ensureOpen();
@@ -1071,7 +1070,7 @@ class Client implements SnapbackClient {
 
   private async wipeOffline(): Promise<void> {
     if (!this.offlineRuntime) return;
-    this.abortResume();
+    this.abortSync();
     this.supersessionQueries.clear();
     try { await this.offlineRuntime.wipe(); this.currentPrincipal = undefined; }
     catch (error) { throw this.offlineRefusal(error, "RangeStore.wipe"); }
@@ -1119,8 +1118,9 @@ class Client implements SnapbackClient {
     return run;
   }
 
-  private abortResume(): void {
+  private abortSync(): void {
     this.resumeController?.abort();
+    for (const controller of this.drainControllers) controller.abort();
     this.resumeController = undefined;
     this.resumeFlight = undefined;
   }
@@ -1197,7 +1197,7 @@ class Client implements SnapbackClient {
     });
   }
 
-  private async drainNow(): Promise<DrainResult> {
+  private async drainNow(captured?: Authority): Promise<DrainResult> {
     await this.localReady;
     if (this.forcedOffline) {
       const remaining = (await this.offlineRuntime?.queuedIntents())?.length ?? 0;
@@ -1205,10 +1205,25 @@ class Client implements SnapbackClient {
       if (this.offlineRuntime) this.offlineRuntime.drainOutcome = Promise.resolve({ stopped: reason, remaining });
       return { stopped: true, reason, remaining };
     }
-    const authority = await this.operationAuthority();
+    const authority = captured ?? await this.operationAuthority();
+    this.ensureAuthority(authority);
     if (!this.offlineRuntime) return { stopped: false, remaining: 0 };
-    return drainOutbox({ runtime: this.offlineRuntime, json: (path, init) => this.json(path, init, authority),
-      shape: wireShape, failure: (error) => this.offlineRefusal(error, "client.outbox.drain") });
+    // @ref LLP 1012#7-writes-offline — cancel the drain before auth waits for tracked writes.
+    const controller = new AbortController(), signal = controller.signal;
+    this.drainControllers.add(controller);
+    try {
+      return await drainOutbox({ runtime: this.offlineRuntime, signal,
+        json: (path, init) => withAbort(signal, () => this.json(path, { ...init, signal }, authority)),
+        shape: wireShape, failure: (error) => this.offlineRefusal(error, "client.outbox.drain") });
+    } finally { this.drainControllers.delete(controller); }
+  }
+
+  private async terminalAfterCleanup(authority: Authority, refusal: RefusalEnvelope): Promise<void> {
+    // Discard first; cleanup expiry preserves the already settled outcome.
+    const wasCurrent = this.authorityCurrent(authority);
+    const expiration = await this.expireSession(authority);
+    if (expiration.cleared && (!wasCurrent || !this.expirationCurrent(expiration))) throw this.supersededRefusal();
+    this.recordRefusal(refusal);
   }
 
   private offlineRefusal(error: unknown, site = "client.offline"): SnapbackRefusal {
@@ -1264,7 +1279,7 @@ class Client implements SnapbackClient {
     if (!this.startupComplete) this.startupController.abort();
     this.authState.suspend();
     this.supersessionQueries.clear();
-    this.abortResume();
+    this.abortSync();
     this.resetRefusal = undefined;
     this.closeTransports(except);
     const run = this.transitionTail.then(async () => {

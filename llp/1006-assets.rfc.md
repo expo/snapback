@@ -970,7 +970,7 @@ atomicity objection is answered by the failure shape: before mutation submission
 sibling uploads and failed pre-persistence admission/prediction are discarded, as
 are this call's uploads after definitive rejection. Wire custody starts at fetch,
 after serialization and local checks; attempted persistence, queued intents and
-ambiguous responses retain bytes. Current-authority terminal expiry follows discard.
+ambiguous responses retain bytes. Current-authority terminal expiry follows discard for HTTP 401 and rejected receipts; each complete discard races its 2s signal even when fetch or body parsing ignores abort.
 Superseded receipts still invalidate captured custody; cleanup expiry preserves the settled outcome. `client.listUploads()` and `client.discardUpload(id)` recover abandoned ids.
 
 Rendering is one component per kind (§2a). `<AssetImage asset={photo} />`

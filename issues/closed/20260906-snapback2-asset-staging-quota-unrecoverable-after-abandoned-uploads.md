@@ -69,3 +69,10 @@ to shared custody, retaining quota until disposal or the grace sweep can retry
 after permissions are repaired. A failed staging unlink stays pending without
 stopping the writer or blocking sibling reclamation; explicit disposal continues
 to report its I/O refusal.
+
+Integration review corrections: the discard deadline now races the complete
+operation, so a fetch or body that ignores abort cannot pin a tracked mutation
+or its auth transition. The owner-shaped mutation HTTP 401 defers current-token
+expiry until cleanup, while superseded terminal evidence still clears only
+captured custody. First-upload HTTP 401 also expires custody, including explicit
+uploads; late cancelled cleanup never changes the successor snapshot or token.

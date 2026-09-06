@@ -93,6 +93,11 @@ third round are collected here so they are not lost.
   old response/body remains withheld; retries preserve FIFO and exactly-once execution.
   Late `me()` terminal evidence remains bearer-keyed, including a delayed body across
   successful or failed replacement.
+  Integration follow-up (2026-09-06, Grok): mutation-owned drains now carry the
+  same cancellation fence as resume drains. Offline, close and account transitions
+  release noncooperative replay fetches/bodies and log tails without losing the
+  queued intent. A mutation passes its captured authority into its own drain;
+  waiting for an auth transition there would deadlock the transition's write barrier.
 - **Resolved 2026-09-05 (auth startup follow-up):** `ClientAuth.session` publishes `authenticated` before metadata and then throws on a
   non-retryable metadata failure (offline runtime only): resolve after install and leave metadata
   to `ready`, or fail the promise only when custody did not settle.

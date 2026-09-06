@@ -829,7 +829,7 @@ for (const stage of ["fetch", "body"] as const) {
   }
 }
 
-for (const stage of ["mutation", "first-upload"] as const) {
+for (const stage of ["mutation", "first-upload", "direct-upload"] as const) {
   test(`owner-shaped ${stage} HTTP 401 clears custody after this call's cleanup`, async () => {
     const expired = { code: "E_AUTH_SESSION", family: "auth", message: "expired", guide: "auth" };
     let token: string | null = "session";
@@ -840,7 +840,7 @@ for (const stage of ["mutation", "first-upload"] as const) {
       const path = new URL(String(input)).pathname;
       if (path === "/api/auth/me") return json({ viewer: "alice", kind: "user" });
       if (path === "/api/manifest") return json(manifest());
-      if (path === "/api/upload") return stage === "first-upload" ? json(expired, 401) : json(image);
+      if (path === "/api/upload") return stage !== "mutation" ? json(expired, 401) : json(image);
       if (path === "/api/mutation") return json(expired, 401);
       if (path === "/api/uploads/discard") {
         events.push(`discard:${new Headers(init?.headers).get("Authorization")}`);
@@ -850,7 +850,8 @@ for (const stage of ["mutation", "first-upload"] as const) {
     } });
     try {
       await client.ready; await client.auth.me();
-      await assert.rejects(client.mutation(api.assets.send, { photo: new File(["a"], "photo.png") } as any),
+      const source = new File(["a"], "photo.png");
+      await assert.rejects(stage === "direct-upload" ? client.upload(source) : client.mutation(api.assets.send, { photo: source } as any),
         (error: any) => error.code === "E_AUTH_SESSION");
       assert.deepEqual(events, stage === "mutation" ? ["discard:Bearer session", "save:null"] : ["save:null"]);
       assert.equal(token, null); assert.equal(client.snapshot.auth.state, "anonymous");
