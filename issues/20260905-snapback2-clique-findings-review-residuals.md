@@ -70,6 +70,12 @@ third round are collected here so they are not lost.
   login both before hydration and during a pending `me`, with a durable intent replayed
   exactly once without `online()` or mounted queries. Ordinary re-login keeps its explicit
   resume contract for a past-fence queue.
+  Review follow-up (2026-09-06, Astra + Grok): interruption during initial metadata/resume
+  releases `ready` even when fetch ignores abort. Recovery captures authority only after
+  the latest queued transition settles, retries metadata through that flight, and restarts
+  after a failed transition preserves authenticated custody. Regressions cover queued Alice/Bob
+  logins, failure during deferred resume, both outcomes during initial metadata/resume, and
+  one failed manifest fetch.
 - **Resolved 2026-09-05 (auth startup follow-up):** `ClientAuth.session` publishes `authenticated` before metadata and then throws on a
   non-retryable metadata failure (offline runtime only): resolve after install and leave metadata
   to `ready`, or fail the promise only when custody did not settle.
@@ -86,9 +92,11 @@ third round are collected here so they are not lost.
   held coverage instead of waiting for successor authority (device-held data, labelled
   held/`hydrating`; React identity re-keys on the generation bump). Gate the early path on a
   settled transition tail, or document why predecessor coverage is acceptable there.
-  Both early paths now wait for a stable transition tail and check authority after reading.
+  Both query paths and the live subscription shortcut now wait for a stable transition tail
+  and check authority after reading.
   Regressions hold login open, prove the read remains pending, then prove a failed login
-  reads retained coverage and an account replacement dispatches only the successor bearer.
+  reads nonempty retained coverage and an account replacement dispatches only the successor
+  bearer. Live regressions prove predecessor messages are not delivered during login.
 - A failed transition during backoff restarts the backoff at 1 s (`suspend` → `stop` → `cancel`
   resets it); spec-conformant but unpinned — add a test either way.
 - `auth.md` has 6 bytes of headroom (4,090 of 4,096).

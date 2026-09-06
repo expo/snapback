@@ -5,7 +5,7 @@
 **Systems:** `snapback2/crates/snapback2` (the binary: owner, server, verbs), `snapback2/packages/compiler` (project lowering, worker), `snapback2/packages/snapback2` (authoring runtime, client, React, test runner, shim), `snapback2/scripts/measure.mjs`
 **Author:** Claude Fable 5 (orchestrator) — implementers: codex gpt-5.6-sol, lanes B0 (compiler + authoring surface), B1 (owner + server + verbs), B2 (`init`, `test`, `why`, `trace`, `guide`), D (client + React + evaluator)
 **Date:** 2026-08-29
-**Revised:** 2026-09-06 (CLI help and executable migration recovery; auth startup recovery and held transition reads); 2026-09-05 (keyword index fallback and recipe list; generated Quarry keyword guide, landed outbox/client custody; auth review: failed-transition custody, read restoration barrier, session kind, paused offline retries; client-owned auth restoration and retry lifecycle; catalog naming rewrites, Clique L2; shared live transport, bounded derived verification, mutation-read guidance, installed consumer qualification)
+**Revised:** 2026-09-06 (CLI help and executable migration recovery; auth startup recovery and held transition reads; queued transitions, interrupted sync, live held reads); 2026-09-05 (keyword index fallback and recipe list; generated Quarry keyword guide, landed outbox/client custody; auth review: failed-transition custody, read restoration barrier, session kind, paused offline retries; client-owned auth restoration and retry lifecycle; catalog naming rewrites, Clique L2; shared live transport, bounded derived verification, mutation-read guidance, installed consumer qualification)
 **Related:** LLP 1000, LLP 1001 (the engine this serves), LLP 1003 (effects),
 LLP 0329.016 §5 (the design this implements verbatim where it can), LLP
 0329.016 §5.11 (the verb table — no verb exists without its row), LLP
@@ -814,15 +814,19 @@ interrupted restoration. Metadata/resume failures reject `ready` without
 replacing already-confirmed auth. A session prepares offline metadata before returning,
 but a metadata refusal stays on `lastRefusal` and does not reject an installed,
 still-current bearer; expiry or close still rejects. Startup work skipped or interrupted
-by a session attempt remains pending: the next confirmed session or restoration resumes
-metadata and the outbox through the existing resume flight. Deferred failures stay on
+by a session attempt remains pending. Interruption releases `ready` during confirmation,
+metadata, or resume even when the old transport ignores abort; stale responses remain fenced.
+After the latest queued transition settles, confirmed current custody resumes metadata and
+the outbox through the existing flight, including when a failed attempt preserved that custody.
+One failed session metadata fetch does not skip that recovery flight. Deferred failures stay on
 `lastRefusal`; `online()` retries them. A successful resume clears that pending work,
 so ordinary re-login does not implicitly release a past-fence queue.
 Hooks wait for `ready` before deciding whether
 a tokenless client needs its lazy first `me()`.
 
 While a bearer is hydrating, mounted reads wait for confirmation or answer
-from existing offline coverage after pending account transitions settle; the token-bound display field supplies no
+from existing offline coverage after pending account transitions settle, on both one-shot
+and live reads; each held read checks authority after the carrier returns. The token-bound display field supplies no
 network authority. Explicit `me()` replaces its backoff timer. `offline()`
 pauses retry clocks without splitting a pending `me()` flight; an offline
 restart remains paused until `online()`. An online restart starts the new

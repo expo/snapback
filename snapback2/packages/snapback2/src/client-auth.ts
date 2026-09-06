@@ -146,25 +146,28 @@ export class ClientAuth {
     resume(): Promise<void>;
     cut(): boolean;
   }): Promise<void> {
-    if (this.custody().token) {
-      let cut!: () => void;
-      const offline = new Promise<void>(resolve => {
-        cut = resolve;
-        options.signal.addEventListener("abort", cut, { once: true });
-        if (options.signal.aborted) cut();
-      });
-      // Release ready on an explicit offline cut without splitting the me flight.
-      try { await Promise.race([options.confirm(), offline]); }
-      catch { return; } // confirm owns restoration failures and their retries.
-      finally { options.signal.removeEventListener("abort", cut); }
-      if (options.signal.aborted) return;
-    }
-    if (!options.hasPrincipal()) return;
-    try { await options.metadata(); await options.resume(); }
-    catch (error) {
-      if (!options.cut() && !(isSnapbackRefusal(error)
-        && (error.retryable || error.code === "E_OFFLINE_RESUME" || error.code === "E_OFFLINE_RESET"))) throw error;
-    }
+    let cut!: () => void;
+    const interrupted = new Promise<void>(resolve => {
+      cut = resolve;
+      options.signal.addEventListener("abort", cut, { once: true });
+      if (options.signal.aborted) cut();
+    });
+    const initialize = async () => {
+      if (this.custody().token) {
+        try { await options.confirm(); }
+        catch { return; } // confirm owns restoration failures and their retries.
+      }
+      if (options.signal.aborted || !options.hasPrincipal()) return;
+      try { await options.metadata(); await options.resume(); }
+      catch (error) {
+        if (!options.cut() && !(isSnapbackRefusal(error)
+          && (error.retryable || error.code === "E_OFFLINE_RESUME" || error.code === "E_OFFLINE_RESET"))) throw error;
+      }
+    };
+    // A cut releases ready at every startup stage, including a transport that
+    // ignores abort. The interrupted work still carries its signal and authority.
+    try { await Promise.race([initialize(), interrupted]); }
+    finally { options.signal.removeEventListener("abort", cut); }
   }
 
   private clearTimer(): void {

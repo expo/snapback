@@ -212,15 +212,9 @@ class Client implements SnapbackClient {
   async query<Args, Result>(ref: Op<Args, Result>, args: Args): Promise<QueryResult<Result>> {
     await this.localReady;
     // Cold held reads may bypass restoration, never an explicit account transition.
-    while (true) {
-      const transition = this.transitionTail;
-      await transition;
-      if (transition === this.transitionTail) break;
-    }
-    this.ensureOpen();
+    const localAuthority = await this.transitionAuthority();
+    this.ensureAuthority(localAuthority);
     const op = referenceName(ref);
-    const localAuthority = { authGeneration: this.authGeneration, custodyGeneration: this.custodyGeneration,
-      fence: this.operationFence, token: this.currentToken };
     if (this.currentToken && this.authState.value.state === "hydrating" && this.offlineRuntime
       && (this.startupComplete || this.offlineRuntime.principal)) {
       const held = await answerOffline<Result>(this.offlineRuntime, op, args, error => this.offlineRefusal(error));
@@ -465,8 +459,11 @@ class Client implements SnapbackClient {
     const tracked = this.track(subscription);
     let closed = false;
     void this.localReady.then(async () => {
+      const heldAuthority = await this.transitionAuthority();
       if (!closed && this.offlineRuntime && this.currentToken && this.authState.value.state === "hydrating") {
+        this.ensureAuthority(heldAuthority);
         const held = await answerOffline<Result>(this.offlineRuntime, op, args, error => this.offlineRefusal(error));
+        this.ensureAuthority(heldAuthority);
         if (!closed && this.authState.value.state === "hydrating") callback(held as SubscriptionDelivery<Result>);
       }
     }).catch(() => undefined);
@@ -694,7 +691,7 @@ class Client implements SnapbackClient {
       validated: () => this.validated(undefined),
     }));
     this.ensureOpen();
-    if (this.offlineMetadataLoaded) this.resumeAfterAuth();
+    this.resumeAfterAuth();
     return session;
   }
 
@@ -719,12 +716,14 @@ class Client implements SnapbackClient {
   // @ref LLP 1012#7-writes-offline — confirmation after an interrupted startup
   // must recover program custody and resume the outbox without a mounted query.
   private resumeAfterAuth(): void {
-    if (!this.offlineStartupPending || this.closed || this.authState.value.state !== "authenticated" || !this.offlineRuntime?.principal) return;
-    const authority = { authGeneration: this.authGeneration, custodyGeneration: this.custodyGeneration,
-      fence: this.operationFence, token: this.currentToken };
-    // Auth has settled. The shared resume owns offline failures on lastRefusal;
-    // they cannot turn an installed session into a rejected login promise.
-    this.resumeTail = this.performResume(authority).catch(() => undefined);
+    if (!this.offlineStartupPending) return;
+    // Capture only after every queued transition, including failures, settles.
+    // The shared resume owns failures; they cannot reject an installed session.
+    void this.operationAuthority(false).then(authority => {
+      if (!this.offlineStartupPending || this.authState.value.state !== "authenticated"
+        || !this.offlineRuntime?.principal || this.offlineRuntime.principal !== this.currentPrincipal) return;
+      this.resumeTail = this.performResume(authority).catch(() => undefined);
+    }).catch(() => undefined);
   }
 
   private confirmAuth(authority: Authority): Promise<AuthMe> {
@@ -1040,7 +1039,7 @@ class Client implements SnapbackClient {
       hasPrincipal: () => !!this.offlineRuntime?.principal,
       metadata: () => this.ensureOfflineMetadata(authority, false, true, this.startupController.signal),
       resume: () => this.performResume(authority),
-      cut: () => this.forcedOffline && this.startupController.signal.aborted,
+      cut: () => this.startupController.signal.aborted,
     });
     if (!this.currentToken && !this.offlineRuntime.principal) this.offlineStartupPending = false;
   }
@@ -1226,14 +1225,12 @@ class Client implements SnapbackClient {
     if (!this.forcedOffline) this.patchSnapshot({ connection: "connected", lastRefusal: this.resetRefusal });
   }
 
-  private async operationAuthority(waitForResume = true): Promise<Authority> {
-    await this.ready;
+  private async transitionAuthority(): Promise<Authority> {
     while (true) {
       const transition = this.transitionTail;
       await transition;
       if (transition === this.transitionTail) break;
     }
-    if (waitForResume) await this.resumeTail;
     this.ensureOpen();
     return {
       authGeneration: this.authGeneration,
@@ -1243,12 +1240,22 @@ class Client implements SnapbackClient {
     };
   }
 
+  private async operationAuthority(waitForResume = true): Promise<Authority> {
+    await this.ready;
+    while (true) {
+      const authority = await this.transitionAuthority();
+      if (waitForResume) await this.resumeTail;
+      if (this.authorityCurrent(authority)) return authority;
+    }
+  }
+
   private transition<T>(
     action: (authority: Authority) => Promise<T>,
     waitForWrites = true,
     except?: Subscription<unknown>,
   ): Promise<T> {
     this.operationFence += 1;
+    if (!this.startupComplete) this.startupController.abort();
     this.authState.suspend();
     this.supersessionQueries.clear();
     this.abortResume();
@@ -1281,6 +1288,7 @@ class Client implements SnapbackClient {
       }
     });
     this.transitionTail = run.then(() => undefined, () => undefined);
+    void run.catch(() => this.resumeAfterAuth());
     return run;
   }
 
