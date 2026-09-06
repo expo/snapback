@@ -43,6 +43,21 @@ pub(crate) const VERSION: &str = env!("CARGO_PKG_VERSION");
 
 fn main() -> ExitCode {
     let args: Vec<String> = std::env::args().skip(1).collect();
+    // @ref LLP 1002#6-verbs-this-wave — help never locates, compiles, or starts a project.
+    if args.is_empty() || matches!(args.first().map(String::as_str), Some("--help" | "-h")) {
+        println!("{}", verbs::TOP_HELP);
+        return ExitCode::SUCCESS;
+    }
+    if args
+        .iter()
+        .skip(1)
+        .any(|arg| matches!(arg.as_str(), "--help" | "-h"))
+    {
+        if let Some(help) = verbs::command_help(&args[0]) {
+            println!("{help}");
+            return ExitCode::SUCCESS;
+        }
+    }
     match args.first().map(String::as_str) {
         Some("version") | Some("-V") => {
             let options = match verbs::parse_options(&args, &[], &["--json"]) {
@@ -83,9 +98,7 @@ fn main() -> ExitCode {
         Some("trace") => trace::run(&args),
         Some("guide") => guide::run(&args),
         _ => {
-            eprintln!(
-                "usage: snapback2 <version | doctor | check | dev | run | test | why | trace | data | logs | persona | reset | guide | init> [options]"
-            );
+            eprintln!("unknown command {}\n\n{}", args[0], verbs::TOP_HELP);
             ExitCode::from(2)
         }
     }

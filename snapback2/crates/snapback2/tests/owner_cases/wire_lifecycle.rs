@@ -3,7 +3,9 @@ use super::*;
 #[cfg(not(feature = "hermes"))]
 #[test]
 fn chat_owner_wire_sse_channels_and_successors() {
-    let root = temp_root();
+    let original_root = temp_root();
+    let root = original_root.with_extension("quoted 'project'");
+    fs::rename(original_root, &root).unwrap();
     copy_tree(&fixture().join("snapback"), &root.join("snapback"));
     let messages = root.join("snapback/messages.q");
     let source = fs::read_to_string(&messages).unwrap()
@@ -500,31 +502,50 @@ query before(boundary: time):
     fs::write(&schema_path, schema).unwrap();
     let refused = wait_for(Duration::from_secs(6), || {
         let value = status(port, &secret);
-        (value["status"]["state"] == "refused").then_some(value)
+        (value["status"]["state"] == "refused"
+            && value["status"]["refused"][0]["applyCommand"].is_string())
+        .then_some(value)
     });
     assert_eq!(
         refused["status"]["refused"][0]["code"], "E_SUCCESSOR_DESTRUCTIVE",
         "{refused}"
     );
-    // The writer's phase flips to refused inside the failed apply; the watcher thread
-    // writes the migration file when that reply reaches it, so the file follows the
-    // status by a scheduling gap. Wait for the file it must write, not for the instant.
-    let migration = wait_for(Duration::from_secs(6), || {
-        fs::read_dir(root.join(".snapback"))
+    let refusal = &refused["status"]["refused"][0];
+    let migration = std::path::PathBuf::from(refusal["migrationFile"].as_str().unwrap());
+    let plan: Value = serde_json::from_slice(&fs::read(&migration).unwrap()).unwrap();
+    assert_eq!(refusal["guide"], "E_SUCCESSOR_DESTRUCTIVE");
+    assert!(
+        refusal["rewrite"]
+            .as_str()
             .unwrap()
-            .flatten()
-            .map(|entry| entry.path())
-            .find(|path| {
-                path.file_name()
-                    .is_some_and(|name| name.to_string_lossy().starts_with("migration-"))
-            })
-    });
-    let migrated = Command::new(binary)
-        .args(["dev", "--project"])
+            .contains("previous generation")
+    );
+    let checked = Command::new(binary)
+        .args(["check", "--project"])
         .arg(&root)
-        .arg("--apply-migration")
-        .arg(&migration)
+        .env("SNAPBACK2_COMPILER", &compiler)
         .arg("--json")
+        .output()
+        .unwrap();
+    assert!(
+        checked.status.success(),
+        "{}",
+        String::from_utf8_lossy(&checked.stdout)
+    );
+    let checked: Value = serde_json::from_slice(&checked.stdout).unwrap();
+    assert_eq!(checked["generation"], plan["generation"]);
+    assert_ne!(checked["generation"], old_generation);
+    assert_eq!(status(port, &secret)["generation"], old_generation);
+    let apply_command = refusal["applyCommand"].as_str().unwrap();
+    let mut search_path = vec![std::path::Path::new(binary).parent().unwrap().to_path_buf()];
+    search_path.extend(std::env::split_paths(
+        &std::env::var_os("PATH").unwrap_or_default(),
+    ));
+    // Run the exact emitted command from outside the project, including its shell quoting.
+    let migrated = Command::new("sh")
+        .args(["-c", apply_command])
+        .current_dir(std::env::temp_dir())
+        .env("PATH", std::env::join_paths(search_path).unwrap())
         .output()
         .unwrap();
     assert!(
@@ -534,6 +555,7 @@ query before(boundary: time):
         String::from_utf8_lossy(&migrated.stderr)
     );
     assert_eq!(status(port, &secret)["status"], "ready");
+    assert_eq!(status(port, &secret)["generation"], plan["generation"]);
 
     let stop = Command::new(binary)
         .args(["dev", "--project"])

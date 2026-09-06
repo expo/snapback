@@ -4,6 +4,80 @@ use common::{Project, json_stdout};
 use std::fs;
 
 #[test]
+fn help_is_successful_without_a_project_or_compiler_and_has_no_side_effects() {
+    let project = Project::new();
+    let before = common::snapshot(&project.path);
+    for command in [
+        "", "init", "dev", "check", "run", "test", "why", "trace", "data", "logs", "persona",
+        "reset", "guide", "doctor", "version",
+    ] {
+        for flag in ["--help", "-h"] {
+            let mut child = std::process::Command::new(env!("CARGO_BIN_EXE_snapback2"));
+            if !command.is_empty() {
+                child.arg(command);
+            }
+            let output = child
+                .arg(flag)
+                .current_dir(&project.path)
+                .env("SNAPBACK2_COMPILER", project.path.join("missing-compiler"))
+                .output()
+                .unwrap();
+            assert!(
+                output.status.success(),
+                "{command} {flag}: {}",
+                String::from_utf8_lossy(&output.stderr)
+            );
+            assert!(output.stderr.is_empty(), "{command} {flag}");
+            assert!(String::from_utf8_lossy(&output.stdout).starts_with("usage: snapback2"));
+        }
+    }
+    assert_eq!(common::snapshot(&project.path), before);
+    let unknown = std::process::Command::new(env!("CARGO_BIN_EXE_snapback2"))
+        .args(["does-not-exist", "--help"])
+        .current_dir(&project.path)
+        .output()
+        .unwrap();
+    assert_eq!(unknown.status.code(), Some(2));
+}
+
+#[test]
+fn command_guides_explain_initialization_and_successor_recovery() {
+    let project = Project::new();
+    for (command, needle) in [
+        (
+            "init",
+            "snapback2 init my-app --template chat --client react",
+        ),
+        ("dev", "--apply-migration file"),
+        ("check", "does not install"),
+    ] {
+        let output = project.run(&["guide", command, "--json"]);
+        assert!(
+            output.status.success(),
+            "{}",
+            String::from_utf8_lossy(&output.stdout)
+        );
+        let page = json_stdout(&output);
+        assert_eq!(page["page"], command);
+        assert!(page["content"].as_str().unwrap().contains(needle), "{page}");
+    }
+    let output = project.run(&["guide", "E_SUCCESSOR_DESTRUCTIVE", "--json"]);
+    assert!(output.status.success());
+    let page = json_stdout(&output);
+    let content = page["content"].as_str().unwrap();
+    for needle in [
+        "snapback2 dev --apply-migration .snapback/migration-GENERATION.json",
+        "does not install",
+        "snapback2 dev --status --json",
+        "working directory",
+    ] {
+        assert!(content.contains(needle), "{content}");
+    }
+    assert!(content.contains("```sh"));
+    assert!(!content.contains("```ts"));
+}
+
+#[test]
 fn package_consumers_and_isolated_compiler_use_complete_private_snapshots() {
     let project = Project::new();
     let snapshot_root = project.package_snapshot_root();

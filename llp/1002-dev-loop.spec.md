@@ -5,7 +5,7 @@
 **Systems:** `snapback2/crates/snapback2` (the binary: owner, server, verbs), `snapback2/packages/compiler` (project lowering, worker), `snapback2/packages/snapback2` (authoring runtime, client, React, test runner, shim), `snapback2/scripts/measure.mjs`
 **Author:** Claude Fable 5 (orchestrator) — implementers: codex gpt-5.6-sol, lanes B0 (compiler + authoring surface), B1 (owner + server + verbs), B2 (`init`, `test`, `why`, `trace`, `guide`), D (client + React + evaluator)
 **Date:** 2026-08-29
-**Revised:** 2026-09-05 (keyword index fallback and recipe list; generated Quarry keyword guide, landed outbox/client custody; auth review: failed-transition custody, read restoration barrier, session kind, paused offline retries; client-owned auth restoration and retry lifecycle; catalog naming rewrites, Clique L2; shared live transport, bounded derived verification, mutation-read guidance, installed consumer qualification)
+**Revised:** 2026-09-06 (CLI help and executable migration recovery); 2026-09-05 (keyword index fallback and recipe list; generated Quarry keyword guide, landed outbox/client custody; auth review: failed-transition custody, read restoration barrier, session kind, paused offline retries; client-owned auth restoration and retry lifecycle; catalog naming rewrites, Clique L2; shared live transport, bounded derived verification, mutation-read guidance, installed consumer qualification)
 **Related:** LLP 1000, LLP 1001 (the engine this serves), LLP 1003 (effects),
 LLP 0329.016 §5 (the design this implements verbatim where it can), LLP
 0329.016 §5.11 (the verb table — no verb exists without its row), LLP
@@ -484,7 +484,16 @@ owner changes its offset, sweeps sessions, or reruns live state.
   compile → certify → `apply_successor`; on refusal, log it, keep serving the
   last generation, and answer `/control/status` with `applying`/`refused`
   (+ the plan, written to `.snapback/migration-<gen>.json`). Subscriptions
-  re-execute and deliver on an applied successor.
+  re-execute and deliver on an applied successor. Once the watcher has saved a
+  destructive plan, its refusal carries `migrationFile` and `applyCommand`:
+  `snapback2 dev --project '<absolute root>' --apply-migration '<absolute plan>'`,
+  with shell-quoted paths. Review the plan before running that command while the
+  owner remains running; `dev --status` then shows `ready` and the plan's generation.
+  A failed plan write reports that failure instead of offering an application command.
+  Relative `--apply-migration` paths resolve from the command's working directory,
+  even with `--project`. `check` compiles, certifies, and refreshes the build cache;
+  it does not install the checked generation. A refused successor keeps the old
+  generation active until explicitly applied or replaced by an admitted successor.
 - **Exit.** Only `dev --stop`, a signal, or a fatal error; every exit writes
   `{ exited: cause }` to the log and removes `owner.json`. No exit 0 with an
   empty stdout.
@@ -521,7 +530,12 @@ owner changes its offset, sweeps sessions, or reruns live state.
 
 Every verb: `--json`, `--as <persona>` where a principal matters, capped
 output with a `…and N more (--limit)` hint, no prompt without a TTY, exit 0
-ok / 1 refused (typed) / 2 usage or environment.
+ok / 1 refused (typed) / 2 usage or environment. No arguments, `--help`, and
+`-h` show command summaries and exit 0. Every existing command accepts `--help`
+or `-h` before project lookup, compilation, or owner actions; unknown command
+names still exit 2. `init` help includes the defaults, supported template/client
+combinations, and an executable initialization sequence; `dev` and `check` help
+distinguish source validation from owner installation.
 
 | verb | syntax | does |
 |---|---|---|
@@ -711,7 +725,9 @@ verdict: "pass" | "fail" | "blocked", ms, detail }], arms: ["headless"], verdict
   unreadable or invalid indexes return `E_OWNER_GUIDE` only when keyword help is
   needed. Unknown-name guidance includes index keys when readable. `--json` keeps
   `{ page, content }`; no pages are scanned at lookup time.
-  Served from the package, not embedded in the binary.
+  `guide init`, `guide dev`, and `guide check` serve the corresponding built-in
+  command help before symbol lookup, keeping the same `{ page, content }` envelope.
+  The remaining guide bytes are served from the package, not embedded in the binary.
 
 ## 9. The client (`snapback2/client`, `snapback2/react`, `snapback2/test`)
 
