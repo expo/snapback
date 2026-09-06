@@ -393,6 +393,7 @@ export class OfflineRuntime {
       if (!Object.values(operation.args).every((arg) => object(arg) && "Optional" in arg)) return [];
       return [{ op, args: Object.fromEntries(Object.keys(operation.args).map((key) => [key, null])), drain: false }];
     });
+    // Manifest tables carry current columns: replace stale schema custody even without a full schema.
     this.schema = (value.schema?.tables ? value.schema : { tables }) as OfflineSchema;
   }
 

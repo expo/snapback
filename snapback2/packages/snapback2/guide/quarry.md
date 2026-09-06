@@ -27,10 +27,10 @@ Text forbids C0 controls except tab, newline and carriage return.
 
 `image <=N` is a byte-bounded closed record `{ id, width, height }`; `video <=N`
 adds integer-millisecond `duration`. Both admit `?` and bounded lists, but no
-indexes or `maintain.by`. `image <=N once` columns deliver once per authenticated reader, even on public rows:
-HTTP 200, full original, `private, no-store`. HEAD is free; widths, Range and
-conditionals cannot bypass HTTP 410 `E_ASSET_VIEWED`. Video ranges are unspecified;
-`once` refuses. Adding image `once` is admitted; prior views are unrecorded.
+indexes or `maintain.by`. `once` is image-column-only, never on arguments.
+Authenticated readers get one original 200, `private, no-store`;
+anonymous gets 404 on public rows too. HEAD is free; width, Range and
+conditionals cannot bypass 410 `E_ASSET_VIEWED`. Video `once` refuses: unspecified ranges. Add `once`: prior views unrecorded; removal is destructive.
 
 ```q
 mutation inspect(photo: image <=5000000, clip: video <=50000000):

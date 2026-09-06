@@ -21,14 +21,22 @@ function command(args: string[], options: { env?: NodeJS.ProcessEnv; timeout?: n
   });
 }
 
-async function addIntegrationOperations(root: string): Promise<void> {
+async function addIntegrationOperations(root: string, withDeliveries: boolean): Promise<void> {
+  if (withDeliveries) await cp(join(packageRoot, "templates/chat/snapback/deliveries.q"), join(root, "snapback/deliveries.q"));
   await writeFile(join(root, "snapback/integration.q"), `query capped():
   return profiles[] first 1 by byId
 
 query denied(conversationId: id):
   require exists memberships[conversationId, viewer] else MEMBERSHIP_REQUIRED
   return true
-`);
+${withDeliveries ? `
+mutation logMessage(messageId: messages):
+  msg = messages[messageId] ! else NOT_FOUND
+  require msg.authorId = viewer else NOT_AUTHOR
+  for m in memberships[msg.conversationId] first 50 by byConversationPrincipal:
+    insert deliveries { recipient: m.principal, conversationId: msg.conversationId, messageId, kind: 'message', at: now }
+  return null
+` : ""}`);
 }
 
 async function exited(child: ChildProcessWithoutNullStreams, timeoutMs = 5_000): Promise<void> {
@@ -54,15 +62,15 @@ export class RealOwnerHarness {
     this.mode = options.mode;
   }
 
-  static async create(): Promise<RealOwnerHarness> {
+  static async create(options: { fullChat?: boolean; withDeliveries?: boolean } = {}): Promise<RealOwnerHarness> {
     const external = process.env.SNAPBACK_URL;
     if (external) return new RealOwnerHarness({ owned: false, url: external, mode: "external" });
 
     const built = command(["cargo", "build", "-p", "snapback2"]);
     assert.equal(built.status, 0, `cargo build failed\n${built.stdout}\n${built.stderr}`);
     const root = await mkdtemp(join(tmpdir(), "snapback2-client-owner-"));
-    await cp(join(fixture, "snapback"), join(root, "snapback"), { recursive: true });
-    await addIntegrationOperations(root);
+    await cp(options.fullChat ? join(packageRoot, "templates/chat/snapback") : join(fixture, "snapback"), join(root, "snapback"), { recursive: true });
+    await addIntegrationOperations(root, options.withDeliveries ?? false);
     const checked = command([binary, "check", "--project", root], {
       env: { ...process.env, SNAPBACK2_COMPILER: compiler },
     });
@@ -149,7 +157,7 @@ export class RealOwnerHarness {
 let active: RealOwnerHarness | undefined;
 
 export async function configureRealOwner(): Promise<RealOwnerHarness> {
-  active ??= await RealOwnerHarness.create();
+  active ??= await RealOwnerHarness.create({ withDeliveries: true });
   process.env.SNAPBACK_URL = active.url;
   process.env.SNAPBACK2_REAL_OWNER_MODE = active.owned ? "self-started" : "external";
   return active;

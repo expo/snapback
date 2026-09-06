@@ -141,12 +141,7 @@ impl Generation {
 
     pub fn schema_certificate(&self) -> serde_json::Value {
         let mut certificate = serde_json::json!({"schedules":self.schema.schedules.iter().map(|s|serde_json::json!({"name":s.name,"trigger":s.trigger,"target":s.target})).collect::<Vec<_>>()});
-        let once: Vec<_> = self.schema.tables.iter().flat_map(|(name, table)| table.columns.iter()
-            .filter(|(_, kind)| kind.is_once()).map(move |(column, _)|
-                format!("{name}.{column}: one image delivery per authenticated principal; owning row read rule; no device byte cache"))).collect();
-        if !once.is_empty() {
-            certificate["disclosures"] = serde_json::json!(once);
-        }
+        disclose_once_assets(&mut certificate, &self.schema);
         certificate
     }
 
@@ -1311,11 +1306,46 @@ fn collect_reserved_rule_reads(rule: &RuleExpr, reads: &mut BTreeSet<String>) {
     }
 }
 
+// @ref LLP 1006#2a1-one-use-image-delivery-clique-f3-2026-09-05 — custody is disclosed beside all other schema facts.
+fn disclose_once_assets(certificate: &mut serde_json::Value, schema: &Schema) {
+    let once: Vec<_> = schema.tables.iter().flat_map(|(name, table)| table.columns.iter()
+        .filter(|(_, kind)| kind.is_once()).map(move |(column, _)|
+            serde_json::json!(format!("{name}.{column}: one image delivery per authenticated principal; owning row read rule; no device byte cache")))).collect();
+    if !once.is_empty() {
+        certificate
+            .as_object_mut()
+            .expect("schema certificate object")
+            .entry("disclosures")
+            .or_insert_with(|| serde_json::json!([]))
+            .as_array_mut()
+            .expect("disclosures array")
+            .extend(once);
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::Actor;
     use crate::schema::{ColumnType, Index, RuleTerm, Rules, Table};
+
+    #[test]
+    fn once_disclosures_preserve_existing_schema_disclosures() {
+        let case: serde_json::Value =
+            serde_json::from_str(include_str!("../../../corpus/asset-once-image-insert.json"))
+                .unwrap();
+        let schema: Schema = serde_json::from_value(case["schema"].clone()).unwrap();
+        let mut certificate = serde_json::json!({"disclosures":["existing fact"], "schedules":[]});
+        disclose_once_assets(&mut certificate, &schema);
+        assert_eq!(
+            certificate["disclosures"],
+            serde_json::json!([
+                "existing fact",
+                "media.photo: one image delivery per authenticated principal; owning row read rule; no device byte cache"
+            ])
+        );
+        assert_eq!(certificate["schedules"], serde_json::json!([]));
+    }
 
     #[test]
     fn adhoc_execution_does_not_install_a_program_or_change_the_generation() {

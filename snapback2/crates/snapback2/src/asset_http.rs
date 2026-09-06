@@ -627,16 +627,20 @@ pub(crate) fn write_once_body(
         .is_ok();
     // A partial socket write after the body starts may consume; a header-only
     // failure or an unreadable blob before the first body write never does.
-    (writer.inner.written > 0, move || {
-        // Publish the completion byte only after the durable owner transaction.
-        // Dropping this closure on a failed commit leaves a truncated response.
-        if complete && let Some(tail) = writer.tail {
-            let _ = writer
-                .inner
-                .write_all(&[tail])
-                .and_then(|_| writer.inner.flush());
-        }
-    })
+    // A held body byte also needs a claim before finish publishes it (even a one-byte body).
+    (
+        writer.inner.written > 0 || (complete && writer.inner.in_body && writer.tail.is_some()),
+        move || {
+            // Publish the completion byte only after the durable owner transaction.
+            // Dropping this closure on a failed commit leaves a truncated response.
+            if complete && let Some(tail) = writer.tail {
+                let _ = writer
+                    .inner
+                    .write_all(&[tail])
+                    .and_then(|_| writer.inner.flush());
+            }
+        },
+    )
 }
 
 struct CompletionWriter<W> {
@@ -1144,6 +1148,93 @@ mod tests {
     use std::io::Cursor;
     use std::sync::atomic::{AtomicUsize, Ordering};
     use std::time::Duration;
+
+    #[test]
+    fn completion_writer_counts_one_and_two_byte_bodies_before_finishing() {
+        use std::io::{Read, Write};
+        for body in [b"x".as_slice(), b"xy".as_slice()] {
+            let server = tiny_http::Server::http("127.0.0.1:0").unwrap();
+            let address = server.server_addr().to_ip().unwrap();
+            let client = std::thread::spawn(move || {
+                let mut socket = std::net::TcpStream::connect(address).unwrap();
+                socket
+                    .set_read_timeout(Some(Duration::from_secs(5)))
+                    .unwrap();
+                socket
+                    .write_all(b"GET / HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n\r\n")
+                    .unwrap();
+                let mut bytes = Vec::new();
+                socket.read_to_end(&mut bytes).unwrap();
+                bytes
+            });
+            let delivery = serde_json::json!({"type":"image/png"});
+            let (consumed, finish) = write_once_body(
+                server.recv().unwrap(),
+                BlobRead {
+                    stream: Box::new(Cursor::new(body.to_vec())),
+                    length: body.len() as u64,
+                    total: body.len() as u64,
+                    range: None,
+                },
+                &delivery,
+                "dev",
+            );
+            assert!(
+                consumed,
+                "{}-byte body must claim before publishing its tail",
+                body.len()
+            );
+            finish();
+            let response = client.join().unwrap();
+            let start = response.windows(4).position(|w| w == b"\r\n\r\n").unwrap() + 4;
+            assert_eq!(&response[start..], body);
+        }
+    }
+
+    #[test]
+    fn once_read_failure_with_only_a_held_body_byte_does_not_consume() {
+        use std::io::{Read, Write};
+        struct FailedRead;
+        impl Read for FailedRead {
+            fn read(&mut self, _: &mut [u8]) -> io::Result<usize> {
+                Err(io::Error::other("blob failed after its first byte"))
+            }
+        }
+        let server = tiny_http::Server::http("127.0.0.1:0").unwrap();
+        let address = server.server_addr().to_ip().unwrap();
+        let client = std::thread::spawn(move || {
+            let mut socket = std::net::TcpStream::connect(address).unwrap();
+            socket
+                .set_read_timeout(Some(Duration::from_secs(5)))
+                .unwrap();
+            socket
+                .write_all(b"GET / HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n\r\n")
+                .unwrap();
+            let mut bytes = Vec::new();
+            socket.read_to_end(&mut bytes).unwrap();
+            bytes
+        });
+        let delivery = serde_json::json!({"type":"image/png"});
+        let (consumed, finish) = write_once_body(
+            server.recv().unwrap(),
+            BlobRead {
+                stream: Box::new(Cursor::new(b"x".to_vec()).chain(FailedRead)),
+                length: 2,
+                total: 2,
+                range: None,
+            },
+            &delivery,
+            "dev",
+        );
+        assert!(
+            !consumed,
+            "no body byte moved and the held byte cannot be published"
+        );
+        finish();
+        let response = client.join().unwrap();
+        let start = response.windows(4).position(|w| w == b"\r\n\r\n").unwrap() + 4;
+        assert!(response[start..].is_empty());
+    }
 
     #[derive(Default)]
     struct MemoryBlobStore(Mutex<BTreeMap<String, Vec<u8>>>);

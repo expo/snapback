@@ -351,6 +351,7 @@ impl Engine {
             ));
         }
         let public = rule.is_public();
+        // @ref LLP 1006#2a1-one-use-image-delivery-clique-f3-2026-09-05 — the owning column determines delivery, including public rows.
         let once = table
             .columns
             .get(&locator.column)
@@ -405,8 +406,7 @@ impl Engine {
         if !crate::assets_ledger::locator_cell_matches(&self.schema, &row, &locator, &ledger) {
             return Err(asset_unavailable());
         }
-        let mut delivery = crate::assets_ledger::ready_delivery(ledger, public)?;
-        delivery.once = once;
+        let delivery = crate::assets_ledger::ready_delivery(ledger, public, once)?;
         transaction.commit()?;
         Ok(delivery)
     }
@@ -829,7 +829,8 @@ impl Engine {
         let transaction = self.store.conn.transaction()?;
         let asset_ids = crate::assets_ledger::clear_assets(&transaction)?;
         transaction.execute_batch(
-            "DELETE FROM index_entries;
+            "DELETE FROM _asset_views;
+             DELETE FROM index_entries;
              DELETE FROM rows;
              DELETE FROM _commits;
              DELETE FROM _outbox;

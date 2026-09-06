@@ -644,6 +644,7 @@ pub(crate) fn locator_cell_matches(
 pub(crate) fn ready_delivery(
     row: AssetLedgerRow,
     public: bool,
+    once: bool,
 ) -> Result<AssetDelivery, RuntimeError> {
     let unavailable = || RuntimeError::AssetNotReady("asset is unavailable".to_owned());
     Ok(AssetDelivery {
@@ -654,7 +655,7 @@ pub(crate) fn ready_delivery(
         height: row.height.ok_or_else(unavailable)?,
         duration: row.duration,
         public,
-        once: false,
+        once,
     })
 }
 
@@ -795,6 +796,14 @@ fn asset_row(connection: &Connection, id: &str) -> Result<Option<AssetLedgerRow>
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn reset_data_clears_once_views_before_sweep() {
+        let mut store = crate::Store::memory().unwrap();
+        store.record_asset_view("old-asset", "alice", 11).unwrap();
+        store.reset_data().unwrap();
+        assert!(!store.asset_viewed("old-asset", "alice").unwrap());
+    }
+
     use super::*;
 
     #[test]

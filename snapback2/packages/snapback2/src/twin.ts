@@ -183,6 +183,7 @@ export class Twin {
     if (blocking.length) return { ...none, uncovered: partialReasons(blocking, trace, hydrated.coverage) };
     return {
       predicted: true,
+      // Keep typed writes for replay; hydrate collects their once IDs and evaluate nulls their media.
       overlay: local.execution.writes.map((write) => write.row === null
         ? { table: write.table, id: write.id, row: {}, removed: true as const }
         : { table: write.table, id: write.id, row: wireJson(write.row) as Record<string, unknown> }),

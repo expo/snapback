@@ -1,6 +1,6 @@
 import { onceAssetIds, type OnceColumns } from "./asset-policy.js";
 // @ref LLP 1006#9b-bytes-on-the-device-author-ruling-2026-09-04 — bytes are cached under the owning row's lease, or not at all.
-// @ref LLP 1012#9-asset-bytes-on-the-device — the ByteCache sits beside the range store and joins its swap; view-once is excluded at view time.
+// @ref LLP 1012#9-asset-bytes-on-the-device — the ByteCache sits beside the range store and joins its swap; once rows are excluded before viewing.
 
 import type { RangeStore, RowRef, StoredRow } from "./range-store.js";
 
@@ -56,7 +56,7 @@ export interface AssetCache {
   viewed(assetId: string): Promise<boolean>;
   /** True while a held row carrying this asset is view-once (an `image once` column) and not yet viewed. */
   viewOnce(assetId: string): Promise<boolean>;
-  /** Marks the held view-once rows carrying this asset viewed: what a player calls when playback starts. */
+  /** Marks the held once rows carrying this image viewed. */
   markViewed(assetId: string): Promise<boolean>;
   status(): Promise<ByteCacheStatus>;
 }

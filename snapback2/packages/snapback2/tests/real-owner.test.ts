@@ -95,21 +95,32 @@ test("chat once photo uses one message and upload, each member gets one server d
     const photo = await sender.upload(new Blob([png], { type: "image/png" }), { kind: "image" });
     const posted = await sender.mutation(api.messages.sendOncePhoto, { conversationId: "conversation-1", photo });
     assert.equal(posted.state, "committed");
+    const ordinary = await sender.upload(new Blob([png], { type: "image/png" }), { kind: "image" });
+    const normal = await sender.mutation(api.messages.sendPhoto, { conversationId: "conversation-1", photo: ordinary });
+    assert.equal(normal.state, "committed");
+    assert.equal((await sender.mutation(api.integration.logMessage, { messageId: normal.data.id })).state, "committed");
     const manifest: any = await alice.manifest();
     assert.equal(manifest.tables.messages.columns.oncePhoto.Optional.Image.once, true);
     for (const client of [alice, bob]) {
-      const thread: any = await client.query(api.messages.thread, { conversationId: "conversation-1", c: null });
-      assert.ok(thread.data.some((row: any) => row?.oncePhoto?.id === photo.id));
+      const thread: any = await client.query(api.deliveries.thread, { conversationId: "conversation-1", c: null });
+      assert.ok(thread.data.some((row: any) => row?.message?.oncePhoto?.id === photo.id));
+      const ordinaryUrl = (await client.assetUrl(ordinary))!;
+      await client.assetBlob(ordinaryUrl);
       assert.equal(await client.assetCache!.viewOnce(photo.id), true);
       // Even unviewed once media disappears offline, including after a cold store open.
       await client.offline();
-      const local: any = await client.query(api.messages.thread, { conversationId: "conversation-1", c: null });
-      assert.ok(local.data.some((row: any) => row?.id === posted.data.id && row.oncePhoto === null));
+      const local: any = await client.query(api.deliveries.thread, { conversationId: "conversation-1", c: null });
+      assert.ok(local.data.some((row: any) => row?.message?.id === posted.data.id && row.message.oncePhoto === null));
+      assert.ok(local.data.some((row: any) => row?.message?.photo?.id === ordinary.id));
+      assert.ok((await client.assetBlob(ordinaryUrl)).size > 0, "ordinary photo in the same page renders from held bytes");
       await client.online();
       const url = (await client.assetUrl(photo))!;
       const viewing = {};
       assert.ok((await client.assetBlob(url, { viewing })).size > 0);
-      assert.deepEqual((await client.assetCache!.status()).entries, []);
+      assert.deepEqual((await client.assetCache!.status()).entries.map((entry: any) => entry.assetId), [ordinary.id]);
+      const coverage = await (client as any).offlineRuntime.store.coverage();
+      assert.ok(coverage.absences.some((absence: any) => JSON.stringify(absence) === JSON.stringify(["messages", "byId", [posted.data.id]])));
+      assert.ok(!coverage.rows.some((row: any) => row.table === "messages" && row.id === posted.data.id));
       const direct = await fetch(url, { headers: { "X-Snapback-As": client.snapshot.persona! } });
       assert.equal(direct.status, 410); assert.equal((await direct.json()).code, "E_ASSET_VIEWED");
       await assert.rejects(client.assetBlob(url, { viewing: {} }), (error: any) => error.code === "E_ASSET_VIEWED");
@@ -117,17 +128,50 @@ test("chat once photo uses one message and upload, each member gets one server d
   } finally { await sender.close(); await alice.close(); await bob.close(); await rm(directory, { recursive: true, force: true }); }
 });
 
+test("offline sendOncePhoto prediction under the message alias has null media and makes no asset fetch", async () => {
+  const { readFile, mkdtemp, rm } = await import("node:fs/promises");
+  const { tmpdir } = await import("node:os");
+  const { join } = await import("node:path");
+  const { fileRangeStore } = await import("../dist/test.mjs");
+  const { engineId } = await import("./fake-owner.ts");
+  const directory = await mkdtemp(join(tmpdir(), "snapback-once-predict-"));
+  let assetFetches = 0;
+  const client: any = createClient({ url: owner.url, as: "alice", offline: { store: fileRangeStore(directory) }, fetch: (input, init) => {
+    if (new URL(String(input)).pathname.startsWith("/api/asset/")) assetFetches++;
+    return fetch(input, init);
+  } });
+  try {
+    const png = await readFile(new URL("../../../scripts/witness-expo/view-once.png", import.meta.url));
+    const photo = await client.upload(new Blob([png], { type: "image/png" }), { kind: "image" });
+    const args = { conversationId: "conversation-1", photo };
+    await client.query(api.deliveries.thread, { conversationId: "conversation-1", c: null });
+    await client.offline();
+    const runtime = client.offlineRuntime;
+    const ids = Array.from({ length: 120 }, (_, i) => engineId(50_000 + i));
+    const prediction = await runtime.twin.predict("messages.sendOncePhoto", args, ids);
+    assert.equal(prediction.predicted, true, JSON.stringify(prediction));
+    const message = prediction.overlay.find((row: any) => row.table === "messages");
+    assert.ok(message);
+    // Raw typed writes belong to the replay overlay; only evaluated media is scrubbed.
+    assert.equal(message.row.oncePhoto.id, photo.id);
+    const entry = { intent: "once-prediction:0", grant: "once-prediction", offset: 0, count: ids.length, ids,
+      op: "messages.sendOncePhoto", args, issuedSeq: 0, createdAt: 1, updatedAt: 1, state: "queued", predicted: true, trace: prediction.trace };
+    await runtime.store.commit({ outbox: { put: [entry] }, overlay: { put: { [entry.intent]: prediction.overlay } } });
+    const local = await runtime.twin.evaluate("deliveries.thread", { conversationId: "conversation-1", c: null });
+    assert.ok(local?.data?.some((row: any) => row?.message?.id === message.id && row.message.oncePhoto === null), JSON.stringify(local));
+    const rendered = await client.query(api.deliveries.thread, { conversationId: "conversation-1", c: null });
+    assert.ok(rendered.data?.some((row: any) => row?.message?.id === message.id && row.message.oncePhoto === null), JSON.stringify(rendered));
+    assert.equal(assetFetches, 0);
+  } finally { await client.close(); await rm(directory, { recursive: true, force: true }); }
+});
+
 test("Expo witness seed leaves Alice's schema-once image unconsumed and keeps its clip ordinary", async () => {
   const previous = process.env.SNAPBACK_URL;
   delete process.env.SNAPBACK_URL;
   let fixture: RealOwnerHarness | undefined;
   try {
-    fixture = await RealOwnerHarness.create();
-    // This acceptance uses the complete template, including its delivery log.
-    await fixture.close();
-    const { cp } = await import("node:fs/promises");
-    await cp(new URL("../templates/chat/snapback", import.meta.url), `${fixture.root}/snapback`, { recursive: true });
-    await fixture.start(false);
+    // Start once with the full template; closing and recreating the fixture spent the test's budget.
+    fixture = await RealOwnerHarness.create({ fullChat: true });
     const url = fixture.url;
     const { seedWitness } = await import("../../../scripts/witness-expo/owner.mjs");
     const seed = await seedWitness(url);

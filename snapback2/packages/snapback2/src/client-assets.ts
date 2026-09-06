@@ -35,7 +35,7 @@ export function viewedRefusal(assetId: string): SnapbackRefusal {
     family: "assets",
     message: `asset ${assetId} belongs to a view-once row that was already viewed by this principal`,
     site: "assetBlob",
-    rewrite: "render a view-once row once; do not fetch its bytes again",
+    rewrite: "render this image once; request a new image for another delivery",
     guide: "quarry",
   });
 }

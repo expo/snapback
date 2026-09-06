@@ -64,7 +64,8 @@ test("web viewed allowance belongs to its viewing instance, never a second consu
     const url = (await client.assetUrl(photo(B)))!;
     const shown = await client.assetBlob(url, { viewing });
     assert.deepEqual(await bytes(shown), [5, 5, 5, 5]);
-    await assert.rejects(client.assetBlob(url), (error: unknown) => error instanceof SnapbackRefusal && error.code === "E_ASSET_VIEWED");
+    await assert.rejects(client.assetBlob(url), (error: unknown) => error instanceof SnapbackRefusal && error.code === "E_ASSET_VIEWED"
+      && error.envelope.rewrite === "render this image once; request a new image for another delivery");
     await assert.rejects(client.assetBytes(url, { viewing: {} }), (error: unknown) => error instanceof SnapbackRefusal && error.code === "E_ASSET_VIEWED");
     assert.equal(await client.assetCache!.get(B, null), undefined);
     assert.equal(await client.assetUrl(photo(B)), undefined);

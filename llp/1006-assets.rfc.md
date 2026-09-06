@@ -283,7 +283,7 @@ in the ledger after authorization, when the full-body 200 is committed
 so a completed response proves durable consumption. Admission alone never
 consumes. A failure before the body starts does not burn the use; an abort
 may. Concurrent requests by one principal have one winner. An authenticated
-principal is required even for a public owning row. `HEAD` does not consume.
+principal is required even for a public row. Anonymous: 404 `E_ASSET_NOT_READY` (existence is not probeable). `HEAD` does not consume.
 Widths (`?w=`), conditionals (`If-None-Match`), and `Range` cannot yield a
 second delivery: once images ignore these selectors and deliver their full
 original body as 200 with `Cache-Control: private, no-store`. A consumed

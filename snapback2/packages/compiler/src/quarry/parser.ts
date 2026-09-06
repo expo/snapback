@@ -247,7 +247,7 @@ class Parser {
   private parseColumn(): ColumnDecl {
     const name = this.word();
     this.take(":");
-    const type = this.parseType();
+    const type = this.parseType(true);
     if (type.kind === "cursor") syntax(name, "cursor is an operation argument type, not a table column", "use c: cursor ? on a query");
     this.newline();
     return { name: name.value, type, site: name };
@@ -474,11 +474,11 @@ class Parser {
     return args;
   }
 
-  private parseType(): ScalarType {
+  private parseType(column = false): ScalarType {
     const site = this.peek();
     let type: ScalarType;
     if (this.maybe("[")) {
-      const item = this.parseType();
+      const item = this.parseType(column);
       this.take("]");
       this.take("<=");
       type = { kind: "list", item, max: this.number(), optional: false };
@@ -535,8 +535,12 @@ class Parser {
       }
     }
     if (this.maybe("once")) {
-      if (type.kind !== "image") syntax(site, "once is only specified for image columns; video ranges are unspecified",
+      if (!column) syntax(site, "once is a column modifier, not an argument constraint",
+        "remove once from this argument; declare image <=10000000 once on the owning table column");
+      if (type.kind === "video") syntax(site, "once is only specified for image columns; video ranges are unspecified",
         "use photo: image <=10000000 once, or remove once from the video column until ranges are specified");
+      if (type.kind !== "image") syntax(site, "once is only specified for image columns",
+        `remove once from this ${type.kind} column; use image <=10000000 once for one-use images`);
       type = { ...type, once: true };
     }
     if (this.maybe("?")) type = { ...type, optional: true };

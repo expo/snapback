@@ -859,7 +859,8 @@ impl Store {
         let transaction = self.conn.transaction()?;
         let asset_ids = crate::assets_ledger::clear_assets(&transaction)?;
         transaction.execute_batch(
-            "DELETE FROM index_entries;
+            "DELETE FROM _asset_views;
+             DELETE FROM index_entries;
              DELETE FROM rows;
              DELETE FROM _commits;
              DELETE FROM _outbox;
