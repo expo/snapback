@@ -173,6 +173,46 @@ impl State {
         Ok(json!(null))
     }
 
+    pub(super) fn list_uploads(
+        &mut self,
+        identity: Identity,
+        after: &str,
+    ) -> Result<Json, Refusal> {
+        let authority = self.resolve_authority(identity)?;
+        let actor = actor(&authority.principal)?;
+        let usage = self
+            .runtime()
+            .asset_staging_usage(&actor)
+            .map_err(|error| Refusal::from_runtime(&error))?;
+        let mut uploads = self
+            .runtime()
+            .store()
+            .unclaimed_uploads(actor.id(), after)
+            .map_err(|error| Refusal::from_runtime(&error))?;
+        let next = (uploads.len() > 100).then(|| uploads[99].id.clone());
+        uploads.truncate(100);
+        Ok(
+            json!({ "uploads": uploads, "usage": usage.creator, "next": next,
+            "limits": { "objects": snapback2_core::STAGING_PER_PRINCIPAL_OBJECTS,
+                        "bytes": snapback2_core::STAGING_PER_PRINCIPAL_BYTES } }),
+        )
+    }
+
+    pub(super) fn discard_upload(&mut self, identity: Identity, id: &str) -> Result<Json, Refusal> {
+        let authority = self.resolve_authority(identity)?;
+        let actor = actor(&authority.principal)?;
+        let discarded = self
+            .runtime_mut()
+            .discard_upload(&actor, id)
+            .map_err(|error| Refusal::from_runtime(&error))?;
+        // The tombstone frees staging quota immediately. The existing periodic
+        // fork-aware sweep removes bytes; disposal does not enumerate the blob directory.
+        if discarded {
+            self.pending_asset_deletes.insert(id.to_owned());
+        }
+        Ok(json!({ "discarded": discarded }))
+    }
+
     pub(super) fn asset_upload_authorize(
         &mut self,
         bytes: u64,
@@ -191,6 +231,10 @@ impl State {
                 "Content-Length {bytes} exceeds the generation's {max} byte asset ceiling"
             )));
         }
+        self.runtime()
+            .store()
+            .enforce_staging_caps(authority.principal.id.as_str(), bytes)
+            .map_err(|error| Refusal::from_runtime(&error))?;
         Ok(json!({
             "principal": authority.principal.id,
             "maxBytes": max,

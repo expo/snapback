@@ -24,7 +24,13 @@ struct Owner {
 
 impl Owner {
     fn spawn(root: &Path, helper: &Path) -> Self {
-        let compiler = common::isolated_compiler(&root.join(".test-package"));
+        let package = root.join(".test-package");
+        let compiler = package.join("dist/compiler.mjs");
+        let compiler = if compiler.is_file() {
+            compiler
+        } else {
+            common::isolated_compiler(&package)
+        };
         let binary = env!("CARGO_BIN_EXE_snapback2");
         let mut child = Command::new(binary)
             .args(["dev", "--project"])
@@ -1295,4 +1301,136 @@ fn image_boot_and_apply_require_the_helper_but_video_only_boot_does_not() {
     assert_eq!(stopped.status, 200);
     assert!(owner.child.wait().unwrap().success());
     fs::remove_dir_all(video_root).unwrap();
+}
+
+#[test]
+fn recent_uploads_are_private_discoverable_after_restart_and_discardable_without_reset() {
+    let root = fixture_root();
+    let helper = Path::new(env!("CARGO_BIN_EXE_snapback2")).with_file_name("snapback2-media");
+    let mut owner = Owner::spawn(&root, &helper);
+    let port = owner.port();
+    let alice = ("X-Snapback-As", "alice");
+    let bob = ("X-Snapback-As", "bob");
+    let bytes = image_bytes("jpeg", 1, 1);
+    let mut ids = Vec::new();
+    for _ in 0..snapback2_core::STAGING_PER_PRINCIPAL_OBJECTS {
+        ids.push(
+            upload(port, alice, &bytes)["id"]
+                .as_str()
+                .unwrap()
+                .to_owned(),
+        );
+    }
+    let bob_photo = upload(port, bob, &bytes);
+    let blocked = wire(port, "POST", "/api/upload", &[alice], &bytes);
+    assert_eq!(blocked.status, 422);
+    assert_eq!(blocked.json()["code"], "E_ASSET_TOO_LARGE");
+    assert!(
+        blocked.json()["message"]
+            .as_str()
+            .unwrap()
+            .contains("20 / 20 objects")
+    );
+    assert!(
+        blocked.json()["rewrite"]
+            .as_str()
+            .unwrap()
+            .contains("discardUpload")
+    );
+    assert_ne!(wire(port, "GET", "/api/uploads", &[], &[]).status, 200);
+    assert_ne!(
+        json_request(
+            port,
+            "POST",
+            "/api/uploads/discard",
+            &[],
+            json!({ "id": ids[0] })
+        )
+        .status,
+        200
+    );
+    let bob_list = wire(port, "GET", "/api/uploads", &[bob], &[]).json();
+    assert_eq!(bob_list["uploads"].as_array().unwrap().len(), 1);
+    assert_eq!(bob_list["uploads"][0]["id"], bob_photo["id"]);
+    assert_eq!(
+        json_request(
+            port,
+            "POST",
+            "/api/uploads/discard",
+            &[bob],
+            json!({ "id": ids[0] })
+        )
+        .json(),
+        json!({ "discarded": false })
+    );
+
+    drop(owner);
+    let mut owner = Owner::spawn(&root, &helper);
+    let port = owner.port();
+    let listing = wire(port, "GET", "/api/uploads", &[alice], &[]).json();
+    assert_eq!(listing["usage"]["objects"], 20);
+    assert_eq!(listing["limits"]["objects"], 20);
+    assert_eq!(listing["uploads"].as_array().unwrap().len(), 20);
+    assert!(
+        listing["uploads"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .all(|upload| ids.contains(&upload["id"].as_str().unwrap().to_owned()))
+    );
+    for id in &ids {
+        let response = json_request(
+            port,
+            "POST",
+            "/api/uploads/discard",
+            &[alice],
+            json!({ "id": id }),
+        );
+        assert_eq!(response.status, 200);
+        assert_eq!(response.json()["discarded"], true);
+    }
+    assert_eq!(
+        wire(port, "GET", "/api/uploads", &[alice], &[]).json()["usage"]["objects"],
+        0
+    );
+    let fresh = upload(port, alice, &bytes);
+    assert!(!ids.contains(&fresh["id"].as_str().unwrap().to_owned()));
+    assert_eq!(
+        wire(port, "GET", "/api/uploads", &[bob], &[]).json()["uploads"][0]["id"],
+        bob_photo["id"]
+    );
+    let claimed = mutation(port, bob, "media.keepPublic", json!({ "photo": bob_photo }));
+    assert_eq!(claimed["state"], "committed");
+    let refused = json_request(
+        port,
+        "POST",
+        "/api/uploads/discard",
+        &[bob],
+        json!({ "id": bob_photo["id"] }),
+    );
+    assert_eq!(refused.json()["code"], "E_ASSET_IN_USE");
+    assert_eq!(
+        wire(
+            port,
+            "GET",
+            &format!("/api/asset/{}", bob_photo["id"].as_str().unwrap()),
+            &[bob],
+            &[]
+        )
+        .status,
+        200
+    );
+    // A second restart finishes the discarded tombstones, even before 24 hours.
+    drop(owner);
+    let mut owner = Owner::spawn(&root, &helper);
+    let port = owner.port();
+    assert_eq!(
+        wire(port, "GET", "/api/uploads", &[alice], &[]).json()["usage"]["objects"],
+        1
+    );
+    for id in &ids {
+        assert!(!root.join(".snapback/blobs").join(id).exists());
+    }
+    drop(owner);
+    fs::remove_dir_all(root).unwrap();
 }

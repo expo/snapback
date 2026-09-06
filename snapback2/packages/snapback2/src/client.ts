@@ -3,7 +3,6 @@ import { SharedSse } from "./live.js";
 import type { AssetFetchOptions } from "./store/byte-cache.js";
 import { throwIfAborted } from "./client-wire.js";
 import { api, referenceName, type Api, type ApiProxy, type Channel as ChannelRef, type Op } from "./api.js";
-import { AssetInputError, mayNeedAssetPlanning, planAssetArguments, substituteAssetRecords } from "./assets.js";
 import { captureGrant, createOutboxApi, drainOutbox, submitMutation, type DrainResult } from "./client-outbox.js";
 import {
   acceptOffline,
@@ -24,10 +23,9 @@ import {
 import {
   assetBlobFor, assetBytesFor,
   assetHeadersFor,
-  assetInput,
   assetUrlFor,
   uploadAsset,
-  uploadPrepared,
+  withMutationUploads, listUploadsFor, discardUploadFor,
   type Authority,
 } from "./client-upload.js";
 import {
@@ -281,42 +279,13 @@ class Client implements SnapbackClient {
     const authority = await this.operationAuthority();
     return this.trackWrite(async () => {
       try {
-        let mutationArgs: unknown = args;
-        if (mayNeedAssetPlanning(args)) {
-          // @ref LLP 1006#10-clients — the descriptor fence binds substitution
-          // to the manifest read here. The owner independently validates the
-          // resulting records against its live generation on every request.
-          const operation = referenceName(ref);
-          const descriptorManifest = await this.manifestFor(authority);
-          const descriptor = descriptorManifest.ops[operation]?.args;
-          if (descriptor === undefined) {
-            throw assetInput(this, new AssetInputError(
-              "E_ASSET_TYPE",
-              `manifest generation ${descriptorManifest.generation} has no argument descriptor for ${operation}`,
-            ));
-          }
-          const placements = await planAssetArguments(args, descriptor)
-            .catch((error) => { throw assetInput(this, error); });
-          if (placements.length > 0) {
-            const records: AssetRecord[] = [];
-            for (const placement of placements) {
-              records.push(await uploadPrepared(this, placement.prepared, {}, authority));
-            }
-            const current = await this.manifestFor(authority);
-            if (current.generation !== descriptorManifest.generation) {
-              throw assetInput(this, new AssetInputError(
-                "E_ASSET_NOT_READY",
-                `descriptor generation changed from ${descriptorManifest.generation} to ${current.generation} during asset upload`,
-              ));
-            }
-            mutationArgs = substituteAssetRecords(args, placements, records);
-          }
-        }
-        const result = await submitMutation<Result>({
-          runtime: this.offlineRuntime, offline: this.forcedOffline, op: referenceName(ref), args: mutationArgs,
-          json: (path, init) => this.json(path, init, authority), failure: (error) => this.offlineRefusal(error),
-          drain: () => this.drainNow(),
-        });
+        const result = await withMutationUploads(this, referenceName(ref), args, authority,
+          () => this.manifestFor(authority), this.offlineRuntime?.principal !== undefined,
+          (mutationArgs) => submitMutation<Result>({
+            runtime: this.offlineRuntime, offline: this.forcedOffline, op: referenceName(ref), args: mutationArgs,
+            json: (path, init) => this.json(path, init, authority), failure: (error) => this.offlineRefusal(error),
+            drain: () => this.drainNow(),
+          }));
         if (result.state === "rejected" && isTerminalSession(result)) {
           const wasCurrent = this.authorityCurrent(authority);
           const expiration = await this.expireSession(authority);
@@ -346,6 +315,14 @@ class Client implements SnapbackClient {
   async upload(source: AssetUploadSource, options: AssetUploadOptions = {}): Promise<AssetRecord> {
     const authority = await this.operationAuthority();
     return this.trackWrite(() => uploadAsset(this, source, options, authority));
+  }
+
+  async listUploads(options: { after?: string } = {}) {
+    return listUploadsFor(this, options, await this.operationAuthority());
+  }
+  async discardUpload(id: string): Promise<boolean> {
+    const authority = await this.operationAuthority();
+    return this.trackWrite(() => discardUploadFor(this, id, authority));
   }
 
   async assetUrl(asset: AssetRecord | null | undefined, options?: AssetUrlOptions): Promise<string | undefined>;

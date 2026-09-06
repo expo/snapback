@@ -243,11 +243,13 @@ test("an upload refusal rejects the call and never invokes the mutation", async 
   client.close();
 });
 
-test("a second sibling upload refusal leaves the first as a reclaimable orphan and sends no mutation", async () => {
+test("a second sibling upload refusal discards the first and sends no mutation", async () => {
   let uploads = 0;
   let mutations = 0;
-  const fetch = async (input: string | URL | Request) => {
+  const discarded: string[] = [];
+  const fetch = async (input: string | URL | Request, init?: RequestInit) => {
     const path = new URL(String(input)).pathname;
+    if (path === "/api/uploads/discard") { discarded.push(JSON.parse(String(init?.body)).id); return json({ discarded: true }); }
     if (path === "/api/manifest") return json(manifest());
     if (path === "/api/upload" && ++uploads === 1) return json(image);
     if (path === "/api/upload") return json({
@@ -269,7 +271,8 @@ test("a second sibling upload refusal leaves the first as a reclaimable orphan a
     (error: unknown) => error instanceof SnapbackRefusal && error.code === "E_ASSET_TYPE",
   );
   assert.equal(uploads, 2);
-  assert.equal(mutations, 0, "the owner reclaims the first successful upload because no row can claim the orphan");
+  assert.equal(mutations, 0);
+  assert.deepEqual(discarded, [image.id]);
   client.close();
 });
 
@@ -635,4 +638,39 @@ test("useAssetUrl and web asset components render in a DOM with the intended aut
     }
     dom.window.close();
   }
+});
+
+for (const status of [200, 422, 503]) {
+  test(`automatic uploads are kept for an ambiguous HTTP ${status} mutation response`, async () => {
+    let discards = 0;
+    const client = createClient({ url: "http://assets.test", as: "alice", fetch: async (input) => {
+      const path = new URL(String(input)).pathname;
+      if (path === "/api/manifest") return json(manifest());
+      if (path === "/api/upload") return json(image);
+      if (path === "/api/mutation") return new Response("lost response", { status });
+      if (path === "/api/uploads/discard") { discards++; return json({ discarded: true }); }
+      throw new Error(`unexpected path ${path}`);
+    } });
+    try {
+      await assert.rejects(client.mutation(api.assets.send, { photo: new File(["a"], "photo.png") } as any));
+      assert.equal(discards, 0);
+    } finally { client.close(); }
+  });
+}
+
+test("a definitive HTTP refusal discards only this call's upload, preserving supplied records", async () => {
+  const discarded: string[] = [];
+  const client = createClient({ url: "http://assets.test", as: "alice", fetch: async (input, init) => {
+    const path = new URL(String(input)).pathname;
+    if (path === "/api/manifest") return json(manifest());
+    if (path === "/api/upload") return json(image);
+    if (path === "/api/mutation") return json({ code: "E_INPUT", family: "input", message: "refused", guide: "quarry" }, 422);
+    if (path === "/api/uploads/discard") { discarded.push(JSON.parse(String(init?.body)).id); return json({ discarded: true }); }
+    throw new Error(`unexpected path ${path}`);
+  } });
+  try {
+    await assert.rejects(client.mutation(api.assets.send, { photo: new File(["a"], "photo.png"), optional: secondImage } as any),
+      (error: any) => error.code === "E_INPUT");
+    assert.deepEqual(discarded, [image.id]);
+  } finally { client.close(); }
 });

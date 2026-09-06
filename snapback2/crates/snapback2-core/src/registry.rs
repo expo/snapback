@@ -665,6 +665,10 @@ impl Runtime {
         self.engine.store().asset_staging_usage(actor.id())
     }
 
+    pub fn discard_upload(&mut self, actor: &crate::Actor, id: &str) -> Result<bool, RuntimeError> {
+        self.engine.store_mut().discard_upload(actor.id(), id)
+    }
+
     pub fn asset_ids(&self) -> Result<Vec<String>, RuntimeError> {
         self.engine.store().asset_ids()
     }
