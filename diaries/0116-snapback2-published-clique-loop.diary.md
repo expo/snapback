@@ -726,3 +726,12 @@ The user clarified that valid Convex/Supabase baseline scores should be reused.
 Fresh control rebuilding is therefore shelved; effort stays on Snapback
 repairs and new Snapback measurements. Targeted missing evidence can be
 collected when it changes comparison validity.
+
+
+### 2026-09-06 — Empty aggregate buckets in the native scale checker
+
+The first native projection run reached the 10% checkpoint, then its checker incorrectly required a physical counter row for every conversation. A read-only audit of the stopped snapshot found all 10,015 messages counted correctly across 903 stored buckets; the other 99 groups had zero messages and no stored aggregate row. All 1,002 membership counts and 2,054 membership IDs/roles matched the canonical projection. This is a checker bug, with no native maintenance defect established.
+
+We preserved the original failed attempt and intentionally cancelled the batch attempt that used the same checker. One request was in flight when cancelled, so its last acknowledged ordinal is not claimed to equal final database state. Neither attempt produced query timings or a completed history census. A separate checker correction must pass the actual stopped snapshot and malformed-bucket controls before a fresh curve starts. The concrete friction was confusing a logical zero aggregate with physical materialization; Snapback makes that distinction observable. No comparison with other backends was measured here.
+
+Evidence: [report](../benchmarks/runs/2026-09-06-clique-improvement/evidence/native-scale-checkpoint-diagnosis/report.md) and [complete diagnosis](../benchmarks/runs/2026-09-06-clique-improvement/evidence/native-scale-checkpoint-diagnosis/diagnosis.json). Existing Convex and Supabase baseline scores remain reusable; this correction is confined to a separate Snapback diagnostic harness.

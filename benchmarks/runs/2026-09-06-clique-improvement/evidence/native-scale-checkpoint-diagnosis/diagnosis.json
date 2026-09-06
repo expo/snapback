@@ -1,0 +1,966 @@
+{
+  "at": "2026-09-06T18:28:17.461088+00:00",
+  "source_commit": "26c9fd5e0d3922ce7680493c0e8f7371f4793d59",
+  "snapshot": {
+    "path": "/Users/ccheever/clique-improvement/revisions/search-native-scale/attempts/curve-01/private/project/.snapback/forks/checkpoint-10.sqlite",
+    "bytes": 108285952,
+    "sha256_before": "3bebdce0a82ed045e5dbd10a6639bd33e4c5e45f62986564fa86c5dc821149b4",
+    "sha256_after": "3bebdce0a82ed045e5dbd10a6639bd33e4c5e45f62986564fa86c5dc821149b4",
+    "read_mode": "mode=ro&immutable=1",
+    "unchanged": true
+  },
+  "checkpoint_ordinal": 24864,
+  "canonical_membership_source": {
+    "rows": 2054,
+    "canonical_rows": 2054,
+    "distinct_rows": 2054,
+    "all_ids_and_roles_equal": true
+  },
+  "maintained_counts": {
+    "messageCounts": {
+      "physical_rows": 903,
+      "logical_expected_buckets": 1002,
+      "expected_sum": 10015,
+      "actual_sum": 10015,
+      "expected_zero_buckets": 99,
+      "diff": [
+        {
+          "bucket": "g0002",
+          "expected_count": 0,
+          "expected_bucket_present": true,
+          "actual_row_present": false,
+          "actual_values": []
+        },
+        {
+          "bucket": "g0003",
+          "expected_count": 0,
+          "expected_bucket_present": true,
+          "actual_row_present": false,
+          "actual_values": []
+        },
+        {
+          "bucket": "g0004",
+          "expected_count": 0,
+          "expected_bucket_present": true,
+          "actual_row_present": false,
+          "actual_values": []
+        },
+        {
+          "bucket": "g0005",
+          "expected_count": 0,
+          "expected_bucket_present": true,
+          "actual_row_present": false,
+          "actual_values": []
+        },
+        {
+          "bucket": "g0006",
+          "expected_count": 0,
+          "expected_bucket_present": true,
+          "actual_row_present": false,
+          "actual_values": []
+        },
+        {
+          "bucket": "g0007",
+          "expected_count": 0,
+          "expected_bucket_present": true,
+          "actual_row_present": false,
+          "actual_values": []
+        },
+        {
+          "bucket": "g0008",
+          "expected_count": 0,
+          "expected_bucket_present": true,
+          "actual_row_present": false,
+          "actual_values": []
+        },
+        {
+          "bucket": "g0009",
+          "expected_count": 0,
+          "expected_bucket_present": true,
+          "actual_row_present": false,
+          "actual_values": []
+        },
+        {
+          "bucket": "g0010",
+          "expected_count": 0,
+          "expected_bucket_present": true,
+          "actual_row_present": false,
+          "actual_values": []
+        },
+        {
+          "bucket": "g0011",
+          "expected_count": 0,
+          "expected_bucket_present": true,
+          "actual_row_present": false,
+          "actual_values": []
+        },
+        {
+          "bucket": "g0012",
+          "expected_count": 0,
+          "expected_bucket_present": true,
+          "actual_row_present": false,
+          "actual_values": []
+        },
+        {
+          "bucket": "g0013",
+          "expected_count": 0,
+          "expected_bucket_present": true,
+          "actual_row_present": false,
+          "actual_values": []
+        },
+        {
+          "bucket": "g0014",
+          "expected_count": 0,
+          "expected_bucket_present": true,
+          "actual_row_present": false,
+          "actual_values": []
+        },
+        {
+          "bucket": "g0015",
+          "expected_count": 0,
+          "expected_bucket_present": true,
+          "actual_row_present": false,
+          "actual_values": []
+        },
+        {
+          "bucket": "g0016",
+          "expected_count": 0,
+          "expected_bucket_present": true,
+          "actual_row_present": false,
+          "actual_values": []
+        },
+        {
+          "bucket": "g0017",
+          "expected_count": 0,
+          "expected_bucket_present": true,
+          "actual_row_present": false,
+          "actual_values": []
+        },
+        {
+          "bucket": "g0018",
+          "expected_count": 0,
+          "expected_bucket_present": true,
+          "actual_row_present": false,
+          "actual_values": []
+        },
+        {
+          "bucket": "g0019",
+          "expected_count": 0,
+          "expected_bucket_present": true,
+          "actual_row_present": false,
+          "actual_values": []
+        },
+        {
+          "bucket": "g0020",
+          "expected_count": 0,
+          "expected_bucket_present": true,
+          "actual_row_present": false,
+          "actual_values": []
+        },
+        {
+          "bucket": "g0021",
+          "expected_count": 0,
+          "expected_bucket_present": true,
+          "actual_row_present": false,
+          "actual_values": []
+        },
+        {
+          "bucket": "g0022",
+          "expected_count": 0,
+          "expected_bucket_present": true,
+          "actual_row_present": false,
+          "actual_values": []
+        },
+        {
+          "bucket": "g0023",
+          "expected_count": 0,
+          "expected_bucket_present": true,
+          "actual_row_present": false,
+          "actual_values": []
+        },
+        {
+          "bucket": "g0024",
+          "expected_count": 0,
+          "expected_bucket_present": true,
+          "actual_row_present": false,
+          "actual_values": []
+        },
+        {
+          "bucket": "g0025",
+          "expected_count": 0,
+          "expected_bucket_present": true,
+          "actual_row_present": false,
+          "actual_values": []
+        },
+        {
+          "bucket": "g0026",
+          "expected_count": 0,
+          "expected_bucket_present": true,
+          "actual_row_present": false,
+          "actual_values": []
+        },
+        {
+          "bucket": "g0027",
+          "expected_count": 0,
+          "expected_bucket_present": true,
+          "actual_row_present": false,
+          "actual_values": []
+        },
+        {
+          "bucket": "g0028",
+          "expected_count": 0,
+          "expected_bucket_present": true,
+          "actual_row_present": false,
+          "actual_values": []
+        },
+        {
+          "bucket": "g0029",
+          "expected_count": 0,
+          "expected_bucket_present": true,
+          "actual_row_present": false,
+          "actual_values": []
+        },
+        {
+          "bucket": "g0030",
+          "expected_count": 0,
+          "expected_bucket_present": true,
+          "actual_row_present": false,
+          "actual_values": []
+        },
+        {
+          "bucket": "g0031",
+          "expected_count": 0,
+          "expected_bucket_present": true,
+          "actual_row_present": false,
+          "actual_values": []
+        },
+        {
+          "bucket": "g0032",
+          "expected_count": 0,
+          "expected_bucket_present": true,
+          "actual_row_present": false,
+          "actual_values": []
+        },
+        {
+          "bucket": "g0033",
+          "expected_count": 0,
+          "expected_bucket_present": true,
+          "actual_row_present": false,
+          "actual_values": []
+        },
+        {
+          "bucket": "g0034",
+          "expected_count": 0,
+          "expected_bucket_present": true,
+          "actual_row_present": false,
+          "actual_values": []
+        },
+        {
+          "bucket": "g0035",
+          "expected_count": 0,
+          "expected_bucket_present": true,
+          "actual_row_present": false,
+          "actual_values": []
+        },
+        {
+          "bucket": "g0036",
+          "expected_count": 0,
+          "expected_bucket_present": true,
+          "actual_row_present": false,
+          "actual_values": []
+        },
+        {
+          "bucket": "g0037",
+          "expected_count": 0,
+          "expected_bucket_present": true,
+          "actual_row_present": false,
+          "actual_values": []
+        },
+        {
+          "bucket": "g0038",
+          "expected_count": 0,
+          "expected_bucket_present": true,
+          "actual_row_present": false,
+          "actual_values": []
+        },
+        {
+          "bucket": "g0039",
+          "expected_count": 0,
+          "expected_bucket_present": true,
+          "actual_row_present": false,
+          "actual_values": []
+        },
+        {
+          "bucket": "g0040",
+          "expected_count": 0,
+          "expected_bucket_present": true,
+          "actual_row_present": false,
+          "actual_values": []
+        },
+        {
+          "bucket": "g0041",
+          "expected_count": 0,
+          "expected_bucket_present": true,
+          "actual_row_present": false,
+          "actual_values": []
+        },
+        {
+          "bucket": "g0042",
+          "expected_count": 0,
+          "expected_bucket_present": true,
+          "actual_row_present": false,
+          "actual_values": []
+        },
+        {
+          "bucket": "g0043",
+          "expected_count": 0,
+          "expected_bucket_present": true,
+          "actual_row_present": false,
+          "actual_values": []
+        },
+        {
+          "bucket": "g0044",
+          "expected_count": 0,
+          "expected_bucket_present": true,
+          "actual_row_present": false,
+          "actual_values": []
+        },
+        {
+          "bucket": "g0045",
+          "expected_count": 0,
+          "expected_bucket_present": true,
+          "actual_row_present": false,
+          "actual_values": []
+        },
+        {
+          "bucket": "g0046",
+          "expected_count": 0,
+          "expected_bucket_present": true,
+          "actual_row_present": false,
+          "actual_values": []
+        },
+        {
+          "bucket": "g0047",
+          "expected_count": 0,
+          "expected_bucket_present": true,
+          "actual_row_present": false,
+          "actual_values": []
+        },
+        {
+          "bucket": "g0048",
+          "expected_count": 0,
+          "expected_bucket_present": true,
+          "actual_row_present": false,
+          "actual_values": []
+        },
+        {
+          "bucket": "g0049",
+          "expected_count": 0,
+          "expected_bucket_present": true,
+          "actual_row_present": false,
+          "actual_values": []
+        },
+        {
+          "bucket": "g0050",
+          "expected_count": 0,
+          "expected_bucket_present": true,
+          "actual_row_present": false,
+          "actual_values": []
+        },
+        {
+          "bucket": "g0051",
+          "expected_count": 0,
+          "expected_bucket_present": true,
+          "actual_row_present": false,
+          "actual_values": []
+        },
+        {
+          "bucket": "g0052",
+          "expected_count": 0,
+          "expected_bucket_present": true,
+          "actual_row_present": false,
+          "actual_values": []
+        },
+        {
+          "bucket": "g0053",
+          "expected_count": 0,
+          "expected_bucket_present": true,
+          "actual_row_present": false,
+          "actual_values": []
+        },
+        {
+          "bucket": "g0054",
+          "expected_count": 0,
+          "expected_bucket_present": true,
+          "actual_row_present": false,
+          "actual_values": []
+        },
+        {
+          "bucket": "g0055",
+          "expected_count": 0,
+          "expected_bucket_present": true,
+          "actual_row_present": false,
+          "actual_values": []
+        },
+        {
+          "bucket": "g0056",
+          "expected_count": 0,
+          "expected_bucket_present": true,
+          "actual_row_present": false,
+          "actual_values": []
+        },
+        {
+          "bucket": "g0057",
+          "expected_count": 0,
+          "expected_bucket_present": true,
+          "actual_row_present": false,
+          "actual_values": []
+        },
+        {
+          "bucket": "g0058",
+          "expected_count": 0,
+          "expected_bucket_present": true,
+          "actual_row_present": false,
+          "actual_values": []
+        },
+        {
+          "bucket": "g0059",
+          "expected_count": 0,
+          "expected_bucket_present": true,
+          "actual_row_present": false,
+          "actual_values": []
+        },
+        {
+          "bucket": "g0060",
+          "expected_count": 0,
+          "expected_bucket_present": true,
+          "actual_row_present": false,
+          "actual_values": []
+        },
+        {
+          "bucket": "g0061",
+          "expected_count": 0,
+          "expected_bucket_present": true,
+          "actual_row_present": false,
+          "actual_values": []
+        },
+        {
+          "bucket": "g0062",
+          "expected_count": 0,
+          "expected_bucket_present": true,
+          "actual_row_present": false,
+          "actual_values": []
+        },
+        {
+          "bucket": "g0063",
+          "expected_count": 0,
+          "expected_bucket_present": true,
+          "actual_row_present": false,
+          "actual_values": []
+        },
+        {
+          "bucket": "g0064",
+          "expected_count": 0,
+          "expected_bucket_present": true,
+          "actual_row_present": false,
+          "actual_values": []
+        },
+        {
+          "bucket": "g0065",
+          "expected_count": 0,
+          "expected_bucket_present": true,
+          "actual_row_present": false,
+          "actual_values": []
+        },
+        {
+          "bucket": "g0066",
+          "expected_count": 0,
+          "expected_bucket_present": true,
+          "actual_row_present": false,
+          "actual_values": []
+        },
+        {
+          "bucket": "g0067",
+          "expected_count": 0,
+          "expected_bucket_present": true,
+          "actual_row_present": false,
+          "actual_values": []
+        },
+        {
+          "bucket": "g0068",
+          "expected_count": 0,
+          "expected_bucket_present": true,
+          "actual_row_present": false,
+          "actual_values": []
+        },
+        {
+          "bucket": "g0069",
+          "expected_count": 0,
+          "expected_bucket_present": true,
+          "actual_row_present": false,
+          "actual_values": []
+        },
+        {
+          "bucket": "g0070",
+          "expected_count": 0,
+          "expected_bucket_present": true,
+          "actual_row_present": false,
+          "actual_values": []
+        },
+        {
+          "bucket": "g0071",
+          "expected_count": 0,
+          "expected_bucket_present": true,
+          "actual_row_present": false,
+          "actual_values": []
+        },
+        {
+          "bucket": "g0072",
+          "expected_count": 0,
+          "expected_bucket_present": true,
+          "actual_row_present": false,
+          "actual_values": []
+        },
+        {
+          "bucket": "g0073",
+          "expected_count": 0,
+          "expected_bucket_present": true,
+          "actual_row_present": false,
+          "actual_values": []
+        },
+        {
+          "bucket": "g0074",
+          "expected_count": 0,
+          "expected_bucket_present": true,
+          "actual_row_present": false,
+          "actual_values": []
+        },
+        {
+          "bucket": "g0075",
+          "expected_count": 0,
+          "expected_bucket_present": true,
+          "actual_row_present": false,
+          "actual_values": []
+        },
+        {
+          "bucket": "g0076",
+          "expected_count": 0,
+          "expected_bucket_present": true,
+          "actual_row_present": false,
+          "actual_values": []
+        },
+        {
+          "bucket": "g0077",
+          "expected_count": 0,
+          "expected_bucket_present": true,
+          "actual_row_present": false,
+          "actual_values": []
+        },
+        {
+          "bucket": "g0078",
+          "expected_count": 0,
+          "expected_bucket_present": true,
+          "actual_row_present": false,
+          "actual_values": []
+        },
+        {
+          "bucket": "g0079",
+          "expected_count": 0,
+          "expected_bucket_present": true,
+          "actual_row_present": false,
+          "actual_values": []
+        },
+        {
+          "bucket": "g0080",
+          "expected_count": 0,
+          "expected_bucket_present": true,
+          "actual_row_present": false,
+          "actual_values": []
+        },
+        {
+          "bucket": "g0081",
+          "expected_count": 0,
+          "expected_bucket_present": true,
+          "actual_row_present": false,
+          "actual_values": []
+        },
+        {
+          "bucket": "g0082",
+          "expected_count": 0,
+          "expected_bucket_present": true,
+          "actual_row_present": false,
+          "actual_values": []
+        },
+        {
+          "bucket": "g0083",
+          "expected_count": 0,
+          "expected_bucket_present": true,
+          "actual_row_present": false,
+          "actual_values": []
+        },
+        {
+          "bucket": "g0084",
+          "expected_count": 0,
+          "expected_bucket_present": true,
+          "actual_row_present": false,
+          "actual_values": []
+        },
+        {
+          "bucket": "g0085",
+          "expected_count": 0,
+          "expected_bucket_present": true,
+          "actual_row_present": false,
+          "actual_values": []
+        },
+        {
+          "bucket": "g0086",
+          "expected_count": 0,
+          "expected_bucket_present": true,
+          "actual_row_present": false,
+          "actual_values": []
+        },
+        {
+          "bucket": "g0087",
+          "expected_count": 0,
+          "expected_bucket_present": true,
+          "actual_row_present": false,
+          "actual_values": []
+        },
+        {
+          "bucket": "g0088",
+          "expected_count": 0,
+          "expected_bucket_present": true,
+          "actual_row_present": false,
+          "actual_values": []
+        },
+        {
+          "bucket": "g0089",
+          "expected_count": 0,
+          "expected_bucket_present": true,
+          "actual_row_present": false,
+          "actual_values": []
+        },
+        {
+          "bucket": "g0090",
+          "expected_count": 0,
+          "expected_bucket_present": true,
+          "actual_row_present": false,
+          "actual_values": []
+        },
+        {
+          "bucket": "g0091",
+          "expected_count": 0,
+          "expected_bucket_present": true,
+          "actual_row_present": false,
+          "actual_values": []
+        },
+        {
+          "bucket": "g0092",
+          "expected_count": 0,
+          "expected_bucket_present": true,
+          "actual_row_present": false,
+          "actual_values": []
+        },
+        {
+          "bucket": "g0093",
+          "expected_count": 0,
+          "expected_bucket_present": true,
+          "actual_row_present": false,
+          "actual_values": []
+        },
+        {
+          "bucket": "g0094",
+          "expected_count": 0,
+          "expected_bucket_present": true,
+          "actual_row_present": false,
+          "actual_values": []
+        },
+        {
+          "bucket": "g0095",
+          "expected_count": 0,
+          "expected_bucket_present": true,
+          "actual_row_present": false,
+          "actual_values": []
+        },
+        {
+          "bucket": "g0096",
+          "expected_count": 0,
+          "expected_bucket_present": true,
+          "actual_row_present": false,
+          "actual_values": []
+        },
+        {
+          "bucket": "g0097",
+          "expected_count": 0,
+          "expected_bucket_present": true,
+          "actual_row_present": false,
+          "actual_values": []
+        },
+        {
+          "bucket": "g0098",
+          "expected_count": 0,
+          "expected_bucket_present": true,
+          "actual_row_present": false,
+          "actual_values": []
+        },
+        {
+          "bucket": "g0099",
+          "expected_count": 0,
+          "expected_bucket_present": true,
+          "actual_row_present": false,
+          "actual_values": []
+        },
+        {
+          "bucket": "g0100",
+          "expected_count": 0,
+          "expected_bucket_present": true,
+          "actual_row_present": false,
+          "actual_values": []
+        }
+      ],
+      "duplicate_buckets": {},
+      "missing_nonzero_buckets": [],
+      "unexpected_buckets": [],
+      "wrong_counts": [],
+      "original_strict_physical_equality_pass": false,
+      "logical_bucket_equality_pass": true
+    },
+    "memberCounts": {
+      "physical_rows": 1002,
+      "logical_expected_buckets": 1002,
+      "expected_sum": 2054,
+      "actual_sum": 2054,
+      "expected_zero_buckets": 0,
+      "diff": [],
+      "duplicate_buckets": {},
+      "missing_nonzero_buckets": [],
+      "unexpected_buckets": [],
+      "wrong_counts": [],
+      "original_strict_physical_equality_pass": true,
+      "logical_bucket_equality_pass": true
+    }
+  },
+  "source_provenance": {
+    "original_checker": {
+      "path": "/Users/ccheever/clique-improvement/revisions/search-native-scale/populate.py",
+      "sha256": "628d9437b6cc181e36f28235e7c9f50557865e30f7d800f283613a1ab976eeae",
+      "bytes": 9557
+    },
+    "batch_checker": {
+      "path": "/Users/ccheever/clique-improvement/revisions/search-native-scale-batch/populate.py",
+      "sha256": "7c90bd400beb8aeb06d8b6c0ed76d434e0098470b67ea9a339329643801ae224",
+      "bytes": 9557
+    },
+    "native_maintenance": {
+      "path": "/Users/ccheever/projects/snapback-worktrees/clique-search-engine/snapback2/crates/snapback2-core/src/engine/runner_ops.rs",
+      "sha256": "bf748218d66fab20ae7a7ff0ef8b2b559eaa2ebff3910155fb2b230109eee846",
+      "bytes": 52743
+    },
+    "schema": {
+      "path": "/Users/ccheever/clique-improvement/revisions/search-native-scale/prepared/fixture/snapback/schema.q",
+      "sha256": "77ad560ee30a600b6b1b8e5d5aa0b5f39308fdda6ecc919b163db701e9df7bb5",
+      "bytes": 4076
+    },
+    "messages_query": {
+      "path": "/Users/ccheever/clique-improvement/revisions/search-native-scale/prepared/fixture/snapback/messages.q",
+      "sha256": "cd698245480cbbe1fae20375bdb4607dd1a03886aa10320fd7c2f968a4628406",
+      "bytes": 2227
+    },
+    "canonical_manifest": {
+      "path": "/Users/ccheever/clique-improvement/revisions/search-native-scale/checkpoint-manifests.json",
+      "sha256": "abf69f119936603438477ec81590d6e2cb768b423a4fdfddb3837bb7720f9cac",
+      "bytes": 178828
+    },
+    "canonical_projection": {
+      "path": "/Users/ccheever/clique-improvement/revisions/search-native-scale/fixture.py",
+      "sha256": "accb66926704e5d6d21b27e1ad8f3a3a518801867877a9489fb13407eecbf841",
+      "bytes": 10674
+    }
+  },
+  "both_checkpoint_functions_ast_equal": true,
+  "retained_attempts": {
+    "original": {
+      "root": "/Users/ccheever/clique-improvement/revisions/search-native-scale/attempts/curve-01",
+      "artifacts": {
+        "asset-custody.jsonl": {
+          "bytes": 410,
+          "sha256": "28bba7dddd9d2ceb981529aa091ba6f0206d3e6cc5e77030f16484603f15fae9"
+        },
+        "authorization-binding.json": {
+          "bytes": 228,
+          "sha256": "96232fd4592fe6b8e4a7757f42772d2ef65482afb0f0b396987e5ae91d5171d8"
+        },
+        "checkpoint-10-snapshot.json": {
+          "bytes": 1372,
+          "sha256": "b92919b29b7f8593ff706b0a7512f3831d79b9df20220a99d3fe70018158cc9b"
+        },
+        "failure.json": {
+          "bytes": 714,
+          "sha256": "f0c8ee9e247daf10c530453e34f2cf9d6fcd17113f66432c7eafba1bc1b03a5c"
+        },
+        "failures.jsonl": {
+          "bytes": 681,
+          "sha256": "0cea6df454e814077d59580ae78c6060ae3ce2de72bdcd9cfaf37b73f25bb213"
+        },
+        "host.json": {
+          "bytes": 2185,
+          "sha256": "25f7cf69739afb618889a885661ea14f154135ea7630dcd3c46cf9fb5181cd19"
+        },
+        "http.jsonl": {
+          "bytes": 10761372,
+          "sha256": "b7f5d0c63638e3b5984ecd0d581e4f05b3c0d15b09683efa3709fb752722189c"
+        },
+        "owner-launch.json": {
+          "bytes": 811,
+          "sha256": "6a21372ae49bfc4813a47a603264c814a7762706b9f4dcf0879b0bb56974d783"
+        },
+        "owner-stopped.json": {
+          "bytes": 121,
+          "sha256": "b9cbec24e7eb91e97c2eec604aecab52775ae3178b1efefe33e1e4efabad0924"
+        },
+        "owner.log": {
+          "bytes": 138,
+          "sha256": "4de057393e07e439979469257805ad31d7eafded3e423902c2f13946c9bdb1a1"
+        },
+        "population.jsonl": {
+          "bytes": 3745810,
+          "sha256": "5d9d151937dfaed470c83db41c92b9895b4b81bfacd26157d34e5d59284db7be"
+        },
+        "ports-before.json": {
+          "bytes": 252,
+          "sha256": "1b84ba264bab6f910edc0db5c948f359918a850834b9b32a6c9b1d55690a133f"
+        },
+        "resources.jsonl": {
+          "bytes": 2804007,
+          "sha256": "c18d14c2118c8f93d55bec0309f21807c7290f046b4fcdb3859d7b39a319b99f"
+        },
+        "result.json": {
+          "bytes": 625,
+          "sha256": "ced8898265326e2199e2fb78e466e4ac9f44fad5cde546ddc7230e01c236062f"
+        },
+        "source-verification.json": {
+          "bytes": 454,
+          "sha256": "f3e0e9135c21a2c678f71a39b84f52e17671077533c40bcc8fe148d27322bae9"
+        },
+        "startup.json": {
+          "bytes": 103,
+          "sha256": "82c9c66b6ac3e87ae1463c70e70d8be837ece32983a024a7c67af78bd3914468"
+        },
+        "supervisor-observations.jsonl": {
+          "bytes": 835,
+          "sha256": "a9cd2a084569f28a94cbc8676679c6e60e4fd74be83ddd016d922108ff3d3b90"
+        },
+        "private/project/.snapback/store.sqlite": {
+          "bytes": 108273664,
+          "sha256": "111492fcf5535a5e20e4487f5422a15c912308ba963d6c4629e8e48490fb1f5a"
+        },
+        "private/project/.snapback/store.sqlite-wal": {
+          "bytes": 4503192,
+          "sha256": "a191160d2f2ed1760ab289e72c38e36f4d6556efaa6498d71ca7a7539648152c"
+        }
+      },
+      "last_recorded_ordinal": 24864,
+      "recorded_action_ms_sum": 5613940.914971381,
+      "recorded_action_ms_scope": "sum of numeric recorded per-action durations only; batch-associated action_ms:null excluded, so not batch population duration; not exact Population.seconds; excludes checkpoint phase",
+      "timing_samples": 0,
+      "census_10_exists": false
+    },
+    "batch": {
+      "root": "/Users/ccheever/clique-improvement/revisions/search-native-scale-batch/attempts/batch-curve-01",
+      "artifacts": {
+        "asset-custody.jsonl": {
+          "bytes": 407,
+          "sha256": "3d779a70b216cacfdddec29ce223a6d56c004efcb6eaff1cef40d9e80c4255b7"
+        },
+        "authorization-binding.json": {
+          "bytes": 230,
+          "sha256": "f5df6e98cae37af9e90938156b7f940ffab78de0a0a6893e9ebd4e34deb18658"
+        },
+        "batch-failure.json": {
+          "bytes": 620,
+          "sha256": "fcf44cb1dc604d46739998763b6cae9406dd150d9b60955a972f397337863440"
+        },
+        "batch-failures.jsonl": {
+          "bytes": 524,
+          "sha256": "59b9fe3b2da7a12ba2166b4e449d8fbe1d7490e3091a8fd18659e529463d333f"
+        },
+        "batches.jsonl": {
+          "bytes": 135014,
+          "sha256": "cb68439bdd1990d2b1dfd4ac09cbb84568435d980cccdd7a9ae138d23855be57"
+        },
+        "failure.json": {
+          "bytes": 2487,
+          "sha256": "828366fa8854e85b90e333177cc7c275969025f9f4ce159691d3975fc707d17d"
+        },
+        "failures.jsonl": {
+          "bytes": 2454,
+          "sha256": "0d8713710c39c3e77ac1b95ff7deb25f380e12688932e287bf776b3b06284fd1"
+        },
+        "host.json": {
+          "bytes": 2190,
+          "sha256": "ef144f3be11711a4d477110f1d79cd68c2c3eb9ba4c13bb36ede0d94d83c774e"
+        },
+        "http.jsonl": {
+          "bytes": 3755349,
+          "sha256": "043534f203faf263f696804f98ad8f481236a351326b5955c730b2757364ec9f"
+        },
+        "owner-launch.json": {
+          "bytes": 864,
+          "sha256": "a91a8d1e4ecd9d45577f042bf984c6ec8ea9a16b9015e2805a2d2db216c67f33"
+        },
+        "owner-stopped.json": {
+          "bytes": 121,
+          "sha256": "0752b4d3781b216d2183b6e4021e15b191a84ebfdff750899070f6e9a339cdf2"
+        },
+        "owner.log": {
+          "bytes": 138,
+          "sha256": "44451a266dce6def44b78de13069c0abf595f60b363c92ee80602aa774234c7c"
+        },
+        "population.jsonl": {
+          "bytes": 4425474,
+          "sha256": "2692aaddc9af26b865abc4d5db18370627927e8674fff93025cf24774556c8e8"
+        },
+        "ports-before.json": {
+          "bytes": 252,
+          "sha256": "d7ae99ee142727875a8a42ccc47a79372db2fba8ad1b6070c72ba7a9302617bb"
+        },
+        "resources.jsonl": {
+          "bytes": 965716,
+          "sha256": "6d86aa692b54847f434a9b109779bee0898e9a4d7fef328cf01966de9628aa6a"
+        },
+        "result.json": {
+          "bytes": 637,
+          "sha256": "59a9e55a36b6e39acb21c156fd11450f3f6fadc85e688887169474345801f938"
+        },
+        "source-verification.json": {
+          "bytes": 454,
+          "sha256": "f3e0e9135c21a2c678f71a39b84f52e17671077533c40bcc8fe148d27322bae9"
+        },
+        "startup.json": {
+          "bytes": 107,
+          "sha256": "f13847516b17dd918100bbd71110912a8a066a16408f9719cbb448641e8f0d86"
+        },
+        "private/project/.snapback/store.sqlite": {
+          "bytes": 79843328,
+          "sha256": "ce47bd118703ed3c8ceb4257821fbf8537f5c1d666ea40644282afa5fc802c53"
+        },
+        "private/project/.snapback/store.sqlite-wal": {
+          "bytes": 6097632,
+          "sha256": "bd005ae700efc4cbc80684ea41c0e08b923e337d47f2dfcdbd9cb173f36b5f33"
+        }
+      },
+      "last_recorded_ordinal": 20299,
+      "recorded_action_ms_sum": 1683161.8651311146,
+      "recorded_action_ms_scope": "sum of numeric recorded per-action durations only; batch-associated action_ms:null excluded, so not batch population duration; not exact Population.seconds; excludes checkpoint phase",
+      "timing_samples": 0,
+      "census_10_exists": false
+    }
+  },
+  "classification": "checkpoint-oracle bug: original dictionary equality incorrectly requires physical rows for logical zero buckets; no native maintenance failure established",
+  "skipped_claims": [
+    "No query timing samples",
+    "No completed per-chat HTTP history census",
+    "No full-curve result",
+    "No product/package/twin/phone qualification"
+  ]
+}

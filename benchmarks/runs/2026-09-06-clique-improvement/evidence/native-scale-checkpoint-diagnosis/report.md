@@ -1,0 +1,20 @@
+# Original checkpoint failure and batch cancellation
+
+The first native projection attempt failed because the checkpoint oracle required physical aggregate rows for logically empty groups. No native maintenance failure is established. Original and batch histories remain unchanged; neither produced query timing samples.
+
+The independent read-only check reconstructed canonical state through source ordinal 24,864 and opened the already-stopped 10% SQLite snapshot with `mode=ro&immutable=1`. Its SHA-256 before and after remained `3bebdce0a82ed045e5dbd10a6639bd33e4c5e45f62986564fa86c5dc821149b4` (108,285,952 bytes). `diagnosis.json` retains the complete 99-bucket diff and source/artifact hashes.
+
+| Aggregate | Physical rows | Canonical logical buckets | Stored sum | Expected sum | Difference |
+|---|---:|---:|---:|---:|---|
+| messageCounts | 903 | 1,002 | 10,015 | 10,015 | g0002–g0100: expected 0, physical row absent |
+| memberCounts | 1,002 | 1,002 | 2,054 | 2,054 | None |
+
+All positive message counts match. No duplicate, unexpected, wrong-valued, or missing positive bucket exists. All 2,054 membership source IDs and roles match the independent canonical projection. The message aggregate is driven by message writes; creating a conversation alone does not materialize its zero aggregate. `runner_ops.rs` lines207–229 select maintain rules by the modified source table; lines231–289 compute/write the aggregate when a source delta occurs. The unchanged schema declares `messageCounts = count messages by conversationId`; the original messages.summary query returns the optional count lookup without an existence assertion. Both frozen `Population.checkpoint` function ASTs are identical and make the same incorrect physical dictionary equality assertion.
+
+Original `curve-01` started 2026-09-06T16:38:11.576382+00:00 and failed 2026-09-06T18:11:53.725180+00:00: 5622.149 seconds from owner launch to failure. Recorded per-action durations total 5613.941 seconds; this is a reconstruction from logged action durations, not the unpersisted exact `Population.seconds`. The original supervisor exit was1; its owner stopped normally with return0. It failed before completed census output and before every-chat history paging or the search/timing phase. No claim is made that those later checks passed.
+
+Root explicitly authorized cancellation of `batch-curve-01` because its frozen checker could not finish. Only the identity-verified supervisor19373 received SIGINT at18:18:45.928502Z; owner19457 exited normally at18:18:46.165945Z. The SSH wrapper returned255. The original frozen runner retained its KeyboardInterrupt failure record; this report classifies that terminal as intentional cancellation, not a product failure. Last acknowledged source ordinal was20,299; the interrupted in-flight request may have committed without a corresponding acknowledgement. No inference about its disposition replaces the retained partial DB/WAL. Their hashes and every top-level attempt artifact are in `diagnosis.json`. All four supervisors/owners were absent and ports50920–25 unused at18:23:30Z.
+
+The first read-only metadata-export script failed after snapshot comparisons when summing a nullable batch action duration. Its source/log/terminal remain preserved. The second read-only export excluded null action durations and completed; no owner, fixture, snapshot, native source, query, or workload was rerun or altered. This diagnostic correction has no performance claim.
+
+The corrected harness must compare canonical logical buckets, accept an absent physical row only for expected0, and reject missing positive, wrong, duplicate, and unexpected buckets. It must preserve all query/timing/source/size gates and distinguish physical rows from logical buckets. A sole Astra xhigh writer is preparing that distinct revision with actual stopped-snapshot and deliberate negative controls. No new schedule, resume, population reuse, or full curve is authorized until root reviews the corrected freeze.
