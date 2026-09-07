@@ -1,141 +1,21 @@
-import { basename, dirname, join } from "node:path";
-import type { IndexComponent, Provenance } from "../ir";
+import { basename } from "node:path";
+import type { Provenance } from "../ir";
 import { columnAt, derivedPosition, ordinaryColumns } from "../index-components";
-import type { Document, Expr, FunctionDecl, IndexDecl, ProgramDecl, ScalarType, ShapeDecl, ShapeField, Site, Stmt as QuarryStatement, TableCatalog, TableDecl } from "./ast";
+import type { Document, Expr, IndexDecl, ProgramDecl, ScalarType, ShapeField, Site, Stmt as QuarryStatement, TableCatalog } from "./ast";
 import { selectIndex } from "./catalog";
 import { decimalScale, opaque, QuarryError, refuse, typeError, unsupported } from "./diagnostics";
+import { completionFacts } from "./bound-control";
+import { BoundFunctionRegistry, BoundShapeRegistry } from "./bound-declarations";
+import { siteText, sourceStack, typeName, withoutExpansion } from "./bound-source";
+import type { BoundArgumentSymbol, BoundExpression, BoundHeldSearch, BoundIndexSymbol, BoundLocalSymbol, BoundPresence,
+  BoundMergeLane, BoundQuarryProgram, BoundRead, BoundSourceStack, BoundStatement, BoundTableSymbol, BoundType,
+  BoundValueFacts, BoundValueSymbol } from "./bound-model";
 
 const MAX_EXPANSION_DEPTH = 8;
 const MAX_EXPANDED_NODES = 4096;
 const CONTEXT_NAMES = new Set(["viewer", "now", "commit", "new"]);
 
-export type BoundSourceStack = { definition: Site; use?: Site };
-export type BoundPresence = "required" | "optional";
-
-export type BoundTableSymbol = {
-  kind: "table"; id: string; name: string; declaration: TableDecl; source: BoundSourceStack;
-};
-export type BoundIndexSymbol = {
-  kind: "index"; id: string; name: string; declaration: IndexDecl; table: BoundTableSymbol; source: BoundSourceStack;
-};
-export type BoundArgumentSymbol = {
-  kind: "argument"; id: string; name: string; type: ScalarType; origin: Provenance; source: BoundSourceStack;
-  narrowedMembers?: ReadonlySet<string>;
-};
-export type BoundLocalSymbol = {
-  kind: "local"; id: string; name: string; facts: BoundValueFacts; source: BoundSourceStack;
-  narrowedMembers?: ReadonlySet<string>;
-};
-export type BoundValueSymbol = BoundArgumentSymbol | BoundLocalSymbol;
-
-export type BoundType =
-  | ScalarType
-  | { kind: "unknown" }
-  | { kind: "null" }
-  | { kind: "empty-list"; max: 0 }
-  | { kind: "row"; table: BoundTableSymbol; nullable: boolean }
-  | { kind: "page"; table: BoundTableSymbol; max: number; item?: BoundValueFacts }
-  | { kind: "collection"; item: BoundValueFacts; max: number }
-  | { kind: "object"; fields: ReadonlyMap<string, BoundValueFacts>; nullable: boolean }
-  | { kind: "numeric-literal"; fractionalDigits: number };
-
-export type BoundValueFacts = {
-  type: BoundType;
-  presence: BoundPresence;
-  max?: number;
-  /** This int, or every int item in this list, still represents authored whole units. */
-  wholeUnits?: true;
-  origin: Provenance;
-  fieldProjection?: "inherited-row" | "constructed";
-  tableOrigin?: BoundTableSymbol;
-  readOrigin?: BoundRead;
-};
-
-type BoundExpressionBase = { facts: BoundValueFacts; source: BoundSourceStack };
-export type BoundExpression = BoundExpressionBase & (
-  | { kind: "literal"; value: string | number | boolean | null; numericText?: string; wireValue?: number; wireKind?: "id" }
-  | { kind: "variable"; symbol: BoundValueSymbol }
-  | { kind: "focal"; id: string }
-  | { kind: "input"; input: "Viewer" | "Now" | "NewId" | "ReadTime" }
-  | { kind: "array"; items: BoundExpression[] }
-  | { kind: "scale"; value: BoundExpression; multiplier: number; preserveNull: boolean }
-  | { kind: "scale-list"; value: BoundExpression; multiplier: number; max: number; preserveNull: boolean }
-  | { kind: "object"; fields: Array<{ name: string; value: BoundExpression; source: BoundSourceStack }> }
-  | { kind: "unary"; op: "Not" | "Neg"; value: BoundExpression }
-  | { kind: "binary"; op: string; left: BoundExpression; right: BoundExpression; scaleDivisor?: number }
-  | { kind: "assert"; value: BoundExpression; code: string }
-  | { kind: "member"; base: BoundExpression; name: string }
-  | { kind: "shape"; base: BoundExpression; focal: Extract<BoundExpression, { kind: "focal" }>;
-      fields: Array<{ name: string; value: BoundExpression; source: BoundSourceStack }> }
-  | { kind: "builtin"; builtin: string | Record<string, unknown>; args: BoundExpression[] }
-  | { kind: "invoke"; bindings: Array<{
-      symbol: BoundArgumentSymbol;
-      value: BoundExpression;
-      coercion?: "row-id";
-    }>; body: BoundExpression }
-  | { kind: "range"; start: number; end: number; max: number }
-  | { kind: "walk"; site: string; table: BoundTableSymbol; index: BoundIndexSymbol;
-      seed: BoundExpression; column: string; depth: number }
-  | { kind: "merge"; site: string; table: BoundTableSymbol; index: BoundIndexSymbol;
-      lanes: BoundMergeLane[]; heldSearch?: BoundHeldSearch }
-  | { kind: "write"; op: "insert" | "update" | "upsert" | "delete";
-      table: BoundTableSymbol; index?: BoundIndexSymbol; key: BoundExpression[];
-      fields: Array<{ name: string; value: BoundExpression; expected: ScalarType; coercion?: "row-id"; source: BoundSourceStack }>;
-      focal?: Extract<BoundExpression, { kind: "focal" }>; usesFocal: boolean; addressedColumns: string[]; provenance: Provenance }
-  | { kind: "get" | "exists" | "scan" | "aggregate"; read: BoundRead }
-);
-
-export type BoundRead = {
-  table: BoundTableSymbol;
-  index: BoundIndexSymbol;
-  key: BoundExpression[];
-  provenance: Provenance;
-  source: BoundSourceStack;
-  skipNullKey?: boolean;
-  range?: {
-    components: IndexComponent[];
-    order: "Asc" | "Desc";
-    take: number;
-    after: BoundExpression | null;
-    opaqueCursor: boolean;
-    mergeSite?: string;
-  };
-};
-
-export type BoundMergeLane = {
-  sourceRead?: BoundRead;
-  symbol?: BoundLocalSymbol;
-  scan: BoundRead;
-  source: BoundSourceStack;
-};
-
-export type BoundHeldSearch = {
-  term: BoundExpression;
-  termComponent: Extract<IndexComponent, { WordPrefixes: unknown }>;
-  scope: Array<{ column: string; value: BoundExpression }>;
-  suffix: string[];
-  authorizationIndex: string;
-};
-
-export type BoundStatement =
-  | { kind: "return"; value: BoundExpression; source: BoundSourceStack }
-  | { kind: "expr"; value: BoundExpression; completion: boolean; source: BoundSourceStack }
-  | { kind: "bind"; symbols: BoundLocalSymbol[]; tupleFields?: string[]; value: BoundExpression; source: BoundSourceStack }
-  | { kind: "require"; condition: BoundExpression; code: string; source: BoundSourceStack }
-  | { kind: "emit"; effect: string; payload: BoundExpression; source: BoundSourceStack }
-  | { kind: "if"; condition: BoundExpression; thenBody: BoundStatement[]; elseBody: BoundStatement[]; source: BoundSourceStack }
-  | { kind: "for"; symbol: BoundLocalSymbol; domain: BoundExpression; body: BoundStatement[]; source: BoundSourceStack }
-  | { kind: "match"; value: BoundExpression & { kind: "get" }; symbol: BoundLocalSymbol;
-      someBody: BoundStatement[]; noneBody: BoundStatement[]; source: BoundSourceStack };
-export type BoundQuarryProgram = {
-  name: string;
-  kind: ProgramDecl["kind"];
-  args: BoundArgumentSymbol[];
-  focal?: Extract<BoundExpression, { kind: "focal" }>;
-  result: BoundValueFacts;
-  body: BoundStatement[];
-  source: BoundSourceStack;
-};
+export * from "./bound-model";
 
 /** Bind one operation without routing its data plane through generated TypeScript. */
 export function bindQuarryProgram(program: ProgramDecl, catalog: TableCatalog, documents: Document[] = []): BoundQuarryProgram {
@@ -170,100 +50,6 @@ export function bindQuarryProgram(program: ProgramDecl, catalog: TableCatalog, d
 }
 
 type ExpansionBudget = { nodes: number; expansionId: number; shapeId: number };
-type ShapeDefinition = { declaration: ShapeDecl; document: Document };
-
-class BoundShapeRegistry {
-  private readonly modules: Map<string, Document>;
-  private readonly members = new Map<Document, Map<string, ShapeDecl | Document["shapeImports"][number]>>();
-
-  constructor(documents: Document[]) {
-    this.modules = new Map(documents.map((document) => [document.file, document]));
-    for (const document of documents) {
-      const names = new Map<string, ShapeDecl | Document["shapeImports"][number]>();
-      for (const declaration of [...document.shapes, ...document.shapeImports]) {
-        const prior = names.get(declaration.name);
-        if (prior) throw new QuarryError(
-          declaration.site,
-          `duplicate shape ${declaration.name}; first declared at ${siteText(prior.site)}`,
-          "E_QUARRY_UNKNOWN", `remove the duplicate shape ${declaration.name} declaration or import`,
-        );
-        names.set(declaration.name, declaration);
-      }
-      this.members.set(document, names);
-    }
-  }
-
-  resolve(file: string, name: string, useSite: Site, imports: string[] = []): ShapeDefinition {
-    const document = this.modules.get(file);
-    const member = document && this.members.get(document)?.get(name);
-    if (!document || !member) throw new QuarryError(
-      useSite, `unknown shape ${name} in ${file}`, "E_QUARRY_UNKNOWN",
-      `define shape ${name} = { * } in ${file}, or import shape ${name} from its module`,
-    );
-    if (!("module" in member)) return { declaration: member, document };
-    const identity = `shape:${document.file}:${name}`;
-    if (imports.includes(identity)) throw new QuarryError(
-      member.site, `shape import cycle ${[...imports, identity].join(" -> ")}`, "E_QUARRY_UNSUPPORTED",
-      `replace one import of ${name} with shape ${name} = { * } and fill in its fields`,
-    );
-    const target = this.modules.get(join(dirname(document.file), `${member.module}.q`));
-    if (!target) throw new QuarryError(
-      member.site, `unknown shape module ${member.module}`, "E_QUARRY_UNKNOWN",
-      `create snapback/${member.module}.q with shape ${name} = { * }, or correct the module name`,
-    );
-    return this.resolve(target.file, name, member.site, [...imports, identity]);
-  }
-}
-
-type FunctionDefinition = { declaration: FunctionDecl; document: Document };
-
-class BoundFunctionRegistry {
-  private readonly modules: Map<string, Document>;
-  private readonly members = new Map<Document, Map<string, FunctionDecl | Document["functionImports"][number]>>();
-
-  constructor(documents: Document[]) {
-    this.modules = new Map(documents.map((document) => [document.file, document]));
-    for (const document of documents) {
-      const names = new Map<string, FunctionDecl | Document["functionImports"][number]>();
-      for (const declaration of [...document.functions, ...document.functionImports]) {
-        const prior = names.get(declaration.name);
-        if (prior) throw new QuarryError(
-          declaration.site,
-          `duplicate fn ${declaration.name}; first declared at ${siteText(prior.site)}`,
-          "E_QUARRY_UNKNOWN", `remove the duplicate fn ${declaration.name} declaration or import`,
-        );
-        names.set(declaration.name, declaration);
-      }
-      this.members.set(document, names);
-    }
-  }
-
-  has(file: string, name: string): boolean {
-    const document = this.modules.get(file);
-    return !!document && this.members.get(document)?.has(name) === true;
-  }
-
-  resolve(file: string, name: string, useSite: Site, imports: string[] = []): FunctionDefinition {
-    const document = this.modules.get(file);
-    const member = document && this.members.get(document)?.get(name);
-    if (!document || !member) throw new QuarryError(
-      useSite, `unknown fn ${name} in ${file}`, "E_QUARRY_UNKNOWN",
-      `define fn ${name}(value: int) = value in ${file}, or import fn ${name} from its module`,
-    );
-    if (!("module" in member)) return { declaration: member, document };
-    const identity = `fn:${document.file}:${name}`;
-    if (imports.includes(identity)) throw new QuarryError(
-      member.site, `fn import cycle ${[...imports, identity].join(" -> ")}`, "E_QUARRY_UNSUPPORTED",
-      `replace one import of ${name} with a local expression-only fn declaration`,
-    );
-    const target = this.modules.get(join(dirname(document.file), `${member.module}.q`));
-    if (!target) throw new QuarryError(
-      member.site, `unknown fn module ${member.module}`, "E_QUARRY_UNKNOWN",
-      `create snapback/${member.module}.q with fn ${name}(value: int) = value, or correct the module name`,
-    );
-    return this.resolve(target.file, name, member.site, [...imports, identity]);
-  }
-}
 
 class ExpressionBinder {
   private focal: Extract<BoundExpression, { kind: "focal" }> | undefined;
@@ -1214,55 +1000,6 @@ class ExpressionBinder {
   }
 }
 
-function completionFacts(statements: BoundStatement[]): BoundValueFacts[] {
-  const returns: BoundValueFacts[] = [];
-  let fallsThrough = true;
-  for (const statement of statements) {
-    if (!fallsThrough) break;
-    if (statement.kind === "return") {
-      returns.push(statement.value.facts);
-      fallsThrough = false;
-    } else if (statement.kind === "expr" && statement.completion) {
-      returns.push(statement.value.facts);
-      fallsThrough = false;
-    } else if (statement.kind === "if") {
-      const thenCompletion = completionFacts(statement.thenBody);
-      const elseCompletion = completionFacts(statement.elseBody);
-      const thenFalls = statementsFallThrough(statement.thenBody);
-      const elseFalls = statementsFallThrough(statement.elseBody);
-      returns.push(...thenCompletion.slice(0, thenFalls ? -1 : undefined));
-      returns.push(...elseCompletion.slice(0, elseFalls ? -1 : undefined));
-      fallsThrough = thenFalls || elseFalls;
-    } else if (statement.kind === "for") {
-      const bodyCompletion = completionFacts(statement.body);
-      const bodyFalls = statementsFallThrough(statement.body);
-      returns.push(...bodyCompletion.slice(0, bodyFalls ? -1 : undefined));
-    } else if (statement.kind === "match") {
-      const someCompletion = completionFacts(statement.someBody);
-      const noneCompletion = completionFacts(statement.noneBody);
-      const someFalls = statementsFallThrough(statement.someBody);
-      const noneFalls = statementsFallThrough(statement.noneBody);
-      returns.push(...someCompletion.slice(0, someFalls ? -1 : undefined));
-      returns.push(...noneCompletion.slice(0, noneFalls ? -1 : undefined));
-      fallsThrough = someFalls || noneFalls;
-    }
-  }
-  if (fallsThrough) returns.push(facts({ kind: "null" }, "Const"));
-  return returns;
-}
-
-function statementsFallThrough(statements: BoundStatement[]): boolean {
-  for (const statement of statements) {
-    if (statement.kind === "return") return false;
-    if (statement.kind === "expr" && statement.completion) return false;
-    if (statement.kind === "if"
-      && !statementsFallThrough(statement.thenBody) && !statementsFallThrough(statement.elseBody)) return false;
-    if (statement.kind === "match"
-      && !statementsFallThrough(statement.someBody) && !statementsFallThrough(statement.noneBody)) return false;
-  }
-  return true;
-}
-
 function joinFacts(values: BoundValueFacts[], site: Site): BoundValueFacts {
   const type = values.slice(1).reduce((joined, value) => joinType(joined, value.type, site), values[0]!.type);
   const origins = new Set(values.map((value) => value.origin).filter((origin) => origin !== "Const"));
@@ -1755,23 +1492,3 @@ function boundMemberOf(expression: BoundExpression, symbolId: string): string | 
 function focalField(expression: Expr | undefined): string | undefined {
   return expression?.kind === "member" && expression.base.kind === "focal" ? expression.name : undefined;
 }
-function typeName(type: BoundType): string {
-  if (type.kind === "empty-list") return "[]";
-  if (type.kind === "ref") return type.table;
-  if (type.kind === "row") return `${type.table.name} row`;
-  if (type.kind === "money") return `money ${type.currency} ${type.scale}`;
-  if (type.kind === "decimal") return `decimal ${type.scale}`;
-  if (type.kind === "list") return `[${typeName(type.item)}] <=${type.max}`;
-  if (type.kind === "collection") return `bounded collection <=${type.max}`;
-  return type.kind;
-}
-function sourceStack(site: Site, use?: Site): BoundSourceStack {
-  const definition = withoutExpansion(site);
-  const expandedUse = use ?? site.expandedFrom;
-  return expandedUse ? { definition, use: withoutExpansion(expandedUse) } : { definition };
-}
-function withoutExpansion(site: Site): Site {
-  const { expandedFrom: _expandedFrom, expansionId: _expansionId, ...authored } = site;
-  return authored;
-}
-function siteText(site: Site): string { return `${site.file}:${site.line}:${site.col}`; }
