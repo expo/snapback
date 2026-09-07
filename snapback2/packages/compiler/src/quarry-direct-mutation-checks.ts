@@ -213,10 +213,11 @@ mutation branch(owner: principal, flag: bool):
       const joinedOracleCheck = rustCheck([joinedOracle], "synthetic", oracle.project.schema)[0]!;
       assert(!joinedOracleCheck.error && joinedOracleCheck.certificate,
         `joined oracle did not certify: ${JSON.stringify(joinedOracleCheck)}`);
+      const joinedOracleCertificate = joinedOracleCheck.certificate;
       const joinedResult = (ids: Value, newIds: string[]) => {
         const directResult = new ClientStore(oracle.project.schema, receipt(joinedCertificate))
           .applyMutation(joined, { ...context("joined"), args: { ids }, new_ids: [...newIds] }).execution.result;
-        const oracleResult = new ClientStore(oracle.project.schema, receipt(joinedOracleCheck.certificate))
+        const oracleResult = new ClientStore(oracle.project.schema, receipt(joinedOracleCertificate))
           .applyMutation(joinedOracle, { ...context("joined"), args: { ids }, new_ids: [...newIds] }).execution.result;
         assert(canonicalValue(directResult) === canonicalValue(oracleResult),
           `effectful list fallback diverged from the authored oracle: ${canonicalValue(directResult)} / ${canonicalValue(oracleResult)}`);
