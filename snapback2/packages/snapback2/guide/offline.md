@@ -2,8 +2,10 @@
 
 `offline.store`: IndexedDB (web), SQLite (Expo), files (Node).
 Expiry seals; sign-out/replacement wipes. One writer/account. Second web tab:
-live reads, writes E_OFFLINE_FOLLOWER, inherits partition/queue on writer close;
-elsewhere E_OFFLINE_LOCK. Past `fenceDays` (1..30), reads
+live reads, forwards ordinary mutation arguments to the lock holder, and
+inherits its partition/queue on writer close. Uploads/channels and unavailable
+forwarding refuse E_OFFLINE_FOLLOWER before bytes; elsewhere E_OFFLINE_LOCK.
+Past `fenceDays` (1..30), reads
 are stale; prediction/replay await resume. Queued writes survive; held reads/`offline()`
 bypass startup auth.
 
@@ -25,9 +27,16 @@ offline traversal keeps server watermark. Covered reads exact; others partial.
 ## Recovery
 
 `run()` queues offline: `{ state: "queued", intent, ids }`; replay is FIFO.
+For a browser follower this means the writer durably admitted the request.
+No answer within two seconds after send returns
+`{ state: "admission-unknown", recovery }`: do not send a fresh mutation.
+Call `client.recoverMutation(op, sameArgs, recovery)` to look up or retry the
+same request identity. It returns queued only from the durable receipt; an
+unreachable writer or an expired missing receipt stays admission-unknown.
 `useOutbox()`: entries/dismiss/ready/status/fence (inside/past).
 Readiness: `useMutation(op).status`, `client.outbox.status(op)`:
-reason: ready/sealed/grant-missing/grant-expired/ids-exhausted/program-missing/follower;
+reason: ready/sealed/grant-missing/grant-expired/ids-exhausted/program-missing/
+follower/writer-discovery/writer-capacity/writer-unresponsive;
 action: none/login/resume/load-program; remaining: queued count; fence.
 Expired grants stop admission; owner judges queued writes.
 Prediction previews; commit confirms.

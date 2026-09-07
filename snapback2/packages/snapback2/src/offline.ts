@@ -189,6 +189,7 @@ export class OfflineRuntime {
   private superseded?: CoverageFacts;
   private latestSeq = 0;
   private sessionEpoch?: number;
+  private forwardingIncarnation?: string;
   private pendingGrant?: OutboxGrant;
   private pendingBounds?: Record<string, number>;
   private pendingProgram?: HeldProgram;
@@ -225,6 +226,17 @@ export class OfflineRuntime {
   }
 
   get principal(): string | undefined { return this.partition; }
+  get authEpoch(): number | undefined { return this.sessionEpoch ?? this.facts?.authEpoch; }
+  get partitionIncarnation(): string | undefined { return this.forwardingIncarnation; }
+  get coordinationScope(): string | undefined { return this.store.coordinationScope; }
+
+  /** Establishes the writer identity only after the partition is open and unsealed. */
+  async initializeForwarding(proposed: string): Promise<string | undefined> {
+    if (this.partition === undefined || this.coordinationScope === undefined || this.authEpoch === undefined) return undefined;
+    const custody = await this.outbox.forwardingIdentity(proposed);
+    this.forwardingIncarnation = custody.partitionIncarnation;
+    return this.forwardingIncarnation;
+  }
 
   /** The generation of the certified program this partition holds, if any. */
   get programGeneration(): string | undefined { return this.held?.generation; }
@@ -259,7 +271,7 @@ export class OfflineRuntime {
   /** Whether this carrier can wait for a held writer lock at all (IndexedDB can; SQLite refuses at once). */
   get canFollow(): boolean { return typeof this.store.acquire === "function" && typeof this.store.giveBack === "function"; }
 
-  // @ref LLP 1018#3-move-one-one-coherent-reactive-client — the follower tab
+  // @ref LLP 1018.000#8-account-sessions-and-durable-follower-admission — the follower tab
   // waits outside the runtime queue, so its live reads keep flowing; when the
   // writer closes, it opens the partition and inherits the queue left there.
   async follow(principal: string, signal: AbortSignal, wait: object = {}): Promise<void> {
@@ -317,6 +329,7 @@ export class OfflineRuntime {
         this.facts = this.superseded = this.held = undefined;
         this.latestSeq = 0;
         this.sessionEpoch = undefined;
+        this.forwardingIncarnation = undefined;
         this.cursors = {};
         this.schema = undefined;
       }
@@ -406,6 +419,7 @@ export class OfflineRuntime {
       this.superseded = undefined;
       this.held = undefined;
       this.sessionEpoch = undefined;
+      this.forwardingIncarnation = undefined;
       this.bytes.bind(undefined);
       await this.store.wipe(partition);
       this.outbox.notify();

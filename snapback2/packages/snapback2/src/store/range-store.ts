@@ -32,7 +32,17 @@ import { canonical } from "./canonical.js";
 import { sha256 } from "../../../evaluator/src/hash.js";
 import { compareArrays, totalCompare } from "../../../evaluator/src/value-runtime.js";
 import { prepareWireRow, preparedDeliveryRows, tagWireValue, type TaggedValue, type WireValue } from "../offline-protocol.js";
-import { asRowRef, collectRefs, mapRowValues, purgeAnswerData, rowKey, hiddenRefs } from "./row-values.js";
+import { asRowRef, collectRefs, mapRowValues, purgeAnswerData, restoreRetained, rowKey, hiddenRefs } from "./row-values.js";
+import {
+  applyForwarding,
+  emptyForwardingState,
+  normalizeForwardingState,
+  type ForwardingState,
+  type ForwardingStore,
+  type ForwardingSwap,
+} from "./forwarding.js";
+
+export type { ForwardingCustody, ForwardingReceipt } from "./forwarding.js";
 
 export type PrincipalPartition = string;
 export type RetentionPolicy = "until-revoked" | "delivered-history";
@@ -223,7 +233,7 @@ export interface OutboxGrant {
   used: number;
 }
 
-export interface OutboxStore {
+export interface OutboxStore extends ForwardingStore {
   all(): Promise<OutboxEntry[]>;
   get(intent: string): Promise<OutboxEntry | undefined>;
   put(entry: OutboxEntry): Promise<void>;
@@ -282,7 +292,7 @@ export interface OfflineSchema {
   }>;
 }
 
-export interface StoreSwap {
+export interface StoreSwap extends ForwardingSwap {
   factLimitReset?: string;
   deliveries?: StoreDelivery[];
   refreshes?: StoreRefresh[];
@@ -339,6 +349,8 @@ export interface RangeStore {
   /** @ref LLP 1018#3-move-one-one-coherent-reactive-client — post-commit effective local query inputs. */
   subscribeInputs(listener: () => void): () => void;
   readonly outbox: OutboxStore;
+  /** Stable carrier namespace used with backend identity and principal for tab coordination. */
+  readonly coordinationScope?: string;
   close?(): Promise<void> | void;
 }
 
@@ -354,7 +366,7 @@ export class OfflineStoreFailure extends Error {
   }
 }
 
-export interface PersistedRangeState {
+export interface PersistedRangeState extends ForwardingState {
   version: 1;
   sealed: boolean;
   clock: number;
@@ -396,6 +408,7 @@ export interface PersistedRangeState {
 export interface RangeStoreBackend {
   readonly [preparedProjection]?: true;
   readonly carrier: string;
+  readonly coordinationScope?: string;
   open(partition: PrincipalPartition): Promise<PersistedRangeState | undefined>;
   /** Waits for the partition's writer lock so a later `open` finds it held; carriers without a waiting lock omit it. */
   acquire?(partition: PrincipalPartition, signal?: AbortSignal): Promise<void>;
@@ -414,7 +427,8 @@ export function emptyState(): PersistedRangeState {
   return {
     version: 1, sealed: false, clock: 0, rows: {}, answers: {}, watermarks: {}, outbox: {}, rowFacts: {}, verdictFacts: {}, factSlots: 0,
     factFormat: FACT_FORMAT, factImages: {}, factExtents: {}, extentGuards: {}, extentNegative: {},
-    grants: {}, overlay: {}, overlayMisses: {}, overlayWatermarks: {}, overlayNegatives: {}, bounds: {}, programs: {}, negative: {}, rowSeq: {}, assets: {}, viewed: {}, onceColumns: {},
+    grants: {}, overlay: {}, overlayMisses: {}, overlayWatermarks: {}, overlayNegatives: {}, bounds: {}, programs: {},
+    ...emptyForwardingState(), negative: {}, rowSeq: {}, assets: {}, viewed: {}, onceColumns: {},
   };
 }
 
@@ -442,32 +456,6 @@ export function rowReference(table: string, id: string): { $row: RowRef } {
 
 function expand(value: unknown, rows: Record<string, StoredRow>, viewed?: Record<string, unknown>): unknown {
   return mapRowValues(value, (ref) => viewed?.[rowKey(ref)] ? null : clone(imageWire(rows[rowKey(ref)]?.row ?? null)));
-}
-
-function restoreRetained(before: unknown, after: unknown, retained: Set<string>): unknown {
-  const ref = asRowRef(before);
-  if (ref && (after === null || after === undefined) && retained.has(rowKey(ref))) return before;
-  if (Array.isArray(before) && Array.isArray(after)) {
-    const result = after.map((item, index) => index < before.length
-      ? restoreRetained(before[index], item, retained) : item);
-    for (let index = after.length; index < before.length; index += 1) {
-      if (collectRefs(before[index]).some((item) => retained.has(rowKey(item)))) result.push(clone(before[index]));
-    }
-    return result;
-  }
-  if (before && after && typeof before === "object" && typeof after === "object"
-    && !Array.isArray(before) && !Array.isArray(after)) {
-    const result = clone(after as Record<string, unknown>);
-    for (const key of Object.keys(before as object)) {
-      const old = (before as Record<string, unknown>)[key];
-      if (Object.prototype.hasOwnProperty.call(result, key)) result[key] = restoreRetained(old, result[key], retained);
-      else if (collectRefs(old).some((item) => retained.has(rowKey(item)))) result[key] = clone(old);
-    }
-    return result;
-  }
-  if ((after === null || after === undefined)
-    && collectRefs(before).some((item) => retained.has(rowKey(item)))) return clone(before);
-  return after;
 }
 
 /** One JSON form for warm state and every carrier: omit undefined fields, preserve null. */
@@ -501,6 +489,7 @@ function normalizeState(value: PersistedRangeState | undefined): PersistedRangeS
     overlayNegatives: value.overlayNegatives ?? {},
     bounds: value.bounds ?? {},
     programs: value.programs ?? {},
+    ...normalizeForwardingState(value),
     onceColumns: value.onceColumns ?? {},
     negative: value.negative ?? {},
     rowSeq: value.rowSeq ?? {},
@@ -586,12 +575,19 @@ export class PersistentRangeStore implements RangeStore {
       this.ensureUnsealed();
       return clone(this.state.programs);
     }),
+    forwarding: async () => this.read(() => {
+      this.ensureUnsealed();
+      return clone({ partitionIncarnation: this.state.partitionIncarnation,
+        clockFloor: this.state.admissionClockFloor, receipts: this.state.forwardingReceipts });
+    }),
   };
 
   readonly acquire?: (partition: PrincipalPartition, signal?: AbortSignal) => Promise<void>;
   readonly giveBack?: (partition: PrincipalPartition) => Promise<void>;
+  readonly coordinationScope?: string;
 
   constructor(private readonly backend: RangeStoreBackend) {
+    this.coordinationScope = backend.coordinationScope;
     if (backend.acquire) this.acquire = (partition, signal) => backend.acquire!(partition, signal);
     if (backend.giveBack) this.giveBack = (partition) => backend.giveBack!(partition);
   }
@@ -959,6 +955,7 @@ export class PersistentRangeStore implements RangeStore {
       const order = previous?.order ?? entry.order ?? ++state.clock;
       state.outbox[entry.intent] = { ...clone(entry), order };
     }
+    applyForwarding(state, swap.forwarding);
     if (swap.bounds) state.bounds = clone(swap.bounds);
     if (swap.programs) state.programs = clone(swap.programs);
     for (const id of swap.grants?.remove ?? []) {
@@ -1301,7 +1298,7 @@ export class PersistentRangeStore implements RangeStore {
         data = clone(old.data);
         answerState = old.state;
       } else if (old && retainedRefs.size > 0) {
-        data = restoreRetained(old.data, data, retainedRefs);
+        data = restoreRetained(old.data, data, retainedRefs, clone);
       }
       // Preserve the delivered pool order and retain every same-pool halo/rule input.
       const refs = (delivery.rows ?? []).map(({ table, id }) => ({ table, id }));
