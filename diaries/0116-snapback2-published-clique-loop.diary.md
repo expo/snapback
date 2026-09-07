@@ -1210,3 +1210,12 @@ Reading the actual application acceptance source exposed a separate measurement 
 The completed Grok build received63/100 from a fresh Grok4.6/xhigh narrative scorer. The retained earlier scores are Snapback57, Convex78 and Supabase47, so the result remains short of the goal. This uses the same anchors/categories but a disclosed single-backend prompt, and Office differs from the baseline M5 host; the six-point difference is not a controlled causal improvement estimate.
 
 The builder finished in10204.303s with M1/M2 browser green, M3/M4 red and later browser/full-scale/native proof absent. The scorer calls out web offline, Quarry expressiveness/authorization friction and incomplete scale evidence; it also noticed permissive view-once and trending tests. Those narrative attributions need the separate assertion audit before being treated as proven product defects. [Full score, prompt delta and terminal custody](../benchmarks/runs/2026-09-06-clique-improvement/evidence/grok-015-holistic/README.md). The independent Astra audit remains running; no comparator rerun or holistic win is claimed.
+
+
+## 2026-09-07 — Independent Grok 0.0.15 assertion audit
+
+The independent Astra xhigh audit finished, but fresh runtime phases aborted: the unchanged lock failed npm ci twice on missing snapback2-linux-x64 metadata, and the isolated choreography copy omitted an external helper. No runtime product verdict follows from those setup failures. Clean-install triage is assigned separately; the original app, lock, receipts and failed attempts are preserved.
+
+Source review exposed missing feed pagination/video playback, newest-ten Trending instead of the requested ranking, incomplete custom-client operations and incorrect digest counter wiring. Of 58 mapped acceptance entries, 13 mapped tests support their stated scope, 15 are partial and 30 unsupported. Passing suite labels therefore do not establish full functionality. All 110 assertions have fresh runtime not-run; source judgments remain distinct. Grok's holistic 63 remains below Convex 78; no both-backend win or native/full-scale completion is claimed.
+
+Evidence: [independent assertion audit](../benchmarks/runs/2026-09-06-clique-improvement/evidence/grok-015-assertion-audit/README.md). Root read the full report and independently checked 334 original/copy source and symlink pairs. The next execution decision depends on clean-install evidence, while compiler and web factory-setup repairs continue independently.
