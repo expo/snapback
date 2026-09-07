@@ -109,7 +109,7 @@
     "rule_hashes": {
       "media.update": "f83184e284dbe10ba1adda05742a7b0576b43a095ec12f19cb6a6d0e70bde73c"
     },
-    "evaluator_version": "bounded-spike-rust-search-text-refinements-4",
+    "evaluator_version": "bounded-spike-rust-search-text-refinements-5",
     "value_model_version": "i53-codepoint-bytes-unicode-search-text-refinements-v5",
     "read_sites": [],
     "write_sites": [

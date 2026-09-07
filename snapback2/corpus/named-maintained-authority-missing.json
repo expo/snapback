@@ -165,7 +165,7 @@
       "counts.read": "9d3ed71a63d67e85e86dc6ba9490fd804bec1c0b3442014f0c6793294553100c",
       "events.insert": "14500b13b2397daf0c01c02ffdc31af7bac212344a3b4a2923691faaca29e2e3"
     },
-    "evaluator_version": "bounded-spike-rust-search-text-refinements-4",
+    "evaluator_version": "bounded-spike-rust-search-text-refinements-5",
     "value_model_version": "i53-codepoint-bytes-unicode-search-text-refinements-v5",
     "read_sites": [
       {

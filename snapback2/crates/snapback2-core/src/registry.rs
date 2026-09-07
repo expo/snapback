@@ -499,13 +499,18 @@ impl Runtime {
         let installed = store.meta("generation").map_err(store_refusal)?;
         let installed_program = store.meta("program_generation").map_err(store_refusal)?;
         let installed_effects = store.meta("effects_generation").map_err(store_refusal)?;
+        let installed_evaluator = store.meta("evaluator_version").map_err(store_refusal)?;
+        let evaluator_changed = installed.is_some()
+            && installed_evaluator.as_deref()
+                != Some(crate::certificate::CURRENT_EVALUATOR_VERSION);
         let succession = installed_effects
             .as_ref()
             .is_some_and(|h| h != &generation.effects_hash())
             || installed.as_ref().is_some_and(|h| h != &generation.hash())
             || installed_program
                 .as_deref()
-                .is_some_and(|h| h != generation.program_hash());
+                .is_some_and(|h| h != generation.program_hash())
+            || evaluator_changed;
         match installed.clone() {
             None => {
                 let row_count: i64 = store
@@ -521,8 +526,25 @@ impl Runtime {
             Some(hash) if hash == generation_hash => {
                 // Additive owner metadata can appear after the generation was
                 // first installed (for example the outbox declaration binding).
-                persist_generation(&mut store, &generation, unix_millis())
+                if evaluator_changed {
+                    let transaction = store
+                        .conn
+                        .transaction()
+                        .map_err(|error| store_refusal(RuntimeError::Sql(error)))?;
+                    crate::successor::reconcile_sparse_aggregate_rows(
+                        &transaction,
+                        &generation.schema,
+                    )
                     .map_err(store_refusal)?;
+                    persist_generation_transaction(&transaction, &generation, unix_millis())
+                        .map_err(store_refusal)?;
+                    transaction
+                        .commit()
+                        .map_err(|error| store_refusal(RuntimeError::Sql(error)))?;
+                } else {
+                    persist_generation(&mut store, &generation, unix_millis())
+                        .map_err(store_refusal)?;
+                }
             }
             Some(hash) => {
                 let current_json = store
@@ -532,15 +554,27 @@ impl Runtime {
                 let current: Schema = serde_json::from_str(&current_json).map_err(|error| {
                     store_refusal(RuntimeError::Serialization(error.to_string()))
                 })?;
-                if let Some(refusal) = successor_refusal(&store, &current, &generation.schema)
-                    .map_err(store_refusal)?
-                {
-                    return Err(refusal);
+                let migration =
+                    plan(&store, &current, &generation.schema).map_err(store_refusal)?;
+                if !migration.drops.is_empty() {
+                    return Err(SuccessorRefusal::destructive(migration));
                 }
                 let transaction = store
                     .conn
                     .transaction()
                     .map_err(|error| store_refusal(RuntimeError::Sql(error)))?;
+                // The old evaluator's physical rows are interpreted under its
+                // persisted schema (including old timer declarations) before
+                // validating the successor's final state.
+                if evaluator_changed {
+                    crate::successor::reconcile_sparse_aggregate_rows(&transaction, &current)
+                        .map_err(store_refusal)?;
+                }
+                if let Some(refusal) = additive_refusal(&transaction, &current, &generation.schema)
+                    .map_err(store_refusal)?
+                {
+                    return Err(refusal);
+                }
                 apply_additive(
                     &transaction,
                     &current,
@@ -1208,6 +1242,10 @@ fn persist_generation_transaction(
         ("schema_json", schema_json),
         ("effects_json", effects_json),
         ("effects_generation", effects_hash.clone()),
+        (
+            "evaluator_version",
+            crate::certificate::CURRENT_EVALUATOR_VERSION.to_owned(),
+        ),
     ] {
         transaction.execute(
             "INSERT INTO _meta(key, value) VALUES (?1, ?2)

@@ -22,7 +22,7 @@ pub use page::resumable_log_cursor;
 
 // Heap is calibrated; output/closure use declared maxima. These are admission bounds, not allocator/serializer proofs.
 const HEAP_BYTES_PER_STEP: u64 = 32;
-pub const CURRENT_EVALUATOR_VERSION: &str = "bounded-spike-rust-search-text-refinements-4";
+pub const CURRENT_EVALUATOR_VERSION: &str = "bounded-spike-rust-search-text-refinements-5";
 impl Certificate {
     pub(crate) fn has_current_semantics(&self) -> bool {
         self.value_model_version == CURRENT_VALUE_MODEL_VERSION.as_str()
@@ -347,7 +347,7 @@ impl<'a> Checker<'a> {
             .statements(&program.body, 1, &[])
             .map_err(|error| vec![error])?;
         // @ref LLP 1016#d5--schedules-row-timers-and-periods-on-the-owners-clock — one timer index update per schedule per affected row, inside the write ceiling.
-        let timer_writes = crate::timers::write_bound(self.schema, &summary.writes);
+        let mut timer_writes = crate::timers::write_bound(self.schema, &summary.writes);
         if timer_writes > 0 {
             summary.writes.push(WriteSite {
                 table: "_timers".into(),
@@ -374,6 +374,33 @@ impl<'a> Checker<'a> {
                     .entry(maintain.target.clone())
                     .or_default();
                 *total = total.saturating_add(writes);
+            }
+        }
+        let maintained_timer_writes = crate::timers::write_bound(
+            self.schema,
+            &maintained_writes
+                .iter()
+                .map(|(table, max_rows)| WriteSite {
+                    table: table.clone(),
+                    kind: WriteKind::Update,
+                    max_rows: *max_rows,
+                })
+                .collect::<Vec<_>>(),
+        );
+        if maintained_timer_writes > 0 {
+            timer_writes = timer_writes.saturating_add(maintained_timer_writes);
+            if let Some(timers) = summary
+                .writes
+                .iter_mut()
+                .find(|write| write.table == "_timers")
+            {
+                timers.max_rows = timers.max_rows.saturating_add(maintained_timer_writes);
+            } else {
+                summary.writes.push(WriteSite {
+                    table: "_timers".into(),
+                    kind: WriteKind::Update,
+                    max_rows: maintained_timer_writes,
+                });
             }
         }
         let maintained_amplification = maintained_writes

@@ -329,7 +329,7 @@
       "items.read": "ce546f6d28ea1d2823ddd9da28d0cd0b1c128392073308c95d156eda437989d0",
       "profiles.read": "dd0f14161df560b8eadee94e36dea41684c12b094fca46724484aae7caec3859"
     },
-    "evaluator_version": "bounded-spike-rust-search-text-refinements-4",
+    "evaluator_version": "bounded-spike-rust-search-text-refinements-5",
     "value_model_version": "i53-codepoint-bytes-unicode-search-text-refinements-v5",
     "read_sites": [
       {

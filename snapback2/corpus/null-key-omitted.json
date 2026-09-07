@@ -213,7 +213,7 @@
       "events.insert": "84a2bdd5439eeb6094d29365246d61da4a42c2b3b5f6b016dd43b024a3def2e7",
       "events.read": "84a2bdd5439eeb6094d29365246d61da4a42c2b3b5f6b016dd43b024a3def2e7"
     },
-    "evaluator_version": "bounded-spike-rust-search-text-refinements-4",
+    "evaluator_version": "bounded-spike-rust-search-text-refinements-5",
     "value_model_version": "i53-codepoint-bytes-unicode-search-text-refinements-v5",
     "read_sites": [
       {

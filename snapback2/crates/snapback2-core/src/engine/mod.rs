@@ -1023,6 +1023,9 @@ pub(crate) fn rebuild_owned_aggregate_target<'a>(
     );
     runner.clear_aggregate_ids(target, owned_ids)?;
     for row in rows {
+        if row.field("value").and_then(Value::as_int) == Ok(0) {
+            continue;
+        }
         runner.write_aggregate_row(target, row)?;
     }
     runner.check_final_constraints()?;

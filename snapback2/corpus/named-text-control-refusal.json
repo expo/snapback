@@ -84,7 +84,7 @@
     "rule_hashes": {
       "notes.insert": "9088c274395539ee165c015dafec83eefc77fa3bab343e11e7509b5b81ea337f"
     },
-    "evaluator_version": "bounded-spike-rust-search-text-refinements-4",
+    "evaluator_version": "bounded-spike-rust-search-text-refinements-5",
     "value_model_version": "i53-codepoint-bytes-unicode-search-text-refinements-v5",
     "read_sites": [],
     "write_sites": [
