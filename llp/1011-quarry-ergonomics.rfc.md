@@ -254,7 +254,7 @@ left to right, before the body; parameters and all generated temporaries have
 fresh symbol identities. A helper can use its parameters and read-pure context
 (`viewer`, query `now`/read time), and may perform bounded reads. It cannot
 capture caller locals or a caller shape's focal row, allocate `new`, use commit
-time, write, emit, or assert authorization with `! else CODE`. A named shape
+time, write, emit, or assert presence/authorization with `!` or `! else CODE`. A named shape
 reached by the helper inherits that purity boundary. Shape and function frames
 share depth 8 and 4,096-node limits, retain definition plus use sites, and
 refuse cycles. Callers keep their own `require … else CODE` or `! else CODE`,

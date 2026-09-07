@@ -126,7 +126,7 @@ and >4,096 nodes refuse.
 `fn member(c: conversations, p: principal) = exists memberships[c,p]` is an
 expression helper; `fn member from access` imports it. Arguments evaluate once
 left-to-right. Parameters, `viewer`, query read time and bounded reads are valid;
-capture/focal, allocation, commit time, write/emit, authorization assertions and
+capture/focal, allocation, commit time, write/emit, `!` assertions and
 recursion refuse. Nested shapes keep that boundary. Caller `require` or
 `! else CODE` owns its code.
 
