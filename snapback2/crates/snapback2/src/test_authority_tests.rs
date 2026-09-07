@@ -14,7 +14,7 @@ fn protected_write_recipe() -> Recipe {
 }
 
 #[test]
-fn revocation_candidate_requires_an_explicit_membership_guard() {
+fn revocation_candidate_prefers_a_membership_guard_dependency() {
     let recipe = protected_write_recipe();
     let membership = snapback2_core::Read {
         site: "messages.thread.0".to_owned(),

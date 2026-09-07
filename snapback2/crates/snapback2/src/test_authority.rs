@@ -1106,10 +1106,13 @@ fn query_isolates_protected_table(
     read_sites
         .iter()
         .all(|site| site.table == recipe.membership_table || site.table == protected_table)
-        && program_requires_membership(program, recipe)
+        // This is only a bounded candidate preference. A dependency can be
+        // semantically weakened (for example, `member || true`); the served
+        // post-revocation terminal delivery below is the authority witness.
+        && program_has_membership_guard_dependency(program, recipe)
 }
 
-fn program_requires_membership(program: &Program, recipe: &Recipe) -> bool {
+fn program_has_membership_guard_dependency(program: &Program, recipe: &Recipe) -> bool {
     let mut membership_values = BTreeSet::new();
     for statement in &program.body {
         match statement {
