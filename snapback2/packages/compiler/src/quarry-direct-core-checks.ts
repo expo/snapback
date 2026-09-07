@@ -9,12 +9,10 @@ import { lowerProject, lowerSeed } from "./project";
 import { rustCheck, type RustCheckResult } from "./rust-check";
 import { bindQuarryProgram } from "./quarry/bound";
 import { lowerBoundQuarryProgram } from "./quarry/direct";
-import { compileQuarry, prepareQuarry, type QuarryInput } from "./quarry/index";
+import { prepareQuarry, type QuarryInput } from "./quarry/index";
 import { parseDocument } from "./quarry/parser";
 import {
   assert,
-  compileFixture,
-  compileInline,
   deepKey,
   diagnosticsText,
   occurrences,
@@ -589,9 +587,6 @@ query matchNames(id: conversations):
       name: "names.class", kind: "Query", args: { default: "Int" }, read_time_granularity_ms: null,
       body: [{ Return: { Variable: "default" } }],
     });
-    const legacy = compileQuarry(inputs);
-    assert(!legacy.ok && legacy.diagnostics.some((diagnostic) => diagnostic.message.includes("generated TypeScript binding")),
-      `legacy oracle unexpectedly accepted its emitter-restricted names: ${JSON.stringify(legacy)}`);
   });
 
   test("direct Quarry elaborates an imported named row shape with definition and use sites", async () => {

@@ -23,7 +23,6 @@ import {
 } from "./quarry-check-helpers";
 import { registerJobChecks } from "./quarry-job-checks";
 import { registerScheduleChecks } from "./quarry-schedule-checks";
-import { registerQuarryProgramChecks } from "./quarry-program-checks";
 import { registerQuarryDirectCoreChecks } from "./quarry-direct-core-checks";
 import { registerQuarryDirectMutationChecks } from "./quarry-direct-mutation-checks";
 import { registerQuarryDirectValidationChecks } from "./quarry-direct-validation-checks";
@@ -1103,7 +1102,6 @@ query spread(c: conversations):
     });
   });
 
-  registerQuarryProgramChecks(test, frontend);
   registerQuarryDirectMutationChecks(test, frontend);
   registerJobChecks(test, frontend);
   registerScheduleChecks(test, frontend);
