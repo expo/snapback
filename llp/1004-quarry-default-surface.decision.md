@@ -11,7 +11,7 @@ templates, guide, diagnostics
 .009, .010, .011, `spikes/clique-diagnostic-runs/`,
 `snapback2/packages/compiler/src/quarry/`, `snapback2/packages/snapback2/guide/quarry.md`
 
-## The ruling (author, 2026-08-31)
+## The ruling (author, 2026-08-31; superseded where amended below)
 
 Quarry — the from-scratch notation of LLP 0329.014.009/.010, compiled to
 the TypeScript authoring surface by `quarryc` — becomes the **default**
@@ -71,13 +71,13 @@ preconditions. The replication remains scheduled work, not a blocker.
   (same app, both front ends) as a platform test, per .011 open
   question 3.
 
-## Implementation record (2026-09-02)
+## Historical implementation record (2026-09-02; superseded where amended below)
 
 LLP 1007 §2 found, on 2026-09-01, that none of the five bindings above existed
 in code, that the default language could not express the shipped `chat`
 template, and that the bridge was a compatibility shim `rules/RULES.md` bans.
-The flip was built and landed on 2026-09-02 (`b2bebb49a`). What binds now, and
-where the code departs from the letter of the ruling:
+The flip was built and landed on 2026-09-02 (`b2bebb49a`). What bound at that
+landing, and where the code departed from the letter of the ruling:
 
 1. **Layout.** One directory, not two: a Quarry backend is `snapback/schema.q`
    plus `snapback/<module>.q`, beside the unchanged `seed.ts`, `tests/`, and
@@ -180,6 +180,30 @@ TypeScript data emitter are not production stages. Schema JSON consumes the
 direct schema binder; operation IR, API declarations, and effect declaration
 stubs consume the same bound program facts and direct type catalog.
 Rust remains the independent certifier of every emitted program.
+
+### Direct-compiler completion record (2026-09-07)
+
+The frozen `b4b203316` census counted 9,124 nonblank, non-comment production
+lines in four replaced areas: 5,640 lines of TypeScript program
+type/binding/lowering recovery, 1,185 of TypeScript schema lowering, 1,602 in
+the Quarry-to-TypeScript program/schema emitters, and 697 in API type
+reconstruction. Every module in that scope is absent from the production
+path. The wider cutover diff removes 11,788 production lines and adds 4,125;
+3,703 of the additions are the direct bound, schema, API, project, source and
+lowering modules. This is a source-custody result, not 9,124 lines of semantic
+deletion: the emitter and API rows were replaced, and the direct refusal,
+type, bound, order, certificate and source-site witnesses preserve their
+public contracts.
+
+Tests and fixtures are accounted separately. The cutover removes 8,737 and
+adds 3,331 substantive test/oracle lines, and removes 1,329 and adds 79
+fixture lines. Public behaviors moved into focused direct Quarry, schema,
+API, effect and worker checks; assertions only about accepting TypeScript data
+declarations, generated TypeScript text or temporary names retired with that
+surface. The frozen compiler-repair inventory closes 27 items on direct
+witnesses, classifies four TypeScript-descriptor/address items as outside
+Quarry, and retains one source-custody item for effects, seeds, journeys and
+diagnostic presentation.
 
 ## Non-claims
 
