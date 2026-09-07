@@ -40,9 +40,13 @@ const PRECEDENCE = new Map<string, number>([
   ["+", 5], ["-", 5], ["*", 6], ["/", 6], ["%", 6],
 ]);
 
-export function parseDocument(file: string, source: string): { document: Document; diagnostics: QuarryDiagnostic[] } {
+export function parseDocument(
+  file: string,
+  source: string,
+  options: { legacyGeneratedBindings?: boolean } = {},
+): { document: Document; diagnostics: QuarryDiagnostic[] } {
   const lexical = lex(file, source);
-  const parser = new Parser(lexical.tokens, file, lexical.diagnostics);
+  const parser = new Parser(lexical.tokens, file, lexical.diagnostics, options.legacyGeneratedBindings === true);
   return { document: parser.document(), diagnostics: parser.diagnostics };
 }
 
@@ -58,7 +62,12 @@ class Parser {
   private readonly schedules: ScheduleDecl[] = [];
   private identity: Document["identity"];
 
-  constructor(private readonly tokens: Token[], private readonly file: string, readonly diagnostics: QuarryDiagnostic[]) {}
+  constructor(
+    private readonly tokens: Token[],
+    private readonly file: string,
+    readonly diagnostics: QuarryDiagnostic[],
+    private readonly legacyGeneratedBindings: boolean,
+  ) {}
 
   document(): Document {
     while (!this.atKind("eof")) {
@@ -464,7 +473,7 @@ class Parser {
 
   private generatedBinding(kind: "table" | "channel" | "effect" | "operation" | "merge lane" | "shape" | "argument" | "local" | "loop" | "match" | "rule"): string {
     const token = this.word();
-    if (RESERVED_BINDINGS.has(token.value)) {
+    if (this.legacyGeneratedBindings && RESERVED_BINDINGS.has(token.value)) {
       refuse(
         token,
         `${kind} name ${token.value} is reserved and cannot become a generated TypeScript binding`,

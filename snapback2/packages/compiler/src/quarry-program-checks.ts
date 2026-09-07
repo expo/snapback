@@ -1,11 +1,11 @@
 import { deepStrictEqual } from "node:assert";
-import { readFileSync } from "node:fs";
+import { readFileSync, readdirSync } from "node:fs";
 import { writeFile } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import { canonicalValue, ClientStore, scopedRuleHash, type ClosureReceipt, type Context, type Value } from "../../evaluator/src/evaluator";
 import type { Program } from "./ir";
 import { lowerProject, lowerSeed } from "./project";
-import { rustCheck } from "./rust-check";
+import { rustCheck, type RustCheckResult } from "./rust-check";
 import { bindQuarryProgram } from "./quarry/bound";
 import { lowerBoundQuarryProgram } from "./quarry/direct";
 import { compileQuarry, prepareQuarry, type QuarryInput } from "./quarry/index";
@@ -47,14 +47,136 @@ export function registerQuarryProgramChecks(test: Test, frontend: string): void 
     assert(oracle.ok, `generated-TypeScript parity oracle failed: ${oracle.ok ? "" : diagnosticsText(oracle.diagnostics)}`);
     const legacy = operation(oracle.project.programs, "surface.hasMembership");
     deepStrictEqual(direct, legacy);
-    deepStrictEqual(bound.resultType, { kind: "bool", optional: false });
-    deepStrictEqual(bound.source.definition, { file: "snapback/surface.q", line: 11, col: 1 });
+    deepStrictEqual(bound.result.type, { kind: "bool", optional: false });
+    assert(bound.source.definition.file === "snapback/surface.q"
+      && bound.source.definition.line === 11 && bound.source.definition.col === 1,
+    `direct source stack lost the authored operation site: ${JSON.stringify(bound.source)}`);
 
     const directCheck = rustCheck([direct], "synthetic", oracle.project.schema)[0]!;
     const legacyCheck = rustCheck([legacy], "synthetic", oracle.project.schema)[0]!;
     assert(!directCheck.error && directCheck.certificate,
       `direct indexed existence query did not certify: ${JSON.stringify(directCheck)}`);
     deepStrictEqual(directCheck, legacyCheck);
+  });
+
+  test("direct Quarry value and bounded-read core matches public fixture programs", async () => {
+    const cases = [
+      { fixture: "quarry-surface", operations: ["surface.keyedRow", "surface.wordTokens", "surface.counterTotal"] },
+      { fixture: "quarry-todos", operations: ["todos.list"] },
+      { fixture: "quarry-money", operations: ["money.atMost"] },
+      { fixture: "quarry-assets", operations: ["assets.echo", "assets.echoNested"] },
+    ];
+    for (const fixture of cases) {
+      const root = join(fixtures, fixture.fixture);
+      const inputs: QuarryInput[] = readdirSync(join(root, "snapback"))
+        .filter((file) => file.endsWith(".q"))
+        .map((file) => {
+          const path = join(root, "snapback", file);
+          return { path, fileName: `snapback/${file}`, source: readFileSync(path, "utf8") };
+        });
+      const prepared = prepareQuarry(inputs);
+      assert(prepared.ok, `${fixture.fixture} direct preparation failed: ${JSON.stringify(prepared.ok ? [] : prepared.diagnostics)}`);
+      const oracle = await lowerProject(root);
+      assert(oracle.ok, `${fixture.fixture} parity oracle failed: ${oracle.ok ? "" : diagnosticsText(oracle.diagnostics)}`);
+      for (const name of fixture.operations) {
+        const [moduleName, operationName] = name.split(".");
+        const declaration = prepared.prepared.documents
+          .find((document) => document.file === `snapback/${moduleName}.q`)
+          ?.programs.find((program) => program.name === operationName);
+        assert(declaration, `${fixture.fixture} has no ${name} declaration`);
+        const bound = bindQuarryProgram(declaration, prepared.prepared.catalog);
+        const direct = lowerBoundQuarryProgram(bound);
+        const legacy = operation(oracle.project.programs, name);
+        const directCheck: RustCheckResult = rustCheck([direct], "synthetic", oracle.project.schema)[0]!;
+        const legacyCheck: RustCheckResult = rustCheck([legacy], "synthetic", oracle.project.schema)[0]!;
+        assert(!directCheck.error && directCheck.certificate, `${name} direct program did not certify: ${JSON.stringify(directCheck)}`);
+        assert(!legacyCheck.error && legacyCheck.certificate, `${name} oracle program did not certify: ${JSON.stringify(legacyCheck)}`);
+        if (name === "surface.counterTotal") {
+          deepStrictEqual(directCheck.certificate.bounds, legacyCheck.certificate.bounds);
+        } else {
+          deepStrictEqual(direct, legacy);
+          deepStrictEqual(directCheck, legacyCheck);
+        }
+      }
+    }
+  });
+
+  test("direct Quarry value lowering preserves authored order and bound facts", async () => {
+    const schema = `table rows:
+  public
+
+table groups:
+  public
+
+table memberships:
+  group: groups
+  principal: principal
+  unique group, principal
+  public
+`;
+    const values = `query values(photo: image <=5000000, a: int, b: int):
+  return { pair: [a, b], negative: -a, inverted: not false, sum: a + b, maximum: max(a, b), width: photo.width, owner: viewer, missing: null }
+
+query ordered(group: groups, left: principal, right: principal):
+  return exists memberships[group, left] or exists memberships[group, right]
+`;
+    await withProject({ "snapback/schema.q": schema, "snapback/values.q": values }, async (root) => {
+      const paths = ["schema", "values"].map((stem) => join(root, "snapback", `${stem}.q`));
+      const prepared = prepareQuarry(paths.map((path, index) => ({
+        path, fileName: `snapback/${["schema", "values"][index]}.q`, source: readFileSync(path, "utf8"),
+      })));
+      assert(prepared.ok, `direct value preparation failed: ${JSON.stringify(prepared.ok ? [] : prepared.diagnostics)}`);
+      const declaration = prepared.prepared.documents[1]?.programs[0];
+      assert(declaration, "direct value fixture has no operation");
+      const bound = bindQuarryProgram(declaration, prepared.prepared.catalog);
+      const direct = lowerBoundQuarryProgram(bound);
+      const oracle = await lowerProject(root);
+      assert(oracle.ok, `direct value parity oracle failed: ${oracle.ok ? "" : diagnosticsText(oracle.diagnostics)}`);
+      deepStrictEqual(direct, operation(oracle.project.programs, "values.values"));
+      assert(bound.result.type.kind === "object" && bound.result.presence === "required",
+        `direct object result lost presence: ${JSON.stringify(bound.result)}`);
+      const pair = bound.result.type.fields.get("pair");
+      assert(pair?.max === 2 && pair.presence === "required", `direct array result lost bound facts: ${JSON.stringify(pair)}`);
+
+      const orderedDeclaration = prepared.prepared.documents[1]?.programs[1];
+      assert(orderedDeclaration, "direct value fixture has no ordered-read operation");
+      const ordered = lowerBoundQuarryProgram(bindQuarryProgram(orderedDeclaration, prepared.prepared.catalog));
+      deepStrictEqual(ordered.body, [
+        { Const: { name: "__operand0", value: { Exists: {
+          site: "values.ordered.0", table: "memberships", index: "byGroupPrincipal",
+          key: [{ Variable: "group" }, { Variable: "left" }], provenance: "Arg",
+        } } } },
+        { Const: { name: "__operand1", value: { Exists: {
+          site: "values.ordered.1", table: "memberships", index: "byGroupPrincipal",
+          key: [{ Variable: "group" }, { Variable: "right" }], provenance: "Arg",
+        } } } },
+        { Return: { Binary: { op: "Or", left: { Variable: "__operand0" }, right: { Variable: "__operand1" } } } },
+      ]);
+      const orderedCheck = rustCheck([ordered], "synthetic", oracle.project.schema)[0]!;
+      const orderedOracle = rustCheck([operation(oracle.project.programs, "values.ordered")], "synthetic", oracle.project.schema)[0]!;
+      assert(!orderedCheck.error && orderedCheck.certificate, `ordered direct program did not certify: ${JSON.stringify(orderedCheck)}`);
+      assert(!orderedOracle.error && orderedOracle.certificate, `ordered oracle program did not certify: ${JSON.stringify(orderedOracle)}`);
+      deepStrictEqual(orderedCheck.certificate.read_sites, orderedOracle.certificate.read_sites);
+    });
+  });
+
+  test("direct Quarry names do not inherit generated TypeScript restrictions", () => {
+    const inputs: QuarryInput[] = [
+      { path: "/virtual/snapback/schema.q", fileName: "snapback/schema.q", source: "table rows:\n  public\n" },
+      { path: "/virtual/snapback/names.q", fileName: "snapback/names.q", source: "query class(default: int):\n  return default\n" },
+    ];
+    const prepared = prepareQuarry(inputs);
+    assert(prepared.ok, `direct Quarry retained emitter name restrictions: ${JSON.stringify(prepared.ok ? [] : prepared.diagnostics)}`);
+    const declaration = prepared.prepared.documents[1]?.programs[0];
+    assert(declaration, "direct name fixture has no operation");
+    const direct = lowerBoundQuarryProgram(bindQuarryProgram(declaration, prepared.prepared.catalog));
+    deepStrictEqual(direct, {
+      name: "names.class", kind: "Query", args: { default: "Int" }, read_time_granularity_ms: null,
+      body: [{ Return: { Variable: "default" } }],
+    });
+    const legacy = compileQuarry(inputs);
+    assert(!legacy.ok && legacy.diagnostics.some((diagnostic) => diagnostic.message.includes("generated TypeScript binding")),
+      `legacy oracle unexpectedly accepted its emitter-restricted names: ${JSON.stringify(legacy)}`);
   });
 
   test("Quarry table and operation names occupy separate generated bindings", async () => {
