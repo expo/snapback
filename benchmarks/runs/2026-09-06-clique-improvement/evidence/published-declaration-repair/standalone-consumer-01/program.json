@@ -1,0 +1,19 @@
+{
+  "roots": [
+    "/home/ccheever/clique-revisions/published-declaration-ambient-repair-r1-20260907/work/private-tmp/snapback2-offline-standalone-types-JsBQKL/consumer.ts"
+  ],
+  "options": {
+    "lib": [
+      "lib.es2022.d.ts",
+      "lib.dom.d.ts"
+    ],
+    "module": 99,
+    "moduleResolution": 100,
+    "noEmit": true,
+    "skipLibCheck": false,
+    "strict": true,
+    "target": 9,
+    "types": [],
+    "configFilePath": "/home/ccheever/clique-revisions/published-declaration-ambient-repair-r1-20260907/work/private-tmp/snapback2-offline-standalone-types-JsBQKL/tsconfig.json"
+  }
+}

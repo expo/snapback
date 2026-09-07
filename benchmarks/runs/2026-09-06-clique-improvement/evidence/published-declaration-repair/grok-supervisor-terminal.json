@@ -1,0 +1,56 @@
+{
+  "at": "2026-09-07T22:45:39.005788+00:00",
+  "outerSessionId": 10057,
+  "outerExitCode": 0,
+  "outerTerminalChunkId": "0b3c37",
+  "nativeTerminal": {
+    "pid": 5248,
+    "processIdentity": {
+      "pid": 5248,
+      "start": "Mon Sep 7 15:35:17 2026",
+      "executable": "/Users/ccheever/.grok/bin/grok",
+      "observed": true
+    },
+    "exitCode": 0,
+    "endedEpoch": 1788821102.702116,
+    "elapsedSeconds": 584.9122309684753,
+    "actualProcessWaitCompleted": true,
+    "stdoutSha256": "0eb2896b846f31ca714b219fe355295867a52da648adaf2021f1b9b8de93437a",
+    "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "actualIdentity": {
+    "requestedModel": "grok-4.6",
+    "requestedEffort": "xhigh",
+    "launchPid": 5248,
+    "observedAt": "2026-09-07T22:45:03.006188+00:00",
+    "sessionId": "00cc15f1-fd89-421d-9195-dd4f41230120",
+    "source": "/Users/ccheever/.grok/sessions/%2FUsers%2Fccheever%2Fclique-improvement%2Freviews%2Fpublished-declaration-ambient-repair-r1%2Fgrok/00cc15f1-fd89-421d-9195-dd4f41230120/summary.json",
+    "sourceSha256": "58ff2cb614b0d061177666ea784047edf0d2d9cd446f5450055c1c55e27348e5",
+    "current_model_id": "grok-4.6",
+    "reasoning_effort": "xhigh",
+    "identityMatchesRequest": true
+  },
+  "inputIntegrity": {
+    "unchanged": true,
+    "changedInputs": [],
+    "manifestSha256": "b850df10d4b06f849c2b8e28f0c06666ea00d471f9830353a8b0ef80e66810d7"
+  },
+  "files": [
+    {
+      "path": "terminal.json",
+      "bytes": 477,
+      "sha256": "55699908a120cba33f924aadc69a4ce6c948413447fd5032c8301c67184a4640"
+    },
+    {
+      "path": "actual-identity.json",
+      "bytes": 574,
+      "sha256": "ed46b8ad3790bb3258c9ad48eff9d1581467d639913ee365765cc36c8ae6757f"
+    },
+    {
+      "path": "input-integrity-after.json",
+      "bytes": 135,
+      "sha256": "79500581dab824d74bd4178b1ef324c0d8858f7cb7e57ac2e64c515c454ea4ff"
+    }
+  ],
+  "blindness": "Own review findings unopened; Astra actual terminal still pending. No peer crossfeed."
+}

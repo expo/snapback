@@ -1,0 +1,11 @@
+{
+  "archive": {
+    "ownedArchive": "owned-results.tar",
+    "sha256": "2577e0bf72b794f401f2278a58425b1ff76db5678ef258b4b98318e31aef7768",
+    "bytes": 39669760,
+    "entries": 230
+  },
+  "downloadReceipt": "transport/download-01/receipt.json",
+  "extractionDirectory": "/Users/ccheever/clique-improvement/revisions/published-declaration-ambient-repair-r1/execution-r1/work/remote-evidence",
+  "regularOwnedEntriesOnly": 230
+}

@@ -1,0 +1,2018 @@
+{
+  "variables": [
+    {
+      "name": "envelope",
+      "type": "DeliveryEnvelopeV1",
+      "flags": 524288,
+      "any": false
+    },
+    {
+      "name": "protocol",
+      "type": "1",
+      "flags": 256,
+      "any": false
+    },
+    {
+      "name": "sequence",
+      "type": "number",
+      "flags": 8,
+      "any": false,
+      "intrinsicName": "number"
+    },
+    {
+      "name": "sequenceNumber",
+      "type": "number",
+      "flags": 8,
+      "any": false,
+      "intrinsicName": "number"
+    },
+    {
+      "name": "verdict",
+      "type": "boolean",
+      "flags": 1048592,
+      "any": false,
+      "intrinsicName": "boolean"
+    },
+    {
+      "name": "verdictBoolean",
+      "type": "boolean",
+      "flags": 1048592,
+      "any": false,
+      "intrinsicName": "boolean"
+    },
+    {
+      "name": "encoded",
+      "type": "string",
+      "flags": 4,
+      "any": false,
+      "intrinsicName": "string"
+    },
+    {
+      "name": "encodedString",
+      "type": "string",
+      "flags": 4,
+      "any": false,
+      "intrinsicName": "string"
+    },
+    {
+      "name": "error",
+      "type": "DeliveryEnvelopeDecodeError",
+      "flags": 524288,
+      "any": false
+    },
+    {
+      "name": "typeError",
+      "type": "TypeError",
+      "flags": 524288,
+      "any": false
+    },
+    {
+      "name": "path",
+      "type": "string",
+      "flags": 4,
+      "any": false,
+      "intrinsicName": "string"
+    },
+    {
+      "name": "pathString",
+      "type": "string",
+      "flags": 4,
+      "any": false,
+      "intrinsicName": "string"
+    },
+    {
+      "name": "message",
+      "type": "DeliveryMessage",
+      "flags": 1048576,
+      "any": false
+    },
+    {
+      "name": "data",
+      "type": "WireValue",
+      "flags": 1048576,
+      "any": false
+    },
+    {
+      "name": "closure",
+      "type": "EvaluatorClosureReceipt",
+      "flags": 524288,
+      "any": false
+    },
+    {
+      "name": "extent",
+      "type": "DeliveryRangeExtent",
+      "flags": 1048576,
+      "any": false
+    },
+    {
+      "name": "wrongVerdict",
+      "type": "number",
+      "flags": 8,
+      "any": false,
+      "intrinsicName": "number"
+    },
+    {
+      "name": "wrongSequence",
+      "type": "boolean",
+      "flags": 1048592,
+      "any": false,
+      "intrinsicName": "boolean"
+    },
+    {
+      "name": "wrongEncoding",
+      "type": "number",
+      "flags": 8,
+      "any": false,
+      "intrinsicName": "number"
+    },
+    {
+      "name": "wrongPath",
+      "type": "number",
+      "flags": 8,
+      "any": false,
+      "intrinsicName": "number"
+    },
+    {
+      "name": "envelopeNotAny",
+      "type": "false",
+      "flags": 512,
+      "any": false,
+      "intrinsicName": "false"
+    },
+    {
+      "name": "verdictNotAny",
+      "type": "false",
+      "flags": 512,
+      "any": false,
+      "intrinsicName": "false"
+    },
+    {
+      "name": "pathNotAny",
+      "type": "false",
+      "flags": 512,
+      "any": false,
+      "intrinsicName": "false"
+    },
+    {
+      "name": "wrongIsAny",
+      "type": "false",
+      "flags": 512,
+      "any": false,
+      "intrinsicName": "false"
+    },
+    {
+      "name": "rootAsStandalone",
+      "type": "ProtocolExports",
+      "flags": 524288,
+      "any": false
+    },
+    {
+      "name": "standaloneAsRoot",
+      "type": "Pick<typeof import(\"snapback2\"), \"DeliveryEnvelopeDecodeError\" | \"decodeDeliveryEnvelope\" | \"decodeDeliveryMessage\" | \"encodeDeliveryEnvelope\" | \"expandRows\" | \"toClosureReceipt\" | \"deliveryRangeExtent\">",
+      "flags": 524288,
+      "any": false
+    },
+    {
+      "name": "standaloneEnvelope",
+      "type": "DeliveryEnvelopeV1",
+      "flags": 524288,
+      "any": false
+    },
+    {
+      "name": "rootEnvelope",
+      "type": "DeliveryEnvelopeV1",
+      "flags": 524288,
+      "any": false
+    },
+    {
+      "name": "query",
+      "type": "QueryReceiptRequest",
+      "flags": 524288,
+      "any": false
+    },
+    {
+      "name": "subscribe",
+      "type": "SubscribeReceiptRequest",
+      "flags": 524288,
+      "any": false
+    }
+  ],
+  "imports": [
+    {
+      "specifier": "snapback2",
+      "declarations": [
+        {
+          "file": "/home/ccheever/clique-revisions/published-declaration-ambient-repair-r1-20260907/work/candidate-package/dist/index.d.ts",
+          "start": 0
+        }
+      ],
+      "exports": [
+        {
+          "name": "schema",
+          "declarations": [
+            {
+              "file": "/home/ccheever/clique-revisions/published-declaration-ambient-repair-r1-20260907/work/candidate-package/dist/index.d.ts",
+              "start": 5746
+            }
+          ]
+        },
+        {
+          "name": "table",
+          "declarations": [
+            {
+              "file": "/home/ccheever/clique-revisions/published-declaration-ambient-repair-r1-20260907/work/candidate-package/dist/index.d.ts",
+              "start": 5849
+            }
+          ]
+        },
+        {
+          "name": "channel",
+          "declarations": [
+            {
+              "file": "/home/ccheever/clique-revisions/published-declaration-ambient-repair-r1-20260907/work/candidate-package/dist/index.d.ts",
+              "start": 8246
+            }
+          ]
+        },
+        {
+          "name": "query",
+          "declarations": [
+            {
+              "file": "/home/ccheever/clique-revisions/published-declaration-ambient-repair-r1-20260907/work/candidate-package/dist/index.d.ts",
+              "start": 8420
+            }
+          ]
+        },
+        {
+          "name": "mutation",
+          "declarations": [
+            {
+              "file": "/home/ccheever/clique-revisions/published-declaration-ambient-repair-r1-20260907/work/candidate-package/dist/index.d.ts",
+              "start": 8590
+            }
+          ]
+        },
+        {
+          "name": "effect",
+          "declarations": [
+            {
+              "file": "/home/ccheever/clique-revisions/published-declaration-ambient-repair-r1-20260907/work/candidate-package/dist/index.d.ts",
+              "start": 8766
+            }
+          ]
+        },
+        {
+          "name": "emit",
+          "declarations": [
+            {
+              "file": "/home/ccheever/clique-revisions/published-declaration-ambient-repair-r1-20260907/work/candidate-package/dist/index.d.ts",
+              "start": 9168
+            }
+          ]
+        },
+        {
+          "name": "seed",
+          "declarations": [
+            {
+              "file": "/home/ccheever/clique-revisions/published-declaration-ambient-repair-r1-20260907/work/candidate-package/dist/index.d.ts",
+              "start": 9250
+            }
+          ]
+        },
+        {
+          "name": "range",
+          "declarations": [
+            {
+              "file": "/home/ccheever/clique-revisions/published-declaration-ambient-repair-r1-20260907/work/candidate-package/dist/index.d.ts",
+              "start": 9363
+            }
+          ]
+        },
+        {
+          "name": "decimal",
+          "declarations": [
+            {
+              "file": "/home/ccheever/clique-revisions/published-declaration-ambient-repair-r1-20260907/work/candidate-package/dist/index.d.ts",
+              "start": 9572
+            }
+          ]
+        },
+        {
+          "name": "mentionTokens",
+          "declarations": [
+            {
+              "file": "/home/ccheever/clique-revisions/published-declaration-ambient-repair-r1-20260907/work/candidate-package/dist/index.d.ts",
+              "start": 9660
+            }
+          ]
+        },
+        {
+          "name": "words",
+          "declarations": [
+            {
+              "file": "/home/ccheever/clique-revisions/published-declaration-ambient-repair-r1-20260907/work/candidate-package/dist/index.d.ts",
+              "start": 9718
+            }
+          ]
+        },
+        {
+          "name": "deterministicShare",
+          "declarations": [
+            {
+              "file": "/home/ccheever/clique-revisions/published-declaration-ambient-repair-r1-20260907/work/candidate-package/dist/index.d.ts",
+              "start": 9907
+            }
+          ]
+        },
+        {
+          "name": "concat",
+          "declarations": [
+            {
+              "file": "/home/ccheever/clique-revisions/published-declaration-ambient-repair-r1-20260907/work/candidate-package/dist/index.d.ts",
+              "start": 10054
+            }
+          ]
+        },
+        {
+          "name": "max",
+          "declarations": [
+            {
+              "file": "/home/ccheever/clique-revisions/published-declaration-ambient-repair-r1-20260907/work/candidate-package/dist/index.d.ts",
+              "start": 10143
+            },
+            {
+              "file": "/home/ccheever/clique-revisions/published-declaration-ambient-repair-r1-20260907/work/candidate-package/dist/index.d.ts",
+              "start": 10266
+            }
+          ]
+        },
+        {
+          "name": "min",
+          "declarations": [
+            {
+              "file": "/home/ccheever/clique-revisions/published-declaration-ambient-repair-r1-20260907/work/candidate-package/dist/index.d.ts",
+              "start": 10349
+            },
+            {
+              "file": "/home/ccheever/clique-revisions/published-declaration-ambient-repair-r1-20260907/work/candidate-package/dist/index.d.ts",
+              "start": 10472
+            }
+          ]
+        },
+        {
+          "name": "divmod",
+          "declarations": [
+            {
+              "file": "/home/ccheever/clique-revisions/published-declaration-ambient-repair-r1-20260907/work/candidate-package/dist/index.d.ts",
+              "start": 10640
+            }
+          ]
+        },
+        {
+          "name": "mergeByIndex",
+          "declarations": [
+            {
+              "file": "/home/ccheever/clique-revisions/published-declaration-ambient-repair-r1-20260907/work/candidate-package/dist/index.d.ts",
+              "start": 10885
+            }
+          ]
+        },
+        {
+          "name": "recurse",
+          "declarations": [
+            {
+              "file": "/home/ccheever/clique-revisions/published-declaration-ambient-repair-r1-20260907/work/candidate-package/dist/index.d.ts",
+              "start": 11009
+            }
+          ]
+        },
+        {
+          "name": "decodeDeliveryEnvelope",
+          "declarations": [
+            {
+              "file": "/home/ccheever/clique-revisions/published-declaration-ambient-repair-r1-20260907/work/candidate-package/dist/index.d.ts",
+              "start": 15683
+            }
+          ]
+        },
+        {
+          "name": "decodeDeliveryMessage",
+          "declarations": [
+            {
+              "file": "/home/ccheever/clique-revisions/published-declaration-ambient-repair-r1-20260907/work/candidate-package/dist/index.d.ts",
+              "start": 15842
+            }
+          ]
+        },
+        {
+          "name": "encodeDeliveryEnvelope",
+          "declarations": [
+            {
+              "file": "/home/ccheever/clique-revisions/published-declaration-ambient-repair-r1-20260907/work/candidate-package/dist/index.d.ts",
+              "start": 15913
+            }
+          ]
+        },
+        {
+          "name": "expandRows",
+          "declarations": [
+            {
+              "file": "/home/ccheever/clique-revisions/published-declaration-ambient-repair-r1-20260907/work/candidate-package/dist/index.d.ts",
+              "start": 15991
+            }
+          ]
+        },
+        {
+          "name": "toClosureReceipt",
+          "declarations": [
+            {
+              "file": "/home/ccheever/clique-revisions/published-declaration-ambient-repair-r1-20260907/work/candidate-package/dist/index.d.ts",
+              "start": 16147
+            }
+          ]
+        },
+        {
+          "name": "deliveryRangeExtent",
+          "declarations": [
+            {
+              "file": "/home/ccheever/clique-revisions/published-declaration-ambient-repair-r1-20260907/work/candidate-package/dist/index.d.ts",
+              "start": 16637
+            }
+          ]
+        },
+        {
+          "name": "tagWireRow",
+          "declarations": [
+            {
+              "file": "/home/ccheever/clique-revisions/published-declaration-ambient-repair-r1-20260907/work/candidate-package/dist/index.d.ts",
+              "start": 16860
+            }
+          ]
+        },
+        {
+          "name": "tagWireIndexValues",
+          "declarations": [
+            {
+              "file": "/home/ccheever/clique-revisions/published-declaration-ambient-repair-r1-20260907/work/candidate-package/dist/index.d.ts",
+              "start": 17072
+            }
+          ]
+        },
+        {
+          "name": "tagWireBoundary",
+          "declarations": [
+            {
+              "file": "/home/ccheever/clique-revisions/published-declaration-ambient-repair-r1-20260907/work/candidate-package/dist/index.d.ts",
+              "start": 17330
+            }
+          ]
+        },
+        {
+          "name": "tagWireValue",
+          "declarations": [
+            {
+              "file": "/home/ccheever/clique-revisions/published-declaration-ambient-repair-r1-20260907/work/candidate-package/dist/index.d.ts",
+              "start": 17550
+            }
+          ]
+        },
+        {
+          "name": "Json",
+          "declarations": [
+            {
+              "file": "/home/ccheever/clique-revisions/published-declaration-ambient-repair-r1-20260907/work/candidate-package/dist/index.d.ts",
+              "start": 31
+            }
+          ]
+        },
+        {
+          "name": "Principal",
+          "declarations": [
+            {
+              "file": "/home/ccheever/clique-revisions/published-declaration-ambient-repair-r1-20260907/work/candidate-package/dist/index.d.ts",
+              "start": 211
+            }
+          ]
+        },
+        {
+          "name": "Cursor",
+          "declarations": [
+            {
+              "file": "/home/ccheever/clique-revisions/published-declaration-ambient-repair-r1-20260907/work/candidate-package/dist/index.d.ts",
+              "start": 293
+            }
+          ]
+        },
+        {
+          "name": "Bytes",
+          "declarations": [
+            {
+              "file": "/home/ccheever/clique-revisions/published-declaration-ambient-repair-r1-20260907/work/candidate-package/dist/index.d.ts",
+              "start": 366
+            }
+          ]
+        },
+        {
+          "name": "ImageAsset",
+          "declarations": [
+            {
+              "file": "/home/ccheever/clique-revisions/published-declaration-ambient-repair-r1-20260907/work/candidate-package/dist/index.d.ts",
+              "start": 535
+            }
+          ]
+        },
+        {
+          "name": "VideoAsset",
+          "declarations": [
+            {
+              "file": "/home/ccheever/clique-revisions/published-declaration-ambient-repair-r1-20260907/work/candidate-package/dist/index.d.ts",
+              "start": 663
+            }
+          ]
+        },
+        {
+          "name": "SeedValue",
+          "declarations": [
+            {
+              "file": "/home/ccheever/clique-revisions/published-declaration-ambient-repair-r1-20260907/work/candidate-package/dist/index.d.ts",
+              "start": 818
+            }
+          ]
+        },
+        {
+          "name": "Decimal",
+          "declarations": [
+            {
+              "file": "/home/ccheever/clique-revisions/published-declaration-ambient-repair-r1-20260907/work/candidate-package/dist/index.d.ts",
+              "start": 931
+            }
+          ]
+        },
+        {
+          "name": "Money",
+          "declarations": [
+            {
+              "file": "/home/ccheever/clique-revisions/published-declaration-ambient-repair-r1-20260907/work/candidate-package/dist/index.d.ts",
+              "start": 1065
+            }
+          ]
+        },
+        {
+          "name": "Column",
+          "declarations": [
+            {
+              "file": "/home/ccheever/clique-revisions/published-declaration-ambient-repair-r1-20260907/work/candidate-package/dist/index.d.ts",
+              "start": 1222
+            }
+          ]
+        },
+        {
+          "name": "Arg",
+          "declarations": [
+            {
+              "file": "/home/ccheever/clique-revisions/published-declaration-ambient-repair-r1-20260907/work/candidate-package/dist/index.d.ts",
+              "start": 1397
+            }
+          ]
+        },
+        {
+          "name": "RowOfColumns",
+          "declarations": [
+            {
+              "file": "/home/ccheever/clique-revisions/published-declaration-ambient-repair-r1-20260907/work/candidate-package/dist/index.d.ts",
+              "start": 1485
+            }
+          ]
+        },
+        {
+          "name": "Table",
+          "declarations": [
+            {
+              "file": "/home/ccheever/clique-revisions/published-declaration-ambient-repair-r1-20260907/work/candidate-package/dist/index.d.ts",
+              "start": 1815
+            }
+          ]
+        },
+        {
+          "name": "TableIndex",
+          "declarations": [
+            {
+              "file": "/home/ccheever/clique-revisions/published-declaration-ambient-repair-r1-20260907/work/candidate-package/dist/index.d.ts",
+              "start": 2009
+            }
+          ]
+        },
+        {
+          "name": "Rule",
+          "declarations": [
+            {
+              "file": "/home/ccheever/clique-revisions/published-declaration-ambient-repair-r1-20260907/work/candidate-package/dist/index.d.ts",
+              "start": 2160
+            }
+          ]
+        },
+        {
+          "name": "RuleTerm",
+          "declarations": [
+            {
+              "file": "/home/ccheever/clique-revisions/published-declaration-ambient-repair-r1-20260907/work/candidate-package/dist/index.d.ts",
+              "start": 2217
+            }
+          ]
+        },
+        {
+          "name": "Channel",
+          "declarations": [
+            {
+              "file": "/home/ccheever/clique-revisions/published-declaration-ambient-repair-r1-20260907/work/candidate-package/dist/index.d.ts",
+              "start": 2278
+            }
+          ]
+        },
+        {
+          "name": "Operation",
+          "declarations": [
+            {
+              "file": "/home/ccheever/clique-revisions/published-declaration-ambient-repair-r1-20260907/work/candidate-package/dist/index.d.ts",
+              "start": 2374
+            }
+          ]
+        },
+        {
+          "name": "Effect",
+          "declarations": [
+            {
+              "file": "/home/ccheever/clique-revisions/published-declaration-ambient-repair-r1-20260907/work/candidate-package/dist/index.d.ts",
+              "start": 2541
+            }
+          ]
+        },
+        {
+          "name": "ArgsOf",
+          "declarations": [
+            {
+              "file": "/home/ccheever/clique-revisions/published-declaration-ambient-repair-r1-20260907/work/candidate-package/dist/index.d.ts",
+              "start": 2705
+            }
+          ]
+        },
+        {
+          "name": "Page",
+          "declarations": [
+            {
+              "file": "/home/ccheever/clique-revisions/published-declaration-ambient-repair-r1-20260907/work/candidate-package/dist/index.d.ts",
+              "start": 2993
+            }
+          ]
+        },
+        {
+          "name": "IndexableScalar",
+          "declarations": [
+            {
+              "file": "/home/ccheever/clique-revisions/published-declaration-ambient-repair-r1-20260907/work/candidate-package/dist/index.d.ts",
+              "start": 3027
+            }
+          ]
+        },
+        {
+          "name": "WriteValue",
+          "declarations": [
+            {
+              "file": "/home/ccheever/clique-revisions/published-declaration-ambient-repair-r1-20260907/work/candidate-package/dist/index.d.ts",
+              "start": 3108
+            }
+          ]
+        },
+        {
+          "name": "WriteRow",
+          "declarations": [
+            {
+              "file": "/home/ccheever/clique-revisions/published-declaration-ambient-repair-r1-20260907/work/candidate-package/dist/index.d.ts",
+              "start": 3282
+            }
+          ]
+        },
+        {
+          "name": "WritePatch",
+          "declarations": [
+            {
+              "file": "/home/ccheever/clique-revisions/published-declaration-ambient-repair-r1-20260907/work/candidate-package/dist/index.d.ts",
+              "start": 3523
+            }
+          ]
+        },
+        {
+          "name": "Db",
+          "declarations": [
+            {
+              "file": "/home/ccheever/clique-revisions/published-declaration-ambient-repair-r1-20260907/work/candidate-package/dist/index.d.ts",
+              "start": 3707
+            }
+          ]
+        },
+        {
+          "name": "Context",
+          "declarations": [
+            {
+              "file": "/home/ccheever/clique-revisions/published-declaration-ambient-repair-r1-20260907/work/candidate-package/dist/index.d.ts",
+              "start": 5495
+            }
+          ]
+        },
+        {
+          "name": "t",
+          "declarations": [
+            {
+              "file": "/home/ccheever/clique-revisions/published-declaration-ambient-repair-r1-20260907/work/candidate-package/dist/index.d.ts",
+              "start": 6355
+            }
+          ]
+        },
+        {
+          "name": "rule",
+          "declarations": [
+            {
+              "file": "/home/ccheever/clique-revisions/published-declaration-ambient-repair-r1-20260907/work/candidate-package/dist/index.d.ts",
+              "start": 7614
+            }
+          ]
+        },
+        {
+          "name": "WireRowReference",
+          "declarations": [
+            {
+              "file": "/home/ccheever/clique-revisions/published-declaration-ambient-repair-r1-20260907/work/candidate-package/dist/index.d.ts",
+              "start": 11235
+            }
+          ]
+        },
+        {
+          "name": "WireEscapedObject",
+          "declarations": [
+            {
+              "file": "/home/ccheever/clique-revisions/published-declaration-ambient-repair-r1-20260907/work/candidate-package/dist/index.d.ts",
+              "start": 11333
+            }
+          ]
+        },
+        {
+          "name": "WireValue",
+          "declarations": [
+            {
+              "file": "/home/ccheever/clique-revisions/published-declaration-ambient-repair-r1-20260907/work/candidate-package/dist/index.d.ts",
+              "start": 11432
+            }
+          ]
+        },
+        {
+          "name": "DeliveryRow",
+          "declarations": [
+            {
+              "file": "/home/ccheever/clique-revisions/published-declaration-ambient-repair-r1-20260907/work/candidate-package/dist/index.d.ts",
+              "start": 11579
+            }
+          ]
+        },
+        {
+          "name": "DeliveryRange",
+          "declarations": [
+            {
+              "file": "/home/ccheever/clique-revisions/published-declaration-ambient-repair-r1-20260907/work/candidate-package/dist/index.d.ts",
+              "start": 11683
+            }
+          ]
+        },
+        {
+          "name": "DeliveryVerdict",
+          "declarations": [
+            {
+              "file": "/home/ccheever/clique-revisions/published-declaration-ambient-repair-r1-20260907/work/candidate-package/dist/index.d.ts",
+              "start": 12129
+            }
+          ]
+        },
+        {
+          "name": "DeliveryReceipt",
+          "declarations": [
+            {
+              "file": "/home/ccheever/clique-revisions/published-declaration-ambient-repair-r1-20260907/work/candidate-package/dist/index.d.ts",
+              "start": 13043
+            }
+          ]
+        },
+        {
+          "name": "DeliveryAuthority",
+          "declarations": [
+            {
+              "file": "/home/ccheever/clique-revisions/published-declaration-ambient-repair-r1-20260907/work/candidate-package/dist/index.d.ts",
+              "start": 13213
+            }
+          ]
+        },
+        {
+          "name": "DeliveryEnvelopeV1",
+          "declarations": [
+            {
+              "file": "/home/ccheever/clique-revisions/published-declaration-ambient-repair-r1-20260907/work/candidate-package/dist/index.d.ts",
+              "start": 13298
+            }
+          ]
+        },
+        {
+          "name": "DeliveryUnchanged",
+          "declarations": [
+            {
+              "file": "/home/ccheever/clique-revisions/published-declaration-ambient-repair-r1-20260907/work/candidate-package/dist/index.d.ts",
+              "start": 13927
+            }
+          ]
+        },
+        {
+          "name": "DeliveryMessage",
+          "declarations": [
+            {
+              "file": "/home/ccheever/clique-revisions/published-declaration-ambient-repair-r1-20260907/work/candidate-package/dist/index.d.ts",
+              "start": 14030
+            }
+          ]
+        },
+        {
+          "name": "TaggedValue",
+          "declarations": [
+            {
+              "file": "/home/ccheever/clique-revisions/published-declaration-ambient-repair-r1-20260907/work/candidate-package/dist/index.d.ts",
+              "start": 14100
+            }
+          ]
+        },
+        {
+          "name": "EvaluatorClosureReceipt",
+          "declarations": [
+            {
+              "file": "/home/ccheever/clique-revisions/published-declaration-ambient-repair-r1-20260907/work/candidate-package/dist/index.d.ts",
+              "start": 14375
+            }
+          ]
+        },
+        {
+          "name": "DeliveryEnvelopeDecodeError",
+          "declarations": [
+            {
+              "file": "/home/ccheever/clique-revisions/published-declaration-ambient-repair-r1-20260907/work/candidate-package/dist/index.d.ts",
+              "start": 15546
+            }
+          ]
+        },
+        {
+          "name": "DeliveryRangeExtent",
+          "declarations": [
+            {
+              "file": "/home/ccheever/clique-revisions/published-declaration-ambient-repair-r1-20260907/work/candidate-package/dist/index.d.ts",
+              "start": 16249
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "specifier": "./node_modules/snapback2/dist/offline-protocol.js",
+      "declarations": [
+        {
+          "file": "/home/ccheever/clique-revisions/published-declaration-ambient-repair-r1-20260907/work/private-tmp/snapback2-offline-public-types-wQ5qCB/node_modules/snapback2/dist/offline-protocol.d.ts",
+          "start": 101
+        }
+      ],
+      "exports": [
+        {
+          "name": "decodeDeliveryEnvelope",
+          "declarations": [
+            {
+              "file": "/home/ccheever/clique-revisions/published-declaration-ambient-repair-r1-20260907/work/private-tmp/snapback2-offline-public-types-wQ5qCB/node_modules/snapback2/dist/offline-protocol.d.ts",
+              "start": 4557
+            }
+          ]
+        },
+        {
+          "name": "decodeDeliveryMessage",
+          "declarations": [
+            {
+              "file": "/home/ccheever/clique-revisions/published-declaration-ambient-repair-r1-20260907/work/private-tmp/snapback2-offline-public-types-wQ5qCB/node_modules/snapback2/dist/offline-protocol.d.ts",
+              "start": 4724
+            }
+          ]
+        },
+        {
+          "name": "encodeDeliveryEnvelope",
+          "declarations": [
+            {
+              "file": "/home/ccheever/clique-revisions/published-declaration-ambient-repair-r1-20260907/work/private-tmp/snapback2-offline-public-types-wQ5qCB/node_modules/snapback2/dist/offline-protocol.d.ts",
+              "start": 4803
+            }
+          ]
+        },
+        {
+          "name": "expandRows",
+          "declarations": [
+            {
+              "file": "/home/ccheever/clique-revisions/published-declaration-ambient-repair-r1-20260907/work/private-tmp/snapback2-offline-public-types-wQ5qCB/node_modules/snapback2/dist/offline-protocol.d.ts",
+              "start": 4889
+            }
+          ]
+        },
+        {
+          "name": "toClosureReceipt",
+          "declarations": [
+            {
+              "file": "/home/ccheever/clique-revisions/published-declaration-ambient-repair-r1-20260907/work/private-tmp/snapback2-offline-public-types-wQ5qCB/node_modules/snapback2/dist/offline-protocol.d.ts",
+              "start": 5053
+            }
+          ]
+        },
+        {
+          "name": "deliveryRangeExtent",
+          "declarations": [
+            {
+              "file": "/home/ccheever/clique-revisions/published-declaration-ambient-repair-r1-20260907/work/private-tmp/snapback2-offline-public-types-wQ5qCB/node_modules/snapback2/dist/offline-protocol.d.ts",
+              "start": 5551
+            }
+          ]
+        },
+        {
+          "name": "tagWireRow",
+          "declarations": [
+            {
+              "file": "/home/ccheever/clique-revisions/published-declaration-ambient-repair-r1-20260907/work/private-tmp/snapback2-offline-public-types-wQ5qCB/node_modules/snapback2/dist/offline-protocol.d.ts",
+              "start": 5782
+            }
+          ]
+        },
+        {
+          "name": "tagWireIndexValues",
+          "declarations": [
+            {
+              "file": "/home/ccheever/clique-revisions/published-declaration-ambient-repair-r1-20260907/work/private-tmp/snapback2-offline-public-types-wQ5qCB/node_modules/snapback2/dist/offline-protocol.d.ts",
+              "start": 6002
+            }
+          ]
+        },
+        {
+          "name": "tagWireBoundary",
+          "declarations": [
+            {
+              "file": "/home/ccheever/clique-revisions/published-declaration-ambient-repair-r1-20260907/work/private-tmp/snapback2-offline-public-types-wQ5qCB/node_modules/snapback2/dist/offline-protocol.d.ts",
+              "start": 6268
+            }
+          ]
+        },
+        {
+          "name": "tagWireValue",
+          "declarations": [
+            {
+              "file": "/home/ccheever/clique-revisions/published-declaration-ambient-repair-r1-20260907/work/private-tmp/snapback2-offline-public-types-wQ5qCB/node_modules/snapback2/dist/offline-protocol.d.ts",
+              "start": 6496
+            }
+          ]
+        },
+        {
+          "name": "WireRowReference",
+          "declarations": [
+            {
+              "file": "/home/ccheever/clique-revisions/published-declaration-ambient-repair-r1-20260907/work/private-tmp/snapback2-offline-public-types-wQ5qCB/node_modules/snapback2/dist/offline-protocol.d.ts",
+              "start": 101
+            }
+          ]
+        },
+        {
+          "name": "WireEscapedObject",
+          "declarations": [
+            {
+              "file": "/home/ccheever/clique-revisions/published-declaration-ambient-repair-r1-20260907/work/private-tmp/snapback2-offline-public-types-wQ5qCB/node_modules/snapback2/dist/offline-protocol.d.ts",
+              "start": 199
+            }
+          ]
+        },
+        {
+          "name": "WireValue",
+          "declarations": [
+            {
+              "file": "/home/ccheever/clique-revisions/published-declaration-ambient-repair-r1-20260907/work/private-tmp/snapback2-offline-public-types-wQ5qCB/node_modules/snapback2/dist/offline-protocol.d.ts",
+              "start": 298
+            }
+          ]
+        },
+        {
+          "name": "DeliveryRow",
+          "declarations": [
+            {
+              "file": "/home/ccheever/clique-revisions/published-declaration-ambient-repair-r1-20260907/work/private-tmp/snapback2-offline-public-types-wQ5qCB/node_modules/snapback2/dist/offline-protocol.d.ts",
+              "start": 445
+            }
+          ]
+        },
+        {
+          "name": "DeliveryRange",
+          "declarations": [
+            {
+              "file": "/home/ccheever/clique-revisions/published-declaration-ambient-repair-r1-20260907/work/private-tmp/snapback2-offline-public-types-wQ5qCB/node_modules/snapback2/dist/offline-protocol.d.ts",
+              "start": 549
+            }
+          ]
+        },
+        {
+          "name": "DeliveryVerdict",
+          "declarations": [
+            {
+              "file": "/home/ccheever/clique-revisions/published-declaration-ambient-repair-r1-20260907/work/private-tmp/snapback2-offline-public-types-wQ5qCB/node_modules/snapback2/dist/offline-protocol.d.ts",
+              "start": 995
+            }
+          ]
+        },
+        {
+          "name": "DeliveryReceipt",
+          "declarations": [
+            {
+              "file": "/home/ccheever/clique-revisions/published-declaration-ambient-repair-r1-20260907/work/private-tmp/snapback2-offline-public-types-wQ5qCB/node_modules/snapback2/dist/offline-protocol.d.ts",
+              "start": 1909
+            }
+          ]
+        },
+        {
+          "name": "DeliveryAuthority",
+          "declarations": [
+            {
+              "file": "/home/ccheever/clique-revisions/published-declaration-ambient-repair-r1-20260907/work/private-tmp/snapback2-offline-public-types-wQ5qCB/node_modules/snapback2/dist/offline-protocol.d.ts",
+              "start": 2079
+            }
+          ]
+        },
+        {
+          "name": "DeliveryEnvelopeV1",
+          "declarations": [
+            {
+              "file": "/home/ccheever/clique-revisions/published-declaration-ambient-repair-r1-20260907/work/private-tmp/snapback2-offline-public-types-wQ5qCB/node_modules/snapback2/dist/offline-protocol.d.ts",
+              "start": 2164
+            }
+          ]
+        },
+        {
+          "name": "DeliveryUnchanged",
+          "declarations": [
+            {
+              "file": "/home/ccheever/clique-revisions/published-declaration-ambient-repair-r1-20260907/work/private-tmp/snapback2-offline-public-types-wQ5qCB/node_modules/snapback2/dist/offline-protocol.d.ts",
+              "start": 2793
+            }
+          ]
+        },
+        {
+          "name": "DeliveryMessage",
+          "declarations": [
+            {
+              "file": "/home/ccheever/clique-revisions/published-declaration-ambient-repair-r1-20260907/work/private-tmp/snapback2-offline-public-types-wQ5qCB/node_modules/snapback2/dist/offline-protocol.d.ts",
+              "start": 2896
+            }
+          ]
+        },
+        {
+          "name": "TaggedValue",
+          "declarations": [
+            {
+              "file": "/home/ccheever/clique-revisions/published-declaration-ambient-repair-r1-20260907/work/private-tmp/snapback2-offline-public-types-wQ5qCB/node_modules/snapback2/dist/offline-protocol.d.ts",
+              "start": 2966
+            }
+          ]
+        },
+        {
+          "name": "EvaluatorClosureReceipt",
+          "declarations": [
+            {
+              "file": "/home/ccheever/clique-revisions/published-declaration-ambient-repair-r1-20260907/work/private-tmp/snapback2-offline-public-types-wQ5qCB/node_modules/snapback2/dist/offline-protocol.d.ts",
+              "start": 3241
+            }
+          ]
+        },
+        {
+          "name": "DeliveryEnvelopeDecodeError",
+          "declarations": [
+            {
+              "file": "/home/ccheever/clique-revisions/published-declaration-ambient-repair-r1-20260907/work/private-tmp/snapback2-offline-public-types-wQ5qCB/node_modules/snapback2/dist/offline-protocol.d.ts",
+              "start": 4412
+            }
+          ]
+        },
+        {
+          "name": "DeliveryRangeExtent",
+          "declarations": [
+            {
+              "file": "/home/ccheever/clique-revisions/published-declaration-ambient-repair-r1-20260907/work/private-tmp/snapback2-offline-public-types-wQ5qCB/node_modules/snapback2/dist/offline-protocol.d.ts",
+              "start": 5163
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "specifier": "snapback2/client",
+      "declarations": [
+        {
+          "file": "/home/ccheever/clique-revisions/published-declaration-ambient-repair-r1-20260907/work/candidate-package/dist/client.d.ts",
+          "start": 0
+        }
+      ],
+      "exports": [
+        {
+          "name": "createClient",
+          "declarations": [
+            {
+              "file": "/home/ccheever/clique-revisions/published-declaration-ambient-repair-r1-20260907/work/candidate-package/dist/client.d.ts",
+              "start": 781
+            }
+          ]
+        },
+        {
+          "name": "api",
+          "declarations": [
+            {
+              "file": "/home/ccheever/clique-revisions/published-declaration-ambient-repair-r1-20260907/work/candidate-package/dist/client.d.ts",
+              "start": 245
+            }
+          ]
+        },
+        {
+          "name": "SnapbackRefusal",
+          "declarations": [
+            {
+              "file": "/home/ccheever/clique-revisions/published-declaration-ambient-repair-r1-20260907/work/candidate-package/dist/client.d.ts",
+              "start": 261
+            }
+          ]
+        },
+        {
+          "name": "isSnapbackRefusal",
+          "declarations": [
+            {
+              "file": "/home/ccheever/clique-revisions/published-declaration-ambient-repair-r1-20260907/work/candidate-package/dist/client.d.ts",
+              "start": 278
+            }
+          ]
+        },
+        {
+          "name": "browserTokenStore",
+          "declarations": [
+            {
+              "file": "/home/ccheever/clique-revisions/published-declaration-ambient-repair-r1-20260907/work/candidate-package/dist/client.d.ts",
+              "start": 308
+            }
+          ]
+        },
+        {
+          "name": "Api",
+          "declarations": [
+            {
+              "file": "/home/ccheever/clique-revisions/published-declaration-ambient-repair-r1-20260907/work/candidate-package/dist/client.d.ts",
+              "start": 367
+            }
+          ]
+        },
+        {
+          "name": "ApiProxy",
+          "declarations": [
+            {
+              "file": "/home/ccheever/clique-revisions/published-declaration-ambient-repair-r1-20260907/work/candidate-package/dist/client.d.ts",
+              "start": 372
+            }
+          ]
+        },
+        {
+          "name": "Channel",
+          "declarations": [
+            {
+              "file": "/home/ccheever/clique-revisions/published-declaration-ambient-repair-r1-20260907/work/candidate-package/dist/client.d.ts",
+              "start": 382
+            }
+          ]
+        },
+        {
+          "name": "Op",
+          "declarations": [
+            {
+              "file": "/home/ccheever/clique-revisions/published-declaration-ambient-repair-r1-20260907/work/candidate-package/dist/client.d.ts",
+              "start": 405
+            }
+          ]
+        },
+        {
+          "name": "Coverage",
+          "declarations": [
+            {
+              "file": "/home/ccheever/clique-revisions/published-declaration-ambient-repair-r1-20260907/work/candidate-package/dist/client.d.ts",
+              "start": 453
+            }
+          ]
+        },
+        {
+          "name": "CoverageFacts",
+          "declarations": [
+            {
+              "file": "/home/ccheever/clique-revisions/published-declaration-ambient-repair-r1-20260907/work/candidate-package/dist/client.d.ts",
+              "start": 463
+            }
+          ]
+        },
+        {
+          "name": "HeldAnswer",
+          "declarations": [
+            {
+              "file": "/home/ccheever/clique-revisions/published-declaration-ambient-repair-r1-20260907/work/candidate-package/dist/client.d.ts",
+              "start": 478
+            }
+          ]
+        },
+        {
+          "name": "HeldOperation",
+          "declarations": [
+            {
+              "file": "/home/ccheever/clique-revisions/published-declaration-ambient-repair-r1-20260907/work/candidate-package/dist/client.d.ts",
+              "start": 490
+            }
+          ]
+        },
+        {
+          "name": "HeldProgram",
+          "declarations": [
+            {
+              "file": "/home/ccheever/clique-revisions/published-declaration-ambient-repair-r1-20260907/work/candidate-package/dist/client.d.ts",
+              "start": 505
+            }
+          ]
+        },
+        {
+          "name": "OutboxEntry",
+          "declarations": [
+            {
+              "file": "/home/ccheever/clique-revisions/published-declaration-ambient-repair-r1-20260907/work/candidate-package/dist/client.d.ts",
+              "start": 518
+            }
+          ]
+        },
+        {
+          "name": "OutboxStore",
+          "declarations": [
+            {
+              "file": "/home/ccheever/clique-revisions/published-declaration-ambient-repair-r1-20260907/work/candidate-package/dist/client.d.ts",
+              "start": 531
+            }
+          ]
+        },
+        {
+          "name": "OverlayRow",
+          "declarations": [
+            {
+              "file": "/home/ccheever/clique-revisions/published-declaration-ambient-repair-r1-20260907/work/candidate-package/dist/client.d.ts",
+              "start": 544
+            }
+          ]
+        },
+        {
+          "name": "RangeStore",
+          "declarations": [
+            {
+              "file": "/home/ccheever/clique-revisions/published-declaration-ambient-repair-r1-20260907/work/candidate-package/dist/client.d.ts",
+              "start": 556
+            }
+          ]
+        },
+        {
+          "name": "RangeStoreFactory",
+          "declarations": [
+            {
+              "file": "/home/ccheever/clique-revisions/published-declaration-ambient-repair-r1-20260907/work/candidate-package/dist/client.d.ts",
+              "start": 568
+            }
+          ]
+        },
+        {
+          "name": "Receipt",
+          "declarations": [
+            {
+              "file": "/home/ccheever/clique-revisions/published-declaration-ambient-repair-r1-20260907/work/candidate-package/dist/client.d.ts",
+              "start": 587
+            }
+          ]
+        },
+        {
+          "name": "ReceiptRange",
+          "declarations": [
+            {
+              "file": "/home/ccheever/clique-revisions/published-declaration-ambient-repair-r1-20260907/work/candidate-package/dist/client.d.ts",
+              "start": 596
+            }
+          ]
+        },
+        {
+          "name": "StoreSwap",
+          "declarations": [
+            {
+              "file": "/home/ccheever/clique-revisions/published-declaration-ambient-repair-r1-20260907/work/candidate-package/dist/client.d.ts",
+              "start": 610
+            }
+          ]
+        },
+        {
+          "name": "LocalAnswer",
+          "declarations": [
+            {
+              "file": "/home/ccheever/clique-revisions/published-declaration-ambient-repair-r1-20260907/work/candidate-package/dist/client.d.ts",
+              "start": 668
+            }
+          ]
+        },
+        {
+          "name": "Prediction",
+          "declarations": [
+            {
+              "file": "/home/ccheever/clique-revisions/published-declaration-ambient-repair-r1-20260907/work/candidate-package/dist/client.d.ts",
+              "start": 681
+            }
+          ]
+        },
+        {
+          "name": "PartialReason",
+          "declarations": [
+            {
+              "file": "/home/ccheever/clique-revisions/published-declaration-ambient-repair-r1-20260907/work/candidate-package/dist/client.d.ts",
+              "start": 726
+            }
+          ]
+        },
+        {
+          "name": "PartialSite",
+          "declarations": [
+            {
+              "file": "/home/ccheever/clique-revisions/published-declaration-ambient-repair-r1-20260907/work/candidate-package/dist/client.d.ts",
+              "start": 741
+            }
+          ]
+        },
+        {
+          "name": "initialQueryState",
+          "declarations": [
+            {
+              "file": "/home/ccheever/clique-revisions/published-declaration-ambient-repair-r1-20260907/work/candidate-package/dist/types.d.ts",
+              "start": 18679
+            }
+          ]
+        },
+        {
+          "name": "reduceQueryState",
+          "declarations": [
+            {
+              "file": "/home/ccheever/clique-revisions/published-declaration-ambient-repair-r1-20260907/work/candidate-package/dist/types.d.ts",
+              "start": 18792
+            }
+          ]
+        },
+        {
+          "name": "OutboxGrant",
+          "declarations": [
+            {
+              "file": "/home/ccheever/clique-revisions/published-declaration-ambient-repair-r1-20260907/work/candidate-package/dist/types.d.ts",
+              "start": 387
+            }
+          ]
+        },
+        {
+          "name": "OutboxState",
+          "declarations": [
+            {
+              "file": "/home/ccheever/clique-revisions/published-declaration-ambient-repair-r1-20260907/work/candidate-package/dist/types.d.ts",
+              "start": 400
+            }
+          ]
+        },
+        {
+          "name": "OutboxTrace",
+          "declarations": [
+            {
+              "file": "/home/ccheever/clique-revisions/published-declaration-ambient-repair-r1-20260907/work/candidate-package/dist/types.d.ts",
+              "start": 413
+            }
+          ]
+        },
+        {
+          "name": "AssetCache",
+          "declarations": [
+            {
+              "file": "/home/ccheever/clique-revisions/published-declaration-ambient-repair-r1-20260907/work/candidate-package/dist/types.d.ts",
+              "start": 472
+            }
+          ]
+        },
+        {
+          "name": "ByteCacheEntry",
+          "declarations": [
+            {
+              "file": "/home/ccheever/clique-revisions/published-declaration-ambient-repair-r1-20260907/work/candidate-package/dist/types.d.ts",
+              "start": 484
+            }
+          ]
+        },
+        {
+          "name": "ByteCacheStatus",
+          "declarations": [
+            {
+              "file": "/home/ccheever/clique-revisions/published-declaration-ambient-repair-r1-20260907/work/candidate-package/dist/types.d.ts",
+              "start": 500
+            }
+          ]
+        },
+        {
+          "name": "ImageAsset",
+          "declarations": [
+            {
+              "file": "/home/ccheever/clique-revisions/published-declaration-ambient-repair-r1-20260907/work/candidate-package/dist/types.d.ts",
+              "start": 519
+            }
+          ]
+        },
+        {
+          "name": "VideoAsset",
+          "declarations": [
+            {
+              "file": "/home/ccheever/clique-revisions/published-declaration-ambient-repair-r1-20260907/work/candidate-package/dist/types.d.ts",
+              "start": 662
+            }
+          ]
+        },
+        {
+          "name": "Principal",
+          "declarations": [
+            {
+              "file": "/home/ccheever/clique-revisions/published-declaration-ambient-repair-r1-20260907/work/candidate-package/dist/types.d.ts",
+              "start": 928
+            }
+          ]
+        },
+        {
+          "name": "Cursor",
+          "declarations": [
+            {
+              "file": "/home/ccheever/clique-revisions/published-declaration-ambient-repair-r1-20260907/work/candidate-package/dist/types.d.ts",
+              "start": 1013
+            }
+          ]
+        },
+        {
+          "name": "RefusalEnvelope",
+          "declarations": [
+            {
+              "file": "/home/ccheever/clique-revisions/published-declaration-ambient-repair-r1-20260907/work/candidate-package/dist/types.d.ts",
+              "start": 1089
+            }
+          ]
+        },
+        {
+          "name": "QueryReceiptRequest",
+          "declarations": [
+            {
+              "file": "/home/ccheever/clique-revisions/published-declaration-ambient-repair-r1-20260907/work/candidate-package/dist/types.d.ts",
+              "start": 1683
+            }
+          ]
+        },
+        {
+          "name": "SubscribeReceiptRequest",
+          "declarations": [
+            {
+              "file": "/home/ccheever/clique-revisions/published-declaration-ambient-repair-r1-20260907/work/candidate-package/dist/types.d.ts",
+              "start": 1874
+            }
+          ]
+        },
+        {
+          "name": "QueryComplete",
+          "declarations": [
+            {
+              "file": "/home/ccheever/clique-revisions/published-declaration-ambient-repair-r1-20260907/work/candidate-package/dist/types.d.ts",
+              "start": 1980
+            }
+          ]
+        },
+        {
+          "name": "QueryCapped",
+          "declarations": [
+            {
+              "file": "/home/ccheever/clique-revisions/published-declaration-ambient-repair-r1-20260907/work/candidate-package/dist/types.d.ts",
+              "start": 2104
+            }
+          ]
+        },
+        {
+          "name": "QueryPartial",
+          "declarations": [
+            {
+              "file": "/home/ccheever/clique-revisions/published-declaration-ambient-repair-r1-20260907/work/candidate-package/dist/types.d.ts",
+              "start": 2224
+            }
+          ]
+        },
+        {
+          "name": "QueryDenied",
+          "declarations": [
+            {
+              "file": "/home/ccheever/clique-revisions/published-declaration-ambient-repair-r1-20260907/work/candidate-package/dist/types.d.ts",
+              "start": 2342
+            }
+          ]
+        },
+        {
+          "name": "ServerQueryResult",
+          "declarations": [
+            {
+              "file": "/home/ccheever/clique-revisions/published-declaration-ambient-repair-r1-20260907/work/candidate-package/dist/types.d.ts",
+              "start": 2429
+            }
+          ]
+        },
+        {
+          "name": "OfflineFacts",
+          "declarations": [
+            {
+              "file": "/home/ccheever/clique-revisions/published-declaration-ambient-repair-r1-20260907/work/candidate-package/dist/types.d.ts",
+              "start": 2551
+            }
+          ]
+        },
+        {
+          "name": "OfflineQueryResult",
+          "declarations": [
+            {
+              "file": "/home/ccheever/clique-revisions/published-declaration-ambient-repair-r1-20260907/work/candidate-package/dist/types.d.ts",
+              "start": 3094
+            }
+          ]
+        },
+        {
+          "name": "QueryResult",
+          "declarations": [
+            {
+              "file": "/home/ccheever/clique-revisions/published-declaration-ambient-repair-r1-20260907/work/candidate-package/dist/types.d.ts",
+              "start": 3359
+            }
+          ]
+        },
+        {
+          "name": "MutationCommitted",
+          "declarations": [
+            {
+              "file": "/home/ccheever/clique-revisions/published-declaration-ambient-repair-r1-20260907/work/candidate-package/dist/types.d.ts",
+              "start": 3449
+            }
+          ]
+        },
+        {
+          "name": "MutationRejected",
+          "declarations": [
+            {
+              "file": "/home/ccheever/clique-revisions/published-declaration-ambient-repair-r1-20260907/work/candidate-package/dist/types.d.ts",
+              "start": 3574
+            }
+          ]
+        },
+        {
+          "name": "MutationQueued",
+          "declarations": [
+            {
+              "file": "/home/ccheever/clique-revisions/published-declaration-ambient-repair-r1-20260907/work/candidate-package/dist/types.d.ts",
+              "start": 4017
+            }
+          ]
+        },
+        {
+          "name": "MutationResult",
+          "declarations": [
+            {
+              "file": "/home/ccheever/clique-revisions/published-declaration-ambient-repair-r1-20260907/work/candidate-package/dist/types.d.ts",
+              "start": 4111
+            }
+          ]
+        },
+        {
+          "name": "LiveQueryDelivery",
+          "declarations": [
+            {
+              "file": "/home/ccheever/clique-revisions/published-declaration-ambient-repair-r1-20260907/work/candidate-package/dist/types.d.ts",
+              "start": 4211
+            }
+          ]
+        },
+        {
+          "name": "StaleDelivery",
+          "declarations": [
+            {
+              "file": "/home/ccheever/clique-revisions/published-declaration-ambient-repair-r1-20260907/work/candidate-package/dist/types.d.ts",
+              "start": 4355
+            }
+          ]
+        },
+        {
+          "name": "RefusedDelivery",
+          "declarations": [
+            {
+              "file": "/home/ccheever/clique-revisions/published-declaration-ambient-repair-r1-20260907/work/candidate-package/dist/types.d.ts",
+              "start": 4489
+            }
+          ]
+        },
+        {
+          "name": "QueryRefusedDelivery",
+          "declarations": [
+            {
+              "file": "/home/ccheever/clique-revisions/published-declaration-ambient-repair-r1-20260907/work/candidate-package/dist/types.d.ts",
+              "start": 4582
+            }
+          ]
+        },
+        {
+          "name": "SubscriptionDelivery",
+          "declarations": [
+            {
+              "file": "/home/ccheever/clique-revisions/published-declaration-ambient-repair-r1-20260907/work/candidate-package/dist/types.d.ts",
+              "start": 4657
+            }
+          ]
+        },
+        {
+          "name": "Subscription",
+          "declarations": [
+            {
+              "file": "/home/ccheever/clique-revisions/published-declaration-ambient-repair-r1-20260907/work/candidate-package/dist/types.d.ts",
+              "start": 4911
+            }
+          ]
+        },
+        {
+          "name": "AuthSession",
+          "declarations": [
+            {
+              "file": "/home/ccheever/clique-revisions/published-declaration-ambient-repair-r1-20260907/work/candidate-package/dist/types.d.ts",
+              "start": 5056
+            }
+          ]
+        },
+        {
+          "name": "AuthMe",
+          "declarations": [
+            {
+              "file": "/home/ccheever/clique-revisions/published-declaration-ambient-repair-r1-20260907/work/candidate-package/dist/types.d.ts",
+              "start": 5123
+            }
+          ]
+        },
+        {
+          "name": "AuthApi",
+          "declarations": [
+            {
+              "file": "/home/ccheever/clique-revisions/published-declaration-ambient-repair-r1-20260907/work/candidate-package/dist/types.d.ts",
+              "start": 5216
+            }
+          ]
+        },
+        {
+          "name": "ChannelEvent",
+          "declarations": [
+            {
+              "file": "/home/ccheever/clique-revisions/published-declaration-ambient-repair-r1-20260907/work/candidate-package/dist/types.d.ts",
+              "start": 5557
+            }
+          ]
+        },
+        {
+          "name": "ChannelDelivery",
+          "declarations": [
+            {
+              "file": "/home/ccheever/clique-revisions/published-declaration-ambient-repair-r1-20260907/work/candidate-package/dist/types.d.ts",
+              "start": 5669
+            }
+          ]
+        },
+        {
+          "name": "ChannelPublishResult",
+          "declarations": [
+            {
+              "file": "/home/ccheever/clique-revisions/published-declaration-ambient-repair-r1-20260907/work/candidate-package/dist/types.d.ts",
+              "start": 5759
+            }
+          ]
+        },
+        {
+          "name": "ChannelHandle",
+          "declarations": [
+            {
+              "file": "/home/ccheever/clique-revisions/published-declaration-ambient-repair-r1-20260907/work/candidate-package/dist/types.d.ts",
+              "start": 5861
+            }
+          ]
+        },
+        {
+          "name": "DrainContract",
+          "declarations": [
+            {
+              "file": "/home/ccheever/clique-revisions/published-declaration-ambient-repair-r1-20260907/work/candidate-package/dist/types.d.ts",
+              "start": 6085
+            }
+          ]
+        },
+        {
+          "name": "ManifestOperation",
+          "declarations": [
+            {
+              "file": "/home/ccheever/clique-revisions/published-declaration-ambient-repair-r1-20260907/work/candidate-package/dist/types.d.ts",
+              "start": 6164
+            }
+          ]
+        },
+        {
+          "name": "ManifestTable",
+          "declarations": [
+            {
+              "file": "/home/ccheever/clique-revisions/published-declaration-ambient-repair-r1-20260907/work/candidate-package/dist/types.d.ts",
+              "start": 6289
+            }
+          ]
+        },
+        {
+          "name": "Manifest",
+          "declarations": [
+            {
+              "file": "/home/ccheever/clique-revisions/published-declaration-ambient-repair-r1-20260907/work/candidate-package/dist/types.d.ts",
+              "start": 6404
+            }
+          ]
+        },
+        {
+          "name": "AssetRecord",
+          "declarations": [
+            {
+              "file": "/home/ccheever/clique-revisions/published-declaration-ambient-repair-r1-20260907/work/candidate-package/dist/types.d.ts",
+              "start": 6778
+            }
+          ]
+        },
+        {
+          "name": "UnclaimedUpload",
+          "declarations": [
+            {
+              "file": "/home/ccheever/clique-revisions/published-declaration-ambient-repair-r1-20260907/work/candidate-package/dist/types.d.ts",
+              "start": 6829
+            }
+          ]
+        },
+        {
+          "name": "UploadListing",
+          "declarations": [
+            {
+              "file": "/home/ccheever/clique-revisions/published-declaration-ambient-repair-r1-20260907/work/candidate-package/dist/types.d.ts",
+              "start": 7279
+            }
+          ]
+        },
+        {
+          "name": "NativeAssetSource",
+          "declarations": [
+            {
+              "file": "/home/ccheever/clique-revisions/published-declaration-ambient-repair-r1-20260907/work/candidate-package/dist/types.d.ts",
+              "start": 7698
+            }
+          ]
+        },
+        {
+          "name": "AssetUploadSource",
+          "declarations": [
+            {
+              "file": "/home/ccheever/clique-revisions/published-declaration-ambient-repair-r1-20260907/work/candidate-package/dist/types.d.ts",
+              "start": 7883
+            }
+          ]
+        },
+        {
+          "name": "UploadProgress",
+          "declarations": [
+            {
+              "file": "/home/ccheever/clique-revisions/published-declaration-ambient-repair-r1-20260907/work/candidate-package/dist/types.d.ts",
+              "start": 7941
+            }
+          ]
+        },
+        {
+          "name": "AssetKind",
+          "declarations": [
+            {
+              "file": "/home/ccheever/clique-revisions/published-declaration-ambient-repair-r1-20260907/work/candidate-package/dist/types.d.ts",
+              "start": 8034
+            }
+          ]
+        },
+        {
+          "name": "AssetUploadOptions",
+          "declarations": [
+            {
+              "file": "/home/ccheever/clique-revisions/published-declaration-ambient-repair-r1-20260907/work/candidate-package/dist/types.d.ts",
+              "start": 8077
+            }
+          ]
+        },
+        {
+          "name": "AssetUrlOptions",
+          "declarations": [
+            {
+              "file": "/home/ccheever/clique-revisions/published-declaration-ambient-repair-r1-20260907/work/candidate-package/dist/types.d.ts",
+              "start": 8814
+            }
+          ]
+        },
+        {
+          "name": "AssetInput",
+          "declarations": [
+            {
+              "file": "/home/ccheever/clique-revisions/published-declaration-ambient-repair-r1-20260907/work/candidate-package/dist/types.d.ts",
+              "start": 9048
+            }
+          ]
+        },
+        {
+          "name": "ConnectionState",
+          "declarations": [
+            {
+              "file": "/home/ccheever/clique-revisions/published-declaration-ambient-repair-r1-20260907/work/candidate-package/dist/types.d.ts",
+              "start": 9380
+            }
+          ]
+        },
+        {
+          "name": "AuthSnapshot",
+          "declarations": [
+            {
+              "file": "/home/ccheever/clique-revisions/published-declaration-ambient-repair-r1-20260907/work/candidate-package/dist/types.d.ts",
+              "start": 9452
+            }
+          ]
+        },
+        {
+          "name": "ClientSnapshot",
+          "declarations": [
+            {
+              "file": "/home/ccheever/clique-revisions/published-declaration-ambient-repair-r1-20260907/work/candidate-package/dist/types.d.ts",
+              "start": 9879
+            }
+          ]
+        },
+        {
+          "name": "AuthTokenStore",
+          "declarations": [
+            {
+              "file": "/home/ccheever/clique-revisions/published-declaration-ambient-repair-r1-20260907/work/candidate-package/dist/types.d.ts",
+              "start": 10185
+            }
+          ]
+        },
+        {
+          "name": "OfflineClientOptions",
+          "declarations": [
+            {
+              "file": "/home/ccheever/clique-revisions/published-declaration-ambient-repair-r1-20260907/work/candidate-package/dist/types.d.ts",
+              "start": 11148
+            }
+          ]
+        },
+        {
+          "name": "CreateClientOptions",
+          "declarations": [
+            {
+              "file": "/home/ccheever/clique-revisions/published-declaration-ambient-repair-r1-20260907/work/candidate-package/dist/types.d.ts",
+              "start": 11515
+            }
+          ]
+        },
+        {
+          "name": "OutboxSettlement",
+          "declarations": [
+            {
+              "file": "/home/ccheever/clique-revisions/published-declaration-ambient-repair-r1-20260907/work/candidate-package/dist/types.d.ts",
+              "start": 11714
+            }
+          ]
+        },
+        {
+          "name": "OutboxStatus",
+          "declarations": [
+            {
+              "file": "/home/ccheever/clique-revisions/published-declaration-ambient-repair-r1-20260907/work/candidate-package/dist/types.d.ts",
+              "start": 11855
+            }
+          ]
+        },
+        {
+          "name": "OutboxApi",
+          "declarations": [
+            {
+              "file": "/home/ccheever/clique-revisions/published-declaration-ambient-repair-r1-20260907/work/candidate-package/dist/types.d.ts",
+              "start": 12335
+            }
+          ]
+        },
+        {
+          "name": "SnapbackClient",
+          "declarations": [
+            {
+              "file": "/home/ccheever/clique-revisions/published-declaration-ambient-repair-r1-20260907/work/candidate-package/dist/types.d.ts",
+              "start": 14240
+            }
+          ]
+        },
+        {
+          "name": "QueryView",
+          "declarations": [
+            {
+              "file": "/home/ccheever/clique-revisions/published-declaration-ambient-repair-r1-20260907/work/candidate-package/dist/types.d.ts",
+              "start": 18042
+            }
+          ]
+        },
+        {
+          "name": "QueryViewState",
+          "declarations": [
+            {
+              "file": "/home/ccheever/clique-revisions/published-declaration-ambient-repair-r1-20260907/work/candidate-package/dist/types.d.ts",
+              "start": 18433
+            }
+          ]
+        },
+        {
+          "name": "QueryHookResult",
+          "declarations": [
+            {
+              "file": "/home/ccheever/clique-revisions/published-declaration-ambient-repair-r1-20260907/work/candidate-package/dist/types.d.ts",
+              "start": 18491
+            }
+          ]
+        },
+        {
+          "name": "QueryMachineEvent",
+          "declarations": [
+            {
+              "file": "/home/ccheever/clique-revisions/published-declaration-ambient-repair-r1-20260907/work/candidate-package/dist/types.d.ts",
+              "start": 18587
+            }
+          ]
+        },
+        {
+          "name": "stableSerialize",
+          "declarations": [
+            {
+              "file": "/home/ccheever/clique-revisions/published-declaration-ambient-repair-r1-20260907/work/candidate-package/dist/types.d.ts",
+              "start": 18760
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "specifier": "snapback2/test",
+      "declarations": [
+        {
+          "file": "/home/ccheever/clique-revisions/published-declaration-ambient-repair-r1-20260907/work/candidate-package/dist/test.d.ts",
+          "start": 0
+        }
+      ],
+      "exports": [
+        {
+          "name": "fileRangeStore",
+          "declarations": [
+            {
+              "file": "/home/ccheever/clique-revisions/published-declaration-ambient-repair-r1-20260907/work/candidate-package/dist/test.d.ts",
+              "start": 90
+            }
+          ]
+        },
+        {
+          "name": "journey",
+          "declarations": [
+            {
+              "file": "/home/ccheever/clique-revisions/published-declaration-ambient-repair-r1-20260907/work/candidate-package/dist/test.d.ts",
+              "start": 909
+            }
+          ]
+        },
+        {
+          "name": "JourneyDevice",
+          "declarations": [
+            {
+              "file": "/home/ccheever/clique-revisions/published-declaration-ambient-repair-r1-20260907/work/candidate-package/dist/test.d.ts",
+              "start": 342
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
