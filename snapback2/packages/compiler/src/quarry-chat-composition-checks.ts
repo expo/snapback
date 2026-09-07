@@ -75,7 +75,8 @@ export function registerQuarryChatCompositionChecks(test: Test, frontend: string
       kind: { String: "message" },
       at: { Int: 10 },
     });
-    add("messageCounts", "count-one", { conversationId: conversation, value: { Int: 1 } });
+    const countId = '[{"Id":"conversation-one"}]';
+    add("messageCounts", countId, { conversationId: conversation, value: { Int: 1 } });
 
     const completeReceipt = receipt(schema, certificate(view.name).schema_hash as string, rows);
     const store = new ClientStore(schema, completeReceipt);
@@ -94,7 +95,7 @@ export function registerQuarryChatCompositionChecks(test: Test, frontend: string
       body: { String: "second" },
       expiresAt: "Null",
     }, ["message-two", "delivery-two"]), false, certificate(post.name));
-    assert(posted.state === "fresh", `held post did not predict completely: ${JSON.stringify(posted.partialSites)}`);
+    assert(posted.state === "predicted", `held post did not predict completely: ${JSON.stringify(posted)}`);
     const afterPost = store.reexecute(view, context({ conversationId: conversation }), certificate(view.name));
     assert(afterPost.state === "fresh" && afterPost.execution.next === null,
       `composed view was not one complete root outcome: ${JSON.stringify(afterPost)}`);
@@ -113,30 +114,33 @@ export function registerQuarryChatCompositionChecks(test: Test, frontend: string
 
     const removed = store.applyMutation(unsend, context({ messageId: { Id: "message-two" } }, ["delivery-removed"], 30),
       false, certificate(unsend.name));
-    assert(removed.state === "fresh", `held unsend did not predict completely: ${JSON.stringify(removed.partialSites)}`);
+    assert(removed.state === "predicted", `held unsend did not predict completely: ${JSON.stringify(removed)}`);
     const afterUnsend = store.reexecute(view, context({ conversationId: conversation }, [], 30), certificate(view.name));
     const removedResult = wireJson(afterUnsend.execution.result) as {
       messages: Array<{ kind: string; message: unknown }>;
       count: number;
       preview: Array<{ kind: string; message: unknown }>;
     };
-    assert(afterUnsend.state === "fresh" && removedResult.count === 1 && removedResult.messages.length === 3
+    assert(afterUnsend.state === "partial"
+      && afterUnsend.partialSites.includes("deliveries.conversationView.3")
+      && afterUnsend.partialSites.includes("deliveries.conversationView.5")
+      && removedResult.count === 1 && removedResult.messages.length === 3
       && removedResult.preview.length === 1 && removedResult.preview[0]?.kind === "removed"
       && removedResult.preview[0]?.message === null,
-    `tombstone preview or live message count was dishonest: ${JSON.stringify(removedResult)}`);
+    `tombstone preview or live message count was dishonest: ${JSON.stringify(afterUnsend)}`);
 
     const withoutMembership = new ClientStore(schema, receipt(
       schema,
       certificate(view.name).schema_hash as string,
       rows.filter((row) => row.table !== "memberships"),
     ));
-    let denied: { code?: string; state?: string } | undefined;
+    let denied: { code?: string; authoredCode?: string } | undefined;
     try {
       withoutMembership.reexecute(view, context({ conversationId: conversation }), certificate(view.name));
     } catch (error) {
-      denied = error as { code?: string; state?: string };
+      denied = error as { code?: string; authoredCode?: string };
     }
-    assert(denied?.code === "E_REQUIRE" && denied.state === "denied",
+    assert(denied?.code === "E_REQUIRE" && denied.authoredCode === "MEMBERSHIP_REQUIRED",
       `conversation view changed its membership refusal: ${JSON.stringify(denied)}`);
 
     const missingCountReceipt = receipt(
@@ -147,8 +151,9 @@ export function registerQuarryChatCompositionChecks(test: Test, frontend: string
     );
     const missingCount = new ClientStore(schema, missingCountReceipt)
       .reexecute(view, context({ conversationId: conversation }), certificate(view.name));
-    assert(missingCount.state === "partial" && missingCount.execution.result === "Null"
-      && missingCount.partialSites.includes("missing-authority"),
+    assert(missingCount.state === "partial"
+      && missingCount.partialSites.includes("deliveries.conversationView.4")
+      && (wireJson(missingCount.execution.result) as { count: number }).count === 0,
     `missing maintained-count authority implied a complete zero: ${JSON.stringify(missingCount)}`);
   });
 }
