@@ -2,9 +2,8 @@ import assert from "node:assert/strict";
 import { ClientStore } from "../../evaluator/src/store";
 import type { Value } from "./ir";
 import { lowerSource } from "./compiler";
-import { lowerSchema } from "./lower/schema";
 import { lowerProject } from "./project";
-import { compileInline, withProject, type Test } from "./quarry-check-helpers";
+import { compileInline, directTables, withProject, type Test } from "./quarry-check-helpers";
 import { repairSchema, repairSource, type RepairCase } from "./capture-repair-checks";
 import { runPure } from "./capture-value-checks";
 import { registerProducerChecks } from "./capture-producer-checks";
@@ -112,7 +111,7 @@ export function registerRepresentationChecks(test: Test, lib: string): void {
   registerProducerChecks(test, lib);
   for (const item of representationCases) test(`representation repair ${item.name} (actual IR values)`,()=>{
     const schema=compileInline([{fileName:"snapback/schema.q",source:repairSchema}]); assert(schema.ok);
-    const tables=lowerSchema(schema.schema.source,"schema.ts",true).tables;
+    const tables=directTables(schema.project.schema);
     const full=lowerSource(repairSource(item),"probe.ts",lib,{tables});
     if(item.refuse){assert(!full.ok,JSON.stringify(full));assert(full.diagnostics.some(d=>d.code===item.refuse),JSON.stringify(full));return;}
     assert(full.ok,JSON.stringify(full));

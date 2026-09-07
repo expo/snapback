@@ -1,7 +1,7 @@
 import { basename } from "node:path";
 import type { Document, Expr, ProgramDecl, ScalarType, ScheduleDecl, TableCatalog } from "./ast";
+import { validateScheduleExpressions } from "./bound-schedule";
 import { QuarryError } from "./diagnostics";
-import { validateScheduleExpressions } from "./program";
 
 // @ref LLP 1016#d5--schedules-row-timers-and-periods-on-the-owners-clock — binding programs are built ahead; firing only evaluates certified IR over current row values.
 export function prepareSchedules(documents: Document[], catalog: TableCatalog) {
@@ -63,7 +63,7 @@ export function prepareSchedules(documents: Document[], catalog: TableCatalog) {
         { name: "args", site, value: { kind: "object", site, fields: target.program.args.map((arg, i) => ({ name: arg.name, value: schedule.args[i]!, site })) } },
       ] } }],
     };
-    try { validateScheduleExpressions(binding, catalog, schedule.args, target.program.args.map(arg => arg.type), schedule.predicate); }
+    try { validateScheduleExpressions(binding, catalog, documents, target.program.args.map(arg => arg.type)); }
     catch (error) { fail(error instanceof Error ? error.message : String(error)); }
     const carrier = basename(document.file) === "schema.q" ? target.document : document;
     if (carrier.programs.some(p => p.name === binding.name)) fail(`reserved binding name ${binding.name}`);

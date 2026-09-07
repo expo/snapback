@@ -30,25 +30,15 @@ import { QuarryError, currentRule, refuse, retention, syntax, unsupported } from
 import { lex, type Token, type TokenKind } from "./lexer";
 import { quarryExpression } from "./print";
 
-const RESERVED_BINDINGS = new Set([
-  "arguments", "await", "break", "case", "catch", "class", "const", "continue", "debugger", "default", "delete", "do",
-  "else", "enum", "eval", "export", "extends", "false", "finally", "for", "function", "if", "implements", "import",
-  "in", "insert", "instanceof", "interface", "let", "merge", "new", "null", "package", "private", "protected", "public", "retain", "return", "static",
-  "shape", "fn", "cursor", "super", "switch", "this", "throw", "true", "try", "typeof", "update", "upsert", "var", "void", "while", "with", "yield",
-]);
 const PRECEDENCE = new Map<string, number>([
   ["??", 1], ["or", 2], ["and", 3],
   ["=", 4], ["!=", 4], ["<", 4], ["<=", 4], [">", 4], [">=", 4],
   ["+", 5], ["-", 5], ["*", 6], ["/", 6], ["%", 6],
 ]);
 
-export function parseDocument(
-  file: string,
-  source: string,
-  options: { legacyGeneratedBindings?: boolean } = {},
-): { document: Document; diagnostics: QuarryDiagnostic[] } {
+export function parseDocument(file: string, source: string): { document: Document; diagnostics: QuarryDiagnostic[] } {
   const lexical = lex(file, source);
-  const parser = new Parser(lexical.tokens, file, lexical.diagnostics, options.legacyGeneratedBindings === true);
+  const parser = new Parser(lexical.tokens, file, lexical.diagnostics);
   return { document: parser.document(), diagnostics: parser.diagnostics };
 }
 
@@ -70,7 +60,6 @@ class Parser {
     private readonly tokens: Token[],
     private readonly file: string,
     readonly diagnostics: QuarryDiagnostic[],
-    private readonly legacyGeneratedBindings: boolean,
   ) {}
 
   document(): Document {
@@ -116,7 +105,7 @@ class Parser {
   // @ref LLP 1016#d5--schedules-row-timers-and-periods-on-the-owners-clock — one kind, row deadlines or whole-minute durations.
   private parseSchedule(): ScheduleDecl {
     const site = this.take("schedule");
-    const name = this.generatedBinding("operation");
+    const name = this.bindingName();
     let trigger: ScheduleDecl["trigger"];
     let predicate: Expr | undefined;
     if (this.at("on")) {
@@ -173,7 +162,7 @@ class Parser {
 
   private parseTable(): TableDecl {
     const site = this.take("table");
-    const name = this.generatedBinding("table");
+    const name = this.bindingName();
     this.take(":");
     this.newline();
     this.takeKind("indent");
@@ -342,7 +331,7 @@ class Parser {
 
   private parseEffect(): { name: string; module: string; site: Site } {
     const site = this.take("effect");
-    const name = this.generatedBinding("effect");
+    const name = this.bindingName();
     this.take("from");
     const module = this.word().value;
     this.newline();
@@ -356,8 +345,8 @@ class Parser {
     let value: Expr;
     if (this.at("(")) {
       this.take("(");
-      bindings = [this.generatedBinding("rule")];
-      while (this.maybe(",")) bindings.push(this.generatedBinding("rule"));
+      bindings = [this.bindingName()];
+      while (this.maybe(",")) bindings.push(this.bindingName());
       this.take(")");
       if (effect !== "update" || bindings.length !== 2) {
         syntax(effectToken, `${effect} rules use <- for one row; only update (old, next) has named bindings`, `rewrite the ${effect} rule with <- and direct .field terms`);
@@ -385,7 +374,7 @@ class Parser {
 
   private parseChannel(): ChannelDecl {
     const site = this.take("channel");
-    const name = this.generatedBinding("channel");
+    const name = this.bindingName();
     const args = this.parseArgs();
     this.take(":");
     this.newline();
@@ -426,7 +415,7 @@ class Parser {
   private parseProgram(): ProgramDecl {
     const kindToken = this.word();
     const kind = kindToken.value as ProgramDecl["kind"];
-    const name = this.generatedBinding("operation");
+    const name = this.bindingName();
     const args = kind === "job" && this.at(":") ? [] : this.parseArgs();
     if (this.at("->")) unsupported(this.peek(), "result annotations", "results are inferred; remove the annotation");
     this.take(":");
@@ -444,7 +433,7 @@ class Parser {
       this.skipNewlines();
       if (this.atKind("dedent")) break;
       const site = this.take("chunk");
-      const name = this.generatedBinding("loop");
+      const name = this.bindingName();
       this.take("in");
       const table = this.word();
       let domain: Expr = this.at("[") ? this.parseRead(table.value, table) : { kind: "read", table: table.value, keys: [], site: table };
@@ -463,7 +452,7 @@ class Parser {
 
   private parseShapeDeclaration(): void {
     const site = this.take("shape");
-    const name = this.generatedBinding("shape");
+    const name = this.bindingName();
     if (this.maybe("from")) {
       const module = this.word().value;
       this.newline();
@@ -480,7 +469,7 @@ class Parser {
 
   private parseFunctionDeclaration(): void {
     const site = this.take("fn");
-    const name = this.generatedBinding("function");
+    const name = this.bindingName();
     if (this.maybe("from")) {
       const module = this.word().value;
       this.newline();
@@ -494,24 +483,14 @@ class Parser {
     this.functions.push({ name, args, body, site });
   }
 
-  private generatedBinding(kind: "table" | "channel" | "effect" | "operation" | "merge lane" | "shape" | "function" | "argument" | "local" | "loop" | "match" | "rule"): string {
-    const token = this.word();
-    if (this.legacyGeneratedBindings && RESERVED_BINDINGS.has(token.value)) {
-      refuse(
-        token,
-        `${kind} name ${token.value} is reserved and cannot become a generated TypeScript binding`,
-        `rename the ${kind} ${token.value} to an identifier that is not reserved by JavaScript`,
-      );
-    }
-    return token.value;
-  }
+  private bindingName(): string { return this.word().value; }
 
   private parseArgs(): ArgDecl[] {
     this.take("(");
     const args: ArgDecl[] = [];
     while (!this.at(")")) {
         const name = this.peek();
-        const binding = this.generatedBinding("argument");
+        const binding = this.bindingName();
         this.take(":");
         args.push({ name: binding, type: this.parseType(), site: name });
         if (!this.maybe(",")) break;
@@ -635,7 +614,7 @@ class Parser {
 
     if (this.atKind("word") && this.peek(1).value === "=") {
       const name = this.peek();
-      const binding = this.generatedBinding("local");
+      const binding = this.bindingName();
       this.take("=");
       const value = this.expression(0, new Set(["<newline>"]));
       if (value.kind !== "merge") this.newline();
@@ -643,8 +622,8 @@ class Parser {
     }
     if (this.at("(") && this.tupleBindingAhead()) {
       const site = this.take("(");
-      const names = [this.generatedBinding("local")];
-      while (this.maybe(",")) names.push(this.generatedBinding("local"));
+      const names = [this.bindingName()];
+      while (this.maybe(",")) names.push(this.bindingName());
       this.take(")");
       this.take("=");
       const value = this.expression(0, new Set(["<newline>"]));
@@ -674,7 +653,7 @@ class Parser {
 
   private parseFor(): Stmt {
     const site = this.take("for");
-    const name = this.generatedBinding("loop");
+    const name = this.bindingName();
     this.take("in");
     const domain = this.expression(0, new Set([":"]));
     this.take(":");
@@ -699,7 +678,7 @@ class Parser {
     this.newline();
     this.takeKind("indent");
     this.take("some");
-    const someName = this.generatedBinding("match");
+    const someName = this.bindingName();
     this.take(":");
     this.newline();
     const someBody = this.parseBlock();
@@ -960,7 +939,7 @@ class Parser {
       const columns = keys.some(key => key.column !== undefined) ? keys.map(key => key.column) : undefined;
       let loop: MergeLane["loop"];
       if (this.maybe("for")) {
-        const name = this.generatedBinding("merge lane");
+        const name = this.bindingName();
         this.take("in");
         const domain = this.expression(0, new Set(["<newline>"]));
         if (domain.kind !== "read" || !domain.range) {

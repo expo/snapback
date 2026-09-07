@@ -2,9 +2,8 @@ import assert from "node:assert/strict";
 import { registerRepresentationChecks } from "./capture-representation-checks";
 import { ClientStore } from "../../evaluator/src/store";
 import { lowerSource } from "./compiler";
-import { lowerSchema } from "./lower/schema";
 import { lowerProject } from "./project";
-import { compileInline, withProject, type Test } from "./quarry-check-helpers";
+import { compileInline, directTables, withProject, type Test } from "./quarry-check-helpers";
 import { runPure, type PureValue } from "./capture-value-checks";
 
 export const repairSchema = `table people:
@@ -99,7 +98,7 @@ export const probe=mutation({term:t.text(2000),flag:t.bool(),d2:t.decimal(2),d3:
 export function registerCaptureRepairChecks(test: Test, lib: string) {
   test("builtin concat of captured int retains the R6 Decimal representation refusal", () => {
     const schema = compileInline([{ fileName: "snapback/schema.q", source: repairSchema }]); assert(schema.ok);
-    const tables = lowerSchema(schema.schema.source, "schema.ts", true).tables;
+    const tables = directTables(schema.project.schema);
     const source = "import {mutation,t,concat} from 'snapback2'; declare const records:any; export const probe=mutation({n:t.int()},({db,args})=>{const n=args.n; const amounts=concat([n],[3]); db.insert(records,{amounts}); return amounts;});";
     const result = lowerSource(source, "probe.ts", lib, { tables });
     assert(!result.ok, JSON.stringify(result));
@@ -111,7 +110,7 @@ export function registerCaptureRepairChecks(test: Test, lib: string) {
   registerRepresentationChecks(test, lib);
   for (const item of repairCases) test(`capture repair ${item.name} (actual IR values)`, () => {
     const schema=compileInline([{fileName:'snapback/schema.q',source:repairSchema}]); assert(schema.ok);
-    const tables=lowerSchema(schema.schema.source,'schema.ts',true).tables;
+    const tables=directTables(schema.project.schema);
     const full=lowerSource(repairSource(item),'probe.ts',lib,{tables});
     if (item.refuse) { assert(!full.ok); assert(full.diagnostics.some(d=>d.code===item.refuse)); return; }
     assert(full.ok,JSON.stringify(full));
@@ -172,7 +171,7 @@ table docs:
 function registerMergeCaptureChecks(test:Test,lib:string) {
   for(const callbackUsesRow of [false,true]) test(`capture repair merge callback isolates helper m rowUsed=${callbackUsesRow}`,()=>{
     const schema=compileInline([{fileName:'snapback/schema.q',source:repairHeldSchema}]); assert(schema.ok);
-    const tables=lowerSchema(schema.schema.source,'schema.ts',true).tables;
+    const tables=directTables(schema.project.schema);
     const source=`import {query,t,mergeByIndex} from 'snapback2'; declare const db:any; declare const ctx:any; declare const args:any; declare const memberships:any; declare const docs:any;
 function outer(m:string){return {page:mergeByIndex([{rows:db.scan(memberships.discovery,[ctx.viewer],{take:3}),lane:(m:any)=>db.scan(docs.search,[${callbackUsesRow?'m.room':"'room-1'"},args.term],{take:2})}],2,'page'),captured:m};}
 export const probe=query({term:t.text(2000)},({db,args,ctx})=>outer(args.term));`;
