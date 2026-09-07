@@ -1,0 +1,167 @@
+[
+  {
+    "i": 0,
+    "name": "reassigned-scan-loop",
+    "runs": [
+      {
+        "args": {
+          "payload": {},
+          "flag": true
+        },
+        "error": {
+          "name": "TypeError",
+          "message": "db.scan is not a function. (In 'db.scan(schema_1.records, [], { take: 2 })', 'db.scan' is undefined)",
+          "stack": "TypeError: db.scan is not a function. (In 'db.scan(schema_1.records, [], { take: 2 })', 'db.scan' is undefined)\n    at <anonymous> (0.js:6:193)\n    at /home/ccheever/clique-reviews/compiler-insert-r16-e195-9a438eeb7c/astra/review-work/scripts/js-source.ts:24:89\n    at asyncModuleEvaluation (native:2)"
+        },
+        "allocations": 0,
+        "calls": []
+      },
+      {
+        "args": {
+          "payload": {},
+          "flag": false
+        },
+        "error": {
+          "name": "TypeError",
+          "message": "db.scan is not a function. (In 'db.scan(schema_1.records, [], { take: 2 })', 'db.scan' is undefined)",
+          "stack": "TypeError: db.scan is not a function. (In 'db.scan(schema_1.records, [], { take: 2 })', 'db.scan' is undefined)\n    at <anonymous> (0.js:6:193)\n    at /home/ccheever/clique-reviews/compiler-insert-r16-e195-9a438eeb7c/astra/review-work/scripts/js-source.ts:24:89\n    at asyncModuleEvaluation (native:2)"
+        },
+        "allocations": 0,
+        "calls": []
+      }
+    ]
+  },
+  {
+    "i": 1,
+    "name": "branch-reassigned-scan-loop",
+    "runs": [
+      {
+        "args": {
+          "payload": {},
+          "flag": true
+        },
+        "error": {
+          "name": "TypeError",
+          "message": "db.scan is not a function. (In 'db.scan(schema_1.records, [], { take: 2 })', 'db.scan' is undefined)",
+          "stack": "TypeError: db.scan is not a function. (In 'db.scan(schema_1.records, [], { take: 2 })', 'db.scan' is undefined)\n    at <anonymous> (1.js:8:43)\n    at /home/ccheever/clique-reviews/compiler-insert-r16-e195-9a438eeb7c/astra/review-work/scripts/js-source.ts:24:89\n    at asyncModuleEvaluation (native:2)"
+        },
+        "allocations": 0,
+        "calls": []
+      },
+      {
+        "args": {
+          "payload": {},
+          "flag": false
+        },
+        "value": {
+          "count": 0,
+          "next": "id-1"
+        },
+        "allocations": 1,
+        "calls": [
+          {
+            "method": "scan",
+            "key": [],
+            "options": {
+              "take": 2
+            }
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "i": 2,
+    "name": "self-replaced-scan-loop",
+    "runs": [
+      {
+        "args": {
+          "payload": {},
+          "flag": true
+        },
+        "error": {
+          "name": "TypeError",
+          "message": "db.scan is not a function. (In 'db.scan(schema_1.records, [], { take: 2 })', 'db.scan' is undefined)",
+          "stack": "TypeError: db.scan is not a function. (In 'db.scan(schema_1.records, [], { take: 2 })', 'db.scan' is undefined)\n    at <anonymous> (2.js:6:244)\n    at /home/ccheever/clique-reviews/compiler-insert-r16-e195-9a438eeb7c/astra/review-work/scripts/js-source.ts:24:89\n    at asyncModuleEvaluation (native:2)"
+        },
+        "allocations": 1,
+        "calls": [
+          {
+            "method": "insert",
+            "row": {
+              "id": "id-1",
+              "payload": null
+            }
+          }
+        ]
+      },
+      {
+        "args": {
+          "payload": {},
+          "flag": false
+        },
+        "error": {
+          "name": "TypeError",
+          "message": "db.scan is not a function. (In 'db.scan(schema_1.records, [], { take: 2 })', 'db.scan' is undefined)",
+          "stack": "TypeError: db.scan is not a function. (In 'db.scan(schema_1.records, [], { take: 2 })', 'db.scan' is undefined)\n    at <anonymous> (2.js:6:244)\n    at /home/ccheever/clique-reviews/compiler-insert-r16-e195-9a438eeb7c/astra/review-work/scripts/js-source.ts:24:89\n    at asyncModuleEvaluation (native:2)"
+        },
+        "allocations": 1,
+        "calls": [
+          {
+            "method": "insert",
+            "row": {
+              "id": "id-1",
+              "payload": null
+            }
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "i": 3,
+    "name": "stable-renamed-scan-loop",
+    "runs": [
+      {
+        "args": {
+          "payload": {},
+          "flag": true
+        },
+        "value": {
+          "count": 0,
+          "next": "id-1"
+        },
+        "allocations": 1,
+        "calls": [
+          {
+            "method": "scan",
+            "key": [],
+            "options": {
+              "take": 2
+            }
+          }
+        ]
+      },
+      {
+        "args": {
+          "payload": {},
+          "flag": false
+        },
+        "value": {
+          "count": 0,
+          "next": "id-1"
+        },
+        "allocations": 1,
+        "calls": [
+          {
+            "method": "scan",
+            "key": [],
+            "options": {
+              "take": 2
+            }
+          }
+        ]
+      }
+    ]
+  }
+]

@@ -1,0 +1,36 @@
+{
+  "unchanged_external_originals": [
+    {
+      "path": "/Users/ccheever/clique-improvement/reviews/compiler-insert-provenance-r16/input/input-manifest.json",
+      "bytes": 253635,
+      "sha256": "bac3b333eb88533977a21a23f054b4bc7828fd299e57b1e48d495a439f5879e8"
+    },
+    {
+      "path": "/Users/ccheever/clique-improvement/reviews/compiler-insert-provenance-r16/input/candidate-compiler.tar",
+      "bytes": 2283520,
+      "sha256": "577e5221ef3f108f02913ddc593ca20a5cd9bcece73672ee26b1ea41e1229a7a"
+    },
+    {
+      "path": "/Users/ccheever/clique-improvement/reviews/compiler-insert-provenance-r16/input/parent-compiler.tar",
+      "bytes": 2273280,
+      "sha256": "badafabc80592fde029df7a52a344798ecfbbec06762116bea8593ca217a10ee"
+    },
+    {
+      "path": "/Users/ccheever/clique-improvement/reviews/compiler-insert-provenance-r16/input/delta.patch",
+      "bytes": 22146,
+      "sha256": "8830ac629eadbbbf847d5ed1e09301e877cc0e920aa8e6940709d7772dd05119"
+    },
+    {
+      "path": "/Users/ccheever/clique-improvement/reviews/compiler-insert-provenance-r16/astra/review-evidence/manifest.json",
+      "bytes": 280782,
+      "sha256": "33b45a42f310f488d41e4643df4f6d449056d247f4e68590f5c04e0f54499ec7"
+    },
+    {
+      "path": "/Users/ccheever/clique-improvement/reviews/compiler-insert-provenance-r16/grok/review-work/evidence-inventory.json",
+      "bytes": 77532,
+      "sha256": "2c6b69164d9fb3329585c5fde50385ffea17951a66b2a7b571df1ee10137a019"
+    }
+  ],
+  "full_review_evidence": "/Users/ccheever/clique-improvement/reviews/compiler-insert-provenance-r16",
+  "scope": "External complete manifests and archives retained; packet selects complete primary counterexamples and controls, not all review probes."
+}

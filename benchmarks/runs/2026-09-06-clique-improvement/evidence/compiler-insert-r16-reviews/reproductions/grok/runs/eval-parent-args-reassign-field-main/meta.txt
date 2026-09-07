@@ -1,0 +1,10 @@
+PID=3754356
+CWD=/home/ccheever
+PATH=/home/ccheever/clique-tooling/epyc-linux-tooling-20260907T010007Z-0fd567d96f/node-v22.23.2-linux-x64/bin:/home/ccheever/clique-tooling/epyc-linux-tooling-20260907T010007Z-0fd567d96f/bun-v1.3.12-linux-x64/bin:/usr/bin:/bin
+CMD=/usr/bin/timeout 30 bun /home/ccheever/clique-reviews/compiler-insert-r16-e195-9a438eeb7c/grok/review-work/bin/eval.ts /home/ccheever/clique-reviews/compiler-insert-r16-e195-9a438eeb7c/grok/snapback2/packages/evaluator/src /home/ccheever/clique-reviews/compiler-insert-r16-e195-9a438eeb7c/grok/review-work/runs/parent-args-reassign-field/stdout.txt ARGS RECEIPT
+COMPILE=a34839ae3ea99efc67085de3ee0f6227eec7d753ed316e17082919abdf93c31b  /home/ccheever/clique-reviews/compiler-insert-r16-e195-9a438eeb7c/grok/review-work/runs/parent-args-reassign-field/stdout.txt
+ARGS={"flag":{"Bool":true},"payload":{"Row":{}}}
+EVALUATOR_STORE=2d06cf6dbad9d5b424d6e900e9e4741ada710f1e31e7fd5a8e86f4516cb302b9  /home/ccheever/clique-reviews/compiler-insert-r16-e195-9a438eeb7c/grok/snapback2/packages/evaluator/src/store.ts
+EVALUATOR_TYPES=afc6bc7ffd25fc007787b10e0fc8bdafbe4ae61cb12f7d2442f2c2df95686618  /home/ccheever/clique-reviews/compiler-insert-r16-e195-9a438eeb7c/grok/snapback2/packages/evaluator/src/types.ts
+EXIT=0
+DURATION_NS=36798833

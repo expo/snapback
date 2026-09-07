@@ -1,0 +1,16 @@
+{
+  "observed_at": "2026-09-07T06:04:23.908726+00:00",
+  "tool_session": 27880,
+  "exit_code": 0,
+  "terminal_chunk": "44b327",
+  "thread": "01a07a59-1248-7712-a238-a5a1714a1019",
+  "model": "gpt-6-astra",
+  "effort": "xhigh",
+  "actual_identity_receipt": "../launches.json",
+  "review_bytes": 19359,
+  "review_sha256": "7c7cc91af7c6a36588fd6f3c7563ec2e3082002625055690c5fc18309b892ca1",
+  "full_initial_and_final_delta_read": true,
+  "initial_report_sha256": "93f6a51fa0ddd95b6252d882665d9b86159338cb475cdbd2da00665bc3e98aef",
+  "delta": "supervisor-final-report-delta.patch",
+  "verdict": "CHANGES_REQUIRED"
+}

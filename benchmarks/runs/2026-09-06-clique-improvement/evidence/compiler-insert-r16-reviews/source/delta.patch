@@ -1,0 +1,300 @@
+diff --git a/snapback2/packages/compiler/src/compiler.ts b/snapback2/packages/compiler/src/compiler.ts
+index 41b79c814..39764d376 100644
+--- a/snapback2/packages/compiler/src/compiler.ts
++++ b/snapback2/packages/compiler/src/compiler.ts
+@@ -483,10 +483,12 @@ function lowerExpressionStatement(expression: ts.Expression, env: Environment):
+     && ts.isIdentifier(expression.left)) {
+     checkAssignmentForm(expression.right, env);
+     const info = env.variables.get(expression.left.text);
+-    recordAssignmentOrigin(info, expression.right, env);
+     const bound = derivedBound(expression.right, env);
+-    if (info) mergeAssignedCollectionFacts(info, expression.right, env, bound.max, bound.boundSource);
+     const lowered = lowerValue(expression.right, env);
++    // The RHS still observes the old binding, including an operation receiver.
++    // Invalidate its authority only after all RHS operands have been lowered.
++    recordAssignmentOrigin(info, expression.right, env);
++    if (info) mergeAssignedCollectionFacts(info, expression.right, env, bound.max, bound.boundSource);
+     return [...lowered.statements, { Assign: { name: bindingName(expression.left.text, env), value: lowered.expression } }];
+   }
+   if (ts.isConditionalExpression(expression)) {
+diff --git a/snapback2/packages/compiler/src/insert-provenance-checks.ts b/snapback2/packages/compiler/src/insert-provenance-checks.ts
+index db19d2550..b6a86b30b 100644
+--- a/snapback2/packages/compiler/src/insert-provenance-checks.ts
++++ b/snapback2/packages/compiler/src/insert-provenance-checks.ts
+@@ -177,6 +177,154 @@ insertProvenanceCases.push({name:"public omitted insert member remains unproved"
+     receipt:{rows:[],ranges:[],absences:[["records","byD3",["Null"]]],verdicts:[]}}],
+ });
+ 
++// The reviewer sources are complete checked-private projects. The JSON inputs
++// include a valid id with an omitted optional key; storage columns prove neither
++// that captured member nor a receiver value after assignment.
++insertProvenanceCases.push(...[
++  {
++    "name": "R16 astra-custom2-0",
++    "public": false,
++    "schema": "import {schema,table,t,rule} from 'snapback2';\nexport const records=table({columns:{d3:t.optional(t.decimal(3)),payload:t.optional(t.json(10000))},indexes:{byD3:{columns:[\"d3\"],unique:true}},rules:{read:rule.allow(),insert:rule.allow()}});\nexport default schema({tables:{records}});",
++    "source": "import {mutation,t} from 'snapback2';import {records} from './schema';export const probe=mutation({flag:t.bool()},({db,ctx,args})=>{const data:any=args.flag?{id:ctx.newId(),payload:null}:{id:ctx.newId(),d3:2,payload:null};const row:any=db.insert(records,data);return db.get(records.byD3,[row.d3]);});",
++    "refusal": "E_PROVENANCE_AMBIGUOUS"
++  },
++  {
++    "name": "R16 astra-custom2-2",
++    "public": false,
++    "schema": "import {schema,table,t,rule} from 'snapback2';export const records=table({columns:{key:t.optional(t.id()),payload:t.optional(t.json(1000))},indexes:{byKey:{columns:['key'],unique:true}},rules:{read:rule.allow(),insert:rule.allow()}});export default schema({tables:{records}});",
++    "source": "import {mutation,t} from 'snapback2';import {records} from './schema';export const probe=mutation({payload:t.json(1000)},({db,ctx,args})=>{const row:any=db.insert(records,args.payload as any);return db.get(records.byKey,[row.key]);});",
++    "refusal": "E_PROVENANCE_AMBIGUOUS"
++  },
++  {
++    "name": "R16 astra-custom2-3",
++    "public": false,
++    "schema": "import {schema,table,t,rule} from 'snapback2';\nexport const records=table({columns:{d3:t.optional(t.decimal(3)),payload:t.optional(t.json(10000))},rules:{read:rule.allow(),insert:rule.allow()}});\nexport default schema({tables:{records}});",
++    "source": "import {mutation,t} from 'snapback2';import {records} from './schema';export const probe=mutation({payload:t.json(100)},({db,ctx,args})=>{db=args.payload as any;const row=db.insert(records,{id:ctx.newId(),d3:2,payload:null});return {row,stored:db.get(records,[row.id]),next:ctx.newId()};});",
++    "refusal": "E_OPAQUE"
++  },
++  {
++    "name": "R16 astra-custom2-4",
++    "public": false,
++    "schema": "import {schema,table,t,rule} from 'snapback2';\nexport const records=table({columns:{d3:t.optional(t.decimal(3)),payload:t.optional(t.json(10000))},rules:{read:rule.allow(),insert:rule.allow()}});\nexport default schema({tables:{records}});",
++    "source": "import {mutation,t} from 'snapback2';import {records} from './schema';export const probe=mutation({payload:t.json(100)},({db,ctx,args})=>{db=args.payload as any;db.insert(records,{id:\"given\",d3:2,payload:null});return db.get(records,[\"given\"]);});",
++    "refusal": "E_OPAQUE"
++  },
++  {
++    "name": "R16 astra-custom2-5",
++    "public": false,
++    "schema": "import {schema,table,t,rule} from 'snapback2';\nexport const records=table({columns:{d3:t.optional(t.decimal(3)),payload:t.optional(t.json(10000))},rules:{read:rule.allow(),insert:rule.allow()}});\nexport default schema({tables:{records}});",
++    "source": "import {mutation,t} from 'snapback2';import {records} from './schema';export const probe=mutation({flag:t.bool(),payload:t.json(100)},({db,ctx,args})=>{if(args.flag)db=args.payload as any;const row=db.insert(records,{id:ctx.newId(),d3:2,payload:null});return db.get(records,[row.id]);});",
++    "refusal": "E_OPAQUE"
++  },
++  {
++    "name": "R16 astra-extended-4",
++    "public": false,
++    "schema": "import {schema,table,t,rule} from 'snapback2';export const records=table({columns:{key:t.optional(t.id()),payload:t.optional(t.json(1000))},indexes:{byKey:{columns:['key'],unique:true}},rules:{read:rule.allow(),insert:rule.allow()}});export default schema({tables:{records}});",
++    "source": "import {mutation,t} from 'snapback2';import {records} from './schema';export const probe=mutation({payload:t.json(1000)},({db,ctx,args})=>{let row:any=db.insert(records,args.payload as any);const box={row,key:row.key};row=null;return db.get(records.byKey,[box.key]);});",
++    "refusal": "E_PROVENANCE_AMBIGUOUS"
++  },
++  {
++    "name": "R16 grok-json-only",
++    "public": false,
++    "schema": "import {schema,table,t,rule} from 'snapback2';\nexport const records=table({columns:{payload:t.optional(t.json(10000))},rules:{read:rule.allow(),insert:rule.allow()}});\nexport default schema({tables:{records}});",
++    "source": "import {mutation,t} from 'snapback2';import {records} from './schema';\nexport const probe=mutation({payload:t.json(100)},({db,ctx,args})=>{const input:any=args.payload; const row=db.insert(records,input); return db.get(records,[row.id]);});",
++    "refusal": "E_PROVENANCE_AMBIGUOUS"
++  }
++]);
++
++for (const [name, body] of [
++  ["unknown input nested capture", "const data:any=args.payload;const box={data};const row:any=db.insert(records,box.data);return db.get(records.byKey,[row.key]);"],
++  ["unknown input inline member", "return db.get(records.byKey,[(db.insert(records,args.payload as any) as any).key]);"],
++  ["reassigned input shape", "let data:any={id:ctx.newId(),key:null,payload:null};data=args.payload;const row:any=db.insert(records,data);return db.get(records.byKey,[row.key]);"],
++  ["branch input shape", "let data:any={id:ctx.newId(),key:null,payload:null};if(args.flag)data=args.payload;const row:any=db.insert(records,data);return db.get(records.byKey,[row.key]);"],
++] as const) insertProvenanceCases.push({ name: `R16 ${name}`, public: false,
++  schema: insertProvenanceCases.find(c=>c.name==="R16 astra-custom2-2")!.schema,
++  source: privateSource(body,"payload:t.json(1000),flag:t.bool()"),refusal:"E_PROVENANCE_AMBIGUOUS" });
++
++for (const capture of [false,true]) insertProvenanceCases.push({ name: `R16 common conditional snapshot member capture ${capture}`, public: false,
++  source: privateSource(`let input:any=args.flag?{id:ctx.newId(),payload:null}:{id:ctx.newId(),d3:2,payload:null};const box={input};${capture?"input=args.payload;":""}const row=db.insert(records,${capture?"box.input":"input"});return {row,stored:db.get(records,[row.id]),next:ctx.newId()};`,"flag:t.bool(),payload:t.json(100)"),
++  // The captured conditional Decimal conversion is independently unmodeled on
++  // the parent too. Its exact source remains a refusal control; the ID capture
++  // below exercises snapshot membership without hiding behind that boundary.
++  ...(capture ? {refusal:"E_DECIMAL_SCALE"} : {}),
++  runs: [true,false].map(flag=>({args:{flag:{Bool:flag},payload:{Row:{}}},
++    result:{row:flag?{id:"id-1",payload:null}:row("id-1",2000,null),stored:row("id-1",flag?null:2000,null),next:"id-2"},
++    rows:[row("id-1",flag?null:2000,null)],pointIds:["id-1"]})),
++});
++insertProvenanceCases.push({name:"R16 conditional ID input capture before assignment",public:false,
++  schema:insertProvenanceCases.find(c=>c.name==="R16 astra-custom2-2")!.schema,
++  source:privateSource("let input:any=args.flag?{id:ctx.newId(),payload:null}:{id:ctx.newId(),key:args.key,payload:null};const box={input};input=args.payload;const row=db.insert(records,box.input);return {row,stored:db.get(records,[row.id]),next:ctx.newId()};","flag:t.bool(),key:t.id(),payload:t.json(100)"),
++  runs:[true,false].map(flag=>({args:{flag:{Bool:flag},key:{Id:"given"},payload:{Row:{}}},
++    result:{row:flag?{id:"id-1",payload:null}:{id:"id-1",key:"given",payload:null},stored:{id:"id-1",key:flag?null:"given",payload:null},next:"id-2"},
++    rows:[{id:"id-1",key:flag?null:"given",payload:null}],pointIds:["id-1"],
++    uncoveredPartialSites:["records.byKey"],
++    receipt:{rows:[],ranges:[],absences:[["records","byKey",[flag?"Null":{Id:"given"}]]],verdicts:[]}})),
++});
++insertProvenanceCases.push({ name:"R16 conditional explicit null snapshot member",public:false,
++  schema:insertProvenanceCases.find(c=>c.name==="R16 astra-custom2-2")!.schema,
++  source:privateSource("const input:any=args.flag?{id:ctx.newId(),key:null,payload:null}:{id:ctx.newId(),key:args.key,payload:null};const row=db.insert(records,input);return {row,stored:db.get(records.byKey,[row.key]),next:ctx.newId()};","flag:t.bool(),key:t.id()"),
++  runs:[true,false].map(flag=>({args:{flag:{Bool:flag},key:{Id:"given"}},
++    result:{row:{id:"id-1",key:flag?null:"given",payload:null},stored:{id:"id-1",key:flag?null:"given",payload:null},next:"id-2"},
++    rows:[{id:"id-1",key:flag?null:"given",payload:null}],pointKeys:[[flag?null:"given"]],uncoveredPartialSites:["records.byKey"],
++    receipt:{rows:[],ranges:[],absences:[["records","byKey",[flag?"Null":{Id:"given"}]]],verdicts:[]}})),
++});
++insertProvenanceCases.push({name:"R16 stable inserted capture before receiver assignment",public:false,
++  source:privateSource("const row=db.insert(records,{id:ctx.newId(),d3:2,payload:null});const stored=db.get(records,[row.id]);const box={row,stored};db=args.payload as any;return {box,next:ctx.newId()};","payload:t.json(100)"),
++  runs:[{args:{payload:{Row:{}}},result:{box:{row:row("id-1",2000,null),stored:row("id-1",2000,null)},next:"id-2"},rows:[row("id-1",2000,null)],pointIds:["id-1"]}],
++}, {name:"R16 receiver assignment stays in its branch",public:false,
++  source:privateSource("if(args.flag){db=args.payload as any;}else{const row=db.insert(records,{id:ctx.newId(),d3:2,payload:null});return {stored:db.get(records,[row.id]),next:ctx.newId()};}return null;","flag:t.bool(),payload:t.json(100)"),
++  runs:[{args:{flag:{Bool:true},payload:{Row:{}}},result:null,rows:[],pointIds:[]},
++    {args:{flag:{Bool:false},payload:{Row:{}}},result:{stored:row("id-1",2000,null),next:"id-2"},rows:[row("id-1",2000,null)],pointIds:["id-1"]}],
++});
++for (const later of [false,true]) insertProvenanceCases.push({name:`R16 ordered input override ${later}`,public:false,
++  source:privateSource(`const initial={id:args.key,payload:null};const fresh={id:ctx.newId(),d3:2};const input={...${later?"initial,...fresh":"fresh,...initial"}};const row=db.insert(records,input);const box={row};return {row:box.row,stored:db.get(records,[box.row.id]),next:ctx.newId()};`,"key:t.id()"),
++  runs:[{args:{key:{Id:"given"}},result:{row:row(later?"id-1":"given",2000,null),stored:row(later?"id-1":"given",2000,null),next:"id-2"},rows:[row(later?"id-1":"given",2000,null)],pointIds:[later?"id-1":"given"]}],
++});
++
++insertProvenanceCases.push(...[
++  {
++    "name": "R16 receiver assignment RHS uses original binding",
++    "public": false,
++    "schema": "import {schema,table,t,rule} from 'snapback2';\nexport const records=table({columns:{d3:t.optional(t.decimal(3)),payload:t.optional(t.json(10000))},rules:{read:rule.allow(),insert:rule.allow()}});\nexport default schema({tables:{records}});",
++    "source": "import {mutation,t} from 'snapback2';import {records} from './schema';export const probe=mutation({},({db,ctx,args})=>{db=db.insert(records,{id:ctx.newId(),d3:2,payload:null}) as any;return {row:db,next:ctx.newId()};});",
++    "runs": [
++      {
++        "args": {},
++        "result": {
++          "row": {
++            "id": "id-1",
++            "d3": 2000,
++            "payload": null
++          },
++          "next": "id-2"
++        },
++        "rows": [
++          {
++            "id": "id-1",
++            "d3": 2000,
++            "payload": null
++          }
++        ],
++        "pointIds": []
++      }
++    ]
++  },
++  {
++    "name": "R16 receiver assignment RHS then no authority",
++    "public": false,
++    "schema": "import {schema,table,t,rule} from 'snapback2';\nexport const records=table({columns:{d3:t.optional(t.decimal(3)),payload:t.optional(t.json(10000))},rules:{read:rule.allow(),insert:rule.allow()}});\nexport default schema({tables:{records}});",
++    "source": "import {mutation,t} from 'snapback2';import {records} from './schema';export const probe=mutation({},({db,ctx,args})=>{db=db.insert(records,{id:ctx.newId(),d3:2,payload:null}) as any;return db.get(records,[\"given\"]);});",
++    "refusal": "E_OPAQUE"
++  }
++]);
++
++insertProvenanceCases.push({name:"R16 receiver assignment waits for throwing RHS",public:false,
++  source:privateSource("db=db.insert(records,{id:ctx.newId(),payload:divmod(2,args.zero)}) as any;return {row:db,next:ctx.newId()};","zero:t.int()"),
++  runs:[{args:{zero:{Int:0}},error:"E_DIV_ZERO"},
++    {args:{zero:{Int:1}},result:{row:{id:"id-1",payload:{quotient:2,remainder:0,sink:"lexicographic-id"}},next:"id-2"},
++      rows:[row("id-1",null,{quotient:2,remainder:0,sink:"lexicographic-id"})],pointIds:[]}],
++});
++
+ export function registerInsertProvenanceChecks(test: Test): void {
+   for (const item of insertProvenanceCases) test(`insert provenance ${item.name}`, async () => {
+     const ext = item.public ? "q" : "ts";
+diff --git a/snapback2/packages/compiler/src/lower/collection-origins.ts b/snapback2/packages/compiler/src/lower/collection-origins.ts
+index 238247cc5..47c6728dd 100644
+--- a/snapback2/packages/compiler/src/lower/collection-origins.ts
++++ b/snapback2/packages/compiler/src/lower/collection-origins.ts
+@@ -132,6 +132,7 @@ function flattenCollectionOrigins(origins: readonly ProvenanceOrigin[]): Provena
+ 
+ export function selectOriginMembers(origin: ProvenanceOrigin, member: string): MemberSelection {
+   if ("binding" in origin) {
++    if (origin.binding.provenanceAmbiguity) return { kind: "unknown" };
+     return origin.binding.immutableOrigin
+       ? selectOriginMembers(origin.binding.immutableOrigin, member)
+       : { kind: "unknown" };
+@@ -157,6 +158,7 @@ function selectExpressionMemberInner(
+     const substituted = env.substitutions.get(value.text);
+     if (substituted) return selectExpressionMember(substituted.expression, substituted.environment, member);
+     const info = env.variables.get(value.text);
++    if (info?.provenanceAmbiguity) return { kind: "unknown" };
+     if (info?.operationComposite === "args") {
+       const descriptor = env.args[member];
+       if (!descriptor) return { kind: "absent" };
+@@ -178,7 +180,6 @@ function selectExpressionMemberInner(
+         ? { kind: "found", origins: [{ binding: { provenance: "Viewer" } }], presence: "required" }
+         : { kind: "absent" };
+     }
+-    if (info?.provenanceAmbiguity) return { kind: "unknown" };
+     if (info?.alternativeOrigins) {
+       const selected = info.alternativeOrigins.map((origin) => selectOriginMembers(origin, member));
+       if (selected.some((item) => item.kind !== "found")) return { kind: "unknown" };
+diff --git a/snapback2/packages/compiler/src/lower/object-shape.ts b/snapback2/packages/compiler/src/lower/object-shape.ts
+index 8f67fee42..e20baf730 100644
+--- a/snapback2/packages/compiler/src/lower/object-shape.ts
++++ b/snapback2/packages/compiler/src/lower/object-shape.ts
+@@ -26,6 +26,7 @@ function knownObjectFieldsInner(node: ts.Expression, env: Environment): string[]
+     const substituted = env.substitutions.get(value.text);
+     if (substituted) return knownObjectFields(substituted.expression, substituted.environment);
+     const info = env.variables.get(value.text);
++    if (info?.provenanceAmbiguity) return undefined;
+     if (info?.operationComposite === "args") return Object.keys(env.args);
+     if (info?.operationComposite === "ctx") return ["viewer"];
+     return info?.objectFields ?? (info?.immutableOrigin
+@@ -82,7 +83,9 @@ function selectedObjectMember(
+   if (ts.isIdentifier(value)) {
+     const substituted = env.substitutions.get(value.text);
+     if (substituted) return selectedObjectMember(substituted.expression, member, substituted.environment);
+-    const origin = env.variables.get(value.text)?.immutableOrigin;
++    const info = env.variables.get(value.text);
++    if (info?.provenanceAmbiguity) return undefined;
++    const origin = info?.immutableOrigin;
+     return origin && selectedObjectMember(origin.expression, member, origin.environment);
+   }
+   if (ts.isPropertyAccessExpression(value)) {
+@@ -121,7 +124,7 @@ function rowCollectionFieldsInner(node: ts.Expression, env: Environment): string
+     const substituted = env.substitutions.get(value.text);
+     if (substituted) return rowCollectionFields(substituted.expression, substituted.environment);
+     const info = env.variables.get(value.text);
+-    return info?.rowCollection ? info.objectFields : undefined;
++    return !info?.provenanceAmbiguity && info?.rowCollection ? info.objectFields : undefined;
+   }
+   const call = unwrapCall(value);
+   if (!call) return undefined;
+diff --git a/snapback2/packages/compiler/src/lower/operation-context.ts b/snapback2/packages/compiler/src/lower/operation-context.ts
+index 45ace360f..1fb5e9b76 100644
+--- a/snapback2/packages/compiler/src/lower/operation-context.ts
++++ b/snapback2/packages/compiler/src/lower/operation-context.ts
+@@ -152,7 +152,10 @@ function resolvesOperationComposite(
+   env: Environment,
+   seen: Set<string>,
+ ): boolean {
+-  if (env.variables.get(name)?.operationComposite === composite) return true;
++  const info = env.variables.get(name);
++  // @ref LLP 1002#2-the-authored-surface-the-snapback2-module — the current binding must still prove the receiver; assignment invalidates authority even when its initial composite metadata remains.
++  if (info?.provenanceAmbiguity) return false;
++  if (info?.operationComposite === composite) return true;
+   const substitution = env.substitutions.get(name);
+   if (!substitution || seen.has(name)) return false;
+   const value = unwrapExpression(substitution.expression);
+diff --git a/snapback2/packages/compiler/src/lower/provenance.ts b/snapback2/packages/compiler/src/lower/provenance.ts
+index 8f2d7dcbc..8da468ed9 100644
+--- a/snapback2/packages/compiler/src/lower/provenance.ts
++++ b/snapback2/packages/compiler/src/lower/provenance.ts
+@@ -346,7 +346,16 @@ function classifyBoundRow(info: VariableInfo, path: readonly string[], authoredN
+ 
+ function classifyRow(call: ts.CallExpression, env: Environment, path: readonly string[]): Classification {
+   if (path.length === 0) return known("Shape");
+-  const fields = knownObjectFields(call, env) ?? rowFields(call.arguments[0], env);
++  const fields = knownObjectFields(call, env);
++  // An insert returns the captured input, not the storage image. When its
++  // complete field set is unknown, prove the selected member in every source
++  // alternative; schema columns cannot supply missing snapshot members.
++  if (!fields && isDbInsertCall(call, (binding) => isOperationCompositeBinding(binding, "db", env))) {
++    const input = call.arguments[1];
++    const selected = input && selectExpressionMember(input, env, path[0]!);
++    if (selected?.kind === "absent") return absent();
++    if (selected?.kind !== "found" || selected.presence !== "required") return ambiguous();
++  }
+   if (fields && !fields.includes(path[0]!)) return absent();
+   if (path.length > 1) return ambiguous();
+   return { ...known("Shape"), presence: isNullableDbGet(call,
+@@ -509,7 +518,10 @@ function isRowExpressionInner(node: ts.Expression, env: Environment): boolean {
+   const value = unwrapExpression(node);
+   const substituted = ts.isIdentifier(value) ? env.substitutions.get(value.text) : undefined;
+   if (substituted) return isRowExpression(substituted.expression, substituted.environment);
+-  if (ts.isIdentifier(value)) return env.variables.get(value.text)?.rowBinding === true;
++  if (ts.isIdentifier(value)) {
++    const info = env.variables.get(value.text);
++    return !info?.provenanceAmbiguity && info?.rowBinding === true;
++  }
+   const call = unwrapCall(value);
+   if (!call) return false;
+   const expanded = expandHelper(call, env);
+@@ -525,7 +537,10 @@ function isRowCollectionExpressionInner(node: ts.Expression, env: Environment):
+   const value = unwrapExpression(node);
+   const substituted = ts.isIdentifier(value) ? env.substitutions.get(value.text) : undefined;
+   if (substituted) return isRowCollectionExpression(substituted.expression, substituted.environment);
+-  if (ts.isIdentifier(value)) return env.variables.get(value.text)?.rowCollection === true;
++  if (ts.isIdentifier(value)) {
++    const info = env.variables.get(value.text);
++    return !info?.provenanceAmbiguity && info?.rowCollection === true;
++  }
+   const call = unwrapCall(value);
+   if (!call) return false;
+   const expanded = expandHelper(call, env);

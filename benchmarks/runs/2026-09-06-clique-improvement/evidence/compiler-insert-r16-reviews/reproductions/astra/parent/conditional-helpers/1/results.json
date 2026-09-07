@@ -1,0 +1,550 @@
+[
+  {
+    "args": {
+      "flag": {
+        "Bool": true
+      }
+    },
+    "raw": {
+      "state": "predicted",
+      "partialSites": [],
+      "execution": {
+        "result": {
+          "Row": {
+            "next": {
+              "Id": "id-2"
+            },
+            "row": {
+              "Row": {
+                "id": {
+                  "Id": "id-1"
+                },
+                "payload": {
+                  "Int": 1
+                }
+              }
+            },
+            "stored": {
+              "Row": {
+                "id": {
+                  "Id": "id-1"
+                },
+                "payload": {
+                  "Int": 1
+                }
+              }
+            }
+          }
+        },
+        "trace": {
+          "ranges": [],
+          "absences": [],
+          "points": [
+            {
+              "site": "probe.probe.1",
+              "table": "records",
+              "index": "byId",
+              "key": [
+                {
+                  "Id": "id-1"
+                }
+              ],
+              "digest": "510ba7b9e365dd376ba16d4b5f1a7ac2878afaf6522296d65e8180228b79a0ef",
+              "provenance": "Shape"
+            }
+          ],
+          "merges": [],
+          "verdicts": [],
+          "steps": 31,
+          "examined": 1
+        },
+        "next": null,
+        "writes": [
+          {
+            "table": "records",
+            "id": "id-1",
+            "row": {
+              "Row": {
+                "id": {
+                  "Id": "id-1"
+                },
+                "payload": {
+                  "Int": 1
+                }
+              }
+            }
+          }
+        ]
+      },
+      "uncoveredSites": []
+    },
+    "rawDecoded": {
+      "result": {
+        "next": "id-2",
+        "row": {
+          "id": "id-1",
+          "payload": 1
+        },
+        "stored": {
+          "id": "id-1",
+          "payload": 1
+        }
+      },
+      "writes": [
+        {
+          "id": "id-1",
+          "payload": 1
+        }
+      ],
+      "points": [
+        {
+          "site": "probe.probe.1",
+          "table": "records",
+          "index": "byId",
+          "key": [
+            {
+              "Id": "id-1"
+            }
+          ],
+          "digest": "510ba7b9e365dd376ba16d4b5f1a7ac2878afaf6522296d65e8180228b79a0ef",
+          "provenance": "Shape"
+        }
+      ]
+    },
+    "bodyFlow": {
+      "kind": "return",
+      "value": {
+        "Row": {
+          "next": {
+            "Id": "id-2"
+          },
+          "row": {
+            "Row": {
+              "id": {
+                "Id": "id-1"
+              },
+              "payload": {
+                "Int": 1
+              }
+            }
+          },
+          "stored": {
+            "Row": {
+              "id": {
+                "Id": "id-1"
+              },
+              "payload": {
+                "Int": 1
+              }
+            }
+          }
+        }
+      }
+    },
+    "bodyState": {
+      "scope": "body-only Runner observation; adapted schema, no certificate or authority claim",
+      "env": {
+        "flag": {
+          "Bool": true
+        },
+        "__helperArgument0": {
+          "Bool": true
+        },
+        "__helperArgument1": {
+          "Id": "id-1"
+        },
+        "__selected3": {
+          "Bool": true
+        },
+        "__conditional2": {
+          "Row": {
+            "id": {
+              "Id": "id-1"
+            },
+            "payload": {
+              "Int": 1
+            }
+          }
+        },
+        "__insertRow4": {
+          "Row": {
+            "id": {
+              "Id": "id-1"
+            },
+            "payload": {
+              "Int": 1
+            }
+          }
+        },
+        "row": {
+          "Row": {
+            "id": {
+              "Id": "id-1"
+            },
+            "payload": {
+              "Int": 1
+            }
+          }
+        },
+        "__operand5": {
+          "Row": {
+            "id": {
+              "Id": "id-1"
+            },
+            "payload": {
+              "Int": 1
+            }
+          }
+        },
+        "__operand6": {
+          "Id": "id-2"
+        }
+      },
+      "remainingIds": [
+        "id-3",
+        "id-4",
+        "id-5",
+        "id-6",
+        "id-7",
+        "id-8",
+        "id-9",
+        "id-10",
+        "id-11",
+        "id-12",
+        "id-13",
+        "id-14",
+        "id-15",
+        "id-16",
+        "id-17",
+        "id-18",
+        "id-19",
+        "id-20",
+        "id-21",
+        "id-22",
+        "id-23",
+        "id-24",
+        "id-25",
+        "id-26",
+        "id-27",
+        "id-28",
+        "id-29",
+        "id-30",
+        "id-31",
+        "id-32"
+      ],
+      "writes": [
+        {
+          "table": "records",
+          "id": "id-1",
+          "row": {
+            "Row": {
+              "id": {
+                "Id": "id-1"
+              },
+              "payload": {
+                "Int": 1
+              }
+            }
+          }
+        }
+      ],
+      "trace": {
+        "ranges": [],
+        "absences": [],
+        "points": [
+          {
+            "site": "probe.probe.1",
+            "table": "records",
+            "index": "byId",
+            "key": [
+              {
+                "Id": "id-1"
+              }
+            ],
+            "digest": "510ba7b9e365dd376ba16d4b5f1a7ac2878afaf6522296d65e8180228b79a0ef",
+            "provenance": "Shape"
+          }
+        ],
+        "merges": [],
+        "verdicts": [],
+        "steps": 31,
+        "examined": 1
+      },
+      "partialSites": []
+    }
+  },
+  {
+    "args": {
+      "flag": {
+        "Bool": false
+      }
+    },
+    "raw": {
+      "state": "predicted",
+      "partialSites": [],
+      "execution": {
+        "result": {
+          "Row": {
+            "next": {
+              "Id": "id-2"
+            },
+            "row": {
+              "Row": {
+                "id": {
+                  "Id": "id-1"
+                },
+                "payload": {
+                  "Int": 2
+                }
+              }
+            },
+            "stored": {
+              "Row": {
+                "id": {
+                  "Id": "id-1"
+                },
+                "payload": {
+                  "Int": 2
+                }
+              }
+            }
+          }
+        },
+        "trace": {
+          "ranges": [],
+          "absences": [],
+          "points": [
+            {
+              "site": "probe.probe.1",
+              "table": "records",
+              "index": "byId",
+              "key": [
+                {
+                  "Id": "id-1"
+                }
+              ],
+              "digest": "352c25590eef8a358371aff46b8e56ca7dc0cfdfb6c0cfae4dce03cf7d012313",
+              "provenance": "Shape"
+            }
+          ],
+          "merges": [],
+          "verdicts": [],
+          "steps": 31,
+          "examined": 1
+        },
+        "next": null,
+        "writes": [
+          {
+            "table": "records",
+            "id": "id-1",
+            "row": {
+              "Row": {
+                "id": {
+                  "Id": "id-1"
+                },
+                "payload": {
+                  "Int": 2
+                }
+              }
+            }
+          }
+        ]
+      },
+      "uncoveredSites": []
+    },
+    "rawDecoded": {
+      "result": {
+        "next": "id-2",
+        "row": {
+          "id": "id-1",
+          "payload": 2
+        },
+        "stored": {
+          "id": "id-1",
+          "payload": 2
+        }
+      },
+      "writes": [
+        {
+          "id": "id-1",
+          "payload": 2
+        }
+      ],
+      "points": [
+        {
+          "site": "probe.probe.1",
+          "table": "records",
+          "index": "byId",
+          "key": [
+            {
+              "Id": "id-1"
+            }
+          ],
+          "digest": "352c25590eef8a358371aff46b8e56ca7dc0cfdfb6c0cfae4dce03cf7d012313",
+          "provenance": "Shape"
+        }
+      ]
+    },
+    "bodyFlow": {
+      "kind": "return",
+      "value": {
+        "Row": {
+          "next": {
+            "Id": "id-2"
+          },
+          "row": {
+            "Row": {
+              "id": {
+                "Id": "id-1"
+              },
+              "payload": {
+                "Int": 2
+              }
+            }
+          },
+          "stored": {
+            "Row": {
+              "id": {
+                "Id": "id-1"
+              },
+              "payload": {
+                "Int": 2
+              }
+            }
+          }
+        }
+      }
+    },
+    "bodyState": {
+      "scope": "body-only Runner observation; adapted schema, no certificate or authority claim",
+      "env": {
+        "flag": {
+          "Bool": false
+        },
+        "__helperArgument0": {
+          "Bool": false
+        },
+        "__helperArgument1": {
+          "Id": "id-1"
+        },
+        "__selected3": {
+          "Bool": false
+        },
+        "__conditional2": {
+          "Row": {
+            "id": {
+              "Id": "id-1"
+            },
+            "payload": {
+              "Int": 2
+            }
+          }
+        },
+        "__insertRow4": {
+          "Row": {
+            "id": {
+              "Id": "id-1"
+            },
+            "payload": {
+              "Int": 2
+            }
+          }
+        },
+        "row": {
+          "Row": {
+            "id": {
+              "Id": "id-1"
+            },
+            "payload": {
+              "Int": 2
+            }
+          }
+        },
+        "__operand5": {
+          "Row": {
+            "id": {
+              "Id": "id-1"
+            },
+            "payload": {
+              "Int": 2
+            }
+          }
+        },
+        "__operand6": {
+          "Id": "id-2"
+        }
+      },
+      "remainingIds": [
+        "id-3",
+        "id-4",
+        "id-5",
+        "id-6",
+        "id-7",
+        "id-8",
+        "id-9",
+        "id-10",
+        "id-11",
+        "id-12",
+        "id-13",
+        "id-14",
+        "id-15",
+        "id-16",
+        "id-17",
+        "id-18",
+        "id-19",
+        "id-20",
+        "id-21",
+        "id-22",
+        "id-23",
+        "id-24",
+        "id-25",
+        "id-26",
+        "id-27",
+        "id-28",
+        "id-29",
+        "id-30",
+        "id-31",
+        "id-32"
+      ],
+      "writes": [
+        {
+          "table": "records",
+          "id": "id-1",
+          "row": {
+            "Row": {
+              "id": {
+                "Id": "id-1"
+              },
+              "payload": {
+                "Int": 2
+              }
+            }
+          }
+        }
+      ],
+      "trace": {
+        "ranges": [],
+        "absences": [],
+        "points": [
+          {
+            "site": "probe.probe.1",
+            "table": "records",
+            "index": "byId",
+            "key": [
+              {
+                "Id": "id-1"
+              }
+            ],
+            "digest": "352c25590eef8a358371aff46b8e56ca7dc0cfdfb6c0cfae4dce03cf7d012313",
+            "provenance": "Shape"
+          }
+        ],
+        "merges": [],
+        "verdicts": [],
+        "steps": 31,
+        "examined": 1
+      },
+      "partialSites": []
+    }
+  }
+]

@@ -1,0 +1,2 @@
+import {mutation,t,divmod} from 'snapback2';import {records} from './schema';
+export const probe=mutation({flag:t.bool(),payload:t.json(100)},({db,ctx,args})=>{args=args.payload as any;return args.flag;});

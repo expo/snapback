@@ -1,0 +1,15 @@
+{
+  "observed_at": "2026-09-07T06:12:27.081806+00:00",
+  "tool_session": 96823,
+  "exit_code": 0,
+  "chunk_id": "0a992f",
+  "recovered_from": "/Users/ccheever/.codex/sessions/2026/09/06/rollout-2026-09-06T02-36-02-01a07613-27e7-7de1-8874-d3f863008ab4.jsonl",
+  "call_id": "call_UZEjSkM7bN9GYNu69iQWaqk2",
+  "model": "grok-4.6",
+  "effort": "xhigh",
+  "uuid": "df170f0f-1b21-4712-bca4-438e56d73ec5",
+  "report_bytes": 13993,
+  "report_sha256": "4f9ef24795bec5cece0c962050e92331a4a5d6a753b135606d5e1b46e79feca6",
+  "report_delta": "empty",
+  "scope_note": "Report wording eval native insert/get refers to adapted evaluator/IR, not actual native execution. Scoped READY does not refute Astra counterexamples."
+}

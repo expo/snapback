@@ -1,0 +1,28 @@
+{
+  "timestamp": "2026-09-07T06:05:22.173Z",
+  "ordinal": 20651,
+  "type": "response_item",
+  "payload": {
+    "type": "custom_tool_call_output",
+    "id": "ctco_01a07a78-a57d-7b83-a975-d288cb4615b7",
+    "call_id": "call_UZEjSkM7bN9GYNu69iQWaqk2",
+    "output": [
+      {
+        "type": "input_text",
+        "text": "Script completed\nWall time 0.3 seconds\nOutput:\n"
+      },
+      {
+        "type": "input_text",
+        "text": "{\"chunk_id\":\"0a992f\",\"wall_time_seconds\":0.000001209,\"exit_code\":0,\"original_token_count\":0,\"output\":\"\"}"
+      },
+      {
+        "type": "input_text",
+        "text": "{\"chunk_id\":\"7b3299\",\"wall_time_seconds\":0.068726125,\"exit_code\":0,\"original_token_count\":18,\"output\":\"\\n13993 4f9ef24795bec5cece0c962050e92331a4a5d6a753b135606d5e1b46e79feca6\\n\"}"
+      }
+    ],
+    "internal_chat_message_metadata_passthrough": {
+      "turn_id": "01a0763f-517d-78b1-a416-91333f4781f2",
+      "create_time": 1788761122.173046
+    }
+  }
+}

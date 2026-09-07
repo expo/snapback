@@ -1,0 +1,1 @@
+import {mutation,t,divmod} from 'snapback2';import {records} from './schema';export const probe=mutation({},({db,ctx,args})=>{let box={length:7};box={length:9};return box.length;});

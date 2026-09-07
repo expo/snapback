@@ -1,0 +1,1 @@
+{"ok":true,"usedIds":[],"remainingIds":32,"state":"predicted","partialSites":[],"uncoveredSites":[],"result":true,"writes":[],"points":[],"steps":4,"rawResult":{"Bool":true}}

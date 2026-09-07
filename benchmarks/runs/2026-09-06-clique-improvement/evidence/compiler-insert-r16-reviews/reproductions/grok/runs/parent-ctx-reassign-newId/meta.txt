@@ -1,0 +1,11 @@
+PID=3751154
+CWD=/home/ccheever
+PATH=/home/ccheever/clique-tooling/epyc-linux-tooling-20260907T010007Z-0fd567d96f/node-v22.23.2-linux-x64/bin:/home/ccheever/clique-tooling/epyc-linux-tooling-20260907T010007Z-0fd567d96f/bun-v1.3.12-linux-x64/bin:/usr/bin:/bin
+CMD=/usr/bin/timeout 30 bun /home/ccheever/clique-reviews/compiler-insert-r16-e195-9a438eeb7c/grok/review-work/bin/compile.ts /home/ccheever/clique-reviews/compiler-insert-r16-e195-9a438eeb7c/grok/review-work/parent-extract/snapback2/packages/compiler/src /home/ccheever/clique-reviews/compiler-insert-r16-e195-9a438eeb7c/grok/review-work/projects/ctx-reassign-newId any
+INPUT_SCHEMA=1898f8b0f3fce638568d963aaa8832b7abec993172fdf3c82dd4c37ccab1c54b  /home/ccheever/clique-reviews/compiler-insert-r16-e195-9a438eeb7c/grok/review-work/projects/ctx-reassign-newId/snapback/schema.ts
+INPUT_PROBE=4783ddfc9f9afaac07a55d9ea0fcc7cff535f24ce740f49bedff0cd1bdbe7992  /home/ccheever/clique-reviews/compiler-insert-r16-e195-9a438eeb7c/grok/review-work/projects/ctx-reassign-newId/snapback/probe.ts
+COMPILER_PROJECT=8fae9508c618f1cc92743e25cabeca736aafc439c7adb63b14440b987606ec95  /home/ccheever/clique-reviews/compiler-insert-r16-e195-9a438eeb7c/grok/review-work/parent-extract/snapback2/packages/compiler/src/project.ts
+COMPILER_PROVENANCE=48c60e75d050c7f2ac1b5598e6536beea5a6f53663d90cb91953545ffe52f962  /home/ccheever/clique-reviews/compiler-insert-r16-e195-9a438eeb7c/grok/review-work/parent-extract/snapback2/packages/compiler/src/lower/provenance.ts
+COMPILER_ASSIGN=33f81090819c590580e58e471b43f00975d05138aaa663ae462fdbf5d4d546fd  /home/ccheever/clique-reviews/compiler-insert-r16-e195-9a438eeb7c/grok/review-work/parent-extract/snapback2/packages/compiler/src/compiler.ts
+EXIT=0
+DURATION_NS=297932300

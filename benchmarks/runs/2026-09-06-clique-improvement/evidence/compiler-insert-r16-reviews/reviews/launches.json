@@ -1,0 +1,28 @@
+{
+  "observed_at": "2026-09-07T05:31:16.500081+00:00",
+  "astra": {
+    "tool_session": 27880,
+    "thread": "01a07a59-1248-7712-a238-a5a1714a1019",
+    "actual_identity": {
+      "model": "gpt-6-astra",
+      "effort": "xhigh",
+      "cwd": "/Users/ccheever/clique-improvement/reviews/compiler-insert-provenance-r16/astra",
+      "rollout": "/Users/ccheever/.codex/sessions/2026/09/06/rollout-2026-09-06T22-30-52-01a07a59-1248-7712-a238-a5a1714a1019.jsonl"
+    }
+  },
+  "grok": {
+    "tool_session": 96823,
+    "uuid": "df170f0f-1b21-4712-bca4-438e56d73ec5",
+    "actual_identity": {
+      "model": "grok-4.6",
+      "effort": "xhigh",
+      "summary": "/Users/ccheever/.grok/sessions/%2FUsers%2Fccheever%2Fclique-improvement%2Freviews%2Fcompiler-insert-provenance-r16%2Fgrok/df170f0f-1b21-4712-bca4-438e56d73ec5/summary.json"
+    }
+  },
+  "processes": [
+    "90645 67090       00:24 codex exec -m gpt-6-astra -c model_reasoning_effort=xhigh --dangerously-bypass-approvals-and-sandbox --json -o final-answer.md -",
+    "90646 67090       00:24 /Users/ccheever/.grok/bin/grok --prompt-file /Users/ccheever/clique-improvement/reviews/compiler-insert-provenance-r16/grok/prompt.md --cwd /Users/ccheever/clique-improvement/reviews/compiler-insert-provenance-r16/grok -m grok-4.6 --reasoning-effort xhigh --output-format streaming-json --permission-mode bypassPermissions --disable-web-search --no-memory --no-subagents --session-id df170f0f-1b21-4712-bca4-438e56d73ec5 --max-turns 500",
+    "90649 90645       00:24 node /Users/ccheever/.volta/tools/image/packages/@openai/codex/bin/codex exec -m gpt-6-astra -c model_reasoning_effort=xhigh --dangerously-bypass-approvals-and-sandbox --json -o final-answer.md -",
+    "90652 90649       00:24 /Users/ccheever/.volta/tools/image/packages/@openai/codex/lib/node_modules/@openai/codex/node_modules/@openai/codex-darwin-arm64/vendor/aarch64-apple-darwin/bin/codex exec -m gpt-6-astra -c model_reasoning_effort=xhigh --dangerously-bypass-approvals-and-sandbox --json -o final-answer.md -"
+  ]
+}

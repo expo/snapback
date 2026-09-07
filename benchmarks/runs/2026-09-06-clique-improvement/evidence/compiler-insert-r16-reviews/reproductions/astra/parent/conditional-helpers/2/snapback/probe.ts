@@ -1,0 +1,1 @@
+import {mutation,t} from 'snapback2';import {records} from './schema';export const probe=mutation({flag:t.bool()},({db,ctx,args})=>{const row=db.insert(records,args.flag?{id:ctx.newId()}:{id:ctx.newId(),payload:null});return {row,stored:db.get(records,[row.id]),next:ctx.newId()};});

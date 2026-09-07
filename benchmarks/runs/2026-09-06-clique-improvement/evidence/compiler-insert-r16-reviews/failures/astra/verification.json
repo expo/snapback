@@ -1,0 +1,202 @@
+[
+  {
+    "name": "parent selected exact public inserted row point key",
+    "ok": true
+  },
+  {
+    "name": "parent selected public joined inserted nested capture",
+    "ok": true
+  },
+  {
+    "name": "parent selected public insert operands and read once",
+    "ok": true
+  },
+  {
+    "name": "parent selected public inserted decimal alternate key",
+    "ok": true
+  },
+  {
+    "name": "parent selected private renamed operation database insert",
+    "ok": true
+  },
+  {
+    "name": "parent selected private row spread preserves earlier argument member",
+    "ok": true
+  },
+  {
+    "name": "parent selected private immutable capture precedes reassignment",
+    "ok": true
+  },
+  {
+    "name": "parent selected public omitted insert member remains unproved",
+    "ok": true
+  },
+  {
+    "name": "parent selected private insert spread keeps authored optional omission",
+    "ok": true
+  },
+  {
+    "name": "parent selected public explicit null insert member remains proved",
+    "ok": true
+  },
+  {
+    "name": "parent selected R16 common conditional snapshot member capture false",
+    "ok": true
+  },
+  {
+    "name": "parent selected R16 common conditional snapshot member capture true",
+    "ok": true
+  },
+  {
+    "name": "parent selected R16 conditional ID input capture before assignment",
+    "ok": true
+  },
+  {
+    "name": "parent selected R16 conditional explicit null snapshot member",
+    "ok": true
+  },
+  {
+    "name": "parent selected R16 stable inserted capture before receiver assignment",
+    "ok": true
+  },
+  {
+    "name": "parent selected R16 receiver assignment stays in its branch",
+    "ok": true
+  },
+  {
+    "name": "parent selected R16 ordered input override false",
+    "ok": true
+  },
+  {
+    "name": "parent selected R16 ordered input override true",
+    "ok": true
+  },
+  {
+    "name": "parent selected R16 receiver assignment RHS uses original binding",
+    "ok": true
+  },
+  {
+    "name": "parent selected R16 receiver assignment waits for throwing RHS",
+    "ok": true
+  },
+  {
+    "name": "candidate selected exact public inserted row point key",
+    "ok": true
+  },
+  {
+    "name": "candidate selected public joined inserted nested capture",
+    "ok": true
+  },
+  {
+    "name": "candidate selected public insert operands and read once",
+    "ok": true
+  },
+  {
+    "name": "candidate selected public inserted decimal alternate key",
+    "ok": true
+  },
+  {
+    "name": "candidate selected private renamed operation database insert",
+    "ok": true
+  },
+  {
+    "name": "candidate selected private row spread preserves earlier argument member",
+    "ok": true
+  },
+  {
+    "name": "candidate selected private immutable capture precedes reassignment",
+    "ok": true
+  },
+  {
+    "name": "candidate selected public omitted insert member remains unproved",
+    "ok": true
+  },
+  {
+    "name": "candidate selected private insert spread keeps authored optional omission",
+    "ok": true
+  },
+  {
+    "name": "candidate selected public explicit null insert member remains proved",
+    "ok": true
+  },
+  {
+    "name": "candidate selected R16 common conditional snapshot member capture false",
+    "ok": true
+  },
+  {
+    "name": "candidate selected R16 common conditional snapshot member capture true",
+    "ok": true
+  },
+  {
+    "name": "candidate selected R16 conditional ID input capture before assignment",
+    "ok": true
+  },
+  {
+    "name": "candidate selected R16 conditional explicit null snapshot member",
+    "ok": true
+  },
+  {
+    "name": "candidate selected R16 stable inserted capture before receiver assignment",
+    "ok": true
+  },
+  {
+    "name": "candidate selected R16 receiver assignment stays in its branch",
+    "ok": true
+  },
+  {
+    "name": "candidate selected R16 ordered input override false",
+    "ok": true
+  },
+  {
+    "name": "candidate selected R16 ordered input override true",
+    "ok": true
+  },
+  {
+    "name": "candidate selected R16 receiver assignment RHS uses original binding",
+    "ok": true
+  },
+  {
+    "name": "candidate selected R16 receiver assignment RHS then no authority",
+    "ok": true
+  },
+  {
+    "name": "candidate selected R16 receiver assignment waits for throwing RHS",
+    "ok": true
+  },
+  {
+    "name": "parent throwing RHS retains target and first error",
+    "ok": true
+  },
+  {
+    "name": "parent exactly seven unchanged external type errors (type process remains red)",
+    "ok": true
+  },
+  {
+    "name": "candidate throwing RHS retains target and first error",
+    "ok": true
+  },
+  {
+    "name": "candidate exactly seven unchanged external type errors (type process remains red)",
+    "ok": true
+  },
+  {
+    "name": "R16 regression: typed object length must remain its field value",
+    "ok": false,
+    "error": "AssertionError((1, 9))"
+  },
+  {
+    "name": "R16 regression: helper conditional required id 0",
+    "ok": false,
+    "error": "AssertionError((False, True))"
+  },
+  {
+    "name": "R16 regression: helper conditional required id 1",
+    "ok": false,
+    "error": "AssertionError((False, True))"
+  },
+  {
+    "name": "Unresolved inherited receiver proof: replaced db direct scan loop must refuse",
+    "ok": false,
+    "error": "AssertionError((True, False))"
+  }
+]

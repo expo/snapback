@@ -1,0 +1,11 @@
+{
+  "name": "typed-object-length",
+  "public": false,
+  "schema": "import {schema,table,t,rule} from 'snapback2';export const records=table({columns:{d3:t.optional(t.decimal(3)),payload:t.optional(t.json(10000))},rules:{read:rule.allow(),insert:rule.allow()}});export default schema({tables:{records}});",
+  "source": "import {mutation,t,divmod} from 'snapback2';import {records} from './schema';export const probe=mutation({},({db,ctx,args})=>{let box={length:7};box={length:9};return box.length;});",
+  "runs": [
+    {
+      "args": {}
+    }
+  ]
+}

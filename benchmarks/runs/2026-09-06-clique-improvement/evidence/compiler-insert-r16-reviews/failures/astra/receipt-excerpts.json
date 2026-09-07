@@ -1,0 +1,127 @@
+{
+  "kind": "explicit compact derivative; per-command full source inventory remains at bound original paths",
+  "receipts": [
+    {
+      "original": "/Users/ccheever/clique-improvement/reviews/compiler-insert-provenance-r16/astra/review-evidence/remote/review-work/results/candidate-types/execution.json",
+      "original_sha256": "83270d68b28030375eb3711189b5fa66b83cc8d397709d0fae9aacfcd589fb4c",
+      "receipt": {
+        "pid": 3739437,
+        "cwd": "/home/ccheever/clique-reviews/compiler-insert-r16-e195-9a438eeb7c/astra",
+        "PATH": "/home/ccheever/clique-tooling/epyc-linux-tooling-20260907T010007Z-0fd567d96f/node-v22.23.2-linux-x64/bin:/home/ccheever/clique-tooling/epyc-linux-tooling-20260907T010007Z-0fd567d96f/bun-v1.3.12-linux-x64/bin:/usr/bin:/bin",
+        "command": [
+          "/home/ccheever/clique-tooling/epyc-linux-tooling-20260907T010007Z-0fd567d96f/bun-v1.3.12-linux-x64/bin/bun",
+          "review-work/scripts/types.ts",
+          "candidate"
+        ],
+        "limit_s": 30,
+        "started_unix": 1788760069.6154711,
+        "input_inventory_sha256": "436182e1af50e6516fc95f56377ffdb7fe7a7158ef0a604a95a9827593a5892e",
+        "timeout": false,
+        "exit": 1,
+        "duration_s": 2.861829366069287
+      }
+    },
+    {
+      "original": "/Users/ccheever/clique-improvement/reviews/compiler-insert-provenance-r16/astra/review-evidence/remote/review-work/results/candidate-types-corrected/execution.json",
+      "original_sha256": "1a75f4801755416fafc1d3669538943dd14509785f8bdb577be0d616ad421852",
+      "receipt": {
+        "pid": 3740649,
+        "cwd": "/home/ccheever/clique-reviews/compiler-insert-r16-e195-9a438eeb7c/astra",
+        "PATH": "/home/ccheever/clique-tooling/epyc-linux-tooling-20260907T010007Z-0fd567d96f/node-v22.23.2-linux-x64/bin:/home/ccheever/clique-tooling/epyc-linux-tooling-20260907T010007Z-0fd567d96f/bun-v1.3.12-linux-x64/bin:/usr/bin:/bin",
+        "command": [
+          "/home/ccheever/clique-tooling/epyc-linux-tooling-20260907T010007Z-0fd567d96f/bun-v1.3.12-linux-x64/bin/bun",
+          "review-work/scripts/types.ts",
+          "candidate"
+        ],
+        "limit_s": 30,
+        "started_unix": 1788760153.30041,
+        "input_inventory_sha256": "8852e5e481418132ae0893d399e23b003c187a0788a4a7476a00645453839e0e",
+        "timeout": false,
+        "exit": 1,
+        "duration_s": 2.998913903022185
+      }
+    },
+    {
+      "original": "/Users/ccheever/clique-improvement/reviews/compiler-insert-provenance-r16/astra/review-evidence/remote/review-work/results/parent-independent-0/execution.json",
+      "original_sha256": "31d3b1cfce7c06fbae54836cf1d83e9d50401f8e1ca4c1a0f42fa7374f5a92a4",
+      "receipt": {
+        "pid": 3733146,
+        "cwd": "/home/ccheever/clique-reviews/compiler-insert-r16-e195-9a438eeb7c/astra",
+        "PATH": "/home/ccheever/clique-tooling/epyc-linux-tooling-20260907T010007Z-0fd567d96f/node-v22.23.2-linux-x64/bin:/home/ccheever/clique-tooling/epyc-linux-tooling-20260907T010007Z-0fd567d96f/bun-v1.3.12-linux-x64/bin:/usr/bin:/bin",
+        "command": [
+          "/home/ccheever/clique-tooling/epyc-linux-tooling-20260907T010007Z-0fd567d96f/bun-v1.3.12-linux-x64/bin/bun",
+          "review-work/scripts/probe.ts",
+          "parent",
+          "review-work/cases/independent.json",
+          "0",
+          "4"
+        ],
+        "limit_s": 30,
+        "started_unix": 1788759446.0757627,
+        "input_inventory_sha256": "508a75c749ce145e2de72fb1e8f4a68e8b6fe1bda05079980557b632f458572d",
+        "timeout": false,
+        "exit": 1,
+        "duration_s": 0.17063570185564458
+      }
+    },
+    {
+      "original": "/Users/ccheever/clique-improvement/reviews/compiler-insert-provenance-r16/astra/review-evidence/remote/review-work/results/parent-types/execution.json",
+      "original_sha256": "3600635e1e859ebebd132b7dbdc9adb1f3ec08fd83e6a025def62a056b649d8d",
+      "receipt": {
+        "pid": 3739347,
+        "cwd": "/home/ccheever/clique-reviews/compiler-insert-r16-e195-9a438eeb7c/astra",
+        "PATH": "/home/ccheever/clique-tooling/epyc-linux-tooling-20260907T010007Z-0fd567d96f/node-v22.23.2-linux-x64/bin:/home/ccheever/clique-tooling/epyc-linux-tooling-20260907T010007Z-0fd567d96f/bun-v1.3.12-linux-x64/bin:/usr/bin:/bin",
+        "command": [
+          "/home/ccheever/clique-tooling/epyc-linux-tooling-20260907T010007Z-0fd567d96f/bun-v1.3.12-linux-x64/bin/bun",
+          "review-work/scripts/types.ts",
+          "parent"
+        ],
+        "limit_s": 30,
+        "started_unix": 1788760063.5416327,
+        "input_inventory_sha256": "436182e1af50e6516fc95f56377ffdb7fe7a7158ef0a604a95a9827593a5892e",
+        "timeout": false,
+        "exit": 1,
+        "duration_s": 2.8158675271552056
+      }
+    },
+    {
+      "original": "/Users/ccheever/clique-improvement/reviews/compiler-insert-provenance-r16/astra/review-evidence/remote/review-work/results/parent-types-corrected/execution.json",
+      "original_sha256": "e467cc80089a168a346721c681b909a54f66ce07acdbadffd9de885a4fd3ebab",
+      "receipt": {
+        "pid": 3740560,
+        "cwd": "/home/ccheever/clique-reviews/compiler-insert-r16-e195-9a438eeb7c/astra",
+        "PATH": "/home/ccheever/clique-tooling/epyc-linux-tooling-20260907T010007Z-0fd567d96f/node-v22.23.2-linux-x64/bin:/home/ccheever/clique-tooling/epyc-linux-tooling-20260907T010007Z-0fd567d96f/bun-v1.3.12-linux-x64/bin:/usr/bin:/bin",
+        "command": [
+          "/home/ccheever/clique-tooling/epyc-linux-tooling-20260907T010007Z-0fd567d96f/bun-v1.3.12-linux-x64/bin/bun",
+          "review-work/scripts/types.ts",
+          "parent"
+        ],
+        "limit_s": 30,
+        "started_unix": 1788760147.3168998,
+        "input_inventory_sha256": "8852e5e481418132ae0893d399e23b003c187a0788a4a7476a00645453839e0e",
+        "timeout": false,
+        "exit": 1,
+        "duration_s": 3.0352211359422654
+      }
+    },
+    {
+      "original": "/Users/ccheever/clique-improvement/reviews/compiler-insert-provenance-r16/astra/review-evidence/remote/review-work/results/semantic-verification/execution.json",
+      "original_sha256": "598e360a02b9f6f78dded7f1152a982ad50741ec5a8aa9c21b8072eb3182493c",
+      "receipt": {
+        "pid": 3743011,
+        "cwd": "/home/ccheever/clique-reviews/compiler-insert-r16-e195-9a438eeb7c/astra",
+        "PATH": "/home/ccheever/clique-tooling/epyc-linux-tooling-20260907T010007Z-0fd567d96f/node-v22.23.2-linux-x64/bin:/home/ccheever/clique-tooling/epyc-linux-tooling-20260907T010007Z-0fd567d96f/bun-v1.3.12-linux-x64/bin:/usr/bin:/bin",
+        "command": [
+          "/usr/bin/python3",
+          "review-work/scripts/verify.py"
+        ],
+        "limit_s": 30,
+        "started_unix": 1788760371.01025,
+        "input_inventory_sha256": "8152281ccc88f67a8764a9ec35a7de5a8db5a278d2aa9da56a333f7dca9aa382",
+        "timeout": false,
+        "exit": 1,
+        "duration_s": 0.029981764033436775
+      }
+    }
+  ]
+}

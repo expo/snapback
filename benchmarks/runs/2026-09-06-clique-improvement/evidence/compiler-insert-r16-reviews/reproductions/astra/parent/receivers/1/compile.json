@@ -1,0 +1,168 @@
+{
+  "ok": true,
+  "project": {
+    "schema": {
+      "tables": {
+        "records": {
+          "columns": {
+            "id": "Id",
+            "d3": {
+              "Optional": {
+                "Decimal": {
+                  "scale": 3
+                }
+              }
+            },
+            "payload": {
+              "Optional": {
+                "Json": {
+                  "max_bytes": 10000
+                }
+              }
+            }
+          },
+          "indexes": {
+            "byId": {
+              "components": [
+                {
+                  "Column": "id"
+                }
+              ],
+              "unique": true
+            }
+          },
+          "rules": {
+            "read": "Allow",
+            "insert": "Allow",
+            "update": "Deny",
+            "delete": "Deny"
+          },
+          "constraints": [],
+          "retain": "until-revoked"
+        }
+      },
+      "maintains": [],
+      "channels": {},
+      "auth": {
+        "password": false,
+        "guests": false
+      },
+      "effects": []
+    },
+    "programs": [
+      {
+        "name": "probe.probe",
+        "kind": "Mutation",
+        "args": {
+          "flag": "Bool",
+          "payload": {
+            "Json": {
+              "max_bytes": 100
+            }
+          }
+        },
+        "read_time_granularity_ms": null,
+        "body": [
+          {
+            "If": {
+              "condition": {
+                "Variable": "flag"
+              },
+              "then_body": [
+                {
+                  "Assign": {
+                    "name": "db",
+                    "value": {
+                      "Variable": "payload"
+                    }
+                  }
+                }
+              ],
+              "else_body": []
+            }
+          },
+          {
+            "Let": {
+              "name": "count",
+              "value": {
+                "Literal": {
+                  "Int": 0
+                }
+              }
+            }
+          },
+          {
+            "For": {
+              "binding": "row",
+              "domain": {
+                "Page": {
+                  "site": "probe.probe.0",
+                  "table": "records",
+                  "index": "byId",
+                  "prefix": [],
+                  "order": "Asc",
+                  "take": {
+                    "Literal": 2
+                  },
+                  "after": null,
+                  "before": null,
+                  "range": null,
+                  "merge_site": null,
+                  "provenance": "Const"
+                }
+              },
+              "body": [
+                {
+                  "Assign": {
+                    "name": "count",
+                    "value": {
+                      "Binary": {
+                        "op": "Add",
+                        "left": {
+                          "Variable": "count"
+                        },
+                        "right": {
+                          "Literal": {
+                            "Int": 1
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              ]
+            }
+          },
+          {
+            "Return": {
+              "Object": {
+                "count": {
+                  "Variable": "count"
+                },
+                "next": {
+                  "Input": "NewId"
+                }
+              }
+            }
+          }
+        ]
+      }
+    ],
+    "effects": []
+  },
+  "sources": {
+    "probe.probe": {
+      "file": "snapback/probe.ts",
+      "line": 1,
+      "col": 90
+    },
+    "probe.probe/for/row/0": {
+      "file": "snapback/probe.ts",
+      "line": 1,
+      "col": 203
+    }
+  },
+  "apiDts": "import type { Bytes, Cursor, Decimal, ImageAsset, Json, Money, Page, Principal, VideoAsset } from 'snapback2';\nimport type { Channel, Op } from 'snapback2/client';\n\ntype RecordsRow = {\n  id: string;\n  d3?: Decimal<3>;\n  payload?: Json;\n};\n\ndeclare module 'snapback2/client' {\n  interface Api {\n    readonly probe: {\n      readonly probe: Op<{ payload: any; flag: boolean }, { count: number; next: string; }>;\n    };\n  }\n}\n\nexport {};\n",
+  "quarry": [],
+  "ms": 30.82
+}

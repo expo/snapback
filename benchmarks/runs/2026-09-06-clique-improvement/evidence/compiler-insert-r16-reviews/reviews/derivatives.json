@@ -1,0 +1,19 @@
+{
+  "redactions": [
+    {
+      "path": "reviews/grok/review.md",
+      "source": "/Users/ccheever/clique-improvement/reviews/compiler-insert-provenance-r16/grok/review.md",
+      "original_sha256": "4f9ef24795bec5cece0c962050e92331a4a5d6a753b135606d5e1b46e79feca6",
+      "derivative_sha256": "ea0da354ce4fa5b2b1586a6c6bfb3bda815882040a96328ecc3f06c226ecdf31",
+      "operation": "exact fleet address replaced; no other content changes"
+    },
+    {
+      "path": "reviews/grok/supervisor-initial-full-report.md",
+      "source": "/Users/ccheever/clique-improvement/reviews/compiler-insert-provenance-r16/grok/supervisor-initial-full-report.md",
+      "original_sha256": "4f9ef24795bec5cece0c962050e92331a4a5d6a753b135606d5e1b46e79feca6",
+      "derivative_sha256": "ea0da354ce4fa5b2b1586a6c6bfb3bda815882040a96328ecc3f06c226ecdf31",
+      "operation": "exact fleet address replaced; no other content changes"
+    }
+  ],
+  "scope_annotation": "Grok report wording eval native insert/get means compiler IR evaluated by the adapted frozen evaluator. Neither reviewer ran a native server or native checker; no native product execution claim. Review verdict text otherwise retained."
+}

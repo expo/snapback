@@ -1,0 +1,322 @@
+[
+  {
+    "args": {
+      "payload": {
+        "Row": {}
+      },
+      "flag": {
+        "Bool": true
+      }
+    },
+    "raw": {
+      "state": "predicted",
+      "partialSites": [],
+      "execution": {
+        "result": {
+          "Row": {
+            "count": {
+              "Int": 0
+            },
+            "next": {
+              "Id": "id-1"
+            }
+          }
+        },
+        "trace": {
+          "ranges": [
+            {
+              "site": "probe.probe.0",
+              "table": "records",
+              "index": "byId",
+              "provenance": "Const",
+              "prefix": [],
+              "order": "Asc",
+              "take": 2,
+              "after": null,
+              "before": null,
+              "gt": null,
+              "gte": null,
+              "lt": null,
+              "lte": null,
+              "rule_hash": "bdfc8e95aca1403dc69c3808856509106baf7735cd2c27c5330a952565369192",
+              "stop": "exhausted",
+              "lastReturnedSuffix": null
+            }
+          ],
+          "absences": [],
+          "points": [],
+          "merges": [],
+          "verdicts": [],
+          "steps": 9,
+          "examined": 0
+        },
+        "next": null,
+        "writes": []
+      },
+      "uncoveredSites": [
+        "probe.probe.0"
+      ]
+    },
+    "rawDecoded": {
+      "result": {
+        "count": 0,
+        "next": "id-1"
+      },
+      "writes": [],
+      "points": []
+    },
+    "bodyFlow": {
+      "kind": "return",
+      "value": {
+        "Row": {
+          "count": {
+            "Int": 0
+          },
+          "next": {
+            "Id": "id-1"
+          }
+        }
+      }
+    },
+    "bodyState": {
+      "scope": "body-only Runner observation; adapted schema, no certificate or authority claim",
+      "env": {
+        "payload": {
+          "Row": {}
+        },
+        "flag": {
+          "Bool": true
+        },
+        "db": {
+          "Row": {}
+        },
+        "count": {
+          "Int": 0
+        }
+      },
+      "remainingIds": [
+        "id-2",
+        "id-3",
+        "id-4",
+        "id-5",
+        "id-6",
+        "id-7",
+        "id-8",
+        "id-9",
+        "id-10",
+        "id-11",
+        "id-12",
+        "id-13",
+        "id-14",
+        "id-15",
+        "id-16",
+        "id-17",
+        "id-18",
+        "id-19",
+        "id-20",
+        "id-21",
+        "id-22",
+        "id-23",
+        "id-24",
+        "id-25",
+        "id-26",
+        "id-27",
+        "id-28",
+        "id-29",
+        "id-30",
+        "id-31",
+        "id-32"
+      ],
+      "writes": [],
+      "trace": {
+        "ranges": [
+          {
+            "site": "probe.probe.0",
+            "table": "records",
+            "index": "byId",
+            "provenance": "Const",
+            "prefix": [],
+            "order": "Asc",
+            "take": 2,
+            "after": null,
+            "before": null,
+            "gt": null,
+            "gte": null,
+            "lt": null,
+            "lte": null,
+            "rule_hash": "bdfc8e95aca1403dc69c3808856509106baf7735cd2c27c5330a952565369192",
+            "stop": "exhausted",
+            "lastReturnedSuffix": null
+          }
+        ],
+        "absences": [],
+        "points": [],
+        "merges": [],
+        "verdicts": [],
+        "steps": 9,
+        "examined": 0
+      },
+      "partialSites": []
+    }
+  },
+  {
+    "args": {
+      "payload": {
+        "Row": {}
+      },
+      "flag": {
+        "Bool": false
+      }
+    },
+    "raw": {
+      "state": "predicted",
+      "partialSites": [],
+      "execution": {
+        "result": {
+          "Row": {
+            "count": {
+              "Int": 0
+            },
+            "next": {
+              "Id": "id-1"
+            }
+          }
+        },
+        "trace": {
+          "ranges": [
+            {
+              "site": "probe.probe.0",
+              "table": "records",
+              "index": "byId",
+              "provenance": "Const",
+              "prefix": [],
+              "order": "Asc",
+              "take": 2,
+              "after": null,
+              "before": null,
+              "gt": null,
+              "gte": null,
+              "lt": null,
+              "lte": null,
+              "rule_hash": "bdfc8e95aca1403dc69c3808856509106baf7735cd2c27c5330a952565369192",
+              "stop": "exhausted",
+              "lastReturnedSuffix": null
+            }
+          ],
+          "absences": [],
+          "points": [],
+          "merges": [],
+          "verdicts": [],
+          "steps": 9,
+          "examined": 0
+        },
+        "next": null,
+        "writes": []
+      },
+      "uncoveredSites": [
+        "probe.probe.0"
+      ]
+    },
+    "rawDecoded": {
+      "result": {
+        "count": 0,
+        "next": "id-1"
+      },
+      "writes": [],
+      "points": []
+    },
+    "bodyFlow": {
+      "kind": "return",
+      "value": {
+        "Row": {
+          "count": {
+            "Int": 0
+          },
+          "next": {
+            "Id": "id-1"
+          }
+        }
+      }
+    },
+    "bodyState": {
+      "scope": "body-only Runner observation; adapted schema, no certificate or authority claim",
+      "env": {
+        "payload": {
+          "Row": {}
+        },
+        "flag": {
+          "Bool": false
+        },
+        "db": {
+          "Row": {}
+        },
+        "count": {
+          "Int": 0
+        }
+      },
+      "remainingIds": [
+        "id-2",
+        "id-3",
+        "id-4",
+        "id-5",
+        "id-6",
+        "id-7",
+        "id-8",
+        "id-9",
+        "id-10",
+        "id-11",
+        "id-12",
+        "id-13",
+        "id-14",
+        "id-15",
+        "id-16",
+        "id-17",
+        "id-18",
+        "id-19",
+        "id-20",
+        "id-21",
+        "id-22",
+        "id-23",
+        "id-24",
+        "id-25",
+        "id-26",
+        "id-27",
+        "id-28",
+        "id-29",
+        "id-30",
+        "id-31",
+        "id-32"
+      ],
+      "writes": [],
+      "trace": {
+        "ranges": [
+          {
+            "site": "probe.probe.0",
+            "table": "records",
+            "index": "byId",
+            "provenance": "Const",
+            "prefix": [],
+            "order": "Asc",
+            "take": 2,
+            "after": null,
+            "before": null,
+            "gt": null,
+            "gte": null,
+            "lt": null,
+            "lte": null,
+            "rule_hash": "bdfc8e95aca1403dc69c3808856509106baf7735cd2c27c5330a952565369192",
+            "stop": "exhausted",
+            "lastReturnedSuffix": null
+          }
+        ],
+        "absences": [],
+        "points": [],
+        "merges": [],
+        "verdicts": [],
+        "steps": 9,
+        "examined": 0
+      },
+      "partialSites": []
+    }
+  }
+]

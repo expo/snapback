@@ -1,0 +1,3 @@
+error: Cannot find module '../../../crates/snapback2-core/ir-contract.json' from '/home/ccheever/clique-reviews/compiler-insert-r16-e195-9a438eeb7c/astra/review-work/parent/snapback2/packages/compiler/src/ir.ts'
+
+Bun v1.3.12 (Linux x64)

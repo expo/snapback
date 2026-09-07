@@ -1,0 +1,12 @@
+{
+  "candidate": "e19565bd9bb85ac23a28def94ba2d9163d23e251",
+  "parent": "dd54ba3b18b21051bbec4ad383e4929eb46463b0",
+  "files": 1919,
+  "manifest_sha256": "bac3b333eb88533977a21a23f054b4bc7828fd299e57b1e48d495a439f5879e8",
+  "remote_root": "/home/ccheever/clique-reviews/compiler-insert-r16-e195-9a438eeb7c",
+  "review_launched": false,
+  "archive_sha256": "107cfeb1d409c0f8781831c2c6500bdb1212be87ecc4580a197fa37726dae358",
+  "archive_bytes": 61573120,
+  "compiler_files": 219,
+  "dependencies": 320
+}

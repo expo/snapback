@@ -1,0 +1,3697 @@
+[
+  {
+    "lane": "candidate",
+    "group": "baseline",
+    "index": "0",
+    "name": "astra-custom2-0",
+    "authoring": "checked-private authoring:'any'",
+    "directory": "review-evidence/remote/review-work/projects/candidate/baseline/0",
+    "ok": false,
+    "diagnostics": [
+      {
+        "code": "E_PROVENANCE_AMBIGUOUS",
+        "family": "opaque",
+        "message": "read key provenance is ambiguous; each key must follow one direct origin rule; candidate direct origins: <unknown origin>",
+        "site": "snapback/probe.ts:1:288",
+        "rule": "read keys have one unambiguous origin",
+        "rewrite": "import {mutation,t} from 'snapback2';import {records} from './schema';export const probe=mutation({flag:t.bool()},({db,ctx,args})=>{const data:any=args.flag?{id:ctx.newId(),payload:null}:{id:ctx.newId(),d3:2,payload:null};const row:any=db.insert(records,data);return db.get(records.byD3,[(() => { throw new Error(\"E_PROVENANCE_AMBIGUOUS: choose one direct origin: <unknown origin>\"); })()]);});",
+        "guide": "opaque/provenance"
+      }
+    ],
+    "outcomes": []
+  },
+  {
+    "lane": "candidate",
+    "group": "baseline",
+    "index": "6",
+    "name": "grok-json-only",
+    "authoring": "checked-private authoring:'any'",
+    "directory": "review-evidence/remote/review-work/projects/candidate/baseline/6",
+    "ok": false,
+    "diagnostics": [
+      {
+        "code": "E_PROVENANCE_AMBIGUOUS",
+        "family": "opaque",
+        "message": "read key provenance is ambiguous; each key must follow one direct origin rule; candidate direct origins: <unknown origin>",
+        "site": "snapback/probe.ts:2:157",
+        "rule": "read keys have one unambiguous origin",
+        "rewrite": "import {mutation,t} from 'snapback2';import {records} from './schema';\nexport const probe=mutation({payload:t.json(100)},({db,ctx,args})=>{const input:any=args.payload; const row=db.insert(records,input); return db.get(records,[(() => { throw new Error(\"E_PROVENANCE_AMBIGUOUS: choose one direct origin: <unknown origin>\"); })()]);});",
+        "guide": "opaque/provenance"
+      }
+    ],
+    "outcomes": []
+  },
+  {
+    "lane": "candidate",
+    "group": "baseline",
+    "index": "1",
+    "name": "astra-custom2-2",
+    "authoring": "checked-private authoring:'any'",
+    "directory": "review-evidence/remote/review-work/projects/candidate/baseline/1",
+    "ok": false,
+    "diagnostics": [
+      {
+        "code": "E_PROVENANCE_AMBIGUOUS",
+        "family": "opaque",
+        "message": "read key provenance is ambiguous; each key must follow one direct origin rule; candidate direct origins: <unknown origin>",
+        "site": "snapback/probe.ts:1:221",
+        "rule": "read keys have one unambiguous origin",
+        "rewrite": "import {mutation,t} from 'snapback2';import {records} from './schema';export const probe=mutation({payload:t.json(1000)},({db,ctx,args})=>{const row:any=db.insert(records,args.payload as any);return db.get(records.byKey,[(() => { throw new Error(\"E_PROVENANCE_AMBIGUOUS: choose one direct origin: <unknown origin>\"); })()]);});",
+        "guide": "opaque/provenance"
+      }
+    ],
+    "outcomes": []
+  },
+  {
+    "lane": "candidate",
+    "group": "baseline",
+    "index": "4",
+    "name": "astra-custom2-5",
+    "authoring": "checked-private authoring:'any'",
+    "directory": "review-evidence/remote/review-work/projects/candidate/baseline/4",
+    "ok": false,
+    "diagnostics": [
+      {
+        "code": "E_OPAQUE",
+        "family": "opaque",
+        "message": "helper db.insert is not defined in this module or the pure builtin set",
+        "site": "snapback/probe.ts:1:199",
+        "rewrite": "import {mutation,t} from 'snapback2';import {records} from './schema';export const probe=mutation({flag:t.bool(),payload:t.json(100)},({db,ctx,args})=>{if(args.flag)db=args.payload as any;const row=db.insert(records,{id:ctx.newId(),d3:2,payload:null});return db.get(records,[row.id]);});",
+        "guide": "opaque/subset"
+      },
+      {
+        "code": "E_OPAQUE",
+        "family": "opaque",
+        "message": "helper db.get is not defined in this module or the pure builtin set",
+        "site": "snapback/probe.ts:1:260",
+        "rewrite": "import {mutation,t} from 'snapback2';import {records} from './schema';export const probe=mutation({flag:t.bool(),payload:t.json(100)},({db,ctx,args})=>{if(args.flag)db=args.payload as any;const row=db.insert(records,{id:ctx.newId(),d3:2,payload:null});return db.get(records,[row.id]);});",
+        "guide": "opaque/subset"
+      }
+    ],
+    "outcomes": []
+  },
+  {
+    "lane": "candidate",
+    "group": "baseline",
+    "index": "3",
+    "name": "astra-custom2-4",
+    "authoring": "checked-private authoring:'any'",
+    "directory": "review-evidence/remote/review-work/projects/candidate/baseline/3",
+    "ok": false,
+    "diagnostics": [
+      {
+        "code": "E_OPAQUE",
+        "family": "opaque",
+        "message": "expression statement does not lower to a data operation",
+        "site": "snapback/probe.ts:1:162",
+        "rewrite": "import {mutation,t} from 'snapback2';import {records} from './schema';export const probe=mutation({payload:t.json(100)},({db,ctx,args})=>{db=args.payload as any;db.insert(records,{id:\"given\",d3:2,payload:null});return db.get(records,[\"given\"]);});",
+        "guide": "opaque/subset"
+      },
+      {
+        "code": "E_OPAQUE",
+        "family": "opaque",
+        "message": "helper db.get is not defined in this module or the pure builtin set",
+        "site": "snapback/probe.ts:1:219",
+        "rewrite": "import {mutation,t} from 'snapback2';import {records} from './schema';export const probe=mutation({payload:t.json(100)},({db,ctx,args})=>{db=args.payload as any;db.insert(records,{id:\"given\",d3:2,payload:null});return db.get(records,[\"given\"]);});",
+        "guide": "opaque/subset"
+      }
+    ],
+    "outcomes": []
+  },
+  {
+    "lane": "candidate",
+    "group": "baseline",
+    "index": "2",
+    "name": "astra-custom2-3",
+    "authoring": "checked-private authoring:'any'",
+    "directory": "review-evidence/remote/review-work/projects/candidate/baseline/2",
+    "ok": false,
+    "diagnostics": [
+      {
+        "code": "E_OPAQUE",
+        "family": "opaque",
+        "message": "helper db.insert is not defined in this module or the pure builtin set",
+        "site": "snapback/probe.ts:1:172",
+        "rewrite": "import {mutation,t} from 'snapback2';import {records} from './schema';export const probe=mutation({payload:t.json(100)},({db,ctx,args})=>{db=args.payload as any;const row=db.insert(records,{id:ctx.newId(),d3:2,payload:null});return {row,stored:db.get(records,[row.id]),next:ctx.newId()};});",
+        "guide": "opaque/subset"
+      },
+      {
+        "code": "E_OPAQUE",
+        "family": "opaque",
+        "message": "helper db.get is not defined in this module or the pure builtin set",
+        "site": "snapback/probe.ts:1:245",
+        "rewrite": "import {mutation,t} from 'snapback2';import {records} from './schema';export const probe=mutation({payload:t.json(100)},({db,ctx,args})=>{db=args.payload as any;const row=db.insert(records,{id:ctx.newId(),d3:2,payload:null});return {row,stored:db.get(records,[row.id]),next:ctx.newId()};});",
+        "guide": "opaque/subset"
+      }
+    ],
+    "outcomes": []
+  },
+  {
+    "lane": "candidate",
+    "group": "baseline",
+    "index": "5",
+    "name": "astra-extended-4",
+    "authoring": "checked-private authoring:'any'",
+    "directory": "review-evidence/remote/review-work/projects/candidate/baseline/5",
+    "ok": false,
+    "diagnostics": [
+      {
+        "code": "E_PROVENANCE_AMBIGUOUS",
+        "family": "opaque",
+        "message": "read key provenance is ambiguous; each key must follow one direct origin rule; candidate direct origins: <unknown origin>, args.payload, row.key",
+        "site": "snapback/probe.ts:1:256",
+        "rule": "read keys have one unambiguous origin",
+        "rewrite": "import {mutation,t} from 'snapback2';import {records} from './schema';export const probe=mutation({payload:t.json(1000)},({db,ctx,args})=>{let row:any=db.insert(records,args.payload as any);const box={row,key:row.key};row=null;return db.get(records.byKey,[(() => { throw new Error(\"E_PROVENANCE_AMBIGUOUS: choose one direct origin: <unknown origin> | args.payload | row.key\"); })()]);});",
+        "guide": "opaque/provenance"
+      }
+    ],
+    "outcomes": []
+  },
+  {
+    "lane": "candidate",
+    "group": "receivers",
+    "index": "0",
+    "name": "reassigned-scan-loop",
+    "authoring": "checked-private authoring:'any'",
+    "directory": "review-evidence/remote/review-work/projects/candidate/receivers/0",
+    "ok": true,
+    "diagnostics": [],
+    "outcomes": [
+      {
+        "state": "predicted",
+        "error": null,
+        "value": {
+          "count": 0,
+          "next": "id-1"
+        },
+        "constructedCoveredValue": null
+      },
+      {
+        "state": "predicted",
+        "error": null,
+        "value": {
+          "count": 0,
+          "next": "id-1"
+        },
+        "constructedCoveredValue": null
+      }
+    ]
+  },
+  {
+    "lane": "candidate",
+    "group": "receivers",
+    "index": "1",
+    "name": "branch-reassigned-scan-loop",
+    "authoring": "checked-private authoring:'any'",
+    "directory": "review-evidence/remote/review-work/projects/candidate/receivers/1",
+    "ok": true,
+    "diagnostics": [],
+    "outcomes": [
+      {
+        "state": "predicted",
+        "error": null,
+        "value": {
+          "count": 0,
+          "next": "id-1"
+        },
+        "constructedCoveredValue": null
+      },
+      {
+        "state": "predicted",
+        "error": null,
+        "value": {
+          "count": 0,
+          "next": "id-1"
+        },
+        "constructedCoveredValue": null
+      }
+    ]
+  },
+  {
+    "lane": "candidate",
+    "group": "receivers",
+    "index": "3",
+    "name": "stable-renamed-scan-loop",
+    "authoring": "checked-private authoring:'any'",
+    "directory": "review-evidence/remote/review-work/projects/candidate/receivers/3",
+    "ok": true,
+    "diagnostics": [],
+    "outcomes": [
+      {
+        "state": "predicted",
+        "error": null,
+        "value": {
+          "count": 0,
+          "next": "id-1"
+        },
+        "constructedCoveredValue": null
+      },
+      {
+        "state": "predicted",
+        "error": null,
+        "value": {
+          "count": 0,
+          "next": "id-1"
+        },
+        "constructedCoveredValue": null
+      }
+    ]
+  },
+  {
+    "lane": "candidate",
+    "group": "receivers",
+    "index": "2",
+    "name": "self-replaced-scan-loop",
+    "authoring": "checked-private authoring:'any'",
+    "directory": "review-evidence/remote/review-work/projects/candidate/receivers/2",
+    "ok": true,
+    "diagnostics": [],
+    "outcomes": [
+      {
+        "state": "predicted",
+        "error": null,
+        "value": {
+          "count": 1,
+          "next": "id-2"
+        },
+        "constructedCoveredValue": null
+      },
+      {
+        "state": "predicted",
+        "error": null,
+        "value": {
+          "count": 1,
+          "next": "id-2"
+        },
+        "constructedCoveredValue": null
+      }
+    ]
+  },
+  {
+    "lane": "candidate",
+    "group": "independent",
+    "index": "0",
+    "name": "assigned-row-length",
+    "authoring": "checked-private authoring:'any'",
+    "directory": "review-evidence/remote/review-work/projects/candidate/independent/0",
+    "ok": true,
+    "diagnostics": [],
+    "outcomes": [
+      {
+        "state": "predicted",
+        "error": null,
+        "value": {
+          "next": "id-2",
+          "value": 1
+        },
+        "constructedCoveredValue": null
+      },
+      {
+        "state": "predicted",
+        "error": null,
+        "value": {
+          "next": "id-2",
+          "value": 1
+        },
+        "constructedCoveredValue": null
+      }
+    ]
+  },
+  {
+    "lane": "candidate",
+    "group": "independent",
+    "index": "7",
+    "name": "self-receiver-many-operands",
+    "authoring": "checked-private authoring:'any'",
+    "directory": "review-evidence/remote/review-work/projects/candidate/independent/7",
+    "ok": true,
+    "diagnostics": [],
+    "outcomes": [
+      {
+        "state": "predicted",
+        "error": null,
+        "value": {
+          "next": "id-2",
+          "row": {
+            "id": "id-1",
+            "length": 2,
+            "payload": null
+          }
+        },
+        "constructedCoveredValue": null
+      },
+      {
+        "state": null,
+        "error": "E_DIV_ZERO",
+        "value": null,
+        "constructedCoveredValue": null
+      }
+    ]
+  },
+  {
+    "lane": "candidate",
+    "group": "independent",
+    "index": "6",
+    "name": "self-row-read-key",
+    "authoring": "checked-private authoring:'any'",
+    "directory": "review-evidence/remote/review-work/projects/candidate/independent/6",
+    "ok": true,
+    "diagnostics": [],
+    "outcomes": [
+      {
+        "state": "predicted",
+        "error": null,
+        "value": {
+          "id": "id-1",
+          "length": 7,
+          "payload": null
+        },
+        "constructedCoveredValue": null
+      },
+      {
+        "state": "predicted",
+        "error": null,
+        "value": {
+          "id": "id-1",
+          "length": 7,
+          "payload": null
+        },
+        "constructedCoveredValue": null
+      }
+    ]
+  },
+  {
+    "lane": "candidate",
+    "group": "independent",
+    "index": "1",
+    "name": "assigned-object-length",
+    "authoring": "checked-private authoring:'any'",
+    "directory": "review-evidence/remote/review-work/projects/candidate/independent/1",
+    "ok": true,
+    "diagnostics": [],
+    "outcomes": [
+      {
+        "state": "predicted",
+        "error": null,
+        "value": 1,
+        "constructedCoveredValue": null
+      },
+      {
+        "state": "predicted",
+        "error": null,
+        "value": 1,
+        "constructedCoveredValue": null
+      }
+    ]
+  },
+  {
+    "lane": "candidate",
+    "group": "independent",
+    "index": "4",
+    "name": "branch-row-length",
+    "authoring": "checked-private authoring:'any'",
+    "directory": "review-evidence/remote/review-work/projects/candidate/independent/4",
+    "ok": true,
+    "diagnostics": [],
+    "outcomes": [
+      {
+        "state": "predicted",
+        "error": null,
+        "value": 1,
+        "constructedCoveredValue": null
+      },
+      {
+        "state": "predicted",
+        "error": null,
+        "value": 7,
+        "constructedCoveredValue": null
+      }
+    ]
+  },
+  {
+    "lane": "candidate",
+    "group": "independent",
+    "index": "3",
+    "name": "stable-row-length",
+    "authoring": "checked-private authoring:'any'",
+    "directory": "review-evidence/remote/review-work/projects/candidate/independent/3",
+    "ok": true,
+    "diagnostics": [],
+    "outcomes": [
+      {
+        "state": "predicted",
+        "error": null,
+        "value": 7,
+        "constructedCoveredValue": null
+      },
+      {
+        "state": "predicted",
+        "error": null,
+        "value": 7,
+        "constructedCoveredValue": null
+      }
+    ]
+  },
+  {
+    "lane": "candidate",
+    "group": "independent",
+    "index": "2",
+    "name": "assigned-row-length-captured",
+    "authoring": "checked-private authoring:'any'",
+    "directory": "review-evidence/remote/review-work/projects/candidate/independent/2",
+    "ok": true,
+    "diagnostics": [],
+    "outcomes": [
+      {
+        "state": "predicted",
+        "error": null,
+        "value": {
+          "current": 1,
+          "saved": 7
+        },
+        "constructedCoveredValue": null
+      },
+      {
+        "state": "predicted",
+        "error": null,
+        "value": {
+          "current": 1,
+          "saved": 7
+        },
+        "constructedCoveredValue": null
+      }
+    ]
+  },
+  {
+    "lane": "candidate",
+    "group": "independent",
+    "index": "5",
+    "name": "self-row-spread",
+    "authoring": "checked-private authoring:'any'",
+    "directory": "review-evidence/remote/review-work/projects/candidate/independent/5",
+    "ok": true,
+    "diagnostics": [],
+    "outcomes": [
+      {
+        "state": "predicted",
+        "error": null,
+        "value": {
+          "id": "id-1",
+          "length": 9
+        },
+        "constructedCoveredValue": null
+      },
+      {
+        "state": "predicted",
+        "error": null,
+        "value": {
+          "id": "id-1",
+          "length": 9
+        },
+        "constructedCoveredValue": null
+      }
+    ]
+  },
+  {
+    "lane": "candidate",
+    "group": "selected",
+    "index": "20",
+    "name": "R16 receiver assignment waits for throwing RHS",
+    "authoring": "checked-private authoring:'any'",
+    "directory": "review-evidence/remote/review-work/projects/candidate/selected/20",
+    "ok": true,
+    "diagnostics": [],
+    "outcomes": [
+      {
+        "state": null,
+        "error": "E_DIV_ZERO",
+        "value": null,
+        "constructedCoveredValue": null
+      },
+      {
+        "state": "predicted",
+        "error": null,
+        "value": {
+          "next": "id-2",
+          "row": {
+            "id": "id-1",
+            "payload": {
+              "quotient": 2,
+              "remainder": 0,
+              "sink": "lexicographic-id"
+            }
+          }
+        },
+        "constructedCoveredValue": null
+      }
+    ]
+  },
+  {
+    "lane": "candidate",
+    "group": "selected",
+    "index": "18",
+    "name": "R16 receiver assignment RHS uses original binding",
+    "authoring": "checked-private authoring:'any'",
+    "directory": "review-evidence/remote/review-work/projects/candidate/selected/18",
+    "ok": true,
+    "diagnostics": [],
+    "outcomes": [
+      {
+        "state": "predicted",
+        "error": null,
+        "value": {
+          "next": "id-2",
+          "row": {
+            "d3": 2000,
+            "id": "id-1",
+            "payload": null
+          }
+        },
+        "constructedCoveredValue": null
+      }
+    ]
+  },
+  {
+    "lane": "candidate",
+    "group": "selected",
+    "index": "9",
+    "name": "public explicit null insert member remains proved",
+    "authoring": "public Quarry",
+    "directory": "review-evidence/remote/review-work/projects/candidate/selected/9",
+    "ok": true,
+    "diagnostics": [],
+    "outcomes": [
+      {
+        "state": "partial",
+        "error": null,
+        "value": null,
+        "constructedCoveredValue": {
+          "next": "id-2",
+          "row": {
+            "d3": null,
+            "id": "id-1",
+            "payload": null
+          },
+          "stored": {
+            "d3": null,
+            "id": "id-1",
+            "payload": null
+          }
+        }
+      }
+    ]
+  },
+  {
+    "lane": "candidate",
+    "group": "selected",
+    "index": "0",
+    "name": "exact public inserted row point key",
+    "authoring": "public Quarry",
+    "directory": "review-evidence/remote/review-work/projects/candidate/selected/0",
+    "ok": true,
+    "diagnostics": [],
+    "outcomes": [
+      {
+        "state": "predicted",
+        "error": null,
+        "value": [
+          4,
+          5
+        ],
+        "constructedCoveredValue": null
+      },
+      {
+        "state": "predicted",
+        "error": null,
+        "value": [
+          1,
+          2,
+          3
+        ],
+        "constructedCoveredValue": null
+      },
+      {
+        "state": "predicted",
+        "error": null,
+        "value": [],
+        "constructedCoveredValue": null
+      },
+      {
+        "state": "predicted",
+        "error": null,
+        "value": [
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7
+        ],
+        "constructedCoveredValue": null
+      },
+      {
+        "state": null,
+        "error": "E_FANOUT",
+        "value": null,
+        "constructedCoveredValue": null
+      }
+    ]
+  },
+  {
+    "lane": "candidate",
+    "group": "selected",
+    "index": "11",
+    "name": "R16 common conditional snapshot member capture true",
+    "authoring": "checked-private authoring:'any'",
+    "directory": "review-evidence/remote/review-work/projects/candidate/selected/11",
+    "ok": false,
+    "diagnostics": [
+      {
+        "code": "E_DECIMAL_SCALE",
+        "family": "args",
+        "message": "d3: unknown does not prove the representation required by Decimal<3>",
+        "site": "snapback/probe.ts:2:183",
+        "rewrite": "use a value with the destination's exact Decimal scale, or convert each whole-unit value before combining representations",
+        "guide": "programs/types"
+      },
+      {
+        "code": "E_DECIMAL_SCALE",
+        "family": "args",
+        "message": "d3: unknown does not prove the representation required by Decimal<3>",
+        "site": "snapback/probe.ts:2:237",
+        "rewrite": "use a value with the destination's exact Decimal scale, or convert each whole-unit value before combining representations",
+        "guide": "programs/types"
+      }
+    ],
+    "outcomes": []
+  },
+  {
+    "lane": "candidate",
+    "group": "selected",
+    "index": "7",
+    "name": "public omitted insert member remains unproved",
+    "authoring": "public Quarry",
+    "directory": "review-evidence/remote/review-work/projects/candidate/selected/7",
+    "ok": false,
+    "diagnostics": [
+      {
+        "code": "E_PROVENANCE_AMBIGUOUS",
+        "family": "opaque",
+        "message": "read key provenance is ambiguous; each key must follow one direct origin rule; candidate direct origins: <unknown origin>",
+        "site": "snapback/probe.q:3:3",
+        "rule": "read keys have one unambiguous origin",
+        "rewrite": "mutation probe():\n  row = insert records {payload: null}\n  stored = records[d3 = row.d3]\n  return stored\n",
+        "guide": "opaque/provenance"
+      }
+    ],
+    "outcomes": []
+  },
+  {
+    "lane": "candidate",
+    "group": "selected",
+    "index": "16",
+    "name": "R16 ordered input override false",
+    "authoring": "checked-private authoring:'any'",
+    "directory": "review-evidence/remote/review-work/projects/candidate/selected/16",
+    "ok": true,
+    "diagnostics": [],
+    "outcomes": [
+      {
+        "state": "predicted",
+        "error": null,
+        "value": {
+          "next": "id-2",
+          "row": {
+            "d3": 2000,
+            "id": "given",
+            "payload": null
+          },
+          "stored": {
+            "d3": 2000,
+            "id": "given",
+            "payload": null
+          }
+        },
+        "constructedCoveredValue": null
+      }
+    ]
+  },
+  {
+    "lane": "candidate",
+    "group": "selected",
+    "index": "6",
+    "name": "private immutable capture precedes reassignment",
+    "authoring": "checked-private authoring:'any'",
+    "directory": "review-evidence/remote/review-work/projects/candidate/selected/6",
+    "ok": true,
+    "diagnostics": [],
+    "outcomes": [
+      {
+        "state": "predicted",
+        "error": null,
+        "value": {
+          "next": "id-2",
+          "original": {
+            "d3": 2000,
+            "id": "id-1",
+            "payload": null
+          },
+          "stored": {
+            "d3": 2000,
+            "id": "id-1",
+            "payload": null
+          }
+        },
+        "constructedCoveredValue": null
+      }
+    ]
+  },
+  {
+    "lane": "candidate",
+    "group": "selected",
+    "index": "17",
+    "name": "R16 ordered input override true",
+    "authoring": "checked-private authoring:'any'",
+    "directory": "review-evidence/remote/review-work/projects/candidate/selected/17",
+    "ok": true,
+    "diagnostics": [],
+    "outcomes": [
+      {
+        "state": "predicted",
+        "error": null,
+        "value": {
+          "next": "id-2",
+          "row": {
+            "d3": 2000,
+            "id": "id-1",
+            "payload": null
+          },
+          "stored": {
+            "d3": 2000,
+            "id": "id-1",
+            "payload": null
+          }
+        },
+        "constructedCoveredValue": null
+      }
+    ]
+  },
+  {
+    "lane": "candidate",
+    "group": "selected",
+    "index": "1",
+    "name": "public joined inserted nested capture",
+    "authoring": "public Quarry",
+    "directory": "review-evidence/remote/review-work/projects/candidate/selected/1",
+    "ok": true,
+    "diagnostics": [],
+    "outcomes": [
+      {
+        "state": "predicted",
+        "error": null,
+        "value": {
+          "next": "id-3",
+          "original": [
+            4,
+            5
+          ]
+        },
+        "constructedCoveredValue": null
+      },
+      {
+        "state": "predicted",
+        "error": null,
+        "value": {
+          "next": "id-4",
+          "original": [
+            1,
+            2,
+            3
+          ]
+        },
+        "constructedCoveredValue": null
+      }
+    ]
+  },
+  {
+    "lane": "candidate",
+    "group": "selected",
+    "index": "10",
+    "name": "R16 common conditional snapshot member capture false",
+    "authoring": "checked-private authoring:'any'",
+    "directory": "review-evidence/remote/review-work/projects/candidate/selected/10",
+    "ok": true,
+    "diagnostics": [],
+    "outcomes": [
+      {
+        "state": "predicted",
+        "error": null,
+        "value": {
+          "next": "id-2",
+          "row": {
+            "id": "id-1",
+            "payload": null
+          },
+          "stored": {
+            "d3": null,
+            "id": "id-1",
+            "payload": null
+          }
+        },
+        "constructedCoveredValue": null
+      },
+      {
+        "state": "predicted",
+        "error": null,
+        "value": {
+          "next": "id-2",
+          "row": {
+            "d3": 2000,
+            "id": "id-1",
+            "payload": null
+          },
+          "stored": {
+            "d3": 2000,
+            "id": "id-1",
+            "payload": null
+          }
+        },
+        "constructedCoveredValue": null
+      }
+    ]
+  },
+  {
+    "lane": "candidate",
+    "group": "selected",
+    "index": "19",
+    "name": "R16 receiver assignment RHS then no authority",
+    "authoring": "checked-private authoring:'any'",
+    "directory": "review-evidence/remote/review-work/projects/candidate/selected/19",
+    "ok": false,
+    "diagnostics": [
+      {
+        "code": "E_OPAQUE",
+        "family": "opaque",
+        "message": "helper db.get is not defined in this module or the pure builtin set",
+        "site": "snapback/probe.ts:1:191",
+        "rewrite": "import {mutation,t} from 'snapback2';import {records} from './schema';export const probe=mutation({},({db,ctx,args})=>{db=db.insert(records,{id:ctx.newId(),d3:2,payload:null}) as any;return db.get(records,[\"given\"]);});",
+        "guide": "opaque/subset"
+      }
+    ],
+    "outcomes": []
+  },
+  {
+    "lane": "candidate",
+    "group": "selected",
+    "index": "8",
+    "name": "private insert spread keeps authored optional omission",
+    "authoring": "checked-private authoring:'any'",
+    "directory": "review-evidence/remote/review-work/projects/candidate/selected/8",
+    "ok": true,
+    "diagnostics": [],
+    "outcomes": [
+      {
+        "state": "predicted",
+        "error": null,
+        "value": {
+          "box": {
+            "id": "id-1",
+            "payload": null
+          },
+          "next": "id-2",
+          "stored": {
+            "d3": null,
+            "id": "id-1",
+            "payload": null
+          }
+        },
+        "constructedCoveredValue": null
+      }
+    ]
+  },
+  {
+    "lane": "candidate",
+    "group": "selected",
+    "index": "4",
+    "name": "private renamed operation database insert",
+    "authoring": "checked-private authoring:'any'",
+    "directory": "review-evidence/remote/review-work/projects/candidate/selected/4",
+    "ok": true,
+    "diagnostics": [],
+    "outcomes": [
+      {
+        "state": "predicted",
+        "error": null,
+        "value": {
+          "next": "id-2",
+          "row": {
+            "d3": 2000,
+            "id": "id-1",
+            "payload": null
+          },
+          "stored": {
+            "d3": 2000,
+            "id": "id-1",
+            "payload": null
+          }
+        },
+        "constructedCoveredValue": null
+      }
+    ]
+  },
+  {
+    "lane": "candidate",
+    "group": "selected",
+    "index": "15",
+    "name": "R16 receiver assignment stays in its branch",
+    "authoring": "checked-private authoring:'any'",
+    "directory": "review-evidence/remote/review-work/projects/candidate/selected/15",
+    "ok": true,
+    "diagnostics": [],
+    "outcomes": [
+      {
+        "state": "predicted",
+        "error": null,
+        "value": null,
+        "constructedCoveredValue": null
+      },
+      {
+        "state": "predicted",
+        "error": null,
+        "value": {
+          "next": "id-2",
+          "stored": {
+            "d3": 2000,
+            "id": "id-1",
+            "payload": null
+          }
+        },
+        "constructedCoveredValue": null
+      }
+    ]
+  },
+  {
+    "lane": "candidate",
+    "group": "selected",
+    "index": "3",
+    "name": "public inserted decimal alternate key",
+    "authoring": "public Quarry",
+    "directory": "review-evidence/remote/review-work/projects/candidate/selected/3",
+    "ok": true,
+    "diagnostics": [],
+    "outcomes": [
+      {
+        "state": "partial",
+        "error": null,
+        "value": null,
+        "constructedCoveredValue": {
+          "next": "id-2",
+          "row": {
+            "d3": 4321,
+            "id": "id-1",
+            "payload": null
+          },
+          "stored": {
+            "d3": 4321,
+            "id": "id-1",
+            "payload": null
+          }
+        }
+      }
+    ]
+  },
+  {
+    "lane": "candidate",
+    "group": "selected",
+    "index": "12",
+    "name": "R16 conditional ID input capture before assignment",
+    "authoring": "checked-private authoring:'any'",
+    "directory": "review-evidence/remote/review-work/projects/candidate/selected/12",
+    "ok": true,
+    "diagnostics": [],
+    "outcomes": [
+      {
+        "state": "partial",
+        "error": null,
+        "value": null,
+        "constructedCoveredValue": {
+          "next": "id-2",
+          "row": {
+            "id": "id-1",
+            "payload": null
+          },
+          "stored": {
+            "id": "id-1",
+            "key": null,
+            "payload": null
+          }
+        }
+      },
+      {
+        "state": "partial",
+        "error": null,
+        "value": null,
+        "constructedCoveredValue": {
+          "next": "id-2",
+          "row": {
+            "id": "id-1",
+            "key": "given",
+            "payload": null
+          },
+          "stored": {
+            "id": "id-1",
+            "key": "given",
+            "payload": null
+          }
+        }
+      }
+    ]
+  },
+  {
+    "lane": "candidate",
+    "group": "selected",
+    "index": "2",
+    "name": "public insert operands and read once",
+    "authoring": "public Quarry",
+    "directory": "review-evidence/remote/review-work/projects/candidate/selected/2",
+    "ok": true,
+    "diagnostics": [],
+    "outcomes": [
+      {
+        "state": "predicted",
+        "error": null,
+        "value": {
+          "earlier": "id-1",
+          "next": "id-4",
+          "row": {
+            "d3": 2000,
+            "id": "id-2",
+            "payload": {
+              "ticket": "id-3"
+            }
+          },
+          "stored": {
+            "d3": 2000,
+            "id": "id-2",
+            "payload": {
+              "ticket": "id-3"
+            }
+          }
+        },
+        "constructedCoveredValue": null
+      }
+    ]
+  },
+  {
+    "lane": "candidate",
+    "group": "selected",
+    "index": "13",
+    "name": "R16 conditional explicit null snapshot member",
+    "authoring": "checked-private authoring:'any'",
+    "directory": "review-evidence/remote/review-work/projects/candidate/selected/13",
+    "ok": true,
+    "diagnostics": [],
+    "outcomes": [
+      {
+        "state": "partial",
+        "error": null,
+        "value": null,
+        "constructedCoveredValue": {
+          "next": "id-2",
+          "row": {
+            "id": "id-1",
+            "key": null,
+            "payload": null
+          },
+          "stored": {
+            "id": "id-1",
+            "key": null,
+            "payload": null
+          }
+        }
+      },
+      {
+        "state": "partial",
+        "error": null,
+        "value": null,
+        "constructedCoveredValue": {
+          "next": "id-2",
+          "row": {
+            "id": "id-1",
+            "key": "given",
+            "payload": null
+          },
+          "stored": {
+            "id": "id-1",
+            "key": "given",
+            "payload": null
+          }
+        }
+      }
+    ]
+  },
+  {
+    "lane": "candidate",
+    "group": "selected",
+    "index": "5",
+    "name": "private row spread preserves earlier argument member",
+    "authoring": "checked-private authoring:'any'",
+    "directory": "review-evidence/remote/review-work/projects/candidate/selected/5",
+    "ok": true,
+    "diagnostics": [],
+    "outcomes": [
+      {
+        "state": "predicted",
+        "error": null,
+        "value": null,
+        "constructedCoveredValue": null
+      }
+    ]
+  },
+  {
+    "lane": "candidate",
+    "group": "selected",
+    "index": "14",
+    "name": "R16 stable inserted capture before receiver assignment",
+    "authoring": "checked-private authoring:'any'",
+    "directory": "review-evidence/remote/review-work/projects/candidate/selected/14",
+    "ok": true,
+    "diagnostics": [],
+    "outcomes": [
+      {
+        "state": "predicted",
+        "error": null,
+        "value": {
+          "box": {
+            "row": {
+              "d3": 2000,
+              "id": "id-1",
+              "payload": null
+            },
+            "stored": {
+              "d3": 2000,
+              "id": "id-1",
+              "payload": null
+            }
+          },
+          "next": "id-2"
+        },
+        "constructedCoveredValue": null
+      }
+    ]
+  },
+  {
+    "lane": "candidate",
+    "group": "row-collections",
+    "index": "0",
+    "name": "scan-capture-before-assignment",
+    "authoring": "checked-private authoring:'any'",
+    "directory": "review-evidence/remote/review-work/projects/candidate/row-collections/0",
+    "ok": true,
+    "diagnostics": [],
+    "outcomes": [
+      {
+        "state": "predicted",
+        "error": null,
+        "value": {
+          "earlier": {
+            "rows": [
+              {
+                "d3": null,
+                "id": "id-1",
+                "payload": null
+              }
+            ]
+          },
+          "next": "id-2"
+        },
+        "constructedCoveredValue": null
+      },
+      {
+        "state": "predicted",
+        "error": null,
+        "value": {
+          "earlier": {
+            "rows": [
+              {
+                "d3": null,
+                "id": "id-1",
+                "payload": null
+              }
+            ]
+          },
+          "next": "id-2"
+        },
+        "constructedCoveredValue": null
+      }
+    ]
+  },
+  {
+    "lane": "candidate",
+    "group": "row-collections",
+    "index": "1",
+    "name": "scan-assignment-member-refused",
+    "authoring": "checked-private authoring:'any'",
+    "directory": "review-evidence/remote/review-work/projects/candidate/row-collections/1",
+    "ok": false,
+    "diagnostics": [
+      {
+        "code": "E_PROVENANCE_AMBIGUOUS",
+        "family": "opaque",
+        "message": "read key provenance is ambiguous; each key must follow one direct origin rule; candidate direct origins: args.key",
+        "site": "snapback/probe.ts:1:272",
+        "rule": "read keys have one unambiguous origin",
+        "rewrite": "import {mutation,t} from 'snapback2';import {records} from './schema';export const probe=mutation({key:t.id(),flag:t.bool()},({db,ctx,args})=>{let rows=db.scan(records,[],{take:2});rows=[{id:args.key,payload:null} as any];for(const r of rows){const stored=db.get(records,[args.key]);}return rows;});",
+        "guide": "opaque/provenance"
+      }
+    ],
+    "outcomes": []
+  },
+  {
+    "lane": "candidate",
+    "group": "row-collections",
+    "index": "2",
+    "name": "scan-branch-unaffected",
+    "authoring": "checked-private authoring:'any'",
+    "directory": "review-evidence/remote/review-work/projects/candidate/row-collections/2",
+    "ok": true,
+    "diagnostics": [],
+    "outcomes": [
+      {
+        "state": "predicted",
+        "error": null,
+        "value": "id-1",
+        "constructedCoveredValue": null
+      },
+      {
+        "state": "predicted",
+        "error": null,
+        "value": "id-1",
+        "constructedCoveredValue": null
+      }
+    ]
+  },
+  {
+    "lane": "candidate",
+    "group": "numeric-controls",
+    "index": "0",
+    "name": "scalar-source-unit-corrected",
+    "authoring": "public Quarry",
+    "directory": "review-evidence/remote/review-work/projects/candidate/numeric-controls/0",
+    "ok": true,
+    "diagnostics": [],
+    "outcomes": [
+      {
+        "state": "predicted",
+        "error": null,
+        "value": {
+          "box": {
+            "original": 2000
+          },
+          "fallback": 2,
+          "original": 2000,
+          "row": {
+            "d3": 2000,
+            "id": "id-1"
+          }
+        },
+        "constructedCoveredValue": null
+      },
+      {
+        "state": "predicted",
+        "error": null,
+        "value": {
+          "box": {
+            "original": 4321
+          },
+          "fallback": 2,
+          "original": 4321,
+          "row": {
+            "d3": 4321,
+            "id": "id-1"
+          }
+        },
+        "constructedCoveredValue": null
+      }
+    ]
+  },
+  {
+    "lane": "candidate",
+    "group": "numeric-controls",
+    "index": "1",
+    "name": "source-scale-mismatch",
+    "authoring": "checked-private authoring:'any'",
+    "directory": "review-evidence/remote/review-work/projects/candidate/numeric-controls/1",
+    "ok": false,
+    "diagnostics": [
+      {
+        "code": "E_DECIMAL_SCALE",
+        "family": "args",
+        "message": "Decimal<2> does not prove the representation required by Decimal<3>",
+        "site": "snapback/probe.ts:1:154",
+        "rewrite": "use a value with the destination's exact Decimal scale, or convert each whole-unit value before combining representations",
+        "guide": "programs/types"
+      },
+      {
+        "code": "E_DECIMAL_SCALE",
+        "family": "args",
+        "message": "Decimal<2> does not prove the representation required by Decimal<3>",
+        "site": "snapback/probe.ts:1:210",
+        "rewrite": "use a value with the destination's exact Decimal scale, or convert each whole-unit value before combining representations",
+        "guide": "programs/types"
+      }
+    ],
+    "outcomes": []
+  },
+  {
+    "lane": "candidate",
+    "group": "numeric-controls",
+    "index": "2",
+    "name": "inherited-direct-omitted-field",
+    "authoring": "public Quarry",
+    "directory": "review-evidence/remote/review-work/projects/candidate/numeric-controls/2",
+    "ok": true,
+    "diagnostics": [],
+    "outcomes": [
+      {
+        "state": null,
+        "error": "E_FIELD",
+        "value": null,
+        "constructedCoveredValue": null
+      }
+    ]
+  },
+  {
+    "lane": "candidate",
+    "group": "conditional-helpers",
+    "index": "0",
+    "name": "conditional-helper-common-id",
+    "authoring": "checked-private authoring:'any'",
+    "directory": "review-evidence/remote/review-work/projects/candidate/conditional-helpers/0",
+    "ok": false,
+    "diagnostics": [
+      {
+        "code": "E_PROVENANCE_AMBIGUOUS",
+        "family": "opaque",
+        "message": "read key provenance is ambiguous; each key must follow one direct origin rule; candidate direct origins: <unknown origin>",
+        "site": "snapback/probe.ts:1:298",
+        "rule": "read keys have one unambiguous origin",
+        "rewrite": "import {mutation,t} from 'snapback2';import {records} from './schema';function data(flag:boolean,id:string){return flag?{id}:{id,payload:null};}export const probe=mutation({flag:t.bool()},({db,ctx,args})=>{const row=db.insert(records,data(args.flag,ctx.newId()));return {row,stored:db.get(records,[(() => { throw new Error(\"E_PROVENANCE_AMBIGUOUS: choose one direct origin: <unknown origin>\"); })()]),next:ctx.newId()};});",
+        "guide": "opaque/provenance"
+      }
+    ],
+    "outcomes": []
+  },
+  {
+    "lane": "candidate",
+    "group": "conditional-helpers",
+    "index": "1",
+    "name": "conditional-helper-identical-members",
+    "authoring": "checked-private authoring:'any'",
+    "directory": "review-evidence/remote/review-work/projects/candidate/conditional-helpers/1",
+    "ok": false,
+    "diagnostics": [
+      {
+        "code": "E_PROVENANCE_AMBIGUOUS",
+        "family": "opaque",
+        "message": "read key provenance is ambiguous; each key must follow one direct origin rule; candidate direct origins: <unknown origin>",
+        "site": "snapback/probe.ts:1:305",
+        "rule": "read keys have one unambiguous origin",
+        "rewrite": "import {mutation,t} from 'snapback2';import {records} from './schema';function data(flag:boolean,id:string){return flag?{id,payload:1}:{id,payload:2};}export const probe=mutation({flag:t.bool()},({db,ctx,args})=>{const row=db.insert(records,data(args.flag,ctx.newId()));return {row,stored:db.get(records,[(() => { throw new Error(\"E_PROVENANCE_AMBIGUOUS: choose one direct origin: <unknown origin>\"); })()]),next:ctx.newId()};});",
+        "guide": "opaque/provenance"
+      }
+    ],
+    "outcomes": []
+  },
+  {
+    "lane": "candidate",
+    "group": "conditional-helpers",
+    "index": "3",
+    "name": "literal-helper-common-id",
+    "authoring": "checked-private authoring:'any'",
+    "directory": "review-evidence/remote/review-work/projects/candidate/conditional-helpers/3",
+    "ok": true,
+    "diagnostics": [],
+    "outcomes": [
+      {
+        "state": "predicted",
+        "error": null,
+        "value": {
+          "next": "id-2",
+          "row": {
+            "id": "id-1",
+            "payload": null
+          },
+          "stored": {
+            "id": "id-1",
+            "payload": null
+          }
+        },
+        "constructedCoveredValue": null
+      },
+      {
+        "state": "predicted",
+        "error": null,
+        "value": {
+          "next": "id-2",
+          "row": {
+            "id": "id-1",
+            "payload": null
+          },
+          "stored": {
+            "id": "id-1",
+            "payload": null
+          }
+        },
+        "constructedCoveredValue": null
+      }
+    ]
+  },
+  {
+    "lane": "candidate",
+    "group": "conditional-helpers",
+    "index": "2",
+    "name": "conditional-inline-common-id",
+    "authoring": "checked-private authoring:'any'",
+    "directory": "review-evidence/remote/review-work/projects/candidate/conditional-helpers/2",
+    "ok": true,
+    "diagnostics": [],
+    "outcomes": [
+      {
+        "state": "predicted",
+        "error": null,
+        "value": {
+          "next": "id-2",
+          "row": {
+            "id": "id-1"
+          },
+          "stored": {
+            "id": "id-1",
+            "payload": null
+          }
+        },
+        "constructedCoveredValue": null
+      },
+      {
+        "state": "predicted",
+        "error": null,
+        "value": {
+          "next": "id-2",
+          "row": {
+            "id": "id-1",
+            "payload": null
+          },
+          "stored": {
+            "id": "id-1",
+            "payload": null
+          }
+        },
+        "constructedCoveredValue": null
+      }
+    ]
+  },
+  {
+    "lane": "candidate",
+    "group": "adjacent",
+    "index": "9",
+    "name": "eager-fallback",
+    "authoring": "public Quarry",
+    "directory": "review-evidence/remote/review-work/projects/candidate/adjacent/9",
+    "ok": true,
+    "diagnostics": [],
+    "outcomes": [
+      {
+        "state": "predicted",
+        "error": null,
+        "value": {
+          "next": "id-5",
+          "original": [
+            "id-1",
+            "id-2"
+          ]
+        },
+        "constructedCoveredValue": null
+      },
+      {
+        "state": "predicted",
+        "error": null,
+        "value": {
+          "next": "id-3",
+          "original": []
+        },
+        "constructedCoveredValue": null
+      },
+      {
+        "state": "predicted",
+        "error": null,
+        "value": {
+          "next": "id-4",
+          "original": [
+            "given"
+          ]
+        },
+        "constructedCoveredValue": null
+      }
+    ]
+  },
+  {
+    "lane": "candidate",
+    "group": "adjacent",
+    "index": "0",
+    "name": "typed-object-length",
+    "authoring": "checked-private authoring:'any'",
+    "directory": "review-evidence/remote/review-work/projects/candidate/adjacent/0",
+    "ok": true,
+    "diagnostics": [],
+    "outcomes": [
+      {
+        "state": "predicted",
+        "error": null,
+        "value": 1,
+        "constructedCoveredValue": null
+      }
+    ]
+  },
+  {
+    "lane": "candidate",
+    "group": "adjacent",
+    "index": "11",
+    "name": "absent-member-aggregate",
+    "authoring": "checked-private authoring:'any'",
+    "directory": "review-evidence/remote/review-work/projects/candidate/adjacent/11",
+    "ok": false,
+    "diagnostics": [
+      {
+        "code": "E_PROVENANCE_AMBIGUOUS",
+        "family": "opaque",
+        "message": "read key provenance is ambiguous; each key must follow one direct origin rule; candidate direct origins: <unknown origin>",
+        "site": "snapback/probe.ts:1:205",
+        "rule": "read keys have one unambiguous origin",
+        "rewrite": "import {mutation,t} from 'snapback2';import {records} from './schema';export const probe=mutation({},({db,ctx,args})=>{const row:any=db.insert(records,{id:ctx.newId(),payload:null});return db.get(records,[(() => { throw new Error(\"E_PROVENANCE_AMBIGUOUS: choose one direct origin: <unknown origin>\"); })()]);});",
+        "guide": "opaque/provenance"
+      }
+    ],
+    "outcomes": []
+  },
+  {
+    "lane": "candidate",
+    "group": "adjacent",
+    "index": "7",
+    "name": "args-shape-after-assignment",
+    "authoring": "checked-private authoring:'any'",
+    "directory": "review-evidence/remote/review-work/projects/candidate/adjacent/7",
+    "ok": false,
+    "diagnostics": [
+      {
+        "code": "E_OPAQUE",
+        "family": "opaque",
+        "message": "object spread requires a statically known object shape; spell its fields explicitly",
+        "site": "snapback/probe.ts:1:195",
+        "rewrite": "import {mutation,t,divmod} from 'snapback2';import {records} from './schema';export const probe=mutation({values:t.list(t.int(),{max:2})},({db,ctx,args})=>{args={values:[3,4]} as any;const box={field: args.field};return box;});",
+        "guide": "opaque/subset"
+      }
+    ],
+    "outcomes": []
+  },
+  {
+    "lane": "candidate",
+    "group": "adjacent",
+    "index": "6",
+    "name": "helper-receiver",
+    "authoring": "checked-private authoring:'any'",
+    "directory": "review-evidence/remote/review-work/projects/candidate/adjacent/6",
+    "ok": true,
+    "diagnostics": [],
+    "outcomes": [
+      {
+        "state": null,
+        "error": "E_INPUT",
+        "value": null,
+        "constructedCoveredValue": null
+      }
+    ]
+  },
+  {
+    "lane": "candidate",
+    "group": "adjacent",
+    "index": "1",
+    "name": "self-collection-copy",
+    "authoring": "checked-private authoring:'any'",
+    "directory": "review-evidence/remote/review-work/projects/candidate/adjacent/1",
+    "ok": true,
+    "diagnostics": [],
+    "outcomes": [
+      {
+        "state": "predicted",
+        "error": null,
+        "value": {
+          "next": "id-4",
+          "xs": [
+            1,
+            2,
+            3
+          ]
+        },
+        "constructedCoveredValue": null
+      }
+    ]
+  },
+  {
+    "lane": "candidate",
+    "group": "adjacent",
+    "index": "10",
+    "name": "scalar-source-unit",
+    "authoring": "public Quarry",
+    "directory": "review-evidence/remote/review-work/projects/candidate/adjacent/10",
+    "ok": false,
+    "diagnostics": [
+      {
+        "code": "E_QUARRY_TYPE",
+        "family": "quarry",
+        "message": "d3 is decimal 3; int is nominally different",
+        "site": "snapback/probe.q:4:25",
+        "rewrite": "-- use a decimal 3 value",
+        "guide": "quarry/types"
+      }
+    ],
+    "outcomes": []
+  },
+  {
+    "lane": "candidate",
+    "group": "adjacent",
+    "index": "8",
+    "name": "lazy-fallback",
+    "authoring": "public Quarry",
+    "directory": "review-evidence/remote/review-work/projects/candidate/adjacent/8",
+    "ok": true,
+    "diagnostics": [],
+    "outcomes": [
+      {
+        "state": "predicted",
+        "error": null,
+        "value": {
+          "next": "id-5",
+          "original": [
+            "id-1",
+            "id-2"
+          ]
+        },
+        "constructedCoveredValue": null
+      },
+      {
+        "state": "predicted",
+        "error": null,
+        "value": {
+          "next": "id-1",
+          "original": []
+        },
+        "constructedCoveredValue": null
+      },
+      {
+        "state": "predicted",
+        "error": null,
+        "value": {
+          "next": "id-2",
+          "original": [
+            "given"
+          ]
+        },
+        "constructedCoveredValue": null
+      }
+    ]
+  },
+  {
+    "lane": "candidate",
+    "group": "adjacent",
+    "index": "4",
+    "name": "post-receiver-unary",
+    "authoring": "checked-private authoring:'any'",
+    "directory": "review-evidence/remote/review-work/projects/candidate/adjacent/4",
+    "ok": true,
+    "diagnostics": [],
+    "outcomes": [
+      {
+        "state": null,
+        "error": "E_INPUT",
+        "value": null,
+        "constructedCoveredValue": null
+      }
+    ]
+  },
+  {
+    "lane": "candidate",
+    "group": "adjacent",
+    "index": "3",
+    "name": "self-array-throw",
+    "authoring": "checked-private authoring:'any'",
+    "directory": "review-evidence/remote/review-work/projects/candidate/adjacent/3",
+    "ok": true,
+    "diagnostics": [],
+    "outcomes": [
+      {
+        "state": null,
+        "error": "E_DIV_ZERO",
+        "value": null,
+        "constructedCoveredValue": null
+      },
+      {
+        "state": "predicted",
+        "error": null,
+        "value": {
+          "next": "id-3",
+          "xs": [
+            "id-1",
+            {
+              "quotient": 1,
+              "remainder": 0,
+              "sink": "lexicographic-id"
+            },
+            "id-2"
+          ]
+        },
+        "constructedCoveredValue": null
+      }
+    ]
+  },
+  {
+    "lane": "candidate",
+    "group": "adjacent",
+    "index": "2",
+    "name": "branch-collection-copy",
+    "authoring": "checked-private authoring:'any'",
+    "directory": "review-evidence/remote/review-work/projects/candidate/adjacent/2",
+    "ok": true,
+    "diagnostics": [],
+    "outcomes": [
+      {
+        "state": "predicted",
+        "error": null,
+        "value": {
+          "next": "id-4",
+          "xs": [
+            1,
+            2,
+            3
+          ]
+        },
+        "constructedCoveredValue": null
+      },
+      {
+        "state": "predicted",
+        "error": null,
+        "value": {
+          "next": "id-2",
+          "xs": [
+            1
+          ]
+        },
+        "constructedCoveredValue": null
+      }
+    ]
+  },
+  {
+    "lane": "candidate",
+    "group": "adjacent",
+    "index": "5",
+    "name": "post-ctx-assignment",
+    "authoring": "checked-private authoring:'any'",
+    "directory": "review-evidence/remote/review-work/projects/candidate/adjacent/5",
+    "ok": true,
+    "diagnostics": [],
+    "outcomes": [
+      {
+        "state": "predicted",
+        "error": null,
+        "value": "id-1",
+        "constructedCoveredValue": null
+      }
+    ]
+  },
+  {
+    "lane": "parent",
+    "group": "baseline",
+    "index": "0",
+    "name": "astra-custom2-0",
+    "authoring": "checked-private authoring:'any'",
+    "directory": "review-evidence/remote/review-work/projects/parent/baseline/0",
+    "ok": true,
+    "diagnostics": [],
+    "outcomes": [
+      {
+        "state": null,
+        "error": "E_FIELD",
+        "value": null,
+        "constructedCoveredValue": null
+      },
+      {
+        "state": "partial",
+        "error": null,
+        "value": null,
+        "constructedCoveredValue": null
+      }
+    ]
+  },
+  {
+    "lane": "parent",
+    "group": "baseline",
+    "index": "6",
+    "name": "grok-json-only",
+    "authoring": "checked-private authoring:'any'",
+    "directory": "review-evidence/remote/review-work/projects/parent/baseline/6",
+    "ok": true,
+    "diagnostics": [],
+    "outcomes": [
+      {
+        "state": null,
+        "error": "E_SCHEMA",
+        "value": null,
+        "constructedCoveredValue": null
+      },
+      {
+        "state": "predicted",
+        "error": null,
+        "value": {
+          "id": "given",
+          "payload": null
+        },
+        "constructedCoveredValue": null
+      }
+    ]
+  },
+  {
+    "lane": "parent",
+    "group": "baseline",
+    "index": "1",
+    "name": "astra-custom2-2",
+    "authoring": "checked-private authoring:'any'",
+    "directory": "review-evidence/remote/review-work/projects/parent/baseline/1",
+    "ok": true,
+    "diagnostics": [],
+    "outcomes": [
+      {
+        "state": null,
+        "error": "E_FIELD",
+        "value": null,
+        "constructedCoveredValue": null
+      }
+    ]
+  },
+  {
+    "lane": "parent",
+    "group": "baseline",
+    "index": "4",
+    "name": "astra-custom2-5",
+    "authoring": "checked-private authoring:'any'",
+    "directory": "review-evidence/remote/review-work/projects/parent/baseline/4",
+    "ok": true,
+    "diagnostics": [],
+    "outcomes": [
+      {
+        "state": "predicted",
+        "error": null,
+        "value": {
+          "d3": 2000,
+          "id": "id-1",
+          "payload": null
+        },
+        "constructedCoveredValue": null
+      },
+      {
+        "state": "predicted",
+        "error": null,
+        "value": {
+          "d3": 2000,
+          "id": "id-1",
+          "payload": null
+        },
+        "constructedCoveredValue": null
+      }
+    ]
+  },
+  {
+    "lane": "parent",
+    "group": "baseline",
+    "index": "3",
+    "name": "astra-custom2-4",
+    "authoring": "checked-private authoring:'any'",
+    "directory": "review-evidence/remote/review-work/projects/parent/baseline/3",
+    "ok": true,
+    "diagnostics": [],
+    "outcomes": [
+      {
+        "state": "predicted",
+        "error": null,
+        "value": {
+          "d3": 2000,
+          "id": "given",
+          "payload": null
+        },
+        "constructedCoveredValue": null
+      }
+    ]
+  },
+  {
+    "lane": "parent",
+    "group": "baseline",
+    "index": "2",
+    "name": "astra-custom2-3",
+    "authoring": "checked-private authoring:'any'",
+    "directory": "review-evidence/remote/review-work/projects/parent/baseline/2",
+    "ok": true,
+    "diagnostics": [],
+    "outcomes": [
+      {
+        "state": "predicted",
+        "error": null,
+        "value": {
+          "next": "id-2",
+          "row": {
+            "d3": 2000,
+            "id": "id-1",
+            "payload": null
+          },
+          "stored": {
+            "d3": 2000,
+            "id": "id-1",
+            "payload": null
+          }
+        },
+        "constructedCoveredValue": null
+      }
+    ]
+  },
+  {
+    "lane": "parent",
+    "group": "baseline",
+    "index": "5",
+    "name": "astra-extended-4",
+    "authoring": "checked-private authoring:'any'",
+    "directory": "review-evidence/remote/review-work/projects/parent/baseline/5",
+    "ok": true,
+    "diagnostics": [],
+    "outcomes": [
+      {
+        "state": null,
+        "error": "E_FIELD",
+        "value": null,
+        "constructedCoveredValue": null
+      }
+    ]
+  },
+  {
+    "lane": "parent",
+    "group": "receivers",
+    "index": "0",
+    "name": "reassigned-scan-loop",
+    "authoring": "checked-private authoring:'any'",
+    "directory": "review-evidence/remote/review-work/projects/parent/receivers/0",
+    "ok": true,
+    "diagnostics": [],
+    "outcomes": [
+      {
+        "state": "predicted",
+        "error": null,
+        "value": {
+          "count": 0,
+          "next": "id-1"
+        },
+        "constructedCoveredValue": null
+      },
+      {
+        "state": "predicted",
+        "error": null,
+        "value": {
+          "count": 0,
+          "next": "id-1"
+        },
+        "constructedCoveredValue": null
+      }
+    ]
+  },
+  {
+    "lane": "parent",
+    "group": "receivers",
+    "index": "1",
+    "name": "branch-reassigned-scan-loop",
+    "authoring": "checked-private authoring:'any'",
+    "directory": "review-evidence/remote/review-work/projects/parent/receivers/1",
+    "ok": true,
+    "diagnostics": [],
+    "outcomes": [
+      {
+        "state": "predicted",
+        "error": null,
+        "value": {
+          "count": 0,
+          "next": "id-1"
+        },
+        "constructedCoveredValue": null
+      },
+      {
+        "state": "predicted",
+        "error": null,
+        "value": {
+          "count": 0,
+          "next": "id-1"
+        },
+        "constructedCoveredValue": null
+      }
+    ]
+  },
+  {
+    "lane": "parent",
+    "group": "receivers",
+    "index": "3",
+    "name": "stable-renamed-scan-loop",
+    "authoring": "checked-private authoring:'any'",
+    "directory": "review-evidence/remote/review-work/projects/parent/receivers/3",
+    "ok": true,
+    "diagnostics": [],
+    "outcomes": [
+      {
+        "state": "predicted",
+        "error": null,
+        "value": {
+          "count": 0,
+          "next": "id-1"
+        },
+        "constructedCoveredValue": null
+      },
+      {
+        "state": "predicted",
+        "error": null,
+        "value": {
+          "count": 0,
+          "next": "id-1"
+        },
+        "constructedCoveredValue": null
+      }
+    ]
+  },
+  {
+    "lane": "parent",
+    "group": "receivers",
+    "index": "2",
+    "name": "self-replaced-scan-loop",
+    "authoring": "checked-private authoring:'any'",
+    "directory": "review-evidence/remote/review-work/projects/parent/receivers/2",
+    "ok": true,
+    "diagnostics": [],
+    "outcomes": [
+      {
+        "state": "predicted",
+        "error": null,
+        "value": {
+          "count": 1,
+          "next": "id-2"
+        },
+        "constructedCoveredValue": null
+      },
+      {
+        "state": "predicted",
+        "error": null,
+        "value": {
+          "count": 1,
+          "next": "id-2"
+        },
+        "constructedCoveredValue": null
+      }
+    ]
+  },
+  {
+    "lane": "parent",
+    "group": "independent",
+    "index": "0",
+    "name": "assigned-row-length",
+    "authoring": "checked-private authoring:'any'",
+    "directory": "review-evidence/remote/review-work/projects/parent/independent/0",
+    "ok": true,
+    "diagnostics": [],
+    "outcomes": [
+      {
+        "state": "predicted",
+        "error": null,
+        "value": {
+          "next": "id-2",
+          "value": 9
+        },
+        "constructedCoveredValue": null
+      },
+      {
+        "state": "predicted",
+        "error": null,
+        "value": {
+          "next": "id-2",
+          "value": 9
+        },
+        "constructedCoveredValue": null
+      }
+    ]
+  },
+  {
+    "lane": "parent",
+    "group": "independent",
+    "index": "7",
+    "name": "self-receiver-many-operands",
+    "authoring": "checked-private authoring:'any'",
+    "directory": "review-evidence/remote/review-work/projects/parent/independent/7",
+    "ok": true,
+    "diagnostics": [],
+    "outcomes": [
+      {
+        "state": "predicted",
+        "error": null,
+        "value": {
+          "next": "id-2",
+          "row": {
+            "id": "id-1",
+            "length": 2,
+            "payload": null
+          }
+        },
+        "constructedCoveredValue": null
+      },
+      {
+        "state": null,
+        "error": "E_DIV_ZERO",
+        "value": null,
+        "constructedCoveredValue": null
+      }
+    ]
+  },
+  {
+    "lane": "parent",
+    "group": "independent",
+    "index": "6",
+    "name": "self-row-read-key",
+    "authoring": "checked-private authoring:'any'",
+    "directory": "review-evidence/remote/review-work/projects/parent/independent/6",
+    "ok": false,
+    "diagnostics": [
+      {
+        "code": "E_PROVENANCE_AMBIGUOUS",
+        "family": "opaque",
+        "message": "read key provenance is ambiguous; each key must follow one direct origin rule; candidate direct origins: row.id",
+        "site": "snapback/probe.ts:1:242",
+        "rule": "read keys have one unambiguous origin",
+        "rewrite": "import {mutation,t,divmod} from 'snapback2'; import {records} from './schema'; export const probe=mutation({flag:t.bool(),key:t.id(),zero:t.int()},({db,ctx,args})=>{let row:any=db.insert(records,{id:ctx.newId(),length:7});row=db.get(records,[row.id]);return row;});",
+        "guide": "opaque/provenance"
+      }
+    ],
+    "outcomes": []
+  },
+  {
+    "lane": "parent",
+    "group": "independent",
+    "index": "1",
+    "name": "assigned-object-length",
+    "authoring": "checked-private authoring:'any'",
+    "directory": "review-evidence/remote/review-work/projects/parent/independent/1",
+    "ok": true,
+    "diagnostics": [],
+    "outcomes": [
+      {
+        "state": "predicted",
+        "error": null,
+        "value": 9,
+        "constructedCoveredValue": null
+      },
+      {
+        "state": "predicted",
+        "error": null,
+        "value": 9,
+        "constructedCoveredValue": null
+      }
+    ]
+  },
+  {
+    "lane": "parent",
+    "group": "independent",
+    "index": "4",
+    "name": "branch-row-length",
+    "authoring": "checked-private authoring:'any'",
+    "directory": "review-evidence/remote/review-work/projects/parent/independent/4",
+    "ok": true,
+    "diagnostics": [],
+    "outcomes": [
+      {
+        "state": "predicted",
+        "error": null,
+        "value": 9,
+        "constructedCoveredValue": null
+      },
+      {
+        "state": "predicted",
+        "error": null,
+        "value": 7,
+        "constructedCoveredValue": null
+      }
+    ]
+  },
+  {
+    "lane": "parent",
+    "group": "independent",
+    "index": "3",
+    "name": "stable-row-length",
+    "authoring": "checked-private authoring:'any'",
+    "directory": "review-evidence/remote/review-work/projects/parent/independent/3",
+    "ok": true,
+    "diagnostics": [],
+    "outcomes": [
+      {
+        "state": "predicted",
+        "error": null,
+        "value": 7,
+        "constructedCoveredValue": null
+      },
+      {
+        "state": "predicted",
+        "error": null,
+        "value": 7,
+        "constructedCoveredValue": null
+      }
+    ]
+  },
+  {
+    "lane": "parent",
+    "group": "independent",
+    "index": "2",
+    "name": "assigned-row-length-captured",
+    "authoring": "checked-private authoring:'any'",
+    "directory": "review-evidence/remote/review-work/projects/parent/independent/2",
+    "ok": true,
+    "diagnostics": [],
+    "outcomes": [
+      {
+        "state": "predicted",
+        "error": null,
+        "value": {
+          "current": 9,
+          "saved": 7
+        },
+        "constructedCoveredValue": null
+      },
+      {
+        "state": "predicted",
+        "error": null,
+        "value": {
+          "current": 9,
+          "saved": 7
+        },
+        "constructedCoveredValue": null
+      }
+    ]
+  },
+  {
+    "lane": "parent",
+    "group": "independent",
+    "index": "5",
+    "name": "self-row-spread",
+    "authoring": "checked-private authoring:'any'",
+    "directory": "review-evidence/remote/review-work/projects/parent/independent/5",
+    "ok": true,
+    "diagnostics": [],
+    "outcomes": [
+      {
+        "state": "predicted",
+        "error": null,
+        "value": {
+          "id": "id-1",
+          "length": 9
+        },
+        "constructedCoveredValue": null
+      },
+      {
+        "state": "predicted",
+        "error": null,
+        "value": {
+          "id": "id-1",
+          "length": 9
+        },
+        "constructedCoveredValue": null
+      }
+    ]
+  },
+  {
+    "lane": "parent",
+    "group": "selected",
+    "index": "20",
+    "name": "R16 receiver assignment waits for throwing RHS",
+    "authoring": "checked-private authoring:'any'",
+    "directory": "review-evidence/remote/review-work/projects/parent/selected/20",
+    "ok": true,
+    "diagnostics": [],
+    "outcomes": [
+      {
+        "state": null,
+        "error": "E_DIV_ZERO",
+        "value": null,
+        "constructedCoveredValue": null
+      },
+      {
+        "state": "predicted",
+        "error": null,
+        "value": {
+          "next": "id-2",
+          "row": {
+            "id": "id-1",
+            "payload": {
+              "quotient": 2,
+              "remainder": 0,
+              "sink": "lexicographic-id"
+            }
+          }
+        },
+        "constructedCoveredValue": null
+      }
+    ]
+  },
+  {
+    "lane": "parent",
+    "group": "selected",
+    "index": "18",
+    "name": "R16 receiver assignment RHS uses original binding",
+    "authoring": "checked-private authoring:'any'",
+    "directory": "review-evidence/remote/review-work/projects/parent/selected/18",
+    "ok": true,
+    "diagnostics": [],
+    "outcomes": [
+      {
+        "state": "predicted",
+        "error": null,
+        "value": {
+          "next": "id-2",
+          "row": {
+            "d3": 2000,
+            "id": "id-1",
+            "payload": null
+          }
+        },
+        "constructedCoveredValue": null
+      }
+    ]
+  },
+  {
+    "lane": "parent",
+    "group": "selected",
+    "index": "9",
+    "name": "public explicit null insert member remains proved",
+    "authoring": "public Quarry",
+    "directory": "review-evidence/remote/review-work/projects/parent/selected/9",
+    "ok": true,
+    "diagnostics": [],
+    "outcomes": [
+      {
+        "state": "partial",
+        "error": null,
+        "value": null,
+        "constructedCoveredValue": {
+          "next": "id-2",
+          "row": {
+            "d3": null,
+            "id": "id-1",
+            "payload": null
+          },
+          "stored": {
+            "d3": null,
+            "id": "id-1",
+            "payload": null
+          }
+        }
+      }
+    ]
+  },
+  {
+    "lane": "parent",
+    "group": "selected",
+    "index": "0",
+    "name": "exact public inserted row point key",
+    "authoring": "public Quarry",
+    "directory": "review-evidence/remote/review-work/projects/parent/selected/0",
+    "ok": true,
+    "diagnostics": [],
+    "outcomes": [
+      {
+        "state": "predicted",
+        "error": null,
+        "value": [
+          4,
+          5
+        ],
+        "constructedCoveredValue": null
+      },
+      {
+        "state": "predicted",
+        "error": null,
+        "value": [
+          1,
+          2,
+          3
+        ],
+        "constructedCoveredValue": null
+      },
+      {
+        "state": "predicted",
+        "error": null,
+        "value": [],
+        "constructedCoveredValue": null
+      },
+      {
+        "state": "predicted",
+        "error": null,
+        "value": [
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7
+        ],
+        "constructedCoveredValue": null
+      },
+      {
+        "state": null,
+        "error": "E_FANOUT",
+        "value": null,
+        "constructedCoveredValue": null
+      }
+    ]
+  },
+  {
+    "lane": "parent",
+    "group": "selected",
+    "index": "11",
+    "name": "R16 common conditional snapshot member capture true",
+    "authoring": "checked-private authoring:'any'",
+    "directory": "review-evidence/remote/review-work/projects/parent/selected/11",
+    "ok": false,
+    "diagnostics": [
+      {
+        "code": "E_DECIMAL_SCALE",
+        "family": "args",
+        "message": "d3: unknown does not prove the representation required by Decimal<3>",
+        "site": "snapback/probe.ts:2:183",
+        "rewrite": "use a value with the destination's exact Decimal scale, or convert each whole-unit value before combining representations",
+        "guide": "programs/types"
+      },
+      {
+        "code": "E_DECIMAL_SCALE",
+        "family": "args",
+        "message": "d3: unknown does not prove the representation required by Decimal<3>",
+        "site": "snapback/probe.ts:2:237",
+        "rewrite": "use a value with the destination's exact Decimal scale, or convert each whole-unit value before combining representations",
+        "guide": "programs/types"
+      }
+    ],
+    "outcomes": []
+  },
+  {
+    "lane": "parent",
+    "group": "selected",
+    "index": "7",
+    "name": "public omitted insert member remains unproved",
+    "authoring": "public Quarry",
+    "directory": "review-evidence/remote/review-work/projects/parent/selected/7",
+    "ok": false,
+    "diagnostics": [
+      {
+        "code": "E_PROVENANCE_AMBIGUOUS",
+        "family": "opaque",
+        "message": "read key provenance is ambiguous; each key must follow one direct origin rule; candidate direct origins: <unknown origin>",
+        "site": "snapback/probe.q:3:3",
+        "rule": "read keys have one unambiguous origin",
+        "rewrite": "mutation probe():\n  row = insert records {payload: null}\n  stored = records[d3 = row.d3]\n  return stored\n",
+        "guide": "opaque/provenance"
+      }
+    ],
+    "outcomes": []
+  },
+  {
+    "lane": "parent",
+    "group": "selected",
+    "index": "16",
+    "name": "R16 ordered input override false",
+    "authoring": "checked-private authoring:'any'",
+    "directory": "review-evidence/remote/review-work/projects/parent/selected/16",
+    "ok": true,
+    "diagnostics": [],
+    "outcomes": [
+      {
+        "state": "predicted",
+        "error": null,
+        "value": {
+          "next": "id-2",
+          "row": {
+            "d3": 2000,
+            "id": "given",
+            "payload": null
+          },
+          "stored": {
+            "d3": 2000,
+            "id": "given",
+            "payload": null
+          }
+        },
+        "constructedCoveredValue": null
+      }
+    ]
+  },
+  {
+    "lane": "parent",
+    "group": "selected",
+    "index": "6",
+    "name": "private immutable capture precedes reassignment",
+    "authoring": "checked-private authoring:'any'",
+    "directory": "review-evidence/remote/review-work/projects/parent/selected/6",
+    "ok": true,
+    "diagnostics": [],
+    "outcomes": [
+      {
+        "state": "predicted",
+        "error": null,
+        "value": {
+          "next": "id-2",
+          "original": {
+            "d3": 2000,
+            "id": "id-1",
+            "payload": null
+          },
+          "stored": {
+            "d3": 2000,
+            "id": "id-1",
+            "payload": null
+          }
+        },
+        "constructedCoveredValue": null
+      }
+    ]
+  },
+  {
+    "lane": "parent",
+    "group": "selected",
+    "index": "17",
+    "name": "R16 ordered input override true",
+    "authoring": "checked-private authoring:'any'",
+    "directory": "review-evidence/remote/review-work/projects/parent/selected/17",
+    "ok": true,
+    "diagnostics": [],
+    "outcomes": [
+      {
+        "state": "predicted",
+        "error": null,
+        "value": {
+          "next": "id-2",
+          "row": {
+            "d3": 2000,
+            "id": "id-1",
+            "payload": null
+          },
+          "stored": {
+            "d3": 2000,
+            "id": "id-1",
+            "payload": null
+          }
+        },
+        "constructedCoveredValue": null
+      }
+    ]
+  },
+  {
+    "lane": "parent",
+    "group": "selected",
+    "index": "1",
+    "name": "public joined inserted nested capture",
+    "authoring": "public Quarry",
+    "directory": "review-evidence/remote/review-work/projects/parent/selected/1",
+    "ok": true,
+    "diagnostics": [],
+    "outcomes": [
+      {
+        "state": "predicted",
+        "error": null,
+        "value": {
+          "next": "id-3",
+          "original": [
+            4,
+            5
+          ]
+        },
+        "constructedCoveredValue": null
+      },
+      {
+        "state": "predicted",
+        "error": null,
+        "value": {
+          "next": "id-4",
+          "original": [
+            1,
+            2,
+            3
+          ]
+        },
+        "constructedCoveredValue": null
+      }
+    ]
+  },
+  {
+    "lane": "parent",
+    "group": "selected",
+    "index": "10",
+    "name": "R16 common conditional snapshot member capture false",
+    "authoring": "checked-private authoring:'any'",
+    "directory": "review-evidence/remote/review-work/projects/parent/selected/10",
+    "ok": true,
+    "diagnostics": [],
+    "outcomes": [
+      {
+        "state": "predicted",
+        "error": null,
+        "value": {
+          "next": "id-2",
+          "row": {
+            "id": "id-1",
+            "payload": null
+          },
+          "stored": {
+            "d3": null,
+            "id": "id-1",
+            "payload": null
+          }
+        },
+        "constructedCoveredValue": null
+      },
+      {
+        "state": "predicted",
+        "error": null,
+        "value": {
+          "next": "id-2",
+          "row": {
+            "d3": 2000,
+            "id": "id-1",
+            "payload": null
+          },
+          "stored": {
+            "d3": 2000,
+            "id": "id-1",
+            "payload": null
+          }
+        },
+        "constructedCoveredValue": null
+      }
+    ]
+  },
+  {
+    "lane": "parent",
+    "group": "selected",
+    "index": "19",
+    "name": "R16 receiver assignment RHS then no authority",
+    "authoring": "checked-private authoring:'any'",
+    "directory": "review-evidence/remote/review-work/projects/parent/selected/19",
+    "ok": true,
+    "diagnostics": [],
+    "outcomes": [
+      {
+        "state": "predicted",
+        "error": null,
+        "value": null,
+        "constructedCoveredValue": null
+      }
+    ]
+  },
+  {
+    "lane": "parent",
+    "group": "selected",
+    "index": "8",
+    "name": "private insert spread keeps authored optional omission",
+    "authoring": "checked-private authoring:'any'",
+    "directory": "review-evidence/remote/review-work/projects/parent/selected/8",
+    "ok": true,
+    "diagnostics": [],
+    "outcomes": [
+      {
+        "state": "predicted",
+        "error": null,
+        "value": {
+          "box": {
+            "id": "id-1",
+            "payload": null
+          },
+          "next": "id-2",
+          "stored": {
+            "d3": null,
+            "id": "id-1",
+            "payload": null
+          }
+        },
+        "constructedCoveredValue": null
+      }
+    ]
+  },
+  {
+    "lane": "parent",
+    "group": "selected",
+    "index": "4",
+    "name": "private renamed operation database insert",
+    "authoring": "checked-private authoring:'any'",
+    "directory": "review-evidence/remote/review-work/projects/parent/selected/4",
+    "ok": true,
+    "diagnostics": [],
+    "outcomes": [
+      {
+        "state": "predicted",
+        "error": null,
+        "value": {
+          "next": "id-2",
+          "row": {
+            "d3": 2000,
+            "id": "id-1",
+            "payload": null
+          },
+          "stored": {
+            "d3": 2000,
+            "id": "id-1",
+            "payload": null
+          }
+        },
+        "constructedCoveredValue": null
+      }
+    ]
+  },
+  {
+    "lane": "parent",
+    "group": "selected",
+    "index": "15",
+    "name": "R16 receiver assignment stays in its branch",
+    "authoring": "checked-private authoring:'any'",
+    "directory": "review-evidence/remote/review-work/projects/parent/selected/15",
+    "ok": true,
+    "diagnostics": [],
+    "outcomes": [
+      {
+        "state": "predicted",
+        "error": null,
+        "value": null,
+        "constructedCoveredValue": null
+      },
+      {
+        "state": "predicted",
+        "error": null,
+        "value": {
+          "next": "id-2",
+          "stored": {
+            "d3": 2000,
+            "id": "id-1",
+            "payload": null
+          }
+        },
+        "constructedCoveredValue": null
+      }
+    ]
+  },
+  {
+    "lane": "parent",
+    "group": "selected",
+    "index": "3",
+    "name": "public inserted decimal alternate key",
+    "authoring": "public Quarry",
+    "directory": "review-evidence/remote/review-work/projects/parent/selected/3",
+    "ok": true,
+    "diagnostics": [],
+    "outcomes": [
+      {
+        "state": "partial",
+        "error": null,
+        "value": null,
+        "constructedCoveredValue": {
+          "next": "id-2",
+          "row": {
+            "d3": 4321,
+            "id": "id-1",
+            "payload": null
+          },
+          "stored": {
+            "d3": 4321,
+            "id": "id-1",
+            "payload": null
+          }
+        }
+      }
+    ]
+  },
+  {
+    "lane": "parent",
+    "group": "selected",
+    "index": "12",
+    "name": "R16 conditional ID input capture before assignment",
+    "authoring": "checked-private authoring:'any'",
+    "directory": "review-evidence/remote/review-work/projects/parent/selected/12",
+    "ok": true,
+    "diagnostics": [],
+    "outcomes": [
+      {
+        "state": "partial",
+        "error": null,
+        "value": null,
+        "constructedCoveredValue": {
+          "next": "id-2",
+          "row": {
+            "id": "id-1",
+            "payload": null
+          },
+          "stored": {
+            "id": "id-1",
+            "key": null,
+            "payload": null
+          }
+        }
+      },
+      {
+        "state": "partial",
+        "error": null,
+        "value": null,
+        "constructedCoveredValue": {
+          "next": "id-2",
+          "row": {
+            "id": "id-1",
+            "key": "given",
+            "payload": null
+          },
+          "stored": {
+            "id": "id-1",
+            "key": "given",
+            "payload": null
+          }
+        }
+      }
+    ]
+  },
+  {
+    "lane": "parent",
+    "group": "selected",
+    "index": "2",
+    "name": "public insert operands and read once",
+    "authoring": "public Quarry",
+    "directory": "review-evidence/remote/review-work/projects/parent/selected/2",
+    "ok": true,
+    "diagnostics": [],
+    "outcomes": [
+      {
+        "state": "predicted",
+        "error": null,
+        "value": {
+          "earlier": "id-1",
+          "next": "id-4",
+          "row": {
+            "d3": 2000,
+            "id": "id-2",
+            "payload": {
+              "ticket": "id-3"
+            }
+          },
+          "stored": {
+            "d3": 2000,
+            "id": "id-2",
+            "payload": {
+              "ticket": "id-3"
+            }
+          }
+        },
+        "constructedCoveredValue": null
+      }
+    ]
+  },
+  {
+    "lane": "parent",
+    "group": "selected",
+    "index": "13",
+    "name": "R16 conditional explicit null snapshot member",
+    "authoring": "checked-private authoring:'any'",
+    "directory": "review-evidence/remote/review-work/projects/parent/selected/13",
+    "ok": true,
+    "diagnostics": [],
+    "outcomes": [
+      {
+        "state": "partial",
+        "error": null,
+        "value": null,
+        "constructedCoveredValue": {
+          "next": "id-2",
+          "row": {
+            "id": "id-1",
+            "key": null,
+            "payload": null
+          },
+          "stored": {
+            "id": "id-1",
+            "key": null,
+            "payload": null
+          }
+        }
+      },
+      {
+        "state": "partial",
+        "error": null,
+        "value": null,
+        "constructedCoveredValue": {
+          "next": "id-2",
+          "row": {
+            "id": "id-1",
+            "key": "given",
+            "payload": null
+          },
+          "stored": {
+            "id": "id-1",
+            "key": "given",
+            "payload": null
+          }
+        }
+      }
+    ]
+  },
+  {
+    "lane": "parent",
+    "group": "selected",
+    "index": "5",
+    "name": "private row spread preserves earlier argument member",
+    "authoring": "checked-private authoring:'any'",
+    "directory": "review-evidence/remote/review-work/projects/parent/selected/5",
+    "ok": true,
+    "diagnostics": [],
+    "outcomes": [
+      {
+        "state": "predicted",
+        "error": null,
+        "value": null,
+        "constructedCoveredValue": null
+      }
+    ]
+  },
+  {
+    "lane": "parent",
+    "group": "selected",
+    "index": "14",
+    "name": "R16 stable inserted capture before receiver assignment",
+    "authoring": "checked-private authoring:'any'",
+    "directory": "review-evidence/remote/review-work/projects/parent/selected/14",
+    "ok": true,
+    "diagnostics": [],
+    "outcomes": [
+      {
+        "state": "predicted",
+        "error": null,
+        "value": {
+          "box": {
+            "row": {
+              "d3": 2000,
+              "id": "id-1",
+              "payload": null
+            },
+            "stored": {
+              "d3": 2000,
+              "id": "id-1",
+              "payload": null
+            }
+          },
+          "next": "id-2"
+        },
+        "constructedCoveredValue": null
+      }
+    ]
+  },
+  {
+    "lane": "parent",
+    "group": "row-collections",
+    "index": "0",
+    "name": "scan-capture-before-assignment",
+    "authoring": "checked-private authoring:'any'",
+    "directory": "review-evidence/remote/review-work/projects/parent/row-collections/0",
+    "ok": true,
+    "diagnostics": [],
+    "outcomes": [
+      {
+        "state": "predicted",
+        "error": null,
+        "value": {
+          "earlier": {
+            "rows": [
+              {
+                "d3": null,
+                "id": "id-1",
+                "payload": null
+              }
+            ]
+          },
+          "next": "id-2"
+        },
+        "constructedCoveredValue": null
+      },
+      {
+        "state": "predicted",
+        "error": null,
+        "value": {
+          "earlier": {
+            "rows": [
+              {
+                "d3": null,
+                "id": "id-1",
+                "payload": null
+              }
+            ]
+          },
+          "next": "id-2"
+        },
+        "constructedCoveredValue": null
+      }
+    ]
+  },
+  {
+    "lane": "parent",
+    "group": "row-collections",
+    "index": "1",
+    "name": "scan-assignment-member-refused",
+    "authoring": "checked-private authoring:'any'",
+    "directory": "review-evidence/remote/review-work/projects/parent/row-collections/1",
+    "ok": false,
+    "diagnostics": [
+      {
+        "code": "E_PROVENANCE_AMBIGUOUS",
+        "family": "opaque",
+        "message": "read key provenance is ambiguous; each key must follow one direct origin rule; candidate direct origins: args.key",
+        "site": "snapback/probe.ts:1:272",
+        "rule": "read keys have one unambiguous origin",
+        "rewrite": "import {mutation,t} from 'snapback2';import {records} from './schema';export const probe=mutation({key:t.id(),flag:t.bool()},({db,ctx,args})=>{let rows=db.scan(records,[],{take:2});rows=[{id:args.key,payload:null} as any];for(const r of rows){const stored=db.get(records,[args.key]);}return rows;});",
+        "guide": "opaque/provenance"
+      }
+    ],
+    "outcomes": []
+  },
+  {
+    "lane": "parent",
+    "group": "row-collections",
+    "index": "2",
+    "name": "scan-branch-unaffected",
+    "authoring": "checked-private authoring:'any'",
+    "directory": "review-evidence/remote/review-work/projects/parent/row-collections/2",
+    "ok": true,
+    "diagnostics": [],
+    "outcomes": [
+      {
+        "state": "predicted",
+        "error": null,
+        "value": "id-1",
+        "constructedCoveredValue": null
+      },
+      {
+        "state": "predicted",
+        "error": null,
+        "value": "id-1",
+        "constructedCoveredValue": null
+      }
+    ]
+  },
+  {
+    "lane": "parent",
+    "group": "numeric-controls",
+    "index": "0",
+    "name": "scalar-source-unit-corrected",
+    "authoring": "public Quarry",
+    "directory": "review-evidence/remote/review-work/projects/parent/numeric-controls/0",
+    "ok": true,
+    "diagnostics": [],
+    "outcomes": [
+      {
+        "state": "predicted",
+        "error": null,
+        "value": {
+          "box": {
+            "original": 2000
+          },
+          "fallback": 2,
+          "original": 2000,
+          "row": {
+            "d3": 2000,
+            "id": "id-1"
+          }
+        },
+        "constructedCoveredValue": null
+      },
+      {
+        "state": "predicted",
+        "error": null,
+        "value": {
+          "box": {
+            "original": 4321
+          },
+          "fallback": 2,
+          "original": 4321,
+          "row": {
+            "d3": 4321,
+            "id": "id-1"
+          }
+        },
+        "constructedCoveredValue": null
+      }
+    ]
+  },
+  {
+    "lane": "parent",
+    "group": "numeric-controls",
+    "index": "1",
+    "name": "source-scale-mismatch",
+    "authoring": "checked-private authoring:'any'",
+    "directory": "review-evidence/remote/review-work/projects/parent/numeric-controls/1",
+    "ok": false,
+    "diagnostics": [
+      {
+        "code": "E_DECIMAL_SCALE",
+        "family": "args",
+        "message": "Decimal<2> does not prove the representation required by Decimal<3>",
+        "site": "snapback/probe.ts:1:154",
+        "rewrite": "use a value with the destination's exact Decimal scale, or convert each whole-unit value before combining representations",
+        "guide": "programs/types"
+      },
+      {
+        "code": "E_DECIMAL_SCALE",
+        "family": "args",
+        "message": "Decimal<2> does not prove the representation required by Decimal<3>",
+        "site": "snapback/probe.ts:1:210",
+        "rewrite": "use a value with the destination's exact Decimal scale, or convert each whole-unit value before combining representations",
+        "guide": "programs/types"
+      }
+    ],
+    "outcomes": []
+  },
+  {
+    "lane": "parent",
+    "group": "numeric-controls",
+    "index": "2",
+    "name": "inherited-direct-omitted-field",
+    "authoring": "public Quarry",
+    "directory": "review-evidence/remote/review-work/projects/parent/numeric-controls/2",
+    "ok": true,
+    "diagnostics": [],
+    "outcomes": [
+      {
+        "state": null,
+        "error": "E_FIELD",
+        "value": null,
+        "constructedCoveredValue": null
+      }
+    ]
+  },
+  {
+    "lane": "parent",
+    "group": "conditional-helpers",
+    "index": "0",
+    "name": "conditional-helper-common-id",
+    "authoring": "checked-private authoring:'any'",
+    "directory": "review-evidence/remote/review-work/projects/parent/conditional-helpers/0",
+    "ok": true,
+    "diagnostics": [],
+    "outcomes": [
+      {
+        "state": "predicted",
+        "error": null,
+        "value": {
+          "next": "id-2",
+          "row": {
+            "id": "id-1"
+          },
+          "stored": {
+            "id": "id-1",
+            "payload": null
+          }
+        },
+        "constructedCoveredValue": null
+      },
+      {
+        "state": "predicted",
+        "error": null,
+        "value": {
+          "next": "id-2",
+          "row": {
+            "id": "id-1",
+            "payload": null
+          },
+          "stored": {
+            "id": "id-1",
+            "payload": null
+          }
+        },
+        "constructedCoveredValue": null
+      }
+    ]
+  },
+  {
+    "lane": "parent",
+    "group": "conditional-helpers",
+    "index": "1",
+    "name": "conditional-helper-identical-members",
+    "authoring": "checked-private authoring:'any'",
+    "directory": "review-evidence/remote/review-work/projects/parent/conditional-helpers/1",
+    "ok": true,
+    "diagnostics": [],
+    "outcomes": [
+      {
+        "state": "predicted",
+        "error": null,
+        "value": {
+          "next": "id-2",
+          "row": {
+            "id": "id-1",
+            "payload": 1
+          },
+          "stored": {
+            "id": "id-1",
+            "payload": 1
+          }
+        },
+        "constructedCoveredValue": null
+      },
+      {
+        "state": "predicted",
+        "error": null,
+        "value": {
+          "next": "id-2",
+          "row": {
+            "id": "id-1",
+            "payload": 2
+          },
+          "stored": {
+            "id": "id-1",
+            "payload": 2
+          }
+        },
+        "constructedCoveredValue": null
+      }
+    ]
+  },
+  {
+    "lane": "parent",
+    "group": "conditional-helpers",
+    "index": "3",
+    "name": "literal-helper-common-id",
+    "authoring": "checked-private authoring:'any'",
+    "directory": "review-evidence/remote/review-work/projects/parent/conditional-helpers/3",
+    "ok": true,
+    "diagnostics": [],
+    "outcomes": [
+      {
+        "state": "predicted",
+        "error": null,
+        "value": {
+          "next": "id-2",
+          "row": {
+            "id": "id-1",
+            "payload": null
+          },
+          "stored": {
+            "id": "id-1",
+            "payload": null
+          }
+        },
+        "constructedCoveredValue": null
+      },
+      {
+        "state": "predicted",
+        "error": null,
+        "value": {
+          "next": "id-2",
+          "row": {
+            "id": "id-1",
+            "payload": null
+          },
+          "stored": {
+            "id": "id-1",
+            "payload": null
+          }
+        },
+        "constructedCoveredValue": null
+      }
+    ]
+  },
+  {
+    "lane": "parent",
+    "group": "conditional-helpers",
+    "index": "2",
+    "name": "conditional-inline-common-id",
+    "authoring": "checked-private authoring:'any'",
+    "directory": "review-evidence/remote/review-work/projects/parent/conditional-helpers/2",
+    "ok": true,
+    "diagnostics": [],
+    "outcomes": [
+      {
+        "state": "predicted",
+        "error": null,
+        "value": {
+          "next": "id-2",
+          "row": {
+            "id": "id-1"
+          },
+          "stored": {
+            "id": "id-1",
+            "payload": null
+          }
+        },
+        "constructedCoveredValue": null
+      },
+      {
+        "state": "predicted",
+        "error": null,
+        "value": {
+          "next": "id-2",
+          "row": {
+            "id": "id-1",
+            "payload": null
+          },
+          "stored": {
+            "id": "id-1",
+            "payload": null
+          }
+        },
+        "constructedCoveredValue": null
+      }
+    ]
+  },
+  {
+    "lane": "parent",
+    "group": "adjacent",
+    "index": "9",
+    "name": "eager-fallback",
+    "authoring": "public Quarry",
+    "directory": "review-evidence/remote/review-work/projects/parent/adjacent/9",
+    "ok": true,
+    "diagnostics": [],
+    "outcomes": [
+      {
+        "state": "predicted",
+        "error": null,
+        "value": {
+          "next": "id-5",
+          "original": [
+            "id-1",
+            "id-2"
+          ]
+        },
+        "constructedCoveredValue": null
+      },
+      {
+        "state": "predicted",
+        "error": null,
+        "value": {
+          "next": "id-3",
+          "original": []
+        },
+        "constructedCoveredValue": null
+      },
+      {
+        "state": "predicted",
+        "error": null,
+        "value": {
+          "next": "id-4",
+          "original": [
+            "given"
+          ]
+        },
+        "constructedCoveredValue": null
+      }
+    ]
+  },
+  {
+    "lane": "parent",
+    "group": "adjacent",
+    "index": "0",
+    "name": "typed-object-length",
+    "authoring": "checked-private authoring:'any'",
+    "directory": "review-evidence/remote/review-work/projects/parent/adjacent/0",
+    "ok": true,
+    "diagnostics": [],
+    "outcomes": [
+      {
+        "state": "predicted",
+        "error": null,
+        "value": 9,
+        "constructedCoveredValue": null
+      }
+    ]
+  },
+  {
+    "lane": "parent",
+    "group": "adjacent",
+    "index": "11",
+    "name": "absent-member-aggregate",
+    "authoring": "checked-private authoring:'any'",
+    "directory": "review-evidence/remote/review-work/projects/parent/adjacent/11",
+    "ok": false,
+    "diagnostics": [
+      {
+        "code": "E_PROVENANCE_AMBIGUOUS",
+        "family": "opaque",
+        "message": "read key provenance is ambiguous; each key must follow one direct origin rule; candidate direct origins: <unknown origin>",
+        "site": "snapback/probe.ts:1:205",
+        "rule": "read keys have one unambiguous origin",
+        "rewrite": "import {mutation,t} from 'snapback2';import {records} from './schema';export const probe=mutation({},({db,ctx,args})=>{const row:any=db.insert(records,{id:ctx.newId(),payload:null});return db.get(records,[(() => { throw new Error(\"E_PROVENANCE_AMBIGUOUS: choose one direct origin: <unknown origin>\"); })()]);});",
+        "guide": "opaque/provenance"
+      }
+    ],
+    "outcomes": []
+  },
+  {
+    "lane": "parent",
+    "group": "adjacent",
+    "index": "7",
+    "name": "args-shape-after-assignment",
+    "authoring": "checked-private authoring:'any'",
+    "directory": "review-evidence/remote/review-work/projects/parent/adjacent/7",
+    "ok": true,
+    "diagnostics": [],
+    "outcomes": [
+      {
+        "state": "predicted",
+        "error": null,
+        "value": {
+          "values": [
+            1
+          ]
+        },
+        "constructedCoveredValue": null
+      }
+    ]
+  },
+  {
+    "lane": "parent",
+    "group": "adjacent",
+    "index": "6",
+    "name": "helper-receiver",
+    "authoring": "checked-private authoring:'any'",
+    "directory": "review-evidence/remote/review-work/projects/parent/adjacent/6",
+    "ok": true,
+    "diagnostics": [],
+    "outcomes": [
+      {
+        "state": null,
+        "error": "E_INPUT",
+        "value": null,
+        "constructedCoveredValue": null
+      }
+    ]
+  },
+  {
+    "lane": "parent",
+    "group": "adjacent",
+    "index": "1",
+    "name": "self-collection-copy",
+    "authoring": "checked-private authoring:'any'",
+    "directory": "review-evidence/remote/review-work/projects/parent/adjacent/1",
+    "ok": true,
+    "diagnostics": [],
+    "outcomes": [
+      {
+        "state": "predicted",
+        "error": null,
+        "value": {
+          "next": "id-4",
+          "xs": [
+            1,
+            2,
+            3
+          ]
+        },
+        "constructedCoveredValue": null
+      }
+    ]
+  },
+  {
+    "lane": "parent",
+    "group": "adjacent",
+    "index": "10",
+    "name": "scalar-source-unit",
+    "authoring": "public Quarry",
+    "directory": "review-evidence/remote/review-work/projects/parent/adjacent/10",
+    "ok": false,
+    "diagnostics": [
+      {
+        "code": "E_QUARRY_TYPE",
+        "family": "quarry",
+        "message": "d3 is decimal 3; int is nominally different",
+        "site": "snapback/probe.q:4:25",
+        "rewrite": "-- use a decimal 3 value",
+        "guide": "quarry/types"
+      }
+    ],
+    "outcomes": []
+  },
+  {
+    "lane": "parent",
+    "group": "adjacent",
+    "index": "8",
+    "name": "lazy-fallback",
+    "authoring": "public Quarry",
+    "directory": "review-evidence/remote/review-work/projects/parent/adjacent/8",
+    "ok": true,
+    "diagnostics": [],
+    "outcomes": [
+      {
+        "state": "predicted",
+        "error": null,
+        "value": {
+          "next": "id-5",
+          "original": [
+            "id-1",
+            "id-2"
+          ]
+        },
+        "constructedCoveredValue": null
+      },
+      {
+        "state": "predicted",
+        "error": null,
+        "value": {
+          "next": "id-1",
+          "original": []
+        },
+        "constructedCoveredValue": null
+      },
+      {
+        "state": "predicted",
+        "error": null,
+        "value": {
+          "next": "id-2",
+          "original": [
+            "given"
+          ]
+        },
+        "constructedCoveredValue": null
+      }
+    ]
+  },
+  {
+    "lane": "parent",
+    "group": "adjacent",
+    "index": "4",
+    "name": "post-receiver-unary",
+    "authoring": "checked-private authoring:'any'",
+    "directory": "review-evidence/remote/review-work/projects/parent/adjacent/4",
+    "ok": true,
+    "diagnostics": [],
+    "outcomes": [
+      {
+        "state": null,
+        "error": "E_INPUT",
+        "value": null,
+        "constructedCoveredValue": null
+      }
+    ]
+  },
+  {
+    "lane": "parent",
+    "group": "adjacent",
+    "index": "3",
+    "name": "self-array-throw",
+    "authoring": "checked-private authoring:'any'",
+    "directory": "review-evidence/remote/review-work/projects/parent/adjacent/3",
+    "ok": true,
+    "diagnostics": [],
+    "outcomes": [
+      {
+        "state": null,
+        "error": "E_DIV_ZERO",
+        "value": null,
+        "constructedCoveredValue": null
+      },
+      {
+        "state": "predicted",
+        "error": null,
+        "value": {
+          "next": "id-3",
+          "xs": [
+            "id-1",
+            {
+              "quotient": 1,
+              "remainder": 0,
+              "sink": "lexicographic-id"
+            },
+            "id-2"
+          ]
+        },
+        "constructedCoveredValue": null
+      }
+    ]
+  },
+  {
+    "lane": "parent",
+    "group": "adjacent",
+    "index": "2",
+    "name": "branch-collection-copy",
+    "authoring": "checked-private authoring:'any'",
+    "directory": "review-evidence/remote/review-work/projects/parent/adjacent/2",
+    "ok": true,
+    "diagnostics": [],
+    "outcomes": [
+      {
+        "state": "predicted",
+        "error": null,
+        "value": {
+          "next": "id-4",
+          "xs": [
+            1,
+            2,
+            3
+          ]
+        },
+        "constructedCoveredValue": null
+      },
+      {
+        "state": "predicted",
+        "error": null,
+        "value": {
+          "next": "id-2",
+          "xs": [
+            1
+          ]
+        },
+        "constructedCoveredValue": null
+      }
+    ]
+  },
+  {
+    "lane": "parent",
+    "group": "adjacent",
+    "index": "5",
+    "name": "post-ctx-assignment",
+    "authoring": "checked-private authoring:'any'",
+    "directory": "review-evidence/remote/review-work/projects/parent/adjacent/5",
+    "ok": true,
+    "diagnostics": [],
+    "outcomes": [
+      {
+        "state": "predicted",
+        "error": null,
+        "value": "id-1",
+        "constructedCoveredValue": null
+      }
+    ]
+  }
+]

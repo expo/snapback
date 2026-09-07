@@ -1,0 +1,261 @@
+[
+  {
+    "i": 0,
+    "name": "typed-object-length",
+    "runs": [
+      {
+        "args": {},
+        "value": 9,
+        "allocations": 0,
+        "calls": []
+      }
+    ]
+  },
+  {
+    "i": 1,
+    "name": "self-collection-copy",
+    "runs": [
+      {
+        "args": {},
+        "value": {
+          "xs": [
+            1,
+            2,
+            3
+          ],
+          "next": "id-4"
+        },
+        "allocations": 4,
+        "calls": [
+          {
+            "method": "insert",
+            "row": {
+              "id": "id-1",
+              "payload": 1
+            }
+          },
+          {
+            "method": "insert",
+            "row": {
+              "id": "id-2",
+              "payload": 2
+            }
+          },
+          {
+            "method": "insert",
+            "row": {
+              "id": "id-3",
+              "payload": 3
+            }
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "i": 2,
+    "name": "branch-collection-copy",
+    "runs": [
+      {
+        "args": {
+          "flag": true
+        },
+        "value": {
+          "xs": [
+            1,
+            2,
+            3
+          ],
+          "next": "id-4"
+        },
+        "allocations": 4,
+        "calls": [
+          {
+            "method": "insert",
+            "row": {
+              "id": "id-1",
+              "payload": 1
+            }
+          },
+          {
+            "method": "insert",
+            "row": {
+              "id": "id-2",
+              "payload": 2
+            }
+          },
+          {
+            "method": "insert",
+            "row": {
+              "id": "id-3",
+              "payload": 3
+            }
+          }
+        ]
+      },
+      {
+        "args": {
+          "flag": false
+        },
+        "value": {
+          "xs": [
+            1
+          ],
+          "next": "id-2"
+        },
+        "allocations": 2,
+        "calls": [
+          {
+            "method": "insert",
+            "row": {
+              "id": "id-1",
+              "payload": 1
+            }
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "i": 3,
+    "name": "self-array-throw",
+    "runs": [
+      {
+        "args": {
+          "zero": 0
+        },
+        "error": {
+          "name": "Error",
+          "code": "E_DIV_ZERO",
+          "message": "division by zero",
+          "stack": "Error: division by zero\n    at divmod (/home/ccheever/clique-reviews/compiler-insert-r16-e195-9a438eeb7c/astra/review-work/scripts/js-source.ts:21:136)\n    at <anonymous> (3.js:5:159)\n    at /home/ccheever/clique-reviews/compiler-insert-r16-e195-9a438eeb7c/astra/review-work/scripts/js-source.ts:24:89\n    at asyncModuleEvaluation (native:2)"
+        },
+        "allocations": 1,
+        "calls": []
+      },
+      {
+        "args": {
+          "zero": 1
+        },
+        "value": {
+          "xs": [
+            "id-1",
+            {
+              "quotient": 1,
+              "remainder": 0,
+              "sink": "lexicographic-id"
+            },
+            "id-2"
+          ],
+          "next": "id-3"
+        },
+        "allocations": 3,
+        "calls": []
+      }
+    ]
+  },
+  {
+    "i": 4,
+    "name": "post-receiver-unary",
+    "runs": [
+      {
+        "args": {},
+        "error": {
+          "name": "TypeError",
+          "message": "db.insert is not a function. (In 'db.insert(schema_1.records, { id: ctx.newId(), payload: null })', 'db.insert' is undefined)",
+          "stack": "TypeError: db.insert is not a function. (In 'db.insert(schema_1.records, { id: ctx.newId(), payload: null })', 'db.insert' is undefined)\n    at <anonymous> (4.js:6:94)\n    at /home/ccheever/clique-reviews/compiler-insert-r16-e195-9a438eeb7c/astra/review-work/scripts/js-source.ts:24:89\n    at asyncModuleEvaluation (native:2)"
+        },
+        "allocations": 1,
+        "calls": []
+      }
+    ]
+  },
+  {
+    "i": 5,
+    "name": "post-ctx-assignment",
+    "runs": [
+      {
+        "args": {
+          "payload": {}
+        },
+        "error": {
+          "name": "TypeError",
+          "message": "ctx.newId is not a function. (In 'ctx.newId()', 'ctx.newId' is undefined)",
+          "stack": "TypeError: ctx.newId is not a function. (In 'ctx.newId()', 'ctx.newId' is undefined)\n    at <anonymous> (5.js:5:142)\n    at /home/ccheever/clique-reviews/compiler-insert-r16-e195-9a438eeb7c/astra/review-work/scripts/js-source.ts:24:89\n    at asyncModuleEvaluation (native:2)"
+        },
+        "allocations": 0,
+        "calls": []
+      }
+    ]
+  },
+  {
+    "i": 6,
+    "name": "helper-receiver",
+    "runs": [
+      {
+        "args": {},
+        "value": {
+          "id": "id-1",
+          "payload": null
+        },
+        "allocations": 1,
+        "calls": [
+          {
+            "method": "insert",
+            "row": {
+              "id": "id-1",
+              "payload": null
+            }
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "i": 7,
+    "name": "args-shape-after-assignment",
+    "runs": [
+      {
+        "args": {
+          "values": [
+            1
+          ]
+        },
+        "value": {
+          "values": [
+            3,
+            4
+          ]
+        },
+        "allocations": 0,
+        "calls": []
+      }
+    ]
+  },
+  {
+    "i": 11,
+    "name": "absent-member-aggregate",
+    "runs": [
+      {
+        "args": {},
+        "value": null,
+        "allocations": 1,
+        "calls": [
+          {
+            "method": "insert",
+            "row": {
+              "id": "id-1",
+              "payload": null
+            }
+          },
+          {
+            "method": "get",
+            "key": [
+              {}
+            ]
+          }
+        ]
+      }
+    ]
+  }
+]

@@ -1,0 +1,1751 @@
+{
+  "created_at": "2026-09-07T06:55:28.936891+00:00",
+  "candidate": "e19565bd9bb85ac23a28def94ba2d9163d23e251",
+  "parent": "dd54ba3b18b21051bbec4ad383e4929eb46463b0",
+  "copies": [
+    {
+      "path": "reviews/astra/review.md",
+      "source": "/Users/ccheever/clique-improvement/reviews/compiler-insert-provenance-r16/astra/review.md",
+      "original_bytes": 19359,
+      "original_sha256": "7c7cc91af7c6a36588fd6f3c7563ec2e3082002625055690c5fc18309b892ca1",
+      "bytes": 19359,
+      "sha256": "7c7cc91af7c6a36588fd6f3c7563ec2e3082002625055690c5fc18309b892ca1",
+      "byte_exact": true
+    },
+    {
+      "path": "reviews/astra/terminal-identity.json",
+      "source": "/Users/ccheever/clique-improvement/reviews/compiler-insert-provenance-r16/astra/terminal-identity.json",
+      "original_bytes": 612,
+      "original_sha256": "5eab209d19e2bbece421fef9bd6be7d41709e8be524821d3793ab8ae8f620024",
+      "bytes": 612,
+      "sha256": "5eab209d19e2bbece421fef9bd6be7d41709e8be524821d3793ab8ae8f620024",
+      "byte_exact": true
+    },
+    {
+      "path": "reviews/astra/supervisor-initial-full-report.md",
+      "source": "/Users/ccheever/clique-improvement/reviews/compiler-insert-provenance-r16/astra/supervisor-initial-full-report.md",
+      "original_bytes": 19359,
+      "original_sha256": "93f6a51fa0ddd95b6252d882665d9b86159338cb475cdbd2da00665bc3e98aef",
+      "bytes": 19359,
+      "sha256": "93f6a51fa0ddd95b6252d882665d9b86159338cb475cdbd2da00665bc3e98aef",
+      "byte_exact": true
+    },
+    {
+      "path": "reviews/astra/supervisor-final-report-delta.patch",
+      "source": "/Users/ccheever/clique-improvement/reviews/compiler-insert-provenance-r16/astra/supervisor-final-report-delta.patch",
+      "original_bytes": 3828,
+      "original_sha256": "b9fa9b2aca7252d733bcb63d949c478c7e09f5a631268bf6fe69ae89deaf0bb7",
+      "bytes": 3828,
+      "sha256": "b9fa9b2aca7252d733bcb63d949c478c7e09f5a631268bf6fe69ae89deaf0bb7",
+      "byte_exact": true
+    },
+    {
+      "path": "reviews/grok/review.md",
+      "source": "/Users/ccheever/clique-improvement/reviews/compiler-insert-provenance-r16/grok/review.md",
+      "original_bytes": 13993,
+      "original_sha256": "4f9ef24795bec5cece0c962050e92331a4a5d6a753b135606d5e1b46e79feca6",
+      "bytes": 14009,
+      "sha256": "ea0da354ce4fa5b2b1586a6c6bfb3bda815882040a96328ecc3f06c226ecdf31",
+      "byte_exact": false
+    },
+    {
+      "path": "reviews/grok/terminal-identity.json",
+      "source": "/Users/ccheever/clique-improvement/reviews/compiler-insert-provenance-r16/grok/terminal-identity.json",
+      "original_bytes": 709,
+      "original_sha256": "e7cd108861be19ba2a70c29dd615935c34d78a9ef289b84ca64eae1bc02f7cc0",
+      "bytes": 709,
+      "sha256": "e7cd108861be19ba2a70c29dd615935c34d78a9ef289b84ca64eae1bc02f7cc0",
+      "byte_exact": true
+    },
+    {
+      "path": "reviews/grok/supervisor-initial-full-report.md",
+      "source": "/Users/ccheever/clique-improvement/reviews/compiler-insert-provenance-r16/grok/supervisor-initial-full-report.md",
+      "original_bytes": 13993,
+      "original_sha256": "4f9ef24795bec5cece0c962050e92331a4a5d6a753b135606d5e1b46e79feca6",
+      "bytes": 14009,
+      "sha256": "ea0da354ce4fa5b2b1586a6c6bfb3bda815882040a96328ecc3f06c226ecdf31",
+      "byte_exact": false
+    },
+    {
+      "path": "reviews/grok/supervisor-final-report-delta.patch",
+      "source": "/Users/ccheever/clique-improvement/reviews/compiler-insert-provenance-r16/grok/supervisor-final-report-delta.patch",
+      "original_bytes": 0,
+      "original_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "byte_exact": true
+    },
+    {
+      "path": "reviews/grok/supervisor-terminal-tool-output.json",
+      "source": "/Users/ccheever/clique-improvement/reviews/compiler-insert-provenance-r16/grok/supervisor-terminal-tool-output.json",
+      "original_bytes": 992,
+      "original_sha256": "55146ac9a38f09799df310a92e0edc65ffbb785a516ee76ffa9975ce376bfddb",
+      "bytes": 992,
+      "sha256": "55146ac9a38f09799df310a92e0edc65ffbb785a516ee76ffa9975ce376bfddb",
+      "byte_exact": true
+    },
+    {
+      "path": "reviews/launches.json",
+      "source": "/Users/ccheever/clique-improvement/reviews/compiler-insert-provenance-r16/launches.json",
+      "original_bytes": 2037,
+      "original_sha256": "025c4f81bdf03739bafd7db746d5e5f5b1234fece266b46ab82e74cf42fff20f",
+      "bytes": 2037,
+      "sha256": "025c4f81bdf03739bafd7db746d5e5f5b1234fece266b46ab82e74cf42fff20f",
+      "byte_exact": true
+    },
+    {
+      "path": "source/preparation-original.json",
+      "source": "/Users/ccheever/clique-improvement/reviews/compiler-insert-provenance-r16/preparation.json",
+      "original_bytes": 503,
+      "original_sha256": "1acbd80442c6396f94392f0401de8b533f9cc808ce0362a57dc93242081e90e5",
+      "bytes": 503,
+      "sha256": "1acbd80442c6396f94392f0401de8b533f9cc808ce0362a57dc93242081e90e5",
+      "byte_exact": true
+    },
+    {
+      "path": "reproductions/astra/parent/adjacent/0/api.d.ts",
+      "source": "/Users/ccheever/clique-improvement/reviews/compiler-insert-provenance-r16/astra/review-evidence/remote/review-work/projects/parent/adjacent/0/api.d.ts",
+      "original_bytes": 379,
+      "original_sha256": "bb728fbb8b410b7afa77ec38646bc600c1af2eea7efeb42998572dbcb52a8637",
+      "bytes": 379,
+      "sha256": "bb728fbb8b410b7afa77ec38646bc600c1af2eea7efeb42998572dbcb52a8637",
+      "byte_exact": true
+    },
+    {
+      "path": "reproductions/astra/parent/adjacent/0/case.json",
+      "source": "/Users/ccheever/clique-improvement/reviews/compiler-insert-provenance-r16/astra/review-evidence/remote/review-work/projects/parent/adjacent/0/case.json",
+      "original_bytes": 550,
+      "original_sha256": "4230840271729d3462c1600d159c18288ec6f7cd5ceb4687d391e05965dcd2fd",
+      "bytes": 550,
+      "sha256": "4230840271729d3462c1600d159c18288ec6f7cd5ceb4687d391e05965dcd2fd",
+      "byte_exact": true
+    },
+    {
+      "path": "reproductions/astra/parent/adjacent/0/compile.json",
+      "source": "/Users/ccheever/clique-improvement/reviews/compiler-insert-provenance-r16/astra/review-evidence/remote/review-work/projects/parent/adjacent/0/compile.json",
+      "original_bytes": 2685,
+      "original_sha256": "2128f189975cc4533cdf068ec0307c9cce0d37dbf63c7a4ea408277320a31528",
+      "bytes": 2685,
+      "sha256": "2128f189975cc4533cdf068ec0307c9cce0d37dbf63c7a4ea408277320a31528",
+      "byte_exact": true
+    },
+    {
+      "path": "reproductions/astra/parent/adjacent/0/project.ir.json",
+      "source": "/Users/ccheever/clique-improvement/reviews/compiler-insert-provenance-r16/astra/review-evidence/remote/review-work/projects/parent/adjacent/0/project.ir.json",
+      "original_bytes": 1898,
+      "original_sha256": "f0e211aed04a581ec478d7f90df289f038a1d503e8190c5910608a3fb5ca0343",
+      "bytes": 1898,
+      "sha256": "f0e211aed04a581ec478d7f90df289f038a1d503e8190c5910608a3fb5ca0343",
+      "byte_exact": true
+    },
+    {
+      "path": "reproductions/astra/parent/adjacent/0/results.json",
+      "source": "/Users/ccheever/clique-improvement/reviews/compiler-insert-provenance-r16/astra/review-evidence/remote/review-work/projects/parent/adjacent/0/results.json",
+      "original_bytes": 1640,
+      "original_sha256": "2d59124c63c4e4f48a77f3a35670b33d3cbaeef3994a5f16f4f54c54739aaada",
+      "bytes": 1640,
+      "sha256": "2d59124c63c4e4f48a77f3a35670b33d3cbaeef3994a5f16f4f54c54739aaada",
+      "byte_exact": true
+    },
+    {
+      "path": "reproductions/astra/parent/adjacent/0/snapback/probe.ts",
+      "source": "/Users/ccheever/clique-improvement/reviews/compiler-insert-provenance-r16/astra/review-evidence/remote/review-work/projects/parent/adjacent/0/snapback/probe.ts",
+      "original_bytes": 181,
+      "original_sha256": "52d82c0b96fcf2c2acca88f22253596c12ae32cef8e21a7078fd0d449601e2ea",
+      "bytes": 181,
+      "sha256": "52d82c0b96fcf2c2acca88f22253596c12ae32cef8e21a7078fd0d449601e2ea",
+      "byte_exact": true
+    },
+    {
+      "path": "reproductions/astra/parent/adjacent/0/snapback/schema.ts",
+      "source": "/Users/ccheever/clique-improvement/reviews/compiler-insert-provenance-r16/astra/review-evidence/remote/review-work/projects/parent/adjacent/0/snapback/schema.ts",
+      "original_bytes": 236,
+      "original_sha256": "2441d069e6fb44025c54552a1743edf2aef5ae627c65b7fe68e0a2e5bb240e2d",
+      "bytes": 236,
+      "sha256": "2441d069e6fb44025c54552a1743edf2aef5ae627c65b7fe68e0a2e5bb240e2d",
+      "byte_exact": true
+    },
+    {
+      "path": "reproductions/astra/parent/conditional-helpers/0/api.d.ts",
+      "source": "/Users/ccheever/clique-improvement/reviews/compiler-insert-provenance-r16/astra/review-evidence/remote/review-work/projects/parent/conditional-helpers/0/api.d.ts",
+      "original_bytes": 469,
+      "original_sha256": "7e7caab54d05fdc06cc1a412c1e3e95b3e33905dda1ffe0d339b2458c546a15a",
+      "bytes": 469,
+      "sha256": "7e7caab54d05fdc06cc1a412c1e3e95b3e33905dda1ffe0d339b2458c546a15a",
+      "byte_exact": true
+    },
+    {
+      "path": "reproductions/astra/parent/conditional-helpers/0/case.json",
+      "source": "/Users/ccheever/clique-improvement/reviews/compiler-insert-provenance-r16/astra/review-evidence/remote/review-work/projects/parent/conditional-helpers/0/case.json",
+      "original_bytes": 824,
+      "original_sha256": "538a79d23f3dbc857d9f5b6974e66a99d08cc8780ff2e8eab7f0ae4aa3811062",
+      "bytes": 824,
+      "sha256": "538a79d23f3dbc857d9f5b6974e66a99d08cc8780ff2e8eab7f0ae4aa3811062",
+      "byte_exact": true
+    },
+    {
+      "path": "reproductions/astra/parent/conditional-helpers/0/compile.json",
+      "source": "/Users/ccheever/clique-improvement/reviews/compiler-insert-provenance-r16/astra/review-evidence/remote/review-work/projects/parent/conditional-helpers/0/compile.json",
+      "original_bytes": 5296,
+      "original_sha256": "2690e7f925b0490cb9f54ecc80951d7f59b3de04af21cc1e79e9cc6aaddecff4",
+      "bytes": 5296,
+      "sha256": "2690e7f925b0490cb9f54ecc80951d7f59b3de04af21cc1e79e9cc6aaddecff4",
+      "byte_exact": true
+    },
+    {
+      "path": "reproductions/astra/parent/conditional-helpers/0/project.ir.json",
+      "source": "/Users/ccheever/clique-improvement/reviews/compiler-insert-provenance-r16/astra/review-evidence/remote/review-work/projects/parent/conditional-helpers/0/project.ir.json",
+      "original_bytes": 4225,
+      "original_sha256": "ed684f9214696fc7b4263ef74d88d6371f0feea93f535dd9c1f33093e6b5fce5",
+      "bytes": 4225,
+      "sha256": "ed684f9214696fc7b4263ef74d88d6371f0feea93f535dd9c1f33093e6b5fce5",
+      "byte_exact": true
+    },
+    {
+      "path": "reproductions/astra/parent/conditional-helpers/0/results.json",
+      "source": "/Users/ccheever/clique-improvement/reviews/compiler-insert-provenance-r16/astra/review-evidence/remote/review-work/projects/parent/conditional-helpers/0/results.json",
+      "original_bytes": 10231,
+      "original_sha256": "68d5e6fd0a66b7e79bbffd3c0396aba7fdeaef9a35eef82c4b34f1f08e8b3877",
+      "bytes": 10231,
+      "sha256": "68d5e6fd0a66b7e79bbffd3c0396aba7fdeaef9a35eef82c4b34f1f08e8b3877",
+      "byte_exact": true
+    },
+    {
+      "path": "reproductions/astra/parent/conditional-helpers/0/snapback/probe.ts",
+      "source": "/Users/ccheever/clique-improvement/reviews/compiler-insert-provenance-r16/astra/review-evidence/remote/review-work/projects/parent/conditional-helpers/0/snapback/probe.ts",
+      "original_bytes": 328,
+      "original_sha256": "e858343b327284e09a92125b13772c869ae49d53b02de7067b5441ddbfb2a238",
+      "bytes": 328,
+      "sha256": "e858343b327284e09a92125b13772c869ae49d53b02de7067b5441ddbfb2a238",
+      "byte_exact": true
+    },
+    {
+      "path": "reproductions/astra/parent/conditional-helpers/0/snapback/schema.ts",
+      "source": "/Users/ccheever/clique-improvement/reviews/compiler-insert-provenance-r16/astra/review-evidence/remote/review-work/projects/parent/conditional-helpers/0/snapback/schema.ts",
+      "original_bytes": 207,
+      "original_sha256": "7c5b296a444e49dbb5675e1be6e3732cb25a454b1ffec43d0830ebbc6484434c",
+      "bytes": 207,
+      "sha256": "7c5b296a444e49dbb5675e1be6e3732cb25a454b1ffec43d0830ebbc6484434c",
+      "byte_exact": true
+    },
+    {
+      "path": "reproductions/astra/parent/conditional-helpers/1/api.d.ts",
+      "source": "/Users/ccheever/clique-improvement/reviews/compiler-insert-provenance-r16/astra/review-evidence/remote/review-work/projects/parent/conditional-helpers/1/api.d.ts",
+      "original_bytes": 469,
+      "original_sha256": "7e7caab54d05fdc06cc1a412c1e3e95b3e33905dda1ffe0d339b2458c546a15a",
+      "bytes": 469,
+      "sha256": "7e7caab54d05fdc06cc1a412c1e3e95b3e33905dda1ffe0d339b2458c546a15a",
+      "byte_exact": true
+    },
+    {
+      "path": "reproductions/astra/parent/conditional-helpers/1/case.json",
+      "source": "/Users/ccheever/clique-improvement/reviews/compiler-insert-provenance-r16/astra/review-evidence/remote/review-work/projects/parent/conditional-helpers/1/case.json",
+      "original_bytes": 839,
+      "original_sha256": "28d8bdfc85088e616469bbc50b1e136f66e7e32bb2d903f2b26bdb4ddf91b5bf",
+      "bytes": 839,
+      "sha256": "28d8bdfc85088e616469bbc50b1e136f66e7e32bb2d903f2b26bdb4ddf91b5bf",
+      "byte_exact": true
+    },
+    {
+      "path": "reproductions/astra/parent/conditional-helpers/1/compile.json",
+      "source": "/Users/ccheever/clique-improvement/reviews/compiler-insert-provenance-r16/astra/review-evidence/remote/review-work/projects/parent/conditional-helpers/1/compile.json",
+      "original_bytes": 5523,
+      "original_sha256": "2e47fd536937a196f0e010c5a0ae9c726aea993e0c4909c83af5de31cd767bb2",
+      "bytes": 5523,
+      "sha256": "2e47fd536937a196f0e010c5a0ae9c726aea993e0c4909c83af5de31cd767bb2",
+      "byte_exact": true
+    },
+    {
+      "path": "reproductions/astra/parent/conditional-helpers/1/project.ir.json",
+      "source": "/Users/ccheever/clique-improvement/reviews/compiler-insert-provenance-r16/astra/review-evidence/remote/review-work/projects/parent/conditional-helpers/1/project.ir.json",
+      "original_bytes": 4439,
+      "original_sha256": "23d577fcd9d5e5e174b5b1fda4c89c2e9639f185228352c5d23ad62fa8948006",
+      "bytes": 4439,
+      "sha256": "23d577fcd9d5e5e174b5b1fda4c89c2e9639f185228352c5d23ad62fa8948006",
+      "byte_exact": true
+    },
+    {
+      "path": "reproductions/astra/parent/conditional-helpers/1/results.json",
+      "source": "/Users/ccheever/clique-improvement/reviews/compiler-insert-provenance-r16/astra/review-evidence/remote/review-work/projects/parent/conditional-helpers/1/results.json",
+      "original_bytes": 11113,
+      "original_sha256": "ec0ce4752a9f16ee059a52a54fb2c7d0ee1f041850f39154b7fa80e36c866833",
+      "bytes": 11113,
+      "sha256": "ec0ce4752a9f16ee059a52a54fb2c7d0ee1f041850f39154b7fa80e36c866833",
+      "byte_exact": true
+    },
+    {
+      "path": "reproductions/astra/parent/conditional-helpers/1/snapback/probe.ts",
+      "source": "/Users/ccheever/clique-improvement/reviews/compiler-insert-provenance-r16/astra/review-evidence/remote/review-work/projects/parent/conditional-helpers/1/snapback/probe.ts",
+      "original_bytes": 335,
+      "original_sha256": "1e53cec04ff429200926d4660591291ca13111f4fbcda959f9eb9376813da35c",
+      "bytes": 335,
+      "sha256": "1e53cec04ff429200926d4660591291ca13111f4fbcda959f9eb9376813da35c",
+      "byte_exact": true
+    },
+    {
+      "path": "reproductions/astra/parent/conditional-helpers/1/snapback/schema.ts",
+      "source": "/Users/ccheever/clique-improvement/reviews/compiler-insert-provenance-r16/astra/review-evidence/remote/review-work/projects/parent/conditional-helpers/1/snapback/schema.ts",
+      "original_bytes": 207,
+      "original_sha256": "7c5b296a444e49dbb5675e1be6e3732cb25a454b1ffec43d0830ebbc6484434c",
+      "bytes": 207,
+      "sha256": "7c5b296a444e49dbb5675e1be6e3732cb25a454b1ffec43d0830ebbc6484434c",
+      "byte_exact": true
+    },
+    {
+      "path": "reproductions/astra/parent/conditional-helpers/2/api.d.ts",
+      "source": "/Users/ccheever/clique-improvement/reviews/compiler-insert-provenance-r16/astra/review-evidence/remote/review-work/projects/parent/conditional-helpers/2/api.d.ts",
+      "original_bytes": 469,
+      "original_sha256": "7e7caab54d05fdc06cc1a412c1e3e95b3e33905dda1ffe0d339b2458c546a15a",
+      "bytes": 469,
+      "sha256": "7e7caab54d05fdc06cc1a412c1e3e95b3e33905dda1ffe0d339b2458c546a15a",
+      "byte_exact": true
+    },
+    {
+      "path": "reproductions/astra/parent/conditional-helpers/2/case.json",
+      "source": "/Users/ccheever/clique-improvement/reviews/compiler-insert-provenance-r16/astra/review-evidence/remote/review-work/projects/parent/conditional-helpers/2/case.json",
+      "original_bytes": 779,
+      "original_sha256": "5a14af255b24a5b92af029a32c954f37ce46eb949f81d63cc4d166ac3a9e120c",
+      "bytes": 779,
+      "sha256": "5a14af255b24a5b92af029a32c954f37ce46eb949f81d63cc4d166ac3a9e120c",
+      "byte_exact": true
+    },
+    {
+      "path": "reproductions/astra/parent/conditional-helpers/2/compile.json",
+      "source": "/Users/ccheever/clique-improvement/reviews/compiler-insert-provenance-r16/astra/review-evidence/remote/review-work/projects/parent/conditional-helpers/2/compile.json",
+      "original_bytes": 4891,
+      "original_sha256": "4675b5f616d1987dd92d3275570245f27d7ddf1fa4f5574606f3022c90bbaac7",
+      "bytes": 4891,
+      "sha256": "4675b5f616d1987dd92d3275570245f27d7ddf1fa4f5574606f3022c90bbaac7",
+      "byte_exact": true
+    },
+    {
+      "path": "reproductions/astra/parent/conditional-helpers/2/project.ir.json",
+      "source": "/Users/ccheever/clique-improvement/reviews/compiler-insert-provenance-r16/astra/review-evidence/remote/review-work/projects/parent/conditional-helpers/2/project.ir.json",
+      "original_bytes": 3854,
+      "original_sha256": "b1cb9b21ac706d1c473f3d720b29d04c6ebda33608220b98ef26b3702205fe8b",
+      "bytes": 3854,
+      "sha256": "b1cb9b21ac706d1c473f3d720b29d04c6ebda33608220b98ef26b3702205fe8b",
+      "byte_exact": true
+    },
+    {
+      "path": "reproductions/astra/parent/conditional-helpers/2/results.json",
+      "source": "/Users/ccheever/clique-improvement/reviews/compiler-insert-provenance-r16/astra/review-evidence/remote/review-work/projects/parent/conditional-helpers/2/results.json",
+      "original_bytes": 9970,
+      "original_sha256": "31b0a03a3680ff860f5641a298184af126d19e38e58c11289ceafb95fe89dd1e",
+      "bytes": 9970,
+      "sha256": "31b0a03a3680ff860f5641a298184af126d19e38e58c11289ceafb95fe89dd1e",
+      "byte_exact": true
+    },
+    {
+      "path": "reproductions/astra/parent/conditional-helpers/2/snapback/probe.ts",
+      "source": "/Users/ccheever/clique-improvement/reviews/compiler-insert-provenance-r16/astra/review-evidence/remote/review-work/projects/parent/conditional-helpers/2/snapback/probe.ts",
+      "original_bytes": 283,
+      "original_sha256": "6e8c752ace9cceaa936a9359052223b232f690d531c5e410adcce885e48dac40",
+      "bytes": 283,
+      "sha256": "6e8c752ace9cceaa936a9359052223b232f690d531c5e410adcce885e48dac40",
+      "byte_exact": true
+    },
+    {
+      "path": "reproductions/astra/parent/conditional-helpers/2/snapback/schema.ts",
+      "source": "/Users/ccheever/clique-improvement/reviews/compiler-insert-provenance-r16/astra/review-evidence/remote/review-work/projects/parent/conditional-helpers/2/snapback/schema.ts",
+      "original_bytes": 207,
+      "original_sha256": "7c5b296a444e49dbb5675e1be6e3732cb25a454b1ffec43d0830ebbc6484434c",
+      "bytes": 207,
+      "sha256": "7c5b296a444e49dbb5675e1be6e3732cb25a454b1ffec43d0830ebbc6484434c",
+      "byte_exact": true
+    },
+    {
+      "path": "reproductions/astra/parent/conditional-helpers/3/api.d.ts",
+      "source": "/Users/ccheever/clique-improvement/reviews/compiler-insert-provenance-r16/astra/review-evidence/remote/review-work/projects/parent/conditional-helpers/3/api.d.ts",
+      "original_bytes": 469,
+      "original_sha256": "7e7caab54d05fdc06cc1a412c1e3e95b3e33905dda1ffe0d339b2458c546a15a",
+      "bytes": 469,
+      "sha256": "7e7caab54d05fdc06cc1a412c1e3e95b3e33905dda1ffe0d339b2458c546a15a",
+      "byte_exact": true
+    },
+    {
+      "path": "reproductions/astra/parent/conditional-helpers/3/case.json",
+      "source": "/Users/ccheever/clique-improvement/reviews/compiler-insert-provenance-r16/astra/review-evidence/remote/review-work/projects/parent/conditional-helpers/3/case.json",
+      "original_bytes": 787,
+      "original_sha256": "4734c4cd1538d11d5cfd5a4004c178975de703d6036633263b34406a322e9770",
+      "bytes": 787,
+      "sha256": "4734c4cd1538d11d5cfd5a4004c178975de703d6036633263b34406a322e9770",
+      "byte_exact": true
+    },
+    {
+      "path": "reproductions/astra/parent/conditional-helpers/3/compile.json",
+      "source": "/Users/ccheever/clique-improvement/reviews/compiler-insert-provenance-r16/astra/review-evidence/remote/review-work/projects/parent/conditional-helpers/3/compile.json",
+      "original_bytes": 3876,
+      "original_sha256": "883538b3e1751f0b6bb6b83b7ea4ec77a50038131ddc49850fa2aabd45960386",
+      "bytes": 3876,
+      "sha256": "883538b3e1751f0b6bb6b83b7ea4ec77a50038131ddc49850fa2aabd45960386",
+      "byte_exact": true
+    },
+    {
+      "path": "reproductions/astra/parent/conditional-helpers/3/project.ir.json",
+      "source": "/Users/ccheever/clique-improvement/reviews/compiler-insert-provenance-r16/astra/review-evidence/remote/review-work/projects/parent/conditional-helpers/3/project.ir.json",
+      "original_bytes": 2916,
+      "original_sha256": "071d2c29bf09bac30c69a10d4a361e23461948fcd687f262109411916165f2b6",
+      "bytes": 2916,
+      "sha256": "071d2c29bf09bac30c69a10d4a361e23461948fcd687f262109411916165f2b6",
+      "byte_exact": true
+    },
+    {
+      "path": "reproductions/astra/parent/conditional-helpers/3/results.json",
+      "source": "/Users/ccheever/clique-improvement/reviews/compiler-insert-provenance-r16/astra/review-evidence/remote/review-work/projects/parent/conditional-helpers/3/results.json",
+      "original_bytes": 9845,
+      "original_sha256": "12faa1e8e9c8dd253cfa489956ba30cfca51a16ae4f4eb7ea794cc7d5cca51b4",
+      "bytes": 9845,
+      "sha256": "12faa1e8e9c8dd253cfa489956ba30cfca51a16ae4f4eb7ea794cc7d5cca51b4",
+      "byte_exact": true
+    },
+    {
+      "path": "reproductions/astra/parent/conditional-helpers/3/snapback/probe.ts",
+      "source": "/Users/ccheever/clique-improvement/reviews/compiler-insert-provenance-r16/astra/review-evidence/remote/review-work/projects/parent/conditional-helpers/3/snapback/probe.ts",
+      "original_bytes": 295,
+      "original_sha256": "eb10aea6756a46bb153d32e996d0dda619c892eb1018c596333915195cf33b3f",
+      "bytes": 295,
+      "sha256": "eb10aea6756a46bb153d32e996d0dda619c892eb1018c596333915195cf33b3f",
+      "byte_exact": true
+    },
+    {
+      "path": "reproductions/astra/parent/conditional-helpers/3/snapback/schema.ts",
+      "source": "/Users/ccheever/clique-improvement/reviews/compiler-insert-provenance-r16/astra/review-evidence/remote/review-work/projects/parent/conditional-helpers/3/snapback/schema.ts",
+      "original_bytes": 207,
+      "original_sha256": "7c5b296a444e49dbb5675e1be6e3732cb25a454b1ffec43d0830ebbc6484434c",
+      "bytes": 207,
+      "sha256": "7c5b296a444e49dbb5675e1be6e3732cb25a454b1ffec43d0830ebbc6484434c",
+      "byte_exact": true
+    },
+    {
+      "path": "reproductions/astra/parent/receivers/0/api.d.ts",
+      "source": "/Users/ccheever/clique-improvement/reviews/compiler-insert-provenance-r16/astra/review-evidence/remote/review-work/projects/parent/receivers/0/api.d.ts",
+      "original_bytes": 434,
+      "original_sha256": "850b5b6fa65ca22612edcb5dc65a03475f918d9e0641a4f20516e688beff17de",
+      "bytes": 434,
+      "sha256": "850b5b6fa65ca22612edcb5dc65a03475f918d9e0641a4f20516e688beff17de",
+      "byte_exact": true
+    },
+    {
+      "path": "reproductions/astra/parent/receivers/0/case.json",
+      "source": "/Users/ccheever/clique-improvement/reviews/compiler-insert-provenance-r16/astra/review-evidence/remote/review-work/projects/parent/receivers/0/case.json",
+      "original_bytes": 899,
+      "original_sha256": "06f5c87034e893360f04baa63e0650e4c744a1b1a1b99b69bcbbc25788b83b58",
+      "bytes": 899,
+      "sha256": "06f5c87034e893360f04baa63e0650e4c744a1b1a1b99b69bcbbc25788b83b58",
+      "byte_exact": true
+    },
+    {
+      "path": "reproductions/astra/parent/receivers/0/compile.json",
+      "source": "/Users/ccheever/clique-improvement/reviews/compiler-insert-provenance-r16/astra/review-evidence/remote/review-work/projects/parent/receivers/0/compile.json",
+      "original_bytes": 3987,
+      "original_sha256": "8700b1abca27032a0ee8c51f72f8347e77db406711e259fbdea667bdad905d58",
+      "bytes": 3987,
+      "sha256": "8700b1abca27032a0ee8c51f72f8347e77db406711e259fbdea667bdad905d58",
+      "byte_exact": true
+    },
+    {
+      "path": "reproductions/astra/parent/receivers/0/project.ir.json",
+      "source": "/Users/ccheever/clique-improvement/reviews/compiler-insert-provenance-r16/astra/review-evidence/remote/review-work/projects/parent/receivers/0/project.ir.json",
+      "original_bytes": 2956,
+      "original_sha256": "f0053c18f72d35ee2b9497a605cb274f958c08fee5b1691f739002d48b5fca00",
+      "bytes": 2956,
+      "sha256": "f0053c18f72d35ee2b9497a605cb274f958c08fee5b1691f739002d48b5fca00",
+      "byte_exact": true
+    },
+    {
+      "path": "reproductions/astra/parent/receivers/0/results.json",
+      "source": "/Users/ccheever/clique-improvement/reviews/compiler-insert-provenance-r16/astra/review-evidence/remote/review-work/projects/parent/receivers/0/results.json",
+      "original_bytes": 6695,
+      "original_sha256": "1b16a8e0c48429d74ef8c4d744a32ec86e84d1ca8b4a1e9f8e9322444ed63457",
+      "bytes": 6695,
+      "sha256": "1b16a8e0c48429d74ef8c4d744a32ec86e84d1ca8b4a1e9f8e9322444ed63457",
+      "byte_exact": true
+    },
+    {
+      "path": "reproductions/astra/parent/receivers/0/snapback/probe.ts",
+      "source": "/Users/ccheever/clique-improvement/reviews/compiler-insert-provenance-r16/astra/review-evidence/remote/review-work/projects/parent/receivers/0/snapback/probe.ts",
+      "original_bytes": 278,
+      "original_sha256": "2f3e98276facc1906afdfc85c8b2cc7b29bb341eb1d48a7056b1e670d63b5da5",
+      "bytes": 278,
+      "sha256": "2f3e98276facc1906afdfc85c8b2cc7b29bb341eb1d48a7056b1e670d63b5da5",
+      "byte_exact": true
+    },
+    {
+      "path": "reproductions/astra/parent/receivers/0/snapback/schema.ts",
+      "source": "/Users/ccheever/clique-improvement/reviews/compiler-insert-provenance-r16/astra/review-evidence/remote/review-work/projects/parent/receivers/0/snapback/schema.ts",
+      "original_bytes": 236,
+      "original_sha256": "2441d069e6fb44025c54552a1743edf2aef5ae627c65b7fe68e0a2e5bb240e2d",
+      "bytes": 236,
+      "sha256": "2441d069e6fb44025c54552a1743edf2aef5ae627c65b7fe68e0a2e5bb240e2d",
+      "byte_exact": true
+    },
+    {
+      "path": "reproductions/astra/parent/receivers/1/api.d.ts",
+      "source": "/Users/ccheever/clique-improvement/reviews/compiler-insert-provenance-r16/astra/review-evidence/remote/review-work/projects/parent/receivers/1/api.d.ts",
+      "original_bytes": 434,
+      "original_sha256": "850b5b6fa65ca22612edcb5dc65a03475f918d9e0641a4f20516e688beff17de",
+      "bytes": 434,
+      "sha256": "850b5b6fa65ca22612edcb5dc65a03475f918d9e0641a4f20516e688beff17de",
+      "byte_exact": true
+    },
+    {
+      "path": "reproductions/astra/parent/receivers/1/case.json",
+      "source": "/Users/ccheever/clique-improvement/reviews/compiler-insert-provenance-r16/astra/review-evidence/remote/review-work/projects/parent/receivers/1/case.json",
+      "original_bytes": 921,
+      "original_sha256": "34c7bb8364df5c0748401010984b7cfa482205910bdafc583dbc346b1ce0be57",
+      "bytes": 921,
+      "sha256": "34c7bb8364df5c0748401010984b7cfa482205910bdafc583dbc346b1ce0be57",
+      "byte_exact": true
+    },
+    {
+      "path": "reproductions/astra/parent/receivers/1/compile.json",
+      "source": "/Users/ccheever/clique-improvement/reviews/compiler-insert-provenance-r16/astra/review-evidence/remote/review-work/projects/parent/receivers/1/compile.json",
+      "original_bytes": 4249,
+      "original_sha256": "478bd5d45b4a53cd83730b70ca12e9892b0ecffcbbe35e6d67d7b24578a98c68",
+      "bytes": 4249,
+      "sha256": "478bd5d45b4a53cd83730b70ca12e9892b0ecffcbbe35e6d67d7b24578a98c68",
+      "byte_exact": true
+    },
+    {
+      "path": "reproductions/astra/parent/receivers/1/project.ir.json",
+      "source": "/Users/ccheever/clique-improvement/reviews/compiler-insert-provenance-r16/astra/review-evidence/remote/review-work/projects/parent/receivers/1/project.ir.json",
+      "original_bytes": 3199,
+      "original_sha256": "520d7c38f8fd2a14c69135f2d000db9836e5dd0280b92604d035ad3f5333681b",
+      "bytes": 3199,
+      "sha256": "520d7c38f8fd2a14c69135f2d000db9836e5dd0280b92604d035ad3f5333681b",
+      "byte_exact": true
+    },
+    {
+      "path": "reproductions/astra/parent/receivers/1/results.json",
+      "source": "/Users/ccheever/clique-improvement/reviews/compiler-insert-provenance-r16/astra/review-evidence/remote/review-work/projects/parent/receivers/1/results.json",
+      "original_bytes": 6650,
+      "original_sha256": "f09a8b0e9c6f0cba03284285f4e23ec16f68d41005a0b19f35802772a75080f8",
+      "bytes": 6650,
+      "sha256": "f09a8b0e9c6f0cba03284285f4e23ec16f68d41005a0b19f35802772a75080f8",
+      "byte_exact": true
+    },
+    {
+      "path": "reproductions/astra/parent/receivers/1/snapback/probe.ts",
+      "source": "/Users/ccheever/clique-improvement/reviews/compiler-insert-provenance-r16/astra/review-evidence/remote/review-work/projects/parent/receivers/1/snapback/probe.ts",
+      "original_bytes": 293,
+      "original_sha256": "be6a12eeed3b2b10f2910d54b14ce12046f2a8e8c09c462fba7855b1a255e533",
+      "bytes": 293,
+      "sha256": "be6a12eeed3b2b10f2910d54b14ce12046f2a8e8c09c462fba7855b1a255e533",
+      "byte_exact": true
+    },
+    {
+      "path": "reproductions/astra/parent/receivers/1/snapback/schema.ts",
+      "source": "/Users/ccheever/clique-improvement/reviews/compiler-insert-provenance-r16/astra/review-evidence/remote/review-work/projects/parent/receivers/1/snapback/schema.ts",
+      "original_bytes": 236,
+      "original_sha256": "2441d069e6fb44025c54552a1743edf2aef5ae627c65b7fe68e0a2e5bb240e2d",
+      "bytes": 236,
+      "sha256": "2441d069e6fb44025c54552a1743edf2aef5ae627c65b7fe68e0a2e5bb240e2d",
+      "byte_exact": true
+    },
+    {
+      "path": "reproductions/astra/parent/receivers/2/api.d.ts",
+      "source": "/Users/ccheever/clique-improvement/reviews/compiler-insert-provenance-r16/astra/review-evidence/remote/review-work/projects/parent/receivers/2/api.d.ts",
+      "original_bytes": 434,
+      "original_sha256": "850b5b6fa65ca22612edcb5dc65a03475f918d9e0641a4f20516e688beff17de",
+      "bytes": 434,
+      "sha256": "850b5b6fa65ca22612edcb5dc65a03475f918d9e0641a4f20516e688beff17de",
+      "byte_exact": true
+    },
+    {
+      "path": "reproductions/astra/parent/receivers/2/case.json",
+      "source": "/Users/ccheever/clique-improvement/reviews/compiler-insert-provenance-r16/astra/review-evidence/remote/review-work/projects/parent/receivers/2/case.json",
+      "original_bytes": 938,
+      "original_sha256": "00df39bf22f2096ea79173fa819d1af995c660e708b4b03a2cdccba19f0a914f",
+      "bytes": 938,
+      "sha256": "00df39bf22f2096ea79173fa819d1af995c660e708b4b03a2cdccba19f0a914f",
+      "byte_exact": true
+    },
+    {
+      "path": "reproductions/astra/parent/receivers/2/compile.json",
+      "source": "/Users/ccheever/clique-improvement/reviews/compiler-insert-provenance-r16/astra/review-evidence/remote/review-work/projects/parent/receivers/2/compile.json",
+      "original_bytes": 4528,
+      "original_sha256": "2a83204fa5697b1b6f7d6700242e03a4519425d1e289f2f456ffe17cca636b66",
+      "bytes": 4528,
+      "sha256": "2a83204fa5697b1b6f7d6700242e03a4519425d1e289f2f456ffe17cca636b66",
+      "byte_exact": true
+    },
+    {
+      "path": "reproductions/astra/parent/receivers/2/project.ir.json",
+      "source": "/Users/ccheever/clique-improvement/reviews/compiler-insert-provenance-r16/astra/review-evidence/remote/review-work/projects/parent/receivers/2/project.ir.json",
+      "original_bytes": 3452,
+      "original_sha256": "d8da8a935b69534392a1a5567bc7e137d8dea069440f68fe0f80eb146f11bcf5",
+      "bytes": 3452,
+      "sha256": "d8da8a935b69534392a1a5567bc7e137d8dea069440f68fe0f80eb146f11bcf5",
+      "byte_exact": true
+    },
+    {
+      "path": "reproductions/astra/parent/receivers/2/results.json",
+      "source": "/Users/ccheever/clique-improvement/reviews/compiler-insert-provenance-r16/astra/review-evidence/remote/review-work/projects/parent/receivers/2/results.json",
+      "original_bytes": 9205,
+      "original_sha256": "e23a5cc1dc47923a95ff0441f8a30cc4fcf35f71bc7b5134dd6dca8238084d0d",
+      "bytes": 9205,
+      "sha256": "e23a5cc1dc47923a95ff0441f8a30cc4fcf35f71bc7b5134dd6dca8238084d0d",
+      "byte_exact": true
+    },
+    {
+      "path": "reproductions/astra/parent/receivers/2/snapback/probe.ts",
+      "source": "/Users/ccheever/clique-improvement/reviews/compiler-insert-provenance-r16/astra/review-evidence/remote/review-work/projects/parent/receivers/2/snapback/probe.ts",
+      "original_bytes": 314,
+      "original_sha256": "0c3d8bfa9758710727fe5a7b1d2142d76ca6d61b72cda7c6b632697edd46e57d",
+      "bytes": 314,
+      "sha256": "0c3d8bfa9758710727fe5a7b1d2142d76ca6d61b72cda7c6b632697edd46e57d",
+      "byte_exact": true
+    },
+    {
+      "path": "reproductions/astra/parent/receivers/2/snapback/schema.ts",
+      "source": "/Users/ccheever/clique-improvement/reviews/compiler-insert-provenance-r16/astra/review-evidence/remote/review-work/projects/parent/receivers/2/snapback/schema.ts",
+      "original_bytes": 236,
+      "original_sha256": "2441d069e6fb44025c54552a1743edf2aef5ae627c65b7fe68e0a2e5bb240e2d",
+      "bytes": 236,
+      "sha256": "2441d069e6fb44025c54552a1743edf2aef5ae627c65b7fe68e0a2e5bb240e2d",
+      "byte_exact": true
+    },
+    {
+      "path": "reproductions/astra/parent/receivers/3/api.d.ts",
+      "source": "/Users/ccheever/clique-improvement/reviews/compiler-insert-provenance-r16/astra/review-evidence/remote/review-work/projects/parent/receivers/3/api.d.ts",
+      "original_bytes": 434,
+      "original_sha256": "850b5b6fa65ca22612edcb5dc65a03475f918d9e0641a4f20516e688beff17de",
+      "bytes": 434,
+      "sha256": "850b5b6fa65ca22612edcb5dc65a03475f918d9e0641a4f20516e688beff17de",
+      "byte_exact": true
+    },
+    {
+      "path": "reproductions/astra/parent/receivers/3/case.json",
+      "source": "/Users/ccheever/clique-improvement/reviews/compiler-insert-provenance-r16/astra/review-evidence/remote/review-work/projects/parent/receivers/3/case.json",
+      "original_bytes": 891,
+      "original_sha256": "314cc01b13fd003aee44fbb670024cda4de3d4e9ec64224ff7b4abb006129d54",
+      "bytes": 891,
+      "sha256": "314cc01b13fd003aee44fbb670024cda4de3d4e9ec64224ff7b4abb006129d54",
+      "byte_exact": true
+    },
+    {
+      "path": "reproductions/astra/parent/receivers/3/compile.json",
+      "source": "/Users/ccheever/clique-improvement/reviews/compiler-insert-provenance-r16/astra/review-evidence/remote/review-work/projects/parent/receivers/3/compile.json",
+      "original_bytes": 3813,
+      "original_sha256": "ea7801df248f5112573c4be6202a5f47caeb88ee16a2f85e72b0fa3d7085536b",
+      "bytes": 3813,
+      "sha256": "ea7801df248f5112573c4be6202a5f47caeb88ee16a2f85e72b0fa3d7085536b",
+      "byte_exact": true
+    },
+    {
+      "path": "reproductions/astra/parent/receivers/3/project.ir.json",
+      "source": "/Users/ccheever/clique-improvement/reviews/compiler-insert-provenance-r16/astra/review-evidence/remote/review-work/projects/parent/receivers/3/project.ir.json",
+      "original_bytes": 2802,
+      "original_sha256": "c445270b72a686ead6009bef6e2c7290eb59e39d7ed0a1aac541f060ce62f858",
+      "bytes": 2802,
+      "sha256": "c445270b72a686ead6009bef6e2c7290eb59e39d7ed0a1aac541f060ce62f858",
+      "byte_exact": true
+    },
+    {
+      "path": "reproductions/astra/parent/receivers/3/results.json",
+      "source": "/Users/ccheever/clique-improvement/reviews/compiler-insert-provenance-r16/astra/review-evidence/remote/review-work/projects/parent/receivers/3/results.json",
+      "original_bytes": 6601,
+      "original_sha256": "84d40589da109a734669353eee41facf6d89d4101f418a92665e5ace4dfd3dff",
+      "bytes": 6601,
+      "sha256": "84d40589da109a734669353eee41facf6d89d4101f418a92665e5ace4dfd3dff",
+      "byte_exact": true
+    },
+    {
+      "path": "reproductions/astra/parent/receivers/3/snapback/probe.ts",
+      "source": "/Users/ccheever/clique-improvement/reviews/compiler-insert-provenance-r16/astra/review-evidence/remote/review-work/projects/parent/receivers/3/snapback/probe.ts",
+      "original_bytes": 266,
+      "original_sha256": "e106a9c1d050c4ea65a3788de7bef1f4ec527dc4827e53783d0b88b6216be4a0",
+      "bytes": 266,
+      "sha256": "e106a9c1d050c4ea65a3788de7bef1f4ec527dc4827e53783d0b88b6216be4a0",
+      "byte_exact": true
+    },
+    {
+      "path": "reproductions/astra/parent/receivers/3/snapback/schema.ts",
+      "source": "/Users/ccheever/clique-improvement/reviews/compiler-insert-provenance-r16/astra/review-evidence/remote/review-work/projects/parent/receivers/3/snapback/schema.ts",
+      "original_bytes": 236,
+      "original_sha256": "2441d069e6fb44025c54552a1743edf2aef5ae627c65b7fe68e0a2e5bb240e2d",
+      "bytes": 236,
+      "sha256": "2441d069e6fb44025c54552a1743edf2aef5ae627c65b7fe68e0a2e5bb240e2d",
+      "byte_exact": true
+    },
+    {
+      "path": "reproductions/astra/candidate/adjacent/0/api.d.ts",
+      "source": "/Users/ccheever/clique-improvement/reviews/compiler-insert-provenance-r16/astra/review-evidence/remote/review-work/projects/candidate/adjacent/0/api.d.ts",
+      "original_bytes": 379,
+      "original_sha256": "bb728fbb8b410b7afa77ec38646bc600c1af2eea7efeb42998572dbcb52a8637",
+      "bytes": 379,
+      "sha256": "bb728fbb8b410b7afa77ec38646bc600c1af2eea7efeb42998572dbcb52a8637",
+      "byte_exact": true
+    },
+    {
+      "path": "reproductions/astra/candidate/adjacent/0/case.json",
+      "source": "/Users/ccheever/clique-improvement/reviews/compiler-insert-provenance-r16/astra/review-evidence/remote/review-work/projects/candidate/adjacent/0/case.json",
+      "original_bytes": 550,
+      "original_sha256": "4230840271729d3462c1600d159c18288ec6f7cd5ceb4687d391e05965dcd2fd",
+      "bytes": 550,
+      "sha256": "4230840271729d3462c1600d159c18288ec6f7cd5ceb4687d391e05965dcd2fd",
+      "byte_exact": true
+    },
+    {
+      "path": "reproductions/astra/candidate/adjacent/0/compile.json",
+      "source": "/Users/ccheever/clique-improvement/reviews/compiler-insert-provenance-r16/astra/review-evidence/remote/review-work/projects/candidate/adjacent/0/compile.json",
+      "original_bytes": 2729,
+      "original_sha256": "8cc36368d8793fdb81aad881ae264d35cc60c81d6be792d2e2b0339911cd88a0",
+      "bytes": 2729,
+      "sha256": "8cc36368d8793fdb81aad881ae264d35cc60c81d6be792d2e2b0339911cd88a0",
+      "byte_exact": true
+    },
+    {
+      "path": "reproductions/astra/candidate/adjacent/0/project.ir.json",
+      "source": "/Users/ccheever/clique-improvement/reviews/compiler-insert-provenance-r16/astra/review-evidence/remote/review-work/projects/candidate/adjacent/0/project.ir.json",
+      "original_bytes": 1938,
+      "original_sha256": "c427ef8927ec5561a79359f6b6a2170426117f0a474b33b331d396d7f56e92b7",
+      "bytes": 1938,
+      "sha256": "c427ef8927ec5561a79359f6b6a2170426117f0a474b33b331d396d7f56e92b7",
+      "byte_exact": true
+    },
+    {
+      "path": "reproductions/astra/candidate/adjacent/0/results.json",
+      "source": "/Users/ccheever/clique-improvement/reviews/compiler-insert-provenance-r16/astra/review-evidence/remote/review-work/projects/candidate/adjacent/0/results.json",
+      "original_bytes": 1640,
+      "original_sha256": "cbc9a1b0311c2839dcd71df3c5d5d70e3687d035fc0f6aba07917bd411a7b425",
+      "bytes": 1640,
+      "sha256": "cbc9a1b0311c2839dcd71df3c5d5d70e3687d035fc0f6aba07917bd411a7b425",
+      "byte_exact": true
+    },
+    {
+      "path": "reproductions/astra/candidate/adjacent/0/snapback/probe.ts",
+      "source": "/Users/ccheever/clique-improvement/reviews/compiler-insert-provenance-r16/astra/review-evidence/remote/review-work/projects/candidate/adjacent/0/snapback/probe.ts",
+      "original_bytes": 181,
+      "original_sha256": "52d82c0b96fcf2c2acca88f22253596c12ae32cef8e21a7078fd0d449601e2ea",
+      "bytes": 181,
+      "sha256": "52d82c0b96fcf2c2acca88f22253596c12ae32cef8e21a7078fd0d449601e2ea",
+      "byte_exact": true
+    },
+    {
+      "path": "reproductions/astra/candidate/adjacent/0/snapback/schema.ts",
+      "source": "/Users/ccheever/clique-improvement/reviews/compiler-insert-provenance-r16/astra/review-evidence/remote/review-work/projects/candidate/adjacent/0/snapback/schema.ts",
+      "original_bytes": 236,
+      "original_sha256": "2441d069e6fb44025c54552a1743edf2aef5ae627c65b7fe68e0a2e5bb240e2d",
+      "bytes": 236,
+      "sha256": "2441d069e6fb44025c54552a1743edf2aef5ae627c65b7fe68e0a2e5bb240e2d",
+      "byte_exact": true
+    },
+    {
+      "path": "reproductions/astra/candidate/conditional-helpers/0/case.json",
+      "source": "/Users/ccheever/clique-improvement/reviews/compiler-insert-provenance-r16/astra/review-evidence/remote/review-work/projects/candidate/conditional-helpers/0/case.json",
+      "original_bytes": 824,
+      "original_sha256": "538a79d23f3dbc857d9f5b6974e66a99d08cc8780ff2e8eab7f0ae4aa3811062",
+      "bytes": 824,
+      "sha256": "538a79d23f3dbc857d9f5b6974e66a99d08cc8780ff2e8eab7f0ae4aa3811062",
+      "byte_exact": true
+    },
+    {
+      "path": "reproductions/astra/candidate/conditional-helpers/0/compile.json",
+      "source": "/Users/ccheever/clique-improvement/reviews/compiler-insert-provenance-r16/astra/review-evidence/remote/review-work/projects/candidate/conditional-helpers/0/compile.json",
+      "original_bytes": 854,
+      "original_sha256": "a771b9f4d6d095e05d23e0d16d43ab94bde6980797fc6c48d2190e8a1f636b92",
+      "bytes": 854,
+      "sha256": "a771b9f4d6d095e05d23e0d16d43ab94bde6980797fc6c48d2190e8a1f636b92",
+      "byte_exact": true
+    },
+    {
+      "path": "reproductions/astra/candidate/conditional-helpers/0/snapback/probe.ts",
+      "source": "/Users/ccheever/clique-improvement/reviews/compiler-insert-provenance-r16/astra/review-evidence/remote/review-work/projects/candidate/conditional-helpers/0/snapback/probe.ts",
+      "original_bytes": 328,
+      "original_sha256": "e858343b327284e09a92125b13772c869ae49d53b02de7067b5441ddbfb2a238",
+      "bytes": 328,
+      "sha256": "e858343b327284e09a92125b13772c869ae49d53b02de7067b5441ddbfb2a238",
+      "byte_exact": true
+    },
+    {
+      "path": "reproductions/astra/candidate/conditional-helpers/0/snapback/schema.ts",
+      "source": "/Users/ccheever/clique-improvement/reviews/compiler-insert-provenance-r16/astra/review-evidence/remote/review-work/projects/candidate/conditional-helpers/0/snapback/schema.ts",
+      "original_bytes": 207,
+      "original_sha256": "7c5b296a444e49dbb5675e1be6e3732cb25a454b1ffec43d0830ebbc6484434c",
+      "bytes": 207,
+      "sha256": "7c5b296a444e49dbb5675e1be6e3732cb25a454b1ffec43d0830ebbc6484434c",
+      "byte_exact": true
+    },
+    {
+      "path": "reproductions/astra/candidate/conditional-helpers/1/case.json",
+      "source": "/Users/ccheever/clique-improvement/reviews/compiler-insert-provenance-r16/astra/review-evidence/remote/review-work/projects/candidate/conditional-helpers/1/case.json",
+      "original_bytes": 839,
+      "original_sha256": "28d8bdfc85088e616469bbc50b1e136f66e7e32bb2d903f2b26bdb4ddf91b5bf",
+      "bytes": 839,
+      "sha256": "28d8bdfc85088e616469bbc50b1e136f66e7e32bb2d903f2b26bdb4ddf91b5bf",
+      "byte_exact": true
+    },
+    {
+      "path": "reproductions/astra/candidate/conditional-helpers/1/compile.json",
+      "source": "/Users/ccheever/clique-improvement/reviews/compiler-insert-provenance-r16/astra/review-evidence/remote/review-work/projects/candidate/conditional-helpers/1/compile.json",
+      "original_bytes": 860,
+      "original_sha256": "b8d4622e8f9cdcc629b90d5fbb43ef74b9c5a6562cf7e542e579c0a0333bf78a",
+      "bytes": 860,
+      "sha256": "b8d4622e8f9cdcc629b90d5fbb43ef74b9c5a6562cf7e542e579c0a0333bf78a",
+      "byte_exact": true
+    },
+    {
+      "path": "reproductions/astra/candidate/conditional-helpers/1/snapback/probe.ts",
+      "source": "/Users/ccheever/clique-improvement/reviews/compiler-insert-provenance-r16/astra/review-evidence/remote/review-work/projects/candidate/conditional-helpers/1/snapback/probe.ts",
+      "original_bytes": 335,
+      "original_sha256": "1e53cec04ff429200926d4660591291ca13111f4fbcda959f9eb9376813da35c",
+      "bytes": 335,
+      "sha256": "1e53cec04ff429200926d4660591291ca13111f4fbcda959f9eb9376813da35c",
+      "byte_exact": true
+    },
+    {
+      "path": "reproductions/astra/candidate/conditional-helpers/1/snapback/schema.ts",
+      "source": "/Users/ccheever/clique-improvement/reviews/compiler-insert-provenance-r16/astra/review-evidence/remote/review-work/projects/candidate/conditional-helpers/1/snapback/schema.ts",
+      "original_bytes": 207,
+      "original_sha256": "7c5b296a444e49dbb5675e1be6e3732cb25a454b1ffec43d0830ebbc6484434c",
+      "bytes": 207,
+      "sha256": "7c5b296a444e49dbb5675e1be6e3732cb25a454b1ffec43d0830ebbc6484434c",
+      "byte_exact": true
+    },
+    {
+      "path": "reproductions/astra/candidate/conditional-helpers/2/api.d.ts",
+      "source": "/Users/ccheever/clique-improvement/reviews/compiler-insert-provenance-r16/astra/review-evidence/remote/review-work/projects/candidate/conditional-helpers/2/api.d.ts",
+      "original_bytes": 469,
+      "original_sha256": "7e7caab54d05fdc06cc1a412c1e3e95b3e33905dda1ffe0d339b2458c546a15a",
+      "bytes": 469,
+      "sha256": "7e7caab54d05fdc06cc1a412c1e3e95b3e33905dda1ffe0d339b2458c546a15a",
+      "byte_exact": true
+    },
+    {
+      "path": "reproductions/astra/candidate/conditional-helpers/2/case.json",
+      "source": "/Users/ccheever/clique-improvement/reviews/compiler-insert-provenance-r16/astra/review-evidence/remote/review-work/projects/candidate/conditional-helpers/2/case.json",
+      "original_bytes": 779,
+      "original_sha256": "5a14af255b24a5b92af029a32c954f37ce46eb949f81d63cc4d166ac3a9e120c",
+      "bytes": 779,
+      "sha256": "5a14af255b24a5b92af029a32c954f37ce46eb949f81d63cc4d166ac3a9e120c",
+      "byte_exact": true
+    },
+    {
+      "path": "reproductions/astra/candidate/conditional-helpers/2/compile.json",
+      "source": "/Users/ccheever/clique-improvement/reviews/compiler-insert-provenance-r16/astra/review-evidence/remote/review-work/projects/candidate/conditional-helpers/2/compile.json",
+      "original_bytes": 4891,
+      "original_sha256": "068f1f7e8097fca4f70ca72a27aeb3aa2a208083fc20dbeaafdb41eabc135d42",
+      "bytes": 4891,
+      "sha256": "068f1f7e8097fca4f70ca72a27aeb3aa2a208083fc20dbeaafdb41eabc135d42",
+      "byte_exact": true
+    },
+    {
+      "path": "reproductions/astra/candidate/conditional-helpers/2/project.ir.json",
+      "source": "/Users/ccheever/clique-improvement/reviews/compiler-insert-provenance-r16/astra/review-evidence/remote/review-work/projects/candidate/conditional-helpers/2/project.ir.json",
+      "original_bytes": 3854,
+      "original_sha256": "b1cb9b21ac706d1c473f3d720b29d04c6ebda33608220b98ef26b3702205fe8b",
+      "bytes": 3854,
+      "sha256": "b1cb9b21ac706d1c473f3d720b29d04c6ebda33608220b98ef26b3702205fe8b",
+      "byte_exact": true
+    },
+    {
+      "path": "reproductions/astra/candidate/conditional-helpers/2/results.json",
+      "source": "/Users/ccheever/clique-improvement/reviews/compiler-insert-provenance-r16/astra/review-evidence/remote/review-work/projects/candidate/conditional-helpers/2/results.json",
+      "original_bytes": 9970,
+      "original_sha256": "31b0a03a3680ff860f5641a298184af126d19e38e58c11289ceafb95fe89dd1e",
+      "bytes": 9970,
+      "sha256": "31b0a03a3680ff860f5641a298184af126d19e38e58c11289ceafb95fe89dd1e",
+      "byte_exact": true
+    },
+    {
+      "path": "reproductions/astra/candidate/conditional-helpers/2/snapback/probe.ts",
+      "source": "/Users/ccheever/clique-improvement/reviews/compiler-insert-provenance-r16/astra/review-evidence/remote/review-work/projects/candidate/conditional-helpers/2/snapback/probe.ts",
+      "original_bytes": 283,
+      "original_sha256": "6e8c752ace9cceaa936a9359052223b232f690d531c5e410adcce885e48dac40",
+      "bytes": 283,
+      "sha256": "6e8c752ace9cceaa936a9359052223b232f690d531c5e410adcce885e48dac40",
+      "byte_exact": true
+    },
+    {
+      "path": "reproductions/astra/candidate/conditional-helpers/2/snapback/schema.ts",
+      "source": "/Users/ccheever/clique-improvement/reviews/compiler-insert-provenance-r16/astra/review-evidence/remote/review-work/projects/candidate/conditional-helpers/2/snapback/schema.ts",
+      "original_bytes": 207,
+      "original_sha256": "7c5b296a444e49dbb5675e1be6e3732cb25a454b1ffec43d0830ebbc6484434c",
+      "bytes": 207,
+      "sha256": "7c5b296a444e49dbb5675e1be6e3732cb25a454b1ffec43d0830ebbc6484434c",
+      "byte_exact": true
+    },
+    {
+      "path": "reproductions/astra/candidate/conditional-helpers/3/api.d.ts",
+      "source": "/Users/ccheever/clique-improvement/reviews/compiler-insert-provenance-r16/astra/review-evidence/remote/review-work/projects/candidate/conditional-helpers/3/api.d.ts",
+      "original_bytes": 469,
+      "original_sha256": "7e7caab54d05fdc06cc1a412c1e3e95b3e33905dda1ffe0d339b2458c546a15a",
+      "bytes": 469,
+      "sha256": "7e7caab54d05fdc06cc1a412c1e3e95b3e33905dda1ffe0d339b2458c546a15a",
+      "byte_exact": true
+    },
+    {
+      "path": "reproductions/astra/candidate/conditional-helpers/3/case.json",
+      "source": "/Users/ccheever/clique-improvement/reviews/compiler-insert-provenance-r16/astra/review-evidence/remote/review-work/projects/candidate/conditional-helpers/3/case.json",
+      "original_bytes": 787,
+      "original_sha256": "4734c4cd1538d11d5cfd5a4004c178975de703d6036633263b34406a322e9770",
+      "bytes": 787,
+      "sha256": "4734c4cd1538d11d5cfd5a4004c178975de703d6036633263b34406a322e9770",
+      "byte_exact": true
+    },
+    {
+      "path": "reproductions/astra/candidate/conditional-helpers/3/compile.json",
+      "source": "/Users/ccheever/clique-improvement/reviews/compiler-insert-provenance-r16/astra/review-evidence/remote/review-work/projects/candidate/conditional-helpers/3/compile.json",
+      "original_bytes": 3876,
+      "original_sha256": "250d89ca0e347af2f63f86d12ac61e47a9f4dc5215404e5da7f03800c87786c4",
+      "bytes": 3876,
+      "sha256": "250d89ca0e347af2f63f86d12ac61e47a9f4dc5215404e5da7f03800c87786c4",
+      "byte_exact": true
+    },
+    {
+      "path": "reproductions/astra/candidate/conditional-helpers/3/project.ir.json",
+      "source": "/Users/ccheever/clique-improvement/reviews/compiler-insert-provenance-r16/astra/review-evidence/remote/review-work/projects/candidate/conditional-helpers/3/project.ir.json",
+      "original_bytes": 2916,
+      "original_sha256": "071d2c29bf09bac30c69a10d4a361e23461948fcd687f262109411916165f2b6",
+      "bytes": 2916,
+      "sha256": "071d2c29bf09bac30c69a10d4a361e23461948fcd687f262109411916165f2b6",
+      "byte_exact": true
+    },
+    {
+      "path": "reproductions/astra/candidate/conditional-helpers/3/results.json",
+      "source": "/Users/ccheever/clique-improvement/reviews/compiler-insert-provenance-r16/astra/review-evidence/remote/review-work/projects/candidate/conditional-helpers/3/results.json",
+      "original_bytes": 9845,
+      "original_sha256": "12faa1e8e9c8dd253cfa489956ba30cfca51a16ae4f4eb7ea794cc7d5cca51b4",
+      "bytes": 9845,
+      "sha256": "12faa1e8e9c8dd253cfa489956ba30cfca51a16ae4f4eb7ea794cc7d5cca51b4",
+      "byte_exact": true
+    },
+    {
+      "path": "reproductions/astra/candidate/conditional-helpers/3/snapback/probe.ts",
+      "source": "/Users/ccheever/clique-improvement/reviews/compiler-insert-provenance-r16/astra/review-evidence/remote/review-work/projects/candidate/conditional-helpers/3/snapback/probe.ts",
+      "original_bytes": 295,
+      "original_sha256": "eb10aea6756a46bb153d32e996d0dda619c892eb1018c596333915195cf33b3f",
+      "bytes": 295,
+      "sha256": "eb10aea6756a46bb153d32e996d0dda619c892eb1018c596333915195cf33b3f",
+      "byte_exact": true
+    },
+    {
+      "path": "reproductions/astra/candidate/conditional-helpers/3/snapback/schema.ts",
+      "source": "/Users/ccheever/clique-improvement/reviews/compiler-insert-provenance-r16/astra/review-evidence/remote/review-work/projects/candidate/conditional-helpers/3/snapback/schema.ts",
+      "original_bytes": 207,
+      "original_sha256": "7c5b296a444e49dbb5675e1be6e3732cb25a454b1ffec43d0830ebbc6484434c",
+      "bytes": 207,
+      "sha256": "7c5b296a444e49dbb5675e1be6e3732cb25a454b1ffec43d0830ebbc6484434c",
+      "byte_exact": true
+    },
+    {
+      "path": "reproductions/astra/candidate/receivers/0/api.d.ts",
+      "source": "/Users/ccheever/clique-improvement/reviews/compiler-insert-provenance-r16/astra/review-evidence/remote/review-work/projects/candidate/receivers/0/api.d.ts",
+      "original_bytes": 434,
+      "original_sha256": "850b5b6fa65ca22612edcb5dc65a03475f918d9e0641a4f20516e688beff17de",
+      "bytes": 434,
+      "sha256": "850b5b6fa65ca22612edcb5dc65a03475f918d9e0641a4f20516e688beff17de",
+      "byte_exact": true
+    },
+    {
+      "path": "reproductions/astra/candidate/receivers/0/case.json",
+      "source": "/Users/ccheever/clique-improvement/reviews/compiler-insert-provenance-r16/astra/review-evidence/remote/review-work/projects/candidate/receivers/0/case.json",
+      "original_bytes": 899,
+      "original_sha256": "06f5c87034e893360f04baa63e0650e4c744a1b1a1b99b69bcbbc25788b83b58",
+      "bytes": 899,
+      "sha256": "06f5c87034e893360f04baa63e0650e4c744a1b1a1b99b69bcbbc25788b83b58",
+      "byte_exact": true
+    },
+    {
+      "path": "reproductions/astra/candidate/receivers/0/compile.json",
+      "source": "/Users/ccheever/clique-improvement/reviews/compiler-insert-provenance-r16/astra/review-evidence/remote/review-work/projects/candidate/receivers/0/compile.json",
+      "original_bytes": 3987,
+      "original_sha256": "c3802c18f7706545577c608ccf6d7605a4f58fefd397b7bc94afd36f495a3a57",
+      "bytes": 3987,
+      "sha256": "c3802c18f7706545577c608ccf6d7605a4f58fefd397b7bc94afd36f495a3a57",
+      "byte_exact": true
+    },
+    {
+      "path": "reproductions/astra/candidate/receivers/0/project.ir.json",
+      "source": "/Users/ccheever/clique-improvement/reviews/compiler-insert-provenance-r16/astra/review-evidence/remote/review-work/projects/candidate/receivers/0/project.ir.json",
+      "original_bytes": 2956,
+      "original_sha256": "f0053c18f72d35ee2b9497a605cb274f958c08fee5b1691f739002d48b5fca00",
+      "bytes": 2956,
+      "sha256": "f0053c18f72d35ee2b9497a605cb274f958c08fee5b1691f739002d48b5fca00",
+      "byte_exact": true
+    },
+    {
+      "path": "reproductions/astra/candidate/receivers/0/results.json",
+      "source": "/Users/ccheever/clique-improvement/reviews/compiler-insert-provenance-r16/astra/review-evidence/remote/review-work/projects/candidate/receivers/0/results.json",
+      "original_bytes": 6695,
+      "original_sha256": "1b16a8e0c48429d74ef8c4d744a32ec86e84d1ca8b4a1e9f8e9322444ed63457",
+      "bytes": 6695,
+      "sha256": "1b16a8e0c48429d74ef8c4d744a32ec86e84d1ca8b4a1e9f8e9322444ed63457",
+      "byte_exact": true
+    },
+    {
+      "path": "reproductions/astra/candidate/receivers/0/snapback/probe.ts",
+      "source": "/Users/ccheever/clique-improvement/reviews/compiler-insert-provenance-r16/astra/review-evidence/remote/review-work/projects/candidate/receivers/0/snapback/probe.ts",
+      "original_bytes": 278,
+      "original_sha256": "2f3e98276facc1906afdfc85c8b2cc7b29bb341eb1d48a7056b1e670d63b5da5",
+      "bytes": 278,
+      "sha256": "2f3e98276facc1906afdfc85c8b2cc7b29bb341eb1d48a7056b1e670d63b5da5",
+      "byte_exact": true
+    },
+    {
+      "path": "reproductions/astra/candidate/receivers/0/snapback/schema.ts",
+      "source": "/Users/ccheever/clique-improvement/reviews/compiler-insert-provenance-r16/astra/review-evidence/remote/review-work/projects/candidate/receivers/0/snapback/schema.ts",
+      "original_bytes": 236,
+      "original_sha256": "2441d069e6fb44025c54552a1743edf2aef5ae627c65b7fe68e0a2e5bb240e2d",
+      "bytes": 236,
+      "sha256": "2441d069e6fb44025c54552a1743edf2aef5ae627c65b7fe68e0a2e5bb240e2d",
+      "byte_exact": true
+    },
+    {
+      "path": "reproductions/astra/candidate/receivers/1/api.d.ts",
+      "source": "/Users/ccheever/clique-improvement/reviews/compiler-insert-provenance-r16/astra/review-evidence/remote/review-work/projects/candidate/receivers/1/api.d.ts",
+      "original_bytes": 434,
+      "original_sha256": "850b5b6fa65ca22612edcb5dc65a03475f918d9e0641a4f20516e688beff17de",
+      "bytes": 434,
+      "sha256": "850b5b6fa65ca22612edcb5dc65a03475f918d9e0641a4f20516e688beff17de",
+      "byte_exact": true
+    },
+    {
+      "path": "reproductions/astra/candidate/receivers/1/case.json",
+      "source": "/Users/ccheever/clique-improvement/reviews/compiler-insert-provenance-r16/astra/review-evidence/remote/review-work/projects/candidate/receivers/1/case.json",
+      "original_bytes": 921,
+      "original_sha256": "34c7bb8364df5c0748401010984b7cfa482205910bdafc583dbc346b1ce0be57",
+      "bytes": 921,
+      "sha256": "34c7bb8364df5c0748401010984b7cfa482205910bdafc583dbc346b1ce0be57",
+      "byte_exact": true
+    },
+    {
+      "path": "reproductions/astra/candidate/receivers/1/compile.json",
+      "source": "/Users/ccheever/clique-improvement/reviews/compiler-insert-provenance-r16/astra/review-evidence/remote/review-work/projects/candidate/receivers/1/compile.json",
+      "original_bytes": 4249,
+      "original_sha256": "81ecb97993b067e523676d600a7c9738b820c2e3172cd9fa3a7db1e6842c661e",
+      "bytes": 4249,
+      "sha256": "81ecb97993b067e523676d600a7c9738b820c2e3172cd9fa3a7db1e6842c661e",
+      "byte_exact": true
+    },
+    {
+      "path": "reproductions/astra/candidate/receivers/1/project.ir.json",
+      "source": "/Users/ccheever/clique-improvement/reviews/compiler-insert-provenance-r16/astra/review-evidence/remote/review-work/projects/candidate/receivers/1/project.ir.json",
+      "original_bytes": 3199,
+      "original_sha256": "520d7c38f8fd2a14c69135f2d000db9836e5dd0280b92604d035ad3f5333681b",
+      "bytes": 3199,
+      "sha256": "520d7c38f8fd2a14c69135f2d000db9836e5dd0280b92604d035ad3f5333681b",
+      "byte_exact": true
+    },
+    {
+      "path": "reproductions/astra/candidate/receivers/1/results.json",
+      "source": "/Users/ccheever/clique-improvement/reviews/compiler-insert-provenance-r16/astra/review-evidence/remote/review-work/projects/candidate/receivers/1/results.json",
+      "original_bytes": 6650,
+      "original_sha256": "f09a8b0e9c6f0cba03284285f4e23ec16f68d41005a0b19f35802772a75080f8",
+      "bytes": 6650,
+      "sha256": "f09a8b0e9c6f0cba03284285f4e23ec16f68d41005a0b19f35802772a75080f8",
+      "byte_exact": true
+    },
+    {
+      "path": "reproductions/astra/candidate/receivers/1/snapback/probe.ts",
+      "source": "/Users/ccheever/clique-improvement/reviews/compiler-insert-provenance-r16/astra/review-evidence/remote/review-work/projects/candidate/receivers/1/snapback/probe.ts",
+      "original_bytes": 293,
+      "original_sha256": "be6a12eeed3b2b10f2910d54b14ce12046f2a8e8c09c462fba7855b1a255e533",
+      "bytes": 293,
+      "sha256": "be6a12eeed3b2b10f2910d54b14ce12046f2a8e8c09c462fba7855b1a255e533",
+      "byte_exact": true
+    },
+    {
+      "path": "reproductions/astra/candidate/receivers/1/snapback/schema.ts",
+      "source": "/Users/ccheever/clique-improvement/reviews/compiler-insert-provenance-r16/astra/review-evidence/remote/review-work/projects/candidate/receivers/1/snapback/schema.ts",
+      "original_bytes": 236,
+      "original_sha256": "2441d069e6fb44025c54552a1743edf2aef5ae627c65b7fe68e0a2e5bb240e2d",
+      "bytes": 236,
+      "sha256": "2441d069e6fb44025c54552a1743edf2aef5ae627c65b7fe68e0a2e5bb240e2d",
+      "byte_exact": true
+    },
+    {
+      "path": "reproductions/astra/candidate/receivers/2/api.d.ts",
+      "source": "/Users/ccheever/clique-improvement/reviews/compiler-insert-provenance-r16/astra/review-evidence/remote/review-work/projects/candidate/receivers/2/api.d.ts",
+      "original_bytes": 434,
+      "original_sha256": "850b5b6fa65ca22612edcb5dc65a03475f918d9e0641a4f20516e688beff17de",
+      "bytes": 434,
+      "sha256": "850b5b6fa65ca22612edcb5dc65a03475f918d9e0641a4f20516e688beff17de",
+      "byte_exact": true
+    },
+    {
+      "path": "reproductions/astra/candidate/receivers/2/case.json",
+      "source": "/Users/ccheever/clique-improvement/reviews/compiler-insert-provenance-r16/astra/review-evidence/remote/review-work/projects/candidate/receivers/2/case.json",
+      "original_bytes": 938,
+      "original_sha256": "00df39bf22f2096ea79173fa819d1af995c660e708b4b03a2cdccba19f0a914f",
+      "bytes": 938,
+      "sha256": "00df39bf22f2096ea79173fa819d1af995c660e708b4b03a2cdccba19f0a914f",
+      "byte_exact": true
+    },
+    {
+      "path": "reproductions/astra/candidate/receivers/2/compile.json",
+      "source": "/Users/ccheever/clique-improvement/reviews/compiler-insert-provenance-r16/astra/review-evidence/remote/review-work/projects/candidate/receivers/2/compile.json",
+      "original_bytes": 4528,
+      "original_sha256": "2a83204fa5697b1b6f7d6700242e03a4519425d1e289f2f456ffe17cca636b66",
+      "bytes": 4528,
+      "sha256": "2a83204fa5697b1b6f7d6700242e03a4519425d1e289f2f456ffe17cca636b66",
+      "byte_exact": true
+    },
+    {
+      "path": "reproductions/astra/candidate/receivers/2/project.ir.json",
+      "source": "/Users/ccheever/clique-improvement/reviews/compiler-insert-provenance-r16/astra/review-evidence/remote/review-work/projects/candidate/receivers/2/project.ir.json",
+      "original_bytes": 3452,
+      "original_sha256": "d8da8a935b69534392a1a5567bc7e137d8dea069440f68fe0f80eb146f11bcf5",
+      "bytes": 3452,
+      "sha256": "d8da8a935b69534392a1a5567bc7e137d8dea069440f68fe0f80eb146f11bcf5",
+      "byte_exact": true
+    },
+    {
+      "path": "reproductions/astra/candidate/receivers/2/results.json",
+      "source": "/Users/ccheever/clique-improvement/reviews/compiler-insert-provenance-r16/astra/review-evidence/remote/review-work/projects/candidate/receivers/2/results.json",
+      "original_bytes": 9205,
+      "original_sha256": "e23a5cc1dc47923a95ff0441f8a30cc4fcf35f71bc7b5134dd6dca8238084d0d",
+      "bytes": 9205,
+      "sha256": "e23a5cc1dc47923a95ff0441f8a30cc4fcf35f71bc7b5134dd6dca8238084d0d",
+      "byte_exact": true
+    },
+    {
+      "path": "reproductions/astra/candidate/receivers/2/snapback/probe.ts",
+      "source": "/Users/ccheever/clique-improvement/reviews/compiler-insert-provenance-r16/astra/review-evidence/remote/review-work/projects/candidate/receivers/2/snapback/probe.ts",
+      "original_bytes": 314,
+      "original_sha256": "0c3d8bfa9758710727fe5a7b1d2142d76ca6d61b72cda7c6b632697edd46e57d",
+      "bytes": 314,
+      "sha256": "0c3d8bfa9758710727fe5a7b1d2142d76ca6d61b72cda7c6b632697edd46e57d",
+      "byte_exact": true
+    },
+    {
+      "path": "reproductions/astra/candidate/receivers/2/snapback/schema.ts",
+      "source": "/Users/ccheever/clique-improvement/reviews/compiler-insert-provenance-r16/astra/review-evidence/remote/review-work/projects/candidate/receivers/2/snapback/schema.ts",
+      "original_bytes": 236,
+      "original_sha256": "2441d069e6fb44025c54552a1743edf2aef5ae627c65b7fe68e0a2e5bb240e2d",
+      "bytes": 236,
+      "sha256": "2441d069e6fb44025c54552a1743edf2aef5ae627c65b7fe68e0a2e5bb240e2d",
+      "byte_exact": true
+    },
+    {
+      "path": "reproductions/astra/candidate/receivers/3/api.d.ts",
+      "source": "/Users/ccheever/clique-improvement/reviews/compiler-insert-provenance-r16/astra/review-evidence/remote/review-work/projects/candidate/receivers/3/api.d.ts",
+      "original_bytes": 434,
+      "original_sha256": "850b5b6fa65ca22612edcb5dc65a03475f918d9e0641a4f20516e688beff17de",
+      "bytes": 434,
+      "sha256": "850b5b6fa65ca22612edcb5dc65a03475f918d9e0641a4f20516e688beff17de",
+      "byte_exact": true
+    },
+    {
+      "path": "reproductions/astra/candidate/receivers/3/case.json",
+      "source": "/Users/ccheever/clique-improvement/reviews/compiler-insert-provenance-r16/astra/review-evidence/remote/review-work/projects/candidate/receivers/3/case.json",
+      "original_bytes": 891,
+      "original_sha256": "314cc01b13fd003aee44fbb670024cda4de3d4e9ec64224ff7b4abb006129d54",
+      "bytes": 891,
+      "sha256": "314cc01b13fd003aee44fbb670024cda4de3d4e9ec64224ff7b4abb006129d54",
+      "byte_exact": true
+    },
+    {
+      "path": "reproductions/astra/candidate/receivers/3/compile.json",
+      "source": "/Users/ccheever/clique-improvement/reviews/compiler-insert-provenance-r16/astra/review-evidence/remote/review-work/projects/candidate/receivers/3/compile.json",
+      "original_bytes": 3816,
+      "original_sha256": "80a675f6f89543b316383ac5ab52e2fa2a19f107003c5b9d5a6807687da4bad9",
+      "bytes": 3816,
+      "sha256": "80a675f6f89543b316383ac5ab52e2fa2a19f107003c5b9d5a6807687da4bad9",
+      "byte_exact": true
+    },
+    {
+      "path": "reproductions/astra/candidate/receivers/3/project.ir.json",
+      "source": "/Users/ccheever/clique-improvement/reviews/compiler-insert-provenance-r16/astra/review-evidence/remote/review-work/projects/candidate/receivers/3/project.ir.json",
+      "original_bytes": 2802,
+      "original_sha256": "c445270b72a686ead6009bef6e2c7290eb59e39d7ed0a1aac541f060ce62f858",
+      "bytes": 2802,
+      "sha256": "c445270b72a686ead6009bef6e2c7290eb59e39d7ed0a1aac541f060ce62f858",
+      "byte_exact": true
+    },
+    {
+      "path": "reproductions/astra/candidate/receivers/3/results.json",
+      "source": "/Users/ccheever/clique-improvement/reviews/compiler-insert-provenance-r16/astra/review-evidence/remote/review-work/projects/candidate/receivers/3/results.json",
+      "original_bytes": 6601,
+      "original_sha256": "84d40589da109a734669353eee41facf6d89d4101f418a92665e5ace4dfd3dff",
+      "bytes": 6601,
+      "sha256": "84d40589da109a734669353eee41facf6d89d4101f418a92665e5ace4dfd3dff",
+      "byte_exact": true
+    },
+    {
+      "path": "reproductions/astra/candidate/receivers/3/snapback/probe.ts",
+      "source": "/Users/ccheever/clique-improvement/reviews/compiler-insert-provenance-r16/astra/review-evidence/remote/review-work/projects/candidate/receivers/3/snapback/probe.ts",
+      "original_bytes": 266,
+      "original_sha256": "e106a9c1d050c4ea65a3788de7bef1f4ec527dc4827e53783d0b88b6216be4a0",
+      "bytes": 266,
+      "sha256": "e106a9c1d050c4ea65a3788de7bef1f4ec527dc4827e53783d0b88b6216be4a0",
+      "byte_exact": true
+    },
+    {
+      "path": "reproductions/astra/candidate/receivers/3/snapback/schema.ts",
+      "source": "/Users/ccheever/clique-improvement/reviews/compiler-insert-provenance-r16/astra/review-evidence/remote/review-work/projects/candidate/receivers/3/snapback/schema.ts",
+      "original_bytes": 236,
+      "original_sha256": "2441d069e6fb44025c54552a1743edf2aef5ae627c65b7fe68e0a2e5bb240e2d",
+      "bytes": 236,
+      "sha256": "2441d069e6fb44025c54552a1743edf2aef5ae627c65b7fe68e0a2e5bb240e2d",
+      "byte_exact": true
+    },
+    {
+      "path": "reproductions/astra/js/adjacent/0.js",
+      "source": "/Users/ccheever/clique-improvement/reviews/compiler-insert-provenance-r16/astra/review-evidence/remote/review-work/js/adjacent/0.js",
+      "original_bytes": 283,
+      "original_sha256": "e91d29e0f3de0a1431402852947547e8466b52d8bbb48df2e86c33ae372fef7d",
+      "bytes": 283,
+      "sha256": "e91d29e0f3de0a1431402852947547e8466b52d8bbb48df2e86c33ae372fef7d",
+      "byte_exact": true
+    },
+    {
+      "path": "reproductions/astra/js/adjacent/1.js",
+      "source": "/Users/ccheever/clique-improvement/reviews/compiler-insert-provenance-r16/astra/review-evidence/remote/review-work/js/adjacent/1.js",
+      "original_bytes": 422,
+      "original_sha256": "af1a4098ed48d373cc6c24a6f34844d9288de624b8d40b63964b685f00a615c0",
+      "bytes": 422,
+      "sha256": "af1a4098ed48d373cc6c24a6f34844d9288de624b8d40b63964b685f00a615c0",
+      "byte_exact": true
+    },
+    {
+      "path": "reproductions/astra/js/adjacent/11.js",
+      "source": "/Users/ccheever/clique-improvement/reviews/compiler-insert-provenance-r16/astra/review-evidence/remote/review-work/js/adjacent/11.js",
+      "original_bytes": 389,
+      "original_sha256": "b98b3105feb5c372b30f09e037bf28b82008d0b8f99348c694207de69296c4fd",
+      "bytes": 389,
+      "sha256": "b98b3105feb5c372b30f09e037bf28b82008d0b8f99348c694207de69296c4fd",
+      "byte_exact": true
+    },
+    {
+      "path": "reproductions/astra/js/adjacent/2.js",
+      "source": "/Users/ccheever/clique-improvement/reviews/compiler-insert-provenance-r16/astra/review-evidence/remote/review-work/js/adjacent/2.js",
+      "original_bytes": 473,
+      "original_sha256": "eaae822ae8003d825738b4a143ef4d51079b28e4cd2d467db493286bf9d0a9b5",
+      "bytes": 473,
+      "sha256": "eaae822ae8003d825738b4a143ef4d51079b28e4cd2d467db493286bf9d0a9b5",
+      "byte_exact": true
+    },
+    {
+      "path": "reproductions/astra/js/adjacent/3.js",
+      "source": "/Users/ccheever/clique-improvement/reviews/compiler-insert-provenance-r16/astra/review-evidence/remote/review-work/js/adjacent/3.js",
+      "original_bytes": 369,
+      "original_sha256": "c800644df4a6b4107f153e82da416a74095ba497770fc00ff9a51f105beb18fa",
+      "bytes": 369,
+      "sha256": "c800644df4a6b4107f153e82da416a74095ba497770fc00ff9a51f105beb18fa",
+      "byte_exact": true
+    },
+    {
+      "path": "reproductions/astra/js/adjacent/4.js",
+      "source": "/Users/ccheever/clique-improvement/reviews/compiler-insert-provenance-r16/astra/review-evidence/remote/review-work/js/adjacent/4.js",
+      "original_bytes": 334,
+      "original_sha256": "80c7b711349fcf4ace359a5ad238b367d7dc913f283936b416a469911bfbb026",
+      "bytes": 334,
+      "sha256": "80c7b711349fcf4ace359a5ad238b367d7dc913f283936b416a469911bfbb026",
+      "byte_exact": true
+    },
+    {
+      "path": "reproductions/astra/js/adjacent/5.js",
+      "source": "/Users/ccheever/clique-improvement/reviews/compiler-insert-provenance-r16/astra/review-evidence/remote/review-work/js/adjacent/5.js",
+      "original_bytes": 292,
+      "original_sha256": "0db91bf99b7176d0c796bc1661a694db54adc7ea2061bc3ea142f82ee7972ccf",
+      "bytes": 292,
+      "sha256": "0db91bf99b7176d0c796bc1661a694db54adc7ea2061bc3ea142f82ee7972ccf",
+      "byte_exact": true
+    },
+    {
+      "path": "reproductions/astra/js/adjacent/6.js",
+      "source": "/Users/ccheever/clique-improvement/reviews/compiler-insert-provenance-r16/astra/review-evidence/remote/review-work/js/adjacent/6.js",
+      "original_bytes": 367,
+      "original_sha256": "2da05eed6855ce369d040d5d521e06bb4aef9621ce01ffa2c29a967a19a3646b",
+      "bytes": 367,
+      "sha256": "2da05eed6855ce369d040d5d521e06bb4aef9621ce01ffa2c29a967a19a3646b",
+      "byte_exact": true
+    },
+    {
+      "path": "reproductions/astra/js/adjacent/7.js",
+      "source": "/Users/ccheever/clique-improvement/reviews/compiler-insert-provenance-r16/astra/review-evidence/remote/review-work/js/adjacent/7.js",
+      "original_bytes": 343,
+      "original_sha256": "68d75c4ce3012204ac13b74bab4174c8eb8393b234bf84aab7ff5fcb7ace450f",
+      "bytes": 343,
+      "sha256": "68d75c4ce3012204ac13b74bab4174c8eb8393b234bf84aab7ff5fcb7ace450f",
+      "byte_exact": true
+    },
+    {
+      "path": "reproductions/astra/js/adjacent/results.json",
+      "source": "/Users/ccheever/clique-improvement/reviews/compiler-insert-provenance-r16/astra/review-evidence/remote/review-work/js/adjacent/results.json",
+      "original_bytes": 5635,
+      "original_sha256": "08d566ab3169094536ace8d4161ad0e3ed85ad715e5fdf6cb18e168cb8051737",
+      "bytes": 5635,
+      "sha256": "08d566ab3169094536ace8d4161ad0e3ed85ad715e5fdf6cb18e168cb8051737",
+      "byte_exact": true
+    },
+    {
+      "path": "reproductions/astra/js/receivers/0.js",
+      "source": "/Users/ccheever/clique-improvement/reviews/compiler-insert-provenance-r16/astra/review-evidence/remote/review-work/js/receivers/0.js",
+      "original_bytes": 468,
+      "original_sha256": "3a7ad24c303b6c6cbb73af463edad86ceb370273146c1e7eaf809fb8f00baccd",
+      "bytes": 468,
+      "sha256": "3a7ad24c303b6c6cbb73af463edad86ceb370273146c1e7eaf809fb8f00baccd",
+      "byte_exact": true
+    },
+    {
+      "path": "reproductions/astra/js/receivers/1.js",
+      "source": "/Users/ccheever/clique-improvement/reviews/compiler-insert-provenance-r16/astra/review-evidence/remote/review-work/js/receivers/1.js",
+      "original_bytes": 491,
+      "original_sha256": "ed63b82f908d4299d0de0e02b66e621ed9eff11fc5f28c8e3eb9a2b9780a2a07",
+      "bytes": 491,
+      "sha256": "ed63b82f908d4299d0de0e02b66e621ed9eff11fc5f28c8e3eb9a2b9780a2a07",
+      "byte_exact": true
+    },
+    {
+      "path": "reproductions/astra/js/receivers/2.js",
+      "source": "/Users/ccheever/clique-improvement/reviews/compiler-insert-provenance-r16/astra/review-evidence/remote/review-work/js/receivers/2.js",
+      "original_bytes": 519,
+      "original_sha256": "cca5909f2f04d2381b900dd5063be88edaa2af5d1e31086e26248384adf2d053",
+      "bytes": 519,
+      "sha256": "cca5909f2f04d2381b900dd5063be88edaa2af5d1e31086e26248384adf2d053",
+      "byte_exact": true
+    },
+    {
+      "path": "reproductions/astra/js/receivers/3.js",
+      "source": "/Users/ccheever/clique-improvement/reviews/compiler-insert-provenance-r16/astra/review-evidence/remote/review-work/js/receivers/3.js",
+      "original_bytes": 461,
+      "original_sha256": "d19612e30a752dc7cd25e963d76c637e59d37400d3d7280c8ce4ecd8d0407db2",
+      "bytes": 461,
+      "sha256": "d19612e30a752dc7cd25e963d76c637e59d37400d3d7280c8ce4ecd8d0407db2",
+      "byte_exact": true
+    },
+    {
+      "path": "reproductions/astra/js/receivers/results.json",
+      "source": "/Users/ccheever/clique-improvement/reviews/compiler-insert-provenance-r16/astra/review-evidence/remote/review-work/js/receivers/results.json",
+      "original_bytes": 4998,
+      "original_sha256": "281d34920ed051b8ed9f13b474b1b762ae6bae560d023f4fe9b6e29f60210d61",
+      "bytes": 4998,
+      "sha256": "281d34920ed051b8ed9f13b474b1b762ae6bae560d023f4fe9b6e29f60210d61",
+      "byte_exact": true
+    },
+    {
+      "path": "reproductions/astra/conditional-helpers.json",
+      "source": "/Users/ccheever/clique-improvement/reviews/compiler-insert-provenance-r16/astra/review-evidence/conditional-helpers.json",
+      "original_bytes": 3412,
+      "original_sha256": "85d2a5f49d38f4e62862168eaa8b63aba49713012b317aba5d124ae018bc89bd",
+      "bytes": 3412,
+      "sha256": "85d2a5f49d38f4e62862168eaa8b63aba49713012b317aba5d124ae018bc89bd",
+      "byte_exact": true
+    },
+    {
+      "path": "reproductions/astra/receivers.json",
+      "source": "/Users/ccheever/clique-improvement/reviews/compiler-insert-provenance-r16/astra/review-evidence/receivers.json",
+      "original_bytes": 3880,
+      "original_sha256": "639c40bdbc2e7c03624fbd63912df522c20f1027bb27abe4805d3f398dbeea81",
+      "bytes": 3880,
+      "sha256": "639c40bdbc2e7c03624fbd63912df522c20f1027bb27abe4805d3f398dbeea81",
+      "byte_exact": true
+    },
+    {
+      "path": "reproductions/astra/case-index.json",
+      "source": "/Users/ccheever/clique-improvement/reviews/compiler-insert-provenance-r16/astra/review-evidence/case-index.json",
+      "original_bytes": 97448,
+      "original_sha256": "f3374f928be91342b57f7cb6823b11be6f757f3156020e5ce7ea7823a7d6d713",
+      "bytes": 97448,
+      "sha256": "f3374f928be91342b57f7cb6823b11be6f757f3156020e5ce7ea7823a7d6d713",
+      "byte_exact": true
+    },
+    {
+      "path": "failures/astra/verification.json",
+      "source": "/Users/ccheever/clique-improvement/reviews/compiler-insert-provenance-r16/astra/review-evidence/remote/review-work/verification.json",
+      "original_bytes": 5178,
+      "original_sha256": "ff75018a45858ab033b80892c67ea01965dd55ffd7c955be064c2462de54eece",
+      "bytes": 5178,
+      "sha256": "ff75018a45858ab033b80892c67ea01965dd55ffd7c955be064c2462de54eece",
+      "byte_exact": true
+    },
+    {
+      "path": "failures/astra/candidate-types/stdout.txt",
+      "source": "/Users/ccheever/clique-improvement/reviews/compiler-insert-provenance-r16/astra/review-evidence/remote/review-work/results/candidate-types/stdout.txt",
+      "original_bytes": 51027,
+      "original_sha256": "01ba7b3ea34ef2d5361df7e46e06c4687116b03f3a76c69439a0f76d996feea9",
+      "bytes": 51027,
+      "sha256": "01ba7b3ea34ef2d5361df7e46e06c4687116b03f3a76c69439a0f76d996feea9",
+      "byte_exact": true
+    },
+    {
+      "path": "failures/astra/candidate-types/stderr.txt",
+      "source": "/Users/ccheever/clique-improvement/reviews/compiler-insert-provenance-r16/astra/review-evidence/remote/review-work/results/candidate-types/stderr.txt",
+      "original_bytes": 0,
+      "original_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "byte_exact": true
+    },
+    {
+      "path": "failures/astra/candidate-types-corrected/stdout.txt",
+      "source": "/Users/ccheever/clique-improvement/reviews/compiler-insert-provenance-r16/astra/review-evidence/remote/review-work/results/candidate-types-corrected/stdout.txt",
+      "original_bytes": 3433,
+      "original_sha256": "b2a23df853c2f55a08f3b7e24b79d2aacbb5cd0118ede385d536a74223f3746d",
+      "bytes": 3433,
+      "sha256": "b2a23df853c2f55a08f3b7e24b79d2aacbb5cd0118ede385d536a74223f3746d",
+      "byte_exact": true
+    },
+    {
+      "path": "failures/astra/candidate-types-corrected/stderr.txt",
+      "source": "/Users/ccheever/clique-improvement/reviews/compiler-insert-provenance-r16/astra/review-evidence/remote/review-work/results/candidate-types-corrected/stderr.txt",
+      "original_bytes": 0,
+      "original_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "byte_exact": true
+    },
+    {
+      "path": "failures/astra/parent-independent-0/stdout.txt",
+      "source": "/Users/ccheever/clique-improvement/reviews/compiler-insert-provenance-r16/astra/review-evidence/remote/review-work/results/parent-independent-0/stdout.txt",
+      "original_bytes": 0,
+      "original_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "byte_exact": true
+    },
+    {
+      "path": "failures/astra/parent-independent-0/stderr.txt",
+      "source": "/Users/ccheever/clique-improvement/reviews/compiler-insert-provenance-r16/astra/review-evidence/remote/review-work/results/parent-independent-0/stderr.txt",
+      "original_bytes": 237,
+      "original_sha256": "70da0de01dea4fa17217ce92171ceb7561d9f10000075dd0749af2a0732a6061",
+      "bytes": 237,
+      "sha256": "70da0de01dea4fa17217ce92171ceb7561d9f10000075dd0749af2a0732a6061",
+      "byte_exact": true
+    },
+    {
+      "path": "failures/astra/parent-types/stdout.txt",
+      "source": "/Users/ccheever/clique-improvement/reviews/compiler-insert-provenance-r16/astra/review-evidence/remote/review-work/results/parent-types/stdout.txt",
+      "original_bytes": 54105,
+      "original_sha256": "52c5c64d31d34b912578ae58e6063cfdb39bcde537aafa81f5f37d4479a96bee",
+      "bytes": 54105,
+      "sha256": "52c5c64d31d34b912578ae58e6063cfdb39bcde537aafa81f5f37d4479a96bee",
+      "byte_exact": true
+    },
+    {
+      "path": "failures/astra/parent-types/stderr.txt",
+      "source": "/Users/ccheever/clique-improvement/reviews/compiler-insert-provenance-r16/astra/review-evidence/remote/review-work/results/parent-types/stderr.txt",
+      "original_bytes": 0,
+      "original_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "byte_exact": true
+    },
+    {
+      "path": "failures/astra/parent-types-corrected/stdout.txt",
+      "source": "/Users/ccheever/clique-improvement/reviews/compiler-insert-provenance-r16/astra/review-evidence/remote/review-work/results/parent-types-corrected/stdout.txt",
+      "original_bytes": 3566,
+      "original_sha256": "4d7d600db6d162092aa00c94bb0c8ee693ea373e777b0927d486b523da15d1a6",
+      "bytes": 3566,
+      "sha256": "4d7d600db6d162092aa00c94bb0c8ee693ea373e777b0927d486b523da15d1a6",
+      "byte_exact": true
+    },
+    {
+      "path": "failures/astra/parent-types-corrected/stderr.txt",
+      "source": "/Users/ccheever/clique-improvement/reviews/compiler-insert-provenance-r16/astra/review-evidence/remote/review-work/results/parent-types-corrected/stderr.txt",
+      "original_bytes": 0,
+      "original_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "byte_exact": true
+    },
+    {
+      "path": "failures/astra/semantic-verification/stdout.txt",
+      "source": "/Users/ccheever/clique-improvement/reviews/compiler-insert-provenance-r16/astra/review-evidence/remote/review-work/results/semantic-verification/stdout.txt",
+      "original_bytes": 546,
+      "original_sha256": "ed213724a0e64cd1fb64f94816f0e5cb61b855c984b82b78ac96811b37e00c23",
+      "bytes": 546,
+      "sha256": "ed213724a0e64cd1fb64f94816f0e5cb61b855c984b82b78ac96811b37e00c23",
+      "byte_exact": true
+    },
+    {
+      "path": "failures/astra/semantic-verification/stderr.txt",
+      "source": "/Users/ccheever/clique-improvement/reviews/compiler-insert-provenance-r16/astra/review-evidence/remote/review-work/results/semantic-verification/stderr.txt",
+      "original_bytes": 0,
+      "original_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "byte_exact": true
+    },
+    {
+      "path": "reproductions/grok/projects/ctx-reassign-newId/snapback/probe.ts",
+      "source": "/Users/ccheever/clique-improvement/reviews/compiler-insert-provenance-r16/grok/review-work/projects/ctx-reassign-newId/snapback/probe.ts",
+      "original_bytes": 192,
+      "original_sha256": "4783ddfc9f9afaac07a55d9ea0fcc7cff535f24ce740f49bedff0cd1bdbe7992",
+      "bytes": 192,
+      "sha256": "4783ddfc9f9afaac07a55d9ea0fcc7cff535f24ce740f49bedff0cd1bdbe7992",
+      "byte_exact": true
+    },
+    {
+      "path": "reproductions/grok/projects/ctx-reassign-newId/snapback/schema.ts",
+      "source": "/Users/ccheever/clique-improvement/reviews/compiler-insert-provenance-r16/grok/review-work/projects/ctx-reassign-newId/snapback/schema.ts",
+      "original_bytes": 238,
+      "original_sha256": "1898f8b0f3fce638568d963aaa8832b7abec993172fdf3c82dd4c37ccab1c54b",
+      "bytes": 238,
+      "sha256": "1898f8b0f3fce638568d963aaa8832b7abec993172fdf3c82dd4c37ccab1c54b",
+      "byte_exact": true
+    },
+    {
+      "path": "reproductions/grok/runs/candidate-ctx-reassign-newId/meta.txt",
+      "source": "/Users/ccheever/clique-improvement/reviews/compiler-insert-provenance-r16/grok/review-work/runs/candidate-ctx-reassign-newId/meta.txt",
+      "original_bytes": 1650,
+      "original_sha256": "160f74e7e73ef6b388a394f5e15c0326e021af7dbb38b8cd00d4315d966f1d74",
+      "bytes": 1650,
+      "sha256": "160f74e7e73ef6b388a394f5e15c0326e021af7dbb38b8cd00d4315d966f1d74",
+      "byte_exact": true
+    },
+    {
+      "path": "reproductions/grok/runs/candidate-ctx-reassign-newId/stderr.txt",
+      "source": "/Users/ccheever/clique-improvement/reviews/compiler-insert-provenance-r16/grok/review-work/runs/candidate-ctx-reassign-newId/stderr.txt",
+      "original_bytes": 0,
+      "original_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "byte_exact": true
+    },
+    {
+      "path": "reproductions/grok/runs/candidate-ctx-reassign-newId/stdout.txt",
+      "source": "/Users/ccheever/clique-improvement/reviews/compiler-insert-provenance-r16/grok/review-work/runs/candidate-ctx-reassign-newId/stdout.txt",
+      "original_bytes": 861,
+      "original_sha256": "123465055da2ba8a53bc219616b0fd7a3e17a3c48d2d2265e1e63c5c03e8c62a",
+      "bytes": 861,
+      "sha256": "123465055da2ba8a53bc219616b0fd7a3e17a3c48d2d2265e1e63c5c03e8c62a",
+      "byte_exact": true
+    },
+    {
+      "path": "reproductions/grok/runs/eval-candidate-ctx-reassign-newId-main/meta.txt",
+      "source": "/Users/ccheever/clique-improvement/reviews/compiler-insert-provenance-r16/grok/review-work/runs/eval-candidate-ctx-reassign-newId-main/meta.txt",
+      "original_bytes": 1274,
+      "original_sha256": "1e80055eebb58b9d02f0c7552310c66c7ad0bdd9df41648c0e880789f7c34bd2",
+      "bytes": 1274,
+      "sha256": "1e80055eebb58b9d02f0c7552310c66c7ad0bdd9df41648c0e880789f7c34bd2",
+      "byte_exact": true
+    },
+    {
+      "path": "reproductions/grok/runs/eval-candidate-ctx-reassign-newId-main/stderr.txt",
+      "source": "/Users/ccheever/clique-improvement/reviews/compiler-insert-provenance-r16/grok/review-work/runs/eval-candidate-ctx-reassign-newId-main/stderr.txt",
+      "original_bytes": 0,
+      "original_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "byte_exact": true
+    },
+    {
+      "path": "reproductions/grok/runs/eval-candidate-ctx-reassign-newId-main/stdout.txt",
+      "source": "/Users/ccheever/clique-improvement/reviews/compiler-insert-provenance-r16/grok/review-work/runs/eval-candidate-ctx-reassign-newId-main/stdout.txt",
+      "original_bytes": 176,
+      "original_sha256": "b87e4c3b693d03f79056a647a3442948f82b9b32181cbd1c82a3d86e379e251c",
+      "bytes": 176,
+      "sha256": "b87e4c3b693d03f79056a647a3442948f82b9b32181cbd1c82a3d86e379e251c",
+      "byte_exact": true
+    },
+    {
+      "path": "reproductions/grok/runs/eval-parent-ctx-reassign-newId-main/meta.txt",
+      "source": "/Users/ccheever/clique-improvement/reviews/compiler-insert-provenance-r16/grok/review-work/runs/eval-parent-ctx-reassign-newId-main/meta.txt",
+      "original_bytes": 1268,
+      "original_sha256": "ccb0b819c2be1522efe21fe2aed9e5d8afbdbd5ea761cc790e85551f99a8ffa7",
+      "bytes": 1268,
+      "sha256": "ccb0b819c2be1522efe21fe2aed9e5d8afbdbd5ea761cc790e85551f99a8ffa7",
+      "byte_exact": true
+    },
+    {
+      "path": "reproductions/grok/runs/eval-parent-ctx-reassign-newId-main/stderr.txt",
+      "source": "/Users/ccheever/clique-improvement/reviews/compiler-insert-provenance-r16/grok/review-work/runs/eval-parent-ctx-reassign-newId-main/stderr.txt",
+      "original_bytes": 0,
+      "original_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "byte_exact": true
+    },
+    {
+      "path": "reproductions/grok/runs/eval-parent-ctx-reassign-newId-main/stdout.txt",
+      "source": "/Users/ccheever/clique-improvement/reviews/compiler-insert-provenance-r16/grok/review-work/runs/eval-parent-ctx-reassign-newId-main/stdout.txt",
+      "original_bytes": 176,
+      "original_sha256": "b87e4c3b693d03f79056a647a3442948f82b9b32181cbd1c82a3d86e379e251c",
+      "bytes": 176,
+      "sha256": "b87e4c3b693d03f79056a647a3442948f82b9b32181cbd1c82a3d86e379e251c",
+      "byte_exact": true
+    },
+    {
+      "path": "reproductions/grok/runs/parent-ctx-reassign-newId/meta.txt",
+      "source": "/Users/ccheever/clique-improvement/reviews/compiler-insert-provenance-r16/grok/review-work/runs/parent-ctx-reassign-newId/meta.txt",
+      "original_bytes": 1758,
+      "original_sha256": "edfdeca48da047ccd1193a0b37240afdaa01d966e9525c43dacb7dcc6a4628c9",
+      "bytes": 1758,
+      "sha256": "edfdeca48da047ccd1193a0b37240afdaa01d966e9525c43dacb7dcc6a4628c9",
+      "byte_exact": true
+    },
+    {
+      "path": "reproductions/grok/runs/parent-ctx-reassign-newId/stderr.txt",
+      "source": "/Users/ccheever/clique-improvement/reviews/compiler-insert-provenance-r16/grok/review-work/runs/parent-ctx-reassign-newId/stderr.txt",
+      "original_bytes": 0,
+      "original_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "byte_exact": true
+    },
+    {
+      "path": "reproductions/grok/runs/parent-ctx-reassign-newId/stdout.txt",
+      "source": "/Users/ccheever/clique-improvement/reviews/compiler-insert-provenance-r16/grok/review-work/runs/parent-ctx-reassign-newId/stdout.txt",
+      "original_bytes": 861,
+      "original_sha256": "3c0299e30d9465f34cbbb4dd63fd8bb263ed2a5704a6dc2d5251f6a330afeda0",
+      "bytes": 861,
+      "sha256": "3c0299e30d9465f34cbbb4dd63fd8bb263ed2a5704a6dc2d5251f6a330afeda0",
+      "byte_exact": true
+    },
+    {
+      "path": "reproductions/grok/projects/args-reassign-field/snapback/probe.ts",
+      "source": "/Users/ccheever/clique-improvement/reviews/compiler-insert-provenance-r16/grok/review-work/projects/args-reassign-field/snapback/probe.ts",
+      "original_bytes": 205,
+      "original_sha256": "284286b039cedce6f790e06aa744da1836c7fde13a2041f09b8132795b5cc8ab",
+      "bytes": 205,
+      "sha256": "284286b039cedce6f790e06aa744da1836c7fde13a2041f09b8132795b5cc8ab",
+      "byte_exact": true
+    },
+    {
+      "path": "reproductions/grok/projects/args-reassign-field/snapback/schema.ts",
+      "source": "/Users/ccheever/clique-improvement/reviews/compiler-insert-provenance-r16/grok/review-work/projects/args-reassign-field/snapback/schema.ts",
+      "original_bytes": 238,
+      "original_sha256": "1898f8b0f3fce638568d963aaa8832b7abec993172fdf3c82dd4c37ccab1c54b",
+      "bytes": 238,
+      "sha256": "1898f8b0f3fce638568d963aaa8832b7abec993172fdf3c82dd4c37ccab1c54b",
+      "byte_exact": true
+    },
+    {
+      "path": "reproductions/grok/runs/candidate-args-reassign-field/meta.txt",
+      "source": "/Users/ccheever/clique-improvement/reviews/compiler-insert-provenance-r16/grok/review-work/runs/candidate-args-reassign-field/meta.txt",
+      "original_bytes": 1653,
+      "original_sha256": "fc7c657c5b0aacba5f377f747ff4ef989afea643c83af3c0858278a556632096",
+      "bytes": 1653,
+      "sha256": "fc7c657c5b0aacba5f377f747ff4ef989afea643c83af3c0858278a556632096",
+      "byte_exact": true
+    },
+    {
+      "path": "reproductions/grok/runs/candidate-args-reassign-field/stderr.txt",
+      "source": "/Users/ccheever/clique-improvement/reviews/compiler-insert-provenance-r16/grok/review-work/runs/candidate-args-reassign-field/stderr.txt",
+      "original_bytes": 0,
+      "original_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "byte_exact": true
+    },
+    {
+      "path": "reproductions/grok/runs/candidate-args-reassign-field/stdout.txt",
+      "source": "/Users/ccheever/clique-improvement/reviews/compiler-insert-provenance-r16/grok/review-work/runs/candidate-args-reassign-field/stdout.txt",
+      "original_bytes": 878,
+      "original_sha256": "c334bc4cf2a63b7e7dc277644afe57daa1438f3ed3be61ea3abe665db25df03f",
+      "bytes": 878,
+      "sha256": "c334bc4cf2a63b7e7dc277644afe57daa1438f3ed3be61ea3abe665db25df03f",
+      "byte_exact": true
+    },
+    {
+      "path": "reproductions/grok/runs/eval-candidate-args-reassign-field-main/meta.txt",
+      "source": "/Users/ccheever/clique-improvement/reviews/compiler-insert-provenance-r16/grok/review-work/runs/eval-candidate-args-reassign-field-main/meta.txt",
+      "original_bytes": 1297,
+      "original_sha256": "c5be0ab16f0ff27219bb145542144ee0a2a4f686701a9edeac4af7b859b924f7",
+      "bytes": 1297,
+      "sha256": "c5be0ab16f0ff27219bb145542144ee0a2a4f686701a9edeac4af7b859b924f7",
+      "byte_exact": true
+    },
+    {
+      "path": "reproductions/grok/runs/eval-candidate-args-reassign-field-main/stderr.txt",
+      "source": "/Users/ccheever/clique-improvement/reviews/compiler-insert-provenance-r16/grok/review-work/runs/eval-candidate-args-reassign-field-main/stderr.txt",
+      "original_bytes": 0,
+      "original_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "byte_exact": true
+    },
+    {
+      "path": "reproductions/grok/runs/eval-candidate-args-reassign-field-main/stdout.txt",
+      "source": "/Users/ccheever/clique-improvement/reviews/compiler-insert-provenance-r16/grok/review-work/runs/eval-candidate-args-reassign-field-main/stdout.txt",
+      "original_bytes": 174,
+      "original_sha256": "00736b4979417b5d06d5097e8e4fbd9cec32d2534f2540e4933087b5e034cc2a",
+      "bytes": 174,
+      "sha256": "00736b4979417b5d06d5097e8e4fbd9cec32d2534f2540e4933087b5e034cc2a",
+      "byte_exact": true
+    },
+    {
+      "path": "reproductions/grok/runs/eval-parent-args-reassign-field-main/meta.txt",
+      "source": "/Users/ccheever/clique-improvement/reviews/compiler-insert-provenance-r16/grok/review-work/runs/eval-parent-args-reassign-field-main/meta.txt",
+      "original_bytes": 1291,
+      "original_sha256": "eb033f0d787e01a15559b548c88853a2b84c61e31ea4da6f1cdd202ab3f21730",
+      "bytes": 1291,
+      "sha256": "eb033f0d787e01a15559b548c88853a2b84c61e31ea4da6f1cdd202ab3f21730",
+      "byte_exact": true
+    },
+    {
+      "path": "reproductions/grok/runs/eval-parent-args-reassign-field-main/stderr.txt",
+      "source": "/Users/ccheever/clique-improvement/reviews/compiler-insert-provenance-r16/grok/review-work/runs/eval-parent-args-reassign-field-main/stderr.txt",
+      "original_bytes": 0,
+      "original_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "byte_exact": true
+    },
+    {
+      "path": "reproductions/grok/runs/eval-parent-args-reassign-field-main/stdout.txt",
+      "source": "/Users/ccheever/clique-improvement/reviews/compiler-insert-provenance-r16/grok/review-work/runs/eval-parent-args-reassign-field-main/stdout.txt",
+      "original_bytes": 174,
+      "original_sha256": "00736b4979417b5d06d5097e8e4fbd9cec32d2534f2540e4933087b5e034cc2a",
+      "bytes": 174,
+      "sha256": "00736b4979417b5d06d5097e8e4fbd9cec32d2534f2540e4933087b5e034cc2a",
+      "byte_exact": true
+    },
+    {
+      "path": "reproductions/grok/runs/parent-args-reassign-field/meta.txt",
+      "source": "/Users/ccheever/clique-improvement/reviews/compiler-insert-provenance-r16/grok/review-work/runs/parent-args-reassign-field/meta.txt",
+      "original_bytes": 1761,
+      "original_sha256": "b6ee2b81b4a621f4fcc36d3ae51006da3b4c02758d71d6943876865d05a4ae28",
+      "bytes": 1761,
+      "sha256": "b6ee2b81b4a621f4fcc36d3ae51006da3b4c02758d71d6943876865d05a4ae28",
+      "byte_exact": true
+    },
+    {
+      "path": "reproductions/grok/runs/parent-args-reassign-field/stderr.txt",
+      "source": "/Users/ccheever/clique-improvement/reviews/compiler-insert-provenance-r16/grok/review-work/runs/parent-args-reassign-field/stderr.txt",
+      "original_bytes": 0,
+      "original_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "byte_exact": true
+    },
+    {
+      "path": "reproductions/grok/runs/parent-args-reassign-field/stdout.txt",
+      "source": "/Users/ccheever/clique-improvement/reviews/compiler-insert-provenance-r16/grok/review-work/runs/parent-args-reassign-field/stdout.txt",
+      "original_bytes": 877,
+      "original_sha256": "a34839ae3ea99efc67085de3ee0f6227eec7d753ed316e17082919abdf93c31b",
+      "bytes": 877,
+      "sha256": "a34839ae3ea99efc67085de3ee0f6227eec7d753ed316e17082919abdf93c31b",
+      "byte_exact": true
+    },
+    {
+      "path": "source/delta.patch",
+      "source": "/Users/ccheever/clique-improvement/reviews/compiler-insert-provenance-r16/input/delta.patch",
+      "original_bytes": 22146,
+      "original_sha256": "8830ac629eadbbbf847d5ed1e09301e877cc0e920aa8e6940709d7772dd05119",
+      "bytes": 22146,
+      "sha256": "8830ac629eadbbbf847d5ed1e09301e877cc0e920aa8e6940709d7772dd05119",
+      "byte_exact": true
+    },
+    {
+      "path": "disposition/r17-launch-identity.json",
+      "source": "/Users/ccheever/clique-improvement/revisions/compiler-insert-provenance-r17/launch-identity.json",
+      "original_bytes": 1388,
+      "original_sha256": "295b2865d32f65631a95080be126d5a3f55e18e898d6aeaa6569779ff6b26058",
+      "bytes": 1388,
+      "sha256": "295b2865d32f65631a95080be126d5a3f55e18e898d6aeaa6569779ff6b26058",
+      "byte_exact": true
+    }
+  ],
+  "redactions": [
+    {
+      "path": "reviews/grok/review.md",
+      "source": "/Users/ccheever/clique-improvement/reviews/compiler-insert-provenance-r16/grok/review.md",
+      "original_sha256": "4f9ef24795bec5cece0c962050e92331a4a5d6a753b135606d5e1b46e79feca6",
+      "derivative_sha256": "ea0da354ce4fa5b2b1586a6c6bfb3bda815882040a96328ecc3f06c226ecdf31",
+      "operation": "exact fleet address replaced; no other content changes"
+    },
+    {
+      "path": "reviews/grok/supervisor-initial-full-report.md",
+      "source": "/Users/ccheever/clique-improvement/reviews/compiler-insert-provenance-r16/grok/supervisor-initial-full-report.md",
+      "original_sha256": "4f9ef24795bec5cece0c962050e92331a4a5d6a753b135606d5e1b46e79feca6",
+      "derivative_sha256": "ea0da354ce4fa5b2b1586a6c6bfb3bda815882040a96328ecc3f06c226ecdf31",
+      "operation": "exact fleet address replaced; no other content changes"
+    }
+  ]
+}

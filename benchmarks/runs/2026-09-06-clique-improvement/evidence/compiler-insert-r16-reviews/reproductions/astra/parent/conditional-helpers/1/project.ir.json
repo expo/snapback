@@ -1,0 +1,203 @@
+{
+  "schema": {
+    "tables": {
+      "records": {
+        "columns": {
+          "id": "Id",
+          "payload": {
+            "Optional": {
+              "Json": {
+                "max_bytes": 1000
+              }
+            }
+          }
+        },
+        "indexes": {
+          "byId": {
+            "components": [
+              {
+                "Column": "id"
+              }
+            ],
+            "unique": true
+          }
+        },
+        "rules": {
+          "read": "Allow",
+          "insert": "Allow",
+          "update": "Deny",
+          "delete": "Deny"
+        },
+        "constraints": [],
+        "retain": "until-revoked"
+      }
+    },
+    "maintains": [],
+    "channels": {},
+    "auth": {
+      "password": false,
+      "guests": false
+    },
+    "effects": []
+  },
+  "programs": [
+    {
+      "name": "probe.probe",
+      "kind": "Mutation",
+      "args": {
+        "flag": "Bool"
+      },
+      "read_time_granularity_ms": null,
+      "body": [
+        {
+          "Const": {
+            "name": "__helperArgument0",
+            "value": {
+              "Variable": "flag"
+            }
+          }
+        },
+        {
+          "Const": {
+            "name": "__helperArgument1",
+            "value": {
+              "Input": "NewId"
+            }
+          }
+        },
+        {
+          "Const": {
+            "name": "__selected3",
+            "value": {
+              "Variable": "__helperArgument0"
+            }
+          }
+        },
+        {
+          "Let": {
+            "name": "__conditional2",
+            "value": {
+              "Literal": "Null"
+            }
+          }
+        },
+        {
+          "If": {
+            "condition": {
+              "Variable": "__selected3"
+            },
+            "then_body": [
+              {
+                "Assign": {
+                  "name": "__conditional2",
+                  "value": {
+                    "Object": {
+                      "id": {
+                        "Variable": "__helperArgument1"
+                      },
+                      "payload": {
+                        "Literal": {
+                          "Int": 1
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            ],
+            "else_body": [
+              {
+                "Assign": {
+                  "name": "__conditional2",
+                  "value": {
+                    "Object": {
+                      "id": {
+                        "Variable": "__helperArgument1"
+                      },
+                      "payload": {
+                        "Literal": {
+                          "Int": 2
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            ]
+          }
+        },
+        {
+          "Let": {
+            "name": "__insertRow4",
+            "value": {
+              "Variable": "__conditional2"
+            }
+          }
+        },
+        {
+          "Insert": {
+            "table": "records",
+            "row": {
+              "Variable": "__insertRow4"
+            }
+          }
+        },
+        {
+          "Const": {
+            "name": "row",
+            "value": {
+              "Variable": "__insertRow4"
+            }
+          }
+        },
+        {
+          "Const": {
+            "name": "__operand5",
+            "value": {
+              "Get": {
+                "site": "probe.probe.1",
+                "table": "records",
+                "index": "byId",
+                "key": [
+                  {
+                    "Field": {
+                      "base": {
+                        "Variable": "row"
+                      },
+                      "name": "id"
+                    }
+                  }
+                ],
+                "provenance": "Shape"
+              }
+            }
+          }
+        },
+        {
+          "Const": {
+            "name": "__operand6",
+            "value": {
+              "Input": "NewId"
+            }
+          }
+        },
+        {
+          "Return": {
+            "Object": {
+              "next": {
+                "Variable": "__operand6"
+              },
+              "row": {
+                "Variable": "row"
+              },
+              "stored": {
+                "Variable": "__operand5"
+              }
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "effects": []
+}

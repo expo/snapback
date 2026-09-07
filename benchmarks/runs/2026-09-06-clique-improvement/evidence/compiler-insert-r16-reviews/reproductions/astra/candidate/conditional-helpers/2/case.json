@@ -1,0 +1,22 @@
+{
+  "name": "conditional-inline-common-id",
+  "public": false,
+  "schema": "import {schema,table,t,rule} from 'snapback2';export const records=table({columns:{payload:t.optional(t.json(1000))},rules:{read:rule.allow(),insert:rule.allow()}});export default schema({tables:{records}});",
+  "source": "import {mutation,t} from 'snapback2';import {records} from './schema';export const probe=mutation({flag:t.bool()},({db,ctx,args})=>{const row=db.insert(records,args.flag?{id:ctx.newId()}:{id:ctx.newId(),payload:null});return {row,stored:db.get(records,[row.id]),next:ctx.newId()};});",
+  "runs": [
+    {
+      "args": {
+        "flag": {
+          "Bool": true
+        }
+      }
+    },
+    {
+      "args": {
+        "flag": {
+          "Bool": false
+        }
+      }
+    }
+  ]
+}
