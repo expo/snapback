@@ -889,6 +889,25 @@ query node(id: nodes):
     );
     assert(callerNew?.code === "E_QUARRY_UNSUPPORTED" && callerNew.message.includes("new is mutation-only caller state"),
       `fn acquired caller new through a named shape: ${JSON.stringify(callerNew)}`);
+    for (const clock of ["now", "commit"] as const) {
+      const mutationTime = refusal(
+        `fn clock() = ${clock}\n`,
+        "fn clock from cards\nmutation node(id: nodes):\n  return clock()\n",
+      );
+      assert(mutationTime?.code === "E_QUARRY_UNSUPPORTED" && mutationTime.message.includes("read-pure"),
+        `fn acquired caller ${clock} time through a mutation: ${JSON.stringify(mutationTime)}`);
+    }
+    const jobTime = refusal(
+      "fn clock() = now\n",
+      "fn clock from cards\njob node:\n  chunk row in nodes first 1 by byId:\n    update nodes[row.id] { label: clock() }\n",
+    );
+    assert(jobTime?.code === "E_QUARRY_UNSUPPORTED" && jobTime.message.includes("read-pure"),
+      `fn acquired job commit time: ${JSON.stringify(jobTime)}`);
+    const queryTime = refusal(
+      "fn clock() = now\n",
+      "fn clock from cards\nquery node(id: nodes):\n  return clock()\n",
+    );
+    assert(queryTime === undefined, `fn could not use query read time: ${JSON.stringify(queryTime)}`);
   });
 
   test("direct Quarry shares shape recursion and depth guards with nested field uses", () => {
