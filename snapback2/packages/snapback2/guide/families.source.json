@@ -402,6 +402,12 @@
     "right": "close the other tab before opening this account"
   },
   {
+    "family": "offline",
+    "code": "E_OFFLINE_FOLLOWER",
+    "wrong": "send from a browser tab while another tab holds the account's writer lock",
+    "right": "send from the writer tab or close it; this tab reads live and inherits the queue when the writer closes"
+  },
+  {
     "family": "args",
     "code": "E_ARGS_ID_SCALAR",
     "wrong": "db.insert(todos, { id: \"\", title })",
@@ -482,7 +488,7 @@
     "site": "by",
     "guide": "operator",
     "wrong": "send a control request with by: \"alice.smith\"",
-    "right": "set by to 1\u201380 ASCII letters, numbers, dashes, or underscores, such as operator-alice; system is reserved"
+    "right": "set by to 1–80 ASCII letters, numbers, dashes, or underscores, such as operator-alice; system is reserved"
   },
   {
     "family": "successor",

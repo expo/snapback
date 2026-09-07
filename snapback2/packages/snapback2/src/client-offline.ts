@@ -249,11 +249,12 @@ export function createOfflineDrain<Args, Result>(options: {
     },
     onEvent: options.callback,
   });
-  options.mounted.set(key, { op: options.op, args: options.args, drain: true, refuse: envelope => draining.refuse(envelope) });
+  const record: MountedQuery = { op: options.op, args: options.args, drain: true, refuse: envelope => draining.refuse(envelope) };
+  options.mounted.set(key, record);
   const tracked = options.track(draining);
   const close = tracked.close.bind(tracked);
   tracked.close = () => {
-    options.mounted.delete(key);
+    if (options.mounted.get(key) === record) options.mounted.delete(key);
     close();
   };
   return tracked;

@@ -295,7 +295,8 @@ export type OutboxSettlement = { stopped: false | "fence" | "transport" | "autho
 
 export interface OutboxStatus {
   ready: boolean;
-  reason: "ready" | "sealed" | "grant-missing" | "grant-expired" | "ids-exhausted" | "program-missing";
+  /** `follower`: another browser tab writes this account; this tab reads live and inherits the queue when that tab closes. */
+  reason: "ready" | "sealed" | "grant-missing" | "grant-expired" | "ids-exhausted" | "program-missing" | "follower";
   action: "none" | "login" | "resume" | "load-program";
   /** Number of queued intents; settled entries are excluded. */
   remaining: number;

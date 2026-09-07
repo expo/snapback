@@ -340,3 +340,17 @@ export interface JsonRequestOptions {
   authRestoration?: boolean;
   onSend?: () => void;
 }
+
+// @ref LLP 1018#3-move-one-one-coherent-reactive-client — a follower tab's
+// write is refused before any bytes leave: a plain write landing ahead of the
+// writer tab's queued intents would invert their order once the queue is inherited.
+export function followerRefusal(site = "client.mutation"): SnapbackRefusal {
+  return new SnapbackRefusal({
+    code: "E_OFFLINE_FOLLOWER",
+    family: "offline",
+    message: "this account is open for writing in another tab; this tab reads live and takes over when that tab closes",
+    site,
+    rewrite: "send from the tab that holds this account, or close it; queued writes are kept there and inherited here",
+    guide: "offline",
+  });
+}

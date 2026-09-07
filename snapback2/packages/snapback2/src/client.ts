@@ -38,14 +38,14 @@ import {
   sseObject,
   terminalSessionEnvelope,
   wireAuthMe,
-  wireChannelDelivery,
-  wireChannelPublish,
   wireManifest,
   wireQuery,
   wireShape,
   wireSubscription,
 } from "./client-wire.js";
 import { admitDrain, type OfflineRuntime, type MountedQuery } from "./offline.js";
+import { SharedSubscriptions } from "./client-sessions.js";
+import { createChannel, type ChannelHost } from "./client-channels.js";
 import { ReconnectingSse } from "./sse.js";
 import type { SseResponse } from "./sse-parser.js";
 import { stableSerialize } from "./types.js";
@@ -58,7 +58,6 @@ import type {
   AuthMe,
   AuthSession,
   AuthTokenStore,
-  ChannelDelivery,
   ChannelHandle,
   ChannelPublishResult,
   ClientSnapshot,
@@ -131,6 +130,9 @@ class Client implements SnapbackClient {
   private readonly offlineRuntime?: OfflineRuntime;
   private readonly live: SharedSse;
   private readonly mounted = new Map<string, MountedQuery>();
+  private readonly shared = new SharedSubscriptions();
+  /** Set while this browser tab waits for another tab to release the account's writer lock. */
+  private following?: { principal: Principal; controller: AbortController };
   private offlineMetadataLoaded = false;
   private offlineStartupPending = false;
   private resumeTail: Promise<void> = Promise.resolve();
@@ -364,8 +366,13 @@ class Client implements SnapbackClient {
     callback: (delivery: SubscriptionDelivery<Result>) => void,
     options: { drain?: boolean } = {},
   ): Subscription<SubscriptionDelivery<Result>> {
-    if (options.drain) return this.drain(ref, args, callback);
-    return this.subscribeRegular(ref, args, callback);
+    // One entry per (authority generation, kind, op, args): later consumers attach to the first one's stream.
+    const key = `${this.authGeneration}\u0000${options.drain ? "drain" : "live"}\u0000${referenceName(ref)}\u0000${stableSerialize(args)}`;
+    return this.shared.attach<SubscriptionDelivery<Result>>(key, (fanout) =>
+      options.drain ? this.drain(ref, args, fanout) : this.subscribeRegular(ref, args, fanout), callback);
+  }
+  sharedConsumers(ref: Op<any, any>, args: unknown, drain = false): number {
+    return this.shared.consumers(`${this.authGeneration}\u0000${drain ? "drain" : "live"}\u0000${referenceName(ref)}\u0000${stableSerialize(args)}`);
   }
   private subscribeRegular<Args, Result>(
     ref: Op<Args, Result>,
@@ -375,7 +382,8 @@ class Client implements SnapbackClient {
   ): Subscription<SubscriptionDelivery<Result>> {
     const op = referenceName(ref);
     const mountedKey = `${op}\u0000${stableSerialize(args)}`;
-    if (!drain) this.mounted.set(mountedKey, { op, args, drain: false });
+    const mountedRecord: MountedQuery = { op, args, drain: false };
+    if (!drain) this.mounted.set(mountedKey, mountedRecord);
     let lastPair: { seq: number; data?: Result } | undefined;
     let connected = false;
     let revision: number | undefined;
@@ -471,7 +479,8 @@ class Client implements SnapbackClient {
     const close = tracked.close.bind(tracked);
     tracked.close = () => {
       closed = true;
-      if (!drain) this.mounted.delete(mountedKey);
+      // Only this subscription's own record leaves the mounted set (a newer one of the same query keeps its own).
+      if (!drain && this.mounted.get(mountedKey) === mountedRecord) this.mounted.delete(mountedKey);
       close();
     };
     return tracked;
@@ -506,74 +515,25 @@ class Client implements SnapbackClient {
   }
 
   channel<Args, Payload = unknown>(ref: ChannelRef<Args, Payload>, args: Args): ChannelHandle<Payload> {
-    const path = referenceName(ref);
-    const name = encodeURIComponent(path.startsWith("channels.") ? path.slice("channels.".length) : path);
+    return createChannel(this.channelHost(), ref, args);
+  }
+  private channelHost(): ChannelHost<Authority, SessionExpiration> {
     return {
-      publish: async (payload: Payload) => {
-        const authority = await this.operationAuthority();
-        return this.trackWrite(async () => {
-          const result = wireChannelPublish(await this.json(`/api/channel/${name}/publish`, {
-            method: "POST",
-            body: JSON.stringify({ args, payload }),
-          }, authority, { terminalSession: "typed-result" }));
-          if ("state" in result) {
-            if (isTerminalSession(result)) {
-              const wasCurrent = this.authorityCurrent(authority);
-              const expiration = await this.expireSession(authority);
-              if (!wasCurrent || !this.expirationCurrent(expiration)) throw this.supersededRefusal();
-            }
-            this.recordRefusal(result);
-          } else {
-            this.validated(authority);
-          }
-          return result;
-        });
-      },
-      subscribe: (callback: (event: ChannelDelivery<Payload>) => void) => {
-        const path = `/api/channel/${name}/subscribe?args=${encodeURIComponent(JSON.stringify(args))}`;
-        let authority: Authority | undefined;
-        let subscription: Subscription<ChannelDelivery<Payload>>;
-        subscription = new ReconnectingSse<ChannelDelivery<Payload>>({
-          open: async (lastEventId, signal) => {
-            authority ??= await this.operationAuthority();
-            return this.stream(path, lastEventId, signal, authority);
-          },
-          decode: ({ data }) => {
-            const value = wireChannelDelivery<Payload>(data);
-            if ("state" in value && value.state === "refused" && isTerminalSession(value)) {
-              throw new SnapbackRefusal(copyRefusal(value));
-            }
-            this.ensureAuthority(authority);
-            this.patchSnapshot({
-              connection: "connected",
-              lastRefusal: "state" in value && value.state === "refused"
-                ? copyRefusal(value)
-                : undefined,
-            });
-            return value;
-          },
-          bufferedTerminal: ({ data }) => {
-            const value = wireChannelDelivery<Payload>(data);
-            return "state" in value && value.state === "refused" && isTerminalSession(value)
-              ? new SnapbackRefusal(copyRefusal(value))
-              : undefined;
-          },
-          onError: async (error) => {
-            const decision = await this.subscriptionError(error, authority, subscription);
-            return { retry: decision.retry, event: decision.event, failure: decision.refusal };
-          },
-          onLoss: () => {
-            if (!this.authorityCurrent(authority)) return undefined;
-            this.patchSnapshot({ connection: this.transportFailureState() });
-            return undefined;
-          },
-          terminal: (event) => "state" in event && event.state === "refused"
-            ? new SnapbackRefusal(copyRefusal(event))
-            : undefined,
-          onEvent: callback,
-        });
-        return this.track(subscription);
-      },
+      operationAuthority: () => this.operationAuthority(),
+      trackWrite: (run) => this.trackWrite(run),
+      json: (path, init, authority, options) => this.json(path, init, authority, options),
+      stream: (path, lastEventId, signal, authority) => this.stream(path, lastEventId, signal, authority),
+      authorityCurrent: (authority) => this.authorityCurrent(authority),
+      ensureAuthority: (authority) => this.ensureAuthority(authority),
+      validated: (authority) => this.validated(authority),
+      expireSession: (authority) => this.expireSession(authority),
+      expirationCurrent: (expiration) => this.expirationCurrent(expiration),
+      supersededRefusal: () => this.supersededRefusal(),
+      recordRefusal: (refusal) => this.recordRefusal(refusal),
+      patchSnapshot: (patch) => { this.patchSnapshot(patch); },
+      transportFailureState: () => this.transportFailureState(),
+      subscriptionError: (error, authority, origin) => this.subscriptionError(error, authority, origin),
+      track: (subscription) => this.track(subscription),
     };
   }
 
@@ -654,6 +614,7 @@ class Client implements SnapbackClient {
     this.closed = true;
     this.lifetimeController.abort();
     this.startupController.abort();
+    this.stopFollowing();
     this.authState.stop();
     this.abortSync();
     this.operationFence += 1;
@@ -1040,6 +1001,7 @@ class Client implements SnapbackClient {
 
   private async openOffline(principal: Principal, authenticated = false, authEpoch?: number): Promise<void> {
     if (!this.offlineRuntime) return;
+    if (this.following && this.following.principal !== principal) this.stopFollowing();
     try {
       const changed = this.offlineRuntime.principal !== principal;
       await this.offlineRuntime.open(principal, authenticated);
@@ -1049,8 +1011,50 @@ class Client implements SnapbackClient {
         this.offlineMetadataLoaded = false;
       }
     } catch (error) {
+      // @ref LLP 1018#3-move-one-one-coherent-reactive-client — on web a held writer lock makes this
+      // client a follower: live reads, refused writes, the partition and its queue inherited on close.
+      const code = error && typeof error === "object" ? (error as { code?: unknown }).code : undefined;
+      if (code === "E_OFFLINE_LOCK" && this.offlineRuntime.canFollow && !this.following) {
+        this.follow(principal, authenticated, authEpoch);
+        return;
+      }
       throw this.offlineRefusal(error, "RangeStore.open");
     }
+  }
+
+  private follow(principal: Principal, authenticated: boolean, authEpoch: number | undefined): void {
+    const runtime = this.offlineRuntime!;
+    const controller = new AbortController();
+    this.following = { principal, controller };
+    void runtime.follow(principal, controller.signal).then(async () => {
+      if (controller.signal.aborted || this.closed) return;
+      this.following = undefined;
+      this.supersessionQueries.clear();
+      this.offlineMetadataLoaded = false;
+      this.currentPrincipal = principal;
+      if (authenticated) await runtime.reauthenticate(principal, authEpoch);
+      await this.takeover();
+    }).catch((error) => {
+      if (controller.signal.aborted || this.closed) return;
+      this.following = undefined;
+      this.patchSnapshot({ lastRefusal: this.offlineRefusal(error, "RangeStore.open").envelope });
+    });
+  }
+
+  private stopFollowing(): void { this.following?.controller.abort(); this.following = undefined; }
+
+  /** The writer tab closed: load the program, resume the inherited coverage, and replay the inherited queue. */
+  private async takeover(): Promise<void> {
+    const authority = await this.operationAuthority();
+    try {
+      await this.ensureOfflineMetadata(authority);
+      await this.performResume(authority);
+    } catch (error) {
+      if (!(isSnapbackRefusal(error)
+        && (error.retryable || error.code === "E_OFFLINE_RESUME" || error.code === "E_OFFLINE_RESET"))) throw error;
+    }
+    this.offlineRuntime!.outbox.notify();
+    void this.drainNow(authority).catch(() => undefined);
   }
 
   private async sealOffline(): Promise<void> {
@@ -1061,6 +1065,8 @@ class Client implements SnapbackClient {
 
   private async wipeOffline(): Promise<void> {
     if (!this.offlineRuntime) return;
+    // A follower owns no partition: sign-out withdraws its wait and touches nothing the writer tab holds.
+    this.stopFollowing();
     this.abortSync();
     this.supersessionQueries.clear();
     try { await this.offlineRuntime.wipe(); this.currentPrincipal = undefined; }
@@ -1410,6 +1416,7 @@ class Client implements SnapbackClient {
 
   private closeTransports(except?: Subscription<unknown>): void {
     this.live.close();
+    this.shared.clear();
     for (const subscription of [...this.subscriptions]) {
       if (subscription !== except) subscription.close();
     }

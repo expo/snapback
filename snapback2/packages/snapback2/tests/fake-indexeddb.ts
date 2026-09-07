@@ -204,12 +204,40 @@ export class FakeIndexedDb {
   }
 }
 
+/** The Web Locks contract: `ifAvailable` answers `null` at once; a waiting request queues until the holder releases, or its `signal` withdraws it. */
 export class FakeLocks {
-  private readonly held = new Set<string>();
+  private readonly held = new Map<string, Array<{ run: () => void; cancel: () => void }>>();
 
-  request<T>(name: string, _options: { ifAvailable: true }, callback: (lock: { name: string } | null) => T): Promise<T> {
-    if (this.held.has(name)) return Promise.resolve(callback(null));
-    this.held.add(name);
-    return Promise.resolve(callback({ name })).finally(() => this.held.delete(name));
+  request<T>(name: string, options: { ifAvailable?: boolean; signal?: AbortSignal }, callback: (lock: { name: string } | null) => T | Promise<T>): Promise<T> {
+    // The callback starts synchronously, as the browser's does, so a holder's
+    // release reaches the next requester without extra ticks.
+    const run = (): Promise<T> => {
+      let outcome: Promise<T>;
+      try { outcome = Promise.resolve(callback({ name })); } catch (error) { outcome = Promise.reject(error); }
+      return outcome.finally(() => {
+        const next = this.held.get(name)?.shift();
+        if (next) next.run(); else this.held.delete(name);
+      });
+    };
+    if (!this.held.has(name)) {
+      this.held.set(name, []);
+      return run();
+    }
+    if (options.ifAvailable) return Promise.resolve(callback(null));
+    return new Promise<T>((resolve, reject) => {
+      const abort = () => { const error = new Error("lock request aborted"); error.name = "AbortError"; return error; };
+      if (options.signal?.aborted) { reject(abort()); return; }
+      const waiter = {
+        run: () => { options.signal?.removeEventListener("abort", onAbort); run().then(resolve, reject); },
+        cancel: () => {
+          const queue = this.held.get(name);
+          if (queue) this.held.set(name, queue.filter((item) => item !== waiter));
+          reject(abort());
+        },
+      };
+      const onAbort = () => waiter.cancel();
+      options.signal?.addEventListener("abort", onAbort, { once: true });
+      this.held.get(name)!.push(waiter);
+    });
   }
 }

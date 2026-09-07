@@ -577,12 +577,14 @@ test("carrier open failures and a second web lock holder refuse loudly", async (
   await assert.rejects(bad.ready, (error: unknown) => error instanceof SnapbackRefusal
     && error.code === "E_OFFLINE_CARRIER" && error.envelope.rewrite?.includes("broken-test") === true);
 
+  // A second web tab of the same account is not refused: it follows the writer
+  // (live reads, writes refused E_OFFLINE_FOLLOWER) until that tab closes.
   const shared = indexedFactory();
   const first = createClient({ url: "http://offline.test", as: "alice", offline: { store: shared.factory } });
   await first.ready;
   const second = createClient({ url: "http://offline.test", as: "alice", offline: { store: shared.factory } });
-  await assert.rejects(second.ready, (error: unknown) => error instanceof SnapbackRefusal
-    && error.code === "E_OFFLINE_LOCK" && error.envelope.rewrite === "this account is open in another tab");
+  await second.ready;
+  assert.equal((await second.outbox.status()).reason, "follower");
   first.close();
   second.close();
 });

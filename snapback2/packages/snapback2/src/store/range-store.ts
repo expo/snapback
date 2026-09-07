@@ -299,6 +299,8 @@ export interface StoreSwap {
 
 export interface RangeStore {
   open(partition: PrincipalPartition): Promise<void>;
+  /** Waits for the partition's writer lock (a browser tab following the writer); absent on carriers that refuse at once. */
+  acquire?(partition: PrincipalPartition, signal?: AbortSignal): Promise<void>;
   unseal(): Promise<void>;
   seal(): Promise<void>;
   wipe(partition: PrincipalPartition): Promise<void>;
@@ -353,6 +355,8 @@ export interface PersistedRangeState {
 export interface RangeStoreBackend {
   readonly carrier: string;
   open(partition: PrincipalPartition): Promise<PersistedRangeState | undefined>;
+  /** Waits for the partition's writer lock so a later `open` finds it held; carriers without a waiting lock omit it. */
+  acquire?(partition: PrincipalPartition, signal?: AbortSignal): Promise<void>;
   /** One carrier transaction: the state, plus the byte payloads to write and the keys to drop. */
   replace(state: PersistedRangeState, bytes: ByteDelta, previous?: PersistedRangeState): Promise<void>;
   readBytes?(key: string): Promise<Uint8Array | undefined>;
@@ -641,7 +645,11 @@ export class PersistentRangeStore implements RangeStore {
     }),
   };
 
-  constructor(private readonly backend: RangeStoreBackend) {}
+  readonly acquire?: (partition: PrincipalPartition, signal?: AbortSignal) => Promise<void>;
+
+  constructor(private readonly backend: RangeStoreBackend) {
+    if (backend.acquire) this.acquire = (partition, signal) => backend.acquire!(partition, signal);
+  }
 
   async open(partition: PrincipalPartition): Promise<void> {
     if (typeof partition !== "string" || partition.length === 0) {
@@ -650,8 +658,11 @@ export class PersistentRangeStore implements RangeStore {
     await this.enqueue(async () => {
       if (this.partition === partition) return;
       if (this.partition !== undefined && this.partition !== partition) await this.backend.close();
-      this.partition = partition;
+      // The partition counts as open only once the carrier opened it: a refused
+      // lock leaves the store closed, so a later open of the same partition retries.
+      this.partition = undefined;
       const loaded = await this.backend.open(partition);
+      this.partition = partition;
       const rawFingerprints = loaded && Object.values(loaded.answers).some((answer) =>
         answer.fingerprint && !/^[0-9a-f]{64}$/.test(answer.fingerprint));
       this.state = normalizeState(loaded);

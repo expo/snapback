@@ -1,7 +1,7 @@
 // @ref LLP 1012#7-writes-offline — writes that cannot reach the owner become
 // durable intents; replay is FIFO, one envelope per request, and a settlement
 // lands in the same swap as the rows the commit produced.
-import { throwIfAborted } from "./client-wire.js";
+import { followerRefusal, throwIfAborted } from "./client-wire.js";
 import {
   SnapbackRefusal,
   isSnapbackRefusal, isTerminalSession,
@@ -86,6 +86,9 @@ export async function submitMutation<Result>(options: SubmitMutationOptions): Pr
       body: JSON.stringify({ op: options.op, args: options.args }),
     }, () => options.onCustody?.("wire")));
   };
+  // A follower tab never sends plain bytes: a write landing ahead of the writer
+  // tab's queued intents would invert their order when that queue is inherited.
+  if (runtime?.following) throw followerRefusal();
   if (!runtime || runtime.principal === undefined) return plain();
   const enqueue = async (): Promise<OutboxEntry> => {
     try {
@@ -319,6 +322,7 @@ export function createOutboxApi(
   };
   const status = async (op?: import("./api.js").Op<any, any>): Promise<OutboxStatus> => {
     await ready().catch(() => undefined);
+    if (runtime?.following) return { ready: false, reason: "follower", action: "none", remaining: 0, fence: "inside" };
     if (!runtime || runtime.principal === undefined) return { ready: true, reason: "ready", action: "none", remaining: 0, fence: "inside" };
     try { return await runtime.outbox.status(op === undefined ? undefined : referenceName(op)); }
     catch (error) {

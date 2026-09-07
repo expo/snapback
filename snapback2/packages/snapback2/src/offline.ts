@@ -7,6 +7,7 @@ import {
 } from "./offline-protocol.js";
 import { OutboxLedger, decodeGrant } from "./store/outbox.js";
 import {
+  OfflineStoreFailure,
   canonicalAnswerKey,
   type Coverage,
   type CoverageFacts,
@@ -192,6 +193,8 @@ export class OfflineRuntime {
   /** The twin: the certified program over this partition's coverage (LLP 1012 §6, §7). */
   readonly twin: Twin;
   private partition?: string;
+  /** The principal whose writer lock this tab is waiting for (a browser follower). */
+  private followingPrincipal?: string;
   private retention: Record<string, RetentionPolicy> = {};
   private cursors: Record<string, string> = {};
   private schema?: OfflineSchema;
@@ -253,6 +256,31 @@ export class OfflineRuntime {
 
   /** The highest server seq this runtime has committed; what a queued intent was issued against. */
   get seq(): number { return this.latestSeq; }
+
+  /** A browser tab whose account another tab is writing: it waits for that partition's lock. */
+  get following(): boolean { return this.followingPrincipal !== undefined; }
+  /** Whether this carrier can wait for a held writer lock at all (IndexedDB can; SQLite refuses at once). */
+  get canFollow(): boolean { return typeof this.store.acquire === "function"; }
+
+  // @ref LLP 1018#3-move-one-one-coherent-reactive-client — the follower tab
+  // waits outside the runtime queue, so its live reads keep flowing; when the
+  // writer closes, it opens the partition and inherits the queue left there.
+  async follow(principal: string, signal: AbortSignal): Promise<void> {
+    if (!this.store.acquire) throw new OfflineStoreFailure("E_OFFLINE_LOCK", "this account is open in another client; close it and try again");
+    this.followingPrincipal = principal;
+    this.outbox.notify();
+    try {
+      await this.store.acquire(principal, signal);
+      if (signal.aborted) {
+        await this.store.close?.();
+        throwIfAborted(signal);
+      }
+      await this.open(principal);
+    } finally {
+      if (this.followingPrincipal === principal) this.followingPrincipal = undefined;
+      this.outbox.notify();
+    }
+  }
 
   async open(principal: string, authenticated = false): Promise<void> {
     if (this.partition !== principal) this.outbox.resetTrust();
@@ -513,6 +541,8 @@ export class OfflineRuntime {
     const run = async () => {
       if ((current && !current()) || (revision !== undefined && revision !== this.coverageRevision)) return false;
       if (this.partition === undefined) {
+        // A follower tab's live deliveries are shown, not held: the writer tab owns the partition.
+        if (this.followingPrincipal !== undefined) return false;
         throw new OfflineAuthorityError("an offline partition must be opened before committing a delivery");
       }
       const deliveries: StoreDelivery[] = [];

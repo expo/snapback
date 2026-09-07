@@ -25,7 +25,7 @@ interface WebLockLike { readonly name?: string }
 interface WebLocksLike {
   request<T>(
     name: string,
-    options: { ifAvailable: true },
+    options: { ifAvailable?: boolean; signal?: AbortSignal },
     callback: (lock: WebLockLike | null) => Promise<T> | T,
   ): Promise<T>;
 }
@@ -88,6 +88,8 @@ class IndexedDbBackend implements RangeStoreBackend {
   private database?: IDBDatabase;
   private databaseName?: string;
   private releaseLock?: () => void;
+  private lockedPartition?: PrincipalPartition;
+  private lockRequest?: Promise<unknown>;
   private readonly projection = new ProjectionCache();
 
   constructor(
@@ -97,10 +99,22 @@ class IndexedDbBackend implements RangeStoreBackend {
     private readonly beforeReplace?: IndexedDbRangeStoreOptions["beforeReplace"],
   ) {}
 
+  // @ref LLP 1018#3-move-one-one-coherent-reactive-client — a second tab
+  // waits for the partition's writer lock instead of refusing; it inherits the
+  // partition, and the queue the writer left, when that tab closes.
+  async acquire(partition: PrincipalPartition, signal?: AbortSignal): Promise<void> {
+    if (this.lockedPartition === partition) return;
+    await this.releaseHeldLock();
+    await this.acquireLock(partition, signal ? { signal } : {});
+  }
+
   async open(partition: PrincipalPartition): Promise<PersistedRangeState | undefined> {
-    await this.close();
+    this.closeDatabase();
     const databaseName = `${this.prefix}${partition}`;
-    await this.acquireLock(partition);
+    if (this.lockedPartition !== partition) {
+      await this.releaseHeldLock();
+      await this.acquireLock(partition, { ifAvailable: true });
+    }
     try {
       const database = await openDatabase(this.factory, databaseName);
       this.database = database;
@@ -175,15 +189,29 @@ class IndexedDbBackend implements RangeStoreBackend {
   }
 
   async close(): Promise<void> {
+    this.closeDatabase();
+    await this.releaseHeldLock();
+  }
+
+  private closeDatabase(): void {
     this.database?.close();
     this.database = undefined;
     this.databaseName = undefined;
     this.projection.reset();
-    this.releaseLock?.();
-    this.releaseLock = undefined;
   }
 
-  private async acquireLock(partition: PrincipalPartition): Promise<void> {
+  /** Resolves once the lock manager has seen the release, so the next request (ours or another tab's) cannot race it. */
+  private async releaseHeldLock(): Promise<void> {
+    const request = this.lockRequest;
+    this.releaseLock?.();
+    this.releaseLock = undefined;
+    this.lockedPartition = undefined;
+    this.lockRequest = undefined;
+    if (request) await request.catch(() => undefined);
+  }
+
+  /** `ifAvailable` refuses a held lock at once; a `signal` request waits until the holder releases it or the signal withdraws it. */
+  private async acquireLock(partition: PrincipalPartition, options: { ifAvailable?: boolean; signal?: AbortSignal }): Promise<void> {
     let acquiredResolve!: () => void;
     let acquiredReject!: (error: unknown) => void;
     let releaseResolve!: () => void;
@@ -192,7 +220,7 @@ class IndexedDbBackend implements RangeStoreBackend {
       acquiredReject = reject;
     });
     const released = new Promise<void>((resolve) => { releaseResolve = resolve; });
-    const request = this.locks.request(`snapback2:${partition}`, { ifAvailable: true }, async (lock) => {
+    const request = this.locks.request(`snapback2:${partition}`, options, async (lock) => {
       if (!lock) {
         acquiredReject(new OfflineStoreFailure(
           "E_OFFLINE_LOCK",
@@ -200,12 +228,15 @@ class IndexedDbBackend implements RangeStoreBackend {
         ));
         return;
       }
+      if (options.signal?.aborted) return;
       this.releaseLock = releaseResolve;
+      this.lockedPartition = partition;
       acquiredResolve();
       await released;
     });
     void request.catch(acquiredReject);
     await acquired;
+    this.lockRequest = request;
   }
 }
 
