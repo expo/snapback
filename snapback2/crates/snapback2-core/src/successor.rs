@@ -848,7 +848,11 @@ pub(crate) fn rebuild_target(
 pub(crate) fn reconcile_sparse_aggregate_rows(
     transaction: &Transaction<'_>,
     schema: &Schema,
+    required: bool,
 ) -> Result<(), RuntimeError> {
+    if !required {
+        return Ok(());
+    }
     let targets = schema
         .maintains
         .iter()

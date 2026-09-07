@@ -524,27 +524,22 @@ impl Runtime {
                     .map_err(store_refusal)?;
             }
             Some(hash) if hash == generation_hash => {
-                // Additive owner metadata can appear after the generation was
-                // first installed (for example the outbox declaration binding).
-                if evaluator_changed {
-                    let transaction = store
-                        .conn
-                        .transaction()
-                        .map_err(|error| store_refusal(RuntimeError::Sql(error)))?;
-                    crate::successor::reconcile_sparse_aggregate_rows(
-                        &transaction,
-                        &generation.schema,
-                    )
+                // Persist additive owner metadata that may postdate this generation.
+                let transaction = store
+                    .conn
+                    .transaction()
+                    .map_err(|error| store_refusal(RuntimeError::Sql(error)))?;
+                crate::successor::reconcile_sparse_aggregate_rows(
+                    &transaction,
+                    &generation.schema,
+                    evaluator_changed,
+                )
+                .map_err(store_refusal)?;
+                persist_generation_transaction(&transaction, &generation, unix_millis())
                     .map_err(store_refusal)?;
-                    persist_generation_transaction(&transaction, &generation, unix_millis())
-                        .map_err(store_refusal)?;
-                    transaction
-                        .commit()
-                        .map_err(|error| store_refusal(RuntimeError::Sql(error)))?;
-                } else {
-                    persist_generation(&mut store, &generation, unix_millis())
-                        .map_err(store_refusal)?;
-                }
+                transaction
+                    .commit()
+                    .map_err(|error| store_refusal(RuntimeError::Sql(error)))?;
             }
             Some(hash) => {
                 let current_json = store
@@ -563,13 +558,14 @@ impl Runtime {
                     .conn
                     .transaction()
                     .map_err(|error| store_refusal(RuntimeError::Sql(error)))?;
-                // The old evaluator's physical rows are interpreted under its
-                // persisted schema (including old timer declarations) before
+                // Interpret old physical rows under the persisted schema before
                 // validating the successor's final state.
-                if evaluator_changed {
-                    crate::successor::reconcile_sparse_aggregate_rows(&transaction, &current)
-                        .map_err(store_refusal)?;
-                }
+                crate::successor::reconcile_sparse_aggregate_rows(
+                    &transaction,
+                    &current,
+                    evaluator_changed,
+                )
+                .map_err(store_refusal)?;
                 if let Some(refusal) = additive_refusal(&transaction, &current, &generation.schema)
                     .map_err(store_refusal)?
                 {
