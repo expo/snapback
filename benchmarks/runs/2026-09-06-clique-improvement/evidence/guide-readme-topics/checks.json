@@ -1,0 +1,65 @@
+[
+  {
+    "name": "guide-focused",
+    "argv": [
+      "/Users/ccheever/.volta/tools/image/node/24.18.0/bin/node",
+      "--input-type=module",
+      "-e",
+      "import assert from 'node:assert/strict';\nimport {readFile,writeFile,mkdir,readdir,copyFile} from 'node:fs/promises';\nimport {resolve} from 'node:path';\nimport {createRequire} from 'node:module';\nimport {execFileSync} from 'node:child_process';\nimport {createHash} from 'node:crypto';\nimport vm from 'node:vm';\nconst e='/Users/ccheever/clique-improvement/revisions/guide-readme-topics';\nconst here=resolve('snapback2/packages/snapback2');\nconst guideSource=resolve(here,'guide');\nconst base='df5eb6046d83a6f8ecaeb9d74ffbc5618a847681';\nconst installed='/Users/ccheever/clique-improvement/revisions/release-publication-013/registry-installed-consumer/node_modules/snapback2';\nconst source=await readFile(resolve(here,'build.mjs'),'utf8');\nconst baseline=execFileSync('git',['show',base+':snapback2/packages/snapback2/build.mjs'],{encoding:'utf8'});\nconst extract=(text,from,to)=>text.slice(text.indexOf(from),text.indexOf(to,text.indexOf(from)));\nconst helper=extract(source,'function guideKeywords(', '\\nasync function loadQuarryParser(');\nconst previousHelper=extract(baseline,'function guideKeywords(', '\\nasync function loadQuarryParser(');\nconst readPages=extract(source,'const guidePages = await Promise.all(', '\\nconst guideErrors =');\nconst writeIndex=source.split('\\n').find(line=>line.startsWith('await writeFile(resolve(guide, \"keywords.json\")'));\nconst guide=resolve(e,'candidate/packages/snapback2/dist/guide');\nawait mkdir(guide,{recursive:true});\nfor(const name of await readdir(guideSource)) if(name.endsWith('.md')||name==='families.source.json') await copyFile(resolve(guideSource,name),resolve(guide,name));\nawait copyFile(resolve(here,'README.md'),resolve(guide,'../../README.md'));\nawait copyFile(resolve(installed,'dist/index.d.ts'),resolve(guide,'../index.d.ts'));\nconst context={readFile,writeFile,resolve,here,guideSource,guide};\nawait vm.runInNewContext(`(async()=>{${helper}\\n${readPages}\\n${writeIndex}\\n})()`,context);\nconst candidate=JSON.parse(await readFile(resolve(guide,'keywords.json'),'utf8'));\nconst pages=await vm.runInNewContext(`(async()=>{${readPages}\\nreturn guidePages;})()`,context);\nconst old=vm.runInNewContext('('+previousHelper+')')(pages);\nassert.equal(Object.keys(old).length,23);\nassert.deepEqual(Object.fromEntries(Object.keys(old).map(key=>[key,candidate[key]])),JSON.parse(JSON.stringify(old)));\nassert.deepEqual(Object.keys(candidate).filter(key=>!Object.hasOwn(old,key)),['assets']);\nfor(const page of pages) assert(Buffer.byteLength(page.markdown)<=page.limit,`${page.name}: byte cap`);\nconst selfTests=extract(source,'  const keywordFixture = guideKeywords([','  const failures = [');\nvm.runInNewContext(`${helper}\\n${selfTests}`);\nconsole.log('PASS existing keyword self-tests plus README normalization, collisions, H3/fence/list and first-paragraph boundaries');\nconst testPath=resolve('snapback2/packages/compiler/src/test-package-guide.ts');\nconst require=createRequire(import.meta.url);\nconst ts=require(resolve(e,'private-typescript.cjs'));\nconst emitted=ts.transpileModule(await readFile(testPath,'utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022}}).outputText;\nconst module={exports:{}};\nvm.runInNewContext(emitted,{exports:module.exports,module,require:name=>name==='typescript'?ts:require(name)});\nconst checks=[];\nmodule.exports.registerPackageGuideChecks((name,run)=>checks.push({name,run}),(ok,message)=>assert(ok,message),()=>{throw Error('No project fixture is authorized in this selection');},resolve(e,'candidate')+'/');\nconst selected=checks.filter(check=>check.name==='the built keyword guide resolves grammar constructs and the README Assets topic');\nassert.equal(selected.length,1);\nawait selected[0].run();\nconsole.log('PASS '+selected[0].name);\nconst baselineGuide=resolve(e,'baseline/packages/snapback2/dist/guide');\nawait mkdir(baselineGuide,{recursive:true});\nfor(const name of await readdir(guide)) await copyFile(resolve(guide,name),resolve(baselineGuide,name));\nawait copyFile(resolve(guide,'../index.d.ts'),resolve(baselineGuide,'../index.d.ts'));\nawait writeFile(resolve(baselineGuide,'keywords.json'),JSON.stringify(old,null,2)+'\\n');\nconst hash=text=>createHash('sha256').update(text).digest('hex');\nawait writeFile(resolve(e,'index-receipt.json'),JSON.stringify({candidateGuide:guide,baselineGuide,base,sourceSha256:hash(source),readmeSha256:hash(await readFile(resolve(here,'README.md'))),candidateIndexSha256:hash(await readFile(resolve(guide,'keywords.json'))),baselineIndexSha256:hash(await readFile(resolve(baselineGuide,'keywords.json'))),constructCount:23,allOldValuesByteIdentical:true,addedKeys:['assets'],packageGuideTestPassed:selected[0].name,buildKeywordSelfTestsPassed:true,generatedUsingActualBuildPageLoadAndWriteStatement:true,fullPackageBuild:false,parserAndTypecheckRun:false},null,2)+'\\n',{flag:'wx'});\nconsole.log('PASS 23 original keyword values byte-identical; sole new key assets; all guide byte caps unchanged');\n"
+    ],
+    "cwd": "/Users/ccheever/projects/snapback-worktrees/clique-guide",
+    "timeoutSeconds": 60,
+    "pid": 35839,
+    "exitCode": 0,
+    "timedOut": false,
+    "startEpoch": 1788741950.2444348,
+    "endEpoch": 1788741951.426199,
+    "log": "/Users/ccheever/clique-improvement/revisions/guide-readme-topics/guide-focused.log"
+  },
+  {
+    "name": "caps",
+    "argv": [
+      "/Users/ccheever/.volta/tools/image/node/24.18.0/bin/node",
+      "scripts/caps.mjs"
+    ],
+    "cwd": "/Users/ccheever/projects/snapback-worktrees/clique-guide",
+    "timeoutSeconds": 60,
+    "pid": 35840,
+    "exitCode": 0,
+    "timedOut": false,
+    "startEpoch": 1788741950.2480261,
+    "endEpoch": 1788741953.579309,
+    "log": "/Users/ccheever/clique-improvement/revisions/guide-readme-topics/caps.log"
+  },
+  {
+    "name": "references",
+    "argv": [
+      "./ref-check",
+      "--verbose"
+    ],
+    "cwd": "/Users/ccheever/projects/snapback-worktrees/clique-guide",
+    "timeoutSeconds": 60,
+    "pid": 35841,
+    "exitCode": 0,
+    "timedOut": false,
+    "startEpoch": 1788741950.2543628,
+    "endEpoch": 1788741961.327041,
+    "log": "/Users/ccheever/clique-improvement/revisions/guide-readme-topics/references.log"
+  },
+  {
+    "name": "diff-check",
+    "argv": [
+      "git",
+      "diff",
+      "--check"
+    ],
+    "cwd": "/Users/ccheever/projects/snapback-worktrees/clique-guide",
+    "timeoutSeconds": 60,
+    "pid": 35843,
+    "exitCode": 0,
+    "timedOut": false,
+    "startEpoch": 1788741950.266114,
+    "endEpoch": 1788741950.598867,
+    "log": "/Users/ccheever/clique-improvement/revisions/guide-readme-topics/diff-check.log"
+  }
+]

@@ -1,0 +1,203 @@
+{
+  "qualification_verdict": "FAIL",
+  "source_commit": "2df173ad5b2abe3273a42bd86db1c05ea81bab16",
+  "metrics_commit": null,
+  "command": [
+    "node",
+    "scripts/publish.mjs",
+    "--dry-run"
+  ],
+  "attempts": 1,
+  "exit_code": 1,
+  "elapsed_s": 6347.201663970947,
+  "failure": "Installed chat test spawnSync ETIMEDOUT; a pass receipt does not override the failed deadline",
+  "consumer": {
+    "steps": [
+      {
+        "name": "install tarballs",
+        "seconds": 3.1652234159996735,
+        "ok": true
+      },
+      {
+        "name": "doctor",
+        "seconds": 0.911740333000198,
+        "ok": true
+      },
+      {
+        "name": "guide auth",
+        "seconds": 0.20891745899990202,
+        "ok": true
+      },
+      {
+        "name": "public client and React exports",
+        "seconds": 0.2092970000002533,
+        "ok": true
+      },
+      {
+        "name": "todos init",
+        "seconds": 2.180455209000036,
+        "ok": true
+      },
+      {
+        "name": "todos check",
+        "seconds": 2.148865291000344,
+        "ok": true
+      },
+      {
+        "name": "todos React bundle",
+        "seconds": 4.700369917000644,
+        "ok": true
+      },
+      {
+        "name": "todos dev",
+        "seconds": 1.2472405409999192,
+        "ok": true
+      },
+      {
+        "name": "React live query round trip",
+        "seconds": 0.8668432919997722,
+        "ok": true
+      },
+      {
+        "name": "todos receipt",
+        "accepted": true,
+        "verdict": "pass"
+      },
+      {
+        "name": "todos test",
+        "seconds": 3.950030749999918,
+        "ok": true
+      },
+      {
+        "name": "todos stop",
+        "seconds": 0.3359120829999447,
+        "ok": true
+      },
+      {
+        "name": "chat init",
+        "seconds": 4.370514374999329,
+        "ok": true
+      },
+      {
+        "name": "chat check",
+        "seconds": 3.7442530829999594,
+        "ok": true
+      },
+      {
+        "name": "chat React bundle",
+        "seconds": 3.0020453750006855,
+        "ok": true
+      },
+      {
+        "name": "chat dev",
+        "seconds": 2.809238125000149,
+        "ok": true
+      },
+      {
+        "name": "chat test",
+        "seconds": 924.2363458749996,
+        "ok": false
+      },
+      {
+        "name": "chat stop",
+        "seconds": 0.222930165999569,
+        "ok": true
+      }
+    ]
+  },
+  "tarballs": [
+    {
+      "name": "snapback2-darwin-arm64-0.0.11.tgz",
+      "sha256": "c3914322078f4448021c7b33636e64291bbbf5d2388943bc294d6f0ccd149a86",
+      "integrity": "sha512-/MwXIlxlj9u6kyKBXWIJcz3EUIfEK6ykJ+FvnWbUTPy1g4PljxfAhi0dVLvdbm3fUb9uGcHvp+bfiQd/35U1LA==",
+      "bytes": 4658531,
+      "source": "/Users/ccheever/projects/snapback-worktrees/clique-release-next/snapback2/dist/npm/publish-snapback2-darwin-arm64-0.0.11.dry-fvrRlM/snapback2-darwin-arm64-0.0.11.tgz",
+      "package": "snapback2-darwin-arm64",
+      "version": "0.0.11",
+      "retained_path": "/Users/ccheever/projects/snapback-artifacts/clique-release-next/0.0.11-2df173ad5/snapback2-darwin-arm64-0.0.11.tgz",
+      "mode": "0o444"
+    },
+    {
+      "name": "snapback2-0.0.11.tgz",
+      "sha256": "3ff5a956c36febf648186c07c4f519b5e032a1bfb7abb74785a7d234b0ade271",
+      "integrity": "sha512-ftrfzeWKmcu2adN4T+IkFhqQDZ4oS5vqYY870ksOY6w1bOoYylWetnNB9RBr7BZ/JdVcPLk4+EOnzKaF4Bqm/w==",
+      "bytes": 1791506,
+      "source": "/Users/ccheever/projects/snapback-worktrees/clique-release-next/snapback2/dist/npm/publish-snapback2-darwin-arm64-0.0.11.dry-fvrRlM/snapback2-0.0.11.tgz",
+      "package": "snapback2",
+      "version": "0.0.11",
+      "retained_path": "/Users/ccheever/projects/snapback-artifacts/clique-release-next/0.0.11-2df173ad5/snapback2-0.0.11.tgz",
+      "mode": "0o444"
+    }
+  ],
+  "objects": {
+    "engine": {
+      "path": "/Users/ccheever/projects/snapback-artifacts/clique-release-next/0.0.11-2df173ad5/retained-artifacts/platform/package/bin/snapback2",
+      "sha256": "25cf94298478a23dfe64fc3e8ed8daf80d0ac462550f22b41493837c19b88617",
+      "bytes": 7046320,
+      "original_mode": "0o755"
+    },
+    "media": {
+      "path": "/Users/ccheever/projects/snapback-artifacts/clique-release-next/0.0.11-2df173ad5/retained-artifacts/platform/package/bin/snapback2-media",
+      "sha256": "afe89cc495ca086c2c109d2e8a5093771c8809db57ec26ea49722fd88e4fefaf",
+      "bytes": 2147984,
+      "original_mode": "0o755"
+    },
+    "compiler": {
+      "path": "/Users/ccheever/projects/snapback-artifacts/clique-release-next/0.0.11-2df173ad5/retained-artifacts/shim/package/dist/compiler.mjs",
+      "sha256": "9c93d2adc425eab14d977a2a8b0d1228a0a5c8c27c4e59bc889efe9863490a78",
+      "bytes": 2351,
+      "original_mode": "0o755"
+    },
+    "compiler-core": {
+      "path": "/Users/ccheever/projects/snapback-artifacts/clique-release-next/0.0.11-2df173ad5/retained-artifacts/shim/package/dist/compiler-core.mjs",
+      "sha256": "49e6fa63fdeb01977d11c569617074e2a0f60ad132a3ecbdc28345ea4a4fdcd6",
+      "bytes": 352276,
+      "original_mode": "0o644"
+    },
+    "client": {
+      "path": "/Users/ccheever/projects/snapback-artifacts/clique-release-next/0.0.11-2df173ad5/retained-artifacts/shim/package/dist/client.mjs",
+      "sha256": "46482c35e3907bf8b51820d586f11cb97615cab9622842bb6a7b8bebfcb59dda",
+      "bytes": 187270,
+      "original_mode": "0o644"
+    },
+    "react": {
+      "path": "/Users/ccheever/projects/snapback-artifacts/clique-release-next/0.0.11-2df173ad5/retained-artifacts/shim/package/dist/react.mjs",
+      "sha256": "b21f1d49671221a849dce61221b1ba94cb5098edf963d74aca15407e822994fa",
+      "bytes": 40661,
+      "original_mode": "0o644"
+    },
+    "react-core": {
+      "path": "/Users/ccheever/projects/snapback-artifacts/clique-release-next/0.0.11-2df173ad5/retained-artifacts/shim/package/dist/react-core.mjs",
+      "sha256": "3d3d844f99884cd13e6c5601f91914abc6cf2a12eb43456dc743eea8c799b468",
+      "bytes": 8677,
+      "original_mode": "0o644"
+    },
+    "react-native": {
+      "path": "/Users/ccheever/projects/snapback-artifacts/clique-release-next/0.0.11-2df173ad5/retained-artifacts/shim/package/dist/react-native.mjs",
+      "sha256": "f278214972896182e672f120c04f1c2269fc77163cd33be686738167add28da0",
+      "bytes": 7072,
+      "original_mode": "0o644"
+    },
+    "expo": {
+      "path": "/Users/ccheever/projects/snapback-artifacts/clique-release-next/0.0.11-2df173ad5/retained-artifacts/shim/package/dist/expo.mjs",
+      "sha256": "17da7b63445120299a313af3f46ad712f14963da5431269ad1fde12c624782ca",
+      "bytes": 52308,
+      "original_mode": "0o644"
+    },
+    "without_engine": {
+      "path": "/Users/ccheever/projects/snapback-worktrees/clique-release-next/snapback2/target/production/snapback2",
+      "bytes": 3812208,
+      "sha256": "d96ae36171259835c5342cda1f3846273b46eb0148add1849f811f50af12ca40"
+    }
+  },
+  "original_pack_bytes_retained": true,
+  "packed_files_verified": 154,
+  "packed_dist_files": 141,
+  "production_build_objects_match_tarballs": true,
+  "resume_ready_created": false,
+  "resume_reason": "Full standard qualification failed; no ready template or publication working copy is authorized by this evidence",
+  "source_reviews": "PENDING root resolution",
+  "npm_dry_publish_reached": false,
+  "published_to_npm": false,
+  "pushed_main": false
+}

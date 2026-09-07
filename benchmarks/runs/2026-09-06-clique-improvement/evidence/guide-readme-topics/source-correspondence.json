@@ -1,0 +1,21 @@
+{
+  "authoredCommit": "848e8c9ed442de225dc2abc2640b2018acafd13c",
+  "integratedCommit": "33be91893",
+  "integrationBase": "a792af108b93d61011e6d0717b88121fce5b25a4",
+  "cherryPickConflicts": false,
+  "allThreeFilesByteIdentical": true,
+  "files": [
+    {
+      "path": "llp/1002-dev-loop.spec.md",
+      "sha256": "3af45f4d9a2ac78e760c7fbd27de8b62155d04cbdcb71fd953214fb4329c807d"
+    },
+    {
+      "path": "snapback2/packages/compiler/src/test-package-guide.ts",
+      "sha256": "a4646e6ef94f6691e81b1cc36251a4b8d5a43c97b458fa09443ace73db2df937"
+    },
+    {
+      "path": "snapback2/packages/snapback2/build.mjs",
+      "sha256": "4f406488ae503815e297aa6987c6822d5ef0e13ce24b3e20d4e571449b576a32"
+    }
+  ]
+}

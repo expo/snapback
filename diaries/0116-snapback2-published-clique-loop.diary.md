@@ -930,3 +930,12 @@ The original Grok-built 0.0.10 application audit completed while the remote host
 The asset staging observations predate the published pending-slot fix. Other findings need current-surface diagnosis before treating application mistakes as platform defects. For example, push formatting already has an effect-run JavaScript path; a full message written directly into an 80-character preview field does not prove the platform lacks formatting. Native and full-scale evidence remain absent. [Complete recovered diagnostic report and custody](../benchmarks/runs/2026-09-06-clique-improvement/evidence/grok-010-final-diagnostic/README.md).
 
 M5 recovery is complete. Future Linux-compatible work is assigned to the EPYC/Hetzner fleet, with isolated pinned runtimes; Apple-specific work uses other Macs. This operational change does not replace competitor scores or turn cross-host timing into a backend comparison.
+
+
+### 2026-09-06 — Asset documentation becomes reachable by topic
+
+The cold build's `guide assets` lookup could not reach upload and rendering instructions already present in the package README. Deriving topic entries from existing README headings closes that discovery gap without another page to maintain. `assets` now returns its exact defining paragraph and a pointer to the full section; all23 language-construct excerpts and native lookup precedence stay unchanged.
+
+Both independent reviews approve the exact three-file change, with focused generation and private native lookup evidence. The retained projection is not a complete rebuilt package, so standard production qualification still follows. The original failed lookup and incomplete cold run remain unchanged, with no replay or new score. [Full reviews and source custody](../benchmarks/runs/2026-09-06-clique-improvement/evidence/guide-readme-topics/README.md).
+
+The recovered0.0.11 preparation also remains failed: its consumer timeout controls even though captured output contains passing checks. [Original report and terminal/cleanup custody](../benchmarks/runs/2026-09-06-clique-improvement/evidence/release-011-recovered/README.md) preserve that result. Existing competitor baselines remain reusable.

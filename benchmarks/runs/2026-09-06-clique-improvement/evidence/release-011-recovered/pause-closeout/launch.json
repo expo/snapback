@@ -1,0 +1,20 @@
+{
+  "pid": 96086,
+  "startEpoch": 1788721046.816789,
+  "argv": [
+    "/Users/ccheever/.volta/bin/codex",
+    "exec",
+    "resume",
+    "--dangerously-bypass-approvals-and-sandbox",
+    "--skip-git-repo-check",
+    "--json",
+    "-m",
+    "gpt-6-astra",
+    "-c",
+    "model_reasoning_effort=\"xhigh\"",
+    "-o",
+    "/Users/ccheever/clique-improvement/revisions/release-next-integration/pause-closeout/final-answer.md",
+    "01a07809-a9f0-76a3-b3a9-f4c519f2336d",
+    "-"
+  ]
+}

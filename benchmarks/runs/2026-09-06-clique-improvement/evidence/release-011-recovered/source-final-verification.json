@@ -1,0 +1,10 @@
+{
+  "source_commit": "2df173ad5b2abe3273a42bd86db1c05ea81bab16",
+  "source_tree": "764e61212d325a498419efc3c8f5b2643aa507bf",
+  "verified_files": 932,
+  "all_bytes_and_modes_match": true,
+  "git_status": "",
+  "metrics_changed": false,
+  "metrics_commit": null,
+  "publisher_scripts_unchanged_from_pin": true
+}

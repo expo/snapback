@@ -1,0 +1,371 @@
+{
+  "checks": [
+    {
+      "state": "baseline",
+      "name": "assets",
+      "argv": [
+        "/Users/ccheever/clique-improvement/revisions/release-publication-013/registry-installed-consumer/node_modules/snapback2-darwin-arm64/bin/snapback2",
+        "guide",
+        "assets",
+        "--json"
+      ],
+      "cwd": "/Users/ccheever/clique-improvement/revisions/guide-readme-topics",
+      "environment": {
+        "SNAPBACK2_GUIDE": "/Users/ccheever/clique-improvement/revisions/guide-readme-topics/baseline/packages/snapback2/dist/guide",
+        "scrubbed": "DYLD_*, SNAPBACK_URL, compiler/template/test runner and CARGO_TARGET_DIR overrides"
+      },
+      "pid": 37035,
+      "startEpoch": 1788742017.721992,
+      "endEpoch": 1788742017.7756228,
+      "timeoutSeconds": 10,
+      "exitCode": 1,
+      "expectedExitCode": 1,
+      "timedOut": false,
+      "stdout": "baseline-assets.stdout",
+      "stderr": "baseline-assets.stderr"
+    },
+    {
+      "state": "baseline",
+      "name": "grammar",
+      "argv": [
+        "/Users/ccheever/clique-improvement/revisions/release-publication-013/registry-installed-consumer/node_modules/snapback2-darwin-arm64/bin/snapback2",
+        "guide",
+        "grammar",
+        "--json"
+      ],
+      "cwd": "/Users/ccheever/clique-improvement/revisions/guide-readme-topics",
+      "environment": {
+        "SNAPBACK2_GUIDE": "/Users/ccheever/clique-improvement/revisions/guide-readme-topics/baseline/packages/snapback2/dist/guide",
+        "scrubbed": "DYLD_*, SNAPBACK_URL, compiler/template/test runner and CARGO_TARGET_DIR overrides"
+      },
+      "pid": 37037,
+      "startEpoch": 1788742017.775715,
+      "endEpoch": 1788742017.7942138,
+      "timeoutSeconds": 10,
+      "exitCode": 0,
+      "expectedExitCode": 0,
+      "timedOut": false,
+      "stdout": "baseline-grammar.stdout",
+      "stderr": "baseline-grammar.stderr"
+    },
+    {
+      "state": "baseline",
+      "name": "auth",
+      "argv": [
+        "/Users/ccheever/clique-improvement/revisions/release-publication-013/registry-installed-consumer/node_modules/snapback2-darwin-arm64/bin/snapback2",
+        "guide",
+        "auth",
+        "--json"
+      ],
+      "cwd": "/Users/ccheever/clique-improvement/revisions/guide-readme-topics",
+      "environment": {
+        "SNAPBACK2_GUIDE": "/Users/ccheever/clique-improvement/revisions/guide-readme-topics/baseline/packages/snapback2/dist/guide",
+        "scrubbed": "DYLD_*, SNAPBACK_URL, compiler/template/test runner and CARGO_TARGET_DIR overrides"
+      },
+      "pid": 37038,
+      "startEpoch": 1788742017.794313,
+      "endEpoch": 1788742017.812191,
+      "timeoutSeconds": 10,
+      "exitCode": 0,
+      "expectedExitCode": 0,
+      "timedOut": false,
+      "stdout": "baseline-auth.stdout",
+      "stderr": "baseline-auth.stderr"
+    },
+    {
+      "state": "baseline",
+      "name": "init",
+      "argv": [
+        "/Users/ccheever/clique-improvement/revisions/release-publication-013/registry-installed-consumer/node_modules/snapback2-darwin-arm64/bin/snapback2",
+        "guide",
+        "init",
+        "--json"
+      ],
+      "cwd": "/Users/ccheever/clique-improvement/revisions/guide-readme-topics",
+      "environment": {
+        "SNAPBACK2_GUIDE": "/Users/ccheever/clique-improvement/revisions/guide-readme-topics/baseline/packages/snapback2/dist/guide",
+        "scrubbed": "DYLD_*, SNAPBACK_URL, compiler/template/test runner and CARGO_TARGET_DIR overrides"
+      },
+      "pid": 37039,
+      "startEpoch": 1788742017.812313,
+      "endEpoch": 1788742017.829557,
+      "timeoutSeconds": 10,
+      "exitCode": 0,
+      "expectedExitCode": 0,
+      "timedOut": false,
+      "stdout": "baseline-init.stdout",
+      "stderr": "baseline-init.stderr"
+    },
+    {
+      "state": "baseline",
+      "name": "E_STRUCTURAL_FANOUT",
+      "argv": [
+        "/Users/ccheever/clique-improvement/revisions/release-publication-013/registry-installed-consumer/node_modules/snapback2-darwin-arm64/bin/snapback2",
+        "guide",
+        "E_STRUCTURAL_FANOUT",
+        "--json"
+      ],
+      "cwd": "/Users/ccheever/clique-improvement/revisions/guide-readme-topics",
+      "environment": {
+        "SNAPBACK2_GUIDE": "/Users/ccheever/clique-improvement/revisions/guide-readme-topics/baseline/packages/snapback2/dist/guide",
+        "scrubbed": "DYLD_*, SNAPBACK_URL, compiler/template/test runner and CARGO_TARGET_DIR overrides"
+      },
+      "pid": 37040,
+      "startEpoch": 1788742017.82962,
+      "endEpoch": 1788742017.847906,
+      "timeoutSeconds": 10,
+      "exitCode": 0,
+      "expectedExitCode": 0,
+      "timedOut": false,
+      "stdout": "baseline-E_STRUCTURAL_FANOUT.stdout",
+      "stderr": "baseline-E_STRUCTURAL_FANOUT.stderr"
+    },
+    {
+      "state": "baseline",
+      "name": "channel",
+      "argv": [
+        "/Users/ccheever/clique-improvement/revisions/release-publication-013/registry-installed-consumer/node_modules/snapback2-darwin-arm64/bin/snapback2",
+        "guide",
+        "channel",
+        "--json"
+      ],
+      "cwd": "/Users/ccheever/clique-improvement/revisions/guide-readme-topics",
+      "environment": {
+        "SNAPBACK2_GUIDE": "/Users/ccheever/clique-improvement/revisions/guide-readme-topics/baseline/packages/snapback2/dist/guide",
+        "scrubbed": "DYLD_*, SNAPBACK_URL, compiler/template/test runner and CARGO_TARGET_DIR overrides"
+      },
+      "pid": 37041,
+      "startEpoch": 1788742017.8479612,
+      "endEpoch": 1788742017.865691,
+      "timeoutSeconds": 10,
+      "exitCode": 0,
+      "expectedExitCode": 0,
+      "timedOut": false,
+      "stdout": "baseline-channel.stdout",
+      "stderr": "baseline-channel.stderr"
+    },
+    {
+      "state": "baseline",
+      "name": "decimal",
+      "argv": [
+        "/Users/ccheever/clique-improvement/revisions/release-publication-013/registry-installed-consumer/node_modules/snapback2-darwin-arm64/bin/snapback2",
+        "guide",
+        "decimal",
+        "--json"
+      ],
+      "cwd": "/Users/ccheever/clique-improvement/revisions/guide-readme-topics",
+      "environment": {
+        "SNAPBACK2_GUIDE": "/Users/ccheever/clique-improvement/revisions/guide-readme-topics/baseline/packages/snapback2/dist/guide",
+        "scrubbed": "DYLD_*, SNAPBACK_URL, compiler/template/test runner and CARGO_TARGET_DIR overrides"
+      },
+      "pid": 37042,
+      "startEpoch": 1788742017.86577,
+      "endEpoch": 1788742017.8837,
+      "timeoutSeconds": 10,
+      "exitCode": 0,
+      "expectedExitCode": 0,
+      "timedOut": false,
+      "stdout": "baseline-decimal.stdout",
+      "stderr": "baseline-decimal.stderr"
+    },
+    {
+      "state": "candidate",
+      "name": "assets",
+      "argv": [
+        "/Users/ccheever/clique-improvement/revisions/release-publication-013/registry-installed-consumer/node_modules/snapback2-darwin-arm64/bin/snapback2",
+        "guide",
+        "assets",
+        "--json"
+      ],
+      "cwd": "/Users/ccheever/clique-improvement/revisions/guide-readme-topics",
+      "environment": {
+        "SNAPBACK2_GUIDE": "/Users/ccheever/clique-improvement/revisions/guide-readme-topics/candidate/packages/snapback2/dist/guide",
+        "scrubbed": "DYLD_*, SNAPBACK_URL, compiler/template/test runner and CARGO_TARGET_DIR overrides"
+      },
+      "pid": 37043,
+      "startEpoch": 1788742017.884011,
+      "endEpoch": 1788742017.902264,
+      "timeoutSeconds": 10,
+      "exitCode": 0,
+      "expectedExitCode": 0,
+      "timedOut": false,
+      "stdout": "candidate-assets.stdout",
+      "stderr": "candidate-assets.stderr"
+    },
+    {
+      "state": "candidate",
+      "name": "grammar",
+      "argv": [
+        "/Users/ccheever/clique-improvement/revisions/release-publication-013/registry-installed-consumer/node_modules/snapback2-darwin-arm64/bin/snapback2",
+        "guide",
+        "grammar",
+        "--json"
+      ],
+      "cwd": "/Users/ccheever/clique-improvement/revisions/guide-readme-topics",
+      "environment": {
+        "SNAPBACK2_GUIDE": "/Users/ccheever/clique-improvement/revisions/guide-readme-topics/candidate/packages/snapback2/dist/guide",
+        "scrubbed": "DYLD_*, SNAPBACK_URL, compiler/template/test runner and CARGO_TARGET_DIR overrides"
+      },
+      "pid": 37044,
+      "startEpoch": 1788742017.9023428,
+      "endEpoch": 1788742017.9199371,
+      "timeoutSeconds": 10,
+      "exitCode": 0,
+      "expectedExitCode": 0,
+      "timedOut": false,
+      "stdout": "candidate-grammar.stdout",
+      "stderr": "candidate-grammar.stderr"
+    },
+    {
+      "state": "candidate",
+      "name": "auth",
+      "argv": [
+        "/Users/ccheever/clique-improvement/revisions/release-publication-013/registry-installed-consumer/node_modules/snapback2-darwin-arm64/bin/snapback2",
+        "guide",
+        "auth",
+        "--json"
+      ],
+      "cwd": "/Users/ccheever/clique-improvement/revisions/guide-readme-topics",
+      "environment": {
+        "SNAPBACK2_GUIDE": "/Users/ccheever/clique-improvement/revisions/guide-readme-topics/candidate/packages/snapback2/dist/guide",
+        "scrubbed": "DYLD_*, SNAPBACK_URL, compiler/template/test runner and CARGO_TARGET_DIR overrides"
+      },
+      "pid": 37045,
+      "startEpoch": 1788742017.920031,
+      "endEpoch": 1788742017.937564,
+      "timeoutSeconds": 10,
+      "exitCode": 0,
+      "expectedExitCode": 0,
+      "timedOut": false,
+      "stdout": "candidate-auth.stdout",
+      "stderr": "candidate-auth.stderr"
+    },
+    {
+      "state": "candidate",
+      "name": "init",
+      "argv": [
+        "/Users/ccheever/clique-improvement/revisions/release-publication-013/registry-installed-consumer/node_modules/snapback2-darwin-arm64/bin/snapback2",
+        "guide",
+        "init",
+        "--json"
+      ],
+      "cwd": "/Users/ccheever/clique-improvement/revisions/guide-readme-topics",
+      "environment": {
+        "SNAPBACK2_GUIDE": "/Users/ccheever/clique-improvement/revisions/guide-readme-topics/candidate/packages/snapback2/dist/guide",
+        "scrubbed": "DYLD_*, SNAPBACK_URL, compiler/template/test runner and CARGO_TARGET_DIR overrides"
+      },
+      "pid": 37047,
+      "startEpoch": 1788742017.9376981,
+      "endEpoch": 1788742017.954557,
+      "timeoutSeconds": 10,
+      "exitCode": 0,
+      "expectedExitCode": 0,
+      "timedOut": false,
+      "stdout": "candidate-init.stdout",
+      "stderr": "candidate-init.stderr"
+    },
+    {
+      "state": "candidate",
+      "name": "E_STRUCTURAL_FANOUT",
+      "argv": [
+        "/Users/ccheever/clique-improvement/revisions/release-publication-013/registry-installed-consumer/node_modules/snapback2-darwin-arm64/bin/snapback2",
+        "guide",
+        "E_STRUCTURAL_FANOUT",
+        "--json"
+      ],
+      "cwd": "/Users/ccheever/clique-improvement/revisions/guide-readme-topics",
+      "environment": {
+        "SNAPBACK2_GUIDE": "/Users/ccheever/clique-improvement/revisions/guide-readme-topics/candidate/packages/snapback2/dist/guide",
+        "scrubbed": "DYLD_*, SNAPBACK_URL, compiler/template/test runner and CARGO_TARGET_DIR overrides"
+      },
+      "pid": 37048,
+      "startEpoch": 1788742017.9546208,
+      "endEpoch": 1788742017.9720378,
+      "timeoutSeconds": 10,
+      "exitCode": 0,
+      "expectedExitCode": 0,
+      "timedOut": false,
+      "stdout": "candidate-E_STRUCTURAL_FANOUT.stdout",
+      "stderr": "candidate-E_STRUCTURAL_FANOUT.stderr"
+    },
+    {
+      "state": "candidate",
+      "name": "channel",
+      "argv": [
+        "/Users/ccheever/clique-improvement/revisions/release-publication-013/registry-installed-consumer/node_modules/snapback2-darwin-arm64/bin/snapback2",
+        "guide",
+        "channel",
+        "--json"
+      ],
+      "cwd": "/Users/ccheever/clique-improvement/revisions/guide-readme-topics",
+      "environment": {
+        "SNAPBACK2_GUIDE": "/Users/ccheever/clique-improvement/revisions/guide-readme-topics/candidate/packages/snapback2/dist/guide",
+        "scrubbed": "DYLD_*, SNAPBACK_URL, compiler/template/test runner and CARGO_TARGET_DIR overrides"
+      },
+      "pid": 37049,
+      "startEpoch": 1788742017.972097,
+      "endEpoch": 1788742017.9898748,
+      "timeoutSeconds": 10,
+      "exitCode": 0,
+      "expectedExitCode": 0,
+      "timedOut": false,
+      "stdout": "candidate-channel.stdout",
+      "stderr": "candidate-channel.stderr"
+    },
+    {
+      "state": "candidate",
+      "name": "decimal",
+      "argv": [
+        "/Users/ccheever/clique-improvement/revisions/release-publication-013/registry-installed-consumer/node_modules/snapback2-darwin-arm64/bin/snapback2",
+        "guide",
+        "decimal",
+        "--json"
+      ],
+      "cwd": "/Users/ccheever/clique-improvement/revisions/guide-readme-topics",
+      "environment": {
+        "SNAPBACK2_GUIDE": "/Users/ccheever/clique-improvement/revisions/guide-readme-topics/candidate/packages/snapback2/dist/guide",
+        "scrubbed": "DYLD_*, SNAPBACK_URL, compiler/template/test runner and CARGO_TARGET_DIR overrides"
+      },
+      "pid": 37050,
+      "startEpoch": 1788742017.9899468,
+      "endEpoch": 1788742018.007908,
+      "timeoutSeconds": 10,
+      "exitCode": 0,
+      "expectedExitCode": 0,
+      "timedOut": false,
+      "stdout": "candidate-decimal.stdout",
+      "stderr": "candidate-decimal.stderr"
+    },
+    {
+      "state": "candidate",
+      "name": "upload",
+      "argv": [
+        "/Users/ccheever/clique-improvement/revisions/release-publication-013/registry-installed-consumer/node_modules/snapback2-darwin-arm64/bin/snapback2",
+        "guide",
+        "upload",
+        "--json"
+      ],
+      "cwd": "/Users/ccheever/clique-improvement/revisions/guide-readme-topics",
+      "environment": {
+        "SNAPBACK2_GUIDE": "/Users/ccheever/clique-improvement/revisions/guide-readme-topics/candidate/packages/snapback2/dist/guide",
+        "scrubbed": "DYLD_*, SNAPBACK_URL, compiler/template/test runner and CARGO_TARGET_DIR overrides"
+      },
+      "pid": 37051,
+      "startEpoch": 1788742018.007974,
+      "endEpoch": 1788742018.027562,
+      "timeoutSeconds": 10,
+      "exitCode": 1,
+      "expectedExitCode": 1,
+      "timedOut": false,
+      "stdout": "candidate-upload.stdout",
+      "stderr": "candidate-upload.stderr"
+    }
+  ],
+  "failures": [],
+  "nativeGuideSourceSha256": "d3acdceac0b09f5b9d6cb07b0735781effbbee88ee08fec7a36ea81ae5b0d079",
+  "nativeGuideSourceIdenticalToQualifiedAe7d": true,
+  "nativeBinaryUnchanged": true,
+  "candidateAssetsExactReadmeParagraphAndResolvableSourcePointer": true,
+  "oldNativePageRefusalSymbolOutputsIdentical": true,
+  "scope": "Fresh private lane witness using unchanged qualified native binary and candidate guide projection, not a rebuilt or newly installed full package. Baseline assets exit 1 is measured here independently; original observation retains its individual-exit uncertainty."
+}

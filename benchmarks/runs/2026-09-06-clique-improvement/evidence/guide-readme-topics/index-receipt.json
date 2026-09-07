@@ -1,0 +1,19 @@
+{
+  "candidateGuide": "/Users/ccheever/clique-improvement/revisions/guide-readme-topics/candidate/packages/snapback2/dist/guide",
+  "baselineGuide": "/Users/ccheever/clique-improvement/revisions/guide-readme-topics/baseline/packages/snapback2/dist/guide",
+  "base": "df5eb6046d83a6f8ecaeb9d74ffbc5618a847681",
+  "sourceSha256": "4f406488ae503815e297aa6987c6822d5ef0e13ce24b3e20d4e571449b576a32",
+  "readmeSha256": "15402a2ce46e37551f93257102a32d37fee7a811fd2d9e66afe3b70812c1aed9",
+  "candidateIndexSha256": "69942b4b0dd7167756dbf5321136fa58feb81cac62adb4623b80efc5d56f165e",
+  "baselineIndexSha256": "6471b0566d1705d3a33d1096824a105a803783a4e156df388531101cf3a6ed58",
+  "constructCount": 23,
+  "allOldValuesByteIdentical": true,
+  "addedKeys": [
+    "assets"
+  ],
+  "packageGuideTestPassed": "the built keyword guide resolves grammar constructs and the README Assets topic",
+  "buildKeywordSelfTestsPassed": true,
+  "generatedUsingActualBuildPageLoadAndWriteStatement": true,
+  "fullPackageBuild": false,
+  "parserAndTypecheckRun": false
+}

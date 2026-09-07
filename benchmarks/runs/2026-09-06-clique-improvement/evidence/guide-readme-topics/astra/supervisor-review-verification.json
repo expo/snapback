@@ -1,0 +1,25 @@
+{
+  "at": "2026-09-07T01:05:04.143424+00:00",
+  "verifiedLeaves": 1007,
+  "mismatches": [],
+  "reviewSha256": "c26ea66b45054cb9d77f7246863dc2871bd67fbd5cd53aef768bc44efbb53717",
+  "terminal": {
+    "pid": 42551,
+    "exitCode": 0,
+    "endedEpoch": 1788743048.157075,
+    "elapsedSeconds": 356.9837009906769
+  },
+  "actualIdentity": {
+    "observedAt": "2026-09-07T01:00:04.342845+00:00",
+    "uuid": "01a0795f-6a55-78f2-9750-a4a0d6d0b3e3",
+    "path": "/Users/ccheever/.codex/sessions/2026/09/06/rollout-2026-09-06T17-58-11-01a0795f-6a55-78f2-9750-a4a0d6d0b3e3.jsonl",
+    "line": 8,
+    "timestamp": "2026-09-07T00:58:13.465Z",
+    "model": "gpt-6-astra",
+    "effort": "xhigh",
+    "cwd": "/Users/ccheever/clique-improvement/reviews/guide-readme-topics-r1/astra",
+    "sha256": "d364f89bb3d233da2c28d842c4d86089808d676da165dd895aa3934513bb5b32"
+  },
+  "finalMessageMatchesCapturedReview": true,
+  "captureNote": "Reviewer in-sandbox write was refused; existing supervisor-selected Codex -o path captured exact final message. No retry or source mutation."
+}

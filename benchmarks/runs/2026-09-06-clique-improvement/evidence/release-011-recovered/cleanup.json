@@ -1,0 +1,143 @@
+{
+  "at": 1788741376.656975,
+  "recorded_pids": [
+    8712,
+    8754,
+    8920,
+    8976,
+    9011,
+    9119,
+    9130,
+    9402,
+    9857,
+    9893,
+    10087,
+    10101,
+    10106,
+    10382,
+    10425,
+    10427,
+    10697,
+    10906,
+    11363,
+    11377,
+    11379,
+    11384,
+    11555,
+    11695,
+    11719,
+    11727,
+    11899,
+    11901,
+    12099,
+    12262,
+    12301,
+    12309,
+    12820,
+    12833,
+    12838,
+    13299,
+    13388,
+    13623,
+    13712,
+    13726,
+    13751,
+    14093,
+    14094,
+    14097,
+    14392,
+    14401,
+    15707,
+    15726,
+    15886,
+    15907,
+    78090,
+    78160,
+    82392,
+    82490,
+    84344,
+    90558,
+    91268,
+    91344,
+    92165,
+    98084
+  ],
+  "numeric_pid_observations": "",
+  "consumer_owner_metadata": [
+    {
+      "observed_at": 1788725256.725687,
+      "metadata_path": "/private/var/folders/ld/7bxg3rcx2l3_l0fpvn_b3_8w0000gn/T/snapback2-consumer-UtrdDu/todos/.snapback/owner.json",
+      "template": "todos",
+      "pid": 11379,
+      "port": 56439,
+      "startedAt": 1788725254773
+    },
+    {
+      "observed_at": 1788725275.327648,
+      "metadata_path": "/private/var/folders/ld/7bxg3rcx2l3_l0fpvn_b3_8w0000gn/T/snapback2-consumer-UtrdDu/chat/.snapback/owner.json",
+      "template": "chat",
+      "pid": 13726,
+      "port": 56607,
+      "startedAt": 1788725272301
+    }
+  ],
+  "consumer_directories": [
+    {
+      "path": "/private/var/folders/ld/7bxg3rcx2l3_l0fpvn_b3_8w0000gn/T/snapback2-consumer-UtrdDu",
+      "exists": false
+    }
+  ],
+  "ephemeral_pack_paths": [
+    {
+      "path": "/Users/ccheever/projects/snapback-worktrees/clique-release-next/snapback2/dist/npm/publish-snapback2-darwin-arm64-0.0.11.dry-fvrRlM/snapback2-darwin-arm64-0.0.11.tgz",
+      "exists": false
+    },
+    {
+      "path": "/Users/ccheever/projects/snapback-worktrees/clique-release-next/snapback2/dist/npm/publish-snapback2-darwin-arm64-0.0.11.dry-fvrRlM/snapback2-0.0.11.tgz",
+      "exists": false
+    }
+  ],
+  "consumer_ports": [
+    {
+      "port": 56439,
+      "exit_code": 1,
+      "output": ""
+    },
+    {
+      "port": 56607,
+      "exit_code": 1,
+      "output": ""
+    }
+  ],
+  "signals_sent_by_preparer": [],
+  "private_owner_ports_52000_52019_launched": [],
+  "standard_consumer_stops": [
+    {
+      "name": "todos stop",
+      "seconds": 0.3359120829999447,
+      "ok": true
+    },
+    {
+      "name": "chat stop",
+      "seconds": 0.222930165999569,
+      "ok": true
+    }
+  ],
+  "npm_commands": [
+    "pack",
+    "pack",
+    "install"
+  ],
+  "affected_check_pids": [
+    53947,
+    56932,
+    65779,
+    70845,
+    71172
+  ],
+  "affected_check_pids_final": "",
+  "observer_tool_session": 36057,
+  "observer_completed": true,
+  "dry_state_directory_exists": false,
+  "ready_or_working_resume_created": false
+}

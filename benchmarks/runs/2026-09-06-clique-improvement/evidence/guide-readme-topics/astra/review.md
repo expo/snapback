@@ -1,0 +1,14 @@
+**READY** — No material supported-behavior regressions found in candidate `848e8c9ed442` against baseline `df5eb6046d83`.
+
+- **All 23 construct values remain byte-identical.** Independent execution of both extraction functions reproduced the supplied indexes exactly; `assets` is the sole addition.
+- **Assets help matches its source.** It preserves the exact first paragraph and line breaks from [README.md:68](/Users/ccheever/clique-improvement/reviews/guide-readme-topics-r1/astra/snapback2/packages/snapback2/README.md:68), excludes later paragraphs and the H3 subsection, and points to the correct packaged README location.
+- **Lookup precedence is preserved.** The unchanged [native dispatcher](/Users/ccheever/clique-improvement/reviews/guide-readme-topics-r1/astra/snapback2/crates/snapback2/src/guide.rs:43) retains command/page/refusal precedence, symbol declarations with supplementary excerpts, and symbol fallback when the index is unavailable or invalid.
+- **Extraction checks passed.** The [generator](/Users/ccheever/clique-improvement/reviews/guide-readme-topics-r1/astra/snapback2/packages/snapback2/build.mjs:494) passed its existing helper self-tests and nine independent fixtures covering heading boundaries, fence markers/lengths, paragraph selection, EOF, Unicode normalization, collisions, and prototype-safe keys.
+
+Checks actually performed: read the required context, patch, relevant complete sources and supplied evidence; applied all three patch sections **in memory** and confirmed exact candidate bytes; executed isolated Node extraction checks; verified receipt hashes, package-pointer resolution, and saved CLI-result consistency. Six paired page/refusal/symbol outputs are identical. The 15 saved CLI results contain the expected unknown exits for baseline `assets` and candidate `upload`.
+
+Coverage limits: the [changed package test](/Users/ccheever/clique-improvement/reviews/guide-readme-topics-r1/astra/snapback2/packages/compiler/src/test-package-guide.ts:60) checks construct content shape and exact Assets text. Synthetic extraction tests require `build.mjs --self-test`; the ordinary build omits that flag. Existing Rust coverage was inspected, not executed. The npm-pack test does not explicitly assert README/index inclusion.
+
+Supplied successful receipts remain prior, scoped evidence. I did not execute the native CLI, full build, typechecking/parser/Rust suites, packing/installing, publisher, or benchmarks. This verdict covers the shipped README and exercised extraction forms; speculative Markdown extensions, additional pages, aliases, runtime parsing, and upload/media synonyms are not requirements of this change.
+
+Saving this report to `review.md` was rejected by the read-only sandbox and approval settings. No file was written.
