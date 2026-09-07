@@ -1,6 +1,0 @@
-import { query, t } from "snapback2";
-
-export const invalidPhotoDuration = query(
-  { photo: t.image(5_000_000) },
-  ({ args }) => args.photo.duration,
-);
