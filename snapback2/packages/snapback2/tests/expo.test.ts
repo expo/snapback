@@ -44,7 +44,7 @@ function secureFake() {
   };
 }
 
-test("Expo production Hermes lowering keeps frozen row-image caches writable and brands unforgeable", async () => {
+test("Expo production Hermes lowering keeps frozen evaluator state writable and brands unforgeable", async () => {
   // Keep transformed output under the package so Expo's injected @babel/runtime helpers resolve as Metro resolves them.
   const root = await mkdtemp(fileURLToPath(new URL(".row-image-expo-", import.meta.url)));
   try {
@@ -75,8 +75,24 @@ test("Expo production Hermes lowering keeps frozen row-image caches writable and
     assert.throws(() => new legacy.LegacyImage().digest(), /read.only|writable|frozen/i,
       "the former frozen private-field cache fails after the production Hermes transform");
 
+    const legacyReceipt = await transform(
+      `export class LegacyReceipt { #prepared; #wire; constructor(value, prepared, wire) {
+        for (const [key, child] of Object.entries(value)) Object.defineProperty(this, key, { value: child, enumerable: true });
+        this.#prepared = prepared; this.#wire = wire; Object.setPrototypeOf(this, Object.prototype); Object.freeze(this);
+      } static own(value, prepared, wire) { return new LegacyReceipt(value, prepared, wire); }
+        static get(value, wire) { return value && typeof value === "object" && #prepared in value && value.#wire === wire ? value.#prepared : undefined; } }`,
+      "legacy-receipt.mjs",
+    );
+    const legacyPrepared = {};
+    const heldLegacy = legacyReceipt.LegacyReceipt.own({ site: "issued" }, legacyPrepared, false);
+    const forgedLegacy = Object.create(Object.getPrototypeOf(heldLegacy), {
+      ...Object.getOwnPropertyDescriptors(heldLegacy), site: { value: "altered", enumerable: true },
+    });
+    assert.equal(legacyReceipt.LegacyReceipt.get(forgedLegacy, false), legacyPrepared,
+      "the former lowered private-field guard can be copied onto altered public fields");
+
     const source = await readFile(new URL("../dist/image-runtime.mjs", import.meta.url), "utf8");
-    const { RowImage, ImageKeys } = await transform(source, "image-runtime.mjs");
+    const { RowImage, ImageKeys, RangeReceipt } = await transform(source, "image-runtime.mjs");
     const schema = { tables: { rows: {
       columns: { id: "Id", body: { Text: { max: 40 } }, note: { Optional: { Text: { max: 40 } } } },
       indexes: { byId: { components: [{ Column: "id" }], unique: true } },
@@ -94,6 +110,14 @@ test("Expo production Hermes lowering keeps frozen row-image caches writable and
     const forgedKeys = Object.create(Object.getPrototypeOf(replacement), Object.getOwnPropertyDescriptors(replacement));
     assert(!RowImage.is(forgedImage));
     assert(!ImageKeys.is(forgedKeys));
+    const prepared = {};
+    const heldRange = RangeReceipt.own({ site: "issued" }, prepared, false);
+    assert.equal(RangeReceipt.get(heldRange, false), prepared);
+    const forgedRange = Object.create(Object.getPrototypeOf(heldRange), {
+      ...Object.getOwnPropertyDescriptors(heldRange), site: { value: "altered", enumerable: true },
+    });
+    assert.equal(RangeReceipt.get(forgedRange, false), undefined,
+      "copied descriptors cannot transfer prepared-range custody to altered public fields");
   } finally {
     await rm(root, { recursive: true, force: true });
   }
