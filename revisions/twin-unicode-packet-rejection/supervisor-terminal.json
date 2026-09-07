@@ -1,0 +1,67 @@
+{
+  "unifiedTool": 28234,
+  "actualToolExit": 0,
+  "launcher": {
+    "createdUtc": "2026-09-07T10:03:01.419131+00:00",
+    "session": "01a07649-dd08-7990-8d16-16a76e09ffbc",
+    "model": "gpt-6-astra",
+    "effort": "xhigh",
+    "base": "82c43ca456022682670941494dd828e099fca3d8",
+    "worktree": "/Users/ccheever/projects/snapback-worktrees/clique-unicode-packets",
+    "scope": "Exactly one Root-authorized lossless literal/affine Unicode packet candidate; no radix/other variants. Preserve all5roots/originallimits; one fixed measurement, flat/worse reject.",
+    "priorTerminal": {
+      "observedUtc": "2026-09-07T10:03:00.114640+00:00",
+      "toolSession": 2236,
+      "actualToolExitCode": 0,
+      "pid": 83581,
+      "pidAbsent": true,
+      "startUtc": "2026-09-07T09:35:22.072677+00:00",
+      "endUtc": "2026-09-07T10:00:49.848616+00:00",
+      "elapsedSeconds": 1527.783457994461,
+      "head": "82c43ca456022682670941494dd828e099fca3d8",
+      "sourceInputRecordsVerified": 53,
+      "errors": [],
+      "report": {
+        "path": "/Users/ccheever/clique-improvement/lanes/search-twin/r8-lossless-runtime-design/plan.md",
+        "bytes": 21996,
+        "sha256": "2714c96c3e8c0ae1e798aa4a11f853e697680809e994cd84db54a04435cd19be"
+      },
+      "reportFullyReadBySupervisor": true,
+      "finalDelta": "551B only radix lifetime clarification, exact initial hash reconstructed",
+      "scope": "Design only, no new measurement. One Unicode candidate authorized separately."
+    },
+    "promptSha256": "2f457ed7cae6a34ec79aeb66bb2d62f5da21ac1fb60a2a31ee59bf525fc91221",
+    "promptFullyReadBySupervisor": true,
+    "argv": [
+      "/Users/ccheever/.volta/tools/image/packages/@openai/codex/lib/node_modules/@openai/codex/node_modules/@openai/codex-darwin-arm64/vendor/aarch64-apple-darwin/bin/codex",
+      "exec",
+      "resume",
+      "01a07649-dd08-7990-8d16-16a76e09ffbc",
+      "--model",
+      "gpt-6-astra",
+      "-c",
+      "model_reasoning_effort=\"xhigh\"",
+      "-c",
+      "approval_policy=\"never\"",
+      "--dangerously-bypass-approvals-and-sandbox",
+      "--output-last-message",
+      "/Users/ccheever/clique-improvement/lanes/search-twin/r8-unicode-packet-candidate-final.md",
+      "-"
+    ],
+    "pid": 17373,
+    "startUtc": "2026-09-07T10:03:01.905398+00:00",
+    "exitCode": 0,
+    "endUtc": "2026-09-07T10:41:14.116097+00:00",
+    "elapsedSeconds": 2292.2159662246704
+  },
+  "pidAbsent": true,
+  "handoff": {
+    "path": "/Users/ccheever/clique-improvement/lanes/search-twin/r8-unicode-packet-candidate-handoff.md",
+    "bytes": 13331,
+    "sha256": "e20df25529792e5f3b94bc9a6d61b14c333557ca0cf9f02a03ab08a53cca9f9d",
+    "read": "full through WRITER RELEASED",
+    "authorActualTerminal": "pending"
+  },
+  "handoffUnchangedAtTerminal": true,
+  "scope": "Rejected Unicode experiment; source/hash proof and one original-size failure retained. No product landing."
+}

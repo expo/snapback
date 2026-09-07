@@ -1,0 +1,1422 @@
+{
+  "inputs": {
+    "src/store/row-values.ts": {
+      "bytes": 6217,
+      "imports": [],
+      "format": "esm"
+    },
+    "../evaluator/src/hash.ts": {
+      "bytes": 4328,
+      "imports": [],
+      "format": "esm"
+    },
+    "../evaluator/src/errors.ts": {
+      "bytes": 759,
+      "imports": [],
+      "format": "esm"
+    },
+    "../evaluator/src/certificate-identity.ts": {
+      "bytes": 17783,
+      "imports": [
+        {
+          "path": "../evaluator/src/hash.ts",
+          "kind": "import-statement",
+          "original": "./hash"
+        },
+        {
+          "path": "../evaluator/src/errors.ts",
+          "kind": "import-statement",
+          "original": "./errors"
+        }
+      ],
+      "format": "esm"
+    },
+    "../evaluator/src/ordered.ts": {
+      "bytes": 4007,
+      "imports": [],
+      "format": "esm"
+    },
+    "../evaluator/src/slot-tree.ts": {
+      "bytes": 3176,
+      "imports": [],
+      "format": "esm"
+    },
+    "../evaluator/src/posting-tree.ts": {
+      "bytes": 2128,
+      "imports": [
+        {
+          "path": "../evaluator/src/slot-tree.ts",
+          "kind": "import-statement",
+          "original": "./slot-tree.js"
+        }
+      ],
+      "format": "esm"
+    },
+    "../evaluator/src/prefix-dictionary.ts": {
+      "bytes": 2007,
+      "imports": [
+        {
+          "path": "../evaluator/src/slot-tree.ts",
+          "kind": "import-statement",
+          "original": "./slot-tree.js"
+        }
+      ],
+      "format": "esm"
+    },
+    "../../crates/snapback2-core/ir-contract.json": {
+      "bytes": 148,
+      "imports": [],
+      "format": "esm",
+      "with": {
+        "type": "json"
+      }
+    },
+    "../evaluator/src/cursor.ts": {
+      "bytes": 10419,
+      "imports": [
+        {
+          "path": "../evaluator/src/hash.ts",
+          "kind": "import-statement",
+          "original": "./hash"
+        },
+        {
+          "path": "../evaluator/src/errors.ts",
+          "kind": "import-statement",
+          "original": "./errors"
+        },
+        {
+          "path": "../evaluator/src/value-runtime.ts",
+          "kind": "import-statement",
+          "original": "./value-runtime"
+        }
+      ],
+      "format": "esm"
+    },
+    "../evaluator/dist/unicode-tables.ts": {
+      "bytes": 12807,
+      "imports": [],
+      "format": "esm"
+    },
+    "../evaluator/src/unicode-tables.ts": {
+      "bytes": 5960,
+      "imports": [
+        {
+          "path": "../evaluator/dist/unicode-tables.ts",
+          "kind": "import-statement",
+          "original": "../dist/unicode-tables"
+        },
+        {
+          "path": "../evaluator/dist/unicode-tables.ts",
+          "kind": "import-statement",
+          "original": "../dist/unicode-tables"
+        }
+      ],
+      "format": "esm"
+    },
+    "../evaluator/src/unicode.ts": {
+      "bytes": 12302,
+      "imports": [
+        {
+          "path": "../evaluator/src/unicode-tables.ts",
+          "kind": "import-statement",
+          "original": "./unicode-tables"
+        },
+        {
+          "path": "../evaluator/src/unicode-tables.ts",
+          "kind": "import-statement",
+          "original": "./unicode-tables"
+        }
+      ],
+      "format": "esm"
+    },
+    "../evaluator/src/value-runtime.ts": {
+      "bytes": 27491,
+      "imports": [
+        {
+          "path": "../evaluator/src/hash.ts",
+          "kind": "import-statement",
+          "original": "./hash"
+        },
+        {
+          "path": "../evaluator/src/hash.ts",
+          "kind": "import-statement",
+          "original": "./hash"
+        },
+        {
+          "path": "../../crates/snapback2-core/ir-contract.json",
+          "kind": "import-statement",
+          "original": "../../../crates/snapback2-core/ir-contract.json",
+          "with": {
+            "type": "json"
+          }
+        },
+        {
+          "path": "../evaluator/src/certificate-identity.ts",
+          "kind": "import-statement",
+          "original": "./certificate-identity"
+        },
+        {
+          "path": "../evaluator/src/errors.ts",
+          "kind": "import-statement",
+          "original": "./errors"
+        },
+        {
+          "path": "../evaluator/src/hash.ts",
+          "kind": "import-statement",
+          "original": "./hash"
+        },
+        {
+          "path": "../evaluator/src/cursor.ts",
+          "kind": "import-statement",
+          "original": "./cursor"
+        },
+        {
+          "path": "../evaluator/src/unicode.ts",
+          "kind": "import-statement",
+          "original": "./unicode"
+        }
+      ],
+      "format": "esm"
+    },
+    "../evaluator/src/search-key.ts": {
+      "bytes": 6040,
+      "imports": [
+        {
+          "path": "../evaluator/src/value-runtime.ts",
+          "kind": "import-statement",
+          "original": "./value-runtime"
+        },
+        {
+          "path": "../evaluator/src/hash.ts",
+          "kind": "import-statement",
+          "original": "./hash"
+        },
+        {
+          "path": "../evaluator/src/unicode.ts",
+          "kind": "import-statement",
+          "original": "./unicode"
+        },
+        {
+          "path": "../evaluator/src/unicode.ts",
+          "kind": "import-statement",
+          "original": "./unicode"
+        }
+      ],
+      "format": "esm"
+    },
+    "../evaluator/src/index-store.ts": {
+      "bytes": 14326,
+      "imports": [
+        {
+          "path": "../evaluator/src/ordered.ts",
+          "kind": "import-statement",
+          "original": "./ordered"
+        },
+        {
+          "path": "../evaluator/src/posting-tree.ts",
+          "kind": "import-statement",
+          "original": "./posting-tree"
+        },
+        {
+          "path": "../evaluator/src/prefix-dictionary.ts",
+          "kind": "import-statement",
+          "original": "./prefix-dictionary"
+        },
+        {
+          "path": "../evaluator/src/errors.ts",
+          "kind": "import-statement",
+          "original": "./errors"
+        },
+        {
+          "path": "../evaluator/src/value-runtime.ts",
+          "kind": "import-statement",
+          "original": "./value-runtime"
+        },
+        {
+          "path": "../evaluator/src/search-key.ts",
+          "kind": "import-statement",
+          "original": "./search-key"
+        },
+        {
+          "path": "../evaluator/src/unicode.ts",
+          "kind": "import-statement",
+          "original": "./unicode"
+        }
+      ],
+      "format": "esm"
+    },
+    "../evaluator/src/row-image.ts": {
+      "bytes": 6875,
+      "imports": [
+        {
+          "path": "../evaluator/src/certificate-identity.ts",
+          "kind": "import-statement",
+          "original": "./certificate-identity"
+        },
+        {
+          "path": "../evaluator/src/hash.ts",
+          "kind": "import-statement",
+          "original": "./hash"
+        },
+        {
+          "path": "../evaluator/src/index-store.ts",
+          "kind": "import-statement",
+          "original": "./index-store"
+        },
+        {
+          "path": "../evaluator/src/value-runtime.ts",
+          "kind": "import-statement",
+          "original": "./value-runtime"
+        }
+      ],
+      "format": "esm"
+    },
+    "src/store/asset-policy.ts": {
+      "bytes": 3055,
+      "imports": [
+        {
+          "path": "src/store/row-values.ts",
+          "kind": "import-statement",
+          "original": "./row-values.js"
+        },
+        {
+          "path": "../evaluator/src/row-image.ts",
+          "kind": "import-statement",
+          "original": "../../../evaluator/src/row-image.js"
+        }
+      ],
+      "format": "esm"
+    },
+    "../evaluator/src/search-runtime.ts": {
+      "bytes": 2607,
+      "imports": [
+        {
+          "path": "../evaluator/src/unicode.ts",
+          "kind": "import-statement",
+          "original": "./unicode"
+        },
+        {
+          "path": "../evaluator/src/search-key.ts",
+          "kind": "import-statement",
+          "original": "./search-key"
+        },
+        {
+          "path": "../evaluator/src/errors.ts",
+          "kind": "import-statement",
+          "original": "./errors"
+        }
+      ],
+      "format": "esm"
+    },
+    "src/local-cursor.ts": {
+      "bytes": 7000,
+      "imports": [
+        {
+          "path": "../evaluator/src/cursor.ts",
+          "kind": "import-statement",
+          "original": "../../evaluator/src/cursor.js"
+        },
+        {
+          "path": "../evaluator/src/errors.ts",
+          "kind": "import-statement",
+          "original": "../../evaluator/src/errors.js"
+        },
+        {
+          "path": "../evaluator/src/hash.ts",
+          "kind": "import-statement",
+          "original": "../../evaluator/src/hash.js"
+        },
+        {
+          "path": "../evaluator/src/value-runtime.ts",
+          "kind": "import-statement",
+          "original": "../../evaluator/src/value-runtime.js"
+        },
+        {
+          "path": "../evaluator/src/search-runtime.ts",
+          "kind": "import-statement",
+          "original": "../../evaluator/src/search-runtime.js"
+        }
+      ],
+      "format": "esm"
+    },
+    "../evaluator/src/merge.ts": {
+      "bytes": 2324,
+      "imports": [
+        {
+          "path": "../evaluator/src/value-runtime.ts",
+          "kind": "import-statement",
+          "original": "./value-runtime"
+        }
+      ],
+      "format": "esm"
+    },
+    "../evaluator/src/text.ts": {
+      "bytes": 755,
+      "imports": [],
+      "format": "esm"
+    },
+    "../evaluator/src/runner.ts": {
+      "bytes": 52822,
+      "imports": [
+        {
+          "path": "../evaluator/src/merge.ts",
+          "kind": "import-statement",
+          "original": "./merge"
+        },
+        {
+          "path": "../../crates/snapback2-core/ir-contract.json",
+          "kind": "import-statement",
+          "original": "../../../crates/snapback2-core/ir-contract.json",
+          "with": {
+            "type": "json"
+          }
+        },
+        {
+          "path": "../evaluator/src/errors.ts",
+          "kind": "import-statement",
+          "original": "./errors"
+        },
+        {
+          "path": "../evaluator/src/cursor.ts",
+          "kind": "import-statement",
+          "original": "./cursor"
+        },
+        {
+          "path": "../evaluator/src/hash.ts",
+          "kind": "import-statement",
+          "original": "./hash"
+        },
+        {
+          "path": "../evaluator/src/text.ts",
+          "kind": "import-statement",
+          "original": "./text"
+        },
+        {
+          "path": "../evaluator/src/unicode.ts",
+          "kind": "import-statement",
+          "original": "./unicode"
+        },
+        {
+          "path": "../evaluator/src/search-runtime.ts",
+          "kind": "import-statement",
+          "original": "./search-runtime"
+        },
+        {
+          "path": "../evaluator/src/index-store.ts",
+          "kind": "import-statement",
+          "original": "./index-store"
+        },
+        {
+          "path": "../evaluator/src/value-runtime.ts",
+          "kind": "import-statement",
+          "original": "./value-runtime"
+        }
+      ],
+      "format": "esm"
+    },
+    "src/offline-schema.ts": {
+      "bytes": 556,
+      "imports": [
+        {
+          "path": "../evaluator/src/certificate-identity.ts",
+          "kind": "import-statement",
+          "original": "../../evaluator/src/certificate-identity.js"
+        },
+        {
+          "path": "../evaluator/src/hash.ts",
+          "kind": "import-statement",
+          "original": "../../evaluator/src/hash.js"
+        }
+      ],
+      "format": "esm"
+    },
+    "src/held-program.ts": {
+      "bytes": 2578,
+      "imports": [
+        {
+          "path": "../evaluator/src/certificate-identity.ts",
+          "kind": "import-statement",
+          "original": "../../evaluator/src/certificate-identity.js"
+        },
+        {
+          "path": "../evaluator/src/hash.ts",
+          "kind": "import-statement",
+          "original": "../../evaluator/src/hash.js"
+        },
+        {
+          "path": "../evaluator/src/runner.ts",
+          "kind": "import-statement",
+          "original": "../../evaluator/src/runner.js"
+        },
+        {
+          "path": "src/offline-schema.ts",
+          "kind": "import-statement",
+          "original": "./offline-schema.js"
+        }
+      ],
+      "format": "esm"
+    },
+    "../evaluator/src/range-preparation.ts": {
+      "bytes": 11933,
+      "imports": [
+        {
+          "path": "../evaluator/src/value-runtime.ts",
+          "kind": "import-statement",
+          "original": "./value-runtime"
+        },
+        {
+          "path": "../evaluator/src/index-store.ts",
+          "kind": "import-statement",
+          "original": "./index-store"
+        },
+        {
+          "path": "../evaluator/src/errors.ts",
+          "kind": "import-statement",
+          "original": "./errors"
+        },
+        {
+          "path": "../evaluator/src/search-runtime.ts",
+          "kind": "import-statement",
+          "original": "./search-runtime"
+        },
+        {
+          "path": "../evaluator/src/row-image.ts",
+          "kind": "import-statement",
+          "original": "./row-image"
+        },
+        {
+          "path": "../evaluator/src/hash.ts",
+          "kind": "import-statement",
+          "original": "./hash"
+        }
+      ],
+      "format": "esm"
+    },
+    "../evaluator/src/held-directory.ts": {
+      "bytes": 4080,
+      "imports": [
+        {
+          "path": "../evaluator/src/hash.ts",
+          "kind": "import-statement",
+          "original": "./hash"
+        },
+        {
+          "path": "../evaluator/src/ordered.ts",
+          "kind": "import-statement",
+          "original": "./ordered"
+        },
+        {
+          "path": "../evaluator/src/value-runtime.ts",
+          "kind": "import-statement",
+          "original": "./value-runtime"
+        },
+        {
+          "path": "../evaluator/src/index-store.ts",
+          "kind": "import-statement",
+          "original": "./index-store"
+        }
+      ],
+      "format": "esm"
+    },
+    "../evaluator/src/coverage-spans.ts": {
+      "bytes": 2023,
+      "imports": [
+        {
+          "path": "../evaluator/src/ordered.ts",
+          "kind": "import-statement",
+          "original": "./ordered"
+        },
+        {
+          "path": "../evaluator/src/value-runtime.ts",
+          "kind": "import-statement",
+          "original": "./value-runtime"
+        }
+      ],
+      "format": "esm"
+    },
+    "../evaluator/src/coverage.ts": {
+      "bytes": 12514,
+      "imports": [
+        {
+          "path": "../evaluator/src/value-runtime.ts",
+          "kind": "import-statement",
+          "original": "./value-runtime"
+        },
+        {
+          "path": "../evaluator/src/index-store.ts",
+          "kind": "import-statement",
+          "original": "./index-store"
+        },
+        {
+          "path": "../evaluator/src/range-preparation.ts",
+          "kind": "import-statement",
+          "original": "./range-preparation"
+        },
+        {
+          "path": "../evaluator/src/range-preparation.ts",
+          "kind": "import-statement",
+          "original": "./range-preparation"
+        },
+        {
+          "path": "../evaluator/src/errors.ts",
+          "kind": "import-statement",
+          "original": "./errors"
+        },
+        {
+          "path": "../evaluator/src/coverage-spans.ts",
+          "kind": "import-statement",
+          "original": "./coverage-spans"
+        }
+      ],
+      "format": "esm"
+    },
+    "../evaluator/src/store.ts": {
+      "bytes": 15470,
+      "imports": [
+        {
+          "path": "../evaluator/src/row-image.ts",
+          "kind": "import-statement",
+          "original": "./row-image"
+        },
+        {
+          "path": "../evaluator/src/row-image.ts",
+          "kind": "import-statement",
+          "original": "./row-image"
+        },
+        {
+          "path": "../evaluator/src/held-directory.ts",
+          "kind": "import-statement",
+          "original": "./held-directory"
+        },
+        {
+          "path": "../evaluator/src/certificate-identity.ts",
+          "kind": "import-statement",
+          "original": "./certificate-identity"
+        },
+        {
+          "path": "../evaluator/src/coverage.ts",
+          "kind": "import-statement",
+          "original": "./coverage"
+        },
+        {
+          "path": "../evaluator/src/errors.ts",
+          "kind": "import-statement",
+          "original": "./errors"
+        },
+        {
+          "path": "../evaluator/src/hash.ts",
+          "kind": "import-statement",
+          "original": "./hash"
+        },
+        {
+          "path": "../evaluator/src/index-store.ts",
+          "kind": "import-statement",
+          "original": "./index-store"
+        },
+        {
+          "path": "../evaluator/src/runner.ts",
+          "kind": "import-statement",
+          "original": "./runner"
+        },
+        {
+          "path": "../evaluator/src/value-runtime.ts",
+          "kind": "import-statement",
+          "original": "./value-runtime"
+        }
+      ],
+      "format": "esm"
+    },
+    "src/offline-protocol.ts": {
+      "bytes": 24241,
+      "imports": [
+        {
+          "path": "../evaluator/src/row-image.ts",
+          "kind": "import-statement",
+          "original": "../../evaluator/src/row-image.js"
+        },
+        {
+          "path": "../evaluator/src/hash.ts",
+          "kind": "import-statement",
+          "original": "../../evaluator/src/hash.js"
+        },
+        {
+          "path": "../evaluator/src/index-store.ts",
+          "kind": "import-statement",
+          "original": "../../evaluator/src/index-store.js"
+        },
+        {
+          "path": "../evaluator/src/range-preparation.ts",
+          "kind": "import-statement",
+          "original": "../../evaluator/src/range-preparation.js"
+        },
+        {
+          "path": "../evaluator/src/value-runtime.ts",
+          "kind": "import-statement",
+          "original": "../../evaluator/src/value-runtime.js"
+        },
+        {
+          "path": "src/offline-schema.ts",
+          "kind": "import-statement",
+          "original": "./offline-schema.js"
+        },
+        {
+          "path": "src/store/row-values.ts",
+          "kind": "import-statement",
+          "original": "./store/row-values.js"
+        },
+        {
+          "path": "../evaluator/src/row-image.ts",
+          "kind": "import-statement",
+          "original": "../../evaluator/src/row-image.js"
+        },
+        {
+          "path": "../evaluator/src/range-preparation.ts",
+          "kind": "import-statement",
+          "original": "../../evaluator/src/range-preparation.js"
+        }
+      ],
+      "format": "esm"
+    },
+    "src/twin-store.ts": {
+      "bytes": 14433,
+      "imports": [
+        {
+          "path": "../evaluator/src/range-preparation.ts",
+          "kind": "import-statement",
+          "original": "../../evaluator/src/range-preparation.js"
+        },
+        {
+          "path": "../evaluator/src/row-image.ts",
+          "kind": "import-statement",
+          "original": "../../evaluator/src/row-image.js"
+        },
+        {
+          "path": "../evaluator/src/store.ts",
+          "kind": "import-statement",
+          "original": "../../evaluator/src/store.js"
+        },
+        {
+          "path": "../evaluator/src/ordered.ts",
+          "kind": "import-statement",
+          "original": "../../evaluator/src/ordered.js"
+        },
+        {
+          "path": "../evaluator/src/value-runtime.ts",
+          "kind": "import-statement",
+          "original": "../../evaluator/src/value-runtime.js"
+        },
+        {
+          "path": "src/offline-schema.ts",
+          "kind": "import-statement",
+          "original": "./offline-schema.js"
+        },
+        {
+          "path": "src/offline-protocol.ts",
+          "kind": "import-statement",
+          "original": "./offline-protocol.js"
+        },
+        {
+          "path": "src/store/asset-policy.ts",
+          "kind": "import-statement",
+          "original": "./store/asset-policy.js"
+        }
+      ],
+      "format": "esm"
+    },
+    "src/store/outbox.ts": {
+      "bytes": 16931,
+      "imports": [],
+      "format": "esm"
+    },
+    "src/twin-hydrate.ts": {
+      "bytes": 3187,
+      "imports": [
+        {
+          "path": "src/offline-protocol.ts",
+          "kind": "import-statement",
+          "original": "./offline-protocol.js"
+        }
+      ],
+      "format": "esm"
+    },
+    "src/twin.ts": {
+      "bytes": 13919,
+      "imports": [
+        {
+          "path": "src/store/asset-policy.ts",
+          "kind": "import-statement",
+          "original": "./store/asset-policy.js"
+        },
+        {
+          "path": "../evaluator/src/value-runtime.ts",
+          "kind": "import-statement",
+          "original": "../../evaluator/src/value-runtime.js"
+        },
+        {
+          "path": "src/local-cursor.ts",
+          "kind": "import-statement",
+          "original": "./local-cursor.js"
+        },
+        {
+          "path": "../evaluator/src/errors.ts",
+          "kind": "import-statement",
+          "original": "../../evaluator/src/errors.js"
+        },
+        {
+          "path": "src/held-program.ts",
+          "kind": "import-statement",
+          "original": "./held-program.js"
+        },
+        {
+          "path": "../evaluator/src/runner.ts",
+          "kind": "import-statement",
+          "original": "../../evaluator/src/runner.js"
+        },
+        {
+          "path": "../../evaluator/src/store.js",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "../evaluator/src/search-runtime.ts",
+          "kind": "import-statement",
+          "original": "../../evaluator/src/search-runtime.js"
+        },
+        {
+          "path": "src/twin-store.ts",
+          "kind": "import-statement",
+          "original": "./twin-store.js"
+        },
+        {
+          "path": "src/store/outbox.ts",
+          "kind": "import-statement",
+          "original": "./store/outbox.js"
+        },
+        {
+          "path": "src/twin-hydrate.ts",
+          "kind": "import-statement",
+          "original": "./twin-hydrate.js"
+        }
+      ],
+      "format": "esm"
+    },
+    "src/store/canonical.ts": {
+      "bytes": 171,
+      "imports": [
+        {
+          "path": "../evaluator/src/row-image.ts",
+          "kind": "import-statement",
+          "original": "../../../evaluator/src/row-image.js"
+        }
+      ],
+      "format": "esm"
+    },
+    "src/types.ts": {
+      "bytes": 20408,
+      "imports": [
+        {
+          "path": "src/store/canonical.ts",
+          "kind": "import-statement",
+          "original": "./store/canonical.js"
+        }
+      ],
+      "format": "esm"
+    },
+    "src/store/extent-facts.ts": {
+      "bytes": 3171,
+      "imports": [
+        {
+          "path": "../evaluator/src/value-runtime.ts",
+          "kind": "import-statement",
+          "original": "../../../evaluator/src/value-runtime.js"
+        },
+        {
+          "path": "../evaluator/src/index-store.ts",
+          "kind": "import-statement",
+          "original": "../../../evaluator/src/index-store.js"
+        },
+        {
+          "path": "src/store/canonical.ts",
+          "kind": "import-statement",
+          "original": "./canonical.js"
+        }
+      ],
+      "format": "esm"
+    },
+    "src/store/extent-index.ts": {
+      "bytes": 5801,
+      "imports": [
+        {
+          "path": "../evaluator/src/ordered.ts",
+          "kind": "import-statement",
+          "original": "../../../evaluator/src/ordered.js"
+        },
+        {
+          "path": "../evaluator/src/prefix-dictionary.ts",
+          "kind": "import-statement",
+          "original": "../../../evaluator/src/prefix-dictionary.js"
+        },
+        {
+          "path": "../evaluator/src/value-runtime.ts",
+          "kind": "import-statement",
+          "original": "../../../evaluator/src/value-runtime.js"
+        },
+        {
+          "path": "src/store/canonical.ts",
+          "kind": "import-statement",
+          "original": "./canonical.js"
+        },
+        {
+          "path": "src/store/extent-facts.ts",
+          "kind": "import-statement",
+          "original": "./extent-facts.js"
+        }
+      ],
+      "format": "esm"
+    },
+    "src/store/fact-integrity.ts": {
+      "bytes": 15367,
+      "imports": [
+        {
+          "path": "../evaluator/src/row-image.ts",
+          "kind": "import-statement",
+          "original": "../../../evaluator/src/row-image.js"
+        },
+        {
+          "path": "../evaluator/src/hash.ts",
+          "kind": "import-statement",
+          "original": "../../../evaluator/src/hash.js"
+        },
+        {
+          "path": "src/store/canonical.ts",
+          "kind": "import-statement",
+          "original": "./canonical.js"
+        },
+        {
+          "path": "./extent-facts.js",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "src/store/extent-index.ts",
+          "kind": "import-statement",
+          "original": "./extent-index.js"
+        }
+      ],
+      "format": "esm"
+    },
+    "src/store/fact-index.ts": {
+      "bytes": 3834,
+      "imports": [
+        {
+          "path": "../evaluator/src/index-store.ts",
+          "kind": "import-statement",
+          "original": "../../../evaluator/src/index-store.js"
+        }
+      ],
+      "format": "esm"
+    },
+    "src/store/carrier-index.ts": {
+      "bytes": 12872,
+      "imports": [
+        {
+          "path": "../evaluator/src/row-image.ts",
+          "kind": "import-statement",
+          "original": "../../../evaluator/src/row-image.js"
+        },
+        {
+          "path": "../evaluator/src/index-store.ts",
+          "kind": "import-statement",
+          "original": "../../../evaluator/src/index-store.js"
+        },
+        {
+          "path": "../evaluator/src/range-preparation.ts",
+          "kind": "import-statement",
+          "original": "../../../evaluator/src/range-preparation.js"
+        },
+        {
+          "path": "../evaluator/src/value-runtime.ts",
+          "kind": "import-statement",
+          "original": "../../../evaluator/src/value-runtime.js"
+        },
+        {
+          "path": "src/offline-protocol.ts",
+          "kind": "import-statement",
+          "original": "../offline-protocol.js"
+        },
+        {
+          "path": "src/store/asset-policy.ts",
+          "kind": "import-statement",
+          "original": "./asset-policy.js"
+        },
+        {
+          "path": "src/store/canonical.ts",
+          "kind": "import-statement",
+          "original": "./canonical.js"
+        },
+        {
+          "path": "src/store/fact-integrity.ts",
+          "kind": "import-statement",
+          "original": "./fact-integrity.js"
+        },
+        {
+          "path": "src/store/fact-index.ts",
+          "kind": "import-statement",
+          "original": "./fact-index.js"
+        },
+        {
+          "path": "src/store/extent-index.ts",
+          "kind": "import-statement",
+          "original": "./extent-index.js"
+        },
+        {
+          "path": "src/store/extent-facts.ts",
+          "kind": "import-statement",
+          "original": "./extent-facts.js"
+        }
+      ],
+      "format": "esm"
+    },
+    "src/store/swap-journal.ts": {
+      "bytes": 7221,
+      "imports": [
+        {
+          "path": "../evaluator/src/range-preparation.ts",
+          "kind": "import-statement",
+          "original": "../../../evaluator/src/range-preparation.js"
+        },
+        {
+          "path": "../evaluator/src/row-image.ts",
+          "kind": "import-statement",
+          "original": "../../../evaluator/src/row-image.js"
+        }
+      ],
+      "format": "esm"
+    },
+    "src/store/byte-cache.ts": {
+      "bytes": 19627,
+      "imports": [
+        {
+          "path": "src/store/row-values.ts",
+          "kind": "import-statement",
+          "original": "./row-values.js"
+        },
+        {
+          "path": "../evaluator/src/value-runtime.ts",
+          "kind": "import-statement",
+          "original": "../../../evaluator/src/value-runtime.js"
+        },
+        {
+          "path": "../evaluator/src/row-image.ts",
+          "kind": "import-statement",
+          "original": "../../../evaluator/src/row-image.js"
+        },
+        {
+          "path": "src/store/asset-policy.ts",
+          "kind": "import-statement",
+          "original": "./asset-policy.js"
+        }
+      ],
+      "format": "esm"
+    },
+    "src/store/overlay-retirement.ts": {
+      "bytes": 3977,
+      "imports": [
+        {
+          "path": "src/store/canonical.ts",
+          "kind": "import-statement",
+          "original": "./canonical.js"
+        }
+      ],
+      "format": "esm"
+    },
+    "src/store/range-store.ts": {
+      "bytes": 74376,
+      "imports": [
+        {
+          "path": "../evaluator/src/range-preparation.ts",
+          "kind": "import-statement",
+          "original": "../../../evaluator/src/range-preparation.js"
+        },
+        {
+          "path": "../evaluator/src/row-image.ts",
+          "kind": "import-statement",
+          "original": "../../../evaluator/src/row-image.js"
+        },
+        {
+          "path": "src/store/carrier-index.ts",
+          "kind": "import-statement",
+          "original": "./carrier-index.js"
+        },
+        {
+          "path": "src/held-program.ts",
+          "kind": "import-statement",
+          "original": "../held-program.js"
+        },
+        {
+          "path": "src/store/fact-integrity.ts",
+          "kind": "import-statement",
+          "original": "./fact-integrity.js"
+        },
+        {
+          "path": "src/store/extent-facts.ts",
+          "kind": "import-statement",
+          "original": "./extent-facts.js"
+        },
+        {
+          "path": "src/store/swap-journal.ts",
+          "kind": "import-statement",
+          "original": "./swap-journal.js"
+        },
+        {
+          "path": "src/store/asset-policy.ts",
+          "kind": "import-statement",
+          "original": "./asset-policy.js"
+        },
+        {
+          "path": "src/store/byte-cache.ts",
+          "kind": "import-statement",
+          "original": "./byte-cache.js"
+        },
+        {
+          "path": "src/store/overlay-retirement.ts",
+          "kind": "import-statement",
+          "original": "./overlay-retirement.js"
+        },
+        {
+          "path": "src/store/canonical.ts",
+          "kind": "import-statement",
+          "original": "./canonical.js"
+        },
+        {
+          "path": "../evaluator/src/hash.ts",
+          "kind": "import-statement",
+          "original": "../../../evaluator/src/hash.js"
+        },
+        {
+          "path": "../../../evaluator/src/value-runtime.js",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "src/offline-protocol.ts",
+          "kind": "import-statement",
+          "original": "../offline-protocol.js"
+        },
+        {
+          "path": "src/store/row-values.ts",
+          "kind": "import-statement",
+          "original": "./row-values.js"
+        },
+        {
+          "path": "../evaluator/src/row-image.ts",
+          "kind": "import-statement",
+          "original": "../../../evaluator/src/row-image.js"
+        }
+      ],
+      "format": "esm"
+    },
+    "src/client-wire.ts": {
+      "bytes": 15027,
+      "imports": [],
+      "format": "esm"
+    },
+    "src/offline.ts": {
+      "bytes": 41240,
+      "imports": [
+        {
+          "path": "src/store/row-values.ts",
+          "kind": "import-statement",
+          "original": "./store/row-values.js"
+        },
+        {
+          "path": "src/held-program.ts",
+          "kind": "import-statement",
+          "original": "./held-program.js"
+        },
+        {
+          "path": "src/held-program.ts",
+          "kind": "import-statement",
+          "original": "./held-program.js"
+        },
+        {
+          "path": "src/client-wire.ts",
+          "kind": "import-statement",
+          "original": "./client-wire.js"
+        },
+        {
+          "path": "src/store/fact-integrity.ts",
+          "kind": "import-statement",
+          "original": "./store/fact-integrity.js"
+        },
+        {
+          "path": "src/offline-protocol.ts",
+          "kind": "import-statement",
+          "original": "./offline-protocol.js"
+        },
+        {
+          "path": "src/store/outbox.ts",
+          "kind": "import-statement",
+          "original": "./store/outbox.js"
+        },
+        {
+          "path": "src/store/range-store.ts",
+          "kind": "import-statement",
+          "original": "./store/range-store.js"
+        },
+        {
+          "path": "src/store/byte-cache.ts",
+          "kind": "import-statement",
+          "original": "./store/byte-cache.js"
+        },
+        {
+          "path": "src/twin.ts",
+          "kind": "import-statement",
+          "original": "./twin.js"
+        }
+      ],
+      "format": "esm"
+    },
+    "src/store/metadata.ts": {
+      "bytes": 3192,
+      "imports": [],
+      "format": "esm"
+    },
+    "src/store/projection.ts": {
+      "bytes": 6080,
+      "imports": [
+        {
+          "path": "../evaluator/src/row-image.ts",
+          "kind": "import-statement",
+          "original": "../../../evaluator/src/row-image.js"
+        },
+        {
+          "path": "src/store/metadata.ts",
+          "kind": "import-statement",
+          "original": "./metadata.js"
+        },
+        {
+          "path": "src/store/range-store.ts",
+          "kind": "import-statement",
+          "original": "./range-store.js"
+        }
+      ],
+      "format": "esm"
+    },
+    "<stdin>": {
+      "bytes": 395,
+      "imports": [
+        {
+          "path": "src/twin.ts",
+          "kind": "import-statement",
+          "original": "./src/twin.ts"
+        },
+        {
+          "path": "src/local-cursor.ts",
+          "kind": "import-statement",
+          "original": "./src/local-cursor.ts"
+        },
+        {
+          "path": "src/types.ts",
+          "kind": "import-statement",
+          "original": "./src/types.ts"
+        },
+        {
+          "path": "src/store/range-store.ts",
+          "kind": "import-statement",
+          "original": "./src/store/range-store.ts"
+        },
+        {
+          "path": "src/offline.ts",
+          "kind": "import-statement",
+          "original": "./src/offline.ts"
+        },
+        {
+          "path": "src/store/projection.ts",
+          "kind": "import-statement",
+          "original": "./src/store/projection.ts"
+        },
+        {
+          "path": "src/offline-protocol.ts",
+          "kind": "import-statement",
+          "original": "./src/offline-protocol.ts"
+        }
+      ],
+      "format": "esm"
+    }
+  },
+  "outputs": {
+    "stdin.js": {
+      "imports": [],
+      "exports": [
+        "OfflineRuntime",
+        "PersistentRangeStore",
+        "Twin",
+        "carrierProjection",
+        "offlineView",
+        "readsConnected",
+        "receiptProtocol",
+        "reduceQueryState",
+        "serverArguments",
+        "twinLastDecline"
+      ],
+      "entryPoint": "<stdin>",
+      "inputs": {
+        "src/store/row-values.ts": {
+          "bytesInOutput": 2553
+        },
+        "../evaluator/src/hash.ts": {
+          "bytesInOutput": 2178
+        },
+        "../evaluator/src/errors.ts": {
+          "bytesInOutput": 205
+        },
+        "../evaluator/src/certificate-identity.ts": {
+          "bytesInOutput": 7779
+        },
+        "../evaluator/src/ordered.ts": {
+          "bytesInOutput": 1606
+        },
+        "../evaluator/src/slot-tree.ts": {
+          "bytesInOutput": 1704
+        },
+        "../evaluator/src/posting-tree.ts": {
+          "bytesInOutput": 842
+        },
+        "../evaluator/src/prefix-dictionary.ts": {
+          "bytesInOutput": 861
+        },
+        "../evaluator/src/value-runtime.ts": {
+          "bytesInOutput": 12372
+        },
+        "../../crates/snapback2-core/ir-contract.json": {
+          "bytesInOutput": 135
+        },
+        "../evaluator/src/cursor.ts": {
+          "bytesInOutput": 5551
+        },
+        "../evaluator/dist/unicode-tables.ts": {
+          "bytesInOutput": 12353
+        },
+        "../evaluator/src/unicode-tables.ts": {
+          "bytesInOutput": 2764
+        },
+        "../evaluator/src/unicode.ts": {
+          "bytesInOutput": 4985
+        },
+        "../evaluator/src/search-key.ts": {
+          "bytesInOutput": 1224
+        },
+        "../evaluator/src/index-store.ts": {
+          "bytesInOutput": 7085
+        },
+        "../evaluator/src/row-image.ts": {
+          "bytesInOutput": 2382
+        },
+        "src/store/asset-policy.ts": {
+          "bytesInOutput": 1262
+        },
+        "../evaluator/src/search-runtime.ts": {
+          "bytesInOutput": 1009
+        },
+        "src/local-cursor.ts": {
+          "bytesInOutput": 2882
+        },
+        "../evaluator/src/merge.ts": {
+          "bytesInOutput": 793
+        },
+        "../evaluator/src/text.ts": {
+          "bytesInOutput": 269
+        },
+        "../evaluator/src/runner.ts": {
+          "bytesInOutput": 25447
+        },
+        "src/offline-schema.ts": {
+          "bytesInOutput": 31
+        },
+        "src/held-program.ts": {
+          "bytesInOutput": 932
+        },
+        "../evaluator/src/range-preparation.ts": {
+          "bytesInOutput": 4692
+        },
+        "../evaluator/src/store.ts": {
+          "bytesInOutput": 7708
+        },
+        "../evaluator/src/held-directory.ts": {
+          "bytesInOutput": 1769
+        },
+        "../evaluator/src/coverage.ts": {
+          "bytesInOutput": 5561
+        },
+        "../evaluator/src/coverage-spans.ts": {
+          "bytesInOutput": 828
+        },
+        "src/offline-protocol.ts": {
+          "bytesInOutput": 9689
+        },
+        "src/twin-store.ts": {
+          "bytesInOutput": 7295
+        },
+        "src/store/outbox.ts": {
+          "bytesInOutput": 6199
+        },
+        "src/twin-hydrate.ts": {
+          "bytesInOutput": 1009
+        },
+        "src/twin.ts": {
+          "bytesInOutput": 4586
+        },
+        "<stdin>": {
+          "bytesInOutput": 0
+        },
+        "src/store/canonical.ts": {
+          "bytesInOutput": 0
+        },
+        "src/types.ts": {
+          "bytesInOutput": 1340
+        },
+        "src/store/extent-facts.ts": {
+          "bytesInOutput": 1055
+        },
+        "src/store/extent-index.ts": {
+          "bytesInOutput": 2422
+        },
+        "src/store/fact-integrity.ts": {
+          "bytesInOutput": 7150
+        },
+        "src/store/fact-index.ts": {
+          "bytesInOutput": 1761
+        },
+        "src/store/carrier-index.ts": {
+          "bytesInOutput": 6238
+        },
+        "src/store/swap-journal.ts": {
+          "bytesInOutput": 3003
+        },
+        "src/store/byte-cache.ts": {
+          "bytesInOutput": 6910
+        },
+        "src/store/overlay-retirement.ts": {
+          "bytesInOutput": 1218
+        },
+        "src/store/range-store.ts": {
+          "bytesInOutput": 26896
+        },
+        "src/offline.ts": {
+          "bytesInOutput": 15984
+        },
+        "src/client-wire.ts": {
+          "bytesInOutput": 491
+        },
+        "src/store/projection.ts": {
+          "bytesInOutput": 2236
+        },
+        "src/store/metadata.ts": {
+          "bytesInOutput": 1356
+        }
+      },
+      "bytes": 226913
+    }
+  }
+}

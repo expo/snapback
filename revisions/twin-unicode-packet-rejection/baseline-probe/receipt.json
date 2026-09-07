@@ -1,0 +1,33 @@
+{
+  "command": [
+    "/Users/ccheever/.volta/tools/image/node/22.23.2/bin/node",
+    "--experimental-strip-types",
+    "/Users/ccheever/clique-improvement/lanes/search-twin/r8-unicode-packet-candidate/baseline-probe/capture.mjs"
+  ],
+  "pid": 20942,
+  "start": "2026-09-07T10:10:16.773611+00:00",
+  "end": "2026-09-07T10:10:17.040271+00:00",
+  "elapsedSeconds": 0.265687209,
+  "deadlineSeconds": 10,
+  "exit": 0,
+  "host": "Darwin MacBookPro 25.6.0 Darwin Kernel Version 25.6.0: Sat Jul 11 15:26:21 PDT 2026; root:xnu-12377.161.13~4/RELEASE_ARM64_T6000 arm64",
+  "nodeSha256": "18e387c90ab8a8400183e8bdd396376e1e875b91b4c874b894dcade7b35bf572",
+  "inputs": [
+    {
+      "path": "/Users/ccheever/clique-improvement/lanes/search-twin/r8-unicode-packet-candidate/baseline-probe/inspection.ts",
+      "sha256": "0d795723e233ca78055d09b745afc83fd3aaffbaafd77a97dfa48933204ab2ac"
+    },
+    {
+      "path": "/Users/ccheever/clique-improvement/lanes/search-twin/r8-unicode-packet-candidate/baseline-probe/capture.mjs",
+      "sha256": "4239a921f576181a57bab838a9b8d227d5cde51b89d67156474670a6bba2bd04"
+    },
+    {
+      "path": "/Users/ccheever/clique-improvement/lanes/search-twin/r8-unicode-packet-candidate/before-source/snapback2/packages/evaluator/src/unicode-tables.ts",
+      "sha256": "ab99f5f9a78ebe52ec3102525d51b6c9dd7c59cbd9f1b26932042982476b8412"
+    },
+    {
+      "path": "/Users/ccheever/clique-improvement/lanes/search-twin/r8-unicode-packet-candidate/before-source/snapback2/packages/evaluator/dist/unicode-tables.ts",
+      "sha256": "9eccdccd99e9b936a40dcbf8ae63c55d980086df1ae71f92019f9ab040f6a521"
+    }
+  ]
+}

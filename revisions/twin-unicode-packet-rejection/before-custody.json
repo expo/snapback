@@ -1,0 +1,174 @@
+{
+  "utc": "2026-09-07T10:07:19.527012+00:00",
+  "session": "01a07649-dd08-7990-8d16-16a76e09ffbc",
+  "requestedModel": "gpt-6-astra",
+  "requestedEffort": "xhigh",
+  "priorPid": 83581,
+  "priorPidAbsent": true,
+  "priorLauncherExit": 0,
+  "priorToolExit": 0,
+  "priorEndUtc": "2026-09-07T10:00:49.848616+00:00",
+  "priorModel": "gpt-6-astra",
+  "priorEffort": "max",
+  "priorExplicitRelease": true,
+  "base": "82c43ca456022682670941494dd828e099fca3d8",
+  "branch": "s2/clique-unicode-packets",
+  "clean": true,
+  "inputs": [
+    {
+      "path": "snapback2/packages/evaluator/unicode-build.mjs",
+      "bytes": 5270,
+      "sha256": "e3be10164be333885826ffb94b48abac57ca1f8a9056637e8e3b1cf0b283bde9",
+      "copy": "/Users/ccheever/clique-improvement/lanes/search-twin/r8-unicode-packet-candidate/before-source/snapback2/packages/evaluator/unicode-build.mjs"
+    },
+    {
+      "path": "snapback2/packages/evaluator/src/unicode-tables.ts",
+      "bytes": 3128,
+      "sha256": "ab99f5f9a78ebe52ec3102525d51b6c9dd7c59cbd9f1b26932042982476b8412",
+      "copy": "/Users/ccheever/clique-improvement/lanes/search-twin/r8-unicode-packet-candidate/before-source/snapback2/packages/evaluator/src/unicode-tables.ts"
+    },
+    {
+      "path": "snapback2/packages/evaluator/src/unicode.ts",
+      "bytes": 12302,
+      "sha256": "b2c6a188d9e74646674383473e9c56eb9720a76b68d9c1a2f93fb722fb85f370",
+      "copy": "/Users/ccheever/clique-improvement/lanes/search-twin/r8-unicode-packet-candidate/before-source/snapback2/packages/evaluator/src/unicode.ts"
+    },
+    {
+      "path": "snapback2/packages/evaluator/src/test-search-foundation.ts",
+      "bytes": 11785,
+      "sha256": "f0d0d617d6a91db6848bafcaeb66661fd53baa3148d8df06ceed75ceb0eb366d",
+      "copy": "/Users/ccheever/clique-improvement/lanes/search-twin/r8-unicode-packet-candidate/before-source/snapback2/packages/evaluator/src/test-search-foundation.ts"
+    },
+    {
+      "path": "snapback2/packages/evaluator/src/test.ts",
+      "bytes": 52832,
+      "sha256": "b7ebe8822106ca15c085881c8b56641fa654b9b93aff43380fa8727e4442fbdf",
+      "copy": "/Users/ccheever/clique-improvement/lanes/search-twin/r8-unicode-packet-candidate/before-source/snapback2/packages/evaluator/src/test.ts"
+    },
+    {
+      "path": "snapback2/packages/snapback2/build.mjs",
+      "bytes": 26093,
+      "sha256": "6153b109c22b73ac2273b2bab46334656cc0ebd3dbfc72a9a17ed804a30197b0",
+      "copy": "/Users/ccheever/clique-improvement/lanes/search-twin/r8-unicode-packet-candidate/before-source/snapback2/packages/snapback2/build.mjs"
+    },
+    {
+      "path": "snapback2/unicode/17.0.0/SHA256SUMS",
+      "bytes": 427,
+      "sha256": "c1e1534c0db4f3fdd8710ecc67ff9e1b6b776b4ef509e54ac15bc02730128c7c",
+      "copy": "/Users/ccheever/clique-improvement/lanes/search-twin/r8-unicode-packet-candidate/before-source/snapback2/unicode/17.0.0/SHA256SUMS"
+    },
+    {
+      "path": "snapback2/unicode/17.0.0/LICENSE.txt",
+      "bytes": 1995,
+      "sha256": "e7a93b009565cfce55919a381437ac4db883e9da2126fa28b91d12732bc53d96",
+      "copy": "/Users/ccheever/clique-improvement/lanes/search-twin/r8-unicode-packet-candidate/before-source/snapback2/unicode/17.0.0/LICENSE.txt"
+    },
+    {
+      "path": "snapback2/unicode/17.0.0/CaseFolding.txt",
+      "bytes": 87539,
+      "sha256": "ff8d8fefbf123574205085d6714c36149eb946d717a0c585c27f0f4ef58c4183",
+      "copy": "/Users/ccheever/clique-improvement/lanes/search-twin/r8-unicode-packet-candidate/before-source/snapback2/unicode/17.0.0/CaseFolding.txt"
+    },
+    {
+      "path": "snapback2/unicode/17.0.0/UnicodeData.txt",
+      "bytes": 2198209,
+      "sha256": "2e1efc1dcb59c575eedf5ccae60f95229f706ee6d031835247d843c11d96470c",
+      "copy": "/Users/ccheever/clique-improvement/lanes/search-twin/r8-unicode-packet-candidate/before-source/snapback2/unicode/17.0.0/UnicodeData.txt"
+    },
+    {
+      "path": "snapback2/unicode/17.0.0/PropList.txt",
+      "bytes": 145465,
+      "sha256": "130dcddcaadaf071008bdfce1e7743e04fdfbc910886f017d9f9ac931d8c64dd",
+      "copy": "/Users/ccheever/clique-improvement/lanes/search-twin/r8-unicode-packet-candidate/before-source/snapback2/unicode/17.0.0/PropList.txt"
+    },
+    {
+      "path": "snapback2/unicode/17.0.0/DerivedNormalizationProps.txt",
+      "bytes": 1377582,
+      "sha256": "71fd6a206a2c0cdd41feb6b7f656aa31091db45e9cedc926985d718397f9e488",
+      "copy": "/Users/ccheever/clique-improvement/lanes/search-twin/r8-unicode-packet-candidate/before-source/snapback2/unicode/17.0.0/DerivedNormalizationProps.txt"
+    },
+    {
+      "path": "snapback2/unicode/17.0.0/NormalizationTest.txt",
+      "bytes": 2827429,
+      "sha256": "5019ffd530751a741900c849c0e010332f142a3612234639bd200b82138a87db",
+      "copy": "/Users/ccheever/clique-improvement/lanes/search-twin/r8-unicode-packet-candidate/before-source/snapback2/unicode/17.0.0/NormalizationTest.txt"
+    },
+    {
+      "path": "snapback2/packages/evaluator/dist/unicode-tables.ts",
+      "origin": "/Users/ccheever/clique-improvement/lanes/search-twin/r8-runtime-size-redesign/candidate1/final-evidence/final-measured-sources/snapback2/packages/evaluator/dist/unicode-tables.ts",
+      "bytes": 17460,
+      "sha256": "9eccdccd99e9b936a40dcbf8ae63c55d980086df1ae71f92019f9ab040f6a521",
+      "copy": "/Users/ccheever/clique-improvement/lanes/search-twin/r8-unicode-packet-candidate/before-source/snapback2/packages/evaluator/dist/unicode-tables.ts",
+      "worktreeInitiallyAbsent": true
+    }
+  ],
+  "governingInputs": [
+    {
+      "path": "AGENTS.md",
+      "sha256": "29fd47ac60573e0058bfe912e30038a7c7bcecb38d306878c7ec1f1190a4041e",
+      "bytes": 19028
+    },
+    {
+      "path": "snapback2/AGENTS.md",
+      "sha256": "851f07e0594805947ce024144921f2b9ee61c69fa2882f66e2e51c82b885806e",
+      "bytes": 3195
+    },
+    {
+      "path": "rules/RULES.md",
+      "sha256": "653fbf27e821ae0f3d205934a4c803f1c02d93eef22f3594a35a89a3c3d6e726",
+      "bytes": 3814
+    },
+    {
+      "path": "rules/NOT-DOING.md",
+      "sha256": "0a09ec35dede6027f7fe4a73661999881cbb25a33298820b31795a9b4d0bd9ae",
+      "bytes": 10078
+    },
+    {
+      "path": "skills/llp-orient/SKILL.md",
+      "sha256": "88caee954dee018ca31f1c14f604e6c248cdea599b02489e1c895d3c10a602e0",
+      "bytes": 3834
+    },
+    {
+      "path": "llp/1000-snapback2.explainer.md",
+      "sha256": "effc90eaf8bdf14e8ead5613cf7b76fb8558648b7db31015038709963598c343",
+      "bytes": 10950
+    },
+    {
+      "path": "llp/1001-query-engine.spec.md",
+      "sha256": "aa0a506bd3a978e0764883b8bf59857199f7de5f2b7b0e0bd671b5b53ce803bf",
+      "bytes": 74921
+    },
+    {
+      "path": "llp/1011-quarry-ergonomics.rfc.md",
+      "sha256": "f1b9f5eaa201f438f013816876553826ef03a68dab6173b05f375ce4638b14f9",
+      "bytes": 31793
+    },
+    {
+      "path": "llp/1012-local-first-v1.spec.md",
+      "sha256": "186693769f121bc2cd9217ea50bc6b9aeabb4f9aeccb6a0ab120de348548ad04",
+      "bytes": 92709
+    },
+    {
+      "path": "llp/1013-expo-arm.spec.md",
+      "sha256": "6ea0b7cc5a13336cf86fce2269520c9b2c151d7d96bf54e78af5b191de01e57f",
+      "bytes": 39162
+    },
+    {
+      "path": "snapback2/packages/snapback2/guide/offline.md",
+      "sha256": "dba34363cbd633822cd70fdb04f3235cf6caa2574644718794f4b2a58f4f2d6e",
+      "bytes": 4352
+    },
+    {
+      "path": "snapback2/packages/snapback2/guide/live-query.md",
+      "sha256": "2197cfb755344d3a387fb3f6ef4513a373ef26da9a481f22e44622f53e53f75f",
+      "bytes": 5348
+    }
+  ],
+  "baselineMeasurement": {
+    "minified": 230321,
+    "gzip": 75815,
+    "exit": 1,
+    "sha256": "5a8fc8cbe03fa2764352e65d1766f0393ec7d1df52f477fd7baab23ddb77a498"
+  },
+  "knownIndependentIssue": "82c canonical malformed-domain fallback; repaired by separate lane, not imported or qualified here"
+}

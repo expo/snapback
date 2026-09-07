@@ -1,0 +1,257 @@
+diff --git a/snapback2/packages/evaluator/src/unicode-tables.ts b/snapback2/packages/evaluator/src/unicode-tables.ts
+index 6a290483f..89b77b8fc 100644
+--- a/snapback2/packages/evaluator/src/unicode-tables.ts
++++ b/snapback2/packages/evaluator/src/unicode-tables.ts
+@@ -1,51 +1,113 @@
+ // Decode build output only. UCD parsing and code generation never run in the evaluator.
+-import { PACKED } from '../dist/unicode-tables';
++import { PACKETS, COLUMN_LENGTHS, TABLE_ROWS, MAX_COLUMN_VALUE } from '../dist/unicode-tables';
+ export { TABLE_DIGEST, MAX_NFD_SCALARS, MAX_DECOMPOSITION_DEPTH } from '../dist/unicode-tables';
+ 
+-function unpack(s: string): number[] {
+-  const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
+-  let bits = 0, acc = 0, n = 0, shift = 0;
+-  const out: number[] = [];
+-  for (const ch of s) {
+-    const v = alphabet.indexOf(ch);
+-    if (v < 0) break;
+-    acc = (acc << 6) | v; bits += 6;
+-    if (bits >= 8) {
+-      bits -= 8;
+-      const b = (acc >> bits) & 255;
+-      n |= (b & 127) << shift;
+-      if (b & 128) shift += 7;
+-      else { out.push(n); n = shift = 0; }
++const unzig = (n: number) => n & 1 ? -(n + 1) / 2 : n / 2;
++const invalid = (): never => { throw new TypeError('Invalid Unicode packet'); };
++
++// @ref LLP 1001#unicode-search-foundation — bounded readers fill only the pinned final tables.
++class PacketReader {
++  private text: string;
++  private left: number;
++  private offset = 0;
++  private bits = 0;
++  private acc = 0;
++  private run = 0;
++  private affine = false;
++  private value = 0;
++  private step = 0;
++  constructor(text: string, count: number) { this.text = text; this.left = count; }
++  private integer(): number {
++    let n = 0, scale = 1;
++    for (let width = 0; width < 5; width++) {
++      while (this.bits < 8) {
++        if (this.offset >= this.text.length) invalid();
++        const digit = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/'.indexOf(this.text[this.offset++]);
++        if (digit < 0) invalid();
++        this.acc = (this.acc << 6) | digit; this.bits += 6;
++      }
++      this.bits -= 8;
++      const byte = (this.acc >> this.bits) & 255;
++      this.acc &= (1 << this.bits) - 1;
++      if (width === 4 && byte > 15) invalid();
++      n += (byte & 127) * scale;
++      if (!(byte & 128)) {
++        if (width && !byte) invalid();
++        return n;
++      }
++      scale *= 128;
+     }
++    return invalid();
++  }
++  next(): number {
++    if (!this.left) invalid();
++    if (!this.run) {
++      const header = this.integer();
++      this.run = Math.floor(header / 2); this.affine = !!(header & 1);
++      if (!this.run || this.run > this.left) invalid();
++      if (this.affine) {
++        if (this.run < 2) invalid();
++        this.value = this.integer(); this.step = unzig(this.integer());
++        const last = this.value + this.step * (this.run - 1);
++        if (this.value > MAX_COLUMN_VALUE || last < 0 || last > MAX_COLUMN_VALUE) invalid();
++      }
++    }
++    const n = this.affine ? this.value : this.integer();
++    if (n > MAX_COLUMN_VALUE) invalid();
++    this.value += this.step; this.run--; this.left--;
++    return n;
++  }
++  finish(): void {
++    if (this.left || this.run || this.acc || this.text.slice(this.offset) !== '='.repeat(this.bits / 2)) invalid();
+   }
+-  return out;
+-}
+-const unzig = (n: number) => n & 1 ? -(n + 1) / 2 : n / 2;
+-const columns = PACKED.map(unpack);
+-const d: number[] = [], c: number[][] = [];
+-let cp = 0;
+-const previous = [0, 0], positions = [0, 0];
+-for (let i = 0; i < columns[0].length; i++) {
+-  cp += columns[0][i];
+-  const flag = columns[1][i], xs = [0, 0];
+-  for (let j = 0; j < (flag >> 1); j++) xs[j] = previous[j] += unzig(columns[2 + j][positions[j]++]);
+-  d.push(cp, xs[0], xs[1], flag >> 1);
+-  if ((flag >> 1) === 2 && !(flag & 1)) c.push([xs[0], xs[1], cp]);
+ }
+-c.sort((a, b) => a[0] - b[0] || a[1] - b[1]);
+-export const decomposition = new Uint32Array(d);
+-export const composition = new Uint32Array(c.flat());
+-function ranges(column: number): Int32Array {
+-  let cp = 0;
+-  const xs = columns[column], out: number[] = [];
+-  for (let i = 0; i < xs.length;) {
+-    cp += xs[i++];
+-    const end = cp + xs[i++];
+-    out.push(cp, end, column === 6 ? 1 : column === 5 ? unzig(xs[i++]) : xs[i++]);
++
++function initialize() {
++  if (TABLE_ROWS.length !== 5 || TABLE_ROWS.some(n => !Number.isInteger(n) || n < 0 || n >= 4096)
++    || PACKETS.length !== 7 || COLUMN_LENGTHS.length !== 7) invalid();
++  const [d, c, k, f, w] = TABLE_ROWS;
++  if (c > d || COLUMN_LENGTHS.some((n, i) => !Number.isInteger(n) || n < 0
++    || (i === 3 ? n > d : n !== [d, d, d, 0, 3 * k, 3 * f, 2 * w][i]))) invalid();
++  const readers = PACKETS.map((text, i) => new PacketReader(text, COLUMN_LENGTHS[i]));
++  const decomposition = new Uint32Array(4 * d), composition = new Uint32Array(3 * c);
++  const order = new Uint16Array(c);
++  let cp = 0, first = 0, second = 0, count = 0;
++  for (let i = 0; i < d; i++) {
++    cp += readers[0].next();
++    const flag = readers[1].next(), arity = flag >> 1;
++    if (flag < 2 || flag > 5) invalid();
++    first += unzig(readers[2].next());
++    if (arity === 2) second += unzig(readers[3].next());
++    const at = i * 4;
++    decomposition[at] = cp; decomposition[at + 1] = first;
++    decomposition[at + 2] = arity === 2 ? second : 0; decomposition[at + 3] = arity;
++    if (arity === 2 && !(flag & 1)) {
++      if (count === c) invalid();
++      order[count++] = i;
++    }
++  }
++  if (count !== c) invalid();
++  order.sort((a, b) => decomposition[a * 4 + 1] - decomposition[b * 4 + 1]
++    || decomposition[a * 4 + 2] - decomposition[b * 4 + 2]);
++  for (let i = 0; i < c; i++) {
++    const at = order[i] * 4;
++    composition[i * 3] = decomposition[at + 1]; composition[i * 3 + 1] = decomposition[at + 2];
++    composition[i * 3 + 2] = decomposition[at];
++  }
++  function ranges(column: number, rows: number): Int32Array {
++    const out = new Int32Array(3 * rows), reader = readers[column];
++    let cp = 0;
++    for (let i = 0; i < out.length; i += 3) {
++      cp += reader.next(); out[i] = cp; out[i + 1] = cp + reader.next();
++      out[i + 2] = column === 6 ? 1 : column === 5 ? unzig(reader.next()) : reader.next();
++    }
++    return out;
+   }
+-  return new Int32Array(out);
++  const combining = ranges(4, k), folding = ranges(5, f), boundaries = ranges(6, w);
++  for (const reader of readers) reader.finish();
++  return { decomposition, composition, combining, folding, boundaries };
+ }
+-export const combining = ranges(4), folding = ranges(5), boundaries = ranges(6);
++export const { decomposition, composition, combining, folding, boundaries } = initialize();
+ 
+ // Pinned tables have <4096 rows: every binary search takes at most 12 probes.
+ export const MAX_LOOKUP_PROBES = 12;
+diff --git a/snapback2/packages/evaluator/unicode-build.mjs b/snapback2/packages/evaluator/unicode-build.mjs
+index 9005bc855..8fc322317 100644
+--- a/snapback2/packages/evaluator/unicode-build.mjs
++++ b/snapback2/packages/evaluator/unicode-build.mjs
+@@ -12,6 +12,58 @@ const zig = n => n < 0 ? -2 * n - 1 : 2 * n;
+ const range = s => s.split('..').map(hex);
+ const lines = name => readFileSync(new URL(name, inputs), 'utf8').split('\n');
+ 
++function varints(xs) {
++  const bytes = [];
++  for (let n of xs) {
++    if (!Number.isInteger(n) || n < 0 || n > 0xffffffff) throw new Error('Unicode integer width changed');
++    while (n >= 128) { bytes.push((n & 127) | 128); n = Math.floor(n / 128); }
++    bytes.push(n);
++  }
++  return Buffer.from(bytes);
++}
++const width = n => n < 128 ? 1 : n < 16384 ? 2 : n < 2097152 ? 3 : n < 268435456 ? 4 : 5;
++
++// Minimize operand bytes once, with fixed literal-first ties; no compressor-dependent tuning.
++// A packet is (2 * count + mode), followed by literals or (first, zigzag step).
++function packets(xs) {
++  const n = xs.length, prefix = [0], cost = new Array(n + 1).fill(Infinity), choice = [];
++  for (const x of xs) prefix.push(prefix.at(-1) + width(x));
++  cost[n] = 0;
++  for (let i = n - 1; i >= 0; i--) {
++    for (let count = n - i; count; count--) {
++      const bytes = width(2 * count) + prefix[i + count] - prefix[i] + cost[i + count];
++      if (bytes < cost[i]) { cost[i] = bytes; choice[i] = [count, 0]; }
++    }
++    if (i + 1 === n) continue;
++    const step = xs[i + 1] - xs[i];
++    let end = i + 2;
++    while (end < n && xs[end] - xs[end - 1] === step) end++;
++    for (let count = end - i; count >= 2; count--) {
++      const bytes = width(2 * count + 1) + width(xs[i]) + width(zig(step)) + cost[i + count];
++      if (bytes < cost[i]) { cost[i] = bytes; choice[i] = [count, 1]; }
++    }
++  }
++  const encoded = [];
++  for (let i = 0; i < n;) {
++    const [count, mode] = choice[i];
++    encoded.push(2 * count + mode);
++    if (mode) encoded.push(xs[i], zig(xs[i + 1] - xs[i]));
++    else for (let j = i; j < i + count; j++) encoded.push(xs[j]);
++    i += count;
++  }
++  return varints(encoded);
++}
++
++function digest(columns) {
++  // Each column is length-prefixed with a u32 LE for unambiguous cross-runtime custody.
++  const hash = createHash('sha256');
++  for (const bytes of columns) {
++    const size = Buffer.alloc(4); size.writeUInt32LE(bytes.length);
++    hash.update(size).update(bytes);
++  }
++  return hash.digest('hex');
++}
++
+ export function generateUnicodeTables() {
+   for (const line of lines('SHA256SUMS').filter(Boolean)) {
+     const [expected, name] = line.trim().split(/\s+/);
+@@ -80,24 +132,19 @@ export function generateUnicodeTables() {
+       if (value !== undefined) columns[column].push(column === 5 ? zig(value) : value);
+     }
+   }
+-  const packed = columns.map(xs => {
+-    const bytes = [];
+-    for (let n of xs) {
+-      while (n >= 128) { bytes.push((n & 127) | 128); n = Math.floor(n / 128); }
+-      bytes.push(n);
+-    }
+-    return Buffer.from(bytes);
+-  });
+-  // Each column is length-prefixed with a u32 LE for unambiguous cross-runtime custody.
+-  const digest = createHash('sha256');
+-  for (const bytes of packed) {
+-    const size = Buffer.alloc(4); size.writeUInt32LE(bytes.length);
+-    digest.update(size).update(bytes);
+-  }
++  const encoded = columns.map(packets);
++  const rows = [decomp.size, [...decomp].filter(([cp, ds]) => ds.length === 2 && !excluded.has(cp)).length,
++    columns[4].length / 3, columns[5].length / 3, columns[6].length / 2];
++  if (rows.some(n => !Number.isInteger(n) || n >= 4096)) throw new Error('Unicode lookup bound changed');
+   const source = `// Generated from pinned Unicode 17 UCD; do not edit. See unicode/17.0.0/LICENSE.txt.\n`
+-    + `export const TABLE_DIGEST = ${JSON.stringify(digest.digest('hex'))};\n`
++    // The semantic digest remains the OLD canonical varint streams, not this packet container.
++    + `export const TABLE_DIGEST = ${JSON.stringify(digest(columns.map(varints)))};\n`
++    + `export const PACKET_DIGEST = ${JSON.stringify(digest(encoded))};\n`
+     + `export const MAX_NFD_SCALARS = ${maxNfd};\nexport const MAX_DECOMPOSITION_DEPTH = ${maxDepth};\n`
+-    + `export const PACKED = ${JSON.stringify(packed.map(b => b.toString('base64')))};\n`;
++    + `export const TABLE_ROWS = ${JSON.stringify(rows)};\n`
++    + `export const COLUMN_LENGTHS = ${JSON.stringify(columns.map(xs => xs.length))};\n`
++    + `export const MAX_COLUMN_VALUE = ${Math.max(...columns.map(xs => Math.max(...xs)))};\n`
++    + `export const PACKETS = ${JSON.stringify(encoded.map(b => b.toString('base64')))};\n`;
+   // A no-op rebuild preserves mtime; atomic replacement permits concurrent build/test entry paths.
+   try { if (readFileSync(unicodeArtifact, 'utf8') === source) return; } catch (e) { if (e.code !== 'ENOENT') throw e; }
+   mkdirSync(new URL('./dist/', import.meta.url), { recursive: true });
