@@ -863,12 +863,16 @@ class ExpressionBinder {
     if (representationMismatch(left.facts.type, right.facts.type)) decimalScale(expression.site,
       `sorted operands ${typeName(left.facts.type)} and ${typeName(right.facts.type)} have different representations`,
       "sort values with one decimal or money scale");
-    if (!isScalar(left.facts.type) || !isScalar(right.facts.type)
-      || !comparable(left.facts.type, right.facts.type) || !orderedType(left.facts.type)) {
+    const leftType = left.facts.type;
+    const rightType = right.facts.type;
+    if (!isScalar(leftType) || !isScalar(rightType)) {
       typeError(expression.site,
-        `sorted requires compatible ordered operands, got ${typeName(left.facts.type)} and ${typeName(right.facts.type)}`,
+        `sorted requires compatible ordered operands, got ${typeName(leftType)} and ${typeName(rightType)}`,
         "sort two present values with the same nominal text, Id, enum, numeric, or time type");
     }
+    if (!comparable(leftType, rightType) || !orderedType(leftType)) typeError(expression.site,
+      `sorted requires compatible ordered operands, got ${typeName(leftType)} and ${typeName(rightType)}`,
+      "sort two present values with the same nominal text, Id, enum, numeric, or time type");
     if (left.facts.presence === "optional" || right.facts.presence === "optional") typeError(expression.site,
       "sorted requires present operands", "assert optional operands before sorting them");
     const source = this.source(expression.site);
@@ -876,13 +880,13 @@ class ExpressionBinder {
     const identity = `${this.program.site.file}:${this.program.name}:sorted:${this.budget.expansionId++}`;
     const bindings = values.map((value, index) => ({
       symbol: { kind: "argument", id: `${identity}:argument:${index}`, name: index === 0 ? "left" : "right",
-        type: structuredClone(value.facts.type), origin: value.facts.origin, source: value.source } satisfies BoundArgumentSymbol,
+        type: structuredClone(index === 0 ? leftType : rightType), origin: value.facts.origin, source: value.source } satisfies BoundArgumentSymbol,
       value,
     }));
     const operands = bindings.map(({ symbol }) => ({
       kind: "variable", symbol, facts: facts(symbol.type, symbol.origin), source: symbol.source,
     }) satisfies BoundExpression);
-    const resultType = scalarType(joinType(left.facts.type, right.facts.type, expression.site), expression.site);
+    const resultType = scalarType(joinType(leftType, rightType, expression.site), expression.site);
     const fields = [
       { name: "first", value: { kind: "builtin", builtin: "Min", args: operands,
         facts: facts(resultType, "Computed"), source } satisfies BoundExpression, source },

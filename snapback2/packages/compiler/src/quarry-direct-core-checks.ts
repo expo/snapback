@@ -508,7 +508,7 @@ query sortedReadOrder(left: conversations, right: conversations):
       assert(!sortedPrincipalsCheck.error && sortedPrincipalsCheck.certificate,
         `direct sorted principals did not certify: ${JSON.stringify(sortedPrincipalsCheck)}`);
       for (const [a, b, expected] of [["z", "a", ["a", "z"]], ["same", "same", ["same", "same"]]] as const) {
-        const execution = new ClientStore(oracle.project.schema).reexecute(sortedPrincipals, {
+        const execution: Execution = new ClientStore(oracle.project.schema).reexecute(sortedPrincipals, {
           viewer: "viewer-1", principal_kind: "user", auth_epoch: 1,
           args: { a: { Id: a }, b: { Id: b } }, now: 1, new_ids: [], read_time: 1,
         }, sortedPrincipalsCheck.certificate).execution;
