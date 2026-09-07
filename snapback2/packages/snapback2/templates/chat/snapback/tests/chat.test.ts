@@ -63,7 +63,7 @@ function fixtureJpeg(): Uint8Array {
 }
 
 
-type LogRow = { kind?: string; messageId?: string; message?: { id?: string; body?: string } | null };
+type LogRow = { kind?: string; messageId?: string; message?: { id?: string; body?: string | null } | null };
 
 function bodies(rows: unknown): string[] {
   return Array.isArray(rows)
