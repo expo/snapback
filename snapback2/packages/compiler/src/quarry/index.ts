@@ -160,15 +160,21 @@ function placementDiagnostics(documents: Document[]): QuarryDiagnostic[] {
     const declarationSite = document.tables[0]?.site ?? document.maintains[0]?.site ?? document.channels[0]?.site
       ?? (document.identity ? { file: document.file, line: 1, col: 1 } : undefined);
     if (!isSchema && declarationSite) diagnostics.push(placement(document.file, declarationSite.line, declarationSite.col, "tables, maintains, channels, and use identity belong in schema.q", "move this declaration to snapback/schema.q"));
-    if (isSchema && (document.shapes.length > 0 || document.shapeImports.length > 0)) {
-      const site = (document.shapes[0] ?? document.shapeImports[0])!.site;
-      diagnostics.push(placement(document.file, site.line, site.col, "shape declarations belong in an operations .q module, not schema.q", "move this shape declaration to snapback/<module>.q"));
+    if (isSchema && (document.shapes.length > 0 || document.shapeImports.length > 0
+      || document.functions.length > 0 || document.functionImports.length > 0)) {
+      const site = (document.shapes[0] ?? document.shapeImports[0]
+        ?? document.functions[0] ?? document.functionImports[0])!.site;
+      diagnostics.push(placement(document.file, site.line, site.col, "shape and fn declarations belong in an operations .q module, not schema.q", "move this declaration to snapback/<module>.q"));
     }
     if (isSchema && (document.programs.length > 0 || document.effects.length > 0)) {
       const site = document.programs[0]?.site ?? document.effects[0]!.site;
       diagnostics.push(placement(document.file, site.line, site.col, "schema.q holds declarations only; query, mutation, and effect declarations belong in a program module", "move this declaration to snapback/<module>.q"));
     }
-    if (!isSchema && document.programs.length === 0 && document.schedules.length === 0 && document.shapes.length === 0 && document.shapeImports.length === 0) diagnostics.push(placement(document.file, 1, 1, `${basename(document.file)} must declare at least one query, mutation, or shape`, "add a query, mutation, or shape, or remove the empty module"));
+    if (!isSchema && document.programs.length === 0 && document.schedules.length === 0
+      && document.shapes.length === 0 && document.shapeImports.length === 0
+      && document.functions.length === 0 && document.functionImports.length === 0) {
+      diagnostics.push(placement(document.file, 1, 1, `${basename(document.file)} must declare at least one query, mutation, shape, or fn`, "add a query, mutation, shape, or fn, or remove the empty module"));
+    }
     if (!isSchema && document.programs.length === 0 && document.effects.length > 0) diagnostics.push(placement(document.file, document.effects[0]!.site.line, document.effects[0]!.site.col, "effect imports need a query or mutation in this module", "move this effect import to the mutation module that emits it"));
     const stem = basename(document.file).slice(0, -2);
     if (!/^[A-Za-z_$][A-Za-z0-9_$-]*$/.test(stem)) diagnostics.push(placement(document.file, 1, 1, `file stem ${stem} cannot become an API namespace`, "rename the module to an identifier-like stem"));

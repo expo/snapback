@@ -6,6 +6,8 @@ import type {
   ColumnDecl,
   Document,
   Expr,
+  FunctionDecl,
+  FunctionImport,
   IndexDecl,
   KeyPart,
   MaintainDecl,
@@ -58,6 +60,8 @@ class Parser {
   private readonly effects: Array<{ name: string; module: string; site: Site }> = [];
   private readonly shapes: ShapeDecl[] = [];
   private readonly shapeImports: ShapeImport[] = [];
+  private readonly functions: FunctionDecl[] = [];
+  private readonly functionImports: FunctionImport[] = [];
   private readonly programs: ProgramDecl[] = [];
   private readonly schedules: ScheduleDecl[] = [];
   private identity: Document["identity"];
@@ -82,7 +86,8 @@ class Parser {
         else if (this.at("query") || this.at("mutation") || this.at("job")) this.programs.push(this.parseProgram());
         else if (this.at("effect")) this.effects.push(this.parseEffect());
         else if (this.at("shape")) this.parseShapeDeclaration();
-        else if (this.at("fn") || this.at("cursor")) unsupported(token, token.value, `${token.value} is reserved for a future Quarry form; rename this declaration`);
+        else if (this.at("fn")) this.parseFunctionDeclaration();
+        else if (this.at("cursor")) unsupported(token, token.value, `${token.value} is reserved for a future Quarry form; rename this declaration`);
         else if (this.at("schedule")) this.schedules.push(this.parseSchedule());
         else if (this.at("index") || this.at("unique")) syntax(token, "top-level indexes are invalid; place by/unique inside the table block", "move the index line into its table block");
         else if (this.at("device") || this.at("oblivious")) unsupported(token, token.value, "pass an explicit bounded argument to the operation");
@@ -101,6 +106,8 @@ class Parser {
       effects: this.effects,
       shapes: this.shapes,
       shapeImports: this.shapeImports,
+      functions: this.functions,
+      functionImports: this.functionImports,
       programs: this.programs,
       schedules: this.schedules,
     };
@@ -471,7 +478,23 @@ class Parser {
     this.shapes.push({ name, fields, site });
   }
 
-  private generatedBinding(kind: "table" | "channel" | "effect" | "operation" | "merge lane" | "shape" | "argument" | "local" | "loop" | "match" | "rule"): string {
+  private parseFunctionDeclaration(): void {
+    const site = this.take("fn");
+    const name = this.generatedBinding("function");
+    if (this.maybe("from")) {
+      const module = this.word().value;
+      this.newline();
+      this.functionImports.push({ name, module, site });
+      return;
+    }
+    const args = this.parseArgs();
+    this.take("=");
+    const body = this.expression(0, new Set(["<newline>"]));
+    this.newline();
+    this.functions.push({ name, args, body, site });
+  }
+
+  private generatedBinding(kind: "table" | "channel" | "effect" | "operation" | "merge lane" | "shape" | "function" | "argument" | "local" | "loop" | "match" | "rule"): string {
     const token = this.word();
     if (this.legacyGeneratedBindings && RESERVED_BINDINGS.has(token.value)) {
       refuse(
