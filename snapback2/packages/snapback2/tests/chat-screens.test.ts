@@ -8,10 +8,11 @@ import { build } from "esbuild";
 import { JSDOM } from "jsdom";
 import React, { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
-import { api } from "../dist/client.mjs";
+import { api, createClient } from "../dist/client.mjs";
 import { SnapbackProvider, useSnapbackClient } from "../dist/react.mjs";
 import { fileRangeStore } from "../dist/test.mjs";
-import { DAY, fakeOwner, seededStore } from "./fake-owner.ts";
+import { DAY, fakeOwner } from "./fake-owner.ts";
+import { RealOwnerHarness } from "./owner-harness.ts";
 
 // @ref LLP 1012#7-writes-offline — the chat template's screens: the pending
 // bubble is keyed by the first pinned id, shows `args.body` and "Sending…"
@@ -20,14 +21,16 @@ import { DAY, fakeOwner, seededStore } from "./fake-owner.ts";
 const packageRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const bundlePath = resolve(packageRoot, "dist/.chat-screens.test-bundle.mjs");
 let App: (props: Record<string, never>) => React.ReactElement;
+let Composer: (props: { conversationId: string; onNote(note: string): void }) => React.ReactElement;
 let Thread: (props: { conversationId: string; viewer: string | undefined; onNote(note: string): void }) => React.ReactElement;
+let screenOwner: RealOwnerHarness;
 
 before(async () => {
   const bundled = await build({
-    // The app, and the thread screen on its own: the composer lives there, and the
-    // grant test needs it on screen while the inbox drain is still held at its first page.
+    // The full app exercises the actual Thread; Composer remains independently
+    // renderable for the transport-order test below.
     stdin: {
-      contents: 'export { App } from "./App";\nexport { Thread } from "./Thread";\n',
+      contents: 'export { App } from "./App";\nexport { Composer } from "./Composer";\nexport { Thread } from "./Thread";\n',
       resolveDir: resolve(packageRoot, "templates/chat/react/src"),
       sourcefile: "screens.tsx",
       loader: "tsx",
@@ -47,10 +50,28 @@ before(async () => {
     }],
   });
   await writeFile(bundlePath, bundled.outputFiles[0]!.text);
-  ({ App, Thread } = await import(pathToFileURL(bundlePath).href));
+  ({ App, Composer, Thread } = await import(pathToFileURL(bundlePath).href));
+  // The harness starts the production chat fixture when this file runs alone,
+  // or uses the suite's already-qualified full-chat owner.
+  screenOwner = await RealOwnerHarness.create({ fullChat: true });
 });
 
-after(async () => { await rm(bundlePath, { force: true }); });
+after(async () => { await screenOwner?.close(); await rm(bundlePath, { force: true }); });
+
+function json(value: unknown, status = 200): Response {
+  return new Response(JSON.stringify(value), { status, headers: { "content-type": "application/json" } });
+}
+
+function requestBody(init?: RequestInit): any | undefined {
+  if (typeof init?.body !== "string") return undefined;
+  try { return JSON.parse(init.body); } catch { return undefined; }
+}
+
+const rejected = (intent?: string) => ({
+  state: "rejected", code: "NOT_MEMBER", family: "input",
+  message: "E_REQUIRE:NOT_MEMBER: program requirement failed",
+  rewrite: "fix the rejected mutation input and retry", guide: "input/runtime", intent,
+});
 
 function installDom(): () => void {
   const dom = new JSDOM("<!doctype html><div id='root'></div>", { url: "http://app.test" });
@@ -105,21 +126,30 @@ async function type(input: HTMLInputElement, value: string): Promise<void> {
 test("the chat screens render the log, queue offline sends as pinned bubbles, settle them in place, and use indexed search", async () => {
   const restore = installDom();
   const root = await mkdtemp(join(tmpdir(), "snapback2-screens-"));
-  let dead = false;
-  const owner = fakeOwner({
-    seed: true,
-    dead: () => dead,
-    reject: (_intent, body) => body.args?.body === "reject me",
-    conflict: (_intent, body) => body.op === "deliveries.edit",
-    refuse: (_intent, body) => body.args?.body === "owner expired"
-      ? { status: 409, envelope: {
+  const mutationBodies: any[] = [];
+  const writer = createClient({ url: screenOwner.url, as: "alice" });
+  let moved = false;
+  const fetch = async (input: string | URL | Request, init?: RequestInit): Promise<Response> => {
+    const body = requestBody(init);
+    if (new URL(String(input)).pathname !== "/api/mutation" || !body) return globalThis.fetch(input, init);
+    mutationBodies.push(body);
+    if (body.args?.body === "reject me") return json(rejected(body.replay?.intent));
+    if (body.args?.body === "owner expired") {
+      return json({
         code: "E_OFFLINE_INTENT_EXPIRED", family: "offline",
         message: "the replay grant is older than thirty days",
         rewrite: "resume for a fresh grant and send again", guide: "offline",
-      } }
-      : undefined,
-  });
-  await seededStore(fileRangeStore(root));
+      }, 409);
+    }
+    if (!moved && body.op === "deliveries.edit" && body.args?.body === "mine") {
+      moved = true;
+      const result = await writer.mutation(api.deliveries.edit, {
+        messageId: body.args.messageId, body: "changed at the owner", baseBody: body.args.baseBody,
+      });
+      assert.equal(result.state, "committed", "the second real client creates the edit conflict");
+    }
+    return globalThis.fetch(input, init);
+  };
   let client: any;
   function Probe() { client = useSnapbackClient(); return null; }
   const reactRoot: Root = createRoot(document.getElementById("root")!);
@@ -128,7 +158,7 @@ test("the chat screens render the log, queue offline sends as pinned bubbles, se
     await act(async () => {
       reactRoot.render(React.createElement(
         SnapbackProvider,
-        { url: "http://screens.test", as: "alice", fetch: owner.fetch, offline: { store: fileRangeStore(root), fenceDays: 2 } },
+        { url: screenOwner.url, as: "alice", fetch, offline: { store: fileRangeStore(root), fenceDays: 2 } },
         React.createElement(Probe),
         React.createElement(App),
       ));
@@ -143,21 +173,11 @@ test("the chat screens render the log, queue offline sends as pinned bubbles, se
     const welcome = document.querySelector("li[data-message=message-1]")!;
     assert.equal(welcome.getAttribute("data-state"), "row");
     assert.ok(welcome.querySelector("time"), "a server row shows the server time");
-
-    // Search is the named indexed query, including its case-normalized prefix semantics.
-    const search = document.querySelector<HTMLInputElement>("section[aria-label=Search] input")!;
-    await type(search, "WEL");
-    await waitFor(() => document.querySelectorAll("section[aria-label=Search] .hits li").length > 0, "indexed search hits");
-    assert.equal(document.querySelector("section[aria-label=Search] .scope")?.getAttribute("data-state"), "complete");
-    assert.equal(text(document.querySelector("section[aria-label=Search] .scope")), "Live indexed results");
-    assert.deepEqual([...document.querySelectorAll("section[aria-label=Search] .hits li")].map((item) => item.getAttribute("data-message")), ["message-1"]);
-    await type(search, "");
-
     await act(async () => { await client.offline(); });
     const input = document.querySelector<HTMLInputElement>("form[aria-label=Composer] input")!;
     await type(input, "queued while offline");
     await act(async () => { document.querySelector<HTMLFormElement>("form[aria-label=Composer]")!.requestSubmit(); });
-    await waitFor(() => document.querySelector("li[data-state=queued]") !== null, "the pending bubble");
+    await waitFor(() => document.querySelector("li[data-state=queued]") !== null, "the pending fallback bubble");
     const [entry] = await client.outbox.entries();
     assert.equal(entry.state, "queued");
     const pinned = entry.ids[0];
@@ -173,16 +193,40 @@ test("the chat screens render the log, queue offline sends as pinned bubbles, se
     const retry = [...document.querySelectorAll<HTMLButtonElement>("form[aria-label=Composer] button")].find((button) => text(button) === "Sync now");
     assert.ok(retry, "queued sends expose a recovery action");
     await act(async () => { retry.click(); });
-    await waitFor(() => document.querySelector(`li[data-message="${pinned}"]`)?.getAttribute("data-state") === "row"
-      && document.querySelector("li[data-state=committed]") === null, "the settled bubble");
+    await waitFor(() => {
+      const summary = document.querySelector("section[aria-label=Thread] .thread-summary");
+      const bubbles = document.querySelector("section[aria-label=Thread] ol.bubbles");
+      return ["complete", "capped"].includes(summary?.getAttribute("data-view-state") ?? "")
+        && bubbles?.getAttribute("data-view-source") === "composite"
+        && summary?.getAttribute("data-view-seq") === bubbles?.getAttribute("data-view-seq")
+        && document.querySelector(`li[data-message="${pinned}"]`)?.getAttribute("data-state") === "row";
+    }, "the partial history became the coherent settled conversation view");
+    const summary = document.querySelector("section[aria-label=Thread] .thread-summary")!;
+    const bubbles = document.querySelector("section[aria-label=Thread] ol.bubbles")!;
     const settledBubble = document.querySelector(`li[data-message="${pinned}"]`)!;
-    assert.strictEqual(settledBubble, pending, "the same DOM node became the server row");
-    assert.equal(settledBubble.getAttribute("data-state"), "row");
+    assert.strictEqual(settledBubble, pending, "the same DOM node crossed prediction and composite settlement");
     assert.ok(settledBubble.querySelector("time"), "the server row carries the server time");
     assert.doesNotMatch(text(settledBubble), /Sending…/);
+    assert.ok(["complete", "capped"].includes(summary.getAttribute("data-view-state") ?? ""));
+    assert.equal(summary.getAttribute("data-view-state"), bubbles.getAttribute("data-view-state"));
+    assert.equal(summary.getAttribute("data-view-seq"), bubbles.getAttribute("data-view-seq"));
+    assert.equal(bubbles.getAttribute("data-view-source"), "composite");
+    assert.equal(client.sharedConsumers(api.deliveries.conversationView, { conversationId: "conversation-1" }), 2);
+    assert.equal(summary.hasAttribute("data-count"), true);
+    assert.equal(Number.isSafeInteger(Number(summary.getAttribute("data-count"))), true);
     await act(async () => { await client.outbox.settled(); });
     await waitFor(async () => (await client.outbox.entries()).length === 0, "the settled outbox dismissal");
-    assert.deepEqual((await client.outbox.entries()).map((item: any) => item.state), [], "a committed post whose row arrived was dismissed");
+
+    // Search is the named indexed query, including its case-normalized prefix semantics.
+    const search = document.querySelector<HTMLInputElement>("section[aria-label=Search] input")!;
+    await type(search, "WEL");
+    await waitFor(() => document.querySelectorAll("section[aria-label=Search] .hits li").length > 0
+      && ["complete", "capped"].includes(document.querySelector("section[aria-label=Search] .scope")?.getAttribute("data-state") ?? ""),
+    "live indexed search hits");
+    assert.ok(["complete", "capped"].includes(document.querySelector("section[aria-label=Search] .scope")?.getAttribute("data-state") ?? ""));
+    assert.match(text(document.querySelector("section[aria-label=Search] .scope")), /Live indexed results|Indexed result limit reached/);
+    assert.deepEqual([...document.querySelectorAll("section[aria-label=Search] .hits li")].map((item) => item.getAttribute("data-message")), ["message-1"]);
+    await type(search, "");
 
     // Rejected: "Not sent" with the refusal rewrite, then dismissed by the user.
     await act(async () => { await client.offline(); });
@@ -220,15 +264,15 @@ test("the chat screens render the log, queue offline sends as pinned bubbles, se
     assert.equal(document.querySelector<HTMLButtonElement>("form[aria-label=Composer] button[type=submit]")!.disabled, false);
     assert.match(text(document.querySelector("small[data-waiting=fence]")), /Queued until the next sync/);
     assert.match(text(document.querySelector("ol")), /Will be checked by the server/);
-    const mutations = owner.requests.filter((path) => path === "/api/mutation").length;
+    const mutations = mutationBodies.length;
     await act(async () => { await client.outbox.drain(); });
-    assert.equal(owner.requests.filter((path) => path === "/api/mutation").length, mutations,
+    assert.equal(mutationBodies.length, mutations,
       "before a successful resume the past-fence drain sends nothing");
     assert.deepEqual((await client.outbox.entries()).filter((item: any) => item.state === "queued")
       .map((item: any) => item.args.body), ["three days old", "typed past the fence"]);
     await act(async () => { await client.online(); await client.outbox.settled(); });
     await waitFor(() => document.querySelector("small[data-waiting=fence]") === null, "the composer fence reopened after resume");
-    assert.deepEqual(owner.executions.slice(-2).map((item) => (item.args as any).body), ["three days old", "typed past the fence"],
+    assert.deepEqual(mutationBodies.slice(-2).map((item) => item.args.body), ["three days old", "typed past the fence"],
       "after resume the old queue commits FIFO");
 
     // Expired remains a visible, dismissible state, but only after the owner
@@ -238,15 +282,13 @@ test("the chat screens render the log, queue offline sends as pinned bubbles, se
     const afterExpiry = await client.mutation(api.deliveries.post, { conversationId: "conversation-1", body: "after owner expiry" });
     assert.equal(ownerExpired.state, "queued");
     assert.equal(afterExpiry.state, "queued");
-    const serverMutations = owner.requests.filter((path) => path === "/api/mutation").length;
+    const serverMutations = mutationBodies.length;
     await act(async () => { await client.online(); await client.outbox.settled(); });
     await waitFor(() => document.querySelector("li[data-state=expired]") !== null, "the owner-expired bubble");
-    assert.equal(owner.requests.filter((path) => path === "/api/mutation").length, serverMutations + 2,
+    assert.equal(mutationBodies.length, serverMutations + 2,
       "the owner judged both intents and the drain continued");
     assert.match(text(document.querySelector("li[data-state=expired]")), /Expired/);
-    assert.equal(owner.executions.at(-1)?.args && (owner.executions.at(-1)!.args as any).body, "after owner expiry");
-
-    dead = true;
+    assert.equal(mutationBodies.at(-1)?.args.body, "after owner expiry");
     await act(async () => { await client.offline(); });
   } finally {
     Date.now = originalNow;
@@ -254,7 +296,52 @@ test("the chat screens render the log, queue offline sends as pinned bubbles, se
     // The provider defers its close a tick; wait for the carrier to go quiet before
     // the root is removed, or node:test sees activity after the test end.
     await client.close();
+    await writer.close();
     restore();
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("partial history becomes one coherent view without remounting its pending bubble", async () => {
+  const restore = installDom();
+  const root = await mkdtemp(join(tmpdir(), "snapback2-screens-partial-"));
+  const store = fileRangeStore(root);
+  const warm = createClient({ url: screenOwner.url, as: "alice", offline: { store } });
+  const writer = createClient({ url: screenOwner.url, as: "alice" });
+  let client: any;
+  const reactRoot: Root = createRoot(document.getElementById("root")!);
+  try {
+    await warm.ready;
+    const drain = warm.subscribe(api.deliveries.inbox, { c: null }, () => undefined, { drain: true });
+    await drain.until((event: any) => event.live === true && event.caughtUp === true, 5_000);
+    drain.close();
+    await warm.close();
+    const group: any = await writer.mutation(api.groups.groupCreate, { title: "Partial transition", members: ["dev:bob"] });
+    assert.equal(group.state, "committed");
+    const conversationId = group.data.id;
+    client = createClient({ url: screenOwner.url, as: "alice", startOffline: true, offline: { store } });
+    await client.ready;
+    await act(async () => reactRoot.render(React.createElement(SnapbackProvider, { client },
+      React.createElement(Thread, { conversationId, viewer: "dev:alice", onNote: () => undefined }))));
+    await waitFor(() => document.querySelector("ol.bubbles")?.getAttribute("data-view-source") === "partial-history",
+      "the independently covered history fallback");
+    assert.match(text(document.querySelector(".thread-history-note")), /Count and preview unavailable/);
+    const result = await client.mutation(api.deliveries.post, { conversationId, body: "kept through transition" });
+    assert.equal(result.state, "queued");
+    await waitFor(() => document.querySelector(`li[data-message="${result.ids[0]}"][data-state=queued]`) !== null,
+      "the fallback pending bubble");
+    const pending = document.querySelector(`li[data-message="${result.ids[0]}"]`)!;
+    await act(async () => { await client.online(); await client.outbox.settled(); });
+    await waitFor(() => document.querySelector("ol.bubbles")?.getAttribute("data-view-source") === "composite"
+      && document.querySelector(`li[data-message="${result.ids[0]}"][data-state=row]`) !== null,
+    "the usable composite after resume");
+    assert.strictEqual(document.querySelector(`li[data-message="${result.ids[0]}"]`), pending,
+      "the BubbleList ancestor and keyed row survive partial history to composite publication");
+    assert.equal(document.querySelector(".thread-history-note"), null, "the fallback unmounts once the composite is usable");
+    assert.equal(client.sharedConsumers(api.deliveries.conversationView, { conversationId }), 2);
+  } finally {
+    await act(async () => reactRoot.unmount());
+    await warm.close(); await client?.close(); await writer.close(); restore();
     await rm(root, { recursive: true, force: true });
   }
 });
@@ -268,7 +355,9 @@ test("the composer is disabled until the inbox drain catches up and the first gr
   const owner = fakeOwner({ seed: true });
   let release!: () => void;
   const gate = new Promise<void>((resolve) => { release = resolve; });
-  // The inbox drain's first page waits at the owner until released; the thread's own page does not.
+  // This is a transport-order test for Composer rather than a query rendering
+  // test. The actual Thread/container is covered against screenOwner above;
+  // keeping this fake narrowly avoids fabricating a composite certificate.
   const fetch = async (input: string | URL | Request, init?: RequestInit): Promise<Response> => {
     const op = String(input).includes("/api/query") && init?.body ? JSON.parse(String(init.body)).op : undefined;
     if (op === "deliveries.inbox") await gate;
@@ -283,12 +372,10 @@ test("the composer is disabled until the inbox drain catches up and the first gr
         SnapbackProvider,
         { url: "http://grant.test", as: "alice", fetch, offline: { store: fileRangeStore(root) } },
         React.createElement(Probe),
-        React.createElement(Thread, { conversationId: "conversation-1", viewer: "dev:alice", onNote: () => undefined }),
+        React.createElement(Composer, { conversationId: "conversation-1", onNote: () => undefined }),
       ));
     });
-    // The drain the app mounts, held at its first page.
     const drain = client.subscribe(api.deliveries.inbox, { c: null }, () => undefined, { drain: true });
-    await waitFor(() => document.querySelector("li[data-message=message-1]") !== null, "the thread");
     const send = () => document.querySelector<HTMLButtonElement>("form[aria-label=Composer] button[type=submit]")!;
     await type(document.querySelector<HTMLInputElement>("form[aria-label=Composer] input")!, "a draft before downloading");
     assert.equal(send().disabled, true, "send is enabled before a grant exists");
@@ -312,15 +399,20 @@ test("the composer is disabled until the inbox drain catches up and the first gr
 test("a refused send keeps the draft and shows the recovery advice", async () => {
   const restore = installDom();
   const root = await mkdtemp(join(tmpdir(), "snapback2-screens-draft-"));
-  const owner = fakeOwner({ seed: true, reject: () => true });
-  await seededStore(fileRangeStore(root));
+  const fetch = async (input: string | URL | Request, init?: RequestInit): Promise<Response> => {
+    const body = requestBody(init);
+    if (new URL(String(input)).pathname === "/api/mutation" && body?.args?.body === "keep this draft") {
+      return json(rejected(body.replay?.intent));
+    }
+    return globalThis.fetch(input, init);
+  };
   let client: any;
   function Probe() { client = useSnapbackClient(); return null; }
   const reactRoot = createRoot(document.getElementById("root")!);
   try {
     await act(async () => {
       reactRoot.render(React.createElement(SnapbackProvider,
-        { url: "http://draft.test", as: "alice", fetch: owner.fetch, offline: { store: fileRangeStore(root) } },
+        { url: screenOwner.url, as: "alice", fetch, offline: { store: fileRangeStore(root) } },
         React.createElement(Probe), React.createElement(App)));
     });
     await waitFor(() => document.querySelector("nav[aria-label=Inbox] li[data-conversation=conversation-1] button") !== null, "the inbox");
