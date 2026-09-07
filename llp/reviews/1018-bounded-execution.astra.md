@@ -26,3 +26,5 @@ predates that assertion correction and is not its approval.
 - **Scope and documentation:** No native runtime or evaluator change is delivered. The removed primary-absence experiment receives no approval here: it failed to provide the additional unique-group proof required for aggregate insertion. The documents preserve that correction, retain both children as Draft, and leave direct compiler/browser integration with their existing owners.
 
 This is a source-only review using the supplied capsule; no tools or tests were run. The reported successful build and 5/5 typing results were not independently reproduced. The ongoing complete suite is not represented as all green.
+
+The corrected assertion has a separate [final delta review](./1018-cached-zero.astra.md).

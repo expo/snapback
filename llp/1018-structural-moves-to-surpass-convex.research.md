@@ -684,3 +684,20 @@ supersession cases after certified-fixture repair, while the coherent suite
 and actual browser rerun remain outstanding. This follow-up makes no browser
 repair or lane-wide completion claim. Lifecycle work remains tied to those
 actual transitions; the count investigation adds no lifecycle framework.
+
+The final public cold-reopen witness passes all four scenarios on
+`045598b6a`: held counts predict, unheld/zero counts remain unpredicted,
+reconnect commits admissible allocations and atomically rejects overflow.
+Cold zero displays the owner's stale cached scalar; it grants no new insertion
+authority. The focused command uses a 60-second file allowance and completes
+in 32.59 seconds including owner bootstrap; it is not a pass at the broad
+suite's 10-second file deadline. The fresh [Astra source reviews](./reviews/1018-bounded-execution.astra.md)
+retain both the earlier assumption and its corrected final delta.
+The [broad-run record](../issues/20260901-snapback2-scripts-test-sh-flakes-under.md)
+retains its failures and interruptions; no complete-suite pass is claimed.
+
+After the broad run stopped, a fresh package build and the complete typing
+file passed again: **5/5 in 13.32 seconds**, including both generated-package
+declaration settings. Ref-check and caps passed. These scoped passes support
+the declaration/test delivery; they do not close the zero-count ticket or
+qualify the other architecture lane.
