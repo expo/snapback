@@ -195,7 +195,11 @@ const actions = [
     // A query with truly absent coverage is separate from the never-opened chat.
     const absent = await command("state", { conversationId: "never-held-conversation" });
     assert.equal(absent.answer.state, "partial");
-    return { stores: Object.fromEntries(Object.entries(state.stores).map(([key, rows]) => [key, rows.length])), media: await coldMedia(4) };
+    const probe = state.searchProbe ?? {};
+    const searchProbe = { runtime: probe.runtime, postings: Object.fromEntries(Object.entries(probe.postings ?? {}).map(([term, value]) =>
+      [term, { token: value.token, counts: value.scopes.map((scope) => scope.ids.length) }])) };
+    return { stores: Object.fromEntries(Object.entries(state.stores).map(([key, rows]) => [key, rows.length])),
+      searchProbe, media: await coldMedia(4) };
   },
   async () => {
     await new Promise((resolve) => setTimeout(resolve, 1_000)); await killApp(); await launch(); coldStores(await command("stores")); await command("construct");
