@@ -1,0 +1,51 @@
+{
+  "at": "2026-09-07T19:33:08.172935+00:00",
+  "completedExecutions": 24,
+  "recordedPids": [
+    71095,
+    71554,
+    71877,
+    72089,
+    72164,
+    72814,
+    72963,
+    73088,
+    73160,
+    73231,
+    73352,
+    73427,
+    73549,
+    73606,
+    73707,
+    73763,
+    73818,
+    73877,
+    114726,
+    114837,
+    114892,
+    114956,
+    117336,
+    117507
+  ],
+  "liveRecordedChildrenOrProcessGroups": [],
+  "snapshots": {
+    "parent": {
+      "sourceEntries": 403,
+      "sourceMismatches": [],
+      "generatedEntries": 144,
+      "generatedMismatches": []
+    },
+    "candidate": {
+      "sourceEntries": 405,
+      "sourceMismatches": [],
+      "generatedEntries": 144,
+      "generatedMismatches": []
+    }
+  },
+  "archives": {
+    "main-source.tar": "f0eb4e4bcf2d2ab135e3ada4f89b493689f92d25c078bff57146d04eddb30126",
+    "candidate-source.tar": "1b00306cc6b56cca30f7de0672e8418fb00c7d3881751b7f7dba938d90d104db"
+  },
+  "mutation": false,
+  "semanticChildrenLaunched": 0
+}

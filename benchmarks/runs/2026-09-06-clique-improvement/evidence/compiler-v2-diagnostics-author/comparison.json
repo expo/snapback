@@ -1,0 +1,968 @@
+{
+  "comparisons": [
+    {
+      "name": "original14",
+      "parentOk": false,
+      "candidateOk": false,
+      "expectedOk": false,
+      "parentDiagnostics": [
+        {
+          "code": "E_QUARRY_UNKNOWN",
+          "family": "quarry",
+          "message": "unknown name missingValue",
+          "site": "snapback/todos.q:10:10",
+          "rewrite": "-- unknown name missingValue",
+          "guide": "quarry/names"
+        }
+      ],
+      "candidateDiagnostics": [
+        {
+          "code": "E_QUARRY_UNKNOWN",
+          "family": "quarry",
+          "message": "unknown name missingValue",
+          "site": "snapback/todos.q:10:10",
+          "rewrite": "-- unknown name missingValue",
+          "guide": "quarry/names"
+        },
+        {
+          "code": "E_OPAQUE",
+          "family": "opaque",
+          "message": "in code generated from snapback/todos.q: Type 'string' is not assignable to type 'boolean | undefined'.",
+          "site": "snapback/todos.q:9:3",
+          "rewrite": "update todos[todoId] { done: \"yes\" }\n-- use true or false for this boolean value",
+          "guide": "opaque/subset"
+        }
+      ],
+      "refusalOnlyKeys": true
+    },
+    {
+      "name": "original17",
+      "parentOk": false,
+      "candidateOk": false,
+      "expectedOk": false,
+      "parentDiagnostics": [
+        {
+          "code": "E_OPAQUE",
+          "family": "opaque",
+          "message": "in code generated from snapback/todos.q: Type 'string' is not assignable to type 'boolean | undefined'.",
+          "site": "snapback/todos.q:9:3",
+          "rewrite": "add ! else CODE to assert the possibly absent Quarry value before using it here",
+          "guide": "opaque/subset"
+        }
+      ],
+      "candidateDiagnostics": [
+        {
+          "code": "E_OPAQUE",
+          "family": "opaque",
+          "message": "in code generated from snapback/todos.q: Type 'string' is not assignable to type 'boolean | undefined'.",
+          "site": "snapback/todos.q:9:3",
+          "rewrite": "update todos[todoId] { done: \"yes\" }\n-- use true or false for this boolean value",
+          "guide": "opaque/subset"
+        }
+      ],
+      "refusalOnlyKeys": true
+    },
+    {
+      "name": "original18",
+      "parentOk": true,
+      "candidateOk": true,
+      "expectedOk": true,
+      "completeAcceptedResultEqual": true
+    },
+    {
+      "name": "main table and operation alias compiler-only derivative",
+      "parentOk": true,
+      "candidateOk": true,
+      "expectedOk": true,
+      "completeAcceptedResultEqual": true
+    },
+    {
+      "name": "main operation helper collision refusal",
+      "parentOk": false,
+      "candidateOk": false,
+      "expectedOk": false,
+      "parentDiagnostics": [
+        {
+          "code": "E_QUARRY_UNKNOWN",
+          "family": "quarry",
+          "message": "query name range collides with the generated snapback2 helper import range",
+          "site": "snapback/ops.q:1:1",
+          "rewrite": "-- rename the query range; snapback2 helpers occupy generated module bindings",
+          "guide": "quarry/names"
+        }
+      ],
+      "candidateDiagnostics": [
+        {
+          "code": "E_QUARRY_UNKNOWN",
+          "family": "quarry",
+          "message": "query name range collides with the generated snapback2 helper import range",
+          "site": "snapback/ops.q:1:1",
+          "rewrite": "-- rename the query range; snapback2 helpers occupy generated module bindings",
+          "guide": "quarry/names"
+        }
+      ],
+      "refusalOnlyKeys": true
+    },
+    {
+      "name": "main operation effect collision refusal",
+      "parentOk": false,
+      "candidateOk": false,
+      "expectedOk": false,
+      "parentDiagnostics": [
+        {
+          "code": "E_QUARRY_UNKNOWN",
+          "family": "quarry",
+          "message": "query name notify collides with the generated effect import notify",
+          "site": "snapback/ops.q:2:1",
+          "rewrite": "-- rename the query notify; effects and operations share a generated module",
+          "guide": "quarry/names"
+        }
+      ],
+      "candidateDiagnostics": [
+        {
+          "code": "E_QUARRY_UNKNOWN",
+          "family": "quarry",
+          "message": "query name notify collides with the generated effect import notify",
+          "site": "snapback/ops.q:2:1",
+          "rewrite": "-- rename the query notify; effects and operations share a generated module",
+          "guide": "quarry/names"
+        }
+      ],
+      "refusalOnlyKeys": true
+    },
+    {
+      "name": "main effect helper collision refusal",
+      "parentOk": false,
+      "candidateOk": false,
+      "expectedOk": false,
+      "parentDiagnostics": [
+        {
+          "code": "E_QUARRY_UNKNOWN",
+          "family": "quarry",
+          "message": "effect name range collides with a generated module helper",
+          "site": "snapback/ops.q:1:1",
+          "rewrite": "-- rename the effect range; snapback2 helpers occupy generated module bindings",
+          "guide": "quarry/names"
+        }
+      ],
+      "candidateDiagnostics": [
+        {
+          "code": "E_QUARRY_UNKNOWN",
+          "family": "quarry",
+          "message": "effect name range collides with a generated module helper",
+          "site": "snapback/ops.q:1:1",
+          "rewrite": "-- rename the effect range; snapback2 helpers occupy generated module bindings",
+          "guide": "quarry/names"
+        }
+      ],
+      "refusalOnlyKeys": true
+    },
+    {
+      "name": "main effect orderedPair collision refusal",
+      "parentOk": false,
+      "candidateOk": false,
+      "expectedOk": false,
+      "parentDiagnostics": [
+        {
+          "code": "E_QUARRY_UNKNOWN",
+          "family": "quarry",
+          "message": "effect name orderedPair collides with a generated module helper",
+          "site": "snapback/ops.q:1:1",
+          "rewrite": "-- rename the effect orderedPair; snapback2 helpers occupy generated module bindings",
+          "guide": "quarry/names"
+        }
+      ],
+      "candidateDiagnostics": [
+        {
+          "code": "E_QUARRY_UNKNOWN",
+          "family": "quarry",
+          "message": "effect name orderedPair collides with a generated module helper",
+          "site": "snapback/ops.q:1:1",
+          "rewrite": "-- rename the effect orderedPair; snapback2 helpers occupy generated module bindings",
+          "guide": "quarry/names"
+        }
+      ],
+      "refusalOnlyKeys": true
+    },
+    {
+      "name": "main cap complete direct compiler-only form",
+      "parentOk": true,
+      "candidateOk": true,
+      "expectedOk": true,
+      "completeAcceptedResultEqual": true
+    },
+    {
+      "name": "main cap complete bound compiler-only form",
+      "parentOk": true,
+      "candidateOk": true,
+      "expectedOk": true,
+      "completeAcceptedResultEqual": true
+    },
+    {
+      "name": "main cap complete shaped compiler-only form",
+      "parentOk": true,
+      "candidateOk": true,
+      "expectedOk": true,
+      "completeAcceptedResultEqual": true
+    }
+  ],
+  "workerEquality": [
+    {
+      "snapshot": "parent",
+      "name": "original14",
+      "completeResultEqual": true
+    },
+    {
+      "snapshot": "parent",
+      "name": "original17",
+      "completeResultEqual": true
+    },
+    {
+      "snapshot": "parent",
+      "name": "original18",
+      "completeResultEqual": true
+    },
+    {
+      "snapshot": "candidate",
+      "name": "original14",
+      "completeResultEqual": true
+    },
+    {
+      "snapshot": "candidate",
+      "name": "original17",
+      "completeResultEqual": true
+    },
+    {
+      "snapshot": "candidate",
+      "name": "original18",
+      "completeResultEqual": true
+    }
+  ],
+  "diagnostics": [
+    {
+      "index": 0,
+      "name": "Quarry diagnostic recovery: independent write mismatch and unknown return",
+      "ok": true
+    },
+    {
+      "index": 1,
+      "name": "Quarry diagnostic recovery: nonnullable mismatch is not absence",
+      "ok": true
+    },
+    {
+      "index": 2,
+      "name": "Quarry diagnostic recovery: unknown statement before independent mismatch",
+      "ok": true
+    },
+    {
+      "index": 3,
+      "name": "Quarry diagnostic recovery: failed binding and aliases suppress dependent cascades",
+      "ok": true
+    },
+    {
+      "index": 4,
+      "name": "Quarry diagnostic recovery: failed read key never borrows inferred index facts",
+      "ok": true
+    },
+    {
+      "index": 5,
+      "name": "Quarry diagnostic recovery: nested branch refusals keep independent type checks",
+      "ok": true
+    },
+    {
+      "index": 6,
+      "name": "Quarry diagnostic recovery: unresolved condition does not pretend to check its dependants",
+      "ok": true
+    },
+    {
+      "index": 7,
+      "name": "Quarry diagnostic recovery: failed binding invalidates a same-name argument",
+      "ok": true
+    },
+    {
+      "index": 8,
+      "name": "Quarry diagnostic recovery: nullable wrong primitive still needs a type repair",
+      "ok": true
+    },
+    {
+      "index": 9,
+      "name": "Quarry diagnostic recovery: nullable matching insert value retains presence advice",
+      "ok": true
+    },
+    {
+      "index": 10,
+      "name": "Quarry diagnostic recovery: null-only insert needs a value instead of an assertion",
+      "ok": true
+    },
+    {
+      "index": 11,
+      "name": "Quarry diagnostic recovery: possibly absent dereference retains presence advice",
+      "ok": true
+    },
+    {
+      "index": 12,
+      "name": "Quarry diagnostic recovery: corrected original keeps all three operations",
+      "ok": true
+    },
+    {
+      "index": 13,
+      "name": "Quarry diagnostic recovery: presence assertion corrects the optional insert",
+      "ok": true
+    },
+    {
+      "index": 14,
+      "name": "Quarry diagnostic recovery: generated declaration errors do not become type mismatch advice",
+      "ok": true
+    },
+    {
+      "index": 15,
+      "name": "Quarry diagnostic recovery: lexical loop-shadow",
+      "ok": true
+    },
+    {
+      "index": 16,
+      "name": "Quarry diagnostic recovery: lexical match-shadow",
+      "ok": true
+    },
+    {
+      "index": 17,
+      "name": "Quarry diagnostic recovery: lexical loop-capture",
+      "ok": true
+    },
+    {
+      "index": 18,
+      "name": "Quarry diagnostic recovery: lexical match-capture-isolation",
+      "ok": true
+    },
+    {
+      "index": 19,
+      "name": "Quarry diagnostic recovery: lexical nested-loop-isolation",
+      "ok": true
+    },
+    {
+      "index": 20,
+      "name": "Quarry diagnostic recovery: lexical failed-loop-domain",
+      "ok": true
+    },
+    {
+      "index": 21,
+      "name": "Quarry diagnostic recovery: lexical failed-match-key",
+      "ok": true
+    },
+    {
+      "index": 22,
+      "name": "Quarry diagnostic recovery: lexical failed-tuple-initializer",
+      "ok": true
+    },
+    {
+      "index": 23,
+      "name": "Quarry diagnostic recovery: lexical fresh-divmod-binding",
+      "ok": true
+    },
+    {
+      "index": 24,
+      "name": "Quarry diagnostic recovery: lexical failed-inner-shadow-restores-outer",
+      "ok": true
+    },
+    {
+      "index": 25,
+      "name": "Quarry diagnostic recovery: lexical fresh-capture-rollback",
+      "ok": true
+    },
+    {
+      "index": 26,
+      "name": "Quarry diagnostic recovery: lexical merge-binder-independent",
+      "ok": true
+    },
+    {
+      "index": 27,
+      "name": "Quarry diagnostic recovery: lexical merge-binder-mismatch",
+      "ok": true
+    },
+    {
+      "index": 28,
+      "name": "Quarry diagnostic recovery: lexical fresh-sorted-type-fact",
+      "ok": true
+    },
+    {
+      "index": 29,
+      "name": "Quarry diagnostic recovery: lexical failed-merge-domain",
+      "ok": true
+    },
+    {
+      "index": 30,
+      "name": "Quarry diagnostic recovery: merge domain merge-failed-domain-wrong-prefix",
+      "ok": true
+    },
+    {
+      "index": 31,
+      "name": "Quarry diagnostic recovery: merge domain merge-missing-domain-wrong-prefix",
+      "ok": true
+    },
+    {
+      "index": 32,
+      "name": "Quarry diagnostic recovery: merge domain merge-missing-domain-renamed",
+      "ok": true
+    },
+    {
+      "index": 33,
+      "name": "Quarry diagnostic recovery: merge domain merge-valid-prefix-failed-domain",
+      "ok": true
+    },
+    {
+      "index": 34,
+      "name": "Quarry diagnostic recovery: merge domain failed-domain-captured-outer",
+      "ok": true
+    },
+    {
+      "index": 35,
+      "name": "Quarry diagnostic recovery: merge domain unknown-domain-table",
+      "ok": true
+    },
+    {
+      "index": 36,
+      "name": "Quarry diagnostic recovery: merge domain domain-key-type-before-prefix",
+      "ok": true
+    },
+    {
+      "index": 37,
+      "name": "Quarry diagnostic recovery: merge domain effectful-domain-prefix-fails",
+      "ok": true
+    },
+    {
+      "index": 38,
+      "name": "Quarry diagnostic recovery: merge domain second-lane-domain-fails-rollback",
+      "ok": true
+    },
+    {
+      "index": 39,
+      "name": "Quarry diagnostic recovery: merge domain nested-failed-merge-restores-item",
+      "ok": true
+    },
+    {
+      "index": 40,
+      "name": "Quarry diagnostic recovery: merge domain literal-prefix-mismatch",
+      "ok": true
+    },
+    {
+      "index": 41,
+      "name": "Quarry diagnostic recovery: merge domain fresh-lane-not-in-domain",
+      "ok": true
+    },
+    {
+      "index": 42,
+      "name": "Quarry diagnostic recovery: merge domain lawful-shadow-domain",
+      "ok": true
+    },
+    {
+      "index": 43,
+      "name": "Quarry diagnostic recovery: merge domain lawful-multiple-named-cursor",
+      "ok": true
+    },
+    {
+      "index": 44,
+      "name": "Quarry diagnostic recovery: merge domain lawful-domain-guard-once",
+      "ok": true
+    },
+    {
+      "index": 45,
+      "name": "Quarry diagnostic recovery: merge domain lawful-domain-allocation-once",
+      "ok": true
+    },
+    {
+      "index": 46,
+      "name": "Quarry diagnostic recovery: merge domain lawful-nullable-prefix",
+      "ok": true
+    },
+    {
+      "index": 47,
+      "name": "Quarry diagnostic recovery: merge domain lawful-two-discovered-lanes",
+      "ok": true
+    },
+    {
+      "index": 48,
+      "name": "Quarry diagnostic recovery: 1 operation refusal bounds count omitted failures",
+      "ok": true
+    },
+    {
+      "index": 49,
+      "name": "Quarry diagnostic recovery: 3 operation refusal bounds count omitted failures",
+      "ok": true
+    },
+    {
+      "index": 50,
+      "name": "main-v2 fatal parser/schema/helper collision boundaries",
+      "ok": true
+    }
+  ],
+  "types": [
+    {
+      "scope": "production",
+      "sourceFiles": {
+        "parent": 55,
+        "candidate": 56
+      },
+      "parentDiagnostics": [],
+      "candidateDiagnostics": [],
+      "parentControlDiagnostics": [],
+      "candidateControlDiagnostics": [],
+      "externalControlsEqual": true,
+      "parentExternalErrorsEqualControl": true,
+      "candidateExternalErrorsEqualControl": true
+    },
+    {
+      "scope": "affected",
+      "sourceFiles": {
+        "parent": 71,
+        "candidate": 73
+      },
+      "parentDiagnostics": [],
+      "candidateDiagnostics": [],
+      "parentControlDiagnostics": [],
+      "candidateControlDiagnostics": [],
+      "externalControlsEqual": true,
+      "parentExternalErrorsEqualControl": true,
+      "candidateExternalErrorsEqualControl": true
+    }
+  ],
+  "originalExpectations": {
+    "original14IndependentPair": true,
+    "original17BooleanRepair": true
+  },
+  "executions": {
+    "parent-production-types": {
+      "at": "2026-09-07T19:11:34.758149+00:00",
+      "argv": [
+        "/home/ccheever/clique-tooling/epyc-linux-tooling-20260907T010007Z-0fd567d96f/node-v22.23.2-linux-x64/bin/node",
+        "types.mjs",
+        "parent",
+        "production"
+      ],
+      "cwd": "/home/ccheever/clique-revisions/compiler-dx-v2-r1-44faf-20260907",
+      "pid": 73549,
+      "deadlineSeconds": 30,
+      "elapsedSeconds": 0.032491435995325446,
+      "exit": 1,
+      "timeout": false,
+      "inboxAck": "6232b03bac3e2fe8ec27703ecc6c2602bdfdb32a14be1867a6f91becd6689c30",
+      "stdoutSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderrSha256": "54f51fc54abb7a934dc3ec506ab0d8fe792ca433963faaa9613eb4a4fc8ef6e9"
+    },
+    "parent-main-eight": {
+      "at": "2026-09-07T19:11:26.164882+00:00",
+      "argv": [
+        "/home/ccheever/clique-tooling/epyc-linux-tooling-20260907T010007Z-0fd567d96f/bun-v1.3.12-linux-x64/bin/bun",
+        "project-probe.ts",
+        "parent",
+        "main-eight.json"
+      ],
+      "cwd": "/home/ccheever/clique-revisions/compiler-dx-v2-r1-44faf-20260907",
+      "pid": 73352,
+      "deadlineSeconds": 30,
+      "elapsedSeconds": 0.46580089908093214,
+      "exit": 0,
+      "timeout": false,
+      "inboxAck": "6232b03bac3e2fe8ec27703ecc6c2602bdfdb32a14be1867a6f91becd6689c30",
+      "stdoutSha256": "77375e3bc4c6b89e31f88d1dd81db20ff0a97486a6f15713797c963ed75ed783",
+      "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "candidate-worker": {
+      "at": "2026-09-07T19:11:54.255673+00:00",
+      "argv": [
+        "/home/ccheever/clique-tooling/epyc-linux-tooling-20260907T010007Z-0fd567d96f/node-v22.23.2-linux-x64/bin/node",
+        "worker-three.mjs",
+        "candidate",
+        "original-three.json"
+      ],
+      "cwd": "/home/ccheever/clique-revisions/compiler-dx-v2-r1-44faf-20260907",
+      "pid": 73877,
+      "deadlineSeconds": 30,
+      "elapsedSeconds": 0.6159086080733687,
+      "exit": 0,
+      "timeout": false,
+      "inboxAck": "6232b03bac3e2fe8ec27703ecc6c2602bdfdb32a14be1867a6f91becd6689c30",
+      "stdoutSha256": "a41cf1a3d830e5a2e71dbfe607e80148fb0a392ff980b256964444996e2721dd",
+      "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "setup": {
+      "at": "2026-09-07T19:09:17.197932+00:00",
+      "argv": [
+        "/usr/bin/python3",
+        "remote-setup.py"
+      ],
+      "cwd": "/home/ccheever/clique-revisions/compiler-dx-v2-r1-44faf-20260907",
+      "pid": 71095,
+      "deadlineSeconds": 30,
+      "elapsedSeconds": 7.884177644038573,
+      "exit": 0,
+      "timeout": false,
+      "inboxAck": "6232b03bac3e2fe8ec27703ecc6c2602bdfdb32a14be1867a6f91becd6689c30",
+      "stdoutSha256": "0bbed8e7cfad9c5052ead018c17f8b6e9745b953925597f5cbe2dee965c9de2f",
+      "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "parent-affected-types-fixed": {
+      "at": "2026-09-07T19:22:27.452014+00:00",
+      "argv": [
+        "/home/ccheever/clique-tooling/epyc-linux-tooling-20260907T010007Z-0fd567d96f/node-v22.23.2-linux-x64/bin/node",
+        "types-fixed.mjs",
+        "parent",
+        "affected"
+      ],
+      "cwd": "/home/ccheever/clique-revisions/compiler-dx-v2-r1-44faf-20260907",
+      "pid": 114837,
+      "deadlineSeconds": 30,
+      "elapsedSeconds": 2.821397041901946,
+      "exit": 1,
+      "timeout": false,
+      "inboxAck": "6ca4108ea58a3d60fb372d666f995677f1d996a5729eccf5917103d70c912b84",
+      "stdoutSha256": "8bda9ebff4b108fdf609df35cca63ea8fb5b01dd1e27d860fd6c0618c27b53fc",
+      "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "parent-production-types-fixed": {
+      "at": "2026-09-07T19:22:21.521864+00:00",
+      "argv": [
+        "/home/ccheever/clique-tooling/epyc-linux-tooling-20260907T010007Z-0fd567d96f/node-v22.23.2-linux-x64/bin/node",
+        "types-fixed.mjs",
+        "parent",
+        "production"
+      ],
+      "cwd": "/home/ccheever/clique-revisions/compiler-dx-v2-r1-44faf-20260907",
+      "pid": 114726,
+      "deadlineSeconds": 30,
+      "elapsedSeconds": 2.3199957970064133,
+      "exit": 1,
+      "timeout": false,
+      "inboxAck": "6ca4108ea58a3d60fb372d666f995677f1d996a5729eccf5917103d70c912b84",
+      "stdoutSha256": "a2af14c3d3be0f7957efd976b570be9343fa18f1c45330b00ec7c3889a45a26d",
+      "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "candidate-main-eight": {
+      "at": "2026-09-07T19:11:30.402335+00:00",
+      "argv": [
+        "/home/ccheever/clique-tooling/epyc-linux-tooling-20260907T010007Z-0fd567d96f/bun-v1.3.12-linux-x64/bin/bun",
+        "project-probe.ts",
+        "candidate",
+        "main-eight.json"
+      ],
+      "cwd": "/home/ccheever/clique-revisions/compiler-dx-v2-r1-44faf-20260907",
+      "pid": 73427,
+      "deadlineSeconds": 30,
+      "elapsedSeconds": 0.4652321068570018,
+      "exit": 0,
+      "timeout": false,
+      "inboxAck": "6232b03bac3e2fe8ec27703ecc6c2602bdfdb32a14be1867a6f91becd6689c30",
+      "stdoutSha256": "77375e3bc4c6b89e31f88d1dd81db20ff0a97486a6f15713797c963ed75ed783",
+      "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "candidate-production-types": {
+      "at": "2026-09-07T19:11:38.629666+00:00",
+      "argv": [
+        "/home/ccheever/clique-tooling/epyc-linux-tooling-20260907T010007Z-0fd567d96f/node-v22.23.2-linux-x64/bin/node",
+        "types.mjs",
+        "candidate",
+        "production"
+      ],
+      "cwd": "/home/ccheever/clique-revisions/compiler-dx-v2-r1-44faf-20260907",
+      "pid": 73606,
+      "deadlineSeconds": 30,
+      "elapsedSeconds": 0.03258484601974487,
+      "exit": 1,
+      "timeout": false,
+      "inboxAck": "6232b03bac3e2fe8ec27703ecc6c2602bdfdb32a14be1867a6f91becd6689c30",
+      "stdoutSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderrSha256": "54f51fc54abb7a934dc3ec506ab0d8fe792ca433963faaa9613eb4a4fc8ef6e9"
+    },
+    "candidate-affected-types-fixed": {
+      "at": "2026-09-07T19:22:39.790195+00:00",
+      "argv": [
+        "/home/ccheever/clique-tooling/epyc-linux-tooling-20260907T010007Z-0fd567d96f/node-v22.23.2-linux-x64/bin/node",
+        "types-fixed.mjs",
+        "candidate",
+        "affected"
+      ],
+      "cwd": "/home/ccheever/clique-revisions/compiler-dx-v2-r1-44faf-20260907",
+      "pid": 114956,
+      "deadlineSeconds": 30,
+      "elapsedSeconds": 2.8224340851884335,
+      "exit": 1,
+      "timeout": false,
+      "inboxAck": "6ca4108ea58a3d60fb372d666f995677f1d996a5729eccf5917103d70c912b84",
+      "stdoutSha256": "fb3f328e995c65e89ab4984056efcdefa74ef3b0e7140de75393d79c06bb21e1",
+      "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "candidate-types-final": {
+      "at": "2026-09-07T19:31:17.774808+00:00",
+      "argv": [
+        "/home/ccheever/clique-tooling/epyc-linux-tooling-20260907T010007Z-0fd567d96f/node-v22.23.2-linux-x64/bin/node",
+        "types-final.mjs",
+        "candidate",
+        "both"
+      ],
+      "cwd": "/home/ccheever/clique-revisions/compiler-dx-v2-r1-44faf-20260907",
+      "pid": 117507,
+      "deadlineSeconds": 30,
+      "elapsedSeconds": 5.479864459019154,
+      "exit": 0,
+      "timeout": false,
+      "inboxAck": "65c9649f4243ef06bbd8f8bcb16d33c8c125fedaf65adee00be2847ad3b38702",
+      "stdoutSha256": "fe0cad1f1a1e117b3a0b53d4d0eba86b85ab594fada2f01b2709875fb8f77888",
+      "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "diagnostics-36": {
+      "at": "2026-09-07T19:11:02.049989+00:00",
+      "argv": [
+        "/home/ccheever/clique-tooling/epyc-linux-tooling-20260907T010007Z-0fd567d96f/bun-v1.3.12-linux-x64/bin/bun",
+        "diagnostic-selected.ts",
+        "candidate",
+        "36",
+        "12"
+      ],
+      "cwd": "/home/ccheever/clique-revisions/compiler-dx-v2-r1-44faf-20260907",
+      "pid": 73160,
+      "deadlineSeconds": 30,
+      "elapsedSeconds": 0.7160710780881345,
+      "exit": 0,
+      "timeout": false,
+      "inboxAck": "6232b03bac3e2fe8ec27703ecc6c2602bdfdb32a14be1867a6f91becd6689c30",
+      "stdoutSha256": "fcd762613faeaf0caa7b5df7b89711ac3e56a17ea0e2927049cd915fb20c7c44",
+      "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "parent-affected-types": {
+      "at": "2026-09-07T19:11:42.371619+00:00",
+      "argv": [
+        "/home/ccheever/clique-tooling/epyc-linux-tooling-20260907T010007Z-0fd567d96f/node-v22.23.2-linux-x64/bin/node",
+        "types.mjs",
+        "parent",
+        "affected"
+      ],
+      "cwd": "/home/ccheever/clique-revisions/compiler-dx-v2-r1-44faf-20260907",
+      "pid": 73707,
+      "deadlineSeconds": 30,
+      "elapsedSeconds": 0.03271612385287881,
+      "exit": 1,
+      "timeout": false,
+      "inboxAck": "6232b03bac3e2fe8ec27703ecc6c2602bdfdb32a14be1867a6f91becd6689c30",
+      "stdoutSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderrSha256": "54f51fc54abb7a934dc3ec506ab0d8fe792ca433963faaa9613eb4a4fc8ef6e9"
+    },
+    "build-candidate": {
+      "at": "2026-09-07T19:09:58.980559+00:00",
+      "argv": [
+        "/home/ccheever/clique-tooling/epyc-linux-tooling-20260907T010007Z-0fd567d96f/node-v22.23.2-linux-x64/bin/node",
+        "build.mjs"
+      ],
+      "cwd": "/home/ccheever/clique-revisions/compiler-dx-v2-r1-44faf-20260907/sources/candidate/snapback2/packages/snapback2",
+      "pid": 71877,
+      "deadlineSeconds": 30,
+      "elapsedSeconds": 2.670708038844168,
+      "exit": 0,
+      "timeout": false,
+      "inboxAck": "6232b03bac3e2fe8ec27703ecc6c2602bdfdb32a14be1867a6f91becd6689c30",
+      "stdoutSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "parent-original-three": {
+      "at": "2026-09-07T19:10:11.572958+00:00",
+      "argv": [
+        "/home/ccheever/clique-tooling/epyc-linux-tooling-20260907T010007Z-0fd567d96f/bun-v1.3.12-linux-x64/bin/bun",
+        "project-probe.ts",
+        "parent",
+        "original-three.json"
+      ],
+      "cwd": "/home/ccheever/clique-revisions/compiler-dx-v2-r1-44faf-20260907",
+      "pid": 72089,
+      "deadlineSeconds": 30,
+      "elapsedSeconds": 0.4157066170591861,
+      "exit": 0,
+      "timeout": false,
+      "inboxAck": "6232b03bac3e2fe8ec27703ecc6c2602bdfdb32a14be1867a6f91becd6689c30",
+      "stdoutSha256": "27b126696b55ddf927754f7cb1d1b7b482700d39cba49af58768e2d9d54f4e1b",
+      "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "build-parent": {
+      "at": "2026-09-07T19:09:38.398394+00:00",
+      "argv": [
+        "/home/ccheever/clique-tooling/epyc-linux-tooling-20260907T010007Z-0fd567d96f/node-v22.23.2-linux-x64/bin/node",
+        "build.mjs"
+      ],
+      "cwd": "/home/ccheever/clique-revisions/compiler-dx-v2-r1-44faf-20260907/sources/parent/snapback2/packages/snapback2",
+      "pid": 71554,
+      "deadlineSeconds": 30,
+      "elapsedSeconds": 2.671107286820188,
+      "exit": 0,
+      "timeout": false,
+      "inboxAck": "6232b03bac3e2fe8ec27703ecc6c2602bdfdb32a14be1867a6f91becd6689c30",
+      "stdoutSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "diagnostics-0": {
+      "at": "2026-09-07T19:10:48.593862+00:00",
+      "argv": [
+        "/home/ccheever/clique-tooling/epyc-linux-tooling-20260907T010007Z-0fd567d96f/bun-v1.3.12-linux-x64/bin/bun",
+        "diagnostic-selected.ts",
+        "candidate",
+        "0",
+        "12"
+      ],
+      "cwd": "/home/ccheever/clique-revisions/compiler-dx-v2-r1-44faf-20260907",
+      "pid": 72814,
+      "deadlineSeconds": 30,
+      "elapsedSeconds": 0.7160213440656662,
+      "exit": 0,
+      "timeout": false,
+      "inboxAck": "6232b03bac3e2fe8ec27703ecc6c2602bdfdb32a14be1867a6f91becd6689c30",
+      "stdoutSha256": "1383d034cdaabdc40e61ec016e14a40ee5e8d646adadaff14513480fe403d330",
+      "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "parent-types-final": {
+      "at": "2026-09-07T19:31:08.778114+00:00",
+      "argv": [
+        "/home/ccheever/clique-tooling/epyc-linux-tooling-20260907T010007Z-0fd567d96f/node-v22.23.2-linux-x64/bin/node",
+        "types-final.mjs",
+        "parent",
+        "both"
+      ],
+      "cwd": "/home/ccheever/clique-revisions/compiler-dx-v2-r1-44faf-20260907",
+      "pid": 117336,
+      "deadlineSeconds": 30,
+      "elapsedSeconds": 5.379194031003863,
+      "exit": 0,
+      "timeout": false,
+      "inboxAck": "65c9649f4243ef06bbd8f8bcb16d33c8c125fedaf65adee00be2847ad3b38702",
+      "stdoutSha256": "6516fcabe0d9e249ef3310f205498c1daf2add62b647cf58d610f54d71e81d4f",
+      "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "candidate-production-types-fixed": {
+      "at": "2026-09-07T19:22:33.880539+00:00",
+      "argv": [
+        "/home/ccheever/clique-tooling/epyc-linux-tooling-20260907T010007Z-0fd567d96f/node-v22.23.2-linux-x64/bin/node",
+        "types-fixed.mjs",
+        "candidate",
+        "production"
+      ],
+      "cwd": "/home/ccheever/clique-revisions/compiler-dx-v2-r1-44faf-20260907",
+      "pid": 114892,
+      "deadlineSeconds": 30,
+      "elapsedSeconds": 2.32140642311424,
+      "exit": 1,
+      "timeout": false,
+      "inboxAck": "6ca4108ea58a3d60fb372d666f995677f1d996a5729eccf5917103d70c912b84",
+      "stdoutSha256": "c2d17945eb28dc018d18cb8cd4646183390c3fa618318aacdf7bf5011c2f4dee",
+      "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "candidate-affected-types": {
+      "at": "2026-09-07T19:11:46.104154+00:00",
+      "argv": [
+        "/home/ccheever/clique-tooling/epyc-linux-tooling-20260907T010007Z-0fd567d96f/node-v22.23.2-linux-x64/bin/node",
+        "types.mjs",
+        "candidate",
+        "affected"
+      ],
+      "cwd": "/home/ccheever/clique-revisions/compiler-dx-v2-r1-44faf-20260907",
+      "pid": 73763,
+      "deadlineSeconds": 30,
+      "elapsedSeconds": 0.03243660391308367,
+      "exit": 1,
+      "timeout": false,
+      "inboxAck": "6232b03bac3e2fe8ec27703ecc6c2602bdfdb32a14be1867a6f91becd6689c30",
+      "stdoutSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderrSha256": "54f51fc54abb7a934dc3ec506ab0d8fe792ca433963faaa9613eb4a4fc8ef6e9"
+    },
+    "parent-worker": {
+      "at": "2026-09-07T19:11:49.957010+00:00",
+      "argv": [
+        "/home/ccheever/clique-tooling/epyc-linux-tooling-20260907T010007Z-0fd567d96f/node-v22.23.2-linux-x64/bin/node",
+        "worker-three.mjs",
+        "parent",
+        "original-three.json"
+      ],
+      "cwd": "/home/ccheever/clique-revisions/compiler-dx-v2-r1-44faf-20260907",
+      "pid": 73818,
+      "deadlineSeconds": 30,
+      "elapsedSeconds": 0.5658016859088093,
+      "exit": 0,
+      "timeout": false,
+      "inboxAck": "6232b03bac3e2fe8ec27703ecc6c2602bdfdb32a14be1867a6f91becd6689c30",
+      "stdoutSha256": "be49f104ac54bdc84a07f064dfeddf273d7b3536a2beb3db83f810399625f8bc",
+      "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "diagnostics-12": {
+      "at": "2026-09-07T19:10:53.052675+00:00",
+      "argv": [
+        "/home/ccheever/clique-tooling/epyc-linux-tooling-20260907T010007Z-0fd567d96f/bun-v1.3.12-linux-x64/bin/bun",
+        "diagnostic-selected.ts",
+        "candidate",
+        "12",
+        "12"
+      ],
+      "cwd": "/home/ccheever/clique-revisions/compiler-dx-v2-r1-44faf-20260907",
+      "pid": 72963,
+      "deadlineSeconds": 30,
+      "elapsedSeconds": 0.716124027967453,
+      "exit": 0,
+      "timeout": false,
+      "inboxAck": "6232b03bac3e2fe8ec27703ecc6c2602bdfdb32a14be1867a6f91becd6689c30",
+      "stdoutSha256": "4d46dc5dc50f9f3857de135d3587c984f75b32aec1c33883dcc53cdfaae2e9c3",
+      "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "diagnostics-24": {
+      "at": "2026-09-07T19:10:57.650788+00:00",
+      "argv": [
+        "/home/ccheever/clique-tooling/epyc-linux-tooling-20260907T010007Z-0fd567d96f/bun-v1.3.12-linux-x64/bin/bun",
+        "diagnostic-selected.ts",
+        "candidate",
+        "24",
+        "12"
+      ],
+      "cwd": "/home/ccheever/clique-revisions/compiler-dx-v2-r1-44faf-20260907",
+      "pid": 73088,
+      "deadlineSeconds": 30,
+      "elapsedSeconds": 0.666078947018832,
+      "exit": 0,
+      "timeout": false,
+      "inboxAck": "6232b03bac3e2fe8ec27703ecc6c2602bdfdb32a14be1867a6f91becd6689c30",
+      "stdoutSha256": "0f0ea6b52b926035e5faccd060350ec565f76fcdf753673627a536834df5b521",
+      "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "candidate-original-three": {
+      "at": "2026-09-07T19:10:20.516646+00:00",
+      "argv": [
+        "/home/ccheever/clique-tooling/epyc-linux-tooling-20260907T010007Z-0fd567d96f/bun-v1.3.12-linux-x64/bin/bun",
+        "project-probe.ts",
+        "candidate",
+        "original-three.json"
+      ],
+      "cwd": "/home/ccheever/clique-revisions/compiler-dx-v2-r1-44faf-20260907",
+      "pid": 72164,
+      "deadlineSeconds": 30,
+      "elapsedSeconds": 0.4651983769144863,
+      "exit": 0,
+      "timeout": false,
+      "inboxAck": "6232b03bac3e2fe8ec27703ecc6c2602bdfdb32a14be1867a6f91becd6689c30",
+      "stdoutSha256": "27b126696b55ddf927754f7cb1d1b7b482700d39cba49af58768e2d9d54f4e1b",
+      "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "diagnostics-48": {
+      "at": "2026-09-07T19:11:06.459251+00:00",
+      "argv": [
+        "/home/ccheever/clique-tooling/epyc-linux-tooling-20260907T010007Z-0fd567d96f/bun-v1.3.12-linux-x64/bin/bun",
+        "diagnostic-selected.ts",
+        "candidate",
+        "48",
+        "3"
+      ],
+      "cwd": "/home/ccheever/clique-revisions/compiler-dx-v2-r1-44faf-20260907",
+      "pid": 73231,
+      "deadlineSeconds": 30,
+      "elapsedSeconds": 0.3652187332045287,
+      "exit": 0,
+      "timeout": false,
+      "inboxAck": "6232b03bac3e2fe8ec27703ecc6c2602bdfdb32a14be1867a6f91becd6689c30",
+      "stdoutSha256": "a83700a8afccc6d004be09b91bc43bef697f958d149dbcc4724bd4193fa0a453",
+      "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  },
+  "acceptedEquality": true,
+  "allWorkerEquality": true,
+  "diagnosticFailures": []
+}

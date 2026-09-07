@@ -1,0 +1,68 @@
+[
+  {
+    "name": "original14",
+    "parentOk": false,
+    "candidateOk": false,
+    "completeAcceptedEqual": null
+  },
+  {
+    "name": "original17",
+    "parentOk": false,
+    "candidateOk": false,
+    "completeAcceptedEqual": null
+  },
+  {
+    "name": "original18",
+    "parentOk": true,
+    "candidateOk": true,
+    "completeAcceptedEqual": true
+  },
+  {
+    "name": "main table and operation alias compiler-only derivative",
+    "parentOk": true,
+    "candidateOk": true,
+    "completeAcceptedEqual": true
+  },
+  {
+    "name": "main operation helper collision refusal",
+    "parentOk": false,
+    "candidateOk": false,
+    "completeAcceptedEqual": null
+  },
+  {
+    "name": "main operation effect collision refusal",
+    "parentOk": false,
+    "candidateOk": false,
+    "completeAcceptedEqual": null
+  },
+  {
+    "name": "main effect helper collision refusal",
+    "parentOk": false,
+    "candidateOk": false,
+    "completeAcceptedEqual": null
+  },
+  {
+    "name": "main effect orderedPair collision refusal",
+    "parentOk": false,
+    "candidateOk": false,
+    "completeAcceptedEqual": null
+  },
+  {
+    "name": "main cap complete direct compiler-only form",
+    "parentOk": true,
+    "candidateOk": true,
+    "completeAcceptedEqual": true
+  },
+  {
+    "name": "main cap complete bound compiler-only form",
+    "parentOk": true,
+    "candidateOk": true,
+    "completeAcceptedEqual": true
+  },
+  {
+    "name": "main cap complete shaped compiler-only form",
+    "parentOk": true,
+    "candidateOk": true,
+    "completeAcceptedEqual": true
+  }
+]

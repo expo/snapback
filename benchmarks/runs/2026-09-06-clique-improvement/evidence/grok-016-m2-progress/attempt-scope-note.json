@@ -1,0 +1,61 @@
+{
+  "observedAt": "2026-09-07T19:50:45.233055+00:00",
+  "receiptSha256": "33504794fda1aafe7002c1186c0b34fc5da9874c8cc93517ed6060782d507782",
+  "scope": "Formal9/9 assertion/segment pass follows original harness best-of3 semantics; not all attempts passed and not native or scale coverage.",
+  "assertionsWithFailedAttempts": [
+    {
+      "assertion": "follow-unfollow-live-projection",
+      "formalAssertionPass": true,
+      "bestOf": 3,
+      "selection": {
+        "selection": "fastest passing attempt; all three retained",
+        "selectedAttempt": 3,
+        "reason": null
+      },
+      "failedAttempts": [
+        {
+          "attempt": 1,
+          "pass": false,
+          "startedAt": "2026-09-07T19:46:29.382Z",
+          "durationMs": 23050.2,
+          "settlementWaitMs": 21349.3,
+          "metrics": {},
+          "error": "Bob's Following projection after follow toggle did not become observable within 20000ms",
+          "outcomeClass": "application"
+        }
+      ]
+    },
+    {
+      "assertion": "repost-following-feed-surface",
+      "formalAssertionPass": true,
+      "bestOf": 3,
+      "selection": {
+        "selection": "fastest passing attempt; all three retained",
+        "selectedAttempt": 1,
+        "reason": null
+      },
+      "failedAttempts": [
+        {
+          "attempt": 2,
+          "pass": false,
+          "startedAt": "2026-09-07T19:47:19.811Z",
+          "durationMs": 2589.7,
+          "settlementWaitMs": 1594.5,
+          "metrics": {},
+          "error": "viewer-repost of an unfollowed author was counted as a direct follow-projection hit",
+          "outcomeClass": "application"
+        },
+        {
+          "attempt": 3,
+          "pass": false,
+          "startedAt": "2026-09-07T19:47:23.129Z",
+          "durationMs": 3255.7,
+          "settlementWaitMs": 2220.9,
+          "metrics": {},
+          "error": "viewer-repost of an unfollowed author was counted as a direct follow-projection hit",
+          "outcomeClass": "application"
+        }
+      ]
+    }
+  ]
+}

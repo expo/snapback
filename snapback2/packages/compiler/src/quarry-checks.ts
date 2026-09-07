@@ -22,6 +22,7 @@ import { registerQuarryDirectContractChecks } from "./quarry-direct-contract-che
 import { runQuarryBoundApiChecks } from "./quarry-bound-api-checks";
 import { registerQuarryDirectSearchEligibilityChecks } from "./quarry-direct-search-eligibility-checks";
 import { registerQuarryChatCompositionChecks } from "./quarry-chat-composition-checks";
+import { registerQuarryDiagnosticChecks } from "./quarry-diagnostic-checks";
 import ts from "typescript";
 
 export function registerQuarryChecks(test: Test, frontend: string): void {
@@ -34,6 +35,7 @@ export function registerQuarryChecks(test: Test, frontend: string): void {
   registerQuarryDirectSearchEligibilityChecks(test);
   registerQuarryDirectProjectChecks(test, frontend);
   registerQuarryChatCompositionChecks(test, frontend);
+  registerQuarryDiagnosticChecks(test);
   test("removed system rule refuses in the parser with a deny rewrite", () => {
     for (const rule of [
       "system", "allow or system", "not system", "(deny or system)",
@@ -322,10 +324,12 @@ maintain clipTotals = count events by clip:
         { fileName: "snapback/ops.q", source: `mutation ${name.replaceAll("-", "_")}(${argument}):\n  return insert media { ${assignment} }\n` },
       ]);
       const refusal = result.ok ? undefined : result.diagnostics.find((item) => item.code === "E_QUARRY_TYPE");
+      const presenceRepair = actual.includes("or null");
       assert(refusal?.family === "quarry" && refusal.site.startsWith("snapback/ops.q:2:")
         && refusal.message.includes(`${field} expects`) && refusal.message.includes(", got ")
         && refusal.message.includes(expected.includes("video") || actual.includes("video") ? "video asset" : "image asset")
-        && refusal.rewrite.includes("use a ") && refusal.rewrite.includes(field),
+        && refusal.rewrite.includes(field)
+        && (presenceRepair ? refusal.rewrite.includes("! else CODE") : refusal.rewrite.includes("use a ")),
       `${name} lost its recursive kind refusal/rewrite: ${JSON.stringify(result)}`);
     }
 

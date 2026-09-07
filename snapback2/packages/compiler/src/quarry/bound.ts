@@ -1,7 +1,7 @@
 import { basename } from "node:path";
 import type { Provenance } from "../ir";
 import { columnAt, derivedPosition, ordinaryColumns } from "../index-components";
-import type { Document, Expr, IndexDecl, ProgramDecl, ScalarType, ShapeField, Site, Stmt as QuarryStatement, TableCatalog } from "./ast";
+import type { Document, Expr, IndexDecl, ProgramDecl, QuarryDiagnostic, ScalarType, ShapeField, Site, Stmt as QuarryStatement, TableCatalog } from "./ast";
 import { selectIndex } from "./catalog";
 import { decimalScale, opaque, QuarryError, refuse, typeError, unsupported } from "./diagnostics";
 import { completionFacts } from "./bound-control";
@@ -9,8 +9,12 @@ import { bindBuiltinCall } from "./bound-builtins";
 import { BoundFunctionRegistry, BoundShapeRegistry } from "./bound-declarations";
 import { validateCursorIndex, validatePageableMergeIndex } from "./bound-index-validation";
 import { siteText, sourceStack, typeName, withoutExpansion } from "./bound-source";
+import { assignableBoundValue, binaryOperator, boolType, brandedType, coalescedType, combineOrigins, comparable,
+  contextualPair, contextualTarget, contextualValue, decimalPlaces, facts, idFallbackCompatible, isScalar, joinFacts,
+  joinType, numericAmount, optionalType, orderedType, projectedField, representationMismatch, requiredType, sameBrand, scalarForIndex,
+  scalarType, writeAssignable } from "./bound-values";
 import { quarryExpression, quarryWriteWithoutField } from "./print";
-import type { BoundArgumentSymbol, BoundExpression, BoundHeldSearch, BoundIndexSymbol, BoundLocalSymbol, BoundPresence,
+import type { BoundArgumentSymbol, BoundExpression, BoundHeldSearch, BoundIndexSymbol, BoundLocalSymbol,
   BoundMergeLane, BoundQuarryProgram, BoundRead, BoundSourceStack, BoundStatement, BoundTableSymbol, BoundType,
   BoundValueFacts, BoundValueSymbol } from "./bound-model";
 
@@ -19,9 +23,43 @@ const MAX_EXPANDED_NODES = 4096;
 const CONTEXT_NAMES = new Set(["viewer", "now", "commit", "new"]);
 
 export * from "./bound-model";
+export { assignableBoundValue } from "./bound-values";
 
 /** Bind one operation without routing its data plane through generated TypeScript. */
 export function bindQuarryProgram(program: ProgramDecl, catalog: TableCatalog, documents: Document[] = []): BoundQuarryProgram {
+  return bindProgram(program, catalog, documents);
+}
+
+export type BoundQuarryProgramAttempt = {
+  program?: BoundQuarryProgram;
+  diagnostics: QuarryDiagnostic[];
+};
+
+/** Diagnostic recovery discards an invalid statement and any binding it would
+ * have introduced. The partial bound body is never executable project output;
+ * it exists only so later independent statements and effect modules can be
+ * checked without granting facts from the failed statement. */
+export function tryBindQuarryProgram(
+  program: ProgramDecl,
+  catalog: TableCatalog,
+  documents: Document[] = [],
+): BoundQuarryProgramAttempt {
+  const diagnostics: QuarryDiagnostic[] = [];
+  try {
+    return { program: bindProgram(program, catalog, documents, diagnostics), diagnostics };
+  } catch (error) {
+    if (!(error instanceof QuarryError)) throw error;
+    diagnostics.push(error.diagnostic);
+    return { diagnostics };
+  }
+}
+
+function bindProgram(
+  program: ProgramDecl,
+  catalog: TableCatalog,
+  documents: Document[],
+  diagnostics?: QuarryDiagnostic[],
+): BoundQuarryProgram {
   const operationName = `${basename(program.site.file, ".q")}.${program.name}`;
   const args = program.args.map((arg, index): BoundArgumentSymbol => ({
     kind: "argument", id: `${operationName}:argument:${index}`, name: arg.name,
@@ -43,6 +81,7 @@ export function bindQuarryProgram(program: ProgramDecl, catalog: TableCatalog, d
     { nodes: 0, expansionId: 0, shapeId: 0 }, focal,
     new Map(documents.find((document) => document.file === program.site.file)?.effects
       .map((effect) => [effect.name, `${effect.module}.${effect.name}`] as const) ?? []),
+    diagnostics,
   );
   const body = binder.statements(program.body, false);
   const returns = completionFacts(body);
@@ -54,6 +93,8 @@ export function bindQuarryProgram(program: ProgramDecl, catalog: TableCatalog, d
 
 type ExpansionBudget = { nodes: number; expansionId: number; shapeId: number };
 
+class FailedBoundValue extends Error {}
+
 class ExpressionBinder {
   private focal: Extract<BoundExpression, { kind: "focal" }> | undefined;
   private expansionUse: Site | undefined;
@@ -63,6 +104,7 @@ class ExpressionBinder {
   private functionFile: string;
   private readonly expansionFrames: string[] = [];
   private localId = 0;
+  private failedBindings = new Set<string>();
 
   constructor(
     private readonly program: ProgramDecl,
@@ -73,6 +115,7 @@ class ExpressionBinder {
     private readonly budget: ExpansionBudget,
     initialFocal?: Extract<BoundExpression, { kind: "focal" }>,
     private readonly effects = new Map<string, string>(),
+    private readonly diagnostics?: QuarryDiagnostic[],
   ) {
     this.shapeFile = program.site.file;
     this.functionFile = program.site.file;
@@ -85,6 +128,16 @@ class ExpressionBinder {
     for (const [statementIndex, statement] of statements.entries()) {
       const completes = completion && statementIndex === statements.length - 1;
       const source = this.source(statement.site);
+      // @ref LLP 1002#3-the-compiler-worker-and-the-project-json — recovery
+      // journals only names this statement can publish; valid binding stays linear.
+      const checkpoint = {
+        localId: this.localId, nodes: this.budget.nodes, expansionId: this.budget.expansionId,
+        shapeId: this.budget.shapeId,
+        bindings: statement.kind === "bind" ? statement.names.map((name) => ({
+          name, symbol: this.scope.get(name), failed: this.failedBindings.has(name), declared: declaredHere.has(name),
+        })) : [],
+      };
+      try {
       if (statement.kind === "return") {
         bound.push({ kind: "return", value: this.expression(statement.value), source });
       } else if (statement.kind === "bind") {
@@ -116,6 +169,7 @@ class ExpressionBinder {
             name, facts: symbolFacts, source,
           };
           this.scope.set(name, symbol);
+          this.failedBindings.delete(name);
           declaredHere.add(name);
           return symbol;
         });
@@ -138,15 +192,19 @@ class ExpressionBinder {
         const condition = this.expression(statement.condition);
         requireBool(condition, statement.condition.site);
         const prior = this.scope;
+        const priorFailed = this.failedBindings;
         let thenBody: BoundStatement[];
         let elseBody: BoundStatement[];
         try {
           this.scope = narrowedScope(condition, prior, true);
+          this.failedBindings = new Set(priorFailed);
           thenBody = this.statements(statement.thenBody, true, completes);
           this.scope = narrowedScope(condition, prior, false);
+          this.failedBindings = new Set(priorFailed);
           elseBody = this.statements(statement.elseBody, true, completes);
         } finally {
           this.scope = prior;
+          this.failedBindings = priorFailed;
         }
         bound.push({ kind: "if", condition, thenBody, elseBody, source });
       } else if (statement.kind === "for") {
@@ -157,13 +215,17 @@ class ExpressionBinder {
           name: statement.name, facts: item, source,
         };
         const prior = this.scope;
+        const priorFailed = this.failedBindings;
         let body: BoundStatement[];
         try {
           this.scope = new Map(prior);
+          this.failedBindings = new Set(priorFailed);
           this.scope.set(statement.name, symbol);
+          this.failedBindings.delete(statement.name);
           body = this.statements(statement.body, true, false);
         } finally {
           this.scope = prior;
+          this.failedBindings = priorFailed;
         }
         bound.push({ kind: "for", symbol, domain, body, source });
       } else if (statement.kind === "match") {
@@ -179,16 +241,21 @@ class ExpressionBinder {
           }), source,
         };
         const prior = this.scope;
+        const priorFailed = this.failedBindings;
         let someBody: BoundStatement[];
         let noneBody: BoundStatement[];
         try {
           this.scope = new Map(prior);
+          this.failedBindings = new Set(priorFailed);
           this.scope.set(statement.someName, symbol);
+          this.failedBindings.delete(statement.someName);
           someBody = this.statements(statement.someBody, true, completes);
           this.scope = new Map(prior);
+          this.failedBindings = new Set(priorFailed);
           noneBody = this.statements(statement.noneBody, true, completes);
         } finally {
           this.scope = prior;
+          this.failedBindings = priorFailed;
         }
         bound.push({ kind: "match", value: point, symbol, someBody, noneBody, source });
       } else if (statement.kind === "expr") {
@@ -196,6 +263,26 @@ class ExpressionBinder {
         if (!completes && value.kind !== "write") refuse(this.diagnosticSite(statement.site),
           "a non-final expression must be a write; bind it if its value is needed");
         bound.push({ kind: "expr", value, completion: completes, source });
+      }
+      } catch (error) {
+        if (!this.diagnostics || (!(error instanceof QuarryError) && !(error instanceof FailedBoundValue))) throw error;
+        this.localId = checkpoint.localId;
+        this.budget.nodes = checkpoint.nodes;
+        this.budget.expansionId = checkpoint.expansionId;
+        this.budget.shapeId = checkpoint.shapeId;
+        for (const binding of checkpoint.bindings) {
+          if (binding.symbol) this.scope.set(binding.name, binding.symbol);
+          else this.scope.delete(binding.name);
+          if (binding.failed) this.failedBindings.add(binding.name);
+          else this.failedBindings.delete(binding.name);
+          if (binding.declared) declaredHere.add(binding.name);
+          else declaredHere.delete(binding.name);
+        }
+        if (statement.kind === "bind") for (const name of statement.names) {
+          this.scope.delete(name);
+          this.failedBindings.add(name);
+        }
+        if (error instanceof QuarryError) this.diagnostics.push(error.diagnostic);
       }
     }
     return bound;
@@ -348,7 +435,13 @@ class ExpressionBinder {
           field.value ?? { kind: "name", name: field.name, site: field.site }, expected);
         if (!writeAssignable(value.facts.type, expected, field.value)) {
           const message = `${field.name} expects ${typeName(expected)}, got ${typeName(value.facts.type)}`;
-          const rewrite = `use a ${typeName(expected)} value for ${field.name}`;
+          const authored = field.value ?? { kind: "name" as const, name: field.name, site: field.site };
+          const present = requiredType(value.facts.type);
+          const rewrite = value.facts.presence === "optional" && !expected.optional
+            && assignableBoundValue(present, expected)
+            ? `set ${field.name} to ${quarryExpression(authored)}! else CODE`
+            : expected.kind === "bool" ? `use true or false for ${field.name}`
+              : `use a ${typeName(expected)} value for ${field.name}`;
           if (representationMismatch(value.facts.type, expected)) decimalScale(this.diagnosticSite(field.site), message, rewrite);
           typeError(this.diagnosticSite(field.site), message, rewrite);
         }
@@ -417,6 +510,7 @@ class ExpressionBinder {
       );
       return this.contextName(name, source, site);
     }
+    if (this.failedBindings.has(name)) throw new FailedBoundValue(name);
     const argument = this.scope.get(name);
     if (argument) return { kind: "variable", symbol: argument,
       facts: argument.kind === "argument" ? facts(argument.type, argument.origin) : argument.facts, source };
@@ -809,11 +903,12 @@ class ExpressionBinder {
       return { symbol, value, ...(value.facts.type.kind === "row" ? { coercion: "row-id" as const } : {}) };
     });
     const prior = {
-      scope: this.scope, use: this.expansionUse, helperDepth: this.helperDepth,
+      scope: this.scope, failedBindings: this.failedBindings, use: this.expansionUse, helperDepth: this.helperDepth,
       namedShapeDepth: this.namedShapeDepth, functionFile: this.functionFile, shapeFile: this.shapeFile,
       focal: this.focal,
     };
     this.scope = new Map(bindings.map((binding) => [binding.symbol.name, binding.symbol]));
+    this.failedBindings = new Set();
     this.expansionUse = this.expansionUse ?? expression.site;
     this.helperDepth += 1;
     this.namedShapeDepth = 0;
@@ -827,6 +922,7 @@ class ExpressionBinder {
     } finally {
       this.expansionFrames.pop();
       this.scope = prior.scope;
+      this.failedBindings = prior.failedBindings;
       this.expansionUse = prior.use;
       this.helperDepth = prior.helperDepth;
       this.namedShapeDepth = prior.namedShapeDepth;
@@ -879,6 +975,7 @@ class ExpressionBinder {
       let sourceRead: BoundRead | undefined;
       let symbol: BoundLocalSymbol | undefined;
       const prior = this.scope;
+      const priorFailed = this.failedBindings;
       try {
         if (lane.loop) {
           sourceRead = this.boundRead(lane.loop.domain, "range");
@@ -887,7 +984,9 @@ class ExpressionBinder {
               tableOrigin: sourceRead.table, readOrigin: sourceRead,
             }), source: this.source(lane.site) };
           this.scope = new Map(prior);
+          this.failedBindings = new Set(priorFailed);
           this.scope.set(symbol.name, symbol);
+          this.failedBindings.delete(symbol.name);
         }
         const readExpression: Extract<Expr, { kind: "read" }> = {
           kind: "read", table: expression.table,
@@ -896,11 +995,27 @@ class ExpressionBinder {
           range: { order: expression.order, take: expression.take, site: lane.site },
           site: lane.site,
         };
-        const scan = this.boundRead(readExpression, "range");
+        const prefix = lane.prefix.map((authored, offset) => {
+          const value = this.expression(authored);
+          const column = columnAt(declaration.components, offset);
+          if (!column) return value;
+          const expected = column === "id"
+            ? { kind: "ref", table: expression.table, optional: false } satisfies ScalarType
+            : tableInfo.columns.get(column);
+          const contextual = expected ? contextualValue(value, expected, authored.site) : value;
+          if (expected && !assignableBoundValue(contextual.facts.type, expected)) typeError(
+            this.diagnosticSite(authored.site),
+            `merge lane key ${offset + 1} is ${typeName(contextual.facts.type)}; ${expression.table}.${declaration.name}.${column} is ${typeName(expected)}`,
+            `use a ${typeName(expected)} value for merge lane key ${offset + 1}`,
+          );
+          return contextual;
+        });
+        const scan = this.boundRead(readExpression, "range", prefix);
         scan.range = { ...scan.range!, after, opaqueCursor: after !== null, mergeSite };
         return { ...(sourceRead ? { sourceRead } : {}), ...(symbol ? { symbol } : {}), scan, source: this.source(lane.site) };
       } finally {
         this.scope = prior;
+        this.failedBindings = priorFailed;
       }
     });
     const heldSearch = this.heldSearch(expression, declaration, lanes);
@@ -955,12 +1070,18 @@ class ExpressionBinder {
     return { term, termComponent, scope, suffix, authorizationIndex: authorization.name };
   }
 
-  private boundRead(expression: Extract<Expr, { kind: "read" }>, mode: "point" | "range" | "exists"): BoundRead {
+  private boundRead(
+    expression: Extract<Expr, { kind: "read" }>,
+    mode: "point" | "range" | "exists",
+    boundKeys?: BoundExpression[],
+  ): BoundRead {
     const tableInfo = this.catalog.get(expression.table);
     if (!tableInfo) refuse(expression.site, `unknown table ${expression.table}`);
     const table: BoundTableSymbol = { kind: "table", id: `table:${expression.table}`, name: expression.table,
       declaration: tableInfo.declaration, source: sourceStack(tableInfo.declaration.site) };
-    let keyed = expression.keys.map((part) => ({ authored: part.value, bound: this.expression(part.value) }));
+    let keyed = expression.keys.map((part, index) => ({
+      authored: part.value, bound: boundKeys?.[index] ?? this.expression(part.value),
+    }));
     const selected = selectIndex(this.catalog, expression.table, expression.keys, mode, expression.index,
       (authored) => scalarForIndex(keyed.find((item) => item.authored === authored)?.bound.facts.type), expression.site);
     validateCursorIndex(expression.table, selected, expression.keys.length, expression.range?.cursor?.site);
@@ -1000,120 +1121,6 @@ class ExpressionBinder {
   private diagnosticSite(site: Site, useSite = this.expansionUse): Site {
     return useSite ? { ...site, expandedFrom: useSite } : site;
   }
-}
-
-function joinFacts(values: BoundValueFacts[], site: Site): BoundValueFacts {
-  const type = values.slice(1).reduce((joined, value) => joinType(joined, value.type, site), values[0]!.type);
-  const origins = new Set(values.map((value) => value.origin).filter((origin) => origin !== "Const"));
-  const originated = values.filter((value) => value.type.kind !== "null");
-  const tableOrigin = originated[0]?.tableOrigin;
-  const readOrigin = originated[0]?.readOrigin;
-  const fieldProjection = values.every((value) => value.fieldProjection === "inherited-row")
-    ? "inherited-row" : values.some((value) => value.fieldProjection) ? "constructed" : undefined;
-  return { ...facts(type, origins.size === 0 ? "Const" : origins.size === 1 ? [...origins][0]! : "Computed", {
-    ...(values.some((value) => value.max !== undefined) ? { max: Math.max(...values.map((value) => value.max ?? 0)) } : {}),
-    ...(tableOrigin && originated.every((value) => value.tableOrigin?.id === tableOrigin.id) ? { tableOrigin } : {}),
-    ...(readOrigin && originated.every((value) => value.readOrigin === readOrigin) ? { readOrigin } : {}),
-    ...(fieldProjection ? { fieldProjection } : {}),
-    ...(originated.length > 0 && originated.every((value) => value.wholeUnits) ? { wholeUnits: true } : {}),
-  }), presence: values.some((value) => value.presence === "optional") ? "optional" : "required" };
-}
-
-function rowObjectType(row: Extract<BoundType, { kind: "row" }>): Extract<BoundType, { kind: "object" }> {
-  const fields = new Map<string, BoundValueFacts>();
-  fields.set("id", facts({ kind: "ref", table: row.table.name, optional: row.nullable }, "Shape", {
-    tableOrigin: row.table, fieldProjection: "inherited-row",
-  }));
-  for (const column of row.table.declaration.columns) {
-    fields.set(column.name, facts({ ...column.type, optional: column.type.optional || row.nullable } as ScalarType, "Shape", {
-      tableOrigin: row.table, fieldProjection: "inherited-row",
-    }));
-  }
-  return { kind: "object", fields, nullable: row.nullable };
-}
-
-function joinType(left: BoundType, right: BoundType, site: Site): BoundType {
-  if (left.kind === "null") return optionalType(right);
-  if (right.kind === "null") return optionalType(left);
-  if (left.kind === "empty-list" && right.kind === "empty-list") return left;
-  if (left.kind === "empty-list" && right.kind === "list") return right;
-  if (left.kind === "list" && right.kind === "empty-list") return left;
-  if (left.kind === "ref" && right.kind === "id") return { ...left, optional: left.optional || right.optional };
-  if (left.kind === "id" && right.kind === "ref") return { ...right, optional: left.optional || right.optional };
-  if (left.kind === "row" && right.kind === "object") left = rowObjectType(left);
-  if (left.kind === "object" && right.kind === "row") right = rowObjectType(right);
-  if (left.kind !== right.kind) typeError(site,
-    `conditional returns disagree: ${typeName(left)} and ${typeName(right)}`,
-    "return the same value type from every branch");
-  if (left.kind === "row" && right.kind === "row") {
-    if (left.table.name !== right.table.name) typeError(site, "conditional returns rows from different tables", "return rows from one table");
-    return { ...left, nullable: left.nullable || right.nullable };
-  }
-  if (left.kind === "page" && right.kind === "page") {
-    if (left.table.name !== right.table.name) typeError(site, "conditional returns pages from different tables", "return pages from one table");
-    const rawItem = (page: typeof left): BoundValueFacts => facts(
-      { kind: "row", table: page.table, nullable: false }, "Shape", { tableOrigin: page.table },
-    );
-    const item = joinFacts([left.item ?? rawItem(left), right.item ?? rawItem(right)], site);
-    return { ...left, item, max: Math.max(left.max, right.max) };
-  }
-  if (left.kind === "collection" && right.kind === "collection") {
-    return { kind: "collection", item: joinFacts([left.item, right.item], site), max: Math.max(left.max, right.max) };
-  }
-  if (left.kind === "object" && right.kind === "object") {
-    const leftNames = [...left.fields.keys()];
-    const rightNames = [...right.fields.keys()];
-    if (leftNames.length !== rightNames.length || leftNames.some((name) => !right.fields.has(name))) typeError(site,
-      "conditional returns objects with different fields", "return the same object fields from every branch");
-    return { kind: "object", nullable: left.nullable || right.nullable,
-      fields: new Map(leftNames.map((name) => [name, joinFacts([left.fields.get(name)!, right.fields.get(name)!], site)])) };
-  }
-  if (left.kind === "numeric-literal" && right.kind === "numeric-literal") {
-    return { kind: "numeric-literal", fractionalDigits: Math.max(left.fractionalDigits, right.fractionalDigits) };
-  }
-  if (!isScalar(left) || !isScalar(right)) return left;
-  if (left.kind === "ref" && right.kind === "ref" && left.table !== right.table) typeError(site,
-    `conditional returns ${left.table} and ${right.table} references`, "return references to one table");
-  if (left.kind === "decimal" && right.kind === "decimal" && left.scale !== right.scale) decimalScale(site,
-    `conditional returns decimal ${left.scale} and decimal ${right.scale}`, "return decimals with one scale");
-  if (left.kind === "money" && right.kind === "money"
-    && (left.currency !== right.currency || left.scale !== right.scale)) {
-    if (left.currency === right.currency) decimalScale(site,
-      "conditional returns money with different scales", "return money with one scale");
-    typeError(site, "conditional returns different money brands", "return money with one currency and scale");
-  }
-  if (left.kind === "list" && right.kind === "list") {
-    const item = joinType(left.item, right.item, site);
-    if (!isScalar(item)) typeError(site, "conditional list items disagree", "return lists with one scalar item type");
-    return { ...left, item, max: Math.max(left.max, right.max), optional: left.optional || right.optional };
-  }
-  if (left.kind === "text" && right.kind === "text") {
-    const { min: _leftMin, format: _leftFormat, ...base } = left;
-    const min = Math.min(left.min ?? 0, right.min ?? 0);
-    return {
-      ...base, max: Math.max(left.max, right.max),
-      ...(min > 0 ? { min } : {}),
-      ...(left.format === right.format && left.format ? { format: left.format } : {}),
-      optional: left.optional || right.optional,
-    };
-  }
-  if (left.kind === "enum" && right.kind === "enum") return {
-    ...left, variants: [...new Set([...left.variants, ...right.variants])], optional: left.optional || right.optional,
-  };
-  if (left.kind === "bytes" && right.kind === "bytes") return {
-    ...left, max: Math.max(left.max, right.max), optional: left.optional || right.optional,
-  };
-  if (left.kind === "image" && right.kind === "image") return {
-    kind: "image", max: Math.max(left.max, right.max),
-    ...(left.once && right.once ? { once: true } : {}), optional: left.optional || right.optional,
-  };
-  if (left.kind === "video" && right.kind === "video") return {
-    ...left, max: Math.max(left.max, right.max), optional: left.optional || right.optional,
-  };
-  if (left.kind === "json" && right.kind === "json") return {
-    ...left, max: Math.max(left.max, right.max), optional: left.optional || right.optional,
-  };
-  return { ...left, optional: left.optional || right.optional } as ScalarType;
 }
 
 function tupleFieldFacts(value: BoundValueFacts, name: string, site: Site): BoundValueFacts {
@@ -1182,266 +1189,6 @@ function validateRefusalCode(site: Site, code: string): void {
     "E_OP_RESERVED", "ACCESS_DENIED", undefined, true);
 }
 
-function contextualValue(expression: BoundExpression, target: ScalarType, site: Site): BoundExpression {
-  if (expression.kind === "array" && target.kind === "list") {
-    const itemTarget = { ...target.item, optional: target.item.optional } as ScalarType;
-    const items = expression.items.map((item) => contextualValue(item, itemTarget, item.source.definition));
-    const mismatch = items.find((item) => !assignableBoundValue(item.facts.type, itemTarget));
-    if (mismatch) {
-      const message = `list item expects ${typeName(itemTarget)}, got ${typeName(mismatch.facts.type)}`;
-      const rewrite = `use ${typeName(itemTarget)} values in this list`;
-      if (representationMismatch(mismatch.facts.type, itemTarget)) decimalScale(site, message, rewrite);
-      typeError(site, message, rewrite);
-    }
-    return { ...expression, items, facts: facts({
-      kind: "list", item: structuredClone(itemTarget), max: items.length, optional: false,
-    }, combineOrigins(items), { max: items.length,
-      ...(items.every((item) => item.facts.wholeUnits) ? { wholeUnits: true } : {}) }) };
-  }
-  if (numericLiteralExpression(expression) && numericTarget(target)) return contextualLiteral(expression, target, site);
-  if (expression.facts.wholeUnits && expression.facts.type.kind === "int"
-    && (target.kind === "decimal" || target.kind === "money")) {
-    if (expression.facts.presence === "optional" && !target.optional) return expression;
-    const preserveNull = expression.facts.presence === "optional";
-    return { kind: "scale", value: expression, multiplier: 10 ** target.scale, preserveNull,
-      facts: facts({ ...target, optional: preserveNull }, expression.facts.origin), source: expression.source };
-  }
-  if (expression.facts.wholeUnits && expression.facts.type.kind === "list" && target.kind === "list"
-    && expression.facts.type.item.kind === "int"
-    && (target.item.kind === "decimal" || target.item.kind === "money")) {
-    if (expression.facts.presence === "optional" && !target.optional) return expression;
-    const preserveNull = expression.facts.presence === "optional";
-    return { kind: "scale-list", value: expression, multiplier: 10 ** target.item.scale,
-      max: expression.facts.type.max, preserveNull, facts: facts({
-        ...target, item: { ...target.item, optional: false }, max: expression.facts.type.max, optional: preserveNull,
-      }, expression.facts.origin, { max: expression.facts.type.max }), source: expression.source };
-  }
-  if (stringLiteralExpression(expression) && (target.kind === "id" || target.kind === "ref" || target.kind === "enum")) {
-    return contextualLiteral(expression, target, site);
-  }
-  return expression;
-}
-
-function contextualPair(left: BoundExpression, right: BoundExpression, site: Site): [BoundExpression, BoundExpression] {
-  const leftTarget = contextualTarget(right.facts.type);
-  const rightTarget = contextualTarget(left.facts.type);
-  if (leftTarget) left = contextualValue(left, leftTarget, site);
-  if (rightTarget) right = contextualValue(right, rightTarget, site);
-  return [left, right];
-}
-
-function contextualTarget(type: BoundType): ScalarType | undefined {
-  if (type.kind === "row") return { kind: "ref", table: type.table.name, optional: type.nullable };
-  return isScalar(type) ? type : undefined;
-}
-
-function contextualLiteral(expression: BoundExpression, target: ScalarType, site: Site): BoundExpression {
-  if (expression.kind === "unary" && expression.op === "Neg") {
-    const value = contextualLiteral(expression.value, target, site);
-    return { ...expression, value, facts: facts({ ...target, optional: false } as ScalarType, expression.facts.origin, {
-      ...(target.kind === "int" ? { wholeUnits: true } : {}),
-    }) };
-  }
-  if (expression.kind !== "literal") return expression;
-  if (typeof expression.value === "string" && target.kind === "enum") {
-    if (!target.variants.includes(expression.value)) typeError(site,
-      `enum literal ${JSON.stringify(expression.value)} is not one of ${target.variants.join(", ")}`,
-      `use one of ${target.variants.map((variant) => JSON.stringify(variant)).join(", ")}`);
-    return { ...expression, facts: facts({ ...target, optional: false }, expression.facts.origin) };
-  }
-  if (typeof expression.value === "string" && (target.kind === "id" || target.kind === "ref")) {
-    if (expression.value.length === 0) typeError(site, "Id literals cannot be empty", "use a non-empty Id literal");
-    return { ...expression, wireKind: "id", facts: facts({ ...target, optional: false } as ScalarType, expression.facts.origin) };
-  }
-  if (typeof expression.value !== "number" || !numericTarget(target)) return expression;
-  const text = expression.numericText ?? String(expression.value);
-  const scale = target.kind === "decimal" || target.kind === "money" ? target.scale : 0;
-  const wireValue = scaledInteger(text, scale);
-  if (wireValue === undefined) {
-    const message = `${decimalPlaces(text)} fractional digits do not fit ${typeName(target)}`;
-    const rewrite = target.kind === "decimal" || target.kind === "money" ? `use at most ${target.scale} fractional digits` : "use an integer literal";
-    if (target.kind === "decimal" || target.kind === "money") decimalScale(site, message, rewrite);
-    typeError(site, message, rewrite);
-  }
-  return { ...expression, wireValue, facts: facts({ ...target, optional: false } as ScalarType, expression.facts.origin, {
-    ...(target.kind === "int" ? { wholeUnits: true } : {}),
-  }) };
-}
-
-function numericLiteralExpression(expression: BoundExpression): boolean {
-  return expression.kind === "literal" && typeof expression.value === "number"
-    || expression.kind === "unary" && expression.op === "Neg" && numericLiteralExpression(expression.value);
-}
-function stringLiteralExpression(expression: BoundExpression): boolean {
-  return expression.kind === "literal" && typeof expression.value === "string";
-}
-function numericTarget(type: ScalarType): type is Extract<ScalarType, { kind: "int" | "decimal" | "money" }> {
-  return ["int", "decimal", "money"].includes(type.kind);
-}
-function numericAmount(type: BoundType): boolean {
-  return (type.kind === "int" || type.kind === "decimal" || type.kind === "money") && !type.optional
-    || type.kind === "numeric-literal";
-}
-function brandedType(type: BoundType): Extract<ScalarType, { kind: "decimal" | "money" }> | undefined {
-  return type.kind === "decimal" || type.kind === "money" ? type : undefined;
-}
-function sameBrand(left: Extract<ScalarType, { kind: "decimal" | "money" }>, right: Extract<ScalarType, { kind: "decimal" | "money" }>): boolean {
-  return left.kind === "decimal" && right.kind === "decimal" && left.scale === right.scale
-    || left.kind === "money" && right.kind === "money" && left.currency === right.currency && left.scale === right.scale;
-}
-function comparable(left: BoundType, right: BoundType): boolean {
-  if (left.kind === "row") return right.kind === "row" && left.table.name === right.table.name
-    || right.kind === "ref" && left.table.name === right.table;
-  if (right.kind === "row") return comparable(right, left);
-  if (!isScalar(left) || !isScalar(right)) return false;
-  if (left.kind === "principal" || right.kind === "principal") return left.kind === "principal" && right.kind === "principal";
-  if (left.kind === "ref" || left.kind === "id") return right.kind === "id"
-    || right.kind === "ref" && (left.kind === "id" || left.table === right.table);
-  if (right.kind === "ref" || right.kind === "id") return false;
-  if ((left.kind === "enum" && right.kind === "text") || (left.kind === "text" && right.kind === "enum")) return true;
-  if (left.kind === "decimal" || right.kind === "decimal") return left.kind === "decimal" && right.kind === "decimal" && left.scale === right.scale;
-  if (left.kind === "money" || right.kind === "money") return left.kind === "money" && right.kind === "money"
-    && left.currency === right.currency && left.scale === right.scale;
-  return left.kind === right.kind;
-}
-function orderedType(type: BoundType): boolean {
-  return ["text", "id", "principal", "int", "decimal", "money", "time", "enum", "ref"].includes(type.kind);
-}
-function idFallbackCompatible(actual: BoundType, expected: Extract<ScalarType, { kind: "id" | "ref" }>): boolean {
-  if (actual.kind === "null") return expected.optional;
-  if (actual.kind === "row") return expected.kind === "ref" && actual.table.name === expected.table;
-  if (!isScalar(actual)) return false;
-  return actual.kind === "id" || actual.kind === "ref" && (expected.kind === "id" || actual.table === expected.table);
-}
-
-function facts(type: BoundType, origin: Provenance, extra: Partial<BoundValueFacts> = {}): BoundValueFacts {
-  return { type, presence: presence(type), origin, ...extra };
-}
-
-function projectedField<T extends BoundExpression>(expression: T, fieldProjection: NonNullable<BoundValueFacts["fieldProjection"]>): T {
-  return { ...expression, facts: { ...expression.facts, fieldProjection } };
-}
-function presence(type: BoundType): BoundPresence {
-  if (type.kind === "null") return "optional";
-  if (type.kind === "row" || type.kind === "object") return type.nullable ? "optional" : "required";
-  return "optional" in type && type.optional ? "optional" : "required";
-}
-function combineOrigins(expressions: BoundExpression[]): Provenance {
-  const origins = expressions.map((expression) => expression.facts.origin);
-  if (origins.includes("Computed")) return "Computed";
-  const meaningful = new Set(origins.filter((origin) => origin !== "Const"));
-  if (meaningful.size === 0) return "Const";
-  if (meaningful.size === 1) return [...meaningful][0]!;
-  return "Shape";
-}
-function scalarForIndex(type: BoundType | undefined): ScalarType | undefined {
-  if (!type) return undefined;
-  if (type.kind === "row") return { kind: "ref", table: type.table.name, optional: type.nullable };
-  return isScalar(type) ? type : undefined;
-}
-function scalarType(type: BoundType, site: Site): ScalarType {
-  if (isScalar(type)) return type;
-  typeError(site, `bounded arrays require scalar items; got ${type.kind}`, "use scalar array elements");
-}
-function isScalar(type: BoundType): type is ScalarType {
-  return !["unknown", "null", "empty-list", "row", "page", "collection", "object", "numeric-literal"].includes(type.kind);
-}
-function requiredType(type: BoundType): BoundType {
-  if (type.kind === "row" || type.kind === "object") return { ...type, nullable: false };
-  if (isScalar(type)) return { ...type, optional: false } as ScalarType;
-  return type;
-}
-function optionalType(type: BoundType): BoundType {
-  if (type.kind === "row" || type.kind === "object") return { ...type, nullable: true };
-  if (isScalar(type)) return { ...type, optional: true } as ScalarType;
-  return type;
-}
-function withOptional(type: BoundType, optional: boolean): BoundType {
-  if (type.kind === "row" || type.kind === "object") return { ...type, nullable: optional };
-  if (isScalar(type)) return { ...type, optional } as ScalarType;
-  return type;
-}
-function coalescedType(left: BoundType, right: BoundType, site: Site): BoundType {
-  if (left.kind === "null") return right;
-  if (right.kind === "null") return left;
-  const joined = joinType(left, right, site);
-  return withOptional(joined, presence(left) === "optional" && presence(right) === "optional");
-}
-function binaryOperator(operator: string): string | undefined {
-  return new Map([
-    ["=", "Eq"], ["!=", "Ne"], ["<", "Lt"], ["<=", "Lte"], [">", "Gt"], [">=", "Gte"],
-    ["+", "Add"], ["-", "Sub"], ["*", "Mul"], ["/", "Div"], ["%", "Mod"],
-    ["and", "And"], ["or", "Or"], ["??", "Coalesce"],
-  ]).get(operator);
-}
-function boolType(): Extract<ScalarType, { kind: "bool" }> { return { kind: "bool", optional: false }; }
-function decimalPlaces(text: string | undefined): number {
-  const dot = text?.indexOf(".") ?? -1;
-  return dot < 0 ? 0 : text!.length - dot - 1;
-}
-function scaledInteger(text: string, scale: number): number | undefined {
-  const match = text.match(/^(\d+)(?:\.(\d+))?$/);
-  if (!match) return undefined;
-  const fraction = match[2] ?? "";
-  if (fraction.length > scale) return undefined;
-  const value = BigInt(`${match[1]}${fraction.padEnd(scale, "0")}`);
-  const number = Number(value);
-  return Number.isSafeInteger(number) ? number : undefined;
-}
-export function assignableBoundValue(actual: BoundType, expected: ScalarType): boolean {
-  if (actual.kind === "null") return expected.optional;
-  if (actual.kind === "empty-list") return expected.kind === "list";
-  if (actual.kind === "row") return expected.kind === "ref"
-    && actual.table.name === expected.table && !actual.nullable;
-  if (actual.kind === "id" && expected.kind === "ref") return !actual.optional || expected.optional;
-  if (actual.kind === "ref" && expected.kind === "id") return !actual.optional || expected.optional;
-  if (!isScalar(actual) || actual.kind !== expected.kind) return false;
-  if (!expected.optional && actual.optional) return false;
-  if (actual.kind === "text" && expected.kind === "text") {
-    return actual.max <= expected.max && (expected.min === undefined || (actual.min ?? 0) >= expected.min)
-      && (expected.format === undefined || actual.format === expected.format);
-  }
-  if (["bytes", "image", "video", "json"].includes(actual.kind)) {
-    return "max" in actual && "max" in expected && actual.max <= expected.max;
-  }
-  if (actual.kind === "decimal" && expected.kind === "decimal") return actual.scale === expected.scale;
-  if (actual.kind === "money" && expected.kind === "money") {
-    return actual.currency === expected.currency && actual.scale === expected.scale;
-  }
-  if (actual.kind === "enum" && expected.kind === "enum") {
-    return actual.variants.every((variant) => expected.variants.includes(variant));
-  }
-  if (actual.kind === "ref" && expected.kind === "ref") return actual.table === expected.table;
-  if (actual.kind === "list" && expected.kind === "list") {
-    return actual.max <= expected.max && assignableBoundValue(actual.item, expected.item);
-  }
-  return true;
-}
-function representationMismatch(actual: BoundType, expected: BoundType): boolean {
-  if (actual.kind === "decimal" && expected.kind === "decimal") return actual.scale !== expected.scale;
-  if (actual.kind === "money" && expected.kind === "money") {
-    return actual.currency === expected.currency && actual.scale !== expected.scale;
-  }
-  return actual.kind === "list" && expected.kind === "list" && representationMismatch(actual.item, expected.item);
-}
-function writeAssignable(actual: BoundType, expected: ScalarType, authored: Expr | undefined): boolean {
-  if (actual.kind === "null") return expected.optional;
-  if (actual.kind === "empty-list") return expected.kind === "list";
-  if (actual.kind === "unknown") return true;
-  if (actual.kind === "object" && expected.kind === "json") return !actual.nullable || expected.optional;
-  if (actual.kind === "numeric-literal") {
-    if (expected.kind === "int") return actual.fractionalDigits === 0;
-    if (expected.kind === "decimal" || expected.kind === "money") return actual.fractionalDigits <= expected.scale;
-    return false;
-  }
-  if (authored?.kind === "literal" && typeof authored.value === "number" && expected.kind === "int") {
-    return Number.isInteger(authored.value);
-  }
-  if (actual.kind === "text" && expected.kind === "text") {
-    return (!actual.optional || expected.optional) && actual.max <= expected.max;
-  }
-  return assignableBoundValue(actual, expected);
-}
 function boundMentionsFocal(expression: BoundExpression, id: string): boolean {
   if (expression.kind === "focal") return expression.id === id;
   if (expression.kind === "array") return expression.items.some((item) => boundMentionsFocal(item, id));
