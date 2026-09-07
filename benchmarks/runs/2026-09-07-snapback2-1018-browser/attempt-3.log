@@ -1,0 +1,20 @@
+ok   two app consumers share one logical owner subscription; closing one preserves the other — {"consumers":[2,1,0],"logicalSubscriptions":1}
+ok   second tab renders live rows and refuses writes before transport — {"code":"E_OFFLINE_FOLLOWER"}
+ok   writer readiness before going offline — {"status":{"ready":false,"reason":"grant-missing","action":"resume","remaining":0,"fence":"inside"},"post":{"ready":true,"reason":"ready","action":"none","remaining":0,"fence":"inside"},"entries":[]}
+ok   writer readiness after going offline — {"status":{"ready":true,"reason":"ready","action":"none","remaining":0,"fence":"inside"},"post":{"ready":true,"reason":"ready","action":"none","remaining":0,"fence":"inside"}}
+ok   writer durably queues two intents while its owner transport is cut — {"intents":["s2id-a26d842ab5ac05f701902f4c90680a3c-0000000000001401:0","s2id-a26d842ab5ac05f701902f4c90680a3c-0000000000001401:52"]}
+FAIL witness
+AssertionError [ERR_ASSERTION]: inherited queue replays FIFO exactly once
++ actual - expected
+
++ []
+- [
+-   's2id-a26d842ab5ac05f701902f4c90680a3c-0000000000001401:0',
+-   's2id-a26d842ab5ac05f701902f4c90680a3c-0000000000001401:52'
+- ]
+
+    at sharedSessions (file:///Users/ccheever/projects/snapback-worktrees/clique-metro-web/snapback2/scripts/witness-web.mjs:272:10)
+    at async main (file:///Users/ccheever/projects/snapback-worktrees/clique-metro-web/snapback2/scripts/witness-web.mjs:318:7)
+    at async file:///Users/ccheever/projects/snapback-worktrees/clique-metro-web/snapback2/scripts/witness-web.mjs:448:1
+kept project /var/folders/6j/y9g3pkzs2hj38_3mqwp9l_th0000gn/T/snapback2-witness-project-OMZMp5, profile /var/folders/6j/y9g3pkzs2hj38_3mqwp9l_th0000gn/T/snapback2-witness-profile-M0aAKE, app /var/folders/6j/y9g3pkzs2hj38_3mqwp9l_th0000gn/T/snapback2-witness-app-dc2tfg
+{"name":"witness-web","kind":"witness","verdict":"fail","steps":[{"name":"two app consumers share one logical owner subscription; closing one preserves the other","verdict":"pass","detail":{"consumers":[2,1,0],"logicalSubscriptions":1}},{"name":"second tab renders live rows and refuses writes before transport","verdict":"pass","detail":{"code":"E_OFFLINE_FOLLOWER"}},{"name":"writer readiness before going offline","verdict":"pass","detail":{"status":{"ready":false,"reason":"grant-missing","action":"resume","remaining":0,"fence":"inside"},"post":{"ready":true,"reason":"ready","action":"none","remaining":0,"fence":"inside"},"entries":[]}},{"name":"writer readiness after going offline","verdict":"pass","detail":{"status":{"ready":true,"reason":"ready","action":"none","remaining":0,"fence":"inside"},"post":{"ready":true,"reason":"ready","action":"none","remaining":0,"fence":"inside"}}},{"name":"writer durably queues two intents while its owner transport is cut","verdict":"pass","detail":{"intents":["s2id-a26d842ab5ac05f701902f4c90680a3c-0000000000001401:0","s2id-a26d842ab5ac05f701902f4c90680a3c-0000000000001401:52"]}},{"name":"witness","verdict":"fail","detail":"AssertionError [ERR_ASSERTION]: inherited queue replays FIFO exactly once\n+ actual - expected\n\n+ []\n- [\n-   's2id-a26d842ab5ac05f701902f4c90680a3c-0000000000001401:0',\n-   's2id-a26d842ab5ac05f701902f4c90680a3c-0000000000001401:52'\n- ]\n\n    at sharedSessions (file:///Users/ccheever/projects/snapback-worktrees/clique-metro-web/snapback2/scripts/witness-web.mjs:272:10)\n    at async main (file:///Users/ccheever/projects/snapback-worktrees/clique-metro-web/snapback2/scripts/witness-web.mjs:318:7)\n    at async file:///Users/ccheever/projects/snapback-worktrees/clique-metro-web/snapback2/scripts/witness-web.mjs:448:1"}]}

@@ -9,10 +9,12 @@
 //
 //   node scripts/witness-web.mjs            # Google Chrome via playwright-core's "chrome" channel
 //   SNAPBACK2_WITNESS_BROWSER=/path/to/chromium node scripts/witness-web.mjs
+//   node scripts/witness-web.mjs --sessions # LLP 1018 shared subscriptions and tab takeover only
 //   node scripts/witness-web.mjs --keep     # leave the scratch project and profile behind
 //
 // playwright-core is an optional devDependency of packages/snapback2; when it
 // is absent or no browser is found, this exits 2 with a one-line reason.
+import assert from "node:assert/strict";
 import { spawn, spawnSync } from "node:child_process";
 import { cp, mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { createServer } from "node:http";
@@ -27,6 +29,7 @@ const packageRoot = resolve(workspace, "packages/snapback2");
 const dist = resolve(packageRoot, "dist");
 const binary = resolve(workspace, "target/debug/snapback2");
 const keep = process.argv.includes("--keep");
+const sessionsOnly = process.argv.includes("--sessions");
 const steps = [];
 
 function step(name, detail) {
@@ -194,6 +197,100 @@ async function openChat(page, conversationId) {
   await page.waitForSelector("section[aria-label=Thread] li[data-state=row]", { timeout: 10_000 });
 }
 
+// @ref LLP 1018#3-move-one-one-coherent-reactive-client — actual Chromium tabs,
+// Web Locks, IndexedDB, and the owner qualify the same policy as the unit fixture.
+async function sharedSessions(context, writer, appUrl, ownerUrl) {
+  await writer.waitForFunction(async () => window.__snapback && (await window.__snapback.outbox.status()).ready,
+    null, { timeout: 15_000 });
+  const added = [];
+  const replayed = [];
+  context.on("request", (request) => {
+    if (request.url() === ownerUrl + "/api/live/control") added.push(...(request.postDataJSON()?.add ?? []));
+    if (request.url() === ownerUrl + "/api/mutation") replayed.push(request.postDataJSON());
+  });
+  const shared = await writer.evaluate(async () => {
+    const client = window.__snapback;
+    const op = window.__api.deliveries.thread;
+    const args = { conversationId: "conversation-2", c: null };
+    const first = client.subscribe(op, args, () => undefined);
+    const second = client.subscribe(op, args, () => undefined);
+    const [a, b] = await Promise.all([first.until(e => e.state === "complete", 5000), second.until(e => e.state === "complete", 5000)]);
+    const two = client.sharedConsumers(op, args);
+    first.close();
+    const one = client.sharedConsumers(op, args);
+    const survivor = await second.until(e => e.state === "complete", 5000);
+    second.close();
+    return { two, one, zero: client.sharedConsumers(op, args), seq: [a.seq, b.seq, survivor.seq], data: [a.data, b.data, survivor.data] };
+  });
+  assert.deepEqual([shared.two, shared.one, shared.zero], [2, 1, 0]);
+  assert.equal(new Set(shared.seq).size, 1);
+  assert.deepEqual(shared.data[0], shared.data[1]);
+  assert.deepEqual(shared.data[0], shared.data[2]);
+  const children = added.filter(child => child.path.includes("deliveries.thread"));
+  assert.equal(children.length, 1, "duplicate app consumers add exactly one logical owner subscription");
+  step("two app consumers share one logical owner subscription; closing one preserves the other", { consumers: [2, 1, 0], logicalSubscriptions: children.length });
+
+  const follower = await context.newPage();
+  await follower.goto(appUrl);
+  await follower.waitForFunction(async () => window.__snapback && (await window.__snapback.outbox.status()).reason === "follower",
+    null, { timeout: 15_000 });
+  await openChat(follower, "conversation-1");
+  const beforeWrites = replayed.length;
+  const refusal = await follower.evaluate(async () => {
+    try { return await window.__snapback.mutation(window.__api.deliveries.post,
+      { conversationId: "conversation-1", body: "forbidden follower write" }); }
+    catch (error) { return { code: error.code }; }
+  });
+  assert.equal(refusal.code, "E_OFFLINE_FOLLOWER");
+  assert.equal(replayed.length, beforeWrites, "follower refuses before sending mutation bytes");
+  step("second tab renders live rows and refuses writes before transport", refusal);
+
+  // Cut only the writer's owner transport: the follower remains live. An actual
+  // page close releases the browser-owned lock without calling client.close().
+  await writer.bringToFront();
+  await writer.waitForFunction(async () => (await window.__snapback.outbox.status(window.__api.deliveries.post)).ready, null, { timeout: 15_000 });
+  const ownerOrigin = new URL(ownerUrl).origin;
+  await writer.route(url => url.origin === ownerOrigin, route => route.abort("connectionrefused"));
+  step("writer readiness before going offline", await writer.evaluate(async () => ({ status: await window.__snapback.outbox.status(), post: await window.__snapback.outbox.status(window.__api.deliveries.post), entries: await window.__snapback.outbox.entries() })));
+  await writer.evaluate(() => window.__snapback.offline());
+  step("writer readiness after going offline", await writer.evaluate(async () => ({ status: await window.__snapback.outbox.status(), post: await window.__snapback.outbox.status(window.__api.deliveries.post) })));
+  const queued = await writer.evaluate(async () => {
+    const rows = [];
+    for (const body of ["1018 writer first", "1018 writer second"]) {
+      rows.push(await window.__snapback.mutation(window.__api.deliveries.post, { conversationId: "conversation-1", body }));
+    }
+    return rows;
+  });
+  assert.deepEqual(queued.map(row => row.state), ["queued", "queued"]);
+  assert.equal(replayed.length, beforeWrites, "offline writer has sent neither intent");
+  step("writer durably queues two intents while its owner transport is cut", { intents: queued.map(row => row.intent) });
+  await writer.close();
+  await follower.waitForFunction(async () => (await window.__snapback.outbox.status()).reason !== "follower",
+    null, { timeout: 15_000 });
+  await follower.bringToFront();
+  const replayDeadline = Date.now() + 15_000;
+  while (replayed.slice(beforeWrites).filter(request => queued.some(row => row.intent === request.replay?.intent)).length < 2 && Date.now() < replayDeadline) await follower.waitForTimeout(100);
+  step("takeover observation", await follower.evaluate(async () => ({ status: await window.__snapback.outbox.status(), entries: await window.__snapback.outbox.entries() })));
+  await follower.waitForFunction(async () => (await window.__snapback.outbox.entries()).filter(e => e.state === "queued").length === 0, null, { timeout: 15_000 });
+  await follower.evaluate(() => window.__snapback.outbox.settled());
+  const inherited = replayed.slice(beforeWrites).filter(request => queued.some(row => row.intent === request.replay?.intent));
+  assert.deepEqual(inherited.map(request => request.replay.intent), queued.map(row => row.intent), "inherited queue replays FIFO exactly once");
+  const { createClient, api } = await import(resolve(dist, "client.mjs"));
+  const verifier = createClient({ url: ownerUrl, as: "alice" });
+  try {
+    const thread = await verifier.query(api.deliveries.thread, { conversationId: "conversation-1", c: null });
+    assert.equal(thread.state, "complete");
+    const bodies = thread.data.map(row => row.message?.body);
+    for (const body of ["1018 writer first", "1018 writer second"]) assert.equal(bodies.filter(item => item === body).length, 1);
+    assert.ok(bodies.indexOf("1018 writer second") < bodies.indexOf("1018 writer first"), "newest-first owner rows preserve FIFO commit order");
+    assert.ok(!bodies.includes("forbidden follower write"));
+  } finally { await verifier.close(); }
+  const after = await follower.evaluate(() => window.__snapback.mutation(window.__api.deliveries.post,
+    { conversationId: "conversation-1", body: "1018 new writer" }));
+  assert.equal(after.state, "committed");
+  step("closing the writer page transfers its real Web Lock and durable FIFO queue; the new writer commits", { replayIntents: inherited.map(request => request.replay.intent), rowsPerIntent: 1 });
+}
+
 async function main() {
   precondition(spawnSync(binary, ["--version"]).status !== null, `${binary} is not built; run cargo build --workspace --bins`);
   const playwright = await loadPlaywright();
@@ -222,6 +319,9 @@ async function main() {
   try {
     // Seed, drain, open three chats.
     let page = await launch();
+    if (sessionsOnly) {
+      await sharedSessions(context, page, appUrl, owner.url);
+    } else {
     await page.waitForFunction(() => /log downloaded/.test(document.querySelector("[role=status][data-connection]")?.textContent ?? ""), null, { timeout: 15_000 });
     const [neverOpened, ...opened] = [...seeded.conversations].reverse();
     for (const conversationId of opened) await openChat(page, conversationId);
@@ -329,11 +429,8 @@ async function main() {
     await page.waitForFunction(() => document.querySelectorAll("section[aria-label=Search] .hits li").length === 0, null, { timeout: 10_000 });
     step("a message revoked while offline is gone from the local search after the resume (unsend writes the same log shape as the owner's expiry schedule, LLP 1016 D5)");
 
-    // Two tabs: the second gets E_OFFLINE_LOCK.
-    const second = await context.newPage();
-    await second.goto(appUrl);
-    await second.waitForFunction(() => /E_OFFLINE_LOCK/.test(document.body.textContent ?? ""), null, { timeout: 10_000 });
-    step("a second tab on the same principal gets E_OFFLINE_LOCK");
+    await sharedSessions(context, page, appUrl, owner.url);
+    }
   } catch (error) {
     fail("witness", error);
   } finally {

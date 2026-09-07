@@ -1,0 +1,17 @@
+✔ identical live subscriptions share one stream, one delivery, and one mounted record (93.581625ms)
+✔ identical drains share one page walk and one tail (21.178708ms)
+✔ a second web tab follows the writer and inherits its queue when the writer closes (101.105541ms)
+✔ a follower that closes withdraws its wait, so the next tab becomes the writer (12.999125ms)
+✔ two attachments sharing one callback function are two consumers (2.972292ms)
+✔ a follower's drain pages and tails live and earns no grant of its own (9.766375ms)
+✔ a restored bearer second tab follows instead of refusing its own session (19.834834ms)
+✔ a terminal refusal reaches every consumer of the shared entry it originated from (4.090584ms)
+✔ a terminal refusal from a drain's tail reaches the drain's consumers (12.392958ms)
+ℹ tests 9
+ℹ suites 0
+ℹ pass 9
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 597.362

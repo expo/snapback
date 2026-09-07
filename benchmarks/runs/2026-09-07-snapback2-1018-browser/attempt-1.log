@@ -1,0 +1,2 @@
+witness-web: snapback2 dev failed: {"code":"E_ASSET_NOT_READY","family":"input","guide":"assets/helper","message":"the media helper was not found at /Users/ccheever/projects/snapback-worktrees/clique-metro-web/snapback2/target/debug/snapback2-media","rewrite":"install the sibling snapback2-media helper with image codecs or set SNAPBACK2_MEDIA in tests"}
+

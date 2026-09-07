@@ -1,0 +1,17 @@
+ok   two app consumers share one logical owner subscription; closing one preserves the other — {"consumers":[2,1,0],"logicalSubscriptions":1}
+ok   second tab renders live rows and refuses writes before transport — {"code":"E_OFFLINE_FOLLOWER"}
+FAIL witness
+page.evaluate: SnapbackRefusal: this device holds no replay grant; log in, or drain a query online, before writing
+    at ni (http://127.0.0.1:60254/app.js:23192:12)
+    at t2.offlineRefusal (http://127.0.0.1:60254/app.js:24660:120)
+    at Object.failure (http://127.0.0.1:60254/app.js:24209:217)
+    at r (http://127.0.0.1:60254/app.js:22891:16)
+    at async Jr (http://127.0.0.1:60254/app.js:22894:28)
+    at async http://127.0.0.1:60254/app.js:24209:19
+    at async Ri (http://127.0.0.1:60254/app.js:23652:13)
+    at async http://127.0.0.1:60254/app.js:24208:17
+    at sharedSessions (/Users/ccheever/projects/snapback-worktrees/clique-metro-web/snapback2/scripts/witness-web.mjs:253:31)
+    at async main (/Users/ccheever/projects/snapback-worktrees/clique-metro-web/snapback2/scripts/witness-web.mjs:316:7)
+    at async file:///Users/ccheever/projects/snapback-worktrees/clique-metro-web/snapback2/scripts/witness-web.mjs:446:1
+kept project /var/folders/6j/y9g3pkzs2hj38_3mqwp9l_th0000gn/T/snapback2-witness-project-LeWuTc, profile /var/folders/6j/y9g3pkzs2hj38_3mqwp9l_th0000gn/T/snapback2-witness-profile-YyKpuc, app /var/folders/6j/y9g3pkzs2hj38_3mqwp9l_th0000gn/T/snapback2-witness-app-U3mAvN
+{"name":"witness-web","kind":"witness","verdict":"fail","steps":[{"name":"two app consumers share one logical owner subscription; closing one preserves the other","verdict":"pass","detail":{"consumers":[2,1,0],"logicalSubscriptions":1}},{"name":"second tab renders live rows and refuses writes before transport","verdict":"pass","detail":{"code":"E_OFFLINE_FOLLOWER"}},{"name":"witness","verdict":"fail","detail":"page.evaluate: SnapbackRefusal: this device holds no replay grant; log in, or drain a query online, before writing\n    at ni (http://127.0.0.1:60254/app.js:23192:12)\n    at t2.offlineRefusal (http://127.0.0.1:60254/app.js:24660:120)\n    at Object.failure (http://127.0.0.1:60254/app.js:24209:217)\n    at r (http://127.0.0.1:60254/app.js:22891:16)\n    at async Jr (http://127.0.0.1:60254/app.js:22894:28)\n    at async http://127.0.0.1:60254/app.js:24209:19\n    at async Ri (http://127.0.0.1:60254/app.js:23652:13)\n    at async http://127.0.0.1:60254/app.js:24208:17\n    at sharedSessions (/Users/ccheever/projects/snapback-worktrees/clique-metro-web/snapback2/scripts/witness-web.mjs:253:31)\n    at async main (/Users/ccheever/projects/snapback-worktrees/clique-metro-web/snapback2/scripts/witness-web.mjs:316:7)\n    at async file:///Users/ccheever/projects/snapback-worktrees/clique-metro-web/snapback2/scripts/witness-web.mjs:446:1"}]}
