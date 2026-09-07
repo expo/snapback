@@ -1,6 +1,6 @@
 import { basename, dirname, join } from "node:path";
 import type { IndexComponent, Provenance } from "../ir";
-import type { Document, Expr, FunctionDecl, IndexDecl, ProgramDecl, ScalarType, ShapeDecl, ShapeField, Site, TableCatalog, TableDecl } from "./ast";
+import type { Document, Expr, FunctionDecl, IndexDecl, ProgramDecl, ScalarType, ShapeDecl, ShapeField, Site, Stmt as QuarryStatement, TableCatalog, TableDecl } from "./ast";
 import { selectIndex } from "./catalog";
 import { QuarryError, refuse, typeError, unsupported } from "./diagnostics";
 
@@ -20,6 +20,10 @@ export type BoundIndexSymbol = {
 export type BoundArgumentSymbol = {
   kind: "argument"; id: string; name: string; type: ScalarType; origin: Provenance; source: BoundSourceStack;
 };
+export type BoundLocalSymbol = {
+  kind: "local"; id: string; name: string; facts: BoundValueFacts; source: BoundSourceStack;
+};
+export type BoundValueSymbol = BoundArgumentSymbol | BoundLocalSymbol;
 
 export type BoundType =
   | ScalarType
@@ -42,13 +46,14 @@ export type BoundValueFacts = {
 type BoundExpressionBase = { facts: BoundValueFacts; source: BoundSourceStack };
 export type BoundExpression = BoundExpressionBase & (
   | { kind: "literal"; value: string | number | boolean | null; numericText?: string }
-  | { kind: "variable"; symbol: BoundArgumentSymbol }
+  | { kind: "variable"; symbol: BoundValueSymbol }
   | { kind: "focal"; id: string }
   | { kind: "input"; input: "Viewer" | "Now" | "NewId" | "ReadTime" }
   | { kind: "array"; items: BoundExpression[] }
   | { kind: "object"; fields: Array<{ name: string; value: BoundExpression; source: BoundSourceStack }> }
   | { kind: "unary"; op: "Not" | "Neg"; value: BoundExpression }
   | { kind: "binary"; op: string; left: BoundExpression; right: BoundExpression }
+  | { kind: "assert"; value: BoundExpression; code: string }
   | { kind: "member"; base: BoundExpression; name: string }
   | { kind: "shape"; base: BoundExpression; focal: Extract<BoundExpression, { kind: "focal" }>;
       fields: Array<{ name: string; value: BoundExpression; source: BoundSourceStack }> }
@@ -76,7 +81,14 @@ export type BoundRead = {
   };
 };
 
-export type BoundStatement = { kind: "return"; value: BoundExpression; source: BoundSourceStack };
+export type BoundStatement =
+  | { kind: "return"; value: BoundExpression; source: BoundSourceStack }
+  | { kind: "bind"; symbols: BoundLocalSymbol[]; tupleFields?: string[]; value: BoundExpression; source: BoundSourceStack }
+  | { kind: "require"; condition: BoundExpression; code: string; source: BoundSourceStack }
+  | { kind: "if"; condition: BoundExpression; thenBody: BoundStatement[]; elseBody: BoundStatement[]; source: BoundSourceStack }
+  | { kind: "for"; symbol: BoundLocalSymbol; domain: BoundExpression; body: BoundStatement[]; source: BoundSourceStack }
+  | { kind: "match"; value: BoundExpression & { kind: "get" }; symbol: BoundLocalSymbol;
+      someBody: BoundStatement[]; noneBody: BoundStatement[]; source: BoundSourceStack };
 export type BoundQuarryProgram = {
   name: string;
   kind: ProgramDecl["kind"];
@@ -86,12 +98,9 @@ export type BoundQuarryProgram = {
   source: BoundSourceStack;
 };
 
-/** The direct seam currently accepts expression-return operations only. */
+/** Bind one operation without routing its data plane through generated TypeScript. */
 export function bindQuarryProgram(program: ProgramDecl, catalog: TableCatalog, documents: Document[] = []): BoundQuarryProgram {
-  const statement = program.body[0];
-  if (program.focalTable || program.body.length !== 1 || statement?.kind !== "return") {
-    unsupported(program.site, "this statement form in the direct Quarry expression seam", "keep it on the parity oracle until direct statement lowering lands");
-  }
+  if (program.focalTable) unsupported(program.site, "focal table operations in the direct Quarry statement seam", "keep this operation on the parity oracle until direct focal rules land");
   const operationName = `${basename(program.site.file, ".q")}.${program.name}`;
   const args = program.args.map((arg, index): BoundArgumentSymbol => ({
     kind: "argument", id: `${operationName}:argument:${index}`, name: arg.name,
@@ -102,10 +111,11 @@ export function bindQuarryProgram(program: ProgramDecl, catalog: TableCatalog, d
     new BoundShapeRegistry(documents), new BoundFunctionRegistry(documents),
     { nodes: 0, expansionId: 0, shapeId: 0 },
   );
-  const value = binder.expression(statement.value);
+  const body = binder.statements(program.body, false);
+  const returns = completionFacts(body);
   return {
-    name: operationName, kind: program.kind, args, result: value.facts,
-    body: [{ kind: "return", value, source: sourceStack(statement.site) }], source: sourceStack(program.site),
+    name: operationName, kind: program.kind, args, result: joinFacts(returns, program.site),
+    body, source: sourceStack(program.site),
   };
 }
 
@@ -213,17 +223,120 @@ class ExpressionBinder {
   private shapeFile: string;
   private functionFile: string;
   private readonly expansionFrames: string[] = [];
+  private localId = 0;
 
   constructor(
     private readonly program: ProgramDecl,
     private readonly catalog: TableCatalog,
-    private scope: Map<string, BoundArgumentSymbol>,
+    private scope: Map<string, BoundValueSymbol>,
     private readonly shapes: BoundShapeRegistry,
     private readonly functions: BoundFunctionRegistry,
     private readonly budget: ExpansionBudget,
   ) {
     this.shapeFile = program.site.file;
     this.functionFile = program.site.file;
+  }
+
+  statements(statements: QuarryStatement[], allowOuterShadow = true): BoundStatement[] {
+    const bound: BoundStatement[] = [];
+    const declaredHere = new Set<string>();
+    for (const statement of statements) {
+      const source = this.source(statement.site);
+      if (statement.kind === "return") {
+        bound.push({ kind: "return", value: this.expression(statement.value), source });
+      } else if (statement.kind === "bind") {
+        if (statement.names.length > 1 && (statement.names.length !== 2 || statement.value.kind !== "call"
+          || !["divmod", "sorted"].includes(statement.value.name) || statement.value.args.length !== 2)) {
+          refuse(this.diagnosticSite(statement.site), "tuple bindings take exactly two names and sorted(a, b) or divmod(a, b)",
+            "(quotient, remainder) = divmod(dividend, divisor)");
+        }
+        const value = statement.names.length === 2 && statement.value.kind === "call" && statement.value.name === "sorted"
+          ? this.sortedPair(statement.value)
+          : this.expression(statement.value);
+        const tupleFields = statement.names.length === 1 ? undefined
+          : statement.value.kind === "call" && statement.value.name === "sorted"
+            ? ["first", "second"] : ["quotient", "remainder"];
+        const symbols = statement.names.map((name, index): BoundLocalSymbol => {
+          if (declaredHere.has(name) || (!allowOuterShadow && this.scope.has(name))) refuse(this.diagnosticSite(statement.site), `duplicate local ${name}`,
+            `rename ${name} so every local in this scope is unique`);
+          const symbolFacts = statement.names.length === 1
+            ? value.facts
+            : tupleFieldFacts(value.facts, tupleFields![index]!, statement.site);
+          const symbol: BoundLocalSymbol = {
+            kind: "local", id: `${this.program.site.file}:${this.program.name}:local:${this.localId++}`,
+            name, facts: symbolFacts, source,
+          };
+          this.scope.set(name, symbol);
+          declaredHere.add(name);
+          return symbol;
+        });
+        bound.push({ kind: "bind", symbols, value, source, ...(tupleFields ? { tupleFields } : {}) });
+      } else if (statement.kind === "require") {
+        const condition = this.expression(statement.condition);
+        requireBool(condition, statement.condition.site);
+        bound.push({ kind: "require", condition, code: statement.code, source });
+      } else if (statement.kind === "if") {
+        const condition = this.expression(statement.condition);
+        requireBool(condition, statement.condition.site);
+        const prior = this.scope;
+        let thenBody: BoundStatement[];
+        let elseBody: BoundStatement[];
+        try {
+          this.scope = narrowedScope(condition, prior, true);
+          thenBody = this.statements(statement.thenBody);
+          this.scope = narrowedScope(condition, prior, false);
+          elseBody = this.statements(statement.elseBody);
+        } finally {
+          this.scope = prior;
+        }
+        bound.push({ kind: "if", condition, thenBody, elseBody, source });
+      } else if (statement.kind === "for") {
+        const domain = this.expression(statement.domain);
+        const item = loopItemFacts(domain, statement.domain.site);
+        const symbol: BoundLocalSymbol = {
+          kind: "local", id: `${this.program.site.file}:${this.program.name}:loop:${this.localId++}`,
+          name: statement.name, facts: item, source,
+        };
+        const prior = this.scope;
+        let body: BoundStatement[];
+        try {
+          this.scope = new Map(prior);
+          this.scope.set(statement.name, symbol);
+          body = this.statements(statement.body);
+        } finally {
+          this.scope = prior;
+        }
+        bound.push({ kind: "for", symbol, domain, body, source });
+      } else if (statement.kind === "match") {
+        const value = this.expression(statement.read);
+        if (value.kind !== "get" || value.facts.type.kind !== "row") typeError(statement.read.site,
+          "match requires one point read", "match table[key]: some row: ... none: ...");
+        const point = value as BoundExpression & { kind: "get" };
+        const symbol: BoundLocalSymbol = {
+          kind: "local", id: `${this.program.site.file}:${this.program.name}:match:${this.localId++}`,
+          name: statement.someName,
+          facts: facts({ ...value.facts.type, nullable: false }, value.facts.origin, {
+            tableOrigin: value.facts.type.table, readOrigin: point.read,
+          }), source,
+        };
+        const prior = this.scope;
+        let someBody: BoundStatement[];
+        let noneBody: BoundStatement[];
+        try {
+          this.scope = new Map(prior);
+          this.scope.set(statement.someName, symbol);
+          someBody = this.statements(statement.someBody);
+          this.scope = new Map(prior);
+          noneBody = this.statements(statement.noneBody);
+        } finally {
+          this.scope = prior;
+        }
+        bound.push({ kind: "match", value: point, symbol, someBody, noneBody, source });
+      } else {
+        unsupported(this.diagnosticSite(statement.site), `${statement.kind} in the direct Quarry statement seam`, "keep this operation on the parity oracle until its bound statement form lands");
+      }
+    }
+    return bound;
   }
 
   expression(expression: Expr): BoundExpression {
@@ -255,6 +368,14 @@ class ExpressionBinder {
       return { kind: "unary", op: expression.op === "not" ? "Not" : "Neg", value, facts: facts(type, "Computed"), source };
     }
     if (expression.kind === "binary") return this.binary(expression);
+    if (expression.kind === "assert") {
+      const value = this.expression(expression.value);
+      return { kind: "assert", value, code: expression.code,
+        facts: facts(requiredType(value.facts.type), value.facts.origin, {
+          ...(value.facts.tableOrigin ? { tableOrigin: value.facts.tableOrigin } : {}),
+          ...(value.facts.readOrigin ? { readOrigin: value.facts.readOrigin } : {}),
+        }), source };
+    }
     if (expression.kind === "member") return this.member(expression);
     if (expression.kind === "shape" || expression.kind === "shapeUse") return this.shape(expression);
     if (expression.kind === "call") return this.call(expression);
@@ -304,7 +425,8 @@ class ExpressionBinder {
       return this.contextName(name, source, site);
     }
     const argument = this.scope.get(name);
-    if (argument) return { kind: "variable", symbol: argument, facts: facts(argument.type, argument.origin), source };
+    if (argument) return { kind: "variable", symbol: argument,
+      facts: argument.kind === "argument" ? facts(argument.type, argument.origin) : argument.facts, source };
     if (this.helperDepth > 0 && !CONTEXT_NAMES.has(name)) throw new QuarryError(
       this.diagnosticSite(site), `fn expressions cannot capture caller name ${name}`,
       "E_QUARRY_UNKNOWN", `add an explicitly typed ${name} parameter to this fn`,
@@ -508,6 +630,18 @@ class ExpressionBinder {
     unsupported(expression.site, `call ${expression.name}`, "use a direct Quarry pure builtin");
   }
 
+  private sortedPair(expression: Extract<Expr, { kind: "call" }>): BoundExpression {
+    const args = expression.args.map((argument) => this.expression(argument));
+    const source = this.source(expression.site);
+    const fields = [
+      { name: "first", value: args[0]!, source },
+      { name: "second", value: args[1]!, source },
+    ];
+    return { kind: "object", fields, facts: facts({
+      kind: "object", fields: new Map(fields.map((field) => [field.name, field.value.facts])), nullable: false,
+    }, combineOrigins(args)), source };
+  }
+
   private functionCall(expression: Extract<Expr, { kind: "call" }>): BoundExpression {
     const actuals = expression.args.map((argument) => this.expression(argument));
     const { declaration, document } = this.functions.resolve(this.functionFile, expression.name, expression.site);
@@ -613,6 +747,182 @@ class ExpressionBinder {
   private diagnosticSite(site: Site, useSite = this.expansionUse): Site {
     return useSite ? { ...site, expandedFrom: useSite } : site;
   }
+}
+
+function completionFacts(statements: BoundStatement[]): BoundValueFacts[] {
+  const returns: BoundValueFacts[] = [];
+  let fallsThrough = true;
+  for (const statement of statements) {
+    if (!fallsThrough) break;
+    if (statement.kind === "return") {
+      returns.push(statement.value.facts);
+      fallsThrough = false;
+    } else if (statement.kind === "if") {
+      const thenCompletion = completionFacts(statement.thenBody);
+      const elseCompletion = completionFacts(statement.elseBody);
+      const thenFalls = statementsFallThrough(statement.thenBody);
+      const elseFalls = statementsFallThrough(statement.elseBody);
+      returns.push(...thenCompletion.slice(0, thenFalls ? -1 : undefined));
+      returns.push(...elseCompletion.slice(0, elseFalls ? -1 : undefined));
+      fallsThrough = thenFalls || elseFalls;
+    } else if (statement.kind === "for") {
+      const bodyCompletion = completionFacts(statement.body);
+      const bodyFalls = statementsFallThrough(statement.body);
+      returns.push(...bodyCompletion.slice(0, bodyFalls ? -1 : undefined));
+    } else if (statement.kind === "match") {
+      const someCompletion = completionFacts(statement.someBody);
+      const noneCompletion = completionFacts(statement.noneBody);
+      const someFalls = statementsFallThrough(statement.someBody);
+      const noneFalls = statementsFallThrough(statement.noneBody);
+      returns.push(...someCompletion.slice(0, someFalls ? -1 : undefined));
+      returns.push(...noneCompletion.slice(0, noneFalls ? -1 : undefined));
+      fallsThrough = someFalls || noneFalls;
+    }
+  }
+  if (fallsThrough) returns.push(facts({ kind: "null" }, "Const"));
+  return returns;
+}
+
+function statementsFallThrough(statements: BoundStatement[]): boolean {
+  for (const statement of statements) {
+    if (statement.kind === "return") return false;
+    if (statement.kind === "if"
+      && !statementsFallThrough(statement.thenBody) && !statementsFallThrough(statement.elseBody)) return false;
+    if (statement.kind === "match"
+      && !statementsFallThrough(statement.someBody) && !statementsFallThrough(statement.noneBody)) return false;
+  }
+  return true;
+}
+
+function joinFacts(values: BoundValueFacts[], site: Site): BoundValueFacts {
+  const type = values.slice(1).reduce((joined, value) => joinType(joined, value.type, site), values[0]!.type);
+  const origins = new Set(values.map((value) => value.origin).filter((origin) => origin !== "Const"));
+  const originated = values.filter((value) => value.type.kind !== "null");
+  const tableOrigin = originated[0]?.tableOrigin;
+  const readOrigin = originated[0]?.readOrigin;
+  return { ...facts(type, origins.size === 0 ? "Const" : origins.size === 1 ? [...origins][0]! : "Computed", {
+    ...(values.some((value) => value.max !== undefined) ? { max: Math.max(...values.map((value) => value.max ?? 0)) } : {}),
+    ...(tableOrigin && originated.every((value) => value.tableOrigin?.id === tableOrigin.id) ? { tableOrigin } : {}),
+    ...(readOrigin && originated.every((value) => value.readOrigin === readOrigin) ? { readOrigin } : {}),
+  }), presence: values.some((value) => value.presence === "optional") ? "optional" : "required" };
+}
+
+function joinType(left: BoundType, right: BoundType, site: Site): BoundType {
+  if (left.kind === "null") return optionalType(right);
+  if (right.kind === "null") return optionalType(left);
+  if (left.kind !== right.kind) typeError(site,
+    `conditional returns disagree: ${typeName(left)} and ${typeName(right)}`,
+    "return the same value type from every branch");
+  if (left.kind === "row" && right.kind === "row") {
+    if (left.table.name !== right.table.name) typeError(site, "conditional returns rows from different tables", "return rows from one table");
+    return { ...left, nullable: left.nullable || right.nullable };
+  }
+  if (left.kind === "page" && right.kind === "page") {
+    if (left.table.name !== right.table.name) typeError(site, "conditional returns pages from different tables", "return pages from one table");
+    return { ...left, max: Math.max(left.max, right.max) };
+  }
+  if (left.kind === "collection" && right.kind === "collection") {
+    return { kind: "collection", item: joinFacts([left.item, right.item], site), max: Math.max(left.max, right.max) };
+  }
+  if (left.kind === "object" && right.kind === "object") {
+    const leftNames = [...left.fields.keys()];
+    const rightNames = [...right.fields.keys()];
+    if (leftNames.length !== rightNames.length || leftNames.some((name) => !right.fields.has(name))) typeError(site,
+      "conditional returns objects with different fields", "return the same object fields from every branch");
+    return { kind: "object", nullable: left.nullable || right.nullable,
+      fields: new Map(leftNames.map((name) => [name, joinFacts([left.fields.get(name)!, right.fields.get(name)!], site)])) };
+  }
+  if (left.kind === "numeric-literal" && right.kind === "numeric-literal") {
+    return { kind: "numeric-literal", fractionalDigits: Math.max(left.fractionalDigits, right.fractionalDigits) };
+  }
+  if (!isScalar(left) || !isScalar(right)) return left;
+  if (left.kind === "ref" && right.kind === "ref" && left.table !== right.table) typeError(site,
+    `conditional returns ${left.table} and ${right.table} references`, "return references to one table");
+  if (left.kind === "decimal" && right.kind === "decimal" && left.scale !== right.scale) typeError(site,
+    `conditional returns decimal ${left.scale} and decimal ${right.scale}`, "return decimals with one scale");
+  if (left.kind === "money" && right.kind === "money"
+    && (left.currency !== right.currency || left.scale !== right.scale)) typeError(site,
+    "conditional returns different money brands", "return money with one currency and scale");
+  if (left.kind === "list" && right.kind === "list") {
+    const item = joinType(left.item, right.item, site);
+    if (!isScalar(item)) typeError(site, "conditional list items disagree", "return lists with one scalar item type");
+    return { ...left, item, max: Math.max(left.max, right.max), optional: left.optional || right.optional };
+  }
+  if (left.kind === "text" && right.kind === "text") {
+    const { min: _leftMin, format: _leftFormat, ...base } = left;
+    const min = Math.min(left.min ?? 0, right.min ?? 0);
+    return {
+      ...base, max: Math.max(left.max, right.max),
+      ...(min > 0 ? { min } : {}),
+      ...(left.format === right.format && left.format ? { format: left.format } : {}),
+      optional: left.optional || right.optional,
+    };
+  }
+  if (left.kind === "enum" && right.kind === "enum") return {
+    ...left, variants: [...new Set([...left.variants, ...right.variants])], optional: left.optional || right.optional,
+  };
+  if (left.kind === "bytes" && right.kind === "bytes") return {
+    ...left, max: Math.max(left.max, right.max), optional: left.optional || right.optional,
+  };
+  if (left.kind === "image" && right.kind === "image") return {
+    kind: "image", max: Math.max(left.max, right.max),
+    ...(left.once && right.once ? { once: true } : {}), optional: left.optional || right.optional,
+  };
+  if (left.kind === "video" && right.kind === "video") return {
+    ...left, max: Math.max(left.max, right.max), optional: left.optional || right.optional,
+  };
+  if (left.kind === "json" && right.kind === "json") return {
+    ...left, max: Math.max(left.max, right.max), optional: left.optional || right.optional,
+  };
+  return { ...left, optional: left.optional || right.optional } as ScalarType;
+}
+
+function tupleFieldFacts(value: BoundValueFacts, name: string, site: Site): BoundValueFacts {
+  if (value.type.kind !== "object") typeError(site, "tuple binding requires an object-valued pair", "use divmod(a, b)");
+  const field = value.type.fields.get(name);
+  if (!field) typeError(site, `tuple binding result has no ${name} field`, "use (quotient, remainder) = divmod(a, b)");
+  return field;
+}
+
+function loopItemFacts(domain: BoundExpression, site: Site): BoundValueFacts {
+  const type = domain.facts.type;
+  if (type.kind === "page") return facts({ kind: "row", table: type.table, nullable: false }, domain.facts.origin, {
+    tableOrigin: type.table, readOrigin: domain.facts.readOrigin,
+  });
+  if (type.kind === "collection") return type.item;
+  if (type.kind === "list") {
+    if (type.optional) typeError(site, "for cannot iterate an optional list", "supply an empty default before the loop");
+    return facts(type.item, domain.facts.origin, { max: type.max, tableOrigin: domain.facts.tableOrigin });
+  }
+  typeError(site, `for cannot iterate ${typeName(type)}`, "iterate a bounded page or required capped list");
+}
+
+function narrowedScope(
+  condition: BoundExpression,
+  scope: Map<string, BoundValueSymbol>,
+  thenBranch: boolean,
+): Map<string, BoundValueSymbol> {
+  const narrowed = new Map(scope);
+  if (condition.kind !== "binary" || !["Eq", "Ne"].includes(condition.op)) return narrowed;
+  const variable = condition.left.kind === "variable" && condition.right.kind === "literal" && condition.right.value === null
+    ? condition.left
+    : condition.right.kind === "variable" && condition.left.kind === "literal" && condition.left.value === null
+      ? condition.right : undefined;
+  if (!variable || (condition.op === "Ne") !== thenBranch) return narrowed;
+  const symbol = variable.symbol;
+  if (symbol.kind === "argument") {
+    narrowed.set(symbol.name, { ...symbol, type: requiredType(symbol.type) as ScalarType });
+  } else {
+    narrowed.set(symbol.name, { ...symbol, facts: {
+      ...symbol.facts, type: requiredType(symbol.facts.type), presence: "required",
+    } });
+  }
+  return narrowed;
+}
+
+function requireBool(value: BoundExpression, site: Site): void {
+  if (value.facts.type.kind !== "bool" || value.facts.type.optional) typeError(site,
+    `condition requires bool, got ${typeName(value.facts.type)}`, "use a required Boolean comparison");
 }
 
 function facts(type: BoundType, origin: Provenance, extra: Partial<BoundValueFacts> = {}): BoundValueFacts {

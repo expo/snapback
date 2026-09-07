@@ -1,6 +1,6 @@
 import type { ArgType, Expr, IndexKeyExpr, Program, Stmt, Value } from "../ir";
 import type { ScalarType } from "./ast";
-import type { BoundExpression, BoundQuarryProgram, BoundRead } from "./bound";
+import type { BoundExpression, BoundQuarryProgram, BoundRead, BoundStatement } from "./bound";
 import { unsupported } from "./diagnostics";
 
 type Lowering = {
@@ -17,13 +17,11 @@ type LoweredValue = { setup: Stmt[]; value: Expr };
 export function lowerBoundQuarryProgram(program: BoundQuarryProgram): Program {
   const lowering: Lowering = {
     program: program.name, accessOrdinal: 0, temporaryOrdinal: 0, operandOrdinal: 0,
-    reservedNames: new Set(program.args.map((arg) => arg.name)),
+    reservedNames: new Set([...program.args.map((arg) => arg.name), ...boundLocalNames(program.body)]),
     focals: new Map(), bindings: new Map(),
   };
-  const body = program.body.flatMap((statement): Stmt[] => {
-    const value = lowerExpression(statement.value, lowering);
-    return [...value.setup, { Return: value.value }];
-  });
+  const body = lowerStatements(program.body, lowering);
+  if (statementsFallThrough(program.body)) body.push({ Return: { Literal: "Null" } });
   return {
     name: program.name,
     kind: program.kind === "query" ? "Query" : program.kind === "mutation" ? "Mutation" : "job",
@@ -38,7 +36,10 @@ export function lowerBoundQuarryProgram(program: BoundQuarryProgram): Program {
 function lowerExpression(expression: BoundExpression, lowering: Lowering): LoweredValue {
   if (expression.kind === "literal") return { setup: [], value: { Literal: literalValue(expression) } };
   if (expression.kind === "variable") {
-    return { setup: [], value: lowering.bindings.get(expression.symbol.id) ?? { Variable: expression.symbol.name } };
+    const binding = lowering.bindings.get(expression.symbol.id);
+    if (binding) return { setup: [], value: binding };
+    if (expression.symbol.kind === "local") throw new Error(`bound local ${expression.symbol.id} has no lowering scope`);
+    return { setup: [], value: { Variable: expression.symbol.name } };
   }
   if (expression.kind === "focal") {
     const value = lowering.focals.get(expression.id);
@@ -58,6 +59,15 @@ function lowerExpression(expression: BoundExpression, lowering: Lowering): Lower
     return { setup: value.setup, value: { Unary: { op: expression.op, value: value.value } } };
   }
   if (expression.kind === "binary") return lowerBinary(expression, lowering);
+  if (expression.kind === "assert") {
+    const value = captureObservable(lowerExpression(expression.value, lowering), lowering);
+    return {
+      setup: [...value.setup, { Require: { condition: {
+        Binary: { op: "Ne", left: value.value, right: { Literal: "Null" } },
+      }, code: expression.code } }],
+      value: value.value,
+    };
+  }
   if (expression.kind === "invoke") return lowerInvocation(expression, lowering);
   if (expression.kind === "shape") return lowerShape(expression, lowering);
   if (expression.kind === "member") {
@@ -90,6 +100,116 @@ function lowerExpression(expression: BoundExpression, lowering: Lowering): Lower
   if (expression.kind === "aggregate") return lowerAggregate(expression.read, lowering);
   if (expression.kind === "scan") return lowerScan(expression.read, lowering);
   return lowerPointRead(expression.read, expression.kind, lowering);
+}
+
+function lowerStatements(statements: BoundStatement[], lowering: Lowering): Stmt[] {
+  const body: Stmt[] = [];
+  for (const statement of statements) {
+    if (statement.kind === "return") {
+      const value = lowerExpression(statement.value, lowering);
+      body.push(...value.setup, { Return: value.value });
+      continue;
+    }
+    if (statement.kind === "bind") {
+      const value = lowerExpression(statement.value, lowering);
+      body.push(...value.setup);
+      const valueName = temporary(lowering, "localValue");
+      body.push({ Const: { name: valueName, value: value.value } });
+      if (statement.symbols.length === 1) {
+        lowering.bindings.set(statement.symbols[0]!.id, { Variable: valueName });
+      } else {
+        for (const [index, symbol] of statement.symbols.entries()) {
+          const name = temporary(lowering, "localPart");
+          const field = statement.tupleFields?.[index];
+          if (!field) throw new Error("bound tuple local has no field identity");
+          body.push({ Const: { name, value: { Field: { base: { Variable: valueName }, name: field } } } });
+          lowering.bindings.set(symbol.id, { Variable: name });
+        }
+      }
+      continue;
+    }
+    if (statement.kind === "require") {
+      const condition = captureObservable(lowerExpression(statement.condition, lowering), lowering);
+      body.push(...condition.setup, { Require: { condition: condition.value, code: statement.code } });
+      continue;
+    }
+    if (statement.kind === "if") {
+      const condition = captureObservable(lowerExpression(statement.condition, lowering), lowering);
+      const outerBindings = new Map(lowering.bindings);
+      lowering.bindings = new Map(outerBindings);
+      const thenBody = lowerStatements(statement.thenBody, lowering);
+      lowering.bindings = new Map(outerBindings);
+      const elseBody = lowerStatements(statement.elseBody, lowering);
+      lowering.bindings = outerBindings;
+      body.push(...condition.setup, { If: { condition: condition.value, then_body: thenBody, else_body: elseBody } });
+      continue;
+    }
+    if (statement.kind === "for") {
+      const domain = lowerExpression(statement.domain, lowering);
+      const binding = temporary(lowering, "loopItem");
+      let loopDomain: Extract<Stmt, { For: unknown }>["For"]["domain"];
+      if (statement.domain.facts.type.kind === "page" && "Scan" in domain.value) {
+        loopDomain = { Page: domain.value.Scan };
+      } else if (statement.domain.facts.type.kind === "list" && statement.domain.kind === "variable"
+        && statement.domain.symbol.kind === "argument") {
+        loopDomain = { ArgList: { name: statement.domain.symbol.name, max: statement.domain.facts.type.max } };
+      } else {
+        const max = statement.domain.facts.max
+          ?? ("max" in statement.domain.facts.type ? statement.domain.facts.type.max : undefined);
+        if (max === undefined) throw new Error("bound loop domain has no static maximum");
+        loopDomain = { DerivedArray: {
+          value: domain.value, max,
+          bound_source: `${statement.source.definition.file}:${statement.source.definition.line}:${statement.source.definition.col} bounded loop`,
+        } };
+      }
+      const prior = lowering.bindings.get(statement.symbol.id);
+      lowering.bindings.set(statement.symbol.id, { Variable: binding });
+      const loopBody = lowerStatements(statement.body, lowering);
+      if (prior) lowering.bindings.set(statement.symbol.id, prior);
+      else lowering.bindings.delete(statement.symbol.id);
+      body.push(...domain.setup, { For: { binding, domain: loopDomain, body: loopBody } });
+      continue;
+    }
+    const matched = lowerExpression(statement.value, lowering);
+    const matchName = temporary(lowering, "matchValue");
+    const rowName = temporary(lowering, "matchRow");
+    const outerBindings = new Map(lowering.bindings);
+    lowering.bindings = new Map(outerBindings);
+    lowering.bindings.set(statement.symbol.id, { Variable: rowName });
+    const someBody = [{ Const: { name: rowName, value: { Variable: matchName } } } satisfies Stmt,
+      ...lowerStatements(statement.someBody, lowering)];
+    lowering.bindings = new Map(outerBindings);
+    const noneBody = lowerStatements(statement.noneBody, lowering);
+    lowering.bindings = outerBindings;
+    body.push(...matched.setup, { Const: { name: matchName, value: matched.value } }, { If: {
+      condition: { Binary: { op: "Ne", left: { Variable: matchName }, right: { Literal: "Null" } } },
+      then_body: someBody, else_body: noneBody,
+    } });
+  }
+  return body;
+}
+
+function boundLocalNames(statements: BoundStatement[]): string[] {
+  return statements.flatMap((statement) => {
+    if (statement.kind === "bind") return statement.symbols.map((symbol) => symbol.name);
+    if (statement.kind === "if") return [...boundLocalNames(statement.thenBody), ...boundLocalNames(statement.elseBody)];
+    if (statement.kind === "for") return [statement.symbol.name, ...boundLocalNames(statement.body)];
+    if (statement.kind === "match") return [
+      statement.symbol.name, ...boundLocalNames(statement.someBody), ...boundLocalNames(statement.noneBody),
+    ];
+    return [];
+  });
+}
+
+function statementsFallThrough(statements: BoundStatement[]): boolean {
+  for (const statement of statements) {
+    if (statement.kind === "return") return false;
+    if (statement.kind === "if"
+      && !statementsFallThrough(statement.thenBody) && !statementsFallThrough(statement.elseBody)) return false;
+    if (statement.kind === "match"
+      && !statementsFallThrough(statement.someBody) && !statementsFallThrough(statement.noneBody)) return false;
+  }
+  return true;
 }
 
 function lowerInvocation(expression: Extract<BoundExpression, { kind: "invoke" }>, lowering: Lowering): LoweredValue {
