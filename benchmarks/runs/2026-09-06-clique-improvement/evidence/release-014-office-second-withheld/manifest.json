@@ -1,0 +1,122 @@
+{
+  "scope": "Byte-exact compact failed-publication evidence; no source or metric changes",
+  "externalOriginalRoot": "/Users/ccheever/clique-improvement/revisions/release-publication-014-office-attempt02",
+  "files": {
+    "report.md": {
+      "source": "/Users/ccheever/clique-improvement/revisions/release-publication-014-office-attempt02/implementation-report.md",
+      "bytes": 10927,
+      "sha256": "5a5e516becc2293ed50aa58f440eff08a9f983e1e2023b0a5c3562d24f49a190",
+      "copy": "byte-identical"
+    },
+    "writer-terminal.json": {
+      "source": "/Users/ccheever/clique-improvement/revisions/release-publication-014-office-attempt02/terminal.json",
+      "bytes": 110,
+      "sha256": "90fc1badbfb2ab4d6fc1ba20f0dbbd1c9a177f3df2539c5d49d96c5ee1de3c61",
+      "copy": "byte-identical"
+    },
+    "actual-identity.json": {
+      "source": "/Users/ccheever/clique-improvement/revisions/release-publication-014-office-attempt02/actual-identity.json",
+      "bytes": 500,
+      "sha256": "85ff73629a3c814268e90ccd546229d955f2d3a0b4d802a98a5fc3cf6d0b6af7",
+      "copy": "byte-identical"
+    },
+    "publication-receipt.json": {
+      "source": "/Users/ccheever/clique-improvement/revisions/release-publication-014-office-attempt02/publication-receipt.json",
+      "bytes": 2883,
+      "sha256": "55bbcdbbccdd58a2ceef1f529befe1c7257165c347a5c017ead6c8b5a66345a9",
+      "copy": "byte-identical"
+    },
+    "production-publish.json": {
+      "source": "/Users/ccheever/clique-improvement/revisions/release-publication-014-office-attempt02/receipts/production-publish.json",
+      "bytes": 3561,
+      "sha256": "e4c3532b41d3dc31fbc45400a4cb2a84dace29c033b0237a8e47e8aff54b9eaf",
+      "copy": "byte-identical"
+    },
+    "standard-installed-react-consumer.json": {
+      "source": "/Users/ccheever/clique-improvement/revisions/release-publication-014-office-attempt02/standard-installed-react-consumer.json",
+      "bytes": 2076,
+      "sha256": "b3ac52d0c59af3217e89b5404aa53150035cb9dbaeb4e92a6b363b30f24ef43e",
+      "copy": "byte-identical"
+    },
+    "source-receipt.json": {
+      "source": "/Users/ccheever/clique-improvement/revisions/release-publication-014-office-attempt02/source-receipt.json",
+      "bytes": 620,
+      "sha256": "4c9d0f9437d0d284ee8661ec04956000b6609f9bd8564c95f64653bddcc0580b",
+      "copy": "byte-identical"
+    },
+    "source-final.json": {
+      "source": "/Users/ccheever/clique-improvement/revisions/release-publication-014-office-attempt02/source-final.json",
+      "bytes": 330,
+      "sha256": "1ce44d22673d23ab97e4dd576247f0f28d61ee82bbab8ea194be70e583f94d43",
+      "copy": "byte-identical"
+    },
+    "artifact-receipt.json": {
+      "source": "/Users/ccheever/clique-improvement/revisions/release-publication-014-office-attempt02/artifact-receipt.json",
+      "bytes": 1942,
+      "sha256": "9b6aceabfac2f6aea65f60832c0c766c1658d5f1339ab530480c32f3af45f956",
+      "copy": "byte-identical"
+    },
+    "metric-receipt.json": {
+      "source": "/Users/ccheever/clique-improvement/revisions/release-publication-014-office-attempt02/metric-receipt.json",
+      "bytes": 366,
+      "sha256": "942b67c6c3f78ced59b3583d5645280cd8fc31976ee046277d557b3d6568abd2",
+      "copy": "byte-identical"
+    },
+    "cleanup.json": {
+      "source": "/Users/ccheever/clique-improvement/revisions/release-publication-014-office-attempt02/cleanup.json",
+      "bytes": 2824,
+      "sha256": "a574388f7aac75a9fe23c31a6adbf1d1bb6832ac4e63d6cc1d5fec31e8b9d1e1",
+      "copy": "byte-identical"
+    },
+    "installed-test-receipts.json": {
+      "source": "/Users/ccheever/clique-improvement/revisions/release-publication-014-office-attempt02/installed-test-receipts.json",
+      "bytes": 694,
+      "sha256": "ca96e059ffdf5fe1c4f2ef629732b9cf1a414c3e56a8d38da34a597c19d2c32c",
+      "copy": "byte-identical"
+    },
+    "reporting-failures.json": {
+      "source": "/Users/ccheever/clique-improvement/revisions/release-publication-014-office-attempt02/reporting-failures.json",
+      "bytes": 1067,
+      "sha256": "faa5795e1ce17e8788f15d28b81345db767914235531559bb6d85e2d65ac2cfd",
+      "copy": "byte-identical"
+    },
+    "auth-preflight.json": {
+      "source": "/Users/ccheever/clique-improvement/revisions/release-publication-014-office-attempt02/auth-preflight.json",
+      "bytes": 256,
+      "sha256": "8caeb83376d3c4f89262f76bad8e73660940c51436ab3fa188ee51d3a4552b13",
+      "copy": "byte-identical"
+    },
+    "capacity-decision.json": {
+      "source": "/Users/ccheever/clique-improvement/revisions/release-publication-014-office-attempt02/capacity-decision.json",
+      "bytes": 511,
+      "sha256": "80592872c202be5c30c211076c65785b3999f32bda6996ea1c3f4f9a23c1148d",
+      "copy": "byte-identical"
+    },
+    "supervisor-final-handoff.json": {
+      "source": "/Users/ccheever/clique-improvement/revisions/release-publication-014-office-attempt02/supervisor-final-handoff.json",
+      "bytes": 1041,
+      "sha256": "8fc46f55bdd118bc75baa0becd099c00aae4b7ff8ce807cdba3e7ee650e6f928",
+      "copy": "byte-identical"
+    },
+    "heavy-hold-release-notice.json": {
+      "source": "/Users/ccheever/clique-improvement/revisions/release-publication-014-office-attempt02/heavy-hold-release-notice.json",
+      "bytes": 305,
+      "sha256": "7c1d7357e3508106dfd054e5b693e1965b08d463510fd1f03dd2796c0c86c515",
+      "copy": "byte-identical"
+    },
+    "todos-receipt.json": {
+      "source": "/Users/ccheever/clique-improvement/revisions/release-publication-014-office-attempt02/installed-test-receipts/todos-1788752470348.json",
+      "bytes": 6316,
+      "sha256": "95276b40535b0e958476611484ecf3f8e222cb45444a8346e1fef922c23885c3",
+      "copy": "byte-identical"
+    }
+  },
+  "externalOmittedEvidence": {
+    "production-publish.log": {
+      "source": "/Users/ccheever/clique-improvement/revisions/release-publication-014-office-attempt02/receipts/production-publish.log",
+      "bytes": 1291,
+      "sha256": "046739629db66ad8514e6c7218f444553a222dbcb2c38329d59e8795ed8b05c1",
+      "reason": "Original contains trailing blank lines; retained verbatim externally rather than normalizing evidence or changing repository whitespace policy."
+    }
+  }
+}

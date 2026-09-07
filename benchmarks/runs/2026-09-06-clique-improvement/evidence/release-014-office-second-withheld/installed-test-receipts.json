@@ -1,0 +1,16 @@
+{
+  "source": "Unchanged installed snapback2 test durable output copied before original cleanup",
+  "receipts": [
+    {
+      "source": "/Users/ccheever/clique-improvement/revisions/release-publication-014-office-attempt02/tmp/snapback2-consumer-784ivo/todos/.snapback/receipts/1788752470348.json",
+      "retained": "/Users/ccheever/clique-improvement/revisions/release-publication-014-office-attempt02/installed-test-receipts/todos-1788752470348.json",
+      "sha256": "95276b40535b0e958476611484ecf3f8e222cb45444a8346e1fef922c23885c3",
+      "binary": {
+        "version": "0.0.14",
+        "digest": "rust64:0c64cf0914f5b3e1"
+      },
+      "verdict": "pass",
+      "checks": 6
+    }
+  ]
+}

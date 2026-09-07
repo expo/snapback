@@ -1,0 +1,104 @@
+{
+  "steps": [
+    {
+      "name": "install tarballs",
+      "seconds": 16.874217041,
+      "ok": true
+    },
+    {
+      "name": "doctor",
+      "seconds": 1.3356746249999996,
+      "ok": true
+    },
+    {
+      "name": "guide auth",
+      "seconds": 0.2934654580000024,
+      "ok": true
+    },
+    {
+      "name": "public client and React exports",
+      "seconds": 0.40198049999999785,
+      "ok": true
+    },
+    {
+      "name": "todos init",
+      "seconds": 6.718669958000002,
+      "ok": true
+    },
+    {
+      "name": "todos check",
+      "seconds": 6.246854667,
+      "ok": true
+    },
+    {
+      "name": "todos React bundle",
+      "seconds": 10.964101750000001,
+      "ok": true
+    },
+    {
+      "name": "todos dev",
+      "seconds": 2.842079582999999,
+      "ok": true
+    },
+    {
+      "name": "React live query round trip",
+      "seconds": 1.3882467909999978,
+      "ok": true
+    },
+    {
+      "name": "todos receipt",
+      "accepted": true,
+      "verdict": "pass"
+    },
+    {
+      "name": "todos test",
+      "seconds": 9.669363792000004,
+      "ok": true
+    },
+    {
+      "name": "todos stop",
+      "seconds": 0.3837409170000028,
+      "ok": true
+    },
+    {
+      "name": "chat init",
+      "seconds": 12.631279166999994,
+      "ok": true
+    },
+    {
+      "name": "chat check",
+      "seconds": 10.827146708,
+      "ok": true
+    },
+    {
+      "name": "chat React bundle",
+      "seconds": 7.434752667000008,
+      "ok": true
+    },
+    {
+      "name": "chat dev",
+      "seconds": 8.329243583000004,
+      "ok": true
+    },
+    {
+      "name": "chat test",
+      "seconds": 30.014008082999993,
+      "ok": false
+    },
+    {
+      "name": "chat stop",
+      "seconds": 0.3896040829999984,
+      "ok": true
+    }
+  ],
+  "publisherExitCode": 1,
+  "firstFailure": {
+    "name": "chat test",
+    "seconds": 30.014008082999993,
+    "ok": false
+  },
+  "sumStepSeconds": 126.74442937300002,
+  "durableReceiptIndex": "installed-test-receipts.json",
+  "rawPublisherOutput": "receipts/production-publish.log",
+  "originalOuterDeadlineSeconds": 30
+}

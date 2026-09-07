@@ -999,3 +999,10 @@ The strict ordinary-cursor derivative passed the once-only 10k Twin invocation a
 Apartment M1 accepted the exact 0.0.14 source, private Node/npm image, qualified tarballs and new writable resume. Its existing npm identity check returned E401, so staging stopped before any publisher or consumer execution. Public package ownership did not substitute for authenticated access. No credentials were copied or changed, and the first cleanup assumption failure remains recorded alongside the retained private compile cache.
 
 [Complete staging and authentication custody](../benchmarks/runs/2026-09-06-clique-improvement/evidence/release-014-apartment-auth-blocked/README.md) preserve the original package bytes and all prior qualification outcomes. The unchanged publisher has no imported-consumer receipt path; Root separately authorized one complete Office invocation under current-authentication, capacity and original-deadline conditions. This entry records the stopped Apartment stage, not that later attempt's result.
+
+
+### 2026-09-06 — A second Office invocation still misses the chat deadline
+
+The once-only complete Office publisher retry again stopped at the original30s chat-test deadline, despite current authentication, exact valid resume custody and the acknowledged hold on new heavy checks. Todos and the preceding consumer steps passed; no chat receipt completed. Both normal owner stops passed, all59 recorded work PIDs were absent, and both exact package versions remained E404. No npm publication or metric append occurred.
+
+[Full failure and timer custody](../benchmarks/runs/2026-09-06-clique-improvement/evidence/release-014-office-second-withheld/README.md) distinguish130.924s driver time from129.030s publisher time and126.744s summed consumer steps. The temporary chat project was removed by normal cleanup, so a precise unlogged failure cannot be invented. Root authorized a separate secure-authentication design for a complete unchanged Apartment invocation; no arbitrary Office retry or credential transfer follows from this record. The original qualified package bytes and earlier outcomes remain intact.

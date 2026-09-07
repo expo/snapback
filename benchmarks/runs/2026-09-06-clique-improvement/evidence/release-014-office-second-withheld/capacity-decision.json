@@ -1,0 +1,13 @@
+{
+  "epoch": 1788752417.908594,
+  "load": [
+    95.1630859375,
+    66.14794921875,
+    61.171875
+  ],
+  "decision": "Proceed with explicitly authorized single standard Office attempt",
+  "basis": "Fresh49.5% idle,19GiB unused,no swap; elevated load retained without causal claim or global-quiet assumption. Both peer acknowledgements on new heavy work recorded; existing jobs untouched.",
+  "holdReceipt": "heavy-hold-acknowledgements.json",
+  "authReceipt": "auth-preflight.json",
+  "noAutomaticRetry": true
+}

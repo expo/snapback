@@ -1,0 +1,37 @@
+{
+  "originalQualifiedAttempt": "release-preparation-014-attempt02",
+  "immutableResume": "/Users/ccheever/projects/snapback-artifacts/clique-release/0.0.14-0fdcc846b-attempt02/resume-ready.json",
+  "immutableResumeSha256": "9f833af4bce8841f46da3049732ba3377556d8232b85fc50c935557b7e4d268d",
+  "workingResume": "/Users/ccheever/projects/snapback-worktrees/clique-release-next/snapback2/dist/npm/publish-snapback2-darwin-arm64-0.0.14/resume.json",
+  "workingMode": "0644",
+  "originalMode": "0444",
+  "priorWorkingCopyPreserved": "prior-office-working-resume.json",
+  "resume": {
+    "name": "snapback2-darwin-arm64",
+    "version": "0.0.14",
+    "bin": "/Users/ccheever/projects/snapback-artifacts/clique-release/0.0.14-0fdcc846b-attempt02/qualified-artifacts/platform/package/bin/snapback2",
+    "mediaBin": "/Users/ccheever/projects/snapback-artifacts/clique-release/0.0.14-0fdcc846b-attempt02/qualified-artifacts/platform/package/bin/snapback2-media",
+    "mediaBytes": 2147984,
+    "withoutEngine": false,
+    "withoutEngineBytes": 3812208,
+    "withEngineBytes": 7029776,
+    "mediaDigest": "f31d8e02cd6846fa94d3294fde2245536945721c19a6f9be59494cb1dc307f86",
+    "artifacts": [
+      {
+        "name": "snapback2-darwin-arm64",
+        "version": "0.0.14",
+        "tarball": "/Users/ccheever/projects/snapback-artifacts/clique-release/0.0.14-0fdcc846b-attempt02/snapback2-darwin-arm64-0.0.14.tgz",
+        "integrity": "sha512-2UVxYTgIQJnGV+8V3gV3yQUTJ6yiftqinl5aeYW6elODy96c7yn7Lm2eq80HZqUhDIBjFjEBFWvd5R2Agfxz6w=="
+      },
+      {
+        "name": "snapback2",
+        "version": "0.0.14",
+        "tarball": "/Users/ccheever/projects/snapback-artifacts/clique-release/0.0.14-0fdcc846b-attempt02/snapback2-0.0.14.tgz",
+        "integrity": "sha512-dPm5mFSUA/DyWvICY6KwHIFCV6XppCogvYRZ3tX8BWV8h1QKIpQ/gPXRNDniRg0SJ4KyZfV1CKuBm2c/CdhX2w=="
+      }
+    ]
+  },
+  "rebuild": false,
+  "repack": false,
+  "repeatStaticPackageAudit": false
+}

@@ -1,0 +1,84 @@
+{
+  "sourceCommit": "0fdcc846bc7451bbcb1804194b49737418954506",
+  "actualStandardInvocationCount": 1,
+  "publisherPid": 25937,
+  "driverPid": 25903,
+  "publisherExitCode": 1,
+  "driverElapsedSeconds": 130.923625042,
+  "publisherStartToEndSeconds": 129.030189,
+  "firstFailure": {
+    "name": "chat test",
+    "seconds": 30.014008082999993,
+    "ok": false
+  },
+  "standardConsumerStatus": "failed",
+  "registryConvergenceReached": false,
+  "npmPublicationInvoked": false,
+  "registryAfter": {
+    "epoch": 1788752587.619692,
+    "driverPid": 27782,
+    "scope": "Read-only registry observation, no publication action or automatic retry",
+    "rows": [
+      {
+        "name": "snapback2-darwin-arm64",
+        "argv": [
+          "/Users/ccheever/.volta/tools/image/node/22.23.2/bin/npm",
+          "view",
+          "snapback2-darwin-arm64@0.0.14",
+          "version",
+          "dist.integrity",
+          "dist.tarball",
+          "dist-tags.latest",
+          "--json",
+          "--prefer-online",
+          "--fetch-timeout=15000",
+          "--fetch-retries=0"
+        ],
+        "pid": 27795,
+        "startedEpoch": 1788752584.010866,
+        "outerBoundSeconds": 30,
+        "fetchMilliseconds": 15000,
+        "fetchRetries": 0,
+        "exitCode": 1,
+        "elapsedSeconds": 1.583450583,
+        "stdoutSha256": "a137a6b1c36f6592f1565dd9e2ced15fe2077fa87d6ef0b018a501e12e6dfb9c",
+        "stderrSha256": "20bbefe703e31ddbb78031922865e3a9e484bb348c73d4eb242b8ccc6f0e3f8d",
+        "expectedIntegrity": "sha512-2UVxYTgIQJnGV+8V3gV3yQUTJ6yiftqinl5aeYW6elODy96c7yn7Lm2eq80HZqUhDIBjFjEBFWvd5R2Agfxz6w==",
+        "pendingE404": true
+      },
+      {
+        "name": "snapback2",
+        "argv": [
+          "/Users/ccheever/.volta/tools/image/node/22.23.2/bin/npm",
+          "view",
+          "snapback2@0.0.14",
+          "version",
+          "dist.integrity",
+          "dist.tarball",
+          "dist-tags.latest",
+          "--json",
+          "--prefer-online",
+          "--fetch-timeout=15000",
+          "--fetch-retries=0"
+        ],
+        "pid": 27814,
+        "startedEpoch": 1788752585.599325,
+        "outerBoundSeconds": 30,
+        "fetchMilliseconds": 15000,
+        "fetchRetries": 0,
+        "exitCode": 1,
+        "elapsedSeconds": 2.029853959,
+        "stdoutSha256": "5b823a3f6e26a0b480375ae7bdf41b1acabf33d8addaaf6d2e3bcbdfd50c3d56",
+        "stderrSha256": "1cdf71fbc0f999d43de85763480a6de8cd96ed14b007e95fcbaf9f124e710ae9",
+        "expectedIntegrity": "sha512-dPm5mFSUA/DyWvICY6KwHIFCV6XppCogvYRZ3tX8BWV8h1QKIpQ/gPXRNDniRg0SJ4KyZfV1CKuBm2c/CdhX2w==",
+        "pendingE404": true
+      }
+    ],
+    "integritiesMatch": false,
+    "latestMatch": false
+  },
+  "newRegistryInstallPerformed": false,
+  "ExpoVerificationPerformed": false,
+  "automaticRetry": false,
+  "disposition": "Stopped after original30s chat timeout; Root owns further work."
+}

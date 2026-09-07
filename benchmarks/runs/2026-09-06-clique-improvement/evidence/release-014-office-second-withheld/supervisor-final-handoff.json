@@ -1,0 +1,23 @@
+{
+  "epoch": 1788752919.0946062,
+  "reportReadInFull": true,
+  "reportBytes": 10927,
+  "reportSha256": "5a5e516becc2293ed50aa58f440eff08a9f983e1e2023b0a5c3562d24f49a190",
+  "actualAuthorTerminal": {
+    "pid": 22435,
+    "exitCode": 0,
+    "endedEpoch": 1788752897.672132,
+    "elapsedSeconds": 741.4359023571014
+  },
+  "writerReleased": true,
+  "ownedAuthorAndSupervisorAbsent": true,
+  "publisherExit": 1,
+  "driverElapsedSecondsIncludingCustody": 130.923625042,
+  "publisherTimestampSpanSeconds": 129.030189,
+  "consumerStepSumSeconds": 126.744429373,
+  "chatTimeoutSeconds": 30.014008083,
+  "publicationReached": false,
+  "originalConsumerReceipt": "todos only; chat did not complete",
+  "earlierSupervisorLabelClarification": "Earlier supervisor-consumer-failure.json publisherSeconds used the driver elapsed field; this handoff and full report explicitly separate timer scopes. Original receipt retained.",
+  "nextAuthorizedTask": "Same-session secure-auth design only; no transfer/publication before root concrete-plan disposition"
+}

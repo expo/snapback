@@ -1,0 +1,21 @@
+{
+  "failures": [
+    {
+      "operation": "Initial alternatives report lookup",
+      "exitCode": 1,
+      "detail": "Read attempted revisions/supervisor-publisher-alternatives/REPORT.md; ENOENT. Located and fully read release-apartment-014-staging/supervisor-publisher-alternatives/REPORT.md before any publisher attempt."
+    },
+    {
+      "operation": "Source/artifact receipt assembly while publisher completed",
+      "exitCode": 1,
+      "detail": "production-publish.running.json disappeared because driver finalized it to production-publish.json. FileNotFoundError occurred before any receipt writes. Read completed terminal receipt for final assembly; no publisher replay."
+    },
+    {
+      "operation": "Optional actual-identity filename discovery",
+      "exitCode": 1,
+      "detail": "rg --files found no actual-identity.json yet. Current native session turn_context was then observed and retained; no old identity imported."
+    }
+  ],
+  "productFailuresRetainedSeparately": "receipts/production-publish.log",
+  "uncertainMutationReplayed": false
+}
