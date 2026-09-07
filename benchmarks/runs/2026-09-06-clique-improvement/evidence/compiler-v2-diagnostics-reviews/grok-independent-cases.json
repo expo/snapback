@@ -1,0 +1,42 @@
+[
+  {
+    "name": "number-to-boolean-not-absence",
+    "files": {
+      "snapback/schema.q": "use identity\n\ntable todos:\n  title: text <=200\n  done: bool\n  ownerId: principal\n  by ownerId\n  read <- .ownerId = viewer\n  insert <- .ownerId = viewer\n  update <- .ownerId = viewer\n  delete <- .ownerId = viewer\n",
+      "snapback/todos.q": "query list():\n  return todos[viewer] first 50\n\nmutation add(title: text <=200):\n  row = insert todos { title, done: false, ownerId: viewer }\n  return { id: row.id }\n\nmutation complete(todoId: todos):\n  update todos[todoId] { done: 1 }\n  return true\n"
+    },
+    "expectedOk": false
+  },
+  {
+    "name": "type-mismatch-before-unresolved-if",
+    "files": {
+      "snapback/schema.q": "use identity\n\ntable todos:\n  title: text <=200\n  done: bool\n  ownerId: principal\n  by ownerId\n  read <- .ownerId = viewer\n  insert <- .ownerId = viewer\n  update <- .ownerId = viewer\n  delete <- .ownerId = viewer\n",
+      "snapback/todos.q": "mutation complete(todoId: todos):\n  update todos[todoId] { done: \"yes\" }\n  if missingCondition:\n    return missingInside\n  return missingAfter\n"
+    },
+    "expectedOk": false
+  },
+  {
+    "name": "outer-failed-merge-prefix-after-ok-domain",
+    "files": {
+      "snapback/schema.q": "use identity\n\ntable todos:\n  title: text <=200\n  done: bool\n  ownerId: principal\n  by byOwner: ownerId, id\n  read <- .ownerId = viewer\n  insert <- .ownerId = viewer\n  update <- .ownerId = viewer\n  delete <- .ownerId = viewer\n",
+      "snapback/todos.q": "query probe():\n  item = missingValue\n  page = merge todos first 3 by byOwner:\n    [item.ownerId] for x in todos[viewer] first 2 by byOwner\n  return missingAfter\n"
+    },
+    "expectedOk": false
+  },
+  {
+    "name": "match-some-unknown-none-type-mismatch",
+    "files": {
+      "snapback/schema.q": "use identity\n\ntable todos:\n  title: text <=200\n  done: bool\n  ownerId: principal\n  by ownerId\n  read <- .ownerId = viewer\n  insert <- .ownerId = viewer\n  update <- .ownerId = viewer\n  delete <- .ownerId = viewer\n",
+      "snapback/todos.q": "mutation complete(todoId: todos):\n  match todos[todoId]:\n    some row:\n      lost = missingThen\n    none:\n      update todos[todoId] { done: \"yes\" }\n  return missingAfter\n"
+    },
+    "expectedOk": false
+  },
+  {
+    "name": "null-insert-and-independent-unknown",
+    "files": {
+      "snapback/schema.q": "use identity\n\ntable todos:\n  title: text <=200\n  done: bool\n  ownerId: principal\n  by ownerId\n  read <- .ownerId = viewer\n  insert <- .ownerId = viewer\n  update <- .ownerId = viewer\n  delete <- .ownerId = viewer\n",
+      "snapback/todos.q": "mutation add():\n  row = insert todos { title: \"hi\", done: null, ownerId: viewer }\n  return missingAfter\n"
+    },
+    "expectedOk": false
+  }
+]

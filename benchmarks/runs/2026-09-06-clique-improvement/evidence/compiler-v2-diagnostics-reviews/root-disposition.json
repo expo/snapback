@@ -1,0 +1,29 @@
+{
+  "at": "2026-09-07T20:16:33.366283+00:00",
+  "decision": "Accept scoped READY/READY and land exact diagnostic delta; newpublication requires standardqualification",
+  "candidate": "b8f9cd6af15887b4cb4644bbb18a7a394730b5cf",
+  "integratedReleaseSource": "a606383b6e5ad7cf79555bbc4b810d6cf6ea0e92",
+  "rootFullReads": {
+    "astra": "a5fe1a complete29306B",
+    "grok": "0aa04e complete12414B",
+    "astraTerminal": "6a25a4",
+    "grokTerminalAndCollectionFailure": "287278"
+  },
+  "reports": {
+    "astra": "83227903d608072258bed7af1c386b7f492ab36776556a7a4cdb17d13fac1969",
+    "grok": "59a24fb140a85d5ddf9f300b1e660efa2aa96951b144a80d3d3ba375519f12c0"
+  },
+  "actualNativeAndOuterBothExitZero": true,
+  "actualModelsVerified": true,
+  "blindUntilBothTerminals": true,
+  "scope": "Currentmain-v2 diagnostics; complete accepted-output controls and refused-envelope safety. Not native/v5/runtime/certificate/full-generatedAPI/benchmark qualification.",
+  "reviewExecution": "Astra8pairedindependentcases/16invocations, noextra types/callbacks; Grok13pairedcases/26invocations,24callbacks,2types. Existingauthor51+4types/build/workers reused.",
+  "precisionNote": "Grok report table labels collection timeout124; actual transport receipt exit-9 timeouttrue45.018s, prose agrees-9. Wrapper124 differs from actual child. Originalreport/receipt preserved, no semanticverdict impact.",
+  "followup": "Astra observed RowOfColumns/Column names without declarations/imports in some accepted apiDts; emittingfallback/importlist unchangedparent. Separate bounded consumertriage/fix-forward, no newregression established.",
+  "fastChecks": {
+    "caps": "5b6d8b exit0",
+    "refCheck": "7efdbb exit0",
+    "diffCheck": "5e713b exit0"
+  },
+  "noPublicationYet": true
+}

@@ -1,0 +1,3110 @@
+{
+  "schema": 1,
+  "candidate": "b8f9cd6af15887b4cb4644bbb18a7a394730b5cf",
+  "parent": "44faf7bee1c70329e35b398749239ca31475495f",
+  "observedAt": "2026-09-07T20:15:43.632237+00:00",
+  "state": "both_native_and_outer_closed",
+  "blindness": {
+    "findingsOpenedBeforeBothClosed": false,
+    "peerCrossfeed": false,
+    "onlyIntervention": "Root mechanics-only collection correction delivered to Grok own inbox; no test/source/peer information."
+  },
+  "sharedInputs": [
+    {
+      "path": "root-approval.json",
+      "bytes": 1691,
+      "sha256": "d5741fb62bc40dd527cfb12368e4a00fefca5ccc5a20e61b6b5268d4ad5ca450"
+    },
+    {
+      "path": "launch.py",
+      "bytes": 6136,
+      "sha256": "819db9aacae601b4500fc1db9f0ec05332bc1f3c20d904878ab2ba86e7a7216e"
+    },
+    {
+      "path": "launch-derivative.diff",
+      "bytes": 6008,
+      "sha256": "cf3765bd1a3bc84f1d74842d12d47e9cb9185cbfdf5fe2a8f3b601a1561036c6"
+    },
+    {
+      "path": "collect-identity.py",
+      "bytes": 2724,
+      "sha256": "ac20bd97e629c7dd4973a97528e547f31764f8d14cdc8b5c38d3e11332d39545"
+    },
+    {
+      "path": "preparation.json",
+      "bytes": 3305,
+      "sha256": "430ed4801a432534dfdba842c211c5d1e977bcf11735606d20d72f8454577b3f"
+    },
+    {
+      "path": "supervisor-launch.json",
+      "bytes": 2064,
+      "sha256": "83361f4d2dead8abc88b7829323025398821ae32457175be77e50f73c0f05e2f"
+    }
+  ],
+  "families": {
+    "astra": {
+      "report": {
+        "path": "astra/work/review.md",
+        "bytes": 29306,
+        "sha256": "83227903d608072258bed7af1c386b7f492ab36776556a7a4cdb17d13fac1969"
+      },
+      "actualIdentity": {
+        "requestedModel": "gpt-6-astra",
+        "requestedEffort": "xhigh",
+        "launchPid": 70865,
+        "observedAt": "2026-09-07T20:12:09.632097+00:00",
+        "sessionId": "01a07d6b-2e8a-73d3-a9b4-6cb97df7aa3e",
+        "source": "/Users/ccheever/.codex/sessions/2026/09/07/rollout-2026-09-07T12-49-31-01a07d6b-2e8a-73d3-a9b4-6cb97df7aa3e.jsonl",
+        "sourceSha256": "2ae65936cbd503553559f7ca8d70398c0a8964ff4d174ab7ca3577c4499e0a83",
+        "turnContexts": [
+          {
+            "line": 8,
+            "model": "gpt-6-astra",
+            "effort": "xhigh",
+            "cwd": "/Users/ccheever/clique-improvement/reviews/compiler-dx-v2-r1/astra",
+            "timestamp": "2026-09-07T19:49:33.719Z"
+          },
+          {
+            "line": 285,
+            "model": "gpt-6-astra",
+            "effort": "xhigh",
+            "cwd": "/Users/ccheever/clique-improvement/reviews/compiler-dx-v2-r1/astra",
+            "timestamp": "2026-09-07T20:03:35.521Z"
+          }
+        ],
+        "identityMatchesRequest": true
+      },
+      "nativeTerminal": {
+        "pid": 70865,
+        "processIdentity": {
+          "pid": 70865,
+          "start": "Mon Sep 7 12:49:30 2026",
+          "executable": "/Users/ccheever/.volta/tools/image/packages/@openai/codex/lib/node_modules/@openai/codex/node_modules/@openai/codex-darwin-arm64/vendor/aarch64-apple-darwin/bin/codex",
+          "observed": true
+        },
+        "exitCode": 0,
+        "endedEpoch": 1788811928.884016,
+        "elapsedSeconds": 1357.945557832718,
+        "actualProcessWaitCompleted": true,
+        "stdoutSha256": "51e3a5382f97d09f2dea98d6f14d3f5901597d4464d5453838ef6ef5a456ed58",
+        "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "outerTerminal": {
+        "family": "astra",
+        "outerToolSessionId": 65372,
+        "outerExitCode": 0,
+        "outerFinalChunkId": "8b3622",
+        "outerCompletionObservedAt": "2026-09-07T20:12:24.439302+00:00",
+        "findingsOpened": false,
+        "files": [
+          {
+            "path": "terminal.json",
+            "sha256": "931480520d832baff99382d87c6d48d2aadd323c3d3964f2ffd62583bb398dac",
+            "bytes": 615
+          },
+          {
+            "path": "actual-identity.json",
+            "sha256": "0286afc03ac2e25336f58a16a46f22678350e5ce04d5192e9bed9c9c8441481d",
+            "bytes": 900
+          },
+          {
+            "path": "input-integrity-after.json",
+            "sha256": "d5f7d915ba6ed112d50526846c32c66fdb73cef55575ffdbea42f1b7422fdeae",
+            "bytes": 135
+          }
+        ]
+      },
+      "inputIntegrity": {
+        "unchanged": true,
+        "changedInputs": [],
+        "manifestSha256": "602b2262d1adb4d0f13456ff1a1be1570c16205cd18bfc183e79de958d137cce"
+      },
+      "immutableInputCount": 1422,
+      "transports": [
+        {
+          "receipt": "astra/work/transport/collect-owned/receipt.json",
+          "pid": 90758,
+          "deadlineSeconds": 45,
+          "elapsedSeconds": 2.39554975,
+          "exit": 0,
+          "timeout": false,
+          "handshakes": []
+        },
+        {
+          "receipt": "astra/work/transport/download-owned/receipt.json",
+          "pid": 91406,
+          "deadlineSeconds": 45,
+          "elapsedSeconds": 3.9437215,
+          "exit": 0,
+          "timeout": false,
+          "handshakes": []
+        },
+        {
+          "receipt": "astra/work/transport/prepare-directory/receipt.json",
+          "pid": 83668,
+          "deadlineSeconds": 45,
+          "elapsedSeconds": 2.205145,
+          "exit": 0,
+          "timeout": false,
+          "handshakes": []
+        },
+        {
+          "receipt": "astra/work/transport/review-candidate-0/receipt.json",
+          "pid": 88750,
+          "deadlineSeconds": 45,
+          "elapsedSeconds": 4.15178975,
+          "exit": 0,
+          "timeout": false,
+          "handshakes": [
+            {
+              "at": "2026-09-07T19:55:28.627904+00:00",
+              "ready": "e03a82b98c673c02ed6b027e146d12e1450bdb6ed81fd1d528e497683c9edd0c",
+              "currentSha256": "e03a82b98c673c02ed6b027e146d12e1450bdb6ed81fd1d528e497683c9edd0c",
+              "acknowledged": true
+            }
+          ]
+        },
+        {
+          "receipt": "astra/work/transport/review-parent-0/receipt.json",
+          "pid": 88448,
+          "deadlineSeconds": 45,
+          "elapsedSeconds": 4.1969595,
+          "exit": 0,
+          "timeout": false,
+          "handshakes": [
+            {
+              "at": "2026-09-07T19:55:15.362029+00:00",
+              "ready": "e03a82b98c673c02ed6b027e146d12e1450bdb6ed81fd1d528e497683c9edd0c",
+              "currentSha256": "e03a82b98c673c02ed6b027e146d12e1450bdb6ed81fd1d528e497683c9edd0c",
+              "acknowledged": true
+            }
+          ]
+        },
+        {
+          "receipt": "astra/work/transport/setup/receipt.json",
+          "pid": 86436,
+          "deadlineSeconds": 45,
+          "elapsedSeconds": 10.695858458,
+          "exit": 0,
+          "timeout": false,
+          "handshakes": [
+            {
+              "at": "2026-09-07T19:54:50.622710+00:00",
+              "ready": "e03a82b98c673c02ed6b027e146d12e1450bdb6ed81fd1d528e497683c9edd0c",
+              "currentSha256": "e03a82b98c673c02ed6b027e146d12e1450bdb6ed81fd1d528e497683c9edd0c",
+              "acknowledged": true
+            }
+          ]
+        },
+        {
+          "receipt": "astra/work/transport/unpack/receipt.json",
+          "pid": 85471,
+          "deadlineSeconds": 45,
+          "elapsedSeconds": 2.222549333,
+          "exit": 0,
+          "timeout": false,
+          "handshakes": []
+        },
+        {
+          "receipt": "astra/work/transport/upload/receipt.json",
+          "pid": 84276,
+          "deadlineSeconds": 45,
+          "elapsedSeconds": 7.775105542,
+          "exit": 0,
+          "timeout": false,
+          "handshakes": []
+        }
+      ],
+      "ownedWorkAndOutputLeafCount": 195,
+      "ownedWorkAndOutputByteCount": 58929110,
+      "ownedWorkAndOutputLeaves": [
+        {
+          "path": "astra/actual-identity.json",
+          "bytes": 900,
+          "sha256": "0286afc03ac2e25336f58a16a46f22678350e5ce04d5192e9bed9c9c8441481d"
+        },
+        {
+          "path": "astra/actual-turn-context.jsonl",
+          "bytes": 1684,
+          "sha256": "8292b82a2e17ecd0a2012e6a3a0629579d11435eacb704a3b7c7b7385b716c72"
+        },
+        {
+          "path": "astra/final-answer.md",
+          "bytes": 283,
+          "sha256": "8ee68fb6847b95aa060e3bf93583ba4d3163269b1d6733dce97e98cf4fd06ed0"
+        },
+        {
+          "path": "astra/identity-collection.log",
+          "bytes": 900,
+          "sha256": "0286afc03ac2e25336f58a16a46f22678350e5ce04d5192e9bed9c9c8441481d"
+        },
+        {
+          "path": "astra/initial-actual-identity.json",
+          "bytes": 684,
+          "sha256": "c4f4fe610e0956ca9d71ca2ee6bf876c7b8b5f4038fe2ebe0cd1933b7fca9d50"
+        },
+        {
+          "path": "astra/initial-work-manifest.json",
+          "bytes": 4175,
+          "sha256": "719d028e6c1a0b4160894353b0b659d957a2f14cceb6c485a0718120c6222688"
+        },
+        {
+          "path": "astra/input-integrity-after.json",
+          "bytes": 135,
+          "sha256": "d5f7d915ba6ed112d50526846c32c66fdb73cef55575ffdbea42f1b7422fdeae"
+        },
+        {
+          "path": "astra/launch.json",
+          "bytes": 2381,
+          "sha256": "2c376a49e7364968ea9643e1e8621fcb6cc409143bdef67eb5d425110b0993c2"
+        },
+        {
+          "path": "astra/prompt.md",
+          "bytes": 8133,
+          "sha256": "82cb6ddcf0ffa5ffca0729833ab52ac55740b1ae353e14fb729dcf4109f82800"
+        },
+        {
+          "path": "astra/provider-inputs.json",
+          "bytes": 377,
+          "sha256": "de0f8e33c618bc259778d5f044474e4f838e106a794c764e465d3740062cb97b"
+        },
+        {
+          "path": "astra/request.json",
+          "bytes": 945,
+          "sha256": "b99fcfbecfb03f8ac5c2100d8057a221a0613d7e9729891327d548e984246dea"
+        },
+        {
+          "path": "astra/source-manifest.json",
+          "bytes": 294479,
+          "sha256": "602b2262d1adb4d0f13456ff1a1be1570c16205cd18bfc183e79de958d137cce"
+        },
+        {
+          "path": "astra/stderr.log",
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "astra/stdout.log",
+          "bytes": 1604286,
+          "sha256": "51e3a5382f97d09f2dea98d6f14d3f5901597d4464d5453838ef6ef5a456ed58"
+        },
+        {
+          "path": "astra/supervisor-terminal.json",
+          "bytes": 682,
+          "sha256": "0be64c279b16dce26a9e6abf3ce5afbd439153b74bf6d32eaf26b075b2a609af"
+        },
+        {
+          "path": "astra/terminal.json",
+          "bytes": 615,
+          "sha256": "931480520d832baff99382d87c6d48d2aadd323c3d3964f2ffd62583bb398dac"
+        },
+        {
+          "path": "astra/work/audit-evidence.py",
+          "bytes": 3048,
+          "sha256": "68b71d9d2c2a1df8d0344d4aaec904a683f627e5779f1605e0c1641bf290cd20"
+        },
+        {
+          "path": "astra/work/author-ledger-audit.json",
+          "bytes": 328692,
+          "sha256": "0064a66d7ebbdeeee94dd3f46f0c132f022578709bce502a19bddf6be449a66a"
+        },
+        {
+          "path": "astra/work/candidate-source-manifest.json",
+          "bytes": 67674,
+          "sha256": "7c518cbfd210f3224b4cbf4082b46973a80c73f6cc1393db0fd34c61705ea46c"
+        },
+        {
+          "path": "astra/work/candidate-source.tar",
+          "bytes": 11427840,
+          "sha256": "1b00306cc6b56cca30f7de0672e8418fb00c7d3881751b7f7dba938d90d104db"
+        },
+        {
+          "path": "astra/work/capture-helpers.ts",
+          "bytes": 1254,
+          "sha256": "c29f7ecd108d2a9826ac9eaca3a96ba16715324f3364859826c65b72798bdf02"
+        },
+        {
+          "path": "astra/work/capture-project.ts",
+          "bytes": 562,
+          "sha256": "7bf9dcec61a142e43dde2b3130e8e069dc828e457b0c46fa7be1cb1d1c938e86"
+        },
+        {
+          "path": "astra/work/collection-code.py",
+          "bytes": 1991,
+          "sha256": "8b5b4bed61faa2ee4efe39fb7efd844dc8557ea7047570b52993d89aafac823d"
+        },
+        {
+          "path": "astra/work/command-result-ledger.json",
+          "bytes": 14776,
+          "sha256": "fb024c251df36a4593b261cb8d5ee2631b992c079c188d22088341e52ff7af26"
+        },
+        {
+          "path": "astra/work/completed-owned.tar.gz",
+          "bytes": 25105,
+          "sha256": "6aab6e21e213eab99727920704e42389eef56849879f3cd7bf0d1e833f683a46"
+        },
+        {
+          "path": "astra/work/diagnostic-callbacks.ts",
+          "bytes": 26889,
+          "sha256": "da4ebd990c83736feaee26520212b278a333200238005d31239a6d13cef5af03"
+        },
+        {
+          "path": "astra/work/diagnostic-cases.json",
+          "bytes": 38757,
+          "sha256": "9e7ea56a3c1cb52aec89c0d8dd940dd1cbe759a21dde2a84caebd09292ccb057"
+        },
+        {
+          "path": "astra/work/diagnostic-selected.ts",
+          "bytes": 1738,
+          "sha256": "d9af041c9b084fedc17a0a2df7a08af2a7daee165417e5017ccd09dc7dd435b7"
+        },
+        {
+          "path": "astra/work/dispatch.py",
+          "bytes": 589,
+          "sha256": "f96609a7f6a9063813e8c6cf2aec6d94cf7d60393dd4d64a3956ed8ec96b40f2"
+        },
+        {
+          "path": "astra/work/fatal-boundaries.json",
+          "bytes": 617,
+          "sha256": "a96073fa00a65064e6aa38547f6e1ddc970910030b18cb3d9186f412eab15579"
+        },
+        {
+          "path": "astra/work/final-custody.json",
+          "bytes": 619,
+          "sha256": "13b327d324526330062ea0389b43c463da72fbf144f60a58b9fae51d0a3d28f3"
+        },
+        {
+          "path": "astra/work/finalize-audit-first-failed.py",
+          "bytes": 6043,
+          "sha256": "05f71b08873822ca9fc2201d97c99ae199bd2378093bab1acebf6bc10e1eb804"
+        },
+        {
+          "path": "astra/work/finalize-audit.py",
+          "bytes": 6153,
+          "sha256": "99b048149a8259c26f3fdbade94c52a77ac65b69904b3b039f63d054a21e0daf"
+        },
+        {
+          "path": "astra/work/full-dependency-manifest.json",
+          "bytes": 5310634,
+          "sha256": "eb983cc39681ea870adabdb6db29558b04c0f3bf34d6eaee0f9a02d6298b0bf9"
+        },
+        {
+          "path": "astra/work/generated-candidate.json",
+          "bytes": 18818,
+          "sha256": "0c6116a0392de38aca1410b1b7750ff38d8191a78b82cf53fc7a7f368e0f203c"
+        },
+        {
+          "path": "astra/work/generated-parent.json",
+          "bytes": 18818,
+          "sha256": "33d0e8abc8c1c6297c27580256efb2ad5911a7a9cac2f1ac3e0a76bfc8fe48cb"
+        },
+        {
+          "path": "astra/work/inbox-ack.sha256",
+          "bytes": 65,
+          "sha256": "f60488893f367aa8ce099f42ccd6bf085ee9019d6a005107c8685efb1b63f5ef"
+        },
+        {
+          "path": "astra/work/inbox-consumption.json",
+          "bytes": 208,
+          "sha256": "2c8662acabb48a8ba22e28ff65fbc618442ed431db8cc001615c3a443b2cf795"
+        },
+        {
+          "path": "astra/work/initial-custody.json",
+          "bytes": 130,
+          "sha256": "57b07474c6e0108119fb6edb956aca436ad56abea1a0ba75c6ceda40ccbad0bb"
+        },
+        {
+          "path": "astra/work/local-audit-failures.json",
+          "bytes": 1620,
+          "sha256": "eea97e1b9753ec0d172e6e6e322681f36ad94a53436d171bd3e0f4abe7afe8c6"
+        },
+        {
+          "path": "astra/work/main-eight.json",
+          "bytes": 3815,
+          "sha256": "f375f9e1c6bca8498d91a0f99213c54227202d352161d685e7709a98912ad2b5"
+        },
+        {
+          "path": "astra/work/main-source.tar",
+          "bytes": 11028480,
+          "sha256": "f0eb4e4bcf2d2ab135e3ada4f89b493689f92d25c078bff57146d04eddb30126"
+        },
+        {
+          "path": "astra/work/original-three.json",
+          "bytes": 1894,
+          "sha256": "c88f17d0f016916be446e8c0bc502471a9168735ae0b38c6a670f7b807e57734"
+        },
+        {
+          "path": "astra/work/own-results-audit.json",
+          "bytes": 45666,
+          "sha256": "d096f548479b9180ce5864e1d9578039340cdb5daf1cd2d08fc1d0f7553371a4"
+        },
+        {
+          "path": "astra/work/parent-source-manifest.json",
+          "bytes": 67332,
+          "sha256": "c429d81f1145915a408444a067400f9c7cfe6d94c4f1bfb5c4d0791da1f57dbb"
+        },
+        {
+          "path": "astra/work/project-probe-review.ts",
+          "bytes": 2978,
+          "sha256": "e588b50ac6973f7ddd50b8216beb88e46e6fbb85fc53ddd015fd75f124f86723"
+        },
+        {
+          "path": "astra/work/project-probe.ts",
+          "bytes": 3002,
+          "sha256": "cdadae39994b65ac888e21e646b7bb1973b5bd1995a6353f1eba32cb4100ef8d"
+        },
+        {
+          "path": "astra/work/remote-complete/artifacts/projects/candidate/review-cases-0/focal-context-boolean-mismatch/assertions.json",
+          "bytes": 12,
+          "sha256": "e5f1eb4d806641698a35efe20e098efd20d7d57a9b90ee69079d5bb650920726"
+        },
+        {
+          "path": "astra/work/remote-complete/artifacts/projects/candidate/review-cases-0/focal-context-boolean-mismatch/full.json",
+          "bytes": 2055,
+          "sha256": "2cdd703ae91d384d42180ea8aef8880957e0d29d20459566a3451768c61f71d7"
+        },
+        {
+          "path": "astra/work/remote-complete/artifacts/projects/candidate/review-cases-0/focal-context-boolean-mismatch/leaves.json",
+          "bytes": 62,
+          "sha256": "473aad17ba362e2a7f3695f03e01a30f578894089769f3b55937cc47797d2f21"
+        },
+        {
+          "path": "astra/work/remote-complete/artifacts/projects/candidate/review-cases-0/focal-context-boolean-mismatch/project/snapback/schema.q",
+          "bytes": 212,
+          "sha256": "2f6dcba63d81eb0d4cc87baf951a863852f21a46d581011d72d1eee7c2f6d0f1"
+        },
+        {
+          "path": "astra/work/remote-complete/artifacts/projects/candidate/review-cases-0/focal-context-boolean-mismatch/project/snapback/todos.q",
+          "bytes": 141,
+          "sha256": "307e82eadeba058d6f47613d3c7096b30dbadb1f01a23312ec9cd9979f67faa6"
+        },
+        {
+          "path": "astra/work/remote-complete/artifacts/projects/candidate/review-cases-0/fresh-binding-initializer-still-failed/assertions.json",
+          "bytes": 12,
+          "sha256": "e5f1eb4d806641698a35efe20e098efd20d7d57a9b90ee69079d5bb650920726"
+        },
+        {
+          "path": "astra/work/remote-complete/artifacts/projects/candidate/review-cases-0/fresh-binding-initializer-still-failed/full.json",
+          "bytes": 892,
+          "sha256": "b1ec376a89b8990614c112602ec0ec419e64d18d23d98a4b16fe8cae351e0b61"
+        },
+        {
+          "path": "astra/work/remote-complete/artifacts/projects/candidate/review-cases-0/fresh-binding-initializer-still-failed/leaves.json",
+          "bytes": 62,
+          "sha256": "473aad17ba362e2a7f3695f03e01a30f578894089769f3b55937cc47797d2f21"
+        },
+        {
+          "path": "astra/work/remote-complete/artifacts/projects/candidate/review-cases-0/fresh-binding-initializer-still-failed/project/snapback/schema.q",
+          "bytes": 212,
+          "sha256": "2f6dcba63d81eb0d4cc87baf951a863852f21a46d581011d72d1eee7c2f6d0f1"
+        },
+        {
+          "path": "astra/work/remote-complete/artifacts/projects/candidate/review-cases-0/fresh-binding-initializer-still-failed/project/snapback/todos.q",
+          "bytes": 199,
+          "sha256": "dc1a0b13cb0004baffdaf125e30d0963dcd9146c511fe28a4a531154ac7351df"
+        },
+        {
+          "path": "astra/work/remote-complete/artifacts/projects/candidate/review-cases-0/match-outer-narrowing-restored/assertions.json",
+          "bytes": 12,
+          "sha256": "e5f1eb4d806641698a35efe20e098efd20d7d57a9b90ee69079d5bb650920726"
+        },
+        {
+          "path": "astra/work/remote-complete/artifacts/projects/candidate/review-cases-0/match-outer-narrowing-restored/full.json",
+          "bytes": 1075,
+          "sha256": "242298d02f05eecabda8b4837a14085f6ea0e6dfcbc7189fcbf342425c2cca23"
+        },
+        {
+          "path": "astra/work/remote-complete/artifacts/projects/candidate/review-cases-0/match-outer-narrowing-restored/leaves.json",
+          "bytes": 62,
+          "sha256": "473aad17ba362e2a7f3695f03e01a30f578894089769f3b55937cc47797d2f21"
+        },
+        {
+          "path": "astra/work/remote-complete/artifacts/projects/candidate/review-cases-0/match-outer-narrowing-restored/project/snapback/schema.q",
+          "bytes": 212,
+          "sha256": "2f6dcba63d81eb0d4cc87baf951a863852f21a46d581011d72d1eee7c2f6d0f1"
+        },
+        {
+          "path": "astra/work/remote-complete/artifacts/projects/candidate/review-cases-0/match-outer-narrowing-restored/project/snapback/todos.q",
+          "bytes": 376,
+          "sha256": "1b1c5114a9f0fc7dc3ff48d252d76ade81493326a3cceff0ca70fc32146383c5"
+        },
+        {
+          "path": "astra/work/remote-complete/artifacts/projects/candidate/review-cases-0/merge-compound-domain-precedence/assertions.json",
+          "bytes": 12,
+          "sha256": "e5f1eb4d806641698a35efe20e098efd20d7d57a9b90ee69079d5bb650920726"
+        },
+        {
+          "path": "astra/work/remote-complete/artifacts/projects/candidate/review-cases-0/merge-compound-domain-precedence/full.json",
+          "bytes": 1130,
+          "sha256": "5f04989ea8fcbde98c983ddb8ca9145700f071cdcdd2e671065ff7c1197e06ad"
+        },
+        {
+          "path": "astra/work/remote-complete/artifacts/projects/candidate/review-cases-0/merge-compound-domain-precedence/leaves.json",
+          "bytes": 62,
+          "sha256": "473aad17ba362e2a7f3695f03e01a30f578894089769f3b55937cc47797d2f21"
+        },
+        {
+          "path": "astra/work/remote-complete/artifacts/projects/candidate/review-cases-0/merge-compound-domain-precedence/project/snapback/schema.q",
+          "bytes": 225,
+          "sha256": "98a5fc1ab5c9d34d194d7287e2b15a2a6cf38124c50e6d5f48f73731b2aa0757"
+        },
+        {
+          "path": "astra/work/remote-complete/artifacts/projects/candidate/review-cases-0/merge-compound-domain-precedence/project/snapback/todos.q",
+          "bytes": 255,
+          "sha256": "c00732826ae8219c6afada1bcedd8cc6dba8e37cc044b9dcd27401ccb1321914"
+        },
+        {
+          "path": "astra/work/remote-complete/artifacts/projects/candidate/review-cases-0/nested-capture-restores-optional/assertions.json",
+          "bytes": 12,
+          "sha256": "e5f1eb4d806641698a35efe20e098efd20d7d57a9b90ee69079d5bb650920726"
+        },
+        {
+          "path": "astra/work/remote-complete/artifacts/projects/candidate/review-cases-0/nested-capture-restores-optional/full.json",
+          "bytes": 1310,
+          "sha256": "d5c803218e5078e2e7cd89237a9c0c55e3c007d6356e4583f354fc4cf37e232e"
+        },
+        {
+          "path": "astra/work/remote-complete/artifacts/projects/candidate/review-cases-0/nested-capture-restores-optional/leaves.json",
+          "bytes": 62,
+          "sha256": "473aad17ba362e2a7f3695f03e01a30f578894089769f3b55937cc47797d2f21"
+        },
+        {
+          "path": "astra/work/remote-complete/artifacts/projects/candidate/review-cases-0/nested-capture-restores-optional/project/snapback/schema.q",
+          "bytes": 212,
+          "sha256": "2f6dcba63d81eb0d4cc87baf951a863852f21a46d581011d72d1eee7c2f6d0f1"
+        },
+        {
+          "path": "astra/work/remote-complete/artifacts/projects/candidate/review-cases-0/nested-capture-restores-optional/project/snapback/todos.q",
+          "bytes": 262,
+          "sha256": "0254095d63fcba5ece1d3dd5a2b31b287f1ebe40d76da480eb77f9f8b5b515f7"
+        },
+        {
+          "path": "astra/work/remote-complete/artifacts/projects/candidate/review-cases-0/optional-alias-after-refusal/assertions.json",
+          "bytes": 12,
+          "sha256": "e5f1eb4d806641698a35efe20e098efd20d7d57a9b90ee69079d5bb650920726"
+        },
+        {
+          "path": "astra/work/remote-complete/artifacts/projects/candidate/review-cases-0/optional-alias-after-refusal/full.json",
+          "bytes": 946,
+          "sha256": "96f2abf86858aa5fdc7e23eda0914ac1234fdff87f3442e8e17ae9e8bf4c20de"
+        },
+        {
+          "path": "astra/work/remote-complete/artifacts/projects/candidate/review-cases-0/optional-alias-after-refusal/leaves.json",
+          "bytes": 62,
+          "sha256": "473aad17ba362e2a7f3695f03e01a30f578894089769f3b55937cc47797d2f21"
+        },
+        {
+          "path": "astra/work/remote-complete/artifacts/projects/candidate/review-cases-0/optional-alias-after-refusal/project/snapback/schema.q",
+          "bytes": 212,
+          "sha256": "2f6dcba63d81eb0d4cc87baf951a863852f21a46d581011d72d1eee7c2f6d0f1"
+        },
+        {
+          "path": "astra/work/remote-complete/artifacts/projects/candidate/review-cases-0/optional-alias-after-refusal/project/snapback/todos.q",
+          "bytes": 154,
+          "sha256": "e566260531c2f0c8b79f0709c959d37005b4945b39a761b1da3892927f4d9e26"
+        },
+        {
+          "path": "astra/work/remote-complete/artifacts/projects/candidate/review-cases-0/rollback-patch-context/assertions.json",
+          "bytes": 12,
+          "sha256": "e5f1eb4d806641698a35efe20e098efd20d7d57a9b90ee69079d5bb650920726"
+        },
+        {
+          "path": "astra/work/remote-complete/artifacts/projects/candidate/review-cases-0/rollback-patch-context/full.json",
+          "bytes": 895,
+          "sha256": "bd1b68ad450a5b3964d7b519e9957828a7588b25f62ac2c3df9ca5d9558b8c5a"
+        },
+        {
+          "path": "astra/work/remote-complete/artifacts/projects/candidate/review-cases-0/rollback-patch-context/leaves.json",
+          "bytes": 62,
+          "sha256": "473aad17ba362e2a7f3695f03e01a30f578894089769f3b55937cc47797d2f21"
+        },
+        {
+          "path": "astra/work/remote-complete/artifacts/projects/candidate/review-cases-0/rollback-patch-context/project/snapback/schema.q",
+          "bytes": 212,
+          "sha256": "2f6dcba63d81eb0d4cc87baf951a863852f21a46d581011d72d1eee7c2f6d0f1"
+        },
+        {
+          "path": "astra/work/remote-complete/artifacts/projects/candidate/review-cases-0/rollback-patch-context/project/snapback/todos.q",
+          "bytes": 154,
+          "sha256": "9702ea14fb48cede59c78140cac7fece4e44364f4d651880b8f0bd5108ea2230"
+        },
+        {
+          "path": "astra/work/remote-complete/artifacts/projects/candidate/review-cases-0/successful-lexical-list-control/assertions.json",
+          "bytes": 12,
+          "sha256": "e5f1eb4d806641698a35efe20e098efd20d7d57a9b90ee69079d5bb650920726"
+        },
+        {
+          "path": "astra/work/remote-complete/artifacts/projects/candidate/review-cases-0/successful-lexical-list-control/full.json",
+          "bytes": 7643,
+          "sha256": "912dc301b79f6836e09aff72ca54e43409851e1d3e731f861c2da245e1b3cf14"
+        },
+        {
+          "path": "astra/work/remote-complete/artifacts/projects/candidate/review-cases-0/successful-lexical-list-control/leaves.json",
+          "bytes": 62,
+          "sha256": "473aad17ba362e2a7f3695f03e01a30f578894089769f3b55937cc47797d2f21"
+        },
+        {
+          "path": "astra/work/remote-complete/artifacts/projects/candidate/review-cases-0/successful-lexical-list-control/project/snapback/schema.q",
+          "bytes": 212,
+          "sha256": "2f6dcba63d81eb0d4cc87baf951a863852f21a46d581011d72d1eee7c2f6d0f1"
+        },
+        {
+          "path": "astra/work/remote-complete/artifacts/projects/candidate/review-cases-0/successful-lexical-list-control/project/snapback/todos.q",
+          "bytes": 144,
+          "sha256": "ea531d0596f3498e3e24b449b9b14aab383c2013c19558f42c3da4b2b614075f"
+        },
+        {
+          "path": "astra/work/remote-complete/artifacts/projects/parent/review-cases-0/focal-context-boolean-mismatch/assertions.json",
+          "bytes": 12,
+          "sha256": "e5f1eb4d806641698a35efe20e098efd20d7d57a9b90ee69079d5bb650920726"
+        },
+        {
+          "path": "astra/work/remote-complete/artifacts/projects/parent/review-cases-0/focal-context-boolean-mismatch/full.json",
+          "bytes": 292,
+          "sha256": "ee275bb70723f0c7dca6c21ec65bea6e864d6b58fbda345955566832cc0dbb52"
+        },
+        {
+          "path": "astra/work/remote-complete/artifacts/projects/parent/review-cases-0/focal-context-boolean-mismatch/leaves.json",
+          "bytes": 62,
+          "sha256": "473aad17ba362e2a7f3695f03e01a30f578894089769f3b55937cc47797d2f21"
+        },
+        {
+          "path": "astra/work/remote-complete/artifacts/projects/parent/review-cases-0/focal-context-boolean-mismatch/project/snapback/schema.q",
+          "bytes": 212,
+          "sha256": "2f6dcba63d81eb0d4cc87baf951a863852f21a46d581011d72d1eee7c2f6d0f1"
+        },
+        {
+          "path": "astra/work/remote-complete/artifacts/projects/parent/review-cases-0/focal-context-boolean-mismatch/project/snapback/todos.q",
+          "bytes": 141,
+          "sha256": "307e82eadeba058d6f47613d3c7096b30dbadb1f01a23312ec9cd9979f67faa6"
+        },
+        {
+          "path": "astra/work/remote-complete/artifacts/projects/parent/review-cases-0/fresh-binding-initializer-still-failed/assertions.json",
+          "bytes": 12,
+          "sha256": "e5f1eb4d806641698a35efe20e098efd20d7d57a9b90ee69079d5bb650920726"
+        },
+        {
+          "path": "astra/work/remote-complete/artifacts/projects/parent/review-cases-0/fresh-binding-initializer-still-failed/full.json",
+          "bytes": 292,
+          "sha256": "4a56cd6e60e165d272d547f15ddfb4cd8e283c067981fa03c9aae8dcc0562dc1"
+        },
+        {
+          "path": "astra/work/remote-complete/artifacts/projects/parent/review-cases-0/fresh-binding-initializer-still-failed/leaves.json",
+          "bytes": 62,
+          "sha256": "473aad17ba362e2a7f3695f03e01a30f578894089769f3b55937cc47797d2f21"
+        },
+        {
+          "path": "astra/work/remote-complete/artifacts/projects/parent/review-cases-0/fresh-binding-initializer-still-failed/project/snapback/schema.q",
+          "bytes": 212,
+          "sha256": "2f6dcba63d81eb0d4cc87baf951a863852f21a46d581011d72d1eee7c2f6d0f1"
+        },
+        {
+          "path": "astra/work/remote-complete/artifacts/projects/parent/review-cases-0/fresh-binding-initializer-still-failed/project/snapback/todos.q",
+          "bytes": 199,
+          "sha256": "dc1a0b13cb0004baffdaf125e30d0963dcd9146c511fe28a4a531154ac7351df"
+        },
+        {
+          "path": "astra/work/remote-complete/artifacts/projects/parent/review-cases-0/match-outer-narrowing-restored/assertions.json",
+          "bytes": 12,
+          "sha256": "e5f1eb4d806641698a35efe20e098efd20d7d57a9b90ee69079d5bb650920726"
+        },
+        {
+          "path": "astra/work/remote-complete/artifacts/projects/parent/review-cases-0/match-outer-narrowing-restored/full.json",
+          "bytes": 292,
+          "sha256": "fecf1a9c6deb8e61bdb3c196a6f310456f7cd023afea46e3056842a8af0829d8"
+        },
+        {
+          "path": "astra/work/remote-complete/artifacts/projects/parent/review-cases-0/match-outer-narrowing-restored/leaves.json",
+          "bytes": 62,
+          "sha256": "473aad17ba362e2a7f3695f03e01a30f578894089769f3b55937cc47797d2f21"
+        },
+        {
+          "path": "astra/work/remote-complete/artifacts/projects/parent/review-cases-0/match-outer-narrowing-restored/project/snapback/schema.q",
+          "bytes": 212,
+          "sha256": "2f6dcba63d81eb0d4cc87baf951a863852f21a46d581011d72d1eee7c2f6d0f1"
+        },
+        {
+          "path": "astra/work/remote-complete/artifacts/projects/parent/review-cases-0/match-outer-narrowing-restored/project/snapback/todos.q",
+          "bytes": 376,
+          "sha256": "1b1c5114a9f0fc7dc3ff48d252d76ade81493326a3cceff0ca70fc32146383c5"
+        },
+        {
+          "path": "astra/work/remote-complete/artifacts/projects/parent/review-cases-0/merge-compound-domain-precedence/assertions.json",
+          "bytes": 12,
+          "sha256": "e5f1eb4d806641698a35efe20e098efd20d7d57a9b90ee69079d5bb650920726"
+        },
+        {
+          "path": "astra/work/remote-complete/artifacts/projects/parent/review-cases-0/merge-compound-domain-precedence/full.json",
+          "bytes": 292,
+          "sha256": "1f5b4f436edc4eab66f0bde753fcc305dc23c55bcd3ca422c969b64467d3717c"
+        },
+        {
+          "path": "astra/work/remote-complete/artifacts/projects/parent/review-cases-0/merge-compound-domain-precedence/leaves.json",
+          "bytes": 62,
+          "sha256": "473aad17ba362e2a7f3695f03e01a30f578894089769f3b55937cc47797d2f21"
+        },
+        {
+          "path": "astra/work/remote-complete/artifacts/projects/parent/review-cases-0/merge-compound-domain-precedence/project/snapback/schema.q",
+          "bytes": 225,
+          "sha256": "98a5fc1ab5c9d34d194d7287e2b15a2a6cf38124c50e6d5f48f73731b2aa0757"
+        },
+        {
+          "path": "astra/work/remote-complete/artifacts/projects/parent/review-cases-0/merge-compound-domain-precedence/project/snapback/todos.q",
+          "bytes": 255,
+          "sha256": "c00732826ae8219c6afada1bcedd8cc6dba8e37cc044b9dcd27401ccb1321914"
+        },
+        {
+          "path": "astra/work/remote-complete/artifacts/projects/parent/review-cases-0/nested-capture-restores-optional/assertions.json",
+          "bytes": 12,
+          "sha256": "e5f1eb4d806641698a35efe20e098efd20d7d57a9b90ee69079d5bb650920726"
+        },
+        {
+          "path": "astra/work/remote-complete/artifacts/projects/parent/review-cases-0/nested-capture-restores-optional/full.json",
+          "bytes": 292,
+          "sha256": "4cdd12b72d461954893feb654556151fcb3b4c32569cdd745a4df8bfec6690e5"
+        },
+        {
+          "path": "astra/work/remote-complete/artifacts/projects/parent/review-cases-0/nested-capture-restores-optional/leaves.json",
+          "bytes": 62,
+          "sha256": "473aad17ba362e2a7f3695f03e01a30f578894089769f3b55937cc47797d2f21"
+        },
+        {
+          "path": "astra/work/remote-complete/artifacts/projects/parent/review-cases-0/nested-capture-restores-optional/project/snapback/schema.q",
+          "bytes": 212,
+          "sha256": "2f6dcba63d81eb0d4cc87baf951a863852f21a46d581011d72d1eee7c2f6d0f1"
+        },
+        {
+          "path": "astra/work/remote-complete/artifacts/projects/parent/review-cases-0/nested-capture-restores-optional/project/snapback/todos.q",
+          "bytes": 262,
+          "sha256": "0254095d63fcba5ece1d3dd5a2b31b287f1ebe40d76da480eb77f9f8b5b515f7"
+        },
+        {
+          "path": "astra/work/remote-complete/artifacts/projects/parent/review-cases-0/optional-alias-after-refusal/assertions.json",
+          "bytes": 12,
+          "sha256": "e5f1eb4d806641698a35efe20e098efd20d7d57a9b90ee69079d5bb650920726"
+        },
+        {
+          "path": "astra/work/remote-complete/artifacts/projects/parent/review-cases-0/optional-alias-after-refusal/full.json",
+          "bytes": 292,
+          "sha256": "8c17b5001f8c7732490e18d2d9383c02398825200c1978b4a28908499982523c"
+        },
+        {
+          "path": "astra/work/remote-complete/artifacts/projects/parent/review-cases-0/optional-alias-after-refusal/leaves.json",
+          "bytes": 62,
+          "sha256": "473aad17ba362e2a7f3695f03e01a30f578894089769f3b55937cc47797d2f21"
+        },
+        {
+          "path": "astra/work/remote-complete/artifacts/projects/parent/review-cases-0/optional-alias-after-refusal/project/snapback/schema.q",
+          "bytes": 212,
+          "sha256": "2f6dcba63d81eb0d4cc87baf951a863852f21a46d581011d72d1eee7c2f6d0f1"
+        },
+        {
+          "path": "astra/work/remote-complete/artifacts/projects/parent/review-cases-0/optional-alias-after-refusal/project/snapback/todos.q",
+          "bytes": 154,
+          "sha256": "e566260531c2f0c8b79f0709c959d37005b4945b39a761b1da3892927f4d9e26"
+        },
+        {
+          "path": "astra/work/remote-complete/artifacts/projects/parent/review-cases-0/rollback-patch-context/assertions.json",
+          "bytes": 12,
+          "sha256": "e5f1eb4d806641698a35efe20e098efd20d7d57a9b90ee69079d5bb650920726"
+        },
+        {
+          "path": "astra/work/remote-complete/artifacts/projects/parent/review-cases-0/rollback-patch-context/full.json",
+          "bytes": 295,
+          "sha256": "e84ed4ea6c93f78121529072afb4b4c62d265e5c1bd8b50ce9d440788d79770e"
+        },
+        {
+          "path": "astra/work/remote-complete/artifacts/projects/parent/review-cases-0/rollback-patch-context/leaves.json",
+          "bytes": 62,
+          "sha256": "473aad17ba362e2a7f3695f03e01a30f578894089769f3b55937cc47797d2f21"
+        },
+        {
+          "path": "astra/work/remote-complete/artifacts/projects/parent/review-cases-0/rollback-patch-context/project/snapback/schema.q",
+          "bytes": 212,
+          "sha256": "2f6dcba63d81eb0d4cc87baf951a863852f21a46d581011d72d1eee7c2f6d0f1"
+        },
+        {
+          "path": "astra/work/remote-complete/artifacts/projects/parent/review-cases-0/rollback-patch-context/project/snapback/todos.q",
+          "bytes": 154,
+          "sha256": "9702ea14fb48cede59c78140cac7fece4e44364f4d651880b8f0bd5108ea2230"
+        },
+        {
+          "path": "astra/work/remote-complete/artifacts/projects/parent/review-cases-0/successful-lexical-list-control/assertions.json",
+          "bytes": 12,
+          "sha256": "e5f1eb4d806641698a35efe20e098efd20d7d57a9b90ee69079d5bb650920726"
+        },
+        {
+          "path": "astra/work/remote-complete/artifacts/projects/parent/review-cases-0/successful-lexical-list-control/full.json",
+          "bytes": 7644,
+          "sha256": "5d66aabcf075edb0e579d7b301e23a319d71c45f86c7d616e90d7467e42c59d7"
+        },
+        {
+          "path": "astra/work/remote-complete/artifacts/projects/parent/review-cases-0/successful-lexical-list-control/leaves.json",
+          "bytes": 62,
+          "sha256": "473aad17ba362e2a7f3695f03e01a30f578894089769f3b55937cc47797d2f21"
+        },
+        {
+          "path": "astra/work/remote-complete/artifacts/projects/parent/review-cases-0/successful-lexical-list-control/project/snapback/schema.q",
+          "bytes": 212,
+          "sha256": "2f6dcba63d81eb0d4cc87baf951a863852f21a46d581011d72d1eee7c2f6d0f1"
+        },
+        {
+          "path": "astra/work/remote-complete/artifacts/projects/parent/review-cases-0/successful-lexical-list-control/project/snapback/todos.q",
+          "bytes": 144,
+          "sha256": "ea531d0596f3498e3e24b449b9b14aab383c2013c19558f42c3da4b2b614075f"
+        },
+        {
+          "path": "astra/work/remote-complete/collection-manifest.json",
+          "bytes": 18624,
+          "sha256": "7a5394b3382a8ce2f382cc3fce68d4d7a095540544ef24abd1d86c80a1ad701d"
+        },
+        {
+          "path": "astra/work/remote-complete/owned-state.json",
+          "bytes": 311,
+          "sha256": "029a657dc5c357da882ba05dbbda053bce6091f01b0a490314c6fae4f44b9348"
+        },
+        {
+          "path": "astra/work/remote-complete/results/build-candidate/generated.json",
+          "bytes": 18818,
+          "sha256": "0c6116a0392de38aca1410b1b7750ff38d8191a78b82cf53fc7a7f368e0f203c"
+        },
+        {
+          "path": "astra/work/remote-complete/results/build-parent/generated.json",
+          "bytes": 18818,
+          "sha256": "33d0e8abc8c1c6297c27580256efb2ad5911a7a9cac2f1ac3e0a76bfc8fe48cb"
+        },
+        {
+          "path": "astra/work/remote-complete/results/review-candidate-0/execution.json",
+          "bytes": 692,
+          "sha256": "1ca3b1634f07190a04921763135ca4aa3ce47cc62f5e61db333bc870a2f5fe79"
+        },
+        {
+          "path": "astra/work/remote-complete/results/review-candidate-0/preflight.json",
+          "bytes": 692,
+          "sha256": "45e1233acc89ffc381d0b472e03389c4d4bf4ad047ca5a08591959c9e7325b42"
+        },
+        {
+          "path": "astra/work/remote-complete/results/review-candidate-0/stderr.txt",
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "astra/work/remote-complete/results/review-candidate-0/stdout.txt",
+          "bytes": 554,
+          "sha256": "7e47c981c45cb2915f6259940706e4fbd3effa1d1338d72776685765ebaded0e"
+        },
+        {
+          "path": "astra/work/remote-complete/results/review-parent-0/execution.json",
+          "bytes": 690,
+          "sha256": "b31de9a224155ed30f0dc6455ca9c0c6d0a454b1fbd9fcf580b81cf58b350ddf"
+        },
+        {
+          "path": "astra/work/remote-complete/results/review-parent-0/preflight.json",
+          "bytes": 678,
+          "sha256": "432d53c77fb7d9e3b42fbf53406fe40d8b267a5cfcfaeb8c5fa3bc1edfdbbc29"
+        },
+        {
+          "path": "astra/work/remote-complete/results/review-parent-0/stderr.txt",
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "astra/work/remote-complete/results/review-parent-0/stdout.txt",
+          "bytes": 554,
+          "sha256": "7e47c981c45cb2915f6259940706e4fbd3effa1d1338d72776685765ebaded0e"
+        },
+        {
+          "path": "astra/work/remote-complete/results/setup/execution.json",
+          "bytes": 549,
+          "sha256": "86e7e57518773cc2a416bc6248c2e82ff22c3c82406c78fb6e0ba919b0fefa74"
+        },
+        {
+          "path": "astra/work/remote-complete/results/setup/preflight.json",
+          "bytes": 518,
+          "sha256": "93843fef96f91f53f68c72a836cde2699c2deff67bbd571535909268edf6538e"
+        },
+        {
+          "path": "astra/work/remote-complete/results/setup/stderr.txt",
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "astra/work/remote-complete/results/setup/stdout.txt",
+          "bytes": 464,
+          "sha256": "0bbed8e7cfad9c5052ead018c17f8b6e9745b953925597f5cbe2dee965c9de2f"
+        },
+        {
+          "path": "astra/work/remote-complete/setup-result.json",
+          "bytes": 510,
+          "sha256": "f9dd4ce2825cf6b5ad37a0f19303345d5883f0dafe682b4acca98bec03e9d862"
+        },
+        {
+          "path": "astra/work/remote-complete/workload-ready.json",
+          "bytes": 11732,
+          "sha256": "92c920e9d5e52bb26bd9b41d87e7eb6ac034f5365a171219d48f4be17e0ad9f4"
+        },
+        {
+          "path": "astra/work/remote-setup.py",
+          "bytes": 2569,
+          "sha256": "1ccdc7abcae473e8b9e2571004d52ed3b0f4093fc3c3721fee2f622677a684a8"
+        },
+        {
+          "path": "astra/work/report-custody.json",
+          "bytes": 467,
+          "sha256": "6b77cdfdaca9edaf7e32fa6869e8d41f54778faf99ebc045862ecf368fcc1331"
+        },
+        {
+          "path": "astra/work/review-cases-0.json",
+          "bytes": 4842,
+          "sha256": "2873da3e392af26dcbdf6a439353f882e5159e6c46fb4afddc929577e39fc230"
+        },
+        {
+          "path": "astra/work/review-cases-1.json",
+          "bytes": 3815,
+          "sha256": "f375f9e1c6bca8498d91a0f99213c54227202d352161d685e7709a98912ad2b5"
+        },
+        {
+          "path": "astra/work/review.md",
+          "bytes": 29306,
+          "sha256": "83227903d608072258bed7af1c386b7f492ab36776556a7a4cdb17d13fac1969"
+        },
+        {
+          "path": "astra/work/run-remote.py",
+          "bytes": 3750,
+          "sha256": "b9cf42eb1d03973d48c660bbbb9526e9815b78e22b53f2ea89dd7fb03febd6db"
+        },
+        {
+          "path": "astra/work/selected51names.json",
+          "bytes": 3761,
+          "sha256": "7e1d98fb55df74fe41358384bfb39840500bf556488c3464454189726beffd58"
+        },
+        {
+          "path": "astra/work/source-graph-audit.json",
+          "bytes": 220734,
+          "sha256": "836f69ad7170b5fac9a9738d4c4a7c4b6690be92e662be3d1f03083858e3bf05"
+        },
+        {
+          "path": "astra/work/stage.tar",
+          "bytes": 28108800,
+          "sha256": "ba5aec26c999972e4b1ae9968cd396effc96637c3378d0148f31c141837deff0"
+        },
+        {
+          "path": "astra/work/supervisor-inbox.md",
+          "bytes": 684,
+          "sha256": "e03a82b98c673c02ed6b027e146d12e1450bdb6ed81fd1d528e497683c9edd0c"
+        },
+        {
+          "path": "astra/work/transport/collect-owned/inbox.md",
+          "bytes": 684,
+          "sha256": "e03a82b98c673c02ed6b027e146d12e1450bdb6ed81fd1d528e497683c9edd0c"
+        },
+        {
+          "path": "astra/work/transport/collect-owned/receipt.json",
+          "bytes": 2682,
+          "sha256": "ae38d3fee5fafcdd6679ea0c213be35d74321afc16098d06dfb9f3b677accea3"
+        },
+        {
+          "path": "astra/work/transport/collect-owned/stderr.txt",
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "astra/work/transport/collect-owned/stdout.txt",
+          "bytes": 401,
+          "sha256": "71d12daf97b05a418181b35769af1da402683a16c72f1081adbe43815c6c3be0"
+        },
+        {
+          "path": "astra/work/transport/download-owned/inbox.md",
+          "bytes": 684,
+          "sha256": "e03a82b98c673c02ed6b027e146d12e1450bdb6ed81fd1d528e497683c9edd0c"
+        },
+        {
+          "path": "astra/work/transport/download-owned/receipt.json",
+          "bytes": 663,
+          "sha256": "3808c3bf8c02383523a922a73b5683638a6f6af1cccecf7bd291d140df7858d5"
+        },
+        {
+          "path": "astra/work/transport/download-owned/stderr.txt",
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "astra/work/transport/download-owned/stdout.txt",
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "astra/work/transport/prepare-directory/inbox.md",
+          "bytes": 684,
+          "sha256": "e03a82b98c673c02ed6b027e146d12e1450bdb6ed81fd1d528e497683c9edd0c"
+        },
+        {
+          "path": "astra/work/transport/prepare-directory/receipt.json",
+          "bytes": 700,
+          "sha256": "75092c3afba6260bf454b81dcb614aca1418a72298a739f5ecad9a61fa1513eb"
+        },
+        {
+          "path": "astra/work/transport/prepare-directory/stderr.txt",
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "astra/work/transport/prepare-directory/stdout.txt",
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "astra/work/transport/review-candidate-0/handshake-inbox-0.md",
+          "bytes": 684,
+          "sha256": "e03a82b98c673c02ed6b027e146d12e1450bdb6ed81fd1d528e497683c9edd0c"
+        },
+        {
+          "path": "astra/work/transport/review-candidate-0/inbox.md",
+          "bytes": 684,
+          "sha256": "e03a82b98c673c02ed6b027e146d12e1450bdb6ed81fd1d528e497683c9edd0c"
+        },
+        {
+          "path": "astra/work/transport/review-candidate-0/receipt.json",
+          "bytes": 988,
+          "sha256": "6bb46443eaf652d5377f07e739fde6a62757918f7260158464f97a5a4477bf48"
+        },
+        {
+          "path": "astra/work/transport/review-candidate-0/stderr.txt",
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "astra/work/transport/review-candidate-0/stdout.txt",
+          "bytes": 1284,
+          "sha256": "3509f5b50757a4a45db284dc5c57c55c62c03ab00004f6b71d5e73d612b2b825"
+        },
+        {
+          "path": "astra/work/transport/review-parent-0/handshake-inbox-0.md",
+          "bytes": 684,
+          "sha256": "e03a82b98c673c02ed6b027e146d12e1450bdb6ed81fd1d528e497683c9edd0c"
+        },
+        {
+          "path": "astra/work/transport/review-parent-0/inbox.md",
+          "bytes": 684,
+          "sha256": "e03a82b98c673c02ed6b027e146d12e1450bdb6ed81fd1d528e497683c9edd0c"
+        },
+        {
+          "path": "astra/work/transport/review-parent-0/receipt.json",
+          "bytes": 984,
+          "sha256": "2712e6224079c025181eccb8080885c97bde04a57d5acde6091ec697c2a485a4"
+        },
+        {
+          "path": "astra/work/transport/review-parent-0/stderr.txt",
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "astra/work/transport/review-parent-0/stdout.txt",
+          "bytes": 1282,
+          "sha256": "2a702749b97a1bc6a931528890145b3e9846a2ebcb2c2a39bc0016b7c9428df8"
+        },
+        {
+          "path": "astra/work/transport/setup/handshake-inbox-0.md",
+          "bytes": 684,
+          "sha256": "e03a82b98c673c02ed6b027e146d12e1450bdb6ed81fd1d528e497683c9edd0c"
+        },
+        {
+          "path": "astra/work/transport/setup/inbox.md",
+          "bytes": 684,
+          "sha256": "e03a82b98c673c02ed6b027e146d12e1450bdb6ed81fd1d528e497683c9edd0c"
+        },
+        {
+          "path": "astra/work/transport/setup/receipt.json",
+          "bytes": 977,
+          "sha256": "0d57873ff337ea64b65a9ab892ca2f96cf2872bd97044c72e4afd55cb5fbf9e9"
+        },
+        {
+          "path": "astra/work/transport/setup/stderr.txt",
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "astra/work/transport/setup/stdout.txt",
+          "bytes": 1059,
+          "sha256": "96442dbe4f8a4c2ca8b86bbca7a34dbcd1368af87c6c1bbd6527681765720135"
+        },
+        {
+          "path": "astra/work/transport/unpack/inbox.md",
+          "bytes": 684,
+          "sha256": "e03a82b98c673c02ed6b027e146d12e1450bdb6ed81fd1d528e497683c9edd0c"
+        },
+        {
+          "path": "astra/work/transport/unpack/receipt.json",
+          "bytes": 699,
+          "sha256": "b688abd65515335661c709d923cbddded9ec53fe76fc039cf6744251988688b9"
+        },
+        {
+          "path": "astra/work/transport/unpack/stderr.txt",
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "astra/work/transport/unpack/stdout.txt",
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "astra/work/transport/upload/inbox.md",
+          "bytes": 684,
+          "sha256": "e03a82b98c673c02ed6b027e146d12e1450bdb6ed81fd1d528e497683c9edd0c"
+        },
+        {
+          "path": "astra/work/transport/upload/receipt.json",
+          "bytes": 639,
+          "sha256": "29f928a7cd7cd996b273c1946d87a4feb030ae6079f853fa158d37654cf698de"
+        },
+        {
+          "path": "astra/work/transport/upload/stderr.txt",
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "astra/work/transport/upload/stdout.txt",
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "astra/work/transport.py",
+          "bytes": 2587,
+          "sha256": "1747bd12579115026894b4a511c8a51cb51af10262a958dc9204d5369fd3fb52"
+        },
+        {
+          "path": "astra/work/types-final.mjs",
+          "bytes": 2544,
+          "sha256": "c2f111f8a6190f9ff3da8aa28da5093bb0758138daa9dac04085b9e9cf7d7b60"
+        },
+        {
+          "path": "astra/work/workload-ready.json",
+          "bytes": 11732,
+          "sha256": "92c920e9d5e52bb26bd9b41d87e7eb6ac034f5365a171219d48f4be17e0ad9f4"
+        },
+        {
+          "path": "astra/work/write-report.py",
+          "bytes": 24100,
+          "sha256": "94ddb7d92844675b2b29c27d431c218e98f8a3764d7e8d638a4c92cf01262dd8"
+        },
+        {
+          "path": "astra/workload.json",
+          "bytes": 5258,
+          "sha256": "7db6436c1eba521b6055b0da7f2ee1da130b659eaf05b751db5343c3f0dceb54"
+        }
+      ]
+    },
+    "grok": {
+      "report": {
+        "path": "grok/review.md",
+        "bytes": 12414,
+        "sha256": "59a24fb140a85d5ddf9f300b1e660efa2aa96951b144a80d3d3ba375519f12c0"
+      },
+      "actualIdentity": {
+        "requestedModel": "grok-4.6",
+        "requestedEffort": "xhigh",
+        "launchPid": 70862,
+        "observedAt": "2026-09-07T20:13:48.770181+00:00",
+        "sessionId": "8896d412-d840-4306-8e57-893faca086ac",
+        "source": "/Users/ccheever/.grok/sessions/%2FUsers%2Fccheever%2Fclique-improvement%2Freviews%2Fcompiler-dx-v2-r1%2Fgrok/8896d412-d840-4306-8e57-893faca086ac/summary.json",
+        "sourceSha256": "c1d16a5f73a862ce59e03a971d73d21a00132822a654c3171e68af0246625360",
+        "current_model_id": "grok-4.6",
+        "reasoning_effort": "xhigh",
+        "identityMatchesRequest": true
+      },
+      "nativeTerminal": {
+        "pid": 70862,
+        "processIdentity": {
+          "pid": 70862,
+          "start": "Mon Sep 7 12:49:30 2026",
+          "executable": "/Users/ccheever/.grok/bin/grok",
+          "observed": true
+        },
+        "exitCode": 0,
+        "endedEpoch": 1788812027.971921,
+        "elapsedSeconds": 1457.0916659832,
+        "actualProcessWaitCompleted": true,
+        "stdoutSha256": "9b42bd42d5d0448cf217bafb79a18d4ffccaca9b02e8d6642d70102c33abea95",
+        "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "outerTerminal": {
+        "family": "grok",
+        "outerToolSessionId": 95268,
+        "outerExitCode": 0,
+        "outerFinalChunkId": "deb5fb",
+        "outerCompletionObservedAt": "2026-09-07T20:14:04.448718+00:00",
+        "findingsOpened": false,
+        "files": [
+          {
+            "path": "terminal.json",
+            "sha256": "d32ca9b2acc1d0db688dc713d6da5e22b7fb4db12baefee0615e80ce93b99956",
+            "bytes": 477
+          },
+          {
+            "path": "actual-identity.json",
+            "sha256": "991789b4d70a85b8e6d42ea5f17784949dbfe14d2345b7d8e256c899a4adef5d",
+            "bytes": 553
+          },
+          {
+            "path": "input-integrity-after.json",
+            "sha256": "62ea23c2a2b9a0234c0c13a7de01e08d8968e32d00ebabd6b991a5b6f8852710",
+            "bytes": 135
+          }
+        ]
+      },
+      "inputIntegrity": {
+        "unchanged": true,
+        "changedInputs": [],
+        "manifestSha256": "6ddb49c7cdab689d1c9e8f9326633b20e0d85c6fc99d0cb5fa54519434d592ac"
+      },
+      "immutableInputCount": 1422,
+      "transports": [
+        {
+          "receipt": "grok/work/transport/collect-cases-0/receipt.json",
+          "pid": 16394,
+          "deadlineSeconds": 45,
+          "elapsedSeconds": 45.018430709,
+          "exit": -9,
+          "timeout": true,
+          "handshakes": []
+        },
+        {
+          "receipt": "grok/work/transport/collect-completed/receipt.json",
+          "pid": 30310,
+          "deadlineSeconds": 45,
+          "elapsedSeconds": 2.901613375,
+          "exit": 0,
+          "timeout": false,
+          "handshakes": []
+        },
+        {
+          "receipt": "grok/work/transport/collect-final/receipt.json",
+          "pid": 34707,
+          "deadlineSeconds": 45,
+          "elapsedSeconds": 2.522357875,
+          "exit": 0,
+          "timeout": false,
+          "handshakes": []
+        },
+        {
+          "receipt": "grok/work/transport/collect-json-0/receipt.json",
+          "pid": 19314,
+          "deadlineSeconds": 45,
+          "elapsedSeconds": 2.334965875,
+          "exit": 2,
+          "timeout": false,
+          "handshakes": []
+        },
+        {
+          "receipt": "grok/work/transport/collect-json-0b/receipt.json",
+          "pid": 20151,
+          "deadlineSeconds": 45,
+          "elapsedSeconds": 2.519301375,
+          "exit": 0,
+          "timeout": false,
+          "handshakes": []
+        },
+        {
+          "receipt": "grok/work/transport/observe-cases-0/receipt.json",
+          "pid": 18646,
+          "deadlineSeconds": 45,
+          "elapsedSeconds": 2.379161083,
+          "exit": 0,
+          "timeout": false,
+          "handshakes": []
+        },
+        {
+          "receipt": "grok/work/transport/observe-failed-scp/receipt.json",
+          "pid": 28907,
+          "deadlineSeconds": 45,
+          "elapsedSeconds": 2.2030765839999997,
+          "exit": 0,
+          "timeout": false,
+          "handshakes": []
+        },
+        {
+          "receipt": "grok/work/transport/observe-final-pids/receipt.json",
+          "pid": 36048,
+          "deadlineSeconds": 45,
+          "elapsedSeconds": 2.290500583,
+          "exit": 0,
+          "timeout": false,
+          "handshakes": []
+        },
+        {
+          "receipt": "grok/work/transport/remote-mkdir/receipt.json",
+          "pid": 11237,
+          "deadlineSeconds": 45,
+          "elapsedSeconds": 2.560121792,
+          "exit": 0,
+          "timeout": false,
+          "handshakes": []
+        },
+        {
+          "receipt": "grok/work/transport/remote-upload/receipt.json",
+          "pid": 12134,
+          "deadlineSeconds": 45,
+          "elapsedSeconds": 30.821447542,
+          "exit": 0,
+          "timeout": false,
+          "handshakes": []
+        },
+        {
+          "receipt": "grok/work/transport/review-affected-types/receipt.json",
+          "pid": 33406,
+          "deadlineSeconds": 45,
+          "elapsedSeconds": 6.765611667,
+          "exit": 0,
+          "timeout": false,
+          "handshakes": [
+            {
+              "at": "2026-09-07T20:11:09.396739+00:00",
+              "ready": "1fa753b865a1c42629dc52cfbbd03bc8f0b020cb97e2c43ee9dfbef5d2a33c84",
+              "currentSha256": "1fa753b865a1c42629dc52cfbbd03bc8f0b020cb97e2c43ee9dfbef5d2a33c84",
+              "acknowledged": true
+            }
+          ]
+        },
+        {
+          "receipt": "grok/work/transport/review-callbacks-0/receipt.json",
+          "pid": 23543,
+          "deadlineSeconds": 45,
+          "elapsedSeconds": 4.462243042,
+          "exit": 0,
+          "timeout": false,
+          "handshakes": [
+            {
+              "at": "2026-09-07T20:08:29.112776+00:00",
+              "ready": "e03a82b98c673c02ed6b027e146d12e1450bdb6ed81fd1d528e497683c9edd0c",
+              "currentSha256": "e03a82b98c673c02ed6b027e146d12e1450bdb6ed81fd1d528e497683c9edd0c",
+              "acknowledged": true
+            }
+          ]
+        },
+        {
+          "receipt": "grok/work/transport/review-callbacks-1/receipt.json",
+          "pid": 31951,
+          "deadlineSeconds": 45,
+          "elapsedSeconds": 4.209644209,
+          "exit": 0,
+          "timeout": false,
+          "handshakes": [
+            {
+              "at": "2026-09-07T20:10:44.931083+00:00",
+              "ready": "1fa753b865a1c42629dc52cfbbd03bc8f0b020cb97e2c43ee9dfbef5d2a33c84",
+              "currentSha256": "1fa753b865a1c42629dc52cfbbd03bc8f0b020cb97e2c43ee9dfbef5d2a33c84",
+              "acknowledged": true
+            }
+          ]
+        },
+        {
+          "receipt": "grok/work/transport/review-candidate-0/receipt.json",
+          "pid": 15396,
+          "deadlineSeconds": 45,
+          "elapsedSeconds": 4.034646041,
+          "exit": 0,
+          "timeout": false,
+          "handshakes": [
+            {
+              "at": "2026-09-07T20:05:31.235251+00:00",
+              "ready": "e03a82b98c673c02ed6b027e146d12e1450bdb6ed81fd1d528e497683c9edd0c",
+              "currentSha256": "e03a82b98c673c02ed6b027e146d12e1450bdb6ed81fd1d528e497683c9edd0c",
+              "acknowledged": true
+            }
+          ]
+        },
+        {
+          "receipt": "grok/work/transport/review-candidate-1/receipt.json",
+          "pid": 22621,
+          "deadlineSeconds": 45,
+          "elapsedSeconds": 4.050992709,
+          "exit": 0,
+          "timeout": false,
+          "handshakes": [
+            {
+              "at": "2026-09-07T20:08:12.426323+00:00",
+              "ready": "e03a82b98c673c02ed6b027e146d12e1450bdb6ed81fd1d528e497683c9edd0c",
+              "currentSha256": "e03a82b98c673c02ed6b027e146d12e1450bdb6ed81fd1d528e497683c9edd0c",
+              "acknowledged": true
+            }
+          ]
+        },
+        {
+          "receipt": "grok/work/transport/review-parent-0/receipt.json",
+          "pid": 15078,
+          "deadlineSeconds": 45,
+          "elapsedSeconds": 3.997335209,
+          "exit": 0,
+          "timeout": false,
+          "handshakes": [
+            {
+              "at": "2026-09-07T20:05:21.101910+00:00",
+              "ready": "e03a82b98c673c02ed6b027e146d12e1450bdb6ed81fd1d528e497683c9edd0c",
+              "currentSha256": "e03a82b98c673c02ed6b027e146d12e1450bdb6ed81fd1d528e497683c9edd0c",
+              "acknowledged": true
+            }
+          ]
+        },
+        {
+          "receipt": "grok/work/transport/review-parent-1/receipt.json",
+          "pid": 21891,
+          "deadlineSeconds": 45,
+          "elapsedSeconds": 3.9948728329999996,
+          "exit": 0,
+          "timeout": false,
+          "handshakes": [
+            {
+              "at": "2026-09-07T20:08:00.273135+00:00",
+              "ready": "e03a82b98c673c02ed6b027e146d12e1450bdb6ed81fd1d528e497683c9edd0c",
+              "currentSha256": "e03a82b98c673c02ed6b027e146d12e1450bdb6ed81fd1d528e497683c9edd0c",
+              "acknowledged": true
+            }
+          ]
+        },
+        {
+          "receipt": "grok/work/transport/review-production-types/receipt.json",
+          "pid": 32720,
+          "deadlineSeconds": 45,
+          "elapsedSeconds": 6.464957084000001,
+          "exit": 0,
+          "timeout": false,
+          "handshakes": [
+            {
+              "at": "2026-09-07T20:10:57.467714+00:00",
+              "ready": "1fa753b865a1c42629dc52cfbbd03bc8f0b020cb97e2c43ee9dfbef5d2a33c84",
+              "currentSha256": "1fa753b865a1c42629dc52cfbbd03bc8f0b020cb97e2c43ee9dfbef5d2a33c84",
+              "acknowledged": true
+            }
+          ]
+        },
+        {
+          "receipt": "grok/work/transport/setup/receipt.json",
+          "pid": 14295,
+          "deadlineSeconds": 45,
+          "elapsedSeconds": 10.685545208999999,
+          "exit": 0,
+          "timeout": false,
+          "handshakes": [
+            {
+              "at": "2026-09-07T20:04:55.727914+00:00",
+              "ready": "e03a82b98c673c02ed6b027e146d12e1450bdb6ed81fd1d528e497683c9edd0c",
+              "currentSha256": "e03a82b98c673c02ed6b027e146d12e1450bdb6ed81fd1d528e497683c9edd0c",
+              "acknowledged": true
+            }
+          ]
+        }
+      ],
+      "ownedWorkAndOutputLeafCount": 320,
+      "ownedWorkAndOutputByteCount": 33315656,
+      "ownedWorkAndOutputLeaves": [
+        {
+          "path": "grok/actual-identity.json",
+          "bytes": 553,
+          "sha256": "991789b4d70a85b8e6d42ea5f17784949dbfe14d2345b7d8e256c899a4adef5d"
+        },
+        {
+          "path": "grok/actual-session-summary-identity.json",
+          "bytes": 328,
+          "sha256": "b52003a7f46f75d7cb6fa3cec8b2294644c5f507a8945b9997d0304978493d6f"
+        },
+        {
+          "path": "grok/identity-collection.log",
+          "bytes": 553,
+          "sha256": "991789b4d70a85b8e6d42ea5f17784949dbfe14d2345b7d8e256c899a4adef5d"
+        },
+        {
+          "path": "grok/initial-actual-identity.json",
+          "bytes": 553,
+          "sha256": "3eae4b8250a8696d16085fcfbddd2d25cf072a578e90220ce059fbdd7bd5ade0"
+        },
+        {
+          "path": "grok/initial-work-manifest.json",
+          "bytes": 4175,
+          "sha256": "19027a8f2a1a0e704011a1da1e2aa5515360faa33551b81fb4e80512f42ab3b9"
+        },
+        {
+          "path": "grok/input-integrity-after.json",
+          "bytes": 135,
+          "sha256": "62ea23c2a2b9a0234c0c13a7de01e08d8968e32d00ebabd6b991a5b6f8852710"
+        },
+        {
+          "path": "grok/launch.json",
+          "bytes": 2130,
+          "sha256": "9864235cfd6ecdfc929bf2309b619f98b9eb5d043d3a4fe868887fd99c3dde9d"
+        },
+        {
+          "path": "grok/prompt.md",
+          "bytes": 8128,
+          "sha256": "050756935d9cf6d86ad6b1ba066a8cec1bbcdaa03fa249ff38af4d785a7672d9"
+        },
+        {
+          "path": "grok/provider-inputs.json",
+          "bytes": 377,
+          "sha256": "de0f8e33c618bc259778d5f044474e4f838e106a794c764e465d3740062cb97b"
+        },
+        {
+          "path": "grok/request.json",
+          "bytes": 860,
+          "sha256": "32a992d04765dd45501a4db1552469cf8e909d6727e4c59a6bf9092882228a5b"
+        },
+        {
+          "path": "grok/review.md",
+          "bytes": 12414,
+          "sha256": "59a24fb140a85d5ddf9f300b1e660efa2aa96951b144a80d3d3ba375519f12c0"
+        },
+        {
+          "path": "grok/source-manifest.json",
+          "bytes": 294479,
+          "sha256": "6ddb49c7cdab689d1c9e8f9326633b20e0d85c6fc99d0cb5fa54519434d592ac"
+        },
+        {
+          "path": "grok/stderr.log",
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "grok/stdout.log",
+          "bytes": 4389603,
+          "sha256": "9b42bd42d5d0448cf217bafb79a18d4ffccaca9b02e8d6642d70102c33abea95"
+        },
+        {
+          "path": "grok/supervisor-terminal.json",
+          "bytes": 681,
+          "sha256": "9bda4f942bbf084aa28c850052ccb5c63d7ad52ad780776348dafc30c03866d9"
+        },
+        {
+          "path": "grok/terminal.json",
+          "bytes": 477,
+          "sha256": "d32ca9b2acc1d0db688dc713d6da5e22b7fb4db12baefee0615e80ce93b99956"
+        },
+        {
+          "path": "grok/work/candidate-source-manifest.json",
+          "bytes": 67674,
+          "sha256": "7c518cbfd210f3224b4cbf4082b46973a80c73f6cc1393db0fd34c61705ea46c"
+        },
+        {
+          "path": "grok/work/candidate-source.tar",
+          "bytes": 11427840,
+          "sha256": "1b00306cc6b56cca30f7de0672e8418fb00c7d3881751b7f7dba938d90d104db"
+        },
+        {
+          "path": "grok/work/capture-helpers.ts",
+          "bytes": 1254,
+          "sha256": "c29f7ecd108d2a9826ac9eaca3a96ba16715324f3364859826c65b72798bdf02"
+        },
+        {
+          "path": "grok/work/capture-project.ts",
+          "bytes": 562,
+          "sha256": "7bf9dcec61a142e43dde2b3130e8e069dc828e457b0c46fa7be1cb1d1c938e86"
+        },
+        {
+          "path": "grok/work/collected/completed/artifacts/diagnostics/0/assertions.json",
+          "bytes": 104,
+          "sha256": "58123408b2be14f109339881f5ff6d055a76e48e111b3489186987f7fbe3974a"
+        },
+        {
+          "path": "grok/work/collected/completed/artifacts/diagnostics/0/leaves.json",
+          "bytes": 62,
+          "sha256": "473aad17ba362e2a7f3695f03e01a30f578894089769f3b55937cc47797d2f21"
+        },
+        {
+          "path": "grok/work/collected/completed/artifacts/diagnostics/1/assertions.json",
+          "bytes": 94,
+          "sha256": "1d61326ad38969bc12e59b75db41ce8ff9ade96d993eecfa452a8ede9e7dda9a"
+        },
+        {
+          "path": "grok/work/collected/completed/artifacts/diagnostics/1/leaves.json",
+          "bytes": 62,
+          "sha256": "473aad17ba362e2a7f3695f03e01a30f578894089769f3b55937cc47797d2f21"
+        },
+        {
+          "path": "grok/work/collected/completed/artifacts/diagnostics/10/assertions.json",
+          "bytes": 113,
+          "sha256": "d01d59c4a97710013aa00c6c590b2c2763389230f645d869320ba348fecef3c2"
+        },
+        {
+          "path": "grok/work/collected/completed/artifacts/diagnostics/10/leaves.json",
+          "bytes": 62,
+          "sha256": "473aad17ba362e2a7f3695f03e01a30f578894089769f3b55937cc47797d2f21"
+        },
+        {
+          "path": "grok/work/collected/completed/artifacts/diagnostics/11/assertions.json",
+          "bytes": 110,
+          "sha256": "5d433a9f86c28441403a72a491b07b740aee02928e383fb4444436e9b804a0c0"
+        },
+        {
+          "path": "grok/work/collected/completed/artifacts/diagnostics/11/leaves.json",
+          "bytes": 62,
+          "sha256": "473aad17ba362e2a7f3695f03e01a30f578894089769f3b55937cc47797d2f21"
+        },
+        {
+          "path": "grok/work/collected/completed/artifacts/diagnostics/2/assertions.json",
+          "bytes": 104,
+          "sha256": "9c9dc388e8381344919a31e4be749c24c71a5e973a8decb675ba23268d89d0d6"
+        },
+        {
+          "path": "grok/work/collected/completed/artifacts/diagnostics/2/leaves.json",
+          "bytes": 62,
+          "sha256": "473aad17ba362e2a7f3695f03e01a30f578894089769f3b55937cc47797d2f21"
+        },
+        {
+          "path": "grok/work/collected/completed/artifacts/diagnostics/3/assertions.json",
+          "bytes": 113,
+          "sha256": "5a7af2c03ea40e6b11c575f25cc2cbd401fe3eee4f6217d7cb06b11c5107d7be"
+        },
+        {
+          "path": "grok/work/collected/completed/artifacts/diagnostics/3/leaves.json",
+          "bytes": 62,
+          "sha256": "473aad17ba362e2a7f3695f03e01a30f578894089769f3b55937cc47797d2f21"
+        },
+        {
+          "path": "grok/work/collected/completed/artifacts/diagnostics/4/assertions.json",
+          "bytes": 109,
+          "sha256": "654a02e9ef26bea0ed5c96186e6b00b0a133598ff29e9f9197434e9c71733de2"
+        },
+        {
+          "path": "grok/work/collected/completed/artifacts/diagnostics/4/leaves.json",
+          "bytes": 62,
+          "sha256": "473aad17ba362e2a7f3695f03e01a30f578894089769f3b55937cc47797d2f21"
+        },
+        {
+          "path": "grok/work/collected/completed/artifacts/diagnostics/5/assertions.json",
+          "bytes": 110,
+          "sha256": "c1e2108c2c653e9f505b9f835fdf9b580e93c7bf85db400485d4e6f07611f2a6"
+        },
+        {
+          "path": "grok/work/collected/completed/artifacts/diagnostics/5/leaves.json",
+          "bytes": 62,
+          "sha256": "473aad17ba362e2a7f3695f03e01a30f578894089769f3b55937cc47797d2f21"
+        },
+        {
+          "path": "grok/work/collected/completed/artifacts/diagnostics/6/assertions.json",
+          "bytes": 120,
+          "sha256": "083d710b35d1a8a87679448ed7a1085009f540012f7e549dfd46f318cbddc397"
+        },
+        {
+          "path": "grok/work/collected/completed/artifacts/diagnostics/6/leaves.json",
+          "bytes": 62,
+          "sha256": "473aad17ba362e2a7f3695f03e01a30f578894089769f3b55937cc47797d2f21"
+        },
+        {
+          "path": "grok/work/collected/completed/artifacts/diagnostics/7/assertions.json",
+          "bytes": 106,
+          "sha256": "0ca2a78bd52710bd2dbaab6af717f900c83366627d0ee987d051ecbae21e856d"
+        },
+        {
+          "path": "grok/work/collected/completed/artifacts/diagnostics/7/leaves.json",
+          "bytes": 62,
+          "sha256": "473aad17ba362e2a7f3695f03e01a30f578894089769f3b55937cc47797d2f21"
+        },
+        {
+          "path": "grok/work/collected/completed/artifacts/diagnostics/8/assertions.json",
+          "bytes": 109,
+          "sha256": "e466574abda562bef5a18913cddb01e8840e4a49d7327464dfd431fea134e586"
+        },
+        {
+          "path": "grok/work/collected/completed/artifacts/diagnostics/8/leaves.json",
+          "bytes": 62,
+          "sha256": "473aad17ba362e2a7f3695f03e01a30f578894089769f3b55937cc47797d2f21"
+        },
+        {
+          "path": "grok/work/collected/completed/artifacts/diagnostics/9/assertions.json",
+          "bytes": 113,
+          "sha256": "d9da93b8094be74b937f27424fa2f9c36f6b030d355743e70a7b28e4854912d1"
+        },
+        {
+          "path": "grok/work/collected/completed/artifacts/diagnostics/9/leaves.json",
+          "bytes": 62,
+          "sha256": "473aad17ba362e2a7f3695f03e01a30f578894089769f3b55937cc47797d2f21"
+        },
+        {
+          "path": "grok/work/collected/completed/artifacts/projects/candidate/review-cases-1/main cap complete bound compiler-only form/assertions.json",
+          "bytes": 12,
+          "sha256": "e5f1eb4d806641698a35efe20e098efd20d7d57a9b90ee69079d5bb650920726"
+        },
+        {
+          "path": "grok/work/collected/completed/artifacts/projects/candidate/review-cases-1/main cap complete bound compiler-only form/full.json",
+          "bytes": 9953,
+          "sha256": "065d339f4d708165e41ce48afcd7baecc14f1fe0d159e5ef590d794d654ad817"
+        },
+        {
+          "path": "grok/work/collected/completed/artifacts/projects/candidate/review-cases-1/main cap complete bound compiler-only form/leaves.json",
+          "bytes": 60,
+          "sha256": "1b586064934c7b1424432b47dadd42a9845840349d195d2a80547547573b11d7"
+        },
+        {
+          "path": "grok/work/collected/completed/artifacts/projects/candidate/review-cases-1/main cap complete direct compiler-only form/assertions.json",
+          "bytes": 12,
+          "sha256": "e5f1eb4d806641698a35efe20e098efd20d7d57a9b90ee69079d5bb650920726"
+        },
+        {
+          "path": "grok/work/collected/completed/artifacts/projects/candidate/review-cases-1/main cap complete direct compiler-only form/full.json",
+          "bytes": 9451,
+          "sha256": "65a850b1f45b660d42db628e834e52a1c919a1baa4dc73ef1837e6608e15a5a1"
+        },
+        {
+          "path": "grok/work/collected/completed/artifacts/projects/candidate/review-cases-1/main cap complete direct compiler-only form/leaves.json",
+          "bytes": 60,
+          "sha256": "1b586064934c7b1424432b47dadd42a9845840349d195d2a80547547573b11d7"
+        },
+        {
+          "path": "grok/work/collected/completed/artifacts/projects/candidate/review-cases-1/main cap complete shaped compiler-only form/assertions.json",
+          "bytes": 12,
+          "sha256": "e5f1eb4d806641698a35efe20e098efd20d7d57a9b90ee69079d5bb650920726"
+        },
+        {
+          "path": "grok/work/collected/completed/artifacts/projects/candidate/review-cases-1/main cap complete shaped compiler-only form/full.json",
+          "bytes": 11507,
+          "sha256": "dedf1d665582dca5a8b00f0ada17cd898d99f786ac5296839fd23fcd66fa3792"
+        },
+        {
+          "path": "grok/work/collected/completed/artifacts/projects/candidate/review-cases-1/main cap complete shaped compiler-only form/leaves.json",
+          "bytes": 60,
+          "sha256": "1b586064934c7b1424432b47dadd42a9845840349d195d2a80547547573b11d7"
+        },
+        {
+          "path": "grok/work/collected/completed/artifacts/projects/candidate/review-cases-1/main effect helper collision refusal/assertions.json",
+          "bytes": 12,
+          "sha256": "e5f1eb4d806641698a35efe20e098efd20d7d57a9b90ee69079d5bb650920726"
+        },
+        {
+          "path": "grok/work/collected/completed/artifacts/projects/candidate/review-cases-1/main effect helper collision refusal/full.json",
+          "bytes": 371,
+          "sha256": "a73bffadb4606c4c55cf95b6dc5c5b918dd32eb58c1f4d78a7c401274e2a8372"
+        },
+        {
+          "path": "grok/work/collected/completed/artifacts/projects/candidate/review-cases-1/main effect helper collision refusal/leaves.json",
+          "bytes": 60,
+          "sha256": "1b586064934c7b1424432b47dadd42a9845840349d195d2a80547547573b11d7"
+        },
+        {
+          "path": "grok/work/collected/completed/artifacts/projects/candidate/review-cases-1/main effect orderedPair collision refusal/assertions.json",
+          "bytes": 12,
+          "sha256": "e5f1eb4d806641698a35efe20e098efd20d7d57a9b90ee69079d5bb650920726"
+        },
+        {
+          "path": "grok/work/collected/completed/artifacts/projects/candidate/review-cases-1/main effect orderedPair collision refusal/full.json",
+          "bytes": 382,
+          "sha256": "78ee275806b4dafa1d9dc473bb8781b1dec9a9ca92f2869182268d9c943416b1"
+        },
+        {
+          "path": "grok/work/collected/completed/artifacts/projects/candidate/review-cases-1/main effect orderedPair collision refusal/leaves.json",
+          "bytes": 60,
+          "sha256": "1b586064934c7b1424432b47dadd42a9845840349d195d2a80547547573b11d7"
+        },
+        {
+          "path": "grok/work/collected/completed/artifacts/projects/candidate/review-cases-1/main operation effect collision refusal/assertions.json",
+          "bytes": 12,
+          "sha256": "e5f1eb4d806641698a35efe20e098efd20d7d57a9b90ee69079d5bb650920726"
+        },
+        {
+          "path": "grok/work/collected/completed/artifacts/projects/candidate/review-cases-1/main operation effect collision refusal/full.json",
+          "bytes": 377,
+          "sha256": "e6c4ee705e16574224c5052f15cae378755b7607421219e0c395819e5f3dc211"
+        },
+        {
+          "path": "grok/work/collected/completed/artifacts/projects/candidate/review-cases-1/main operation effect collision refusal/leaves.json",
+          "bytes": 60,
+          "sha256": "1b586064934c7b1424432b47dadd42a9845840349d195d2a80547547573b11d7"
+        },
+        {
+          "path": "grok/work/collected/completed/artifacts/projects/candidate/review-cases-1/main operation helper collision refusal/assertions.json",
+          "bytes": 12,
+          "sha256": "e5f1eb4d806641698a35efe20e098efd20d7d57a9b90ee69079d5bb650920726"
+        },
+        {
+          "path": "grok/work/collected/completed/artifacts/projects/candidate/review-cases-1/main operation helper collision refusal/full.json",
+          "bytes": 388,
+          "sha256": "2ee867e19a1e84c7951ca32203a0f4b208d551e9f7277a7c8044802e65b94a53"
+        },
+        {
+          "path": "grok/work/collected/completed/artifacts/projects/candidate/review-cases-1/main operation helper collision refusal/leaves.json",
+          "bytes": 60,
+          "sha256": "1b586064934c7b1424432b47dadd42a9845840349d195d2a80547547573b11d7"
+        },
+        {
+          "path": "grok/work/collected/completed/artifacts/projects/candidate/review-cases-1/main table and operation alias compiler-only derivative/assertions.json",
+          "bytes": 12,
+          "sha256": "e5f1eb4d806641698a35efe20e098efd20d7d57a9b90ee69079d5bb650920726"
+        },
+        {
+          "path": "grok/work/collected/completed/artifacts/projects/candidate/review-cases-1/main table and operation alias compiler-only derivative/full.json",
+          "bytes": 6674,
+          "sha256": "13e77a2a104fa5893b559bff66876f8eb5024f033766571b4969704eaf782c9d"
+        },
+        {
+          "path": "grok/work/collected/completed/artifacts/projects/candidate/review-cases-1/main table and operation alias compiler-only derivative/leaves.json",
+          "bytes": 60,
+          "sha256": "d79dc36ffc090c78d267ac6e97f19b8b1ee8443ece4eef227b217258d39a5f2a"
+        },
+        {
+          "path": "grok/work/collected/completed/artifacts/projects/parent/review-cases-1/main cap complete bound compiler-only form/assertions.json",
+          "bytes": 12,
+          "sha256": "e5f1eb4d806641698a35efe20e098efd20d7d57a9b90ee69079d5bb650920726"
+        },
+        {
+          "path": "grok/work/collected/completed/artifacts/projects/parent/review-cases-1/main cap complete bound compiler-only form/full.json",
+          "bytes": 9953,
+          "sha256": "f4961089be30e1f78a555192ced86b0fc5e1283d50ca764dd1de1f2c123a9bef"
+        },
+        {
+          "path": "grok/work/collected/completed/artifacts/projects/parent/review-cases-1/main cap complete bound compiler-only form/leaves.json",
+          "bytes": 60,
+          "sha256": "1b586064934c7b1424432b47dadd42a9845840349d195d2a80547547573b11d7"
+        },
+        {
+          "path": "grok/work/collected/completed/artifacts/projects/parent/review-cases-1/main cap complete direct compiler-only form/assertions.json",
+          "bytes": 12,
+          "sha256": "e5f1eb4d806641698a35efe20e098efd20d7d57a9b90ee69079d5bb650920726"
+        },
+        {
+          "path": "grok/work/collected/completed/artifacts/projects/parent/review-cases-1/main cap complete direct compiler-only form/full.json",
+          "bytes": 9451,
+          "sha256": "aee29e2613a7280adf9473b8523bd5cc45bc2e2e6cbd9bc07ee14caefe236bf2"
+        },
+        {
+          "path": "grok/work/collected/completed/artifacts/projects/parent/review-cases-1/main cap complete direct compiler-only form/leaves.json",
+          "bytes": 60,
+          "sha256": "1b586064934c7b1424432b47dadd42a9845840349d195d2a80547547573b11d7"
+        },
+        {
+          "path": "grok/work/collected/completed/artifacts/projects/parent/review-cases-1/main cap complete shaped compiler-only form/assertions.json",
+          "bytes": 12,
+          "sha256": "e5f1eb4d806641698a35efe20e098efd20d7d57a9b90ee69079d5bb650920726"
+        },
+        {
+          "path": "grok/work/collected/completed/artifacts/projects/parent/review-cases-1/main cap complete shaped compiler-only form/full.json",
+          "bytes": 11507,
+          "sha256": "dbc38de33be1ee13ae13903c1cfa4d27e03314c384b7b2497d49e7a4bc9b942f"
+        },
+        {
+          "path": "grok/work/collected/completed/artifacts/projects/parent/review-cases-1/main cap complete shaped compiler-only form/leaves.json",
+          "bytes": 60,
+          "sha256": "1b586064934c7b1424432b47dadd42a9845840349d195d2a80547547573b11d7"
+        },
+        {
+          "path": "grok/work/collected/completed/artifacts/projects/parent/review-cases-1/main effect helper collision refusal/assertions.json",
+          "bytes": 12,
+          "sha256": "e5f1eb4d806641698a35efe20e098efd20d7d57a9b90ee69079d5bb650920726"
+        },
+        {
+          "path": "grok/work/collected/completed/artifacts/projects/parent/review-cases-1/main effect helper collision refusal/full.json",
+          "bytes": 371,
+          "sha256": "8619b7a37e8ab45ab220b8825bc1fd43d9c5a496335af1c17c94c363a5fe5d1a"
+        },
+        {
+          "path": "grok/work/collected/completed/artifacts/projects/parent/review-cases-1/main effect helper collision refusal/leaves.json",
+          "bytes": 60,
+          "sha256": "1b586064934c7b1424432b47dadd42a9845840349d195d2a80547547573b11d7"
+        },
+        {
+          "path": "grok/work/collected/completed/artifacts/projects/parent/review-cases-1/main effect orderedPair collision refusal/assertions.json",
+          "bytes": 12,
+          "sha256": "e5f1eb4d806641698a35efe20e098efd20d7d57a9b90ee69079d5bb650920726"
+        },
+        {
+          "path": "grok/work/collected/completed/artifacts/projects/parent/review-cases-1/main effect orderedPair collision refusal/full.json",
+          "bytes": 383,
+          "sha256": "3fc485e5fb21d1bfba022d33a94fc881bab204934dead45a70523cca75b60832"
+        },
+        {
+          "path": "grok/work/collected/completed/artifacts/projects/parent/review-cases-1/main effect orderedPair collision refusal/leaves.json",
+          "bytes": 60,
+          "sha256": "1b586064934c7b1424432b47dadd42a9845840349d195d2a80547547573b11d7"
+        },
+        {
+          "path": "grok/work/collected/completed/artifacts/projects/parent/review-cases-1/main operation effect collision refusal/assertions.json",
+          "bytes": 12,
+          "sha256": "e5f1eb4d806641698a35efe20e098efd20d7d57a9b90ee69079d5bb650920726"
+        },
+        {
+          "path": "grok/work/collected/completed/artifacts/projects/parent/review-cases-1/main operation effect collision refusal/full.json",
+          "bytes": 377,
+          "sha256": "bcc20452cb707cae277eb1bc2f2110f622bde5be0e62ee9cf8a635703cd01eae"
+        },
+        {
+          "path": "grok/work/collected/completed/artifacts/projects/parent/review-cases-1/main operation effect collision refusal/leaves.json",
+          "bytes": 60,
+          "sha256": "1b586064934c7b1424432b47dadd42a9845840349d195d2a80547547573b11d7"
+        },
+        {
+          "path": "grok/work/collected/completed/artifacts/projects/parent/review-cases-1/main operation helper collision refusal/assertions.json",
+          "bytes": 12,
+          "sha256": "e5f1eb4d806641698a35efe20e098efd20d7d57a9b90ee69079d5bb650920726"
+        },
+        {
+          "path": "grok/work/collected/completed/artifacts/projects/parent/review-cases-1/main operation helper collision refusal/full.json",
+          "bytes": 388,
+          "sha256": "4d902e2032567615029b20e2ddb51742a134a09f4140a674d71f145bc88b6c4d"
+        },
+        {
+          "path": "grok/work/collected/completed/artifacts/projects/parent/review-cases-1/main operation helper collision refusal/leaves.json",
+          "bytes": 60,
+          "sha256": "1b586064934c7b1424432b47dadd42a9845840349d195d2a80547547573b11d7"
+        },
+        {
+          "path": "grok/work/collected/completed/artifacts/projects/parent/review-cases-1/main table and operation alias compiler-only derivative/assertions.json",
+          "bytes": 12,
+          "sha256": "e5f1eb4d806641698a35efe20e098efd20d7d57a9b90ee69079d5bb650920726"
+        },
+        {
+          "path": "grok/work/collected/completed/artifacts/projects/parent/review-cases-1/main table and operation alias compiler-only derivative/full.json",
+          "bytes": 6674,
+          "sha256": "f1c98d24c1bcee5c18c9b477a98b33bbef0e5f7e2b20a787ce589ee553d0ead7"
+        },
+        {
+          "path": "grok/work/collected/completed/artifacts/projects/parent/review-cases-1/main table and operation alias compiler-only derivative/leaves.json",
+          "bytes": 60,
+          "sha256": "d79dc36ffc090c78d267ac6e97f19b8b1ee8443ece4eef227b217258d39a5f2a"
+        },
+        {
+          "path": "grok/work/collected/completed/results/review-callbacks-0/execution.json",
+          "bytes": 682,
+          "sha256": "f6ab3b5a09eb4fa6005083ec1b1431780fa4b200b338c658903a94b098e3317d"
+        },
+        {
+          "path": "grok/work/collected/completed/results/review-callbacks-0/preflight.json",
+          "bytes": 677,
+          "sha256": "55a63991e5d2dd466fe97b3bf6c5726b040a8cf38f876543393fdc8063dfc5e8"
+        },
+        {
+          "path": "grok/work/collected/completed/results/review-callbacks-0/stderr.txt",
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "grok/work/collected/completed/results/review-callbacks-0/stdout.txt",
+          "bytes": 1197,
+          "sha256": "1383d034cdaabdc40e61ec016e14a40ee5e8d646adadaff14513480fe403d330"
+        },
+        {
+          "path": "grok/work/collected/completed/results/review-candidate-0/execution.json",
+          "bytes": 691,
+          "sha256": "be4ba9633ddbf85f3c9fa7b5b3eb3eeebd014ceda30c4874bfb7b714578e2a24"
+        },
+        {
+          "path": "grok/work/collected/completed/results/review-candidate-0/preflight.json",
+          "bytes": 687,
+          "sha256": "f256dc0bfe90e6334b05b24853f305e2aae39c711d9c733cc4a684d50a30b23f"
+        },
+        {
+          "path": "grok/work/collected/completed/results/review-candidate-0/stderr.txt",
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "grok/work/collected/completed/results/review-candidate-0/stdout.txt",
+          "bytes": 371,
+          "sha256": "7f2f626dac72b47308fb1f75c39eec4e366c5896163f8c99dad4cb61478cb60c"
+        },
+        {
+          "path": "grok/work/collected/completed/results/review-candidate-1/execution.json",
+          "bytes": 691,
+          "sha256": "f622c34f63ed4a3f1485b813069eae34616228f73fc72b2d2284ab983ac0ffd0"
+        },
+        {
+          "path": "grok/work/collected/completed/results/review-candidate-1/preflight.json",
+          "bytes": 690,
+          "sha256": "4929533214473fab13a674953cb9844b7f93594d257f40b7fb80405eb90d24b9"
+        },
+        {
+          "path": "grok/work/collected/completed/results/review-candidate-1/stderr.txt",
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "grok/work/collected/completed/results/review-candidate-1/stdout.txt",
+          "bytes": 646,
+          "sha256": "77375e3bc4c6b89e31f88d1dd81db20ff0a97486a6f15713797c963ed75ed783"
+        },
+        {
+          "path": "grok/work/collected/completed/results/review-parent-0/execution.json",
+          "bytes": 689,
+          "sha256": "ba41c6eb4aa70045d16e245ee232495199ad4c80c297609fc3b3053f3e10fda8"
+        },
+        {
+          "path": "grok/work/collected/completed/results/review-parent-0/preflight.json",
+          "bytes": 680,
+          "sha256": "009a97d193e307682006971916c294ee385ee70a5a436be2bc32ba2a44080904"
+        },
+        {
+          "path": "grok/work/collected/completed/results/review-parent-0/stderr.txt",
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "grok/work/collected/completed/results/review-parent-0/stdout.txt",
+          "bytes": 371,
+          "sha256": "7f2f626dac72b47308fb1f75c39eec4e366c5896163f8c99dad4cb61478cb60c"
+        },
+        {
+          "path": "grok/work/collected/completed/results/review-parent-1/execution.json",
+          "bytes": 689,
+          "sha256": "7a5b8cd2f46cd6deaba07e8849d09bd15372959c248a4f011d20ce5fe9dfb7ee"
+        },
+        {
+          "path": "grok/work/collected/completed/results/review-parent-1/preflight.json",
+          "bytes": 680,
+          "sha256": "a984e0e613b9d68ee0a7f371683abedf6fcc7a0469ec27498001d9764afae4a9"
+        },
+        {
+          "path": "grok/work/collected/completed/results/review-parent-1/stderr.txt",
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "grok/work/collected/completed/results/review-parent-1/stdout.txt",
+          "bytes": 646,
+          "sha256": "77375e3bc4c6b89e31f88d1dd81db20ff0a97486a6f15713797c963ed75ed783"
+        },
+        {
+          "path": "grok/work/collected/completed/results/setup/execution.json",
+          "bytes": 547,
+          "sha256": "2425e270f552978db070ebfccb22a98e9bc8e2bd4a17456479843ee8bd801af2"
+        },
+        {
+          "path": "grok/work/collected/completed/results/setup/preflight.json",
+          "bytes": 516,
+          "sha256": "ae741df719a17490ad8ec0e07adeee0a8f0a0139a008bfc7ec01fa864f91d586"
+        },
+        {
+          "path": "grok/work/collected/completed/results/setup/stderr.txt",
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "grok/work/collected/completed/results/setup/stdout.txt",
+          "bytes": 464,
+          "sha256": "0bbed8e7cfad9c5052ead018c17f8b6e9745b953925597f5cbe2dee965c9de2f"
+        },
+        {
+          "path": "grok/work/collected/final/artifacts/diagnostics/39/assertions.json",
+          "bytes": 105,
+          "sha256": "65757ee2bde5f7fb4cc8bdedebaef3794ded4e460a814cc71c20388487d90a46"
+        },
+        {
+          "path": "grok/work/collected/final/artifacts/diagnostics/39/leaves.json",
+          "bytes": 62,
+          "sha256": "473aad17ba362e2a7f3695f03e01a30f578894089769f3b55937cc47797d2f21"
+        },
+        {
+          "path": "grok/work/collected/final/artifacts/diagnostics/40/assertions.json",
+          "bytes": 95,
+          "sha256": "b6d86101489a4f564a8eb4097c0cec2e65d092b8613e9d2f7824c184a1cd6264"
+        },
+        {
+          "path": "grok/work/collected/final/artifacts/diagnostics/40/leaves.json",
+          "bytes": 62,
+          "sha256": "473aad17ba362e2a7f3695f03e01a30f578894089769f3b55937cc47797d2f21"
+        },
+        {
+          "path": "grok/work/collected/final/artifacts/diagnostics/41/assertions.json",
+          "bytes": 96,
+          "sha256": "1c345dba28f855541a6c6eb295a8609fc34a786b603d46f4e5fa73038d760b5b"
+        },
+        {
+          "path": "grok/work/collected/final/artifacts/diagnostics/41/leaves.json",
+          "bytes": 62,
+          "sha256": "473aad17ba362e2a7f3695f03e01a30f578894089769f3b55937cc47797d2f21"
+        },
+        {
+          "path": "grok/work/collected/final/artifacts/diagnostics/42/assertions.json",
+          "bytes": 92,
+          "sha256": "26bf6fd1a0028cb76147b6808e2837c773824169c4cac5da943d3a5f274735f1"
+        },
+        {
+          "path": "grok/work/collected/final/artifacts/diagnostics/42/leaves.json",
+          "bytes": 62,
+          "sha256": "473aad17ba362e2a7f3695f03e01a30f578894089769f3b55937cc47797d2f21"
+        },
+        {
+          "path": "grok/work/collected/final/artifacts/diagnostics/43/assertions.json",
+          "bytes": 100,
+          "sha256": "1f2610b5b23f5bba814cc47e9ce2a83c8ab48620f0c27fe71793e259611ba019"
+        },
+        {
+          "path": "grok/work/collected/final/artifacts/diagnostics/43/leaves.json",
+          "bytes": 62,
+          "sha256": "473aad17ba362e2a7f3695f03e01a30f578894089769f3b55937cc47797d2f21"
+        },
+        {
+          "path": "grok/work/collected/final/artifacts/diagnostics/44/assertions.json",
+          "bytes": 96,
+          "sha256": "f557b6660d8f884830d937636632eaac75ba8ae0ddb92d963a69c039d0fe71a1"
+        },
+        {
+          "path": "grok/work/collected/final/artifacts/diagnostics/44/leaves.json",
+          "bytes": 62,
+          "sha256": "473aad17ba362e2a7f3695f03e01a30f578894089769f3b55937cc47797d2f21"
+        },
+        {
+          "path": "grok/work/collected/final/artifacts/diagnostics/45/assertions.json",
+          "bytes": 101,
+          "sha256": "15fe97d8be2674fb553523eefa9341d1d874f3d7f296e8b62b526115364a9adc"
+        },
+        {
+          "path": "grok/work/collected/final/artifacts/diagnostics/45/leaves.json",
+          "bytes": 62,
+          "sha256": "473aad17ba362e2a7f3695f03e01a30f578894089769f3b55937cc47797d2f21"
+        },
+        {
+          "path": "grok/work/collected/final/artifacts/diagnostics/46/assertions.json",
+          "bytes": 94,
+          "sha256": "2053204dee2f92a46d141e0327d85c565c1c9ba2f1ca22a5dcb5d82cb2cc12e6"
+        },
+        {
+          "path": "grok/work/collected/final/artifacts/diagnostics/46/leaves.json",
+          "bytes": 62,
+          "sha256": "473aad17ba362e2a7f3695f03e01a30f578894089769f3b55937cc47797d2f21"
+        },
+        {
+          "path": "grok/work/collected/final/artifacts/diagnostics/47/assertions.json",
+          "bytes": 99,
+          "sha256": "13bef48062e693d48b913002c97c39cc20729e7225bbb481074c82fb52db379f"
+        },
+        {
+          "path": "grok/work/collected/final/artifacts/diagnostics/47/leaves.json",
+          "bytes": 62,
+          "sha256": "473aad17ba362e2a7f3695f03e01a30f578894089769f3b55937cc47797d2f21"
+        },
+        {
+          "path": "grok/work/collected/final/artifacts/diagnostics/48/assertions.json",
+          "bytes": 108,
+          "sha256": "acd8797cff3483fd2e1d8cbf76167c71ebba8b0abba24fcc58a0a385c0d481c4"
+        },
+        {
+          "path": "grok/work/collected/final/artifacts/diagnostics/48/leaves.json",
+          "bytes": 62,
+          "sha256": "473aad17ba362e2a7f3695f03e01a30f578894089769f3b55937cc47797d2f21"
+        },
+        {
+          "path": "grok/work/collected/final/artifacts/diagnostics/49/assertions.json",
+          "bytes": 108,
+          "sha256": "209e16b6c7341385bce1d03091e67e72aa1d9b5c9ff81e0d0444b4cb38aeee02"
+        },
+        {
+          "path": "grok/work/collected/final/artifacts/diagnostics/49/leaves.json",
+          "bytes": 62,
+          "sha256": "473aad17ba362e2a7f3695f03e01a30f578894089769f3b55937cc47797d2f21"
+        },
+        {
+          "path": "grok/work/collected/final/artifacts/diagnostics/50/assertions.json",
+          "bytes": 86,
+          "sha256": "31abb117674f7dfc7b909f52a9a157cb8e011dae4bbe8ddf1a2ca35757e0a684"
+        },
+        {
+          "path": "grok/work/collected/final/artifacts/types-qualified/candidate/affected/result.json",
+          "bytes": 20190,
+          "sha256": "95e0856fdc76c5cd0ce99f87fa8e09d9fe5e094b0a840d42fdb63970255a090b"
+        },
+        {
+          "path": "grok/work/collected/final/artifacts/types-qualified/candidate/production/result.json",
+          "bytes": 14469,
+          "sha256": "0d2b85eb11f618457a8bb0ee9a9243b3085913158fbe6858d56b52b60e955ad5"
+        },
+        {
+          "path": "grok/work/collected/final/results/review-affected-types/execution.json",
+          "bytes": 674,
+          "sha256": "830de68976652b8597c9755754f5f232a995fb2ea86b0554b1accd101103bf67"
+        },
+        {
+          "path": "grok/work/collected/final/results/review-affected-types/preflight.json",
+          "bytes": 676,
+          "sha256": "0e51bfd1349ed79e4acdee6a8179ca263753a139eecc0a0e079c556a916d140b"
+        },
+        {
+          "path": "grok/work/collected/final/results/review-affected-types/stderr.txt",
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "grok/work/collected/final/results/review-affected-types/stdout.txt",
+          "bytes": 102,
+          "sha256": "68b720014f4b6e3836ed1bffd630fb6a2ad67496d52397a3cebaf00444040290"
+        },
+        {
+          "path": "grok/work/collected/final/results/review-callbacks-1/execution.json",
+          "bytes": 683,
+          "sha256": "f716617cffb5d452577fe0caa9b52592c6f0b0fa089b58f32979742b52a5ae00"
+        },
+        {
+          "path": "grok/work/collected/final/results/review-callbacks-1/preflight.json",
+          "bytes": 683,
+          "sha256": "2c8b15763d7c280c43c0df144cd0a0c1c32490a3f9c63f40486287213394082e"
+        },
+        {
+          "path": "grok/work/collected/final/results/review-callbacks-1/stderr.txt",
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "grok/work/collected/final/results/review-callbacks-1/stdout.txt",
+          "bytes": 1072,
+          "sha256": "07606c908c748094d68bd4152fa9971efb946590ff32c7af40311aa79a89ec77"
+        },
+        {
+          "path": "grok/work/collected/final/results/review-production-types/execution.json",
+          "bytes": 676,
+          "sha256": "d3191e1958027e952f13c04b7a8559c2ca4feb232bfa3a4fe0c790628717d001"
+        },
+        {
+          "path": "grok/work/collected/final/results/review-production-types/preflight.json",
+          "bytes": 680,
+          "sha256": "7e1a807fb851d3141396040e67b9a5eaca49a2adaed1a27164113e66a8992479"
+        },
+        {
+          "path": "grok/work/collected/final/results/review-production-types/stderr.txt",
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "grok/work/collected/final/results/review-production-types/stdout.txt",
+          "bytes": 104,
+          "sha256": "9163477a226f070a32a1aac537a0db11c866db5f50fa0b474dd0d20568342fa2"
+        },
+        {
+          "path": "grok/work/collected/final/setup-result.json",
+          "bytes": 510,
+          "sha256": "f9dd4ce2825cf6b5ad37a0f19303345d5883f0dafe682b4acca98bec03e9d862"
+        },
+        {
+          "path": "grok/work/collected/json-0/candidate/review-cases-0/match-some-unknown-none-type-mismatch/assertions.json",
+          "bytes": 12,
+          "sha256": "e5f1eb4d806641698a35efe20e098efd20d7d57a9b90ee69079d5bb650920726"
+        },
+        {
+          "path": "grok/work/collected/json-0/candidate/review-cases-0/match-some-unknown-none-type-mismatch/full.json",
+          "bytes": 890,
+          "sha256": "7b553729a989f439ef1d5b66ea50b5f76d856ba1b52ec69cc7a3730e36933de4"
+        },
+        {
+          "path": "grok/work/collected/json-0/candidate/review-cases-0/match-some-unknown-none-type-mismatch/leaves.json",
+          "bytes": 62,
+          "sha256": "473aad17ba362e2a7f3695f03e01a30f578894089769f3b55937cc47797d2f21"
+        },
+        {
+          "path": "grok/work/collected/json-0/candidate/review-cases-0/null-insert-and-independent-unknown/assertions.json",
+          "bytes": 12,
+          "sha256": "e5f1eb4d806641698a35efe20e098efd20d7d57a9b90ee69079d5bb650920726"
+        },
+        {
+          "path": "grok/work/collected/json-0/candidate/review-cases-0/null-insert-and-independent-unknown/full.json",
+          "bytes": 668,
+          "sha256": "3754713297b4a47c50a24bac09bdda9eca8085fc513ec7440130750119a4fa82"
+        },
+        {
+          "path": "grok/work/collected/json-0/candidate/review-cases-0/null-insert-and-independent-unknown/leaves.json",
+          "bytes": 62,
+          "sha256": "473aad17ba362e2a7f3695f03e01a30f578894089769f3b55937cc47797d2f21"
+        },
+        {
+          "path": "grok/work/collected/json-0/candidate/review-cases-0/number-to-boolean-not-absence/assertions.json",
+          "bytes": 12,
+          "sha256": "e5f1eb4d806641698a35efe20e098efd20d7d57a9b90ee69079d5bb650920726"
+        },
+        {
+          "path": "grok/work/collected/json-0/candidate/review-cases-0/number-to-boolean-not-absence/full.json",
+          "bytes": 413,
+          "sha256": "6f61a94b27578cc1f90d915dccac37333c24f481f9539db77c728e289e3fd695"
+        },
+        {
+          "path": "grok/work/collected/json-0/candidate/review-cases-0/number-to-boolean-not-absence/leaves.json",
+          "bytes": 62,
+          "sha256": "473aad17ba362e2a7f3695f03e01a30f578894089769f3b55937cc47797d2f21"
+        },
+        {
+          "path": "grok/work/collected/json-0/candidate/review-cases-0/outer-failed-merge-prefix-after-ok-domain/assertions.json",
+          "bytes": 12,
+          "sha256": "e5f1eb4d806641698a35efe20e098efd20d7d57a9b90ee69079d5bb650920726"
+        },
+        {
+          "path": "grok/work/collected/json-0/candidate/review-cases-0/outer-failed-merge-prefix-after-ok-domain/full.json",
+          "bytes": 530,
+          "sha256": "b91247f28325851975a7b303e29daadf3adc7ed49e039df4c38e1b49e3376b9a"
+        },
+        {
+          "path": "grok/work/collected/json-0/candidate/review-cases-0/outer-failed-merge-prefix-after-ok-domain/leaves.json",
+          "bytes": 62,
+          "sha256": "473aad17ba362e2a7f3695f03e01a30f578894089769f3b55937cc47797d2f21"
+        },
+        {
+          "path": "grok/work/collected/json-0/candidate/review-cases-0/type-mismatch-before-unresolved-if/assertions.json",
+          "bytes": 12,
+          "sha256": "e5f1eb4d806641698a35efe20e098efd20d7d57a9b90ee69079d5bb650920726"
+        },
+        {
+          "path": "grok/work/collected/json-0/candidate/review-cases-0/type-mismatch-before-unresolved-if/full.json",
+          "bytes": 899,
+          "sha256": "7861428f060eda37c1d95be47dada2a8c921bc70a14da3d380ffd4528c4b4c7e"
+        },
+        {
+          "path": "grok/work/collected/json-0/candidate/review-cases-0/type-mismatch-before-unresolved-if/leaves.json",
+          "bytes": 62,
+          "sha256": "473aad17ba362e2a7f3695f03e01a30f578894089769f3b55937cc47797d2f21"
+        },
+        {
+          "path": "grok/work/collected/json-0/parent/review-cases-0/match-some-unknown-none-type-mismatch/assertions.json",
+          "bytes": 12,
+          "sha256": "e5f1eb4d806641698a35efe20e098efd20d7d57a9b90ee69079d5bb650920726"
+        },
+        {
+          "path": "grok/work/collected/json-0/parent/review-cases-0/match-some-unknown-none-type-mismatch/full.json",
+          "bytes": 290,
+          "sha256": "61e83c139a1879ac82bd22566efa3c0fcfd2ce319097acea84d99448382b48ca"
+        },
+        {
+          "path": "grok/work/collected/json-0/parent/review-cases-0/match-some-unknown-none-type-mismatch/leaves.json",
+          "bytes": 62,
+          "sha256": "473aad17ba362e2a7f3695f03e01a30f578894089769f3b55937cc47797d2f21"
+        },
+        {
+          "path": "grok/work/collected/json-0/parent/review-cases-0/null-insert-and-independent-unknown/assertions.json",
+          "bytes": 12,
+          "sha256": "e5f1eb4d806641698a35efe20e098efd20d7d57a9b90ee69079d5bb650920726"
+        },
+        {
+          "path": "grok/work/collected/json-0/parent/review-cases-0/null-insert-and-independent-unknown/full.json",
+          "bytes": 292,
+          "sha256": "20a31047b806f22494db28f40b0258a919b4d26b7c9b9d9e189744fdf91e269d"
+        },
+        {
+          "path": "grok/work/collected/json-0/parent/review-cases-0/null-insert-and-independent-unknown/leaves.json",
+          "bytes": 62,
+          "sha256": "473aad17ba362e2a7f3695f03e01a30f578894089769f3b55937cc47797d2f21"
+        },
+        {
+          "path": "grok/work/collected/json-0/parent/review-cases-0/number-to-boolean-not-absence/assertions.json",
+          "bytes": 12,
+          "sha256": "e5f1eb4d806641698a35efe20e098efd20d7d57a9b90ee69079d5bb650920726"
+        },
+        {
+          "path": "grok/work/collected/json-0/parent/review-cases-0/number-to-boolean-not-absence/full.json",
+          "bytes": 415,
+          "sha256": "5d06b8a0b3eaa957061ac9763159643de5f83563379387626d97aca5bd60ca09"
+        },
+        {
+          "path": "grok/work/collected/json-0/parent/review-cases-0/number-to-boolean-not-absence/leaves.json",
+          "bytes": 62,
+          "sha256": "473aad17ba362e2a7f3695f03e01a30f578894089769f3b55937cc47797d2f21"
+        },
+        {
+          "path": "grok/work/collected/json-0/parent/review-cases-0/outer-failed-merge-prefix-after-ok-domain/assertions.json",
+          "bytes": 12,
+          "sha256": "e5f1eb4d806641698a35efe20e098efd20d7d57a9b90ee69079d5bb650920726"
+        },
+        {
+          "path": "grok/work/collected/json-0/parent/review-cases-0/outer-failed-merge-prefix-after-ok-domain/full.json",
+          "bytes": 292,
+          "sha256": "178868039b201de4f3035a060b24abadd5dcf5c6a615066abb91f6c900624f3e"
+        },
+        {
+          "path": "grok/work/collected/json-0/parent/review-cases-0/outer-failed-merge-prefix-after-ok-domain/leaves.json",
+          "bytes": 62,
+          "sha256": "473aad17ba362e2a7f3695f03e01a30f578894089769f3b55937cc47797d2f21"
+        },
+        {
+          "path": "grok/work/collected/json-0/parent/review-cases-0/type-mismatch-before-unresolved-if/assertions.json",
+          "bytes": 12,
+          "sha256": "e5f1eb4d806641698a35efe20e098efd20d7d57a9b90ee69079d5bb650920726"
+        },
+        {
+          "path": "grok/work/collected/json-0/parent/review-cases-0/type-mismatch-before-unresolved-if/full.json",
+          "bytes": 300,
+          "sha256": "f6498676ebc1ca557d7d2056e7145d6efc307fc97383411a5bf31ec042b164ef"
+        },
+        {
+          "path": "grok/work/collected/json-0/parent/review-cases-0/type-mismatch-before-unresolved-if/leaves.json",
+          "bytes": 62,
+          "sha256": "473aad17ba362e2a7f3695f03e01a30f578894089769f3b55937cc47797d2f21"
+        },
+        {
+          "path": "grok/work/collected/projects/review-cases-0/match-some-unknown-none-type-mismatch/assertions.json",
+          "bytes": 12,
+          "sha256": "e5f1eb4d806641698a35efe20e098efd20d7d57a9b90ee69079d5bb650920726"
+        },
+        {
+          "path": "grok/work/collected/projects/review-cases-0/match-some-unknown-none-type-mismatch/full.json",
+          "bytes": 890,
+          "sha256": "7b553729a989f439ef1d5b66ea50b5f76d856ba1b52ec69cc7a3730e36933de4"
+        },
+        {
+          "path": "grok/work/collected/projects/review-cases-0/match-some-unknown-none-type-mismatch/leaves.json",
+          "bytes": 62,
+          "sha256": "473aad17ba362e2a7f3695f03e01a30f578894089769f3b55937cc47797d2f21"
+        },
+        {
+          "path": "grok/work/collected/projects/review-cases-0/match-some-unknown-none-type-mismatch/project/snapback/schema.q",
+          "bytes": 212,
+          "sha256": "2f6dcba63d81eb0d4cc87baf951a863852f21a46d581011d72d1eee7c2f6d0f1"
+        },
+        {
+          "path": "grok/work/collected/projects/review-cases-0/match-some-unknown-none-type-mismatch/project/snapback/todos.q",
+          "bytes": 171,
+          "sha256": "e86a50283229d39af49c15eeabdb746a61310645321900ce90b1dcd67de179ec"
+        },
+        {
+          "path": "grok/work/collected/projects/review-cases-0/null-insert-and-independent-unknown/assertions.json",
+          "bytes": 12,
+          "sha256": "e5f1eb4d806641698a35efe20e098efd20d7d57a9b90ee69079d5bb650920726"
+        },
+        {
+          "path": "grok/work/collected/projects/review-cases-0/null-insert-and-independent-unknown/full.json",
+          "bytes": 292,
+          "sha256": "20a31047b806f22494db28f40b0258a919b4d26b7c9b9d9e189744fdf91e269d"
+        },
+        {
+          "path": "grok/work/collected/projects/review-cases-0/null-insert-and-independent-unknown/leaves.json",
+          "bytes": 62,
+          "sha256": "473aad17ba362e2a7f3695f03e01a30f578894089769f3b55937cc47797d2f21"
+        },
+        {
+          "path": "grok/work/collected/projects/review-cases-0/null-insert-and-independent-unknown/project/snapback/schema.q",
+          "bytes": 212,
+          "sha256": "2f6dcba63d81eb0d4cc87baf951a863852f21a46d581011d72d1eee7c2f6d0f1"
+        },
+        {
+          "path": "grok/work/collected/projects/review-cases-0/null-insert-and-independent-unknown/project/snapback/todos.q",
+          "bytes": 104,
+          "sha256": "bd0a7bdce94bab01b53231e02e92fac05887eacf8d50654e03e0a97ac21fb927"
+        },
+        {
+          "path": "grok/work/collected/projects/review-cases-0/number-to-boolean-not-absence/assertions.json",
+          "bytes": 12,
+          "sha256": "e5f1eb4d806641698a35efe20e098efd20d7d57a9b90ee69079d5bb650920726"
+        },
+        {
+          "path": "grok/work/collected/projects/review-cases-0/number-to-boolean-not-absence/full.json",
+          "bytes": 415,
+          "sha256": "5d06b8a0b3eaa957061ac9763159643de5f83563379387626d97aca5bd60ca09"
+        },
+        {
+          "path": "grok/work/collected/projects/review-cases-0/number-to-boolean-not-absence/leaves.json",
+          "bytes": 62,
+          "sha256": "473aad17ba362e2a7f3695f03e01a30f578894089769f3b55937cc47797d2f21"
+        },
+        {
+          "path": "grok/work/collected/projects/review-cases-0/number-to-boolean-not-absence/project/snapback/schema.q",
+          "bytes": 212,
+          "sha256": "2f6dcba63d81eb0d4cc87baf951a863852f21a46d581011d72d1eee7c2f6d0f1"
+        },
+        {
+          "path": "grok/work/collected/projects/review-cases-0/number-to-boolean-not-absence/project/snapback/todos.q",
+          "bytes": 249,
+          "sha256": "d8b070fa14141f30b61608651c1784d8c7f4928fa11d4ebcd1fb32e29459dc0c"
+        },
+        {
+          "path": "grok/work/collected/projects/review-cases-0/outer-failed-merge-prefix-after-ok-domain/assertions.json",
+          "bytes": 12,
+          "sha256": "e5f1eb4d806641698a35efe20e098efd20d7d57a9b90ee69079d5bb650920726"
+        },
+        {
+          "path": "grok/work/collected/projects/review-cases-0/outer-failed-merge-prefix-after-ok-domain/full.json",
+          "bytes": 292,
+          "sha256": "178868039b201de4f3035a060b24abadd5dcf5c6a615066abb91f6c900624f3e"
+        },
+        {
+          "path": "grok/work/collected/projects/review-cases-0/outer-failed-merge-prefix-after-ok-domain/leaves.json",
+          "bytes": 62,
+          "sha256": "473aad17ba362e2a7f3695f03e01a30f578894089769f3b55937cc47797d2f21"
+        },
+        {
+          "path": "grok/work/collected/projects/review-cases-0/outer-failed-merge-prefix-after-ok-domain/project/snapback/schema.q",
+          "bytes": 225,
+          "sha256": "98a5fc1ab5c9d34d194d7287e2b15a2a6cf38124c50e6d5f48f73731b2aa0757"
+        },
+        {
+          "path": "grok/work/collected/projects/review-cases-0/outer-failed-merge-prefix-after-ok-domain/project/snapback/todos.q",
+          "bytes": 161,
+          "sha256": "d2a00be74c2d472169c947066fec50d051a6f55dfbd8862a5054d37da988d80f"
+        },
+        {
+          "path": "grok/work/collected/projects/review-cases-0/type-mismatch-before-unresolved-if/assertions.json",
+          "bytes": 12,
+          "sha256": "e5f1eb4d806641698a35efe20e098efd20d7d57a9b90ee69079d5bb650920726"
+        },
+        {
+          "path": "grok/work/collected/projects/review-cases-0/type-mismatch-before-unresolved-if/full.json",
+          "bytes": 300,
+          "sha256": "f6498676ebc1ca557d7d2056e7145d6efc307fc97383411a5bf31ec042b164ef"
+        },
+        {
+          "path": "grok/work/collected/projects/review-cases-0/type-mismatch-before-unresolved-if/leaves.json",
+          "bytes": 62,
+          "sha256": "473aad17ba362e2a7f3695f03e01a30f578894089769f3b55937cc47797d2f21"
+        },
+        {
+          "path": "grok/work/collected/projects/review-cases-0/type-mismatch-before-unresolved-if/project/snapback/schema.q",
+          "bytes": 212,
+          "sha256": "2f6dcba63d81eb0d4cc87baf951a863852f21a46d581011d72d1eee7c2f6d0f1"
+        },
+        {
+          "path": "grok/work/collected/projects/review-cases-0/type-mismatch-before-unresolved-if/project/snapback/todos.q",
+          "bytes": 143,
+          "sha256": "5c2bdb801aa22798e2f909b27b509db3d1e09c20f8ed5e3e0f6729efd74379f1"
+        },
+        {
+          "path": "grok/work/diagnostic-callbacks.ts",
+          "bytes": 26889,
+          "sha256": "da4ebd990c83736feaee26520212b278a333200238005d31239a6d13cef5af03"
+        },
+        {
+          "path": "grok/work/diagnostic-cases.json",
+          "bytes": 38757,
+          "sha256": "9e7ea56a3c1cb52aec89c0d8dd940dd1cbe759a21dde2a84caebd09292ccb057"
+        },
+        {
+          "path": "grok/work/diagnostic-selected.ts",
+          "bytes": 1738,
+          "sha256": "d9af041c9b084fedc17a0a2df7a08af2a7daee165417e5017ccd09dc7dd435b7"
+        },
+        {
+          "path": "grok/work/dispatch.py",
+          "bytes": 589,
+          "sha256": "f96609a7f6a9063813e8c6cf2aec6d94cf7d60393dd4d64a3956ed8ec96b40f2"
+        },
+        {
+          "path": "grok/work/fatal-boundaries.json",
+          "bytes": 617,
+          "sha256": "a96073fa00a65064e6aa38547f6e1ddc970910030b18cb3d9186f412eab15579"
+        },
+        {
+          "path": "grok/work/full-dependency-manifest.json",
+          "bytes": 5310634,
+          "sha256": "eb983cc39681ea870adabdb6db29558b04c0f3bf34d6eaee0f9a02d6298b0bf9"
+        },
+        {
+          "path": "grok/work/generated-candidate.json",
+          "bytes": 18818,
+          "sha256": "0c6116a0392de38aca1410b1b7750ff38d8191a78b82cf53fc7a7f368e0f203c"
+        },
+        {
+          "path": "grok/work/generated-parent.json",
+          "bytes": 18818,
+          "sha256": "33d0e8abc8c1c6297c27580256efb2ad5911a7a9cac2f1ac3e0a76bfc8fe48cb"
+        },
+        {
+          "path": "grok/work/inbox-ack-record.json",
+          "bytes": 1050,
+          "sha256": "659e8be594abea3aeb4fe529da6e0d21c538e93647fd1a0aca72436ac48f609d"
+        },
+        {
+          "path": "grok/work/inbox-ack.sha256",
+          "bytes": 65,
+          "sha256": "d37c9a4ccca5033eb331aa07996a98095dc7df6438c6c0235e3bc1ba3ae02b60"
+        },
+        {
+          "path": "grok/work/main-eight.json",
+          "bytes": 3815,
+          "sha256": "f375f9e1c6bca8498d91a0f99213c54227202d352161d685e7709a98912ad2b5"
+        },
+        {
+          "path": "grok/work/main-source.tar",
+          "bytes": 11028480,
+          "sha256": "f0eb4e4bcf2d2ab135e3ada4f89b493689f92d25c078bff57146d04eddb30126"
+        },
+        {
+          "path": "grok/work/original-three.json",
+          "bytes": 1894,
+          "sha256": "c88f17d0f016916be446e8c0bc502471a9168735ae0b38c6a670f7b807e57734"
+        },
+        {
+          "path": "grok/work/parent-source-manifest.json",
+          "bytes": 67332,
+          "sha256": "c429d81f1145915a408444a067400f9c7cfe6d94c4f1bfb5c4d0791da1f57dbb"
+        },
+        {
+          "path": "grok/work/project-probe-review.ts",
+          "bytes": 2978,
+          "sha256": "e588b50ac6973f7ddd50b8216beb88e46e6fbb85fc53ddd015fd75f124f86723"
+        },
+        {
+          "path": "grok/work/project-probe.ts",
+          "bytes": 3002,
+          "sha256": "cdadae39994b65ac888e21e646b7bb1973b5bd1995a6353f1eba32cb4100ef8d"
+        },
+        {
+          "path": "grok/work/remote-setup.py",
+          "bytes": 2569,
+          "sha256": "1ccdc7abcae473e8b9e2571004d52ed3b0f4093fc3c3721fee2f622677a684a8"
+        },
+        {
+          "path": "grok/work/review-cases-0.json",
+          "bytes": 2826,
+          "sha256": "d91197ed34a5b5aea575bdf2b728ca574a05b9d1b2ea9fe7da4485bb740dd2e3"
+        },
+        {
+          "path": "grok/work/review-cases-1.json",
+          "bytes": 3815,
+          "sha256": "f375f9e1c6bca8498d91a0f99213c54227202d352161d685e7709a98912ad2b5"
+        },
+        {
+          "path": "grok/work/run-remote.py",
+          "bytes": 3750,
+          "sha256": "b9cf42eb1d03973d48c660bbbb9526e9815b78e22b53f2ea89dd7fb03febd6db"
+        },
+        {
+          "path": "grok/work/selected51names.json",
+          "bytes": 3761,
+          "sha256": "7e1d98fb55df74fe41358384bfb39840500bf556488c3464454189726beffd58"
+        },
+        {
+          "path": "grok/work/supervisor-inbox.md",
+          "bytes": 1297,
+          "sha256": "1fa753b865a1c42629dc52cfbbd03bc8f0b020cb97e2c43ee9dfbef5d2a33c84"
+        },
+        {
+          "path": "grok/work/transport/collect-cases-0/inbox.md",
+          "bytes": 684,
+          "sha256": "e03a82b98c673c02ed6b027e146d12e1450bdb6ed81fd1d528e497683c9edd0c"
+        },
+        {
+          "path": "grok/work/transport/collect-cases-0/receipt.json",
+          "bytes": 892,
+          "sha256": "6df9bddc65ab4ce5b2461aeb138d976f67cebc0bf629671fd957bb2d711d5a80"
+        },
+        {
+          "path": "grok/work/transport/collect-cases-0/stderr.txt",
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "grok/work/transport/collect-cases-0/stdout.txt",
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "grok/work/transport/collect-completed/inbox.md",
+          "bytes": 1297,
+          "sha256": "1fa753b865a1c42629dc52cfbbd03bc8f0b020cb97e2c43ee9dfbef5d2a33c84"
+        },
+        {
+          "path": "grok/work/transport/collect-completed/receipt.json",
+          "bytes": 1348,
+          "sha256": "47af4b10ad98a7de2b16d5c1eceb2e1e357c7ff40e2793362b6373a8934da349"
+        },
+        {
+          "path": "grok/work/transport/collect-completed/stderr.txt",
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "grok/work/transport/collect-completed/stdout.txt",
+          "bytes": 194560,
+          "sha256": "8091147392753760adf08b225ff64711d3f72f0f3f7df2fecde444781b7ab32c"
+        },
+        {
+          "path": "grok/work/transport/collect-final/inbox.md",
+          "bytes": 1297,
+          "sha256": "1fa753b865a1c42629dc52cfbbd03bc8f0b020cb97e2c43ee9dfbef5d2a33c84"
+        },
+        {
+          "path": "grok/work/transport/collect-final/receipt.json",
+          "bytes": 1331,
+          "sha256": "a75da0696abc42f5c3ea7bca2bc01852a9bfc29c77833279483b16041f993fc8"
+        },
+        {
+          "path": "grok/work/transport/collect-final/stderr.txt",
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "grok/work/transport/collect-final/stdout.txt",
+          "bytes": 81920,
+          "sha256": "fad525e24f0c094cd06f6dc37c15518b4c9deb0036f0a52c94a97471df50a525"
+        },
+        {
+          "path": "grok/work/transport/collect-json-0/inbox.md",
+          "bytes": 684,
+          "sha256": "e03a82b98c673c02ed6b027e146d12e1450bdb6ed81fd1d528e497683c9edd0c"
+        },
+        {
+          "path": "grok/work/transport/collect-json-0/receipt.json",
+          "bytes": 878,
+          "sha256": "0bbbc742fd70d06a341c4f0949d973e06c8ef073c62e5186d2b3d0e177fc0c1a"
+        },
+        {
+          "path": "grok/work/transport/collect-json-0/stderr.txt",
+          "bytes": 555,
+          "sha256": "8b6b462536d94d06da6a2524527a910b014112f079f456ee641a104562516dcb"
+        },
+        {
+          "path": "grok/work/transport/collect-json-0/stdout.txt",
+          "bytes": 10240,
+          "sha256": "84ff92691f909a05b224e1c56abb4864f01b4f8e3c854e4bb4c7baf1d3f6d652"
+        },
+        {
+          "path": "grok/work/transport/collect-json-0b/inbox.md",
+          "bytes": 684,
+          "sha256": "e03a82b98c673c02ed6b027e146d12e1450bdb6ed81fd1d528e497683c9edd0c"
+        },
+        {
+          "path": "grok/work/transport/collect-json-0b/receipt.json",
+          "bytes": 781,
+          "sha256": "27d71260095b5dddc7cfa9cac691b263dcb65f0589c6b2651fb880a022b1d47d"
+        },
+        {
+          "path": "grok/work/transport/collect-json-0b/stderr.txt",
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "grok/work/transport/collect-json-0b/stdout.txt",
+          "bytes": 40960,
+          "sha256": "9459e93eca4cad5c9e5a82df58b72036eddbbc797b854531e1f473586e721a27"
+        },
+        {
+          "path": "grok/work/transport/observe-cases-0/inbox.md",
+          "bytes": 684,
+          "sha256": "e03a82b98c673c02ed6b027e146d12e1450bdb6ed81fd1d528e497683c9edd0c"
+        },
+        {
+          "path": "grok/work/transport/observe-cases-0/receipt.json",
+          "bytes": 677,
+          "sha256": "cc27f85085d5a37e4357be52a9a37907b4901c18443dde1ef891d63509a17fa0"
+        },
+        {
+          "path": "grok/work/transport/observe-cases-0/stderr.txt",
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "grok/work/transport/observe-cases-0/stdout.txt",
+          "bytes": 7905,
+          "sha256": "90e6464014743328e4ba46f75cfcf0c81d3af4a790dad8a1962ceb02b35db40f"
+        },
+        {
+          "path": "grok/work/transport/observe-failed-scp/inbox.md",
+          "bytes": 1297,
+          "sha256": "1fa753b865a1c42629dc52cfbbd03bc8f0b020cb97e2c43ee9dfbef5d2a33c84"
+        },
+        {
+          "path": "grok/work/transport/observe-failed-scp/receipt.json",
+          "bytes": 965,
+          "sha256": "f731a69b575acb114f3321d2d3d3aa68ee57df59238188ceaf7f0cf5055f926a"
+        },
+        {
+          "path": "grok/work/transport/observe-failed-scp/stderr.txt",
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "grok/work/transport/observe-failed-scp/stdout.txt",
+          "bytes": 125,
+          "sha256": "44373864b8d5aa9ebe2c78f4d29fc1d01b6121dd3bf08f42b744a061059d42ea"
+        },
+        {
+          "path": "grok/work/transport/observe-final-pids/inbox.md",
+          "bytes": 1297,
+          "sha256": "1fa753b865a1c42629dc52cfbbd03bc8f0b020cb97e2c43ee9dfbef5d2a33c84"
+        },
+        {
+          "path": "grok/work/transport/observe-final-pids/receipt.json",
+          "bytes": 877,
+          "sha256": "4db067e58900fb57851cfb4050423c7440efe78c18c1d81f8d15a84913dfbb75"
+        },
+        {
+          "path": "grok/work/transport/observe-final-pids/stderr.txt",
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "grok/work/transport/observe-final-pids/stdout.txt",
+          "bytes": 85,
+          "sha256": "5183a6813760131bc6ba20620ee050bf1416f1bc31e73686cee58999ffc23f21"
+        },
+        {
+          "path": "grok/work/transport/remote-mkdir/inbox.md",
+          "bytes": 684,
+          "sha256": "e03a82b98c673c02ed6b027e146d12e1450bdb6ed81fd1d528e497683c9edd0c"
+        },
+        {
+          "path": "grok/work/transport/remote-mkdir/receipt.json",
+          "bytes": 688,
+          "sha256": "86eb669e92f8b3ba4c14e6e3e4c15b00352cbf28ba60ab9e882223096c895c95"
+        },
+        {
+          "path": "grok/work/transport/remote-mkdir/stderr.txt",
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "grok/work/transport/remote-mkdir/stdout.txt",
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "grok/work/transport/remote-upload/inbox.md",
+          "bytes": 684,
+          "sha256": "e03a82b98c673c02ed6b027e146d12e1450bdb6ed81fd1d528e497683c9edd0c"
+        },
+        {
+          "path": "grok/work/transport/remote-upload/receipt.json",
+          "bytes": 1325,
+          "sha256": "2d1cffc517ddd2bf34d07bbbb0d17120318398bc18813d0f3a395663fd02737d"
+        },
+        {
+          "path": "grok/work/transport/remote-upload/stderr.txt",
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "grok/work/transport/remote-upload/stdout.txt",
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "grok/work/transport/review-affected-types/handshake-inbox-0.md",
+          "bytes": 1297,
+          "sha256": "1fa753b865a1c42629dc52cfbbd03bc8f0b020cb97e2c43ee9dfbef5d2a33c84"
+        },
+        {
+          "path": "grok/work/transport/review-affected-types/inbox.md",
+          "bytes": 1297,
+          "sha256": "1fa753b865a1c42629dc52cfbbd03bc8f0b020cb97e2c43ee9dfbef5d2a33c84"
+        },
+        {
+          "path": "grok/work/transport/review-affected-types/receipt.json",
+          "bytes": 990,
+          "sha256": "d78b5b1f8bba62003e03b0693f41d2413453c2bc1dd2ec9bb071aea583775e80"
+        },
+        {
+          "path": "grok/work/transport/review-affected-types/stderr.txt",
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "grok/work/transport/review-affected-types/stdout.txt",
+          "bytes": 814,
+          "sha256": "28f844246e4be6047e14aff413483ae032b8fd489fab531f13e15b5f43f485d7"
+        },
+        {
+          "path": "grok/work/transport/review-callbacks-0/handshake-inbox-0.md",
+          "bytes": 684,
+          "sha256": "e03a82b98c673c02ed6b027e146d12e1450bdb6ed81fd1d528e497683c9edd0c"
+        },
+        {
+          "path": "grok/work/transport/review-callbacks-0/inbox.md",
+          "bytes": 684,
+          "sha256": "e03a82b98c673c02ed6b027e146d12e1450bdb6ed81fd1d528e497683c9edd0c"
+        },
+        {
+          "path": "grok/work/transport/review-callbacks-0/receipt.json",
+          "bytes": 987,
+          "sha256": "35270594d1a5430f0a489647aef5c30dda5d548fe5acf500a7007b0f139b7dc4"
+        },
+        {
+          "path": "grok/work/transport/review-callbacks-0/stderr.txt",
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "grok/work/transport/review-callbacks-0/stdout.txt",
+          "bytes": 1913,
+          "sha256": "a842cd11efeb296aea4610fd85546a55c6b633c6178d0da9823f4303925f09b3"
+        },
+        {
+          "path": "grok/work/transport/review-callbacks-1/handshake-inbox-0.md",
+          "bytes": 1297,
+          "sha256": "1fa753b865a1c42629dc52cfbbd03bc8f0b020cb97e2c43ee9dfbef5d2a33c84"
+        },
+        {
+          "path": "grok/work/transport/review-callbacks-1/inbox.md",
+          "bytes": 1297,
+          "sha256": "1fa753b865a1c42629dc52cfbbd03bc8f0b020cb97e2c43ee9dfbef5d2a33c84"
+        },
+        {
+          "path": "grok/work/transport/review-callbacks-1/receipt.json",
+          "bytes": 987,
+          "sha256": "da41c3485147507f84f8f5a7adcc16f8113e57ce40a69b50df76b634e4892fb9"
+        },
+        {
+          "path": "grok/work/transport/review-callbacks-1/stderr.txt",
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "grok/work/transport/review-callbacks-1/stdout.txt",
+          "bytes": 1789,
+          "sha256": "70276b1556728728508a3e1664596d7cea65d715784c882bd0e79cb429686ed0"
+        },
+        {
+          "path": "grok/work/transport/review-candidate-0/handshake-inbox-0.md",
+          "bytes": 684,
+          "sha256": "e03a82b98c673c02ed6b027e146d12e1450bdb6ed81fd1d528e497683c9edd0c"
+        },
+        {
+          "path": "grok/work/transport/review-candidate-0/inbox.md",
+          "bytes": 684,
+          "sha256": "e03a82b98c673c02ed6b027e146d12e1450bdb6ed81fd1d528e497683c9edd0c"
+        },
+        {
+          "path": "grok/work/transport/review-candidate-0/receipt.json",
+          "bytes": 987,
+          "sha256": "070f129abdd4295a992307c3b64d4008e59a4ce4aa938daafdaf0a1e97492945"
+        },
+        {
+          "path": "grok/work/transport/review-candidate-0/stderr.txt",
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "grok/work/transport/review-candidate-0/stdout.txt",
+          "bytes": 1100,
+          "sha256": "b02767c2e84c45d3a83bedab42607e50c1c647ec142b7db1bc6abb0f7334a3c4"
+        },
+        {
+          "path": "grok/work/transport/review-candidate-1/handshake-inbox-0.md",
+          "bytes": 684,
+          "sha256": "e03a82b98c673c02ed6b027e146d12e1450bdb6ed81fd1d528e497683c9edd0c"
+        },
+        {
+          "path": "grok/work/transport/review-candidate-1/inbox.md",
+          "bytes": 684,
+          "sha256": "e03a82b98c673c02ed6b027e146d12e1450bdb6ed81fd1d528e497683c9edd0c"
+        },
+        {
+          "path": "grok/work/transport/review-candidate-1/receipt.json",
+          "bytes": 987,
+          "sha256": "0daafed9f176cfc425d9ec7d5f5aa351a0122f9a1f4d62b123923c0ee41b5eae"
+        },
+        {
+          "path": "grok/work/transport/review-candidate-1/stderr.txt",
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "grok/work/transport/review-candidate-1/stdout.txt",
+          "bytes": 1375,
+          "sha256": "7c8f149563b1bf426b3b5ef43dc280aa62537938c5f720f2c46d35088b9ff9a1"
+        },
+        {
+          "path": "grok/work/transport/review-parent-0/handshake-inbox-0.md",
+          "bytes": 684,
+          "sha256": "e03a82b98c673c02ed6b027e146d12e1450bdb6ed81fd1d528e497683c9edd0c"
+        },
+        {
+          "path": "grok/work/transport/review-parent-0/inbox.md",
+          "bytes": 684,
+          "sha256": "e03a82b98c673c02ed6b027e146d12e1450bdb6ed81fd1d528e497683c9edd0c"
+        },
+        {
+          "path": "grok/work/transport/review-parent-0/receipt.json",
+          "bytes": 984,
+          "sha256": "481d44e4dee237cd0b22872ba0fa76d82dee2ce4c5e3facdb5da53fff5c62150"
+        },
+        {
+          "path": "grok/work/transport/review-parent-0/stderr.txt",
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "grok/work/transport/review-parent-0/stdout.txt",
+          "bytes": 1098,
+          "sha256": "4e8e438b5df915968030808bbd7fbf9f289560f919f0d6dcaf3267b1041ecb3b"
+        },
+        {
+          "path": "grok/work/transport/review-parent-1/handshake-inbox-0.md",
+          "bytes": 684,
+          "sha256": "e03a82b98c673c02ed6b027e146d12e1450bdb6ed81fd1d528e497683c9edd0c"
+        },
+        {
+          "path": "grok/work/transport/review-parent-1/inbox.md",
+          "bytes": 684,
+          "sha256": "e03a82b98c673c02ed6b027e146d12e1450bdb6ed81fd1d528e497683c9edd0c"
+        },
+        {
+          "path": "grok/work/transport/review-parent-1/receipt.json",
+          "bytes": 991,
+          "sha256": "7718931ec81c0c11f2aea71a37c9eaca184c076ce1f966995351dc9eacbef329"
+        },
+        {
+          "path": "grok/work/transport/review-parent-1/stderr.txt",
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "grok/work/transport/review-parent-1/stdout.txt",
+          "bytes": 1373,
+          "sha256": "49086861731b1213407186127627cd138430fa82e8138336445515aabcea2971"
+        },
+        {
+          "path": "grok/work/transport/review-production-types/handshake-inbox-0.md",
+          "bytes": 1297,
+          "sha256": "1fa753b865a1c42629dc52cfbbd03bc8f0b020cb97e2c43ee9dfbef5d2a33c84"
+        },
+        {
+          "path": "grok/work/transport/review-production-types/inbox.md",
+          "bytes": 1297,
+          "sha256": "1fa753b865a1c42629dc52cfbbd03bc8f0b020cb97e2c43ee9dfbef5d2a33c84"
+        },
+        {
+          "path": "grok/work/transport/review-production-types/receipt.json",
+          "bytes": 998,
+          "sha256": "257cab7d7da5ec82232e78d97c8ee6e276449e4e83a19c9894a14affa6dc2cb5"
+        },
+        {
+          "path": "grok/work/transport/review-production-types/stderr.txt",
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "grok/work/transport/review-production-types/stdout.txt",
+          "bytes": 818,
+          "sha256": "0b9607c46e6caad36188fa199e4c6e4f6439f393eada935258b78ef9faa46ec4"
+        },
+        {
+          "path": "grok/work/transport/setup/handshake-inbox-0.md",
+          "bytes": 684,
+          "sha256": "e03a82b98c673c02ed6b027e146d12e1450bdb6ed81fd1d528e497683c9edd0c"
+        },
+        {
+          "path": "grok/work/transport/setup/inbox.md",
+          "bytes": 684,
+          "sha256": "e03a82b98c673c02ed6b027e146d12e1450bdb6ed81fd1d528e497683c9edd0c"
+        },
+        {
+          "path": "grok/work/transport/setup/receipt.json",
+          "bytes": 981,
+          "sha256": "671eaa81204fb80372f87e19bbe0b9b304b21b9eafe48950ff0c4e519bd2cd08"
+        },
+        {
+          "path": "grok/work/transport/setup/stderr.txt",
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "grok/work/transport/setup/stdout.txt",
+          "bytes": 1057,
+          "sha256": "588f13372c8d5d79507a11811925c84b8580b4e450355ae258af923922db0432"
+        },
+        {
+          "path": "grok/work/transport.py",
+          "bytes": 2587,
+          "sha256": "1747bd12579115026894b4a511c8a51cb51af10262a958dc9204d5369fd3fb52"
+        },
+        {
+          "path": "grok/work/types-final.mjs",
+          "bytes": 2544,
+          "sha256": "c2f111f8a6190f9ff3da8aa28da5093bb0758138daa9dac04085b9e9cf7d7b60"
+        },
+        {
+          "path": "grok/work/workload-ready.json",
+          "bytes": 11784,
+          "sha256": "55c44e21e30a500220c066ee96eca21aff483454282aac3e48adcc02acbfefbd"
+        },
+        {
+          "path": "grok/workload.json",
+          "bytes": 5256,
+          "sha256": "301fee38644ba445b19fe1aa5006af802984dcd1d5fbca9363e8390333cbeb78"
+        }
+      ]
+    }
+  },
+  "limits": [
+    "This is mechanical process/input/output custody, not a semantic READY acceptance. Root owns full review assessment.",
+    "Actual wrapper waits establish native review closure. No additional SSH, tests, source edits, or remote cleanup commands were run by this custodian.",
+    "Reviewer original transport failures remain retained. Source snapshots are bound through each immutable 1,422-input manifest and launcher after-check; this record does not duplicate those immutable leaves.",
+    "Native model session logs are not copied or semantically read here; actual identity collectors retain only identity fields and opaque source hashes."
+  ]
+}
