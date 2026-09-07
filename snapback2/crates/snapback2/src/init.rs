@@ -12,6 +12,8 @@ use std::process::ExitCode;
 #[cfg(unix)]
 use std::os::unix::fs::OpenOptionsExt;
 
+pub(crate) const REACT_START: &str = r#"snapback_url=$(npx snapback2 dev) && VITE_SNAPBACK_URL="${snapback_url#SNAPBACK_URL=}" npm run dev"#;
+
 const BLOCK_START: &str = "<!-- snapback2:start -->";
 const BLOCK_END: &str = "<!-- snapback2:end -->";
 fn agent_block() -> &'static str {
@@ -20,6 +22,7 @@ fn agent_block() -> &'static str {
 
 - `snapback2 check` compiles, certifies, and refreshes `.snapback/build/api.d.ts`.
 - `snapback2 dev` starts or attaches to the one local owner and prints `SNAPBACK_URL`.
+- For React startup, run `snapback2 guide init`; pass the printed URL as `VITE_SNAPBACK_URL` to Vite.
 - `snapback2 test` proves derived checks and authored journeys with a receipt.
 - `snapback2 why <query> --as <persona>` explains rows, rules, and bounds.
 - `snapback2 trace latest` follows commit → invalidation → delivery.
@@ -70,13 +73,17 @@ pub fn run(args: &[String]) -> ExitCode {
     if checked != ExitCode::SUCCESS {
         return checked;
     }
-    if json_output {
-        println!(
-            "{}",
-            json!({ "ok": true, "project": root, "next": "snapback2 dev" })
-        );
+    let quoted_root = format!("'{}'", root.to_string_lossy().replace('\'', "'\\''"));
+    let start = if client == Client::React {
+        REACT_START
     } else {
-        println!("next: cd {} && snapback2 dev", root.display());
+        "npx snapback2 dev"
+    };
+    let next = format!("cd {quoted_root} && npm install && {start}");
+    if json_output {
+        println!("{}", json!({ "ok": true, "project": root, "next": next }));
+    } else {
+        println!("next: {next}");
     }
     ExitCode::SUCCESS
 }

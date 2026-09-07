@@ -51,7 +51,7 @@ pub fn run(args: &[String]) -> ExitCode {
     }
     let options = match verbs::parse_options(
         args,
-        &["--blocked", "--project"],
+        &["--blocked", "--project", "--journey"],
         &["--journeys-only", "--derived-only", "--json"],
     ) {
         Ok(options) => options,
@@ -66,11 +66,22 @@ pub fn run(args: &[String]) -> ExitCode {
         Err(error) => return owner::print_refusal(error, json_output, 2),
     };
     let stamp = timestamp();
+    let selected_journey = options.value("--journey");
+    if selected_journey.is_some_and(|name| name.trim().is_empty())
+        || (selected_journey.is_some()
+            && (options.has("--derived-only") || options.value("--blocked").is_some()))
+    {
+        return usage();
+    }
+    let finish_selected = |root: &Path, stamp, mut receipt: TestReceipt, json_output| {
+        receipt.scope.journey = selected_journey.map(str::to_owned);
+        finish(root, stamp, receipt, json_output)
+    };
     if let Some(reason) = options.value("--blocked") {
         let receipt = TestReceipt::explicitly_blocked(reason);
-        return finish(&root, stamp, receipt, json_output);
+        return finish_selected(&root, stamp, receipt, json_output);
     }
-    let journeys_only = options.has("--journeys-only");
+    let journeys_only = options.has("--journeys-only") || selected_journey.is_some();
     let derived_only = options.has("--derived-only");
     if journeys_only && derived_only {
         return usage();
@@ -88,7 +99,7 @@ pub fn run(args: &[String]) -> ExitCode {
                     elapsed_ms(compile_started),
                     json!({ "refusals": errors }),
                 );
-                return finish(
+                return finish_selected(
                     &root,
                     stamp,
                     TestReceipt::new(
@@ -110,7 +121,7 @@ pub fn run(args: &[String]) -> ExitCode {
                 elapsed_ms(compile_started),
                 json!({ "refusals": errors }),
             );
-            return finish(
+            return finish_selected(
                 &root,
                 stamp,
                 TestReceipt::new(
@@ -141,7 +152,7 @@ pub fn run(args: &[String]) -> ExitCode {
                 0,
                 serde_json::to_value(error).unwrap_or(Json::Null),
             ));
-            return finish(
+            return finish_selected(
                 &root,
                 stamp,
                 TestReceipt::new(
@@ -156,7 +167,9 @@ pub fn run(args: &[String]) -> ExitCode {
     let commands = vec![
         "snapback2 dev --foreground --port 0".to_owned(),
         "seed".to_owned(),
-        if journeys_only {
+        if let Some(name) = selected_journey {
+            format!("snapback2 test --journey '{}'", name.replace('\'', "'\\''"))
+        } else if journeys_only {
             "snapback2 test --journeys-only".to_owned()
         } else if derived_only {
             "snapback2 test --derived-only".to_owned()
@@ -176,7 +189,11 @@ pub fn run(args: &[String]) -> ExitCode {
         }
     }
     if !derived_only {
-        checks.extend(run_journeys(&isolated.info.project, &isolated.info));
+        checks.extend(run_journeys(
+            &isolated.info.project,
+            &isolated.info,
+            selected_journey,
+        ));
     }
     let mut receipt = TestReceipt::new(compiled.generation.hash(), commands, checks);
     if !compiled.generation.schema().schedules.is_empty() {
@@ -187,7 +204,7 @@ pub fn run(args: &[String]) -> ExitCode {
         attach_schedule_receipt(&mut receipt, status);
     }
     isolated.stop();
-    finish(&root, stamp, receipt, json_output)
+    finish_selected(&root, stamp, receipt, json_output)
 }
 
 fn compile(
@@ -699,7 +716,7 @@ fn check_effects(owner: &OwnerInfo, compiled: &CompiledProject) -> Option<CheckR
     }
 }
 
-fn run_journeys(root: &Path, owner: &OwnerInfo) -> Vec<CheckReceipt> {
+fn run_journeys(root: &Path, owner: &OwnerInfo, selected: Option<&str>) -> Vec<CheckReceipt> {
     let files = match journey_files(root) {
         Ok(files) => files,
         Err(error) => {
@@ -711,7 +728,7 @@ fn run_journeys(root: &Path, owner: &OwnerInfo) -> Vec<CheckReceipt> {
             )];
         }
     };
-    if files.is_empty() {
+    if files.is_empty() && selected.is_none() {
         return Vec::new();
     }
     let runner = match runner_path() {
@@ -726,6 +743,8 @@ fn run_journeys(root: &Path, owner: &OwnerInfo) -> Vec<CheckReceipt> {
         }
     };
     let mut checks = Vec::new();
+    let mut available = Vec::new();
+    let mut matched = false;
     for file in files {
         let mut list = journey_command(&runner, owner);
         list.arg("--list").arg("--").arg(&file);
@@ -776,7 +795,12 @@ fn run_journeys(root: &Path, owner: &OwnerInfo) -> Vec<CheckReceipt> {
             }
             continue;
         }
+        available.extend(names.iter().cloned());
         for (index, name) in names.into_iter().enumerate() {
+            if selected.is_some_and(|selected| selected != name) {
+                continue;
+            }
+            matched = true;
             let mut command = journey_command(&runner, owner);
             command
                 .arg("--journey-index")
@@ -818,6 +842,18 @@ fn run_journeys(root: &Path, owner: &OwnerInfo) -> Vec<CheckReceipt> {
                 checks.extend(parsed);
             }
         }
+    }
+    if let Some(requested) = selected
+        && !matched
+    {
+        checks.push(CheckReceipt::fail(
+            "journey selection",
+            "journey",
+            0,
+            json!({ "requested": requested, "available": available,
+                "error": "no journey has this exact name",
+                "rewrite": "use a listed journey name, or run snapback2 test for the full suite" }),
+        ));
     }
     checks
 }
@@ -1293,7 +1329,7 @@ fn elapsed_ms(started: Instant) -> u64 {
 
 fn usage() -> ExitCode {
     eprintln!(
-        "usage: snapback2 test [--blocked reason] [--journeys-only] [--derived-only] [--json]"
+        "usage: snapback2 test [--blocked reason] [--journeys-only|--derived-only|--journey name] [--json]"
     );
     ExitCode::from(2)
 }

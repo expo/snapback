@@ -41,9 +41,11 @@ Defaults: current directory, todos template, React client. Expo requires chat.
   snapback2 init my-app --template chat --client react
   cd my-app
   npm install
-  npx snapback2 dev
+  snapback_url=$(npx snapback2 dev) && VITE_SNAPBACK_URL=\"${snapback_url#SNAPBACK_URL=}\" npm run dev
 
-dev prints SNAPBACK_URL. Start your client bundler separately.
+This starts or attaches to the owner, then starts Vite with its actual URL.
+For an already-running owner, set VITE_SNAPBACK_URL to its printed URL before
+npm run dev. The owner chooses a free port; do not assume port 3210.
 Backends live in snapback/*.q; read snapback2 guide quarry next."
         }
         "dev" => {
@@ -82,7 +84,7 @@ Execute through the owner. --plan inspects; --wait streams chunk receipts;
 --dry-run rehearses on a discarded snapshot. Read snapback2 guide job."
         }
         "test" => {
-            "usage: snapback2 test [--project dir] [--blocked reason] [--journeys-only|--derived-only] [--json]\n\nProve the project and write a receipt. Read snapback2 guide testing."
+            "usage: snapback2 test [--project dir] [--blocked reason] [--journeys-only|--derived-only|--journey name] [--json]\n\nProve the project and write a receipt. --journey selects an exact authored name,\nruns only its matching journeys, and records scope.journey. It does not infer\naffected coverage. Use plain test for the full suite. Read snapback2 guide testing."
         }
         "why" => {
             "usage: snapback2 why <query> [args-json] --as <persona|system> [--project dir] [--json]\n\nExplain query rows, rules, and bounds through the owner."

@@ -1,5 +1,6 @@
-import { DevOverlay } from "snapback2/react";
+import { DevOverlay, useConnection } from "snapback2/react";
 
 export function App() {
-  return <main><h1>Snapback 2</h1><p>The owner URL is connected.</p><DevOverlay /></main>;
+  const connection = useConnection();
+  return <main><h1>Snapback 2</h1><p>Backend connection: {connection}.</p><DevOverlay /></main>;
 }

@@ -48,6 +48,8 @@ fn command_guides_explain_initialization_and_successor_recovery() {
             "init",
             "snapback2 init my-app --template chat --client react",
         ),
+        ("init", "VITE_SNAPBACK_URL=\"${snapback_url#SNAPBACK_URL=}\" npm run dev"),
+        ("test", "--journey name"),
         ("dev", "--apply-migration file"),
         ("check", "does not install"),
     ] {

@@ -1246,3 +1246,104 @@ fn isolated_owner_preserves_its_startup_refusal() {
             .contains("missing-media-helper")
     );
 }
+
+#[test]
+fn named_journey_selection_is_exact_scoped_and_does_not_hide_full_suite_failures() {
+    let project = Project::new();
+    assert!(project.init("todos", "none").status.success());
+    fs::write(
+        project.path.join("snapback/tests/todos.test.ts"),
+        r#"
+import { journey } from "snapback2/test";
+journey("focused", async () => {});
+journey("focused extra", async () => { throw new Error("unselected failure"); });
+"#,
+    )
+    .unwrap();
+    fs::write(
+        project.path.join("snapback/tests/other.test.ts"),
+        r#"
+import { journey } from "snapback2/test";
+journey("focused", async () => {});
+"#,
+    )
+    .unwrap();
+    let selected = project.run(&["test", "--journey", "focused", "--json"]);
+    assert!(
+        selected.status.success(),
+        "{}",
+        String::from_utf8_lossy(&selected.stdout)
+    );
+    let receipt = json_stdout(&selected);
+    assert_eq!(receipt["scope"]["journey"], "focused");
+    assert_eq!(receipt["scope"]["changed"], serde_json::json!([]));
+    let checks = receipt["checks"].as_array().unwrap();
+    assert_eq!(
+        checks.len(),
+        2,
+        "all exact-name registrations must run: {receipt}"
+    );
+    assert!(
+        checks
+            .iter()
+            .all(|c| c["name"] == "focused" && c["kind"] == "journey" && c["verdict"] == "pass")
+    );
+    assert_eq!(project.latest_receipt(), receipt);
+
+    let missing = project.run(&["test", "--journey", "focus", "--json"]);
+    assert_eq!(missing.status.code(), Some(1));
+    let missing = json_stdout(&missing);
+    assert_eq!(missing["scope"]["journey"], "focus");
+    let refusal = check(&missing, "journey selection");
+    assert_eq!(refusal["verdict"], "fail");
+    assert!(
+        refusal["detail"]["available"]
+            .as_array()
+            .unwrap()
+            .contains(&serde_json::json!("focused"))
+    );
+
+    let full = project.run(&["test", "--json"]);
+    assert_eq!(full.status.code(), Some(1));
+    let full = json_stdout(&full);
+    assert!(full["scope"].get("journey").is_none());
+    assert_eq!(check(&full, "focused extra")["verdict"], "fail");
+    assert_eq!(check(&full, "certify")["verdict"], "pass");
+
+    // Selection must preserve a selected failing outcome too.
+    let failing = project.run(&["test", "--journey", "focused extra", "--json"]);
+    assert_eq!(failing.status.code(), Some(1));
+    assert_eq!(
+        check(&json_stdout(&failing), "focused extra")["verdict"],
+        "fail"
+    );
+}
+
+#[test]
+fn named_journey_selection_rejects_invalid_modes_and_preserves_compile_failures() {
+    let project = Project::new();
+    assert!(project.init("todos", "none").status.success());
+    for args in [
+        vec!["test", "--journey", ""],
+        vec!["test", "--journey", "todos round trip", "--derived-only"],
+        vec![
+            "test",
+            "--journey",
+            "todos round trip",
+            "--blocked",
+            "reason",
+        ],
+    ] {
+        assert_eq!(project.run(&args).status.code(), Some(2), "{args:?}");
+    }
+    fs::write(
+        project.path.join("snapback/todos.q"),
+        "query list():\n  return unknownName\n",
+    )
+    .unwrap();
+    let output = project.run(&["test", "--journey", "todos round trip", "--json"]);
+    assert_eq!(output.status.code(), Some(1));
+    let receipt = json_stdout(&output);
+    assert_eq!(receipt["scope"]["journey"], "todos round trip");
+    assert_eq!(check(&receipt, "certify")["verdict"], "fail");
+}

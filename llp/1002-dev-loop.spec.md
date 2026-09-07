@@ -5,7 +5,7 @@
 **Systems:** `snapback2/crates/snapback2` (the binary: owner, server, verbs), `snapback2/packages/compiler` (project lowering, worker), `snapback2/packages/snapback2` (authoring runtime, client, React, test runner, shim), `snapback2/scripts/measure.mjs`
 **Author:** Claude Fable 5 (orchestrator) — implementers: codex gpt-5.6-sol, lanes B0 (compiler + authoring surface), B1 (owner + server + verbs), B2 (`init`, `test`, `why`, `trace`, `guide`), D (client + React + evaluator)
 **Date:** 2026-08-29
-**Revised:** 2026-09-07 (startup cleanup fixture custody); 2026-09-06 (app guide operation/certificate custody; native logical SSE body; CLI help and executable migration recovery; auth startup recovery and held transition reads; queued transitions, interrupted sync, live held reads); 2026-09-05 (keyword index fallback and recipe list; generated Quarry keyword guide, landed outbox/client custody; auth review: failed-transition custody, read restoration barrier, session kind, paused offline retries; client-owned auth restoration and retry lifecycle; catalog naming rewrites, Clique L2; shared live transport, bounded derived verification, mutation-read guidance, installed consumer qualification)
+**Revised:** 2026-09-07 (explicit named-journey verification and executable React startup; startup cleanup fixture custody); 2026-09-06 (app guide operation/certificate custody; native logical SSE body; CLI help and executable migration recovery; auth startup recovery and held transition reads; queued transitions, interrupted sync, live held reads); 2026-09-05 (keyword index fallback and recipe list; generated Quarry keyword guide, landed outbox/client custody; auth review: failed-transition custody, read restoration barrier, session kind, paused offline retries; client-owned auth restoration and retry lifecycle; catalog naming rewrites, Clique L2; shared live transport, bounded derived verification, mutation-read guidance, installed consumer qualification)
 **Related:** LLP 1000, LLP 1001 (the engine this serves), LLP 1003 (effects),
 LLP 0329.016 §5 (the design this implements verbatim where it can), LLP
 0329.016 §5.11 (the verb table — no verb exists without its row), LLP
@@ -569,6 +569,15 @@ distinguish source validation from owner installation.
 
 ## 7. `test` and the receipt
 
+**Focused verification (2026-09-07).** `test --journey "name"` executes only
+journeys registered under that exact name, including duplicate registrations
+across files. It skips derived checks, preserves backend compilation and
+certification plus per-journey process isolation and deadlines, and records
+`scope.journey` on success and failure receipts. A missing name fails with the
+available names; loading or compilation failures remain failures. It cannot
+combine with `--derived-only` or `--blocked`. This is explicit selection, not
+an automatic affected-coverage claim; plain `test` still proves the full suite.
+
 `test` starts a fresh owner (`--foreground`, ephemeral port, store at
 `.snapback/test-<ts>.sqlite`, deleted after), applies the seed, then runs
 derived checks and journeys.
@@ -938,6 +947,12 @@ first delivery after reconnect. The evaluator twin gains `Emit` as a
 no-op that consumes one id (LLP 1001 §8) and one corpus case proving it.
 
 ## 10. `init`
+
+**React startup (2026-09-07).** The next command installs dependencies, starts
+or attaches to the owner, and passes its actual printed URL to Vite through
+`VITE_SNAPBACK_URL`. Both `init` output and `guide init` provide the executable
+shell sequence; project paths are quoted. The generic React starter displays
+`useConnection()` state rather than asserting that it is connected.
 
 Idempotent: writes only files that do not exist, updates the managed block
 in `AGENTS.md` (≤ 40 lines: the five verbs an agent needs, the grammar
