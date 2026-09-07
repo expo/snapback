@@ -1,0 +1,362 @@
+{
+  "candidate": "367d263b8f44fda994397d5f8bb8b8110951d021",
+  "integratedSource": "379e6d3f2",
+  "files": [
+    {
+      "source": "/Users/ccheever/clique-improvement/revisions/published-declaration-ambient-repair-r1/execution-r1/work/REPORT.md",
+      "path": "author-REPORT.md",
+      "bytes": 5516,
+      "sha256": "ba50c2831e6789cb0d7007568c2f50640080ce6202f9eec149ac054c2f3a62a1"
+    },
+    {
+      "source": "/Users/ccheever/clique-improvement/revisions/published-declaration-ambient-repair-r1/execution-r1/supervisor-terminal.json",
+      "path": "author-supervisor-terminal.json",
+      "bytes": 6591,
+      "sha256": "8dfa48f396fa38ec8620a436ed92c38e9795abba2176db4d80372e998eaa0427"
+    },
+    {
+      "source": "/Users/ccheever/clique-improvement/revisions/published-declaration-ambient-repair-r1/execution-r1/work/root-scoped-semantic-verification.json",
+      "path": "root-scoped-semantic-verification.json",
+      "bytes": 673,
+      "sha256": "68d8a452d9ef39a77ea7b089987b5dba849eaf5d7190de03dbcc6d8fc9bc664f"
+    },
+    {
+      "source": "/Users/ccheever/clique-improvement/revisions/published-declaration-ambient-repair-r1/execution-r1/work/execution-summary.json",
+      "path": "execution-summary.json",
+      "bytes": 4985,
+      "sha256": "d0c5162ced77ae85be8b8a27a67e4589f5d85ccbe6dcfcff70e78319042fcf9c"
+    },
+    {
+      "source": "/Users/ccheever/clique-improvement/revisions/published-declaration-ambient-repair-r1/execution-r1/work/collection-receipt.json",
+      "path": "collection-receipt.json",
+      "bytes": 428,
+      "sha256": "0d963c53cdfe4d99593f6d14d942d2c440f20d6508ffccb8b99765812bfcb186"
+    },
+    {
+      "source": "/Users/ccheever/clique-improvement/reviews/published-declaration-ambient-repair-r1/astra/work/review.md",
+      "path": "astra-review.md",
+      "bytes": 18553,
+      "sha256": "d458719e81818b85e3dda2dc5b16546aa2317f4679bc95fe1efb44d9785e7a26"
+    },
+    {
+      "source": "/Users/ccheever/clique-improvement/reviews/published-declaration-ambient-repair-r1/astra/work/phase.json",
+      "path": "astra-phase.json",
+      "bytes": 863,
+      "sha256": "4e665f4cd77e8a6275ebb490af36167e168782a21ecd30f7a4d4091a5f0ac828"
+    },
+    {
+      "source": "/Users/ccheever/clique-improvement/reviews/published-declaration-ambient-repair-r1/astra/terminal.json",
+      "path": "astra-native-terminal.json",
+      "bytes": 613,
+      "sha256": "3a344b82ca88ed5d8b2e5178892b56311ef722003d3d3f74317b32e3c30cc6cf"
+    },
+    {
+      "source": "/Users/ccheever/clique-improvement/reviews/published-declaration-ambient-repair-r1/astra/supervisor-terminal.json",
+      "path": "astra-supervisor-terminal.json",
+      "bytes": 3835,
+      "sha256": "64c88653fadeb7129d68364bed3d08869cca13359a17f25f5503f8dcf9ee646d"
+    },
+    {
+      "source": "/Users/ccheever/clique-improvement/reviews/published-declaration-ambient-repair-r1/grok/work/review.md",
+      "path": "grok-review.md",
+      "bytes": 13187,
+      "sha256": "2b73e342bf31fd99dc5340a780600d94e752cecd15ff25bdcecbb5e034fa0145"
+    },
+    {
+      "source": "/Users/ccheever/clique-improvement/reviews/published-declaration-ambient-repair-r1/grok/work/phase.json",
+      "path": "grok-phase.json",
+      "bytes": 631,
+      "sha256": "b0b990470797894b5dd38428daf60549219a50336790f44b9b84942dab6035b6"
+    },
+    {
+      "source": "/Users/ccheever/clique-improvement/reviews/published-declaration-ambient-repair-r1/grok/terminal.json",
+      "path": "grok-native-terminal.json",
+      "bytes": 477,
+      "sha256": "55699908a120cba33f924aadc69a4ce6c948413447fd5032c8301c67184a4640"
+    },
+    {
+      "source": "/Users/ccheever/clique-improvement/reviews/published-declaration-ambient-repair-r1/grok/supervisor-terminal.json",
+      "path": "grok-supervisor-terminal.json",
+      "bytes": 2021,
+      "sha256": "49180c51f12c646c4dd85a4fd1b9eb2524aea418a1b27237f103950c46df811c"
+    },
+    {
+      "source": "/Users/ccheever/clique-improvement/revisions/published-declaration-ambient-repair-r1/execution-r1/work/remote-evidence/results/public-consumer-01/stdout.txt",
+      "path": "public-consumer-01/stdout.txt",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "source": "/Users/ccheever/clique-improvement/revisions/published-declaration-ambient-repair-r1/execution-r1/work/remote-evidence/results/public-consumer-01/handshake.json",
+      "path": "public-consumer-01/handshake.json",
+      "bytes": 230,
+      "sha256": "0b02ef33fb606f7cd92fc655a0b4644b5b805951a6b6a9225794b99e0480ac67"
+    },
+    {
+      "source": "/Users/ccheever/clique-improvement/revisions/published-declaration-ambient-repair-r1/execution-r1/work/remote-evidence/results/public-consumer-01/result.json",
+      "path": "public-consumer-01/result.json",
+      "bytes": 79,
+      "sha256": "dcf04f94318bdd05097630bfcdfc10a9d8dc7086850d28ab0e9d0ba941f6d289"
+    },
+    {
+      "source": "/Users/ccheever/clique-improvement/revisions/published-declaration-ambient-repair-r1/execution-r1/work/remote-evidence/results/public-consumer-01/program.json",
+      "path": "public-consumer-01/program.json",
+      "bytes": 583,
+      "sha256": "e6b21afe463be8c70962a5aad238c10eaf4a556c7ed60554c18090fdf4935f7a"
+    },
+    {
+      "source": "/Users/ccheever/clique-improvement/revisions/published-declaration-ambient-repair-r1/execution-r1/work/remote-evidence/results/public-consumer-01/consumer.ts",
+      "path": "public-consumer-01/consumer.ts",
+      "bytes": 2691,
+      "sha256": "925f5521d709a389f26fec98c6926bd4494aaf3b0e2e17957fbd7de16fe79713"
+    },
+    {
+      "source": "/Users/ccheever/clique-improvement/revisions/published-declaration-ambient-repair-r1/execution-r1/work/remote-evidence/results/public-consumer-01/diagnostics.json",
+      "path": "public-consumer-01/diagnostics.json",
+      "bytes": 3,
+      "sha256": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570"
+    },
+    {
+      "source": "/Users/ccheever/clique-improvement/revisions/published-declaration-ambient-repair-r1/execution-r1/work/remote-evidence/results/public-consumer-01/types-and-resolution.json",
+      "path": "public-consumer-01/types-and-resolution.json",
+      "bytes": 65475,
+      "sha256": "289016d37c137050f4be130af4e5d11181d49681e40a270cd83e6290b4571745"
+    },
+    {
+      "source": "/Users/ccheever/clique-improvement/revisions/published-declaration-ambient-repair-r1/execution-r1/work/remote-evidence/results/public-consumer-01/stderr.txt",
+      "path": "public-consumer-01/stderr.txt",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "source": "/Users/ccheever/clique-improvement/revisions/published-declaration-ambient-repair-r1/execution-r1/work/remote-evidence/results/public-consumer-01/source-files.json",
+      "path": "public-consumer-01/source-files.json",
+      "bytes": 43948,
+      "sha256": "971193e8349813de0c3a2b4a8c96f81482704af8bb87df24395e13a02f694dc6"
+    },
+    {
+      "source": "/Users/ccheever/clique-improvement/revisions/published-declaration-ambient-repair-r1/execution-r1/work/remote-evidence/results/public-consumer-01/tsconfig.json",
+      "path": "public-consumer-01/tsconfig.json",
+      "bytes": 281,
+      "sha256": "1b06be47d2d7a7ec34c613f85fbae5ce52d8529e61a14590a18412d550e59ee7"
+    },
+    {
+      "source": "/Users/ccheever/clique-improvement/revisions/published-declaration-ambient-repair-r1/execution-r1/work/remote-evidence/results/public-consumer-01/consumer-start.json",
+      "path": "public-consumer-01/consumer-start.json",
+      "bytes": 829,
+      "sha256": "2e3d6354bed0cabbfeed69216f684ddd2c7b61420c06b96580e3aaed0041ff1a"
+    },
+    {
+      "source": "/Users/ccheever/clique-improvement/revisions/published-declaration-ambient-repair-r1/execution-r1/work/remote-evidence/results/public-consumer-01/launch.json",
+      "path": "public-consumer-01/launch.json",
+      "bytes": 2146,
+      "sha256": "698b3a36a8b324849dabc52341378e0f602d1a122a7a25643604b97fa97e37ac"
+    },
+    {
+      "source": "/Users/ccheever/clique-improvement/revisions/published-declaration-ambient-repair-r1/execution-r1/work/remote-evidence/results/public-consumer-01/preflight.json",
+      "path": "public-consumer-01/preflight.json",
+      "bytes": 1410,
+      "sha256": "6c60a7e9b106450afb19a531cc8824ee98e666ef9a7c46aab0885c998cb67401"
+    },
+    {
+      "source": "/Users/ccheever/clique-improvement/revisions/published-declaration-ambient-repair-r1/execution-r1/work/remote-evidence/results/public-consumer-01/execution.json",
+      "path": "public-consumer-01/execution.json",
+      "bytes": 2654,
+      "sha256": "ec6409499357565b37f0a9ba6ef67ab02203614e75fee41c9268804397e53593"
+    },
+    {
+      "source": "/Users/ccheever/clique-improvement/revisions/published-declaration-ambient-repair-r1/execution-r1/work/remote-evidence/results/standalone-consumer-01/stdout.txt",
+      "path": "standalone-consumer-01/stdout.txt",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "source": "/Users/ccheever/clique-improvement/revisions/published-declaration-ambient-repair-r1/execution-r1/work/remote-evidence/results/standalone-consumer-01/handshake.json",
+      "path": "standalone-consumer-01/handshake.json",
+      "bytes": 230,
+      "sha256": "1ee1a187fdaf87fed0ca00c3d9e2c1a3c79ce5116904e13db569aecc0c6987cd"
+    },
+    {
+      "source": "/Users/ccheever/clique-improvement/revisions/published-declaration-ambient-repair-r1/execution-r1/work/remote-evidence/results/standalone-consumer-01/result.json",
+      "path": "standalone-consumer-01/result.json",
+      "bytes": 83,
+      "sha256": "1fa7049f7fad2df213395180ee35249deae2f0b486eb8fb17674db0a2cafdbb3"
+    },
+    {
+      "source": "/Users/ccheever/clique-improvement/revisions/published-declaration-ambient-repair-r1/execution-r1/work/remote-evidence/results/standalone-consumer-01/program.json",
+      "path": "standalone-consumer-01/program.json",
+      "bytes": 591,
+      "sha256": "b22671d63d4541e9b6136e70fa99870be5339993faa4be9888b5ab10fbab8023"
+    },
+    {
+      "source": "/Users/ccheever/clique-improvement/revisions/published-declaration-ambient-repair-r1/execution-r1/work/remote-evidence/results/standalone-consumer-01/consumer.ts",
+      "path": "standalone-consumer-01/consumer.ts",
+      "bytes": 1698,
+      "sha256": "3c9e9b2516147ce9afd013d128654adeeb6c51810ebb405a4ac13d759d709d43"
+    },
+    {
+      "source": "/Users/ccheever/clique-improvement/revisions/published-declaration-ambient-repair-r1/execution-r1/work/remote-evidence/results/standalone-consumer-01/diagnostics.json",
+      "path": "standalone-consumer-01/diagnostics.json",
+      "bytes": 3,
+      "sha256": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570"
+    },
+    {
+      "source": "/Users/ccheever/clique-improvement/revisions/published-declaration-ambient-repair-r1/execution-r1/work/remote-evidence/results/standalone-consumer-01/types-and-resolution.json",
+      "path": "standalone-consumer-01/types-and-resolution.json",
+      "bytes": 12791,
+      "sha256": "e5ec8317d8fe3e9dc09fc910ed3db61068cd0d6bab980d5f734f54e3dd0178f0"
+    },
+    {
+      "source": "/Users/ccheever/clique-improvement/revisions/published-declaration-ambient-repair-r1/execution-r1/work/remote-evidence/results/standalone-consumer-01/stderr.txt",
+      "path": "standalone-consumer-01/stderr.txt",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "source": "/Users/ccheever/clique-improvement/revisions/published-declaration-ambient-repair-r1/execution-r1/work/remote-evidence/results/standalone-consumer-01/source-files.json",
+      "path": "standalone-consumer-01/source-files.json",
+      "bytes": 36368,
+      "sha256": "2588221e2058f245a2b7f37381e9e2de5c7c41f376a04a8236bcccabd6fa59f5"
+    },
+    {
+      "source": "/Users/ccheever/clique-improvement/revisions/published-declaration-ambient-repair-r1/execution-r1/work/remote-evidence/results/standalone-consumer-01/tsconfig.json",
+      "path": "standalone-consumer-01/tsconfig.json",
+      "bytes": 281,
+      "sha256": "1b06be47d2d7a7ec34c613f85fbae5ce52d8529e61a14590a18412d550e59ee7"
+    },
+    {
+      "source": "/Users/ccheever/clique-improvement/revisions/published-declaration-ambient-repair-r1/execution-r1/work/remote-evidence/results/standalone-consumer-01/consumer-start.json",
+      "path": "standalone-consumer-01/consumer-start.json",
+      "bytes": 833,
+      "sha256": "572efaba5d3f6c7f9c66c081801fad67af030f0cba88bc847e028b0977e695cd"
+    },
+    {
+      "source": "/Users/ccheever/clique-improvement/revisions/published-declaration-ambient-repair-r1/execution-r1/work/remote-evidence/results/standalone-consumer-01/launch.json",
+      "path": "standalone-consumer-01/launch.json",
+      "bytes": 2157,
+      "sha256": "bc74aabd6e7bba38fedaf7ee31df6fbc0ebdfa9dc5948d8b9bb87e94a9a6f48f"
+    },
+    {
+      "source": "/Users/ccheever/clique-improvement/revisions/published-declaration-ambient-repair-r1/execution-r1/work/remote-evidence/results/standalone-consumer-01/preflight.json",
+      "path": "standalone-consumer-01/preflight.json",
+      "bytes": 1415,
+      "sha256": "0e1a0d8563a50b751a09f44837516e774c2f237b56a6c2e14aff756374b01478"
+    },
+    {
+      "source": "/Users/ccheever/clique-improvement/revisions/published-declaration-ambient-repair-r1/execution-r1/work/remote-evidence/results/standalone-consumer-01/execution.json",
+      "path": "standalone-consumer-01/execution.json",
+      "bytes": 2665,
+      "sha256": "5c1e0e22f5164f82b5041e54876d78d2082ae33a1e7f21837b7c25687ed11321"
+    },
+    {
+      "source": "/Users/ccheever/clique-improvement/revisions/published-declaration-ambient-repair-r1/execution-r1/work/remote-evidence/results/source-type-01/stdout.txt",
+      "path": "source-type-01/stdout.txt",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "source": "/Users/ccheever/clique-improvement/revisions/published-declaration-ambient-repair-r1/execution-r1/work/remote-evidence/results/source-type-01/before-program.json",
+      "path": "source-type-01/before-program.json",
+      "bytes": 843,
+      "sha256": "d50dad5cf1eeef9090e1caa256a50759c2baaffd131b302d1ca9021c4d8889ca"
+    },
+    {
+      "source": "/Users/ccheever/clique-improvement/revisions/published-declaration-ambient-repair-r1/execution-r1/work/remote-evidence/results/source-type-01/handshake.json",
+      "path": "source-type-01/handshake.json",
+      "bytes": 230,
+      "sha256": "680b2f40e7d89354c01e22b47cf5f9b6d12f38a9e0fb59d81a85f882bbb16b0b"
+    },
+    {
+      "source": "/Users/ccheever/clique-improvement/revisions/published-declaration-ambient-repair-r1/execution-r1/work/remote-evidence/results/source-type-01/result.json",
+      "path": "source-type-01/result.json",
+      "bytes": 37,
+      "sha256": "5b4193db8abd42200ec164a033ecc6178280acb9c2fa5267ad8d9025ad4666a0"
+    },
+    {
+      "source": "/Users/ccheever/clique-improvement/revisions/published-declaration-ambient-repair-r1/execution-r1/work/remote-evidence/results/source-type-01/diagnostics.json",
+      "path": "source-type-01/diagnostics.json",
+      "bytes": 3,
+      "sha256": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570"
+    },
+    {
+      "source": "/Users/ccheever/clique-improvement/revisions/published-declaration-ambient-repair-r1/execution-r1/work/remote-evidence/results/source-type-01/stderr.txt",
+      "path": "source-type-01/stderr.txt",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "source": "/Users/ccheever/clique-improvement/revisions/published-declaration-ambient-repair-r1/execution-r1/work/remote-evidence/results/source-type-01/source-files.json",
+      "path": "source-type-01/source-files.json",
+      "bytes": 86697,
+      "sha256": "29165e673589361f4ac96adc7a6cacffe2397caf12a52d427fb68be2d5eeafa1"
+    },
+    {
+      "source": "/Users/ccheever/clique-improvement/revisions/published-declaration-ambient-repair-r1/execution-r1/work/remote-evidence/results/source-type-01/launch.json",
+      "path": "source-type-01/launch.json",
+      "bytes": 2131,
+      "sha256": "a72fab11b9e0e3117ee80bfa65df06f296eb1d7941a0025b2b8a9ed30b1d0918"
+    },
+    {
+      "source": "/Users/ccheever/clique-improvement/revisions/published-declaration-ambient-repair-r1/execution-r1/work/remote-evidence/results/source-type-01/preflight.json",
+      "path": "source-type-01/preflight.json",
+      "bytes": 1402,
+      "sha256": "eb5e40facfe306a02cded42954a4e2ffd1cb73aed826368d19a2bb92419fc1bd"
+    },
+    {
+      "source": "/Users/ccheever/clique-improvement/revisions/published-declaration-ambient-repair-r1/execution-r1/work/remote-evidence/results/source-type-01/execution.json",
+      "path": "source-type-01/execution.json",
+      "bytes": 2639,
+      "sha256": "d9b17601749f8f5ef1f00629ae76b0a69e5166c7415e7d9d670d275cd7f6c359"
+    },
+    {
+      "source": "/Users/ccheever/clique-improvement/revisions/published-declaration-ambient-repair-r1/execution-r1/work/remote-evidence/results/package-build-01/stdout.txt",
+      "path": "package-build-01/stdout.txt",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "source": "/Users/ccheever/clique-improvement/revisions/published-declaration-ambient-repair-r1/execution-r1/work/remote-evidence/results/package-build-01/handshake.json",
+      "path": "package-build-01/handshake.json",
+      "bytes": 230,
+      "sha256": "bbcd37ff93709e163e4ce96cc65d436102d18dc3da41592a3a52d0d1700e4356"
+    },
+    {
+      "source": "/Users/ccheever/clique-improvement/revisions/published-declaration-ambient-repair-r1/execution-r1/work/remote-evidence/results/package-build-01/stderr.txt",
+      "path": "package-build-01/stderr.txt",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "source": "/Users/ccheever/clique-improvement/revisions/published-declaration-ambient-repair-r1/execution-r1/work/remote-evidence/results/package-build-01/descendants.jsonl",
+      "path": "package-build-01/descendants.jsonl",
+      "bytes": 1040,
+      "sha256": "f0e857cf99b06bf7896b51abe9be61f6c181753080a4164c740d4f182744e23a"
+    },
+    {
+      "source": "/Users/ccheever/clique-improvement/revisions/published-declaration-ambient-repair-r1/execution-r1/work/remote-evidence/results/package-build-01/launch.json",
+      "path": "package-build-01/launch.json",
+      "bytes": 2467,
+      "sha256": "5e2d24009cd2be63184e9bd590e1bb736c0f88b1ca46514c3dd7ea6a7b4a0b6a"
+    },
+    {
+      "source": "/Users/ccheever/clique-improvement/revisions/published-declaration-ambient-repair-r1/execution-r1/work/remote-evidence/results/package-build-01/preflight.json",
+      "path": "package-build-01/preflight.json",
+      "bytes": 1596,
+      "sha256": "0e1677bf1769367594a2c00eb108a5d0e53a303a2658e2dc991c8769e6d266cd"
+    },
+    {
+      "source": "/Users/ccheever/clique-improvement/revisions/published-declaration-ambient-repair-r1/execution-r1/work/remote-evidence/results/package-build-01/execution.json",
+      "path": "package-build-01/execution.json",
+      "bytes": 3204,
+      "sha256": "19b4630bc4a33804e90c3d48f35108e5a97d5013ab5c5003f0e3fcd5248f851c"
+    },
+    {
+      "source": "/Users/ccheever/clique-improvement/reviews/published-declaration-ambient-repair-r1/closed-pair-custody.json",
+      "path": "closed-pair-custody.json",
+      "bytes": 9502,
+      "sha256": "d248ad9cc7c8522f1ae95dca1e6b77fa925c8b71b5ffbec5b31d06d22fd566c2"
+    }
+  ],
+  "initialIntegratedSource": "d2cfbe386",
+  "integrationBase": "e97a230be"
+}

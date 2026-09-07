@@ -1,0 +1,43 @@
+{
+  "at": "2026-09-07T22:20:12.149750+00:00",
+  "load": [
+    0.82421875,
+    0.61083984375,
+    0.60302734375
+  ],
+  "cpus": 96,
+  "memAvailableKb": 255092416,
+  "controllerIdentity": {
+    "pid": 277202,
+    "bootId": "76ef40aa-0ed8-4f57-85c6-898bb42ea7e4",
+    "startTicks": "117853040",
+    "state": "R",
+    "cmdline": "/usr/bin/python3.12 /home/ccheever/clique-revisions/published-declaration-ambient-repair-r1-20260907/work/run-remote.py standalone-consumer-01 fcaef8f4db42f5cc00677f5c9090bbb73a1a7e069b7ca4b5d44f1ad47047981e ",
+    "exe": "/usr/bin/python3.12",
+    "cwd": "/home/ccheever"
+  },
+  "controllerToolSha256": "1643dacd9feaedc58f3cc581e4d22577dfe25c09b10282936186ccf0f2e61118",
+  "argv": [
+    "/home/ccheever/clique-tooling/epyc-linux-tooling-20260907T010007Z-0fd567d96f/node-v22.23.2-linux-x64/bin/node",
+    "/home/ccheever/clique-revisions/published-declaration-ambient-repair-r1-20260907/work/consumer-run.mjs",
+    "standalone"
+  ],
+  "cwd": "/home/ccheever/clique-revisions/published-declaration-ambient-repair-r1-20260907/work/source/snapback2/packages/snapback2",
+  "kind": "one consumer Program",
+  "inboxExpected": "fcaef8f4db42f5cc00677f5c9090bbb73a1a7e069b7ca4b5d44f1ad47047981e",
+  "packetSha256": "244e55f26bb38bddf85727fdadbbf0b6857de17d575c950346ed161ba5303051",
+  "executableSha256": "3517c2df0b2f8cd7f422b4b8450ef81c6889f08eb03e281d6de9079b15e6a327",
+  "deadlineSeconds": 30,
+  "pid": 277203,
+  "startIdentity": {
+    "pid": 277203,
+    "bootId": "76ef40aa-0ed8-4f57-85c6-898bb42ea7e4",
+    "startTicks": "117853102",
+    "state": "R",
+    "cmdline": "/home/ccheever/clique-tooling/epyc-linux-tooling-20260907T010007Z-0fd567d96f/node-v22.23.2-linux-x64/bin/node /home/ccheever/clique-revisions/published-declaration-ambient-repair-r1-20260907/work/consumer-run.mjs standalone ",
+    "exe": "/home/ccheever/clique-tooling/epyc-linux-tooling-20260907T010007Z-0fd567d96f/node-v22.23.2-linux-x64/bin/node",
+    "cwd": "/home/ccheever/clique-revisions/published-declaration-ambient-repair-r1-20260907/work/source/snapback2/packages/snapback2"
+  },
+  "deadlineEpoch": 1788819642.7416847,
+  "startEpoch": 1788819612.7416847
+}

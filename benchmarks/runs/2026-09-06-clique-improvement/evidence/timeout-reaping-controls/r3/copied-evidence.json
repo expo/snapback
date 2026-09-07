@@ -1,0 +1,378 @@
+{
+  "candidateSha256": "b66c1e0e7eddb99d6a17a3902a0d3fb116f35618c47068d16b8d97a87438fa0a",
+  "copyPreparationFailure": "Initial copy2f25ce stopped at mistyped prior astra/work/review.md. Correct path astra/review.md inspected503f0d; existing partial copies verified identical before completing. No semantic execution.",
+  "files": [
+    {
+      "source": "/Users/ccheever/clique-improvement/revisions/default-install-timeout-race-repair-r3/candidate-helper.py",
+      "path": "candidate-helper.py",
+      "bytes": 16881,
+      "sha256": "b66c1e0e7eddb99d6a17a3902a0d3fb116f35618c47068d16b8d97a87438fa0a"
+    },
+    {
+      "source": "/Users/ccheever/clique-improvement/revisions/default-install-timeout-race-repair-r3/helper-vs-r2.diff",
+      "path": "helper-vs-r2.diff",
+      "bytes": 968,
+      "sha256": "2c714da91b16dcc0ca3b6bc473f61ec65394f9871c2fea34a4a0c527fa547688"
+    },
+    {
+      "source": "/Users/ccheever/clique-improvement/revisions/default-install-timeout-race-repair-r3/regression.py",
+      "path": "regression.py",
+      "bytes": 11538,
+      "sha256": "8e0d1d9b430924eb3b08e48ede643d3ba47e98ff2db489914b4818220061fb6a"
+    },
+    {
+      "source": "/Users/ccheever/clique-improvement/revisions/default-install-timeout-race-repair-r3/regression-vs-r2.diff",
+      "path": "regression-vs-r2.diff",
+      "bytes": 1801,
+      "sha256": "824c4497526c5de9f87b07f1d3baa8938ceaa8b35a7abbe21396e9e249223cb2"
+    },
+    {
+      "source": "/Users/ccheever/clique-improvement/revisions/default-install-timeout-race-repair-r3/controlled-child.py",
+      "path": "controlled-child.py",
+      "bytes": 528,
+      "sha256": "a73ce3014d7a5d4de2ed2f05f82d1537270dda23f9b322628c9912663ec00a9a"
+    },
+    {
+      "source": "/Users/ccheever/clique-improvement/revisions/default-install-timeout-race-repair-r3/run-regressions.py",
+      "path": "run-regressions.py",
+      "bytes": 4639,
+      "sha256": "15906044f28378e9efd6cea8ffd057534028c09d4fd5c43a084c23da7ba4abab"
+    },
+    {
+      "source": "/Users/ccheever/clique-improvement/revisions/default-install-timeout-race-repair-r3/workload.json",
+      "path": "workload.json",
+      "bytes": 11406,
+      "sha256": "e50c296de4014080d2d153eb0db26c430d2bae7792914f54bd3b9dbbcb08dd70"
+    },
+    {
+      "source": "/Users/ccheever/clique-improvement/revisions/default-install-timeout-race-repair-r3/root-approval.json",
+      "path": "root-approval.json",
+      "bytes": 372,
+      "sha256": "42dc1fe35497d8c20c61ebe067f45effa9ade6075d0c1dfbae33fd566d8d0b6f"
+    },
+    {
+      "source": "/Users/ccheever/clique-improvement/revisions/default-install-timeout-race-repair-r3/REPORT.md",
+      "path": "REPORT.md",
+      "bytes": 3218,
+      "sha256": "656b9076523659d8e660ea34acba0718f41b3a8006ed541857ab7e19047a922a"
+    },
+    {
+      "source": "/Users/ccheever/clique-improvement/revisions/default-install-timeout-race-repair-r3/supervisor-terminal-identity.json",
+      "path": "supervisor-terminal-identity.json",
+      "bytes": 719,
+      "sha256": "c59791079a953b314232ecaa89a578e7b0f9619ac029296a5a9e4ae4ec70b03f"
+    },
+    {
+      "source": "/Users/ccheever/clique-improvement/revisions/default-install-timeout-race-repair-r3/closed-review-consumption.json",
+      "path": "closed-review-consumption.json",
+      "bytes": 3202,
+      "sha256": "5d08feac9ac779f8ec99d85dee827e4a4b6aabf05c997986a662897fb6ca9edc"
+    },
+    {
+      "source": "/Users/ccheever/clique-improvement/revisions/default-install-timeout-race-repair-r3/execution/REPORT.json",
+      "path": "execution/REPORT.json",
+      "bytes": 6590,
+      "sha256": "ff02a23ae5f6ff4a2607d4641971057b9eb7bb11effad452b5cac569aa12c612"
+    },
+    {
+      "source": "/Users/ccheever/clique-improvement/revisions/default-install-timeout-race-repair-r3/execution/candidate-before-deadline/receipts/probe.json",
+      "path": "execution/candidate-before-deadline/receipts/probe.json",
+      "bytes": 1245,
+      "sha256": "54671d400f0a99dc7aa10314dbe4b14e72dd15f75b95cfbcbde7605ccdb043b7"
+    },
+    {
+      "source": "/Users/ccheever/clique-improvement/revisions/default-install-timeout-race-repair-r3/execution/candidate-before-deadline/receipts/probe.log",
+      "path": "execution/candidate-before-deadline/receipts/probe.log",
+      "bytes": 47,
+      "sha256": "69c1e1c12f0673574be7378d650d135b3285d299f10469991b7adf7556d519f2"
+    },
+    {
+      "source": "/Users/ccheever/clique-improvement/revisions/default-install-timeout-race-repair-r3/execution/candidate-before-deadline/result.json",
+      "path": "execution/candidate-before-deadline/result.json",
+      "bytes": 2229,
+      "sha256": "640b03d909d82b198c78f66ffdecb0d0d5bcd7a83170fd599246c94663c1d6f0"
+    },
+    {
+      "source": "/Users/ccheever/clique-improvement/revisions/default-install-timeout-race-repair-r3/execution/candidate-before-deadline.outer.log",
+      "path": "execution/candidate-before-deadline.outer.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "source": "/Users/ccheever/clique-improvement/revisions/default-install-timeout-race-repair-r3/execution/candidate-before-deadline.terminal.json",
+      "path": "execution/candidate-before-deadline.terminal.json",
+      "bytes": 965,
+      "sha256": "1658ad250a3afd2536efdc542c8093516d1c1cd406c5b7214927597a91db1c5b"
+    },
+    {
+      "source": "/Users/ccheever/clique-improvement/revisions/default-install-timeout-race-repair-r3/execution/candidate-changed-identity/receipts/probe.json",
+      "path": "execution/candidate-changed-identity/receipts/probe.json",
+      "bytes": 1395,
+      "sha256": "6809928fd2ac65b8530fa7d66f22f12cbb4ecf0a8dd10fb0366f5ba3f0c62a94"
+    },
+    {
+      "source": "/Users/ccheever/clique-improvement/revisions/default-install-timeout-race-repair-r3/execution/candidate-changed-identity/receipts/probe.log",
+      "path": "execution/candidate-changed-identity/receipts/probe.log",
+      "bytes": 47,
+      "sha256": "69c1e1c12f0673574be7378d650d135b3285d299f10469991b7adf7556d519f2"
+    },
+    {
+      "source": "/Users/ccheever/clique-improvement/revisions/default-install-timeout-race-repair-r3/execution/candidate-changed-identity/receipts/probe.running.json",
+      "path": "execution/candidate-changed-identity/receipts/probe.running.json",
+      "bytes": 1009,
+      "sha256": "62510630e5d1740a7783b5bffccb5b0197a493d59a940fd93bf92b97dec637c3"
+    },
+    {
+      "source": "/Users/ccheever/clique-improvement/revisions/default-install-timeout-race-repair-r3/execution/candidate-changed-identity/result.json",
+      "path": "execution/candidate-changed-identity/result.json",
+      "bytes": 2503,
+      "sha256": "275f64a4aef72b9f7073c1ae8cebd7a4123c0473c00b83f767ce2cba34334e94"
+    },
+    {
+      "source": "/Users/ccheever/clique-improvement/revisions/default-install-timeout-race-repair-r3/execution/candidate-changed-identity.outer.log",
+      "path": "execution/candidate-changed-identity.outer.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "source": "/Users/ccheever/clique-improvement/revisions/default-install-timeout-race-repair-r3/execution/candidate-changed-identity.terminal.json",
+      "path": "execution/candidate-changed-identity.terminal.json",
+      "bytes": 960,
+      "sha256": "423c002b04000f7a6135ebd510912c0995f50c78f39276a36bd49658a34c0d69"
+    },
+    {
+      "source": "/Users/ccheever/clique-improvement/revisions/default-install-timeout-race-repair-r3/execution/candidate-disappears-before-group-query/receipts/probe.json",
+      "path": "execution/candidate-disappears-before-group-query/receipts/probe.json",
+      "bytes": 1422,
+      "sha256": "c6cc55547d017b7497278c7f70e15b073bef34cbbe761159753d0f243cb665bb"
+    },
+    {
+      "source": "/Users/ccheever/clique-improvement/revisions/default-install-timeout-race-repair-r3/execution/candidate-disappears-before-group-query/receipts/probe.log",
+      "path": "execution/candidate-disappears-before-group-query/receipts/probe.log",
+      "bytes": 47,
+      "sha256": "69c1e1c12f0673574be7378d650d135b3285d299f10469991b7adf7556d519f2"
+    },
+    {
+      "source": "/Users/ccheever/clique-improvement/revisions/default-install-timeout-race-repair-r3/execution/candidate-disappears-before-group-query/result.json",
+      "path": "execution/candidate-disappears-before-group-query/result.json",
+      "bytes": 2518,
+      "sha256": "2b3476ac641fa14f593c8591a00f87d002623b363ce1aaf841c4e16c0791edb7"
+    },
+    {
+      "source": "/Users/ccheever/clique-improvement/revisions/default-install-timeout-race-repair-r3/execution/candidate-disappears-before-group-query.outer.log",
+      "path": "execution/candidate-disappears-before-group-query.outer.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "source": "/Users/ccheever/clique-improvement/revisions/default-install-timeout-race-repair-r3/execution/candidate-disappears-before-group-query.terminal.json",
+      "path": "execution/candidate-disappears-before-group-query.terminal.json",
+      "bytes": 991,
+      "sha256": "06331ffb08b8c375e4e7710b51c1e68fc877c51f0100ad3167a134889cdfd4ad"
+    },
+    {
+      "source": "/Users/ccheever/clique-improvement/revisions/default-install-timeout-race-repair-r3/execution/candidate-exit-during-identity/receipts/probe.json",
+      "path": "execution/candidate-exit-during-identity/receipts/probe.json",
+      "bytes": 1376,
+      "sha256": "8d2604c75b122d56fcb04ef53d312535c53f508d88c47fc031b8987547bebd56"
+    },
+    {
+      "source": "/Users/ccheever/clique-improvement/revisions/default-install-timeout-race-repair-r3/execution/candidate-exit-during-identity/receipts/probe.log",
+      "path": "execution/candidate-exit-during-identity/receipts/probe.log",
+      "bytes": 47,
+      "sha256": "69c1e1c12f0673574be7378d650d135b3285d299f10469991b7adf7556d519f2"
+    },
+    {
+      "source": "/Users/ccheever/clique-improvement/revisions/default-install-timeout-race-repair-r3/execution/candidate-exit-during-identity/result.json",
+      "path": "execution/candidate-exit-during-identity/result.json",
+      "bytes": 2463,
+      "sha256": "e3f8041e3989c35d09588e7ec339056f84bff618fd9071491fef96570d741f3a"
+    },
+    {
+      "source": "/Users/ccheever/clique-improvement/revisions/default-install-timeout-race-repair-r3/execution/candidate-exit-during-identity.outer.log",
+      "path": "execution/candidate-exit-during-identity.outer.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "source": "/Users/ccheever/clique-improvement/revisions/default-install-timeout-race-repair-r3/execution/candidate-exit-during-identity.terminal.json",
+      "path": "execution/candidate-exit-during-identity.terminal.json",
+      "bytes": 967,
+      "sha256": "baf91b2cd4923660b7739365aebc68365115e59da0b57652fc979775639a0a15"
+    },
+    {
+      "source": "/Users/ccheever/clique-improvement/revisions/default-install-timeout-race-repair-r3/execution/candidate-live-matching-group/receipts/probe.json",
+      "path": "execution/candidate-live-matching-group/receipts/probe.json",
+      "bytes": 1266,
+      "sha256": "05dcb65c494578988487f37350ce23f5a45ce44622ca2414fb419712172362b0"
+    },
+    {
+      "source": "/Users/ccheever/clique-improvement/revisions/default-install-timeout-race-repair-r3/execution/candidate-live-matching-group/receipts/probe.log",
+      "path": "execution/candidate-live-matching-group/receipts/probe.log",
+      "bytes": 23,
+      "sha256": "5b9d5a5493ac69fb240a9e353f7c441dcb7345be7920b9b708cb48a9e6cb4632"
+    },
+    {
+      "source": "/Users/ccheever/clique-improvement/revisions/default-install-timeout-race-repair-r3/execution/candidate-live-matching-group/result.json",
+      "path": "execution/candidate-live-matching-group/result.json",
+      "bytes": 2400,
+      "sha256": "8e6202ae654c7b67bf39f9f157801ccc4edeeb4fb2f84733388ec7c5c563e08d"
+    },
+    {
+      "source": "/Users/ccheever/clique-improvement/revisions/default-install-timeout-race-repair-r3/execution/candidate-live-matching-group.outer.log",
+      "path": "execution/candidate-live-matching-group.outer.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "source": "/Users/ccheever/clique-improvement/revisions/default-install-timeout-race-repair-r3/execution/candidate-live-matching-group.terminal.json",
+      "path": "execution/candidate-live-matching-group.terminal.json",
+      "bytes": 971,
+      "sha256": "8a24390425d9ae428967a5b6c930d26b28ff7c4513e44e8808921ae82b2f418a"
+    },
+    {
+      "source": "/Users/ccheever/clique-improvement/revisions/default-install-timeout-race-repair-r3/execution/owner.json",
+      "path": "execution/owner.json",
+      "bytes": 288,
+      "sha256": "5fd3440bd67e4ef8003e6edb8efa98947a6255ddd70f63f5ebacecb6f7cde641"
+    },
+    {
+      "source": "/Users/ccheever/clique-improvement/revisions/default-install-timeout-race-repair-r3/execution/parent-exit-during-identity/receipts/probe.log",
+      "path": "execution/parent-exit-during-identity/receipts/probe.log",
+      "bytes": 47,
+      "sha256": "69c1e1c12f0673574be7378d650d135b3285d299f10469991b7adf7556d519f2"
+    },
+    {
+      "source": "/Users/ccheever/clique-improvement/revisions/default-install-timeout-race-repair-r3/execution/parent-exit-during-identity/receipts/probe.running.json",
+      "path": "execution/parent-exit-during-identity/receipts/probe.running.json",
+      "bytes": 1012,
+      "sha256": "e689066e7faeee95b53a2aa8b24b2d46afa2f2bf9351d84b1b3bde6e9ad48608"
+    },
+    {
+      "source": "/Users/ccheever/clique-improvement/revisions/default-install-timeout-race-repair-r3/execution/parent-exit-during-identity/result.json",
+      "path": "execution/parent-exit-during-identity/result.json",
+      "bytes": 1025,
+      "sha256": "c387fa4d5fb361094100cc8f6dbd45f559a981ac743b30efae69f900e2b5b2ea"
+    },
+    {
+      "source": "/Users/ccheever/clique-improvement/revisions/default-install-timeout-race-repair-r3/execution/parent-exit-during-identity.outer.log",
+      "path": "execution/parent-exit-during-identity.outer.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "source": "/Users/ccheever/clique-improvement/revisions/default-install-timeout-race-repair-r3/execution/parent-exit-during-identity.terminal.json",
+      "path": "execution/parent-exit-during-identity.terminal.json",
+      "bytes": 960,
+      "sha256": "4ea7edee64807cf9465d95eb0df6388b87beb6ceca360b5271f759ca533045ed"
+    },
+    {
+      "source": "/Users/ccheever/clique-improvement/revisions/default-install-timeout-race-repair-r3/execution/root-outcome.json",
+      "path": "execution/root-outcome.json",
+      "bytes": 549,
+      "sha256": "1d33161b36d264afaabd5bb63bdda3ef66261c04b37a66bf81f5bb12b929895d"
+    },
+    {
+      "source": "/Users/ccheever/clique-improvement/reviews/default-install-timeout-race-r2/astra/review.md",
+      "path": "reviews/astra/review.md",
+      "bytes": 19668,
+      "sha256": "9999380f83b6c30b59250b6f95a90d5d06a8f76b2c28cbf4d629cb4d73e92ed7"
+    },
+    {
+      "source": "/Users/ccheever/clique-improvement/reviews/default-install-timeout-race-r2/astra/supervisor-terminal-identity.json",
+      "path": "reviews/astra/supervisor-terminal-identity.json",
+      "bytes": 1858,
+      "sha256": "fc89217676c27a9bc46f98da188b7b533bc9c879db8eb0639b85980024a00d8a"
+    },
+    {
+      "source": "/Users/ccheever/clique-improvement/reviews/default-install-timeout-race-r2/astra/actual-identity.json",
+      "path": "reviews/astra/actual-identity.json",
+      "bytes": 698,
+      "sha256": "5f74f82607d911d7c3daff505c4d7f570ee1655f45b9f169a128af4aa88d34be"
+    },
+    {
+      "source": "/Users/ccheever/clique-improvement/reviews/default-install-timeout-race-r2/astra/input-integrity-after.json",
+      "path": "reviews/astra/input-integrity-after.json",
+      "bytes": 135,
+      "sha256": "89d9f0f2523db9e8f803dc266b9a251fda9ecfc079eaa7e5368c5332b2a35746"
+    },
+    {
+      "source": "/Users/ccheever/clique-improvement/reviews/default-install-timeout-race-r1/astra/review.md",
+      "path": "prior-reviews/astra-review.md",
+      "bytes": 12633,
+      "sha256": "8b85bc27313d82315bcd5b70013a33256e09d1610dcf81a684459f533ab52fa5"
+    },
+    {
+      "source": "/Users/ccheever/clique-improvement/reviews/default-install-timeout-race-r2/grok/review.md",
+      "path": "reviews/grok/review.md",
+      "bytes": 19425,
+      "sha256": "fd32fe33b0a79e95d7aee1f37365799ad0a612340bc3a6c5ad12168a197c5233"
+    },
+    {
+      "source": "/Users/ccheever/clique-improvement/reviews/default-install-timeout-race-r2/grok/supervisor-terminal-identity.json",
+      "path": "reviews/grok/supervisor-terminal-identity.json",
+      "bytes": 1575,
+      "sha256": "15a42cbeb64c8d139b4310992d515bf2cb268b0c8c35d641f1a19a1b7cbc4cb8"
+    },
+    {
+      "source": "/Users/ccheever/clique-improvement/reviews/default-install-timeout-race-r2/grok/actual-identity.json",
+      "path": "reviews/grok/actual-identity.json",
+      "bytes": 567,
+      "sha256": "984077f56abcfa4bda0e91a1e214d998c19ec62a0eb25dc778b1f0f75c7582f5"
+    },
+    {
+      "source": "/Users/ccheever/clique-improvement/reviews/default-install-timeout-race-r2/grok/input-integrity-after.json",
+      "path": "reviews/grok/input-integrity-after.json",
+      "bytes": 135,
+      "sha256": "89d9f0f2523db9e8f803dc266b9a251fda9ecfc079eaa7e5368c5332b2a35746"
+    },
+    {
+      "source": "/Users/ccheever/clique-improvement/reviews/default-install-timeout-race-r1/grok/review.md",
+      "path": "prior-reviews/grok-review.md",
+      "bytes": 15465,
+      "sha256": "edeb754ad3a602433d972903d6b26a83cc47d641fd3a5ecbafede3154c9eff67"
+    },
+    {
+      "source": "/Users/ccheever/clique-improvement/reviews/default-install-timeout-race-r2/closed-pair-disposition.json",
+      "path": "reviews/closed-pair-disposition.json",
+      "bytes": 1739,
+      "sha256": "fb42c2dab1b999b4d1c529e89fd3b2ef90efff93e412e86e4516338232f5bdf8"
+    },
+    {
+      "source": "/Users/ccheever/clique-improvement/reviews/default-install-timeout-race-r2/prelaunch-failure-01.json",
+      "path": "reviews/prelaunch-failure-01.json",
+      "bytes": 369,
+      "sha256": "2f140b67dd84d51287f16a1d60debd21d86e7a414b5f6e815ec38ae89c234117"
+    },
+    {
+      "source": "/Users/ccheever/clique-improvement/reviews/default-install-timeout-race-r2/root-approval-before-binding-correction.json",
+      "path": "reviews/root-approval-before-binding-correction.json",
+      "bytes": 491,
+      "sha256": "8bb69b123841394b3e20a4f8420476905e41a99a871490a07dbc92c47563d5b1"
+    },
+    {
+      "source": "/Users/ccheever/clique-improvement/reviews/default-install-timeout-race-r2/root-approval.json",
+      "path": "reviews/root-approval.json",
+      "bytes": 2346,
+      "sha256": "07b80ca6c07fea15dedbb27d6fd09b302097f7efa7bfa3917303d572651b998a"
+    },
+    {
+      "source": "/Users/ccheever/clique-improvement/reviews/default-install-timeout-race-r1/closed-pair-disposition.json",
+      "path": "prior-reviews/closed-pair-disposition.json",
+      "bytes": 2033,
+      "sha256": "fb9547fbf37586c930cc3a9030d4ac28c3aa21877fea98f01a646ea20052c70b"
+    },
+    {
+      "source": "/Users/ccheever/clique-improvement/reviews/default-install-timeout-race-r1/supervisor-read-only-amendment.json",
+      "path": "prior-reviews/supervisor-read-only-amendment.json",
+      "bytes": 722,
+      "sha256": "c8a63a53bd987fad76ff986659909c67a14f1f70dbc5fe235d87759849aaf1c0"
+    },
+    {
+      "source": "/Users/ccheever/clique-improvement/reviews/default-install-timeout-race-r1/supervisor-read-only-amendment-02.json",
+      "path": "prior-reviews/supervisor-read-only-amendment-02.json",
+      "bytes": 469,
+      "sha256": "62a73b8fa535fc7e59b5e331dc841155aad748e0ed3e35b90b643852f1b72edd"
+    }
+  ]
+}

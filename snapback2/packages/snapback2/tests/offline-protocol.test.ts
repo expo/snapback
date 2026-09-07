@@ -1,11 +1,10 @@
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
-import { mkdtemp, readdir, readFile, rm, writeFile } from "node:fs/promises";
-import { tmpdir } from "node:os";
-import { dirname, join, resolve } from "node:path";
+import { readdir, readFile } from "node:fs/promises";
+import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { test } from "node:test";
-import ts from "typescript";
+import { checkPublishedDeclarations } from "./published-declaration-consumer.ts";
 import {
   DeliveryEnvelopeDecodeError,
   decodeDeliveryEnvelope,
@@ -18,7 +17,6 @@ import {
 
 const here = dirname(fileURLToPath(import.meta.url));
 const corpus = process.env.SNAPBACK2_CORPUS ? resolve(process.env.SNAPBACK2_CORPUS, 'offline') : resolve(here, "../../../corpus/offline");
-const packageRoot = resolve(here, "..");
 
 test("offline envelope goldens round-trip byte-identically and rebuild ClosureReceipt", async () => {
   const files = (await readdir(corpus)).filter((name) => name.startsWith("envelope-")).sort();
@@ -166,53 +164,11 @@ test("expandRows restores pooled wire rows", async () => {
 });
 
 test("offline protocol values and types are exported from the package index", async () => {
-  const root = await mkdtemp(join(tmpdir(), "snapback2-offline-types-"));
-  try {
-    const sample = join(root, "sample.ts");
-    await writeFile(sample, `
-      import { decodeDeliveryEnvelope, type DeliveryEnvelopeV1 } from "snapback2";
-      import type { QueryReceiptRequest, SubscribeReceiptRequest } from "snapback2/client";
-      import { journey } from "snapback2/test";
-      journey("image custody", ({ as }) => {
-        as("alice", { store: "file" });
-        // @ts-expect-error schema custody replaced the client option
-        as("alice", { viewOnce: () => true });
-      });
-      declare const input: unknown;
-      const envelope: DeliveryEnvelopeV1 = decodeDeliveryEnvelope(input);
-      const protocol: 1 = envelope.protocol;
-      const query: QueryReceiptRequest = { receipt: true };
-      const subscribe: SubscribeReceiptRequest = { receipt: true, validator: "opaque" };
-      void query;
-      void subscribe;
-      void protocol;
-    `);
-    const program = ts.createProgram({
-      rootNames: [sample],
-      options: {
-        baseUrl: root,
-        lib: ["lib.es2022.d.ts", "lib.dom.d.ts"],
-        module: ts.ModuleKind.ESNext,
-        moduleResolution: ts.ModuleResolutionKind.Bundler,
-        noEmit: true,
-        paths: {
-          snapback2: [resolve(packageRoot, "dist/index.d.ts")],
-          "snapback2/client": [resolve(packageRoot, "dist/client.d.ts")],
-          "snapback2/test": [resolve(packageRoot, "dist/test.d.ts")],
-        },
-        skipLibCheck: false,
-        strict: true,
-        target: ts.ScriptTarget.ES2022,
-      },
-    });
-    const diagnostics = ts.getPreEmitDiagnostics(program).filter((item) => item.file?.fileName === sample || item.file?.fileName === resolve(packageRoot, "dist/test.d.ts"));
-    assert.deepEqual(
-      diagnostics.map((item) => ts.flattenDiagnosticMessageText(item.messageText, "\n")),
-      [],
-    );
-  } finally {
-    await rm(root, { recursive: true, force: true });
-  }
+  await checkPublishedDeclarations("public");
+});
+
+test("standalone offline protocol declarations preserve exported classes and functions", async () => {
+  await checkPublishedDeclarations("standalone");
 });
 
 /** Sorted-key, whitespace-free JSON: the canonical form the Rust digest hashes. */

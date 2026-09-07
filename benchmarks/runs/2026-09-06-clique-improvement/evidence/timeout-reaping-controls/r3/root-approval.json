@@ -1,0 +1,8 @@
+{
+  "approved": true,
+  "regressionAuthorized": true,
+  "manifestSha256": "160dc883f3792cb74fee1de513d1cda771fc21c40713b13524e6f9bbce127c4a",
+  "scope": "Same six controlled cases once; same bounds; no npm or release replay; preserve all prior evidence",
+  "authority": "Root; user authorized unattended continuation",
+  "approvedAt": "2026-09-07T22:45:45.018543+00:00"
+}

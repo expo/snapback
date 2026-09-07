@@ -1,0 +1,17 @@
+{
+  "outerTool": 96157,
+  "actualOuterExitCode": 0,
+  "chunk": "1e251d",
+  "nativePid": 3780,
+  "actualNativeExitCode": 0,
+  "nativeTerminalSha256": "a5267e14595eeb3553d1a569b04ca56f422d376b7416faee6b49d1814663458d",
+  "actualIdentity": "actual-launch-identity.json",
+  "manifestSha256": "160dc883f3792cb74fee1de513d1cda771fc21c40713b13524e6f9bbce127c4a",
+  "manifestFiles": 51,
+  "mismatches": [],
+  "reportBytes": 3218,
+  "reportSha256": "656b9076523659d8e660ea34acba0718f41b3a8006ed541857ab7e19047a922a",
+  "candidateSha256": "b66c1e0e7eddb99d6a17a3902a0d3fb116f35618c47068d16b8d97a87438fa0a",
+  "regressionSha256": "8e0d1d9b430924eb3b08e48ede643d3ba47e98ff2db489914b4818220061fb6a",
+  "regressionExecuted": false
+}

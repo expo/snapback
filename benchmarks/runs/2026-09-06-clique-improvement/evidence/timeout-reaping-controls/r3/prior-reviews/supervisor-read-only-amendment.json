@@ -1,0 +1,22 @@
+{
+  "at": "2026-09-07T22:25:51.389368+00:00",
+  "authority": "Root explicit message",
+  "originalCeiling": 30,
+  "prospectiveTotalReadOnlyInspections": 60,
+  "priorGrokObservedCalls": 36,
+  "priorExcessNotRetroactivelyCleared": true,
+  "families": {
+    "astra": {
+      "inboxSha256": "4b988436648f9b15e2e6372a43c6be0a7b5a419732a2b31e631027a45ea2e473"
+    },
+    "grok": {
+      "inboxSha256": "4b988436648f9b15e2e6372a43c6be0a7b5a419732a2b31e631027a45ea2e473"
+    }
+  },
+  "additionalProviderContext": {
+    "path": "/Users/ccheever/.grok/bundled/skills/shared/personas/reviewer.md",
+    "sha256": "ebfd3683480de225a34892ffb62f8c5922e0490ae71d83dd2cf89a0b795a96e6",
+    "bytes": 1391,
+    "observedReader": "grok"
+  }
+}

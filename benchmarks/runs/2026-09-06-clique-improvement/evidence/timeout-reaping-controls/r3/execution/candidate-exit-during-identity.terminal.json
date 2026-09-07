@@ -1,0 +1,24 @@
+{
+  "case": "candidate-exit-during-identity",
+  "argv": [
+    "/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/bin/python3.9",
+    "-I",
+    "-B",
+    "/Users/ccheever/clique-improvement/revisions/default-install-timeout-race-repair-r3/regression.py",
+    "--execute-root-approved",
+    "--case",
+    "candidate-exit-during-identity"
+  ],
+  "cwd": "/Users/ccheever/clique-improvement/revisions/default-install-timeout-race-repair-r3",
+  "timeoutSeconds": 15,
+  "startedEpoch": 1788821146.5708349,
+  "actualReturnCode": 0,
+  "exitCode": 0,
+  "pid": 30438,
+  "processIdentity": "30438 Mon Sep  7 15:45:46 2026     /Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/bin/python3.9",
+  "processGroup": 30438,
+  "actualProcessWaitCompleted": true,
+  "endedEpoch": 1788821147.323949,
+  "elapsedSeconds": 0.753120834,
+  "logSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+}
