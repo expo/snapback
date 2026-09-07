@@ -324,10 +324,12 @@ maintain clipTotals = count events by clip:
         { fileName: "snapback/ops.q", source: `mutation ${name.replaceAll("-", "_")}(${argument}):\n  return insert media { ${assignment} }\n` },
       ]);
       const refusal = result.ok ? undefined : result.diagnostics.find((item) => item.code === "E_QUARRY_TYPE");
+      const presenceRepair = actual.includes("or null");
       assert(refusal?.family === "quarry" && refusal.site.startsWith("snapback/ops.q:2:")
         && refusal.message.includes(`${field} expects`) && refusal.message.includes(", got ")
         && refusal.message.includes(expected.includes("video") || actual.includes("video") ? "video asset" : "image asset")
-        && refusal.rewrite.includes("use a ") && refusal.rewrite.includes(field),
+        && refusal.rewrite.includes(field)
+        && (presenceRepair ? refusal.rewrite.includes("! else CODE") : refusal.rewrite.includes("use a ")),
       `${name} lost its recursive kind refusal/rewrite: ${JSON.stringify(result)}`);
     }
 
