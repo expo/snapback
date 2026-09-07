@@ -1,0 +1,11 @@
+{
+  "observedUtc": "2026-09-07T08:05:54.543291+00:00",
+  "session": "6252b9c8-a397-4aea-9992-4d38f081b81d",
+  "requestedModel": "grok-4.6",
+  "requestedEffort": "xhigh",
+  "actualModel": "grok-4.6",
+  "actualEffort": "xhigh",
+  "summaryPath": "/Users/ccheever/.grok/sessions/%2FUsers%2Fccheever%2Fclique-improvement%2Freviews%2Fsearch-twin-range-preparation-r1%2Fgrok/6252b9c8-a397-4aea-9992-4d38f081b81d/summary.json",
+  "summarySha256": "6f63bd9a8b160da3ef670605db9a17034561604f3c534a80d28a87e1b1345a03",
+  "createdAt": "2026-09-07T08:04:41.557310Z"
+}

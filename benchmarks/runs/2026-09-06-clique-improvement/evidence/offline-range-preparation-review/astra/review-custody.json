@@ -1,0 +1,97 @@
+{
+  "reviewer": "astra",
+  "finalizedUtc": "2026-09-07T08:21:22.169978+00:00",
+  "commits": {
+    "source": "23a0e54e82106ae28090bd379e197fcb0f7717d6",
+    "before": "2ce04895fa833ef40d8aad4e06b86c4ddae29a8c",
+    "r8-before": "e1c6e2b79a9e13ceb363f647f52807218aa2b57a"
+  },
+  "packetManifestSha256": "8829ed3761adbda7f0277c63e985e04592f29e8b569b8bbc8bc1ce02494e7af3",
+  "packetRecordsVerified": 2261,
+  "packetMismatches": [],
+  "reportLinksVerified": 13,
+  "reviewerExecution": "four bounded synthetic JS source diagnostics, plus static/hash checks; no build, suite, native, remote or resident execution",
+  "runtimes": [
+    {
+      "path": "/Users/ccheever/.bun/bin/bun",
+      "sha256": "39e644cea4e6db24a3af36013695655d6f789b4b98f1f13bacb882ac6e5c3c18"
+    },
+    {
+      "path": "/Users/ccheever/.volta/tools/image/node/22.23.2/bin/node",
+      "sha256": "18e387c90ab8a8400183e8bdd396376e1e875b91b4c874b894dcade7b35bf572"
+    }
+  ],
+  "artifacts": [
+    {
+      "path": "REPORT.md",
+      "bytes": 23474,
+      "sha256": "fcf1cf50606b5d996acc2374930d885726f18f3b0794be791936ee4a09b2a1b9"
+    },
+    {
+      "path": "projection-probe.ts",
+      "bytes": 2233,
+      "sha256": "67b1f0efb0c35322a52cc3686c5292b091090a7e7de644a399440368d0f2bcf8"
+    },
+    {
+      "path": "projection-runs.json",
+      "bytes": 4630,
+      "sha256": "f04b27f53f407acd9bd7951e72afc448ef476a2aaee9b45a5590044b6859b4b7"
+    },
+    {
+      "path": "backend-probe.ts",
+      "bytes": 3662,
+      "sha256": "976c9b3384f7212ebc8610ea4c3087ec8e62213e0580822cd7e9ac242ebca17d"
+    },
+    {
+      "path": "backend-run.json",
+      "bytes": 1479,
+      "sha256": "98a59ba716f1860d4aac79a5730f0bdcb4a9579adb2fc5dcc28401d9f7e15c19"
+    },
+    {
+      "path": "backend.stdout.json",
+      "bytes": 906,
+      "sha256": "6b38f4073b268ae8779cfc71f03ce9f25fe1889ca46a4f5078453120fdd22df4"
+    },
+    {
+      "path": "backend.stderr.txt",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "source-graph-verification.json",
+      "bytes": 9406,
+      "sha256": "809e13c11506e871f8f6481c33bf8ab383636a9ef53b106303d738f49ce2e48a"
+    },
+    {
+      "path": "projection-before.stdout.json",
+      "bytes": 1176,
+      "sha256": "f36a688cc203ced899e3a21968c9e39ca074759a3f120cf481c920ecb6f3bb30"
+    },
+    {
+      "path": "projection-r8-before.stdout.json",
+      "bytes": 1179,
+      "sha256": "9597e97c95a816cc0578dbcf7863aa18669a96e78a889d99539457890fd9a0f9"
+    },
+    {
+      "path": "projection-source.stdout.json",
+      "bytes": 1176,
+      "sha256": "695ca5768a9d3337e8c0593dbb2b9b2c87cfcce9fec35f30ad19ff0a57ee9c7d"
+    },
+    {
+      "path": "projection-before.stderr.txt",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "projection-r8-before.stderr.txt",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "projection-source.stderr.txt",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  ],
+  "scope": "Only this reviewer directory was written. Packet remains unchanged."
+}

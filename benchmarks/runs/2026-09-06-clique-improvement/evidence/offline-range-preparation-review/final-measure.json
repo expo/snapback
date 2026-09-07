@@ -1,0 +1,20 @@
+{
+  "name": "final-measure",
+  "argv": [
+    "/home/ccheever/clique-tooling/epyc-linux-tooling-20260907T010007Z-0fd567d96f/node-v22.23.2-linux-x64/bin/node",
+    "--import",
+    "/home/ccheever/clique-tooling/search-twin-range-preparation-2ce-candidate3-20260907T0748Z/measure-import.mjs",
+    "build.mjs",
+    "--measure-twin"
+  ],
+  "cwd": "/home/ccheever/clique-tooling/search-twin-range-preparation-2ce-candidate3-20260907T0748Z/source/snapback2/packages/snapback2",
+  "pid": 3833061,
+  "started": "2026-09-07T07:48:17.112986+00:00",
+  "elapsedSeconds": 0.4652624619193375,
+  "ended": "2026-09-07T07:48:17.578242+00:00",
+  "exit": 1,
+  "outerDeadlineSeconds": 60,
+  "host": "EPYC Linux",
+  "nodeSha": "3517c2df0b2f8cd7f422b4b8450ef81c6889f08eb03e281d6de9079b15e6a327",
+  "bunSha": "92a1cd8b6185f676010bb18e767dfc65c772273e79ae9984480843261939eeaa"
+}

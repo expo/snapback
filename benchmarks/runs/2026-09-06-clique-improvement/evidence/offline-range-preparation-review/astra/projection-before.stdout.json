@@ -1,0 +1,55 @@
+{
+  "root": "/Users/ccheever/clique-improvement/reviews/search-twin-range-preparation-r1/packet/before",
+  "runtime": "v24.3.0",
+  "bun": "1.3.12",
+  "attribution": "synthetic direct projection; exact exported source",
+  "results": [
+    {
+      "name": "existing-object-child-to-undefined",
+      "expected": {
+        "b": 2
+      },
+      "error": {
+        "name": "SyntaxError",
+        "message": "JSON Parse error: Unexpected identifier \"undefined\""
+      }
+    },
+    {
+      "name": "new-array-undefined-slot",
+      "expected": [
+        null,
+        "b"
+      ],
+      "actual": [
+        null,
+        "b"
+      ],
+      "expectedLength": 2,
+      "actualLength": 2,
+      "equal": true
+    },
+    {
+      "name": "existing-array-slot-to-undefined",
+      "expected": [
+        null,
+        "b"
+      ],
+      "error": {
+        "name": "SyntaxError",
+        "message": "JSON Parse error: Unexpected identifier \"undefined\""
+      }
+    },
+    {
+      "name": "trailing-array-hole",
+      "expected": [
+        null,
+        null,
+        null
+      ],
+      "actual": [],
+      "expectedLength": 3,
+      "actualLength": 0,
+      "equal": false
+    }
+  ]
+}

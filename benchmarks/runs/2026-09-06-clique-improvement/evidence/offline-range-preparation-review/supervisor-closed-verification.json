@@ -1,0 +1,103 @@
+{
+  "utc": "2026-09-07T08:24:20.164023+00:00",
+  "packetManifestSha256": "8829ed3761adbda7f0277c63e985e04592f29e8b569b8bbc8bc1ce02494e7af3",
+  "packetLeavesVerified": 2261,
+  "packetBytes": 85047256,
+  "errors": [],
+  "reports": {
+    "astra": {
+      "pid": 79139,
+      "toolHandle": 42450,
+      "actualToolExitCode": 0,
+      "terminal": {
+        "pid": 79139,
+        "exitCode": 0,
+        "endedEpoch": 1788769293.864042,
+        "elapsedSeconds": 1013.912055015564
+      },
+      "pidAbsent": true,
+      "reportBytes": 23474,
+      "reportSha256": "fcf1cf50606b5d996acc2374930d885726f18f3b0794be791936ee4a09b2a1b9",
+      "reportFullRead": true,
+      "verdict": "NEEDS_CHANGES",
+      "modelReceiptSha256": "644c734fd9ce023ee83e8fa16b9ec2e84e862617198a5b5f6f8d1180def7fe07"
+    },
+    "grok": {
+      "pid": 79189,
+      "toolHandle": 48991,
+      "actualToolExitCode": 0,
+      "terminal": {
+        "pid": 79189,
+        "exitCode": 0,
+        "endedEpoch": 1788769384.546577,
+        "elapsedSeconds": 1103.3880908489227
+      },
+      "pidAbsent": true,
+      "reportBytes": 21699,
+      "reportSha256": "27ae18860a13c88d08dd06028f1326d3d6f53798e749d3acdf77024ef49cfeb7",
+      "reportFullRead": true,
+      "verdict": "READY",
+      "modelReceiptSha256": "1a33e0bb635a18716287b28f2fc2a22b87dfb18abadc1bb9e1745eb30880f14c"
+    }
+  },
+  "rawAstraFindingCustody": [
+    {
+      "path": "astra/backend-probe.ts",
+      "bytes": 3662,
+      "sha256": "976c9b3384f7212ebc8610ea4c3087ec8e62213e0580822cd7e9ac242ebca17d"
+    },
+    {
+      "path": "astra/backend-run.json",
+      "bytes": 1479,
+      "sha256": "98a59ba716f1860d4aac79a5730f0bdcb4a9579adb2fc5dcc28401d9f7e15c19"
+    },
+    {
+      "path": "astra/backend.stdout.json",
+      "bytes": 906,
+      "sha256": "6b38f4073b268ae8779cfc71f03ce9f25fe1889ca46a4f5078453120fdd22df4"
+    },
+    {
+      "path": "astra/projection-before.stdout.json",
+      "bytes": 1176,
+      "sha256": "f36a688cc203ced899e3a21968c9e39ca074759a3f120cf481c920ecb6f3bb30"
+    },
+    {
+      "path": "astra/projection-probe.ts",
+      "bytes": 2233,
+      "sha256": "67b1f0efb0c35322a52cc3686c5292b091090a7e7de644a399440368d0f2bcf8"
+    },
+    {
+      "path": "astra/projection-r8-before.stdout.json",
+      "bytes": 1179,
+      "sha256": "9597e97c95a816cc0578dbcf7863aa18669a96e78a889d99539457890fd9a0f9"
+    },
+    {
+      "path": "astra/projection-runs.json",
+      "bytes": 4630,
+      "sha256": "f04b27f53f407acd9bd7951e72afc448ef476a2aaee9b45a5590044b6859b4b7"
+    },
+    {
+      "path": "astra/projection-source.stdout.json",
+      "bytes": 1176,
+      "sha256": "695ca5768a9d3337e8c0593dbb2b9b2c87cfcce9fec35f30ad19ff0a57ee9c7d"
+    },
+    {
+      "path": "astra/review-custody.json",
+      "bytes": 3246,
+      "sha256": "d2859e76be7e1055303ecc78579c4bdc42ab7c220fa78cf534b5a0c46110015f"
+    },
+    {
+      "path": "astra/source-graph-verification.json",
+      "bytes": 9406,
+      "sha256": "809e13c11506e871f8f6481c33bf8ab383636a9ef53b106303d738f49ce2e48a"
+    }
+  ],
+  "pairedDisposition": "Needs changes: inherited generic replacement normalization P2; Grok READY source assessment does not refute actual probe. Size75799 FAIL independent.",
+  "independence": "Both final reports and actual terminals collected before any author crossfeed; neither received peer findings.",
+  "precisionNotes": [
+    "Grok line counts use splitlines-style177/1498; repository caps use178/1499; no cap violation.",
+    "Grok no new runtime probes and did not independently rehash85MB; supervisor and Astra separately did.",
+    "Astra probes run Bun1.3.12 (process.version reports v24.3.0); not Node24 execution or realSQLite/native benchmark.",
+    "Source-bound candidate2 cap/movement reuse does not imply latest-source rerun; no unchanged repeat newly required by supervisor."
+  ]
+}

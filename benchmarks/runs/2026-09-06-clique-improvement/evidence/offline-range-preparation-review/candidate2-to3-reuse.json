@@ -1,0 +1,57 @@
+{
+  "candidate2Manifest": "0bcba2fbef3e3f2c684a1dd425a78887528e345f97b1e1e291b6a7956e949977",
+  "candidate3Manifest": "549cf678fb05c40d624c6a4e4cb817283b648d9a1e275bed367aadc961559bed",
+  "fullGraphIdentical": false,
+  "changedPaths": [
+    "snapback2/packages/evaluator/src/coverage.ts",
+    "snapback2/packages/evaluator/src/range-preparation.ts",
+    "snapback2/packages/evaluator/src/test-indexed.ts",
+    "snapback2/packages/snapback2/tests/sqlite.test.ts"
+  ],
+  "unchangedSemanticFiles": [
+    {
+      "path": "snapback2/packages/snapback2/tests/store-review.test.ts",
+      "bytes": 116722,
+      "sha256": "2166397b7347435bfe38479be9717adf6fee8198f30023b5b2a71fba9ebf4444"
+    },
+    {
+      "path": "snapback2/packages/snapback2/src/store/range-store.ts",
+      "bytes": 76448,
+      "sha256": "959efa2a886cfab1b4b72df7694a4939d75ee5b8486788027de6d72b90429514"
+    },
+    {
+      "path": "snapback2/packages/snapback2/src/store/fact-integrity.ts",
+      "bytes": 15367,
+      "sha256": "9376fedbcbe7e7b29c3097e426ae968736eb4f7bbe8568df9bbd0dbfea2c39cf"
+    },
+    {
+      "path": "snapback2/packages/snapback2/src/store/fact-index.ts",
+      "bytes": 3834,
+      "sha256": "dcdc0771fde6d3d4c3c067acc09e76a923009dd830a816d89de9d92f2efb2a5e"
+    },
+    {
+      "path": "snapback2/packages/snapback2/src/store/extent-facts.ts",
+      "bytes": 3171,
+      "sha256": "4dc26cbed9177a47a25868bd1eacd3f54aac5cc67f8f7b4f4e4b99572c0abb5a"
+    },
+    {
+      "path": "snapback2/packages/snapback2/src/store/extent-index.ts",
+      "bytes": 5801,
+      "sha256": "07d00755e4809da6def9fc3d5be41021cf1f56dd94ba000159052237577072db"
+    },
+    {
+      "path": "snapback2/packages/snapback2/src/store/carrier-index.ts",
+      "bytes": 12872,
+      "sha256": "68a05f3a1cfae80c35473359f7aacab402f8a614d8dcc1aa9956d757e4782a0d"
+    },
+    {
+      "path": "snapback2/packages/evaluator/src/test-search-v5-fixtures.json",
+      "bytes": 69989,
+      "sha256": "e43fbff9ff92e1968a3769b16b0c822700256cdedac9728d0545e45bee05b4a2"
+    }
+  ],
+  "reuseScope": "candidate2 original cap2 and movement43 pass remain candidate2 actual executions. Accounting, fixtures, full unchanged test source and carrier condition/admission/index algorithms match. Coverage change only replaces refs after existing exact semantic equality; no value/count/extent computation change. RangeReceipt constructor own-property definition has identical resulting own fields/frozen descriptors for these ordinary field-name fixtures; it additionally preserves an own __proto__ custom field, which these frames do not contain. Candidate3 affected coverage/Twin and original built-sharing+semantic probes are separately rerun. No entire binary equality or new latest-head cap/movement runtime claim.",
+  "limit": 524288,
+  "population": 524286,
+  "originalNodeInternalDeadlineMs": 10000
+}

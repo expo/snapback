@@ -1,0 +1,260 @@
+{
+  "sourceManifest": {
+    "total": 694,
+    "checked": 694,
+    "missing": [],
+    "mismatches": []
+  },
+  "measurementInputs": [
+    {
+      "path": "snapback2/packages/evaluator/src/hash.ts",
+      "matches": true,
+      "sha256": "470e2f7973cc86a35be29e9ba901f3c86f759e6e65796051f188cb3a68a75214"
+    },
+    {
+      "path": "snapback2/packages/evaluator/src/errors.ts",
+      "matches": true,
+      "sha256": "a2dc2e8ef8522ad82af1740c6f8656dc6b05418454226b50571630e777fe0795"
+    },
+    {
+      "path": "snapback2/packages/evaluator/src/certificate-identity.ts",
+      "matches": true,
+      "sha256": "f80407e5c2e289c24ac09fde2e0252c015e543c6722d33d995f178e3531a5eb0"
+    },
+    {
+      "path": "snapback2/packages/evaluator/src/ordered.ts",
+      "matches": true,
+      "sha256": "e34f3707c6404e75ebbf02fbeb47827c4e4f576c12d463325f69a30d6b2a7b55"
+    },
+    {
+      "path": "snapback2/packages/evaluator/src/slot-tree.ts",
+      "matches": true,
+      "sha256": "b2fcfaafb0f456bdc024cb4d0b1ac3c3907c749ebfa311d831fdb2ca00aa6aca"
+    },
+    {
+      "path": "snapback2/packages/evaluator/src/posting-tree.ts",
+      "matches": true,
+      "sha256": "82d08ebc5c086989885531de903fea689309391b213f8e3592a550f8383a3cab"
+    },
+    {
+      "path": "snapback2/packages/evaluator/src/prefix-dictionary.ts",
+      "matches": true,
+      "sha256": "f2872a6a6055d2836686f711c735b7b3de79dda38e2b98cf09132a9788a7242c"
+    },
+    {
+      "path": "snapback2/crates/snapback2-core/ir-contract.json",
+      "matches": true,
+      "sha256": "d09c63f52622b9b8fb2762b94b17b4e2c8882e9feecf0737d24470ec2bde0252"
+    },
+    {
+      "path": "snapback2/packages/evaluator/src/cursor.ts",
+      "matches": true,
+      "sha256": "94f0efe7b7ff947c77294fdcc99f38f3493615d87e1c97c13bc3ee146aaa2b3f"
+    },
+    {
+      "path": "snapback2/packages/evaluator/dist/unicode-tables.ts",
+      "matches": true,
+      "sha256": "9eccdccd99e9b936a40dcbf8ae63c55d980086df1ae71f92019f9ab040f6a521"
+    },
+    {
+      "path": "snapback2/packages/evaluator/src/unicode-tables.ts",
+      "matches": true,
+      "sha256": "ab99f5f9a78ebe52ec3102525d51b6c9dd7c59cbd9f1b26932042982476b8412"
+    },
+    {
+      "path": "snapback2/packages/evaluator/src/unicode.ts",
+      "matches": true,
+      "sha256": "b2c6a188d9e74646674383473e9c56eb9720a76b68d9c1a2f93fb722fb85f370"
+    },
+    {
+      "path": "snapback2/packages/evaluator/src/value-runtime.ts",
+      "matches": true,
+      "sha256": "ad3fc24fc0ee4b018c975db1455cfbc19bd8d5526be64be22a654b0751bf2b9e"
+    },
+    {
+      "path": "snapback2/packages/evaluator/src/search-key.ts",
+      "matches": true,
+      "sha256": "347cd64b12798d7b46d120d56f142a912ca810f33e2bd0ce6673861bd032e871"
+    },
+    {
+      "path": "snapback2/packages/evaluator/src/index-store.ts",
+      "matches": true,
+      "sha256": "199def29f0a3caa31aab6ac8666e55584871e68f00cd072407e3db9f804a8274"
+    },
+    {
+      "path": "snapback2/packages/evaluator/src/row-image.ts",
+      "matches": true,
+      "sha256": "4b9474bc5e4b33cc12c70475ab142c865c89cc0d23ef2967753a93cf19adb80c"
+    },
+    {
+      "path": "snapback2/packages/snapback2/src/store/asset-policy.ts",
+      "matches": true,
+      "sha256": "b2651386a009d425db4871ee933158330a6ca6960909280227b0119999c7e656"
+    },
+    {
+      "path": "snapback2/packages/evaluator/src/search-runtime.ts",
+      "matches": true,
+      "sha256": "e8a5749614e0f233330da391514cb109f6bf5dda79b2688d03146e032d05e0df"
+    },
+    {
+      "path": "snapback2/packages/snapback2/src/local-cursor.ts",
+      "matches": true,
+      "sha256": "245f1fac9cbf8512967ebef1ddc482609284a533b09ef5a98502607375113165"
+    },
+    {
+      "path": "snapback2/packages/evaluator/src/merge.ts",
+      "matches": true,
+      "sha256": "a2363d11564f095e3fb705b0fd34e029f5d470162aa01e161ac65e87ba4cdecf"
+    },
+    {
+      "path": "snapback2/packages/evaluator/src/text.ts",
+      "matches": true,
+      "sha256": "c48d2672ce08544ab55b894ec29c1f63e01ea868e6e78552f99879e77796d152"
+    },
+    {
+      "path": "snapback2/packages/evaluator/src/runner.ts",
+      "matches": true,
+      "sha256": "b339c65f8794f47b0ad78603ed72ae01f696717ff693619d69f7b8ed3377dc34"
+    },
+    {
+      "path": "snapback2/packages/snapback2/src/offline-schema.ts",
+      "matches": true,
+      "sha256": "a7ab61de526abb3948ea565258eef44bcbce0263d14fc2d485bf7604ca5d9111"
+    },
+    {
+      "path": "snapback2/packages/snapback2/src/held-program.ts",
+      "matches": true,
+      "sha256": "cd5ffc54870809afc2c41a5901c3ff61f1f06e90d566e42f9089708e3f755665"
+    },
+    {
+      "path": "snapback2/packages/evaluator/src/range-preparation.ts",
+      "matches": true,
+      "sha256": "cb8d6cd6dd585b0fcbc5a872d44f59bddd745ae97290fd774358a807f1dc1bed"
+    },
+    {
+      "path": "snapback2/packages/evaluator/src/held-directory.ts",
+      "matches": true,
+      "sha256": "aa7db5e9a0ee3131df6c3b1cc9e36a0a37fabfba7e410bed2810e15c3f762bd3"
+    },
+    {
+      "path": "snapback2/packages/evaluator/src/coverage-spans.ts",
+      "matches": true,
+      "sha256": "4261606a117545f2dfab9f366a84468e8b24d22da1d9e3076f480eb1aad21a8f"
+    },
+    {
+      "path": "snapback2/packages/evaluator/src/coverage.ts",
+      "matches": true,
+      "sha256": "c0936f440370dcbf92b28677217fe5d36ac411ca86864de006e62b663a878781"
+    },
+    {
+      "path": "snapback2/packages/evaluator/src/store.ts",
+      "matches": true,
+      "sha256": "5e1d0c7cbea8b95b2594f68f21a6d1027461ba778b12a799d872287ed09fd0d5"
+    },
+    {
+      "path": "snapback2/packages/snapback2/src/store/row-values.ts",
+      "matches": true,
+      "sha256": "54fce7162e6b044dda4e05e28a838a2ac6fc9e7e2fc65f41e06529dec3fc5be9"
+    },
+    {
+      "path": "snapback2/packages/snapback2/src/offline-protocol.ts",
+      "matches": true,
+      "sha256": "a9c75eec8d472e3ef95ae9fc563015b42f51d457534f9a9667380e102138f6f1"
+    },
+    {
+      "path": "snapback2/packages/snapback2/src/twin-store.ts",
+      "matches": true,
+      "sha256": "2d0cb8572529117a0424150599de76f38404801a9f08cd3977b8668f61d1ab87"
+    },
+    {
+      "path": "snapback2/packages/snapback2/src/store/outbox.ts",
+      "matches": true,
+      "sha256": "835417fd8b915241abc651187fb66680d26d263c9f61f871b4c60b4ba6dc3e81"
+    },
+    {
+      "path": "snapback2/packages/snapback2/src/twin-hydrate.ts",
+      "matches": true,
+      "sha256": "4b0f4fd621fe9adffd94e1463be859033b0cb37873820630bbf1d1deb5acf055"
+    },
+    {
+      "path": "snapback2/packages/snapback2/src/twin.ts",
+      "matches": true,
+      "sha256": "2b75b19950c7d38af0bba7fed55f25fff5eccf693b4ffa787fcb78f6fca29342"
+    },
+    {
+      "path": "snapback2/packages/snapback2/src/store/canonical.ts",
+      "matches": true,
+      "sha256": "cdcfcbfb6190a4cef74725ca4ed5db29eddf9fad1039b066462e6498a1a0e03b"
+    },
+    {
+      "path": "snapback2/packages/snapback2/src/types.ts",
+      "matches": true,
+      "sha256": "d32085b58a952dd284e96778ad7bae188e25da73f560ee1e6512e294ff31459a"
+    },
+    {
+      "path": "snapback2/packages/snapback2/src/store/extent-facts.ts",
+      "matches": true,
+      "sha256": "4dc26cbed9177a47a25868bd1eacd3f54aac5cc67f8f7b4f4e4b99572c0abb5a"
+    },
+    {
+      "path": "snapback2/packages/snapback2/src/store/extent-index.ts",
+      "matches": true,
+      "sha256": "07d00755e4809da6def9fc3d5be41021cf1f56dd94ba000159052237577072db"
+    },
+    {
+      "path": "snapback2/packages/snapback2/src/store/fact-integrity.ts",
+      "matches": true,
+      "sha256": "9376fedbcbe7e7b29c3097e426ae968736eb4f7bbe8568df9bbd0dbfea2c39cf"
+    },
+    {
+      "path": "snapback2/packages/snapback2/src/store/fact-index.ts",
+      "matches": true,
+      "sha256": "dcdc0771fde6d3d4c3c067acc09e76a923009dd830a816d89de9d92f2efb2a5e"
+    },
+    {
+      "path": "snapback2/packages/snapback2/src/store/carrier-index.ts",
+      "matches": true,
+      "sha256": "68a05f3a1cfae80c35473359f7aacab402f8a614d8dcc1aa9956d757e4782a0d"
+    },
+    {
+      "path": "snapback2/packages/snapback2/src/store/swap-journal.ts",
+      "matches": true,
+      "sha256": "e624f877d108662399e82757d177c64bdafc62c893271571978a15046ff422aa"
+    },
+    {
+      "path": "snapback2/packages/snapback2/src/store/byte-cache.ts",
+      "matches": true,
+      "sha256": "9ac35d2a5cce31edb79cca7f4da361afe670d04f6c0ee502f36b315783f682ca"
+    },
+    {
+      "path": "snapback2/packages/snapback2/src/store/overlay-retirement.ts",
+      "matches": true,
+      "sha256": "43fb0ab507b2299d4bc91be9d32cbb0f9ed4ee448c9de611c57675beece68b13"
+    },
+    {
+      "path": "snapback2/packages/snapback2/src/store/range-store.ts",
+      "matches": true,
+      "sha256": "959efa2a886cfab1b4b72df7694a4939d75ee5b8486788027de6d72b90429514"
+    },
+    {
+      "path": "snapback2/packages/snapback2/src/client-wire.ts",
+      "matches": true,
+      "sha256": "7fd567440aaa4b88f9cb97fc2e3602fea801667fac6e998a243235e318bad2c9"
+    },
+    {
+      "path": "snapback2/packages/snapback2/src/offline.ts",
+      "matches": true,
+      "sha256": "3999ecc08e67d6a6f49904753c4c28c8c8c2919d85ef6c2afa261202ffa15fdb"
+    },
+    {
+      "path": "snapback2/packages/snapback2/src/store/metadata.ts",
+      "matches": true,
+      "sha256": "3de5d379dd591f3fe61ad7d97485199f3498f76f937fe003a8a300841b13f2ba"
+    },
+    {
+      "path": "snapback2/packages/snapback2/src/store/projection.ts",
+      "matches": true,
+      "sha256": "58d8ff56c39e848f9d99bc2a5214748ff3748120f3edbd03c15acba407263475"
+    }
+  ]
+}

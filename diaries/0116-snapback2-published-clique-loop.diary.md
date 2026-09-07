@@ -1085,3 +1085,10 @@ journey ran on fresh isolated seeds; before/after API snapshots independently
 proved preservation of the actual migrated store.
 
 [Fixture, limitations, and original failures](../benchmarks/runs/2026-09-07-snapback2-evolution-diagnostic/README.md).
+
+
+## 2026-09-07 — Generic backend metadata needs normalization before splitting
+
+The fresh 23a0 review found an inherited gap in the public backend replacement contract despite the prior root-deletion repair. Existing undefined children could trigger a misleading carrier error; trailing array holes could successfully persist as a shorter array. Astra's exact three-source projection probes and current public-backend synthetic-driver control distinguish failed replacement with retained prior state from a successful wrong cold roundtrip. Grok's independent source-only READY does not negate that executed observation. This is unlanded runtime evidence, not a published app or real-device diagnosis.
+
+The same author is authorized to repair generic JSON semantics before entry splitting while retaining bounded journal updates and keys-only committed ownership. Required rollback/retry/reopen/outbox controls remain scoped and source-bound. No repair completion is claimed here. [Closed full reports, original probes and actual reviewer identities/terminals](../benchmarks/runs/2026-09-06-clique-improvement/evidence/offline-range-preparation-review/README.md). The complete runtime measurement of 75,799 gzip still fails the 66,000 ceiling, independent of correctness improvements; no comparator rebuild, new resident population or phone claim accompanied this evidence work.

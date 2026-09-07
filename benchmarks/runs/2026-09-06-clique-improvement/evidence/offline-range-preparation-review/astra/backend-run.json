@@ -1,0 +1,16 @@
+{
+  "argv": [
+    "/Users/ccheever/.bun/bin/bun",
+    "backend-probe.ts",
+    "../packet/source"
+  ],
+  "startUtc": "2026-09-07T08:15:42.536304+00:00",
+  "endUtc": "2026-09-07T08:15:42.609682+00:00",
+  "elapsedSeconds": 0.072910167,
+  "outerDeadlineSeconds": 10,
+  "exit": 0,
+  "bunSha256": "39e644cea4e6db24a3af36013695655d6f789b4b98f1f13bacb882ac6e5c3c18",
+  "probeSha256": "976c9b3384f7212ebc8610ea4c3087ec8e62213e0580822cd7e9ac242ebca17d",
+  "stdout": "{\n  \"root\": \"/Users/ccheever/clique-improvement/reviews/search-twin-range-preparation-r1/packet/source\",\n  \"runtime\": \"v24.3.0\",\n  \"bun\": \"1.3.12\",\n  \"attribution\": \"exact exported public SqliteBackend source; synthetic transactional Map driver, no real SQLite\",\n  \"results\": [\n    {\n      \"name\": \"existing-object-child-to-undefined\",\n      \"expected\": {\n        \"b\": 2\n      },\n      \"reopened\": {\n        \"a\": 1,\n        \"b\": 2\n      },\n      \"failure\": {\n        \"name\": \"OfflineStoreFailure\",\n        \"code\": \"E_OFFLINE_CARRIER\",\n        \"message\": \"SQLite carrier: JSON Parse error: Unexpected identifier \\\"undefined\\\"; open a writable database with expo-sqlite ^16\"\n      },\n      \"replacementTransactions\": 0\n    },\n    {\n      \"name\": \"trailing-array-hole\",\n      \"expected\": [\n        null,\n        null,\n        null\n      ],\n      \"reopened\": [],\n      \"replacementTransactions\": 1\n    }\n  ]\n}\n",
+  "stderr": ""
+}

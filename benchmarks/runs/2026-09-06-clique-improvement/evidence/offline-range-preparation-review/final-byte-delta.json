@@ -1,0 +1,327 @@
+{
+  "baseline": {
+    "minified": 227718,
+    "gzip": 74399,
+    "sha256": "87f699c09dae12e66904da9573162de6f6518d202a73835875c663e60e518a62"
+  },
+  "final": {
+    "minified": 231741,
+    "gzip": 75799,
+    "sha256": "9e7f739b3e215bf7fa9dabeadc9b976da52d92a9ab6dbaf3cb962a3e8331bd38"
+  },
+  "minifiedDelta": 4023,
+  "gzipDelta": 1400,
+  "failureOverCeiling": 9799,
+  "entryIdentical": true,
+  "physicalInputsBefore": 49,
+  "physicalInputsAfter": 50,
+  "attributionMeaning": "esbuild bytesInOutput minified bytes, NOT additive gzip savings",
+  "attribution": [
+    {
+      "path": "../evaluator/src/range-preparation.ts",
+      "beforeMin": 0,
+      "afterMin": 4692,
+      "deltaMin": 4692
+    },
+    {
+      "path": "../evaluator/src/coverage.ts",
+      "beforeMin": 6613,
+      "afterMin": 5561,
+      "deltaMin": -1052
+    },
+    {
+      "path": "src/offline-protocol.ts",
+      "beforeMin": 11113,
+      "afterMin": 10197,
+      "deltaMin": -916
+    },
+    {
+      "path": "src/store/metadata.ts",
+      "beforeMin": 697,
+      "afterMin": 1356,
+      "deltaMin": 659
+    },
+    {
+      "path": "src/store/range-store.ts",
+      "beforeMin": 27140,
+      "afterMin": 27793,
+      "deltaMin": 653
+    },
+    {
+      "path": "src/twin-store.ts",
+      "beforeMin": 7376,
+      "afterMin": 7295,
+      "deltaMin": -81
+    },
+    {
+      "path": "src/store/projection.ts",
+      "beforeMin": 2098,
+      "afterMin": 2158,
+      "deltaMin": 60
+    },
+    {
+      "path": "src/store/carrier-index.ts",
+      "beforeMin": 6268,
+      "afterMin": 6238,
+      "deltaMin": -30
+    },
+    {
+      "path": "src/store/swap-journal.ts",
+      "beforeMin": 2983,
+      "afterMin": 3003,
+      "deltaMin": 20
+    },
+    {
+      "path": "src/offline.ts",
+      "beforeMin": 16370,
+      "afterMin": 16383,
+      "deltaMin": 13
+    },
+    {
+      "path": "../evaluator/src/runner.ts",
+      "beforeMin": 25444,
+      "afterMin": 25447,
+      "deltaMin": 3
+    },
+    {
+      "path": "src/twin.ts",
+      "beforeMin": 4584,
+      "afterMin": 4586,
+      "deltaMin": 2
+    },
+    {
+      "path": "../evaluator/src/held-directory.ts",
+      "beforeMin": 1769,
+      "afterMin": 1769,
+      "deltaMin": 0
+    },
+    {
+      "path": "../evaluator/src/search-key.ts",
+      "beforeMin": 1224,
+      "afterMin": 1224,
+      "deltaMin": 0
+    },
+    {
+      "path": "../evaluator/src/store.ts",
+      "beforeMin": 7708,
+      "afterMin": 7708,
+      "deltaMin": 0
+    },
+    {
+      "path": "../evaluator/src/merge.ts",
+      "beforeMin": 793,
+      "afterMin": 793,
+      "deltaMin": 0
+    },
+    {
+      "path": "../evaluator/src/index-store.ts",
+      "beforeMin": 7085,
+      "afterMin": 7085,
+      "deltaMin": 0
+    },
+    {
+      "path": "../evaluator/src/row-image.ts",
+      "beforeMin": 2382,
+      "afterMin": 2382,
+      "deltaMin": 0
+    },
+    {
+      "path": "src/store/row-values.ts",
+      "beforeMin": 940,
+      "afterMin": 940,
+      "deltaMin": 0
+    },
+    {
+      "path": "../evaluator/src/hash.ts",
+      "beforeMin": 2178,
+      "afterMin": 2178,
+      "deltaMin": 0
+    },
+    {
+      "path": "../evaluator/src/search-runtime.ts",
+      "beforeMin": 1009,
+      "afterMin": 1009,
+      "deltaMin": 0
+    },
+    {
+      "path": "../evaluator/src/unicode-tables.ts",
+      "beforeMin": 1339,
+      "afterMin": 1339,
+      "deltaMin": 0
+    },
+    {
+      "path": "../evaluator/src/unicode.ts",
+      "beforeMin": 4985,
+      "afterMin": 4985,
+      "deltaMin": 0
+    },
+    {
+      "path": "src/local-cursor.ts",
+      "beforeMin": 2882,
+      "afterMin": 2882,
+      "deltaMin": 0
+    },
+    {
+      "path": "src/store/outbox.ts",
+      "beforeMin": 6199,
+      "afterMin": 6199,
+      "deltaMin": 0
+    },
+    {
+      "path": "src/store/extent-facts.ts",
+      "beforeMin": 1055,
+      "afterMin": 1055,
+      "deltaMin": 0
+    },
+    {
+      "path": "src/twin-hydrate.ts",
+      "beforeMin": 1009,
+      "afterMin": 1009,
+      "deltaMin": 0
+    },
+    {
+      "path": "src/client-wire.ts",
+      "beforeMin": 491,
+      "afterMin": 491,
+      "deltaMin": 0
+    },
+    {
+      "path": "../evaluator/src/ordered.ts",
+      "beforeMin": 1606,
+      "afterMin": 1606,
+      "deltaMin": 0
+    },
+    {
+      "path": "../evaluator/src/slot-tree.ts",
+      "beforeMin": 1704,
+      "afterMin": 1704,
+      "deltaMin": 0
+    },
+    {
+      "path": "src/store/asset-policy.ts",
+      "beforeMin": 1324,
+      "afterMin": 1324,
+      "deltaMin": 0
+    },
+    {
+      "path": "../../crates/snapback2-core/ir-contract.json",
+      "beforeMin": 135,
+      "afterMin": 135,
+      "deltaMin": 0
+    },
+    {
+      "path": "../evaluator/src/errors.ts",
+      "beforeMin": 205,
+      "afterMin": 205,
+      "deltaMin": 0
+    },
+    {
+      "path": "src/store/byte-cache.ts",
+      "beforeMin": 6960,
+      "afterMin": 6960,
+      "deltaMin": 0
+    },
+    {
+      "path": "src/offline-schema.ts",
+      "beforeMin": 31,
+      "afterMin": 31,
+      "deltaMin": 0
+    },
+    {
+      "path": "src/store/overlay-retirement.ts",
+      "beforeMin": 1218,
+      "afterMin": 1218,
+      "deltaMin": 0
+    },
+    {
+      "path": "src/store/extent-index.ts",
+      "beforeMin": 2422,
+      "afterMin": 2422,
+      "deltaMin": 0
+    },
+    {
+      "path": "../evaluator/src/certificate-identity.ts",
+      "beforeMin": 8986,
+      "afterMin": 8986,
+      "deltaMin": 0
+    },
+    {
+      "path": "../evaluator/src/coverage-spans.ts",
+      "beforeMin": 828,
+      "afterMin": 828,
+      "deltaMin": 0
+    },
+    {
+      "path": "../evaluator/src/text.ts",
+      "beforeMin": 269,
+      "afterMin": 269,
+      "deltaMin": 0
+    },
+    {
+      "path": "src/types.ts",
+      "beforeMin": 1340,
+      "afterMin": 1340,
+      "deltaMin": 0
+    },
+    {
+      "path": "../evaluator/src/cursor.ts",
+      "beforeMin": 5551,
+      "afterMin": 5551,
+      "deltaMin": 0
+    },
+    {
+      "path": "src/store/canonical.ts",
+      "beforeMin": 0,
+      "afterMin": 0,
+      "deltaMin": 0
+    },
+    {
+      "path": "../evaluator/src/prefix-dictionary.ts",
+      "beforeMin": 861,
+      "afterMin": 861,
+      "deltaMin": 0
+    },
+    {
+      "path": "<stdin>",
+      "beforeMin": 0,
+      "afterMin": 0,
+      "deltaMin": 0
+    },
+    {
+      "path": "src/store/fact-index.ts",
+      "beforeMin": 1761,
+      "afterMin": 1761,
+      "deltaMin": 0
+    },
+    {
+      "path": "src/store/fact-integrity.ts",
+      "beforeMin": 7150,
+      "afterMin": 7150,
+      "deltaMin": 0
+    },
+    {
+      "path": "src/held-program.ts",
+      "beforeMin": 932,
+      "afterMin": 932,
+      "deltaMin": 0
+    },
+    {
+      "path": "../evaluator/dist/unicode-tables.ts",
+      "beforeMin": 17186,
+      "afterMin": 17186,
+      "deltaMin": 0
+    },
+    {
+      "path": "../evaluator/src/value-runtime.ts",
+      "beforeMin": 12360,
+      "afterMin": 12360,
+      "deltaMin": 0
+    },
+    {
+      "path": "../evaluator/src/posting-tree.ts",
+      "beforeMin": 842,
+      "afterMin": 842,
+      "deltaMin": 0
+    }
+  ]
+}

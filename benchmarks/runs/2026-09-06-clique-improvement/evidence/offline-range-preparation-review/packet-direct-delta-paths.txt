@@ -1,0 +1,15 @@
+snapback2/packages/evaluator/src/coverage.ts
+snapback2/packages/evaluator/src/range-preparation.ts
+snapback2/packages/evaluator/src/test-indexed.ts
+snapback2/packages/snapback2/build.mjs
+snapback2/packages/snapback2/src/image-runtime.ts
+snapback2/packages/snapback2/src/offline-protocol.ts
+snapback2/packages/snapback2/src/offline.ts
+snapback2/packages/snapback2/src/store/carrier-index.ts
+snapback2/packages/snapback2/src/store/extent-facts.ts
+snapback2/packages/snapback2/src/store/metadata.ts
+snapback2/packages/snapback2/src/store/projection.ts
+snapback2/packages/snapback2/src/store/range-store.ts
+snapback2/packages/snapback2/src/store/swap-journal.ts
+snapback2/packages/snapback2/src/twin-store.ts
+snapback2/packages/snapback2/tests/sqlite.test.ts

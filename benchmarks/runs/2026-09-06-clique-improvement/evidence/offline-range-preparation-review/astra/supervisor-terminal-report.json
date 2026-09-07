@@ -1,0 +1,19 @@
+{
+  "observedUtc": "2026-09-07T08:23:10.149575+00:00",
+  "toolHandle": 42450,
+  "actualToolExitCode": 0,
+  "terminal": {
+    "pid": 79139,
+    "exitCode": 0,
+    "endedEpoch": 1788769293.864042,
+    "elapsedSeconds": 1013.912055015564
+  },
+  "pidAbsent": true,
+  "reportBytes": 23474,
+  "reportSha256": "fcf1cf50606b5d996acc2374930d885726f18f3b0794be791936ee4a09b2a1b9",
+  "reportFullRead": true,
+  "verdict": "NEEDS_CHANGES",
+  "finding": "Inherited generic metadata normalization before splitting: existing child\u2192undefined refuses; trailing array holes lose length. Public backend seam, synthetic transactional driver; no partial-publish claim.",
+  "peerStillLive": true,
+  "authorNotInformed": true
+}

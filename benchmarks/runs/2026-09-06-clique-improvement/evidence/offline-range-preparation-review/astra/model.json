@@ -1,0 +1,16 @@
+{
+  "observedUtc": "2026-09-07T08:05:54.535360+00:00",
+  "session": "01a07ae5-ddbc-7c10-b99a-3a40c0f1f212",
+  "requestedModel": "gpt-6-astra",
+  "requestedEffort": "xhigh",
+  "actualTurnContext": {
+    "model": "gpt-6-astra",
+    "effort": "xhigh",
+    "reasoning_effort": null,
+    "cwd": "/Users/ccheever/clique-improvement/reviews/search-twin-range-preparation-r1/astra"
+  },
+  "timestamp": "2026-09-07T08:04:41.964Z",
+  "source": "/Users/ccheever/.codex/sessions/2026/09/07/rollout-2026-09-07T01-04-39-01a07ae5-ddbc-7c10-b99a-3a40c0f1f212.jsonl",
+  "sourceRecordSha256": "9b9d1053d1318f0033f1735573b61fd6cb1338a888ec3597482ff16ba6431c6d",
+  "scope": "actual turn_context only; no reasoning/tool narrative copied"
+}
