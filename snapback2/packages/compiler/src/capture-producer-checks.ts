@@ -79,10 +79,9 @@ export const probe=mutation({n:t.int(),start:t.int(),d2:t.decimal(2),d3:t.decima
 ${item.setup} ${destination ? `db.insert(records,{id:"record",${item.field ?? "amounts"}:${item.value}});` : ""} return ${item.value};});`;
 }
 
-/** The frozen v5 evaluator uses ordinary index columns; emitted programs are
- * unchanged. This JSON fixture is a disclosed schema adaptation, not integrated
- * compiler/runtime qualification. It also permits empty-table scan traces. */
-export const producerRuntimeSchema = JSON.parse(`{"tables":{"records":{"columns":{"id":"Id","d2":{"Optional":{"Decimal":{"scale":2}}},"amounts":{"Optional":{"List":{"of":{"Decimal":{"scale":3}},"max":4}}}},"indexes":{"byId":{"columns":["id"],"unique":true}},"rules":{"read":"Allow","insert":"Allow","update":"Allow","delete":"Allow"},"constraints":[]}}}`);
+/** The evaluator fixture uses the same v5 component schema as emitted programs.
+ * It also permits empty-table scan traces. */
+export const producerRuntimeSchema = JSON.parse(`{"tables":{"records":{"columns":{"id":"Id","d2":{"Optional":{"Decimal":{"scale":2}}},"amounts":{"Optional":{"List":{"of":{"Decimal":{"scale":3}},"max":4}}}},"indexes":{"byId":{"components":[{"Column":"id"}],"unique":true}},"rules":{"read":"Allow","insert":"Allow","update":"Allow","delete":"Allow"},"constraints":[]}}}`);
 export function producerActual(program: Parameters<ClientStore["applyMutation"]>[0]) {
   const store = new ClientStore(producerRuntimeSchema,{rows:[],ranges:[],absences:[],verdicts:[]});
   return store.applyMutation(program,{args:{n:{Int:2},start:{Int:-2},d2:{Int:321},d3:{Int:4321},minors:{Array:[{Int:4321}]},wrong:{Array:[{Int:321}]},zero:{Int:0},big:{Int:9007199254740991}},
