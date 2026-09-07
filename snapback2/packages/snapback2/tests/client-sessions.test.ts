@@ -111,6 +111,40 @@ test("a current local reevaluation refusal publishes while an obsolete-authority
   stopOld();
 });
 
+test("a live indexed query preserves its authoritative state until its effective value changes", async () => {
+  let publish!: (event: any) => void;
+  let localData = [{ id: "server" }];
+  const queries = new ClientQueries({
+    identity: () => [1, 1] as const,
+    active: () => true,
+    open: (_ref: unknown, _args: unknown, listener: (event: any) => void) => {
+      publish = listener;
+      return { close: () => undefined, until: async () => { throw new Error("must use shared until"); } };
+    },
+    query: async () => { throw new Error("unused"); },
+    local: async () => ({ state: "held", live: false, connection: "offline", data: localData, next: null, seq: 2 }),
+  } as any);
+  const observed = queries.observe(api.messages.search, { term: "café", c: null });
+  const stop = observed.subscribe(() => undefined);
+  publish({ state: "complete", live: true, data: [{ id: "server" }], next: null, seq: 1 });
+  const authoritative = observed.getSnapshot();
+  queries.refresh();
+  await new Promise<void>((resolve) => setTimeout(resolve, 20));
+  assert.strictEqual(observed.getSnapshot(), authoritative, "an unrelated store commit does not replace complete with held");
+
+  localData = [{ id: "predicted" }];
+  queries.refresh();
+  await until(() => (observed.getSnapshot() as any).data?.[0]?.id === "predicted", "the local indexed revision");
+  assert.deepEqual(observed.getSnapshot(), {
+    state: "held", live: true, data: [{ id: "predicted" }], next: null, seq: 2,
+  });
+
+  localData = [{ id: "server" }];
+  queries.refresh();
+  await until(() => observed.getSnapshot().state === "complete", "settlement returns to the authoritative value");
+  stop();
+});
+
 /** Counts logical subscription children the multiplexed transport adds, and direct query pages. */
 function counting(owner: ReturnType<typeof fakeOwner>) {
   const counts = { subscribes: 0, queries: 0 };

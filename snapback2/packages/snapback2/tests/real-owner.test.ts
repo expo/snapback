@@ -81,6 +81,57 @@ test("reconnect after a conditional refresh replays a queued send for joined and
   });
 });
 
+test("a real indexed observation stays authoritative across persistent local refreshes", async (context) => {
+  if (!owner.owned) return context.skip("requires the self-started indexed chat fixture");
+  const { mkdtemp, rm } = await import("node:fs/promises");
+  const { tmpdir } = await import("node:os");
+  const { join } = await import("node:path");
+  const { fileRangeStore } = await import("../dist/test.mjs");
+  const directory = await mkdtemp(join(tmpdir(), "snapback-indexed-observation-"));
+  const client = createClient({ url: owner.url, as: "alice", offline: { store: fileRangeStore(directory) } });
+  const rawEvents: Array<Record<string, unknown>> = [];
+  const snapshots: Array<Record<string, unknown>> = [];
+  const args = { term: "WEL", c: null };
+  let raw: any;
+  let stop: (() => void) | undefined;
+  try {
+    await client.ready;
+    const observed = client.observe(api.messages.search, args);
+    stop = observed.subscribe(() => {
+      const value: any = observed.getSnapshot();
+      snapshots.push({ state: value.state, live: value.live, seq: value.seq,
+        rows: Array.isArray(value.data) ? value.data.map((row: any) => row.body) : undefined });
+    });
+    raw = client.subscribe(api.messages.search, args, (value: any) => {
+      rawEvents.push({ state: value.state, live: value.live, seq: value.seq,
+        rows: Array.isArray(value.data) ? value.data.map((row: any) => row.body) : undefined });
+    });
+    await raw.until((value: any) => value.live === true
+      && (value.state === "complete" || value.state === "capped")
+      && value.data?.some((row: any) => row.body === "Welcome"), 3_000);
+
+    // A second committed answer advances the persistent input revision. Its
+    // reevaluation must not downgrade an unchanged search value to held.
+    await client.query(api.messages.thread, { conversationId: "conversation-1", c: null });
+    await new Promise<void>((resolve) => setTimeout(resolve, 100));
+    const current: any = observed.getSnapshot();
+    assert.ok(current.state === "complete" || current.state === "capped", JSON.stringify(current));
+    assert.equal(current.live, true);
+    assert.ok(current.data.some((row: any) => row.body === "Welcome"));
+    const authoritative = rawEvents.findIndex((value) => value.live === true
+      && (value.state === "complete" || value.state === "capped"));
+    assert.ok(authoritative >= 0, `missing authoritative delivery: ${JSON.stringify(rawEvents)}`);
+    assert.equal(rawEvents.slice(authoritative + 1).some((value) => value.state === "held"), false,
+      `an unchanged local refresh followed the authoritative delivery: ${JSON.stringify(rawEvents)}`);
+  } catch (error) {
+    context.diagnostic(`indexed observation connection=${client.snapshot.connection}; raw=${JSON.stringify(rawEvents)}; snapshots=${JSON.stringify(snapshots)}`);
+    throw error;
+  } finally {
+    raw?.close(); stop?.(); await client.close();
+    await rm(directory, { recursive: true, force: true });
+  }
+});
+
 test("real scalar-projected log pages retire predictions using engine-minted cursor links after cold reopen", async (context) => {
   if (!owner.owned) return context.skip("requires the self-started projected log fixture");
   const { mkdtemp, rm } = await import("node:fs/promises");
