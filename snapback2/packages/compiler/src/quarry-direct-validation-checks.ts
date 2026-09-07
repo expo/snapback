@@ -165,6 +165,9 @@ query orderedAsset(left: image <=100, right: image <=100):
 query opaqueLength(value: json <=100):
   return value.length
 
+query removedWords(value: text <=100):
+  return words(value)
+
 fn decimal3(value: decimal 3) = value
 query wrongScale(value: decimal 2):
   return decimal3(value)
@@ -192,7 +195,8 @@ query wrongScale(value: decimal 2):
         `${name} did not refuse with ${text}: ${failure?.diagnostic.code} ${failure?.message}`);
     }
 
-    for (const [name, code] of [["opaqueLength", "E_OPAQUE"], ["wrongScale", "E_DECIMAL_SCALE"]] as const) {
+    for (const [name, code] of [["opaqueLength", "E_OPAQUE"], ["removedWords", "E_QUARRY_UNSUPPORTED"],
+      ["wrongScale", "E_DECIMAL_SCALE"]] as const) {
       let failure: QuarryError | undefined;
       try { bindQuarryProgram(program(prepared, name), prepared.catalog, prepared.documents); }
       catch (error) { if (error instanceof QuarryError) failure = error; else throw error; }
