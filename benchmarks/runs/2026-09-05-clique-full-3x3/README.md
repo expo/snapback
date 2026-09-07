@@ -38,7 +38,21 @@ Calibration, not a claim-eligible magnitude (LLP 0201 D5).
 | --- | --- | --- | --- |
 | astra | 2026-09-05 16:30Z | snapback2, convex, supabase | convex: M1–M6, M8 green in 94 min, record validated. snapback2: M3, M4, M8 green at execution time and M1, M2, M5, M6 green then downgraded by the builder to `aborted` after its own end-of-run regression pass; builder session cut at ~19:30Z and resumed in the same session (logged in its run log); 4.06 h including the continuation; record validated. supabase: M1–M6, M8 green in 111 min; scale replay settled 167,157 actions in 10,693 s on its own clock after the hosted Auth rate limit ended a first attempt; record validated. All three lanes cleaned up their servers. |
 | grok | 2026-09-05 21:40Z | same | convex: M1–M6, M8 green by 23:38Z, scale replay verified (167,157 settled in 2,222 s), ended 01:03Z. snapback2: M1, M2 green; M3 suite passed but two-client choreography never green; M4–M8 suites only; replay unfinished; no run record; 3 h 2 min. supabase: M1 green at 42 min, then no choreography segment green again, M2–M8 `aborted`; no Hermes export (bundler emitted private class fields hermesc rejects); no run record. Machine load 45–112 throughout from other sessions' work, so this wave's wall clocks run three to four times the astra wave's. |
-| muse | 2026-09-06 01:05Z | same | running |
+| muse | 2026-09-06 01:05Z (attempt 1) / 01:25Z (attempt 2) | same | attempt 1 lost all three lanes at ~01:20Z to a provider outage (`transport error … api.meta.ai … after 4–5 provider attempts`), 14–15 min in, orientation only; retained under the harness's `lanes/attempt1/`, counts for nothing. Attempt 2 relaunched fresh at 01:25:34Z. snapback2: **M1–M6, M8 all green** with choreography (M3 7/7 initial, 6 + 1 optional-skip on the final bundle), final regression all suites pass on the shipping bundle, scale replay PASS (167,157 actions, 0 failed, 1,047 s, checkpoints 10/50/final green), 8.25 h wall, ended 09:40Z; seven Hermes exports. supabase: M1–M6, M8 green by 10:45Z per its final report (suite receipts m1–m8 pass, choreography green throughout, iOS simulator segments not recorded), essay and diary written at ~11:14Z, but the closing steps (prefix drop, `end=` epoch) never happened because the CLI then looped on provider transport errors for 13 h; the harness stopped that CLI and its two `server.mjs` listeners by pid at 1788742400 and started a continued session (same model, xhigh) to finish only the closing steps. convex: M1 green at 30 min; acceptance receipts m1–m5 all pass and choreography m1–m5 receipts present, but the builder stopped logging after `M2-start`, wrote no diary past M1, and its CLI idled for 17 h answering the auto-resolver with `leaving it running` (100 times); the harness stopped it by pid at 1788742500 (its servers died with it) and started a continued session to reconstruct M2–M5 logs from receipts, build M6/M8, run the scale replay, and write the report. Both continuations are recorded in the lanes' run logs as harness lines. |
+
+### Grading and M7 phase (started 2026-09-07 ~01:00Z)
+
+Grading runs one fresh headless Claude session per lane (`claude -p`, model
+`claude-opus-5`, the frozen grader prompt plus a wrapper recording this run's
+deviations: no committed probe set for the wave, an uncalibrated grader family,
+Claude as the other family for all three builders, timing checks best-of-3 with
+machine load recorded). The astra wave's three graders started first; the
+astra-snapback2 grader runs on substitute ports 49120–49139 because 49100–49102
+are held by the separate `clique-improvement` grading of the 0.0.6 build on this
+host (recorded as a deviation in that lane's trace). Grok and muse graders
+follow as load allows; the fresh-session M7 leg runs after each lane is graded,
+because M7 changes the artifact. Grading reports land here as
+`grading-<wave>-<backend>.json` when validated.
 
 Per-lane records (`record-<wave>-<backend>.json`, validated with
 `benchmarks/tools/social-messenger/record-validator.mjs`), the grading reports,
@@ -61,9 +75,11 @@ holistic assessment, not independent acceptance grading.
 | Astra medium | 64 | 84 | 77 |
 | Grok 4.6 xhigh | 57 | 78 | 47 |
 
-Muse scores remain absent. Its three retained xhigh builder PIDs (92425, 92498,
-92520) were verified live on that host on 2026-09-06; do not restart them merely
-because this README is old. A fresh Muse 1.3 probe requesting ultra reported
+Muse scores are added once its three lanes are complete (its snapback2 lane is;
+see Status). Its three attempt-2 builder PIDs (92425, 92498, 92520) were verified
+live on 2026-09-06; 92425 exited on its own after writing its report, and the
+harness stopped 92498 and 92520 on 2026-09-07 ~00:40Z for the reasons in Status
+and replaced each with a continued session. A fresh Muse 1.3 probe requesting ultra reported
 `gate ultra_reasoning_effort is closed; using xhigh`, then failed because the
 remote SSH session could not access locked Keychain credentials. Neither that
 probe nor the existing xhigh sessions proves the requested ultra comparison.
