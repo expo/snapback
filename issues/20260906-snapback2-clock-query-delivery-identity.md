@@ -106,3 +106,28 @@ engine tree's own bundle), and the client from `s2/clique-search-twin`
 
 Logs under `~/verify-snapback2-liveoffline-20260906/evidence-candidate-pair/`.
 Still open until the candidate lands and the native case is re-run on it.
+
+## Native verification of the candidate (2026-09-07 01:00Z, unlanded)
+
+The same candidate triple, exercised as an actual Release Hermes iOS
+simulator app on the Expo SQLite carrier (apartment M1, Xcode 26.6, iOS 26.5
+simulator): a standalone app generated from the published `snapback2@0.0.10`
+template with `query serverNow(): return { now: now }` and a generic `query`
+witness verb, its client bundle swapped for the `s2/clique-search-twin`
+e1c6e2b79 dist, talking to the `s2/clique-search-engine` 26c9fd5e0 owner
+(search-compiler 0aba7948f bundle) over an SSH tunnel.
+
+- Published 0.0.10 control on the same device (run
+  `native-clock-published-0010b`): the second read 100 ms later refuses
+  `E_OFFLINE_DELIVERY: conflicting deliveries for clock.serverNow at seq 1`;
+  after `SIGKILL` and relaunch the cold read refuses the same way; a
+  non-timed read stays complete.
+- Candidate (run `native-clock-candidate-triple`, bundle sha256 `6cac7550…`,
+  Hermes bytecode): the second read installs `complete` at the same seq with
+  the moved `now`; after `SIGKILL` and relaunch the cold read is `complete`
+  with a fresh `now`; the non-timed read stays complete.
+
+Runs, screenshots, and recordings under
+`~/verify-snapback2-liveoffline-20260906/evidence-native-clock/`. With the
+Node disagreement control above, the candidate meets this ticket's closing
+bar except that it has not landed; close on landing.
