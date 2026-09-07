@@ -977,6 +977,14 @@ ticket of 2026-09-04.
 
 ## 8. The delivery envelope, the validator, and resume
 
+The package build embeds an ambient copy of the offline protocol declarations
+in the root module. That copy omits redundant top-level `declare` modifiers;
+the standalone declaration leaf retains them. The actual generated-package
+consumer checks the complete declaration graph with `skipLibCheck` both true
+and false; a boolean-to-number negative assignment must remain an error.
+This packaging correction adopts the bounded build change from preparation
+candidate `367d263b8`, independently qualified with that consumer witness.
+
 **The frozen envelope (lane O1's first landing; O2 starts against it).**
 Every `/api/query` response and every `/api/subscribe` frame carries, when
 the client asks with `receipt=1`:

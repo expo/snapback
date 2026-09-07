@@ -647,3 +647,38 @@ failure cannot be concealed by a runtime pass, and each failure is diagnosable.
 The shared goal is less application correction and fewer independently owned
 interpretations, not fewer test names. Publication and cold-builder outcomes
 retain their existing qualification requirements.
+
+### Execution disposition — 2026-09-07
+
+The finite compiler reconciliation and touched-export census are recorded in
+LLP 1018.001 §6. They reuse all 32 repair dispositions and correct the final
+integrated source census to net **−7,533** after the 130-line diagnostics port.
+The direct compiler's own integration and qualification remain its lane's work;
+this follow-up neither duplicates it nor marks the Draft child Implemented.
+The real built-worker/copied-package negative typing witness is retained in
+`tests/typing.test.ts`. It verifies the landed generator import repair from
+`87def8b02` and qualifies the ambient-copy build correction from preparation
+candidate `367d263b8`: five typing checks pass, including both declaration
+settings with complete diagnostics.
+
+The zero-count investigation found a concrete two-proof boundary, recorded in
+[the still-open ticket](../issues/20260907-snapback2-public-zero-count-does-not-enable-offline-cap-prediction.md).
+Ordinary maintained-target survivors make group addresses and canonical IDs
+inequivalent. A tested additional primary probe supplied the missing primary
+absence, but the actual cold public client still correctly refused the target
+insert without unique-group absence/coverage. The incomplete optimization was
+removed; public receipt/eviction policy and uniqueness remain intact. The
+existing public witness now covers cold reopen for held, unheld, zero and
+overflow scenarios. Runtime replacement needs both proofs, not a scalar-zero
+shortcut. No store-persistence defect was found at this boundary.
+
+LLP 1018.002 §6 records the bounded invalidation audit: **defer new runtime
+hashes**. A conservative whole-table dependency subset can exclude disconnected
+tables but cannot exclude the changed messages descriptor in the original
+conflict. Stable terminal intents, unsettled replay, held coverage and verdicts
+have different existing identities/fences; no common hash is introduced.
+
+The architecture lane at `c9803c828` retains the browser settlement regression
+and its affected Expo/browser qualification. This follow-up makes no browser
+repair or lane-wide completion claim. Lifecycle work remains tied to those
+actual transitions; the count investigation adds no lifecycle framework.
