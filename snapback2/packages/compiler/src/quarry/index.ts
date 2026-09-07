@@ -53,12 +53,12 @@ export function prepareQuarry(
     diagnostics.push(...parsed.diagnostics);
   }
   diagnostics.push(...placementDiagnostics(documents));
-  if (diagnostics.length > 0) return { ok: false, diagnostics: diagnostics.map(frontend) };
+  if (diagnostics.length > 0) return { ok: false, diagnostics: diagnostics.map(frontendQuarryDiagnostic) };
   if (options.legacyExpandShapes) {
     const expansion = expandDocuments(documents);
     documents = expansion.documents;
     diagnostics.push(...expansion.diagnostics);
-    if (diagnostics.length > 0) return { ok: false, diagnostics: diagnostics.map(frontend) };
+    if (diagnostics.length > 0) return { ok: false, diagnostics: diagnostics.map(frontendQuarryDiagnostic) };
   }
 
   let catalog: TableCatalog;
@@ -66,10 +66,10 @@ export function prepareQuarry(
     materializeMaintains(documents);
     catalog = buildCatalog(documents);
   } catch (error) {
-    return { ok: false, diagnostics: [frontend(caughtDiagnostic(error, inputs[0]?.fileName))] };
+    return { ok: false, diagnostics: [frontendQuarryDiagnostic(caughtDiagnostic(error, inputs[0]?.fileName))] };
   }
   diagnostics.push(...whereRepairDiagnostics(documents, catalog));
-  if (diagnostics.length > 0) return { ok: false, diagnostics: diagnostics.map(frontend) };
+  if (diagnostics.length > 0) return { ok: false, diagnostics: diagnostics.map(frontendQuarryDiagnostic) };
 
   let schedules: ReturnType<typeof prepareSchedules> = [];
   try { schedules = prepareSchedules(documents, catalog); } catch (error) { diagnostics.push(caughtDiagnostic(error)); }
@@ -104,7 +104,7 @@ export function compileQuarry(inputs: QuarryInput[]): QuarryCompileResult {
     }
     if (valid) moduleSources.set(document.file, emitPrograms(document.programs, catalog, document.file, document.effects));
   }
-  if (diagnostics.length > 0) return { ok: false, diagnostics: diagnostics.map(frontend) };
+  if (diagnostics.length > 0) return { ok: false, diagnostics: diagnostics.map(frontendQuarryDiagnostic) };
 
   const authoredSources = new Map(inputs.map((input) => [input.fileName, input.source]));
   const schema = virtualModule(schemaInput.path.replace(/\.q$/, ".ts"), schemaDocument.file, schemaSource, schemaInput.source, authoredSources);
@@ -253,7 +253,7 @@ function virtualModule(path: string, authored: string, source: string, authoredS
   return { path, fileName: path, source, authored, authoredSource, authoredSources, lineMap };
 }
 
-function frontend(item: QuarryDiagnostic): FrontendDiagnostic {
+export function frontendQuarryDiagnostic(item: QuarryDiagnostic): FrontendDiagnostic {
   return {
     code: item.code,
     family: item.code === "E_SCHEMA_CONSTRAINT" ? "schema" : item.code.startsWith("E_SCHEDULE_") ? "schedule" : "quarry",

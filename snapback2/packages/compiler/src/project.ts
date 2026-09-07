@@ -21,6 +21,7 @@ import { moduleSeedJsonConstants, staticSeedJson, validateSeedRow } from "./proj
 import { sortSerdeMaps } from "./project-sort";
 import { quarryOnlyDiagnostics, type LowerProjectOptions } from "./project-authoring";
 import { apiRowName, generateApiDts } from "./project-api-types";
+import { lowerDirectQuarryProject } from "./quarry/project";
 // @ref LLP 1002#3-the-compiler-worker-and-the-project-json — one lowering pass owns the ProjectJson, sources, API types, and aggregate refusals.
 
 export async function lowerProject(root: string, options: LowerProjectOptions = {}): Promise<ProjectResult> {
@@ -66,6 +67,11 @@ export async function lowerProject(root: string, options: LowerProjectOptions = 
       ms: elapsed(started),
     };
   }
+
+  if (hasQuarrySchema) return lowerDirectQuarryProject({
+    started, projectRoot, authoredRoot, discoveredModulePaths, quarryPaths, tsModulePaths,
+    ...(options.adhocSource === undefined ? {} : { adhocSource: options.adhocSource }),
+  });
 
   let schemaPath = tsSchemaPath;
   let schemaSource = hasTsSchema ? await readFile(tsSchemaPath, "utf8") : "";
