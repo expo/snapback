@@ -948,10 +948,11 @@ export class OfflineRuntime {
 }
 
 /**
- * The offline view uses the twin's current local answer, except for explicitly
- * retained history; otherwise it uses the held answer or `hydrating`. A
- * held answer's facts (`seq`, `since`, the drain's watermark, `retained`) stay
- * with the twin's data: the stored answer is the covered case, not a second
+ * The offline view uses the twin's current local answer. For retained history,
+ * a complete/capped/held rerun can reconstruct conservatively purged literals;
+ * a denied, partial, or unavailable rerun falls back to the readable retained
+ * answer. Held owner facts (`seq`, the drain watermark and `caughtUp`) stay with
+ * reconstructed data: the stored answer is the covered case, not a second
  * mechanism (LLP 1012 §6).
  */
 export function offlineView<Result>(held: HeldAnswer<Result> | undefined, local?: LocalAnswer): any {
