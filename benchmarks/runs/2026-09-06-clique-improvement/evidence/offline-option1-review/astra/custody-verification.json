@@ -1,0 +1,35 @@
+{
+  "manifestSha256": "59a600fe535fd21e095276f5b29fd2c41cab5f804805bd30298b76d89541309e",
+  "manifestCheckPreviouslyCompleted": {
+    "fileEntriesMatched": 2110,
+    "symlinksPresent": 6,
+    "mismatches": []
+  },
+  "manifestRootCounts": {
+    "before": 437,
+    "context.md": 1,
+    "contracts": 4,
+    "cumulative-r8-delta-paths.txt": 1,
+    "cumulative-r8-delta.patch": 1,
+    "direct-delta-paths.txt": 1,
+    "direct-delta.patch": 1,
+    "evidence": 243,
+    "native": 554,
+    "r8-before": 434,
+    "source": 439
+  },
+  "witnessSourceInputsChecked": 55,
+  "witnessSourceMismatches": [],
+  "publicBuildArchiveSha256": "31e5490c8634d78514949b6806fa215991661630b96d8d42458801d3778140b0",
+  "archiveMatchesWitnessCustody": true,
+  "extractedExecutableMatches": [
+    {
+      "path": "snapback2/packages/snapback2/dist/image-runtime.mjs",
+      "matches": true
+    },
+    {
+      "path": "snapback2/packages/snapback2/dist/sqlite-test.mjs",
+      "matches": true
+    }
+  ]
+}

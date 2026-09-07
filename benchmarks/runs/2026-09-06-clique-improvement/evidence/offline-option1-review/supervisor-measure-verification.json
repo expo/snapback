@@ -1,0 +1,33 @@
+{
+  "utc": "2026-09-07T05:07:09.595989+00:00",
+  "candidate_manifest_sha256": "a1d11ab7b4b7c66e4e0ef5906d1851d73e358320ba7a688e4d321a8e575e602c",
+  "attribution_sha256": "b4d54d755b322d98e9a8d9e453e35cd855319e8d808526ec56297ae9a129c33a",
+  "bundle_sha256": "e544b74403cd50cd99159a1bcf371b8d8709e2d886013afee788123454b64534",
+  "physical_inputs": 49,
+  "minified": 227321,
+  "reported_gzip": 74243,
+  "ceiling": 66000,
+  "overage": 8243,
+  "metafile_available": true,
+  "errors": [],
+  "scope": "Read-only exact source/bundle/entry verification; no recompression, rebuild, benchmark, or qualification waiver.",
+  "output_summaries": [
+    {
+      "bytes": 227321,
+      "imports": [],
+      "exports": [
+        "OfflineRuntime",
+        "PersistentRangeStore",
+        "Twin",
+        "carrierProjection",
+        "offlineView",
+        "readsConnected",
+        "receiptProtocol",
+        "reduceQueryState",
+        "serverArguments",
+        "twinLastDecline"
+      ],
+      "input_count": 50
+    }
+  ]
+}

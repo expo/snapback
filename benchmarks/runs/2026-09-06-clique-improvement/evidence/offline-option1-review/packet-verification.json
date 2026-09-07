@@ -1,0 +1,27 @@
+{
+  "utc": "2026-09-07T05:28:05.888442+00:00",
+  "packetManifestSha256": "59a600fe535fd21e095276f5b29fd2c41cab5f804805bd30298b76d89541309e",
+  "leaves": 2116,
+  "bytes": 70664363,
+  "git": {
+    "source": {
+      "gitBlobs": 438,
+      "capturedGenerated": [
+        "snapback2/packages/evaluator/dist/unicode-tables.ts"
+      ]
+    },
+    "before": {
+      "gitBlobs": 436,
+      "capturedGenerated": [
+        "snapback2/packages/evaluator/dist/unicode-tables.ts"
+      ]
+    },
+    "r8-before": {
+      "gitBlobs": 433,
+      "capturedGenerated": [
+        "snapback2/packages/evaluator/dist/unicode-tables.ts"
+      ]
+    }
+  },
+  "errors": []
+}

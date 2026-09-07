@@ -1,0 +1,87 @@
+{
+  "attribution": "native26c9 initial halo fixture through checked OfflineRuntime admission; shipped SqliteBackend JS with a synthetic no-storage driver",
+  "rowCount": 11,
+  "factSlots": 106,
+  "statements": 56,
+  "beforeClose": 11,
+  "afterClose": 0,
+  "mirrors": [
+    {
+      "key": "events\u0000halo",
+      "typedCurrent": true,
+      "effectiveSharesCurrent": true,
+      "retainedWireString": true,
+      "wireBodyEqualsCurrent": true
+    },
+    {
+      "key": "events\u0000r0",
+      "typedCurrent": true,
+      "effectiveSharesCurrent": true,
+      "retainedWireString": true,
+      "wireBodyEqualsCurrent": true
+    },
+    {
+      "key": "events\u0000r1",
+      "typedCurrent": true,
+      "effectiveSharesCurrent": true,
+      "retainedWireString": true,
+      "wireBodyEqualsCurrent": true
+    },
+    {
+      "key": "events\u0000r2",
+      "typedCurrent": true,
+      "effectiveSharesCurrent": true,
+      "retainedWireString": true,
+      "wireBodyEqualsCurrent": true
+    },
+    {
+      "key": "events\u0000r3",
+      "typedCurrent": true,
+      "effectiveSharesCurrent": true,
+      "retainedWireString": true,
+      "wireBodyEqualsCurrent": true
+    },
+    {
+      "key": "events\u0000r4",
+      "typedCurrent": true,
+      "effectiveSharesCurrent": true,
+      "retainedWireString": true,
+      "wireBodyEqualsCurrent": true
+    },
+    {
+      "key": "events\u0000r5",
+      "typedCurrent": true,
+      "effectiveSharesCurrent": true,
+      "retainedWireString": true,
+      "wireBodyEqualsCurrent": true
+    },
+    {
+      "key": "events\u0000r6",
+      "typedCurrent": true,
+      "effectiveSharesCurrent": true,
+      "retainedWireString": true,
+      "wireBodyEqualsCurrent": true
+    },
+    {
+      "key": "events\u0000r7",
+      "typedCurrent": true,
+      "effectiveSharesCurrent": true,
+      "retainedWireString": true,
+      "wireBodyEqualsCurrent": true
+    },
+    {
+      "key": "events\u0000r8",
+      "typedCurrent": true,
+      "effectiveSharesCurrent": true,
+      "retainedWireString": true,
+      "wireBodyEqualsCurrent": true
+    },
+    {
+      "key": "events\u0000r9",
+      "typedCurrent": true,
+      "effectiveSharesCurrent": true,
+      "retainedWireString": true,
+      "wireBodyEqualsCurrent": true
+    }
+  ]
+}

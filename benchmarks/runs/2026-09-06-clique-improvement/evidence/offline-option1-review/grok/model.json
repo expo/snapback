@@ -1,0 +1,12 @@
+{
+  "current_model_id": "grok-4.6",
+  "reasoning_effort": "xhigh",
+  "session_kind": "headless",
+  "utc": "2026-09-07T05:29:00.309984+00:00",
+  "session": "71600900-dc0f-4902-8ee0-0208282d3a5e",
+  "source": "/Users/ccheever/.grok/sessions/%2FUsers%2Fccheever%2Fclique-improvement%2Freviews%2Fsearch-twin-option1-r1%2Fgrok/71600900-dc0f-4902-8ee0-0208282d3a5e/summary.json",
+  "sourceSha256AtObservation": "33515593851530ab4f76c324b066680afef3a580660440f82e2bcd0ac22169c2",
+  "requestedModel": "grok-4.6",
+  "requestedEffort": "xhigh",
+  "nativeCli": true
+}

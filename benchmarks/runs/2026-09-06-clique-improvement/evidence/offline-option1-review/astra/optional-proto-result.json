@@ -1,0 +1,17 @@
+{
+  "attribution": "synthetic schema adding one optional ordinary indexed __proto__ column to the native fixture schema; direct public PersistentRangeStore boundary, no native emission or certification claim",
+  "rowCount": 1,
+  "inputMissingOwnProto": true,
+  "evaluatorAdmitted": true,
+  "exactSparseRoundtrip": true,
+  "rawError": {
+    "name": "DeliveryEnvelopeDecodeError",
+    "message": "events.__proto__: expected text string"
+  },
+  "refusedBeforePersistence": true,
+  "sparsePersisted": true,
+  "coldAnswerError": {
+    "name": "DeliveryEnvelopeDecodeError",
+    "message": "events.__proto__: expected text string"
+  }
+}

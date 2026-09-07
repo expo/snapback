@@ -1,0 +1,22 @@
+{
+  "utc": "2026-09-07T05:52:48.773608+00:00",
+  "toolSession": 55718,
+  "actualToolExitCode": 0,
+  "terminal": {
+    "pid": 89927,
+    "exitCode": 0,
+    "endedEpoch": 1788760316.6089978,
+    "elapsedSeconds": 1406.320769071579
+  },
+  "pidAbsent": true,
+  "reportBytes": 19471,
+  "reportSha256": "befa1573742ab588a8143b5023c6c9fb9abc58d58dde630bf8e35383a1647216",
+  "reportPreservedVerbatim": true,
+  "supervisorNotes": [
+    "Historical report typography47a772 555/4fb7 2367 is not authoritative; exact earlier measures72555/72367 remain.",
+    "Digest-only equality recommendation does not supersede exact nominalschema/table/kind/sparsecanonical equality; current author reference-rebind allowed.",
+    "Wire/disk source overview does not refute actual Astra in-process ProjectionCache retained-string proof.",
+    "No new blocking finding beyond known equal-body gap; stale offlineViewcomment is nonblocking suggestion.",
+    "Read-only reviewer, no new executableprobes."
+  ]
+}

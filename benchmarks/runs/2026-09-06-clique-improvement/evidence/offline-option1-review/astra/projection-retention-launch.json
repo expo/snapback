@@ -1,0 +1,19 @@
+{
+  "command": [
+    "/Users/ccheever/.volta/tools/image/node/22.23.2/bin/node",
+    "/Users/ccheever/clique-improvement/reviews/search-twin-option1-r1/astra/projection-retention-probe.mjs",
+    "/Users/ccheever/clique-improvement/reviews/search-twin-option1-r1/astra/probe-runtime",
+    "/Users/ccheever/clique-improvement/reviews/search-twin-option1-r1/astra/projection-retention-result.json"
+  ],
+  "startUtc": "2026-09-07T05:33:09.737827+00:00",
+  "endUtc": "2026-09-07T05:33:09.935626+00:00",
+  "elapsedSeconds": 0.19788599999999995,
+  "deadlineSeconds": 15,
+  "deadlineType": "new bounded diagnostic outer limit; no product test limit altered",
+  "nodeSha256": "18e387c90ab8a8400183e8bdd396376e1e875b91b4c874b894dcade7b35bf572",
+  "scriptSha256": "e2aa0e688100cbf620c96efbce9aefd16a2b29bce5e9156fb20a3bd4d3212178",
+  "exit": 0,
+  "stdout": "{\"attribution\":\"native26c9 initial halo fixture through checked OfflineRuntime admission; shipped SqliteBackend JS with a synthetic no-storage driver\",\"rowCount\":11,\"factSlots\":106,\"statements\":56,\"beforeClose\":11,\"afterClose\":0,\"mirrors\":[{\"key\":\"events\\u0000halo\",\"typedCurrent\":true,\"effectiveSharesCurrent\":true,\"retainedWireString\":true,\"wireBodyEqualsCurrent\":true},{\"key\":\"events\\u0000r0\",\"typedCurrent\":true,\"effectiveSharesCurrent\":true,\"retainedWireString\":true,\"wireBodyEqualsCurrent\":true},{\"key\":\"events\\u0000r1\",\"typedCurrent\":true,\"effectiveSharesCurrent\":true,\"retainedWireString\":true,\"wireBodyEqualsCurrent\":true},{\"key\":\"events\\u0000r2\",\"typedCurrent\":true,\"effectiveSharesCurrent\":true,\"retainedWireString\":true,\"wireBodyEqualsCurrent\":true},{\"key\":\"events\\u0000r3\",\"typedCurrent\":true,\"effectiveSharesCurrent\":true,\"retainedWireString\":true,\"wireBodyEqualsCurrent\":true},{\"key\":\"events\\u0000r4\",\"typedCurrent\":true,\"effectiveSharesCurrent\":true,\"retainedWireString\":true,\"wireBodyEqualsCurrent\":true},{\"key\":\"events\\u0000r5\",\"typedCurrent\":true,\"effectiveSharesCurrent\":true,\"retainedWireString\":true,\"wireBodyEqualsCurrent\":true},{\"key\":\"events\\u0000r6\",\"typedCurrent\":true,\"effectiveSharesCurrent\":true,\"retainedWireString\":true,\"wireBodyEqualsCurrent\":true},{\"key\":\"events\\u0000r7\",\"typedCurrent\":true,\"effectiveSharesCurrent\":true,\"retainedWireString\":true,\"wireBodyEqualsCurrent\":true},{\"key\":\"events\\u0000r8\",\"typedCurrent\":true,\"effectiveSharesCurrent\":true,\"retainedWireString\":true,\"wireBodyEqualsCurrent\":true},{\"key\":\"events\\u0000r9\",\"typedCurrent\":true,\"effectiveSharesCurrent\":true,\"retainedWireString\":true,\"wireBodyEqualsCurrent\":true}]}\n",
+  "stderr": "(node:91585) ExperimentalWarning: SQLite is an experimental feature and might change at any time\n(Use `node --trace-warnings ...` to show where the warning was created)\n",
+  "outputSha256": "90c77f52f2726a74d735e73b0ac4103f492e875296f486bad8bf3bd2806ef200"
+}

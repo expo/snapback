@@ -1,0 +1,20 @@
+{
+  "utc": "2026-09-07T05:29:00.309984+00:00",
+  "session": "01a07a56-e686-7112-9361-b78e6862f188",
+  "source": "/Users/ccheever/.codex/sessions/2026/09/06/rollout-2026-09-06T22-28-30-01a07a56-e686-7112-9361-b78e6862f188.jsonl",
+  "turnContext": {
+    "timestamp": "2026-09-07T05:28:33.075Z",
+    "model": "gpt-6-astra",
+    "effort": "xhigh",
+    "collaborationMode": {
+      "mode": "default",
+      "settings": {
+        "model": "gpt-6-astra",
+        "reasoning_effort": "xhigh",
+        "developer_instructions": null
+      }
+    }
+  },
+  "requestedModel": "gpt-6-astra",
+  "requestedEffort": "xhigh"
+}

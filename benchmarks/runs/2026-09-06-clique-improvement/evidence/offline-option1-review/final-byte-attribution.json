@@ -1,0 +1,465 @@
+{
+  "node": "v22.23.2",
+  "esbuild": "0.25.9",
+  "entry": [
+    "export * from './src/twin.ts'; export { serverArguments } from './src/local-cursor.ts'; export { reduceQueryState } from './src/types.ts';",
+    "export { PersistentRangeStore } from './src/store/range-store.ts';",
+    "export { OfflineRuntime, offlineView } from './src/offline.ts';",
+    "export * as carrierProjection from './src/store/projection.ts';",
+    "export * as receiptProtocol from './src/offline-protocol.ts';"
+  ],
+  "minified": 227321,
+  "gzip": 74243,
+  "sha256": "e544b74403cd50cd99159a1bcf371b8d8709e2d886013afee788123454b64534",
+  "ceiling": 66000,
+  "target": 64000,
+  "sources": {
+    "snapback2/packages/evaluator/src/hash.ts": {
+      "sha256": "470e2f7973cc86a35be29e9ba901f3c86f759e6e65796051f188cb3a68a75214",
+      "bytes": 4328,
+      "copy": "/home/ccheever/clique-tooling/search-twin-option1-36fea-candidate2-20260907T0500Z/final-measured-sources/snapback2/packages/evaluator/src/hash.ts"
+    },
+    "snapback2/packages/evaluator/src/errors.ts": {
+      "sha256": "a2dc2e8ef8522ad82af1740c6f8656dc6b05418454226b50571630e777fe0795",
+      "bytes": 759,
+      "copy": "/home/ccheever/clique-tooling/search-twin-option1-36fea-candidate2-20260907T0500Z/final-measured-sources/snapback2/packages/evaluator/src/errors.ts"
+    },
+    "snapback2/packages/evaluator/src/certificate-identity.ts": {
+      "sha256": "f80407e5c2e289c24ac09fde2e0252c015e543c6722d33d995f178e3531a5eb0",
+      "bytes": 18228,
+      "copy": "/home/ccheever/clique-tooling/search-twin-option1-36fea-candidate2-20260907T0500Z/final-measured-sources/snapback2/packages/evaluator/src/certificate-identity.ts"
+    },
+    "snapback2/packages/evaluator/src/ordered.ts": {
+      "sha256": "e34f3707c6404e75ebbf02fbeb47827c4e4f576c12d463325f69a30d6b2a7b55",
+      "bytes": 4007,
+      "copy": "/home/ccheever/clique-tooling/search-twin-option1-36fea-candidate2-20260907T0500Z/final-measured-sources/snapback2/packages/evaluator/src/ordered.ts"
+    },
+    "snapback2/packages/evaluator/src/slot-tree.ts": {
+      "sha256": "b2fcfaafb0f456bdc024cb4d0b1ac3c3907c749ebfa311d831fdb2ca00aa6aca",
+      "bytes": 3176,
+      "copy": "/home/ccheever/clique-tooling/search-twin-option1-36fea-candidate2-20260907T0500Z/final-measured-sources/snapback2/packages/evaluator/src/slot-tree.ts"
+    },
+    "snapback2/packages/evaluator/src/posting-tree.ts": {
+      "sha256": "82d08ebc5c086989885531de903fea689309391b213f8e3592a550f8383a3cab",
+      "bytes": 2128,
+      "copy": "/home/ccheever/clique-tooling/search-twin-option1-36fea-candidate2-20260907T0500Z/final-measured-sources/snapback2/packages/evaluator/src/posting-tree.ts"
+    },
+    "snapback2/packages/evaluator/src/prefix-dictionary.ts": {
+      "sha256": "f2872a6a6055d2836686f711c735b7b3de79dda38e2b98cf09132a9788a7242c",
+      "bytes": 2007,
+      "copy": "/home/ccheever/clique-tooling/search-twin-option1-36fea-candidate2-20260907T0500Z/final-measured-sources/snapback2/packages/evaluator/src/prefix-dictionary.ts"
+    },
+    "snapback2/crates/snapback2-core/ir-contract.json": {
+      "sha256": "d09c63f52622b9b8fb2762b94b17b4e2c8882e9feecf0737d24470ec2bde0252",
+      "bytes": 148,
+      "copy": "/home/ccheever/clique-tooling/search-twin-option1-36fea-candidate2-20260907T0500Z/final-measured-sources/snapback2/crates/snapback2-core/ir-contract.json"
+    },
+    "snapback2/packages/evaluator/src/cursor.ts": {
+      "sha256": "94f0efe7b7ff947c77294fdcc99f38f3493615d87e1c97c13bc3ee146aaa2b3f",
+      "bytes": 10419,
+      "copy": "/home/ccheever/clique-tooling/search-twin-option1-36fea-candidate2-20260907T0500Z/final-measured-sources/snapback2/packages/evaluator/src/cursor.ts"
+    },
+    "snapback2/packages/evaluator/dist/unicode-tables.ts": {
+      "sha256": "9eccdccd99e9b936a40dcbf8ae63c55d980086df1ae71f92019f9ab040f6a521",
+      "bytes": 17460,
+      "copy": "/home/ccheever/clique-tooling/search-twin-option1-36fea-candidate2-20260907T0500Z/final-measured-sources/snapback2/packages/evaluator/dist/unicode-tables.ts"
+    },
+    "snapback2/packages/evaluator/src/unicode-tables.ts": {
+      "sha256": "ab99f5f9a78ebe52ec3102525d51b6c9dd7c59cbd9f1b26932042982476b8412",
+      "bytes": 3128,
+      "copy": "/home/ccheever/clique-tooling/search-twin-option1-36fea-candidate2-20260907T0500Z/final-measured-sources/snapback2/packages/evaluator/src/unicode-tables.ts"
+    },
+    "snapback2/packages/evaluator/src/unicode.ts": {
+      "sha256": "b2c6a188d9e74646674383473e9c56eb9720a76b68d9c1a2f93fb722fb85f370",
+      "bytes": 12302,
+      "copy": "/home/ccheever/clique-tooling/search-twin-option1-36fea-candidate2-20260907T0500Z/final-measured-sources/snapback2/packages/evaluator/src/unicode.ts"
+    },
+    "snapback2/packages/evaluator/src/value-runtime.ts": {
+      "sha256": "19199d26cfa25b9014c03509aa152d7ee81a275944ba93c8b723bff3753878f4",
+      "bytes": 23616,
+      "copy": "/home/ccheever/clique-tooling/search-twin-option1-36fea-candidate2-20260907T0500Z/final-measured-sources/snapback2/packages/evaluator/src/value-runtime.ts"
+    },
+    "snapback2/packages/evaluator/src/search-key.ts": {
+      "sha256": "347cd64b12798d7b46d120d56f142a912ca810f33e2bd0ce6673861bd032e871",
+      "bytes": 6040,
+      "copy": "/home/ccheever/clique-tooling/search-twin-option1-36fea-candidate2-20260907T0500Z/final-measured-sources/snapback2/packages/evaluator/src/search-key.ts"
+    },
+    "snapback2/packages/evaluator/src/index-store.ts": {
+      "sha256": "38e3987fbbee007236377ff9e8e657d20d4c4b7beee4e1a2228709b5b46437f8",
+      "bytes": 13994,
+      "copy": "/home/ccheever/clique-tooling/search-twin-option1-36fea-candidate2-20260907T0500Z/final-measured-sources/snapback2/packages/evaluator/src/index-store.ts"
+    },
+    "snapback2/packages/evaluator/src/row-image.ts": {
+      "sha256": "80f020031317e3b4a7c7548908fbbebc20de288256d88658335fe810b358baf5",
+      "bytes": 5935,
+      "copy": "/home/ccheever/clique-tooling/search-twin-option1-36fea-candidate2-20260907T0500Z/final-measured-sources/snapback2/packages/evaluator/src/row-image.ts"
+    },
+    "snapback2/packages/snapback2/src/store/asset-policy.ts": {
+      "sha256": "b2651386a009d425db4871ee933158330a6ca6960909280227b0119999c7e656",
+      "bytes": 3153,
+      "copy": "/home/ccheever/clique-tooling/search-twin-option1-36fea-candidate2-20260907T0500Z/final-measured-sources/snapback2/packages/snapback2/src/store/asset-policy.ts"
+    },
+    "snapback2/packages/evaluator/src/search-runtime.ts": {
+      "sha256": "e8a5749614e0f233330da391514cb109f6bf5dda79b2688d03146e032d05e0df",
+      "bytes": 2607,
+      "copy": "/home/ccheever/clique-tooling/search-twin-option1-36fea-candidate2-20260907T0500Z/final-measured-sources/snapback2/packages/evaluator/src/search-runtime.ts"
+    },
+    "snapback2/packages/snapback2/src/local-cursor.ts": {
+      "sha256": "245f1fac9cbf8512967ebef1ddc482609284a533b09ef5a98502607375113165",
+      "bytes": 7000,
+      "copy": "/home/ccheever/clique-tooling/search-twin-option1-36fea-candidate2-20260907T0500Z/final-measured-sources/snapback2/packages/snapback2/src/local-cursor.ts"
+    },
+    "snapback2/packages/evaluator/src/merge.ts": {
+      "sha256": "a2363d11564f095e3fb705b0fd34e029f5d470162aa01e161ac65e87ba4cdecf",
+      "bytes": 2324,
+      "copy": "/home/ccheever/clique-tooling/search-twin-option1-36fea-candidate2-20260907T0500Z/final-measured-sources/snapback2/packages/evaluator/src/merge.ts"
+    },
+    "snapback2/packages/evaluator/src/text.ts": {
+      "sha256": "c48d2672ce08544ab55b894ec29c1f63e01ea868e6e78552f99879e77796d152",
+      "bytes": 755,
+      "copy": "/home/ccheever/clique-tooling/search-twin-option1-36fea-candidate2-20260907T0500Z/final-measured-sources/snapback2/packages/evaluator/src/text.ts"
+    },
+    "snapback2/packages/evaluator/src/runner.ts": {
+      "sha256": "b339c65f8794f47b0ad78603ed72ae01f696717ff693619d69f7b8ed3377dc34",
+      "bytes": 52822,
+      "copy": "/home/ccheever/clique-tooling/search-twin-option1-36fea-candidate2-20260907T0500Z/final-measured-sources/snapback2/packages/evaluator/src/runner.ts"
+    },
+    "snapback2/packages/snapback2/src/offline-schema.ts": {
+      "sha256": "a7ab61de526abb3948ea565258eef44bcbce0263d14fc2d485bf7604ca5d9111",
+      "bytes": 556,
+      "copy": "/home/ccheever/clique-tooling/search-twin-option1-36fea-candidate2-20260907T0500Z/final-measured-sources/snapback2/packages/snapback2/src/offline-schema.ts"
+    },
+    "snapback2/packages/snapback2/src/held-program.ts": {
+      "sha256": "cd5ffc54870809afc2c41a5901c3ff61f1f06e90d566e42f9089708e3f755665",
+      "bytes": 2578,
+      "copy": "/home/ccheever/clique-tooling/search-twin-option1-36fea-candidate2-20260907T0500Z/final-measured-sources/snapback2/packages/snapback2/src/held-program.ts"
+    },
+    "snapback2/packages/evaluator/src/held-directory.ts": {
+      "sha256": "aa7db5e9a0ee3131df6c3b1cc9e36a0a37fabfba7e410bed2810e15c3f762bd3",
+      "bytes": 4080,
+      "copy": "/home/ccheever/clique-tooling/search-twin-option1-36fea-candidate2-20260907T0500Z/final-measured-sources/snapback2/packages/evaluator/src/held-directory.ts"
+    },
+    "snapback2/packages/evaluator/src/coverage-spans.ts": {
+      "sha256": "4261606a117545f2dfab9f366a84468e8b24d22da1d9e3076f480eb1aad21a8f",
+      "bytes": 2023,
+      "copy": "/home/ccheever/clique-tooling/search-twin-option1-36fea-candidate2-20260907T0500Z/final-measured-sources/snapback2/packages/evaluator/src/coverage-spans.ts"
+    },
+    "snapback2/packages/evaluator/src/coverage.ts": {
+      "sha256": "9c6af76c23b37c39abf984824a850d8cb7b0cce5f52520163d87253039c63cee",
+      "bytes": 14778,
+      "copy": "/home/ccheever/clique-tooling/search-twin-option1-36fea-candidate2-20260907T0500Z/final-measured-sources/snapback2/packages/evaluator/src/coverage.ts"
+    },
+    "snapback2/packages/evaluator/src/store.ts": {
+      "sha256": "dc333f16403520cf07b83e1bed79d2c60dd9681fd81cf337e612134a7c9cbb86",
+      "bytes": 15262,
+      "copy": "/home/ccheever/clique-tooling/search-twin-option1-36fea-candidate2-20260907T0500Z/final-measured-sources/snapback2/packages/evaluator/src/store.ts"
+    },
+    "snapback2/packages/snapback2/src/store/row-values.ts": {
+      "sha256": "54fce7162e6b044dda4e05e28a838a2ac6fc9e7e2fc65f41e06529dec3fc5be9",
+      "bytes": 2356,
+      "copy": "/home/ccheever/clique-tooling/search-twin-option1-36fea-candidate2-20260907T0500Z/final-measured-sources/snapback2/packages/snapback2/src/store/row-values.ts"
+    },
+    "snapback2/packages/snapback2/src/offline-protocol.ts": {
+      "sha256": "4d96621a3a58ce0c47c5210f0aa118b5eb8848be446b471cb81b0d87eba482cc",
+      "bytes": 30018,
+      "copy": "/home/ccheever/clique-tooling/search-twin-option1-36fea-candidate2-20260907T0500Z/final-measured-sources/snapback2/packages/snapback2/src/offline-protocol.ts"
+    },
+    "snapback2/packages/snapback2/src/twin-store.ts": {
+      "sha256": "abb5ae5e24234311358582c2158c3e7dad63a67d81e372f886b25f350879b9e2",
+      "bytes": 14443,
+      "copy": "/home/ccheever/clique-tooling/search-twin-option1-36fea-candidate2-20260907T0500Z/final-measured-sources/snapback2/packages/snapback2/src/twin-store.ts"
+    },
+    "snapback2/packages/snapback2/src/store/outbox.ts": {
+      "sha256": "835417fd8b915241abc651187fb66680d26d263c9f61f871b4c60b4ba6dc3e81",
+      "bytes": 16931,
+      "copy": "/home/ccheever/clique-tooling/search-twin-option1-36fea-candidate2-20260907T0500Z/final-measured-sources/snapback2/packages/snapback2/src/store/outbox.ts"
+    },
+    "snapback2/packages/snapback2/src/twin-hydrate.ts": {
+      "sha256": "4b0f4fd621fe9adffd94e1463be859033b0cb37873820630bbf1d1deb5acf055",
+      "bytes": 3187,
+      "copy": "/home/ccheever/clique-tooling/search-twin-option1-36fea-candidate2-20260907T0500Z/final-measured-sources/snapback2/packages/snapback2/src/twin-hydrate.ts"
+    },
+    "snapback2/packages/snapback2/src/twin.ts": {
+      "sha256": "2b75b19950c7d38af0bba7fed55f25fff5eccf693b4ffa787fcb78f6fca29342",
+      "bytes": 13919,
+      "copy": "/home/ccheever/clique-tooling/search-twin-option1-36fea-candidate2-20260907T0500Z/final-measured-sources/snapback2/packages/snapback2/src/twin.ts"
+    },
+    "snapback2/packages/snapback2/src/store/canonical.ts": {
+      "sha256": "cdcfcbfb6190a4cef74725ca4ed5db29eddf9fad1039b066462e6498a1a0e03b",
+      "bytes": 171,
+      "copy": "/home/ccheever/clique-tooling/search-twin-option1-36fea-candidate2-20260907T0500Z/final-measured-sources/snapback2/packages/snapback2/src/store/canonical.ts"
+    },
+    "snapback2/packages/snapback2/src/types.ts": {
+      "sha256": "d32085b58a952dd284e96778ad7bae188e25da73f560ee1e6512e294ff31459a",
+      "bytes": 20408,
+      "copy": "/home/ccheever/clique-tooling/search-twin-option1-36fea-candidate2-20260907T0500Z/final-measured-sources/snapback2/packages/snapback2/src/types.ts"
+    },
+    "snapback2/packages/snapback2/src/store/extent-facts.ts": {
+      "sha256": "8c3ce9e6769f145804f0aaa7faa683151dd6ac5f9e7ba4b07e354533447ec190",
+      "bytes": 3405,
+      "copy": "/home/ccheever/clique-tooling/search-twin-option1-36fea-candidate2-20260907T0500Z/final-measured-sources/snapback2/packages/snapback2/src/store/extent-facts.ts"
+    },
+    "snapback2/packages/snapback2/src/store/extent-index.ts": {
+      "sha256": "07d00755e4809da6def9fc3d5be41021cf1f56dd94ba000159052237577072db",
+      "bytes": 5801,
+      "copy": "/home/ccheever/clique-tooling/search-twin-option1-36fea-candidate2-20260907T0500Z/final-measured-sources/snapback2/packages/snapback2/src/store/extent-index.ts"
+    },
+    "snapback2/packages/snapback2/src/store/fact-integrity.ts": {
+      "sha256": "9376fedbcbe7e7b29c3097e426ae968736eb4f7bbe8568df9bbd0dbfea2c39cf",
+      "bytes": 15367,
+      "copy": "/home/ccheever/clique-tooling/search-twin-option1-36fea-candidate2-20260907T0500Z/final-measured-sources/snapback2/packages/snapback2/src/store/fact-integrity.ts"
+    },
+    "snapback2/packages/snapback2/src/store/fact-index.ts": {
+      "sha256": "dcdc0771fde6d3d4c3c067acc09e76a923009dd830a816d89de9d92f2efb2a5e",
+      "bytes": 3834,
+      "copy": "/home/ccheever/clique-tooling/search-twin-option1-36fea-candidate2-20260907T0500Z/final-measured-sources/snapback2/packages/snapback2/src/store/fact-index.ts"
+    },
+    "snapback2/packages/snapback2/src/store/carrier-index.ts": {
+      "sha256": "3f304667690e4ef8310daac58d67b580887f97e07e6c23634115a6c006cd3eb5",
+      "bytes": 12867,
+      "copy": "/home/ccheever/clique-tooling/search-twin-option1-36fea-candidate2-20260907T0500Z/final-measured-sources/snapback2/packages/snapback2/src/store/carrier-index.ts"
+    },
+    "snapback2/packages/snapback2/src/store/swap-journal.ts": {
+      "sha256": "ec5393b94691ce1917b09b9c41c9e438ac439c1cf531d3bf8b2f9db94cd02bcd",
+      "bytes": 7093,
+      "copy": "/home/ccheever/clique-tooling/search-twin-option1-36fea-candidate2-20260907T0500Z/final-measured-sources/snapback2/packages/snapback2/src/store/swap-journal.ts"
+    },
+    "snapback2/packages/snapback2/src/store/byte-cache.ts": {
+      "sha256": "9ac35d2a5cce31edb79cca7f4da361afe670d04f6c0ee502f36b315783f682ca",
+      "bytes": 19669,
+      "copy": "/home/ccheever/clique-tooling/search-twin-option1-36fea-candidate2-20260907T0500Z/final-measured-sources/snapback2/packages/snapback2/src/store/byte-cache.ts"
+    },
+    "snapback2/packages/snapback2/src/store/overlay-retirement.ts": {
+      "sha256": "43fb0ab507b2299d4bc91be9d32cbb0f9ed4ee448c9de611c57675beece68b13",
+      "bytes": 3977,
+      "copy": "/home/ccheever/clique-tooling/search-twin-option1-36fea-candidate2-20260907T0500Z/final-measured-sources/snapback2/packages/snapback2/src/store/overlay-retirement.ts"
+    },
+    "snapback2/packages/snapback2/src/store/range-store.ts": {
+      "sha256": "ba52edcb9e9cfa89b9a4982163fc7638724afd942790e63fe87b97e106d07d54",
+      "bytes": 75034,
+      "copy": "/home/ccheever/clique-tooling/search-twin-option1-36fea-candidate2-20260907T0500Z/final-measured-sources/snapback2/packages/snapback2/src/store/range-store.ts"
+    },
+    "snapback2/packages/snapback2/src/client-wire.ts": {
+      "sha256": "7fd567440aaa4b88f9cb97fc2e3602fea801667fac6e998a243235e318bad2c9",
+      "bytes": 15027,
+      "copy": "/home/ccheever/clique-tooling/search-twin-option1-36fea-candidate2-20260907T0500Z/final-measured-sources/snapback2/packages/snapback2/src/client-wire.ts"
+    },
+    "snapback2/packages/snapback2/src/offline.ts": {
+      "sha256": "56521bfe3ea150a378690cb64a2737b64dd87e47f8e41a19e1555c7073ecffc6",
+      "bytes": 42197,
+      "copy": "/home/ccheever/clique-tooling/search-twin-option1-36fea-candidate2-20260907T0500Z/final-measured-sources/snapback2/packages/snapback2/src/offline.ts"
+    },
+    "snapback2/packages/snapback2/src/store/metadata.ts": {
+      "sha256": "a126e078aa672eae5287d42f001b5b15152fb6eb606d4486e274aad8b93bdafd",
+      "bytes": 1892,
+      "copy": "/home/ccheever/clique-tooling/search-twin-option1-36fea-candidate2-20260907T0500Z/final-measured-sources/snapback2/packages/snapback2/src/store/metadata.ts"
+    },
+    "snapback2/packages/snapback2/src/store/projection.ts": {
+      "sha256": "d4c5797e280edef15b95c151c750ea164e55e14e788055d88c8d269ec15be4c8",
+      "bytes": 5785,
+      "copy": "/home/ccheever/clique-tooling/search-twin-option1-36fea-candidate2-20260907T0500Z/final-measured-sources/snapback2/packages/snapback2/src/store/projection.ts"
+    }
+  },
+  "attribution": [
+    {
+      "path": "src/store/range-store.ts",
+      "bytes": 27140
+    },
+    {
+      "path": "../evaluator/src/runner.ts",
+      "bytes": 25444
+    },
+    {
+      "path": "../evaluator/dist/unicode-tables.ts",
+      "bytes": 17186
+    },
+    {
+      "path": "src/offline.ts",
+      "bytes": 16370
+    },
+    {
+      "path": "src/offline-protocol.ts",
+      "bytes": 12742
+    },
+    {
+      "path": "../evaluator/src/value-runtime.ts",
+      "bytes": 10837
+    },
+    {
+      "path": "../evaluator/src/certificate-identity.ts",
+      "bytes": 8986
+    },
+    {
+      "path": "../evaluator/src/store.ts",
+      "bytes": 7633
+    },
+    {
+      "path": "src/twin-store.ts",
+      "bytes": 7384
+    },
+    {
+      "path": "src/store/fact-integrity.ts",
+      "bytes": 7150
+    },
+    {
+      "path": "src/store/byte-cache.ts",
+      "bytes": 6960
+    },
+    {
+      "path": "../evaluator/src/index-store.ts",
+      "bytes": 6862
+    },
+    {
+      "path": "../evaluator/src/coverage.ts",
+      "bytes": 6613
+    },
+    {
+      "path": "src/store/carrier-index.ts",
+      "bytes": 6265
+    },
+    {
+      "path": "src/store/outbox.ts",
+      "bytes": 6199
+    },
+    {
+      "path": "../evaluator/src/cursor.ts",
+      "bytes": 5551
+    },
+    {
+      "path": "../evaluator/src/unicode.ts",
+      "bytes": 4985
+    },
+    {
+      "path": "src/twin.ts",
+      "bytes": 4584
+    },
+    {
+      "path": "src/store/swap-journal.ts",
+      "bytes": 2983
+    },
+    {
+      "path": "src/local-cursor.ts",
+      "bytes": 2882
+    },
+    {
+      "path": "src/store/extent-index.ts",
+      "bytes": 2422
+    },
+    {
+      "path": "../evaluator/src/hash.ts",
+      "bytes": 2178
+    },
+    {
+      "path": "src/store/projection.ts",
+      "bytes": 2172
+    },
+    {
+      "path": "../evaluator/src/row-image.ts",
+      "bytes": 2098
+    },
+    {
+      "path": "../evaluator/src/held-directory.ts",
+      "bytes": 1769
+    },
+    {
+      "path": "src/store/fact-index.ts",
+      "bytes": 1761
+    },
+    {
+      "path": "../evaluator/src/slot-tree.ts",
+      "bytes": 1704
+    },
+    {
+      "path": "../evaluator/src/ordered.ts",
+      "bytes": 1606
+    },
+    {
+      "path": "src/types.ts",
+      "bytes": 1340
+    },
+    {
+      "path": "../evaluator/src/unicode-tables.ts",
+      "bytes": 1339
+    },
+    {
+      "path": "src/store/asset-policy.ts",
+      "bytes": 1324
+    },
+    {
+      "path": "../evaluator/src/search-key.ts",
+      "bytes": 1224
+    },
+    {
+      "path": "src/store/overlay-retirement.ts",
+      "bytes": 1218
+    },
+    {
+      "path": "src/store/extent-facts.ts",
+      "bytes": 1055
+    },
+    {
+      "path": "../evaluator/src/search-runtime.ts",
+      "bytes": 1009
+    },
+    {
+      "path": "src/twin-hydrate.ts",
+      "bytes": 1009
+    },
+    {
+      "path": "src/store/row-values.ts",
+      "bytes": 940
+    },
+    {
+      "path": "src/held-program.ts",
+      "bytes": 932
+    },
+    {
+      "path": "../evaluator/src/prefix-dictionary.ts",
+      "bytes": 861
+    },
+    {
+      "path": "../evaluator/src/posting-tree.ts",
+      "bytes": 842
+    },
+    {
+      "path": "../evaluator/src/coverage-spans.ts",
+      "bytes": 828
+    },
+    {
+      "path": "../evaluator/src/merge.ts",
+      "bytes": 793
+    },
+    {
+      "path": "src/store/metadata.ts",
+      "bytes": 697
+    },
+    {
+      "path": "src/client-wire.ts",
+      "bytes": 491
+    },
+    {
+      "path": "../evaluator/src/text.ts",
+      "bytes": 269
+    },
+    {
+      "path": "../evaluator/src/errors.ts",
+      "bytes": 205
+    },
+    {
+      "path": "../../crates/snapback2-core/ir-contract.json",
+      "bytes": 135
+    },
+    {
+      "path": "src/offline-schema.ts",
+      "bytes": 31
+    },
+    {
+      "path": "<stdin>",
+      "bytes": 0
+    },
+    {
+      "path": "src/store/canonical.ts",
+      "bytes": 0
+    }
+  ]
+}

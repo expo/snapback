@@ -1,0 +1,11 @@
+{
+  "nativeAttribution": "actual native26c9 initial frame; synthetic equal-body seq/readTime successor through checked admission",
+  "initialShared": true,
+  "afterShared": false,
+  "currentChanged": true,
+  "effectiveUnchanged": true,
+  "canonicalEqual": true,
+  "keysShared": true,
+  "rows": 11,
+  "factSlots": 106
+}

@@ -1,0 +1,16 @@
+import {readFileSync,writeFileSync} from 'node:fs';
+import{pathToFileURL}from'node:url';
+const root=process.argv[2],out=process.argv[3];
+const {OfflineRuntime,PersistentRangeStore}=await import(pathToFileURL(root+'/snapback2/packages/snapback2/dist/sqlite-test.mjs'));
+const {RowImage,imageCanonical}=await import(pathToFileURL(root+'/snapback2/packages/snapback2/dist/image-runtime.mjs'));
+const {nativeR8:{halo}}=JSON.parse(readFileSync(root+'/snapback2/packages/evaluator/src/test-search-v5-fixtures.json','utf8'));
+let saved;const factory=()=>new PersistentRangeStore({carrier:'json',open:async()=>saved,replace:async s=>{saved=JSON.parse(JSON.stringify(s));},close(){},wipe:async()=>{}});
+const runtime=new OfflineRuntime({store:factory});await runtime.open(halo.first.authority.principal,true);await runtime.program(halo.program);
+const commit=async frame=>runtime.commit('clock.fixed',{},await runtime.accept('clock.fixed',{},frame));
+await commit(halo.first);let held=(await runtime.twin.hydrate()).store;
+const key=Object.keys(runtime.store.state.rows)[0],before=runtime.store.state.rows[key],body=held.byId(before.table,before.id);
+const frame=structuredClone(halo.first);frame.seq++;frame.readTime++;frame.validator='e'.repeat(64);frame.data.now=frame.readTime;
+await commit(frame);held=(await runtime.twin.hydrate()).store;
+const current=runtime.store.state.rows[key].row,effective=held.byId(before.table,before.id);
+const result={nativeAttribution:'actual native26c9 initial frame; synthetic equal-body seq/readTime successor through checked admission',initialShared:before.row===body,afterShared:current===effective,currentChanged:current!==before.row,effectiveUnchanged:effective===body,canonicalEqual:imageCanonical(current)===imageCanonical(effective),keysShared:RowImage.keys(current)===RowImage.keys(effective),rows:Object.keys(saved.rows).length,factSlots:saved.factSlots};
+await runtime.close();writeFileSync(out,JSON.stringify(result,null,2)+'\n');console.log(JSON.stringify(result));

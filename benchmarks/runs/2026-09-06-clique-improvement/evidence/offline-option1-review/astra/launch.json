@@ -1,0 +1,33 @@
+{
+  "family": "astra",
+  "requestedModel": "gpt-6-astra",
+  "requestedEffort": "xhigh",
+  "argv": [
+    "/Users/ccheever/.volta/tools/image/packages/@openai/codex/lib/node_modules/@openai/codex/node_modules/@openai/codex-darwin-arm64/vendor/aarch64-apple-darwin/bin/codex",
+    "exec",
+    "--dangerously-bypass-approvals-and-sandbox",
+    "--skip-git-repo-check",
+    "--color",
+    "never",
+    "--json",
+    "-m",
+    "gpt-6-astra",
+    "-c",
+    "model_reasoning_effort=\"xhigh\"",
+    "-C",
+    "/Users/ccheever/clique-improvement/reviews/search-twin-option1-r1/astra",
+    "-o",
+    "/Users/ccheever/clique-improvement/reviews/search-twin-option1-r1/astra/final-answer.md",
+    "-"
+  ],
+  "commit": "fca223284a3a20cc9aa557ff75e87259d9d94337",
+  "directBase": "36feaacc9c5bf2ccede2623653252e67c0152f26",
+  "cumulativeBase": "e1c6e2b79a9e13ceb363f647f52807218aa2b57a",
+  "packetManifestSha256": "59a600fe535fd21e095276f5b29fd2c41cab5f804805bd30298b76d89541309e",
+  "promptSha256": "e5968b334ba7b24ecfee397df7705fb1dfb374a697cc03324e84193a04cc13b8",
+  "nativeCli": true,
+  "priorReviewsProvided": false,
+  "pid": 89928,
+  "startedEpoch": 1788758910.320889,
+  "startedUtc": "2026-09-07T05:28:30.325182+00:00"
+}

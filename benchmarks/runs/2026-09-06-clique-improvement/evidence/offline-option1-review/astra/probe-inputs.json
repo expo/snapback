@@ -1,0 +1,24 @@
+[
+  {
+    "path": "probe-runtime/snapback2/packages/snapback2/dist/sqlite-test.mjs",
+    "bytes": 389928,
+    "sha256": "98a47e622a9dc9a1db4f874a6e92a8a0fa1b186a83786124fc73fec52371e567"
+  },
+  {
+    "path": "probe-runtime/snapback2/packages/snapback2/dist/image-runtime.mjs",
+    "bytes": 46034,
+    "sha256": "4692cf55bf1e52d4594e68593fd00fe2c7ecea92d42ba2003c2079f12769f7a8"
+  },
+  {
+    "path": "probe-runtime/snapback2/packages/evaluator/src/test-search-v5-fixtures.json",
+    "copiedFrom": "../packet/source/snapback2/packages/evaluator/src/test-search-v5-fixtures.json",
+    "bytes": 69989,
+    "sha256": "e43fbff9ff92e1968a3769b16b0c822700256cdedac9728d0545e45bee05b4a2"
+  },
+  {
+    "path": "equal-image-probe.mjs",
+    "copiedFrom": "../packet/evidence/equal-image-witness/probe.mjs",
+    "bytes": 2007,
+    "sha256": "a411cf68998089afd73cb07fb4306b6cacb7813a43b4660f55c69426f62aec2a"
+  }
+]

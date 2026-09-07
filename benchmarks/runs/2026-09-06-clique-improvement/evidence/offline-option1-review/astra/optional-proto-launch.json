@@ -1,0 +1,19 @@
+{
+  "command": [
+    "/Users/ccheever/.volta/tools/image/node/22.23.2/bin/node",
+    "/Users/ccheever/clique-improvement/reviews/search-twin-option1-r1/astra/optional-proto-probe.mjs",
+    "/Users/ccheever/clique-improvement/reviews/search-twin-option1-r1/astra/probe-runtime",
+    "/Users/ccheever/clique-improvement/reviews/search-twin-option1-r1/astra/optional-proto-result.json"
+  ],
+  "startUtc": "2026-09-07T05:36:19.055214+00:00",
+  "endUtc": "2026-09-07T05:36:19.221790+00:00",
+  "elapsedSeconds": 0.165918375,
+  "deadlineSeconds": 15,
+  "deadlineType": "new bounded diagnostic outer limit; no product test limit altered",
+  "nodeSha256": "18e387c90ab8a8400183e8bdd396376e1e875b91b4c874b894dcade7b35bf572",
+  "scriptSha256": "d8eb7a81ab0327a3ba7b7a6a86e287e2cec346abe766cf713f72b9bd647f9e4d",
+  "exit": 0,
+  "stdout": "{\"attribution\":\"synthetic schema adding one optional ordinary indexed __proto__ column to the native fixture schema; direct public PersistentRangeStore boundary, no native emission or certification claim\",\"rowCount\":1,\"inputMissingOwnProto\":true,\"evaluatorAdmitted\":true,\"exactSparseRoundtrip\":true,\"rawError\":{\"name\":\"DeliveryEnvelopeDecodeError\",\"message\":\"events.__proto__: expected text string\"},\"refusedBeforePersistence\":true,\"sparsePersisted\":true,\"coldAnswerError\":{\"name\":\"DeliveryEnvelopeDecodeError\",\"message\":\"events.__proto__: expected text string\"}}\n",
+  "stderr": "(node:93503) ExperimentalWarning: SQLite is an experimental feature and might change at any time\n(Use `node --trace-warnings ...` to show where the warning was created)\n",
+  "outputSha256": "4a32c0966d7091c0b5f4d749969cf6db0b2f1752178048a5def124ac5ec62921"
+}
