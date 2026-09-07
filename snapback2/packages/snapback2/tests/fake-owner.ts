@@ -24,7 +24,7 @@ const schema = {
     deliveries: {
       columns: {
         id: "Id", recipient: "Principal", conversationId: "Id", messageId: "Id",
-        kind: { Text: { max: 20 } }, at: "Time", message: { Ref: { table: "messages" } },
+        kind: { Text: { max: 20 } }, at: "Time",
       },
       indexes: {
         byId: { components: [{ Column: "id" }], unique: true },
@@ -56,39 +56,60 @@ const certificate = (ir: unknown, kind: string) => ({
 });
 const scanIr = (name: "deliveries.inbox" | "deliveries.thread", cursor: string) => {
   const thread = name === "deliveries.thread";
+  const row = "row";
+  const field = (name: string) => ({ Field: { base: { Variable: row }, name } });
   return {
     name, kind: "Query", args: {
       ...(thread ? { conversationId: "Id" } : {}), [cursor]: { Optional: "Cursor" },
     }, read_time_granularity_ms: null,
-    body: [{ Return: { Scan: {
-      site: `${name}.0`, table: "deliveries", index: thread ? "byRecipientConversationAt" : "byRecipientAt",
-      prefix: [{ Scalar: { Input: "Viewer" } }, ...(thread ? [{ Scalar: { Variable: "conversationId" } }] : [])],
-      order: thread ? "Desc" : "Asc", take: { Literal: 50 }, after: { Variable: cursor }, before: null,
-      range: null, opaque_cursor: true, merge_site: null, provenance: "Shape",
-    } } }],
+    body: [
+      { Const: { name: "page", value: { Scan: {
+        site: `${name}.0`, table: "deliveries", index: thread ? "byRecipientConversationAt" : "byRecipientAt",
+        prefix: [{ Scalar: { Input: "Viewer" } }, ...(thread ? [{ Scalar: { Variable: "conversationId" } }] : [])],
+        order: thread ? "Desc" : "Asc", take: { Literal: 50 }, after: { Variable: cursor }, before: null,
+        range: null, opaque_cursor: true, merge_site: null, provenance: thread ? "Shape" : "Viewer",
+      } } } },
+      { Const: { name: "rows", value: { Array: [] } } },
+      { For: { binding: row, domain: { DerivedArray: { value: { Variable: "page" }, max: 50, bound_source: "page static bound" } }, body: [
+        { Push: { target: "rows", value: { Object: {
+          at: field("at"), conversationId: field("conversationId"), id: field("id"), kind: field("kind"),
+          message: { Get: { site: `${name}.1`, table: "messages", index: "byId", key: [field("messageId")], provenance: "Shape" } },
+          messageId: field("messageId"), recipient: field("recipient"),
+        } } } },
+      ] } },
+      { Return: { Variable: "rows" } },
+    ],
   };
 };
 const queryCertificate = (ir: ReturnType<typeof scanIr>) => {
-  const scan = (ir.body[0] as any).Return.Scan;
+  const scan = (ir.body[0] as any).Const.value.Scan;
+  const inbox = ir.name === "deliveries.inbox";
   return {
     program: ir.name, plan_hash: digest(ir), schema_hash: schemaHash,
     tables: { deliveries: { retain: "until-revoked" }, messages: { retain: "until-revoked" } },
-    rule_hashes: { "deliveries.read": "d05b17be66d6c487d81a3e3fea9d62d71ee9bec111deaec128ebe86d93636b0f" },
+    rule_hashes: {
+      "deliveries.read": "f6ddd28fe7b2931a7192f7b58e6aaaf98366f6d1d525aefca5dcb682d3f35e53",
+      "messages.read": "f6ddd28fe7b2931a7192f7b58e6aaaf98366f6d1d525aefca5dcb682d3f35e53",
+    },
     evaluator_version: 'bounded-spike-rust-search-text-refinements-4', value_model_version: 'i53-codepoint-bytes-unicode-search-text-refinements-v5',
-    read_sites: [{ site: scan.site, table: "deliveries", index: scan.index, prefix_template: "Shape", take: 50,
-      max_calls: 1, rule_probes_per_candidate: 0, hoist: true, decided_true: true, complete: false }],
-    result_pages: { "0": { site: scan.site, table: "deliveries", index: scan.index, order: scan.order,
+    read_sites: [
+      { site: scan.site, table: "deliveries", index: scan.index, prefix_template: inbox ? "Viewer" : "Shape", take: 50,
+        max_calls: 1, rule_probes_per_candidate: 0, hoist: true, decided_true: true, complete: false },
+      { site: `${ir.name}.1`, table: "messages", index: "byId", prefix_template: "Shape", take: 1,
+        max_calls: 50, rule_probes_per_candidate: 0, hoist: false, complete: false },
+    ],
+    result_pages: { "3": { site: scan.site, table: "deliveries", index: scan.index, order: scan.order,
       suffix: [{ name: "at", kind: "Time" }, { name: "id", kind: "Id" }], merge: false } },
-    write_sites: [], maintained_amplification: 0, constraint_checks: [], max_examined: 52, max_index_entries: 52,
-    max_rule_probes: 0, max_steps: ir.name === "deliveries.inbox" ? 264 : 265, derived_steps: 0, derived_scratch_bytes: 0,
-    max_heap_bytes: ir.name === "deliveries.inbox" ? 8448 : 8480, max_output_bytes: 46712, max_closure_bytes: 46650,
+    write_sites: [], maintained_amplification: 0, constraint_checks: [], max_examined: 102, max_index_entries: 102,
+    max_rule_probes: 0, max_steps: inbox ? 1320 : 1321, derived_steps: 0, derived_scratch_bytes: 0,
+    max_heap_bytes: inbox ? 42240 : 42272, max_output_bytes: 866512, max_closure_bytes: 865900,
     completeness: "Page", prediction_sites: [], read_time_granularity_ms: null, halo_rows: 1,
-    indexes_required: [`deliveries.${scan.index}`], disclosures: [],
-    bound_product: `${scan.site} take 50 (+2 reserve) × 1 calls on deliveries = 52`,
+    indexes_required: [`deliveries.${scan.index}`, "messages.byId"], disclosures: [],
+    bound_product: `${scan.site} take 50 (+2 reserve) × 1 calls on deliveries = 52 + ${ir.name}.1 point read on messages × 50 calls (calls from page static bound 50) = 50`,
   };
 };
 const drainFrom = (certificate: ReturnType<typeof queryCertificate>, cursor: string) =>
-  certificate.result_pages["0"].order === "Asc" ? { cursor } : { reason: "descending" };
+  Object.values(certificate.result_pages)[0]!.order === "Asc" ? { cursor } : { reason: "descending" };
 const defaultInbox = queryCertificate(scanIr("deliveries.inbox", "c"));
 export const planHash = defaultInbox.plan_hash;
 
@@ -181,17 +202,17 @@ export function fakeOwner(options: FakeOwnerOptions = {}) {
         : b.at - a.at || (a.id < b.id ? 1 : -1));
     const deliveries = wanted.map((message) => ({
       id: `delivery-${message.id}`, recipient: "dev:alice", conversationId: message.conversationId,
-      messageId: message.id, kind: "message", at: message.at, message: ref("messages", message.id),
+      messageId: message.id, kind: "message", at: message.at,
     }));
     const rows = [
       ...deliveries.map((delivery) => ({ table: "deliveries", id: delivery.id, row: delivery })),
       ...wanted.map((message) => ({ table: "messages", id: message.id, row: { ...message } })),
     ];
-    const scan = (ir.body[0] as any).Return.Scan;
+    const scan = (ir.body[0] as any).Const.value.Scan;
     return {
       protocol: 1, generation, schemaHash, planHash: cert.plan_hash,
       authority: { principal: "dev:alice", authEpoch: 7 }, state: "complete",
-      data: deliveries.map((delivery) => ref("deliveries", delivery.id)),
+      data: deliveries.map((delivery) => ({ ...delivery, message: ref("messages", delivery.messageId) })),
       next: null, seq, rows,
       receipt: { ranges: [{
         site: scan.site, table: "deliveries", index: scan.index,
