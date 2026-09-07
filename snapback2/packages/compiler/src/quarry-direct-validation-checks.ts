@@ -161,6 +161,13 @@ query orderedList(left: [int] <=2, right: [int] <=2):
 
 query orderedAsset(left: image <=100, right: image <=100):
   return left < right
+
+query opaqueLength(value: json <=100):
+  return value.length
+
+fn decimal3(value: decimal 3) = value
+query wrongScale(value: decimal 2):
+  return decimal3(value)
 `;
     const prepared = prepare(schema, operations);
     for (const [name, text] of [
@@ -183,6 +190,14 @@ query orderedAsset(left: image <=100, right: image <=100):
       catch (error) { if (error instanceof QuarryError) failure = error; else throw error; }
       assert(failure?.diagnostic.code === "E_QUARRY_TYPE" && failure.message.includes(text),
         `${name} did not refuse with ${text}: ${failure?.diagnostic.code} ${failure?.message}`);
+    }
+
+    for (const [name, code] of [["opaqueLength", "E_OPAQUE"], ["wrongScale", "E_DECIMAL_SCALE"]] as const) {
+      let failure: QuarryError | undefined;
+      try { bindQuarryProgram(program(prepared, name), prepared.catalog, prepared.documents); }
+      catch (error) { if (error instanceof QuarryError) failure = error; else throw error; }
+      assert(failure?.diagnostic.code === code,
+        `${name} did not retain ${code}: ${failure?.diagnostic.code} ${failure?.message}`);
     }
 
     const fractionalRule = prepare(`table fractions:\n  value: int\n  read <- 1.5 = 1.5\n`, "query probe():\n  return null\n");

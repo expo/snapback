@@ -42,6 +42,14 @@ export function typeError(site: Site, message: string, rewrite: string): never {
   throw new QuarryError(site, message, "E_QUARRY_TYPE", rewrite);
 }
 
+export function decimalScale(site: Site, message: string, rewrite: string): never {
+  throw new QuarryError(site, message, "E_DECIMAL_SCALE", rewrite);
+}
+
+export function opaque(site: Site, message: string, rewrite: string): never {
+  throw new QuarryError(site, message, "E_OPAQUE", rewrite);
+}
+
 export function retention(site: Site, message: string): never {
   throw new QuarryError(
     site,
@@ -56,6 +64,8 @@ export function formatDiagnostic(item: QuarryDiagnostic): string {
 }
 
 function guideFor(code: QuarryCode): string {
+  if (code === "E_DECIMAL_SCALE") return "programs/types";
+  if (code === "E_OPAQUE") return "programs/refusals";
   if (code === "E_QUARRY_SYNTAX") return "quarry/grammar";
   if (code === "E_QUARRY_AMBIGUOUS") return "quarry/indexes";
   if (code === "E_QUARRY_UNSUPPORTED") return "quarry/refusals";
