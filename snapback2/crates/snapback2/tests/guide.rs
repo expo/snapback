@@ -457,7 +457,7 @@ fn offline_guide_page_respects_its_budget_and_its_codes_have_pages() {
         content.len()
     );
     assert!(
-        content.contains("E_OFFLINE_RESET: drop coverage, keep outbox, fetch program, re-resume."),
+        content.contains("fetch `/api/program`,\nre-resume."),
         "reset recovery must resume before replay"
     );
     assert!(!content.contains("cold-drain"));
