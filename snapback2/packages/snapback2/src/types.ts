@@ -357,6 +357,8 @@ export interface SnapbackClient {
     args: NoInfer<Args>,
     options?: { live?: false; drain?: boolean },
   ): ObservedQuery<Result>;
+  /** Diagnostic count of consumers attached to one shared observed-query identity. */
+  sharedConsumers<Args, Result>(ref: Op<Args, Result>, args: NoInfer<Args>, drain?: boolean): number;
   mutation<Args, Result>(ref: Op<Args, Result>, args: NoInfer<AssetInput<Args>>): Promise<MutationResult<Result>>;
   /** Resolve a forwarded mutation whose original call returned `admission-unknown`; never creates another request identity. */
   recoverMutation<Args, Result>(

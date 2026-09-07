@@ -217,6 +217,24 @@ test("the chat screens render the log, queue offline sends as pinned bubbles, se
     await act(async () => { await client.outbox.settled(); });
     await waitFor(async () => (await client.outbox.entries()).length === 0, "the settled outbox dismissal");
 
+    // A live drain tail is incremental, while its observed value is the whole
+    // held log. A post followed by a bodyless removal must not collapse the
+    // mounted inbox to only the tail event's conversation.
+    const transient = await client.mutation(api.deliveries.post, {
+      conversationId: "conversation-1", body: "removed after a live tail",
+    });
+    if (transient.state !== "committed") throw new Error(`transient post was ${transient.state}`);
+    await waitFor(() => document.querySelector(`li[data-message="${transient.data.id}"]`) !== null,
+      "the transient live row");
+    const afterTransient = client.observe(api.deliveries.inbox, { c: null }, { drain: true }).getSnapshot();
+    const removedTransient = await client.mutation(api.deliveries.unsend, { messageId: transient.data.id });
+    assert.equal(removedTransient.state, "committed");
+    await waitFor(() => document.querySelector(`li[data-message="${transient.data.id}"]`) === null,
+      "the transient row removal");
+    await waitFor(() => document.querySelectorAll("nav[aria-label=Inbox] li").length === 2,
+      `the complete inbox after removal: ${JSON.stringify({ afterTransient,
+        afterRemoval: client.observe(api.deliveries.inbox, { c: null }, { drain: true }).getSnapshot() })}`);
+
     // Search is the named indexed query, including its case-normalized prefix semantics.
     const search = document.querySelector<HTMLInputElement>("section[aria-label=Search] input")!;
     await type(search, "WEL");

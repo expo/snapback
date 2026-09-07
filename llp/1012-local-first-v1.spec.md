@@ -562,8 +562,10 @@ covered on any index of the table. `partial` reasons: `evicted` for a primary-ke
 of an evicted row or a range over a table one of whose held pages lost a member,
 `computed-key` for a Shape-provenance read, else `never-held`. A view is `hydrating`
 when no program is held for the coverage's generation or schema. A held row of a
-`retain delivered-history` table is readable to the twin, and a retained answer is
-served as held, never re-evaluated. The auth-epoch fence is the coverage facts' epoch
+`retain delivered-history` table is readable to the twin. A retained answer remains
+the fallback when a certified local rerun is denied, partial, or unavailable; a
+complete, capped, or held rerun over independently held facts may reconstruct a
+projection whose unproven literals were cleared by revocation. The auth-epoch fence is the coverage facts' epoch
 bound into the verdict lookup. The IndexedDB `ranges`/`absences`/`verdicts` projections
 were write-only and are deleted on upgrade; coverage derives from the held answers'
 receipts.

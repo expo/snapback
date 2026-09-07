@@ -948,15 +948,23 @@ export class OfflineRuntime {
 }
 
 /**
- * The offline view uses the twin's current local answer, except for explicitly
- * retained history; otherwise it uses the held answer or `hydrating`. A
- * held answer's facts (`seq`, `since`, the drain's watermark, `retained`) stay
- * with the twin's data: the stored answer is the covered case, not a second
+ * The offline view uses the twin's current local answer. For retained history,
+ * a complete/capped/held rerun can reconstruct conservatively purged literals;
+ * a denied, partial, or unavailable rerun falls back to the readable retained
+ * answer. Held owner facts (`seq`, the drain watermark and `caughtUp`) stay with
+ * reconstructed data: the stored answer is the covered case, not a second
  * mechanism (LLP 1012 §6).
  */
 export function offlineView<Result>(held: HeldAnswer<Result> | undefined, local?: LocalAnswer): any {
   const exactHeld = held !== undefined && (held.state === "complete" || held.state === "capped");
-  const useLocal = local !== undefined && !held?.retained;
+  // A retained projection may have had all unproven literal fields purged when
+  // one referenced row was revoked. Prefer a complete local rerun when the
+  // independently held facts can reconstruct the authored result. A denied or
+  // partial rerun still falls back to the retained delivery: hidden history is
+  // not made less readable by the current rule.
+  const reconstructed = local !== undefined
+    && (local.state === "complete" || local.state === "capped" || local.state === "held");
+  const useLocal = local !== undefined && (!held?.retained || reconstructed);
   if (!useLocal) {
     if (!held) return { state: "hydrating", live: false, connection: "offline" };
     const {
