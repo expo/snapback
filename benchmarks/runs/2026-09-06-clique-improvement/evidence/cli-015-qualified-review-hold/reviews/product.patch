@@ -1,0 +1,456 @@
+diff --git a/llp/1002-dev-loop.spec.md b/llp/1002-dev-loop.spec.md
+index 202b5e72a..65485dc11 100644
+--- a/llp/1002-dev-loop.spec.md
++++ b/llp/1002-dev-loop.spec.md
+@@ -5,7 +5,7 @@
+ **Systems:** `snapback2/crates/snapback2` (the binary: owner, server, verbs), `snapback2/packages/compiler` (project lowering, worker), `snapback2/packages/snapback2` (authoring runtime, client, React, test runner, shim), `snapback2/scripts/measure.mjs`
+ **Author:** Claude Fable 5 (orchestrator) — implementers: codex gpt-5.6-sol, lanes B0 (compiler + authoring surface), B1 (owner + server + verbs), B2 (`init`, `test`, `why`, `trace`, `guide`), D (client + React + evaluator)
+ **Date:** 2026-08-29
+-**Revised:** 2026-09-07 (startup cleanup fixture custody); 2026-09-06 (app guide operation/certificate custody; native logical SSE body; CLI help and executable migration recovery; auth startup recovery and held transition reads; queued transitions, interrupted sync, live held reads); 2026-09-05 (keyword index fallback and recipe list; generated Quarry keyword guide, landed outbox/client custody; auth review: failed-transition custody, read restoration barrier, session kind, paused offline retries; client-owned auth restoration and retry lifecycle; catalog naming rewrites, Clique L2; shared live transport, bounded derived verification, mutation-read guidance, installed consumer qualification)
++**Revised:** 2026-09-07 (explicit named-journey verification and executable React startup; startup cleanup fixture custody); 2026-09-06 (app guide operation/certificate custody; native logical SSE body; CLI help and executable migration recovery; auth startup recovery and held transition reads; queued transitions, interrupted sync, live held reads); 2026-09-05 (keyword index fallback and recipe list; generated Quarry keyword guide, landed outbox/client custody; auth review: failed-transition custody, read restoration barrier, session kind, paused offline retries; client-owned auth restoration and retry lifecycle; catalog naming rewrites, Clique L2; shared live transport, bounded derived verification, mutation-read guidance, installed consumer qualification)
+ **Related:** LLP 1000, LLP 1001 (the engine this serves), LLP 1003 (effects),
+ LLP 0329.016 §5 (the design this implements verbatim where it can), LLP
+ 0329.016 §5.11 (the verb table — no verb exists without its row), LLP
+@@ -569,6 +569,15 @@ distinguish source validation from owner installation.
+ 
+ ## 7. `test` and the receipt
+ 
++**Focused verification (2026-09-07).** `test --journey "name"` executes only
++journeys registered under that exact name, including duplicate registrations
++across files. It skips derived checks, preserves backend compilation and
++certification plus per-journey process isolation and deadlines, and records
++`scope.journey` on success and failure receipts. A missing name fails with the
++available names; loading or compilation failures remain failures. It cannot
++combine with `--derived-only` or `--blocked`. This is explicit selection, not
++an automatic affected-coverage claim; plain `test` still proves the full suite.
++
+ `test` starts a fresh owner (`--foreground`, ephemeral port, store at
+ `.snapback/test-<ts>.sqlite`, deleted after), applies the seed, then runs
+ derived checks and journeys.
+@@ -939,6 +948,12 @@ no-op that consumes one id (LLP 1001 §8) and one corpus case proving it.
+ 
+ ## 10. `init`
+ 
++**React startup (2026-09-07).** The next command installs dependencies, starts
++or attaches to the owner, and passes its actual printed URL to Vite through
++`VITE_SNAPBACK_URL`. Both `init` output and `guide init` provide the executable
++shell sequence; project paths are quoted. The generic React starter displays
++`useConnection()` state rather than asserting that it is connected.
++
+ Idempotent: writes only files that do not exist, updates the managed block
+ in `AGENTS.md` (≤ 40 lines: the five verbs an agent needs, the grammar
+ pointer, three gotchas), adds `.snapback/` to `.gitignore`, adds
+diff --git a/snapback2/crates/snapback2/src/init.rs b/snapback2/crates/snapback2/src/init.rs
+index 9e89f72a5..3e7295674 100644
+--- a/snapback2/crates/snapback2/src/init.rs
++++ b/snapback2/crates/snapback2/src/init.rs
+@@ -12,6 +12,8 @@ use std::process::ExitCode;
+ #[cfg(unix)]
+ use std::os::unix::fs::OpenOptionsExt;
+ 
++pub(crate) const REACT_START: &str = r#"snapback_url=$(npx snapback2 dev) && VITE_SNAPBACK_URL="${snapback_url#SNAPBACK_URL=}" npm run dev"#;
++
+ const BLOCK_START: &str = "<!-- snapback2:start -->";
+ const BLOCK_END: &str = "<!-- snapback2:end -->";
+ fn agent_block() -> &'static str {
+@@ -20,6 +22,7 @@ fn agent_block() -> &'static str {
+ 
+ - `snapback2 check` compiles, certifies, and refreshes `.snapback/build/api.d.ts`.
+ - `snapback2 dev` starts or attaches to the one local owner and prints `SNAPBACK_URL`.
++- For React startup, run `snapback2 guide init`; pass the printed URL as `VITE_SNAPBACK_URL` to Vite.
+ - `snapback2 test` proves derived checks and authored journeys with a receipt.
+ - `snapback2 why <query> --as <persona>` explains rows, rules, and bounds.
+ - `snapback2 trace latest` follows commit → invalidation → delivery.
+@@ -70,13 +73,17 @@ pub fn run(args: &[String]) -> ExitCode {
+     if checked != ExitCode::SUCCESS {
+         return checked;
+     }
++    let quoted_root = format!("'{}'", root.to_string_lossy().replace('\'', "'\\''"));
++    let start = if client == Client::React {
++        REACT_START
++    } else {
++        "npx snapback2 dev"
++    };
++    let next = format!("cd {quoted_root} && npm install && {start}");
+     if json_output {
+-        println!(
+-            "{}",
+-            json!({ "ok": true, "project": root, "next": "snapback2 dev" })
+-        );
++        println!("{}", json!({ "ok": true, "project": root, "next": next }));
+     } else {
+-        println!("next: cd {} && snapback2 dev", root.display());
++        println!("next: {next}");
+     }
+     ExitCode::SUCCESS
+ }
+diff --git a/snapback2/crates/snapback2/src/receipt.rs b/snapback2/crates/snapback2/src/receipt.rs
+index 1415d8d6a..24eee4c40 100644
+--- a/snapback2/crates/snapback2/src/receipt.rs
++++ b/snapback2/crates/snapback2/src/receipt.rs
+@@ -68,6 +68,8 @@ pub struct TestReceipt {
+ #[serde(rename_all = "camelCase")]
+ pub struct ScopeReceipt {
+     pub changed: Vec<String>,
++    #[serde(default, skip_serializing_if = "Option::is_none")]
++    pub journey: Option<String>,
+ }
+ 
+ impl TestReceipt {
+diff --git a/snapback2/crates/snapback2/src/test.rs b/snapback2/crates/snapback2/src/test.rs
+index 1d3f38e05..0d9ab8461 100644
+--- a/snapback2/crates/snapback2/src/test.rs
++++ b/snapback2/crates/snapback2/src/test.rs
+@@ -51,7 +51,7 @@ pub fn run(args: &[String]) -> ExitCode {
+     }
+     let options = match verbs::parse_options(
+         args,
+-        &["--blocked", "--project"],
++        &["--blocked", "--project", "--journey"],
+         &["--journeys-only", "--derived-only", "--json"],
+     ) {
+         Ok(options) => options,
+@@ -66,11 +66,22 @@ pub fn run(args: &[String]) -> ExitCode {
+         Err(error) => return owner::print_refusal(error, json_output, 2),
+     };
+     let stamp = timestamp();
++    let selected_journey = options.value("--journey");
++    if selected_journey.is_some_and(|name| name.trim().is_empty())
++        || (selected_journey.is_some()
++            && (options.has("--derived-only") || options.value("--blocked").is_some()))
++    {
++        return usage();
++    }
++    let finish_selected = |root: &Path, stamp, mut receipt: TestReceipt, json_output| {
++        receipt.scope.journey = selected_journey.map(str::to_owned);
++        finish(root, stamp, receipt, json_output)
++    };
+     if let Some(reason) = options.value("--blocked") {
+         let receipt = TestReceipt::explicitly_blocked(reason);
+-        return finish(&root, stamp, receipt, json_output);
++        return finish_selected(&root, stamp, receipt, json_output);
+     }
+-    let journeys_only = options.has("--journeys-only");
++    let journeys_only = options.has("--journeys-only") || selected_journey.is_some();
+     let derived_only = options.has("--derived-only");
+     if journeys_only && derived_only {
+         return usage();
+@@ -88,7 +99,7 @@ pub fn run(args: &[String]) -> ExitCode {
+                     elapsed_ms(compile_started),
+                     json!({ "refusals": errors }),
+                 );
+-                return finish(
++                return finish_selected(
+                     &root,
+                     stamp,
+                     TestReceipt::new(
+@@ -110,7 +121,7 @@ pub fn run(args: &[String]) -> ExitCode {
+                 elapsed_ms(compile_started),
+                 json!({ "refusals": errors }),
+             );
+-            return finish(
++            return finish_selected(
+                 &root,
+                 stamp,
+                 TestReceipt::new(
+@@ -141,7 +152,7 @@ pub fn run(args: &[String]) -> ExitCode {
+                 0,
+                 serde_json::to_value(error).unwrap_or(Json::Null),
+             ));
+-            return finish(
++            return finish_selected(
+                 &root,
+                 stamp,
+                 TestReceipt::new(
+@@ -156,7 +167,9 @@ pub fn run(args: &[String]) -> ExitCode {
+     let commands = vec![
+         "snapback2 dev --foreground --port 0".to_owned(),
+         "seed".to_owned(),
+-        if journeys_only {
++        if let Some(name) = selected_journey {
++            format!("snapback2 test --journey '{}'", name.replace('\'', "'\\''"))
++        } else if journeys_only {
+             "snapback2 test --journeys-only".to_owned()
+         } else if derived_only {
+             "snapback2 test --derived-only".to_owned()
+@@ -176,7 +189,11 @@ pub fn run(args: &[String]) -> ExitCode {
+         }
+     }
+     if !derived_only {
+-        checks.extend(run_journeys(&isolated.info.project, &isolated.info));
++        checks.extend(run_journeys(
++            &isolated.info.project,
++            &isolated.info,
++            selected_journey,
++        ));
+     }
+     let mut receipt = TestReceipt::new(compiled.generation.hash(), commands, checks);
+     if !compiled.generation.schema().schedules.is_empty() {
+@@ -187,7 +204,7 @@ pub fn run(args: &[String]) -> ExitCode {
+         attach_schedule_receipt(&mut receipt, status);
+     }
+     isolated.stop();
+-    finish(&root, stamp, receipt, json_output)
++    finish_selected(&root, stamp, receipt, json_output)
+ }
+ 
+ fn compile(
+@@ -699,7 +716,7 @@ fn check_effects(owner: &OwnerInfo, compiled: &CompiledProject) -> Option<CheckR
+     }
+ }
+ 
+-fn run_journeys(root: &Path, owner: &OwnerInfo) -> Vec<CheckReceipt> {
++fn run_journeys(root: &Path, owner: &OwnerInfo, selected: Option<&str>) -> Vec<CheckReceipt> {
+     let files = match journey_files(root) {
+         Ok(files) => files,
+         Err(error) => {
+@@ -711,7 +728,7 @@ fn run_journeys(root: &Path, owner: &OwnerInfo) -> Vec<CheckReceipt> {
+             )];
+         }
+     };
+-    if files.is_empty() {
++    if files.is_empty() && selected.is_none() {
+         return Vec::new();
+     }
+     let runner = match runner_path() {
+@@ -726,6 +743,8 @@ fn run_journeys(root: &Path, owner: &OwnerInfo) -> Vec<CheckReceipt> {
+         }
+     };
+     let mut checks = Vec::new();
++    let mut available = Vec::new();
++    let mut matched = false;
+     for file in files {
+         let mut list = journey_command(&runner, owner);
+         list.arg("--list").arg("--").arg(&file);
+@@ -776,7 +795,12 @@ fn run_journeys(root: &Path, owner: &OwnerInfo) -> Vec<CheckReceipt> {
+             }
+             continue;
+         }
++        available.extend(names.iter().cloned());
+         for (index, name) in names.into_iter().enumerate() {
++            if selected.is_some_and(|selected| selected != name) {
++                continue;
++            }
++            matched = true;
+             let mut command = journey_command(&runner, owner);
+             command
+                 .arg("--journey-index")
+@@ -819,6 +843,18 @@ fn run_journeys(root: &Path, owner: &OwnerInfo) -> Vec<CheckReceipt> {
+             }
+         }
+     }
++    if let Some(requested) = selected
++        && !matched
++    {
++        checks.push(CheckReceipt::fail(
++            "journey selection",
++            "journey",
++            0,
++            json!({ "requested": requested, "available": available,
++                "error": "no journey has this exact name",
++                "rewrite": "use a listed journey name, or run snapback2 test for the full suite" }),
++        ));
++    }
+     checks
+ }
+ 
+@@ -1293,7 +1329,7 @@ fn elapsed_ms(started: Instant) -> u64 {
+ 
+ fn usage() -> ExitCode {
+     eprintln!(
+-        "usage: snapback2 test [--blocked reason] [--journeys-only] [--derived-only] [--json]"
++        "usage: snapback2 test [--blocked reason] [--journeys-only|--derived-only|--journey name] [--json]"
+     );
+     ExitCode::from(2)
+ }
+diff --git a/snapback2/crates/snapback2/src/verbs.rs b/snapback2/crates/snapback2/src/verbs.rs
+index 8761ac9fd..ff1aad367 100644
+--- a/snapback2/crates/snapback2/src/verbs.rs
++++ b/snapback2/crates/snapback2/src/verbs.rs
+@@ -41,9 +41,11 @@ Defaults: current directory, todos template, React client. Expo requires chat.
+   snapback2 init my-app --template chat --client react
+   cd my-app
+   npm install
+-  npx snapback2 dev
++  snapback_url=$(npx snapback2 dev) && VITE_SNAPBACK_URL=\"${snapback_url#SNAPBACK_URL=}\" npm run dev
+ 
+-dev prints SNAPBACK_URL. Start your client bundler separately.
++This starts or attaches to the owner, then starts Vite with its actual URL.
++For an already-running owner, set VITE_SNAPBACK_URL to its printed URL before
++npm run dev. The owner chooses a free port; do not assume port 3210.
+ Backends live in snapback/*.q; read snapback2 guide quarry next."
+         }
+         "dev" => {
+@@ -82,7 +84,7 @@ Execute through the owner. --plan inspects; --wait streams chunk receipts;
+ --dry-run rehearses on a discarded snapshot. Read snapback2 guide job."
+         }
+         "test" => {
+-            "usage: snapback2 test [--project dir] [--blocked reason] [--journeys-only|--derived-only] [--json]\n\nProve the project and write a receipt. Read snapback2 guide testing."
++            "usage: snapback2 test [--project dir] [--blocked reason] [--journeys-only|--derived-only|--journey name] [--json]\n\nProve the project and write a receipt. --journey selects an exact authored name,\nruns only its matching journeys, and records scope.journey. It does not infer\naffected coverage. Use plain test for the full suite. Read snapback2 guide testing."
+         }
+         "why" => {
+             "usage: snapback2 why <query> [args-json] --as <persona|system> [--project dir] [--json]\n\nExplain query rows, rules, and bounds through the owner."
+diff --git a/snapback2/crates/snapback2/tests/guide.rs b/snapback2/crates/snapback2/tests/guide.rs
+index 74b2a5e89..97499a25b 100644
+--- a/snapback2/crates/snapback2/tests/guide.rs
++++ b/snapback2/crates/snapback2/tests/guide.rs
+@@ -48,6 +48,7 @@ fn command_guides_explain_initialization_and_successor_recovery() {
+             "init",
+             "snapback2 init my-app --template chat --client react",
+         ),
++        ("init", "VITE_SNAPBACK_URL=\"${snapback_url#SNAPBACK_URL=}\" npm run dev"),
+         ("dev", "--apply-migration file"),
+         ("check", "does not install"),
+     ] {
+@@ -61,6 +62,9 @@ fn command_guides_explain_initialization_and_successor_recovery() {
+         assert_eq!(page["page"], command);
+         assert!(page["content"].as_str().unwrap().contains(needle), "{page}");
+     }
++    let output = project.run(&["test", "--help"]);
++    assert!(output.status.success());
++    assert!(String::from_utf8_lossy(&output.stdout).contains("--journey name"));
+     let output = project.run(&["guide", "E_SUCCESSOR_DESTRUCTIVE", "--json"]);
+     assert!(output.status.success());
+     let page = json_stdout(&output);
+diff --git a/snapback2/crates/snapback2/tests/test_verb.rs b/snapback2/crates/snapback2/tests/test_verb.rs
+index b978f18c2..3908e2331 100644
+--- a/snapback2/crates/snapback2/tests/test_verb.rs
++++ b/snapback2/crates/snapback2/tests/test_verb.rs
+@@ -1246,3 +1246,104 @@ fn isolated_owner_preserves_its_startup_refusal() {
+             .contains("missing-media-helper")
+     );
+ }
++
++#[test]
++fn named_journey_selection_is_exact_scoped_and_does_not_hide_full_suite_failures() {
++    let project = Project::new();
++    assert!(project.init("todos", "none").status.success());
++    fs::write(
++        project.path.join("snapback/tests/todos.test.ts"),
++        r#"
++import { journey } from "snapback2/test";
++journey("focused", async () => {});
++journey("focused extra", async () => { throw new Error("unselected failure"); });
++"#,
++    )
++    .unwrap();
++    fs::write(
++        project.path.join("snapback/tests/other.test.ts"),
++        r#"
++import { journey } from "snapback2/test";
++journey("focused", async () => {});
++"#,
++    )
++    .unwrap();
++    let selected = project.run(&["test", "--journey", "focused", "--json"]);
++    assert!(
++        selected.status.success(),
++        "{}",
++        String::from_utf8_lossy(&selected.stdout)
++    );
++    let receipt = json_stdout(&selected);
++    assert_eq!(receipt["scope"]["journey"], "focused");
++    assert_eq!(receipt["scope"]["changed"], serde_json::json!([]));
++    let checks = receipt["checks"].as_array().unwrap();
++    assert_eq!(
++        checks.len(),
++        2,
++        "all exact-name registrations must run: {receipt}"
++    );
++    assert!(
++        checks
++            .iter()
++            .all(|c| c["name"] == "focused" && c["kind"] == "journey" && c["verdict"] == "pass")
++    );
++    assert_eq!(project.latest_receipt(), receipt);
++
++    let missing = project.run(&["test", "--journey", "focus", "--json"]);
++    assert_eq!(missing.status.code(), Some(1));
++    let missing = json_stdout(&missing);
++    assert_eq!(missing["scope"]["journey"], "focus");
++    let refusal = check(&missing, "journey selection");
++    assert_eq!(refusal["verdict"], "fail");
++    assert!(
++        refusal["detail"]["available"]
++            .as_array()
++            .unwrap()
++            .contains(&serde_json::json!("focused"))
++    );
++
++    let full = project.run(&["test", "--json"]);
++    assert_eq!(full.status.code(), Some(1));
++    let full = json_stdout(&full);
++    assert!(full["scope"].get("journey").is_none());
++    assert_eq!(check(&full, "focused extra")["verdict"], "fail");
++    assert_eq!(check(&full, "certify")["verdict"], "pass");
++
++    // Selection must preserve a selected failing outcome too.
++    let failing = project.run(&["test", "--journey", "focused extra", "--json"]);
++    assert_eq!(failing.status.code(), Some(1));
++    assert_eq!(
++        check(&json_stdout(&failing), "focused extra")["verdict"],
++        "fail"
++    );
++}
++
++#[test]
++fn named_journey_selection_rejects_invalid_modes_and_preserves_compile_failures() {
++    let project = Project::new();
++    assert!(project.init("todos", "none").status.success());
++    for args in [
++        vec!["test", "--journey", ""],
++        vec!["test", "--journey", "todos round trip", "--derived-only"],
++        vec![
++            "test",
++            "--journey",
++            "todos round trip",
++            "--blocked",
++            "reason",
++        ],
++    ] {
++        assert_eq!(project.run(&args).status.code(), Some(2), "{args:?}");
++    }
++    fs::write(
++        project.path.join("snapback/todos.q"),
++        "query list():\n  return unknownName\n",
++    )
++    .unwrap();
++    let output = project.run(&["test", "--journey", "todos round trip", "--json"]);
++    assert_eq!(output.status.code(), Some(1));
++    let receipt = json_stdout(&output);
++    assert_eq!(receipt["scope"]["journey"], "todos round trip");
++    assert_eq!(check(&receipt, "certify")["verdict"], "fail");
++}
+diff --git a/snapback2/packages/snapback2/guide/testing.md b/snapback2/packages/snapback2/guide/testing.md
+index 3b85e6b21..508a33ebd 100644
+--- a/snapback2/packages/snapback2/guide/testing.md
++++ b/snapback2/packages/snapback2/guide/testing.md
+@@ -38,6 +38,15 @@ every journey through the headless wire client, removes the test store, and
+ writes `.snapback/receipts/<timestamp>.json`. Zero checks cannot pass. Use
+ `snapback2 test --blocked "reason"` for an honest blocked receipt.
+ 
++Run `snapback2 test --journey "todos round trip"` with an exact authored name.
++It executes every registration with
++that name, skips other journeys and derived checks, and records `scope.journey`
++in the receipt. An unknown name fails and lists available names. Compilation
++and certification still validate the backend; loading failures remain failures.
++Selection does not infer affected coverage. Run `snapback2 test` for the full suite. `--journey` cannot combine with
++`--derived-only` or `--blocked`; each selected journey retains its five-second
++host deadline and process isolation.
++
+ Projects with scoped memberships also run the canonical `live-revocation`,
+ `successor-policy-fence`, and `grant-incarnation-aba` authorization proofs.
+ They bind revocation delivery, active-generation policy, and immutable grant
+diff --git a/snapback2/packages/snapback2/templates/react/src/App.tsx b/snapback2/packages/snapback2/templates/react/src/App.tsx
+index 64492931a..3c158b100 100644
+--- a/snapback2/packages/snapback2/templates/react/src/App.tsx
++++ b/snapback2/packages/snapback2/templates/react/src/App.tsx
+@@ -1,5 +1,6 @@
+-import { DevOverlay } from "snapback2/react";
++import { DevOverlay, useConnection } from "snapback2/react";
+ 
+ export function App() {
+-  return <main><h1>Snapback 2</h1><p>The owner URL is connected.</p><DevOverlay /></main>;
++  const connection = useConnection();
++  return <main><h1>Snapback 2</h1><p>Backend connection: {connection}.</p><DevOverlay /></main>;
+ }

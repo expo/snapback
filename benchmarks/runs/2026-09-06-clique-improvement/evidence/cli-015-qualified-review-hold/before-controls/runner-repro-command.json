@@ -1,0 +1,7 @@
+{
+  "pid": 78297,
+  "exitCode": 1,
+  "stdout": "",
+  "stderr": "file:///Users/ccheever/clique-improvement/revisions/cli-dx-release-015-qualification/repair/reproduce-runner.mjs:19\nif(rows[0].exitCode!==0||rows[1].exitCode!==0||!rows[1].stdout.includes('\"name\":\"other\"')||rows[2].exitCode!==1)throw Error('counterexample not reproduced');\n                                                                                                                      ^\n\nError: counterexample not reproduced\n    at file:///Users/ccheever/clique-improvement/revisions/cli-dx-release-015-qualification/repair/reproduce-runner.mjs:19:119\n\nNode.js v22.23.2\n",
+  "boundSeconds": 15
+}

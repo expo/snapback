@@ -1,0 +1,25 @@
+{
+  "epoch": 1788773909.156645,
+  "remoteQualificationTerminal": "apartment-results/remote-run.json",
+  "sshTerminal": "receipts/qualification.json",
+  "recordedRemoteProcessesAbsent": 276,
+  "remoteSignals": 0,
+  "recordedDevOwners": [
+    {
+      "pid": 30732,
+      "port": 57481
+    },
+    {
+      "pid": 30879,
+      "port": 57524
+    }
+  ],
+  "ownedScratchRemoved": "receipts/finish-remote-custody.json",
+  "localPublicObservationCacheRemoved": true,
+  "allIssuedForegroundToolsCompleted": true,
+  "privateBuildCargoNpmToolsAndHermesCachesRetained": true,
+  "foreignProcessesSignaled": false,
+  "metricCustody": "apartment-results/metric-custody.json",
+  "sourceCorrespondence": "final-source-correspondence.json",
+  "ownCliTerminal": "Parent/supervisor records after return; not predeclared"
+}

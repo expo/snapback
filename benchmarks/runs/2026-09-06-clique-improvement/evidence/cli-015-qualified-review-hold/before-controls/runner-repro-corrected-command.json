@@ -1,0 +1,9 @@
+{
+  "pid": 79085,
+  "exitCode": 0,
+  "seconds": 0.838798708,
+  "stdout": "{\"observed\":\"discovery target at0; isolated index0 runs other and passes; full executes target and fails\",\"rows\":[{\"name\":\"discovery\",\"pid\":79088,\"exitCode\":0,\"seconds\":0.219887292},{\"name\":\"selected-index-zero\",\"pid\":79089,\"exitCode\":0,\"seconds\":0.15502770800000001},{\"name\":\"full\",\"pid\":79090,\"exitCode\":1,\"seconds\":0.157541334}]}\n",
+  "stderr": "",
+  "boundSeconds": 15,
+  "correction": "Separate imported test.mjs module, as standard package does, avoids harness circular import of its active runner. Prior exit13 receipts retained."
+}

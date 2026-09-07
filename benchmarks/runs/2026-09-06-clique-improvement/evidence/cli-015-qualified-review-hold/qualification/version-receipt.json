@@ -1,0 +1,53 @@
+{
+  "driverPid": 96906,
+  "commit": "ff894d7cefbb2190c09e03ab6ed4f40414f4d034",
+  "tree": "5d03b51afd418277de9b5a548b4e29bbff7c30f1",
+  "snapback2Tree": "d15e999f1fa3b60fb75153d2d27d42651d392d25",
+  "base": "22427817eca887b50e4f25d787d8c2fb29368a4f",
+  "version": "0.0.15",
+  "files": [
+    "snapback2/Cargo.toml",
+    "snapback2/Cargo.lock",
+    "snapback2/bun.lock",
+    "snapback2/packages/snapback2/package.json"
+  ],
+  "fileHashes": {
+    "snapback2/Cargo.toml": "a0ddb76ea61778e8d3395edad9b77e3d9fdbabee34c643fd4633e3dd70224609",
+    "snapback2/Cargo.lock": "17b58f37d28f9c4f45a42d39654aa42faec68770a0e3c7d50f5cf5a55637131b",
+    "snapback2/bun.lock": "28bdc0ce39f70be6af1433d7de17b0be6638583209c5181e8dba6a7910bfa664",
+    "snapback2/packages/snapback2/package.json": "ed07eb8aa705bb1b1a4f94ec0fe9116c49e822cf7a83560523aa43c602b4469c"
+  },
+  "commands": [
+    {
+      "argv": [
+        "git",
+        "add",
+        "--",
+        "snapback2/Cargo.toml",
+        "snapback2/Cargo.lock",
+        "snapback2/bun.lock",
+        "snapback2/packages/snapback2/package.json"
+      ],
+      "pid": 96957,
+      "exitCode": 0,
+      "seconds": 0.094576833,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "git",
+        "commit",
+        "-m",
+        "Bump snapback2 to 0.0.15 for CLI DX release"
+      ],
+      "pid": 96975,
+      "exitCode": 0,
+      "seconds": 0.15365587500000003,
+      "stdout": "[s2/clique-release-015 ff894d7ce] Bump snapback2 to 0.0.15 for CLI DX release\n 4 files changed, 11 insertions(+), 11 deletions(-)\n",
+      "stderr": ""
+    }
+  ],
+  "sourceClean": true,
+  "old014Ref": "0fdcc846bc7451bbcb1804194b49737418954506"
+}

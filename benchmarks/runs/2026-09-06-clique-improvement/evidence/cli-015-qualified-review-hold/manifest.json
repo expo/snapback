@@ -1,0 +1,426 @@
+{
+  "sourceCopies": [
+    {
+      "path": "qualification/REPORT.md",
+      "source": "/Users/ccheever/clique-improvement/revisions/cli-dx-release-015-qualification/REPORT.md",
+      "bytes": 11372,
+      "sha256": "bfb2f5f373e274da59b5047411f19f7c44a6c6c3c540408cd10f84e06984c01a",
+      "copy": "verbatim"
+    },
+    {
+      "path": "qualification/terminal.json",
+      "source": "/Users/ccheever/clique-improvement/revisions/cli-dx-release-015-qualification/terminal.json",
+      "bytes": 111,
+      "sha256": "292a8d5d2cbb58a7ff65fb134754b181d0887a34903229c98b4c2a92fa298497",
+      "copy": "verbatim"
+    },
+    {
+      "path": "qualification/actual-identity.json",
+      "source": "/Users/ccheever/clique-improvement/revisions/cli-dx-release-015-qualification/actual-identity.json",
+      "bytes": 406,
+      "sha256": "a488fee59a2520d427cff134532ee98d4ce96ee2598fa8f96177480614cf8ccd",
+      "copy": "verbatim"
+    },
+    {
+      "path": "qualification/actual-turn-context.jsonl",
+      "source": "/Users/ccheever/clique-improvement/revisions/cli-dx-release-015-qualification/actual-turn-context.jsonl",
+      "bytes": 866,
+      "sha256": "c6991b6f76dce7d7c46602b055c0c7789ad44a45de01432815af509c9e2de021",
+      "copy": "verbatim"
+    },
+    {
+      "path": "qualification/launch.json",
+      "source": "/Users/ccheever/clique-improvement/revisions/cli-dx-release-015-qualification/launch.json",
+      "bytes": 673,
+      "sha256": "c6248d20d0600caa3e4c080ab7b62369983ebba6accdaf6d30627c7b383a53f9",
+      "copy": "verbatim"
+    },
+    {
+      "path": "qualification/final-custody.json",
+      "source": "/Users/ccheever/clique-improvement/revisions/cli-dx-release-015-qualification/final-custody.json",
+      "bytes": 3901,
+      "sha256": "f1104f3ff9459ec26c81f6a348303019591626e91a3476e06f999843ab4e5923",
+      "copy": "verbatim"
+    },
+    {
+      "path": "qualification/version.diff",
+      "source": "/Users/ccheever/clique-improvement/revisions/cli-dx-release-015-qualification/version.diff",
+      "bytes": 2593,
+      "sha256": "99e99f757a121799a4d78268b9b8919adec5088cd20210f5ed48ace0b1d3752d",
+      "copy": "verbatim"
+    },
+    {
+      "path": "qualification/version-receipt.json",
+      "source": "/Users/ccheever/clique-improvement/revisions/cli-dx-release-015-qualification/version-receipt.json",
+      "bytes": 1676,
+      "sha256": "e7051ff75137b4f866458dca186a9b30c19d4c37bae52b1f3ceaf6437f6a4471",
+      "copy": "verbatim"
+    },
+    {
+      "path": "qualification/archive-receipt.json",
+      "source": "/Users/ccheever/clique-improvement/revisions/cli-dx-release-015-qualification/archive-receipt.json",
+      "bytes": 947,
+      "sha256": "e00bbcb9e159d845736de821ec88d7b2628a944f5b6d3fcbf4faf6d87afe25d8",
+      "copy": "verbatim"
+    },
+    {
+      "path": "qualification/package-links-receipt.json",
+      "source": "/Users/ccheever/clique-improvement/revisions/cli-dx-release-015-qualification/package-links-receipt.json",
+      "bytes": 431,
+      "sha256": "68cef424b9d0cbc756833c4feb0251135344c220597e7bd546c1c2b4a30f9f49",
+      "copy": "verbatim"
+    },
+    {
+      "path": "qualification/final-source-correspondence.json",
+      "source": "/Users/ccheever/clique-improvement/revisions/cli-dx-release-015-qualification/final-source-correspondence.json",
+      "bytes": 674,
+      "sha256": "6faacf2892cabc555c542a9a6e1224d14efe7baf51514b5c84f95d078ecacadb",
+      "copy": "verbatim"
+    },
+    {
+      "path": "qualification/cleanup-receipt.json",
+      "source": "/Users/ccheever/clique-improvement/revisions/cli-dx-release-015-qualification/cleanup-receipt.json",
+      "bytes": 801,
+      "sha256": "9a5725355328d091c45251cba116e51c8e00c742bd094a72627c3174ed2c74d3",
+      "copy": "verbatim"
+    },
+    {
+      "path": "qualification/release-disposition.json",
+      "source": "/Users/ccheever/clique-improvement/revisions/cli-dx-release-015-qualification/release-disposition.json",
+      "bytes": 1056,
+      "sha256": "27df401aebd861ea82b21dac407e2b131d52a382173a9ce5305fe90180650607",
+      "copy": "verbatim"
+    },
+    {
+      "path": "qualification/supervisor-review-consumption.json",
+      "source": "/Users/ccheever/clique-improvement/revisions/cli-dx-release-015-qualification/supervisor-review-consumption.json",
+      "bytes": 1076,
+      "sha256": "ef32867e3a35d6dcf64d13d984e7f3891dc67b4ad3564e9f9526028cf193b9a1",
+      "copy": "verbatim"
+    },
+    {
+      "path": "qualification/supervisor-actual-release.json",
+      "source": "/Users/ccheever/clique-improvement/revisions/cli-dx-release-015-qualification/supervisor-actual-release.json",
+      "bytes": 492,
+      "sha256": "200fc51f86abbb461a4c29fe4e3f5ff63e35c31a1236818f7c817aea0166abc8",
+      "copy": "verbatim"
+    },
+    {
+      "path": "qualification/artifact-receipt.json",
+      "source": "/Users/ccheever/clique-improvement/revisions/cli-dx-release-015-qualification/apartment-results/artifact-receipt.json",
+      "bytes": 2644,
+      "sha256": "149fc09c1f09e036d2429762087dea07be36ed11037f86feec0edd08c39d8b43",
+      "copy": "verbatim"
+    },
+    {
+      "path": "qualification/remote-run.json",
+      "source": "/Users/ccheever/clique-improvement/revisions/cli-dx-release-015-qualification/apartment-results/remote-run.json",
+      "bytes": 405,
+      "sha256": "c4be1ac1a3a59d6868b6d21be74f2b6a3a24a50de0d7ed9c88169d5d8200f278",
+      "copy": "verbatim"
+    },
+    {
+      "path": "qualification/standard-installed-react-consumer.json",
+      "source": "/Users/ccheever/clique-improvement/revisions/cli-dx-release-015-qualification/apartment-results/standard-installed-react-consumer.json",
+      "bytes": 1874,
+      "sha256": "93fbb828122f1bf53a249cdccadbea7f2f0f30b1346a1b680772d6abc0640773",
+      "copy": "verbatim"
+    },
+    {
+      "path": "qualification/installed-test-receipts.json",
+      "source": "/Users/ccheever/clique-improvement/revisions/cli-dx-release-015-qualification/apartment-results/installed-test-receipts.json",
+      "bytes": 1236,
+      "sha256": "7bc3644a12a644fb16007b0c121b7264dfc16efe26128e43973f31454d66160d",
+      "copy": "verbatim"
+    },
+    {
+      "path": "qualification/cleanup.json",
+      "source": "/Users/ccheever/clique-improvement/revisions/cli-dx-release-015-qualification/apartment-results/cleanup.json",
+      "bytes": 28171,
+      "sha256": "03b4df16a20dd87a833a5068414468183d5c3862e6176e52d405a42f18ae5a98",
+      "copy": "verbatim"
+    },
+    {
+      "path": "qualification/metric-custody.json",
+      "source": "/Users/ccheever/clique-improvement/revisions/cli-dx-release-015-qualification/apartment-results/metric-custody.json",
+      "bytes": 454,
+      "sha256": "93ff865a289b6a7be98c775eecfcb391e39aed489ad883364f0552e84147e0de",
+      "copy": "verbatim"
+    },
+    {
+      "path": "qualification/metric-own-append.jsonl",
+      "source": "/Users/ccheever/clique-improvement/revisions/cli-dx-release-015-qualification/apartment-results/metric-own-append.jsonl",
+      "bytes": 266,
+      "sha256": "d939fb58ce54912d30c28325afd4b5020d205c0a0e8f1004ed52cd8fff483834",
+      "copy": "verbatim"
+    },
+    {
+      "path": "qualification/source-before-publisher.json",
+      "source": "/Users/ccheever/clique-improvement/revisions/cli-dx-release-015-qualification/apartment-results/source-before-publisher.json",
+      "bytes": 390,
+      "sha256": "311d9daaa033d8b1bebbef0c5cb1f2c7752c8a1e035da10b520c33297e7d092f",
+      "copy": "verbatim"
+    },
+    {
+      "path": "qualification/source-after-publisher.json",
+      "source": "/Users/ccheever/clique-improvement/revisions/cli-dx-release-015-qualification/apartment-results/source-after-publisher.json",
+      "bytes": 185,
+      "sha256": "ff78bde6c28e21b4772005002a9cd10bebdccc5661f9d0ebd21742b90d9de8eb",
+      "copy": "verbatim"
+    },
+    {
+      "path": "qualification/receipts/production-dry-run.json",
+      "source": "/Users/ccheever/clique-improvement/revisions/cli-dx-release-015-qualification/apartment-results/receipts/production-dry-run.json",
+      "bytes": 2684,
+      "sha256": "6fa90799029abd6d408d0ef4323f73e52f442ae943d62563c471e340931b98ba",
+      "copy": "verbatim"
+    },
+    {
+      "path": "qualification/installed-test-receipts/chat-1788773135254.json",
+      "source": "/Users/ccheever/clique-improvement/revisions/cli-dx-release-015-qualification/apartment-results/installed-test-receipts/chat-1788773135254.json",
+      "bytes": 94619,
+      "sha256": "ed228eeba648b8e8c6b6024f1e6c94d04d22610d3de3aab52ed809e9b1959b62",
+      "copy": "verbatim"
+    },
+    {
+      "path": "qualification/installed-test-receipts/todos-1788773129661.json",
+      "source": "/Users/ccheever/clique-improvement/revisions/cli-dx-release-015-qualification/apartment-results/installed-test-receipts/todos-1788773129661.json",
+      "bytes": 6304,
+      "sha256": "f2513c965d42e5967248c34b2a6687b7708b3666eb5a68484579f07d5fd7fc09",
+      "copy": "verbatim"
+    },
+    {
+      "path": "qualification/packed-inventory.json",
+      "source": "/Users/ccheever/projects/snapback-artifacts/clique-release/0.0.15-ff894d7ce/packed-inventory.json",
+      "bytes": 38442,
+      "sha256": "b597a2f9c915396101cb01e90d1314330b218166f1471a70a5911ec94bfe24ac",
+      "copy": "verbatim"
+    },
+    {
+      "path": "before-controls/HANDOFF.md",
+      "source": "/Users/ccheever/clique-improvement/revisions/cli-dx-release-015-qualification/repair/HANDOFF.md",
+      "bytes": 3574,
+      "sha256": "4045d3013b2b896f7ef0c14b59cd6e61aa2e817de84f62965d100ddb94ca52f2",
+      "copy": "verbatim"
+    },
+    {
+      "path": "before-controls/intent.json",
+      "source": "/Users/ccheever/clique-improvement/revisions/cli-dx-release-015-qualification/repair/intent.json",
+      "bytes": 352,
+      "sha256": "f086ebed9ddcca0a1907af4e16126121036cd490773c5fd8af7a74cac5a3794f",
+      "copy": "verbatim"
+    },
+    {
+      "path": "before-controls/first-setup-failure.json",
+      "source": "/Users/ccheever/clique-improvement/revisions/cli-dx-release-015-qualification/repair/first-setup-failure.json",
+      "bytes": 296,
+      "sha256": "25bb5478eacc765d3777b10251e87f3b49b208ba3d374877e1a10dcab1e15d2a",
+      "copy": "verbatim"
+    },
+    {
+      "path": "before-controls/runner-first-setup-failure.json",
+      "source": "/Users/ccheever/clique-improvement/revisions/cli-dx-release-015-qualification/repair/runner-first-setup-failure.json",
+      "bytes": 264,
+      "sha256": "6327466c4cb5d5e6c0f6feecd35feaf1973f018b6aeaf4c608ef1351dcd382e3",
+      "copy": "verbatim"
+    },
+    {
+      "path": "before-controls/runner-repro-command.json",
+      "source": "/Users/ccheever/clique-improvement/revisions/cli-dx-release-015-qualification/repair/runner-repro-command.json",
+      "bytes": 678,
+      "sha256": "1e6bbc5f746b74bed4c4493f608a4a0b0cae1ef2d6158f411715c3328a22ab46",
+      "copy": "verbatim"
+    },
+    {
+      "path": "before-controls/runner-repro-corrected-command.json",
+      "source": "/Users/ccheever/clique-improvement/revisions/cli-dx-release-015-qualification/repair/runner-repro-corrected-command.json",
+      "bytes": 650,
+      "sha256": "c6290b44cc385f0a8917ac1c62e8f54e83d8e367e5e7269dfe4d9edcb474b41f",
+      "copy": "verbatim"
+    },
+    {
+      "path": "before-controls/reproduce-runner.mjs",
+      "source": "/Users/ccheever/clique-improvement/revisions/cli-dx-release-015-qualification/repair/reproduce-runner.mjs",
+      "bytes": 2197,
+      "sha256": "66c0ac5918878d905714591620ab94594f646fe8ea91499e7d2a36f64612e9c2",
+      "copy": "verbatim"
+    },
+    {
+      "path": "before-controls/reproduce-runner-corrected.mjs",
+      "source": "/Users/ccheever/clique-improvement/revisions/cli-dx-release-015-qualification/repair/reproduce-runner-corrected.mjs",
+      "bytes": 2291,
+      "sha256": "e7c08435bb9e534ba2168651b45f3bfd505956b4f0d4cf1a0db98fe403fc68bc",
+      "copy": "verbatim"
+    },
+    {
+      "path": "before-controls/runner-before-corrected/receipt.json",
+      "source": "/Users/ccheever/clique-improvement/revisions/cli-dx-release-015-qualification/repair/runner-before-corrected/receipt.json",
+      "bytes": 2906,
+      "sha256": "b2e9fcb53260e7cb477214a5619f13a38eb893ab9ee7152e52154f4852a96b2a",
+      "copy": "verbatim"
+    },
+    {
+      "path": "before-controls/runner-before-corrected/drift.mjs",
+      "source": "/Users/ccheever/clique-improvement/revisions/cli-dx-release-015-qualification/repair/runner-before-corrected/drift.mjs",
+      "bytes": 216,
+      "sha256": "87304b2ee9815d403d83b0c26cf0173efde1d070be68becb3705eb2066ec4661",
+      "copy": "verbatim"
+    },
+    {
+      "path": "before-controls/runner-before-corrected/literal-registration.json",
+      "source": "/Users/ccheever/clique-improvement/revisions/cli-dx-release-015-qualification/repair/runner-before-corrected/literal-registration.json",
+      "bytes": 793,
+      "sha256": "6bde40cf50639af447574d80eda137d8adb195008f56e6848aa2c16dd458f6fd",
+      "copy": "verbatim"
+    },
+    {
+      "path": "before-controls/literal-before/receipt.json",
+      "source": "/Users/ccheever/clique-improvement/revisions/cli-dx-release-015-qualification/repair/literal-before/receipt.json",
+      "bytes": 2258,
+      "sha256": "ae9704e0bcaf82fdd1f5f77945f07c73141fcaa866a45d6b3d6c7226c35a5187",
+      "copy": "verbatim"
+    },
+    {
+      "path": "reviews/astra/review.md",
+      "source": "/Users/ccheever/clique-improvement/reviews/cli-dx-015-r1/astra/review.md",
+      "bytes": 6546,
+      "sha256": "6817aab3b9a1bf9668a1d28fe597a09c21ad5fa9c4bf7c7db01af0d8045e4e92",
+      "copy": "verbatim"
+    },
+    {
+      "path": "reviews/astra/terminal.json",
+      "source": "/Users/ccheever/clique-improvement/reviews/cli-dx-015-r1/astra/terminal.json",
+      "bytes": 110,
+      "sha256": "082501edcca5d888228d734321cf04ab81b7739ba8b6bb9f67d2cac78c3ae634",
+      "copy": "verbatim"
+    },
+    {
+      "path": "reviews/astra/actual-identity.json",
+      "source": "/Users/ccheever/clique-improvement/reviews/cli-dx-015-r1/astra/actual-identity.json",
+      "bytes": 403,
+      "sha256": "31187d37a299d98f73520d06ed2149c28ddc1052d6b0fb2e56a45bac2db98b96",
+      "copy": "verbatim"
+    },
+    {
+      "path": "reviews/astra/launch.json",
+      "source": "/Users/ccheever/clique-improvement/reviews/cli-dx-015-r1/astra/launch.json",
+      "bytes": 726,
+      "sha256": "2d4bc87d8ef30f12dceeea9c501e17863f79bff0610c3b1be7d3377836e1b32a",
+      "copy": "verbatim"
+    },
+    {
+      "path": "reviews/astra/prompt.md",
+      "source": "/Users/ccheever/clique-improvement/reviews/cli-dx-015-r1/astra/prompt.md",
+      "bytes": 2282,
+      "sha256": "49949f30d1827587da6798891e212f3bef75bec284f8199f4f640a071b132a7d",
+      "copy": "verbatim"
+    },
+    {
+      "path": "reviews/astra/context-pack.md",
+      "source": "/Users/ccheever/clique-improvement/reviews/cli-dx-015-r1/astra/context-pack.md",
+      "bytes": 660,
+      "sha256": "5dd6d4e30c9253aec7d8f2f0b1fc6f04eb259be54f60b29a0f6be6ad847bf694",
+      "copy": "verbatim"
+    },
+    {
+      "path": "reviews/astra/source-facts.json",
+      "source": "/Users/ccheever/clique-improvement/reviews/cli-dx-015-r1/astra/source-facts.json",
+      "bytes": 2572,
+      "sha256": "c044c63df6332e091b6431864852866f087ed1e1bc7611a3d9cace020d27aa33",
+      "copy": "verbatim"
+    },
+    {
+      "path": "reviews/astra/actual-native-context.jsonl",
+      "source": "/Users/ccheever/clique-improvement/reviews/cli-dx-015-r1/astra/actual-turn-context.jsonl",
+      "bytes": 962,
+      "sha256": "9b6b5b97ea1dd79a392feaab8a8e23a332efd17525cfc40cda82c960a74bb799",
+      "copy": "verbatim"
+    },
+    {
+      "path": "reviews/grok/review.md",
+      "source": "/Users/ccheever/clique-improvement/reviews/cli-dx-015-r1/grok/review.md",
+      "bytes": 11847,
+      "sha256": "fb23cbe2d42475490a520360f744451eb8736876eb3e83aee72105026efc07c3",
+      "copy": "verbatim"
+    },
+    {
+      "path": "reviews/grok/terminal.json",
+      "source": "/Users/ccheever/clique-improvement/reviews/cli-dx-015-r1/grok/terminal.json",
+      "bytes": 111,
+      "sha256": "17e39dfa2a2bf0af472b09b1b6161383ae9348fdc55a9c95b20f9e28de0c8df4",
+      "copy": "verbatim"
+    },
+    {
+      "path": "reviews/grok/actual-identity.json",
+      "source": "/Users/ccheever/clique-improvement/reviews/cli-dx-015-r1/grok/actual-identity.json",
+      "bytes": 411,
+      "sha256": "0862d6e1ab6c56db10630119781cee188dd6c1cfb0bd4cbe3ed090f54a6631cb",
+      "copy": "verbatim"
+    },
+    {
+      "path": "reviews/grok/launch.json",
+      "source": "/Users/ccheever/clique-improvement/reviews/cli-dx-015-r1/grok/launch.json",
+      "bytes": 733,
+      "sha256": "c4bcfd518b6bd0c2a1e623b157716083076a32ca9900c00fbbd0656bdc209a5d",
+      "copy": "verbatim"
+    },
+    {
+      "path": "reviews/grok/prompt.md",
+      "source": "/Users/ccheever/clique-improvement/reviews/cli-dx-015-r1/grok/prompt.md",
+      "bytes": 2282,
+      "sha256": "49949f30d1827587da6798891e212f3bef75bec284f8199f4f640a071b132a7d",
+      "copy": "verbatim"
+    },
+    {
+      "path": "reviews/grok/context-pack.md",
+      "source": "/Users/ccheever/clique-improvement/reviews/cli-dx-015-r1/grok/context-pack.md",
+      "bytes": 660,
+      "sha256": "5dd6d4e30c9253aec7d8f2f0b1fc6f04eb259be54f60b29a0f6be6ad847bf694",
+      "copy": "verbatim"
+    },
+    {
+      "path": "reviews/grok/source-facts.json",
+      "source": "/Users/ccheever/clique-improvement/reviews/cli-dx-015-r1/grok/source-facts.json",
+      "bytes": 2572,
+      "sha256": "c044c63df6332e091b6431864852866f087ed1e1bc7611a3d9cace020d27aa33",
+      "copy": "verbatim"
+    },
+    {
+      "path": "reviews/grok/actual-native-context.json",
+      "source": "/Users/ccheever/clique-improvement/reviews/cli-dx-015-r1/grok/actual-session-summary.json",
+      "bytes": 781,
+      "sha256": "209755380bd661400ba226b31266a9278e5c33f70e2a347161171317b92155bd",
+      "copy": "verbatim"
+    },
+    {
+      "path": "reviews/product.patch",
+      "source": "/Users/ccheever/clique-improvement/reviews/cli-dx-015-r1/astra/product.patch",
+      "bytes": 21832,
+      "sha256": "db5bd7490a08944ae9e4bf099830cc5396edd7cd7e48f82bdf2a90c309ceb6f2",
+      "copy": "verbatim"
+    },
+    {
+      "path": "reviews/version.patch",
+      "source": "/Users/ccheever/clique-improvement/reviews/cli-dx-015-r1/astra/version.patch",
+      "bytes": 2593,
+      "sha256": "99e99f757a121799a4d78268b9b8919adec5088cd20210f5ed48ace0b1d3752d",
+      "copy": "verbatim"
+    },
+    {
+      "path": "reviews/packet-receipt.json",
+      "source": "/Users/ccheever/clique-improvement/reviews/cli-dx-015-r1/packet-receipt.json",
+      "bytes": 597,
+      "sha256": "0a1051391509b735232e691aefb7b288afd3a84167340fda1bd5d9f64e556143",
+      "copy": "verbatim"
+    },
+    {
+      "path": "reviews/supervisor-closed-verification.json",
+      "source": "/Users/ccheever/clique-improvement/reviews/cli-dx-015-r1/supervisor-closed-verification.json",
+      "bytes": 1787,
+      "sha256": "d4b5b7bd3d589cd12620a4090cfe0243eb65e37164ff40de8cfab4193f38bd7c",
+      "copy": "verbatim"
+    }
+  ],
+  "verbatim": true,
+  "sanitizedDerivatives": []
+}

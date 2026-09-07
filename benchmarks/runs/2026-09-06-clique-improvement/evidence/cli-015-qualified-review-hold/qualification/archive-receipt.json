@@ -1,0 +1,23 @@
+{
+  "driverPid": 44034,
+  "sourceCommit": "ff894d7cefbb2190c09e03ab6ed4f40414f4d034",
+  "archives": [
+    {
+      "name": "source.tar.gz",
+      "sha256": "72b7893d3ffcfdeca286bd80428390276fd6c297c00b5c09c7ec594c29ebd9e5",
+      "bytes": 122792886,
+      "manifest": "source-archive-manifest.json",
+      "manifestSha256": "149f4c4ddcfec285d7962b98b1bc686d8af6a42e01212a7951a07d98d08558c3"
+    },
+    {
+      "name": "inputs.tar.gz",
+      "sha256": "83890a74dceb68916e5f221db66229bb7df47337a0722bc77f7e200e6da3bbc5",
+      "bytes": 2621370682,
+      "manifest": "input-manifest.json",
+      "manifestSha256": "7f526b59eaf258242d5ca9a40a8b63f23be563f791224f32a5f30ff768fbe702"
+    }
+  ],
+  "completeBeforeTransfer": true,
+  "seconds": 338.73237395900003,
+  "sourceConfigAndEvidenceMeaning": "Only committed Git source/context includes tracked configurations/evidence. No user/global configs, credential files or user logs in tool/cache payload."
+}

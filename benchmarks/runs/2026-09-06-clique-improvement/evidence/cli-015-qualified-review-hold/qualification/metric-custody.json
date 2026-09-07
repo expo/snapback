@@ -1,0 +1,11 @@
+{
+  "baselineRows": 222,
+  "afterRows": 223,
+  "ownAppendRows": 1,
+  "baselineSha256": "68d04f61ca488a15ff29b1d961f6ef27442c7ef911ffcd18558ad7b69844b91f",
+  "afterSha256": "a1f387a5bad2bdf4b2d9d3752f750f473284aa1f87b7e190999fea8de7ae3865",
+  "appendSha256": "d939fb58ce54912d30c28325afd4b5020d205c0a0e8f1004ed52cd8fff483834",
+  "allPriorBytesOrderMultiplicityPreserved": true,
+  "actualSuccessfulPublisherMetric": true,
+  "restoredOnlyOwnAppend": true
+}

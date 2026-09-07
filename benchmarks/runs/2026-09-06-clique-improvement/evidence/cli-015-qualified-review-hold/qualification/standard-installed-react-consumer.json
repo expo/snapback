@@ -1,0 +1,99 @@
+{
+  "steps": [
+    {
+      "name": "install tarballs",
+      "seconds": 12.449096250000002,
+      "ok": true
+    },
+    {
+      "name": "doctor",
+      "seconds": 0.42856079200000385,
+      "ok": true
+    },
+    {
+      "name": "guide auth",
+      "seconds": 0.03720891699998174,
+      "ok": true
+    },
+    {
+      "name": "public client and React exports",
+      "seconds": 0.044505124999996044,
+      "ok": true
+    },
+    {
+      "name": "todos init",
+      "seconds": 0.6810734159999993,
+      "ok": true
+    },
+    {
+      "name": "todos check",
+      "seconds": 0.6769225000000151,
+      "ok": true
+    },
+    {
+      "name": "todos React bundle",
+      "seconds": 1.487174708000006,
+      "ok": true
+    },
+    {
+      "name": "todos dev",
+      "seconds": 0.45307916700001805,
+      "ok": true
+    },
+    {
+      "name": "React live query round trip",
+      "seconds": 0.14164099999997415,
+      "ok": true
+    },
+    {
+      "name": "todos receipt",
+      "accepted": true,
+      "verdict": "pass"
+    },
+    {
+      "name": "todos test",
+      "seconds": 1.4451928329999792,
+      "ok": true
+    },
+    {
+      "name": "todos stop",
+      "seconds": 0.1820587499999965,
+      "ok": true
+    },
+    {
+      "name": "chat init",
+      "seconds": 1.0531005420000001,
+      "ok": true
+    },
+    {
+      "name": "chat check",
+      "seconds": 1.0536359999999987,
+      "ok": true
+    },
+    {
+      "name": "chat React bundle",
+      "seconds": 0.8064012090000033,
+      "ok": true
+    },
+    {
+      "name": "chat dev",
+      "seconds": 1.0547562080000061,
+      "ok": true
+    },
+    {
+      "name": "chat receipt",
+      "accepted": true,
+      "verdict": "pass"
+    },
+    {
+      "name": "chat test",
+      "seconds": 10.003598499999994,
+      "ok": true
+    },
+    {
+      "name": "chat stop",
+      "seconds": 0.17253116700000828,
+      "ok": true
+    }
+  ]
+}

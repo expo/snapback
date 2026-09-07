@@ -1141,3 +1141,10 @@ A full second principal rejected the allocation and rolled back the first
 insert. This qualifies representative two-principal acquisition and cap
 behavior; it is not the 49-insert scale witness. The earlier schema-conflict
 [guide gap is closed](../issues/closed/20260907-guide-gap-snapback2-schema-changes-can-conflict-queued-writes.md).
+
+
+### 2026-09-07 —015 standard qualification passes; focused CLI source remains held
+
+The [frozen015 qualification and closed source-review packet](../benchmarks/runs/2026-09-06-clique-improvement/evidence/cli-015-qualified-review-hold/README.md) records an actual Apartment standard full-engine/media dry-run pass at ff894d7ce: publisher267.652602625 seconds, all19 installed-consumer steps, full todos6/chat30 checks, original deadlines and no retries. The producer metric appends exactly267.3 seconds with dry:true. No015 npm publication occurred.
+
+Fresh blind Astra/xhigh requires changes while Grok4.6/xhigh is source-only READY. Actual controls confirm discovery-index drift can report a different journey as the selected success, and valid option-shaped names can produce help-success without a test receipt. Both full reports and actual terminals are retained; the same author consumed them and handed off a separate owned repair checkout. The successful frozen qualification does not clear that later repair. Original setup failures, full-suite/check/size reds, reduced-coverage timing limits and unavailable original reviewer identity remain explicit; no current native/compiler/offline or full Clique qualification follows from this result.

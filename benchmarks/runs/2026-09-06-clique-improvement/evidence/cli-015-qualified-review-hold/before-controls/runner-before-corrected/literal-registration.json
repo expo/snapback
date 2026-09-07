@@ -1,0 +1,21 @@
+{
+  "pid": 82747,
+  "exitCode": 1,
+  "argv": [
+    "/Users/ccheever/.volta/tools/image/node/22.23.2/bin/node",
+    "/Users/ccheever/clique-improvement/revisions/cli-dx-release-015-qualification/repair/runner-before-corrected/test-runner.mjs",
+    "--url",
+    "http://127.0.0.1:1",
+    "--secret",
+    "CONSPICUOUS-FAKE-NOT-A-CREDENTIAL",
+    "--journey-index",
+    "0",
+    "--",
+    "/Users/ccheever/clique-improvement/revisions/cli-dx-release-015-qualification/repair/runner-before-corrected/literal.mjs"
+  ],
+  "stdout": "{\"runner\":\"start\",\"name\":\"--help\"}\n{\"name\":\"--help\",\"kind\":\"journey\",\"verdict\":\"fail\",\"ms\":7,\"detail\":\"literal selected failure\"}\n",
+  "stderr": "",
+  "boundSeconds": 15,
+  "networkUsed": false,
+  "validLiteralRegistrationExecuted": true
+}

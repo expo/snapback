@@ -1,0 +1,52 @@
+{
+  "candidate": "ff894d7cefbb2190c09e03ab6ed4f40414f4d034",
+  "productBaseline": "1936eaddbea3621777c9df9c145f90a7fe92d9db",
+  "landedDx": "0004ff7f2d7e906b606802faeaeb15da771399d1",
+  "versionBase": "22427817eca887b50e4f25d787d8c2fb29368a4f",
+  "productPaths": [
+    "llp/1002-dev-loop.spec.md",
+    "snapback2/crates/snapback2/src/init.rs",
+    "snapback2/crates/snapback2/src/receipt.rs",
+    "snapback2/crates/snapback2/src/test.rs",
+    "snapback2/crates/snapback2/src/verbs.rs",
+    "snapback2/crates/snapback2/tests/guide.rs",
+    "snapback2/crates/snapback2/tests/test_verb.rs",
+    "snapback2/packages/snapback2/guide/testing.md",
+    "snapback2/packages/snapback2/templates/react/src/App.tsx"
+  ],
+  "versionPaths": [
+    "snapback2/Cargo.lock",
+    "snapback2/Cargo.toml",
+    "snapback2/bun.lock",
+    "snapback2/packages/snapback2/package.json"
+  ],
+  "candidateVsLandedDx": "Exactly the four mechanical version files across full snapback2 + LLP1002; no other product delta.",
+  "rawEvidence": {
+    "sourceRoot": "/Users/ccheever/projects/snapback-worktrees/clique-guide-topics-integration/benchmarks/runs/2026-09-07-snapback2-published-dx/fix-evidence",
+    "files": [
+      "affected-fresh-mtime.log",
+      "affected-integrated.log",
+      "affected-tests.log",
+      "baseline-apply.log",
+      "baseline-build.log",
+      "baseline-real-owner.log",
+      "browser-candidate.json",
+      "candidate-source-sha256-final.json",
+      "focused-installed.log",
+      "focused-measure.json",
+      "full-tests.log",
+      "guide-isolated.log",
+      "jobs-isolated.log",
+      "measure-check.log",
+      "package-build-integrated.log",
+      "source-check-final.json",
+      "source-check-first.json",
+      "assets-isolated.log",
+      "source-nul-isolated.log"
+    ],
+    "meaning": "Retained original executions only; no reviewer rerun. Affected tests52 passed, full test.sh and measure budgets retain failures; no full-green assumption. Selected journey measures less coverage, not equal-work speedup. The four obsolete owner/outbox fixtures have a retained exact baseline reproduction."
+  },
+  "production": "Separate Apartment standard015 qualification is active/preparing; no outcome inferred here. Source freeze must remain immutable.",
+  "scope": "Source review of9-file CLI DX delta plus4-file mechanical version delta. No native/compiler/offline unlanded integration included.",
+  "symlinkRepresentation": "Git symlink blob content, if any, is represented as a read-only regular text file; no execution or outside-source resolution is allowed."
+}

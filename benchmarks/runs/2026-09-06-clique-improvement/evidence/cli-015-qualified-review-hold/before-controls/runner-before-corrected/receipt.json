@@ -1,0 +1,62 @@
+{
+  "source": "/Users/ccheever/projects/snapback-worktrees/clique-release-next/snapback2/packages/snapback2/src/test.ts",
+  "sourceSha256": "85ff4def8a242c24f7b3250759776753b057e466c382d84fe34a44d6193504d2",
+  "networkUsed": false,
+  "serverStarted": false,
+  "rows": [
+    {
+      "name": "discovery",
+      "pid": 79088,
+      "exitCode": 0,
+      "seconds": 0.219887292,
+      "argv": [
+        "/Users/ccheever/clique-improvement/revisions/cli-dx-release-015-qualification/repair/runner-before-corrected/test-runner.mjs",
+        "--url",
+        "http://127.0.0.1:1",
+        "--secret",
+        "CONSPICUOUS-FAKE-NOT-A-CREDENTIAL",
+        "--list",
+        "--",
+        "/Users/ccheever/clique-improvement/revisions/cli-dx-release-015-qualification/repair/runner-before-corrected/drift.mjs"
+      ],
+      "stdout": "{\"runner\":\"list\",\"file\":\"/Users/ccheever/clique-improvement/revisions/cli-dx-release-015-qualification/repair/runner-before-corrected/drift.mjs\",\"journeys\":[\"target\",\"other\"]}\n",
+      "stderr": ""
+    },
+    {
+      "name": "selected-index-zero",
+      "pid": 79089,
+      "exitCode": 0,
+      "seconds": 0.15502770800000001,
+      "argv": [
+        "/Users/ccheever/clique-improvement/revisions/cli-dx-release-015-qualification/repair/runner-before-corrected/test-runner.mjs",
+        "--url",
+        "http://127.0.0.1:1",
+        "--secret",
+        "CONSPICUOUS-FAKE-NOT-A-CREDENTIAL",
+        "--journey-index",
+        "0",
+        "--",
+        "/Users/ccheever/clique-improvement/revisions/cli-dx-release-015-qualification/repair/runner-before-corrected/drift.mjs"
+      ],
+      "stdout": "{\"runner\":\"start\",\"name\":\"other\"}\n{\"name\":\"other\",\"kind\":\"journey\",\"verdict\":\"pass\",\"ms\":8,\"detail\":{\"file\":\"/Users/ccheever/clique-improvement/revisions/cli-dx-release-015-qualification/repair/runner-before-corrected/drift.mjs\"}}\n",
+      "stderr": ""
+    },
+    {
+      "name": "full",
+      "pid": 79090,
+      "exitCode": 1,
+      "seconds": 0.157541334,
+      "argv": [
+        "/Users/ccheever/clique-improvement/revisions/cli-dx-release-015-qualification/repair/runner-before-corrected/test-runner.mjs",
+        "--url",
+        "http://127.0.0.1:1",
+        "--secret",
+        "CONSPICUOUS-FAKE-NOT-A-CREDENTIAL",
+        "--",
+        "/Users/ccheever/clique-improvement/revisions/cli-dx-release-015-qualification/repair/runner-before-corrected/drift.mjs"
+      ],
+      "stdout": "{\"runner\":\"start\",\"name\":\"other\"}\n{\"name\":\"other\",\"kind\":\"journey\",\"verdict\":\"pass\",\"ms\":6,\"detail\":{\"file\":\"/Users/ccheever/clique-improvement/revisions/cli-dx-release-015-qualification/repair/runner-before-corrected/drift.mjs\"}}\n{\"runner\":\"start\",\"name\":\"target\"}\n{\"name\":\"target\",\"kind\":\"journey\",\"verdict\":\"fail\",\"ms\":0,\"detail\":\"selected failure\"}\n",
+      "stderr": ""
+    }
+  ]
+}

@@ -1,0 +1,18 @@
+{
+  "atEpoch": 1788773978.4312189,
+  "actualTool": 47118,
+  "actualToolExit": 0,
+  "actualTerminal": {
+    "pid": 72751,
+    "exitCode": 0,
+    "endedEpoch": 1788773920.6985888,
+    "elapsedSeconds": 2764.668951034546
+  },
+  "priorPidsAbsent": [
+    72751,
+    72691
+  ],
+  "verifiedFinalLeaves": 19,
+  "reportSha256": "bfb2f5f373e274da59b5047411f19f7c44a6c6c3c540408cd10f84e06984c01a",
+  "successorDirectory": "/Users/ccheever/clique-improvement/revisions/cli-journey-selection-repair-r1"
+}

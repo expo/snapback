@@ -1,0 +1,10 @@
+{
+  "source": "/Users/ccheever/.codex/sessions/2026/09/07/rollout-2026-09-07T01-57-22-01a07b16-1e42-7ab0-a193-ba69c078d43f.jsonl",
+  "line": 8,
+  "timestamp": "2026-09-07T08:57:24.352Z",
+  "sessionId": "01a07b16-1e42-7ab0-a193-ba69c078d43f",
+  "model": "gpt-6-astra",
+  "effort": "xhigh",
+  "turnContextSha256": "9b6b5b97ea1dd79a392feaab8a8e23a332efd17525cfc40cda82c960a74bb799",
+  "launchPid": 31339
+}

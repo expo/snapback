@@ -1,0 +1,14 @@
+{
+  "createdAt": "2026-09-07T08:57:00.971894+00:00",
+  "candidate": "ff894d7cefbb2190c09e03ab6ed4f40414f4d034",
+  "baseline": "1936eaddbea3621777c9df9c145f90a7fe92d9db",
+  "landedDx": "0004ff7f2d7e906b606802faeaeb15da771399d1",
+  "productPathCount": 9,
+  "mechanicalVersionPathCount": 4,
+  "identicalInputs": 1962,
+  "inputBytes": 45605254,
+  "manifestSha256": "597ec4e0bc5a6e8a49f01ab2a41fb8f060f8f49f718ee14be4fad6932e117109",
+  "promptSha256": "49949f30d1827587da6798891e212f3bef75bec284f8199f4f640a071b132a7d",
+  "authorReportsOrPeerReviewsIncluded": false,
+  "actualNewReviewerLaunches": 0
+}

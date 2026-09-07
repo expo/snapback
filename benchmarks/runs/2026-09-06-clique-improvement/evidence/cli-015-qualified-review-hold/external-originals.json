@@ -1,0 +1,125 @@
+{
+  "files": [
+    {
+      "path": "/Users/ccheever/clique-improvement/revisions/cli-dx-release-015-qualification/input-manifest.json",
+      "bytes": 53428267,
+      "sha256": "7f526b59eaf258242d5ca9a40a8b63f23be563f791224f32a5f30ff768fbe702",
+      "custody": "External original; not copied into repository packet"
+    },
+    {
+      "path": "/Users/ccheever/clique-improvement/revisions/cli-dx-release-015-qualification/source-archive-manifest.json",
+      "bytes": 4894620,
+      "sha256": "149f4c4ddcfec285d7962b98b1bc686d8af6a42e01212a7951a07d98d08558c3",
+      "custody": "External original; not copied into repository packet"
+    },
+    {
+      "path": "/Users/ccheever/clique-improvement/revisions/cli-dx-release-015-qualification/package-links-manifest.json",
+      "bytes": 62909,
+      "sha256": "1787e8c506fd6b00f7c8662b3eb390330a67b6dee11e4b251aa89575fbcb480a",
+      "custody": "External original; not copied into repository packet"
+    },
+    {
+      "path": "/Users/ccheever/clique-improvement/revisions/cli-dx-release-015-qualification/results-archive.json",
+      "bytes": 43922,
+      "sha256": "a7f467416828c918167433691630537562de692133c98b4b0f6a6653be616327",
+      "custody": "External original; not copied into repository packet"
+    },
+    {
+      "path": "/Users/ccheever/clique-improvement/revisions/cli-dx-release-015-qualification/archives/results.tar.gz",
+      "bytes": 13287099,
+      "sha256": "e56794d356226e6b7627874633eb5a65e50d2fc35324e787cd96e69a9597cef7",
+      "custody": "External original; not copied into repository packet"
+    },
+    {
+      "path": "/Users/ccheever/clique-improvement/revisions/cli-dx-release-015-qualification/stdout.log",
+      "bytes": 671000,
+      "sha256": "5491d3d8c4e5913f108b9859a5be113e6dc40ae99219514a8259cca95df7e888",
+      "custody": "External original; not copied into repository packet"
+    },
+    {
+      "path": "/Users/ccheever/clique-improvement/revisions/cli-dx-release-015-qualification/stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "custody": "External original; not copied into repository packet"
+    },
+    {
+      "path": "/Users/ccheever/clique-improvement/revisions/cli-dx-release-015-qualification/apartment-results/metric-baseline.jsonl",
+      "bytes": 359620,
+      "sha256": "68d04f61ca488a15ff29b1d961f6ef27442c7ef911ffcd18558ad7b69844b91f",
+      "custody": "External original; not copied into repository packet"
+    },
+    {
+      "path": "/Users/ccheever/clique-improvement/revisions/cli-dx-release-015-qualification/apartment-results/metric-after.jsonl",
+      "bytes": 359886,
+      "sha256": "a1f387a5bad2bdf4b2d9d3752f750f473284aa1f87b7e190999fea8de7ae3865",
+      "custody": "External original; not copied into repository packet"
+    },
+    {
+      "path": "/Users/ccheever/clique-improvement/revisions/cli-dx-release-015-qualification/repair/runner-before-corrected/test.mjs",
+      "bytes": 415191,
+      "sha256": "d09cda7570adb6bc07454c87b6fd986003fdc52675fff81c2ad651b645c7ef1d",
+      "custody": "External original; not copied into repository packet"
+    },
+    {
+      "path": "/Users/ccheever/clique-improvement/revisions/cli-dx-release-015-qualification/repair/runner-before-corrected/test-runner.mjs",
+      "bytes": 415191,
+      "sha256": "d09cda7570adb6bc07454c87b6fd986003fdc52675fff81c2ad651b645c7ef1d",
+      "custody": "External original; not copied into repository packet"
+    },
+    {
+      "path": "/Users/ccheever/clique-improvement/revisions/cli-dx-release-015-qualification/repair/runner-before-corrected/inputs.json",
+      "bytes": 39574,
+      "sha256": "0783cb955be1225026d7b7b053b07263d580dc19ef0c298f72e0346b053b61b9",
+      "custody": "External original; not copied into repository packet"
+    },
+    {
+      "path": "/Users/ccheever/clique-improvement/reviews/cli-dx-015-r1/astra/source-manifest.json",
+      "bytes": 665737,
+      "sha256": "597ec4e0bc5a6e8a49f01ab2a41fb8f060f8f49f718ee14be4fad6932e117109",
+      "custody": "External original; not copied into repository packet"
+    },
+    {
+      "path": "/Users/ccheever/clique-improvement/reviews/cli-dx-015-r1/grok/source-manifest.json",
+      "bytes": 665737,
+      "sha256": "597ec4e0bc5a6e8a49f01ab2a41fb8f060f8f49f718ee14be4fad6932e117109",
+      "custody": "External original; not copied into repository packet"
+    },
+    {
+      "path": "/Users/ccheever/clique-improvement/reviews/cli-dx-015-r1/astra/stdout.log",
+      "bytes": 1602996,
+      "sha256": "8ffa597d3ecbb9c4fcaffe352606cf39ed0b8d200eb0f62a5f32a99f877bd708",
+      "custody": "External original; not copied into repository packet"
+    },
+    {
+      "path": "/Users/ccheever/clique-improvement/reviews/cli-dx-015-r1/grok/stdout.log",
+      "bytes": 1701,
+      "sha256": "8a74bab50f5c038630a466218c293970db42d92a5e9511a855d2a08e378ff4a9",
+      "custody": "External original; not copied into repository packet"
+    },
+    {
+      "path": "/Users/ccheever/projects/snapback-artifacts/clique-release/0.0.15-ff894d7ce/snapback2-0.0.15.tgz",
+      "bytes": 1845006,
+      "sha256": "aba64eea14e341c44d00e0ee0e75dc0839be53c6e139a598cbc23917bf5ae19c",
+      "custody": "External original; not copied into repository packet"
+    },
+    {
+      "path": "/Users/ccheever/projects/snapback-artifacts/clique-release/0.0.15-ff894d7ce/snapback2-darwin-arm64-0.0.15.tgz",
+      "bytes": 4824553,
+      "sha256": "1573565229e5409e25065e02c9f640525e7ec954deb72f61719bd9980dfba175",
+      "custody": "External original; not copied into repository packet"
+    },
+    {
+      "path": "/Users/ccheever/projects/snapback-artifacts/clique-release/0.0.15-ff894d7ce/resume-ready.json",
+      "bytes": 1199,
+      "sha256": "0514b4d158a672cb0ccaccbcfbfa227ff787a054cca423c424b35c2818a9b714",
+      "custody": "External original; not copied into repository packet"
+    },
+    {
+      "path": "/Users/ccheever/clique-improvement/revisions/cli-dx-release-015-qualification/apartment-results/receipts/production-dry-run.log",
+      "bytes": 12867,
+      "sha256": "abe9859c4a12b269115206a34cfa2469879a175fbe4a64863da62d1618569616",
+      "custody": "External original; not copied into repository packet"
+    }
+  ],
+  "noReruns": true
+}

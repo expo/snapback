@@ -1,0 +1,9 @@
+{
+  "driverPid": 59618,
+  "name": "package-links.tar.gz",
+  "bytes": 640156,
+  "sha256": "67aeade04fd7cabdd2b6e37befb5094f964a90972df88bbc0ca30c3c8e7c52f5",
+  "manifest": "package-links-manifest.json",
+  "manifestSha256": "1787e8c506fd6b00f7c8662b3eb390330a67b6dee11e4b251aa89575fbcb480a",
+  "reason": "Existing package-local producer dependency links are part of complete copied JS graph; fresh standard consumer has no grafts."
+}

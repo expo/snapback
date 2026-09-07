@@ -1,0 +1,9 @@
+{
+  "firstFailure": {
+    "command": "Apartment-only private Node path used for tiny Office runner repro",
+    "exitCode": 127,
+    "productExecuted": false
+  },
+  "resolvedOfficeNode": "/Users/ccheever/.volta/tools/image/node/22.23.2/bin/node",
+  "exists": true
+}

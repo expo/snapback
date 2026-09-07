@@ -1,0 +1,65 @@
+{
+  "binary": "/Users/ccheever/projects/snapback-artifacts/clique-release/0.0.15-ff894d7ce/qualified-artifacts/platform/package/bin/snapback2",
+  "binarySha256": "728098dc8257f18c36e22ac5d84559035063ec013543aebdfb645a8e155297ec",
+  "sourceCommit": "ff894d7cefbb2190c09e03ab6ed4f40414f4d034",
+  "originalQualifiedArtifactReadOnly": true,
+  "rows": [
+    {
+      "argv": [
+        "test",
+        "--journey",
+        "--help",
+        "--json"
+      ],
+      "pid": 80561,
+      "exitCode": 0,
+      "seconds": 0.755968083,
+      "stdout": "usage: snapback2 test [--project dir] [--blocked reason] [--journeys-only|--derived-only|--journey name] [--json]\n\nProve the project and write a receipt. --journey selects an exact authored name,\nruns only its matching journeys, and records scope.journey. It does not infer\naffected coverage. Use plain test for the full suite. Read snapback2 guide testing.\n",
+      "stderr": "",
+      "receiptDirectoryExists": false
+    },
+    {
+      "argv": [
+        "test",
+        "--journey",
+        "-h",
+        "--json"
+      ],
+      "pid": 80570,
+      "exitCode": 0,
+      "seconds": 0.024133124999999978,
+      "stdout": "usage: snapback2 test [--project dir] [--blocked reason] [--journeys-only|--derived-only|--journey name] [--json]\n\nProve the project and write a receipt. --journey selects an exact authored name,\nruns only its matching journeys, and records scope.journey. It does not infer\naffected coverage. Use plain test for the full suite. Read snapback2 guide testing.\n",
+      "stderr": "",
+      "receiptDirectoryExists": false
+    },
+    {
+      "argv": [
+        "test",
+        "--journey",
+        "--literal",
+        "--json"
+      ],
+      "pid": 80571,
+      "exitCode": 2,
+      "seconds": 0.02165874999999995,
+      "stdout": "",
+      "stderr": "--journey requires a value, not --literal\n",
+      "receiptDirectoryExists": false
+    },
+    {
+      "argv": [
+        "test",
+        "--journey=--help",
+        "--json"
+      ],
+      "pid": 80572,
+      "exitCode": 2,
+      "seconds": 0.019991207999999983,
+      "stdout": "",
+      "stderr": "unknown option --journey=--help\n",
+      "receiptDirectoryExists": false
+    }
+  ],
+  "productSourceEdits": false,
+  "boundSeconds": 15
+}

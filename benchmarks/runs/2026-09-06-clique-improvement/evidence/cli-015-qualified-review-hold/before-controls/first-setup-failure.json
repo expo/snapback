@@ -1,0 +1,8 @@
+{
+  "pid": 75939,
+  "exitCode": 128,
+  "stdout": "",
+  "stderr": "fatal: 'refs/heads/s2/clique-cli-journey-repair' - not a valid ref\n",
+  "destinationExists": false,
+  "firstSetupFailure": "Expected absent show-ref exit1; actual nonquiet show-ref may exit128. No checkout/source edit started."
+}

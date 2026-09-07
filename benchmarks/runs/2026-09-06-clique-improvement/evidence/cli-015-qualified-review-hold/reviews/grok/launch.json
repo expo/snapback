@@ -1,0 +1,26 @@
+{
+  "pid": 31332,
+  "supervisorPid": 31249,
+  "startEpoch": 1788771441.818455,
+  "argv": [
+    "/Users/ccheever/.grok/bin/grok",
+    "--prompt-file",
+    "/Users/ccheever/clique-improvement/reviews/cli-dx-015-r1/grok/prompt.md",
+    "--cwd",
+    "/Users/ccheever/clique-improvement/reviews/cli-dx-015-r1/grok",
+    "-m",
+    "grok-4.6",
+    "--reasoning-effort",
+    "xhigh",
+    "--output-format",
+    "plain",
+    "--disable-web-search",
+    "--permission-mode",
+    "auto",
+    "--max-turns",
+    "120"
+  ],
+  "cwd": "/Users/ccheever/clique-improvement/reviews/cli-dx-015-r1/grok",
+  "candidate": "ff894d7cefbb2190c09e03ab6ed4f40414f4d034",
+  "manifestSha256": "597ec4e0bc5a6e8a49f01ab2a41fb8f060f8f49f718ee14be4fad6932e117109"
+}

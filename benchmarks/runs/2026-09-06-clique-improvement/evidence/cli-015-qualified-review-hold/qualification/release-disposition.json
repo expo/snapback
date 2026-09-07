@@ -1,0 +1,27 @@
+{
+  "sourceCommit": "ff894d7cefbb2190c09e03ab6ed4f40414f4d034",
+  "standardDryRunPassed": true,
+  "releaseReady": false,
+  "actualPublication": false,
+  "reason": "Independent source review requires journey selection repair; frozen candidate qualification is not repaired-source clearance.",
+  "reviews": [
+    {
+      "family": "astra",
+      "path": "/Users/ccheever/clique-improvement/reviews/cli-dx-015-r1/astra/review.md",
+      "sha256": "6817aab3b9a1bf9668a1d28fe597a09c21ad5fa9c4bf7c7db01af0d8045e4e92",
+      "verdict": "CHANGES_REQUIRED"
+    },
+    {
+      "family": "grok",
+      "path": "/Users/ccheever/clique-improvement/reviews/cli-dx-015-r1/grok/review.md",
+      "sha256": "fb23cbe2d42475490a520360f744451eb8736876eb3e83aee72105026efc07c3",
+      "verdict": "READY"
+    }
+  ],
+  "repairCheckout": "/Users/ccheever/projects/snapback-worktrees/clique-cli-journey-repair",
+  "repairBranch": "s2/clique-cli-journey-repair",
+  "reproductions": [
+    "repair/runner-before-corrected/receipt.json",
+    "repair/literal-before/receipt.json"
+  ]
+}

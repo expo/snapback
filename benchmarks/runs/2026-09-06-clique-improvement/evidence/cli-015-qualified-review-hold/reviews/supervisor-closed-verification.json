@@ -1,0 +1,58 @@
+{
+  "at": "2026-09-07T09:19:47.840170+00:00",
+  "candidate": "ff894d7cefbb2190c09e03ab6ed4f40414f4d034",
+  "bothActualToolTerminalsConsumed": true,
+  "bothPidsAbsent": true,
+  "bothFullReportsRead": true,
+  "verdicts": {
+    "astra": "CHANGES_REQUIRED",
+    "grok": "READY"
+  },
+  "findings": "Two source-derived selected-name/discovery-drift and option-shaped literal-name counterexamples; not executed by reviewers. Grok scope does not refute them.",
+  "families": {
+    "astra": {
+      "terminal": {
+        "pid": 31339,
+        "exitCode": 0,
+        "endedEpoch": 1788771899.509683,
+        "elapsedSeconds": 457.6147999763489
+      },
+      "files": {
+        "review.md": {
+          "bytes": 6546,
+          "sha256": "6817aab3b9a1bf9668a1d28fe597a09c21ad5fa9c4bf7c7db01af0d8045e4e92"
+        },
+        "terminal.json": {
+          "bytes": 110,
+          "sha256": "082501edcca5d888228d734321cf04ab81b7739ba8b6bb9f67d2cac78c3ae634"
+        },
+        "actual-identity.json": {
+          "bytes": 403,
+          "sha256": "31187d37a299d98f73520d06ed2149c28ddc1052d6b0fb2e56a45bac2db98b96"
+        }
+      }
+    },
+    "grok": {
+      "terminal": {
+        "pid": 31332,
+        "exitCode": 0,
+        "endedEpoch": 1788772635.304039,
+        "elapsedSeconds": 1193.4855859279633
+      },
+      "files": {
+        "review.md": {
+          "bytes": 11847,
+          "sha256": "fb23cbe2d42475490a520360f744451eb8736876eb3e83aee72105026efc07c3"
+        },
+        "terminal.json": {
+          "bytes": 111,
+          "sha256": "17e39dfa2a2bf0af472b09b1b6161383ae9348fdc55a9c95b20f9e28de0c8df4"
+        },
+        "actual-identity.json": {
+          "bytes": 411,
+          "sha256": "0862d6e1ab6c56db10630119781cee188dd6c1cfb0bd4cbe3ed090f54a6631cb"
+        }
+      }
+    }
+  }
+}
