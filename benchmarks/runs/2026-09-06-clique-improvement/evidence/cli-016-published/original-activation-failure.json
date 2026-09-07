@@ -1,0 +1,265 @@
+{
+  "kind": "post-publisher_registry_observation_failure",
+  "observedAt": "2026-09-07T18:22:02.971115+00:00",
+  "sourceCommit": "8eeea0dddcf00c45a43f7f1051b14747919302b6",
+  "publisherPid": 54071,
+  "actualPublisherExitCode": 0,
+  "actualPublisherSeconds": 40.4200095,
+  "all19EmittedConsumerResultsPassed": true,
+  "consumerSummaries": [
+    {
+      "phase": "publisher",
+      "status": "observed",
+      "epoch": 1788805267.8140259,
+      "step": "install tarballs",
+      "seconds": 11.367926708,
+      "ok": true
+    },
+    {
+      "phase": "publisher",
+      "status": "observed",
+      "epoch": 1788805267.814058,
+      "step": "doctor",
+      "seconds": 0.3800839579999993,
+      "ok": true
+    },
+    {
+      "phase": "publisher",
+      "status": "observed",
+      "epoch": 1788805267.814094,
+      "step": "guide auth",
+      "seconds": 0.03827749999999833,
+      "ok": true
+    },
+    {
+      "phase": "publisher",
+      "status": "observed",
+      "epoch": 1788805267.814112,
+      "step": "public client and React exports",
+      "seconds": 0.044863542000000964,
+      "ok": true
+    },
+    {
+      "phase": "publisher",
+      "status": "observed",
+      "epoch": 1788805267.8141289,
+      "step": "todos init",
+      "seconds": 0.6631603340000002,
+      "ok": true
+    },
+    {
+      "phase": "publisher",
+      "status": "observed",
+      "epoch": 1788805267.814145,
+      "step": "todos check",
+      "seconds": 0.6617915840000005,
+      "ok": true
+    },
+    {
+      "phase": "publisher",
+      "status": "observed",
+      "epoch": 1788805267.814163,
+      "step": "todos React bundle",
+      "seconds": 1.9623300830000008,
+      "ok": true
+    },
+    {
+      "phase": "publisher",
+      "status": "observed",
+      "epoch": 1788805267.814178,
+      "step": "todos dev",
+      "seconds": 0.4439641670000001,
+      "ok": true
+    },
+    {
+      "phase": "publisher",
+      "status": "observed",
+      "epoch": 1788805267.814192,
+      "step": "React live query round trip",
+      "seconds": 0.13738916699999937,
+      "ok": true
+    },
+    {
+      "phase": "publisher",
+      "status": "observed",
+      "epoch": 1788805267.814207,
+      "step": "todos receipt",
+      "accepted": true,
+      "verdict": "pass"
+    },
+    {
+      "phase": "publisher",
+      "status": "observed",
+      "epoch": 1788805267.8142238,
+      "step": "todos test",
+      "seconds": 1.4436047909999998,
+      "ok": true
+    },
+    {
+      "phase": "publisher",
+      "status": "observed",
+      "epoch": 1788805267.8142378,
+      "step": "todos stop",
+      "seconds": 0.18046358400000098,
+      "ok": true
+    },
+    {
+      "phase": "publisher",
+      "status": "observed",
+      "epoch": 1788805267.814254,
+      "step": "chat init",
+      "seconds": 1.0426777079999991,
+      "ok": true
+    },
+    {
+      "phase": "publisher",
+      "status": "observed",
+      "epoch": 1788805267.8142679,
+      "step": "chat check",
+      "seconds": 1.0824467089999998,
+      "ok": true
+    },
+    {
+      "phase": "publisher",
+      "status": "observed",
+      "epoch": 1788805267.814284,
+      "step": "chat React bundle",
+      "seconds": 0.8028702080000003,
+      "ok": true
+    },
+    {
+      "phase": "publisher",
+      "status": "observed",
+      "epoch": 1788805267.814301,
+      "step": "chat dev",
+      "seconds": 0.9580458749999998,
+      "ok": true
+    },
+    {
+      "phase": "publisher",
+      "status": "observed",
+      "epoch": 1788805267.814317,
+      "step": "chat receipt",
+      "accepted": true,
+      "verdict": "pass"
+    },
+    {
+      "phase": "publisher",
+      "status": "observed",
+      "epoch": 1788805267.81433,
+      "step": "chat test",
+      "seconds": 9.990869916000003,
+      "ok": true
+    },
+    {
+      "phase": "publisher",
+      "status": "observed",
+      "epoch": 1788805267.814344,
+      "step": "chat stop",
+      "seconds": 0.2007931669999998,
+      "ok": true
+    }
+  ],
+  "consumerTimedStepSumSeconds": 31.401559001000003,
+  "consumerTimingMeaning": "Sum of the 17 sequential measured execution steps, excluding cleanup/transition overhead. A lower bound on complete consumer duration; not exact smoke duration.",
+  "consumerThirtySecondBudgetExceededByStepSum": true,
+  "chatCheckSeconds": 1.0824467089999998,
+  "registryObservationAttempted": 1,
+  "registryObservationsRequired": 4,
+  "firstObservation": {
+    "package": "snapback2-darwin-arm64",
+    "version": "0.0.16",
+    "field": "dist.integrity",
+    "pid": 56890,
+    "exitCode": 1,
+    "code": "E404",
+    "registryState": "absent"
+  },
+  "publicationOutcome": "unknown; publisher0 does not replace complete matching registry observations; no republish inferred",
+  "originalFailureEvents": [
+    {
+      "phase": "publisher",
+      "status": "fail",
+      "epoch": 1788805268.650053,
+      "pid": 56890,
+      "exitCode": 1,
+      "seconds": 0.8356149580000007
+    },
+    {
+      "phase": "publisher",
+      "status": "unknown",
+      "epoch": 1788805268.650468,
+      "package": "snapback2-darwin-arm64",
+      "registryState": "absent",
+      "code": "E404",
+      "publicationUnknown": true
+    },
+    {
+      "phase": "terminal",
+      "status": "fail",
+      "epoch": 1788805268.650531,
+      "code": "E404",
+      "publicationUnknown": true
+    },
+    {
+      "phase": "terminal",
+      "status": "fail",
+      "epoch": 1788805268.985425,
+      "exitCode": 1,
+      "clean": true,
+      "publicationUnknown": true
+    },
+    {
+      "phase": "transport",
+      "status": "unknown",
+      "epoch": 1788805269.547144,
+      "code": "TRANSPORT_UNKNOWN",
+      "publicationUnknown": true
+    },
+    {
+      "phase": "transport",
+      "status": "unknown",
+      "epoch": 1788805269.645515,
+      "clean": true,
+      "publicationUnknown": true
+    }
+  ],
+  "remoteTerminalMetadata": [
+    {
+      "phase": "terminal",
+      "status": "fail",
+      "epoch": 1788805268.650531,
+      "code": "E404",
+      "publicationUnknown": true
+    },
+    {
+      "phase": "terminal",
+      "status": "fail",
+      "epoch": 1788805268.985425,
+      "exitCode": 1,
+      "clean": true,
+      "publicationUnknown": true
+    }
+  ],
+  "outerActivationResult": {
+    "pid": 92656,
+    "driverPid": 92649,
+    "startedEpoch": 1788805216.917026,
+    "endedEpoch": 1788805269.657731,
+    "elapsedSeconds": 52.740524959,
+    "exitCode": 1,
+    "metadataEvents": 169,
+    "unclassifiedOutputPresent": false,
+    "stderrPresent": false,
+    "rawOutputPersisted": false,
+    "localActivationReaped": true,
+    "automaticRetry": false,
+    "remoteOutcomeSource": "explicit reviewed helper metadata only; no inference from local exit"
+  },
+  "metadataSha256": "ca8076d0e7c505d04c7fd06e553b27913f9f0b7103209e09807021b0a7f6cd2a",
+  "rawNpmOutputReadOrPersistedByQualifier": false,
+  "stoppedStateObserverExecuted": false,
+  "finalCustodyHelperExecuted": false,
+  "phaseRetryPerformed": false,
+  "rootDispositionRequired": true
+}

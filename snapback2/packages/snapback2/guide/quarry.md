@@ -51,6 +51,9 @@ brand, needs matching bounded recipients, and gives remainder units in ascending
 value order. Share/branded multiplication floors with positive divisors; i53
 products can overflow. Wire arguments use integer minor units. Seeds normalize
 whole-unit JSON numbers or decimal strings; exponents and excess precision refuse.
+Typed decimal/money boundaries scale whole-unit literals once: an absent
+`[decimal 3]? ?? [2,3]` yields `[2000,3000]`; supplied `[1250]` and untyped
+`[2,3]` stay unchanged. Captures, returns and writes keep one representation.
 Shapes and pages keep their brands.
 
 `viewer` has nominal type `principal`, distinct from table references and `id`
@@ -115,11 +118,16 @@ page `complete`/`capped`; hidden rows yield `null`. Early exit, count or `requir
 inside a shape refuses. Canonical JSON byte bounds price selected fields
 (`*` selects all) at declared maxima (text: `4·max + 16`).
 
-`shape card = { fields }` defines a shape for `row card`, `page card`, or a
-field value; `...card` splices it. `shape card from cards` imports `cards.q`;
-shape-only modules add no operations. Nested shapes resolve in their defining
-module, using the focal row and context built-ins, never arguments or locals.
-Expansion preserves definition sites and refuses cycles, depth >8 or >4,096 nodes.
+`shape card = { fields }` works on rows, pages and fields; `...card` splices it
+and `shape card from cards` imports it. Shapes resolve in their defining module,
+use focal/context names but no caller locals, and retain sites. Cycles, depth >8
+and >4,096 nodes refuse.
+
+`fn member(c: conversations, p: principal) = exists memberships[c,p]` is an
+expression helper; `fn member from access` imports it. Arguments evaluate once
+left-to-right. Parameters, `viewer`, query read time and bounded reads are valid;
+capture/focal, allocation, commit time, write/emit and recursion refuse. Nested
+shapes keep that boundary. Caller `require` owns its code.
 
 `after` follows scan order: `after c` with `c: cursor ?`; `null` starts page one.
 Pass `next` unchanged. It encodes table/index/order, typed suffix, and last returned
@@ -131,6 +139,10 @@ An `if`/`else` can return a range or merge through aliases and shapes.
 `next` follows that return, never an auxiliary read; shapes may omit index
 columns. Reset `c` when changing index/order. Non-page and local `partial`
 results have no continuation.
+
+`{messages,count,preview}` is one outcome without root continuation; nested
+bounded arrays are not drainable. Missing count authority makes the whole record
+partial (chat `conversationView`).
 
 `merge table [after cursor] first|last N by index:` combines structurally
 distinct `[prefix keys]` lanes (named or positional), optionally `for name in`
@@ -162,15 +174,15 @@ Object literals work anywhere; `{ id: conversationId, creatorMembershipId }`
 uses shorthand. `count(x)` is
 `x.length` for bounded lists and pages. Bindings and captured list fields keep their selected element count;
 an object field named `length` remains that field's value. Other built-ins are `range`,
-`min`, `max`, `divmod`, `share`, and `words`. `sorted` is only `(lo, hi) = sorted(a, b)`.
+`min`, `max`, `divmod`, and `share`. `sorted` is only `(lo, hi) = sorted(a, b)`.
 `!` or `! else CODE` requires a present value; `??` supplies a fallback. Program `=`/`!=` are total: absent equals absent, differs from present;
 `!=` is `not (=)`. Ordered comparison refuses an optional operand;
 use `!` or `??` first. `if x != null:` narrows a bound name or one-hop row field in that branch
 only, not an `and` operand or the else.
 
-`words(text)` yields bounded ASCII whole words; `tokens(text)` extracts `@` mentions.
-`words` refuses `+`/template-built text: pass a declared `body: text <=N` argument
-or column; `guide live-query` has indexing and editing.
+`tokens(text)` extracts `@` mentions. Search uses a schema
+`wordPrefixes(field)` index and an ordinary bounded prefix read; there is no
+public `words()` value function. See `guide live-query` for indexing and editing.
 
 `now` is the read clock in queries and the commit clock in mutations; `commit` is
 the commit clock, the same instant in mutations. `now` is pinned
@@ -259,39 +271,28 @@ missing maintained group is zero only through `#`; the ordinary target-table
 read remains absent.
 
 Scans, lists, text, JSON, and bytes are bounded. `for` needs a bounded
-list/page/range/tokens/words result. Optional-list maxima bound length, not
+list/page/range/tokens result. Optional-list maxima bound length, not
 presence: narrow with `if` or use a required fallback (`values ?? []`,
 `values ?? more`, or `values ?? maybe ?? more` with required `more`).
 `.length` and `count` require the same presence proof. Selection takes the largest
 alternative bound (3, 5, 7 → 7), without truncating an alternative.
 
-A present empty list suppresses fallback. Fallback expressions, including
-`values ?? [new, new]`, evaluate once in order only when selected; a prior
-`fallback = [new, new]` binding evaluates there regardless of later selection.
-Aliases and captured object fields retain the selected snapshot and bound for
-lengths, loops and returns. Decimal elements keep their source scale and minor
-units; destination write conversion is separate and never changes captured values.
+A present empty list suppresses fallback. A selected fallback evaluates once in
+order; a prior binding evaluates at its binding. Aliases and object fields retain
+the selected snapshot and bound for lengths, loops and returns.
 
-List-column maxima survive aliases and shapes; JSON supplies no list bound.
-Ceiling refusals price sites and fields: merges need structural repair
-(smaller lanes/page, two reads/two snapshots, or a maintained feed), caps a fitting
-chunk, nested scans `maintain.count/sum`, byte bounds narrower collections/fields,
-and non-uniform reserves a uniform prefix; never a pasted `return null;`.
-In a mutation, `for` over a page must cover its range: the table is capped over
-the pinned prefix, the rule is uniform there, the bound is a literal at least the
-cap, and no scan in the mutation is non-uniform. Cursors and key ranges cut the
-range and refuse too. Otherwise `E_STRUCTURAL_FANOUT`; fan-out past a cap is
-LLP 1016's continuation.
+List-column maxima survive aliases/shapes; JSON supplies no list bound. Ceiling
+repairs use smaller pages, maintained aggregates, narrower fields or uniform
+prefixes. Mutation page loops must cover a capped prefix with a uniform rule and
+literal bound at least the cap; cursors/ranges refuse as `E_STRUCTURAL_FANOUT`.
+Fan-out past a cap uses LLP 1016's continuation.
 
 ## Refused platform gaps
 
-Refused (`E_QUARRY_UNSUPPORTED`): `where`, `device`, `oblivious`, `while`,
-functions, recursion — pass bounded arguments; loop with bounded `for`/`walk`.
-An equality-conjunction `where` over indexable columns returns two repairs: the
-schema index line and the indexed prefix read. Repairs keep named keys and sort
-order; row-dependent predicates stay refused. After changing an index, restart
-pagination with an absent cursor. Other predicates name the index, invariant
-(`after insert <- exists …`), or `merge` alternatives.
+Refused (`E_QUARRY_UNSUPPORTED`): `where`, `device`, `oblivious`, `while`, and
+recursion — pass bounded arguments; loop with bounded `for`/`walk`.
+An indexable equality `where` returns schema-index and prefix-read repairs;
+row-dependent predicates refuse. After changing an index, restart pagination.
 
 Index-selection refusals list catalog keys and types, with an executable
 replacement when one unique correction exists.

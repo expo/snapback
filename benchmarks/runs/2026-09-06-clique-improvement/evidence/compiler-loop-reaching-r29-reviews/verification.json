@@ -1,0 +1,22 @@
+{
+  "at": "2026-09-07T18:39:52.175632+00:00",
+  "originalLeaves": 15,
+  "originalBytes": 164763,
+  "byteExactErrors": [],
+  "typeChecks": {
+    "astra": {
+      "diagnostics": 7,
+      "controlDiagnostics": 7,
+      "completeArraysEqual": true,
+      "originalAffectedTypeExit": 1
+    },
+    "grok": {
+      "diagnostics": 7,
+      "controlDiagnostics": 7,
+      "completeArraysEqual": true,
+      "originalAffectedTypeExit": 1
+    }
+  },
+  "secretSelectionScan": "No private-key/API-token patterns or private fleet IPv4 found in selected text; raw sessions/credentials/remote command logs excluded.",
+  "scope": "Evidence copying and parsing only; no product execution/source/shared-checkout change."
+}

@@ -1280,3 +1280,72 @@ an unresolved synthetic optional still exposes npm 11's lock behavior. Neither
 is repaired or disguised by this small preservation correction. Host-only
 packaging evidence does not qualify a Linux runtime or alter the old published
 package and application locks.
+
+## 2026-09-07 — Source-run architecture work exposed a native search difference
+
+The LLP 1018.000 implementation uses the existing chat template to exercise
+bounded reusable functions and a composed conversation query. Shared membership,
+log, and preview helpers remove repeated application logic. One native query
+now returns messages, the maintained count, and a preview at one execution
+sequence. The useful constraint is also visible: this record has no page cursor,
+and downloaded history alone does not prove its count. Actual screen integration
+is still in progress, with an explicitly partial history fallback.
+
+The difficult part was carrying the same indexed search through a real Expo
+restart. Node checks passed, yet the simulator retained both predicted messages
+and their conversation scope while search returned no rows. Batched diagnostics
+isolated empty token postings. Hermes returned an empty array for
+`Uint32Array.from(new Set([3, 5]))`; explicitly filling the sized typed array
+restored postings without a temporary array. A production transform under Node
+had caught earlier private-field portability errors but could not expose this
+runtime behavior. The actual simulator was necessary.
+
+At source integration `e61612c58`, the rebuilt package and native binary pass
+all ten existing Expo witness steps: strict decomposed-Unicode cold search,
+five-store crash recovery, cached images/video, exactly-once replay, expiry,
+and relaunch/drain. The at-rest restart now compares with a baseline captured
+after intervening completed app activity; the earlier raw pre-swap comparison
+is preserved. The transaction probe still does not qualify a native `COMMIT`
+failure. These are source-run results, not a new published-package result or
+a comparison with Convex or Supabase. Compiler deletion, composite-screen
+qualification, independent final reviews, and the runtime size deficit remain
+open in [LLP 1018.000](../llp/1018.000-composable-architecture-next-moves.research.md).
+
+At the later `91adf1c8c` checkpoint, the real screens consume the composed
+record and the Expo witness passes all ten steps again. The record makes the
+count and preview straightforward to share across consumers; a capped preview
+still permits a usable record with no root continuation. A never-opened offline
+conversation needs an explicitly partial history fallback, without a count or
+preview. Five real-owner screen tests and the 117 affected client checks pass.
+The browser's longer lifecycle exposes an unresolved disappearing inbox row
+after unsend, so the complete Web result remains red. This is useful friction:
+unit and initial-render checks did not substitute for the full interaction.
+
+The reviewed allocation amendment is now applied and its unchanged five-root
+check passes at 79,207 gzip bytes against 82,000, with an 80,000 working target.
+The historical failures against 66,000 remain failures. No new comparative
+score, publication, or native failed-`COMMIT` qualification follows.
+
+
+## 2026-09-07 — Published fixes survive public installs
+
+Published 0.0.16 carries the browser carrier setup guidance and staged-platform packaging fix, including the earlier CLI DX delivery. Fresh public Expo/guide verification passed all 12 commands. A separate default npm 11 install and fresh exact-lock npm ci both passed with all 156 packed files verified in both consumers. This removes the reproduced new-package setup obstacle without rewriting historical 0.0.15 locks or audit failures.
+
+Functional publication checks passed, but chat check still exceeded 1 second and the 17 measured consumer steps alone totaled 31.402 seconds against 30. The initial registry E404 is preserved; later exact public identities confirmed publication without republishing. No native-device or benchmark improvement follows from installation proof. Grok remains 63 versus Convex 78 and Supabase 47 until a new full run is graded.
+
+[Release and installed evidence](../benchmarks/runs/2026-09-06-clique-improvement/evidence/cli-016-published/README.md) records the commands, original failures, actual terminals and source/artifact identities. Compiler diagnostics remain in the separately reviewed, unintegrated compiler work.
+
+
+
+### 2026-09-07 — Compiler R29 closed review and integration hold
+
+The loop-reaching-origin candidate `ef88cac15` versus `9995d41a` received scoped READY from both closed independent Astra/xhigh and Grok4.6/xhigh reviews, with actual native and outer exits0. Seven inherited affected-type diagnostics remain exit1 and exactly equal controls; original setup failures and report precision notes remain preserved. [Full evidence](../benchmarks/runs/2026-09-06-clique-improvement/evidence/compiler-loop-reaching-r29-reviews/README.md).
+
+This is not a whole compiler/native/package clearance. Read-only integration assessment identifies the reusable3eba v5 recipe and reviewed0ecd client correction, preserves current-main uniqueness and newer features, and finds no cleared native endpoint for two outstanding62fc absence-pricing findings. Stopped scopes remain stopped; no integration, new tests, publication or frozen016 change resulted from this evidence handoff.
+
+
+## 2026-09-07 — Fresh full Grok run on published 0.0.16
+
+The fresh full run started at18:45:08Z on Office M1 Max. Actual native metadata confirms Grok4.6/xhigh. The builder receives the unchanged full instrument and exact public package, with no previous app or audit findings. All169 original leaves and the helper match; original milestone, media, scale and native requirements remain. M7 stays separate after grading.
+
+[Launch evidence](../benchmarks/runs/2026-09-06-clique-improvement/evidence/grok-016-start/README.md) records the actual process/session and environment. Shared host load and the M5 comparator hardware difference remain disclosed. This starts measurement; it does not establish a better score or any milestone pass.

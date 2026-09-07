@@ -1,0 +1,18 @@
+{
+  "at": "2026-09-07T18:29:01.402245+00:00",
+  "standardReportFullReadAcrossTwoFieldGroups": true,
+  "standardAll12CommandsPassed": true,
+  "standardOuterHelperExit": 0,
+  "standardSeconds": 18.318776125,
+  "defaultReportAndRawLogsFullRead": true,
+  "defaultHelperExit": 0,
+  "defaultSeconds": 11.248037709,
+  "defaultInstallSeconds": 5.428229542,
+  "freshCiSeconds": 1.474206625,
+  "independentOriginalPackedFilesEqualBothInstalls": 156,
+  "packageAndLockByteIdentical": true,
+  "packageSha256": "5253975d3d52d0ef62ae22af36286521911b41b28b24b014d7826f483e380b8d",
+  "lockSha256": "b2cea309f3f94398207c131b63608ce58c47f642e372e3fea0dedab682a319be",
+  "scope": "Darwin publicExpo/guide plus pinned npm11 defaultdependency install/freshci; not benchmark orLinux or native-device qualification",
+  "newActivationTimingRedsPreserved": true
+}

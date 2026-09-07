@@ -74,7 +74,7 @@ The chat template admits members:
 
 `read <- .principal = viewer` hides other seats from admins too. Admin rosters
 need self plus scoped admin read access. Shared `isAdmin` keeps each caller's
-refusal code:
+refusal code. Import it with `fn isAdmin from access`:
 
 ```q
 mutation memberPromote(conversationId: conversations, membershipId: memberships):

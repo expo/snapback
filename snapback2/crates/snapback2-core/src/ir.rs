@@ -271,7 +271,6 @@ pub enum Builtin {
     Divmod { remainder_sink: String },
     Sort { keys: Vec<SortKey> },
     MentionTokens,
-    Words,
     DeterministicShare,
     Count,
     Sum,
@@ -284,7 +283,6 @@ impl Builtin {
             Self::Len
             | Self::Sort { .. }
             | Self::MentionTokens
-            | Self::Words
             | Self::Count
             | Self::Sum
             | Self::CountCapped => 1,

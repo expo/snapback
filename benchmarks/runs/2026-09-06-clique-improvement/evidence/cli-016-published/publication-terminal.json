@@ -1,0 +1,236 @@
+{
+  "completedAt": "2026-09-07T18:34:12.722264+00:00",
+  "actualOuterToolTerminal": {
+    "sessionId": 95492,
+    "initialChunk": "8a328c",
+    "identityChunk": "7b44bd",
+    "finalChunk": "06fcfa",
+    "exitCode": 0,
+    "actualWaitReturned": true
+  },
+  "nativeTerminal": {
+    "pid": 78053,
+    "processIdentity": {
+      "pid": 78053,
+      "start": "Mon Sep 7 11:17:38 2026",
+      "executable": "/Users/ccheever/.volta/tools/image/packages/@openai/codex/lib/node_modules/@openai/codex/node_modules/@openai/codex-darwin-arm64/vendor/aarch64-apple-darwin/bin/codex",
+      "observed": true
+    },
+    "exitCode": 0,
+    "endedEpoch": 1788805964.63879,
+    "elapsedSeconds": 906.4319069385529,
+    "actualProcessWaitCompleted": true,
+    "stdoutSha256": "a6a6c1f156bf02b994103ea2f7ef3b40bed51df1de8b89cfd1eabf1b689efd06",
+    "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "actualNativeIdentity": {
+    "sessionId": "01a07cec-e9b0-7913-8f6c-d2476d87d115",
+    "expectedSessionId": "01a07cec-e9b0-7913-8f6c-d2476d87d115",
+    "launchPid": 78053,
+    "source": "/Users/ccheever/.codex/sessions/2026/09/07/rollout-2026-09-07T10-31-36-01a07cec-e9b0-7913-8f6c-d2476d87d115.jsonl",
+    "sourceSha256AtClose": "f8ac3d277b527913951f096e8a2e6e0e6a939263c3b962836bad6a63c9d32e92",
+    "newRecordsOffset": 2358662,
+    "turnContexts": [
+      {
+        "model": "gpt-6-astra",
+        "effort": "xhigh",
+        "cwd": "/Users/ccheever/clique-improvement/revisions/cli-016-release-helper-preparation-r1",
+        "timestamp": "2026-09-07T18:17:40.615Z"
+      },
+      {
+        "model": "gpt-6-astra",
+        "effort": "xhigh",
+        "cwd": "/Users/ccheever/clique-improvement/revisions/cli-016-release-helper-preparation-r1",
+        "timestamp": "2026-09-07T18:28:31.053Z"
+      }
+    ],
+    "identityMatchesRequest": true,
+    "onlyOwnNewNativeIdentityRecordsRetained": true
+  },
+  "launches": 1,
+  "sourceCommit": "8eeea0dddcf00c45a43f7f1051b14747919302b6",
+  "sourceTree": "2951afed582083884665451bf012e25165a714fd",
+  "snapback2Tree": "37ebbc5f188b78639a2425738b7dc0d7da170a34",
+  "approvalSha256": "dc21faee39bb76f4ca956c502e71895a2fc1636fa5f02236fd2bf9d484aac6d0",
+  "publicationInputManifestSha256": "50460cd37936d84cd21fcdfd0a12fe8a9475b2c5dc100198bd3247e2bb377c81",
+  "bundleSha256": "8b359cfb94ed24209e3a0eb7c2ce6c7fe3293bb675984747f070562c2dd6d0aa",
+  "wrapperIntegrityResult": {
+    "publicationInputsUnchanged": true,
+    "changedPublicationInputs": [],
+    "qualificationEvidenceUnchanged": true,
+    "changedQualificationEvidence": [],
+    "unchanged": true,
+    "changedInputs": [],
+    "originalBoundInputManifestSha256": "2a12a76cb5d87fc511c427299949005bafa85e3df37a4883e228685a04c249fe",
+    "priorOutputsUnchanged": true,
+    "changedPriorOutputs": []
+  },
+  "publicationOutcome": "Actual standard publisher exit0; subsequent token-free four publicSRIs/latest observations all match0.0.16",
+  "publisher": {
+    "pid": 54071,
+    "started": 1788805227.0,
+    "exitCode": 0,
+    "seconds": 40.4200095,
+    "standardConsumerResults": 19,
+    "allFunctionalResultsPass": true
+  },
+  "preservedFailure": {
+    "immediateDarwinRegistryPid": 56890,
+    "exitCode": 1,
+    "code": "E404",
+    "activationOuterExitCode": 1,
+    "activationReplayed": false,
+    "publisherReplayed": false,
+    "disposition": "Root04/05; one separate token-free public observation round, then original finalcustody"
+  },
+  "timing": {
+    "pass": false,
+    "activationChatCheckSeconds": 1.0824467089999998,
+    "chatCheckBudgetSeconds": 1,
+    "sequentialConsumerStepCount": 17,
+    "sequentialConsumerStepSumSeconds": 31.401559001000003,
+    "wholeConsumerBudgetSeconds": 30,
+    "sumMeaning": "Lower bound before cleanup/transition overhead; exactsmoke duration not emitted",
+    "dryChatCheckSeconds": 1.050835625,
+    "dryContainingWindowSeconds": 22.810614,
+    "dryWindowIsExactSmokeDuration": false
+  },
+  "finalCustody": {
+    "sourceLeaves": 944,
+    "bundleLeaves": 11,
+    "artifactBytesModesUnchanged": true,
+    "canonicalResumeMode": "0o644",
+    "originalPairResumeMode": "0o444",
+    "originalBinariesMode": "0o700",
+    "metricBaselineRows": 226,
+    "metricAfterRows": 227,
+    "baselineExactOrderMultiplicityRestored": true,
+    "recordedRemoteIdentitiesAbsent": 51,
+    "remotePrivateCacheLogsTmpAbsent": true,
+    "limit": "RecordedPID/start identities and stopped-state observation time; not permanent host cleanliness"
+  },
+  "evidenceFiles": [
+    {
+      "path": "/Users/ccheever/clique-improvement/revisions/cli-016-publication-execution-r1/REPORT.md",
+      "bytes": 8004,
+      "sha256": "fac7347edd26c409bd54c0b5010fae544eda0ae8628588946d59eb462a869b87"
+    },
+    {
+      "path": "/Users/ccheever/clique-improvement/revisions/cli-016-publication-execution-r1/phase.json",
+      "bytes": 56219,
+      "sha256": "60885e74239c9f0084baee9d8adcff155e9fd2a0060df7ac1179ea3c881de5de"
+    },
+    {
+      "path": "/Users/ccheever/clique-improvement/revisions/cli-016-publication-execution-r1/launch.json",
+      "bytes": 3281,
+      "sha256": "ffdae34e8198cc857faf4dfd4102e7b84f7e8afd346f8396474773cc8ed36dc4"
+    },
+    {
+      "path": "/Users/ccheever/clique-improvement/revisions/cli-016-publication-execution-r1/terminal.json",
+      "bytes": 614,
+      "sha256": "439c191848ad6847470943b32fd764b9f12ba8fd25bbe71343a9c0cbfe5920fb"
+    },
+    {
+      "path": "/Users/ccheever/clique-improvement/revisions/cli-016-publication-execution-r1/actual-identity.json",
+      "bytes": 931,
+      "sha256": "bf4d26117590fd612efe6c1c42f9ca0773b4db3766232d086cdaf483711fdf91"
+    },
+    {
+      "path": "/Users/ccheever/clique-improvement/revisions/cli-016-publication-execution-r1/actual-turn-context.jsonl",
+      "bytes": 1750,
+      "sha256": "8b973ac7c73749e149f265a29c975d6ea5eda5f9adde048f7cac901e8257eba0"
+    },
+    {
+      "path": "/Users/ccheever/clique-improvement/revisions/cli-016-publication-execution-r1/input-integrity-after.json",
+      "bytes": 367,
+      "sha256": "431c8f42c63c39bf1b79079117c4c598bcf2d324d69a32cc659977b7f430ce67"
+    },
+    {
+      "path": "/Users/ccheever/clique-improvement/revisions/cli-016-publication-execution-r1/root-approval.json",
+      "bytes": 1510,
+      "sha256": "dc21faee39bb76f4ca956c502e71895a2fc1636fa5f02236fd2bf9d484aac6d0"
+    },
+    {
+      "path": "/Users/ccheever/clique-improvement/revisions/cli-016-publication-execution-r1/activation-result.json",
+      "bytes": 440,
+      "sha256": "c5b80e209858e6da274f630a81d13fac02f540a4eabb33a1548586efbfad8219"
+    },
+    {
+      "path": "/Users/ccheever/clique-improvement/revisions/cli-016-publication-execution-r1/activation-first-failure.json",
+      "bytes": 6897,
+      "sha256": "b0a70aa911b0a8733b3a70759c170107643aebd53e573be702bf87afa0299b60"
+    },
+    {
+      "path": "/Users/ccheever/clique-improvement/revisions/cli-016-publication-execution-r1/activation-events.jsonl",
+      "bytes": 20439,
+      "sha256": "ca8076d0e7c505d04c7fd06e553b27913f9f0b7103209e09807021b0a7f6cd2a"
+    },
+    {
+      "path": "/Users/ccheever/clique-improvement/revisions/cli-016-publication-execution-r1/registry-observation-01.json",
+      "bytes": 3255,
+      "sha256": "302f28717004e03553144cb84aabaebb58082d1e5837716d65a203dc9af06986"
+    },
+    {
+      "path": "/Users/ccheever/clique-improvement/revisions/cli-016-publication-execution-r1/registry-observation-01-preparation.json",
+      "bytes": 1269,
+      "sha256": "6b4cebd64972cff648b84523b59246706cdbfac73a43bc2ccf8ebd4027848784"
+    },
+    {
+      "path": "/Users/ccheever/clique-improvement/revisions/cli-016-publication-execution-r1/disposition04-acknowledgement.json",
+      "bytes": 1011,
+      "sha256": "47d73fec43fabd7aee3761acd02e2548839a7755dee97b5a223ef791b349f890"
+    },
+    {
+      "path": "/Users/ccheever/clique-improvement/revisions/cli-016-publication-execution-r1/disposition05-acknowledgement.json",
+      "bytes": 587,
+      "sha256": "84b97673e60d0c5879ec17cbb41171470ed5ea206688ca3b9896be6f6bc8004e"
+    },
+    {
+      "path": "/Users/ccheever/clique-improvement/revisions/cli-016-publication-execution-r1/stopped-state-result.json",
+      "bytes": 35088,
+      "sha256": "565862fda82ccc341333e0e2353a834c1315db2a0cff02c58ab6b2b6d715e26e"
+    },
+    {
+      "path": "/Users/ccheever/clique-improvement/revisions/cli-016-publication-execution-r1/final-remote-custody.json",
+      "bytes": 522,
+      "sha256": "7b6fe3361a1e522220b6ffa9ec23f6b9ba9845f10bd1ac98bac9e141056cfadd"
+    },
+    {
+      "path": "/Users/ccheever/clique-improvement/revisions/cli-016-publication-execution-r1/root-publication-reconciliation.json",
+      "bytes": 1602,
+      "sha256": "4ff9ee8a20431abc109f433a9881d9c7525e0374ce169dda0a4011544cddb3b0"
+    },
+    {
+      "path": "/Users/ccheever/clique-improvement/revisions/cli-016-publication-execution-r1/phase-01-command-observation.json",
+      "bytes": 608,
+      "sha256": "b3eeb67f43579169d5d7abd65b757f31cbb130d31f811cb3c00e6841d4644312"
+    },
+    {
+      "path": "/Users/ccheever/clique-improvement/revisions/cli-016-publication-execution-r1/phase-02-command-observation.json",
+      "bytes": 756,
+      "sha256": "bb3ceddf0067dc742e916afd427583407b89b95d10c52aba6cd8a6547025949c"
+    },
+    {
+      "path": "/Users/ccheever/clique-improvement/revisions/cli-016-publication-execution-r1/registry-01-command-observation.json",
+      "bytes": 684,
+      "sha256": "54b6d33e27a71315a75a317781f6e1374ca0dcca05c237112e6e8264be14b5eb"
+    },
+    {
+      "path": "/Users/ccheever/clique-improvement/revisions/cli-016-publication-execution-r1/phase-03-command-observation.json",
+      "bytes": 736,
+      "sha256": "4d69f4ef976faa4bb42c287a0580f69ef37de05db4ff44be5e12eb2930fdd8bf"
+    },
+    {
+      "path": "/Users/ccheever/clique-improvement/revisions/cli-016-publication-execution-r1/phase-04-command-observation.json",
+      "bytes": 1159,
+      "sha256": "d7fdd08ed5c22d880bcb02b9b28a5ad10fcbbc20c3611529b9e1277853fcb84d"
+    },
+    {
+      "path": "/Users/ccheever/clique-improvement/revisions/cli-016-publication-execution-r1/final-answer.md",
+      "bytes": 567,
+      "sha256": "a473eb276beaa7fd6c7ac89d3b7de658e58ec56ffc4ae71fdb94dde9b80b7de1"
+    }
+  ],
+  "readScope": "Supervisor FULL read report, actuallaunch/terminal/identity/integrity, registry observation and finalremote receipt; stoppedstate selectedfinalcustody fields, not a claim of FULL phase JSON read. Root handles semantic complete handoff review. Native private thought/session bodies not copied; only ownnewturn_context retained.",
+  "additionalVerifiers": "Root independently owns publicExpo/guide and Node24/npm11 witnesses; this receipt does not substitute for their separate actualterminals"
+}

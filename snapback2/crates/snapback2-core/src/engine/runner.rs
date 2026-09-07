@@ -874,8 +874,6 @@ impl<'a> Runner<'a> {
                 });
                 Ok(Value::Array(values))
             }
-            Builtin::Words => self.unicode_words(args.remove(0)),
-
             Builtin::MentionTokens => {
                 let text = args.remove(0).as_str()?.to_owned();
                 let mut seen = BTreeSet::new();

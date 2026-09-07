@@ -3,14 +3,13 @@ import { readFile } from "node:fs/promises";
 import ts from "typescript";
 import { lowerProject } from "./project";
 import { typecheckSource } from "./typecheck";
-import { lowerSource } from "./compiler";
 import { effectGlobals } from "./lower/effects";
 
 type Test = (name: string, run: () => Promise<void>) => void;
 type WithProject = (files: Record<string, string>, run: (root: string) => Promise<void>) => Promise<void>;
 const schema = "table records:\n  body: text <=200\n  read <- public\n  insert <- allow\n";
 
-export function registerEffectLanguageChecks(test: Test, withProject: WithProject, frontend: string, subset: string) {
+export function registerEffectLanguageChecks(test: Test, withProject: WithProject, frontend: string) {
   test("effect-only local export aliases retain every authored identity and the direct control", async () => {
     const call = 'effect({ grants: ["https://api.example.com"], run: async (payload: {value: number}) => payload })';
     for (const [declaration, names] of [
@@ -88,31 +87,6 @@ mutation fire():
         assert(result.apiDts.includes("readonly notify: Op<"));
       });
     }
-  });
-
-  test("effect export aliases resolve renamed and namespace imports in lowering", async () => {
-    // Internal TypeScript lowering fixture: Quarry emits the named-import form above.
-    await withProject({
-      "snapback/schema.q": schema,
-      "snapback/delivery.ts": `import { effect } from "snapback2";
-        const local = effect({ grants: ["https://api.example.com"], run: async (payload: {value: number}) => payload });
-        export { local as notify, local as retry };`,
-      "snapback/ops.ts": `import { mutation, emit } from "snapback2";
-        import { notify as send, retry as sendAgain } from "./delivery";
-        import * as delivery from "./delivery";
-        export const fire = mutation({}, () => {
-          emit(send, { value: 1 }); emit(sendAgain, { value: 2 });
-          emit(delivery.notify, { value: 3 }); emit(delivery.retry, { value: 4 }); return true;
-        });`,
-    }, async (root) => {
-      const result = await lowerProject(root, { authoring: "any" });
-      assert(result.ok, JSON.stringify(result));
-      assert.deepEqual(result.project.schema.effects, ["delivery.notify", "delivery.retry"]);
-      const fire = result.project.programs.find((op) => op.name === "ops.fire");
-      assert(fire);
-      assert.deepEqual(fire.body.filter((stmt) => typeof stmt === "object" && "Emit" in stmt)
-        .map((stmt) => stmt.Emit.effect), ["delivery.notify", "delivery.retry", "delivery.notify", "delivery.retry"]);
-    });
   });
 
   test("effect export aliases cannot bypass grants closure or then validation", async () => {
@@ -195,11 +169,6 @@ mutation fire():
   });
 
   test("effects use ES2020 types while Quarry and its generated checker retain the subset", async () => {
-    const messages = typecheckSource('const s = "hello"; s.substring(0, 80); s.charAt(0); s[0];', "quarry.ts", subset)
-      .map((item) => ts.flattenDiagnosticMessageText(item.messageText, "\n"));
-    assert.equal(messages.length, 3, messages.join("\n"));
-    assert(messages[0]!.includes("substring") && messages[1]!.includes("charAt"));
-    assert.match(messages[2]!, /can't be used to index type 'String'/);
     // Quarry refuses JS method/constructor syntax before it can reach the TS checker.
     for (const expression of ["body.substring(0, 80)", "body.charAt(0)", "body[0]", "new Map()", "new Headers()"]) {
       await withProject({
@@ -213,16 +182,6 @@ mutation fire():
           ? item.code === "E_QUARRY_UNKNOWN" && item.message === "unknown table body"
           : item.code === "E_QUARRY_SYNTAX" && item.message === 'expected newline, got "("'), JSON.stringify(result));
       });
-    }
-    // Pin the downstream subset refusal too, where family opaque actually applies.
-    for (const [expression, message] of [
-      ["args.body.substring(0, 80)", /substring/], ["args.body.charAt(0)", /charAt/],
-      ["args.body[0]", /index type 'String'/],
-    ] as const) {
-      const result = lowerSource(`import { query, t } from "snapback2";
-        export const preview = query({body: t.text(200)}, ({args}) => ${expression});`, "programs.ts", subset);
-      assert(!result.ok, `${expression} escaped the subset`);
-      assert(result.diagnostics.some((item) => item.family === "opaque" && message.test(item.message)), JSON.stringify(result));
     }
     await withProject({
       "snapback/schema.q": schema,
@@ -375,4 +334,105 @@ mutation fire():
       assert(result.diagnostics.every((item) => item.code === "E_EFFECT_TYPE" && /Expected 0(?:-1)? arguments, but got 2/.test(item.message)), JSON.stringify(result));
     });
   });
+
+  test("effect diagnostics retain grants, closure, imports, then, unknown, and query-emit refusals", async () => {
+    const cases: Array<[Record<string, string>, string]> = [
+      [{ "snapback/bad.ts": `import { effect } from "snapback2";
+        export const bad = effect({ grants: [], run: async () => null });` }, "E_EFFECT_GRANT"],
+      [{ "snapback/bad.ts": `import { effect } from "snapback2";
+        const outside = () => null;
+        export const bad = effect({ grants: ["https://example.com"], run: async () => outside() });` }, "E_EFFECT_CLOSURE"],
+      [{ "snapback/bad.ts": `import { effect } from "snapback2";
+        export const bad = effect({ grants: ["https://example.com"], run: async () => import("outside") });` }, "E_EFFECT_IMPORT"],
+      [{
+        "snapback/ops.q": `query ping():
+  return null
+`,
+        "snapback/bad.ts": `import { effect } from "snapback2"; import { ping } from "./ops";
+          export const bad = effect({ grants: ["https://example.com"], run: async () => null, then: ping });`,
+      }, "E_EFFECT_THEN_ARGS"],
+      [{ "snapback/ops.q": "effect missing from bad\nquery ping():\n  return null\n" }, "E_EFFECT_UNKNOWN"],
+      [{
+        "snapback/ops.q": `effect notify from delivery
+query bad():
+  emit notify { value: 1 }
+  return null
+`,
+        "snapback/delivery.ts": `import { effect } from "snapback2";
+          export const notify = effect({ grants: ["https://example.com"], run: async () => null });`,
+      }, "E_EMIT_IN_QUERY"],
+    ];
+    for (const [files, code] of cases) await withProject({ "snapback/schema.q": schema, ...files }, async root => {
+      const result = await lowerProject(root);
+      assert(!result.ok && result.diagnostics.some(item => item.code === code),
+        `${code} was omitted: ${JSON.stringify(result)}`);
+    });
+  });
+
+  test("effect source expands JSON constants and scopes nested function, method, and catch bindings", async () => {
+    await withProject({
+      "snapback/schema.q": schema,
+      "snapback/delivery.ts": `import { effect } from "snapback2";
+        const baseHeaders = { accept: "application/json" };
+        const requestDefaults = { method: "POST", headers: { ...baseHeaders, "content-type": "application/json" } };
+        export const notify = effect({ grants: ["https://example.com"], run: async (payload: { value: number }) => {
+          function identity(value: number) { return value; }
+          function keep(value: number) { return identity(value); }
+          const formatter = { format(value: number) { return keep(value); } };
+          try { return { ...requestDefaults, value: formatter.format(payload.value) }; }
+          catch (error) { return { ...requestDefaults, error: String(error) }; }
+        } });`,
+    }, async root => {
+      const result = await lowerProject(root);
+      assert(result.ok, JSON.stringify(result));
+      const source = result.project.effects[0]?.source ?? "";
+      assert(source.startsWith("(() => {") && source.includes('const requestDefaults = {"method":"POST"')
+        && source.includes('"headers":{"accept":"application/json","content-type":"application/json"}')
+        && source.includes("function identity") && source.includes("function keep")
+        && source.includes("format(value)") && source.includes("catch (error)"), source);
+    });
+    await withProject({
+      "snapback/schema.q": schema,
+      "snapback/delivery.ts": `import { effect } from "snapback2";
+        const nonJson = () => 1;
+        const settings = { ...nonJson, method: "POST" };
+        export const broken = effect({ grants: ["https://example.com"], run: async () => settings });`,
+    }, async root => {
+      const result = await lowerProject(root);
+      const refusal = !result.ok && result.diagnostics.find(item =>
+        item.code === "E_EFFECT_CLOSURE" && item.message.includes("spread nonJson"));
+      assert(refusal, `non-JSON constant spread lost its site: ${JSON.stringify(result)}`);
+    });
+  });
+
+  test("effect closure admits noncomputed destructuring property names", async () => {
+    await withProject({
+      "snapback/schema.q": schema,
+      "snapback/delivery.ts": `import { effect } from "snapback2";
+        export const renamed = effect({ grants: ["https://example.com"], run: async (_p: null, { value: local }: any) => local });
+        export const renamedDefault = effect({ grants: ["https://example.com"], run: async (_p: null, { value: local = 1 }: any) => local });`,
+    }, async root => {
+      const result = await lowerProject(root);
+      assert(result.ok && result.project.effects.length === 2, JSON.stringify(result));
+    });
+  });
+
+  test("effect closure refuses parameter, destructuring, and computed-name defaults at distinct sites", async () => {
+    await withProject({
+      "snapback/schema.q": schema,
+      "snapback/delivery.ts": `import { effect } from "snapback2";
+        let someOuterName = { y: 0 };
+        export const parameterDefault = effect({ grants: ["https://example.com"], run: async (_payload: null = (someOuterName.y, null)) => null });
+        export const destructuringDefault = effect({ grants: ["https://example.com"], run: async ({ x = (someOuterName.y = 1) }: { x?: number }) => x });
+        export const computedName = effect({ grants: ["https://example.com"], run: async ({ [someOuterName.y]: x }: Record<number, unknown>) => x });`,
+    }, async root => {
+      const result = await lowerProject(root);
+      assert(!result.ok, "effects that close over parameter syntax unexpectedly compiled");
+      const refusals = result.diagnostics.filter(item =>
+        item.code === "E_EFFECT_CLOSURE" && item.message.includes("someOuterName"));
+      assert(refusals.length === 3 && new Set(refusals.map(item => item.site)).size === 3,
+        `parameter syntax lost distinct closure sites: ${JSON.stringify(result)}`);
+    });
+  });
+
 }

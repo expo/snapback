@@ -205,7 +205,7 @@ pub(crate) fn expression(
             );
             if matches!(
                 builtin,
-                Builtin::Slice | Builtin::Sort { .. } | Builtin::Concat | Builtin::Words
+                Builtin::Slice | Builtin::Sort { .. } | Builtin::Concat
             ) {
                 provenance.constructed_at = Some(iteration);
             }
@@ -294,10 +294,12 @@ pub(crate) fn collection_price_from<T>(
     match value {
         Expr::Variable(name) => variables.get(name).is_some_and(collection),
         Expr::Array(_) | Expr::Object(_) | Expr::Get(_) | Expr::Scan(_) | Expr::Merge(_) => true,
-        Expr::Builtin { builtin, .. } => matches!(
-            builtin,
-            Builtin::Slice | Builtin::Sort { .. } | Builtin::Concat | Builtin::Words
-        ),
+        Expr::Builtin { builtin, .. } => {
+            matches!(
+                builtin,
+                Builtin::Slice | Builtin::Sort { .. } | Builtin::Concat
+            )
+        }
         Expr::Literal(value) => matches!(value, Value::Array(_) | Value::Row(_) | Value::Map(_)),
         Expr::Field { .. }
         | Expr::Binary { .. }
@@ -324,32 +326,5 @@ fn merge_origins(
             .entry(identity)
             .and_modify(|current| *current = merge(*current, count))
             .or_insert(count);
-    }
-}
-
-// @ref LLP 1001#pure-builtins — a word may occupy the entire input; list bytes
-// cannot be averaged over the cardinality bound to price one selected element.
-pub(crate) fn has_word_list<T>(
-    value: &Expr,
-    variables: &BTreeMap<String, T>,
-    marked: fn(&T) -> bool,
-) -> bool {
-    match value {
-        Expr::Builtin {
-            builtin: Builtin::Words,
-            ..
-        } => true,
-        Expr::Variable(name) => variables.get(name).is_some_and(marked),
-        Expr::Builtin { args, .. } | Expr::Array(args) => {
-            args.iter().any(|v| has_word_list(v, variables, marked))
-        }
-        Expr::Object(fields) => fields.values().any(|v| has_word_list(v, variables, marked)),
-        Expr::Field { base, .. } | Expr::Unary { value: base, .. } => {
-            has_word_list(base, variables, marked)
-        }
-        Expr::Binary { left, right, .. } => {
-            has_word_list(left, variables, marked) || has_word_list(right, variables, marked)
-        }
-        _ => false,
     }
 }

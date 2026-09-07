@@ -4,14 +4,14 @@ import { dirname, join, resolve } from "node:path";
 import type { FrontendDiagnostic, Program } from "./ir";
 import { compileJourneys, lowerProject } from "./project";
 import { rustCheck } from "./rust-check";
-import { compileQuarry, type QuarryInput } from "./quarry/index";
+import { compileInline } from "./quarry-check-helpers";
 
 type Test = (name: string, run: () => void | Promise<void>) => void;
 
 export function registerQuarryMoneyChecks(test: Test, frontend: string): void {
   const fixtures = resolve(frontend, "fixtures");
 
-  test("Quarry money builtins and branded multiplication preserve descriptors in TypeScript and IR", async () => {
+  test("Quarry money builtins and branded multiplication preserve descriptors in direct IR", async () => {
     const schema = `table users:
   principal: principal
   public
@@ -51,23 +51,6 @@ query balance(owner: principal):
 query rate(owner: principal):
   return #rates[owner]
 `;
-    const compiled = compileInline([
-      { fileName: "snapback/schema.q", source: schema },
-      { fileName: "snapback/money.q", source: operations },
-    ]);
-    assert(compiled.ok, `money builtin front end refused: ${compiled.ok ? "" : diagnosticsText(compiled.diagnostics)}`);
-    const generated = compiled.modules[0]!.source;
-    assert(generated.includes("deterministicShare(product, args.recipients, args.recipient)"), `share did not lower to deterministicShare:\n${generated}`);
-    assert(generated.includes("divmod(split, args.divisor)"), `divmod did not lower:\n${generated}`);
-    assert(generated.includes("divmod((args.amount * args.rate), 10000).quotient")
-      && generated.includes("divmod((args.rate * args.amount), 10000).quotient")
-      && generated.includes("divmod((args.rate * args.other), 1000).quotient")
-      && generated.includes("divmod((args.other * args.rate), 10000).quotient"),
-    `branded multiplication lost the dropped operand's power of ten:\n${generated}`);
-    assert(generated.includes("-(args.amount)") && generated.includes("(0 - args.amount)")
-      && generated.includes("args.amount > 0") && generated.includes("args.rate >= 0"),
-    `unary minus or branded zero comparisons changed:\n${generated}`);
-
     await withProject({ "snapback/schema.q": schema, "snapback/money.q": operations }, async (root) => {
       const lowered = await lowerProject(root);
       assert(lowered.ok, `money builtin project refused: ${lowered.ok ? "" : diagnosticsText(lowered.diagnostics)}`);
@@ -128,10 +111,10 @@ query remainder(left: money USD, divisor: int):
     assert(failures.some((item) => item.message.includes("requires exactly 3 arguments") && item.rewrite.includes("share(amount, recipients, recipient)"))
       && failures.some((item) => item.message.includes("does not match recipient-list item type") && item.rewrite.includes("same nominal type"))
       && failures.some((item) => item.message.includes("requires exactly 2 arguments") && item.rewrite.includes("divmod(amount, integerDivisor)"))
-      && failures.some((item) => item.message.includes("divisor must be an int") && item.rewrite.includes("integer literal"))
-      && failures.some((item) => item.message.includes("currency-squared") && item.rewrite.includes("decimal rate or an int"))
-      && failures.some((item) => item.message.includes("does not admit /") && item.rewrite.includes("divmod(left, divisor).quotient"))
-      && failures.some((item) => item.message.includes("does not admit %") && item.rewrite.includes("divmod(left, divisor).remainder")),
+      && failures.some((item) => item.message.includes("divisor must be an int") && item.rewrite.includes("integer expression or integer literal"))
+      && failures.some((item) => item.message.includes("currency-squared") && item.rewrite.includes("decimal rate or int"))
+      && failures.some((item) => item.message.includes("does not admit /") && item.rewrite.includes("divmod(left, right).quotient"))
+      && failures.some((item) => item.message.includes("does not admit %") && item.rewrite.includes("divmod(left, right).remainder")),
     `money builtin refusal detail changed: ${JSON.stringify(failures)}`);
   });
 
@@ -158,18 +141,17 @@ query bareRate(total: money USD):
     const failures = result.diagnostics.filter((item) => item.code === "E_QUARRY_TYPE");
     assert(failures.length === 2
       && failures.every((item) => item.site.startsWith("snapback/negation.q:"))
-      && failures.some((item) => item.message === "negation requires an int, decimal, or money value"
+      && failures.some((item) => item.message === "unary - requires a present numeric value, got text"
         && item.rewrite.includes("negate an int, decimal, or money value"))
-      && failures.some((item) => item.message.includes("an int operand or a decimal-typed rate")
-        && item.message.includes("bare fractional literal has no scale")
-        && item.rewrite.includes("decimal S argument or column")),
+      && failures.some((item) => item.message.includes("an int operand or decimal-typed rate")
+        && item.rewrite.includes("declared decimal rate")),
     `numeric refusal guidance changed: ${JSON.stringify(result)}`);
 
     const accepted = compileInline([
       { fileName: "snapback/schema.q", source: schema },
       { fileName: "snapback/negation.q", source: "query good(amount: money USD):\n  return -amount\n" },
     ]);
-    assert(accepted.ok && accepted.modules[0]!.source.includes("-(args.amount)"),
+    assert(accepted.ok && JSON.stringify(accepted.project.programs).includes('"Unary":{"op":"Neg"'),
       `money negation did not remain accepted: ${JSON.stringify(accepted)}`);
   });
 
@@ -198,8 +180,8 @@ query branded(amount: money USD):
       { fileName: "snapback/optional.q", source: "query neg(amount: money USD ?):\n  return -amount\n" },
     ]);
     assert(!optional.ok && optional.diagnostics.some((item) => item.code === "E_QUARRY_TYPE"
-      && item.message === "negation requires a present int, decimal, or money value"
-      && item.rewrite.includes("-(value!)")),
+      && item.message === "unary - requires a present numeric value, got money USD 2"
+      && item.rewrite.includes("negate an int, decimal, or money value")),
     `optional money negation lost its presence rewrite: ${JSON.stringify(optional)}`);
   });
 
@@ -211,8 +193,8 @@ query branded(amount: money USD):
       const result = await lowerProject(root);
       assert(!result.ok, "0.12345 entered a decimal 4 position");
       const failure = result.diagnostics.find((item) => item.code === "E_DECIMAL_SCALE");
-      assert(failure?.site.startsWith("snapback/rates.q:2:") && failure.rewrite.includes("0.12345")
-        && failure.message.includes("5 fractional digits") && failure.message.includes("scale 4"),
+      assert(failure?.site.startsWith("snapback/rates.q:2:") && failure.rewrite.includes("at most 4 fractional digits")
+        && failure.message.includes("5 fractional digits") && failure.message.includes("decimal 4"),
       `over-precise literal lost its q site or scale detail: ${JSON.stringify(result)}`);
     });
   });
@@ -245,7 +227,7 @@ query branded(amount: money USD):
       { fileName: "snapback/schema.q", source: schema },
       { fileName: "snapback/scale.q", source: operationSource },
     ]);
-    assert(compiled.ok && compiled.modules[0]!.source.includes("1000000000000"),
+    assert(compiled.ok && JSON.stringify(compiled.project.programs).includes('"Int":1000000000000'),
       `scale 12 product did not use its safe-integer divisor: ${JSON.stringify(compiled)}`);
     await withProject({ "snapback/schema.q": schema, "snapback/scale.q": operationSource }, async (root) => {
       const lowered = await lowerProject(root);
@@ -340,23 +322,13 @@ maintain convSpend = sum expenses of grand by conv:
     const operations = `query aggregateOperands(owner: principal, c: text <=20, recipients: [principal] <=5, rate: decimal 4):
   return { shared: share(#balances[owner], recipients, viewer), divided: divmod(#balances[owner], 3).quotient, product: #convSpend[c] * rate }
 `;
-    const compiled = compileInline([
-      { fileName: "snapback/schema.q", source: schema },
-      { fileName: "snapback/aggregates.q", source: operations },
-    ]);
-    assert(compiled.ok, `aggregate operands refused in Quarry: ${compiled.ok ? "" : diagnosticsText(compiled.diagnostics)}`);
-    const generated = compiled.modules[0]!.source;
-    assert(occurrences(generated, "?.value ?? 0") === 3
-      && generated.includes("deterministicShare(__q_agg_")
-      && generated.includes("divmod(__q_agg_")
-      && generated.includes("divmod((__q_agg_")
-      && !generated.includes("deterministicShare((db.get")
-      && !generated.includes("divmod(((db.get"),
-    `aggregate fallback was not hoisted before share/product:\n${generated}`);
-
     await withProject({ "snapback/schema.q": schema, "snapback/aggregates.q": operations }, async (root) => {
       const lowered = await lowerProject(root);
       assert(lowered.ok, `aggregate operands did not lower: ${lowered.ok ? "" : diagnosticsText(lowered.diagnostics)}`);
+      const ir = JSON.stringify(lowered.project.programs);
+      assert(occurrences(ir, '"Get"') === 3 && occurrences(ir, '"op":"Ne"') === 3
+        && ir.includes('"DeterministicShare"') && ir.includes('"Divmod"') && ir.includes('"op":"Mul"'),
+      `aggregate operands did not reach their direct IR consumers: ${ir}`);
       const failures = rustCheck(lowered.project.programs, "synthetic", lowered.project.schema).filter((item) => item.error);
       assert(failures.length === 0, `aggregate operands did not certify: ${JSON.stringify(failures)}`);
     });
@@ -385,10 +357,6 @@ maintain convSpend = sum expenses of grand by conv:
     assert(pay.includes('"builtin":"DeterministicShare"') && pay.includes('"Divmod"') && pay.includes('"op":"Mul"'),
       `Clique Pay did not exercise share and rate multiplication in IR: ${pay}`);
   });
-}
-
-function compileInline(inputs: Array<{ fileName: string; source: string }>) {
-  return compileQuarry(inputs.map((input): QuarryInput => ({ ...input, path: resolve("/virtual", input.fileName) })));
 }
 
 async function withProject<T>(files: Record<string, string>, run: (root: string) => Promise<T>): Promise<T> {

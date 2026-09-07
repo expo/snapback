@@ -5,7 +5,9 @@ import type { Document, Expr, IndexDecl, ProgramDecl, ScalarType, ShapeField, Si
 import { selectIndex } from "./catalog";
 import { decimalScale, opaque, QuarryError, refuse, typeError, unsupported } from "./diagnostics";
 import { completionFacts } from "./bound-control";
+import { bindBuiltinCall } from "./bound-builtins";
 import { BoundFunctionRegistry, BoundShapeRegistry } from "./bound-declarations";
+import { validateCursorIndex, validatePageableMergeIndex } from "./bound-index-validation";
 import { siteText, sourceStack, typeName, withoutExpansion } from "./bound-source";
 import type { BoundArgumentSymbol, BoundExpression, BoundHeldSearch, BoundIndexSymbol, BoundLocalSymbol, BoundPresence,
   BoundMergeLane, BoundQuarryProgram, BoundRead, BoundSourceStack, BoundStatement, BoundTableSymbol, BoundType,
@@ -114,10 +116,15 @@ class ExpressionBinder {
         });
         bound.push({ kind: "bind", symbols, value, source, ...(tupleFields ? { tupleFields } : {}) });
       } else if (statement.kind === "require") {
+        validateRefusalCode(statement.site, statement.code);
         const condition = this.expression(statement.condition);
         requireBool(condition, statement.condition.site);
         bound.push({ kind: "require", condition, code: statement.code, source });
       } else if (statement.kind === "emit") {
+        if (this.program.kind === "query") throw new QuarryError(
+          this.diagnosticSite(statement.site), "queries cannot emit effects", "E_EMIT_IN_QUERY",
+          "change query to mutation before emitting an effect",
+        );
         const effect = this.effects.get(statement.effect);
         if (!effect) refuse(this.diagnosticSite(statement.site),
           `unknown effect ${statement.effect}; declare effect ${statement.effect} from <module>`);
@@ -237,6 +244,7 @@ class ExpressionBinder {
     }
     if (expression.kind === "binary") return this.binary(expression);
     if (expression.kind === "assert") {
+      validateRefusalCode(expression.site, expression.code);
       const value = this.expression(expression.value);
       return { kind: "assert", value, code: expression.code,
         facts: facts(requiredType(value.facts.type), value.facts.origin, {
@@ -382,10 +390,6 @@ class ExpressionBinder {
 
   private name(name: string, site: Site): BoundExpression {
     const source = this.source(site);
-    if (this.helperDepth > 0 && name === "new") throw new QuarryError(
-      this.diagnosticSite(site), "new is mutation-only caller state and is not available inside fn expressions",
-      "E_QUARRY_UNSUPPORTED", "pass the new value as an explicit fn argument",
-    );
     if (this.namedShapeDepth > 0) {
       if (!CONTEXT_NAMES.has(name)) throw new QuarryError(
         this.diagnosticSite(site), `named shapes cannot capture operation name ${name}`,
@@ -405,6 +409,16 @@ class ExpressionBinder {
   }
 
   private contextName(name: string, source: BoundSourceStack, site: Site): BoundExpression {
+    if (this.helperDepth > 0 && (name === "commit" || (name === "now" && this.program.kind !== "query"))) {
+      throw new QuarryError(
+        this.diagnosticSite(site), `fn expressions are read-pure and cannot use mutation ${name} time`,
+        "E_QUARRY_UNSUPPORTED", "pass the needed time as an explicit fn argument",
+      );
+    }
+    if (this.helperDepth > 0 && name === "new") throw new QuarryError(
+      this.diagnosticSite(site), "new is mutation-only caller state and is not available inside fn expressions",
+      "E_QUARRY_UNSUPPORTED", "pass the new value as an explicit fn argument",
+    );
     if (name === "viewer") return { kind: "input", input: "Viewer", facts: facts({ kind: "principal", optional: false }, "Viewer"), source };
     if (name === "now") return { kind: "input", input: this.program.kind === "query" ? "ReadTime" : "Now",
       facts: facts({ kind: "time", optional: false }, "Computed"), source };
@@ -693,47 +707,8 @@ class ExpressionBinder {
     if (expression.name === "words") unsupported(expression.site, "words() in direct Quarry", "use an engine-maintained wordPrefixes index");
     const args = expression.args.map((argument) => this.expression(argument));
     const source = this.source(expression.site);
-    if (expression.name === "range") {
-      if (args.length !== 2) typeError(expression.site, `range(a, b) requires exactly 2 arguments; received ${args.length}`,
-        "use range(integerStart, integerEnd)");
-      const start = literalInteger(expression.args[0]);
-      const end = literalInteger(expression.args[1]);
-      if (start === undefined || end === undefined) typeError(expression.site,
-        "range endpoints must be integer literals", "use range(0, 10)");
-      return { kind: "range", start, end, max: Math.max(0, end - start),
-        facts: facts({ kind: "list", item: { kind: "int", optional: false }, max: Math.max(0, end - start), optional: false }, "Const", {
-          max: Math.max(0, end - start),
-        }), source };
-    }
-    if (expression.name === "tokens") {
-      const type: ScalarType = { kind: "list", item: { kind: "text", max: 4096, optional: false }, max: 64, optional: false };
-      return { kind: "builtin", builtin: "MentionTokens", args, facts: facts(type, "Computed", { max: 64 }), source };
-    }
-    if (expression.name === "count") {
-      const argument = args[0];
-      if (args.length !== 1 || !argument || !["list", "empty-list", "page", "collection"].includes(argument.facts.type.kind)) {
-        typeError(expression.site, "count(x) requires exactly one bounded list or page", "use count(presentBoundedList)");
-      }
-      if (argument.facts.presence === "optional") typeError(expression.site,
-        "count requires a present list; its maximum does not prove presence",
-        "coalesce the possibly absent list with [] before calling count");
-      return { kind: "builtin", builtin: "Len", args, facts: facts({ kind: "int", optional: false }, "Computed"), source };
-    }
-    if (expression.name === "min" || expression.name === "max") {
-      if (args.length < 2) typeError(expression.site, `${expression.name} requires at least two arguments`, `use ${expression.name}(a, b)`);
-      const builtin = expression.name === "min" ? "Min" : "Max";
-      return args.slice(1).reduce<BoundExpression>((left, right) => ({
-        kind: "builtin", builtin, args: [left, right], facts: facts(left.facts.type, "Computed"), source,
-      }), args[0]!);
-    }
-    if (expression.name === "divmod" && args.length === 2) {
-      const fields = new Map(["quotient", "remainder"].map((name) => [name, facts(requiredType(args[0]!.facts.type), "Computed")]));
-      return { kind: "builtin", builtin: { Divmod: { remainder_sink: "lexicographic-id" } }, args,
-        facts: facts({ kind: "object", fields, nullable: false }, "Computed"), source };
-    }
-    if (expression.name === "share" && args.length === 3) {
-      return { kind: "builtin", builtin: "DeterministicShare", args, facts: facts(requiredType(args[0]!.facts.type), "Computed"), source };
-    }
+    const builtin = bindBuiltinCall(expression, args, source);
+    if (builtin) return builtin;
     unsupported(expression.site, `call ${expression.name}`, "use a direct Quarry pure builtin");
   }
 
@@ -747,7 +722,7 @@ class ExpressionBinder {
       "walk depth must be an integer from 0 through 10000", "use a finite depth no greater than 10000");
     const seed = contextualValue(this.expression(expression.seed),
       { kind: "ref", table: expression.table, optional: false }, expression.seed.site);
-    if (!assignable(seed.facts.type, { kind: "ref", table: expression.table, optional: false })) typeError(expression.seed.site,
+    if (!assignableBoundValue(seed.facts.type, { kind: "ref", table: expression.table, optional: false })) typeError(expression.seed.site,
       `walk seed expects ${expression.table}, got ${typeName(seed.facts.type)}`, `pass a ${expression.table} reference`);
     const table: BoundTableSymbol = { kind: "table", id: `table:${expression.table}`, name: expression.table,
       declaration: info.declaration, source: sourceStack(info.declaration.site) };
@@ -795,7 +770,7 @@ class ExpressionBinder {
     );
     const bindings = declaration.args.map((parameter, index) => {
       const value = contextualValue(actuals[index]!, parameter.type, this.diagnosticSite(expression.args[index]?.site ?? expression.site));
-      if (!assignable(value.facts.type, parameter.type)) {
+      if (!assignableBoundValue(value.facts.type, parameter.type)) {
         const site = this.diagnosticSite(expression.args[index]?.site ?? expression.site);
         const message = `fn ${expression.name} argument ${parameter.name} expects ${typeName(parameter.type)}, got ${typeName(value.facts.type)}`;
         const rewrite = `pass ${parameter.name}: ${typeName(parameter.type)}`;
@@ -838,6 +813,8 @@ class ExpressionBinder {
   }
 
   private read(expression: Extract<Expr, { kind: "read" }>): BoundExpression {
+    if (expression.table === "connected") refuse(expression.site,
+      "connected supports only existence and count reads", "use exists connected[viewer] or #connected[viewer]");
     const read = this.boundRead(expression, expression.range ? "range" : "point");
     if (expression.range) {
       const type: BoundType = { kind: "page", table: read.table, max: expression.range.take };
@@ -852,9 +829,7 @@ class ExpressionBinder {
     if (!tableInfo) refuse(expression.site, `unknown table ${expression.table}`);
     const declaration = tableInfo.indexes.find((candidate) => candidate.name === expression.index);
     if (!declaration) refuse(expression.site, `table ${expression.table} has no index ${expression.index}`);
-    if (columnAt(declaration.components, -1) !== "id") typeError(declaration.site,
-      `pageable merge ${expression.table}.${declaration.name} must end in intrinsic id`,
-      `add id as the final ${declaration.name} component`);
+    validatePageableMergeIndex(expression.table, declaration);
     if (expression.lanes.length === 0) typeError(expression.site, "merge requires at least one lane", "add one bounded merge lane");
     const width = expression.lanes[0]!.prefix.length;
     if (width >= declaration.components.length) typeError(expression.lanes[0]!.site,
@@ -964,6 +939,7 @@ class ExpressionBinder {
     let keyed = expression.keys.map((part) => ({ authored: part.value, bound: this.expression(part.value) }));
     const selected = selectIndex(this.catalog, expression.table, expression.keys, mode, expression.index,
       (authored) => scalarForIndex(keyed.find((item) => item.authored === authored)?.bound.facts.type), expression.site);
+    validateCursorIndex(expression.table, selected, expression.keys.length, expression.range?.cursor?.site);
     const index: BoundIndexSymbol = { kind: "index", id: `${table.id}:index:${selected.name}`, name: selected.name,
       declaration: selected, table, source: sourceStack(selected.site) };
     keyed = keyed.map((item, index) => {
@@ -1170,11 +1146,17 @@ function requireBool(value: BoundExpression, site: Site): void {
     `condition requires bool, got ${typeName(value.facts.type)}`, "use a required Boolean comparison");
 }
 
+function validateRefusalCode(site: Site, code: string): void {
+  if (!code.startsWith("E_AUTH_")) return;
+  throw new QuarryError(site, `application refusal code ${code} uses the reserved E_AUTH_* namespace`,
+    "E_OP_RESERVED", "ACCESS_DENIED", undefined, true);
+}
+
 function contextualValue(expression: BoundExpression, target: ScalarType, site: Site): BoundExpression {
   if (expression.kind === "array" && target.kind === "list") {
     const itemTarget = { ...target.item, optional: target.item.optional } as ScalarType;
     const items = expression.items.map((item) => contextualValue(item, itemTarget, item.source.definition));
-    const mismatch = items.find((item) => !assignable(item.facts.type, itemTarget));
+    const mismatch = items.find((item) => !assignableBoundValue(item.facts.type, itemTarget));
     if (mismatch) {
       const message = `list item expects ${typeName(itemTarget)}, got ${typeName(mismatch.facts.type)}`;
       const rewrite = `use ${typeName(itemTarget)} values in this list`;
@@ -1376,7 +1358,7 @@ function scaledInteger(text: string, scale: number): number | undefined {
   const number = Number(value);
   return Number.isSafeInteger(number) ? number : undefined;
 }
-function assignable(actual: BoundType, expected: ScalarType): boolean {
+export function assignableBoundValue(actual: BoundType, expected: ScalarType): boolean {
   if (actual.kind === "null") return expected.optional;
   if (actual.kind === "empty-list") return expected.kind === "list";
   if (actual.kind === "row") return expected.kind === "ref"
@@ -1401,7 +1383,7 @@ function assignable(actual: BoundType, expected: ScalarType): boolean {
   }
   if (actual.kind === "ref" && expected.kind === "ref") return actual.table === expected.table;
   if (actual.kind === "list" && expected.kind === "list") {
-    return actual.max <= expected.max && assignable(actual.item, expected.item);
+    return actual.max <= expected.max && assignableBoundValue(actual.item, expected.item);
   }
   return true;
 }
@@ -1428,7 +1410,7 @@ function writeAssignable(actual: BoundType, expected: ScalarType, authored: Expr
   if (actual.kind === "text" && expected.kind === "text") {
     return (!actual.optional || expected.optional) && actual.max <= expected.max;
   }
-  return assignable(actual, expected);
+  return assignableBoundValue(actual, expected);
 }
 function boundMentionsFocal(expression: BoundExpression, id: string): boolean {
   if (expression.kind === "focal") return expression.id === id;
@@ -1467,15 +1449,6 @@ function expressionText(expression: Expr): string {
       .map(([name, child]) => [name, withoutSites(child)]));
   };
   return JSON.stringify(withoutSites(expression));
-}
-function literalInteger(expression: Expr | undefined): number | undefined {
-  if (!expression) return;
-  if (expression.kind === "literal" && typeof expression.value === "number" && Number.isSafeInteger(expression.value)) return expression.value;
-  if (expression.kind === "unary" && expression.op === "-") {
-    const value = literalInteger(expression.value);
-    return value === undefined ? undefined : -value;
-  }
-  return;
 }
 function invariantSearchTerm(expression: BoundExpression): boolean {
   return expression.kind === "literal" || expression.kind === "input" && expression.input === "Viewer"

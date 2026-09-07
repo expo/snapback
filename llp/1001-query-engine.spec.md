@@ -1051,15 +1051,11 @@ out (the survey's "why no floats" section is the ruling).
 
 ### Pure builtins
 
-The native v5 `words(text)` (`Builtin::Words`) uses the pinned Unicode
-normalization and boundaries in §"Unicode search foundation", deduplicating in
-first-occurrence order. Empty input yields an empty list. This replaces the
-native L9 ASCII tokenizer; `tokens` remains the separate mention extractor.
-Words stay whole, without prefix truncation. The native checker carries the
-normalization expansion U, whole-element width and whole-list bounds described
-below through loop aliases. Constructed text without a declared bound still
-refuses. Compiler and twin integration must carry the same bounds and semantics;
-a native implementation alone does not qualify that coordinated graph.
+The public `words(text)` value function and `Builtin::Words` were retired in
+the 2026-09-07 direct-compiler cutover. Unicode word normalization remains
+engine-owned behind `wordPrefixes` indexes and their typed search descriptors;
+applications cannot materialize its internal word list. `tokens` remains the
+separate mention extractor.
 
 ### Unicode search foundation
 
@@ -1071,9 +1067,11 @@ with 64,000 the optimization target; 1M steps, 4 MiB closure, 8 MiB heap and
 1 MiB output remain. This is a current session decision, not an earlier author
 ruling. **Implementer:** Codex gpt-6-astra at xhigh, named
 `clique-search-foundation` lane, 2026-09-06; engine/compiler/twin lanes follow.
-The foundation supplies shared Unicode and logical-key primitives; existing
-`words()` and `Index.columns` remain active until their coherent migration.
-`wordPrefixes` is not yet an accepted Quarry declaration in this foundation.
+The foundation supplies shared Unicode and logical-key primitives. At the time
+of this decision, `words()` and `Index.columns` remained active and
+`wordPrefixes` was not yet accepted Quarry. The 2026-09-07 cutover completed
+that migration: Quarry declares `wordPrefixes(field)`, schema IR uses typed
+components, and the public Words value surface is gone.
 
 The pinned contract is `u17-nfc-scf-nfc-wsp-p`: Unicode 17.0.0
 `NFC(simpleFold(NFC(text)))`, C/S case-fold mappings only, boundaries at
@@ -1104,9 +1102,9 @@ full decomposition expands by at most four and C/S folds do not increase NFD
 length. Stable counting passes by combining class and starter segment give
 linear ordering and explicit scratch rather than quadratic mark insertion.
 Official normalization identities, all C/S folds and these finite bounds are
-executable foundation tests. Downstream `words()` migration must carry U through
-list/loop aliases: W ≤ `floor(U/2)+1`, per-element bytes `4U+16`, and whole-list
-bytes `4U+17W+2`; dividing an element width by W is unsound.
+executable foundation tests. Internal index construction carries U with
+W ≤ `floor(U/2)+1`, per-element bytes `4U+16`, and whole-list bytes
+`4U+17W+2`; dividing an element width by W is unsound.
 
 The frozen index contracts distinguish ordinary `Column` components from
 `WordPrefixes { fields, contract }`, scalar expressions from bounded

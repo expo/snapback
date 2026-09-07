@@ -1,0 +1,57 @@
+{
+  "observedAt": "2026-09-07T18:47:39.357643+00:00",
+  "toolCallId": "call-6021d19b-f010-4fee-9bed-abb336fd13dd-24",
+  "actualNpmStdoutMarker": "INSTALL_EXIT:0",
+  "requestedInstall": "npm install snapback2@0.0.16 --save-exact",
+  "rootPin": "0.0.16",
+  "lockIdentities": {
+    "node_modules/snapback2": {
+      "version": "0.0.16",
+      "resolved": "https://registry.npmjs.org/snapback2/-/snapback2-0.0.16.tgz",
+      "integrity": "sha512-I+toLV7Fx18boa9RAXbzzrDB5vYG9bKjeKALXenuk1aEPHKMhKyrS5XH88ojAVOIkpqf62GNyXBXr+4ZkLAkjg==",
+      "optionalDependencies": {
+        "snapback2-darwin-arm64": "0.0.16"
+      },
+      "peerDependencies": {
+        "expo": ">=54",
+        "expo-file-system": ">=19",
+        "expo-secure-store": "^15",
+        "expo-sqlite": "^16",
+        "expo-video": ">=2",
+        "react": ">=18",
+        "react-native": ">=0.75"
+      }
+    },
+    "node_modules/snapback2-darwin-arm64": {
+      "version": "0.0.16",
+      "resolved": "https://registry.npmjs.org/snapback2-darwin-arm64/-/snapback2-darwin-arm64-0.0.16.tgz",
+      "integrity": "sha512-hrBaHPL53pcjOzv7qX5Vi9AVIaPO2e4O6yG0xpyJ3/FClHoqxrIJgz5nmr77egDh1XwjOfI1mjz6dizzkN1tLQ==",
+      "optionalDependencies": null,
+      "peerDependencies": null
+    }
+  },
+  "custody": [
+    {
+      "sourcePath": "/Users/ccheever/clique-full-grok-016-20260907/lanes/grok-snapback2/package.json",
+      "copy": "package.json",
+      "sha256": "62d03284d370213f2c36899bada46d2810bb108bd130d4c8fe457f24fdd73162"
+    },
+    {
+      "sourcePath": "/Users/ccheever/clique-full-grok-016-20260907/lanes/grok-snapback2/package-lock.json",
+      "copy": "package-lock.json",
+      "sha256": "82fd6c64fc419e728427465b06e7943af595772cc55de5f39e1de761b9f1d277"
+    },
+    {
+      "sourcePath": "/Users/ccheever/clique-full-grok-016-20260907/lanes/grok-snapback2/node_modules/snapback2/package.json",
+      "copy": "shim-package.json",
+      "sha256": "86f8ed8341a71c2ae091db83b6026ad5364e86f2adbe2d714908dd04ab6d141a"
+    },
+    {
+      "sourcePath": "/Users/ccheever/clique-full-grok-016-20260907/lanes/grok-snapback2/node_modules/snapback2-darwin-arm64/package.json",
+      "copy": "darwin-package.json",
+      "sha256": "9fe0481c58244683724498f857d5536b007a2354fe3dfb7e2325b3534a925651"
+    }
+  ],
+  "m1ResultObserved": false,
+  "observerExecutedNoAppCommands": true
+}

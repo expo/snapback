@@ -382,44 +382,6 @@ fn global_hundred_lane_search_retains_shared_images_and_bounded_wire_closure() {
         )
     );
 }
-#[test]
-fn unicode_words_optional_null_uses_the_same_contract_and_bounds() {
-    let (mut engine, programs) = fixture();
-    let p = program(&programs, "search.tokenize");
-    let cert = Checker::new(&engine.schema, Ceilings::default())
-        .check(&p)
-        .unwrap();
-    for source in [
-        Value::Null,
-        Value::String("Straße STRASSE cafe\u{301} CAFÉ 漢字".into()),
-    ] {
-        let expected = crate::unicode::search_words(
-            if source == Value::Null {
-                None
-            } else {
-                Some(source.as_str().unwrap())
-            },
-            50,
-        )
-        .unwrap();
-        let execution = engine
-            .execute(
-                &p,
-                &cert,
-                Context::query(
-                    Actor::user("alice").unwrap(),
-                    BTreeMap::from([("body".into(), source)]),
-                ),
-            )
-            .unwrap();
-        assert_eq!(
-            execution.result,
-            Value::Array(expected.into_iter().map(Value::String).collect())
-        );
-        assert!(canonical_json(&execution.result).len() as u64 <= cert.max_output_bytes);
-    }
-}
-
 #[path = "search_boundaries.rs"]
 mod boundaries;
 

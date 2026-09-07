@@ -4,7 +4,6 @@ import { EvalError, requireRowIdentity } from "./errors";
 import { cursorSuffix, decodeCursorFor, encodeCursor } from "./cursor";
 import { sha256 } from "./hash";
 import { splitMentionTokens } from "./text";
-import { searchWordWork } from "./unicode";
 import { SearchExecution, normalizationSteps } from "./search-runtime";
 import { ordinaryColumns, scalarAtoms, preparePrefix, logicalKey } from "./index-store";
 import type { ClientStore } from "./store";
@@ -452,12 +451,6 @@ export class Runner {
             return 0;
           }),
         };
-      }
-      case "Words": {
-        if (args[0] === "Null") return { Array: [] };
-        const source = asString(args[0]), work = searchWordWork(source, source.length);
-        this.chargeDerived(work.steps, work.scratchBytes);
-        return { Array: work.words.map(String => ({ String })) };
       }
       case "MentionTokens": {
         const seen = new Set<string>();

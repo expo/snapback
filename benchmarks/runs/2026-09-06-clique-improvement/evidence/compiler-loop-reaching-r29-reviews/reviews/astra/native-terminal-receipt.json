@@ -1,0 +1,32 @@
+{
+  "family": "astra",
+  "wrapperPid": 94514,
+  "nativeChildPid": 94559,
+  "startedAt": "2026-09-07T17:40:16.109866+00:00",
+  "argv": [
+    "/Users/ccheever/.volta/bin/codex",
+    "exec",
+    "-m",
+    "gpt-6-astra",
+    "-c",
+    "model_reasoning_effort=xhigh",
+    "--dangerously-bypass-approvals-and-sandbox",
+    "--json",
+    "-o",
+    "/Users/ccheever/clique-improvement/reviews/compiler-loop-reaching-origins-r29/astra/final-answer.md",
+    "-"
+  ],
+  "cwd": "/Users/ccheever/clique-improvement/reviews/compiler-loop-reaching-origins-r29/astra",
+  "promptSha256": "f0d70c8b0a6d33335be65884cd1e0129824c2a9b6541245dc82766aa05397715",
+  "launchManifestSha256": "cc0d679d147990a9002f777c9d81969e379d9c31358610d264173718d46b264c",
+  "grantSha256": "0c87487763e3035d28549c8206fe1d1478c3d4cc961005fc25372b8086cf2b99",
+  "inboxSha256": "db4c288e8ffa6e00c01b87b873649378251f8f8a3af45171d96af65fafb860c4",
+  "requestedModel": "gpt-6-astra",
+  "requestedEffort": "xhigh",
+  "actualModelIdentity": null,
+  "endedAt": "2026-09-07T17:59:59.348058+00:00",
+  "elapsedSeconds": 1183.232314667,
+  "nativeExitCode": 0,
+  "stdoutSha256": "55277f558de5d4c8acb62316073dbd6000ab5ae1731fb869bf8fce3a579801b6",
+  "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+}

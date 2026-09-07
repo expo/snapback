@@ -1,31 +1,14 @@
 import { columnComponents } from "../index-components";
 import { basename } from "node:path";
-import type { Document, QuarryDiagnostic, RuleDecl, ScalarType, Site, TableCatalog, TableDecl } from "./ast";
+import type { Document, QuarryDiagnostic, RuleDecl, ScalarType, TableCatalog, TableDecl } from "./ast";
 import { buildCatalog } from "./catalog";
 import { QuarryError } from "./diagnostics";
-import { expandDocuments } from "./expand";
 import { parseDocument } from "./parser";
-import { emitPrograms } from "./program";
 import { prepareSchedules } from "./schedule";
-import { emitSchema } from "./schema";
 import { whereRepairDiagnostics } from "./where-repair";
-import type { FrontendDiagnostic, QuarryGenerated, SourceSite } from "../ir";
+import type { FrontendDiagnostic } from "../ir";
 
 export type QuarryInput = { path: string; fileName: string; source: string };
-export type QuarryVirtualModule = {
-  jobs?: string[];
-  schedules?: ReturnType<typeof prepareSchedules>;
-  path: string;
-  fileName: string;
-  source: string;
-  authored: string;
-  authoredSource: string;
-  authoredSources: Map<string, string>;
-  lineMap: Array<Site | undefined>;
-};
-export type QuarryCompileResult =
-  | { ok: true; schema: QuarryVirtualModule; modules: QuarryVirtualModule[] }
-  | { ok: false; diagnostics: FrontendDiagnostic[] };
 export type PreparedQuarry = {
   documents: Document[];
   catalog: TableCatalog;
@@ -36,30 +19,18 @@ export type QuarryPrepareResult =
   | { ok: true; prepared: PreparedQuarry }
   | { ok: false; diagnostics: FrontendDiagnostic[] };
 
-// This is the shared authored-source front half. The legacy generated-TypeScript
-// oracle temporarily asks for its AST shape expansion; the direct route leaves
-// named forms intact for the bound elaborator.
-export function prepareQuarry(
-  inputs: QuarryInput[],
-  options: { legacyExpandShapes?: boolean; legacyGeneratedBindings?: boolean } = {},
-): QuarryPrepareResult {
+/** Parse declarations and build the catalog consumed by direct typed binding. */
+export function prepareQuarry(inputs: QuarryInput[]): QuarryPrepareResult {
   const diagnostics: QuarryDiagnostic[] = [];
   let documents: Document[] = [];
   for (const input of inputs) {
-    const parsed = parseDocument(input.fileName, input.source, {
-      legacyGeneratedBindings: options.legacyGeneratedBindings,
-    });
+    const parsed = parseDocument(input.fileName, input.source);
     documents.push(parsed.document);
     diagnostics.push(...parsed.diagnostics);
   }
   diagnostics.push(...placementDiagnostics(documents));
   if (diagnostics.length > 0) return { ok: false, diagnostics: diagnostics.map(frontendQuarryDiagnostic) };
-  if (options.legacyExpandShapes) {
-    const expansion = expandDocuments(documents);
-    documents = expansion.documents;
-    diagnostics.push(...expansion.diagnostics);
-    if (diagnostics.length > 0) return { ok: false, diagnostics: diagnostics.map(frontendQuarryDiagnostic) };
-  }
+
 
   let catalog: TableCatalog;
   try {
@@ -73,80 +44,8 @@ export function prepareQuarry(
 
   let schedules: ReturnType<typeof prepareSchedules> = [];
   try { schedules = prepareSchedules(documents, catalog); } catch (error) { diagnostics.push(caughtDiagnostic(error)); }
-  return { ok: true, prepared: { documents, catalog, schedules, diagnostics } };
-}
-
-// @ref LLP 1004#what-default-binds — Quarry is a compiler front end whose
-// generated TypeScript exists only in memory and retains authored source sites.
-export function compileQuarry(inputs: QuarryInput[]): QuarryCompileResult {
-  const result = prepareQuarry(inputs, { legacyExpandShapes: true, legacyGeneratedBindings: true });
-  if (!result.ok) return result;
-  const { documents, catalog, schedules, diagnostics } = result.prepared;
-
-  const schemaDocument = documents.find((document) => basename(document.file) === "schema.q")!;
-  const schemaInput = inputs.find((input) => input.fileName === schemaDocument.file)!;
-  let schemaSource = "";
-  try {
-    schemaSource = emitSchema(documents, catalog, schemaDocument.file);
-  } catch (error) {
-    diagnostics.push(caughtDiagnostic(error, schemaDocument.file));
-  }
-  const moduleSources = new Map<string, string>();
-  for (const document of documents.filter((item) => item.programs.length > 0)) {
-    let valid = true;
-    for (const program of document.programs) {
-      try {
-        emitPrograms([program], catalog, document.file, document.effects);
-      } catch (error) {
-        valid = false;
-        diagnostics.push(caughtDiagnostic(error, document.file));
-      }
-    }
-    if (valid) moduleSources.set(document.file, emitPrograms(document.programs, catalog, document.file, document.effects));
-  }
   if (diagnostics.length > 0) return { ok: false, diagnostics: diagnostics.map(frontendQuarryDiagnostic) };
-
-  const authoredSources = new Map(inputs.map((input) => [input.fileName, input.source]));
-  const schema = virtualModule(schemaInput.path.replace(/\.q$/, ".ts"), schemaDocument.file, schemaSource, schemaInput.source, authoredSources);
-  schema.schedules = schedules;
-  const modules = documents
-    .filter((document) => document.programs.length > 0)
-    .map((document) => {
-      const input = inputs.find((item) => item.fileName === document.file)!;
-      return { ...virtualModule(input.path.replace(/\.q$/, ".ts"), document.file, moduleSources.get(document.file)!, input.source, authoredSources), jobs: document.programs.filter((p) => p.kind === "job").map((p) => p.name) };
-    });
-  return { ok: true, schema, modules };
-}
-
-export function remapVirtualDiagnostic(
-  diagnostic: FrontendDiagnostic,
-  virtual: QuarryVirtualModule,
-  generatedTypeError = false,
-): FrontendDiagnostic {
-  const site = parseSite(diagnostic.site);
-  const authored = site && mapGeneratedLine(virtual, site.line);
-  if (!authored) return diagnostic;
-  const authoredSource = virtual.authoredSources.get(authored.file) ?? virtual.authoredSource;
-  const message = generatedTypeError ? `in code generated from ${authored.file}: ${diagnostic.message}` : diagnostic.message;
-  const use = authored.expandedFrom;
-  return {
-    ...diagnostic,
-    site: `${authored.file}:${authored.line}:${authored.col}`,
-    message: use ? `${message} (from a named shape used at ${use.file}:${use.line}:${use.col})` : message,
-    rewrite: diagnostic.code === "E_DECIMAL_SCALE"
-      ? quarryDecimalRewrite(authoredSource, authored.line, diagnostic.message)
-      : generatedTypeError && diagnostic.message.includes("undefined")
-        ? "add ! else CODE to assert the possibly absent Quarry value before using it here"
-        : authoredSource,
-  };
-}
-
-export function remapVirtualSource(site: SourceSite, virtual: QuarryVirtualModule): SourceSite {
-  return mapGeneratedLine(virtual, site.line) ?? site;
-}
-
-export function quarryInspection(modules: QuarryVirtualModule[]): QuarryGenerated[] {
-  return modules.map((module) => ({ file: module.authored, generated: basename(module.path), source: module.source }));
+  return { ok: true, prepared: { documents, catalog, schedules, diagnostics } };
 }
 
 function placementDiagnostics(documents: Document[]): QuarryDiagnostic[] {
@@ -238,25 +137,14 @@ function containsAsset(type: ScalarType): boolean {
   return type.kind === "list" && containsAsset(type.item);
 }
 
-function virtualModule(path: string, authored: string, source: string, authoredSource: string, authoredSources: Map<string, string>): QuarryVirtualModule {
-  const lineMap: Array<Site | undefined> = [];
-  let previous: Site | undefined;
-  for (const line of source.split("\n")) {
-    const match = line.match(/\/\/ q:(.+):(\d+):(\d+)\s*$/);
-    if (match) {
-      previous = { file: match[1]!, line: Number(match[2]), col: Number(match[3]) };
-      const use = line.match(/\/\* q-use:(.+):(\d+):(\d+) \*\//);
-      if (use) previous.expandedFrom = { file: use[1]!, line: Number(use[2]), col: Number(use[3]) };
-    }
-    lineMap.push(previous);
-  }
-  return { path, fileName: path, source, authored, authoredSource, authoredSources, lineMap };
-}
-
 export function frontendQuarryDiagnostic(item: QuarryDiagnostic): FrontendDiagnostic {
   return {
     code: item.code,
-    family: item.code === "E_SCHEMA_CONSTRAINT" ? "schema" : item.code.startsWith("E_SCHEDULE_") ? "schedule" : "quarry",
+    family: item.code.startsWith("E_SCHEMA_") ? "schema"
+      : item.code.startsWith("E_SCHEDULE_") ? "schedule"
+        : item.code === "E_EMIT_IN_QUERY" ? "effect"
+          : item.code === "E_DECIMAL_SCALE" ? "args"
+            : item.code.startsWith("E_OP_") ? "op" : "quarry",
     message: item.message,
     site: `${item.file}:${item.line}:${item.col}`,
     rewrite: item.executableRewrite || item.code === "E_QUARRY_UNSUPPORTED" && item.rewrite === "deny"
@@ -281,24 +169,6 @@ function caughtDiagnostic(error: unknown, file = "snapback/schema.q"): QuarryDia
 
 function placement(file: string, line: number, col: number, message: string, rewrite: string): QuarryDiagnostic {
   return { file, line, col, code: "E_QUARRY_PLACEMENT", message, rewrite, guide: "quarry/projects" };
-}
-
-function parseSite(site: string): SourceSite | undefined {
-  const match = site.match(/^(.*):(\d+):(\d+)$/);
-  return match ? { file: match[1]!, line: Number(match[2]), col: Number(match[3]) } : undefined;
-}
-
-function mapGeneratedLine(module: QuarryVirtualModule, line: number): Site | undefined {
-  for (let offset = Math.min(line - 1, module.lineMap.length - 1); offset >= 0; offset -= 1) {
-    const mapped = module.lineMap[offset];
-    if (mapped) return mapped;
-  }
-  return undefined;
-}
-
-function quarryDecimalRewrite(source: string, line: number, message: string): string {
-  const authoredLine = source.replace(/\r\n?/g, "\n").split("\n")[line - 1]?.trimEnd();
-  return authoredLine ? `${authoredLine} -- ${message}` : `-- ${message}`;
 }
 
 function title(value: string): string { return value.length === 0 ? value : value[0]!.toUpperCase() + value.slice(1); }

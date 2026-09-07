@@ -1,4 +1,4 @@
-// Shared pinned normalization for indexed search and the Words builtin.
+// Shared pinned normalization for indexed search.
 // @ref LLP 1001#unicode-search-foundation — pinned Unicode, independent fields and stable counting passes.
 import { combining, folding, boundaries, decomposition, rangeValue, decomposeAt, composePair, MAX_DECOMPOSITION_DEPTH } from './unicode-tables';
 export { TABLE_DIGEST, MAX_NFD_SCALARS, MAX_DECOMPOSITION_DEPTH, MAX_LOOKUP_PROBES } from './unicode-tables';
@@ -219,16 +219,6 @@ function* tokens(text: string): Generator<string> {
 }
 export function searchWords(source: string | null, sourceMax: number): string[] {
   return searchFieldWords([{ source, sourceMax }]);
-}
-/** Words uses the same token traversal and first-occurrence dedup as indexing.
- * Extra work covers source validation, token traversal and output insertion;
- * scratch includes UTF-16 strings, result values and the dedup table. */
-export function searchWordWork(source: string, sourceMax: number) {
-  const n = validateSearchSource(source, sourceMax), { text, stats } = new SearchNormalizer().normalize(source, sourceMax);
-  const words = new Set<string>(); let occurrences = 0, outputUnits = 0;
-  for (const word of tokens(text)) { occurrences++; if (!words.has(word)) { words.add(word); outputUnits += word.length; } }
-  return { words: [...words], steps: normalizationSteps(stats) + 2 * n + 3 * stats.outputScalars + occurrences,
-    scratchBytes: stats.scratchBytes + 2 * (source.length + text.length + outputUnits) + 96 * words.size + 128 };
 }
 export function searchFieldWords(fields: readonly { source: string | null; sourceMax: number }[]): string[] {
   const normalizer = new SearchNormalizer(), words = new Set<string>();
