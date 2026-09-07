@@ -328,8 +328,14 @@ no documentation platform, no new page beyond the twelve, no calendar
 freshness dates (`rules/NOT-DOING.md`). This round pays for the tab policy
 (`E_OFFLINE_FOLLOWER`, the `follower` readiness reason, and the guide's
 one-writer line), and the cap rewrite that pastes the `maintain` line (§4).
-The remaining items above are filed as tickets against the specific verb or
-page; each is an afternoon, none is a design.
+Checked against main on 2026-09-07 before filing the rest: `dev --help` and
+`reset --help` exist, and `E_ASSET_VIEWED` is a coded refusal on the quarry and
+offline pages, so those Muse observations describe 0.0.4 and are closed by
+later publications; the 120-character miss-line truncation was not found in
+the current `test` verb and is not filed without a reproduction. What remains
+open from the narratives is the grant ritual, which the offline page states
+and the auth page does not cross-reference. Each such item is an afternoon,
+none is a design.
 
 **Success criterion.** A fresh builder's diary attributes no correction loop
 to a contract the platform knew and did not say.
@@ -415,7 +421,9 @@ follows `rules/RULES.md` (optimistic landing after `snapback2/scripts/test.sh`
 and `caps`); capability claims stay gated on a published cold run.
 
 - **Shared query entries and the browser-tab policy** (§3). Lane
-  `s2/clique-client-sessions`, implemented by Claude Fable 5.1, 2026-09-07.
+  `s2/clique-client-sessions`, implemented by Claude Fable 5.1, 2026-09-07;
+  landed on main as `37e4c337d..801241d8e` (the slice plus five review-fix
+  rounds).
   `packages/snapback2/src/client-sessions.ts` (the refcounted entries),
   `client.ts` (`subscribe` attaches to an entry; `openOffline` turns a held
   lock into a follower; takeover resumes and drains), `client-channels.ts`
@@ -433,6 +441,22 @@ and `caps`); capability claims stay gated on a published cold run.
   takes the lock). The one-writer test in `offline-store.test.ts` now asserts
   the follower. Boundary roots measured 40,006 → 40,209 gzip bytes
   (esbuild 0.25 minified ESM, gzip 9, the LLP 1012 roots) on this machine.
+  Review: blind codex gpt-5.6-sol and Grok 4.6 at xhigh, three fix rounds
+  (`llp/reviews/1018-client-sessions.*.md`). Round one found nine material
+  defects between them (a stale replay after a reset, refcounting by callback
+  identity, regular and drain mounted records overwriting each other, the write
+  fence sitting after uploads and missing upload, discard and channel publish,
+  a restored bearer second tab refusing its own session, the runtime keeping
+  the old principal across an account switch, follower drains reading the
+  unopened ledger, restart and session expiry leaving the wait alive, the
+  marker clearing before the takeover finished); rounds two and three found
+  the superseded-wait unfence and its same-principal ABA. All are fixed; the
+  marker is owned by its wait object. One finding is refuted and recorded: a
+  takeover whose resume fails retryably does not keep the write fence, because
+  after acquisition the tab is the writer and its writes queue FIFO behind the
+  inherited intents exactly as a cold-start writer's do. The blocking script
+  also caught a template typecheck the new readiness reason broke, fixed in
+  the same lane.
 - **Count-backed cap probes** (§4). Lane `s2/clique-cap-count`, codex
   gpt-5.6-sol at xhigh, brief in the run record; engine probe, certificate
   reserve, `check` rewrite, twin parity, corpus cases, LLP 1017 §2.4
@@ -442,10 +466,12 @@ and `caps`); capability claims stay gated on a published cold run.
   gpt-5.6-sol at xhigh; aliased table bindings, one printing helper,
   failing-before regression, ticket closure. Status at revision time: in
   progress; recorded in the run record when it lands.
-- **Filed, not built:** follower-write forwarding; the move-zero seams that
-  are not part of the two slices above (`--help` on `dev`/`reset`,
-  untruncated `check` miss lines, grant minting in the auth guide, the
-  view-once refusal code).
+- **Filed, not built:** follower-write forwarding
+  (`issues/20260907-snapback2-follower-tab-write-forwarding.md`); the
+  second-tab ticket records what the follower closes and what it leaves open.
+  Of the move-zero seams in §7, only the auth page's missing pointer to the
+  grant ritual survives a check against main; it is a one-line guide edit,
+  not a ticket.
 
 ## 11. Working-set disposition
 

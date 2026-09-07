@@ -23,3 +23,14 @@ The builder's summary: "adapting its ownership model was significant application
 2. If per-tab partitions stay, the guide's offline page needs the recipe (database and lock
    namespace per tab) and the limitation stated plainly.
 3. Regression: two tabs, one offline write in each, reconnect; both writes settle.
+
+## Partly resolved (2026-09-07, LLP 1018 move one)
+
+Proposal 1 is decided and built: the second tab is a **follower** (live reads,
+`outbox.status()` reason `follower`, writes refused `E_OFFLINE_FOLLOWER`), waits on
+the Web Lock outside startup, and inherits the partition and its queue when the writer
+closes; the wait is withdrawn on close, sign-out, and account change (LLP 1018 §3,
+LLP 1012 §4 amendment; `tests/client-sessions.test.ts`). Proposal 2's recipe is no
+longer needed: no per-tab database. Proposal 3's regression (an offline write in
+*each* tab, both settle) stays open by design and moves to
+`issues/20260907-snapback2-follower-tab-write-forwarding.md`.

@@ -19,15 +19,15 @@ Hydrating `restoringViewer` is confirmed for this token but display-only. Reads
 await confirmation or use held coverage. Unbound stores omit it.
 
 Transport cuts retain custody; retry on connected/reconnecting and after
-1, 2, 4, … 30 seconds without queries. `retryAt` is Unix milliseconds;
+1, 2, 4, … 30 s without queries. `retryAt` is Unix ms;
 explicit `me()` replaces its timer. Other codes
 retry once per reconnect; storage/protocol failures stay refused.
 Only `E_AUTH`, `E_AUTH_REQUIRED`, or `E_AUTH_SESSION` make restoration anonymous
 and clear custody. `offline()` pauses timers; `online()` resumes the shared flight.
 Offline restart stays paused. Logout/replacement/close cancel retries and ignore late replies.
-Closed `auth` is only its last view, without `retryAt`.
+Closed `auth` is its last view, without `retryAt`.
 
-Failed sessions retain custody or resume restoration. Confirmation recovers sync.
+Failed sessions retain custody or resume restoration. Confirmation recovers sync. Replay grants: `guide offline`.
 Metadata errors set `lastRefusal`; initial errors reject
 `ready`, but installed sessions succeed. `online()` retries sync. Held reads wait
 for account transitions. Same-principal login revalidates coverage and keeps queued
