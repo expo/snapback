@@ -869,14 +869,18 @@ export class Runner {
         if (maintain !== undefined) {
           const group = this.maintainedGroup(maintain, row);
           const countRow = this.store.byId(maintain.target, group.idValue);
-          if (countRow !== null) {
+          // A held count row, or an authoritatively proven absence (zero), is the
+          // one-row probe the engine performs; an unheld, unproven row is not zero.
+          const provenAbsent = countRow === null && this.store.authorityAbsence(maintain.target, group.idValue);
+          if (countRow !== null || provenAbsent) {
             this.trace.examined = (this.trace.examined ?? 0) + 1;
-            if (asInt(field(countRow, "value")) >= data.max)
+            const count = countRow === null ? 0 : asInt(field(countRow, "value"));
+            if (count >= data.max)
               throw new EvalError("E_CONSTRAINT", `${tableName} cap ${data.max} reached for group (${data.by.join(", ")}) = ${canonicalValue({ Array: group.group })}`);
             continue;
           }
-          // @ref LLP 1017#24-metering — an unheld maintained row is not zero;
-          // retain the source-scan coverage test used before this fast path.
+          // @ref LLP 1017#24-metering — an unheld, unproven maintained row is not
+          // zero; retain the source-scan coverage test used before this fast path.
         }
         const entry = Object.entries<any>(table.indexes).find(([, index]) =>
           startsWith(index.columns, data.by),

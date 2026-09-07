@@ -163,7 +163,7 @@ fn cap_reserve_refusal_names_cap_and_fitting_chunk() {
     assert!(
         error
             .rewrite
-            .contains("maintain followsCount = count follows by follower:"),
+            .contains("maintain followsCounts = count follows by follower:\n  read <- deny"),
         "{error}"
     );
     assert!(error.rewrite.contains("prices at one row per write"));

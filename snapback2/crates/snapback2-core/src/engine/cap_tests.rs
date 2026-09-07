@@ -349,3 +349,126 @@ fn same_key_count_tracks_writes_inside_one_program_and_refuses_after_max() {
     );
     assert_eq!(engine.rows("memberships").unwrap().len(), 3);
 }
+
+#[test]
+fn count_backed_probe_refuses_inside_one_program_and_rolls_the_earlier_writes_back() {
+    // Four inserts under `cap 3 by principal` in ONE program: the fourth probe
+    // sees this program's own three earlier inserts through the maintained
+    // count and refuses; the refusal rolls the whole program back, so neither
+    // the three rows nor the count row survive.
+    let mut memberships = public_table(
+        BTreeMap::from([
+            ("id".into(), ColumnType::Id),
+            ("principal".into(), ColumnType::Principal),
+        ]),
+        BTreeMap::from([
+            (
+                "byId".into(),
+                Index {
+                    columns: vec!["id".into()],
+                    unique: true,
+                },
+            ),
+            (
+                "byPrincipal".into(),
+                Index {
+                    columns: vec!["principal".into(), "id".into()],
+                    unique: false,
+                },
+            ),
+        ]),
+    );
+    memberships.constraints.push(Constraint::Cap {
+        by: vec!["principal".into()],
+        max: 3,
+    });
+    let counts = public_table(
+        BTreeMap::from([
+            ("id".into(), ColumnType::Id),
+            ("principal".into(), ColumnType::Principal),
+            ("value".into(), ColumnType::Int),
+        ]),
+        BTreeMap::from([
+            (
+                "byId".into(),
+                Index {
+                    columns: vec!["id".into()],
+                    unique: true,
+                },
+            ),
+            (
+                "byPrincipal".into(),
+                Index {
+                    columns: vec!["principal".into()],
+                    unique: true,
+                },
+            ),
+        ]),
+    );
+    let schema = Schema {
+        tables: BTreeMap::from([
+            ("memberships".into(), memberships),
+            ("membershipCounts".into(), counts),
+        ]),
+        maintains: vec![Maintain {
+            kind: MaintainKind::Count,
+            source: "memberships".into(),
+            by: vec!["principal".into()],
+            target: "membershipCounts".into(),
+            readable: None,
+        }],
+        ..Schema::default()
+    };
+    let insert = |id: &str| Stmt::Insert {
+        table: "memberships".into(),
+        row: Expr::Literal(crate::object([
+            ("id", Value::Id(id.into())),
+            ("principal", Value::Id("alice".into())),
+        ])),
+    };
+    let overfill = Program {
+        name: "memberships.overfill".into(),
+        kind: ProgramKind::Mutation,
+        args: BTreeMap::new(),
+        read_time_granularity_ms: None,
+        body: vec![insert("m1"), insert("m2"), insert("m3"), insert("m4")],
+    };
+    let certificate = Checker::new(&schema, Ceilings::default())
+        .check(&overfill)
+        .unwrap();
+    assert_eq!(certificate.max_examined, 4, "one examined row per count-backed probe");
+    let mut engine = Engine::memory(schema.clone()).unwrap();
+    let error = engine
+        .execute(
+            &overfill,
+            &certificate,
+            Context::mutation(Actor::user("alice").unwrap(), BTreeMap::new()),
+        )
+        .unwrap_err();
+    assert_eq!(error.code(), "E_CONSTRAINT");
+    assert!(error.to_string().contains("cap 3"), "{error}");
+    let probe = Program {
+        name: "memberships.probe".into(),
+        kind: ProgramKind::Query,
+        args: BTreeMap::new(),
+        read_time_granularity_ms: None,
+        body: vec![Stmt::Return(Expr::Exists(Read {
+            site: "memberships.first".into(),
+            table: "memberships".into(),
+            index: "byId".into(),
+            key: vec![Expr::Literal(Value::Id("m1".into()))],
+            provenance: KeyProvenance::Const,
+        }))],
+    };
+    let probe_certificate = Checker::new(&schema, Ceilings::default())
+        .check(&probe)
+        .unwrap();
+    let outcome = engine
+        .execute(
+            &probe,
+            &probe_certificate,
+            Context::query(Actor::user("alice").unwrap(), BTreeMap::new()),
+        )
+        .unwrap();
+    assert_eq!(outcome.result, Value::Bool(false), "the refused program left no membership row behind");
+}

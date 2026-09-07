@@ -59,7 +59,7 @@ for (const item of serverOnly) {
 const unbackedCap = serverOnly.find((item) => item.name === "cap-1000-49-inserts-unbacked-refused");
 assert(
   unbackedCap?.certificationRewrite?.includes(
-    "maintain membershipsCount = count memberships by principal:",
+    "maintain membershipsCounts = count memberships by principal:\n  read <- deny",
   ) && unbackedCap.certificationRewrite.includes("prices at one row per write"),
   "the unbacked cap refusal lost its exact count-maintain rewrite",
 );
