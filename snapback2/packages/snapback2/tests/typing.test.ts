@@ -20,7 +20,11 @@ test("generated Api rejects typos, extra query args, and wrong channel args", as
       const ready: Promise<void> = client.ready;
       const authGeneration: number = client.snapshot.authGeneration;
       const browserStore: AuthTokenStore = browserTokenStore(localStorage, "snapback2:http://127.0.0.1:3210:auth");
-      void ready; void authGeneration; void browserStore;
+      const observed = client.observe(api.messages.thread, { conversationId: "general" });
+      const observedView: QueryView<unknown> = observed.getSnapshot();
+      const stopObserved: () => void = observed.subscribe(() => undefined);
+      client.observe(api.messages.thread, { conversationId: "general" }, { live: false });
+      void ready; void authGeneration; void browserStore; void observedView; void stopObserved;
       declare const view: QueryView<string[]>;
       const isLive: boolean = view.live;
       void isLive;

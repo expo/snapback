@@ -46,37 +46,18 @@ import {
 } from "./client-wire.js";
 import { admitDrain, type OfflineRuntime, type MountedQuery } from "./offline.js";
 import { SharedSubscriptions, TabFollower } from "./client-sessions.js";
+import { bindQueryRequest, oneShotQuery, queryEntry, queryIdentity } from "./client-observed.js";
 import { createChannel, type ChannelHost } from "./client-channels.js";
 import { ReconnectingSse } from "./sse.js";
 import type { SseResponse } from "./sse-parser.js";
 import { stableSerialize } from "./types.js";
 import type {
-  AssetInput,
-  AssetRecord,
-  AssetUploadOptions,
-  AssetUploadSource,
-  AssetUrlOptions,
-  AuthMe,
-  AuthSession,
-  AuthTokenStore,
-  ChannelHandle,
-  ChannelPublishResult,
-  ClientSnapshot,
-  CreateClientOptions,
-  ImageAsset,
-  LiveQueryDelivery,
-  Manifest,
-  MutationResult,
-  OutboxApi,
-  Principal,
-  QueryResult,
-  QueryRefusedDelivery,
-  RefusalEnvelope,
-  RefusedDelivery,
-  SnapbackClient,
-  Subscription,
-  SubscriptionDelivery,
-  VideoAsset,
+  AssetInput, AssetRecord, AssetUploadOptions, AssetUploadSource, AssetUrlOptions,
+  AuthMe, AuthSession, AuthTokenStore, ChannelHandle, ChannelPublishResult,
+  ClientSnapshot, CreateClientOptions, ImageAsset, LiveQueryDelivery, Manifest,
+  MutationResult, ObservedQuery, OutboxApi, Principal, QueryMachineEvent,
+  QueryResult, QueryRefusedDelivery, RefusalEnvelope, RefusedDelivery,
+  SnapbackClient, Subscription, SubscriptionDelivery, VideoAsset,
 } from "./types.js";
 export { api };
 export { SnapbackRefusal, isSnapbackRefusal };
@@ -364,6 +345,24 @@ class Client implements SnapbackClient {
   get assetCache(): OfflineRuntime["bytes"] | undefined {
     return this.offlineRuntime?.bytes;
   }
+  observe<Args, Result>(
+    ref: Op<Args, Result>, args: Args, options: { live?: false; drain?: boolean } = {},
+  ): ObservedQuery<Result> {
+    const once = options.live === false, drain = options.drain === true;
+    if (once && drain) throw new TypeError("query observation drain requires a live subscription");
+    const request = bindQueryRequest(ref, args);
+    const generation = this.authGeneration, fence = this.operationFence;
+    const active = () => !this.closed && this.authGeneration === generation && this.operationFence === fence;
+    const mode = once ? "once" : drain ? "drain" : "live";
+    const spec = queryEntry<Result, SubscriptionDelivery<Result>>(
+      queryIdentity(this.authGeneration, this.operationFence, mode, request.op, request.args),
+      (fanout) => drain ? this.drain(request.ref, request.args, fanout) : this.subscribeRegular(request.ref, request.args, fanout),
+    );
+    if (once) return this.shared.observe(queryEntry<Result, QueryMachineEvent<Result>>(
+      spec.key, (fanout) => oneShotQuery(() => this.query(request.ref, request.args), fanout),
+    ), active);
+    return this.shared.observe(spec, active);
+  }
   subscribe<Args, Result>(
     ref: Op<Args, Result>,
     args: Args,
@@ -371,12 +370,15 @@ class Client implements SnapbackClient {
     options: { drain?: boolean } = {},
   ): Subscription<SubscriptionDelivery<Result>> {
     // One entry per (authority generation, kind, op, args): later consumers attach to the first one's stream.
-    const key = `${this.authGeneration}\u0000${options.drain ? "drain" : "live"}\u0000${referenceName(ref)}\u0000${stableSerialize(args)}`;
-    return this.shared.attach<SubscriptionDelivery<Result>>(key, (fanout) =>
-      options.drain ? this.drain(ref, args, fanout) : this.subscribeRegular(ref, args, fanout), callback);
+    const request = bindQueryRequest(ref, args), drain = options.drain === true;
+    const mode = drain ? "drain" : "live";
+    return this.shared.attach(queryEntry<Result, SubscriptionDelivery<Result>>(
+      queryIdentity(this.authGeneration, this.operationFence, mode, request.op, request.args),
+      (fanout) => drain ? this.drain(request.ref, request.args, fanout) : this.subscribeRegular(request.ref, request.args, fanout),
+    ), callback);
   }
   sharedConsumers(ref: Op<any, any>, args: unknown, drain = false): number {
-    return this.shared.consumers(`${this.authGeneration}\u0000${drain ? "drain" : "live"}\u0000${referenceName(ref)}\u0000${stableSerialize(args)}`);
+    return this.shared.consumers(queryIdentity(this.authGeneration, this.operationFence, drain ? "drain" : "live", referenceName(ref), args));
   }
   private subscribeRegular<Args, Result>(
     ref: Op<Args, Result>,
@@ -486,6 +488,9 @@ class Client implements SnapbackClient {
       }
     }).catch(() => undefined);
     const close = tracked.close.bind(tracked);
+    const resettable = tracked as Subscription<SubscriptionDelivery<Result>> & { reset?(): void };
+    const reset = resettable.reset?.bind(resettable);
+    if (reset) resettable.reset = () => { lastPair = undefined; connected = false; reset(); };
     tracked.close = () => {
       closed = true;
       // Only this subscription's own record leaves the mounted set (a newer one of the same query keeps its own).
@@ -1460,6 +1465,7 @@ class Client implements SnapbackClient {
   }
 
   private publishAuthSnapshot(): void {
+    this.shared.retireInactive();
     this.patchSnapshot({ authGeneration: this.authGeneration, token: this.currentToken, auth: this.authState.value });
   }
 

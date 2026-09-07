@@ -345,6 +345,12 @@ export interface SnapbackClient {
   readonly ready: Promise<void>;
   readonly snapshot: ClientSnapshot;
   query<Args, Result>(ref: Op<Args, Result>, args: NoInfer<Args>): Promise<QueryResult<Result>>;
+  /** A lazy shared query snapshot. The first listener opens it; the last releases it. */
+  observe<Args, Result>(
+    ref: Op<Args, Result>,
+    args: NoInfer<Args>,
+    options?: { live?: false; drain?: boolean },
+  ): ObservedQuery<Result>;
   mutation<Args, Result>(ref: Op<Args, Result>, args: NoInfer<AssetInput<Args>>): Promise<MutationResult<Result>>;
   /** Uploads one browser File or Expo URI-backed File and returns its closed asset record. */
   upload(source: AssetUploadSource, options: AssetUploadOptions & { readonly kind: "image" }): Promise<ImageAsset>;
@@ -401,6 +407,12 @@ export type QueryView<Result> =
 export type QueryViewState = QueryView<unknown>["state"];
 export type QueryHookResult<Result> = QueryView<Result> & { connection: ConnectionState };
 export type QueryMachineEvent<Result> = QueryResult<Result> | SubscriptionDelivery<Result>;
+export interface ObservedQuery<Result> {
+  /** Referentially stable until the shared query publishes a different view. */
+  getSnapshot(): QueryView<Result>;
+  /** Observes snapshot identity changes; read the value with `getSnapshot()`. */
+  subscribe(notify: () => void): () => void;
+}
 
 export function initialQueryState<Result>(): QueryView<Result> {
   return { state: "hydrating", live: false };
