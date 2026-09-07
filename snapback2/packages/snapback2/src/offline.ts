@@ -193,8 +193,9 @@ export class OfflineRuntime {
   /** The twin: the certified program over this partition's coverage (LLP 1012 §6, §7). */
   readonly twin: Twin;
   private partition?: string;
-  /** The principal whose writer lock this tab is waiting for (a browser follower). */
+  /** The principal whose writer lock this tab is waiting for (a browser follower), and the wait that owns the marker. */
   private followingPrincipal?: string;
+  private followingWait?: object;
   private retention: Record<string, RetentionPolicy> = {};
   private cursors: Record<string, string> = {};
   private schema?: OfflineSchema;
@@ -265,9 +266,10 @@ export class OfflineRuntime {
   // @ref LLP 1018#3-move-one-one-coherent-reactive-client — the follower tab
   // waits outside the runtime queue, so its live reads keep flowing; when the
   // writer closes, it opens the partition and inherits the queue left there.
-  async follow(principal: string, signal: AbortSignal): Promise<void> {
+  async follow(principal: string, signal: AbortSignal, wait: object = {}): Promise<void> {
     if (!this.store.acquire) throw new OfflineStoreFailure("E_OFFLINE_LOCK", "this account is open in another client; close it and try again");
     this.followingPrincipal = principal;
+    this.followingWait = wait;
     this.outbox.notify();
     try {
       await this.store.acquire(principal, signal);
@@ -279,16 +281,17 @@ export class OfflineRuntime {
       }
       await this.open(principal);
     } catch (error) {
-      this.followed(principal);
+      this.followed(wait);
       throw error;
     }
     // Still following: the client clears the marker once the inherited partition is reauthenticated and resumed.
   }
 
-  /** The takeover for `principal` finished, or failed: this tab is its writer now, or nothing. A newer wait's marker is not touched. */
-  followed(principal: string): void {
-    if (this.followingPrincipal !== principal) return;
+  /** The takeover for `wait` finished, or failed: this tab is its writer now, or nothing. A newer wait's marker, even for the same principal, is not touched. */
+  followed(wait: object): void {
+    if (this.followingWait !== wait) return;
     this.followingPrincipal = undefined;
+    this.followingWait = undefined;
     this.outbox.notify();
   }
 

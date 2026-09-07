@@ -18,6 +18,7 @@ export function sendingStatus(status: OutboxStatus, connection: ConnectionState,
       "grant-expired": "Reconnect to enable new messages. Queued messages stay saved.",
       "ids-exhausted": "Reconnect to continue sending. Queued messages stay saved.",
       "program-missing": "Connect to download this conversation before sending.",
+      follower: "Another tab is sending for this account. Send from that tab, or close it to send here.",
     };
     return { reason: status.reason, message: messages[status.reason], canSync: status.action === "resume" || status.action === "load-program" };
   }
