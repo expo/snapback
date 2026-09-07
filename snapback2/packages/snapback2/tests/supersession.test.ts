@@ -2,18 +2,40 @@ import { fixtureClient as createClient } from "./live-fixture.ts";
 import assert from "node:assert/strict";
 import { mkdtemp, readFile, rm } from "node:fs/promises";
 import { execFileSync } from "node:child_process";
+import { createHash } from "node:crypto";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { test } from "node:test";
 import { api } from "../dist/client.mjs";
 import { indexedDbRangeStore } from "../dist/react.mjs";
 import { fileRangeStore } from "../dist/test.mjs";
+import { canonicalProgramJson } from "../dist/sqlite-test.mjs";
 import { FakeIndexedDb, FakeLocks } from "./fake-indexeddb.ts";
+import { certifiedDrainPage, certifiedDrainProgram, certifiedSuccessorPage, certifiedSuccessorProgram } from "./offline-metadata-fixture.ts";
 
 const hex = (n: number) => String(n).repeat(64);
 const json = (value: unknown, status = 200) => new Response(JSON.stringify(value), { status });
 const defer = () => { let resolve!: () => void; const promise = new Promise<void>((done) => { resolve = done; }); return { promise, resolve }; };
 const pause = () => new Promise((done) => setTimeout(done, 5));
+const digest = (value: unknown) => createHash("sha256").update(canonicalProgramJson(value)).digest("hex");
+const certified = certifiedDrainProgram();
+const certifiedSource = Object.values(certified.programs)[0] as any;
+const operationNames = ["messages.first", "messages.second", "messages.third", "messages.late", "messages.bob", "messages.log"] as const;
+const aliasPrograms = (source: any, names: readonly string[], drain = false) => Object.fromEntries(names.map((name) => {
+  const ir = { ...source.ir, name };
+  const planHash = digest(ir);
+  return [name, { ...source, ir, planHash,
+    certificate: { ...source.certificate, program: name, plan_hash: planHash },
+    ...(drain ? { drain: source.drain } : {}) }];
+}));
+const programs = aliasPrograms(certifiedSource, operationNames, true);
+const overlap = certifiedDrainPage(1);
+const overlapRow = overlap.rows[0];
+const successor = certifiedSuccessorProgram();
+const successorPrograms = aliasPrograms(successor.program, ["messages.second", "messages.third"]);
+const successorPage = certifiedSuccessorPage();
+const expandedPage = (page: any) => page.data.map((ref: any) =>
+  page.rows.find((row: any) => row.table === ref.$row.table && row.id === ref.$row.id)?.row);
 async function eventually(check: () => Promise<boolean> | boolean) {
   for (let n = 0; n < 200; n++) { if (await check()) return; await pause(); }
   assert.fail("condition did not settle");
@@ -24,7 +46,7 @@ async function fixture(carrier: "file" | "IndexedDB" = "file", bearer = false) {
   const factory = carrier === "file" ? fileRangeStore(root)
     : indexedDbRangeStore({ indexedDB: new FakeIndexedDb() as any, locks: new FakeLocks() as any });
   let store: any;
-  const state = { generation: hex(1), schemaHash: hex(4), epoch: 1, seq: 7, principal: bearer ? "alice" : "dev:alice" };
+  const state = { generation: hex(1), schemaHash: certified.schemaHash, epoch: 1, seq: 7, principal: bearer ? "alice" : "dev:alice" };
   const resumes: any[] = [], queries: any[] = [], streams: Array<{ headers: Headers; url: URL; controller: ReadableStreamDefaultController<Uint8Array> }> = [];
   let resetCount = 0;
   const hooks: {
@@ -34,12 +56,15 @@ async function fixture(carrier: "file" | "IndexedDB" = "file", bearer = false) {
     mutation?: (request: any) => Promise<Response | undefined>;
     login?: () => Promise<Response>;
   } = {};
-  const envelope = (request: any) => ({
-    protocol: 1, generation: state.generation, schemaHash: state.schemaHash, planHash: hex(5),
+  const packet = () => state.schemaHash === successor.schemaHash
+    ? { schema: successor.schema, programs: successorPrograms, page: successorPage }
+    : { schema: certified.schema, programs, page: overlap };
+  const envelope = (request: any = {}) => ({
+    ...packet().page,
+    protocol: 1, generation: state.generation, schemaHash: state.schemaHash,
+    planHash: (packet().programs[request.op] ?? Object.values(packet().programs)[0] as any).planHash,
     authority: { principal: state.principal, authEpoch: state.epoch }, state: "complete",
-    data: { generation: state.generation, epoch: state.epoch, row: { $row: { table: "messages", id: "one" } } },
-    next: null, seq: state.seq, rows: [{ table: "messages", id: "one", row: { id: "one", body: "same row" } }],
-    receipt: { ranges: [], absences: [], verdicts: [] }, validator: hex(6),
+    next: null, seq: state.seq, validator: hex(6),
   });
   const fetch = async (input: any, init?: RequestInit): Promise<Response> => {
     const url = new URL(String(input));
@@ -49,15 +74,19 @@ async function fixture(carrier: "file" | "IndexedDB" = "file", bearer = false) {
       return await hooks.login?.() ?? json({ viewer: "bob", kind: "user", token: "bob-token" });
     }
     if (url.pathname === "/api/auth/logout") return json({ ok: true });
-    if (url.pathname === "/api/manifest") return json({ generation: "schema", programGeneration: state.generation, ops: {}, channels: {}, auth: {} });
+    if (url.pathname === "/api/manifest") return json({ generation: "schema", programGeneration: state.generation,
+      ops: Object.fromEntries(Object.entries(packet().programs).map(([name, entry]: [string, any]) => [name,
+        { kind: "query", planHash: entry.planHash, args: entry.ir.args, ...(entry.drain ? { drain: entry.drain } : {}) }])),
+      channels: {}, auth: {} });
     if (url.pathname === "/api/program") {
       await hooks.program?.(init);
       if (url.searchParams.get("generation") !== state.generation) return json({ code: "E_OP_UNKNOWN", family: "op", message: "not active", guide: "op/manifest" }, 404);
-      return json({ generation: state.generation, schemaHash: state.schemaHash, schema: { tables: {} }, programs: { "messages.log": { kind: "query", planHash: hex(5), ir: { args: { c: { Optional: "Cursor" } } }, certificate: { plan_hash: hex(5) }, drain: { cursor: "c" } } } });
+      const current = packet();
+      return json({ generation: state.generation, schemaHash: state.schemaHash, schema: current.schema, programs: current.programs });
     }
     if (url.pathname === "/api/query") {
       const request = JSON.parse(String(init?.body));
-      queries.push({ ...request, principal: state.principal });
+      queries.push({ ...request, principal: state.principal, generation: state.generation, schemaHash: state.schemaHash });
       return await hooks.query?.(request) ?? json(envelope(request));
     }
     if (url.pathname === "/api/mutation") {
@@ -94,7 +123,13 @@ async function fixture(carrier: "file" | "IndexedDB" = "file", bearer = false) {
     },
     resets: () => resetCount,
     async rebuilt(op = "messages.second", generation = state.generation) {
-      await eventually(async () => (await store.coverage()).facts?.generation === generation && !(await store.coverage()).superseded && (await store.answer(op, {}))?.data?.generation === generation);
+      await eventually(async () => {
+        const coverage = await store.coverage(), answer = await store.answer(op, {});
+        return coverage.facts?.generation === generation && coverage.facts.schemaHash === state.schemaHash
+          && !coverage.superseded && answer?.state === "complete"
+          && JSON.stringify(answer.data) === JSON.stringify(expandedPage(packet().page))
+          && queries.some(query => query.op === op && query.generation === generation && query.schemaHash === state.schemaHash);
+      });
     },
     async close() { hooks.resume = undefined; await client.close(); await pause(); await rm(root, { recursive: true, force: true }); },
   };
@@ -106,16 +141,18 @@ for (const carrier of ["file", "IndexedDB"] as const) {
     try {
       f.state.generation = hex(2);
       const live: any = await f.client.query(api.messages.second, {});
-      assert.equal(live.data.generation, hex(2));
+      assert.equal(live.state, "complete");
+      assert.equal(f.queries.at(-1).generation, hex(2), "the successful live response was requested from G2");
       await f.rebuilt();
       assert.equal(f.resets(), 1);
-      assert.deepEqual(f.resumes[0], { protocol: 1, generation: hex(1), schemaHash: hex(4), authEpoch: 1, mounted: [] });
-      assert.equal((await f.store.coverage()).rows[0].row.body, "same row");
+      assert.deepEqual(f.resumes[0], { protocol: 1, generation: hex(1), schemaHash: certified.schemaHash, authEpoch: 1, mounted: [] });
+      assert.equal((await f.store.coverage()).rows.find((row: any) => row.id === overlapRow.id)?.row.at, overlapRow.row.at);
       // Sequence and negative-evidence guards still hold within the new coverage.
-      await f.store.commit({ deliveries: [{ op: "older", args: {}, state: "complete", seq: 6, data: null, rows: [{ table: "messages", id: "one", row: { id: "one", body: "old" } }] }] });
-      assert.equal((await f.store.coverage()).rows[0].row.body, "same row");
+      await f.store.commit({ deliveries: [{ op: "older", args: {}, state: "complete", seq: 6, data: null,
+        rows: [{ ...overlapRow, row: { ...overlapRow.row, at: -1 } }] }] });
+      assert.equal((await f.store.coverage()).rows.find((row: any) => row.id === overlapRow.id)?.row.at, overlapRow.row.at);
       await f.client.offline();
-      assert.equal((await f.client.query(api.messages.second, {})).state, "complete");
+      assert.equal((await f.client.query(api.messages.second, {})).state, "capped");
     } finally { await f.close(); }
   });
 }
@@ -129,15 +166,17 @@ test("concurrent G2 and G3 deliveries coalesce into one reset with only G3 answe
     await f.client.query(api.messages.second, {}); // Must finish while reset is blocked.
     await eventually(() => f.resumes.length === 1);
     f.state.generation = hex(3);
-    f.state.schemaHash = hex(8);
+    f.state.schemaHash = successor.schemaHash;
     await f.client.query(api.messages.third, {});
     gate.resolve();
     await f.rebuilt();
     await f.rebuilt("messages.third");
     assert.equal(f.resets(), 1);
     assert.equal(f.resumes.length, 1);
-    assert.deepEqual((await f.store.coverage()).facts, { generation: hex(3), schemaHash: hex(8), authEpoch: 1 });
-    assert.equal((await f.store.answer("messages.second", {})).data.epoch, 1);
+    assert.deepEqual((await f.store.coverage()).facts, { generation: hex(3), schemaHash: successor.schemaHash, authEpoch: 1 });
+    assert.deepEqual((await f.store.answer("messages.second", {})).data, expandedPage(successorPage),
+      "the G2 operation was rebuilt with G3's distinct-schema result");
+    assert.deepEqual((await f.store.answer("messages.third", {})).data, expandedPage(successorPage));
     assert.equal(await f.store.answer("messages.first", {}), undefined);
     assert.equal(f.queries.filter(q => q.op === "messages.second").length, 2, "the buffered G2 answer was re-issued under G3");
   } finally { gate.resolve(); await f.close(); }
@@ -177,12 +216,13 @@ for (const kind of ["transport", "refusal"] as const) {
       };
       f.state.generation = hex(2);
       const live: any = await f.client.query(api.messages.second, {});
-      assert.equal(live.data.generation, hex(2), "live read did not await the blocked reset");
+      assert.equal(live.state, "complete", "live read did not await the blocked reset");
+      assert.equal(f.queries.at(-1).generation, hex(2), "the live read came from the successor while reset stayed blocked");
       await eventually(() => f.resumes.length === 1);
       const online = f.client.online();
       await pause();
       const concurrent: any = await f.client.query(api.messages.third, {});
-      assert.equal(concurrent.data.generation, hex(2), "even online() joining the reset cannot block a live query");
+      assert.equal(concurrent.seq, 7, "even online() joining the reset cannot block a live query");
       gate.resolve();
       await assert.rejects(online);
       assert.equal(f.client.snapshot.lastRefusal?.code, kind === "transport" ? "E_NETWORK" : "E_RESET_TEST");
@@ -224,17 +264,19 @@ test("a mounted subscription cold-opens after supersession without Last-Event-ID
     await f.store.commit({ watermark: { op: "messages.log", args: { c: null }, watermark: "old-tail", validator: hex(6), updatedAt: 1 } });
     sub = f.client.subscribe(api.messages.first, {}, () => undefined);
     await eventually(() => f.streams.length === 1);
-    const emit = (stream: any, id: string) => stream.controller.enqueue(new TextEncoder().encode(`id: ${id}\ndata: ${JSON.stringify(f.envelope({}))}\n\n`));
-    emit(f.streams[0], "g1:7");
-    await sub.until((e: any) => e.data?.generation === hex(1), 1000);
+    const send = (stream: any, id: string, seq = f.state.seq) =>
+      stream.controller.enqueue(new TextEncoder().encode(`id: ${id}\ndata: ${JSON.stringify({ ...f.envelope({}), seq })}\n\n`));
+    send(f.streams[0], "g1:8", 8);
+    await sub.until((e: any) => e.seq === 8, 1000);
+    assert.equal((await f.store.coverage()).facts.generation, hex(1));
     f.state.generation = hex(2);
-    emit(f.streams[0], "g2:7");
+    send(f.streams[0], "g2:7");
     await eventually(() => f.streams.length === 2);
     assert.equal(f.streams[1].headers.get("Last-Event-ID"), null);
     assert.equal(f.streams[1].url.searchParams.get("validator"), null);
     assert.deepEqual(f.resumes[0].mounted, []);
     assert.equal(f.resumes[0].log, undefined, "the old drained log validator cannot cross the superseded fence");
-    emit(f.streams[1], "g2:7");
+    send(f.streams[1], "g2:7");
     await f.rebuilt("messages.first");
     assert.equal(f.resets(), 1);
   } finally { sub?.close(); await f.close(); }
@@ -318,7 +360,7 @@ test("a terminal reset refusal seals custody while the completed live read stays
     };
     f.state.generation = hex(2);
     const live: any = await f.client.query(api.messages.second, {});
-    assert.equal(live.data.generation, hex(2));
+    assert.equal(live.seq, 7);
     gate.resolve();
     await eventually(() => f.client.snapshot.lastRefusal?.code === "E_AUTH_SESSION");
     await assert.rejects(f.store.outbox.grant(), /sealed/);
@@ -368,21 +410,34 @@ for (const carrier of ["file", "IndexedDB"] as const) {
     const f = await fixture(carrier);
     try {
       f.state.seq = 8;
-      f.hooks.query = async () => json({ ...f.envelope({}), rows: [], data: { generation: hex(1), epoch: 1, row: null } });
+      f.hooks.query = async () => {
+        const envelope = f.envelope({});
+        return json({ ...envelope, rows: [], data: [], receipt: { ...envelope.receipt,
+          ranges: envelope.receipt.ranges.map(({ haloId: _haloId, ...range }: any) =>
+            ({ ...range, rowIds: [], stop: "Exhausted" })) } });
+      };
       await f.client.query(api.messages.first, {});
       assert.equal((await f.store.coverage()).rows.length, 0);
-      assert.deepEqual((await f.store.coverage()).evicted, [{ table: "messages", id: "one" }]);
-      await f.store.commit({ viewed: [{ table: "messages", id: "viewed" }] });
+      assert.deepEqual((await f.store.coverage()).evicted, overlap.rows.map(({ table, id }: any) => ({ table, id })));
+      await f.store.commit({ viewed: [{ table: overlapRow.table, id: "viewed" }] });
       f.hooks.query = undefined;
       f.state.generation = hex(2);
       await f.client.query(api.messages.second, {});
       await f.rebuilt();
-      assert.equal((await f.store.answer("messages.second", {})).data.row.body, "same row");
-      assert.deepEqual((await f.store.coverage()).viewed, [{ table: "messages", id: "viewed" }]);
+      assert.deepEqual((await f.store.answer("messages.second", {})).data, expandedPage(overlap));
+      assert.deepEqual((await f.store.coverage()).viewed, [{ table: overlapRow.table, id: "viewed" }]);
       // The negative guard still applies inside G2, even to a late equal-seq row.
-      await f.store.commit({ tombstones: [{ table: "messages", id: "one", seq: 9 }] });
-      await f.store.commit({ deliveries: [{ op: "late", args: {}, ...f.envelope({}), seq: 9 }] });
-      assert.equal((await f.store.coverage()).rows.length, 0);
+      await f.store.commit({ tombstones: [{ table: overlapRow.table, id: overlapRow.id, seq: 9 }] });
+      await assert.rejects(
+        f.store.commit({ deliveries: [{ op: "late", args: {}, ...f.envelope({}), seq: 9 }] }),
+        /conflicting durable fact/,
+      );
+      const coverage = await f.store.coverage();
+      assert.equal(coverage.rows.some((row: any) => row.id === overlapRow.id), false);
+      assert.ok(coverage.evicted.some((row: any) => row.id === overlapRow.id));
+      const answer = await f.store.answer("messages.second", {});
+      assert.equal(answer.state, "partial");
+      assert.equal(answer.data[0], null, "the equal-seq row remains hidden while unrelated certified rows survive");
     } finally { await f.close(); }
   });
 }
@@ -396,7 +451,7 @@ test("a successor after program load and before the fresh query commits converge
       if (q.op === "messages.second" && ++reads === 2) f.state.generation = hex(3);
     };
     const live: any = await f.client.query(api.messages.second, {});
-    assert.equal(live.data.generation, hex(2));
+    assert.equal(live.seq, 7);
     await f.rebuilt("messages.second", hex(3));
     assert.equal(reads, 3);
     assert.equal(f.resets(), 2);
@@ -478,7 +533,7 @@ for (const carrier of ["file", "IndexedDB"] as const) {
       assert.equal((await client.query(api.messages.first, {})).state, "complete");
       assert.equal(client.snapshot.lastRefusal, undefined);
       await client.offline();
-      assert.equal((await client.query(api.messages.first, {})).state, "complete");
+      assert.equal((await client.query(api.messages.first, {})).state, "capped");
     } finally { sub?.close(); await f.close(); }
   });
 
@@ -582,8 +637,8 @@ for (const carrier of ["file", "IndexedDB"] as const) {
       assert.deepEqual(replays[1], replays[0]);
       const settlements = swaps.filter(s => s.outbox?.put?.some((e: any) => e.state === "committed"));
       assert.equal(settlements.length, 1);
-      assert.equal(settlements[0].deliveries[0].data.generation, hex(3));
-      assert.equal((await f.store.answer("messages.log", {})).data.generation, hex(3));
+      assert.equal(settlements[0].facts.generation, hex(3));
+      assert.equal((await f.store.answer("messages.log", {})).seq, 7);
     } finally { tail.resolve(); retry.resolve(); await f.close(); }
   });
 }
@@ -681,7 +736,7 @@ for (const carrier of ["file", "IndexedDB"] as const) {
       await f.client.close();
       await f.reopen(true);
       assert.ok((await f.store.outbox.programs())[hex(2)]);
-      assert.equal((await f.client.query(api.messages.second, {})).state, "complete");
+      assert.equal((await f.client.query(api.messages.second, {})).state, "capped");
     } finally { await f.close(); }
   });
 }
@@ -729,15 +784,19 @@ test("reset clears a terminal subscription latch and cold-opens it again", async
   try {
     sub = f.client.subscribe(api.messages.first, {}, () => undefined);
     await eventually(() => f.streams.length === 1);
-    const refused = sub.until((e: any) => e.data?.generation === hex(2), 1000);
-    emit(f.streams[0], { state: "refused", code: "E_OP_UNKNOWN", family: "op", message: "replaced", guide: "op/manifest" });
-    await assert.rejects(refused, (e: any) => e.code === "E_OP_UNKNOWN");
-    await assert.rejects(sub.until(() => true), (e: any) => e.code === "E_OP_UNKNOWN");
+    emit(f.streams[0], { ...f.envelope({}), seq: 8 }, "before-refusal");
+    await sub.until((e: any) => e.seq === 8, 1000);
+    const refused = sub.until((e: any) => e.seq === 9, 1000);
+    emit(f.streams[0], { state: "refused", code: "E_TERMINAL_TEST", family: "query", message: "stopped", guide: "queries" });
+    await assert.rejects(refused, (e: any) => e.code === "E_TERMINAL_TEST");
+    const latched: any = await sub.until(() => true);
+    assert.equal(latched.state, "refused");
+    assert.equal(latched.code, "E_TERMINAL_TEST", "the shared query retains a non-auth refusal for explicit inspection");
     sub.reset();
     await eventually(() => f.streams.length === 2);
     assert.equal(f.streams[1].headers.get("Last-Event-ID"), null);
-    emit(f.streams[1], f.envelope({}), "new-id");
-    assert.equal((await sub.until((e: any) => e.data?.generation === hex(1), 1000)).state, "complete");
+    emit(f.streams[1], { ...f.envelope({}), seq: 9 }, "new-id");
+    assert.equal((await sub.until((e: any) => e.seq === 9, 1000)).state, "complete");
   } finally { sub?.close(); await f.close(); }
 });
 

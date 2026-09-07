@@ -324,7 +324,9 @@ fn symbol_help_survives_missing_corrupt_and_unreadable_keyword_indexes() {
             fs::remove_file(&index).unwrap();
             fs::create_dir(&index).unwrap();
         }
-        for keyword in ["decimal", "channel", "merge", "divmod", "emit"] {
+        // The fallback is declaration-backed symbol help, independent of the
+        // generated keyword index. Keep this list on the public functions.
+        for keyword in ["decimal", "effect", "seed"] {
             let output = project.run(&["guide", keyword, "--json"]);
             let page = json_stdout(&output);
             assert!(output.status.success(), "{state} {keyword}: {page}");
