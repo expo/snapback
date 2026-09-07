@@ -123,6 +123,11 @@ interface StatusWaiter {
   timer: ReturnType<typeof setTimeout>;
 }
 
+interface RecoveryPreparation {
+  record: RecoveryRecord;
+  outcome: Promise<MutationQueued | MutationAdmissionUnknown>;
+}
+
 function object(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
@@ -224,6 +229,8 @@ export class MutationForwarding {
   private readonly pending = new Map<string, Pending>();
   /** Unsent invocations retained behind ordered discovery, bounded with pending commands. */
   private readonly preparations = new Set<object>();
+  /** Repeated recovery observers share one preparation and result per durable identity. */
+  private readonly recoveryPreparations = new Map<string, RecoveryPreparation>();
   private readonly statusWaiters = new Map<string, StatusWaiter>();
   private readonly listeners = new Set<() => void>();
   /** Serializes discovery and send publication in one follower's invocation order. */
@@ -277,6 +284,7 @@ export class MutationForwarding {
     this.generation += 1;
     this.submissionTail = Promise.resolve();
     this.preparations.clear();
+    this.recoveryPreparations.clear();
     this.channel?.close();
     this.channel = undefined;
     this.writerRole = undefined;
@@ -323,7 +331,8 @@ export class MutationForwarding {
     const follower = this.followerRole;
     const recovered = recovery === undefined ? undefined : decode(recovery);
     const existing = recovered === undefined ? undefined : this.pending.get(recovered.requestId);
-    const reservation = existing ? undefined : {};
+    const shared = recovered === undefined ? undefined : this.recoveryPreparations.get(recovered.requestId);
+    const reservation = existing || shared ? undefined : {};
     if (reservation && this.pending.size + this.preparations.size >= LOCAL_PENDING_LIMIT) {
       throw new SnapbackRefusal({ code: "E_OFFLINE_FORWARDING_CAPACITY", family: "offline",
         message: "this follower already has 64 preparing or unacknowledged mutation commands", site: "client.mutation.forward",
@@ -333,12 +342,35 @@ export class MutationForwarding {
     let boundArgs: unknown, digest: string;
     try { boundArgs = structuredClone(args); digest = payloadDigest(op, boundArgs); }
     catch (error) { if (reservation) this.preparations.delete(reservation); throw error; }
+    if (recovered && recovered.payloadDigest !== digest) {
+      if (reservation) this.preparations.delete(reservation);
+      throw new TypeError("mutation recovery token does not match the operation and arguments");
+    }
+    if (shared) {
+      if (stableSerialize(shared.record) !== stableSerialize(recovered)) {
+        throw new TypeError("mutation recovery request identity conflicts with an in-flight command");
+      }
+      const writer = this.host.writer();
+      if (writer) this.verifyRecovery(recovered!, writer, digest);
+      else if (this.currentFollower(follower, generation) && follower) this.verifyFollower(recovered!, follower, digest);
+      else throw followerRefusal("client.mutation.forward");
+      return shared.outcome;
+    }
     const prepared = this.submissionTail.then(async () => {
       try { return await this.prepareMutation(op, boundArgs, digest, generation, follower, recovery, recovered); }
       finally { if (reservation) this.preparations.delete(reservation); }
     });
     this.submissionTail = prepared.then(() => undefined, () => undefined);
-    return (await prepared).outcome;
+    const outcome = prepared.then(value => value.outcome);
+    if (recovered) {
+      const item = { record: recovered, outcome };
+      this.recoveryPreparations.set(recovered.requestId, item);
+      void outcome.then(
+        () => { if (this.recoveryPreparations.get(recovered.requestId) === item) this.recoveryPreparations.delete(recovered.requestId); },
+        () => { if (this.recoveryPreparations.get(recovered.requestId) === item) this.recoveryPreparations.delete(recovered.requestId); },
+      );
+    }
+    return outcome;
   }
 
   private async prepareMutation(
