@@ -14,19 +14,19 @@ export const thread = query({ conversationId: t.ref(conversations) }, ({ db, ctx
 });
 ```
 
-`complete` and `capped` receipts carry `next: Cursor | null`. Pass that opaque
-token back as the cursor argument for the next page. It represents the last
-returned row, is bound to the table/index/order, and must not be inspected or
-constructed by application code. A conditional query can return a different
-range or merge from each branch, through aliases and shapes; `next` follows the
-branch that returns. Reset the cursor to `null` when switching index or order.
+`complete` and `capped` carry `next: Cursor | null`. Pass the opaque token back
+for the next page; it is bound to table/index/order and must not be inspected or
+constructed. Through aliases, shapes, and conditional branches, `next` follows
+the page returned. Reset it to `null` when switching index or order.
 
 Subscribe through `client.subscribe(api.messages.thread, args, listener)`.
 Each SSE data frame is a query response or refusal. Connection `live`/`stale`
 facts belong to the client and never replace `complete`/`capped`/`denied`.
 
-`client.observe(ref,args)` is a lazy `{getSnapshot,subscribe}` store shared by
-raw and React. Resets publish `hydrating`; `{live:false}` is one-shot.
+`client.observe` lazily shares one immutable snapshot with raw and React.
+Effective local commits (prediction, settlement, coverage, authority) reevaluate
+once; bookkeeping stays silent. Resets publish `hydrating`; `{live:false}` never
+follows revisions.
 
 One SSE connection carries up to 256 query/channel subscriptions per client,
 including HTTP/1.1. Adding/closing one leaves peers active. Unmount unused

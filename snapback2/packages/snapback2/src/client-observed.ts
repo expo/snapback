@@ -1,5 +1,6 @@
 import { isSnapbackRefusal } from "./client-wire.js";
 import { referenceName, referencePath, type Op } from "./api.js";
+import { SharedSubscriptions } from "./client-sessions.js";
 import {
   initialQueryState,
   reduceQueryState,
@@ -7,7 +8,9 @@ import {
   type QueryMachineEvent,
   type QueryResult,
   type QueryView,
+  type ObservedQuery,
   type Subscription,
+  type SubscriptionDelivery,
 } from "./types.js";
 
 interface Waiter<Event> {
@@ -40,13 +43,94 @@ export function queryIdentity(authGeneration: number, fence: number, mode: "live
 export function queryEntry<Result, Event extends QueryMachineEvent<Result>>(
   key: string,
   open: (fanout: (event: Event) => void) => Subscription<Event>,
+  refresh?: (current: QueryView<Result>) => Promise<Event | undefined>,
 ) {
   return {
     key,
     initial: initialQueryState<Result>(),
     reduce: (current: QueryView<Result>, event: Event) => reduceQueryState(current, event),
     open,
+    ...(refresh === undefined ? {} : { refresh }),
   };
+}
+
+type QueryMode = "live" | "drain" | "once";
+type QueryFence = readonly [authGeneration: number, operationFence: number];
+
+interface QueryHost {
+  identity(): QueryFence;
+  active(fence: QueryFence): boolean;
+  open<Args, Result>(ref: Op<Args, Result>, args: Args, callback: (event: SubscriptionDelivery<Result>) => void, drain: boolean): Subscription<SubscriptionDelivery<Result>>;
+  query<Args, Result>(ref: Op<Args, Result>, args: Args): Promise<QueryResult<Result>>;
+  local<Args, Result>(ref: Op<Args, Result>, args: Args, drain: boolean): Promise<QueryMachineEvent<Result>>;
+}
+
+/** Owns query identity, lazy shared entries, and committed-local-input reevaluation for one client. */
+export class ClientQueries {
+  private readonly shared = new SharedSubscriptions();
+  constructor(private readonly host: QueryHost) {}
+
+  private async local<Args, Result>(
+    request: ReturnType<typeof bindQueryRequest<Args, Result>>, drain: boolean,
+    current: QueryView<Result>, fence: QueryFence,
+  ): Promise<SubscriptionDelivery<Result> | undefined> {
+    if (!this.host.active(fence)) return undefined;
+    let event: QueryMachineEvent<Result>;
+    try {
+      event = await this.host.local(request.ref, request.args, drain);
+    } catch (error) {
+      if (!this.host.active(fence) || (isSnapbackRefusal(error) && error.code === "E_AUTH_SUPERSEDED")) return undefined;
+      const envelope = isSnapbackRefusal(error)
+        ? error.envelope
+        : { code: "E_CLIENT", family: "owner", message: String(error), guide: "owner/connect" };
+      return { state: "refused", live: false, ...envelope };
+    }
+    if (!this.host.active(fence) || (current.live && event.state === "hydrating")) return undefined;
+    if (!current.live || event.state === "refused") return event as SubscriptionDelivery<Result>;
+    const { connection: _connection, stale: _stale, ...fresh } = event as QueryMachineEvent<Result> & {
+      connection?: unknown; stale?: unknown;
+    };
+    return { ...fresh, live: true } as SubscriptionDelivery<Result>;
+  }
+
+  observe<Args, Result>(
+    ref: Op<Args, Result>, args: Args, options: { live?: false; drain?: boolean } = {},
+  ): ObservedQuery<Result> {
+    const once = options.live === false, drain = options.drain === true;
+    if (once && drain) throw new TypeError("query observation drain requires a live subscription");
+    const request = bindQueryRequest(ref, args), fence = this.host.identity();
+    const active = () => this.host.active(fence);
+    const mode: QueryMode = once ? "once" : drain ? "drain" : "live";
+    const key = queryIdentity(fence[0], fence[1], mode, request.op, request.args);
+    if (once) return this.shared.observe(queryEntry<Result, QueryMachineEvent<Result>>(
+      key, (fanout) => oneShotQuery(() => this.host.query(request.ref, request.args), fanout),
+    ), active);
+    return this.shared.observe(queryEntry<Result, SubscriptionDelivery<Result>>(
+      key,
+      (fanout) => this.host.open(request.ref, request.args, fanout, drain),
+      (current) => this.local(request, drain, current, fence),
+    ), active);
+  }
+
+  subscribe<Args, Result>(
+    ref: Op<Args, Result>, args: Args, callback: (event: SubscriptionDelivery<Result>) => void, options: { drain?: boolean } = {},
+  ): Subscription<SubscriptionDelivery<Result>> {
+    const request = bindQueryRequest(ref, args), drain = options.drain === true, fence = this.host.identity();
+    const mode: QueryMode = drain ? "drain" : "live";
+    return this.shared.attach(queryEntry<Result, SubscriptionDelivery<Result>>(
+      queryIdentity(fence[0], fence[1], mode, request.op, request.args),
+      (fanout) => this.host.open(request.ref, request.args, fanout, drain),
+      (current) => this.local(request, drain, current, fence),
+    ), callback);
+  }
+
+  consumers(ref: Op<any, any>, args: unknown, drain = false): number {
+    const [generation, fence] = this.host.identity();
+    return this.shared.consumers(queryIdentity(generation, fence, drain ? "drain" : "live", referenceName(ref), args));
+  }
+  refresh(): void { this.shared.refresh(); }
+  retireInactive(): void { this.shared.retireInactive(); }
+  clear(except?: Subscription<unknown>): void { this.shared.clear(except); }
 }
 
 /** The non-live source used by `client.observe`; ownership remains in the shared entry. */

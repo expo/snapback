@@ -1,7 +1,8 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { api, isSnapbackRefusal } from "../dist/client.mjs";
+import { api, isSnapbackRefusal, SnapbackRefusal } from "../dist/client.mjs";
 import { indexedDbRangeStore } from "../dist/react.mjs";
+import { ClientQueries, SharedSubscriptions } from "../dist/client-observed-test.mjs";
 import { fixtureClient as createClient } from "./live-fixture.ts";
 import { fakeOwner } from "./fake-owner.ts";
 import { FakeIndexedDb, FakeLocks } from "./fake-indexeddb.ts";
@@ -13,6 +14,102 @@ async function until(condition: () => Promise<boolean> | boolean, what: string, 
     await new Promise<void>((resolve) => setTimeout(resolve, 10));
   }
 }
+
+test("a newer direct delivery fences a delayed local refresh and until sees later local revisions", async () => {
+  type Event = { revision: number; source: "local" | "server" };
+  const shared = new SharedSubscriptions();
+  let publish!: (event: Event) => void;
+  let refreshRuns = 0;
+  let releaseFirst!: () => void;
+  let markFirstStarted!: () => void;
+  const firstStarted = new Promise<void>((resolve) => { markFirstStarted = resolve; });
+  const firstRelease = new Promise<void>((resolve) => { releaseFirst = resolve; });
+  const heard: Event[] = [];
+  const spec = {
+    key: "revision-race",
+    initial: { revision: 0 },
+    reduce: (current: { revision: number }, event: Event) => current.revision === event.revision
+      ? current : { revision: event.revision },
+    open: (listener: (event: Event) => void) => {
+      publish = listener;
+      return {
+        close: () => undefined,
+        until: async () => { throw new Error("shared until delegated to its transport"); },
+      };
+    },
+    refresh: async (): Promise<Event> => {
+      refreshRuns += 1;
+      if (refreshRuns === 1) {
+        markFirstStarted();
+        await firstRelease;
+        return { revision: 1, source: "local" };
+      }
+      return { revision: refreshRuns, source: "local" };
+    },
+  };
+  const subscription = shared.attach(spec, (event: Event) => { heard.push(event); });
+  shared.refresh();
+  await firstStarted;
+  publish({ revision: 2, source: "server" });
+  releaseFirst();
+  await until(() => refreshRuns === 2, "the current local evaluation after the stale one was fenced");
+  assert.deepEqual(heard, [{ revision: 2, source: "server" }], "the stale local result never overwrites the direct delivery");
+
+  const predicted = subscription.until((event: Event) => event.revision === 3 && event.source === "local", 500);
+  shared.refresh();
+  assert.deepEqual(await predicted, { revision: 3, source: "local" });
+  assert.deepEqual(heard.at(-1), { revision: 3, source: "local" });
+  subscription.close();
+});
+
+test("a current local reevaluation refusal publishes while an obsolete-authority failure is fenced", async () => {
+  const refusal = () => new SnapbackRefusal({
+    code: "E_OFFLINE_CARRIER", family: "offline", message: "local store failed", guide: "offline",
+  });
+  let identity: readonly [number, number] = [1, 1];
+  let publish!: (event: any) => void;
+  let local = async () => { throw refusal(); };
+  const queries = new ClientQueries({
+    identity: () => identity,
+    active: (fence: readonly [number, number]) => fence[0] === identity[0] && fence[1] === identity[1],
+    open: (_ref: unknown, _args: unknown, listener: (event: any) => void) => {
+      publish = listener;
+      return { close: () => undefined, until: async () => { throw new Error("must use shared until"); } };
+    },
+    query: async () => { throw new Error("unused"); },
+    local: () => local(),
+  } as any);
+  const args = { term: "wel", c: null };
+  const observed = queries.observe(api.messages.search, args);
+  const raw = queries.subscribe(api.messages.search, args, () => undefined);
+  const stop = observed.subscribe(() => undefined);
+  publish({ state: "complete", live: true, data: [], next: null, seq: 1 });
+  const waiting = raw.until(() => false, 1_000);
+  queries.refresh();
+  await assert.rejects(waiting, (error: unknown) => isSnapbackRefusal(error) && error.code === "E_OFFLINE_CARRIER");
+  await until(() => observed.getSnapshot().state === "refused", "the shared local refusal snapshot");
+  assert.equal((observed.getSnapshot() as any).refusal.code, "E_OFFLINE_CARRIER");
+  raw.close(); stop();
+
+  let failObsolete!: () => void;
+  let markStarted!: () => void;
+  const started = new Promise<void>((resolve) => { markStarted = resolve; });
+  const delayed = new Promise<void>((resolve) => { failObsolete = resolve; });
+  local = async () => { markStarted(); await delayed; throw refusal(); };
+  const old = queries.observe(api.messages.search, { term: "old", c: null });
+  const states: string[] = [];
+  const stopOld = old.subscribe(() => { states.push(old.getSnapshot().state); });
+  publish({ state: "complete", live: true, data: [], next: null, seq: 2 });
+  queries.refresh();
+  await started;
+  identity = [2, 2];
+  queries.clear();
+  failObsolete();
+  await new Promise<void>((resolve) => setTimeout(resolve, 20));
+  assert.equal(old.getSnapshot().state, "hydrating");
+  assert.deepEqual(states.slice(-2), ["complete", "hydrating"], "obsolete local failure published no refusal");
+  stopOld();
+});
 
 /** Counts logical subscription children the multiplexed transport adds, and direct query pages. */
 function counting(owner: ReturnType<typeof fakeOwner>) {
@@ -151,6 +248,94 @@ test("closing a client retires an observed authority snapshot before later deliv
   stopRetired();
   stopUnused();
   stop();
+});
+
+test("account open and wipe retire the old headless query snapshot through the authority fence", async () => {
+  const database = new FakeIndexedDb(), locks = new FakeLocks();
+  const carrier = indexedDbRangeStore({ indexedDB: database as any, locks: locks as any });
+  const owner = fakeOwner({ seed: true, cursorArg: "c" });
+  let token: string | null = null;
+  const client = createClient({
+    url: "http://observed-account-reset.test",
+    tokenStore: { load: () => token, save: (next) => { token = next; } },
+    fetch: (input, init) => new URL(String(input)).pathname === "/api/auth/logout"
+      ? Promise.resolve(new Response(JSON.stringify({ ok: true }), { status: 200, headers: { "content-type": "application/json" } }))
+      : owner.fetch(input, init),
+    offline: { store: carrier },
+  });
+  await client.ready;
+  await client.auth.login({ email: "alice@example.test", password: "correct horse" });
+  const observed = client.observe(api.deliveries.thread, { conversationId: "conversation-1", c: null });
+  const states: string[] = [];
+  const stop = observed.subscribe(() => { states.push(observed.getSnapshot().state); });
+  await until(() => observed.getSnapshot().state === "complete", "the authenticated account query");
+  await client.auth.logout();
+  assert.equal(observed.getSnapshot().state, "hydrating", "the wiped account cannot remain visible");
+  assert.deepEqual(states.slice(-2), ["complete", "hydrating"]);
+  const staleStop = observed.subscribe(() => assert.fail("the wiped authority observer reopened"));
+  staleStop(); stop();
+  await client.close();
+});
+
+// @ref LLP 1018#3-move-one-one-coherent-reactive-client — a committed local
+// overlay revision publishes one shared prediction; settlement rolls it back
+// without waiting for a transport frame, while grant bookkeeping stays silent.
+test("mounted query snapshots follow committed prediction and settlement revisions", async () => {
+  const database = new FakeIndexedDb(), locks = new FakeLocks();
+  const carrier = indexedDbRangeStore({ indexedDB: database as any, locks: locks as any });
+  const physical = carrier();
+  const owner = fakeOwner({ seed: true, cursorArg: "c" });
+  const client = createClient({ url: "http://local-revision.test", as: "alice", fetch: owner.fetch,
+    offline: { store: () => physical } });
+  await client.ready;
+  const args = { conversationId: "conversation-1", c: null };
+  const first = client.observe(api.deliveries.thread, args);
+  const second = client.observe(api.deliveries.thread, args);
+  let firstNotifies = 0, secondNotifies = 0;
+  const stopFirst = first.subscribe(() => { firstNotifies += 1; });
+  const stopSecond = second.subscribe(() => { secondNotifies += 1; });
+  await until(() => first.getSnapshot().state === "complete", "the held thread");
+  await new Promise<void>((resolve) => setTimeout(resolve, 20));
+  assert.strictEqual(first.getSnapshot(), second.getSnapshot());
+  assert.deepEqual([firstNotifies, secondNotifies], [1, 1], "the delivery's store commit does not publish a duplicate snapshot");
+  const initial = (first.getSnapshot() as any).data[0].message;
+  await client.offline();
+  await until(() => first.getSnapshot().live === false, "the mounted offline view");
+  assert.strictEqual(first.getSnapshot(), second.getSnapshot());
+  const intent = "local-prediction";
+  const entry = {
+    intent, grant: "test-grant", offset: 0, count: 1, ids: ["predicted-id"],
+    op: "deliveries.edit", args: { messageId: initial.id, body: "Predicted edit" }, issuedSeq: 5,
+    state: "queued" as const, predicted: true, trace: { points: [], verdicts: [] }, createdAt: 10, updatedAt: 10,
+  };
+  const raw = client.subscribe(api.deliveries.thread, args, () => undefined);
+  const rawPrediction = raw.until((event) => (event as any).predicted?.[0] === intent, 2_000);
+  const beforePrediction = firstNotifies;
+  await physical.commit({ outbox: { put: [entry] }, overlay: { put: { [intent]: [{
+    table: "messages", id: initial.id, row: { ...initial, body: "Predicted edit" }, fields: ["body"],
+  }] } } });
+  await until(() => (first.getSnapshot() as any).predicted?.[0] === intent, "the shared local prediction");
+  assert.equal((first.getSnapshot() as any).data[0].message.body, "Predicted edit");
+  assert.equal((await rawPrediction as any).data[0].message.body, "Predicted edit",
+    "imperative until observes the same committed local prediction");
+  assert.strictEqual(first.getSnapshot(), second.getSnapshot(), "both consumers publish the same predicted snapshot");
+  assert.equal(firstNotifies, beforePrediction + 1);
+  assert.equal(secondNotifies, firstNotifies);
+
+  const beforeBookkeeping = firstNotifies;
+  await physical.commit({ grants: { put: [{ id: "bookkeeping", from: "s2id-0000000000000000000000000000000a-0000000000001000",
+    count: 8, mintedAt: 10, expiresAt: 20, used: 0 }], current: "bookkeeping" } });
+  await new Promise<void>((resolve) => setTimeout(resolve, 20));
+  assert.equal(firstNotifies, beforeBookkeeping, "grant bookkeeping does not reevaluate a query");
+
+  await physical.commit({ outbox: { put: [{ ...entry, state: "rejected", predicted: false, updatedAt: 11 }] } });
+  await until(() => (first.getSnapshot() as any).data?.[0]?.message?.body === "Welcome", "prediction settlement rollback");
+  assert.equal((first.getSnapshot() as any).predicted, undefined);
+  assert.strictEqual(first.getSnapshot(), second.getSnapshot(), "settlement is one coherent shared snapshot");
+  assert.equal(firstNotifies, beforeBookkeeping + 1);
+  assert.equal(secondNotifies, firstNotifies);
+  raw.close(); stopFirst(); stopSecond();
+  await client.close();
 });
 
 test("identical drains share one page walk and one tail", async () => {

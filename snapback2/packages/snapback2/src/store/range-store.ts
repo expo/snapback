@@ -7,6 +7,7 @@ import { ClockCoverageReset, FullRevalidationRequired, deliveryFacts, FactTransa
   imageSlots, extentSlots, extentMeaning, FACT_FORMAT, type FactProof, type PreparedImage } from './fact-integrity.js';
 import { extentContains, rangeMeaningKey, type FactImage, type FactExtent, type ExtentProof, type ExtentCondition } from './extent-facts.js';
 import { SwapJournal, StoreChanges, raw, type StoreRevision, type StoreChange, type ChangedRecords } from "./swap-journal.js";
+import { changesQueryInputs } from "./query-inputs.js";
 import { onceColumns, onceRow, onceAssetIds, nullOnceMedia, type OnceColumns } from "./asset-policy.js";
 // @ref LLP 1012#4-the-range-store — every carrier persists the same per-principal answer/range model.
 // @ref LLP 1012#5-retention-revocation-and-the-fence — eviction is decided once over a complete swap.
@@ -335,6 +336,8 @@ export interface RangeStore {
   commit(swap: StoreSwap): Promise<void>;
   coverage(): Promise<Coverage>;
   changes(since?: StoreRevision): Promise<StoreChange<PersistedRangeState>>;
+  /** @ref LLP 1018#3-move-one-one-coherent-reactive-client — post-commit effective local query inputs. */
+  subscribeInputs(listener: () => void): () => void;
   readonly outbox: OutboxStore;
   close?(): Promise<void> | void;
 }
@@ -547,6 +550,7 @@ export class PersistentRangeStore implements RangeStore {
   private referenceSchema?: OfflineSchema;
   private persisted?: PersistedRangeState;
   private readonly updates = new StoreChanges<PersistedRangeState>();
+  private readonly inputListeners = new Set<() => void>();
   private partition?: PrincipalPartition;
   private tail: Promise<void> = Promise.resolve();
 
@@ -729,6 +733,11 @@ export class PersistentRangeStore implements RangeStore {
       if (change.records?.rows) change.records.rows = imageRecords(change.records.rows as Record<string,StoredRow>);
       return jsonState(change); });
   }
+
+  subscribeInputs(listener: () => void): () => void {
+    this.inputListeners.add(listener);
+    return () => { this.inputListeners.delete(listener); };
+  }
   async [preparedChanges](since?: StoreRevision): Promise<StoreChange<PersistedRangeState>> {
     return this.read(() => {
       this.ensureUnsealed();
@@ -800,6 +809,10 @@ export class PersistentRangeStore implements RangeStore {
       if (['answers', 'programs', 'onceColumns', 'rows', 'viewed'].some(k => journal.changed.get('*')?.has(k))) this.referenceIndex = undefined;
       else { try { this.referenceIndex?.update(this.state, journal.changed, normalized.schema); }
         catch (error) { this.referenceIndex = undefined; throw error; } }
+
+      if (changesQueryInputs(journal.changed)) for (const listener of [...this.inputListeners]) {
+        try { listener(); } catch { /* store durability cannot depend on an observer */ }
+      }
 
 
     });
