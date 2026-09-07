@@ -1,0 +1,24 @@
+{
+  "outerTool": 2542,
+  "actualOuterExitCode": 0,
+  "chunk": "682db8",
+  "actualNativeExitCode": 0,
+  "nativePid": 76793,
+  "nativeTerminalSha256": "3351a2f927e638dd7aa7e0588c067a05eb778196dbf5445b4fa535c046efc8c3",
+  "actualIdentity": "actual-launch-identity.json",
+  "reportSha256": "e59bdf3a9e1f8fd96c7265a07b39e32270aa4fb151e5946d38edb70cda1494ac",
+  "reportBytes": 6200,
+  "manifestSha256": "401f6c6a2e51aa51baf52e24649fa7f2cda79411722604a7f37893f2da4fd1c1",
+  "manifestFiles": 21,
+  "mismatches": [],
+  "finalHashes": {
+    "candidate-helper.py": "c10d60e9dc8617f73f0c8e343abb450a0e81e6bfc4f9b8e8df69a9eab813ae9f",
+    "helper.diff": "f024160f7f4a7f32496012fbeed1b3862b8331c721522552088348152b174a94",
+    "regression.py": "eaf4d0f6dcd8ad062afdf193131c43a0e7f4f30b50e30ff4f11a967f5686147a",
+    "controlled-child.py": "a73ce3014d7a5d4de2ed2f05f82d1537270dda23f9b322628c9912663ec00a9a",
+    "run-regressions.py": "15906044f28378e9efd6cea8ffd057534028c09d4fd5c43a084c23da7ba4abab",
+    "workload.json": "21551fa147952c61f8c1da899645d5033f7db2fb8014f137bb59bff2aaff10b9",
+    "request.json": "bf19c580853e63344c0722529ceab7376853a8b5c48788d9ccc03fbd32b37883"
+  },
+  "regressionExecuted": false
+}

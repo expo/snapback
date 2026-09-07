@@ -1,0 +1,26 @@
+{
+  "name": "registry-package-install",
+  "argv": [
+    "/Users/ccheever/.volta/tools/image/node/22.23.2/bin/node",
+    "/Users/ccheever/.volta/tools/image/node/22.23.2/lib/node_modules/npm/bin/npm-cli.js",
+    "install",
+    "--ignore-scripts",
+    "--no-audit",
+    "--no-fund",
+    "--legacy-peer-deps",
+    "--prefer-offline",
+    "--fetch-retries=0",
+    "--fetch-timeout=15000",
+    "snapback2-darwin-arm64@0.0.17",
+    "snapback2@0.0.17"
+  ],
+  "cwd": "/Users/ccheever/clique-improvement/revisions/cli-017-registry-expo-verification-preparation/execution/registry-installed-consumer",
+  "timeout_seconds": 30,
+  "started_epoch": 1788817091.665865,
+  "pid": 74205,
+  "process_identity": "74205 Mon Sep  7 14:38:11 2026     /Users/ccheever/.volta/tools/image/node/22.23.2/bin/node",
+  "exit_code": 0,
+  "actual_return_code": 0,
+  "elapsed_seconds": 15.850728958,
+  "log_sha256": "8e33cc39dc2fe6e0cef6cce0c45f8fe633acca1da7c107bc967daf3b2fe075ae"
+}

@@ -1,0 +1,17 @@
+{
+  "name": "expo-installed-version",
+  "argv": [
+    "/Users/ccheever/.volta/tools/image/node/22.23.2/bin/node",
+    "/Users/ccheever/clique-improvement/revisions/cli-017-registry-expo-verification-preparation/execution/registry-installed-consumer/node_modules/snapback2/bin/snapback2.mjs",
+    "version"
+  ],
+  "cwd": "/Users/ccheever/clique-improvement/revisions/cli-017-registry-expo-verification-preparation/execution/registry-installed-consumer",
+  "timeout_seconds": 30,
+  "started_epoch": 1788817108.816952,
+  "pid": 74313,
+  "process_identity": "74313 Mon Sep  7 14:38:28 2026     /Users/ccheever/.volta/tools/image/node/22.23.2/bin/node",
+  "exit_code": 0,
+  "actual_return_code": 0,
+  "elapsed_seconds": 0.28746416599999947,
+  "log_sha256": "54a36bfe02f108ce5fc97bf2367cc1159e2621779c3f6237500aaa94081ff69c"
+}

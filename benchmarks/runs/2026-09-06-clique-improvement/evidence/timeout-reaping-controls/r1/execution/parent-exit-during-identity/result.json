@@ -1,0 +1,14 @@
+{
+  "case": "parent-exit-during-identity",
+  "ok": false,
+  "startedEpoch": 1788818582.349443,
+  "helper": "parent-helper.py",
+  "scope": "controlled measurement regression; never an install or017 qualification",
+  "failure": {
+    "type": "AttributeError",
+    "message": "__enter__"
+  },
+  "controllerFinalActualReturnCode": 0,
+  "endedEpoch": 1788818583.349679,
+  "wallSeconds": 1.0002298749999998
+}

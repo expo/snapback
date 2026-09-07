@@ -102,7 +102,7 @@ export function registerPackageGuideChecks(test: Test, assert: Assert, withProje
     const files = new Set((report[0]?.files ?? []).map((item: { path: string }) => item.path));
     for (const path of [
       "dist/compiler.mjs", "dist/compiler-core.mjs", "dist/index.mjs", "dist/client.mjs", "dist/react.mjs", "dist/test.mjs",
-      "dist/test-runner.mjs", "dist/index.d.ts", "dist/client.d.ts", "dist/react.d.ts", "dist/test.d.ts",
+      "dist/test-runner.mjs", "dist/index.d.ts", "dist/authoring-lib.d.ts", "dist/client.d.ts", "dist/react.d.ts", "dist/test.d.ts",
       "dist/compiler-lib.d.ts", "expo-module.config.json", "ios/MemoryVideoSource.swift",
       "ios/SnapbackMemoryVideoModule.swift", "ios/SnapbackMemoryVideo.podspec",
       "android/build.gradle", "android/src/main/java/expo/modules/snapback2/SnapbackMemoryVideoModule.kt",

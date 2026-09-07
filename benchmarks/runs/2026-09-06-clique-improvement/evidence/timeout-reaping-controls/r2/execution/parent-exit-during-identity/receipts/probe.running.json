@@ -1,0 +1,19 @@
+{
+  "argv": [
+    "/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/bin/python3.9",
+    "-I",
+    "-B",
+    "/Users/ccheever/clique-improvement/revisions/default-install-timeout-race-repair-r2/controlled-child.py",
+    "/Users/ccheever/clique-improvement/revisions/default-install-timeout-race-repair-r2/execution/parent-exit-during-identity/ready",
+    "/Users/ccheever/clique-improvement/revisions/default-install-timeout-race-repair-r2/execution/parent-exit-during-identity/gate"
+  ],
+  "attempt": 1,
+  "automaticRetry": false,
+  "cwd": "/Users/ccheever/clique-improvement/revisions/default-install-timeout-race-repair-r2/execution/parent-exit-during-identity",
+  "name": "probe",
+  "pid": 89999,
+  "processGroup": 89999,
+  "processIdentity": "89999 Mon Sep  7 15:11:48 2026     /Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/Resources/Python.app/Contents/MacOS/Python",
+  "startedEpoch": 1788819108.6184561,
+  "timeoutSeconds": 30
+}

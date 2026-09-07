@@ -1,0 +1,19 @@
+{
+  "name": "installed-guide-init",
+  "argv": [
+    "/Users/ccheever/.volta/tools/image/node/22.23.2/bin/node",
+    "/Users/ccheever/clique-improvement/revisions/cli-017-registry-expo-verification-preparation/execution/registry-installed-consumer/node_modules/snapback2/bin/snapback2.mjs",
+    "guide",
+    "init",
+    "--json"
+  ],
+  "cwd": "/Users/ccheever/clique-improvement/revisions/cli-017-registry-expo-verification-preparation/execution/registry-installed-consumer",
+  "timeout_seconds": 30,
+  "started_epoch": 1788817110.208716,
+  "pid": 74326,
+  "process_identity": "74326 Mon Sep  7 14:38:30 2026     /Users/ccheever/.volta/tools/image/node/22.23.2/bin/node",
+  "exit_code": 0,
+  "actual_return_code": 0,
+  "elapsed_seconds": 0.29099454199999997,
+  "log_sha256": "9f7a45424c42ea1733ec68424440ed45607b63a30c1bcd8c5a8eda181ce471d5"
+}
