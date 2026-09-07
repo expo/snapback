@@ -334,4 +334,105 @@ mutation fire():
       assert(result.diagnostics.every((item) => item.code === "E_EFFECT_TYPE" && /Expected 0(?:-1)? arguments, but got 2/.test(item.message)), JSON.stringify(result));
     });
   });
+
+  test("effect diagnostics retain grants, closure, imports, then, unknown, and query-emit refusals", async () => {
+    const cases: Array<[Record<string, string>, string]> = [
+      [{ "snapback/bad.ts": `import { effect } from "snapback2";
+        export const bad = effect({ grants: [], run: async () => null });` }, "E_EFFECT_GRANT"],
+      [{ "snapback/bad.ts": `import { effect } from "snapback2";
+        const outside = () => null;
+        export const bad = effect({ grants: ["https://example.com"], run: async () => outside() });` }, "E_EFFECT_CLOSURE"],
+      [{ "snapback/bad.ts": `import { effect } from "snapback2";
+        export const bad = effect({ grants: ["https://example.com"], run: async () => import("outside") });` }, "E_EFFECT_IMPORT"],
+      [{
+        "snapback/ops.q": `query ping():
+  return null
+`,
+        "snapback/bad.ts": `import { effect } from "snapback2"; import { ping } from "./ops";
+          export const bad = effect({ grants: ["https://example.com"], run: async () => null, then: ping });`,
+      }, "E_EFFECT_THEN_ARGS"],
+      [{ "snapback/ops.q": "effect missing from bad\n" }, "E_EFFECT_UNKNOWN"],
+      [{
+        "snapback/ops.q": `effect notify from delivery
+query bad():
+  emit notify { value: 1 }
+  return null
+`,
+        "snapback/delivery.ts": `import { effect } from "snapback2";
+          export const notify = effect({ grants: ["https://example.com"], run: async () => null });`,
+      }, "E_QUARRY_UNSUPPORTED"],
+    ];
+    for (const [files, code] of cases) await withProject({ "snapback/schema.q": schema, ...files }, async root => {
+      const result = await lowerProject(root);
+      assert(!result.ok && result.diagnostics.some(item => item.code === code),
+        `${code} was omitted: ${JSON.stringify(result)}`);
+    });
+  });
+
+  test("effect source expands JSON constants and scopes nested function, method, and catch bindings", async () => {
+    await withProject({
+      "snapback/schema.q": schema,
+      "snapback/delivery.ts": `import { effect } from "snapback2";
+        const baseHeaders = { accept: "application/json" };
+        const requestDefaults = { method: "POST", headers: { ...baseHeaders, "content-type": "application/json" } };
+        export const notify = effect({ grants: ["https://example.com"], run: async (payload: { value: number }) => {
+          function identity(value: number) { return value; }
+          function keep(value: number) { return identity(value); }
+          const formatter = { format(value: number) { return keep(value); } };
+          try { return { ...requestDefaults, value: formatter.format(payload.value) }; }
+          catch (error) { return { ...requestDefaults, error: String(error) }; }
+        } });`,
+    }, async root => {
+      const result = await lowerProject(root);
+      assert(result.ok, JSON.stringify(result));
+      const source = result.project.effects[0]?.source ?? "";
+      assert(source.startsWith("(() => {") && source.includes('const requestDefaults = {"method":"POST"')
+        && source.includes('"headers":{"accept":"application/json","content-type":"application/json"}')
+        && source.includes("function identity") && source.includes("function keep")
+        && source.includes("format(value)") && source.includes("catch (error)"), source);
+    });
+    await withProject({
+      "snapback/schema.q": schema,
+      "snapback/delivery.ts": `import { effect } from "snapback2";
+        const nonJson = () => 1;
+        const settings = { ...nonJson, method: "POST" };
+        export const broken = effect({ grants: ["https://example.com"], run: async () => settings });`,
+    }, async root => {
+      const result = await lowerProject(root);
+      const refusal = !result.ok && result.diagnostics.find(item =>
+        item.code === "E_EFFECT_CLOSURE" && item.message.includes("spread nonJson"));
+      assert(refusal, `non-JSON constant spread lost its site: ${JSON.stringify(result)}`);
+    });
+  });
+
+  test("effect closure admits noncomputed destructuring property names", async () => {
+    await withProject({
+      "snapback/schema.q": schema,
+      "snapback/delivery.ts": `import { effect } from "snapback2";
+        export const renamed = effect({ grants: ["https://example.com"], run: async (_p: null, { value: local }: any) => local });
+        export const renamedDefault = effect({ grants: ["https://example.com"], run: async (_p: null, { value: local = 1 }: any) => local });`,
+    }, async root => {
+      const result = await lowerProject(root);
+      assert(result.ok && result.project.effects.length === 2, JSON.stringify(result));
+    });
+  });
+
+  test("effect closure refuses parameter, destructuring, and computed-name defaults at distinct sites", async () => {
+    await withProject({
+      "snapback/schema.q": schema,
+      "snapback/delivery.ts": `import { effect } from "snapback2";
+        let someOuterName = { y: 0 };
+        export const parameterDefault = effect({ grants: ["https://example.com"], run: async (_payload: null = (someOuterName.y, null)) => null });
+        export const destructuringDefault = effect({ grants: ["https://example.com"], run: async ({ x = (someOuterName.y = 1) }: { x?: number }) => x });
+        export const computedName = effect({ grants: ["https://example.com"], run: async ({ [someOuterName.y]: x }: Record<number, unknown>) => x });`,
+    }, async root => {
+      const result = await lowerProject(root);
+      assert(!result.ok, "effects that close over parameter syntax unexpectedly compiled");
+      const refusals = result.diagnostics.filter(item =>
+        item.code === "E_EFFECT_CLOSURE" && item.message.includes("someOuterName"));
+      assert(refusals.length === 3 && new Set(refusals.map(item => item.site)).size === 3,
+        `parameter syntax lost distinct closure sites: ${JSON.stringify(result)}`);
+    });
+  });
+
 }

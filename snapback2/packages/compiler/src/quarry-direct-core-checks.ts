@@ -749,6 +749,23 @@ mutation consumeOnce(p: principal):
   });
 
   test("direct Quarry fn scopes are hygienic, module-local, pure, and row-ref typed", async () => {
+    const ambientNamedParameters = compileInline([
+      { fileName: "snapback/schema.q", source: "table rows:\n  value: int\n  public\n" },
+      { fileName: "snapback/ops.q", source: `fn echoNow(now: int) = now
+fn echoCommit(commit: int) = commit
+fn echoNew(new: int) = new
+fn echoViewer(viewer: int) = viewer
+mutation explicitAmbientNames():
+  return { now: echoNow(1), commit: echoCommit(2), new: echoNew(3), viewer: echoViewer(4) }
+` },
+    ]);
+    assert(ambientNamedParameters.ok,
+      `explicit fn parameters were mistaken for ambient inputs: ${ambientNamedParameters.ok ? "" : diagnosticsText(ambientNamedParameters.diagnostics)}`);
+    if (ambientNamedParameters.ok) {
+      const returned = ambientNamedParameters.project.programs[0]?.body.at(-1);
+      assert(JSON.stringify(returned).includes('"Int":1') && JSON.stringify(returned).includes('"Int":4'),
+        `explicit ambient-named fn parameters did not lower from their actuals: ${JSON.stringify(returned)}`);
+    }
     const schema = `table nodes:
   label: text <=40
   public

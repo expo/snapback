@@ -384,16 +384,6 @@ class ExpressionBinder {
 
   private name(name: string, site: Site): BoundExpression {
     const source = this.source(site);
-    if (this.helperDepth > 0 && (name === "commit" || (name === "now" && this.program.kind !== "query"))) {
-      throw new QuarryError(
-        this.diagnosticSite(site), `fn expressions are read-pure and cannot use mutation ${name} time`,
-        "E_QUARRY_UNSUPPORTED", "pass the needed time as an explicit fn argument",
-      );
-    }
-    if (this.helperDepth > 0 && name === "new") throw new QuarryError(
-      this.diagnosticSite(site), "new is mutation-only caller state and is not available inside fn expressions",
-      "E_QUARRY_UNSUPPORTED", "pass the new value as an explicit fn argument",
-    );
     if (this.namedShapeDepth > 0) {
       if (!CONTEXT_NAMES.has(name)) throw new QuarryError(
         this.diagnosticSite(site), `named shapes cannot capture operation name ${name}`,
@@ -404,6 +394,16 @@ class ExpressionBinder {
     const argument = this.scope.get(name);
     if (argument) return { kind: "variable", symbol: argument,
       facts: argument.kind === "argument" ? facts(argument.type, argument.origin) : argument.facts, source };
+    if (this.helperDepth > 0 && (name === "commit" || (name === "now" && this.program.kind !== "query"))) {
+      throw new QuarryError(
+        this.diagnosticSite(site), `fn expressions are read-pure and cannot use mutation ${name} time`,
+        "E_QUARRY_UNSUPPORTED", "pass the needed time as an explicit fn argument",
+      );
+    }
+    if (this.helperDepth > 0 && name === "new") throw new QuarryError(
+      this.diagnosticSite(site), "new is mutation-only caller state and is not available inside fn expressions",
+      "E_QUARRY_UNSUPPORTED", "pass the new value as an explicit fn argument",
+    );
     if (this.helperDepth > 0 && !CONTEXT_NAMES.has(name)) throw new QuarryError(
       this.diagnosticSite(site), `fn expressions cannot capture caller name ${name}`,
       "E_QUARRY_UNKNOWN", `add an explicitly typed ${name} parameter to this fn`,
