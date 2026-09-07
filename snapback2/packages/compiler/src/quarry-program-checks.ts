@@ -321,6 +321,96 @@ query byPrincipal(principal: principal):
     });
   });
 
+  test("direct Quarry expression fn calls preserve call-by-value, provenance, and source stacks", async () => {
+    const schema = `table conversations:
+  public
+
+table memberships:
+  conversation: conversations
+  principal: principal
+  unique conversation, principal
+  public
+`;
+    const access = `fn isMember(c: conversations, p: principal) = exists memberships[c, p]
+fn choose(p: principal, ignored: id) = p
+`;
+    const operations = `fn isMember from access
+fn choose from access
+query member(c: conversations, p: principal):
+  return isMember(c, p)
+mutation consumeOnce(p: principal):
+  return choose(p, new)
+`;
+    await withProject({
+      "snapback/schema.q": schema,
+      "snapback/access.q": access,
+      "snapback/ops.q": operations,
+    }, async (root) => {
+      const inputs: QuarryInput[] = ["schema", "access", "ops"].map((stem) => {
+        const path = join(root, "snapback", `${stem}.q`);
+        return { path, fileName: `snapback/${stem}.q`, source: readFileSync(path, "utf8") };
+      });
+      const prepared = prepareQuarry(inputs);
+      assert(prepared.ok, `direct fn preparation failed: ${JSON.stringify(prepared.ok ? [] : prepared.diagnostics)}`);
+      const declaration = prepared.prepared.documents[2]?.programs.find((program) => program.name === "member");
+      assert(declaration, "direct fn fixture has no member operation");
+      const bound = bindQuarryProgram(declaration, prepared.prepared.catalog, prepared.prepared.documents);
+      const invocation = bound.body[0]!.value;
+      assert(invocation.kind === "invoke" && invocation.body.source.definition.file === "snapback/access.q"
+        && invocation.body.source.use?.file === "snapback/ops.q" && invocation.bindings.length === 2,
+      `direct fn lost its imported definition/use stack or parameters: ${JSON.stringify(invocation)}`);
+      const direct = lowerBoundQuarryProgram(bound);
+
+      await withProject({
+        "snapback/schema.q": schema,
+        "snapback/ops.q": `query member(c: conversations, p: principal):
+  return exists memberships[c, p]
+`,
+      }, async (inlineRoot) => {
+        const oracle = await lowerProject(inlineRoot);
+        assert(oracle.ok, `inlined fn oracle failed: ${oracle.ok ? "" : diagnosticsText(oracle.diagnostics)}`);
+        const legacy = operation(oracle.project.programs, "ops.member");
+        const checked = rustCheck([direct], "synthetic", oracle.project.schema)[0]!;
+        const legacyCheck = rustCheck([legacy], "synthetic", oracle.project.schema)[0]!;
+        assert(!checked.error && checked.certificate, `direct fn did not certify: ${JSON.stringify(checked)}`);
+        assert(!legacyCheck.error && legacyCheck.certificate, `inlined fn oracle did not certify: ${JSON.stringify(legacyCheck)}`);
+        deepStrictEqual(checked.certificate.read_sites, legacyCheck.certificate.read_sites);
+        const receipt: ClosureReceipt = {
+          schema_hash: checked.certificate.schema_hash as string,
+          rows: [], ranges: [], verdicts: [],
+          absences: [["memberships", "byConversationPrincipal", [{ Id: "conversation-1" }, { Id: "principal-1" }]]],
+        };
+        const context: Context = { viewer: "viewer-1", principal_kind: "user", auth_epoch: 1,
+          args: { c: { Id: "conversation-1" }, p: { Id: "principal-1" } }, now: 1, new_ids: [], read_time: 1 };
+        const actual = new ClientStore(oracle.project.schema, receipt).reexecute(direct, context, checked.certificate).execution;
+        const expected = new ClientStore(oracle.project.schema, receipt).reexecute(legacy, context, legacyCheck.certificate).execution;
+        deepStrictEqual(actual.result, expected.result);
+        deepStrictEqual(actual.trace.points, expected.trace.points);
+
+        const mutationDeclaration = prepared.prepared.documents[2]?.programs.find((program) => program.name === "consumeOnce");
+        assert(mutationDeclaration, "direct fn fixture has no consumeOnce operation");
+        const mutation = lowerBoundQuarryProgram(bindQuarryProgram(
+          mutationDeclaration, prepared.prepared.catalog, prepared.prepared.documents,
+        ));
+        const mutationCheck = rustCheck([mutation], "synthetic", oracle.project.schema)[0]!;
+        assert(!mutationCheck.error && mutationCheck.certificate, `direct call-by-value fn did not certify: ${JSON.stringify(mutationCheck)}`);
+        const mutationContext = (newIds: string[]): Context => ({
+          viewer: "viewer-1", principal_kind: "user", auth_epoch: 1,
+          args: { p: { Id: "principal-1" } }, now: 1, new_ids: newIds, read_time: 1,
+        });
+        const consumed = new ClientStore(oracle.project.schema)
+          .applyMutation(mutation, mutationContext(["fresh-1"]), false, mutationCheck.certificate).execution;
+        deepStrictEqual(consumed.result, { Id: "principal-1" });
+        let refusal: { code?: string } | undefined;
+        try {
+          new ClientStore(oracle.project.schema)
+            .applyMutation(mutation, mutationContext([]), false, mutationCheck.certificate);
+        } catch (error) { refusal = error as { code?: string }; }
+        assert(refusal?.code === "E_INPUT", `unused fn argument did not evaluate exactly once: ${JSON.stringify(refusal)}`);
+      });
+    });
+  });
+
   test("direct Quarry shares shape recursion and depth guards with nested field uses", () => {
     const schema = `table nodes:
   parent: nodes ?
@@ -363,6 +453,23 @@ query node(seed: nodes):
 `);
     assert(depth?.code === "E_QUARRY_UNSUPPORTED" && depth.message.includes("exceeds depth 8"),
       `nested field shape depth escaped the shared expansion guard: ${JSON.stringify(depth)}`);
+    const crossCycle = refusal(`shape recursive = { parent: bounce(.) }
+fn bounce(node: nodes) = node recursive
+query node(seed: nodes):
+  return seed recursive
+`);
+    assert(crossCycle?.code === "E_QUARRY_UNSUPPORTED" && crossCycle.message.includes("shape cycle"),
+      `cross fn/shape cycle escaped the shared expansion guard: ${JSON.stringify(crossCycle)}`);
+    const functions = Array.from({ length: 9 }, (_, index) => {
+      const number = index + 1;
+      return number === 9 ? `fn f${number}(n: int) = n` : `fn f${number}(n: int) = f${number + 1}(n)`;
+    }).join("\n");
+    const functionDepth = refusal(`${functions}
+query node(n: int):
+  return f1(n)
+`);
+    assert(functionDepth?.code === "E_QUARRY_UNSUPPORTED" && functionDepth.message.includes("exceeds depth 8"),
+      `fn depth escaped the shared expansion guard: ${JSON.stringify(functionDepth)}`);
   });
 
   test("Quarry table and operation names occupy separate generated bindings", async () => {

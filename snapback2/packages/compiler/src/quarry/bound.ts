@@ -1,6 +1,6 @@
 import { basename, dirname, join } from "node:path";
 import type { IndexComponent, Provenance } from "../ir";
-import type { Document, Expr, IndexDecl, ProgramDecl, ScalarType, ShapeDecl, ShapeField, Site, TableCatalog, TableDecl } from "./ast";
+import type { Document, Expr, FunctionDecl, IndexDecl, ProgramDecl, ScalarType, ShapeDecl, ShapeField, Site, TableCatalog, TableDecl } from "./ast";
 import { selectIndex } from "./catalog";
 import { QuarryError, refuse, typeError, unsupported } from "./diagnostics";
 
@@ -18,7 +18,7 @@ export type BoundIndexSymbol = {
   kind: "index"; id: string; name: string; declaration: IndexDecl; table: BoundTableSymbol; source: BoundSourceStack;
 };
 export type BoundArgumentSymbol = {
-  kind: "argument"; id: string; name: string; type: ScalarType; source: BoundSourceStack;
+  kind: "argument"; id: string; name: string; type: ScalarType; origin: Provenance; source: BoundSourceStack;
 };
 
 export type BoundType =
@@ -53,6 +53,7 @@ export type BoundExpression = BoundExpressionBase & (
   | { kind: "shape"; base: BoundExpression; focal: Extract<BoundExpression, { kind: "focal" }>;
       fields: Array<{ name: string; value: BoundExpression; source: BoundSourceStack }> }
   | { kind: "builtin"; builtin: string | Record<string, unknown>; args: BoundExpression[] }
+  | { kind: "invoke"; bindings: Array<{ symbol: BoundArgumentSymbol; value: BoundExpression }>; body: BoundExpression }
   | { kind: "get" | "exists" | "scan" | "aggregate"; read: BoundRead }
 );
 
@@ -90,11 +91,12 @@ export function bindQuarryProgram(program: ProgramDecl, catalog: TableCatalog, d
   const operationName = `${basename(program.site.file, ".q")}.${program.name}`;
   const args = program.args.map((arg, index): BoundArgumentSymbol => ({
     kind: "argument", id: `${operationName}:argument:${index}`, name: arg.name,
-    type: structuredClone(arg.type), source: sourceStack(arg.site),
+    type: structuredClone(arg.type), origin: "Arg", source: sourceStack(arg.site),
   }));
   const binder = new ExpressionBinder(
     program, catalog, new Map(args.map((arg) => [arg.name, arg])),
-    new BoundShapeRegistry(documents), { nodes: 0, expansionId: 0, shapeId: 0 },
+    new BoundShapeRegistry(documents), new BoundFunctionRegistry(documents),
+    { nodes: 0, expansionId: 0, shapeId: 0 },
   );
   const value = binder.expression(statement.value);
   return {
@@ -135,7 +137,7 @@ class BoundShapeRegistry {
       `define shape ${name} = { * } in ${file}, or import shape ${name} from its module`,
     );
     if (!("module" in member)) return { declaration: member, document };
-    const identity = `${document.file}:${name}`;
+    const identity = `shape:${document.file}:${name}`;
     if (imports.includes(identity)) throw new QuarryError(
       member.site, `shape import cycle ${[...imports, identity].join(" -> ")}`, "E_QUARRY_UNSUPPORTED",
       `replace one import of ${name} with shape ${name} = { * } and fill in its fields`,
@@ -149,20 +151,76 @@ class BoundShapeRegistry {
   }
 }
 
+type FunctionDefinition = { declaration: FunctionDecl; document: Document };
+
+class BoundFunctionRegistry {
+  private readonly modules: Map<string, Document>;
+  private readonly members = new Map<Document, Map<string, FunctionDecl | Document["functionImports"][number]>>();
+
+  constructor(documents: Document[]) {
+    this.modules = new Map(documents.map((document) => [document.file, document]));
+    for (const document of documents) {
+      const names = new Map<string, FunctionDecl | Document["functionImports"][number]>();
+      for (const declaration of [...document.functions, ...document.functionImports]) {
+        const prior = names.get(declaration.name);
+        if (prior) throw new QuarryError(
+          declaration.site,
+          `duplicate fn ${declaration.name}; first declared at ${siteText(prior.site)}`,
+          "E_QUARRY_UNKNOWN", `remove the duplicate fn ${declaration.name} declaration or import`,
+        );
+        names.set(declaration.name, declaration);
+      }
+      this.members.set(document, names);
+    }
+  }
+
+  has(file: string, name: string): boolean {
+    const document = this.modules.get(file);
+    return !!document && this.members.get(document)?.has(name) === true;
+  }
+
+  resolve(file: string, name: string, useSite: Site, imports: string[] = []): FunctionDefinition {
+    const document = this.modules.get(file);
+    const member = document && this.members.get(document)?.get(name);
+    if (!document || !member) throw new QuarryError(
+      useSite, `unknown fn ${name} in ${file}`, "E_QUARRY_UNKNOWN",
+      `define fn ${name}(value: int) = value in ${file}, or import fn ${name} from its module`,
+    );
+    if (!("module" in member)) return { declaration: member, document };
+    const identity = `fn:${document.file}:${name}`;
+    if (imports.includes(identity)) throw new QuarryError(
+      member.site, `fn import cycle ${[...imports, identity].join(" -> ")}`, "E_QUARRY_UNSUPPORTED",
+      `replace one import of ${name} with a local expression-only fn declaration`,
+    );
+    const target = this.modules.get(join(dirname(document.file), `${member.module}.q`));
+    if (!target) throw new QuarryError(
+      member.site, `unknown fn module ${member.module}`, "E_QUARRY_UNKNOWN",
+      `create snapback/${member.module}.q with fn ${name}(value: int) = value, or correct the module name`,
+    );
+    return this.resolve(target.file, name, member.site, [...imports, identity]);
+  }
+}
+
 class ExpressionBinder {
   private focal: Extract<BoundExpression, { kind: "focal" }> | undefined;
   private expansionUse: Site | undefined;
   private namedShapeDepth = 0;
+  private helperDepth = 0;
   private shapeFile: string;
+  private functionFile: string;
   private readonly expansionFrames: string[] = [];
 
   constructor(
     private readonly program: ProgramDecl,
     private readonly catalog: TableCatalog,
-    private readonly args: Map<string, BoundArgumentSymbol>,
+    private scope: Map<string, BoundArgumentSymbol>,
     private readonly shapes: BoundShapeRegistry,
+    private readonly functions: BoundFunctionRegistry,
     private readonly budget: ExpansionBudget,
-  ) { this.shapeFile = program.site.file; }
+  ) {
+    this.shapeFile = program.site.file;
+    this.functionFile = program.site.file;
+  }
 
   expression(expression: Expr): BoundExpression {
     const source = this.source(expression.site);
@@ -237,8 +295,16 @@ class ExpressionBinder {
       );
       return this.contextName(name, source, site);
     }
-    const argument = this.args.get(name);
-    if (argument) return { kind: "variable", symbol: argument, facts: facts(argument.type, "Arg"), source };
+    const argument = this.scope.get(name);
+    if (argument) return { kind: "variable", symbol: argument, facts: facts(argument.type, argument.origin), source };
+    if (this.helperDepth > 0 && !CONTEXT_NAMES.has(name)) throw new QuarryError(
+      this.diagnosticSite(site), `fn expressions cannot capture caller name ${name}`,
+      "E_QUARRY_UNKNOWN", `add an explicitly typed ${name} parameter to this fn`,
+    );
+    if (this.helperDepth > 0 && name === "new") throw new QuarryError(
+      this.diagnosticSite(site), "new is mutation-only caller state and is not available inside fn expressions",
+      "E_QUARRY_UNSUPPORTED", "pass the new value as an explicit fn argument",
+    );
     if (CONTEXT_NAMES.has(name)) return this.contextName(name, source, site);
     refuse(site, `unknown name ${name}`);
   }
@@ -340,7 +406,7 @@ class ExpressionBinder {
     focal: Extract<BoundExpression, { kind: "focal" }>,
   ): Array<{ name: string; value: BoundExpression; source: BoundSourceStack }> {
     const { declaration, document } = this.shapes.resolve(this.shapeFile, name, useSite);
-    const identity = `${document.file}:${name}`;
+    const identity = `shape:${document.file}:${name}`;
     if (this.expansionFrames.includes(identity)) throw new QuarryError(
       this.diagnosticSite(declaration.site, useSite),
       `shape cycle ${[...this.expansionFrames, identity].join(" -> ")} is not supported; shape ${name} was used at ${siteText(useSite)}`,
@@ -406,6 +472,7 @@ class ExpressionBinder {
   }
 
   private call(expression: Extract<Expr, { kind: "call" }>): BoundExpression {
+    if (this.functions.has(this.functionFile, expression.name)) return this.functionCall(expression);
     if (expression.name === "words") unsupported(expression.site, "words() in direct Quarry", "use an engine-maintained wordPrefixes index");
     const args = expression.args.map((argument) => this.expression(argument));
     const source = this.source(expression.site);
@@ -430,6 +497,64 @@ class ExpressionBinder {
       return { kind: "builtin", builtin: "DeterministicShare", args, facts: facts(requiredType(args[0]!.facts.type), "Computed"), source };
     }
     unsupported(expression.site, `call ${expression.name}`, "use a direct Quarry pure builtin");
+  }
+
+  private functionCall(expression: Extract<Expr, { kind: "call" }>): BoundExpression {
+    const actuals = expression.args.map((argument) => this.expression(argument));
+    const { declaration, document } = this.functions.resolve(this.functionFile, expression.name, expression.site);
+    if (actuals.length !== declaration.args.length) typeError(
+      this.diagnosticSite(expression.site),
+      `fn ${expression.name} expects ${declaration.args.length} arguments, got ${actuals.length}`,
+      `call ${expression.name}(${declaration.args.map((arg) => arg.name).join(", ")})`,
+    );
+    const identity = `fn:${document.file}:${expression.name}`;
+    if (this.expansionFrames.includes(identity)) throw new QuarryError(
+      this.diagnosticSite(declaration.site, expression.site),
+      `fn call cycle ${[...this.expansionFrames, identity].join(" -> ")} is not supported`,
+      "E_QUARRY_UNSUPPORTED", `remove the recursive ${expression.name} call`,
+    );
+    if (this.expansionFrames.length + 1 > MAX_EXPANSION_DEPTH) throw new QuarryError(
+      this.diagnosticSite(declaration.site, expression.site),
+      `fn expansion exceeds depth ${MAX_EXPANSION_DEPTH}; fn ${expression.name} was used at ${siteText(expression.site)}`,
+      "E_QUARRY_UNSUPPORTED", `inline or split the expression so it expands through at most ${MAX_EXPANSION_DEPTH} named shapes and functions`,
+    );
+    const bindings = declaration.args.map((parameter, index) => {
+      const value = actuals[index]!;
+      if (!assignable(value.facts.type, parameter.type)) typeError(
+        this.diagnosticSite(expression.args[index]?.site ?? expression.site),
+        `fn ${expression.name} argument ${parameter.name} expects ${typeName(parameter.type)}, got ${typeName(value.facts.type)}`,
+        `pass ${parameter.name}: ${typeName(parameter.type)}`,
+      );
+      const symbol: BoundArgumentSymbol = {
+        kind: "argument", id: `${identity}:call:${this.budget.expansionId++}:argument:${index}`,
+        name: parameter.name, type: structuredClone(parameter.type), origin: value.facts.origin,
+        source: sourceStack(parameter.site, this.expansionUse ?? expression.site),
+      };
+      return { symbol, value };
+    });
+    const prior = {
+      scope: this.scope, use: this.expansionUse, helperDepth: this.helperDepth,
+      namedShapeDepth: this.namedShapeDepth, functionFile: this.functionFile, shapeFile: this.shapeFile,
+    };
+    this.scope = new Map(bindings.map((binding) => [binding.symbol.name, binding.symbol]));
+    this.expansionUse = this.expansionUse ?? expression.site;
+    this.helperDepth += 1;
+    this.namedShapeDepth = 0;
+    this.functionFile = document.file;
+    this.shapeFile = document.file;
+    this.expansionFrames.push(identity);
+    try {
+      const body = this.expression(declaration.body);
+      return { kind: "invoke", bindings, body, facts: body.facts, source: this.source(expression.site) };
+    } finally {
+      this.expansionFrames.pop();
+      this.scope = prior.scope;
+      this.expansionUse = prior.use;
+      this.helperDepth = prior.helperDepth;
+      this.namedShapeDepth = prior.namedShapeDepth;
+      this.functionFile = prior.functionFile;
+      this.shapeFile = prior.shapeFile;
+    }
   }
 
   private read(expression: Extract<Expr, { kind: "read" }>): BoundExpression {
@@ -531,6 +656,41 @@ function boolType(): Extract<ScalarType, { kind: "bool" }> { return { kind: "boo
 function decimalPlaces(text: string | undefined): number {
   const dot = text?.indexOf(".") ?? -1;
   return dot < 0 ? 0 : text!.length - dot - 1;
+}
+function assignable(actual: BoundType, expected: ScalarType): boolean {
+  if (actual.kind === "null") return expected.optional;
+  if (actual.kind === "row") return expected.kind === "ref"
+    && actual.table.name === expected.table && (expected.optional || !actual.nullable);
+  if (!isScalar(actual) || actual.kind !== expected.kind) return false;
+  if (!expected.optional && actual.optional) return false;
+  if (actual.kind === "text" && expected.kind === "text") {
+    return actual.max <= expected.max && (expected.min === undefined || (actual.min ?? 0) >= expected.min)
+      && (expected.format === undefined || actual.format === expected.format);
+  }
+  if (["bytes", "image", "video", "json"].includes(actual.kind)) {
+    return "max" in actual && "max" in expected && actual.max <= expected.max;
+  }
+  if (actual.kind === "decimal" && expected.kind === "decimal") return actual.scale === expected.scale;
+  if (actual.kind === "money" && expected.kind === "money") {
+    return actual.currency === expected.currency && actual.scale === expected.scale;
+  }
+  if (actual.kind === "enum" && expected.kind === "enum") {
+    return actual.variants.every((variant) => expected.variants.includes(variant));
+  }
+  if (actual.kind === "ref" && expected.kind === "ref") return actual.table === expected.table;
+  if (actual.kind === "list" && expected.kind === "list") {
+    return actual.max <= expected.max && assignable(actual.item, expected.item);
+  }
+  return true;
+}
+function typeName(type: BoundType): string {
+  if (type.kind === "ref") return type.table;
+  if (type.kind === "row") return `${type.table.name} row`;
+  if (type.kind === "money") return `money ${type.currency} ${type.scale}`;
+  if (type.kind === "decimal") return `decimal ${type.scale}`;
+  if (type.kind === "list") return `[${typeName(type.item)}] <=${type.max}`;
+  if (type.kind === "collection") return `bounded collection <=${type.max}`;
+  return type.kind;
 }
 function sourceStack(site: Site, use?: Site): BoundSourceStack {
   const definition = withoutExpansion(site);

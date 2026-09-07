@@ -9,12 +9,14 @@ type Lowering = {
   temporaryOrdinal: number;
   operandOrdinal: number;
   focals: Map<string, Expr>;
+  bindings: Map<string, Expr>;
 };
 type LoweredValue = { setup: Stmt[]; value: Expr };
 
 export function lowerBoundQuarryProgram(program: BoundQuarryProgram): Program {
   const lowering: Lowering = {
-    program: program.name, accessOrdinal: 0, temporaryOrdinal: 0, operandOrdinal: 0, focals: new Map(),
+    program: program.name, accessOrdinal: 0, temporaryOrdinal: 0, operandOrdinal: 0,
+    focals: new Map(), bindings: new Map(),
   };
   const body = program.body.flatMap((statement): Stmt[] => {
     const value = lowerExpression(statement.value, lowering);
@@ -33,7 +35,9 @@ export function lowerBoundQuarryProgram(program: BoundQuarryProgram): Program {
 
 function lowerExpression(expression: BoundExpression, lowering: Lowering): LoweredValue {
   if (expression.kind === "literal") return { setup: [], value: { Literal: literalValue(expression) } };
-  if (expression.kind === "variable") return { setup: [], value: { Variable: expression.symbol.name } };
+  if (expression.kind === "variable") {
+    return { setup: [], value: lowering.bindings.get(expression.symbol.id) ?? { Variable: expression.symbol.name } };
+  }
   if (expression.kind === "focal") {
     const value = lowering.focals.get(expression.id);
     if (!value) throw new Error(`bound focal ${expression.id} has no lowering scope`);
@@ -52,6 +56,7 @@ function lowerExpression(expression: BoundExpression, lowering: Lowering): Lower
     return { setup: value.setup, value: { Unary: { op: expression.op, value: value.value } } };
   }
   if (expression.kind === "binary") return lowerBinary(expression, lowering);
+  if (expression.kind === "invoke") return lowerInvocation(expression, lowering);
   if (expression.kind === "shape") return lowerShape(expression, lowering);
   if (expression.kind === "member") {
     const loweredBase = lowerExpression(expression.base, lowering);
@@ -83,6 +88,28 @@ function lowerExpression(expression: BoundExpression, lowering: Lowering): Lower
   if (expression.kind === "aggregate") return lowerAggregate(expression.read, lowering);
   if (expression.kind === "scan") return lowerScan(expression.read, lowering);
   return lowerPointRead(expression.read, expression.kind, lowering);
+}
+
+function lowerInvocation(expression: Extract<BoundExpression, { kind: "invoke" }>, lowering: Lowering): LoweredValue {
+  const setup: Stmt[] = [];
+  const prior = new Map<string, Expr | undefined>();
+  for (const binding of expression.bindings) {
+    const value = lowerExpression(binding.value, lowering);
+    setup.push(...value.setup);
+    const name = temporary(lowering, "fnArgument");
+    setup.push({ Const: { name, value: value.value } });
+    prior.set(binding.symbol.id, lowering.bindings.get(binding.symbol.id));
+    lowering.bindings.set(binding.symbol.id, { Variable: name });
+  }
+  try {
+    const body = lowerExpression(expression.body, lowering);
+    return { setup: [...setup, ...body.setup], value: body.value };
+  } finally {
+    for (const [id, value] of prior) {
+      if (value) lowering.bindings.set(id, value);
+      else lowering.bindings.delete(id);
+    }
+  }
 }
 
 function lowerShape(expression: Extract<BoundExpression, { kind: "shape" }>, lowering: Lowering): LoweredValue {
