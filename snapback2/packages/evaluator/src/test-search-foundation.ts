@@ -7,7 +7,6 @@ import { SEARCH_CONTRACT, SearchInputError, SearchNormalizer, normalizeSearch, s
 import { decomposition, composition, combining, folding, boundaries, rangeValue } from './unicode-tables';
 import { compareScalarAtoms, decodeIndexAtom, indexKeysEqual, indexKeyStartsWith, prepareIndexAtom,
   wordPrefixWireMax, type IndexComponent, type LogicalIndexAtom } from './search-key';
-import { words as legacyWords } from './text';
 
 const root = new URL('../../../unicode/17.0.0/', import.meta.url);
 const lines = (name: string) => readFileSync(new URL(name, root), 'utf8').split('\n');
@@ -109,7 +108,7 @@ for (const s of ['\ud800', '\udfff', 'a\ud800z', '\ud800\ud800', '\udc00\ud800']
 assert.equal(scalarLength('𐐀', 1), 1);
 assert.throws(() => normalizeSearch('𐐀a', 1), SearchInputError);
 for (const q of [-1, 1.5, NaN, Infinity, 0x40000000]) assert.throws(() => normalizeSearch('', q), SearchInputError);
-assert.deepEqual(legacyWords('Élodie hello_world'), ['lodie', 'hello', 'world'], 'legacy authoring contract must remain ASCII');
+assert.deepEqual(searchWords('Élodie hello_world', 2000), ['élodie', 'hello', 'world'], 'authoring words uses the shared Unicode contract');
 
 for (const [source, expected] of [
   ['\u0315\u0300'.repeat(1000), '\u0300'.repeat(1000) + '\u0315'.repeat(1000)],

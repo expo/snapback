@@ -15,9 +15,71 @@ pub enum Value {
     String(String),
     Id(String),
     Bytes(#[serde(with = "bytes_hex")] Vec<u8>),
-    Row(BTreeMap<String, Value>),
+    Row(ObjectFields),
     Array(Vec<Value>),
-    Map(BTreeMap<String, Value>),
+    Map(ObjectFields),
+}
+
+// @ref LLP 1001#unicode-search-foundation — immutable row images are shared by
+// results, lane heads and both independent first-image pools; serialization stays unchanged.
+#[derive(Clone, Debug, PartialEq, Eq, Default)]
+pub struct ObjectFields(std::sync::Arc<BTreeMap<String, Value>>);
+impl From<BTreeMap<String, Value>> for ObjectFields {
+    fn from(value: BTreeMap<String, Value>) -> Self {
+        Self(std::sync::Arc::new(value))
+    }
+}
+impl FromIterator<(String, Value)> for ObjectFields {
+    fn from_iter<T: IntoIterator<Item = (String, Value)>>(iter: T) -> Self {
+        BTreeMap::from_iter(iter).into()
+    }
+}
+impl std::ops::Deref for ObjectFields {
+    type Target = BTreeMap<String, Value>;
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+impl std::ops::DerefMut for ObjectFields {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        std::sync::Arc::make_mut(&mut self.0)
+    }
+}
+impl IntoIterator for ObjectFields {
+    type Item = (String, Value);
+    type IntoIter = std::collections::btree_map::IntoIter<String, Value>;
+    fn into_iter(self) -> Self::IntoIter {
+        std::sync::Arc::unwrap_or_clone(self.0).into_iter()
+    }
+}
+impl<'a> IntoIterator for &'a ObjectFields {
+    type Item = (&'a String, &'a Value);
+    type IntoIter = std::collections::btree_map::Iter<'a, String, Value>;
+    fn into_iter(self) -> Self::IntoIter {
+        self.0.iter()
+    }
+}
+impl<'a> IntoIterator for &'a mut ObjectFields {
+    type Item = (&'a String, &'a mut Value);
+    type IntoIter = std::collections::btree_map::IterMut<'a, String, Value>;
+    fn into_iter(self) -> Self::IntoIter {
+        std::sync::Arc::make_mut(&mut self.0).iter_mut()
+    }
+}
+impl Serialize for ObjectFields {
+    fn serialize<S: serde::Serializer>(&self, s: S) -> Result<S::Ok, S::Error> {
+        self.0.as_ref().serialize(s)
+    }
+}
+impl<'de> Deserialize<'de> for ObjectFields {
+    fn deserialize<D: serde::Deserializer<'de>>(d: D) -> Result<Self, D::Error> {
+        BTreeMap::deserialize(d).map(Into::into)
+    }
+}
+impl ObjectFields {
+    pub fn shares_image(&self, other: &Self) -> bool {
+        std::sync::Arc::ptr_eq(&self.0, &other.0)
+    }
 }
 
 #[derive(Debug, Error, PartialEq, Eq)]
@@ -104,6 +166,24 @@ impl Value {
                 expected: "row or map",
                 actual: other.kind(),
             }),
+        }
+    }
+
+    pub(crate) fn heap_bytes(&self) -> u64 {
+        match self {
+            Value::String(s) | Value::Id(s) => s.capacity() as u64,
+            Value::Bytes(b) => b.capacity() as u64,
+            Value::Array(a) => {
+                a.capacity() as u64 * std::mem::size_of::<Value>() as u64
+                    + a.iter().map(Value::heap_bytes).sum::<u64>()
+            }
+            Value::Row(m) | Value::Map(m) => {
+                40 + m
+                    .iter()
+                    .map(|(k, v)| 80 + k.capacity() as u64 + v.heap_bytes())
+                    .sum::<u64>()
+            }
+            _ => 0,
         }
     }
 
@@ -243,4 +323,29 @@ pub fn digest<T: Serialize>(value: &T) -> String {
     let mut hash = Sha256::new();
     hash.update(canonical_json(value).as_bytes());
     format!("{:x}", hash.finalize())
+}
+
+// @ref LLP 1001#unicode-search-foundation — enforce the estimator's canonical tagged identity allowance.
+pub fn identity_fits(value: &str) -> bool {
+    // Tag {"Id":""} is nine bytes. JSON escaping is counted in UTF-8 bytes.
+    9usize.saturating_add(
+        value
+            .chars()
+            .map(|c| match c {
+                '"' | '\\' | '\n' | '\r' | '\t' | '\u{8}' | '\u{c}' => 2,
+                '\0'..='\u{1f}' => 6,
+                c => c.len_utf8(),
+            })
+            .sum::<usize>(),
+    ) <= 144
+}
+pub fn validate_identities(value: &Value) -> Result<(), crate::RuntimeError> {
+    match value {
+        Value::Id(id) if !identity_fits(id) => Err(crate::RuntimeError::Input(
+            "identity exceeds 144 canonical tagged UTF-8 bytes".into(),
+        )),
+        Value::Array(v) => v.iter().try_for_each(validate_identities),
+        Value::Row(m) | Value::Map(m) => m.values().try_for_each(validate_identities),
+        _ => Ok(()),
+    }
 }

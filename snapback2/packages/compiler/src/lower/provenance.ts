@@ -5,7 +5,9 @@ import type { Provenance } from "../ir";
 import { guardedWalk } from "./recursion";
 import {
   callName,
+  isDbInsertCall,
   isDbMember,
+  isNullableDbGet,
   propertyName,
   replaceNode,
   staticMemberPath,
@@ -14,6 +16,7 @@ import {
 } from "../syntax";
 import { collectionElementOrigins, originDirectCandidates, selectExpressionMember, snapshotEnvironment } from "./collection-origins";
 import { expandHelper } from "./helper-expansion";
+import { knownObjectFields } from "./object-shape";
 import {
   candidateAmbiguity,
   directOriginCandidates,
@@ -228,7 +231,7 @@ function classifyIdentifier(
       originDirectCandidates(info.alternativeOrigins),
     );
   }
-  if (info.rowBinding) return classifyBoundRow(info, path);
+  if (info.rowBinding) return classifyBoundRow(info, path, authoredNode);
   if (info.immutableOrigin) {
     return classify(info.immutableOrigin.expression, info.immutableOrigin.environment, path, authoredNode);
   }
@@ -263,7 +266,7 @@ function classifyBinding(
       originDirectCandidates(info.alternativeOrigins),
     );
   }
-  if (info.rowBinding) return classifyBoundRow(info, path);
+  if (info.rowBinding) return classifyBoundRow(info, path, authoredNode);
   if (path.length === 0) return known(info.provenance);
   return ambiguous();
 }
@@ -326,8 +329,16 @@ function classifyObjectMember(
   return laterOptional.length > 0 ? combineAlternatives(laterOptional, "optional") : absent();
 }
 
-function classifyBoundRow(info: VariableInfo, path: readonly string[]): Classification {
+function classifyBoundRow(info: VariableInfo, path: readonly string[], authoredNode: ts.Expression): Classification {
   if (path.length === 0) return known("Shape");
+  // A later assignment can suppress a binding's reusable object shape. Its
+  // captured initializer still proves which members existed before that write.
+  // Check that origin without replacing this binding's own presence narrowing.
+  if (!info.objectFields && info.immutableOrigin) {
+    const origin = info.immutableOrigin;
+    const selected = classify(origin.expression, origin.environment, path, authoredNode);
+    if (selected.kind !== "known") return selected;
+  }
   if (info.objectFields && !info.objectFields.includes(path[0]!)) return absent();
   if (path.length > 1) return ambiguous();
   return { ...known("Shape"), presence: info.nullableRead ? "optional" : "required" };
@@ -335,15 +346,29 @@ function classifyBoundRow(info: VariableInfo, path: readonly string[]): Classifi
 
 function classifyRow(call: ts.CallExpression, env: Environment, path: readonly string[]): Classification {
   if (path.length === 0) return known("Shape");
-  const fields = rowFields(call.arguments[0], env);
+  const fields = knownObjectFields(call, env);
+  // An insert returns the captured input, not the storage image. When its
+  // complete field set is unknown, prove the selected member in every source
+  // alternative; schema columns cannot supply missing snapshot members.
+  if (!fields && isDbInsertCall(call, (binding) => isOperationCompositeBinding(binding, "db", env))) {
+    const input = call.arguments[1];
+    const selected = input && selectExpressionMember(input, env, path[0]!);
+    if (selected?.kind === "absent") return absent();
+    if (selected?.kind !== "found" || selected.presence !== "required") return ambiguous();
+  }
   if (fields && !fields.includes(path[0]!)) return absent();
   if (path.length > 1) return ambiguous();
-  return { ...known("Shape"), presence: "optional" };
+  return { ...known("Shape"), presence: isNullableDbGet(call,
+    (binding) => isOperationCompositeBinding(binding, "db", env)) ? "optional" : "required" };
 }
 
 function combineClassifications(values: Classification[]): Classification {
   const ambiguousValue = values.find((value) => value.kind === "ambiguous");
   if (ambiguousValue?.kind === "ambiguous") return ambiguousValue;
+  // Absence lets ordered spreads continue searching for a member. An authored
+  // aggregate component still needs its own origin; dropping a missing member
+  // here would turn an unproved read key into Const (or another component's tag).
+  if (values.some((value) => value.kind === "absent")) return ambiguous();
   const provenances = values.flatMap((value) => value.kind === "known" ? [value.provenance] : []);
   return known(combineProvenance(provenances));
 }
@@ -402,8 +427,9 @@ function withCandidates(value: Classification, candidates: string[]): Classifica
 }
 
 function isRowCall(call: ts.CallExpression, env: Environment): boolean {
-  return callName(call).endsWith(".get")
-    && isDbMember(call.expression, (binding) => isOperationCompositeBinding(binding, "db", env));
+  // @ref LLP 1002#2-the-authored-surface-the-snapback2-module — only a modeled database result proves a row; lexical identity, not a method-name suffix, grants that proof.
+  const database = (binding: string) => isOperationCompositeBinding(binding, "db", env);
+  return isNullableDbGet(call, database) || isDbInsertCall(call, database);
 }
 
 function rowFields(target: ts.Expression | undefined, env: Environment): string[] | undefined {
@@ -492,7 +518,10 @@ function isRowExpressionInner(node: ts.Expression, env: Environment): boolean {
   const value = unwrapExpression(node);
   const substituted = ts.isIdentifier(value) ? env.substitutions.get(value.text) : undefined;
   if (substituted) return isRowExpression(substituted.expression, substituted.environment);
-  if (ts.isIdentifier(value)) return env.variables.get(value.text)?.rowBinding === true;
+  if (ts.isIdentifier(value)) {
+    const info = env.variables.get(value.text);
+    return !info?.provenanceAmbiguity && info?.rowBinding === true;
+  }
   const call = unwrapCall(value);
   if (!call) return false;
   const expanded = expandHelper(call, env);
@@ -508,7 +537,10 @@ function isRowCollectionExpressionInner(node: ts.Expression, env: Environment): 
   const value = unwrapExpression(node);
   const substituted = ts.isIdentifier(value) ? env.substitutions.get(value.text) : undefined;
   if (substituted) return isRowCollectionExpression(substituted.expression, substituted.environment);
-  if (ts.isIdentifier(value)) return env.variables.get(value.text)?.rowCollection === true;
+  if (ts.isIdentifier(value)) {
+    const info = env.variables.get(value.text);
+    return !info?.provenanceAmbiguity && info?.rowCollection === true;
+  }
   const call = unwrapCall(value);
   if (!call) return false;
   const expanded = expandHelper(call, env);

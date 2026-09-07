@@ -543,7 +543,10 @@ fn synthetic_schema(programs: &[Program]) -> Schema {
             .entry(table_name)
             .or_insert_with(synthetic_table);
         table.indexes.entry(index_name).or_insert(Index {
-            columns: vec!["id".to_owned()],
+            components: (vec!["id".to_owned()])
+                .into_iter()
+                .map(snapback2_core::search_key::IndexComponent::Column)
+                .collect(),
             unique: false,
         });
     }
@@ -565,7 +568,10 @@ fn synthetic_table() -> Table {
         indexes: BTreeMap::from([(
             "byId".to_owned(),
             Index {
-                columns: vec!["id".to_owned()],
+                components: (vec!["id".to_owned()])
+                    .into_iter()
+                    .map(snapback2_core::search_key::IndexComponent::Column)
+                    .collect(),
                 unique: true,
             },
         )]),
@@ -710,8 +716,10 @@ mod tests {
             .values_mut()
             .next()
             .unwrap()
-            .columns
-            .push("missing".into());
+            .components
+            .push(snapback2_core::search_key::IndexComponent::Column(
+                "missing".into(),
+            ));
         let results = check_request(Request {
             programs: vec![serde_json::json!({"name":"broken", "kind":"invalid"})],
             schema: Some(serde_json::to_value(schema).unwrap()),

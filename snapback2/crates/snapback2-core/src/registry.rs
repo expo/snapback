@@ -4,7 +4,7 @@
 use crate::certificate::{Ceilings, Certificate, CheckError, Checker, RuleCertificate};
 use crate::engine::{
     AuthoritativeTrace, ClosureReceipt, Context, Engine, Execution, ExecutionState, PointTrace,
-    RuleInputTrace, RuntimeError, validate_arg_value,
+    RuleInputTrace, RuntimeError,
 };
 use crate::ir::{ArgType, Expr, Program, ProgramKind, Stmt};
 use crate::live::Subscriptions;
@@ -78,7 +78,7 @@ pub struct ChannelVerdict {
     pub points: Vec<PointTrace>,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct RowRuleVerdict {
     pub id: String,
@@ -240,53 +240,11 @@ impl Generation {
                     },
                 ));
             }
-            for (index_name, index) in &table.indexes {
-                if index.columns.is_empty() || index.columns.len() > 8 {
-                    errors.push((
-                        format!("schema.{table_name}"),
-                        CheckError {
-                            site: None,
-                            code: "E_SCHEMA_INDEX_COLUMN".to_owned(),
-                            message: format!(
-                                "index {table_name}.{index_name} must declare between 1 and 8 columns"
-                            ),
-                            rewrite: "declare an index with at most 8 scalar columns".to_owned(),
-                        },
-                    ));
-                }
-                for column in &index.columns {
-                    if !table.columns.contains_key(column) {
-                        errors.push((
-                            format!("schema.{table_name}"),
-                            CheckError {
-                                site: None,
-                                code: "E_SCHEMA_INDEX_COLUMN".to_owned(),
-                                message: format!(
-                                    "index {table_name}.{index_name} names undeclared column {column}"
-                                ),
-                                rewrite: "declare the column or remove it from the index"
-                                    .to_owned(),
-                            },
-                        ));
-                    }
-                    if table
-                        .columns
-                        .get(column)
-                        .is_some_and(|kind| !kind.is_indexable())
-                    {
-                        errors.push((
-                            format!("schema.{table_name}"),
-                            CheckError {
-                                site: None,
-                                code: "E_SCHEMA_INDEX_COLUMN".to_owned(),
-                                message: format!(
-                                    "index {table_name}.{index_name} cannot use non-indexable column {column}"
-                                ),
-                                rewrite: "index a non-asset scalar column instead".to_owned(),
-                            },
-                        ));
-                    }
-                }
+            for error in crate::schema::index_errors(table_name, table) {
+                errors.push((format!("schema.{table_name}"), CheckError {
+                    site: None, code: "E_SCHEMA_INDEX_COLUMN".into(), message: error.to_string(),
+                    rewrite: "declare bounded scalar components and at most one nonunique wordPrefixes before an ordinary suffix".into(),
+                }));
             }
             for constraint in &table.constraints {
                 let crate::schema::Constraint::Text { field, min, .. } = constraint else {
@@ -1093,6 +1051,8 @@ impl Runtime {
             .get(name)
             .cloned()
             .ok_or_else(|| RuntimeError::Input(format!("unknown channel {name}")))?;
+        let mut args = args.clone();
+        crate::engine::complete_optional_args(&channel.args, &mut args);
         if args.len() != channel.args.len() {
             return Err(RuntimeError::Input(format!(
                 "channel {name} expected {} args, got {}",
@@ -1104,7 +1064,12 @@ impl Runtime {
             let value = args
                 .get(arg)
                 .ok_or_else(|| RuntimeError::Input(format!("channel {name} missing arg {arg}")))?;
-            validate_arg_value(kind, value, &format!("channel {name} arg {arg}"))?;
+            crate::engine::validate_typed_arg_value(
+                &self.generation.schema,
+                kind,
+                value,
+                &format!("channel {name} arg {arg}"),
+            )?;
             if matches!(kind, ArgType::Scalar)
                 && matches!(value, Value::Array(_) | Value::Row(_) | Value::Map(_))
             {
@@ -1124,7 +1089,7 @@ impl Runtime {
             ChannelSide::Publish => (channel.publish, &certificates.publish),
             ChannelSide::Subscribe => (channel.subscribe, &certificates.subscribe),
         };
-        let row = Value::Row(args.clone());
+        let row = Value::Row(args.clone().into());
         let (admitted, trace) =
             self.engine
                 .probe_rule(&rule, &row, context.clone(), Some(certificate))?;
@@ -1410,7 +1375,10 @@ mod tests {
                     indexes: BTreeMap::from([(
                         "byId".to_owned(),
                         Index {
-                            columns: vec!["id".to_owned()],
+                            components: (vec!["id".to_owned()])
+                                .into_iter()
+                                .map(crate::search_key::IndexComponent::Column)
+                                .collect(),
                             unique: true,
                         },
                     )]),
@@ -1442,24 +1410,33 @@ mod tests {
             .seed(&[
                 (
                     "todos".to_owned(),
-                    Value::Row(BTreeMap::from([
-                        ("id".to_owned(), Value::Id("seed".to_owned())),
-                        ("ownerId".to_owned(), Value::Id("dev:alice".to_owned())),
-                    ])),
+                    Value::Row(
+                        BTreeMap::from([
+                            ("id".to_owned(), Value::Id("seed".to_owned())),
+                            ("ownerId".to_owned(), Value::Id("dev:alice".to_owned())),
+                        ])
+                        .into(),
+                    ),
                 ),
                 (
                     "todos".to_owned(),
-                    Value::Row(BTreeMap::from([
-                        ("id".to_owned(), Value::Id("ghost".to_owned())),
-                        ("ownerId".to_owned(), Value::Id("dev:alice".to_owned())),
-                    ])),
+                    Value::Row(
+                        BTreeMap::from([
+                            ("id".to_owned(), Value::Id("ghost".to_owned())),
+                            ("ownerId".to_owned(), Value::Id("dev:alice".to_owned())),
+                        ])
+                        .into(),
+                    ),
                 ),
                 (
                     "todos".to_owned(),
-                    Value::Row(BTreeMap::from([
-                        ("id".to_owned(), Value::Id("denied".to_owned())),
-                        ("ownerId".to_owned(), Value::Id("dev:bob".to_owned())),
-                    ])),
+                    Value::Row(
+                        BTreeMap::from([
+                            ("id".to_owned(), Value::Id("denied".to_owned())),
+                            ("ownerId".to_owned(), Value::Id("dev:bob".to_owned())),
+                        ])
+                        .into(),
+                    ),
                 ),
             ])
             .unwrap();

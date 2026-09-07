@@ -15,8 +15,8 @@ const schema = {
   tables: Object.fromEntries([...tables.values()].map((item) => [item.name, {
     columns: { id: "Id", key: { Text: { max: 40 } } },
     indexes: {
-      byId: { columns: ["id"], unique: true },
-      byKey: { columns: ["key"], unique: true },
+      byId: { components: [{ Column: "id" }], unique: true },
+      byKey: { components: [{ Column: "key" }], unique: true },
     },
     rules: { read: "Allow", insert: "Allow", update: "Allow", delete: "Allow" },
     constraints: [],

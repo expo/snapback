@@ -19,6 +19,7 @@ impl<'a> OutputEstimator<'a> {
     pub(super) fn estimate(schema: &'a Schema, program: &Program) -> OutputEstimate {
         let mut estimator = Self {
             schema,
+            words: super::search::words(schema, program).bounds,
             max_result: canonical_json(&Value::Null).len() as u64,
             next_identity: program.args.len() as u64 + 1,
             shape: ByteShape::leaf(4, "null value"),
@@ -34,7 +35,7 @@ impl<'a> OutputEstimator<'a> {
                     name.clone(),
                     OutputBound {
                         whole_element: false,
-                        bytes: argument_max(argument),
+                        bytes: argument_max(schema, argument),
                         instances: 1,
                         collection: matches!(argument, ArgType::List { .. }),
                         table: None,
@@ -42,7 +43,10 @@ impl<'a> OutputEstimator<'a> {
                             identity,
                             crate::growth::ProvenanceExpression::argument(),
                         ),
-                        shape: ByteShape::leaf(argument_max(argument), format!("argument {name}")),
+                        shape: ByteShape::leaf(
+                            argument_max(schema, argument),
+                            format!("argument {name}"),
+                        ),
                         value: Expr::Variable(name.clone()),
                     },
                 )
@@ -396,12 +400,12 @@ impl<'a> OutputEstimator<'a> {
                     .map(|value| self.expression(value, variables))
                     .max()
                     .unwrap_or(0),
-                // @ref LLP 1001#pure-builtins — each ASCII run adds a tagged String and separator;
-                // eight times the input's serialized bytes covers even one-letter words.
-                Builtin::Words => args
-                    .first()
-                    .map(|value| self.expression(value, variables).saturating_mul(8))
-                    .unwrap_or(CANONICAL_ARRAY_BASE_BYTES),
+                // @ref LLP 1001#unicode-search-foundation — U=4N and W=floor(U/2)+1, carried through bindings.
+                Builtin::Words => self
+                    .words
+                    .get(&canonical_json(expression))
+                    .map(|n| super::search::words_bytes(*n))
+                    .unwrap_or(u64::MAX),
                 Builtin::MentionTokens => args
                     .first()
                     .map(|value| self.expression(value, variables).saturating_mul(2))

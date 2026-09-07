@@ -1,4 +1,5 @@
 use super::*;
+use snapback2_core::ir::IndexKeyExpr;
 use snapback2_core::*;
 use std::{
     collections::{BTreeMap, BTreeSet},
@@ -33,7 +34,7 @@ fn sweep(table: &str, body: Vec<Stmt>) -> Stmt {
             site: table.into(),
             table: table.into(),
             index: "byId".into(),
-            prefix: vec![],
+            prefix: (vec![]).into_iter().map(IndexKeyExpr::Scalar).collect(),
             order: Order::Asc,
             take: Bound::Literal(100),
             after: None,
@@ -58,7 +59,10 @@ fn table(columns: BTreeMap<String, ColumnType>) -> Table {
         BTreeMap::from([(
             "byId".into(),
             Index {
-                columns: vec!["id".into()],
+                components: (vec!["id".into()])
+                    .into_iter()
+                    .map(snapback2_core::search_key::IndexComponent::Column)
+                    .collect(),
                 unique: true,
             },
         )]),
@@ -219,11 +223,14 @@ fn attach_photo(runtime: &mut Runtime, root: &Path, index: usize) -> (String, Pa
             },
         )
         .unwrap();
-    let asset = Value::Map(BTreeMap::from([
-        ("id".into(), Value::String(id.clone())),
-        ("width".into(), Value::Int(1)),
-        ("height".into(), Value::Int(1)),
-    ]));
+    let asset = Value::Map(
+        BTreeMap::from([
+            ("id".into(), Value::String(id.clone())),
+            ("width".into(), Value::Int(1)),
+            ("height".into(), Value::Int(1)),
+        ])
+        .into(),
+    );
     let attached = runtime
         .execute(
             "attach",

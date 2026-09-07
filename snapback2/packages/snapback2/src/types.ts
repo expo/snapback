@@ -56,6 +56,8 @@ export type QueryCapped<Result> = {
   seq: number;
   next: Cursor | null;
 };
+/** Locally enumerated readable domain; server coverage remains unknown. */
+export type QueryHeld<Result> = { state: "held"; data: Result; seq: number; next: Cursor | null };
 export type QueryPartial<Result> = {
   state: "partial";
   data?: Result;
@@ -87,6 +89,7 @@ export type OfflineFacts = {
   sites?: Array<{ site: string; reason: "never-held" | "evicted" | "computed-key" }>;
 };
 export type OfflineQueryResult<Result> =
+  | (QueryHeld<Result> & OfflineFacts)
   | (QueryComplete<Result> & OfflineFacts)
   | (QueryCapped<Result> & OfflineFacts)
   | (QueryPartial<Result> & OfflineFacts)
@@ -387,6 +390,7 @@ export interface SnapbackClient {
 
 type ViewFacts = { live: boolean; stale?: { since: number }; retained?: boolean; caughtUp?: boolean; watermark?: Cursor | null; predicted?: string[] };
 export type QueryView<Result> =
+  | (QueryHeld<Result> & ViewFacts)
   | (QueryComplete<Result> & ViewFacts)
   | (QueryCapped<Result> & ViewFacts)
   | (QueryPartial<Result> & ViewFacts)
@@ -425,8 +429,9 @@ export function reduceQueryState<Result>(
     case "complete":
       next = { state: "complete", live, data: data as Result, seq: event.seq, next: event.next, ...facts };
       break;
+    case "held":
     case "capped":
-      next = { state: "capped", live, data: data as Result, seq: event.seq, next: event.next, ...facts };
+      next = { state: event.state, live, data: data as Result, seq: event.seq, next: event.next, ...facts };
       break;
     case "partial":
       next = data === undefined

@@ -1,3 +1,4 @@
+import { columnAt, columnComponents, ordinaryColumns, derivedPosition } from "../index-components";
 import type { Document, Expr, IndexDecl, QuarryDiagnostic, ScalarType, Stmt, TableCatalog } from "./ast";
 import { quarryExpression } from "./print";
 
@@ -24,10 +25,10 @@ function repair(read: Extract<Expr, { kind: "read" }>, catalog: TableCatalog): Q
   const info = catalog.get(read.table);
   const terms = equalityTerms(intent.predicate);
   const base = info && baseIndex(read, info.indexes);
-  if (!info || !terms || !base) return [fallback(intent.site)];
+  if (!info || !terms || !base || derivedPosition(base.components) >= 0) return [fallback(intent.site)];
 
-  const prefixColumns = base.columns.slice(0, read.keys.length);
-  const suffixColumns = base.columns.slice(read.keys.length);
+  const prefixColumns = ordinaryColumns(base.components)!.slice(0, read.keys.length);
+  const suffixColumns = ordinaryColumns(base.components)!.slice(read.keys.length);
   const predicateColumns: string[] = [];
   const predicateValues: Expr[] = [];
   const seen = new Map<string, string>();
@@ -57,9 +58,9 @@ function repair(read: Extract<Expr, { kind: "read" }>, catalog: TableCatalog): Q
   if (!base.unique && columns.at(-1) !== "id" && !columns.includes("id")) columns.push("id");
   if (!base.unique && columns.at(-1) !== "id") return [fallback(intent.site)];
   if (columns.length > 8 || (read.range.cursor && columns.length === leading.length)) return [fallback(intent.site)];
-  const compatible = info.indexes.find((index) => total(index)
-    && columns.length === index.columns.length
-    && columns.every((column, offset) => index.columns[offset] === column));
+  const compatible = info.indexes.find((index) => derivedPosition(index.components) < 0 && total(index)
+    && columns.length === index.components.length
+    && columns.every((column, offset) => columnAt(index.components, offset) === column));
   let selected: IndexDecl;
   let indexLine: string;
   let schemaMessage: string;
@@ -70,7 +71,7 @@ function repair(read: Extract<Expr, { kind: "read" }>, catalog: TableCatalog): Q
   } else {
     const unique = base.unique;
     const name = collisionFreeName(columns, info.indexes);
-    selected = { name, columns, unique, site: base.site };
+    selected = { name, components: columnComponents(columns), unique, site: base.site };
     indexLine = renderIndex(selected);
     schemaMessage = `where needs this index for the read at ${siteText(intent.site)}`;
   }
@@ -97,10 +98,10 @@ function baseIndex(read: Extract<Expr, { kind: "read" }>, indexes: IndexDecl[]):
   const named = read.keys.some((key) => key.column !== undefined);
   if (named && read.keys.some((key) => key.column === undefined)) return undefined;
   if (read.index) return indexes.find((index) => index.name === read.index
-    && read.keys.length <= index.columns.length
-    && read.keys.every((key, offset) => key.column === undefined || key.column === index.columns[offset]));
-  const candidates = indexes.filter((index) => index.name !== "byId" && index.columns.length > read.keys.length
-    && (!named || read.keys.every((key, offset) => key.column === index.columns[offset])));
+    && read.keys.length <= index.components.length
+    && read.keys.every((key, offset) => key.column === undefined || key.column === columnAt(index.components, offset)));
+  const candidates = indexes.filter((index) => index.name !== "byId" && index.components.length > read.keys.length
+    && (!named || read.keys.every((key, offset) => key.column === columnAt(index.components, offset))));
   return candidates.length === 1 ? candidates[0] : undefined;
 }
 
@@ -133,7 +134,7 @@ function stableValue(expr: Expr): boolean {
   return false;
 }
 
-function total(index: IndexDecl): boolean { return index.unique || index.columns.at(-1) === "id"; }
+function total(index: IndexDecl): boolean { return index.unique || columnAt(index.components, -1) === "id"; }
 
 function collisionFreeName(columns: string[], indexes: IndexDecl[]): string {
   const stemColumns = columns.at(-1) === "id" ? columns.slice(0, -1) : columns;
@@ -146,7 +147,7 @@ function collisionFreeName(columns: string[], indexes: IndexDecl[]): string {
 }
 
 function renderIndex(index: IndexDecl): string {
-  return `${index.unique ? "unique" : "by"} ${index.name}: ${index.columns.join(", ")}`;
+  return `${index.unique ? "unique" : "by"} ${index.name}: ${ordinaryColumns(index.components)!.join(", ")}`;
 }
 
 function diagnostic(site: Expr["site"], message: string, rewrite: string): QuarryDiagnostic {

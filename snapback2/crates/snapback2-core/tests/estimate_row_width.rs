@@ -1,3 +1,4 @@
+use snapback2_core::ir::IndexKeyExpr;
 use snapback2_core::*;
 use std::collections::BTreeMap;
 
@@ -9,7 +10,10 @@ fn by_id() -> BTreeMap<String, Index> {
     BTreeMap::from([(
         "byId".to_owned(),
         Index {
-            columns: vec!["id".to_owned()],
+            components: (vec!["id".to_owned()])
+                .into_iter()
+                .map(snapback2_core::search_key::IndexComponent::Column)
+                .collect(),
             unique: true,
         },
     )])
@@ -194,7 +198,7 @@ fn scan(table: &str, site: &str, take: u32) -> Scan {
         site: site.to_owned(),
         table: table.to_owned(),
         index: "byId".to_owned(),
-        prefix: Vec::new(),
+        prefix: (Vec::new()).into_iter().map(IndexKeyExpr::Scalar).collect(),
         order: Order::Asc,
         take: Bound::Literal(take),
         after: None,
@@ -427,6 +431,8 @@ fn text_arguments_use_the_four_byte_code_point_bound() {
             "txt".to_owned(),
             ArgType::Text {
                 max: TEXT_MAX as u32,
+                min: 0,
+                format: None,
             },
         )]),
         read_time_granularity_ms: None,
@@ -699,7 +705,7 @@ fn canonical_array_and_whole_row_pins_cover_the_review_cases() {
             .unwrap()
             .clone();
         columns.insert("id".to_owned(), id);
-        engine.seed("allTypes", Value::Row(columns)).unwrap();
+        engine.seed("allTypes", Value::Row(columns.into())).unwrap();
     }
 
     let get_slim = program(

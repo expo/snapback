@@ -171,13 +171,20 @@ fn jobs_350_rows_finish_under_client_load_and_park_resume_through_owner() {
     );
     assert_eq!(code, 0, "{lines:?}");
     // --wait --json: one envelope per chunk, then the job's final envelope, its receipt.
-    assert_eq!(lines.len(), 5, "four chunk lines and the receipt: {lines:?}");
+    assert_eq!(
+        lines.len(),
+        5,
+        "four chunk lines and the receipt: {lines:?}"
+    );
     for (i, line) in lines[..4].iter().enumerate() {
         assert_eq!(line["chunk"], i as u64 + 1, "{line}");
         assert_eq!(line["commit"]["kind"], "job", "{line}");
     }
     let receipt = lines.last().unwrap();
-    assert!(receipt.get("commit").is_none() && receipt["state"] == "done", "the last line is the job receipt: {receipt}");
+    assert!(
+        receipt.get("commit").is_none() && receipt["state"] == "done",
+        "the last line is the job receipt: {receipt}"
+    );
     assert_eq!(receipt["chunks"], 4);
     assert_eq!(receipt["rowsWritten"]["jobRows"], 350);
     finished.store(true, std::sync::atomic::Ordering::Relaxed);
@@ -528,9 +535,19 @@ fn measure_job_turn_with_50_live_and_client_p95() {
         .filter_map(|l| serde_json::from_str::<Value>(l).ok())
         .filter(|l| l["job"] == id && l["state"] != "done")
         .collect::<Vec<_>>();
-    let turns = lines.iter().filter_map(|l| l["ms"].as_f64()).collect::<Vec<_>>();
-    let chunks = lines.iter().filter_map(|l| l["chunkMs"].as_f64()).collect::<Vec<_>>();
-    let reruns = turns.iter().zip(&chunks).map(|(t, c)| t - c).collect::<Vec<_>>();
+    let turns = lines
+        .iter()
+        .filter_map(|l| l["ms"].as_f64())
+        .collect::<Vec<_>>();
+    let chunks = lines
+        .iter()
+        .filter_map(|l| l["chunkMs"].as_f64())
+        .collect::<Vec<_>>();
+    let reruns = turns
+        .iter()
+        .zip(&chunks)
+        .map(|(t, c)| t - c)
+        .collect::<Vec<_>>();
     assert_eq!((turns.len(), chunks.len()), (11, 11));
     let median = |values: &[f64]| {
         let mut sorted = values.to_vec();

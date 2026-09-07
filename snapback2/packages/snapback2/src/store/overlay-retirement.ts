@@ -27,7 +27,7 @@ export function pagePosition(page: Pick<StoredAnswer, "op" | "args" | "cursorArg
   delete args[cursor];
   if (canonical(base) !== canonical(args)) return undefined;
   const position = page.args[cursor];
-  return position === null || typeof position === "string" ? position : undefined;
+  return position === null ? null : typeof position === "string" && !position.startsWith("h1.") ? position : undefined;
 }
 
 /**
@@ -38,7 +38,7 @@ export function pagePosition(page: Pick<StoredAnswer, "op" | "args" | "cursorArg
 export function cursorChain(pages: StoredAnswer[], mark: OverlayWatermark, committedSeq: number): string[] {
   const links = new Map<string | null, string | null>();
   for (const page of pages) {
-    if ((page.nextSeq ?? page.seq) < committedSeq || typeof page.next !== "string") continue;
+    if ((page.nextSeq ?? page.seq) < committedSeq || typeof page.next !== "string" || page.next.startsWith("h1.")) continue;
     const position = pagePosition(page, mark);
     if (position === undefined) continue;
     // Conflicting links quarantine only this position, including off-path ones.

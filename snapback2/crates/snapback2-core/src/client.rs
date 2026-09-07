@@ -24,6 +24,7 @@ pub struct ClientStore {
 
 impl ClientStore {
     pub fn hydrate(schema: Schema, receipt: &ClosureReceipt) -> Result<Self, RuntimeError> {
+        receipt.validate_pool(&schema)?;
         let mut engine = Engine::memory(schema.clone())?;
         let coverage = Self::receipt_for_schema(&schema, receipt);
         engine.install_receipt_authority(&coverage);
@@ -106,7 +107,7 @@ impl ClientStore {
                 .coverage
                 .ranges
                 .iter()
-                .any(|coverage| range_covered(coverage, range));
+                .any(|coverage| range_covered(&self.schema, program, coverage, range));
             if !covered {
                 partial.insert(range.site.clone());
             }
@@ -124,8 +125,9 @@ impl ClientStore {
                             .and_then(|table| table.index(&absence.1))
                             .is_some_and(|index| {
                                 index
-                                    .columns
+                                    .components
                                     .iter()
+                                    .filter_map(crate::search_key::IndexComponent::column)
                                     .map(|column| {
                                         row.row.field(column).cloned().unwrap_or(Value::Null)
                                     })
@@ -199,8 +201,19 @@ impl ClientStore {
                         keys.insert(
                             id.to_owned(),
                             index
-                                .columns
+                                .components
                                 .iter()
+                                .flat_map(|component| match component {
+                                    crate::search_key::IndexComponent::Column(column) => {
+                                        vec![column]
+                                    }
+                                    // A changed source may consume a retained lookahead even when
+                                    // its ordinary suffix is unchanged. Count it conservatively.
+                                    crate::search_key::IndexComponent::WordPrefixes {
+                                        fields,
+                                        ..
+                                    } => fields.iter().collect(),
+                                })
                                 .map(|column| row.field(column).cloned())
                                 .collect::<Result<_, _>>()?,
                         );
@@ -243,7 +256,8 @@ impl ClientStore {
         self.coverage.ranges.iter().any(|range| {
             range.table == constraint.table
                 && range.index == constraint.index
-                && range.prefix == constraint.prefix
+                && range.prefix.len() == constraint.prefix.len()
+                && crate::search_key::scalar_key_starts_with(&constraint.prefix, &range.prefix)
                 && range.order == Order::Asc
                 && range.after.is_none()
                 && range.before.is_none()
@@ -256,11 +270,36 @@ impl ClientStore {
     }
 }
 
-fn range_covered(coverage: &ReceiptRange, range: &TraceRange) -> bool {
+fn range_covered(
+    schema: &Schema,
+    program: &Program,
+    coverage: &ReceiptRange,
+    range: &TraceRange,
+) -> bool {
     coverage.site == range.site
         && coverage.table == range.table
         && coverage.index == range.index
-        && coverage.prefix == range.prefix
+        && crate::search_key::prepare_receipt_prefix(
+            schema,
+            program,
+            &coverage.site,
+            &coverage.table,
+            &coverage.index,
+            &coverage.prefix,
+        )
+        .ok()
+        .zip(
+            crate::search_key::prepare_receipt_prefix(
+                schema,
+                program,
+                &range.site,
+                &range.table,
+                &range.index,
+                &range.prefix,
+            )
+            .ok(),
+        )
+        .is_some_and(|(a, b)| crate::search_key::index_keys_equal(&a, &b))
         && coverage.order == range.order
         && coverage.take == range.take
         && coverage.after == range.after

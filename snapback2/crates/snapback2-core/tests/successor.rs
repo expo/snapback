@@ -15,7 +15,13 @@ fn table(columns: &[(&str, ColumnType)], indexes: &[(&str, &[&str])]) -> Table {
                 (
                     (*name).to_owned(),
                     Index {
-                        columns: columns.iter().map(|column| (*column).to_owned()).collect(),
+                        components: (columns
+                            .iter()
+                            .map(|column| (*column).to_owned())
+                            .collect::<Vec<_>>())
+                        .into_iter()
+                        .map(snapback2_core::search_key::IndexComponent::Column)
+                        .collect(),
                         unique: false,
                     },
                 )
@@ -126,7 +132,10 @@ fn additive_successor_adds_table_column_index_and_program_in_place() {
     next_items.indexes.insert(
         "byName".to_owned(),
         Index {
-            columns: vec!["name".to_owned()],
+            components: (vec!["name".to_owned()])
+                .into_iter()
+                .map(snapback2_core::search_key::IndexComponent::Column)
+                .collect(),
             unique: false,
         },
     );
@@ -214,7 +223,10 @@ fn successor_optional_column_is_null_in_expressions_rules_and_indexes() {
     next_items.indexes.insert(
         "byNote".to_owned(),
         Index {
-            columns: vec!["note".to_owned()],
+            components: (vec!["note".to_owned()])
+                .into_iter()
+                .map(snapback2_core::search_key::IndexComponent::Column)
+                .collect(),
             unique: false,
         },
     );
@@ -380,7 +392,10 @@ fn maintained_backfill_materializes_new_optional_group_as_null() {
     next_counts.indexes.insert(
         "byBucket".to_owned(),
         Index {
-            columns: vec!["bucket".to_owned()],
+            components: (vec!["bucket".to_owned()])
+                .into_iter()
+                .map(snapback2_core::search_key::IndexComponent::Column)
+                .collect(),
             unique: true,
         },
     );
@@ -547,71 +562,15 @@ fn required_column_on_populated_table_is_refused() {
         .unwrap_err();
     assert_eq!(refusal.code, "E_SUCCESSOR_COLUMN_REQUIRED");
     assert!(refusal.message.contains("items.name"));
-    assert!(["T?, apply", "--as system", "declare T and apply again"].iter().all(|step| refusal.rewrite.contains(step)));
+    assert!(
+        ["T?, apply", "--as system", "declare T and apply again"]
+            .iter()
+            .all(|step| refusal.rewrite.contains(step))
+    );
 }
 
-#[test]
-fn successor_ignores_unrelated_legacy_fields_but_validates_the_field_when_declared() {
-    let path = temp_store_path("reserved-successor-row");
-    let items = table(&[("id", ColumnType::Id)], &[("byId", &["id"])]);
-    let base = generation(
-        schema(
-            BTreeMap::from([("items".to_owned(), items.clone())]),
-            Vec::new(),
-        ),
-        Vec::new(),
-    );
-    {
-        Runtime::open(Store::open(&path).unwrap(), base.clone()).unwrap();
-    }
-    {
-        let connection = rusqlite::Connection::open(&path).unwrap();
-        let vulnerable_row = object([
-            ("id", Value::Id("legacy-row".to_owned())),
-            ("ownerId", Value::Id(SYSTEM_PRINCIPAL_ID.to_string())),
-        ]);
-        connection
-            .execute(
-                "INSERT INTO rows(table_name, row_id, data) VALUES (?1, ?2, ?3)",
-                rusqlite::params!["items", "legacy-row", canonical_json(&vulnerable_row)],
-            )
-            .unwrap();
-    }
-
-    let mut runtime = Runtime::open(Store::open(&path).unwrap(), base).unwrap();
-    let mut clean_items = items.clone();
-    clean_items.columns.insert(
-        "note".to_owned(),
-        ColumnType::Optional(Box::new(ColumnType::Text { max: 64 })),
-    );
-    runtime
-        .apply_successor(generation(
-            schema(
-                BTreeMap::from([("items".to_owned(), clean_items.clone())]),
-                Vec::new(),
-            ),
-            Vec::new(),
-        ))
-        .expect("an unrelated undeclared legacy field must not block a clean successor");
-
-    clean_items.columns.insert(
-        "ownerId".to_owned(),
-        ColumnType::Optional(Box::new(ColumnType::Id)),
-    );
-    let next = generation(
-        schema(
-            BTreeMap::from([("items".to_owned(), clean_items)]),
-            Vec::new(),
-        ),
-        Vec::new(),
-    );
-    let refusal = runtime.apply_successor(next).unwrap_err();
-
-    assert_eq!(refusal.code, "E_SUCCESSOR_ROW_INVALID");
-    assert!(refusal.message.contains("items.legacy-row"));
-    assert!(refusal.message.contains("reserved system principal"));
-    cleanup_store(&path);
-}
+#[path = "successor_cases/legacy.rs"]
+mod legacy;
 
 #[test]
 fn reopening_changed_schema_cannot_forge_hash_past_stored_row_validation() {
@@ -759,7 +718,10 @@ fn new_unique_index_reports_conflicting_keys_without_changing_generation() {
     next_items.indexes.insert(
         "byName".to_owned(),
         Index {
-            columns: vec!["name".to_owned()],
+            components: (vec!["name".to_owned()])
+                .into_iter()
+                .map(snapback2_core::search_key::IndexComponent::Column)
+                .collect(),
             unique: true,
         },
     );
@@ -834,7 +796,10 @@ fn migration_rechecks_new_unique_indexes_and_rolls_back_its_drops() {
     next_items.indexes.insert(
         "byName".to_owned(),
         Index {
-            columns: vec!["name".to_owned()],
+            components: (vec!["name".to_owned()])
+                .into_iter()
+                .map(snapback2_core::search_key::IndexComponent::Column)
+                .collect(),
             unique: true,
         },
     );
@@ -1327,7 +1292,10 @@ fn optional_and_list_column_types_validate_and_list_indexes_are_refused() {
         BTreeMap::from([(
             "byValues".to_owned(),
             Index {
-                columns: vec!["values".to_owned()],
+                components: (vec!["values".to_owned()])
+                    .into_iter()
+                    .map(snapback2_core::search_key::IndexComponent::Column)
+                    .collect(),
                 unique: false,
             },
         )]),

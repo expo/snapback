@@ -1,3 +1,4 @@
+use snapback2_core::ir::IndexKeyExpr;
 use snapback2_core::*;
 use std::collections::BTreeMap;
 
@@ -50,7 +51,10 @@ fn scan(prefix: Expr, take: u32) -> Scan {
         site: "messages.list".to_owned(),
         table: "messages".to_owned(),
         index: "byConvTime".to_owned(),
-        prefix: vec![prefix],
+        prefix: (vec![prefix])
+            .into_iter()
+            .map(IndexKeyExpr::Scalar)
+            .collect(),
         order: Order::Desc,
         take: Bound::Literal(take),
         after: None,
@@ -164,7 +168,7 @@ fn hoisted_reserve_serves_full_pages_and_charges_one_candidate_on_denial() {
                     if allowed { (take + 2) as usize } else { 1 }
                 );
                 assert_eq!(range.halo.is_some(), allowed);
-                assert_eq!(range.n2_key.is_some(), allowed);
+                assert_eq!(range.n2_suffix.is_some(), allowed);
                 assert_eq!(
                     range.stop,
                     if allowed {
@@ -322,7 +326,7 @@ fn uniform_fetch_clamp_preserves_exhaustion_halo_and_n2_boundaries() {
             assert_eq!(range.returned_ids.len(), count.min(1) as usize);
             assert_eq!(range.examined_ids.len(), count.min(3) as usize);
             assert_eq!(range.halo.is_some(), count >= 2);
-            assert_eq!(range.n2_key.is_some(), count >= 3);
+            assert_eq!(range.n2_suffix.is_some(), count >= 3);
             assert_eq!(
                 range.stop,
                 if count <= 1 {
@@ -377,7 +381,13 @@ fn indexes<const N: usize>(indexes: [(&str, &[&str], bool); N]) -> BTreeMap<Stri
             (
                 name.to_owned(),
                 Index {
-                    columns: columns.iter().map(|name| (*name).to_owned()).collect(),
+                    components: (columns
+                        .iter()
+                        .map(|name| (*name).to_owned())
+                        .collect::<Vec<_>>())
+                    .into_iter()
+                    .map(snapback2_core::search_key::IndexComponent::Column)
+                    .collect(),
                     unique,
                 },
             )
@@ -442,7 +452,10 @@ fn nested_nonuniform_scan_in_a_key_keeps_the_ceiling() {
         site: "tallies.list.posts".to_owned(),
         table: "posts".to_owned(),
         index: "byBucket".to_owned(),
-        prefix: vec![Expr::Literal(Value::int(1).unwrap())],
+        prefix: (vec![Expr::Literal(Value::int(1).unwrap())])
+            .into_iter()
+            .map(IndexKeyExpr::Scalar)
+            .collect(),
         order: Order::Asc,
         take: Bound::Literal(5),
         after: None,
@@ -456,10 +469,13 @@ fn nested_nonuniform_scan_in_a_key_keeps_the_ceiling() {
         site: "tallies.list".to_owned(),
         table: "tallies".to_owned(),
         index: "byBucket".to_owned(),
-        prefix: vec![Expr::Builtin {
+        prefix: (vec![Expr::Builtin {
             builtin: Builtin::Count,
             args: vec![Expr::Scan(inner)],
-        }],
+        }])
+        .into_iter()
+        .map(IndexKeyExpr::Scalar)
+        .collect(),
         order: Order::Asc,
         take: Bound::Literal(10),
         after: None,
@@ -495,7 +511,9 @@ fn nested_nonuniform_scan_in_a_key_keeps_the_ceiling() {
             // A structural refusal of the count-as-key is also a closed door; it must
             // be the structural family, never a silent certificate at the reserve.
             assert!(
-                errors.iter().any(|(_, error)| error.code == "E_STRUCTURAL_COUNT"),
+                errors
+                    .iter()
+                    .any(|(_, error)| error.code == "E_STRUCTURAL_COUNT"),
                 "unexpected refusal: {errors:?}"
             );
         }

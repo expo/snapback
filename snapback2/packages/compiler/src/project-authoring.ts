@@ -1,11 +1,14 @@
+import { bindDescriptorProgram, nativeDescriptorName } from "./lower/descriptor-origin";
 import { readFile } from "node:fs/promises";
 import { basename, relative, resolve, sep } from "node:path";
 import ts from "typescript";
 import { expandArgumentObject } from "./args";
 import { diagnostic, typeDiagnostic } from "./diagnostics";
 import type { FrontendDiagnostic } from "./ir";
-import { numberValue, objectOf, property, stringValue } from "./lower/static";
-import { hasExport, snapbackCallName, staticMemberPath, unwrapCall } from "./syntax";
+import { invalidDescriptorRefusal, lowerArgDescriptor } from "./lower/schema";
+import { numberValue, objectOf, property, propertyEntries, stringValue } from "./lower/static";
+import { createProjectProgram, loadCompilerLib } from "./project-program";
+import { hasExport, snapbackCallName, unwrapCall } from "./syntax";
 
 export type LowerProjectOptions = { authoring?: "quarry" | "any"; adhocSource?: string };
 
@@ -30,10 +33,15 @@ export async function quarryOnlyDiagnostics(
       "quarry/projects",
     ));
   }
-  for (const path of modulePaths.sort()) {
-    const source = await readFile(path, "utf8");
+  if (modulePaths.length === 0) return diagnostics;
+  const schemaPath = resolve(projectRoot, "snapback/schema.ts");
+  const schemaSource = hasTypeScriptSchema ? await readFile(schemaPath, "utf8") : "";
+  const sources = await Promise.all(modulePaths.sort().map(async path => [path, await readFile(path, "utf8")] as const));
+  const checked = createProjectProgram(schemaPath, schemaSource, sources, loadCompilerLib());
+  bindDescriptorProgram(checked.program, checked.library);
+  for (const [path] of sources) {
     const fileName = relativeSite(projectRoot, path);
-    const sourceFile = ts.createSourceFile(path, source, ts.ScriptTarget.ES2022, true);
+    const sourceFile = checked.program.getSourceFile(path)!;
     const module = { fileName, sourceFile };
     const locals = new Map<string, { kind: string; call: ts.CallExpression }>();
     for (const statement of sourceFile.statements) {
@@ -88,30 +96,94 @@ function authoringMessage(fileName: string): string {
 }
 
 function quarryHeader(kind: string, name: string, call: ts.CallExpression): string {
-  if (kind === "query" || kind === "mutation") {
-    const args = objectOf(call.arguments[0]);
-    const fields = args ? expandArgumentObject(args).entries.map((entry) => `${entry.name}: ${quarryType(entry.value)}`) : [];
+  if (kind === "query" || kind === "mutation" || kind === "channel") {
+    const config = objectOf(call.arguments[0]);
+    const args = kind === "channel" ? objectOf(config && property(config, "args")) : config;
+    if (!args) return "spell out the complete argument object before moving this declaration to Quarry";
+    const expanded = expandArgumentObject(args);
+    if (expanded.invalidSpread || expanded.invalidProperty)
+      return "spell out every argument as name: descriptor before moving this declaration to Quarry";
+    const entries = expanded.entries;
+    for (const entry of entries) {
+      const problem = quarryArgumentProblem(entry.value);
+      if (problem) return `argument ${entry.name}: ${problem}`;
+    }
+    const fields: string[] = [];
+    for (const entry of entries) {
+      const type = quarryType(entry.value);
+      if (!type) return `argument ${entry.name}: this descriptor has no proven Quarry spelling; preserve all constraints when writing its type`;
+      fields.push(`${entry.name}: ${type}`);
+    }
     return `${kind} ${name}(${fields.join(", ")}):`;
   }
   if (kind === "table") return `table ${name}:`;
-  if (kind === "channel") return `channel ${name}():`;
   return "table items:\n  value: json <=1000\n  public";
 }
 
-function quarryType(node: ts.Expression): string {
+function quarryArgumentProblem(node: ts.Expression, listElement = false): string | undefined {
   const call = unwrapCall(node);
-  if (!call) return "json <=1000";
-  const kind = snapbackCallName(call) ?? staticMemberPath(call.expression)?.split(".").at(-1);
-  if (kind === "optional" && call.arguments[0]) return `${quarryType(call.arguments[0])} ?`;
-  if (kind === "id" || kind === "principal" || kind === "int" || kind === "time" || kind === "bool") return kind;
-  if (["text", "json", "bytes", "image", "video"].includes(kind ?? "")) {
-    return `${kind} <=${numberValue(call.arguments[0]) ?? 1000}`;
+  const kind = call && nativeDescriptorName(call);
+  if (!call || !kind) return "descriptor origin is not a proven native constructor; spell out a native descriptor before moving this declaration to Quarry";
+  if (kind === "text" && lowerArgDescriptor(node) === undefined) {
+    return 'use a positive text bound, a minimum from zero through that bound, and format handle or format url; present null/undefined formats are invalid';
   }
-  if (kind === "ref") return staticMemberPath(call.arguments[0]) ?? "id";
+  if (kind === "optional" && listElement) {
+    return "Quarry list elements cannot be optional; separate optional values into named optional arguments before moving this declaration to Quarry";
+  }
+  if ((kind === "list" || kind === "optional") && call.arguments[0]) {
+    const inner = quarryArgumentProblem(call.arguments[0], kind === "list");
+    if (inner) return inner;
+  }
+  if (kind === "list") {
+    const options = objectOf(call.arguments[1]);
+    const entries = options && propertyEntries(options);
+    if (entries && new Set(entries.map(entry => entry.name)).size !== entries.length)
+      return "t.list options must declare max exactly once; preserve the intended bound before moving this declaration to Quarry";
+  }
+  // The complete wrapper, including arity and every option, must be admitted
+  // before a usable signature is printed. Guidance never guesses a bound.
+  if (lowerArgDescriptor(node) === undefined) return invalidDescriptorRefusal(node, "argument").message;
+  return undefined;
+}
+
+function quarryType(node: ts.Expression): string | undefined {
+  const call = unwrapCall(node);
+  if (!call) return undefined;
+  const kind = nativeDescriptorName(call);
+  if (kind === "optional" && call.arguments[0]) {
+    const inner = quarryType(call.arguments[0]);
+    return inner === undefined ? undefined : inner.endsWith(" ?") ? inner : `${inner} ?`;
+  }
+  if (kind === "cursor" || kind === "id" || kind === "principal" || kind === "int" || kind === "time" || kind === "bool") return kind;
+  if (kind === "text") {
+    const options = objectOf(call.arguments[1]);
+    const min = options && numberValue(property(options, "min"));
+    const max = numberValue(call.arguments[0]);
+    if (max === undefined) return undefined;
+    const format = options && stringValue(property(options, "format"));
+    return `${min ? `text ${min}..${max}` : `text <=${max}`}${format === "handle" || format === "url" ? ` format ${format}` : ""}`;
+  }
+  if (["json", "bytes", "image", "video"].includes(kind ?? "")) {
+    const max = numberValue(call.arguments[0]);
+    return max === undefined ? undefined : `${kind} <=${max}`;
+  }
+  if (kind === "decimal") {
+    const scale = numberValue(call.arguments[0]);
+    return scale === undefined ? undefined : `decimal ${scale}`;
+  }
+  if (kind === "money") {
+    const currency = stringValue(call.arguments[0]);
+    const scale = call.arguments[1] ? numberValue(call.arguments[1]) : 2;
+    return currency === undefined || scale === undefined ? undefined : `money ${currency} ${scale}`;
+  }
+  // A TS table alias is not necessarily a Quarry catalog name. Do not guess
+  // one from its spelling or silently demote its nominal reference to id.
+  if (kind === "ref") return undefined;
   if (kind === "list" && call.arguments[0]) {
     const options = objectOf(call.arguments[1]);
     const max = options && numberValue(property(options, "max"));
-    return `[${quarryType(call.arguments[0])}] <=${max ?? 100}`;
+    const inner = quarryType(call.arguments[0]);
+    return inner === undefined || max === undefined ? undefined : `[${inner}] <=${max}`;
   }
   if (kind === "enum") {
     const values = call.arguments[0] && ts.isArrayLiteralExpression(call.arguments[0])
@@ -119,7 +191,7 @@ function quarryType(node: ts.Expression): string {
       : [];
     return `enum(${values.map((item) => JSON.stringify(item)).join(", ")})`;
   }
-  return "json <=1000";
+  return undefined;
 }
 
 function relativeSite(root: string, path: string): string {

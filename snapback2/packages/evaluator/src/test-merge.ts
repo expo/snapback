@@ -1,7 +1,9 @@
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
-import manifest from "../../../corpus/manifest.json";
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
+const manifest = JSON.parse(readFileSync(process.env.SNAPBACK2_CORPUS ? resolve(process.env.SNAPBACK2_CORPUS, "manifest.json") : new URL("../../../corpus/manifest.json", import.meta.url), "utf8"));
 import { ClientStore } from "./store";
 import { Runner, queryState } from "./runner";
 import { EvalError } from "./errors";
@@ -12,7 +14,7 @@ import { decodeCursor } from "./cursor";
 const fixture = (): any => structuredClone(manifest.find((c) => c.name === "merge-runtime-overlap-deduped"));
 
 function recertify(c: any): any {
-  const checked = spawnSync(fileURLToPath(new URL("../../../target/debug/snapback2", import.meta.url)),
+  const checked = spawnSync(process.env.SNAPBACK2_BIN ?? fileURLToPath(new URL("../../../target/debug/snapback2", import.meta.url)),
     ["check", "--ir", "--json"], {
       input: JSON.stringify({ schema: c.schema, programs: [c.program] }), encoding: "utf8",
     });
@@ -122,9 +124,9 @@ for (const bound of ["after", "before", "range"]) {
 
 for (const read of ["Get", "Exists"]) {
   const c = fixture();
-  c.schema.tables.posts.indexes.byUniqueAt = { columns: ["at"], unique: true };
+  c.schema.tables.posts.indexes.byUniqueAt = { components: [{ Column: "at" }], unique: true };
   const scan = {
-    site: "page", table: "posts", index: "byAuthorAt", prefix: [{ Variable: "who" }],
+    site: "page", table: "posts", index: "byAuthorAt", prefix: [{ Scalar: { Variable: "who" } }],
     order: "Asc", take: { Literal: 2 }, after: { Variable: "c" }, before: null, range: null,
     opaque_cursor: true, merge_site: null, provenance: "Shape",
   };
@@ -145,11 +147,12 @@ for (const read of ["Get", "Exists"]) {
   };
   c.context.args = { a: { Id: "A" }, b: { Id: "B" }, c: "Null" };
   c.receipt.rows = ["A", "B"].flatMap((author) => [1, 2, 3].map((n) => ({
-    table: "posts", row: { Row: {
+    table: "posts", id: `${author}${n}`, row: { Row: {
       id: { Id: `${author}${n}` }, author: { Id: author }, at: { Int: n + (author === "A" ? 0 : 99) },
     } },
   })));
-  const checked = spawnSync(fileURLToPath(new URL("../../../target/debug/snapback2", import.meta.url)),
+  c.receipt.ranges = []; // These replacement rows are fixture custody, not the predecessor page's membership proof.
+  const checked = spawnSync(process.env.SNAPBACK2_BIN ?? fileURLToPath(new URL("../../../target/debug/snapback2", import.meta.url)),
     ["check", "--ir", "--json"], {
       input: JSON.stringify({ schema: c.schema, programs: [c.program] }), encoding: "utf8",
     });

@@ -9,12 +9,12 @@ import { assert, withProject, type Test } from "./quarry-check-helpers";
 
 export function registerQuarryWordsChecks(test: Test, libText: string): void {
 for (const [label, domain, max, width] of [
-  ["direct", "words(body)", 1001, 2000], ["alias", "terms", 1001, 2000], ["column", "words(row.body)", 1001, 2000],
-  ["literal", "words('A b')", 2, 3], ["odd", "words('a b c')", 3, 5], ["empty", "words('')", 1, 0],
-  ["optional fallback", "words(maybe ?? '')", 11, 20], ["Unicode scalars", "words('🙂A 🙂b')", 3, 5],
-  ["wider column fallback", "words(row.maybe ?? row.body)", 1001, 2000],
-  ["narrower column fallback", "words(row.wideMaybe ?? row.narrow)", 1001, 2000],
-  ["wider argument-to-column fallback", "words(maybe ?? row.body)", 1001, 2000],
+  ["direct", "words(body)", 4001, 8000], ["alias", "terms", 4001, 8000], ["column", "words(row.body)", 4001, 8000],
+  ["literal", "words('A b')", 7, 12], ["odd", "words('a b c')", 11, 20], ["empty", "words('')", 1, 0],
+  ["optional", "words(maybe)", 41, 80], ["optional fallback", "words(maybe ?? '')", 41, 80], ["Unicode scalars", "words('🙂A 🙂b')", 11, 20],
+  ["wider column fallback", "words(row.maybe ?? row.body)", 4001, 8000],
+  ["narrower column fallback", "words(row.wideMaybe ?? row.narrow)", 4001, 8000],
+  ["wider argument-to-column fallback", "words(maybe ?? row.body)", 4001, 8000],
 ] as const) {
   test(`Quarry words derives a ${max}-item text list and ${label} for domain`, async () => {
     await withProject({
@@ -23,13 +23,12 @@ for (const [label, domain, max, width] of [
   maybe: text <=20 ?
   wideMaybe: text <=2000 ?
   narrow: text <=20
-  terms: [text <=2000] <=1001
   public
   insert <- allow
 `,
       "snapback/probe.q": `mutation probe(body: text <=2000, maybe: text <=20 ?):
   terms = words(body)
-  row = insert docs { body, terms, narrow: 'a' }
+  row = insert docs { body, narrow: 'a' }
   for term in ${domain}:
     require term != '' else EMPTY
   return { terms, count: count(words(body)) }
@@ -103,8 +102,8 @@ test("words refuses a wider optional literal fallback rather than deriving the l
       && d.message.includes("41 Unicode scalars") && d.site.startsWith("snapback/probe.q:")), JSON.stringify(result));
   });
 });
-test("Quarry words refuses non-text, optional text and wrong arity with a rewrite", async () => {
-  for (const call of ["words(n)", "words(maybe)", "words()", "words('a', 'b')"]) {
+test("Quarry words refuses non-text and wrong arity with a rewrite", async () => {
+  for (const call of ["words(n)", "words()", "words('a', 'b')"]) {
     await withProject({
       "snapback/schema.q": "table docs:\n  body: text <=2000\n  public\n",
       "snapback/probe.q": `query probe(n: int, maybe: text <=20 ?):\n  return ${call}\n`,

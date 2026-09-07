@@ -13,7 +13,7 @@ use thiserror::Error;
 
 impl<'a> Runner<'a> {
     pub(super) fn insert(&mut self, table: &str, row: Value) -> Result<(), RuntimeError> {
-        validate_row(self.schema.table(table), table, &row)?;
+        validate_row(&self.schema, table, &row)?;
         if !self.check_rule(table, Effect::Insert, None, &row)? {
             return Err(RuntimeError::Rule {
                 table: table.to_owned(),
@@ -38,7 +38,9 @@ impl<'a> Runner<'a> {
             "INSERT INTO rows(table_name, row_id, data) VALUES (?1, ?2, ?3)",
             params![table, id, canonical_json(&row)],
         )?;
-        reindex_row(self.tx, self.schema, table, &row)?;
+        let work = reindex_row(self.tx, self.schema, table, &row)?;
+        self.search_nodes.clear();
+        self.derive_charge(work)?;
         self.remember_created_row(table, &row)?;
         self.inserted_rows.push((table.to_owned(), row.clone()));
         self.clear_rule_memos();
@@ -68,7 +70,7 @@ impl<'a> Runner<'a> {
         for (name, value) in patch.as_object()? {
             new.insert(name.clone(), value.clone());
         }
-        self.replace(table, key, Value::Row(new))
+        self.replace(table, key, Value::Row(new.into()))
     }
 
     pub(super) fn upsert(
@@ -77,7 +79,7 @@ impl<'a> Runner<'a> {
         key: &Value,
         row: Value,
     ) -> Result<(), RuntimeError> {
-        validate_row(self.schema.table(table), table, &row)?;
+        validate_row(&self.schema, table, &row)?;
         validate_addressed_row_id(table, key, &row)?;
         if self.fetch_id(table, key.as_str()?)?.is_some() {
             self.replace(table, key, row)
@@ -102,7 +104,7 @@ impl<'a> Runner<'a> {
         let old = self
             .fetch_id(table, key_id)?
             .ok_or_else(|| RuntimeError::Input(format!("missing {table} row")))?;
-        validate_row(self.schema.table(table), table, &new)?;
+        validate_row(&self.schema, table, &new)?;
         validate_addressed_row_id(table, key, &new)?;
         // @ref LLP 1001#9-schema-additions — update policy is one relation over both row images.
         if !self.check_rule(table, Effect::Update, Some(&old), &new)? {
@@ -129,7 +131,9 @@ impl<'a> Runner<'a> {
             "UPDATE rows SET data = ?3 WHERE table_name = ?1 AND row_id = ?2",
             params![table, key_id, canonical_json(&new)],
         )?;
-        reindex_row(self.tx, self.schema, table, &new)?;
+        let work = reindex_row(self.tx, self.schema, table, &new)?;
+        self.search_nodes.clear();
+        self.derive_charge(work)?;
         self.refresh_created_points(table, &new)?;
         self.clear_rule_memos();
         self.touch_row(table, &new)?;
@@ -167,7 +171,9 @@ impl<'a> Runner<'a> {
             "DELETE FROM rows WHERE table_name = ?1 AND row_id = ?2",
             params![table, id],
         )?;
-        delete_index_row(self.tx, table, id)?;
+        let work = delete_index_row(self.tx, table, id)?;
+        self.search_nodes.clear();
+        self.derive_charge(work)?;
         self.forget_created_points(table, id);
         self.clear_rule_memos();
         self.bump_write(table);
@@ -274,7 +280,7 @@ impl<'a> Runner<'a> {
         for (field, value) in maintain.by.iter().zip(group.key) {
             row.insert(field.clone(), value);
         }
-        self.write_aggregate_row(&maintain.target, Value::Row(row))
+        self.write_aggregate_row(&maintain.target, Value::Row(row.into()))
     }
 
     pub(super) fn write_aggregate_row(
@@ -284,7 +290,7 @@ impl<'a> Runner<'a> {
     ) -> Result<(), RuntimeError> {
         let id = row.field("id")?.as_str()?.to_owned();
         let existing = self.fetch_id(target, &id)?;
-        validate_row(self.schema.table(target), target, &row)?;
+        validate_row(self.schema, target, &row)?;
         let effect = if existing.is_some() {
             Effect::Update
         } else {
@@ -304,7 +310,9 @@ impl<'a> Runner<'a> {
         let aggregate = self
             .fetch_id(target, &id)?
             .expect("aggregate row was just upserted");
-        reindex_row(self.tx, self.schema, target, &aggregate)?;
+        let work = reindex_row(self.tx, self.schema, target, &aggregate)?;
+        self.search_nodes.clear();
+        self.derive_charge(work)?;
         if effect == Effect::Insert {
             self.remember_created_row(target, &aggregate)?;
             self.inserted_rows
@@ -339,7 +347,9 @@ impl<'a> Runner<'a> {
                 "DELETE FROM rows WHERE table_name = ?1 AND row_id = ?2",
                 params![target, id],
             )?;
-            delete_index_row(self.tx, target, &id)?;
+            let work = delete_index_row(self.tx, target, &id)?;
+            self.search_nodes.clear();
+            self.derive_charge(work)?;
             self.forget_created_points(target, &id);
             self.clear_rule_memos();
             self.bump_write(target);
@@ -348,11 +358,7 @@ impl<'a> Runner<'a> {
     }
 
     pub(super) fn emit(&mut self, effect: &str, payload: Value) -> Result<(), RuntimeError> {
-        let id = self
-            .context
-            .new_ids
-            .pop_front()
-            .ok_or_else(|| RuntimeError::Input("newId envelope exhausted".to_owned()))?;
+        let id = self.input(Input::NewId)?.as_str()?.to_owned();
         let now = self
             .context
             .now
@@ -387,6 +393,17 @@ impl<'a> Runner<'a> {
             });
         }
         for (index, definition) in &table_schema.indexes {
+            if let Some(offset) = definition.derived_offset() {
+                let touch = crate::store::ScopeTouch {
+                    table: table.into(),
+                    index: index.clone(),
+                    prefix: index_values(row, definition)[..offset].to_vec(),
+                };
+                if !self.trace.scope_touches.contains(&touch) {
+                    self.trace.scope_touches.push(touch);
+                }
+                continue;
+            }
             self.trace.touched.push(TouchedKey {
                 table: table.to_owned(),
                 index: index.clone(),
@@ -416,6 +433,9 @@ impl<'a> Runner<'a> {
             .indexes
             .clone();
         for (index, definition) in indexes {
+            if definition.derived_offset().is_some() {
+                continue;
+            }
             self.created_points.insert((
                 table.to_owned(),
                 index,
@@ -554,7 +574,8 @@ impl<'a> Runner<'a> {
                     if rows.len() >= *max as usize {
                         return Err(RuntimeError::Constraint(format!(
                             "{table_name} cap {max} reached for group ({}) = {}",
-                            by.join(", "), canonical_json(&Value::Array(prefix))
+                            by.join(", "),
+                            canonical_json(&Value::Array(prefix))
                         )));
                     }
                 }
@@ -569,23 +590,7 @@ impl<'a> Runner<'a> {
                                 "{table_name}.{field} must contain at least {min} characters"
                             )));
                         }
-                        let valid = match format {
-                            None => true,
-                            Some(TextFormat::Handle) => text.bytes().all(|byte| {
-                                byte.is_ascii_lowercase() || byte.is_ascii_digit() || byte == b'_'
-                            }),
-                            Some(TextFormat::Url) => {
-                                let rest = text
-                                    .strip_prefix("https://")
-                                    .or_else(|| text.strip_prefix("http://"));
-                                rest.is_some_and(|rest| {
-                                    !rest.is_empty()
-                                        && rest.chars().all(|character| {
-                                            !character.is_whitespace() && !character.is_control()
-                                        })
-                                })
-                            }
-                        };
+                        let valid = format.is_none_or(|format| format.matches(text));
                         if !valid {
                             let expected = match format {
                                 Some(TextFormat::Handle) => {
@@ -1040,7 +1045,7 @@ impl<'a> Runner<'a> {
         let index_schema = table_schema
             .index(index)
             .ok_or_else(|| RuntimeError::Schema(format!("missing index {table}.{index}")))?;
-        let mut found = lookup_indexed(self.tx, table, index, index_schema, key)?;
+        let mut found = lookup_indexed(self.tx, self.schema, table, index, index_schema, key)?;
         if let Some(row) = &mut found {
             materialize_optional_fields(row, table_schema);
         }
@@ -1072,7 +1077,17 @@ impl<'a> Runner<'a> {
     }
 
     pub(super) fn record_row(&mut self, table: &str, id: &str, row: &Value, client: bool) {
-        self.row_membership.record(&mut self.trace.rows, &mut self.receipt.rows, table, id, row, client);
+        let retained = self.row_membership.record(
+            &mut self.trace.rows,
+            &mut self.receipt.rows,
+            table,
+            id,
+            row,
+            client,
+        );
+        if self.account_search_pool {
+            self.derived_hold(retained);
+        }
     }
 
     pub(super) fn bump_write(&mut self, table: &str) {
@@ -1083,7 +1098,11 @@ impl<'a> Runner<'a> {
         self.trace.steps = self.trace.steps.saturating_add(amount);
         let max_steps = self
             .certificate
-            .map(|certificate| certificate.max_steps)
+            .map(|certificate| {
+                certificate
+                    .max_steps
+                    .saturating_sub(certificate.derived_steps)
+            })
             .or_else(|| {
                 self.rule_certificate
                     .map(|certificate| certificate.max_steps)
@@ -1111,7 +1130,7 @@ impl<'a> Runner<'a> {
                 self.trace.rule_probes, certificate.max_rule_probes
             )));
         }
-        if self.trace.steps > certificate.max_steps {
+        if self.trace.steps.saturating_add(self.trace.derived_steps) > certificate.max_steps {
             return Err(RuntimeError::TraceSubset(format!(
                 "steps {} > certificate {}",
                 self.trace.steps, certificate.max_steps
@@ -1124,6 +1143,17 @@ impl<'a> Runner<'a> {
         let certificate = self
             .certificate
             .expect("ordinary program execution has a certificate");
+        if self.trace.derived_steps > certificate.derived_steps
+            || self.trace.derived_scratch_bytes > certificate.derived_scratch_bytes
+        {
+            return Err(RuntimeError::TraceSubset(format!(
+                "derived work {}/{} scratch {}/{}",
+                self.trace.derived_steps,
+                certificate.derived_steps,
+                self.trace.derived_scratch_bytes,
+                certificate.derived_scratch_bytes
+            )));
+        }
         if self.trace.examined > certificate.max_examined {
             return Err(RuntimeError::TraceSubset(format!(
                 "examined {} > certificate {}",
@@ -1248,7 +1278,9 @@ impl<'a> Runner<'a> {
             }
         }
         for row in &self.receipt.rows {
-            if !self.row_membership.contains(&self.trace.rows, &row.table, &row.id)
+            if !self
+                .row_membership
+                .contains(&self.trace.rows, &row.table, &row.id)
             {
                 return Err(RuntimeError::TraceSubset(format!(
                     "receipt row {}.{} absent from trace",

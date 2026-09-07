@@ -1,3 +1,4 @@
+use snapback2_core::ir::IndexKeyExpr;
 use snapback2_core::*;
 use std::collections::BTreeMap;
 
@@ -20,7 +21,10 @@ fn schema() -> Schema {
                 BTreeMap::from([(
                     "byId".to_owned(),
                     Index {
-                        columns: vec!["id".to_owned()],
+                        components: (vec!["id".to_owned()])
+                            .into_iter()
+                            .map(snapback2_core::search_key::IndexComponent::Column)
+                            .collect(),
                         unique: true,
                     },
                 )]),
@@ -38,7 +42,7 @@ fn scan() -> Expr {
         site: "items.page".to_owned(),
         table: "items".to_owned(),
         index: "byId".to_owned(),
-        prefix: Vec::new(),
+        prefix: (Vec::new()).into_iter().map(IndexKeyExpr::Scalar).collect(),
         order: Order::Asc,
         take: Bound::Literal(TAKE),
         after: None,
@@ -64,7 +68,10 @@ fn growth_schema() -> Schema {
                 BTreeMap::from([(
                     "byId".to_owned(),
                     Index {
-                        columns: vec!["id".to_owned()],
+                        components: (vec!["id".to_owned()])
+                            .into_iter()
+                            .map(snapback2_core::search_key::IndexComponent::Column)
+                            .collect(),
                         unique: true,
                     },
                 )]),
@@ -82,7 +89,7 @@ fn growth_scan(take: u32) -> Scan {
         site: "items.growth".to_owned(),
         table: "items".to_owned(),
         index: "byId".to_owned(),
-        prefix: Vec::new(),
+        prefix: (Vec::new()).into_iter().map(IndexKeyExpr::Scalar).collect(),
         order: Order::Asc,
         take: Bound::Literal(take),
         after: None,
@@ -458,7 +465,14 @@ fn collection_growth_defaults_to_growth_until_freshness_is_proven() {
     // loop-varying pattern is not a freshness proof.
     let argument_append = program_with_args(
         "items.argumentAppend",
-        BTreeMap::from([("value".to_owned(), ArgType::Text { max: 1_000 })]),
+        BTreeMap::from([(
+            "value".to_owned(),
+            ArgType::Text {
+                max: 1_000,
+                min: 0,
+                format: None,
+            },
+        )]),
         vec![
             empty_array(),
             literal_loop(vec![spread_append(
@@ -558,7 +572,14 @@ fn collection_growth_defaults_to_growth_until_freshness_is_proven() {
     // iteration at the honest recurrence magnitude.
     let reset_rebuild = program_with_args(
         "items.resetRebuild",
-        BTreeMap::from([("value".to_owned(), ArgType::Text { max: 1_000 })]),
+        BTreeMap::from([(
+            "value".to_owned(),
+            ArgType::Text {
+                max: 1_000,
+                min: 0,
+                format: None,
+            },
+        )]),
         vec![
             empty_array(),
             literal_loop(vec![
@@ -657,7 +678,14 @@ fn collection_growth_defaults_to_growth_until_freshness_is_proven() {
 
     let decoy = program_with_args(
         "items.decoyThenResult",
-        BTreeMap::from([("value".to_owned(), ArgType::Text { max: 1_000 })]),
+        BTreeMap::from([(
+            "value".to_owned(),
+            ArgType::Text {
+                max: 1_000,
+                min: 0,
+                format: None,
+            },
+        )]),
         vec![
             Stmt::Let {
                 name: "decoy".to_owned(),

@@ -2,7 +2,39 @@ import ts from "typescript";
 import type { TableInfo } from "../authored-types";
 import type { FunctionLike, LowerSourceOptions } from "../compiler";
 import type { Expr } from "../ir";
-import { snapbackCallName, stringArgument, unwrapCall } from "../syntax";
+import { snapbackCallName, stringArgument, unwrapCall, unwrapExpression } from "../syntax";
+
+/** Module descriptors are not executed. Only immutable scalar constants can
+ * supply a pure helper's free value; other free forms receive a sited refusal. */
+export function moduleScalarCaptures(sourceFile: ts.SourceFile): Map<string, ts.Expression> {
+  const captures = new Map<string, ts.Expression>();
+  for (const statement of sourceFile.statements) {
+    if (!ts.isVariableStatement(statement) || !(statement.declarationList.flags & ts.NodeFlags.Const)) continue;
+    for (const declaration of statement.declarationList.declarations) {
+      if (!ts.isIdentifier(declaration.name) || !declaration.initializer) continue;
+      let value = unwrapExpression(declaration.initializer);
+      if (ts.isIdentifier(value)) value = captures.get(value.text) ?? value;
+      const scalar = ts.isPrefixUnaryExpression(value) && [ts.SyntaxKind.MinusToken, ts.SyntaxKind.PlusToken].includes(value.operator)
+        ? unwrapExpression(value.operand) : value;
+      if (ts.isNumericLiteral(scalar) || ts.isStringLiteralLike(scalar)
+        || [ts.SyntaxKind.TrueKeyword, ts.SyntaxKind.FalseKeyword, ts.SyntaxKind.NullKeyword].includes(scalar.kind)) {
+        captures.set(declaration.name.text, value);
+      }
+    }
+  }
+  return captures;
+}
+
+/** Existing private harnesses explicitly declare these operation intrinsics.
+ * Resolve that declaration, never an arbitrary same-named caller local. */
+export function moduleAmbientComposites(sourceFile: ts.SourceFile): Array<"args" | "ctx" | "db"> {
+  return sourceFile.statements.flatMap(statement => ts.isVariableStatement(statement)
+    && statement.modifiers?.some(modifier => modifier.kind === ts.SyntaxKind.DeclareKeyword)
+    ? statement.declarationList.declarations.flatMap(declaration => {
+      const name = ts.isIdentifier(declaration.name) && declaration.name.text;
+      return !declaration.initializer && (name === "args" || name === "ctx" || name === "db") ? [name] : [];
+    }) : []);
+}
 
 export type ModuleInfo = {
   sourceSites?: Record<string, import("../ir").SourceSite>;

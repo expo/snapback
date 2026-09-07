@@ -14,7 +14,14 @@ fn generated_args_exercises_every_arg_type_variant() {
                     table: "todos".to_owned(),
                 },
             ),
-            ("text".to_owned(), ArgType::Text { max: 20 }),
+            (
+                "text".to_owned(),
+                ArgType::Text {
+                    max: 20,
+                    min: 0,
+                    format: None,
+                },
+            ),
             ("bytes".to_owned(), ArgType::Bytes { max: 20 }),
             ("int".to_owned(), ArgType::Int),
             ("bool".to_owned(), ArgType::Bool),
@@ -22,7 +29,11 @@ fn generated_args_exercises_every_arg_type_variant() {
             ("json".to_owned(), ArgType::Json { max_bytes: 100 }),
             (
                 "optional".to_owned(),
-                ArgType::Optional(Box::new(ArgType::Text { max: 20 })),
+                ArgType::Optional(Box::new(ArgType::Text {
+                    max: 20,
+                    min: 0,
+                    format: None,
+                })),
             ),
             (
                 "list".to_owned(),

@@ -1,3 +1,4 @@
+use snapback2_core::ir::IndexKeyExpr;
 use snapback2_core::*;
 use std::collections::BTreeMap;
 
@@ -14,14 +15,20 @@ fn schema(cap: Option<u32>) -> Schema {
             (
                 "byId".into(),
                 Index {
-                    columns: vec!["id".into()],
+                    components: (vec!["id".into()])
+                        .into_iter()
+                        .map(snapback2_core::search_key::IndexComponent::Column)
+                        .collect(),
                     unique: true,
                 },
             ),
             (
                 "byGroup".into(),
                 Index {
-                    columns: vec!["group".into(), "id".into()],
+                    components: (vec!["group".into(), "id".into()])
+                        .into_iter()
+                        .map(snapback2_core::search_key::IndexComponent::Column)
+                        .collect(),
                     unique: false,
                 },
             ),
@@ -58,7 +65,7 @@ fn row(n: usize, group: Option<Value>) -> Value {
     if let Some(group) = group {
         fields.insert("group".into(), group);
     }
-    Value::Row(fields)
+    Value::Row(fields.into())
 }
 
 fn program(body: Vec<Stmt>) -> Program {
@@ -301,7 +308,10 @@ fn scan() -> Scan {
         site: "members".into(),
         table: "memberships".into(),
         index: "byGroup".into(),
-        prefix: vec![Expr::Literal(Value::Null)],
+        prefix: (vec![Expr::Literal(Value::Null)])
+            .into_iter()
+            .map(IndexKeyExpr::Scalar)
+            .collect(),
         order: Order::Asc,
         take: Bound::Literal(50),
         after: None,
@@ -376,7 +386,8 @@ fn complete_loop_rejects_rule_probe_starvation_before_fetching() {
     let mut schema = schema(Some(50));
     let mut grants = schema.tables["memberships"].clone();
     grants.constraints.clear();
-    grants.indexes.get_mut("byGroup").unwrap().columns = vec!["group".into()];
+    grants.indexes.get_mut("byGroup").unwrap().components =
+        vec![IndexComponent::Column("group".into())];
     schema.tables.insert("grants".into(), grants);
     schema.tables.get_mut("memberships").unwrap().rules.read = RuleExpr::Exists {
         table: "grants".into(),

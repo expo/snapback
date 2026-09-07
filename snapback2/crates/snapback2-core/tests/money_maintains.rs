@@ -23,7 +23,10 @@ fn table(
                 (
                     name.to_owned(),
                     Index {
-                        columns: columns.into_iter().map(str::to_owned).collect(),
+                        components: (columns.into_iter().map(str::to_owned).collect::<Vec<_>>())
+                            .into_iter()
+                            .map(snapback2_core::search_key::IndexComponent::Column)
+                            .collect(),
                         unique,
                     },
                 )

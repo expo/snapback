@@ -37,14 +37,20 @@ pub(crate) fn reindex_row(
     schema: &Schema,
     table_name: &str,
     row: &Value,
-) -> Result<(), RuntimeError> {
+) -> Result<super::search_index::Derivation, RuntimeError> {
     let table = schema
         .table(table_name)
         .ok_or_else(|| RuntimeError::Schema(format!("missing table {table_name}")))?;
     let id = row.field("id")?.as_str()?;
-    delete_index_row(connection, table_name, id)?;
+    let mut derived = delete_index_row(connection, table_name, id)?;
+    derived.add(super::search_index::insert(
+        connection, schema, table_name, row,
+    )?);
     for (index_name, index) in &table.indexes {
-        if index.columns.len() > 8 {
+        if index.derived_offset().is_some() {
+            continue;
+        }
+        if index.components.len() > 8 {
             return Err(RuntimeError::Schema(format!(
                 "index {table_name}.{index_name} has more than 8 columns in S1"
             )));
@@ -65,35 +71,37 @@ pub(crate) fn reindex_row(
             ],
         )?;
     }
-    Ok(())
+    Ok(derived)
 }
 
 pub(super) fn delete_index_row(
     connection: &Connection,
     table_name: &str,
     id: &str,
-) -> Result<(), RuntimeError> {
+) -> Result<super::search_index::Derivation, RuntimeError> {
     connection.execute(
         "DELETE FROM index_entries WHERE table_name = ?1 AND row_id = ?2",
         params![table_name, id],
     )?;
-    Ok(())
+    super::search_index::remove(connection, table_name, id)
 }
 
 pub(super) fn lookup_indexed(
     connection: &Connection,
+    schema: &Schema,
     table_name: &str,
     index_name: &str,
     index: &Index,
     key: &[Value],
 ) -> Result<Option<Value>, RuntimeError> {
-    if key.len() != index.columns.len() {
+    if key.len() != index.components.len() || index.derived_offset().is_some() {
         return Err(RuntimeError::Schema(format!(
             "point read {table_name}.{index_name} supplied {} of {} key columns",
             key.len(),
-            index.columns.len()
+            index.components.len()
         )));
     }
+    crate::cap::validate_key_identities(schema, table_name, index_name, 0, key)?;
     let mut parameters = vec![table_name.to_owned(), index_name.to_owned()];
     let mut predicates = Vec::new();
     for (offset, value) in key.iter().enumerate() {
@@ -161,8 +169,18 @@ pub(super) fn prepare_scan_indexed<'a>(
     limit: usize,
 ) -> Result<rusqlite::Statement<'a>, RuntimeError> {
     let (sql, parameters) = scan_query(
-        table_name, index_name, table, index, prefix, after, before, range, order, limit,
-        None, intrinsic_id_order(table, index),
+        table_name,
+        index_name,
+        table,
+        index,
+        prefix,
+        after,
+        before,
+        range,
+        order,
+        limit,
+        None,
+        intrinsic_id_order(table, index),
     )?;
     let mut statement = connection.prepare(&sql)?;
     bind_scan(&mut statement, &parameters)?;
@@ -173,7 +191,11 @@ pub(super) fn prepare_scan_indexed<'a>(
 // a full index key ending in that id is a total order without a row_id tie term.
 // Other indexes keep the original SQL, even if another proof could suffice.
 pub(super) fn intrinsic_id_order(table: &Table, index: &Index) -> bool {
-    index.columns.last().is_some_and(|column| column == "id")
+    index
+        .components
+        .last()
+        .and_then(IndexComponent::column)
+        .is_some_and(|column| column == "id")
         && table.columns.get("id") == Some(&ColumnType::Id)
 }
 
@@ -192,13 +214,20 @@ pub(super) struct InitialSeek {
 impl InitialSeek {
     #[allow(clippy::too_many_arguments)]
     pub(super) fn new(
-        table_name: &str, index_name: &str, table: &Table, index: &Index,
-        prefix: &[Value], after: Option<&Value>, before: Option<&Value>,
-        range: Option<&EvaluatedRange>, order: Order, reserve: u64,
+        table_name: &str,
+        index_name: &str,
+        table: &Table,
+        index: &Index,
+        prefix: &[Value],
+        after: Option<&Value>,
+        before: Option<&Value>,
+        range: Option<&EvaluatedRange>,
+        order: Order,
+        reserve: u64,
     ) -> Result<Option<Box<Self>>, RuntimeError> {
         let (sql, mut parameters) = scan_query(
-            table_name, index_name, table, index, prefix, after, before, range,
-            order, 1, None, true,
+            table_name, index_name, table, index, prefix, after, before, range, order, 1, None,
+            true,
         )?;
         // These encodings are rebound for every stream. Retaining them would
         // charge a second, unused copy of arbitrarily wide equality keys.
@@ -210,33 +239,61 @@ impl InitialSeek {
         {
             return Ok(None);
         }
-        let initial = Self { sql, parameters, prefix_width: prefix.len(),
-            after: after.cloned(), before: before.cloned(), range: range.cloned() };
-        Ok(initial.retained_bytes().is_some_and(|bytes| bytes <= reserve)
+        let initial = Self {
+            sql,
+            parameters,
+            prefix_width: prefix.len(),
+            after: after.cloned(),
+            before: before.cloned(),
+            range: range.cloned(),
+        };
+        Ok(initial
+            .retained_bytes()
+            .is_some_and(|bytes| bytes <= reserve)
             .then(|| Box::new(initial)))
     }
 
     pub(super) fn retained_bytes(&self) -> Option<u64> {
-        Self::retained_parts(&self.sql, &self.parameters, self.after.as_ref(),
-            self.before.as_ref(), self.range.as_ref())
+        Self::retained_parts(
+            &self.sql,
+            &self.parameters,
+            self.after.as_ref(),
+            self.before.as_ref(),
+            self.range.as_ref(),
+        )
     }
 
-    fn retained_parts(sql: &String, parameters: &Vec<String>, after: Option<&Value>,
-        before: Option<&Value>, range: Option<&EvaluatedRange>) -> Option<u64>
-    {
+    fn retained_parts(
+        sql: &String,
+        parameters: &Vec<String>,
+        after: Option<&Value>,
+        before: Option<&Value>,
+        range: Option<&EvaluatedRange>,
+    ) -> Option<u64> {
         // Include the sole optional box, its inline fields, all allocation
         // capacities (not lengths), names and both encoded and typed bounds.
         // Rejected templates die before the next lane; no authored-count vector.
-        let mut bytes = (std::mem::size_of::<Option<Box<Self>>>() + std::mem::size_of::<Self>()) as u64;
+        let mut bytes =
+            (std::mem::size_of::<Option<Box<Self>>>() + std::mem::size_of::<Self>()) as u64;
         bytes = bytes.checked_add(sql.capacity() as u64)?;
-        bytes = bytes.checked_add(parameters.capacity().checked_mul(std::mem::size_of::<String>())? as u64)?;
+        bytes = bytes.checked_add(
+            parameters
+                .capacity()
+                .checked_mul(std::mem::size_of::<String>())? as u64,
+        )?;
         for parameter in parameters {
             bytes = bytes.checked_add(parameter.capacity() as u64)?;
         }
-        for value in [after, before,
-            range.and_then(|r| r.gt.as_ref()), range.and_then(|r| r.gte.as_ref()),
-            range.and_then(|r| r.lt.as_ref()), range.and_then(|r| r.lte.as_ref())]
-            .into_iter().flatten()
+        for value in [
+            after,
+            before,
+            range.and_then(|r| r.gt.as_ref()),
+            range.and_then(|r| r.gte.as_ref()),
+            range.and_then(|r| r.lt.as_ref()),
+            range.and_then(|r| r.lte.as_ref()),
+        ]
+        .into_iter()
+        .flatten()
         {
             bytes = bytes.checked_add(bound_capacity(value)?)?;
         }
@@ -244,15 +301,22 @@ impl InitialSeek {
     }
 
     pub(super) fn matches(
-        &self, prefix: &[Value], after: Option<&Value>, before: Option<&Value>,
+        &self,
+        prefix: &[Value],
+        after: Option<&Value>,
+        before: Option<&Value>,
         range: Option<&EvaluatedRange>,
     ) -> bool {
-        self.prefix_width == prefix.len() && self.after.as_ref() == after
-            && self.before.as_ref() == before && self.range.as_ref() == range
+        self.prefix_width == prefix.len()
+            && self.after.as_ref() == after
+            && self.before.as_ref() == before
+            && self.range.as_ref() == range
     }
 
     pub(super) fn seek(
-        &self, connection: &Connection, prefix: &[Value],
+        &self,
+        connection: &Connection,
+        prefix: &[Value],
     ) -> Result<Option<Value>, RuntimeError> {
         let mut statement = connection.prepare_cached(&self.sql)?;
         for (offset, value) in self.parameters.iter().enumerate() {
@@ -263,10 +327,12 @@ impl InitialSeek {
             statement.raw_bind_parameter(offset + 3, encode_index_value(value)?)?;
         }
         let mut rows = statement.raw_query();
-        rows.next()?.map(|row| {
-            let data: String = row.get(0)?;
-            serde_json::from_str(&data).map_err(|error| RuntimeError::Schema(error.to_string()))
-        }).transpose()
+        rows.next()?
+            .map(|row| {
+                let data: String = row.get(0)?;
+                serde_json::from_str(&data).map_err(|error| RuntimeError::Schema(error.to_string()))
+            })
+            .transpose()
     }
 }
 
@@ -276,7 +342,9 @@ fn bound_capacity(value: &Value) -> Option<u64> {
         Value::String(value) | Value::Id(value) => Some(value.capacity() as u64),
         Value::Bytes(value) => Some(value.capacity() as u64),
         Value::Array(values) => values.iter().try_fold(
-            values.capacity().checked_mul(std::mem::size_of::<Value>())? as u64,
+            values
+                .capacity()
+                .checked_mul(std::mem::size_of::<Value>())? as u64,
             |bytes, value| bytes.checked_add(bound_capacity(value)?),
         ),
         // Index bounds are scalars or scalar tuples. If that domain ever grows,
@@ -300,21 +368,36 @@ pub(super) fn seek_scan_indexed(
     last_examined: Option<&[Value]>,
 ) -> Result<Option<Value>, RuntimeError> {
     let (sql, parameters) = scan_query(
-        table_name, index_name, table, index, prefix, after, before, range, order, 1,
-        last_examined, true,
+        table_name,
+        index_name,
+        table,
+        index,
+        prefix,
+        after,
+        before,
+        range,
+        order,
+        1,
+        last_examined,
+        true,
     )?;
     // The connection's bounded statement cache keys SQL shapes, never actor
     // values. Drop Rows and return the statement before another lane seeks.
     let mut statement = connection.prepare_cached(&sql)?;
     bind_scan(&mut statement, &parameters)?;
     let mut rows = statement.raw_query();
-    rows.next()?.map(|row| {
-        let data: String = row.get(0)?;
-        serde_json::from_str(&data).map_err(|error| RuntimeError::Schema(error.to_string()))
-    }).transpose()
+    rows.next()?
+        .map(|row| {
+            let data: String = row.get(0)?;
+            serde_json::from_str(&data).map_err(|error| RuntimeError::Schema(error.to_string()))
+        })
+        .transpose()
 }
 
-fn bind_scan(statement: &mut rusqlite::Statement<'_>, parameters: &[String]) -> Result<(), RuntimeError> {
+fn bind_scan(
+    statement: &mut rusqlite::Statement<'_>,
+    parameters: &[String],
+) -> Result<(), RuntimeError> {
     for (i, value) in parameters.iter().enumerate() {
         statement.raw_bind_parameter(i + 1, value)?;
     }
@@ -336,14 +419,14 @@ fn scan_query(
     last_examined: Option<&[Value]>,
     intrinsic_order: bool,
 ) -> Result<(String, Vec<String>), RuntimeError> {
-    if prefix.len() > index.columns.len() {
+    if prefix.len() > index.components.len() {
         return Err(RuntimeError::Schema(format!(
             "scan {table_name}.{index_name} prefix has too many columns"
         )));
     }
     // @ref LLP 1001#3-read-and-write-states-no-silent-states — a cursor must
     // move a scan; a fully named index has no post-prefix position to compare.
-    if prefix.len() == index.columns.len() && (after.is_some() || before.is_some()) {
+    if prefix.len() == index.components.len() && (after.is_some() || before.is_some()) {
         return Err(RuntimeError::Schema(format!(
             "scan {table_name}.{index_name} prefix names every index column, so a cursor has no position to compare; remove after/before or shorten the prefix"
         )));
@@ -354,7 +437,7 @@ fn scan_query(
         push_index_bound(&mut parameters, &mut predicates, offset, "=", value)?;
     }
     let range_column = prefix.len();
-    if range_column < index.columns.len() {
+    if range_column < index.components.len() {
         if let Some(value) = after {
             push_cursor_bound(
                 &mut parameters,
@@ -399,15 +482,25 @@ fn scan_query(
     if let Some(key) = last_examined {
         // This extra bound intersects (never replaces) all original bounds.
         // Equality-prefix + the entire index key includes the intrinsic id.
-        push_cursor_bound(&mut parameters, &mut predicates, 0,
+        push_cursor_bound(
+            &mut parameters,
+            &mut predicates,
+            prefix.len(),
             if order == Order::Asc { ">" } else { "<" },
-            &Value::Array(key.to_vec()), table_name, index_name, table, index)?;
+            &Value::Array(key.to_vec()),
+            table_name,
+            index_name,
+            table,
+            index,
+        )?;
     }
     let direction = if order == Order::Asc { "ASC" } else { "DESC" };
-    let ordering = (0..index.columns.len())
+    let ordering = (0..index.components.len())
         .map(|offset| format!("ie.c{offset} {direction}"))
-        .chain((!intrinsic_order || !intrinsic_id_order(table, index))
-            .then(|| format!("ie.row_id {direction}")))
+        .chain(
+            (!intrinsic_order || !intrinsic_id_order(table, index))
+                .then(|| format!("ie.row_id {direction}")),
+        )
         .collect::<Vec<_>>()
         .join(", ");
     let suffix = if predicates.is_empty() {
@@ -420,9 +513,14 @@ fn scan_query(
     // to satisfy row_id ordering and scan the whole table per write; the J1b 100,000-row fill
     // measured that cost, and the corpus is unchanged under the pin.
     // @ref LLP 1016#implementation-record--j1b — a store planner pin justified by the J1b measurement, applying to every exact-prefix ordered probe.
+    let (entries, lookup) = if index.derived_offset().is_some() {
+        ("_search_postings", "_search_postings_lookup")
+    } else {
+        ("index_entries", "index_entries_lookup")
+    };
     let sql = format!(
         "SELECT r.data
-         FROM index_entries ie INDEXED BY index_entries_lookup
+         FROM {entries} ie INDEXED BY {lookup}
          JOIN rows r ON r.table_name = ie.table_name AND r.row_id = ie.row_id
          WHERE ie.table_name = ?1 AND ie.index_name = ?2{suffix}
          ORDER BY {ordering}
@@ -454,7 +552,7 @@ fn push_cursor_bound(
     table: &Table,
     index: &Index,
 ) -> Result<(), RuntimeError> {
-    let column_count = index.columns.len();
+    let column_count = index.components.len();
     let remaining = column_count - first_column;
     let values = match cursor {
         Value::Array(values) => values.as_slice(),
@@ -479,7 +577,9 @@ fn push_cursor_bound(
     let mut placeholders = Vec::with_capacity(values.len());
     for (offset, value) in values.iter().enumerate() {
         let encoded = encode_index_value(value)?;
-        let column = &index.columns[first_column + offset];
+        let column = index.components[first_column + offset]
+            .column()
+            .ok_or_else(|| RuntimeError::Input("derived cursor component".into()))?;
         let expected = table.columns.get(column).ok_or_else(|| {
             RuntimeError::Schema(format!(
                 "index {table_name}.{index_name} names missing column {column}"
@@ -548,6 +648,8 @@ fn cursor_column_kind(column: &ColumnType) -> &'static str {
 }
 
 pub(super) fn encode_index_value(value: &Value) -> Result<String, RuntimeError> {
+    // Admission is schema/slot-aware at the caller; encoding must also accept
+    // a maintained target address already admitted by that schema.
     let encoded = match value {
         Value::Null => "0".to_owned(),
         Value::Bool(value) => format!("1:{}", u8::from(*value)),
@@ -582,9 +684,12 @@ pub(super) fn hex(bytes: &[u8]) -> String {
 
 pub(crate) fn index_values(row: &Value, index: &Index) -> Vec<Value> {
     index
-        .columns
+        .components
         .iter()
-        .map(|column| row.field(column).cloned().unwrap_or(Value::Null))
+        .map(|c| match c {
+            IndexComponent::Column(column) => row.field(column).cloned().unwrap_or(Value::Null),
+            IndexComponent::WordPrefixes { .. } => Value::Null,
+        })
         .collect()
 }
 
@@ -594,8 +699,8 @@ pub(crate) fn materialize_optional_fields(row: &mut Value, table: &Table) {
         _ => return,
     };
     for (name, kind) in &table.columns {
-        if matches!(kind, ColumnType::Optional(_)) {
-            fields.entry(name.clone()).or_insert(Value::Null);
+        if matches!(kind, ColumnType::Optional(_)) && !fields.contains_key(name) {
+            fields.insert(name.clone(), Value::Null);
         }
     }
 }
@@ -612,11 +717,14 @@ pub(super) fn row_ids(rows: &[Value]) -> Result<Vec<String>, RuntimeError> {
 }
 
 pub(crate) fn validate_row(
-    table: Option<&Table>,
+    schema: &Schema,
     table_name: &str,
     row: &Value,
 ) -> Result<(), RuntimeError> {
-    let table = table.ok_or_else(|| RuntimeError::Schema(format!("missing table {table_name}")))?;
+    let table = schema
+        .table(table_name)
+        .ok_or_else(|| RuntimeError::Schema(format!("missing table {table_name}")))?;
+    crate::cap::validate_row_identities(schema, table_name, row)?;
     let object = row.as_object()?;
     if !object.contains_key("id") {
         return Err(RuntimeError::Schema(format!("{table_name} row lacks id")));
@@ -638,12 +746,43 @@ pub(crate) fn validate_row(
         )));
     }
     for (name, kind) in &table.columns {
-        validate_column_value(table_name, name, kind, object.get(name))?;
+        if name != "id" {
+            validate_typed_column_value(schema, table_name, name, kind, object.get(name))?;
+        }
     }
     Ok(())
 }
 
+pub(crate) fn validate_typed_column_value(
+    schema: &Schema,
+    table: &str,
+    name: &str,
+    kind: &ColumnType,
+    value: Option<&Value>,
+) -> Result<(), RuntimeError> {
+    // Asset validation owns whole-container uniqueness and typed refusals.
+    if kind.contains_asset() {
+        return validate_column_value(table, name, kind, value);
+    }
+    if let Some(value) = value {
+        crate::cap::validate_typed_identities(schema, kind, value)?;
+    }
+    validate_column_shape(table, name, kind, value)
+}
+
 pub(crate) fn validate_column_value(
+    table_name: &str,
+    name: &str,
+    kind: &ColumnType,
+    value: Option<&Value>,
+) -> Result<(), RuntimeError> {
+    if let Some(value) = value {
+        crate::value::validate_identities(value)?;
+    }
+    validate_column_shape(table_name, name, kind, value)
+}
+
+fn validate_column_shape(
     table_name: &str,
     name: &str,
     kind: &ColumnType,

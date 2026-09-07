@@ -453,7 +453,7 @@ export function registerRbacRuleChecks(
     const reserved = lowered.diagnostics.filter((item) => item.code === "E_SCHEMA_ID_RESERVED");
     assert(reserved.length === 2, `expected reserved id and byId refusals, got ${reserved.length}`);
     assert((lowered.schema.tables.rows as any).columns.id === "Id", "authored id replaced the implicit Id column");
-    assert(canonical((lowered.schema.tables.rows as any).indexes.byId) === canonical({ columns: ["id"], unique: true }), "authored byId replaced the implicit index");
+    assert(canonical((lowered.schema.tables.rows as any).indexes.byId) === canonical({ components: [{ Column: "id" }], unique: true }), "authored byId replaced the implicit index");
 
     for (const patch of [
       `{ id: "row-2" }`,

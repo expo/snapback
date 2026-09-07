@@ -89,14 +89,20 @@ fn write_schema() -> Schema {
                     (
                         "byId".to_owned(),
                         Index {
-                            columns: vec!["id".to_owned()],
+                            components: (vec!["id".to_owned()])
+                                .into_iter()
+                                .map(snapback2_core::search_key::IndexComponent::Column)
+                                .collect(),
                             unique: true,
                         },
                     ),
                     (
                         "byLabel".to_owned(),
                         Index {
-                            columns: vec!["label".to_owned()],
+                            components: (vec!["label".to_owned()])
+                                .into_iter()
+                                .map(snapback2_core::search_key::IndexComponent::Column)
+                                .collect(),
                             unique: true,
                         },
                     ),

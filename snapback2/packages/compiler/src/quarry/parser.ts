@@ -1,3 +1,5 @@
+import { SEARCH_CONTRACT } from "../index-components";
+import type { IndexComponent } from "../ir";
 import type {
   ArgDecl,
   ChannelDecl,
@@ -260,11 +262,23 @@ class Parser {
       explicit = this.word().value;
       this.take(":");
     }
-    const columns = [this.word().value];
-    while (this.maybe(",")) columns.push(this.word().value);
+    const component = (): IndexComponent => {
+      const name = this.word();
+      if (name.value !== "wordPrefixes" || !this.at("(")) return { Column: name.value };
+      this.take("(");
+      const fields: string[] = [];
+      if (!this.at(")")) {
+        fields.push(this.word().value);
+        while (this.maybe(",")) fields.push(this.word().value);
+      }
+      this.take(")");
+      return { WordPrefixes: { fields, contract: SEARCH_CONTRACT } };
+    };
+    const components = [component()];
+    while (this.maybe(",")) components.push(component());
     this.newline();
-    const inferred = `by${columns.map(title).join("")}`;
-    return { name: explicit ?? inferred, columns, unique, site };
+    const inferred = `by${components.map(c => "Column" in c ? title(c.Column) : `WordPrefixes${c.WordPrefixes.fields.map(title).join("")}`).join("")}`;
+    return { name: explicit ?? inferred, components, unique, site };
   }
 
   private parseMaintain(): MaintainDecl {
@@ -497,7 +511,8 @@ class Parser {
         let format: "handle" | "url" | undefined;
         if (this.maybe("format")) {
           const value = this.word();
-          if (value.value !== "handle" && value.value !== "url") syntax(value, `unknown text format ${value.value}`);
+          if (value.value !== "handle" && value.value !== "url") syntax(value, `unknown text format ${value.value}`,
+            `use text ${min === undefined ? `<=${max}` : `${min}..${max}`} format handle or text ${min === undefined ? `<=${max}` : `${min}..${max}`} format url`);
           format = value.value;
         }
         type = { kind: "text", ...(min === undefined ? {} : { min }), max, ...(format ? { format } : {}), optional: false };

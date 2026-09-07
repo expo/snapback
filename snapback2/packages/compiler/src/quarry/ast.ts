@@ -1,4 +1,4 @@
-import type { RetentionPolicy } from "../ir";
+import type { RetentionPolicy, IndexComponent } from "../ir";
 
 export type Site = { file: string; line: number; col: number; expandedFrom?: Site; expansionId?: number };
 
@@ -92,7 +92,7 @@ export type Stmt =
   | { kind: "for"; name: string; domain: Expr; body: Stmt[]; site: Site }
   | { kind: "match"; read: Extract<Expr, { kind: "read" }>; someName: string; someBody: Stmt[]; noneBody: Stmt[]; site: Site };
 
-export type IndexDecl = { name: string; columns: string[]; unique: boolean; site: Site };
+export type IndexDecl = { name: string; components: IndexComponent[]; unique: boolean; site: Site };
 export type RuleDecl = { effect: "read" | "insert" | "update" | "delete"; bindings: string[]; value: Expr; site: Site };
 export type ColumnDecl = { name: string; type: ScalarType; site: Site };
 export type FinalExistsDecl = { value: Extract<Expr, { kind: "exists" }>; site: Site };

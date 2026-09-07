@@ -10,7 +10,10 @@ fn table(columns: &[(&str, ColumnType)]) -> Table {
         BTreeMap::from([(
             "byId".into(),
             Index {
-                columns: vec!["id".into()],
+                components: (vec!["id".into()])
+                    .into_iter()
+                    .map(snapback2_core::search_key::IndexComponent::Column)
+                    .collect(),
                 unique: true,
             },
         )]),
@@ -39,7 +42,7 @@ fn scan(index: &str, prefix: Vec<Expr>, take: u32) -> Expr {
         site: "items.range".into(),
         table: "items".into(),
         index: index.into(),
-        prefix,
+        prefix: prefix.into_iter().map(IndexKeyExpr::Scalar).collect(),
         order: Order::Asc,
         take: Bound::Literal(take),
         after: None,
@@ -59,14 +62,20 @@ fn fixture_project() -> ProjectJson {
     items.indexes.insert(
         "byScope".into(),
         Index {
-            columns: vec!["scope".into(), "id".into()],
+            components: (vec!["scope".into(), "id".into()])
+                .into_iter()
+                .map(snapback2_core::search_key::IndexComponent::Column)
+                .collect(),
             unique: false,
         },
     );
     items.indexes.insert(
         "byLabel".into(),
         Index {
-            columns: vec!["label".into()],
+            components: (vec!["label".into()])
+                .into_iter()
+                .map(snapback2_core::search_key::IndexComponent::Column)
+                .collect(),
             unique: true,
         },
     );
@@ -93,7 +102,10 @@ fn fixture_project() -> ProjectJson {
     memberships.indexes.insert(
         "byScopePrincipal".into(),
         Index {
-            columns: vec!["scope".into(), "principal".into()],
+            components: (vec!["scope".into(), "principal".into()])
+                .into_iter()
+                .map(snapback2_core::search_key::IndexComponent::Column)
+                .collect(),
             unique: true,
         },
     );
@@ -106,7 +118,10 @@ fn fixture_project() -> ProjectJson {
     totals.indexes.insert(
         "byScope".into(),
         Index {
-            columns: vec!["scope".into()],
+            components: (vec!["scope".into()])
+                .into_iter()
+                .map(snapback2_core::search_key::IndexComponent::Column)
+                .collect(),
             unique: true,
         },
     );
@@ -239,7 +254,10 @@ fn system_range_skips_membership_rules_and_derives_complete_from_exhaustion() {
         assert_eq!(result.trace.rows.len(), 2);
         assert!(result.trace.rule_inputs.is_empty());
         assert_eq!(result.trace.rule_probes, 0);
-        assert_eq!(result.receipt, Default::default());
+        assert_eq!(
+            canonical_json(&result.receipt),
+            canonical_json(&snapback2_core::engine::ClosureReceipt::default())
+        );
     }
     assert_eq!(
         operator(&mut runtime, "limited").state,
@@ -255,7 +273,10 @@ fn system_point_reads_hidden_rows_without_verdicts_or_receipts_and_does_not_comm
     assert_eq!(read.result.field("id").unwrap(), &Value::Id("i1".into()));
     assert_eq!(read.trace.points.len(), 1);
     assert_eq!(read.trace.rows.len(), 1);
-    assert_eq!(read.receipt, Default::default());
+    assert_eq!(
+        canonical_json(&read.receipt),
+        canonical_json(&snapback2_core::engine::ClosureReceipt::default())
+    );
     assert_eq!(runtime.store().commit_seq().unwrap(), seq);
 }
 #[test]
@@ -286,7 +307,10 @@ fn system_deny_insert_maintains_trace_and_operator_commit_are_atomic() {
     assert_eq!(commit.by.as_deref(), Some("alice"));
     assert_eq!(commit.writes, execution.trace.writes);
     assert_eq!(commit.touched, execution.trace.touched);
-    assert_eq!(execution.receipt, Default::default());
+    assert_eq!(
+        canonical_json(&execution.receipt),
+        canonical_json(&snapback2_core::engine::ClosureReceipt::default())
+    );
     let query = program(
         "total",
         ProgramKind::Query,
@@ -302,7 +326,10 @@ fn system_deny_insert_maintains_trace_and_operator_commit_are_atomic() {
         .read_operator(&query, BTreeMap::new(), OperatorId("alice".into()), 5)
         .unwrap();
     assert_eq!(total.result.field("value").unwrap(), &Value::Int(3));
-    assert_eq!(total.receipt, Default::default());
+    assert_eq!(
+        canonical_json(&total.receipt),
+        canonical_json(&snapback2_core::engine::ClosureReceipt::default())
+    );
 }
 #[test]
 fn system_immutable_and_unique_reject_but_rule_denied_update_and_delete_commit() {

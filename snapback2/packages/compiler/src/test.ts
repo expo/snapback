@@ -7,6 +7,7 @@ import { listJourneys, lowerProject as lowerAuthoredProject, lowerSeed } from ".
 import { lowerSchema } from "./lower/schema";
 import { registerPrincipalChecks, registerRbacRuleChecks } from "./rbac-checks";
 import { registerProvenanceSiteChecks } from "./provenance-site-checks";
+import { registerInsertProvenanceChecks } from "./insert-provenance-checks";
 import { registerCollectionFactChecks } from "./collection-fact-checks";
 import { registerColumnTypeChecks } from "./test-column-types";
 import { registerFinalGateChecks } from "./test-final-gates";
@@ -34,6 +35,7 @@ import * as reactSurface from "../../snapback2/src/react";
 import * as testSurface from "../../snapback2/src/test";
 import ts from "typescript";
 import { registerQuarryWordsChecks } from "./quarry-words-checks";
+import { registerQuarrySearchChecks } from "./quarry-search-checks";
 
 const frontend = decodeURIComponent(new URL("../", import.meta.url).pathname);
 const crate = decodeURIComponent(new URL("../../../", import.meta.url).pathname);
@@ -302,7 +304,7 @@ test("count and reduce retain O(1) closure through page bindings", () => {
   const schema = {
     tables: { items: {
       columns: { id: "Id", amount: "Int", body: { Text: { max: 220 } } },
-      indexes: { byId: { columns: ["id"], unique: true } },
+      indexes: { byId: { components: [{ Column: "id" }], unique: true } },
       rules: {
         read: { Public: { reason: "retention fixture" } },
         insert: { Public: { reason: "retention fixture" } },
@@ -328,7 +330,7 @@ test("structural policy admits prefix-uniform private scans and refuses non-unif
     private: true,
     indexes: {
       byScope: {
-        columns: [firstColumn, "order", "id"],
+        components: [firstColumn, "order", "id"].map(Column => ({ Column })),
         types: [{ kind: "string" }, { kind: "int" }, { kind: "string" }],
       },
     },
@@ -353,7 +355,7 @@ test("actual collection lowerings preserve capped page provenance through struct
     columns: { id: { kind: "string" }, group: { kind: "string" }, owner: { kind: "string" }, order: { kind: "int" }, amount: { kind: "int" } },
     indexes: {
       byScope: {
-        columns: ["group", "order", "id"],
+        components: ["group", "order", "id"].map(Column => ({ Column })),
         types: [{ kind: "string" }, { kind: "int" }, { kind: "string" }],
       },
     },
@@ -361,7 +363,7 @@ test("actual collection lowerings preserve capped page provenance through struct
   const schema = {
     tables: { docs: {
       columns: { id: "Id", group: "Id", owner: "Principal", order: "Int", amount: "Int" },
-      indexes: { byId: { columns: ["id"], unique: true }, byScope: { columns: ["group", "order", "id"], unique: false } },
+      indexes: { byId: { components: [{ Column: "id" }], unique: true }, byScope: { components: [{ Column: "group" }, { Column: "order" }, { Column: "id" }], unique: false } },
       rules: { read: { Eq: [{ Field: "owner" }, "Viewer"] }, insert: "Allow", update: "Allow", delete: "Allow" },
       constraints: [],
     } },
@@ -399,7 +401,7 @@ test("authored collected capped pages may return but cannot be inserted", () => 
       columns: { id: { kind: "string" }, group: { kind: "string" }, owner: { kind: "string" }, order: { kind: "int" }, amount: { kind: "int" } },
       indexes: {
         byScope: {
-          columns: ["group", "order", "id"],
+          components: ["group", "order", "id"].map(Column => ({ Column })),
           types: [{ kind: "string" }, { kind: "int" }, { kind: "string" }],
         },
       } }],
@@ -410,12 +412,12 @@ test("authored collected capped pages may return but cannot be inserted", () => 
     tables: {
       docs: {
         columns: { id: "Id", group: "Id", owner: "Principal", order: "Int", amount: "Int" },
-        indexes: { byId: { columns: ["id"], unique: true }, byScope: { columns: ["group", "order", "id"], unique: false } },
+        indexes: { byId: { components: [{ Column: "id" }], unique: true }, byScope: { components: [{ Column: "group" }, { Column: "order" }, { Column: "id" }], unique: false } },
         rules: { read: { Eq: [{ Field: "owner" }, "Viewer"] }, insert: "Allow", update: "Allow", delete: "Allow" },
         constraints: [] },
       snapshots: {
         columns: { id: "Id", items: { Json: { max_bytes: 4_096 } } },
-        indexes: { byId: { columns: ["id"], unique: true } },
+        indexes: { byId: { components: [{ Column: "id" }], unique: true } },
         rules: { read: "Allow", ...allowWrites }, constraints: [] },
     },
     maintains: [], channels: {}, auth: { password: false, guests: false }, effects: [],
@@ -453,7 +455,7 @@ test("loop collection refusals name bounds and fields without replacing the resu
   const schema = {
     tables: { items: {
       columns: { id: "Id", amount: "Int", body: { Text: { max: 512 } } },
-      indexes: { byId: { columns: ["id"], unique: true } },
+      indexes: { byId: { components: [{ Column: "id" }], unique: true } },
       rules: {
         read: { Public: { reason: "growth rewrite fixture" } },
         insert: { Public: { reason: "growth rewrite fixture" } },
@@ -610,7 +612,7 @@ test("bound rewrite uses the refusing table's declared row width", () => {
   const schema = {
     tables: { wideRows: {
       columns: { id: "Id", amount: "Int", body: { Text: { max: 4000 } } },
-      indexes: { byId: { columns: ["id"], unique: true } },
+      indexes: { byId: { components: [{ Column: "id" }], unique: true } },
       rules: {
         read: { Public: { reason: "wide-row fixture" } },
         insert: { Public: { reason: "wide-row fixture" } },
@@ -963,8 +965,8 @@ test("chat and todos lower schema, channels, effects, emit, API types, seed, and
   const profileShape = chat.project.schema.tables.profiles as any;
   const membershipShape = chat.project.schema.tables.memberships as any;
   assert(profileShape?.columns?.principal === "Principal"
-    && canonical(profileShape?.indexes?.byPrincipal) === canonical({ columns: ["principal"], unique: true })
-    && canonical(profileShape?.indexes?.byHandle) === canonical({ columns: ["handle"], unique: true })
+    && canonical(profileShape?.indexes?.byPrincipal) === canonical({ components: [{ Column: "principal" }], unique: true })
+    && canonical(profileShape?.indexes?.byHandle) === canonical({ components: [{ Column: "handle" }], unique: true })
     && canonical(profileShape?.constraints).includes(canonical({ Unique: { index: "byPrincipal" } }))
     && canonical(profileShape?.constraints).includes(canonical({ Unique: { index: "byHandle" } }))
     && canonical(profileShape?.constraints).includes(canonical({ Immutable: { fields: ["principal"] } }))
@@ -974,7 +976,7 @@ test("chat and todos lower schema, channels, effects, emit, API types, seed, and
   assert(membershipShape?.columns?.principal === "Principal"
     && canonical(membershipShape?.columns?.role) === canonical({ Enum: { variants: ["member", "admin"] } })
     && canonical(membershipShape?.indexes?.byConversationPrincipalRole)
-      === canonical({ columns: ["conversationId", "principal", "role"], unique: false }),
+      === canonical({ components: [{ Column: "conversationId" }, { Column: "principal" }, { Column: "role" }], unique: false }),
     "chat membership authority must remain a nominal Principal");
   assert((chat.project.schema.tables.conversations as any)?.columns?.creatorId === "Principal"
     && (chat.project.schema.tables.messages as any)?.columns?.authorId === "Principal",
@@ -986,7 +988,7 @@ test("chat and todos lower schema, channels, effects, emit, API types, seed, and
     && followShape?.columns?.follower === "Principal"
     && followShape?.columns?.followed === "Principal"
     && canonical(followShape?.indexes?.byFollowerFollowed)
-      === canonical({ columns: ["follower", "followed"], unique: true }),
+      === canonical({ components: [{ Column: "follower" }, { Column: "followed" }], unique: true }),
   "chat social rows must preserve nominal actors and the explicit product relationship");
   assert("typing" in chat.project.schema.channels, "typing channel missing");
   assert(chat.apiDts.includes("type ProfilesRow = {") && chat.apiDts.includes("Page<MessagesRow>"), "API declaration omitted named table rows/Page scan results");
@@ -1122,6 +1124,7 @@ test("invalid Principal, Decimal, Money, and Enum descriptors refuse with sited 
 });
 registerColumnTypeChecks(test);
 registerProvenanceSiteChecks(test, `${frontend}fixtures/s1`);
+registerInsertProvenanceChecks(test);
 registerCollectionFactChecks(test);
 
 test("Decimal multiplication keeps int multipliers and refuses bare branded products", () => {
@@ -1411,6 +1414,7 @@ test("worker refuses every TypeScript-authored export and serves the next Quarry
 });
 
 registerQuarryWordsChecks(test, libText);
+registerQuarrySearchChecks(test, libText);
 
 registerPackageGuideChecks(test, assert, withProject, crate);
 

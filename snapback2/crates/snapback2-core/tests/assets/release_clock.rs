@@ -99,7 +99,10 @@ fn destructive_successor_release_uses_the_supplied_logical_clock() {
                     BTreeMap::from([(
                         "byId".to_owned(),
                         Index {
-                            columns: vec!["id".to_owned()],
+                            components: (vec!["id".to_owned()])
+                                .into_iter()
+                                .map(snapback2_core::search_key::IndexComponent::Column)
+                                .collect(),
                             unique: true,
                         },
                     )]),

@@ -14,16 +14,24 @@
         },
         "indexes": {
           "byFollower": {
-            "columns": [
-              "follower",
-              "at",
-              "id"
+            "components": [
+              {
+                "Column": "follower"
+              },
+              {
+                "Column": "at"
+              },
+              {
+                "Column": "id"
+              }
             ],
             "unique": false
           },
           "byId": {
-            "columns": [
-              "id"
+            "components": [
+              {
+                "Column": "id"
+              }
             ],
             "unique": true
           }
@@ -61,23 +69,35 @@
         },
         "indexes": {
           "byAt": {
-            "columns": [
-              "at",
-              "id"
+            "components": [
+              {
+                "Column": "at"
+              },
+              {
+                "Column": "id"
+              }
             ],
             "unique": false
           },
           "byAuthorAt": {
-            "columns": [
-              "author",
-              "at",
-              "id"
+            "components": [
+              {
+                "Column": "author"
+              },
+              {
+                "Column": "at"
+              },
+              {
+                "Column": "id"
+              }
             ],
             "unique": false
           },
           "byId": {
-            "columns": [
-              "id"
+            "components": [
+              {
+                "Column": "id"
+              }
             ],
             "unique": true
           }
@@ -128,11 +148,13 @@
                   "index": "byAuthorAt",
                   "prefix": [
                     {
-                      "Field": {
-                        "base": {
-                          "Variable": "follow"
-                        },
-                        "name": "followed"
+                      "Scalar": {
+                        "Field": {
+                          "base": {
+                            "Variable": "follow"
+                          },
+                          "name": "followed"
+                        }
                       }
                     }
                   ],
@@ -152,8 +174,10 @@
                   "index": "byFollower",
                   "prefix": [
                     {
-                      "Literal": {
-                        "Id": "u1"
+                      "Scalar": {
+                        "Literal": {
+                          "Id": "u1"
+                        }
                       }
                     }
                   ],
@@ -177,8 +201,8 @@
   },
   "certificate": {
     "program": "merge.for-limit",
-    "plan_hash": "d5e1fa9bf453173969f7b58f78e673f2b0ac63a650e8041ed01cc9db8f012503",
-    "schema_hash": "f7c842236978e842a20695dbea23d49d1277bd8bdbc0c342ee6422331cb188f8",
+    "plan_hash": "63830690edfeff9123f21ae21b88068836e64e579db138f952b517316f4a5b0f",
+    "schema_hash": "69661948b010a9e79af9092c07ffb2a9530b0f215bfa9be046b6769b08c93941",
     "tables": {
       "follows": {
         "retain": "until-revoked"
@@ -188,11 +212,11 @@
       }
     },
     "rule_hashes": {
-      "follows.read": "fd79905c6b2537749a4f00979344bce28f421b3d1fee4a30a4fbf41e3fc8f8a6",
-      "posts.read": "fd79905c6b2537749a4f00979344bce28f421b3d1fee4a30a4fbf41e3fc8f8a6"
+      "follows.read": "26984c19d744569c392816cf6695e7ec5c3fcbee63f8a1c88859ec5d64558608",
+      "posts.read": "26984c19d744569c392816cf6695e7ec5c3fcbee63f8a1c88859ec5d64558608"
     },
-    "evaluator_version": "bounded-spike-rust-1",
-    "value_model_version": "i53-codepoint-bytes-v2",
+    "evaluator_version": "bounded-spike-rust-search-text-refinements-4",
+    "value_model_version": "i53-codepoint-bytes-unicode-search-text-refinements-v5",
     "read_sites": [
       {
         "site": "merge.for-limit.domain",
@@ -237,6 +261,8 @@
     "max_index_entries": 9,
     "max_rule_probes": 0,
     "max_steps": 92,
+    "derived_steps": 0,
+    "derived_scratch_bytes": 0,
     "max_heap_bytes": 2944,
     "max_output_bytes": 1071,
     "max_closure_bytes": 3132,
@@ -261,7 +287,7 @@
     "read_time": null
   },
   "receipt": {
-    "schema_hash": "f7c842236978e842a20695dbea23d49d1277bd8bdbc0c342ee6422331cb188f8",
+    "schema_hash": "69661948b010a9e79af9092c07ffb2a9530b0f215bfa9be046b6769b08c93941",
     "rows": [
       {
         "table": "follows",
@@ -328,7 +354,9 @@
         "index": "byFollower",
         "prefix": [
           {
-            "Id": "u1"
+            "Scalar": {
+              "Id": "u1"
+            }
           }
         ],
         "order": "Asc",
@@ -339,7 +367,7 @@
         "gte": null,
         "lt": null,
         "lte": null,
-        "rule_hash": "fd79905c6b2537749a4f00979344bce28f421b3d1fee4a30a4fbf41e3fc8f8a6",
+        "rule_hash": "26984c19d744569c392816cf6695e7ec5c3fcbee63f8a1c88859ec5d64558608",
         "row_ids": [
           "f1"
         ],
@@ -347,25 +375,9 @@
         "absence": false,
         "halo": {
           "table": "follows",
-          "id": "f2",
-          "row": {
-            "Row": {
-              "at": {
-                "Int": 2
-              },
-              "followed": {
-                "Id": "u3"
-              },
-              "follower": {
-                "Id": "u1"
-              },
-              "id": {
-                "Id": "f2"
-              }
-            }
-          }
+          "id": "f2"
         },
-        "n2_key": null
+        "n2_suffix": null
       },
       {
         "site": "merge.for-limit.lane",
@@ -373,7 +385,9 @@
         "index": "byAuthorAt",
         "prefix": [
           {
-            "Id": "u2"
+            "Scalar": {
+              "Id": "u2"
+            }
           }
         ],
         "order": "Asc",
@@ -384,14 +398,14 @@
         "gte": null,
         "lt": null,
         "lte": null,
-        "rule_hash": "fd79905c6b2537749a4f00979344bce28f421b3d1fee4a30a4fbf41e3fc8f8a6",
+        "rule_hash": "26984c19d744569c392816cf6695e7ec5c3fcbee63f8a1c88859ec5d64558608",
         "row_ids": [
           "a1"
         ],
         "stop": "Exhausted",
         "absence": false,
         "halo": null,
-        "n2_key": null
+        "n2_suffix": null
       }
     ],
     "absences": [],

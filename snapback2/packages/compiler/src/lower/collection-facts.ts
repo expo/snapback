@@ -56,6 +56,7 @@ export function appendCollectionFacts(
   summarize: (origins: readonly ProvenanceOrigin[], authoredNode: ts.Expression) =>
     Pick<VariableInfo, "provenance" | "provenanceAmbiguity">,
 ): void {
+  info.mutatedCollection = true;
   const prior = info.elementOrigins ?? (info.max === 0 ? [] : undefined);
   if (!prior) {
     const candidates = new Set<string>([
@@ -117,6 +118,7 @@ export function mergeCollectionFactAlternatives(
   alternatives: readonly VariableInfo[],
   boundSource: string,
 ): void {
+  if (alternatives.some(info => info.mutatedCollection)) target.mutatedCollection = true;
   const isCollection = target.collection !== undefined || target.max !== undefined
     || target.elementOrigins !== undefined || alternatives.some((info) =>
       info.collection !== undefined || info.max !== undefined || info.elementOrigins !== undefined);

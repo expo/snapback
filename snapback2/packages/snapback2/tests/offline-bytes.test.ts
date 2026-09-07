@@ -39,7 +39,7 @@ const put = (assetId: string, width: number | null, length: number, fill: number
   assetId, width, bytes: bytesOf(length, fill), type: "image/jpeg",
 });
 const range = (overrides: Record<string, unknown> = {}) => ({
-  site: "thread.range", table: "messages", index: "byConvTime", prefix: ["c1"], order: "Asc", take: 50,
+  site: "thread.range", table: "messages", index: "byConvTime", prefix: [{ Scalar: "c1" }], order: "Asc", take: 50,
   after: null, before: null, gt: null, gte: null, lt: null, lte: null, ruleHash: "a".repeat(64),
   rowIds: [] as string[], stop: "Exhausted", absence: false, ...overrides,
 });
@@ -137,6 +137,8 @@ test("byte puts land only under a held row's lease, reads order the LRU, and the
 
 async function exercisePurge(store: any, carrierKeys: () => Promise<string[]>): Promise<void> {
   await store.open("dev:alice");
+  await store.commit({ schema: { tables: { messages: { columns: { id: "Id", conversationId: "Id", at: "Time" },
+    indexes: { byConvTime: { components: [{ Column: "conversationId" }, { Column: "at" }, { Column: "id" }], unique: false } } } } } });
   let seq = 0;
   const hold = async (op: string, data: unknown, rows: unknown[], receipt = emptyReceipt(), retention?: Record<string, string>) => {
     await store.commit({ deliveries: [{ op, args: {}, state: "complete", data, next: null, seq: ++seq, rows, receipt }], retention });

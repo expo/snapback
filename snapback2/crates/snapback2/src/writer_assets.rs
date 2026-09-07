@@ -493,11 +493,14 @@ mod tests {
                         ("rowId".into(), Value::Id("row1".into())),
                         (
                             "asset".into(),
-                            Value::Map(BTreeMap::from([
-                                ("id".into(), Value::String(id.clone())),
-                                ("width".into(), Value::Int(1)),
-                                ("height".into(), Value::Int(1)),
-                            ])),
+                            Value::Map(
+                                BTreeMap::from([
+                                    ("id".into(), Value::String(id.clone())),
+                                    ("width".into(), Value::Int(1)),
+                                    ("height".into(), Value::Int(1)),
+                                ])
+                                .into(),
+                            ),
                         ),
                     ]),
                 ),
@@ -915,7 +918,10 @@ mod tests {
             indexes: BTreeMap::from([(
                 "byId".to_owned(),
                 Index {
-                    columns: vec!["id".to_owned()],
+                    components: (vec!["id".to_owned()])
+                        .into_iter()
+                        .map(snapback2_core::search_key::IndexComponent::Column)
+                        .collect(),
                     unique: true,
                 },
             )]),
@@ -990,11 +996,14 @@ mod tests {
                 },
             )
             .unwrap();
-        let asset = Value::Map(BTreeMap::from([
-            ("id".to_owned(), Value::String(asset_id.clone())),
-            ("width".to_owned(), Value::Int(10)),
-            ("height".to_owned(), Value::Int(20)),
-        ]));
+        let asset = Value::Map(
+            BTreeMap::from([
+                ("id".to_owned(), Value::String(asset_id.clone())),
+                ("width".to_owned(), Value::Int(10)),
+                ("height".to_owned(), Value::Int(20)),
+            ])
+            .into(),
+        );
         runtime
             .execute(
                 "media.insert",
@@ -1093,7 +1102,10 @@ mod tests {
             indexes: BTreeMap::from([(
                 "byId".to_owned(),
                 Index {
-                    columns: vec!["id".to_owned()],
+                    components: (vec!["id".to_owned()])
+                        .into_iter()
+                        .map(snapback2_core::search_key::IndexComponent::Column)
+                        .collect(),
                     unique: true,
                 },
             )]),
@@ -1174,11 +1186,14 @@ mod tests {
                             ("rowId".to_owned(), Value::Id(format!("row-{index}"))),
                             (
                                 "asset".to_owned(),
-                                Value::Map(BTreeMap::from([
-                                    ("id".to_owned(), Value::String(id)),
-                                    ("width".to_owned(), Value::Int(1)),
-                                    ("height".to_owned(), Value::Int(1)),
-                                ])),
+                                Value::Map(
+                                    BTreeMap::from([
+                                        ("id".to_owned(), Value::String(id)),
+                                        ("width".to_owned(), Value::Int(1)),
+                                        ("height".to_owned(), Value::Int(1)),
+                                    ])
+                                    .into(),
+                                ),
                             ),
                         ]),
                     ),

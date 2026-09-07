@@ -300,6 +300,40 @@ and is shared through helper expansion. Operands lower once in authored order;
 writes reserve their ordinal even though the current `WriteSite` serde shape has
 no site string. Local names and formatting are not inputs.
 
+**Bounded list selection in Quarry.** A nullable list's declared maximum and
+proof of presence are independent. A loop may eliminate absence with `if`
+presence narrowing or a bounded required alternative: `values ?? []`,
+`values ?? more`, nested nullable alternatives ending in a required list, or
+`values ?? [expression, ...]`, including effectful literal components. The bound
+of the selection is the maximum across all possible alternatives, with each
+branch retaining its actual declared maximum; a larger fallback is never cut
+to the left alternative's maximum.
+
+Quarry's `.length` selection on a modeled bounded list returns its element
+count, including through immutable aliases and nested object captures. It has
+the same presence requirement as `count`: nullable alternatives do not establish
+presence. Length selection preserves the list's binding identity, snapshot and
+bound; it supplies no new read-key authority. An actual object member named
+`length` remains ordinary member selection.
+
+The operands-once and binding-provenance rules above apply to the entire
+selection. A present empty list counts as present and bypasses the fallback.
+Expressions authored inside a fallback evaluate lazily, exactly once in
+authored order when selected; an earlier captured fallback evaluates eagerly
+at its earlier binding. Immutable aliases, object captures, and subsequent uses retain
+the original selected list snapshot, without re-evaluating the selection or
+its components. Source Decimal scales and minor-unit values survive selection
+and capture independently of destination conversions; a destination cannot
+change the captured source facts. Page-derived loop domains remain subject to
+[LLP 1017's complete-fanout rule](1017-cap-and-complete-fanout.rfc.md#32-the-rule).
+
+Destination conversion preserves null through modeled optional scalars, lists
+and object members. It captures the operand once and converts only its present
+value; nested list conversion keeps the source maximum. The converted
+expression's representation is tracked separately so an enclosing container
+does not convert it again. This supplies no new source members, presence or
+read-key authority, and never changes retained source captures.
+
 **Collection identity amendment (implemented 2026-09-01).** Map keys and Set
 values are restricted to authored primitive strings, numbers, booleans, or
 null. Their array-backed lowering compares with JavaScript `SameValueZero`,

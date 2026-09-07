@@ -1,4 +1,5 @@
 use super::*;
+use snapback2_core::ir::IndexKeyExpr;
 
 #[test]
 fn store_claim_settle_restart_and_requeue_accessors_are_durable() {
@@ -212,14 +213,20 @@ fn deny_ruled_then_commits_and_settles_sent_in_the_same_transaction() {
     let execution = execute_then(&mut runtime).unwrap();
     assert!(matches!(execution.state, ExecutionState::Committed { .. }));
     assert_eq!(execution.trace.writes["notifications"], 1);
-    assert_eq!(execution.receipt, Default::default());
+    assert_eq!(
+        canonical_json(&execution.receipt),
+        canonical_json(&snapback2_core::engine::ClosureReceipt::default())
+    );
     let row = runtime.store().outbox_get("outbox-1").unwrap().unwrap();
     assert_eq!(row.state, "sent");
     assert_eq!(row.last_error, None);
-    let commit = runtime.store().commits_since(execution.seq - 1, 1).unwrap().remove(0);
+    let commit = runtime
+        .store()
+        .commits_since(execution.seq - 1, 1)
+        .unwrap()
+        .remove(0);
     assert_eq!(commit.kind, "system");
     assert_eq!(commit.writes["notifications"], 1);
-
 }
 
 #[test]
@@ -322,7 +329,10 @@ fn then_generation_with_cap(
         indexes: BTreeMap::from([(
             "byOutbox".to_owned(),
             Index {
-                columns: vec!["outboxId".to_owned()],
+                components: (vec!["outboxId".to_owned()])
+                    .into_iter()
+                    .map(snapback2_core::search_key::IndexComponent::Column)
+                    .collect(),
                 unique: !capped,
             },
         )]),
@@ -359,7 +369,14 @@ fn then_generation_with_cap(
         kind: ProgramKind::Mutation,
         args: BTreeMap::from([
             ("outboxId".to_owned(), ArgType::Id),
-            ("effect".to_owned(), ArgType::Text { max: 100 }),
+            (
+                "effect".to_owned(),
+                ArgType::Text {
+                    max: 100,
+                    min: 0,
+                    format: None,
+                },
+            ),
             ("result".to_owned(), ArgType::Json { max_bytes: 1_000 }),
         ]),
         read_time_granularity_ms: None,
@@ -387,7 +404,7 @@ fn then_generation_with_cap(
             site: "notifications.list".to_owned(),
             table: "notifications".to_owned(),
             index: "byOutbox".to_owned(),
-            prefix: Vec::new(),
+            prefix: (Vec::new()).into_iter().map(IndexKeyExpr::Scalar).collect(),
             order: Order::Asc,
             take: Bound::Literal(10),
             after: None,

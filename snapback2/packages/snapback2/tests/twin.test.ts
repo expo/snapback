@@ -6,23 +6,24 @@ import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { test } from "node:test";
 import { SnapbackRefusal, api, createClient } from "../dist/client.mjs";
-import { closureFromCoverage, decodeDeliveryEnvelope, schemaDigest } from "../dist/index.mjs";
+import { decodeDeliveryEnvelope, schemaDigest, toClosureReceipt } from "../dist/index.mjs";
 import { indexedDbRangeStore } from "../dist/react.mjs";
 import { fileRangeStore } from "../dist/test.mjs";
+import { tagReceipt, tagWireRow, canonicalProgramJson, CURRENT_EVALUATOR, CURRENT_VALUE_MODEL_VERSION, Twin, ClientStore, OfflineRuntime, PersistentRangeStore } from "../dist/sqlite-test.mjs";
 import { sqliteFactory } from "./sqlite-fixture.ts";
 import { FakeIndexedDb, FakeLocks } from "./fake-indexeddb.ts";
 import { engineId } from "./fake-owner.ts";
 import { fixtureClient } from "./live-fixture.ts";
 
 // @ref LLP 1012#6-reads-offline — the twin is the client: hydration from
-// `coverage()` byte-identical to the Rust `ClientStore`, local evaluation with
+// atomic snapshots retain each issuing receipt and same-pool row references, local evaluation with
 // `partial` reasons, the stored answer as the covered case, program custody
 // under the successor and auth-epoch fences.
 // @ref LLP 1012#7-writes-offline — prediction: the overlay keyed by the intent,
 // the trace of point digests and verdicts, discarded when the rows arrive.
 
 const here = dirname(fileURLToPath(import.meta.url));
-const corpusRoot = resolve(here, "../../../corpus");
+const corpusRoot = process.env.SNAPBACK2_CORPUS ?? resolve(here, "../../../corpus");
 const goldens = resolve(corpusRoot, "offline");
 
 type Tagged = "Null" | { Bool: boolean } | { Int: number } | { String: string } | { Id: string } | { Bytes: string }
@@ -69,7 +70,8 @@ function typedProgram(testCase: any): any {
   const args: Record<string, unknown> = {};
   for (const name of Object.keys(testCase.program.args ?? {})) {
     const value = testCase.context.args[name] as Tagged | undefined;
-    args[name] = value === undefined ? { Optional: "Id" } : descriptorFor(value);
+    args[name] = testCase.program.args[name] !== "Scalar" ? testCase.program.args[name]
+      : value === undefined ? { Optional: "Id" } : descriptorFor(value);
   }
   return { ...testCase.program, args };
 }
@@ -77,17 +79,12 @@ function typedProgram(testCase: any): any {
 /** The corpus receipt as the wire delivers it: pooled rows, camelCase ranges, primary absences, public verdicts. */
 function wireReceipt(receipt: any): { rows: any[]; receipt: any } {
   const rows: any[] = receipt.rows.map((row: any) => ({ table: row.table, id: row.id, row: wire(row.row) }));
-  for (const range of receipt.ranges) {
-    if (range.halo && !rows.some((row) => row.table === range.halo.table && row.id === range.halo.id)) {
-      rows.push({ table: range.halo.table, id: range.halo.id, row: wire(range.halo.row) });
-    }
-  }
   return {
     rows,
     receipt: {
       ranges: receipt.ranges.map((range: any) => ({
         site: range.site, table: range.table, index: range.index,
-        prefix: range.prefix.map(wire), order: range.order, take: range.take,
+        prefix: range.prefix.map((atom: any) => 'Scalar' in atom ? { Scalar: wire(atom.Scalar) } : atom), order: range.order, take: range.take,
         after: range.after === null ? null : wire(range.after), before: range.before === null ? null : wire(range.before),
         gt: range.gt === null ? null : wire(range.gt), gte: range.gte === null ? null : wire(range.gte),
         lt: range.lt === null ? null : wire(range.lt), lte: range.lte === null ? null : wire(range.lte),
@@ -103,17 +100,30 @@ function wireReceipt(receipt: any): { rows: any[]; receipt: any } {
   };
 }
 
-/** The corpus receipt as the store can hold it: `n2_key` never crosses the wire, an absence a held row disproves is dropped. */
+/** The corpus receipt as the store can hold it: `n2_suffix` never crosses the wire, an absence a held row disproves is dropped. */
 function holdableReceipt(receipt: any, schemaHash: string): unknown {
   const held = new Set(receipt.rows.map((row: any) => `${row.table}\u0000${row.id}`));
   return {
     schema_hash: schemaHash,
     rows: receipt.rows,
-    ranges: receipt.ranges.map((range: any) => ({ ...range, n2_key: null })),
+    ranges: receipt.ranges.map((range: any) => ({ ...range, n2_suffix: null })),
     absences: receipt.absences.filter(([table, index, key]: any) =>
       !(index === "byId" && key.length === 1 && key[0] !== "Null" && "Id" in key[0] && held.has(`${table}\u0000${key[0].Id}`))),
     verdicts: receipt.verdicts,
   };
+}
+
+/** Admit one issuing answer from an atomic carrier snapshot; cold and warm paths use the same receipt pool. */
+function receiptFromSnapshot(snapshot: any, schema: any, schemaHash: string, ir?: any): any {
+  assert.equal(schemaDigest(schema), schemaHash, 'snapshot schema identity matches its issuing program');
+  const answer: any = Object.values(snapshot.answers).find((a: any) => a.op === 'coverage') ?? Object.values(snapshot.answers)[0];
+  const rows = answer.refs.flatMap((ref: any) => {
+    const body = snapshot.rows[`${ref.table}\0${ref.id}`];
+    return body ? [{ ...ref,row: tagWireRow(schema,ref.table,body.row) }] : [];
+  });
+  const receipt = { schema_hash: schemaHash,rows,...tagReceipt(schema,answer.receipt,ir) };
+  for (const range of receipt.ranges) if (range.halo && !rows.some((r: any) => r.table === range.halo.table && r.id === range.halo.id)) range.halo = null;
+  return { ...receipt, ranges: receipt.ranges.map(({ held_suffix: _local, ...range }: any) => range) };
 }
 
 function deliveryFromEnvelope(op: string, args: unknown, value: any) {
@@ -145,7 +155,7 @@ interface CorpusOwnerOptions {
   dead?: () => boolean;
 }
 
-/** An owner double over a corpus schema: manifest, program custody, login/me, resume, replayed mutations. */
+/** A synthetic owner double (typed argument narrowing rebinds its certificate, not native proof) over a corpus schema: manifest, program custody, login/me, resume, replayed mutations. */
 function corpusOwner(options: CorpusOwnerOptions) {
   const requests: string[] = [];
   const executions: Array<{ op: string; args: unknown; intent: string; ids: string[] }> = [];
@@ -157,7 +167,9 @@ function corpusOwner(options: CorpusOwnerOptions) {
   const payload = (generation: string, programs: CorpusOwnerOptions["programs"]) => ({
     generation, schemaHash: options.schemaHash, schema: options.schema,
     programs: Object.fromEntries(Object.entries(programs).map(([name, entry]) => [name, {
-      kind: entry.kind, planHash: entry.certificate.plan_hash, ir: entry.ir, certificate: entry.certificate,
+      kind: entry.kind, planHash: sha256(canonicalProgramJson(entry.ir)), ir: entry.ir,
+      certificate: { ...entry.certificate, plan_hash: sha256(canonicalProgramJson(entry.ir)),
+        value_model_version: CURRENT_VALUE_MODEL_VERSION, evaluator_version: CURRENT_EVALUATOR },
     }])),
   });
   const mint = () => {
@@ -229,18 +241,25 @@ async function seedCoverage(
   const store = factory();
   await store.open(viewer);
   const { rows, receipt } = wireReceipt(testCase.receipt);
+  const derived = receipt.ranges.some((r: any) => r.prefix.some((p: any) => "WordPrefix" in p));
+  // Synthetic public filing of this native execution retains its actual pinned input, never reception time.
+  const clock = testCase.context?.read_time != null ? { readTime: testCase.context.read_time, clockPlanHash: testCase.certificate.plan_hash } : {};
   await store.commit({
-    deliveries: [
+    deliveries: derived ? [{ op: testCase.name, args: held?.args ?? {}, state: "complete", data: held?.data ?? null,
+      next: held?.next ?? null, seq: 1, validator: hex("1"), rows, receipt, ...clock }] : [
       { op: "coverage", args: {}, state: "complete", data: null, next: null, seq: 1, validator: hex("1"), rows, receipt },
-      ...(held ? [{ op: held.op, args: held.args, state: "complete" as const, data: held.data, next: held.next, seq: 1, validator: hex("2") }] : []),
+      ...(held ? [{ op: held.op, args: held.args, state: "complete" as const, data: held.data, next: held.next, seq: 1, validator: hex("2"), ...clock }] : []),
     ],
-    facts,
+    // Derived descriptors must retain their actual issuing IR/Q even in a direct carrier fixture.
+    ...(derived ? { programs: { [facts.generation]: { generation: facts.generation, schemaHash: facts.schemaHash, schema: testCase.schema,
+      programs: { [testCase.name]: { kind: "query", ir: testCase.program, planHash: testCase.certificate.plan_hash, certificate: testCase.certificate } } } } } : {}),
+    facts, schema: testCase.schema,
     ...extra,
   });
   await store.close?.();
 }
 
-test("hydration from coverage rebuilds every envelope golden's ClosureReceipt byte-identically", async () => {
+test("atomic carrier snapshots retain every envelope golden's issuing ClosureReceipt byte-identically", async () => {
   const files = (await readdir(goldens)).filter((name) => name.startsWith("envelope-")).sort();
   assert.ok(files.length >= 15);
   for (const file of files) {
@@ -253,7 +272,7 @@ test("hydration from coverage rebuilds every envelope golden's ClosureReceipt by
       await store.commit({ deliveries: [deliveryFromEnvelope("golden", {}, envelope)] });
       const coverage = await store.coverage();
       assert.equal(
-        JSON.stringify(closureFromCoverage(coverage, companion.schema, envelope.schemaHash)),
+        JSON.stringify(receiptFromSnapshot((await store.changes()).snapshot, companion.schema, envelope.schemaHash, companion.program)),
         companion.receiptBytes,
         `${file}: the twin's hydration from the store is the Rust ClosureReceipt`,
       );
@@ -274,12 +293,12 @@ test("a json column shaped like the byte variant rebuilds as application data, n
     await store.commit({ deliveries: [{
       op: "shape", args: {}, state: "complete", data: { $row: { table: "allTypes", id: "j1" } }, next: null, seq: 1,
       rows: [{ table: "allTypes", id: "j1", row: {
-        id: "j1", bytes: { Bytes: "00" }, decimal: 1, enum: "one", image: { id: "i", width: 1, height: 1 }, json: { Bytes: "00ff" },
-        list: [], money: 1, optional: null, video: { id: "v", width: 1, height: 1, duration: 1 },
+        id: "j1", bytes: { Bytes: "00" }, decimal: 1, enum: "one", image: { id: engineId(1), width: 1, height: 1 }, json: { Bytes: "00ff" },
+        list: [], money: 1, optional: null, video: { id: engineId(2), width: 1, height: 1, duration: 1 },
       } }],
       receipt: { ranges: [], absences: [], verdicts: [] },
     }] });
-    const closure = closureFromCoverage(await store.coverage(), companion.schema);
+    const closure = receiptFromSnapshot((await store.changes()).snapshot, companion.schema, schemaDigest(companion.schema));
     const row = (closure.rows[0]!.row as { Row: Record<string, unknown> }).Row;
     assert.deepEqual(row.json, { Map: { Bytes: { String: "00ff" } } }, "a json value is tagged by its declared type only");
     assert.deepEqual(row.bytes, { Bytes: "00" }, "a bytes column still tags as bytes");
@@ -289,7 +308,7 @@ test("a json column shaped like the byte variant rebuilds as application data, n
   }
 });
 
-test("every corpus query round-trips through the store; replay matches its inputs and an unpinned read clock refuses", async () => {
+test("every corpus query round-trips through atomic carrier snapshots and replays with its pinned execution inputs", async () => {
   const cases = (await corpus()).filter((item: any) =>
     item.certificate !== null && item.program.kind === "Query" && item.prelude.length === 0 && item.replacementReceipt === null);
   assert.ok(cases.length >= 80, `corpus queries: ${cases.length}`);
@@ -308,7 +327,7 @@ test("every corpus query round-trips through the store; replay matches its input
       // Hydration: the coverage the store holds is the corpus receipt, byte for byte.
       const store = fileRangeStore(root)();
       await store.open(testCase.context.viewer);
-      const rebuilt = closureFromCoverage(await store.coverage(), testCase.schema, schemaHash);
+      const rebuilt = receiptFromSnapshot((await store.changes()).snapshot, testCase.schema, schemaHash, testCase.program);
       assert.equal(canonical(rebuilt), canonical(holdableReceipt(testCase.receipt, schemaHash)), `${testCase.name}: hydration bytes`);
       const heldAnswer = fresh ? await store.answer(testCase.name, args) : undefined;
       await store.close?.();
@@ -320,8 +339,7 @@ test("every corpus query round-trips through the store; replay matches its input
       const client = createClient({ url: "http://corpus.test", token: "bearer", fetch: owner.fetch, offline: { store: fileRangeStore(root) } });
       await client.ready;
       await client.offline();
-      // The raw evaluator corpus supplies ReadTime; the public offline client
-      // does not pin a query clock. It must refuse instead of inventing one.
+      // The public query clock samples local time; native corpus values pin a different clock.
       if (testCase.category === "connected") {
         const answer: any = await client.query((api as any)[testCase.name], args);
         assert.deepEqual(answer, { state: "hydrating", live: false, connection: "offline" });
@@ -330,11 +348,13 @@ test("every corpus query round-trips through the store; replay matches its input
         continue;
       }
       if (testCase.context.read_time !== null) {
-        await assert.rejects(client.query((api as any)[testCase.name], args), (error: unknown) =>
-          error instanceof SnapbackRefusal && error.message.includes("E_INPUT") && error.message.includes("readTime was not pinned"));
-        checked += 1;
-        await client.close();
-        continue;
+        const clockStore = fileRangeStore(root)(); await clockStore.open(testCase.context.viewer);
+        const held = (await clockStore.outbox.programs())[generation];
+        const pinned = new Twin({ program: () => held, changes: (since: any) => clockStore.changes(since), principal: () => testCase.context.viewer,
+          now: () => testCase.context.read_time, seq: () => 1 });
+        const answer = await pinned.evaluate(testCase.name, args);
+        assert.equal(canonical(answer?.data), canonical(wire(testCase.expected.localResult)), `${testCase.name}: explicit local clock parity`);
+        await clockStore.close?.(); checked += 1; await client.close(); continue;
       }
       const local: any = await client.query((api as any)[testCase.name], args).catch((error: unknown) => {
         assert.equal(testCase.expected.localState, "refused", `${testCase.name}: unexpected refusal`);
@@ -345,7 +365,11 @@ test("every corpus query round-trips through the store; replay matches its input
       if (expected.localState === "fresh") {
         assert.ok(local.state === "complete" || local.state === "capped", `${testCase.name}: ${local.state} ${local.reason ?? ""}`);
         assert.equal(canonical(local.data), canonical(wire(expected.localResult)), `${testCase.name}: data`);
-        if (Object.hasOwn(expected, "next")) assert.equal(local.next, expected.next, `${testCase.name}: next`);
+        if (Object.hasOwn(expected, "next")) {
+          // The public search cursor adds local fences around the engine's exact ordinary suffix token.
+          const next = typeof local.next === "string" && local.next.startsWith("h1.") ? JSON.parse(local.next.slice(3))[4] : local.next;
+          assert.equal(next, expected.next, `${testCase.name}: next`);
+        }
         assert.equal(canonical(local.data), canonical(heldAnswer!.data), `${testCase.name}: the twin's replay is the held answer's bytes`);
         assert.equal(local.seq, heldAnswer!.seq, `${testCase.name}: the held answer's facts stay with the twin's data`);
         byteIdentical += 1;
@@ -470,7 +494,7 @@ test("program custody is fetched, held per generation on all three carriers, ser
   }
 });
 
-test("partial reads name their reason: never-held, computed-key, and evicted", async () => {
+test("partial reads name missing coverage; an explicit tombstone establishes known absence", async () => {
   const messengerCorpus = await messenger();
   const generation = hex("6");
   const owner = corpusOwner({ viewer: "u1", generation, schemaHash: messengerCorpus.schemaHash, schema: messengerCorpus.schema, programs: messengerCorpus.programs });
@@ -507,8 +531,8 @@ test("partial reads name their reason: never-held, computed-key, and evicted", a
     await client.ready;
     await client.offline();
     local = await client.query((api as any)["named-hidden-rule"], { id: "doc1" });
-    assert.equal(local.state, "partial");
-    assert.deepEqual(local.sites, [{ site: local.site, reason: "evicted" }]);
+    assert.equal(local.state, "complete");
+    assert.equal(local.data, null, "an authoritative tombstone dominates stale held rows as known absence");
     await client.close();
   } finally {
     await rm(root, { recursive: true, force: true });
@@ -659,21 +683,12 @@ test("a ReferenceError from tagArguments surfaces on query and mutation, never a
       grants: { put: [grant], current: grant.id }, bounds: { "named-send": 10 },
     });
     const throwingArgs = new Proxy({}, { ownKeys() { throw new ReferenceError("tagArguments bug"); } });
-    const held = {
-      generation, schemaHash: messengerCorpus.schemaHash, schema: structuredClone(messengerCorpus.schema),
-      programs: Object.fromEntries(Object.entries(messengerCorpus.programs).map(([name, entry]) => [name, {
-        kind: entry.kind, planHash: entry.certificate.plan_hash, drain: { reason: "not-a-log" }, ir: { ...entry.ir, args: throwingArgs }, certificate: entry.certificate,
-      }])),
-    };
-    const factory = fileRangeStore(root);
-    const store = () => {
-      const inner = factory();
-      inner.outbox.programs = async () => ({ [generation]: held }) as any;
-      return inner;
-    };
-    const client = createClient({ url: "http://bug.test", token: "bearer", fetch: owner.fetch, offline: { store } });
+    const client = createClient({ url: "http://bug.test", token: "bearer", fetch: owner.fetch, offline: { store: fileRangeStore(root) } });
     await client.ready;
     await client.offline();
+    // Inject after custody admission, at the actual query/mutation argument boundary.
+    const runtime = (client as any).offlineRuntime;
+    for (const entry of Object.values<any>(runtime.held.programs)) entry.ir.args = throwingArgs;
     await assert.rejects(client.query((api as any)["named-thread"], threadArgs), (error: unknown) =>
       error instanceof SnapbackRefusal && /tagArguments bug/.test(error.message), "the ReferenceError was swallowed as hydrating");
     await assert.rejects(client.mutation((api as any)["named-send"], { conversationId: "c1", body: "bug", at: 30 }), (error: unknown) =>
@@ -713,7 +728,7 @@ test("an online query under a new generation immediately resets and rebuilds fre
     if (url.pathname === "/api/query") {
       seq += 1;
       return respond({
-        protocol: 1, generation: after, schemaHash: messengerCorpus.schemaHash, planHash: hex("5"), authority: { principal: "u1", authEpoch: 1 },
+        protocol: 1, generation: after, schemaHash: messengerCorpus.schemaHash, planHash: sha256(canonicalProgramJson(messengerCorpus.programs["named-thread"].ir)), authority: { principal: "u1", authEpoch: 1 },
         state: "complete", data: [], next: null, seq, rows, receipt, validator: hex("6"),
       });
     }
@@ -841,7 +856,7 @@ test("an unseen schema shape is hydrating: a novel index field or column payload
     assert.equal(schemaDigest(messengerCorpus.schema), messengerCorpus.schemaHash, "the known shape still hashes as Rust does");
     const root = await tempRoot();
     try {
-      await seedCoverage(fileRangeStore(root), "u1", messengerCorpus.thread, facts);
+      await seedCoverage(fileRangeStore(root), "u1", messengerCorpus.thread, facts, undefined, { bounds: { "named-send": 10 } });
       const owner = corpusOwner({ viewer: "u1", generation, schemaHash: messengerCorpus.schemaHash, schema: novel, programs: messengerCorpus.programs });
       const client = createClient({ url: "http://novel.test", fetch: owner.fetch, offline: { store: fileRangeStore(root) } });
       await client.ready;
@@ -869,12 +884,13 @@ test("an unseen schema shape is hydrating: a novel index field or column payload
   // The hydrate path recomputes the hash: coverage under a schema whose hash disagrees with the caller's is refused, not rebuilt.
   const root = await tempRoot();
   try {
-    await seedCoverage(fileRangeStore(root), "u1", messengerCorpus.thread, facts);
+    await seedCoverage(fileRangeStore(root), "u1", messengerCorpus.thread, facts, undefined, { bounds: { "named-send": 10 } });
     const store = fileRangeStore(root)();
     await store.open("u1");
-    const coverage = await store.coverage();
-    assert.throws(() => closureFromCoverage(coverage, messengerCorpus.schema, hex("f")), /does not match the held program/);
-    assert.equal(closureFromCoverage(coverage, messengerCorpus.schema).schema_hash, messengerCorpus.schemaHash, "the rebuilt receipt carries the recomputed hash");
+    const snapshot = (await store.changes()).snapshot;
+    assert.throws(() => receiptFromSnapshot(snapshot, messengerCorpus.schema, hex("f")), /snapshot schema identity/);
+    assert.equal(receiptFromSnapshot(snapshot, messengerCorpus.schema, messengerCorpus.schemaHash, messengerCorpus.thread.program).schema_hash,
+      messengerCorpus.schemaHash, "one issuing receipt carries the recomputed schema hash");
     await store.close?.();
   } finally {
     await rm(root, { recursive: true, force: true });
@@ -888,22 +904,22 @@ function logProgram() {
       deliveries: {
         columns: { id: "Id", recipient: "Principal", conversationId: "Id", messageId: "Id", at: "Time" },
         indexes: {
-          byId: { columns: ["id"], unique: true },
-          byRecipientAt: { columns: ["recipient", "at", "id"], unique: false },
-          byRecipientConversationAt: { columns: ["recipient", "conversationId", "at", "id"], unique: false },
+          byId: { components: [{ Column: "id" }], unique: true },
+          byRecipientAt: { components: [{ Column: "recipient" }, { Column: "at" }, { Column: "id" }], unique: false },
+          byRecipientConversationAt: { components: [{ Column: "recipient" }, { Column: "conversationId" }, { Column: "at" }, { Column: "id" }], unique: false },
         },
         rules: { read: { Eq: [{ Field: "recipient" }, "Viewer"] }, insert: "Deny", update: "Deny", delete: "Deny" },
         constraints: [], retain: "until-revoked",
       },
       messages: {
         columns: { id: "Id", conversationId: "Id", body: { Text: { max: 100 } } },
-        indexes: { byId: { columns: ["id"], unique: true } },
+        indexes: { byId: { components: [{ Column: "id" }], unique: true } },
         rules: { read: { Exists: { table: "memberships", index: "byConversationPrincipal", key: [{ Field: "conversationId" }, "Viewer"], provenance: "Shape" } }, insert: "Deny", update: "Deny", delete: "Deny" },
         constraints: [], retain: "until-revoked",
       },
       memberships: {
         columns: { id: "Id", conversationId: "Id", principal: "Principal" },
-        indexes: { byId: { columns: ["id"], unique: true }, byConversationPrincipal: { columns: ["conversationId", "principal"], unique: true } },
+        indexes: { byId: { components: [{ Column: "id" }], unique: true }, byConversationPrincipal: { components: [{ Column: "conversationId" }, { Column: "principal" }], unique: true } },
         rules: { read: { Exists: { table: "memberships", index: "byConversationPrincipal", key: [{ Field: "conversationId" }, "Viewer"], provenance: "Shape" } }, insert: "Deny", update: "Deny", delete: "Deny" },
         constraints: [], retain: "until-revoked",
       },
@@ -914,7 +930,7 @@ function logProgram() {
     name: "thread", kind: "Query", args: { conversationId: "Id" }, read_time_granularity_ms: null,
     body: [
       { Require: { code: "MEMBERSHIP_REQUIRED", condition: { Exists: { site: "thread.0", table: "memberships", index: "byConversationPrincipal", key: [{ Variable: "conversationId" }, { Input: "Viewer" }], provenance: "Shape" } } } },
-      { Const: { name: "page", value: { Scan: { site: "thread.1", table: "deliveries", index: "byRecipientConversationAt", prefix: [{ Input: "Viewer" }, { Variable: "conversationId" }], order: "Desc", take: { Literal: 50 }, after: null, before: null, range: null, merge_site: null, opaque_cursor: false, provenance: "Shape" } } } },
+      { Const: { name: "page", value: { Scan: { site: "thread.1", table: "deliveries", index: "byRecipientConversationAt", prefix: [{ Scalar: { Input: "Viewer" } }, { Scalar: { Variable: "conversationId" } }], order: "Desc", take: { Literal: 50 }, after: null, before: null, range: null, merge_site: null, opaque_cursor: false, provenance: "Shape" } } } },
       { Const: { name: "rows", value: { Array: [] } } },
       { For: { binding: "row", domain: { DerivedArray: { value: { Variable: "page" }, max: 50 } }, body: [
         { Push: { target: "rows", value: { Object: { id: { Field: { base: { Variable: "row" }, name: "id" } }, message: { Get: { site: "thread.2", table: "messages", index: "byId", key: [{ Field: { base: { Variable: "row" }, name: "messageId" } }], provenance: "Shape" } } } } } },
@@ -927,7 +943,7 @@ function logProgram() {
   const ruleHash = sha256(`[${JSON.stringify(schemaHash)},${JSON.stringify(schema.tables.deliveries.rules.read)}]`);
   const delivery = (id: string, conversationId: string, messageId: string, at: number) => ({ table: "deliveries", id, row: { id, recipient: "viewer", conversationId, messageId, at } });
   const page = (after: unknown, rowIds: string[], stop: "Limit" | "Exhausted") => ({
-    site: "inbox.0", table: "deliveries", index: "byRecipientAt", prefix: ["viewer"], order: "Asc", take: 3,
+    site: "inbox.0", table: "deliveries", index: "byRecipientAt", prefix: [{ Scalar: "viewer" }], order: "Asc", take: 3,
     after, before: null, gt: null, gte: null, lt: null, lte: null, ruleHash, rowIds, stop, absence: false,
   });
   return { schema, schemaHash, thread, certificate, delivery, page };
@@ -1165,12 +1181,29 @@ test("covered evaluation errors surface; typed local mutation refusals omit pred
     const twin = client.offlineRuntime.twin;
     const hydrated = await twin.hydrate();
     assert.ok(hydrated);
+    // Real separately built client + file carrier share the nominal image/error module.
+    const { RowImage, ImageKeys, EvalError: SharedError } = await import('../dist/image-runtime.mjs');
+    const current = Object.values<any>(client.offlineRuntime.store.state.rows)[0];
+    assert(RowImage.is(current.row)); assert.equal(hydrated.store.byId(current.table,current.id),current.row);
+    const keys = RowImage.keys(current.row); assert(ImageKeys.is(keys));
+    const rowRevision = hydrated.rowsRevision;
+    // Direct synthetic carrier delivery across real built client/file arms, not native emission.
+    await client.offlineRuntime.store.commit({ deliveries: [{ op: 'ownership',args: {},state: 'partial',data: null,next: null,
+      seq: 2,rows: [{ table: current.table,id: current.id,row: RowImage.wire(current.row) }],receipt: { ranges: [],absences: [],verdicts: [] } }] });
+    const refreshed = await twin.hydrate(), adopted = client.offlineRuntime.store.state.rows[`${current.table}\0${current.id}`].row;
+    assert.notEqual(adopted,current.row); assert.equal(refreshed.store.byId(current.table,current.id),adopted);
+    assert.equal(refreshed.rowsRevision,rowRevision); assert.equal(RowImage.keys(adopted),keys);
+    const fake = Object.freeze({ ...current.row }); assert(!RowImage.is(fake));
+    const external = structuredClone(current.row); const owned = RowImage.prepare(m.schema,current.table,external);
+    assert.notEqual(owned,external); assert.equal(RowImage.keys(owned) === keys,false);
+    external.Row.id.Id = 'changed'; assert.equal(owned.Row.id.Id,current.id);
+    assert.throws(() => RowImage.prepare(m.schema,current.table,{ Row: { id: { Int: 1 } } }),SharedError);
     // Obtain the actual evaluator's error constructor, without adding a public test export.
     let sample: any;
     try { hydrated.store.reexecute({ args: {}, body: [{ Return: { Variable: "unknown" } }] }, { args: {} }); }
     catch (error) { sample = error; }
     assert.equal(sample.code, "E_INPUT");
-    const EvalError = sample.constructor;
+    const EvalError = sample.constructor; assert.equal(EvalError,SharedError);
     twin.hydrate = async () => hydrated;
     hydrated.store.reexecute = () => { throw new EvalError("E_OVERFLOW", "covered overflow"); };
     await assert.rejects(client.query((api as any)["named-thread"], threadArgs), /E_OVERFLOW/);
@@ -1243,12 +1276,194 @@ test("overlay put and remove bugs escape the hydrate catch boundary", async () =
     const entry = (await client.outbox.entries())[0];
     const prototype = Object.getPrototypeOf((await runtime.twin.hydrate()).store);
     for (const method of ["put", "remove"]) {
-      if (method === "remove") await runtime.store.commit({ overlay: { put: { [entry.intent]: [{ table: "messages", id: "message-00004", removed: true }] } } });
       const original = prototype[method];
       try {
         prototype[method] = () => { throw new TypeError(`overlay ${method} bug`); };
+        // A warm hydrate applies only changed rows: inject a real durable contribution delta.
+        await runtime.store.commit({ overlay: { put: { [entry.intent]: [{ table: "messages", id: "message-00004",
+          row: method === "put" ? { body: "changed prediction" } : {},
+          ...(method === "put" ? { fields: ["body"] } : { removed: true }) }] } } });
         await assert.rejects(runtime.twin.hydrate(), new RegExp(`overlay ${method} bug`));
       } finally { prototype[method] = original; }
     }
+
   } finally { await client?.close(); await rm(root, { recursive: true, force: true }); }
+});
+
+// Transport double using actual final26c9 native v5 certificate and public recipe IR.
+test('h1 stays local across query transport, subscription reconnect and cold reopen', async context => {
+  const fixture = JSON.parse(await readFile(new URL('../../evaluator/src/test-search-v5-fixtures.json', import.meta.url), 'utf8'));
+  const op = 'search.findPeople', original = fixture.operations[op];
+  const schemaHash = schemaDigest(fixture.schema), planHash = original.certificate.plan_hash, generation = hex('9');
+  const certificate = original.certificate;
+  const packet = { generation, schemaHash, schema: fixture.schema, programs: { [op]: { kind: 'query', planHash, ir: original.program, certificate } } };
+  const root = await tempRoot(); context.after(() => rm(root, { recursive: true, force: true }));
+  const store = fileRangeStore(root)(); await store.open('viewer');
+  await store.commit({ programs: { [generation]: packet }, schema: fixture.schema, facts: { generation, schemaHash, authEpoch: 0 }, deliveries: [{
+    op: 'pool', args: {}, state: 'complete', data: [], seq: 1, next: null, rows: Array.from({ length: 25 }, (_, i) => ({
+      table: 'people', id: `person${String(i).padStart(2, '0')}`, row: { id: `person${String(i).padStart(2, '0')}`, name: 'Café', handle: null },
+    })), receipt: { ranges: [], absences: [], verdicts: [] },
+  }] }); await store.close();
+  const requests: { path: string; args: any }[] = [];
+  const fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
+    const url = new URL(String(input));
+    if (url.pathname === '/api/auth/me') return Response.json({ viewer: 'viewer', kind: 'user', authEpoch: 0 });
+    if (url.pathname === '/api/manifest') return Response.json({ generation: 'schema', programGeneration: generation, ops: { [op]: { kind: 'query', args: original.program.args, planHash } }, channels: {}, tables: {}, auth: {} });
+    if (url.pathname === '/api/program') return Response.json(packet);
+    if (url.pathname === '/api/resume') return Response.json({ seq: 1, generation, schemaHash, authority: { principal: 'viewer', authEpoch: 0 }, log: { unchanged: true }, mounted: [] });
+    const args = url.pathname === '/api/subscribe' ? JSON.parse(url.searchParams.get('args')!) : JSON.parse(String(init?.body)).args;
+    requests.push({ path: url.pathname, args });
+    const value = { protocol: 1, generation, schemaHash, planHash, authority: { principal: 'viewer', authEpoch: 0 },
+      state: 'complete', data: [], seq: 1, next: null, rows: [], receipt: { ranges: [], absences: [], verdicts: [] }, validator: hex('1') };
+    return url.pathname === '/api/subscribe' ? new Response(new ReadableStream({ start(controller) {
+      controller.enqueue(new TextEncoder().encode(`data: ${JSON.stringify(value)}\n\n`));
+    } }), { headers: { 'content-type': 'text/event-stream' } }) : Response.json(value);
+  };
+  const client = fixtureClient({ url: 'http://local-page.test', token: 'bearer', fetch, offline: { store: fileRangeStore(root) } });
+  context.after(() => client.close()); await client.ready; await client.offline();
+  const first: any = await client.query((api as any)[op], { term: 'Café', c: null });
+  assert.equal(first.state, 'capped'); assert(first.next.startsWith('h1.'));
+  const second: any = await client.query((api as any)[op], { term: 'CAFE\u0301', c: first.next });
+  assert.equal(second.state, 'held'); assert.equal(second.data.length, 5);
+  const sub = client.subscribe((api as any)[op], { term: 'Café', c: first.next }, () => {}); context.after(() => sub.close());
+  await client.online(); await sub.until(value => value.state === 'complete', 1000);
+  await client.query((api as any)[op], { term: 'Café', c: first.next });
+  assert(requests.some(r => r.path === '/api/subscribe')); assert(requests.some(r => r.path === '/api/query'));
+  assert(requests.every(r => r.args.c === null && r.args.term === 'Café'), 'only the declared h1 cursor resets for server transport');
+  sub.close(); await client.close();
+  const cold = fixtureClient({ url: 'http://local-page.test', token: 'bearer', fetch, offline: { store: fileRangeStore(root) } });
+  context.after(() => cold.close()); await cold.ready; await cold.offline();
+  const restarted: any = await cold.query((api as any)[op], { term: 'Café', c: first.next });
+  assert.equal(restarted.state, 'capped'); assert.equal(restarted.data[0].id, first.data[0].id, 'a prior-incarnation page restarts at null');
+});
+
+test('enrolled ordinary conditionals fetch one authenticated full reply without a validator across query and SSE', async context => {
+  const { clock: packet } = JSON.parse(await readFile(new URL('../../evaluator/src/test-search-v5-fixtures.json', import.meta.url), 'utf8'));
+  for (const mode of ['query', 'subscription', 'failed-full']) await context.test(mode, async () => {
+    const root = await tempRoot();
+    const factory = fileRangeStore(root), store = factory(); await store.open('viewer');
+    const rows = [{ table: 'events', id: 'one', row: { id: 'one', at: 1 } }], receipt = { ranges: [], absences: [], verdicts: [] };
+    const ordinary = { op: 'ordinary', args: { text: 'h1.application-data' }, seq: 1, state: 'complete', next: null,
+      rows, receipt, data: [{ $row: { table: 'events', id: 'one' } }], validator: hex('a') };
+    await store.commit({ programs: { [packet.generation]: packet }, facts: { generation: packet.generation, schemaHash: packet.schemaHash, authEpoch: 0 },
+      deliveries: [ordinary] });
+    await store.commit({ deliveries: [{ ...ordinary, op: 'clock.read', args: {}, readTime: 1, clockPlanHash: packet.programs['clock.read'].planHash }] });
+    await store.close();
+    const requests: any[] = [];
+    const full = { protocol: 1, generation: packet.generation, schemaHash: packet.schemaHash, planHash: hex('b'),
+      authority: { principal: 'viewer', authEpoch: 0 }, state: 'complete', next: null, seq: 2, validator: hex('c'), receipt,
+      rows: [{ ...rows[0], row: { id: 'one', at: 2 } }], data: ordinary.data };
+    const fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = new URL(String(input));
+      if (url.pathname === '/api/auth/me') return Response.json({ viewer: 'viewer', kind: 'user', authEpoch: 0 });
+      if (url.pathname === '/api/manifest') return Response.json({ generation: 'schema', programGeneration: packet.generation,
+        ops: { ordinary: { kind: 'query', args: { text: { Text: { max: 30 } } }, planHash: hex('b') } }, channels: {}, tables: {}, auth: {} });
+      if (url.pathname === '/api/program') return Response.json(packet);
+      const request = url.pathname === '/api/subscribe' ? { op: url.searchParams.get('op'), args: JSON.parse(url.searchParams.get('args')!), validator: url.searchParams.get('validator') }
+        : JSON.parse(String(init?.body));
+      requests.push(request);
+      assert.equal(new Headers(init?.headers).get('authorization'), 'Bearer bearer');
+      const unchanged = { state: 'unchanged', seq: 2, validator: ordinary.validator };
+      if (url.pathname === '/api/subscribe') return new Response(new ReadableStream({ start(controller) {
+        controller.enqueue(new TextEncoder().encode(`data: ${JSON.stringify(unchanged)}\n\n`));
+      } }), { headers: { 'content-type': 'text/event-stream' } });
+      if (request.validator) return Response.json(unchanged);
+      if (mode === 'failed-full') throw new TypeError('network unavailable during full revalidation');
+      return Response.json(full);
+    };
+    const client = fixtureClient({ url: 'http://proofs.test', token: 'bearer', fetch, offline: { store: factory } });
+    try {
+      await client.ready;
+      if (mode === 'subscription') {
+        const sub = client.subscribe((api as any).ordinary, ordinary.args, () => {});
+        try { const next: any = await sub.until(value => value.state === 'complete' && value.data?.[0]?.at === 2, 1000); assert.equal(next.data[0].at, 2); }
+        finally { sub.close(); }
+      } else if (mode === 'failed-full') {
+        await assert.rejects(client.query((api as any).ordinary, ordinary.args), (error: any) => error.code === 'E_OFFLINE_DELIVERY');
+        await client.offline(); const held: any = await client.query((api as any).ordinary, ordinary.args); assert.equal(held.data[0].at, 1);
+      } else assert.equal((await client.query((api as any).ordinary, ordinary.args)).data[0].at, 2);
+      assert.equal(requests.length, 2, 'one conditional followed by exactly one full revalidation');
+      assert.equal(requests[0].validator, ordinary.validator); assert.equal(requests[1].validator, undefined);
+      assert.deepEqual(requests[1].args, ordinary.args, 'exact noncursor application data survives the full read');
+    } finally { await client.close(); await rm(root, { recursive: true, force: true }); }
+  });
+});
+
+test('native-certified derived page keeps its public local cursor after halo replacement', async () => {
+  const fixtures = JSON.parse(await readFile(new URL('../../evaluator/src/test-search-v5-fixtures.json',import.meta.url),'utf8'));
+  const operation = fixtures.operations['search.findPeople'], op = 'search.findPeople', args = { term: 'É',c: null };
+  const program = { generation: 'c'.repeat(64),schemaHash: operation.certificate.schema_hash,schema: fixtures.schema,
+    programs: { [op]: { kind: 'query',ir: operation.program,certificate: operation.certificate,planHash: operation.certificate.plan_hash } } };
+  const rows = Array.from({ length: 21 },(_,i) => ({ table: 'people',id: `p${String(i).padStart(2,'0')}`,
+    row: { id: `p${String(i).padStart(2,'0')}`,name: 'e\u0301 shared',handle: i % 2 ? 'é' : null } }));
+  // Actual native26c9 Q2000 certificate; synthetic authenticated pool and queued overlay, not native emission or Client grant admission.
+  const frame = { protocol: 1,state: 'capped',generation: program.generation,schemaHash: program.schemaHash,
+    planHash: operation.certificate.plan_hash,authority: { principal: 'dev:alice',authEpoch: 0 },seq: 1,validator: 'd'.repeat(64),next: null,
+    data: rows.slice(0,20).map(r => ({ $row: { table: r.table,id: r.id } })),rows,
+    receipt: { ranges: [{ site: 'search.findPeople.0',table: 'people',index: 'byNameWords',
+      prefix: [{ WordPrefix: { contract: 'u17-nfc-scf-nfc-wsp-p',source: 'É' } }],order: 'Asc',take: 20,
+      after: null,before: null,gt: null,gte: null,lt: null,lte: null,ruleHash: operation.certificate.rule_hashes['people.read'],
+      rowIds: rows.slice(0,20).map(r => r.id),stop: 'Limit',absence: false,haloId: 'p20' }],absences: [],verdicts: [] } };
+  let saved: any; const factory = () => new PersistentRangeStore({ carrier: 'json',open: async () => saved,
+    replace: async state => { saved = JSON.parse(JSON.stringify(state)); },close() {},wipe: async () => {} });
+  let runtime = new OfflineRuntime({ store: factory }); await runtime.open('dev:alice',true); await runtime.program(program);
+  await runtime.commit(op,args,await runtime.accept(op,args,frame));
+  await runtime.store.commit({ outbox: { put: [{ intent: 'local',grant: 'synthetic',offset: 0,count: 0,ids: [],op: 'synthetic',args: {},issuedSeq: 1,
+    state: 'queued',predicted: true,createdAt: 1,updatedAt: 1 }] },overlay: { put: { local: [{ table: 'people',id: 'p00',row: {},removed: true }] } } });
+  for (const cold of [false,true]) {
+    if (cold) { await runtime.close(); runtime = new OfflineRuntime({ store: factory }); await runtime.open('dev:alice',true); }
+    const page = await runtime.twin.evaluate(op,args);
+    assert.equal(page.state,'capped'); assert.deepEqual(page.data.map(r => r.id),rows.slice(1).map(r => r.id));
+    assert(page.next?.startsWith('h1.'),'the last returned p20 remains a local page anchor');
+    const tail = await runtime.twin.evaluate(op,{ term: 'e\u0301',c: page.next });
+    assert.equal(tail.state,'held','held iterator exhaustion never proves the unheld server tail'); assert.deepEqual(tail.data,[]);
+    assert.equal(saved.answers[op+'\0'+canonical(args)].next,null,'local cursor never becomes stored server progress');
+  }
+  await runtime.close();
+});
+
+
+test('public offline movement propagates detected partial coverage and the known halo through cold, retry and subscription', async context => {
+  const { nativeR8: { halo } } = JSON.parse(await readFile(new URL('../../evaluator/src/test-search-v5-fixtures.json', import.meta.url), 'utf8'));
+  const converted = toClosureReceipt(halo.first,halo.program.schema,halo.program.programs['clock.fixed'].ir);
+  const original = structuredClone(converted), leaf = converted.rows[0].row.Row;
+  leaf.at.Int = 999;
+  assert.deepEqual(toClosureReceipt(halo.first,halo.program.schema,halo.program.programs['clock.fixed'].ir),original,
+    'public converter returns recursively mutable copies without changing input or prepared custody');
+  const now = Date.now; Date.now = () => halo.first.readTime + 1000; context.after(() => { Date.now = now; });
+  let saved: any; const factory = () => new PersistentRangeStore({ carrier: 'json',open: async () => saved,
+    replace: async state => { saved = JSON.parse(JSON.stringify(state)); },close() {},wipe: async () => {} });
+  const runtime = new OfflineRuntime({ store: factory }); await runtime.open(halo.first.authority.principal,true); await runtime.program(halo.program);
+  await runtime.commit('clock.fixed',{},await runtime.accept('clock.fixed',{},halo.first)); await runtime.twin.evaluate('clock.fixed',{});
+  // Unchanged native first page; later movement is a synthetic checked public-runtime frame, not native emission.
+  const moved = structuredClone(halo.first); moved.seq++; moved.readTime++; moved.validator = 'd'.repeat(64);
+  moved.planHash = halo.program.programs['clock.read'].planHash; moved.receipt = { ranges: [],absences: [],verdicts: [] };
+  moved.rows = moved.rows.filter((r: any) => ['r8','r9'].includes(r.id)).map((r: any,i: number) => ({ ...r,row: { ...r.row,at: 100 + i } }));
+  moved.data = { now: moved.readTime,rows: moved.rows.map((r: any) => ({ $row: { table: r.table,id: r.id } })) };
+  await runtime.commit('clock.read',{},await runtime.accept('clock.read',{},moved));
+  assert.equal((await runtime.twin.evaluate('clock.fixed',{})).state,'partial'); await runtime.close();
+  for (const mode of ['forced','retry']) {
+    let requests = 0;
+    const fetch = async (input: any) => {
+      const path = new URL(String(input)).pathname;
+      if (path === '/api/auth/me') return Response.json({ viewer: halo.first.authority.principal,kind: 'user',authEpoch: halo.first.authority.authEpoch });
+      if (path === '/api/manifest') return Response.json({ generation: 'schema',programGeneration: halo.program.generation,
+        ops: Object.fromEntries(Object.entries<any>(halo.program.programs).map(([name,op]) => [name,{ kind: op.kind,args: op.ir.args,planHash: op.planHash }])),channels: {},tables: {},auth: {} });
+      if (path === '/api/program') return Response.json(halo.program);
+      if (path === '/api/resume') return Response.json({ seq: moved.seq,generation: moved.generation,schemaHash: moved.schemaHash,authority: moved.authority,log: { unchanged: true },mounted: [] });
+      requests++; throw new TypeError('synthetic offline transport');
+    };
+    const client = createClient({ url: 'http://movement.test',as: halo.first.authority.principal,startOffline: mode === 'forced',offline: { store: factory },fetch });
+    try {
+      await client.ready;
+      const check = (answer: any) => { assert.equal(answer.state,'partial'); assert(!Object.hasOwn(answer,'next'));
+        assert.equal(answer.connection,'offline'); assert.deepEqual(answer.data.rows.map((r: any) => r.at),[0,1,2,3,4,5,6,7,10,100]); };
+      check(await client.query(api.clock.fixed as any,{})); assert.equal(requests,mode === 'forced' ? 0 : 3);
+      if (mode === 'forced') {
+        const sub = client.subscribe(api.clock.fixed as any,{},() => {});
+        try { check(await sub.until((r: any) => r.state === 'partial',2000)); } finally { sub.close(); }
+        check(await client.query(api.clock.fixed as any,{}));
+      }
+    } finally { await client.close(); }
+  }
 });

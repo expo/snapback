@@ -298,7 +298,7 @@ fn check_grammar_schema_aggregation_and_numeric_flags_are_strict() {
             "tables": {
                 "messages": {
                     "columns": {},
-                    "indexes": { "byId": { "columns": ["id"], "unique": true } },
+                    "indexes": { "byId": { "components": [{"Column": "id"}], "unique": true } },
                     "rules": {
                         "read": "Allow",
                         "insert": "Allow",
@@ -427,12 +427,12 @@ fn check_grammar_schema_aggregation_and_numeric_flags_are_strict() {
         "schema": { "tables": {
             "docs": {
                 "columns": { "id": "Id", "group": "Id", "owner": "Principal", "order": "Int" },
-                "indexes": { "byId": { "columns": ["id"], "unique": true }, "byScope": { "columns": ["group", "order", "id"], "unique": false } },
+                "indexes": { "byId": { "components": [{"Column": "id"}], "unique": true }, "byScope": { "components": [{"Column": "group"}, {"Column": "order"}, {"Column": "id"}], "unique": false } },
                 "rules": { "read": { "Eq": [{ "Field": "owner" }, "Viewer"] }, "insert": "Allow", "update": "Allow", "delete": "Allow" }, "constraints": []
             },
             "counts": {
                 "columns": { "id": "Id", "value": "Int" },
-                "indexes": { "byId": { "columns": ["id"], "unique": true } },
+                "indexes": { "byId": { "components": [{"Column": "id"}], "unique": true } },
                 "rules": { "read": "Allow", "insert": "Allow", "update": "Allow", "delete": "Allow" }, "constraints": []
             }
         }, "maintains": [], "channels": {}, "auth": { "password": false, "guests": false }, "effects": [] },

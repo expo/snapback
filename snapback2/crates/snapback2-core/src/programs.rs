@@ -227,7 +227,10 @@ pub fn thread_program(take: u32) -> Program {
         site: "programs.thread.0".to_owned(),
         table: "messages".to_owned(),
         index: "byConvTime".to_owned(),
-        prefix: vec![var("conversationId")],
+        prefix: (vec![var("conversationId")])
+            .into_iter()
+            .map(IndexKeyExpr::Scalar)
+            .collect(),
         order: Order::Desc,
         take: Bound::Literal(take),
         after: None,
@@ -241,7 +244,10 @@ pub fn thread_program(take: u32) -> Program {
         site: "programs.thread.2".to_owned(),
         table: "users".to_owned(),
         index: "byHandle".to_owned(),
-        prefix: vec![var("handle")],
+        prefix: (vec![var("handle")])
+            .into_iter()
+            .map(IndexKeyExpr::Scalar)
+            .collect(),
         order: Order::Asc,
         take: Bound::Literal(1),
         after: None,
@@ -355,7 +361,10 @@ pub fn send_program(with_unread: bool) -> Program {
                 site: format!("programs.{name}.2"),
                 table: "memberships".to_owned(),
                 index: "byConversation".to_owned(),
-                prefix: vec![var("conversationId")],
+                prefix: (vec![var("conversationId")])
+                    .into_iter()
+                    .map(IndexKeyExpr::Scalar)
+                    .collect(),
                 order: Order::Asc,
                 take: Bound::Literal(256),
                 after: None,
@@ -461,7 +470,10 @@ pub fn inbox_program(maintained: bool) -> Program {
         site: format!("programs.{name}.0"),
         table: "memberships".to_owned(),
         index: "byUserActivity".to_owned(),
-        prefix: vec![Expr::Input(Input::Viewer)],
+        prefix: (vec![Expr::Input(Input::Viewer)])
+            .into_iter()
+            .map(IndexKeyExpr::Scalar)
+            .collect(),
         order: Order::Desc,
         take: Bound::Literal(50),
         after: None,
@@ -489,7 +501,10 @@ pub fn inbox_program(maintained: bool) -> Program {
                 site: format!("programs.{name}.2"),
                 table: "messages".to_owned(),
                 index: "byConvTime".to_owned(),
-                prefix: vec![field(var("membership"), "conversationId")],
+                prefix: (vec![field(var("membership"), "conversationId")])
+                    .into_iter()
+                    .map(IndexKeyExpr::Scalar)
+                    .collect(),
                 order: Order::Asc,
                 take: Bound::Literal(100),
                 after: Some(Box::new(Expr::Array(vec![
@@ -526,7 +541,10 @@ pub fn inbox_program(maintained: bool) -> Program {
                                 site: format!("programs.{name}.1"),
                                 table: "messages".to_owned(),
                                 index: "byConvTime".to_owned(),
-                                prefix: vec![field(var("membership"), "conversationId")],
+                                prefix: (vec![field(var("membership"), "conversationId")])
+                                    .into_iter()
+                                    .map(IndexKeyExpr::Scalar)
+                                    .collect(),
                                 order: Order::Desc,
                                 take: Bound::Literal(1),
                                 after: None,
@@ -658,7 +676,10 @@ fn nested_board_program(summary: bool) -> Program {
             site: format!("programs.{name}.1"),
             table: "cards".to_owned(),
             index: "byParentOrder".to_owned(),
-            prefix: vec![field(var("column"), "id")],
+            prefix: (vec![field(var("column"), "id")])
+                .into_iter()
+                .map(IndexKeyExpr::Scalar)
+                .collect(),
             order: Order::Asc,
             take: Bound::Literal(50),
             after: None,
@@ -685,7 +706,10 @@ fn nested_board_program(summary: bool) -> Program {
                     site: format!("programs.{name}.0"),
                     table: "columns".to_owned(),
                     index: "byParentOrder".to_owned(),
-                    prefix: vec![var("boardId")],
+                    prefix: (vec![var("boardId")])
+                        .into_iter()
+                        .map(IndexKeyExpr::Scalar)
+                        .collect(),
                     order: Order::Asc,
                     take: Bound::Literal(20),
                     after: None,
@@ -715,7 +739,10 @@ pub fn ledger_program() -> Program {
             site: "programs.ledger.0".to_owned(),
             table: "owed".to_owned(),
             index: "byGroup".to_owned(),
-            prefix: vec![var("groupId")],
+            prefix: (vec![var("groupId")])
+                .into_iter()
+                .map(IndexKeyExpr::Scalar)
+                .collect(),
             order: Order::Asc,
             take: Bound::Literal(50),
             after: None,
@@ -836,10 +863,13 @@ pub fn mention_scan_program() -> Program {
                     site: "programs.mentionScan.0".to_owned(),
                     table: "users".to_owned(),
                     index: "byHandle".to_owned(),
-                    prefix: vec![Expr::Builtin {
+                    prefix: (vec![Expr::Builtin {
                         builtin: Builtin::Concat,
                         args: vec![Expr::Literal(Value::String(String::new())), var("handle")],
-                    }],
+                    }])
+                    .into_iter()
+                    .map(IndexKeyExpr::Scalar)
+                    .collect(),
                     order: Order::Asc,
                     take: Bound::Literal(20),
                     after: None,
@@ -874,7 +904,10 @@ pub fn nested_expenses_program() -> Program {
                 site: "programs.expensesByShares.0".to_owned(),
                 table: "expenses".to_owned(),
                 index: "byGroup".to_owned(),
-                prefix: vec![var("groupId")],
+                prefix: (vec![var("groupId")])
+                    .into_iter()
+                    .map(IndexKeyExpr::Scalar)
+                    .collect(),
                 order: Order::Asc,
                 take: Bound::Literal(500),
                 after: None,
@@ -890,7 +923,10 @@ pub fn nested_expenses_program() -> Program {
                     site: "programs.expensesByShares.1".to_owned(),
                     table: "shares".to_owned(),
                     index: "byExpense".to_owned(),
-                    prefix: vec![field(var("expense"), "id")],
+                    prefix: (vec![field(var("expense"), "id")])
+                        .into_iter()
+                        .map(IndexKeyExpr::Scalar)
+                        .collect(),
                     order: Order::Asc,
                     take: Bound::Literal(50),
                     after: None,
@@ -911,7 +947,10 @@ pub fn helper_wrapped_scan_program() -> Program {
             site: "programs.helperWrappedScan.0".to_owned(),
             table: "cards".to_owned(),
             index: "byParentOrder".to_owned(),
-            prefix: vec![var("columnId")],
+            prefix: (vec![var("columnId")])
+                .into_iter()
+                .map(IndexKeyExpr::Scalar)
+                .collect(),
             order: Order::Asc,
             take: Bound::Literal(37),
             after: None,
@@ -943,7 +982,10 @@ pub fn structural_waitlist_count_program() -> Program {
                 site: "programs.waitlistDepth.0".to_owned(),
                 table: "waitlist".to_owned(),
                 index: "byResource".to_owned(),
-                prefix: vec![var("resourceId")],
+                prefix: (vec![var("resourceId")])
+                    .into_iter()
+                    .map(IndexKeyExpr::Scalar)
+                    .collect(),
                 order: Order::Asc,
                 take: Bound::Literal(100),
                 after: None,
@@ -1016,7 +1058,13 @@ fn indexes<const N: usize>(values: [(&str, &[&str], bool); N]) -> BTreeMap<Strin
             (
                 name.to_owned(),
                 Index {
-                    columns: columns.iter().map(|column| (*column).to_owned()).collect(),
+                    components: (columns
+                        .iter()
+                        .map(|column| (*column).to_owned())
+                        .collect::<Vec<_>>())
+                    .into_iter()
+                    .map(crate::search_key::IndexComponent::Column)
+                    .collect(),
                     unique,
                 },
             )
@@ -1159,14 +1207,20 @@ fn aggregate_table(groups: &[(&str, ColumnType)]) -> Table {
         (
             "byId".to_owned(),
             Index {
-                columns: vec!["id".to_owned()],
+                components: (vec!["id".to_owned()])
+                    .into_iter()
+                    .map(crate::search_key::IndexComponent::Column)
+                    .collect(),
                 unique: true,
             },
         ),
         (
             "byGroup".to_owned(),
             Index {
-                columns: group_columns.clone(),
+                components: (group_columns.clone())
+                    .into_iter()
+                    .map(crate::search_key::IndexComponent::Column)
+                    .collect(),
                 unique: true,
             },
         ),

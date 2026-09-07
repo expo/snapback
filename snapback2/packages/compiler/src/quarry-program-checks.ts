@@ -103,11 +103,9 @@ table reactions:
     });
   });
 
-  test("Quarry refuses operation names captured by generated imports at the declaration", () => {
+  test("Quarry refuses effect names captured by generated helpers at the declaration", () => {
     const schema = "table rows:\n  public\n";
     for (const fixture of [
-      { source: "query range():\n  return []\n", collision: "snapback2 helper" },
-      { source: "effect notify from delivery\nquery notify():\n  return null\n", collision: "effect import" },
       { source: "effect range from delivery\nquery ping():\n  return null\n", collision: "generated module helper" },
       { source: "effect orderedPair from delivery\nquery ping():\n  return null\n", collision: "generated module helper" },
     ]) {
@@ -121,6 +119,112 @@ table reactions:
         && diagnostic.rewrite.includes("rename the "),
       `generated-import collision did not produce a sited Quarry rename: ${JSON.stringify(compiled)}`);
     }
+  });
+
+  test("Quarry hygiene preserves same-name table, operation, argument, cursor, and API identities", async () => {
+    const schema = `table reactions:
+  value: int
+  public
+  insert <- allow
+  update <- allow
+  delete <- allow
+`;
+    const reads = `query reactions(row: reactions):
+  return reactions[row]
+
+query ordinary(row: reactions):
+  return reactions[row]
+`;
+    await withProject({
+      "snapback/schema.q": schema,
+      "snapback/reads.q": reads,
+      "snapback/pages.q": "query reactions(c: cursor ?):\n  return reactions[] after c first 3 by byId\n",
+      "snapback/writes.q": "mutation reactions(row: reactions, value: int):\n  update reactions[row] { value }\n  return reactions[row]\n",
+    }, async (root) => {
+      const result = await lowerProject(root);
+      assert(result.ok, diagnosticsText(result.ok ? [] : result.diagnostics));
+      const { project, apiDts, sources } = result;
+      deepStrictEqual(project.programs.map((p) => p.name).sort(), ["pages.reactions", "reads.ordinary", "reads.reactions", "writes.reactions"]);
+      deepStrictEqual(Object.keys(project.schema.tables), ["reactions"]);
+      const same = operation(project.programs, "reads.reactions");
+      const ordinary = operation(project.programs, "reads.ordinary");
+      deepStrictEqual(same.args, ordinary.args);
+      deepStrictEqual(JSON.parse(JSON.stringify(same.body).replaceAll("reads.reactions", "reads.ordinary")), ordinary.body);
+      assert(JSON.stringify(same.args).includes('"table":"reactions"'), "reference argument lost its authored table");
+      const page = operation(project.programs, "pages.reactions");
+      assert(JSON.stringify(page).includes('"site":"pages.reactions.0"')
+        && JSON.stringify(page).includes('"table":"reactions"'), "cursor site or scan table acquired a generated name");
+      const write = operation(project.programs, "writes.reactions");
+      assert(deepKey(write.body, "Update") && deepKey(write.body, "Get"), "same-name mutation lost its write/result read");
+      assert(apiDts.includes("readonly reactions: Op<{ row: string }, ReactionsRow | null>")
+        && apiDts.includes("Page<ReactionsRow>"), `same-name API lost its exact types: ${apiDts}`);
+      assert(sources["reads.reactions"]?.file === "snapback/reads.q", "source identity is not the authored module");
+      assert(!JSON.stringify({ project, apiDts, sources }).includes("$q_operation_"), "private name escaped into product output");
+    });
+  });
+
+  test("Quarry hygiene isolates operation names from generated builtin imports and orderedPair", async () => {
+    const names = ["deterministicShare", "divmod", "emit", "max", "mergeByIndex", "mentionTokens", "min", "mutation", "query", "range", "recurse", "t", "words", "orderedPair"];
+    const modules = names.map((name) => `query ${name}(value: int):\n  (lo, hi) = sorted(value, 3)\n  return min(value, 3)\n`).join("\n");
+    await withProject({ "snapback/schema.q": "table records:\n  value: int\n  public\n", "snapback/helpers.q": modules }, async (root) => {
+      const result = await lowerProject(root);
+      assert(result.ok, diagnosticsText(result.ok ? [] : result.diagnostics));
+      deepStrictEqual(result.project.programs.map((p) => p.name).sort(), names.map((n) => `helpers.${n}`).sort());
+      for (const name of names) {
+        const program = operation(result.project.programs, `helpers.${name}`);
+        assert(JSON.stringify(program.body).includes('"builtin":"Min"'), `${name} captured the min builtin`);
+        assert(result.apiDts.includes(`readonly ${name}: Op<{ value: number }, number>`), `${name} lost its API types`);
+      }
+    });
+  });
+
+  test("Quarry hygiene preserves an effect import and its same-name then operation", async () => {
+    await withProject({
+      "snapback/schema.q": "table records:\n  value: int\n  public\n",
+      "snapback/ops.q": `effect notify from delivery
+
+mutation notify(outboxId: id, effect: text <=100, result: json <=1000):
+  return true
+
+mutation fire():
+  emit notify { value: 1 }
+  return true
+`,
+      "snapback/delivery.ts": `import { effect } from "snapback2";
+import { notify as completed } from "./ops";
+export const notify = effect({ grants: ["https://api.example.com"], run: async (payload: { value: number }) => payload, then: completed });
+`,
+    }, async (root) => {
+      const result = await lowerProject(root);
+      assert(result.ok, diagnosticsText(result.ok ? [] : result.diagnostics));
+      assert(result.project.effects[0]?.name === "delivery.notify" && result.project.effects[0]?.then === "ops.notify", "effect/then lost exported identity");
+      assert(JSON.stringify(operation(result.project.programs, "ops.fire").body).includes('"effect":"delivery.notify"'), "emit captured the same-name operation");
+      assert(result.apiDts.includes("readonly notify: Op<"), "then operation disappeared from the API");
+    });
+  });
+
+  test("Quarry hygiene retains existing named and namespace table alias lowering", async () => {
+    await withProject({
+      "snapback/schema.ts": `import { table, schema, rule, t } from "snapback2";
+export const reactions = table({ columns: { value: t.int() }, rules: { read: rule.allow(), update: rule.allow() } });
+export default schema({ tables: { reactions } });
+`,
+      "snapback/ops.ts": `import { query, mutation, t } from "snapback2";
+import { reactions as rows } from "./schema";
+import * as tables from "./schema";
+export const reactions = query({ row: t.ref(rows) }, ({ db, args }) => db.get(rows, args.row));
+export const page = query({}, ({ db }) => db.scan(tables.reactions.byId, [], { take: 3, order: "asc" }));
+export const change = mutation({ row: t.ref(tables.reactions), value: t.int() }, ({ db, args }) => { db.update(rows, args.row, { value: args.value }); return db.get(tables.reactions, args.row); });
+`,
+    }, async (root) => {
+      const result = await lowerProject(root, { authoring: "any" });
+      assert(result.ok, diagnosticsText(result.ok ? [] : result.diagnostics));
+      for (const program of result.project.programs) {
+        assert(JSON.stringify(program.body).includes('"table":"reactions"'), `${program.name} lost the source table`);
+        assert(!JSON.stringify(program).includes('"table":"rows"') && !JSON.stringify(program).includes('"table":"tables.reactions"'), "local table alias became the IR identity");
+      }
+      assert(result.apiDts.includes("ReactionsRow | null") && result.apiDts.includes("Page<ReactionsRow>"), "aliased table lost API row types");
+    });
   });
 
   test("Quarry effects, maintains, aggregate sugar, returns, objects, and count reach IR", async () => {
@@ -316,7 +420,7 @@ query empty(global: bool, c: cursor ?):
         after: null, before: null, gt: null, gte: null, lt: null, lte: null,
         rule_hash: scopedRuleHash(lowered.project.schema, (lowered.project.schema.tables as any)[table].rules.read),
         row_ids: receipt.rows.filter((row) => row.table === table).map((row) => row.id),
-        stop: "Exhausted", absence: false, halo: null, n2_key: null,
+        stop: "Exhausted", absence: false, halo: null, n2_suffix: null,
       });
       const store = new ClientStore(lowered.project.schema, receipt);
       const context: Context = { viewer: "u1", principal_kind: "user", auth_epoch: 1,
@@ -984,7 +1088,7 @@ query direct(value: time ?, upTo: time):
       receipt.ranges.push({ site: "drain.posts", table: "posts", index: "byId", prefix: [],
         order: "Asc", take: 5, after: null, before: null, gt: null, gte: null, lt: null, lte: null,
         rule_hash: scopedRuleHash(lowered.project.schema, (lowered.project.schema.tables as any).posts.rules.read),
-        row_ids: receipt.rows.map((row) => row.id), stop: "Exhausted", absence: false, halo: null, n2_key: null });
+        row_ids: receipt.rows.map((row) => row.id), stop: "Exhausted", absence: false, halo: null, n2_suffix: null });
       const execution = new ClientStore(lowered.project.schema, receipt).reexecute(program, context, checked.certificate).execution;
       deepStrictEqual(execution.result, { Array: [
         { Row: { id: { Id: "first" }, at: { Int: 1 } } },

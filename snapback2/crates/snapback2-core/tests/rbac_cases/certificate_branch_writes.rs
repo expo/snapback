@@ -19,7 +19,10 @@ fn by_id() -> BTreeMap<String, Index> {
     BTreeMap::from([(
         "byId".to_owned(),
         Index {
-            columns: vec!["id".to_owned()],
+            components: (vec!["id".to_owned()])
+                .into_iter()
+                .map(snapback2_core::search_key::IndexComponent::Column)
+                .collect(),
             unique: true,
         },
     )])
@@ -130,11 +133,14 @@ fn branch_certificate_contains_the_executed_physical_writes() {
         engine
             .seed(
                 "events",
-                Value::Row(BTreeMap::from([
-                    ("id".to_owned(), Value::Id(id_value.to_owned())),
-                    ("bucket".to_owned(), Value::Id("bucket-1".to_owned())),
-                    ("label".to_owned(), Value::String(label.to_owned())),
-                ])),
+                Value::Row(
+                    BTreeMap::from([
+                        ("id".to_owned(), Value::Id(id_value.to_owned())),
+                        ("bucket".to_owned(), Value::Id("bucket-1".to_owned())),
+                        ("label".to_owned(), Value::String(label.to_owned())),
+                    ])
+                    .into(),
+                ),
             )
             .unwrap();
     }
@@ -161,11 +167,14 @@ fn insert_and_read_aggregate(aggregate_id: &str) -> Program {
         body: vec![
             Stmt::Insert {
                 table: "events".to_owned(),
-                row: Expr::Literal(Value::Row(BTreeMap::from([
-                    ("id".to_owned(), Value::Id("event-new".to_owned())),
-                    ("bucket".to_owned(), Value::Id("bucket-new".to_owned())),
-                    ("label".to_owned(), Value::String("new".to_owned())),
-                ]))),
+                row: Expr::Literal(Value::Row(
+                    BTreeMap::from([
+                        ("id".to_owned(), Value::Id("event-new".to_owned())),
+                        ("bucket".to_owned(), Value::Id("bucket-new".to_owned())),
+                        ("label".to_owned(), Value::String("new".to_owned())),
+                    ])
+                    .into(),
+                )),
             },
             Stmt::Return(Expr::Get(Read {
                 site: "events.aggregate".to_owned(),
@@ -220,11 +229,14 @@ fn receipt_authority_gates_the_local_aggregate_predecessor() {
         rows: vec![RowRecord {
             table: "counts".to_owned(),
             id: aggregate_id.clone(),
-            row: Value::Row(BTreeMap::from([
-                ("id".to_owned(), Value::Id(aggregate_id)),
-                ("bucket".to_owned(), Value::Id("bucket-new".to_owned())),
-                ("value".to_owned(), Value::Int(5)),
-            ])),
+            row: Value::Row(
+                BTreeMap::from([
+                    ("id".to_owned(), Value::Id(aggregate_id)),
+                    ("bucket".to_owned(), Value::Id("bucket-new".to_owned())),
+                    ("value".to_owned(), Value::Int(5)),
+                ])
+                .into(),
+            ),
         }],
         ..ClosureReceipt::default()
     };

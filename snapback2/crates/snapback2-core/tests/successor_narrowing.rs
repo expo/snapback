@@ -1,3 +1,4 @@
+use snapback2_core::ir::IndexKeyExpr;
 use snapback2_core::*;
 use std::collections::BTreeMap;
 
@@ -7,7 +8,10 @@ fn generation(kind: ColumnType) -> Generation {
         BTreeMap::from([(
             "byId".into(),
             Index {
-                columns: vec!["id".into()],
+                components: (vec!["id".into()])
+                    .into_iter()
+                    .map(snapback2_core::search_key::IndexComponent::Column)
+                    .collect(),
                 unique: true,
             },
         )]),
@@ -37,7 +41,7 @@ fn runtime(kind: ColumnType, values: Vec<Option<Value>>) -> Runtime {
             if let Some(value) = value {
                 row.insert("value".into(), value);
             }
-            ("items".into(), Value::Row(row))
+            ("items".into(), Value::Row(row.into()))
         })
         .collect::<Vec<_>>();
     runtime.seed(&rows).unwrap();
@@ -56,7 +60,7 @@ fn read_values(runtime: &mut Runtime) -> Value {
             site: "items".into(),
             table: "items".into(),
             index: "byId".into(),
-            prefix: vec![],
+            prefix: (vec![]).into_iter().map(IndexKeyExpr::Scalar).collect(),
             take: Bound::Literal(30),
             order: Order::Asc,
             after: None,

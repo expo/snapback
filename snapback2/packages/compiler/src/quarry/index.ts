@@ -1,3 +1,4 @@
+import { columnComponents } from "../index-components";
 import { basename } from "node:path";
 import type { Document, QuarryDiagnostic, RuleDecl, ScalarType, Site, TableCatalog, TableDecl } from "./ast";
 import { buildCatalog } from "./catalog";
@@ -189,7 +190,7 @@ function materializeMaintains(documents: Document[]): void {
       // @ref LLP 1006#2a-one-asset-one-home-author-ruling-2026-09-01 — the
       // authored maintain refusal owns this error; do not also diagnose the
       // synthetic target index materialized only by the Quarry lowering.
-      indexes: assetGrouped ? [] : [{ name: indexName, columns: [...declaration.by], unique: true, site: declaration.site }],
+      indexes: assetGrouped ? [] : [{ name: indexName, components: columnComponents(declaration.by), unique: true, site: declaration.site }],
       rules: [declaration.read, deny("insert"), deny("update"), deny("delete")],
       immutable: [],
       caps: [],

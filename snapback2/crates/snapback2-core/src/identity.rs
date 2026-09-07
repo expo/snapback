@@ -69,6 +69,9 @@ impl Actor {
         if id == SYSTEM_PRINCIPAL_ID.as_str() || kind == SYSTEM_PRINCIPAL_ID.as_str() {
             return Err(ActorError::ReservedSystem);
         }
+        if !crate::value::identity_fits(&id) {
+            return Err(ActorError::Width);
+        }
         if id.is_empty() {
             return Err(ActorError::Empty);
         }
@@ -106,6 +109,8 @@ pub enum ActorError {
     ReservedSystem,
     #[error("E_AUTH_INVALID: actor id must not be empty")]
     Empty,
+    #[error("E_AUTH_INVALID: actor id exceeds 144 canonical tagged UTF-8 bytes")]
+    Width,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -278,6 +283,9 @@ impl Runtime {
     pub fn ensure_persona(&mut self, name: &str, now: i64) -> Result<Principal, IdentityError> {
         if name == SYSTEM_PRINCIPAL_ID.as_str() {
             return Err(IdentityError::ReservedSystem);
+        }
+        if !crate::value::identity_fits(&format!("dev:{name}")) {
+            return Err(IdentityError::Invalid);
         }
         if name.is_empty() {
             return Err(IdentityError::Invalid);

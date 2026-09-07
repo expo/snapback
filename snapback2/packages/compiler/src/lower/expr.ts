@@ -1,3 +1,9 @@
+import { scanOperands, scanOptionsNeedSequence, requireStaticOperands } from "./scan-operands";
+import { checkCallOperands } from "./call-operands";
+import { OperandOrder } from "./operand-order";
+import { evaluateHelperArguments, lowerKey } from "./operands";
+import { checkAssignmentForm } from "./assignment";
+import { scanKeyExpressions, requireOrdinaryRead } from "./search-key";
 import ts from "typescript";
 import type { Environment, LoweredValue, ProvenanceOrigin, VariableInfo } from "../compiler";
 import { refuse, Refusal } from "../diagnostics";
@@ -41,12 +47,15 @@ import {
   unwrapCall,
   unwrapExpression,
 } from "../syntax";
-import { isOperationCompositeBinding, withDirectRewrite } from "./operation-context";
+import { isOperationCompositeBinding, requireCurrentComposite, withDirectRewrite } from "./operation-context";
 import { guardedWalk, MAX_RECURSION_DEPTH } from "./recursion";
 import { derivedBound, operationArgumentList, staticBound } from "./binding-bound";
+import { requirePresentCollection } from "./collection-presence";
 import { maintainCollectionFacts } from "./collection-facts";
 import { checkScanPrefix, checkTupleCursor } from "./cursor";
-import { isIdType } from "../authored-types";
+import { isIdType, requiredType } from "../authored-types";
+import { convertAtUse } from "./value-conversion";
+import { bindingName, declareBinding, runtimeBinding } from "./lexical-binding";
 function concatExpressions(expressions: Expr[]): Expr {
   return expressions.slice(1).reduce<Expr>(
     (left, right) => ({ Builtin: { builtin: "Concat", args: [left, right] } }),
@@ -65,24 +74,30 @@ function rowFields(target: ts.Expression | undefined, env: Environment): string[
   if (!columns) return undefined;
   return [...new Set(["id", ...Object.keys(columns)])];
 }
-
-function isKnownRowOrObject(expression: ts.Expression, env: Environment): boolean {
+function hasCollectionLength(expression: ts.Expression, env: Environment): boolean {
   const value = unwrapExpression(expression);
-  if (ts.isIdentifier(value) && env.variables.get(value.text)?.rowCollection) return false;
-  return knownObjectFields(expression, env) !== undefined || isRowExpression(expression, env);
+  // Value representation is independent of read-key authority. In particular,
+  // assigning an object invalidates provenance without changing .length into Len.
+  const type = requiredType(env.expressionTypes.get(contextualNodeKey(env.literalContext, value, env.sourceFile)));
+  if (["list", "string", "enum", "principal"].includes(type.kind)) return true;
+  if (["object", "row", "asset"].includes(type.kind)) return false;
+  if (type.kind === "unknown" && type.lengthRepresentation) return type.lengthRepresentation === "collection";
+  const info = ts.isIdentifier(value) ? env.variables.get(value.text) : undefined;
+  if (info?.rowCollection && !info.provenanceAmbiguity || info?.max !== undefined && !info.collection) return true;
+  if (knownObjectFields(expression, env) !== undefined || isRowExpression(expression, env)) return false;
+  refuse(env, "E_OPAQUE", expression, "length requires a modeled list, text, or object value",
+    "pass a declared bounded list/text or preserve the object's known source representation");
 }
-
 export function lowerPropertyValue(value: ts.PropertyAccessExpression, base: Expr, env: Environment): Expr {
   const collection = ts.isIdentifier(value.expression)
     ? env.variables.get(value.expression.text)?.collection
     : undefined;
-  if ((value.name.text === "length" && !isKnownRowOrObject(value.expression, env))
+  if ((value.name.text === "length" && hasCollectionLength(value.expression, env))
     || (value.name.text === "size" && collection)) {
     return { Builtin: { builtin: "Len", args: [base] } };
   }
   return { Field: { base, name: value.name.text } };
 }
-
 export function lowerOptionalPropertyChain(
   value: ts.PropertyAccessChain,
   env: Environment,
@@ -128,7 +143,6 @@ export function lowerOptionalPropertyChain(
     expression: { Variable: result },
   };
 }
-
 export function loopDomainMaximum(domain: LoopDomain): number {
   if ("Page" in domain) {
     return "Literal" in domain.Page.take ? domain.Page.take.Literal : domain.Page.take.Arg.max;
@@ -144,7 +158,6 @@ export function loopDomainMaximum(domain: LoopDomain): number {
   const total = (recurse.fanout ** (recurse.depth + 1) - 1) / (recurse.fanout - 1);
   return Number.isSafeInteger(total) ? total : Number.MAX_SAFE_INTEGER;
 }
-
 export function lowerCoalesce(
   node: ts.BinaryExpression,
   env: Environment,
@@ -194,22 +207,29 @@ export function lowerDomain(
   env: Environment,
   binding: string,
   hint?: string,
+  operand: typeof lowerExpr = lowerExpr,
 ): { domain: LoopDomain; bindingInfo: VariableInfo } {
-  return guardedWalk(env, expression, "loop domain", () => lowerDomainInner(expression, env, binding, hint));
+  requirePresentCollection(expression, env);
+  return guardedWalk(env, expression, "loop domain", () => lowerDomainInner(expression, env, binding, hint, operand));
 }
 function lowerDomainInner(
   expression: ts.Expression,
   env: Environment,
   binding: string,
   hint?: string,
+  operand: typeof lowerExpr = lowerExpr,
 ): { domain: LoopDomain; bindingInfo: VariableInfo } {
   const expanded = expandHelper(expression, env);
-  if (expanded) return lowerDomain(expanded.expression, expanded.environment, binding, hint);
+  if (expanded) return lowerDomain(expanded.expression, expanded.environment, binding, hint, operand);
   const call = unwrapCall(expression);
+  if (call) checkCallOperands(call, env);
   if (call && callName(call).endsWith(".scan")) {
+    if (!isDbMember(call.expression, (name) => isOperationCompositeBinding(name, "db", env))) {
+      refuse(env, "E_OPAQUE", call, "scan domain requires the current operation database receiver");
+    }
     const reference = tableReference(call.arguments[0]!, env);
     return {
-      domain: { Page: lowerScan(call, env, hint ?? `${env.programName}.${reference.table}`) },
+      domain: { Page: lowerScan(call, env, hint ?? `${env.programName}.${reference.table}`, operand) },
       bindingInfo: { provenance: "Shape", objectFields: rowFields(call.arguments[0], env), rowBinding: true, rowTable: reference.table },
     };
   }
@@ -224,7 +244,7 @@ function lowerDomainInner(
     if (!value) refuse(env, "E_OPAQUE", call, "mentionTokens requires text");
     return {
       domain: { DerivedArray: {
-        value: { Builtin: { builtin: "MentionTokens", args: [lowerExpr(value, env)] } },
+        value: { Builtin: { builtin: "MentionTokens", args: [operand(value, env)] } },
         max: 85,
         bound_source: "messages.body max 256 / min whitespace mention 3",
       } },
@@ -232,7 +252,7 @@ function lowerDomainInner(
     };
   }
   if (call && ts.isIdentifier(call.expression) && call.expression.text === "recurse") {
-    return lowerRecurse(call, env);
+    return lowerRecurse(call, env, operand);
   }
   const operationList = operationArgumentList(expression, env);
   if (operationList?.max !== undefined) {
@@ -241,9 +261,9 @@ function lowerDomainInner(
       bindingInfo: collectionElementBinding(expression, env),
     };
   }
-  const identifier = operationList ? undefined : identifierFromArgsOrLocal(expression, (name) => env.variables.get(name)?.operationComposite === "args");
+  const identifier = operationList ? undefined : identifierFromArgsOrLocal(expression, (name) => isOperationCompositeBinding(name, "args", env));
   if (identifier) {
-    const info = env.variables.get(identifier);
+    const info = env.variables.get(identifier) ?? runtimeBinding(identifier, env);
     if (info?.max !== undefined) {
       if (info.operationArgument && env.args[info.operationArgument]
         && typeof env.args[info.operationArgument] !== "string") {
@@ -254,7 +274,7 @@ function lowerDomainInner(
       }
       return {
         domain: { DerivedArray: {
-          value: { Variable: identifier },
+          value: { Variable: bindingName(identifier, env) },
           max: info.max,
           bound_source: info.boundSource ?? `${identifier} declared max`,
         } },
@@ -269,14 +289,13 @@ function lowerDomainInner(
   }
   const maximum = staticBound(expression, env);
   if (maximum !== undefined) return {
-    domain: { DerivedArray: { value: lowerExpr(expression, env), max: maximum,
+    domain: { DerivedArray: { value: operand(expression, env), max: maximum,
       bound_source: `${expression.getText(env.sourceFile)} static bound` } },
     bindingInfo: collectionElementBinding(expression, env),
   };
   refuse(env, "E_UNBOUND_LOOP", expression, "loop domain has no static cardinality");
 }
-
-function lowerRecurse(call: ts.CallExpression, env: Environment): { domain: LoopDomain; bindingInfo: VariableInfo } {
+function lowerRecurse(call: ts.CallExpression, env: Environment, operand: typeof lowerExpr): { domain: LoopDomain; bindingInfo: VariableInfo } {
   const seed = call.arguments[0];
   const step = call.arguments[1];
   const options = call.arguments[2];
@@ -284,10 +303,11 @@ function lowerRecurse(call: ts.CallExpression, env: Environment): { domain: Loop
     refuse(env, "E_OPAQUE", call, "recurse requires seed, inline step, depth, and fanout");
   }
   const depth = numberProperty(options, "depth");
+  requireStaticOperands(options, ["depth", "fanout"], env, "recurse options");
   const fanout = numberProperty(options, "fanout");
   if (depth === undefined || fanout === undefined) refuse(env, "E_UNBOUND_LOOP", options, "recurse bounds must be literals");
   if (depth > 10_000) refuse(env, "E_UNBOUND_LOOP", options, "recurse depth must be at most 10000");
-  if (step.parameters.length !== 1 || !ts.isIdentifier(step.parameters[0]!.name)) {
+  if (step.parameters.length !== 1 || !ts.isIdentifier(step.parameters[0]!.name) || step.parameters[0]!.dotDotDotToken) {
     refuse(env, "E_OPAQUE", step, "recurse step requires exactly one row parameter");
   }
   const row = step.parameters[0].name.text;
@@ -302,6 +322,8 @@ function lowerRecurse(call: ts.CallExpression, env: Environment): { domain: Loop
     refuse(env, "E_OPAQUE", step, "recurse step must be exactly one get through the operation db binding");
   }
   const ref = tableReference(get.arguments[0]!, env);
+  checkCallOperands(get, env);
+  requireOrdinaryRead(get.arguments[0]!, env, ref.table, ref.index);
   const key = get.arguments[1];
   if (!key || !ts.isPropertyAccessExpression(key)
     || !ts.isIdentifier(key.expression) || key.expression.text !== row) {
@@ -312,7 +334,7 @@ function lowerRecurse(call: ts.CallExpression, env: Environment): { domain: Loop
       site: allocateReadSite(env),
       table: ref.table,
       index: ref.index,
-      seed: lowerExpr(seed, env),
+      seed: operand(seed, env),
       next_field: key.name.text,
       depth,
       fanout,
@@ -321,17 +343,14 @@ function lowerRecurse(call: ts.CallExpression, env: Environment): { domain: Loop
     bindingInfo: { provenance: "Shape", rowBinding: true, rowTable: ref.table },
   };
 }
-
 export function lowerExpr(node: ts.Expression, env: Environment, hint?: string): Expr {
   return guardedWalk(env, node, "expression", () => lowerExprInner(node, env, hint));
 }
-
 function lowerExprInner(node: ts.Expression, env: Environment, hint?: string): Expr {
   const substituted = ts.isIdentifier(node) ? env.substitutions.get(node.text) : undefined;
-  if (substituted) return lowerExpr(substituted.expression, substituted.environment, hint);
+  if (substituted) return convertAtUse(node, env, substituted.value ?? lowerExpr(substituted.expression, substituted.environment, hint), substituted.environment);
   const unwrapped = unwrapExpression(node);
   if (unwrapped !== node) return lowerExpr(unwrapped, env, hint);
-
   if (node.kind === ts.SyntaxKind.NullKeyword) return literal(null);
   if (node.kind === ts.SyntaxKind.TrueKeyword) return literal(true);
   if (node.kind === ts.SyntaxKind.FalseKeyword) return literal(false);
@@ -362,14 +381,19 @@ function lowerExprInner(node: ts.Expression, env: Environment, hint?: string): E
     return literal(scaled ?? Number(node.text));
   }
   if (ts.isStringLiteralLike(node)) {
-    const authored = env.expressionTypes.get(contextualNodeKey(env.literalContext, node, env.sourceFile));
+    const authored = env.contextualTypes.get(contextualNodeKey(env.literalContext, node, env.sourceFile));
     return isIdType(authored) && !ts.isVariableDeclaration(node.parent)
       ? { Literal: { Id: node.text } }
       : literal(node.text);
   }
   if (ts.isIdentifier(node)) {
     const info = env.variables.get(node.text);
-    const authored = env.expressionTypes.get(contextualNodeKey(env.literalContext, node, env.sourceFile));
+    if (!info && env.helperStack.length && node.pos >= 0) refuse(env, "E_OPAQUE", node,
+      `helper free name ${node.text} has no supported immutable module capture`,
+      `pass ${node.text} as an explicit helper parameter or declare a module const scalar literal`);
+    const conversion = env.valueConversions.get(contextualNodeKey(env.literalContext, node, env.sourceFile));
+    if (conversion) return convertAtUse(node, env, { Variable: bindingName(node.text, env) });
+    const authored = env.contextualTypes.get(contextualNodeKey(env.literalContext, node, env.sourceFile));
     if (isIdType(authored)
       && info?.identityExpression
       && "Literal" in info.identityExpression
@@ -379,10 +403,14 @@ function lowerExprInner(node: ts.Expression, env: Environment, hint?: string): E
       return { Literal: { Id: info.identityExpression.Literal.String } };
     }
     if (info?.operationComposite === "args") {
+      requireCurrentComposite(node, env);
       return { Object: Object.fromEntries(Object.keys(env.args).map((name) => [name, { Variable: name } satisfies Expr])) };
     }
-    if (info?.operationComposite === "ctx") return { Object: { viewer: { Input: "Viewer" } } };
-    return { Variable: node.text };
+    if (info?.operationComposite === "ctx") {
+      requireCurrentComposite(node, env);
+      return { Object: { viewer: { Input: "Viewer" } } };
+    }
+    return { Variable: bindingName(node.text, env) };
   }
   if (ts.isArrayLiteralExpression(node)) {
     const segments: Expr[] = [];
@@ -465,6 +493,7 @@ function lowerExprInner(node: ts.Expression, env: Environment, hint?: string): E
     }
     if (ts.isIdentifier(node.expression)) {
       const composite = env.variables.get(node.expression.text)?.operationComposite;
+      if (composite === "args" || composite === "ctx") requireCurrentComposite(node.expression, env);
       if (composite === "args") return { Variable: node.name.text };
       if (composite === "ctx") {
         if (node.name.text === "viewer") return { Input: "Viewer" };
@@ -472,12 +501,9 @@ function lowerExprInner(node: ts.Expression, env: Environment, hint?: string): E
         if (node.name.text === "commitTime") return { Input: "Now" };
       }
     }
-    if (node.name.text === "length" && !isKnownRowOrObject(node.expression, env)) {
-      return { Builtin: { builtin: "Len", args: [lowerExpr(node.expression, env)] } };
-    }
     const base = lowerExpr(node.expression, env);
     if ("Object" in base && base.Object[node.name.text]) return base.Object[node.name.text]!;
-    return { Field: { base, name: node.name.text } };
+    return lowerPropertyValue(node, base, env);
   }
   if (ts.isBinaryExpression(node)) {
     const op = binaryOperator(node.operatorToken.kind);
@@ -502,30 +528,20 @@ function lowerExprInner(node: ts.Expression, env: Environment, hint?: string): E
   if (ts.isCallExpression(node)) return lowerCall(node, env, hint);
   refuse(env, "E_OPAQUE", node, `expression ${ts.SyntaxKind[node.kind]} is outside the S1 IR`);
 }
-
 function captureRefusal(env: Environment, error: unknown): void {
   if (error instanceof Refusal) env.diagnostics.push(error.diagnostic);
   else throw error;
 }
 
-export function lowerCallValue(call: ts.CallExpression, env: Environment, lowerValue: (node: ts.Expression, env: Environment, hint?: string) => LoweredValue, hint?: string): LoweredValue {
-  const statements: Stmt[] = [];
-  const expression = lowerCall(call, env, hint, (node, scope, at) => {
-    const lowered = lowerValue(node, scope, at);
-    statements.push(...lowered.statements);
-    return lowered.expression;
-  });
-  return { statements, expression };
-}
-
-function lowerCall(call: ts.CallExpression, env: Environment, hint?: string, operand: typeof lowerExpr = lowerExpr): Expr {
+export function lowerCall(call: ts.CallExpression, env: Environment, hint?: string, operand: typeof lowerExpr = lowerExpr): Expr {
+  checkCallOperands(call, env);
   const expanded = expandHelper(call, env);
   if (expanded) return operand(expanded.expression, expanded.environment, hint);
   const name = callName(call);
   if (name === "decimal" && call.arguments[0]) return operand(call.arguments[0], env, hint);
   const compositeMember = ts.isPropertyAccessExpression(call.expression) ? call.expression : undefined;
   const compositeCall = compositeMember && ts.isIdentifier(compositeMember.expression)
-    ? env.variables.get(compositeMember.expression.text)?.operationComposite
+    && isOperationCompositeBinding(compositeMember.expression.text, "ctx", env) ? "ctx"
     : undefined;
   if (compositeCall === "ctx" && compositeMember?.name.text === "now") {
     return { Input: env.kind === "Query" ? "ReadTime" : "Now" };
@@ -596,19 +612,16 @@ function lowerCall(call: ts.CallExpression, env: Environment, hint?: string, ope
       if (call.arguments.length !== 2) refuse(env, "E_OPAQUE", call, "slice requires start and end arguments");
       return { Builtin: { builtin: "Slice", args: [operand(owner, env), ...call.arguments.map((arg) => operand(arg, env))] } };
     }
-    if (method === "sort") return lowerSort(owner, call.arguments[0], env);
+    if (method === "sort") return lowerSortExpression(operand(owner, env), call.arguments[0], env);
   }
   refuse(env, "E_OPAQUE", call, `helper ${name} is not defined in this module or the pure builtin set`);
 }
 
-function lowerSort(owner: ts.Expression, comparator: ts.Expression | undefined, env: Environment): Expr {
-  return lowerSortExpression(lowerExpr(owner, env), comparator, env);
-}
 
 export function lowerSortExpression(owner: Expr, comparator: ts.Expression | undefined, env: Environment): Expr {
   if (!comparator || !isFunctionLike(comparator) || comparator.parameters.length !== 2
     || !ts.isIdentifier(comparator.parameters[0]!.name) || !ts.isIdentifier(comparator.parameters[1]!.name)
-    || ts.isBlock(comparator.body)) {
+    || comparator.parameters.some(parameter => parameter.dotDotDotToken) || ts.isBlock(comparator.body)) {
     refuse(env, "E_OPAQUE", comparator ?? env.sourceFile, "sort requires an inline field comparator");
   }
   const body = comparator.body;
@@ -637,6 +650,7 @@ function lowerRead(call: ts.CallExpression, env: Environment, hint?: string, ope
   const key = call.arguments[1];
   if (!target || !key) refuse(env, "E_OPAQUE", call, "point read requires target and key");
   const ref = tableReference(target, env);
+  requireOrdinaryRead(target, env, ref.table, ref.index);
   return {
     site: allocateReadSite(env),
     table: ref.table,
@@ -663,7 +677,7 @@ function lowerScan(call: ts.CallExpression, env: Environment, hint?: string, ope
   } else {
     const name = identifierFromArgsOrLocal(
       takeNode,
-      (binding) => env.variables.get(binding)?.operationComposite === "args",
+      (binding) => isOperationCompositeBinding(binding, "args", env),
     );
     const operationArgument = name && env.variables.get(name)?.operationArgument;
     const arg = operationArgument && env.args[operationArgument];
@@ -676,7 +690,6 @@ function lowerScan(call: ts.CallExpression, env: Environment, hint?: string, ope
   if (orderNode && authoredOrder !== "asc" && authoredOrder !== "desc") {
     refuse(env, "E_OPAQUE", orderNode, 'scan order must be "asc" or "desc"');
   }
-  const rangeNode = expressionProperty(options, "range");
   const loweredPrefix = lowerKey(prefix, env, operand);
   // A helper's scan can lower in several binding environments; preserve every occurrence.
   env.loweredScanPrefixes.set(call, [...(env.loweredScanPrefixes.get(call) ?? []), loweredPrefix]);
@@ -694,23 +707,17 @@ function lowerScan(call: ts.CallExpression, env: Environment, hint?: string, ope
   const mergeSiteNode = expressionProperty(options, "mergeSite");
   const mergeSite = stringLiteral(mergeSiteNode);
   if (mergeSiteNode && mergeSite === undefined) refuse(env, "E_OPAQUE", mergeSiteNode, "mergeSite must be a static string");
+  const site = allocateReadSite(env);
+  const prefixValues = scanKeyExpressions(prefix, loweredPrefix, env, ref.table, ref.index);
+  const optionsValues = scanOperands(options, env, operand);
   return {
-    site: allocateReadSite(env),
+    site,
     table: ref.table,
     index: ref.index,
-    prefix: loweredPrefix,
+    prefix: prefixValues,
     order: authoredOrder === "desc" ? "Desc" : "Asc",
     take,
-    after: optionalLower(afterNode, env, operand),
-    before: optionalLower(beforeNode, env, operand),
-    range: rangeNode && ts.isObjectLiteralExpression(rangeNode)
-      ? {
-          gt: optionalLower(expressionProperty(rangeNode, "gt"), env, operand),
-          gte: optionalLower(expressionProperty(rangeNode, "gte"), env, operand),
-          lt: optionalLower(expressionProperty(rangeNode, "lt"), env, operand),
-          lte: optionalLower(expressionProperty(rangeNode, "lte"), env, operand),
-        }
-      : null,
+    ...optionsValues,
     ...(opaqueCursor ? { opaque_cursor: true } : {}),
     merge_site: mergeSite ?? null,
     provenance: readProvenance(prefix, env),
@@ -731,17 +738,6 @@ export function tableReference(node: ts.Expression, env: Environment): { table: 
     `static table/index reference required; ${node.getText(env.sourceFile)} does not resolve to an imported table or table.index`,
     replaceNode(env.source, node, "table.index"),
   );
-}
-
-export function lowerKey(node: ts.Expression, env: Environment, operand: typeof lowerExpr = lowerExpr): Expr[] {
-  const value = unwrapExpression(node);
-  if (ts.isArrayLiteralExpression(value)) return value.elements.map((element) => operand(element, env));
-  if (ts.isIdentifier(value)) {
-    const identity = env.variables.get(value.text)?.identityExpression;
-    if (identity && "Array" in identity) return identity.Array;
-  }
-  const lowered = operand(value, env);
-  return "Array" in lowered ? lowered.Array : [lowered];
 }
 
 export function cloneEnvironment(env: Environment): Environment {
@@ -817,7 +813,7 @@ export function lowerArrayMethod(
   if (ts.isBlock(callback.body)) refuse(env, "E_OPAQUE", callback.body, `${method} callback must be an expression`);
   const expectedParameters = method === "reduce" ? 2 : 1;
   if (callback.parameters.length !== expectedParameters
-    || callback.parameters.some((parameter) => !ts.isIdentifier(parameter.name))) {
+    || callback.parameters.some((parameter) => !ts.isIdentifier(parameter.name) || parameter.dotDotDotToken)) {
     refuse(env, "E_OPAQUE", callback, method === "reduce"
       ? "reduce callback requires exactly accumulator and item parameters"
       : `${method} callback requires exactly one parameter`);
@@ -831,7 +827,7 @@ export function lowerArrayMethod(
     lowerValue,
     hint,
   );
-  loopEnv.variables.set(binding, bindingInfo);
+  const runtimeName = method === "reduce" ? binding : declareBinding(binding, bindingInfo, loopEnv);
   if (method === "map" || method === "filter") {
     const name = temporary(env, method);
     const lowered = lowerValue(callback.body, loopEnv, hint);
@@ -839,7 +835,7 @@ export function lowerArrayMethod(
       ? [...lowered.statements, { Push: { target: name, value: lowered.expression } } satisfies import("../ir").Stmt]
       : [...lowered.statements, { If: {
           condition: lowered.expression,
-          then_body: [{ Push: { target: name, value: { Variable: binding } } }],
+          then_body: [{ Push: { target: name, value: { Variable: runtimeName } } }],
           else_body: [],
         } } satisfies import("../ir").Stmt];
     const resultOrigin = method === "filter"
@@ -859,7 +855,7 @@ export function lowerArrayMethod(
       ...(preservesRows ? { rowCollection: true, objectFields: bindingInfo.objectFields } : {}),
     }, { ...bound, elementOrigins }));
     return {
-      statements: [...domainStatements, { Let: { name, value: { Array: [] } } }, { For: { binding, domain, body } }],
+      statements: [...domainStatements, { Let: { name, value: { Array: [] } } }, { For: { binding: runtimeName, domain, body } }],
       expression: { Variable: name },
     };
   }
@@ -884,7 +880,7 @@ export function lowerArrayMethod(
         ...domainStatements,
         { Let: { name, value: { Array: [] } } },
         { For: {
-          binding,
+          binding: runtimeName,
           domain,
           body: [...inner.statements, { For: {
             binding: innerBinding,
@@ -904,18 +900,22 @@ export function lowerArrayMethod(
     const accumulator = callback.parameters[0].name.text;
     const item = callback.parameters[1].name.text;
     const reduceEnv = cloneEnvironment(env);
-    reduceEnv.variables.set(item, bindingInfo);
+    const runtimeItem = declareBinding(item, bindingInfo, reduceEnv);
     const name = temporary(env, "reduce");
     reduceEnv.substitutions.set(accumulator, {
       expression: syntheticIdentifier(env.sourceFile, name),
       environment: reduceEnv,
     });
+    const order = new OperandOrder(env);
+    const orderedDomain = order.addDomain(domain, domainStatements);
+    order.flush();
+    const initialValue = order.add(lowerValue(initial, env));
     const lowered = lowerValue(callback.body, reduceEnv, hint);
     return {
       statements: [
-        ...domainStatements,
-        { Let: { name, value: lowerExpr(initial, env) } },
-        { For: { binding: item, domain, body: [...lowered.statements, { Assign: { name, value: lowered.expression } }] } },
+        ...order.statements,
+        { Let: { name, value: initialValue } },
+        { For: { binding: runtimeItem, domain: orderedDomain, body: [...lowered.statements, { Assign: { name, value: lowered.expression } }] } },
       ],
       expression: { Variable: name },
     };
@@ -927,7 +927,7 @@ export function lowerArrayMethod(
       ...domainStatements,
       { Let: { name, value: literal(false) } },
       { For: {
-        binding,
+        binding: runtimeName,
         domain,
         body: [...lowered.statements, { If: {
           condition: lowered.expression,
@@ -947,8 +947,16 @@ export function lowerCollectionDomain(
   lowerValue: (node: ts.Expression, env: Environment, hint?: string) => LoweredValue,
   hint?: string,
 ): ReturnType<typeof lowerDomain> & { statements: import("../ir").Stmt[] } {
+  requirePresentCollection(expression, env);
   const value = unwrapExpression(expression);
   const call = unwrapCall(value);
+  const helper = expandHelper(expression, env);
+  if (helper && call) {
+    checkAssignmentForm(helper.expression, helper.environment);
+    const statements = evaluateHelperArguments(call, helper, env, lowerValue, hint);
+    const domain = lowerCollectionDomain(helper.expression, helper.environment, binding, lowerValue, hint);
+    return { ...domain, statements: [...statements, ...domain.statements] };
+  }
   const method = call && ts.isPropertyAccessExpression(call.expression) ? call.expression.name.text : undefined;
   if (method && ["map", "flatMap", "filter", "sort", "slice"].includes(method)) {
     const lowered = lowerValue(expression, env, hint);
@@ -987,14 +995,13 @@ export function lowerCollectionDomain(
       bindingInfo: collectionElementBinding(expression, env),
     };
   }
-  return { statements: [], ...lowerDomain(expression, env, binding, hint) };
+  const order = new OperandOrder(env);
+  const domain = lowerDomain(expression, env, binding, hint, (node, scope, at) => order.add(lowerValue(node, scope, at)));
+  if (call && "Page" in domain.domain && scanOptionsNeedSequence(call)) order.flush();
+  return { statements: order.statements, ...domain };
 }
 function bindingOrigins(binding: VariableInfo): ProvenanceOrigin[] {
   if (binding.alternativeOrigins) return binding.alternativeOrigins;
   const { elementOrigins: _elements, ...valueBinding } = binding;
   return [{ binding: valueBinding }];
-}
-
-function optionalLower(node: ts.Expression | undefined, env: Environment, operand: typeof lowerExpr = lowerExpr): Expr | null {
-  return node ? operand(node, env) : null;
 }

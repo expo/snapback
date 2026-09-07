@@ -15,12 +15,20 @@ mod diagnostic;
 mod merge;
 mod output;
 mod page;
+pub(crate) mod search;
 use diagnostic::{Cost, WorkTerms};
 use page::result_pages;
 pub use page::resumable_log_cursor;
 
 // Heap is calibrated; output/closure use declared maxima. These are admission bounds, not allocator/serializer proofs.
 const HEAP_BYTES_PER_STEP: u64 = 32;
+pub const CURRENT_EVALUATOR_VERSION: &str = "bounded-spike-rust-search-text-refinements-4";
+impl Certificate {
+    pub(crate) fn has_current_semantics(&self) -> bool {
+        self.value_model_version == CURRENT_VALUE_MODEL_VERSION.as_str()
+            && self.evaluator_version == CURRENT_EVALUATOR_VERSION
+    }
+}
 
 // @ref LLP 1010#a5-the-merged-feed — one of the four fixed work units in
 // certificate/merge.rs's (L + N + 2) * (3 * height + 4) term accommodates
@@ -95,6 +103,8 @@ pub struct Certificate {
     pub max_index_entries: u64,
     pub max_rule_probes: u64,
     pub max_steps: u64,
+    pub derived_steps: u64,
+    pub derived_scratch_bytes: u64,
     pub max_heap_bytes: u64,
     pub max_output_bytes: u64,
     pub max_closure_bytes: u64,
@@ -251,10 +261,37 @@ impl<'a> Checker<'a> {
     }
 
     pub fn check_all(&self, program: &Program) -> Result<Certificate, Vec<CheckError>> {
+        let mut errors: Vec<_> = program
+            .args
+            .iter()
+            .chain(self.schema.channels.values().flat_map(|c| c.args.iter()))
+            .filter(|(_, kind)| !kind.bounds_valid())
+            .map(|(name, _)| CheckError {
+                site: Some(name.clone()),
+                code: "E_INPUT".into(),
+                message: "text min exceeds max".into(),
+                rewrite: "use a text minimum no greater than its maximum".into(),
+            })
+            .collect();
+        if program.read_time_granularity_ms.is_some_and(|g| {
+            program.kind != ProgramKind::Query || g == 0 || g > crate::value::I53_MAX as u64
+        }) {
+            errors.push(CheckError {
+                site: None,
+                code: "E_INPUT".into(),
+                message: "invalid query clock declaration".into(),
+                rewrite: "declare a positive safe-integer readTime granularity on a query".into(),
+            });
+        }
+        if !errors.is_empty() {
+            return Err(errors);
+        }
+
         if program.kind == ProgramKind::Job {
             return crate::jobs::certify(self.schema, program, &self.ceilings);
         }
         let (mut errors, complete) = self.structural_errors(program);
+        errors.extend(search::validate(self.schema, program));
         match self.analyze(program) {
             Ok(mut certificate) if errors.is_empty() => {
                 for site in &mut certificate.read_sites {
@@ -377,7 +414,22 @@ impl<'a> Checker<'a> {
         } else {
             summary.steps
         };
-        let max_heap_bytes = max_steps.saturating_mul(HEAP_BYTES_PER_STEP);
+        let mut derived = search::derivation_bound(
+            self.schema,
+            program,
+            &summary.writes,
+            &maintained_writes,
+            &summary.reads,
+        );
+        let search_closure =
+            search::closure::estimate(self.schema, program, &summary.reads, &analyzer.merge_sites);
+        if let Some(closure) = &search_closure {
+            derived.scratch = derived.scratch.saturating_add(closure.bytes);
+        }
+        let max_heap_bytes = max_steps
+            .saturating_mul(HEAP_BYTES_PER_STEP)
+            .saturating_add(derived.scratch);
+        let max_steps = max_steps.saturating_add(derived.steps);
         let output = OutputEstimator::estimate(self.schema, program);
         let max_output_bytes = output.bytes;
         let mut closure = RetentionEstimator::estimate(self.schema, program);
@@ -402,6 +454,15 @@ impl<'a> Checker<'a> {
                     break;
                 }
             }
+        }
+        if let Some(search) = search_closure {
+            if search.bytes > closure.bytes {
+                closure = search;
+            }
+        }
+        if program.kind == ProgramKind::Query && program.read_time_granularity_ms.is_some() {
+            // @ref LLP 1012#8-the-delivery-envelope-the-validator-and-resume — a signed i53 readTime member fits in 32 envelope bytes.
+            closure.bytes = closure.bytes.saturating_add(32);
         }
         let max_closure_bytes = closure.bytes;
         let mut bound_errors = Vec::new();
@@ -646,7 +707,7 @@ impl<'a> Checker<'a> {
                 })
                 .collect(),
             rule_hashes,
-            evaluator_version: "bounded-spike-rust-1".to_owned(),
+            evaluator_version: CURRENT_EVALUATOR_VERSION.to_owned(),
             value_model_version: CURRENT_VALUE_MODEL_VERSION.to_string(),
             read_sites,
             merge_sites: analyzer.merge_sites.into_values().collect(),
@@ -664,6 +725,8 @@ impl<'a> Checker<'a> {
             max_index_entries,
             max_rule_probes,
             max_steps,
+            derived_steps: derived.steps,
+            derived_scratch_bytes: derived.scratch,
             max_heap_bytes,
             max_output_bytes,
             max_closure_bytes,
@@ -1089,7 +1152,7 @@ impl<'a> Analyzer<'a> {
         // @ref LLP 1001#2-what-a-commit-records — a read nested in a scan's
         // key or bounds is still a certified read site with its own budget.
         let mut summary = Summary::default();
-        for value in &scan.prefix {
+        for value in scan.prefix.iter().map(IndexKeyExpr::expression) {
             summary = summary.add(self.expr(value, calls, factors)?);
         }
         for value in [scan.after.as_deref(), scan.before.as_deref()]

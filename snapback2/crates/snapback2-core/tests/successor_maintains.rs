@@ -13,7 +13,13 @@ fn table(columns: &[(&str, ColumnType)], indexes: &[(&str, &[&str])]) -> Table {
                 (
                     (*name).to_owned(),
                     Index {
-                        columns: columns.iter().map(|column| (*column).to_owned()).collect(),
+                        components: (columns
+                            .iter()
+                            .map(|column| (*column).to_owned())
+                            .collect::<Vec<_>>())
+                        .into_iter()
+                        .map(snapback2_core::search_key::IndexComponent::Column)
+                        .collect(),
                         unique: false,
                     },
                 )
@@ -425,7 +431,10 @@ fn rebuilt_target_clears_stale_rows_before_a_new_unique_index_binds() {
     next_totals.indexes.insert(
         "byValue".to_owned(),
         Index {
-            columns: vec!["value".to_owned()],
+            components: (vec!["value".to_owned()])
+                .into_iter()
+                .map(snapback2_core::search_key::IndexComponent::Column)
+                .collect(),
             unique: true,
         },
     );

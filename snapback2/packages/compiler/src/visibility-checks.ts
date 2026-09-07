@@ -13,8 +13,8 @@ function table(rule: unknown): TableInfo {
   return { name: "memberships", private: true,
     columns: { id: { kind: "string", id: true }, conversationId: { kind: "string", id: true }, principal: { kind: "principal" } },
     indexes: {
-      byPrincipalConversation: { columns: ["principal", "conversationId"], types: [{ kind: "principal" }, { kind: "string", id: true }] },
-      byConversationPrincipal: { columns: ["conversationId", "principal"], types: [{ kind: "string", id: true }, { kind: "principal" }], unique: true },
+      byPrincipalConversation: { components: ["principal", "conversationId"].map(Column => ({ Column })), types: [{ kind: "principal" }, { kind: "string", id: true }] },
+      byConversationPrincipal: { components: ["conversationId", "principal"].map(Column => ({ Column })), types: [{ kind: "string", id: true }, { kind: "principal" }], unique: true },
     }, readRule: rule,
   };
 }

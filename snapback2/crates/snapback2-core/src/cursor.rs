@@ -2,7 +2,7 @@
 // @ref LLP 1011#b1-opaque-cursors — Tokens retain nominal index value tags,
 // bind the ordered suffix, and reject noncanonical encodings before a scan.
 
-use crate::{ColumnType, Order, Value};
+use crate::{ColumnType, Order, Schema, Value};
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
@@ -44,8 +44,8 @@ type Tagged = (u8, String, String, Order, Vec<CursorColumn>, Vec<Value>);
 
 /// Encodes `[version, table, index, order, suffix descriptor, suffix values]`
 /// as unpadded base64url over canonical compact JSON.
-pub fn encode_cursor(position: &CursorPosition) -> Result<String, CursorError> {
-    validate_values(&position.suffix, &position.values)?;
+pub fn encode_cursor(schema: &Schema, position: &CursorPosition) -> Result<String, CursorError> {
+    validate_values(schema, &position.table, &position.suffix, &position.values)?;
     let tagged = (
         VERSION,
         position.table.clone(),
@@ -61,7 +61,10 @@ pub fn encode_cursor(position: &CursorPosition) -> Result<String, CursorError> {
     Ok(base64url_encode(&bytes))
 }
 
-pub fn decode_cursor(token: &str) -> Result<CursorPosition, CursorError> {
+pub fn decode_cursor(schema: &Schema, token: &str) -> Result<CursorPosition, CursorError> {
+    if token.starts_with("h1") {
+        return Err(CursorError::Encoding);
+    }
     if token.len() > encoded_len(MAX_TOKEN_BYTES) {
         return Err(CursorError::TooLarge);
     }
@@ -83,21 +86,22 @@ pub fn decode_cursor(token: &str) -> Result<CursorPosition, CursorError> {
         suffix: tagged.4,
         values: tagged.5,
     };
-    validate_values(&position.suffix, &position.values)?;
-    if encode_cursor(&position)? != token {
+    validate_values(schema, &position.table, &position.suffix, &position.values)?;
+    if encode_cursor(schema, &position)? != token {
         return Err(CursorError::Encoding);
     }
     Ok(position)
 }
 
 pub fn decode_cursor_for(
+    schema: &Schema,
     token: &str,
     table: &str,
     index: &str,
     order: Order,
     suffix: &[CursorColumn],
 ) -> Result<Vec<Value>, CursorError> {
-    let position = decode_cursor(token)?;
+    let position = decode_cursor(schema, token)?;
     if position.table != table
         || position.index != index
         || position.order != order
@@ -108,14 +112,31 @@ pub fn decode_cursor_for(
     Ok(position.values)
 }
 
-fn validate_values(suffix: &[CursorColumn], values: &[Value]) -> Result<(), CursorError> {
-    if suffix.len() != values.len()
-        || suffix
-            .iter()
-            .zip(values)
-            .any(|(column, value)| !value_matches(value, &column.kind))
-    {
+fn validate_values(
+    schema: &Schema,
+    table: &str,
+    suffix: &[CursorColumn],
+    values: &[Value],
+) -> Result<(), CursorError> {
+    if suffix.len() != values.len() {
         return Err(CursorError::Values);
+    }
+    for (column, value) in suffix.iter().zip(values) {
+        if !value_matches(value, &column.kind) {
+            return Err(CursorError::Values);
+        }
+        if column.name == "id" && column.kind == ColumnType::Id {
+            crate::cap::validate_address(schema, table, value).map_err(|_| CursorError::Values)?;
+        } else {
+            crate::engine::validate_typed_column_value(
+                schema,
+                table,
+                &column.name,
+                &column.kind,
+                Some(value),
+            )
+            .map_err(|_| CursorError::Values)?;
+        }
     }
     Ok(())
 }
@@ -227,14 +248,14 @@ mod tests {
     #[test]
     fn canonical_round_trip_is_typed_and_strict() {
         let position = position();
-        let token = encode_cursor(&position).unwrap();
-        assert_eq!(decode_cursor(&token).unwrap(), position);
+        let token = encode_cursor(&Schema::default(), &position).unwrap();
+        assert_eq!(decode_cursor(&Schema::default(), &token).unwrap(), position);
         assert_eq!(
-            decode_cursor(&format!("{token}=")).unwrap_err(),
+            decode_cursor(&Schema::default(), &format!("{token}=")).unwrap_err(),
             CursorError::Base64
         );
         assert_eq!(
-            decode_cursor(&format!("+{}", &token[1..])).unwrap_err(),
+            decode_cursor(&Schema::default(), &format!("+{}", &token[1..])).unwrap_err(),
             CursorError::Base64
         );
     }
@@ -242,9 +263,10 @@ mod tests {
     #[test]
     fn descriptor_and_value_tags_are_bound() {
         let position = position();
-        let token = encode_cursor(&position).unwrap();
+        let token = encode_cursor(&Schema::default(), &position).unwrap();
         assert_eq!(
             decode_cursor_for(
+                &Schema::default(),
                 &token,
                 "messages",
                 "byConversationAt",
@@ -256,6 +278,9 @@ mod tests {
         );
         let mut wrong = position;
         wrong.values[1] = Value::String("message-41".to_owned());
-        assert_eq!(encode_cursor(&wrong).unwrap_err(), CursorError::Values);
+        assert_eq!(
+            encode_cursor(&Schema::default(), &wrong).unwrap_err(),
+            CursorError::Values
+        );
     }
 }

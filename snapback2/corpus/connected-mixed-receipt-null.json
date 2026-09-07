@@ -11,8 +11,10 @@
         },
         "indexes": {
           "byId": {
-            "columns": [
-              "id"
+            "components": [
+              {
+                "Column": "id"
+              }
             ],
             "unique": true
           }
@@ -49,8 +51,10 @@
         },
         "indexes": {
           "byId": {
-            "columns": [
-              "id"
+            "components": [
+              {
+                "Column": "id"
+              }
             ],
             "unique": true
           }
@@ -233,7 +237,7 @@
   "certificate": {
     "program": "connected-mixed-receipt-null",
     "plan_hash": "2d8d67007f4a188a7d33de06bbd9c90cff059fcd046ab2831015438184d5908d",
-    "schema_hash": "e31413ea38ae07d0a81828ea716c3f35a2cf07bfb4c40acba68a07b449098d6e",
+    "schema_hash": "eba113a1f4d987e44648b4fe234348015a500e16114438e6986e10d3b3609c76",
     "tables": {
       "grants": {
         "retain": "until-revoked"
@@ -243,11 +247,11 @@
       }
     },
     "rule_hashes": {
-      "_connected.read": "e167f874da436ea59dae0e4008e67264e9ff1d955dc921f81d1f5b6ad2cde07a",
-      "notes.read": "87253ac38610ad7138935323d40dbf53821fc25be498f0b521f959aad73c6c39"
+      "_connected.read": "8cba5592243b2c65c0388897e93f7efb4b3f2258dfcdd6f07f968e1912a6f1c4",
+      "notes.read": "1893aa3fcbf8cbd6537f0bf614be631a727afa9731cbf077774c82a7d14461e4"
     },
-    "evaluator_version": "bounded-spike-rust-1",
-    "value_model_version": "i53-codepoint-bytes-v2",
+    "evaluator_version": "bounded-spike-rust-search-text-refinements-4",
+    "value_model_version": "i53-codepoint-bytes-unicode-search-text-refinements-v5",
     "read_sites": [
       {
         "site": "connected",
@@ -279,6 +283,8 @@
     "max_index_entries": 1,
     "max_rule_probes": 2,
     "max_steps": 36,
+    "derived_steps": 0,
+    "derived_scratch_bytes": 0,
     "max_heap_bytes": 1152,
     "max_output_bytes": 168,
     "max_closure_bytes": 145,
@@ -304,7 +310,7 @@
     "read_time": null
   },
   "receipt": {
-    "schema_hash": "e31413ea38ae07d0a81828ea716c3f35a2cf07bfb4c40acba68a07b449098d6e",
+    "schema_hash": "eba113a1f4d987e44648b4fe234348015a500e16114438e6986e10d3b3609c76",
     "rows": [
       {
         "table": "notes",
@@ -325,7 +331,7 @@
     "absences": [],
     "verdicts": [
       {
-        "rule_hash": "87253ac38610ad7138935323d40dbf53821fc25be498f0b521f959aad73c6c39",
+        "rule_hash": "1893aa3fcbf8cbd6537f0bf614be631a727afa9731cbf077774c82a7d14461e4",
         "pinned_inputs_digest": "3a3a6122869a6c7c512f3e2b8eeb45e661b176bf422cdb32230565ec5075a097",
         "principal": "alice",
         "auth_epoch": 1,

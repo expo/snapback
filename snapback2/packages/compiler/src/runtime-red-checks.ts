@@ -17,10 +17,10 @@ const items: TableInfo = {
     tags: { kind: "optional", of: { kind: "optional", of: { kind: "list", of: { kind: "int" }, max: 2 } } },
   },
   indexes: {
-    byId: { columns: ["id"], types: [{ kind: "string", id: true }] },
-    byAt: { columns: ["at", "id"], types: [{ kind: "int" }, { kind: "string", id: true }] },
-    byAtUnsafe: { columns: ["id", "at"], types: [{ kind: "string", id: true }, { kind: "int" }] },
-    byLabel: { columns: ["label"], types: [{ kind: "string", max: 80 }], unique: true },
+    byId: { components: ["id"].map(Column => ({ Column })), types: [{ kind: "string", id: true }] },
+    byAt: { components: ["at", "id"].map(Column => ({ Column })), types: [{ kind: "int" }, { kind: "string", id: true }] },
+    byAtUnsafe: { components: ["id", "at"].map(Column => ({ Column })), types: [{ kind: "string", id: true }, { kind: "int" }] },
+    byLabel: { components: ["label"].map(Column => ({ Column })), types: [{ kind: "string", max: 80 }], unique: true },
   },
 };
 const tables = new Map([["items", items]]);
@@ -34,10 +34,10 @@ const schema = {
         tags: { Optional: { Optional: { List: { of: "Int", max: 2 } } } },
       },
       indexes: {
-        byId: { columns: ["id"], unique: true },
-        byAt: { columns: ["at", "id"], unique: false },
-        byAtUnsafe: { columns: ["id", "at"], unique: false },
-        byLabel: { columns: ["label"], unique: true },
+        byId: { components: [{ Column: "id" }], unique: true },
+        byAt: { components: [{ Column: "at" }, { Column: "id" }], unique: false },
+        byAtUnsafe: { components: [{ Column: "id" }, { Column: "at" }], unique: false },
+        byLabel: { components: [{ Column: "label" }], unique: true },
       },
       rules: {
         read: { Public: { reason: "runtime-red regression" } },
@@ -233,7 +233,7 @@ export const page = query({}, ({ db }) => {
     } })), "point read items.byId key component 1");
     expectNonIndexable(() => runQuery(queryProgram("indexable.prefix", { Scan: {
       site: "indexable.prefix.0", table: "items", index: "byId",
-      prefix: [{ Object: {} }], order: "Asc", take: { Literal: 1 },
+      prefix: [{ Scalar: { Object: {} } }], order: "Asc", take: { Literal: 1 },
       after: null, before: null, range: null, provenance: "Const",
     } })), "scan items.byId prefix component 1");
     expectNonIndexable(() => runQuery(queryProgram("indexable.range", { Scan: {
@@ -244,7 +244,7 @@ export const page = query({}, ({ db }) => {
 
     const indexedJsonSchema = JSON.parse(JSON.stringify(schema));
     indexedJsonSchema.tables.items.columns.payload = { Json: { max_bytes: 256 } };
-    indexedJsonSchema.tables.items.indexes.byPayload = { columns: ["payload", "id"], unique: false };
+    indexedJsonSchema.tables.items.indexes.byPayload = { components: [{ Column: "payload" }, { Column: "id" }], unique: false };
     const row: Value = { Row: {
       id: { Id: "row-1" }, at: { Int: 1 }, label: { String: "row" }, tags: "Null",
       payload: { Row: { x: { Int: 1 } } },
@@ -377,7 +377,7 @@ export const page = query({}, ({ db }) => {
     const users: TableInfo = {
       name: "users", private: false,
       columns: { id: { kind: "string", id: true }, name: { kind: "string", max: 80 } },
-      indexes: { byId: { columns: ["id"], types: [{ kind: "string", id: true }] } },
+      indexes: { byId: { components: ["id"].map(Column => ({ Column })), types: [{ kind: "string", id: true }] } },
     };
     const source = `${sourceHeader}
 declare const users: any;
@@ -395,7 +395,7 @@ export const page = query({ userId: t.id(), cursor: t.text(80) }, ({ db, args })
     const rewriteTables = new Map([...tables, ["users", users]]);
     const rewriteSchema = { ...schema, tables: { ...schema.tables, users: {
       columns: { id: "Id", name: { Text: { max: 80 } } },
-      indexes: { byId: { columns: ["id"], unique: true } },
+      indexes: { byId: { components: [{ Column: "id" }], unique: true } },
       rules: { read: { Public: { reason: "runtime-red regression" } }, insert: "Allow", update: "Allow", delete: "Allow" },
       constraints: [],
     } } };
@@ -533,12 +533,12 @@ export const put = mutation({ left: t.id(), right: t.id() }, ({ db, ctx, args })
     const users: TableInfo = {
       name: "users", private: false,
       columns: { id: { kind: "string", id: true } },
-      indexes: { byId: { columns: ["id"], types: [{ kind: "string", id: true }] } },
+      indexes: { byId: { components: ["id"].map(Column => ({ Column })), types: [{ kind: "string", id: true }] } },
     };
     const ownedItems: TableInfo = {
       ...items,
       columns: { ...items.columns, owner: { kind: "string", id: true } },
-      indexes: { ...items.indexes, byOwnerOnly: { columns: ["owner"], types: [{ kind: "string", id: true }] } },
+      indexes: { ...items.indexes, byOwnerOnly: { components: ["owner"].map(Column => ({ Column })), types: [{ kind: "string", id: true }] } },
     };
     const viewerTables = new Map([["items", ownedItems], ["users", users]]);
     const source = `${sourceHeader}

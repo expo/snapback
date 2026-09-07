@@ -330,7 +330,14 @@ fn words_loop_elements_keep_the_whole_input_width_through_aliases() {
         let mut program = Program {
             name: "firstWord".into(),
             kind: ProgramKind::Query,
-            args: BTreeMap::from([("body".into(), ArgType::Text { max: 2000 })]),
+            args: BTreeMap::from([(
+                "body".into(),
+                ArgType::Text {
+                    max: 2000,
+                    min: 0,
+                    format: None,
+                },
+            )]),
             read_time_granularity_ms: None,
             body: vec![],
         };
@@ -397,7 +404,14 @@ fn words_dense_inputs_dedupe_and_stay_inside_output_and_closure_bounds() {
     let program = Program {
         name: "words.dense".into(),
         kind: ProgramKind::Query,
-        args: BTreeMap::from([("body".into(), ArgType::Text { max: 2000 })]),
+        args: BTreeMap::from([(
+            "body".into(),
+            ArgType::Text {
+                max: 2000,
+                min: 0,
+                format: None,
+            },
+        )]),
         read_time_granularity_ms: None,
         body: vec![Stmt::Return(Expr::Builtin {
             builtin: Builtin::Words,
@@ -524,8 +538,22 @@ fn words_text_plus_ir_refuses_identically_in_engine_and_twin() {
             name: "words.plus".into(),
             kind: ProgramKind::Query,
             args: BTreeMap::from([
-                ("a".into(), ArgType::Text { max: 4 }),
-                ("b".into(), ArgType::Text { max: 4 }),
+                (
+                    "a".into(),
+                    ArgType::Text {
+                        max: 4,
+                        min: 0,
+                        format: None,
+                    },
+                ),
+                (
+                    "b".into(),
+                    ArgType::Text {
+                        max: 4,
+                        min: 0,
+                        format: None,
+                    },
+                ),
             ]),
             read_time_granularity_ms: None,
             body: vec![Stmt::Return(value)],

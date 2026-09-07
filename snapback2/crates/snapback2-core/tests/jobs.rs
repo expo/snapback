@@ -1,4 +1,35 @@
+use snapback2_core::ir::IndexKeyExpr;
+use snapback2_core::jobs::{quarry_arg_type, quarry_signature};
 use snapback2_core::*;
+
+#[test]
+fn minimum_job_rewrite_uses_recursive_quarry_range_spelling() {
+    let positive = ArgType::Text {
+        min: 2,
+        max: 3,
+        format: None,
+    };
+    assert_eq!(
+        quarry_arg_type(&ArgType::Text {
+            min: 0,
+            max: 3,
+            format: None
+        }),
+        "text <=3"
+    );
+    assert_eq!(
+        quarry_signature(
+            "ops.sweep",
+            &BTreeMap::from([("body".into(), positive.clone())])
+        ),
+        "job sweep(body: text 2..3):"
+    );
+    let nested = ArgType::Optional(Box::new(ArgType::List {
+        of: Some(Box::new(positive)),
+        max: 4,
+    }));
+    assert_eq!(quarry_arg_type(&nested), "[text 2..3] <=4 ?");
+}
 use std::collections::BTreeMap;
 
 fn schema() -> Schema {
@@ -13,14 +44,20 @@ fn schema() -> Schema {
             (
                 "byId".into(),
                 Index {
-                    columns: vec!["id".into()],
+                    components: (vec!["id".into()])
+                        .into_iter()
+                        .map(snapback2_core::search_key::IndexComponent::Column)
+                        .collect(),
                     unique: true,
                 },
             ),
             (
                 "byScope".into(),
                 Index {
-                    columns: vec!["scope".into(), "id".into()],
+                    components: (vec!["scope".into(), "id".into()])
+                        .into_iter()
+                        .map(snapback2_core::search_key::IndexComponent::Column)
+                        .collect(),
                     unique: false,
                 },
             ),
@@ -54,7 +91,7 @@ fn job(take: u32) -> Program {
                 site: "sweep".into(),
                 table: "items".into(),
                 index: "byId".into(),
-                prefix: vec![],
+                prefix: (vec![]).into_iter().map(IndexKeyExpr::Scalar).collect(),
                 order: Order::Asc,
                 take: Bound::Literal(take),
                 after: None,
@@ -114,7 +151,12 @@ fn row_in(id: &str, scope: &str, ok: bool) -> Value {
 }
 /// The only way to reach a chunk-time executable or ceiling fault through public API: the
 /// persisted ad hoc plan is edited on a closed store, then the runtime reopens on it.
-fn reopen_with_plan(rt: Runtime, hash: &str, plan: &str, tag: &str) -> (Runtime, std::path::PathBuf) {
+fn reopen_with_plan(
+    rt: Runtime,
+    hash: &str,
+    plan: &str,
+    tag: &str,
+) -> (Runtime, std::path::PathBuf) {
     let path = std::env::temp_dir().join(format!("j1b-{tag}-{}.sqlite", std::process::id()));
     rt.store().snapshot_to(&path).unwrap();
     drop(rt);
@@ -315,7 +357,12 @@ fn rejection_rolls_back_only_current_chunk_then_resume_and_terminal_cancel() {
     assert!(resume.to_string().contains("is cancelled"), "{resume}");
     assert_eq!(rt.cancel_job(&cancelled).unwrap_err().code(), "E_JOB_STATE");
     assert_eq!(rt.cancel_job(&id).unwrap_err().code(), "E_JOB_STATE");
-    assert!(rt.cancel_job(&id).unwrap_err().to_string().contains("is done"));
+    assert!(
+        rt.cancel_job(&id)
+            .unwrap_err()
+            .to_string()
+            .contains("is done")
+    );
     assert!(rt.run_chunk(&cancelled).unwrap().execution.is_none());
     // Queue edits leave operator receipts: enqueue, resume, and cancel, each attributed.
     let ledger = rt.store().commits_since(0, 100).unwrap();
@@ -329,7 +376,10 @@ fn rejection_rolls_back_only_current_chunk_then_resume_and_terminal_cancel() {
     assert_eq!(receipt("cancel:admin.fill").by.as_deref(), Some("tester"));
     assert_eq!(receipt("cancel:admin.fill").writes["_jobs"], 1);
     assert_eq!(
-        ledger.iter().filter(|c| c.program == "enqueue:admin.fill").count(),
+        ledger
+            .iter()
+            .filter(|c| c.program == "enqueue:admin.fill")
+            .count(),
         3
     );
 }
@@ -340,14 +390,31 @@ fn cancel_and_resume_receipts_carry_the_operator_who_issued_them() {
     rt.seed(&[("items".into(), row("02", false))]).unwrap();
     let id = start(&mut rt);
     assert_eq!(rt.run_chunk(&id).unwrap().job.state, "parked");
-    rt.resume_job_at(&id, OperatorId("resumer".into()), 7).unwrap();
+    rt.resume_job_at(&id, OperatorId("resumer".into()), 7)
+        .unwrap();
     rt.cancel_job_at(&id, OperatorId("canceller".into()), 8)
         .unwrap();
     let ledger = rt.store().commits_since(0, 100).unwrap();
-    let resumed = ledger.iter().find(|c| c.program == "resume:admin.fill").unwrap();
-    let cancelled = ledger.iter().find(|c| c.program == "cancel:admin.fill").unwrap();
-    assert_eq!((resumed.kind.as_str(), resumed.by.as_deref(), resumed.at), ("operator", Some("resumer"), 7));
-    assert_eq!((cancelled.kind.as_str(), cancelled.by.as_deref(), cancelled.at), ("operator", Some("canceller"), 8));
+    let resumed = ledger
+        .iter()
+        .find(|c| c.program == "resume:admin.fill")
+        .unwrap();
+    let cancelled = ledger
+        .iter()
+        .find(|c| c.program == "cancel:admin.fill")
+        .unwrap();
+    assert_eq!(
+        (resumed.kind.as_str(), resumed.by.as_deref(), resumed.at),
+        ("operator", Some("resumer"), 7)
+    );
+    assert_eq!(
+        (
+            cancelled.kind.as_str(),
+            cancelled.by.as_deref(),
+            cancelled.at
+        ),
+        ("operator", Some("canceller"), 8)
+    );
     assert!(resumed.seq < cancelled.seq);
 }
 #[test]
@@ -386,7 +453,14 @@ fn deleted_job_declaration_parks_a_queued_job_until_it_is_restored() {
     let parked = rt.job_record(&id).unwrap();
     assert_eq!(parked.state, "parked");
     let envelope = parked.last_error.unwrap();
-    assert_eq!((envelope.code.as_str(), envelope.family.as_str(), envelope.guide.as_str()), ("E_JOB_GENERATION", "job", "job"));
+    assert_eq!(
+        (
+            envelope.code.as_str(),
+            envelope.family.as_str(),
+            envelope.guide.as_str()
+        ),
+        ("E_JOB_GENERATION", "job", "job")
+    );
     assert_eq!(envelope.site, "admin.fill");
     assert_eq!(rt.resume_job(&id).unwrap_err().code(), "E_JOB_GENERATION");
     rt.apply_successor(generation(schema(), job(1))).unwrap();
@@ -422,7 +496,7 @@ fn certification_requires_immutable_total_keys_and_counts_progress_write() {
         } = &mut p.body[0]
         {
             s.index = index.into();
-            s.prefix = prefix;
+            s.prefix = prefix.into_iter().map(IndexKeyExpr::Scalar).collect();
         }
         let errors = Checker::new(schema, Ceilings::default())
             .check_all(&p)
@@ -434,24 +508,47 @@ fn certification_requires_immutable_total_keys_and_counts_progress_write() {
         (error.message.clone(), error.rewrite.clone())
     };
     let movable = rewrite_for("byScope", vec![], &s);
-    assert!(movable.1.starts_with("declare `immutable scope` on items"), "{movable:?}");
+    assert!(
+        movable.1.starts_with("declare `immutable scope` on items"),
+        "{movable:?}"
+    );
     let mut partial = schema();
     partial.tables.get_mut("items").unwrap().indexes.insert(
         "byScopeOnly".into(),
         Index {
-            columns: vec!["scope".into()],
+            components: (vec!["scope".into()])
+                .into_iter()
+                .map(snapback2_core::search_key::IndexComponent::Column)
+                .collect(),
             unique: false,
         },
     );
     let not_total = rewrite_for("byScopeOnly", vec![], &partial);
-    assert!(not_total.0.contains("not a total order") && not_total.1.starts_with("end byScopeOnly in `id`"), "{not_total:?}");
+    assert!(
+        not_total.0.contains("not a total order")
+            && not_total.1.starts_with("end byScopeOnly in `id`"),
+        "{not_total:?}"
+    );
     let too_long = rewrite_for(
         "byId",
-        vec![Expr::Literal(Value::String("a".into())), Expr::Literal(Value::String("b".into()))],
+        vec![
+            Expr::Literal(Value::String("a".into())),
+            Expr::Literal(Value::String("b".into())),
+        ],
         &schema(),
     );
-    assert!(too_long.0.contains("names 2 columns but items.byId has 1 column"), "{too_long:?}");
-    assert!(too_long.1.starts_with("shorten the prefix to at most 1 column"), "{too_long:?}");
+    assert!(
+        too_long
+            .0
+            .contains("names 2 columns but items.byId has 1 column"),
+        "{too_long:?}"
+    );
+    assert!(
+        too_long
+            .1
+            .starts_with("shorten the prefix to at most 1 column"),
+        "{too_long:?}"
+    );
     let cert = Checker::new(&schema(), Ceilings::default())
         .check(&p)
         .unwrap();
@@ -549,14 +646,24 @@ fn adhoc_restart_preserves_source_changed_generation_parks_and_reset_clears_jobs
 #[test]
 fn typed_prefix_sweeps_three_chunks_through_cursor_suffixes_and_skips_other_scopes() {
     let mut p = job(2);
-    p.args.insert("scope".into(), ArgType::Text { max: 20 });
+    p.args.insert(
+        "scope".into(),
+        ArgType::Text {
+            max: 20,
+            min: 0,
+            format: None,
+        },
+    );
     if let Stmt::For {
         domain: LoopDomain::Page(scan),
         ..
     } = &mut p.body[0]
     {
         scan.index = "byScope".into();
-        scan.prefix = vec![Expr::Variable("scope".into())];
+        scan.prefix = vec![Expr::Variable("scope".into())]
+            .into_iter()
+            .map(IndexKeyExpr::Scalar)
+            .collect();
         scan.provenance = KeyProvenance::Arg;
     }
     let mut rt = Runtime::open(Store::memory().unwrap(), generation(schema(), p)).unwrap();
@@ -564,7 +671,11 @@ fn typed_prefix_sweeps_three_chunks_through_cursor_suffixes_and_skips_other_scop
         &["a-01", "a-02", "a-03", "a-04", "a-05"]
             .iter()
             .map(|id| ("items".into(), row_in(id, "a", true)))
-            .chain(["b-01", "b-02"].iter().map(|id| ("items".into(), row_in(id, "b", true))))
+            .chain(
+                ["b-01", "b-02"]
+                    .iter()
+                    .map(|id| ("items".into(), row_in(id, "b", true))),
+            )
             .collect::<Vec<_>>(),
     )
     .unwrap();
@@ -586,9 +697,17 @@ fn typed_prefix_sweeps_three_chunks_through_cursor_suffixes_and_skips_other_scop
     assert_eq!((third.chunks, third.state.as_str()), (3, "done"));
     assert_eq!(third.rows_written["items"], 5);
     let after = values(&mut rt);
-    assert!(after.iter().all(|(id, n)| *n == i64::from(id.starts_with("a-"))), "{after:?}");
+    assert!(
+        after
+            .iter()
+            .all(|(id, n)| *n == i64::from(id.starts_with("a-"))),
+        "{after:?}"
+    );
     let commits = rt.store().job_commits(&id, 0, 500).unwrap();
-    let visited: Vec<_> = commits.iter().map(|c| c.job_chunk.as_ref().unwrap().rows_visited).collect();
+    let visited: Vec<_> = commits
+        .iter()
+        .map(|c| c.job_chunk.as_ref().unwrap().rows_visited)
+        .collect();
     assert_eq!(visited, vec![2, 2, 1]);
 }
 #[test]
@@ -596,11 +715,21 @@ fn executable_mismatch_at_chunk_time_parks_with_the_generation_envelope_and_keep
     let mut rt = runtime(1);
     seed(&mut rt, &["01", "02", "03"]);
     let id = rt
-        .enqueue_adhoc_job(&job(1), BTreeMap::new(), OperatorId("tester".into()), || 1, "job fill: ad hoc".into())
+        .enqueue_adhoc_job(
+            &job(1),
+            BTreeMap::new(),
+            OperatorId("tester".into()),
+            || 1,
+            "job fill: ad hoc".into(),
+        )
         .unwrap();
     rt.run_chunk(&id).unwrap();
     let hash = rt.job_record(&id).unwrap().program_hash;
-    let stored = rt.store().meta(&format!("job_plan:{hash}")).unwrap().unwrap();
+    let stored = rt
+        .store()
+        .meta(&format!("job_plan:{hash}"))
+        .unwrap()
+        .unwrap();
     let (mut program, certificate): (Program, Certificate) = serde_json::from_str(&stored).unwrap();
     if let Stmt::For { body, .. } = &mut program.body[0] {
         body.pop();
@@ -613,14 +742,30 @@ fn executable_mismatch_at_chunk_time_parks_with_the_generation_envelope_and_keep
     assert_eq!(outcome.job.state, "parked");
     assert_eq!(outcome.job.chunks, 1, "the cursor does not move");
     let envelope = outcome.job.last_error.unwrap();
-    assert_eq!((envelope.code.as_str(), envelope.family.as_str(), envelope.guide.as_str()), ("E_JOB_GENERATION", "job", "job"));
-    assert_eq!((envelope.job.as_deref(), envelope.sweep, envelope.chunk), (Some(id.as_str()), Some(0), Some(2)));
+    assert_eq!(
+        (
+            envelope.code.as_str(),
+            envelope.family.as_str(),
+            envelope.guide.as_str()
+        ),
+        ("E_JOB_GENERATION", "job", "job")
+    );
+    assert_eq!(
+        (envelope.job.as_deref(), envelope.sweep, envelope.chunk),
+        (Some(id.as_str()), Some(0), Some(2))
+    );
     assert_eq!(rt.resume_job(&id).unwrap_err().code(), "E_JOB_GENERATION");
     // A plan that no longer decodes parks a *queued* job the same way when its first chunk
     // is driven, naming the decode failure as the cause; resume refuses with the same code
     // rather than a serialization error. The owner never stops.
     let second = rt
-        .enqueue_adhoc_job(&job(1), BTreeMap::new(), OperatorId("tester".into()), || 2, "job fill: ad hoc again".into())
+        .enqueue_adhoc_job(
+            &job(1),
+            BTreeMap::new(),
+            OperatorId("tester".into()),
+            || 2,
+            "job fill: ad hoc again".into(),
+        )
         .unwrap();
     let (mut rt, path2) = reopen_with_plan(rt, &hash, "not a plan", "garbage");
     std::fs::remove_file(path).unwrap();
@@ -630,9 +775,23 @@ fn executable_mismatch_at_chunk_time_parks_with_the_generation_envelope_and_keep
     assert_eq!(parked.job.state, "parked");
     assert_eq!(parked.job.chunks, 0, "no chunk ran");
     let envelope = parked.job.last_error.unwrap();
-    assert_eq!((envelope.code.as_str(), envelope.family.as_str(), envelope.guide.as_str()), ("E_JOB_GENERATION", "job", "job"));
-    assert!(envelope.message.contains("E_SERIALIZATION"), "the cause names the decode failure: {}", envelope.message);
-    assert_eq!((envelope.job.as_deref(), envelope.sweep, envelope.chunk), (Some(second.as_str()), Some(0), Some(1)));
+    assert_eq!(
+        (
+            envelope.code.as_str(),
+            envelope.family.as_str(),
+            envelope.guide.as_str()
+        ),
+        ("E_JOB_GENERATION", "job", "job")
+    );
+    assert!(
+        envelope.message.contains("E_SERIALIZATION"),
+        "the cause names the decode failure: {}",
+        envelope.message
+    );
+    assert_eq!(
+        (envelope.job.as_deref(), envelope.sweep, envelope.chunk),
+        (Some(second.as_str()), Some(0), Some(1))
+    );
     let refused = rt.resume_job(&second).unwrap_err();
     assert_eq!(refused.code(), "E_JOB_GENERATION");
     assert!(refused.to_string().contains("E_SERIALIZATION"), "{refused}");
@@ -660,10 +819,24 @@ fn store_fault_at_chunk_time_parks_with_its_own_envelope_and_rolls_back() {
     assert_eq!(outcome.job.state, "parked");
     assert_eq!(outcome.job.chunks, 1, "the cursor does not move");
     let envelope = outcome.job.last_error.unwrap();
-    assert_eq!((envelope.code.as_str(), envelope.family.as_str(), envelope.guide.as_str()), ("E_SQL", "input", "input/runtime"));
+    assert_eq!(
+        (
+            envelope.code.as_str(),
+            envelope.family.as_str(),
+            envelope.guide.as_str()
+        ),
+        ("E_SQL", "input", "input/runtime")
+    );
     assert_eq!(envelope.site, "admin.fill:chunk:0");
-    assert!(envelope.message.contains("no such table"), "the underlying error rides in the envelope: {}", envelope.message);
-    assert_eq!((envelope.job.as_deref(), envelope.sweep, envelope.chunk), (Some(id.as_str()), Some(0), Some(2)));
+    assert!(
+        envelope.message.contains("no such table"),
+        "the underlying error rides in the envelope: {}",
+        envelope.message
+    );
+    assert_eq!(
+        (envelope.job.as_deref(), envelope.sweep, envelope.chunk),
+        (Some(id.as_str()), Some(0), Some(2))
+    );
     assert_eq!(values(&mut rt)["02"], 0, "the chunk rolled back");
     // The store still serves reads and the next job control; with the fault gone the
     // parked job resumes from the same cursor.
@@ -708,11 +881,17 @@ fn a_chunk_that_names_another_chunks_binding_refuses_as_e_job_shape() {
         .find(|e| e.code == "E_JOB_SHAPE")
         .unwrap_or_else(|| panic!("{errors:?}"));
     assert!(
-        error.message.starts_with("admin.fill:statement:2 is not a chunk: it names `row`"),
+        error
+            .message
+            .starts_with("admin.fill:statement:2 is not a chunk: it names `row`"),
         "{error:?}"
     );
     assert_eq!(jobs::shape_site(error), Some("admin.fill:statement:2"));
-    assert!(error.rewrite.contains("one or more `chunk` blocks and nothing else"));
+    assert!(
+        error
+            .rewrite
+            .contains("one or more `chunk` blocks and nothing else")
+    );
     // A name bound in the chunk itself, a job argument, or the same binding name reused by
     // an independent chunk is not a crossing: the two-sweep job still certifies.
     let mut fine = job(2);
@@ -725,18 +904,32 @@ fn a_chunk_that_names_another_chunks_binding_refuses_as_e_job_shape() {
         scan.site = "second".into();
     }
     fine.body.push(again);
-    assert!(Checker::new(&schema(), Ceilings::default()).check(&fine).is_ok());
+    assert!(
+        Checker::new(&schema(), Ceilings::default())
+            .check(&fine)
+            .is_ok()
+    );
 }
 #[test]
 fn ceiling_fault_at_chunk_time_parks_in_the_bound_family_and_rolls_back() {
     let mut rt = runtime(1);
     seed(&mut rt, &["01", "02", "03"]);
     let id = rt
-        .enqueue_adhoc_job(&job(1), BTreeMap::new(), OperatorId("tester".into()), || 1, "job fill: ad hoc".into())
+        .enqueue_adhoc_job(
+            &job(1),
+            BTreeMap::new(),
+            OperatorId("tester".into()),
+            || 1,
+            "job fill: ad hoc".into(),
+        )
         .unwrap();
     rt.run_chunk(&id).unwrap();
     let hash = rt.job_record(&id).unwrap().program_hash;
-    let stored = rt.store().meta(&format!("job_plan:{hash}")).unwrap().unwrap();
+    let stored = rt
+        .store()
+        .meta(&format!("job_plan:{hash}"))
+        .unwrap()
+        .unwrap();
     let (program, mut certificate): (Program, Certificate) = serde_json::from_str(&stored).unwrap();
     // Certification is static, so a certified chunk cannot exceed its ceiling; the tampered
     // per-chunk certificate is the only way to exercise the ceiling park path itself.
@@ -748,7 +941,14 @@ fn ceiling_fault_at_chunk_time_parks_in_the_bound_family_and_rolls_back() {
     assert_eq!(outcome.job.state, "parked");
     assert_eq!(outcome.job.chunks, 1);
     let envelope = outcome.job.last_error.unwrap();
-    assert_eq!((envelope.code.as_str(), envelope.family.as_str(), envelope.guide.as_str()), ("E_STEPS", "bound", "bound/runtime"));
+    assert_eq!(
+        (
+            envelope.code.as_str(),
+            envelope.family.as_str(),
+            envelope.guide.as_str()
+        ),
+        ("E_STEPS", "bound", "bound/runtime")
+    );
     assert_eq!(envelope.site, "admin.fill:chunk:0");
     assert_eq!(values(&mut rt)["02"], 0, "the chunk rolled back");
     drop(rt);
@@ -757,14 +957,24 @@ fn ceiling_fault_at_chunk_time_parks_in_the_bound_family_and_rolls_back() {
 #[test]
 fn changed_sweep_index_parks_and_typed_prefix_is_used() {
     let mut p = job(1);
-    p.args.insert("scope".into(), ArgType::Text { max: 20 });
+    p.args.insert(
+        "scope".into(),
+        ArgType::Text {
+            max: 20,
+            min: 0,
+            format: None,
+        },
+    );
     if let Stmt::For {
         domain: LoopDomain::Page(scan),
         ..
     } = &mut p.body[0]
     {
         scan.index = "byScope".into();
-        scan.prefix = vec![Expr::Variable("scope".into())];
+        scan.prefix = vec![Expr::Variable("scope".into())]
+            .into_iter()
+            .map(IndexKeyExpr::Scalar)
+            .collect();
         scan.provenance = KeyProvenance::Arg;
     }
     let mut rt = Runtime::open(Store::memory().unwrap(), generation(schema(), p.clone())).unwrap();
@@ -775,7 +985,9 @@ fn changed_sweep_index_parks_and_typed_prefix_is_used() {
     assert_eq!(missing.code(), "E_JOB_ARGS");
     // The rewrite is the signature as an author writes it, module prefix dropped.
     assert!(
-        missing.to_string().ends_with("rewrite: job fill(scope: text <=20):"),
+        missing
+            .to_string()
+            .ends_with("rewrite: job fill(scope: text <=20):"),
         "{missing}"
     );
     let id = rt
@@ -1066,4 +1278,154 @@ fn adhoc_effect_admission_uses_current_declarations_even_with_the_same_schema_ha
         "{error}"
     );
     assert_eq!(rt.store().commit_seq().unwrap(), seq);
+}
+
+#[test]
+fn text_minimum_refuses_before_empty_job_enqueue() {
+    let mut p = job(1);
+    p.args.insert(
+        "label".into(),
+        ArgType::Text {
+            max: 4,
+            min: 2,
+            format: None,
+        },
+    );
+    let mut rt = Runtime::open(Store::memory().unwrap(), generation(schema(), p)).unwrap();
+    let error = rt
+        .enqueue_job(
+            "admin.fill",
+            BTreeMap::from([("label".into(), Value::String("𐐀".into()))]),
+            OperatorId("tester".into()),
+        )
+        .unwrap_err();
+    assert_eq!(error.code(), "E_JOB_ARGS");
+    assert!(rt.store().jobs(10).unwrap().is_empty());
+    rt.enqueue_job(
+        "admin.fill",
+        BTreeMap::from([("label".into(), Value::String("𐐀a".into()))]),
+        OperatorId("tester".into()),
+    )
+    .unwrap();
+    assert_eq!(rt.store().jobs(10).unwrap().len(), 1);
+}
+
+#[test]
+fn recursive_text_formats_refuse_before_empty_job_enqueue_and_render_quarry() {
+    let mut program = job(1);
+    program.args.insert(
+        "handles".into(),
+        ArgType::Optional(Box::new(ArgType::List {
+            max: 2,
+            of: Some(Box::new(ArgType::Text {
+                max: 20,
+                min: 1,
+                format: Some(TextFormat::Handle),
+            })),
+        })),
+    );
+    assert_eq!(
+        quarry_signature(&program.name, &program.args),
+        "job fill(handles: [text 1..20 format handle] <=2 ?):"
+    );
+    assert_eq!(
+        quarry_arg_type(&ArgType::Text {
+            max: 200,
+            min: 0,
+            format: Some(TextFormat::Url)
+        }),
+        "text <=200 format url"
+    );
+    let mut runtime =
+        Runtime::open(Store::memory().unwrap(), generation(schema(), program)).unwrap();
+    let invalid = BTreeMap::from([(
+        "handles".into(),
+        Value::Array(vec![Value::String("BAD".into())]),
+    )]);
+    let error = runtime
+        .enqueue_job("admin.fill", invalid, OperatorId("tester".into()))
+        .unwrap_err();
+    assert_eq!(error.code(), "E_JOB_ARGS");
+    assert!(error.to_string().contains("format handle"));
+    assert!(runtime.store().jobs(10).unwrap().is_empty());
+    runtime
+        .enqueue_job("admin.fill", BTreeMap::new(), OperatorId("tester".into()))
+        .unwrap();
+    runtime
+        .enqueue_job(
+            "admin.fill",
+            BTreeMap::from([(
+                "handles".into(),
+                Value::Array(vec![Value::String("good_1".into())]),
+            )]),
+            OperatorId("tester".into()),
+        )
+        .unwrap();
+    assert_eq!(runtime.store().jobs(10).unwrap().len(), 2);
+}
+
+#[test]
+fn job_scope_changes_maintain_search_through_common_chunk_writes() {
+    let mut schema = schema();
+    schema.tables.get_mut("items").unwrap().indexes.insert(
+        "byWords".into(),
+        Index {
+            unique: false,
+            components: vec![
+                snapback2_core::search_key::IndexComponent::Column("n".into()),
+                snapback2_core::search_key::IndexComponent::WordPrefixes {
+                    fields: vec!["scope".into()],
+                    contract: snapback2_core::search_key::SearchContract::Unicode17,
+                },
+                snapback2_core::search_key::IndexComponent::Column("id".into()),
+            ],
+        },
+    );
+    let mut rt = Runtime::open(Store::memory().unwrap(), generation(schema, job(2))).unwrap();
+    seed(&mut rt, &["01", "02", "03"]);
+    let id = start(&mut rt);
+    while rt.job_record(&id).unwrap().state != "done" {
+        let outcome = rt.run_chunk(&id).unwrap();
+        assert_ne!(outcome.job.state, "parked", "{outcome:?}");
+    }
+    let commits = rt.store().commits_since(0, 100).unwrap();
+    let touches = commits
+        .iter()
+        .filter(|c| c.job.as_deref() == Some(&id))
+        .flat_map(|c| &c.scope_touches)
+        .collect::<Vec<_>>();
+    assert!(touches.iter().any(|t| t.prefix == vec![Value::Int(0)]));
+    assert!(touches.iter().any(|t| t.prefix == vec![Value::Int(1)]));
+    let scan = Scan {
+        site: "search".into(),
+        table: "items".into(),
+        index: "byWords".into(),
+        prefix: vec![
+            IndexKeyExpr::Scalar(Expr::Literal(Value::Int(1))),
+            IndexKeyExpr::WordPrefix {
+                source: Expr::Literal(Value::String("A".into())),
+                source_max: 1,
+                contract: snapback2_core::search_key::SearchContract::Unicode17,
+            },
+        ],
+        order: Order::Asc,
+        take: Bound::Literal(4),
+        after: None,
+        before: None,
+        range: None,
+        opaque_cursor: false,
+        merge_site: None,
+        provenance: KeyProvenance::Const,
+    };
+    let q = Program {
+        name: "inspect.search".into(),
+        kind: ProgramKind::Query,
+        args: BTreeMap::new(),
+        read_time_granularity_ms: None,
+        body: vec![Stmt::Return(Expr::Scan(scan))],
+    };
+    let result = rt
+        .read_operator(&q, BTreeMap::new(), OperatorId("tester".into()), 1)
+        .unwrap();
+    assert_eq!(result.result.as_array().unwrap().len(), 3);
 }

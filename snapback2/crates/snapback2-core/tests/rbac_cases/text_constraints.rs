@@ -35,10 +35,21 @@ fn project(handle_column: ColumnType, min: u32) -> ProjectJson {
             name: "profiles.create".to_owned(),
             kind: ProgramKind::Mutation,
             args: BTreeMap::from([
-                ("handle".to_owned(), ArgType::Text { max: 20 }),
+                (
+                    "handle".to_owned(),
+                    ArgType::Text {
+                        max: 20,
+                        min: 0,
+                        format: None,
+                    },
+                ),
                 (
                     "link".to_owned(),
-                    ArgType::Optional(Box::new(ArgType::Text { max: 200 })),
+                    ArgType::Optional(Box::new(ArgType::Text {
+                        max: 200,
+                        min: 0,
+                        format: None,
+                    })),
                 ),
             ]),
             read_time_granularity_ms: None,
@@ -147,7 +158,14 @@ fn text_values_reject_disallowed_c0_controls_and_accept_the_priced_set() {
     let program = Program {
         name: "notes.echo".to_owned(),
         kind: ProgramKind::Query,
-        args: BTreeMap::from([("body".to_owned(), ArgType::Text { max: 1 })]),
+        args: BTreeMap::from([(
+            "body".to_owned(),
+            ArgType::Text {
+                max: 1,
+                min: 0,
+                format: None,
+            },
+        )]),
         read_time_granularity_ms: None,
         body: vec![Stmt::Return(var("body"))],
     };

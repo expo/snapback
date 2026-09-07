@@ -1,4 +1,5 @@
 use super::*;
+use snapback2_core::ir::IndexKeyExpr;
 
 pub(super) fn add_client_scenarios(cases: &mut Vec<CorpusCase>) {
     let schema = spike_schema();
@@ -28,7 +29,10 @@ pub(super) fn add_client_scenarios(cases: &mut Vec<CorpusCase>) {
             site: "programs.thread.0".to_owned(),
             table: "users".to_owned(),
             index: "byId".to_owned(),
-            prefix: vec![var("conversationId")],
+            prefix: (vec![var("conversationId")])
+                .into_iter()
+                .map(IndexKeyExpr::Scalar)
+                .collect(),
             order: Order::Desc,
             take: Bound::Literal(3),
             after: None,

@@ -229,7 +229,7 @@ query probe():
   test("Callback write keys hoist optional access once before reading the current row", () => {
     const columns = { id: { kind: "string", id: true }, n: { kind: "int" } } as const;
     const tables = new Map<string, TableInfo>([["items", { name: "items", private: false, columns,
-      indexes: { byId: { columns: ["id"], types: [columns.id], unique: true } } }]]);
+      indexes: { byId: { components: ["id"].map(Column => ({ Column })), types: [columns.id], unique: true } } }]]);
     for (const method of ["update", "upsert"]) {
       const lowered = lowerSource(`import { mutation, t } from "snapback2";
 export const probe = mutation({ id: t.id() }, ({ db, args }) => {
@@ -238,7 +238,7 @@ export const probe = mutation({ id: t.id() }, ({ db, args }) => {
 });`, "callback.ts", undefined, { tables });
       assert(lowered.ok, JSON.stringify(lowered));
       const loweredSchema = { tables: { items: { columns: { id: "Id", n: "Int" },
-        indexes: { byId: { columns: ["id"], unique: true } }, constraints: [],
+        indexes: { byId: { components: [{ Column: "id" }], unique: true } }, constraints: [],
         rules: { read: "Allow", insert: "Allow", update: "Allow", delete: "Allow" } } }, maintains: [] };
       assert(rustCheck(lowered.programs, "synthetic", loweredSchema).every(item => !item.error), "callback certificate refused");
       const program = lowered.programs[0]!;

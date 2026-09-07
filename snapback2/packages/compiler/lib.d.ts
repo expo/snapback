@@ -16,12 +16,13 @@ declare module "snapback2" {
     readonly __moneyCurrency: C;
     readonly __moneyBrand: unique symbol;
   };
-  export type Column<T = unknown, Optional extends boolean = false> = {
+  export type Arg<T = unknown, Optional extends boolean = false> = {
     readonly __value: T;
     readonly __optional: Optional;
+  };
+  export type Column<T = unknown, Optional extends boolean = false> = Arg<T, Optional> & {
     readonly __column: unique symbol;
   };
-  export type Arg<T = unknown, Optional extends boolean = false> = Column<T, Optional>;
   export type RowOfColumns<C extends Record<string, Column<any, any>>> =
     { id: string }
     & { [K in keyof C as C[K] extends Column<any, true> ? never : K]: C[K] extends Column<infer T, any> ? T : never }
@@ -94,7 +95,10 @@ declare module "snapback2" {
     columns: C;
     /** Client treatment of rows hidden by a fresh authorized answer; Quarry supplies the default. */
     retain?: "until-revoked" | "delivered-history";
-    indexes?: Record<string, { columns: ReadonlyArray<keyof C | "id">; unique?: boolean }>;
+    indexes?: Record<string, { unique?: boolean } & (
+      { columns: ReadonlyArray<keyof C | "id"> } |
+      { components: ReadonlyArray<{ Column: keyof C | "id" } | { WordPrefixes: { fields: ReadonlyArray<keyof C>; contract: "u17-nfc-scf-nfc-wsp-p" } }> }
+    )>;
     rules?: Partial<Record<"read" | "insert" | "update" | "delete", Rule>>;
     constraints?: ReadonlyArray<unknown>;
   }): Table<RowOfColumns<C>>;
@@ -103,6 +107,8 @@ declare module "snapback2" {
     id(): Column<string>;
     principal(): Column<Principal>;
     text(max: number): Column<string>;
+    /** Internal argument refinements; columns use separate text constraints. */
+    text(max: number, options: { min?: number; format?: "handle" | "url" }): Arg<string>;
     bytes(max: number): Column<Bytes>;
     image(max: number, options?: { once: true }): Column<ImageAsset>;
     video(max: number): Column<VideoAsset>;
@@ -118,7 +124,9 @@ declare module "snapback2" {
     ref<R extends Record<string, any>>(target: Table<R>): Column<string>;
     json<T extends Json = Json>(maxBytes: number): Column<T>;
     optional<T>(value: Column<T, any>): Column<T, true>;
+    optional<T>(value: Arg<T, any>): Arg<T, true>;
     list<T>(value: Column<T, any>, options: { max: number }): Column<T[]>;
+    list<T>(value: Arg<T, any>, options: { max: number }): Arg<T[]>;
   };
   export const rule: {
     public(reason: string): Rule;
@@ -167,7 +175,7 @@ declare module "snapback2" {
   /** `decimal(value, scale)` converts a value in whole units to the exact integer minor-unit wire value; for example, `decimal(2, 2)` is 200. */
   export function decimal<const S extends number>(value: number, scale: S): Decimal<S>;
   export function mentionTokens(value: string): string[];
-  export function words(value: string): string[];
+  export function words(value: string | null | undefined): string[];
   /** Euclidean deterministic share: recipients are ordered by the runtime value order; empty, duplicate, or missing recipients refuse. */
   export function deterministicShare<A extends number>(amount: A, recipients: unknown[], recipient: unknown): A extends Decimal<any> ? A : number;
   export function concat(first: unknown, second: unknown, ...values: unknown[]): string;

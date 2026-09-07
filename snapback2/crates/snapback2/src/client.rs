@@ -281,13 +281,31 @@ mod tests {
             assert_eq!(read_timeout("/control/job", &body), None, "{body}");
         }
         // Ad hoc plan and run wait for the owner's compiler.
-        assert_eq!(read_timeout("/control/run", &json!({ "mode": "plan", "source": "x" })), compile);
-        assert_eq!(read_timeout("/control/run", &json!({ "mode": "run", "source": "x" })), compile);
-        assert_eq!(read_timeout("/control/run", &json!({ "plan": true, "source": "x" })), compile);
+        assert_eq!(
+            read_timeout("/control/run", &json!({ "mode": "plan", "source": "x" })),
+            compile
+        );
+        assert_eq!(
+            read_timeout("/control/run", &json!({ "mode": "run", "source": "x" })),
+            compile
+        );
+        assert_eq!(
+            read_timeout("/control/run", &json!({ "plan": true, "source": "x" })),
+            compile
+        );
         // Declared programs never compile; every other request keeps the task bound.
-        assert_eq!(read_timeout("/control/job", &json!({ "plan": true, "name": "fill" })), task);
-        assert_eq!(read_timeout("/control/job", &json!({ "dryRun": false, "name": "fill" })), task);
-        assert_eq!(read_timeout("/api/mutation", &json!({ "op": "send" })), task);
+        assert_eq!(
+            read_timeout("/control/job", &json!({ "plan": true, "name": "fill" })),
+            task
+        );
+        assert_eq!(
+            read_timeout("/control/job", &json!({ "dryRun": false, "name": "fill" })),
+            task
+        );
+        assert_eq!(
+            read_timeout("/api/mutation", &json!({ "op": "send" })),
+            task
+        );
         assert_eq!(read_timeout("/control/status", &json!({})), task);
         // A body the owner refuses at once keeps the task bound rather than waiting unbounded.
         for body in [

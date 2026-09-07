@@ -11,8 +11,10 @@
         },
         "indexes": {
           "byId": {
-            "columns": [
-              "id"
+            "components": [
+              {
+                "Column": "id"
+              }
             ],
             "unique": true
           }
@@ -62,39 +64,63 @@
         },
         "indexes": {
           "byConversationPrincipal": {
-            "columns": [
-              "conversationId",
-              "principal",
-              "id"
+            "components": [
+              {
+                "Column": "conversationId"
+              },
+              {
+                "Column": "principal"
+              },
+              {
+                "Column": "id"
+              }
             ],
             "unique": false
           },
           "byConversationRole": {
-            "columns": [
-              "conversationId",
-              "role",
-              "id"
+            "components": [
+              {
+                "Column": "conversationId"
+              },
+              {
+                "Column": "role"
+              },
+              {
+                "Column": "id"
+              }
             ],
             "unique": false
           },
           "byGroup": {
-            "columns": [
-              "group",
-              "id"
+            "components": [
+              {
+                "Column": "group"
+              },
+              {
+                "Column": "id"
+              }
             ],
             "unique": false
           },
           "byId": {
-            "columns": [
-              "id"
+            "components": [
+              {
+                "Column": "id"
+              }
             ],
             "unique": true
           },
           "byRoleConversation": {
-            "columns": [
-              "role",
-              "conversationId",
-              "id"
+            "components": [
+              {
+                "Column": "role"
+              },
+              {
+                "Column": "conversationId"
+              },
+              {
+                "Column": "id"
+              }
             ],
             "unique": false
           }
@@ -153,13 +179,17 @@
               "index": "byRoleConversation",
               "prefix": [
                 {
-                  "Literal": {
-                    "String": "member"
+                  "Scalar": {
+                    "Literal": {
+                      "String": "member"
+                    }
                   }
                 },
                 {
-                  "Literal": {
-                    "Id": "c1"
+                  "Scalar": {
+                    "Literal": {
+                      "Id": "c1"
+                    }
                   }
                 }
               ],
@@ -199,8 +229,8 @@
   },
   "certificate": {
     "program": "fanout-complete-reordered-tuple",
-    "plan_hash": "e7efaae2d91bb2063f55d90f0cfbbba25ff44fc76534eb6675b2b80f4275ce44",
-    "schema_hash": "bbe4509cc84f72d390dfc63ecdd06d424c8edfa6d8702876c1ca878216fafffc",
+    "plan_hash": "6f4e24078571b7a6920a156290d5dee070620844a0216c1378bb7013c1cab9d7",
+    "schema_hash": "29f68634e642a51574db48663ea7eff91f7e574fac9c282b206dd74074947376",
     "tables": {
       "deliveries": {
         "retain": "until-revoked"
@@ -210,11 +240,11 @@
       }
     },
     "rule_hashes": {
-      "deliveries.insert": "f0f9345090622ba79769b74b8a604a02b95f912a9f9dceecdf4d029977ba1519",
-      "memberships.read": "f0f9345090622ba79769b74b8a604a02b95f912a9f9dceecdf4d029977ba1519"
+      "deliveries.insert": "7f5993e8b24bc926b196ba586d4827337cae5c6adcec6c3578df02872b071b36",
+      "memberships.read": "7f5993e8b24bc926b196ba586d4827337cae5c6adcec6c3578df02872b071b36"
     },
-    "evaluator_version": "bounded-spike-rust-1",
-    "value_model_version": "i53-codepoint-bytes-v2",
+    "evaluator_version": "bounded-spike-rust-search-text-refinements-4",
+    "value_model_version": "i53-codepoint-bytes-unicode-search-text-refinements-v5",
     "read_sites": [
       {
         "site": "members.reordered",
@@ -244,6 +274,8 @@
     "max_index_entries": 52,
     "max_rule_probes": 0,
     "max_steps": 713,
+    "derived_steps": 0,
+    "derived_scratch_bytes": 0,
     "max_heap_bytes": 22816,
     "max_output_bytes": 6,
     "max_closure_bytes": 0,
@@ -267,7 +299,7 @@
     "read_time": null
   },
   "receipt": {
-    "schema_hash": "bbe4509cc84f72d390dfc63ecdd06d424c8edfa6d8702876c1ca878216fafffc",
+    "schema_hash": "29f68634e642a51574db48663ea7eff91f7e574fac9c282b206dd74074947376",
     "rows": [
       {
         "table": "memberships",
@@ -340,10 +372,14 @@
         "index": "byRoleConversation",
         "prefix": [
           {
-            "String": "member"
+            "Scalar": {
+              "String": "member"
+            }
           },
           {
-            "Id": "c1"
+            "Scalar": {
+              "Id": "c1"
+            }
           }
         ],
         "order": "Asc",
@@ -354,7 +390,7 @@
         "gte": null,
         "lt": null,
         "lte": null,
-        "rule_hash": "f0f9345090622ba79769b74b8a604a02b95f912a9f9dceecdf4d029977ba1519",
+        "rule_hash": "7f5993e8b24bc926b196ba586d4827337cae5c6adcec6c3578df02872b071b36",
         "row_ids": [
           "m0",
           "m1",
@@ -363,7 +399,7 @@
         "stop": "Exhausted",
         "absence": false,
         "halo": null,
-        "n2_key": null
+        "n2_suffix": null
       }
     ],
     "absences": [],

@@ -146,13 +146,24 @@ export function isOperationCompositeBinding(
   return resolvesOperationComposite(name, composite, env, new Set());
 }
 
+export function requireCurrentComposite(node: ts.Identifier, env: Environment): void {
+  const composite = env.variables.get(node.text)?.operationComposite;
+  if (composite && !isOperationCompositeBinding(node.text, composite, env)) {
+    refuse(env, "E_OPAQUE", node, `reassigned ${composite} binding is not the current operation context`,
+      "capture the required operation values before reassignment or keep the operation binding unchanged");
+  }
+}
+
 function resolvesOperationComposite(
   name: string,
   composite: "args" | "ctx" | "db",
   env: Environment,
   seen: Set<string>,
 ): boolean {
-  if (env.variables.get(name)?.operationComposite === composite) return true;
+  const info = env.variables.get(name);
+  // @ref LLP 1002#2-the-authored-surface-the-snapback2-module — the current binding must still prove the receiver; assignment invalidates authority even when its initial composite metadata remains.
+  if (info?.provenanceAmbiguity) return false;
+  if (info?.operationComposite === composite) return true;
   const substitution = env.substitutions.get(name);
   if (!substitution || seen.has(name)) return false;
   const value = unwrapExpression(substitution.expression);
@@ -423,24 +434,26 @@ function directOriginCandidatesInner(node: ts.Expression, env: Environment): Set
   if (ts.isPropertyAccessExpression(value) && ts.isIdentifier(value.expression)) {
     const info = env.variables.get(value.expression.text);
     const composite = info?.operationComposite;
-    if (composite === "args" || composite === "ctx" && value.name.text === "viewer") {
+    if (!info?.provenanceAmbiguity && (composite === "args" || composite === "ctx" && value.name.text === "viewer")) {
       return new Set([value.getText(env.sourceFile)]);
     }
-    if (info?.rowBinding) return new Set([value.getText(env.sourceFile)]);
+    if (info?.rowBinding && !info.provenanceAmbiguity) return new Set([value.getText(env.sourceFile)]);
   }
   if (ts.isIdentifier(value)) {
     const info = env.variables.get(value.text);
-    if (info?.operationComposite === "args") return new Set([value.text]);
-    if (info?.operationComposite === "ctx") return new Set([`${value.text}.viewer`]);
-    if (info?.operationArgument) {
-      const args = [...env.variables].find(([, candidate]) => candidate.operationComposite === "args")?.[0];
-      return new Set([args ? `${args}.${info.operationArgument}` : info.operationArgument]);
-    }
+    // A suggested direct origin must respect the same current binding as the
+    // proof. Initial receiver/argument metadata cannot repair an assignment.
     if (info?.provenanceAmbiguity) {
       return new Set([
         ...(info.provenanceAmbiguity.candidates ?? []),
         ...(info.provenanceAmbiguity.directRewrite ? [info.provenanceAmbiguity.directRewrite] : []),
       ]);
+    }
+    if (info?.operationComposite === "args") return new Set([value.text]);
+    if (info?.operationComposite === "ctx") return new Set([`${value.text}.viewer`]);
+    if (info?.operationArgument) {
+      const args = [...env.variables].find(([name]) => isOperationCompositeBinding(name, "args", env))?.[0];
+      return new Set([args ? `${args}.${info.operationArgument}` : info.operationArgument]);
     }
     if (info?.alternativeOrigins) return directCandidatesForOrigins(info.alternativeOrigins, new Set());
     return info?.immutableOrigin

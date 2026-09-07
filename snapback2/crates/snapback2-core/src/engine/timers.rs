@@ -1,4 +1,5 @@
 use super::*;
+use crate::ir::IndexKeyExpr;
 use crate::timers::{Firing, Schedule, Timer, TimerOutcome, Trigger};
 use serde_json::json;
 
@@ -219,6 +220,7 @@ impl Engine {
                 job_chunk: None,
                 schedule: Some(firing.clone()),
                 touched: trace.touched,
+                scope_touches: trace.scope_touches,
                 writes: trace.writes,
                 emits: trace.emits.len() as u64,
             },
@@ -249,7 +251,10 @@ mod tests {
             BTreeMap::from([(
                 "byId".to_owned(),
                 Index {
-                    columns: vec!["id".into()],
+                    components: (vec!["id".into()])
+                        .into_iter()
+                        .map(crate::search_key::IndexComponent::Column)
+                        .collect(),
                     unique: true,
                 },
             )])
@@ -312,7 +317,7 @@ mod tests {
                     site: "sweep".into(),
                     table: "items".into(),
                     index: "byId".into(),
-                    prefix: vec![],
+                    prefix: (vec![]).into_iter().map(IndexKeyExpr::Scalar).collect(),
                     order: Order::Asc,
                     take: Bound::Literal(100),
                     after: None,

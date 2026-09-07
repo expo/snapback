@@ -16,7 +16,10 @@ pub(crate) static TABLE: LazyLock<Table> = LazyLock::new(|| Table {
     indexes: BTreeMap::from([(
         CONNECTED_INDEX.to_owned(),
         Index {
-            columns: vec!["principal".to_owned()],
+            components: (vec!["principal".to_owned()])
+                .into_iter()
+                .map(crate::search_key::IndexComponent::Column)
+                .collect(),
             unique: true,
         },
     )]),
@@ -172,7 +175,10 @@ mod tests {
                     site: "scan".into(),
                     table: CONNECTED_TABLE.into(),
                     index: CONNECTED_INDEX.into(),
-                    prefix: vec![Expr::Input(Input::Viewer)],
+                    prefix: (vec![Expr::Input(Input::Viewer)])
+                        .into_iter()
+                        .map(IndexKeyExpr::Scalar)
+                        .collect(),
                     order: Order::Asc,
                     take: Bound::Literal(1),
                     after: None,

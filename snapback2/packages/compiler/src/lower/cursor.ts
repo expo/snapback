@@ -1,9 +1,11 @@
+import { columnAt, ordinaryColumns } from "../index-components";
 import ts from "typescript";
 import { authoredTypeFromColumn, requiredType, isIdType, type AuthoredType } from "../authored-types";
 import { diagnostic } from "../diagnostics";
 import { callName, contextualNodeKey, propertyName, replaceNode, unwrapExpression } from "../syntax";
 import type { Environment, VariableInfo } from "./environment";
 import { expandHelper } from "./helper-expansion";
+import { isOperationCompositeBinding } from "./operation-context";
 
 export function checkScanPrefix(
   node: ts.Expression,
@@ -14,13 +16,13 @@ export function checkScanPrefix(
 ): boolean {
   const tableInfo = [...env.tables.values()].find((candidate) => candidate.name === table);
   const indexInfo = tableInfo?.indexes?.[index];
-  if (!indexInfo || prefixLength <= indexInfo.columns.length) return true;
+  if (!indexInfo || prefixLength <= indexInfo.components.length) return true;
   env.diagnostics.push(diagnostic(
     env,
     "E_ARGS_TYPE",
     node,
-    `scan ${env.siteBase}.${env.accessOrdinal.value} prefix supplies ${prefixLength} components but ${table}.${index} has ${indexInfo.columns.length} columns`,
-    overlongPrefixRewrite(node, env, indexInfo.columns.length),
+    `scan ${env.siteBase}.${env.accessOrdinal.value} prefix supplies ${prefixLength} components but ${table}.${index} has ${indexInfo.components.length} columns`,
+    overlongPrefixRewrite(node, env, indexInfo.components.length),
   ));
   return false;
 }
@@ -37,7 +39,7 @@ export function checkTupleCursor(
   const tableInfo = [...env.tables.values()].find((candidate) => candidate.name === table);
   const indexInfo = tableInfo?.indexes?.[index];
   if (!indexInfo) return;
-  const remainingColumns = indexInfo.columns.slice(prefixLength);
+  const remainingColumns = ordinaryColumns(indexInfo.components.slice(prefixLength)) ?? [];
   const expectedTypes = indexInfo.types.slice(prefixLength);
   if (remainingColumns.length === 0) {
     env.diagnostics.push(diagnostic(
@@ -52,14 +54,14 @@ export function checkTupleCursor(
   // @ref LLP 1001#3-read-and-write-states-no-silent-states — a cursored index must be a total order (ends in `id`, or is
   // unique); otherwise tied keys are skipped between pages. The runtime accepts the
   // lossy shape, so this is a policy refusal like an unbounded scan, not a type check.
-  if (indexInfo.columns.at(-1) !== "id" && indexInfo.unique !== true) {
-    const totalOrderColumns = [...indexInfo.columns.filter((column) => column !== "id"), "id"];
+  if (columnAt(indexInfo.components, -1) !== "id" && indexInfo.unique !== true) {
+    const totalOrderComponents = [...indexInfo.components.filter(c => !("Column" in c && c.Column === "id")), { Column: "id" }];
     env.diagnostics.push(diagnostic(
       env,
       "E_ARGS_CURSOR_INDEX",
       value,
       `scan ${table}.${index} uses a cursor, so the index must be a total order: end in id, or be unique`,
-      `change ${table}.${index} to { columns: [${totalOrderColumns.map((column) => JSON.stringify(column)).join(", ")}] }`,
+      `change ${table}.${index} to { components: ${JSON.stringify(totalOrderComponents)} }`,
     ));
     return;
   }
@@ -109,7 +111,8 @@ export function checkTupleCursor(
     ? propertyName(node.parent.name) ?? "after"
     : "after";
   components.forEach((component, offset) => {
-    const actual = expressionType(component, shapeEnv);
+    const actual = shapeEnv.contextualTypes.get(contextualNodeKey(shapeEnv.literalContext, unwrapExpression(component), shapeEnv.sourceFile))
+      ?? expressionType(component, shapeEnv);
     const expected = expectedTypes[offset];
     if (cursorTypeMatches(actual, expected) !== false) return;
     env.diagnostics.push(diagnostic(
@@ -179,21 +182,24 @@ function optionsWithoutCursorProperties(object: ts.ObjectLiteralExpression, env:
   return `{ ${kept.map((property) => property.getText(env.sourceFile)).join(", ")} }`;
 }
 
-function expressionType(node: ts.Expression, env: Environment): AuthoredType | undefined {
+export function expressionType(node: ts.Expression, env: Environment): AuthoredType | undefined {
+  if (ts.isParenthesizedExpression(node)) return expressionType(node.expression, env);
+  if (ts.isNonNullExpression(node)) return requiredType(expressionType(node.expression, env));
   const value = unwrapExpression(node);
   if (ts.isIdentifier(value)) {
-    const origin = env.variables.get(value.text)?.immutableOrigin;
+    const origin = env.substitutions.get(value.text) ?? env.variables.get(value.text)?.immutableOrigin;
     if (origin) return expressionType(origin.expression, origin.environment);
   }
   if (ts.isPropertyAccessExpression(value)) {
     const base = unwrapExpression(value.expression);
-    if (ts.isIdentifier(base) && env.variables.get(base.text)?.operationComposite === "args") {
+    if (ts.isIdentifier(base) && isOperationCompositeBinding(base.text, "args", env)) {
       return authoredTypeFromColumn(env.args[value.name.text]);
     }
     const baseType = env.expressionTypes.get(contextualNodeKey(env.literalContext, base, env.sourceFile));
     const row = requiredType(baseType);
-    if (row.kind === "row") {
-      const table = [...env.tables.values()].find((candidate) => candidate.name === row.table);
+    const rowTable = row.kind === "row" ? row.table : ts.isIdentifier(base) ? env.variables.get(base.text)?.rowTable : undefined;
+    if (rowTable) {
+      const table = [...env.tables.values()].find((candidate) => candidate.name === rowTable);
       const field = table?.columns?.[value.name.text];
       if (field) return field;
     }

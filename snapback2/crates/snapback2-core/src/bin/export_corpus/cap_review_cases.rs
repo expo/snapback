@@ -197,7 +197,10 @@ fn reordered(cases: &mut Vec<CorpusCase>) {
         }
         let mut read = scan("members.reordered");
         read.index = "byRoleConversation".into();
-        read.prefix = vec![Expr::Literal(text("member")), Expr::Literal(id("c1"))];
+        read.prefix = vec![Expr::Literal(text("member")), Expr::Literal(id("c1"))]
+            .into_iter()
+            .map(IndexKeyExpr::Scalar)
+            .collect();
         let p = program(name, vec![fanout(LoopDomain::Page(read.clone()))]);
         let mut engine = Engine::memory(schema.clone()).unwrap();
         for n in 0..3 {

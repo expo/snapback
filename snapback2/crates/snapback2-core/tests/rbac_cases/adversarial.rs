@@ -1,3 +1,4 @@
+use snapback2_core::ir::IndexKeyExpr;
 use snapback2_core::*;
 use std::collections::{BTreeMap, VecDeque};
 
@@ -41,14 +42,20 @@ fn documents(read: RuleExpr) -> Table {
             (
                 "byId".to_owned(),
                 Index {
-                    columns: vec!["id".to_owned()],
+                    components: (vec!["id".to_owned()])
+                        .into_iter()
+                        .map(snapback2_core::search_key::IndexComponent::Column)
+                        .collect(),
                     unique: true,
                 },
             ),
             (
                 "byGroup".to_owned(),
                 Index {
-                    columns: vec!["group".to_owned(), "id".to_owned()],
+                    components: (vec!["group".to_owned(), "id".to_owned()])
+                        .into_iter()
+                        .map(snapback2_core::search_key::IndexComponent::Column)
+                        .collect(),
                     unique: false,
                 },
             ),
@@ -73,14 +80,20 @@ fn rule_input_table(read: RuleExpr) -> Table {
             (
                 "byId".to_owned(),
                 Index {
-                    columns: vec!["id".to_owned()],
+                    components: (vec!["id".to_owned()])
+                        .into_iter()
+                        .map(snapback2_core::search_key::IndexComponent::Column)
+                        .collect(),
                     unique: true,
                 },
             ),
             (
                 "byScopePrincipal".to_owned(),
                 Index {
-                    columns: vec!["scope".to_owned(), "principal".to_owned()],
+                    components: (vec!["scope".to_owned(), "principal".to_owned()])
+                        .into_iter()
+                        .map(snapback2_core::search_key::IndexComponent::Column)
+                        .collect(),
                     unique: true,
                 },
             ),
@@ -142,7 +155,10 @@ fn scan_program(name: &str, table: &str, take: u32) -> Program {
             site: name.to_owned(),
             table: table.to_owned(),
             index: "byGroup".to_owned(),
-            prefix: vec![var("group")],
+            prefix: (vec![var("group")])
+                .into_iter()
+                .map(IndexKeyExpr::Scalar)
+                .collect(),
             order: Order::Asc,
             take: Bound::Literal(take),
             after: None,
@@ -170,7 +186,10 @@ fn owner_scan(site: &str, prefix: Vec<Expr>) -> Expr {
         site: site.to_owned(),
         table: "documents".to_owned(),
         index: "byOwner".to_owned(),
-        prefix,
+        prefix: prefix
+            .into_iter()
+            .map(snapback2_core::ir::IndexKeyExpr::Scalar)
+            .collect(),
         order: Order::Asc,
         take: Bound::Literal(2),
         after: None,
@@ -208,7 +227,10 @@ fn owner_scan_schema() -> Schema {
     table.indexes.insert(
         "byOwner".to_owned(),
         Index {
-            columns: vec!["owner".to_owned(), "id".to_owned()],
+            components: (vec!["owner".to_owned(), "id".to_owned()])
+                .into_iter()
+                .map(snapback2_core::search_key::IndexComponent::Column)
+                .collect(),
             unique: false,
         },
     );
@@ -449,7 +471,10 @@ fn later_nonuniform_scan_makes_an_earlier_detailed_cap_opaque() {
                     site: "documents.publicFirst".to_owned(),
                     table: "publicDocuments".to_owned(),
                     index: "byGroup".to_owned(),
-                    prefix: vec![Expr::Literal(Value::Id("group".to_owned()))],
+                    prefix: (vec![Expr::Literal(Value::Id("group".to_owned()))])
+                        .into_iter()
+                        .map(IndexKeyExpr::Scalar)
+                        .collect(),
                     order: Order::Asc,
                     take: Bound::Literal(1),
                     after: None,
@@ -464,7 +489,10 @@ fn later_nonuniform_scan_makes_an_earlier_detailed_cap_opaque() {
                 site: "documents.protectedLater".to_owned(),
                 table: "protectedDocuments".to_owned(),
                 index: "byGroup".to_owned(),
-                prefix: vec![Expr::Literal(Value::Id("group".to_owned()))],
+                prefix: (vec![Expr::Literal(Value::Id("group".to_owned()))])
+                    .into_iter()
+                    .map(IndexKeyExpr::Scalar)
+                    .collect(),
                 order: Order::Asc,
                 take: Bound::Literal(1),
                 after: None,
@@ -662,14 +690,20 @@ fn grant_table() -> Table {
             (
                 "byId".to_owned(),
                 Index {
-                    columns: vec!["id".to_owned()],
+                    components: (vec!["id".to_owned()])
+                        .into_iter()
+                        .map(snapback2_core::search_key::IndexComponent::Column)
+                        .collect(),
                     unique: true,
                 },
             ),
             (
                 "byScopePrincipal".to_owned(),
                 Index {
-                    columns: vec!["scope".to_owned(), "principal".to_owned()],
+                    components: (vec!["scope".to_owned(), "principal".to_owned()])
+                        .into_iter()
+                        .map(snapback2_core::search_key::IndexComponent::Column)
+                        .collect(),
                     unique: true,
                 },
             ),

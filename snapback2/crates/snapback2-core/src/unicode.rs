@@ -343,14 +343,28 @@ pub fn search_query_token(
     source_max: usize,
     normalizer: &mut SearchNormalizer,
 ) -> Result<Option<String>, SearchInputError> {
-    validate_search_source(source, source_max)?;
-    let (text, _) = normalizer.normalize(source, source_max)?;
+    Ok(search_query_token_metered(source, source_max, normalizer)?.0)
+}
+
+pub(crate) fn search_query_token_metered(
+    source: &str,
+    source_max: usize,
+    normalizer: &mut SearchNormalizer,
+) -> Result<(Option<String>, usize, usize), SearchInputError> {
+    let n = validate_search_source(source, source_max)?;
+    let (text, stats) = normalizer.normalize(source, source_max)?;
     let mut tokens = text.split(is_search_boundary).filter(|s| !s.is_empty());
     let first = tokens.next();
     if tokens.next().is_some() {
         return Err(SearchInputError("search one word"));
     }
-    Ok(first.map(str::to_owned))
+    let token = first.map(str::to_owned);
+    let steps = normalization_steps(&stats) + 2 * n + stats.output_scalars;
+    let scratch = stats.scratch_bytes
+        + source.len()
+        + text.capacity()
+        + token.as_ref().map_or(0, String::capacity);
+    Ok((token, steps, scratch))
 }
 
 #[cfg(test)]

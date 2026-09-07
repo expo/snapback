@@ -15,14 +15,20 @@ pub(super) fn add_incomplete_constraint_cases(cases: &mut Vec<CorpusCase>) {
         (
             "byId".to_owned(),
             Index {
-                columns: vec!["id".to_owned()],
+                components: (vec!["id".to_owned()])
+                    .into_iter()
+                    .map(snapback2_core::search_key::IndexComponent::Column)
+                    .collect(),
                 unique: true,
             },
         ),
         (
             "bySlug".to_owned(),
             Index {
-                columns: vec!["slug".to_owned()],
+                components: (vec!["slug".to_owned()])
+                    .into_iter()
+                    .map(snapback2_core::search_key::IndexComponent::Column)
+                    .collect(),
                 unique: true,
             },
         ),
@@ -80,14 +86,20 @@ pub(super) fn add_incomplete_constraint_cases(cases: &mut Vec<CorpusCase>) {
                     (
                         "byGroup".to_owned(),
                         Index {
-                            columns: vec!["group".to_owned(), "id".to_owned()],
+                            components: (vec!["group".to_owned(), "id".to_owned()])
+                                .into_iter()
+                                .map(snapback2_core::search_key::IndexComponent::Column)
+                                .collect(),
                             unique: false,
                         },
                     ),
                     (
                         "byId".to_owned(),
                         Index {
-                            columns: vec!["id".to_owned()],
+                            components: (vec!["id".to_owned()])
+                                .into_iter()
+                                .map(snapback2_core::search_key::IndexComponent::Column)
+                                .collect(),
                             unique: true,
                         },
                     ),

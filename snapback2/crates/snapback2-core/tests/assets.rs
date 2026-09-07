@@ -23,7 +23,10 @@ fn table_with(column: &str, kind: ColumnType) -> Table {
         BTreeMap::from([(
             "byId".to_owned(),
             Index {
-                columns: vec!["id".to_owned()],
+                components: (vec!["id".to_owned()])
+                    .into_iter()
+                    .map(snapback2_core::search_key::IndexComponent::Column)
+                    .collect(),
                 unique: true,
             },
         )]),
@@ -130,11 +133,14 @@ fn image(runtime: &mut Runtime, actor: &Actor, bytes: u64, width: i64, height: i
             },
         )
         .unwrap();
-    Value::Map(BTreeMap::from([
-        ("id".to_owned(), Value::String(id)),
-        ("width".to_owned(), Value::Int(width)),
-        ("height".to_owned(), Value::Int(height)),
-    ]))
+    Value::Map(
+        BTreeMap::from([
+            ("id".to_owned(), Value::String(id)),
+            ("width".to_owned(), Value::Int(width)),
+            ("height".to_owned(), Value::Int(height)),
+        ])
+        .into(),
+    )
 }
 
 fn video(
@@ -159,12 +165,15 @@ fn video(
             },
         )
         .unwrap();
-    Value::Map(BTreeMap::from([
-        ("id".to_owned(), Value::String(id)),
-        ("width".to_owned(), Value::Int(width)),
-        ("height".to_owned(), Value::Int(height)),
-        ("duration".to_owned(), Value::Int(duration)),
-    ]))
+    Value::Map(
+        BTreeMap::from([
+            ("id".to_owned(), Value::String(id)),
+            ("width".to_owned(), Value::Int(width)),
+            ("height".to_owned(), Value::Int(height)),
+            ("duration".to_owned(), Value::Int(duration)),
+        ])
+        .into(),
+    )
 }
 
 fn assert_state(execution: Execution, expected: &str) {
@@ -207,7 +216,10 @@ fn asset_ir_is_externally_tagged_and_assets_are_not_indexable() {
     table.indexes.insert(
         "byPhoto".to_owned(),
         Index {
-            columns: vec!["photo".to_owned()],
+            components: (vec!["photo".to_owned()])
+                .into_iter()
+                .map(snapback2_core::search_key::IndexComponent::Column)
+                .collect(),
             unique: false,
         },
     );
@@ -245,7 +257,10 @@ fn asset_ir_is_externally_tagged_and_assets_are_not_indexable() {
         table.indexes.insert(
             "byPhoto".to_owned(),
             Index {
-                columns: vec!["photo".to_owned()],
+                components: (vec!["photo".to_owned()])
+                    .into_iter()
+                    .map(snapback2_core::search_key::IndexComponent::Column)
+                    .collect(),
                 unique: false,
             },
         );
@@ -285,15 +300,18 @@ fn asset_member_access_is_closed_and_evaluates() {
         .check(&valid)
         .unwrap();
     let mut engine = Engine::memory(schema.clone()).unwrap();
-    let clip = Value::Map(BTreeMap::from([
-        (
-            "id".to_owned(),
-            Value::String("s2id-00000000000000000000000000000001-0000000000000001".to_owned()),
-        ),
-        ("width".to_owned(), Value::Int(10)),
-        ("height".to_owned(), Value::Int(20)),
-        ("duration".to_owned(), Value::Int(30)),
-    ]));
+    let clip = Value::Map(
+        BTreeMap::from([
+            (
+                "id".to_owned(),
+                Value::String("s2id-00000000000000000000000000000001-0000000000000001".to_owned()),
+            ),
+            ("width".to_owned(), Value::Int(10)),
+            ("height".to_owned(), Value::Int(20)),
+            ("duration".to_owned(), Value::Int(30)),
+        ])
+        .into(),
+    );
     let execution = engine
         .execute(
             &valid,
@@ -322,17 +340,21 @@ fn asset_member_access_is_closed_and_evaluates() {
                 user("u1"),
                 BTreeMap::from([(
                     "clip".to_owned(),
-                    Value::Map(BTreeMap::from([
-                        (
-                            "id".to_owned(),
-                            Value::String(
-                                "s2id-00000000000000000000000000000001-0000000000000001".to_owned(),
+                    Value::Map(
+                        BTreeMap::from([
+                            (
+                                "id".to_owned(),
+                                Value::String(
+                                    "s2id-00000000000000000000000000000001-0000000000000001"
+                                        .to_owned(),
+                                ),
                             ),
-                        ),
-                        ("width".to_owned(), Value::Int(10)),
-                        ("height".to_owned(), Value::Int(20)),
-                        ("duration".to_owned(), Value::Int(30)),
-                    ])),
+                            ("width".to_owned(), Value::Int(10)),
+                            ("height".to_owned(), Value::Int(20)),
+                            ("duration".to_owned(), Value::Int(30)),
+                        ])
+                        .into(),
+                    ),
                 )]),
             ),
         )
@@ -466,14 +488,17 @@ fn entry_validation_rejects_missing_foreign_forged_oversize_and_duplicate_assets
     let alice = user("alice");
     let bob = user("bob");
 
-    let missing = Value::Map(BTreeMap::from([
-        (
-            "id".to_owned(),
-            Value::String("s2id-00000000000000000000000000000001-0000000000000001".to_owned()),
-        ),
-        ("width".to_owned(), Value::Int(1)),
-        ("height".to_owned(), Value::Int(1)),
-    ]));
+    let missing = Value::Map(
+        BTreeMap::from([
+            (
+                "id".to_owned(),
+                Value::String("s2id-00000000000000000000000000000001-0000000000000001".to_owned()),
+            ),
+            ("width".to_owned(), Value::Int(1)),
+            ("height".to_owned(), Value::Int(1)),
+        ])
+        .into(),
+    );
     assert_state(
         runtime
             .execute(
@@ -966,7 +991,10 @@ fn delivery_uses_locator_cell_and_certified_read_rule() {
         BTreeMap::from([(
             "byId".to_owned(),
             Index {
-                columns: vec!["id".to_owned()],
+                components: (vec!["id".to_owned()])
+                    .into_iter()
+                    .map(snapback2_core::search_key::IndexComponent::Column)
+                    .collect(),
                 unique: true,
             },
         )]),
@@ -1219,234 +1247,5 @@ fn table_drop_and_asset_type_change_release_locators() {
     );
 }
 
-#[test]
-fn asset_maintain_keys_and_seed_values_are_schema_refusals() {
-    let source = table_with(
-        "photo",
-        ColumnType::Image {
-            max: 100,
-            once: false,
-        },
-    );
-    let target = public_table(
-        BTreeMap::from([
-            ("id".to_owned(), ColumnType::Id),
-            (
-                "photo".to_owned(),
-                ColumnType::Image {
-                    max: 100,
-                    once: false,
-                },
-            ),
-            ("value".to_owned(), ColumnType::Int),
-        ]),
-        BTreeMap::from([(
-            "byId".to_owned(),
-            Index {
-                columns: vec!["id".to_owned()],
-                unique: true,
-            },
-        )]),
-    );
-    let schema = Schema {
-        tables: BTreeMap::from([
-            ("media".to_owned(), source.clone()),
-            ("counts".to_owned(), target),
-        ]),
-        maintains: vec![Maintain {
-            source: "media".to_owned(),
-            target: "counts".to_owned(),
-            by: vec!["photo".to_owned()],
-            kind: MaintainKind::Count,
-            readable: None,
-        }],
-        ..Schema::default()
-    };
-    let errors = Generation::certify(
-        &ProjectJson {
-            version: 1,
-            schema,
-            programs: Vec::new(),
-            effects: Vec::new(),
-            auth: Auth::default(),
-        },
-        Ceilings::default(),
-    )
-    .unwrap_err();
-    assert!(
-        errors
-            .iter()
-            .any(|(_, error)| error.code == "E_SCHEMA_MAINTAIN")
-    );
-
-    for kind in [
-        ColumnType::Optional(Box::new(ColumnType::Image {
-            max: 100,
-            once: false,
-        })),
-        ColumnType::List {
-            of: Box::new(ColumnType::Image {
-                max: 100,
-                once: false,
-            }),
-            max: 4,
-        },
-    ] {
-        let source = table_with("photo", kind.clone());
-        let target = public_table(
-            BTreeMap::from([
-                ("id".to_owned(), ColumnType::Id),
-                ("photo".to_owned(), kind),
-                ("value".to_owned(), ColumnType::Int),
-            ]),
-            BTreeMap::new(),
-        );
-        let schema = Schema {
-            tables: BTreeMap::from([("media".to_owned(), source), ("counts".to_owned(), target)]),
-            maintains: vec![Maintain {
-                source: "media".to_owned(),
-                target: "counts".to_owned(),
-                by: vec!["photo".to_owned()],
-                kind: MaintainKind::Count,
-                readable: None,
-            }],
-            ..Schema::default()
-        };
-        let errors = Generation::certify(
-            &ProjectJson {
-                version: 1,
-                schema,
-                programs: Vec::new(),
-                effects: Vec::new(),
-                auth: Auth::default(),
-            },
-            Ceilings::default(),
-        )
-        .unwrap_err();
-        assert!(
-            errors
-                .iter()
-                .any(|(_, error)| error.code == "E_SCHEMA_MAINTAIN")
-        );
-    }
-
-    let base_generation = generation(schema_with(source), Vec::new());
-    let mut runtime = Runtime::open(Store::memory().unwrap(), base_generation).unwrap();
-    let seed = Value::Map(BTreeMap::from([
-        (
-            "id".to_owned(),
-            Value::String("s2id-00000000000000000000000000000001-0000000000000001".to_owned()),
-        ),
-        ("width".to_owned(), Value::Int(1)),
-        ("height".to_owned(), Value::Int(1)),
-    ]));
-    assert_eq!(
-        runtime
-            .seed(&[(
-                "media".to_owned(),
-                Value::Row(BTreeMap::from([
-                    ("id".to_owned(), Value::Id("row-1".to_owned())),
-                    ("photo".to_owned(), seed.clone()),
-                ])),
-            )])
-            .unwrap_err()
-            .code(),
-        "E_SCHEMA_SEED_ASSET"
-    );
-
-    let optional_source = table_with(
-        "photo",
-        ColumnType::Optional(Box::new(ColumnType::Image {
-            max: 100,
-            once: false,
-        })),
-    );
-    let mut runtime = Runtime::open(
-        Store::memory().unwrap(),
-        generation(schema_with(optional_source), Vec::new()),
-    )
-    .unwrap();
-    runtime
-        .seed(&[(
-            "media".to_owned(),
-            Value::Row(BTreeMap::from([
-                ("id".to_owned(), Value::Id("row-null".to_owned())),
-                ("photo".to_owned(), Value::Null),
-            ])),
-        )])
-        .unwrap();
-    assert_eq!(
-        runtime
-            .seed(&[(
-                "media".to_owned(),
-                Value::Row(BTreeMap::from([
-                    ("id".to_owned(), Value::Id("row-optional".to_owned())),
-                    ("photo".to_owned(), seed.clone()),
-                ])),
-            )])
-            .unwrap_err()
-            .code(),
-        "E_SCHEMA_SEED_ASSET"
-    );
-
-    let list_source = table_with(
-        "photos",
-        ColumnType::List {
-            of: Box::new(ColumnType::Image {
-                max: 100,
-                once: false,
-            }),
-            max: 4,
-        },
-    );
-    let mut runtime = Runtime::open(
-        Store::memory().unwrap(),
-        generation(schema_with(list_source), Vec::new()),
-    )
-    .unwrap();
-    assert_eq!(
-        runtime
-            .seed(&[(
-                "media".to_owned(),
-                Value::Row(BTreeMap::from([
-                    ("id".to_owned(), Value::Id("row-list".to_owned())),
-                    ("photos".to_owned(), Value::Array(vec![seed.clone()])),
-                ])),
-            )])
-            .unwrap_err()
-            .code(),
-        "E_SCHEMA_SEED_ASSET"
-    );
-
-    let mut engine = Engine::memory(schema_with(table_with(
-        "photo",
-        ColumnType::Optional(Box::new(ColumnType::Image {
-            max: 100,
-            once: false,
-        })),
-    )))
-    .unwrap();
-    assert_eq!(
-        engine
-            .seed(
-                "media",
-                Value::Row(BTreeMap::from([
-                    ("id".to_owned(), Value::Id("raw-asset".to_owned())),
-                    ("photo".to_owned(), seed),
-                ])),
-            )
-            .unwrap_err()
-            .code(),
-        "E_SCHEMA_SEED_ASSET"
-    );
-    engine
-        .seed(
-            "media",
-            Value::Row(BTreeMap::from([
-                ("id".to_owned(), Value::Id("raw-null".to_owned())),
-                ("photo".to_owned(), Value::Null),
-            ])),
-        )
-        .unwrap();
-    assert_eq!(engine.rows("media").unwrap().len(), 1);
-}
+#[path = "assets/seed_admission.rs"]
+mod seed_admission;

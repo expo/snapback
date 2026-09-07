@@ -14,16 +14,24 @@
         },
         "indexes": {
           "byFollower": {
-            "columns": [
-              "follower",
-              "at",
-              "id"
+            "components": [
+              {
+                "Column": "follower"
+              },
+              {
+                "Column": "at"
+              },
+              {
+                "Column": "id"
+              }
             ],
             "unique": false
           },
           "byId": {
-            "columns": [
-              "id"
+            "components": [
+              {
+                "Column": "id"
+              }
             ],
             "unique": true
           }
@@ -61,23 +69,35 @@
         },
         "indexes": {
           "byAt": {
-            "columns": [
-              "at",
-              "id"
+            "components": [
+              {
+                "Column": "at"
+              },
+              {
+                "Column": "id"
+              }
             ],
             "unique": false
           },
           "byAuthorAt": {
-            "columns": [
-              "author",
-              "at",
-              "id"
+            "components": [
+              {
+                "Column": "author"
+              },
+              {
+                "Column": "at"
+              },
+              {
+                "Column": "id"
+              }
             ],
             "unique": false
           },
           "byId": {
-            "columns": [
-              "id"
+            "components": [
+              {
+                "Column": "id"
+              }
             ],
             "unique": true
           }
@@ -154,7 +174,7 @@
   "certificate": {
     "program": "opaque-cursor-empty-capped-next-null",
     "plan_hash": "6735bdfad0107a28af08fc430c179adc1225d4537a5290bf21dfb655a0f346fa",
-    "schema_hash": "44c6957456dcabaa83753fc0fa1c1c43299591e6abd79d911808b406f8f75777",
+    "schema_hash": "baa5d41864f7d3d72b09dd74297766a955414a8262495ccf25c5c2cb50975c2b",
     "tables": {
       "follows": {
         "retain": "until-revoked"
@@ -164,10 +184,10 @@
       }
     },
     "rule_hashes": {
-      "posts.read": "3d2a1636caedd2991ec8e604d56f45bc444494d5aa1c032b1d40f6b6b3e9f04b"
+      "posts.read": "5350e52bf03f7cfd637b1998b81c451a3a9a1a8f3356e6a47a3bc8be383c4a14"
     },
-    "evaluator_version": "bounded-spike-rust-1",
-    "value_model_version": "i53-codepoint-bytes-v2",
+    "evaluator_version": "bounded-spike-rust-search-text-refinements-4",
+    "value_model_version": "i53-codepoint-bytes-unicode-search-text-refinements-v5",
     "read_sites": [
       {
         "site": "opaque-cursor-empty-capped-next-null",
@@ -207,6 +227,8 @@
     "max_index_entries": 10240,
     "max_rule_probes": 10240,
     "max_steps": 51203,
+    "derived_steps": 0,
+    "derived_scratch_bytes": 0,
     "max_heap_bytes": 1638496,
     "max_output_bytes": 718,
     "max_closure_bytes": 704,
@@ -232,7 +254,7 @@
     "read_time": null
   },
   "receipt": {
-    "schema_hash": "44c6957456dcabaa83753fc0fa1c1c43299591e6abd79d911808b406f8f75777",
+    "schema_hash": "baa5d41864f7d3d72b09dd74297766a955414a8262495ccf25c5c2cb50975c2b",
     "rows": [],
     "ranges": [],
     "absences": [],

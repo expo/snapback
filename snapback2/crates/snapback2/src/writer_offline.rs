@@ -17,7 +17,7 @@ pub(super) fn envelope_json(
     context: &Context,
     execution: &Execution,
 ) -> Result<Json, Refusal> {
-    let (_, certificate) = generation
+    let (program, certificate) = generation
         .programs()
         .get(op)
         .expect("execution operation belongs to active generation");
@@ -26,6 +26,10 @@ pub(super) fn envelope_json(
     let mut envelope = project_delivery(
         execution,
         &DeliveryProjectionContext {
+            schema: generation.schema(),
+            read_time: context
+                .query_read_time(program, certificate)
+                .map_err(|e| Refusal::from_runtime(&e))?,
             op,
             args: &context.args,
             generation: program_generation,
@@ -41,12 +45,6 @@ pub(super) fn envelope_json(
         .iter()
         .any(|site| site.table == snapback2_core::CONNECTED_TABLE)
         .then_some(true);
-    // @ref LLP 1012#8-the-delivery-envelope-the-validator-and-resume — a program whose
-    // certificate reads the clock re-executes at one durable seq with a different answer;
-    // the execution read time pinned on this context lets the client order those deliveries.
-    if certificate.read_time_granularity_ms.is_some() {
-        envelope.read_time = context.read_time;
-    }
     Ok(serde_json::to_value(envelope).expect("delivery envelope is serializable"))
 }
 
@@ -150,6 +148,13 @@ pub(super) fn program(generation: &Generation, requested: &str) -> Result<Json, 
 
 fn projection_refusal(error: DeliveryProjectionError) -> Refusal {
     match error {
+        DeliveryProjectionError::InvalidReadTime => Refusal::new(
+            "E_INPUT",
+            "input",
+            error.to_string(),
+            "pin the query readTime to signed safe-integer milliseconds",
+            "input/runtime",
+        ),
         DeliveryProjectionError::NonQueryState => Refusal::new(
             "E_OP_KIND",
             "op",
@@ -157,12 +162,125 @@ fn projection_refusal(error: DeliveryProjectionError) -> Refusal {
             "subscribe only to query operations",
             "op/kind",
         ),
-        DeliveryProjectionError::MissingPooledRow { .. } => Refusal::new(
-            "E_TRACE_SUBSET",
-            "bound",
-            error.to_string(),
-            "inspect the query receipt and result row provenance",
-            "bound/runtime",
-        ),
+        DeliveryProjectionError::MissingPooledRow { .. } | DeliveryProjectionError::InvalidPool => {
+            Refusal::new(
+                "E_TRACE_SUBSET",
+                "bound",
+                error.to_string(),
+                "inspect the query receipt and result row provenance",
+                "bound/runtime",
+            )
+        }
+    }
+}
+
+#[cfg(test)]
+mod clock_tests {
+    use super::*;
+    use snapback2_core::{ArgType, Ceilings, Engine, Expr, Input, ProjectJson, Schema, Stmt};
+
+    #[test]
+    fn pinned_clock_binds_full_query_states_and_preserves_untimed_validators() {
+        let timed = snapback2_core::Program {
+            name: "clock".into(),
+            kind: ProgramKind::Query,
+            args: BTreeMap::from([("read".into(), ArgType::Bool)]),
+            read_time_granularity_ms: Some(1000),
+            body: vec![Stmt::If {
+                condition: Expr::Variable("read".into()),
+                then_body: vec![Stmt::Return(Expr::Input(Input::ReadTime))],
+                else_body: vec![Stmt::Return(Expr::Literal(Value::Int(7)))],
+            }],
+        };
+        let mut untimed = timed.clone();
+        untimed.name = "untimed".into();
+        untimed.read_time_granularity_ms = None;
+        untimed.body = vec![Stmt::Return(Expr::Literal(Value::Int(7)))];
+        let generation = Generation::certify(
+            &ProjectJson {
+                version: 1,
+                schema: Schema::default(),
+                programs: vec![timed.clone(), untimed.clone()],
+                effects: vec![],
+                auth: Default::default(),
+            },
+            Ceilings::default(),
+        )
+        .unwrap();
+        let mut engine = Engine::memory(Schema::default()).unwrap();
+        let mut context = Context::query(
+            snapback2_core::Actor::user("alice").unwrap(),
+            BTreeMap::from([("read".into(), Value::Bool(false))]),
+        );
+        let mut previous: Option<Json> = None;
+        let mut clockless: Option<Json> = None;
+        for clock in [-1, 0, 1, 999, snapback2_core::I53_MAX] {
+            context.read_time = Some(clock);
+            let execution = engine
+                .execute(&timed, &generation.programs()["clock"].1, context.clone())
+                .unwrap();
+            let full = envelope_json(&generation, "clock", &context, &execution).unwrap();
+            assert_eq!(full["readTime"], clock);
+            assert_eq!(full["data"], 7, "an unvisited timed branch still stamps");
+            if let Some(old) = previous.as_ref() {
+                assert_ne!(&full["validator"], old);
+                assert_eq!(conditional_frame(&full, old.as_str()), full);
+            }
+            previous = Some(full["validator"].clone());
+            for state in [
+                ExecutionState::Complete,
+                ExecutionState::Capped,
+                ExecutionState::Partial {
+                    reason: "coverage".into(),
+                },
+                ExecutionState::Denied {
+                    rule: "membership".into(),
+                },
+            ] {
+                let mut typed = execution.clone();
+                typed.state = state;
+                let (frame, terminal) = envelope_frame(&generation, "clock", &context, &typed);
+                assert!(!terminal);
+                assert_eq!(frame["readTime"], clock);
+            }
+            let execution = engine
+                .execute(
+                    &untimed,
+                    &generation.programs()["untimed"].1,
+                    context.clone(),
+                )
+                .unwrap();
+            let full = envelope_json(&generation, "untimed", &context, &execution).unwrap();
+            assert!(full.get("readTime").is_none());
+            if let Some(old) = clockless.as_ref() {
+                assert_eq!(&full["validator"], old);
+            }
+            clockless = Some(full["validator"].clone());
+            assert_eq!(
+                conditional_frame(&full, full["validator"].as_str())["state"],
+                "unchanged"
+            );
+        }
+        context.read_time = None;
+        let execution = engine
+            .execute(
+                &untimed,
+                &generation.programs()["untimed"].1,
+                context.clone(),
+            )
+            .unwrap();
+        assert!(envelope_json(&generation, "clock", &context, &execution).is_err());
+        let full = envelope_json(&generation, "untimed", &context, &execution).unwrap();
+        for invalid in [
+            Json::Null,
+            json!(1.5),
+            json!("1"),
+            json!(snapback2_core::I53_MAX + 1),
+            json!(snapback2_core::I53_MIN - 1),
+        ] {
+            let mut forged = full.clone();
+            forged["readTime"] = invalid;
+            assert!(serde_json::from_value::<snapback2_core::DeliveryEnvelopeV1>(forged).is_err());
+        }
     }
 }

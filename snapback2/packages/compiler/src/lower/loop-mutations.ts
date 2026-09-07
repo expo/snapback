@@ -155,6 +155,7 @@ function applyLoopMutationPlan(
 }
 
 function copyCollectionState(target: VariableInfo, source: VariableInfo): void {
+  target.mutatedCollection = source.mutatedCollection;
   target.provenance = source.provenance;
   if (source.provenanceAmbiguity) {
     target.provenanceAmbiguity = {

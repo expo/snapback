@@ -132,6 +132,7 @@ function flattenCollectionOrigins(origins: readonly ProvenanceOrigin[]): Provena
 
 export function selectOriginMembers(origin: ProvenanceOrigin, member: string): MemberSelection {
   if ("binding" in origin) {
+    if (origin.binding.provenanceAmbiguity) return { kind: "unknown" };
     return origin.binding.immutableOrigin
       ? selectOriginMembers(origin.binding.immutableOrigin, member)
       : { kind: "unknown" };
@@ -144,15 +145,27 @@ export function selectExpressionMember(
   env: Environment,
   member: string,
 ): MemberSelection {
+  return guardedWalk(env, node, `collection member ${member}`, () => selectExpressionMemberInner(node, env, member));
+}
+
+function selectExpressionMemberInner(
+  node: ts.Expression,
+  env: Environment,
+  member: string,
+): MemberSelection {
   const value = unwrapExpression(node);
+  const expanded = expandHelper(value, env);
+  if (expanded) return selectExpressionMember(expanded.expression, expanded.environment, member);
   if (ts.isIdentifier(value)) {
     const substituted = env.substitutions.get(value.text);
     if (substituted) return selectExpressionMember(substituted.expression, substituted.environment, member);
     const info = env.variables.get(value.text);
+    if (info?.provenanceAmbiguity) return { kind: "unknown" };
     if (info?.operationComposite === "args") {
       const descriptor = env.args[member];
       if (!descriptor) return { kind: "absent" };
-      const unwrapped = typeof descriptor !== "string" && "Optional" in descriptor ? descriptor.Optional : descriptor;
+      let unwrapped = descriptor;
+      while (typeof unwrapped !== "string" && "Optional" in unwrapped) unwrapped = unwrapped.Optional;
       const max = typeof unwrapped !== "string" && "List" in unwrapped ? unwrapped.List.max : undefined;
       return {
         kind: "found",
@@ -169,7 +182,6 @@ export function selectExpressionMember(
         ? { kind: "found", origins: [{ binding: { provenance: "Viewer" } }], presence: "required" }
         : { kind: "absent" };
     }
-    if (info?.provenanceAmbiguity) return { kind: "unknown" };
     if (info?.alternativeOrigins) {
       const selected = info.alternativeOrigins.map((origin) => selectOriginMembers(origin, member));
       if (selected.some((item) => item.kind !== "found")) return { kind: "unknown" };
@@ -184,6 +196,13 @@ export function selectExpressionMember(
     return info?.immutableOrigin
       ? selectOriginMembers(info.immutableOrigin, member)
       : { kind: "unknown" };
+  }
+  if (ts.isPropertyAccessExpression(value)) {
+    const selected = selectExpressionMember(value.expression, env, value.name.text);
+    if (selected.kind !== "found") return selected;
+    const nested = mergeMemberAlternatives(selected.origins.map(origin => selectOriginMembers(origin, member)));
+    return nested.kind === "found" && selected.presence === "optional"
+      ? { ...nested, presence: "optional" } : nested;
   }
   if (ts.isConditionalExpression(value)) {
     return mergeMemberAlternatives([
