@@ -1,0 +1,242 @@
+{
+  "schema": {
+    "tables": {
+      "records": {
+        "columns": {
+          "id": "Id",
+          "d3": {
+            "Optional": {
+              "Decimal": {
+                "scale": 3
+              }
+            }
+          },
+          "payload": {
+            "Optional": {
+              "Json": {
+                "max_bytes": 10000
+              }
+            }
+          }
+        },
+        "indexes": {
+          "byId": {
+            "components": [
+              {
+                "Column": "id"
+              }
+            ],
+            "unique": true
+          },
+          "byD3": {
+            "components": [
+              {
+                "Column": "d3"
+              }
+            ],
+            "unique": true
+          }
+        },
+        "rules": {
+          "read": "Allow",
+          "insert": "Allow",
+          "update": "Deny",
+          "delete": "Deny"
+        },
+        "constraints": [],
+        "retain": "until-revoked"
+      }
+    },
+    "maintains": [],
+    "channels": {},
+    "auth": {
+      "password": false,
+      "guests": false
+    },
+    "effects": []
+  },
+  "programs": [
+    {
+      "name": "probe.probe",
+      "kind": "Mutation",
+      "args": {
+        "flag": "Bool"
+      },
+      "read_time_granularity_ms": null,
+      "body": [
+        {
+          "Const": {
+            "name": "__selected1",
+            "value": {
+              "Variable": "flag"
+            }
+          }
+        },
+        {
+          "Let": {
+            "name": "__conditional0",
+            "value": {
+              "Literal": "Null"
+            }
+          }
+        },
+        {
+          "If": {
+            "condition": {
+              "Variable": "__selected1"
+            },
+            "then_body": [
+              {
+                "Assign": {
+                  "name": "__conditional0",
+                  "value": {
+                    "Object": {
+                      "id": {
+                        "Input": "NewId"
+                      },
+                      "payload": {
+                        "Literal": "Null"
+                      }
+                    }
+                  }
+                }
+              }
+            ],
+            "else_body": [
+              {
+                "Assign": {
+                  "name": "__conditional0",
+                  "value": {
+                    "Object": {
+                      "d3": {
+                        "Literal": {
+                          "Int": 2
+                        }
+                      },
+                      "id": {
+                        "Input": "NewId"
+                      },
+                      "payload": {
+                        "Literal": "Null"
+                      }
+                    }
+                  }
+                }
+              }
+            ]
+          }
+        },
+        {
+          "Const": {
+            "name": "data",
+            "value": {
+              "Variable": "__conditional0"
+            }
+          }
+        },
+        {
+          "Let": {
+            "name": "__convertedChoice2",
+            "value": {
+              "Literal": "Null"
+            }
+          }
+        },
+        {
+          "If": {
+            "condition": {
+              "Variable": "__selected1"
+            },
+            "then_body": [
+              {
+                "Assign": {
+                  "name": "__convertedChoice2",
+                  "value": {
+                    "Variable": "data"
+                  }
+                }
+              }
+            ],
+            "else_body": [
+              {
+                "Assign": {
+                  "name": "__convertedChoice2",
+                  "value": {
+                    "Object": {
+                      "d3": {
+                        "Literal": {
+                          "Int": 2000
+                        }
+                      },
+                      "id": {
+                        "Field": {
+                          "base": {
+                            "Variable": "data"
+                          },
+                          "name": "id"
+                        }
+                      },
+                      "payload": {
+                        "Field": {
+                          "base": {
+                            "Variable": "data"
+                          },
+                          "name": "payload"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            ]
+          }
+        },
+        {
+          "Let": {
+            "name": "__insertRow3",
+            "value": {
+              "Variable": "__convertedChoice2"
+            }
+          }
+        },
+        {
+          "Insert": {
+            "table": "records",
+            "row": {
+              "Variable": "__insertRow3"
+            }
+          }
+        },
+        {
+          "Const": {
+            "name": "row",
+            "value": {
+              "Variable": "__insertRow3"
+            }
+          }
+        },
+        {
+          "Return": {
+            "Get": {
+              "site": "probe.probe.1",
+              "table": "records",
+              "index": "byD3",
+              "key": [
+                {
+                  "Field": {
+                    "base": {
+                      "Variable": "row"
+                    },
+                    "name": "d3"
+                  }
+                }
+              ],
+              "provenance": "Shape"
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "effects": []
+}

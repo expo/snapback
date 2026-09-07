@@ -1,0 +1,115 @@
+{
+  "schema": {
+    "tables": {
+      "records": {
+        "columns": {
+          "id": "Id",
+          "key": {
+            "Optional": "Id"
+          },
+          "payload": {
+            "Optional": {
+              "Json": {
+                "max_bytes": 1000
+              }
+            }
+          }
+        },
+        "indexes": {
+          "byId": {
+            "components": [
+              {
+                "Column": "id"
+              }
+            ],
+            "unique": true
+          },
+          "byKey": {
+            "components": [
+              {
+                "Column": "key"
+              }
+            ],
+            "unique": true
+          }
+        },
+        "rules": {
+          "read": "Allow",
+          "insert": "Allow",
+          "update": "Deny",
+          "delete": "Deny"
+        },
+        "constraints": [],
+        "retain": "until-revoked"
+      }
+    },
+    "maintains": [],
+    "channels": {},
+    "auth": {
+      "password": false,
+      "guests": false
+    },
+    "effects": []
+  },
+  "programs": [
+    {
+      "name": "probe.probe",
+      "kind": "Mutation",
+      "args": {
+        "payload": {
+          "Json": {
+            "max_bytes": 1000
+          }
+        }
+      },
+      "read_time_granularity_ms": null,
+      "body": [
+        {
+          "Let": {
+            "name": "__insertRow0",
+            "value": {
+              "Variable": "payload"
+            }
+          }
+        },
+        {
+          "Insert": {
+            "table": "records",
+            "row": {
+              "Variable": "__insertRow0"
+            }
+          }
+        },
+        {
+          "Const": {
+            "name": "row",
+            "value": {
+              "Variable": "__insertRow0"
+            }
+          }
+        },
+        {
+          "Return": {
+            "Get": {
+              "site": "probe.probe.1",
+              "table": "records",
+              "index": "byKey",
+              "key": [
+                {
+                  "Field": {
+                    "base": {
+                      "Variable": "row"
+                    },
+                    "name": "key"
+                  }
+                }
+              ],
+              "provenance": "Shape"
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "effects": []
+}

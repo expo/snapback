@@ -1,0 +1,14 @@
+{
+  "scope": "ordinary checked-private JavaScript receiver semantics; mocked module constructors/table and initial db, not native/server",
+  "source": "import {mutation,t} from 'snapback2';import {records} from './schema';export const probe=mutation({payload:t.json(100)},({db,ctx,args})=>{db=args.payload as any;const row=db.insert(records,{id:ctx.newId(),d3:2,payload:null});return {row,stored:db.get(records,[row.id]),next:ctx.newId()};});",
+  "js": "\"use strict\";\nObject.defineProperty(exports, \"__esModule\", { value: true });\nexports.probe = void 0;\nconst snapback2_1 = require(\"snapback2\");\nconst schema_1 = require(\"./schema\");\nexports.probe = (0, snapback2_1.mutation)({ payload: snapback2_1.t.json(100) }, ({ db, ctx, args }) => { db = args.payload; const row = db.insert(schema_1.records, { id: ctx.newId(), d3: 2, payload: null }); return { row, stored: db.get(schema_1.records, [row.id]), next: ctx.newId() }; });\n",
+  "arguments": {
+    "payload": {}
+  },
+  "error": {
+    "name": "TypeError",
+    "message": "db.insert is not a function"
+  },
+  "initialDbCalls": [],
+  "idsAllocated": 1
+}

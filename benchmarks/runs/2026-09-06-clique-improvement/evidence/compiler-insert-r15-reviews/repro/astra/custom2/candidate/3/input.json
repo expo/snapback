@@ -1,0 +1,15 @@
+{
+  "name": "operation db receiver reassigned then inserted row read",
+  "public": false,
+  "schema": "import {schema,table,t,rule} from 'snapback2';\nexport const records=table({columns:{d3:t.optional(t.decimal(3)),payload:t.optional(t.json(10000))},rules:{read:rule.allow(),insert:rule.allow()}});\nexport default schema({tables:{records}});",
+  "source": "import {mutation,t} from 'snapback2';import {records} from './schema';export const probe=mutation({payload:t.json(100)},({db,ctx,args})=>{db=args.payload as any;const row=db.insert(records,{id:ctx.newId(),d3:2,payload:null});return {row,stored:db.get(records,[row.id]),next:ctx.newId()};});",
+  "runs": [
+    {
+      "args": {
+        "payload": {
+          "Row": {}
+        }
+      }
+    }
+  ]
+}

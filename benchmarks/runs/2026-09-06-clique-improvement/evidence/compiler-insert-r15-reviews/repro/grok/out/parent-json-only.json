@@ -1,0 +1,60 @@
+{
+  "compilerRoot": "/home/ccheever/clique-reviews/compiler-insert-r15-dd54-4d5c8109db/grok/scratch/trees/parent/snapback2/packages/compiler",
+  "results": [
+    {
+      "name": "json-only unknown insert id key",
+      "ok": false,
+      "diagnostics": [
+        {
+          "code": "E_PROVENANCE_AMBIGUOUS",
+          "message": "read key provenance is ambiguous; each key must follow one direct origin rule; candidate direct origins: <unknown origin>",
+          "site": "snapback/probe.ts:2:157"
+        }
+      ]
+    },
+    {
+      "name": "json-only unknown insert omitted nothing-else",
+      "ok": false,
+      "diagnostics": [
+        {
+          "code": "E_PROVENANCE_AMBIGUOUS",
+          "message": "read key provenance is ambiguous; each key must follow one direct origin rule; candidate direct origins: <unknown origin>",
+          "site": "snapback/probe.ts:2:171"
+        }
+      ]
+    },
+    {
+      "name": "json-only direct json insert id key",
+      "ok": false,
+      "diagnostics": [
+        {
+          "code": "E_PROVENANCE_AMBIGUOUS",
+          "message": "read key provenance is ambiguous; each key must follow one direct origin rule; candidate direct origins: <unknown origin>",
+          "site": "snapback/probe.ts:2:134"
+        }
+      ]
+    },
+    {
+      "name": "json-only unknown insert missing member",
+      "ok": false,
+      "diagnostics": [
+        {
+          "code": "E_PROVENANCE_AMBIGUOUS",
+          "message": "read key provenance is ambiguous; each key must follow one direct origin rule; candidate direct origins: <unknown origin>",
+          "site": "snapback/probe.ts:2:161"
+        }
+      ]
+    },
+    {
+      "name": "json-only ternary insert optional-looking id",
+      "ok": false,
+      "diagnostics": [
+        {
+          "code": "E_PROVENANCE_AMBIGUOUS",
+          "message": "read key provenance is ambiguous; each key must follow one direct origin rule; candidate direct origins: <unknown origin>",
+          "site": "snapback/probe.ts:2:193"
+        }
+      ]
+    }
+  ]
+}

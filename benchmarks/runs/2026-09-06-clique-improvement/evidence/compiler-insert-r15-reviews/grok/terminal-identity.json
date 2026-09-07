@@ -1,0 +1,14 @@
+{
+  "observed_at": "2026-09-07T04:30:23.589974+00:00",
+  "tool_session": 83399,
+  "exit_code": 0,
+  "terminal_chunk": "5cff27",
+  "review_bytes": 18778,
+  "review_sha256": "ed712360a9815c4ece266ae5829651c87f5de70aafffe452b5250661ab12cd7e",
+  "full_report_read": true,
+  "verdict": "CHANGES_REQUIRED",
+  "effective_identity_receipt": "../liveness-model-identity.json",
+  "session_uuid": "7c68b969-2f32-4d23-9e08-330e2b26355f",
+  "model": "grok-4.6",
+  "reasoning_effort": "xhigh"
+}

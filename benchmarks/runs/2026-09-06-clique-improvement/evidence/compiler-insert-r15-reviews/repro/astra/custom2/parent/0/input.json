@@ -1,0 +1,22 @@
+{
+  "name": "conditional insert input missing optional field read key valid alternate index",
+  "public": false,
+  "schema": "import {schema,table,t,rule} from 'snapback2';\nexport const records=table({columns:{d3:t.optional(t.decimal(3)),payload:t.optional(t.json(10000))},indexes:{byD3:{columns:[\"d3\"],unique:true}},rules:{read:rule.allow(),insert:rule.allow()}});\nexport default schema({tables:{records}});",
+  "source": "import {mutation,t} from 'snapback2';import {records} from './schema';export const probe=mutation({flag:t.bool()},({db,ctx,args})=>{const data:any=args.flag?{id:ctx.newId(),payload:null}:{id:ctx.newId(),d3:2,payload:null};const row:any=db.insert(records,data);return db.get(records.byD3,[row.d3]);});",
+  "runs": [
+    {
+      "args": {
+        "flag": {
+          "Bool": true
+        }
+      }
+    },
+    {
+      "args": {
+        "flag": {
+          "Bool": false
+        }
+      }
+    }
+  ]
+}

@@ -1,0 +1,15 @@
+{
+  "name": "operation db receiver reassigned literal read parent control",
+  "public": false,
+  "schema": "import {schema,table,t,rule} from 'snapback2';\nexport const records=table({columns:{d3:t.optional(t.decimal(3)),payload:t.optional(t.json(10000))},rules:{read:rule.allow(),insert:rule.allow()}});\nexport default schema({tables:{records}});",
+  "source": "import {mutation,t} from 'snapback2';import {records} from './schema';export const probe=mutation({payload:t.json(100)},({db,ctx,args})=>{db=args.payload as any;db.insert(records,{id:\"given\",d3:2,payload:null});return db.get(records,[\"given\"]);});",
+  "runs": [
+    {
+      "args": {
+        "payload": {
+          "Row": {}
+        }
+      }
+    }
+  ]
+}

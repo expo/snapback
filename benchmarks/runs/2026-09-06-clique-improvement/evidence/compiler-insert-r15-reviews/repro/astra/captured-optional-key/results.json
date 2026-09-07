@@ -1,0 +1,116 @@
+[
+  {
+    "raw": {
+      "schema": {
+        "tables": {
+          "records": {
+            "columns": {
+              "id": "Id",
+              "key": {
+                "Optional": "Id"
+              },
+              "payload": {
+                "Optional": {
+                  "Json": {
+                    "max_bytes": 1000
+                  }
+                }
+              }
+            },
+            "indexes": {
+              "byId": {
+                "unique": true,
+                "columns": [
+                  "id"
+                ]
+              },
+              "byKey": {
+                "unique": true,
+                "columns": [
+                  "key"
+                ]
+              }
+            },
+            "rules": {
+              "read": "Allow",
+              "insert": "Allow",
+              "update": "Deny",
+              "delete": "Deny"
+            },
+            "constraints": [],
+            "retain": "until-revoked"
+          }
+        },
+        "maintains": [],
+        "channels": {},
+        "auth": {
+          "password": false,
+          "guests": false
+        },
+        "effects": []
+      },
+      "fixture": {
+        "rows": [],
+        "ranges": [],
+        "absences": [],
+        "verdicts": []
+      },
+      "inputs": {
+        "args": {
+          "payload": {
+            "Row": {
+              "id": {
+                "Id": "given"
+              },
+              "payload": "Null"
+            }
+          }
+        },
+        "viewer": "v",
+        "principal_kind": "user",
+        "auth_epoch": 0,
+        "now": 0,
+        "read_time": 0,
+        "new_ids": [
+          "id-1",
+          "id-2",
+          "id-3",
+          "id-4",
+          "id-5",
+          "id-6",
+          "id-7",
+          "id-8",
+          "id-9",
+          "id-10",
+          "id-11",
+          "id-12",
+          "id-13",
+          "id-14",
+          "id-15",
+          "id-16",
+          "id-17",
+          "id-18",
+          "id-19",
+          "id-20",
+          "id-21",
+          "id-22",
+          "id-23",
+          "id-24",
+          "id-25",
+          "id-26",
+          "id-27",
+          "id-28",
+          "id-29",
+          "id-30",
+          "id-31",
+          "id-32"
+        ]
+      },
+      "error": {
+        "name": "Error",
+        "message": "E_FIELD: missing field key",
+        "stack": "Error: E_FIELD: missing field key\n    at field (/home/ccheever/clique-reviews/compiler-insert-r15-dd54-4d5c8109db/astra/snapback2/packages/evaluator/src/value-runtime.ts:61:40)\n    at expr (/home/ccheever/clique-reviews/compiler-insert-r15-dd54-4d5c8109db/astra/snapback2/packages/evaluator/src/runner.ts:268:22)\n    at expr (/home/ccheever/clique-reviews/compiler-insert-r15-dd54-4d5c8109db/astra/snapback2/packages/evaluator/src/runner.ts:273:86)\n    at statements (/home/ccheever/clique-reviews/compiler-insert-r15-dd54-4d5c8109db/astra/snapback2/packages/evaluator/src/runner.ts:121:40)\n    at execute (/home/ccheever/clique-reviews/compiler-insert-r15-dd54-4d5c8109db/astra/snapback2/packages/evaluator/src/runner.ts:88:23)\n    at applyMutation (/home/ccheever/clique-reviews/compiler-insert-r15-dd54-4d5c8109db/astra/snapback2/packages/evaluator/src/store.ts:77:26)\n    at evaluate (/home/ccheever/clique-reviews/compiler-insert-r15-dd54-4d5c8109db/astra/evidence/probe.ts:22:47)\n    at <anonymous> (/home/ccheever/clique-reviews/compiler-insert-r15-dd54-4d5c8109db/astra/evidence/probe.ts:39:97)\n    at map (native:1:11)\n    at /home/ccheever/clique-reviews/compiler-insert-r15-dd54-4d5c8109db/astra/evidence/probe.ts:39:76"
+      }
+    }
+  }
+]

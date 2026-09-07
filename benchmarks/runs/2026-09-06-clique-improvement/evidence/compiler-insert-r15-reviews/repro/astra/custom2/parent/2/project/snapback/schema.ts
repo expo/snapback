@@ -1,0 +1,1 @@
+import {schema,table,t,rule} from 'snapback2';export const records=table({columns:{key:t.optional(t.id()),payload:t.optional(t.json(1000))},indexes:{byKey:{columns:['key'],unique:true}},rules:{read:rule.allow(),insert:rule.allow()}});export default schema({tables:{records}});

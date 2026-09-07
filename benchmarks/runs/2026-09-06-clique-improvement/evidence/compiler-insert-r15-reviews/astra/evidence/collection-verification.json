@@ -1,0 +1,16 @@
+{
+  "archive_sha256": "0a405976f7999dcd1c80fe8c353db261f1205b03cd34e5d363f90e3779b8081b",
+  "manifest_sha256": "11cd3ec54735812d7245817348b0d86c55e5088a9867917ad6fbaed469957a23",
+  "files_verified": 800,
+  "mismatches": {},
+  "compiled_projects": 114,
+  "public_projects": 44,
+  "checked_private_projects": 70,
+  "subprocesses": 59,
+  "all_deadlines_30s": true,
+  "timeouts": 0,
+  "longest_seconds": 3.221152731915936,
+  "first_launch_utc": "2026-09-07T04:08:53.875786+00:00",
+  "last_launch_utc": "2026-09-07T04:32:04.008030+00:00",
+  "initial_manifest_limitation": "Original manifest unintentionally omitted parent probe paths; original archive retained them. V2 includes every probe, and the first manifest remains retained."
+}

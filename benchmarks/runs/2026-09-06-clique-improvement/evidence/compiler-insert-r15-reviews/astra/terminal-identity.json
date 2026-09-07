@@ -1,0 +1,17 @@
+{
+  "observed_at": "2026-09-07T04:35:17.417359+00:00",
+  "tool_session": 87269,
+  "exit_code": 0,
+  "terminal_chunk": "040a21",
+  "review_bytes": 22212,
+  "review_sha256": "3f27e5adae3db1382779a8b5630c4f26411e540587df39fcd16e4b13bea123b5",
+  "initial_report": "supervisor-initial-full-report.md",
+  "delta": "supervisor-final-report-delta.patch",
+  "full_initial_and_final_delta_read": true,
+  "verdict": "CHANGES_REQUIRED",
+  "effective_identity_receipt": "../liveness-model-identity.json",
+  "thread": "01a07a0b-787d-7d61-8437-e1a1670814b7",
+  "model": "gpt-6-astra",
+  "reasoning_effort": "xhigh",
+  "root_initial_unchanged_hash_assertion": "Failed correctly; root observed final report had changed. No unchanged-report claim."
+}

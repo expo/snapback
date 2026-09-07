@@ -1,0 +1,47 @@
+{
+  "at": "2026-09-07T04:07:32.198871+00:00",
+  "processes": [
+    {
+      "family": "grok",
+      "pid": 46120,
+      "ppid": 67090,
+      "elapsed": "01:27",
+      "command": "/Users/ccheever/.grok/bin/grok --prompt-file /Users/ccheever/clique-improvement/reviews/compiler-insert-provenance-r15/grok/prompt.md --cwd /Users/ccheever/clique-improvement/reviews/compiler-insert-provenance-r15/grok -m grok-4.6 --reasoning-effort xhigh --output-format streaming-json --permission-mode bypassPermissions --disable-web-search --no-memory --no-subagents --session-id 7c68b969-2f32-4d23-9e08-330e2b26355f --max-turns 500"
+    },
+    {
+      "family": "astra",
+      "pid": 46123,
+      "ppid": 67090,
+      "elapsed": "01:26",
+      "command": "codex exec -m gpt-6-astra -c model_reasoning_effort=xhigh --dangerously-bypass-approvals-and-sandbox --json -o final-answer.md -",
+      "cwd": "/Users/ccheever/clique-improvement/reviews/compiler-insert-provenance-r15/astra"
+    },
+    {
+      "family": "astra",
+      "pid": 46135,
+      "ppid": 46123,
+      "elapsed": "01:26",
+      "command": "node /Users/ccheever/.volta/tools/image/packages/@openai/codex/bin/codex exec -m gpt-6-astra -c model_reasoning_effort=xhigh --dangerously-bypass-approvals-and-sandbox --json -o final-answer.md -",
+      "cwd": "/Users/ccheever/clique-improvement/reviews/compiler-insert-provenance-r15/astra"
+    },
+    {
+      "family": "astra",
+      "pid": 46138,
+      "ppid": 46135,
+      "elapsed": "01:26",
+      "command": "/Users/ccheever/.volta/tools/image/packages/@openai/codex/lib/node_modules/@openai/codex/node_modules/@openai/codex-darwin-arm64/vendor/aarch64-apple-darwin/bin/codex exec -m gpt-6-astra -c model_reasoning_effort=xhigh --dangerously-bypass-approvals-and-sandbox --json -o final-answer.md -",
+      "cwd": "/Users/ccheever/clique-improvement/reviews/compiler-insert-provenance-r15/astra"
+    }
+  ],
+  "astraActual": {
+    "model": "gpt-6-astra",
+    "effort": "xhigh",
+    "cwd": "/Users/ccheever/clique-improvement/reviews/compiler-insert-provenance-r15/astra",
+    "rollout": "/Users/ccheever/.codex/sessions/2026/09/06/rollout-2026-09-06T21-06-07-01a07a0b-787d-7d61-8437-e1a1670814b7.jsonl"
+  },
+  "grokActual": {
+    "model": "grok-4.6",
+    "effort": "xhigh",
+    "summaryPath": "/Users/ccheever/.grok/sessions/%2FUsers%2Fccheever%2Fclique-improvement%2Freviews%2Fcompiler-insert-provenance-r15%2Fgrok/7c68b969-2f32-4d23-9e08-330e2b26355f/summary.json"
+  }
+}

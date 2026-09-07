@@ -1,0 +1,1529 @@
+{
+  "api-consumer": {
+    "pid": 3677785,
+    "cmd": [
+      "/home/ccheever/clique-tooling/epyc-linux-tooling-20260907T010007Z-0fd567d96f/bun-v1.3.12-linux-x64/bin/bun",
+      "evidence/api.ts"
+    ],
+    "cwd": "/home/ccheever/clique-reviews/compiler-insert-r15-dd54-4d5c8109db/astra",
+    "PATH": "/home/ccheever/clique-tooling/epyc-linux-tooling-20260907T010007Z-0fd567d96f/node-v22.23.2-linux-x64/bin:/home/ccheever/clique-tooling/epyc-linux-tooling-20260907T010007Z-0fd567d96f/bun-v1.3.12-linux-x64/bin:/usr/bin:/bin",
+    "deadline_seconds": 30,
+    "started_unix": 1788754781.5991383,
+    "hashes": {
+      "/home/ccheever/clique-tooling/epyc-linux-tooling-20260907T010007Z-0fd567d96f/bun-v1.3.12-linux-x64/bin/bun": "92a1cd8b6185f676010bb18e767dfc65c772273e79ae9984480843261939eeaa",
+      "evidence/api.ts": "3ea70e2258bff0d3ff71651cd2faef98539a7afc8c80b146fb7ca420a49d7067"
+    },
+    "exit": 0,
+    "elapsed_seconds": 1.5678428269457072,
+    "timed_out": false,
+    "output_hashes": {
+      "stdout.txt": "b32b0c5c3a30b7cb61cc6f9fbd7f24330a94c44dce5594dac6b818fcb5497682",
+      "stderr.txt": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  },
+  "assert-results": {
+    "pid": 3685430,
+    "cmd": [
+      "/usr/bin/python3",
+      "evidence/assert-results.py"
+    ],
+    "cwd": "/home/ccheever/clique-reviews/compiler-insert-r15-dd54-4d5c8109db/astra",
+    "PATH": "/home/ccheever/clique-tooling/epyc-linux-tooling-20260907T010007Z-0fd567d96f/node-v22.23.2-linux-x64/bin:/home/ccheever/clique-tooling/epyc-linux-tooling-20260907T010007Z-0fd567d96f/bun-v1.3.12-linux-x64/bin:/usr/bin:/bin",
+    "deadline_seconds": 30,
+    "started_unix": 1788754961.9613047,
+    "hashes": {
+      "/usr/bin/python3": "1643dacd9feaedc58f3cc581e4d22577dfe25c09b10282936186ccf0f2e61118",
+      "evidence/assert-results.py": "cab27e5dd6e73a12a43757e643fa756028a59e825f4337c9927f92485daa5085"
+    },
+    "exit": 0,
+    "elapsed_seconds": 0.03224961389787495,
+    "timed_out": false,
+    "output_hashes": {
+      "stdout.txt": "be7fb1aa69879d1e9b37cd20db67e16da9f3c9b33c17c8bef46a9c7738fffcd2",
+      "stderr.txt": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  },
+  "capture-negatives-candidate": {
+    "pid": 3656555,
+    "cmd": [
+      "/home/ccheever/clique-tooling/epyc-linux-tooling-20260907T010007Z-0fd567d96f/bun-v1.3.12-linux-x64/bin/bun",
+      "evidence/probe.ts",
+      "candidate",
+      "factual-inputs/mutable-member-probes.json",
+      "0,1,2",
+      "capture-negatives"
+    ],
+    "cwd": "/home/ccheever/clique-reviews/compiler-insert-r15-dd54-4d5c8109db/astra",
+    "PATH": "/home/ccheever/clique-tooling/epyc-linux-tooling-20260907T010007Z-0fd567d96f/node-v22.23.2-linux-x64/bin:/home/ccheever/clique-tooling/epyc-linux-tooling-20260907T010007Z-0fd567d96f/bun-v1.3.12-linux-x64/bin:/usr/bin:/bin",
+    "deadline_seconds": 30,
+    "started_unix": 1788754607.9856172,
+    "hashes": {
+      "/home/ccheever/clique-tooling/epyc-linux-tooling-20260907T010007Z-0fd567d96f/bun-v1.3.12-linux-x64/bin/bun": "92a1cd8b6185f676010bb18e767dfc65c772273e79ae9984480843261939eeaa",
+      "evidence/probe.ts": "3cb5221d2a250fe8e0ab76c84bdbfa0891a40d22946462c8d62abc79d0424eb1",
+      "factual-inputs/mutable-member-probes.json": "a3ddde7c34878657f93e64ae4393548511b2b6d5d65f0cd3af79e434ff54ce07"
+    },
+    "exit": 0,
+    "elapsed_seconds": 0.41514642210677266,
+    "timed_out": false,
+    "output_hashes": {
+      "stdout.txt": "3d89201a233c120328a6f1946a54f5d386975ac38d8a6fd6445b5aa8d324b6fa",
+      "stderr.txt": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  },
+  "capture-negatives-parent": {
+    "pid": 3656115,
+    "cmd": [
+      "/home/ccheever/clique-tooling/epyc-linux-tooling-20260907T010007Z-0fd567d96f/bun-v1.3.12-linux-x64/bin/bun",
+      "evidence/probe.ts",
+      "parent",
+      "factual-inputs/mutable-member-probes.json",
+      "0,1,2",
+      "capture-negatives"
+    ],
+    "cwd": "/home/ccheever/clique-reviews/compiler-insert-r15-dd54-4d5c8109db/astra",
+    "PATH": "/home/ccheever/clique-tooling/epyc-linux-tooling-20260907T010007Z-0fd567d96f/node-v22.23.2-linux-x64/bin:/home/ccheever/clique-tooling/epyc-linux-tooling-20260907T010007Z-0fd567d96f/bun-v1.3.12-linux-x64/bin:/usr/bin:/bin",
+    "deadline_seconds": 30,
+    "started_unix": 1788754604.983319,
+    "hashes": {
+      "/home/ccheever/clique-tooling/epyc-linux-tooling-20260907T010007Z-0fd567d96f/bun-v1.3.12-linux-x64/bin/bun": "92a1cd8b6185f676010bb18e767dfc65c772273e79ae9984480843261939eeaa",
+      "evidence/probe.ts": "3cb5221d2a250fe8e0ab76c84bdbfa0891a40d22946462c8d62abc79d0424eb1",
+      "factual-inputs/mutable-member-probes.json": "a3ddde7c34878657f93e64ae4393548511b2b6d5d65f0cd3af79e434ff54ce07"
+    },
+    "exit": 0,
+    "elapsed_seconds": 0.46523083420470357,
+    "timed_out": false,
+    "output_hashes": {
+      "stdout.txt": "f4a62be4e8c0f174869716c4d7315393fecc2f220178386feb53e843694dcaf8",
+      "stderr.txt": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  },
+  "certificate-custom2-candidate-0": {
+    "pid": 3679132,
+    "cmd": [
+      "/home/ccheever/clique-tooling/search-native-linux-26c9-20260907T0203Z-01a07995/artifacts/snapback2-linux-x86_64-debug",
+      "check",
+      "--ir",
+      "evidence/probes/custom2/candidate/0/project.json",
+      "--json"
+    ],
+    "cwd": "/home/ccheever/clique-reviews/compiler-insert-r15-dd54-4d5c8109db/astra",
+    "PATH": "/home/ccheever/clique-tooling/epyc-linux-tooling-20260907T010007Z-0fd567d96f/node-v22.23.2-linux-x64/bin:/home/ccheever/clique-tooling/epyc-linux-tooling-20260907T010007Z-0fd567d96f/bun-v1.3.12-linux-x64/bin:/usr/bin:/bin",
+    "deadline_seconds": 30,
+    "started_unix": 1788754816.2340999,
+    "hashes": {
+      "/home/ccheever/clique-tooling/search-native-linux-26c9-20260907T0203Z-01a07995/artifacts/snapback2-linux-x86_64-debug": "2f3cd93ccbff5902465f2514e61d8cf6fedf76228ad8e7abafe02ed5f1959175",
+      "evidence/probes/custom2/candidate/0/project.json": "3d773096ef2bdf470722ba32facff68da9f0c975eac3242d3a877735c4637028"
+    },
+    "exit": 0,
+    "elapsed_seconds": 0.00807943008840084,
+    "timed_out": false,
+    "output_hashes": {
+      "stdout.txt": "69f98ed5f8ce89c6a403321c2bd7228b1523f4dfbc2c4dcaa3e1058ec10575d0",
+      "stderr.txt": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  },
+  "certificate-custom2-candidate-2": {
+    "pid": 3679310,
+    "cmd": [
+      "/home/ccheever/clique-tooling/search-native-linux-26c9-20260907T0203Z-01a07995/artifacts/snapback2-linux-x86_64-debug",
+      "check",
+      "--ir",
+      "evidence/probes/custom2/candidate/2/project.json",
+      "--json"
+    ],
+    "cwd": "/home/ccheever/clique-reviews/compiler-insert-r15-dd54-4d5c8109db/astra",
+    "PATH": "/home/ccheever/clique-tooling/epyc-linux-tooling-20260907T010007Z-0fd567d96f/node-v22.23.2-linux-x64/bin:/home/ccheever/clique-tooling/epyc-linux-tooling-20260907T010007Z-0fd567d96f/bun-v1.3.12-linux-x64/bin:/usr/bin:/bin",
+    "deadline_seconds": 30,
+    "started_unix": 1788754818.7613494,
+    "hashes": {
+      "/home/ccheever/clique-tooling/search-native-linux-26c9-20260907T0203Z-01a07995/artifacts/snapback2-linux-x86_64-debug": "2f3cd93ccbff5902465f2514e61d8cf6fedf76228ad8e7abafe02ed5f1959175",
+      "evidence/probes/custom2/candidate/2/project.json": "d883de50684434fceda1bf5e34cc2c9ea40f7681f15f40a9ee8b11b37b10906a"
+    },
+    "exit": 0,
+    "elapsed_seconds": 0.008205628953874111,
+    "timed_out": false,
+    "output_hashes": {
+      "stdout.txt": "9f9c8234696f588e30d95403e434897972cceb20964af21678f3f27ff97d3ffa",
+      "stderr.txt": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  },
+  "certificate-custom2-candidate-3": {
+    "pid": 3679637,
+    "cmd": [
+      "/home/ccheever/clique-tooling/search-native-linux-26c9-20260907T0203Z-01a07995/artifacts/snapback2-linux-x86_64-debug",
+      "check",
+      "--ir",
+      "evidence/probes/custom2/candidate/3/project.json",
+      "--json"
+    ],
+    "cwd": "/home/ccheever/clique-reviews/compiler-insert-r15-dd54-4d5c8109db/astra",
+    "PATH": "/home/ccheever/clique-tooling/epyc-linux-tooling-20260907T010007Z-0fd567d96f/node-v22.23.2-linux-x64/bin:/home/ccheever/clique-tooling/epyc-linux-tooling-20260907T010007Z-0fd567d96f/bun-v1.3.12-linux-x64/bin:/usr/bin:/bin",
+    "deadline_seconds": 30,
+    "started_unix": 1788754821.3593185,
+    "hashes": {
+      "/home/ccheever/clique-tooling/search-native-linux-26c9-20260907T0203Z-01a07995/artifacts/snapback2-linux-x86_64-debug": "2f3cd93ccbff5902465f2514e61d8cf6fedf76228ad8e7abafe02ed5f1959175",
+      "evidence/probes/custom2/candidate/3/project.json": "6cb551cda4532a5bd74be0c3289e7bc82db14e3529f3a811e511a826839923b9"
+    },
+    "exit": 0,
+    "elapsed_seconds": 0.007950246101245284,
+    "timed_out": false,
+    "output_hashes": {
+      "stdout.txt": "3631fddebc74e93dff5f0bb6addfa11f9b1d2c025445ff9f1c540f0685e6be83",
+      "stderr.txt": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  },
+  "certificate-custom2-parent-4": {
+    "pid": 3680022,
+    "cmd": [
+      "/home/ccheever/clique-tooling/search-native-linux-26c9-20260907T0203Z-01a07995/artifacts/snapback2-linux-x86_64-debug",
+      "check",
+      "--ir",
+      "evidence/probes/custom2/parent/4/project.json",
+      "--json"
+    ],
+    "cwd": "/home/ccheever/clique-reviews/compiler-insert-r15-dd54-4d5c8109db/astra",
+    "PATH": "/home/ccheever/clique-tooling/epyc-linux-tooling-20260907T010007Z-0fd567d96f/node-v22.23.2-linux-x64/bin:/home/ccheever/clique-tooling/epyc-linux-tooling-20260907T010007Z-0fd567d96f/bun-v1.3.12-linux-x64/bin:/usr/bin:/bin",
+    "deadline_seconds": 30,
+    "started_unix": 1788754823.8750505,
+    "hashes": {
+      "/home/ccheever/clique-tooling/search-native-linux-26c9-20260907T0203Z-01a07995/artifacts/snapback2-linux-x86_64-debug": "2f3cd93ccbff5902465f2514e61d8cf6fedf76228ad8e7abafe02ed5f1959175",
+      "evidence/probes/custom2/parent/4/project.json": "eb272465775a84e3712e838f653500d4d3a6800d65c5b38d5c646a5fca5adf3b"
+    },
+    "exit": 0,
+    "elapsed_seconds": 0.008177557028830051,
+    "timed_out": false,
+    "output_hashes": {
+      "stdout.txt": "691ef639a674792658737475a50b8407a2f53aea6502b0ed5bae1c9dc9b50260",
+      "stderr.txt": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  },
+  "certificate-extended-candidate-0": {
+    "pid": 3680096,
+    "cmd": [
+      "/home/ccheever/clique-tooling/search-native-linux-26c9-20260907T0203Z-01a07995/artifacts/snapback2-linux-x86_64-debug",
+      "check",
+      "--ir",
+      "evidence/probes/extended/candidate/0/project.json",
+      "--json"
+    ],
+    "cwd": "/home/ccheever/clique-reviews/compiler-insert-r15-dd54-4d5c8109db/astra",
+    "PATH": "/home/ccheever/clique-tooling/epyc-linux-tooling-20260907T010007Z-0fd567d96f/node-v22.23.2-linux-x64/bin:/home/ccheever/clique-tooling/epyc-linux-tooling-20260907T010007Z-0fd567d96f/bun-v1.3.12-linux-x64/bin:/usr/bin:/bin",
+    "deadline_seconds": 30,
+    "started_unix": 1788754826.3803625,
+    "hashes": {
+      "/home/ccheever/clique-tooling/search-native-linux-26c9-20260907T0203Z-01a07995/artifacts/snapback2-linux-x86_64-debug": "2f3cd93ccbff5902465f2514e61d8cf6fedf76228ad8e7abafe02ed5f1959175",
+      "evidence/probes/extended/candidate/0/project.json": "73fd704551e690dde7682bec6cf3168bd1bbf74b6815272ae4499450c0c95fff"
+    },
+    "exit": 0,
+    "elapsed_seconds": 0.016203737119212747,
+    "timed_out": false,
+    "output_hashes": {
+      "stdout.txt": "ee284ecc6317eb17297640234eb22413b36627cf7626b3ceb15aaf4bff1ca845",
+      "stderr.txt": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  },
+  "certificate-original-candidate-0": {
+    "pid": 3678651,
+    "cmd": [
+      "/home/ccheever/clique-tooling/search-native-linux-26c9-20260907T0203Z-01a07995/artifacts/snapback2-linux-x86_64-debug",
+      "check",
+      "--ir",
+      "evidence/probes/original/candidate/0/project.json",
+      "--json"
+    ],
+    "cwd": "/home/ccheever/clique-reviews/compiler-insert-r15-dd54-4d5c8109db/astra",
+    "PATH": "/home/ccheever/clique-tooling/epyc-linux-tooling-20260907T010007Z-0fd567d96f/node-v22.23.2-linux-x64/bin:/home/ccheever/clique-tooling/epyc-linux-tooling-20260907T010007Z-0fd567d96f/bun-v1.3.12-linux-x64/bin:/usr/bin:/bin",
+    "deadline_seconds": 30,
+    "started_unix": 1788754808.7226036,
+    "hashes": {
+      "/home/ccheever/clique-tooling/search-native-linux-26c9-20260907T0203Z-01a07995/artifacts/snapback2-linux-x86_64-debug": "2f3cd93ccbff5902465f2514e61d8cf6fedf76228ad8e7abafe02ed5f1959175",
+      "evidence/probes/original/candidate/0/project.json": "2ff81fc6f11803faf5c4b7c5f344534e2124a5d778897a34d856c3c0f776133c"
+    },
+    "exit": 0,
+    "elapsed_seconds": 0.007949635153636336,
+    "timed_out": false,
+    "output_hashes": {
+      "stdout.txt": "cbadaabe8875b23783cb65058cbb5f5d69328aa72eefc19fc2d1f2dc3d27ea8a",
+      "stderr.txt": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  },
+  "certificate-selected-candidate-12": {
+    "pid": 3678779,
+    "cmd": [
+      "/home/ccheever/clique-tooling/search-native-linux-26c9-20260907T0203Z-01a07995/artifacts/snapback2-linux-x86_64-debug",
+      "check",
+      "--ir",
+      "evidence/probes/selected/candidate/12/project.json",
+      "--json"
+    ],
+    "cwd": "/home/ccheever/clique-reviews/compiler-insert-r15-dd54-4d5c8109db/astra",
+    "PATH": "/home/ccheever/clique-tooling/epyc-linux-tooling-20260907T010007Z-0fd567d96f/node-v22.23.2-linux-x64/bin:/home/ccheever/clique-tooling/epyc-linux-tooling-20260907T010007Z-0fd567d96f/bun-v1.3.12-linux-x64/bin:/usr/bin:/bin",
+    "deadline_seconds": 30,
+    "started_unix": 1788754811.2444305,
+    "hashes": {
+      "/home/ccheever/clique-tooling/search-native-linux-26c9-20260907T0203Z-01a07995/artifacts/snapback2-linux-x86_64-debug": "2f3cd93ccbff5902465f2514e61d8cf6fedf76228ad8e7abafe02ed5f1959175",
+      "evidence/probes/selected/candidate/12/project.json": "1f81819d566c32681f163d00c2e052ba3d0ff6277e9b3392971266c8f8119be0"
+    },
+    "exit": 0,
+    "elapsed_seconds": 0.007965578930452466,
+    "timed_out": false,
+    "output_hashes": {
+      "stdout.txt": "68dbf791c49cfed6ff1ccdb8c1a74909e738b879b0bf2c422b2dc1e3b3b5d8b8",
+      "stderr.txt": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  },
+  "certificate-selected-candidate-44": {
+    "pid": 3679071,
+    "cmd": [
+      "/home/ccheever/clique-tooling/search-native-linux-26c9-20260907T0203Z-01a07995/artifacts/snapback2-linux-x86_64-debug",
+      "check",
+      "--ir",
+      "evidence/probes/selected/candidate/44/project.json",
+      "--json"
+    ],
+    "cwd": "/home/ccheever/clique-reviews/compiler-insert-r15-dd54-4d5c8109db/astra",
+    "PATH": "/home/ccheever/clique-tooling/epyc-linux-tooling-20260907T010007Z-0fd567d96f/node-v22.23.2-linux-x64/bin:/home/ccheever/clique-tooling/epyc-linux-tooling-20260907T010007Z-0fd567d96f/bun-v1.3.12-linux-x64/bin:/usr/bin:/bin",
+    "deadline_seconds": 30,
+    "started_unix": 1788754813.7418094,
+    "hashes": {
+      "/home/ccheever/clique-tooling/search-native-linux-26c9-20260907T0203Z-01a07995/artifacts/snapback2-linux-x86_64-debug": "2f3cd93ccbff5902465f2514e61d8cf6fedf76228ad8e7abafe02ed5f1959175",
+      "evidence/probes/selected/candidate/44/project.json": "ee199fe578764bc8bdb4e3ffa9c4f58b8a4d9ce1534c8510836eeb5600018ff9"
+    },
+    "exit": 0,
+    "elapsed_seconds": 0.007955794921144843,
+    "timed_out": false,
+    "output_hashes": {
+      "stdout.txt": "71f36db6fdb610e15d97bbbdd54fda6c1db8d3ce44d040d3e25f974943f09a6d",
+      "stderr.txt": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  },
+  "closed-origin-candidate": {
+    "pid": 3682596,
+    "cmd": [
+      "/home/ccheever/clique-tooling/epyc-linux-tooling-20260907T010007Z-0fd567d96f/bun-v1.3.12-linux-x64/bin/bun",
+      "evidence/probe.ts",
+      "candidate",
+      "factual-inputs/insert-cases-final4.json",
+      "22,25,26,29",
+      "closed-origin"
+    ],
+    "cwd": "/home/ccheever/clique-reviews/compiler-insert-r15-dd54-4d5c8109db/astra",
+    "PATH": "/home/ccheever/clique-tooling/epyc-linux-tooling-20260907T010007Z-0fd567d96f/node-v22.23.2-linux-x64/bin:/home/ccheever/clique-tooling/epyc-linux-tooling-20260907T010007Z-0fd567d96f/bun-v1.3.12-linux-x64/bin:/usr/bin:/bin",
+    "deadline_seconds": 30,
+    "started_unix": 1788754869.3800006,
+    "hashes": {
+      "/home/ccheever/clique-tooling/epyc-linux-tooling-20260907T010007Z-0fd567d96f/bun-v1.3.12-linux-x64/bin/bun": "92a1cd8b6185f676010bb18e767dfc65c772273e79ae9984480843261939eeaa",
+      "evidence/probe.ts": "3cb5221d2a250fe8e0ab76c84bdbfa0891a40d22946462c8d62abc79d0424eb1",
+      "factual-inputs/insert-cases-final4.json": "3e472f4a3ca2d9044ee4f2fac6e91f99769e5e79076f2899e2b64e1d8a24fdec"
+    },
+    "exit": 0,
+    "elapsed_seconds": 0.4153271350078285,
+    "timed_out": false,
+    "output_hashes": {
+      "stdout.txt": "b9bdddca3e58eb447c3930de426879f32e9bba5f6d8fae4f96ff3dab65e4055d",
+      "stderr.txt": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  },
+  "closed-origin-parent": {
+    "pid": 3682419,
+    "cmd": [
+      "/home/ccheever/clique-tooling/epyc-linux-tooling-20260907T010007Z-0fd567d96f/bun-v1.3.12-linux-x64/bin/bun",
+      "evidence/probe.ts",
+      "parent",
+      "factual-inputs/insert-cases-final4.json",
+      "22,25,26,29",
+      "closed-origin"
+    ],
+    "cwd": "/home/ccheever/clique-reviews/compiler-insert-r15-dd54-4d5c8109db/astra",
+    "PATH": "/home/ccheever/clique-tooling/epyc-linux-tooling-20260907T010007Z-0fd567d96f/node-v22.23.2-linux-x64/bin:/home/ccheever/clique-tooling/epyc-linux-tooling-20260907T010007Z-0fd567d96f/bun-v1.3.12-linux-x64/bin:/usr/bin:/bin",
+    "deadline_seconds": 30,
+    "started_unix": 1788754863.6405916,
+    "hashes": {
+      "/home/ccheever/clique-tooling/epyc-linux-tooling-20260907T010007Z-0fd567d96f/bun-v1.3.12-linux-x64/bin/bun": "92a1cd8b6185f676010bb18e767dfc65c772273e79ae9984480843261939eeaa",
+      "evidence/probe.ts": "3cb5221d2a250fe8e0ab76c84bdbfa0891a40d22946462c8d62abc79d0424eb1",
+      "factual-inputs/insert-cases-final4.json": "3e472f4a3ca2d9044ee4f2fac6e91f99769e5e79076f2899e2b64e1d8a24fdec"
+    },
+    "exit": 0,
+    "elapsed_seconds": 0.4153202760498971,
+    "timed_out": false,
+    "output_hashes": {
+      "stdout.txt": "b9bdddca3e58eb447c3930de426879f32e9bba5f6d8fae4f96ff3dab65e4055d",
+      "stderr.txt": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  },
+  "custom-candidate-0": {
+    "pid": 3624920,
+    "cmd": [
+      "/home/ccheever/clique-tooling/epyc-linux-tooling-20260907T010007Z-0fd567d96f/bun-v1.3.12-linux-x64/bin/bun",
+      "evidence/probe.ts",
+      "candidate",
+      "evidence/custom.json",
+      "0,1,2,3",
+      "custom"
+    ],
+    "cwd": "/home/ccheever/clique-reviews/compiler-insert-r15-dd54-4d5c8109db/astra",
+    "PATH": "/home/ccheever/clique-tooling/epyc-linux-tooling-20260907T010007Z-0fd567d96f/node-v22.23.2-linux-x64/bin:/home/ccheever/clique-tooling/epyc-linux-tooling-20260907T010007Z-0fd567d96f/bun-v1.3.12-linux-x64/bin:/usr/bin:/bin",
+    "deadline_seconds": 30,
+    "started_unix": 1788754368.9899192,
+    "hashes": {
+      "/home/ccheever/clique-tooling/epyc-linux-tooling-20260907T010007Z-0fd567d96f/bun-v1.3.12-linux-x64/bin/bun": "92a1cd8b6185f676010bb18e767dfc65c772273e79ae9984480843261939eeaa",
+      "evidence/probe.ts": "3cb5221d2a250fe8e0ab76c84bdbfa0891a40d22946462c8d62abc79d0424eb1",
+      "evidence/custom.json": "cc936c9ad04134ecb14d81bd5f8fe9d9a602a116adf1c97a1dcfc68088a9c199"
+    },
+    "exit": 0,
+    "elapsed_seconds": 0.46530827903188765,
+    "timed_out": false,
+    "output_hashes": {
+      "stdout.txt": "65ee5794f8007c4f29555ac764bee30c7485f14f5122c71a31e6c392afe48056",
+      "stderr.txt": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  },
+  "custom-parent-0": {
+    "pid": 3647543,
+    "cmd": [
+      "/home/ccheever/clique-tooling/epyc-linux-tooling-20260907T010007Z-0fd567d96f/bun-v1.3.12-linux-x64/bin/bun",
+      "evidence/probe.ts",
+      "parent",
+      "evidence/custom.json",
+      "0,1,2,3",
+      "custom"
+    ],
+    "cwd": "/home/ccheever/clique-reviews/compiler-insert-r15-dd54-4d5c8109db/astra",
+    "PATH": "/home/ccheever/clique-tooling/epyc-linux-tooling-20260907T010007Z-0fd567d96f/node-v22.23.2-linux-x64/bin:/home/ccheever/clique-tooling/epyc-linux-tooling-20260907T010007Z-0fd567d96f/bun-v1.3.12-linux-x64/bin:/usr/bin:/bin",
+    "deadline_seconds": 30,
+    "started_unix": 1788754483.787011,
+    "hashes": {
+      "/home/ccheever/clique-tooling/epyc-linux-tooling-20260907T010007Z-0fd567d96f/bun-v1.3.12-linux-x64/bin/bun": "92a1cd8b6185f676010bb18e767dfc65c772273e79ae9984480843261939eeaa",
+      "evidence/probe.ts": "3cb5221d2a250fe8e0ab76c84bdbfa0891a40d22946462c8d62abc79d0424eb1",
+      "evidence/custom.json": "cc936c9ad04134ecb14d81bd5f8fe9d9a602a116adf1c97a1dcfc68088a9c199"
+    },
+    "exit": 0,
+    "elapsed_seconds": 0.8158138748258352,
+    "timed_out": false,
+    "output_hashes": {
+      "stdout.txt": "16cfcd06ecc910b3d846fef5f187263908ed3cb9a1bccdf188deb1ad85e30166",
+      "stderr.txt": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  },
+  "custom2-candidate-0": {
+    "pid": 3649267,
+    "cmd": [
+      "/home/ccheever/clique-tooling/epyc-linux-tooling-20260907T010007Z-0fd567d96f/bun-v1.3.12-linux-x64/bin/bun",
+      "evidence/probe.ts",
+      "candidate",
+      "evidence/custom2.json",
+      "0,1,2",
+      "custom2"
+    ],
+    "cwd": "/home/ccheever/clique-reviews/compiler-insert-r15-dd54-4d5c8109db/astra",
+    "PATH": "/home/ccheever/clique-tooling/epyc-linux-tooling-20260907T010007Z-0fd567d96f/node-v22.23.2-linux-x64/bin:/home/ccheever/clique-tooling/epyc-linux-tooling-20260907T010007Z-0fd567d96f/bun-v1.3.12-linux-x64/bin:/usr/bin:/bin",
+    "deadline_seconds": 30,
+    "started_unix": 1788754490.0062823,
+    "hashes": {
+      "/home/ccheever/clique-tooling/epyc-linux-tooling-20260907T010007Z-0fd567d96f/bun-v1.3.12-linux-x64/bin/bun": "92a1cd8b6185f676010bb18e767dfc65c772273e79ae9984480843261939eeaa",
+      "evidence/probe.ts": "3cb5221d2a250fe8e0ab76c84bdbfa0891a40d22946462c8d62abc79d0424eb1",
+      "evidence/custom2.json": "4cc6403c68496a84fc4a2779feda3a56cc8e6955af07b651b42d6b7d0078ee97"
+    },
+    "exit": 0,
+    "elapsed_seconds": 0.4650075361132622,
+    "timed_out": false,
+    "output_hashes": {
+      "stdout.txt": "043b55ed904421e1a27cb69e89f46bc25466024f506400851a9ff05e766e72ef",
+      "stderr.txt": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  },
+  "custom2-candidate-3": {
+    "pid": 3650764,
+    "cmd": [
+      "/home/ccheever/clique-tooling/epyc-linux-tooling-20260907T010007Z-0fd567d96f/bun-v1.3.12-linux-x64/bin/bun",
+      "evidence/probe.ts",
+      "candidate",
+      "evidence/custom2.json",
+      "3,4,5",
+      "custom2"
+    ],
+    "cwd": "/home/ccheever/clique-reviews/compiler-insert-r15-dd54-4d5c8109db/astra",
+    "PATH": "/home/ccheever/clique-tooling/epyc-linux-tooling-20260907T010007Z-0fd567d96f/node-v22.23.2-linux-x64/bin:/home/ccheever/clique-tooling/epyc-linux-tooling-20260907T010007Z-0fd567d96f/bun-v1.3.12-linux-x64/bin:/usr/bin:/bin",
+    "deadline_seconds": 30,
+    "started_unix": 1788754496.066124,
+    "hashes": {
+      "/home/ccheever/clique-tooling/epyc-linux-tooling-20260907T010007Z-0fd567d96f/bun-v1.3.12-linux-x64/bin/bun": "92a1cd8b6185f676010bb18e767dfc65c772273e79ae9984480843261939eeaa",
+      "evidence/probe.ts": "3cb5221d2a250fe8e0ab76c84bdbfa0891a40d22946462c8d62abc79d0424eb1",
+      "evidence/custom2.json": "4cc6403c68496a84fc4a2779feda3a56cc8e6955af07b651b42d6b7d0078ee97"
+    },
+    "exit": 0,
+    "elapsed_seconds": 0.4652642961591482,
+    "timed_out": false,
+    "output_hashes": {
+      "stdout.txt": "e407721b0e178ff0819ec86e118f0e84cbf207f1e13d2cd56aec94dd97f614d1",
+      "stderr.txt": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  },
+  "custom2-candidate-6": {
+    "pid": 3651486,
+    "cmd": [
+      "/home/ccheever/clique-tooling/epyc-linux-tooling-20260907T010007Z-0fd567d96f/bun-v1.3.12-linux-x64/bin/bun",
+      "evidence/probe.ts",
+      "candidate",
+      "evidence/custom2.json",
+      "6,7,8",
+      "custom2"
+    ],
+    "cwd": "/home/ccheever/clique-reviews/compiler-insert-r15-dd54-4d5c8109db/astra",
+    "PATH": "/home/ccheever/clique-tooling/epyc-linux-tooling-20260907T010007Z-0fd567d96f/node-v22.23.2-linux-x64/bin:/home/ccheever/clique-tooling/epyc-linux-tooling-20260907T010007Z-0fd567d96f/bun-v1.3.12-linux-x64/bin:/usr/bin:/bin",
+    "deadline_seconds": 30,
+    "started_unix": 1788754501.9344914,
+    "hashes": {
+      "/home/ccheever/clique-tooling/epyc-linux-tooling-20260907T010007Z-0fd567d96f/bun-v1.3.12-linux-x64/bin/bun": "92a1cd8b6185f676010bb18e767dfc65c772273e79ae9984480843261939eeaa",
+      "evidence/probe.ts": "3cb5221d2a250fe8e0ab76c84bdbfa0891a40d22946462c8d62abc79d0424eb1",
+      "evidence/custom2.json": "4cc6403c68496a84fc4a2779feda3a56cc8e6955af07b651b42d6b7d0078ee97"
+    },
+    "exit": 0,
+    "elapsed_seconds": 0.4152968500275165,
+    "timed_out": false,
+    "output_hashes": {
+      "stdout.txt": "268cd4117d7e368608c0d7fb33c047405db0001dfa6327f824e6d0ba0240e108",
+      "stderr.txt": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  },
+  "custom2-candidate-9": {
+    "pid": 3651718,
+    "cmd": [
+      "/home/ccheever/clique-tooling/epyc-linux-tooling-20260907T010007Z-0fd567d96f/bun-v1.3.12-linux-x64/bin/bun",
+      "evidence/probe.ts",
+      "candidate",
+      "evidence/custom2.json",
+      "9,10,11",
+      "custom2"
+    ],
+    "cwd": "/home/ccheever/clique-reviews/compiler-insert-r15-dd54-4d5c8109db/astra",
+    "PATH": "/home/ccheever/clique-tooling/epyc-linux-tooling-20260907T010007Z-0fd567d96f/node-v22.23.2-linux-x64/bin:/home/ccheever/clique-tooling/epyc-linux-tooling-20260907T010007Z-0fd567d96f/bun-v1.3.12-linux-x64/bin:/usr/bin:/bin",
+    "deadline_seconds": 30,
+    "started_unix": 1788754507.8085158,
+    "hashes": {
+      "/home/ccheever/clique-tooling/epyc-linux-tooling-20260907T010007Z-0fd567d96f/bun-v1.3.12-linux-x64/bin/bun": "92a1cd8b6185f676010bb18e767dfc65c772273e79ae9984480843261939eeaa",
+      "evidence/probe.ts": "3cb5221d2a250fe8e0ab76c84bdbfa0891a40d22946462c8d62abc79d0424eb1",
+      "evidence/custom2.json": "4cc6403c68496a84fc4a2779feda3a56cc8e6955af07b651b42d6b7d0078ee97"
+    },
+    "exit": 0,
+    "elapsed_seconds": 0.4149321790318936,
+    "timed_out": false,
+    "output_hashes": {
+      "stdout.txt": "73e54cfa7ef559a2b193dc55dfe024671cc8addccb0b5c4b5090f877a820dbbe",
+      "stderr.txt": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  },
+  "custom2-parent-0": {
+    "pid": 3648489,
+    "cmd": [
+      "/home/ccheever/clique-tooling/epyc-linux-tooling-20260907T010007Z-0fd567d96f/bun-v1.3.12-linux-x64/bin/bun",
+      "evidence/probe.ts",
+      "parent",
+      "evidence/custom2.json",
+      "0,1,2",
+      "custom2"
+    ],
+    "cwd": "/home/ccheever/clique-reviews/compiler-insert-r15-dd54-4d5c8109db/astra",
+    "PATH": "/home/ccheever/clique-tooling/epyc-linux-tooling-20260907T010007Z-0fd567d96f/node-v22.23.2-linux-x64/bin:/home/ccheever/clique-tooling/epyc-linux-tooling-20260907T010007Z-0fd567d96f/bun-v1.3.12-linux-x64/bin:/usr/bin:/bin",
+    "deadline_seconds": 30,
+    "started_unix": 1788754487.0970602,
+    "hashes": {
+      "/home/ccheever/clique-tooling/epyc-linux-tooling-20260907T010007Z-0fd567d96f/bun-v1.3.12-linux-x64/bin/bun": "92a1cd8b6185f676010bb18e767dfc65c772273e79ae9984480843261939eeaa",
+      "evidence/probe.ts": "3cb5221d2a250fe8e0ab76c84bdbfa0891a40d22946462c8d62abc79d0424eb1",
+      "evidence/custom2.json": "4cc6403c68496a84fc4a2779feda3a56cc8e6955af07b651b42d6b7d0078ee97"
+    },
+    "exit": 0,
+    "elapsed_seconds": 0.414842237951234,
+    "timed_out": false,
+    "output_hashes": {
+      "stdout.txt": "7ffcb89332a37bb9844e588300aafa1fec3ee0f5b4fbbd27545cedcd9e6e94cd",
+      "stderr.txt": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  },
+  "custom2-parent-3": {
+    "pid": 3649908,
+    "cmd": [
+      "/home/ccheever/clique-tooling/epyc-linux-tooling-20260907T010007Z-0fd567d96f/bun-v1.3.12-linux-x64/bin/bun",
+      "evidence/probe.ts",
+      "parent",
+      "evidence/custom2.json",
+      "3,4,5",
+      "custom2"
+    ],
+    "cwd": "/home/ccheever/clique-reviews/compiler-insert-r15-dd54-4d5c8109db/astra",
+    "PATH": "/home/ccheever/clique-tooling/epyc-linux-tooling-20260907T010007Z-0fd567d96f/node-v22.23.2-linux-x64/bin:/home/ccheever/clique-tooling/epyc-linux-tooling-20260907T010007Z-0fd567d96f/bun-v1.3.12-linux-x64/bin:/usr/bin:/bin",
+    "deadline_seconds": 30,
+    "started_unix": 1788754493.083293,
+    "hashes": {
+      "/home/ccheever/clique-tooling/epyc-linux-tooling-20260907T010007Z-0fd567d96f/bun-v1.3.12-linux-x64/bin/bun": "92a1cd8b6185f676010bb18e767dfc65c772273e79ae9984480843261939eeaa",
+      "evidence/probe.ts": "3cb5221d2a250fe8e0ab76c84bdbfa0891a40d22946462c8d62abc79d0424eb1",
+      "evidence/custom2.json": "4cc6403c68496a84fc4a2779feda3a56cc8e6955af07b651b42d6b7d0078ee97"
+    },
+    "exit": 0,
+    "elapsed_seconds": 0.41479458287358284,
+    "timed_out": false,
+    "output_hashes": {
+      "stdout.txt": "739e0ead79f29e9ac3895af0da7b786102061103da8d103bda7166ee417c014a",
+      "stderr.txt": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  },
+  "custom2-parent-6": {
+    "pid": 3651394,
+    "cmd": [
+      "/home/ccheever/clique-tooling/epyc-linux-tooling-20260907T010007Z-0fd567d96f/bun-v1.3.12-linux-x64/bin/bun",
+      "evidence/probe.ts",
+      "parent",
+      "evidence/custom2.json",
+      "6,7,8",
+      "custom2"
+    ],
+    "cwd": "/home/ccheever/clique-reviews/compiler-insert-r15-dd54-4d5c8109db/astra",
+    "PATH": "/home/ccheever/clique-tooling/epyc-linux-tooling-20260907T010007Z-0fd567d96f/node-v22.23.2-linux-x64/bin:/home/ccheever/clique-tooling/epyc-linux-tooling-20260907T010007Z-0fd567d96f/bun-v1.3.12-linux-x64/bin:/usr/bin:/bin",
+    "deadline_seconds": 30,
+    "started_unix": 1788754499.043131,
+    "hashes": {
+      "/home/ccheever/clique-tooling/epyc-linux-tooling-20260907T010007Z-0fd567d96f/bun-v1.3.12-linux-x64/bin/bun": "92a1cd8b6185f676010bb18e767dfc65c772273e79ae9984480843261939eeaa",
+      "evidence/probe.ts": "3cb5221d2a250fe8e0ab76c84bdbfa0891a40d22946462c8d62abc79d0424eb1",
+      "evidence/custom2.json": "4cc6403c68496a84fc4a2779feda3a56cc8e6955af07b651b42d6b7d0078ee97"
+    },
+    "exit": 0,
+    "elapsed_seconds": 0.41508809896185994,
+    "timed_out": false,
+    "output_hashes": {
+      "stdout.txt": "3587fbe5f42b2891d11895febbee6b99131ea3bf2d09fce6ae9a6d5726932966",
+      "stderr.txt": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  },
+  "custom2-parent-9": {
+    "pid": 3651611,
+    "cmd": [
+      "/home/ccheever/clique-tooling/epyc-linux-tooling-20260907T010007Z-0fd567d96f/bun-v1.3.12-linux-x64/bin/bun",
+      "evidence/probe.ts",
+      "parent",
+      "evidence/custom2.json",
+      "9,10,11",
+      "custom2"
+    ],
+    "cwd": "/home/ccheever/clique-reviews/compiler-insert-r15-dd54-4d5c8109db/astra",
+    "PATH": "/home/ccheever/clique-tooling/epyc-linux-tooling-20260907T010007Z-0fd567d96f/node-v22.23.2-linux-x64/bin:/home/ccheever/clique-tooling/epyc-linux-tooling-20260907T010007Z-0fd567d96f/bun-v1.3.12-linux-x64/bin:/usr/bin:/bin",
+    "deadline_seconds": 30,
+    "started_unix": 1788754504.813808,
+    "hashes": {
+      "/home/ccheever/clique-tooling/epyc-linux-tooling-20260907T010007Z-0fd567d96f/bun-v1.3.12-linux-x64/bin/bun": "92a1cd8b6185f676010bb18e767dfc65c772273e79ae9984480843261939eeaa",
+      "evidence/probe.ts": "3cb5221d2a250fe8e0ab76c84bdbfa0891a40d22946462c8d62abc79d0424eb1",
+      "evidence/custom2.json": "4cc6403c68496a84fc4a2779feda3a56cc8e6955af07b651b42d6b7d0078ee97"
+    },
+    "exit": 0,
+    "elapsed_seconds": 0.41520438878796995,
+    "timed_out": false,
+    "output_hashes": {
+      "stdout.txt": "f65829beae8720af9c56ecc9e9f29997c03b22f27ea17569367e800ceb5e8f04",
+      "stderr.txt": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  },
+  "extended-candidate-0": {
+    "pid": 3673211,
+    "cmd": [
+      "/home/ccheever/clique-tooling/epyc-linux-tooling-20260907T010007Z-0fd567d96f/bun-v1.3.12-linux-x64/bin/bun",
+      "evidence/probe.ts",
+      "candidate",
+      "evidence/extended.json",
+      "0,1,2",
+      "extended"
+    ],
+    "cwd": "/home/ccheever/clique-reviews/compiler-insert-r15-dd54-4d5c8109db/astra",
+    "PATH": "/home/ccheever/clique-tooling/epyc-linux-tooling-20260907T010007Z-0fd567d96f/node-v22.23.2-linux-x64/bin:/home/ccheever/clique-tooling/epyc-linux-tooling-20260907T010007Z-0fd567d96f/bun-v1.3.12-linux-x64/bin:/usr/bin:/bin",
+    "deadline_seconds": 30,
+    "started_unix": 1788754721.266585,
+    "hashes": {
+      "/home/ccheever/clique-tooling/epyc-linux-tooling-20260907T010007Z-0fd567d96f/bun-v1.3.12-linux-x64/bin/bun": "92a1cd8b6185f676010bb18e767dfc65c772273e79ae9984480843261939eeaa",
+      "evidence/probe.ts": "3cb5221d2a250fe8e0ab76c84bdbfa0891a40d22946462c8d62abc79d0424eb1",
+      "evidence/extended.json": "7f4b9d67792a5026eb8eaeb119721e48cc28a1545afd5e2707db984cf6dc92bd"
+    },
+    "exit": 0,
+    "elapsed_seconds": 0.46537844301201403,
+    "timed_out": false,
+    "output_hashes": {
+      "stdout.txt": "faf3ec1a13c875a85940f0e0b6c5264f671c77c44697e9103a5292c50584815d",
+      "stderr.txt": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  },
+  "extended-candidate-3": {
+    "pid": 3673682,
+    "cmd": [
+      "/home/ccheever/clique-tooling/epyc-linux-tooling-20260907T010007Z-0fd567d96f/bun-v1.3.12-linux-x64/bin/bun",
+      "evidence/probe.ts",
+      "candidate",
+      "evidence/extended.json",
+      "3,4,5",
+      "extended"
+    ],
+    "cwd": "/home/ccheever/clique-reviews/compiler-insert-r15-dd54-4d5c8109db/astra",
+    "PATH": "/home/ccheever/clique-tooling/epyc-linux-tooling-20260907T010007Z-0fd567d96f/node-v22.23.2-linux-x64/bin:/home/ccheever/clique-tooling/epyc-linux-tooling-20260907T010007Z-0fd567d96f/bun-v1.3.12-linux-x64/bin:/usr/bin:/bin",
+    "deadline_seconds": 30,
+    "started_unix": 1788754727.0533926,
+    "hashes": {
+      "/home/ccheever/clique-tooling/epyc-linux-tooling-20260907T010007Z-0fd567d96f/bun-v1.3.12-linux-x64/bin/bun": "92a1cd8b6185f676010bb18e767dfc65c772273e79ae9984480843261939eeaa",
+      "evidence/probe.ts": "3cb5221d2a250fe8e0ab76c84bdbfa0891a40d22946462c8d62abc79d0424eb1",
+      "evidence/extended.json": "7f4b9d67792a5026eb8eaeb119721e48cc28a1545afd5e2707db984cf6dc92bd"
+    },
+    "exit": 0,
+    "elapsed_seconds": 0.41485141310840845,
+    "timed_out": false,
+    "output_hashes": {
+      "stdout.txt": "e38b146a9774edb2306bd52ff826a133e43c7c63d33469d65028e87e6d7a1ef0",
+      "stderr.txt": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  },
+  "extended-candidate-6": {
+    "pid": 3674075,
+    "cmd": [
+      "/home/ccheever/clique-tooling/epyc-linux-tooling-20260907T010007Z-0fd567d96f/bun-v1.3.12-linux-x64/bin/bun",
+      "evidence/probe.ts",
+      "candidate",
+      "evidence/extended.json",
+      "6",
+      "extended"
+    ],
+    "cwd": "/home/ccheever/clique-reviews/compiler-insert-r15-dd54-4d5c8109db/astra",
+    "PATH": "/home/ccheever/clique-tooling/epyc-linux-tooling-20260907T010007Z-0fd567d96f/node-v22.23.2-linux-x64/bin:/home/ccheever/clique-tooling/epyc-linux-tooling-20260907T010007Z-0fd567d96f/bun-v1.3.12-linux-x64/bin:/usr/bin:/bin",
+    "deadline_seconds": 30,
+    "started_unix": 1788754732.7773929,
+    "hashes": {
+      "/home/ccheever/clique-tooling/epyc-linux-tooling-20260907T010007Z-0fd567d96f/bun-v1.3.12-linux-x64/bin/bun": "92a1cd8b6185f676010bb18e767dfc65c772273e79ae9984480843261939eeaa",
+      "evidence/probe.ts": "3cb5221d2a250fe8e0ab76c84bdbfa0891a40d22946462c8d62abc79d0424eb1",
+      "evidence/extended.json": "7f4b9d67792a5026eb8eaeb119721e48cc28a1545afd5e2707db984cf6dc92bd"
+    },
+    "exit": 0,
+    "elapsed_seconds": 0.36496631684713066,
+    "timed_out": false,
+    "output_hashes": {
+      "stdout.txt": "a8f6047d4e9e1362ddf65676c5474ccdaf1d20e9c40ab6dd9a3dd03ad5d580a0",
+      "stderr.txt": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  },
+  "extended-parent-0": {
+    "pid": 3673009,
+    "cmd": [
+      "/home/ccheever/clique-tooling/epyc-linux-tooling-20260907T010007Z-0fd567d96f/bun-v1.3.12-linux-x64/bin/bun",
+      "evidence/probe.ts",
+      "parent",
+      "evidence/extended.json",
+      "0,1,2",
+      "extended"
+    ],
+    "cwd": "/home/ccheever/clique-reviews/compiler-insert-r15-dd54-4d5c8109db/astra",
+    "PATH": "/home/ccheever/clique-tooling/epyc-linux-tooling-20260907T010007Z-0fd567d96f/node-v22.23.2-linux-x64/bin:/home/ccheever/clique-tooling/epyc-linux-tooling-20260907T010007Z-0fd567d96f/bun-v1.3.12-linux-x64/bin:/usr/bin:/bin",
+    "deadline_seconds": 30,
+    "started_unix": 1788754718.0436292,
+    "hashes": {
+      "/home/ccheever/clique-tooling/epyc-linux-tooling-20260907T010007Z-0fd567d96f/bun-v1.3.12-linux-x64/bin/bun": "92a1cd8b6185f676010bb18e767dfc65c772273e79ae9984480843261939eeaa",
+      "evidence/probe.ts": "3cb5221d2a250fe8e0ab76c84bdbfa0891a40d22946462c8d62abc79d0424eb1",
+      "evidence/extended.json": "7f4b9d67792a5026eb8eaeb119721e48cc28a1545afd5e2707db984cf6dc92bd"
+    },
+    "exit": 0,
+    "elapsed_seconds": 0.7656017609406263,
+    "timed_out": false,
+    "output_hashes": {
+      "stdout.txt": "db5a0d4c04c2ce312085146d3e3c08843ab4caa507cb7f55a3bfee781239a949",
+      "stderr.txt": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  },
+  "extended-parent-3": {
+    "pid": 3673391,
+    "cmd": [
+      "/home/ccheever/clique-tooling/epyc-linux-tooling-20260907T010007Z-0fd567d96f/bun-v1.3.12-linux-x64/bin/bun",
+      "evidence/probe.ts",
+      "parent",
+      "evidence/extended.json",
+      "3,4,5",
+      "extended"
+    ],
+    "cwd": "/home/ccheever/clique-reviews/compiler-insert-r15-dd54-4d5c8109db/astra",
+    "PATH": "/home/ccheever/clique-tooling/epyc-linux-tooling-20260907T010007Z-0fd567d96f/node-v22.23.2-linux-x64/bin:/home/ccheever/clique-tooling/epyc-linux-tooling-20260907T010007Z-0fd567d96f/bun-v1.3.12-linux-x64/bin:/usr/bin:/bin",
+    "deadline_seconds": 30,
+    "started_unix": 1788754724.160928,
+    "hashes": {
+      "/home/ccheever/clique-tooling/epyc-linux-tooling-20260907T010007Z-0fd567d96f/bun-v1.3.12-linux-x64/bin/bun": "92a1cd8b6185f676010bb18e767dfc65c772273e79ae9984480843261939eeaa",
+      "evidence/probe.ts": "3cb5221d2a250fe8e0ab76c84bdbfa0891a40d22946462c8d62abc79d0424eb1",
+      "evidence/extended.json": "7f4b9d67792a5026eb8eaeb119721e48cc28a1545afd5e2707db984cf6dc92bd"
+    },
+    "exit": 0,
+    "elapsed_seconds": 0.46520856698043644,
+    "timed_out": false,
+    "output_hashes": {
+      "stdout.txt": "7968c8d12e44042c0438026ed9fa4b7dff64fc64fd809b8fe00f55c61d659726",
+      "stderr.txt": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  },
+  "extended-parent-6": {
+    "pid": 3673888,
+    "cmd": [
+      "/home/ccheever/clique-tooling/epyc-linux-tooling-20260907T010007Z-0fd567d96f/bun-v1.3.12-linux-x64/bin/bun",
+      "evidence/probe.ts",
+      "parent",
+      "evidence/extended.json",
+      "6",
+      "extended"
+    ],
+    "cwd": "/home/ccheever/clique-reviews/compiler-insert-r15-dd54-4d5c8109db/astra",
+    "PATH": "/home/ccheever/clique-tooling/epyc-linux-tooling-20260907T010007Z-0fd567d96f/node-v22.23.2-linux-x64/bin:/home/ccheever/clique-tooling/epyc-linux-tooling-20260907T010007Z-0fd567d96f/bun-v1.3.12-linux-x64/bin:/usr/bin:/bin",
+    "deadline_seconds": 30,
+    "started_unix": 1788754730.0066726,
+    "hashes": {
+      "/home/ccheever/clique-tooling/epyc-linux-tooling-20260907T010007Z-0fd567d96f/bun-v1.3.12-linux-x64/bin/bun": "92a1cd8b6185f676010bb18e767dfc65c772273e79ae9984480843261939eeaa",
+      "evidence/probe.ts": "3cb5221d2a250fe8e0ab76c84bdbfa0891a40d22946462c8d62abc79d0424eb1",
+      "evidence/extended.json": "7f4b9d67792a5026eb8eaeb119721e48cc28a1545afd5e2707db984cf6dc92bd"
+    },
+    "exit": 0,
+    "elapsed_seconds": 0.3149821260012686,
+    "timed_out": false,
+    "output_hashes": {
+      "stdout.txt": "b3dbb0ca95b74c9f990e1551b6f2681a709dbdb4cf8041e75af6ed0d4c0b3e92",
+      "stderr.txt": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  },
+  "finalize": {
+    "pid": 3686140,
+    "cmd": [
+      "/usr/bin/python3",
+      "evidence/finalize.py"
+    ],
+    "cwd": "/home/ccheever/clique-reviews/compiler-insert-r15-dd54-4d5c8109db/astra",
+    "PATH": "/home/ccheever/clique-tooling/epyc-linux-tooling-20260907T010007Z-0fd567d96f/node-v22.23.2-linux-x64/bin:/home/ccheever/clique-tooling/epyc-linux-tooling-20260907T010007Z-0fd567d96f/bun-v1.3.12-linux-x64/bin:/usr/bin:/bin",
+    "deadline_seconds": 30,
+    "started_unix": 1788755011.5374057,
+    "hashes": {
+      "/usr/bin/python3": "1643dacd9feaedc58f3cc581e4d22577dfe25c09b10282936186ccf0f2e61118",
+      "evidence/finalize.py": "984d6106690b6fd877b20864387d25ff8ff5eca80a52d33bfcf0b215bfcb283a"
+    },
+    "exit": 0,
+    "elapsed_seconds": 0.5656026848591864,
+    "timed_out": false,
+    "output_hashes": {
+      "stdout.txt": "85888e351bfcf4b885f901e22e2b1a350126f6924e3c301e33fb8caf6ff4cc67",
+      "stderr.txt": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  },
+  "finalize-v2": {
+    "pid": 3691065,
+    "cmd": [
+      "/usr/bin/python3",
+      "evidence/finalize-v2.py"
+    ],
+    "cwd": "/home/ccheever/clique-reviews/compiler-insert-r15-dd54-4d5c8109db/astra",
+    "PATH": "/home/ccheever/clique-tooling/epyc-linux-tooling-20260907T010007Z-0fd567d96f/node-v22.23.2-linux-x64/bin:/home/ccheever/clique-tooling/epyc-linux-tooling-20260907T010007Z-0fd567d96f/bun-v1.3.12-linux-x64/bin:/usr/bin:/bin",
+    "deadline_seconds": 30,
+    "started_unix": 1788755524.00803,
+    "hashes": {
+      "/usr/bin/python3": "1643dacd9feaedc58f3cc581e4d22577dfe25c09b10282936186ccf0f2e61118",
+      "evidence/finalize-v2.py": "234897c34af21593dc96f424cc91c313227bafca8a245963744c6c77736f08d2"
+    },
+    "exit": 0,
+    "elapsed_seconds": 0.5656232689507306,
+    "timed_out": false,
+    "output_hashes": {
+      "stdout.txt": "e81df68045ef1678871e19a15cb58a40ae508a270f9b48d03a4f156146f41c9c",
+      "stderr.txt": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  },
+  "js-receiver": {
+    "pid": 3677872,
+    "cmd": [
+      "/home/ccheever/clique-tooling/epyc-linux-tooling-20260907T010007Z-0fd567d96f/node-v22.23.2-linux-x64/bin/node",
+      "evidence/js-receiver.mjs"
+    ],
+    "cwd": "/home/ccheever/clique-reviews/compiler-insert-r15-dd54-4d5c8109db/astra",
+    "PATH": "/home/ccheever/clique-tooling/epyc-linux-tooling-20260907T010007Z-0fd567d96f/node-v22.23.2-linux-x64/bin:/home/ccheever/clique-tooling/epyc-linux-tooling-20260907T010007Z-0fd567d96f/bun-v1.3.12-linux-x64/bin:/usr/bin:/bin",
+    "deadline_seconds": 30,
+    "started_unix": 1788754785.692117,
+    "hashes": {
+      "/home/ccheever/clique-tooling/epyc-linux-tooling-20260907T010007Z-0fd567d96f/node-v22.23.2-linux-x64/bin/node": "3517c2df0b2f8cd7f422b4b8450ef81c6889f08eb03e281d6de9079b15e6a327",
+      "evidence/js-receiver.mjs": "28e3b002fc3821a2af6bdb43f37be7ce8e96514ca0aa3735b3e44f8890c1cc68"
+    },
+    "exit": 0,
+    "elapsed_seconds": 0.3649292441550642,
+    "timed_out": false,
+    "output_hashes": {
+      "stdout.txt": "6b41ac882f4dd0ab5ae6ac10888daf795d668e1bb6774d56fab0bd5e7e56c814",
+      "stderr.txt": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  },
+  "optional-original-candidate": {
+    "pid": 3657099,
+    "cmd": [
+      "/home/ccheever/clique-tooling/epyc-linux-tooling-20260907T010007Z-0fd567d96f/bun-v1.3.12-linux-x64/bin/bun",
+      "evidence/probe.ts",
+      "candidate",
+      "factual-inputs/optional-member-observations.json",
+      "0,1,2",
+      "optional-original"
+    ],
+    "cwd": "/home/ccheever/clique-reviews/compiler-insert-r15-dd54-4d5c8109db/astra",
+    "PATH": "/home/ccheever/clique-tooling/epyc-linux-tooling-20260907T010007Z-0fd567d96f/node-v22.23.2-linux-x64/bin:/home/ccheever/clique-tooling/epyc-linux-tooling-20260907T010007Z-0fd567d96f/bun-v1.3.12-linux-x64/bin:/usr/bin:/bin",
+    "deadline_seconds": 30,
+    "started_unix": 1788754613.8765326,
+    "hashes": {
+      "/home/ccheever/clique-tooling/epyc-linux-tooling-20260907T010007Z-0fd567d96f/bun-v1.3.12-linux-x64/bin/bun": "92a1cd8b6185f676010bb18e767dfc65c772273e79ae9984480843261939eeaa",
+      "evidence/probe.ts": "3cb5221d2a250fe8e0ab76c84bdbfa0891a40d22946462c8d62abc79d0424eb1",
+      "factual-inputs/optional-member-observations.json": "e54cd82b7f57ba8560487a1edc58d09004d853db03e36628ec741773d021f30a"
+    },
+    "exit": 0,
+    "elapsed_seconds": 0.46537163900211453,
+    "timed_out": false,
+    "output_hashes": {
+      "stdout.txt": "f7afeab8fd136bd13de0349a42a2fc4c2330b6c5b0748e54d6af24555b555481",
+      "stderr.txt": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  },
+  "optional-original-parent": {
+    "pid": 3656869,
+    "cmd": [
+      "/home/ccheever/clique-tooling/epyc-linux-tooling-20260907T010007Z-0fd567d96f/bun-v1.3.12-linux-x64/bin/bun",
+      "evidence/probe.ts",
+      "parent",
+      "factual-inputs/optional-member-observations.json",
+      "0,1,2",
+      "optional-original"
+    ],
+    "cwd": "/home/ccheever/clique-reviews/compiler-insert-r15-dd54-4d5c8109db/astra",
+    "PATH": "/home/ccheever/clique-tooling/epyc-linux-tooling-20260907T010007Z-0fd567d96f/node-v22.23.2-linux-x64/bin:/home/ccheever/clique-tooling/epyc-linux-tooling-20260907T010007Z-0fd567d96f/bun-v1.3.12-linux-x64/bin:/usr/bin:/bin",
+    "deadline_seconds": 30,
+    "started_unix": 1788754610.9099982,
+    "hashes": {
+      "/home/ccheever/clique-tooling/epyc-linux-tooling-20260907T010007Z-0fd567d96f/bun-v1.3.12-linux-x64/bin/bun": "92a1cd8b6185f676010bb18e767dfc65c772273e79ae9984480843261939eeaa",
+      "evidence/probe.ts": "3cb5221d2a250fe8e0ab76c84bdbfa0891a40d22946462c8d62abc79d0424eb1",
+      "factual-inputs/optional-member-observations.json": "e54cd82b7f57ba8560487a1edc58d09004d853db03e36628ec741773d021f30a"
+    },
+    "exit": 0,
+    "elapsed_seconds": 0.4655495178885758,
+    "timed_out": false,
+    "output_hashes": {
+      "stdout.txt": "f7afeab8fd136bd13de0349a42a2fc4c2330b6c5b0748e54d6af24555b555481",
+      "stderr.txt": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  },
+  "original-candidate": {
+    "pid": 3624680,
+    "cmd": [
+      "/home/ccheever/clique-tooling/epyc-linux-tooling-20260907T010007Z-0fd567d96f/bun-v1.3.12-linux-x64/bin/bun",
+      "evidence/probe.ts",
+      "candidate",
+      "factual-inputs/early-cases.json",
+      "0",
+      "original"
+    ],
+    "cwd": "/home/ccheever/clique-reviews/compiler-insert-r15-dd54-4d5c8109db/astra",
+    "PATH": "/home/ccheever/clique-tooling/epyc-linux-tooling-20260907T010007Z-0fd567d96f/node-v22.23.2-linux-x64/bin:/home/ccheever/clique-tooling/epyc-linux-tooling-20260907T010007Z-0fd567d96f/bun-v1.3.12-linux-x64/bin:/usr/bin:/bin",
+    "deadline_seconds": 30,
+    "started_unix": 1788754365.6896162,
+    "hashes": {
+      "/home/ccheever/clique-tooling/epyc-linux-tooling-20260907T010007Z-0fd567d96f/bun-v1.3.12-linux-x64/bin/bun": "92a1cd8b6185f676010bb18e767dfc65c772273e79ae9984480843261939eeaa",
+      "evidence/probe.ts": "3cb5221d2a250fe8e0ab76c84bdbfa0891a40d22946462c8d62abc79d0424eb1",
+      "factual-inputs/early-cases.json": "36b5f462db1fa576ab19df379eab79069ec58de9699ada37ded33a959e50a042"
+    },
+    "exit": 0,
+    "elapsed_seconds": 0.3651464828290045,
+    "timed_out": false,
+    "output_hashes": {
+      "stdout.txt": "457761d26e049a97be52cb442f62002ed7ada1b76fa3fb3475ed892d19d54c29",
+      "stderr.txt": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  },
+  "original-parent": {
+    "pid": 3623498,
+    "cmd": [
+      "/home/ccheever/clique-tooling/epyc-linux-tooling-20260907T010007Z-0fd567d96f/bun-v1.3.12-linux-x64/bin/bun",
+      "evidence/probe.ts",
+      "parent",
+      "factual-inputs/early-cases.json",
+      "0",
+      "original"
+    ],
+    "cwd": "/home/ccheever/clique-reviews/compiler-insert-r15-dd54-4d5c8109db/astra",
+    "PATH": "/home/ccheever/clique-tooling/epyc-linux-tooling-20260907T010007Z-0fd567d96f/node-v22.23.2-linux-x64/bin:/home/ccheever/clique-tooling/epyc-linux-tooling-20260907T010007Z-0fd567d96f/bun-v1.3.12-linux-x64/bin:/usr/bin:/bin",
+    "deadline_seconds": 30,
+    "started_unix": 1788754278.1775846,
+    "hashes": {
+      "/home/ccheever/clique-tooling/epyc-linux-tooling-20260907T010007Z-0fd567d96f/bun-v1.3.12-linux-x64/bin/bun": "92a1cd8b6185f676010bb18e767dfc65c772273e79ae9984480843261939eeaa",
+      "evidence/probe.ts": "3cb5221d2a250fe8e0ab76c84bdbfa0891a40d22946462c8d62abc79d0424eb1",
+      "factual-inputs/early-cases.json": "36b5f462db1fa576ab19df379eab79069ec58de9699ada37ded33a959e50a042"
+    },
+    "exit": 1,
+    "elapsed_seconds": 0.0644285180605948,
+    "timed_out": false,
+    "output_hashes": {
+      "stdout.txt": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderr.txt": "d70d81cbfc8d3a5f6aa8dfa4e8deb40dadc76bcd5edce57207b64702528c017f"
+    }
+  },
+  "original-parent-support-corrected": {
+    "pid": 3623863,
+    "cmd": [
+      "/home/ccheever/clique-tooling/epyc-linux-tooling-20260907T010007Z-0fd567d96f/bun-v1.3.12-linux-x64/bin/bun",
+      "evidence/probe.ts",
+      "parent",
+      "factual-inputs/early-cases.json",
+      "0",
+      "original"
+    ],
+    "cwd": "/home/ccheever/clique-reviews/compiler-insert-r15-dd54-4d5c8109db/astra",
+    "PATH": "/home/ccheever/clique-tooling/epyc-linux-tooling-20260907T010007Z-0fd567d96f/node-v22.23.2-linux-x64/bin:/home/ccheever/clique-tooling/epyc-linux-tooling-20260907T010007Z-0fd567d96f/bun-v1.3.12-linux-x64/bin:/usr/bin:/bin",
+    "deadline_seconds": 30,
+    "started_unix": 1788754304.5058427,
+    "hashes": {
+      "/home/ccheever/clique-tooling/epyc-linux-tooling-20260907T010007Z-0fd567d96f/bun-v1.3.12-linux-x64/bin/bun": "92a1cd8b6185f676010bb18e767dfc65c772273e79ae9984480843261939eeaa",
+      "evidence/probe.ts": "3cb5221d2a250fe8e0ab76c84bdbfa0891a40d22946462c8d62abc79d0424eb1",
+      "factual-inputs/early-cases.json": "36b5f462db1fa576ab19df379eab79069ec58de9699ada37ded33a959e50a042"
+    },
+    "exit": 0,
+    "elapsed_seconds": 0.36517771799117327,
+    "timed_out": false,
+    "output_hashes": {
+      "stdout.txt": "13413aa2debc5c9ac4679ff5bd805331afdf5618783dba1bed8f13b0227770f2",
+      "stderr.txt": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  },
+  "prepare": {
+    "pid": 3623116,
+    "cmd": [
+      "/usr/bin/python3",
+      "evidence/prepare.py"
+    ],
+    "cwd": "/home/ccheever/clique-reviews/compiler-insert-r15-dd54-4d5c8109db/astra",
+    "PATH": "/home/ccheever/clique-tooling/epyc-linux-tooling-20260907T010007Z-0fd567d96f/node-v22.23.2-linux-x64/bin:/home/ccheever/clique-tooling/epyc-linux-tooling-20260907T010007Z-0fd567d96f/bun-v1.3.12-linux-x64/bin:/usr/bin:/bin",
+    "deadline_seconds": 30,
+    "started_unix": 1788754252.129892,
+    "hashes": {
+      "/usr/bin/python3": "1643dacd9feaedc58f3cc581e4d22577dfe25c09b10282936186ccf0f2e61118",
+      "evidence/prepare.py": "1d47586040d3c196a670cf0b260a15479d19c78465fc64f47551de00057ca716"
+    },
+    "exit": 0,
+    "elapsed_seconds": 0.5152381521183997,
+    "timed_out": false,
+    "output_hashes": {
+      "stdout.txt": "8d54fe1b03e5f5fd125626bc9380cb94b378a5e4bd1ccdc595f74b476997085a",
+      "stderr.txt": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  },
+  "selected-candidate-0": {
+    "pid": 3652672,
+    "cmd": [
+      "/home/ccheever/clique-tooling/epyc-linux-tooling-20260907T010007Z-0fd567d96f/bun-v1.3.12-linux-x64/bin/bun",
+      "evidence/probe.ts",
+      "candidate",
+      "factual-inputs/insert-cases-final4.json",
+      "1,7,9,10",
+      "selected"
+    ],
+    "cwd": "/home/ccheever/clique-reviews/compiler-insert-r15-dd54-4d5c8109db/astra",
+    "PATH": "/home/ccheever/clique-tooling/epyc-linux-tooling-20260907T010007Z-0fd567d96f/node-v22.23.2-linux-x64/bin:/home/ccheever/clique-tooling/epyc-linux-tooling-20260907T010007Z-0fd567d96f/bun-v1.3.12-linux-x64/bin:/usr/bin:/bin",
+    "deadline_seconds": 30,
+    "started_unix": 1788754534.0891793,
+    "hashes": {
+      "/home/ccheever/clique-tooling/epyc-linux-tooling-20260907T010007Z-0fd567d96f/bun-v1.3.12-linux-x64/bin/bun": "92a1cd8b6185f676010bb18e767dfc65c772273e79ae9984480843261939eeaa",
+      "evidence/probe.ts": "3cb5221d2a250fe8e0ab76c84bdbfa0891a40d22946462c8d62abc79d0424eb1",
+      "factual-inputs/insert-cases-final4.json": "3e472f4a3ca2d9044ee4f2fac6e91f99769e5e79076f2899e2b64e1d8a24fdec"
+    },
+    "exit": 0,
+    "elapsed_seconds": 0.5154231060296297,
+    "timed_out": false,
+    "output_hashes": {
+      "stdout.txt": "ae4f48262ade5ddac1419f21a7e162dd907de111a3cadcc01e2c4697c80a38d6",
+      "stderr.txt": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  },
+  "selected-candidate-1": {
+    "pid": 3653108,
+    "cmd": [
+      "/home/ccheever/clique-tooling/epyc-linux-tooling-20260907T010007Z-0fd567d96f/bun-v1.3.12-linux-x64/bin/bun",
+      "evidence/probe.ts",
+      "candidate",
+      "factual-inputs/insert-cases-final4.json",
+      "11,12,13,14",
+      "selected"
+    ],
+    "cwd": "/home/ccheever/clique-reviews/compiler-insert-r15-dd54-4d5c8109db/astra",
+    "PATH": "/home/ccheever/clique-tooling/epyc-linux-tooling-20260907T010007Z-0fd567d96f/node-v22.23.2-linux-x64/bin:/home/ccheever/clique-tooling/epyc-linux-tooling-20260907T010007Z-0fd567d96f/bun-v1.3.12-linux-x64/bin:/usr/bin:/bin",
+    "deadline_seconds": 30,
+    "started_unix": 1788754540.039273,
+    "hashes": {
+      "/home/ccheever/clique-tooling/epyc-linux-tooling-20260907T010007Z-0fd567d96f/bun-v1.3.12-linux-x64/bin/bun": "92a1cd8b6185f676010bb18e767dfc65c772273e79ae9984480843261939eeaa",
+      "evidence/probe.ts": "3cb5221d2a250fe8e0ab76c84bdbfa0891a40d22946462c8d62abc79d0424eb1",
+      "factual-inputs/insert-cases-final4.json": "3e472f4a3ca2d9044ee4f2fac6e91f99769e5e79076f2899e2b64e1d8a24fdec"
+    },
+    "exit": 0,
+    "elapsed_seconds": 0.515245134010911,
+    "timed_out": false,
+    "output_hashes": {
+      "stdout.txt": "ad4c3ec5496b847b30c1fb0fbec8a79518d0978eca527f3ca197e5110bcc5bf3",
+      "stderr.txt": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  },
+  "selected-candidate-2": {
+    "pid": 3653552,
+    "cmd": [
+      "/home/ccheever/clique-tooling/epyc-linux-tooling-20260907T010007Z-0fd567d96f/bun-v1.3.12-linux-x64/bin/bun",
+      "evidence/probe.ts",
+      "candidate",
+      "factual-inputs/insert-cases-final4.json",
+      "15,16,17,19",
+      "selected"
+    ],
+    "cwd": "/home/ccheever/clique-reviews/compiler-insert-r15-dd54-4d5c8109db/astra",
+    "PATH": "/home/ccheever/clique-tooling/epyc-linux-tooling-20260907T010007Z-0fd567d96f/node-v22.23.2-linux-x64/bin:/home/ccheever/clique-tooling/epyc-linux-tooling-20260907T010007Z-0fd567d96f/bun-v1.3.12-linux-x64/bin:/usr/bin:/bin",
+    "deadline_seconds": 30,
+    "started_unix": 1788754546.2169628,
+    "hashes": {
+      "/home/ccheever/clique-tooling/epyc-linux-tooling-20260907T010007Z-0fd567d96f/bun-v1.3.12-linux-x64/bin/bun": "92a1cd8b6185f676010bb18e767dfc65c772273e79ae9984480843261939eeaa",
+      "evidence/probe.ts": "3cb5221d2a250fe8e0ab76c84bdbfa0891a40d22946462c8d62abc79d0424eb1",
+      "factual-inputs/insert-cases-final4.json": "3e472f4a3ca2d9044ee4f2fac6e91f99769e5e79076f2899e2b64e1d8a24fdec"
+    },
+    "exit": 0,
+    "elapsed_seconds": 0.515116446884349,
+    "timed_out": false,
+    "output_hashes": {
+      "stdout.txt": "797d987c6ec9b9185bd77e86aef958e2e85cf29f994725ce5309687fdb2e09d4",
+      "stderr.txt": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  },
+  "selected-candidate-3": {
+    "pid": 3653910,
+    "cmd": [
+      "/home/ccheever/clique-tooling/epyc-linux-tooling-20260907T010007Z-0fd567d96f/bun-v1.3.12-linux-x64/bin/bun",
+      "evidence/probe.ts",
+      "candidate",
+      "factual-inputs/insert-cases-final4.json",
+      "21,23,27,31",
+      "selected"
+    ],
+    "cwd": "/home/ccheever/clique-reviews/compiler-insert-r15-dd54-4d5c8109db/astra",
+    "PATH": "/home/ccheever/clique-tooling/epyc-linux-tooling-20260907T010007Z-0fd567d96f/node-v22.23.2-linux-x64/bin:/home/ccheever/clique-tooling/epyc-linux-tooling-20260907T010007Z-0fd567d96f/bun-v1.3.12-linux-x64/bin:/usr/bin:/bin",
+    "deadline_seconds": 30,
+    "started_unix": 1788754552.2222223,
+    "hashes": {
+      "/home/ccheever/clique-tooling/epyc-linux-tooling-20260907T010007Z-0fd567d96f/bun-v1.3.12-linux-x64/bin/bun": "92a1cd8b6185f676010bb18e767dfc65c772273e79ae9984480843261939eeaa",
+      "evidence/probe.ts": "3cb5221d2a250fe8e0ab76c84bdbfa0891a40d22946462c8d62abc79d0424eb1",
+      "factual-inputs/insert-cases-final4.json": "3e472f4a3ca2d9044ee4f2fac6e91f99769e5e79076f2899e2b64e1d8a24fdec"
+    },
+    "exit": 0,
+    "elapsed_seconds": 0.4653524891473353,
+    "timed_out": false,
+    "output_hashes": {
+      "stdout.txt": "e15e27af1c43c956f0ff0bda8ce5afd86dde96b68c3331ac62000573e9ee77b0",
+      "stderr.txt": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  },
+  "selected-candidate-4": {
+    "pid": 3654104,
+    "cmd": [
+      "/home/ccheever/clique-tooling/epyc-linux-tooling-20260907T010007Z-0fd567d96f/bun-v1.3.12-linux-x64/bin/bun",
+      "evidence/probe.ts",
+      "candidate",
+      "factual-inputs/insert-cases-final4.json",
+      "32,37,38,39",
+      "selected"
+    ],
+    "cwd": "/home/ccheever/clique-reviews/compiler-insert-r15-dd54-4d5c8109db/astra",
+    "PATH": "/home/ccheever/clique-tooling/epyc-linux-tooling-20260907T010007Z-0fd567d96f/node-v22.23.2-linux-x64/bin:/home/ccheever/clique-tooling/epyc-linux-tooling-20260907T010007Z-0fd567d96f/bun-v1.3.12-linux-x64/bin:/usr/bin:/bin",
+    "deadline_seconds": 30,
+    "started_unix": 1788754558.2021203,
+    "hashes": {
+      "/home/ccheever/clique-tooling/epyc-linux-tooling-20260907T010007Z-0fd567d96f/bun-v1.3.12-linux-x64/bin/bun": "92a1cd8b6185f676010bb18e767dfc65c772273e79ae9984480843261939eeaa",
+      "evidence/probe.ts": "3cb5221d2a250fe8e0ab76c84bdbfa0891a40d22946462c8d62abc79d0424eb1",
+      "factual-inputs/insert-cases-final4.json": "3e472f4a3ca2d9044ee4f2fac6e91f99769e5e79076f2899e2b64e1d8a24fdec"
+    },
+    "exit": 0,
+    "elapsed_seconds": 0.5154324220493436,
+    "timed_out": false,
+    "output_hashes": {
+      "stdout.txt": "5a12f5a03d9e0dbe3344f095c43148082adf5760932885f826d24901529434b7",
+      "stderr.txt": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  },
+  "selected-candidate-5": {
+    "pid": 3654283,
+    "cmd": [
+      "/home/ccheever/clique-tooling/epyc-linux-tooling-20260907T010007Z-0fd567d96f/bun-v1.3.12-linux-x64/bin/bun",
+      "evidence/probe.ts",
+      "candidate",
+      "factual-inputs/insert-cases-final4.json",
+      "44,45",
+      "selected"
+    ],
+    "cwd": "/home/ccheever/clique-reviews/compiler-insert-r15-dd54-4d5c8109db/astra",
+    "PATH": "/home/ccheever/clique-tooling/epyc-linux-tooling-20260907T010007Z-0fd567d96f/node-v22.23.2-linux-x64/bin:/home/ccheever/clique-tooling/epyc-linux-tooling-20260907T010007Z-0fd567d96f/bun-v1.3.12-linux-x64/bin:/usr/bin:/bin",
+    "deadline_seconds": 30,
+    "started_unix": 1788754564.2148025,
+    "hashes": {
+      "/home/ccheever/clique-tooling/epyc-linux-tooling-20260907T010007Z-0fd567d96f/bun-v1.3.12-linux-x64/bin/bun": "92a1cd8b6185f676010bb18e767dfc65c772273e79ae9984480843261939eeaa",
+      "evidence/probe.ts": "3cb5221d2a250fe8e0ab76c84bdbfa0891a40d22946462c8d62abc79d0424eb1",
+      "factual-inputs/insert-cases-final4.json": "3e472f4a3ca2d9044ee4f2fac6e91f99769e5e79076f2899e2b64e1d8a24fdec"
+    },
+    "exit": 0,
+    "elapsed_seconds": 0.41527876420877874,
+    "timed_out": false,
+    "output_hashes": {
+      "stdout.txt": "0921a14f2ff3cac3fb8125a8e3013de165574423aa25391baf65209694a4f062",
+      "stderr.txt": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  },
+  "selected-parent-0": {
+    "pid": 3652372,
+    "cmd": [
+      "/home/ccheever/clique-tooling/epyc-linux-tooling-20260907T010007Z-0fd567d96f/bun-v1.3.12-linux-x64/bin/bun",
+      "evidence/probe.ts",
+      "parent",
+      "factual-inputs/insert-cases-final4.json",
+      "1,7,9,10",
+      "selected"
+    ],
+    "cwd": "/home/ccheever/clique-reviews/compiler-insert-r15-dd54-4d5c8109db/astra",
+    "PATH": "/home/ccheever/clique-tooling/epyc-linux-tooling-20260907T010007Z-0fd567d96f/node-v22.23.2-linux-x64/bin:/home/ccheever/clique-tooling/epyc-linux-tooling-20260907T010007Z-0fd567d96f/bun-v1.3.12-linux-x64/bin:/usr/bin:/bin",
+    "deadline_seconds": 30,
+    "started_unix": 1788754530.7150102,
+    "hashes": {
+      "/home/ccheever/clique-tooling/epyc-linux-tooling-20260907T010007Z-0fd567d96f/bun-v1.3.12-linux-x64/bin/bun": "92a1cd8b6185f676010bb18e767dfc65c772273e79ae9984480843261939eeaa",
+      "evidence/probe.ts": "3cb5221d2a250fe8e0ab76c84bdbfa0891a40d22946462c8d62abc79d0424eb1",
+      "factual-inputs/insert-cases-final4.json": "3e472f4a3ca2d9044ee4f2fac6e91f99769e5e79076f2899e2b64e1d8a24fdec"
+    },
+    "exit": 0,
+    "elapsed_seconds": 0.8662263138685375,
+    "timed_out": false,
+    "output_hashes": {
+      "stdout.txt": "a82208d48519e1a8c7f2ed6ace6ad987a0f744b9897bb3db1ae371a4b2a9e639",
+      "stderr.txt": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  },
+  "selected-parent-1": {
+    "pid": 3652904,
+    "cmd": [
+      "/home/ccheever/clique-tooling/epyc-linux-tooling-20260907T010007Z-0fd567d96f/bun-v1.3.12-linux-x64/bin/bun",
+      "evidence/probe.ts",
+      "parent",
+      "factual-inputs/insert-cases-final4.json",
+      "11,12,13,14",
+      "selected"
+    ],
+    "cwd": "/home/ccheever/clique-reviews/compiler-insert-r15-dd54-4d5c8109db/astra",
+    "PATH": "/home/ccheever/clique-tooling/epyc-linux-tooling-20260907T010007Z-0fd567d96f/node-v22.23.2-linux-x64/bin:/home/ccheever/clique-tooling/epyc-linux-tooling-20260907T010007Z-0fd567d96f/bun-v1.3.12-linux-x64/bin:/usr/bin:/bin",
+    "deadline_seconds": 30,
+    "started_unix": 1788754537.0799973,
+    "hashes": {
+      "/home/ccheever/clique-tooling/epyc-linux-tooling-20260907T010007Z-0fd567d96f/bun-v1.3.12-linux-x64/bin/bun": "92a1cd8b6185f676010bb18e767dfc65c772273e79ae9984480843261939eeaa",
+      "evidence/probe.ts": "3cb5221d2a250fe8e0ab76c84bdbfa0891a40d22946462c8d62abc79d0424eb1",
+      "factual-inputs/insert-cases-final4.json": "3e472f4a3ca2d9044ee4f2fac6e91f99769e5e79076f2899e2b64e1d8a24fdec"
+    },
+    "exit": 0,
+    "elapsed_seconds": 0.4651761550921947,
+    "timed_out": false,
+    "output_hashes": {
+      "stdout.txt": "6a23ee908015b98cd2ae10469ed8c610824a2cc3d0cbf092224a3ea504e3a23f",
+      "stderr.txt": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  },
+  "selected-parent-2": {
+    "pid": 3653422,
+    "cmd": [
+      "/home/ccheever/clique-tooling/epyc-linux-tooling-20260907T010007Z-0fd567d96f/bun-v1.3.12-linux-x64/bin/bun",
+      "evidence/probe.ts",
+      "parent",
+      "factual-inputs/insert-cases-final4.json",
+      "15,16,17,19",
+      "selected"
+    ],
+    "cwd": "/home/ccheever/clique-reviews/compiler-insert-r15-dd54-4d5c8109db/astra",
+    "PATH": "/home/ccheever/clique-tooling/epyc-linux-tooling-20260907T010007Z-0fd567d96f/node-v22.23.2-linux-x64/bin:/home/ccheever/clique-tooling/epyc-linux-tooling-20260907T010007Z-0fd567d96f/bun-v1.3.12-linux-x64/bin:/usr/bin:/bin",
+    "deadline_seconds": 30,
+    "started_unix": 1788754543.2817287,
+    "hashes": {
+      "/home/ccheever/clique-tooling/epyc-linux-tooling-20260907T010007Z-0fd567d96f/bun-v1.3.12-linux-x64/bin/bun": "92a1cd8b6185f676010bb18e767dfc65c772273e79ae9984480843261939eeaa",
+      "evidence/probe.ts": "3cb5221d2a250fe8e0ab76c84bdbfa0891a40d22946462c8d62abc79d0424eb1",
+      "factual-inputs/insert-cases-final4.json": "3e472f4a3ca2d9044ee4f2fac6e91f99769e5e79076f2899e2b64e1d8a24fdec"
+    },
+    "exit": 0,
+    "elapsed_seconds": 0.4650016890373081,
+    "timed_out": false,
+    "output_hashes": {
+      "stdout.txt": "a8c3fe4b4d480eac625eb37514e357173ac4378d873ed1b78e655805c0efb817",
+      "stderr.txt": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  },
+  "selected-parent-3": {
+    "pid": 3653729,
+    "cmd": [
+      "/home/ccheever/clique-tooling/epyc-linux-tooling-20260907T010007Z-0fd567d96f/bun-v1.3.12-linux-x64/bin/bun",
+      "evidence/probe.ts",
+      "parent",
+      "factual-inputs/insert-cases-final4.json",
+      "21,23,27,31",
+      "selected"
+    ],
+    "cwd": "/home/ccheever/clique-reviews/compiler-insert-r15-dd54-4d5c8109db/astra",
+    "PATH": "/home/ccheever/clique-tooling/epyc-linux-tooling-20260907T010007Z-0fd567d96f/node-v22.23.2-linux-x64/bin:/home/ccheever/clique-tooling/epyc-linux-tooling-20260907T010007Z-0fd567d96f/bun-v1.3.12-linux-x64/bin:/usr/bin:/bin",
+    "deadline_seconds": 30,
+    "started_unix": 1788754549.2408245,
+    "hashes": {
+      "/home/ccheever/clique-tooling/epyc-linux-tooling-20260907T010007Z-0fd567d96f/bun-v1.3.12-linux-x64/bin/bun": "92a1cd8b6185f676010bb18e767dfc65c772273e79ae9984480843261939eeaa",
+      "evidence/probe.ts": "3cb5221d2a250fe8e0ab76c84bdbfa0891a40d22946462c8d62abc79d0424eb1",
+      "factual-inputs/insert-cases-final4.json": "3e472f4a3ca2d9044ee4f2fac6e91f99769e5e79076f2899e2b64e1d8a24fdec"
+    },
+    "exit": 0,
+    "elapsed_seconds": 0.4650170779787004,
+    "timed_out": false,
+    "output_hashes": {
+      "stdout.txt": "e138e6be489fb5f87c5932e244308b58eca5d35eb2e57a561e3d884d857a0c49",
+      "stderr.txt": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  },
+  "selected-parent-4": {
+    "pid": 3654017,
+    "cmd": [
+      "/home/ccheever/clique-tooling/epyc-linux-tooling-20260907T010007Z-0fd567d96f/bun-v1.3.12-linux-x64/bin/bun",
+      "evidence/probe.ts",
+      "parent",
+      "factual-inputs/insert-cases-final4.json",
+      "32,37,38,39",
+      "selected"
+    ],
+    "cwd": "/home/ccheever/clique-reviews/compiler-insert-r15-dd54-4d5c8109db/astra",
+    "PATH": "/home/ccheever/clique-tooling/epyc-linux-tooling-20260907T010007Z-0fd567d96f/node-v22.23.2-linux-x64/bin:/home/ccheever/clique-tooling/epyc-linux-tooling-20260907T010007Z-0fd567d96f/bun-v1.3.12-linux-x64/bin:/usr/bin:/bin",
+    "deadline_seconds": 30,
+    "started_unix": 1788754555.2623389,
+    "hashes": {
+      "/home/ccheever/clique-tooling/epyc-linux-tooling-20260907T010007Z-0fd567d96f/bun-v1.3.12-linux-x64/bin/bun": "92a1cd8b6185f676010bb18e767dfc65c772273e79ae9984480843261939eeaa",
+      "evidence/probe.ts": "3cb5221d2a250fe8e0ab76c84bdbfa0891a40d22946462c8d62abc79d0424eb1",
+      "factual-inputs/insert-cases-final4.json": "3e472f4a3ca2d9044ee4f2fac6e91f99769e5e79076f2899e2b64e1d8a24fdec"
+    },
+    "exit": 0,
+    "elapsed_seconds": 0.46508897212333977,
+    "timed_out": false,
+    "output_hashes": {
+      "stdout.txt": "d2a913326054d4439319aa2c19a4590b6f36a028be683ffaacba78edf950e542",
+      "stderr.txt": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  },
+  "selected-parent-5": {
+    "pid": 3654193,
+    "cmd": [
+      "/home/ccheever/clique-tooling/epyc-linux-tooling-20260907T010007Z-0fd567d96f/bun-v1.3.12-linux-x64/bin/bun",
+      "evidence/probe.ts",
+      "parent",
+      "factual-inputs/insert-cases-final4.json",
+      "44,45",
+      "selected"
+    ],
+    "cwd": "/home/ccheever/clique-reviews/compiler-insert-r15-dd54-4d5c8109db/astra",
+    "PATH": "/home/ccheever/clique-tooling/epyc-linux-tooling-20260907T010007Z-0fd567d96f/node-v22.23.2-linux-x64/bin:/home/ccheever/clique-tooling/epyc-linux-tooling-20260907T010007Z-0fd567d96f/bun-v1.3.12-linux-x64/bin:/usr/bin:/bin",
+    "deadline_seconds": 30,
+    "started_unix": 1788754561.3331778,
+    "hashes": {
+      "/home/ccheever/clique-tooling/epyc-linux-tooling-20260907T010007Z-0fd567d96f/bun-v1.3.12-linux-x64/bin/bun": "92a1cd8b6185f676010bb18e767dfc65c772273e79ae9984480843261939eeaa",
+      "evidence/probe.ts": "3cb5221d2a250fe8e0ab76c84bdbfa0891a40d22946462c8d62abc79d0424eb1",
+      "factual-inputs/insert-cases-final4.json": "3e472f4a3ca2d9044ee4f2fac6e91f99769e5e79076f2899e2b64e1d8a24fdec"
+    },
+    "exit": 0,
+    "elapsed_seconds": 0.41519663389772177,
+    "timed_out": false,
+    "output_hashes": {
+      "stdout.txt": "a6386792e2ebfef234a2d8e71b85ae3934968c8871be8d655064b1741439ca73",
+      "stderr.txt": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  },
+  "spread-corrected-candidate": {
+    "pid": 3682506,
+    "cmd": [
+      "/home/ccheever/clique-tooling/epyc-linux-tooling-20260907T010007Z-0fd567d96f/bun-v1.3.12-linux-x64/bin/bun",
+      "evidence/probe.ts",
+      "candidate",
+      "evidence/spread-corrected.json",
+      "0",
+      "spread-corrected"
+    ],
+    "cwd": "/home/ccheever/clique-reviews/compiler-insert-r15-dd54-4d5c8109db/astra",
+    "PATH": "/home/ccheever/clique-tooling/epyc-linux-tooling-20260907T010007Z-0fd567d96f/node-v22.23.2-linux-x64/bin:/home/ccheever/clique-tooling/epyc-linux-tooling-20260907T010007Z-0fd567d96f/bun-v1.3.12-linux-x64/bin:/usr/bin:/bin",
+    "deadline_seconds": 30,
+    "started_unix": 1788754866.5553234,
+    "hashes": {
+      "/home/ccheever/clique-tooling/epyc-linux-tooling-20260907T010007Z-0fd567d96f/bun-v1.3.12-linux-x64/bin/bun": "92a1cd8b6185f676010bb18e767dfc65c772273e79ae9984480843261939eeaa",
+      "evidence/probe.ts": "3cb5221d2a250fe8e0ab76c84bdbfa0891a40d22946462c8d62abc79d0424eb1",
+      "evidence/spread-corrected.json": "3f3d41971612afefe729420ff874ebb59157ab728e69489a8820672fca6f3751"
+    },
+    "exit": 0,
+    "elapsed_seconds": 0.3650636808015406,
+    "timed_out": false,
+    "output_hashes": {
+      "stdout.txt": "b943007c97e2ddf6af3b9df2b7473796dd9a7f349fecc5e601f03f09aeb4d32c",
+      "stderr.txt": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  },
+  "spread-corrected-parent": {
+    "pid": 3682329,
+    "cmd": [
+      "/home/ccheever/clique-tooling/epyc-linux-tooling-20260907T010007Z-0fd567d96f/bun-v1.3.12-linux-x64/bin/bun",
+      "evidence/probe.ts",
+      "parent",
+      "evidence/spread-corrected.json",
+      "0",
+      "spread-corrected"
+    ],
+    "cwd": "/home/ccheever/clique-reviews/compiler-insert-r15-dd54-4d5c8109db/astra",
+    "PATH": "/home/ccheever/clique-tooling/epyc-linux-tooling-20260907T010007Z-0fd567d96f/node-v22.23.2-linux-x64/bin:/home/ccheever/clique-tooling/epyc-linux-tooling-20260907T010007Z-0fd567d96f/bun-v1.3.12-linux-x64/bin:/usr/bin:/bin",
+    "deadline_seconds": 30,
+    "started_unix": 1788754860.7887042,
+    "hashes": {
+      "/home/ccheever/clique-tooling/epyc-linux-tooling-20260907T010007Z-0fd567d96f/bun-v1.3.12-linux-x64/bin/bun": "92a1cd8b6185f676010bb18e767dfc65c772273e79ae9984480843261939eeaa",
+      "evidence/probe.ts": "3cb5221d2a250fe8e0ab76c84bdbfa0891a40d22946462c8d62abc79d0424eb1",
+      "evidence/spread-corrected.json": "3f3d41971612afefe729420ff874ebb59157ab728e69489a8820672fca6f3751"
+    },
+    "exit": 0,
+    "elapsed_seconds": 0.3651277278549969,
+    "timed_out": false,
+    "output_hashes": {
+      "stdout.txt": "dbf0e0e73aeed8d661d452144e725e1cc35a0e0e7c3d98609dfc3bc2ffdd5206",
+      "stderr.txt": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  },
+  "types-candidate-production": {
+    "pid": 3677183,
+    "cmd": [
+      "/home/ccheever/clique-tooling/epyc-linux-tooling-20260907T010007Z-0fd567d96f/node-v22.23.2-linux-x64/bin/node",
+      "evidence/types.mjs",
+      "candidate",
+      "production"
+    ],
+    "cwd": "/home/ccheever/clique-reviews/compiler-insert-r15-dd54-4d5c8109db/astra",
+    "PATH": "/home/ccheever/clique-tooling/epyc-linux-tooling-20260907T010007Z-0fd567d96f/node-v22.23.2-linux-x64/bin:/home/ccheever/clique-tooling/epyc-linux-tooling-20260907T010007Z-0fd567d96f/bun-v1.3.12-linux-x64/bin:/usr/bin:/bin",
+    "deadline_seconds": 30,
+    "started_unix": 1788754764.857638,
+    "hashes": {
+      "/home/ccheever/clique-tooling/epyc-linux-tooling-20260907T010007Z-0fd567d96f/node-v22.23.2-linux-x64/bin/node": "3517c2df0b2f8cd7f422b4b8450ef81c6889f08eb03e281d6de9079b15e6a327",
+      "evidence/types.mjs": "4f27c92dff03d9591efddd9b8a8a295db8f95d2e84fd3ab3f90c55068a32322e"
+    },
+    "exit": 0,
+    "elapsed_seconds": 2.8708953668829054,
+    "timed_out": false,
+    "output_hashes": {
+      "stdout.txt": "d4fd05271727fb8c1beb376b3e9b912b8d675108c169ba21f0bc7e9fd160d52a",
+      "stderr.txt": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  },
+  "types-candidate-tests": {
+    "pid": 3677696,
+    "cmd": [
+      "/home/ccheever/clique-tooling/epyc-linux-tooling-20260907T010007Z-0fd567d96f/node-v22.23.2-linux-x64/bin/node",
+      "evidence/types.mjs",
+      "candidate",
+      "tests"
+    ],
+    "cwd": "/home/ccheever/clique-reviews/compiler-insert-r15-dd54-4d5c8109db/astra",
+    "PATH": "/home/ccheever/clique-tooling/epyc-linux-tooling-20260907T010007Z-0fd567d96f/node-v22.23.2-linux-x64/bin:/home/ccheever/clique-tooling/epyc-linux-tooling-20260907T010007Z-0fd567d96f/bun-v1.3.12-linux-x64/bin:/usr/bin:/bin",
+    "deadline_seconds": 30,
+    "started_unix": 1788754775.8229926,
+    "hashes": {
+      "/home/ccheever/clique-tooling/epyc-linux-tooling-20260907T010007Z-0fd567d96f/node-v22.23.2-linux-x64/bin/node": "3517c2df0b2f8cd7f422b4b8450ef81c6889f08eb03e281d6de9079b15e6a327",
+      "evidence/types.mjs": "4f27c92dff03d9591efddd9b8a8a295db8f95d2e84fd3ab3f90c55068a32322e"
+    },
+    "exit": 1,
+    "elapsed_seconds": 3.221152731915936,
+    "timed_out": false,
+    "output_hashes": {
+      "stdout.txt": "21bc6a9d22754a8358059ab27c83a2d059b9336ac9c7898517a7717cabca1cf5",
+      "stderr.txt": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  },
+  "types-parent-production": {
+    "pid": 3675999,
+    "cmd": [
+      "/home/ccheever/clique-tooling/epyc-linux-tooling-20260907T010007Z-0fd567d96f/node-v22.23.2-linux-x64/bin/node",
+      "evidence/types.mjs",
+      "parent",
+      "production"
+    ],
+    "cwd": "/home/ccheever/clique-reviews/compiler-insert-r15-dd54-4d5c8109db/astra",
+    "PATH": "/home/ccheever/clique-tooling/epyc-linux-tooling-20260907T010007Z-0fd567d96f/node-v22.23.2-linux-x64/bin:/home/ccheever/clique-tooling/epyc-linux-tooling-20260907T010007Z-0fd567d96f/bun-v1.3.12-linux-x64/bin:/usr/bin:/bin",
+    "deadline_seconds": 30,
+    "started_unix": 1788754759.542924,
+    "hashes": {
+      "/home/ccheever/clique-tooling/epyc-linux-tooling-20260907T010007Z-0fd567d96f/node-v22.23.2-linux-x64/bin/node": "3517c2df0b2f8cd7f422b4b8450ef81c6889f08eb03e281d6de9079b15e6a327",
+      "evidence/types.mjs": "4f27c92dff03d9591efddd9b8a8a295db8f95d2e84fd3ab3f90c55068a32322e"
+    },
+    "exit": 0,
+    "elapsed_seconds": 2.869715502951294,
+    "timed_out": false,
+    "output_hashes": {
+      "stdout.txt": "a12106b3afda0998e4ab8cdc7e7ef13653ba5951c06b9a7baf912923314d607d",
+      "stderr.txt": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  },
+  "types-parent-tests": {
+    "pid": 3677615,
+    "cmd": [
+      "/home/ccheever/clique-tooling/epyc-linux-tooling-20260907T010007Z-0fd567d96f/node-v22.23.2-linux-x64/bin/node",
+      "evidence/types.mjs",
+      "parent",
+      "tests"
+    ],
+    "cwd": "/home/ccheever/clique-reviews/compiler-insert-r15-dd54-4d5c8109db/astra",
+    "PATH": "/home/ccheever/clique-tooling/epyc-linux-tooling-20260907T010007Z-0fd567d96f/node-v22.23.2-linux-x64/bin:/home/ccheever/clique-tooling/epyc-linux-tooling-20260907T010007Z-0fd567d96f/bun-v1.3.12-linux-x64/bin:/usr/bin:/bin",
+    "deadline_seconds": 30,
+    "started_unix": 1788754770.1784987,
+    "hashes": {
+      "/home/ccheever/clique-tooling/epyc-linux-tooling-20260907T010007Z-0fd567d96f/node-v22.23.2-linux-x64/bin/node": "3517c2df0b2f8cd7f422b4b8450ef81c6889f08eb03e281d6de9079b15e6a327",
+      "evidence/types.mjs": "4f27c92dff03d9591efddd9b8a8a295db8f95d2e84fd3ab3f90c55068a32322e"
+    },
+    "exit": 1,
+    "elapsed_seconds": 3.1720339749008417,
+    "timed_out": false,
+    "output_hashes": {
+      "stdout.txt": "244b0c79970aa423585d0acaeb2e01b0ad036593666cfe5c2de79d18d4adf59e",
+      "stderr.txt": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  },
+  "verify-after": {
+    "pid": 3686077,
+    "cmd": [
+      "/usr/bin/python3",
+      "evidence/verify.py",
+      "remote-after"
+    ],
+    "cwd": "/home/ccheever/clique-reviews/compiler-insert-r15-dd54-4d5c8109db/astra",
+    "PATH": "/home/ccheever/clique-tooling/epyc-linux-tooling-20260907T010007Z-0fd567d96f/node-v22.23.2-linux-x64/bin:/home/ccheever/clique-tooling/epyc-linux-tooling-20260907T010007Z-0fd567d96f/bun-v1.3.12-linux-x64/bin:/usr/bin:/bin",
+    "deadline_seconds": 30,
+    "started_unix": 1788755008.8590674,
+    "hashes": {
+      "/usr/bin/python3": "1643dacd9feaedc58f3cc581e4d22577dfe25c09b10282936186ccf0f2e61118",
+      "evidence/verify.py": "5a23fa2e7fa0059ab585a3898089862e321243f2bfe5f1d6eba6e344bccce15f"
+    },
+    "exit": 0,
+    "elapsed_seconds": 0.21479299291968346,
+    "timed_out": false,
+    "output_hashes": {
+      "stdout.txt": "6f61bff2217c3688c8842b8420aaf1f4cf6ea4b7c18be2a3dad3eae27204665b",
+      "stderr.txt": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  },
+  "verify-before": {
+    "pid": 3622238,
+    "cmd": [
+      "/usr/bin/python3",
+      "evidence/verify.py",
+      "remote-before"
+    ],
+    "cwd": "/home/ccheever/clique-reviews/compiler-insert-r15-dd54-4d5c8109db/astra",
+    "PATH": "/home/ccheever/clique-tooling/epyc-linux-tooling-20260907T010007Z-0fd567d96f/node-v22.23.2-linux-x64/bin:/home/ccheever/clique-tooling/epyc-linux-tooling-20260907T010007Z-0fd567d96f/bun-v1.3.12-linux-x64/bin:/usr/bin:/bin",
+    "deadline_seconds": 30,
+    "started_unix": 1788754133.8757863,
+    "hashes": {
+      "/usr/bin/python3": "1643dacd9feaedc58f3cc581e4d22577dfe25c09b10282936186ccf0f2e61118",
+      "evidence/verify.py": "5a23fa2e7fa0059ab585a3898089862e321243f2bfe5f1d6eba6e344bccce15f"
+    },
+    "exit": 0,
+    "elapsed_seconds": 0.21482298290356994,
+    "timed_out": false,
+    "output_hashes": {
+      "stdout.txt": "29fad7ea71d4e3725f356cbaf37e17a23eb99cd1d5fcdb9ccd82f8c2af1b7c53",
+      "stderr.txt": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  }
+}

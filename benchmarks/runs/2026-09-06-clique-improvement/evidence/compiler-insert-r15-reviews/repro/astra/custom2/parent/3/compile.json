@@ -1,0 +1,15 @@
+{
+  "ok": false,
+  "diagnostics": [
+    {
+      "code": "E_PROVENANCE_AMBIGUOUS",
+      "family": "opaque",
+      "message": "read key provenance is ambiguous; each key must follow one direct origin rule; candidate direct origins: <unknown origin>",
+      "site": "snapback/probe.ts:1:260",
+      "rule": "read keys have one unambiguous origin",
+      "rewrite": "import {mutation,t} from 'snapback2';import {records} from './schema';export const probe=mutation({payload:t.json(100)},({db,ctx,args})=>{db=args.payload as any;const row=db.insert(records,{id:ctx.newId(),d3:2,payload:null});return {row,stored:db.get(records,[(() => { throw new Error(\"E_PROVENANCE_AMBIGUOUS: choose one direct origin: <unknown origin>\"); })()]),next:ctx.newId()};});",
+      "guide": "opaque/provenance"
+    }
+  ],
+  "ms": 125.17
+}

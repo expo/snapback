@@ -1,0 +1,20 @@
+{
+  "name": "JSON insert captured missing optional key before reassignment",
+  "public": false,
+  "schema": "import {schema,table,t,rule} from 'snapback2';export const records=table({columns:{key:t.optional(t.id()),payload:t.optional(t.json(1000))},indexes:{byKey:{columns:['key'],unique:true}},rules:{read:rule.allow(),insert:rule.allow()}});export default schema({tables:{records}});",
+  "source": "import {mutation,t} from 'snapback2';import {records} from './schema';export const probe=mutation({payload:t.json(1000)},({db,ctx,args})=>{let row:any=db.insert(records,args.payload as any);const box={row,key:row.key};row=null;return db.get(records.byKey,[box.key]);});",
+  "runs": [
+    {
+      "args": {
+        "payload": {
+          "Row": {
+            "id": {
+              "Id": "given"
+            },
+            "payload": "Null"
+          }
+        }
+      }
+    }
+  ]
+}

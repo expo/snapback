@@ -1015,3 +1015,10 @@ The third full R8 review finds two more gaps that narrow store tests missed. Aft
 The next coherent ownership replacement must carry exact issuing-key and missing/fallback custody into receipt comparison and preserve the local partial result through public retry/subscription paths. Keeping the old row-pool hash as a shortcut would retain both the duplicate work and the semantic bug. Complete Astra/Grok verdicts disagree; both actual terminals and the disclosed Astra coordination-file read are preserved. [Round3 evidence](../benchmarks/runs/2026-09-06-clique-improvement/evidence/offline-full-r8-review-r3/README.md).
 
 This is required correctness work, not byte-budget progress:73,023gzip is still7,023over66,000, original movement deadlines remain unqualified, and historical resident results do not qualify this current source. Existing Convex/Supabase baselines remain fixed; no new full Clique score follows.
+
+
+### 2026-09-07 — Insert-result proof must describe the actual captured value
+
+Both independent R15 reviews require changes despite the original public inserted-row lookup now working. Unknown private insert inputs can borrow table column names and produce a certified Shape key whose actual member is missing. A reassigned database receiver can also retain new row authority; exact source execution throws while lowered IR performs database work. Parent controls distinguish these new acceptances from inherited dispatch and direct optional-member behavior.
+
+[Complete reviews, actual identities and exact counterexamples](../benchmarks/runs/2026-09-06-clique-improvement/evidence/compiler-insert-r15-reviews/README.md) preserve the working public values, original failures, certificate-only limits and corrected manifest custody. The same author is repairing snapshot-member and current-receiver proof on a separate R16 stage under original deadlines. No product clearance, issue closure, competitor rerun or standalone compiler landing follows; coordinated execution-graph integration remains required.
