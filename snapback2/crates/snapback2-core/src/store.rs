@@ -41,6 +41,13 @@ pub struct TouchedKey {
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ScopeTouch {
+    pub table: String,
+    pub index: String,
+    pub prefix: Vec<Value>,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CommitRecord {
     pub seq: u64,
@@ -56,6 +63,7 @@ pub struct CommitRecord {
     #[serde(flatten, default, skip_serializing_if = "Option::is_none")]
     pub schedule: Option<crate::timers::Firing>,
     pub touched: Vec<TouchedKey>,
+    pub scope_touches: Vec<ScopeTouch>,
     pub writes: BTreeMap<String, u64>,
     pub emits: u64,
 }
@@ -283,9 +291,16 @@ impl Store {
                 )
              );",
         )?;
+        ensure_column(
+            connection,
+            "_commits",
+            "scope_touches",
+            "TEXT NOT NULL DEFAULT '[]'",
+        )?;
         ensure_column(connection, "_commits", "by", "TEXT")?;
         ensure_column(connection, "_commits", "job", "TEXT")?;
         ensure_column(connection, "_commits", "job_chunk", "TEXT")?;
+        crate::engine::search_index::create(connection)?;
         crate::store_jobs::create(connection)?;
         crate::store_timers::create(connection)?;
         ensure_column(connection, "_commits", "schedule", "TEXT")?;
@@ -534,7 +549,7 @@ impl Store {
 
     pub fn commits_since(&self, seq: u64, limit: usize) -> Result<Vec<CommitRecord>, RuntimeError> {
         let mut statement = self.conn.prepare(
-            "SELECT seq, at, program, principal, kind, touched, writes, emits, by, job, job_chunk, schedule
+            "SELECT seq, at, program, principal, kind, touched, writes, emits, by, job, job_chunk, schedule, scope_touches
              FROM _commits WHERE seq > ?1 ORDER BY seq ASC LIMIT ?2",
         )?;
         let rows = statement.query_map(params![seq as i64, limit as i64], |row| {
@@ -551,6 +566,7 @@ impl Store {
                 row.get::<_, Option<String>>(9)?,
                 row.get::<_, Option<String>>(10)?,
                 row.get::<_, Option<String>>(11)?,
+                row.get::<_, String>(12)?,
             ))
         })?;
         rows.map(|row| {
@@ -567,6 +583,7 @@ impl Store {
                 job,
                 job_chunk,
                 schedule,
+                scope_touches,
             ) = row?;
             Ok(CommitRecord {
                 seq: seq.max(0) as u64,
@@ -584,6 +601,7 @@ impl Store {
                     .as_deref()
                     .map(crate::store_jobs::decode)
                     .transpose()?,
+                scope_touches: crate::store_jobs::decode(&scope_touches)?,
                 touched: serde_json::from_str(&touched)
                     .map_err(|error| RuntimeError::Serialization(error.to_string()))?,
                 writes: serde_json::from_str(&writes)
@@ -860,7 +878,7 @@ impl Store {
         let asset_ids = crate::assets_ledger::clear_assets(&transaction)?;
         transaction.execute_batch(
             "DELETE FROM _asset_views;
-             DELETE FROM index_entries;
+             DELETE FROM index_entries; DELETE FROM _search_postings; DELETE FROM _search_nodes;
              DELETE FROM rows;
              DELETE FROM _commits;
              DELETE FROM _outbox;

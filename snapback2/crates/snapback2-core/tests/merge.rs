@@ -19,7 +19,7 @@ fn fixture(lanes: u32, take: u32) -> (Schema, Program) {
     merge.lanes[0].scan.after = Some(Box::new(var("c")));
     let mut own = merge.lanes[0].clone();
     own.scan.site = "self".into();
-    own.scan.prefix = vec![Expr::Input(Input::Viewer)];
+    own.scan.prefix = vec![IndexKeyExpr::Scalar(Expr::Input(Input::Viewer))];
     own.source = None;
     own.binding.clear();
     merge.lanes.insert(0, own);
@@ -656,13 +656,23 @@ fn page_provenance_is_derived_and_requires_an_unmodified_ordered_collector() {
 #[test]
 fn repeated_page_site_cannot_select_an_auxiliary_scan_or_merge() {
     let (schema, mut program) = fixture(2, 3);
-    let Stmt::Return(page) = &program.body[0] else { unreachable!() };
+    let Stmt::Return(page) = &program.body[0] else {
+        unreachable!()
+    };
     program.body = vec![
-        Stmt::Const { name: "returned".into(), value: page.clone() },
-        Stmt::Const { name: "auxiliary".into(), value: page.clone() },
+        Stmt::Const {
+            name: "returned".into(),
+            value: page.clone(),
+        },
+        Stmt::Const {
+            name: "auxiliary".into(),
+            value: page.clone(),
+        },
         Stmt::Return(var("returned")),
     ];
-    let errors = Checker::new(&schema, Ceilings::default()).check(&program).unwrap_err();
+    let errors = Checker::new(&schema, Ceilings::default())
+        .check(&program)
+        .unwrap_err();
     assert_eq!(errors.code, "E_TRACE_SUBSET");
 }
 
@@ -671,7 +681,10 @@ fn nested_auxiliary_page(operand: &str, duplicate: bool) -> (Schema, Program) {
     schema.tables.get_mut("posts").unwrap().indexes.insert(
         "byUniqueAt".into(),
         Index {
-            columns: vec!["at".into()],
+            components: (vec!["at".into()])
+                .into_iter()
+                .map(snapback2_core::search_key::IndexComponent::Column)
+                .collect(),
             unique: true,
         },
     );
@@ -681,7 +694,7 @@ fn nested_auxiliary_page(operand: &str, duplicate: bool) -> (Schema, Program) {
     let mut page = merge.lanes[0].scan.clone();
     page.site = "page".into();
     page.merge_site = None;
-    page.prefix = vec![var("who")];
+    page.prefix = vec![IndexKeyExpr::Scalar(var("who"))];
     page.order = Order::Asc;
     let mut nested = page.clone();
     if !duplicate {
@@ -707,7 +720,7 @@ fn nested_auxiliary_page(operand: &str, duplicate: bool) -> (Schema, Program) {
     let position = Expr::Array(vec![count.clone(), lit(Value::Id("boundary".into()))]);
     let field = operand.rsplit('-').next().unwrap();
     match field {
-        "prefix" => outer.prefix = vec![count.clone()],
+        "prefix" => outer.prefix = vec![IndexKeyExpr::Scalar(count.clone())],
         "after" => outer.after = Some(Box::new(position.clone())),
         "before" => outer.before = Some(Box::new(position)),
         "gt" | "gte" | "lt" | "lte" => {
@@ -757,6 +770,7 @@ fn nested_auxiliary_page(operand: &str, duplicate: bool) -> (Schema, Program) {
                 }];
             }
             Expr::Merge(Merge {
+                held_search: None,
                 site: "auxiliary-merge".into(),
                 lanes: vec![lane],
             })
@@ -828,7 +842,7 @@ fn nested_auxiliary_page_sites_are_refused_in_every_read_operand() {
             Ok(certificate) => {
                 let mut evidence = String::new();
                 if matches!(operand, "get" | "exists") {
-                    let mut engine = Engine::memory(schema).unwrap();
+                    let mut engine = Engine::memory(schema.clone()).unwrap();
                     for (author, base) in [("A", 0), ("B", 99)] {
                         for n in 1..=3 {
                             engine
@@ -845,7 +859,7 @@ fn nested_auxiliary_page_sites_are_refused_in_every_read_operand() {
                     evidence = format!(
                         "; returned {:?}, cursor {:?}",
                         ids(&result.result),
-                        cursor::decode_cursor(result.next.as_ref().unwrap())
+                        cursor::decode_cursor(&schema, result.next.as_ref().unwrap())
                             .unwrap()
                             .values
                     );
@@ -886,7 +900,7 @@ fn distinct_nested_auxiliary_page_preserves_returned_cursor_and_cross_operation_
             .unwrap();
         assert_eq!(ids(&first.result), ["A1", "A2"]);
         assert_eq!(
-            cursor::decode_cursor(first.next.as_ref().unwrap())
+            cursor::decode_cursor(&schema, first.next.as_ref().unwrap())
                 .unwrap()
                 .values,
             vec![Value::Int(2), Value::Id("A2".into())]
@@ -910,7 +924,7 @@ fn distinct_nested_auxiliary_page_preserves_returned_cursor_and_cross_operation_
             .unwrap();
         assert_eq!(ids(&second.result), ["A3"]);
         assert_eq!(
-            cursor::decode_cursor(second.next.as_ref().unwrap())
+            cursor::decode_cursor(&schema, second.next.as_ref().unwrap())
                 .unwrap()
                 .values,
             vec![Value::Int(3), Value::Id("A3".into())]
@@ -934,7 +948,7 @@ fn malformed_opaque_page_prefix_returns_accumulated_diagnostics() {
     let Stmt::Return(Expr::Scan(scan)) = &mut program.body[0] else {
         unreachable!()
     };
-    scan.prefix = vec![lit(Value::Int(1)); 3];
+    scan.prefix = vec![IndexKeyExpr::Scalar(lit(Value::Int(1))); 3];
     let errors = Checker::new(&schema, Ceilings::default())
         .check_all(&program)
         .unwrap_err();

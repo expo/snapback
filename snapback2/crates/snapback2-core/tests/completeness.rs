@@ -1,4 +1,5 @@
 use serde::Serialize;
+use snapback2_core::ir::IndexKeyExpr;
 use snapback2_core::*;
 use std::collections::BTreeMap;
 
@@ -14,14 +15,20 @@ fn documents(index_scope: &str) -> Table {
             (
                 "byId".to_owned(),
                 Index {
-                    columns: vec!["id".to_owned()],
+                    components: (vec!["id".to_owned()])
+                        .into_iter()
+                        .map(snapback2_core::search_key::IndexComponent::Column)
+                        .collect(),
                     unique: true,
                 },
             ),
             (
                 "byScope".to_owned(),
                 Index {
-                    columns: vec![index_scope.to_owned(), "order".to_owned(), "id".to_owned()],
+                    components: (vec![index_scope.to_owned(), "order".to_owned(), "id".to_owned()])
+                        .into_iter()
+                        .map(snapback2_core::search_key::IndexComponent::Column)
+                        .collect(),
                     unique: false,
                 },
             ),
@@ -45,7 +52,10 @@ fn schema(index_scope: &str) -> Schema {
                     BTreeMap::from([(
                         "byId".to_owned(),
                         Index {
-                            columns: vec!["id".to_owned()],
+                            components: (vec!["id".to_owned()])
+                                .into_iter()
+                                .map(snapback2_core::search_key::IndexComponent::Column)
+                                .collect(),
                             unique: true,
                         },
                     )]),
@@ -61,7 +71,10 @@ fn schema(index_scope: &str) -> Schema {
                     BTreeMap::from([(
                         "byId".to_owned(),
                         Index {
-                            columns: vec!["id".to_owned()],
+                            components: (vec!["id".to_owned()])
+                                .into_iter()
+                                .map(snapback2_core::search_key::IndexComponent::Column)
+                                .collect(),
                             unique: true,
                         },
                     )]),
@@ -81,7 +94,10 @@ fn page(after: Option<Expr>, take: u32) -> Scan {
         site: "docs.page".to_owned(),
         table: "docs".to_owned(),
         index: "byScope".to_owned(),
-        prefix: vec![var("scope")],
+        prefix: (vec![var("scope")])
+            .into_iter()
+            .map(IndexKeyExpr::Scalar)
+            .collect(),
         order: Order::Asc,
         take: Bound::Literal(take),
         after: after.map(Box::new),
@@ -133,11 +149,21 @@ fn words_cannot_erase_capped_page_dependence_through_text_conversion() {
         builtin: Builtin::Words,
         args: vec![Expr::Builtin {
             builtin: Builtin::Concat,
-            args: vec![Expr::Literal(Value::String(String::new())), Expr::Scan(page(None, 20))],
+            args: vec![
+                Expr::Literal(Value::String(String::new())),
+                Expr::Scan(page(None, 20)),
+            ],
         }],
     })];
-    let errors = Checker::new(&schema, Ceilings::default()).check_all(&program).unwrap_err();
-    assert!(errors.iter().any(|error| error.code == "E_STRUCTURAL_COUNT"), "{errors:?}");
+    let errors = Checker::new(&schema, Ceilings::default())
+        .check_all(&program)
+        .unwrap_err();
+    assert!(
+        errors
+            .iter()
+            .any(|error| error.code == "E_STRUCTURAL_COUNT"),
+        "{errors:?}"
+    );
 }
 
 fn doc(id: &str, group: &str, owner: &str, order: i64) -> Value {
@@ -203,7 +229,7 @@ fn execute_with_examined_ceiling(
         .unwrap()
 }
 
-#[derive(Serialize, PartialEq, Debug)]
+#[derive(Serialize, Debug)]
 struct ViewerObservable<'a> {
     result: &'a Value,
     receipt: &'a snapback2_core::engine::ClosureReceipt,
@@ -670,7 +696,10 @@ fn enriched_schema(uniform: bool) -> Schema {
         BTreeMap::from([(
             "byId".to_owned(),
             Index {
-                columns: vec!["id".to_owned()],
+                components: (vec!["id".to_owned()])
+                    .into_iter()
+                    .map(snapback2_core::search_key::IndexComponent::Column)
+                    .collect(),
                 unique: true,
             },
         )]),
@@ -688,7 +717,10 @@ fn enriched_schema(uniform: bool) -> Schema {
             BTreeMap::from([(
                 "byDocViewer".to_owned(),
                 Index {
-                    columns: vec!["doc".to_owned(), "viewer".to_owned()],
+                    components: (vec!["doc".to_owned(), "viewer".to_owned()])
+                        .into_iter()
+                        .map(snapback2_core::search_key::IndexComponent::Column)
+                        .collect(),
                     unique: true,
                 },
             )]),
@@ -1137,7 +1169,7 @@ fn enriched_capped_page_cursors_follow_only_returned_rows() {
             .next
             .as_ref()
             .expect("nonempty capped page has a cursor");
-        let position = decode_cursor(next).unwrap();
+        let position = decode_cursor(&schema, next).unwrap();
         assert_eq!(
             position.values,
             vec![Value::Int(order), Value::Id(id.to_owned())]

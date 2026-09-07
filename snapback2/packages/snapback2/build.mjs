@@ -1,3 +1,4 @@
+import { gzipSync } from "node:zlib";
 import { cp, link, mkdir, open, readFile, readdir, rm, stat, unlink, writeFile } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import { randomUUID } from "node:crypto";
@@ -11,6 +12,23 @@ generateUnicodeTables();
 if (process.argv.includes("--unicode-only")) process.exit(0);
 
 const here = dirname(fileURLToPath(import.meta.url));
+if (process.argv.includes("--measure-twin")) {
+  const measured = await build({ stdin: { contents: [
+    "export * from './src/twin.ts'; export { serverArguments } from './src/local-cursor.ts'; export { reduceQueryState } from './src/types.ts';",
+    "export { PersistentRangeStore } from './src/store/range-store.ts';",
+    "export { OfflineRuntime, offlineView } from './src/offline.ts';",
+    "export * as carrierProjection from './src/store/projection.ts';",
+    "export * as receiptProtocol from './src/offline-protocol.ts';",
+  ].join("\n"), resolveDir: here, loader: "ts" }, bundle: true, minify: true,
+    platform: "neutral", format: "esm", target: "es2022", write: false, metafile: true });
+  const bytes = measured.outputFiles[0].contents, gzip = gzipSync(bytes, { level: 9 }).length;
+  const required = ["unicode-tables", "index-store", "twin-store", "swap-journal", "carrier-index", "metadata", "projection", "range-store", "offline.ts", "offline-protocol", "local-cursor", "held-program"];
+  const inputs = Object.keys(measured.metafile.inputs);
+  for (const name of required) if (!inputs.some(p => p.includes(name))) throw new Error(`unmeasured twin implementation: ${name}`);
+  console.log(JSON.stringify({ entry: "complete-local-runtime", minified: bytes.length, gzip, ceiling: 66000, target: 64000, inputs }));
+  if (gzip > 66000) throw new Error(`twin exceeds 66000 gzip bytes: ${gzip}`);
+  process.exit(0);
+}
 const dist = resolve(here, "dist");
 const packageBuildLock = resolve(here, "../../target/b2-package-build.lock");
 const packageBuildLockHeld = process.env.SNAPBACK2_PACKAGE_BUILD_LOCK_HELD === "1";
@@ -32,6 +50,20 @@ const externalClient = {
   },
 };
 
+// All public arms import one private nominal image module. No global brand registry or public export is needed.
+const imageModules = new Set(['row-image','range-preparation','errors','unicode'].map(name => resolve(here, `../evaluator/src/${name}`)));
+const imageRuntime = (path = './image-runtime.mjs') => ({
+  name: 'shared-image-runtime',
+  setup(builder) {
+    builder.onResolve({ filter: /(?:row-image|range-preparation|errors|unicode)(?:\.[jt]s)?$/ }, args => {
+      const target = resolve(dirname(args.importer), args.path.replace(/\.[jt]s$/, ''));
+      if (imageModules.has(target)) return { path, external: true };
+    });
+  },
+});
+await build({ entryPoints: [resolve(here,'src/image-runtime.ts')], outdir: dist, outExtension: { '.js': '.mjs' },
+  bundle: true, minify: true, sourcemap: true, platform: 'neutral', format: 'esm', target: 'es2022' });
+
 await build({
   entryPoints: {
     index: resolve(here, "src/index.ts"),
@@ -39,7 +71,6 @@ await build({
     react: resolve(here, "src/react.tsx"),
     "react-core": resolve(here, "src/react-core.tsx"),
     expo: resolve(here, "src/expo.ts"),
-    "expo/witness": resolve(here, "src/expo/witness.ts"),
     "react-native": resolve(here, "src/react-native.tsx"),
     "witness-test": resolve(here, "tests/witness-exports.ts"),
   },
@@ -52,8 +83,14 @@ await build({
   platform: "neutral",
   target: "es2022",
   external: ["expo", "react", "react-native", "expo-file-system", "expo/fetch", "expo-video", "expo-sqlite", "expo-secure-store", "snapback2/client", "snapback2/react-core", "snapback2/expo", "snapback2/react-native", "snapback2/expo/witness"],
-  plugins: [externalClient],
+  plugins: [externalClient, imageRuntime()],
 });
+
+// This existing nested entry uses the same module by its relative output location.
+await build({ entryPoints: { 'expo/witness': resolve(here,'src/expo/witness.ts') }, outdir: dist,
+  outExtension: { '.js': '.mjs' }, sourcemap: true, bundle: true, format: 'esm', minify: true,
+  platform: 'neutral', target: 'es2022', external: ['expo','react','react-native','expo-file-system','expo/fetch','expo-video','expo-sqlite','expo-secure-store','snapback2/client','snapback2/react-core','snapback2/expo','snapback2/react-native','snapback2/expo/witness'],
+  plugins: [externalClient,imageRuntime('../image-runtime.mjs')] });
 
 await build({
   entryPoints: {
@@ -69,6 +106,7 @@ await build({
   platform: "node",
   target: "node20",
   external: ["expo-file-system", "expo/fetch"],
+  plugins: [imageRuntime()],
 });
 
 await build({

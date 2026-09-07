@@ -61,7 +61,10 @@ fn assert_grant_shape(grant: &Value) -> (u64, u64) {
     let from = grant["from"].as_str().unwrap();
     assert_eq!(grant["id"], grant["from"]);
     let minted_at = grant["mintedAt"].as_i64().unwrap();
-    assert_eq!(grant["expiresAt"].as_i64().unwrap() - minted_at, THIRTY_DAYS_MS);
+    assert_eq!(
+        grant["expiresAt"].as_i64().unwrap() - minted_at,
+        THIRTY_DAYS_MS
+    );
     let start = engine_sequence(from);
     (start, start + GRANT_COUNT)
 }
@@ -159,7 +162,14 @@ fn why_trace(port: u16, secret: &str, op: &str, args: Value, as_persona: &str) -
 
 /// The owner's authoritative trace of one run of `op` as `as_persona`, which
 /// must settle in `state` (`committed` for a mutation, `complete` for a query).
-fn why_trace_in_state(port: u16, secret: &str, op: &str, args: Value, as_persona: &str, state: &str) -> Value {
+fn why_trace_in_state(
+    port: u16,
+    secret: &str,
+    op: &str,
+    args: Value,
+    as_persona: &str,
+    state: &str,
+) -> Value {
     let why = request(
         port,
         "POST",
@@ -282,19 +292,39 @@ fn offline_replay_envelope_pins_ids_and_dedups_by_intent() {
     let alice = persona("alice");
 
     // Without an envelope the mutation wire is exactly today's bytes.
-    let plain = mutation(port, &alice, "messages.send", send_args("profile-bob", "plain"), Value::Null);
+    let plain = mutation(
+        port,
+        &alice,
+        "messages.send",
+        send_args("profile-bob", "plain"),
+        Value::Null,
+    );
     assert_eq!(plain.status, 200, "{}", plain.body);
     let expected = format!(
         r#"{{"data":{{"id":"{}"}},"seq":{},"state":"committed"}}"#,
         plain.body["data"]["id"].as_str().unwrap(),
         plain.body["seq"]
     );
-    assert_eq!(String::from_utf8(plain.body_bytes.clone()).unwrap(), expected);
-    let explicit_null = mutation(port, &alice, "messages.send", send_args("profile-bob", "null"), json!(null));
+    assert_eq!(
+        String::from_utf8(plain.body_bytes.clone()).unwrap(),
+        expected
+    );
+    let explicit_null = mutation(
+        port,
+        &alice,
+        "messages.send",
+        send_args("profile-bob", "null"),
+        json!(null),
+    );
     assert_eq!(explicit_null.status, 200, "{}", explicit_null.body);
     assert!(explicit_null.body.get("intent").is_none());
     assert_eq!(
-        explicit_null.body.as_object().unwrap().keys().collect::<Vec<_>>(),
+        explicit_null
+            .body
+            .as_object()
+            .unwrap()
+            .keys()
+            .collect::<Vec<_>>(),
         vec!["data", "seq", "state"]
     );
 
@@ -305,37 +335,83 @@ fn offline_replay_envelope_pins_ids_and_dedups_by_intent() {
     // Pinned ids replace the allocator's reservation: the row gets the slice's
     // first id, and the same bytes twice return the stored response with one row.
     let args = send_args("profile-bob", "pinned");
-    let first = mutation(port, &alice, "messages.send", args.clone(), envelope(&grant, 0, 8, empty_trace()));
+    let first = mutation(
+        port,
+        &alice,
+        "messages.send",
+        args.clone(),
+        envelope(&grant, 0, 8, empty_trace()),
+    );
     assert_eq!(first.status, 200, "{}", first.body);
     assert_eq!(first.body["state"], "committed", "{}", first.body);
-    assert_eq!(engine_sequence(first.body["data"]["id"].as_str().unwrap()), start);
-    assert_eq!(first.body["intent"], format!("{}:0", grant["id"].as_str().unwrap()));
+    assert_eq!(
+        engine_sequence(first.body["data"]["id"].as_str().unwrap()),
+        start
+    );
+    assert_eq!(
+        first.body["intent"],
+        format!("{}:0", grant["id"].as_str().unwrap())
+    );
     let seq_after_first = status(port, &secret)["seq"].as_u64().unwrap();
-    let retry = mutation(port, &alice, "messages.send", args.clone(), envelope(&grant, 0, 8, empty_trace()));
+    let retry = mutation(
+        port,
+        &alice,
+        "messages.send",
+        args.clone(),
+        envelope(&grant, 0, 8, empty_trace()),
+    );
     assert_eq!(retry.status, 200, "{}", retry.body);
-    assert_eq!(retry.body_bytes, first.body_bytes, "a retry returns the stored bytes");
-    assert_eq!(status(port, &secret)["seq"], seq_after_first, "a retry does not execute");
+    assert_eq!(
+        retry.body_bytes, first.body_bytes,
+        "a retry returns the stored bytes"
+    );
+    assert_eq!(
+        status(port, &secret)["seq"],
+        seq_after_first,
+        "a retry does not execute"
+    );
     assert_eq!(thread_bodies(port, &alice).len(), before + 1);
 
     // The same intent with different bytes is a reuse.
-    let reuse = mutation(port, &alice, "messages.send", send_args("profile-bob", "different"), envelope(&grant, 0, 8, empty_trace()));
+    let reuse = mutation(
+        port,
+        &alice,
+        "messages.send",
+        send_args("profile-bob", "different"),
+        envelope(&grant, 0, 8, empty_trace()),
+    );
     assert_eq!(reuse.status, 400, "{}", reuse.body);
     assert_eq!(reuse.body["code"], "E_OFFLINE_INTENT_REUSE");
     assert_eq!(reuse.body["site"], "/api/mutation.replay.intent");
-    assert!(reuse.body["rewrite"].as_str().is_some_and(|rewrite| !rewrite.is_empty()));
+    assert!(
+        reuse.body["rewrite"]
+            .as_str()
+            .is_some_and(|rewrite| !rewrite.is_empty())
+    );
 
     // Slices outside the grant, overlapping a settled intent, or misnamed are id-block refusals.
     for (label, offset, count, intent) in [
         ("past the end", GRANT_COUNT - 2, 8, None),
         ("overlapping", 4, 8, None),
         ("empty", 16, 0, None),
-        ("misnamed", 16, 8, Some(format!("{}:17", grant["id"].as_str().unwrap()))),
+        (
+            "misnamed",
+            16,
+            8,
+            Some(format!("{}:17", grant["id"].as_str().unwrap())),
+        ),
     ] {
         let mut replay = envelope(&grant, offset, count, empty_trace());
         if let Some(intent) = intent {
             replay["intent"] = json!(intent);
         }
-        let blocked = mutation(port, &alice, "messages.send", send_args("profile-bob", label), replay);
+        let blocked = mutation(
+            port,
+            &alice,
+            "messages.send",
+            send_args("profile-bob", label),
+            replay,
+        );
         assert_eq!(blocked.status, 400, "{label}: {}", blocked.body);
         assert_eq!(blocked.body["code"], "E_OFFLINE_ID_BLOCK", "{label}");
         assert_eq!(blocked.body["site"], "/api/mutation.replay.offset");
@@ -345,23 +421,55 @@ fn offline_replay_envelope_pins_ids_and_dedups_by_intent() {
     // A rejection is stored too: the retry is the same rejection, and its
     // slice is spent.
     let rejected_args = send_args("profile-nobody", "rejected");
-    let rejected = mutation(port, &alice, "messages.send", rejected_args.clone(), envelope(&grant, 16, 8, empty_trace()));
+    let rejected = mutation(
+        port,
+        &alice,
+        "messages.send",
+        rejected_args.clone(),
+        envelope(&grant, 16, 8, empty_trace()),
+    );
     assert_eq!(rejected.status, 200, "{}", rejected.body);
     assert_eq!(rejected.body["state"], "rejected");
     assert_eq!(rejected.body["code"], "RECIPIENT_UNKNOWN");
-    assert_eq!(rejected.body["intent"], format!("{}:16", grant["id"].as_str().unwrap()));
-    let rejected_again = mutation(port, &alice, "messages.send", rejected_args, envelope(&grant, 16, 8, empty_trace()));
+    assert_eq!(
+        rejected.body["intent"],
+        format!("{}:16", grant["id"].as_str().unwrap())
+    );
+    let rejected_again = mutation(
+        port,
+        &alice,
+        "messages.send",
+        rejected_args,
+        envelope(&grant, 16, 8, empty_trace()),
+    );
     assert_eq!(rejected_again.body_bytes, rejected.body_bytes);
-    let spent = mutation(port, &alice, "messages.send", send_args("profile-bob", "spent"), envelope(&grant, 20, 8, empty_trace()));
+    let spent = mutation(
+        port,
+        &alice,
+        "messages.send",
+        send_args("profile-bob", "spent"),
+        envelope(&grant, 20, 8, empty_trace()),
+    );
     assert_eq!(spent.body["code"], "E_OFFLINE_ID_BLOCK", "{}", spent.body);
 
     // Too few pinned ids is an ordinary rejection, recorded like any other.
-    let starved = mutation(port, &alice, "messages.send", send_args("profile-bob", "starved"), envelope(&grant, 32, 1, empty_trace()));
+    let starved = mutation(
+        port,
+        &alice,
+        "messages.send",
+        send_args("profile-bob", "starved"),
+        envelope(&grant, 32, 1, empty_trace()),
+    );
     assert_eq!(starved.body["state"], "rejected", "{}", starved.body);
     assert_eq!(starved.body["code"], "E_INPUT");
     assert_eq!(thread_bodies(port, &alice).len(), before + 1);
 
-    stop_owner(port, &secret, &mut owner, "offline replay envelope complete");
+    stop_owner(
+        port,
+        &secret,
+        &mut owner,
+        "offline replay envelope complete",
+    );
     fs::remove_dir_all(root).unwrap();
 }
 
@@ -370,7 +478,13 @@ fn offline_replay_grant_expires_after_thirty_days_by_server_clock() {
     let (root, mut owner, port, secret) = boot(|_| {});
     let alice = persona("alice");
     let grant = resume_grant(port, &alice);
-    let fresh = mutation(port, &alice, "messages.send", send_args("profile-bob", "fresh"), envelope(&grant, 0, 8, empty_trace()));
+    let fresh = mutation(
+        port,
+        &alice,
+        "messages.send",
+        send_args("profile-bob", "fresh"),
+        envelope(&grant, 0, 8, empty_trace()),
+    );
     assert_eq!(fresh.body["state"], "committed", "{}", fresh.body);
 
     let advanced = request(
@@ -381,20 +495,37 @@ fn offline_replay_grant_expires_after_thirty_days_by_server_clock() {
         json!({ "advanceMs": THIRTY_DAYS_MS + 1_000 }),
     );
     assert_eq!(advanced.status, 200, "{}", advanced.body);
-    let expired = mutation(port, &alice, "messages.send", send_args("profile-bob", "expired"), envelope(&grant, 8, 8, empty_trace()));
+    let expired = mutation(
+        port,
+        &alice,
+        "messages.send",
+        send_args("profile-bob", "expired"),
+        envelope(&grant, 8, 8, empty_trace()),
+    );
     assert_eq!(expired.status, 400, "{}", expired.body);
     assert_eq!(expired.body["code"], "E_OFFLINE_INTENT_EXPIRED");
     assert_eq!(expired.body["family"], "offline");
     assert_eq!(expired.body["site"], "/api/mutation.replay.grant");
     assert_eq!(expired.body["guide"], "offline");
-    assert!(expired.body["rewrite"].as_str().is_some_and(|rewrite| rewrite.contains("resume")));
+    assert!(
+        expired.body["rewrite"]
+            .as_str()
+            .is_some_and(|rewrite| rewrite.contains("resume"))
+    );
 
     let renewed = resume_grant(port, &alice);
     assert!(
-        renewed["mintedAt"].as_i64().unwrap() - grant["mintedAt"].as_i64().unwrap() >= THIRTY_DAYS_MS,
+        renewed["mintedAt"].as_i64().unwrap() - grant["mintedAt"].as_i64().unwrap()
+            >= THIRTY_DAYS_MS,
         "grants are minted with server time"
     );
-    let again = mutation(port, &alice, "messages.send", send_args("profile-bob", "renewed"), envelope(&renewed, 0, 8, empty_trace()));
+    let again = mutation(
+        port,
+        &alice,
+        "messages.send",
+        send_args("profile-bob", "renewed"),
+        envelope(&renewed, 0, 8, empty_trace()),
+    );
     assert_eq!(again.body["state"], "committed", "{}", again.body);
     stop_owner(port, &secret, &mut owner, "offline grant expiry complete");
     fs::remove_dir_all(root).unwrap();
@@ -421,12 +552,8 @@ mutation edit(messageId: messages, body: text <=4000, baseBody: text <=4000):
     let bob = persona("bob");
     let alice_grant = resume_grant(port, &alice);
     let bob_grant = resume_grant(port, &bob);
-    let edit_args = |body: &str, base: &str| {
-        json!({ "messageId": "message-1", "body": body, "baseBody": base })
-    };
-    let point = |digest: &str| {
-        json!({ "points": [{ "table": "messages", "index": "byId", "key": ["message-1"], "digest": digest }], "verdicts": [] })
-    };
+    let edit_args = |body: &str, base: &str| json!({ "messageId": "message-1", "body": body, "baseBody": base });
+    let point = |digest: &str| json!({ "points": [{ "table": "messages", "index": "byId", "key": ["message-1"], "digest": digest }], "verdicts": [] });
     let body_of = |port| {
         thread_bodies(port, &alice)
             .into_iter()
@@ -438,7 +565,13 @@ mutation edit(messageId: messages, body: text <=4000, baseBody: text <=4000):
 
     // A matching trace commits.
     let welcome = pool_digest(port, &alice, "messages", "message-1");
-    let matching = mutation(port, &alice, "messages.edit", edit_args("v2", "Welcome"), envelope(&alice_grant, 0, 8, point(&welcome)));
+    let matching = mutation(
+        port,
+        &alice,
+        "messages.edit",
+        edit_args("v2", "Welcome"),
+        envelope(&alice_grant, 0, 8, point(&welcome)),
+    );
     assert_eq!(matching.status, 200, "{}", matching.body);
     assert_eq!(matching.body["state"], "committed", "{}", matching.body);
     assert_eq!(body_of(port), "v2");
@@ -447,35 +580,86 @@ mutation edit(messageId: messages, body: text <=4000, baseBody: text <=4000):
     // compare-and-set passes (baseBody is current), so only the trace can
     // catch it — and nothing is written.
     let v2 = pool_digest(port, &alice, "messages", "message-1");
-    let moved = mutation(port, &alice, "messages.edit", edit_args("v3", "v2"), Value::Null);
+    let moved = mutation(
+        port,
+        &alice,
+        "messages.edit",
+        edit_args("v3", "v2"),
+        Value::Null,
+    );
     assert_eq!(moved.body["state"], "committed", "{}", moved.body);
     let seq_before = status(port, &secret)["seq"].as_u64().unwrap();
-    let stale = mutation(port, &alice, "messages.edit", edit_args("v4", "v3"), envelope(&alice_grant, 8, 8, point(&v2)));
+    let stale = mutation(
+        port,
+        &alice,
+        "messages.edit",
+        edit_args("v4", "v3"),
+        envelope(&alice_grant, 8, 8, point(&v2)),
+    );
     assert_eq!(stale.status, 200, "{}", stale.body);
     assert_eq!(stale.body["state"], "rejected", "{}", stale.body);
     assert_eq!(stale.body["reason"], "conflict");
-    assert!(stale.body.get("code").is_none(), "a conflict is a state, not a code");
     assert!(
-        stale.body["site"].as_str().is_some_and(|site| site.starts_with("messages.edit")),
+        stale.body.get("code").is_none(),
+        "a conflict is a state, not a code"
+    );
+    assert!(
+        stale.body["site"]
+            .as_str()
+            .is_some_and(|site| site.starts_with("messages.edit")),
         "{}",
         stale.body
     );
-    assert_eq!(stale.body["intent"], format!("{}:8", alice_grant["id"].as_str().unwrap()));
+    assert_eq!(
+        stale.body["intent"],
+        format!("{}:8", alice_grant["id"].as_str().unwrap())
+    );
     assert_eq!(body_of(port), "v3", "a conflicting edit writes nothing");
-    assert_eq!(status(port, &secret)["seq"], seq_before, "a conflict commits no seq");
-    let stale_again = mutation(port, &alice, "messages.edit", edit_args("v4", "v3"), envelope(&alice_grant, 8, 8, point(&v2)));
-    assert_eq!(stale_again.body_bytes, stale.body_bytes, "the conflict is stored with the intent");
+    assert_eq!(
+        status(port, &secret)["seq"],
+        seq_before,
+        "a conflict commits no seq"
+    );
+    let stale_again = mutation(
+        port,
+        &alice,
+        "messages.edit",
+        edit_args("v4", "v3"),
+        envelope(&alice_grant, 8, 8, point(&v2)),
+    );
+    assert_eq!(
+        stale_again.body_bytes, stale.body_bytes,
+        "the conflict is stored with the intent"
+    );
     let v3 = pool_digest(port, &alice, "messages", "message-1");
-    let current = mutation(port, &alice, "messages.edit", edit_args("v4", "v3"), envelope(&alice_grant, 16, 8, point(&v3)));
+    let current = mutation(
+        port,
+        &alice,
+        "messages.edit",
+        edit_args("v4", "v3"),
+        envelope(&alice_grant, 16, 8, point(&v3)),
+    );
     assert_eq!(current.body["state"], "committed", "{}", current.body);
     assert_eq!(body_of(port), "v4");
 
     // A range that changed does not conflict: the fan-out uses the members at
     // commit, so a member who joined receives the replayed send.
     let alice_send = send_args("profile-bob", "to the group");
-    let alice_trace = replay_trace_from(&why_trace(port, &secret, "messages.send", alice_send.clone(), "alice"));
-    assert!(alice_trace["points"].as_array().unwrap().len() >= 3, "{alice_trace}");
-    assert!(!alice_trace["verdicts"].as_array().unwrap().is_empty(), "{alice_trace}");
+    let alice_trace = replay_trace_from(&why_trace(
+        port,
+        &secret,
+        "messages.send",
+        alice_send.clone(),
+        "alice",
+    ));
+    assert!(
+        alice_trace["points"].as_array().unwrap().len() >= 3,
+        "{alice_trace}"
+    );
+    assert!(
+        !alice_trace["verdicts"].as_array().unwrap().is_empty(),
+        "{alice_trace}"
+    );
     let joined = mutation(
         port,
         &alice,
@@ -484,7 +668,13 @@ mutation edit(messageId: messages, body: text <=4000, baseBody: text <=4000):
         Value::Null,
     );
     assert_eq!(joined.body["state"], "committed", "{}", joined.body);
-    let fanned = mutation(port, &alice, "messages.send", alice_send, envelope(&alice_grant, 24, 8, alice_trace));
+    let fanned = mutation(
+        port,
+        &alice,
+        "messages.send",
+        alice_send,
+        envelope(&alice_grant, 24, 8, alice_trace),
+    );
     assert_eq!(fanned.body["state"], "committed", "{}", fanned.body);
     let commit = request(
         port,
@@ -494,14 +684,24 @@ mutation edit(messageId: messages, body: text <=4000, baseBody: text <=4000):
         json!({}),
     );
     assert_eq!(commit.status, 200, "{}", commit.body);
-    assert_eq!(commit.body["commit"]["writes"]["deliveries"], 3, "{}", commit.body["commit"]);
+    assert_eq!(
+        commit.body["commit"]["writes"]["deliveries"], 3,
+        "{}",
+        commit.body["commit"]
+    );
     assert_eq!(commit.body["commit"]["writes"]["messages"], 1);
 
     // A send whose traced membership no longer holds: bob queued a send as a
     // member, alice removed him, and the replay settles as a conflict at the
     // membership read rather than as the ordinary rejection.
     let bob_send = send_args("profile-alice", "from bob");
-    let bob_trace = replay_trace_from(&why_trace(port, &secret, "messages.send", bob_send.clone(), "bob"));
+    let bob_trace = replay_trace_from(&why_trace(
+        port,
+        &secret,
+        "messages.send",
+        bob_send.clone(),
+        "bob",
+    ));
     let removed = mutation(
         port,
         &alice,
@@ -511,21 +711,43 @@ mutation edit(messageId: messages, body: text <=4000, baseBody: text <=4000):
     );
     assert_eq!(removed.body["state"], "committed", "{}", removed.body);
     let seq_before = status(port, &secret)["seq"].as_u64().unwrap();
-    let flipped = mutation(port, &bob, "messages.send", bob_send.clone(), envelope(&bob_grant, 0, 8, bob_trace));
+    let flipped = mutation(
+        port,
+        &bob,
+        "messages.send",
+        bob_send.clone(),
+        envelope(&bob_grant, 0, 8, bob_trace),
+    );
     assert_eq!(flipped.status, 200, "{}", flipped.body);
     assert_eq!(flipped.body["state"], "rejected", "{}", flipped.body);
     assert_eq!(flipped.body["reason"], "conflict");
     assert!(
-        flipped.body["site"].as_str().is_some_and(|site| site.starts_with("messages.send")),
+        flipped.body["site"]
+            .as_str()
+            .is_some_and(|site| site.starts_with("messages.send")),
         "{}",
         flipped.body
     );
     assert_eq!(status(port, &secret)["seq"], seq_before);
-    let untraced = mutation(port, &bob, "messages.send", bob_send, envelope(&bob_grant, 8, 8, empty_trace()));
+    let untraced = mutation(
+        port,
+        &bob,
+        "messages.send",
+        bob_send,
+        envelope(&bob_grant, 8, 8, empty_trace()),
+    );
     assert_eq!(untraced.body["state"], "rejected", "{}", untraced.body);
-    assert_eq!(untraced.body["code"], "NOT_MEMBER", "without a trace the ordinary rejection stands");
+    assert_eq!(
+        untraced.body["code"], "NOT_MEMBER",
+        "without a trace the ordinary rejection stands"
+    );
 
-    stop_owner(port, &secret, &mut owner, "offline trace validation complete");
+    stop_owner(
+        port,
+        &secret,
+        &mut owner,
+        "offline trace validation complete",
+    );
     fs::remove_dir_all(root).unwrap();
 }
 
@@ -550,7 +772,13 @@ fn offline_replay_identical_retry_after_grant_expiry_returns_the_stored_terminal
     };
     advance(ten_days);
     let args = send_args("profile-bob", "before the fence");
-    let first = mutation(port, &alice, "messages.send", args.clone(), envelope(&grant, 0, 8, empty_trace()));
+    let first = mutation(
+        port,
+        &alice,
+        "messages.send",
+        args.clone(),
+        envelope(&grant, 0, 8, empty_trace()),
+    );
     assert_eq!(first.body["state"], "committed", "{}", first.body);
     let before = thread_bodies(port, &alice).len();
 
@@ -559,18 +787,48 @@ fn offline_replay_identical_retry_after_grant_expiry_returns_the_stored_terminal
     advance(THIRTY_DAYS_MS - ten_days + 1_000);
     let seq = status(port, &secret)["seq"].as_u64().unwrap();
     let executions = status(port, &secret)["executions"].as_u64().unwrap();
-    let retry = mutation(port, &alice, "messages.send", args.clone(), envelope(&grant, 0, 8, empty_trace()));
+    let retry = mutation(
+        port,
+        &alice,
+        "messages.send",
+        args.clone(),
+        envelope(&grant, 0, 8, empty_trace()),
+    );
     assert_eq!(retry.status, 200, "{}", retry.body);
-    assert_eq!(retry.body_bytes, first.body_bytes, "the stored terminal, byte for byte");
+    assert_eq!(
+        retry.body_bytes, first.body_bytes,
+        "the stored terminal, byte for byte"
+    );
     assert_eq!(status(port, &secret)["seq"], seq, "nothing executed");
     assert_eq!(status(port, &secret)["executions"], executions);
     assert_eq!(thread_bodies(port, &alice).len(), before, "one row");
-    let reuse = mutation(port, &alice, "messages.send", send_args("profile-bob", "other bytes"), envelope(&grant, 0, 8, empty_trace()));
-    assert_eq!(reuse.body["code"], "E_OFFLINE_INTENT_REUSE", "the ledger outranks the grant: {}", reuse.body);
-    let fresh = mutation(port, &alice, "messages.send", send_args("profile-bob", "after the fence"), envelope(&grant, 8, 8, empty_trace()));
+    let reuse = mutation(
+        port,
+        &alice,
+        "messages.send",
+        send_args("profile-bob", "other bytes"),
+        envelope(&grant, 0, 8, empty_trace()),
+    );
+    assert_eq!(
+        reuse.body["code"], "E_OFFLINE_INTENT_REUSE",
+        "the ledger outranks the grant: {}",
+        reuse.body
+    );
+    let fresh = mutation(
+        port,
+        &alice,
+        "messages.send",
+        send_args("profile-bob", "after the fence"),
+        envelope(&grant, 8, 8, empty_trace()),
+    );
     assert_eq!(fresh.status, 400, "{}", fresh.body);
     assert_eq!(fresh.body["code"], "E_OFFLINE_INTENT_EXPIRED");
-    stop_owner(port, &secret, &mut owner, "offline retry after expiry complete");
+    stop_owner(
+        port,
+        &secret,
+        &mut owner,
+        "offline retry after expiry complete",
+    );
     fs::remove_dir_all(root).unwrap();
 }
 
@@ -610,7 +868,13 @@ mutation unguarded(messageId: messages, other: messages, body: text <=4000, expe
     });
     let alice = persona("alice");
     let grant = resume_grant(port, &alice);
-    let sent = mutation(port, &alice, "messages.send", send_args("profile-bob", "peer"), Value::Null);
+    let sent = mutation(
+        port,
+        &alice,
+        "messages.send",
+        send_args("profile-bob", "peer"),
+        Value::Null,
+    );
     assert_eq!(sent.body["state"], "committed", "{}", sent.body);
     let peer = sent.body["data"]["id"].as_str().unwrap().to_owned();
     let welcome = pool_digest(port, &alice, "messages", "message-1");
@@ -642,14 +906,36 @@ mutation unguarded(messageId: messages, other: messages, body: text <=4000, expe
             .1
     };
     let seq = status(port, &secret)["seq"].as_u64().unwrap();
-    for (label, op, offset) in [("require before the moved read", "messages.guarded", 0), ("require after it", "messages.unguarded", 8)] {
-        let settled = mutation(port, &alice, op, args.clone(), envelope(&grant, offset, 8, trace(&peer_held)));
+    for (label, op, offset) in [
+        ("require before the moved read", "messages.guarded", 0),
+        ("require after it", "messages.unguarded", 8),
+    ] {
+        let settled = mutation(
+            port,
+            &alice,
+            op,
+            args.clone(),
+            envelope(&grant, offset, 8, trace(&peer_held)),
+        );
         assert_eq!(settled.status, 200, "{label}: {}", settled.body);
-        assert_eq!(settled.body["state"], "rejected", "{label}: {}", settled.body);
-        assert_eq!(settled.body["reason"], "conflict", "{label}: {}", settled.body);
-        assert!(settled.body.get("code").is_none(), "{label}: a conflict is a state, not a code");
+        assert_eq!(
+            settled.body["state"], "rejected",
+            "{label}: {}",
+            settled.body
+        );
+        assert_eq!(
+            settled.body["reason"], "conflict",
+            "{label}: {}",
+            settled.body
+        );
         assert!(
-            settled.body["site"].as_str().is_some_and(|site| site.starts_with("messages.")),
+            settled.body.get("code").is_none(),
+            "{label}: a conflict is a state, not a code"
+        );
+        assert!(
+            settled.body["site"]
+                .as_str()
+                .is_some_and(|site| site.starts_with("messages.")),
             "{label}: {}",
             settled.body
         );
@@ -661,11 +947,22 @@ mutation unguarded(messageId: messages, other: messages, body: text <=4000, expe
     // rejection stands on either shape.
     let peer_current = pool_digest(port, &alice, "messages", &peer);
     for (op, offset) in [("messages.guarded", 16), ("messages.unguarded", 24)] {
-        let stale = mutation(port, &alice, op, args.clone(), envelope(&grant, offset, 8, trace(&peer_current)));
+        let stale = mutation(
+            port,
+            &alice,
+            op,
+            args.clone(),
+            envelope(&grant, offset, 8, trace(&peer_current)),
+        );
         assert_eq!(stale.body["state"], "rejected", "{op}: {}", stale.body);
         assert_eq!(stale.body["code"], "STALE", "{op}: {}", stale.body);
     }
-    stop_owner(port, &secret, &mut owner, "offline conflict precedence complete");
+    stop_owner(
+        port,
+        &secret,
+        &mut owner,
+        "offline conflict precedence complete",
+    );
     fs::remove_dir_all(root).unwrap();
 }
 
@@ -698,13 +995,17 @@ mutation peek(messageId: messages, other: messages, expected: text <=4000):
     let bob = persona("bob");
     let grant = resume_grant(port, &bob);
     let welcome = pool_digest(port, &bob, "messages", "message-1");
-    let peek_args = |other: &str, expected: &str| {
-        json!({ "messageId": "message-1", "other": other, "expected": expected })
-    };
+    let peek_args = |other: &str, expected: &str| json!({ "messageId": "message-1", "other": other, "expected": expected });
     // Everything a probing client needs is public: the read rule's hash is on
     // every trace the rule ever minted for it, and the inputs digest formula
     // is a wire fact it can compute for any key.
-    let why = why_trace(port, &secret, "messages.peek", peek_args("message-1", "Welcome"), "bob");
+    let why = why_trace(
+        port,
+        &secret,
+        "messages.peek",
+        peek_args("message-1", "Welcome"),
+        "bob",
+    );
     let own_membership = why["rule_inputs"]
         .as_array()
         .unwrap()
@@ -717,7 +1018,10 @@ mutation peek(messageId: messages, other: messages, expected: text <=4000):
         rule_inputs_digest(
             "memberships",
             "byConversationPrincipal",
-            &[CoreValue::Id(conversation.to_owned()), CoreValue::Id("dev:bob".to_owned())],
+            &[
+                CoreValue::Id(conversation.to_owned()),
+                CoreValue::Id("dev:bob".to_owned()),
+            ],
         )
     };
     assert_eq!(
@@ -725,10 +1029,9 @@ mutation peek(messageId: messages, other: messages, expected: text <=4000):
         membership_digest("conversation-1"),
         "the formula the client computes is the digest the rule minted"
     );
-    let own_key_digest = |id: &str| rule_inputs_digest("messages", "byId", &[CoreValue::Id(id.to_owned())]);
-    let verdict = |digest: String, result: bool| {
-        json!([{ "ruleHash": read_rule, "inputsDigest": digest, "result": result }])
-    };
+    let own_key_digest =
+        |id: &str| rule_inputs_digest("messages", "byId", &[CoreValue::Id(id.to_owned())]);
+    let verdict = |digest: String, result: bool| json!([{ "ruleHash": read_rule, "inputsDigest": digest, "result": result }]);
     let trace = |other: &str, verdicts: Value| {
         json!({
             "points": [
@@ -742,10 +1045,25 @@ mutation peek(messageId: messages, other: messages, expected: text <=4000):
     // name, so two intents can be compared field for field.
     let settle = |offset: u64, other: &str, expected: &str, verdicts: Value| {
         let replay = envelope(&grant, offset, 8, trace(other, verdicts));
-        let first = mutation(port, &bob, "messages.peek", peek_args(other, expected), replay.clone());
+        let first = mutation(
+            port,
+            &bob,
+            "messages.peek",
+            peek_args(other, expected),
+            replay.clone(),
+        );
         assert_eq!(first.status, 200, "{}", first.body);
-        let again = mutation(port, &bob, "messages.peek", peek_args(other, expected), replay);
-        assert_eq!(again.body_bytes, first.body_bytes, "the ledger holds one terminal per intent");
+        let again = mutation(
+            port,
+            &bob,
+            "messages.peek",
+            peek_args(other, expected),
+            replay,
+        );
+        assert_eq!(
+            again.body_bytes, first.body_bytes,
+            "the ledger holds one terminal per intent"
+        );
         let mut body = first.body;
         body.as_object_mut().unwrap().remove("intent");
         body
@@ -754,38 +1072,90 @@ mutation peek(messageId: messages, other: messages, expected: text <=4000):
 
     // Rejected path, a verdict over the row's own key: re-deriving it from
     // raw existence would flip the hidden row alone to a conflict.
-    let hidden = settle(0, "message-2", "not the body", verdict(own_key_digest("message-2"), false));
-    let absent = settle(8, "message-nope", "not the body", verdict(own_key_digest("message-nope"), false));
+    let hidden = settle(
+        0,
+        "message-2",
+        "not the body",
+        verdict(own_key_digest("message-2"), false),
+    );
+    let absent = settle(
+        8,
+        "message-nope",
+        "not the body",
+        verdict(own_key_digest("message-nope"), false),
+    );
     assert_eq!(hidden["state"], "rejected", "{hidden}");
-    assert_eq!(hidden["code"], "STALE", "an unverifiable verdict leaves the program's own code: {hidden}");
-    assert_eq!(hidden, absent, "own-key verdict: a hidden row and an absent one settle identically");
+    assert_eq!(
+        hidden["code"], "STALE",
+        "an unverifiable verdict leaves the program's own code: {hidden}"
+    );
+    assert_eq!(
+        hidden, absent,
+        "own-key verdict: a hidden row and an absent one settle identically"
+    );
 
     // Rejected path, a verdict over the membership the read rule probes:
     // the probe of a hidden hit does derive that input, and it must not count.
-    let hidden = settle(16, "message-2", "not the body", verdict(membership_digest("conversation-2"), true));
-    let absent = settle(24, "message-nope", "not the body", verdict(membership_digest("conversation-2"), true));
+    let hidden = settle(
+        16,
+        "message-2",
+        "not the body",
+        verdict(membership_digest("conversation-2"), true),
+    );
+    let absent = settle(
+        24,
+        "message-nope",
+        "not the body",
+        verdict(membership_digest("conversation-2"), true),
+    );
     assert_eq!(hidden["code"], "STALE", "{hidden}");
-    assert_eq!(hidden, absent, "membership verdict: a hidden row and an absent one settle identically");
+    assert_eq!(
+        hidden, absent,
+        "membership verdict: a hidden row and an absent one settle identically"
+    );
     assert_eq!(status(port, &secret)["seq"], seq, "nothing committed");
 
     // Committed path: the program reads `other` (null either way) and would
     // commit; the strict compare must not let a hidden hit's rule inputs
     // vouch for the verdict, or only the hidden row would commit.
-    let hidden = settle(32, "message-2", "Welcome", verdict(membership_digest("conversation-2"), false));
-    let absent = settle(40, "message-nope", "Welcome", verdict(membership_digest("conversation-2"), false));
+    let hidden = settle(
+        32,
+        "message-2",
+        "Welcome",
+        verdict(membership_digest("conversation-2"), false),
+    );
+    let absent = settle(
+        40,
+        "message-nope",
+        "Welcome",
+        verdict(membership_digest("conversation-2"), false),
+    );
     assert_eq!(hidden["state"], "rejected", "{hidden}");
     assert_eq!(hidden["reason"], "conflict", "{hidden}");
     assert_eq!(hidden["site"], format!("rule:{read_rule}"), "{hidden}");
-    assert_eq!(hidden, absent, "committed path: a hidden row and an absent one settle identically");
+    assert_eq!(
+        hidden, absent,
+        "committed path: a hidden row and an absent one settle identically"
+    );
     assert_eq!(status(port, &secret)["seq"], seq, "nothing committed");
 
     // Control: the verdict bob legitimately holds — his own membership, derived
     // by the visible read of message-1 — still validates and commits.
-    let held = settle(48, "message-nope", "Welcome", verdict(membership_digest("conversation-1"), true));
+    let held = settle(
+        48,
+        "message-nope",
+        "Welcome",
+        verdict(membership_digest("conversation-1"), true),
+    );
     assert_eq!(held["state"], "committed", "{held}");
     assert_eq!(held["data"]["seen"], false, "{held}");
 
-    stop_owner(port, &secret, &mut owner, "offline hidden-row verdicts complete");
+    stop_owner(
+        port,
+        &secret,
+        &mut owner,
+        "offline hidden-row verdicts complete",
+    );
     fs::remove_dir_all(root).unwrap();
 }
 
@@ -860,10 +1230,24 @@ mutation unguarded(profileId: profiles, noteId: notes, expected: text <=20, body
     // rule's hash) — a twin holds only the first, since visibility probes
     // never become receipt verdicts.
     let view_args = json!({ "noteId": note });
-    let full = replay_trace_from(&why_trace_in_state(port, &secret, "notes.view", view_args.clone(), "bob", "complete"));
+    let full = replay_trace_from(&why_trace_in_state(
+        port,
+        &secret,
+        "notes.view",
+        view_args.clone(),
+        "bob",
+        "complete",
+    ));
     assert_eq!(full["points"].as_array().unwrap().len(), 1, "{full}");
     assert_eq!(full["verdicts"].as_array().unwrap().len(), 2, "{full}");
-    assert!(full["verdicts"].as_array().unwrap().iter().all(|verdict| verdict["result"] == true), "{full}");
+    assert!(
+        full["verdicts"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .all(|verdict| verdict["result"] == true),
+        "{full}"
+    );
     let args = json!({ "profileId": "profile-bob", "noteId": note, "expected": "not the handle", "body": "changed" });
     let body_of = || {
         let view = request(
@@ -879,7 +1263,13 @@ mutation unguarded(profileId: profiles, noteId: notes, expected: text <=20, body
 
     // While the verdicts hold, the program's own rejection stands on either shape.
     for (op, offset) in [("notes.guarded", 0), ("notes.unguarded", 8)] {
-        let stale = mutation(port, &bob, op, args.clone(), envelope(&grant, offset, 8, full.clone()));
+        let stale = mutation(
+            port,
+            &bob,
+            op,
+            args.clone(),
+            envelope(&grant, offset, 8, full.clone()),
+        );
         assert_eq!(stale.body["state"], "rejected", "{op}: {}", stale.body);
         assert_eq!(stale.body["code"], "STALE", "{op}: {}", stale.body);
     }
@@ -909,20 +1299,51 @@ mutation unguarded(profileId: profiles, noteId: notes, expected: text <=20, body
     assert_eq!(held["verdicts"].as_array().unwrap().len(), 1, "{full}");
     let seq = status(port, &secret)["seq"].as_u64().unwrap();
     for (label, op, offset) in [
-        ("require before the read whose rule derives it", "notes.guarded", 16),
+        (
+            "require before the read whose rule derives it",
+            "notes.guarded",
+            16,
+        ),
         ("require after it", "notes.unguarded", 24),
     ] {
-        let settled = mutation(port, &bob, op, args.clone(), envelope(&grant, offset, 8, held.clone()));
+        let settled = mutation(
+            port,
+            &bob,
+            op,
+            args.clone(),
+            envelope(&grant, offset, 8, held.clone()),
+        );
         assert_eq!(settled.status, 200, "{label}: {}", settled.body);
-        assert_eq!(settled.body["state"], "rejected", "{label}: {}", settled.body);
-        assert_eq!(settled.body["reason"], "conflict", "{label}: {}", settled.body);
-        assert_eq!(settled.body["site"], format!("rule:{rule}"), "{label}: {}", settled.body);
-        assert!(settled.body.get("code").is_none(), "{label}: a conflict is a state, not a code");
+        assert_eq!(
+            settled.body["state"], "rejected",
+            "{label}: {}",
+            settled.body
+        );
+        assert_eq!(
+            settled.body["reason"], "conflict",
+            "{label}: {}",
+            settled.body
+        );
+        assert_eq!(
+            settled.body["site"],
+            format!("rule:{rule}"),
+            "{label}: {}",
+            settled.body
+        );
+        assert!(
+            settled.body.get("code").is_none(),
+            "{label}: a conflict is a state, not a code"
+        );
     }
     assert_eq!(body_of(), "mine", "a conflicting program writes nothing");
     assert_eq!(status(port, &secret)["seq"], seq);
 
-    stop_owner(port, &secret, &mut owner, "offline verdict precedence complete");
+    stop_owner(
+        port,
+        &secret,
+        &mut owner,
+        "offline verdict precedence complete",
+    );
     fs::remove_dir_all(root).unwrap();
 }
 
@@ -970,11 +1391,26 @@ fn offline_replay_needs_a_live_session_and_the_grant_outlives_it() {
     // check: no terminal, stored or fresh, reaches a dead session.
     for (label, op, args, offset) in [
         ("a new intent", "posts.createPost", post_args.clone(), 8),
-        ("a retry of the committed intent", "profiles.createMyProfile", profile_args.clone(), 0),
+        (
+            "a retry of the committed intent",
+            "profiles.createMyProfile",
+            profile_args.clone(),
+            0,
+        ),
     ] {
-        let refused = mutation(port, &first_session, op, args, envelope(&grant, offset, 4, empty_trace()));
+        let refused = mutation(
+            port,
+            &first_session,
+            op,
+            args,
+            envelope(&grant, offset, 4, empty_trace()),
+        );
         assert_eq!(refused.status, 401, "{label}: {}", refused.body);
-        assert_eq!(refused.body["code"], "E_AUTH_SESSION", "{label}: {}", refused.body);
+        assert_eq!(
+            refused.body["code"], "E_AUTH_SESSION",
+            "{label}: {}",
+            refused.body
+        );
         assert_eq!(refused.body["family"], "auth", "{label}: {}", refused.body);
         assert!(
             refused.body.get("state").is_none() && refused.body.get("intent").is_none(),
@@ -994,12 +1430,31 @@ fn offline_replay_needs_a_live_session_and_the_grant_outlives_it() {
     let second_authorization = format!("Bearer {}", second["token"].as_str().unwrap());
     let second_session = [("Authorization", second_authorization.as_str())];
     let executions = status(port, &secret)["executions"].as_u64().unwrap();
-    let finished = mutation(port, &second_session, "posts.createPost", post_args, envelope(&grant, 8, 4, empty_trace()));
+    let finished = mutation(
+        port,
+        &second_session,
+        "posts.createPost",
+        post_args,
+        envelope(&grant, 8, 4, empty_trace()),
+    );
     assert_eq!(finished.body["state"], "committed", "{}", finished.body);
     assert_eq!(finished.body["intent"], format!("{grant_id}:8"));
-    assert_eq!(status(port, &secret)["executions"], executions + 1, "the dead session's attempt left no terminal");
-    let stored = mutation(port, &second_session, "profiles.createMyProfile", profile_args, envelope(&grant, 0, 4, empty_trace()));
-    assert_eq!(stored.body_bytes, created.body_bytes, "the stored terminal, byte for byte");
+    assert_eq!(
+        status(port, &secret)["executions"],
+        executions + 1,
+        "the dead session's attempt left no terminal"
+    );
+    let stored = mutation(
+        port,
+        &second_session,
+        "profiles.createMyProfile",
+        profile_args,
+        envelope(&grant, 0, 4, empty_trace()),
+    );
+    assert_eq!(
+        stored.body_bytes, created.body_bytes,
+        "the stored terminal, byte for byte"
+    );
 
     stop_owner(port, &secret, &mut owner, "offline replay session complete");
     fs::remove_dir_all(root).unwrap();

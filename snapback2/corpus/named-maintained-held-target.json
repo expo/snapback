@@ -18,15 +18,21 @@
         },
         "indexes": {
           "byGroup": {
-            "columns": [
-              "__proto__",
-              "toString"
+            "components": [
+              {
+                "Column": "__proto__"
+              },
+              {
+                "Column": "toString"
+              }
             ],
             "unique": true
           },
           "byId": {
-            "columns": [
-              "id"
+            "components": [
+              {
+                "Column": "id"
+              }
             ],
             "unique": true
           }
@@ -56,8 +62,10 @@
         },
         "indexes": {
           "byId": {
-            "columns": [
-              "id"
+            "components": [
+              {
+                "Column": "id"
+              }
             ],
             "unique": true
           }
@@ -144,7 +152,7 @@
   "certificate": {
     "program": "events.recordWithoutBucket",
     "plan_hash": "20090599d1c163847e4d72f65e98dc230631531ece43b9aca8eef47622eaf14f",
-    "schema_hash": "c0087ececa651126f2b178044c37274c59b25d4625fa4103191855ec8ac603a9",
+    "schema_hash": "453dc878e8c17f81a49bc7d6beb2a0c0f4f320a00160381520b68bc64e478749",
     "tables": {
       "counts": {
         "retain": "until-revoked"
@@ -154,11 +162,11 @@
       }
     },
     "rule_hashes": {
-      "counts.read": "3e8b27846887bf95ab7f716ae261c760e5c7a92b960b2c99916dbf1490add6f1",
-      "events.insert": "3126f558d7bcd9ea4a2b36642d0828506780b0b6cb20b1848a005d18d2ca2eca"
+      "counts.read": "9d3ed71a63d67e85e86dc6ba9490fd804bec1c0b3442014f0c6793294553100c",
+      "events.insert": "14500b13b2397daf0c01c02ffdc31af7bac212344a3b4a2923691faaca29e2e3"
     },
-    "evaluator_version": "bounded-spike-rust-1",
-    "value_model_version": "i53-codepoint-bytes-v2",
+    "evaluator_version": "bounded-spike-rust-search-text-refinements-4",
+    "value_model_version": "i53-codepoint-bytes-unicode-search-text-refinements-v5",
     "read_sites": [
       {
         "site": "optionalMaintain.count",
@@ -192,9 +200,11 @@
     "max_index_entries": 1,
     "max_rule_probes": 0,
     "max_steps": 15,
+    "derived_steps": 0,
+    "derived_scratch_bytes": 0,
     "max_heap_bytes": 480,
-    "max_output_bytes": 514,
-    "max_closure_bytes": 514,
+    "max_output_bytes": 963,
+    "max_closure_bytes": 963,
     "completeness": "Page",
     "prediction_sites": [],
     "read_time_granularity_ms": null,
@@ -215,7 +225,7 @@
     "read_time": null
   },
   "receipt": {
-    "schema_hash": "c0087ececa651126f2b178044c37274c59b25d4625fa4103191855ec8ac603a9",
+    "schema_hash": "453dc878e8c17f81a49bc7d6beb2a0c0f4f320a00160381520b68bc64e478749",
     "rows": [
       {
         "table": "counts",

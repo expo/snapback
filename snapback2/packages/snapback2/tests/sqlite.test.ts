@@ -1,17 +1,16 @@
 import assert from "node:assert/strict";
 import { fork } from "node:child_process";
 import { once } from "node:events";
-import { mkdtemp, rm, stat, symlink } from "node:fs/promises";
+import { mkdtemp, readFile, rm, stat, symlink } from "node:fs/promises";
 import { DatabaseSync } from "node:sqlite";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
 import { createClient, SnapbackRefusal } from "../dist/client.mjs";
-import { closureFromCoverage } from "../dist/index.mjs";
 import { indexedDbRangeStore } from "../dist/react.mjs";
 import { fileRangeStore } from "../dist/test.mjs";
 import { nodeSqliteDriver, sqliteRangeStore, SqliteBackend, inProcessLocks, projectState, unprojectState,
-  runSqliteDriverConformance, sqliteState, fixtureAsset } from "../dist/sqlite-test.mjs";
+  runSqliteDriverConformance, sqliteState, fixtureAsset, OfflineRuntime, PersistentRangeStore } from "../dist/sqlite-test.mjs";
 import { FakeIndexedDb, FakeLocks } from "./fake-indexeddb.ts";
 import { sqliteFactory } from "./sqlite-fixture.ts";
 
@@ -106,7 +105,7 @@ test("IndexedDB rows without meta survive open with version 1 and default maps o
   } finally { await indexed.close(); await sqlite.close(); await raw.close(); await file.close(); await rm(root, { recursive: true, force: true }); }
 });
 
-test("warm and reopened coverage, answers, and twin hydration agree on undefined and null on all three carriers", async () => {
+test("warm and reopened coverage, answers, and incremental snapshots agree on undefined and null on all three carriers", async () => {
   const root = await temporary();
   const factories = [fileRangeStore(root),
     indexedDbRangeStore({ indexedDB: new FakeIndexedDb() as any, locks: new FakeLocks() }),
@@ -114,7 +113,7 @@ test("warm and reopened coverage, answers, and twin hydration agree on undefined
   const schema = { tables: { messages: { columns: {
     id: "Id", body: { Text: { max: 100 } }, omitted: { Optional: { Text: { max: 100 } } },
     explicit: { Optional: { Text: { max: 100 } } },
-  }, indexes: { byId: { columns: ["id"] } } } } };
+  }, indexes: { byId: { components: [{ Column: "id" }] } } } } };
   const delivery = { op: "thread", args: { nested: { omitted: undefined, explicit: null } },
     seq: 1, state: "complete", validator: "v", next: null, reason: undefined, deliveredAt: 100,
     data: { $row: { table: "messages", id: "m1" } },
@@ -133,13 +132,15 @@ test("warm and reopened coverage, answers, and twin hydration agree on undefined
         const answer = await store.answer(delivery.op, delivery.args);
         assert.ok(answer);
         assert.equal(Object.hasOwn(answer, "reason"), false);
-        const hydrated = closureFromCoverage(warm, schema);
-        assert.equal(hydrated.rows.length, 1);
+        const warmSnapshot = (await store.changes()).snapshot!;
+        const hydrated = Object.values(warmSnapshot.rows);
+        assert.equal(hydrated.length, 1);
         await store.close();
         await reopened.open("warm");
         const cold = await reopened.coverage();
         assert.deepEqual(cold, warm, factory.carrier);
-        assert.deepEqual(closureFromCoverage(cold, schema), hydrated, factory.carrier);
+        const coldSnapshot = (await reopened.changes()).snapshot!;
+        assert.deepEqual(Object.values(coldSnapshot.rows), hydrated, factory.carrier);
         assert.deepEqual(await reopened.answer(delivery.op, delivery.args), answer);
         assert.deepEqual(await reopened.answer(delivery.op, JSON.parse(JSON.stringify(delivery.args))), answer);
         // The same JSON delivery is idempotent even if its first input carried undefined.
@@ -369,4 +370,113 @@ test("SQLite wipe deletes only the named partition; shared database and sidecars
     await alice.replace(sqliteState(), noBytes);
     assert.equal(await bob.open("bob"), undefined);
   } finally { await alice.close(); await bob.close(); await rm(root, { recursive: true, force: true }); }
+});
+
+
+// Inspect the actual JS adapter baseline, not the database's required persisted payload.
+function retainedProjectionValues(root: unknown): unknown[] {
+  const seen = new Set<object>(), values: unknown[] = [];
+  const visit = (value: unknown) => {
+    if (!value || typeof value !== 'object') { values.push(value); return; }
+    if (seen.has(value)) return; seen.add(value); values.push(value);
+    if (value instanceof Map) for (const [key,item] of value) { visit(key); visit(item); }
+    else if (value instanceof Set) for (const item of value) visit(item);
+    else for (const item of Object.values(value)) visit(item);
+  };
+  visit(root); return values;
+}
+
+test('database projection owns only presence after mutable replacement, abort, cold deletion and reclamation', async () => {
+  const root = await temporary(), database = new FakeIndexedDb(); let reject = false;
+  const factories = [() => new SqliteBackend(nodeSqliteDriver(join(root,'presence.db')), { beforeCommit() { if (reject) throw new Error('projection abort'); } }),
+    () => (indexedDbRangeStore({ indexedDB: database as any,locks: new FakeLocks(),beforeReplace() { if (reject) throw new Error('projection abort'); } })() as any).backend];
+  try {
+    for (const factory of factories) {
+      const backend: any = factory(); await backend.open('presence');
+      const state: any = sqliteState(), key = Object.keys(state.rows)[0], marker = 'PROJECTION_PAYLOAD_58329';
+      state.rows[key].row.body = marker; state.rows[key].row.nested = { text: marker,optional: [undefined,null] };
+      const expected = JSON.parse(JSON.stringify(state));
+      const publication = backend.replace(state,noBytes);
+      state.rows[key].row.nested.text = 'caller changed'; await publication;
+      const noBody = () => {
+        const retained = retainedProjectionValues(backend.projection);
+        assert(!retained.some(value => typeof value === 'string' && value.includes(marker)),'no full row JSON survives in the adapter baseline');
+        assert(!retained.includes(state.rows[key].row));
+        assert(retained.includes(key),'cold deletion still retains row-key presence');
+      };
+      noBody(); await backend.close(); assert.deepEqual(await backend.open('presence'),expected); noBody();
+      const replacement = structuredClone(expected); delete replacement.rows[key]; replacement.rows.new = { table: 'messages',id: 'new',row: { id: 'new',body: marker } };
+      reject = true; await assert.rejects(backend.replace(replacement,noBytes),/projection abort/); reject = false; noBody();
+      await backend.close(); assert.deepEqual(await backend.open('presence'),expected,'refused publication changes neither persisted rows nor baseline'); noBody();
+      // A direct generic backend call has no trusted journal: mutable previous aliases must not suppress writes.
+      await backend.replace(replacement,noBytes,replacement); await backend.close();
+      assert.deepEqual(await backend.open('presence'),replacement,'cold presence detects deletion without retaining old payloads');
+      replacement.rows.new.row.body = 'changed after open'; await backend.replace(replacement,noBytes,replacement); await backend.close();
+      assert.deepEqual(await backend.open('presence'),replacement);
+      replacement.rows = {}; replacement.answers = {}; replacement.outbox = {}; replacement.overlay = {};
+      await backend.replace(replacement,noBytes); await backend.close(); assert.deepEqual(await backend.open('presence'),replacement);
+      assert(!retainedProjectionValues(backend.projection).includes(key));
+      await backend.close(); assert(!retainedProjectionValues(backend.projection).some(value => typeof value === 'string'));
+    }
+  } finally { await rm(root,{ recursive: true,force: true }); }
+});
+
+// @ref LLP 1013#3-the-sqlite-carrier — deleting a metadata root removes its children in the same durable publication.
+test('database reset completion removes metadata children through failure, retry and populated reopen', async () => {
+  const root = await temporary(), database = new FakeIndexedDb(); let reject = false;
+  const halo = JSON.parse(await readFile(new URL('../../evaluator/src/test-search-v5-fixtures.json',import.meta.url),'utf8')).nativeR8.halo;
+  const factories = [() => new SqliteBackend(nodeSqliteDriver(join(root,'reset.db')), { beforeCommit() { if (reject) throw new Error('reset publication abort'); } }),
+    () => (indexedDbRangeStore({ indexedDB:database as any,locks:new FakeLocks(),beforeReplace() { if (reject) throw new Error('reset publication abort'); } })() as any).backend];
+  try {
+    for (const factory of factories) {
+      const backend: any = factory(), store = new PersistentRangeStore(backend), runtime = new OfflineRuntime({ store:() => store });
+      const principal = halo.first.authority.principal;
+      try {
+        await runtime.open(principal,true); await runtime.program(halo.program);
+        await runtime.commit('clock.fixed',{},await runtime.accept('clock.fixed',{},halo.first));
+        await store.commit({ outbox:{ put:[{ intent:'metadata-keep',grant:'synthetic-probe-grant',offset:0,count:0,ids:[],op:'unissued',args:{ nested:[null,'keep'] },
+          issuedSeq:1,state:'queued',createdAt:1,updatedAt:1 }] } });
+        const outbox = await store.outbox.all();
+        for (let cycle = 0; cycle < 2; cycle++) {
+          await runtime.resetCoverage(halo.first.authority.authEpoch);
+          await runtime.commit('clock.fixed',{},await runtime.accept('clock.fixed',{},halo.first));
+          const before = await store.changes(), pending = (await runtime.coverage())!.superseded;
+          assert.equal((await runtime.coverage())!.rows.length,11); assert(runtime.resetNeeded);
+          const keysBefore = [...backend.projection.keys.meta].sort();
+          reject = true; await assert.rejects(runtime.completeReset(runtime.coverageRevision),/reset publication abort/); reject = false;
+          assert.deepEqual(await store.changes(),before,'refusal preserves rows, immutable facts, slots and outbox');
+          assert.deepEqual([...backend.projection.keys.meta].sort(),keysBefore,'failed publication cannot forget old child ownership');
+          assert(runtime.resetNeeded); assert.deepEqual((await runtime.coverage())!.superseded,pending);
+          assert.equal(await runtime.completeReset(runtime.coverageRevision),true); assert(!runtime.resetNeeded);
+          assert.equal((await runtime.coverage())!.superseded,undefined);
+          assert(![...backend.projection.keys.meta].some((key: string) => key.startsWith('["superseded",')));
+          const current = (await store.changes()).snapshot!;
+          await runtime.close(); await runtime.open(principal,true);
+          assert(!runtime.resetNeeded,'successful completion remains complete after populated cold open');
+          assert.equal((await runtime.coverage())!.superseded,undefined);
+          assert.equal((await runtime.coverage())!.rows.length,11);
+          assert.deepEqual(await store.outbox.all(),outbox);
+          const reopened = (await store.changes()).snapshot!;
+          assert.deepEqual(reopened.rows,current.rows); assert.deepEqual(reopened.answers,current.answers);
+          assert.equal(reopened.factSlots,current.factSlots);
+        }
+        // Direct generic backend roots also support object→scalar/null/absent, using the actual journal path.
+        const state: any = (await store.changes()).snapshot!;
+        state.futureMetadata = { old:'metadata-owned-child',other:null };
+        await backend.replace(state,noBytes);
+        for (const value of [17,{ replacement:'new-child' },null,{ final:'last-child' },undefined]) {
+          const next = structuredClone(state);
+          if (value === undefined) delete next.futureMetadata; else next.futureMetadata = value;
+          await backend.replace(next,noBytes,undefined,new Map([['*',new Set(['futureMetadata'])]]));
+          await backend.close(); assert.deepEqual(await backend.open(principal),next,'changed-root reconciliation preserves exact scalar/absence spelling');
+          if (value === undefined) delete state.futureMetadata; else state.futureMetadata = value;
+        }
+        await runtime.close(); await runtime.open(principal,true);
+        // A deleted root can be repopulated and deleted again without stale reverse ownership.
+        await runtime.resetCoverage(halo.first.authority.authEpoch);
+        assert([...backend.projection.keys.meta].some((key: string) => key.startsWith('["superseded",')));
+      } finally { reject = false; await runtime.close(); }
+      assert(!retainedProjectionValues(backend.projection).some(value => typeof value === 'string'),'close reclaims child keys and empty root buckets');
+    }
+  } finally { await rm(root,{ recursive:true,force:true }); }
 });

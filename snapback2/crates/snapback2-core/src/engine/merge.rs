@@ -45,7 +45,7 @@ impl Runner<'_> {
             self.validate_scan_cursor(&lane.scan)?;
         }
         let mut lanes = Vec::new();
-        let mut prefixes = BTreeSet::new();
+        let mut prefixes = std::collections::BTreeMap::<String, Vec<_>>::new();
         for lane in &merge.lanes {
             let source = match &lane.source {
                 Some(source) => self
@@ -74,14 +74,22 @@ impl Runner<'_> {
                     self.env_provenance = provenance;
                     self.consts = consts;
                 }
-                if !prefixes.insert(canonical_json(&(
-                    &input.prefix,
-                    &input.after,
-                    &input.before,
-                    input.range.as_ref().map(|r| (&r.gt, &r.gte, &r.lt, &r.lte)),
-                ))) {
+                let identity = (
+                    input.logical.clone(),
+                    input.after.clone(),
+                    input.before.clone(),
+                    input
+                        .range
+                        .as_ref()
+                        .map(|r| (r.gt.clone(), r.gte.clone(), r.lt.clone(), r.lte.clone())),
+                );
+                // Hashes select a bucket; prepared logical equality decides coalescing.
+                // Shared normalized terms avoid retaining L copies of a long token.
+                let bucket = prefixes.entry(crate::value::digest(&identity)).or_default();
+                if bucket.contains(&identity) {
                     continue;
                 }
+                bucket.push(identity);
                 let read = self
                     .certificate
                     .unwrap()
@@ -99,11 +107,11 @@ impl Runner<'_> {
                     || matches!(table.rules.read, RuleExpr::Allow | RuleExpr::Public { .. });
                 lanes.push(Lane {
                     scan: &lane.scan,
+                    exhausted: input.empty,
                     input,
                     uniform: public || read.hoist,
                     allowed: public.then_some(true),
                     probes: read.rule_probes_per_candidate,
-                    exhausted: false,
                     last_examined: None,
                     examined: Vec::new(),
                     visible: Vec::new(),
@@ -137,13 +145,14 @@ impl Runner<'_> {
                     &lane.scan.index,
                     table,
                     index,
-                    &lane.input.prefix,
+                    &lane.input.physical,
                     lane.input.after.as_ref(),
                     lane.input.before.as_ref(),
                     lane.input.range.as_ref(),
                     lane.scan.order,
                     self.certificate.unwrap().max_examined as usize,
-                ).map(Some)
+                )
+                .map(Some)
             })
             .collect::<Result<Vec<_>, _>>()?;
         // Uniform, intrinsically ordered lanes use pooled one-row seeks. Keep the
@@ -157,17 +166,28 @@ impl Runner<'_> {
         // Certification fixes the table/index/order/prefix width across authored
         // lanes. Bounds may evaluate differently: one bounded template suffices,
         // with ordinary seek for every mismatch or admission refusal.
-        let seek = lanes.iter().zip(&cursors).find(|(_, rows)| rows.is_none())
+        let seek = lanes
+            .iter()
+            .zip(&cursors)
+            .find(|(_, rows)| rows.is_none())
             .map(|(lane, _)| {
                 let table = schema.table(&lane.scan.table).expect("checked table");
                 let index = table.index(&lane.scan.index).expect("checked index");
                 index::InitialSeek::new(
-                    &lane.scan.table, &lane.scan.index, table, index,
-                    &lane.input.prefix, lane.input.after.as_ref(), lane.input.before.as_ref(),
-                    lane.input.range.as_ref(), lane.scan.order,
+                    &lane.scan.table,
+                    &lane.scan.index,
+                    table,
+                    index,
+                    &lane.input.physical,
+                    lane.input.after.as_ref(),
+                    lane.input.before.as_ref(),
+                    lane.input.range.as_ref(),
+                    lane.scan.order,
                     initial_seek_reserve(merge, lanes.len()),
                 )
-            }).transpose()?.flatten();
+            })
+            .transpose()?
+            .flatten();
         for (i, lane) in lanes.iter_mut().enumerate() {
             if let Some(head) = self.merge_head(i, lane, cursors[i].as_mut(), seek.as_deref())? {
                 self.heap_push(&mut heap, head, lane.scan.order)?;
@@ -186,9 +206,12 @@ impl Runner<'_> {
                 lane.returned.push(id);
                 returned.push(row.clone());
             }
-            if let Some(next) =
-                self.merge_head(head.lane, &mut lanes[head.lane], cursors[head.lane].as_mut(), seek.as_deref())?
-            {
+            if let Some(next) = self.merge_head(
+                head.lane,
+                &mut lanes[head.lane],
+                cursors[head.lane].as_mut(),
+                seek.as_deref(),
+            )? {
                 self.heap_push(&mut heap, next, order)?;
             }
         }
@@ -255,27 +278,50 @@ impl Runner<'_> {
             let table = self.schema.table(&lane.scan.table).expect("checked table");
             let index = table.index(&lane.scan.index).expect("checked index");
             let row = if let Some(rows) = rows.as_mut() {
-                rows.next()?.map(|record| {
-                    let data: String = record.get(0)?;
-                    serde_json::from_str(&data).map_err(|e| RuntimeError::Schema(e.to_string()))
-                }).transpose()?
+                rows.next()?
+                    .map(|record| {
+                        let data: String = record.get(0)?;
+                        serde_json::from_str(&data).map_err(|e| RuntimeError::Schema(e.to_string()))
+                    })
+                    .transpose()?
             } else if lane.last_examined.is_none() {
-                if let Some(initial) = seek.filter(|initial| initial.matches(
-                    &lane.input.prefix, lane.input.after.as_ref(),
-                    lane.input.before.as_ref(), lane.input.range.as_ref())) {
-                    initial.seek(self.tx, &lane.input.prefix)?
+                if let Some(initial) = seek.filter(|initial| {
+                    initial.matches(
+                        &lane.input.physical,
+                        lane.input.after.as_ref(),
+                        lane.input.before.as_ref(),
+                        lane.input.range.as_ref(),
+                    )
+                }) {
+                    initial.seek(self.tx, &lane.input.physical)?
                 } else {
                     index::seek_scan_indexed(
-                        self.tx, &lane.scan.table, &lane.scan.index, table, index,
-                        &lane.input.prefix, lane.input.after.as_ref(), lane.input.before.as_ref(),
-                        lane.input.range.as_ref(), lane.scan.order, None,
+                        self.tx,
+                        &lane.scan.table,
+                        &lane.scan.index,
+                        table,
+                        index,
+                        &lane.input.physical,
+                        lane.input.after.as_ref(),
+                        lane.input.before.as_ref(),
+                        lane.input.range.as_ref(),
+                        lane.scan.order,
+                        None,
                     )?
                 }
             } else {
                 index::seek_scan_indexed(
-                    self.tx, &lane.scan.table, &lane.scan.index, table, index,
-                    &lane.input.prefix, lane.input.after.as_ref(), lane.input.before.as_ref(),
-                    lane.input.range.as_ref(), lane.scan.order, lane.last_examined.as_deref(),
+                    self.tx,
+                    &lane.scan.table,
+                    &lane.scan.index,
+                    table,
+                    index,
+                    &lane.input.physical,
+                    lane.input.after.as_ref(),
+                    lane.input.before.as_ref(),
+                    lane.input.range.as_ref(),
+                    lane.scan.order,
+                    lane.last_examined.as_deref(),
                 )?
             };
             let Some(mut row) = row else {
@@ -283,7 +329,8 @@ impl Runner<'_> {
                 return Ok(None);
             };
             if rows.is_none() {
-                lane.last_examined = Some(index_values(&row, index));
+                lane.last_examined =
+                    Some(index_values(&row, index)[lane.input.prefix.len()..].to_vec());
             }
             materialize_optional_fields(&mut row, table);
             self.trace.examined += 1;
@@ -306,8 +353,11 @@ impl Runner<'_> {
             }
             let index = table.index(&lane.scan.index).expect("checked index");
             let key = Value::Array(match &lane.last_examined {
-                Some(key) => key[lane.input.prefix.len()..].to_vec(),
-                None => index_values(&row, index).into_iter().skip(lane.input.prefix.len()).collect(),
+                Some(key) => key.clone(),
+                None => index_values(&row, index)
+                    .into_iter()
+                    .skip(lane.input.prefix.len())
+                    .collect(),
             });
             // The lane already retains every visible head for its receipt. The
             // heap addresses that image; it needs no second full row body.
@@ -377,12 +427,13 @@ impl Runner<'_> {
             .map_or(0, |position| position + 1);
         let remaining = &lane.visible[end..];
         // The halo may start on an id-duplicate emitted by another lane.
-        let halo = remaining.first().map(|row| RowRecord {
+        let halo = remaining.first().map(|row| RowRef {
             table: scan.table.clone(),
             id: row.field("id").unwrap().as_str().unwrap().to_owned(),
-            row: row.clone(),
         });
-        let n2_key = remaining.get(1).map(|row| index_values(row, index));
+        let n2_suffix = remaining
+            .get(1)
+            .map(|row| index_values(row, index)[lane.input.prefix.len()..].to_vec());
         let stop = if lane.exhausted && remaining.is_empty() {
             StopReason::Exhausted
         } else {
@@ -415,7 +466,7 @@ impl Runner<'_> {
             stop,
             absence: returned_ids.is_empty(),
             halo,
-            n2_key,
+            n2_suffix,
         };
         if lane.uniform {
             self.receipt.ranges.push(ReceiptRange {
@@ -436,7 +487,7 @@ impl Runner<'_> {
                 stop,
                 absence: range.absence,
                 halo: range.halo.clone(),
-                n2_key: range.n2_key.clone(),
+                n2_suffix: range.n2_suffix.clone(),
             });
         }
         self.trace.ranges.push(range);
@@ -453,30 +504,63 @@ mod tests {
     fn empty_wide_merge_templates_fit_admitted_heap() {
         let frozen: serde_json::Value = serde_json::from_str(include_str!(
             "../../../../corpus/merge-runtime-overlap-deduped.json"
-        )).unwrap();
+        ))
+        .unwrap();
         let mut schema: Schema = serde_json::from_value(frozen["schema"].clone()).unwrap();
         let table = schema.tables.get_mut("posts").unwrap();
-        table.columns.insert("author".into(), ColumnType::Text { max: 8192 });
+        table
+            .columns
+            .insert("author".into(), ColumnType::Text { max: 8192 });
         let mut program: Program = serde_json::from_value(frozen["program"].clone()).unwrap();
-        program.args.insert("scope".into(), ArgType::Text { max: 8192 });
-        let Stmt::Return(Expr::Merge(merge)) = &mut program.body[0] else { unreachable!() };
+        program.args.insert(
+            "scope".into(),
+            ArgType::Text {
+                max: 8192,
+                min: 0,
+                format: None,
+            },
+        );
+        let Stmt::Return(Expr::Merge(merge)) = &mut program.body[0] else {
+            unreachable!()
+        };
         let mut lane = merge.lanes[0].clone();
         lane.source = None;
         lane.scan.take = Bound::Literal(1);
-        merge.lanes = (0..64).map(|bucket| {
-            let mut lane = lane.clone();
-            lane.scan.site = format!("wide-{bucket}");
-            lane.scan.prefix = vec![Expr::Variable("scope".into()), Expr::Literal(Value::Int(bucket))];
-            lane
-        }).collect();
-        let certificate = Checker::new(&schema, Ceilings::default()).check(&program).unwrap();
-        let Stmt::Return(Expr::Merge(merge)) = &program.body[0] else { unreachable!() };
+        merge.lanes = (0..64)
+            .map(|bucket| {
+                let mut lane = lane.clone();
+                lane.scan.site = format!("wide-{bucket}");
+                lane.scan.prefix = vec![
+                    Expr::Variable("scope".into()).into(),
+                    Expr::Literal(Value::Int(bucket)).into(),
+                ];
+                lane
+            })
+            .collect();
+        let certificate = Checker::new(&schema, Ceilings::default())
+            .check(&program)
+            .unwrap();
+        let Stmt::Return(Expr::Merge(merge)) = &program.body[0] else {
+            unreachable!()
+        };
         let wide = Value::String("𐀀".repeat(8192));
         let table = &schema.tables["posts"];
         let index = &table.indexes[&merge.lanes[0].scan.index];
         let reserve = initial_seek_reserve(merge, 64);
-        let initial = index::InitialSeek::new("posts", &merge.lanes[0].scan.index, table, index,
-            &[wide.clone(), Value::Int(0)], None, None, None, Order::Asc, reserve).unwrap().unwrap();
+        let initial = index::InitialSeek::new(
+            "posts",
+            &merge.lanes[0].scan.index,
+            table,
+            index,
+            &[wide.clone(), Value::Int(0)],
+            None,
+            None,
+            None,
+            Order::Asc,
+            reserve,
+        )
+        .unwrap()
+        .unwrap();
         let retained = initial.retained_bytes().unwrap();
         assert!(retained <= reserve && reserve <= certificate.max_heap_bytes);
         // Every authored lane shares the one shape, even though none has a head.
@@ -484,82 +568,222 @@ mod tests {
             assert!(initial.matches(&[wide.clone(), Value::Int(bucket)], None, None, None));
         }
         let mut engine = Engine::memory(schema.clone()).unwrap();
-        let execution = engine.execute(&program, &certificate, Context::query(
-            Actor::new("u1", "user").unwrap(), [("scope".into(), wide.clone())].into())).unwrap();
+        let execution = engine
+            .execute(
+                &program,
+                &certificate,
+                Context::query(
+                    Actor::new("u1", "user").unwrap(),
+                    [("scope".into(), wide.clone())].into(),
+                ),
+            )
+            .unwrap();
         assert_eq!(execution.state, ExecutionState::Complete);
         assert!(execution.result.as_array().unwrap().is_empty());
         assert_eq!(execution.trace.ranges.len(), 64);
         assert_eq!(execution.trace.examined, 0);
-        eprintln!("retained_template_capacity_bytes={retained} template_reserve={reserve} admitted_heap_bytes={} admitted_steps={} authored_lanes=64 heads=0", certificate.max_heap_bytes, certificate.max_steps);
+        eprintln!(
+            "retained_template_capacity_bytes={retained} template_reserve={reserve} admitted_heap_bytes={} admitted_steps={} authored_lanes=64 heads=0",
+            certificate.max_heap_bytes, certificate.max_steps
+        );
         assert!(retained as u64 <= certificate.max_heap_bytes);
         for (id, bucket) in [("a", 0), ("z", 63)] {
-            engine.seed("posts", object([("id", Value::Id(id.into())),
-                ("author", wide.clone()), ("at", Value::Int(bucket))])).unwrap();
+            engine
+                .seed(
+                    "posts",
+                    object([
+                        ("id", Value::Id(id.into())),
+                        ("author", wide.clone()),
+                        ("at", Value::Int(bucket)),
+                    ]),
+                )
+                .unwrap();
         }
         let tx = engine.store.conn.transaction().unwrap();
-        assert_eq!(initial.seek(&tx, &[wide.clone(), Value::Int(0)]).unwrap().unwrap().field("id").unwrap(), &Value::Id("a".into()));
-        assert_eq!(initial.seek(&tx, &[wide, Value::Int(63)]).unwrap().unwrap().field("id").unwrap(), &Value::Id("z".into()));
+        assert_eq!(
+            initial
+                .seek(&tx, &[wide.clone(), Value::Int(0)])
+                .unwrap()
+                .unwrap()
+                .field("id")
+                .unwrap(),
+            &Value::Id("a".into())
+        );
+        assert_eq!(
+            initial
+                .seek(&tx, &[wide, Value::Int(63)])
+                .unwrap()
+                .unwrap()
+                .field("id")
+                .unwrap(),
+            &Value::Id("z".into())
+        );
     }
 
     #[test]
     fn pooled_seeks_match_live_cursor_with_ties_and_intersecting_bounds() {
         let frozen: serde_json::Value = serde_json::from_str(include_str!(
             "../../../../corpus/merge-runtime-overlap-deduped.json"
-        )).unwrap();
+        ))
+        .unwrap();
         let schema: Schema = serde_json::from_value(frozen["schema"].clone()).unwrap();
         let program: Program = serde_json::from_value(frozen["program"].clone()).unwrap();
-        let Stmt::Return(Expr::Merge(merge)) = &program.body[0] else { unreachable!() };
+        let Stmt::Return(Expr::Merge(merge)) = &program.body[0] else {
+            unreachable!()
+        };
         let index_name = &merge.lanes[0].scan.index;
         let table = &schema.tables["posts"];
         let index = &table.indexes[index_name];
         assert!(index::intrinsic_id_order(table, index));
         let mut non_total = index.clone();
-        non_total.columns.pop();
+        non_total.components.pop();
         assert!(!index::intrinsic_id_order(table, &non_total));
         let mut engine = Engine::memory(schema.clone()).unwrap();
         for actor in ["u1", "u2"] {
             for at in 0..6 {
                 for id in ["a", "z", "é", "𐀀"] {
-                    engine.seed("posts", object([
-                        ("id", Value::Id(format!("{actor}-{at}-{id}"))),
-                        ("author", Value::Id(actor.into())), ("at", Value::Int(at)),
-                    ])).unwrap();
+                    engine
+                        .seed(
+                            "posts",
+                            object([
+                                ("id", Value::Id(format!("{actor}-{at}-{id}"))),
+                                ("author", Value::Id(actor.into())),
+                                ("at", Value::Int(at)),
+                            ]),
+                        )
+                        .unwrap();
                 }
             }
         }
         let tx = engine.store.conn.transaction().unwrap();
         for order in [Order::Asc, Order::Desc] {
-            let initial = index::InitialSeek::new("posts", index_name, table, index,
-                &[Value::Id("u1".into())], None, None, None, order, u64::MAX).unwrap().unwrap();
+            let initial = index::InitialSeek::new(
+                "posts",
+                index_name,
+                table,
+                index,
+                &[Value::Id("u1".into())],
+                None,
+                None,
+                None,
+                order,
+                u64::MAX,
+            )
+            .unwrap()
+            .unwrap();
             for actor in ["u1", "u2", "empty", "u1"] {
                 for bounded in [false, true] {
                     let prefix = vec![Value::Id(actor.into())];
-                    let low = Value::Array(vec![Value::Int(1), Value::Id(format!("{actor}-1-a").into_boxed_str().into_string())]);
-                    let high = Value::Array(vec![Value::Int(4), Value::Id(format!("{actor}-4-é").into_boxed_str().into_string())]);
-                    let (after, before) = if order == Order::Asc { (&low, &high) } else { (&high, &low) };
+                    let low = Value::Array(vec![
+                        Value::Int(1),
+                        Value::Id(format!("{actor}-1-a").into_boxed_str().into_string()),
+                    ]);
+                    let high = Value::Array(vec![
+                        Value::Int(4),
+                        Value::Id(format!("{actor}-4-é").into_boxed_str().into_string()),
+                    ]);
+                    let (after, before) = if order == Order::Asc {
+                        (&low, &high)
+                    } else {
+                        (&high, &low)
+                    };
                     let after = bounded.then_some(after);
                     let before = bounded.then_some(before);
-                    let range = EvaluatedRange { gt: Some(Value::Int(1)), gte: Some(Value::Int(2)), lt: Some(Value::Int(5)), lte: Some(Value::Int(4)) };
+                    let range = EvaluatedRange {
+                        gt: Some(Value::Int(1)),
+                        gte: Some(Value::Int(2)),
+                        lt: Some(Value::Int(5)),
+                        lte: Some(Value::Int(4)),
+                    };
                     let range = bounded.then_some(&range);
-                    let expected = index::scan_indexed(&tx, "posts", index_name, table, index,
-                        &prefix, after, before, range, order, 100).unwrap();
+                    let expected = index::scan_indexed(
+                        &tx, "posts", index_name, table, index, &prefix, after, before, range,
+                        order, 100,
+                    )
+                    .unwrap();
                     assert_eq!(initial.matches(&prefix, after, before, range), !bounded);
                     if !bounded {
-                        assert_eq!(initial.seek(&tx, &prefix).unwrap(), expected.first().cloned());
+                        assert_eq!(
+                            initial.seek(&tx, &prefix).unwrap(),
+                            expected.first().cloned()
+                        );
                     }
-                    let bounded_initial = index::InitialSeek::new("posts", index_name, table,
-                        index, &prefix, after, before, range, order, u64::MAX).unwrap().unwrap();
+                    let bounded_initial = index::InitialSeek::new(
+                        "posts",
+                        index_name,
+                        table,
+                        index,
+                        &prefix,
+                        after,
+                        before,
+                        range,
+                        order,
+                        u64::MAX,
+                    )
+                    .unwrap()
+                    .unwrap();
                     assert!(bounded_initial.matches(&prefix, after, before, range));
-                    assert_eq!(bounded_initial.seek(&tx, &prefix).unwrap(), expected.first().cloned());
+                    assert_eq!(
+                        bounded_initial.seek(&tx, &prefix).unwrap(),
+                        expected.first().cloned()
+                    );
                     let bytes = bounded_initial.retained_bytes().unwrap();
-                    assert!(index::InitialSeek::new("posts", index_name, table, index,
-                        &prefix, after, before, range, order, bytes).unwrap().is_some());
-                    assert!(index::InitialSeek::new("posts", index_name, table, index,
-                        &prefix, after, before, range, order, bytes - 1).unwrap().is_none());
-                    assert!(index::InitialSeek::new(&"p".repeat(8192), index_name, table, index,
-                        &prefix, after, before, range, order, bytes).unwrap().is_none());
-                    assert!(index::InitialSeek::new("posts", &"i".repeat(8192), table, index,
-                        &prefix, after, before, range, order, bytes).unwrap().is_none());
+                    assert!(
+                        index::InitialSeek::new(
+                            "posts", index_name, table, index, &prefix, after, before, range,
+                            order, bytes
+                        )
+                        .unwrap()
+                        .is_some()
+                    );
+                    assert!(
+                        index::InitialSeek::new(
+                            "posts",
+                            index_name,
+                            table,
+                            index,
+                            &prefix,
+                            after,
+                            before,
+                            range,
+                            order,
+                            bytes - 1
+                        )
+                        .unwrap()
+                        .is_none()
+                    );
+                    assert!(
+                        index::InitialSeek::new(
+                            &"p".repeat(8192),
+                            index_name,
+                            table,
+                            index,
+                            &prefix,
+                            after,
+                            before,
+                            range,
+                            order,
+                            bytes
+                        )
+                        .unwrap()
+                        .is_none()
+                    );
+                    assert!(
+                        index::InitialSeek::new(
+                            "posts",
+                            &"i".repeat(8192),
+                            table,
+                            index,
+                            &prefix,
+                            after,
+                            before,
+                            range,
+                            order,
+                            bytes
+                        )
+                        .unwrap()
+                        .is_none()
+                    );
                     if bounded {
                         assert!(!bounded_initial.matches(&prefix, None, before, range));
                         assert!(!bounded_initial.matches(&prefix, after, None, range));
@@ -567,9 +791,22 @@ mod tests {
                     }
                     let mut actual = Vec::new();
                     let mut last = None;
-                    while let Some(row) = index::seek_scan_indexed(&tx, "posts", index_name, table, index,
-                        &prefix, after, before, range, order, last.as_deref()).unwrap() {
-                        last = Some(index_values(&row, index));
+                    while let Some(row) = index::seek_scan_indexed(
+                        &tx,
+                        "posts",
+                        index_name,
+                        table,
+                        index,
+                        &prefix,
+                        after,
+                        before,
+                        range,
+                        order,
+                        last.as_deref(),
+                    )
+                    .unwrap()
+                    {
+                        last = Some(index_values(&row, index)[prefix.len()..].to_vec());
                         actual.push(row);
                         assert!(actual.len() <= 100, "seek did not move strictly");
                     }
@@ -583,28 +820,66 @@ mod tests {
     fn wide_bound_template_refusal_keeps_merge_heads_and_refills() {
         let frozen: serde_json::Value = serde_json::from_str(include_str!(
             "../../../../corpus/merge-runtime-overlap-deduped.json"
-        )).unwrap();
+        ))
+        .unwrap();
         let mut schema: Schema = serde_json::from_value(frozen["schema"].clone()).unwrap();
-        schema.tables.get_mut("posts").unwrap().columns.insert("at".into(), ColumnType::Text { max: 8192 });
+        schema
+            .tables
+            .get_mut("posts")
+            .unwrap()
+            .columns
+            .insert("at".into(), ColumnType::Text { max: 8192 });
         let mut program: Program = serde_json::from_value(frozen["program"].clone()).unwrap();
-        program.args.insert("low".into(), ArgType::Text { max: 8192 });
-        program.args.insert("high".into(), ArgType::Text { max: 8192 });
-        let Stmt::Return(Expr::Merge(merge)) = &mut program.body[0] else { unreachable!() };
+        program.args.insert(
+            "low".into(),
+            ArgType::Text {
+                max: 8192,
+                min: 0,
+                format: None,
+            },
+        );
+        program.args.insert(
+            "high".into(),
+            ArgType::Text {
+                max: 8192,
+                min: 0,
+                format: None,
+            },
+        );
+        let Stmt::Return(Expr::Merge(merge)) = &mut program.body[0] else {
+            unreachable!()
+        };
         let mut lane = merge.lanes[0].clone();
         lane.source = None;
         lane.scan.take = Bound::Literal(1);
-        lane.scan.after = Some(Box::new(Expr::Array(vec![Expr::Variable("low".into()), Expr::Literal(Value::Id("".into()))])));
-        lane.scan.before = Some(Box::new(Expr::Array(vec![Expr::Variable("high".into()), Expr::Literal(Value::Id("z".into()))])));
-        lane.scan.range = Some(Range { gt: None, gte: Some(Box::new(Expr::Variable("low".into()))),
-            lt: Some(Box::new(Expr::Variable("high".into()))), lte: None });
-        merge.lanes = (0..64).map(|actor| {
-            let mut lane = lane.clone();
-            lane.scan.site = format!("bounded-{actor}");
-            lane.scan.prefix = vec![Expr::Literal(Value::Id(format!("u{actor}")))];
-            lane
-        }).collect();
-        let certificate = Checker::new(&schema, Ceilings::default()).check(&program).unwrap();
-        let Stmt::Return(Expr::Merge(merge)) = &program.body[0] else { unreachable!() };
+        lane.scan.after = Some(Box::new(Expr::Array(vec![
+            Expr::Variable("low".into()),
+            Expr::Literal(Value::Id("".into())),
+        ])));
+        lane.scan.before = Some(Box::new(Expr::Array(vec![
+            Expr::Variable("high".into()),
+            Expr::Literal(Value::Id("z".into())),
+        ])));
+        lane.scan.range = Some(Range {
+            gt: None,
+            gte: Some(Box::new(Expr::Variable("low".into()))),
+            lt: Some(Box::new(Expr::Variable("high".into()))),
+            lte: None,
+        });
+        merge.lanes = (0..64)
+            .map(|actor| {
+                let mut lane = lane.clone();
+                lane.scan.site = format!("bounded-{actor}");
+                lane.scan.prefix = vec![Expr::Literal(Value::Id(format!("u{actor}"))).into()];
+                lane
+            })
+            .collect();
+        let certificate = Checker::new(&schema, Ceilings::default())
+            .check(&program)
+            .unwrap();
+        let Stmt::Return(Expr::Merge(merge)) = &program.body[0] else {
+            unreachable!()
+        };
         let table = &schema.tables["posts"];
         let scan = &merge.lanes[0].scan;
         let index = &table.indexes[&scan.index];
@@ -613,28 +888,94 @@ mod tests {
         let high = Value::String("𐀁".repeat(8192));
         let after = Value::Array(vec![low.clone(), Value::Id("".into())]);
         let before = Value::Array(vec![high.clone(), Value::Id("z".into())]);
-        let range = EvaluatedRange { gt: None, gte: Some(low.clone()), lt: Some(high.clone()), lte: None };
+        let range = EvaluatedRange {
+            gt: None,
+            gte: Some(low.clone()),
+            lt: Some(high.clone()),
+            lte: None,
+        };
         let prefix = [Value::Id("u0".into())];
-        let unbounded = index::InitialSeek::new("posts", &scan.index, table, index, &prefix,
-            Some(&after), Some(&before), Some(&range), Order::Asc, u64::MAX).unwrap().unwrap();
+        let unbounded = index::InitialSeek::new(
+            "posts",
+            &scan.index,
+            table,
+            index,
+            &prefix,
+            Some(&after),
+            Some(&before),
+            Some(&range),
+            Order::Asc,
+            u64::MAX,
+        )
+        .unwrap()
+        .unwrap();
         let retained = unbounded.retained_bytes().unwrap();
         assert!(retained > reserve);
-        assert!(index::InitialSeek::new("posts", &scan.index, table, index, &prefix,
-            Some(&after), Some(&before), Some(&range), Order::Asc, reserve).unwrap().is_none());
-        eprintln!("wide_bound_capacity_bytes={retained} template_reserve={reserve} admission=fallback");
+        assert!(
+            index::InitialSeek::new(
+                "posts",
+                &scan.index,
+                table,
+                index,
+                &prefix,
+                Some(&after),
+                Some(&before),
+                Some(&range),
+                Order::Asc,
+                reserve
+            )
+            .unwrap()
+            .is_none()
+        );
+        eprintln!(
+            "wide_bound_capacity_bytes={retained} template_reserve={reserve} admission=fallback"
+        );
         let mut engine = Engine::memory(schema.clone()).unwrap();
-        for (id, at) in [("a", low.clone()), ("b", low.clone()), ("c", low.clone()), ("outside", high.clone())] {
-            engine.seed("posts", object([("id", Value::Id(id.into())),
-                ("author", Value::Id("u0".into())), ("at", at)])).unwrap();
+        for (id, at) in [
+            ("a", low.clone()),
+            ("b", low.clone()),
+            ("c", low.clone()),
+            ("outside", high.clone()),
+        ] {
+            engine
+                .seed(
+                    "posts",
+                    object([
+                        ("id", Value::Id(id.into())),
+                        ("author", Value::Id("u0".into())),
+                        ("at", at),
+                    ]),
+                )
+                .unwrap();
         }
         {
             let tx = engine.store.conn.transaction().unwrap();
-            let expected = index::scan_indexed(&tx, "posts", &scan.index, table, index, &prefix,
-                Some(&after), Some(&before), Some(&range), Order::Asc, 10).unwrap();
+            let expected = index::scan_indexed(
+                &tx,
+                "posts",
+                &scan.index,
+                table,
+                index,
+                &prefix,
+                Some(&after),
+                Some(&before),
+                Some(&range),
+                Order::Asc,
+                10,
+            )
+            .unwrap();
             assert_eq!(row_ids(&expected).unwrap(), ["a", "b", "c"]);
         }
-        let result = engine.execute(&program, &certificate, Context::query(
-            Actor::new("u1", "user").unwrap(), [("low".into(), low), ("high".into(), high)].into())).unwrap();
+        let result = engine
+            .execute(
+                &program,
+                &certificate,
+                Context::query(
+                    Actor::new("u1", "user").unwrap(),
+                    [("low".into(), low), ("high".into(), high)].into(),
+                ),
+            )
+            .unwrap();
         assert_eq!(row_ids(result.result.as_array().unwrap()).unwrap(), ["a"]);
         assert_eq!(result.state, ExecutionState::Capped);
         assert_eq!(result.trace.ranges.len(), 64);
@@ -650,47 +991,107 @@ mod tests {
     fn initial_seek_templates_preserve_varying_bounds_and_overlapping_heads() {
         let frozen: serde_json::Value = serde_json::from_str(include_str!(
             "../../../../corpus/merge-for-lane-domain-limit.json"
-        )).unwrap();
+        ))
+        .unwrap();
         let schema: Schema = serde_json::from_value(frozen["schema"].clone()).unwrap();
         let mut program: Program = serde_json::from_value(frozen["program"].clone()).unwrap();
-        let Stmt::Return(Expr::Merge(merge)) = &mut program.body[0] else { unreachable!() };
+        let Stmt::Return(Expr::Merge(merge)) = &mut program.body[0] else {
+            unreachable!()
+        };
         let lane = &mut merge.lanes[0];
         lane.source.as_mut().unwrap().take = Bound::Literal(4);
-        lane.scan.range = Some(Range { gt: None, lt: None, lte: None,
+        lane.scan.range = Some(Range {
+            gt: None,
+            lt: None,
+            lte: None,
             gte: Some(Box::new(Expr::Field {
-                base: Box::new(Expr::Variable(lane.binding.clone())), name: "at".into(),
+                base: Box::new(Expr::Variable(lane.binding.clone())),
+                name: "at".into(),
             })),
         });
-        let at = Expr::Field { base: Box::new(Expr::Variable(lane.binding.clone())), name: "at".into() };
-        lane.scan.after = Some(Box::new(Expr::Array(vec![at.clone(), Expr::Literal(Value::Id("".into()))])));
-        lane.scan.before = Some(Box::new(Expr::Array(vec![Expr::Binary {
-            op: BinaryOp::Add, left: Box::new(at), right: Box::new(Expr::Literal(Value::Int(7))),
-        }, Expr::Literal(Value::Id("z".into()))])));
-        let certificate = Checker::new(&schema, Ceilings::default()).check(&program).unwrap();
+        let at = Expr::Field {
+            base: Box::new(Expr::Variable(lane.binding.clone())),
+            name: "at".into(),
+        };
+        lane.scan.after = Some(Box::new(Expr::Array(vec![
+            at.clone(),
+            Expr::Literal(Value::Id("".into())),
+        ])));
+        lane.scan.before = Some(Box::new(Expr::Array(vec![
+            Expr::Binary {
+                op: BinaryOp::Add,
+                left: Box::new(at),
+                right: Box::new(Expr::Literal(Value::Int(7))),
+            },
+            Expr::Literal(Value::Id("z".into())),
+        ])));
+        let certificate = Checker::new(&schema, Ceilings::default())
+            .check(&program)
+            .unwrap();
         let mut engine = Engine::memory(schema).unwrap();
         for (id, actor, at) in [("f1", "a", 1), ("f2", "a", 3), ("f3", "b", 4)] {
-            engine.seed("follows", object([
-                ("id", Value::Id(id.into())), ("follower", Value::Id("u1".into())),
-                ("followed", Value::Id(actor.into())), ("at", Value::Int(at)),
-            ])).unwrap();
+            engine
+                .seed(
+                    "follows",
+                    object([
+                        ("id", Value::Id(id.into())),
+                        ("follower", Value::Id("u1".into())),
+                        ("followed", Value::Id(actor.into())),
+                        ("at", Value::Int(at)),
+                    ]),
+                )
+                .unwrap();
         }
         for actor in ["a", "b"] {
             for at in 1..7 {
-                engine.seed("posts", object([
-                    ("id", Value::Id(format!("{actor}{at}"))),
-                    ("author", Value::Id(actor.into())), ("at", Value::Int(at)),
-                ])).unwrap();
+                engine
+                    .seed(
+                        "posts",
+                        object([
+                            ("id", Value::Id(format!("{actor}{at}"))),
+                            ("author", Value::Id(actor.into())),
+                            ("at", Value::Int(at)),
+                        ]),
+                    )
+                    .unwrap();
             }
         }
-        let execution = engine.execute(&program, &certificate,
-            Context::query(Actor::new("u1", "user").unwrap(), Default::default())).unwrap();
-        assert_eq!(row_ids(execution.result.as_array().unwrap()).unwrap(), ["a1", "a2", "a3"]);
+        let execution = engine
+            .execute(
+                &program,
+                &certificate,
+                Context::query(Actor::new("u1", "user").unwrap(), Default::default()),
+            )
+            .unwrap();
+        assert_eq!(
+            row_ids(execution.result.as_array().unwrap()).unwrap(),
+            ["a1", "a2", "a3"]
+        );
         assert_eq!(execution.state, ExecutionState::Capped);
-        let ranges: Vec<_> = execution.trace.ranges.iter().filter(|r| r.table == "posts").collect();
-        assert_eq!(ranges.len(), 3, "same actor with different bounds remains two streams");
+        let ranges: Vec<_> = execution
+            .trace
+            .ranges
+            .iter()
+            .filter(|r| r.table == "posts")
+            .collect();
+        assert_eq!(
+            ranges.len(),
+            3,
+            "same actor with different bounds remains two streams"
+        );
         assert_eq!(ranges[2].gte, Some(Value::Int(4)));
-        assert_eq!(ranges[2].visible_ids.first().unwrap(), "b4", "no bound from the first actor leaks");
-        assert!(execution.receipt.rows.iter().any(|row| row.table == "posts" && row.id == "b4"));
+        assert_eq!(
+            ranges[2].visible_ids.first().unwrap(),
+            "b4",
+            "no bound from the first actor leaks"
+        );
+        assert!(
+            execution
+                .receipt
+                .rows
+                .iter()
+                .any(|row| row.table == "posts" && row.id == "b4")
+        );
         assert_eq!(execution.trace.merges[0].deduplicated_union_len, 5);
     }
 
@@ -798,10 +1199,7 @@ mod tests {
             .collect();
         // Inject equal-prefix lanes directly, bypassing prefixes.insert. The heap's
         // id-dedupe can skip a visible prefix before this lane wins a later row.
-        for (lane, returned) in [
-            (0, vec!["a".into(), "c".into()]),
-            (1, vec!["b".into()]),
-        ] {
+        for (lane, returned) in [(0, vec!["a".into(), "c".into()]), (1, vec!["b".into()])] {
             let scan = merge.lanes[lane].scan.clone();
             let input = runner.evaluate_scan(&scan).unwrap();
             runner
@@ -822,10 +1220,10 @@ mod tests {
         let ranges = &runner.receipt.ranges;
         assert_eq!(ranges[0].stop, StopReason::Exhausted);
         assert!(ranges[0].halo.is_none());
-        assert!(ranges[0].n2_key.is_none());
+        assert!(ranges[0].n2_suffix.is_none());
         assert_eq!(ranges[1].stop, StopReason::Limit);
         assert_eq!(ranges[1].halo.as_ref().unwrap().id, "c");
-        assert!(ranges[1].n2_key.is_none());
+        assert!(ranges[1].n2_suffix.is_none());
         runner.trace.merges.push(MergeTrace {
             site: merge.site.clone(),
             deduplicated_union_len: 3,

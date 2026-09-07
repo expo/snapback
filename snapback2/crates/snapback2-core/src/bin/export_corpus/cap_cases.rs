@@ -1,5 +1,6 @@
 //! LLP 1017 cap enforcement and page-origin admission, shared with the twin.
 use super::*;
+use snapback2_core::ir::IndexKeyExpr;
 #[path = "cap_review_cases.rs"]
 mod review;
 
@@ -70,7 +71,10 @@ pub(super) fn add_cap_cases(cases: &mut Vec<CorpusCase>) {
     engine.seed("memberships", member(0, false)).unwrap();
     let mut null_scan = scan("null.group");
     null_scan.index = "byGroup".into();
-    null_scan.prefix = vec![Expr::Literal(Value::Null)];
+    null_scan.prefix = vec![Expr::Literal(Value::Null)]
+        .into_iter()
+        .map(IndexKeyExpr::Scalar)
+        .collect();
     let receipt = snapshot(&mut engine, &optional, null_scan);
     cases.push(case_from_parts(
         &p.name.clone(),
@@ -152,7 +156,8 @@ pub(super) fn add_cap_cases(cases: &mut Vec<CorpusCase>) {
         let name = format!("fanout-complete-{mode}");
         let mut scan = scan("members.page");
         if mode == "longer-prefix" {
-            scan.prefix.push(Expr::Literal(text("member")));
+            scan.prefix
+                .push(IndexKeyExpr::Scalar(Expr::Literal(text("member"))));
             scan.index = "byConversationRole".into();
         }
         let mut body = Vec::new();
@@ -306,7 +311,7 @@ pub(super) fn add_cap_cases(cases: &mut Vec<CorpusCase>) {
                 if mode == "binding-unknown" {
                     let mut second = scan.clone();
                     second.site = "members.other".into();
-                    second.prefix[0] = Expr::Literal(id("c2"));
+                    second.prefix[0] = IndexKeyExpr::Scalar(Expr::Literal(id("c2")));
                     body.push(Stmt::If {
                         condition: var("choice"),
                         then_body: vec![Stmt::Assign {
@@ -656,7 +661,10 @@ fn count_backed_schema(max: u32) -> Schema {
 }
 fn index(columns: &[&str], unique: bool) -> Index {
     Index {
-        columns: columns.iter().map(|s| (*s).into()).collect(),
+        components: (columns.iter().map(|s| (*s).into()).collect::<Vec<_>>())
+            .into_iter()
+            .map(snapback2_core::search_key::IndexComponent::Column)
+            .collect(),
         unique,
     }
 }
@@ -679,7 +687,10 @@ fn scan(site: &str) -> Scan {
         site: site.into(),
         table: "memberships".into(),
         index: "byConversationPrincipal".into(),
-        prefix: vec![Expr::Literal(id("c1"))],
+        prefix: (vec![Expr::Literal(id("c1"))])
+            .into_iter()
+            .map(IndexKeyExpr::Scalar)
+            .collect(),
         order: Order::Asc,
         take: Bound::Literal(50),
         after: None,

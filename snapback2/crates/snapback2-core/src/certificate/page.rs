@@ -274,7 +274,7 @@ fn resolve_result_page_site(
     // identical. Count reads inside operands as well as the enclosing read.
     fn visit_scan<'a>(scan: &'a Scan, root: bool, scans: &mut Vec<(&'a Scan, bool)>) {
         scans.push((scan, root));
-        for value in &scan.prefix {
+        for value in scan.prefix.iter().map(IndexKeyExpr::expression) {
             visit_expr(value, scans);
         }
         for value in [scan.after.as_deref(), scan.before.as_deref()]
@@ -405,7 +405,7 @@ fn resolve_result_page_site(
             rewrite: "use a declared index for the result page".to_owned(),
         }]);
     };
-    let Some(columns) = index.columns.get(first.prefix.len()..) else {
+    let Some(columns) = index.suffix_columns(first.prefix.len()) else {
         // check_all keeps analyzing after structural refusals so that callers
         // receive all diagnostics, including the original prefix arity error.
         return Err(vec![CheckError {
@@ -439,13 +439,13 @@ fn resolve_result_page_site(
         scan.table == page.table
             && scan.index == page.index
             && scan.order == page.order
-            && scan.prefix.len() + page.suffix.len() == index.columns.len()
+            && scan.prefix.len() + page.suffix.len() == index.components.len()
             && (scan.merge_site.as_deref() == Some(declared)) == merge
     });
     if !consistent
         || matching.iter().filter(|(_, root)| *root).count() != 1
         || page.suffix.is_empty()
-        || page.suffix.len() + first.prefix.len() != index.columns.len()
+        || page.suffix.len() + first.prefix.len() != index.components.len()
     {
         return Err(vec![CheckError {
             site: None,
@@ -490,7 +490,9 @@ mod drain_tests {
                     BTreeMap::from([(
                         "byId".into(),
                         Index {
-                            columns: vec!["id".into()],
+                            components: vec![crate::search_key::IndexComponent::Column(
+                                "id".into(),
+                            )],
                             unique: true,
                         },
                     )]),

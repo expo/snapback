@@ -16,8 +16,10 @@
         },
         "indexes": {
           "byId": {
-            "columns": [
-              "id"
+            "components": [
+              {
+                "Column": "id"
+              }
             ],
             "unique": true
           }
@@ -132,17 +134,17 @@
   "certificate": {
     "program": "emitAfterInsert",
     "plan_hash": "abb93e536653fa78c697cc285428921b18224a0618082965f39afcd03ecff06c",
-    "schema_hash": "2179352cc2000b5efca6aa775c6c1767366012e5482a715e3b9331ace6054c8c",
+    "schema_hash": "467c2f49e8469df627de03e8505c99827aca153ce9d0dfa7c4ba15833fcc33a3",
     "tables": {
       "events": {
         "retain": "until-revoked"
       }
     },
     "rule_hashes": {
-      "events.insert": "833a1d680f3c85fa659ee818e86bccc18245827011c38e359e5a15e4a1512e98"
+      "events.insert": "5d3344e720a31c25f61eb50c6ab2dda77417895c8673fb2db99abdce2dd36ac7"
     },
-    "evaluator_version": "bounded-spike-rust-1",
-    "value_model_version": "i53-codepoint-bytes-v2",
+    "evaluator_version": "bounded-spike-rust-search-text-refinements-4",
+    "value_model_version": "i53-codepoint-bytes-unicode-search-text-refinements-v5",
     "read_sites": [],
     "write_sites": [
       {
@@ -169,6 +171,8 @@
     "max_index_entries": 0,
     "max_rule_probes": 0,
     "max_steps": 33,
+    "derived_steps": 0,
+    "derived_scratch_bytes": 0,
     "max_heap_bytes": 1056,
     "max_output_bytes": 302,
     "max_closure_bytes": 0,
@@ -198,7 +202,7 @@
     "read_time": null
   },
   "receipt": {
-    "schema_hash": "2179352cc2000b5efca6aa775c6c1767366012e5482a715e3b9331ace6054c8c",
+    "schema_hash": "467c2f49e8469df627de03e8505c99827aca153ce9d0dfa7c4ba15833fcc33a3",
     "rows": [],
     "ranges": [],
     "absences": [],

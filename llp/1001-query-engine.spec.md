@@ -5,7 +5,7 @@
 **Systems:** `snapback2/crates/snapback2-core` (`store`, `registry`, `live`, `identity`, `successor`, the engine, the IR)
 **Author:** Claude Fable 5 (orchestrator) — implementer: codex gpt-5.6-sol, lane A
 **Date:** 2026-08-29
-**Revised:** 2026-09-07 (surviving-row uniqueness checked against each actual rebuild); 2026-09-07 (count-backed cap probes); 2026-09-06 (fixed complete local-runtime measurement roots: 66,000-byte ceiling, 64,000 target); 2026-09-06 (generation-owned policy hashes, pooled merge seeks and bounded shared templates); 2026-09-06 (measured full-entry search trade: 50,000-byte ceiling, 48,000 target); 2026-09-06 (session-delegated Unicode/search foundation and downstream contracts); 2026-09-06 (conditional result-page provenance and branch-scoped cursor validation); 2026-09-05 (Clique L12 — §3 receipt-only null invariant and §5.1 `connected`); 2026-09-05 (Clique L9 — bounded ASCII words builtin and constructed-text boundary); 2026-09-05 (Clique L10 — lazy merge, receipt retention and global local-pagination cursor rule); 2026-09-05 (Clique L8b — nested point-read shapes preserve page state; early exits preserve capped taint); 2026-09-05 (Clique L8a — prefix-local self-probe and decided-disjunction visibility proofs); 2026-09-05 (Clique L3 — honest bound refusals and patch-sensitive cap metering; LLP 1016 J2 — §1's system tables gain `_jobs` and `_timers`; LLP 1017 §1, then §2 and §3)
+**Revised:** 2026-09-07 (surviving-row uniqueness checked against each actual rebuild); 2026-09-07 (schema-owned maintained address widths/references and scoped successor reindex); 2026-09-07 (native v5 search/text integration preserving count-backed caps and ad hoc admission); 2026-09-07 (count-backed cap probes); 2026-09-06 (fixed complete local-runtime measurement roots: 66,000-byte ceiling, 64,000 target); 2026-09-06 (generation-owned policy hashes, pooled merge seeks and bounded shared templates); 2026-09-06 (measured full-entry search trade: 50,000-byte ceiling, 48,000 target); 2026-09-06 (session-delegated Unicode/search foundation and downstream contracts); 2026-09-06 (conditional result-page provenance and branch-scoped cursor validation); 2026-09-05 (Clique L12 — §3 receipt-only null invariant and §5.1 `connected`); 2026-09-05 (Clique L9 — bounded ASCII words builtin and constructed-text boundary); 2026-09-05 (Clique L10 — lazy merge, receipt retention and global local-pagination cursor rule); 2026-09-05 (Clique L8b — nested point-read shapes preserve page state; early exits preserve capped taint); 2026-09-05 (Clique L8a — prefix-local self-probe and decided-disjunction visibility proofs); 2026-09-05 (Clique L3 — honest bound refusals and patch-sensitive cap metering; LLP 1016 J2 — §1's system tables gain `_jobs` and `_timers`; LLP 1017 §1, then §2 and §3)
 **Related:** LLP 1000, LLP 1002 (the loop that serves this), LLP 1003 (effects
 through the outbox this spec defines), LLP 0329.014.004 §7 (runtime), LLP
 0329.014.000 §6 (execution, trace, states), LLP 0329.016 §5.6 (no silent
@@ -553,6 +553,66 @@ undeclared field therefore cannot block a clean additive successor, but a
 successor that declares that field refuses with `E_SUCCESSOR_ROW_INVALID`
 naming the offending row.
 
+### Maintained addresses
+
+Implemented by Codex GPT-6 Astra (xhigh), native integration R2, 2026-09-07.
+A maintained target's intrinsic address remains the canonical tagged JSON of
+its ordered grouping tuple, with omitted optional fields materialized as Null.
+It is still serialized as an Id; no hash, truncation, remapping or wire-version
+change is introduced. Ordinary user/actor/NewId/untyped Id values retain the
+144 canonical tagged byte allowance. A generated intrinsic address may exceed
+that allowance only in the maintained target's schema-owned slot, where the
+engine validates the declared source group types and exact canonical address;
+a retained row must also reproduce that address from its group fields.
+Legacy non-projected target rows with ordinary ids retain their existing domain.
+
+A schema-targeted Ref to a maintained target, including Optional/List nesting,
+uses that target's address domain. Returned addresses therefore remain usable
+as typed byId arguments and stored references. Ref admission validates the
+referenced schema and canonical tuple, never only a tag, and creates no read or
+write authority. Untyped Id/Scalar/JSON slots do not acquire this exception.
+Row pools retain exact row/address equality and first-image/reference custody;
+native and TypeScript typed/wire admission carry the current schema explicitly.
+Structural delivery decode does not grant address authority: row preparation,
+held byId/absence keys and executed cursor suffixes validate the current target
+and exact canonical tuple. Optional/List recursion preserves the declared Ref
+target; ordinary actor, untyped Id, Scalar and JSON slots keep the 144-byte rule.
+The cursor encoding, descriptor binding and 4,096 decoded-byte ceiling remain.
+
+The target's intrinsic width is derived from the declared tagged group widths:
+tuple brackets, one separator allowance per element, then nine Id-wrapper bytes
+plus at most twice the tuple bytes for another JSON escape. It is at least the
+ordinary 144 allowance. Ref widths follow their target; Optional/List preserve
+that width recursively. Row/projection, retained-row, point/range/halo reference,
+and search suffix-buffer prices consume these same bounds. Ordinary reads that
+consume expanded maintained domains also price the complete receipt row pool,
+row/id envelopes, issuing keys/arguments and transitive rule authority. Reducing
+a read to Exists or a scalar does not release its disclosed first image. Enum widths include
+canonical escaping. Saturating arithmetic leaves the existing byte ceilings in
+force. A cyclic maintained-reference domain has no finite declared width and
+refuses with the existing E_BOUND only in programs that must price that domain;
+unrelated bounded programs and the schema itself remain admissible. Very wide
+positions remain subject to the existing cursor ceiling; it is not raised.
+
+Successor stored-row admission keeps unrelated undeclared legacy fields
+uninterpreted, including their identity widths. Reindex validates its actual
+ordinary component columns, WordPrefixes source fields, and intrinsic id before
+writing that row's index entries. Exact predecessor-owned projection IDs slated
+for rebuild are excluded from this surviving-row pass; their replacements use
+normal aggregate write/index/constraint admission in the same transaction.
+Surviving non-projected rows are still checked. Declaring the legacy field still subjects it
+to ordinary field/reserved-principal validation. All index changes, maintained
+rebuilds and generation metadata remain in the same rollback transaction.
+Count-backed cap addresses, one-row reserves, proven absences and N fallback do
+not change; successor caps still count base rows.
+
+This correction retains the v5 value/evaluator identities. The coordinated
+TypeScript evaluator/client uses shared typed and wire validators for this same
+domain, including absent buckets and immutable first-image custody. Exact native
+Ref/Optional/List roundtrip/refusal fixtures and combined-graph owner replays
+provide affected parity evidence. Compiler descendants and size/resource gates
+remain separate obligations before whole-package clearance.
+
 ## 5. Live subscriptions (`live.rs`)
 
 ```rust
@@ -911,6 +971,11 @@ Text columns and `ArgType::Text` refuse C0 control characters other than tab,
 newline, and carriage return as `E_INPUT`, naming the code point and the
 column or argument. Text maximums continue to count Unicode scalar values.
 
+Native v5 argument Text additionally admits `min` and `format` recursively
+through optional/list types, before execution, channel authorization, or job
+enqueue. Zero minimum and absent format retain the canonical unrefined shape;
+positive minimum and explicit format participate in certificate identity.
+
 The implicit `id` column is intrinsic row identity and is immutable without an
 authored constraint. Every addressed update or upsert requires the resulting
 row's `id` to equal the addressed key before rule evaluation, index mutation,
@@ -937,28 +1002,15 @@ out (the survey's "why no floats" section is the ruling).
 
 ### Pure builtins
 
-`words(text)` (`Builtin::Words`, implemented Clique L9, GPT-6 Astra,
-2026-09-05) extracts `[A-Za-z0-9]+` runs, ASCII-lowercases them, and deduplicates
-in first-occurrence order identically in the engine and TypeScript twin. Empty
-input yields an empty list; non-ASCII characters separate words. Runs stay
-whole, including beyond 64 characters: the index column must admit the input
-width or the program must filter long terms. It is whole-word matching, not
-prefix search, stemming, or a search engine. `tokens` remains the mention
-extractor (`Builtin::MentionTokens`), not this tokenizer.
-
-For a required text argument/expression with declared maximum N Unicode scalar
-values, the list maximum is `floor(N / 2) + 1`: nonempty runs need separating
-characters. Each output term has the input's maximum width. The front end carries
-both bounds through list positions, aliases, and `for` domains and refuses
-non-text/optional arguments with a repair. Text built with `+` or interpolation
-has no declared bound and is refused at `words`, including through aliases;
-the repair names a declared bounded text argument or column. A `??` over declared
-text uses the larger maximum of its two arms; a wider literal fallback still
-refuses against the left text bound. Serialized output is bounded by eight
-times the input's serialized maximum, covering tagged one-letter strings and
-array separators even for literals; tokens are never truncated to fit a bound.
-Loop element pricing keeps that whole-width reserve through aliases and branches:
-a single word may occupy the whole input, so division by the list maximum is unsound.
+The native v5 `words(text)` (`Builtin::Words`) uses the pinned Unicode
+normalization and boundaries in §"Unicode search foundation", deduplicating in
+first-occurrence order. Empty input yields an empty list. This replaces the
+native L9 ASCII tokenizer; `tokens` remains the separate mention extractor.
+Words stay whole, without prefix truncation. The native checker carries the
+normalization expansion U, whole-element width and whole-list bounds described
+below through loop aliases. Constructed text without a declared bound still
+refuses. Compiler and twin integration must carry the same bounds and semantics;
+a native implementation alone does not qualify that coordinated graph.
 
 ### Unicode search foundation
 
@@ -1053,6 +1105,26 @@ deduplicate, and native index maintenance adds its own ledger. A reused
 normalizer's scratch uses the largest input processed during its lifetime, not
 a later smaller Q. This model does not claim a measured VM/process heap peak;
 full search heap qualification still includes runtime/table/store overhead.
+
+**Native integration record, 2026-09-07.** Implementer: Codex GPT-6 Astra
+(xhigh), `clique-native-v5-integration` lane. The native engine now uses
+`Index.components`, `Scalar`/`WordPrefix` scan positions and logical `IndexAtom`
+receipts under value identity `i53-codepoint-bytes-unicode-search-text-refinements-v5`
+and evaluator `bounded-spike-rust-search-text-refinements-4`. Held source
+descriptors are rederived under their certified Q and dependency custody;
+a tag alone is never trusted. Ordinary points, scalar suffixes and bounds retain
+their roles. This reconciles the implemented v5 engine onto current native
+source; compatible compiler, evaluator and client delivery remain coordinated
+dependencies, with no package or search performance claim from this record.
+
+Count-backed caps retain the exact source/ordered-group count maintain match,
+deterministic point address, one-row reserve, proven-absence requirement and
+constraint trace. Unbacked caps retain N probes; successor admission still
+counts base rows. The same transaction maintains counts and search postings and
+rolls both back on refusal. LLP 1016 D6's single live-generation ad hoc admission
+and post-admission clock callback remain. Timed query delivery uses one validated
+safe-integer read time in both the envelope and validator, including an unvisited
+timed branch; untimed validators retain their prior shape.
 
 **Downstream obligations, not current capability claims.** One nonunique derived
 component must be equality-bound after ordinary scopes and before ordinary

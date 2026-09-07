@@ -1021,6 +1021,15 @@ that happens to be shaped like a reference is escaped as
 Network expansion, held-answer expansion, and reference collection share
 the same escape rules, so application literals do not acquire false row
 dependencies on persistence or reopen.
+Schema-owned maintained addresses follow LLP 1001#maintained-addresses through
+public delivery, held rows, byId absences and cursor suffixes. Structural wire
+decode preserves the exact address string; schema preparation validates its
+declared target and canonical grouping tuple before it becomes held authority.
+A row-pool record's address must equal its body id, and a long maintained row
+must reproduce its tuple from its grouping fields. Shared Ref/Optional/List
+validators grant no exception to authority principals or untyped ids. Cursor
+use binds the current schema/index/order/suffix and retains the 4,096-byte limit.
+
 `n2Key` is not on the wire. A hidden point *hit* discards the receipt
 artifacts its rule check recorded, as a hidden range candidate already did. The certified
 program and its certificate travel with the generation: `/api/manifest`

@@ -19,17 +19,17 @@ const items: TableInfo = {
     label: { kind: "string", max: 80 },
   },
   indexes: {
-    byId: { columns: ["id"], types: [{ kind: "string", id: true }], unique: true },
+    byId: { components: ["id"].map(Column => ({ Column })), types: [{ kind: "string", id: true }], unique: true },
     byOwnerAt: {
-      columns: ["owner", "at", "id"],
+      components: ["owner", "at", "id"].map(Column => ({ Column })),
       types: [{ kind: "string", id: true }, { kind: "int" }, { kind: "string", id: true }],
     },
     byAt: {
-      columns: ["at", "id"],
+      components: ["at", "id"].map(Column => ({ Column })),
       types: [{ kind: "int" }, { kind: "string", id: true }],
     },
     byFlag: {
-      columns: ["flag", "id"],
+      components: ["flag", "id"].map(Column => ({ Column })),
       types: [{ kind: "bool" }, { kind: "string", id: true }],
     },
   },
@@ -43,10 +43,10 @@ const schema = {
         price: { Decimal: { scale: 2 } }, label: { Text: { max: 80 } },
       },
       indexes: {
-        byId: { columns: ["id"], unique: true },
-        byOwnerAt: { columns: ["owner", "at", "id"], unique: false },
-        byAt: { columns: ["at", "id"], unique: false },
-        byFlag: { columns: ["flag", "id"], unique: false },
+        byId: { components: [{ Column: "id" }], unique: true },
+        byOwnerAt: { components: [{ Column: "owner" }, { Column: "at" }, { Column: "id" }], unique: false },
+        byAt: { components: [{ Column: "at" }, { Column: "id" }], unique: false },
+        byFlag: { components: [{ Column: "flag" }, { Column: "id" }], unique: false },
       },
       rules: {
         read: { Public: { reason: "cursor identity regression" } },
@@ -317,7 +317,7 @@ function rawScan(name: string, prefix: any[], after: any, index = "byOwnerAt", b
     args: {},
     read_time_granularity_ms: null,
     body: [{ Return: { Scan: {
-      site: `${name}.0`, table: "items", index, prefix, order: "Asc",
+      site: `${name}.0`, table: "items", index, prefix: prefix.map(Scalar => ({ Scalar })), order: "Asc",
       take: { Literal: 2 }, after, before, range: null, provenance: "Const",
     } } }],
   };

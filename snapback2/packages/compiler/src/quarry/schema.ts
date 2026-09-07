@@ -48,7 +48,7 @@ function emitTable(declaration: TableDecl, catalog: TableCatalog): string[] {
     lines.push(withSite("  indexes: {", declaration.site));
     for (const index of declaration.indexes) {
       lines.push(withSite(
-        `    ${property(index.name)}: { columns: [${index.columns.map((column) => JSON.stringify(column)).join(", ")}]${index.unique ? ", unique: true" : ""} },`,
+        `    ${property(index.name)}: { components: ${JSON.stringify(index.components)}${index.unique ? ", unique: true" : ""} },`,
         index.site,
       ));
     }
@@ -107,7 +107,7 @@ function emitChannel(declaration: ChannelDecl, catalog: TableCatalog): string[] 
   };
   return [
     withSite(`export const ${declaration.name} = channel({`, declaration.site),
-    withSite(`  args: { ${declaration.args.map((arg) => `${property(arg.name)}: ${typeCode(arg.type)}`).join(", ")} },`, declaration.site),
+    withSite(`  args: { ${declaration.args.map((arg) => `${property(arg.name)}: ${typeCode(arg.type, "argument")}`).join(", ")} },`, declaration.site),
     withSite(`  publish: ${ruleExpr(declaration.publish, catalog, context)},`, declaration.publish.site),
     withSite(`  subscribe: ${ruleExpr(declaration.subscribe, catalog, context)},`, declaration.subscribe.site),
     withSite(`  ttlMs: ${declaration.ttlSeconds * 1000},`, declaration.site),
@@ -254,10 +254,18 @@ function flattenBoolean(expr: Expr, op: "and" | "or"): Expr[] {
     : [expr];
 }
 
-export function typeCode(type: ScalarType, tableReference: (table: string) => string = (table) => table): string {
+export function typeCode(type: ScalarType, context: "column" | "argument" = "column", tableReference: (table: string) => string = (table) => table): string {
   let code: string;
   if (type.kind === "cursor") code = "t.cursor()";
-  else if (type.kind === "text") code = `t.text(${type.max})`;
+  // @ref LLP 1016#d2--a-job-is-a-sequence-of-sweeps — argument bounds belong to admission, even when a sweep visits no rows.
+  // Column minima and formats remain separate constraints.
+  else if (type.kind === "text") {
+    const refinements = context === "argument" ? [
+      ...(type.min ? [`min: ${type.min}`] : []),
+      ...(type.format ? [`format: ${JSON.stringify(type.format)}`] : []),
+    ] : [];
+    code = `t.text(${type.max}${refinements.length ? `, { ${refinements.join(", ")} }` : ""})`;
+  }
   else if (type.kind === "id") code = "t.id()";
   else if (type.kind === "principal") code = "t.principal()";
   else if (type.kind === "int") code = "t.int()";
@@ -274,7 +282,7 @@ export function typeCode(type: ScalarType, tableReference: (table: string) => st
   else if (type.kind === "video") code = `t.video(${type.max})`;
   else if (type.kind === "enum") code = `t.enum([${type.variants.map((variant) => JSON.stringify(variant)).join(", ")}])`;
   else if (type.kind === "ref") code = `t.ref(${tableReference(type.table)})`;
-  else code = `t.list(${typeCode({ ...type.item, optional: false }, tableReference)}, { max: ${type.max} })`;
+  else code = `t.list(${typeCode({ ...type.item, optional: false }, context, tableReference)}, { max: ${type.max} })`;
   return type.optional ? `t.optional(${code})` : code;
 }
 

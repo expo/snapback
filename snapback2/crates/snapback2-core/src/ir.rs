@@ -1,6 +1,11 @@
+pub use crate::search_key::{IndexKeyExpr, SearchContract};
 use crate::value::Value;
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
+
+fn is_zero(value: &u32) -> bool {
+    *value == 0
+}
 
 fn is_false(value: &bool) -> bool {
     !*value
@@ -34,6 +39,14 @@ pub enum ArgType {
     },
     Text {
         max: u32,
+        #[serde(default, skip_serializing_if = "is_zero")]
+        min: u32,
+        #[serde(
+            default,
+            skip_serializing_if = "Option::is_none",
+            deserialize_with = "deserialize_text_format"
+        )]
+        format: Option<crate::schema::TextFormat>,
     },
     Bytes {
         max: u32,
@@ -72,6 +85,17 @@ pub enum ArgType {
 }
 
 impl ArgType {
+    pub(crate) fn bounds_valid(&self) -> bool {
+        match self {
+            Self::Text { min, max, .. } => min <= max,
+            Self::Optional(inner)
+            | Self::List {
+                of: Some(inner), ..
+            } => inner.bounds_valid(),
+            _ => true,
+        }
+    }
+
     pub(crate) fn contains_asset(&self) -> bool {
         match self {
             Self::Image { .. } | Self::Video { .. } => true,
@@ -290,7 +314,7 @@ pub struct Scan {
     pub site: String,
     pub table: String,
     pub index: String,
-    pub prefix: Vec<Expr>,
+    pub prefix: Vec<IndexKeyExpr>,
     pub order: Order,
     pub take: Bound,
     pub after: Option<Box<Expr>>,
@@ -308,6 +332,42 @@ pub struct Scan {
 pub struct Merge {
     pub site: String,
     pub lanes: Vec<MergeLane>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub held_search: Option<Box<HeldSearchDescriptor>>,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct HeldSearchDescriptor {
+    pub table: String,
+    pub index: String,
+    pub term: HeldSearchTerm,
+    pub scope: Vec<HeldSearchScope>,
+    pub suffix: Vec<String>,
+    pub order: Order,
+    pub take: Bound,
+    pub after: Option<Box<Expr>>,
+    pub discovery: HeldSearchDiscovery,
+}
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct HeldSearchTerm {
+    pub source: Expr,
+    pub contract: SearchContract,
+    pub source_max: usize,
+}
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct HeldSearchScope {
+    pub column: String,
+    pub value: Expr,
+}
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct HeldSearchDiscovery {
+    pub scan: Scan,
+    pub binding: String,
+    pub authorization_index: String,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -389,4 +449,16 @@ pub fn field(base: Expr, name: &str) -> Expr {
 
 pub fn lit(value: Value) -> Expr {
     Expr::Literal(value)
+}
+
+fn deserialize_text_format<'de, D: serde::Deserializer<'de>>(
+    deserializer: D,
+) -> Result<Option<crate::schema::TextFormat>, D::Error> {
+    match String::deserialize(deserializer)?.as_str() {
+        "handle" => Ok(Some(crate::schema::TextFormat::Handle)),
+        "url" => Ok(Some(crate::schema::TextFormat::Url)),
+        _ => Err(serde::de::Error::custom(
+            "text format must be handle or url",
+        )),
+    }
 }

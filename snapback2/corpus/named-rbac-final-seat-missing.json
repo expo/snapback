@@ -12,8 +12,10 @@
         },
         "indexes": {
           "byId": {
-            "columns": [
-              "id"
+            "components": [
+              {
+                "Column": "id"
+              }
             ],
             "unique": true
           }
@@ -64,16 +66,24 @@
         },
         "indexes": {
           "byGroupPrincipalRole": {
-            "columns": [
-              "group",
-              "principal",
-              "role"
+            "components": [
+              {
+                "Column": "group"
+              },
+              {
+                "Column": "principal"
+              },
+              {
+                "Column": "role"
+              }
             ],
             "unique": true
           },
           "byId": {
-            "columns": [
-              "id"
+            "components": [
+              {
+                "Column": "id"
+              }
             ],
             "unique": true
           }
@@ -188,7 +198,7 @@
   "certificate": {
     "program": "groups.missingCreatorSeat",
     "plan_hash": "aa15b7863642d61578340e4683d73566954e80ebba1a51f6802041fe6e1ceadf",
-    "schema_hash": "2ad71c2d6bd133ed183097730c44edfb2afc2dfdbc75d8df8321c8db202899fc",
+    "schema_hash": "f2e31d2dc049dce1f84861e4b66cdef3c5e91b8979b048b83fa014372bdfa61c",
     "tables": {
       "groups": {
         "retain": "until-revoked"
@@ -198,10 +208,10 @@
       }
     },
     "rule_hashes": {
-      "groups.insert": "95377ccfd58e9cc0a6dba7cae1c7269bc0276e199e79f404699a6e4d2cb716d9"
+      "groups.insert": "09b276421c70f130e5cc25c20b92206914ef7eb24c49b5dcada044b0b7ac9b0a"
     },
-    "evaluator_version": "bounded-spike-rust-1",
-    "value_model_version": "i53-codepoint-bytes-v2",
+    "evaluator_version": "bounded-spike-rust-search-text-refinements-4",
+    "value_model_version": "i53-codepoint-bytes-unicode-search-text-refinements-v5",
     "read_sites": [],
     "write_sites": [
       {
@@ -219,6 +229,8 @@
     "max_index_entries": 0,
     "max_rule_probes": 1,
     "max_steps": 7,
+    "derived_steps": 0,
+    "derived_scratch_bytes": 0,
     "max_heap_bytes": 224,
     "max_output_bytes": 6,
     "max_closure_bytes": 0,
@@ -242,7 +254,7 @@
     "read_time": null
   },
   "receipt": {
-    "schema_hash": "2ad71c2d6bd133ed183097730c44edfb2afc2dfdbc75d8df8321c8db202899fc",
+    "schema_hash": "f2e31d2dc049dce1f84861e4b66cdef3c5e91b8979b048b83fa014372bdfa61c",
     "rows": [],
     "ranges": [],
     "absences": [],

@@ -1,4 +1,5 @@
 //! LLP 1016 D5: `_timers` as an index, firing as one transaction, occurrence identity.
+use snapback2_core::ir::IndexKeyExpr;
 use snapback2_core::timers::{Schedule, Timer, Trigger};
 use snapback2_core::*;
 use std::collections::BTreeMap;
@@ -21,14 +22,20 @@ fn items() -> Table {
             (
                 "byId".into(),
                 Index {
-                    columns: vec!["id".into()],
+                    components: (vec!["id".into()])
+                        .into_iter()
+                        .map(snapback2_core::search_key::IndexComponent::Column)
+                        .collect(),
                     unique: true,
                 },
             ),
             (
                 "byScope".into(),
                 Index {
-                    columns: vec!["scope".into(), "id".into()],
+                    components: (vec!["scope".into(), "id".into()])
+                        .into_iter()
+                        .map(snapback2_core::search_key::IndexComponent::Column)
+                        .collect(),
                     unique: false,
                 },
             ),
@@ -49,7 +56,10 @@ fn log() -> Table {
         BTreeMap::from([(
             "byId".into(),
             Index {
-                columns: vec!["id".into()],
+                components: (vec!["id".into()])
+                    .into_iter()
+                    .map(snapback2_core::search_key::IndexComponent::Column)
+                    .collect(),
                 unique: true,
             },
         )]),
@@ -136,7 +146,14 @@ fn bindings(schedules: &[Schedule]) -> Vec<Program> {
                     (vec![], lit(Value::Bool(true)), vec![])
                 } else if name.ends_with("_scope") {
                     (
-                        vec![("scope", ArgType::Text { max: 20 })],
+                        vec![(
+                            "scope",
+                            ArgType::Text {
+                                max: 20,
+                                min: 0,
+                                format: None,
+                            },
+                        )],
                         lit(Value::Bool(true)),
                         vec![("scope", var("scope"))],
                     )
@@ -200,7 +217,14 @@ fn reject() -> Program {
 fn sweep(name: &str, scoped: bool) -> Program {
     let mut args = vec![];
     if scoped {
-        args.push(("scope", ArgType::Text { max: 20 }));
+        args.push((
+            "scope",
+            ArgType::Text {
+                max: 20,
+                min: 0,
+                format: None,
+            },
+        ));
     }
     program(
         name,
@@ -212,7 +236,10 @@ fn sweep(name: &str, scoped: bool) -> Program {
                 site: "sweep".into(),
                 table: "items".into(),
                 index: if scoped { "byScope" } else { "byId" }.into(),
-                prefix: if scoped { vec![var("scope")] } else { vec![] },
+                prefix: (if scoped { vec![var("scope")] } else { vec![] })
+                    .into_iter()
+                    .map(IndexKeyExpr::Scalar)
+                    .collect(),
                 order: Order::Asc,
                 take: Bound::Literal(100),
                 after: None,
@@ -337,7 +364,7 @@ fn rows(rt: &mut Runtime, table: &str) -> Vec<Value> {
             site: "inspect".into(),
             table: table.into(),
             index: "byId".into(),
-            prefix: vec![],
+            prefix: (vec![]).into_iter().map(IndexKeyExpr::Scalar).collect(),
             order: Order::Asc,
             take: Bound::Literal(100),
             after: None,

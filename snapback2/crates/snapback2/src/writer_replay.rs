@@ -2,8 +2,8 @@
 // @ref LLP 1012#7-writes-offline — only a current principal-bound grant may
 // inject ids, and the terminal response is deduplicated by intent.
 
-use super::*;
 use super::writer_auth::ResolvedAuthority;
+use super::*;
 use serde::{Deserialize, Serialize};
 use snapback2_core::{
     REPLAY_GRANT_LIFETIME_MS, REPLAY_GRANT_LOW_WATERMARK, ReplayCommit, ReplayGrant, ReplayTrace,
@@ -220,22 +220,28 @@ impl State {
                         "send trace points emitted by the certified client twin",
                     )
                 })?;
-                if point.key.len() != index.columns.len() {
+                if point.key.len() != index.components.len() {
                     return Err(Refusal::input(
                         format!(
                             "replay point {}.{} key has {} values, expected {}",
                             point.table,
                             point.index,
                             point.key.len(),
-                            index.columns.len()
+                            index.components.len()
                         ),
                         "send the complete point key emitted by the certified client twin",
                     ));
                 }
+                let columns = index.scalar_columns().ok_or_else(|| {
+                    Refusal::input(
+                        "replay point must address an ordinary index",
+                        "send certified ordinary point keys",
+                    )
+                })?;
                 let key = point
                     .key
                     .iter()
-                    .zip(&index.columns)
+                    .zip(&columns)
                     .map(|(value, column)| {
                         let kind = table.columns.get(column).expect("certified index column");
                         writer_values::json_as_kind(value, kind)

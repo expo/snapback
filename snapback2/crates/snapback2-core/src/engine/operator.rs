@@ -1,4 +1,5 @@
 use super::*;
+use crate::ir::IndexKeyExpr;
 
 impl Engine {
     // @ref LLP 1016#d6--the-operator-seat-ad-hoc-programs-and-rehearsal — only this entry constructs an operator context; attribution commits with writes.
@@ -36,7 +37,10 @@ mod tests {
             BTreeMap::from([(
                 "byId".into(),
                 Index {
-                    columns: vec!["id".into()],
+                    components: (vec!["id".into()])
+                        .into_iter()
+                        .map(crate::search_key::IndexComponent::Column)
+                        .collect(),
                     unique: true,
                 },
             )]),
@@ -61,7 +65,7 @@ mod tests {
                 site: "records.range".into(),
                 table: "records".into(),
                 index: "byId".into(),
-                prefix: vec![],
+                prefix: (vec![]).into_iter().map(IndexKeyExpr::Scalar).collect(),
                 order: Order::Asc,
                 take: Bound::Literal(10),
                 after: None,
@@ -120,7 +124,10 @@ mod tests {
             BTreeMap::from([(
                 "byId".into(),
                 Index {
-                    columns: vec!["id".into()],
+                    components: (vec!["id".into()])
+                        .into_iter()
+                        .map(crate::search_key::IndexComponent::Column)
+                        .collect(),
                     unique: true,
                 },
             )]),

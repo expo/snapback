@@ -2,7 +2,7 @@ import ts from "typescript";
 import { expandArgumentObject } from "../args";
 import { diagnostic } from "../diagnostics";
 import type { EffectJson, FrontendDiagnostic } from "../ir";
-import { hasExport, staticMemberPath, unwrapCall, unwrapExpression, walk } from "../syntax";
+import { exportedVariables, staticMemberPath, unwrapCall, unwrapExpression, walk } from "../syntax";
 import { callLeaf, moduleJsonConstants, objectOf, property, staticJson, stringArray } from "./static";
 
 // @ref LLP 1003#1-authoring — effects carry validated grants, closed ES2020 source, and an optional typed then mutation.
@@ -42,15 +42,13 @@ export type EffectCatalog = Map<string, { module: SourceModule; exportName: stri
 export function collectEffectCatalog(modules: SourceModule[]): EffectCatalog {
   const catalog: EffectCatalog = new Map();
   for (const module of modules) {
-    for (const statement of module.sourceFile.statements) {
-      if (!ts.isVariableStatement(statement) || !hasExport(statement)) continue;
-      for (const declaration of statement.declarationList.declarations) {
-        if (!ts.isIdentifier(declaration.name) || !declaration.initializer) continue;
-        const call = unwrapCall(declaration.initializer);
-        if (call && callLeaf(call) === "effect") {
-          const name = `${module.moduleName}.${declaration.name.text}`;
-          catalog.set(name, { module, exportName: declaration.name.text, call });
-        }
+    // @ref LLP 1002#1-decisions — catalog and lowering share discovery; each authored export keeps its name.
+    for (const { declaration, exportName } of exportedVariables(module.sourceFile)) {
+      if (!declaration.initializer) continue;
+      const call = unwrapCall(declaration.initializer);
+      if (call && callLeaf(call) === "effect") {
+        const name = `${module.moduleName}.${exportName}`;
+        catalog.set(name, { module, exportName, call });
       }
     }
   }

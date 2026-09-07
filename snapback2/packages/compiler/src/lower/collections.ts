@@ -178,7 +178,7 @@ export function lowerCollectionLookup(
       { For: {
         binding,
         domain: { DerivedArray: {
-          value: { Variable: owner.text },
+          value: { Variable: bindingName(owner.text, env) },
           max: info.max,
           bound_source: info.boundSource ?? `${owner.text} static bound`,
         } },
@@ -214,3 +214,4 @@ export function requirePrimitiveCollectionIdentity(
     "select a primitive identity field before using this Map or Set operation",
   );
 }
+import { bindingName } from "./lexical-binding";

@@ -381,17 +381,24 @@ fn check_exists(
         ));
         return;
     };
-    if key.len() != index.columns.len() {
+    let Some(columns) = index.scalar_columns() else {
+        errors.push(invalid(
+            site,
+            "derived indexes cannot be rule or constraint addresses".into(),
+        ));
+        return;
+    };
+    if key.len() != index.components.len() {
         errors.push(invalid(
             site,
             format!(
                 "rule {probe} key for {table_name}.{index_name} has {} terms; expected {}",
                 key.len(),
-                index.columns.len()
+                index.components.len()
             ),
         ));
     }
-    for (position, (term, column_name)) in key.iter().zip(&index.columns).enumerate() {
+    for (position, (term, column_name)) in key.iter().zip(&columns).enumerate() {
         let term_site = format!("{site}.{probe}.key[{position}]");
         let actual = term_type(subject, rule_use, term, &term_site, errors);
         let Some(expected) = table.columns.get(column_name).map(RuleType::from_column) else {
@@ -463,17 +470,24 @@ fn check_final_exists(
         ));
         return;
     };
-    if key.len() != index.columns.len() {
+    let Some(columns) = index.scalar_columns() else {
+        errors.push(invalid(
+            site,
+            "derived indexes cannot be rule or constraint addresses".into(),
+        ));
+        return;
+    };
+    if key.len() != index.components.len() {
         errors.push(invalid(
             site,
             format!(
                 "final-exists key for {target_table}.{index_name} has {} terms; expected {}",
                 key.len(),
-                index.columns.len()
+                index.components.len()
             ),
         ));
     }
-    for (position, (term, column_name)) in key.iter().zip(&index.columns).enumerate() {
+    for (position, (term, column_name)) in key.iter().zip(&columns).enumerate() {
         let term_site = format!("{site}.key[{position}]");
         let actual = term_type(subject, RuleUse::Other, term, &term_site, errors);
         let Some(expected) = table.columns.get(column_name).map(RuleType::from_column) else {

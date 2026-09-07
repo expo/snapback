@@ -24,7 +24,7 @@ fn asset(kind: AssetKind, id: &str, width: i64, height: i64, duration: Option<i6
             Value::Int(duration.expect("video duration")),
         );
     }
-    Value::Map(fields)
+    Value::Map(fields.into())
 }
 
 fn image() -> Value {
@@ -48,7 +48,10 @@ fn asset_table(column: &str, kind: ColumnType) -> Schema {
                 BTreeMap::from([(
                     "byId".to_owned(),
                     Index {
-                        columns: vec!["id".to_owned()],
+                        components: (vec!["id".to_owned()])
+                            .into_iter()
+                            .map(snapback2_core::search_key::IndexComponent::Column)
+                            .collect(),
                         unique: true,
                     },
                 )]),
@@ -695,7 +698,10 @@ fn add_index_refusal_cases(cases: &mut Vec<CorpusCase>) {
         schema.tables.get_mut("media").unwrap().indexes.insert(
             "byPhoto".to_owned(),
             Index {
-                columns: vec!["photo".to_owned()],
+                components: (vec!["photo".to_owned()])
+                    .into_iter()
+                    .map(snapback2_core::search_key::IndexComponent::Column)
+                    .collect(),
                 unique: false,
             },
         );
@@ -802,7 +808,7 @@ fn add_shape_refusals(cases: &mut Vec<CorpusCase>) {
     cases.push(arg_case(
         "asset-shape-missing-field",
         image_kind(),
-        Value::Map(missing),
+        Value::Map(missing.into()),
     ));
     let Value::Map(mut extra) = image() else {
         unreachable!()
@@ -811,7 +817,7 @@ fn add_shape_refusals(cases: &mut Vec<CorpusCase>) {
     cases.push(arg_case(
         "asset-shape-extra-field",
         image_kind(),
-        Value::Map(extra),
+        Value::Map(extra.into()),
     ));
     let Value::Map(mut malformed_id) = image() else {
         unreachable!()
@@ -820,7 +826,7 @@ fn add_shape_refusals(cases: &mut Vec<CorpusCase>) {
     cases.push(arg_case(
         "asset-shape-malformed-id",
         image_kind(),
-        Value::Map(malformed_id),
+        Value::Map(malformed_id.into()),
     ));
     let Value::Map(mut nominal_id) = image() else {
         unreachable!()
@@ -829,7 +835,7 @@ fn add_shape_refusals(cases: &mut Vec<CorpusCase>) {
     cases.push(arg_case(
         "asset-shape-nominal-id",
         image_kind(),
-        Value::Map(nominal_id),
+        Value::Map(nominal_id.into()),
     ));
     let Value::Map(mut zero_width) = image() else {
         unreachable!()
@@ -838,7 +844,7 @@ fn add_shape_refusals(cases: &mut Vec<CorpusCase>) {
     cases.push(arg_case(
         "asset-shape-nonpositive-dimension",
         image_kind(),
-        Value::Map(zero_width),
+        Value::Map(zero_width.into()),
     ));
     let Value::Map(mut wrong_height) = image() else {
         unreachable!()
@@ -847,7 +853,7 @@ fn add_shape_refusals(cases: &mut Vec<CorpusCase>) {
     cases.push(arg_case(
         "asset-shape-wrong-dimension-type",
         image_kind(),
-        Value::Map(wrong_height),
+        Value::Map(wrong_height.into()),
     ));
     let Value::Map(mut no_duration) = video() else {
         unreachable!()
@@ -856,7 +862,7 @@ fn add_shape_refusals(cases: &mut Vec<CorpusCase>) {
     cases.push(arg_case(
         "asset-shape-video-missing-duration",
         video_kind(),
-        Value::Map(no_duration),
+        Value::Map(no_duration.into()),
     ));
     let Value::Map(mut zero_duration) = video() else {
         unreachable!()
@@ -865,7 +871,7 @@ fn add_shape_refusals(cases: &mut Vec<CorpusCase>) {
     cases.push(arg_case(
         "asset-shape-video-nonpositive-duration",
         video_kind(),
-        Value::Map(zero_duration),
+        Value::Map(zero_duration.into()),
     ));
     cases.push(arg_case(
         "asset-shape-list-duplicate",

@@ -11,7 +11,10 @@ fn two_caps() -> Schema {
     table.indexes.insert(
         "bySecondary".into(),
         Index {
-            columns: vec!["secondary".into(), "id".into()],
+            components: (vec!["secondary".into(), "id".into()])
+                .into_iter()
+                .map(snapback2_core::search_key::IndexComponent::Column)
+                .collect(),
             unique: false,
         },
     );

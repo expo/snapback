@@ -1,3 +1,4 @@
+import { serverArguments } from "./local-cursor.js";
 import { ClientAuth, anonymousAuth, restoreAuthToken, saveAuthToken, storageRefusal, ensureBearerTransition } from "./client-auth.js";
 import { SharedSse } from "./live.js";
 import type { AssetFetchOptions } from "./store/byte-cache.js";
@@ -77,7 +78,6 @@ import type {
   SubscriptionDelivery,
   VideoAsset,
 } from "./types.js";
-
 export { api };
 export { SnapbackRefusal, isSnapbackRefusal };
 export { browserTokenStore } from "./token-store.js";
@@ -100,18 +100,15 @@ export type {
 } from "./store/range-store.js";
 export type { LocalAnswer, Prediction } from "./twin.js";
 export type { PartialReason, PartialSite } from "./twin-hydrate.js";
-
 type SessionExpiration =
   | { cleared: false }
   | { cleared: true; authGeneration: number; fence: number };
-
 type InternalClientOptions = CreateClientOptions & {
   offlinePrincipal?: Principal;
   offlineReadObserver?: (ref: unknown, args: unknown, result: unknown) => void;
   /** A restart of a device whose transport was cut boots cut, before any request. */
   startOffline?: boolean;
 };
-
 // @ref LLP 1002#9-the-client-snapback2client-snapback2react-snapback2test — auth custody is restored explicitly and every principal transition fences old in-memory work.
 class Client implements SnapbackClient {
   readonly auth;
@@ -246,18 +243,20 @@ class Client implements SnapbackClient {
     this.ensureAuthority(authority);
     await this.ensureOfflineMetadata(authority);
     this.scheduleSupersessionReset(authority);
+    const transportArgs = serverArguments(args, this.offlineRuntime?.declaredCursorArg(op));
     let backoff = 50;
     for (let attempt = 1; ; attempt += 1) {
       try {
-        const held = await this.offlineRuntime?.answer(op, args);
+        const held = await this.offlineRuntime?.answer(op, transportArgs);
         const revision = this.offlineRuntime?.coverageRevision;
         const raw = await this.json(`/api/query?receipt=${this.offlineRuntime ? 1 : 0}${drain ? "&drain=1" : ""}`, {
           method: "POST",
-          body: JSON.stringify(this.offlineRuntime && held?.validator ? { op, args, validator: held.validator } : { op, args }),
+          body: JSON.stringify(this.offlineRuntime && held?.validator ? { op, args: transportArgs, validator: held.validator } : { op, args: transportArgs }),
         }, authority);
-        const accepted = await acceptOffline<Result>(this.offlineRuntime, op, args, raw, wireShape);
+        const accepted = await acceptOffline<Result>(this.offlineRuntime, op, transportArgs, raw, wireShape,
+          () => this.json("/api/query?receipt=1", { method: "POST", body: JSON.stringify({ op, args: transportArgs }) }, authority));
+        const superseded = await commitOffline(this.offlineRuntime, op, transportArgs, accepted, (error) => this.offlineRefusal(error, "client.query.commit"), revision);
         const result = wireQuery<Result>(accepted.result);
-        const superseded = await commitOffline(this.offlineRuntime, op, args, accepted, (error) => this.offlineRefusal(error, "client.query.commit"), revision);
         this.validated(authority);
         if (superseded || revision !== this.offlineRuntime?.coverageRevision) this.scheduleSupersessionReset(authority, { op, args });
         if (this.offlineRuntime && this.createOptions.offlineReadObserver) {
@@ -269,8 +268,7 @@ class Client implements SnapbackClient {
           );
           this.createOptions.offlineReadObserver(ref, args, held);
         }
-        // Every typed receipt terminates this request. In particular, an
-        // empty Capped array is the terminal drain state, never a retry cue.
+        // Every typed receipt, including an empty capped page, terminates this request.
         return result;
       } catch (error) {
         if (isSnapbackRefusal(error) && error.retryable && this.offlineRuntime && attempt >= 3) {
@@ -387,8 +385,9 @@ class Client implements SnapbackClient {
     drain = false,
   ): Subscription<SubscriptionDelivery<Result>> {
     const op = referenceName(ref);
+    let transportArgs = serverArguments(args, this.offlineRuntime?.declaredCursorArg(op));
     const mountedKey = `${op}\u0000live\u0000${stableSerialize(args)}`;
-    const mountedRecord: MountedQuery = { op, args, drain: false };
+    const mountedRecord: MountedQuery = { op, args: transportArgs, drain: false };
     if (!drain) this.mounted.set(mountedKey, mountedRecord);
     let lastPair: { seq: number; data?: Result } | undefined;
     let connected = false;
@@ -406,20 +405,24 @@ class Client implements SnapbackClient {
         if (this.forcedOffline) throw offlineNetworkRefusal();
         if (this.currentToken) await this.authState.settled(signal);
         await this.ensureOfflineMetadata(authority);
+        transportArgs = serverArguments(args, this.offlineRuntime?.declaredCursorArg(op));
+        mountedRecord.args = transportArgs;
+        if (!drain) this.mounted.set(mountedKey, mountedRecord);
         this.scheduleSupersessionReset(authority);
         revision = this.offlineRuntime?.coverageRevision;
-        const held = await this.offlineRuntime?.answer(op, args);
-        let path = `/api/subscribe?op=${encodeURIComponent(op)}&args=${encodeURIComponent(JSON.stringify(args))}`;
+        const held = await this.offlineRuntime?.answer(op, transportArgs);
+        let path = `/api/subscribe?op=${encodeURIComponent(op)}&args=${encodeURIComponent(JSON.stringify(transportArgs))}`;
         if (this.offlineRuntime) path += "&receipt=1";
         if (drain) path += "&drain=1";
         if (held?.validator) path += `&validator=${encodeURIComponent(held.validator)}`;
         return this.stream(path, lastEventId, signal, authority);
       },
       decode: ({ data }, current) => {
-        const frameRevision = revision;
+        const frameRevision = revision, frameAuthority = authority!, frameArgs = transportArgs;
         if (!this.offlineRuntime) return finish(wireSubscription<Result>(data, value => { connected = value; }));
         return decodeOfflineSubscription<Result>({
-          runtime: this.offlineRuntime, op, args, data, shape: wireShape,
+          runtime: this.offlineRuntime, op, args: frameArgs, data, shape: wireShape,
+          revalidate: () => this.json("/api/query?receipt=1", { method: "POST", body: JSON.stringify({ op, args: frameArgs }) }, frameAuthority),
           failure: (error) => this.offlineRefusal(error),
           revision: frameRevision, current,
           superseded: () => this.scheduleSupersessionReset(authority!, { op, args }),
@@ -680,7 +683,6 @@ class Client implements SnapbackClient {
   }
 
   // @ref LLP 1012#7-writes-offline — confirmation after an interrupted startup
-  // must recover program custody and resume the outbox without a mounted query.
   private resumeAfterAuth(): void {
     if (!this.offlineStartupPending) return;
     // Capture only after every queued transition, including failures, settles.
@@ -1133,7 +1135,7 @@ class Client implements SnapbackClient {
         reload: (current) => this.ensureOfflineMetadata(current, true, true, signal),
       });
       check();
-      if (reset) for (const item of this.mounted.values()) {
+      if (reset) for (const item of [...this.mounted.values()].filter(item => !item.drain)) {
         const principal = runtime.principal!;
         const key = `${principal}\u0000${item.op}\u0000${stableSerialize(item.args)}`;
         if (!this.supersessionQueries.has(key)) this.supersessionQueries.set(key, { principal, op: item.op, args: item.args });
@@ -1147,10 +1149,11 @@ class Client implements SnapbackClient {
         check();
         if (item.principal !== runtime.principal) continue;
         const raw = await json("/api/query?receipt=1", {
-          method: "POST", body: JSON.stringify({ op: item.op, args: item.args }),
+          method: "POST", body: JSON.stringify({ op: item.op, args: serverArguments(item.args, runtime.declaredCursorArg(item.op)) }),
         });
         check();
-        const accepted = await acceptOffline(runtime, item.op, item.args, raw, wireShape);
+        const accepted = await acceptOffline(runtime, item.op, item.args, raw, wireShape,
+          () => json("/api/query?receipt=1", { method: "POST", body: JSON.stringify({ op: item.op, args: serverArguments(item.args, runtime.declaredCursorArg(item.op)) }) }));
         check();
         wireQuery(accepted.result);
         superseded = await commitOffline(runtime, item.op, item.args, accepted,

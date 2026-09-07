@@ -50,7 +50,8 @@ impl RowMembership {
         id: &str,
         row: &Value,
         client: bool,
-    ) {
+    ) -> u64 {
+        let mut retained = 0;
         if self.buckets.is_empty() {
             self.buckets.resize(2, 0);
         }
@@ -66,6 +67,7 @@ impl RowMembership {
                 }
                 slot = self.slot(trace, table, id);
             }
+            retained += row.heap_bytes();
             trace.push(RowRecord {
                 table: table.to_owned(),
                 id: id.to_owned(),
@@ -75,13 +77,21 @@ impl RowMembership {
         }
         if client && self.buckets[slot] & 1 == 0 {
             // A prior hidden observation can have a different first image.
+            let first = &trace[(self.buckets[slot] >> 1) - 1].row;
+            let image = if first == row {
+                first.clone()
+            } else {
+                retained += row.heap_bytes();
+                row.clone()
+            };
             receipt.push(RowRecord {
                 table: table.to_owned(),
                 id: id.to_owned(),
-                row: row.clone(),
+                row: image,
             });
             self.buckets[slot] |= 1;
         }
+        retained
     }
 
     pub(super) fn remove_receipt(&mut self, rows: &[RowRecord], table: &str, id: &str) {

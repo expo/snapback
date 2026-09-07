@@ -23,12 +23,12 @@ mod retention;
 mod rule_types;
 pub mod schema;
 pub use connected::{CONNECTED_INDEX, CONNECTED_TABLE};
+pub mod search_key;
 pub mod store;
 pub mod successor;
-pub mod value;
 pub mod unicode;
 mod unicode_tables;
-pub mod search_key;
+pub mod value;
 
 pub use assets::AssetKind;
 pub use assets_ledger::{
@@ -70,7 +70,7 @@ pub use registry::{
     ProjectJson, ResetResult, RowRuleVerdict, Runtime,
 };
 pub use schema::*;
-pub use store::{CommitRecord, OutboxCounts, OutboxRow, Store, TouchedKey};
+pub use store::{CommitRecord, OutboxCounts, OutboxRow, ScopeTouch, Store, TouchedKey};
 pub use successor::{Drop, MigrationPlan, SuccessorRefusal, SuccessorReport, UniqueConflict};
 pub use value::*;
 

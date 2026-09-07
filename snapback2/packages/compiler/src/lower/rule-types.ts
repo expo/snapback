@@ -1,3 +1,5 @@
+import { ordinaryColumns } from "../index-components";
+import type { IndexComponent } from "../ir";
 import ts from "typescript";
 import { diagnostic } from "../diagnostics";
 import type { FrontendDiagnostic } from "../ir";
@@ -6,7 +8,7 @@ import { callLeaf, objectOf, property, staticJson, stringValue } from "./static"
 
 type SchemaModule = { sourceFile: ts.SourceFile; source: string; fileName: string };
 type RuleSubject = { label: string; table?: string; columns: Record<string, unknown> };
-type RuleTableShape = RuleSubject & { indexes: Record<string, { columns?: string[] }> };
+type RuleTableShape = RuleSubject & { indexes: Record<string, { components: IndexComponent[] }> };
 // @ref LLP 1002#2-the-authored-surface-the-snapback2-module — row-image terms and created-row probes are scoped to the mutation effect that defines them.
 type RuleEffect = "read" | "insert" | "update" | "delete";
 type RuleUse = { kind: "table"; effect: RuleEffect } | { kind: "other" };
@@ -98,7 +100,7 @@ function ruleTableCatalog(tableJson: Record<string, unknown>): Map<string, RuleT
       ? record.columns as Record<string, unknown>
       : {};
     const indexes = record.indexes && typeof record.indexes === "object" && !Array.isArray(record.indexes)
-      ? record.indexes as Record<string, { columns?: string[] }>
+      ? record.indexes as Record<string, { components: IndexComponent[] }>
       : {};
     catalog.set(name, { label: `table ${name}`, table: name, columns, indexes });
   }
@@ -184,12 +186,12 @@ function validateRuleType(
     return;
   }
   if (!key || !ts.isArrayLiteralExpression(key)) return;
-  const columns = index.columns;
+  const columns = ordinaryColumns(index.components);
   if (!Array.isArray(columns)) {
     diagnostics.push(ruleTypeDiagnostic(
       module,
       call.arguments[1] ?? call,
-      `rule.${probe} index ${tableName}.${indexName} has an unresolved column list`,
+      `rule.${probe} index ${tableName}.${indexName} requires an ordinary index; wordPrefixes cannot supply rule/constraint keys`,
     ));
     return;
   }
@@ -272,12 +274,12 @@ function validateFinalExistsTypes(
     const keyNode = property(finalExists, "key");
     const key = keyNode && unwrapExpression(keyNode);
     if (!key || !ts.isArrayLiteralExpression(key)) continue;
-    const columns = index.columns;
+    const columns = ordinaryColumns(index.components);
     if (!Array.isArray(columns)) {
       diagnostics.push(ruleTypeDiagnostic(
         module,
         indexNode ?? finalNode,
-        `final-exists index ${tableName}.${indexName} has an unresolved column list`,
+        `final-exists index ${tableName}.${indexName} requires an ordinary index; wordPrefixes cannot supply rule/constraint keys`,
       ));
       continue;
     }

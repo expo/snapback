@@ -67,14 +67,14 @@ function tableInfo(name: string, columns: TableInfo["columns"] = {}): Map<string
     name,
     private: false,
     columns,
-    indexes: { byId: { columns: ["id"], types: [{ kind: "string" }] } },
+    indexes: { byId: { components: ["id"].map(Column => ({ Column })), types: [{ kind: "string" }] } },
   }]]);
 }
 
 function evaluatorTable(columns: Record<string, unknown> = {}): any {
   return {
     columns: { id: "Id", ...columns },
-    indexes: { byId: { columns: ["id"], unique: true } },
+    indexes: { byId: { components: [{ Column: "id" }], unique: true } },
     rules: { read: "Allow", insert: "Allow", update: "Allow", delete: "Allow" },
     constraints: [],
   };
@@ -203,9 +203,9 @@ export function registerVerifiedRegressionTests(
     const cards = {
       ...evaluatorTable({ boardId: "Id", laneId: "Id", title: { Text: { max: 20 } } }),
       indexes: {
-        byId: { columns: ["id"], unique: true },
-        byBoard: { columns: ["boardId", "id"], unique: false },
-        byBoardLane: { columns: ["boardId", "laneId", "id"], unique: false },
+        byId: { components: [{ Column: "id" }], unique: true },
+        byBoard: { components: [{ Column: "boardId" }, { Column: "id" }], unique: false },
+        byBoardLane: { components: [{ Column: "boardId" }, { Column: "laneId" }, { Column: "id" }], unique: false },
       },
       constraints: [{ Cap: { by: ["boardId"], max: 2 } }],
     };
@@ -223,7 +223,7 @@ export function registerVerifiedRegressionTests(
         site: "cap.coverage",
         table: "cards",
         index: "byBoard",
-        prefix: [{ Id: "B" }],
+        prefix: [{ Scalar: { Id: "B" } }],
         order: "Asc",
         take: 2,
         after: null,
@@ -237,7 +237,7 @@ export function registerVerifiedRegressionTests(
         stop: "Exhausted",
         absence: false,
         halo: null,
-        n2_key: null,
+        n2_suffix: null,
       }],
       absences: [],
       verdicts: [],
@@ -267,7 +267,7 @@ export function registerVerifiedRegressionTests(
     const multiSchema = { tables: { cards: multiCards }, maintains: [] };
     const multiReceipt: ClosureReceipt = {
       ...receipt,
-      ranges: [{ ...receipt.ranges[0]!, index: "byBoardLane", prefix: [{ Id: "B" }, { Id: "1" }] }],
+      ranges: [{ ...receipt.ranges[0]!, index: "byBoardLane", prefix: [{ Scalar: { Id: "B" } }, { Scalar: { Id: "1" } }] }],
     };
     const multiStore = new ClientStore(multiSchema, multiReceipt);
     let multiCode = "";
@@ -337,7 +337,7 @@ export function registerVerifiedRegressionTests(
       name: "items",
       private: false,
       columns: { id: { kind: "string" }, label: { kind: "string", max: 32 } },
-      indexes: { byId: { columns: ["id"], types: [{ kind: "string" }] } },
+      indexes: { byId: { components: ["id"].map(Column => ({ Column })), types: [{ kind: "string" }] } },
     }]]);
     const refused = lowerSource(`import { mutation } from "snapback2";
       export const bad = mutation({}, ({ db, ctx }) =>
@@ -488,13 +488,13 @@ export function registerVerifiedRegressionTests(
     const tables = new Map<string, TableInfo>([
       ["items", { name: "items", private: false,
         columns: { id, at: { kind: "int" }, label: { kind: "string", max: 80 } },
-        indexes: { byId: { columns: ["id"], types: [id] }, byAt: { columns: ["at", "id"], types: [{ kind: "int" }, id] } } }],
+        indexes: { byId: { components: ["id"].map(Column => ({ Column })), types: [id] }, byAt: { components: ["at", "id"].map(Column => ({ Column })), types: [{ kind: "int" }, id] } } }],
       ["pairs", { name: "pairs", private: false,
         columns: { id, lo: id, hi: id },
-        indexes: { byId: { columns: ["id"], types: [id] }, byPair: { columns: ["lo", "hi"], types: [id, id] } } }],
+        indexes: { byId: { components: ["id"].map(Column => ({ Column })), types: [id] }, byPair: { components: ["lo", "hi"].map(Column => ({ Column })), types: [id, id] } } }],
       ["nodes", { name: "nodes", private: false,
         columns: { id, parent: { kind: "optional", of: id }, name: { kind: "string", max: 80 } },
-        indexes: { byId: { columns: ["id"], types: [id] } } }],
+        indexes: { byId: { components: ["id"].map(Column => ({ Column })), types: [id] } } }],
     ]);
     const source = lowerSource(`import { concat, mutation, query, t } from "snapback2";
 declare const items: any, pairs: any, nodes: any;
@@ -533,10 +533,10 @@ export const compositeId = mutation({ a: t.id(), b: t.id() }, ({ db, args }) => 
     assert(source.ok, `Quarry-shaped Id constructs refused: ${source.ok ? "" : JSON.stringify(source.diagnostics)}`);
     const schema = { tables: {
       items: { ...evaluatorTable({ at: "Int", label: { Text: { max: 80 } } }), indexes: {
-        byId: { columns: ["id"], unique: true }, byAt: { columns: ["at", "id"], unique: false },
+        byId: { components: [{ Column: "id" }], unique: true }, byAt: { components: [{ Column: "at" }, { Column: "id" }], unique: false },
       } },
       pairs: { ...evaluatorTable({ lo: "Id", hi: "Id" }), indexes: {
-        byId: { columns: ["id"], unique: true }, byPair: { columns: ["lo", "hi"], unique: true },
+        byId: { components: [{ Column: "id" }], unique: true }, byPair: { components: [{ Column: "lo" }, { Column: "hi" }], unique: true },
       } },
       nodes: evaluatorTable({ parent: { Optional: "Id" }, name: { Text: { max: 80 } } }),
     }, maintains: [], channels: {}, auth: { password: false, guests: false }, effects: [] };
@@ -566,7 +566,7 @@ export const compositeId = mutation({ a: t.id(), b: t.id() }, ({ db, args }) => 
   test("the evaluator refuses a sliced short tuple cursor exactly like the engine", () => {
     const schema = { tables: { items: {
       ...evaluatorTable({ at: "Int" }),
-      indexes: { byId: { columns: ["id"], unique: true }, byAt: { columns: ["at", "id"], unique: false } },
+      indexes: { byId: { components: [{ Column: "id" }], unique: true }, byAt: { components: [{ Column: "at" }, { Column: "id" }], unique: false } },
     } } };
     const program: Program = {
       name: "sliceCursor", kind: "Query", args: {}, read_time_granularity_ms: null,
@@ -596,28 +596,28 @@ export const compositeId = mutation({ a: t.id(), b: t.id() }, ({ db, args }) => 
       name: "items", private: false,
       columns: { id: idType, at: { kind: "int" }, label: { kind: "string", max: 80 }, owner: idType },
       indexes: {
-        byId: { columns: ["id"], types: [idType] },
-        byAt: { columns: ["at", "id"], types: [{ kind: "int" }, idType] },
-        byOwnerOnly: { columns: ["owner"], types: [idType] },
-        byLabel: { columns: ["label", "id"], types: [{ kind: "string", max: 80 }, idType] },
-        byUnsafe: { columns: ["id", "at"], types: [idType, { kind: "int" }] },
+        byId: { components: ["id"].map(Column => ({ Column })), types: [idType] },
+        byAt: { components: ["at", "id"].map(Column => ({ Column })), types: [{ kind: "int" }, idType] },
+        byOwnerOnly: { components: ["owner"].map(Column => ({ Column })), types: [idType] },
+        byLabel: { components: ["label", "id"].map(Column => ({ Column })), types: [{ kind: "string", max: 80 }, idType] },
+        byUnsafe: { components: ["id", "at"].map(Column => ({ Column })), types: [idType, { kind: "int" }] },
       },
     };
     const usersInfo: TableInfo = {
       name: "users", private: false,
       columns: { id: idType, name: { kind: "string", max: 80 } },
-      indexes: { byId: { columns: ["id"], types: [idType] } },
+      indexes: { byId: { components: ["id"].map(Column => ({ Column })), types: [idType] } },
     };
     const tables = new Map([["items", itemsInfo], ["users", usersInfo]]);
     const schema = { tables: {
       items: {
         ...evaluatorTable({ at: "Int", label: { Text: { max: 80 } }, owner: { Ref: { table: "users" } } }),
         indexes: {
-          byId: { columns: ["id"], unique: true },
-          byAt: { columns: ["at", "id"], unique: false },
-          byOwnerOnly: { columns: ["owner"], unique: false },
-          byLabel: { columns: ["label", "id"], unique: false },
-          byUnsafe: { columns: ["id", "at"], unique: false },
+          byId: { components: [{ Column: "id" }], unique: true },
+          byAt: { components: [{ Column: "at" }, { Column: "id" }], unique: false },
+          byOwnerOnly: { components: [{ Column: "owner" }], unique: false },
+          byLabel: { components: [{ Column: "label" }, { Column: "id" }], unique: false },
+          byUnsafe: { components: [{ Column: "id" }, { Column: "at" }], unique: false },
         },
       },
       users: evaluatorTable({ name: { Text: { max: 80 } } }),
@@ -722,7 +722,7 @@ export const concatInsert = mutation({ owner: t.ref(users) }, ({ db, ctx, args }
     const scalarCursor: Program = {
       name: "raw.scalarCursor", kind: "Query", args: { cursor: "Scalar" }, read_time_granularity_ms: null,
       body: [{ Return: { Scan: {
-        site: "raw.scalarCursor.0", table: "items", index: "byLabel", prefix: [{ Literal: { String: "x" } }],
+        site: "raw.scalarCursor.0", table: "items", index: "byLabel", prefix: [{ Scalar: { Literal: { String: "x" } } }],
         order: "Asc", take: { Literal: 2 }, after: { Variable: "cursor" }, before: null, range: null, provenance: "Arg",
       } } }],
     };
@@ -791,7 +791,7 @@ export const concatInsert = mutation({ owner: t.ref(users) }, ({ db, ctx, args }
   test("every remaining args refusal predicate is also runtime-red", () => {
     const schema = { tables: { items: {
       ...evaluatorTable({ at: "Int", label: { Text: { max: 80 } } }),
-      indexes: { byId: { columns: ["id"], unique: true }, byAt: { columns: ["at", "id"], unique: false } },
+      indexes: { byId: { components: [{ Column: "id" }], unique: true }, byAt: { components: [{ Column: "at" }, { Column: "id" }], unique: false } },
     } } };
     const wrongCursor: Program = {
       name: "red.cursor", kind: "Query", args: {}, read_time_granularity_ms: null,

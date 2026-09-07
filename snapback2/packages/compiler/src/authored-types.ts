@@ -1,8 +1,11 @@
+import type { IndexComponent } from "./ir";
 export type AuthoredType =
-  | { kind: "unknown" }
+  // A join can lose a common scalar type while retaining one property dispatch.
+  // This is neither field presence, read authority, nor a collection maximum.
+  | { kind: "unknown"; lengthRepresentation?: "collection" | "member" }
   | { kind: "null" }
   | { kind: "object"; fields?: Record<string, AuthoredType> }
-  | { kind: "int" }
+  | { kind: "int"; wholeUnits?: true }
   | { kind: "decimal"; scale: number; currency?: string }
   | { kind: "enum"; variants: string[] }
   | { kind: "string"; max?: number; id?: true; builtText?: true }
@@ -20,7 +23,7 @@ export type TableInfo = {
   private: boolean;
   maintainedFrom?: string;
   columns?: Record<string, AuthoredType>;
-  indexes?: Record<string, { columns: string[]; types: AuthoredType[]; unique?: boolean }>;
+  indexes?: Record<string, { components: IndexComponent[]; types: AuthoredType[]; unique?: boolean }>;
   readRule?: unknown;
 };
 

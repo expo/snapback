@@ -1,3 +1,4 @@
+use snapback2_core::ir::IndexKeyExpr;
 use snapback2_core::*;
 use std::collections::{BTreeMap, VecDeque};
 use std::path::{Path, PathBuf};
@@ -30,6 +31,34 @@ fn emit_program(kind: ProgramKind, effect: &str) -> Program {
     }
 }
 
+#[test]
+fn emit_validates_minted_identity_width_before_outbox_commit() {
+    let program = emit_program(ProgramKind::Mutation, "audit");
+    let generation = Generation::certify(
+        &project(vec![program.clone()], empty_schema()),
+        Ceilings::default(),
+    )
+    .unwrap();
+    let mut runtime = Runtime::open(Store::memory().unwrap(), generation).unwrap();
+    for id in ["x".repeat(136), "\"".repeat(68), "😀".repeat(34)] {
+        let mut context = Context::mutation(Actor::user("u1").unwrap(), BTreeMap::new());
+        context.now = Some(444);
+        context.new_ids = VecDeque::from([id.clone(), "after-id".into()]);
+        assert!(matches!(
+            runtime.execute(&program.name, context).unwrap().state,
+            ExecutionState::Rejected { code, .. } if code == "E_INPUT"
+        ));
+        assert_eq!(runtime.store().commit_seq().unwrap(), 0);
+        assert!(runtime.store().outbox_get(&id).unwrap().is_none());
+    }
+    let id = "x".repeat(135);
+    let mut context = Context::mutation(Actor::user("u1").unwrap(), BTreeMap::new());
+    context.now = Some(444);
+    context.new_ids = VecDeque::from([id.clone(), "after-id".into()]);
+    runtime.execute(&program.name, context).unwrap();
+    assert!(runtime.store().outbox_get(&id).unwrap().is_some());
+}
+
 fn project(programs: Vec<Program>, schema: Schema) -> ProjectJson {
     ProjectJson {
         version: 1,
@@ -58,7 +87,10 @@ fn ceiling_schema(body_max: u32) -> Schema {
                 BTreeMap::from([(
                     "byId".to_owned(),
                     Index {
-                        columns: vec!["id".to_owned()],
+                        components: (vec!["id".to_owned()])
+                            .into_iter()
+                            .map(snapback2_core::search_key::IndexComponent::Column)
+                            .collect(),
                         unique: true,
                     },
                 )]),
@@ -81,7 +113,7 @@ fn ceiling_scan(take: u32) -> Program {
             site: "items.overCeiling".to_owned(),
             table: "items".to_owned(),
             index: "byId".to_owned(),
-            prefix: Vec::new(),
+            prefix: (Vec::new()).into_iter().map(IndexKeyExpr::Scalar).collect(),
             order: Order::Asc,
             take: Bound::Literal(take),
             after: None,
@@ -343,7 +375,10 @@ fn checker_and_generation_report_all_refusals_per_program() {
         BTreeMap::from([(
             "byId".to_owned(),
             Index {
-                columns: vec!["id".to_owned()],
+                components: (vec!["id".to_owned()])
+                    .into_iter()
+                    .map(snapback2_core::search_key::IndexComponent::Column)
+                    .collect(),
                 unique: true,
             },
         )]),
@@ -444,7 +479,7 @@ fn checker_and_generation_report_all_refusals_per_program() {
                 site: "items.bounded".to_owned(),
                 table: "items".to_owned(),
                 index: "byId".to_owned(),
-                prefix: Vec::new(),
+                prefix: (Vec::new()).into_iter().map(IndexKeyExpr::Scalar).collect(),
                 order: Order::Asc,
                 take: Bound::Literal(10),
                 after: None,
@@ -529,7 +564,9 @@ fn closure_and_output_estimates_follow_retained_shape_and_declared_maxima() {
 fn one_valid_program_reports_every_default_ceiling_refusal() {
     let mut schema = ceiling_schema(1024);
     // A self-key probe is now free; use another table to exercise the probe ceiling.
-    schema.tables.insert("probes".to_owned(), schema.tables["items"].clone());
+    schema
+        .tables
+        .insert("probes".to_owned(), schema.tables["items"].clone());
     schema.tables.get_mut("items").unwrap().rules.read = RuleExpr::Exists {
         table: "probes".to_owned(),
         index: "byId".to_owned(),
@@ -603,7 +640,10 @@ fn checker_reports_recurse_read_refusals_with_other_errors() {
         BTreeMap::from([(
             "byId".to_owned(),
             Index {
-                columns: vec!["id".to_owned()],
+                components: (vec!["id".to_owned()])
+                    .into_iter()
+                    .map(snapback2_core::search_key::IndexComponent::Column)
+                    .collect(),
                 unique: true,
             },
         )]),
@@ -705,7 +745,7 @@ fn mutation_value_errors_are_rejected_but_query_value_errors_remain_errors() {
         operation(
             "ops.field",
             ProgramKind::Mutation,
-            field(Expr::Literal(Value::Row(BTreeMap::new())), "missing"),
+            field(Expr::Literal(Value::Row(BTreeMap::new().into())), "missing"),
         ),
         operation("ops.queryDivZero", ProgramKind::Query, div_zero()),
     ];
@@ -961,7 +1001,10 @@ fn sqlite_and_declared_unique_constraints_are_typed_mutation_rejections() {
         BTreeMap::from([(
             "byEmail".to_owned(),
             Index {
-                columns: vec!["email".to_owned()],
+                components: (vec!["email".to_owned()])
+                    .into_iter()
+                    .map(snapback2_core::search_key::IndexComponent::Column)
+                    .collect(),
                 unique: true,
             },
         )]),
@@ -1026,7 +1069,10 @@ fn channel_admission_evaluates_one_args_row_under_the_selected_rule() {
         BTreeMap::from([(
             "byRoomUser".to_owned(),
             Index {
-                columns: vec!["room".to_owned(), "user".to_owned()],
+                components: (vec!["room".to_owned(), "user".to_owned()])
+                    .into_iter()
+                    .map(snapback2_core::search_key::IndexComponent::Column)
+                    .collect(),
                 unique: true,
             },
         )]),
@@ -1155,7 +1201,10 @@ fn channel_rules_are_refused_when_their_certified_probe_or_step_bound_exceeds_th
         BTreeMap::from([(
             "byRoomUser".to_owned(),
             Index {
-                columns: vec!["room".to_owned(), "user".to_owned()],
+                components: (vec!["room".to_owned(), "user".to_owned()])
+                    .into_iter()
+                    .map(snapback2_core::search_key::IndexComponent::Column)
+                    .collect(),
                 unique: true,
             },
         )]),

@@ -12,7 +12,7 @@ use std::collections::{BTreeMap, BTreeSet};
 pub type SubscriptionId = u64;
 type TraceIndex = (String, String);
 type ExactTraceKey = (String, String, String);
-type RangeSubscription = (Vec<Value>, SubscriptionId);
+type RangeSubscription = (Vec<crate::search_key::IndexAtom>, SubscriptionId);
 
 fn delivery_digest(execution: &Execution) -> String {
     digest(&(&execution.state, &execution.result))
@@ -27,7 +27,7 @@ pub struct Delivery {
     pub changed: bool,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SubscriptionInfo {
     pub id: SubscriptionId,
@@ -179,7 +179,7 @@ impl Runtime {
                 .get(&(touched.table.clone(), touched.index.clone()))
             {
                 for (prefix, id) in ranges {
-                    if touched.key.starts_with(prefix) {
+                    if crate::search_key::scalar_key_starts_with(&touched.key, prefix) {
                         invalidated.insert(*id);
                     }
                 }
@@ -192,6 +192,22 @@ impl Runtime {
                 invalidated.extend(ids);
             }
             if let Some(ids) = self.subs.constraints.get(&touched.table) {
+                invalidated.extend(ids);
+            }
+        }
+        for touch in &commit.scope_touches {
+            if let Some(ranges) = self
+                .subs
+                .ranges
+                .get(&(touch.table.clone(), touch.index.clone()))
+            {
+                for (prefix, id) in ranges {
+                    if crate::search_key::scope_intersects(&touch.prefix, prefix) {
+                        invalidated.insert(*id);
+                    }
+                }
+            }
+            if let Some(ids) = self.subs.constraints.get(&touch.table) {
                 invalidated.extend(ids);
             }
         }
@@ -335,7 +351,10 @@ mod tests {
         runtime.subs.rebuild_indexes();
         let info = runtime.subscriptions();
         assert_eq!(info.len(), 1);
-        assert_eq!(info[0].trace, runtime.subs.entries[&1].trace);
+        assert_eq!(
+            crate::value::canonical_json(&info[0].trace),
+            crate::value::canonical_json(&runtime.subs.entries[&1].trace)
+        );
         assert_eq!(runtime.invalidated(&commit), vec![1]);
     }
 }

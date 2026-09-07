@@ -905,7 +905,10 @@ fn membership_recipe(schema: &Schema) -> Option<Recipe> {
         let Some(definition) = table.indexes.get(index) else {
             continue;
         };
-        let Some((scope_field, principal_field)) = recipe_key(&definition.columns, key) else {
+        let Some(columns) = definition.scalar_columns() else {
+            continue;
+        };
+        let Some((scope_field, principal_field)) = recipe_key(&columns, key) else {
             continue;
         };
         if !matches!(
@@ -922,16 +925,12 @@ fn membership_recipe(schema: &Schema) -> Option<Recipe> {
             .iter()
             .filter(|(name, _)| *name != membership_table)
             .filter_map(|(name, protected)| {
-                protected_scope(
-                    &protected.rules.read,
-                    membership_table,
-                    index,
-                    &definition.columns,
+                protected_scope(&protected.rules.read, membership_table, index, &columns).map(
+                    |scope_field| ProtectedTable {
+                        table: name.clone(),
+                        scope_field,
+                    },
                 )
-                .map(|scope_field| ProtectedTable {
-                    table: name.clone(),
-                    scope_field,
-                })
             })
             .collect::<Vec<_>>();
         if protected.is_empty() {

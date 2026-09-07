@@ -23,7 +23,12 @@ pub(crate) fn scan_visibility(schema: &Schema, scan: &Scan) -> Visibility {
         return Visibility::default();
     };
     // Column names let a differently ordered probe unique index resolve the same pins.
-    let pinned: BTreeMap<_, _> = index.columns.iter().zip(&scan.prefix).collect();
+    let pinned: BTreeMap<_, _> = index
+        .components
+        .iter()
+        .zip(&scan.prefix)
+        .filter_map(|(component, key)| component.column().zip(key.scalar()))
+        .collect();
     let decided_true = rule_true(&table.rules.read, &scan.table, table, &pinned);
     let mut used = BTreeSet::new();
     rule_fields(&table.rules.read, &mut used);
@@ -70,22 +75,28 @@ fn rule_true(
                 return false;
             };
             index.unique
+                && index.derived_offset().is_none()
                 && !key.is_empty()
-                && key.len() == index.columns.len()
-                && index.columns.iter().zip(key).all(|(column, term)| {
-                    // Optional nulls have no point-hit witness. Do not infer this
-                    // from a non-null prefix: the unique key itself must be total.
-                    table
-                        .columns
-                        .get(column)
-                        .is_some_and(|ty| !matches!(ty, ColumnType::Optional(_)))
-                        && match term {
-                            RuleTerm::Field(field) => field == column,
-                            _ => pinned
-                                .get(column)
-                                .is_some_and(|expression| pinned_term(term, expression)),
-                        }
-                })
+                && key.len() == index.components.len()
+                && index
+                    .components
+                    .iter()
+                    .filter_map(crate::search_key::IndexComponent::column)
+                    .zip(key)
+                    .all(|(column, term)| {
+                        // Optional nulls have no point-hit witness. Do not infer this
+                        // from a non-null prefix: the unique key itself must be total.
+                        table
+                            .columns
+                            .get(column)
+                            .is_some_and(|ty| !matches!(ty, ColumnType::Optional(_)))
+                            && match term {
+                                RuleTerm::Field(field) => field == column,
+                                _ => pinned
+                                    .get(column)
+                                    .is_some_and(|expression| pinned_term(term, expression)),
+                            }
+                    })
         }
         _ => false,
     }

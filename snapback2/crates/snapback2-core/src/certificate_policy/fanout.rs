@@ -158,7 +158,10 @@ impl Flow<'_> {
             // @ref LLP 1001#pure-builtins — words is a complete bounded text computation,
             // not a page population, even when its text is selected by a branch.
             // Erasing page origin is sound: the loop meter is the static text max, not page size.
-            Expr::Builtin { builtin: Builtin::Words, .. } => Origin::Other,
+            Expr::Builtin {
+                builtin: Builtin::Words,
+                ..
+            } => Origin::Other,
             Expr::Builtin { args, .. } | Expr::Array(args) => args
                 .iter()
                 .fold(Origin::Other, |origin, arg| origin.join(self.expr(arg)))
@@ -344,8 +347,9 @@ impl Flow<'_> {
             ));
         };
         let pinned: Vec<_> = index
-            .columns
+            .components
             .iter()
+            .filter_map(crate::search_key::IndexComponent::column)
             .take(scan.prefix.len())
             .cloned()
             .collect();

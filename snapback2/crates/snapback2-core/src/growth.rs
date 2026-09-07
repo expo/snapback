@@ -236,7 +236,7 @@ pub(crate) fn expression(
         ),
         Expr::Scan(scan) => {
             let mut inputs = Vec::new();
-            inputs.extend(scan.prefix.iter());
+            inputs.extend(scan.prefix.iter().map(|p| p.expression()));
             inputs.extend(scan.after.as_deref());
             inputs.extend(scan.before.as_deref());
             if let Some(range) = &scan.range {

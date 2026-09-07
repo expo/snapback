@@ -1,3 +1,5 @@
+import { isLocalCursor, serverArguments } from "./local-cursor.js";
+import { FullRevalidationRequired } from './store/fact-integrity.js';
 // @ref LLP 1012#8-the-delivery-envelope-the-validator-and-resume — offline transport coordination is isolated from auth custody and asset methods.
 import { throwIfAborted } from "./client-wire.js";
 import { drainOutbox } from "./client-outbox.js";
@@ -80,7 +82,7 @@ export function offlineRefusal(error: unknown, carrier: string, site = "client.o
   const supplied = error as { site?: string; rewrite?: string } | undefined;
   const lifecycle = /sealed|not open|closed|partition must be/.test(message);
   const corrupt = error instanceof SyntaxError || /unsupported format|corrupt|persisted state/.test(message);
-  const delivery = /conflicting (deliveries|row)|conditional validator|store (delivery|receipt|resume)/.test(message);
+  const delivery = FullRevalidationRequired.is(error) || /conflicting (deliveries|row|durable fact)|conditional validator|store (delivery|receipt|resume)/.test(message);
   const code = lifecycle ? "E_OFFLINE_LIFECYCLE" : corrupt ? "E_OFFLINE_STATE" : delivery ? "E_OFFLINE_DELIVERY"
     : candidate === "E_OFFLINE_LOCK" || candidate === "E_OFFLINE_CARRIER" ? candidate
     : site === "RangeStore.open" ? "E_OFFLINE_CARRIER" : "E_OFFLINE_STATE";
@@ -112,12 +114,14 @@ export async function acceptOffline<Result>(
   args: unknown,
   raw: unknown,
   shape: (message: string) => Error,
+  revalidate?: () => Promise<unknown>,
 ): Promise<AcceptedDelivery<Result>> {
   if (!runtime) return { result: raw as AcceptedDelivery<Result>["result"] };
   try {
-    return await runtime.accept<Result>(op, args, raw);
+    return await runtime.accept<Result>(op, args, raw, revalidate);
   } catch (error) {
     if (error instanceof DeliveryEnvelopeDecodeError) throw shape(error.message);
+    if (FullRevalidationRequired.is(error)) throw offlineRefusal(error, '');
     throw error;
   }
 }
@@ -147,18 +151,19 @@ export async function decodeOfflineSubscription<Result>(options: {
   revision?: number;
   current?: () => boolean;
   superseded?(): void;
+  revalidate?(): Promise<unknown>;
 }): Promise<LiveQueryDelivery<Result> | QueryRefusedDelivery> {
   const raw = sseObject(options.data, "subscription delivery");
-  const accepted = await acceptOffline<Result>(options.runtime, options.op, options.args, raw, options.shape);
-  const value = accepted.envelope || accepted.refresh
+  const accepted = await acceptOffline<Result>(options.runtime, options.op, options.args, raw, options.shape, options.revalidate);
+  const value = () => accepted.envelope || accepted.refresh
     ? { ...wireQuery<Result>(accepted.result, "subscription delivery"), live: true as const }
     : wireSubscription<Result>(options.data);
-  if (value.state !== "refused") {
+  if (value().state !== "refused") {
     const superseded = await commitOffline(options.runtime, options.op, options.args, accepted, options.failure, options.revision, options.current);
     if (superseded) options.superseded?.();
     if (!options.current || options.current()) await options.observe?.();
   }
-  return value;
+  return value();
 }
 
 export function settleSubscription<Result>(
@@ -226,11 +231,12 @@ export function createOfflineDrain<Args, Result>(options: {
     // The cursor argument is named by the manifest's op descriptor (`c` until it is loaded).
     cursor: async () => {
       await options.ready?.catch(() => undefined);
+      record.args = serverArguments(options.args, options.runtime?.declaredCursorArg(options.op));
       return options.cursor();
     },
     mark: async (watermark, current, offline) => {
       // A follower tab pages and tails live; the writer tab owns the watermark and the grant.
-      if (!options.runtime || offline || options.runtime.following) return;
+      if (!options.runtime || offline || options.runtime.following || isLocalCursor(watermark)) return;
       options.runtime.drainCursor(options.op);
       const revision = options.runtime.coverageRevision;
       const tailArgs = { ...(options.args as Record<string, unknown>), [options.runtime.cursorArg(options.op)]: watermark };
@@ -363,6 +369,9 @@ export async function performOfflineResume<Authority>(options: {
   const check = () => throwIfAborted(options.signal);
   check();
   if (!options.runtime) return false;
+  const fullRead = (op: string, args: unknown) => () => options.json("/api/query?receipt=1", {
+    method: "POST", body: JSON.stringify({ op, args }), signal: options.signal,
+  }, options.authority);
   const revision = options.runtime.coverageRevision;
   const generation = options.runtime.outbox.generation;
   let request = await options.runtime.resumeRequest([...options.mounted.values()], adjustment);
@@ -390,7 +399,7 @@ export async function performOfflineResume<Authority>(options: {
       method: "POST", body: JSON.stringify({ op: seed.op, args: seed.args }), signal: options.signal,
     }, options.authority);
     check();
-    const accepted = await acceptOffline(options.runtime, seed.op, seed.args, raw, options.shape);
+    const accepted = await acceptOffline(options.runtime, seed.op, seed.args, raw, options.shape, fullRead(seed.op, seed.args));
     check();
     wireQuery(accepted.result);
     await commitOffline(options.runtime, seed.op, seed.args, accepted, options.failure ?? ((error) => error as Error),
@@ -462,7 +471,7 @@ export async function performOfflineResume<Authority>(options: {
     const tailArgs = request.log.watermark === null
       ? request.log.args
       : { ...(request.log.args as Record<string, unknown>), [options.runtime.cursorArg(request.log.op)]: request.log.watermark };
-    const accepted = await acceptOffline(options.runtime, request.log.op, tailArgs, delivery, options.shape);
+    const accepted = await acceptOffline(options.runtime, request.log.op, tailArgs, delivery, options.shape, fullRead(request.log.op, tailArgs));
     check();
     swaps.push({ op: request.log.op, args: tailArgs, accepted });
     watermark = {
@@ -480,7 +489,7 @@ export async function performOfflineResume<Authority>(options: {
     swaps.push({
       op: requested.op,
       args: requested.args,
-      accepted: await acceptOffline(options.runtime, requested.op, requested.args, item, options.shape),
+      accepted: await acceptOffline(options.runtime, requested.op, requested.args, item, options.shape, fullRead(requested.op, requested.args)),
     });
     check();
   }

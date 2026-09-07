@@ -3,7 +3,6 @@
 
 use crate::engine::{
     RuntimeError, materialize_optional_fields, rebuild_owned_aggregate_target, reindex_row,
-    validate_column_value,
 };
 use crate::schema::{ColumnType, Maintain, MaintainKind, Schema};
 use crate::store::Store;
@@ -201,7 +200,7 @@ pub(crate) fn plan(
             if next_table
                 .indexes
                 .get(index)
-                .is_none_or(|next_index| next_index.columns != definition.columns)
+                .is_none_or(|next_index| next_index.components != definition.components)
             {
                 drops.push(Drop::Index {
                     table: table_name.clone(),
@@ -280,21 +279,21 @@ pub(crate) fn additive_refusal(
         if rebuilt_targets.contains(table_name) {
             continue;
         }
-        let rows = fetch_rows(connection, table_name)?;
         for (index_name, index) in &next_table.indexes {
             let newly_unique = index.unique
                 && !current_table
                     .indexes
                     .get(index_name)
-                    .is_some_and(|old| old.unique && old.columns == index.columns);
+                    .is_some_and(|old| old.unique && old.components == index.components);
             if !newly_unique {
                 continue;
             }
             let mut counts = BTreeMap::<String, (Vec<Value>, usize)>::new();
-            for row in &rows {
+            for_row_batches(connection, table_name, |row| {
                 let key = index
-                    .columns
+                    .components
                     .iter()
+                    .filter_map(crate::search_key::IndexComponent::column)
                     .map(|column| row.field(column).cloned().unwrap_or(Value::Null))
                     .collect::<Vec<_>>();
                 let encoded = canonical_json(&key);
@@ -302,7 +301,8 @@ pub(crate) fn additive_refusal(
                     .entry(encoded)
                     .and_modify(|(_, count)| *count += 1)
                     .or_insert((key, 1));
-            }
+                Ok(())
+            })?;
             for (_, (key, count)) in counts {
                 if count > 1 {
                     conflicts.push(UniqueConflict {
@@ -310,6 +310,50 @@ pub(crate) fn additive_refusal(
                         index: index_name.clone(),
                         key,
                     });
+                    if conflicts.len() == 10 {
+                        return Ok(Some(SuccessorRefusal::unique(conflicts)));
+                    }
+                }
+            }
+        }
+    }
+    let mut future_targets = BTreeMap::<String, BTreeMap<String, Value>>::new();
+    for target in rebuilt_targets {
+        future_targets.insert(
+            target.clone(),
+            projected_target_rows(connection, next, &target)?,
+        );
+    }
+    for (table_name, rows) in future_targets {
+        let Some(table) = next.table(&table_name) else {
+            // A destructive migration already removed an old maintained target
+            // whose declaration is absent from the successor.
+            continue;
+        };
+        for (index_name, index) in table.indexes.iter().filter(|(_, index)| index.unique) {
+            let mut counts = BTreeMap::<String, (Vec<Value>, usize)>::new();
+            for row in rows.values() {
+                let key = index
+                    .components
+                    .iter()
+                    .filter_map(crate::search_key::IndexComponent::column)
+                    .map(|column| row.field(column).cloned().unwrap_or(Value::Null))
+                    .collect::<Vec<_>>();
+                counts
+                    .entry(canonical_json(&key))
+                    .and_modify(|(_, count)| *count += 1)
+                    .or_insert((key, 1));
+            }
+            for (_, (key, count)) in counts {
+                if count > 1 {
+                    let conflict = UniqueConflict {
+                        table: table_name.clone(),
+                        index: index_name.clone(),
+                        key,
+                    };
+                    if !conflicts.contains(&conflict) {
+                        conflicts.push(conflict);
+                    }
                     if conflicts.len() == 10 {
                         return Ok(Some(SuccessorRefusal::unique(conflicts)));
                     }
@@ -344,9 +388,6 @@ pub(crate) fn validate_stored_rows(
                 }
             })
             .collect::<Vec<_>>();
-        if columns.is_empty() {
-            continue;
-        }
         let mut statement = connection
             .prepare("SELECT row_id, data FROM rows WHERE table_name = ?1 ORDER BY row_id")?;
         let rows = statement.query_map([table_name], |row| {
@@ -370,10 +411,34 @@ pub(crate) fn validate_stored_rows(
                     )));
                 }
             };
-            for (column, kind) in &columns {
+            if let Some(id) = object.get("id") {
+                if let Err(error) = crate::cap::validate_address(next, table_name, id) {
+                    return Ok(Some(SuccessorRefusal::invalid_row(
+                        table_name, &row_id, error,
+                    )));
+                }
+            }
+            for (column, value) in object
+                .iter()
+                .filter(|(name, _)| name.as_str() != "id" && next_table.columns.contains_key(*name))
+            {
+                let _ = column;
                 if let Err(error) =
-                    validate_column_value(table_name, column, kind, object.get(*column))
+                    crate::cap::validate_typed_identities(next, &next_table.columns[column], value)
                 {
+                    return Ok(Some(SuccessorRefusal::invalid_row(
+                        table_name, &row_id, error,
+                    )));
+                }
+            }
+            for (column, kind) in &columns {
+                if let Err(error) = crate::engine::validate_typed_column_value(
+                    next,
+                    table_name,
+                    column,
+                    kind,
+                    object.get(*column),
+                ) {
                     return Ok(Some(SuccessorRefusal::invalid_row(
                         table_name, &row_id, error,
                     )));
@@ -428,7 +493,7 @@ pub(crate) fn apply_additive(
             if table
                 .indexes
                 .get(index)
-                .is_none_or(|old| old.columns != next_index.columns)
+                .is_none_or(|old| old.components != next_index.components)
             {
                 report.added_indexes.push(format!("{table_name}.{index}"));
             }
@@ -437,25 +502,54 @@ pub(crate) fn apply_additive(
     let changed_maintains = changed_maintains(current, next);
     report.backfilled_maintains = changed_maintains.len() as u64;
 
+    let mut predecessor_maintain_ids = predecessor_maintain_ids
+        .map(Ok)
+        .unwrap_or_else(|| projected_predecessor_ids(transaction, current, next))?;
+
     for table_name in next.tables.keys() {
         let needs_reindex = current.tables.get(table_name).is_some_and(|table| {
             next.tables[table_name].indexes.iter().any(|(name, index)| {
                 table
                     .indexes
                     .get(name)
-                    .is_none_or(|old| old.columns != index.columns)
+                    .is_none_or(|old| old.components != index.components)
             })
         });
         if needs_reindex {
-            let rows = fetch_rows(transaction, table_name)?;
-            for row in rows {
+            // Keep one source batch live; all postings are ready in this transaction before exposure.
+            for_row_batches(transaction, table_name, |row| {
+                // Exact predecessor-owned projections will be removed/replaced below.
+                // Surviving rows still undergo scoped successor index admission.
+                if let Some(ids) = predecessor_maintain_ids.get(table_name) {
+                    if ids.contains(row.field("id")?.as_str()?) {
+                        return Ok(());
+                    }
+                }
+                // @ref LLP 1001#4-generation-and-runtime-registryrs-successorrs —
+                // reindex consumes declared key inputs, not unrelated legacy fields.
+                let table = next.table(table_name).expect("successor table");
+                let mut columns = BTreeSet::from(["id"]);
+                for index in table.indexes.values() {
+                    for component in &index.components {
+                        match component {
+                            crate::search_key::IndexComponent::Column(name) => {
+                                columns.insert(name);
+                            }
+                            crate::search_key::IndexComponent::WordPrefixes { fields, .. } => {
+                                columns.extend(fields.iter().map(String::as_str));
+                            }
+                        }
+                    }
+                }
+                for column in columns {
+                    let value = row.field(column).unwrap_or(&Value::Null);
+                    crate::cap::validate_index_column(next, table_name, column, value)?;
+                }
                 reindex_row(transaction, next, table_name, &row)?;
-            }
+                Ok(())
+            })?;
         }
     }
-    let mut predecessor_maintain_ids = predecessor_maintain_ids
-        .map(Ok)
-        .unwrap_or_else(|| projected_predecessor_ids(transaction, current, next))?;
     for target in maintained_targets_requiring_rebuild(current, next) {
         rebuild_target(
             transaction,
@@ -480,6 +574,7 @@ pub(crate) fn apply_migration_drops(
                 crate::assets_ledger::release_table_assets(transaction, name, released_at)?;
                 transaction.execute("DELETE FROM index_entries WHERE table_name = ?1", [name])?;
                 transaction.execute("DELETE FROM rows WHERE table_name = ?1", [name])?;
+                clear_search_indexes(transaction, name, None)?;
             }
             Drop::Column { table, name }
             | Drop::TypeChange {
@@ -490,12 +585,14 @@ pub(crate) fn apply_migration_drops(
                 crate::assets_ledger::release_column_assets(transaction, table, name, released_at)?;
                 drop_column_values(transaction, table, name)?;
                 transaction.execute("DELETE FROM index_entries WHERE table_name = ?1", [table])?;
+                clear_search_indexes(transaction, table, None)?;
             }
             Drop::Index { table, name } => {
                 transaction.execute(
                     "DELETE FROM index_entries WHERE table_name = ?1 AND index_name = ?2",
                     params![table, name],
                 )?;
+                clear_search_indexes(transaction, table, Some(name))?;
             }
         }
     }
@@ -529,13 +626,44 @@ pub(crate) fn apply_migration_drops(
     Ok(())
 }
 
-fn fetch_rows(connection: &Connection, table: &str) -> Result<Vec<Value>, RuntimeError> {
-    let mut statement = connection.prepare("SELECT data FROM rows WHERE table_name = ?1")?;
-    let rows = statement.query_map([table], |row| row.get::<_, String>(0))?;
-    rows.map(|row| {
-        serde_json::from_str(&row?).map_err(|error| RuntimeError::Serialization(error.to_string()))
-    })
-    .collect()
+fn clear_search_indexes(
+    c: &Connection,
+    table: &str,
+    index: Option<&str>,
+) -> Result<(), RuntimeError> {
+    for storage in ["_search_postings", "_search_nodes"] {
+        c.execute(
+            &format!("DELETE FROM {storage} WHERE table_name=?1 AND (?2 IS NULL OR index_name=?2)"),
+            params![table, index],
+        )?;
+    }
+    Ok(())
+}
+fn for_row_batches(
+    c: &Connection,
+    table: &str,
+    mut apply: impl FnMut(Value) -> Result<(), RuntimeError>,
+) -> Result<(), RuntimeError> {
+    let mut after: Option<String> = None;
+    loop {
+        let mut stmt=c.prepare_cached("SELECT row_id,data FROM rows WHERE table_name=?1 AND (?2 IS NULL OR row_id>?2) ORDER BY row_id LIMIT 128")?;
+        let batch = stmt
+            .query_map(params![table, after], |r| {
+                Ok((r.get::<_, String>(0)?, r.get::<_, String>(1)?))
+            })?
+            .collect::<Result<Vec<_>, _>>()?;
+        if batch.is_empty() {
+            break;
+        }
+        for (id, data) in batch {
+            apply(
+                serde_json::from_str(&data)
+                    .map_err(|e| RuntimeError::Serialization(e.to_string()))?,
+            )?;
+            after = Some(id);
+        }
+    }
+    Ok(())
 }
 
 fn drop_column_values(
@@ -543,20 +671,20 @@ fn drop_column_values(
     table: &str,
     column: &str,
 ) -> Result<(), RuntimeError> {
-    for mut row in fetch_rows(transaction, table)? {
+    for_row_batches(transaction, table, |mut row| {
         let id = row.field("id")?.as_str()?.to_owned();
         match &mut row {
             Value::Row(fields) | Value::Map(fields) => {
                 fields.remove(column);
             }
-            _ => continue,
+            _ => return Ok(()),
         }
         transaction.execute(
             "UPDATE rows SET data = ?3 WHERE table_name = ?1 AND row_id = ?2",
             params![table, id, canonical_json(&row)],
         )?;
-    }
-    Ok(())
+        Ok(())
+    })
 }
 
 fn changed_maintains<'a>(current: &'a Schema, next: &'a Schema) -> Vec<&'a Maintain> {
@@ -665,8 +793,9 @@ fn rebuild_target(
             let mut counts = BTreeMap::<String, (Vec<Value>, usize)>::new();
             for row in &final_rows {
                 let key = index
-                    .columns
+                    .components
                     .iter()
+                    .filter_map(crate::search_key::IndexComponent::column)
                     .map(|column| row.field(column).cloned().unwrap_or(Value::Null))
                     .collect::<Vec<_>>();
                 counts
@@ -752,7 +881,7 @@ fn projected_backfill_rows(
         .table(&maintain.source)
         .ok_or_else(|| RuntimeError::Schema(format!("missing table {}", maintain.source)))?;
     let mut groups = BTreeMap::<String, (Vec<Value>, i128)>::new();
-    for mut row in fetch_rows(connection, &maintain.source)? {
+    for_row_batches(connection, &maintain.source, |mut row| {
         materialize_optional_fields(&mut row, source);
         let group = maintain
             .by
@@ -768,7 +897,8 @@ fn projected_backfill_rows(
             .entry(id)
             .and_modify(|(_, value)| *value += amount)
             .or_insert((group, amount));
-    }
+        Ok(())
+    })?;
     groups
         .into_iter()
         .map(|(id, (group, value))| {
@@ -785,7 +915,7 @@ fn projected_backfill_rows(
             for (name, value) in maintain.by.iter().zip(group) {
                 fields.insert(name.clone(), value);
             }
-            Ok(Value::Row(fields))
+            Ok(Value::Row(fields.into()))
         })
         .collect()
 }

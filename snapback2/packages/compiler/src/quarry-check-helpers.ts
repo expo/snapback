@@ -2,6 +2,7 @@ import { readFileSync } from "node:fs";
 import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
+import ts from "typescript";
 import type { FrontendDiagnostic, Program } from "./ir";
 import { compileQuarry, type QuarryInput } from "./quarry/index";
 
@@ -35,6 +36,42 @@ export async function withProject<T>(files: Record<string, string>, run: (root: 
   } finally {
     await rm(root, { recursive: true, force: true });
   }
+}
+
+/** Check emitted declarations and an importing consumer against declarations
+ * emitted from the client's actual Api/Op module. No package
+ * bundle (or unrelated runtime implementation graph) is needed for this check. */
+export function apiConsumerDiagnostics(apiDts: string, consumer: string): string[] {
+  const frontend = decodeURIComponent(new URL("../", import.meta.url).pathname);
+  const clientPath = resolve(frontend, "__client_api.d.ts");
+  const client = ts.transpileDeclaration(readFileSync(resolve(frontend, "../snapback2/src/api.ts"), "utf8"), {
+    fileName: "api.ts", reportDiagnostics: true,
+  });
+  if (client.diagnostics?.length) return client.diagnostics.map(d => ts.flattenDiagnosticMessageText(d.messageText, "\n"));
+  const files = new Map([
+    [resolve(frontend, "__api_consumer.ts"), consumer],
+    [resolve(frontend, "__api_generated.d.ts"), apiDts],
+    [clientPath, client.outputText],
+  ]);
+  const options: ts.CompilerOptions = {
+    strict: true, noEmit: true, skipLibCheck: false, types: [],
+    target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.ESNext,
+    moduleResolution: ts.ModuleResolutionKind.Bundler,
+    paths: { "snapback2/client": [clientPath] },
+  };
+  const host = ts.createCompilerHost(options);
+  const exists = host.fileExists.bind(host);
+  host.fileExists = name => files.has(name) || exists(name);
+  const getSourceFile = host.getSourceFile.bind(host);
+  host.getSourceFile = (name, languageVersion, onError, fresh) => files.has(name)
+    ? ts.createSourceFile(name, files.get(name)!, languageVersion, true)
+    : getSourceFile(name, languageVersion, onError, fresh);
+  const program = ts.createProgram([...files.keys(), resolve(frontend, "lib.d.ts")], options, host);
+  return ts.getPreEmitDiagnostics(program).map(diagnostic => {
+    const position = diagnostic.file && diagnostic.start !== undefined
+      ? diagnostic.file.getLineAndCharacterOfPosition(diagnostic.start) : undefined;
+    return `${diagnostic.file?.fileName ?? "<options>"}:${position ? position.line + 1 : 0} TS${diagnostic.code}: ${ts.flattenDiagnosticMessageText(diagnostic.messageText, "\n")}`;
+  });
 }
 
 export function operation(programs: Program[], name: string): Program {
@@ -73,4 +110,3 @@ export function diagnosticsText(diagnostics: FrontendDiagnostic[]): string {
 export function assert(condition: unknown, message: string): asserts condition {
   if (!condition) throw new Error(message);
 }
-

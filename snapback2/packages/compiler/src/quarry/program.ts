@@ -1,3 +1,4 @@
+import { columnAt, componentLabel, ordinaryColumns, MAX_SEARCH_SOURCE_SCALARS } from "../index-components";
 import type {
   Expr,
   EffectDecl,
@@ -75,7 +76,7 @@ class Environment {
 }
 
 export function emitPrograms(programs: ProgramDecl[], catalog: TableCatalog, sourceFile: string, effects: EffectDecl[] = []): string {
-  refuseGeneratedImportCollisions(programs, effects);
+  refuseGeneratedImportCollisions(effects);
   const rootSite = programs[0]?.site ?? effects[0]?.site ?? { file: sourceFile, line: 1, col: 1 };
   const writer = new Writer(rootSite);
   writer.raw(header(sourceFile), rootSite);
@@ -85,15 +86,15 @@ export function emitPrograms(programs: ProgramDecl[], catalog: TableCatalog, sou
   writer.raw();
   writer.statement(`function orderedPair(left: any, right: any): [any, any] { return [left, right]; }`, { file: sourceFile, line: 1, col: 1 });
   writer.raw();
+  const occupied = new Set([...SNAPBACK2_IMPORT_BINDINGS, ...catalog.keys(), ...effects.map((effect) => effect.name), "orderedPair"]);
   for (const program of programs) {
-    emitProgram(program, catalog, writer, new Set(effects.map((effect) => effect.name)));
+    emitProgram(program, catalog, writer, new Set(effects.map((effect) => effect.name)), occupied.has(program.name));
     writer.raw();
   }
   return `${writer.lines.join("\n").trimEnd()}\n`;
 }
 
-function refuseGeneratedImportCollisions(programs: ProgramDecl[], effects: EffectDecl[]): void {
-  const effectNames = new Set(effects.map((effect) => effect.name));
+function refuseGeneratedImportCollisions(effects: EffectDecl[]): void {
   // An effect is imported under its own name too, so it meets the same helper bindings.
   for (const effect of effects) {
     if (SNAPBACK2_IMPORT_BINDING_SET.has(effect.name) || effect.name === "orderedPair") {
@@ -104,42 +105,21 @@ function refuseGeneratedImportCollisions(programs: ProgramDecl[], effects: Effec
       );
     }
   }
-  for (const program of programs) {
-    if (SNAPBACK2_IMPORT_BINDING_SET.has(program.name)) {
-      refuse(
-        program.site,
-        `${program.kind} name ${program.name} collides with the generated snapback2 helper import ${program.name}`,
-        `rename the ${program.kind} ${program.name}; snapback2 helpers occupy generated module bindings`,
-      );
-    }
-    if (program.name === "orderedPair") {
-      refuse(
-        program.site,
-        `${program.kind} name orderedPair collides with a generated module helper`,
-        `rename the ${program.kind} orderedPair; generated helpers occupy module bindings`,
-      );
-    }
-    if (effectNames.has(program.name)) {
-      refuse(
-        program.site,
-        `${program.kind} name ${program.name} collides with the generated effect import ${program.name}`,
-        `rename the ${program.kind} ${program.name}; effects and operations share a generated module`,
-      );
-    }
-  }
 }
 
-// @ref LLP 1004#implementation-record-2026-09-02 — TypeScript is an
-// internal lowering target, so its binding namespace cannot constrain Quarry.
 function tableBinding(table: string): string { return `${table}$table`; }
 
-function emitProgram(program: ProgramDecl, catalog: TableCatalog, writer: Writer, effects: Set<string>): void {
+function emitProgram(program: ProgramDecl, catalog: TableCatalog, writer: Writer, effects: Set<string>, collision: boolean): void {
   const env = new Environment(catalog, program, effects);
   if (program.focalTable) env.focal = { code: "args", type: { kind: "row", table: program.focalTable, nullable: false } };
-  const args = program.args.map((arg) => `${property(arg.name)}: ${typeCode(arg.type, tableBinding)}`).join(", ");
-  writer.raw(`export const ${program.name} = ${program.kind === "job" ? "mutation" : program.kind}({ ${args} }, ({ db, ctx, args }) => {`, program.site);
+  const args = program.args.map((arg) => `${property(arg.name)}: ${typeCode(arg.type, "argument", tableBinding)}`).join(", ");
+  // Quarry identifiers cannot contain $, so this binding cannot capture an
+  // authored name. Keep table/helper references and the public export intact.
+  const binding = collision ? `$q_operation_${program.name}` : program.name;
+  writer.raw(`${collision ? "" : "export "}const ${binding} = ${program.kind === "job" ? "mutation" : program.kind}({ ${args} }, ({ db, ctx, args }) => {`, program.site);
   writer.nested(() => emitBody(program.body, env, writer, { kind: "return" }));
   writer.statement(`});`, program.site);
+  if (collision) writer.statement(`export { ${binding} as ${program.name} };`, program.site);
 }
 
 function emitBody(body: Stmt[], env: Environment, writer: Writer, completion?: Completion, discardLast = false): void {
@@ -405,6 +385,15 @@ function emitBinary(expr: Extract<Expr, { kind: "binary" }>, env: Environment, w
       typeError(expr.right.site, `Id fallback requires ${valueTypeName(left.type)}; got ${valueTypeName(right.type)}`,
         "use a non-empty text literal or a reference to the same table");
     }
+    // @ref LLP 1002#2-the-authored-surface-the-snapback2-module — list
+    // cardinality and presence are independent, including through captures.
+    if (left.type.kind === "list") {
+      if (!left.type.optional) return { code: `(${left.code} ?? ${right.code})`, type: left.type };
+      const type: ValueType = right.type.kind === "list"
+        ? { ...left.type, max: Math.max(left.type.max, right.type.max), optional: right.type.optional }
+        : expr.right.kind === "literal" && expr.right.value === null ? left.type : { kind: "unknown" };
+      return { code: `(${left.code} ?? ${right.code})`, type };
+    }
     const type = nonNullable(left.type);
     if (type.kind === "text" && right.type.kind === "text") {
       type.max = Math.max(type.max, right.type.max);
@@ -568,9 +557,18 @@ function emitMember(expr: Extract<Expr, { kind: "member" }>, env: Environment, w
       type: base.type.nullable ? nullableValue(field) : field,
     };
   }
+  if (expr.name === "length" && boundedItemType(base.type)) return emitLength(base, expr.base, expr.site);
   if (base.type.kind === "json") return { code: `(${base.code} as any)?.${expr.name}`, type: { kind: "unknown" } };
   if (base.type.kind === "unknown") return { code: `${base.code}?.${expr.name}`, type: { kind: "unknown" } };
   refuse(expr.site, `cannot select .${expr.name} from ${base.type.kind}`);
+}
+
+function emitLength(base: Emitted, expression: Expr, site: Site): Emitted {
+  if (isNullableValue(base.type)) {
+    typeError(site, "list length requires a present list; its maximum does not prove presence",
+      `(${quarryExpression(expression)} ?? []).length`);
+  }
+  return { code: `(${base.code}).length`, type: { kind: "int", optional: false } };
 }
 
 function emitCall(expr: Extract<Expr, { kind: "call" }>, env: Environment, writer: Writer): Emitted {
@@ -623,23 +621,26 @@ function emitCall(expr: Extract<Expr, { kind: "call" }>, env: Environment, write
   }
   if (expr.name === "count") {
     if (args.length !== 1 || !["list", "page", "sequence"].includes(args[0]!.type.kind)) refuse(expr.site, "count(x) requires one bounded list or page");
-    return { code: `${args[0]!.code}.length`, type: { kind: "int", optional: false } };
+    return emitLength(args[0]!, expr.args[0]!, expr.site);
   }
   if (expr.name === "words") {
     const input = args[0];
-    if (args.length !== 1 || input?.type.kind !== "text" || input.type.optional) {
-      typeError(expr.site, "words(text) requires exactly one present bounded text argument",
-        "use words(body) with body: text <=N; use words(body ?? '') for optional text");
+    if (args.length !== 1 || input?.type.kind !== "text") {
+      typeError(expr.site, "words(text) requires exactly one bounded required or optional text argument",
+        "use words(body) with body: text <=N or text <=N ?");
     }
     // The integer-only Add runtime refusal is not evidence of a text bound.
     if (input.type.builtText) {
       typeError(expr.site, "words requires a declared text bound; + or template-built text has no declared maximum",
         "use words(body) with body: text <=N declared as an argument or column");
     }
-    // @ref LLP 1001#pure-builtins — whole tokens keep the input width; separators bound cardinality.
+    if (!Number.isSafeInteger(input.type.max) || input.type.max < 0 || input.type.max > MAX_SEARCH_SOURCE_SCALARS) {
+      typeError(expr.site, "words source maximum exceeds the Unicode normalizer's finite scalar bound", "use declared text with a finite maximum no larger than 1073741823");
+    }
+    // @ref LLP 1001#unicode-search-foundation — U=4N bounds normalized words; each element retains the full U through aliases.
     return { code: `words(${input.code})`, type: { kind: "list",
-      item: { kind: "text", max: input.type.max, optional: false },
-      max: Math.floor(input.type.max / 2) + 1, optional: false } };
+      item: { kind: "text", max: 4 * input.type.max, optional: false },
+      max: Math.floor(4 * input.type.max / 2) + 1, optional: false } };
   }
   if (expr.name === "tokens") return { code: `${target}(${args.map((arg) => arg.code).join(", ")})`, type: { kind: "list", item: { kind: "text", max: 4096, optional: false }, max: 64, optional: false } };
   if (expr.name === "range") {
@@ -683,7 +684,7 @@ function emitRead(expr: Extract<Expr, { kind: "read" }>, env: Environment, write
   const table = tableBinding(expr.table);
   const target = index.name === "byId" ? table : `${table}.${index.name}`;
   if (expr.range) {
-    const remainingColumns = index.columns.slice(expr.keys.length);
+    const remainingColumns = index.components.slice(expr.keys.length);
     if (expr.range.cursor && remainingColumns.length === 0) {
       const { cursor: _cursor, cursorKind: _cursorKind, ...range } = expr.range;
       typeError(
@@ -692,8 +693,8 @@ function emitRead(expr: Extract<Expr, { kind: "read" }>, env: Environment, write
         quarryExpression({ ...expr, range }),
       );
     }
-    if (expr.range.cursor && index.columns.at(-1) !== "id" && !index.unique) {
-      const columns = [...index.columns.filter((column) => column !== "id"), "id"];
+    if (expr.range.cursor && columnAt(index.components, -1) !== "id" && !index.unique) {
+      const columns = [...index.components.filter(c => !("Column" in c && c.Column === "id")).map(componentLabel), "id"];
       typeError(
         index.site,
         `cursor at ${formatSite(expr.range.cursor.site)} uses \`${expr.table}.${index.name}\`, which is not a total order (it neither ends in id nor is unique)`,
@@ -725,8 +726,8 @@ function emitMerge(expr: MergeExpr, env: Environment, writer: Writer): Emitted {
   if (!info) refuse(expr.site, `unknown table ${expr.table}`);
   const index = info.indexes.find((candidate) => candidate.name === expr.index);
   if (!index) refuse(expr.site, `table ${expr.table} has no index ${expr.index}`);
-  if (index.columns.at(-1) !== "id") {
-    const columns = [...index.columns.filter((column) => column !== "id"), "id"];
+  if (columnAt(index.components, -1) !== "id") {
+    const columns = [...index.components.filter(c => !("Column" in c && c.Column === "id")).map(componentLabel), "id"];
     typeError(
       index.site,
       `pageable merge ${expr.table}.${index.name} must end in intrinsic id`,
@@ -743,7 +744,7 @@ function emitMerge(expr: MergeExpr, env: Environment, writer: Writer): Emitted {
     typeError(lane.site, "merge lanes must have equal-width index prefixes", `use ${expr.lanes[0]!.prefix.length} prefix key(s) in this lane`);
   }
   const width = expr.lanes[0]!.prefix.length;
-  if (width >= index.columns.length) {
+  if (width >= index.components.length) {
     typeError(expr.lanes[0]!.site, `merge lane prefixes must leave at least one ${expr.table}.${index.name} suffix column`, "drop the last prefix key from every lane");
   }
   const seen = new Map<string, number>();
@@ -755,10 +756,10 @@ function emitMerge(expr: MergeExpr, env: Environment, writer: Writer): Emitted {
     if (lane.loop) nested.bindings.set(lane.loop.name, { code: lane.loop.name, type: { kind: "row", table: lane.loop.domain.table, nullable: false } });
     lane.prefix.forEach((value, position) => {
       const actual = inferExpr(value, nested);
-      const column = index.columns[position]!;
+      const column = columnAt(index.components, position);
       const expected = column === "id"
         ? { kind: "ref", table: expr.table, optional: false } satisfies ScalarType
-        : info.columns.get(column);
+        : column ? info.columns.get(column) : undefined;
       if (actual && expected && !keyCompatible(value, actual, expected)) {
         typeError(lane.site, `merge lane key ${position + 1} is ${valueTypeName(actual)}; ${expr.table}.${index.name}.${column} is ${valueTypeName(expected)}`, `use a ${valueTypeName(expected)} expression in this lane position`);
       }
@@ -917,7 +918,7 @@ function emitWrite(expr: Extract<Expr, { kind: "write" }>, env: Environment, wri
     writer.statement(`const ${local} = ${emitted.code};`, part.value.site);
     return { ...emitted, code: local };
   });
-  const addressedFields = new Map(index.columns.map((column, offset) => [column, keys[offset]!.code]));
+  const addressedFields = new Map(ordinaryColumns(index.components)!.map((column, offset) => [column, keys[offset]!.code]));
   if (index.name !== "byId" || keys.length !== 1) {
     return emitIndexedWrite(expr, env, writer, info.columns, index, keys, resultUsed);
   }
@@ -983,7 +984,7 @@ function emitIndexedWrite(
 ): Emitted {
   const row = temporary("writeRow", expr.site);
   writer.statement(`const ${row} = db.get(${tableBinding(expr.table)}.${index.name}, [${keys.map((key) => key.code).join(", ")}]);`, expr.site);
-  const addressedFields = new Map(index.columns.map((column, offset) => [column, keys[offset]!.code]));
+  const addressedFields = new Map(ordinaryColumns(index.components)!.map((column, offset) => [column, keys[offset]!.code]));
 
   if (expr.op === "delete") {
     writer.statement(`db.require(${row} !== null, "NOT_FOUND");`, expr.site);
@@ -1016,7 +1017,7 @@ function emitIndexedWrite(
     const sourceFields = expr.fields;
     const fields = emitEvaluatedFieldEntries(sourceFields, env, writer, columns, addressedFields);
     const authoredNames = new Set(sourceFields.map((field) => field.name));
-    const injected = index.columns.flatMap((column, offset) =>
+    const injected = ordinaryColumns(index.components)!.flatMap((column, offset) =>
       authoredNames.has(column) ? [] : [{ name: column, value: keys[offset]!.code }]);
     fields.unshift(...injected);
     const addressedId = fields.find((field) => field.name === "id");
@@ -1093,7 +1094,7 @@ function validateAddressedKeyFields(expr: Extract<Expr, { kind: "write" }>, inde
       quarryWriteWithoutField(expr, authoredId),
     );
   }
-  for (const [offset, column] of index.columns.entries()) {
+  for (const [offset, column] of ordinaryColumns(index.components)!.entries()) {
     const field = expr.fields.find((candidate) => candidate.name === column);
     if (!field) continue;
     const value = field.value ?? { kind: "name", name: field.name, site: field.site } satisfies Expr;
@@ -1206,6 +1207,18 @@ function assetShapeName(shape: AssetShape): string {
 }
 
 function inferExpr(expr: Expr, env: Environment): ScalarType | undefined {
+  if (expr.kind === "read" && !expr.range) return { kind: "ref", table: expr.table, optional: true };
+  if (expr.kind === "assert") {
+    const value = inferExpr(expr.value, env);
+    return value && { ...value, optional: false };
+  }
+  if (expr.kind === "binary" && expr.op === "??") {
+    const left = inferExpr(expr.left, env), right = inferExpr(expr.right, env);
+    if (left?.kind === "text" && right?.kind === "text") return { ...left, ...right,
+      max: Math.max(left.max, right.max), optional: right.optional,
+      ...("builtText" in left || "builtText" in right ? { builtText: true } : {}) };
+    return left && { ...left, optional: right?.optional ?? true };
+  }
   if (expr.kind === "name") {
     const binding = expr.site.expandedFrom && ["viewer", "now", "commit", "new"].includes(expr.name)
       ? undefined : env.bindings.get(expr.name)?.type;
@@ -1221,13 +1234,29 @@ function inferExpr(expr: Expr, env: Environment): ScalarType | undefined {
     return isScalar(type) ? type : undefined;
   }
   if (expr.kind === "member") {
+    const carried = boundObjectMember(expr, env);
+    if (carried && isScalar(carried)) return carried;
+    if (expr.base.kind === "object") {
+      const field = expr.base.fields.find(f => f.name === expr.name);
+      return field && inferExpr(field.value ?? { kind: "name", name: field.name, site: field.site }, env);
+    }
     const base = inferExpr(expr.base, env);
     if (base?.kind === "ref" && base.table) {
       if (expr.name === "id") return { kind: "ref", table: base.table, optional: base.optional };
-      return env.catalog.get(base.table)?.columns.get(expr.name);
+      const column = env.catalog.get(base.table)?.columns.get(expr.name);
+      return column && { ...column, optional: column.optional || base.optional };
     }
   }
   return undefined;
+}
+
+function boundObjectMember(expr: Expr, env: Environment): ValueType | undefined {
+  if (expr.kind === "name") return env.bindings.get(expr.name)?.type;
+  if (expr.kind !== "member") return;
+  const base = boundObjectMember(expr.base, env);
+  if (base?.kind !== "object") return;
+  const value = base.fields.get(expr.name);
+  return value && base.nullable ? nullableValue(value) : value;
 }
 
 function literalType(expr: Extract<Expr, { kind: "literal" }>): ScalarType | NumericLiteralType {

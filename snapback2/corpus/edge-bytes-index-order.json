@@ -16,15 +16,21 @@
         },
         "indexes": {
           "byId": {
-            "columns": [
-              "id"
+            "components": [
+              {
+                "Column": "id"
+              }
             ],
             "unique": true
           },
           "byPayload": {
-            "columns": [
-              "payload",
-              "id"
+            "components": [
+              {
+                "Column": "payload"
+              },
+              {
+                "Column": "id"
+              }
             ],
             "unique": false
           }
@@ -87,17 +93,17 @@
   "certificate": {
     "program": "bytesIndexOrder",
     "plan_hash": "3d25a2077704513a75eda929a0d0c290877fd4f085877379192c9e3e9f25daa2",
-    "schema_hash": "2b7fe1d7c7a8e76299b9ff2fd8be4c824ec613c7b7b00828247c71a0206e302a",
+    "schema_hash": "ab5e1b51154d569e4beaf5715f833b9a9179b1dc610271e266d03a386bbbfcd2",
     "tables": {
       "blobs": {
         "retain": "until-revoked"
       }
     },
     "rule_hashes": {
-      "blobs.read": "c6d31cd35aef4735bd9646f89c3b985272d2069e7ce9f506c84cb8d76266d0ff"
+      "blobs.read": "7f4b61f14b78d41f24438587a256d3f441e271236ecf56f4ca3509b7e3b5b796"
     },
-    "evaluator_version": "bounded-spike-rust-1",
-    "value_model_version": "i53-codepoint-bytes-v2",
+    "evaluator_version": "bounded-spike-rust-search-text-refinements-4",
+    "value_model_version": "i53-codepoint-bytes-unicode-search-text-refinements-v5",
     "read_sites": [
       {
         "site": "bytesIndexOrder.blobs",
@@ -119,6 +125,8 @@
     "max_index_entries": 12,
     "max_rule_probes": 0,
     "max_steps": 62,
+    "derived_steps": 0,
+    "derived_scratch_bytes": 0,
     "max_heap_bytes": 1984,
     "max_output_bytes": 1972,
     "max_closure_bytes": 1950,
@@ -142,7 +150,7 @@
     "read_time": null
   },
   "receipt": {
-    "schema_hash": "2b7fe1d7c7a8e76299b9ff2fd8be4c824ec613c7b7b00828247c71a0206e302a",
+    "schema_hash": "ab5e1b51154d569e4beaf5715f833b9a9179b1dc610271e266d03a386bbbfcd2",
     "rows": [
       {
         "table": "blobs",

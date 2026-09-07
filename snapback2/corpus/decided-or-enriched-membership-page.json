@@ -16,8 +16,10 @@
         },
         "indexes": {
           "byId": {
-            "columns": [
-              "id"
+            "components": [
+              {
+                "Column": "id"
+              }
             ],
             "unique": true
           }
@@ -63,22 +65,32 @@
         },
         "indexes": {
           "byConversationPrincipal": {
-            "columns": [
-              "conversationId",
-              "principal"
+            "components": [
+              {
+                "Column": "conversationId"
+              },
+              {
+                "Column": "principal"
+              }
             ],
             "unique": true
           },
           "byId": {
-            "columns": [
-              "id"
+            "components": [
+              {
+                "Column": "id"
+              }
             ],
             "unique": true
           },
           "byPrincipalConversation": {
-            "columns": [
-              "principal",
-              "conversationId"
+            "components": [
+              {
+                "Column": "principal"
+              },
+              {
+                "Column": "conversationId"
+              }
             ],
             "unique": false
           }
@@ -149,17 +161,27 @@
         },
         "indexes": {
           "byConversationTermTime": {
-            "columns": [
-              "conversationId",
-              "term",
-              "at",
-              "id"
+            "components": [
+              {
+                "Column": "conversationId"
+              },
+              {
+                "Column": "term"
+              },
+              {
+                "Column": "at"
+              },
+              {
+                "Column": "id"
+              }
             ],
             "unique": false
           },
           "byId": {
-            "columns": [
-              "id"
+            "components": [
+              {
+                "Column": "id"
+              }
             ],
             "unique": true
           }
@@ -224,7 +246,9 @@
               "index": "byPrincipalConversation",
               "prefix": [
                 {
-                  "Input": "Viewer"
+                  "Scalar": {
+                    "Input": "Viewer"
+                  }
                 }
               ],
               "order": "Asc",
@@ -337,8 +361,8 @@
   },
   "certificate": {
     "program": "decided-or-enriched-membership-page",
-    "plan_hash": "b5ca1b01e6b09361fdbe3f68ce4f4986ee2b8dcbedaaa0ca64e706276b96f5b8",
-    "schema_hash": "e74e143b7d5b445620d3831ec57582d8f711c631f455d3dbb432474777162e10",
+    "plan_hash": "1726b6bb4f9e64329ed592a57d96b928d30190580e61ef65df9f97df42d70377",
+    "schema_hash": "73118de089ba1b2810871ee3ca37a24834e18184fce675be81719822db85f4e5",
     "tables": {
       "conversations": {
         "retain": "until-revoked"
@@ -351,11 +375,11 @@
       }
     },
     "rule_hashes": {
-      "conversations.read": "f54274c4b9d4ba864db6650409084b9627d02d3e1714f2119e91a9355c06da6a",
-      "memberships.read": "632766821ebcf43806e5ae5954e840445a20cc4cb9cebc1e1e03b1f26f1c8585"
+      "conversations.read": "6492da2cc1f37b7b07d20f17a326a065a3452f5bf3e9721b909cb8a1913b52f0",
+      "memberships.read": "14ae9d1fa92cbbdb5c36541bb319f04443432181c94a8b1f29f43dedf5d3bf5f"
     },
-    "evaluator_version": "bounded-spike-rust-1",
-    "value_model_version": "i53-codepoint-bytes-v2",
+    "evaluator_version": "bounded-spike-rust-search-text-refinements-4",
+    "value_model_version": "i53-codepoint-bytes-unicode-search-text-refinements-v5",
     "read_sites": [
       {
         "site": "conversation.point",
@@ -388,6 +412,8 @@
     "max_index_entries": 202,
     "max_rule_probes": 100,
     "max_steps": 2816,
+    "derived_steps": 0,
+    "derived_scratch_bytes": 0,
     "max_heap_bytes": 90112,
     "max_output_bytes": 41212,
     "max_closure_bytes": 37500,
@@ -413,7 +439,7 @@
     "read_time": null
   },
   "receipt": {
-    "schema_hash": "e74e143b7d5b445620d3831ec57582d8f711c631f455d3dbb432474777162e10",
+    "schema_hash": "73118de089ba1b2810871ee3ca37a24834e18184fce675be81719822db85f4e5",
     "rows": [
       {
         "table": "memberships",
@@ -485,7 +511,9 @@
         "index": "byPrincipalConversation",
         "prefix": [
           {
-            "Id": "u1"
+            "Scalar": {
+              "Id": "u1"
+            }
           }
         ],
         "order": "Asc",
@@ -496,7 +524,7 @@
         "gte": null,
         "lt": null,
         "lte": null,
-        "rule_hash": "632766821ebcf43806e5ae5954e840445a20cc4cb9cebc1e1e03b1f26f1c8585",
+        "rule_hash": "14ae9d1fa92cbbdb5c36541bb319f04443432181c94a8b1f29f43dedf5d3bf5f",
         "row_ids": [
           "m1",
           "m2"
@@ -504,7 +532,7 @@
         "stop": "Exhausted",
         "absence": false,
         "halo": null,
-        "n2_key": null
+        "n2_suffix": null
       }
     ],
     "absences": [],

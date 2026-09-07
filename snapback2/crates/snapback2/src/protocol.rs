@@ -348,7 +348,7 @@ pub fn json_to_value(value: &Json) -> Result<Value, Refusal> {
             .iter()
             .map(|(key, value)| Ok((key.clone(), json_to_value(value)?)))
             .collect::<Result<BTreeMap<_, _>, Refusal>>()
-            .map(Value::Map),
+            .map(|fields| Value::Map(fields.into())),
     }
 }
 

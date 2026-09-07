@@ -119,7 +119,11 @@ fn scaffold(root: &Path, template: &str, client: Client) -> Result<(), Refusal> 
         // A template ships its own screens when it has them; the generic
         // React shell is the fallback (LLP 1012 lane O2c: the chat template).
         let own = templates.join(template).join("react");
-        let react = if own.join("src").is_dir() { own } else { templates.join("react") };
+        let react = if own.join("src").is_dir() {
+            own
+        } else {
+            templates.join("react")
+        };
         copy_absent(&react, root)?;
     }
     // @ref LLP 1013#6-the-chat-template-on-a-phone — flatten the selected arm;
@@ -128,7 +132,10 @@ fn scaffold(root: &Path, template: &str, client: Client) -> Result<(), Refusal> 
         copy_absent(&templates.join(template).join("expo"), root)?;
     }
     if client != Client::None && templates.join(template).join("shared").is_dir() {
-        copy_absent(&templates.join(template).join("shared"), &root.join("shared"))?;
+        copy_absent(
+            &templates.join(template).join("shared"),
+            &root.join("shared"),
+        )?;
     }
     update_agents(&root.join("AGENTS.md"))?;
     update_gitignore(&root.join(".gitignore"))?;
@@ -335,22 +342,44 @@ fn update_package(path: &Path, client: Client) -> Result<(), Refusal> {
             .or_insert_with(|| Json::String("vite".to_owned()));
     }
     if client == Client::Expo {
-        let dependencies = object.get_mut("dependencies").unwrap().as_object_mut().unwrap();
+        let dependencies = object
+            .get_mut("dependencies")
+            .unwrap()
+            .as_object_mut()
+            .unwrap();
         for (name, version) in [
-            ("expo", "~54.0.37"), ("react", "19.1.0"), ("react-native", "0.81.5"),
-            ("expo-sqlite", "~16.0.10"), ("expo-secure-store", "~15.0.8"),
-            ("expo-file-system", "~19.0.24"), ("expo-video", "~3.0.16"),
+            ("expo", "~54.0.37"),
+            ("react", "19.1.0"),
+            ("react-native", "0.81.5"),
+            ("expo-sqlite", "~16.0.10"),
+            ("expo-secure-store", "~15.0.8"),
+            ("expo-file-system", "~19.0.24"),
+            ("expo-video", "~3.0.16"),
         ] {
             dependencies.entry(name).or_insert_with(|| json!(version));
         }
         object.entry("main").or_insert_with(|| json!("index.js"));
-        let development = object.entry("devDependencies").or_insert_with(|| json!({}))
-            .as_object_mut().ok_or_else(|| conflict("package.json devDependencies must be an object"))?;
-        development.entry("@types/react").or_insert_with(|| json!("~19.1.12"));
-        development.entry("typescript").or_insert_with(|| json!("~5.9.2"));
-        let scripts = object.entry("scripts").or_insert_with(|| json!({}))
-            .as_object_mut().ok_or_else(|| conflict("package.json scripts must be an object"))?;
-        for (name, command) in [("dev", "expo start"), ("ios", "expo run:ios"), ("typecheck", "tsc --noEmit")] {
+        let development = object
+            .entry("devDependencies")
+            .or_insert_with(|| json!({}))
+            .as_object_mut()
+            .ok_or_else(|| conflict("package.json devDependencies must be an object"))?;
+        development
+            .entry("@types/react")
+            .or_insert_with(|| json!("~19.1.12"));
+        development
+            .entry("typescript")
+            .or_insert_with(|| json!("~5.9.2"));
+        let scripts = object
+            .entry("scripts")
+            .or_insert_with(|| json!({}))
+            .as_object_mut()
+            .ok_or_else(|| conflict("package.json scripts must be an object"))?;
+        for (name, command) in [
+            ("dev", "expo start"),
+            ("ios", "expo run:ios"),
+            ("typecheck", "tsc --noEmit"),
+        ] {
             scripts.entry(name).or_insert_with(|| json!(command));
         }
     }
@@ -480,6 +509,8 @@ fn conflict(message: impl Into<String>) -> Refusal {
 }
 
 fn usage() -> ExitCode {
-    eprintln!("usage: snapback2 init [dir] [--template todos|chat] [--client react|expo|none] [--json] (expo requires chat)");
+    eprintln!(
+        "usage: snapback2 init [dir] [--template todos|chat] [--client react|expo|none] [--json] (expo requires chat)"
+    );
     ExitCode::from(2)
 }

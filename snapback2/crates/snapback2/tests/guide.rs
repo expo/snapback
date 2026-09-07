@@ -207,7 +207,14 @@ fn quarry_keywords_print_grammar_and_definitions_beside_symbol_help() {
         definitions.len(),
         "cover every grammar construct"
     );
-    assert!(lines.iter().find(|(name, _)| *name == "for").unwrap().1.contains("tokens/words"));
+    assert!(
+        lines
+            .iter()
+            .find(|(name, _)| *name == "for")
+            .unwrap()
+            .1
+            .contains("tokens/words")
+    );
     for (keyword, definition) in definitions {
         let output = project.run(&["guide", keyword, "--json"]);
         let page = json_stdout(&output);
@@ -244,8 +251,16 @@ fn quarry_keywords_print_grammar_and_definitions_beside_symbol_help() {
         assert!(paragraph.contains(definition), "{keyword}: {paragraph}");
         if keyword == "connected" {
             assert!(content.contains("## live-query: Connected\n"), "{content}");
-            for needle in ["immutable snapshot per program run", "next execute", "up to 1 s", "--as"] {
-                assert!(paragraph.contains(needle), "connected lacks {needle}: {paragraph}");
+            for needle in [
+                "immutable snapshot per program run",
+                "next execute",
+                "up to 1 s",
+                "--as",
+            ] {
+                assert!(
+                    paragraph.contains(needle),
+                    "connected lacks {needle}: {paragraph}"
+                );
             }
         }
         if keyword == "channel" {
@@ -391,11 +406,11 @@ fn quarry_grammar_and_refusal_guides_ship_without_double_fences() {
     let quarry = project.run(&["guide", "quarry"]);
     assert!(quarry.status.success());
     assert!(
-        String::from_utf8_lossy(&quarry.stdout)
-            .contains("Quarry is the only backend language")
+        String::from_utf8_lossy(&quarry.stdout).contains("Quarry is the only backend language")
     );
-    assert!(String::from_utf8_lossy(&quarry.stdout)
-        .contains("puts no generated files in `snapback/`"));
+    assert!(
+        String::from_utf8_lossy(&quarry.stdout).contains("puts no generated files in `snapback/`")
+    );
     for page in ["grammar"] {
         let output = project.run(&["guide", page]);
         assert!(output.status.success(), "{page}");

@@ -191,13 +191,21 @@ pub struct DeliveryRow {
     pub row: Json,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+/// Public scan-key tags are explicit; a Scalar application's map is never interpreted as search.
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub enum WireIndexAtom {
+    Scalar(Json),
+    WordPrefix(crate::search_key::WordPrefix),
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct DeliveryRange {
     pub site: String,
     pub table: String,
     pub index: String,
-    pub prefix: Vec<Json>,
+    pub prefix: Vec<WireIndexAtom>,
     pub order: crate::ir::Order,
     pub take: u32,
     pub after: Option<Json>,
@@ -224,14 +232,14 @@ pub struct DeliveryVerdict {
     pub result: bool,
 }
 
-#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct DeliveryReceipt {
     pub ranges: Vec<DeliveryRange>,
     pub absences: Vec<(String, String, Vec<Json>)>,
     pub verdicts: Vec<DeliveryVerdict>,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct DeliveryEnvelopeV1 {
     pub protocol: u8,
@@ -247,19 +255,22 @@ pub struct DeliveryEnvelopeV1 {
     pub data: Json,
     pub next: Option<String>,
     pub seq: u64,
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "deserialize_read_time"
+    )]
+    pub read_time: Option<i64>,
     pub rows: Vec<DeliveryRow>,
     pub receipt: DeliveryReceipt,
     pub validator: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub connected: Option<bool>,
-    /// The owner's execution read time, present only for a program whose certificate reads
-    /// the clock: such a program re-executes at one durable seq with a different answer, and
-    /// this stamp orders those deliveries on the client. Outside the validator by design.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub read_time: Option<i64>,
 }
 
 pub struct DeliveryProjectionContext<'a> {
+    pub schema: &'a crate::Schema,
+    pub read_time: Option<i64>,
     pub op: &'a str,
     pub args: &'a BTreeMap<String, Value>,
     pub generation: &'a str,
@@ -272,6 +283,8 @@ pub struct DeliveryProjectionContext<'a> {
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
 struct ValidatorPayload<'a> {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    read_time: Option<i64>,
     op: &'a str,
     args: &'a BTreeMap<String, Value>,
     state: &'a DeliveryState,
@@ -291,12 +304,18 @@ struct ValidatorPayload<'a> {
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum DeliveryProjectionError {
     NonQueryState,
+    InvalidPool,
+    InvalidReadTime,
     MissingPooledRow { table: String, id: String },
 }
 
 impl fmt::Display for DeliveryProjectionError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
+            Self::InvalidReadTime => {
+                formatter.write_str("readTime must be signed safe-integer milliseconds")
+            }
+            Self::InvalidPool => formatter.write_str("invalid receipt row pool"),
             Self::NonQueryState => {
                 formatter.write_str("delivery envelopes are defined only for query executions")
             }
@@ -317,6 +336,12 @@ pub fn project(
     execution: &Execution,
     context: &DeliveryProjectionContext<'_>,
 ) -> Result<DeliveryEnvelopeV1, DeliveryProjectionError> {
+    if context
+        .read_time
+        .is_some_and(|t| !(crate::value::I53_MIN..=crate::value::I53_MAX).contains(&t))
+    {
+        return Err(DeliveryProjectionError::InvalidReadTime);
+    }
     let state = delivery_state(&execution.state)?;
     let reason = match &execution.state {
         ExecutionState::Partial { reason } => Some(reason.clone()),
@@ -326,7 +351,7 @@ pub fn project(
         ExecutionState::Denied { rule } => Some(rule.clone()),
         _ => None,
     };
-    let rows = row_pool(execution);
+    let rows = row_pool(execution, context.schema)?;
     let pool = rows
         .iter()
         .map(|row| (row.table.clone(), row.id.clone()))
@@ -365,6 +390,7 @@ pub fn project(
     // change whose (table, id) is stable.
     let validator_data = value_to_wire_json(&execution.result);
     let validator = digest(&ValidatorPayload {
+        read_time: context.read_time,
         op: context.op,
         args: context.args,
         state: &state,
@@ -381,8 +407,8 @@ pub fn project(
         auth_epoch: context.auth_epoch,
     });
     Ok(DeliveryEnvelopeV1 {
+        read_time: context.read_time,
         connected: None,
-        read_time: None,
         protocol: DELIVERY_PROTOCOL_V1,
         generation: context.generation.to_owned(),
         schema_hash: context.schema_hash.to_owned(),
@@ -403,6 +429,18 @@ pub fn project(
     })
 }
 
+fn deserialize_read_time<'de, D: serde::Deserializer<'de>>(
+    deserializer: D,
+) -> Result<Option<i64>, D::Error> {
+    let time = i64::deserialize(deserializer)?;
+    if !(crate::value::I53_MIN..=crate::value::I53_MAX).contains(&time) {
+        return Err(serde::de::Error::custom(
+            "readTime must be signed safe-integer milliseconds",
+        ));
+    }
+    Ok(Some(time))
+}
+
 fn delivery_state(state: &ExecutionState) -> Result<DeliveryState, DeliveryProjectionError> {
     match state {
         ExecutionState::Complete => Ok(DeliveryState::Complete),
@@ -415,7 +453,14 @@ fn delivery_state(state: &ExecutionState) -> Result<DeliveryState, DeliveryProje
     }
 }
 
-fn row_pool(execution: &Execution) -> Vec<DeliveryRow> {
+fn row_pool(
+    execution: &Execution,
+    schema: &crate::Schema,
+) -> Result<Vec<DeliveryRow>, DeliveryProjectionError> {
+    execution
+        .receipt
+        .validate_pool(schema)
+        .map_err(|_| DeliveryProjectionError::InvalidPool)?;
     let mut pool = BTreeMap::<(String, String), &RowRecord>::new();
     for row in &execution.receipt.rows {
         pool.entry((row.table.clone(), row.id.clone()))
@@ -423,17 +468,22 @@ fn row_pool(execution: &Execution) -> Vec<DeliveryRow> {
     }
     for range in &execution.receipt.ranges {
         if let Some(row) = &range.halo {
-            pool.entry((row.table.clone(), row.id.clone()))
-                .or_insert(row);
+            if !pool.contains_key(&(row.table.clone(), row.id.clone())) {
+                return Err(DeliveryProjectionError::MissingPooledRow {
+                    table: row.table.clone(),
+                    id: row.id.clone(),
+                });
+            }
         }
     }
-    pool.into_iter()
+    Ok(pool
+        .into_iter()
         .map(|((table, id), row)| DeliveryRow {
             table,
             id,
             row: value_to_wire_json(&row.row),
         })
-        .collect()
+        .collect())
 }
 
 fn pooled_value(
@@ -520,7 +570,16 @@ fn delivery_range(range: &ReceiptRange) -> DeliveryRange {
         site: range.site.clone(),
         table: range.table.clone(),
         index: range.index.clone(),
-        prefix: range.prefix.iter().map(value_to_wire_json).collect(),
+        prefix: range
+            .prefix
+            .iter()
+            .map(|a| match a {
+                crate::search_key::IndexAtom::Scalar(v) => {
+                    WireIndexAtom::Scalar(value_to_wire_json(v))
+                }
+                crate::search_key::IndexAtom::WordPrefix(p) => WireIndexAtom::WordPrefix(p.clone()),
+            })
+            .collect(),
         order: range.order,
         take: range.take,
         after: range.after.as_ref().map(value_to_wire_json),
@@ -592,7 +651,9 @@ mod tests {
             site: "messages.page".to_owned(),
             table: "messages".to_owned(),
             index: "byConversationAt".to_owned(),
-            prefix: vec![Value::Id("conversation-1".to_owned())],
+            prefix: vec![crate::search_key::IndexAtom::Scalar(Value::Id(
+                "conversation-1".to_owned(),
+            ))],
             order: Order::Asc,
             take: 2,
             after: None,
@@ -605,8 +666,11 @@ mod tests {
             row_ids: vec!["message-1".to_owned()],
             stop: crate::engine::StopReason::Exhausted,
             absence: false,
-            halo,
-            n2_key: None,
+            halo: halo.map(|row| crate::engine::RowRef {
+                table: row.table,
+                id: row.id,
+            }),
+            n2_suffix: None,
         }
     }
 
@@ -639,6 +703,8 @@ mod tests {
         project(
             execution,
             &DeliveryProjectionContext {
+                schema: &crate::Schema::default(),
+                read_time: None,
                 op: "messages.thread",
                 args: &args,
                 generation,
@@ -657,7 +723,7 @@ mod tests {
         let halo = row("message-2", "later");
         let execution = execution(ClosureReceipt {
             schema_hash: Some(hash('b')),
-            rows: vec![first.clone(), first],
+            rows: vec![first.clone(), first, halo.clone()],
             ranges: vec![range(Some(halo))],
             absences: vec![
                 (
@@ -695,7 +761,7 @@ mod tests {
     }
 
     #[test]
-    fn envelope_read_time_is_optional_and_outside_the_validator() {
+    fn envelope_read_time_is_optional_and_bound_by_projection() {
         let execution = execution(ClosureReceipt {
             schema_hash: Some(hash('b')),
             rows: vec![row("message-1", "hello")],
@@ -703,14 +769,44 @@ mod tests {
             absences: Vec::new(),
             verdicts: Vec::new(),
         });
-        let mut envelope = project_test(&execution, &hash('d'), "alice", 3);
+        let envelope = project_test(&execution, &hash('d'), "alice", 3);
         let bare = serde_json::to_value(&envelope).unwrap();
-        assert!(bare.get("readTime").is_none(), "no stamp unless the program reads the clock");
-        let validator = envelope.validator.clone();
-        envelope.read_time = Some(1_788_000_000_000);
-        let stamped = serde_json::to_value(&envelope).unwrap();
+        assert!(
+            bare.get("readTime").is_none(),
+            "untimed shape stays unchanged"
+        );
+        let args = BTreeMap::from([(
+            "conversationId".to_owned(),
+            Value::Id("conversation-1".to_owned()),
+        )]);
+        let mut context = DeliveryProjectionContext {
+            schema: &crate::Schema::default(),
+            read_time: Some(1_788_000_000_000),
+            op: "messages.thread",
+            args: &args,
+            generation: &hash('d'),
+            schema_hash: &hash('b'),
+            plan_hash: &hash('c'),
+            principal: "alice",
+            auth_epoch: 3,
+        };
+        let timed = project(&execution, &context).unwrap();
+        let stamped = serde_json::to_value(&timed).unwrap();
         assert_eq!(stamped["readTime"], json!(1_788_000_000_000_i64));
-        assert_eq!(envelope.validator, validator, "the stamp never moves the validator");
+        assert_ne!(
+            timed.validator, envelope.validator,
+            "v5 binds the admitted clock"
+        );
+        context.read_time = Some(1_788_000_000_001);
+        assert_ne!(
+            project(&execution, &context).unwrap().validator,
+            timed.validator
+        );
+        context.read_time = None;
+        assert_eq!(
+            project(&execution, &context).unwrap().validator,
+            envelope.validator
+        );
     }
 
     #[test]
@@ -751,7 +847,7 @@ mod tests {
     fn validator_excludes_seq_and_binds_absence_verdict_next_generation_principal_and_epoch() {
         let base_receipt = ClosureReceipt {
             schema_hash: Some(hash('b')),
-            rows: vec![row("message-1", "hello")],
+            rows: vec![row("message-1", "hello"), row("message-2", "later")],
             ranges: vec![range(Some(row("message-2", "later")))],
             absences: Vec::new(),
             verdicts: vec![Verdict {
@@ -791,7 +887,13 @@ mod tests {
         );
 
         changed = base_execution.clone();
-        changed.receipt.ranges[0].halo.as_mut().unwrap().row = row("message-2", "changed").row;
+        changed
+            .receipt
+            .rows
+            .iter_mut()
+            .find(|r| r.id == "message-2")
+            .unwrap()
+            .row = row("message-2", "changed").row;
         assert_ne!(
             project_test(&changed, &hash('d'), "alice", 3).validator,
             base,
@@ -824,6 +926,8 @@ mod tests {
         let changed_args_validator = project(
             &base_execution,
             &DeliveryProjectionContext {
+                schema: &crate::Schema::default(),
+                read_time: None,
                 op: "messages.thread",
                 args: &changed_args,
                 generation: &hash('d'),
@@ -914,13 +1018,19 @@ mod tests {
         );
 
         let application = Execution {
-            result: Value::Map(BTreeMap::from([(
-                "$row".to_owned(),
-                Value::Map(BTreeMap::from([
-                    ("id".to_owned(), Value::String("literal".to_owned())),
-                    ("table".to_owned(), Value::String("application".to_owned())),
-                ])),
-            )])),
+            result: Value::Map(
+                BTreeMap::from([(
+                    "$row".to_owned(),
+                    Value::Map(
+                        BTreeMap::from([
+                            ("id".to_owned(), Value::String("literal".to_owned())),
+                            ("table".to_owned(), Value::String("application".to_owned())),
+                        ])
+                        .into(),
+                    ),
+                )])
+                .into(),
+            ),
             result_provenance: ResultProvenance::None,
             trace: AuthoritativeTrace::default(),
             receipt: ClosureReceipt::default(),
@@ -943,6 +1053,8 @@ mod tests {
             project(
                 &execution,
                 &DeliveryProjectionContext {
+                    schema: &crate::Schema::default(),
+                    read_time: None,
                     op: "messages.send",
                     args: &args,
                     generation: &hash('d'),
@@ -951,8 +1063,9 @@ mod tests {
                     principal: "alice",
                     auth_epoch: 3,
                 },
-            ),
-            Err(DeliveryProjectionError::NonQueryState)
+            )
+            .unwrap_err(),
+            DeliveryProjectionError::NonQueryState
         );
     }
 }

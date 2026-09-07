@@ -12,8 +12,8 @@ fn valid_project_json() -> Json {
                         "principal": "Principal"
                     },
                     "indexes": {
-                        "byId": { "columns": ["id"], "unique": true },
-                        "byPrincipal": { "columns": ["principal"], "unique": true }
+                        "byId": { "components": [{"Column": "id"}], "unique": true },
+                        "byPrincipal": { "components": [{"Column": "principal"}], "unique": true }
                     },
                     "rules": {
                         "read": { "Eq": [{ "Field": "principal" }, "Viewer"] },
@@ -30,9 +30,9 @@ fn valid_project_json() -> Json {
                         "profile": { "Ref": { "table": "profiles" } }
                     },
                     "indexes": {
-                        "byId": { "columns": ["id"], "unique": true },
-                        "byProfile": { "columns": ["profile"], "unique": false },
-                        "byScopeSubject": { "columns": ["scope", "subject"], "unique": true }
+                        "byId": { "components": [{"Column": "id"}], "unique": true },
+                        "byProfile": { "components": [{"Column": "profile"}], "unique": false },
+                        "byScopeSubject": { "components": [{"Column": "scope"}, {"Column": "subject"}], "unique": true }
                     },
                     "rules": {
                         "read": {
@@ -288,7 +288,7 @@ fn raw_project_json_exists_accepts_only_the_outer_tables_intrinsic_id_as_its_ref
     cross_table["schema"]["tables"]["profiles"]["columns"]["self_ref"] =
         json!({ "Ref": { "table": "profiles" } });
     cross_table["schema"]["tables"]["profiles"]["indexes"]["bySelfRef"] =
-        json!({ "columns": ["self_ref"], "unique": false });
+        json!({ "components": [{"Column": "self_ref"}], "unique": false });
     cross_table["schema"]["tables"]["profiles"]["rules"]["read"] = json!("Allow");
     cross_table["schema"]["tables"]["grants"]["rules"]["read"] =
         exists("profiles", "bySelfRef", "id");
@@ -372,10 +372,9 @@ fn raw_project_json_checks_literal_domains_without_erasing_principal_or_ref_type
         Value::Int(7),
         Value::String("ok".to_owned()),
         Value::Array(vec![Value::Null, Value::String("nested".to_owned())]),
-        Value::Map(std::collections::BTreeMap::from([(
-            "nested".to_owned(),
-            Value::Bool(true),
-        )])),
+        Value::Map(
+            std::collections::BTreeMap::from([("nested".to_owned(), Value::Bool(true))]).into(),
+        ),
     ] {
         certify(typed_rule(
             "metadata",

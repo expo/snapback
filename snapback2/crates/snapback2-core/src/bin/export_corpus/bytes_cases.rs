@@ -1,4 +1,5 @@
 use super::*;
+use snapback2_core::ir::IndexKeyExpr;
 
 pub(super) fn add_bytes_cases(cases: &mut Vec<CorpusCase>) {
     let schema = bytes_schema();
@@ -99,14 +100,20 @@ fn bytes_schema() -> Schema {
                     (
                         "byId".to_owned(),
                         Index {
-                            columns: vec!["id".to_owned()],
+                            components: (vec!["id".to_owned()])
+                                .into_iter()
+                                .map(snapback2_core::search_key::IndexComponent::Column)
+                                .collect(),
                             unique: true,
                         },
                     ),
                     (
                         "byPayload".to_owned(),
                         Index {
-                            columns: vec!["payload".to_owned(), "id".to_owned()],
+                            components: (vec!["payload".to_owned(), "id".to_owned()])
+                                .into_iter()
+                                .map(snapback2_core::search_key::IndexComponent::Column)
+                                .collect(),
                             unique: false,
                         },
                     ),
@@ -153,7 +160,7 @@ fn bytes_scan_program(name: &str) -> Program {
             site: format!("{name}.blobs"),
             table: "blobs".to_owned(),
             index: "byPayload".to_owned(),
-            prefix: Vec::new(),
+            prefix: (Vec::new()).into_iter().map(IndexKeyExpr::Scalar).collect(),
             order: Order::Asc,
             take: Bound::Literal(10),
             after: None,

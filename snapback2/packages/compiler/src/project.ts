@@ -1,4 +1,5 @@
-import { existsSync, readFileSync } from "node:fs";
+import { bindDescriptorProgram } from "./lower/descriptor-origin";
+import { existsSync } from "node:fs";
 import { lstat, mkdir, mkdtemp, readdir, readFile, realpath, rename, rm, writeFile } from "node:fs/promises";
 import { basename, dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
@@ -11,11 +12,11 @@ import { effectBindings, collectEffectCatalog, lowerEffects, type OperationDecl,
 import { lowerSchema } from "./lower/schema";
 import { boundOperationDiagnostics } from "./operation-diagnostics";
 import { callLeaf, moduleJsonConstants, objectOf, property, staticJson } from "./lower/static";
-import { hasExport, propertyName, unwrapCall, walk } from "./syntax";
+import { exportedVariables, hasExport, propertyName, unwrapCall, walk } from "./syntax";
 import { capSites } from "./quarry/cap-sites";
 import { typeDiagnosticSite } from "./type-diagnostic-site";
 import { compileQuarry, quarryInspection, remapVirtualDiagnostic, remapVirtualSource, type QuarryInput, type QuarryVirtualModule } from "./quarry/index";
-import { createProjectProgram, projectTypeDiagnostics } from "./project-program";
+import { createProjectProgram, loadCompilerLib, projectTypeDiagnostics } from "./project-program";
 import { moduleSeedJsonConstants, staticSeedJson, validateSeedRow } from "./project-seed";
 import { sortSerdeMaps } from "./project-sort";
 import { quarryOnlyDiagnostics, type LowerProjectOptions } from "./project-authoring";
@@ -86,14 +87,16 @@ export async function lowerProject(root: string, options: LowerProjectOptions = 
   const diskModuleSources = await Promise.all(tsModulePaths.map(async (path) => [path, await readFile(path, "utf8")] as const));
   const virtualModuleSources = virtualModules.filter((module) => module !== virtualModules[0]).map((module) => [module.path, module.source] as const);
   const moduleSources = [...diskModuleSources, ...virtualModuleSources].sort(([left], [right]) => left.localeCompare(right));
+  const checked = createProjectProgram(schemaPath, schemaSource, moduleSources, loadCompilerLib());
+  bindDescriptorProgram(checked.program, checked.library);
   const modules: SourceModule[] = moduleSources.map(([path, source]) => ({
     moduleName: moduleName(path),
     fileName: relativeSite(projectRoot, path),
     source,
-    sourceFile: ts.createSourceFile(path, source, ts.ScriptTarget.ES2022, true),
+    sourceFile: checked.program.getSourceFile(path)!,
   }));
   const schemaFileName = relativeSite(projectRoot, schemaPath);
-  const schema = lowerSchema(schemaSource, schemaFileName, hasQuarrySchema);
+  const schema = lowerSchema(schemaSource, schemaFileName, hasQuarrySchema, checked.program.getSourceFile(schemaPath));
   const programPaths = [...tsModulePaths, ...quarryPaths.filter((path) => basename(path) !== "schema.q")];
   const diagnostics = [
     ...schema.diagnostics,
@@ -114,8 +117,6 @@ export async function lowerProject(root: string, options: LowerProjectOptions = 
     ));
   }
 
-  const libText = loadCompilerLib();
-  const checked = createProjectProgram(schemaPath, schemaSource, moduleSources, libText);
   const operations = collectOperations(modules);
   diagnostics.push(...reservedApiPathDiagnostics(operations, schemaSource, schemaFileName));
   const catalog = collectEffectCatalog(modules);
@@ -153,6 +154,7 @@ export async function lowerProject(root: string, options: LowerProjectOptions = 
     const lowered = lowerSource(module.source, module.fileName, undefined, {
       tables,
       effects,
+      checkedSource: module.sourceFile,
       operationPrefix: module.moduleName,
       sourceSites: sources,
     });
@@ -553,16 +555,13 @@ function compilerPackageDist(): string {
 function collectOperations(modules: SourceModule[]): Map<string, OperationDecl & { module: SourceModule }> {
   const operations = new Map<string, OperationDecl & { module: SourceModule }>();
   for (const module of modules) {
-    for (const statement of module.sourceFile.statements) {
-      if (!ts.isVariableStatement(statement) || !hasExport(statement)) continue;
-      for (const declaration of statement.declarationList.declarations) {
-        if (!ts.isIdentifier(declaration.name) || !declaration.initializer) continue;
-        const call = unwrapCall(declaration.initializer);
-        const kind = call && callLeaf(call);
-        if (!call || (kind !== "query" && kind !== "mutation")) continue;
-        const name = `${module.moduleName}.${declaration.name.text}`;
-        operations.set(name, { name, moduleName: module.moduleName, exportName: declaration.name.text, kind, call, module });
-      }
+    for (const { declaration, exportName } of exportedVariables(module.sourceFile)) {
+      if (!declaration.initializer) continue;
+      const call = unwrapCall(declaration.initializer);
+      const kind = call && callLeaf(call);
+      if (!call || (kind !== "query" && kind !== "mutation")) continue;
+      const name = `${module.moduleName}.${exportName}`;
+      operations.set(name, { name, moduleName: module.moduleName, exportName, kind, call, module });
     }
   }
   return operations;
@@ -668,27 +667,6 @@ function firstInvalidStaticSpread(node: ts.Node, constants: Map<string, unknown>
   return invalid;
 }
 
-function loadCompilerLib(effects = false): string {
-  const moduleCandidates = [
-    fileURLToPath(new URL("../lib.d.ts", import.meta.url)),
-    fileURLToPath(new URL("./index.d.ts", import.meta.url)),
-  ];
-  const subsetCandidates = effects ? [
-    // Effect checking requires running node build.mjs in packages/snapback2 first: the complete
-    // ES2020 library is built only in dist/, including this bundled-compiler fallback.
-    fileURLToPath(new URL("../../snapback2/dist/effects-lib.d.ts", import.meta.url)),
-    fileURLToPath(new URL("./effects-lib.d.ts", import.meta.url)),
-  ] : [
-    fileURLToPath(new URL("../subset-lib.d.ts", import.meta.url)),
-    fileURLToPath(new URL("./compiler-lib.d.ts", import.meta.url)),
-  ];
-  const modulePath = moduleCandidates.find(existsSync);
-  const subsetPath = subsetCandidates.find(existsSync);
-  if (!modulePath || !subsetPath) throw new Error("snapback2 compiler: checker declarations are missing beside the compiler bundle");
-  const declarations = readFileSync(modulePath, "utf8");
-  const globals = readFileSync(subsetPath, "utf8");
-  return effects ? `${declarations}\n${globals}` : `${globals}\n${declarations}`;
-}
 
 function moduleName(path: string): string {
   return path.split(sep).at(-1)!.replace(/\.(?:q|ts)$/, "");

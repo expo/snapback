@@ -17,7 +17,7 @@ import {
 } from "../dist/index.mjs";
 
 const here = dirname(fileURLToPath(import.meta.url));
-const corpus = resolve(here, "../../../corpus/offline");
+const corpus = process.env.SNAPBACK2_CORPUS ? resolve(process.env.SNAPBACK2_CORPUS, 'offline') : resolve(here, "../../../corpus/offline");
 const packageRoot = resolve(here, "..");
 
 test("offline envelope goldens round-trip byte-identically and rebuild ClosureReceipt", async () => {

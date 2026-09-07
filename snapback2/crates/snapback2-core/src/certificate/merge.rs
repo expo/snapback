@@ -23,8 +23,13 @@ impl Analyzer<'_> {
             .table(&first.table)
             .and_then(|t| t.index(&first.index))
             .ok_or_else(invalid)?;
-        if first.prefix.len() >= index.columns.len()
-            || index.columns.last().map(String::as_str) != Some("id")
+        if first.prefix.len() >= index.components.len()
+            || index
+                .components
+                .last()
+                .and_then(crate::search_key::IndexComponent::column)
+                .map(String::as_str)
+                != Some("id")
             || merge.lanes.iter().any(|lane| {
                 let s = &lane.scan;
                 s.table != first.table
@@ -45,10 +50,11 @@ impl Analyzer<'_> {
         {
             return Err(invalid());
         }
-        let uniform = merge
-            .lanes
-            .iter()
-            .all(|lane| crate::certificate_policy::uniform_visibility(self.schema, &lane.scan));
+        let uniform = search::disjoint_merge(self.schema, merge)
+            && merge
+                .lanes
+                .iter()
+                .all(|lane| crate::certificate_policy::uniform_visibility(self.schema, &lane.scan));
         let mut summary = Summary::default();
         for lane in &merge.lanes {
             let mut nested = factors.to_vec();
@@ -68,7 +74,13 @@ impl Analyzer<'_> {
                 if uniform {
                     1
                 } else {
-                    merge.take().saturating_add(2)
+                    merge
+                        .take()
+                        .saturating_add(if index.derived_offset().is_some() {
+                            3
+                        } else {
+                            2
+                        })
                 },
             )?);
         }
@@ -104,8 +116,12 @@ impl Analyzer<'_> {
         }
         let heads = merge.max_lanes();
         let height = u64::from(64 - heads.max(1).leading_zeros());
-        let work = heads
-            .saturating_add(merge.take().saturating_add(2))
+        let heap_candidates = if !uniform && index.derived_offset().is_some() {
+            heads.saturating_mul(merge.take().saturating_add(3))
+        } else {
+            heads.saturating_add(merge.take().saturating_add(2))
+        };
+        let work = heap_candidates
             .saturating_mul(3 * height + 4)
             .saturating_mul(calls);
         summary.steps = summary.steps.saturating_add(work);

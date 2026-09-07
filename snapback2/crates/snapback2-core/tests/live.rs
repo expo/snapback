@@ -1,3 +1,4 @@
+use snapback2_core::ir::IndexKeyExpr;
 use snapback2_core::*;
 use std::collections::BTreeMap;
 
@@ -12,14 +13,20 @@ fn public_items() -> Table {
             (
                 "byId".to_owned(),
                 Index {
-                    columns: vec!["id".to_owned()],
+                    components: (vec!["id".to_owned()])
+                        .into_iter()
+                        .map(snapback2_core::search_key::IndexComponent::Column)
+                        .collect(),
                     unique: true,
                 },
             ),
             (
                 "byGroup".to_owned(),
                 Index {
-                    columns: vec!["group".to_owned(), "id".to_owned()],
+                    components: (vec!["group".to_owned(), "id".to_owned()])
+                        .into_iter()
+                        .map(snapback2_core::search_key::IndexComponent::Column)
+                        .collect(),
                     unique: false,
                 },
             ),
@@ -68,7 +75,10 @@ fn range_point_and_absence_invalidation_is_exact_and_reruns_coalesce() {
             site: "items.byGroup".to_owned(),
             table: "items".to_owned(),
             index: "byGroup".to_owned(),
-            prefix: vec![var("group")],
+            prefix: (vec![var("group")])
+                .into_iter()
+                .map(IndexKeyExpr::Scalar)
+                .collect(),
             order: Order::Asc,
             take: Bound::Literal(20),
             after: None,
@@ -101,7 +111,10 @@ fn range_point_and_absence_invalidation_is_exact_and_reruns_coalesce() {
             site: "items.first".to_owned(),
             table: "items".to_owned(),
             index: "byGroup".to_owned(),
-            prefix: vec![var("group")],
+            prefix: (vec![var("group")])
+                .into_iter()
+                .map(IndexKeyExpr::Scalar)
+                .collect(),
             order: Order::Asc,
             take: Bound::Literal(1),
             after: None,
@@ -215,7 +228,10 @@ fn hoisted_false_hidden_range_halts_once_and_membership_addition_redelivers_it()
         BTreeMap::from([(
             "byGroupUser".to_owned(),
             Index {
-                columns: vec!["group".to_owned(), "user".to_owned()],
+                components: (vec!["group".to_owned(), "user".to_owned()])
+                    .into_iter()
+                    .map(snapback2_core::search_key::IndexComponent::Column)
+                    .collect(),
                 unique: true,
             },
         )]),
@@ -247,7 +263,10 @@ fn hoisted_false_hidden_range_halts_once_and_membership_addition_redelivers_it()
             site: "docs.byGroup".to_owned(),
             table: "docs".to_owned(),
             index: "byGroup".to_owned(),
-            prefix: vec![var("group")],
+            prefix: (vec![var("group")])
+                .into_iter()
+                .map(IndexKeyExpr::Scalar)
+                .collect(),
             order: Order::Asc,
             take: Bound::Literal(20),
             after: None,
@@ -267,7 +286,10 @@ fn hoisted_false_hidden_range_halts_once_and_membership_addition_redelivers_it()
             site: "docs.first".to_owned(),
             table: "docs".to_owned(),
             index: "byGroup".to_owned(),
-            prefix: vec![var("group")],
+            prefix: (vec![var("group")])
+                .into_iter()
+                .map(IndexKeyExpr::Scalar)
+                .collect(),
             order: Order::Asc,
             take: Bound::Literal(1),
             after: None,
@@ -349,7 +371,10 @@ fn hidden_rows_before_a_visible_row_still_produce_capped_from_trace() {
         BTreeMap::from([(
             "byDocUser".to_owned(),
             Index {
-                columns: vec!["doc".to_owned(), "user".to_owned()],
+                components: (vec!["doc".to_owned(), "user".to_owned()])
+                    .into_iter()
+                    .map(snapback2_core::search_key::IndexComponent::Column)
+                    .collect(),
                 unique: true,
             },
         )]),
@@ -378,7 +403,10 @@ fn hidden_rows_before_a_visible_row_still_produce_capped_from_trace() {
             site: "docs.firstVisible".to_owned(),
             table: "docs".to_owned(),
             index: "byGroup".to_owned(),
-            prefix: vec![Expr::Literal(Value::Id("g1".to_owned()))],
+            prefix: (vec![Expr::Literal(Value::Id("g1".to_owned()))])
+                .into_iter()
+                .map(IndexKeyExpr::Scalar)
+                .collect(),
             order: Order::Asc,
             take: Bound::Literal(1),
             after: None,
@@ -438,7 +466,10 @@ fn denied_subscription_keeps_rule_trace_and_is_readmitted() {
         BTreeMap::from([(
             "byGroupUser".to_owned(),
             Index {
-                columns: vec!["group".to_owned(), "user".to_owned()],
+                components: (vec!["group".to_owned(), "user".to_owned()])
+                    .into_iter()
+                    .map(snapback2_core::search_key::IndexComponent::Column)
+                    .collect(),
                 unique: true,
             },
         )]),
@@ -517,7 +548,10 @@ fn complete_to_denied_with_the_same_result_is_a_changed_delivery() {
         BTreeMap::from([(
             "byGroupUser".to_owned(),
             Index {
-                columns: vec!["group".to_owned(), "user".to_owned()],
+                components: (vec!["group".to_owned(), "user".to_owned()])
+                    .into_iter()
+                    .map(snapback2_core::search_key::IndexComponent::Column)
+                    .collect(),
                 unique: true,
             },
         )]),
@@ -617,7 +651,10 @@ fn rerun_runtime_value_error_is_delivered_as_error() {
         BTreeMap::from([(
             "byId".to_owned(),
             Index {
-                columns: vec!["id".to_owned()],
+                components: (vec!["id".to_owned()])
+                    .into_iter()
+                    .map(snapback2_core::search_key::IndexComponent::Column)
+                    .collect(),
                 unique: true,
             },
         )]),
@@ -718,7 +755,10 @@ fn different_overflow_messages_are_changed_deliveries() {
         BTreeMap::from([(
             "byId".to_owned(),
             Index {
-                columns: vec!["id".to_owned()],
+                components: (vec!["id".to_owned()])
+                    .into_iter()
+                    .map(snapback2_core::search_key::IndexComponent::Column)
+                    .collect(),
                 unique: true,
             },
         )]),

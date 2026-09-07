@@ -451,7 +451,11 @@ fn control_run_source_modes_and_declared_job_route_share_operator_admission() {
     );
     assert_eq!(rehearsed["dryRun"], true, "{rehearsed}");
     assert_eq!(rehearsed["chunks"], 3);
-    assert_eq!(status(port, &secret)["seq"], seq_before, "dryRun: true ran for real");
+    assert_eq!(
+        status(port, &secret)["seq"],
+        seq_before,
+        "dryRun: true ran for real"
+    );
     let planned = control(
         port,
         &secret,

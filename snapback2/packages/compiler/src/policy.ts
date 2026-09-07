@@ -1,3 +1,4 @@
+import { ordinaryColumns } from "./index-components";
 import ts from "typescript";
 import { diagnostic } from "./diagnostics";
 import type { Expr, FrontendDiagnostic } from "./ir";
@@ -334,14 +335,14 @@ function scanIsPrivate(module: PolicyModule, scan: ts.CallExpression): boolean {
   const info = [...module.tables.values()].find((candidate) => candidate.name === ref.table);
   if (!info?.private) return false;
   const prefix = scan.arguments[1] && unwrapExpression(scan.arguments[1]);
-  const columns = info.indexes?.[ref.index]?.columns;
-  if (!prefix || !ts.isArrayLiteralExpression(prefix) || !columns || info.readRule === undefined) {
+  const components = info.indexes?.[ref.index]?.components;
+  if (!prefix || !ts.isArrayLiteralExpression(prefix) || !components || info.readRule === undefined) {
     return true;
   }
-  const pinned = new Set(columns.slice(0, prefix.elements.length));
+  const pinned = new Set(components.slice(0, prefix.elements.length).flatMap(c => "Column" in c ? [c.Column] : []));
   const lowered = module.loweredScanPrefixes.get(scan);
   if (lowered?.length && lowered.every((values) => ruleDecidedTrue(info.readRule, info,
-    new Map(columns.map((column, i) => [column, { source: prefix.elements[i], lowered: values[i] }]))))) return false;
+    new Map(components.flatMap((component, i) => "Column" in component ? [[component.Column, { source: prefix.elements[i], lowered: values[i] }] as const] : []))))) return false;
   return [...ruleFields(info.readRule)].some((field) => !pinned.has(field));
 }
 
@@ -355,8 +356,9 @@ function ruleDecidedTrue(rule: any, table: TableInfo, pinned: Map<string, Pinned
     typeof field?.Field === "string" && pinnedRuleTerm(value, pinned.get(field.Field), table.columns?.[field.Field]));
   const probe = rule.Exists;
   const index = probe?.table === table.name ? table.indexes?.[probe.index] : undefined;
-  return !!index?.unique && index.columns.length > 0 && probe.key?.length === index.columns.length
-    && index.columns.every((column, i) => {
+  const columns = index && ordinaryColumns(index.components);
+  return !!index?.unique && !!columns?.length && probe.key?.length === columns.length
+    && columns.every((column, i) => {
       const type = table.columns?.[column] ?? index.types[i];
       const term = probe.key[i];
       return !!type && type.kind !== "optional" && type.kind !== "unknown"

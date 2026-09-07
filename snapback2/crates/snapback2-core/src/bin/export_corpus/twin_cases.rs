@@ -62,7 +62,10 @@ fn add_missing_authority_results(cases: &mut Vec<CorpusCase>) {
                 BTreeMap::from([(
                     "byId".into(),
                     Index {
-                        columns: vec!["id".into()],
+                        components: (vec!["id".into()])
+                            .into_iter()
+                            .map(snapback2_core::search_key::IndexComponent::Column)
+                            .collect(),
                         unique: true,
                     },
                 )]),
@@ -75,7 +78,10 @@ fn add_missing_authority_results(cases: &mut Vec<CorpusCase>) {
         BTreeMap::from([(
             "byId".into(),
             Index {
-                columns: vec!["id".into()],
+                components: (vec!["id".into()])
+                    .into_iter()
+                    .map(snapback2_core::search_key::IndexComponent::Column)
+                    .collect(),
                 unique: true,
             },
         )]),
@@ -245,7 +251,14 @@ fn add_text_control_refusal_case(cases: &mut Vec<CorpusCase>) {
     let program = Program {
         name: "notes.insert-control".to_owned(),
         kind: ProgramKind::Mutation,
-        args: BTreeMap::from([("body".to_owned(), ArgType::Text { max: 1 })]),
+        args: BTreeMap::from([(
+            "body".to_owned(),
+            ArgType::Text {
+                max: 1,
+                min: 0,
+                format: None,
+            },
+        )]),
         read_time_granularity_ms: None,
         body: vec![Stmt::Insert {
             table: "notes".to_owned(),
@@ -314,7 +327,10 @@ fn add_same_mutation_sum_read_twin_case(cases: &mut Vec<CorpusCase>) {
                     BTreeMap::from([(
                         "byId".to_owned(),
                         Index {
-                            columns: vec!["id".to_owned()],
+                            components: (vec!["id".to_owned()])
+                                .into_iter()
+                                .map(snapback2_core::search_key::IndexComponent::Column)
+                                .collect(),
                             unique: true,
                         },
                     )]),
@@ -333,14 +349,20 @@ fn add_same_mutation_sum_read_twin_case(cases: &mut Vec<CorpusCase>) {
                         (
                             "byId".to_owned(),
                             Index {
-                                columns: vec!["id".to_owned()],
+                                components: (vec!["id".to_owned()])
+                                    .into_iter()
+                                    .map(snapback2_core::search_key::IndexComponent::Column)
+                                    .collect(),
                                 unique: true,
                             },
                         ),
                         (
                             "byOwner".to_owned(),
                             Index {
-                                columns: vec!["owner".to_owned()],
+                                components: (vec!["owner".to_owned()])
+                                    .into_iter()
+                                    .map(snapback2_core::search_key::IndexComponent::Column)
+                                    .collect(),
                                 unique: true,
                             },
                         ),
@@ -634,7 +656,10 @@ fn rbac_twin_schema() -> Schema {
         indexes: BTreeMap::from([(
             "byId".to_owned(),
             Index {
-                columns: vec!["id".to_owned()],
+                components: (vec!["id".to_owned()])
+                    .into_iter()
+                    .map(snapback2_core::search_key::IndexComponent::Column)
+                    .collect(),
                 unique: true,
             },
         )]),
@@ -666,18 +691,24 @@ fn rbac_twin_schema() -> Schema {
             (
                 "byId".to_owned(),
                 Index {
-                    columns: vec!["id".to_owned()],
+                    components: (vec!["id".to_owned()])
+                        .into_iter()
+                        .map(snapback2_core::search_key::IndexComponent::Column)
+                        .collect(),
                     unique: true,
                 },
             ),
             (
                 "byGroupPrincipalRole".to_owned(),
                 Index {
-                    columns: vec![
+                    components: (vec![
                         "group".to_owned(),
                         "principal".to_owned(),
                         "role".to_owned(),
-                    ],
+                    ])
+                    .into_iter()
+                    .map(snapback2_core::search_key::IndexComponent::Column)
+                    .collect(),
                     unique: true,
                 },
             ),
@@ -810,7 +841,10 @@ fn add_constraint_and_memo_twin_cases(cases: &mut Vec<CorpusCase>) {
         indexes: BTreeMap::from([(
             "byId".to_owned(),
             Index {
-                columns: vec!["id".to_owned()],
+                components: (vec!["id".to_owned()])
+                    .into_iter()
+                    .map(snapback2_core::search_key::IndexComponent::Column)
+                    .collect(),
                 unique: true,
             },
         )]),
@@ -894,7 +928,10 @@ fn add_constraint_and_memo_twin_cases(cases: &mut Vec<CorpusCase>) {
         indexes: BTreeMap::from([(
             "byId".to_owned(),
             Index {
-                columns: vec!["id".to_owned()],
+                components: (vec!["id".to_owned()])
+                    .into_iter()
+                    .map(snapback2_core::search_key::IndexComponent::Column)
+                    .collect(),
                 unique: true,
             },
         )]),
@@ -916,7 +953,10 @@ fn add_constraint_and_memo_twin_cases(cases: &mut Vec<CorpusCase>) {
         indexes: BTreeMap::from([(
             "byId".to_owned(),
             Index {
-                columns: vec!["id".to_owned()],
+                components: (vec!["id".to_owned()])
+                    .into_iter()
+                    .map(snapback2_core::search_key::IndexComponent::Column)
+                    .collect(),
                 unique: true,
             },
         )]),
@@ -995,7 +1035,10 @@ fn add_rule_memo_twin_cases(cases: &mut Vec<CorpusCase>, public: RuleExpr) {
         BTreeMap::from([(
             "byId".to_owned(),
             Index {
-                columns: vec!["id".to_owned()],
+                components: (vec!["id".to_owned()])
+                    .into_iter()
+                    .map(snapback2_core::search_key::IndexComponent::Column)
+                    .collect(),
                 unique: true,
             },
         )])
@@ -1029,14 +1072,20 @@ fn add_rule_memo_twin_cases(cases: &mut Vec<CorpusCase>, public: RuleExpr) {
             (
                 "byId".to_owned(),
                 Index {
-                    columns: vec!["id".to_owned()],
+                    components: (vec!["id".to_owned()])
+                        .into_iter()
+                        .map(snapback2_core::search_key::IndexComponent::Column)
+                        .collect(),
                     unique: true,
                 },
             ),
             (
                 "byPrincipal".to_owned(),
                 Index {
-                    columns: vec!["principal".to_owned()],
+                    components: (vec!["principal".to_owned()])
+                        .into_iter()
+                        .map(snapback2_core::search_key::IndexComponent::Column)
+                        .collect(),
                     unique: true,
                 },
             ),
@@ -1138,7 +1187,10 @@ fn add_optional_maintain_twin_case(cases: &mut Vec<CorpusCase>) {
         BTreeMap::from([(
             "byId".to_owned(),
             Index {
-                columns: vec!["id".to_owned()],
+                components: (vec!["id".to_owned()])
+                    .into_iter()
+                    .map(snapback2_core::search_key::IndexComponent::Column)
+                    .collect(),
                 unique: true,
             },
         )])
@@ -1171,14 +1223,20 @@ fn add_optional_maintain_twin_case(cases: &mut Vec<CorpusCase>) {
             (
                 "byGroup".to_owned(),
                 Index {
-                    columns: vec!["__proto__".to_owned(), "toString".to_owned()],
+                    components: (vec!["__proto__".to_owned(), "toString".to_owned()])
+                        .into_iter()
+                        .map(snapback2_core::search_key::IndexComponent::Column)
+                        .collect(),
                     unique: true,
                 },
             ),
             (
                 "byId".to_owned(),
                 Index {
-                    columns: vec!["id".to_owned()],
+                    components: (vec!["id".to_owned()])
+                        .into_iter()
+                        .map(snapback2_core::search_key::IndexComponent::Column)
+                        .collect(),
                     unique: true,
                 },
             ),
@@ -1233,7 +1291,10 @@ fn add_optional_maintain_twin_case(cases: &mut Vec<CorpusCase>) {
     events.indexes.insert(
         "byBucket".to_owned(),
         Index {
-            columns: vec!["__proto__".to_owned(), "toString".to_owned()],
+            components: (vec!["__proto__".to_owned(), "toString".to_owned()])
+                .into_iter()
+                .map(snapback2_core::search_key::IndexComponent::Column)
+                .collect(),
             unique: true,
         },
     );

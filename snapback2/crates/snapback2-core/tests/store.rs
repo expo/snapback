@@ -1,3 +1,4 @@
+use snapback2_core::ir::IndexKeyExpr;
 use snapback2_core::*;
 use std::collections::{BTreeMap, VecDeque};
 use std::path::{Path, PathBuf};
@@ -42,14 +43,20 @@ fn schema() -> Schema {
                     (
                         "byId".to_owned(),
                         Index {
-                            columns: vec!["id".to_owned()],
+                            components: (vec!["id".to_owned()])
+                                .into_iter()
+                                .map(snapback2_core::search_key::IndexComponent::Column)
+                                .collect(),
                             unique: true,
                         },
                     ),
                     (
                         "byName".to_owned(),
                         Index {
-                            columns: vec!["name".to_owned(), "id".to_owned()],
+                            components: (vec!["name".to_owned(), "id".to_owned()])
+                                .into_iter()
+                                .map(snapback2_core::search_key::IndexComponent::Column)
+                                .collect(),
                             unique: false,
                         },
                     ),
@@ -141,7 +148,7 @@ fn generation() -> Generation {
             site: "items.list".to_owned(),
             table: "items".to_owned(),
             index: "byName".to_owned(),
-            prefix: Vec::new(),
+            prefix: (Vec::new()).into_iter().map(IndexKeyExpr::Scalar).collect(),
             order: Order::Asc,
             take: Bound::Literal(20),
             after: None,
@@ -555,7 +562,8 @@ fn seed_is_rule_exempt_but_still_validates_columns_and_unique_constraints() {
     let table = denied.tables.get_mut("items").unwrap();
     table.rules.insert = RuleExpr::Deny;
     table.rules.update = RuleExpr::Deny;
-    table.indexes.get_mut("byName").unwrap().columns = vec!["name".to_owned()];
+    table.indexes.get_mut("byName").unwrap().components =
+        vec![IndexComponent::Column("name".to_owned())];
     table.constraints.push(Constraint::Unique {
         index: "byName".to_owned(),
     });
@@ -648,10 +656,13 @@ fn seed_is_rule_exempt_but_still_validates_columns_and_unique_constraints() {
             ("name", Value::String("reserved JSON".to_owned())),
             (
                 "payload",
-                Value::Map(BTreeMap::from([(
-                    "actor".to_owned(),
-                    Value::Id(SYSTEM_PRINCIPAL_ID.to_string()),
-                )])),
+                Value::Map(
+                    BTreeMap::from([(
+                        "actor".to_owned(),
+                        Value::Id(SYSTEM_PRINCIPAL_ID.to_string()),
+                    )])
+                    .into(),
+                ),
             ),
         ]),
     )]);

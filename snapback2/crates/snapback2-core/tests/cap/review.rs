@@ -11,7 +11,10 @@ fn unused_nonuniform_scan_refuses_but_uniform_scan_leaves_cap_reserve_at_49_and_
     other.indexes.insert(
         "byPrincipal".into(),
         Index {
-            columns: vec!["principal".into(), "id".into()],
+            components: (vec!["principal".into(), "id".into()])
+                .into_iter()
+                .map(snapback2_core::search_key::IndexComponent::Column)
+                .collect(),
             unique: false,
         },
     );
@@ -45,7 +48,8 @@ fn unused_nonuniform_scan_refuses_but_uniform_scan_leaves_cap_reserve_at_49_and_
         ..
     } = &mut p.body[0]
     {
-        scan.prefix.push(Expr::Input(Input::Viewer));
+        scan.prefix
+            .push(IndexKeyExpr::Scalar(Expr::Input(Input::Viewer)));
         scan.provenance = KeyProvenance::Viewer;
     }
     let mut engine = Engine::memory(schema.clone()).unwrap();
@@ -159,7 +163,10 @@ fn two_caps_over_different_tuples_reserve_and_enforce_both() {
     table.indexes.insert(
         "byRole".into(),
         Index {
-            columns: vec!["role".into(), "id".into()],
+            components: (vec!["role".into(), "id".into()])
+                .into_iter()
+                .map(snapback2_core::search_key::IndexComponent::Column)
+                .collect(),
             unique: false,
         },
     );

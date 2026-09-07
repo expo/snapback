@@ -1,3 +1,4 @@
+use snapback2_core::ir::IndexKeyExpr;
 use snapback2_core::*;
 use std::collections::BTreeMap;
 
@@ -40,21 +41,30 @@ fn schema(rule: RuleExpr) -> Schema {
             (
                 "byId".into(),
                 Index {
-                    columns: vec!["id".into()],
+                    components: (vec!["id".into()])
+                        .into_iter()
+                        .map(snapback2_core::search_key::IndexComponent::Column)
+                        .collect(),
                     unique: true,
                 },
             ),
             (
                 "byConversationPrincipal".into(),
                 Index {
-                    columns: vec!["conversationId".into(), "principal".into()],
+                    components: (vec!["conversationId".into(), "principal".into()])
+                        .into_iter()
+                        .map(snapback2_core::search_key::IndexComponent::Column)
+                        .collect(),
                     unique: true,
                 },
             ),
             (
                 "byPrincipalConversation".into(),
                 Index {
-                    columns: vec!["principal".into(), "conversationId".into()],
+                    components: (vec!["principal".into(), "conversationId".into()])
+                        .into_iter()
+                        .map(snapback2_core::search_key::IndexComponent::Column)
+                        .collect(),
                     unique: false,
                 },
             ),
@@ -73,7 +83,10 @@ fn schema(rule: RuleExpr) -> Schema {
         BTreeMap::from([(
             "byId".into(),
             Index {
-                columns: vec!["id".into()],
+                components: (vec!["id".into()])
+                    .into_iter()
+                    .map(snapback2_core::search_key::IndexComponent::Column)
+                    .collect(),
                 unique: true,
             },
         )]),
@@ -98,7 +111,10 @@ fn scan() -> Scan {
         site: "members.list".into(),
         table: "memberships".into(),
         index: "byPrincipalConversation".into(),
-        prefix: vec![Expr::Input(Input::Viewer)],
+        prefix: (vec![Expr::Input(Input::Viewer)])
+            .into_iter()
+            .map(IndexKeyExpr::Scalar)
+            .collect(),
         take: Bound::Literal(100),
         order: Order::Asc,
         after: None,
@@ -169,11 +185,17 @@ fn membership_self_probe_is_decided_true_only_over_own_rows() {
     let schema = schema(membership_rule());
     assert_visibility(&schema, scan(), true, true);
     let mut other = scan();
-    other.prefix = vec![Expr::Literal(id("bob"))];
+    other.prefix = vec![Expr::Literal(id("bob"))]
+        .into_iter()
+        .map(IndexKeyExpr::Scalar)
+        .collect();
     assert_visibility(&schema, other, false, false);
     let mut by_conversation = scan();
     by_conversation.index = "byConversationPrincipal".into();
-    by_conversation.prefix = vec![Expr::Literal(id("c1"))];
+    by_conversation.prefix = vec![Expr::Literal(id("c1"))]
+        .into_iter()
+        .map(IndexKeyExpr::Scalar)
+        .collect();
     assert_visibility(&schema, by_conversation, true, false);
 }
 
@@ -181,7 +203,10 @@ fn membership_self_probe_is_decided_true_only_over_own_rows() {
 fn decided_true_without_hoist_still_checks_hidden_candidates() {
     let schema = schema(membership_rule());
     let mut other = scan();
-    other.prefix = vec![Expr::Literal(id("bob"))];
+    other.prefix = vec![Expr::Literal(id("bob"))]
+        .into_iter()
+        .map(IndexKeyExpr::Scalar)
+        .collect();
     let p = page(other);
     let mut cert = certificate(&schema, &p);
     assert!(!cert.read_sites[0].hoist);
@@ -203,7 +228,10 @@ fn uniform_undecided_membership_scan_evaluates_one_verdict() {
     let schema = schema(membership_rule());
     let mut by_conversation = scan();
     by_conversation.index = "byConversationPrincipal".into();
-    by_conversation.prefix = vec![Expr::Literal(id("c1"))];
+    by_conversation.prefix = vec![Expr::Literal(id("c1"))]
+        .into_iter()
+        .map(IndexKeyExpr::Scalar)
+        .collect();
     let p = page(by_conversation);
     let cert = certificate(&schema, &p);
     assert!(cert.read_sites[0].hoist);
@@ -251,7 +279,10 @@ fn self_probe_accepts_own_fields_and_matching_literal_pins() {
     };
     key[1] = RuleTerm::Literal(id("alice"));
     let mut literal = scan();
-    literal.prefix = vec![Expr::Literal(id("alice"))];
+    literal.prefix = vec![Expr::Literal(id("alice"))]
+        .into_iter()
+        .map(IndexKeyExpr::Scalar)
+        .collect();
     assert_visibility(&schema(rule.clone()), literal, true, true);
     assert_visibility(&schema(rule), scan(), false, false);
 }
@@ -317,7 +348,10 @@ fn or_with_own_principal_or_self_probe_decides_but_conversation_prefix_does_not(
     assert_visibility(&schema, scan(), true, true);
     let mut other = scan();
     other.index = "byConversationPrincipal".into();
-    other.prefix = vec![Expr::Literal(id("c1"))];
+    other.prefix = vec![Expr::Literal(id("c1"))]
+        .into_iter()
+        .map(IndexKeyExpr::Scalar)
+        .collect();
     assert_visibility(&schema, other, false, false);
 }
 
@@ -344,7 +378,10 @@ fn or_requires_a_true_arm_not_merely_one_pinned_arm() {
         false,
     );
     let mut literal = scan();
-    literal.prefix = vec![Expr::Literal(id("bob"))];
+    literal.prefix = vec![Expr::Literal(id("bob"))]
+        .into_iter()
+        .map(IndexKeyExpr::Scalar)
+        .collect();
     assert_visibility(
         &schema(RuleExpr::Or(vec![wrong, varies.clone()])),
         literal,
@@ -352,7 +389,10 @@ fn or_requires_a_true_arm_not_merely_one_pinned_arm() {
         true,
     );
     let mut pinned = scan();
-    pinned.prefix = vec![Expr::Literal(id("bob")), Expr::Literal(id("c2"))];
+    pinned.prefix = vec![Expr::Literal(id("bob")), Expr::Literal(id("c2"))]
+        .into_iter()
+        .map(IndexKeyExpr::Scalar)
+        .collect();
     assert_visibility(
         &schema(RuleExpr::Or(vec![own_principal(RuleTerm::Viewer), varies])),
         pinned,
@@ -407,7 +447,10 @@ fn negation_and_conjunction_do_not_borrow_a_true_arm() {
 fn a_viewer_provenance_label_does_not_turn_an_argument_into_the_viewer() {
     let schema = schema(membership_rule());
     let mut scan = scan();
-    scan.prefix = vec![Expr::Variable("owner".into())];
+    scan.prefix = vec![Expr::Variable("owner".into())]
+        .into_iter()
+        .map(IndexKeyExpr::Scalar)
+        .collect();
     let mut p = page(scan);
     p.args.insert("owner".into(), ArgType::Principal);
     let cert = certificate(&schema, &p);

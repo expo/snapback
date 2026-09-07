@@ -1,6 +1,6 @@
 mod jobs;
-mod rehearsal;
 mod jobs_queue;
+mod rehearsal;
 mod rehearsal_blobs;
 use super::owner_support::*;
 use super::*;
@@ -9,6 +9,8 @@ mod cap;
 #[cfg(not(feature = "hermes"))]
 mod connected;
 
+#[cfg(not(feature = "hermes"))]
+mod clock_delivery;
 #[cfg(not(feature = "hermes"))]
 mod effects;
 #[cfg(not(feature = "hermes"))]

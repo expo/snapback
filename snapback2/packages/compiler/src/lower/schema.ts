@@ -1,3 +1,6 @@
+import { nativeDescriptorName, legacyDescriptorName } from "./descriptor-origin";
+import { columnComponents, componentProblem, derivedPosition } from "../index-components";
+import type { Index, IndexComponent } from "../ir";
 import ts from "typescript";
 import { authoredTypeFromColumn, requiredType, unknownType, type AuthoredType } from "../authored-types";
 import { diagnostic } from "../diagnostics";
@@ -27,8 +30,8 @@ type LoweredSchema = {
   diagnostics: FrontendDiagnostic[];
 };
 
-export function lowerSchema(source: string, fileName: string, quarry = false): LoweredSchema {
-  const sourceFile = ts.createSourceFile(fileName, source, ts.ScriptTarget.ES2022, true);
+export function lowerSchema(source: string, fileName: string, quarry = false, checkedSource?: ts.SourceFile): LoweredSchema {
+  const sourceFile = checkedSource ?? ts.createSourceFile(fileName, source, ts.ScriptTarget.ES2022, true);
   const module = { sourceFile, source, fileName };
   const diagnostics: FrontendDiagnostic[] = [];
   const tableCalls = new Map<string, ts.CallExpression>();
@@ -145,7 +148,7 @@ function lowerTable(
   value: TableJson;
   private: boolean;
   columns: Record<string, AuthoredType>;
-  indexes: Record<string, { columns: string[]; types: AuthoredType[] }>;
+  indexes: NonNullable<TableInfo["indexes"]>;
   readRule: unknown;
 } | undefined {
   const config = objectOf(call.arguments[0]);
@@ -173,7 +176,7 @@ function lowerTable(
     Object.entries(columns).map(([column, value]) => [column, authoredTypeFromColumn(value)]),
   );
 
-  const indexes: Record<string, unknown> = Object.assign(Object.create(null), { byId: { columns: ["id"], unique: true } });
+  const indexes: Record<string, Index> = Object.assign(Object.create(null), { byId: { components: columnComponents(["id"]), unique: true } });
   const indexesObject = objectOf(property(config, "indexes"));
   if (property(config, "indexes") && !indexesObject) {
     diagnostics.push(schemaDiagnostic(module, "E_SCHEMA_INVALID", property(config, "indexes")!, `indexes for ${name} must be an object`));
@@ -182,54 +185,49 @@ function lowerTable(
     validateRecordShape(module, indexesObject, `indexes for ${name}`, "E_SCHEMA_INVALID", diagnostics);
     for (const entry of propertyEntries(indexesObject)) {
       const value = objectOf(entry.value);
+      // Column lists are private lowering syntax used by compiler fixtures; active schema JSON has only components.
       const names = value && stringArray(property(value, "columns"));
-      if (!value || !names) {
-        diagnostics.push(schemaDiagnostic(module, "E_SCHEMA_INVALID", entry.node, `index ${name}.${entry.name} requires columns`));
+      const componentNode = value && property(value, "components");
+      const components = componentNode ? staticJson(componentNode) : names ? columnComponents(names) : undefined;
+      if (!value || !components) {
+        diagnostics.push(schemaDiagnostic(module, "E_SCHEMA_INVALID", entry.node, `index ${name}.${entry.name} requires components`));
         continue;
-      }
-      if (names.length === 0 || new Set(names).size !== names.length) {
-        diagnostics.push(schemaDiagnostic(module, "E_SCHEMA_INDEX_COLUMN", entry.node, `index ${name}.${entry.name} columns must be non-empty and unique`));
-      }
-      if (names.length > 8) {
-        diagnostics.push(schemaDiagnostic(module, "E_SCHEMA_INDEX_COLUMN", entry.node, `index ${name}.${entry.name} has ${names.length} columns; indexes support at most 8`));
       }
       const before = diagnostics.length;
-      validateKnownKeys(module, value, ["columns", "unique"], `index ${name}.${entry.name}`, "E_SCHEMA_INDEX_OPTION", diagnostics);
+      validateKnownKeys(module, value, ["columns", "components", "unique"], `index ${name}.${entry.name}`, "E_SCHEMA_INDEX_OPTION", diagnostics);
+      if (componentNode && property(value, "columns")) diagnostics.push(schemaDiagnostic(module, "E_SCHEMA_INDEX_OPTION", entry.node, "index must declare components only, not a second column list"));
       const uniqueNode = property(value, "unique");
       const unique = uniqueNode ? booleanValue(uniqueNode) : false;
-      if (uniqueNode && unique === undefined) {
-        diagnostics.push(schemaDiagnostic(module, "E_SCHEMA_INDEX_OPTION", uniqueNode, `index ${name}.${entry.name} unique must be boolean`));
+      if (uniqueNode && unique === undefined) diagnostics.push(schemaDiagnostic(module, "E_SCHEMA_INDEX_OPTION", uniqueNode, `index ${name}.${entry.name} unique must be boolean`));
+      const problem = componentProblem(components, unique ?? false, column => Object.hasOwn(columns, column)
+        ? { indexable: true, textMax: textDescriptorMax(columns[column]) } : undefined);
+      if (problem) {
+        diagnostics.push(schemaDiagnostic(module, "E_SCHEMA_INDEX_COLUMN", entry.node, `index ${name}.${entry.name}: ${problem}`));
+        continue;
+      }
+      const typed = components as IndexComponent[];
+      for (const component of typed) {
+        if ("Column" in component && !indexableColumnDescriptor(columns[component.Column])) {
+          // Keep declared index identity while aggregating domain refusals, avoiding a second unknown-index constraint error.
+          diagnostics.push(schemaDiagnostic(module, "E_SCHEMA_INDEX_COLUMN", entry.node,
+            `index ${name}.${entry.name} column ${component.Column} has non-indexable type ${columnDescriptorName(columns[component.Column])}`));
+        }
       }
       if (entry.name === "byId") {
-        if (names.length !== 1 || names[0] !== "id" || unique !== true || diagnostics.length !== before) {
-          diagnostics.push(schemaDiagnostic(module, "E_SCHEMA_ID_RESERVED", entry.node, `index ${name}.byId is implicit as { columns: ['id'], unique: true }; remove or match it`));
+        if (typed.length !== 1 || !("Column" in typed[0]!) || typed[0].Column !== "id" || unique !== true || diagnostics.length !== before) {
+          diagnostics.push(schemaDiagnostic(module, "E_SCHEMA_ID_RESERVED", entry.node, `index ${name}.byId is implicit as the unique id component; remove or match it`));
         }
         continue;
       }
-      for (const column of names) {
-        if (!Object.hasOwn(columns, column)) {
-          diagnostics.push(schemaDiagnostic(module, "E_SCHEMA_INDEX_COLUMN", entry.node, `index ${name}.${entry.name} names unknown column ${column}`));
-        } else if (!indexableColumnDescriptor(columns[column])) {
-          // @ref LLP 1006#1-the-move — asset records have no scalar ordering and therefore cannot enter an index.
-          diagnostics.push(schemaDiagnostic(
-            module,
-            "E_SCHEMA_INDEX_COLUMN",
-            entry.node,
-            `index ${name}.${entry.name} column ${column} has non-indexable type ${columnDescriptorName(columns[column])}`,
-          ));
-        }
-      }
-      indexes[entry.name] = { columns: names, unique: unique ?? false };
+      indexes[entry.name] = { components: typed, unique: unique ?? false };
     }
   }
-  const authoredIndexes = Object.fromEntries(Object.entries(indexes).map(([index, descriptor]) => {
-    const indexColumns = [...(descriptor as { columns: string[] }).columns];
-    return [index, {
-      columns: indexColumns,
-      types: indexColumns.map((column) => authoredColumns[column] ?? unknownType),
-      unique: (descriptor as { unique?: boolean }).unique ?? false,
-    }];
-  }));
+  const authoredIndexes = Object.fromEntries(Object.entries(indexes).map(([index, descriptor]) => [index, {
+    components: descriptor.components,
+    // A derived slot is typed from its query source, never from one of its indexed fields.
+    types: descriptor.components.map(component => "Column" in component ? authoredColumns[component.Column] ?? unknownType : unknownType),
+    unique: descriptor.unique,
+  }]));
   const tableInfo = tables.get(name);
   if (tableInfo) {
     tableInfo.columns = authoredColumns;
@@ -544,7 +542,7 @@ function lowerConstraints(
   module: SchemaModule,
   node: ts.Expression | undefined,
   columns: Record<string, unknown>,
-  indexes: Record<string, unknown>,
+  indexes: Record<string, Index>,
   diagnostics: FrontendDiagnostic[],
 ): unknown[] {
   const value = node && unwrapExpression(node);
@@ -568,6 +566,7 @@ function lowerConstraints(
     const unique = stringValue(property(object, "unique"));
     if (unique) {
       if (!Object.hasOwn(indexes, unique)) diagnostics.push(schemaDiagnostic(module, "E_SCHEMA_INDEX_COLUMN", item, `constraint names unknown index ${unique}`));
+      if (indexes[unique] && derivedPosition(indexes[unique].components) >= 0) diagnostics.push(schemaDiagnostic(module, "E_SCHEMA_CONSTRAINT", item, "wordPrefixes cannot be a unique constraint target"));
       output.push({ Unique: { index: unique } });
       continue;
     }
@@ -891,7 +890,9 @@ function lowerChannel(
   for (const entry of propertyEntries(argsObject)) {
     const lowered = lowerArgDescriptor(entry.value, tables);
     if (lowered === undefined) {
-      diagnostics.push(schemaDiagnostic(module, "E_SCHEMA_INVALID", entry.node, `invalid channel argument descriptor ${entry.name}`));
+      const invalid = invalidDescriptorRefusal(entry.value, "argument");
+      diagnostics.push(schemaDiagnostic(module, "E_SCHEMA_INVALID", invalid.node,
+        `invalid channel argument descriptor ${entry.name}; ${invalid.message}`, invalid.rewrite));
     } else {
       args[entry.name] = lowered;
       authoredArgs[entry.name] = authoredTypeFromColumn(lowered);
@@ -916,40 +917,69 @@ export function lowerArgDescriptor(
   node: ts.Expression,
   tables?: Map<string, TableInfo>,
 ): unknown | undefined {
+  return parseArgDescriptor(node, tables, nativeDescriptorName);
+}
+
+function parseArgDescriptor(
+  node: ts.Expression,
+  tables: Map<string, TableInfo> | undefined,
+  nameOf: (call: ts.CallExpression) => string | undefined,
+): unknown | undefined {
   const call = unwrapCall(node);
-  if (call && callLeaf(call) === "list") {
+  const name = call && nameOf(call);
+  if (!name) return undefined;
+  if (call && name === "text") {
+    const max = numberValue(call.arguments[0]);
+    if (!validPositiveInteger(max)) return undefined;
+    if (call.arguments.length === 1) return { Text: { max } };
+    const options = objectOf(call.arguments[1]);
+    if (call.arguments.length !== 2 || !options) return undefined;
+    const entries = propertyEntries(options);
+    if (entries.length !== options.properties.length
+      || new Set(entries.map(entry => entry.name)).size !== entries.length
+      || entries.some((entry) => entry.name !== "min" && entry.name !== "format")) return undefined;
+    const minNode = entries.find(entry => entry.name === "min")?.value;
+    const min = minNode ? numberValue(minNode) : 0;
+    if (min === undefined || !Number.isInteger(min) || min < 0 || min > max) return undefined;
+    const formatNode = entries.find(entry => entry.name === "format")?.value;
+    const format = formatNode && stringValue(formatNode);
+    // Present null/undefined are invalid descriptors, never canonical absence.
+    if (formatNode && format !== "handle" && format !== "url") return undefined;
+    return { Text: { max, ...(min === 0 ? {} : { min }), ...(format === undefined ? {} : { format }) } };
+  }
+  if (call && name === "list") {
     const options = objectOf(call.arguments[1]);
     const max = numberValue(options && property(options, "max"));
     const known = options && propertyEntries(options).every((entry) => entry.name === "max")
       && options.properties.length === propertyEntries(options).length;
-    const of = call.arguments[0] && lowerArgDescriptor(call.arguments[0], tables);
+    const of = call.arguments[0] && parseArgDescriptor(call.arguments[0], tables, nameOf);
     return call.arguments.length === 2 && of !== undefined && known && validPositiveInteger(max)
       ? { List: { of, max } }
       : undefined;
   }
-  if (call && callLeaf(call) === "optional" && call.arguments[0]) {
-    const inner = lowerArgDescriptor(call.arguments[0], tables);
+  if (call && name === "optional" && call.arguments[0]) {
+    const inner = parseArgDescriptor(call.arguments[0], tables, nameOf);
     return call.arguments.length === 1 && inner !== undefined ? { Optional: inner } : undefined;
   }
-  if (call && callLeaf(call) === "enum") {
+  if (call && name === "enum") {
     const variants = stringArray(call.arguments[0]);
     return call.arguments.length === 1 && validEnumVariants(variants)
       ? { Enum: { variants } }
       : undefined;
   }
-  if (call && callLeaf(call) === "decimal") {
+  if (call && name === "decimal") {
     const scale = numberValue(call.arguments[0]);
     return call.arguments.length === 1 && validScale(scale) ? { Decimal: { scale } } : undefined;
   }
-  if (call && callLeaf(call) === "money") {
+  if (call && name === "money") {
     const currency = stringValue(call.arguments[0]);
     const scale = call.arguments[1] ? numberValue(call.arguments[1]) : 2;
     return (call.arguments.length === 1 || call.arguments.length === 2) && currency && /^[A-Z]{3}$/.test(currency) && validScale(scale)
       ? { Money: { currency, scale } }
       : undefined;
   }
-  if (!call || !validArgDescriptor(node)) return undefined;
-  switch (callLeaf(call)) {
+  if (!call || !validArgDescriptor(node, nameOf)) return undefined;
+  switch (name) {
     case "cursor": return "Cursor";
     case "id": return "Id";
     case "principal": return "Principal";
@@ -962,7 +992,6 @@ export function lowerArgDescriptor(
     case "int": return "Int";
     case "bool": return "Bool";
     case "time": return "Time";
-    case "text": return { Text: { max: numberValue(call.arguments[0]) } };
     case "bytes": return { Bytes: { max: numberValue(call.arguments[0]) } };
     case "image": return { Image: { max: numberValue(call.arguments[0]) } };
     case "video": return { Video: { max: numberValue(call.arguments[0]) } };
@@ -971,24 +1000,45 @@ export function lowerArgDescriptor(
   }
 }
 
-export function lowerLegacyArgDescriptor(node: ts.Expression): unknown | undefined {
+export function lowerLegacyArgDescriptor(node: ts.Expression, tables?: Map<string, TableInfo>): unknown | undefined {
   const call = unwrapCall(node);
-  if (!call) return undefined;
-  const options = callLeaf(call) === "list" && objectOf(call.arguments[1]);
-  const max = options && numberValue(property(options, "max"));
-  return typeof max === "number" ? { List: { max } } : "Scalar";
+  const name = call && legacyDescriptorName(call);
+  if (!call || !name) return undefined;
+  if (name === "scalar") return call.arguments.length === 0 ? "Scalar" : undefined;
+  if (name === "id") return call.arguments.length === 1 && staticMemberPath(call.arguments[0]) ? "Scalar" : undefined;
+  if (name === "text") {
+    if (call.arguments.length === 0) return "Scalar";
+    const options = objectOf(call.arguments[0]);
+    if (call.arguments.length !== 1 || !options) return undefined;
+    const entries = propertyEntries(options);
+    if (entries.length !== options.properties.length || entries.length > 1
+      || entries.some(entry => entry.name !== "max")) return undefined;
+    if (entries.length === 0) return "Scalar";
+    const max = numberValue(entries[0].value);
+    return validPositiveInteger(max) ? { Text: { max } } : undefined;
+  }
+  if ((name !== "optional" && name !== "list") || !call.arguments[0]) return undefined;
+  const of = lowerArgDescriptor(call.arguments[0], tables) ?? lowerLegacyArgDescriptor(call.arguments[0], tables);
+  if (of === undefined) return undefined;
+  if (name === "optional") return call.arguments.length === 1 ? (of === "Scalar" ? "Scalar" : { Optional: of }) : undefined;
+  const options = objectOf(call.arguments[1]);
+  const entries = options && propertyEntries(options);
+  const max = entries && numberValue(entries[0]?.value);
+  return call.arguments.length === 2 && options && entries?.length === 1
+    && options.properties.length === 1 && entries[0].name === "max" && validPositiveInteger(max)
+    ? { List: { ...(of === "Scalar" ? {} : { of }), max } } : undefined;
 }
 
-function validArgDescriptor(node: ts.Expression): boolean {
+function validArgDescriptor(node: ts.Expression, nameOf: (call: ts.CallExpression) => string | undefined): boolean {
   const call = unwrapCall(node);
-  const name = call && callLeaf(call);
+  const name = call && nameOf(call);
   if (!call || !name) return false;
   if (["cursor", "id", "principal", "int", "bool", "time"].includes(name)) return call.arguments.length === 0;
   if (["text", "bytes", "image", "video", "json"].includes(name)) {
     return call.arguments.length === 1 && validPositiveInteger(numberValue(call.arguments[0]));
   }
   if (name === "ref") return call.arguments.length === 1;
-  if (name === "optional") return call.arguments.length === 1 && !!call.arguments[0] && validArgDescriptor(call.arguments[0]);
+  if (name === "optional") return call.arguments.length === 1 && !!call.arguments[0] && validArgDescriptor(call.arguments[0], nameOf);
   if (name === "enum") {
     const variants = stringArray(call.arguments[0]);
     return call.arguments.length === 1 && validEnumVariants(variants);
@@ -999,7 +1049,7 @@ function validArgDescriptor(node: ts.Expression): boolean {
     const scale = call.arguments[1] ? numberValue(call.arguments[1]) : 2;
     return (call.arguments.length === 1 || call.arguments.length === 2) && !!currency && /^[A-Z]{3}$/.test(currency) && validScale(scale);
   }
-  if (name === "list") return lowerArgDescriptor(node) !== undefined;
+  if (name === "list") return parseArgDescriptor(node, undefined, nameOf) !== undefined;
   return false;
 }
 
@@ -1088,12 +1138,14 @@ function validEnumVariants(value: string[] | undefined): value is string[] {
   return !!value?.length && value.every((variant) => variant.length > 0) && new Set(value).size === value.length;
 }
 
-export function invalidDescriptorRefusal(node: ts.Expression): { node: ts.Expression; message: string; rewrite: string } {
+export function invalidDescriptorRefusal(node: ts.Expression, context: "column" | "argument" = "column"): { node: ts.Expression; message: string; rewrite: string } {
   const call = unwrapCall(node);
-  const name = call && callLeaf(call);
+  const name = call && (context === "argument" ? nativeDescriptorName(call) : callLeaf(call));
   if (call && (name === "optional" || name === "list") && call.arguments[0]
-    && lowerArgDescriptor(call.arguments[0]) === undefined) {
-    return invalidDescriptorRefusal(call.arguments[0]);
+    // Column parsing/diagnostics retain their separate historical grammar.
+    // Only argument custody requires the native binding proof in this repair.
+    && parseArgDescriptor(call.arguments[0], undefined, context === "argument" ? nativeDescriptorName : callLeaf) === undefined) {
+    return invalidDescriptorRefusal(call.arguments[0], context);
   }
   const callee = call?.expression.getText() ?? "t.text";
   const sibling = (descriptor: string) => {
@@ -1123,6 +1175,23 @@ export function invalidDescriptorRefusal(node: ts.Expression): { node: ts.Expres
       rewrite: `${callee}(${JSON.stringify(variants)})`,
     };
   }
+  if (name === "text" && context === "argument") {
+    const authoredMax = numberValue(call!.arguments[0]);
+    const max = validPositiveInteger(authoredMax) ? authoredMax : 100;
+    const options = objectOf(call!.arguments[1]);
+    const entries = options ? propertyEntries(options) : [];
+    const min = numberValue(entries.find(entry => entry.name === "min")?.value);
+    const formatNode = entries.find(entry => entry.name === "format")?.value;
+    const format = formatNode && stringValue(formatNode);
+    const refinements = [
+      ...(min !== undefined && Number.isInteger(min) && min > 0 && min <= max ? [`min: ${min}`] : []),
+      ...(formatNode ? [`format: ${JSON.stringify(format === "url" ? "url" : "handle")}`] : []),
+    ];
+    return { node,
+      message: 't.text(max, { min?, format? }) requires a positive u32 maximum, an integer minimum from zero through max, and format "handle" or "url" when present',
+      rewrite: `${callee}(${max}${refinements.length ? `, { ${refinements.join(", ")} }` : ""})`,
+    };
+  }
   const rewrites: Record<string, string> = {
     id: `${callee}()`, principal: `${callee}()`, int: `${callee}()`, bool: `${callee}()`, time: `${callee}()`,
     text: `${callee}(100)`, bytes: `${callee}(100)`, image: `${callee}(5000000)`, video: `${callee}(50000000)`, json: `${callee}(1000)`, ref: `${callee}(table)`,
@@ -1131,31 +1200,26 @@ export function invalidDescriptorRefusal(node: ts.Expression): { node: ts.Expres
   };
   return {
     node,
-    message: name ? `t.${name} arguments do not form a valid descriptor` : "column type must be a t.* descriptor",
-    rewrite: rewrites[name ?? ""] ?? `${sibling("text")}(100)`,
+    message: context === "column" ? (name ? `t.${name} arguments do not form a valid descriptor` : "column type must be a t.* descriptor")
+      : name && Object.hasOwn(rewrites, name) ? `t.${name} arguments do not form a valid descriptor`
+      : `${context} type must be a direct descriptor call with literal arguments; aliases, computed callees and factories are unsupported`,
+    rewrite: context === "column" ? (rewrites[name ?? ""] ?? `${sibling("text")}(100)`)
+      : Object.hasOwn(rewrites, name ?? "") ? rewrites[name!] : argumentDescriptorRepair(node),
   };
 }
 
-export function invalidNativeDescriptorRefusal(node: ts.Expression): ReturnType<typeof invalidDescriptorRefusal> | undefined {
-  const call = unwrapCall(node);
-  if (!call || !nativeDescriptorName(call)) return undefined;
-  return invalidDescriptorRefusal(node);
-}
-
-function nativeDescriptorName(call: ts.CallExpression): string | undefined {
-  const name = callLeaf(call);
-  if (!name || !["id", "principal", "text", "bytes", "image", "video", "int", "bool", "time", "ref", "json", "optional", "list", "enum", "decimal", "money"].includes(name)
-    || !ts.isPropertyAccessExpression(call.expression)) return undefined;
-  const owner = call.expression.expression.getText();
-  if (owner === "t" || owner.endsWith(".t")) return name;
-  for (const statement of call.getSourceFile().statements) {
+function argumentDescriptorRepair(node: ts.Expression): string {
+  for (const statement of node.getSourceFile().statements) {
     if (!ts.isImportDeclaration(statement) || !ts.isStringLiteral(statement.moduleSpecifier)
       || statement.moduleSpecifier.text !== "snapback2") continue;
     const bindings = statement.importClause?.namedBindings;
-    if (bindings && ts.isNamedImports(bindings) && bindings.elements.some((item) =>
-      (item.propertyName?.text ?? item.name.text) === "t" && item.name.text === owner)) return name;
+    if (bindings && ts.isNamedImports(bindings)) {
+      const descriptor = bindings.elements.find(item => (item.propertyName?.text ?? item.name.text) === "t");
+      if (descriptor) return `${descriptor.name.text}.text(100)`;
+    }
+    if (bindings && ts.isNamespaceImport(bindings)) return `${bindings.name.text}.t.text(100)`;
   }
-  return undefined;
+  return "t.text(100)";
 }
 
 function correctedScale(value: number | undefined): number {

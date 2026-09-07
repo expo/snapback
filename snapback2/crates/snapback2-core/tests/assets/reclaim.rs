@@ -83,7 +83,10 @@ fn destructive_successor_reset_and_reclaim_release_engine_owned_assets() {
                     BTreeMap::from([(
                         "byId".to_owned(),
                         Index {
-                            columns: vec!["id".to_owned()],
+                            components: (vec!["id".to_owned()])
+                                .into_iter()
+                                .map(snapback2_core::search_key::IndexComponent::Column)
+                                .collect(),
                             unique: true,
                         },
                     )]),
@@ -234,11 +237,14 @@ fn durable_staging_charge_covers_guest_churn_claim_reclaim_and_restart() {
             },
         )
         .unwrap();
-    let photo = Value::Map(BTreeMap::from([
-        ("id".to_owned(), Value::String(photo_id)),
-        ("width".to_owned(), Value::Int(1)),
-        ("height".to_owned(), Value::Int(1)),
-    ]));
+    let photo = Value::Map(
+        BTreeMap::from([
+            ("id".to_owned(), Value::String(photo_id)),
+            ("width".to_owned(), Value::Int(1)),
+            ("height".to_owned(), Value::Int(1)),
+        ])
+        .into(),
+    );
     assert_committed(
         &runtime
             .execute(

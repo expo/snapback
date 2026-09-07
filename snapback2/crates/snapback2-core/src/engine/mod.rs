@@ -57,6 +57,36 @@ impl Context {
         &self.principal_kind
     }
 
+    /// The exact executing query clock, never a projection-time sample.
+    pub fn query_read_time(
+        &self,
+        program: &Program,
+        certificate: &Certificate,
+    ) -> Result<Option<i64>, RuntimeError> {
+        if program.read_time_granularity_ms != certificate.read_time_granularity_ms {
+            return Err(RuntimeError::TraceSubset(
+                "query clock declaration mismatch".into(),
+            ));
+        }
+        let Some(granularity) = certificate.read_time_granularity_ms else {
+            return Ok(None);
+        };
+        if program.kind != ProgramKind::Query || granularity == 0 || granularity > I53_MAX as u64 {
+            return Err(RuntimeError::TraceSubset(
+                "invalid query clock declaration".into(),
+            ));
+        }
+        let time = self
+            .read_time
+            .ok_or_else(|| RuntimeError::Input("readTime was not pinned".into()))?;
+        if !(I53_MIN..=I53_MAX).contains(&time) {
+            return Err(RuntimeError::Input(
+                "readTime must be signed safe-integer milliseconds".into(),
+            ));
+        }
+        Ok(Some(time))
+    }
+
     fn system() -> Self {
         Self {
             viewer: PrincipalId::new(SYSTEM_PRINCIPAL_ID.as_str()),
@@ -290,16 +320,18 @@ impl Engine {
     }
 
     pub fn seed(&mut self, table: &str, row: Value) -> Result<(), RuntimeError> {
-        validate_row(self.schema.table(table), table, &row)?;
+        validate_row(&self.schema, table, &row)?;
         if self.rule_authority == RuleAuthority::StoreAuthoritative {
             crate::assets::refuse_seed_assets(&self.schema, table, &row)?;
         }
         let id = row.field("id")?.as_str()?.to_owned();
-        self.store.conn.execute(
+        let tx = self.store.conn.transaction()?;
+        tx.execute(
             "INSERT OR REPLACE INTO rows(table_name, row_id, data) VALUES (?1, ?2, ?3)",
             params![table, id, canonical_json(&row)],
         )?;
-        reindex_row(&self.store.conn, &self.schema, table, &row)?;
+        reindex_row(&tx, &self.schema, table, &row)?;
+        tx.commit()?;
         Ok(())
     }
 
@@ -409,6 +441,7 @@ impl Engine {
                 let index = table.index("byId").ok_or_else(asset_unavailable)?;
                 let mut row = lookup_indexed(
                     &transaction,
+                    &self.schema,
                     &locator.table,
                     "byId",
                     index,
@@ -565,6 +598,7 @@ impl Engine {
         then_outbox_id: Option<&str>,
         replay: Option<&crate::offline::ReplayCommit>,
     ) -> Result<Execution, RuntimeError> {
+        complete_optional_args(&program.args, &mut context.args);
         context.connected = self.connected.clone();
         if program.kind == ProgramKind::Job {
             let mut refusal = crate::jobs::JobRefusal::new(
@@ -576,9 +610,9 @@ impl Engine {
             refusal.family = "operator".into();
             return Err(RuntimeError::Job(Box::new(refusal)));
         }
-        if certificate.value_model_version != CURRENT_VALUE_MODEL_VERSION.as_str() {
+        if !certificate.has_current_semantics() {
             return Err(RuntimeError::TraceSubset(format!(
-                "value model version {} != current {}",
+                "value model version {} != current {} or unsupported evaluator version",
                 certificate.value_model_version,
                 CURRENT_VALUE_MODEL_VERSION.as_str()
             )));
@@ -589,6 +623,7 @@ impl Engine {
         if certificate.schema_hash != self.hashes.schema {
             return Err(RuntimeError::TraceSubset("schema hash mismatch".to_owned()));
         }
+        context.query_read_time(program, certificate)?;
         if program.kind == ProgramKind::Query && !certificate.write_sites.is_empty() {
             return Err(RuntimeError::TraceSubset(
                 "query certificate contains write sites".to_owned(),
@@ -774,7 +809,7 @@ impl Engine {
             (false, ProgramKind::Mutation | ProgramKind::Job) => ExecutionState::Committed { seq },
             (false, ProgramKind::Query) => query_state(&runner.trace, certificate, is_system),
         };
-        let next = next_cursor(&state, &runner.trace, certificate)?;
+        let next = next_cursor(&self.schema, &state, &runner.trace, certificate)?;
         let execution = Execution {
             result,
             result_provenance,
@@ -802,6 +837,7 @@ impl Engine {
                 kind: kind.to_owned(),
                 by: operator_by,
                 touched: execution.trace.touched.clone(),
+                scope_touches: execution.trace.scope_touches.clone(),
                 writes: execution.trace.writes.clone(),
                 emits: execution.trace.emits.len() as u64,
             };
@@ -819,17 +855,19 @@ impl Engine {
         &mut self,
         program: &Program,
         certificate: &Certificate,
-        context: Context,
+        mut context: Context,
         commit_kind: Option<&str>,
     ) -> Result<(Execution, Vec<String>), RuntimeError> {
+        complete_optional_args(&program.args, &mut context.args);
+        validate_inputs(&self.schema, program, &context.args)?;
         if program.kind != ProgramKind::Mutation {
             return Err(RuntimeError::Input(
                 "reset seed must be a mutation".to_owned(),
             ));
         }
-        if certificate.value_model_version != CURRENT_VALUE_MODEL_VERSION.as_str() {
+        if !certificate.has_current_semantics() {
             return Err(RuntimeError::TraceSubset(format!(
-                "value model version {} != current {}",
+                "value model version {} != current {} or unsupported evaluator version",
                 certificate.value_model_version,
                 CURRENT_VALUE_MODEL_VERSION.as_str()
             )));
@@ -849,6 +887,8 @@ impl Engine {
         transaction.execute_batch(
             "DELETE FROM _asset_views;
              DELETE FROM index_entries;
+             DELETE FROM _search_postings;
+             DELETE FROM _search_nodes;
              DELETE FROM rows;
              DELETE FROM _commits;
              DELETE FROM _outbox;
@@ -908,6 +948,7 @@ impl Engine {
                 kind: kind.to_owned(),
                 by: operator_by,
                 touched: execution.trace.touched.clone(),
+                scope_touches: execution.trace.scope_touches.clone(),
                 writes: execution.trace.writes.clone(),
                 emits: execution.trace.emits.len() as u64,
             },
@@ -988,18 +1029,49 @@ pub(crate) fn rebuild_owned_aggregate_target<'a>(
     Ok(())
 }
 
+pub(crate) fn complete_optional_args(
+    types: &BTreeMap<String, ArgType>,
+    args: &mut BTreeMap<String, Value>,
+) {
+    for (name, kind) in types {
+        if matches!(kind, ArgType::Optional(_)) {
+            args.entry(name.clone()).or_insert(Value::Null);
+        }
+    }
+}
+
 pub(crate) fn validate_inputs(
-    _schema: &Schema,
+    schema: &Schema,
     program: &Program,
     inputs: &BTreeMap<String, Value>,
 ) -> Result<(), RuntimeError> {
     for (name, kind) in &program.args {
         let value = inputs
             .get(name)
+            .or_else(|| matches!(kind, ArgType::Optional(_)).then_some(&Value::Null))
             .ok_or_else(|| RuntimeError::Input(format!("missing arg {name}")))?;
-        validate_arg_value(kind, value, &format!("arg {name}"))?;
+        validate_typed_arg_value(schema, kind, value, &format!("arg {name}"))?;
     }
     Ok(())
+}
+
+pub(crate) fn validate_typed_arg_value(
+    schema: &Schema,
+    kind: &ArgType,
+    value: &Value,
+    label: &str,
+) -> Result<(), RuntimeError> {
+    if !kind.bounds_valid() {
+        return Err(RuntimeError::Input(format!(
+            "{label} has text min greater than max"
+        )));
+    }
+    // Asset validation owns whole-container uniqueness and typed refusals.
+    if kind.contains_asset() {
+        return validate_arg_value(kind, value, label);
+    }
+    crate::cap::validate_arg_identities(schema, kind, value)?;
+    validate_arg_shape(Some(schema), kind, value, label)
 }
 
 pub(crate) fn validate_arg_value(
@@ -1007,6 +1079,25 @@ pub(crate) fn validate_arg_value(
     value: &Value,
     label: &str,
 ) -> Result<(), RuntimeError> {
+    if !kind.bounds_valid() {
+        return Err(RuntimeError::Input(format!(
+            "{label} has text min greater than max"
+        )));
+    }
+    crate::value::validate_identities(value)?;
+    validate_arg_shape(None, kind, value, label)
+}
+
+fn validate_arg_shape(
+    schema: Option<&Schema>,
+    kind: &ArgType,
+    value: &Value,
+    label: &str,
+) -> Result<(), RuntimeError> {
+    let validate_nested = |kind: &ArgType, value: &Value| match schema {
+        Some(schema) => validate_typed_arg_value(schema, kind, value, label),
+        None => validate_arg_value(kind, value, label),
+    };
     // @ref LLP 1001#6-identity-identityrs — caller arguments cannot carry
     // the reserved identity even when their declared shape is generic.
     if value_contains_reserved_principal(value) {
@@ -1020,7 +1111,7 @@ pub(crate) fn validate_arg_value(
     }
     match kind {
         ArgType::Cursor => match value {
-            Value::String(token) => decode_cursor(token)
+            Value::String(token) => decode_cursor(schema.unwrap_or(&Schema::default()), token)
                 .map(|_| ())
                 .map_err(|error| RuntimeError::Input(format!("{label} {error}"))),
             _ => Err(RuntimeError::Input(format!(
@@ -1028,19 +1119,30 @@ pub(crate) fn validate_arg_value(
             ))),
         },
         ArgType::Optional(_) if *value == Value::Null => Ok(()),
-        ArgType::Optional(inner) => validate_arg_value(inner, value, label),
+        ArgType::Optional(inner) => validate_nested(inner, value),
         ArgType::Id | ArgType::Principal | ArgType::Ref { .. } => match value {
             Value::Id(_) => Ok(()),
             _ => Err(RuntimeError::Input(format!("{label} must be an id"))),
         },
-        ArgType::Text { max } => match value {
+        ArgType::Text { max, min, format } => match value {
             Value::String(value) => {
                 if let Some(code_point) = disallowed_text_control_code_point(value) {
                     return Err(RuntimeError::Input(format!(
                         "{label} contains disallowed control character U+{code_point:04X}"
                     )));
                 }
-                if value.chars().count() <= *max as usize {
+                let length = value.chars().count();
+                if length < *min as usize {
+                    return Err(RuntimeError::Input(format!(
+                        "{label} is below text min {min}"
+                    )));
+                }
+                if format.is_some_and(|format| !format.matches(value)) {
+                    return Err(RuntimeError::Input(format!(
+                        "{label} violates text format {format:?}"
+                    )));
+                }
+                if length <= *max as usize {
                     Ok(())
                 } else {
                     Err(RuntimeError::Input(format!(
@@ -1085,7 +1187,7 @@ pub(crate) fn validate_arg_value(
             Value::Array(values) if values.len() <= *max as usize => {
                 if let Some(of) = of {
                     for value in values {
-                        validate_arg_value(of, value, label)?;
+                        validate_nested(of, value)?;
                     }
                 }
                 Ok(())
@@ -1185,6 +1287,13 @@ pub fn validate_schema(schema: &Schema) -> Result<(), Vec<RuntimeError>> {
             rewrite: error.rewrite,
         })
         .collect();
+    for (name, channel) in &schema.channels {
+        if channel.args.values().any(|arg| !arg.bounds_valid()) {
+            errors.push(RuntimeError::Schema(format!(
+                "channel {name} text min exceeds max"
+            )));
+        }
+    }
     for name in schema
         .tables
         .keys()
@@ -1198,32 +1307,9 @@ pub fn validate_schema(schema: &Schema) -> Result<(), Vec<RuntimeError>> {
                 "table {table_name} must declare the implicit id column as Id"
             )));
         }
-        for (index_name, index) in &table.indexes {
-            if index.columns.is_empty() || index.columns.len() > 8 {
-                errors.push(RuntimeError::Schema(format!(
-                    "index {table_name}.{index_name} must declare between 1 and 8 columns"
-                )));
-            }
-            for column in &index.columns {
-                if !table.columns.contains_key(column) {
-                    errors.push(RuntimeError::Schema(format!(
-                        "index {table_name}.{index_name} names undeclared column {column}"
-                    )));
-                }
-                if table
-                    .columns
-                    .get(column)
-                    .is_some_and(|kind| !kind.is_indexable())
-                {
-                    errors.push(RuntimeError::SchemaIndexColumn {
-                        table: table_name.clone(),
-                        index: index_name.clone(),
-                        column: column.clone(),
-                    });
-                }
-            }
-        }
+        errors.extend(crate::schema::index_errors(table_name, table));
     }
+
     errors.extend(
         crate::schema::maintain_issues(schema)
             .into_iter()
@@ -1253,21 +1339,23 @@ mod cap_tests;
 #[cfg(test)]
 mod delivery_tests;
 mod hashes;
-mod row_membership;
 mod index;
 mod merge;
 mod provenance;
 mod receipt;
 mod replay;
+mod row_membership;
 mod runner;
 mod runner_ops;
 mod scan;
+mod search;
+pub(crate) mod search_index;
 
 pub use provenance::ResultProvenance;
 pub use receipt::{
     AuthoritativeTrace, ClosureReceipt, ConstraintTrace, EmitRecord, Execution, ExecutionState,
-    MergeTrace, PointTrace, ReceiptRange, RowRecord, RuleInputTrace, StopReason, TraceRange,
-    Verdict,
+    MergeTrace, PointTrace, ReceiptRange, RowRecord, RowRef, RuleInputTrace, StopReason,
+    TraceRange, Verdict,
 };
 
 #[allow(unused_imports)]
@@ -1275,7 +1363,7 @@ use index::{EvaluatedRange, delete_index_row, lookup_indexed, row_ids, scan_inde
 #[allow(unused_imports)]
 pub(crate) use index::{
     fetch_table_connection, index_values, materialize_optional_fields, reindex_row,
-    validate_column_value, validate_row,
+    validate_column_value, validate_row, validate_typed_column_value,
 };
 #[allow(unused_imports)]
 use runner::{Flow, Runner};
@@ -1289,3 +1377,9 @@ mod jobs;
 pub(crate) use jobs::encode_job_key;
 
 mod timers;
+
+#[cfg(test)]
+mod search_tests;
+
+#[cfg(test)]
+mod input_tests;

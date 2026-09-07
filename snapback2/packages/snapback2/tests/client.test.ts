@@ -1463,3 +1463,21 @@ test("isSnapbackRefusal recognizes the name-plus-symbol brand across realms", as
   assert.equal(bundledClient.isSnapbackRefusal({ name: "SnapbackRefusal" }), false);
   assert.equal(bundledClient.isSnapbackRefusal({ [brand]: true }), false);
 });
+
+
+test("plain online query and subscription preserve h1-prefixed noncursor text without metadata", async context => {
+  const seen: any[] = [];
+  const value = createClient({ url: "http://wire.test", fetch: async (input, init) => {
+    const url = new URL(String(input));
+    seen.push(url.pathname === "/api/subscribe" ? JSON.parse(url.searchParams.get("args")!) : JSON.parse(String(init?.body)).args);
+    return url.pathname === "/api/subscribe"
+      ? hangingSse('data: {"state":"complete","data":[],"seq":1,"next":null}\n\n')
+      : fetchJson({ state: "complete", data: [], seq: 1, next: null });
+  } });
+  context.after(() => value.close());
+  const args = { term: "h1.a valid search term", c: "h1.a normal text argument" };
+  await value.query(api.messages.thread, args);
+  const sub = value.subscribe(api.messages.thread, args, () => {}); context.after(() => sub.close());
+  await sub.until(delivery => delivery.state === "complete", 500);
+  assert.deepEqual(seen, [args, args]);
+});

@@ -3,6 +3,7 @@ import type { Environment } from "../compiler";
 import { refuse } from "../diagnostics";
 import {
   callName,
+  isDbInsertCall,
   isDbMember,
   isFunctionLike,
   propertyName,
@@ -12,7 +13,7 @@ import {
 } from "../syntax";
 import { expandHelper } from "./helper-expansion";
 import { isOperationCompositeBinding } from "./operation-context";
-import { isRowCollectionExpression } from "./provenance";
+import { isRowCollectionExpression, isRowExpression } from "./provenance";
 import { guardedWalk } from "./recursion";
 
 export function knownObjectFields(node: ts.Expression, env: Environment): string[] | undefined {
@@ -25,6 +26,7 @@ function knownObjectFieldsInner(node: ts.Expression, env: Environment): string[]
     const substituted = env.substitutions.get(value.text);
     if (substituted) return knownObjectFields(substituted.expression, substituted.environment);
     const info = env.variables.get(value.text);
+    if (info?.provenanceAmbiguity) return undefined;
     if (info?.operationComposite === "args") return Object.keys(env.args);
     if (info?.operationComposite === "ctx") return ["viewer"];
     return info?.objectFields ?? (info?.immutableOrigin
@@ -58,8 +60,12 @@ function knownObjectFieldsInner(node: ts.Expression, env: Environment): string[]
   const call = unwrapCall(value);
   const expanded = call && expandHelper(call, env);
   if (expanded) return knownObjectFields(expanded.expression, expanded.environment);
-  if (call && callName(call).endsWith(".get")
-    && isDbMember(call.expression, (binding) => isOperationCompositeBinding(binding, "db", env))) {
+  if (call && isRowExpression(call, env)) {
+    // Insert returns its captured input object. Optional columns materialized
+    // by storage do not add members to that earlier source snapshot.
+    if (isDbInsertCall(call, (binding) => isOperationCompositeBinding(binding, "db", env))) {
+      return call.arguments[1] && knownObjectFields(call.arguments[1], env);
+    }
     return rowFields(call.arguments[0], env);
   }
   if (call && ts.isPropertyAccessExpression(call.expression) && call.expression.name.text === "require") {
@@ -77,7 +83,9 @@ function selectedObjectMember(
   if (ts.isIdentifier(value)) {
     const substituted = env.substitutions.get(value.text);
     if (substituted) return selectedObjectMember(substituted.expression, member, substituted.environment);
-    const origin = env.variables.get(value.text)?.immutableOrigin;
+    const info = env.variables.get(value.text);
+    if (info?.provenanceAmbiguity) return undefined;
+    const origin = info?.immutableOrigin;
     return origin && selectedObjectMember(origin.expression, member, origin.environment);
   }
   if (ts.isPropertyAccessExpression(value)) {
@@ -116,7 +124,7 @@ function rowCollectionFieldsInner(node: ts.Expression, env: Environment): string
     const substituted = env.substitutions.get(value.text);
     if (substituted) return rowCollectionFields(substituted.expression, substituted.environment);
     const info = env.variables.get(value.text);
-    return info?.rowCollection ? info.objectFields : undefined;
+    return !info?.provenanceAmbiguity && info?.rowCollection ? info.objectFields : undefined;
   }
   const call = unwrapCall(value);
   if (!call) return undefined;

@@ -46,3 +46,32 @@ export function purgeAnswerData(value: unknown, evicted: RowRef): unknown {
     .map(([key, item]) => [key, purgeAnswerData(item, evicted)]));
   return escaped ? { $row: { $value: data } } : data;
 }
+
+export function rowKey(ref: RowRef): string {
+  return `${ref.table}\u0000${ref.id}`;
+}
+
+export function hiddenRefs(before: unknown, after: unknown, output = new Map<string, RowRef>()): RowRef[] {
+  if (after === null || after === undefined) {
+    for (const ref of collectRefs(before)) output.set(rowKey(ref), ref);
+    return [...output.values()];
+  }
+  if (asRowRef(before)) return [...output.values()];
+  before = escapedFields(before) ?? before;
+  after = escapedFields(after) ?? after;
+  if (Array.isArray(before) && Array.isArray(after)) {
+    for (let index = 0; index < Math.min(before.length, after.length); index += 1) {
+      hiddenRefs(before[index], after[index], output);
+    }
+  } else if (before && after && typeof before === "object" && typeof after === "object"
+    && !Array.isArray(before) && !Array.isArray(after)) {
+    for (const key of Object.keys(before as object)) {
+      hiddenRefs(
+        (before as Record<string, unknown>)[key],
+        Object.prototype.hasOwnProperty.call(after, key) ? (after as Record<string, unknown>)[key] : undefined,
+        output,
+      );
+    }
+  }
+  return [...output.values()];
+}

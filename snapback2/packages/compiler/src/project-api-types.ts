@@ -1,3 +1,4 @@
+import { nativeDescriptorName, legacyDescriptorName } from "./lower/descriptor-origin";
 import ts from "typescript";
 import { expandArgumentObject } from "./args";
 import { requiredType, type AuthoredType, type TableInfo } from "./authored-types";
@@ -11,7 +12,7 @@ import {
   stringArray,
   stringValue,
 } from "./lower/static";
-import { hasExport, propertyName, staticMemberPath, unwrapCall, unwrapExpression } from "./syntax";
+import { exportedVariables, hasExport, propertyName, staticMemberPath, unwrapCall, unwrapExpression } from "./syntax";
 
 type ApiType = {
   text: string;
@@ -133,12 +134,9 @@ export function apiRowName(table: string): string {
 function checkedOperationCall(program: ts.Program, operation: OperationDecl): ts.CallExpression | undefined {
   const file = program.getSourceFiles().find((item) => item.fileName.endsWith(`/snapback/${operation.moduleName}.ts`));
   if (!file) return undefined;
-  for (const statement of file.statements) {
-    if (!ts.isVariableStatement(statement) || !hasExport(statement)) continue;
-    for (const declaration of statement.declarationList.declarations) {
-      if (!ts.isIdentifier(declaration.name) || declaration.name.text !== operation.exportName || !declaration.initializer) continue;
-      return unwrapCall(declaration.initializer);
-    }
+  for (const { declaration, exportName } of exportedVariables(file)) {
+    if (exportName !== operation.exportName || !declaration.initializer) continue;
+    return unwrapCall(declaration.initializer);
   }
   return undefined;
 }
@@ -146,7 +144,7 @@ function checkedOperationCall(program: ts.Program, operation: OperationDecl): ts
 function apiArgsType(object: ts.ObjectLiteralExpression, checker: ts.TypeChecker, acceptFiles: boolean): string {
   const fields = expandArgumentObject(object).entries.map((entry) => {
     const call = unwrapCall(entry.value);
-    const optional = call && callLeaf(call) === "optional";
+    const optional = call && (nativeDescriptorName(call) ?? legacyDescriptorName(call)) === "optional";
     const type = call ? argumentDescriptorType(call, checker, acceptFiles) : "unknown";
     const brand = call && argumentBrand(call);
     const comment = brand ? `/** ${brand} — minor units */ ` : "";
@@ -157,7 +155,7 @@ function apiArgsType(object: ts.ObjectLiteralExpression, checker: ts.TypeChecker
 
 // @ref LLP 1004#money-and-decimal-worked-out-2026-09-03 — callers write integer minor units while results retain nominal brands.
 function argumentDescriptorType(call: ts.CallExpression, checker: ts.TypeChecker, acceptFiles: boolean): string {
-  const name = callLeaf(call);
+  const name = (nativeDescriptorName(call) ?? legacyDescriptorName(call));
   if ((name === "decimal" || name === "money")) return "number";
   if ((name === "optional" || name === "list") && call.arguments[0]) {
     const inner = unwrapCall(call.arguments[0]);
@@ -172,7 +170,7 @@ function argumentDescriptorType(call: ts.CallExpression, checker: ts.TypeChecker
 }
 
 function argumentBrand(call: ts.CallExpression): string | undefined {
-  const name = callLeaf(call);
+  const name = (nativeDescriptorName(call) ?? legacyDescriptorName(call));
   if (name === "optional" && call.arguments[0]) {
     const inner = unwrapCall(call.arguments[0]);
     return inner && argumentBrand(inner);
@@ -185,7 +183,7 @@ function argumentBrand(call: ts.CallExpression): string | undefined {
 }
 
 function descriptorType(call: ts.CallExpression, checker: ts.TypeChecker): string {
-  const name = callLeaf(call);
+  const name = (nativeDescriptorName(call) ?? legacyDescriptorName(call));
   if (name === "cursor") return "Cursor";
   if (name === "principal") return "Principal";
   if (name === "id" || name === "text" || name === "ref") return "string";
@@ -381,7 +379,7 @@ function apiExpressionType(
     const descriptor = propertyEntries(args).find((item) => item.name === value.name.text)?.value;
     const call = descriptor && unwrapCall(descriptor);
     if (call) {
-      const text = `${descriptorType(call, checker)}${callLeaf(call) === "optional" ? " | undefined" : ""}`;
+      const text = `${descriptorType(call, checker)}${(nativeDescriptorName(call) ?? legacyDescriptorName(call)) === "optional" ? " | undefined" : ""}`;
       return { text, special: apiTypeIsSpecial(text) };
     }
   }
@@ -480,6 +478,33 @@ function apiExpressionType(
   }
   if (ts.isCallExpression(value)) {
     const name = callLeaf(value);
+    if (name === "mergeByIndex" && value.arguments[0]) {
+      const lanes = unwrapExpression(value.arguments[0]);
+      if (ts.isArrayLiteralExpression(lanes) && lanes.elements.length > 0) {
+        const results: ApiType[] = [];
+        for (const lane of lanes.elements) {
+          const descriptor = objectOf(lane);
+          const callback = descriptor && property(descriptor, "lane");
+          if (!callback || !ts.isArrowFunction(callback)) break;
+          const nested = apiCloneEnvironment(environment);
+          const source = property(descriptor!, "rows");
+          const element = source && apiExpressionType(source, args, tables, checker, environment).element;
+          for (const parameter of callback.parameters) {
+            for (const name of apiBindingNames(parameter.name)) nested.bindings.set(name, apiLocalBinding(element));
+          }
+          const returns: ApiType[] = [];
+          if (ts.isBlock(callback.body)) apiStatements(callback.body.statements, args, tables, checker, nested, returns);
+          else returns.push(apiExpressionType(callback.body, args, tables, checker, nested));
+          const row = returns[0]?.element?.row;
+          if (!row || !returns.every(result => result.element?.row?.name === row.name)) break;
+          results.push(apiNamedRowType(row));
+        }
+        if (results.length === lanes.elements.length && results.every(result => result.row?.name === results[0]!.row?.name)) {
+          const row = results[0]!;
+          return { text: `Page<${row.text}>`, special: true, element: row };
+        }
+      }
+    }
     if ((name === "scan" || name === "get") && value.arguments[0]) {
       const table = apiTable(value.arguments[0], tables);
       if (table) {

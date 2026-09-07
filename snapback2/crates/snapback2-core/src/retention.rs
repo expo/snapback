@@ -275,6 +275,7 @@ struct RetentionAssignmentPrice {
 }
 
 pub(crate) struct RetentionEstimator<'a> {
+    words: BTreeMap<String, usize>,
     schema: &'a Schema,
     max_held_bytes: u64,
     peak: Flow,
@@ -286,6 +287,7 @@ impl<'a> RetentionEstimator<'a> {
     pub(crate) fn estimate(schema: &'a Schema, program: &Program) -> ByteShape {
         let mut estimator = Self {
             schema,
+            words: crate::certificate::search::words(schema, program).bounds,
             max_held_bytes: 0,
             peak: Flow::default(),
             has_fixed_width_result: false,
@@ -300,7 +302,7 @@ impl<'a> RetentionEstimator<'a> {
                 (
                     name.clone(),
                     Binding {
-                        flow: Flow::value(argument_max(argument)),
+                        flow: Flow::value(argument_max(schema, argument)),
                         instances: 1,
                         collection_len: match argument {
                             ArgType::List { max, .. } => Some(u64::from(*max)),
@@ -732,18 +734,17 @@ impl<'a> RetentionEstimator<'a> {
                         (flow, length, true)
                     }
                     Builtin::Words => {
-                        let bytes = first
-                            .0
-                            .rows
-                            .values()
-                            .fold(first.0.value_bytes, |size, row| {
-                                size.saturating_add(row.count.saturating_mul(row.bytes))
-                            })
-                            .saturating_mul(8);
+                        let n = self
+                            .words
+                            .get(&crate::value::canonical_json(expression))
+                            .copied();
+                        let bytes = n
+                            .map(crate::certificate::search::words_bytes)
+                            .unwrap_or(u64::MAX);
                         let mut flow = Flow::value(bytes).retain_value_width();
                         flow.whole_element = true;
                         flow.depends_on_scan = first.0.depends_on_scan;
-                        (flow, None, true)
+                        (flow, n.map(|n| (n as u64) * 2 + 1), true)
                     }
                     Builtin::Len
                     | Builtin::Min
@@ -787,10 +788,16 @@ impl<'a> RetentionEstimator<'a> {
                     &merge.site,
                     merge.table(),
                     declared_serialized_row_max(self.schema, merge.table()),
-                    merge
-                        .max_lanes()
-                        .saturating_add(merge.take())
-                        .saturating_add(2),
+                    if crate::certificate::search::disjoint_merge(self.schema, merge) {
+                        merge
+                            .max_lanes()
+                            .saturating_add(merge.take())
+                            .saturating_add(2)
+                    } else {
+                        merge
+                            .max_lanes()
+                            .saturating_mul(merge.take().saturating_add(3))
+                    },
                 );
                 let flow = merge
                     .lanes
@@ -982,11 +989,12 @@ fn merged_table(current: &Binding, incoming: &Binding) -> Option<String> {
     }
 }
 
-pub(crate) fn argument_max(argument: &ArgType) -> u64 {
+pub(crate) fn argument_max(schema: &Schema, argument: &ArgType) -> u64 {
     match argument {
         ArgType::Cursor => 5_480,
-        ArgType::Id | ArgType::Principal | ArgType::Ref { .. } => 144,
-        ArgType::Text { max } => u64::from(*max).saturating_mul(4).saturating_add(16),
+        ArgType::Id | ArgType::Principal => 144,
+        ArgType::Ref { table } => crate::bounds::declared_identity_max(schema, table),
+        ArgType::Text { max, .. } => u64::from(*max).saturating_mul(4).saturating_add(16),
         ArgType::Json { max_bytes } => u64::from(*max_bytes).saturating_add(16),
         ArgType::Bytes { max } => u64::from(*max).saturating_mul(2).saturating_add(16),
         // @ref LLP 1006#1-the-move — retention holds the same closed record
@@ -995,11 +1003,14 @@ pub(crate) fn argument_max(argument: &ArgType) -> u64 {
         ArgType::Video { .. } => declared_asset_record_max(true),
         ArgType::Int | ArgType::Time | ArgType::Decimal { .. } | ArgType::Money { .. } => 32,
         ArgType::Bool => 16,
-        ArgType::Optional(inner) => argument_max(inner).max(8),
+        ArgType::Optional(inner) => argument_max(schema, inner).max(8),
         ArgType::Scalar => 1024,
         ArgType::List { of, max } => CANONICAL_ARRAY_BASE_BYTES.saturating_add(
-            u64::from(*max)
-                .saturating_mul(of.as_deref().map_or(1024, argument_max).saturating_add(1)),
+            u64::from(*max).saturating_mul(
+                of.as_deref()
+                    .map_or(1024, |inner| argument_max(schema, inner))
+                    .saturating_add(1),
+            ),
         ),
         ArgType::Enum { variants } => variants
             .iter()

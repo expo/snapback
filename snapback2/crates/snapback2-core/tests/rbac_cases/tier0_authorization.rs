@@ -17,7 +17,10 @@ fn groups_table() -> Table {
         BTreeMap::from([(
             "byId".to_owned(),
             Index {
-                columns: vec!["id".to_owned()],
+                components: (vec!["id".to_owned()])
+                    .into_iter()
+                    .map(snapback2_core::search_key::IndexComponent::Column)
+                    .collect(),
                 unique: true,
             },
         )]),
@@ -59,25 +62,34 @@ fn memberships_table() -> Table {
             (
                 "byId".to_owned(),
                 Index {
-                    columns: vec!["id".to_owned()],
+                    components: (vec!["id".to_owned()])
+                        .into_iter()
+                        .map(snapback2_core::search_key::IndexComponent::Column)
+                        .collect(),
                     unique: true,
                 },
             ),
             (
                 "byGroupPrincipal".to_owned(),
                 Index {
-                    columns: vec!["group".to_owned(), "principal".to_owned()],
+                    components: (vec!["group".to_owned(), "principal".to_owned()])
+                        .into_iter()
+                        .map(snapback2_core::search_key::IndexComponent::Column)
+                        .collect(),
                     unique: true,
                 },
             ),
             (
                 "byGroupPrincipalRole".to_owned(),
                 Index {
-                    columns: vec![
+                    components: (vec![
                         "group".to_owned(),
                         "principal".to_owned(),
                         "role".to_owned(),
-                    ],
+                    ])
+                    .into_iter()
+                    .map(snapback2_core::search_key::IndexComponent::Column)
+                    .collect(),
                     unique: true,
                 },
             ),
@@ -619,7 +631,10 @@ fn created_and_final_exists_bind_program_triggered_maintained_inserts() {
         BTreeMap::from([(
             "byId".to_owned(),
             Index {
-                columns: vec!["id".to_owned()],
+                components: (vec!["id".to_owned()])
+                    .into_iter()
+                    .map(snapback2_core::search_key::IndexComponent::Column)
+                    .collect(),
                 unique: true,
             },
         )]),
@@ -634,14 +649,20 @@ fn created_and_final_exists_bind_program_triggered_maintained_inserts() {
             (
                 "byId".to_owned(),
                 Index {
-                    columns: vec!["id".to_owned()],
+                    components: (vec!["id".to_owned()])
+                        .into_iter()
+                        .map(snapback2_core::search_key::IndexComponent::Column)
+                        .collect(),
                     unique: true,
                 },
             ),
             (
                 "byBucket".to_owned(),
                 Index {
-                    columns: vec!["bucket".to_owned()],
+                    components: (vec!["bucket".to_owned()])
+                        .into_iter()
+                        .map(snapback2_core::search_key::IndexComponent::Column)
+                        .collect(),
                     unique: false,
                 },
             ),
@@ -661,14 +682,20 @@ fn created_and_final_exists_bind_program_triggered_maintained_inserts() {
             (
                 "byId".to_owned(),
                 Index {
-                    columns: vec!["id".to_owned()],
+                    components: (vec!["id".to_owned()])
+                        .into_iter()
+                        .map(snapback2_core::search_key::IndexComponent::Column)
+                        .collect(),
                     unique: true,
                 },
             ),
             (
                 "byBucket".to_owned(),
                 Index {
-                    columns: vec!["bucket".to_owned()],
+                    components: (vec!["bucket".to_owned()])
+                        .into_iter()
+                        .map(snapback2_core::search_key::IndexComponent::Column)
+                        .collect(),
                     unique: true,
                 },
             ),
@@ -682,7 +709,10 @@ fn created_and_final_exists_bind_program_triggered_maintained_inserts() {
         BTreeMap::from([(
             "byId".to_owned(),
             Index {
-                columns: vec!["id".to_owned()],
+                components: (vec!["id".to_owned()])
+                    .into_iter()
+                    .map(snapback2_core::search_key::IndexComponent::Column)
+                    .collect(),
                 unique: true,
             },
         )]),

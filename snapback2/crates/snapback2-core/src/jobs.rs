@@ -101,7 +101,12 @@ impl JobRefusal {
         signature: &BTreeMap<String, ArgType>,
         message: impl Into<String>,
     ) -> Self {
-        Self::new("E_JOB_ARGS", message, name, quarry_signature(name, signature))
+        Self::new(
+            "E_JOB_ARGS",
+            message,
+            name,
+            quarry_signature(name, signature),
+        )
     }
     /// Nothing is silent: a control verb on a job in the wrong state names the state.
     pub(crate) fn state(id: &str, state: &str, verb: &str, accepted: &str) -> Self {
@@ -174,7 +179,20 @@ pub fn quarry_arg_type(ty: &ArgType) -> String {
         ArgType::Id => "id".into(),
         ArgType::Principal => "principal".into(),
         ArgType::Ref { table } => table.clone(),
-        ArgType::Text { max } => format!("text <={max}"),
+        ArgType::Text { max, min, format } => {
+            let mut text = if *min == 0 {
+                format!("text <={max}")
+            } else {
+                format!("text {min}..{max}")
+            };
+            if let Some(format) = format {
+                text.push_str(match format {
+                    crate::schema::TextFormat::Handle => " format handle",
+                    crate::schema::TextFormat::Url => " format url",
+                });
+            }
+            text
+        }
         ArgType::Bytes { max } => format!("bytes <={max}"),
         ArgType::Image { max } => format!("image <={max}"),
         ArgType::Video { max } => format!("video <={max}"),
@@ -186,7 +204,9 @@ pub fn quarry_arg_type(ty: &ArgType) -> String {
         ArgType::Scalar => "scalar".into(),
         ArgType::List { of, max } => format!(
             "[{}] <={max}",
-            of.as_deref().map(quarry_arg_type).unwrap_or_else(|| "scalar".into())
+            of.as_deref()
+                .map(quarry_arg_type)
+                .unwrap_or_else(|| "scalar".into())
         ),
         ArgType::Enum { variants } => quarry_enum(variants),
         ArgType::Decimal { scale } => format!("decimal {scale}"),
@@ -285,7 +305,11 @@ pub(crate) fn certify(
             ));
             continue;
         }
-        if scan.prefix.iter().any(|p| !prefix_expr(p, &program.args)) {
+        if scan
+            .prefix
+            .iter()
+            .any(|p| !p.scalar().is_some_and(|p| prefix_expr(p, &program.args)))
+        {
             errors.push(shape_error(
                 &site,
                 "its prefix is neither a literal nor a job argument",
@@ -305,7 +329,7 @@ pub(crate) fn certify(
             continue;
         };
         let table = schema.table(&scan.table).unwrap();
-        let unstable: Vec<_> = index.columns.iter().filter(|c| c.as_str() != "id" && !table.constraints.iter().any(|constraint| matches!(constraint, Constraint::Immutable { fields } if fields.contains(c)))).cloned().collect();
+        let unstable: Vec<_> = index.components.iter().filter_map(crate::search_key::IndexComponent::column).filter(|c| c.as_str() != "id" && !table.constraints.iter().any(|constraint| matches!(constraint, Constraint::Immutable { fields } if fields.contains(c)))).cloned().collect();
         // Three distinct failures, each with the rewrite that repairs it (LLP 1016 §7).
         let cursor_index = if !unstable.is_empty() {
             Some((
@@ -315,17 +339,43 @@ pub(crate) fn certify(
                     scan.index,
                     unstable.join(", ")
                 ),
-                format!("declare `immutable {}` on {}, or sweep by byId", unstable.join(", "), scan.table),
+                format!(
+                    "declare `immutable {}` on {}, or sweep by byId",
+                    unstable.join(", "),
+                    scan.table
+                ),
             ))
-        } else if !index.unique && index.columns.last().map(String::as_str) != Some("id") {
+        } else if !index.unique
+            && index
+                .components
+                .last()
+                .and_then(crate::search_key::IndexComponent::column)
+                .map(String::as_str)
+                != Some("id")
+        {
             Some((
-                format!("{}.{} is not a total order: two rows can share a key", scan.table, scan.index),
-                format!("end {} in `id` (or declare it unique), or sweep by byId", scan.index),
+                format!(
+                    "{}.{} is not a total order: two rows can share a key",
+                    scan.table, scan.index
+                ),
+                format!(
+                    "end {} in `id` (or declare it unique), or sweep by byId",
+                    scan.index
+                ),
             ))
-        } else if scan.prefix.len() > index.columns.len() {
+        } else if scan.prefix.len() > index.components.len() {
             Some((
-                format!("the prefix names {} but {}.{} has {}", columns(scan.prefix.len()), scan.table, scan.index, columns(index.columns.len())),
-                format!("shorten the prefix to at most {}", columns(index.columns.len())),
+                format!(
+                    "the prefix names {} but {}.{} has {}",
+                    columns(scan.prefix.len()),
+                    scan.table,
+                    scan.index,
+                    columns(index.components.len())
+                ),
+                format!(
+                    "shorten the prefix to at most {}",
+                    columns(index.components.len())
+                ),
             ))
         } else {
             None
@@ -357,7 +407,11 @@ pub(crate) fn certify(
                 sweeps.push(Sweep {
                     table: scan.table.clone(),
                     index: scan.index.clone(),
-                    prefix_template: scan.prefix.clone(),
+                    prefix_template: scan
+                        .prefix
+                        .iter()
+                        .filter_map(|p| p.scalar().cloned())
+                        .collect(),
                     take,
                 });
                 per_chunk.push(certificate);

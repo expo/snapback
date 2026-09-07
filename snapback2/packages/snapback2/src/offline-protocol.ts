@@ -1,8 +1,17 @@
+import { RowImage, type ImageKeys } from '../../evaluator/src/row-image.js';
+import { utf8Length } from "../../evaluator/src/hash.js";
 // @ref LLP 1012#8-the-delivery-envelope-the-validator-and-resume — this is the strict public mirror of the frozen server envelope.
 
+import { components } from "../../evaluator/src/index-store.js";
+import { RangeReceipt, prepareWireRanges, wireRangePrefix, wireIndexValues, wireBoundary, preparedDeliveryRanges } from '../../evaluator/src/range-preparation.js';
+import { scalarText, validateIdentity, validateWriteRow, rowFromWire, valueFromWire, wireObject as plain } from "../../evaluator/src/value-runtime.js";
+import type { ClosureReceipt, IndexAtom } from "../../evaluator/src/types.js";
 import { schemaDigest } from "./offline-schema.js";
 import { mapRowValues } from "./store/row-values.js";
 
+/** Transaction-only decoded image transfer. Symbols never enter wire or persisted state. */
+export { preparedDeliveryRows } from '../../evaluator/src/row-image.js';
+export { preparedDeliveryRanges } from '../../evaluator/src/range-preparation.js';
 /** Exact pooled-row reference spelling. Application objects with `$row` are escaped on the wire. */
 export type WireRowReference = { $row: { table: string; id: string } };
 export type WireEscapedObject = { $row: { $value: Record<string, WireValue> } };
@@ -22,11 +31,12 @@ export interface DeliveryRow {
   row: Record<string, WireValue>;
 }
 
+export type WireIndexAtom = { Scalar: WireValue } | { WordPrefix: { contract: "u17-nfc-scf-nfc-wsp-p"; source: string } };
 export interface DeliveryRange {
   site: string;
   table: string;
   index: string;
-  prefix: WireValue[];
+  prefix: WireIndexAtom[];
   order: "Asc" | "Desc";
   take: number;
   after: WireValue | null;
@@ -87,11 +97,11 @@ export interface DeliveryEnvelopeV1 {
   data: WireValue;
   next: string | null;
   seq: number;
+  /** Exact signed owner-pinned execution clock, only on certified timed queries. */
+  readTime?: number;
   rows: DeliveryRow[];
   receipt: DeliveryReceipt;
   validator: string;
-  /** The owner's execution read time, only for a program whose certificate reads the clock. */
-  readTime?: number;
 }
 
 export interface DeliveryUnchanged {
@@ -113,40 +123,7 @@ export type TaggedValue =
   | { Array: TaggedValue[] }
   | { Map: Record<string, TaggedValue> };
 
-export interface EvaluatorClosureReceipt {
-  schema_hash: string;
-  rows: Array<{ table: string; id: string; row: TaggedValue }>;
-  ranges: Array<{
-    site: string;
-    table: string;
-    index: string;
-    prefix: TaggedValue[];
-    order: "Asc" | "Desc";
-    take: number;
-    after: TaggedValue | null;
-    before: TaggedValue | null;
-    gt: TaggedValue | null;
-    gte: TaggedValue | null;
-    lt: TaggedValue | null;
-    lte: TaggedValue | null;
-    rule_hash: string;
-    row_ids: string[];
-    stop: "Limit" | "Exhausted";
-    absence: boolean;
-    halo: { table: string; id: string; row: TaggedValue } | null;
-    n2_key: null;
-    /** Members a later swap evicted from this page; absent when none (the goldens' bytes carry none). */
-    evicted_ids?: string[];
-  }>;
-  absences: Array<[string, string, TaggedValue[]]>;
-  verdicts: Array<{
-    rule_hash: string;
-    pinned_inputs_digest: string;
-    principal: string;
-    auth_epoch: number;
-    result: boolean;
-  }>;
-}
+export type EvaluatorClosureReceipt = ClosureReceipt & { schema_hash: string };
 
 export class DeliveryEnvelopeDecodeError extends TypeError {
   constructor(readonly path: string, detail: string) {
@@ -156,18 +133,21 @@ export class DeliveryEnvelopeDecodeError extends TypeError {
 }
 
 export function decodeDeliveryEnvelope(json: unknown): DeliveryEnvelopeV1 {
+  // Output + closure admission ceilings, plus the fixed authority/validator envelope.
+  if (utf8Length(JSON.stringify(json)) > 5 * 1024 * 1024 + 4096) fail('$', 'delivery exceeds closure/output envelope budget');
   object(json, "$", [
     "protocol", "generation", "schemaHash", "planHash", "authority", "state",
     "data", "next", "seq", "rows", "receipt", "validator",
   ], ["reason", "rule", "connected", "readTime"]);
-  if (json.readTime !== undefined) uint(json.readTime, "$.readTime");
+  if (Object.hasOwn(json, "readTime") && (!Number.isSafeInteger(json.readTime) || Object.is(json.readTime, -0)))
+    fail("$.readTime", "expected canonical signed safe-integer milliseconds");
   if (json.connected !== undefined && json.connected !== true) fail("$.connected", "must be true when present");
   if (json.protocol !== 1) fail("$.protocol", "unsupported delivery protocol");
   digest(json.generation, "$.generation");
   digest(json.schemaHash, "$.schemaHash");
   digest(json.planHash, "$.planHash");
   object(json.authority, "$.authority", ["principal", "authEpoch"]);
-  string(json.authority.principal, "$.authority.principal");
+  string(json.authority.principal, "$.authority.principal"); validateIdentity(json.authority.principal);
   uint(json.authority.authEpoch, "$.authority.authEpoch");
   if (!["complete", "capped", "partial", "denied"].includes(String(json.state)))
     fail("$.state", "expected complete, capped, partial, or denied");
@@ -183,9 +163,10 @@ export function decodeDeliveryEnvelope(json: unknown): DeliveryEnvelopeV1 {
   json.rows.forEach((row: unknown, index: number) => {
     object(row, `$.rows[${index}]`, ["table", "id", "row"]);
     string(row.table, `$.rows[${index}].table`);
-    string(row.id, `$.rows[${index}].id`);
+    string(row.id, `$.rows[${index}].id`); scalarText(row.id);
     object(row.row, `$.rows[${index}].row`, [], [], true);
     wire(row.row, `$.rows[${index}].row`);
+    if (row.row.id !== row.id) fail(`$.rows[${index}].id`, "does not match the row id");
     const key = poolKey(row.table, row.id);
     if (pool.has(key)) fail(`$.rows[${index}]`, "duplicates a pooled row");
     pool.add(key);
@@ -230,24 +211,7 @@ export function encodeDeliveryEnvelope(envelope: DeliveryEnvelopeV1): string {
     .map((row) => ({ table: row.table, id: row.id, row: canonicalWire(row.row) }));
   ordered.receipt = {
     ranges: decoded.receipt.ranges.map((range) => {
-      const item: Record<string, unknown> = {
-        site: range.site,
-        table: range.table,
-        index: range.index,
-        prefix: range.prefix.map(canonicalWire),
-        order: range.order,
-        take: range.take,
-        after: range.after === null ? null : canonicalWire(range.after),
-        before: range.before === null ? null : canonicalWire(range.before),
-        gt: range.gt === null ? null : canonicalWire(range.gt),
-        gte: range.gte === null ? null : canonicalWire(range.gte),
-        lt: range.lt === null ? null : canonicalWire(range.lt),
-        lte: range.lte === null ? null : canonicalWire(range.lte),
-        ruleHash: range.ruleHash,
-        rowIds: [...range.rowIds],
-        stop: range.stop,
-        absence: range.absence,
-      };
+      const item: Record<string, unknown> = Object.fromEntries(rangeFields.map(name => [name, canonicalWire(range[name])]));
       if (range.haloId !== undefined) item.haloId = range.haloId;
       return item;
     }),
@@ -256,15 +220,10 @@ export function encodeDeliveryEnvelope(envelope: DeliveryEnvelopeV1): string {
       index,
       key.map(canonicalWire),
     ]),
-    verdicts: decoded.receipt.verdicts.map((verdict) => ({
-      ruleHash: verdict.ruleHash,
-      pinnedInputsDigest: verdict.pinnedInputsDigest,
-      principal: verdict.principal,
-      authEpoch: verdict.authEpoch,
-      result: verdict.result,
-    })),
+    verdicts: decoded.receipt.verdicts.map(verdict => Object.fromEntries(verdictFields.map(name => [name, verdict[name]]))),
   };
   ordered.validator = decoded.validator;
+  if (decoded.readTime !== undefined) ordered.readTime = decoded.readTime;
   if (decoded.connected) ordered.connected = true;
   return JSON.stringify(ordered);
 }
@@ -280,7 +239,12 @@ export function expandRows(envelope: DeliveryEnvelopeV1): WireValue {
 }
 
 /** Rebuild the evaluator's externally-tagged private receipt from the public pool. */
-export function toClosureReceipt(envelope: DeliveryEnvelopeV1, schema: any): EvaluatorClosureReceipt {
+export function toClosureReceipt(envelope: DeliveryEnvelopeV1, schema: any, program?: any): EvaluatorClosureReceipt {
+  const prepared = prepareClosureReceipt(envelope,schema,program);
+  return clone({ ...prepared,rows: prepared.rows.map(r => ({ ...r,row: RowImage.tagged(r.row as RowImage) })) });
+}
+/** Checked transaction preparation is consumed by the carrier, not retagged during Twin hydration. */
+export function prepareClosureReceipt(envelope: DeliveryEnvelopeV1, schema: any, program?: any): EvaluatorClosureReceipt & { [preparedDeliveryRanges]: DeliveryRange[] } {
   const decoded = decodeDeliveryEnvelope(envelope);
   let actualSchemaHash: string;
   try {
@@ -291,58 +255,33 @@ export function toClosureReceipt(envelope: DeliveryEnvelopeV1, schema: any): Eva
   if (actualSchemaHash !== decoded.schemaHash) {
     fail("schema", `hash ${actualSchemaHash} does not match envelope schemaHash ${decoded.schemaHash}`);
   }
-  const taggedRows = new Map<string, { table: string; id: string; row: TaggedValue }>();
-  for (const row of decoded.rows) {
-    const tagged = { table: row.table, id: row.id, row: tagRow(schema, row.table, row.row) };
-    taggedRows.set(poolKey(row.table, row.id), tagged);
-  }
-  const ranges = decoded.receipt.ranges.map((range) => ({
-    site: range.site,
-    table: range.table,
-    index: range.index,
-    prefix: tagIndexValues(schema, range.table, range.index, range.prefix, 0),
-    order: range.order,
-    take: range.take,
-    after: tagBoundary(schema, range, range.after),
-    before: tagBoundary(schema, range, range.before),
-    gt: tagBoundary(schema, range, range.gt),
-    gte: tagBoundary(schema, range, range.gte),
-    lt: tagBoundary(schema, range, range.lt),
-    lte: tagBoundary(schema, range, range.lte),
-    rule_hash: range.ruleHash,
-    row_ids: [...range.rowIds],
-    stop: range.stop,
-    absence: range.absence,
-    halo: range.haloId === undefined
-      ? null
-      : clone(taggedRows.get(poolKey(range.table, range.haloId))
-        ?? fail(`$.receipt.ranges[${range.site}].haloId`, "references a missing pooled row")),
-    n2_key: null,
-  }));
-  return {
-    schema_hash: decoded.schemaHash,
-    rows: Array.from(taggedRows.values()).map(clone),
-    ranges,
-    absences: decoded.receipt.absences.map(([table, index, key]) => [
-      table,
-      index,
-      tagIndexValues(schema, table, index, key, 0),
-    ]),
-    verdicts: decoded.receipt.verdicts.map((verdict) => ({
-      rule_hash: verdict.ruleHash,
-      pinned_inputs_digest: verdict.pinnedInputsDigest,
-      principal: verdict.principal,
-      auth_epoch: verdict.authEpoch,
-      result: verdict.result,
-    })),
-  };
+  return { schema_hash: decoded.schemaHash, rows: decoded.rows.map(row => ({ table: row.table,id: row.id,
+    row: prepareWireRow(schema,row.table,row.row,actualSchemaHash) })), ...prepareReceipt(schema,decoded.receipt,program) };
+}
+
+/** Shared live/durable receipt conversion. The caller admits the envelope or supplies its already-held receipt. */
+export function tagReceipt(schema: any, receipt: DeliveryReceipt, program?: any): Pick<ClosureReceipt, 'ranges' | 'absences' | 'verdicts'> {
+  return clone(prepareReceipt(schema,receipt,program));
+}
+/** Internal admission keeps the prepared parameters; outward DTOs remain independently mutable. */
+export function prepareReceipt(schema: any, receipt: DeliveryReceipt, program?: any): Pick<ClosureReceipt, 'ranges' | 'absences' | 'verdicts'> & { [preparedDeliveryRanges]: DeliveryRange[] } {
+  const ranges = prepareWireReceiptRanges(schema,receipt.ranges,program);
+  return { ranges: ranges.map(range => RangeReceipt.tagged(range,RangeReceipt.get(range,true)!)),
+    absences: receipt.absences.map(([table,index,key]) => [table,index,tagWireIndexValues(schema,table,index,key)]),
+    verdicts: receipt.verdicts.map(verdict => ({ rule_hash: verdict.ruleHash,pinned_inputs_digest: verdict.pinnedInputsDigest,
+      principal: verdict.principal,auth_epoch: verdict.authEpoch,result: verdict.result })),
+    [preparedDeliveryRanges]: ranges };
+}
+/** The same factory serves standalone carrier inputs; their historical absent bounds mean null. */
+export function prepareWireReceiptRanges<T extends object>(schema: any, ranges: T[], program?: any, missingBounds = false, identity?: string): T[] {
+  return prepareWireRanges(schema,ranges,program,fail,wireIndexAtom,missingBounds,identity);
 }
 
 export type DeliveryRangeExtent =
-  | { stop: "Limit"; firstKey: WireValue[]; lastKey: WireValue[]; presentIds: string[] }
+  | { stop: "Limit"; prefix: WireIndexAtom[]; firstKey: WireValue[]; lastKey: WireValue[]; presentIds: string[] }
   | {
     stop: "Exhausted";
-    prefix: WireValue[];
+    prefix: WireIndexAtom[];
     bounds: Pick<DeliveryRange, "after" | "before" | "gt" | "gte" | "lt" | "lte">;
     presentIds: string[];
   };
@@ -352,11 +291,13 @@ export function deliveryRangeExtent(
   envelope: DeliveryEnvelopeV1,
   schema: any,
   range: DeliveryRange,
+  program?: any,
 ): DeliveryRangeExtent {
   const decoded = decodeDeliveryEnvelope(envelope);
   const selected = decoded.receipt.ranges.find((candidate) => candidate === range)
     ?? decoded.receipt.ranges.find((candidate) => candidate.site === range.site);
   if (!selected) fail("$.receipt.ranges", `does not contain site ${range.site}`);
+  tagWireRangePrefix(schema, selected, program);
   const presentIds = selected.haloId === undefined
     ? [...selected.rowIds]
     : [...selected.rowIds, selected.haloId];
@@ -376,31 +317,35 @@ export function deliveryRangeExtent(
   const rows = new Map(decoded.rows.map((row) => [poolKey(row.table, row.id), row]));
   const key = (id: string): WireValue[] => {
     const row = rows.get(poolKey(selected.table, id))!;
-    return indexColumns(schema, selected.table, selected.index).map((column) => {
+    // Ordinary extents retain their full key; a derived component has only an ordinary suffix position.
+    const offset = selected.prefix.some(atom => "WordPrefix" in atom) ? selected.prefix.length : 0;
+    return indexColumns(schema, selected.table, selected.index).slice(offset).map((column) => {
       if (!(column in row.row)) fail(`$.rows.${selected.table}/${id}.${column}`, "is required by the range index");
       return clone(row.row[column]!);
     });
   };
   return {
     stop: "Limit",
+    prefix: clone(selected.prefix),
     firstKey: key(selected.rowIds[0]!),
     lastKey: key(selected.rowIds[selected.rowIds.length - 1]!),
     presentIds,
   };
 }
 
+// The decoder's required field order is also the canonical encoder order.
+const rangeFields = ["site", "table", "index", "prefix", "order", "take", "after", "before",
+  "gt", "gte", "lt", "lte", "ruleHash", "rowIds", "stop", "absence"] as const;
+const verdictFields = ["ruleHash", "pinnedInputsDigest", "principal", "authEpoch", "result"] as const;
 function receipt(value: unknown, pool: Set<string>, authority: DeliveryAuthority): void {
   object(value, "$.receipt", ["ranges", "absences", "verdicts"]);
   array(value.ranges, "$.receipt.ranges");
   value.ranges.forEach((range: unknown, index: number) => {
     const path = `$.receipt.ranges[${index}]`;
-    object(range, path, [
-      "site", "table", "index", "prefix", "order", "take", "after", "before",
-      "gt", "gte", "lt", "lte", "ruleHash", "rowIds", "stop", "absence",
-    ], ["haloId"]);
+    object(range, path, rangeFields, ["haloId"]);
     for (const name of ["site", "table", "index", "ruleHash"] as const) string(range[name], `${path}.${name}`);
     digest(range.ruleHash, `${path}.ruleHash`);
-    array(range.prefix, `${path}.prefix`); range.prefix.forEach((item: unknown, at: number) => wire(item, `${path}.prefix[${at}]`));
+    array(range.prefix, `${path}.prefix`); range.prefix.forEach((item: unknown, at: number) => wireIndexAtom(item, `${path}.prefix[${at}]`));
     if (!["Asc", "Desc"].includes(String(range.order))) fail(`${path}.order`, "expected Asc or Desc");
     uint(range.take, `${path}.take`);
     for (const name of ["after", "before", "gt", "gte", "lt", "lte"] as const)
@@ -408,7 +353,7 @@ function receipt(value: unknown, pool: Set<string>, authority: DeliveryAuthority
     array(range.rowIds, `${path}.rowIds`);
     const rowIds = new Set<string>();
     range.rowIds.forEach((id: unknown, at: number) => {
-      string(id, `${path}.rowIds[${at}]`);
+      string(id, `${path}.rowIds[${at}]`); scalarText(id);
       if (rowIds.has(id)) fail(`${path}.rowIds[${at}]`, "duplicates a row id");
       rowIds.add(id);
       if (!pool.has(poolKey(range.table, id))) fail(`${path}.rowIds[${at}]`, "references a missing same-table pooled row");
@@ -432,10 +377,10 @@ function receipt(value: unknown, pool: Set<string>, authority: DeliveryAuthority
   array(value.verdicts, "$.receipt.verdicts");
   value.verdicts.forEach((verdict: unknown, index: number) => {
     const path = `$.receipt.verdicts[${index}]`;
-    object(verdict, path, ["ruleHash", "pinnedInputsDigest", "principal", "authEpoch", "result"]);
+    object(verdict, path, verdictFields);
     digest(verdict.ruleHash, `${path}.ruleHash`);
     digest(verdict.pinnedInputsDigest, `${path}.pinnedInputsDigest`);
-    string(verdict.principal, `${path}.principal`);
+    string(verdict.principal, `${path}.principal`); validateIdentity(verdict.principal);
     uint(verdict.authEpoch, `${path}.authEpoch`);
     boolean(verdict.result, `${path}.result`);
     if (verdict.principal !== authority.principal) fail(`${path}.principal`, "does not match envelope authority");
@@ -445,126 +390,38 @@ function receipt(value: unknown, pool: Set<string>, authority: DeliveryAuthority
 
 /** Tag one pooled wire row by its table's declared column types (the evaluator's private form). */
 export function tagWireRow(schema: any, table: string, row: Record<string, WireValue>): TaggedValue {
-  return tagRow(schema, table, row);
+  const value = rowFromWire(schema,table,row,fail);
+  validateWriteRow(schema,table,value); return value;
+}
+
+/** Internal image ownership; the public tagger continues to expose its sparse tagged value. */
+export function prepareWireRow(schema: any, table: string, row: Record<string, unknown>, identity?: string, known?: ImageKeys): RowImage {
+  return RowImage.is(row) ? RowImage.prepare(schema,table,row,identity,known)
+    : RowImage.fromWire(schema,table,row,fail,identity,known);
 }
 
 /** Tag index key values (a prefix, a key, or a cursor position) by the index's column types from `offset`. */
 export function tagWireIndexValues(schema: any, table: string, index: string, values: WireValue[], offset = 0): TaggedValue[] {
-  return tagIndexValues(schema, table, index, values, offset);
+  return wireIndexValues(schema,table,index,values,offset,fail);
 }
 
 /** Tag a range boundary (`after`, `before`, `gt`, …): an array is a position after the prefix, a scalar its first column. */
 export function tagWireBoundary(schema: any, range: Pick<DeliveryRange, "table" | "index" | "prefix">, value: WireValue | null): TaggedValue | null {
-  return tagBoundary(schema, range as DeliveryRange, value);
+  return wireBoundary(schema,range,value,fail);
 }
 
 /** Tag one wire value by a declared column or argument descriptor. */
-export function tagWireValue(descriptor: unknown, value: WireValue, path: string): TaggedValue {
-  return tagTyped(descriptor, value, path);
-}
-
-function tagRow(schema: any, table: string, row: Record<string, WireValue>): TaggedValue {
-  const columns = schema?.tables?.[table]?.columns;
-  if (!plain(columns)) fail(`schema.tables.${table}.columns`, "is missing");
-  const tagged: Record<string, TaggedValue> = Object.create(null);
-  for (const [name, value] of Object.entries(row)) {
-    if (!(name in columns)) fail(`rows.${table}.${name}`, "is not a declared column");
-    tagged[name] = tagTyped(columns[name], value, `rows.${table}.${name}`);
-  }
-  return { Row: tagged };
-}
-
-function tagIndexValues(schema: any, table: string, index: string, values: WireValue[], offset: number): TaggedValue[] {
-  const columns = indexColumns(schema, table, index);
-  return values.map((value, at) => {
-    const name = columns[offset + at];
-    if (name === undefined) fail(`schema.tables.${table}.indexes.${index}`, "has too few columns");
-    return tagTyped(schema.tables[table].columns[name], value, `${table}.${index}[${offset + at}]`);
-  });
-}
-
-function tagBoundary(schema: any, range: DeliveryRange, value: WireValue | null): TaggedValue | null {
-  if (value === null) return null;
-  if (Array.isArray(value)) return { Array: tagIndexValues(schema, range.table, range.index, value, range.prefix.length) };
-  return tagIndexValues(schema, range.table, range.index, [value], range.prefix.length)[0]!;
-}
-
-function tagTyped(descriptor: any, value: WireValue, path: string): TaggedValue {
-  if (plain(descriptor) && "Optional" in descriptor) return value === null ? "Null" : tagTyped(descriptor.Optional, value, path);
-  if (value === null) return "Null";
-  if (descriptor === "Id" || descriptor === "Principal" || plain(descriptor) && "Ref" in descriptor) {
-    if (typeof value !== "string") fail(path, "expected id string");
-    return { Id: value };
-  }
-  if (plain(descriptor) && ("Text" in descriptor || "Enum" in descriptor)) {
-    if (typeof value !== "string") fail(path, "expected text string");
-    return { String: value };
-  }
-  if (["Int", "Time"].includes(String(descriptor)) || plain(descriptor) && ("Decimal" in descriptor || "Money" in descriptor)) {
-    uintOrSigned(value, path); return { Int: value as number };
-  }
-  if (descriptor === "Bool") { boolean(value, path); return { Bool: value as boolean }; }
-  if (plain(descriptor) && "Bytes" in descriptor) {
-    const bytes = plain(value) && "Bytes" in value ? value.Bytes : undefined;
-    if (!plain(value) || Object.keys(value).length !== 1 || typeof bytes !== "string" || !/^(?:[0-9a-f]{2})*$/.test(bytes))
-      fail(path, "expected canonical Bytes");
-    return { Bytes: bytes };
-  }
-  if (plain(descriptor) && "List" in descriptor) {
-    array(value, path);
-    return { Array: value.map((item: WireValue, index: number) => tagTyped(descriptor.List.of, item, `${path}[${index}]`)) };
-  }
-  if (plain(descriptor) && ("Image" in descriptor || "Video" in descriptor)) {
-    object(value, path, [], [], true);
-    const kind = "Image" in descriptor ? "Image" : "Video";
-    const fields = ASSET_RECORD_FIELDS[kind];
-    const names = Object.keys(value);
-    if (names.length !== Object.keys(fields).length || names.some((name) => !(name in fields)))
-      fail(path, `must contain exactly ${Object.keys(fields).sort().join(", ")}`);
-    return { Map: Object.fromEntries(Object.entries(value).map(([key, item]) => [
-      key,
-      tagAssetField(fields[key as keyof typeof fields], item, `${path}.${key}`),
-    ])) };
-  }
-  // @ref LLP 1012#8-the-delivery-envelope-the-validator-and-resume — tag by
-  // the declared column type only: a `json` value shaped `{ "Bytes": "…" }` is
-  // application data, never the byte variant (O1a review).
-  if (plain(descriptor) && "Json" in descriptor) return tagJson(value);
-  fail(path, "has an unsupported schema descriptor");
-}
-
-function tagJson(value: WireValue): TaggedValue {
-  if (value === null) return "Null";
-  if (typeof value === "boolean") return { Bool: value };
-  if (typeof value === "number") return { Int: value };
-  if (typeof value === "string") return { String: value };
-  if (Array.isArray(value)) return { Array: value.map(tagJson) };
-  return { Map: Object.fromEntries(Object.entries(value).map(([key, item]) => [key, tagJson(item)])) };
-}
-
-const ASSET_RECORD_FIELDS = {
-  Image: { id: "String", width: "Int", height: "Int" },
-  Video: { id: "String", width: "Int", height: "Int", duration: "Int" },
-} as const;
-
-function tagAssetField(descriptor: "String" | "Int", value: WireValue, path: string): TaggedValue {
-  if (descriptor === "String") {
-    if (typeof value !== "string") fail(path, "expected string");
-    return { String: value };
-  }
-  uintOrSigned(value, path);
-  return { Int: value as number };
+export function tagWireValue(descriptor: unknown, value: WireValue, path: string, schema?: any): TaggedValue {
+  return valueFromWire(descriptor, value, path, fail, schema);
 }
 
 function indexColumns(schema: any, table: string, index: string): string[] {
-  const columns = schema?.tables?.[table]?.indexes?.[index]?.columns;
-  if (!Array.isArray(columns) || !columns.every((item) => typeof item === "string"))
-    fail(`schema.tables.${table}.indexes.${index}`, "is missing columns");
-  return columns;
+  return components(schema, table, index).map(c => "Column" in c ? c.Column : "");
 }
 
 function validateReferences(value: unknown, pool: Set<string>, path: string): void {
   if (rowReference(value)) {
+    scalarText(value.$row.id); scalarText(value.$row.table);
     if (!pool.has(poolKey(value.$row.table, value.$row.id))) fail(path, "references a missing pooled row");
     return;
   }
@@ -593,11 +450,12 @@ function canonicalWire(value: WireValue): WireValue {
 }
 
 function wire(value: unknown, path: string): void {
-  if (value === null || typeof value === "boolean" || typeof value === "string") return;
+  if (typeof value === "string") { scalarText(value); return; }
+  if (value === null || typeof value === "boolean") return;
   if (typeof value === "number") { uintOrSigned(value, path); return; }
   if (Array.isArray(value)) { value.forEach((item, index) => wire(item, `${path}[${index}]`)); return; }
   object(value, path, [], [], true);
-  for (const [key, item] of Object.entries(value)) wire(item, `${path}.${key}`);
+  for (const [key, item] of Object.entries(value)) { scalarText(key); wire(item, `${path}.${key}`); }
 }
 
 function rowReference(value: unknown): value is WireRowReference {
@@ -611,19 +469,34 @@ function escapedObject(value: unknown): value is WireEscapedObject {
     && Object.keys(value.$row).length === 1 && plain(value.$row.$value);
 }
 
-function object(value: any, path: string, required: string[], optional: string[] = [], open = false): asserts value is Record<string, any> {
+function object(value: any, path: string, required: readonly string[], optional: readonly string[] = [], open = false): asserts value is Record<string, any> {
   if (!plain(value)) fail(path, "expected object");
   for (const name of required) if (!(name in value)) fail(`${path}.${name}`, "is required");
   if (!open) for (const name of Object.keys(value)) if (!required.includes(name) && !optional.includes(name)) fail(`${path}.${name}`, "is unknown");
 }
 function array(value: any, path: string): asserts value is any[] { if (!Array.isArray(value)) fail(path, "expected array"); }
-function string(value: unknown, path: string): asserts value is string { if (typeof value !== "string" || value.length === 0) fail(path, "expected non-empty string"); }
+function string(value: unknown, path: string): asserts value is string { if (typeof value !== "string" || value.length === 0) fail(path, "expected non-empty string"); scalarText(value); }
 function boolean(value: unknown, path: string): asserts value is boolean { if (typeof value !== "boolean") fail(path, "expected boolean"); }
 function uint(value: unknown, path: string): asserts value is number { if (!Number.isSafeInteger(value) || Number(value) < 0) fail(path, "expected non-negative safe integer"); }
 function uintOrSigned(value: unknown, path: string): asserts value is number { if (!Number.isSafeInteger(value)) fail(path, "expected safe integer"); }
 function digest(value: unknown, path: string): asserts value is string { if (typeof value !== "string" || !/^[0-9a-f]{64}$/.test(value)) fail(path, "expected lowercase SHA-256 digest"); }
-function plain(value: any): value is Record<string, any> { return value !== null && typeof value === "object" && !Array.isArray(value) && (Object.getPrototypeOf(value) === Object.prototype || Object.getPrototypeOf(value) === null); }
 function poolKey(table: string, id: string): string { return `${table.length}:${table}${id}`; }
 function compareText(left: string, right: string): number { return left < right ? -1 : left > right ? 1 : 0; }
 function clone<T>(value: T): T { return structuredClone(value); }
 function fail(path: string, detail: string): never { throw new DeliveryEnvelopeDecodeError(path, detail); }
+
+/** Structural parsing never normalizes a descriptor or infers Q. */
+function wireIndexAtom(value: unknown, path: string): void {
+  if (plain(value) && Object.keys(value).length === 1 && "Scalar" in value) {
+    const v = value.Scalar;
+    if (v !== null && typeof v === 'object' && !(plain(v) && Object.keys(v).length === 1 && typeof v.Bytes === 'string' && /^(?:[0-9a-f]{2})*$/.test(v.Bytes))) fail(path, 'ordinary atom must be scalar');
+    wire(v, path); return;
+  }
+  object(value, path, ['WordPrefix']);
+  object(value.WordPrefix, path, ['contract', 'source']);
+  if (value.WordPrefix.contract !== 'u17-nfc-scf-nfc-wsp-p' || typeof value.WordPrefix.source !== 'string') fail(path, 'invalid word-prefix descriptor');
+  scalarText(value.WordPrefix.source);
+}
+export function tagWireRangePrefix(schema: any, range: Pick<DeliveryRange, 'site' | 'table' | 'index' | 'prefix'>, program?: any): IndexAtom[] {
+  return wireRangePrefix(schema,range,program,fail,wireIndexAtom).atoms;
+}

@@ -815,7 +815,7 @@ pub fn seed_rows(
                 })?;
                 converted.insert(field.clone(), json_for_column(value, kind)?);
             }
-            output.push((table_name.clone(), Value::Row(converted)));
+            output.push((table_name.clone(), Value::Row(converted.into())));
         }
     }
     Ok(output)
@@ -1110,11 +1110,14 @@ for await (const line of createInterface({{ input: process.stdin }})) {{
             engine
                 .seed(
                     "items",
-                    Value::Row(BTreeMap::from([
-                        ("id".to_owned(), Value::Id(id.to_owned())),
-                        ("at".to_owned(), Value::Int(1)),
-                        ("label".to_owned(), Value::String(label.to_owned())),
-                    ])),
+                    Value::Row(
+                        BTreeMap::from([
+                            ("id".to_owned(), Value::Id(id.to_owned())),
+                            ("at".to_owned(), Value::Int(1)),
+                            ("label".to_owned(), Value::String(label.to_owned())),
+                        ])
+                        .into(),
+                    ),
                 )
                 .unwrap();
         }

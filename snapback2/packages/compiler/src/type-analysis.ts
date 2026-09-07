@@ -1,24 +1,42 @@
+import { nativeDescriptorName, legacyDescriptorName } from "./lower/descriptor-origin";
+import { destinationConversion, destinationPlan, destinationRepresentationError, combineConversions, mutableCaptureType, commonCaptureType } from "./destination-conversion";
+import { boundedList, concatenatedList, collectionProducerType } from "./producer-types";
 import ts from "typescript";
+import { MAX_SEARCH_SOURCE_SCALARS } from "./index-components";
 import { expandArgumentObject } from "./args";
 import { idType, isIdType, requiredType, sameDecimal, unknownType, type AuthoredType, type TableInfo } from "./authored-types";
 import { diagnostic, type DiagnosticModule } from "./diagnostics";
 import type { FrontendDiagnostic } from "./ir";
 import { assignedBindings } from "./lower/operation-context";
-import { callName, contextualNodeKey, expandedNumericLiteral, expansionContext, isFunctionLike, nonNullIdentifier, propertyName, replaceNode, staticMemberPath, unwrapCall, unwrapExpression } from "./syntax";
+import { moduleScalarCaptures, moduleAmbientComposites } from "./lower/module";
+import type { ValueConversion } from "./lower/value-conversion";
+import { callName, contextualNodeKey, expandedNumericLiteral, expansionContext, isFunctionLike, nonNullIdentifier, propertyName, replaceNode, staticMemberPath, unwrapCall, unwrapExpression, expressionProperty, numericLiteral } from "./syntax";
 
 // @ref LLP 1002#2-the-authored-surface-the-snapback2-module — Decimal target scales are compiler facts; the emitted value is integer minor units.
 
 type FunctionLike = ts.FunctionDeclaration | ts.ArrowFunction | ts.FunctionExpression;
 type TypeModule = DiagnosticModule & { tables: Map<string, TableInfo>; helpers?: Map<string, FunctionLike> };
 type OperationComposite = "args" | "ctx" | "db";
-type TypeBinding = { type: AuthoredType; operationComposite?: OperationComposite };
+type TypeBinding = { type: AuthoredType; identity?: object; operationComposite?: OperationComposite };
+type TypeConstant = { expression: ts.Expression; environment: TypeEnvironment };
 type TypeEnvironment = {
   variables: Map<string, TypeBinding>;
-  constants: Map<string, ts.Expression>;
+  constants: Map<string, TypeConstant>;
   args: Record<string, AuthoredType>;
   mutableBindings: Set<ts.Identifier>;
   memo: Map<ts.Expression, Map<string, AuthoredType>>;
   literalContext: string;
+  facts: TypeFacts;
+  allowAbsent?: boolean;
+  stopped?: boolean;
+  exits?: Map<string, TypeBinding>[];
+};
+
+type TypeFacts = {
+  literalValues: Map<string, number>;
+  expressionTypes: Map<string, AuthoredType>;
+  contextualTypes: Map<string, AuthoredType>;
+  valueConversions: Map<string, ValueConversion>;
 };
 
 const MAX_TYPE_ANALYSIS_DEPTH = 512;
@@ -26,8 +44,10 @@ const MAX_TYPE_ANALYSIS_NODES = 8192;
 
 export type TypePlan = {
   diagnostics: FrontendDiagnostic[];
-  literalValues: Map<string, number>;
-  expressionTypes: Map<string, AuthoredType>;
+  literalValues: ReadonlyMap<string, number>;
+  expressionTypes: ReadonlyMap<string, AuthoredType>;
+  contextualTypes: ReadonlyMap<string, AuthoredType>;
+  valueConversions: ReadonlyMap<string, ValueConversion>;
   analysisLimitReached: boolean;
 };
 
@@ -49,6 +69,7 @@ export function analyzeOperationTypes(module: TypeModule, call: ts.CallExpressio
       mutableBindings: assignedBindings(handler),
       memo: new Map(),
       literalContext: "operation",
+      facts: analyzer,
     };
     for (const parameter of handler.parameters) {
       for (const name of bindingNames(parameter.name)) setBinding(env, name, { type: unknownType });
@@ -63,6 +84,8 @@ export function analyzeOperationTypes(module: TypeModule, call: ts.CallExpressio
     diagnostics: analyzer.diagnostics,
     literalValues: analyzer.literalValues,
     expressionTypes: analyzer.expressionTypes,
+    contextualTypes: analyzer.contextualTypes,
+    valueConversions: analyzer.valueConversions,
     analysisLimitReached: analyzer.analysisLimitReached,
   };
 }
@@ -71,6 +94,8 @@ class Analyzer {
   readonly diagnostics: FrontendDiagnostic[] = [];
   readonly literalValues = new Map<string, number>();
   readonly expressionTypes = new Map<string, AuthoredType>();
+  readonly contextualTypes = new Map<string, AuthoredType>();
+  readonly valueConversions = new Map<string, ValueConversion>();
   private readonly seen = new Set<string>();
   private readonly helperStack: string[] = [];
   private analysisVisits = 0;
@@ -85,11 +110,13 @@ class Analyzer {
 
   statements(statements: readonly ts.Statement[], env: TypeEnvironment): void {
     for (const statement of statements) {
+      if (env.stopped || this.analysisLimitReached) break;
       this.statement(statement, env);
     }
   }
 
   private statement(statement: ts.Statement, env: TypeEnvironment): void {
+    if (this.analysisLimitReached) return;
     if (ts.isVariableStatement(statement)) {
       for (const declaration of statement.declarationList.declarations) {
         if (!declaration.initializer) continue;
@@ -99,13 +126,13 @@ class Analyzer {
           const identifier = namedBinding(declaration.name, name);
           const mutable = identifier !== undefined && env.mutableBindings.has(identifier);
           const binding = ts.isIdentifier(declaration.name)
-            ? this.binding(declaration.initializer, env, mutable ? unknownType : bindingType)
-            : { type: mutable ? unknownType : bindingType };
+            ? this.binding(declaration.initializer, env, mutable ? mutableCaptureType(bindingType) : bindingType)
+            : { type: mutable ? mutableCaptureType(bindingType) : bindingType };
           setBinding(
             env,
             name,
             binding,
-            !mutable ? declaration.initializer : undefined,
+            !mutable && ts.isIdentifier(declaration.name) ? declaration.initializer : undefined,
           );
         }
       }
@@ -115,8 +142,14 @@ class Analyzer {
       this.expression(statement.expression, env);
       return;
     }
-    if (ts.isReturnStatement(statement) && statement.expression) {
-      this.expression(statement.expression, env);
+    if (ts.isReturnStatement(statement)) {
+      if (statement.expression) this.expression(statement.expression, env);
+      env.stopped = true;
+      return;
+    }
+    if (ts.isBreakStatement(statement) || ts.isContinueStatement(statement)) {
+      (env.exits ??= []).push(new Map([...env.variables].map(([name, binding]) => [name, { ...binding }])));
+      env.stopped = true;
       return;
     }
     if (ts.isIfStatement(statement)) {
@@ -129,7 +162,9 @@ class Analyzer {
         thenEnv.constants.delete(narrowed);
       }
       this.controlled(statement.thenStatement, thenEnv);
-      if (statement.elseStatement) this.controlled(statement.elseStatement, cloneEnv(env));
+      const elseEnv = cloneEnv(env);
+      if (statement.elseStatement) this.controlled(statement.elseStatement, elseEnv);
+      mergeTypeFlow(env, [thenEnv, elseEnv]);
       return;
     }
     if (ts.isForOfStatement(statement)) {
@@ -142,10 +177,26 @@ class Analyzer {
           }
         }
       }
+      // A later iteration can reach an earlier use with a different source
+      // representation. Widen entry facts before publishing body conversions.
+      for (let round = 0; hasLoopCarry(statement.statement, env) && round < 128; round++) {
+        const before = JSON.stringify([...loop.variables].map(([name, binding]) => [name, binding.type]));
+        const trial = cloneEnv(loop);
+        trial.facts = { expressionTypes: new Map(), contextualTypes: new Map(), literalValues: new Map(), valueConversions: new Map() };
+        this.controlled(statement.statement, trial);
+        mergeTypeEnvironments(loop, [loop, ...loopPaths(trial)]);
+        if (JSON.stringify([...loop.variables].map(([name, binding]) => [name, binding.type])) === before) break;
+        if (round === 127) this.analysisLimit(statement.expression);
+      }
       this.controlled(statement.statement, loop);
+      mergeTypeEnvironments(env, [env, ...loopPaths(loop)]);
       return;
     }
-    if (ts.isBlock(statement)) this.statements(statement.statements, cloneEnv(env));
+    if (ts.isBlock(statement)) {
+      const block = cloneEnv(env);
+      this.statements(statement.statements, block);
+      mergeTypeFlow(env, [block]);
+    }
   }
 
   private controlled(statement: ts.Statement, env: TypeEnvironment): void {
@@ -156,11 +207,11 @@ class Analyzer {
   expression(node: ts.Expression, env: TypeEnvironment, expected?: AuthoredType, quietFraction = false): AuthoredType {
     const value = unwrapExpression(node);
     const target = expected && requiredType(expected);
-    const memoKey = `${quietFraction ? "quiet" : "loud"}:${JSON.stringify(target ?? null)}`;
+    const memoKey = `${quietFraction ? "quiet" : "loud"}:${env.allowAbsent ? "nullable" : "required"}:${JSON.stringify(target ?? null)}`;
     const cached = env.memo.get(value)?.get(memoKey);
     const expressionKey = contextualNodeKey(env.literalContext, value, this.module.sourceFile);
     if (cached) {
-      this.expressionTypes.set(expressionKey, cached);
+      this.recordType(value, env, expressionKey, cached, target);
       return cached;
     }
     if (this.analysisLimitReached) return unknownType;
@@ -173,6 +224,16 @@ class Analyzer {
       result = this.expressionInner(value, env, target, quietFraction);
     } finally {
       this.analysisDepth -= 1;
+    }
+    if (target) {
+      const { conversion, type } = destinationPlan(result, target, table => this.table(table)?.columns);
+      if (conversion) {
+        env.facts.valueConversions.set(expressionKey, conversion);
+        result = type;
+      }
+      const error = destinationRepresentationError(result, expected!, table => this.table(table)?.columns);
+      if (error && !(env.allowAbsent && result.kind === "null")) this.add("E_DECIMAL_SCALE", value, error,
+        "use a value with the destination's exact Decimal scale, or convert each whole-unit value before combining representations");
     }
     if (isIdType(target) && !identityValueMatches(result) && result.kind !== "unknown" && result.kind !== "json"
       && isRuntimeValidatedIdentitySink(node)
@@ -187,8 +248,17 @@ class Analyzer {
     const entries = env.memo.get(value) ?? new Map<string, AuthoredType>();
     entries.set(memoKey, result);
     env.memo.set(value, entries);
-    this.expressionTypes.set(expressionKey, result);
+    this.recordType(value, env, expressionKey, result, target);
     return result;
+  }
+
+  private recordType(value: ts.Expression, env: TypeEnvironment, key: string, result: AuthoredType, target?: AuthoredType): void {
+    // @ref LLP 1001#unicode-search-foundation — a conversion's destination is never the captured source's Q.
+    if (target) env.facts.contextualTypes.set(key, result);
+    const own = ts.isIdentifier(value) ? env.variables.get(value.text)?.type ?? unknownType
+      : ts.isStringLiteralLike(value) ? { kind: "string" as const, max: [...value.text].length }
+        : result;
+    if (!target || !env.facts.expressionTypes.has(key)) env.facts.expressionTypes.set(key, own);
   }
 
   private expressionInner(
@@ -216,8 +286,20 @@ class Analyzer {
     if (value.kind === ts.SyntaxKind.NullKeyword) return { kind: "null" };
     if (ts.isIdentifier(value)) {
       const constant = target && env.constants.get(value.text);
-      const contextual = constant && !(isIdType(target) && opaqueScalarInitializer(constant));
-      return contextual ? this.expression(constant, env, target) : env.variables.get(value.text)?.type ?? unknownType;
+      const contextual = constant && !(isIdType(target) && opaqueScalarInitializer(constant.expression));
+      if (!contextual) return env.variables.get(value.text)?.type ?? unknownType;
+      // Rechecking a captured initializer can validate a destination, but cannot
+      // republish any of that destination's facts at the initializer's source site.
+      const captured = cloneEnv(constant.environment);
+      captured.allowAbsent = env.allowAbsent;
+      captured.facts = { expressionTypes: new Map(), contextualTypes: new Map(), literalValues: new Map(), valueConversions: new Map() };
+      const result = this.expression(constant.expression, captured, target);
+      const own = env.variables.get(value.text)?.type;
+      const selected = this.captureConversion(constant.expression, constant.environment, captured);
+      const conversion = selected && "choice" in selected ? selected : combineConversions(
+        destinationConversion(own, target, table => this.table(table)?.columns), selected);
+      if (conversion) env.facts.valueConversions.set(contextualNodeKey(env.literalContext, value, this.module.sourceFile), conversion);
+      return result;
     }
     if (ts.isPrefixUnaryExpression(value)) {
       return this.expression(value.operand, env, target, quietFraction);
@@ -231,7 +313,21 @@ class Analyzer {
       }
       const base = this.expression(value.expression, env, undefined, true);
       if (base.kind === "row") return this.table(base.table)?.columns?.[value.name.text] ?? unknownType;
-      if (base.kind === "object") return base.fields?.[value.name.text] ?? unknownType;
+      if (base.kind === "object") {
+        const own = base.fields?.[value.name.text] ?? unknownType;
+        if (target && !destinationConversion(own, target, table => this.table(table)?.columns)
+          && ["decimal", "list", "object", "row"].includes(target.kind)) {
+          const captured = cloneEnv(env);
+          captured.facts = { expressionTypes: new Map(), contextualTypes: new Map(), literalValues: new Map(), valueConversions: new Map() };
+          this.expression(value.expression, captured, { kind: "object", fields: { ...base.fields, [value.name.text]: target } });
+          const conversion = captured.facts.valueConversions.get(contextualNodeKey(captured.literalContext, unwrapExpression(value.expression), this.module.sourceFile));
+          if (conversion) {
+            env.facts.valueConversions.set(contextualNodeKey(env.literalContext, value, this.module.sourceFile), { project: { conversion, field: value.name.text } });
+            return target;
+          }
+        }
+        return own;
+      }
       if (base.kind === "asset") {
         const field = assetFieldType(base.asset, value.name.text);
         if (field) return field;
@@ -267,26 +363,35 @@ class Analyzer {
     }
     if (ts.isArrayLiteralExpression(value)) {
       const elementTarget = target?.kind === "list" ? target.of : undefined;
-      const values = value.elements.map((item) => this.expression(item, env, elementTarget));
-      return { kind: "list", of: commonType(values), max: values.length };
+      let max = 0;
+      const values = value.elements.map(item => {
+        if (!ts.isSpreadElement(item)) { max++; return this.expression(item, env, elementTarget); }
+        const spread = this.expression(item.expression, env, target);
+        if (spread.kind !== "list" || spread.max === undefined) { max = NaN; return unknownType; }
+        max += spread.max;
+        return spread.of;
+      });
+      return { kind: "list", of: commonType(values), ...(Number.isSafeInteger(max) ? { max } : {}) };
     }
     if (ts.isObjectLiteralExpression(value)) {
-      const row = target?.kind === "row" ? this.table(target.table) : undefined;
+      const columns = target?.kind === "row" ? this.table(target.table)?.columns : target?.kind === "object" ? target.fields : undefined;
       const fields: Record<string, AuthoredType> = Object.create(null);
       for (const property of value.properties) {
         if (ts.isSpreadAssignment(property)) {
-          const spread = this.expression(property.expression, env);
+          const spread = this.expression(property.expression, env, target);
+          const own = env.facts.expressionTypes.get(contextualNodeKey(env.literalContext, unwrapExpression(property.expression), this.module.sourceFile));
           if (spread.kind === "object" && spread.fields) Object.assign(fields, spread.fields);
+          else if (own?.kind === "object" && own.fields) Object.assign(fields, own.fields);
           else for (const name of Object.keys(fields)) delete fields[name];
           continue;
         }
         if (ts.isShorthandPropertyAssignment(property)) {
-          fields[property.name.text] = this.expression(property.name, env, row?.columns?.[property.name.text]);
+          fields[property.name.text] = this.expression(property.name, env, columns?.[property.name.text]);
           continue;
         }
         if (!ts.isPropertyAssignment(property)) continue;
         const name = propertyName(property.name);
-        const field = name ? row?.columns?.[name] : undefined;
+        const field = name ? columns?.[name] : undefined;
         const type = this.expression(property.initializer, env, field);
         if (name) fields[name] = type;
       }
@@ -294,8 +399,14 @@ class Analyzer {
     }
     if (ts.isConditionalExpression(value)) {
       this.expression(value.condition, env);
-      const left = this.expression(value.whenTrue, env, target);
-      const right = this.expression(value.whenFalse, env, target);
+      const yes = cloneEnv(env), no = cloneEnv(env);
+      const left = this.expression(value.whenTrue, yes, target);
+      const right = this.expression(value.whenFalse, no, target);
+      mergeTypeEnvironments(env, [yes, no]);
+      if (target && env.allowAbsent && (left.kind === "null" || right.kind === "null")) {
+        const present = left.kind === "null" ? right : left;
+        return present.kind === "null" ? present : { kind: "optional", of: present };
+      }
       return commonType([left, right]);
     }
     if (ts.isBinaryExpression(value)) return this.binary(value, env, target);
@@ -332,6 +443,77 @@ class Analyzer {
     return unknownType;
   }
 
+  private captureConversion(node: ts.Expression, before: TypeEnvironment, after: TypeEnvironment): ValueConversion | undefined {
+    const value = unwrapExpression(node);
+    const key = contextualNodeKey(after.literalContext, value, this.module.sourceFile);
+    if (!after.facts.expressionTypes.has(key)) return undefined;
+    const priorKey = contextualNodeKey(before.literalContext, value, this.module.sourceFile);
+    // Source facts describe the authored value; contextual facts describe the
+    // representation already produced at this occurrence, before its capture.
+    const own = before.facts.contextualTypes.get(priorKey) ?? before.facts.expressionTypes.get(priorKey);
+    const destination = after.facts.contextualTypes.get(key) ?? after.facts.expressionTypes.get(key);
+    if (ts.isConditionalExpression(value) || ts.isBinaryExpression(value) && value.operatorToken.kind === ts.SyntaxKind.QuestionQuestionToken) {
+      const whenTrue = this.captureConversion(ts.isConditionalExpression(value) ? value.whenTrue : value.right, before, after);
+      const whenFalse = this.captureConversion(ts.isConditionalExpression(value) ? value.whenFalse : value.left, before, after);
+      if (whenTrue || whenFalse) return { choice: { whenTrue, whenFalse } };
+    }
+    if (ts.isNumericLiteral(value)) {
+      const scaled = after.facts.literalValues.get(key);
+      const prior = before.facts.literalValues.get(priorKey) ?? Number(value.text);
+      return scaled !== undefined && scaled !== prior ? { literal: { Int: scaled } } : undefined;
+    }
+    const structural = destinationConversion(own, destination, table => this.table(table)?.columns);
+    if (structural && !("fields" in structural)) return structural;
+    if (ts.isIdentifier(value) || ts.isPropertyAccessExpression(value)) {
+      const conversion = after.facts.valueConversions.get(key);
+      return JSON.stringify(conversion) === JSON.stringify(before.facts.valueConversions.get(priorKey))
+        ? structural : conversion ?? structural;
+    }
+    if (ts.isStringLiteralLike(value)) {
+      return isIdType(after.facts.contextualTypes.get(key)) && !isIdType(before.facts.contextualTypes.get(priorKey))
+        ? { literal: { Id: value.text } } : undefined;
+    }
+    if (ts.isArrayLiteralExpression(value)) {
+      const segments: Array<ValueConversion | undefined> = [];
+      let items: Array<ValueConversion | undefined> = [];
+      const flush = () => { if (items.length) segments.push(items.some(Boolean) ? { items } : undefined); items = []; };
+      for (const item of value.elements) {
+        if (ts.isSpreadElement(item)) { flush(); segments.push(this.captureConversion(item.expression, before, after)); }
+        else items.push(this.captureConversion(item, before, after));
+      }
+      flush();
+      return segments.reduce<ValueConversion | undefined>((left, right, index) => index === 0 ? right
+        : left || right ? { concat: { left, right } } : undefined, undefined);
+    }
+    if (ts.isObjectLiteralExpression(value)) {
+      const fields: Record<string, ValueConversion | undefined> = structural && "fields" in structural ? { ...structural.fields } : Object.create(null);
+      for (const property of value.properties) {
+        if (ts.isSpreadAssignment(property)) {
+          const spread = this.captureConversion(property.expression, before, after);
+          const source = before.facts.expressionTypes.get(contextualNodeKey(before.literalContext, unwrapExpression(property.expression), this.module.sourceFile));
+          if (source?.kind === "object" && source.fields) for (const name of Object.keys(source.fields)) delete fields[name];
+          if (spread && "fields" in spread) Object.assign(fields, spread.fields);
+          continue;
+        }
+        const child = ts.isPropertyAssignment(property) ? property.initializer : ts.isShorthandPropertyAssignment(property) ? property.name : undefined;
+        const name = property.name && propertyName(property.name);
+        const conversion = child && this.captureConversion(child, before, after);
+        if (name) {
+          if (conversion) fields[name] = conversion;
+          else delete fields[name];
+        }
+      }
+      return Object.keys(fields).length ? { fields } : undefined;
+    }
+    if (ts.isCallExpression(value) && ts.isIdentifier(value.expression) && !before.variables.has(value.expression.text)) {
+      const returned = helperReturnExpression(this.module.helpers?.get(value.expression.text));
+      if (returned) return this.captureConversion(returned,
+        { ...before, literalContext: expansionContext(before.literalContext, value, this.module.sourceFile) },
+        { ...after, literalContext: expansionContext(after.literalContext, value, this.module.sourceFile) });
+    }
+    return structural;
+  }
+
   private numeric(
     node: ts.NumericLiteral,
     env: TypeEnvironment,
@@ -354,11 +536,11 @@ class Analyzer {
         this.add("E_DECIMAL_SCALE", node, `${node.text} at scale ${expected.scale} is outside the safe integer wire range`,
           replaceNode(this.module.source, node, `decimal(${node.text}, ${expected.scale})`));
       } else {
-        this.literalValues.set(contextualNodeKey(env.literalContext, node, this.module.sourceFile), minor);
+        env.facts.literalValues.set(contextualNodeKey(env.literalContext, node, this.module.sourceFile), minor);
       }
       return expected;
     }
-    if (digits === 0) return { kind: "int" };
+    if (digits === 0) return { kind: "int", wholeUnits: true };
     if (!quiet) {
       this.add("E_DECIMAL_SCALE", node, `fractional literal ${node.text} has ${digits} fractional digits but no Decimal scale`,
         replaceNode(this.module.source, node, `decimal(${node.text}, ${digits})`));
@@ -368,6 +550,7 @@ class Analyzer {
 
   private binary(node: ts.BinaryExpression, env: TypeEnvironment, expected?: AuthoredType): AuthoredType {
     const operator = node.operatorToken.kind;
+    const leftEnv = operator === ts.SyntaxKind.QuestionQuestionToken ? { ...env, allowAbsent: true } : env;
     if (operator === ts.SyntaxKind.PlusToken) {
       const operands = flattenPlus(node);
       const types = operands.map((operand) => this.expression(operand, env, undefined, true));
@@ -380,6 +563,17 @@ class Analyzer {
         );
         return unknownType;
       }
+    }
+    if (operator === ts.SyntaxKind.EqualsToken && ts.isIdentifier(node.left)) {
+      const result = this.expression(node.right, env);
+      const binding = env.variables.get(node.left.text);
+      if (binding) {
+        binding.type = mutableCaptureType(result);
+        delete binding.operationComposite;
+      }
+      env.constants.delete(node.left.text);
+      env.memo = new Map();
+      return result;
     }
     let left = this.expression(node.left, env, undefined, true);
     let right = this.expression(node.right, env, undefined, true);
@@ -409,7 +603,7 @@ class Analyzer {
     else if (left.kind === "enum") right = this.expression(node.right, env, left);
     else if (right.kind === "enum") left = this.expression(node.left, env, right);
     else {
-      left = this.expression(node.left, env, expected);
+      left = this.expression(node.left, leftEnv, expected);
       right = this.expression(node.right, env, expected);
     }
     if (this.analysisLimitReached) return unknownType;
@@ -428,7 +622,9 @@ class Analyzer {
         max: left.max !== undefined && right.max !== undefined ? Math.max(left.max, right.max) : undefined,
         ...(right.builtText ? { builtText: true } : {}),
       };
-      return left.kind === "null" ? right : left;
+      // Every possible produced representation participates in the join. A
+      // producer cannot inherit just the nullable receiver's element brand.
+      return left.kind === "null" ? right : commonCaptureType([requiredType(left), right]);
     }
     const comparison = [
       ts.SyntaxKind.LessThanToken, ts.SyntaxKind.LessThanEqualsToken, ts.SyntaxKind.GreaterThanToken,
@@ -473,15 +669,7 @@ class Analyzer {
         if (this.helperStack.includes(call.expression.text) || this.helperStack.length >= 128) return unknownType;
         this.helperStack.push(call.expression.text);
         try {
-          const nested = cloneEnv(env);
-          nested.literalContext = expansionContext(env.literalContext, call, this.module.sourceFile);
-          helper.parameters.forEach((parameter, index) => {
-            const type = call.arguments[index] ? this.expression(call.arguments[index]!, env) : unknownType;
-            const binding = call.arguments[index]
-              ? this.binding(call.arguments[index]!, env, type)
-              : { type: unknownType };
-            for (const parameterName of bindingNames(parameter.name)) setBinding(nested, parameterName, binding);
-          });
+          const nested = this.helperEnvironment(call, helper, env);
           if (helper.body && ts.isBlock(helper.body)) {
             const returned = helper.body.statements.find(ts.isReturnStatement)?.expression;
             return returned ? this.expression(returned, nested, expected) : unknownType;
@@ -534,7 +722,9 @@ class Analyzer {
           if (options) this.scanOptions(options, env, indexTypes.slice(this.prefixArity(key, env)));
         }
         const row: AuthoredType = { kind: "row", table: table.name };
-        return method === "scan" ? { kind: "list", of: row } : method === "exists" ? { kind: "bool" } : row;
+        const options = call.arguments[2];
+        const take = options && ts.isObjectLiteralExpression(options) ? numericLiteral(expressionProperty(options, "take")) : undefined;
+        return method === "scan" ? boundedList(row, take) : method === "exists" ? { kind: "bool" } : row;
       }
     }
     if ((name === "min" || name === "max") && !env.variables.has(name) && call.arguments.length > 0) {
@@ -586,14 +776,15 @@ class Analyzer {
       return unknownType;
     }
     if (name === "words" && !env.variables.has(name) && call.arguments.length === 1) {
-      const input = this.expression(call.arguments[0]!, env);
+      const input = requiredType(this.expression(call.arguments[0]!, env));
       if (input.kind === "string" && input.builtText) {
         this.add("E_QUARRY_TYPE", call, "words requires a declared text bound; + or template-built text has no declared maximum",
           "use words(body) with body declared as t.text(N) in an argument or column");
         return unknownType;
       }
-      if (input.kind === "string" && !input.id && input.max !== undefined) {
-        return { kind: "list", of: input, max: Math.floor(input.max / 2) + 1 };
+      if (input.kind === "string" && !input.id && input.max !== undefined
+        && Number.isSafeInteger(input.max) && input.max >= 0 && input.max <= MAX_SEARCH_SOURCE_SCALARS) {
+        return { kind: "list", of: { ...input, max: 4 * input.max }, max: Math.floor(4 * input.max / 2) + 1 };
       }
       this.add("E_ARGS_TYPE", call, "words requires bounded text",
         "use words(body) with body declared as t.text(N)");
@@ -622,7 +813,7 @@ class Analyzer {
       if (types.length > 0 && types.every(identityScalar)) return idType;
       if (types.every((type) => requiredType(type).kind === "list")) {
         const lists = types.map(requiredType) as Array<Extract<AuthoredType, { kind: "list" }>>;
-        return { kind: "list", of: commonType(lists.map((type) => type.of)) };
+        return concatenatedList(lists);
       }
       return types.some((type) => requiredType(type).kind === "string")
         ? { kind: "string" }
@@ -645,20 +836,28 @@ class Analyzer {
     if (ts.isPropertyAccessExpression(call.expression)) {
       const owner = this.expression(call.expression.expression, env);
       const method = call.expression.name.text;
-      if (owner.kind === "list" && ["map", "filter", "some"].includes(method)) {
-        const callback = call.arguments[0];
-        const result = callback && isFunctionLike(callback) ? this.callback(callback, env, owner.of) : unknownType;
-        return method === "map" ? { kind: "list", of: result } : method === "filter" ? owner : { kind: "bool" };
+      if (owner.kind === "list" && method === "push" && ts.isIdentifier(call.expression.expression)) {
+        const name = call.expression.expression.text;
+        const appended = call.arguments.map(argument => this.expression(argument, env));
+        const binding = env.variables.get(name);
+        if (binding) binding.type = { ...owner, max: Math.max(1, owner.max ?? 1),
+          of: commonCaptureType([...(owner.max === 0 ? [] : [owner.of]), ...appended]) };
+        env.constants.delete(name);
+        env.memo = new Map();
+        return { kind: "int" };
       }
     }
+    const producer = collectionProducerType(call, node => this.expression(node, env),
+      (node, first, second) => this.callback(node, env, first, undefined, second));
+    if (producer) return producer;
     for (const argument of call.arguments) this.expression(argument, env);
-    return expected ?? unknownType;
+    return unknownType;
   }
 
-  private callback(node: ts.ArrowFunction | ts.FunctionExpression | ts.FunctionDeclaration, env: TypeEnvironment, parameter: AuthoredType, expected?: AuthoredType): AuthoredType {
+  private callback(node: ts.ArrowFunction | ts.FunctionExpression | ts.FunctionDeclaration, env: TypeEnvironment, parameter: AuthoredType, expected?: AuthoredType, second?: AuthoredType): AuthoredType {
     const nested = cloneEnv(env);
-    for (const item of node.parameters) {
-      for (const name of bindingNames(item.name)) setBinding(nested, name, { type: parameter });
+    for (const [index, item] of node.parameters.entries()) {
+      for (const name of bindingNames(item.name)) setBinding(nested, name, { type: index === 1 && second ? second : parameter });
     }
     if (!node.body) return unknownType;
     if (ts.isBlock(node.body)) {
@@ -868,38 +1067,44 @@ class Analyzer {
     const returned = helperReturnExpression(helper);
     const array = returned && unwrapExpression(returned);
     if (!helper || !array || !ts.isArrayLiteralExpression(array)) return undefined;
+    return { sources: array.elements, env: this.helperEnvironment(value, helper, env) };
+  }
+
+  private helperEnvironment(value: ts.CallExpression, helper: FunctionLike, env: TypeEnvironment): TypeEnvironment {
     const nested = cloneEnv(env);
+    nested.variables.clear();
+    nested.constants.clear();
     nested.literalContext = expansionContext(env.literalContext, value, this.module.sourceFile);
+    for (const name of moduleAmbientComposites(this.module.sourceFile)) setBinding(nested, name, { type: unknownType, operationComposite: name });
+    for (const [name, expression] of moduleScalarCaptures(this.module.sourceFile)) {
+      setBinding(nested, name, { type: this.expression(expression, nested) }, expression);
+    }
     helper.parameters.forEach((parameter, index) => {
       const argument = value.arguments[index];
       const type = argument ? this.expression(argument, env) : unknownType;
       const binding = argument ? this.binding(argument, env, type) : { type: unknownType };
-      for (const name of bindingNames(parameter.name)) setBinding(nested, name, binding);
+      for (const name of bindingNames(parameter.name)) setBinding(nested, name, binding, argument, env);
     });
-    return { sources: array.elements, env: nested };
+    return nested;
   }
 
   private prefixArity(
     node: ts.Expression | undefined,
     env: TypeEnvironment,
-    seen = new Set<string>(),
+    depth = 0,
   ): number {
     if (!node) return 0;
     const value = unwrapExpression(node);
+    if (depth >= MAX_TYPE_ANALYSIS_DEPTH) { this.analysisLimit(value); return 0; }
     if (ts.isArrayLiteralExpression(value)) return value.elements.length;
     if (ts.isIdentifier(value)) {
-      const key = `binding:${value.text}`;
-      if (seen.has(key)) return 1;
-      seen.add(key);
       const stable = env.constants.get(value.text);
-      return stable ? this.prefixArity(stable, env, seen) : 1;
+      return stable ? this.prefixArity(stable.expression, stable.environment, depth + 1) : 1;
     }
     if (ts.isCallExpression(value) && ts.isIdentifier(value.expression) && !env.variables.has(value.expression.text)) {
-      const key = `helper:${value.expression.text}`;
-      if (seen.has(key)) return 1;
-      seen.add(key);
-      const returned = helperReturnExpression(this.module.helpers?.get(value.expression.text));
-      return returned ? this.prefixArity(returned, env, seen) : 1;
+      const helper = this.module.helpers?.get(value.expression.text);
+      const returned = helperReturnExpression(helper);
+      return helper && returned ? this.prefixArity(returned, this.helperEnvironment(value, helper, env), depth + 1) : 1;
     }
     return 1;
   }
@@ -1038,9 +1243,7 @@ function replaceSourceRanges(
 
 function descriptorType(node: ts.Expression): AuthoredType {
   const call = unwrapCall(node);
-  const name = call && (ts.isIdentifier(call.expression)
-    ? call.expression.text
-    : ts.isPropertyAccessExpression(call.expression) ? call.expression.name.text : undefined);
+  const name = call && (nativeDescriptorName(call) ?? legacyDescriptorName(call));
   if (!call) return unknownType;
   if (name === "int" || name === "time") return { kind: "int" };
   if (name === "principal") return { kind: "principal" };
@@ -1115,9 +1318,14 @@ function operationCompositeBindings(handler: FunctionLike): Partial<Record<Opera
   return bindings;
 }
 
-function setBinding(env: TypeEnvironment, name: string, binding: TypeBinding, constant?: ts.Expression): void {
-  env.variables.set(name, { ...binding });
-  if (constant) env.constants.set(name, constant);
+function setBinding(env: TypeEnvironment, name: string, binding: TypeBinding, constant?: ts.Expression, sourceEnv = env): void {
+  // @ref LLP 1001#unicode-search-foundation — contextual reanalysis must retain the captured source's Q, not a later shadow's type.
+  // Capture before installing the binding, including for a same-name alias. Both
+  // expressionTypes and numeric literal facts are shared with lowering, so an
+  // initializer must always be reanalyzed in its declaration environment.
+  const origin = constant && { expression: constant, environment: cloneEnv(sourceEnv) };
+  env.variables.set(name, { ...binding, identity: {} });
+  if (origin) env.constants.set(name, origin);
   else env.constants.delete(name);
 }
 
@@ -1129,13 +1337,55 @@ function cloneEnv(env: TypeEnvironment): TypeEnvironment {
     mutableBindings: env.mutableBindings,
     memo: new Map(),
     literalContext: env.literalContext,
+    facts: env.facts,
+    allowAbsent: env.allowAbsent,
   };
 }
 
+// @ref LLP 1002#2-the-authored-surface-the-snapback2-module — joins and lexical exits carry assignments to the same binding, never a shadow's initializer.
+function mergeTypeEnvironments(env: TypeEnvironment, branches: TypeEnvironment[]): void {
+  for (const [name, binding] of env.variables) {
+    const alternatives = branches.map(branch => {
+      const next = branch.variables.get(name);
+      return next && next.identity === binding.identity ? next : binding;
+    });
+    binding.type = commonCaptureType(alternatives.map(next => next.type));
+    if (alternatives.some(next => next.operationComposite !== binding.operationComposite)) delete binding.operationComposite;
+    if (branches.some(branch => branch.variables.get(name)?.identity === binding.identity && !branch.constants.has(name))) env.constants.delete(name);
+  }
+  env.memo = new Map();
+}
+
+function mergeTypeFlow(env: TypeEnvironment, branches: TypeEnvironment[]): void {
+  (env.exits ??= []).push(...branches.flatMap(branch => branch.exits ?? []));
+  const live = branches.filter(branch => !branch.stopped);
+  if (live.length) mergeTypeEnvironments(env, live);
+  else env.stopped = true;
+}
+
+function loopPaths(env: TypeEnvironment): TypeEnvironment[] {
+  return [...(env.stopped ? [] : [env]), ...(env.exits ?? []).map(variables => ({ ...env, variables }))];
+}
+
+/** No back-edge analysis is needed when the body cannot assign an outer value. */
+function hasLoopCarry(body: ts.Statement, env: TypeEnvironment): boolean {
+  let carried = false;
+  const visit = (node: ts.Node): void => {
+    if (carried) return;
+    const assigned = ts.isBinaryExpression(node) && node.operatorToken.kind === ts.SyntaxKind.EqualsToken ? node.left
+      : (ts.isPostfixUnaryExpression(node) || ts.isPrefixUnaryExpression(node))
+        && [ts.SyntaxKind.PlusPlusToken, ts.SyntaxKind.MinusMinusToken].includes(node.operator) ? node.operand
+        : ts.isCallExpression(node) && ts.isPropertyAccessExpression(node.expression)
+          && node.expression.name.text === "push" ? node.expression.expression : undefined;
+    if (assigned && ts.isIdentifier(assigned) && env.variables.has(assigned.text)) carried = true;
+    else ts.forEachChild(node, visit);
+  };
+  visit(body);
+  return carried;
+}
+
 function commonType(values: AuthoredType[]): AuthoredType {
-  if (values.length === 0 || values.some((item) => item.kind === "unknown")) return unknownType;
-  const first = JSON.stringify(values[0]);
-  return values.every((item) => JSON.stringify(item) === first) ? values[0]! : unknownType;
+  return commonCaptureType(values);
 }
 
 function assetFieldType(asset: "image" | "video", field: string): AuthoredType | undefined {

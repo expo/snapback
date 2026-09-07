@@ -1,3 +1,6 @@
+import { wireJson } from '../../../evaluator/src/value-runtime.js';
+import type { Value } from '../../../evaluator/src/types.js';
+import { RowImage } from '../../../evaluator/src/row-image.js';
 import { onceAssetIds, type OnceColumns } from "./asset-policy.js";
 // @ref LLP 1006#9b-bytes-on-the-device-author-ruling-2026-09-04 — bytes are cached under the owning row's lease, or not at all.
 // @ref LLP 1012#9-asset-bytes-on-the-device — the ByteCache sits beside the range store and joins its swap; once rows are excluded before viewing.
@@ -89,6 +92,18 @@ export function assetRecordId(value: unknown): string | undefined {
 }
 
 export function assetIdsIn(value: unknown, output = new Set<string>()): Set<string> {
+  if (RowImage.is(value)) {
+    const visit = (v: Value): void => {
+      if (!v || typeof v !== 'object') return;
+      if ('Array' in v) { v.Array.forEach(visit); return; }
+      const fields = 'Row' in v ? v.Row : 'Map' in v ? v.Map : undefined;
+      if (!fields) return;
+      const names = Object.keys(fields).sort().join(',');
+      const id = names === 'height,id,width' || names === 'duration,height,id,width' ? assetRecordId(wireJson(v)) : undefined;
+      if (id) output.add(id); else Object.values(fields).forEach(visit);
+    };
+    visit(value); return output;
+  }
   const id = assetRecordId(value);
   if (id !== undefined) output.add(id);
   else if (Array.isArray(value)) for (const item of value) assetIdsIn(item, output);

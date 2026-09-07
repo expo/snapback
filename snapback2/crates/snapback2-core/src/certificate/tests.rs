@@ -1,4 +1,5 @@
 use super::*;
+use crate::ir::IndexKeyExpr;
 use crate::{ColumnType, Index, RuleTerm, Value, public_table};
 
 fn schema() -> Schema {
@@ -10,7 +11,10 @@ fn schema() -> Schema {
             BTreeMap::from([(
                 "byId".into(),
                 Index {
-                    columns: vec!["id".into()],
+                    components: (vec!["id".into()])
+                        .into_iter()
+                        .map(crate::search_key::IndexComponent::Column)
+                        .collect(),
                     unique: true,
                 },
             )]),
@@ -43,7 +47,7 @@ fn scan(table: &str, take: u32) -> Scan {
         site: format!("{table}.page"),
         table: table.into(),
         index: "byId".into(),
-        prefix: vec![],
+        prefix: (vec![]).into_iter().map(IndexKeyExpr::Scalar).collect(),
         order: Order::Asc,
         take: Bound::Literal(take),
         after: None,
@@ -69,6 +73,7 @@ fn merge_refusal_names_lanes_discovery_and_structural_repairs() {
     let mut lane = scan("messages", 20);
     lane.merge_site = Some("feed.merge".into());
     let p = program(vec![Stmt::Return(Expr::Merge(Merge {
+        held_search: None,
         site: "feed.merge".into(),
         lanes: vec![MergeLane {
             setup: Vec::new(),
@@ -263,6 +268,7 @@ fn output_merge_scan_names_the_structural_repair() {
     lane.merge_site = Some("wide.merge".into());
     let errors = Checker::new(&schema, Ceilings::default())
         .check_all(&program(vec![Stmt::Return(Expr::Merge(Merge {
+            held_search: None,
             site: "wide.merge".into(),
             lanes: vec![MergeLane {
                 setup: Vec::new(),
@@ -288,6 +294,7 @@ fn simultaneous_merge_work_and_output_refusals_keep_their_own_products() {
     let mut lane = scan("messages", 20);
     lane.merge_site = Some("feed.merge".into());
     let p = program(vec![Stmt::Return(Expr::Merge(Merge {
+        held_search: None,
         site: "feed.merge".into(),
         lanes: vec![MergeLane {
             setup: Vec::new(),
@@ -408,6 +415,7 @@ fn retained_merge_page_keeps_the_structural_closure_repair() {
         Stmt::Let {
             name: "page".into(),
             value: Expr::Merge(Merge {
+                held_search: None,
                 site: "retained.merge".into(),
                 lanes: vec![MergeLane {
                     setup: vec![],

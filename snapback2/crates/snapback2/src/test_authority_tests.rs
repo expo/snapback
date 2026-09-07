@@ -75,7 +75,10 @@ fn authority_schema(principal_column: ColumnType) -> Schema {
         indexes: BTreeMap::from([(
             "byScopePrincipal".to_owned(),
             Index {
-                columns: vec!["scopeId".to_owned(), "principal".to_owned()],
+                components: (vec!["scopeId".to_owned(), "principal".to_owned()])
+                    .into_iter()
+                    .map(snapback2_core::search_key::IndexComponent::Column)
+                    .collect(),
                 unique: true,
             },
         )]),

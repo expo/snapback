@@ -207,7 +207,7 @@ test("the real owner refuses an object wrapper as a resume log instead of promis
     log: { op, args, watermark: null }, mounted: [] });
   assert.equal(resume.status, 413);
   assert.equal(resume.body.code, "E_OFFLINE_RESUME");
-  assert.match(resume.body.message, /returns no page/);
+  assert.match(resume.body.message, /integration\.inboxObject.*cursor-binding/);
 });
 
 test("sixty live queries and a channel share one connection through add, remove and reconnect", async (context) => {
@@ -346,7 +346,7 @@ test("failed outbox admission or prediction leaves no upload, intent, or mutatio
       assert.deepEqual((await client.listUploads()).usage, initial);
       assert.deepEqual(await client.outbox.entries(), []);
     }
-    const drain = client.subscribe(api.messages.thread, { conversationId: "conversation-1", c: null }, () => {}, { drain: true });
+    const drain = client.subscribe(api.integration.inbox, { c: null }, () => {}, { drain: true });
     await drain.until((event: any) => event.live === true, 3_000);
     drain.close();
     (client as any).offlineRuntime.predict = async () => { throw new Error("prediction failed before custody"); };
@@ -367,7 +367,7 @@ test("an outbox persistence failure after commit retains media for replay", asyn
   const directory = await mkdtemp(join(tmpdir(), "snapback-upload-durable-"));
   const client = createClient({ url: owner.url, as: "alice", offline: { store: fileRangeStore(directory) } });
   try {
-    const drain = client.subscribe(api.messages.thread, { conversationId: "conversation-1", c: null }, () => {}, { drain: true });
+    const drain = client.subscribe(api.integration.inbox, { c: null }, () => {}, { drain: true });
     await drain.until((event: any) => event.live === true, 3_000);
     drain.close();
     const runtime = (client as any).offlineRuntime;
@@ -440,7 +440,7 @@ test("queued media retains its uploaded bytes until the outbox commits", async (
     },
   });
   try {
-    const drain = client.subscribe(api.messages.thread, { conversationId: "conversation-1", c: null }, () => {}, { drain: true });
+    const drain = client.subscribe(api.integration.inbox, { c: null }, () => {}, { drain: true });
     await drain.until((event: any) => event.live === true, 3_000);
     drain.close();
     const png = await readFile(new URL("../../../scripts/witness-expo/view-once.png", import.meta.url));

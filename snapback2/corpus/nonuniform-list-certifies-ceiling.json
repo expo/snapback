@@ -13,15 +13,21 @@
         },
         "indexes": {
           "byConvViewer": {
-            "columns": [
-              "conversationId",
-              "viewer"
+            "components": [
+              {
+                "Column": "conversationId"
+              },
+              {
+                "Column": "viewer"
+              }
             ],
             "unique": true
           },
           "byId": {
-            "columns": [
-              "id"
+            "components": [
+              {
+                "Column": "id"
+              }
             ],
             "unique": true
           }
@@ -60,16 +66,24 @@
         },
         "indexes": {
           "byConvTime": {
-            "columns": [
-              "conversationId",
-              "at",
-              "id"
+            "components": [
+              {
+                "Column": "conversationId"
+              },
+              {
+                "Column": "at"
+              },
+              {
+                "Column": "id"
+              }
             ],
             "unique": false
           },
           "byId": {
-            "columns": [
-              "id"
+            "components": [
+              {
+                "Column": "id"
+              }
             ],
             "unique": true
           }
@@ -124,8 +138,10 @@
             "index": "byConvTime",
             "prefix": [
               {
-                "Literal": {
-                  "Id": "c1"
+                "Scalar": {
+                  "Literal": {
+                    "Id": "c1"
+                  }
                 }
               }
             ],
@@ -145,8 +161,8 @@
   },
   "certificate": {
     "program": "nonuniform-list-certifies-ceiling",
-    "plan_hash": "e93ab07e7cd34865a922b6582e78e4dae0f76ff8a4001dad49fae8643b0eab49",
-    "schema_hash": "87f167930c861b958f6e1163d7aa56217b6bcc16fc0cde31d0cdf25aa52c21f1",
+    "plan_hash": "023ea5bc02a6fb2f08a12cb832788073c83aa57d776f252c9cd38bef2ccc8b75",
+    "schema_hash": "6e182a84fc12f7383dbdae3821bc63353eabe1ede79994f0685006f24730a09b",
     "tables": {
       "memberships": {
         "retain": "until-revoked"
@@ -156,10 +172,10 @@
       }
     },
     "rule_hashes": {
-      "messages.read": "ac283e44a9feec838a21f6b7539ad85718cedaf0a3cbdf0ad96be63a9d3ca749"
+      "messages.read": "9cb238f9fc1a9e09bcc888ae3bc5e252bfd971a4cbb764845ee201ac7507e614"
     },
-    "evaluator_version": "bounded-spike-rust-1",
-    "value_model_version": "i53-codepoint-bytes-v2",
+    "evaluator_version": "bounded-spike-rust-search-text-refinements-4",
+    "value_model_version": "i53-codepoint-bytes-unicode-search-text-refinements-v5",
     "read_sites": [
       {
         "site": "messages.list",
@@ -180,6 +196,8 @@
     "max_index_entries": 10240,
     "max_rule_probes": 10240,
     "max_steps": 51203,
+    "derived_steps": 0,
+    "derived_scratch_bytes": 0,
     "max_heap_bytes": 1638496,
     "max_output_bytes": 25862,
     "max_closure_bytes": 25800,
@@ -204,7 +222,7 @@
     "read_time": null
   },
   "receipt": {
-    "schema_hash": "87f167930c861b958f6e1163d7aa56217b6bcc16fc0cde31d0cdf25aa52c21f1",
+    "schema_hash": "6e182a84fc12f7383dbdae3821bc63353eabe1ede79994f0685006f24730a09b",
     "rows": [],
     "ranges": [],
     "absences": [],

@@ -218,7 +218,7 @@ query pair(a: messages, b: messages):
         after: null, before: null, gt: null, gte: null, lt: null, lte: null,
         rule_hash: scopedRuleHash(irSchema, (irSchema.tables as any)[table].rules.read),
         row_ids: receipt.rows.filter((row) => row.table === table).map((row) => row.id),
-        stop: "Exhausted", absence: false, halo: null, n2_key: null,
+        stop: "Exhausted", absence: false, halo: null, n2_suffix: null,
       });
       const store = new ClientStore(irSchema, receipt);
       const run = (name: string, args: Context["args"]) => {

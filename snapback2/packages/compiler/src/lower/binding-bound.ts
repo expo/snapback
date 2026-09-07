@@ -6,6 +6,7 @@ import {
   collectionConstructor,
   contextualNodeKey,
   expressionProperty,
+  isDbMember,
   isFunctionLike,
   numericLiteral,
   unwrapCall,
@@ -14,6 +15,7 @@ import {
 import { selectExpressionMember } from "./collection-origins";
 import { expandHelper } from "./helper-expansion";
 import { guardedWalk } from "./recursion";
+import { isOperationCompositeBinding, requireCurrentComposite } from "./operation-context";
 
 export function operationArgumentList(
   node: ts.Expression,
@@ -22,8 +24,12 @@ export function operationArgumentList(
   const value = unwrapExpression(node);
   if (!ts.isPropertyAccessExpression(value)) return undefined;
   const base = unwrapExpression(value.expression);
-  if (!ts.isIdentifier(base) || env.variables.get(base.text)?.operationComposite !== "args") return undefined;
-  const argument = env.args[value.name.text];
+  if (!ts.isIdentifier(base)) return undefined;
+  if (env.variables.get(base.text)?.operationComposite === "args") requireCurrentComposite(base, env);
+  if (!isOperationCompositeBinding(base.text, "args", env)) return undefined;
+  // @ref LLP 1011#null-keys-and-id-literals-2026-09-05 — a nullable list retains its declared maximum; presence is checked at the domain use, independently of this bound fact.
+  let argument = env.args[value.name.text];
+  while (argument && typeof argument !== "string" && "Optional" in argument) argument = argument.Optional;
   return {
     name: value.name.text,
     ...(argument && typeof argument !== "string" && "List" in argument ? { max: argument.List.max } : {}),
@@ -87,7 +93,8 @@ function staticBoundInner(node: ts.Expression, env: Environment): number | undef
   const call = unwrapCall(node);
   const expanded = call && expandHelper(call, env);
   if (expanded) return staticBound(expanded.expression, expanded.environment);
-  if (call && callName(call).endsWith(".scan")) {
+  if (call && callName(call).endsWith(".scan")
+    && isDbMember(call.expression, (name) => isOperationCompositeBinding(name, "db", env))) {
     const take = scanTake(call);
     if (typeof take === "number") return take;
   }
@@ -99,20 +106,39 @@ function staticBoundInner(node: ts.Expression, env: Environment): number | undef
     const type = env.expressionTypes.get(contextualNodeKey(env.literalContext, call, env.sourceFile));
     if (type?.kind === "list") return type.max;
   }
+  if (call && ts.isIdentifier(call.expression) && call.expression.text === "concat") {
+    const maximum = call.arguments.reduce((sum, argument) => sum + (staticBound(argument, env) ?? NaN), 0);
+    return Number.isSafeInteger(maximum) ? maximum : undefined;
+  }
+  if (call && ts.isIdentifier(call.expression) && ["top", "intersectById", "mergeByTime"].includes(call.expression.text)) {
+    const name = call.expression.text, source = call.arguments[name === "top" ? 1 : 0];
+    if (!source) return undefined;
+    const value = unwrapExpression(source);
+    const maximum = name === "mergeByTime" && ts.isArrayLiteralExpression(value)
+      ? value.elements.reduce((sum, item) => sum + (staticBound(item, env) ?? NaN), 0) : staticBound(source, env);
+    const limit = numericLiteral(call.arguments[name === "top" ? 0 : 1]);
+    return maximum !== undefined && Number.isSafeInteger(maximum)
+      ? limit !== undefined && limit >= 0 ? Math.min(maximum, limit) : maximum : undefined;
+  }
   if (call && ts.isPropertyAccessExpression(call.expression)) {
     const method = call.expression.name.text;
     const owner = staticBound(call.expression.expression, env);
     if (method === "map" || method === "filter" || method === "sort") return owner;
     if (method === "slice") {
-      const start = numericLiteral(call.arguments[0]) ?? 0;
+      const start = numericLiteral(call.arguments[0]);
       const end = numericLiteral(call.arguments[1]);
-      return end === undefined ? owner : Math.max(0, end - start);
+      // Negative/dynamic indices depend on the evaluated length. The receiver's
+      // maximum is sound; substituting zero for an unknown start is not.
+      return start !== undefined && start >= 0 && end !== undefined && end >= 0
+        ? Math.min(owner ?? Infinity, Math.max(0, end - start)) : owner;
     }
     if (method === "flatMap" && owner !== undefined) {
       const callback = call.arguments[0];
       if (callback && isFunctionLike(callback) && !ts.isBlock(callback.body)) {
-        const inner = staticBound(callback.body, env);
-        if (inner !== undefined) return owner * inner;
+        const result = env.expressionTypes.get(contextualNodeKey(env.literalContext, unwrapExpression(callback.body), env.sourceFile));
+        const inner = staticBound(callback.body, env) ?? (result?.kind === "list" ? result.max : undefined);
+        const maximum = owner * (inner ?? NaN);
+        if (Number.isSafeInteger(maximum)) return maximum;
       }
     }
   }
