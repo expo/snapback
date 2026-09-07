@@ -6,7 +6,7 @@
 **Systems:** Everything under `snapback2/`; the rules under `rules/`
 **Author:** Charlie Cheever / Claude Fable 5
 **Date:** 2026-08-29
-**Revised:** 2026-09-06 (fixed complete local-runtime measurement roots: 66,000-byte ceiling, 64,000 target); 2026-09-06 (measured full-entry search trade: 50,000-byte ceiling, 48,000 target); 2026-09-06 (session-delegated Unicode search scope/byte/build trade; Exact 2 deferral); 2026-09-05 (LLP 1016 implemented: the administrative plane; LLP 1016 listed; LLP 1014/1015 listed); 2026-09-04 (LLP 1012 listed); 2026-09-02
+**Revised:** 2026-09-07 (LLP 1018.000 direct typed Quarry production path); 2026-09-06 (fixed complete local-runtime measurement roots: 66,000-byte ceiling, 64,000 target); 2026-09-06 (measured full-entry search trade: 50,000-byte ceiling, 48,000 target); 2026-09-06 (session-delegated Unicode search scope/byte/build trade; Exact 2 deferral); 2026-09-05 (LLP 1016 implemented: the administrative plane; LLP 1016 listed; LLP 1014/1015 listed); 2026-09-04 (LLP 1012 listed); 2026-09-02
 **Related:** LLP 0000, LLP 0329, LLP 0329.014, LLP 0329.014.004, LLP 0329.016,
 LLP 0316, LLP 0330, `rules/RULES.md`, `rules/NOT-DOING.md`,
 `spikes/bounded-programs/`, expo/ibex LLP 0057, LLP 0058, LLP 0068
@@ -75,8 +75,9 @@ numbered 1000 and up.
     Backends are `snapback/*.q`, compiled by the Quarry front end inside
     the compiler (`packages/compiler/src/quarry/`, in memory, no generated
     files). The TypeScript authoring surface was deleted on 2026-09-02
-    (LLP 1007 §4b, LLP 1004 amendment): TypeScript is the lowering target
-    and the harness language for seeds, journeys, and effect bodies only. Ruling and evidence: [LLP 1004](./1004-quarry-default-surface.decision.md),
+    (LLP 1007 §4b, LLP 1004 amendment). Since LLP 1018.000's direct compiler
+    work, Quarry binds to typed IR; TypeScript is the harness language for
+    seeds, journeys, and effect bodies only. Ruling and evidence: [LLP 1004](./1004-quarry-default-surface.decision.md),
     on the executed head-to-head of LLP 0329.014.011; the ruling was
     found unimplemented by LLP 1007 §2 on 2026-09-01 and built on
     2026-09-02 (LLP 1004 §"Implementation record").
