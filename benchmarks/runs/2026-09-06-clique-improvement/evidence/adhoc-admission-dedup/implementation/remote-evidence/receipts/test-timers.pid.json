@@ -1,0 +1,11 @@
+{
+  "pid": 3704608,
+  "ppid": 3704352,
+  "startTicks": 111570335,
+  "stat": "3704608 (timers-753fa4db) R 3704352 3704608 3704608 0 -1 4194304 4 0 0 0 0 0 0 0 20 0 1 0 111570335 14589952 0 18446744073709551615 0 0 140737280498651 0 0 0 0 0 0 0 0 0 17 57 0 0 0 0 0 0 0 0 140737280498651 0 0 0 0\n",
+  "bootId": "76ef40aa-0ed8-4f57-85c6-898bb42ea7e4",
+  "argv": [
+    "/home/ccheever/clique-tooling/adhoc-admission-dedup-r1-20260907/target/debug/deps/timers-753fa4dbc2307cb1",
+    "--test-threads=8"
+  ]
+}

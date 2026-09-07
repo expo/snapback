@@ -1,0 +1,79 @@
+{
+  "atEpoch": 1788758372.223132,
+  "integratedCommit": "5dc433f9d02fe645139bfd322c96de24d0310e4f",
+  "currentMainParent": "e3fa8747e40b90542794e67c4a5d28fdbf54fa1a",
+  "frozenCandidate": "cd610a50e9aab41c3e13620e0aefe8d6da5115f3",
+  "originalBase": "97b4a5b2c218162f8a20a03928574dbd50608106",
+  "exactDiffSha256": "b549af153a08a0463ccea2c6a90bd1ff2b969b53237fcb0cb5c2a6ee5acf8d50",
+  "exactDiffMatchesReviewedCandidate": true,
+  "sevenFinalLeavesMatch": [
+    {
+      "path": "llp/1016-administrative-plane.rfc.md",
+      "bytes": 111153,
+      "sha256": "08a4519cc291340c413a1568d61ebafa4e823f69898c69701813e0c11cb03a51"
+    },
+    {
+      "path": "snapback2/crates/snapback2-core/src/registry_jobs.rs",
+      "bytes": 13425,
+      "sha256": "07111480e23043331b9bebaaf3a7878f72e7dd4adc625de4e75c68098dbd9829"
+    },
+    {
+      "path": "snapback2/crates/snapback2-core/tests/jobs.rs",
+      "bytes": 41543,
+      "sha256": "020b1e011101de404351b11d4051c1970ce6b804e0169510ffef2bd11a4d405e"
+    },
+    {
+      "path": "snapback2/crates/snapback2-core/tests/timers.rs",
+      "bytes": 34787,
+      "sha256": "4b36515fb4b05888fe1cad47476eee8920ad83a61365b3b2d5be3d1eefed8465"
+    },
+    {
+      "path": "snapback2/crates/snapback2/src/rehearsal.rs",
+      "bytes": 11936,
+      "sha256": "80026d3b39407d36c638e9b91d3d642c1361f87940c8340674484f2df265f60f"
+    },
+    {
+      "path": "snapback2/crates/snapback2/src/writer_jobs.rs",
+      "bytes": 11367,
+      "sha256": "a7fdd58a3911b8854073a4c53177d709f4514b0c53650c981b6177d4e9d6a05e"
+    },
+    {
+      "path": "snapback2/crates/snapback2/tests/owner_cases/rehearsal.rs",
+      "bytes": 19444,
+      "sha256": "e1a912bea8c9b604a22a002205e41ed7022643c4e50203833e0734ed1fd87f49"
+    }
+  ],
+  "concurrentMainProductPaths": [
+    "llp/1001-query-engine.spec.md",
+    "llp/1004-quarry-default-surface.decision.md",
+    "llp/1017-cap-and-complete-fanout.rfc.md",
+    "llp/1018-structural-moves-to-surpass-convex.research.md",
+    "snapback2/corpus/cap-1000-49-inserts-count-backed.json",
+    "snapback2/corpus/cap-1000-49-inserts-unbacked-refused.json",
+    "snapback2/corpus/count-backed-cap-refuses-at-max.json",
+    "snapback2/corpus/manifest.json",
+    "snapback2/crates/snapback2-core/src/bin/export_corpus.rs",
+    "snapback2/crates/snapback2-core/src/bin/export_corpus/assets.rs",
+    "snapback2/crates/snapback2-core/src/bin/export_corpus/cap_cases.rs",
+    "snapback2/crates/snapback2-core/src/cap.rs",
+    "snapback2/crates/snapback2-core/src/certificate.rs",
+    "snapback2/crates/snapback2-core/src/certificate/diagnostic.rs",
+    "snapback2/crates/snapback2-core/src/certificate/tests.rs",
+    "snapback2/crates/snapback2-core/src/engine/cap_tests.rs",
+    "snapback2/crates/snapback2-core/src/engine/runner_ops.rs",
+    "snapback2/crates/snapback2-core/tests/spike.rs",
+    "snapback2/packages/compiler/src/quarry-checks.ts",
+    "snapback2/packages/compiler/src/quarry-fanout-checks.ts",
+    "snapback2/packages/compiler/src/quarry-program-checks.ts",
+    "snapback2/packages/compiler/src/quarry-words-checks.ts",
+    "snapback2/packages/compiler/src/quarry/program.ts",
+    "snapback2/packages/compiler/src/quarry/schema.ts",
+    "snapback2/packages/evaluator/src/runner.ts",
+    "snapback2/packages/evaluator/src/test.ts",
+    "snapback2/packages/evaluator/src/types.ts",
+    "snapback2/packages/snapback2/guide/grammar.md"
+  ],
+  "allConcurrentMainChangesPreserved": "fast-forward main then clean cherry-pick; no conflict or semantic resolution",
+  "status": "",
+  "checks": "No extra execution; original68 affected passes source-bound; fresh pair review pending Grok actual terminal; no main push"
+}

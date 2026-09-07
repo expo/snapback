@@ -1,0 +1,17 @@
+
+running 12 tests
+test owner_cases::operator::data_cli_persona_is_empty_where_system_sees_the_gated_rows ... ok
+test owner_cases::operator::operator_explicit_by_reaches_commit_trace_and_log_without_minting_a_persona ... ok
+test owner_cases::operator::operator_by_rejects_reserved_and_invalid_names_through_every_control_adapter ... ok
+test owner_cases::operator::destructive_apply_refusal_is_preserved_in_owner_status_and_log ... ok
+test owner_cases::operator::operator_cli_commits_with_attribution_and_reads_hidden_point_range_merge_and_maintain ... ok
+test owner_cases::operator::operator_narrowing_apply_refusal_is_in_status_then_fill_and_retry_preserve_rows ... ok
+test owner_cases::operator::operator_narrowing_malformed_row_has_family_site_rewrite_and_guide_on_the_wire ... ok
+test owner_cases::operator::operator_narrowing_watcher_keeps_previous_generation_and_reports_the_store_refusal ... ok
+test owner_cases::operator::operator_read_logs_only_successful_execution_on_run_why_and_data ... ok
+test owner_cases::operator::operator_serve_refuses_all_three_cli_seat_adapters ... ok
+test owner_cases::operator::rejected_operator_update_retains_attempted_write_in_trace_latest_and_log ... ok
+test owner_cases::operator::query_and_sse_subscription_refuse_the_system_persona_header ... ok
+
+test result: ok. 12 passed; 0 failed; 0 ignored; 0 measured; 76 filtered out; finished in 5.53s
+

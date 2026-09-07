@@ -1,0 +1,58 @@
+{
+  "name": "diagnostic-before-tail",
+  "exitCode": 0,
+  "timedOut": false,
+  "elapsedSeconds": 0.9685442447662354,
+  "finishedEpoch": 1788757068.2092772,
+  "process": {
+    "pid": 3713444,
+    "ppid": 3713443,
+    "startTicks": 111598552,
+    "stat": "3713444 (python3) R 3713443 3713444 3713444 0 -1 4194304 3 0 0 0 0 0 0 0 20 0 1 0 111598552 8159232 0 18446744073709551615 0 0 140721196477398 0 0 0 0 0 0 0 0 0 17 30 0 0 0 0 0 0 0 0 140721196477398 0 0 0 0\n",
+    "bootId": "76ef40aa-0ed8-4f57-85c6-898bb42ea7e4",
+    "argv": [
+      "python3",
+      "/home/ccheever/clique-tooling/adhoc-admission-dedup-r1-20260907/diagnostic-corrected.py",
+      "before-tail",
+      "/home/ccheever/clique-tooling/adhoc-admission-dedup-r1-20260907/diagnostic-target/debug/snapback2"
+    ]
+  },
+  "stdoutSha256": "052d5556b2af2d326f1861e3257626fdbcadb98410b3531fc04de86feb1ff5e0",
+  "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "processes": [
+    {
+      "pid": 3713444,
+      "ppid": 3713443,
+      "startTicks": 111598552,
+      "stat": "3713444 (python3) S 3713443 3713444 3713444 0 -1 4194304 36714 0 0 0 12 9 0 0 20 0 1 0 111598552 31784960 5479 18446744073709551615 4325376 7352317 140721196471264 0 0 0 0 16781312 2 1 0 0 17 31 0 0 0 0 0 10653128 12216448 1061834752 140721196477398 140721196477604 140721196477604 140721196478439 0\n",
+      "bootId": "76ef40aa-0ed8-4f57-85c6-898bb42ea7e4",
+      "argv": [
+        "python3",
+        "/home/ccheever/clique-tooling/adhoc-admission-dedup-r1-20260907/diagnostic-corrected.py",
+        "before-tail",
+        "/home/ccheever/clique-tooling/adhoc-admission-dedup-r1-20260907/diagnostic-target/debug/snapback2"
+      ]
+    },
+    {
+      "pid": 3713446,
+      "ppid": 3713444,
+      "startTicks": 111598556,
+      "stat": "3713446 (snapback2) Z 3713444 3713444 3713444 0 -1 4227084 1364 29433 0 0 3 2 114 8 20 0 1 0 111598556 0 0 18446744073709551615 0 0 0 0 0 0 0 4096 17474 1 0 0 17 39 0 0 0 0 0 0 0 0 0 0 0 0 0\n",
+      "bootId": "76ef40aa-0ed8-4f57-85c6-898bb42ea7e4",
+      "argv": []
+    },
+    {
+      "pid": 3713447,
+      "ppid": 3713446,
+      "startTicks": 111598557,
+      "stat": "3713447 (node) S 3713446 3713447 3713444 0 -1 4194304 29433 0 0 0 114 7 0 0 20 0 11 0 111598557 1357778944 34544 18446744073709551615 14905344 54527057 140728669226144 0 0 0 0 16781312 17922 0 0 0 17 57 0 0 0 0 0 112302304 112483184 538615808 140728669231795 140728669231927 140728669231927 140728669233034 0\n",
+      "bootId": "76ef40aa-0ed8-4f57-85c6-898bb42ea7e4",
+      "argv": [
+        "node",
+        "/home/ccheever/clique-tooling/adhoc-admission-dedup-r1-20260907/source/snapback2/packages/snapback2/dist/compiler.mjs",
+        "--worker"
+      ]
+    }
+  ],
+  "retries": 0
+}

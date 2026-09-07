@@ -1,0 +1,20 @@
+
+running 15 tests
+test a_schedule_declaration_site_is_diagnostics_not_identity ... ok
+test certification_refuses_non_time_columns_bad_targets_and_sub_minute_or_ragged_durations ... ok
+test firing_runs_the_target_settles_the_timer_and_ledgers_the_occurrence_in_one_commit ... ok
+test period_timer_installs_at_now_plus_duration_rearms_anchored_and_fires_once_for_missed_periods ... ok
+test predicate_is_evaluated_at_fire_time_and_false_settles_silently ... ok
+test installing_a_row_schedule_populates_existing_rows_target_change_rebinds_and_removal_drops ... ok
+test a_job_target_enqueues_with_row_args_and_the_same_occurrence_coalesces ... ok
+test rejected_target_rolls_back_its_writes_settles_with_the_refusal_and_never_refires ... ok
+test reconcile_drops_and_repopulates_a_schedule_whose_trigger_changed ... ok
+test reset_rearms_period_timers_and_the_seed_rearms_row_timers ... ok
+test timers_summary_lists_every_declared_schedule_with_a_zero_row_count ... ok
+test successor_and_reset_anchor_period_timers_to_the_supplied_clock_not_wall_time ... ok
+test a_finished_job_for_the_occurrence_does_not_coalesce_a_restored_deadline ... ok
+test row_timer_index_follows_insert_reschedule_null_and_delete_in_the_row_transaction ... ok
+test due_selection_is_oldest_first_and_capped_at_sixty_four_per_turn ... ok
+
+test result: ok. 15 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.13s
+

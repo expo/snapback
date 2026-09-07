@@ -1,0 +1,10 @@
+{
+  "current_model_id": "grok-4.6",
+  "reasoning_effort": "xhigh",
+  "session_id": null,
+  "cwd": null,
+  "source": "/Users/ccheever/.grok/sessions/%2FUsers%2Fccheever%2Fclique-improvement%2Freviews%2Fadhoc-admission-dedup-r1%2Fgrok/01a07a45-20ba-7fa2-9db6-86191b0f1f81/summary.json",
+  "sha256": "fe5dfeafb07469822f0c6c4036b7090bf92cc29730a32ff78379302f0cc8397d",
+  "observedEpoch": 1788757824.667684,
+  "sessionId": "01a07a45-20ba-7fa2-9db6-86191b0f1f81"
+}

@@ -1,0 +1,418 @@
+diff --git a/llp/1016-administrative-plane.rfc.md b/llp/1016-administrative-plane.rfc.md
+index 9b4526d17..506ad8156 100644
+--- a/llp/1016-administrative-plane.rfc.md
++++ b/llp/1016-administrative-plane.rfc.md
+@@ -23,7 +23,7 @@ session, on a criticism made by a separate reviewing session the same day;
+ revision (a) written at the author's instruction to take the panel's
+ feedback into account with the orchestrator's own judgement
+ **Date:** 2026-09-05
+-**Revised:** 2026-09-05 (close-out — Status → Implemented; §12 program record); 2026-09-05 (J2 fix round 1 — coalescing narrowed to queued/running, ceiling envelopes, the owner's clock at install and reset, schedule targets out of the client map, declared schedules listed at zero, the declaration site out of the hash; §12); 2026-09-05 (J2 — implementation record for D5 in §12: schedules, `_timers`, firing, the template's server-side expiry, the digest fixture); 2026-09-05 (a.1 — the five decisions ruled, the author having delegated them to the orchestrator; implementer, lanes, and dates written; the loop-bar sequencing overridden by author ruling); 2026-09-05 (a — the panel folded: one authority model for the
++**Revised:** 2026-09-06 (single live-generation admission per ad hoc run/enqueue, preserving clock ordering); 2026-09-05 (close-out — Status → Implemented; §12 program record); 2026-09-05 (J2 fix round 1 — coalescing narrowed to queued/running, ceiling envelopes, the owner's clock at install and reset, schedule targets out of the client map, declared schedules listed at zero, the declaration site out of the hash; §12); 2026-09-05 (J2 — implementation record for D5 in §12: schedules, `_timers`, firing, the template's server-side expiry, the digest fixture); 2026-09-05 (a.1 — the five decisions ruled, the author having delegated them to the orchestrator; implementer, lanes, and dates written; the loop-bar sequencing overridden by author ruling); 2026-09-05 (a — the panel folded: one authority model for the
+ system principal and the `system` rule word deleted; the job is a sequence
+ of sweeps over immutable keys under a captured upper key, with cursor and
+ progress as certified engine writes; narrowing moved to successor
+@@ -462,15 +462,24 @@ schedule dailyDigest every 24h:
+   entry point); hosted, it is an `admin` token (LLP 1015 D6, D10), and the
+   ledger's `by` is the token id.
+ - **Ad hoc programs.** `snapback2 run --file fix.q [args] --as system`
+-  compiles the file with the same worker, certifies it against the live
+-  generation through `execute_adhoc` (`registry.rs:762`) **with the same
+-  admission as a declared program** — the checker today skips
+-  `Generation::certify`'s effect-target validation (`registry.rs:405`); it
+-  must not — executes a query, mutation, or job, and ledgers its source
+-  hash. An ad hoc job persists its source in `_jobs.source` so a restart
+-  can recompile it; the source is capped at 64 KiB (`E_ADHOC_SIZE`). It is
+-  never installed and never in the manifest. This is the console: an agent
+-  writes the repair in the language it knows.
++  compiles the file with the same worker. Compiler-output admission remains
++  separate from admission against the owner's live generation: the generation
++  can change before the writer handles the request. After seat, size and argument
++  checks and source-hash naming, a run or enqueue certifies exactly once through
++  `Runtime::certify_operator_program`, using complete `Generation::certify`
++  admission including live schema, effects, programs and schedule bindings.
++  The execution/enqueue entry takes a clock callback, sampled only after
++  admission succeeds; the same mutable runtime borrow spans both. No certificate
++  or generation cache crosses requests. A plan uses its one live certificate
++  without sampling execution time. Existing execution certificate identity
++  checks and all transaction constraints remain intact.
++  An ad hoc job persists its source in `_jobs.source` and its admitted IR and
++  certificate for restart and chunk-time binding (D2); restart never recompiles
++  source. The source is capped at 64 KiB (`E_ADHOC_SIZE`), never installed and
++  never in the manifest; the ledger names its source hash. Rehearsal retains
++  admission before the snapshot and separate execution on the copy with its
++  already pinned clock. This is the console: an agent writes the repair in
++  the language it knows.
+ - **`--plan`** certifies and prints: the sweeps, the index-entry count
+   under each prefix and the chunk count it implies, the engine writes, and
+   the ceilings — the cheap estimate.
+diff --git a/snapback2/crates/snapback2-core/src/registry_jobs.rs b/snapback2/crates/snapback2-core/src/registry_jobs.rs
+index 671f1c8aa..f06b1e090 100644
+--- a/snapback2/crates/snapback2-core/src/registry_jobs.rs
++++ b/snapback2/crates/snapback2-core/src/registry_jobs.rs
+@@ -26,16 +26,17 @@ impl Runtime {
+             .ok_or_else(|| RuntimeError::OpUnknown(name.into()))?;
+         self.enqueue_certified_job(&program, &certificate, args, by, now, None)
+     }
++    /// Sample the caller's clock only after complete live-generation admission succeeds.
+     pub fn enqueue_adhoc_job(
+         &mut self,
+         program: &Program,
+         args: BTreeMap<String, Value>,
+         by: OperatorId,
+-        now: i64,
++        now: impl FnOnce() -> i64,
+         source: String,
+     ) -> Result<String, RuntimeError> {
+         let certificate = self.certify_operator_program(program)?;
+-        self.enqueue_certified_job(program, &certificate, args, by, now, Some(source))
++        self.enqueue_certified_job(program, &certificate, args, by, now(), Some(source))
+     }
+     fn enqueue_certified_job(
+         &mut self,
+@@ -278,15 +279,18 @@ impl Runtime {
+         })?;
+         Ok(admitted.programs[&program.name].1.clone())
+     }
++    /// Admission and execution share this borrow; no caller-supplied certificate can
++    /// skip generation dependencies. The clock is sampled after admission, before execution.
++    // @ref LLP 1016#d6--the-operator-seat-ad-hoc-programs-and-rehearsal — one live admission per run, with the owner's clock sampled after it.
+     pub fn execute_adhoc_operator(
+         &mut self,
+         program: &Program,
+         args: BTreeMap<String, Value>,
+         by: OperatorId,
+-        now: i64,
++        now: impl FnOnce() -> i64,
+     ) -> Result<Execution, RuntimeError> {
+         let certificate = self.certify_operator_program(program)?;
+-        self.run_operator(program, &certificate, args, by, now)
++        self.run_operator(program, &certificate, args, by, now())
+     }
+ }
+ 
+diff --git a/snapback2/crates/snapback2-core/tests/jobs.rs b/snapback2/crates/snapback2-core/tests/jobs.rs
+index bdfa7b115..caee8722d 100644
+--- a/snapback2/crates/snapback2-core/tests/jobs.rs
++++ b/snapback2/crates/snapback2-core/tests/jobs.rs
+@@ -195,7 +195,7 @@ fn operate(runtime: &mut Runtime, body: Vec<Stmt>) {
+         body,
+     };
+     let result = runtime
+-        .execute_adhoc_operator(&program, BTreeMap::new(), OperatorId("tester".into()), 1)
++        .execute_adhoc_operator(&program, BTreeMap::new(), OperatorId("tester".into()), || 1)
+         .unwrap();
+     assert!(
+         matches!(result.state, ExecutionState::Committed { .. }),
+@@ -524,7 +524,7 @@ fn adhoc_restart_preserves_source_changed_generation_parks_and_reset_clears_jobs
+             &job(1),
+             BTreeMap::new(),
+             OperatorId("tester".into()),
+-            1,
++            || 1,
+             "job fill: source retained".into(),
+         )
+         .unwrap();
+@@ -596,7 +596,7 @@ fn executable_mismatch_at_chunk_time_parks_with_the_generation_envelope_and_keep
+     let mut rt = runtime(1);
+     seed(&mut rt, &["01", "02", "03"]);
+     let id = rt
+-        .enqueue_adhoc_job(&job(1), BTreeMap::new(), OperatorId("tester".into()), 1, "job fill: ad hoc".into())
++        .enqueue_adhoc_job(&job(1), BTreeMap::new(), OperatorId("tester".into()), || 1, "job fill: ad hoc".into())
+         .unwrap();
+     rt.run_chunk(&id).unwrap();
+     let hash = rt.job_record(&id).unwrap().program_hash;
+@@ -620,7 +620,7 @@ fn executable_mismatch_at_chunk_time_parks_with_the_generation_envelope_and_keep
+     // is driven, naming the decode failure as the cause; resume refuses with the same code
+     // rather than a serialization error. The owner never stops.
+     let second = rt
+-        .enqueue_adhoc_job(&job(1), BTreeMap::new(), OperatorId("tester".into()), 2, "job fill: ad hoc again".into())
++        .enqueue_adhoc_job(&job(1), BTreeMap::new(), OperatorId("tester".into()), || 2, "job fill: ad hoc again".into())
+         .unwrap();
+     let (mut rt, path2) = reopen_with_plan(rt, &hash, "not a plan", "garbage");
+     std::fs::remove_file(path).unwrap();
+@@ -732,7 +732,7 @@ fn ceiling_fault_at_chunk_time_parks_in_the_bound_family_and_rolls_back() {
+     let mut rt = runtime(1);
+     seed(&mut rt, &["01", "02", "03"]);
+     let id = rt
+-        .enqueue_adhoc_job(&job(1), BTreeMap::new(), OperatorId("tester".into()), 1, "job fill: ad hoc".into())
++        .enqueue_adhoc_job(&job(1), BTreeMap::new(), OperatorId("tester".into()), || 1, "job fill: ad hoc".into())
+         .unwrap();
+     rt.run_chunk(&id).unwrap();
+     let hash = rt.job_record(&id).unwrap().program_hash;
+@@ -896,3 +896,174 @@ fn mutation_return_advances_only_the_visited_prefix_of_a_chunk() {
+     assert_eq!(rt.run_chunk(&id).unwrap().job.state, "done");
+     assert!(values(&mut rt).values().all(|n| *n == 1));
+ }
++
++#[test]
++fn adhoc_admission_precedes_clock_sampling_and_execution_input_errors() {
++    let mut rt = runtime(1);
++    seed(&mut rt, &["01"]);
++    let seq = rt.store().commit_seq().unwrap();
++    // A certification refusal must not read the clock or enter an execution/enqueue.
++    let mut invalid = job(1);
++    invalid.body.clear();
++    for enqueue in [false, true] {
++        let clock = || panic!("a refused admission sampled time");
++        let error = if enqueue {
++            rt.enqueue_adhoc_job(
++                &invalid,
++                BTreeMap::new(),
++                OperatorId("tester".into()),
++                clock,
++                "job invalid".into(),
++            )
++            .map(|_| ())
++        } else {
++            rt.execute_adhoc_operator(
++                &invalid,
++                BTreeMap::new(),
++                OperatorId("tester".into()),
++                clock,
++            )
++            .map(|_| ())
++        }
++        .unwrap_err();
++        assert!(matches!(error, RuntimeError::Schema(_)), "{error}");
++        assert_eq!(rt.store().commit_seq().unwrap(), seq);
++    }
++    let mut calls = 0;
++    let id = rt
++        .enqueue_adhoc_job(
++            &job(1),
++            BTreeMap::new(),
++            OperatorId("tester".into()),
++            || {
++                calls += 1;
++                12345
++            },
++            "job fill".into(),
++        )
++        .unwrap();
++    assert_eq!(calls, 1);
++    assert_eq!(rt.job_record(&id).unwrap().created_at, 12345);
++
++    // Core argument validation still follows admission/time; the wire validates earlier.
++    let seq = rt.store().commit_seq().unwrap();
++    let error = rt
++        .enqueue_adhoc_job(
++            &job(1),
++            BTreeMap::from([("extra".into(), Value::Int(1))]),
++            OperatorId("tester".into()),
++            || {
++                calls += 1;
++                12346
++            },
++            "job fill".into(),
++        )
++        .unwrap_err();
++    assert_eq!(error.code(), "E_JOB_ARGS");
++    assert_eq!(calls, 2);
++    assert_eq!(rt.store().commit_seq().unwrap(), seq);
++}
++
++#[test]
++fn adhoc_query_and_mutation_use_one_supplied_clock_sample() {
++    let mut rt = runtime(1);
++    for kind in [ProgramKind::Query, ProgramKind::Mutation] {
++        let p = Program {
++            name: "adhoc:clock".into(),
++            kind,
++            args: BTreeMap::new(),
++            read_time_granularity_ms: (kind == ProgramKind::Query).then_some(1),
++            body: vec![Stmt::Return(Expr::Input(if kind == ProgramKind::Query {
++                Input::ReadTime
++            } else {
++                Input::Now
++            }))],
++        };
++        let seq = rt.store().commit_seq().unwrap();
++        let mut calls = 0;
++        let result = rt
++            .execute_adhoc_operator(&p, BTreeMap::new(), OperatorId("tester".into()), || {
++                calls += 1;
++                12345
++            })
++            .unwrap();
++        assert_eq!(calls, 1);
++        assert_eq!(result.result, Value::Int(12345));
++        assert_eq!(result.seq, seq + u64::from(kind == ProgramKind::Mutation));
++        assert!(if kind == ProgramKind::Mutation {
++            matches!(result.state, ExecutionState::Committed { .. })
++        } else {
++            matches!(result.state, ExecutionState::Complete)
++        });
++    }
++}
++
++#[test]
++fn adhoc_effect_admission_uses_current_declarations_even_with_the_same_schema_hash() {
++    let project = ProjectJson {
++        version: 1,
++        schema: schema(),
++        auth: Auth::default(),
++        programs: vec![job(1)],
++        effects: vec![EffectDecl {
++            name: "notify".into(),
++            grants: vec![],
++            source: "async () => true".into(),
++            then: None,
++        }],
++    };
++    let generation = Generation::certify(&project, Ceilings::default()).unwrap();
++    let schema_hash = generation.hash();
++    let mut rt = Runtime::open(Store::memory().unwrap(), generation).unwrap();
++    let mutation = Program {
++        name: "adhoc:notify".into(),
++        kind: ProgramKind::Mutation,
++        args: BTreeMap::new(),
++        read_time_granularity_ms: None,
++        body: vec![Stmt::Emit {
++            effect: "notify".into(),
++            payload: Expr::Literal(Value::Null),
++        }],
++    };
++    let mut sweep = job(1);
++    let Stmt::For { body, .. } = &mut sweep.body[0] else {
++        unreachable!()
++    };
++    body.push(mutation.body[0].clone());
++    rt.certify_operator_program(&mutation).unwrap();
++    rt.certify_operator_program(&sweep).unwrap();
++    let mut successor = project;
++    successor.effects.clear();
++    let successor = Generation::certify(&successor, Ceilings::default()).unwrap();
++    assert_eq!(successor.hash(), schema_hash);
++    rt.apply_successor(successor).unwrap();
++    let seq = rt.store().commit_seq().unwrap();
++    let clock = || panic!("missing live effect must refuse before sampling time");
++    let error = rt
++        .execute_adhoc_operator(
++            &mutation,
++            BTreeMap::new(),
++            OperatorId("tester".into()),
++            clock,
++        )
++        .unwrap_err();
++    assert!(matches!(error, RuntimeError::Schema(_)), "{error}");
++    assert!(
++        error.to_string().contains("undeclared effect notify"),
++        "{error}"
++    );
++    let error = rt
++        .enqueue_adhoc_job(
++            &sweep,
++            BTreeMap::new(),
++            OperatorId("tester".into()),
++            clock,
++            "job notify".into(),
++        )
++        .unwrap_err();
++    assert!(
++        error.to_string().contains("undeclared effect notify"),
++        "{error}"
++    );
++    assert_eq!(rt.store().commit_seq().unwrap(), seq);
++}
+diff --git a/snapback2/crates/snapback2-core/tests/timers.rs b/snapback2/crates/snapback2-core/tests/timers.rs
+index c21ce749d..71fe93773 100644
+--- a/snapback2/crates/snapback2-core/tests/timers.rs
++++ b/snapback2/crates/snapback2-core/tests/timers.rs
+@@ -305,7 +305,7 @@ fn seed(rt: &mut Runtime, rows: Vec<Value>) {
+ fn operate(rt: &mut Runtime, body: Vec<Stmt>) {
+     let p = program("repair", ProgramKind::Mutation, vec![], body);
+     let result = rt
+-        .execute_adhoc_operator(&p, BTreeMap::new(), OperatorId("tester".into()), 1)
++        .execute_adhoc_operator(&p, BTreeMap::new(), OperatorId("tester".into()), || 1)
+         .unwrap();
+     assert!(
+         matches!(result.state, ExecutionState::Committed { .. }),
+diff --git a/snapback2/crates/snapback2/src/rehearsal.rs b/snapback2/crates/snapback2/src/rehearsal.rs
+index 38169b5e9..b11e9717c 100644
+--- a/snapback2/crates/snapback2/src/rehearsal.rs
++++ b/snapback2/crates/snapback2/src/rehearsal.rs
+@@ -227,7 +227,7 @@ impl Rehearsal {
+                     &program,
+                     values,
+                     OperatorId(by),
+-                    self.now,
++                    || self.now,
+                     source,
+                 ),
+                 None => {
+@@ -258,7 +258,7 @@ impl Rehearsal {
+             let execution = match source {
+                 Some(_) => {
+                     self.runtime
+-                        .execute_adhoc_operator(&program, values, OperatorId(by), self.now)
++                        .execute_adhoc_operator(&program, values, OperatorId(by), || self.now)
+                 }
+                 None => self.runtime.execute_operator_at(
+                     &program.name,
+diff --git a/snapback2/crates/snapback2/src/writer_jobs.rs b/snapback2/crates/snapback2/src/writer_jobs.rs
+index 758cd8b79..25e3dc75f 100644
+--- a/snapback2/crates/snapback2/src/writer_jobs.rs
++++ b/snapback2/crates/snapback2/src/writer_jobs.rs
+@@ -241,17 +241,19 @@ impl State {
+         // Arguments are checked under the authored name so E_JOB_ARGS pastes the signature as written.
+         let values = job_args(&program, &args)?;
+         program.name = format!("adhoc:{source_hash}");
+-        let certificate = self
+-            .runtime()
+-            .certify_operator_program(&program)
+-            .map_err(|e| Refusal::from_runtime(&e))?;
+         if plan {
++            let certificate = self
++                .runtime()
++                .certify_operator_program(&program)
++                .map_err(|e| Refusal::from_runtime(&e))?;
+             return self
+                 .runtime()
+                 .plan_job(&program, &certificate, &values)
+                 .map_err(|e| Refusal::from_runtime(&e));
+         }
+-        let now = self.now();
++        // @ref LLP 1016#d6--the-operator-seat-ad-hoc-programs-and-rehearsal — run/enqueue admit once on this writer turn, then sample now; a plan only admits.
++        let clock_offset_ms = self.clock_offset_ms;
++        let now = || unix_millis().saturating_add(clock_offset_ms);
+         if program.kind == ProgramKind::Job {
+             let id = self
+                 .runtime_mut()
+diff --git a/snapback2/crates/snapback2/tests/owner_cases/rehearsal.rs b/snapback2/crates/snapback2/tests/owner_cases/rehearsal.rs
+index 406a93535..7b08ec099 100644
+--- a/snapback2/crates/snapback2/tests/owner_cases/rehearsal.rs
++++ b/snapback2/crates/snapback2/tests/owner_cases/rehearsal.rs
+@@ -242,6 +242,21 @@ fn rehearsal_cli_jobs_queries_mutations_receipts_and_usage_exits() {
+ #[test]
+ fn control_run_source_modes_and_declared_job_route_share_operator_admission() {
+     let (root, _, mut owner, port, secret) = boot(false);
++    control(
++        port,
++        &secret,
++        "/control/clock",
++        json!({"advanceMs":86400000}),
++    );
++    let clock = control(
++        port,
++        &secret,
++        "/control/run",
++        json!({"source":"query inspect():\n  return now\n","mode":"run"}),
++    );
++    assert_eq!(clock["state"], "complete");
++    let wall_now = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_millis() as i64;
++    assert!(clock["data"].as_i64().unwrap() > wall_now + 86000000);
+     let source =
+         "job repair:\n  chunk p in items first 100 by byId:\n    update items[p.id] { n: 9 }\n";
+     let before = status(port, &secret)["seq"].clone();
+@@ -272,9 +287,10 @@ fn control_run_source_modes_and_declared_job_route_share_operator_admission() {
+         port,
+         &secret,
+         "/control/run",
+-        json!({"source":"mutation fix(id: items, n: int):\n  update items[id] { n }\n  return true\n","args":{"id":"item-000","n":10},"mode":"run"}),
++        json!({"source":"mutation fix(id: items, n: int):\n  update items[id] { n }\n  return now\n","args":{"id":"item-000","n":10},"mode":"run"}),
+     );
+     assert_eq!(mutation["state"], "committed");
++    assert!(mutation["data"].as_i64().unwrap() >= clock["data"].as_i64().unwrap());
+     let queued = control(
+         port,
+         &secret,

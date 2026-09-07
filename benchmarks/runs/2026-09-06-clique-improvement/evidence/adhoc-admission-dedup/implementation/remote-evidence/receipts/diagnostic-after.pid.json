@@ -1,0 +1,13 @@
+{
+  "pid": 3715948,
+  "ppid": 3715947,
+  "startTicks": 111610642,
+  "stat": "3715948 (python3) R 3715947 3715948 3715948 0 -1 4194304 3 0 0 0 0 0 0 0 20 0 1 0 111610642 8159232 0 18446744073709551615 0 0 140721659505628 0 0 0 0 0 0 0 0 0 17 31 0 0 0 0 0 0 0 0 140721659505628 0 0 0 0\n",
+  "bootId": "76ef40aa-0ed8-4f57-85c6-898bb42ea7e4",
+  "argv": [
+    "python3",
+    "/home/ccheever/clique-tooling/adhoc-admission-dedup-r1-20260907/diagnostic-corrected.py",
+    "after",
+    "/home/ccheever/clique-tooling/adhoc-admission-dedup-r1-20260907/diagnostic-target/debug/snapback2"
+  ]
+}

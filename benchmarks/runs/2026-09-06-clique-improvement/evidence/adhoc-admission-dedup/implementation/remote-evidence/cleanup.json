@@ -1,0 +1,6 @@
+{
+  "recordedOwnedProcessesStillRunning": [],
+  "scope": "all retained command process identities; 50ms descendant sampling is not exhaustive",
+  "atEpoch": 1788757280.3958108,
+  "firstDiagnosticOwner": "SIGTERM to recorded owner after observer assertion failure; terminal retained; all other commands naturally completed"
+}

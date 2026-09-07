@@ -1,0 +1,16 @@
+[
+  {
+    "source": "baseline-diagnostic",
+    "path": "/home/ccheever/clique-tooling/adhoc-admission-dedup-r1-20260907/baseline-diagnostic/snapback2/crates/snapback2-core/src/registry.rs",
+    "beforeSha256": "084930fff5af711897182e313b2172cd3d119e53d55e24ef232d6a7e05ae6f4c",
+    "afterSha256": "dd815e61e7f6156753725999dc909709e817c17a5c2ff4c04b21eed6fb830b89",
+    "injection": "    ) -> Result<Self, Vec<(String, CheckError)>> {\n        // Private external diagnostic only: same observer in baseline and candidate.\n        if let Ok(path) = std::env::var(\"S2_PRIVATE_ADMISSION_TRACE\") {\n            use std::io::Write;\n            let event = serde_json::json!({\"kind\":\"Generation::certify\", \"pid\":std::process::id(), \"thread\":format!(\"{:?}\",std::thread::current().id()), \"projectHash\":digest(project), \"programs\":project.programs.iter().map(|p| &p.name).collect::<Vec<_>>()});\n            let mut out = std::fs::OpenOptions::new().create(true).append(true).open(path).unwrap();\n            writeln!(out, \"{}\", event).unwrap();\n        }\n        let mut errors = Vec::new();"
+  },
+  {
+    "source": "candidate-diagnostic",
+    "path": "/home/ccheever/clique-tooling/adhoc-admission-dedup-r1-20260907/candidate-diagnostic/snapback2/crates/snapback2-core/src/registry.rs",
+    "beforeSha256": "084930fff5af711897182e313b2172cd3d119e53d55e24ef232d6a7e05ae6f4c",
+    "afterSha256": "dd815e61e7f6156753725999dc909709e817c17a5c2ff4c04b21eed6fb830b89",
+    "injection": "    ) -> Result<Self, Vec<(String, CheckError)>> {\n        // Private external diagnostic only: same observer in baseline and candidate.\n        if let Ok(path) = std::env::var(\"S2_PRIVATE_ADMISSION_TRACE\") {\n            use std::io::Write;\n            let event = serde_json::json!({\"kind\":\"Generation::certify\", \"pid\":std::process::id(), \"thread\":format!(\"{:?}\",std::thread::current().id()), \"projectHash\":digest(project), \"programs\":project.programs.iter().map(|p| &p.name).collect::<Vec<_>>()});\n            let mut out = std::fs::OpenOptions::new().create(true).append(true).open(path).unwrap();\n            writeln!(out, \"{}\", event).unwrap();\n        }\n        let mut errors = Vec::new();"
+  }
+]

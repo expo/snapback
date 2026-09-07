@@ -1,0 +1,7 @@
+Traceback (most recent call last):
+  File "/home/ccheever/clique-tooling/adhoc-admission-dedup-r1-20260907/diagnostic.py", line 42, in <module>
+    run('query-rehearsal',{'source':q,'mode':'dry-run'},200,(3,3))
+  File "/home/ccheever/clique-tooling/adhoc-admission-dedup-r1-20260907/diagnostic.py", line 33, in run
+    if len(live)==2:assert live[0]['projectHash']==live[1]['projectHash'] and live[0]['thread']==live[1]['thread']
+                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError

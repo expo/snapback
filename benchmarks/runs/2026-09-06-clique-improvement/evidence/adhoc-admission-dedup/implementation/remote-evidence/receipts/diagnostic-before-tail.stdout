@@ -1,0 +1,8 @@
+{"name": "mutation-rehearsal", "status": 200, "certifications": 3, "compilerCertifications": 1, "liveCertifications": 2}
+{"name": "job-rehearsal", "status": 200, "certifications": 3, "compilerCertifications": 1, "liveCertifications": 2}
+{"name": "kind-refusal", "status": 400, "certifications": 1, "compilerCertifications": 1, "liveCertifications": 0}
+{"name": "seat-refusal", "status": 400, "certifications": 1, "compilerCertifications": 1, "liveCertifications": 0}
+{"name": "argument-refusal", "status": 400, "certifications": 1, "compilerCertifications": 1, "liveCertifications": 0}
+{"name": "compiler-refusal", "status": 400, "certifications": 0, "compilerCertifications": 0, "liveCertifications": 0}
+{"name": "transaction-rejection", "status": 200, "certifications": 3, "compilerCertifications": 1, "liveCertifications": 2}
+diagnostic complete

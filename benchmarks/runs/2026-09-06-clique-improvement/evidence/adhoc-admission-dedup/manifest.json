@@ -1,0 +1,858 @@
+{
+  "scope": "Dedup source/review evidence; no publication or elapsed-time speedup claim",
+  "candidate": "cd610a50e9aab41c3e13620e0aefe8d6da5115f3",
+  "files": [
+    {
+      "path": "README.md",
+      "bytes": 3535,
+      "sha256": "f6b278e09c9df5967c88dbdc260033f6c65a03a384148e42535a6301934c8f69",
+      "provenance": "New supervisor evidence index or source-composition receipt; not claimed verbatim author evidence"
+    },
+    {
+      "path": "exact-integrated.diff",
+      "bytes": 20335,
+      "sha256": "b549af153a08a0463ccea2c6a90bd1ff2b969b53237fcb0cb5c2a6ee5acf8d50",
+      "provenance": "New supervisor evidence index or source-composition receipt; not claimed verbatim author evidence"
+    },
+    {
+      "path": "external-originals.json",
+      "bytes": 1835,
+      "sha256": "2a36bd2821a45619e79f624f42c080cdaccc63e6a290118461116fa38ea101ec",
+      "provenance": "New supervisor evidence index or source-composition receipt; not claimed verbatim author evidence"
+    },
+    {
+      "path": "implementation/REPORT.md",
+      "bytes": 5811,
+      "sha256": "c5410efb4df5ce4b572705f05150e58980b1db0e8d9ca188c8b70d1ef9a059e6",
+      "externalOriginal": "/Users/ccheever/clique-improvement/revisions/adhoc-admission-dedup-r1/REPORT.md"
+    },
+    {
+      "path": "implementation/certification-counts.json",
+      "bytes": 2886,
+      "sha256": "cef2aee85c333637ae21878a32f4289c2d5fda941c28c013b8e497547dbf5cc0",
+      "externalOriginal": "/Users/ccheever/clique-improvement/revisions/adhoc-admission-dedup-r1/certification-counts.json"
+    },
+    {
+      "path": "implementation/freeze.json",
+      "bytes": 2210,
+      "sha256": "46157fd9663420d834ac9722b053f7e74344204383253baf74458fe9a57a44c6",
+      "externalOriginal": "/Users/ccheever/clique-improvement/revisions/adhoc-admission-dedup-r1/freeze.json"
+    },
+    {
+      "path": "implementation/frozen-vs-tested.json",
+      "bytes": 327,
+      "sha256": "d9f523ef86d4a957575626a454a6cb71f1940862972f4ce010ff1dbbb1147e68",
+      "externalOriginal": "/Users/ccheever/clique-improvement/revisions/adhoc-admission-dedup-r1/frozen-vs-tested.json"
+    },
+    {
+      "path": "implementation/remote-evidence/artifacts/binaries.json",
+      "bytes": 1405,
+      "sha256": "c561472cab376bd5811f1d6062adf66e6397a301b15de2176e38e032399bf449",
+      "externalOriginal": "/Users/ccheever/clique-improvement/revisions/adhoc-admission-dedup-r1/remote-evidence/artifacts/binaries.json"
+    },
+    {
+      "path": "implementation/remote-evidence/check-summary.json",
+      "bytes": 2923,
+      "sha256": "1eb49edee35bd220b6191d813935665a39ba975acd3134a36c182f3845415a9f",
+      "externalOriginal": "/Users/ccheever/clique-improvement/revisions/adhoc-admission-dedup-r1/remote-evidence/check-summary.json"
+    },
+    {
+      "path": "implementation/remote-evidence/cleanup.json",
+      "bytes": 324,
+      "sha256": "afcc43cf65d91da1837e049521adb010ea726290e80760da5c84622657bc2160",
+      "externalOriginal": "/Users/ccheever/clique-improvement/revisions/adhoc-admission-dedup-r1/remote-evidence/cleanup.json"
+    },
+    {
+      "path": "implementation/remote-evidence/diagnostic-corrected.py",
+      "bytes": 4564,
+      "sha256": "f9771456802a488b47baf3f6dc1d62fdcab448babd5cbb790be8c9ced122c6b3",
+      "externalOriginal": "/Users/ccheever/clique-improvement/revisions/adhoc-admission-dedup-r1/remote-evidence/diagnostic-corrected.py"
+    },
+    {
+      "path": "implementation/remote-evidence/diagnostic-injection.json",
+      "bytes": 2224,
+      "sha256": "55704df6ffa76675950de561c0386137e2291df857bfe7fd8d439ecc16e8e870",
+      "externalOriginal": "/Users/ccheever/clique-improvement/revisions/adhoc-admission-dedup-r1/remote-evidence/diagnostic-injection.json"
+    },
+    {
+      "path": "implementation/remote-evidence/diagnostic.py",
+      "bytes": 4420,
+      "sha256": "02d12cdbcd275859075db683d222ce7479117afbfe7fa4f722e2f1dc0d14cceb",
+      "externalOriginal": "/Users/ccheever/clique-improvement/revisions/adhoc-admission-dedup-r1/remote-evidence/diagnostic.py"
+    },
+    {
+      "path": "implementation/remote-evidence/prepare-diagnostics.py",
+      "bytes": 1493,
+      "sha256": "0afcb714607b5888c95b28675f459e09f356f67c48cfddddd5c694cf54929639",
+      "externalOriginal": "/Users/ccheever/clique-improvement/revisions/adhoc-admission-dedup-r1/remote-evidence/prepare-diagnostics.py"
+    },
+    {
+      "path": "implementation/remote-evidence/receipts/after-admission-events.jsonl",
+      "bytes": 5056,
+      "sha256": "30156d7bc242b70ec234712a67a1c653826a16f2432bace81eff1e7c2791b350",
+      "externalOriginal": "/Users/ccheever/clique-improvement/revisions/adhoc-admission-dedup-r1/remote-evidence/receipts/after-admission-events.jsonl"
+    },
+    {
+      "path": "implementation/remote-evidence/receipts/after-diagnostic.json",
+      "bytes": 19415,
+      "sha256": "904fbe3b0a00fb3476f65cf5f7639ae079d3f93e640661aca4a34f01447fb13f",
+      "externalOriginal": "/Users/ccheever/clique-improvement/revisions/adhoc-admission-dedup-r1/remote-evidence/receipts/after-diagnostic.json"
+    },
+    {
+      "path": "implementation/remote-evidence/receipts/after-owner.launch.json",
+      "bytes": 711,
+      "sha256": "ae7b3882fe286d58ce137cfb70baeb1986ebb669775d5bb6e348ab65f8ea5636",
+      "externalOriginal": "/Users/ccheever/clique-improvement/revisions/adhoc-admission-dedup-r1/remote-evidence/receipts/after-owner.launch.json"
+    },
+    {
+      "path": "implementation/remote-evidence/receipts/after-owner.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "externalOriginal": "/Users/ccheever/clique-improvement/revisions/adhoc-admission-dedup-r1/remote-evidence/receipts/after-owner.stderr"
+    },
+    {
+      "path": "implementation/remote-evidence/receipts/after-owner.terminal.json",
+      "bytes": 114,
+      "sha256": "2c991020fe45d9b6ac74cabc4c81fd8cd8e629e2f29966b69f69380e7abf711c",
+      "externalOriginal": "/Users/ccheever/clique-improvement/revisions/adhoc-admission-dedup-r1/remote-evidence/receipts/after-owner.terminal.json"
+    },
+    {
+      "path": "implementation/remote-evidence/receipts/before-admission-events.jsonl",
+      "bytes": 3390,
+      "sha256": "8980154a16af3796ecf646466a9886ad3f569b36002362629d875cd1b82720c7",
+      "externalOriginal": "/Users/ccheever/clique-improvement/revisions/adhoc-admission-dedup-r1/remote-evidence/receipts/before-admission-events.jsonl"
+    },
+    {
+      "path": "implementation/remote-evidence/receipts/before-diagnostic.json",
+      "bytes": 11461,
+      "sha256": "967607d8624fa8d930e9b87bae381f95c32795f3097f4285b9e1f693466efb2a",
+      "externalOriginal": "/Users/ccheever/clique-improvement/revisions/adhoc-admission-dedup-r1/remote-evidence/receipts/before-diagnostic.json"
+    },
+    {
+      "path": "implementation/remote-evidence/receipts/before-owner.launch.json",
+      "bytes": 712,
+      "sha256": "e235b333f89b44f5218dc516ed178c44879c4ea2a25b8c08c4ddca1e1dd5da69",
+      "externalOriginal": "/Users/ccheever/clique-improvement/revisions/adhoc-admission-dedup-r1/remote-evidence/receipts/before-owner.launch.json"
+    },
+    {
+      "path": "implementation/remote-evidence/receipts/before-owner.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "externalOriginal": "/Users/ccheever/clique-improvement/revisions/adhoc-admission-dedup-r1/remote-evidence/receipts/before-owner.stderr"
+    },
+    {
+      "path": "implementation/remote-evidence/receipts/before-owner.terminal.json",
+      "bytes": 113,
+      "sha256": "c2661227d51aae6ca055209f5a7ad10d078d73d698470f0d11eff191d34bfc8c",
+      "externalOriginal": "/Users/ccheever/clique-improvement/revisions/adhoc-admission-dedup-r1/remote-evidence/receipts/before-owner.terminal.json"
+    },
+    {
+      "path": "implementation/remote-evidence/receipts/before-tail-admission-events.jsonl",
+      "bytes": 2838,
+      "sha256": "009b50c0bb4747e885c09be4391c8d2c59dc5ef1a8133bf0ac4515f001af5101",
+      "externalOriginal": "/Users/ccheever/clique-improvement/revisions/adhoc-admission-dedup-r1/remote-evidence/receipts/before-tail-admission-events.jsonl"
+    },
+    {
+      "path": "implementation/remote-evidence/receipts/before-tail-diagnostic.json",
+      "bytes": 9323,
+      "sha256": "90e55ff2eb4ffdc0a8ca1e307840d845a36fd61c31c38987444c722849f0845f",
+      "externalOriginal": "/Users/ccheever/clique-improvement/revisions/adhoc-admission-dedup-r1/remote-evidence/receipts/before-tail-diagnostic.json"
+    },
+    {
+      "path": "implementation/remote-evidence/receipts/before-tail-owner.launch.json",
+      "bytes": 717,
+      "sha256": "c9a87e0d41884172c93c8d25dbde5943b22c5003ecb5155429fab76e2e55ed0f",
+      "externalOriginal": "/Users/ccheever/clique-improvement/revisions/adhoc-admission-dedup-r1/remote-evidence/receipts/before-tail-owner.launch.json"
+    },
+    {
+      "path": "implementation/remote-evidence/receipts/before-tail-owner.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "externalOriginal": "/Users/ccheever/clique-improvement/revisions/adhoc-admission-dedup-r1/remote-evidence/receipts/before-tail-owner.stderr"
+    },
+    {
+      "path": "implementation/remote-evidence/receipts/before-tail-owner.terminal.json",
+      "bytes": 112,
+      "sha256": "806761ba83d921f09643f2a2b065b697bda5a70ba8c081498626048d43ee85db",
+      "externalOriginal": "/Users/ccheever/clique-improvement/revisions/adhoc-admission-dedup-r1/remote-evidence/receipts/before-tail-owner.terminal.json"
+    },
+    {
+      "path": "implementation/remote-evidence/receipts/build-after.launch.json",
+      "bytes": 2115,
+      "sha256": "6b69db46b072b77ca5af3a3b3de1d703d16c466d63d56077ad1ab4aef34135d7",
+      "externalOriginal": "/Users/ccheever/clique-improvement/revisions/adhoc-admission-dedup-r1/remote-evidence/receipts/build-after.launch.json"
+    },
+    {
+      "path": "implementation/remote-evidence/receipts/build-after.pid.json",
+      "bytes": 451,
+      "sha256": "ac0d394b64be7af4d418369582f93ec93396d602fe5f8a1d937a49bf143515da",
+      "externalOriginal": "/Users/ccheever/clique-improvement/revisions/adhoc-admission-dedup-r1/remote-evidence/receipts/build-after.pid.json"
+    },
+    {
+      "path": "implementation/remote-evidence/receipts/build-after.stderr",
+      "bytes": 534,
+      "sha256": "4134e00bbfa13189961e8855cf8f60655f62aeb7caf64b622cdbe9997f6ebb1f",
+      "externalOriginal": "/Users/ccheever/clique-improvement/revisions/adhoc-admission-dedup-r1/remote-evidence/receipts/build-after.stderr"
+    },
+    {
+      "path": "implementation/remote-evidence/receipts/build-after.stdout",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "externalOriginal": "/Users/ccheever/clique-improvement/revisions/adhoc-admission-dedup-r1/remote-evidence/receipts/build-after.stdout"
+    },
+    {
+      "path": "implementation/remote-evidence/receipts/build-after.terminal.json",
+      "bytes": 1225,
+      "sha256": "749b3e05e5af4e0b963efbb4e94de75dc0af42cf7e66bd636bc218bc19b52ca5",
+      "externalOriginal": "/Users/ccheever/clique-improvement/revisions/adhoc-admission-dedup-r1/remote-evidence/receipts/build-after.terminal.json"
+    },
+    {
+      "path": "implementation/remote-evidence/receipts/build-before.launch.json",
+      "bytes": 2114,
+      "sha256": "d4134dfa278bd55251fcc816845a216753d9b546791943bdb4894284dd6a4c30",
+      "externalOriginal": "/Users/ccheever/clique-improvement/revisions/adhoc-admission-dedup-r1/remote-evidence/receipts/build-before.launch.json"
+    },
+    {
+      "path": "implementation/remote-evidence/receipts/build-before.pid.json",
+      "bytes": 558,
+      "sha256": "3ebeacb667273ec5f5fea9f6992409028ce1814ae37cd34f97f52c5e721ad6dc",
+      "externalOriginal": "/Users/ccheever/clique-improvement/revisions/adhoc-admission-dedup-r1/remote-evidence/receipts/build-before.pid.json"
+    },
+    {
+      "path": "implementation/remote-evidence/receipts/build-before.stderr",
+      "bytes": 3559,
+      "sha256": "03f511a5dbb60eb4d31102f96c8e2698dd28fa0fc91c632cbccaac5f6e79cbe7",
+      "externalOriginal": "/Users/ccheever/clique-improvement/revisions/adhoc-admission-dedup-r1/remote-evidence/receipts/build-before.stderr"
+    },
+    {
+      "path": "implementation/remote-evidence/receipts/build-before.stdout",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "externalOriginal": "/Users/ccheever/clique-improvement/revisions/adhoc-admission-dedup-r1/remote-evidence/receipts/build-before.stdout"
+    },
+    {
+      "path": "implementation/remote-evidence/receipts/build-before.terminal.json",
+      "bytes": 2168,
+      "sha256": "716bd9c748311d71e2953af863e2bf1d9f407ff25a49b27094767b7d34607726",
+      "externalOriginal": "/Users/ccheever/clique-improvement/revisions/adhoc-admission-dedup-r1/remote-evidence/receipts/build-before.terminal.json"
+    },
+    {
+      "path": "implementation/remote-evidence/receipts/build-core.launch.json",
+      "bytes": 2286,
+      "sha256": "c218ea82836c8778e9cf02f3a327e34fe2f80403e9d394007037f0ae84d2425c",
+      "externalOriginal": "/Users/ccheever/clique-improvement/revisions/adhoc-admission-dedup-r1/remote-evidence/receipts/build-core.launch.json"
+    },
+    {
+      "path": "implementation/remote-evidence/receipts/build-core.pid.json",
+      "bytes": 667,
+      "sha256": "4de32495b2ffb5b69ac503866b1cbcc79985f1f3c29e7c27eaabc0d7ae70d680",
+      "externalOriginal": "/Users/ccheever/clique-improvement/revisions/adhoc-admission-dedup-r1/remote-evidence/receipts/build-core.pid.json"
+    },
+    {
+      "path": "implementation/remote-evidence/receipts/build-core.stderr",
+      "bytes": 2242,
+      "sha256": "989b462e5a9be41fd05c24e7ec2dd94774fb6acf60873cc1bf1e377de84b5c51",
+      "externalOriginal": "/Users/ccheever/clique-improvement/revisions/adhoc-admission-dedup-r1/remote-evidence/receipts/build-core.stderr"
+    },
+    {
+      "path": "implementation/remote-evidence/receipts/build-core.stdout",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "externalOriginal": "/Users/ccheever/clique-improvement/revisions/adhoc-admission-dedup-r1/remote-evidence/receipts/build-core.stdout"
+    },
+    {
+      "path": "implementation/remote-evidence/receipts/build-core.terminal.json",
+      "bytes": 1915,
+      "sha256": "11693dd95be91565513b50f6cc4acd230c12cf395e0f39b34ec792333d03e1aa",
+      "externalOriginal": "/Users/ccheever/clique-improvement/revisions/adhoc-admission-dedup-r1/remote-evidence/receipts/build-core.terminal.json"
+    },
+    {
+      "path": "implementation/remote-evidence/receipts/build-media.launch.json",
+      "bytes": 2077,
+      "sha256": "c8e31958884cc3bffb8a51d888d711aa46124529d4549a54968e8764bfb83f78",
+      "externalOriginal": "/Users/ccheever/clique-improvement/revisions/adhoc-admission-dedup-r1/remote-evidence/receipts/build-media.launch.json"
+    },
+    {
+      "path": "implementation/remote-evidence/receipts/build-media.pid.json",
+      "bytes": 457,
+      "sha256": "5d3067a2db5bda7f12eb3e7ac1136553224e78f5bc50fe858dd7010b11b2eb1c",
+      "externalOriginal": "/Users/ccheever/clique-improvement/revisions/adhoc-admission-dedup-r1/remote-evidence/receipts/build-media.pid.json"
+    },
+    {
+      "path": "implementation/remote-evidence/receipts/build-media.stderr",
+      "bytes": 363,
+      "sha256": "bd792e5b67fbac48188f15741dd89b63d26b94b832990ec6f9a02ec05baa20b6",
+      "externalOriginal": "/Users/ccheever/clique-improvement/revisions/adhoc-admission-dedup-r1/remote-evidence/receipts/build-media.stderr"
+    },
+    {
+      "path": "implementation/remote-evidence/receipts/build-media.stdout",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "externalOriginal": "/Users/ccheever/clique-improvement/revisions/adhoc-admission-dedup-r1/remote-evidence/receipts/build-media.stdout"
+    },
+    {
+      "path": "implementation/remote-evidence/receipts/build-media.terminal.json",
+      "bytes": 1227,
+      "sha256": "d416d0fad9c469630559ee3f07e0f8ef29560f59ffd7b10ff1bb6f829696fefe",
+      "externalOriginal": "/Users/ccheever/clique-improvement/revisions/adhoc-admission-dedup-r1/remote-evidence/receipts/build-media.terminal.json"
+    },
+    {
+      "path": "implementation/remote-evidence/receipts/build-owner.launch.json",
+      "bytes": 2218,
+      "sha256": "5bac1f860e634df7fd18363a93e9ba992872c3f7ca4129fe758d1395c6d9ec5e",
+      "externalOriginal": "/Users/ccheever/clique-improvement/revisions/adhoc-admission-dedup-r1/remote-evidence/receipts/build-owner.launch.json"
+    },
+    {
+      "path": "implementation/remote-evidence/receipts/build-owner.pid.json",
+      "bytes": 353,
+      "sha256": "1d2e39a083a549bf101ac1332a80292f963270fc641fc8f1eb54caffd810bc46",
+      "externalOriginal": "/Users/ccheever/clique-improvement/revisions/adhoc-admission-dedup-r1/remote-evidence/receipts/build-owner.pid.json"
+    },
+    {
+      "path": "implementation/remote-evidence/receipts/build-owner.stderr",
+      "bytes": 3346,
+      "sha256": "0c86ba5eb283a905fdab8a4a59dd56f3aa91cedcf0a5d939c888a29594b1424a",
+      "externalOriginal": "/Users/ccheever/clique-improvement/revisions/adhoc-admission-dedup-r1/remote-evidence/receipts/build-owner.stderr"
+    },
+    {
+      "path": "implementation/remote-evidence/receipts/build-owner.stdout",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "externalOriginal": "/Users/ccheever/clique-improvement/revisions/adhoc-admission-dedup-r1/remote-evidence/receipts/build-owner.stdout"
+    },
+    {
+      "path": "implementation/remote-evidence/receipts/build-owner.terminal.json",
+      "bytes": 1538,
+      "sha256": "c94ea542d84757f1042747ff4cfbb624a4b42966f1e44353591f0f1787039cf4",
+      "externalOriginal": "/Users/ccheever/clique-improvement/revisions/adhoc-admission-dedup-r1/remote-evidence/receipts/build-owner.terminal.json"
+    },
+    {
+      "path": "implementation/remote-evidence/receipts/bun-install.launch.json",
+      "bytes": 1962,
+      "sha256": "158e43b5ee574df0336d57cd8282275c43f3616bd2d0112107cfde19a9788175",
+      "externalOriginal": "/Users/ccheever/clique-improvement/revisions/adhoc-admission-dedup-r1/remote-evidence/receipts/bun-install.launch.json"
+    },
+    {
+      "path": "implementation/remote-evidence/receipts/bun-install.pid.json",
+      "bytes": 486,
+      "sha256": "efe889d3f7a85b1da7398781e84ccaba88d95acf40d1a5788e90ee8202fffb1e",
+      "externalOriginal": "/Users/ccheever/clique-improvement/revisions/adhoc-admission-dedup-r1/remote-evidence/receipts/bun-install.pid.json"
+    },
+    {
+      "path": "implementation/remote-evidence/receipts/bun-install.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "externalOriginal": "/Users/ccheever/clique-improvement/revisions/adhoc-admission-dedup-r1/remote-evidence/receipts/bun-install.stderr"
+    },
+    {
+      "path": "implementation/remote-evidence/receipts/bun-install.stdout",
+      "bytes": 64,
+      "sha256": "4f4d501af746fc51ccd2f321019110e06af50d667b29e96b443c65988816dcdd",
+      "externalOriginal": "/Users/ccheever/clique-improvement/revisions/adhoc-admission-dedup-r1/remote-evidence/receipts/bun-install.stdout"
+    },
+    {
+      "path": "implementation/remote-evidence/receipts/bun-install.terminal.json",
+      "bytes": 1245,
+      "sha256": "577906b0137ddcc0a9f38a5318a14887be3619ec260ad0819de712ae72a316ad",
+      "externalOriginal": "/Users/ccheever/clique-improvement/revisions/adhoc-admission-dedup-r1/remote-evidence/receipts/bun-install.terminal.json"
+    },
+    {
+      "path": "implementation/remote-evidence/receipts/bundle.launch.json",
+      "bytes": 1950,
+      "sha256": "4ed198591ef280251188c73c22f3e470d3709904d2c969e2cc344a31e8305755",
+      "externalOriginal": "/Users/ccheever/clique-improvement/revisions/adhoc-admission-dedup-r1/remote-evidence/receipts/bundle.launch.json"
+    },
+    {
+      "path": "implementation/remote-evidence/receipts/bundle.pid.json",
+      "bytes": 450,
+      "sha256": "82422ff316f95b92d2a70b2e683ac646587b30cf72e2cbe66a3137b79ba0f438",
+      "externalOriginal": "/Users/ccheever/clique-improvement/revisions/adhoc-admission-dedup-r1/remote-evidence/receipts/bundle.pid.json"
+    },
+    {
+      "path": "implementation/remote-evidence/receipts/bundle.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "externalOriginal": "/Users/ccheever/clique-improvement/revisions/adhoc-admission-dedup-r1/remote-evidence/receipts/bundle.stderr"
+    },
+    {
+      "path": "implementation/remote-evidence/receipts/bundle.stdout",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "externalOriginal": "/Users/ccheever/clique-improvement/revisions/adhoc-admission-dedup-r1/remote-evidence/receipts/bundle.stdout"
+    },
+    {
+      "path": "implementation/remote-evidence/receipts/bundle.terminal.json",
+      "bytes": 1570,
+      "sha256": "6dc6dc9a20b4c6b4d0e0d9cd3ab798e38316a79748abee245f9cbc7773492bd3",
+      "externalOriginal": "/Users/ccheever/clique-improvement/revisions/adhoc-admission-dedup-r1/remote-evidence/receipts/bundle.terminal.json"
+    },
+    {
+      "path": "implementation/remote-evidence/receipts/diagnostic-after.launch.json",
+      "bytes": 2314,
+      "sha256": "38c4a3d0c88ac7fcffb85ef6e1422aa3bce2c38eef2a88eb8562f2a5d38713cd",
+      "externalOriginal": "/Users/ccheever/clique-improvement/revisions/adhoc-admission-dedup-r1/remote-evidence/receipts/diagnostic-after.launch.json"
+    },
+    {
+      "path": "implementation/remote-evidence/receipts/diagnostic-after.pid.json",
+      "bytes": 584,
+      "sha256": "77285fc1680eb5087a6c6fbb1bdcc940115e798e68504c86c1c7618314c65e64",
+      "externalOriginal": "/Users/ccheever/clique-improvement/revisions/adhoc-admission-dedup-r1/remote-evidence/receipts/diagnostic-after.pid.json"
+    },
+    {
+      "path": "implementation/remote-evidence/receipts/diagnostic-after.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "externalOriginal": "/Users/ccheever/clique-improvement/revisions/adhoc-admission-dedup-r1/remote-evidence/receipts/diagnostic-after.stderr"
+    },
+    {
+      "path": "implementation/remote-evidence/receipts/diagnostic-after.stdout",
+      "bytes": 1403,
+      "sha256": "c2de14f1abbcba75a551dba7177b0173e5b8d2c648ee1e5c9925bbff658f4c4a",
+      "externalOriginal": "/Users/ccheever/clique-improvement/revisions/adhoc-admission-dedup-r1/remote-evidence/receipts/diagnostic-after.stdout"
+    },
+    {
+      "path": "implementation/remote-evidence/receipts/diagnostic-after.terminal.json",
+      "bytes": 2745,
+      "sha256": "7a96e0a222de60e3d074d035daf4fa9c58f47bad07c9986393778c9e1cbdadb0",
+      "externalOriginal": "/Users/ccheever/clique-improvement/revisions/adhoc-admission-dedup-r1/remote-evidence/receipts/diagnostic-after.terminal.json"
+    },
+    {
+      "path": "implementation/remote-evidence/receipts/diagnostic-before-tail.launch.json",
+      "bytes": 2332,
+      "sha256": "47fe72ce16ee3c45755870b1401ffc1441e446d5adde786f83941eb4e91f546e",
+      "externalOriginal": "/Users/ccheever/clique-improvement/revisions/adhoc-admission-dedup-r1/remote-evidence/receipts/diagnostic-before-tail.launch.json"
+    },
+    {
+      "path": "implementation/remote-evidence/receipts/diagnostic-before-tail.pid.json",
+      "bytes": 590,
+      "sha256": "e47a52a39ed06439b4e6400c8cc8d4cec4332f04670b0425361ed6e7ce899e8a",
+      "externalOriginal": "/Users/ccheever/clique-improvement/revisions/adhoc-admission-dedup-r1/remote-evidence/receipts/diagnostic-before-tail.pid.json"
+    },
+    {
+      "path": "implementation/remote-evidence/receipts/diagnostic-before-tail.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "externalOriginal": "/Users/ccheever/clique-improvement/revisions/adhoc-admission-dedup-r1/remote-evidence/receipts/diagnostic-before-tail.stderr"
+    },
+    {
+      "path": "implementation/remote-evidence/receipts/diagnostic-before-tail.stdout",
+      "bytes": 849,
+      "sha256": "052d5556b2af2d326f1861e3257626fdbcadb98410b3531fc04de86feb1ff5e0",
+      "externalOriginal": "/Users/ccheever/clique-improvement/revisions/adhoc-admission-dedup-r1/remote-evidence/receipts/diagnostic-before-tail.stdout"
+    },
+    {
+      "path": "implementation/remote-evidence/receipts/diagnostic-before-tail.terminal.json",
+      "bytes": 2763,
+      "sha256": "c3f0b6b225ba952008a5dc43e0877222df6bf5a3eba8d4387130ea9be9b1455c",
+      "externalOriginal": "/Users/ccheever/clique-improvement/revisions/adhoc-admission-dedup-r1/remote-evidence/receipts/diagnostic-before-tail.terminal.json"
+    },
+    {
+      "path": "implementation/remote-evidence/receipts/diagnostic-before.launch.json",
+      "bytes": 2298,
+      "sha256": "b7beed007372fc3a096a21ab9517a3476ae98f8217be0ddbdd8dee431f73a362",
+      "externalOriginal": "/Users/ccheever/clique-improvement/revisions/adhoc-admission-dedup-r1/remote-evidence/receipts/diagnostic-before.launch.json"
+    },
+    {
+      "path": "implementation/remote-evidence/receipts/diagnostic-before.pid.json",
+      "bytes": 354,
+      "sha256": "5ec2cdfb130a2e537990e7f426d7bd5ea35d01e8c3c559aa4451d0db5fa42211",
+      "externalOriginal": "/Users/ccheever/clique-improvement/revisions/adhoc-admission-dedup-r1/remote-evidence/receipts/diagnostic-before.pid.json"
+    },
+    {
+      "path": "implementation/remote-evidence/receipts/diagnostic-before.stderr",
+      "bytes": 560,
+      "sha256": "1966710306ff88f6dae5488c28d83b26772a4eddb916305818c368b4e703be64",
+      "externalOriginal": "/Users/ccheever/clique-improvement/revisions/adhoc-admission-dedup-r1/remote-evidence/receipts/diagnostic-before.stderr"
+    },
+    {
+      "path": "implementation/remote-evidence/receipts/diagnostic-before.stdout",
+      "bytes": 436,
+      "sha256": "f5e51fef81a80871640734a6f9760262605065c93580f3573303c4b7b4394886",
+      "externalOriginal": "/Users/ccheever/clique-improvement/revisions/adhoc-admission-dedup-r1/remote-evidence/receipts/diagnostic-before.stdout"
+    },
+    {
+      "path": "implementation/remote-evidence/receipts/diagnostic-before.terminal.json",
+      "bytes": 2504,
+      "sha256": "eb3c604a4107c11f3f919287c802b21bf5f1eca929b73c94a94fb6c208f21825",
+      "externalOriginal": "/Users/ccheever/clique-improvement/revisions/adhoc-admission-dedup-r1/remote-evidence/receipts/diagnostic-before.terminal.json"
+    },
+    {
+      "path": "implementation/remote-evidence/receipts/test-jobs.launch.json",
+      "bytes": 1828,
+      "sha256": "669810c8c69fbbf3646acafde4aca3d0398380c6a0c4813d34309f66f93c192b",
+      "externalOriginal": "/Users/ccheever/clique-improvement/revisions/adhoc-admission-dedup-r1/remote-evidence/receipts/test-jobs.launch.json"
+    },
+    {
+      "path": "implementation/remote-evidence/receipts/test-jobs.pid.json",
+      "bytes": 607,
+      "sha256": "0174b93288524ab23075a3ac546cc70fb2573b4776b15f466893086241d76fa1",
+      "externalOriginal": "/Users/ccheever/clique-improvement/revisions/adhoc-admission-dedup-r1/remote-evidence/receipts/test-jobs.pid.json"
+    },
+    {
+      "path": "implementation/remote-evidence/receipts/test-jobs.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "externalOriginal": "/Users/ccheever/clique-improvement/revisions/adhoc-admission-dedup-r1/remote-evidence/receipts/test-jobs.stderr"
+    },
+    {
+      "path": "implementation/remote-evidence/receipts/test-jobs.stdout",
+      "bytes": 1819,
+      "sha256": "4ff15692a22372637efab20d803ecf2a6573d72c72d36f61ae78bcbb491877b2",
+      "externalOriginal": "/Users/ccheever/clique-improvement/revisions/adhoc-admission-dedup-r1/remote-evidence/receipts/test-jobs.stdout"
+    },
+    {
+      "path": "implementation/remote-evidence/receipts/test-jobs.terminal.json",
+      "bytes": 1662,
+      "sha256": "d38c0baffe9e1717909d7dd6a5b12e6ca926eb1018f5a830bd94ec791b004101",
+      "externalOriginal": "/Users/ccheever/clique-improvement/revisions/adhoc-admission-dedup-r1/remote-evidence/receipts/test-jobs.terminal.json"
+    },
+    {
+      "path": "implementation/remote-evidence/receipts/test-operator.launch.json",
+      "bytes": 1838,
+      "sha256": "d6065ea9e203dcde2f962a864cbd5557a63557624bafc79f02d7133a63541fa3",
+      "externalOriginal": "/Users/ccheever/clique-improvement/revisions/adhoc-admission-dedup-r1/remote-evidence/receipts/test-operator.launch.json"
+    },
+    {
+      "path": "implementation/remote-evidence/receipts/test-operator.pid.json",
+      "bytes": 616,
+      "sha256": "f83916efaed267b01e759728ee904dddf304598df9354009f0cb2af8ac0783e2",
+      "externalOriginal": "/Users/ccheever/clique-improvement/revisions/adhoc-admission-dedup-r1/remote-evidence/receipts/test-operator.pid.json"
+    },
+    {
+      "path": "implementation/remote-evidence/receipts/test-operator.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "externalOriginal": "/Users/ccheever/clique-improvement/revisions/adhoc-admission-dedup-r1/remote-evidence/receipts/test-operator.stderr"
+    },
+    {
+      "path": "implementation/remote-evidence/receipts/test-operator.stdout",
+      "bytes": 999,
+      "sha256": "55f3041fbbff1fdf6324896ccb72a175057975cc6a42b1e5ed015bc39611595b",
+      "externalOriginal": "/Users/ccheever/clique-improvement/revisions/adhoc-admission-dedup-r1/remote-evidence/receipts/test-operator.stdout"
+    },
+    {
+      "path": "implementation/remote-evidence/receipts/test-operator.terminal.json",
+      "bytes": 1684,
+      "sha256": "272eea7422c8a47f35193a276393be9bb9e06cfc2e3dbe8451907511d1758770",
+      "externalOriginal": "/Users/ccheever/clique-improvement/revisions/adhoc-admission-dedup-r1/remote-evidence/receipts/test-operator.terminal.json"
+    },
+    {
+      "path": "implementation/remote-evidence/receipts/test-owner-jobs-with-media.launch.json",
+      "bytes": 1857,
+      "sha256": "b1e63b6cd1b2cc15d15eaaff8e3a1fbd9176b458be04a347b964473fb79c2e12",
+      "externalOriginal": "/Users/ccheever/clique-improvement/revisions/adhoc-admission-dedup-r1/remote-evidence/receipts/test-owner-jobs-with-media.launch.json"
+    },
+    {
+      "path": "implementation/remote-evidence/receipts/test-owner-jobs-with-media.pid.json",
+      "bytes": 363,
+      "sha256": "67d400efe6e30ca950c28b72e2652231541c44699c7fa05d5429a1de208b7b1d",
+      "externalOriginal": "/Users/ccheever/clique-improvement/revisions/adhoc-admission-dedup-r1/remote-evidence/receipts/test-owner-jobs-with-media.pid.json"
+    },
+    {
+      "path": "implementation/remote-evidence/receipts/test-owner-jobs-with-media.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "externalOriginal": "/Users/ccheever/clique-improvement/revisions/adhoc-admission-dedup-r1/remote-evidence/receipts/test-owner-jobs-with-media.stderr"
+    },
+    {
+      "path": "implementation/remote-evidence/receipts/test-owner-jobs-with-media.stdout",
+      "bytes": 456,
+      "sha256": "e6f05ac05972f3d289bb111c23255407dd0792e43810ffa064bc3c9d8b861d34",
+      "externalOriginal": "/Users/ccheever/clique-improvement/revisions/adhoc-admission-dedup-r1/remote-evidence/receipts/test-owner-jobs-with-media.stdout"
+    },
+    {
+      "path": "implementation/remote-evidence/receipts/test-owner-jobs-with-media.terminal.json",
+      "bytes": 1471,
+      "sha256": "3f9b016d8f86be0773a4167eec15331c21fd9252b8c1f1a228f92d5d21dbff43",
+      "externalOriginal": "/Users/ccheever/clique-improvement/revisions/adhoc-admission-dedup-r1/remote-evidence/receipts/test-owner-jobs-with-media.terminal.json"
+    },
+    {
+      "path": "implementation/remote-evidence/receipts/test-owner-jobs.launch.json",
+      "bytes": 1867,
+      "sha256": "153e7246a095fd01f207ea6a6a714961ec32e684d1972bb888244294a1f956dc",
+      "externalOriginal": "/Users/ccheever/clique-improvement/revisions/adhoc-admission-dedup-r1/remote-evidence/receipts/test-owner-jobs.launch.json"
+    },
+    {
+      "path": "implementation/remote-evidence/receipts/test-owner-jobs.pid.json",
+      "bytes": 636,
+      "sha256": "72eaa379baf525f72fbeb40841d3651e72e82b369e9db599fbce009899fc7892",
+      "externalOriginal": "/Users/ccheever/clique-improvement/revisions/adhoc-admission-dedup-r1/remote-evidence/receipts/test-owner-jobs.pid.json"
+    },
+    {
+      "path": "implementation/remote-evidence/receipts/test-owner-jobs.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "externalOriginal": "/Users/ccheever/clique-improvement/revisions/adhoc-admission-dedup-r1/remote-evidence/receipts/test-owner-jobs.stderr"
+    },
+    {
+      "path": "implementation/remote-evidence/receipts/test-owner-jobs.stdout",
+      "bytes": 1976,
+      "sha256": "1a3109e98d470ded47149fda682142d1565c6834ebe79f073c900b7290be82a3",
+      "externalOriginal": "/Users/ccheever/clique-improvement/revisions/adhoc-admission-dedup-r1/remote-evidence/receipts/test-owner-jobs.stdout"
+    },
+    {
+      "path": "implementation/remote-evidence/receipts/test-owner-jobs.terminal.json",
+      "bytes": 1738,
+      "sha256": "0c65a1d85ce2ea02c1c2e281e5c768c5bcf2721063a5b79b4d9ff1833b90ce2d",
+      "externalOriginal": "/Users/ccheever/clique-improvement/revisions/adhoc-admission-dedup-r1/remote-evidence/receipts/test-owner-jobs.terminal.json"
+    },
+    {
+      "path": "implementation/remote-evidence/receipts/test-owner-operator-with-media.launch.json",
+      "bytes": 1871,
+      "sha256": "d2581a3ffb9dcbcfe2947a85657e0f0f45af771460bdc9816b7f0bf19bf520eb",
+      "externalOriginal": "/Users/ccheever/clique-improvement/revisions/adhoc-admission-dedup-r1/remote-evidence/receipts/test-owner-operator-with-media.launch.json"
+    },
+    {
+      "path": "implementation/remote-evidence/receipts/test-owner-operator-with-media.pid.json",
+      "bytes": 640,
+      "sha256": "56ee6a0b9ac4809129dbc4fce497046b528d900655b837777233a0f5c6aa077f",
+      "externalOriginal": "/Users/ccheever/clique-improvement/revisions/adhoc-admission-dedup-r1/remote-evidence/receipts/test-owner-operator-with-media.pid.json"
+    },
+    {
+      "path": "implementation/remote-evidence/receipts/test-owner-operator-with-media.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "externalOriginal": "/Users/ccheever/clique-improvement/revisions/adhoc-admission-dedup-r1/remote-evidence/receipts/test-owner-operator-with-media.stderr"
+    },
+    {
+      "path": "implementation/remote-evidence/receipts/test-owner-operator-with-media.stdout",
+      "bytes": 1388,
+      "sha256": "c5834e691203ebb8f191e069ed23d48332d23b213b604a226af8a2695ac11afb",
+      "externalOriginal": "/Users/ccheever/clique-improvement/revisions/adhoc-admission-dedup-r1/remote-evidence/receipts/test-owner-operator-with-media.stdout"
+    },
+    {
+      "path": "implementation/remote-evidence/receipts/test-owner-operator-with-media.terminal.json",
+      "bytes": 1760,
+      "sha256": "4b23a80059eaec188f651ad539a11480d86eba3624d93be7d2c934f0de7cfbf3",
+      "externalOriginal": "/Users/ccheever/clique-improvement/revisions/adhoc-admission-dedup-r1/remote-evidence/receipts/test-owner-operator-with-media.terminal.json"
+    },
+    {
+      "path": "implementation/remote-evidence/receipts/test-owner-operator.launch.json",
+      "bytes": 1871,
+      "sha256": "b4ab80a1f33eda6c1f9aaf515f2f5b039f5a0a85894622cbf578fdad293bb246",
+      "externalOriginal": "/Users/ccheever/clique-improvement/revisions/adhoc-admission-dedup-r1/remote-evidence/receipts/test-owner-operator.launch.json"
+    },
+    {
+      "path": "implementation/remote-evidence/receipts/test-owner-operator.pid.json",
+      "bytes": 532,
+      "sha256": "3fb6fb8ee414f93a641ba1ca0239c5df4ca07d9ed27bfed86dd391859c68b58a",
+      "externalOriginal": "/Users/ccheever/clique-improvement/revisions/adhoc-admission-dedup-r1/remote-evidence/receipts/test-owner-operator.pid.json"
+    },
+    {
+      "path": "implementation/remote-evidence/receipts/test-owner-operator.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "externalOriginal": "/Users/ccheever/clique-improvement/revisions/adhoc-admission-dedup-r1/remote-evidence/receipts/test-owner-operator.stderr"
+    },
+    {
+      "path": "implementation/remote-evidence/receipts/test-owner-operator.stdout",
+      "bytes": 10289,
+      "sha256": "87883e820cec7660cc2f95ab45a6d0aae5cc784f54ba34f2d850ebf36fa25dc0",
+      "externalOriginal": "/Users/ccheever/clique-improvement/revisions/adhoc-admission-dedup-r1/remote-evidence/receipts/test-owner-operator.stdout"
+    },
+    {
+      "path": "implementation/remote-evidence/receipts/test-owner-operator.terminal.json",
+      "bytes": 1651,
+      "sha256": "c8cd39075d1bf5113f4d70795753ff09fd5fb6afedadaad9aa6695b7b17be606",
+      "externalOriginal": "/Users/ccheever/clique-improvement/revisions/adhoc-admission-dedup-r1/remote-evidence/receipts/test-owner-operator.terminal.json"
+    },
+    {
+      "path": "implementation/remote-evidence/receipts/test-owner-rehearsal.launch.json",
+      "bytes": 1862,
+      "sha256": "295179f9cee904e8b5c2ff9a71c156bedee128e8b2053fb165b05db034b53de0",
+      "externalOriginal": "/Users/ccheever/clique-improvement/revisions/adhoc-admission-dedup-r1/remote-evidence/receipts/test-owner-rehearsal.launch.json"
+    },
+    {
+      "path": "implementation/remote-evidence/receipts/test-owner-rehearsal.pid.json",
+      "bytes": 363,
+      "sha256": "6f39b37042c5b7d585989af810a0bd7d951b2c877406a64f761cb067a6b7a5d9",
+      "externalOriginal": "/Users/ccheever/clique-improvement/revisions/adhoc-admission-dedup-r1/remote-evidence/receipts/test-owner-rehearsal.pid.json"
+    },
+    {
+      "path": "implementation/remote-evidence/receipts/test-owner-rehearsal.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "externalOriginal": "/Users/ccheever/clique-improvement/revisions/adhoc-admission-dedup-r1/remote-evidence/receipts/test-owner-rehearsal.stderr"
+    },
+    {
+      "path": "implementation/remote-evidence/receipts/test-owner-rehearsal.stdout",
+      "bytes": 546,
+      "sha256": "4efcffb7a867aaee47691fe0e16b3cae6d0f44f71587d3ffcfbea483ef73c7fa",
+      "externalOriginal": "/Users/ccheever/clique-improvement/revisions/adhoc-admission-dedup-r1/remote-evidence/receipts/test-owner-rehearsal.stdout"
+    },
+    {
+      "path": "implementation/remote-evidence/receipts/test-owner-rehearsal.terminal.json",
+      "bytes": 1467,
+      "sha256": "22be8a2fd4ea5ce3d82db76299d6f0aa551090d892b298be040813d96a0c7a61",
+      "externalOriginal": "/Users/ccheever/clique-improvement/revisions/adhoc-admission-dedup-r1/remote-evidence/receipts/test-owner-rehearsal.terminal.json"
+    },
+    {
+      "path": "implementation/remote-evidence/receipts/test-rehearsal-unit.launch.json",
+      "bytes": 1865,
+      "sha256": "a03f705e3650c832c061e9a1f17e13887aa6c0ecb9acc185d863cd65b14e8e39",
+      "externalOriginal": "/Users/ccheever/clique-improvement/revisions/adhoc-admission-dedup-r1/remote-evidence/receipts/test-rehearsal-unit.launch.json"
+    },
+    {
+      "path": "implementation/remote-evidence/receipts/test-rehearsal-unit.pid.json",
+      "bytes": 636,
+      "sha256": "14dca9298f5be4a21fbb181834c93d6447c28b6ad6ef91f21b357b49e62b9f15",
+      "externalOriginal": "/Users/ccheever/clique-improvement/revisions/adhoc-admission-dedup-r1/remote-evidence/receipts/test-rehearsal-unit.pid.json"
+    },
+    {
+      "path": "implementation/remote-evidence/receipts/test-rehearsal-unit.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "externalOriginal": "/Users/ccheever/clique-improvement/revisions/adhoc-admission-dedup-r1/remote-evidence/receipts/test-rehearsal-unit.stderr"
+    },
+    {
+      "path": "implementation/remote-evidence/receipts/test-rehearsal-unit.stdout",
+      "bytes": 755,
+      "sha256": "90de8134ba6c4734e088c9849fff51610b441ee617c3274c16c67482d8e34ce5",
+      "externalOriginal": "/Users/ccheever/clique-improvement/revisions/adhoc-admission-dedup-r1/remote-evidence/receipts/test-rehearsal-unit.stdout"
+    },
+    {
+      "path": "implementation/remote-evidence/receipts/test-rehearsal-unit.terminal.json",
+      "bytes": 1733,
+      "sha256": "d3bb6fd491603138e77536568e4ffcf9a64c5ca69e217811cf0f667468920ca0",
+      "externalOriginal": "/Users/ccheever/clique-improvement/revisions/adhoc-admission-dedup-r1/remote-evidence/receipts/test-rehearsal-unit.terminal.json"
+    },
+    {
+      "path": "implementation/remote-evidence/receipts/test-timers.launch.json",
+      "bytes": 1836,
+      "sha256": "b17c5a9a556740d00717fc4090108579e47083b90421d421dc387eaaed7a141a",
+      "externalOriginal": "/Users/ccheever/clique-improvement/revisions/adhoc-admission-dedup-r1/remote-evidence/receipts/test-timers.launch.json"
+    },
+    {
+      "path": "implementation/remote-evidence/receipts/test-timers.pid.json",
+      "bytes": 502,
+      "sha256": "d0535ed8a2a8ed4ad16907969d439413400dc1869a7299c8499b19b70083a0aa",
+      "externalOriginal": "/Users/ccheever/clique-improvement/revisions/adhoc-admission-dedup-r1/remote-evidence/receipts/test-timers.pid.json"
+    },
+    {
+      "path": "implementation/remote-evidence/receipts/test-timers.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "externalOriginal": "/Users/ccheever/clique-improvement/revisions/adhoc-admission-dedup-r1/remote-evidence/receipts/test-timers.stderr"
+    },
+    {
+      "path": "implementation/remote-evidence/receipts/test-timers.stdout",
+      "bytes": 1400,
+      "sha256": "8aaca0f45e54cf5e04af6d1fb13f4afbcb1d49fe7c9e4a1cb23305091393f5dc",
+      "externalOriginal": "/Users/ccheever/clique-improvement/revisions/adhoc-admission-dedup-r1/remote-evidence/receipts/test-timers.stdout"
+    },
+    {
+      "path": "implementation/remote-evidence/receipts/test-timers.terminal.json",
+      "bytes": 1561,
+      "sha256": "de6360420bcaf93a33c4a400c27f2dc7ccf024d9d6df0b276a66e8193fcdf826",
+      "externalOriginal": "/Users/ccheever/clique-improvement/revisions/adhoc-admission-dedup-r1/remote-evidence/receipts/test-timers.terminal.json"
+    },
+    {
+      "path": "implementation/remote-evidence/source-checks.json",
+      "bytes": 233,
+      "sha256": "9ce52eff1b147d596b275f2906901407030fdb67386116c2634cf79bff10da19",
+      "externalOriginal": "/Users/ccheever/clique-improvement/revisions/adhoc-admission-dedup-r1/remote-evidence/source-checks.json"
+    },
+    {
+      "path": "implementation/remote-evidence/tool-binaries.json",
+      "bytes": 872,
+      "sha256": "2304114e8ae938cec9c1f604a95367dd2bf02e6e9dc677e3ed8a0808b9e2b087",
+      "externalOriginal": "/Users/ccheever/clique-improvement/revisions/adhoc-admission-dedup-r1/remote-evidence/tool-binaries.json"
+    },
+    {
+      "path": "implementation/remote-evidence/tools.json",
+      "bytes": 1331,
+      "sha256": "97324b80169e6117867bc90d5a817e5fe1e6af0dd4e11543dab95605667c7623",
+      "externalOriginal": "/Users/ccheever/clique-improvement/revisions/adhoc-admission-dedup-r1/remote-evidence/tools.json"
+    },
+    {
+      "path": "implementation/source-manifest.json",
+      "bytes": 175070,
+      "sha256": "cce716c31a50149118453b9e8acc12e541393108553b1b30f67536394ce90ebc",
+      "externalOriginal": "/Users/ccheever/clique-improvement/revisions/adhoc-admission-dedup-r1/source-manifest.json"
+    },
+    {
+      "path": "implementation/supervisor-actual-identity.json",
+      "bytes": 1359,
+      "sha256": "63accd7969402b46a3bd032eff3acc21a08de3e4b34497d067219927e5437d58",
+      "externalOriginal": "/Users/ccheever/clique-improvement/revisions/adhoc-admission-dedup-r1/supervisor-actual-identity.json"
+    },
+    {
+      "path": "implementation/terminal.json",
+      "bytes": 111,
+      "sha256": "1e4888872be08c3e1cd6b4abfd2e793a48b7fa75f7250717670adb57435bd798",
+      "externalOriginal": "/Users/ccheever/clique-improvement/revisions/adhoc-admission-dedup-r1/terminal.json"
+    },
+    {
+      "path": "integration-assessment.md",
+      "bytes": 2079,
+      "sha256": "5593fcd09cf4450fa03f59f1aa6ca886d399aec8f81f879ee7f39ec467f9efaa",
+      "provenance": "New supervisor evidence index or source-composition receipt; not claimed verbatim author evidence"
+    },
+    {
+      "path": "reviews/astra/actual-identity.json",
+      "bytes": 488,
+      "sha256": "5923a2bbf69355b1c36c22282b97422dffbc893ea3fd2cdc88b327ba6aadd1cb",
+      "externalOriginal": "/Users/ccheever/clique-improvement/reviews/adhoc-admission-dedup-r1/astra/actual-identity.json"
+    },
+    {
+      "path": "reviews/astra/launch.json",
+      "bytes": 759,
+      "sha256": "2af2ee6fd8f69d2d1c63cf623c479cd92702d357710c208e50777c88c55790ff",
+      "externalOriginal": "/Users/ccheever/clique-improvement/reviews/adhoc-admission-dedup-r1/astra/launch.json"
+    },
+    {
+      "path": "reviews/astra/review.md",
+      "bytes": 8985,
+      "sha256": "891309058c6fa24d9ee8152c17dc67a623be9adc435428f71586a41165e707cc",
+      "externalOriginal": "/Users/ccheever/clique-improvement/reviews/adhoc-admission-dedup-r1/astra/review.md"
+    },
+    {
+      "path": "reviews/astra/supervisor-terminal-custody.json",
+      "bytes": 251,
+      "sha256": "3f5b4fdcf068ca38b27de2b8dd91a6f1a69213d8958a73f4df5909eda5bcd313",
+      "externalOriginal": "/Users/ccheever/clique-improvement/reviews/adhoc-admission-dedup-r1/astra/supervisor-terminal-custody.json"
+    },
+    {
+      "path": "reviews/astra/terminal.json",
+      "bytes": 110,
+      "sha256": "2e7c8088ba9284340ec2735486c4f442f468aa27094848477b6e2a7a3f5976cb",
+      "externalOriginal": "/Users/ccheever/clique-improvement/reviews/adhoc-admission-dedup-r1/astra/terminal.json"
+    },
+    {
+      "path": "reviews/grok/actual-identity.json",
+      "bytes": 459,
+      "sha256": "2208cb4c3c10a4f8d573778b5d0e770577c05b11e5d098a799bc4968ad573a28",
+      "externalOriginal": "/Users/ccheever/clique-improvement/reviews/adhoc-admission-dedup-r1/grok/actual-identity.json"
+    },
+    {
+      "path": "reviews/grok/launch.json",
+      "bytes": 766,
+      "sha256": "1542d1981e37e8343082c053ed44405cf5c770a013fa23474e77ccae166a3819",
+      "externalOriginal": "/Users/ccheever/clique-improvement/reviews/adhoc-admission-dedup-r1/grok/launch.json"
+    },
+    {
+      "path": "reviews/grok/review.md",
+      "bytes": 13422,
+      "sha256": "609046f2f527b486e8ac746358005fe72cf4bd3d2ae2cbfe86d8d2e1bb48c5c3",
+      "externalOriginal": "/Users/ccheever/clique-improvement/reviews/adhoc-admission-dedup-r1/grok/review.md"
+    },
+    {
+      "path": "reviews/grok/supervisor-terminal-custody.json",
+      "bytes": 252,
+      "sha256": "d088381b836de4d879da839458cb846358e68f6a1b5183f9331000e46598053a",
+      "externalOriginal": "/Users/ccheever/clique-improvement/reviews/adhoc-admission-dedup-r1/grok/supervisor-terminal-custody.json"
+    },
+    {
+      "path": "reviews/grok/terminal.json",
+      "bytes": 112,
+      "sha256": "68dfecc616974e4b52c573b431a1cfb39c24f431556d18bcb014d296b32bef12",
+      "externalOriginal": "/Users/ccheever/clique-improvement/reviews/adhoc-admission-dedup-r1/grok/terminal.json"
+    },
+    {
+      "path": "source-correspondence.json",
+      "bytes": 3664,
+      "sha256": "5174c7cf95fdbac9ca2fd57ad10cff8d2b752451ef44cda204633ea13e2c493f",
+      "provenance": "New supervisor evidence index or source-composition receipt; not claimed verbatim author evidence"
+    }
+  ]
+}

@@ -1,0 +1,9 @@
+{
+  "allFrozenRustAndTestLeavesMatchTestedProjection": true,
+  "onlyPostBuildDifference": [
+    "llp/1016-administrative-plane.rfc.md"
+  ],
+  "reason": "Final LLP wording precisely preserves current-base execution identity checks; no code/test change after validation",
+  "testedProjectionLeaves": 940,
+  "frozenLeaves": 940
+}

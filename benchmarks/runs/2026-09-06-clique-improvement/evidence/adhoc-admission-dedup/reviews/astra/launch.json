@@ -1,0 +1,27 @@
+{
+  "pid": 83642,
+  "supervisorPid": 83635,
+  "startEpoch": 1788757744.246603,
+  "argv": [
+    "/Users/ccheever/.volta/bin/codex",
+    "exec",
+    "-s",
+    "read-only",
+    "--skip-git-repo-check",
+    "--color",
+    "never",
+    "--json",
+    "-m",
+    "gpt-6-astra",
+    "-c",
+    "model_reasoning_effort=\"xhigh\"",
+    "-C",
+    "/Users/ccheever/clique-improvement/reviews/adhoc-admission-dedup-r1/astra",
+    "-o",
+    "/Users/ccheever/clique-improvement/reviews/adhoc-admission-dedup-r1/astra/review.md",
+    "-"
+  ],
+  "cwd": "/Users/ccheever/clique-improvement/reviews/adhoc-admission-dedup-r1/astra",
+  "candidate": "cd610a50e9aab41c3e13620e0aefe8d6da5115f3",
+  "manifestSha256": "374cb436c1681130fb3023c01d6d6253091bd7680d046a5c0cf12464edbb37a3"
+}

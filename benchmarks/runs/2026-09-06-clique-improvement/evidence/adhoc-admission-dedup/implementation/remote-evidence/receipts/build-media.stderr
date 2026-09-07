@@ -1,0 +1,7 @@
+   Compiling proc-macro2 v1.0.107
+   Compiling quote v1.0.47
+   Compiling syn v3.0.4
+   Compiling serde_derive v1.0.229
+   Compiling serde v1.0.229
+   Compiling snapback2-media v0.0.14 (/home/ccheever/clique-tooling/adhoc-admission-dedup-r1-20260907/source/snapback2/crates/snapback2-media)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 3.26s

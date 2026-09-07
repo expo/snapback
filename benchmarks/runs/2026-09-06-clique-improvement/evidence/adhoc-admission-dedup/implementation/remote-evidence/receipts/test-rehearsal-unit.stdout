@@ -1,0 +1,10 @@
+
+running 5 tests
+test rehearsal::tests::measure_rehearsal_digest_and_100mb_overhead ... ignored, LLP 1016 §8 measurement, run explicitly: cargo nextest run -p snapback2 --bin snapback2 -E 'test(measure_rehearsal)' --run-ignored ignored-only --no-capture
+test rehearsal::tests::admission_refuses_on_the_live_runtime_before_any_copy_and_a_failed_open_is_e_rehearsal ... ok
+test rehearsal::tests::rehearsal_pins_clock_and_uses_disjoint_id_namespaces ... ok
+test rehearsal::tests::rehearsal_parks_with_prior_chunks_and_rolls_back_effects_and_asset_releases ... ok
+test rehearsal::tests::rehearsal_isolates_network_blobs_commits_outbox_and_discards_copy ... ok
+
+test result: ok. 4 passed; 0 failed; 1 ignored; 0 measured; 145 filtered out; finished in 0.33s
+

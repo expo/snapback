@@ -1,0 +1,12 @@
+{
+  "pid": 3707806,
+  "ppid": 3707424,
+  "startTicks": 111579988,
+  "stat": "3707806 (owner-673a8b857) R 3707424 3707806 3707806 0 -1 4194304 4 0 0 0 0 0 0 0 20 0 1 0 111579988 17960960 0 18446744073709551615 0 0 140725891742661 0 0 0 0 0 0 0 0 0 17 86 0 0 0 0 0 0 0 0 140725891742661 0 0 0 0\n",
+  "bootId": "76ef40aa-0ed8-4f57-85c6-898bb42ea7e4",
+  "argv": [
+    "/home/ccheever/clique-tooling/adhoc-admission-dedup-r1-20260907/target/debug/deps/owner-673a8b8579683632",
+    "owner_cases::operator::",
+    "--test-threads=8"
+  ]
+}

@@ -1,0 +1,48 @@
+{
+  "argv": [
+    "python3",
+    "/home/ccheever/clique-tooling/adhoc-admission-dedup-r1-20260907/diagnostic-corrected.py",
+    "after",
+    "/home/ccheever/clique-tooling/adhoc-admission-dedup-r1-20260907/diagnostic-target/debug/snapback2"
+  ],
+  "cwd": "/home/ccheever/clique-tooling/adhoc-admission-dedup-r1-20260907",
+  "timeoutSeconds": 60,
+  "environment": {
+    "HOME": "/home/ccheever",
+    "USER": "ccheever",
+    "LOGNAME": "ccheever",
+    "PATH": "/home/ccheever/clique-tooling/epyc-linux-tooling-20260907T010007Z-0fd567d96f/node-v22.23.2-linux-x64/bin:/home/ccheever/clique-tooling/epyc-linux-tooling-20260907T010007Z-0fd567d96f/bun-v1.3.12-linux-x64/bin:/home/ccheever/.cargo/bin:/usr/local/bin:/usr/bin:/bin",
+    "LANG": "C.UTF-8",
+    "LC_ALL": "C.UTF-8",
+    "RUSTUP_HOME": "/home/ccheever/.rustup",
+    "CARGO_HOME": "/home/ccheever/clique-tooling/adhoc-admission-dedup-r1-20260907/cargo-home",
+    "CARGO_TARGET_DIR": "/home/ccheever/clique-tooling/adhoc-admission-dedup-r1-20260907/diagnostic-target",
+    "CARGO_NET_RETRY": "0",
+    "CARGO_NET_GIT_FETCH_WITH_CLI": "true",
+    "CARGO_TERM_COLOR": "never",
+    "GIT_TERMINAL_PROMPT": "0",
+    "BUN_INSTALL_CACHE_DIR": "/home/ccheever/clique-tooling/adhoc-admission-dedup-r1-20260907/bun-cache",
+    "TMPDIR": "/home/ccheever/clique-tooling/adhoc-admission-dedup-r1-20260907/tmp"
+  },
+  "controller": {
+    "pid": 3715947,
+    "ppid": 3715943,
+    "startTicks": 111610640,
+    "stat": "3715947 (python3) R 3715943 3715947 3715947 0 -1 4194304 2132 0 0 0 1 0 0 0 20 0 1 0 111610640 26279936 4032 18446744073709551615 4325376 7352317 140720861436432 0 0 0 0 16781312 2 0 0 0 17 25 0 0 0 0 0 10653128 12216448 947806208 140720861441160 140720861441496 140720861441496 140720861442023 0\n",
+    "bootId": "76ef40aa-0ed8-4f57-85c6-898bb42ea7e4",
+    "argv": [
+      "python3",
+      "/home/ccheever/clique-tooling/adhoc-admission-dedup-r1-20260907/source/remote_runner.py",
+      "diagnostic-after",
+      ".",
+      "60",
+      "diagnostic-target",
+      "python3",
+      "/home/ccheever/clique-tooling/adhoc-admission-dedup-r1-20260907/diagnostic-corrected.py",
+      "after",
+      "/home/ccheever/clique-tooling/adhoc-admission-dedup-r1-20260907/diagnostic-target/debug/snapback2"
+    ]
+  },
+  "startedEpoch": 1788757188.1421812,
+  "retries": 0
+}

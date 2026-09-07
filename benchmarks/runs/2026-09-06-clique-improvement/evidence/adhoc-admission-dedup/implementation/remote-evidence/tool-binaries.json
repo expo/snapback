@@ -1,0 +1,22 @@
+[
+  {
+    "name": "rustc",
+    "path": "/home/ccheever/.rustup/toolchains/1.97.0-x86_64-unknown-linux-gnu/bin/rustc",
+    "sha256": "df13f58759c0662831983e3a6501c63c1fc12ea60ec4e1d1ac35e5fe43c500c0"
+  },
+  {
+    "name": "cargo",
+    "path": "/home/ccheever/.rustup/toolchains/1.97.0-x86_64-unknown-linux-gnu/bin/cargo",
+    "sha256": "eff12bab37b9d9e01324db4583eaf55b2cd82ac3008a7e59876e4cd2e9a028f5"
+  },
+  {
+    "name": "node",
+    "path": "/home/ccheever/clique-tooling/epyc-linux-tooling-20260907T010007Z-0fd567d96f/node-v22.23.2-linux-x64/bin/node",
+    "sha256": "3517c2df0b2f8cd7f422b4b8450ef81c6889f08eb03e281d6de9079b15e6a327"
+  },
+  {
+    "name": "bun",
+    "path": "/home/ccheever/clique-tooling/epyc-linux-tooling-20260907T010007Z-0fd567d96f/bun-v1.3.12-linux-x64/bin/bun",
+    "sha256": "92a1cd8b6185f676010bb18e767dfc65c772273e79ae9984480843261939eeaa"
+  }
+]

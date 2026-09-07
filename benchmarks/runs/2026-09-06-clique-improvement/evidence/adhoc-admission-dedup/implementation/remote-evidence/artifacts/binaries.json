@@ -1,0 +1,30 @@
+[
+  {
+    "name": "before",
+    "source": "/home/ccheever/clique-tooling/adhoc-admission-dedup-r1-20260907/diagnostic-target/debug/snapback2",
+    "path": "/home/ccheever/clique-tooling/adhoc-admission-dedup-r1-20260907/artifacts/before",
+    "sha256": "5225a497e0c083c4d76d5aefe48e8bd02dabb38ed1a35e8891c7469faacd119a",
+    "bytes": 138043016
+  },
+  {
+    "name": "candidate-uninstrumented",
+    "source": "/home/ccheever/clique-tooling/adhoc-admission-dedup-r1-20260907/target/debug/snapback2",
+    "path": "/home/ccheever/clique-tooling/adhoc-admission-dedup-r1-20260907/artifacts/candidate-uninstrumented",
+    "sha256": "ae4298d8eec6f7a95045d7552f3b6b03711473e6b31dfc089feb9a97c7433516",
+    "bytes": 137972896
+  },
+  {
+    "name": "after",
+    "source": "/home/ccheever/clique-tooling/adhoc-admission-dedup-r1-20260907/diagnostic-target/debug/snapback2",
+    "path": "/home/ccheever/clique-tooling/adhoc-admission-dedup-r1-20260907/artifacts/after",
+    "sha256": "25b4efa99e7989ff9be3d6494838c2a26a64fb67a0093b1f238261ef0ab50113",
+    "bytes": 138077568
+  },
+  {
+    "name": "media",
+    "source": "/home/ccheever/clique-tooling/adhoc-admission-dedup-r1-20260907/target/debug/snapback2-media",
+    "path": "/home/ccheever/clique-tooling/adhoc-admission-dedup-r1-20260907/artifacts/media",
+    "sha256": "32bcad449f6f79a60b60fe86eb6187bd459f649d492c22833ad659778035aa94",
+    "bytes": 38577928
+  }
+]

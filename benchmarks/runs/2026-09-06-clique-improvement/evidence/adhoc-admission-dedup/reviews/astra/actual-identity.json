@@ -1,0 +1,11 @@
+{
+  "model": "gpt-6-astra",
+  "effort": "xhigh",
+  "cwd": "/Users/ccheever/clique-improvement/reviews/adhoc-admission-dedup-r1/astra",
+  "uuid": "01a07a45-1c39-7d82-9bb4-f97c646fc137",
+  "source": "/Users/ccheever/.codex/sessions/2026/09/06/rollout-2026-09-06T22-09-04-01a07a45-1c39-7d82-9bb4-f97c646fc137.jsonl",
+  "line": 8,
+  "timestamp": "2026-09-07T05:09:07.471Z",
+  "sha256": "fdd02458a633679ad82f42502a439ec50d0251eeef5e26752a412ce9f5e675cd",
+  "observedEpoch": 1788757824.66628
+}

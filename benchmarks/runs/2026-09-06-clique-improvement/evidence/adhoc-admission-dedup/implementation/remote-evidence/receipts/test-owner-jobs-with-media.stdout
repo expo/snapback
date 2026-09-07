@@ -1,0 +1,8 @@
+
+running 3 tests
+test owner_cases::jobs::measure_job_turn_with_50_live_and_client_p95 ... ignored, LLP 1016 measurements, explicitly run outside the blocking suite
+test owner_cases::jobs::jobs_350_rows_finish_under_client_load_and_park_resume_through_owner ... ok
+test owner_cases::jobs::run_file_query_mutation_job_and_deleted_adapters_through_binary ... ok
+
+test result: ok. 2 passed; 0 failed; 1 ignored; 0 measured; 85 filtered out; finished in 4.87s
+

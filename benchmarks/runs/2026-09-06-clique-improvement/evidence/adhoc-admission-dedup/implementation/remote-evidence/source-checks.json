@@ -1,0 +1,17 @@
+[
+  {
+    "source": "source",
+    "leaves": 940,
+    "drift": []
+  },
+  {
+    "source": "baseline-diagnostic",
+    "leaves": 940,
+    "drift": []
+  },
+  {
+    "source": "candidate-diagnostic",
+    "leaves": 940,
+    "drift": []
+  }
+]

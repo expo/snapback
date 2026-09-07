@@ -1,0 +1,36 @@
+{
+  "name": "test-owner-operator",
+  "exitCode": 101,
+  "timedOut": false,
+  "elapsedSeconds": 4.850885629653931,
+  "finishedEpoch": 1788756886.4522102,
+  "process": {
+    "pid": 3707806,
+    "ppid": 3707424,
+    "startTicks": 111579988,
+    "stat": "3707806 (owner-673a8b857) R 3707424 3707806 3707806 0 -1 4194304 4 0 0 0 0 0 0 0 20 0 1 0 111579988 17960960 0 18446744073709551615 0 0 140725891742661 0 0 0 0 0 0 0 0 0 17 86 0 0 0 0 0 0 0 0 140725891742661 0 0 0 0\n",
+    "bootId": "76ef40aa-0ed8-4f57-85c6-898bb42ea7e4",
+    "argv": [
+      "/home/ccheever/clique-tooling/adhoc-admission-dedup-r1-20260907/target/debug/deps/owner-673a8b8579683632",
+      "owner_cases::operator::",
+      "--test-threads=8"
+    ]
+  },
+  "stdoutSha256": "87883e820cec7660cc2f95ab45a6d0aae5cc784f54ba34f2d850ebf36fa25dc0",
+  "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "processes": [
+    {
+      "pid": 3707806,
+      "ppid": 3707424,
+      "startTicks": 111579988,
+      "stat": "3707806 (owner-673a8b857) S 3707424 3707806 3707806 0 -1 4194304 1030 1091031 0 0 45 83 5728 355 20 0 2 0 111579988 575156224 1536 18446744073709551615 108135746261536 108135759755920 140725891735568 0 0 0 0 4096 1088 0 0 0 17 86 0 0 0 0 0 108135760269456 108135760294920 108136516595712 140725891742661 140725891742807 140725891742807 140725891743631 0\n",
+      "bootId": "76ef40aa-0ed8-4f57-85c6-898bb42ea7e4",
+      "argv": [
+        "/home/ccheever/clique-tooling/adhoc-admission-dedup-r1-20260907/target/debug/deps/owner-673a8b8579683632",
+        "owner_cases::operator::",
+        "--test-threads=8"
+      ]
+    }
+  ],
+  "retries": 0
+}

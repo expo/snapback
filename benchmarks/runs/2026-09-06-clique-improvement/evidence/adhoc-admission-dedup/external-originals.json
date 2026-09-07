@@ -1,0 +1,40 @@
+{
+  "scope": "Larger original archives/inventories retained externally; not copied or relabeled",
+  "files": [
+    {
+      "original": "/Users/ccheever/clique-improvement/revisions/adhoc-admission-dedup-r1/frozen-source.tar",
+      "bytes": 22435840,
+      "sha256": "e3e4694697156e89d3b6598adec579620f8cb9e2cde2bcda9db05946dc34484b"
+    },
+    {
+      "original": "/Users/ccheever/clique-improvement/revisions/adhoc-admission-dedup-r1/remote-evidence/cache-copy.json",
+      "bytes": 2109792,
+      "sha256": "fc69ebc767fc3812295474a6050887cc6e0e21f4bb1ce1f3f45df46f87b31931"
+    },
+    {
+      "original": "/Users/ccheever/clique-improvement/revisions/adhoc-admission-dedup-r1/remote-evidence/baseline-source-manifest.json",
+      "bytes": 165556,
+      "sha256": "0ae542a2cee6684c14de48f57cfe05262a66ee00a3cebca1fb77937adb027d76"
+    },
+    {
+      "original": "/Users/ccheever/clique-improvement/revisions/adhoc-admission-dedup-r1/remote-evidence/baseline-diagnostic-manifest.json",
+      "bytes": 165555,
+      "sha256": "10e3f579ec98fa01dcd63c684572f268c66af21c4a6f97793ae84898742ee314"
+    },
+    {
+      "original": "/Users/ccheever/clique-improvement/revisions/adhoc-admission-dedup-r1/remote-evidence/candidate-diagnostic-manifest.json",
+      "bytes": 165555,
+      "sha256": "f347fb575a90c7c9effa2564fd28dba0dc01addab7a96cf9313641eabf1f72a6"
+    },
+    {
+      "original": "/Users/ccheever/clique-improvement/reviews/adhoc-admission-dedup-r1/astra/source-manifest.json",
+      "bytes": 381958,
+      "sha256": "374cb436c1681130fb3023c01d6d6253091bd7680d046a5c0cf12464edbb37a3"
+    },
+    {
+      "original": "/Users/ccheever/clique-improvement/reviews/adhoc-admission-dedup-r1/grok/source-manifest.json",
+      "bytes": 381958,
+      "sha256": "374cb436c1681130fb3023c01d6d6253091bd7680d046a5c0cf12464edbb37a3"
+    }
+  ]
+}

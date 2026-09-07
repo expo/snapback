@@ -1,0 +1,39 @@
+{
+  "argv": [
+    "/home/ccheever/clique-tooling/adhoc-admission-dedup-r1-20260907/target/debug/deps/owner-673a8b8579683632",
+    "owner_cases::operator::",
+    "--test-threads=8"
+  ],
+  "cwd": "/home/ccheever/clique-tooling/adhoc-admission-dedup-r1-20260907/source/snapback2",
+  "timeoutSeconds": 30,
+  "environment": {
+    "HOME": "/home/ccheever",
+    "USER": "ccheever",
+    "LOGNAME": "ccheever",
+    "PATH": "/home/ccheever/clique-tooling/epyc-linux-tooling-20260907T010007Z-0fd567d96f/node-v22.23.2-linux-x64/bin:/home/ccheever/clique-tooling/epyc-linux-tooling-20260907T010007Z-0fd567d96f/bun-v1.3.12-linux-x64/bin:/home/ccheever/.cargo/bin:/usr/local/bin:/usr/bin:/bin",
+    "LANG": "C.UTF-8",
+    "LC_ALL": "C.UTF-8",
+    "RUSTUP_HOME": "/home/ccheever/.rustup",
+    "CARGO_HOME": "/home/ccheever/clique-tooling/adhoc-admission-dedup-r1-20260907/cargo-home",
+    "CARGO_TARGET_DIR": "/home/ccheever/clique-tooling/adhoc-admission-dedup-r1-20260907/target",
+    "CARGO_NET_RETRY": "0",
+    "CARGO_NET_GIT_FETCH_WITH_CLI": "true",
+    "CARGO_TERM_COLOR": "never",
+    "GIT_TERMINAL_PROMPT": "0",
+    "BUN_INSTALL_CACHE_DIR": "/home/ccheever/clique-tooling/adhoc-admission-dedup-r1-20260907/bun-cache",
+    "TMPDIR": "/home/ccheever/clique-tooling/adhoc-admission-dedup-r1-20260907/tmp"
+  },
+  "controller": {
+    "pid": 3716036,
+    "ppid": 3716033,
+    "startTicks": 111610789,
+    "stat": "3716036 (python3) R 3716033 3716036 3716036 0 -1 4194304 2131 226180 0 0 5 2 1606 113 20 0 1 0 111610789 27078656 3648 18446744073709551615 4325376 7352317 140724578105184 0 0 0 0 16781312 2 0 0 0 17 45 0 0 0 0 0 10653128 12216448 190349312 140724578110926 140724578110936 140724578110936 140724578111463 0\n",
+    "bootId": "76ef40aa-0ed8-4f57-85c6-898bb42ea7e4",
+    "argv": [
+      "python3",
+      "-"
+    ]
+  },
+  "startedEpoch": 1788757194.7001765,
+  "retries": 0
+}

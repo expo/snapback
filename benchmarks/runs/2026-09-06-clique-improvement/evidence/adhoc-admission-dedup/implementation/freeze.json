@@ -1,0 +1,56 @@
+{
+  "commit": "cd610a50e9aab41c3e13620e0aefe8d6da5115f3",
+  "baseCommit": "97b4a5b2c218162f8a20a03928574dbd50608106",
+  "branch": "s2/clique-adhoc-admission-dedup",
+  "workingTreeClean": true,
+  "changedPaths": [
+    "llp/1016-administrative-plane.rfc.md",
+    "snapback2/crates/snapback2-core/src/registry_jobs.rs",
+    "snapback2/crates/snapback2-core/tests/jobs.rs",
+    "snapback2/crates/snapback2-core/tests/timers.rs",
+    "snapback2/crates/snapback2/src/rehearsal.rs",
+    "snapback2/crates/snapback2/src/writer_jobs.rs",
+    "snapback2/crates/snapback2/tests/owner_cases/rehearsal.rs"
+  ],
+  "changedFiles": [
+    {
+      "path": "llp/1016-administrative-plane.rfc.md",
+      "bytes": 111153,
+      "sha256": "08a4519cc291340c413a1568d61ebafa4e823f69898c69701813e0c11cb03a51"
+    },
+    {
+      "path": "snapback2/crates/snapback2-core/src/registry_jobs.rs",
+      "bytes": 13425,
+      "sha256": "07111480e23043331b9bebaaf3a7878f72e7dd4adc625de4e75c68098dbd9829"
+    },
+    {
+      "path": "snapback2/crates/snapback2-core/tests/jobs.rs",
+      "bytes": 41543,
+      "sha256": "020b1e011101de404351b11d4051c1970ce6b804e0169510ffef2bd11a4d405e"
+    },
+    {
+      "path": "snapback2/crates/snapback2-core/tests/timers.rs",
+      "bytes": 34787,
+      "sha256": "4b36515fb4b05888fe1cad47476eee8920ad83a61365b3b2d5be3d1eefed8465"
+    },
+    {
+      "path": "snapback2/crates/snapback2/src/rehearsal.rs",
+      "bytes": 11936,
+      "sha256": "80026d3b39407d36c638e9b91d3d642c1361f87940c8340674484f2df265f60f"
+    },
+    {
+      "path": "snapback2/crates/snapback2/src/writer_jobs.rs",
+      "bytes": 11367,
+      "sha256": "a7fdd58a3911b8854073a4c53177d709f4514b0c53650c981b6177d4e9d6a05e"
+    },
+    {
+      "path": "snapback2/crates/snapback2/tests/owner_cases/rehearsal.rs",
+      "bytes": 19444,
+      "sha256": "e1a912bea8c9b604a22a002205e41ed7022643c4e50203833e0734ed1fd87f49"
+    }
+  ],
+  "sourceArchiveSha256": "e3e4694697156e89d3b6598adec579620f8cb9e2cde2bcda9db05946dc34484b",
+  "sourceManifestSha256": "cce716c31a50149118453b9e8acc12e541393108553b1b30f67536394ce90ebc",
+  "diffSha256": "b549af153a08a0463ccea2c6a90bd1ff2b969b53237fcb0cb5c2a6ee5acf8d50",
+  "recordedEpoch": 1788757340.274112
+}

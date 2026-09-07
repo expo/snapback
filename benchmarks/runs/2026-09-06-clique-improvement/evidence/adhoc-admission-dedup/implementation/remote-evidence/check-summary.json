@@ -1,0 +1,134 @@
+[
+  {
+    "name": "after-owner.terminal.json",
+    "exit": 0,
+    "elapsedSeconds": 0.9964142099488527,
+    "timedOut": false
+  },
+  {
+    "name": "before-owner.terminal.json",
+    "exit": 0,
+    "elapsedSeconds": 0.8806800032034516,
+    "timedOut": false
+  },
+  {
+    "name": "before-tail-owner.terminal.json",
+    "exit": 0,
+    "elapsedSeconds": 0.903833522927016,
+    "timedOut": false
+  },
+  {
+    "name": "build-after.terminal.json",
+    "exit": 0,
+    "elapsedSeconds": 15.659939765930176,
+    "timedOut": false
+  },
+  {
+    "name": "build-before.terminal.json",
+    "exit": 0,
+    "elapsedSeconds": 21.013128519058228,
+    "timedOut": false
+  },
+  {
+    "name": "build-core.terminal.json",
+    "exit": 0,
+    "elapsedSeconds": 17.279221057891846,
+    "timedOut": false
+  },
+  {
+    "name": "build-media.terminal.json",
+    "exit": 0,
+    "elapsedSeconds": 3.332275867462158,
+    "timedOut": false
+  },
+  {
+    "name": "build-owner.terminal.json",
+    "exit": 0,
+    "elapsedSeconds": 17.72755527496338,
+    "timedOut": false
+  },
+  {
+    "name": "bun-install.terminal.json",
+    "exit": 0,
+    "elapsedSeconds": 1.7682621479034424,
+    "timedOut": false
+  },
+  {
+    "name": "bundle.terminal.json",
+    "exit": 0,
+    "elapsedSeconds": 2.735797166824341,
+    "timedOut": false
+  },
+  {
+    "name": "diagnostic-after.terminal.json",
+    "exit": 0,
+    "elapsedSeconds": 1.0683410167694092,
+    "timedOut": false
+  },
+  {
+    "name": "diagnostic-before-tail.terminal.json",
+    "exit": 0,
+    "elapsedSeconds": 0.9685442447662354,
+    "timedOut": false
+  },
+  {
+    "name": "diagnostic-before.terminal.json",
+    "exit": 1,
+    "elapsedSeconds": 1.0209455490112305,
+    "timedOut": false
+  },
+  {
+    "name": "test-jobs.terminal.json",
+    "exit": 0,
+    "elapsedSeconds": 0.15186429023742676,
+    "timedOut": false
+  },
+  {
+    "name": "test-operator.terminal.json",
+    "exit": 0,
+    "elapsedSeconds": 0.10150742530822754,
+    "timedOut": false
+  },
+  {
+    "name": "test-owner-jobs-with-media.terminal.json",
+    "exit": 0,
+    "elapsedSeconds": 4.903122425079346,
+    "timedOut": false
+  },
+  {
+    "name": "test-owner-jobs.terminal.json",
+    "exit": 101,
+    "elapsedSeconds": 2.4776978492736816,
+    "timedOut": false
+  },
+  {
+    "name": "test-owner-operator-with-media.terminal.json",
+    "exit": 0,
+    "elapsedSeconds": 5.5570068359375,
+    "timedOut": false
+  },
+  {
+    "name": "test-owner-operator.terminal.json",
+    "exit": 101,
+    "elapsedSeconds": 4.850885629653931,
+    "timedOut": false
+  },
+  {
+    "name": "test-owner-rehearsal.terminal.json",
+    "exit": 0,
+    "elapsedSeconds": 4.297732353210449,
+    "timedOut": false
+  },
+  {
+    "name": "test-rehearsal-unit.terminal.json",
+    "exit": 0,
+    "elapsedSeconds": 0.355938196182251,
+    "timedOut": false
+  },
+  {
+    "name": "test-timers.terminal.json",
+    "exit": 0,
+    "elapsedSeconds": 0.15219664573669434,
+    "timedOut": false
+  }
+]

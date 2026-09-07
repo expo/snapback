@@ -1,0 +1,41 @@
+{
+  "uuid": "01a07a2b-9ea5-79d1-9e2b-44c8a7a6213f",
+  "rolloutPath": "/Users/ccheever/.codex/sessions/2026/09/06/rollout-2026-09-06T21-41-14-01a07a2b-9ea5-79d1-9e2b-44c8a7a6213f.jsonl",
+  "line": 8,
+  "timestamp": "2026-09-07T04:41:16.841Z",
+  "rawLineSha256": "97c3f5e484be12c6fad55254781b37beec2b83d25f164a5b6a5596ec988558ab",
+  "context": {
+    "turn_id": "01a07a2b-9fa7-7913-beb0-1be1c49ae374",
+    "root_turn_id": "01a07a2b-9fa7-7913-beb0-1be1c49ae374",
+    "cwd": "/Users/ccheever/projects/snapback-worktrees/clique-adhoc-admission-dedup",
+    "workspace_roots": [
+      "/Users/ccheever/projects/snapback-worktrees/clique-adhoc-admission-dedup"
+    ],
+    "current_date": "2026-09-06",
+    "timezone": "America/Los_Angeles",
+    "approval_policy": "never",
+    "approvals_reviewer": "user",
+    "sandbox_policy": {
+      "type": "danger-full-access"
+    },
+    "permission_profile": {
+      "type": "disabled"
+    },
+    "model": "gpt-6-astra",
+    "comp_hash": "3000",
+    "personality": "pragmatic",
+    "collaboration_mode": {
+      "mode": "default",
+      "settings": {
+        "model": "gpt-6-astra",
+        "reasoning_effort": "xhigh",
+        "developer_instructions": null
+      }
+    },
+    "multi_agent_version": "v2",
+    "realtime_active": false,
+    "effort": "xhigh",
+    "summary": "auto"
+  },
+  "observedAtEpoch": 1788756112.183854
+}

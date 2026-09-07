@@ -1,0 +1,13 @@
+{"name": "query", "status": 200, "certifications": 2, "compilerCertifications": 1, "liveCertifications": 1}
+{"name": "mutation", "status": 200, "certifications": 2, "compilerCertifications": 1, "liveCertifications": 1}
+{"name": "plan", "status": 200, "certifications": 2, "compilerCertifications": 1, "liveCertifications": 1}
+{"name": "enqueue", "status": 200, "certifications": 2, "compilerCertifications": 1, "liveCertifications": 1}
+{"name": "query-rehearsal", "status": 200, "certifications": 3, "compilerCertifications": 1, "liveCertifications": 2}
+{"name": "mutation-rehearsal", "status": 200, "certifications": 3, "compilerCertifications": 1, "liveCertifications": 2}
+{"name": "job-rehearsal", "status": 200, "certifications": 3, "compilerCertifications": 1, "liveCertifications": 2}
+{"name": "kind-refusal", "status": 400, "certifications": 1, "compilerCertifications": 1, "liveCertifications": 0}
+{"name": "seat-refusal", "status": 400, "certifications": 1, "compilerCertifications": 1, "liveCertifications": 0}
+{"name": "argument-refusal", "status": 400, "certifications": 1, "compilerCertifications": 1, "liveCertifications": 0}
+{"name": "compiler-refusal", "status": 400, "certifications": 0, "compilerCertifications": 0, "liveCertifications": 0}
+{"name": "transaction-rejection", "status": 200, "certifications": 2, "compilerCertifications": 1, "liveCertifications": 1}
+diagnostic complete

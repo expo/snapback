@@ -1,0 +1,16 @@
+
+running 11 tests
+test operator_range_below_take_plus_halo_refuses_certification ... ok
+test operator_sweep_baseline_nonuniform_range_fill_refuses_ordinary_certification ... ok
+test operator_input_validation_returns_an_error_before_execution ... ok
+test system_insert_still_binds_final_exists_postcondition ... ok
+test rejected_operator_loop_retains_the_certified_write_bound ... ok
+test system_point_reads_hidden_rows_without_verdicts_or_receipts_and_does_not_commit ... ok
+test system_range_skips_membership_rules_and_derives_complete_from_exhaustion ... ok
+test operator_sweep_baseline_explicit_key_fill_certifies_and_commits_on_same_nonuniform_table ... ok
+test system_deny_insert_maintains_trace_and_operator_commit_are_atomic ... ok
+test system_immutable_and_unique_reject_but_rule_denied_update_and_delete_commit ... ok
+test viewer_still_probes_exists_and_transaction_local_created_rules ... ok
+
+test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.05s
+

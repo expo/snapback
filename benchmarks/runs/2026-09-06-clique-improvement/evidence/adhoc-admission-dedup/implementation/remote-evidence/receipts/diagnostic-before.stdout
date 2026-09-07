@@ -1,0 +1,4 @@
+{"name": "query", "status": 200, "certifications": 3, "compilerCertifications": 1, "liveCertifications": 2}
+{"name": "mutation", "status": 200, "certifications": 3, "compilerCertifications": 1, "liveCertifications": 2}
+{"name": "plan", "status": 200, "certifications": 2, "compilerCertifications": 1, "liveCertifications": 1}
+{"name": "enqueue", "status": 200, "certifications": 3, "compilerCertifications": 1, "liveCertifications": 2}

@@ -1,0 +1,34 @@
+{
+  "name": "test-timers",
+  "exitCode": 0,
+  "timedOut": false,
+  "elapsedSeconds": 0.15219664573669434,
+  "finishedEpoch": 1788756785.2155418,
+  "process": {
+    "pid": 3704608,
+    "ppid": 3704352,
+    "startTicks": 111570335,
+    "stat": "3704608 (timers-753fa4db) R 3704352 3704608 3704608 0 -1 4194304 4 0 0 0 0 0 0 0 20 0 1 0 111570335 14589952 0 18446744073709551615 0 0 140737280498651 0 0 0 0 0 0 0 0 0 17 57 0 0 0 0 0 0 0 0 140737280498651 0 0 0 0\n",
+    "bootId": "76ef40aa-0ed8-4f57-85c6-898bb42ea7e4",
+    "argv": [
+      "/home/ccheever/clique-tooling/adhoc-admission-dedup-r1-20260907/target/debug/deps/timers-753fa4dbc2307cb1",
+      "--test-threads=8"
+    ]
+  },
+  "stdoutSha256": "8aaca0f45e54cf5e04af6d1fb13f4afbcb1d49fe7c9e4a1cb23305091393f5dc",
+  "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "processes": [
+    {
+      "pid": 3704608,
+      "ppid": 3704352,
+      "startTicks": 111570335,
+      "stat": "3704608 (timers-753fa4db) S 3704352 3704608 3704608 0 -1 4194304 2708 0 0 0 40 11 0 0 20 0 2 0 111570335 571777024 3456 18446744073709551615 97722322779040 97722333851328 140737280491424 0 0 0 0 4096 1088 0 0 0 17 57 0 0 0 0 0 97722334219320 97722334244776 97723058532352 140737280498651 140737280498774 140737280498774 140737280499598 0\n",
+      "bootId": "76ef40aa-0ed8-4f57-85c6-898bb42ea7e4",
+      "argv": [
+        "/home/ccheever/clique-tooling/adhoc-admission-dedup-r1-20260907/target/debug/deps/timers-753fa4dbc2307cb1",
+        "--test-threads=8"
+      ]
+    }
+  ],
+  "retries": 0
+}

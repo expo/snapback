@@ -1,0 +1,9 @@
+
+running 4 tests
+test owner_cases::rehearsal::serve_refuses_run_job_and_execute_before_body_compilation_or_secret_validation ... ok
+test owner_cases::rehearsal::control_run_compiles_with_the_owners_worker_and_spawns_no_second_compiler ... ok
+test owner_cases::rehearsal::rehearsal_cli_jobs_queries_mutations_receipts_and_usage_exits ... ok
+test owner_cases::rehearsal::control_run_source_modes_and_declared_job_route_share_operator_admission ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 84 filtered out; finished in 4.28s
+

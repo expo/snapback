@@ -1,0 +1,26 @@
+
+running 21 tests
+test a_chunk_that_names_another_chunks_binding_refuses_as_e_job_shape ... ok
+test certification_requires_immutable_total_keys_and_counts_progress_write ... ok
+test adhoc_admission_precedes_clock_sampling_and_execution_input_errors ... ok
+test adhoc_query_and_mutation_use_one_supplied_clock_sample ... ok
+test cancel_and_resume_receipts_carry_the_operator_who_issued_them ... ok
+test adhoc_effect_admission_uses_current_declarations_even_with_the_same_schema_hash ... ok
+test changed_sweep_index_parks_and_typed_prefix_is_used ... ok
+test measure_100000_row_fill ... ignored, LLP 1016 measurement, explicitly run outside the blocking suite
+test captured_upper_visits_inside_inserts_skips_deleted_and_beyond_rows ... ok
+test ceiling_fault_at_chunk_time_parks_in_the_bound_family_and_rolls_back ... ok
+test adhoc_restart_preserves_source_changed_generation_parks_and_reset_clears_jobs ... ok
+test constraint_rejection_rolls_back_chunk_and_unchanged_body_resumes_after_successor ... ok
+test deleted_job_declaration_parks_a_queued_job_until_it_is_restored ... ok
+test committed_cursor_survives_restart_without_reapplying_rows ... ok
+test mutation_return_advances_only_the_visited_prefix_of_a_chunk ... ok
+test multiple_sweeps_reset_the_cursor_and_commit_independent_ceilings ... ok
+test rejection_rolls_back_only_current_chunk_then_resume_and_terminal_cancel ... ok
+test executable_mismatch_at_chunk_time_parks_with_the_generation_envelope_and_keeps_the_cursor ... ok
+test typed_prefix_sweeps_three_chunks_through_cursor_suffixes_and_skips_other_scopes ... ok
+test successor_binds_body_and_index_unchanged_job_continues ... ok
+test store_fault_at_chunk_time_parks_with_its_own_envelope_and_rolls_back ... ok
+
+test result: ok. 20 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.11s
+

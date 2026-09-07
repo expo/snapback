@@ -1,0 +1,321 @@
+[
+  {
+    "name": "mutation-rehearsal",
+    "body": {
+      "source": "mutation change():\n  return now\n",
+      "mode": "dry-run"
+    },
+    "status": 200,
+    "response": {
+      "assetReleaseCount": 0,
+      "assetsReleased": [],
+      "assetsTruncated": false,
+      "chunks": 0,
+      "copyDiscarded": true,
+      "detailLimit": 100,
+      "dryRun": true,
+      "effectCount": 0,
+      "effects": [],
+      "effectsTruncated": false,
+      "elapsedMs": 9.100175,
+      "executionMs": 1.595871,
+      "kind": "Mutation",
+      "now": 1788757067788,
+      "op": "adhoc:bc0f26a71a2afdb135537e253224d999055a3af1759fbf1cb62c31e451505530",
+      "refusals": [],
+      "result": {
+        "data": 1788757067788,
+        "seq": 1,
+        "state": "committed"
+      },
+      "rowsWritten": {},
+      "snapshotSeq": 0,
+      "sourceHash": "bc0f26a71a2afdb135537e253224d999055a3af1759fbf1cb62c31e451505530",
+      "state": "done"
+    },
+    "certifications": 3,
+    "compilerCertifications": 1,
+    "liveCertifications": 2,
+    "events": [
+      {
+        "kind": "Generation::certify",
+        "pid": 3713446,
+        "programs": [
+          "__adhoc.change",
+          "admin.clock"
+        ],
+        "projectHash": "7efd0bda3661db77961cca1292a06b6c357114cae89303807fb257fd01e27f90",
+        "thread": "ThreadId(12)"
+      },
+      {
+        "kind": "Generation::certify",
+        "pid": 3713446,
+        "programs": [
+          "admin.clock",
+          "adhoc:bc0f26a71a2afdb135537e253224d999055a3af1759fbf1cb62c31e451505530"
+        ],
+        "projectHash": "ccb371cc0d7b163a96e1090042a32e2fafba3cb803e1f0fcdbfe5b7a2410c966",
+        "thread": "ThreadId(7)"
+      },
+      {
+        "kind": "Generation::certify",
+        "pid": 3713446,
+        "programs": [
+          "admin.clock",
+          "adhoc:bc0f26a71a2afdb135537e253224d999055a3af1759fbf1cb62c31e451505530"
+        ],
+        "projectHash": "ccb371cc0d7b163a96e1090042a32e2fafba3cb803e1f0fcdbfe5b7a2410c966",
+        "thread": "ThreadId(12)"
+      }
+    ]
+  },
+  {
+    "name": "job-rehearsal",
+    "body": {
+      "source": "job repair:\n  chunk p in items first 10 by byId:\n    update items[p.id] { n: 9 }\n",
+      "mode": "dry-run"
+    },
+    "status": 200,
+    "response": {
+      "assetReleaseCount": 0,
+      "assetsReleased": [],
+      "assetsTruncated": false,
+      "chunks": 1,
+      "copyDiscarded": true,
+      "detailLimit": 100,
+      "dryRun": true,
+      "effectCount": 0,
+      "effects": [],
+      "effectsTruncated": false,
+      "elapsedMs": 10.707974,
+      "executionMs": 3.9643300000000004,
+      "job": "job_s2id-014df459559b6532694c12e16699096f-0000000000000001",
+      "kind": "job",
+      "now": 1788757067847,
+      "op": "adhoc:378fa1dd2dd362c1a316c340c742b79b1979aaad99210567fc69c169de0bd376",
+      "refusals": [],
+      "rowsWritten": {},
+      "snapshotSeq": 0,
+      "sourceHash": "378fa1dd2dd362c1a316c340c742b79b1979aaad99210567fc69c169de0bd376",
+      "state": "done"
+    },
+    "certifications": 3,
+    "compilerCertifications": 1,
+    "liveCertifications": 2,
+    "events": [
+      {
+        "kind": "Generation::certify",
+        "pid": 3713446,
+        "programs": [
+          "__adhoc.repair",
+          "admin.clock"
+        ],
+        "projectHash": "3e2bb683c330754e41ecce62dd0a2ace93f71842393043f1c226a348dd8af9bc",
+        "thread": "ThreadId(13)"
+      },
+      {
+        "kind": "Generation::certify",
+        "pid": 3713446,
+        "programs": [
+          "admin.clock",
+          "adhoc:378fa1dd2dd362c1a316c340c742b79b1979aaad99210567fc69c169de0bd376"
+        ],
+        "projectHash": "e468794e2a2fa076cba376bb7181f2bc701579d3429bd90486c04d645361c649",
+        "thread": "ThreadId(7)"
+      },
+      {
+        "kind": "Generation::certify",
+        "pid": 3713446,
+        "programs": [
+          "admin.clock",
+          "adhoc:378fa1dd2dd362c1a316c340c742b79b1979aaad99210567fc69c169de0bd376"
+        ],
+        "projectHash": "e468794e2a2fa076cba376bb7181f2bc701579d3429bd90486c04d645361c649",
+        "thread": "ThreadId(13)"
+      }
+    ]
+  },
+  {
+    "name": "kind-refusal",
+    "body": {
+      "source": "query inspect():\n  return now\n",
+      "mode": "plan"
+    },
+    "status": 400,
+    "response": {
+      "code": "E_OP_KIND",
+      "family": "op",
+      "guide": "job",
+      "message": "--plan and --wait require a job",
+      "rewrite": "use a job or omit --plan/--wait",
+      "site": "mode"
+    },
+    "certifications": 1,
+    "compilerCertifications": 1,
+    "liveCertifications": 0,
+    "events": [
+      {
+        "kind": "Generation::certify",
+        "pid": 3713446,
+        "programs": [
+          "__adhoc.inspect",
+          "admin.clock"
+        ],
+        "projectHash": "23927eb2bce248b594673076adefcf71af55a9e2c496eadfaf7e3d8dc3c5a784",
+        "thread": "ThreadId(14)"
+      }
+    ]
+  },
+  {
+    "name": "seat-refusal",
+    "body": {
+      "source": "query inspect():\n  return now\n",
+      "as": "alice"
+    },
+    "status": 400,
+    "response": {
+      "code": "E_OPERATOR_REQUIRED",
+      "family": "operator",
+      "guide": "operator/seat",
+      "message": "the operator seat requires a local dev control route",
+      "rewrite": "run it locally against `dev`, or with an `admin` token once `serve`-mode tokens exist",
+      "site": "--as system"
+    },
+    "certifications": 1,
+    "compilerCertifications": 1,
+    "liveCertifications": 0,
+    "events": [
+      {
+        "kind": "Generation::certify",
+        "pid": 3713446,
+        "programs": [
+          "__adhoc.inspect",
+          "admin.clock"
+        ],
+        "projectHash": "23927eb2bce248b594673076adefcf71af55a9e2c496eadfaf7e3d8dc3c5a784",
+        "thread": "ThreadId(15)"
+      }
+    ]
+  },
+  {
+    "name": "argument-refusal",
+    "body": {
+      "source": "mutation change(n: int):\n  return n\n",
+      "args": {
+        "n": "bad"
+      }
+    },
+    "status": 400,
+    "response": {
+      "code": "E_INPUT",
+      "family": "input",
+      "guide": "input/json",
+      "message": "numeric arguments must be integers",
+      "rewrite": "pass an integer"
+    },
+    "certifications": 1,
+    "compilerCertifications": 1,
+    "liveCertifications": 0,
+    "events": [
+      {
+        "kind": "Generation::certify",
+        "pid": 3713446,
+        "programs": [
+          "__adhoc.change",
+          "admin.clock"
+        ],
+        "projectHash": "e91dffa082b41f28bbaec8198957cc8b34d6a719b911854971c7d9adde1f1a2d",
+        "thread": "ThreadId(16)"
+      }
+    ]
+  },
+  {
+    "name": "compiler-refusal",
+    "body": {
+      "source": "not quarry"
+    },
+    "status": 400,
+    "response": {
+      "code": "E_QUARRY_PLACEMENT",
+      "family": "quarry",
+      "guide": "quarry/projects",
+      "message": "__adhoc.q must declare at least one query, mutation, or shape",
+      "refusals": [
+        {
+          "code": "E_QUARRY_PLACEMENT",
+          "family": "quarry",
+          "guide": "quarry/projects",
+          "message": "__adhoc.q must declare at least one query, mutation, or shape",
+          "rewrite": "-- add a query, mutation, or shape, or remove the empty module",
+          "site": "snapback/__adhoc.q:1:1"
+        },
+        {
+          "code": "E_QUARRY_SYNTAX",
+          "family": "quarry",
+          "guide": "quarry/grammar",
+          "message": "unexpected top-level \"not\"",
+          "rewrite": "-- fix this Quarry declaration and rerun snapback2 check",
+          "site": "snapback/__adhoc.q:1:1"
+        }
+      ],
+      "rewrite": "-- add a query, mutation, or shape, or remove the empty module",
+      "site": "snapback/__adhoc.q:1:1"
+    },
+    "certifications": 0,
+    "compilerCertifications": 0,
+    "liveCertifications": 0,
+    "events": []
+  },
+  {
+    "name": "transaction-rejection",
+    "body": {
+      "source": "mutation refuse():\n  require false else STOP\n  return true\n"
+    },
+    "status": 200,
+    "response": {
+      "code": "STOP",
+      "family": "input",
+      "guide": "input/runtime",
+      "message": "E_REQUIRE:STOP: program requirement failed",
+      "principal": "system",
+      "rewrite": "fix the rejected mutation input and retry",
+      "sourceHash": "13fa2d53c0235569a4425164e89fc6d4bde5f74c198c3283c625df5c6bf2af98",
+      "state": "rejected"
+    },
+    "certifications": 3,
+    "compilerCertifications": 1,
+    "liveCertifications": 2,
+    "events": [
+      {
+        "kind": "Generation::certify",
+        "pid": 3713446,
+        "programs": [
+          "__adhoc.refuse",
+          "admin.clock"
+        ],
+        "projectHash": "89ddd2ab89127fcf5ff482f5a0f62cddbcfe396a3ef70010d3db4b313acdac51",
+        "thread": "ThreadId(18)"
+      },
+      {
+        "kind": "Generation::certify",
+        "pid": 3713446,
+        "programs": [
+          "admin.clock",
+          "adhoc:13fa2d53c0235569a4425164e89fc6d4bde5f74c198c3283c625df5c6bf2af98"
+        ],
+        "projectHash": "dc5e85a2df9baf0735c9b46079ffc7a927411b6ac1d7c07206e60c424bc01930",
+        "thread": "ThreadId(7)"
+      },
+      {
+        "kind": "Generation::certify",
+        "pid": 3713446,
+        "programs": [
+          "admin.clock",
+          "adhoc:13fa2d53c0235569a4425164e89fc6d4bde5f74c198c3283c625df5c6bf2af98"
+        ],
+        "projectHash": "dc5e85a2df9baf0735c9b46079ffc7a927411b6ac1d7c07206e60c424bc01930",
+        "thread": "ThreadId(7)"
+      }
+    ]
+  }
+]

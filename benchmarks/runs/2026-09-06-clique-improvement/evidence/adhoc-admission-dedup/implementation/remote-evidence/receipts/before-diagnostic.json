@@ -1,0 +1,376 @@
+[
+  {
+    "name": "query",
+    "body": {
+      "source": "query inspect():\n  return now\n"
+    },
+    "status": 200,
+    "response": {
+      "data": 1788756970011,
+      "next": null,
+      "principal": "system",
+      "seq": 0,
+      "sourceHash": "3fc164dc4534778ad15237a72bb8b5914a6c84b334c772dd02337e1b6014650c",
+      "state": "complete"
+    },
+    "certifications": 3,
+    "compilerCertifications": 1,
+    "liveCertifications": 2,
+    "events": [
+      {
+        "kind": "Generation::certify",
+        "pid": 3711816,
+        "programs": [
+          "__adhoc.inspect",
+          "admin.clock"
+        ],
+        "projectHash": "23927eb2bce248b594673076adefcf71af55a9e2c496eadfaf7e3d8dc3c5a784",
+        "thread": "ThreadId(12)"
+      },
+      {
+        "kind": "Generation::certify",
+        "pid": 3711816,
+        "programs": [
+          "admin.clock",
+          "adhoc:3fc164dc4534778ad15237a72bb8b5914a6c84b334c772dd02337e1b6014650c"
+        ],
+        "projectHash": "29935a88c15d8438f6a440f91e12203ec89c8baae0083c9de5543eb46c12061e",
+        "thread": "ThreadId(6)"
+      },
+      {
+        "kind": "Generation::certify",
+        "pid": 3711816,
+        "programs": [
+          "admin.clock",
+          "adhoc:3fc164dc4534778ad15237a72bb8b5914a6c84b334c772dd02337e1b6014650c"
+        ],
+        "projectHash": "29935a88c15d8438f6a440f91e12203ec89c8baae0083c9de5543eb46c12061e",
+        "thread": "ThreadId(6)"
+      }
+    ]
+  },
+  {
+    "name": "mutation",
+    "body": {
+      "source": "mutation change():\n  return now\n"
+    },
+    "status": 200,
+    "response": {
+      "data": 1788756970047,
+      "principal": "system",
+      "seq": 1,
+      "sourceHash": "bc0f26a71a2afdb135537e253224d999055a3af1759fbf1cb62c31e451505530",
+      "state": "committed"
+    },
+    "certifications": 3,
+    "compilerCertifications": 1,
+    "liveCertifications": 2,
+    "events": [
+      {
+        "kind": "Generation::certify",
+        "pid": 3711816,
+        "programs": [
+          "__adhoc.change",
+          "admin.clock"
+        ],
+        "projectHash": "7efd0bda3661db77961cca1292a06b6c357114cae89303807fb257fd01e27f90",
+        "thread": "ThreadId(13)"
+      },
+      {
+        "kind": "Generation::certify",
+        "pid": 3711816,
+        "programs": [
+          "admin.clock",
+          "adhoc:bc0f26a71a2afdb135537e253224d999055a3af1759fbf1cb62c31e451505530"
+        ],
+        "projectHash": "ccb371cc0d7b163a96e1090042a32e2fafba3cb803e1f0fcdbfe5b7a2410c966",
+        "thread": "ThreadId(6)"
+      },
+      {
+        "kind": "Generation::certify",
+        "pid": 3711816,
+        "programs": [
+          "admin.clock",
+          "adhoc:bc0f26a71a2afdb135537e253224d999055a3af1759fbf1cb62c31e451505530"
+        ],
+        "projectHash": "ccb371cc0d7b163a96e1090042a32e2fafba3cb803e1f0fcdbfe5b7a2410c966",
+        "thread": "ThreadId(6)"
+      }
+    ]
+  },
+  {
+    "name": "plan",
+    "body": {
+      "source": "job repair:\n  chunk p in items first 10 by byId:\n    update items[p.id] { n: 9 }\n",
+      "mode": "plan"
+    },
+    "status": 200,
+    "response": {
+      "chunks": "unbounded",
+      "engineWrites": [
+        "_jobs"
+      ],
+      "kind": "job",
+      "name": "adhoc:378fa1dd2dd362c1a316c340c742b79b1979aaad99210567fc69c169de0bd376",
+      "programHash": "239e11d8b851f19c20f7fef7aae2e078fbd1d015ff9f57b599c9010b854af2dc",
+      "sweeps": [
+        {
+          "ceilings": {
+            "bound_product": "__adhoc.repair.0 take 10 (+2 reserve) \u00d7 1 calls on items = 12 + __adhoc.repair.0.__upper take 1 (+2 reserve) \u00d7 1 calls on items = 3",
+            "completeness": "Page",
+            "constraint_checks": [
+              "items:Unique(byId)"
+            ],
+            "disclosures": [],
+            "evaluator_version": "bounded-spike-rust-1",
+            "halo_rows": 1,
+            "indexes_required": [
+              "items.byId"
+            ],
+            "maintained_amplification": 0,
+            "max_closure_bytes": 0,
+            "max_examined": 15,
+            "max_heap_bytes": 6336,
+            "max_index_entries": 15,
+            "max_output_bytes": 6,
+            "max_rule_probes": 0,
+            "max_steps": 198,
+            "plan_hash": "bf816ba215c31de7e92fcd9a8d592544f61ad134b98dd28cc65071a63459f95c",
+            "prediction_sites": [],
+            "program": "adhoc:378fa1dd2dd362c1a316c340c742b79b1979aaad99210567fc69c169de0bd376",
+            "read_sites": [
+              {
+                "complete": false,
+                "decided_true": true,
+                "hoist": true,
+                "index": "byId",
+                "max_calls": 1,
+                "prefix_template": "Const",
+                "rule_probes_per_candidate": 0,
+                "site": "__adhoc.repair.0",
+                "table": "items",
+                "take": 10
+              },
+              {
+                "complete": false,
+                "decided_true": true,
+                "hoist": true,
+                "index": "byId",
+                "max_calls": 1,
+                "prefix_template": "Const",
+                "rule_probes_per_candidate": 0,
+                "site": "__adhoc.repair.0.__upper",
+                "table": "items",
+                "take": 1
+              }
+            ],
+            "read_time_granularity_ms": null,
+            "rule_hashes": {
+              "items.read": "8c303bce75e10e6a2e96cc88b81b8a8cb814f1182088753eb97b5afc4840afde",
+              "items.update": "8c303bce75e10e6a2e96cc88b81b8a8cb814f1182088753eb97b5afc4840afde"
+            },
+            "schema_hash": "1c30be880191190e4a79f37f8229cfdc07a0cb40ad8825f2ce07b03175e1dff1",
+            "tables": {
+              "items": {
+                "retain": "until-revoked"
+              }
+            },
+            "value_model_version": "i53-codepoint-bytes-v2",
+            "write_sites": [
+              {
+                "kind": "Update",
+                "max_rows": 10,
+                "table": "items"
+              },
+              {
+                "kind": "Update",
+                "max_rows": 1,
+                "table": "_jobs"
+              }
+            ]
+          },
+          "entries": 0,
+          "impliedChunks": 1,
+          "index": "byId",
+          "prefix": [],
+          "prefixTemplate": [],
+          "table": "items",
+          "take": 10
+        }
+      ]
+    },
+    "certifications": 2,
+    "compilerCertifications": 1,
+    "liveCertifications": 1,
+    "events": [
+      {
+        "kind": "Generation::certify",
+        "pid": 3711816,
+        "programs": [
+          "__adhoc.repair",
+          "admin.clock"
+        ],
+        "projectHash": "3e2bb683c330754e41ecce62dd0a2ace93f71842393043f1c226a348dd8af9bc",
+        "thread": "ThreadId(14)"
+      },
+      {
+        "kind": "Generation::certify",
+        "pid": 3711816,
+        "programs": [
+          "admin.clock",
+          "adhoc:378fa1dd2dd362c1a316c340c742b79b1979aaad99210567fc69c169de0bd376"
+        ],
+        "projectHash": "e468794e2a2fa076cba376bb7181f2bc701579d3429bd90486c04d645361c649",
+        "thread": "ThreadId(6)"
+      }
+    ]
+  },
+  {
+    "name": "enqueue",
+    "body": {
+      "source": "job repair:\n  chunk p in items first 10 by byId:\n    update items[p.id] { n: 9 }\n"
+    },
+    "status": 200,
+    "response": {
+      "args": {},
+      "chunks": 0,
+      "commitRange": {
+        "from": null,
+        "to": null
+      },
+      "commits": [],
+      "createdAt": 1788756970128,
+      "cursor": null,
+      "enqueuedBy": "ccheever",
+      "finishedAt": null,
+      "generation": "1c30be880191190e4a79f37f8229cfdc07a0cb40ad8825f2ce07b03175e1dff1",
+      "hasMoreCommits": false,
+      "id": "job_s2id-a425abe4f972adb49b9ae506284d1bdd-0000000000000401",
+      "lastError": null,
+      "name": "adhoc:378fa1dd2dd362c1a316c340c742b79b1979aaad99210567fc69c169de0bd376",
+      "programHash": "239e11d8b851f19c20f7fef7aae2e078fbd1d015ff9f57b599c9010b854af2dc",
+      "retainedChunks": 0,
+      "rowsWritten": {},
+      "sourceHash": "378fa1dd2dd362c1a316c340c742b79b1979aaad99210567fc69c169de0bd376",
+      "state": "queued",
+      "sweep": 0,
+      "sweepChunks": {},
+      "sweeps": [
+        {
+          "index": "byId",
+          "prefixTemplate": [],
+          "table": "items",
+          "take": 10
+        }
+      ],
+      "updatedAt": 1788756970128,
+      "upperKey": null
+    },
+    "certifications": 3,
+    "compilerCertifications": 1,
+    "liveCertifications": 2,
+    "events": [
+      {
+        "kind": "Generation::certify",
+        "pid": 3711816,
+        "programs": [
+          "__adhoc.repair",
+          "admin.clock"
+        ],
+        "projectHash": "3e2bb683c330754e41ecce62dd0a2ace93f71842393043f1c226a348dd8af9bc",
+        "thread": "ThreadId(15)"
+      },
+      {
+        "kind": "Generation::certify",
+        "pid": 3711816,
+        "programs": [
+          "admin.clock",
+          "adhoc:378fa1dd2dd362c1a316c340c742b79b1979aaad99210567fc69c169de0bd376"
+        ],
+        "projectHash": "e468794e2a2fa076cba376bb7181f2bc701579d3429bd90486c04d645361c649",
+        "thread": "ThreadId(6)"
+      },
+      {
+        "kind": "Generation::certify",
+        "pid": 3711816,
+        "programs": [
+          "admin.clock",
+          "adhoc:378fa1dd2dd362c1a316c340c742b79b1979aaad99210567fc69c169de0bd376"
+        ],
+        "projectHash": "e468794e2a2fa076cba376bb7181f2bc701579d3429bd90486c04d645361c649",
+        "thread": "ThreadId(6)"
+      }
+    ]
+  },
+  {
+    "name": "query-rehearsal",
+    "body": {
+      "source": "query inspect():\n  return now\n",
+      "mode": "dry-run"
+    },
+    "status": 200,
+    "response": {
+      "assetReleaseCount": 0,
+      "assetsReleased": [],
+      "assetsTruncated": false,
+      "chunks": 0,
+      "copyDiscarded": true,
+      "detailLimit": 100,
+      "dryRun": true,
+      "effectCount": 0,
+      "effects": [],
+      "effectsTruncated": false,
+      "elapsedMs": 6.20038,
+      "executionMs": 0.707039,
+      "kind": "Query",
+      "now": 1788756970154,
+      "op": "adhoc:3fc164dc4534778ad15237a72bb8b5914a6c84b334c772dd02337e1b6014650c",
+      "refusals": [],
+      "result": {
+        "data": 1788756970154,
+        "next": null,
+        "seq": 3,
+        "state": "complete"
+      },
+      "rowsWritten": {},
+      "snapshotSeq": 3,
+      "sourceHash": "3fc164dc4534778ad15237a72bb8b5914a6c84b334c772dd02337e1b6014650c",
+      "state": "done"
+    },
+    "certifications": 3,
+    "compilerCertifications": 1,
+    "liveCertifications": 2,
+    "events": [
+      {
+        "kind": "Generation::certify",
+        "pid": 3711816,
+        "programs": [
+          "__adhoc.inspect",
+          "admin.clock"
+        ],
+        "projectHash": "23927eb2bce248b594673076adefcf71af55a9e2c496eadfaf7e3d8dc3c5a784",
+        "thread": "ThreadId(16)"
+      },
+      {
+        "kind": "Generation::certify",
+        "pid": 3711816,
+        "programs": [
+          "admin.clock",
+          "adhoc:3fc164dc4534778ad15237a72bb8b5914a6c84b334c772dd02337e1b6014650c"
+        ],
+        "projectHash": "29935a88c15d8438f6a440f91e12203ec89c8baae0083c9de5543eb46c12061e",
+        "thread": "ThreadId(6)"
+      },
+      {
+        "kind": "Generation::certify",
+        "pid": 3711816,
+        "programs": [
+          "admin.clock",
+          "adhoc:3fc164dc4534778ad15237a72bb8b5914a6c84b334c772dd02337e1b6014650c"
+        ],
+        "projectHash": "29935a88c15d8438f6a440f91e12203ec89c8baae0083c9de5543eb46c12061e",
+        "thread": "ThreadId(16)"
+      }
+    ]
+  }
+]

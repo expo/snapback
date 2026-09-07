@@ -1,0 +1,26 @@
+{
+  "pid": 83643,
+  "supervisorPid": 83636,
+  "startEpoch": 1788757744.246759,
+  "argv": [
+    "/Users/ccheever/.grok/bin/grok",
+    "--prompt-file",
+    "/Users/ccheever/clique-improvement/reviews/adhoc-admission-dedup-r1/grok/prompt.md",
+    "--cwd",
+    "/Users/ccheever/clique-improvement/reviews/adhoc-admission-dedup-r1/grok",
+    "-m",
+    "grok-4.6",
+    "--reasoning-effort",
+    "xhigh",
+    "--output-format",
+    "plain",
+    "--disable-web-search",
+    "--permission-mode",
+    "auto",
+    "--max-turns",
+    "120"
+  ],
+  "cwd": "/Users/ccheever/clique-improvement/reviews/adhoc-admission-dedup-r1/grok",
+  "candidate": "cd610a50e9aab41c3e13620e0aefe8d6da5115f3",
+  "manifestSha256": "374cb436c1681130fb3023c01d6d6253091bd7680d046a5c0cf12464edbb37a3"
+}

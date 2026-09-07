@@ -1,0 +1,14 @@
+{
+  "argv": [
+    "/home/ccheever/clique-tooling/adhoc-admission-dedup-r1-20260907/diagnostic-target/debug/snapback2",
+    "dev",
+    "--project",
+    "/home/ccheever/clique-tooling/adhoc-admission-dedup-r1-20260907/after-project",
+    "--foreground"
+  ],
+  "pid": 3715949,
+  "stat": "3715949 (snapback2) R 3715948 3715948 3715948 0 -1 4194304 1 0 0 0 0 0 0 0 20 0 1 0 111610646 24793088 0 18446744073709551615 0 0 140724367682174 0 0 0 0 0 0 0 0 0 17 86 0 0 0 0 0 0 0 0 140724367682174 0 0 0 0\n",
+  "binarySha256": "25b4efa99e7989ff9be3d6494838c2a26a64fb67a0093b1f238261ef0ab50113",
+  "compilerSha256": "9c93d2adc425eab14d977a2a8b0d1228a0a5c8c27c4e59bc889efe9863490a78",
+  "startedEpoch": 1788757188.3348355
+}
