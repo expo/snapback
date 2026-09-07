@@ -157,6 +157,8 @@ fn chat_template_receipt_tracks_the_effect_engine_and_lists_all_journeys() {
     );
     assert_eq!(fence["detail"]["generationScope"], "schema");
     assert_eq!(fence["detail"]["policyReplacement"], "Deny");
+    assert_eq!(fence["detail"]["policyRetiredHeldSearchDescriptors"], 1);
+    assert_eq!(fence["detail"]["staleHeldSearchDescriptorRefused"], true);
     assert_eq!(fence["detail"]["policyRetainedHandleState"], "complete");
     assert_eq!(fence["detail"]["policyRetainedHandleRows"], 0);
     assert_eq!(fence["detail"]["policyFreshInvocationState"], "complete");
@@ -257,12 +259,14 @@ fn chat_template_receipt_tracks_the_effect_engine_and_lists_all_journeys() {
     }));
     let bounds = check(&receipt, "bounds");
     let executions = bounds["detail"]["executions"].as_array().unwrap();
-    assert_eq!(executions.len(), 24, "{bounds}");
+    assert_eq!(executions.len(), 30, "{bounds}");
     for operation in [
+        "deliveries.conversationView",
         "deliveries.inbox",
         "deliveries.thread",
         "feeds.followingFeed",
         "feeds.globalFeed",
+        "messages.search",
         "messages.summary",
         "messages.thread",
         "profiles.byHandle",
@@ -292,7 +296,7 @@ fn chat_template_receipt_tracks_the_effect_engine_and_lists_all_journeys() {
         );
         assert_eq!(
             execution["steps"],
-            serde_json::json!({ "actual": if admitted { 8 } else { 4 }, "ceiling": 272 })
+            serde_json::json!({ "actual": if admitted { 14 } else { 10 }, "ceiling": 278 })
         );
         assert_eq!(execution["readSites"].as_array().unwrap().len(), 2);
         assert_eq!(
