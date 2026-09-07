@@ -3,6 +3,7 @@
 **Change:** `s2/clique-client-sessions` — shared query entries and the browser follower tab. Round 1 reviewed commit `703425379`; round 2 reviews the fix delta `c8b7f1c1c` (appended when received).
 **Reviewer:** Grok 4.6, reasoning xhigh, `--permission-mode auto --no-subagents --no-memory`, blind.
 **Orchestrator:** Claude Fable 5.1, session `session_01N6HHCXSkeacu8sJfsUH38L`.
+**Landed:** the lane's commits cited below were rebased at landing; on `main` they are `6b9a31278..e980f3450` (feat plus five fix rounds), the same content.
 **Provenance:** every review below was actually received from the named model; verbatim text per round. The two reviewers never saw each other's reviews. Fix rounds were implemented by the orchestrator (the lane's implementer).
 
 | Round | Reviewed | Verdict |

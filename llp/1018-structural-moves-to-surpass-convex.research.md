@@ -422,8 +422,8 @@ and `caps`); capability claims stay gated on a published cold run.
 
 - **Shared query entries and the browser-tab policy** (§3). Lane
   `s2/clique-client-sessions`, implemented by Claude Fable 5.1, 2026-09-07;
-  landed on main as `37e4c337d..801241d8e` (the slice plus five review-fix
-  rounds).
+  landed on main as `6b9a31278..e980f3450` (the slice plus five review-fix
+  rounds; the review records cite the lane's pre-rebase commits).
   `packages/snapback2/src/client-sessions.ts` (the refcounted entries),
   `client.ts` (`subscribe` attaches to an entry; `openOffline` turns a held
   lock into a follower; takeover resumes and drains), `client-channels.ts`
