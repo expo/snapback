@@ -1,0 +1,11 @@
+# Grok 0.0.15 independent assertion audit
+
+The fresh Astra xhigh audit ended with setup-aborted runtime phases. Both unchanged-lock `npm ci` attempts failed with `Missing: snapback2-linux-x64@ from lock file`. The isolated choreography copy also lacked an external helper. No owner, browser, API action or seed replay ran. These are setup failures, not observed runtime product failures.
+
+The completed source review covers all 110 in-scope assertions: one source-only pass, ten source-based failures and 99 not-run. Every assertion has fresh runtime not-run. Of 58 acceptance mappings inspected, 13 are substantiated mappings, 15 partial and 30 unsubstantiated. A substantiated mapping is not a fresh execution pass. The report summary lists all 58 inspected IDs; it must not be read as saying all 58 are unsupported. Its protocol word “dishonest” describes unsupported coverage, without attributing intent.
+
+Concrete source findings include absent feed pagination and recipient video playback, a newest-ten Trending stub, incomplete custom-client operations, and inconsistent digest counters. Original successful receipts and timeouts remain separate from this completed-source assessment. Root read the entire Markdown report and independently rehashed 334 original/copy source and symlink pairs. Hash correspondence supports custody, not semantic correctness.
+
+The grader was session `01a07c6c-4e14-74f1-aaab-23b0265825f4`, actual Astra xhigh, process 24161, exit 0 after 1361.469594 seconds. Formal calibration is unestablished; this diagnostic report computes no score. Grok's separately recorded holistic 63 is unchanged, below Convex 78. Native, full-scale and M7 requirements remain outstanding; this audit's delegated exclusions do not narrow the program goal.
+
+The unchanged reports, prompt, terminal, original install failures and root interpretation are retained here. Other relative report links refer to the complete external evidence directory `/Users/ccheever/clique-improvement/grading/grok-015/outcome`; app source, fixture credentials, raw transcripts and private state are not republished here. `manifest.json` binds the copied files. The original audit is closed and preserved; clean-install triage is assigned separately before any new runtime attempt.

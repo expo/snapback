@@ -1,0 +1,27 @@
+{
+  "at": "2026-09-07T15:36:53.576525+00:00",
+  "fullMarkdownReportRead": true,
+  "actualTerminalExit": 0,
+  "sourceAndSymlinkPairsReverified": 334,
+  "coverageMappingCounts": {
+    "substantiated-mapping": 13,
+    "partial": 15,
+    "unsubstantiated": 30
+  },
+  "assertionCounts": {
+    "not-run": 99,
+    "fail": 10,
+    "pass": 1
+  },
+  "interpretation": [
+    "All 110 assertions have fresh runtime not-run; source judgments are distinct.",
+    "58 coverage entries were examined: 45 partial/unsubstantiated, 13 substantiated mappings. The report summary assertionIds lists all 58, not just the unsupported subset.",
+    "Native/full-scale exclusions apply to this delegated audit only; they do not narrow the user goal.",
+    "Original exact-lock failures and missing audit helper remain preserved. Clean-install triage assigned separately; no unchanged failed phase restarted."
+  ],
+  "reportHashes": {
+    "grader-report.md": "cfcc12c68fcd1b44948df3214a32ff74b730f6e5ebdbc772a10aac4dabc55982",
+    "grader-report.json": "64f4d20eea5cb0fd071a2cce489baa51560602950d30af50e467bcad0bc1e853",
+    "terminal.json": "8819c5026ce9cc658a68d43e51f331b3a3f55035aaffb68f0f72f4375d1eca93"
+  }
+}

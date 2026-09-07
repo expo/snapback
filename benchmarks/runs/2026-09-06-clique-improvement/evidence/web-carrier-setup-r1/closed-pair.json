@@ -1,0 +1,102 @@
+{
+  "candidate": "620616271343fb302ede37f45bc285f5e39fb9b5",
+  "base": "9ec668f6c345954ba474da1bcd1daf20ee54f11d",
+  "recordedAt": "2026-09-07T16:04:22.143855+00:00",
+  "bothActualTerminalsBeforeReviewsOpened": true,
+  "peerFindingsCrossfed": false,
+  "families": [
+    {
+      "family": "astra",
+      "verdict": "VERDICT: READY",
+      "review": "/Users/ccheever/clique-improvement/reviews/web-carrier-setup-r1/astra/review.md",
+      "reviewSha256": "d5a42af27a48f8d6a860382ac59d0d6c2cacb9ac81d0773928dd7ff692acef51",
+      "terminal": {
+        "pid": 50904,
+        "exitCode": 0,
+        "endedEpoch": 1788796710.3630562,
+        "elapsedSeconds": 463.98575830459595,
+        "actualProcessWaitCompleted": true,
+        "stdoutSha256": "ad3f3c515a4f51d0f51c7d815ce7c6354ab9ace96687ce43aabf860115316c25",
+        "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "actualIdentity": {
+        "requestedModel": "gpt-6-astra",
+        "requestedEffort": "xhigh",
+        "launchPid": 50904,
+        "observedAt": "2026-09-07T15:58:30.750618+00:00",
+        "sessionId": "01a07c90-9a5f-77d1-b635-3fdd2afcc49e",
+        "source": "/Users/ccheever/.codex/sessions/2026/09/07/rollout-2026-09-07T08-50-46-01a07c90-9a5f-77d1-b635-3fdd2afcc49e.jsonl",
+        "sourceSha256": "5e743fff421e3d24fa9c6a9093220bde9104e2f0128b26ceecf4c041b9b46a79",
+        "turnContexts": [
+          {
+            "line": 8,
+            "model": "gpt-6-astra",
+            "effort": "xhigh",
+            "cwd": "/Users/ccheever/clique-improvement/reviews/web-carrier-setup-r1/astra",
+            "timestamp": "2026-09-07T15:50:49.228Z"
+          }
+        ],
+        "identityMatchesRequest": true
+      },
+      "inputsUnchanged": true,
+      "recordedProcesses": [
+        {
+          "pid": 50904,
+          "alive": false
+        },
+        {
+          "pid": 50901,
+          "alive": false
+        }
+      ]
+    },
+    {
+      "family": "grok",
+      "verdict": "VERDICT: READY",
+      "review": "/Users/ccheever/clique-improvement/reviews/web-carrier-setup-r1/grok/review.md",
+      "reviewSha256": "cfcfd610eabf8a615d47232146aed769d61cfc86ba317c56cc52db1b13f04195",
+      "terminal": {
+        "pid": 50945,
+        "exitCode": 0,
+        "endedEpoch": 1788797002.235614,
+        "elapsedSeconds": 754.326297044754,
+        "actualProcessWaitCompleted": true,
+        "stdoutSha256": "83a3114ca9b9e692f5ed35774a89071218c65a4db2f6198c5e02d154b426d537",
+        "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "actualIdentity": {
+        "requestedModel": "grok-4.6",
+        "requestedEffort": "xhigh",
+        "launchPid": 50945,
+        "observedAt": "2026-09-07T16:03:24.349713+00:00",
+        "sessionId": "cadfa21f-408b-4340-9b4b-79ec3cd0acad",
+        "source": "/Users/ccheever/.grok/sessions/%2FUsers%2Fccheever%2Fclique-improvement%2Freviews%2Fweb-carrier-setup-r1%2Fgrok/cadfa21f-408b-4340-9b4b-79ec3cd0acad/summary.json",
+        "sourceSha256": "0203cda28e2567aa8a3fe58f1998d82b22475b1f3379711edc818c61ef96e34a",
+        "current_model_id": "grok-4.6",
+        "reasoning_effort": "xhigh",
+        "identityMatchesRequest": true
+      },
+      "inputsUnchanged": true,
+      "recordedProcesses": [
+        {
+          "pid": 50945,
+          "alive": false
+        },
+        {
+          "pid": 50941,
+          "alive": false
+        }
+      ]
+    }
+  ],
+  "browserPorts52920Through52939": "clear; neither review ran a browser",
+  "newProductExecution": "none; read-only integrity inspections only",
+  "productEdits": false,
+  "pushed": false,
+  "published": false,
+  "optionalSuggestions": [
+    "Astra: an explicit open()-thrown TypeError test would strengthen coverage; existing unchanged open-error path is correct by inspection.",
+    "Both: new js guide fence is not executed by existing guide validation; snippet correct by inspection.",
+    "Grok: suggests making the internal error unexported; this is not directly applicable because client.ts imports the class across modules, and public package exports already hide ./offline. No product change made."
+  ]
+}

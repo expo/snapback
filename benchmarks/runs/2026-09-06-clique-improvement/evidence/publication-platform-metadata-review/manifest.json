@@ -1,0 +1,450 @@
+{
+  "preparedAt": "2026-09-07T17:14:19.713877+00:00",
+  "sourceBase": "f681a72ef3ff495edfc354291ba232c19018259e",
+  "scope": "Evidence only; no product/source changes, model calls or product tests",
+  "roundSequence": [
+    "R1 Astra REQUEST_CHANGES / Grok READY; concrete P2 controls",
+    "R2 Astra READY / Grok READY"
+  ],
+  "files": [
+    {
+      "path": "README.md",
+      "sourcePath": null,
+      "bytes": 5709,
+      "sha256": "e320fc2faf5c85f80fb19545c2b5dfd9413b3606d9c8c221d5df3975caf6d599",
+      "authorship": "Evidence synopsis by persistent /root/clean_install_triage agent; linked reviewer reports remain verbatim"
+    },
+    {
+      "path": "affected-checks/diff-check.launch.json",
+      "sourcePath": "/Users/ccheever/clique-improvement/revisions/publication-platform-metadata-r2/diff-check.launch.json",
+      "bytes": 1404,
+      "sha256": "cc8ed1a259425f5b75f7ee423c1ce70c66e08669e28f331cc87529d0fcd1c79a"
+    },
+    {
+      "path": "affected-checks/diff-check.stderr.log",
+      "sourcePath": "/Users/ccheever/clique-improvement/revisions/publication-platform-metadata-r2/diff-check.stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "affected-checks/diff-check.stdout.log",
+      "sourcePath": "/Users/ccheever/clique-improvement/revisions/publication-platform-metadata-r2/diff-check.stdout.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "affected-checks/diff-check.terminal.json",
+      "sourcePath": "/Users/ccheever/clique-improvement/revisions/publication-platform-metadata-r2/diff-check.terminal.json",
+      "bytes": 300,
+      "sha256": "8c1e7b9bfad0d75a5e04d6a715de73679ff63e5e9751554341cb43fafd99d257"
+    },
+    {
+      "path": "affected-checks/external-evidence-seal.json",
+      "sourcePath": "/Users/ccheever/clique-improvement/revisions/publication-platform-metadata-r2/SEALED.json",
+      "bytes": 326,
+      "sha256": "d3874824e64f77c38c8d07865c057bba2884cbe4ee1f70f608763490078a479a"
+    },
+    {
+      "path": "affected-checks/publication-self-test.launch.json",
+      "sourcePath": "/Users/ccheever/clique-improvement/revisions/publication-platform-metadata-r2/publication-self-test.launch.json",
+      "bytes": 1477,
+      "sha256": "89bf4b2f59213abe35fbcbad4321c0ff6577be469b54955366df0f71d1dbcd34"
+    },
+    {
+      "path": "affected-checks/publication-self-test.stderr.log",
+      "sourcePath": "/Users/ccheever/clique-improvement/revisions/publication-platform-metadata-r2/publication-self-test.stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "affected-checks/publication-self-test.stdout.log",
+      "sourcePath": "/Users/ccheever/clique-improvement/revisions/publication-platform-metadata-r2/publication-self-test.stdout.log",
+      "bytes": 1082,
+      "sha256": "a6614b7aa8d33a403ceb58a3d58b3b559474306413ba3a0c5bc9c31c118c6a3c"
+    },
+    {
+      "path": "affected-checks/publication-self-test.terminal.json",
+      "sourcePath": "/Users/ccheever/clique-improvement/revisions/publication-platform-metadata-r2/publication-self-test.terminal.json",
+      "bytes": 300,
+      "sha256": "dfd9ba24ec90c3f1e421717d4d8a339627964f09ba174e4f92dfc73ae9f9b591"
+    },
+    {
+      "path": "affected-checks/ref-check.launch.json",
+      "sourcePath": "/Users/ccheever/clique-improvement/revisions/publication-platform-metadata-r2/ref-check.launch.json",
+      "bytes": 1393,
+      "sha256": "8506278dcae80ef022cf64f42303c05a903ba2352e7be9f1d880962afb01b314"
+    },
+    {
+      "path": "affected-checks/ref-check.stderr.log",
+      "sourcePath": "/Users/ccheever/clique-improvement/revisions/publication-platform-metadata-r2/ref-check.stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "affected-checks/ref-check.stdout.log",
+      "sourcePath": "/Users/ccheever/clique-improvement/revisions/publication-platform-metadata-r2/ref-check.stdout.log",
+      "bytes": 80,
+      "sha256": "993a14dbb52201058aa5018f79fe54041907262e1c9d929c83b473b255a847b4"
+    },
+    {
+      "path": "affected-checks/ref-check.terminal.json",
+      "sourcePath": "/Users/ccheever/clique-improvement/revisions/publication-platform-metadata-r2/ref-check.terminal.json",
+      "bytes": 301,
+      "sha256": "aa2d388ff7418921a5f2e3dc177a24bd8ad2c6106fcd77005a5c3d572b4e851b"
+    },
+    {
+      "path": "affected-checks/source-identity.json",
+      "sourcePath": "/Users/ccheever/clique-improvement/revisions/publication-platform-metadata-r2/source-identity.json",
+      "bytes": 1458,
+      "sha256": "6a5d2e4ff3b2ab8c316a5a654337de1fe75333da0ab97dff220483d7818d5686"
+    },
+    {
+      "path": "r1/astra/actual-identity.json",
+      "sourcePath": "/Users/ccheever/clique-improvement/reviews/publication-platform-metadata-r1/astra/actual-identity.json",
+      "bytes": 699,
+      "sha256": "7f14b07a9d71c741e389dc986be856c9cc58ef66c96657bc16d9044dfe2221dc"
+    },
+    {
+      "path": "r1/astra/final-answer.md",
+      "sourcePath": "/Users/ccheever/clique-improvement/reviews/publication-platform-metadata-r1/astra/final-answer.md",
+      "bytes": 2435,
+      "sha256": "430176a0fff24192bb2972abfbb5567e954e224450f6c8adca1c60be11e70888"
+    },
+    {
+      "path": "r1/astra/input-integrity-after.json",
+      "sourcePath": "/Users/ccheever/clique-improvement/reviews/publication-platform-metadata-r1/astra/input-integrity-after.json",
+      "bytes": 135,
+      "sha256": "736ca991aeda36b599f7265e673a37410f098be216480428011d5814e7db992e"
+    },
+    {
+      "path": "r1/astra/launch.json",
+      "sourcePath": "/Users/ccheever/clique-improvement/reviews/publication-platform-metadata-r1/astra/launch.json",
+      "bytes": 1769,
+      "sha256": "19419608420232cfeebf40922f840a2e56807cb865f48681681a5e9154e44e1c"
+    },
+    {
+      "path": "r1/astra/review.md",
+      "sourcePath": "/Users/ccheever/clique-improvement/reviews/publication-platform-metadata-r1/astra/review.md",
+      "bytes": 11849,
+      "sha256": "d8934a93ff6e3ad19dbe5ec89913e99986c1cb8d7646188df275b24321f6d370"
+    },
+    {
+      "path": "r1/astra/scratch/executions/01-counterexample.launch.json",
+      "sourcePath": "/Users/ccheever/clique-improvement/reviews/publication-platform-metadata-r1/astra/scratch/executions/01-counterexample.launch.json",
+      "bytes": 744,
+      "sha256": "81493549604aad10c3f94fbaf3132340774cede17d1978b1494e5ccf5cb93695"
+    },
+    {
+      "path": "r1/astra/scratch/executions/01-counterexample.stderr.log",
+      "sourcePath": "/Users/ccheever/clique-improvement/reviews/publication-platform-metadata-r1/astra/scratch/executions/01-counterexample.stderr.log",
+      "bytes": 737,
+      "sha256": "5f4584dbe2549a83f6020652dc90f439e47611754d6af4f0f395c0b3f3e62e3b"
+    },
+    {
+      "path": "r1/astra/scratch/executions/01-counterexample.stdout.log",
+      "sourcePath": "/Users/ccheever/clique-improvement/reviews/publication-platform-metadata-r1/astra/scratch/executions/01-counterexample.stdout.log",
+      "bytes": 357,
+      "sha256": "4571b6be6ebe4f92adc995f34332f0e1adffafe9e7908ba438c880a00febf140"
+    },
+    {
+      "path": "r1/astra/scratch/executions/01-counterexample.terminal.json",
+      "sourcePath": "/Users/ccheever/clique-improvement/reviews/publication-platform-metadata-r1/astra/scratch/executions/01-counterexample.terminal.json",
+      "bytes": 308,
+      "sha256": "f900db548011a596d1c8cb67720cabfc5d7e9964ab059d7fccc66c0125680bbe"
+    },
+    {
+      "path": "r1/astra/scratch/executions/02-counterexample.launch.json",
+      "sourcePath": "/Users/ccheever/clique-improvement/reviews/publication-platform-metadata-r1/astra/scratch/executions/02-counterexample.launch.json",
+      "bytes": 806,
+      "sha256": "16eb97c3534aef86fe5eae65c06110f2603c71bfbadf3f007042f5b4f3f57dbb"
+    },
+    {
+      "path": "r1/astra/scratch/executions/02-counterexample.stderr.log",
+      "sourcePath": "/Users/ccheever/clique-improvement/reviews/publication-platform-metadata-r1/astra/scratch/executions/02-counterexample.stderr.log",
+      "bytes": 1215,
+      "sha256": "674e75dcf904c9a6056d1cf426160daaa56acc24ab66933784c054e15083186b"
+    },
+    {
+      "path": "r1/astra/scratch/executions/02-counterexample.stdout.log",
+      "sourcePath": "/Users/ccheever/clique-improvement/reviews/publication-platform-metadata-r1/astra/scratch/executions/02-counterexample.stdout.log",
+      "bytes": 136,
+      "sha256": "62610182400154657eaa336a291a2ac2b146bcae413ba19b1005953f06551b91"
+    },
+    {
+      "path": "r1/astra/scratch/executions/02-counterexample.terminal.json",
+      "sourcePath": "/Users/ccheever/clique-improvement/reviews/publication-platform-metadata-r1/astra/scratch/executions/02-counterexample.terminal.json",
+      "bytes": 300,
+      "sha256": "f5cc2d511f012c666873fca62fb6f3830f163fe01dee2caa0b665e3944da3950"
+    },
+    {
+      "path": "r1/astra/scratch/multiple-platform-install.mjs",
+      "sourcePath": "/Users/ccheever/clique-improvement/reviews/publication-platform-metadata-r1/astra/scratch/multiple-platform-install.mjs",
+      "bytes": 3531,
+      "sha256": "fbab116efe3509e45d158f27b2d63c07e6d5d821d1f89d8e5444daed847e8ccb"
+    },
+    {
+      "path": "r1/astra/scratch/preserve-optional.mjs",
+      "sourcePath": "/Users/ccheever/clique-improvement/reviews/publication-platform-metadata-r1/astra/scratch/preserve-optional.mjs",
+      "bytes": 1598,
+      "sha256": "e94b577338ded406a24dd253b3c96487b1bee85bf4ccf883eb984a2f0cec954a"
+    },
+    {
+      "path": "r1/astra/terminal.json",
+      "sourcePath": "/Users/ccheever/clique-improvement/reviews/publication-platform-metadata-r1/astra/terminal.json",
+      "bytes": 320,
+      "sha256": "ce15d0cd95022c991e30db34d1d9414cd2ae12b48c53f79c51fb3809598dc99c"
+    },
+    {
+      "path": "r1/completion.json",
+      "sourcePath": "/Users/ccheever/clique-improvement/reviews/publication-platform-metadata-r1/completion.json",
+      "bytes": 9794,
+      "sha256": "57dfe6397b53292e0930178965a5bad10ac4d68b7cf3e1f4bc8a478e77a2a560"
+    },
+    {
+      "path": "r1/external-packet-seal.json",
+      "sourcePath": "/Users/ccheever/clique-improvement/reviews/publication-platform-metadata-r1/SEALED.json",
+      "bytes": 349,
+      "sha256": "e1f8d9d48adb7d06f56e0b4d8ecbf088dfa3601bf9df78f84ad373e03baafd24"
+    },
+    {
+      "path": "r1/grok/actual-identity.json",
+      "sourcePath": "/Users/ccheever/clique-improvement/reviews/publication-platform-metadata-r1/grok/actual-identity.json",
+      "bytes": 568,
+      "sha256": "ff0b5767034c17b9cde5b2853bfef036dbde12edc3e6400b1ed01570adb1b9ab"
+    },
+    {
+      "path": "r1/grok/final-answer.md",
+      "sourcePath": "/Users/ccheever/clique-improvement/reviews/publication-platform-metadata-r1/grok/final-answer.md",
+      "bytes": 10098,
+      "sha256": "a892e728fca0958d84c78f98754703439531634ea886972b2f3e0200aea8a578"
+    },
+    {
+      "path": "r1/grok/input-integrity-after.json",
+      "sourcePath": "/Users/ccheever/clique-improvement/reviews/publication-platform-metadata-r1/grok/input-integrity-after.json",
+      "bytes": 135,
+      "sha256": "736ca991aeda36b599f7265e673a37410f098be216480428011d5814e7db992e"
+    },
+    {
+      "path": "r1/grok/launch.json",
+      "sourcePath": "/Users/ccheever/clique-improvement/reviews/publication-platform-metadata-r1/grok/launch.json",
+      "bytes": 1656,
+      "sha256": "a776cb5ad4276f2b49c4e97e9a943d47be31e2f3377e13a41ec4eeca1044b62f"
+    },
+    {
+      "path": "r1/grok/provider-input-provenance.json",
+      "sourcePath": "/Users/ccheever/clique-improvement/reviews/publication-platform-metadata-r1/grok/observed-extra-input/provenance.json",
+      "bytes": 674,
+      "sha256": "81e8773b30fe5d78e1cab835c14088bc27bc01dc52a8c5d15085eda86c161b16"
+    },
+    {
+      "path": "r1/grok/review.md",
+      "sourcePath": "/Users/ccheever/clique-improvement/reviews/publication-platform-metadata-r1/grok/review.md",
+      "bytes": 10251,
+      "sha256": "78871a9d534a7d597e9310499d8909b513758e2f59b53bc6a4618269a7b11dc5"
+    },
+    {
+      "path": "r1/grok/scratch/executions/01-counterexample.launch.json",
+      "sourcePath": "/Users/ccheever/clique-improvement/reviews/publication-platform-metadata-r1/grok/scratch/executions/01-counterexample.launch.json",
+      "bytes": 810,
+      "sha256": "c85f4222c7ad63124747b1a69b8861a60b6a87f5d91c38441ddf1c3642faf29f"
+    },
+    {
+      "path": "r1/grok/scratch/executions/01-counterexample.stderr.log",
+      "sourcePath": "/Users/ccheever/clique-improvement/reviews/publication-platform-metadata-r1/grok/scratch/executions/01-counterexample.stderr.log",
+      "bytes": 5162,
+      "sha256": "19cfa2bbcea0c036b3310bddbfb5f7881ea163d10e013f28ff208d70fc5e1365"
+    },
+    {
+      "path": "r1/grok/scratch/executions/01-counterexample.stdout.log",
+      "sourcePath": "/Users/ccheever/clique-improvement/reviews/publication-platform-metadata-r1/grok/scratch/executions/01-counterexample.stdout.log",
+      "bytes": 1485,
+      "sha256": "ecc451a68daa2c81ef09c413197b64a4a91f773dd203a39c36c2e9ec9286459c"
+    },
+    {
+      "path": "r1/grok/scratch/executions/01-counterexample.terminal.json",
+      "sourcePath": "/Users/ccheever/clique-improvement/reviews/publication-platform-metadata-r1/grok/scratch/executions/01-counterexample.terminal.json",
+      "bytes": 300,
+      "sha256": "140008247c3acbd6ec7aaa732ef7c811ea433aab9e7e2bfe968256c1cc3d563b"
+    },
+    {
+      "path": "r1/grok/scratch/executions/02-counterexample.launch.json",
+      "sourcePath": "/Users/ccheever/clique-improvement/reviews/publication-platform-metadata-r1/grok/scratch/executions/02-counterexample.launch.json",
+      "bytes": 778,
+      "sha256": "334635e897c7ca9dca5c49782e9b501286e1b1af5eeddd086a4ccdc79a0de817"
+    },
+    {
+      "path": "r1/grok/scratch/executions/02-counterexample.stderr.log",
+      "sourcePath": "/Users/ccheever/clique-improvement/reviews/publication-platform-metadata-r1/grok/scratch/executions/02-counterexample.stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "r1/grok/scratch/executions/02-counterexample.stdout.log",
+      "sourcePath": "/Users/ccheever/clique-improvement/reviews/publication-platform-metadata-r1/grok/scratch/executions/02-counterexample.stdout.log",
+      "bytes": 1036,
+      "sha256": "92a69e49ea64039a6f82daa13fce24e1df6ce06710b31fbd635e74dd0dd9499e"
+    },
+    {
+      "path": "r1/grok/scratch/executions/02-counterexample.terminal.json",
+      "sourcePath": "/Users/ccheever/clique-improvement/reviews/publication-platform-metadata-r1/grok/scratch/executions/02-counterexample.terminal.json",
+      "bytes": 306,
+      "sha256": "8589d9d57b0672db65b248f7c3cab6fad488d2a81efe86ab7072c6452947cfac"
+    },
+    {
+      "path": "r1/grok/scratch/npm-pack-host-only-ci.mjs",
+      "sourcePath": "/Users/ccheever/clique-improvement/reviews/publication-platform-metadata-r1/grok/scratch/npm-pack-host-only-ci.mjs",
+      "bytes": 6113,
+      "sha256": "d3e318df786fb090030b9a8ed9b2927a3970b7e03fb1f8455834cfdf8a9fa488"
+    },
+    {
+      "path": "r1/grok/scratch/npm-pack-staged-shim.mjs",
+      "sourcePath": "/Users/ccheever/clique-improvement/reviews/publication-platform-metadata-r1/grok/scratch/npm-pack-staged-shim.mjs",
+      "bytes": 6726,
+      "sha256": "080bdb2cbfbc5552cac77930af3093638bc88a69822867b3703edd9fef712794"
+    },
+    {
+      "path": "r1/grok/terminal.json",
+      "sourcePath": "/Users/ccheever/clique-improvement/reviews/publication-platform-metadata-r1/grok/terminal.json",
+      "bytes": 320,
+      "sha256": "9cf9938243eca17693733c5b937fe8a6c9e868469d0d6f6f14ac194d40e1ca25"
+    },
+    {
+      "path": "r2/astra/actual-identity.json",
+      "sourcePath": "/Users/ccheever/clique-improvement/reviews/publication-platform-metadata-r2/astra/actual-identity.json",
+      "bytes": 699,
+      "sha256": "382cddf4c0db81c324ffe464af95e552f9c98a605bdd835bcccd30fd55e1ad2f"
+    },
+    {
+      "path": "r2/astra/final-answer.md",
+      "sourcePath": "/Users/ccheever/clique-improvement/reviews/publication-platform-metadata-r2/astra/final-answer.md",
+      "bytes": 1052,
+      "sha256": "4d440fd08be2743f843b5ce66642d3a0b2655020b2eabf079c467875f83b7650"
+    },
+    {
+      "path": "r2/astra/input-integrity-after.json",
+      "sourcePath": "/Users/ccheever/clique-improvement/reviews/publication-platform-metadata-r2/astra/input-integrity-after.json",
+      "bytes": 135,
+      "sha256": "8a6c10d45af8d332cf1181da23259df847d4842c13bff57e023cc5deea0e1b38"
+    },
+    {
+      "path": "r2/astra/launch.json",
+      "sourcePath": "/Users/ccheever/clique-improvement/reviews/publication-platform-metadata-r2/astra/launch.json",
+      "bytes": 1769,
+      "sha256": "4c0225cfa1309c9f20261e490393d7cb51edcba8f52ab310f3c9bd724a82526d"
+    },
+    {
+      "path": "r2/astra/review.md",
+      "sourcePath": "/Users/ccheever/clique-improvement/reviews/publication-platform-metadata-r2/astra/review.md",
+      "bytes": 9848,
+      "sha256": "4d721fa25539a73af376d4174b07efaa99274fa8158ee7aaa30d9a1ec7e96581"
+    },
+    {
+      "path": "r2/astra/terminal.json",
+      "sourcePath": "/Users/ccheever/clique-improvement/reviews/publication-platform-metadata-r2/astra/terminal.json",
+      "bytes": 321,
+      "sha256": "f50ed7e30a743976e863a9b16ea864e617ad1f6198209256a0aa10b6cfc0d265"
+    },
+    {
+      "path": "r2/completion.json",
+      "sourcePath": "/Users/ccheever/clique-improvement/reviews/publication-platform-metadata-r2/completion.json",
+      "bytes": 3708,
+      "sha256": "d85f9f0d8cefaabb6fcee3746330c7aab42ce6c0f90e4544494c6a21f23cbfd8"
+    },
+    {
+      "path": "r2/external-packet-seal.json",
+      "sourcePath": "/Users/ccheever/clique-improvement/reviews/publication-platform-metadata-r2/SEALED.json",
+      "bytes": 405,
+      "sha256": "3110b5960ba9cbae909a5a77a6d7398ea0b66dc73e61d13dcf8a43ce5a9eea58"
+    },
+    {
+      "path": "r2/grok/actual-identity.json",
+      "sourcePath": "/Users/ccheever/clique-improvement/reviews/publication-platform-metadata-r2/grok/actual-identity.json",
+      "bytes": 568,
+      "sha256": "9f89de324b4f23d226850e5d433348d9f316e87246e71ff61b788c18ab23ba38"
+    },
+    {
+      "path": "r2/grok/final-answer.md",
+      "sourcePath": "/Users/ccheever/clique-improvement/reviews/publication-platform-metadata-r2/grok/final-answer.md",
+      "bytes": 4387,
+      "sha256": "1d8a51dcbb490f3a806dc168b8d64cd94d8ea7d0688bf507374af99c861246d5"
+    },
+    {
+      "path": "r2/grok/input-integrity-after.json",
+      "sourcePath": "/Users/ccheever/clique-improvement/reviews/publication-platform-metadata-r2/grok/input-integrity-after.json",
+      "bytes": 135,
+      "sha256": "8a6c10d45af8d332cf1181da23259df847d4842c13bff57e023cc5deea0e1b38"
+    },
+    {
+      "path": "r2/grok/launch.json",
+      "sourcePath": "/Users/ccheever/clique-improvement/reviews/publication-platform-metadata-r2/grok/launch.json",
+      "bytes": 1655,
+      "sha256": "62a0127489566c752dc6ca70f40037c9cbdec532421651f8a4fcbfcc994ee86e"
+    },
+    {
+      "path": "r2/grok/native-end.json",
+      "sourcePath": "/Users/ccheever/clique-improvement/reviews/publication-platform-metadata-r2/grok/native-end.json",
+      "bytes": 692,
+      "sha256": "518e8ee0becfb1601afc38ecef602060355be2ff64acf3cf8c5d5e2745e056cc"
+    },
+    {
+      "path": "r2/grok/provider-input-observation.json",
+      "sourcePath": "/Users/ccheever/clique-improvement/reviews/publication-platform-metadata-r2/grok/provider-input-observation.json",
+      "bytes": 639,
+      "sha256": "613c8210529d3f06c87fbe0e4381a10c8dd377e09e59c06e5f5aa51892f4eac0"
+    },
+    {
+      "path": "r2/grok/review.md",
+      "sourcePath": "/Users/ccheever/clique-improvement/reviews/publication-platform-metadata-r2/grok/review.md",
+      "bytes": 14694,
+      "sha256": "aa880514b28701d3c2ab8ecf7c99cd3252692439865435b0c46966dff9e795ed"
+    },
+    {
+      "path": "r2/grok/terminal.json",
+      "sourcePath": "/Users/ccheever/clique-improvement/reviews/publication-platform-metadata-r2/grok/terminal.json",
+      "bytes": 320,
+      "sha256": "91c414a97b1b18b614ef0a92ea63aaa7cf026fe8eb3a8b4614f1e626e3c76a44"
+    },
+    {
+      "path": "r2/prompt.md",
+      "sourcePath": "/Users/ccheever/clique-improvement/reviews/publication-platform-metadata-r2/astra/prompt.md",
+      "bytes": 6497,
+      "sha256": "27b249450a7d6428a740203f160ef187b8d80b37c78bd43e59d372b5e03fe95a"
+    },
+    {
+      "path": "r2/provider-inputs.json",
+      "sourcePath": "/Users/ccheever/clique-improvement/reviews/publication-platform-metadata-r2/astra/provider-inputs.json",
+      "bytes": 521,
+      "sha256": "88a52cb99d07171446ec87b2aff1bd1a737b3ddefe126d86564cd48210169992"
+    },
+    {
+      "path": "r2/provider-inputs/grok-bundled-review.SKILL.md",
+      "sourcePath": "/Users/ccheever/clique-improvement/reviews/publication-platform-metadata-r2/astra/provider-inputs/grok-bundled-review.SKILL.md",
+      "bytes": 36201,
+      "sha256": "656c5e50f5aba43417cc80c2227ffbc1c830661bc7ce879d1ec980583e637204"
+    },
+    {
+      "path": "r2/source-integrity-at-closure.json",
+      "sourcePath": "/Users/ccheever/clique-improvement/reviews/publication-platform-metadata-r2/source-integrity-at-closure.json",
+      "bytes": 1391,
+      "sha256": "1a70045466583d0ba260783dcca59735d5714cdf49800659f8fd3aed3429c284"
+    },
+    {
+      "path": "r2/source-manifest.json",
+      "sourcePath": "/Users/ccheever/clique-improvement/reviews/publication-platform-metadata-r2/astra/source-manifest.json",
+      "bytes": 18282,
+      "sha256": "fce161244732702f397c5d05b67826b71bb4358f14d9f4e6244833ba9abba080"
+    },
+    {
+      "path": "r2/toolchain.json",
+      "sourcePath": "/Users/ccheever/clique-improvement/reviews/publication-platform-metadata-r2/astra/toolchain.json",
+      "bytes": 704,
+      "sha256": "94a0a4bf5bb9f4dfd4840e68740e37025e45f06a4ed258988996793127a7448b"
+    },
+    {
+      "path": "r2/workload.json",
+      "sourcePath": "/Users/ccheever/clique-improvement/reviews/publication-platform-metadata-r2/astra/workload.json",
+      "bytes": 1633,
+      "sha256": "14d1eeb9e225d40dad8f6457f66600d04680775348d8168bcb9923c1d11e2686"
+    }
+  ]
+}

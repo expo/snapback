@@ -1,0 +1,24 @@
+{
+  "at": "2026-09-07T16:05:53.467164+00:00",
+  "candidate": "620616271343fb302ede37f45bc285f5e39fb9b5",
+  "integratedSourceCommit": "fac8594f2219da727f739f471c1f30c7d4a03ba5",
+  "allFiveSourceFilesExact": true,
+  "sourcePaths": [
+    "snapback2/packages/snapback2/build.mjs",
+    "snapback2/packages/snapback2/guide/offline.md",
+    "snapback2/packages/snapback2/src/client.ts",
+    "snapback2/packages/snapback2/src/offline.ts",
+    "snapback2/packages/snapback2/tests/offline-store.test.ts"
+  ],
+  "bothReportsFullReadAfterActualTerminals": true,
+  "scopedDisposition": "READY; optional suggestions deferred. No physical-kill/browser offline-bar, original-app repair or publication claim.",
+  "evidenceHashes": {
+    "author-report.md": "f91b814523eeec05a61868dbf4cc4e19c0dce8b33ca5893260f344842b26799f",
+    "final-offline-store.log": "a4de325ef855c27e6224a9f7a40871039b559f63f82a3c9dddebf0e435a18aec",
+    "candidate-browser.json": "bcd3140804e4cba1d7960e5f64ae0f257142c40da8af2d9cf91e3bc94b62dbf7",
+    "published-browser.json": "9a891e8bd2da38d15503c3d1927e6d2ec428a7037ab777d65ec32eea917659c2",
+    "astra-review.md": "d5a42af27a48f8d6a860382ac59d0d6c2cacb9ac81d0773928dd7ff692acef51",
+    "grok-review.md": "cfcfd610eabf8a615d47232146aed769d61cfc86ba317c56cc52db1b13f04195",
+    "closed-pair.json": "a5757a143ed243d90302a765b3b88089d0d149542085193e09ab7e926bc09fd9"
+  }
+}

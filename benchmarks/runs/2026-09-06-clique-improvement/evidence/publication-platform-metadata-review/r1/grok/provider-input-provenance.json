@@ -1,0 +1,10 @@
+{
+  "sourcePath": "/Users/ccheever/.grok/bundled/skills/review/SKILL.md",
+  "source": "actual native tool_call_update.rawOutput.FileContent.raw_output",
+  "toolCallId": "call-35e185fb-a399-4c32-ac51-95c9a5307b3a-0",
+  "totalLines": 506,
+  "bodySha256": "656c5e50f5aba43417cc80c2227ffbc1c830661bc7ce879d1ec980583e637204",
+  "nativeStdoutSha256": "ddd40a8dca573d3eb0fabfa352cd59847c31a8c18e933dcbef048d5ad2a7a483",
+  "procedureDeviation": "Generic bundled skill read outside equal frozen packet; total native contexts are not claimed identical",
+  "scopeObservation": "Subsequent complete tool-call inventory shows no subagent, GitHub, network, or other external-read call"
+}

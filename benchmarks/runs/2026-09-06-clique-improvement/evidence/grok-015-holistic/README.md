@@ -1,0 +1,11 @@
+# Grok 0.0.15 holistic assessment: 63/100
+
+A fresh Grok4.6/xhigh session scored its completed published0.0.15 Clique build **63/100**. The retained Grok baseline scores remain Snapback0.0.4 **57**, Convex **78**, and Supabase **47**. The new score is below Convex; it does not satisfy the both-backend goal.
+
+[Full score and category notes](./holistic-score.json) and [exact final response](./final-score-response.md) preserve the assessment. Scoring used the same published-surface anchors and thirteen categories, adapted to one backend because the comparator runs remain retained. [Exact prompt](./prompt.md) and [template diff](./prompt.diff) disclose that change. It is a single-backend narrative assessment, whereas the original baseline scorer jointly read three lanes. N=1, different Office M1 Max/M5 hardware, and narrative attribution limit direct magnitude claims. No comparator was rerun or rescored, and no score was selected from repeated new assessments.
+
+Actual scorer session23be09cf-df64-4e50-b115-5e4928cf69af exited0 after342.183s, modelgrok-4.6/effortxhigh. Root FULL read the result, validated all13 integer scores, and compared all144 prepared input hashes with zero changes. [Validation and preserved baseline values](./root-validation.json) and [actual terminal](./terminal.json).
+
+The scorer identifies web offline, modeling/authorization friction, and incomplete scale evidence among the weaknesses. These attributions are its narrative-based judgment, not independently reproduced root causes. It explicitly notices weak view-once/trending acceptance checks. A separate fresh Astra assertion audit is running without builder narratives or this score; its result is pending. Suite pass labels are not independent capability proof.
+
+The builder actually exited0 after10204.303s, with M1/M2 browser passes, M3 three failed checks, M4 four failed checks, and later browser/scale/native proof missing. The complete source and raw native logs remain private at the recorded external run paths; no raw transcript or credential is published here. The prior interim audit remains unchanged, including its partial-capture correction. Compiler repair work is independent of this published package and is not represented as already shipped.

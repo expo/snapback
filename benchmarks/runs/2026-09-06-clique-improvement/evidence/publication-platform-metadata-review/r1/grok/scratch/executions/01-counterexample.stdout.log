@@ -1,0 +1,59 @@
+{
+  "packedOptionalDependencies": {
+    "unrelated": "1.2.3",
+    "snapback2-darwin-arm64": "0.0.15"
+  },
+  "packedDependencies": {
+    "typescript": "5.9.2"
+  },
+  "packedPeerDependencies": {
+    "expo": ">=54",
+    "expo-file-system": ">=19",
+    "expo-video": ">=2",
+    "react-native": ">=0.75",
+    "react": ">=18",
+    "expo-sqlite": "^16",
+    "expo-secure-store": "^15"
+  },
+  "packedPeerDependenciesMeta": {
+    "expo": {
+      "optional": true
+    },
+    "expo-file-system": {
+      "optional": true
+    },
+    "expo-video": {
+      "optional": true
+    },
+    "react-native": {
+      "optional": true
+    },
+    "expo-sqlite": {
+      "optional": true
+    },
+    "expo-secure-store": {
+      "optional": true
+    }
+  },
+  "sourceOptionalDependencies": {
+    "snapback2-darwin-arm64": "0.0.15",
+    "snapback2-linux-x64": "0.0.15"
+  }
+}
+{
+  "lockSnapback2OptionalDependencies": {
+    "snapback2-darwin-arm64": "0.0.15",
+    "unrelated": "1.2.3"
+  },
+  "lockLinux": null,
+  "lockHost": {
+    "version": "0.0.15",
+    "optional": false
+  },
+  "producerDependencies": {
+    "react": "file:../dist/npm/publish-snapback2-darwin-arm64-0.0.15/react-19.1.1.tgz",
+    "snapback2": "file:../dist/npm/publish-snapback2-darwin-arm64-0.0.15/snapback2-0.0.15.tgz",
+    "snapback2-darwin-arm64": "file:../dist/npm/publish-snapback2-darwin-arm64-0.0.15/snapback2-darwin-arm64-0.0.15.tgz",
+    "typescript": "file:../dist/npm/publish-snapback2-darwin-arm64-0.0.15/typescript-5.9.2.tgz"
+  }
+}

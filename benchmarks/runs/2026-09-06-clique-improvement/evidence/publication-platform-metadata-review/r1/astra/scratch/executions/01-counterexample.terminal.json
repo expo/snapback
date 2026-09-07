@@ -1,0 +1,9 @@
+{
+  "pid": 72005,
+  "exitCode": 1,
+  "timedOut": false,
+  "elapsedSeconds": 0.23373191700000007,
+  "actualProcessWaitCompleted": true,
+  "stdoutSha256": "4571b6be6ebe4f92adc995f34332f0e1adffafe9e7908ba438c880a00febf140",
+  "stderrSha256": "5f4584dbe2549a83f6020652dc90f439e47611754d6af4f0f395c0b3f3e62e3b"
+}

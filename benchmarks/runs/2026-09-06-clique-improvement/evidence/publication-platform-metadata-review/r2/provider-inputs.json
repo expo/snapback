@@ -1,0 +1,8 @@
+{
+  "sourcePath": "/Users/ccheever/.grok/bundled/skills/review/SKILL.md",
+  "packetPath": "provider-inputs/grok-bundled-review.SKILL.md",
+  "sha256": "656c5e50f5aba43417cc80c2227ffbc1c830661bc7ce879d1ec980583e637204",
+  "totalLines": 506,
+  "provenance": "Complete raw_output returned by prior native Grok read_file; historical extra provider input now disclosed and bound",
+  "scope": "Generic suggestions confer no additional task scope; current prompt/workload controls; total native contexts not claimed identical"
+}

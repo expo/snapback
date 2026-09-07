@@ -45,7 +45,7 @@ import {
   wireShape,
   wireSubscription,
 } from "./client-wire.js";
-import { admitDrain, type OfflineRuntime, type MountedQuery } from "./offline.js";
+import { admitDrain, InvalidOfflineStoreError, type OfflineRuntime, type MountedQuery } from "./offline.js";
 import { TabFollower } from "./client-sessions.js";
 import { ClientQueries } from "./client-observed.js";
 import { ClientForwarding } from "./client-forwarding.js";
@@ -167,6 +167,7 @@ class Client implements SnapbackClient {
     try {
       this.offlineRuntime = createOfflineRuntime(options.offline);
     } catch (error) {
+      if (error instanceof InvalidOfflineStoreError) throw error;
       throw this.offlineRefusal(error);
     }
     this.forwarding = new ClientForwarding({

@@ -1,0 +1,14 @@
+{
+  "mode": "counterexample",
+  "purpose": "Check whether npm pack from a workspace-root cwd preserves Darwin-only staged optionalDependencies and yields a linux-free npm 11 lock that npm ci accepts",
+  "argv": [
+    "/Users/ccheever/.volta/tools/image/node/24.18.0/bin/node",
+    "/Users/ccheever/clique-improvement/reviews/publication-platform-metadata-r1/grok/scratch/npm-pack-staged-shim.mjs"
+  ],
+  "cwd": "/Users/ccheever/clique-improvement/reviews/publication-platform-metadata-r1/grok/scratch",
+  "source": "/Users/ccheever/clique-improvement/reviews/publication-platform-metadata-r1/grok/scratch/npm-pack-staged-shim.mjs",
+  "sourceSha256": "080bdb2cbfbc5552cac77930af3093638bc88a69822867b3703edd9fef712794",
+  "timeoutSeconds": 30,
+  "startedAt": "2026-09-07T16:32:29.134937+00:00",
+  "pid": 75095
+}
