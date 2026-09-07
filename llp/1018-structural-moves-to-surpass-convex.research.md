@@ -458,10 +458,19 @@ and `caps`); capability claims stay gated on a published cold run.
   also caught a template typecheck the new readiness reason broke, fixed in
   the same lane.
 - **Count-backed cap probes** (§4). Lane `s2/clique-cap-count`, codex
-  gpt-5.6-sol at xhigh, brief in the run record; engine probe, certificate
-  reserve, `check` rewrite, twin parity, corpus cases, LLP 1017 §2.4
-  amendment, ticket closure. Status at revision time: in progress; the
-  landing commit is recorded in the run record when it lands.
+  gpt-5.6-sol at xhigh, 2026-09-07; landed on main as `f087a2c48`,
+  `2484edb77`, `ed315ac20`: the engine's cap probe reads a same-`by`
+  maintained count (one examined row, exact within the transaction), the
+  certificate reserves 1 / 1 / 5 per write instead of N / N / 5N (chat
+  `groupCreate` 2,500 → 50 examined rows; the 49-row fixture under `cap 1000
+  by principal` 49,000 → 49), the `E_BOUND` rewrite pastes a complete
+  `maintain … = count … by …:` declaration with its `read <- deny` rule, an
+  unproven absence is never read as zero on either evaluator, successor
+  admission keeps counting base rows, three frozen corpus cases, LLP 1017
+  §2.4 and LLP 1001 amended, the cap-metering ticket closed. Review: blind
+  codex and Grok (`llp/reviews/1018-cap-count.*.md`); one material finding
+  (the twin ignored a proven absence) fixed with a same-program
+  refuse-and-roll-back test, and confirmed.
 - **Quarry binding hygiene** (§5). Lane `s2/clique-quarry-collision`, codex
   gpt-5.6-sol at xhigh, 2026-09-07; landed on main as `37731e373` and
   `c392dd5a6`: generated modules import each table as `<name>$table` and
