@@ -141,6 +141,11 @@ fn generation(schema: Schema, program: Program, ceilings: Ceilings) -> Generatio
     .unwrap()
 }
 
+#[test]
+fn public_words_builtin_is_not_part_of_the_native_ir() {
+    assert!(serde_json::from_value::<Builtin>(serde_json::json!("Words")).is_err());
+}
+
 fn doc(id: &str, group: &str, owner: &str, order: i64) -> Value {
     object([
         ("id", Value::Id(id.to_owned())),
