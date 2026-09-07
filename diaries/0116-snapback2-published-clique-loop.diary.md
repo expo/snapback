@@ -1349,3 +1349,22 @@ This is not a whole compiler/native/package clearance. Read-only integration ass
 The fresh full run started at18:45:08Z on Office M1 Max. Actual native metadata confirms Grok4.6/xhigh. The builder receives the unchanged full instrument and exact public package, with no previous app or audit findings. All169 original leaves and the helper match; original milestone, media, scale and native requirements remain. M7 stays separate after grading.
 
 [Launch evidence](../benchmarks/runs/2026-09-06-clique-improvement/evidence/grok-016-start/README.md) records the actual process/session and environment. Shared host load and the M5 comparator hardware difference remain disclosed. This starts measurement; it does not establish a better score or any milestone pass.
+
+
+## 2026-09-07 — Composed queries pass on Expo; retained projections expose a browser seam
+
+At source `4ef44ab65`, the rebuilt actual Expo app again passes all ten witness
+steps with both composed-query consumers. The browser still loses its inbox
+conversation after unsend. A focused real-owner reproduction subsequently shows
+that the snapshot retains rows while all projected delivery fields become null:
+conservative revocation clears the literals, and retained history skips certified
+reevaluation. This is platform behavior a guide would not repair; the client
+selection fix is being checked against missing facts and retained history.
+
+The same source's measured chat check is 0.872 seconds, below the one-second
+budget, and incremental rebuild is 2.31 seconds. All product-loop functional
+steps finish, but timing remains red: installed consumer 30.62/30 seconds and
+first doctor launch 0.808/0.5 seconds (second sample 0.042; internal work 45.990
+milliseconds). The exact metric append is retained without replacing earlier
+measurements. This does not qualify the complete browser lifecycle, native
+failed-COMMIT behavior, publication, or a new comparative score.
