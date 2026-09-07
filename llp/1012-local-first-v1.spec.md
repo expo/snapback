@@ -993,10 +993,11 @@ under another id than the server's is pinned by the three-member group journey; 
 author accepted this deviation on 2026-09-04 afternoon); an
 unheld engine-maintained aggregate target does not block it, and the omitted target names
 ride the prediction and the outbox entry (`omitted`); authoritative evidence at or after
-the commit seq retires each matching predicted row while its unconfirmed siblings remain,
-and a proven page of a drained op or the bounded miss rule retires what remains. This keeps
-a maintained target's predicted value until its own authoritative row arrives instead of
-exposing a transaction assembled from an arrived source row and a stale aggregate. An
+the commit seq for any ordinary row retires the mutation's ordinary write group, including
+fan-out rows whose server ids differ, while each engine-maintained target waits for its own
+row or negative evidence. A proven page of a drained op or the bounded miss rule retires
+what remains. This keeps a maintained target's predicted value until its own authoritative
+row arrives instead of exposing a transaction assembled from an arrived source row and a stale aggregate. An
 unrelated answer still retires nothing, and with no watermark and no matching delivery the
 overlay stays. An uncovered point read, an uncovered rule input, or a local
 refusal still queues without a prediction and with an empty trace. With a partition open
@@ -1020,12 +1021,14 @@ reset is not self-triggered — the follow-ups ticket of 2026-09-04 records that
 reason until the inbox drain has earned a grant, and a refusal's rewrite is shown, never
 retried blindly.
 
-**The retirement rule as landed (lane T1, three review rounds, 2026-09-04).** A committed
-prediction retires matching rows in its swap on authoritative evidence — the arrival of a
-predicted non-deleted row, or a primary point absence or tombstone at or after its commit seq
-for a predicted id that no newer held row supersedes, including evidence saved while the
-intent was still queued. The intent retains `predicted` and every unconfirmed sibling row
-until its own evidence arrives. The remaining overlay can also retire, for predictions with
+**The retirement rule as landed (lane T1, three review rounds, 2026-09-04; maintained-target
+amendment, 2026-09-07).** A committed prediction retires its ordinary write group on
+authoritative evidence for any ordinary member — the arrival of a predicted non-deleted row,
+or a primary point absence or tombstone at or after its commit seq for a predicted id that no
+newer held row supersedes, including evidence saved while the intent was still queued. This
+group rule covers server fan-out ids that differ from the twin's viewer-only fan-out; row-body
+similarity never proves identity. Engine-maintained target rows remain independently until
+their own evidence arrives. The remaining overlay can also retire, for predictions with
 non-deleted rows, on a non-empty held page of the
 selected log strictly beyond its persisted commit snapshot, reached through currently held
 next-links recorded at or after that seq; the chain's query identity uses the store's one
@@ -1039,8 +1042,8 @@ replay entry stays `committed`.
 Maintained rows add an authority dependency to that lifecycle. A source-row insertion,
 deletion, group move, or sum-input change at sequence *s* withdraws any older target row,
 primary absence, or target-table range that could otherwise supply a stale aggregate; this
-is missing authority, never a manufactured zero. Row-by-row retirement leaves an admitted
-mutation's predicted target over that hole until target authority at *s* arrives. If the
+is missing authority, never a manufactured zero. Target-specific retirement leaves an
+admitted mutation's predicted target over that hole until target authority at *s* arrives. If the
 bounded miss rule retires it first, the query is partial rather than exposing the pre-commit
 target. Arrival can run in the other order: a changed maintained target marks every older
 named answer that references it `partial/maintained-coherence`. That marker and the answer's

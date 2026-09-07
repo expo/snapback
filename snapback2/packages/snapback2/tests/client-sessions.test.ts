@@ -282,6 +282,57 @@ test("a successor writer retires status work addressed to its predecessor", asyn
   }
 });
 
+test("a status-only timeout republishes unresponsive once and then probes the same writer", async () => {
+  const Original = globalThis.BroadcastChannel;
+  (globalThis as any).BroadcastChannel = MemoryBroadcastChannel;
+  MemoryBroadcastChannel.members.clear(); MemoryBroadcastChannel.messages = [];
+  let dropStatus = true;
+  MemoryBroadcastChannel.drop = message => dropStatus && message.type === "status-answer";
+  const context = { scope: "forwarding-status-retry", principal: "principal-a", authEpoch: 7, partitionIncarnation: "partition-a" };
+  const ready = { ready: true, reason: "ready", action: "none", remaining: 0, fence: "inside" } as const;
+  const host = {
+    writer: () => context, status: async () => ready,
+    admit: async () => ({ state: "queued" as const, intent: "intent", ids: ["id"] }),
+    acknowledge: async () => undefined,
+    failure: (error: unknown) => ({ code: "E_TEST", family: "test", message: String(error), guide: "test" }),
+    admitted: () => undefined,
+  };
+  const writer = new MutationForwarding(host, 30);
+  const follower = new MutationForwarding({ ...host, writer: () => undefined }, 30);
+  try {
+    writer.writer(context);
+    follower.follower({ scope: context.scope, principal: context.principal, authEpoch: 7, established: true, persona: false });
+    await new Promise(resolve => setTimeout(resolve, 0));
+    const events: string[] = [];
+    let probe = 0;
+    const observe = () => {
+      const revision = ++probe;
+      void follower.status("deliveries.post").then(status => {
+        if (revision === probe) events.push(status.reason);
+      });
+    };
+    const stop = follower.subscribe(observe);
+    const revision = ++probe;
+    const first = await follower.status("deliveries.post");
+    if (revision === probe) events.push(first.reason);
+    dropStatus = false;
+    await until(() => events.at(-1) === "ready", "the task-level status retry");
+    assert.deepEqual(events, ["writer-unresponsive", "ready"],
+      "the timeout result publishes before one bounded readiness retry");
+    stop();
+
+    MemoryBroadcastChannel.drop = message => message.type === "mutation-answer";
+    assert.equal((await follower.mutation("deliveries.post", { body: "unknown" })).state, "admission-unknown");
+    const statusRequests = MemoryBroadcastChannel.messages.filter(message => message.type === "status").length;
+    assert.equal((await follower.status("deliveries.post")).reason, "writer-unresponsive");
+    assert.equal(MemoryBroadcastChannel.messages.filter(message => message.type === "status").length, statusRequests,
+      "a timed-out mutation remains uncertain and suppresses status-only recovery probes");
+  } finally {
+    follower.stop(); writer.stop(); MemoryBroadcastChannel.members.clear();
+    MemoryBroadcastChannel.drop = () => false; (globalThis as any).BroadcastChannel = Original;
+  }
+});
+
 test("a newer direct delivery fences a delayed local refresh and until sees later local revisions", async () => {
   type Event = { revision: number; source: "local" | "server" };
   const shared = new SharedSubscriptions();

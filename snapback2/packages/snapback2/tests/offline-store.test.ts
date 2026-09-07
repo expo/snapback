@@ -500,6 +500,22 @@ test("a maintained-coherence partial waits for its named owner through later ove
   assert.equal(predicted.reason, "maintained-coherence");
 });
 
+test("an exact cached scalar survives an uncovered cold rerun but not a newer local prediction", () => {
+  const held = {
+    op: "caps.countFor", args: { principal: "dev:zero" }, state: "complete" as const,
+    data: 0, next: null, seq: 7, deliveredAt: 100,
+  };
+  const cold = offlineView(held, { state: "partial", reason: "missing-authority", site: "count", seq: 7 });
+  assert.equal(cold.state, "complete");
+  assert.equal(cold.data, 0);
+  assert.deepEqual(cold.stale, { since: 100 });
+  const predicted = offlineView(held, {
+    state: "partial", reason: "missing-authority", site: "count", seq: 8, predicted: ["intent"], data: 1,
+  });
+  assert.equal(predicted.state, "partial");
+  assert.equal(predicted.data, 1, "new local work is not hidden behind an older cached scalar");
+});
+
 test("sequence fences make absence, hidden, and tombstone evidence monotonic and deliveries idempotent", async () => {
   const root = await tempRoot();
   const store = fileRangeStore(root)();

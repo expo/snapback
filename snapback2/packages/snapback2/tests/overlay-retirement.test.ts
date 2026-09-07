@@ -369,14 +369,17 @@ test("authoritative predicted-row arrival clears predicted while retaining the c
   });
 });
 
-test("authoritative evidence retires a multi-row prediction one row at a time on both carriers", async () => {
+test("authoritative evidence retires an ordinary group while its maintained target waits on both carriers", async () => {
   await carriers(async (name, create) => {
     for (const effect of ["insert", "delete"] as const) {
       const store = create();
       const item = prediction(`${name}-${effect}-atomic`);
+      const fanout = { table: "deliveries", id: `${name}-${effect}-delivery`, row: {
+        id: `${name}-${effect}-delivery`, recipient: "dev:alice", messageId: item.id,
+      } };
       const count = { table: "messageCounts", id: "conversation-1", row: { id: "conversation-1", value: 2 } };
       if (effect === "delete") Object.assign(item.overlay[0]!, { removed: true });
-      item.overlay.push(count);
+      item.overlay.push(fanout, count);
       try {
         await store.open(`${name}:${effect}-atomic`);
         await store.commit({ programs: maintainedProgram });
@@ -392,7 +395,7 @@ test("authoritative evidence retires a multi-row prediction one row at a time on
             receipt: { ...receipt(), absences: [["messages", "byId", [item.id]]] as Array<[string, string, unknown[]]> } };
         await store.commit({ deliveries: [messageEvidence] });
         assert.deepEqual((await store.outbox.overlay())[item.intent], [count],
-          `${name} ${effect}: one arrived write cannot expose a stale sibling maintained row`);
+          `${name} ${effect}: ordinary fan-out retires as one group while its maintained sibling remains`);
         assert.equal((await store.outbox.get(item.intent))?.predicted, true,
           `${name} ${effect}: prediction custody remains until every visible effect arrives`);
 
@@ -401,6 +404,37 @@ test("authoritative evidence retires a multi-row prediction one row at a time on
       } finally {
         await store.close?.();
       }
+    }
+  });
+});
+
+test("ordinary prediction groups require exact evidence and retire generated fan-out together on both carriers", async () => {
+  await carriers(async (name, create) => {
+    for (const exact of [false, true]) {
+      const store = create();
+      const item = prediction(`${name}-ordinary-${exact}`);
+      const fanout = ["first", "second"].map((suffix) => ({
+        table: "deliveries", id: `predicted-${suffix}`, row: {
+          id: `predicted-${suffix}`, recipient: "dev:bob", conversationId: "conversation-1",
+          messageId: item.id, kind: "message", at: 20,
+        },
+      }));
+      item.overlay.push(...fanout);
+      try {
+        await seed(store, `${name}:ordinary-${exact}`, item, {
+          op: "deliveries.inbox", args: { c: null }, cursorArg: "c", watermark: "cursor-9", updatedAt: 1,
+        });
+        const messageId = exact ? item.id : "same-content-different-id";
+        await store.commit({ deliveries: [page("deliveries.thread", { conversationId: "conversation-1" }, 30, [
+          { table: "messages", id: messageId, row: { id: messageId, body: "predicted" } },
+          ...fanout.map((row, index) => ({ ...row, id: `server-${index}`, row: { ...row.row, id: `server-${index}` } })),
+        ])] });
+        const remaining = (await store.outbox.overlay())[item.intent];
+        if (exact) assert.equal(remaining, undefined,
+          `${name}: exact pinned source arrival retires both differently-id'd fan-out siblings`);
+        else assert.deepEqual(remaining, item.overlay,
+          `${name}: matching content and fan-out bodies do not prove another prediction group arrived`);
+      } finally { await store.close?.(); }
     }
   });
 });

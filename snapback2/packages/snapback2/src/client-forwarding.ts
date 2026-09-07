@@ -320,8 +320,15 @@ export class MutationForwarding {
     const requestId = randomId();
     const { promise, resolve } = deferred<OutboxStatus>();
     const timer = setTimeout(() => {
-      this.statusWaiters.delete(requestId); this.unresponsive = true; this.notify();
+      this.statusWaiters.delete(requestId); this.unresponsive = true;
       resolve(followerStatus("writer-unresponsive"));
+      // Let this status result publish before asking observers to probe again.
+      // A timed-out mutation keeps `unresponsive` true and suppresses the retry.
+      const retry = setTimeout(() => {
+        if (!this.currentFollower(follower, generation) || !this.updateUnresponsive()) return;
+        this.notify();
+      }, 0);
+      (retry as { unref?: () => void }).unref?.();
     }, this.responseTimeout);
     (timer as { unref?: () => void }).unref?.();
     this.statusWaiters.set(requestId, { followerId: follower.followerId,

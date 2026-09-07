@@ -971,7 +971,15 @@ export function offlineView<Result>(held: HeldAnswer<Result> | undefined, local?
   // overlay cannot prove that an earlier remote sibling also arrived; only a
   // new delivery for this named query clears the marker.
   const waitingForCoherentOwner = held?.state === "partial" && held.reason === "maintained-coherence";
-  const useLocal = local !== undefined && !waitingForCoherentOwner && (!held?.retained || reconstructed);
+  // A delivered scalar zero can have no row or negative receipt for a cold
+  // evaluator to reconstruct. Keep that exact owner result when the rerun is
+  // merely partial and no newer prediction is visible; store invalidation
+  // makes the held owner partial before an actual row/revocation change.
+  const cachedScalar = held?.state === "complete" && held.data !== undefined
+    && (held.data === null || typeof held.data !== "object");
+  const cachedAnswerOnly = cachedScalar && local?.state === "partial" && !(local.predicted?.length);
+  const useLocal = local !== undefined && !waitingForCoherentOwner && !cachedAnswerOnly
+    && (!held?.retained || reconstructed);
   if (!useLocal) {
     if (!held) return { state: "hydrating", live: false, connection: "offline" };
     const {
