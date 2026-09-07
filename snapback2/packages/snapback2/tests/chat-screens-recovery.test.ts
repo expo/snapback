@@ -272,6 +272,14 @@ test("a follower Composer keeps a lost-ack draft across route remounts and recov
     // or overwrite that successor's note.
     MemoryBroadcastChannel.drop = message => message.type === "mutation-answer";
     typeForwarded(input, "old conversation uncertainty");
+    await waitForForwardedUi(() => document.querySelector<HTMLButtonElement>(
+      "form[aria-label=Composer] button[type=submit]")?.disabled === false,
+    "the recovered Composer to regain writer admission");
+    const predecessorSubmit = document.querySelector<HTMLButtonElement>(
+      "form[aria-label=Composer] button[type=submit]")!;
+    assert.equal(predecessorSubmit.disabled, false, "the predecessor submit is enabled before dispatch");
+    assert.equal(document.querySelector("form[aria-label=Composer] small[data-waiting]"), null,
+      "the recovered Composer has no remaining admission reason before dispatch");
     flushSync(() => document.querySelector<HTMLFormElement>("form[aria-label=Composer]")!.requestSubmit());
     await waitForForwardedUi(() => MemoryBroadcastChannel.messages.some(message => message.type === "mutation"
       && message.args?.body === "old conversation uncertainty"), "the predecessor send");
