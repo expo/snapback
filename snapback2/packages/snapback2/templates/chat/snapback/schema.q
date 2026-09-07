@@ -66,6 +66,7 @@ table messages:
   expiresAt: time ?
   at: time
   by byConvTime: conversationId, at, id
+  by bySearch: conversationId, wordPrefixes(body), at, id
   immutable conversationId, authorId
   retain delivered-history
   read <- exists memberships[.conversationId, viewer]
