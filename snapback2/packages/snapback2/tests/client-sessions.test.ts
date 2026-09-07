@@ -172,7 +172,7 @@ test("follower preparation and unacknowledged commands share the 64-slot bound",
         value => { settled += 1; return value; },
         error => { settled += 1; throw error; },
       ));
-    assert.equal((follower as any).preparations.size, 64, "all retained inputs occupy the fixed budget during discovery");
+    assert.equal((follower as any).commands.size, 64, "all retained inputs occupy the fixed budget during discovery");
     const overflow = follower.mutation("deliveries.post", { index: 64 });
     await assert.rejects(Promise.race([
       overflow,
@@ -183,7 +183,7 @@ test("follower preparation and unacknowledged commands share the 64-slot bound",
     const outcomes = await Promise.allSettled(waiting);
     assert.ok(outcomes.every(outcome => outcome.status === "rejected"
       && isSnapbackRefusal(outcome.reason) && outcome.reason.code === "E_OFFLINE_FOLLOWER"));
-    assert.equal((follower as any).preparations.size, 0, "generation stop releases every queued reservation");
+    assert.equal((follower as any).commands.size, 0, "generation stop releases every queued reservation");
   } finally {
     follower.stop(); MemoryBroadcastChannel.members.clear();
     MemoryBroadcastChannel.drop = () => false; MemoryBroadcastChannel.throwOn = () => false;
@@ -702,8 +702,10 @@ test("forwarded mutation timeout, rediscovery and recovery preserve one request 
     const repeated = Array.from({ length: 65 }, () => follower.mutation("deliveries.post", args, token as any));
     await until(() => MemoryBroadcastChannel.messages.filter(message => message.type === "discover").length > discovers,
       "the one shared recovery discovery");
-    assert.equal((follower as any).recoveryPreparations.size, 1,
-      "repeated observers of one recovery identity retain one preparation/outcome");
+    assert.equal((follower as any).commands.size, 1,
+      "repeated observers of one recovery identity retain one logical command");
+    assert.ok((follower as any).commands.get(record.requestId).recovery,
+      "the logical command owns the one shared recovery preparation/outcome");
     follower.stop();
     assert.ok((await Promise.all(repeated)).every(result => result.state === "admission-unknown"
       && (result as any).recovery === token), "all recovery observers share the unknown result");
@@ -759,6 +761,32 @@ test("forwarded mutation timeout, rediscovery and recovery preserve one request 
     dropAnswers = false;
     assert.equal((await follower.status("deliveries.post")).ready, true,
       "expiration removes the pending slot and cannot leave a phantom unresponsive state");
+
+    // A recovery preparation owns the same logical slot even if the older
+    // Pending expires while rediscovery is still in flight.
+    dropAnswers = true;
+    const nearExpiry = Date.now() + 2_600;
+    const expiringRecord = { ...record, requestId: forwardingRequestId(nearExpiry, "d".repeat(32)), expiresAt: nearExpiry };
+    const expiringToken = `s2mr1.${Buffer.from(JSON.stringify(expiringRecord)).toString("base64url")}`;
+    assert.equal((await follower.mutation("deliveries.post", args, expiringToken as any)).state, "admission-unknown");
+    writer.writer(undefined);
+    const retryDiscoveries = MemoryBroadcastChannel.messages.filter(message => message.type === "discover").length;
+    const expiringRetry = follower.mutation("deliveries.post", args, expiringToken as any);
+    await until(() => MemoryBroadcastChannel.messages.filter(message => message.type === "discover").length > retryDiscoveries,
+      "the expiring recovery rediscovery");
+    await until(() => {
+      const lifecycle = (follower as any).commands.get(expiringRecord.requestId);
+      return lifecycle?.pending === undefined && lifecycle?.recovery !== undefined;
+    }, "pending expiry transferring ownership to recovery", 1_000);
+    const behind = Array.from({ length: 63 }, (_, index) => follower.mutation("deliveries.post", { ...args, body: `behind-${index}` }));
+    assert.equal((follower as any).commands.size, 64, "expiry cannot free the retained recovery's logical slot");
+    await assert.rejects(follower.mutation("deliveries.post", { ...args, body: "overflow after expiry" }),
+      (error: unknown) => isSnapbackRefusal(error) && error.code === "E_OFFLINE_FORWARDING_CAPACITY");
+    follower.stop();
+    assert.equal((await expiringRetry).state, "admission-unknown");
+    assert.ok((await Promise.allSettled(behind)).every(outcome => outcome.status === "rejected"
+      && isSnapbackRefusal(outcome.reason) && outcome.reason.code === "E_OFFLINE_FOLLOWER"));
+    assert.equal((follower as any).commands.size, 0);
   } finally {
     clearInterval(keepAlive);
     follower.stop(); writer.stop();

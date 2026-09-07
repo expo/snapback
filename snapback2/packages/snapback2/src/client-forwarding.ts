@@ -128,6 +128,12 @@ interface RecoveryPreparation {
   outcome: Promise<MutationQueued | MutationAdmissionUnknown>;
 }
 
+interface LogicalCommand {
+  key: object | string;
+  pending?: Pending;
+  recovery?: RecoveryPreparation;
+}
+
 function object(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
@@ -226,11 +232,8 @@ export class MutationForwarding {
   private followerRole?: ForwardingFollower & { followerId: string };
   private discovered?: WriterAnnouncement;
   private inbound: Promise<void> = Promise.resolve();
-  private readonly pending = new Map<string, Pending>();
-  /** Unsent invocations retained behind ordered discovery, bounded with pending commands. */
-  private readonly preparations = new Set<object>();
-  /** Repeated recovery observers share one preparation and result per durable identity. */
-  private readonly recoveryPreparations = new Map<string, RecoveryPreparation>();
+  /** One bounded ownership record from unsent preparation through pending/recovery release. */
+  private readonly commands = new Map<object | string, LogicalCommand>();
   private readonly statusWaiters = new Map<string, StatusWaiter>();
   private readonly listeners = new Set<() => void>();
   /** Serializes discovery and send publication in one follower's invocation order. */
@@ -283,8 +286,6 @@ export class MutationForwarding {
   stop(): void {
     this.generation += 1;
     this.submissionTail = Promise.resolve();
-    this.preparations.clear();
-    this.recoveryPreparations.clear();
     this.channel?.close();
     this.channel = undefined;
     this.writerRole = undefined;
@@ -292,14 +293,15 @@ export class MutationForwarding {
     this.discovered = undefined;
     for (const waiter of this.statusWaiters.values()) { clearTimeout(waiter.timer); waiter.resolve(followerStatus("writer-discovery")); }
     this.statusWaiters.clear();
-    for (const item of this.pending.values()) {
+    for (const { pending: item } of this.commands.values()) {
+      if (!item) continue;
       clearTimeout(item.expiryTimer);
       if (item.attempt) {
         clearTimeout(item.attempt.timer);
         item.attempt.resolve({ state: "admission-unknown", recovery: item.recovery });
       }
     }
-    this.pending.clear(); this.unresponsive = false;
+    this.commands.clear(); this.unresponsive = false;
     this.notify();
   }
 
@@ -311,7 +313,7 @@ export class MutationForwarding {
     if (this.unresponsive) return followerStatus("writer-unresponsive");
     const writer = await this.discover();
     if (!writer || !this.currentFollower(follower, generation)) return followerStatus("writer-discovery");
-    if (this.pending.size + this.preparations.size >= LOCAL_PENDING_LIMIT) return followerStatus("writer-capacity");
+    if (this.commands.size >= LOCAL_PENDING_LIMIT) return followerStatus("writer-capacity");
     const requestId = randomId();
     const { promise, resolve } = deferred<OutboxStatus>();
     const timer = setTimeout(() => {
@@ -330,22 +332,24 @@ export class MutationForwarding {
     const generation = this.generation;
     const follower = this.followerRole;
     const recovered = recovery === undefined ? undefined : decode(recovery);
-    const existing = recovered === undefined ? undefined : this.pending.get(recovered.requestId);
-    const shared = recovered === undefined ? undefined : this.recoveryPreparations.get(recovered.requestId);
-    const reservation = existing || shared ? undefined : {};
-    if (reservation && this.pending.size + this.preparations.size >= LOCAL_PENDING_LIMIT) {
+    let command = recovered === undefined ? undefined : this.commands.get(recovered.requestId);
+    if (!command && this.commands.size >= LOCAL_PENDING_LIMIT) {
       throw new SnapbackRefusal({ code: "E_OFFLINE_FORWARDING_CAPACITY", family: "offline",
         message: "this follower already has 64 preparing or unacknowledged mutation commands", site: "client.mutation.forward",
         rewrite: "wait for acknowledgment or recover an existing command", guide: "offline" });
     }
-    if (reservation) this.preparations.add(reservation);
+    if (!command) {
+      command = { key: recovered?.requestId ?? {} };
+      this.commands.set(command.key, command);
+    }
     let boundArgs: unknown, digest: string;
     try { boundArgs = structuredClone(args); digest = payloadDigest(op, boundArgs); }
-    catch (error) { if (reservation) this.preparations.delete(reservation); throw error; }
+    catch (error) { this.releaseCommand(command); throw error; }
     if (recovered && recovered.payloadDigest !== digest) {
-      if (reservation) this.preparations.delete(reservation);
+      this.releaseCommand(command);
       throw new TypeError("mutation recovery token does not match the operation and arguments");
     }
+    const shared = command.recovery;
     if (shared) {
       if (stableSerialize(shared.record) !== stableSerialize(recovered)) {
         throw new TypeError("mutation recovery request identity conflicts with an in-flight command");
@@ -357,23 +361,24 @@ export class MutationForwarding {
       return shared.outcome;
     }
     const prepared = this.submissionTail.then(async () => {
-      try { return await this.prepareMutation(op, boundArgs, digest, generation, follower, recovery, recovered); }
-      finally { if (reservation) this.preparations.delete(reservation); }
+      try { return await this.prepareMutation(command, op, boundArgs, digest, generation, follower, recovery, recovered); }
+      finally { this.releaseCommand(command); }
     });
     this.submissionTail = prepared.then(() => undefined, () => undefined);
     const outcome = prepared.then(value => value.outcome);
     if (recovered) {
       const item = { record: recovered, outcome };
-      this.recoveryPreparations.set(recovered.requestId, item);
+      command.recovery = item;
       void outcome.then(
-        () => { if (this.recoveryPreparations.get(recovered.requestId) === item) this.recoveryPreparations.delete(recovered.requestId); },
-        () => { if (this.recoveryPreparations.get(recovered.requestId) === item) this.recoveryPreparations.delete(recovered.requestId); },
+        () => { if (command.recovery === item) command.recovery = undefined; this.releaseCommand(command); },
+        () => { if (command.recovery === item) command.recovery = undefined; this.releaseCommand(command); },
       );
     }
     return outcome;
   }
 
   private async prepareMutation(
+    lifecycle: LogicalCommand,
     op: string, boundArgs: unknown, digest: string, generation: number,
     invokedFollower: (ForwardingFollower & { followerId: string }) | undefined,
     recovery?: MutationRecovery, recovered?: RecoveryRecord,
@@ -395,6 +400,7 @@ export class MutationForwarding {
         authEpoch: writer.authEpoch, partitionIncarnation: writer.partitionIncarnation,
       };
     }
+    this.bindCommand(lifecycle, record.requestId);
     const token = recovery ?? encode(record);
     const currentWriter = this.host.writer();
     if (currentWriter) {
@@ -412,7 +418,7 @@ export class MutationForwarding {
       if (recovery !== undefined) return { outcome: Promise.resolve({ state: "admission-unknown", recovery: token }) };
       throw followerRefusal("client.mutation.forward");
     }
-    let pending = this.pending.get(record.requestId);
+    let pending = lifecycle.pending;
     if (pending && (pending.command.payloadDigest !== digest || pending.command.expiresAt !== record.expiresAt)) {
       throw new TypeError("mutation recovery request identity conflicts with an in-flight command");
     }
@@ -428,32 +434,32 @@ export class MutationForwarding {
     }
     const command: ForwardingCommand = { ...record, op, args: boundArgs, recovery: recovery !== undefined };
     if (!pending) {
-      if (this.pending.size >= LOCAL_PENDING_LIMIT) throw new SnapbackRefusal({ code: "E_OFFLINE_FORWARDING_CAPACITY", family: "offline",
-        message: "this follower already has 64 unacknowledged mutation commands", site: "client.mutation.forward",
-        rewrite: "wait for acknowledgment or recover an existing command", guide: "offline" });
       const expiryTimer = setTimeout(() => {
-        const expired = this.pending.get(record.requestId);
+        const expired = lifecycle.pending;
         if (!expired) return;
-        this.pending.delete(record.requestId);
+        lifecycle.pending = undefined;
         if (expired.attempt) {
           clearTimeout(expired.attempt.timer);
           expired.attempt.resolve({ state: "admission-unknown", recovery: expired.recovery });
           expired.attempt = undefined;
         }
+        this.releaseCommand(lifecycle);
         this.updateUnresponsive();
       }, Math.max(recovery === undefined ? 0 : RESPONSE_TIMEOUT, record.expiresAt - Date.now()));
       (expiryTimer as { unref?: () => void }).unref?.();
       pending = { command, recovery: token, generation: this.generation, sent: false, timedOut: false, expiryTimer };
-      this.pending.set(record.requestId, pending);
+      lifecycle.pending = pending;
     }
     else if (recovery !== undefined && !pending.command.recovery) {
       pending.command = { ...pending.command, recovery: true };
     }
     if (pending.attempt) return { outcome: pending.attempt.promise };
-    return { outcome: this.send(pending, writer.writerIncarnation) };
+    return { outcome: this.send(lifecycle, pending, writer.writerIncarnation) };
   }
 
-  private send(pending: Pending, targetWriterIncarnation: string): Promise<MutationQueued | MutationAdmissionUnknown> {
+  private send(
+    lifecycle: LogicalCommand, pending: Pending, targetWriterIncarnation: string,
+  ): Promise<MutationQueued | MutationAdmissionUnknown> {
     const { promise, resolve, reject } = deferred<MutationQueued | MutationAdmissionUnknown>();
     const timer = setTimeout(() => {
       if (pending.attempt?.promise !== promise) return;
@@ -472,7 +478,8 @@ export class MutationForwarding {
         pending.timedOut = true; this.unresponsive = true; this.notify();
         resolve({ state: "admission-unknown", recovery: pending.recovery });
       } else {
-        clearTimeout(pending.expiryTimer); this.pending.delete(pending.command.requestId);
+        clearTimeout(pending.expiryTimer); lifecycle.pending = undefined;
+        this.releaseCommand(lifecycle);
         this.updateUnresponsive(); reject(followerRefusal("client.mutation.forward"));
       }
     } else {
@@ -518,6 +525,20 @@ export class MutationForwarding {
     follower: (ForwardingFollower & { followerId: string }) | undefined, generation: number,
   ): boolean {
     return this.generation === generation && this.followerRole === follower;
+  }
+
+  private bindCommand(command: LogicalCommand, requestId: string): void {
+    if (command.key === requestId) return;
+    const existing = this.commands.get(requestId);
+    if (existing && existing !== command) throw new TypeError("mutation request identity conflicts with an in-flight command");
+    if (this.commands.get(command.key) === command) this.commands.delete(command.key);
+    command.key = requestId; this.commands.set(requestId, command);
+  }
+
+  private releaseCommand(command: LogicalCommand): void {
+    if (!command.pending && !command.recovery && this.commands.get(command.key) === command) {
+      this.commands.delete(command.key);
+    }
   }
 
   private validWriter(writer: WriterAnnouncement | undefined, follower: ForwardingFollower): writer is WriterAnnouncement {
@@ -624,7 +645,7 @@ export class MutationForwarding {
   }
 
   private receiveMutationAnswer(message: MutationAnswer): void {
-    const pending = this.pending.get(message.requestId), follower = this.followerRole;
+    const lifecycle = this.commands.get(message.requestId), pending = lifecycle?.pending, follower = this.followerRole;
     if (!pending || !follower || !validResult(message.result) || pending.generation !== this.generation
       || message.followerId !== pending.command.followerId
       || message.scope !== pending.command.scope || message.principal !== pending.command.principal
@@ -636,17 +657,18 @@ export class MutationForwarding {
         followerId: message.followerId, targetWriterIncarnation: message.writerIncarnation,
         authEpoch: message.authEpoch, partitionIncarnation: message.partitionIncarnation });
     }
-    clearTimeout(pending.expiryTimer); this.pending.delete(message.requestId);
+    clearTimeout(pending.expiryTimer); lifecycle!.pending = undefined;
     if (attempt) {
       clearTimeout(attempt.timer); pending.attempt = undefined;
       if (message.result.state === "refused") attempt.reject(new SnapbackRefusal(message.result.refusal));
       else attempt.resolve(message.result);
     }
+    this.releaseCommand(lifecycle!);
     this.updateUnresponsive();
   }
 
   private updateUnresponsive(): void {
-    this.unresponsive = [...this.pending.values()].some(item => item.timedOut);
+    this.unresponsive = [...this.commands.values()].some(item => item.pending?.timedOut);
     this.notify();
   }
 }
