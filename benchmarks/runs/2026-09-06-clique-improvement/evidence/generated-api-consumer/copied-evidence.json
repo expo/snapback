@@ -1,0 +1,88 @@
+{
+  "copies": [
+    {
+      "path": "REPORT.md",
+      "source": "/Users/ccheever/clique-improvement/revisions/generated-api-type-consumer-r1/astra/REPORT.md",
+      "bytes": 5585,
+      "sha256": "6940f3a0072aa35ba736c6fb265a4e9701daec64c1d8e12b7d1e7b9c8b8ca227"
+    },
+    {
+      "path": "terminal.json",
+      "source": "/Users/ccheever/clique-improvement/revisions/generated-api-type-consumer-r1/astra/terminal.json",
+      "bytes": 616,
+      "sha256": "1ef807caccabd4d1ad1678578d3e7d78987addd86a4ab3620d58aa8bfc7ad7cf"
+    },
+    {
+      "path": "actual-identity.json",
+      "source": "/Users/ccheever/clique-improvement/revisions/generated-api-type-consumer-r1/astra/actual-identity.json",
+      "bytes": 699,
+      "sha256": "29827649b7c4ac23858435a55006bcf3f3696ff21c07449523ade54f39f86255"
+    },
+    {
+      "path": "input-integrity-after.json",
+      "source": "/Users/ccheever/clique-improvement/revisions/generated-api-type-consumer-r1/astra/input-integrity-after.json",
+      "bytes": 135,
+      "sha256": "1f8ca5c5a2764e6a76be92b6e1f0b684b2b32d482fd26ba4c52d1730ff2e953c"
+    },
+    {
+      "path": "supervisor-terminal.json",
+      "source": "/Users/ccheever/clique-improvement/revisions/generated-api-type-consumer-r1/supervisor-terminal.json",
+      "bytes": 1318,
+      "sha256": "e8da435dbf513a63ee1b79732755bd359cd6763abe60ab96baa141a5658fe804"
+    },
+    {
+      "path": "original-api.d.ts",
+      "source": "/Users/ccheever/clique-improvement/revisions/generated-api-type-consumer-r1/astra/input/callback-13-api.d.ts",
+      "bytes": 654,
+      "sha256": "255a3b54ed7bf5d1ce1c60a36b9b8f3ad7f50cd2467ca17d93b6846bc3bfefba"
+    },
+    {
+      "path": "customer-tsconfig.json",
+      "source": "/Users/ccheever/clique-improvement/revisions/generated-api-type-consumer-r1/astra/input/customer-tsconfig.json",
+      "bytes": 202,
+      "sha256": "453d174804f775d58a5c604c294f4885ee72a2f84c6296273f14a5b61f6c88cb"
+    },
+    {
+      "path": "consumer.ts",
+      "source": "/Users/ccheever/clique-improvement/revisions/generated-api-type-consumer-r1/astra/work/consumer.ts",
+      "bytes": 395,
+      "sha256": "3e233c4b320690de0bcab239786d2f89638f18030f7cc91ddf3fd8a6de4c8c91"
+    },
+    {
+      "path": "api-import-only.diff",
+      "source": "/Users/ccheever/clique-improvement/revisions/generated-api-type-consumer-r1/astra/work/api-import-only.diff",
+      "bytes": 394,
+      "sha256": "c3157b3c7b9a886b4755b6fdfc2a910c39b28c3524aef6bde4c905aa74fe8af8"
+    },
+    {
+      "path": "skip-lib-check-only.diff",
+      "source": "/Users/ccheever/clique-improvement/revisions/generated-api-type-consumer-r1/astra/work/skip-lib-check-only.diff",
+      "bytes": 217,
+      "sha256": "ca57060bcea5fe5fb9e30c632426e2b3cca73926adff0c2660f11e5806e7e138"
+    },
+    {
+      "path": "original-expo-diagnostics.json",
+      "source": "/Users/ccheever/clique-improvement/revisions/generated-api-type-consumer-r1/astra/work/remote-evidence/results/original-expo/diagnostics.json",
+      "bytes": 401,
+      "sha256": "f6636dcb0cad172468a3bba0d7081b67a75a35f9485e455540b4bca6f05662d8"
+    },
+    {
+      "path": "import-counterfactual-expo-diagnostics.json",
+      "source": "/Users/ccheever/clique-improvement/revisions/generated-api-type-consumer-r1/astra/work/remote-evidence/results/import-counterfactual-expo/diagnostics.json",
+      "bytes": 3,
+      "sha256": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570"
+    },
+    {
+      "path": "original-declaration-checking-diagnostics.json",
+      "source": "/Users/ccheever/clique-improvement/revisions/generated-api-type-consumer-r1/astra/work/remote-evidence/results/original-declaration-checking/diagnostics.json",
+      "bytes": 6998,
+      "sha256": "8a98790197f4a2cfbc8443eab19654f5ba57976c82c4342c41f527695259ff73"
+    },
+    {
+      "path": "import-counterfactual-declaration-checking-diagnostics.json",
+      "source": "/Users/ccheever/clique-improvement/revisions/generated-api-type-consumer-r1/astra/work/remote-evidence/results/import-counterfactual-declaration-checking/diagnostics.json",
+      "bytes": 4953,
+      "sha256": "f9203bd8ada67b2e96470607a00b048485fede630f991efc1dfccc29a333c8e0"
+    }
+  ]
+}
