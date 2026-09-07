@@ -58,8 +58,8 @@ export type BoundExpression = BoundExpressionBase & (
   | { kind: "focal"; id: string }
   | { kind: "input"; input: "Viewer" | "Now" | "NewId" | "ReadTime" }
   | { kind: "array"; items: BoundExpression[] }
-  | { kind: "scale"; value: BoundExpression; multiplier: number }
-  | { kind: "scale-list"; value: BoundExpression; multiplier: number; max: number }
+  | { kind: "scale"; value: BoundExpression; multiplier: number; preserveNull: boolean }
+  | { kind: "scale-list"; value: BoundExpression; multiplier: number; max: number; preserveNull: boolean }
   | { kind: "object"; fields: Array<{ name: string; value: BoundExpression; source: BoundSourceStack }> }
   | { kind: "unary"; op: "Not" | "Neg"; value: BoundExpression }
   | { kind: "binary"; op: string; left: BoundExpression; right: BoundExpression; scaleDivisor?: number }
@@ -1428,15 +1428,19 @@ function contextualValue(expression: BoundExpression, target: ScalarType, site: 
   if (numericLiteralExpression(expression) && numericTarget(target)) return contextualLiteral(expression, target, site);
   if (expression.facts.wholeUnits && expression.facts.type.kind === "int"
     && (target.kind === "decimal" || target.kind === "money")) {
-    return { kind: "scale", value: expression, multiplier: 10 ** target.scale,
-      facts: facts({ ...target, optional: false }, expression.facts.origin), source: expression.source };
+    if (expression.facts.presence === "optional" && !target.optional) return expression;
+    const preserveNull = expression.facts.presence === "optional";
+    return { kind: "scale", value: expression, multiplier: 10 ** target.scale, preserveNull,
+      facts: facts({ ...target, optional: preserveNull }, expression.facts.origin), source: expression.source };
   }
   if (expression.facts.wholeUnits && expression.facts.type.kind === "list" && target.kind === "list"
     && expression.facts.type.item.kind === "int"
     && (target.item.kind === "decimal" || target.item.kind === "money")) {
+    if (expression.facts.presence === "optional" && !target.optional) return expression;
+    const preserveNull = expression.facts.presence === "optional";
     return { kind: "scale-list", value: expression, multiplier: 10 ** target.item.scale,
-      max: expression.facts.type.max, facts: facts({
-        ...target, item: { ...target.item, optional: false }, max: expression.facts.type.max, optional: false,
+      max: expression.facts.type.max, preserveNull, facts: facts({
+        ...target, item: { ...target.item, optional: false }, max: expression.facts.type.max, optional: preserveNull,
       }, expression.facts.origin, { max: expression.facts.type.max }), source: expression.source };
   }
   if (stringLiteralExpression(expression) && (target.kind === "id" || target.kind === "ref" || target.kind === "enum")) {

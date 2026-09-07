@@ -5,7 +5,8 @@ import { canonicalValue, ClientStore, type ClosureReceipt, type Context } from "
 import { lowerProject } from "./project";
 import { rustCheck } from "./rust-check";
 import { bindQuarrySchema } from "./quarry/bound-schema";
-import { bindQuarryProgram } from "./quarry/bound";
+import { bindQuarryProgram, type BoundArgumentSymbol, type BoundExpression, type BoundQuarryProgram,
+  type BoundValueFacts } from "./quarry/bound";
 import { QuarryError } from "./quarry/diagnostics";
 import { lowerBoundQuarryProgram } from "./quarry/direct";
 import { prepareQuarry, type QuarryInput } from "./quarry/index";
@@ -94,7 +95,7 @@ mutation priced():
     const oracle = await lowerProject(root);
     assert(oracle.ok, `chat search oracle refused: ${JSON.stringify(oracle)}`);
     const oracleCheck = rustCheck([operation(oracle.project.programs, "messages.search")], "synthetic",
-      { ...oracle.project.schema, effects: [] })[0]!;
+      { ...oracle.project.schema, effects: [], schedules: [] })[0]!;
     assert(!oracleCheck.error && oracleCheck.certificate, `chat search oracle did not certify: ${JSON.stringify(oracleCheck)}`);
     const { plan_hash: _directPlan, ...directCertificate } = directCheck.certificate;
     const { plan_hash: _oraclePlan, ...oracleCertificate } = oracleCheck.certificate;
@@ -304,6 +305,121 @@ query wider(values: [int] <=3 ?, more: [int] <=7):
     deepStrictEqual(execute("wider", { values: { Array: [{ Int: 1 }] }, more: { Array: [{ Int: 7 }] } }),
       { Array: [{ Int: 1 }] });
   });
+
+  test("direct Quarry normalizes whole-unit decimal fallbacks once and preserves optional absence", () => {
+    const prepared = prepare(`table records:
+  amounts: [decimal 3] <=4 ?
+  public
+  insert <- allow
+`, `mutation normalized(values: [decimal 3] <=4 ?):
+  original = values ?? [2, 3]
+  box = {original}
+  row = insert records {amounts: box.original}
+  return {original, alias: box.original, stored: row.amounts}
+
+query plain():
+  return [2, 3]
+
+query scalarFirst(flag: bool):
+  if flag:
+    return {amount: 2, values: [2, 3]}
+  return {amount: null, values: null}
+
+query nullFirst(flag: bool):
+  if flag:
+    return {amount: null, values: null}
+  return {amount: 2, values: [2, 3]}
+`);
+    const schemaJson = bindQuarrySchema(prepared.documents, prepared.catalog);
+    const direct = (name: string) => lowerBoundQuarryProgram(
+      bindQuarryProgram(program(prepared, name), prepared.catalog, prepared.documents));
+    const normalized = direct("normalized");
+    const checked = rustCheck([normalized], "synthetic", schemaJson)[0]!;
+    assert(!checked.error && checked.certificate,
+      `whole-unit decimal fallback did not certify: ${JSON.stringify(checked)}`);
+    const execute = (values: Context["args"][string]) => new ClientStore(schemaJson).reexecute(normalized, {
+      viewer: "viewer", principal_kind: "user", auth_epoch: 1, args: { values }, now: 1, read_time: 1,
+      new_ids: ["record-1"],
+    }, checked.certificate).execution;
+    for (const { values, expected } of [
+      { values: "Null" as const, expected: [2_000, 3_000] },
+      { values: { Array: [{ Int: 1_250 }] }, expected: [1_250] },
+    ]) {
+      const execution = execute(values);
+      const ints = (items: readonly number[]) => ({ Array: items.map((value) => ({ Int: value })) });
+      deepStrictEqual(execution.result, { Row: {
+        alias: ints(expected), original: ints(expected), stored: ints(expected),
+      } });
+      deepStrictEqual(execution.writes, [{ table: "records", id: "record-1", row: { Row: {
+        id: { Id: "record-1" }, amounts: ints(expected),
+      } } }]);
+    }
+    const plain = direct("plain");
+    const plainCheck = rustCheck([plain], "synthetic", schemaJson)[0]!;
+    assert(!plainCheck.error && plainCheck.certificate, `plain integer list did not certify: ${JSON.stringify(plainCheck)}`);
+    deepStrictEqual(new ClientStore(schemaJson).reexecute(plain, {
+      viewer: "viewer", principal_kind: "user", auth_epoch: 1, args: {}, now: 1, read_time: 1, new_ids: [],
+    }, plainCheck.certificate).execution.result, { Array: [{ Int: 2 }, { Int: 3 }] });
+
+    const optionalField = (name: string, field: string): BoundValueFacts => {
+      const result = bindQuarryProgram(program(prepared, name), prepared.catalog, prepared.documents).result;
+      assert(result.type.kind === "object", `${name} did not retain its object result`);
+      const value = result.type.fields.get(field);
+      assert(value, `${name} lost ${field}`);
+      return value;
+    };
+    for (const name of ["scalarFirst", "nullFirst"]) {
+      const amount = optionalField(name, "amount");
+      const values = optionalField(name, "values");
+      assert(amount.type.kind === "int" && amount.presence === "optional" && amount.wholeUnits,
+        `${name} erased nullable whole-unit scalar facts: ${JSON.stringify(amount)}`);
+      assert(values.type.kind === "list" && values.presence === "optional" && values.wholeUnits,
+        `${name} erased nullable whole-unit list facts: ${JSON.stringify(values)}`);
+    }
+
+    // The public grammar has no conditional expression whose optional result can
+    // flow into a later destination. Keep the direct lowerer's defensive
+    // nullable conversion covered for future bound producers.
+    const optionalScale = syntheticOptionalWholeUnitProgram(false);
+    const optionalScaleList = syntheticOptionalWholeUnitProgram(true);
+    for (const [bound, absent, present] of [
+      [optionalScale, "Null", { Int: 2_000 }],
+      [optionalScaleList, "Null", { Array: [{ Int: 2_000 }, { Int: 3_000 }] }],
+    ] as const) {
+      const lowered = lowerBoundQuarryProgram(bound);
+      const certified = rustCheck([lowered], "synthetic", schemaJson)[0]!;
+      assert(!certified.error && certified.certificate,
+        `optional whole-unit conversion did not certify: ${JSON.stringify(certified)}`);
+      const run = (source: Context["args"][string]) => new ClientStore(schemaJson).reexecute(lowered, {
+        viewer: "viewer", principal_kind: "user", auth_epoch: 1, args: { source }, now: 1, read_time: 1, new_ids: [],
+      }, certified.certificate).execution.result;
+      deepStrictEqual(run("Null"), absent);
+      deepStrictEqual(run(bound.args[0]!.type.kind === "list"
+        ? { Array: [{ Int: 2 }, { Int: 3 }] } : { Int: 2 }), present);
+    }
+  });
+}
+
+function syntheticOptionalWholeUnitProgram(list: boolean): BoundQuarryProgram {
+  const site = { file: "snapback/synthetic.q", line: 1, col: 1 };
+  const source = { definition: site };
+  const type: BoundArgumentSymbol["type"] = list
+    ? { kind: "list", item: { kind: "int", optional: false }, max: 4, optional: true }
+    : { kind: "int", optional: true };
+  const symbol: BoundArgumentSymbol = {
+    kind: "argument", id: "synthetic:source", name: "source", type, origin: "Arg", source,
+  };
+  const facts: BoundValueFacts = { type, presence: "optional", origin: "Arg", wholeUnits: true,
+    ...(list ? { max: 4 } : {}) };
+  const value: BoundExpression = { kind: "variable", symbol, facts, source };
+  const converted: BoundExpression = list
+    ? { kind: "scale-list", value, multiplier: 1_000, max: 4, preserveNull: true,
+      facts: { type: { kind: "list", item: { kind: "decimal", scale: 3, optional: false }, max: 4, optional: true },
+        presence: "optional", origin: "Arg", max: 4 }, source }
+    : { kind: "scale", value, multiplier: 1_000, preserveNull: true,
+      facts: { type: { kind: "decimal", scale: 3, optional: true }, presence: "optional", origin: "Arg" }, source };
+  return { name: list ? "synthetic.optionalList" : "synthetic.optionalScalar", kind: "query", args: [symbol],
+    result: converted.facts, body: [{ kind: "return", value: converted, source }], source };
 }
 
 function prepare(schemaSource: string, operationSource: string) {
