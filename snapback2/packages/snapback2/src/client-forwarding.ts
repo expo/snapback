@@ -459,7 +459,7 @@ export class MutationForwarding {
           expired.attempt = undefined;
         }
         this.releaseCommand(lifecycle);
-        this.updateUnresponsive();
+        this.updateUnresponsive(); this.notify();
       }, Math.max(recovery === undefined ? 0 : this.responseTimeout, record.expiresAt - Date.now()));
       (expiryTimer as { unref?: () => void }).unref?.();
       pending = { command, recovery: token, generation: this.generation, sent: false, timedOut: false, expiryTimer };
@@ -495,7 +495,7 @@ export class MutationForwarding {
       } else {
         clearTimeout(pending.expiryTimer); lifecycle.pending = undefined;
         this.releaseCommand(lifecycle);
-        this.updateUnresponsive(); reject(followerRefusal("client.mutation.forward"));
+        this.updateUnresponsive(); this.notify(); reject(followerRefusal("client.mutation.forward"));
       }
     } else {
       pending.sent = true;
@@ -602,7 +602,7 @@ export class MutationForwarding {
           clearTimeout(waiter.timer); this.statusWaiters.delete(requestId);
           waiter.resolve(followerStatus("writer-discovery"));
         }
-        this.updateUnresponsive();
+        this.updateUnresponsive(); this.notify();
       }
       return;
     }
@@ -613,7 +613,9 @@ export class MutationForwarding {
         || waiter.writerIncarnation !== message.writerIncarnation || !this.validWriter({ ...message,
           type: "writer", status: message.status }, follower)) return;
       clearTimeout(waiter.timer); this.statusWaiters.delete(message.requestId);
-      waiter.resolve(mappedStatus(message.status)); this.updateUnresponsive(); return;
+      waiter.resolve(mappedStatus(message.status));
+      if (this.updateUnresponsive()) this.notify();
+      return;
     }
     if (message.type === "status") {
       const role = this.writerRole, current = this.host.writer();
@@ -685,12 +687,14 @@ export class MutationForwarding {
       else attempt.resolve(message.result);
     }
     this.releaseCommand(lifecycle!);
-    this.updateUnresponsive();
+    this.updateUnresponsive(); this.notify();
   }
 
-  private updateUnresponsive(): void {
-    this.unresponsive = [...this.commands.values()].some(item => item.pending?.timedOut);
-    this.notify();
+  private updateUnresponsive(): boolean {
+    const next = [...this.commands.values()].some(item => item.pending?.timedOut);
+    if (next === this.unresponsive) return false;
+    this.unresponsive = next;
+    return true;
   }
 }
 

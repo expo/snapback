@@ -121,6 +121,50 @@ test("maintained source and target arrival orders leave an older named record pa
   });
 });
 
+test("target-first zero-to-one invalidates named point and range absence owners", async () => {
+  await carriers(async (name, create) => {
+    for (const proof of ["point", "range"] as const) {
+      const store = create();
+      const otherConversation = "conversation-2";
+      const otherCountId = '[{"Id":"conversation-2"}]';
+      const targetRange = {
+        site: "view.count", table: "messageCounts", index: "byConversation",
+        prefix: [{ Scalar: conversationId }], order: "Asc" as const, take: 1,
+        after: null, before: null, gt: null, gte: null, lt: null, lte: null,
+        ruleHash: "a".repeat(64), rowIds: [] as string[], stop: "Exhausted" as const, absence: false,
+      };
+      const otherTargetRange = { ...targetRange, prefix: [{ Scalar: otherConversation }] };
+      try {
+        await store.open(`${name}:target-first-zero-${proof}`);
+        await store.commit({ schema: coherenceSchema, deliveries: [
+          {
+            op: "deliveries.conversationView", args: { conversationId }, state: "complete", data: { messages: [], count: 0, preview: [] },
+            next: null, seq: 7, rows: [], receipt: proof === "point"
+              ? { ...receipt(), absences: [["messageCounts", "byId", [countId]]] }
+              : { ...receipt(), ranges: [targetRange] },
+          },
+          {
+            op: "deliveries.conversationView", args: { conversationId: otherConversation }, state: "complete",
+            data: { messages: [], count: 0, preview: [] }, next: null, seq: 7, rows: [],
+            receipt: proof === "point"
+              ? { ...receipt(), absences: [["messageCounts", "byId", [otherCountId]]] }
+              : { ...receipt(), ranges: [otherTargetRange] },
+          },
+        ] });
+        await store.commit({ schema: coherenceSchema, deliveries: [{
+          op: "messageCounts.byId", args: { id: countId }, state: "complete", data: ref("messageCounts", countId),
+          next: null, seq: 8, rows: [count(1)], receipt: receipt(),
+        }] });
+        const held = await store.answer("deliveries.conversationView", { conversationId });
+        assert.equal(held?.state, "partial", `${name} ${proof}: sparse zero cannot survive a newer target`);
+        assert.equal(held?.reason, "maintained-coherence");
+        assert.equal((await store.answer("deliveries.conversationView", { conversationId: otherConversation }))?.state, "complete",
+          `${name} ${proof}: an exact target change does not fence another group on the same table`);
+      } finally { await store.close?.(); }
+    }
+  });
+});
+
 test("a source change withdraws wider maintained-target range authority instead of manufacturing zero", async () => {
   await carriers(async (name, create) => {
     const store = create();
