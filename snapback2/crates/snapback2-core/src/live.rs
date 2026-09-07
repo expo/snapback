@@ -464,10 +464,10 @@ mod tests {
     use crate::Actor;
     use crate::certificate::Ceilings;
     use crate::engine::{ConstraintTrace, StopReason, TraceRange};
-    use crate::ir::Order;
+    use crate::ir::{Expr, KeyProvenance, Order, Program, Read, Stmt};
     use crate::registry::{Generation, ProjectJson};
-    use crate::schema::{Auth, ColumnType, Schema, public_table};
-    use crate::search_key::IndexAtom;
+    use crate::schema::{Auth, ColumnType, Index, Schema, public_table};
+    use crate::search_key::{IndexAtom, IndexComponent};
     use crate::store::Store;
     use crate::value::{Value, object};
 
@@ -602,5 +602,88 @@ mod tests {
                 .len(),
             999,
         );
+    }
+
+    #[test]
+    fn rerun_latency_varies_total_subscriptions_and_affected_batch_independently() {
+        let schema = Schema {
+            tables: BTreeMap::from([(
+                "items".to_owned(),
+                public_table(
+                    BTreeMap::from([("id".to_owned(), ColumnType::Id)]),
+                    BTreeMap::from([(
+                        "byId".to_owned(),
+                        Index {
+                            components: vec![IndexComponent::Column("id".to_owned())],
+                            unique: true,
+                        },
+                    )]),
+                ),
+            )]),
+            ..Schema::default()
+        };
+        let query = Program {
+            name: "items.one".to_owned(),
+            kind: ProgramKind::Query,
+            args: BTreeMap::new(),
+            read_time_granularity_ms: None,
+            body: vec![Stmt::Return(Expr::Get(Read {
+                site: "items.one".to_owned(),
+                table: "items".to_owned(),
+                index: "byId".to_owned(),
+                key: vec![Expr::Literal(Value::Id("one".to_owned()))],
+                provenance: KeyProvenance::Const,
+            }))],
+        };
+        let generation = Generation::certify(
+            &ProjectJson {
+                version: 1,
+                schema,
+                programs: vec![query],
+                effects: Vec::new(),
+                auth: Auth::default(),
+            },
+            Ceilings::default(),
+        )
+        .unwrap();
+        let repeats = 25;
+        for total in [200, 2_000] {
+            let mut runtime = Runtime::open(Store::memory().unwrap(), generation.clone()).unwrap();
+            runtime
+                .seed(&[(
+                    "items".to_owned(),
+                    object([("id", Value::Id("one".to_owned()))]),
+                )])
+                .unwrap();
+            let mut ids = Vec::with_capacity(total);
+            for _ in 0..total {
+                ids.push(
+                    runtime
+                        .subscribe(
+                            "items.one",
+                            Context::query(Actor::user("u1").unwrap(), BTreeMap::new()),
+                        )
+                        .unwrap()
+                        .0,
+                );
+            }
+            for affected in [1, 50] {
+                let batch = &ids[..affected];
+                let started = std::time::Instant::now();
+                let mut deliveries = 0;
+                for _ in 0..repeats {
+                    deliveries += runtime.rerun(batch).len();
+                }
+                let elapsed = started.elapsed();
+                std::hint::black_box(deliveries);
+                assert_eq!(deliveries, affected * repeats);
+                assert_eq!(runtime.subs.last_index_work, 0);
+                println!(
+                    "RERUN_LATENCY total={total} affected={affected} repeats={repeats} elapsed_ns={} per_batch_ns={}",
+                    elapsed.as_nanos(),
+                    elapsed.as_nanos() / repeats as u128,
+                );
+            }
+        }
     }
 }

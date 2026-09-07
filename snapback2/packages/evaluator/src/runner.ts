@@ -953,7 +953,8 @@ export class Runner {
         )
       )
         throw new EvalError("E_CONSTRAINT", `${tableName} immutable fields changed`);
-      if (kind === "Unique") this.checkUnique(tableName, data.index, old, row);
+      if (kind === "Unique" && effect !== "delete")
+        this.checkUnique(tableName, data.index, old, row);
       if (kind === "Cap") {
         const entersGroup =
           effect === "insert" ||

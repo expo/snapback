@@ -107,7 +107,7 @@ assert.throws(() => validateIdentity('a'.repeat(136)),{ code: 'E_INPUT' });
       balances: {
         columns: { id: 'Id', at: 'Time', value: 'Int' },
         indexes: { byId: index(['id'], true), byAt: index(['at'], true), byValue: index(['value'], true) },
-        rules, constraints: [], retain: 'until-revoked',
+        rules, constraints: [{ Unique: { index: 'byValue' } }], retain: 'until-revoked',
       },
       counts: {
         columns: { id: 'Id', at: 'Time', value: 'Int' },
