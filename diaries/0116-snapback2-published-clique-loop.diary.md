@@ -1228,3 +1228,12 @@ The published client let `offline: { store: indexedDbRangeStore }` construct, th
 Candidate620616271 passed35 affected tests and real IndexedDB/Web Locks setup controls; independent Astra xhigh and Grok4.6 xhigh reviews both returned READY. Root integrated the five files unchanged. The guide-only budget grows512 bytes for432 bytes of setup guidance. This is an ergonomic repair, not proof of the original app's only failure, the offline bar, or a comparative benchmark win. Publication qualification remains separate.
 
 [Source review and evidence](../benchmarks/runs/2026-09-06-clique-improvement/evidence/web-carrier-setup-r1/README.md) preserve those limits and actual review identities.
+
+
+## 2026-09-07 — Runtime audit confirms incomplete app behavior
+
+The unchanged published0.0.15 Grok app ran under an explicitly changed npm10 toolchain after the npm11 setup failures. Feed pagination remained stuck at20, eligible edits failed three times, and digest counts disagreed with actual unread messages. Authentication, ordinary live updates and first/second view-once asset retrieval had bounded positive observations. No app repairs were mixed into this audit.
+
+Root read the complete report and caught a coverage overclaim: an own-repost test does not establish visibility through a different followed reposter. Two-image rendering, avatar decoding and physical process restart likewise require stronger observations. Passing app-authored suite labels are not enough; these gaps remain visible instead of becoming a better-looking score. The separate Grok63 remains below Convex78; Supabase47 and valid comparator baselines are retained.
+
+[Preserved audit and separate Root validation](../benchmarks/runs/2026-09-06-clique-improvement/evidence/grok-015-assertion-continuation/README.md). Native, full-scale, M7 and the full model/size requirements remain outstanding. This evidence does not attribute every app defect to the backend.

@@ -1,0 +1,2623 @@
+{
+  "kind": "Root mechanical custody supplement; no semantic assertion/scoring review",
+  "completedAt": "2026-09-07T17:01:20.813160+00:00",
+  "verifierPid": 81589,
+  "auditDirectory": "/Users/ccheever/clique-improvement/grading/grok-015/outcome-continuation-r2",
+  "scope": "Opaque byte hashes, declared source/copy correspondence, report links, and captured cleanup metadata only",
+  "nativeTerminal": {
+    "launchPid": 48977,
+    "terminalPid": 48977,
+    "expectedPid": 48977,
+    "pidMatches": true,
+    "exitCode": 0,
+    "elapsedSeconds": 3458.94074010849,
+    "rootReportedControllerTerminal": {
+      "tool": "62158",
+      "chunk": "509c97",
+      "exitCode": 0,
+      "provenance": "Root task message, not independently observable from these files"
+    },
+    "launchReceipt": {
+      "path": "launch.json",
+      "bytes": 559,
+      "sha256": "30c90f639ecd5fa58062435144957dff1bba2320b935d3edf10c09a27678fe5c"
+    },
+    "terminalReceipt": {
+      "path": "terminal.json",
+      "bytes": 109,
+      "sha256": "985efd9004b573ca69b93ce1a440486f36614daa7b3e889a9753a352bcb39417"
+    },
+    "nativeSessionBodiesRead": false
+  },
+  "report": {
+    "markdownBytes": 191977,
+    "markdownCharacters": 191513,
+    "markdownSha256": "0b7a490c811abddd8635714c49cdab73804c8d8acbf764a57f7553c29c5be633",
+    "matchesRootExpectedHash": true,
+    "deliveryArtifacts": [
+      {
+        "path": "grader-report.md",
+        "bytes": 191977,
+        "sha256": "0b7a490c811abddd8635714c49cdab73804c8d8acbf764a57f7553c29c5be633",
+        "expectedSha256": "0b7a490c811abddd8635714c49cdab73804c8d8acbf764a57f7553c29c5be633",
+        "matches": true
+      },
+      {
+        "path": "grader-report.json",
+        "bytes": 466492,
+        "sha256": "05e152b4c1908291b877180dc2ce27a50f8cc363ed2262e613bb99f556efc31c",
+        "expectedSha256": "05e152b4c1908291b877180dc2ce27a50f8cc363ed2262e613bb99f556efc31c",
+        "matches": true
+      },
+      {
+        "path": "source-environment-correspondence.json",
+        "bytes": 3226,
+        "sha256": "e6e6c945235005677ea062e264fa83b4ae539e4e0b5aa02adb9c3b080ecacca9",
+        "expectedSha256": "e6e6c945235005677ea062e264fa83b4ae539e4e0b5aa02adb9c3b080ecacca9",
+        "matches": true
+      }
+    ]
+  },
+  "source": {
+    "manifestEntries": 337,
+    "regularFiles": 334,
+    "symlinks": 3,
+    "originalRegularFilesByteChecked": 334,
+    "copyRegularFilesByteChecked": 334,
+    "knownMeteringJsonlFixturesOpaqueHashed": 18,
+    "metadataOnlySourceEntries": 0,
+    "originalSourceUnchanged": true,
+    "copyReceiptOutputChanges": [
+      {
+        "path": "audit/lanes/grok-snapback2/receipts/coverage-m1.json",
+        "beforeSha256": "db7c559671531dd40d671b0b0d29192fc6379d3d1e1e0b2a302b3367b3df478a",
+        "afterSha256": "7c61c4c86647acf0c3d26ef3038a5340ea21b6f9f860d97ec084b998cdff99ed",
+        "declaredReceiptOutput": true
+      },
+      {
+        "path": "audit/lanes/grok-snapback2/receipts/coverage-m2.json",
+        "beforeSha256": "170443bb0e0d874e6add14f2b1e72d97d01a576030c34d5bd9f9bf5e84a36ae9",
+        "afterSha256": "00f86fcb39f3e589bab120189ac7cccc4edbe445904a5c39edfc6cc6eed5dc43",
+        "declaredReceiptOutput": true
+      },
+      {
+        "path": "audit/lanes/grok-snapback2/receipts/coverage-m3.json",
+        "beforeSha256": "b27c93dce6c9634cf8cf72ddeae7e64504fe4b0cd81727eef2f1861dd827c0d0",
+        "afterSha256": "55efb55c0378eb726ff8a92812cfcddab0de7a6db4ea1ab0c6e2077e9f24efad",
+        "declaredReceiptOutput": true
+      },
+      {
+        "path": "audit/lanes/grok-snapback2/receipts/coverage-m4.json",
+        "beforeSha256": "31bdcb8f8f4a5986c137ac92435060d3862ce728e8ce08db6ae3e1117aa464b6",
+        "afterSha256": "dc47e34dde03cce5c0095943427f8d88f034f5c7acd903f25aaf4e6c00c31cfe",
+        "declaredReceiptOutput": true
+      },
+      {
+        "path": "audit/lanes/grok-snapback2/receipts/coverage-m5.json",
+        "beforeSha256": "5ec3692bb380a2d3f78384dbeabd59be3aa52f308b7736901f4c8e3a119a336a",
+        "afterSha256": "d4c020ce509d366b122032c6b5ddda88ca7077c2d5b2362cb996db1eb810c89a",
+        "declaredReceiptOutput": true
+      },
+      {
+        "path": "audit/lanes/grok-snapback2/receipts/coverage-m6.json",
+        "beforeSha256": "da40827cc51ec3583459cf298d71ea9b509e4aab520599ebfb18adfcda054f20",
+        "afterSha256": "3a027f15f49fc967c810aa8b22c62574d6226ce5687567777118fc3d04591ec6",
+        "declaredReceiptOutput": true
+      },
+      {
+        "path": "audit/lanes/grok-snapback2/receipts/coverage-m8.json",
+        "beforeSha256": "4d3a87efba3ee55c714c6fed0306d68beef7b94988d38d88d82d7413efdba19e",
+        "afterSha256": "6ded5dff381d00caf800278a1dfc72f8f51128a4ec3ebfd25b22d721b081eda4",
+        "declaredReceiptOutput": true
+      },
+      {
+        "path": "audit/lanes/grok-snapback2/receipts/suite-m1.json",
+        "beforeSha256": "354b2b5a1386dd7cd70d17e1490bbacb266f365348ef0183f105b4c8b32b857b",
+        "afterSha256": "d78044ba81908afc448f3129e03175f48eebce811fca8c894ff21d79815e5291",
+        "declaredReceiptOutput": true
+      },
+      {
+        "path": "audit/lanes/grok-snapback2/receipts/suite-m2.json",
+        "beforeSha256": "f2beccc63dd523fff3e80f53edc8b2751ae36ad51180c7617c684a886e755205",
+        "afterSha256": "601524bd6270533dc2eb9a335bdb206ab735b924946e2a8d65577e006bbf1c1e",
+        "declaredReceiptOutput": true
+      },
+      {
+        "path": "audit/lanes/grok-snapback2/receipts/suite-m3.json",
+        "beforeSha256": "b05eca753b812a604f452cfdc72dd329b1465730dc0d03750654766b9bb5823e",
+        "afterSha256": "e1424d41f5f2ea8ebd82f989685f9d725baa594026373d47705c297acb5abc65",
+        "declaredReceiptOutput": true
+      },
+      {
+        "path": "audit/lanes/grok-snapback2/receipts/suite-m4.json",
+        "beforeSha256": "e8f97bcf8b4a7d5007d0897dec924faf772c901d43ad0b4aee31e8f61a5a5b5a",
+        "afterSha256": "0a0c61aa6dc6c726c1a792ac3a4f77ee9bf07f945ca9f39554e3803b06860aad",
+        "declaredReceiptOutput": true
+      },
+      {
+        "path": "audit/lanes/grok-snapback2/receipts/suite-m5.json",
+        "beforeSha256": "92eaf3fecd6b12e3df9f46d791340623fb114cb542ae50b19788b92b9ff52667",
+        "afterSha256": "f0f54e96f1f9add118c82247ebdf1973d1b617ab5a1ac29fb40108f2be3838c6",
+        "declaredReceiptOutput": true
+      },
+      {
+        "path": "audit/lanes/grok-snapback2/receipts/suite-m6.json",
+        "beforeSha256": "03bcaf6077c27b3fba0347434cceacebf16bf927cd179306f61b3d7bd8231676",
+        "afterSha256": "78fa74c160f75416cbfd1a0a749649f9bc3cef5f642d1dd2a603c5f98e34c27e",
+        "declaredReceiptOutput": true
+      },
+      {
+        "path": "audit/lanes/grok-snapback2/receipts/suite-m8.json",
+        "beforeSha256": "47351e9d3291d8ae468f14abfb735d1dc0066bdce7fa3a23a7578b92b8d34f3a",
+        "afterSha256": "2e7754936c8c28adb6baf9142bc461508f798c092469bed2c2712387868570cc",
+        "declaredReceiptOutput": true
+      }
+    ],
+    "changedCopySetExactlyDeclaredReceiptOutputs": true,
+    "productSourceChangesOutsideDeclaredReceiptOutputs": [],
+    "modeObservationsDifferingFromSingleRecordedMode": [],
+    "mismatches": [],
+    "beforeFinalMetadataMismatches": [],
+    "allRegularCopiesHaveIndependentInodes": true,
+    "actualCorrespondenceRowsSha256": "4e71666065d6eed68133934847f979cb97aeb4a9f954154d1a5b7f4da55e2de5"
+  },
+  "packageAndLock": [
+    {
+      "file": "package.json",
+      "expectedSha256": "8bc17fcfb3b2001703c0e38d72f77dd5da166d18b1bd317de138aa426ca4ffc5",
+      "originalSha256": "8bc17fcfb3b2001703c0e38d72f77dd5da166d18b1bd317de138aa426ca4ffc5",
+      "copySha256": "8bc17fcfb3b2001703c0e38d72f77dd5da166d18b1bd317de138aa426ca4ffc5",
+      "matches": true
+    },
+    {
+      "file": "package-lock.json",
+      "expectedSha256": "fda9f42de3d575aa8ef904caa456c8d7e71156413777e0c81b79b11cb044e6c9",
+      "originalSha256": "fda9f42de3d575aa8ef904caa456c8d7e71156413777e0c81b79b11cb044e6c9",
+      "copySha256": "fda9f42de3d575aa8ef904caa456c8d7e71156413777e0c81b79b11cb044e6c9",
+      "matches": true
+    }
+  ],
+  "helperRestoration": [
+    {
+      "path": "audit/lanes/lib/json-schema.mjs",
+      "original": "/Users/ccheever/clique-full-grok-015-20260907/lanes/lib/json-schema.mjs",
+      "bytes": 7733,
+      "expectedSha256": "7b882f6147e6efde88bc41f4dbc6806e712fb54c2e1b47a214a5d59e96f02660",
+      "originalSha256": "7b882f6147e6efde88bc41f4dbc6806e712fb54c2e1b47a214a5d59e96f02660",
+      "copySha256": "7b882f6147e6efde88bc41f4dbc6806e712fb54c2e1b47a214a5d59e96f02660",
+      "matchesBeforeAndFinal": true,
+      "scope": "recorded permitted helper restoration; does not imply pre-restoration file existence was independently observed"
+    }
+  ],
+  "cohorts": {
+    "installedSdk": {
+      "root": "/Users/ccheever/clique-improvement/grading/grok-015/outcome-continuation-r2",
+      "entriesByteChecked": 156,
+      "actualRowsSha256": "771b1ac8f034cdf93ff590f4144ab01d9526e4df72a90b476a51911790e14739",
+      "mismatches": [],
+      "beforeFinalMetadataConsistent": true,
+      "beforeManifestEqualsFinalBaseline": true
+    },
+    "choreographyTooling": {
+      "root": "/Users/ccheever/clique-improvement/grading/grok-015/outcome-continuation-r2",
+      "entriesByteChecked": 710,
+      "actualRowsSha256": "c8b91b1befe57aa66854b92bfaf5d39c788243ff554ca2d2ed95dbe293b2b93b",
+      "mismatches": [],
+      "beforeFinalMetadataConsistent": true
+    },
+    "npmDistribution": {
+      "root": "/Users/ccheever/.volta/tools/image/node/22.23.2/lib/node_modules/npm",
+      "entriesByteChecked": 1964,
+      "actualRowsSha256": "d236419276645ddd401c2a65314c8f0b4450b6c13b86ecf726013a23b0715f6c",
+      "mismatches": [],
+      "beforeFinalMetadataConsistent": true,
+      "completeRegularFileSetMatches": true,
+      "unexpectedFiles": [],
+      "missingFiles": []
+    }
+  },
+  "nodeByteIdentity": {
+    "path": "/Users/ccheever/.volta/tools/image/node/24.18.0/bin/node",
+    "sha256": "ee6fb0e015284d83a91e8ec5213f43a157f8a392b58555301682892ba928c04a",
+    "matches": true,
+    "runtimeExecuted": false
+  },
+  "browserByteIdentities": [
+    {
+      "path": "/Users/ccheever/Library/Caches/ms-playwright/chromium-1234/chrome-mac-arm64/Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing",
+      "sha256": "a596b1cfc6353e987fcec8d71a23a28cd6a9e7a6b4e20b908e4c4fcffe51158e",
+      "matchesBeforeAndFinal": true,
+      "runtimeExecuted": false
+    },
+    {
+      "path": "/Users/ccheever/Library/Caches/ms-playwright/chromium_headless_shell-1234/chrome-headless-shell-mac-arm64/chrome-headless-shell",
+      "sha256": "7687bff7cb2db075f250e6d5848bbc8838cac3802ac3952a899c574f8eccab45",
+      "matchesBeforeAndFinal": true,
+      "runtimeExecuted": false
+    }
+  ],
+  "historical": {
+    "records": [
+      {
+        "source": "/Users/ccheever/clique-improvement/grading/grok-015/outcome/grader-report.md",
+        "copy": "audit/evidence/historical/grader-report.md",
+        "expectedSha256": "cfcc12c68fcd1b44948df3214a32ff74b730f6e5ebdbc772a10aac4dabc55982",
+        "originalSha256": "cfcc12c68fcd1b44948df3214a32ff74b730f6e5ebdbc772a10aac4dabc55982",
+        "copySha256": "cfcc12c68fcd1b44948df3214a32ff74b730f6e5ebdbc772a10aac4dabc55982",
+        "matches": true
+      },
+      {
+        "source": "/Users/ccheever/clique-improvement/grading/grok-015/outcome/grader-report.json",
+        "copy": "audit/evidence/historical/grader-report.json",
+        "expectedSha256": "64f4d20eea5cb0fd071a2cce489baa51560602950d30af50e467bcad0bc1e853",
+        "originalSha256": "64f4d20eea5cb0fd071a2cce489baa51560602950d30af50e467bcad0bc1e853",
+        "copySha256": "64f4d20eea5cb0fd071a2cce489baa51560602950d30af50e467bcad0bc1e853",
+        "matches": true
+      },
+      {
+        "source": "/Users/ccheever/clique-improvement/grading/grok-015/outcome/audit/evidence/npm-ci-attempt1.log",
+        "copy": "audit/evidence/historical/audit/evidence/npm-ci-attempt1.log",
+        "expectedSha256": "59e3baab60e723cec4ca2aabb9b86bad81b59ff50fc481bdd4faf15458dfc77b",
+        "originalSha256": "59e3baab60e723cec4ca2aabb9b86bad81b59ff50fc481bdd4faf15458dfc77b",
+        "copySha256": "59e3baab60e723cec4ca2aabb9b86bad81b59ff50fc481bdd4faf15458dfc77b",
+        "matches": true
+      },
+      {
+        "source": "/Users/ccheever/clique-improvement/grading/grok-015/outcome/audit/evidence/npm-ci-attempt2.log",
+        "copy": "audit/evidence/historical/audit/evidence/npm-ci-attempt2.log",
+        "expectedSha256": "42a43db4616cc29708efa2570dde70ca9473b8b9b9ed81893d7b4b250282430c",
+        "originalSha256": "42a43db4616cc29708efa2570dde70ca9473b8b9b9ed81893d7b4b250282430c",
+        "copySha256": "42a43db4616cc29708efa2570dde70ca9473b8b9b9ed81893d7b4b250282430c",
+        "matches": true
+      },
+      {
+        "source": "/Users/ccheever/clique-improvement/grading/grok-015/outcome/audit/evidence/source-manifest-completed-copy.json",
+        "copy": "audit/evidence/historical/audit/evidence/source-manifest-completed-copy.json",
+        "expectedSha256": "27c482b5cdb4094564400f3bdc2eae39d6cd0164ebc990f4de8702bedce1db25",
+        "originalSha256": "27c482b5cdb4094564400f3bdc2eae39d6cd0164ebc990f4de8702bedce1db25",
+        "copySha256": "27c482b5cdb4094564400f3bdc2eae39d6cd0164ebc990f4de8702bedce1db25",
+        "matches": true
+      },
+      {
+        "source": "/Users/ccheever/clique-improvement/grading/grok-015/outcome/audit/evidence/final-custody-verification.json",
+        "copy": "audit/evidence/historical/audit/evidence/final-custody-verification.json",
+        "expectedSha256": "44c523fa60d53db1290053c3cc39403f7e86909283d4ec1d54db0b2623bd7e7b",
+        "originalSha256": "44c523fa60d53db1290053c3cc39403f7e86909283d4ec1d54db0b2623bd7e7b",
+        "copySha256": "44c523fa60d53db1290053c3cc39403f7e86909283d4ec1d54db0b2623bd7e7b",
+        "matches": true
+      },
+      {
+        "source": "/Users/ccheever/clique-improvement/grading/grok-015/outcome/audit/evidence/cleanup.json",
+        "copy": "audit/evidence/historical/audit/evidence/cleanup.json",
+        "expectedSha256": "8c363a22a078be069c55896d2f3dbfa13fb2fe14d89dde96c991c05cbce2a48b",
+        "originalSha256": "8c363a22a078be069c55896d2f3dbfa13fb2fe14d89dde96c991c05cbce2a48b",
+        "copySha256": "8c363a22a078be069c55896d2f3dbfa13fb2fe14d89dde96c991c05cbce2a48b",
+        "matches": true
+      },
+      {
+        "source": "/Users/ccheever/clique-improvement/grading/grok-015/outcome/audit/evidence/original-native-artifact-inventory.json",
+        "copy": "audit/evidence/historical/audit/evidence/original-native-artifact-inventory.json",
+        "expectedSha256": "2740b9558477d1ff86906c7d708f26730f8025a3f6818acef01a86f808acb2ea",
+        "originalSha256": "2740b9558477d1ff86906c7d708f26730f8025a3f6818acef01a86f808acb2ea",
+        "copySha256": "2740b9558477d1ff86906c7d708f26730f8025a3f6818acef01a86f808acb2ea",
+        "matches": true
+      },
+      {
+        "source": "/Users/ccheever/clique-improvement/grading/grok-015/outcome/audit/evidence/original-installed-closure-before.json",
+        "copy": "audit/evidence/historical/audit/evidence/original-installed-closure-before.json",
+        "expectedSha256": "b8342efadb7e9bb97aebc5a7f4bd5e99c44dba222cba61be6f9f9d2e4a560682",
+        "originalSha256": "b8342efadb7e9bb97aebc5a7f4bd5e99c44dba222cba61be6f9f9d2e4a560682",
+        "copySha256": "b8342efadb7e9bb97aebc5a7f4bd5e99c44dba222cba61be6f9f9d2e4a560682",
+        "matches": true
+      },
+      {
+        "source": "/Users/ccheever/clique-improvement/grading/grok-015/outcome/audit/evidence/original-installed-package-identity.json",
+        "copy": "audit/evidence/historical/audit/evidence/original-installed-package-identity.json",
+        "expectedSha256": "3e6ee66ebf6b6513b01847ca24d9d652fe9a367ac7451836afbbf5a21a9e974b",
+        "originalSha256": "3e6ee66ebf6b6513b01847ca24d9d652fe9a367ac7451836afbbf5a21a9e974b",
+        "copySha256": "3e6ee66ebf6b6513b01847ca24d9d652fe9a367ac7451836afbbf5a21a9e974b",
+        "matches": true
+      }
+    ],
+    "aliases": [
+      {
+        "source": "audit/evidence/historical/audit/evidence/original-native-artifact-inventory.json",
+        "copy": "audit/evidence/original-native-artifact-inventory.json",
+        "sha256": "2740b9558477d1ff86906c7d708f26730f8025a3f6818acef01a86f808acb2ea",
+        "matches": true
+      },
+      {
+        "source": "/Users/ccheever/clique-improvement/grading/grok-015/outcome/audit/evidence/fixture-syntax-validation.log",
+        "copy": "audit/evidence/fixture-syntax-validation.log",
+        "sha256": "193e671db4e68dea0af1871a78de6cff0e2f1bad400eece151b13b3462753bd6",
+        "matches": true
+      }
+    ],
+    "finalMetadataRecordsMatchBefore": true
+  },
+  "environmentCorrespondence": {
+    "originalNpm": "11.16.0",
+    "continuationNpm": "10.9.8",
+    "notUnchangedBenchmarkConditions": true,
+    "newRuntimeVerificationPerformed": false
+  },
+  "cleanup": {
+    "verificationMethod": "Existing phase start/owned/terminal and cleanup records only; no live process/port probes",
+    "phases": [
+      {
+        "phase": "acceptance-m1-1",
+        "completeCapturedTriplet": true,
+        "pidMatchesStart": true,
+        "exitCode": 0,
+        "timedOut": false,
+        "capturedOwnedIdentities": 2,
+        "terminalIdentitySetMatchesOwnedFile": true,
+        "recordedSignals": 0,
+        "signalMismatches": [],
+        "terminal": {
+          "path": "audit/evidence/phases/acceptance-m1-1/terminal.json",
+          "bytes": 1446,
+          "sha256": "eb62e5d2f1de8d8efdf0e262c128679d608a7222e9166fe41cf5009bc6557092"
+        }
+      },
+      {
+        "phase": "acceptance-m2-1",
+        "completeCapturedTriplet": true,
+        "pidMatchesStart": true,
+        "exitCode": 0,
+        "timedOut": false,
+        "capturedOwnedIdentities": 2,
+        "terminalIdentitySetMatchesOwnedFile": true,
+        "recordedSignals": 0,
+        "signalMismatches": [],
+        "terminal": {
+          "path": "audit/evidence/phases/acceptance-m2-1/terminal.json",
+          "bytes": 1448,
+          "sha256": "2c7d1d11ddcf3aa1a950b4935ff94f7b46719e76152624f1923fed4b9327cb89"
+        }
+      },
+      {
+        "phase": "acceptance-m3-1",
+        "completeCapturedTriplet": true,
+        "pidMatchesStart": true,
+        "exitCode": 0,
+        "timedOut": false,
+        "capturedOwnedIdentities": 2,
+        "terminalIdentitySetMatchesOwnedFile": true,
+        "recordedSignals": 0,
+        "signalMismatches": [],
+        "terminal": {
+          "path": "audit/evidence/phases/acceptance-m3-1/terminal.json",
+          "bytes": 1447,
+          "sha256": "7e2520e555ee7cdc06010d93d1ef6e1e6bac9ef10fc7417d5aa3f4d758e615d6"
+        }
+      },
+      {
+        "phase": "acceptance-m4-1",
+        "completeCapturedTriplet": true,
+        "pidMatchesStart": true,
+        "exitCode": 0,
+        "timedOut": false,
+        "capturedOwnedIdentities": 2,
+        "terminalIdentitySetMatchesOwnedFile": true,
+        "recordedSignals": 0,
+        "signalMismatches": [],
+        "terminal": {
+          "path": "audit/evidence/phases/acceptance-m4-1/terminal.json",
+          "bytes": 1448,
+          "sha256": "618103515cc940d091f802e26b22d1bf26ff9840003f327b73502888d3963af7"
+        }
+      },
+      {
+        "phase": "acceptance-m5-1",
+        "completeCapturedTriplet": true,
+        "pidMatchesStart": true,
+        "exitCode": 0,
+        "timedOut": false,
+        "capturedOwnedIdentities": 2,
+        "terminalIdentitySetMatchesOwnedFile": true,
+        "recordedSignals": 0,
+        "signalMismatches": [],
+        "terminal": {
+          "path": "audit/evidence/phases/acceptance-m5-1/terminal.json",
+          "bytes": 1448,
+          "sha256": "16fe004a6181bd4aee0324286e972d93d1999269d4e822da7ad75a003b7b7db1"
+        }
+      },
+      {
+        "phase": "acceptance-m6-1",
+        "completeCapturedTriplet": true,
+        "pidMatchesStart": true,
+        "exitCode": 0,
+        "timedOut": false,
+        "capturedOwnedIdentities": 2,
+        "terminalIdentitySetMatchesOwnedFile": true,
+        "recordedSignals": 0,
+        "signalMismatches": [],
+        "terminal": {
+          "path": "audit/evidence/phases/acceptance-m6-1/terminal.json",
+          "bytes": 1423,
+          "sha256": "61f7551fdc8889138db9417020dd70b168d2ac3b4ff26b1cf8de94446ec90706"
+        }
+      },
+      {
+        "phase": "acceptance-m8-1",
+        "completeCapturedTriplet": true,
+        "pidMatchesStart": true,
+        "exitCode": 0,
+        "timedOut": false,
+        "capturedOwnedIdentities": 2,
+        "terminalIdentitySetMatchesOwnedFile": true,
+        "recordedSignals": 0,
+        "signalMismatches": [],
+        "terminal": {
+          "path": "audit/evidence/phases/acceptance-m8-1/terminal.json",
+          "bytes": 1448,
+          "sha256": "81a3f2f613bc395ccfe4d36469bce958bb574ad401d42c136d60ba51ac795252"
+        }
+      },
+      {
+        "phase": "app-npm10-ci",
+        "completeCapturedTriplet": true,
+        "pidMatchesStart": true,
+        "exitCode": 0,
+        "timedOut": false,
+        "capturedOwnedIdentities": 1,
+        "terminalIdentitySetMatchesOwnedFile": true,
+        "recordedSignals": 0,
+        "signalMismatches": [],
+        "terminal": {
+          "path": "audit/evidence/phases/app-npm10-ci/terminal.json",
+          "bytes": 1260,
+          "sha256": "78d883499240936701801468652dc72ceceb3591f31e7f1abb4546dd20ef3461"
+        }
+      },
+      {
+        "phase": "choreography-m1-1",
+        "completeCapturedTriplet": true,
+        "pidMatchesStart": true,
+        "exitCode": 2,
+        "timedOut": false,
+        "capturedOwnedIdentities": 1,
+        "terminalIdentitySetMatchesOwnedFile": true,
+        "recordedSignals": 0,
+        "signalMismatches": [],
+        "terminal": {
+          "path": "audit/evidence/phases/choreography-m1-1/terminal.json",
+          "bytes": 1863,
+          "sha256": "b8a2c92aada42e38c3395ef79e45fef67345d1c1e1adfb0cd5533a582ab8a496"
+        }
+      },
+      {
+        "phase": "choreography-m1-2",
+        "completeCapturedTriplet": true,
+        "pidMatchesStart": true,
+        "exitCode": 0,
+        "timedOut": false,
+        "capturedOwnedIdentities": 6,
+        "terminalIdentitySetMatchesOwnedFile": true,
+        "recordedSignals": 0,
+        "signalMismatches": [],
+        "terminal": {
+          "path": "audit/evidence/phases/choreography-m1-2/terminal.json",
+          "bytes": 3020,
+          "sha256": "854673b23547c366f61ed0528d12940ab5faa2619e72f7227a0fac5eccac9b94"
+        }
+      },
+      {
+        "phase": "choreography-m2-1",
+        "completeCapturedTriplet": true,
+        "pidMatchesStart": true,
+        "exitCode": 0,
+        "timedOut": false,
+        "capturedOwnedIdentities": 6,
+        "terminalIdentitySetMatchesOwnedFile": true,
+        "recordedSignals": 0,
+        "signalMismatches": [],
+        "terminal": {
+          "path": "audit/evidence/phases/choreography-m2-1/terminal.json",
+          "bytes": 3135,
+          "sha256": "744f1bb76ef533780e7c56a75e300ccfa2ba120e6bd6af38489f9af6ad269018"
+        }
+      },
+      {
+        "phase": "choreography-m3-1",
+        "completeCapturedTriplet": true,
+        "pidMatchesStart": true,
+        "exitCode": 1,
+        "timedOut": false,
+        "capturedOwnedIdentities": 9,
+        "terminalIdentitySetMatchesOwnedFile": true,
+        "recordedSignals": 0,
+        "signalMismatches": [],
+        "terminal": {
+          "path": "audit/evidence/phases/choreography-m3-1/terminal.json",
+          "bytes": 3875,
+          "sha256": "2335e6b989e0abca50b830911100fa154a8cc0d1dcec545f54a7ab60c3960df9"
+        }
+      },
+      {
+        "phase": "choreography-m4-1",
+        "completeCapturedTriplet": true,
+        "pidMatchesStart": true,
+        "exitCode": 1,
+        "timedOut": false,
+        "capturedOwnedIdentities": 6,
+        "terminalIdentitySetMatchesOwnedFile": true,
+        "recordedSignals": 0,
+        "signalMismatches": [],
+        "terminal": {
+          "path": "audit/evidence/phases/choreography-m4-1/terminal.json",
+          "bytes": 3131,
+          "sha256": "e549c44a167c8f25af1062fe6ca501290d5abbf3d00ce10f918cfdd984a7845b"
+        }
+      },
+      {
+        "phase": "choreography-m5-1",
+        "completeCapturedTriplet": true,
+        "pidMatchesStart": true,
+        "exitCode": 1,
+        "timedOut": false,
+        "capturedOwnedIdentities": 7,
+        "terminalIdentitySetMatchesOwnedFile": true,
+        "recordedSignals": 0,
+        "signalMismatches": [],
+        "terminal": {
+          "path": "audit/evidence/phases/choreography-m5-1/terminal.json",
+          "bytes": 3337,
+          "sha256": "149336b8e8a5bb96cdd93a44dfb11600d6a35585d0b1ae8cdfea6c2bda799a7a"
+        }
+      },
+      {
+        "phase": "choreography-m6-1",
+        "completeCapturedTriplet": true,
+        "pidMatchesStart": true,
+        "exitCode": 1,
+        "timedOut": false,
+        "capturedOwnedIdentities": 6,
+        "terminalIdentitySetMatchesOwnedFile": true,
+        "recordedSignals": 0,
+        "signalMismatches": [],
+        "terminal": {
+          "path": "audit/evidence/phases/choreography-m6-1/terminal.json",
+          "bytes": 3129,
+          "sha256": "fb876b4852b60ad201eef3c3f59ef7a5017ccb25c1ba74a0f6c430c501e0449e"
+        }
+      },
+      {
+        "phase": "choreography-m8-1",
+        "completeCapturedTriplet": true,
+        "pidMatchesStart": true,
+        "exitCode": 1,
+        "timedOut": false,
+        "capturedOwnedIdentities": 7,
+        "terminalIdentitySetMatchesOwnedFile": true,
+        "recordedSignals": 0,
+        "signalMismatches": [],
+        "terminal": {
+          "path": "audit/evidence/phases/choreography-m8-1/terminal.json",
+          "bytes": 3377,
+          "sha256": "e3e2aa14233f307778c2abb6a47239e3c637f7aa0d2517b23eff8b80acc167f2"
+        }
+      },
+      {
+        "phase": "choreography-package-acquisition",
+        "completeCapturedTriplet": true,
+        "pidMatchesStart": true,
+        "exitCode": 0,
+        "timedOut": false,
+        "capturedOwnedIdentities": 1,
+        "terminalIdentitySetMatchesOwnedFile": true,
+        "recordedSignals": 0,
+        "signalMismatches": [],
+        "terminal": {
+          "path": "audit/evidence/phases/choreography-package-acquisition/terminal.json",
+          "bytes": 1623,
+          "sha256": "4cff7dd7d66dd22c62242da8c6debc98404c9befe2b6df8dd579ee13c1990b27"
+        }
+      },
+      {
+        "phase": "cli-dev-help",
+        "completeCapturedTriplet": true,
+        "pidMatchesStart": true,
+        "exitCode": 0,
+        "timedOut": false,
+        "capturedOwnedIdentities": 2,
+        "terminalIdentitySetMatchesOwnedFile": true,
+        "recordedSignals": 0,
+        "signalMismatches": [],
+        "terminal": {
+          "path": "audit/evidence/phases/cli-dev-help/terminal.json",
+          "bytes": 1479,
+          "sha256": "c658def9e87d2de4d4cb334bcc6d15f9d232c139c5d5150ef74a34dd0c22f250"
+        }
+      },
+      {
+        "phase": "custom-client-demo-1",
+        "completeCapturedTriplet": true,
+        "pidMatchesStart": true,
+        "exitCode": 0,
+        "timedOut": false,
+        "capturedOwnedIdentities": 1,
+        "terminalIdentitySetMatchesOwnedFile": true,
+        "recordedSignals": 0,
+        "signalMismatches": [],
+        "terminal": {
+          "path": "audit/evidence/phases/custom-client-demo-1/terminal.json",
+          "bytes": 1236,
+          "sha256": "8ff8c2206f37af8d768bdbb5c2cdc28009df5615c493274cc00b972b4303f767"
+        }
+      },
+      {
+        "phase": "fixture-grammar-validation",
+        "completeCapturedTriplet": true,
+        "pidMatchesStart": true,
+        "exitCode": 0,
+        "timedOut": false,
+        "capturedOwnedIdentities": 1,
+        "terminalIdentitySetMatchesOwnedFile": true,
+        "recordedSignals": 0,
+        "signalMismatches": [],
+        "terminal": {
+          "path": "audit/evidence/phases/fixture-grammar-validation/terminal.json",
+          "bytes": 1205,
+          "sha256": "65c959cf0539f75643a7bb25a2055cb67552139454e2a5631cd6014b9528aeb3"
+        }
+      },
+      {
+        "phase": "independent-api-1",
+        "completeCapturedTriplet": true,
+        "pidMatchesStart": true,
+        "exitCode": 0,
+        "timedOut": false,
+        "capturedOwnedIdentities": 1,
+        "terminalIdentitySetMatchesOwnedFile": true,
+        "recordedSignals": 0,
+        "signalMismatches": [],
+        "terminal": {
+          "path": "audit/evidence/phases/independent-api-1/terminal.json",
+          "bytes": 1152,
+          "sha256": "d6cb8f7dc68b3147d4edd93bdc1897b13bc8d4f693f84b815178f3e0bf9e285c"
+        }
+      },
+      {
+        "phase": "independent-api-2",
+        "completeCapturedTriplet": true,
+        "pidMatchesStart": true,
+        "exitCode": 1,
+        "timedOut": false,
+        "capturedOwnedIdentities": 1,
+        "terminalIdentitySetMatchesOwnedFile": true,
+        "recordedSignals": 0,
+        "signalMismatches": [],
+        "terminal": {
+          "path": "audit/evidence/phases/independent-api-2/terminal.json",
+          "bytes": 1152,
+          "sha256": "6241e7db8f9c0acdd63f16ef59d1faddb2e35ea2cc40fed54b09f8849703f944"
+        }
+      },
+      {
+        "phase": "independent-web-1",
+        "completeCapturedTriplet": true,
+        "pidMatchesStart": true,
+        "exitCode": 0,
+        "timedOut": false,
+        "capturedOwnedIdentities": 11,
+        "terminalIdentitySetMatchesOwnedFile": true,
+        "recordedSignals": 0,
+        "signalMismatches": [],
+        "terminal": {
+          "path": "audit/evidence/phases/independent-web-1/terminal.json",
+          "bytes": 3478,
+          "sha256": "8245fae3610ebe9b61413e5fb4d57f13200a4f10fef0c2c162a382e0ede0a8b1"
+        }
+      },
+      {
+        "phase": "named-temporal-1",
+        "completeCapturedTriplet": true,
+        "pidMatchesStart": true,
+        "exitCode": 0,
+        "timedOut": false,
+        "capturedOwnedIdentities": 1,
+        "terminalIdentitySetMatchesOwnedFile": true,
+        "recordedSignals": 0,
+        "signalMismatches": [],
+        "terminal": {
+          "path": "audit/evidence/phases/named-temporal-1/terminal.json",
+          "bytes": 1160,
+          "sha256": "6bf273aedeb240a47f9301647f25d435018492164c6ad66009d3bb4cd3e9faf3"
+        }
+      },
+      {
+        "phase": "owner-1",
+        "completeCapturedTriplet": true,
+        "pidMatchesStart": true,
+        "exitCode": -15,
+        "timedOut": false,
+        "capturedOwnedIdentities": 3,
+        "terminalIdentitySetMatchesOwnedFile": true,
+        "recordedSignals": 0,
+        "signalMismatches": [],
+        "terminal": {
+          "path": "audit/evidence/phases/owner-1/terminal.json",
+          "bytes": 1640,
+          "sha256": "76a17315ccc581e467d94fed48950e6ce8491d38c812eaf970246a511e4eb4f2"
+        }
+      },
+      {
+        "phase": "owner-2",
+        "completeCapturedTriplet": true,
+        "pidMatchesStart": true,
+        "exitCode": -15,
+        "timedOut": false,
+        "capturedOwnedIdentities": 3,
+        "terminalIdentitySetMatchesOwnedFile": true,
+        "recordedSignals": 0,
+        "signalMismatches": [],
+        "terminal": {
+          "path": "audit/evidence/phases/owner-2/terminal.json",
+          "bytes": 1639,
+          "sha256": "843d8eb988d3b3722e39cdddbcc8eba817b25c17ea0448396062788e0812e46e"
+        }
+      },
+      {
+        "phase": "receipt-schema-validation",
+        "completeCapturedTriplet": true,
+        "pidMatchesStart": true,
+        "exitCode": 0,
+        "timedOut": false,
+        "capturedOwnedIdentities": 1,
+        "terminalIdentitySetMatchesOwnedFile": true,
+        "recordedSignals": 0,
+        "signalMismatches": [],
+        "terminal": {
+          "path": "audit/evidence/phases/receipt-schema-validation/terminal.json",
+          "bytes": 1163,
+          "sha256": "9fd3f0764837cba19280111363ae3becc074153c013d624ec9f596bf995a5a92"
+        }
+      },
+      {
+        "phase": "receipt-semantics-verification",
+        "completeCapturedTriplet": true,
+        "pidMatchesStart": true,
+        "exitCode": 0,
+        "timedOut": false,
+        "capturedOwnedIdentities": 1,
+        "terminalIdentitySetMatchesOwnedFile": true,
+        "recordedSignals": 0,
+        "signalMismatches": [],
+        "terminal": {
+          "path": "audit/evidence/phases/receipt-semantics-verification/terminal.json",
+          "bytes": 1119,
+          "sha256": "2d8195571a7104df991fd77e27bc07344b140d3310aec5d307cffa5d9493587c"
+        }
+      },
+      {
+        "phase": "replay-idempotence-and-sample-1",
+        "completeCapturedTriplet": true,
+        "pidMatchesStart": true,
+        "exitCode": 0,
+        "timedOut": false,
+        "capturedOwnedIdentities": 1,
+        "terminalIdentitySetMatchesOwnedFile": true,
+        "recordedSignals": 0,
+        "signalMismatches": [],
+        "terminal": {
+          "path": "audit/evidence/phases/replay-idempotence-and-sample-1/terminal.json",
+          "bytes": 1167,
+          "sha256": "52e25889ddf420b3a7f3c8dd27e6f05fe57d6e6be0408a4cb4fdedc25c7dcf94"
+        }
+      },
+      {
+        "phase": "seed-m1-1",
+        "completeCapturedTriplet": true,
+        "pidMatchesStart": true,
+        "exitCode": 0,
+        "timedOut": false,
+        "capturedOwnedIdentities": 2,
+        "terminalIdentitySetMatchesOwnedFile": true,
+        "recordedSignals": 0,
+        "signalMismatches": [],
+        "terminal": {
+          "path": "audit/evidence/phases/seed-m1-1/terminal.json",
+          "bytes": 1421,
+          "sha256": "fae5b05f0eca93623b7646dccd5f16866e4f33e8122f4a7aad9da99fef999556"
+        }
+      },
+      {
+        "phase": "seed-m2-1",
+        "completeCapturedTriplet": true,
+        "pidMatchesStart": true,
+        "exitCode": 0,
+        "timedOut": false,
+        "capturedOwnedIdentities": 2,
+        "terminalIdentitySetMatchesOwnedFile": true,
+        "recordedSignals": 0,
+        "signalMismatches": [],
+        "terminal": {
+          "path": "audit/evidence/phases/seed-m2-1/terminal.json",
+          "bytes": 1423,
+          "sha256": "a2c3f60a441e5ef014ec5008ae58761501638af1ba27e4c3e02c2edc53a98ad9"
+        }
+      },
+      {
+        "phase": "seed-m3-1",
+        "completeCapturedTriplet": true,
+        "pidMatchesStart": true,
+        "exitCode": 0,
+        "timedOut": false,
+        "capturedOwnedIdentities": 2,
+        "terminalIdentitySetMatchesOwnedFile": true,
+        "recordedSignals": 0,
+        "signalMismatches": [],
+        "terminal": {
+          "path": "audit/evidence/phases/seed-m3-1/terminal.json",
+          "bytes": 1427,
+          "sha256": "d8e84b29174022f82ff68e155434745a91a2619a64e676b04c94c562ba17eca0"
+        }
+      },
+      {
+        "phase": "web-1",
+        "completeCapturedTriplet": true,
+        "pidMatchesStart": true,
+        "exitCode": 0,
+        "timedOut": false,
+        "capturedOwnedIdentities": 19,
+        "terminalIdentitySetMatchesOwnedFile": true,
+        "recordedSignals": 0,
+        "signalMismatches": [],
+        "terminal": {
+          "path": "audit/evidence/phases/web-1/terminal.json",
+          "bytes": 3948,
+          "sha256": "4edbd2e7c8d0622003283aed31a853d7ee57f431210da68661e47692966f25b1"
+        }
+      },
+      {
+        "phase": "web-2",
+        "completeCapturedTriplet": true,
+        "pidMatchesStart": true,
+        "exitCode": 0,
+        "timedOut": false,
+        "capturedOwnedIdentities": 10,
+        "terminalIdentitySetMatchesOwnedFile": true,
+        "recordedSignals": 0,
+        "signalMismatches": [],
+        "terminal": {
+          "path": "audit/evidence/phases/web-2/terminal.json",
+          "bytes": 2429,
+          "sha256": "882c7a166391a5fda97b3357eb57a170a8835d56ea94f97241ba92773a4af218"
+        }
+      }
+    ],
+    "cleanupReceipts": [
+      {
+        "receipt": {
+          "path": "audit/evidence/owner-1-restart-cleanup.json",
+          "bytes": 1041,
+          "sha256": "b5c6c825a967bfaf5dc96a535fd4337e0d8b1bf0d0b87c10528018c2783f96a8"
+        },
+        "phase": "owner-1",
+        "recordedSignals": 3,
+        "remainingOwnedRecorded": 0,
+        "skippedRecorded": 0,
+        "initialStrictComparisonMismatches": [],
+        "pidStartParentMismatches": [],
+        "capturedIdentityCorrespondence": [
+          {
+            "pid": 53330,
+            "started": "Mon Sep 7 08:55:06 2026",
+            "ppid": 53329,
+            "pidFieldLocation": "nested identity",
+            "pidStartAndParentMatch": true,
+            "executableLabelsMatch": true
+          },
+          {
+            "pid": 53329,
+            "started": "Mon Sep 7 08:55:06 2026",
+            "ppid": 53327,
+            "pidFieldLocation": "nested identity",
+            "pidStartAndParentMatch": true,
+            "executableLabelsMatch": true
+          },
+          {
+            "pid": 53327,
+            "started": "Mon Sep 7 08:55:06 2026",
+            "ppid": 53324,
+            "pidFieldLocation": "nested identity",
+            "pidStartAndParentMatch": true,
+            "executableLabelsMatch": true
+          }
+        ]
+      },
+      {
+        "receipt": {
+          "path": "audit/evidence/owner-2-final-cleanup.json",
+          "bytes": 1041,
+          "sha256": "0d05bea672f2f73541f0c44dba80aaa4c37c5a0eac160c80dfa12b9afd54c16f"
+        },
+        "phase": "owner-2",
+        "recordedSignals": 3,
+        "remainingOwnedRecorded": 0,
+        "skippedRecorded": 0,
+        "initialStrictComparisonMismatches": [],
+        "pidStartParentMismatches": [],
+        "capturedIdentityCorrespondence": [
+          {
+            "pid": 69847,
+            "started": "Mon Sep 7 09:21:24 2026",
+            "ppid": 69846,
+            "pidFieldLocation": "nested identity",
+            "pidStartAndParentMatch": true,
+            "executableLabelsMatch": true
+          },
+          {
+            "pid": 69846,
+            "started": "Mon Sep 7 09:21:24 2026",
+            "ppid": 69844,
+            "pidFieldLocation": "nested identity",
+            "pidStartAndParentMatch": true,
+            "executableLabelsMatch": true
+          },
+          {
+            "pid": 69844,
+            "started": "Mon Sep 7 09:21:24 2026",
+            "ppid": 69838,
+            "pidFieldLocation": "nested identity",
+            "pidStartAndParentMatch": true,
+            "executableLabelsMatch": true
+          }
+        ]
+      },
+      {
+        "receipt": {
+          "path": "audit/evidence/web-1-cleanup.json",
+          "bytes": 2149,
+          "sha256": "64a9b262c51d2b5569062454e075daec9e026a0f9e078b700a2eb2be4115eb8b"
+        },
+        "phase": "web-1",
+        "recordedSignals": 8,
+        "remainingOwnedRecorded": null,
+        "skippedRecorded": null,
+        "initialStrictComparisonMismatches": [
+          {
+            "pid": null,
+            "reason": "cleanup signal identity absent from phase owned-processes metadata"
+          },
+          {
+            "pid": null,
+            "reason": "cleanup signal identity absent from phase owned-processes metadata"
+          },
+          {
+            "pid": null,
+            "reason": "cleanup signal identity absent from phase owned-processes metadata"
+          },
+          {
+            "pid": null,
+            "reason": "cleanup signal identity absent from phase owned-processes metadata"
+          },
+          {
+            "pid": null,
+            "reason": "cleanup signal identity absent from phase owned-processes metadata"
+          },
+          {
+            "pid": null,
+            "reason": "cleanup signal identity absent from phase owned-processes metadata"
+          },
+          {
+            "pid": null,
+            "reason": "cleanup signal identity absent from phase owned-processes metadata"
+          },
+          {
+            "pid": null,
+            "reason": "cleanup signal identity absent from phase owned-processes metadata"
+          }
+        ],
+        "pidStartParentMismatches": [],
+        "capturedIdentityCorrespondence": [
+          {
+            "pid": 55086,
+            "started": "Mon Sep 7 08:57:53 2026",
+            "ppid": 53665,
+            "pidFieldLocation": "outer signal record",
+            "pidStartAndParentMatch": true,
+            "executableLabelsMatch": true
+          },
+          {
+            "pid": 55085,
+            "started": "Mon Sep 7 08:57:53 2026",
+            "ppid": 53665,
+            "pidFieldLocation": "outer signal record",
+            "pidStartAndParentMatch": true,
+            "executableLabelsMatch": true
+          },
+          {
+            "pid": 55084,
+            "started": "Mon Sep 7 08:57:53 2026",
+            "ppid": 53665,
+            "pidFieldLocation": "outer signal record",
+            "pidStartAndParentMatch": true,
+            "executableLabelsMatch": true
+          },
+          {
+            "pid": 55083,
+            "started": "Mon Sep 7 08:57:53 2026",
+            "ppid": 53665,
+            "pidFieldLocation": "outer signal record",
+            "pidStartAndParentMatch": true,
+            "executableLabelsMatch": true
+          },
+          {
+            "pid": 55082,
+            "started": "Mon Sep 7 08:57:53 2026",
+            "ppid": 53665,
+            "pidFieldLocation": "outer signal record",
+            "pidStartAndParentMatch": true,
+            "executableLabelsMatch": true
+          },
+          {
+            "pid": 55081,
+            "started": "Mon Sep 7 08:57:53 2026",
+            "ppid": 53665,
+            "pidFieldLocation": "outer signal record",
+            "pidStartAndParentMatch": true,
+            "executableLabelsMatch": true
+          },
+          {
+            "pid": 55080,
+            "started": "Mon Sep 7 08:57:53 2026",
+            "ppid": 53665,
+            "pidFieldLocation": "outer signal record",
+            "pidStartAndParentMatch": true,
+            "executableLabelsMatch": true
+          },
+          {
+            "pid": 53665,
+            "started": "Mon Sep 7 08:55:45 2026",
+            "ppid": 53662,
+            "pidFieldLocation": "outer signal record",
+            "pidStartAndParentMatch": true,
+            "executableLabelsMatch": true
+          }
+        ]
+      },
+      {
+        "receipt": {
+          "path": "audit/evidence/web-2-final-cleanup.json",
+          "bytes": 2295,
+          "sha256": "ec273a1a774307ce467c72ab0b4ddefd2c41f346c4ec2b8d81c21e18ac3a737a"
+        },
+        "phase": "web-2",
+        "recordedSignals": 8,
+        "remainingOwnedRecorded": 0,
+        "skippedRecorded": 0,
+        "initialStrictComparisonMismatches": [
+          {
+            "pid": 56955,
+            "reason": "cleanup signal identity absent from phase owned-processes metadata"
+          },
+          {
+            "pid": 56953,
+            "reason": "cleanup signal identity absent from phase owned-processes metadata"
+          },
+          {
+            "pid": 56952,
+            "reason": "cleanup signal identity absent from phase owned-processes metadata"
+          },
+          {
+            "pid": 56951,
+            "reason": "cleanup signal identity absent from phase owned-processes metadata"
+          },
+          {
+            "pid": 56950,
+            "reason": "cleanup signal identity absent from phase owned-processes metadata"
+          },
+          {
+            "pid": 56949,
+            "reason": "cleanup signal identity absent from phase owned-processes metadata"
+          },
+          {
+            "pid": 56948,
+            "reason": "cleanup signal identity absent from phase owned-processes metadata"
+          },
+          {
+            "pid": 56784,
+            "reason": "cleanup signal identity absent from phase owned-processes metadata"
+          }
+        ],
+        "pidStartParentMismatches": [],
+        "capturedIdentityCorrespondence": [
+          {
+            "pid": 56955,
+            "started": "Mon Sep 7 08:59:14 2026",
+            "ppid": 56784,
+            "pidFieldLocation": "nested identity",
+            "pidStartAndParentMatch": true,
+            "executableLabelsMatch": false
+          },
+          {
+            "pid": 56953,
+            "started": "Mon Sep 7 08:59:14 2026",
+            "ppid": 56784,
+            "pidFieldLocation": "nested identity",
+            "pidStartAndParentMatch": true,
+            "executableLabelsMatch": false
+          },
+          {
+            "pid": 56952,
+            "started": "Mon Sep 7 08:59:14 2026",
+            "ppid": 56784,
+            "pidFieldLocation": "nested identity",
+            "pidStartAndParentMatch": true,
+            "executableLabelsMatch": false
+          },
+          {
+            "pid": 56951,
+            "started": "Mon Sep 7 08:59:14 2026",
+            "ppid": 56784,
+            "pidFieldLocation": "nested identity",
+            "pidStartAndParentMatch": true,
+            "executableLabelsMatch": false
+          },
+          {
+            "pid": 56950,
+            "started": "Mon Sep 7 08:59:14 2026",
+            "ppid": 56784,
+            "pidFieldLocation": "nested identity",
+            "pidStartAndParentMatch": true,
+            "executableLabelsMatch": false
+          },
+          {
+            "pid": 56949,
+            "started": "Mon Sep 7 08:59:14 2026",
+            "ppid": 56784,
+            "pidFieldLocation": "nested identity",
+            "pidStartAndParentMatch": true,
+            "executableLabelsMatch": false
+          },
+          {
+            "pid": 56948,
+            "started": "Mon Sep 7 08:59:14 2026",
+            "ppid": 56784,
+            "pidFieldLocation": "nested identity",
+            "pidStartAndParentMatch": true,
+            "executableLabelsMatch": false
+          },
+          {
+            "pid": 56784,
+            "started": "Mon Sep 7 08:59:08 2026",
+            "ppid": 56780,
+            "pidFieldLocation": "nested identity",
+            "pidStartAndParentMatch": true,
+            "executableLabelsMatch": false
+          }
+        ]
+      }
+    ],
+    "uniqueCapturedOwnedIdentities": 126,
+    "finalOwnedStillRunningRecorded": 0,
+    "finalPortProbeRecorded": {
+      "exitCode": 1,
+      "stdoutEmpty": true,
+      "stderrEmpty": true
+    },
+    "currentProcessLivenessNotClaimed": true,
+    "capturedSignalIdentityCriterion": "PID, recorded start identity, and parent PID. Executable label differences are separately retained; no live state inference.",
+    "signalsWithCapturedPidStartParentMatch": 22,
+    "pidStartParentMismatches": [],
+    "executableLabelDifferences": [
+      {
+        "phase": "web-2",
+        "pid": 56955,
+        "started": "Mon Sep 7 08:59:14 2026",
+        "signalExecutable": "/Users/ccheever/.volta/tools/image/node/24.18.0/bin/node",
+        "finalOwnedExecutableLabel": "(node)",
+        "samePidStartAndParent": true,
+        "causeNotIndependentlyEstablished": true
+      },
+      {
+        "phase": "web-2",
+        "pid": 56953,
+        "started": "Mon Sep 7 08:59:14 2026",
+        "signalExecutable": "/Users/ccheever/.volta/tools/image/node/24.18.0/bin/node",
+        "finalOwnedExecutableLabel": "(node)",
+        "samePidStartAndParent": true,
+        "causeNotIndependentlyEstablished": true
+      },
+      {
+        "phase": "web-2",
+        "pid": 56952,
+        "started": "Mon Sep 7 08:59:14 2026",
+        "signalExecutable": "/Users/ccheever/.volta/tools/image/node/24.18.0/bin/node",
+        "finalOwnedExecutableLabel": "(node)",
+        "samePidStartAndParent": true,
+        "causeNotIndependentlyEstablished": true
+      },
+      {
+        "phase": "web-2",
+        "pid": 56951,
+        "started": "Mon Sep 7 08:59:14 2026",
+        "signalExecutable": "/Users/ccheever/.volta/tools/image/node/24.18.0/bin/node",
+        "finalOwnedExecutableLabel": "(node)",
+        "samePidStartAndParent": true,
+        "causeNotIndependentlyEstablished": true
+      },
+      {
+        "phase": "web-2",
+        "pid": 56950,
+        "started": "Mon Sep 7 08:59:14 2026",
+        "signalExecutable": "/Users/ccheever/.volta/tools/image/node/24.18.0/bin/node",
+        "finalOwnedExecutableLabel": "(node)",
+        "samePidStartAndParent": true,
+        "causeNotIndependentlyEstablished": true
+      },
+      {
+        "phase": "web-2",
+        "pid": 56949,
+        "started": "Mon Sep 7 08:59:14 2026",
+        "signalExecutable": "/Users/ccheever/.volta/tools/image/node/24.18.0/bin/node",
+        "finalOwnedExecutableLabel": "(node)",
+        "samePidStartAndParent": true,
+        "causeNotIndependentlyEstablished": true
+      },
+      {
+        "phase": "web-2",
+        "pid": 56948,
+        "started": "Mon Sep 7 08:59:14 2026",
+        "signalExecutable": "/Users/ccheever/.volta/tools/image/node/24.18.0/bin/node",
+        "finalOwnedExecutableLabel": "(node)",
+        "samePidStartAndParent": true,
+        "causeNotIndependentlyEstablished": true
+      },
+      {
+        "phase": "web-2",
+        "pid": 56784,
+        "started": "Mon Sep 7 08:59:08 2026",
+        "signalExecutable": "/Users/ccheever/.volta/tools/image/node/24.18.0/bin/node",
+        "finalOwnedExecutableLabel": "(node)",
+        "samePidStartAndParent": true,
+        "causeNotIndependentlyEstablished": true
+      }
+    ],
+    "pidFieldLocations": {
+      "nested identity": 14,
+      "outer signal record": 8
+    },
+    "executionLedger": {
+      "entries": 34,
+      "matchesEveryPhaseTerminal": true,
+      "mismatchedPhases": [],
+      "exitCodeCounts": {
+        "0": 25,
+        "2": 1,
+        "1": 6,
+        "-15": 2
+      },
+      "timedOutCount": 0,
+      "sha256": "7c8f199129f2e8e01f0517ba0f7e9dcfe73b49974776ded05d953a9161431446"
+    }
+  },
+  "reportLinks": {
+    "referenceOccurrences": 2491,
+    "uniqueLocalTargets": 145,
+    "missing": [],
+    "externalOrSchemeTargetsNotFetched": 0,
+    "anchorOnlyTargetsNotChecked": 0,
+    "method": "Markdown inline-link targets plus audit/ evidence-path mentions in Markdown and exact audit/ path strings in JSON; fragments are not independently validated",
+    "priorFinalMissingCount": 0
+  },
+  "futureLanding": {
+    "coreCandidates": [
+      {
+        "path": "grader-report.md",
+        "bytes": 191977,
+        "sha256": "0b7a490c811abddd8635714c49cdab73804c8d8acbf764a57f7553c29c5be633"
+      },
+      {
+        "path": "grader-report.json",
+        "bytes": 466492,
+        "sha256": "05e152b4c1908291b877180dc2ce27a50f8cc363ed2262e613bb99f556efc31c"
+      },
+      {
+        "path": "source-environment-correspondence.json",
+        "bytes": 3226,
+        "sha256": "e6e6c945235005677ea062e264fa83b4ae539e4e0b5aa02adb9c3b080ecacca9"
+      },
+      {
+        "path": "terminal.json",
+        "bytes": 109,
+        "sha256": "985efd9004b573ca69b93ce1a440486f36614daa7b3e889a9753a352bcb39417"
+      },
+      {
+        "path": "audit/evidence/delivery-manifest.json",
+        "bytes": 746,
+        "sha256": "513c76c298b753e8dcd7bdf7afbd748a33c9701297727b1f51e8a857ed5d2c90"
+      },
+      {
+        "path": "audit/evidence/source-manifest-before.json",
+        "bytes": 136489,
+        "sha256": "3484e0a9e642d9ffed600cf9327bf7e31388ef2db7916ad2b06255194f4fc241"
+      },
+      {
+        "path": "audit/evidence/final-custody.json",
+        "bytes": 1056774,
+        "sha256": "2ce0fd142eba90835fe48d98fe7237bc5582351663b000aa39acd968805cc749"
+      },
+      {
+        "path": "audit/evidence/historical-custody.json",
+        "bytes": 2877,
+        "sha256": "2bc6dfb13f5637cefeb72a986c105afa3ac451758c46231341a10ac94835fe8c"
+      },
+      {
+        "path": "audit/evidence/historical-evidence-alias-custody.json",
+        "bytes": 689,
+        "sha256": "ba9edecda91654284e7fa4563bb49cf8f18f0b07d97e86594700eaefb84dde84"
+      },
+      {
+        "path": "audit/evidence/report-link-validation-final.json",
+        "bytes": 822,
+        "sha256": "6965245e267b8f8a68fbe595d6469fb0272206fda579d97e97505a8478f51de5"
+      },
+      {
+        "path": "audit/evidence/report-link-and-redaction-validation.json",
+        "bytes": 326,
+        "sha256": "fe48fd62a07ece276181007be4aee8e2500f9ff4c2184a54c4d575a582f5f82c"
+      },
+      {
+        "path": "audit/evidence/app-ci-locked-closure.json",
+        "bytes": 782,
+        "sha256": "021da61bb6511788c36064e2f10e668badcd3f420bf3c6b0da151a15e07fff7c"
+      },
+      {
+        "path": "audit/evidence/acceptance-sequence.json",
+        "bytes": 13851,
+        "sha256": "62b73459e6251b10a7effd892932e3e31eeddeafaedd1fd5235e291b821cd045"
+      },
+      {
+        "path": "audit/evidence/receipt-semantics-verification.json",
+        "bytes": 4770,
+        "sha256": "bdcf6ccf37f53d059634662254d3c4080298242440712d5e534c649c37e933d1"
+      },
+      {
+        "path": "audit/evidence/retained-native-reverification.json",
+        "bytes": 50906,
+        "sha256": "5fccc757e42a1ccc203c502f67d6a84ccb30035bdb2ab15f9ae1511be7755a20"
+      }
+    ],
+    "reportLinkedEvidence": [
+      {
+        "path": "audit/evidence/app-ci-locked-closure.json",
+        "bytes": 782,
+        "sha256": "021da61bb6511788c36064e2f10e668badcd3f420bf3c6b0da151a15e07fff7c",
+        "origins": [
+          "json-evidence-path"
+        ],
+        "includedForLanding": "candidate supporting evidence; Root selects and reviews content",
+        "contentsDisplayedOrSemanticallyReviewed": false
+      },
+      {
+        "path": "audit/evidence/bulk-api-phase-abort.json",
+        "bytes": 664,
+        "sha256": "67fda8d45c89120de26fd2a88ff6ade851e411d2b90f55ec5a918b9dbce86f3a",
+        "origins": [
+          "json-evidence-path"
+        ],
+        "includedForLanding": "candidate supporting evidence; Root selects and reviews content",
+        "contentsDisplayedOrSemanticallyReviewed": false
+      },
+      {
+        "path": "audit/evidence/exclusions.json",
+        "bytes": 1583,
+        "sha256": "e9311a23e73c9141b57bb04fe43a412d2c86f4cd7b303dd654971d557fc53727",
+        "origins": [
+          "json-evidence-path"
+        ],
+        "includedForLanding": "candidate supporting evidence; Root selects and reviews content",
+        "contentsDisplayedOrSemanticallyReviewed": false
+      },
+      {
+        "path": "audit/evidence/execution-ledger.json",
+        "bytes": 70101,
+        "sha256": "7c8f199129f2e8e01f0517ba0f7e9dcfe73b49974776ded05d953a9161431446",
+        "origins": [
+          "markdown-evidence-path",
+          "markdown-link"
+        ],
+        "includedForLanding": "candidate supporting evidence; Root selects and reviews content",
+        "contentsDisplayedOrSemanticallyReviewed": false
+      },
+      {
+        "path": "audit/evidence/final-custody.json",
+        "bytes": 1056774,
+        "sha256": "2ce0fd142eba90835fe48d98fe7237bc5582351663b000aa39acd968805cc749",
+        "origins": [
+          "json-evidence-path",
+          "markdown-evidence-path",
+          "markdown-link"
+        ],
+        "includedForLanding": "candidate supporting evidence; Root selects and reviews content",
+        "contentsDisplayedOrSemanticallyReviewed": false
+      },
+      {
+        "path": "audit/evidence/fixture-syntax-validation.log",
+        "bytes": 366,
+        "sha256": "193e671db4e68dea0af1871a78de6cff0e2f1bad400eece151b13b3462753bd6",
+        "origins": [
+          "json-evidence-path",
+          "markdown-evidence-path",
+          "markdown-link"
+        ],
+        "includedForLanding": "candidate supporting evidence; Root selects and reviews content",
+        "contentsDisplayedOrSemanticallyReviewed": false
+      },
+      {
+        "path": "audit/evidence/fresh-choreography/m1-attempt2/receipts.jsonl",
+        "bytes": 4212,
+        "sha256": "6f6dfd6a38ef0c5566b4ca3311182ddd5da58963111158e81fe5138607d20f65",
+        "origins": [
+          "json-evidence-path",
+          "markdown-evidence-path",
+          "markdown-link"
+        ],
+        "includedForLanding": "candidate supporting evidence; Root selects and reviews content",
+        "contentsDisplayedOrSemanticallyReviewed": false
+      },
+      {
+        "path": "audit/evidence/fresh-choreography/m2-attempt1/receipts.jsonl",
+        "bytes": 10082,
+        "sha256": "336510ad80aea132771764474796f22ebe95419a519af6e9cc82bd50f2b20627",
+        "origins": [
+          "json-evidence-path",
+          "markdown-evidence-path",
+          "markdown-link"
+        ],
+        "includedForLanding": "candidate supporting evidence; Root selects and reviews content",
+        "contentsDisplayedOrSemanticallyReviewed": false
+      },
+      {
+        "path": "audit/evidence/fresh-choreography/m3-attempt1/receipts.jsonl",
+        "bytes": 8606,
+        "sha256": "213660e3e986509eef79422ea3b2757e7ac988cecfc002755f5300eca8c5d417",
+        "origins": [
+          "json-evidence-path",
+          "markdown-evidence-path",
+          "markdown-link"
+        ],
+        "includedForLanding": "candidate supporting evidence; Root selects and reviews content",
+        "contentsDisplayedOrSemanticallyReviewed": false
+      },
+      {
+        "path": "audit/evidence/fresh-choreography/m4-attempt1/receipts.jsonl",
+        "bytes": 6967,
+        "sha256": "a4d57248bbd9ba722ece384d1bf1b647513b5f21a263814d367a522e4455fd40",
+        "origins": [
+          "json-evidence-path",
+          "markdown-evidence-path",
+          "markdown-link"
+        ],
+        "includedForLanding": "candidate supporting evidence; Root selects and reviews content",
+        "contentsDisplayedOrSemanticallyReviewed": false
+      },
+      {
+        "path": "audit/evidence/fresh-choreography/m5-attempt1/receipts.jsonl",
+        "bytes": 5012,
+        "sha256": "e901381963503170cbc24476d72e1d93785ff12656c3f1b07e5589619bb765c2",
+        "origins": [
+          "json-evidence-path",
+          "markdown-evidence-path",
+          "markdown-link"
+        ],
+        "includedForLanding": "candidate supporting evidence; Root selects and reviews content",
+        "contentsDisplayedOrSemanticallyReviewed": false
+      },
+      {
+        "path": "audit/evidence/fresh-choreography/m6-attempt1/receipts.jsonl",
+        "bytes": 3130,
+        "sha256": "4953a2b01e34fa06480703a8c4f3fce467e1206592db0e6e68684fa2036664a7",
+        "origins": [
+          "json-evidence-path"
+        ],
+        "includedForLanding": "candidate supporting evidence; Root selects and reviews content",
+        "contentsDisplayedOrSemanticallyReviewed": false
+      },
+      {
+        "path": "audit/evidence/fresh-choreography/m8-attempt1/receipts.jsonl",
+        "bytes": 5476,
+        "sha256": "43eaf6321c8a9b6af1d2c1fdb97e160795c9d351ec95d93ab0b097eb5296ebfd",
+        "origins": [
+          "json-evidence-path",
+          "markdown-evidence-path",
+          "markdown-link"
+        ],
+        "includedForLanding": "candidate supporting evidence; Root selects and reviews content",
+        "contentsDisplayedOrSemanticallyReviewed": false
+      },
+      {
+        "path": "audit/evidence/fresh-suites/m1/suite-m1.json",
+        "bytes": 1549,
+        "sha256": "d78044ba81908afc448f3129e03175f48eebce811fca8c894ff21d79815e5291",
+        "origins": [
+          "json-evidence-path",
+          "markdown-evidence-path",
+          "markdown-link"
+        ],
+        "includedForLanding": "candidate supporting evidence; Root selects and reviews content",
+        "contentsDisplayedOrSemanticallyReviewed": false
+      },
+      {
+        "path": "audit/evidence/fresh-suites/m2/suite-m2.json",
+        "bytes": 5124,
+        "sha256": "601524bd6270533dc2eb9a335bdb206ab735b924946e2a8d65577e006bbf1c1e",
+        "origins": [
+          "json-evidence-path",
+          "markdown-evidence-path",
+          "markdown-link"
+        ],
+        "includedForLanding": "candidate supporting evidence; Root selects and reviews content",
+        "contentsDisplayedOrSemanticallyReviewed": false
+      },
+      {
+        "path": "audit/evidence/fresh-suites/m3/suite-m3.json",
+        "bytes": 6393,
+        "sha256": "e1424d41f5f2ea8ebd82f989685f9d725baa594026373d47705c297acb5abc65",
+        "origins": [
+          "json-evidence-path",
+          "markdown-evidence-path",
+          "markdown-link"
+        ],
+        "includedForLanding": "candidate supporting evidence; Root selects and reviews content",
+        "contentsDisplayedOrSemanticallyReviewed": false
+      },
+      {
+        "path": "audit/evidence/fresh-suites/m4/suite-m4.json",
+        "bytes": 7176,
+        "sha256": "0a0c61aa6dc6c726c1a792ac3a4f77ee9bf07f945ca9f39554e3803b06860aad",
+        "origins": [
+          "json-evidence-path",
+          "markdown-evidence-path",
+          "markdown-link"
+        ],
+        "includedForLanding": "candidate supporting evidence; Root selects and reviews content",
+        "contentsDisplayedOrSemanticallyReviewed": false
+      },
+      {
+        "path": "audit/evidence/fresh-suites/m5/suite-m5.json",
+        "bytes": 8293,
+        "sha256": "f0f54e96f1f9add118c82247ebdf1973d1b617ab5a1ac29fb40108f2be3838c6",
+        "origins": [
+          "json-evidence-path",
+          "markdown-evidence-path",
+          "markdown-link"
+        ],
+        "includedForLanding": "candidate supporting evidence; Root selects and reviews content",
+        "contentsDisplayedOrSemanticallyReviewed": false
+      },
+      {
+        "path": "audit/evidence/fresh-suites/m6/suite-m6.json",
+        "bytes": 9251,
+        "sha256": "78fa74c160f75416cbfd1a0a749649f9bc3cef5f642d1dd2a603c5f98e34c27e",
+        "origins": [
+          "json-evidence-path",
+          "markdown-evidence-path",
+          "markdown-link"
+        ],
+        "includedForLanding": "candidate supporting evidence; Root selects and reviews content",
+        "contentsDisplayedOrSemanticallyReviewed": false
+      },
+      {
+        "path": "audit/evidence/fresh-suites/m8/suite-m8.json",
+        "bytes": 10283,
+        "sha256": "2e7754936c8c28adb6baf9142bc461508f798c092469bed2c2712387868570cc",
+        "origins": [
+          "json-evidence-path",
+          "markdown-evidence-path",
+          "markdown-link"
+        ],
+        "includedForLanding": "candidate supporting evidence; Root selects and reviews content",
+        "contentsDisplayedOrSemanticallyReviewed": false
+      },
+      {
+        "path": "audit/evidence/independent-api/results.json",
+        "bytes": 1031,
+        "sha256": "1a08471ea6473d2a9ca8a1f632cf6593cdad285bab7715edc0887edaf788a94d",
+        "origins": [
+          "json-evidence-path",
+          "markdown-evidence-path",
+          "markdown-link"
+        ],
+        "includedForLanding": "candidate supporting evidence; Root selects and reviews content",
+        "contentsDisplayedOrSemanticallyReviewed": false
+      },
+      {
+        "path": "audit/evidence/independent-web/results.json",
+        "bytes": 7647,
+        "sha256": "b811b49c3e9854373859d14233501aaa558f3dac039dca93f328e57343bccbc5",
+        "origins": [
+          "json-evidence-path",
+          "markdown-evidence-path",
+          "markdown-link"
+        ],
+        "includedForLanding": "candidate supporting evidence; Root selects and reviews content",
+        "contentsDisplayedOrSemanticallyReviewed": false
+      },
+      {
+        "path": "audit/evidence/named-temporal/results.json",
+        "bytes": 8923,
+        "sha256": "f7ff6ab2d7d59e96fac074f536e2fbd705e2739ddcf4797705c47fee239a6211",
+        "origins": [
+          "json-evidence-path",
+          "markdown-evidence-path",
+          "markdown-link"
+        ],
+        "includedForLanding": "candidate supporting evidence; Root selects and reviews content",
+        "contentsDisplayedOrSemanticallyReviewed": false
+      },
+      {
+        "path": "audit/evidence/original-native-artifact-inventory.json",
+        "bytes": 35304,
+        "sha256": "2740b9558477d1ff86906c7d708f26730f8025a3f6818acef01a86f808acb2ea",
+        "origins": [
+          "json-evidence-path",
+          "markdown-evidence-path",
+          "markdown-link"
+        ],
+        "includedForLanding": "candidate supporting evidence; Root selects and reviews content",
+        "contentsDisplayedOrSemanticallyReviewed": false
+      },
+      {
+        "path": "audit/evidence/original-receipts/choreo-m1.jsonl",
+        "bytes": 4022,
+        "sha256": "1575acffb36e37b5b3a549d5fd3bcc0daa1682febedd0ed2e50d15f1fffbeb60",
+        "origins": [
+          "json-evidence-path"
+        ],
+        "includedForLanding": "candidate supporting evidence; Root selects and reviews content",
+        "contentsDisplayedOrSemanticallyReviewed": false
+      },
+      {
+        "path": "audit/evidence/original-receipts/choreo-m2.jsonl",
+        "bytes": 9795,
+        "sha256": "3eecb126e7f495c3364f8b91845b51fcbfc7f5a87f5f0a87f8c86fa73813a2dc",
+        "origins": [
+          "json-evidence-path"
+        ],
+        "includedForLanding": "candidate supporting evidence; Root selects and reviews content",
+        "contentsDisplayedOrSemanticallyReviewed": false
+      },
+      {
+        "path": "audit/evidence/original-receipts/choreo-m3.jsonl",
+        "bytes": 8500,
+        "sha256": "a210b3fe8f77573e72a6ae3828128cf071e32ed76b4d8fa7253f75f5d651d856",
+        "origins": [
+          "json-evidence-path"
+        ],
+        "includedForLanding": "candidate supporting evidence; Root selects and reviews content",
+        "contentsDisplayedOrSemanticallyReviewed": false
+      },
+      {
+        "path": "audit/evidence/original-receipts/choreo-m4.jsonl",
+        "bytes": 6843,
+        "sha256": "265519227cd54aa80129f45e1f8bd1c4eb0f51d80223fd109121d3b0bf2e247b",
+        "origins": [
+          "json-evidence-path"
+        ],
+        "includedForLanding": "candidate supporting evidence; Root selects and reviews content",
+        "contentsDisplayedOrSemanticallyReviewed": false
+      },
+      {
+        "path": "audit/evidence/owner-1-restart-cleanup.json",
+        "bytes": 1041,
+        "sha256": "b5c6c825a967bfaf5dc96a535fd4337e0d8b1bf0d0b87c10528018c2783f96a8",
+        "origins": [
+          "json-evidence-path"
+        ],
+        "includedForLanding": "candidate supporting evidence; Root selects and reviews content",
+        "contentsDisplayedOrSemanticallyReviewed": false
+      },
+      {
+        "path": "audit/evidence/owner-2-final-cleanup.json",
+        "bytes": 1041,
+        "sha256": "0d05bea672f2f73541f0c44dba80aaa4c37c5a0eac160c80dfa12b9afd54c16f",
+        "origins": [
+          "json-evidence-path"
+        ],
+        "includedForLanding": "candidate supporting evidence; Root selects and reviews content",
+        "contentsDisplayedOrSemanticallyReviewed": false
+      },
+      {
+        "path": "audit/evidence/phases/acceptance-m1-1/terminal.json",
+        "bytes": 1446,
+        "sha256": "eb62e5d2f1de8d8efdf0e262c128679d608a7222e9166fe41cf5009bc6557092",
+        "origins": [
+          "markdown-evidence-path",
+          "markdown-link"
+        ],
+        "includedForLanding": "candidate supporting evidence; Root selects and reviews content",
+        "contentsDisplayedOrSemanticallyReviewed": false
+      },
+      {
+        "path": "audit/evidence/phases/acceptance-m2-1/terminal.json",
+        "bytes": 1448,
+        "sha256": "2c7d1d11ddcf3aa1a950b4935ff94f7b46719e76152624f1923fed4b9327cb89",
+        "origins": [
+          "markdown-evidence-path",
+          "markdown-link"
+        ],
+        "includedForLanding": "candidate supporting evidence; Root selects and reviews content",
+        "contentsDisplayedOrSemanticallyReviewed": false
+      },
+      {
+        "path": "audit/evidence/phases/acceptance-m3-1/terminal.json",
+        "bytes": 1447,
+        "sha256": "7e2520e555ee7cdc06010d93d1ef6e1e6bac9ef10fc7417d5aa3f4d758e615d6",
+        "origins": [
+          "markdown-evidence-path",
+          "markdown-link"
+        ],
+        "includedForLanding": "candidate supporting evidence; Root selects and reviews content",
+        "contentsDisplayedOrSemanticallyReviewed": false
+      },
+      {
+        "path": "audit/evidence/phases/acceptance-m4-1/terminal.json",
+        "bytes": 1448,
+        "sha256": "618103515cc940d091f802e26b22d1bf26ff9840003f327b73502888d3963af7",
+        "origins": [
+          "markdown-evidence-path",
+          "markdown-link"
+        ],
+        "includedForLanding": "candidate supporting evidence; Root selects and reviews content",
+        "contentsDisplayedOrSemanticallyReviewed": false
+      },
+      {
+        "path": "audit/evidence/phases/acceptance-m5-1/terminal.json",
+        "bytes": 1448,
+        "sha256": "16fe004a6181bd4aee0324286e972d93d1999269d4e822da7ad75a003b7b7db1",
+        "origins": [
+          "markdown-evidence-path",
+          "markdown-link"
+        ],
+        "includedForLanding": "candidate supporting evidence; Root selects and reviews content",
+        "contentsDisplayedOrSemanticallyReviewed": false
+      },
+      {
+        "path": "audit/evidence/phases/acceptance-m6-1/terminal.json",
+        "bytes": 1423,
+        "sha256": "61f7551fdc8889138db9417020dd70b168d2ac3b4ff26b1cf8de94446ec90706",
+        "origins": [
+          "markdown-evidence-path",
+          "markdown-link"
+        ],
+        "includedForLanding": "candidate supporting evidence; Root selects and reviews content",
+        "contentsDisplayedOrSemanticallyReviewed": false
+      },
+      {
+        "path": "audit/evidence/phases/acceptance-m8-1/terminal.json",
+        "bytes": 1448,
+        "sha256": "81a3f2f613bc395ccfe4d36469bce958bb574ad401d42c136d60ba51ac795252",
+        "origins": [
+          "markdown-evidence-path",
+          "markdown-link"
+        ],
+        "includedForLanding": "candidate supporting evidence; Root selects and reviews content",
+        "contentsDisplayedOrSemanticallyReviewed": false
+      },
+      {
+        "path": "audit/evidence/phases/app-npm10-ci/terminal.json",
+        "bytes": 1260,
+        "sha256": "78d883499240936701801468652dc72ceceb3591f31e7f1abb4546dd20ef3461",
+        "origins": [
+          "json-evidence-path",
+          "markdown-evidence-path",
+          "markdown-link"
+        ],
+        "includedForLanding": "candidate supporting evidence; Root selects and reviews content",
+        "contentsDisplayedOrSemanticallyReviewed": false
+      },
+      {
+        "path": "audit/evidence/phases/choreography-m1-1/terminal.json",
+        "bytes": 1863,
+        "sha256": "b8a2c92aada42e38c3395ef79e45fef67345d1c1e1adfb0cd5533a582ab8a496",
+        "origins": [
+          "markdown-evidence-path",
+          "markdown-link"
+        ],
+        "includedForLanding": "candidate supporting evidence; Root selects and reviews content",
+        "contentsDisplayedOrSemanticallyReviewed": false
+      },
+      {
+        "path": "audit/evidence/phases/choreography-m1-2/terminal.json",
+        "bytes": 3020,
+        "sha256": "854673b23547c366f61ed0528d12940ab5faa2619e72f7227a0fac5eccac9b94",
+        "origins": [
+          "markdown-evidence-path",
+          "markdown-link"
+        ],
+        "includedForLanding": "candidate supporting evidence; Root selects and reviews content",
+        "contentsDisplayedOrSemanticallyReviewed": false
+      },
+      {
+        "path": "audit/evidence/phases/choreography-m2-1/terminal.json",
+        "bytes": 3135,
+        "sha256": "744f1bb76ef533780e7c56a75e300ccfa2ba120e6bd6af38489f9af6ad269018",
+        "origins": [
+          "markdown-evidence-path",
+          "markdown-link"
+        ],
+        "includedForLanding": "candidate supporting evidence; Root selects and reviews content",
+        "contentsDisplayedOrSemanticallyReviewed": false
+      },
+      {
+        "path": "audit/evidence/phases/choreography-m3-1/terminal.json",
+        "bytes": 3875,
+        "sha256": "2335e6b989e0abca50b830911100fa154a8cc0d1dcec545f54a7ab60c3960df9",
+        "origins": [
+          "markdown-evidence-path",
+          "markdown-link"
+        ],
+        "includedForLanding": "candidate supporting evidence; Root selects and reviews content",
+        "contentsDisplayedOrSemanticallyReviewed": false
+      },
+      {
+        "path": "audit/evidence/phases/choreography-m4-1/terminal.json",
+        "bytes": 3131,
+        "sha256": "e549c44a167c8f25af1062fe6ca501290d5abbf3d00ce10f918cfdd984a7845b",
+        "origins": [
+          "markdown-evidence-path",
+          "markdown-link"
+        ],
+        "includedForLanding": "candidate supporting evidence; Root selects and reviews content",
+        "contentsDisplayedOrSemanticallyReviewed": false
+      },
+      {
+        "path": "audit/evidence/phases/choreography-m5-1/terminal.json",
+        "bytes": 3337,
+        "sha256": "149336b8e8a5bb96cdd93a44dfb11600d6a35585d0b1ae8cdfea6c2bda799a7a",
+        "origins": [
+          "markdown-evidence-path",
+          "markdown-link"
+        ],
+        "includedForLanding": "candidate supporting evidence; Root selects and reviews content",
+        "contentsDisplayedOrSemanticallyReviewed": false
+      },
+      {
+        "path": "audit/evidence/phases/choreography-m6-1/terminal.json",
+        "bytes": 3129,
+        "sha256": "fb876b4852b60ad201eef3c3f59ef7a5017ccb25c1ba74a0f6c430c501e0449e",
+        "origins": [
+          "markdown-evidence-path",
+          "markdown-link"
+        ],
+        "includedForLanding": "candidate supporting evidence; Root selects and reviews content",
+        "contentsDisplayedOrSemanticallyReviewed": false
+      },
+      {
+        "path": "audit/evidence/phases/choreography-m8-1/terminal.json",
+        "bytes": 3377,
+        "sha256": "e3e2aa14233f307778c2abb6a47239e3c637f7aa0d2517b23eff8b80acc167f2",
+        "origins": [
+          "markdown-evidence-path",
+          "markdown-link"
+        ],
+        "includedForLanding": "candidate supporting evidence; Root selects and reviews content",
+        "contentsDisplayedOrSemanticallyReviewed": false
+      },
+      {
+        "path": "audit/evidence/phases/choreography-package-acquisition/terminal.json",
+        "bytes": 1623,
+        "sha256": "4cff7dd7d66dd22c62242da8c6debc98404c9befe2b6df8dd579ee13c1990b27",
+        "origins": [
+          "markdown-evidence-path",
+          "markdown-link"
+        ],
+        "includedForLanding": "candidate supporting evidence; Root selects and reviews content",
+        "contentsDisplayedOrSemanticallyReviewed": false
+      },
+      {
+        "path": "audit/evidence/phases/cli-dev-help/terminal.json",
+        "bytes": 1479,
+        "sha256": "c658def9e87d2de4d4cb334bcc6d15f9d232c139c5d5150ef74a34dd0c22f250",
+        "origins": [
+          "markdown-evidence-path",
+          "markdown-link"
+        ],
+        "includedForLanding": "candidate supporting evidence; Root selects and reviews content",
+        "contentsDisplayedOrSemanticallyReviewed": false
+      },
+      {
+        "path": "audit/evidence/phases/custom-client-demo-1/terminal.json",
+        "bytes": 1236,
+        "sha256": "8ff8c2206f37af8d768bdbb5c2cdc28009df5615c493274cc00b972b4303f767",
+        "origins": [
+          "markdown-evidence-path",
+          "markdown-link"
+        ],
+        "includedForLanding": "candidate supporting evidence; Root selects and reviews content",
+        "contentsDisplayedOrSemanticallyReviewed": false
+      },
+      {
+        "path": "audit/evidence/phases/fixture-grammar-validation/terminal.json",
+        "bytes": 1205,
+        "sha256": "65c959cf0539f75643a7bb25a2055cb67552139454e2a5631cd6014b9528aeb3",
+        "origins": [
+          "markdown-evidence-path",
+          "markdown-link"
+        ],
+        "includedForLanding": "candidate supporting evidence; Root selects and reviews content",
+        "contentsDisplayedOrSemanticallyReviewed": false
+      },
+      {
+        "path": "audit/evidence/phases/independent-api-1/terminal.json",
+        "bytes": 1152,
+        "sha256": "d6cb8f7dc68b3147d4edd93bdc1897b13bc8d4f693f84b815178f3e0bf9e285c",
+        "origins": [
+          "markdown-evidence-path",
+          "markdown-link"
+        ],
+        "includedForLanding": "candidate supporting evidence; Root selects and reviews content",
+        "contentsDisplayedOrSemanticallyReviewed": false
+      },
+      {
+        "path": "audit/evidence/phases/independent-api-2/terminal.json",
+        "bytes": 1152,
+        "sha256": "6241e7db8f9c0acdd63f16ef59d1faddb2e35ea2cc40fed54b09f8849703f944",
+        "origins": [
+          "markdown-evidence-path",
+          "markdown-link"
+        ],
+        "includedForLanding": "candidate supporting evidence; Root selects and reviews content",
+        "contentsDisplayedOrSemanticallyReviewed": false
+      },
+      {
+        "path": "audit/evidence/phases/independent-web-1/terminal.json",
+        "bytes": 3478,
+        "sha256": "8245fae3610ebe9b61413e5fb4d57f13200a4f10fef0c2c162a382e0ede0a8b1",
+        "origins": [
+          "markdown-evidence-path",
+          "markdown-link"
+        ],
+        "includedForLanding": "candidate supporting evidence; Root selects and reviews content",
+        "contentsDisplayedOrSemanticallyReviewed": false
+      },
+      {
+        "path": "audit/evidence/phases/named-temporal-1/terminal.json",
+        "bytes": 1160,
+        "sha256": "6bf273aedeb240a47f9301647f25d435018492164c6ad66009d3bb4cd3e9faf3",
+        "origins": [
+          "markdown-evidence-path",
+          "markdown-link"
+        ],
+        "includedForLanding": "candidate supporting evidence; Root selects and reviews content",
+        "contentsDisplayedOrSemanticallyReviewed": false
+      },
+      {
+        "path": "audit/evidence/phases/owner-1/terminal.json",
+        "bytes": 1640,
+        "sha256": "76a17315ccc581e467d94fed48950e6ce8491d38c812eaf970246a511e4eb4f2",
+        "origins": [
+          "markdown-evidence-path",
+          "markdown-link"
+        ],
+        "includedForLanding": "candidate supporting evidence; Root selects and reviews content",
+        "contentsDisplayedOrSemanticallyReviewed": false
+      },
+      {
+        "path": "audit/evidence/phases/owner-2/terminal.json",
+        "bytes": 1639,
+        "sha256": "843d8eb988d3b3722e39cdddbcc8eba817b25c17ea0448396062788e0812e46e",
+        "origins": [
+          "markdown-evidence-path",
+          "markdown-link"
+        ],
+        "includedForLanding": "candidate supporting evidence; Root selects and reviews content",
+        "contentsDisplayedOrSemanticallyReviewed": false
+      },
+      {
+        "path": "audit/evidence/phases/receipt-schema-validation/terminal.json",
+        "bytes": 1163,
+        "sha256": "9fd3f0764837cba19280111363ae3becc074153c013d624ec9f596bf995a5a92",
+        "origins": [
+          "markdown-evidence-path",
+          "markdown-link"
+        ],
+        "includedForLanding": "candidate supporting evidence; Root selects and reviews content",
+        "contentsDisplayedOrSemanticallyReviewed": false
+      },
+      {
+        "path": "audit/evidence/phases/receipt-semantics-verification/terminal.json",
+        "bytes": 1119,
+        "sha256": "2d8195571a7104df991fd77e27bc07344b140d3310aec5d307cffa5d9493587c",
+        "origins": [
+          "markdown-evidence-path",
+          "markdown-link"
+        ],
+        "includedForLanding": "candidate supporting evidence; Root selects and reviews content",
+        "contentsDisplayedOrSemanticallyReviewed": false
+      },
+      {
+        "path": "audit/evidence/phases/replay-idempotence-and-sample-1/terminal.json",
+        "bytes": 1167,
+        "sha256": "52e25889ddf420b3a7f3c8dd27e6f05fe57d6e6be0408a4cb4fdedc25c7dcf94",
+        "origins": [
+          "markdown-evidence-path",
+          "markdown-link"
+        ],
+        "includedForLanding": "candidate supporting evidence; Root selects and reviews content",
+        "contentsDisplayedOrSemanticallyReviewed": false
+      },
+      {
+        "path": "audit/evidence/phases/seed-m1-1/terminal.json",
+        "bytes": 1421,
+        "sha256": "fae5b05f0eca93623b7646dccd5f16866e4f33e8122f4a7aad9da99fef999556",
+        "origins": [
+          "markdown-evidence-path",
+          "markdown-link"
+        ],
+        "includedForLanding": "candidate supporting evidence; Root selects and reviews content",
+        "contentsDisplayedOrSemanticallyReviewed": false
+      },
+      {
+        "path": "audit/evidence/phases/seed-m2-1/terminal.json",
+        "bytes": 1423,
+        "sha256": "a2c3f60a441e5ef014ec5008ae58761501638af1ba27e4c3e02c2edc53a98ad9",
+        "origins": [
+          "markdown-evidence-path",
+          "markdown-link"
+        ],
+        "includedForLanding": "candidate supporting evidence; Root selects and reviews content",
+        "contentsDisplayedOrSemanticallyReviewed": false
+      },
+      {
+        "path": "audit/evidence/phases/seed-m3-1/terminal.json",
+        "bytes": 1427,
+        "sha256": "d8e84b29174022f82ff68e155434745a91a2619a64e676b04c94c562ba17eca0",
+        "origins": [
+          "markdown-evidence-path",
+          "markdown-link"
+        ],
+        "includedForLanding": "candidate supporting evidence; Root selects and reviews content",
+        "contentsDisplayedOrSemanticallyReviewed": false
+      },
+      {
+        "path": "audit/evidence/phases/web-1/terminal.json",
+        "bytes": 3948,
+        "sha256": "4edbd2e7c8d0622003283aed31a853d7ee57f431210da68661e47692966f25b1",
+        "origins": [
+          "markdown-evidence-path",
+          "markdown-link"
+        ],
+        "includedForLanding": "candidate supporting evidence; Root selects and reviews content",
+        "contentsDisplayedOrSemanticallyReviewed": false
+      },
+      {
+        "path": "audit/evidence/phases/web-2/terminal.json",
+        "bytes": 2429,
+        "sha256": "882c7a166391a5fda97b3357eb57a170a8835d56ea94f97241ba92773a4af218",
+        "origins": [
+          "markdown-evidence-path",
+          "markdown-link"
+        ],
+        "includedForLanding": "candidate supporting evidence; Root selects and reviews content",
+        "contentsDisplayedOrSemanticallyReviewed": false
+      },
+      {
+        "path": "audit/evidence/preparation-corrections.json",
+        "bytes": 969,
+        "sha256": "a726949b6522317a7fe33886a22700ed7d10d0443d1f8483387ddd1de906852b",
+        "origins": [
+          "json-evidence-path"
+        ],
+        "includedForLanding": "candidate supporting evidence; Root selects and reviews content",
+        "contentsDisplayedOrSemanticallyReviewed": false
+      },
+      {
+        "path": "audit/evidence/published-package-docs/auth.md",
+        "bytes": 4092,
+        "sha256": "b1a0c09c5e3e9530e1ed63159638fec4fd02959368dc4c8723c19d8725044afc",
+        "origins": [
+          "json-evidence-path",
+          "markdown-evidence-path",
+          "markdown-link"
+        ],
+        "includedForLanding": "candidate supporting evidence; Root selects and reviews content",
+        "contentsDisplayedOrSemanticallyReviewed": false
+      },
+      {
+        "path": "audit/evidence/receipt-schema-validation.json",
+        "bytes": 17876,
+        "sha256": "b640b242bc226dc0dfbda2b427c88c543f1d74a8dc6235a35addccc5850a5058",
+        "origins": [
+          "markdown-evidence-path",
+          "markdown-link"
+        ],
+        "includedForLanding": "candidate supporting evidence; Root selects and reviews content",
+        "contentsDisplayedOrSemanticallyReviewed": false
+      },
+      {
+        "path": "audit/evidence/receipt-semantics-verification.json",
+        "bytes": 4770,
+        "sha256": "bdcf6ccf37f53d059634662254d3c4080298242440712d5e534c649c37e933d1",
+        "origins": [
+          "json-evidence-path",
+          "markdown-evidence-path",
+          "markdown-link"
+        ],
+        "includedForLanding": "candidate supporting evidence; Root selects and reviews content",
+        "contentsDisplayedOrSemanticallyReviewed": false
+      },
+      {
+        "path": "audit/evidence/replay-checks/idempotence.json",
+        "bytes": 21721,
+        "sha256": "d632a6fea9fbfd669269e038eaea79fdabebeadcdcf768263620903bc6e745fb",
+        "origins": [
+          "json-evidence-path",
+          "markdown-evidence-path",
+          "markdown-link"
+        ],
+        "includedForLanding": "candidate supporting evidence; Root selects and reviews content",
+        "contentsDisplayedOrSemanticallyReviewed": false
+      },
+      {
+        "path": "audit/evidence/replay-checks/sample-50.json",
+        "bytes": 4878,
+        "sha256": "6802e4bdb58c5920846d9682a94ee5adaeb027ad96e287c879c8774df02ab57a",
+        "origins": [
+          "json-evidence-path",
+          "markdown-evidence-path",
+          "markdown-link"
+        ],
+        "includedForLanding": "candidate supporting evidence; Root selects and reviews content",
+        "contentsDisplayedOrSemanticallyReviewed": false
+      },
+      {
+        "path": "audit/evidence/setup-identity.diff",
+        "bytes": 1072,
+        "sha256": "96fd05d8af2751627c1320725db2d6296442ed446282f95d27d1424dccbf6265",
+        "origins": [
+          "json-evidence-path",
+          "markdown-evidence-path",
+          "markdown-link"
+        ],
+        "includedForLanding": "candidate supporting evidence; Root selects and reviews content",
+        "contentsDisplayedOrSemanticallyReviewed": false
+      },
+      {
+        "path": "audit/evidence/source-manifest-before.json",
+        "bytes": 136489,
+        "sha256": "3484e0a9e642d9ffed600cf9327bf7e31388ef2db7916ad2b06255194f4fc241",
+        "origins": [
+          "json-evidence-path"
+        ],
+        "includedForLanding": "candidate supporting evidence; Root selects and reviews content",
+        "contentsDisplayedOrSemanticallyReviewed": false
+      },
+      {
+        "path": "audit/evidence/toolchain-verification-before.json",
+        "bytes": 365625,
+        "sha256": "b47555dcebb9c1b911dfee6a0aa3d1fcc76083405a99d78384feb246271c1262",
+        "origins": [
+          "json-evidence-path"
+        ],
+        "includedForLanding": "candidate supporting evidence; Root selects and reviews content",
+        "contentsDisplayedOrSemanticallyReviewed": false
+      },
+      {
+        "path": "audit/evidence/web-1-cleanup.json",
+        "bytes": 2149,
+        "sha256": "64a9b262c51d2b5569062454e075daec9e026a0f9e078b700a2eb2be4115eb8b",
+        "origins": [
+          "json-evidence-path"
+        ],
+        "includedForLanding": "candidate supporting evidence; Root selects and reviews content",
+        "contentsDisplayedOrSemanticallyReviewed": false
+      },
+      {
+        "path": "audit/evidence/web-2-final-cleanup.json",
+        "bytes": 2295,
+        "sha256": "ec273a1a774307ce467c72ab0b4ddefd2c41f346c4ec2b8d81c21e18ac3a737a",
+        "origins": [
+          "json-evidence-path"
+        ],
+        "includedForLanding": "candidate supporting evidence; Root selects and reviews content",
+        "contentsDisplayedOrSemanticallyReviewed": false
+      },
+      {
+        "path": "audit/harness/api-audit-v2.mjs",
+        "includedForLanding": false,
+        "reason": "source/tool/private-state reference; retain externally, do not copy into concise landing"
+      },
+      {
+        "path": "audit/harness/api-audit-v3.mjs",
+        "includedForLanding": false,
+        "reason": "source/tool/private-state reference; retain externally, do not copy into concise landing"
+      },
+      {
+        "path": "audit/harness/receipt-semantics.mjs",
+        "includedForLanding": false,
+        "reason": "source/tool/private-state reference; retain externally, do not copy into concise landing"
+      },
+      {
+        "path": "audit/harness/replay-checks.mjs",
+        "includedForLanding": false,
+        "reason": "source/tool/private-state reference; retain externally, do not copy into concise landing"
+      },
+      {
+        "path": "audit/harness/temporal-audit.mjs",
+        "includedForLanding": false,
+        "reason": "source/tool/private-state reference; retain externally, do not copy into concise landing"
+      },
+      {
+        "path": "audit/harness/validate-receipts.mjs",
+        "includedForLanding": false,
+        "reason": "source/tool/private-state reference; retain externally, do not copy into concise landing"
+      },
+      {
+        "path": "audit/harness/web-audit-v3.mjs",
+        "includedForLanding": false,
+        "reason": "source/tool/private-state reference; retain externally, do not copy into concise landing"
+      },
+      {
+        "path": "audit/harness/write-continuation-report.py",
+        "includedForLanding": false,
+        "reason": "source/tool/private-state reference; retain externally, do not copy into concise landing"
+      },
+      {
+        "path": "audit/instrument/schema/social-messenger/assertions.json",
+        "includedForLanding": false,
+        "reason": "source/tool/private-state reference; retain externally, do not copy into concise landing"
+      },
+      {
+        "path": "audit/lanes/grok-snapback2/API.md",
+        "includedForLanding": false,
+        "reason": "source/tool/private-state reference; retain externally, do not copy into concise landing"
+      },
+      {
+        "path": "audit/lanes/grok-snapback2/app/_layout.tsx",
+        "includedForLanding": false,
+        "reason": "source/tool/private-state reference; retain externally, do not copy into concise landing"
+      },
+      {
+        "path": "audit/lanes/grok-snapback2/app/auth.tsx",
+        "includedForLanding": false,
+        "reason": "source/tool/private-state reference; retain externally, do not copy into concise landing"
+      },
+      {
+        "path": "audit/lanes/grok-snapback2/app/conversation/group/[group]/settings.tsx",
+        "includedForLanding": false,
+        "reason": "source/tool/private-state reference; retain externally, do not copy into concise landing"
+      },
+      {
+        "path": "audit/lanes/grok-snapback2/app/index.tsx",
+        "includedForLanding": false,
+        "reason": "source/tool/private-state reference; retain externally, do not copy into concise landing"
+      },
+      {
+        "path": "audit/lanes/grok-snapback2/app/insights.tsx",
+        "includedForLanding": false,
+        "reason": "source/tool/private-state reference; retain externally, do not copy into concise landing"
+      },
+      {
+        "path": "audit/lanes/grok-snapback2/app/post/[id].tsx",
+        "includedForLanding": false,
+        "reason": "source/tool/private-state reference; retain externally, do not copy into concise landing"
+      },
+      {
+        "path": "audit/lanes/grok-snapback2/app/profile/[handle].tsx",
+        "includedForLanding": false,
+        "reason": "source/tool/private-state reference; retain externally, do not copy into concise landing"
+      },
+      {
+        "path": "audit/lanes/grok-snapback2/app/profile/edit.tsx",
+        "includedForLanding": false,
+        "reason": "source/tool/private-state reference; retain externally, do not copy into concise landing"
+      },
+      {
+        "path": "audit/lanes/grok-snapback2/app/search.tsx",
+        "includedForLanding": false,
+        "reason": "source/tool/private-state reference; retain externally, do not copy into concise landing"
+      },
+      {
+        "path": "audit/lanes/grok-snapback2/app/settings.tsx",
+        "includedForLanding": false,
+        "reason": "source/tool/private-state reference; retain externally, do not copy into concise landing"
+      },
+      {
+        "path": "audit/lanes/grok-snapback2/choreography/choreography.mjs",
+        "includedForLanding": false,
+        "reason": "source/tool/private-state reference; retain externally, do not copy into concise landing"
+      },
+      {
+        "path": "audit/lanes/grok-snapback2/config/windows.json",
+        "includedForLanding": false,
+        "reason": "source/tool/private-state reference; retain externally, do not copy into concise landing"
+      },
+      {
+        "path": "audit/lanes/grok-snapback2/instrument/fixtures/starter-m3.log",
+        "includedForLanding": false,
+        "reason": "source/tool/private-state reference; retain externally, do not copy into concise landing"
+      },
+      {
+        "path": "audit/lanes/grok-snapback2/lib/ComposeFile.web.tsx",
+        "includedForLanding": false,
+        "reason": "source/tool/private-state reference; retain externally, do not copy into concise landing"
+      },
+      {
+        "path": "audit/lanes/grok-snapback2/lib/ConversationView.tsx",
+        "includedForLanding": false,
+        "reason": "source/tool/private-state reference; retain externally, do not copy into concise landing"
+      },
+      {
+        "path": "audit/lanes/grok-snapback2/lib/IncomingAck.tsx",
+        "includedForLanding": false,
+        "reason": "source/tool/private-state reference; retain externally, do not copy into concise landing"
+      },
+      {
+        "path": "audit/lanes/grok-snapback2/lib/snapback.tsx",
+        "includedForLanding": false,
+        "reason": "source/tool/private-state reference; retain externally, do not copy into concise landing"
+      },
+      {
+        "path": "audit/lanes/grok-snapback2/lib/terms.ts",
+        "includedForLanding": false,
+        "reason": "source/tool/private-state reference; retain externally, do not copy into concise landing"
+      },
+      {
+        "path": "audit/lanes/grok-snapback2/receipts/coverage-m1.json",
+        "includedForLanding": false,
+        "reason": "source/tool/private-state reference; retain externally, do not copy into concise landing"
+      },
+      {
+        "path": "audit/lanes/grok-snapback2/receipts/coverage-m2.json",
+        "includedForLanding": false,
+        "reason": "source/tool/private-state reference; retain externally, do not copy into concise landing"
+      },
+      {
+        "path": "audit/lanes/grok-snapback2/receipts/coverage-m3.json",
+        "includedForLanding": false,
+        "reason": "source/tool/private-state reference; retain externally, do not copy into concise landing"
+      },
+      {
+        "path": "audit/lanes/grok-snapback2/receipts/coverage-m4.json",
+        "includedForLanding": false,
+        "reason": "source/tool/private-state reference; retain externally, do not copy into concise landing"
+      },
+      {
+        "path": "audit/lanes/grok-snapback2/receipts/coverage-m5.json",
+        "includedForLanding": false,
+        "reason": "source/tool/private-state reference; retain externally, do not copy into concise landing"
+      },
+      {
+        "path": "audit/lanes/grok-snapback2/receipts/coverage-m6.json",
+        "includedForLanding": false,
+        "reason": "source/tool/private-state reference; retain externally, do not copy into concise landing"
+      },
+      {
+        "path": "audit/lanes/grok-snapback2/receipts/coverage-m8.json",
+        "includedForLanding": false,
+        "reason": "source/tool/private-state reference; retain externally, do not copy into concise landing"
+      },
+      {
+        "path": "audit/lanes/grok-snapback2/receipts/suite-m1.json",
+        "includedForLanding": false,
+        "reason": "source/tool/private-state reference; retain externally, do not copy into concise landing"
+      },
+      {
+        "path": "audit/lanes/grok-snapback2/receipts/suite-m2.json",
+        "includedForLanding": false,
+        "reason": "source/tool/private-state reference; retain externally, do not copy into concise landing"
+      },
+      {
+        "path": "audit/lanes/grok-snapback2/receipts/suite-m3.json",
+        "includedForLanding": false,
+        "reason": "source/tool/private-state reference; retain externally, do not copy into concise landing"
+      },
+      {
+        "path": "audit/lanes/grok-snapback2/receipts/suite-m4.json",
+        "includedForLanding": false,
+        "reason": "source/tool/private-state reference; retain externally, do not copy into concise landing"
+      },
+      {
+        "path": "audit/lanes/grok-snapback2/receipts/suite-m5.json",
+        "includedForLanding": false,
+        "reason": "source/tool/private-state reference; retain externally, do not copy into concise landing"
+      },
+      {
+        "path": "audit/lanes/grok-snapback2/receipts/suite-m6.json",
+        "includedForLanding": false,
+        "reason": "source/tool/private-state reference; retain externally, do not copy into concise landing"
+      },
+      {
+        "path": "audit/lanes/grok-snapback2/receipts/suite-m8.json",
+        "includedForLanding": false,
+        "reason": "source/tool/private-state reference; retain externally, do not copy into concise landing"
+      },
+      {
+        "path": "audit/lanes/grok-snapback2/scripts/acceptance.mjs",
+        "includedForLanding": false,
+        "reason": "source/tool/private-state reference; retain externally, do not copy into concise landing"
+      },
+      {
+        "path": "audit/lanes/grok-snapback2/scripts/custom-client-demo.mjs",
+        "includedForLanding": false,
+        "reason": "source/tool/private-state reference; retain externally, do not copy into concise landing"
+      },
+      {
+        "path": "audit/lanes/grok-snapback2/scripts/lib/replay.mjs",
+        "includedForLanding": false,
+        "reason": "source/tool/private-state reference; retain externally, do not copy into concise landing"
+      },
+      {
+        "path": "audit/lanes/grok-snapback2/scripts/presence.mjs",
+        "includedForLanding": false,
+        "reason": "source/tool/private-state reference; retain externally, do not copy into concise landing"
+      },
+      {
+        "path": "audit/lanes/grok-snapback2/snapback/feeds.q",
+        "includedForLanding": false,
+        "reason": "source/tool/private-state reference; retain externally, do not copy into concise landing"
+      },
+      {
+        "path": "audit/lanes/grok-snapback2/snapback/follows.q",
+        "includedForLanding": false,
+        "reason": "source/tool/private-state reference; retain externally, do not copy into concise landing"
+      },
+      {
+        "path": "audit/lanes/grok-snapback2/snapback/groups.q",
+        "includedForLanding": false,
+        "reason": "source/tool/private-state reference; retain externally, do not copy into concise landing"
+      },
+      {
+        "path": "audit/lanes/grok-snapback2/snapback/insights.q",
+        "includedForLanding": false,
+        "reason": "source/tool/private-state reference; retain externally, do not copy into concise landing"
+      },
+      {
+        "path": "audit/lanes/grok-snapback2/snapback/jobs.q",
+        "includedForLanding": false,
+        "reason": "source/tool/private-state reference; retain externally, do not copy into concise landing"
+      },
+      {
+        "path": "audit/lanes/grok-snapback2/snapback/messages.q",
+        "includedForLanding": false,
+        "reason": "source/tool/private-state reference; retain externally, do not copy into concise landing"
+      },
+      {
+        "path": "audit/lanes/grok-snapback2/snapback/posts.q",
+        "includedForLanding": false,
+        "reason": "source/tool/private-state reference; retain externally, do not copy into concise landing"
+      },
+      {
+        "path": "audit/lanes/grok-snapback2/snapback/schema.q",
+        "includedForLanding": false,
+        "reason": "source/tool/private-state reference; retain externally, do not copy into concise landing"
+      },
+      {
+        "path": "audit/lanes/grok-snapback2/snapback/search.q",
+        "includedForLanding": false,
+        "reason": "source/tool/private-state reference; retain externally, do not copy into concise landing"
+      },
+      {
+        "path": "audit/lanes/grok-snapback2/snapback/seed.ts",
+        "includedForLanding": false,
+        "reason": "source/tool/private-state reference; retain externally, do not copy into concise landing"
+      },
+      {
+        "path": "audit/lanes/grok-snapback2/ui/src/MessageBubble.tsx",
+        "includedForLanding": false,
+        "reason": "source/tool/private-state reference; retain externally, do not copy into concise landing"
+      },
+      {
+        "path": "audit/lanes/grok-snapback2/ui/src/ProfileForm.tsx",
+        "includedForLanding": false,
+        "reason": "source/tool/private-state reference; retain externally, do not copy into concise landing"
+      },
+      {
+        "path": "audit/lanes/grok-snapback2/ui/src/SearchBar.tsx",
+        "includedForLanding": false,
+        "reason": "source/tool/private-state reference; retain externally, do not copy into concise landing"
+      },
+      {
+        "path": "audit/lanes/grok-snapback2/ui/src/linkify.tsx",
+        "includedForLanding": false,
+        "reason": "source/tool/private-state reference; retain externally, do not copy into concise landing"
+      },
+      {
+        "path": "audit/lanes/lib/json-schema.mjs",
+        "includedForLanding": false,
+        "reason": "source/tool/private-state reference; retain externally, do not copy into concise landing"
+      },
+      {
+        "path": "grader-report.json",
+        "includedForLanding": false,
+        "reason": "source/tool/private-state reference; retain externally, do not copy into concise landing"
+      }
+    ],
+    "metadataOnlyEnumeration": true,
+    "rawBuilderOrModelLogsExcluded": true,
+    "privateStateAndSourceTreesRetainedExternally": true,
+    "evidenceContentsNotAutomaticallyClearedForLanding": true,
+    "rootOwnsSemanticSelectionAndLanding": true,
+    "supplementToInclude": "root-custody-supplement.json"
+  },
+  "inputReceipts": [
+    {
+      "path": "source-environment-correspondence.json",
+      "bytes": 3226,
+      "sha256": "e6e6c945235005677ea062e264fa83b4ae539e4e0b5aa02adb9c3b080ecacca9"
+    },
+    {
+      "path": "audit/evidence/source-manifest-before.json",
+      "bytes": 136489,
+      "sha256": "3484e0a9e642d9ffed600cf9327bf7e31388ef2db7916ad2b06255194f4fc241"
+    },
+    {
+      "path": "audit/evidence/final-custody.json",
+      "bytes": 1056774,
+      "sha256": "2ce0fd142eba90835fe48d98fe7237bc5582351663b000aa39acd968805cc749"
+    },
+    {
+      "path": "audit/evidence/historical-custody.json",
+      "bytes": 2877,
+      "sha256": "2bc6dfb13f5637cefeb72a986c105afa3ac451758c46231341a10ac94835fe8c"
+    },
+    {
+      "path": "audit/evidence/historical-evidence-alias-custody.json",
+      "bytes": 689,
+      "sha256": "ba9edecda91654284e7fa4563bb49cf8f18f0b07d97e86594700eaefb84dde84"
+    },
+    {
+      "path": "audit/evidence/delivery-manifest.json",
+      "bytes": 746,
+      "sha256": "513c76c298b753e8dcd7bdf7afbd748a33c9701297727b1f51e8a857ed5d2c90"
+    },
+    {
+      "path": "audit/evidence/report-link-validation-final.json",
+      "bytes": 822,
+      "sha256": "6965245e267b8f8a68fbe595d6469fb0272206fda579d97e97505a8478f51de5"
+    },
+    {
+      "path": "audit/evidence/report-link-and-redaction-validation.json",
+      "bytes": 326,
+      "sha256": "fe48fd62a07ece276181007be4aee8e2500f9ff4c2184a54c4d575a582f5f82c"
+    },
+    {
+      "path": "audit/evidence/preparation.json",
+      "bytes": 794,
+      "sha256": "4ed641ed85aeb8d519ea99aea86cff1ad85647c10a83a6d634335414d59b3497"
+    },
+    {
+      "path": "audit/evidence/app-ci-locked-closure.json",
+      "bytes": 782,
+      "sha256": "021da61bb6511788c36064e2f10e668badcd3f420bf3c6b0da151a15e07fff7c"
+    }
+  ],
+  "helperPreparation": {
+    "directory": "/Users/ccheever/clique-improvement/revisions/cli-016-release-helper-preparation-r1",
+    "checkedLeaves": 42,
+    "changedLeaves": [],
+    "unchanged": true
+  },
+  "limits": [
+    "No services, clients, model, SSH, registry requests, product tests, or retries executed",
+    "No source, report, verdict, score, or benchmark repair performed",
+    "No source/fixture credential/session/private-state content printed",
+    "Actual raw builder/model session logs excluded; known tracked metering fixtures only were opaque-byte hashed with explicit Root authorization",
+    "Cleanup is captured historical evidence, not a current live process claim",
+    "Hashes establish byte custody, not truth or completeness of semantic assertions",
+    "Fixture-credential redaction status is retained auditor metadata; no independent credential-body scan performed",
+    "Local anchor targets and external links were not fetched or semantically validated",
+    "Eight web-2 executable labels differ between cleanup signal and final owned snapshots; PID/start/parent match, but this supplement does not establish why the displayed label changed."
+  ],
+  "originalsOverwritten": false,
+  "parserCorrection": {
+    "at": "2026-09-07T17:01:20.812421+00:00",
+    "initialSupplement": "root-custody-supplement-first-pass.json",
+    "initialSha256": "8c1c59013e174c59e65ea1aa85ecd8d699b6b7482e1abb590cdaf11b58a4ddd4",
+    "initialStrictMismatches": 16,
+    "corrections": [
+      "web-1 cleanup stores PID in the outer signal record; its nested identity supplies start, parent and executable",
+      "web-2 final owned snapshot records (node), while the signal receipt records the absolute Node executable; all eight still agree on PID/start/parent"
+    ],
+    "sourceOrAuditEvidenceChanged": false,
+    "semanticVerdictsOrScoresChanged": false,
+    "remainingExecutableLabelDifferences": 8
+  }
+}
