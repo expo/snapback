@@ -663,6 +663,40 @@ test("a second web tab follows the writer and inherits its queue when the writer
   await follower.close();
 });
 
+test("client.recoverMutation reuses a follower admission whose public result was unknown", async () => {
+  const Original = globalThis.BroadcastChannel;
+  (globalThis as any).BroadcastChannel = MemoryBroadcastChannel;
+  MemoryBroadcastChannel.members.clear(); MemoryBroadcastChannel.messages = [];
+  MemoryBroadcastChannel.drop = () => false; MemoryBroadcastChannel.throwOn = () => false;
+  const database = new FakeIndexedDb(), locks = new FakeLocks();
+  const store = indexedDbRangeStore({ indexedDB: database as any, locks: locks as any });
+  const owner = fakeOwner({ seed: true, cursorArg: "c" });
+  const writer = createClient({ url: "http://public-recovery.test", as: "alice", fetch: owner.fetch, offline: { store } });
+  let follower: ReturnType<typeof createClient> | undefined, inbox: any;
+  try {
+    await writer.ready;
+    inbox = writer.subscribe(api.deliveries.inbox, { c: null }, () => undefined, { drain: true });
+    await inbox.until((event: any) => event.state === "complete" && event.caughtUp === true, 2_000);
+    follower = createClient({ url: "http://public-recovery.test", as: "alice", fetch: owner.fetch, offline: { store } });
+    await follower.ready;
+    await until(async () => (await follower!.outbox.status(api.deliveries.post)).ready, "public follower recovery readiness");
+    const args = { conversationId: "conversation-1", body: "one public unknown admission" };
+    MemoryBroadcastChannel.drop = message => message.type === "mutation-answer";
+    const unknown = await follower.mutation(api.deliveries.post, args);
+    assert.equal(unknown.state, "admission-unknown");
+    assert.equal(typeof unknown.recovery, "string");
+    MemoryBroadcastChannel.drop = () => false;
+    const recovered = await follower.recoverMutation(api.deliveries.post, args, unknown.recovery);
+    assert.equal(recovered.state, "queued");
+    assert.equal(owner.executions.filter(execution => execution.intent === recovered.intent).length, 1,
+      "public recovery redispatch reads the durable receipt without a second admission");
+  } finally {
+    inbox?.close(); await follower?.close(); await writer.close();
+    MemoryBroadcastChannel.members.clear(); MemoryBroadcastChannel.drop = () => false;
+    MemoryBroadcastChannel.throwOn = () => false; (globalThis as any).BroadcastChannel = Original;
+  }
+});
+
 // @ref LLP 1018.000#8-account-sessions-and-durable-follower-admission — a lost
 // answer returns an opaque recovery identity; discovery loss cannot turn that
 // prior send into a safe refusal, and recovery reuses the durable admission.
