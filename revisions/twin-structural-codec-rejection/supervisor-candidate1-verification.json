@@ -1,0 +1,19 @@
+{
+  "utc": "2026-09-07T11:53:07.031247+00:00",
+  "ownedManifestSha256": "824a115df46d0b1528f794d8e0829477686b8daa0916fa1677299ab0b1d7b05e",
+  "consumedLogicalInputs": 27,
+  "uniquePhysicalInputs": 26,
+  "allConsumedCopiesMatch": true,
+  "sourceManifestEntries": 695,
+  "resultBytes": 2914251,
+  "resultSha256": "13b1dfb04b7cb003b94969342762b6c48ca1007904b8e2ed913c002b438fb648",
+  "fullResultByteIdenticalToParent": true,
+  "bundleSha256": "2961370894e4e0877717156c097ccc65c59c058cb411e324a263f261426dc5da",
+  "innerProcess": {
+    "pid": 3997201,
+    "started": "2026-09-07T11:51:28.394Z",
+    "ended": "2026-09-07T11:51:28.669Z",
+    "exit": 0
+  },
+  "scope": "Matched pure oracle/custody verification only; not full affected suite or size qualification."
+}

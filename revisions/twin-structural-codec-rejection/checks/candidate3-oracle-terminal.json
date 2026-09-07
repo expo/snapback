@@ -1,0 +1,21 @@
+{
+  "name": "candidate3-oracle",
+  "argv": [
+    "/home/ccheever/clique-tooling/epyc-linux-tooling-20260907T010007Z-0fd567d96f/node-v22.23.2-linux-x64/bin/node",
+    "/home/ccheever/clique-tooling/search-structural-codec-0ecd-20260907T1130Z-01a07649/capture-root-oracles.mjs"
+  ],
+  "cwd": "/home/ccheever/clique-tooling/search-structural-codec-0ecd-20260907T1130Z-01a07649/candidate3-source",
+  "outerSeconds": 10,
+  "pid": 4010445,
+  "startedUtc": "2026-09-07T12:10:54.630444+00:00",
+  "load": [
+    0.234375,
+    0.23583984375,
+    0.3203125
+  ],
+  "availableBytes": 261992714240,
+  "endedUtc": "2026-09-07T12:10:55.145776+00:00",
+  "elapsedSeconds": 0.515336561948061,
+  "exitCode": 0,
+  "logSha256": "92d3674dd385b634af71f63421bbae25d65c8022cd54da79fab91e77214dc4a5"
+}

@@ -1,0 +1,14 @@
+[
+  {
+    "path": "run-final-measure.py",
+    "sha256": "761538802357d97ce9fbd5ce845cf6092aef8b6db39d1ff72e531b3b1e2fefe1"
+  },
+  {
+    "path": "final-measure-import.mjs",
+    "sha256": "1e32173ad1400279cfbf275d84af524176340aee0fd122ce3f15bd6cca3611a6"
+  },
+  {
+    "path": "historical-byte-attribution.json",
+    "sha256": "3ddb00ba296422eb1c76430449bbd27d5387689e3e4b3032fde462a9843e7d67"
+  }
+]

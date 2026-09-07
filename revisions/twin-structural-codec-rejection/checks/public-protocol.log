@@ -1,0 +1,64 @@
+TAP version 13
+# Subtest: offline envelope goldens round-trip byte-identically and rebuild ClosureReceipt
+ok 1 - offline envelope goldens round-trip byte-identically and rebuild ClosureReceipt
+  ---
+  duration_ms: 39.358459
+  type: 'test'
+  ...
+# Subtest: offline envelope decoder refuses unknown protocols and malformed shapes
+ok 2 - offline envelope decoder refuses unknown protocols and malformed shapes
+  ---
+  duration_ms: 1.04058
+  type: 'test'
+  ...
+# Subtest: all-column-kind golden tags closed asset records by their declared field types
+ok 3 - all-column-kind golden tags closed asset records by their declared field types
+  ---
+  duration_ms: 2.061771
+  type: 'test'
+  ...
+# Subtest: offline decoder enforces range, authority, and schema coherence
+ok 4 - offline decoder enforces range, authority, and schema coherence
+  ---
+  duration_ms: 2.28132
+  type: 'test'
+  ...
+# Subtest: Limit range extent is derived from pooled rows and the generation schema
+ok 5 - Limit range extent is derived from pooled rows and the generation schema
+  ---
+  duration_ms: 1.221461
+  type: 'test'
+  ...
+# Subtest: application JSON shaped like a row reference round-trips unchanged
+ok 6 - application JSON shaped like a row reference round-trips unchanged
+  ---
+  duration_ms: 0.730045
+  type: 'test'
+  ...
+# Subtest: expandRows restores pooled wire rows
+ok 7 - expandRows restores pooled wire rows
+  ---
+  duration_ms: 0.667641
+  type: 'test'
+  ...
+# Subtest: verdict inputs digest is sha256(canonical([table, index, key])) over wire values and matches the Rust goldens
+ok 8 - verdict inputs digest is sha256(canonical([table, index, key])) over wire values and matches the Rust goldens
+  ---
+  duration_ms: 7.379715
+  type: 'test'
+  ...
+# Subtest: answer traversal preserves escaped objects, own keys, alias isolation and decoder refusal phases
+ok 9 - answer traversal preserves escaped objects, own keys, alias isolation and decoder refusal phases
+  ---
+  duration_ms: 1.58138
+  type: 'test'
+  ...
+1..9
+# tests 9
+# suites 0
+# pass 9
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 446.613208

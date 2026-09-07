@@ -1,0 +1,156 @@
+[
+  {
+    "name": "candidate3-oracle",
+    "argv": [
+      "/home/ccheever/clique-tooling/epyc-linux-tooling-20260907T010007Z-0fd567d96f/node-v22.23.2-linux-x64/bin/node",
+      "/home/ccheever/clique-tooling/search-structural-codec-0ecd-20260907T1130Z-01a07649/capture-root-oracles.mjs"
+    ],
+    "cwd": "/home/ccheever/clique-tooling/search-structural-codec-0ecd-20260907T1130Z-01a07649/candidate3-source",
+    "outerSeconds": 10
+  },
+  {
+    "name": "candidate3-bun-oracle",
+    "argv": [
+      "/home/ccheever/clique-tooling/epyc-linux-tooling-20260907T010007Z-0fd567d96f/bun-v1.3.12-linux-x64/bin/bun",
+      "/home/ccheever/clique-tooling/search-structural-codec-0ecd-20260907T1130Z-01a07649/candidate3-oracles/probe.mjs",
+      "/home/ccheever/clique-tooling/search-structural-codec-0ecd-20260907T1130Z-01a07649/candidate3-bun-result.json"
+    ],
+    "cwd": "/home/ccheever/clique-tooling/search-structural-codec-0ecd-20260907T1130Z-01a07649/candidate3-source",
+    "outerSeconds": 10
+  },
+  {
+    "name": "package-build",
+    "argv": [
+      "/home/ccheever/clique-tooling/epyc-linux-tooling-20260907T010007Z-0fd567d96f/node-v22.23.2-linux-x64/bin/node",
+      "build.mjs"
+    ],
+    "cwd": "/home/ccheever/clique-tooling/search-structural-codec-0ecd-20260907T1130Z-01a07649/candidate3-source/snapback2/packages/snapback2",
+    "outerSeconds": 120
+  },
+  {
+    "name": "full-evaluator",
+    "argv": [
+      "/home/ccheever/clique-tooling/epyc-linux-tooling-20260907T010007Z-0fd567d96f/bun-v1.3.12-linux-x64/bin/bun",
+      "src/test.ts"
+    ],
+    "cwd": "/home/ccheever/clique-tooling/search-structural-codec-0ecd-20260907T1130Z-01a07649/candidate3-source/snapback2/packages/evaluator",
+    "outerSeconds": 120
+  },
+  {
+    "name": "public-protocol",
+    "argv": [
+      "/home/ccheever/clique-tooling/epyc-linux-tooling-20260907T010007Z-0fd567d96f/node-v22.23.2-linux-x64/bin/node",
+      "--test",
+      "--test-timeout=10000",
+      "--test-name-pattern=offline envelope goldens|offline envelope decoder|all-column-kind|offline decoder enforces|Limit range extent|application JSON|expandRows restores|verdict inputs digest|answer traversal",
+      "snapback2/packages/snapback2/tests/offline-protocol.test.ts"
+    ],
+    "cwd": "/home/ccheever/clique-tooling/search-structural-codec-0ecd-20260907T1130Z-01a07649/candidate3-source",
+    "outerSeconds": 30,
+    "originalInternalMilliseconds": 10000
+  },
+  {
+    "name": "public-sqlite",
+    "argv": [
+      "/home/ccheever/clique-tooling/epyc-linux-tooling-20260907T010007Z-0fd567d96f/node-v22.23.2-linux-x64/bin/node",
+      "--test",
+      "--test-timeout=10000",
+      "--test-name-pattern=every PersistedRangeState|warm and reopened coverage|SQLite replace rolls|database projection owns only|database reset completion|generic database metadata|answer retention keeps|public offline expansion",
+      "snapback2/packages/snapback2/tests/sqlite.test.ts"
+    ],
+    "cwd": "/home/ccheever/clique-tooling/search-structural-codec-0ecd-20260907T1130Z-01a07649/candidate3-source",
+    "outerSeconds": 30,
+    "originalInternalMilliseconds": 10000
+  },
+  {
+    "name": "public-retention",
+    "argv": [
+      "/home/ccheever/clique-tooling/epyc-linux-tooling-20260907T010007Z-0fd567d96f/node-v22.23.2-linux-x64/bin/node",
+      "--test",
+      "--test-timeout=10000",
+      "--test-name-pattern=stores rows once|delivered-history|hidden|evict|outbox|retention|purge|shared rows",
+      "snapback2/packages/snapback2/tests/offline-store.test.ts"
+    ],
+    "cwd": "/home/ccheever/clique-tooling/search-structural-codec-0ecd-20260907T1130Z-01a07649/candidate3-source",
+    "outerSeconds": 30,
+    "originalInternalMilliseconds": 10000
+  },
+  {
+    "name": "public-bytes",
+    "argv": [
+      "/home/ccheever/clique-tooling/epyc-linux-tooling-20260907T010007Z-0fd567d96f/node-v22.23.2-linux-x64/bin/node",
+      "--test",
+      "--test-timeout=10000",
+      "--test-name-pattern=lease|view-once|view once|viewed|schema once|aliases|nested",
+      "snapback2/packages/snapback2/tests/offline-bytes.test.ts"
+    ],
+    "cwd": "/home/ccheever/clique-tooling/search-structural-codec-0ecd-20260907T1130Z-01a07649/candidate3-source",
+    "outerSeconds": 30,
+    "originalInternalMilliseconds": 10000
+  },
+  {
+    "name": "public-carrier-admission",
+    "argv": [
+      "/home/ccheever/clique-tooling/epyc-linux-tooling-20260907T010007Z-0fd567d96f/node-v22.23.2-linux-x64/bin/node",
+      "--test",
+      "--test-timeout=10000",
+      "--test-name-pattern=typed full cursor bounds|carrier preflight preserves|authenticated sparse optional images|equal authenticated refresh|repeated immutable pools|closed extents retain all-ID|delayed FULL replaces every interior|native26c9 movement",
+      "snapback2/packages/snapback2/tests/store-review.test.ts"
+    ],
+    "cwd": "/home/ccheever/clique-tooling/search-structural-codec-0ecd-20260907T1130Z-01a07649/candidate3-source",
+    "outerSeconds": 30,
+    "originalInternalMilliseconds": 10000
+  },
+  {
+    "name": "public-cap",
+    "argv": [
+      "/home/ccheever/clique-tooling/epyc-linux-tooling-20260907T010007Z-0fd567d96f/node-v22.23.2-linux-x64/bin/node",
+      "--test",
+      "--test-timeout=10000",
+      "--test-name-pattern=timed guard slot exhaustion|revalidation reset markers refuse concurrent",
+      "snapback2/packages/snapback2/tests/store-review.test.ts"
+    ],
+    "cwd": "/home/ccheever/clique-tooling/search-structural-codec-0ecd-20260907T1130Z-01a07649/candidate3-source",
+    "outerSeconds": 30,
+    "originalInternalMilliseconds": 10000
+  },
+  {
+    "name": "public-movement",
+    "argv": [
+      "/home/ccheever/clique-tooling/epyc-linux-tooling-20260907T010007Z-0fd567d96f/node-v22.23.2-linux-x64/bin/node",
+      "--test",
+      "--test-timeout=10000",
+      "--test-name-pattern=checked extent membership follows immutable assertion sequences",
+      "snapback2/packages/snapback2/tests/store-review.test.ts"
+    ],
+    "cwd": "/home/ccheever/clique-tooling/search-structural-codec-0ecd-20260907T1130Z-01a07649/candidate3-source",
+    "outerSeconds": 30,
+    "originalInternalMilliseconds": 10000
+  },
+  {
+    "name": "public-twin",
+    "argv": [
+      "/home/ccheever/clique-tooling/epyc-linux-tooling-20260907T010007Z-0fd567d96f/node-v22.23.2-linux-x64/bin/node",
+      "--test",
+      "--test-timeout=10000",
+      "--test-name-pattern=atomic carrier snapshots|a json column shaped|every corpus query|program custody is fetched|a ReferenceError from tagArguments|an unseen schema shape|evicting a middle row|h1 stays local|enrolled ordinary conditionals|native-certified derived page|public offline movement",
+      "snapback2/packages/snapback2/tests/twin.test.ts"
+    ],
+    "cwd": "/home/ccheever/clique-tooling/search-structural-codec-0ecd-20260907T1130Z-01a07649/candidate3-source",
+    "outerSeconds": 30,
+    "originalInternalMilliseconds": 10000
+  },
+  {
+    "name": "public-held-shape",
+    "argv": [
+      "/home/ccheever/clique-tooling/epyc-linux-tooling-20260907T010007Z-0fd567d96f/node-v22.23.2-linux-x64/bin/node",
+      "--test",
+      "--test-timeout=10000",
+      "--test-name-pattern=conditional public query states|held public query states",
+      "snapback2/packages/snapback2/tests/offline-store.test.ts"
+    ],
+    "cwd": "/home/ccheever/clique-tooling/search-structural-codec-0ecd-20260907T1130Z-01a07649/candidate3-source",
+    "outerSeconds": 30,
+    "originalInternalMilliseconds": 10000
+  }
+]

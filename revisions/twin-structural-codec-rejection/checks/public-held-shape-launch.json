@@ -1,0 +1,21 @@
+{
+  "name": "public-held-shape",
+  "argv": [
+    "/home/ccheever/clique-tooling/epyc-linux-tooling-20260907T010007Z-0fd567d96f/node-v22.23.2-linux-x64/bin/node",
+    "--test",
+    "--test-timeout=10000",
+    "--test-name-pattern=conditional public query states|held public query states",
+    "snapback2/packages/snapback2/tests/offline-store.test.ts"
+  ],
+  "cwd": "/home/ccheever/clique-tooling/search-structural-codec-0ecd-20260907T1130Z-01a07649/candidate3-source",
+  "outerSeconds": 30,
+  "originalInternalMilliseconds": 10000,
+  "pid": 4010891,
+  "startedUtc": "2026-09-07T12:11:24.407421+00:00",
+  "load": [
+    0.7421875,
+    0.3583984375,
+    0.35986328125
+  ],
+  "availableBytes": 261643079680
+}

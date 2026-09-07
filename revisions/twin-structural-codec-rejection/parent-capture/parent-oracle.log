@@ -1,0 +1,16 @@
+node:fs:560
+  return binding.open(
+                 ^
+
+Error: ENOENT: no such file or directory, open '/home/ccheever/clique-tooling/search-structural-codec-0ecd-20260907T1130Z-01a07649/parent-source/snapback2/crates/snapback2-core/ir-contract.json with { type: 'json' }'
+    at Object.openSync (node:fs:560:18)
+    at Object.readFileSync (node:fs:444:35)
+    at file:///home/ccheever/clique-tooling/search-structural-codec-0ecd-20260907T1130Z-01a07649/capture-oracles.mjs:7:113
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5) {
+  errno: -2,
+  code: 'ENOENT',
+  syscall: 'open',
+  path: "/home/ccheever/clique-tooling/search-structural-codec-0ecd-20260907T1130Z-01a07649/parent-source/snapback2/crates/snapback2-core/ir-contract.json with { type: 'json' }"
+}
+
+Node.js v22.23.2

@@ -1,0 +1,77 @@
+{
+  "utc": "2026-09-07T12:24:52.331846+00:00",
+  "disposition": "REJECTED FOR SIZE",
+  "historicalSource": "82c43ca456022682670941494dd828e099fca3d8",
+  "selectedParent": "0ecd6015a7a1f0c291a224baef37f832b6b3154a",
+  "selectedParentMeasured": false,
+  "baseline": {
+    "minified": 230321,
+    "gzip": 75815,
+    "sha256": "5a8fc8cbe03fa2764352e65d1766f0393ec7d1df52f477fd7baab23ddb77a498"
+  },
+  "candidate": {
+    "minified": 231755,
+    "gzip": 76335,
+    "sha256": "9a03c998c6cb40c0078cb7d87d8f0061f3faf66ec7485ed4d65d76738d142c5e"
+  },
+  "historicalDifference": {
+    "minified": 1434,
+    "gzip": 520
+  },
+  "ceiling": 66000,
+  "target": 64000,
+  "overCeiling": 10335,
+  "physicalSourcesVerified": 51,
+  "virtualEntrySha256": "3ba527bb0fe022dcaab8b54a20055fe1484cf1a11e1d4744f54e1739d489d2ac",
+  "attributionWarning": "bytesInOutput and minified deltas are not additive gzip attribution",
+  "minifiedAttributionChanges": [
+    {
+      "path": "../evaluator/src/structural-codec.ts",
+      "beforeMinified": 0,
+      "afterMinified": 8804,
+      "minifiedDelta": 8804
+    },
+    {
+      "path": "../evaluator/src/value-runtime.ts",
+      "beforeMinified": 12372,
+      "afterMinified": 6362,
+      "minifiedDelta": -6010
+    },
+    {
+      "path": "../evaluator/src/certificate-identity.ts",
+      "beforeMinified": 7779,
+      "afterMinified": 6441,
+      "minifiedDelta": -1338
+    },
+    {
+      "path": "../evaluator/src/coverage.ts",
+      "beforeMinified": 5561,
+      "afterMinified": 5551,
+      "minifiedDelta": -10
+    },
+    {
+      "path": "src/store/range-store.ts",
+      "beforeMinified": 26896,
+      "afterMinified": 26891,
+      "minifiedDelta": -5
+    },
+    {
+      "path": "../evaluator/src/runner.ts",
+      "beforeMinified": 25447,
+      "afterMinified": 25444,
+      "minifiedDelta": -3
+    },
+    {
+      "path": "src/offline.ts",
+      "beforeMinified": 15984,
+      "afterMinified": 15982,
+      "minifiedDelta": -2
+    },
+    {
+      "path": "src/twin.ts",
+      "beforeMinified": 4586,
+      "afterMinified": 4584,
+      "minifiedDelta": -2
+    }
+  ]
+}

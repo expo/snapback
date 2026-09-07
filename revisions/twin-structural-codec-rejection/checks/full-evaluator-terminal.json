@@ -1,0 +1,21 @@
+{
+  "name": "full-evaluator",
+  "argv": [
+    "/home/ccheever/clique-tooling/epyc-linux-tooling-20260907T010007Z-0fd567d96f/bun-v1.3.12-linux-x64/bin/bun",
+    "src/test.ts"
+  ],
+  "cwd": "/home/ccheever/clique-tooling/search-structural-codec-0ecd-20260907T1130Z-01a07649/candidate3-source/snapback2/packages/evaluator",
+  "outerSeconds": 120,
+  "pid": 4010617,
+  "startedUtc": "2026-09-07T12:11:00.251037+00:00",
+  "load": [
+    0.2958984375,
+    0.24853515625,
+    0.32421875
+  ],
+  "availableBytes": 261904134144,
+  "endedUtc": "2026-09-07T12:11:07.132352+00:00",
+  "elapsedSeconds": 6.881325345952064,
+  "exitCode": 0,
+  "logSha256": "3bbfe95b9dd3171a64e83f822918f4fd2107628b3079f35e692c41815446312f"
+}

@@ -1,0 +1,27 @@
+{
+  "utc": "2026-09-07T11:59:03.635299+00:00",
+  "observations": [
+    {
+      "arm": "parent",
+      "resultSha256": "d34a7f0fa335ac7c402fb284ed944ac8f2730cb04aa7cef8b2b2dcd7d3222475",
+      "resultBytes": 2920390,
+      "original2413AndLegacyUnchanged": true,
+      "additionalPolicyCases": 12,
+      "verifiedInputRecords": 26,
+      "innerPid": 4002675,
+      "innerExit": 0
+    },
+    {
+      "arm": "candidate1",
+      "resultSha256": "0abb04489d122df31380fbf45873bab826e6e1bb30814304e2c6896675d6f5c1",
+      "resultBytes": 2920427,
+      "original2413AndLegacyUnchanged": true,
+      "additionalPolicyCases": 12,
+      "verifiedInputRecords": 27,
+      "innerPid": 4002728,
+      "innerExit": 0
+    }
+  ],
+  "differences": 4,
+  "scope": "New post-edit observations on immutable parent/candidate; does not replace original pre-edit baseline."
+}

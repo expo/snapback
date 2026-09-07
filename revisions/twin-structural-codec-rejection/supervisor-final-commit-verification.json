@@ -1,0 +1,16 @@
+{
+  "utc": "2026-09-07T12:28:00.281166+00:00",
+  "commit": "b1c9e956235939a721fe56d0851a72611897a782",
+  "parent": "0ecd6015a7a1f0c291a224baef37f832b6b3154a",
+  "ownedPaths": [
+    "snapback2/packages/evaluator/src/certificate-identity.ts",
+    "snapback2/packages/evaluator/src/structural-codec.ts",
+    "snapback2/packages/evaluator/src/test.ts",
+    "snapback2/packages/evaluator/src/value-runtime.ts"
+  ],
+  "allFourCommittedLiveAndCandidate3BytesEqual": true,
+  "workingTreeClean": true,
+  "patchBytes": 66548,
+  "patchSha256": "fed43904d2bfd4ae672c2d1ff747223452ac1dd02650977f06b36b4dba4fcd13",
+  "disposition": "Isolated rejected experiment checkpoint only; no product landing/push or independent correctness review."
+}

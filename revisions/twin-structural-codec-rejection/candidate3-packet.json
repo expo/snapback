@@ -1,0 +1,30 @@
+[
+  {
+    "path": "prepare-candidate3.py",
+    "sha256": "41945d367e2f2f47662936b6294c32c659b3e2669e15d4fdaa5f50440eb48aff"
+  },
+  {
+    "path": "candidate3-commands.json",
+    "sha256": "4c274934a22366d37eae313770e0573be16f528d0e933b92875faafd5142fa43"
+  },
+  {
+    "path": "candidate3-owned.json",
+    "sha256": "956692adafc002df2a86573ecc606a625a5cf8081f994530dbd8ec5e1846cdf3"
+  },
+  {
+    "path": "candidate3-owned/snapback2/packages/evaluator/src/structural-codec.ts",
+    "sha256": "79e4d5c63720a1b23d281653d62f7bad1d2f2b8f11cdb6790ea8c595ce54b94c"
+  },
+  {
+    "path": "candidate3-owned/snapback2/packages/evaluator/src/certificate-identity.ts",
+    "sha256": "3d1ca81946f88047012023bd01f17e0f4d6055ec2f09740e1b02b53ed20a1851"
+  },
+  {
+    "path": "candidate3-owned/snapback2/packages/evaluator/src/test.ts",
+    "sha256": "9362ba7a2444ac2b04f4fc60fe45b587fec58789c95a0c0a2c16040e8bd15a57"
+  },
+  {
+    "path": "candidate3-owned/snapback2/packages/evaluator/src/value-runtime.ts",
+    "sha256": "7c98784d80568f5cdafc3fb8f350b3bd5ccd3c2c7a0bccd1457a2190fb2150a4"
+  }
+]

@@ -1,0 +1,39 @@
+{
+  "utc": "2026-09-07T11:36:57.254914+00:00",
+  "source": "0ecd6015a7a1f0c291a224baef37f832b6b3154a",
+  "consumedLogicalInputs": 26,
+  "uniquePhysicalInputs": 25,
+  "allConsumedCopiesAndParentManifestHashesMatch": true,
+  "bundleSha256": "8ced0a1a401bbe66c241eebc82c6ff0a40d52fb8ffd0bbd57143d5879b41aaba",
+  "resultSha256": "13b1dfb04b7cb003b94969342762b6c48ca1007904b8e2ed913c002b438fb648",
+  "resultBytes": 2914251,
+  "policies": 2413,
+  "policyFamilies": {
+    "typed": 1560,
+    "shape": 30,
+    "wire": 442,
+    "row-wire": 13,
+    "image-wire": 13,
+    "write-row": 30,
+    "image-frozen-custody": 1,
+    "domain": 9,
+    "canonical-arg": 99,
+    "canonical-column": 99,
+    "scan-order": 20,
+    "statement-parent": 20,
+    "program-field": 14,
+    "schema-field": 42,
+    "schema-parent": 21
+  },
+  "legacyCounts": {
+    "canonical": 250,
+    "adverse": 46,
+    "envelopes": 15,
+    "answers": 11
+  },
+  "policyErrorNames": {
+    "Error": 1696,
+    "TypeError": 393
+  },
+  "scope": "Mechanical parse/hash/custody audit, not human full read of every 2.9MB output or whole product qualification. 250 canonical entries includes corpus metadata."
+}

@@ -1,0 +1,48 @@
+{
+  "uuid": "01a07649-dd08-7990-8d16-16a76e09ffbc",
+  "pid": 76756,
+  "unifiedTool": 23961,
+  "timestamp": "2026-09-07T11:12:48.859Z",
+  "actualModel": "gpt-6-astra",
+  "actualEffort": "xhigh",
+  "actualCwd": "/Users/ccheever/projects/snapback-worktrees/clique-structural-codec",
+  "turnContext": {
+    "timestamp": "2026-09-07T11:12:48.859Z",
+    "ordinal": 16465,
+    "type": "turn_context",
+    "payload": {
+      "turn_id": "01a07b92-03c7-7d83-abdf-7280f3b539d6",
+      "root_turn_id": "01a07b92-03c7-7d83-abdf-7280f3b539d6",
+      "cwd": "/Users/ccheever/projects/snapback-worktrees/clique-structural-codec",
+      "workspace_roots": [
+        "/Users/ccheever/projects/snapback-worktrees/clique-structural-codec"
+      ],
+      "current_date": "2026-09-07",
+      "timezone": "America/Los_Angeles",
+      "approval_policy": "never",
+      "approvals_reviewer": "user",
+      "sandbox_policy": {
+        "type": "danger-full-access"
+      },
+      "permission_profile": {
+        "type": "disabled"
+      },
+      "model": "gpt-6-astra",
+      "comp_hash": "3000",
+      "personality": "pragmatic",
+      "collaboration_mode": {
+        "mode": "default",
+        "settings": {
+          "model": "gpt-6-astra",
+          "reasoning_effort": "xhigh",
+          "developer_instructions": null
+        }
+      },
+      "multi_agent_version": "v2",
+      "realtime_active": false,
+      "effort": "xhigh",
+      "summary": "auto"
+    }
+  },
+  "scope": "actual native session metadata, no reasoning read"
+}

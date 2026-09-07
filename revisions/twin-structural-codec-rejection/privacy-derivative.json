@@ -1,0 +1,16 @@
+{
+  "originalPreparationManifestSha256": "3498272b9cb6390eb604dc646697253af30323f317a2c5b82c546c962fb295cb",
+  "originalPreparationUnchanged": true,
+  "derivatives": [
+    {
+      "path": "revisions/twin-structural-codec-rejection/first-parent/parent-remote-terminal.json",
+      "source": "/Users/ccheever/clique-improvement/lanes/search-twin/r8-structural-codec-rejection-evidence-preparation/repository/revisions/twin-structural-codec-rejection/first-parent/parent-remote-terminal.json",
+      "originalBytes": 338,
+      "originalSha256": "217e9912aa2fc21621442c85663142adad304ad8cf4f8ec62a91c2e56f8aa14f",
+      "bytes": 348,
+      "sha256": "96c1f83dc547e4b6b19ead768ed6da90869d780c19dc9b17d6f205d084d0f605",
+      "transformation": "One private fleet IPv4 literal replaced by <private-fleet-address>; no other bytes changed."
+    }
+  ],
+  "otherRepositoryCopiesVerbatim": true
+}

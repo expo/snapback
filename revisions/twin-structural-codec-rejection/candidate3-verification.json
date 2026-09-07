@@ -1,0 +1,141 @@
+{
+  "utc": "2026-09-07T12:12:48.502092+00:00",
+  "commands": [
+    {
+      "name": "candidate3-oracle",
+      "seconds": 0.515336561948061,
+      "exit": 0,
+      "counts": {}
+    },
+    {
+      "name": "candidate3-bun-oracle",
+      "seconds": 0.2146337500307709,
+      "exit": 0,
+      "counts": {}
+    },
+    {
+      "name": "package-build",
+      "seconds": 3.120506990933791,
+      "exit": 0,
+      "counts": {}
+    },
+    {
+      "name": "full-evaluator",
+      "seconds": 6.881325345952064,
+      "exit": 0,
+      "counts": {}
+    },
+    {
+      "name": "public-protocol",
+      "seconds": 0.5157914848532528,
+      "exit": 0,
+      "counts": {
+        "tests": 9,
+        "pass": 9,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0
+      }
+    },
+    {
+      "name": "public-sqlite",
+      "seconds": 0.5657668709754944,
+      "exit": 0,
+      "counts": {
+        "tests": 8,
+        "pass": 8,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0
+      }
+    },
+    {
+      "name": "public-retention",
+      "seconds": 0.41546993399970233,
+      "exit": 0,
+      "counts": {
+        "tests": 10,
+        "pass": 10,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0
+      }
+    },
+    {
+      "name": "public-bytes",
+      "seconds": 0.6158676350023597,
+      "exit": 0,
+      "counts": {
+        "tests": 7,
+        "pass": 7,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0
+      }
+    },
+    {
+      "name": "public-carrier-admission",
+      "seconds": 1.0166580581571907,
+      "exit": 0,
+      "counts": {
+        "tests": 14,
+        "pass": 14,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0
+      }
+    },
+    {
+      "name": "public-cap",
+      "seconds": 2.0195271589327604,
+      "exit": 0,
+      "counts": {
+        "tests": 2,
+        "pass": 2,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0
+      }
+    },
+    {
+      "name": "public-movement",
+      "seconds": 5.679249772801995,
+      "exit": 0,
+      "counts": {
+        "tests": 43,
+        "pass": 43,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0
+      }
+    },
+    {
+      "name": "public-twin",
+      "seconds": 4.275220962008461,
+      "exit": 0,
+      "counts": {
+        "tests": 14,
+        "pass": 14,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0
+      }
+    },
+    {
+      "name": "public-held-shape",
+      "seconds": 1.067412142874673,
+      "exit": 0,
+      "counts": {
+        "tests": 22,
+        "pass": 22,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0
+      }
+    }
+  ],
+  "oracleInputsVerified": 27,
+  "nodeFullByteEqual": true,
+  "bunFullByteEqual": true,
+  "archiveSha256": "9a9ac77a46390e7bdad96e7c2c8b52599da7f6613c359b5e06bbd8177996eacf"
+}

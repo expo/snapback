@@ -1,0 +1,10 @@
+{
+  "utc": "2026-09-07T12:33:57.875704+00:00",
+  "sourceCheckpointSha256": "d38a4c3e8b1d4e5d5d77afe456d69487b4a78e2af6e2c356350c645834903981",
+  "commit": "b1c9e956235939a721fe56d0851a72611897a782",
+  "allFrozenSourceCopiesVerified": 695,
+  "symlinkRecordsVerified": 2,
+  "allAvailableCommittedGitBlobsVerified": 414,
+  "referencedArtifactsVerified": 21,
+  "scope": "Read-only byte custody only; no semantic/size qualification or product execution."
+}

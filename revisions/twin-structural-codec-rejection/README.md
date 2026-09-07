@@ -1,0 +1,9 @@
+# Structural codec experiment — rejected for size
+
+This evidence records isolated checkpoint `b1c9e956235939a721fe56d0851a72611897a782` atop `0ecd6015a7a1f0c291a224baef37f832b6b3154a`. It is not a product integration. The single unchanged complete five-root measurement was **76,335 gzip bytes**, **520 above the historical 82c43 anchor of 75,815** and **10,335 over the fixed 66,000 ceiling**. The exact 0ecd parent was not measured; no exact-parent byte delta is claimed. The conservative rule rejects this experiment. There was no second variant or repeated size check.
+
+[Author report](REPORT.md), [actual terminal](supervisor-terminal.json), [exact source checkpoint](source-checkpoint.json), [source delta](supervisor-final-owned.patch), [measurement](measurement/final-measure.log), and [independent measurement custody](supervisor-final-measure-verification.json) bind the outcome. Minified input contributions are not additive gzip attribution.
+
+The original 2,413-policy parent capture preceded product edits. Twelve later boundary cases and Bun observations are separately attributed. Final complete Node and Bun 2,425-policy plus legacy outputs exactly match their runtime-matched parents; all 129 selected public tests pass under their unchanged limits, including the full saturation and movement controls. This is scoped correctness evidence, not independent review, native integration, resident or phone qualification.
+
+Original setup/refusal differences remain in the packet. Large raw oracle results and source archives remain at the hash-bound locations in [external custody](external-raw-custody.json). The report and terminal distinguish author completion from the measurement process. Evidence-only landing preserves the rejected branch; it does not carry its code forward or close the existing issue.
