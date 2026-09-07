@@ -25,6 +25,8 @@ use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
 #[path = "test_authority.rs"]
 mod test_authority;
+#[path = "test_authority_ir.rs"]
+mod test_authority_ir;
 #[path = "test_bounds.rs"]
 mod test_bounds;
 #[path = "test_invalidation.rs"]

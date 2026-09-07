@@ -1,6 +1,7 @@
 //! Served-loop authorization proofs for projects that declare scoped membership.
 // @ref LLP 1002#7-test-and-the-receipt — revocation and successor fences are named receipt proofs.
 
+use super::test_authority_ir::{prepare_policy_successor, program_has_membership_guard_dependency};
 use super::test_sse::SseProbe;
 use super::{elapsed_ms, generated_args};
 use crate::client;
@@ -705,14 +706,7 @@ fn successor_policy_attempt(
     plan: &QueryPlan,
 ) -> Result<Json, String> {
     reset(owner)?;
-    let mut policy_successor = compiled.project.clone();
-    policy_successor
-        .schema
-        .tables
-        .get_mut(&plan.protected_table)
-        .ok_or_else(|| format!("protected table {} disappeared", plan.protected_table))?
-        .rules
-        .read = RuleExpr::Deny;
+    let prepared_policy = prepare_policy_successor(&compiled.project, &plan.protected_table)?;
     let mut program_successor = compiled.project.clone();
     let program_denial = format!("{SUCCESSOR_DENIAL_PREFIX}{}", compiled.generation.hash());
     program_successor
@@ -733,9 +727,11 @@ fn successor_policy_attempt(
         owner,
         compiled,
         plan,
-        &policy_successor,
+        &prepared_policy.project,
         &program_successor,
         &program_denial,
+        prepared_policy.retired_held_search,
+        prepared_policy.stale_held_search_refused,
     );
     let restore = restore_generation(owner, compiled);
     let reset = reset(owner);
@@ -764,6 +760,8 @@ fn successor_attempt(
     policy_successor: &ProjectJson,
     program_successor: &ProjectJson,
     program_denial: &str,
+    retired_held_search: usize,
+    stale_held_search_refused: bool,
 ) -> Result<Json, String> {
     let plan_hash_g = compiled
         .generation
@@ -853,6 +851,8 @@ fn successor_attempt(
         "planHashG2": plan_hash_g2,
         "generationScope": "schema",
         "policyReplacement": "Deny",
+        "policyRetiredHeldSearchDescriptors": retired_held_search,
+        "staleHeldSearchDescriptorRefused": stale_held_search_refused,
         "policyRetainedHandleState": policy_retained["state"],
         "policyRetainedHandleRows": 0,
         "policyFreshInvocationState": policy_fresh["state"],
@@ -1109,58 +1109,11 @@ fn query_isolates_protected_table(
         // This is only a bounded candidate preference. A dependency can be
         // semantically weakened (for example, `member || true`); the served
         // post-revocation terminal delivery below is the authority witness.
-        && program_has_membership_guard_dependency(program, recipe)
-}
-
-fn program_has_membership_guard_dependency(program: &Program, recipe: &Recipe) -> bool {
-    let mut membership_values = BTreeSet::new();
-    for statement in &program.body {
-        match statement {
-            Stmt::Const { name, value }
-            | Stmt::Let { name, value }
-            | Stmt::Assign { name, value } => {
-                if expression_depends_on_membership(value, recipe, &membership_values) {
-                    membership_values.insert(name.clone());
-                } else {
-                    membership_values.remove(name);
-                }
-            }
-            Stmt::Require { condition, .. }
-                if expression_depends_on_membership(condition, recipe, &membership_values) =>
-            {
-                return true;
-            }
-            _ => {}
-        }
-    }
-    false
-}
-
-fn expression_depends_on_membership(
-    expression: &Expr,
-    recipe: &Recipe,
-    membership_values: &BTreeSet<String>,
-) -> bool {
-    match expression {
-        Expr::Variable(name) => membership_values.contains(name),
-        Expr::Get(read) | Expr::Exists(read) => {
-            read.table == recipe.membership_table && read.index == recipe.membership_index
-        }
-        Expr::Field { base, .. } | Expr::Unary { value: base, .. } => {
-            expression_depends_on_membership(base, recipe, membership_values)
-        }
-        Expr::Binary { left, right, .. } => {
-            expression_depends_on_membership(left, recipe, membership_values)
-                || expression_depends_on_membership(right, recipe, membership_values)
-        }
-        Expr::Builtin { args, .. } | Expr::Array(args) => args
-            .iter()
-            .any(|argument| expression_depends_on_membership(argument, recipe, membership_values)),
-        Expr::Object(fields) => fields
-            .values()
-            .any(|value| expression_depends_on_membership(value, recipe, membership_values)),
-        Expr::Literal(_) | Expr::Input(_) | Expr::Scan(_) | Expr::Merge(_) => false,
-    }
+        && program_has_membership_guard_dependency(
+            program,
+            &recipe.membership_table,
+            &recipe.membership_index,
+        )
 }
 
 fn protected_write_eligible(
