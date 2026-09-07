@@ -1,0 +1,20 @@
+{
+  "actualReturnCode": 0,
+  "argv": [
+    "/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/bin/python3.9",
+    "/Users/ccheever/clique-improvement/revisions/cli-016-default-install-witness-preparation/verify-default-install-ci.py",
+    "--execute-root-approved"
+  ],
+  "automaticRetry": false,
+  "cwd": "/Users/ccheever/clique-improvement/revisions/cli-016-default-install-witness-preparation",
+  "driverPid": 19850,
+  "elapsedSeconds": 11.248037709000002,
+  "endedEpoch": 1788805680.95101,
+  "exitCode": 0,
+  "logSha256": "cef67b2cb2977de45bc6d7aa6d6c4bd4d77e1b9aeb15cce1378d4e6684c7553f",
+  "pid": 19870,
+  "processGroup": 19870,
+  "processIdentity": "19870 Mon Sep  7 11:27:49 2026     /Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/bin/python3.9",
+  "startedEpoch": 1788805669.702995,
+  "timeoutSeconds": 90
+}

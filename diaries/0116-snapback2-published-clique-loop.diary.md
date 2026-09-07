@@ -1280,3 +1280,12 @@ an unresolved synthetic optional still exposes npm 11's lock behavior. Neither
 is repaired or disguised by this small preservation correction. Host-only
 packaging evidence does not qualify a Linux runtime or alter the old published
 package and application locks.
+
+
+## 2026-09-07 — Published fixes survive public installs
+
+Published 0.0.16 carries the browser carrier setup guidance and staged-platform packaging fix, including the earlier CLI DX delivery. Fresh public Expo/guide verification passed all 12 commands. A separate default npm 11 install and fresh exact-lock npm ci both passed with all 156 packed files verified in both consumers. This removes the reproduced new-package setup obstacle without rewriting historical 0.0.15 locks or audit failures.
+
+Functional publication checks passed, but chat check still exceeded 1 second and the 17 measured consumer steps alone totaled 31.402 seconds against 30. The initial registry E404 is preserved; later exact public identities confirmed publication without republishing. No native-device or benchmark improvement follows from installation proof. Grok remains 63 versus Convex 78 and Supabase 47 until a new full run is graded.
+
+[Release and installed evidence](../benchmarks/runs/2026-09-06-clique-improvement/evidence/cli-016-published/README.md) records the commands, original failures, actual terminals and source/artifact identities. Compiler diagnostics remain in the separately reviewed, unintegrated compiler work.

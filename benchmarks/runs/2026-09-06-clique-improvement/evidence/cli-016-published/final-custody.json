@@ -1,0 +1,21 @@
+{
+  "pid": 20063,
+  "startedEpoch": 1788805739.901181,
+  "commandSourceSha256": "88c52803172a9cdac4f440eb2bfcf340852094966d743e1e81cdff0184651761",
+  "outerSeconds": 20,
+  "authAccess": false,
+  "readOnly": true,
+  "exitCode": 0,
+  "stderrPresent": false,
+  "observation": {
+    "pass": true,
+    "pid": 58568,
+    "epoch": 1788805740.876893,
+    "sourceLeaves": 944,
+    "bundleLeaves": 11,
+    "sourceAndArtifactsUnchanged": true,
+    "authAccess": false
+  },
+  "endedEpoch": 1788805741.3260999,
+  "childReaped": true
+}
