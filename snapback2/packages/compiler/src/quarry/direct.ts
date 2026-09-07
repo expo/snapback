@@ -54,6 +54,13 @@ function lowerExpression(expression: BoundExpression, lowering: Lowering): Lower
     const items = lowerMany(expression.items, lowering);
     return { setup: items.setup, value: { Array: items.values } };
   }
+  if (expression.kind === "scale") {
+    const value = lowerExpression(expression.value, lowering);
+    return { setup: value.setup, value: { Binary: {
+      op: "Mul", left: value.value, right: { Literal: { Int: expression.multiplier } },
+    } } };
+  }
+  if (expression.kind === "scale-list") return lowerScaledList(expression, lowering);
   if (expression.kind === "object") {
     return lowerObjectFields(expression.fields, lowering);
   }
@@ -253,6 +260,28 @@ function lowerRange(expression: Extract<BoundExpression, { kind: "range" }>, low
       { Const: { name: result, value: { Array: [] } } },
       { For: { binding: item, domain: { LiteralRange: { start: expression.start, end_exclusive: expression.end } },
         body: [{ Push: { target: result, value: { Variable: item } } }] } },
+    ],
+    value: { Variable: result },
+  };
+}
+
+function lowerScaledList(
+  expression: Extract<BoundExpression, { kind: "scale-list" }>,
+  lowering: Lowering,
+): LoweredValue {
+  const source = captureObservable(lowerExpression(expression.value, lowering), lowering);
+  const result = temporary(lowering, "scaledList");
+  const item = temporary(lowering, "scaledItem");
+  return {
+    setup: [
+      ...source.setup,
+      { Const: { name: result, value: { Array: [] } } },
+      { For: { binding: item, domain: { DerivedArray: {
+        value: source.value, max: expression.max,
+        bound_source: `${expression.source.definition.file}:${expression.source.definition.line}:${expression.source.definition.col} whole-unit conversion`,
+      } }, body: [{ Push: { target: result, value: { Binary: {
+        op: "Mul", left: { Variable: item }, right: { Literal: { Int: expression.multiplier } },
+      } } } }] } },
     ],
     value: { Variable: result },
   };
