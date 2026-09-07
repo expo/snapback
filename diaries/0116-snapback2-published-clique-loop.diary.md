@@ -992,3 +992,10 @@ This is a concrete reason to hold the standalone compiler landing. The native, e
 The strict ordinary-cursor derivative passed the once-only 10k Twin invocation across all three historical arms in 96.822s. All lifecycle phases completed, including the unchanged contradictory-fact atomicity checks, injected publication rollback and populated replacement/reopen. Both whole-state comparisons matched without omitting persisted fields; the earlier successful carrier run was reused. The exact decoded cursor check preserved the ordinary API contract while leaving nonordinary h1 requirements intact.
 
 [Complete outcome and source custody](../benchmarks/runs/2026-09-06-clique-improvement/evidence/resident-linux-strict-twin-complete/README.md) retain the original failures, original limits and a separate reporting KeyError after successful execution. The old failed next value remains unknown. Raw states and backend records are retained externally under their complete manifest. This closes the historical ordinary fixture only; it supplies no current P2, media, Unicode, device or full Clique qualification and changes no competitor baseline.
+
+
+### 2026-09-06 — Alternate-Mac staging stops before publication
+
+Apartment M1 accepted the exact 0.0.14 source, private Node/npm image, qualified tarballs and new writable resume. Its existing npm identity check returned E401, so staging stopped before any publisher or consumer execution. Public package ownership did not substitute for authenticated access. No credentials were copied or changed, and the first cleanup assumption failure remains recorded alongside the retained private compile cache.
+
+[Complete staging and authentication custody](../benchmarks/runs/2026-09-06-clique-improvement/evidence/release-014-apartment-auth-blocked/README.md) preserve the original package bytes and all prior qualification outcomes. The unchanged publisher has no imported-consumer receipt path; Root separately authorized one complete Office invocation under current-authentication, capacity and original-deadline conditions. This entry records the stopped Apartment stage, not that later attempt's result.

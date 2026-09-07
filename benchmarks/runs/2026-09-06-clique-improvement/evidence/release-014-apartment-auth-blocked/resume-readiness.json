@@ -1,0 +1,56 @@
+{
+  "loadResumePreconditionsSatisfiedByReadOnlyInspection": true,
+  "publisherInvoked": false,
+  "fallbackToPrepareExists": true,
+  "prelaunchRevalidationRequired": true,
+  "workingResume": "/Users/ccheever/projects/snapback-worktrees/clique-release-014-apartment-0fdcc846b/snapback2/dist/npm/publish-snapback2-darwin-arm64-0.0.14/resume.json",
+  "workingMode": "0o644",
+  "originalMode": "0o444",
+  "sha256": "9f833af4bce8841f46da3049732ba3377556d8232b85fc50c935557b7e4d268d",
+  "resume": {
+    "name": "snapback2-darwin-arm64",
+    "version": "0.0.14",
+    "bin": "/Users/ccheever/projects/snapback-artifacts/clique-release/0.0.14-0fdcc846b-attempt02/qualified-artifacts/platform/package/bin/snapback2",
+    "mediaBin": "/Users/ccheever/projects/snapback-artifacts/clique-release/0.0.14-0fdcc846b-attempt02/qualified-artifacts/platform/package/bin/snapback2-media",
+    "mediaBytes": 2147984,
+    "withoutEngine": false,
+    "withoutEngineBytes": 3812208,
+    "withEngineBytes": 7029776,
+    "mediaDigest": "f31d8e02cd6846fa94d3294fde2245536945721c19a6f9be59494cb1dc307f86",
+    "artifacts": [
+      {
+        "name": "snapback2-darwin-arm64",
+        "version": "0.0.14",
+        "tarball": "/Users/ccheever/projects/snapback-artifacts/clique-release/0.0.14-0fdcc846b-attempt02/snapback2-darwin-arm64-0.0.14.tgz",
+        "integrity": "sha512-2UVxYTgIQJnGV+8V3gV3yQUTJ6yiftqinl5aeYW6elODy96c7yn7Lm2eq80HZqUhDIBjFjEBFWvd5R2Agfxz6w=="
+      },
+      {
+        "name": "snapback2",
+        "version": "0.0.14",
+        "tarball": "/Users/ccheever/projects/snapback-artifacts/clique-release/0.0.14-0fdcc846b-attempt02/snapback2-0.0.14.tgz",
+        "integrity": "sha512-dPm5mFSUA/DyWvICY6KwHIFCV6XppCogvYRZ3tX8BWV8h1QKIpQ/gPXRNDniRg0SJ4KyZfV1CKuBm2c/CdhX2w=="
+      }
+    ]
+  },
+  "pair": [
+    {
+      "name": "snapback2-darwin-arm64",
+      "version": "0.0.14",
+      "tarball": "/Users/ccheever/projects/snapback-artifacts/clique-release/0.0.14-0fdcc846b-attempt02/snapback2-darwin-arm64-0.0.14.tgz",
+      "integrity": "sha512-2UVxYTgIQJnGV+8V3gV3yQUTJ6yiftqinl5aeYW6elODy96c7yn7Lm2eq80HZqUhDIBjFjEBFWvd5R2Agfxz6w==",
+      "sha256": "92cc8ce2d95c55cb582c1af17da4aaf95f5c82331cc68cf199d4e34dc954c7fb",
+      "mode": "0o444"
+    },
+    {
+      "name": "snapback2",
+      "version": "0.0.14",
+      "tarball": "/Users/ccheever/projects/snapback-artifacts/clique-release/0.0.14-0fdcc846b-attempt02/snapback2-0.0.14.tgz",
+      "integrity": "sha512-dPm5mFSUA/DyWvICY6KwHIFCV6XppCogvYRZ3tX8BWV8h1QKIpQ/gPXRNDniRg0SJ4KyZfV1CKuBm2c/CdhX2w==",
+      "sha256": "4b699eaa4c4a28cb5a508316d14f721bcb6004d65cc6f3888acebb1d15c9867e",
+      "mode": "0o444"
+    }
+  ],
+  "sourceVersion": "0.0.14",
+  "sourceJsDependenciesRequiredForValidResume": false,
+  "productBinariesExecuted": false
+}

@@ -1,0 +1,141 @@
+{
+  "canonicalRoot": "/Users/ccheever/projects/snapback-artifacts/clique-release/0.0.14-0fdcc846b-attempt02",
+  "transferredFiles": [
+    {
+      "path": "source.tar",
+      "sha256": "eab3ded568147118c616da6b2e47a981c06e7e272059b77499aa546d0f0384b7",
+      "bytes": 22312960,
+      "mode": "0o444"
+    },
+    {
+      "path": "source-manifest.json",
+      "sha256": "400d0e34891a420b61fd8acdf242028bd918d6a04ef4cb7bb123d41f169560af",
+      "bytes": 235516,
+      "mode": "0o444"
+    },
+    {
+      "path": "source-archive.json",
+      "sha256": "151861c4634f3b0b87e3ee29cff5daeb326de47b9dc32dfac4e49d5acfaa746c",
+      "bytes": 249,
+      "mode": "0o444"
+    },
+    {
+      "path": "resume-ready.json",
+      "sha256": "9f833af4bce8841f46da3049732ba3377556d8232b85fc50c935557b7e4d268d",
+      "bytes": 1239,
+      "mode": "0o444"
+    },
+    {
+      "path": "snapback2-darwin-arm64-0.0.14.tgz",
+      "sha256": "92cc8ce2d95c55cb582c1af17da4aaf95f5c82331cc68cf199d4e34dc954c7fb",
+      "bytes": 4821150,
+      "mode": "0o444"
+    },
+    {
+      "path": "snapback2-0.0.14.tgz",
+      "sha256": "4b699eaa4c4a28cb5a508316d14f721bcb6004d65cc6f3888acebb1d15c9867e",
+      "bytes": 1797207,
+      "mode": "0o444"
+    },
+    {
+      "path": "artifact-manifest.json",
+      "sha256": "c7b5a6de2aa142668ddfb997bb38db22263f1bd378dab986f8e503117eb37e12",
+      "bytes": 7842,
+      "mode": "0o444"
+    },
+    {
+      "path": "SHA256SUMS",
+      "sha256": "fa782e44e8f64ac0fa77a916066533d1e9a2307e99f5c166da6c6787ae439197",
+      "bytes": 3503,
+      "mode": "0o444"
+    },
+    {
+      "path": "version-receipt.json",
+      "sha256": "5e4e2c0de21abad59e01472fbd09495c97aa6189f2d61e3c3735afc0c136f6aa",
+      "bytes": 493,
+      "mode": "0o444"
+    },
+    {
+      "path": "qualification-receipt.json",
+      "sha256": "3885c3adeeec8c8760275f2f0d3177fd354a5962a9b97f51f49b98a8854e77e9",
+      "bytes": 2147,
+      "mode": "0o444"
+    },
+    {
+      "path": "hermes-binding.json",
+      "sha256": "1e7703888fda3edfd337694830f82f1f4a8025fb7bd9ddbfa9d5aeb651219c11",
+      "bytes": 979,
+      "mode": "0o444"
+    },
+    {
+      "path": "production-dry-run.json",
+      "sha256": "5c733b6258056ce475ce369099864b0d5fbe14102c79bb4db314b04fb5f003b2",
+      "bytes": 3508,
+      "mode": "0o444"
+    },
+    {
+      "path": "installed-expo-verification.json",
+      "sha256": "259dd523e57cc3c8bc72bc67559f69f08d0e8ad02b5f8f2d7cc03ce18edf6537",
+      "bytes": 21164,
+      "mode": "0o444"
+    },
+    {
+      "path": "artifact-receipt.json",
+      "sha256": "b3685d9d929102e21cb420d1d82dd20c492597cdff7a752d85fa92c8ad39bac3",
+      "bytes": 3090,
+      "mode": "0o444"
+    },
+    {
+      "path": "source-correspondence.json",
+      "sha256": "c711853c294b9dd80c042534374c04f3c4c3154f21c2aa7e79e56ee292a679b4",
+      "bytes": 979,
+      "mode": "0o444"
+    },
+    {
+      "path": "npm-custody.json",
+      "sha256": "4a5ef5ca0356c56c84d2a7b70f9be948b7ada9bded2e9215ea2e8f012855be82",
+      "bytes": 8107,
+      "mode": "0o444"
+    },
+    {
+      "path": "packed-file-inventory.json",
+      "sha256": "8cf879479fa5de2d10edb117a4beced04cb8a79f46f06bda96837c59b5d3ab68",
+      "bytes": 32644,
+      "mode": "0o444"
+    },
+    {
+      "path": "implementation-report.md",
+      "sha256": "68a7dc8c387bed9bb87897eaaecbb3c097983e44a63c86e2a342e8dbad45a3dc",
+      "bytes": 13807,
+      "mode": "0o444"
+    },
+    {
+      "path": "qualified-artifacts/platform/package/bin/snapback2",
+      "sha256": "ad1bbd9271e40a8a28d15aa23002e57a1c7443b3e01837ed34ceff46f143ef36",
+      "bytes": 7029776,
+      "mode": "0o555"
+    },
+    {
+      "path": "qualified-artifacts/platform/package/bin/snapback2-media",
+      "sha256": "f31d8e02cd6846fa94d3294fde2245536945721c19a6f9be59494cb1dc307f86",
+      "bytes": 2147984,
+      "mode": "0o555"
+    },
+    {
+      "path": "qualified-artifacts/platform/package/package.json",
+      "sha256": "67bf6b7bd6c17a7316807ed26941feb3cbf39bc611e8aa18f6a132c3e13a9104",
+      "bytes": 347,
+      "mode": "0o444"
+    }
+  ],
+  "resumeVerification": "apartment-receipts/resume-readiness.json",
+  "originalPairAndResumeMode": "0444",
+  "referencedBinariesMode": "0555",
+  "newWorkingResumeMode": "0644",
+  "repacked": false,
+  "failedOfficeWorkingResumeReused": false,
+  "qualificationInheritedFrom": "release-preparation-014-attempt02",
+  "newQualificationPerformed": false,
+  "copiedEvidenceIsSelectedSubset": true,
+  "originalReceiptReferencesRemainUnmodified": true
+}

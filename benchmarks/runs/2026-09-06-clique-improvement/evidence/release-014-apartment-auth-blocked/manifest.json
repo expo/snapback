@@ -1,0 +1,102 @@
+{
+  "scope": "Compact byte-exact staging evidence; large inputs remain external",
+  "externalOriginalRoot": "/Users/ccheever/clique-improvement/revisions/release-apartment-014-staging",
+  "files": {
+    "report.md": {
+      "source": "/Users/ccheever/clique-improvement/revisions/release-apartment-014-staging/implementation-report.md",
+      "bytes": 11596,
+      "sha256": "52d76c1f2dc1f86aeedef44ba5f1dc7835b643e192cc8fc5278cb23d97dfdd75",
+      "copy": "byte-identical"
+    },
+    "writer-terminal.json": {
+      "source": "/Users/ccheever/clique-improvement/revisions/release-apartment-014-staging/terminal.json",
+      "bytes": 111,
+      "sha256": "e185aecadfb8f21221c348c9a53f693891ce2099d31512e3f55accdea2b35a29",
+      "copy": "byte-identical"
+    },
+    "phase.json": {
+      "source": "/Users/ccheever/clique-improvement/revisions/release-apartment-014-staging/phase.json",
+      "bytes": 647,
+      "sha256": "a4f86ffa6736dcb165984b5ac2c290bea51c20b0ad0286cca29ccd3ee8fd1516",
+      "copy": "byte-identical"
+    },
+    "model-receipt.json": {
+      "source": "/Users/ccheever/clique-improvement/revisions/release-apartment-014-staging/model-receipt.json",
+      "bytes": 1104,
+      "sha256": "249b01740c709395593b85d3b32f8b21e139a9efe3f9380d262a38ad17354c8d",
+      "copy": "byte-identical"
+    },
+    "supervisor-final-handoff.json": {
+      "source": "/Users/ccheever/clique-improvement/revisions/release-apartment-014-staging/supervisor-final-handoff.json",
+      "bytes": 604,
+      "sha256": "337af56047b2c8319605937ab3d7111432a85e3f21f9ddbf9442946e38ee1315",
+      "copy": "byte-identical"
+    },
+    "source-receipt.json": {
+      "source": "/Users/ccheever/clique-improvement/revisions/release-apartment-014-staging/source-receipt.json",
+      "bytes": 2537,
+      "sha256": "e9ca30d964b659324e42177b54d0e95401f018639f088e10a18a933f02d6b677",
+      "copy": "byte-identical"
+    },
+    "artifact-receipt.json": {
+      "source": "/Users/ccheever/clique-improvement/revisions/release-apartment-014-staging/artifact-receipt.json",
+      "bytes": 4456,
+      "sha256": "1db11966bd44c59d508d076ddff33fe2d0c82ab4f9e6395aae7a9a35622b5991",
+      "copy": "byte-identical"
+    },
+    "readiness.json": {
+      "source": "/Users/ccheever/clique-improvement/revisions/release-apartment-014-staging/readiness.json",
+      "bytes": 697,
+      "sha256": "b4de1c1163f091dba8882f6b397ba88a085b1cd4548bf455880cad3af9676d24",
+      "copy": "byte-identical"
+    },
+    "metric-receipt.json": {
+      "source": "/Users/ccheever/clique-improvement/revisions/release-apartment-014-staging/metric-receipt.json",
+      "bytes": 265,
+      "sha256": "07f01e43c2d90e174175e962970fc84e0e92b0545609b12da9ba81fc85d6acf4",
+      "copy": "byte-identical"
+    },
+    "cleanup.json": {
+      "source": "/Users/ccheever/clique-improvement/revisions/release-apartment-014-staging/cleanup.json",
+      "bytes": 869,
+      "sha256": "f1f1944523ef15d15b0c8a39c07d1aec6ae62205e01bfb15e0fd07d9527ec4ab",
+      "copy": "byte-identical"
+    },
+    "remote-cleanup.json": {
+      "source": "/Users/ccheever/clique-improvement/revisions/release-apartment-014-staging/remote-cleanup.json",
+      "bytes": 2547,
+      "sha256": "4150f48c6a858af9bb98b9fe76f036cc9406d19faff5267c5e1fde8e218ab2ed",
+      "copy": "byte-identical"
+    },
+    "resume-readiness.json": {
+      "source": "/Users/ccheever/clique-improvement/revisions/release-apartment-014-staging/apartment-receipts/resume-readiness.json",
+      "bytes": 2777,
+      "sha256": "2a7193d5b51e911304615e2f85f12a496737568f73eda010a9ce1155b7769d08",
+      "copy": "byte-identical"
+    },
+    "tool-auth-readiness.json": {
+      "source": "/Users/ccheever/clique-improvement/revisions/release-apartment-014-staging/apartment-receipts/tool-auth-readiness.json",
+      "bytes": 4529,
+      "sha256": "4cfa4de73c3cf9ed6f4c9448dbd5deef756cff3bfbc1c6297ce79804187a049c",
+      "copy": "byte-identical"
+    },
+    "npm-whoami.json": {
+      "source": "/Users/ccheever/clique-improvement/revisions/release-apartment-014-staging/apartment-receipts/npm-whoami.json",
+      "bytes": 912,
+      "sha256": "968095bb77f580fa7507ebe2e3f7dcb60b5a3ad41fc79eaaa140924951dc1525",
+      "copy": "byte-identical"
+    },
+    "npm-owner-snapback2.json": {
+      "source": "/Users/ccheever/clique-improvement/revisions/release-apartment-014-staging/apartment-receipts/npm-owner-snapback2.json",
+      "bytes": 547,
+      "sha256": "906d220a0829c16da7b08c90d4f0394072311a09ac7cbce59157d7f135d02216",
+      "copy": "byte-identical"
+    },
+    "npm-owner-platform.json": {
+      "source": "/Users/ccheever/clique-improvement/revisions/release-apartment-014-staging/apartment-receipts/npm-owner-snapback2-darwin-arm64.json",
+      "bytes": 573,
+      "sha256": "6ea84863a63851c0eaf8047d37dc5ad8a128f4347209b5deb11382be384b8b75",
+      "copy": "byte-identical"
+    }
+  }
+}

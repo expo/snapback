@@ -1,0 +1,17 @@
+{
+  "phase": "staged-auth-blocked-writer-released",
+  "updatedEpoch": 1788751946.0005279,
+  "sourceCommit": "0fdcc846bc7451bbcb1804194b49737418954506",
+  "hostAlias": "apartment-m1",
+  "stagingComplete": true,
+  "publicationReady": false,
+  "blockingObservation": "npm whoami E401; no auth changes authorized/performed",
+  "publisherInvoked": false,
+  "newDryRunOrProductWorkload": false,
+  "writerReleased": true,
+  "ownedWorkloadProcessesRemaining": [],
+  "cleanupReceipt": "cleanup.json",
+  "terminalReceiptOwner": "parent launch.py after CLI returns",
+  "terminalReceiptExpected": "terminal.json",
+  "finalAnswerSeparate": "final-answer.md"
+}

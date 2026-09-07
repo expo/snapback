@@ -1,0 +1,24 @@
+{
+  "stagingComplete": true,
+  "source938Correspondence": true,
+  "originalPairSRIAndResumeCorrespondence": true,
+  "privateNodeNpmVerified": true,
+  "allLoadResumePreconditionsPassInspection": true,
+  "publisherInvoked": false,
+  "readyForActualExecution": false,
+  "stopCondition": {
+    "check": "npm whoami",
+    "exitCode": 1,
+    "code": "E401",
+    "seconds": 0.44844654199999967,
+    "receipt": "apartment-receipts/npm-whoami.json"
+  },
+  "owners": [
+    "ccheever"
+  ],
+  "ownerLookupsAreNotAuthentication": true,
+  "npmInstallPerformed": false,
+  "nextActionOwner": "Root",
+  "futureExecutionPlan": "execution-plan.md",
+  "requiresFreshCapacityAndExplicitExecutionAuthorization": true
+}

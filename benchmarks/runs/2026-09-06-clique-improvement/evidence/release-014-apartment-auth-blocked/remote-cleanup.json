@@ -1,0 +1,163 @@
+{
+  "observedEpoch": 1788751859.63441,
+  "recordedOwners": [
+    {
+      "pid": 61530,
+      "exists": false
+    },
+    {
+      "pid": 61533,
+      "exists": false
+    },
+    {
+      "pid": 61534,
+      "exists": false
+    },
+    {
+      "pid": 61535,
+      "exists": false
+    },
+    {
+      "pid": 61536,
+      "exists": false
+    },
+    {
+      "pid": 61537,
+      "exists": false
+    },
+    {
+      "pid": 61544,
+      "exists": false
+    },
+    {
+      "pid": 62084,
+      "exists": false
+    },
+    {
+      "pid": 62167,
+      "exists": false
+    },
+    {
+      "pid": 62317,
+      "exists": false
+    },
+    {
+      "pid": 62430,
+      "exists": false
+    },
+    {
+      "pid": 62464,
+      "exists": false
+    },
+    {
+      "pid": 62472,
+      "exists": false
+    },
+    {
+      "pid": 62480,
+      "exists": false
+    },
+    {
+      "pid": 62487,
+      "exists": false
+    },
+    {
+      "pid": 62504,
+      "exists": false
+    },
+    {
+      "pid": 62522,
+      "exists": false
+    },
+    {
+      "pid": 62657,
+      "exists": false
+    },
+    {
+      "pid": 62658,
+      "exists": false
+    },
+    {
+      "pid": 62663,
+      "exists": false
+    },
+    {
+      "pid": 62664,
+      "exists": false
+    },
+    {
+      "pid": 62665,
+      "exists": false
+    },
+    {
+      "pid": 62667,
+      "exists": false
+    },
+    {
+      "pid": 62669,
+      "exists": false
+    },
+    {
+      "pid": 62670,
+      "exists": false
+    },
+    {
+      "pid": 62672,
+      "exists": false
+    },
+    {
+      "pid": 62674,
+      "exists": false
+    },
+    {
+      "pid": 62675,
+      "exists": false
+    },
+    {
+      "pid": 62677,
+      "exists": false
+    },
+    {
+      "pid": 62679,
+      "exists": false
+    },
+    {
+      "pid": 62682,
+      "exists": false
+    },
+    {
+      "pid": 62683,
+      "exists": false
+    },
+    {
+      "pid": 62961,
+      "exists": false
+    },
+    {
+      "pid": 63231,
+      "exists": false
+    },
+    {
+      "pid": 63363,
+      "exists": false
+    }
+  ],
+  "allRecordedOwnersAbsent": true,
+  "stoppedProcesses": [],
+  "removedFiles": [],
+  "tmpEmpty": false,
+  "retainedTmp": "npm tool Node compile cache; lib/cli.js calls enableCompileCache()",
+  "tmpFiles": 413,
+  "tmpFileBytes": 1082420,
+  "originalEmptyTmpAssertionFailurePreserved": true,
+  "retainedStage": true,
+  "publisherOrServerStarted": false,
+  "portsAllocated": [],
+  "metricSha256": "767df97a4d74b9b954bb9434120da61c08a98a739e1913d1149a534792ffcf8a",
+  "metricRows": 219,
+  "load": [
+    4.79150390625,
+    6.59326171875,
+    5.88330078125
+  ]
+}

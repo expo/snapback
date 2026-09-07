@@ -1,0 +1,120 @@
+{
+  "node": {
+    "version": "v22.23.2",
+    "arch": "arm64",
+    "platform": "darwin",
+    "execPath": "/Users/ccheever/clique-improvement/revisions/release-apartment-014-staging/tools/node-22.23.2/bin/node"
+  },
+  "npmVersion": "10.9.8",
+  "metadata": [
+    {
+      "label": "node",
+      "path": "/Users/ccheever/clique-improvement/revisions/release-apartment-014-staging/tools/node-22.23.2/bin/node",
+      "architecture": "arm64",
+      "minos": "11.0",
+      "dependencies": [
+        "/System/Library/Frameworks/CoreFoundation.framework/Versions/A/CoreFoundation",
+        "/System/Library/Frameworks/Security.framework/Versions/A/Security",
+        "/usr/lib/libc++.1.dylib",
+        "/usr/lib/libSystem.B.dylib"
+      ],
+      "sha256": "18e387c90ab8a8400183e8bdd396376e1e875b91b4c874b894dcade7b35bf572"
+    },
+    {
+      "label": "engine",
+      "path": "/Users/ccheever/projects/snapback-artifacts/clique-release/0.0.14-0fdcc846b-attempt02/qualified-artifacts/platform/package/bin/snapback2",
+      "architecture": "arm64",
+      "minos": "11.0",
+      "dependencies": [
+        "/System/Library/Frameworks/Security.framework/Versions/A/Security",
+        "/usr/lib/libc++.1.dylib",
+        "/System/Library/Frameworks/CoreFoundation.framework/Versions/A/CoreFoundation",
+        "/System/Library/Frameworks/Foundation.framework/Versions/C/Foundation",
+        "/usr/lib/libiconv.2.dylib",
+        "/usr/lib/libSystem.B.dylib",
+        "/usr/lib/libobjc.A.dylib"
+      ],
+      "sha256": "ad1bbd9271e40a8a28d15aa23002e57a1c7443b3e01837ed34ceff46f143ef36"
+    },
+    {
+      "label": "media",
+      "path": "/Users/ccheever/projects/snapback-artifacts/clique-release/0.0.14-0fdcc846b-attempt02/qualified-artifacts/platform/package/bin/snapback2-media",
+      "architecture": "arm64",
+      "minos": "11.0",
+      "dependencies": [
+        "/usr/lib/libc++.1.dylib",
+        "/usr/lib/libSystem.B.dylib",
+        "/usr/lib/libiconv.2.dylib"
+      ],
+      "sha256": "f31d8e02cd6846fa94d3294fde2245536945721c19a6f9be59494cb1dc307f86"
+    }
+  ],
+  "identity": {
+    "label": "npm-whoami",
+    "argv": [
+      "/Users/ccheever/clique-improvement/revisions/release-apartment-014-staging/tools/node-22.23.2/bin/npm",
+      "whoami",
+      "--json",
+      "--fetch-retries=0",
+      "--fetch-timeout=15000"
+    ],
+    "cwd": "/Users/ccheever/clique-improvement/revisions/release-apartment-014-staging",
+    "timeoutSeconds": 30,
+    "startedEpoch": 1788751555.932342,
+    "pid": 62679,
+    "exitCode": 1,
+    "seconds": 0.44844654199999967,
+    "stdout": "{\n  \"error\": {\n    \"code\": \"E401\",\n    \"summary\": \"401 Unauthorized - GET https://registry.npmjs.org/-/whoami\",\n    \"detail\": \"\"\n  }\n}\n",
+    "stderr": "npm error code E401\nnpm error 401 Unauthorized - GET https://registry.npmjs.org/-/whoami\nnpm error A complete log of this run can be found in: /Users/ccheever/clique-improvement/revisions/release-apartment-014-staging/npm-cache/_logs/2026-09-07T03_25_55_992Z-debug-0.log\n"
+  },
+  "owners": [
+    {
+      "label": "npm-owner-snapback2",
+      "argv": [
+        "/Users/ccheever/clique-improvement/revisions/release-apartment-014-staging/tools/node-22.23.2/bin/npm",
+        "owner",
+        "ls",
+        "snapback2",
+        "--json",
+        "--fetch-retries=0",
+        "--fetch-timeout=15000"
+      ],
+      "cwd": "/Users/ccheever/clique-improvement/revisions/release-apartment-014-staging",
+      "timeoutSeconds": 30,
+      "startedEpoch": 1788751556.381376,
+      "pid": 62682,
+      "exitCode": 0,
+      "seconds": 0.7774739999999998,
+      "stdout": "ccheever <ccheever@gmail.com>\n",
+      "stderr": ""
+    },
+    {
+      "label": "npm-owner-snapback2-darwin-arm64",
+      "argv": [
+        "/Users/ccheever/clique-improvement/revisions/release-apartment-014-staging/tools/node-22.23.2/bin/npm",
+        "owner",
+        "ls",
+        "snapback2-darwin-arm64",
+        "--json",
+        "--fetch-retries=0",
+        "--fetch-timeout=15000"
+      ],
+      "cwd": "/Users/ccheever/clique-improvement/revisions/release-apartment-014-staging",
+      "timeoutSeconds": 30,
+      "startedEpoch": 1788751557.159453,
+      "pid": 62683,
+      "exitCode": 0,
+      "seconds": 0.4876729160000002,
+      "stdout": "ccheever <ccheever@gmail.com>\n",
+      "stderr": ""
+    }
+  ],
+  "noPublisherOrProductBinaryExecution": true,
+  "freshStandardConsumerStillRequired": true,
+  "globalConfigOrCredentialsChanged": false,
+  "loadEnd": [
+    13.8642578125,
+    6.9248046875,
+    5.37255859375
+  ]
+}

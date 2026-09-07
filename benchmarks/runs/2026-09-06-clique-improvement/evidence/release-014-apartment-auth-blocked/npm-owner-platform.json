@@ -1,0 +1,20 @@
+{
+  "label": "npm-owner-snapback2-darwin-arm64",
+  "argv": [
+    "/Users/ccheever/clique-improvement/revisions/release-apartment-014-staging/tools/node-22.23.2/bin/npm",
+    "owner",
+    "ls",
+    "snapback2-darwin-arm64",
+    "--json",
+    "--fetch-retries=0",
+    "--fetch-timeout=15000"
+  ],
+  "cwd": "/Users/ccheever/clique-improvement/revisions/release-apartment-014-staging",
+  "timeoutSeconds": 30,
+  "startedEpoch": 1788751557.159453,
+  "pid": 62683,
+  "exitCode": 0,
+  "seconds": 0.4876729160000002,
+  "stdout": "ccheever <ccheever@gmail.com>\n",
+  "stderr": ""
+}

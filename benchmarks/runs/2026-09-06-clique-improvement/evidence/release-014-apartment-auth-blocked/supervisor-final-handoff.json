@@ -1,0 +1,16 @@
+{
+  "epoch": 1788752151.235828,
+  "reportReadInFull": true,
+  "reportBytes": 11596,
+  "reportSha256": "52d76c1f2dc1f86aeedef44ba5f1dc7835b643e192cc8fc5278cb23d97dfdd75",
+  "terminal": {
+    "pid": 92669,
+    "exitCode": 0,
+    "endedEpoch": 1788752110.842996,
+    "elapsedSeconds": 1416.4873459339142
+  },
+  "writerReleased": true,
+  "publicationReady": false,
+  "reason": "Actual npm whoami E401; no credential changes or publisher invocation",
+  "nextDisposition": "Root authorizes same-session once-only complete standard Office retry after fresh exact inputs/auth/capacity/acknowledged heavy hold"
+}

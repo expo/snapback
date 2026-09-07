@@ -1,0 +1,32 @@
+{
+  "uuid": "01a0781c-e0ea-7ee0-8bf7-238be0c48fa9",
+  "requestedModel": "gpt-6-astra",
+  "requestedReasoning": "xhigh",
+  "actualLauncher": {
+    "pid": 92669,
+    "supervisorPid": 92660,
+    "startEpoch": 1788750694.355652,
+    "argv": [
+      "/Users/ccheever/.volta/bin/codex",
+      "exec",
+      "resume",
+      "--dangerously-bypass-approvals-and-sandbox",
+      "--skip-git-repo-check",
+      "--json",
+      "-m",
+      "gpt-6-astra",
+      "-c",
+      "model_reasoning_effort=\"xhigh\"",
+      "-o",
+      "/Users/ccheever/clique-improvement/revisions/release-apartment-014-staging/final-answer.md",
+      "01a0781c-e0ea-7ee0-8bf7-238be0c48fa9",
+      "-"
+    ],
+    "cwd": "/Users/ccheever/clique-improvement/revisions/release-apartment-014-staging",
+    "promptSha256": "b4a0b70c485649fd1fc804a849662e6dce54eeac9b2717a2d3cc625c6343ae92"
+  },
+  "launchSha256": "61b9bce6619bbb80b567bf1c703bfcb589d667d9c4345d43928a3ac13d0db4fe",
+  "supervisorActualIdentityFilePresent": false,
+  "providerRuntimeIdentityNotIndependentlyQueried": true,
+  "officeIdentityReceipt": "office-host-identity.stdout"
+}
