@@ -1289,3 +1289,11 @@ Published 0.0.16 carries the browser carrier setup guidance and staged-platform 
 Functional publication checks passed, but chat check still exceeded 1 second and the 17 measured consumer steps alone totaled 31.402 seconds against 30. The initial registry E404 is preserved; later exact public identities confirmed publication without republishing. No native-device or benchmark improvement follows from installation proof. Grok remains 63 versus Convex 78 and Supabase 47 until a new full run is graded.
 
 [Release and installed evidence](../benchmarks/runs/2026-09-06-clique-improvement/evidence/cli-016-published/README.md) records the commands, original failures, actual terminals and source/artifact identities. Compiler diagnostics remain in the separately reviewed, unintegrated compiler work.
+
+
+
+### 2026-09-07 — Compiler R29 closed review and integration hold
+
+The loop-reaching-origin candidate `ef88cac15` versus `9995d41a` received scoped READY from both closed independent Astra/xhigh and Grok4.6/xhigh reviews, with actual native and outer exits0. Seven inherited affected-type diagnostics remain exit1 and exactly equal controls; original setup failures and report precision notes remain preserved. [Full evidence](../benchmarks/runs/2026-09-06-clique-improvement/evidence/compiler-loop-reaching-r29-reviews/README.md).
+
+This is not a whole compiler/native/package clearance. Read-only integration assessment identifies the reusable3eba v5 recipe and reviewed0ecd client correction, preserves current-main uniqueness and newer features, and finds no cleared native endpoint for two outstanding62fc absence-pricing findings. Stopped scopes remain stopped; no integration, new tests, publication or frozen016 change resulted from this evidence handoff.

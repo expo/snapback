@@ -1,0 +1,589 @@
+{
+  "tag": "sources/candidate",
+  "typescript": "5.9.2",
+  "roots": [
+    "/home/ccheever/clique-reviews/compiler-loop-reaching-origins-r29-ef88-d72bbb8fba/grok/sources/candidate/snapback2/packages/compiler/src/bun.d.ts",
+    "/home/ccheever/clique-reviews/compiler-loop-reaching-origins-r29-ef88-d72bbb8fba/grok/sources/candidate/snapback2/packages/compiler/src/insert-provenance-checks.ts",
+    "/home/ccheever/clique-reviews/compiler-loop-reaching-origins-r29-ef88-d72bbb8fba/grok/sources/candidate/snapback2/packages/compiler/src/quarry-diagnostic-checks.ts",
+    "/home/ccheever/clique-reviews/compiler-loop-reaching-origins-r29-ef88-d72bbb8fba/grok/sources/candidate/snapback2/packages/compiler/src/quarry-program-checks.ts",
+    "/home/ccheever/clique-reviews/compiler-loop-reaching-origins-r29-ef88-d72bbb8fba/grok/sources/candidate/snapback2/packages/compiler/src/joined-list-checks.ts"
+  ],
+  "options": {
+    "module": 99,
+    "moduleResolution": 100,
+    "resolveJsonModule": true,
+    "jsx": 4,
+    "noEmit": true,
+    "strict": true,
+    "target": 9,
+    "skipLibCheck": true,
+    "types": [
+      "node"
+    ]
+  },
+  "files": [
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-loop-reaching-origins-r29-ef88-d72bbb8fba/grok/sources/candidate/snapback2/packages/compiler/src/bun.d.ts",
+      "sha256": "e93e5fdf764785927aac92df64c51c0349605614ed85938bf1f5a8e1923354e1"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-loop-reaching-origins-r29-ef88-d72bbb8fba/grok/sources/candidate/snapback2/packages/evaluator/src/types.ts",
+      "sha256": "afc6bc7ffd25fc007787b10e0fc8bdafbe4ae61cb12f7d2442f2c2df95686618"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-loop-reaching-origins-r29-ef88-d72bbb8fba/grok/sources/candidate/snapback2/crates/snapback2-core/ir-contract.json",
+      "sha256": "d09c63f52622b9b8fb2762b94b17b4e2c8882e9feecf0737d24470ec2bde0252"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-loop-reaching-origins-r29-ef88-d72bbb8fba/grok/sources/candidate/snapback2/packages/evaluator/src/errors.ts",
+      "sha256": "a2dc2e8ef8522ad82af1740c6f8656dc6b05418454226b50571630e777fe0795"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-loop-reaching-origins-r29-ef88-d72bbb8fba/grok/sources/candidate/snapback2/packages/evaluator/src/certificate-identity.ts",
+      "sha256": "c619d5181f31ded0ad593bbaa0d4e7349bdb13e0347fb1fb162575eb38f32730"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-loop-reaching-origins-r29-ef88-d72bbb8fba/grok/sources/candidate/snapback2/packages/evaluator/src/hash.ts",
+      "sha256": "fc3cea8b05458f5fa00867d8c284bc27a3a00d6d1a4d4d3d50182ff5f3294fe2"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-loop-reaching-origins-r29-ef88-d72bbb8fba/grok/sources/candidate/snapback2/packages/evaluator/src/cursor.ts",
+      "sha256": "d9deb9f9e91ed5d4493f60106023d1797d6cbc302a1da2f13f1934f547c2997b"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-loop-reaching-origins-r29-ef88-d72bbb8fba/grok/sources/candidate/snapback2/packages/evaluator/src/value-runtime.ts",
+      "sha256": "691b15a681781f2347dea54e8b07b1ce746fb4708fce8173bd3d3893f3bf4308"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-loop-reaching-origins-r29-ef88-d72bbb8fba/grok/sources/candidate/snapback2/packages/evaluator/dist/unicode-tables.ts",
+      "sha256": "9eccdccd99e9b936a40dcbf8ae63c55d980086df1ae71f92019f9ab040f6a521"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-loop-reaching-origins-r29-ef88-d72bbb8fba/grok/sources/candidate/snapback2/packages/evaluator/src/unicode-tables.ts",
+      "sha256": "ab99f5f9a78ebe52ec3102525d51b6c9dd7c59cbd9f1b26932042982476b8412"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-loop-reaching-origins-r29-ef88-d72bbb8fba/grok/sources/candidate/snapback2/packages/evaluator/src/unicode.ts",
+      "sha256": "5c17bfa9c0385ed179344dead423a48cbb2bf86abc5089511af934522831c724"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-loop-reaching-origins-r29-ef88-d72bbb8fba/grok/sources/candidate/snapback2/packages/evaluator/src/search-key.ts",
+      "sha256": "347cd64b12798d7b46d120d56f142a912ca810f33e2bd0ce6673861bd032e871"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-loop-reaching-origins-r29-ef88-d72bbb8fba/grok/sources/candidate/snapback2/packages/compiler/src/ir.ts",
+      "sha256": "5b138d18a248e9695bfeb539a3a8bef540b34aec6223218a473dcb420e502a5a"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-loop-reaching-origins-r29-ef88-d72bbb8fba/grok/sources/candidate/snapback2/packages/compiler/src/diagnostics.ts",
+      "sha256": "04665c90a038c987b2fa9f3d06f10abce5eeb8ec4c859a660367f160d7a5d8b6"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-loop-reaching-origins-r29-ef88-d72bbb8fba/grok/sources/candidate/snapback2/packages/compiler/src/syntax.ts",
+      "sha256": "22777a91361e0451c63c131710d047a25ae4d82a448a0f32c27a1ef7b42d3d44"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-loop-reaching-origins-r29-ef88-d72bbb8fba/grok/sources/candidate/snapback2/packages/compiler/src/lower/static.ts",
+      "sha256": "abc6123bc89280c004badee9691aba7b86b992ef6310e7bbbc95e7cdaf3efe91"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-loop-reaching-origins-r29-ef88-d72bbb8fba/grok/sources/candidate/snapback2/packages/compiler/src/type-diagnostic-site.ts",
+      "sha256": "c0613c296b86eb2751b9d242e70209fa0d8731343962f7f7aa9dc968ae302161"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-loop-reaching-origins-r29-ef88-d72bbb8fba/grok/sources/candidate/snapback2/packages/compiler/src/source-path.ts",
+      "sha256": "7d695eeee06105204ff0ac2cbc7165e571723b68b780de83f0656ae380ca61f4"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-loop-reaching-origins-r29-ef88-d72bbb8fba/grok/sources/candidate/snapback2/packages/compiler/src/type-diagnostic-cause.ts",
+      "sha256": "3e170b16b5fece31f6341ca8c94d0302c59963b7e8949a607843cec204b7557e"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-loop-reaching-origins-r29-ef88-d72bbb8fba/grok/sources/candidate/snapback2/packages/compiler/src/project-program.ts",
+      "sha256": "991249438b01563b76873bfad27dda86bff630d9da6303a39c1e72c08e9ae48b"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-loop-reaching-origins-r29-ef88-d72bbb8fba/grok/sources/candidate/snapback2/packages/compiler/src/lower/descriptor-origin.ts",
+      "sha256": "27e06c7eb9f1d35357d7cdd8e52cb0da047fd49f14b450113a72a7480a804d25"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-loop-reaching-origins-r29-ef88-d72bbb8fba/grok/sources/candidate/snapback2/packages/compiler/src/authored-types.ts",
+      "sha256": "bd7f32bd9598e4e3b7cfd6af3e48d1476fc63a706cb58f346ccf657577efea2e"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-loop-reaching-origins-r29-ef88-d72bbb8fba/grok/sources/candidate/snapback2/packages/compiler/src/lower/module.ts",
+      "sha256": "90aaaf40f59b4822d143a53965a65f910a12b845097eb19d965560627e7050bf"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-loop-reaching-origins-r29-ef88-d72bbb8fba/grok/sources/candidate/snapback2/packages/compiler/src/lower/recursion.ts",
+      "sha256": "3d91559078927292079956e07f9dc6ccead40577107ecf2419c991c6ee5bb048"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-loop-reaching-origins-r29-ef88-d72bbb8fba/grok/sources/candidate/snapback2/packages/compiler/src/lower/lexical-binding.ts",
+      "sha256": "93d5b09212d00e9964c8e69d7f3db4b96d0d7ae277083d5ce1fabae3d3c272f7"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-loop-reaching-origins-r29-ef88-d72bbb8fba/grok/sources/candidate/snapback2/packages/compiler/src/lower/value-conversion.ts",
+      "sha256": "f4b9b46c8cf976711c01b674891840009295146f5ae78e586631d6f61770abe9"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-loop-reaching-origins-r29-ef88-d72bbb8fba/grok/sources/candidate/snapback2/packages/compiler/src/lower/environment.ts",
+      "sha256": "a929991a3278cb99bc115b929e63a3a468a79bec4e88018273a379cac271918a"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-loop-reaching-origins-r29-ef88-d72bbb8fba/grok/sources/candidate/snapback2/packages/compiler/src/lower/helper-expansion.ts",
+      "sha256": "f1ac270fa32d6db93d842a95b1f9129cb2b7ee30a90a55cad831cdbe9e71ec1e"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-loop-reaching-origins-r29-ef88-d72bbb8fba/grok/sources/candidate/snapback2/packages/compiler/src/lower/operation-context.ts",
+      "sha256": "ef81df3c025218d670fd26e3e28b9d13cda467dfc01c48dc143b3e96a53e04ec"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-loop-reaching-origins-r29-ef88-d72bbb8fba/grok/sources/candidate/snapback2/packages/compiler/src/lower/collection-origins.ts",
+      "sha256": "9f073d8fdcf5b6320364e00e63a459ce5ff4ba13671abdda97a6ca3434f70b87"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-loop-reaching-origins-r29-ef88-d72bbb8fba/grok/sources/candidate/snapback2/packages/compiler/src/index-components.ts",
+      "sha256": "a1d7a8921234def5b5199a61dc480a589006723b9a5fb8ca7e82dd0cdddb2ac7"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-loop-reaching-origins-r29-ef88-d72bbb8fba/grok/sources/candidate/snapback2/packages/compiler/src/lower/object-shape.ts",
+      "sha256": "ae6a504f1273ab1598e0b8b9d1d07c2dfea6d8f0d80559b63785e6025b4c5c03"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-loop-reaching-origins-r29-ef88-d72bbb8fba/grok/sources/candidate/snapback2/packages/compiler/src/lower/provenance.ts",
+      "sha256": "c81b315e90aca5c3781708cbaa1955cec71e1b711953bfe3a9a138d2568e580f"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-loop-reaching-origins-r29-ef88-d72bbb8fba/grok/sources/candidate/snapback2/packages/compiler/src/lower/nominal-targets.ts",
+      "sha256": "03f6d552320be661073c1e4108e291ba1e1ee8f31e22926605598fdc65649ae8"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-loop-reaching-origins-r29-ef88-d72bbb8fba/grok/sources/candidate/snapback2/packages/compiler/src/lower/read-targets.ts",
+      "sha256": "37b70f72fea7875b49d7d62a9d4a46bc2348516ec6551a2d0558af5cf5623919"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-loop-reaching-origins-r29-ef88-d72bbb8fba/grok/sources/candidate/snapback2/packages/compiler/src/lower/scan-operands.ts",
+      "sha256": "0a96a4ffa88d68024758532236cc3e7dea815ce1393c4f47e2ee812a6eb1e811"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-loop-reaching-origins-r29-ef88-d72bbb8fba/grok/sources/candidate/snapback2/packages/compiler/src/lower/call-operands.ts",
+      "sha256": "0b5916fd21cc3b3f1a6366962bdba3c16e44e1d697bdf8d7311e4fa9385c7a14"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-loop-reaching-origins-r29-ef88-d72bbb8fba/grok/sources/candidate/snapback2/packages/compiler/src/lower/operand-order.ts",
+      "sha256": "c6f5e95151571b99cec5ef720e74a785210f876d499d950c9a8cfc1f9e96a754"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-loop-reaching-origins-r29-ef88-d72bbb8fba/grok/sources/candidate/snapback2/packages/compiler/src/lower/cursor.ts",
+      "sha256": "b096963aed481f3c6dacbaa05bd0a58d5df5b2371081c972956bd78ea9a64f05"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-loop-reaching-origins-r29-ef88-d72bbb8fba/grok/sources/candidate/snapback2/packages/compiler/src/lower/operands.ts",
+      "sha256": "607fa2e0ac6ad3fa4e0720f0e638cb5adf56686cf534d6a8a0479d56369fb069"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-loop-reaching-origins-r29-ef88-d72bbb8fba/grok/sources/candidate/snapback2/packages/compiler/src/lower/assignment.ts",
+      "sha256": "ff090c811caaeb36c2432940dd8fae9147cd8fe84025bcf02061138af5535847"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-loop-reaching-origins-r29-ef88-d72bbb8fba/grok/sources/candidate/snapback2/packages/compiler/src/lower/search-key.ts",
+      "sha256": "d3a9ab2cc20ab936fcb3d7c536573cdecde5964c3ae5ac7e805a087580aa56ed"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-loop-reaching-origins-r29-ef88-d72bbb8fba/grok/sources/candidate/snapback2/packages/compiler/src/lower/binding-bound.ts",
+      "sha256": "8580c92aa0e549d3f088116b9a09e9b72d76a1e02d8e671f3ac2f59b8fbacef6"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-loop-reaching-origins-r29-ef88-d72bbb8fba/grok/sources/candidate/snapback2/packages/compiler/src/lower/collection-presence.ts",
+      "sha256": "f6d8d7e2ae6926ace37c66d0d594f32acf62a724c1e26d3e6af84d7ee86f8152"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-loop-reaching-origins-r29-ef88-d72bbb8fba/grok/sources/candidate/snapback2/packages/compiler/src/lower/collection-facts.ts",
+      "sha256": "2ffd2e4ae4b036790fb9bf51163559a88880bfef89bfdf6e43ca6734ffb604af"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-loop-reaching-origins-r29-ef88-d72bbb8fba/grok/sources/candidate/snapback2/packages/compiler/src/lower/expr.ts",
+      "sha256": "b9535302d27b793f482c50a65dc0a89319d453033d6df9b16b736b0332beb50b"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-loop-reaching-origins-r29-ef88-d72bbb8fba/grok/sources/candidate/snapback2/packages/compiler/src/lower/choice.ts",
+      "sha256": "5079bfab08079fbb56f51b95c28e6376aed4403dd0fa7ff5717d70cf0fcb04f7"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-loop-reaching-origins-r29-ef88-d72bbb8fba/grok/sources/candidate/snapback2/packages/compiler/src/args.ts",
+      "sha256": "250f33c59e034adbd165881f98043cba5391bbc334efed9fdeb1f6ae271441f6"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-loop-reaching-origins-r29-ef88-d72bbb8fba/grok/sources/candidate/snapback2/packages/compiler/src/lower/branch-bindings.ts",
+      "sha256": "31ead293e2d072d4d45d0c8b313e8210b7a8233e2e7fad4624a48ce1f2bab41d"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-loop-reaching-origins-r29-ef88-d72bbb8fba/grok/sources/candidate/snapback2/packages/compiler/src/lower/loop-origins.ts",
+      "sha256": "ae10f7c4ea8b1f8dcfcfa41f97c716dd5cb8a73d42b221ee58a1790b03c109ce"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-loop-reaching-origins-r29-ef88-d72bbb8fba/grok/sources/candidate/snapback2/packages/compiler/src/lower/loop-mutations.ts",
+      "sha256": "66b2b77b8dbbb4dca7cc0f4affbd15182d1caa7a91a6982b5ea5f5f07ccf0892"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-loop-reaching-origins-r29-ef88-d72bbb8fba/grok/sources/candidate/snapback2/packages/compiler/src/lower/held-search.ts",
+      "sha256": "5efc7817c85f80c672c734c7c5740cf0a4e11d0463a3f1079bf500d23f5212a5"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-loop-reaching-origins-r29-ef88-d72bbb8fba/grok/sources/candidate/snapback2/packages/compiler/src/lower/merge.ts",
+      "sha256": "8974e65e7e7f202eca9f52c239b9db52012de2ba118271f1d67bca868dfab901"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-loop-reaching-origins-r29-ef88-d72bbb8fba/grok/sources/candidate/snapback2/packages/compiler/src/lower/variable-statement.ts",
+      "sha256": "07f9b8527256c3f0b5df58688a018b346d8dcfd0a83b2c87588305b279fe2aa0"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-loop-reaching-origins-r29-ef88-d72bbb8fba/grok/sources/candidate/snapback2/packages/compiler/src/lower/empty-list-domain.ts",
+      "sha256": "697208ec6c4a0520d1c78c47a37f2ca67b4a89c944077b3c97138a48e899a4a7"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-loop-reaching-origins-r29-ef88-d72bbb8fba/grok/sources/candidate/snapback2/packages/compiler/src/lower/loop-copy.ts",
+      "sha256": "318ce0fb69a2692c10d8a0a59a3094f2514d6b800a597453745af10562129c9b"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-loop-reaching-origins-r29-ef88-d72bbb8fba/grok/sources/candidate/snapback2/packages/compiler/src/lower/joined-list-domain.ts",
+      "sha256": "14c5fe9c8ff60367958b3f87974692b66c43476ca0912afae19072dbce351701"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-loop-reaching-origins-r29-ef88-d72bbb8fba/grok/sources/candidate/snapback2/packages/compiler/src/lower/collections.ts",
+      "sha256": "6bc8175ef08dee76e79927902c8610ba0ef652676b75d5ebe22a9e52789fcb4b"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-loop-reaching-origins-r29-ef88-d72bbb8fba/grok/sources/candidate/snapback2/packages/compiler/src/lower/write-identity.ts",
+      "sha256": "4edf80b82db0d402d3530e2cd54471c7eceda5a6b02e95740c3e2b9dc64d9055"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-loop-reaching-origins-r29-ef88-d72bbb8fba/grok/sources/candidate/snapback2/packages/compiler/src/lower/rule-types.ts",
+      "sha256": "e3b667a7e4a579aa0baf49fea463b05f3ea2eeea91640b4e3df5b4cf47f452f1"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-loop-reaching-origins-r29-ef88-d72bbb8fba/grok/sources/candidate/snapback2/packages/compiler/src/lower/schema.ts",
+      "sha256": "4f2e872b30716c8d66bd6d81f85c661c733f97c265786ef8cda16dfa8567008e"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-loop-reaching-origins-r29-ef88-d72bbb8fba/grok/sources/candidate/snapback2/packages/compiler/src/policy.ts",
+      "sha256": "155a3c5799e99790c828c5dfe8c0f90d61de494eacb880388acdb38af5244110"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-loop-reaching-origins-r29-ef88-d72bbb8fba/grok/sources/candidate/snapback2/packages/compiler/src/destination-conversion.ts",
+      "sha256": "a5f5096e32cb89b5d52b15144c21de4c064b5dfca83c41a551fe96b5f02df149"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-loop-reaching-origins-r29-ef88-d72bbb8fba/grok/sources/candidate/snapback2/packages/compiler/src/producer-types.ts",
+      "sha256": "10c4d622b4f9f8fc9d7b004a0d543e899569ce26acac9a593173f2eb222bae0d"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-loop-reaching-origins-r29-ef88-d72bbb8fba/grok/sources/candidate/snapback2/packages/compiler/src/type-analysis.ts",
+      "sha256": "761bdc90294700587ab50d03f5d9bce440b585323234b976b502c8eaabccf59a"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-loop-reaching-origins-r29-ef88-d72bbb8fba/grok/sources/candidate/snapback2/packages/compiler/src/typecheck.ts",
+      "sha256": "487a71ec43e0379d1da2a52086486bb9e8306e18d80ce0041d4ef89bd8402af8"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-loop-reaching-origins-r29-ef88-d72bbb8fba/grok/sources/candidate/snapback2/packages/compiler/src/handler-bindings.ts",
+      "sha256": "5bac8fdc3dfde2a3e9d9f146d6b7a071b6e70e321a9117948424e529b7386afe"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-loop-reaching-origins-r29-ef88-d72bbb8fba/grok/sources/candidate/snapback2/packages/compiler/src/operation-diagnostics.ts",
+      "sha256": "1e055ea71f81f7f657aaa8cf60900142a76cb849a3929b516ea0a92546609773"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-loop-reaching-origins-r29-ef88-d72bbb8fba/grok/sources/candidate/snapback2/packages/compiler/src/compiler.ts",
+      "sha256": "9ac0d2523354908bfbaf4c3576606adcdb46326c59f5cd414886556cf333e498"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-loop-reaching-origins-r29-ef88-d72bbb8fba/grok/sources/candidate/snapback2/packages/compiler/src/lower/effects.ts",
+      "sha256": "950e4fe76686e0c6649a00486f65caef6d7eed4bf833d83acf769a42081e572d"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-loop-reaching-origins-r29-ef88-d72bbb8fba/grok/sources/candidate/snapback2/packages/compiler/src/quarry/ast.ts",
+      "sha256": "3b7f00a085a6848d70c4c78c03f4446a7277e91bc1b02f5c5dec27aa2e0a02d5"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-loop-reaching-origins-r29-ef88-d72bbb8fba/grok/sources/candidate/snapback2/packages/compiler/src/quarry/value-type.ts",
+      "sha256": "be61511bbef37625437dec90aa2a4e992123d5e1deb4e76c1f90d124c86d884b"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-loop-reaching-origins-r29-ef88-d72bbb8fba/grok/sources/candidate/snapback2/packages/compiler/src/quarry/print.ts",
+      "sha256": "92d5e409c502e56a911ea421b9ac63faf6e9f1ae021e56bb16fe200d17b17b7a"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-loop-reaching-origins-r29-ef88-d72bbb8fba/grok/sources/candidate/snapback2/packages/compiler/src/quarry/diagnostics.ts",
+      "sha256": "b215b6c3e8adf46e45f7f897b9d26779484467faa7958fa3ca2e302ff76569ec"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-loop-reaching-origins-r29-ef88-d72bbb8fba/grok/sources/candidate/snapback2/packages/compiler/src/quarry/catalog.ts",
+      "sha256": "c1965b0d372e926ac419953c2bf1b8465710a6244882d02c3bf4b454f971389c"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-loop-reaching-origins-r29-ef88-d72bbb8fba/grok/sources/candidate/snapback2/packages/compiler/src/quarry/expand.ts",
+      "sha256": "e96d9a3c868645a35e172033a896046dff7fa90e8c3c83024d28a8d3c195d764"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-loop-reaching-origins-r29-ef88-d72bbb8fba/grok/sources/candidate/snapback2/packages/compiler/src/quarry/lexer.ts",
+      "sha256": "6318714747d597cf5cbcb09ab3b8c8cd998147a0725c2e20e0ef7481aee5bf17"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-loop-reaching-origins-r29-ef88-d72bbb8fba/grok/sources/candidate/snapback2/packages/compiler/src/quarry/parser.ts",
+      "sha256": "ae630fdb0d419ed06676df0a72886b356b991446db8eb5d476f7cc1c0647cc69"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-loop-reaching-origins-r29-ef88-d72bbb8fba/grok/sources/candidate/snapback2/packages/compiler/src/quarry/narrowing.ts",
+      "sha256": "284362a819cf7e4102229162717e7a4419fdf332af5f4a6b039c80404bbfe2e5"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-loop-reaching-origins-r29-ef88-d72bbb8fba/grok/sources/candidate/snapback2/packages/compiler/src/quarry/schema.ts",
+      "sha256": "42a37d3b5547285c9f13cfd61651c32d307a1efa30d5dad29c36f25f583f7600"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-loop-reaching-origins-r29-ef88-d72bbb8fba/grok/sources/candidate/snapback2/packages/compiler/src/quarry/program.ts",
+      "sha256": "5ec2be4a738e2b7f747a49d102152e4a1cf2b7219f51b1e7fb83cbe2d066f64e"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-loop-reaching-origins-r29-ef88-d72bbb8fba/grok/sources/candidate/snapback2/packages/compiler/src/quarry/schedule.ts",
+      "sha256": "e06ccc7e00392f9e0102c9adaf0456abbaf252202e0ba3a1a935e18e68ae587d"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-loop-reaching-origins-r29-ef88-d72bbb8fba/grok/sources/candidate/snapback2/packages/compiler/src/quarry/where-repair.ts",
+      "sha256": "627714175c27036fb5f0e72abbfd0c143941dbcd453d32bd447249a2908ba9a8"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-loop-reaching-origins-r29-ef88-d72bbb8fba/grok/sources/candidate/snapback2/packages/compiler/src/quarry/index.ts",
+      "sha256": "292c459771ea44cb6e09ab697d60da41d4649dd504f83ee740c04ff542336267"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-loop-reaching-origins-r29-ef88-d72bbb8fba/grok/sources/candidate/snapback2/packages/compiler/src/quarry/cap-sites.ts",
+      "sha256": "f4baba08632f2c13120cbd634819abde3fd4748d7a0bb7c74ce7421a8476eec3"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-loop-reaching-origins-r29-ef88-d72bbb8fba/grok/sources/candidate/snapback2/packages/compiler/src/project-seed.ts",
+      "sha256": "7fd008d7c98772ce33664ae4523b9776e1547e8029f48f76b71f80f1194a36a8"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-loop-reaching-origins-r29-ef88-d72bbb8fba/grok/sources/candidate/snapback2/packages/compiler/src/project-sort.ts",
+      "sha256": "d38cbb42bc4fdcc95c56871b873ff90f61e901d801ce17a26be7de8da008af62"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-loop-reaching-origins-r29-ef88-d72bbb8fba/grok/sources/candidate/snapback2/packages/compiler/src/project-authoring.ts",
+      "sha256": "98f9b04027808c9834666b16f122bafef30b1e217406fd0b6c0e414f62744ea7"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-loop-reaching-origins-r29-ef88-d72bbb8fba/grok/sources/candidate/snapback2/packages/compiler/src/project-api-types.ts",
+      "sha256": "b510bc2d9386fdf5e097e87ad68e2d848bdbc89d521bde14bf37cfa7932d0d8f"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-loop-reaching-origins-r29-ef88-d72bbb8fba/grok/sources/candidate/snapback2/packages/compiler/src/project.ts",
+      "sha256": "812d5e6b37243430b4402d30f1b431a3d88b7a758344986b73604b7e87438ed4"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-loop-reaching-origins-r29-ef88-d72bbb8fba/grok/sources/candidate/snapback2/packages/compiler/src/quarry-check-helpers.ts",
+      "sha256": "6b229b271c367f31df39c9aae1b48e7de45b190aa55ed7fc116af14d8d5e7603"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-loop-reaching-origins-r29-ef88-d72bbb8fba/grok/sources/candidate/snapback2/packages/evaluator/src/authority.ts",
+      "sha256": "16ba69cfd87551d51cdfba3e956b7f7e3abadee15c89e1bce3437bde321c8848"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-loop-reaching-origins-r29-ef88-d72bbb8fba/grok/sources/candidate/snapback2/packages/evaluator/src/merge.ts",
+      "sha256": "a2363d11564f095e3fb705b0fd34e029f5d470162aa01e161ac65e87ba4cdecf"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-loop-reaching-origins-r29-ef88-d72bbb8fba/grok/sources/candidate/snapback2/packages/evaluator/src/text.ts",
+      "sha256": "564578922bb4fe9b2522d8e2e4bc42e8111cd3aa804f9de76e9e11d010cc3c8e"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-loop-reaching-origins-r29-ef88-d72bbb8fba/grok/sources/candidate/snapback2/packages/evaluator/src/runner.ts",
+      "sha256": "641d248245b8947079d1ea37be6a6c13bc1d5209b8cd67eaede6308fa7ecf362"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-loop-reaching-origins-r29-ef88-d72bbb8fba/grok/sources/candidate/snapback2/packages/evaluator/src/store.ts",
+      "sha256": "2d06cf6dbad9d5b424d6e900e9e4741ada710f1e31e7fd5a8e86f4516cb302b9"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-loop-reaching-origins-r29-ef88-d72bbb8fba/grok/sources/candidate/snapback2/packages/compiler/src/collection-join-cases.ts",
+      "sha256": "f978f4d4cd4caec2172f770e332b978dc5d8ee2522a88d0bebfdfd960591d233"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-loop-reaching-origins-r29-ef88-d72bbb8fba/grok/sources/candidate/snapback2/packages/compiler/src/effectful-join-cases.ts",
+      "sha256": "1864c40607b95eff7b965bc842e17c8af9c74d5f124137402bc46619ffa660e4"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-loop-reaching-origins-r29-ef88-d72bbb8fba/grok/sources/candidate/snapback2/packages/compiler/src/clone-policy-cases.ts",
+      "sha256": "d343c275672e7587e9affadbb5529e876cb079da941eccef65dfd4ebd30461ad"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-loop-reaching-origins-r29-ef88-d72bbb8fba/grok/sources/candidate/snapback2/packages/compiler/src/joined-list-checks.ts",
+      "sha256": "f3a63829fe4450fec77b9389a618425cb9dfef6e91a66e5b2d972c7328c97ef5"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-loop-reaching-origins-r29-ef88-d72bbb8fba/grok/sources/candidate/snapback2/packages/compiler/src/domain-operand-checks.ts",
+      "sha256": "f1b1ab4baaea5fd8f84cb36e57941b4ccf1b17a3a35e0137a3d3768872b176e4"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-loop-reaching-origins-r29-ef88-d72bbb8fba/grok/sources/candidate/snapback2/packages/compiler/src/capture-value-checks.ts",
+      "sha256": "042830c0e3627f7d91a5e4fc77e83234aa705a4c8fec22b12405f3b9d0a28a64"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-loop-reaching-origins-r29-ef88-d72bbb8fba/grok/sources/candidate/snapback2/packages/compiler/src/capture-representation-checks.ts",
+      "sha256": "5cb601c79c0426431961bf2977fd7815ee8b9d21c3b0e416ed43c36659434e73"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-loop-reaching-origins-r29-ef88-d72bbb8fba/grok/sources/candidate/snapback2/packages/compiler/src/capture-repair-checks.ts",
+      "sha256": "054125d4608c1f9b634345dc97643e1d540dcecd88b1a2157b7869ccb0bd1c53"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-loop-reaching-origins-r29-ef88-d72bbb8fba/grok/sources/candidate/snapback2/packages/compiler/src/capture-producer-checks.ts",
+      "sha256": "3892ec6877bf832b047e0568edeb63c7aa81ed782941c8a5dd3e1ff3891b8cdd"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-loop-reaching-origins-r29-ef88-d72bbb8fba/grok/sources/candidate/snapback2/packages/compiler/src/capture-custody-checks.ts",
+      "sha256": "39d612d28aaa2618829f1dded02f2a896d84020e6de962d2b8704810bd6769f5"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-loop-reaching-origins-r29-ef88-d72bbb8fba/grok/sources/candidate/snapback2/packages/compiler/src/literal-absence-cases.ts",
+      "sha256": "59b33094ebef5379e7d4e9af0495e48d0e422df19553f02336b03f5fca27e4d8"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-loop-reaching-origins-r29-ef88-d72bbb8fba/grok/sources/candidate/snapback2/packages/compiler/src/captured-nominal-cases.ts",
+      "sha256": "2ae27794974307fec45b10bb6900a6517af397ea305b866372e1933221a9bb89"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-loop-reaching-origins-r29-ef88-d72bbb8fba/grok/sources/candidate/snapback2/packages/compiler/src/effectful-member-cases.ts",
+      "sha256": "027406dd5b67d44516116a4b62b95cad250fd62914b4c7dbc04e5c0adcabbe4f"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-loop-reaching-origins-r29-ef88-d72bbb8fba/grok/sources/candidate/snapback2/packages/compiler/src/insert-provenance-checks.ts",
+      "sha256": "9a48bcdcf604affc3526f446b9eec85822f2602b5e8b681a383d74efc82e9499"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-loop-reaching-origins-r29-ef88-d72bbb8fba/grok/sources/candidate/snapback2/packages/compiler/src/quarry-diagnostic-checks.ts",
+      "sha256": "0f730ebd8374be948f84b40617b24abbf96ff5ec9efe889bbb9e12c95cf504bc"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-loop-reaching-origins-r29-ef88-d72bbb8fba/grok/sources/candidate/snapback2/packages/evaluator/src/evaluator.ts",
+      "sha256": "5d25120caaf1ad468d33d72d8c1081d1d8d6c366ea103beae6b8cd70fa83124f"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-loop-reaching-origins-r29-ef88-d72bbb8fba/grok/sources/candidate/snapback2/packages/compiler/src/rust-check.ts",
+      "sha256": "49c55cea6ed9a307bf4e5e59e1b1f21b5a06a518293fa4b55f9b5813d3bfcf67"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-loop-reaching-origins-r29-ef88-d72bbb8fba/grok/sources/candidate/snapback2/packages/compiler/src/quarry-program-checks.ts",
+      "sha256": "cdc19acce935244f4b96325c67fa36112ead890f168714ce5f0cb789f06512b1"
+    }
+  ],
+  "diagnostics": [
+    {
+      "file": "packages/evaluator/src/runner.ts",
+      "start": 21267,
+      "code": 2345,
+      "message": "Argument of type '{ prefix: any; order: any; take: any; after: any; before: any; gt: any; gte: any; lt: any; lte: any; rule_hash: string; stop: \"limit\" | \"exhausted\"; lastReturnedSuffix: Value[] | null; provenance?: any; site: any; table: any; index: any; }' is not assignable to parameter of type 'TraceRange'.\n  Type '{ prefix: any; order: any; take: any; after: any; before: any; gt: any; gte: any; lt: any; lte: any; rule_hash: string; stop: \"limit\" | \"exhausted\"; lastReturnedSuffix: Value[] | null; provenance?: any; site: any; table: any; index: any; }' is missing the following properties from type 'TraceRange': halo, n2_suffix"
+    },
+    {
+      "file": "packages/evaluator/src/runner.ts",
+      "start": 25838,
+      "code": 2345,
+      "message": "Argument of type '{ site: any; table: any; index: any; provenance: any; prefix: any; order: any; take: any; after: any; before: any; gt: any; gte: any; lt: any; lte: any; rule_hash: string; stop: \"limit\" | \"exhausted\"; lastReturnedSuffix: Value[] | null; }' is not assignable to parameter of type 'TraceRange'.\n  Type '{ site: any; table: any; index: any; provenance: any; prefix: any; order: any; take: any; after: any; before: any; gt: any; gte: any; lt: any; lte: any; rule_hash: string; stop: \"limit\" | \"exhausted\"; lastReturnedSuffix: Value[] | null; }' is missing the following properties from type 'TraceRange': halo, n2_suffix"
+    },
+    {
+      "file": "packages/evaluator/src/store.ts",
+      "start": 5002,
+      "code": 2345,
+      "message": "Argument of type 'IndexAtom[]' is not assignable to parameter of type 'Value[]'.\n  Type 'IndexAtom' is not assignable to type 'Value'.\n    Type '{ Scalar: Value; }' is not assignable to type 'Value'."
+    },
+    {
+      "file": "packages/evaluator/src/store.ts",
+      "start": 12558,
+      "code": 2345,
+      "message": "Argument of type 'IndexAtom[]' is not assignable to parameter of type 'Value[]'.\n  Type 'IndexAtom' is not assignable to type 'Value'.\n    Type '{ Scalar: Value; }' is not assignable to type 'Value'."
+    },
+    {
+      "file": "packages/evaluator/src/store.ts",
+      "start": 14960,
+      "code": 2345,
+      "message": "Argument of type 'IndexAtom[]' is not assignable to parameter of type 'Value[]'.\n  Type 'IndexAtom' is not assignable to type 'Value'.\n    Type '{ Scalar: Value; }' is not assignable to type 'Value'."
+    },
+    {
+      "file": "packages/evaluator/src/store.ts",
+      "start": 17379,
+      "code": 2322,
+      "message": "Type 'IndexAtom[]' is not assignable to type 'Value[]'.\n  Type 'IndexAtom' is not assignable to type 'Value'.\n    Type '{ Scalar: Value; }' is not assignable to type 'Value'."
+    },
+    {
+      "file": "packages/evaluator/src/store.ts",
+      "start": 20109,
+      "code": 2345,
+      "message": "Argument of type 'IndexAtom[]' is not assignable to parameter of type 'Value[]'.\n  Type 'IndexAtom' is not assignable to type 'Value'.\n    Type '{ Scalar: Value; }' is not assignable to type 'Value'."
+    }
+  ],
+  "externalRoots": [
+    "/home/ccheever/clique-reviews/compiler-loop-reaching-origins-r29-ef88-d72bbb8fba/grok/sources/candidate/snapback2/packages/evaluator/src/types.ts",
+    "/home/ccheever/clique-reviews/compiler-loop-reaching-origins-r29-ef88-d72bbb8fba/grok/sources/candidate/snapback2/crates/snapback2-core/ir-contract.json",
+    "/home/ccheever/clique-reviews/compiler-loop-reaching-origins-r29-ef88-d72bbb8fba/grok/sources/candidate/snapback2/packages/evaluator/src/errors.ts",
+    "/home/ccheever/clique-reviews/compiler-loop-reaching-origins-r29-ef88-d72bbb8fba/grok/sources/candidate/snapback2/packages/evaluator/src/certificate-identity.ts",
+    "/home/ccheever/clique-reviews/compiler-loop-reaching-origins-r29-ef88-d72bbb8fba/grok/sources/candidate/snapback2/packages/evaluator/src/hash.ts",
+    "/home/ccheever/clique-reviews/compiler-loop-reaching-origins-r29-ef88-d72bbb8fba/grok/sources/candidate/snapback2/packages/evaluator/src/cursor.ts",
+    "/home/ccheever/clique-reviews/compiler-loop-reaching-origins-r29-ef88-d72bbb8fba/grok/sources/candidate/snapback2/packages/evaluator/src/value-runtime.ts",
+    "/home/ccheever/clique-reviews/compiler-loop-reaching-origins-r29-ef88-d72bbb8fba/grok/sources/candidate/snapback2/packages/evaluator/dist/unicode-tables.ts",
+    "/home/ccheever/clique-reviews/compiler-loop-reaching-origins-r29-ef88-d72bbb8fba/grok/sources/candidate/snapback2/packages/evaluator/src/unicode-tables.ts",
+    "/home/ccheever/clique-reviews/compiler-loop-reaching-origins-r29-ef88-d72bbb8fba/grok/sources/candidate/snapback2/packages/evaluator/src/unicode.ts",
+    "/home/ccheever/clique-reviews/compiler-loop-reaching-origins-r29-ef88-d72bbb8fba/grok/sources/candidate/snapback2/packages/evaluator/src/search-key.ts",
+    "/home/ccheever/clique-reviews/compiler-loop-reaching-origins-r29-ef88-d72bbb8fba/grok/sources/candidate/snapback2/packages/evaluator/src/authority.ts",
+    "/home/ccheever/clique-reviews/compiler-loop-reaching-origins-r29-ef88-d72bbb8fba/grok/sources/candidate/snapback2/packages/evaluator/src/merge.ts",
+    "/home/ccheever/clique-reviews/compiler-loop-reaching-origins-r29-ef88-d72bbb8fba/grok/sources/candidate/snapback2/packages/evaluator/src/text.ts",
+    "/home/ccheever/clique-reviews/compiler-loop-reaching-origins-r29-ef88-d72bbb8fba/grok/sources/candidate/snapback2/packages/evaluator/src/runner.ts",
+    "/home/ccheever/clique-reviews/compiler-loop-reaching-origins-r29-ef88-d72bbb8fba/grok/sources/candidate/snapback2/packages/evaluator/src/store.ts",
+    "/home/ccheever/clique-reviews/compiler-loop-reaching-origins-r29-ef88-d72bbb8fba/grok/sources/candidate/snapback2/packages/evaluator/src/evaluator.ts"
+  ],
+  "controlDiagnostics": [
+    {
+      "file": "packages/evaluator/src/runner.ts",
+      "start": 21267,
+      "code": 2345,
+      "message": "Argument of type '{ prefix: any; order: any; take: any; after: any; before: any; gt: any; gte: any; lt: any; lte: any; rule_hash: string; stop: \"limit\" | \"exhausted\"; lastReturnedSuffix: Value[] | null; provenance?: any; site: any; table: any; index: any; }' is not assignable to parameter of type 'TraceRange'.\n  Type '{ prefix: any; order: any; take: any; after: any; before: any; gt: any; gte: any; lt: any; lte: any; rule_hash: string; stop: \"limit\" | \"exhausted\"; lastReturnedSuffix: Value[] | null; provenance?: any; site: any; table: any; index: any; }' is missing the following properties from type 'TraceRange': halo, n2_suffix"
+    },
+    {
+      "file": "packages/evaluator/src/runner.ts",
+      "start": 25838,
+      "code": 2345,
+      "message": "Argument of type '{ site: any; table: any; index: any; provenance: any; prefix: any; order: any; take: any; after: any; before: any; gt: any; gte: any; lt: any; lte: any; rule_hash: string; stop: \"limit\" | \"exhausted\"; lastReturnedSuffix: Value[] | null; }' is not assignable to parameter of type 'TraceRange'.\n  Type '{ site: any; table: any; index: any; provenance: any; prefix: any; order: any; take: any; after: any; before: any; gt: any; gte: any; lt: any; lte: any; rule_hash: string; stop: \"limit\" | \"exhausted\"; lastReturnedSuffix: Value[] | null; }' is missing the following properties from type 'TraceRange': halo, n2_suffix"
+    },
+    {
+      "file": "packages/evaluator/src/store.ts",
+      "start": 5002,
+      "code": 2345,
+      "message": "Argument of type 'IndexAtom[]' is not assignable to parameter of type 'Value[]'.\n  Type 'IndexAtom' is not assignable to type 'Value'.\n    Type '{ Scalar: Value; }' is not assignable to type 'Value'."
+    },
+    {
+      "file": "packages/evaluator/src/store.ts",
+      "start": 12558,
+      "code": 2345,
+      "message": "Argument of type 'IndexAtom[]' is not assignable to parameter of type 'Value[]'.\n  Type 'IndexAtom' is not assignable to type 'Value'.\n    Type '{ Scalar: Value; }' is not assignable to type 'Value'."
+    },
+    {
+      "file": "packages/evaluator/src/store.ts",
+      "start": 14960,
+      "code": 2345,
+      "message": "Argument of type 'IndexAtom[]' is not assignable to parameter of type 'Value[]'.\n  Type 'IndexAtom' is not assignable to type 'Value'.\n    Type '{ Scalar: Value; }' is not assignable to type 'Value'."
+    },
+    {
+      "file": "packages/evaluator/src/store.ts",
+      "start": 17379,
+      "code": 2322,
+      "message": "Type 'IndexAtom[]' is not assignable to type 'Value[]'.\n  Type 'IndexAtom' is not assignable to type 'Value'.\n    Type '{ Scalar: Value; }' is not assignable to type 'Value'."
+    },
+    {
+      "file": "packages/evaluator/src/store.ts",
+      "start": 20109,
+      "code": 2345,
+      "message": "Argument of type 'IndexAtom[]' is not assignable to parameter of type 'Value[]'.\n  Type 'IndexAtom' is not assignable to type 'Value'.\n    Type '{ Scalar: Value; }' is not assignable to type 'Value'."
+    }
+  ]
+}
