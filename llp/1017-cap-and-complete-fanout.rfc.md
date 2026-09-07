@@ -74,8 +74,9 @@ two, which are smaller and true:
 
 What this RFC does not do (§6): no administrative plane (LLP 1016 owns it);
 no runtime one-more-row probe (on a non-uniform range that is the
-cardinality oracle LLP 0329.014.004 refuses); no application code on `cap`;
-no maintained-count-backed cap check (a ticket).
+cardinality oracle LLP 0329.014.004 refuses); no application code on `cap`.
+(The maintained-count-backed probe this summary once deferred to a ticket was
+built on 2026-09-07; §2.4's implementation record is the law.)
 
 ## 0. The critique, verified
 
@@ -582,7 +583,7 @@ rather than refusing, and that bounded traversal is its authored contract.
 - **No `else CODE` on `cap`.** Constraints carry no application code;
   `unique` and `immutable` do not, and the mutation's `require` does. The
   panel is asked to challenge this.
-- **No maintained-count-backed cap check.** A ticket (§2.4).
+- **No hidden engine-owned count.** The count-backed probe of §2.4 reads a count the schema declares with `maintain … = count … by`; the engine never maintains a count the builder did not name.
 - **No per-site certificate budgets** for programs mixing hoisted and
   non-uniform sites (§1).
 - **No cursor-driven mutation page.** Revision (a)'s form (b), dropped on
