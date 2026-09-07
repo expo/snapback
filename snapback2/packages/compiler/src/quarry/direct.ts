@@ -1,6 +1,6 @@
-import type { ArgType, Expr, IndexKeyExpr, Program, Stmt, Value } from "../ir";
+import type { ArgType, Expr, IndexKeyExpr, Program, SourceSite, Stmt, Value } from "../ir";
 import type { ScalarType } from "./ast";
-import type { BoundExpression, BoundQuarryProgram, BoundRead, BoundStatement } from "./bound";
+import type { BoundExpression, BoundQuarryProgram, BoundRead, BoundSourceStack, BoundStatement } from "./bound";
 import { unsupported } from "./diagnostics";
 
 type Lowering = {
@@ -9,6 +9,8 @@ type Lowering = {
   temporaryOrdinal: number;
   operandOrdinal: number;
   usesReadTime: boolean;
+  sources: Array<[string, SourceSite]>;
+  loopOrdinals: Map<string, number>;
   reservedNames: Set<string>;
   focals: Map<string, Expr>;
   bindings: Map<string, Expr>;
@@ -16,8 +18,16 @@ type Lowering = {
 type LoweredValue = { setup: Stmt[]; value: Expr };
 
 export function lowerBoundQuarryProgram(program: BoundQuarryProgram): Program {
+  return lowerBoundQuarryArtifact(program).program;
+}
+
+export function lowerBoundQuarryArtifact(program: BoundQuarryProgram): {
+  program: Program;
+  sources: Array<[string, SourceSite]>;
+} {
   const lowering: Lowering = {
     program: program.name, accessOrdinal: 0, temporaryOrdinal: 0, operandOrdinal: 0, usesReadTime: false,
+    sources: [], loopOrdinals: new Map(),
     reservedNames: new Set([...program.args.map((arg) => arg.name), ...boundLocalNames(program.body)]),
     focals: new Map(), bindings: new Map(),
   };
@@ -26,7 +36,7 @@ export function lowerBoundQuarryProgram(program: BoundQuarryProgram): Program {
     .sort(([left], [right]) => left.localeCompare(right))) });
   const body = lowerStatements(program.body, lowering);
   if (program.kind !== "job" && statementsFallThrough(program.body)) body.push({ Return: { Literal: "Null" } });
-  return {
+  return { program: {
     name: program.name,
     kind: program.kind === "query" ? "Query" : program.kind === "mutation" ? "Mutation" : "job",
     args: Object.fromEntries([...program.args]
@@ -34,7 +44,7 @@ export function lowerBoundQuarryProgram(program: BoundQuarryProgram): Program {
       .map((arg) => [arg.name, lowerArgType(arg.type)])),
     read_time_granularity_ms: lowering.usesReadTime ? 1 : null,
     body,
-  };
+  }, sources: lowering.sources };
 }
 
 function lowerExpression(expression: BoundExpression, lowering: Lowering): LoweredValue {
@@ -209,6 +219,7 @@ function lowerStatements(statements: BoundStatement[], lowering: Lowering): Stmt
       const loopBody = lowerStatements(statement.body, lowering);
       if (prior) lowering.bindings.set(statement.symbol.id, prior);
       else lowering.bindings.delete(statement.symbol.id);
+      recordLoopSource(lowering, binding, statement.source);
       body.push(...domain.setup, { For: { binding, domain: loopDomain, body: loopBody } });
       continue;
     }
@@ -265,6 +276,7 @@ function lowerLoopArray(expression: Extract<BoundExpression, { kind: "array" }>,
 function lowerRange(expression: Extract<BoundExpression, { kind: "range" }>, lowering: Lowering): LoweredValue {
   const result = temporary(lowering, "rangeValues");
   const item = temporary(lowering, "rangeValue");
+  recordLoopSource(lowering, item, expression.source);
   return {
     setup: [
       { Const: { name: result, value: { Array: [] } } },
@@ -282,6 +294,7 @@ function lowerScaledList(
   const source = captureObservable(lowerExpression(expression.value, lowering), lowering);
   const result = temporary(lowering, "scaledList");
   const item = temporary(lowering, "scaledItem");
+  recordLoopSource(lowering, item, expression.source);
   const converted: Stmt[] = [
     { Const: { name: result, value: { Array: [] } } },
     { For: { binding: item, domain: { DerivedArray: {
@@ -310,10 +323,11 @@ function lowerScaledList(
 function lowerWalk(expression: Extract<BoundExpression, { kind: "walk" }>, lowering: Lowering): LoweredValue {
   // Like point reads, the traversal owns its lexical access identity before
   // evaluating the seed expression's nested reads.
-  const site = accessSite(lowering);
+  const site = accessSite(lowering, expression.source);
   const seed = captureObservable(lowerExpression(expression.seed, lowering), lowering);
   const result = temporary(lowering, "walkRows");
   const row = temporary(lowering, "walkRow");
+  recordLoopSource(lowering, row, expression.source);
   return {
     setup: [
       ...seed.setup,
@@ -342,7 +356,7 @@ function lowerWrite(
       source: expression.source,
     }, ...expression.fields];
     const row = lowerWriteFields(fields, lowering, new Map());
-    accessSite(lowering);
+    accessSite(lowering, expression.source);
     if (!resultUsed) return {
       setup: [...row.setup, { Insert: { table: dataTableName(expression.table.name), row: row.value } }],
       value: { Literal: "Null" },
@@ -364,7 +378,7 @@ function lowerWrite(
   if (!directId || expression.usesFocal) {
     const rowName = temporary(lowering, "writeRow");
     setup.push({ Const: { name: rowName, value: { Get: {
-      site: accessSite(lowering), table: dataTableName(expression.table.name), index: expression.index.name,
+      site: accessSite(lowering, expression.source), table: dataTableName(expression.table.name), index: expression.index.name,
       key: keyValues, provenance: expression.provenance,
     } } } });
     row = { Variable: rowName };
@@ -376,7 +390,7 @@ function lowerWrite(
     }
   }
   if (expression.op === "delete") {
-    accessSite(lowering);
+    accessSite(lowering, expression.source);
     setup.push({ Delete: { table: dataTableName(expression.table.name), key: identity } });
     return { setup, value: { Literal: "Null" } };
   }
@@ -388,7 +402,7 @@ function lowerWrite(
       const patch = lowerWriteFields(
         expression.fields.filter((field) => !replacements.has(field.name)), lowering, new Map(),
       );
-      accessSite(lowering);
+      accessSite(lowering, expression.source);
       setup.push(...patch.setup, { Update: { table: dataTableName(expression.table.name), key: identity, patch: patch.value } });
     } else {
       if (!directId) {
@@ -412,7 +426,7 @@ function lowerWrite(
           value: expression.key[0]!, source: expression.source },
         ...injected, ...expression.fields,
       ], lowering, replacements);
-      accessSite(lowering);
+      accessSite(lowering, expression.source);
       setup.push(...builtRow.setup, { Upsert: { table: dataTableName(expression.table.name), key: identity, row: builtRow.value } });
     }
   } finally {
@@ -421,7 +435,7 @@ function lowerWrite(
   if (!resultUsed) return { setup, value: { Literal: "Null" } };
   return {
     setup,
-    value: { Get: { site: accessSite(lowering), table: dataTableName(expression.table.name), index: "byId",
+    value: { Get: { site: accessSite(lowering, expression.source), table: dataTableName(expression.table.name), index: "byId",
       key: [identity], provenance: expression.provenance } },
   };
 }
@@ -479,6 +493,7 @@ function lowerShape(expression: Extract<BoundExpression, { kind: "shape" }>, low
   if (expression.base.facts.type.kind === "page") {
     const resultName = temporary(lowering, "shapeRows");
     const rowName = temporary(lowering, "shapeRow");
+    recordLoopSource(lowering, rowName, expression.source);
     lowering.focals.set(expression.focal.id, { Variable: rowName });
     let object: LoweredValue;
     try {
@@ -614,7 +629,7 @@ function lowerBinary(
 function lowerPointRead(read: BoundRead, kind: "get" | "exists", lowering: Lowering): LoweredValue {
   // Point-read identities precede identities nested inside their key, matching
   // the established lexical access ordering.
-  const site = accessSite(lowering);
+  const site = accessSite(lowering, read.source);
   const key = lowerMany(read.key, lowering);
   const readValue = { [kind === "get" ? "Get" : "Exists"]: {
     site, table: dataTableName(read.table.name), index: read.index.name,
@@ -659,7 +674,7 @@ function lowerScan(read: BoundRead, lowering: Lowering, captureKeys = true): Low
   });
   // Scan identities follow prefix/cursor expression identities, matching the
   // legacy lexical lowering order.
-  const site = accessSite(lowering);
+  const site = accessSite(lowering, read.source);
   return {
     setup: [...key.setup, ...after.setup],
     value: { Scan: {
@@ -770,10 +785,17 @@ function literalValue(expression: Extract<BoundExpression, { kind: "literal" }>)
   return { Int: expression.value };
 }
 
-function accessSite(lowering: Lowering): string {
+function accessSite(lowering: Lowering, source?: BoundSourceStack): string {
   const site = `${lowering.program}.${lowering.accessOrdinal}`;
   lowering.accessOrdinal += 1;
+  if (source) lowering.sources.push([site, source.definition]);
   return site;
+}
+
+function recordLoopSource(lowering: Lowering, binding: string, source: BoundSourceStack): void {
+  const ordinal = lowering.loopOrdinals.get(binding) ?? 0;
+  lowering.loopOrdinals.set(binding, ordinal + 1);
+  lowering.sources.push([`${lowering.program}/for/${binding}/${ordinal}`, source.definition]);
 }
 
 function dataTableName(name: string): string { return name === "connected" ? "_connected" : name; }

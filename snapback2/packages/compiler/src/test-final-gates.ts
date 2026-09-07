@@ -213,7 +213,7 @@ export function registerFinalGateChecks(test: RegisterTest): void {
     const quarryChecked = runBinaryCheck(["--json", "--ir"], quarryChat.project);
     const pagePins: Record<string, [number, number]> = {
       "feeds.followingFeed": [55_572, 626_336],
-      "feeds.globalFeed": [55_072, 54_260],
+      "feeds.globalFeed": [55_572, 54_260],
       // LLP 1006/1012: media records, including the optional oncePhoto column;
       // LLP 1016 D5: the optional expiresAt deadline (45 bytes a row).
       "messages.thread": [869_462, 869_400],

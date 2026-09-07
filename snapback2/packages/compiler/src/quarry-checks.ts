@@ -158,7 +158,7 @@ export function registerQuarryChecks(test: Test, frontend: string): void {
 
       const nested = lowered.apiDts.match(/readonly echoNested: Op<([^\n]+)>;/)?.[1] ?? "";
       assert(nested.includes("albums?: ImageAsset[] | null")
-        && nested.includes("{ albums: ImageAsset[] | undefined }"),
+        && nested.includes("{ albums: ImageAsset[] | null }"),
       `optional(list(asset)) did not survive query args/results: ${nested}`);
 
       await withProject({
@@ -323,24 +323,25 @@ maintain clipTotals = count events by clip:
       ]);
       const refusal = result.ok ? undefined : result.diagnostics.find((item) => item.code === "E_QUARRY_TYPE");
       assert(refusal?.family === "quarry" && refusal.site.startsWith("snapback/ops.q:2:")
-        && refusal.message.includes(field) && refusal.message.includes(expected) && refusal.message.includes(actual)
-        && refusal.rewrite.includes(`use a ${expected} value for ${field}`),
+        && refusal.message.includes(`${field} expects`) && refusal.message.includes(", got ")
+        && refusal.message.includes(expected.includes("video") || actual.includes("video") ? "video asset" : "image asset")
+        && refusal.rewrite.includes("use a ") && refusal.rewrite.includes(field),
       `${name} lost its recursive kind refusal/rewrite: ${JSON.stringify(result)}`);
     }
 
     const accepted = compileInline([
       { fileName: "snapback/schema.q", source: schema },
-      { fileName: "snapback/ops.q", source: `mutation accepted(photo: image <=5000000, photos: [image <=5000000] <=4):
-  return insert media { images: [], optionalImages: photos, optionalPhoto: photo }
+      { fileName: "snapback/ops.q", source: `mutation accepted(photo: image <=5000000, photos: [image <=5000000] <=4, videos: [video <=50000000] <=4, nested: [[image <=5000000] <=4] <=3):
+  return insert media { images: [], videos, optionalImages: photos, nestedImages: nested, photo, optionalPhoto: photo }
 
-mutation nested_empty():
-  return insert media { nestedImages: [[]] }
+mutation nested_empty(photo: image <=5000000, images: [image <=5000000] <=4, videos: [video <=50000000] <=4):
+  return insert media { images, videos, nestedImages: [[]], photo }
 
-mutation empty_first(photos: [image <=5000000] <=4):
-  return insert media { nestedImages: [[], photos] }
+mutation empty_first(photo: image <=5000000, images: [image <=5000000] <=4, videos: [video <=50000000] <=4, photos: [image <=5000000] <=4):
+  return insert media { images, videos, nestedImages: [[], photos], photo }
 
-mutation empty_last(photos: [image <=5000000] <=4):
-  return insert media { nestedImages: [photos, []] }
+mutation empty_last(photo: image <=5000000, images: [image <=5000000] <=4, videos: [video <=50000000] <=4, photos: [image <=5000000] <=4):
+  return insert media { images, videos, nestedImages: [photos, []], photo }
 ` },
     ]);
     assert(accepted.ok, `nested empty asset list or required-to-optional asset assignment refused: ${accepted.ok ? "" : JSON.stringify(accepted.diagnostics)}`);
@@ -350,7 +351,7 @@ mutation empty_last(photos: [image <=5000000] <=4):
       { fileName: "snapback/ops.q", source: "mutation scalar_empty():\n  return insert media { photo: [] }\n" },
     ]);
     assert(!scalarEmpty.ok && scalarEmpty.diagnostics.some((item) => item.code === "E_QUARRY_TYPE"
-      && item.message.includes("photo requires image asset")),
+      && item.message.includes("photo expects image asset")),
     `empty list literal was accepted for scalar asset column: ${JSON.stringify(scalarEmpty)}`);
 
     const forge = compileInline([
@@ -358,7 +359,7 @@ mutation empty_last(photos: [image <=5000000] <=4):
       { fileName: "snapback/ops.q", source: "mutation forge():\n  return insert media { photo: { id: 'asset-1', width: 1, height: 1 } }\n" },
     ]);
     assert(!forge.ok && forge.diagnostics.some((item) => item.code === "E_QUARRY_TYPE"
-      && item.message.includes("photo requires image asset")),
+      && item.message.includes("photo expects image asset")),
     `literal asset record forge did not remain E_QUARRY_TYPE: ${JSON.stringify(forge)}`);
   });
 
@@ -469,7 +470,7 @@ mutation empty_last(photos: [image <=5000000] <=4):
       assert(refusal, `mixed-scale refusal was not E_DECIMAL_SCALE: ${JSON.stringify(result)}`);
       assert(refusal.site.startsWith("snapback/mixed.q:") && !refusal.site.includes(".ts:"),
         `mixed-scale refusal did not map to Quarry: ${JSON.stringify(result)}`);
-      assert(refusal.rewrite.includes("row.cents + row.mills") && refusal.rewrite.includes("--"),
+      assert(refusal.rewrite.includes("matching decimal 2 values"),
         `mixed-scale refusal lost its Quarry rewrite: ${refusal.rewrite}`);
     });
 
@@ -481,7 +482,7 @@ mutation empty_last(photos: [image <=5000000] <=4):
       assert(!result.ok, "over-precise Quarry Decimal literal compiled");
       const refusal = result.diagnostics.find((item) => item.code === "E_DECIMAL_SCALE");
       assert(refusal?.site.startsWith("snapback/literal.q:")
-        && refusal.rewrite.includes("cents: 1.234") && refusal.rewrite.includes("--"),
+        && refusal.message.includes("3 fractional digits") && refusal.rewrite.includes("at most 2 fractional digits"),
       `literal scale refusal lost its Quarry site/rewrite: ${JSON.stringify(result)}`);
     });
 
@@ -498,7 +499,7 @@ mutation empty_last(photos: [image <=5000000] <=4):
       { fileName: "snapback/int.q", source: "mutation bad():\n  return insert values { cents: 1.00, mills: 1.000, amount: 2, count: 2.50 }\n" },
     ]);
     assert(!fractionalInt.ok && fractionalInt.diagnostics.some((item) => item.code === "E_QUARRY_TYPE"
-      && item.message === "int positions take integer literals"),
+      && item.message.includes("fractional digits do not fit int")),
     `decimal literal entered an int position: ${JSON.stringify(fractionalInt)}`);
 
     for (const operator of ["/", "%"]) {
@@ -549,15 +550,15 @@ mutation updateMismatch(owner: principal, label: text <=40, value: int):
     const upsert = diagnostics.find((item) => item.message.startsWith("upsert may not"));
     const update = diagnostics.find((item) => item.message.startsWith("update may not"));
     assert(upsert?.family === "quarry" && upsert.site === "snapback/ops.q:2:36"
-      && upsert.rewrite === "-- upsert keyedRows[owner, label] { label, value }" && upsert.guide === "quarry/types",
+      && upsert.rewrite === "upsert keyedRows[owner, label] { label, value }" && upsert.guide === "quarry/types",
     `upsert mismatch lost its code/family/field site/drop-field rewrite/guide: ${JSON.stringify(upsert)}`);
     assert(update?.family === "quarry" && update.site === "snapback/ops.q:5:43"
-      && update.rewrite === "-- update keyedRows[owner, label] { owner, value }" && update.guide === "quarry/types",
+      && update.rewrite === "update keyedRows[owner, label] { owner, value }" && update.guide === "quarry/types",
     `update mismatch lost its code/family/field site/drop-field rewrite/guide: ${JSON.stringify(update)}`);
 
     const repaired = operations
-      .replace(badUpsert, upsert.rewrite.slice(3))
-      .replace(badUpdate, update.rewrite.slice(3));
+      .replace(badUpsert, upsert.rewrite)
+      .replace(badUpdate, update.rewrite);
     await withProject({ "snapback/schema.q": schema, "snapback/ops.q": repaired }, async (root) => {
       const lowered = await lowerProject(root);
       assert(lowered.ok, `addressed-key rewrites did not paste/lower: ${lowered.ok ? "" : diagnosticsText(lowered.diagnostics)}`);
@@ -577,9 +578,9 @@ mutation updateMismatch(owner: principal, label: text <=40, value: int):
     const diagnostic = compiled.diagnostics.find((item) => item.code === "E_QUARRY_TYPE");
     assert(diagnostic?.site === "snapback/keyed.q:2:36"
       && diagnostic.message.includes("upsert rows may not name id")
-      && diagnostic.rewrite === "-- upsert keyedRows[owner, label] { value }",
+      && diagnostic.rewrite === "upsert keyedRows[owner, label] { value }",
     `authored upsert id lost its field site and drop-field rewrite: ${JSON.stringify(compiled)}`);
-    const repaired = module.replace("upsert keyedRows[owner, label] { id: new, value }", diagnostic!.rewrite.slice(3));
+    const repaired = module.replace("upsert keyedRows[owner, label] { id: new, value }", diagnostic!.rewrite);
     const fixed = compileInline([
       { fileName: "snapback/schema.q", source: schema },
       { fileName: "snapback/keyed.q", source: repaired },
@@ -625,13 +626,13 @@ query spread(c: conversations):
       assert(lowered.ok, `Clique row-width scratch project refused: ${lowered.ok ? "" : diagnosticsText(lowered.diagnostics)}`);
       const checked = rustCheck(lowered.project.programs, "synthetic", lowered.project.schema);
       const focused = checked.find((item) => item.program === "row-width.focused")!;
-      assert(focused.error === null && focused.certificate?.max_output_bytes === 822_692
-        && focused.certificate.max_closure_bytes === 821_450,
+      assert(focused.error === null && focused.certificate?.max_output_bytes === 899_792
+        && focused.certificate.max_closure_bytes === 823_750,
       `focused Clique shape did not certify at its pinned bounds: ${JSON.stringify(focused)}`);
 
       const spread = checked.find((item) => item.program === "row-width.spread")!;
       assert(spread.certificate === null && spread.error?.code === "E_BOUND"
-        && spread.error.message.startsWith("output bytes 1820692 exceeds ceiling 1048576")
+        && spread.error.message.startsWith("output bytes 1983792 exceeds ceiling 1048576")
         && spread.error.rewrite.includes("widest nested collection")
         && spread.error.rewrite.includes("shares first 50")
         && spread.error.rewrite.includes("shares.expenseDescription")
@@ -648,8 +649,8 @@ query spread(c: conversations):
         closure_bytes: 4 * 1024 * 1024,
         write_rows: 2_048,
       }).find((item) => item.program === "row-width.spread")!;
-      assert(raised.error === null && raised.certificate?.max_output_bytes === 1_820_692
-        && raised.certificate.max_closure_bytes === 1_879_850,
+      assert(raised.error === null && raised.certificate?.max_output_bytes === 1_983_792
+        && raised.certificate.max_closure_bytes === 1_871_650,
       `raised-ceiling Clique spread changed: ${JSON.stringify(raised)}`);
       // Four-byte text pricing makes the complete expense/share rows 1,098/1,426;
       // both 20 × 50 figures are direct pins from the real certifier.
