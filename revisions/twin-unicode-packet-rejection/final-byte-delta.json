@@ -1,0 +1,38 @@
+{
+  "baseline": {
+    "minified": 230321,
+    "gzip": 75815,
+    "bundleSha256": "5a8fc8cbe03fa2764352e65d1766f0393ec7d1df52f477fd7baab23ddb77a498"
+  },
+  "candidate": {
+    "minified": 226913,
+    "gzip": 76300,
+    "bundleSha256": "84e3ffcd405788c1641aff9f579f1fde12ef980118fa969055f329c9b083251e"
+  },
+  "wholeDelta": {
+    "minified": -3408,
+    "gzip": 485
+  },
+  "remainingOverCeiling": 10300,
+  "disposition": "REJECTED FOR SIZE; isolated evidence checkpoint only",
+  "measuredPhysicalSources": 50,
+  "sourceChanged": [
+    "snapback2/packages/evaluator/dist/unicode-tables.ts",
+    "snapback2/packages/evaluator/src/unicode-tables.ts"
+  ],
+  "minifiedAttributionChanges": [
+    {
+      "path": "../evaluator/dist/unicode-tables.ts",
+      "beforeMinifiedBytesInOutput": 17186,
+      "afterMinifiedBytesInOutput": 12353,
+      "delta": -4833
+    },
+    {
+      "path": "../evaluator/src/unicode-tables.ts",
+      "beforeMinifiedBytesInOutput": 1339,
+      "afterMinifiedBytesInOutput": 2764,
+      "delta": 1425
+    }
+  ],
+  "warning": "bytesInOutput is not additive gzip saving; no extra compression run"
+}

@@ -1,0 +1,8 @@
+{
+  "path": "/home/ccheever/clique-tooling/search-native-linux-26c9-20260907T0203Z-01a07995/artifacts/snapback2-linux-x86_64-debug",
+  "sha256": "2f3cd93ccbff5902465f2514e61d8cf6fedf76228ad8e7abafe02ed5f1959175",
+  "bytes": 149047824,
+  "corpusManifestSha256": "1260e32eebb2653c9ec121ff0bd27429a7be37af28f0957d993ebe2bdd4c9cd2",
+  "sourceManifestSha256": "254f6d3fc3b6e3bafe8712175b260b7f4a1f3b50803efa18d19736a7d6469d2c",
+  "role": "existing26c9 check --ir --json only; no native build/server/population; branch whole ir-contract remains predecessor v2"
+}

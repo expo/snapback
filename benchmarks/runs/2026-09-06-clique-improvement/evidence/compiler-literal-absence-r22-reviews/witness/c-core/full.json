@@ -1,0 +1,204 @@
+{
+  "ok": true,
+  "project": {
+    "schema": {
+      "tables": {
+        "records": {
+          "columns": {
+            "id": "Id",
+            "length": "Int",
+            "label": {
+              "Text": {
+                "max": 20
+              }
+            },
+            "payload": {
+              "Json": {
+                "max_bytes": 1000
+              }
+            }
+          },
+          "indexes": {
+            "byId": {
+              "components": [
+                {
+                  "Column": "id"
+                }
+              ],
+              "unique": true
+            }
+          },
+          "rules": {
+            "read": {
+              "Public": {
+                "reason": "records is public in Quarry"
+              }
+            },
+            "insert": "Allow",
+            "update": "Deny",
+            "delete": "Deny"
+          },
+          "constraints": [],
+          "retain": "until-revoked"
+        }
+      },
+      "maintains": [],
+      "channels": {},
+      "auth": {
+        "password": false,
+        "guests": false
+      },
+      "effects": []
+    },
+    "programs": [
+      {
+        "name": "probe.probe",
+        "kind": "Mutation",
+        "args": {},
+        "read_time_granularity_ms": null,
+        "body": [
+          {
+            "Const": {
+              "name": "original",
+              "value": {
+                "Array": [
+                  {
+                    "Literal": {
+                      "Int": 2
+                    }
+                  },
+                  {
+                    "Literal": "Null"
+                  }
+                ]
+              }
+            }
+          },
+          {
+            "For": {
+              "binding": "value",
+              "domain": {
+                "DerivedArray": {
+                  "value": {
+                    "Variable": "original"
+                  },
+                  "max": 2,
+                  "bound_source": "[2, null] static bound"
+                }
+              },
+              "body": [
+                {
+                  "If": {
+                    "condition": {
+                      "Binary": {
+                        "op": "Ne",
+                        "left": {
+                          "Variable": "value"
+                        },
+                        "right": {
+                          "Literal": "Null"
+                        }
+                      }
+                    },
+                    "then_body": [
+                      {
+                        "Require": {
+                          "condition": {
+                            "Binary": {
+                              "op": "Gt",
+                              "left": {
+                                "Variable": "value"
+                              },
+                              "right": {
+                                "Literal": {
+                                  "Int": 1
+                                }
+                              }
+                            }
+                          },
+                          "code": "LOW"
+                        }
+                      },
+                      {
+                        "Insert": {
+                          "table": "records",
+                          "row": {
+                            "Object": {
+                              "id": {
+                                "Input": "NewId"
+                              },
+                              "label": {
+                                "Literal": {
+                                  "String": "chosen"
+                                }
+                              },
+                              "length": {
+                                "Variable": "value"
+                              },
+                              "payload": {
+                                "Object": {
+                                  "keep": {
+                                    "Literal": {
+                                      "String": "row"
+                                    }
+                                  },
+                                  "original": {
+                                    "Variable": "original"
+                                  }
+                                }
+                              }
+                            }
+                          }
+                        }
+                      }
+                    ],
+                    "else_body": []
+                  }
+                }
+              ]
+            }
+          },
+          {
+            "Return": {
+              "Object": {
+                "next": {
+                  "Input": "NewId"
+                },
+                "original": {
+                  "Variable": "original"
+                }
+              }
+            }
+          }
+        ]
+      }
+    ],
+    "effects": []
+  },
+  "sources": {
+    "probe.probe": {
+      "file": "snapback/probe.q",
+      "line": 1,
+      "col": 1
+    },
+    "probe.probe/for/value/0": {
+      "file": "snapback/probe.q",
+      "line": 3,
+      "col": 3
+    }
+  },
+  "apiDts": "import type { Bytes, Cursor, Decimal, ImageAsset, Json, Money, Page, Principal, VideoAsset } from 'snapback2';\nimport type { Channel, Op } from 'snapback2/client';\n\ntype ConnectedRow = {\n  id: string;\n  principal: Principal;\n  value: number;\n};\ntype RecordsRow = {\n  id: string;\n  length: number;\n  label: string;\n  payload: Json;\n};\n\ndeclare module 'snapback2/client' {\n  interface Api {\n    readonly probe: {\n      readonly probe: Op<{}, { original: (number | null)[]; next: string; }>;\n    };\n  }\n}\n\nexport {};\n",
+  "quarry": [
+    {
+      "file": "snapback/schema.q",
+      "generated": "schema.ts",
+      "source": "// GENERATED by the Snapback 2 Quarry front end from snapback/schema.q // q:snapback/schema.q:1:1\nimport { channel, rule, schema, table, t } from \"snapback2\"; // q:snapback/schema.q:1:1\n\nexport var connected = table({ // q:snapback/probe.q:1:1\n  columns: { // q:snapback/probe.q:1:1\n    principal: t.principal(), // q:snapback/probe.q:1:1\n    value: t.int(), // q:snapback/probe.q:1:1\n  }, // q:snapback/probe.q:1:1\n  retain: \"until-revoked\", // q:snapback/probe.q:1:1\n  indexes: { // q:snapback/probe.q:1:1\n    byPrincipal: { components: [{\"Column\":\"principal\"}], unique: true }, // q:snapback/probe.q:1:1\n  }, // q:snapback/probe.q:1:1\n  constraints: [ // q:snapback/probe.q:1:1\n    { unique: \"byPrincipal\" }, // q:snapback/probe.q:1:1\n  ], // q:snapback/probe.q:1:1\n}); // q:snapback/probe.q:1:1\n\nexport var records = table({ // q:snapback/schema.q:1:1\n  columns: { // q:snapback/schema.q:1:1\n    length: t.int(), // q:snapback/schema.q:2:3\n    label: t.text(20), // q:snapback/schema.q:3:3\n    payload: t.json(1000), // q:snapback/schema.q:4:3\n  }, // q:snapback/schema.q:1:1\n  retain: \"until-revoked\", // q:snapback/schema.q:1:1\n  rules: { // q:snapback/schema.q:1:1\n    read: rule.public(\"records is public in Quarry\"), // q:snapback/schema.q:5:3\n    insert: rule.allow(), // q:snapback/schema.q:6:3\n  }, // q:snapback/schema.q:1:1\n}); // q:snapback/schema.q:1:1\n\nexport default schema({ // q:snapback/schema.q:1:1\n  auth: { password: false, guests: false }, // q:snapback/schema.q:1:1\n  tables: { records }, // q:snapback/schema.q:1:1\n  channels: {  }, // q:snapback/schema.q:1:1\n}); // q:snapback/schema.q:1:1\n"
+    },
+    {
+      "file": "snapback/probe.q",
+      "generated": "probe.ts",
+      "source": "// GENERATED by the Snapback 2 Quarry front end from snapback/probe.q // q:snapback/probe.q:1:1\nimport { deterministicShare, divmod, emit, max, mergeByIndex, mentionTokens, min, mutation, query, range, recurse, t, words } from \"snapback2\"; // q:snapback/probe.q:1:1\nimport { connected, records } from \"./schema\"; // q:snapback/probe.q:1:1\n\nfunction orderedPair(left: any, right: any): [any, any] { return [left, right]; } // q:snapback/probe.q:1:1\n\nexport const probe = mutation({  }, ({ db, ctx, args }) => { // q:snapback/probe.q:1:1\n  const original = [2, null]; // q:snapback/probe.q:2:3\n  for (const value of original) { // q:snapback/probe.q:3:3\n    if ((value != null)) { // q:snapback/probe.q:4:5\n      db.require((value > 1), \"LOW\"); // q:snapback/probe.q:5:7\n      db.insert(records, { id: ctx.newId(), length: value, label: \"chosen\", payload: { keep: \"row\", original: original } }); // q:snapback/probe.q:6:7\n    } // q:snapback/probe.q:4:5\n  } // q:snapback/probe.q:3:3\n  return { original: original, next: ctx.newId() }; // q:snapback/probe.q:7:3\n}); // q:snapback/probe.q:1:1\n"
+    }
+  ],
+  "ms": 142
+}

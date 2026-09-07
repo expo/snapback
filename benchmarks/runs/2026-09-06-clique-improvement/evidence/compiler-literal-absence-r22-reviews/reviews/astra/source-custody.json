@@ -1,0 +1,41 @@
+{
+  "snapshotFiles": 1866,
+  "suppliedManifestFiles": 1865,
+  "inputDisagreements": {},
+  "compilerManifestFiles": 224,
+  "candidateArchiveFiles": 224,
+  "parentArchiveFiles": 223,
+  "archiveVsCompilerManifest": {},
+  "compilerManifestVsSnapshot": {},
+  "compilerChangedPaths": [
+    "snapback2/packages/compiler/src/insert-provenance-checks.ts",
+    "snapback2/packages/compiler/src/literal-absence-cases.ts",
+    "snapback2/packages/compiler/src/quarry/narrowing.ts",
+    "snapback2/packages/compiler/src/quarry/program.ts",
+    "snapback2/packages/compiler/src/quarry/value-type.ts"
+  ],
+  "archiveHashes": {
+    "parent": "5bee6bf8f1e1d0449250f849273a82e4d94b5cf5395f913e99371d049e1bfd7a",
+    "candidate": "0d75334296cc5cdfa8eb31fe9a56534d1feacc514c4f73bb291acf9a4226d342"
+  },
+  "llp/1002-dev-loop.spec.md": {
+    "parent": {
+      "sha256": "a1816a7b9c4f359956537eaf937e76c63b37ab6586a23729110e124cd1ef1860",
+      "bytes": 70060
+    },
+    "candidate": {
+      "sha256": "4079fcc8eee1bb0645f13e430c345b11ff7b80b1d031d49b67ade107f500dfec",
+      "bytes": 70437
+    }
+  },
+  "snapback2/packages/snapback2/guide/quarry.md": {
+    "parent": {
+      "sha256": "7d95ce22d125b066836243947f6ebba958a77a581ca59f70184dee2d0e26ade2",
+      "bytes": 15872
+    },
+    "candidate": {
+      "sha256": "7d95ce22d125b066836243947f6ebba958a77a581ca59f70184dee2d0e26ade2",
+      "bytes": 15872
+    }
+  }
+}

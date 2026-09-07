@@ -1,0 +1,14 @@
+{
+  "ok": false,
+  "diagnostics": [
+    {
+      "code": "E_QUARRY_TYPE",
+      "family": "quarry",
+      "message": "selected alternatives do not prove one numeric representation or nominal type",
+      "site": "snapback/probe.q:5:21",
+      "rewrite": "-- use operands with matching units and reference targets; count and return preserve the selected collection",
+      "guide": "quarry/types"
+    }
+  ],
+  "ms": 119.12
+}

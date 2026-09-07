@@ -1,0 +1,474 @@
+{
+  "node": "v22.23.2",
+  "esbuild": "0.25.9",
+  "entry": [
+    "export * from './src/twin.ts'; export { serverArguments } from './src/local-cursor.ts'; export { reduceQueryState } from './src/types.ts';",
+    "export { PersistentRangeStore } from './src/store/range-store.ts';",
+    "export { OfflineRuntime, offlineView } from './src/offline.ts';",
+    "export * as carrierProjection from './src/store/projection.ts';",
+    "export * as receiptProtocol from './src/offline-protocol.ts';"
+  ],
+  "minified": 226913,
+  "gzip": 76300,
+  "sha256": "84e3ffcd405788c1641aff9f579f1fde12ef980118fa969055f329c9b083251e",
+  "ceiling": 66000,
+  "target": 64000,
+  "sources": {
+    "snapback2/packages/snapback2/src/store/row-values.ts": {
+      "sha256": "7a7613cc7955dbe21a0f397e50e708aa099b905667bc8f93c27dfba969a17efa",
+      "bytes": 6217,
+      "copy": "/home/ccheever/clique-tooling/search-unicode-packets-82c43-candidate1-20260907T1025Z-01a07649/final-measured-sources/snapback2/packages/snapback2/src/store/row-values.ts"
+    },
+    "snapback2/packages/evaluator/src/hash.ts": {
+      "sha256": "470e2f7973cc86a35be29e9ba901f3c86f759e6e65796051f188cb3a68a75214",
+      "bytes": 4328,
+      "copy": "/home/ccheever/clique-tooling/search-unicode-packets-82c43-candidate1-20260907T1025Z-01a07649/final-measured-sources/snapback2/packages/evaluator/src/hash.ts"
+    },
+    "snapback2/packages/evaluator/src/errors.ts": {
+      "sha256": "a2dc2e8ef8522ad82af1740c6f8656dc6b05418454226b50571630e777fe0795",
+      "bytes": 759,
+      "copy": "/home/ccheever/clique-tooling/search-unicode-packets-82c43-candidate1-20260907T1025Z-01a07649/final-measured-sources/snapback2/packages/evaluator/src/errors.ts"
+    },
+    "snapback2/packages/evaluator/src/certificate-identity.ts": {
+      "sha256": "3c116313a4c14ace66792f9b59b9b1e30152166d788e7133c4c26a871e61507e",
+      "bytes": 17783,
+      "copy": "/home/ccheever/clique-tooling/search-unicode-packets-82c43-candidate1-20260907T1025Z-01a07649/final-measured-sources/snapback2/packages/evaluator/src/certificate-identity.ts"
+    },
+    "snapback2/packages/evaluator/src/ordered.ts": {
+      "sha256": "e34f3707c6404e75ebbf02fbeb47827c4e4f576c12d463325f69a30d6b2a7b55",
+      "bytes": 4007,
+      "copy": "/home/ccheever/clique-tooling/search-unicode-packets-82c43-candidate1-20260907T1025Z-01a07649/final-measured-sources/snapback2/packages/evaluator/src/ordered.ts"
+    },
+    "snapback2/packages/evaluator/src/slot-tree.ts": {
+      "sha256": "b2fcfaafb0f456bdc024cb4d0b1ac3c3907c749ebfa311d831fdb2ca00aa6aca",
+      "bytes": 3176,
+      "copy": "/home/ccheever/clique-tooling/search-unicode-packets-82c43-candidate1-20260907T1025Z-01a07649/final-measured-sources/snapback2/packages/evaluator/src/slot-tree.ts"
+    },
+    "snapback2/packages/evaluator/src/posting-tree.ts": {
+      "sha256": "82d08ebc5c086989885531de903fea689309391b213f8e3592a550f8383a3cab",
+      "bytes": 2128,
+      "copy": "/home/ccheever/clique-tooling/search-unicode-packets-82c43-candidate1-20260907T1025Z-01a07649/final-measured-sources/snapback2/packages/evaluator/src/posting-tree.ts"
+    },
+    "snapback2/packages/evaluator/src/prefix-dictionary.ts": {
+      "sha256": "f2872a6a6055d2836686f711c735b7b3de79dda38e2b98cf09132a9788a7242c",
+      "bytes": 2007,
+      "copy": "/home/ccheever/clique-tooling/search-unicode-packets-82c43-candidate1-20260907T1025Z-01a07649/final-measured-sources/snapback2/packages/evaluator/src/prefix-dictionary.ts"
+    },
+    "snapback2/crates/snapback2-core/ir-contract.json": {
+      "sha256": "d09c63f52622b9b8fb2762b94b17b4e2c8882e9feecf0737d24470ec2bde0252",
+      "bytes": 148,
+      "copy": "/home/ccheever/clique-tooling/search-unicode-packets-82c43-candidate1-20260907T1025Z-01a07649/final-measured-sources/snapback2/crates/snapback2-core/ir-contract.json"
+    },
+    "snapback2/packages/evaluator/src/cursor.ts": {
+      "sha256": "94f0efe7b7ff947c77294fdcc99f38f3493615d87e1c97c13bc3ee146aaa2b3f",
+      "bytes": 10419,
+      "copy": "/home/ccheever/clique-tooling/search-unicode-packets-82c43-candidate1-20260907T1025Z-01a07649/final-measured-sources/snapback2/packages/evaluator/src/cursor.ts"
+    },
+    "snapback2/packages/evaluator/dist/unicode-tables.ts": {
+      "sha256": "456dd54aa74a4a796604d65e413be8d47fdf8f71d5c8ff48d9109bc3a8f723e9",
+      "bytes": 12807,
+      "copy": "/home/ccheever/clique-tooling/search-unicode-packets-82c43-candidate1-20260907T1025Z-01a07649/final-measured-sources/snapback2/packages/evaluator/dist/unicode-tables.ts"
+    },
+    "snapback2/packages/evaluator/src/unicode-tables.ts": {
+      "sha256": "d15a9cdef8c3154cc449c961afb16e2abe45c8571f2de33530cb5da37ef457c7",
+      "bytes": 5960,
+      "copy": "/home/ccheever/clique-tooling/search-unicode-packets-82c43-candidate1-20260907T1025Z-01a07649/final-measured-sources/snapback2/packages/evaluator/src/unicode-tables.ts"
+    },
+    "snapback2/packages/evaluator/src/unicode.ts": {
+      "sha256": "b2c6a188d9e74646674383473e9c56eb9720a76b68d9c1a2f93fb722fb85f370",
+      "bytes": 12302,
+      "copy": "/home/ccheever/clique-tooling/search-unicode-packets-82c43-candidate1-20260907T1025Z-01a07649/final-measured-sources/snapback2/packages/evaluator/src/unicode.ts"
+    },
+    "snapback2/packages/evaluator/src/value-runtime.ts": {
+      "sha256": "ad3fc24fc0ee4b018c975db1455cfbc19bd8d5526be64be22a654b0751bf2b9e",
+      "bytes": 27491,
+      "copy": "/home/ccheever/clique-tooling/search-unicode-packets-82c43-candidate1-20260907T1025Z-01a07649/final-measured-sources/snapback2/packages/evaluator/src/value-runtime.ts"
+    },
+    "snapback2/packages/evaluator/src/search-key.ts": {
+      "sha256": "347cd64b12798d7b46d120d56f142a912ca810f33e2bd0ce6673861bd032e871",
+      "bytes": 6040,
+      "copy": "/home/ccheever/clique-tooling/search-unicode-packets-82c43-candidate1-20260907T1025Z-01a07649/final-measured-sources/snapback2/packages/evaluator/src/search-key.ts"
+    },
+    "snapback2/packages/evaluator/src/index-store.ts": {
+      "sha256": "199def29f0a3caa31aab6ac8666e55584871e68f00cd072407e3db9f804a8274",
+      "bytes": 14326,
+      "copy": "/home/ccheever/clique-tooling/search-unicode-packets-82c43-candidate1-20260907T1025Z-01a07649/final-measured-sources/snapback2/packages/evaluator/src/index-store.ts"
+    },
+    "snapback2/packages/evaluator/src/row-image.ts": {
+      "sha256": "4b9474bc5e4b33cc12c70475ab142c865c89cc0d23ef2967753a93cf19adb80c",
+      "bytes": 6875,
+      "copy": "/home/ccheever/clique-tooling/search-unicode-packets-82c43-candidate1-20260907T1025Z-01a07649/final-measured-sources/snapback2/packages/evaluator/src/row-image.ts"
+    },
+    "snapback2/packages/snapback2/src/store/asset-policy.ts": {
+      "sha256": "6ce7da7c95f3af709950961ce760213bcfec3960c87f414efe40ab392dd82e5c",
+      "bytes": 3055,
+      "copy": "/home/ccheever/clique-tooling/search-unicode-packets-82c43-candidate1-20260907T1025Z-01a07649/final-measured-sources/snapback2/packages/snapback2/src/store/asset-policy.ts"
+    },
+    "snapback2/packages/evaluator/src/search-runtime.ts": {
+      "sha256": "e8a5749614e0f233330da391514cb109f6bf5dda79b2688d03146e032d05e0df",
+      "bytes": 2607,
+      "copy": "/home/ccheever/clique-tooling/search-unicode-packets-82c43-candidate1-20260907T1025Z-01a07649/final-measured-sources/snapback2/packages/evaluator/src/search-runtime.ts"
+    },
+    "snapback2/packages/snapback2/src/local-cursor.ts": {
+      "sha256": "245f1fac9cbf8512967ebef1ddc482609284a533b09ef5a98502607375113165",
+      "bytes": 7000,
+      "copy": "/home/ccheever/clique-tooling/search-unicode-packets-82c43-candidate1-20260907T1025Z-01a07649/final-measured-sources/snapback2/packages/snapback2/src/local-cursor.ts"
+    },
+    "snapback2/packages/evaluator/src/merge.ts": {
+      "sha256": "a2363d11564f095e3fb705b0fd34e029f5d470162aa01e161ac65e87ba4cdecf",
+      "bytes": 2324,
+      "copy": "/home/ccheever/clique-tooling/search-unicode-packets-82c43-candidate1-20260907T1025Z-01a07649/final-measured-sources/snapback2/packages/evaluator/src/merge.ts"
+    },
+    "snapback2/packages/evaluator/src/text.ts": {
+      "sha256": "c48d2672ce08544ab55b894ec29c1f63e01ea868e6e78552f99879e77796d152",
+      "bytes": 755,
+      "copy": "/home/ccheever/clique-tooling/search-unicode-packets-82c43-candidate1-20260907T1025Z-01a07649/final-measured-sources/snapback2/packages/evaluator/src/text.ts"
+    },
+    "snapback2/packages/evaluator/src/runner.ts": {
+      "sha256": "b339c65f8794f47b0ad78603ed72ae01f696717ff693619d69f7b8ed3377dc34",
+      "bytes": 52822,
+      "copy": "/home/ccheever/clique-tooling/search-unicode-packets-82c43-candidate1-20260907T1025Z-01a07649/final-measured-sources/snapback2/packages/evaluator/src/runner.ts"
+    },
+    "snapback2/packages/snapback2/src/offline-schema.ts": {
+      "sha256": "a7ab61de526abb3948ea565258eef44bcbce0263d14fc2d485bf7604ca5d9111",
+      "bytes": 556,
+      "copy": "/home/ccheever/clique-tooling/search-unicode-packets-82c43-candidate1-20260907T1025Z-01a07649/final-measured-sources/snapback2/packages/snapback2/src/offline-schema.ts"
+    },
+    "snapback2/packages/snapback2/src/held-program.ts": {
+      "sha256": "cd5ffc54870809afc2c41a5901c3ff61f1f06e90d566e42f9089708e3f755665",
+      "bytes": 2578,
+      "copy": "/home/ccheever/clique-tooling/search-unicode-packets-82c43-candidate1-20260907T1025Z-01a07649/final-measured-sources/snapback2/packages/snapback2/src/held-program.ts"
+    },
+    "snapback2/packages/evaluator/src/range-preparation.ts": {
+      "sha256": "cb8d6cd6dd585b0fcbc5a872d44f59bddd745ae97290fd774358a807f1dc1bed",
+      "bytes": 11933,
+      "copy": "/home/ccheever/clique-tooling/search-unicode-packets-82c43-candidate1-20260907T1025Z-01a07649/final-measured-sources/snapback2/packages/evaluator/src/range-preparation.ts"
+    },
+    "snapback2/packages/evaluator/src/held-directory.ts": {
+      "sha256": "aa7db5e9a0ee3131df6c3b1cc9e36a0a37fabfba7e410bed2810e15c3f762bd3",
+      "bytes": 4080,
+      "copy": "/home/ccheever/clique-tooling/search-unicode-packets-82c43-candidate1-20260907T1025Z-01a07649/final-measured-sources/snapback2/packages/evaluator/src/held-directory.ts"
+    },
+    "snapback2/packages/evaluator/src/coverage-spans.ts": {
+      "sha256": "4261606a117545f2dfab9f366a84468e8b24d22da1d9e3076f480eb1aad21a8f",
+      "bytes": 2023,
+      "copy": "/home/ccheever/clique-tooling/search-unicode-packets-82c43-candidate1-20260907T1025Z-01a07649/final-measured-sources/snapback2/packages/evaluator/src/coverage-spans.ts"
+    },
+    "snapback2/packages/evaluator/src/coverage.ts": {
+      "sha256": "c0936f440370dcbf92b28677217fe5d36ac411ca86864de006e62b663a878781",
+      "bytes": 12514,
+      "copy": "/home/ccheever/clique-tooling/search-unicode-packets-82c43-candidate1-20260907T1025Z-01a07649/final-measured-sources/snapback2/packages/evaluator/src/coverage.ts"
+    },
+    "snapback2/packages/evaluator/src/store.ts": {
+      "sha256": "5e1d0c7cbea8b95b2594f68f21a6d1027461ba778b12a799d872287ed09fd0d5",
+      "bytes": 15470,
+      "copy": "/home/ccheever/clique-tooling/search-unicode-packets-82c43-candidate1-20260907T1025Z-01a07649/final-measured-sources/snapback2/packages/evaluator/src/store.ts"
+    },
+    "snapback2/packages/snapback2/src/offline-protocol.ts": {
+      "sha256": "b81a52022c4cd5e20b645dd0fe06509c764890c7a4d6ce41a629dcde9cf17fd2",
+      "bytes": 24241,
+      "copy": "/home/ccheever/clique-tooling/search-unicode-packets-82c43-candidate1-20260907T1025Z-01a07649/final-measured-sources/snapback2/packages/snapback2/src/offline-protocol.ts"
+    },
+    "snapback2/packages/snapback2/src/twin-store.ts": {
+      "sha256": "2d0cb8572529117a0424150599de76f38404801a9f08cd3977b8668f61d1ab87",
+      "bytes": 14433,
+      "copy": "/home/ccheever/clique-tooling/search-unicode-packets-82c43-candidate1-20260907T1025Z-01a07649/final-measured-sources/snapback2/packages/snapback2/src/twin-store.ts"
+    },
+    "snapback2/packages/snapback2/src/store/outbox.ts": {
+      "sha256": "835417fd8b915241abc651187fb66680d26d263c9f61f871b4c60b4ba6dc3e81",
+      "bytes": 16931,
+      "copy": "/home/ccheever/clique-tooling/search-unicode-packets-82c43-candidate1-20260907T1025Z-01a07649/final-measured-sources/snapback2/packages/snapback2/src/store/outbox.ts"
+    },
+    "snapback2/packages/snapback2/src/twin-hydrate.ts": {
+      "sha256": "4b0f4fd621fe9adffd94e1463be859033b0cb37873820630bbf1d1deb5acf055",
+      "bytes": 3187,
+      "copy": "/home/ccheever/clique-tooling/search-unicode-packets-82c43-candidate1-20260907T1025Z-01a07649/final-measured-sources/snapback2/packages/snapback2/src/twin-hydrate.ts"
+    },
+    "snapback2/packages/snapback2/src/twin.ts": {
+      "sha256": "2b75b19950c7d38af0bba7fed55f25fff5eccf693b4ffa787fcb78f6fca29342",
+      "bytes": 13919,
+      "copy": "/home/ccheever/clique-tooling/search-unicode-packets-82c43-candidate1-20260907T1025Z-01a07649/final-measured-sources/snapback2/packages/snapback2/src/twin.ts"
+    },
+    "snapback2/packages/snapback2/src/store/canonical.ts": {
+      "sha256": "cdcfcbfb6190a4cef74725ca4ed5db29eddf9fad1039b066462e6498a1a0e03b",
+      "bytes": 171,
+      "copy": "/home/ccheever/clique-tooling/search-unicode-packets-82c43-candidate1-20260907T1025Z-01a07649/final-measured-sources/snapback2/packages/snapback2/src/store/canonical.ts"
+    },
+    "snapback2/packages/snapback2/src/types.ts": {
+      "sha256": "d32085b58a952dd284e96778ad7bae188e25da73f560ee1e6512e294ff31459a",
+      "bytes": 20408,
+      "copy": "/home/ccheever/clique-tooling/search-unicode-packets-82c43-candidate1-20260907T1025Z-01a07649/final-measured-sources/snapback2/packages/snapback2/src/types.ts"
+    },
+    "snapback2/packages/snapback2/src/store/extent-facts.ts": {
+      "sha256": "4dc26cbed9177a47a25868bd1eacd3f54aac5cc67f8f7b4f4e4b99572c0abb5a",
+      "bytes": 3171,
+      "copy": "/home/ccheever/clique-tooling/search-unicode-packets-82c43-candidate1-20260907T1025Z-01a07649/final-measured-sources/snapback2/packages/snapback2/src/store/extent-facts.ts"
+    },
+    "snapback2/packages/snapback2/src/store/extent-index.ts": {
+      "sha256": "07d00755e4809da6def9fc3d5be41021cf1f56dd94ba000159052237577072db",
+      "bytes": 5801,
+      "copy": "/home/ccheever/clique-tooling/search-unicode-packets-82c43-candidate1-20260907T1025Z-01a07649/final-measured-sources/snapback2/packages/snapback2/src/store/extent-index.ts"
+    },
+    "snapback2/packages/snapback2/src/store/fact-integrity.ts": {
+      "sha256": "9376fedbcbe7e7b29c3097e426ae968736eb4f7bbe8568df9bbd0dbfea2c39cf",
+      "bytes": 15367,
+      "copy": "/home/ccheever/clique-tooling/search-unicode-packets-82c43-candidate1-20260907T1025Z-01a07649/final-measured-sources/snapback2/packages/snapback2/src/store/fact-integrity.ts"
+    },
+    "snapback2/packages/snapback2/src/store/fact-index.ts": {
+      "sha256": "dcdc0771fde6d3d4c3c067acc09e76a923009dd830a816d89de9d92f2efb2a5e",
+      "bytes": 3834,
+      "copy": "/home/ccheever/clique-tooling/search-unicode-packets-82c43-candidate1-20260907T1025Z-01a07649/final-measured-sources/snapback2/packages/snapback2/src/store/fact-index.ts"
+    },
+    "snapback2/packages/snapback2/src/store/carrier-index.ts": {
+      "sha256": "68a05f3a1cfae80c35473359f7aacab402f8a614d8dcc1aa9956d757e4782a0d",
+      "bytes": 12872,
+      "copy": "/home/ccheever/clique-tooling/search-unicode-packets-82c43-candidate1-20260907T1025Z-01a07649/final-measured-sources/snapback2/packages/snapback2/src/store/carrier-index.ts"
+    },
+    "snapback2/packages/snapback2/src/store/swap-journal.ts": {
+      "sha256": "e624f877d108662399e82757d177c64bdafc62c893271571978a15046ff422aa",
+      "bytes": 7221,
+      "copy": "/home/ccheever/clique-tooling/search-unicode-packets-82c43-candidate1-20260907T1025Z-01a07649/final-measured-sources/snapback2/packages/snapback2/src/store/swap-journal.ts"
+    },
+    "snapback2/packages/snapback2/src/store/byte-cache.ts": {
+      "sha256": "6aae298f41e2e17777c9330483ac14e568683e88ecf06257e0b2e72c71d92f49",
+      "bytes": 19627,
+      "copy": "/home/ccheever/clique-tooling/search-unicode-packets-82c43-candidate1-20260907T1025Z-01a07649/final-measured-sources/snapback2/packages/snapback2/src/store/byte-cache.ts"
+    },
+    "snapback2/packages/snapback2/src/store/overlay-retirement.ts": {
+      "sha256": "43fb0ab507b2299d4bc91be9d32cbb0f9ed4ee448c9de611c57675beece68b13",
+      "bytes": 3977,
+      "copy": "/home/ccheever/clique-tooling/search-unicode-packets-82c43-candidate1-20260907T1025Z-01a07649/final-measured-sources/snapback2/packages/snapback2/src/store/overlay-retirement.ts"
+    },
+    "snapback2/packages/snapback2/src/store/range-store.ts": {
+      "sha256": "744547e7e6a73f547397ed07a6050059c3849b6e67da275af45ad0f63ce94357",
+      "bytes": 74376,
+      "copy": "/home/ccheever/clique-tooling/search-unicode-packets-82c43-candidate1-20260907T1025Z-01a07649/final-measured-sources/snapback2/packages/snapback2/src/store/range-store.ts"
+    },
+    "snapback2/packages/snapback2/src/client-wire.ts": {
+      "sha256": "7fd567440aaa4b88f9cb97fc2e3602fea801667fac6e998a243235e318bad2c9",
+      "bytes": 15027,
+      "copy": "/home/ccheever/clique-tooling/search-unicode-packets-82c43-candidate1-20260907T1025Z-01a07649/final-measured-sources/snapback2/packages/snapback2/src/client-wire.ts"
+    },
+    "snapback2/packages/snapback2/src/offline.ts": {
+      "sha256": "44ec56bcc1f98e4133eb959345d8e8c671e248b14ed485727a063f17e43052a6",
+      "bytes": 41240,
+      "copy": "/home/ccheever/clique-tooling/search-unicode-packets-82c43-candidate1-20260907T1025Z-01a07649/final-measured-sources/snapback2/packages/snapback2/src/offline.ts"
+    },
+    "snapback2/packages/snapback2/src/store/metadata.ts": {
+      "sha256": "3de5d379dd591f3fe61ad7d97485199f3498f76f937fe003a8a300841b13f2ba",
+      "bytes": 3192,
+      "copy": "/home/ccheever/clique-tooling/search-unicode-packets-82c43-candidate1-20260907T1025Z-01a07649/final-measured-sources/snapback2/packages/snapback2/src/store/metadata.ts"
+    },
+    "snapback2/packages/snapback2/src/store/projection.ts": {
+      "sha256": "78273ad40bd96782239262b67110eced1251254bc47ccda52ca02aa59ba862ab",
+      "bytes": 6080,
+      "copy": "/home/ccheever/clique-tooling/search-unicode-packets-82c43-candidate1-20260907T1025Z-01a07649/final-measured-sources/snapback2/packages/snapback2/src/store/projection.ts"
+    }
+  },
+  "attribution": [
+    {
+      "path": "src/store/range-store.ts",
+      "bytes": 26896
+    },
+    {
+      "path": "../evaluator/src/runner.ts",
+      "bytes": 25447
+    },
+    {
+      "path": "src/offline.ts",
+      "bytes": 15984
+    },
+    {
+      "path": "../evaluator/src/value-runtime.ts",
+      "bytes": 12372
+    },
+    {
+      "path": "../evaluator/dist/unicode-tables.ts",
+      "bytes": 12353
+    },
+    {
+      "path": "src/offline-protocol.ts",
+      "bytes": 9689
+    },
+    {
+      "path": "../evaluator/src/certificate-identity.ts",
+      "bytes": 7779
+    },
+    {
+      "path": "../evaluator/src/store.ts",
+      "bytes": 7708
+    },
+    {
+      "path": "src/twin-store.ts",
+      "bytes": 7295
+    },
+    {
+      "path": "src/store/fact-integrity.ts",
+      "bytes": 7150
+    },
+    {
+      "path": "../evaluator/src/index-store.ts",
+      "bytes": 7085
+    },
+    {
+      "path": "src/store/byte-cache.ts",
+      "bytes": 6910
+    },
+    {
+      "path": "src/store/carrier-index.ts",
+      "bytes": 6238
+    },
+    {
+      "path": "src/store/outbox.ts",
+      "bytes": 6199
+    },
+    {
+      "path": "../evaluator/src/coverage.ts",
+      "bytes": 5561
+    },
+    {
+      "path": "../evaluator/src/cursor.ts",
+      "bytes": 5551
+    },
+    {
+      "path": "../evaluator/src/unicode.ts",
+      "bytes": 4985
+    },
+    {
+      "path": "../evaluator/src/range-preparation.ts",
+      "bytes": 4692
+    },
+    {
+      "path": "src/twin.ts",
+      "bytes": 4586
+    },
+    {
+      "path": "src/store/swap-journal.ts",
+      "bytes": 3003
+    },
+    {
+      "path": "src/local-cursor.ts",
+      "bytes": 2882
+    },
+    {
+      "path": "../evaluator/src/unicode-tables.ts",
+      "bytes": 2764
+    },
+    {
+      "path": "src/store/row-values.ts",
+      "bytes": 2553
+    },
+    {
+      "path": "src/store/extent-index.ts",
+      "bytes": 2422
+    },
+    {
+      "path": "../evaluator/src/row-image.ts",
+      "bytes": 2382
+    },
+    {
+      "path": "src/store/projection.ts",
+      "bytes": 2236
+    },
+    {
+      "path": "../evaluator/src/hash.ts",
+      "bytes": 2178
+    },
+    {
+      "path": "../evaluator/src/held-directory.ts",
+      "bytes": 1769
+    },
+    {
+      "path": "src/store/fact-index.ts",
+      "bytes": 1761
+    },
+    {
+      "path": "../evaluator/src/slot-tree.ts",
+      "bytes": 1704
+    },
+    {
+      "path": "../evaluator/src/ordered.ts",
+      "bytes": 1606
+    },
+    {
+      "path": "src/store/metadata.ts",
+      "bytes": 1356
+    },
+    {
+      "path": "src/types.ts",
+      "bytes": 1340
+    },
+    {
+      "path": "src/store/asset-policy.ts",
+      "bytes": 1262
+    },
+    {
+      "path": "../evaluator/src/search-key.ts",
+      "bytes": 1224
+    },
+    {
+      "path": "src/store/overlay-retirement.ts",
+      "bytes": 1218
+    },
+    {
+      "path": "src/store/extent-facts.ts",
+      "bytes": 1055
+    },
+    {
+      "path": "../evaluator/src/search-runtime.ts",
+      "bytes": 1009
+    },
+    {
+      "path": "src/twin-hydrate.ts",
+      "bytes": 1009
+    },
+    {
+      "path": "src/held-program.ts",
+      "bytes": 932
+    },
+    {
+      "path": "../evaluator/src/prefix-dictionary.ts",
+      "bytes": 861
+    },
+    {
+      "path": "../evaluator/src/posting-tree.ts",
+      "bytes": 842
+    },
+    {
+      "path": "../evaluator/src/coverage-spans.ts",
+      "bytes": 828
+    },
+    {
+      "path": "../evaluator/src/merge.ts",
+      "bytes": 793
+    },
+    {
+      "path": "src/client-wire.ts",
+      "bytes": 491
+    },
+    {
+      "path": "../evaluator/src/text.ts",
+      "bytes": 269
+    },
+    {
+      "path": "../evaluator/src/errors.ts",
+      "bytes": 205
+    },
+    {
+      "path": "../../crates/snapback2-core/ir-contract.json",
+      "bytes": 135
+    },
+    {
+      "path": "src/offline-schema.ts",
+      "bytes": 31
+    },
+    {
+      "path": "<stdin>",
+      "bytes": 0
+    },
+    {
+      "path": "src/store/canonical.ts",
+      "bytes": 0
+    }
+  ]
+}

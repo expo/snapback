@@ -48,11 +48,12 @@ fn main() -> ExitCode {
         println!("{}", verbs::TOP_HELP);
         return ExitCode::SUCCESS;
     }
-    if args
-        .iter()
-        .skip(1)
-        .any(|arg| matches!(arg.as_str(), "--help" | "-h"))
-    {
+    let help_values: &[&str] = if args[0] == "test" {
+        &["--journey"]
+    } else {
+        &[]
+    };
+    if verbs::help_requested(&args, help_values) {
         if let Some(help) = verbs::command_help(&args[0]) {
             println!("{help}");
             return ExitCode::SUCCESS;

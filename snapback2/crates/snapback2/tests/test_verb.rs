@@ -1,5 +1,8 @@
 mod common;
 
+#[path = "test_verb/selection.rs"]
+mod selection;
+
 use common::{OwnerGuard, Project, json_stdout};
 use std::fs;
 

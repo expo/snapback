@@ -1,0 +1,236 @@
+[
+  {
+    "path": "reviews/astra/review.md",
+    "original": "/Users/ccheever/clique-improvement/reviews/compiler-literal-absence-r22/astra/review.md",
+    "bytes": 19272,
+    "sha256": "12a879c1f65bea3211901613bca4323274fe8fef60001ac3f5f764af6a6bb51c"
+  },
+  {
+    "path": "reviews/astra/terminal-identity.json",
+    "original": "/Users/ccheever/clique-improvement/reviews/compiler-literal-absence-r22/astra/terminal-identity.json",
+    "bytes": 2262,
+    "sha256": "510be96408fcb4bfe15bdcb23080fa6dfe5380c83bfdec1f6cf7df7a537b807a"
+  },
+  {
+    "path": "reviews/astra/supervisor-initial-full-report.md",
+    "original": "/Users/ccheever/clique-improvement/reviews/compiler-literal-absence-r22/astra/supervisor-initial-full-report.md",
+    "bytes": 19292,
+    "sha256": "8ab1d73ee17a4a5bd5d92052fe91ec6faaf42113b2a4fec8ae1b3c290217eaac"
+  },
+  {
+    "path": "reviews/astra/final-report-delta.patch",
+    "original": "/Users/ccheever/clique-improvement/reviews/compiler-literal-absence-r22/astra/final-report-delta.patch",
+    "bytes": 2425,
+    "sha256": "376ebd84594397d986b515593e65a4c9a9b107e4c277e61aeb6f551ed89d2deb"
+  },
+  {
+    "path": "reviews/grok/review.md",
+    "original": "/Users/ccheever/clique-improvement/reviews/compiler-literal-absence-r22/grok/review.md",
+    "bytes": 19441,
+    "sha256": "a2b63e9ef796efea8117a843085e4866b2009a07137ed3adcad3123f22105e5c"
+  },
+  {
+    "path": "reviews/grok/terminal-identity.json",
+    "original": "/Users/ccheever/clique-improvement/reviews/compiler-literal-absence-r22/grok/terminal-identity.json",
+    "bytes": 675,
+    "sha256": "86992e4a29f7eb6115debdb271d037b99392d745940d8f0b3d88411dd777f441"
+  },
+  {
+    "path": "reviews/grok/supervisor-initial-full-report.md",
+    "original": "/Users/ccheever/clique-improvement/reviews/compiler-literal-absence-r22/grok/supervisor-initial-full-report.md",
+    "bytes": 19441,
+    "sha256": "a2b63e9ef796efea8117a843085e4866b2009a07137ed3adcad3123f22105e5c"
+  },
+  {
+    "path": "author/report.md",
+    "original": "/Users/ccheever/clique-improvement/revisions/compiler-literal-absence-r22/report.md",
+    "bytes": 20544,
+    "sha256": "80b63e47271c5f0e7221eb00b26a5c59747b9048d0d2d3567780528b8517548c"
+  },
+  {
+    "path": "author/phase.json",
+    "original": "/Users/ccheever/clique-improvement/revisions/compiler-literal-absence-r22/phase.json",
+    "bytes": 2371,
+    "sha256": "5780adb553954531a0fde072294e2b071be4d19eb7543af8b0b4f1009908370a"
+  },
+  {
+    "path": "author/terminal-identity.json",
+    "original": "/Users/ccheever/clique-improvement/revisions/compiler-literal-absence-r22/terminal-identity.json",
+    "bytes": 5554,
+    "sha256": "74fb249de78cf6e1b0afe2ff18345b5c5047db1e0a72cbc3261e2bf2d8b0caac"
+  },
+  {
+    "path": "author/commit.json",
+    "original": "/Users/ccheever/clique-improvement/revisions/compiler-literal-absence-r22/commit.json",
+    "bytes": 516,
+    "sha256": "f26dd1dd775af182cb67b067e5fb0440d5688430bae1e038d44e3d3f854eb318"
+  },
+  {
+    "path": "author/supervisor-source-verification.json",
+    "original": "/Users/ccheever/clique-improvement/revisions/compiler-literal-absence-r22/supervisor-source-verification.json",
+    "bytes": 294,
+    "sha256": "ba6e0247bb052841454addda2a5d3873a1f96e873f2901bbf7281bc5ab53006f"
+  },
+  {
+    "path": "author/committed-source-binding.json",
+    "original": "/Users/ccheever/clique-improvement/revisions/compiler-literal-absence-r22/committed-source-binding.json",
+    "bytes": 695,
+    "sha256": "1dd7366e17e75778962d73ec25e785a9e2f18d6ab8c3a2a9e0aa8d798612ca7c"
+  },
+  {
+    "path": "witness/p-core/probe.ts.generated.ts",
+    "original": "/Users/ccheever/clique-improvement/reviews/compiler-literal-absence-r22/astra/evidence/remote/runs/p-core/null-last-full-row/probe.ts.generated.ts",
+    "bytes": 1026,
+    "sha256": "5d7d95e2a5e9f79ad9f9ce080965559315e2290b869797212a1edeeff82652f3"
+  },
+  {
+    "path": "witness/p-core/frontend.json",
+    "original": "/Users/ccheever/clique-improvement/reviews/compiler-literal-absence-r22/astra/evidence/remote/runs/p-core/null-last-full-row/frontend.json",
+    "bytes": 10189,
+    "sha256": "e7ba9b16bce0b9f22e3814a04f195c82a1c44b56069ca1739fccabefe3f490bb"
+  },
+  {
+    "path": "witness/p-core/full.json",
+    "original": "/Users/ccheever/clique-improvement/reviews/compiler-literal-absence-r22/astra/evidence/remote/runs/p-core/null-last-full-row/full.json",
+    "bytes": 423,
+    "sha256": "daf952ddfedb6819a2f2e0e649e58c7683dd8f4a24075f96644fc2cf39b3d02b"
+  },
+  {
+    "path": "witness/p-core/schema.ts.generated.ts",
+    "original": "/Users/ccheever/clique-improvement/reviews/compiler-literal-absence-r22/astra/evidence/remote/runs/p-core/null-last-full-row/schema.ts.generated.ts",
+    "bytes": 1631,
+    "sha256": "e80e2739b87e88c856ec9298431305df0e360f8dab70c25cfde180cd0c742e29"
+  },
+  {
+    "path": "witness/p-core/case.json",
+    "original": "/Users/ccheever/clique-improvement/reviews/compiler-literal-absence-r22/astra/evidence/remote/runs/p-core/null-last-full-row/case.json",
+    "bytes": 463,
+    "sha256": "138bba6968b360f40652f0b2243980e2705857b36722de157bb636ad6f096086"
+  },
+  {
+    "path": "witness/p-core/snapback/probe.q",
+    "original": "/Users/ccheever/clique-improvement/reviews/compiler-literal-absence-r22/astra/evidence/remote/runs/p-core/null-last-full-row/snapback/probe.q",
+    "bytes": 239,
+    "sha256": "bb3c1585233d7bb4ba98f095db90f71b204267c63271e438ce5745aaa0a3a330"
+  },
+  {
+    "path": "witness/p-core/snapback/schema.q",
+    "original": "/Users/ccheever/clique-improvement/reviews/compiler-literal-absence-r22/astra/evidence/remote/runs/p-core/null-last-full-row/snapback/schema.q",
+    "bytes": 98,
+    "sha256": "46402dae3a9689e79c156152f773c1cad54d13900560404cd5901219ccb13325"
+  },
+  {
+    "path": "witness/c-core/probe.ts.generated.ts",
+    "original": "/Users/ccheever/clique-improvement/reviews/compiler-literal-absence-r22/astra/evidence/remote/runs/c-core/null-last-full-row/probe.ts.generated.ts",
+    "bytes": 1090,
+    "sha256": "ac819227541b55ceead1993a92a4fcffec3cf5105357f07fdfd74a06085a9de3"
+  },
+  {
+    "path": "witness/c-core/api.d.ts",
+    "original": "/Users/ccheever/clique-improvement/reviews/compiler-literal-absence-r22/astra/evidence/remote/runs/c-core/null-last-full-row/api.d.ts",
+    "bytes": 514,
+    "sha256": "a0e6441bd8b1ec745dcf89214099b35b6a5b6b18f330f7729b8ee0020ade2bfb"
+  },
+  {
+    "path": "witness/c-core/frontend.json",
+    "original": "/Users/ccheever/clique-improvement/reviews/compiler-literal-absence-r22/astra/evidence/remote/runs/c-core/null-last-full-row/frontend.json",
+    "bytes": 9344,
+    "sha256": "de31d9177f630f95910a45085deca184d83320b5ba6a278fe7af68bb26935209"
+  },
+  {
+    "path": "witness/c-core/project.ir.json",
+    "original": "/Users/ccheever/clique-improvement/reviews/compiler-literal-absence-r22/astra/evidence/remote/runs/c-core/null-last-full-row/project.ir.json",
+    "bytes": 4458,
+    "sha256": "56b505a45af38d7f0b4662b474651c1d87678e9e9fadc3175e243397254782ce"
+  },
+  {
+    "path": "witness/c-core/results.json",
+    "original": "/Users/ccheever/clique-improvement/reviews/compiler-literal-absence-r22/astra/evidence/remote/runs/c-core/null-last-full-row/results.json",
+    "bytes": 1878,
+    "sha256": "49f27c206cacb31bc1c0090d69624d76aff5509081fac066b6bdfc506001ca75"
+  },
+  {
+    "path": "witness/c-core/receipt-0.json",
+    "original": "/Users/ccheever/clique-improvement/reviews/compiler-literal-absence-r22/astra/evidence/remote/runs/c-core/null-last-full-row/receipt-0.json",
+    "bytes": 69,
+    "sha256": "d2400f06221c6f052c1786af450db983c5273399d3754be437460176e7c7ac63"
+  },
+  {
+    "path": "witness/c-core/full.json",
+    "original": "/Users/ccheever/clique-improvement/reviews/compiler-literal-absence-r22/astra/evidence/remote/runs/c-core/null-last-full-row/full.json",
+    "bytes": 8620,
+    "sha256": "b21c34c63f30d372cd6d01dd215311682e7291e5619f4cbe6f70ec224f742b89"
+  },
+  {
+    "path": "witness/c-core/adapted-schema.json",
+    "original": "/Users/ccheever/clique-improvement/reviews/compiler-literal-absence-r22/astra/evidence/remote/runs/c-core/null-last-full-row/adapted-schema.json",
+    "bytes": 819,
+    "sha256": "59848eaddde686e60e9d1a57f4f5602dff6786b0d6ead6db643ef940b14cb06b"
+  },
+  {
+    "path": "witness/c-core/schema.ts.generated.ts",
+    "original": "/Users/ccheever/clique-improvement/reviews/compiler-literal-absence-r22/astra/evidence/remote/runs/c-core/null-last-full-row/schema.ts.generated.ts",
+    "bytes": 1631,
+    "sha256": "e80e2739b87e88c856ec9298431305df0e360f8dab70c25cfde180cd0c742e29"
+  },
+  {
+    "path": "witness/c-core/case.json",
+    "original": "/Users/ccheever/clique-improvement/reviews/compiler-literal-absence-r22/astra/evidence/remote/runs/c-core/null-last-full-row/case.json",
+    "bytes": 463,
+    "sha256": "138bba6968b360f40652f0b2243980e2705857b36722de157bb636ad6f096086"
+  },
+  {
+    "path": "witness/c-core/snapback/probe.q",
+    "original": "/Users/ccheever/clique-improvement/reviews/compiler-literal-absence-r22/astra/evidence/remote/runs/c-core/null-last-full-row/snapback/probe.q",
+    "bytes": 239,
+    "sha256": "bb3c1585233d7bb4ba98f095db90f71b204267c63271e438ce5745aaa0a3a330"
+  },
+  {
+    "path": "witness/c-core/snapback/schema.q",
+    "original": "/Users/ccheever/clique-improvement/reviews/compiler-literal-absence-r22/astra/evidence/remote/runs/c-core/null-last-full-row/snapback/schema.q",
+    "bytes": 98,
+    "sha256": "46402dae3a9689e79c156152f773c1cad54d13900560404cd5901219ccb13325"
+  },
+  {
+    "path": "reviews/astra/analysis.json",
+    "original": "/Users/ccheever/clique-improvement/reviews/compiler-literal-absence-r22/astra/evidence/analysis.json",
+    "bytes": 31448,
+    "sha256": "9f3e89f00a79e5dd001da1832271077180d594d2823d95785fab2ad1d3138670"
+  },
+  {
+    "path": "reviews/astra/source-custody.json",
+    "original": "/Users/ccheever/clique-improvement/reviews/compiler-literal-absence-r22/astra/evidence/source-custody.json",
+    "bytes": 1395,
+    "sha256": "a3e790eb1dae410490184662003ea09915b09830bfd17a79f3d8535546c85eda"
+  },
+  {
+    "path": "reviews/astra/prepared-custody.json",
+    "original": "/Users/ccheever/clique-improvement/reviews/compiler-literal-absence-r22/astra/evidence/prepared-custody.json",
+    "bytes": 320,
+    "sha256": "eae026b5e1821bb105730259d0c41103313fc4727068a29481c6dceeb7719106"
+  },
+  {
+    "path": "types/c-types-affected/result.json",
+    "original": "/Users/ccheever/clique-improvement/reviews/compiler-literal-absence-r22/astra/evidence/remote/runs/c-types-affected/result.json",
+    "bytes": 84195,
+    "sha256": "fa00a01287c22bb63d69025d3a14c117cc62daba5fda5a9c1044f02c502a7778"
+  },
+  {
+    "path": "types/c-types-affected/process.json",
+    "original": "/Users/ccheever/clique-improvement/reviews/compiler-literal-absence-r22/astra/evidence/remote/runs/c-types-affected/process.json",
+    "bytes": 2187,
+    "sha256": "292aed21e2b9400cc164ac27f6bbd0d869d878f6253d8c0c6f6a942f4756c4ec"
+  },
+  {
+    "path": "types/p-types-affected/result.json",
+    "original": "/Users/ccheever/clique-improvement/reviews/compiler-literal-absence-r22/astra/evidence/remote/runs/p-types-affected/result.json",
+    "bytes": 82984,
+    "sha256": "6cd759625634984a9c80fc86121b0f867de5a79b417bf4e2042f262aada39fea"
+  },
+  {
+    "path": "types/p-types-affected/process.json",
+    "original": "/Users/ccheever/clique-improvement/reviews/compiler-literal-absence-r22/astra/evidence/remote/runs/p-types-affected/process.json",
+    "bytes": 2179,
+    "sha256": "c5cdf60ff46561fabc0fe2e892c19e410e65eb9b92cfc4d92933c6d34ed04a4d"
+  }
+]

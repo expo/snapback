@@ -1,0 +1,19 @@
+{
+  "command": [
+    "/usr/bin/ssh",
+    "ccheever@100.65.137.99",
+    "python3",
+    "/home/ccheever/clique-tooling/search-unicode-packets-82c43-candidate1-20260907T1025Z-01a07649/remote.py",
+    "/home/ccheever/clique-tooling/search-unicode-packets-82c43-candidate1-20260907T1025Z-01a07649",
+    "measure"
+  ],
+  "cwd": "/Users/ccheever/projects/snapback-worktrees/clique-unicode-packets",
+  "pid": 50400,
+  "start": "2026-09-07T10:32:16.079006+00:00",
+  "end": "2026-09-07T10:32:19.743119+00:00",
+  "elapsedSeconds": 3.664301417,
+  "deadlineSeconds": 90.0,
+  "exit": 1,
+  "host": "MacBookPro",
+  "executableSha256": "af345c4ff9ed4d49177d6407d3bd317b8769eebf3ce65f68afb8ed249f173614"
+}

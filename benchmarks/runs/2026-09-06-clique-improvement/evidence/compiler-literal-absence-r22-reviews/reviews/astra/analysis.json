@@ -1,0 +1,894 @@
+{
+  "remoteEvidence": {
+    "files": 744,
+    "disagreements": {}
+  },
+  "localInputChanges": {},
+  "projectPairs": [
+    {
+      "name": "declared-optional-full-row",
+      "parentOk": true,
+      "candidateOk": true,
+      "parent": "evidence/remote/runs/p-core/declared-optional-full-row/full.json",
+      "candidate": "evidence/remote/runs/c-core/declared-optional-full-row/full.json",
+      "projectEqual": true,
+      "apiEqual": true,
+      "observationsEqual": true
+    },
+    {
+      "name": "eager-null-literal-capture",
+      "parentOk": false,
+      "candidateOk": true,
+      "parent": "evidence/remote/runs/p-lazy/eager-null-literal-capture/full.json",
+      "candidate": "evidence/remote/runs/c-lazy/eager-null-literal-capture/full.json",
+      "parentDiagnostics": [
+        {
+          "code": "E_QUARRY_TYPE",
+          "family": "quarry",
+          "message": "selected alternatives do not prove one numeric representation or nominal type",
+          "site": "snapback/probe.q:6:21",
+          "rewrite": "-- use operands with matching units and reference targets; count and return preserve the selected collection",
+          "guide": "quarry/types"
+        }
+      ]
+    },
+    {
+      "name": "fixed-literal-null-first",
+      "parentOk": true,
+      "candidateOk": true,
+      "parent": "evidence/remote/runs/p-lazy/fixed-literal-null-first/full.json",
+      "candidate": "evidence/remote/runs/c-lazy/fixed-literal-null-first/full.json",
+      "projectEqual": true,
+      "apiEqual": true,
+      "observationsEqual": true
+    },
+    {
+      "name": "fixed-literal-null-last",
+      "parentOk": true,
+      "candidateOk": true,
+      "parent": "evidence/remote/runs/p-lazy/fixed-literal-null-last/full.json",
+      "candidate": "evidence/remote/runs/c-lazy/fixed-literal-null-last/full.json",
+      "projectEqual": true,
+      "apiEqual": true,
+      "observationsEqual": true
+    },
+    {
+      "name": "foreign-null-target",
+      "parentOk": false,
+      "candidateOk": false,
+      "parent": "evidence/remote/runs/p-refusals/foreign-null-target/full.json",
+      "candidate": "evidence/remote/runs/c-refusals/foreign-null-target/full.json",
+      "parentDiagnostics": [
+        {
+          "code": "E_QUARRY_UNKNOWN",
+          "family": "quarry",
+          "message": "no unique index on lefts matches [?]; name the columns/index or add one",
+          "site": "snapback/probe.q:5:15",
+          "rewrite": "-- candidate indexes: lefts.byId (id: reference to lefts)",
+          "guide": "quarry/names"
+        }
+      ],
+      "candidateDiagnostics": [
+        {
+          "code": "E_QUARRY_UNKNOWN",
+          "family": "quarry",
+          "message": "no unique index on lefts matches [?]; name the columns/index or add one",
+          "site": "snapback/probe.q:5:15",
+          "rewrite": "-- candidate indexes: lefts.byId (id: reference to lefts)",
+          "guide": "quarry/names"
+        }
+      ]
+    },
+    {
+      "name": "fractional-null-literal",
+      "parentOk": false,
+      "candidateOk": false,
+      "parent": "evidence/remote/runs/p-refusals/fractional-null-literal/full.json",
+      "candidate": "evidence/remote/runs/c-refusals/fractional-null-literal/full.json",
+      "parentDiagnostics": [
+        {
+          "code": "E_DECIMAL_SCALE",
+          "family": "args",
+          "message": "fractional literal 2.5 has 1 fractional digits but no Decimal scale",
+          "site": "snapback/probe.q:2:3",
+          "rewrite": "  original = [null,2.5] -- fractional literal 2.5 has 1 fractional digits but no Decimal scale",
+          "guide": "programs/types"
+        },
+        {
+          "code": "E_DECIMAL_SCALE",
+          "family": "args",
+          "message": "fractional literal 2.5 has no known Decimal scale",
+          "site": "snapback/probe.q:2:3",
+          "rewrite": "  original = [null,2.5] -- fractional literal 2.5 has no known Decimal scale",
+          "guide": "programs/types"
+        },
+        {
+          "code": "E_DECIMAL_SCALE",
+          "family": "args",
+          "message": "unknown does not prove the representation required by Decimal<3>",
+          "site": "snapback/probe.q:5:7",
+          "rewrite": "      insert records {d3:value,payload:{original}} -- unknown does not prove the representation required by Decimal<3>",
+          "guide": "programs/types"
+        }
+      ],
+      "candidateDiagnostics": [
+        {
+          "code": "E_QUARRY_TYPE",
+          "family": "quarry",
+          "message": "d3 is decimal 3; decimal literal is nominally different",
+          "site": "snapback/probe.q:5:23",
+          "rewrite": "-- use a decimal 3 value",
+          "guide": "quarry/types"
+        }
+      ]
+    },
+    {
+      "name": "full-divmod-null",
+      "parentOk": false,
+      "candidateOk": true,
+      "parent": "evidence/remote/runs/p-composites/full-divmod-null/full.json",
+      "candidate": "evidence/remote/runs/c-composites/full-divmod-null/full.json",
+      "parentDiagnostics": [
+        {
+          "code": "E_QUARRY_UNKNOWN",
+          "family": "quarry",
+          "message": "cannot select .quotient from alternatives",
+          "site": "snapback/probe.q:5:34",
+          "rewrite": "-- cannot select .quotient from alternatives",
+          "guide": "quarry/names"
+        }
+      ]
+    },
+    {
+      "name": "lazy-null-literal-fallback",
+      "parentOk": false,
+      "candidateOk": true,
+      "parent": "evidence/remote/runs/p-lazy/lazy-null-literal-fallback/full.json",
+      "candidate": "evidence/remote/runs/c-lazy/lazy-null-literal-fallback/full.json",
+      "parentDiagnostics": [
+        {
+          "code": "E_QUARRY_TYPE",
+          "family": "quarry",
+          "message": "selected alternatives do not prove one numeric representation or nominal type",
+          "site": "snapback/probe.q:5:21",
+          "rewrite": "-- use operands with matching units and reference targets; count and return preserve the selected collection",
+          "guide": "quarry/types"
+        }
+      ]
+    },
+    {
+      "name": "mixed-decimal-null",
+      "parentOk": false,
+      "candidateOk": false,
+      "parent": "evidence/remote/runs/p-refusals/mixed-decimal-null/full.json",
+      "candidate": "evidence/remote/runs/c-refusals/mixed-decimal-null/full.json",
+      "parentDiagnostics": [
+        {
+          "code": "E_QUARRY_TYPE",
+          "family": "quarry",
+          "message": "selected alternatives do not prove one numeric representation or nominal type",
+          "site": "snapback/probe.q:5:21",
+          "rewrite": "-- use operands with matching units and reference targets; count and return preserve the selected collection",
+          "guide": "quarry/types"
+        }
+      ],
+      "candidateDiagnostics": [
+        {
+          "code": "E_QUARRY_TYPE",
+          "family": "quarry",
+          "message": "selected alternatives do not prove one numeric representation or nominal type",
+          "site": "snapback/probe.q:5:21",
+          "rewrite": "-- use operands with matching units and reference targets; count and return preserve the selected collection",
+          "guide": "quarry/types"
+        }
+      ]
+    },
+    {
+      "name": "nested-literal-lists",
+      "parentOk": false,
+      "candidateOk": true,
+      "parent": "evidence/remote/runs/p-composites/nested-literal-lists/full.json",
+      "candidate": "evidence/remote/runs/c-composites/nested-literal-lists/full.json",
+      "parentDiagnostics": [
+        {
+          "code": "E_QUARRY_TYPE",
+          "family": "quarry",
+          "message": "selected alternatives do not prove one numeric representation or nominal type",
+          "site": "snapback/probe.q:6:23",
+          "rewrite": "-- use operands with matching units and reference targets; count and return preserve the selected collection",
+          "guide": "quarry/types"
+        }
+      ]
+    },
+    {
+      "name": "null-first-full-row",
+      "parentOk": false,
+      "candidateOk": true,
+      "parent": "evidence/remote/runs/p-core/null-first-full-row/full.json",
+      "candidate": "evidence/remote/runs/c-core/null-first-full-row/full.json",
+      "parentDiagnostics": [
+        {
+          "code": "E_QUARRY_TYPE",
+          "family": "quarry",
+          "message": "selected alternatives do not prove one numeric representation or nominal type",
+          "site": "snapback/probe.q:5:21",
+          "rewrite": "-- use operands with matching units and reference targets; count and return preserve the selected collection",
+          "guide": "quarry/types"
+        }
+      ]
+    },
+    {
+      "name": "null-last-full-row",
+      "parentOk": false,
+      "candidateOk": true,
+      "parent": "evidence/remote/runs/p-core/null-last-full-row/full.json",
+      "candidate": "evidence/remote/runs/c-core/null-last-full-row/full.json",
+      "parentDiagnostics": [
+        {
+          "code": "E_QUARRY_TYPE",
+          "family": "quarry",
+          "message": "selected alternatives do not prove one numeric representation or nominal type",
+          "site": "snapback/probe.q:5:21",
+          "rewrite": "-- use operands with matching units and reference targets; count and return preserve the selected collection",
+          "guide": "quarry/types"
+        }
+      ]
+    },
+    {
+      "name": "object-field-literals",
+      "parentOk": false,
+      "candidateOk": true,
+      "parent": "evidence/remote/runs/p-composites/object-field-literals/full.json",
+      "candidate": "evidence/remote/runs/c-composites/object-field-literals/full.json",
+      "parentDiagnostics": [
+        {
+          "code": "E_QUARRY_TYPE",
+          "family": "quarry",
+          "message": "selected alternatives do not prove one numeric representation or nominal type",
+          "site": "snapback/probe.q:6:21",
+          "rewrite": "-- use operands with matching units and reference targets; count and return preserve the selected collection",
+          "guide": "quarry/types"
+        }
+      ]
+    },
+    {
+      "name": "review-all-null-bound",
+      "parentOk": false,
+      "candidateOk": false,
+      "parent": "evidence/remote/runs/p-absence/review-all-null-bound/full.json",
+      "candidate": "evidence/remote/runs/c-absence/review-all-null-bound/full.json",
+      "parentDiagnostics": [
+        {
+          "code": "E_QUARRY_UNKNOWN",
+          "family": "quarry",
+          "message": "count(x) requires one bounded list or page",
+          "site": "snapback/probe.q:5:19",
+          "rewrite": "-- count(x) requires one bounded list or page",
+          "guide": "quarry/names"
+        }
+      ],
+      "candidateDiagnostics": [
+        {
+          "code": "E_QUARRY_UNKNOWN",
+          "family": "quarry",
+          "message": "count(x) requires one bounded list or page",
+          "site": "snapback/probe.q:5:19",
+          "rewrite": "-- count(x) requires one bounded list or page",
+          "guide": "quarry/names"
+        }
+      ]
+    },
+    {
+      "name": "review-all-null-member",
+      "parentOk": false,
+      "candidateOk": false,
+      "parent": "evidence/remote/runs/p-absence/review-all-null-member/full.json",
+      "candidate": "evidence/remote/runs/c-absence/review-all-null-member/full.json",
+      "parentDiagnostics": [
+        {
+          "code": "E_QUARRY_UNKNOWN",
+          "family": "quarry",
+          "message": "cannot select .length from text",
+          "site": "snapback/probe.q:5:19",
+          "rewrite": "-- cannot select .length from text",
+          "guide": "quarry/names"
+        }
+      ],
+      "candidateDiagnostics": [
+        {
+          "code": "E_QUARRY_UNKNOWN",
+          "family": "quarry",
+          "message": "cannot select .length from null",
+          "site": "snapback/probe.q:5:19",
+          "rewrite": "-- cannot select .length from null",
+          "guide": "quarry/names"
+        }
+      ]
+    },
+    {
+      "name": "review-all-null-nominal",
+      "parentOk": false,
+      "candidateOk": false,
+      "parent": "evidence/remote/runs/p-absence/review-all-null-nominal/full.json",
+      "candidate": "evidence/remote/runs/c-absence/review-all-null-nominal/full.json",
+      "parentDiagnostics": [
+        {
+          "code": "E_QUARRY_UNKNOWN",
+          "family": "quarry",
+          "message": "no unique index on records matches [?]; name the columns/index or add one",
+          "site": "snapback/probe.q:5:14",
+          "rewrite": "-- candidate indexes: records.byId (id: reference to records)",
+          "guide": "quarry/names"
+        }
+      ],
+      "candidateDiagnostics": [
+        {
+          "code": "E_QUARRY_UNKNOWN",
+          "family": "quarry",
+          "message": "no unique index on records matches [?]; name the columns/index or add one",
+          "site": "snapback/probe.q:5:14",
+          "rewrite": "-- candidate indexes: records.byId (id: reference to records)",
+          "guide": "quarry/names"
+        }
+      ]
+    },
+    {
+      "name": "review-all-null-numeric",
+      "parentOk": true,
+      "candidateOk": true,
+      "parent": "evidence/remote/runs/p-absence/review-all-null-numeric/full.json",
+      "candidate": "evidence/remote/runs/c-absence/review-all-null-numeric/full.json",
+      "projectEqual": true,
+      "apiEqual": true,
+      "observationsEqual": true
+    },
+    {
+      "name": "review-nested-mixed",
+      "parentOk": false,
+      "candidateOk": false,
+      "parent": "evidence/remote/runs/p-absence/review-nested-mixed/full.json",
+      "candidate": "evidence/remote/runs/c-absence/review-nested-mixed/full.json",
+      "parentDiagnostics": [
+        {
+          "code": "E_QUARRY_TYPE",
+          "family": "quarry",
+          "message": "selected alternatives do not prove one numeric representation or nominal type",
+          "site": "snapback/probe.q:6:21",
+          "rewrite": "-- use operands with matching units and reference targets; count and return preserve the selected collection",
+          "guide": "quarry/types"
+        }
+      ],
+      "candidateDiagnostics": [
+        {
+          "code": "E_QUARRY_TYPE",
+          "family": "quarry",
+          "message": "selected alternatives do not prove one numeric representation or nominal type",
+          "site": "snapback/probe.q:6:21",
+          "rewrite": "-- use operands with matching units and reference targets; count and return preserve the selected collection",
+          "guide": "quarry/types"
+        }
+      ]
+    },
+    {
+      "name": "review-page-null",
+      "parentOk": false,
+      "candidateOk": true,
+      "parent": "evidence/remote/runs/p-absence/review-page-null/full.json",
+      "candidate": "evidence/remote/runs/c-absence/review-page-null/full.json",
+      "parentDiagnostics": [
+        {
+          "code": "E_QUARRY_UNKNOWN",
+          "family": "quarry",
+          "message": "count(x) requires one bounded list or page",
+          "site": "snapback/probe.q:6:34",
+          "rewrite": "-- count(x) requires one bounded list or page",
+          "guide": "quarry/names"
+        }
+      ]
+    },
+    {
+      "name": "review-unknown-null",
+      "parentOk": false,
+      "candidateOk": false,
+      "parent": "evidence/remote/runs/p-absence/review-unknown-null/full.json",
+      "candidate": "evidence/remote/runs/c-absence/review-unknown-null/full.json",
+      "parentDiagnostics": [
+        {
+          "code": "E_QUARRY_TYPE",
+          "family": "quarry",
+          "message": "selected alternatives do not prove one numeric representation or nominal type",
+          "site": "snapback/probe.q:5:21",
+          "rewrite": "-- use operands with matching units and reference targets; count and return preserve the selected collection",
+          "guide": "quarry/types"
+        }
+      ],
+      "candidateDiagnostics": [
+        {
+          "code": "E_QUARRY_TYPE",
+          "family": "quarry",
+          "message": "selected alternatives do not prove one numeric representation or nominal type",
+          "site": "snapback/probe.q:5:21",
+          "rewrite": "-- use operands with matching units and reference targets; count and return preserve the selected collection",
+          "guide": "quarry/types"
+        }
+      ]
+    },
+    {
+      "name": "same-target-null",
+      "parentOk": false,
+      "candidateOk": false,
+      "parent": "evidence/remote/runs/p-refusals/same-target-null/full.json",
+      "candidate": "evidence/remote/runs/c-refusals/same-target-null/full.json",
+      "parentDiagnostics": [
+        {
+          "code": "E_QUARRY_UNKNOWN",
+          "family": "quarry",
+          "message": "no unique index on lefts matches [?]; name the columns/index or add one",
+          "site": "snapback/probe.q:5:15",
+          "rewrite": "-- candidate indexes: lefts.byId (id: reference to lefts)",
+          "guide": "quarry/names"
+        }
+      ],
+      "candidateDiagnostics": [
+        {
+          "code": "E_PROVENANCE_AMBIGUOUS",
+          "family": "opaque",
+          "message": "read key provenance is ambiguous; each key must follow one direct origin rule; candidate direct origins: args.left",
+          "site": "snapback/probe.q:5:7",
+          "rule": "read keys have one unambiguous origin",
+          "rewrite": "mutation probe(left: lefts):\n  original = [left,null]\n  for key in original:\n    if key != null:\n      found = lefts[key]\n  return {original,next:new}\n",
+          "guide": "opaque/provenance"
+        }
+      ]
+    }
+  ],
+  "historical": [
+    {
+      "name": "null-last-full-row",
+      "historicalOriginalPath": "/Users/ccheever/clique-improvement/revisions/compiler-literal-absence-r22/originals/parent/null-rows/null-last-full-row",
+      "sourceHashEqual": true,
+      "projectEqual": true,
+      "apiEqual": true,
+      "evaluatorEqual": true,
+      "newTraceSteps": [
+        30
+      ]
+    },
+    {
+      "name": "declared-optional-full-row",
+      "historicalOriginalPath": "/Users/ccheever/clique-improvement/revisions/compiler-literal-absence-r22/originals/parent/null-rows/declared-optional-full-row",
+      "sourceHashEqual": true,
+      "projectEqual": true,
+      "apiEqual": true,
+      "evaluatorEqual": true,
+      "newTraceSteps": [
+        32,
+        44
+      ]
+    },
+    {
+      "name": "fixed-literal-null-first",
+      "historicalOriginalPath": "/Users/ccheever/clique-improvement/revisions/compiler-literal-absence-r22/originals/candidate/fixed/fixed-literal-null-first",
+      "sourceHashEqual": true,
+      "projectEqual": true,
+      "apiEqual": true,
+      "evaluatorEqual": true,
+      "newTraceSteps": [
+        40
+      ]
+    },
+    {
+      "name": "fixed-literal-null-last",
+      "historicalOriginalPath": "/Users/ccheever/clique-improvement/revisions/compiler-literal-absence-r22/originals/candidate/fixed/fixed-literal-null-last",
+      "sourceHashEqual": true,
+      "projectEqual": true,
+      "apiEqual": true,
+      "evaluatorEqual": true,
+      "newTraceSteps": [
+        40
+      ]
+    }
+  ],
+  "types": {
+    "productionSourceFiles": 87,
+    "productionDiagnostics": [],
+    "candidateAffectedSourceFiles": 109,
+    "parentAffectedSourceFiles": 108,
+    "parentCandidateDiagnosticsEqual": true,
+    "suppliedDiagnosticsEqual": true,
+    "diagnostics": [
+      {
+        "file": "packages/evaluator/src/runner.ts",
+        "start": 21267,
+        "code": 2345,
+        "message": "Argument of type '{ prefix: any; order: any; take: any; after: any; before: any; gt: any; gte: any; lt: any; lte: any; rule_hash: string; stop: \"limit\" | \"exhausted\"; lastReturnedSuffix: Value[] | null; provenance?: any; site: any; table: any; index: any; }' is not assignable to parameter of type 'TraceRange'.\n  Type '{ prefix: any; order: any; take: any; after: any; before: any; gt: any; gte: any; lt: any; lte: any; rule_hash: string; stop: \"limit\" | \"exhausted\"; lastReturnedSuffix: Value[] | null; provenance?: any; site: any; table: any; index: any; }' is missing the following properties from type 'TraceRange': halo, n2_suffix"
+      },
+      {
+        "file": "packages/evaluator/src/runner.ts",
+        "start": 25838,
+        "code": 2345,
+        "message": "Argument of type '{ site: any; table: any; index: any; provenance: any; prefix: any; order: any; take: any; after: any; before: any; gt: any; gte: any; lt: any; lte: any; rule_hash: string; stop: \"limit\" | \"exhausted\"; lastReturnedSuffix: Value[] | null; }' is not assignable to parameter of type 'TraceRange'.\n  Type '{ site: any; table: any; index: any; provenance: any; prefix: any; order: any; take: any; after: any; before: any; gt: any; gte: any; lt: any; lte: any; rule_hash: string; stop: \"limit\" | \"exhausted\"; lastReturnedSuffix: Value[] | null; }' is missing the following properties from type 'TraceRange': halo, n2_suffix"
+      },
+      {
+        "file": "packages/evaluator/src/store.ts",
+        "start": 5002,
+        "code": 2345,
+        "message": "Argument of type 'IndexAtom[]' is not assignable to parameter of type 'Value[]'.\n  Type 'IndexAtom' is not assignable to type 'Value'.\n    Type '{ Scalar: Value; }' is not assignable to type 'Value'."
+      },
+      {
+        "file": "packages/evaluator/src/store.ts",
+        "start": 12558,
+        "code": 2345,
+        "message": "Argument of type 'IndexAtom[]' is not assignable to parameter of type 'Value[]'.\n  Type 'IndexAtom' is not assignable to type 'Value'.\n    Type '{ Scalar: Value; }' is not assignable to type 'Value'."
+      },
+      {
+        "file": "packages/evaluator/src/store.ts",
+        "start": 14960,
+        "code": 2345,
+        "message": "Argument of type 'IndexAtom[]' is not assignable to parameter of type 'Value[]'.\n  Type 'IndexAtom' is not assignable to type 'Value'.\n    Type '{ Scalar: Value; }' is not assignable to type 'Value'."
+      },
+      {
+        "file": "packages/evaluator/src/store.ts",
+        "start": 17379,
+        "code": 2322,
+        "message": "Type 'IndexAtom[]' is not assignable to type 'Value[]'.\n  Type 'IndexAtom' is not assignable to type 'Value'.\n    Type '{ Scalar: Value; }' is not assignable to type 'Value'."
+      },
+      {
+        "file": "packages/evaluator/src/store.ts",
+        "start": 20109,
+        "code": 2345,
+        "message": "Argument of type 'IndexAtom[]' is not assignable to parameter of type 'Value[]'.\n  Type 'IndexAtom' is not assignable to type 'Value'.\n    Type '{ Scalar: Value; }' is not assignable to type 'Value'."
+      }
+    ]
+  },
+  "execution": {
+    "actualChildren": 20,
+    "maxChildSeconds": 3.263241945998743,
+    "nonzeroChildren": [
+      {
+        "name": "c-types-affected",
+        "pid": 3969453,
+        "exit": 1,
+        "durationSeconds": 3.263241945998743
+      },
+      {
+        "name": "p-types-affected",
+        "pid": 3970451,
+        "exit": 1,
+        "durationSeconds": 3.2315390668809414
+      }
+    ],
+    "timeouts": [],
+    "overlappingChildren": [],
+    "children": [
+      {
+        "name": "p-core",
+        "pid": 3957969,
+        "exit": 0,
+        "durationSeconds": 0.45394192985258996
+      },
+      {
+        "name": "c-core",
+        "pid": 3958227,
+        "exit": 0,
+        "durationSeconds": 0.46682770806364715
+      },
+      {
+        "name": "p-composites",
+        "pid": 3958375,
+        "exit": 0,
+        "durationSeconds": 0.4197675259783864
+      },
+      {
+        "name": "c-composites",
+        "pid": 3958455,
+        "exit": 0,
+        "durationSeconds": 0.47237944486550987
+      },
+      {
+        "name": "p-lazy",
+        "pid": 3958903,
+        "exit": 0,
+        "durationSeconds": 0.48834300483576953
+      },
+      {
+        "name": "c-lazy",
+        "pid": 3958991,
+        "exit": 0,
+        "durationSeconds": 0.521031053038314
+      },
+      {
+        "name": "p-refusals",
+        "pid": 3959125,
+        "exit": 0,
+        "durationSeconds": 0.4846975631080568
+      },
+      {
+        "name": "c-refusals",
+        "pid": 3959298,
+        "exit": 0,
+        "durationSeconds": 0.47082291496917605
+      },
+      {
+        "name": "p-absence",
+        "pid": 3959396,
+        "exit": 0,
+        "durationSeconds": 0.544539846945554
+      },
+      {
+        "name": "c-absence",
+        "pid": 3959485,
+        "exit": 0,
+        "durationSeconds": 0.5744958310388029
+      },
+      {
+        "name": "c-callbacks-new",
+        "pid": 3963065,
+        "exit": 0,
+        "durationSeconds": 0.5965575031004846
+      },
+      {
+        "name": "c-callbacks-bounds",
+        "pid": 3963155,
+        "exit": 0,
+        "durationSeconds": 2.7010798160918057
+      },
+      {
+        "name": "c-callbacks-capture",
+        "pid": 3963363,
+        "exit": 0,
+        "durationSeconds": 0.4984620569739491
+      },
+      {
+        "name": "c-types-production",
+        "pid": 3964072,
+        "exit": 0,
+        "durationSeconds": 2.795475201215595
+      },
+      {
+        "name": "c-types-affected",
+        "pid": 3969453,
+        "exit": 1,
+        "durationSeconds": 3.263241945998743
+      },
+      {
+        "name": "p-types-affected",
+        "pid": 3970451,
+        "exit": 1,
+        "durationSeconds": 3.2315390668809414
+      },
+      {
+        "name": "p-callbacks-bounds",
+        "pid": 3970744,
+        "exit": 0,
+        "durationSeconds": 2.7023248891346157
+      },
+      {
+        "name": "p-callbacks-capture",
+        "pid": 3970894,
+        "exit": 0,
+        "durationSeconds": 0.4972782381810248
+      },
+      {
+        "name": "p-allnull-replay",
+        "pid": 3971035,
+        "exit": 0,
+        "durationSeconds": 0.19901592005044222
+      },
+      {
+        "name": "c-allnull-replay",
+        "pid": 3971422,
+        "exit": 0,
+        "durationSeconds": 0.1929370709694922
+      }
+    ],
+    "transports": {
+      "count": 31,
+      "maxSeconds": 5.43424025,
+      "timeouts": [],
+      "nonzero": [
+        "p-types-affected",
+        "c-types-affected"
+      ]
+    }
+  },
+  "callbacks": [
+    {
+      "name": "joined list collection allocation eager",
+      "ok": true,
+      "ms": 49.670750999999996,
+      "run": "c-callbacks-capture"
+    },
+    {
+      "name": "joined list collection allocation lazy",
+      "ok": true,
+      "ms": 168.171622,
+      "run": "c-callbacks-capture"
+    },
+    {
+      "name": "joined list collection id fallback retains foreign target",
+      "ok": true,
+      "ms": 32.33902999999998,
+      "run": "c-callbacks-capture"
+    },
+    {
+      "name": "joined list collection unknown element field",
+      "ok": true,
+      "ms": 39.13259899999997,
+      "run": "c-callbacks-capture"
+    },
+    {
+      "name": "joined list collection nested nullable required",
+      "ok": true,
+      "ms": 66.46398399999998,
+      "run": "p-callbacks-bounds"
+    },
+    {
+      "name": "joined list collection exact page count",
+      "ok": true,
+      "ms": 166.45957500000003,
+      "run": "p-callbacks-bounds"
+    },
+    {
+      "name": "joined list collection optional mixed return preserves absence",
+      "ok": true,
+      "ms": 945.587487,
+      "run": "p-callbacks-bounds"
+    },
+    {
+      "name": "joined list collection decimal 2 source and API",
+      "ok": true,
+      "ms": 1235.254996,
+      "run": "p-callbacks-bounds"
+    },
+    {
+      "name": "joined list collection nested nullable required",
+      "ok": true,
+      "ms": 66.52122099999997,
+      "run": "c-callbacks-bounds"
+    },
+    {
+      "name": "joined list collection exact page count",
+      "ok": true,
+      "ms": 166.038377,
+      "run": "c-callbacks-bounds"
+    },
+    {
+      "name": "joined list collection optional mixed return preserves absence",
+      "ok": true,
+      "ms": 938.5083199999999,
+      "run": "c-callbacks-bounds"
+    },
+    {
+      "name": "joined list collection decimal 2 source and API",
+      "ok": true,
+      "ms": 1238.9860019999999,
+      "run": "c-callbacks-bounds"
+    },
+    {
+      "name": "insert provenance literal absence refuses missing presence",
+      "ok": true,
+      "ms": 31.329706999999985,
+      "run": "c-callbacks-new"
+    },
+    {
+      "name": "insert provenance literal absence captured fallback ID",
+      "ok": true,
+      "ms": 47.681821000000014,
+      "run": "c-callbacks-new"
+    },
+    {
+      "name": "insert provenance literal absence all null count",
+      "ok": true,
+      "ms": 135.78696399999998,
+      "run": "c-callbacks-new"
+    },
+    {
+      "name": "insert provenance literal absence refuses mixed whole",
+      "ok": true,
+      "ms": 32.14979600000004,
+      "run": "c-callbacks-new"
+    },
+    {
+      "name": "insert provenance literal absence Decimal source and comparison",
+      "ok": true,
+      "ms": 63.20446099999998,
+      "run": "c-callbacks-new"
+    },
+    {
+      "name": "insert provenance literal absence refuses real text alternative",
+      "ok": true,
+      "ms": 33.89343800000006,
+      "run": "c-callbacks-new"
+    },
+    {
+      "name": "insert provenance literal absence refuses mixed currency",
+      "ok": true,
+      "ms": 29.925782999999967,
+      "run": "c-callbacks-new"
+    },
+    {
+      "name": "joined list collection allocation eager",
+      "ok": true,
+      "ms": 49.247186,
+      "run": "p-callbacks-capture"
+    },
+    {
+      "name": "joined list collection allocation lazy",
+      "ok": true,
+      "ms": 167.92602300000001,
+      "run": "p-callbacks-capture"
+    },
+    {
+      "name": "joined list collection id fallback retains foreign target",
+      "ok": true,
+      "ms": 32.30308500000001,
+      "run": "p-callbacks-capture"
+    },
+    {
+      "name": "joined list collection unknown element field",
+      "ok": true,
+      "ms": 38.304017999999985,
+      "run": "p-callbacks-capture"
+    }
+  ],
+  "callbackCorrespondence": [
+    {
+      "name": "joined_list_collection_decimal_2_source_and_API",
+      "parentCandidateProjectEqual": true,
+      "apiEqual": true,
+      "fullEvaluatorObservationsEqual": true,
+      "expectedErrorMessagesEqual": true
+    },
+    {
+      "name": "joined_list_collection_exact_page_count",
+      "parentCandidateProjectEqual": true,
+      "apiEqual": true,
+      "fullEvaluatorObservationsEqual": true,
+      "expectedErrorMessagesEqual": true
+    },
+    {
+      "name": "joined_list_collection_nested_nullable_required",
+      "parentCandidateProjectEqual": true,
+      "apiEqual": true,
+      "fullEvaluatorObservationsEqual": true,
+      "expectedErrorMessagesEqual": true
+    },
+    {
+      "name": "joined_list_collection_optional_mixed_return_preserves_absence",
+      "parentCandidateProjectEqual": true,
+      "apiEqual": true,
+      "fullEvaluatorObservationsEqual": true,
+      "expectedErrorMessagesEqual": true
+    },
+    {
+      "name": "joined_list_collection_allocation_eager",
+      "parentCandidateProjectEqual": true,
+      "apiEqual": true,
+      "fullEvaluatorObservationsEqual": true,
+      "expectedErrorMessagesEqual": true
+    },
+    {
+      "name": "joined_list_collection_allocation_lazy",
+      "parentCandidateProjectEqual": true,
+      "apiEqual": true,
+      "fullEvaluatorObservationsEqual": true,
+      "expectedErrorMessagesEqual": true
+    },
+    {
+      "name": "joined_list_collection_id_fallback_retains_foreign_target",
+      "parentCandidateProjectEqual": true,
+      "apiEqual": true,
+      "fullEvaluatorObservationsEqual": true,
+      "expectedErrorMessagesEqual": true
+    },
+    {
+      "name": "joined_list_collection_unknown_element_field",
+      "parentCandidateProjectEqual": true,
+      "apiEqual": true,
+      "fullEvaluatorObservationsEqual": true,
+      "expectedErrorMessagesEqual": true
+    }
+  ],
+  "allnullReplayEqual": true
+}

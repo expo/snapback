@@ -1,0 +1,10 @@
+{
+  "name": "null-last-full-row",
+  "schema": "table records:\n  length: int\n  label: text <=20\n  payload: json <=1000\n  public\n  insert <- allow\n",
+  "source": "mutation probe():\n  original = [2,null]\n  for value in original:\n    if value != null:\n      require value > 1 else LOW\n      insert records {length: value, label: 'chosen', payload: {keep: 'row', original}}\n  return {original, next: new}\n",
+  "runs": [
+    {
+      "args": {}
+    }
+  ]
+}

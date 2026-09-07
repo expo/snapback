@@ -1,0 +1,67 @@
+{
+  "stage": "R22",
+  "status": "source-and-report-released",
+  "commit": "d3e497acdfd2cbaecbf7c6cb8f7350cb8e63580d",
+  "parentCommit": "c73805f6affb01530c7d903c8e22e8a90f49fe48",
+  "releasedAt": "2026-09-07T10:44:35.853886+00:00",
+  "productWritesComplete": true,
+  "compilerWriterReleased": true,
+  "soleWriterThread": "01a078aa-b57c-7b33-ac65-6b67d2f302eb",
+  "report": "report.md",
+  "reportBytes": 20544,
+  "reportSha256": "80b63e47271c5f0e7221eb00b26a5c59747b9048d0d2d3567780528b8517548c",
+  "sourceArchive": "committed-source.tar",
+  "sourceArchiveSha256": "d2a3a00607411b65ea507379afaad07fe3f8452b418c46e58b70d354a0e174ab",
+  "sourceManifest": "committed-source-manifest.json",
+  "sourceManifestSha256": "99776fa4a9500f66d75a8daaccf8cd03d84bbe7b3ab21b2627d19bddf6d8b87c",
+  "sourceVerification": "final-source-verification.json",
+  "protectedWorkingSha256": "afc6bc7ffd25fc007787b10e0fc8bdafbe4ae61cb12f7d2442f2c2df95686618",
+  "verification": {
+    "processes": 24,
+    "semanticProcesses": 19,
+    "processNonzero": [
+      {
+        "label": "final-test-types",
+        "pid": 3941852,
+        "exit": 1
+      }
+    ],
+    "maxChildSeconds": 4.2749205280561,
+    "transports": 30,
+    "maxTransportSeconds": 16.085852833,
+    "transportNonzero": [
+      {
+        "label": "final-test-types",
+        "exit": 1
+      }
+    ],
+    "timeouts": 0,
+    "callbacks": 44,
+    "newCallbacks": 20,
+    "failedCallbacks": 0,
+    "projectPairs": 30,
+    "parentAccepted": 5,
+    "candidateAccepted": 18,
+    "historicalExactComparisons": 4,
+    "apiConsumerPairs": 2,
+    "productionFiles": 87,
+    "productionDiagnostics": 0,
+    "testFiles": 109,
+    "externalTestErrors": 7
+  },
+  "productionTypeDiagnostics": 0,
+  "externalTestTypeDiagnostics": 7,
+  "overallCompilerClearance": false,
+  "nativeRuntimeClearance": false,
+  "packageClearance": false,
+  "nativeInvocations": 0,
+  "remainingBoundaries": [
+    "same-table reference/null loop remains E_PROVENANCE_AMBIGUOUS after an earlier parent frontend refusal",
+    "captured text/null Id key and required captured-null key remain refused",
+    "unscaled fractional literal collection remains refused",
+    "effectful box.original follow-up remains separately queued"
+  ],
+  "successorStarted": false,
+  "outerTerminalObservedByAuthor": false,
+  "outerTerminalObservationOwner": "supervisor after author response"
+}

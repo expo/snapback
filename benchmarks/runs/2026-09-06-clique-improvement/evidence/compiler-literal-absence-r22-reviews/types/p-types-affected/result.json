@@ -1,0 +1,1288 @@
+{
+  "typescript": "5.9.2",
+  "roots": [
+    "/home/ccheever/clique-reviews/compiler-literal-absence-r22-d3e497-f515f287bd/astra/parent/snapback2/packages/compiler/src/bun.d.ts",
+    "/home/ccheever/clique-reviews/compiler-literal-absence-r22-d3e497-f515f287bd/astra/parent/snapback2/packages/compiler/src/insert-provenance-checks.ts",
+    "/home/ccheever/clique-reviews/compiler-literal-absence-r22-d3e497-f515f287bd/astra/parent/snapback2/packages/compiler/src/joined-list-checks.ts",
+    "/home/ccheever/clique-reviews/compiler-literal-absence-r22-d3e497-f515f287bd/astra/parent/snapback2/packages/compiler/src/quarry-program-checks.ts"
+  ],
+  "options": {
+    "module": 99,
+    "moduleResolution": 100,
+    "resolveJsonModule": true,
+    "jsx": 4,
+    "noEmit": true,
+    "strict": true,
+    "target": 9,
+    "skipLibCheck": true,
+    "types": [
+      "node"
+    ]
+  },
+  "files": [
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-literal-absence-r22-d3e497-f515f287bd/astra/parent/snapback2/node_modules/typescript/lib/lib.es5.d.ts",
+      "sha256": "c430d44666289dae81f30fa7b2edebf186ecc91a2d4c71266ea6ae76388792e1"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-literal-absence-r22-d3e497-f515f287bd/astra/parent/snapback2/node_modules/typescript/lib/lib.es2015.d.ts",
+      "sha256": "45b7ab580deca34ae9729e97c13cfd999df04416a79116c3bfb483804f85ded4"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-literal-absence-r22-d3e497-f515f287bd/astra/parent/snapback2/node_modules/typescript/lib/lib.es2016.d.ts",
+      "sha256": "3facaf05f0c5fc569c5649dd359892c98a85557e3e0c847964caeb67076f4d75"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-literal-absence-r22-d3e497-f515f287bd/astra/parent/snapback2/node_modules/typescript/lib/lib.es2017.d.ts",
+      "sha256": "e44bb8bbac7f10ecc786703fe0a6a4b952189f908707980ba8f3c8975a760962"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-literal-absence-r22-d3e497-f515f287bd/astra/parent/snapback2/node_modules/typescript/lib/lib.es2018.d.ts",
+      "sha256": "5e1c4c362065a6b95ff952c0eab010f04dcd2c3494e813b493ecfd4fcb9fc0d8"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-literal-absence-r22-d3e497-f515f287bd/astra/parent/snapback2/node_modules/typescript/lib/lib.es2019.d.ts",
+      "sha256": "68d73b4a11549f9c0b7d352d10e91e5dca8faa3322bfb77b661839c42b1ddec7"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-literal-absence-r22-d3e497-f515f287bd/astra/parent/snapback2/node_modules/typescript/lib/lib.es2020.d.ts",
+      "sha256": "5efce4fc3c29ea84e8928f97adec086e3dc876365e0982cc8479a07954a3efd4"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-literal-absence-r22-d3e497-f515f287bd/astra/parent/snapback2/node_modules/typescript/lib/lib.es2021.d.ts",
+      "sha256": "feecb1be483ed332fad555aff858affd90a48ab19ba7272ee084704eb7167569"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-literal-absence-r22-d3e497-f515f287bd/astra/parent/snapback2/node_modules/typescript/lib/lib.es2022.d.ts",
+      "sha256": "ee7bad0c15b58988daa84371e0b89d313b762ab83cb5b31b8a2d1162e8eb41c2"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-literal-absence-r22-d3e497-f515f287bd/astra/parent/snapback2/node_modules/typescript/lib/lib.dom.d.ts",
+      "sha256": "080941d9f9ff9307f7e27a83bcd888b7c8270716c39af943532438932ec1d0b9"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-literal-absence-r22-d3e497-f515f287bd/astra/parent/snapback2/node_modules/typescript/lib/lib.dom.iterable.d.ts",
+      "sha256": "2e80ee7a49e8ac312cc11b77f1475804bee36b3b2bc896bead8b6e1266befb43"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-literal-absence-r22-d3e497-f515f287bd/astra/parent/snapback2/node_modules/typescript/lib/lib.dom.asynciterable.d.ts",
+      "sha256": "d7a3c8b952931daebdfc7a2897c53c0a1c73624593fa070e46bd537e64dcd20a"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-literal-absence-r22-d3e497-f515f287bd/astra/parent/snapback2/node_modules/typescript/lib/lib.webworker.importscripts.d.ts",
+      "sha256": "80e18897e5884b6723488d4f5652167e7bb5024f946743134ecc4aa4ee731f89"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-literal-absence-r22-d3e497-f515f287bd/astra/parent/snapback2/node_modules/typescript/lib/lib.scripthost.d.ts",
+      "sha256": "cd034f499c6cdca722b60c04b5b1b78e058487a7085a8e0d6fb50809947ee573"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-literal-absence-r22-d3e497-f515f287bd/astra/parent/snapback2/node_modules/typescript/lib/lib.es2015.core.d.ts",
+      "sha256": "c57796738e7f83dbc4b8e65132f11a377649c00dd3eee333f672b8f0a6bea671"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-literal-absence-r22-d3e497-f515f287bd/astra/parent/snapback2/node_modules/typescript/lib/lib.es2015.collection.d.ts",
+      "sha256": "dc2df20b1bcdc8c2d34af4926e2c3ab15ffe1160a63e58b7e09833f616efff44"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-literal-absence-r22-d3e497-f515f287bd/astra/parent/snapback2/node_modules/typescript/lib/lib.es2015.generator.d.ts",
+      "sha256": "515d0b7b9bea2e31ea4ec968e9edd2c39d3eebf4a2d5cbd04e88639819ae3b71"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-literal-absence-r22-d3e497-f515f287bd/astra/parent/snapback2/node_modules/typescript/lib/lib.es2015.iterable.d.ts",
+      "sha256": "0559b1f683ac7505ae451f9a96ce4c3c92bdc71411651ca6ddb0e88baaaad6a3"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-literal-absence-r22-d3e497-f515f287bd/astra/parent/snapback2/node_modules/typescript/lib/lib.es2015.promise.d.ts",
+      "sha256": "0dc1e7ceda9b8b9b455c3a2d67b0412feab00bd2f66656cd8850e8831b08b537"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-literal-absence-r22-d3e497-f515f287bd/astra/parent/snapback2/node_modules/typescript/lib/lib.es2015.proxy.d.ts",
+      "sha256": "ce691fb9e5c64efb9547083e4a34091bcbe5bdb41027e310ebba8f7d96a98671"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-literal-absence-r22-d3e497-f515f287bd/astra/parent/snapback2/node_modules/typescript/lib/lib.es2015.reflect.d.ts",
+      "sha256": "8d697a2a929a5fcb38b7a65594020fcef05ec1630804a33748829c5ff53640d0"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-literal-absence-r22-d3e497-f515f287bd/astra/parent/snapback2/node_modules/typescript/lib/lib.es2015.symbol.d.ts",
+      "sha256": "4ff2a353abf8a80ee399af572debb8faab2d33ad38c4b4474cff7f26e7653b8d"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-literal-absence-r22-d3e497-f515f287bd/astra/parent/snapback2/node_modules/typescript/lib/lib.es2015.symbol.wellknown.d.ts",
+      "sha256": "fb0f136d372979348d59b3f5020b4cdb81b5504192b1cacff5d1fbba29378aa1"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-literal-absence-r22-d3e497-f515f287bd/astra/parent/snapback2/node_modules/typescript/lib/lib.es2016.array.include.d.ts",
+      "sha256": "d15bea3d62cbbdb9797079416b8ac375ae99162a7fba5de2c6c505446486ac0a"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-literal-absence-r22-d3e497-f515f287bd/astra/parent/snapback2/node_modules/typescript/lib/lib.es2016.intl.d.ts",
+      "sha256": "68d18b664c9d32a7336a70235958b8997ebc1c3b8505f4f1ae2b7e7753b87618"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-literal-absence-r22-d3e497-f515f287bd/astra/parent/snapback2/node_modules/typescript/lib/lib.es2017.arraybuffer.d.ts",
+      "sha256": "eb3d66c8327153d8fa7dd03f9c58d351107fe824c79e9b56b462935176cdf12a"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-literal-absence-r22-d3e497-f515f287bd/astra/parent/snapback2/node_modules/typescript/lib/lib.es2017.date.d.ts",
+      "sha256": "38f0219c9e23c915ef9790ab1d680440d95419ad264816fa15009a8851e79119"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-literal-absence-r22-d3e497-f515f287bd/astra/parent/snapback2/node_modules/typescript/lib/lib.es2017.object.d.ts",
+      "sha256": "69ab18c3b76cd9b1be3d188eaf8bba06112ebbe2f47f6c322b5105a6fbc45a2e"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-literal-absence-r22-d3e497-f515f287bd/astra/parent/snapback2/node_modules/typescript/lib/lib.es2017.sharedmemory.d.ts",
+      "sha256": "a680117f487a4d2f30ea46f1b4b7f58bef1480456e18ba53ee85c2746eeca012"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-literal-absence-r22-d3e497-f515f287bd/astra/parent/snapback2/node_modules/typescript/lib/lib.es2017.string.d.ts",
+      "sha256": "2f11ff796926e0832f9ae148008138ad583bd181899ab7dd768a2666700b1893"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-literal-absence-r22-d3e497-f515f287bd/astra/parent/snapback2/node_modules/typescript/lib/lib.es2017.intl.d.ts",
+      "sha256": "4de680d5bb41c17f7f68e0419412ca23c98d5749dcaaea1896172f06435891fc"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-literal-absence-r22-d3e497-f515f287bd/astra/parent/snapback2/node_modules/typescript/lib/lib.es2017.typedarrays.d.ts",
+      "sha256": "954296b30da6d508a104a3a0b5d96b76495c709785c1d11610908e63481ee667"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-literal-absence-r22-d3e497-f515f287bd/astra/parent/snapback2/node_modules/typescript/lib/lib.es2018.asyncgenerator.d.ts",
+      "sha256": "ac9538681b19688c8eae65811b329d3744af679e0bdfa5d842d0e32524c73e1c"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-literal-absence-r22-d3e497-f515f287bd/astra/parent/snapback2/node_modules/typescript/lib/lib.es2018.asynciterable.d.ts",
+      "sha256": "0a969edff4bd52585473d24995c5ef223f6652d6ef46193309b3921d65dd4376"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-literal-absence-r22-d3e497-f515f287bd/astra/parent/snapback2/node_modules/typescript/lib/lib.es2018.intl.d.ts",
+      "sha256": "9e9fbd7030c440b33d021da145d3232984c8bb7916f277e8ffd3dc2e3eae2bdb"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-literal-absence-r22-d3e497-f515f287bd/astra/parent/snapback2/node_modules/typescript/lib/lib.es2018.promise.d.ts",
+      "sha256": "811ec78f7fefcabbda4bfa93b3eb67d9ae166ef95f9bff989d964061cbf81a0c"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-literal-absence-r22-d3e497-f515f287bd/astra/parent/snapback2/node_modules/typescript/lib/lib.es2018.regexp.d.ts",
+      "sha256": "717937616a17072082152a2ef351cb51f98802fb4b2fdabd32399843875974ca"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-literal-absence-r22-d3e497-f515f287bd/astra/parent/snapback2/node_modules/typescript/lib/lib.es2019.array.d.ts",
+      "sha256": "d7e7d9b7b50e5f22c915b525acc5a49a7a6584cf8f62d0569e557c5cfc4b2ac2"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-literal-absence-r22-d3e497-f515f287bd/astra/parent/snapback2/node_modules/typescript/lib/lib.es2019.object.d.ts",
+      "sha256": "71c37f4c9543f31dfced6c7840e068c5a5aacb7b89111a4364b1d5276b852557"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-literal-absence-r22-d3e497-f515f287bd/astra/parent/snapback2/node_modules/typescript/lib/lib.es2019.string.d.ts",
+      "sha256": "576711e016cf4f1804676043e6a0a5414252560eb57de9faceee34d79798c850"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-literal-absence-r22-d3e497-f515f287bd/astra/parent/snapback2/node_modules/typescript/lib/lib.es2019.symbol.d.ts",
+      "sha256": "89c1b1281ba7b8a96efc676b11b264de7a8374c5ea1e6617f11880a13fc56dc6"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-literal-absence-r22-d3e497-f515f287bd/astra/parent/snapback2/node_modules/typescript/lib/lib.es2019.intl.d.ts",
+      "sha256": "74f7fa2d027d5b33eb0471c8e82a6c87216223181ec31247c357a3e8e2fddc5b"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-literal-absence-r22-d3e497-f515f287bd/astra/parent/snapback2/node_modules/typescript/lib/lib.es2020.bigint.d.ts",
+      "sha256": "d6d7ae4d1f1f3772e2a3cde568ed08991a8ae34a080ff1151af28b7f798e22ca"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-literal-absence-r22-d3e497-f515f287bd/astra/parent/snapback2/node_modules/typescript/lib/lib.es2020.date.d.ts",
+      "sha256": "063600664504610fe3e99b717a1223f8b1900087fab0b4cad1496a114744f8df"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-literal-absence-r22-d3e497-f515f287bd/astra/parent/snapback2/node_modules/typescript/lib/lib.es2020.promise.d.ts",
+      "sha256": "934019d7e3c81950f9a8426d093458b65d5aff2c7c1511233c0fd5b941e608ab"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-literal-absence-r22-d3e497-f515f287bd/astra/parent/snapback2/node_modules/typescript/lib/lib.es2020.sharedmemory.d.ts",
+      "sha256": "52ada8e0b6e0482b728070b7639ee42e83a9b1c22d205992756fe020fd9f4a47"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-literal-absence-r22-d3e497-f515f287bd/astra/parent/snapback2/node_modules/typescript/lib/lib.es2020.string.d.ts",
+      "sha256": "3bdefe1bfd4d6dee0e26f928f93ccc128f1b64d5d501ff4a8cf3c6371200e5e6"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-literal-absence-r22-d3e497-f515f287bd/astra/parent/snapback2/node_modules/typescript/lib/lib.es2020.symbol.wellknown.d.ts",
+      "sha256": "59fb2c069260b4ba00b5643b907ef5d5341b167e7d1dbf58dfd895658bda2867"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-literal-absence-r22-d3e497-f515f287bd/astra/parent/snapback2/node_modules/typescript/lib/lib.es2020.intl.d.ts",
+      "sha256": "639e512c0dfc3fad96a84caad71b8834d66329a1f28dc95e3946c9b58176c73a"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-literal-absence-r22-d3e497-f515f287bd/astra/parent/snapback2/node_modules/typescript/lib/lib.es2020.number.d.ts",
+      "sha256": "368af93f74c9c932edd84c58883e736c9e3d53cec1fe24c0b0ff451f529ceab1"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-literal-absence-r22-d3e497-f515f287bd/astra/parent/snapback2/node_modules/typescript/lib/lib.es2021.promise.d.ts",
+      "sha256": "af3dd424cf267428f30ccfc376f47a2c0114546b55c44d8c0f1d57d841e28d74"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-literal-absence-r22-d3e497-f515f287bd/astra/parent/snapback2/node_modules/typescript/lib/lib.es2021.string.d.ts",
+      "sha256": "995c005ab91a498455ea8dfb63aa9f83fa2ea793c3d8aa344be4a1678d06d399"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-literal-absence-r22-d3e497-f515f287bd/astra/parent/snapback2/node_modules/typescript/lib/lib.es2021.weakref.d.ts",
+      "sha256": "959d36cddf5e7d572a65045b876f2956c973a586da58e5d26cde519184fd9b8a"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-literal-absence-r22-d3e497-f515f287bd/astra/parent/snapback2/node_modules/typescript/lib/lib.es2021.intl.d.ts",
+      "sha256": "965f36eae237dd74e6cca203a43e9ca801ce38824ead814728a2807b1910117d"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-literal-absence-r22-d3e497-f515f287bd/astra/parent/snapback2/node_modules/typescript/lib/lib.es2022.array.d.ts",
+      "sha256": "3925a6c820dcb1a06506c90b1577db1fdbf7705d65b62b99dce4be75c637e26b"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-literal-absence-r22-d3e497-f515f287bd/astra/parent/snapback2/node_modules/typescript/lib/lib.es2022.error.d.ts",
+      "sha256": "0a3d63ef2b853447ec4f749d3f368ce642264246e02911fcb1590d8c161b8005"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-literal-absence-r22-d3e497-f515f287bd/astra/parent/snapback2/node_modules/typescript/lib/lib.es2022.intl.d.ts",
+      "sha256": "8cdf8847677ac7d20486e54dd3fcf09eda95812ac8ace44b4418da1bbbab6eb8"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-literal-absence-r22-d3e497-f515f287bd/astra/parent/snapback2/node_modules/typescript/lib/lib.es2022.object.d.ts",
+      "sha256": "8444af78980e3b20b49324f4a16ba35024fef3ee069a0eb67616ea6ca821c47a"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-literal-absence-r22-d3e497-f515f287bd/astra/parent/snapback2/node_modules/typescript/lib/lib.es2022.string.d.ts",
+      "sha256": "3287d9d085fbd618c3971944b65b4be57859f5415f495b33a6adc994edd2f004"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-literal-absence-r22-d3e497-f515f287bd/astra/parent/snapback2/node_modules/typescript/lib/lib.es2022.regexp.d.ts",
+      "sha256": "b4b67b1a91182421f5df999988c690f14d813b9850b40acd06ed44691f6727ad"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-literal-absence-r22-d3e497-f515f287bd/astra/parent/snapback2/node_modules/typescript/lib/lib.esnext.disposable.d.ts",
+      "sha256": "51ad4c928303041605b4d7ae32e0c1ee387d43a24cd6f1ebf4a2699e1076d4fa"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-literal-absence-r22-d3e497-f515f287bd/astra/parent/snapback2/node_modules/typescript/lib/lib.esnext.float16.d.ts",
+      "sha256": "4245fee526a7d1754529d19227ecbf3be066ff79ebb6a380d78e41648f2f224d"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-literal-absence-r22-d3e497-f515f287bd/astra/parent/snapback2/node_modules/typescript/lib/lib.decorators.d.ts",
+      "sha256": "8e7f8264d0fb4c5339605a15daadb037bf238c10b654bb3eee14208f860a32ea"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-literal-absence-r22-d3e497-f515f287bd/astra/parent/snapback2/node_modules/typescript/lib/lib.decorators.legacy.d.ts",
+      "sha256": "782dec38049b92d4e85c1585fbea5474a219c6984a35b004963b00beb1aab538"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-literal-absence-r22-d3e497-f515f287bd/astra/parent/snapback2/node_modules/typescript/lib/lib.es2022.full.d.ts",
+      "sha256": "3cbad9a1ba4453443026ed38e4b8be018abb26565fa7c944376463ad9df07c41"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-literal-absence-r22-d3e497-f515f287bd/astra/parent/snapback2/packages/compiler/src/bun.d.ts",
+      "sha256": "e93e5fdf764785927aac92df64c51c0349605614ed85938bf1f5a8e1923354e1"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-literal-absence-r22-d3e497-f515f287bd/astra/parent/snapback2/node_modules/@types/react/global.d.ts",
+      "sha256": "7e29f41b158de217f94cb9676bf9cbd0cd9b5a46e1985141ed36e075c52bf6ad"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-literal-absence-r22-d3e497-f515f287bd/astra/parent/snapback2/node_modules/csstype/index.d.ts",
+      "sha256": "ac51dd7d31333793807a6abaa5ae168512b6131bd41d9c5b98477fc3b7800f9f"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-literal-absence-r22-d3e497-f515f287bd/astra/parent/snapback2/node_modules/@types/react/index.d.ts",
+      "sha256": "814d5c7384f3ca276e9dc4bcfde5545801a3ea0bfae09916b3336774e662fd1b"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-literal-absence-r22-d3e497-f515f287bd/astra/parent/snapback2/node_modules/@types/react/jsx-runtime.d.ts",
+      "sha256": "b838d4c72740eb0afd284bf7575b74c624b105eff2e8c7b4aeead57e7ac320ff"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-literal-absence-r22-d3e497-f515f287bd/astra/parent/snapback2/node_modules/typescript/lib/typescript.d.ts",
+      "sha256": "bddc8143c3b0fe2a6462f9811d3b28ea422ffee80d75d3d97d65d6b69f583fad"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-literal-absence-r22-d3e497-f515f287bd/astra/parent/snapback2/packages/evaluator/src/types.ts",
+      "sha256": "afc6bc7ffd25fc007787b10e0fc8bdafbe4ae61cb12f7d2442f2c2df95686618"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-literal-absence-r22-d3e497-f515f287bd/astra/parent/snapback2/crates/snapback2-core/ir-contract.json",
+      "sha256": "d09c63f52622b9b8fb2762b94b17b4e2c8882e9feecf0737d24470ec2bde0252"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-literal-absence-r22-d3e497-f515f287bd/astra/parent/snapback2/packages/evaluator/src/errors.ts",
+      "sha256": "a2dc2e8ef8522ad82af1740c6f8656dc6b05418454226b50571630e777fe0795"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-literal-absence-r22-d3e497-f515f287bd/astra/parent/snapback2/packages/evaluator/src/certificate-identity.ts",
+      "sha256": "c619d5181f31ded0ad593bbaa0d4e7349bdb13e0347fb1fb162575eb38f32730"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-literal-absence-r22-d3e497-f515f287bd/astra/parent/snapback2/packages/evaluator/src/hash.ts",
+      "sha256": "fc3cea8b05458f5fa00867d8c284bc27a3a00d6d1a4d4d3d50182ff5f3294fe2"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-literal-absence-r22-d3e497-f515f287bd/astra/parent/snapback2/packages/evaluator/src/cursor.ts",
+      "sha256": "d9deb9f9e91ed5d4493f60106023d1797d6cbc302a1da2f13f1934f547c2997b"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-literal-absence-r22-d3e497-f515f287bd/astra/parent/snapback2/packages/evaluator/src/value-runtime.ts",
+      "sha256": "691b15a681781f2347dea54e8b07b1ce746fb4708fce8173bd3d3893f3bf4308"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-literal-absence-r22-d3e497-f515f287bd/astra/parent/snapback2/packages/evaluator/dist/unicode-tables.ts",
+      "sha256": "9eccdccd99e9b936a40dcbf8ae63c55d980086df1ae71f92019f9ab040f6a521"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-literal-absence-r22-d3e497-f515f287bd/astra/parent/snapback2/packages/evaluator/src/unicode-tables.ts",
+      "sha256": "ab99f5f9a78ebe52ec3102525d51b6c9dd7c59cbd9f1b26932042982476b8412"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-literal-absence-r22-d3e497-f515f287bd/astra/parent/snapback2/packages/evaluator/src/unicode.ts",
+      "sha256": "5c17bfa9c0385ed179344dead423a48cbb2bf86abc5089511af934522831c724"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-literal-absence-r22-d3e497-f515f287bd/astra/parent/snapback2/packages/evaluator/src/search-key.ts",
+      "sha256": "347cd64b12798d7b46d120d56f142a912ca810f33e2bd0ce6673861bd032e871"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-literal-absence-r22-d3e497-f515f287bd/astra/parent/snapback2/packages/compiler/src/ir.ts",
+      "sha256": "5b138d18a248e9695bfeb539a3a8bef540b34aec6223218a473dcb420e502a5a"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-literal-absence-r22-d3e497-f515f287bd/astra/parent/snapback2/packages/compiler/src/diagnostics.ts",
+      "sha256": "04665c90a038c987b2fa9f3d06f10abce5eeb8ec4c859a660367f160d7a5d8b6"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-literal-absence-r22-d3e497-f515f287bd/astra/parent/snapback2/packages/compiler/src/syntax.ts",
+      "sha256": "22777a91361e0451c63c131710d047a25ae4d82a448a0f32c27a1ef7b42d3d44"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-literal-absence-r22-d3e497-f515f287bd/astra/parent/snapback2/packages/compiler/src/lower/static.ts",
+      "sha256": "abc6123bc89280c004badee9691aba7b86b992ef6310e7bbbc95e7cdaf3efe91"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-literal-absence-r22-d3e497-f515f287bd/astra/parent/snapback2/packages/compiler/src/type-diagnostic-site.ts",
+      "sha256": "c0613c296b86eb2751b9d242e70209fa0d8731343962f7f7aa9dc968ae302161"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-literal-absence-r22-d3e497-f515f287bd/astra/parent/snapback2/packages/compiler/src/source-path.ts",
+      "sha256": "7d695eeee06105204ff0ac2cbc7165e571723b68b780de83f0656ae380ca61f4"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-literal-absence-r22-d3e497-f515f287bd/astra/parent/snapback2/packages/compiler/src/type-diagnostic-cause.ts",
+      "sha256": "3e170b16b5fece31f6341ca8c94d0302c59963b7e8949a607843cec204b7557e"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-literal-absence-r22-d3e497-f515f287bd/astra/parent/snapback2/packages/compiler/src/project-program.ts",
+      "sha256": "991249438b01563b76873bfad27dda86bff630d9da6303a39c1e72c08e9ae48b"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-literal-absence-r22-d3e497-f515f287bd/astra/parent/snapback2/packages/compiler/src/lower/descriptor-origin.ts",
+      "sha256": "27e06c7eb9f1d35357d7cdd8e52cb0da047fd49f14b450113a72a7480a804d25"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-literal-absence-r22-d3e497-f515f287bd/astra/parent/snapback2/packages/compiler/src/authored-types.ts",
+      "sha256": "055cd612d5646f8f07393f363b9cc83916de3a3e41ed9d4e11cca7112d6d9a61"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-literal-absence-r22-d3e497-f515f287bd/astra/parent/snapback2/packages/compiler/src/lower/module.ts",
+      "sha256": "90aaaf40f59b4822d143a53965a65f910a12b845097eb19d965560627e7050bf"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-literal-absence-r22-d3e497-f515f287bd/astra/parent/snapback2/packages/compiler/src/lower/recursion.ts",
+      "sha256": "3d91559078927292079956e07f9dc6ccead40577107ecf2419c991c6ee5bb048"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-literal-absence-r22-d3e497-f515f287bd/astra/parent/snapback2/packages/compiler/src/lower/lexical-binding.ts",
+      "sha256": "93d5b09212d00e9964c8e69d7f3db4b96d0d7ae277083d5ce1fabae3d3c272f7"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-literal-absence-r22-d3e497-f515f287bd/astra/parent/snapback2/packages/compiler/src/lower/value-conversion.ts",
+      "sha256": "f4b9b46c8cf976711c01b674891840009295146f5ae78e586631d6f61770abe9"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-literal-absence-r22-d3e497-f515f287bd/astra/parent/snapback2/packages/compiler/src/lower/environment.ts",
+      "sha256": "62a206837d85671543a1a6cb6191f89f3b18f0f0d1ecbdddcefad68ae483ae18"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-literal-absence-r22-d3e497-f515f287bd/astra/parent/snapback2/packages/compiler/src/lower/scan-operands.ts",
+      "sha256": "0a96a4ffa88d68024758532236cc3e7dea815ce1393c4f47e2ee812a6eb1e811"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-literal-absence-r22-d3e497-f515f287bd/astra/parent/snapback2/packages/compiler/src/lower/operation-context.ts",
+      "sha256": "b28adc07c31d16218a263a6f7b81e10cf40e3589b8f522eb55ecf975e8a11c6d"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-literal-absence-r22-d3e497-f515f287bd/astra/parent/snapback2/packages/compiler/src/lower/call-operands.ts",
+      "sha256": "0b5916fd21cc3b3f1a6366962bdba3c16e44e1d697bdf8d7311e4fa9385c7a14"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-literal-absence-r22-d3e497-f515f287bd/astra/parent/snapback2/packages/compiler/src/lower/operand-order.ts",
+      "sha256": "c6f5e95151571b99cec5ef720e74a785210f876d499d950c9a8cfc1f9e96a754"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-literal-absence-r22-d3e497-f515f287bd/astra/parent/snapback2/packages/compiler/src/lower/helper-expansion.ts",
+      "sha256": "f1ac270fa32d6db93d842a95b1f9129cb2b7ee30a90a55cad831cdbe9e71ec1e"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-literal-absence-r22-d3e497-f515f287bd/astra/parent/snapback2/packages/compiler/src/index-components.ts",
+      "sha256": "a1d7a8921234def5b5199a61dc480a589006723b9a5fb8ca7e82dd0cdddb2ac7"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-literal-absence-r22-d3e497-f515f287bd/astra/parent/snapback2/packages/compiler/src/lower/cursor.ts",
+      "sha256": "b096963aed481f3c6dacbaa05bd0a58d5df5b2371081c972956bd78ea9a64f05"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-literal-absence-r22-d3e497-f515f287bd/astra/parent/snapback2/packages/compiler/src/lower/operands.ts",
+      "sha256": "607fa2e0ac6ad3fa4e0720f0e638cb5adf56686cf534d6a8a0479d56369fb069"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-literal-absence-r22-d3e497-f515f287bd/astra/parent/snapback2/packages/compiler/src/lower/assignment.ts",
+      "sha256": "ff090c811caaeb36c2432940dd8fae9147cd8fe84025bcf02061138af5535847"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-literal-absence-r22-d3e497-f515f287bd/astra/parent/snapback2/packages/compiler/src/lower/search-key.ts",
+      "sha256": "d3a9ab2cc20ab936fcb3d7c536573cdecde5964c3ae5ac7e805a087580aa56ed"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-literal-absence-r22-d3e497-f515f287bd/astra/parent/snapback2/packages/compiler/src/lower/collection-origins.ts",
+      "sha256": "340e8a600611f9687c6fa81d8dbc5bc13f1cf8645d6c646649a4bfbb95aa7e89"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-literal-absence-r22-d3e497-f515f287bd/astra/parent/snapback2/packages/compiler/src/lower/object-shape.ts",
+      "sha256": "ae6a504f1273ab1598e0b8b9d1d07c2dfea6d8f0d80559b63785e6025b4c5c03"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-literal-absence-r22-d3e497-f515f287bd/astra/parent/snapback2/packages/compiler/src/lower/provenance.ts",
+      "sha256": "336d3ad7f0ba452b46485dd2ffd88fb78dfa239d86e5e9499c534b27c55c9170"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-literal-absence-r22-d3e497-f515f287bd/astra/parent/snapback2/packages/compiler/src/lower/binding-bound.ts",
+      "sha256": "8580c92aa0e549d3f088116b9a09e9b72d76a1e02d8e671f3ac2f59b8fbacef6"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-literal-absence-r22-d3e497-f515f287bd/astra/parent/snapback2/packages/compiler/src/lower/collection-presence.ts",
+      "sha256": "f6d8d7e2ae6926ace37c66d0d594f32acf62a724c1e26d3e6af84d7ee86f8152"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-literal-absence-r22-d3e497-f515f287bd/astra/parent/snapback2/packages/compiler/src/lower/collection-facts.ts",
+      "sha256": "2ffd2e4ae4b036790fb9bf51163559a88880bfef89bfdf6e43ca6734ffb604af"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-literal-absence-r22-d3e497-f515f287bd/astra/parent/snapback2/packages/compiler/src/lower/expr.ts",
+      "sha256": "2f01233812e6f140e0b61f316857046f0b34ee71d14bac4c5b69c42b9cf44372"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-literal-absence-r22-d3e497-f515f287bd/astra/parent/snapback2/packages/compiler/src/lower/choice.ts",
+      "sha256": "5079bfab08079fbb56f51b95c28e6376aed4403dd0fa7ff5717d70cf0fcb04f7"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-literal-absence-r22-d3e497-f515f287bd/astra/parent/snapback2/packages/compiler/src/args.ts",
+      "sha256": "250f33c59e034adbd165881f98043cba5391bbc334efed9fdeb1f6ae271441f6"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-literal-absence-r22-d3e497-f515f287bd/astra/parent/snapback2/packages/compiler/src/lower/branch-bindings.ts",
+      "sha256": "42c725d4900edbc00024b58333a527b67d488c6a27dd235cc41675cee8a061e8"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-literal-absence-r22-d3e497-f515f287bd/astra/parent/snapback2/packages/compiler/src/lower/loop-mutations.ts",
+      "sha256": "25e9ed2eb1542c1356a00e2a3d699987a78aab250796a44f865fffe1413859a8"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-literal-absence-r22-d3e497-f515f287bd/astra/parent/snapback2/packages/compiler/src/lower/held-search.ts",
+      "sha256": "5efc7817c85f80c672c734c7c5740cf0a4e11d0463a3f1079bf500d23f5212a5"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-literal-absence-r22-d3e497-f515f287bd/astra/parent/snapback2/packages/compiler/src/lower/merge.ts",
+      "sha256": "8974e65e7e7f202eca9f52c239b9db52012de2ba118271f1d67bca868dfab901"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-literal-absence-r22-d3e497-f515f287bd/astra/parent/snapback2/packages/compiler/src/lower/variable-statement.ts",
+      "sha256": "07f9b8527256c3f0b5df58688a018b346d8dcfd0a83b2c87588305b279fe2aa0"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-literal-absence-r22-d3e497-f515f287bd/astra/parent/snapback2/packages/compiler/src/lower/empty-list-domain.ts",
+      "sha256": "697208ec6c4a0520d1c78c47a37f2ca67b4a89c944077b3c97138a48e899a4a7"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-literal-absence-r22-d3e497-f515f287bd/astra/parent/snapback2/packages/compiler/src/lower/loop-copy.ts",
+      "sha256": "318ce0fb69a2692c10d8a0a59a3094f2514d6b800a597453745af10562129c9b"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-literal-absence-r22-d3e497-f515f287bd/astra/parent/snapback2/packages/compiler/src/lower/joined-list-domain.ts",
+      "sha256": "14c5fe9c8ff60367958b3f87974692b66c43476ca0912afae19072dbce351701"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-literal-absence-r22-d3e497-f515f287bd/astra/parent/snapback2/packages/compiler/src/lower/collections.ts",
+      "sha256": "6bc8175ef08dee76e79927902c8610ba0ef652676b75d5ebe22a9e52789fcb4b"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-literal-absence-r22-d3e497-f515f287bd/astra/parent/snapback2/packages/compiler/src/lower/write-identity.ts",
+      "sha256": "4edf80b82db0d402d3530e2cd54471c7eceda5a6b02e95740c3e2b9dc64d9055"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-literal-absence-r22-d3e497-f515f287bd/astra/parent/snapback2/packages/compiler/src/lower/rule-types.ts",
+      "sha256": "e3b667a7e4a579aa0baf49fea463b05f3ea2eeea91640b4e3df5b4cf47f452f1"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-literal-absence-r22-d3e497-f515f287bd/astra/parent/snapback2/packages/compiler/src/lower/schema.ts",
+      "sha256": "4f2e872b30716c8d66bd6d81f85c661c733f97c265786ef8cda16dfa8567008e"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-literal-absence-r22-d3e497-f515f287bd/astra/parent/snapback2/packages/compiler/src/policy.ts",
+      "sha256": "155a3c5799e99790c828c5dfe8c0f90d61de494eacb880388acdb38af5244110"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-literal-absence-r22-d3e497-f515f287bd/astra/parent/snapback2/packages/compiler/src/destination-conversion.ts",
+      "sha256": "a5f5096e32cb89b5d52b15144c21de4c064b5dfca83c41a551fe96b5f02df149"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-literal-absence-r22-d3e497-f515f287bd/astra/parent/snapback2/packages/compiler/src/producer-types.ts",
+      "sha256": "10c4d622b4f9f8fc9d7b004a0d543e899569ce26acac9a593173f2eb222bae0d"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-literal-absence-r22-d3e497-f515f287bd/astra/parent/snapback2/packages/compiler/src/type-analysis.ts",
+      "sha256": "761bdc90294700587ab50d03f5d9bce440b585323234b976b502c8eaabccf59a"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-literal-absence-r22-d3e497-f515f287bd/astra/parent/snapback2/packages/compiler/src/typecheck.ts",
+      "sha256": "487a71ec43e0379d1da2a52086486bb9e8306e18d80ce0041d4ef89bd8402af8"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-literal-absence-r22-d3e497-f515f287bd/astra/parent/snapback2/packages/compiler/src/handler-bindings.ts",
+      "sha256": "5bac8fdc3dfde2a3e9d9f146d6b7a071b6e70e321a9117948424e529b7386afe"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-literal-absence-r22-d3e497-f515f287bd/astra/parent/snapback2/packages/compiler/src/operation-diagnostics.ts",
+      "sha256": "1e055ea71f81f7f657aaa8cf60900142a76cb849a3929b516ea0a92546609773"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-literal-absence-r22-d3e497-f515f287bd/astra/parent/snapback2/packages/compiler/src/compiler.ts",
+      "sha256": "f93d1992c730d604d8590c5ddd27c44ab16facba5b4cee62a2beb2f81215eaa6"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-literal-absence-r22-d3e497-f515f287bd/astra/parent/snapback2/packages/compiler/src/lower/effects.ts",
+      "sha256": "950e4fe76686e0c6649a00486f65caef6d7eed4bf833d83acf769a42081e572d"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-literal-absence-r22-d3e497-f515f287bd/astra/parent/snapback2/packages/compiler/src/quarry/ast.ts",
+      "sha256": "3b7f00a085a6848d70c4c78c03f4446a7277e91bc1b02f5c5dec27aa2e0a02d5"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-literal-absence-r22-d3e497-f515f287bd/astra/parent/snapback2/packages/compiler/src/quarry/value-type.ts",
+      "sha256": "92d7993f413f142d538be53ebf96ca902a1af88198468dda607819bd3d22a422"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-literal-absence-r22-d3e497-f515f287bd/astra/parent/snapback2/packages/compiler/src/quarry/print.ts",
+      "sha256": "92d5e409c502e56a911ea421b9ac63faf6e9f1ae021e56bb16fe200d17b17b7a"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-literal-absence-r22-d3e497-f515f287bd/astra/parent/snapback2/packages/compiler/src/quarry/diagnostics.ts",
+      "sha256": "b215b6c3e8adf46e45f7f897b9d26779484467faa7958fa3ca2e302ff76569ec"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-literal-absence-r22-d3e497-f515f287bd/astra/parent/snapback2/packages/compiler/src/quarry/catalog.ts",
+      "sha256": "c1965b0d372e926ac419953c2bf1b8465710a6244882d02c3bf4b454f971389c"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-literal-absence-r22-d3e497-f515f287bd/astra/parent/snapback2/packages/compiler/src/quarry/expand.ts",
+      "sha256": "e96d9a3c868645a35e172033a896046dff7fa90e8c3c83024d28a8d3c195d764"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-literal-absence-r22-d3e497-f515f287bd/astra/parent/snapback2/packages/compiler/src/quarry/lexer.ts",
+      "sha256": "6318714747d597cf5cbcb09ab3b8c8cd998147a0725c2e20e0ef7481aee5bf17"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-literal-absence-r22-d3e497-f515f287bd/astra/parent/snapback2/packages/compiler/src/quarry/parser.ts",
+      "sha256": "ae630fdb0d419ed06676df0a72886b356b991446db8eb5d476f7cc1c0647cc69"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-literal-absence-r22-d3e497-f515f287bd/astra/parent/snapback2/packages/compiler/src/quarry/narrowing.ts",
+      "sha256": "55ba479701d025243f2b1e923ec818f4295a40c4e297d8990e165a06ae9d7c48"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-literal-absence-r22-d3e497-f515f287bd/astra/parent/snapback2/packages/compiler/src/quarry/schema.ts",
+      "sha256": "42a37d3b5547285c9f13cfd61651c32d307a1efa30d5dad29c36f25f583f7600"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-literal-absence-r22-d3e497-f515f287bd/astra/parent/snapback2/packages/compiler/src/quarry/program.ts",
+      "sha256": "205dee6ec3ec80c4f9d7976d05f0f4bb53b96e0ff3e9b7f260ba493435f110f0"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-literal-absence-r22-d3e497-f515f287bd/astra/parent/snapback2/packages/compiler/src/quarry/schedule.ts",
+      "sha256": "e06ccc7e00392f9e0102c9adaf0456abbaf252202e0ba3a1a935e18e68ae587d"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-literal-absence-r22-d3e497-f515f287bd/astra/parent/snapback2/packages/compiler/src/quarry/where-repair.ts",
+      "sha256": "627714175c27036fb5f0e72abbfd0c143941dbcd453d32bd447249a2908ba9a8"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-literal-absence-r22-d3e497-f515f287bd/astra/parent/snapback2/packages/compiler/src/quarry/index.ts",
+      "sha256": "292c459771ea44cb6e09ab697d60da41d4649dd504f83ee740c04ff542336267"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-literal-absence-r22-d3e497-f515f287bd/astra/parent/snapback2/packages/compiler/src/quarry/cap-sites.ts",
+      "sha256": "f4baba08632f2c13120cbd634819abde3fd4748d7a0bb7c74ce7421a8476eec3"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-literal-absence-r22-d3e497-f515f287bd/astra/parent/snapback2/packages/compiler/src/project-seed.ts",
+      "sha256": "7fd008d7c98772ce33664ae4523b9776e1547e8029f48f76b71f80f1194a36a8"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-literal-absence-r22-d3e497-f515f287bd/astra/parent/snapback2/packages/compiler/src/project-sort.ts",
+      "sha256": "d38cbb42bc4fdcc95c56871b873ff90f61e901d801ce17a26be7de8da008af62"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-literal-absence-r22-d3e497-f515f287bd/astra/parent/snapback2/packages/compiler/src/project-authoring.ts",
+      "sha256": "98f9b04027808c9834666b16f122bafef30b1e217406fd0b6c0e414f62744ea7"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-literal-absence-r22-d3e497-f515f287bd/astra/parent/snapback2/packages/compiler/src/project-api-types.ts",
+      "sha256": "b510bc2d9386fdf5e097e87ad68e2d848bdbc89d521bde14bf37cfa7932d0d8f"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-literal-absence-r22-d3e497-f515f287bd/astra/parent/snapback2/packages/compiler/src/project.ts",
+      "sha256": "812d5e6b37243430b4402d30f1b431a3d88b7a758344986b73604b7e87438ed4"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-literal-absence-r22-d3e497-f515f287bd/astra/parent/snapback2/packages/compiler/src/quarry-check-helpers.ts",
+      "sha256": "6b229b271c367f31df39c9aae1b48e7de45b190aa55ed7fc116af14d8d5e7603"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-literal-absence-r22-d3e497-f515f287bd/astra/parent/snapback2/packages/evaluator/src/authority.ts",
+      "sha256": "16ba69cfd87551d51cdfba3e956b7f7e3abadee15c89e1bce3437bde321c8848"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-literal-absence-r22-d3e497-f515f287bd/astra/parent/snapback2/packages/evaluator/src/merge.ts",
+      "sha256": "a2363d11564f095e3fb705b0fd34e029f5d470162aa01e161ac65e87ba4cdecf"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-literal-absence-r22-d3e497-f515f287bd/astra/parent/snapback2/packages/evaluator/src/text.ts",
+      "sha256": "564578922bb4fe9b2522d8e2e4bc42e8111cd3aa804f9de76e9e11d010cc3c8e"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-literal-absence-r22-d3e497-f515f287bd/astra/parent/snapback2/packages/evaluator/src/runner.ts",
+      "sha256": "641d248245b8947079d1ea37be6a6c13bc1d5209b8cd67eaede6308fa7ecf362"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-literal-absence-r22-d3e497-f515f287bd/astra/parent/snapback2/packages/evaluator/src/store.ts",
+      "sha256": "2d06cf6dbad9d5b424d6e900e9e4741ada710f1e31e7fd5a8e86f4516cb302b9"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-literal-absence-r22-d3e497-f515f287bd/astra/parent/snapback2/packages/compiler/src/collection-join-cases.ts",
+      "sha256": "f978f4d4cd4caec2172f770e332b978dc5d8ee2522a88d0bebfdfd960591d233"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-literal-absence-r22-d3e497-f515f287bd/astra/parent/snapback2/packages/compiler/src/effectful-join-cases.ts",
+      "sha256": "1864c40607b95eff7b965bc842e17c8af9c74d5f124137402bc46619ffa660e4"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-literal-absence-r22-d3e497-f515f287bd/astra/parent/snapback2/packages/compiler/src/clone-policy-cases.ts",
+      "sha256": "d343c275672e7587e9affadbb5529e876cb079da941eccef65dfd4ebd30461ad"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-literal-absence-r22-d3e497-f515f287bd/astra/parent/snapback2/packages/compiler/src/joined-list-checks.ts",
+      "sha256": "f3a63829fe4450fec77b9389a618425cb9dfef6e91a66e5b2d972c7328c97ef5"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-literal-absence-r22-d3e497-f515f287bd/astra/parent/snapback2/packages/compiler/src/domain-operand-checks.ts",
+      "sha256": "f1b1ab4baaea5fd8f84cb36e57941b4ccf1b17a3a35e0137a3d3768872b176e4"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-literal-absence-r22-d3e497-f515f287bd/astra/parent/snapback2/packages/compiler/src/capture-value-checks.ts",
+      "sha256": "042830c0e3627f7d91a5e4fc77e83234aa705a4c8fec22b12405f3b9d0a28a64"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-literal-absence-r22-d3e497-f515f287bd/astra/parent/snapback2/packages/compiler/src/capture-representation-checks.ts",
+      "sha256": "5cb601c79c0426431961bf2977fd7815ee8b9d21c3b0e416ed43c36659434e73"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-literal-absence-r22-d3e497-f515f287bd/astra/parent/snapback2/packages/compiler/src/capture-repair-checks.ts",
+      "sha256": "054125d4608c1f9b634345dc97643e1d540dcecd88b1a2157b7869ccb0bd1c53"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-literal-absence-r22-d3e497-f515f287bd/astra/parent/snapback2/packages/compiler/src/capture-producer-checks.ts",
+      "sha256": "3892ec6877bf832b047e0568edeb63c7aa81ed782941c8a5dd3e1ff3891b8cdd"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-literal-absence-r22-d3e497-f515f287bd/astra/parent/snapback2/packages/compiler/src/capture-custody-checks.ts",
+      "sha256": "39d612d28aaa2618829f1dded02f2a896d84020e6de962d2b8704810bd6769f5"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-literal-absence-r22-d3e497-f515f287bd/astra/parent/snapback2/packages/compiler/src/insert-provenance-checks.ts",
+      "sha256": "ae0072e08e467a31123d22bff405fb3ba51db3f119479118ce5e6dabcce39c50"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-literal-absence-r22-d3e497-f515f287bd/astra/parent/snapback2/packages/evaluator/src/evaluator.ts",
+      "sha256": "5d25120caaf1ad468d33d72d8c1081d1d8d6c366ea103beae6b8cd70fa83124f"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-literal-absence-r22-d3e497-f515f287bd/astra/parent/snapback2/packages/compiler/src/rust-check.ts",
+      "sha256": "49c55cea6ed9a307bf4e5e59e1b1f21b5a06a518293fa4b55f9b5813d3bfcf67"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-literal-absence-r22-d3e497-f515f287bd/astra/parent/snapback2/packages/compiler/src/quarry-diagnostic-checks.ts",
+      "sha256": "6ebc701952267cc35a3b11fa1e1f35e440a28b2d8fe9b4dc4fbb8daf0e3e1495"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-literal-absence-r22-d3e497-f515f287bd/astra/parent/snapback2/packages/compiler/src/quarry-program-checks.ts",
+      "sha256": "cdc19acce935244f4b96325c67fa36112ead890f168714ce5f0cb789f06512b1"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-literal-absence-r22-d3e497-f515f287bd/astra/parent/snapback2/node_modules/@types/node/globals.typedarray.d.ts",
+      "sha256": "0ccdaa19852d25ecd84eec365c3bfa16e7859cadecf6e9ca6d0dbbbee439743f"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-literal-absence-r22-d3e497-f515f287bd/astra/parent/snapback2/node_modules/@types/node/buffer.buffer.d.ts",
+      "sha256": "f9b68a1c3f8f45b4c199fa5b3ac09497230cb8f2f0cdcfebe5817b30b836a64a"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-literal-absence-r22-d3e497-f515f287bd/astra/parent/snapback2/node_modules/@types/node/globals.d.ts",
+      "sha256": "f53a7652392cf26ebbe4e29fd0672aa87c93bd6d0241289c13fab87b9ac35c8a"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-literal-absence-r22-d3e497-f515f287bd/astra/parent/snapback2/node_modules/@types/node/web-globals/abortcontroller.d.ts",
+      "sha256": "e5e01375c9e124a83b52ee4b3244ed1a4d214a6cfb54ac73e164a823a4a7860a"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-literal-absence-r22-d3e497-f515f287bd/astra/parent/snapback2/node_modules/@types/node/web-globals/blob.d.ts",
+      "sha256": "f90ae2bbce1505e67f2f6502392e318f5714bae82d2d969185c4a6cecc8af2fc"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-literal-absence-r22-d3e497-f515f287bd/astra/parent/snapback2/node_modules/@types/node/web-globals/console.d.ts",
+      "sha256": "4b58e207b93a8f1c88bbf2a95ddc686ac83962b13830fe8ad3f404ffc7051fb4"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-literal-absence-r22-d3e497-f515f287bd/astra/parent/snapback2/node_modules/@types/node/web-globals/crypto.d.ts",
+      "sha256": "1fefabcb2b06736a66d2904074d56268753654805e829989a46a0161cd8412c5"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-literal-absence-r22-d3e497-f515f287bd/astra/parent/snapback2/node_modules/@types/node/web-globals/domexception.d.ts",
+      "sha256": "b00a630557d1622ad312633bdbfbdb9c6b7220d948dca9f899db30679f160074"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-literal-absence-r22-d3e497-f515f287bd/astra/parent/snapback2/node_modules/@types/node/web-globals/encoding.d.ts",
+      "sha256": "c18a99f01eb788d849ad032b31cafd49de0b19e083fe775370834c5675d7df8e"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-literal-absence-r22-d3e497-f515f287bd/astra/parent/snapback2/node_modules/@types/node/web-globals/events.d.ts",
+      "sha256": "5247874c2a23b9a62d178ae84f2db6a1d54e6c9a2e7e057e178cc5eea13757fc"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-literal-absence-r22-d3e497-f515f287bd/astra/parent/snapback2/node_modules/undici-types/utility.d.ts",
+      "sha256": "cdcf9ea426ad970f96ac930cd176d5c69c6c24eebd9fc580e1572d6c6a88f62c"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-literal-absence-r22-d3e497-f515f287bd/astra/parent/snapback2/node_modules/undici-types/header.d.ts",
+      "sha256": "88809d6c1b9c78d04a133646a6feb926def05a8774c308c7c93bc32ee163d271"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-literal-absence-r22-d3e497-f515f287bd/astra/parent/snapback2/node_modules/undici-types/readable.d.ts",
+      "sha256": "156a859e21ef3244d13afeeba4e49760a6afa035c149dda52f0c45ea8903b338"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-literal-absence-r22-d3e497-f515f287bd/astra/parent/snapback2/node_modules/undici-types/fetch.d.ts",
+      "sha256": "3ac40516c33b87f751f7507346933081a26cdb8a3e11a6b3aa07d23f803c85db"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-literal-absence-r22-d3e497-f515f287bd/astra/parent/snapback2/node_modules/undici-types/formdata.d.ts",
+      "sha256": "615754924717c0b1e293e083b83503c0a872717ad5aa60ed7f1a699eb1b4ea5c"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-literal-absence-r22-d3e497-f515f287bd/astra/parent/snapback2/node_modules/undici-types/connector.d.ts",
+      "sha256": "14e9acf826baba0ef4b5665704084896e7bcc06f65a9ab13af7e93d27d6b7069"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-literal-absence-r22-d3e497-f515f287bd/astra/parent/snapback2/node_modules/undici-types/client-stats.d.ts",
+      "sha256": "68834d631c8838c715f225509cfc3927913b9cc7a4870460b5b60c8dbdb99baf"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-literal-absence-r22-d3e497-f515f287bd/astra/parent/snapback2/node_modules/undici-types/client.d.ts",
+      "sha256": "829bc57ee8f287b490ab5bbc5a962fca57e432c1e38ec680ecd3ecaf12800613"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-literal-absence-r22-d3e497-f515f287bd/astra/parent/snapback2/node_modules/undici-types/errors.d.ts",
+      "sha256": "eec76bf6b9346f3f95fa402621b889489e96930e72295b0369022f332e9b4a6a"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-literal-absence-r22-d3e497-f515f287bd/astra/parent/snapback2/node_modules/undici-types/dispatcher.d.ts",
+      "sha256": "3a3ff14da53d5013f3e6d8c4ad55225e3649c08786c4421ce639c00d8d589b7d"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-literal-absence-r22-d3e497-f515f287bd/astra/parent/snapback2/node_modules/undici-types/global-dispatcher.d.ts",
+      "sha256": "ea6bc8de8b59f90a7a3960005fd01988f98fd0784e14bc6922dde2e93305ec7d"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-literal-absence-r22-d3e497-f515f287bd/astra/parent/snapback2/node_modules/undici-types/global-origin.d.ts",
+      "sha256": "36107995674b29284a115e21a0618c4c2751b32a8766dd4cb3ba740308b16d59"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-literal-absence-r22-d3e497-f515f287bd/astra/parent/snapback2/node_modules/undici-types/pool-stats.d.ts",
+      "sha256": "914a0ae30d96d71915fc519ccb4efbf2b62c0ddfb3a3fc6129151076bc01dc60"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-literal-absence-r22-d3e497-f515f287bd/astra/parent/snapback2/node_modules/undici-types/pool.d.ts",
+      "sha256": "38004e6801340cb890afb8cb5a9fc8972297e7f88ab94026e4b0b3c61fb32f8a"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-literal-absence-r22-d3e497-f515f287bd/astra/parent/snapback2/node_modules/undici-types/handlers.d.ts",
+      "sha256": "d243db6b25788f439e7e2f03c05688e92f46764351673bb0e7b2f3631232e186"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-literal-absence-r22-d3e497-f515f287bd/astra/parent/snapback2/node_modules/undici-types/balanced-pool.d.ts",
+      "sha256": "4d327f7d72ad0918275cea3eee49a6a8dc8114ae1d5b7f3f5d0774de75f7439a"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-literal-absence-r22-d3e497-f515f287bd/astra/parent/snapback2/node_modules/undici-types/round-robin-pool.d.ts",
+      "sha256": "149f9a9e7f04e67afa0e2a49fc0ff421035c01d6b793cfcae7d2e9f6819431e2"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-literal-absence-r22-d3e497-f515f287bd/astra/parent/snapback2/node_modules/undici-types/h2c-client.d.ts",
+      "sha256": "e8a9dfa4c75ef6d25df8b40eaa9c31e0a69452aaf2ced4a3f4215dbdbaa876f4"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-literal-absence-r22-d3e497-f515f287bd/astra/parent/snapback2/node_modules/undici-types/agent.d.ts",
+      "sha256": "a70af845a2eb9dd6e2723e319e14ea7fb28b129ec1361c21509b49305448c323"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-literal-absence-r22-d3e497-f515f287bd/astra/parent/snapback2/node_modules/undici-types/dispatcher1-wrapper.d.ts",
+      "sha256": "b53dc572d4f187904207ae1166652de47aab8eeb00c254d009cb226863076b56"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-literal-absence-r22-d3e497-f515f287bd/astra/parent/snapback2/node_modules/undici-types/mock-interceptor.d.ts",
+      "sha256": "0a60a292b89ca7218b8616f78e5bbd1c96b87e048849469cccb4355e98af959a"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-literal-absence-r22-d3e497-f515f287bd/astra/parent/snapback2/node_modules/undici-types/mock-call-history.d.ts",
+      "sha256": "0b6e25234b4eec6ed96ab138d96eb70b135690d7dd01f3dd8a8ab291c35a683a"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-literal-absence-r22-d3e497-f515f287bd/astra/parent/snapback2/node_modules/undici-types/mock-agent.d.ts",
+      "sha256": "9666f2f84b985b62400d2e5ab0adae9ff44de9b2a34803c2c5bd3c8325b17dc0"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-literal-absence-r22-d3e497-f515f287bd/astra/parent/snapback2/node_modules/undici-types/mock-client.d.ts",
+      "sha256": "40cd35c95e9cf22cfa5bd84e96408b6fcbca55295f4ff822390abb11afbc3dca"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-literal-absence-r22-d3e497-f515f287bd/astra/parent/snapback2/node_modules/undici-types/mock-pool.d.ts",
+      "sha256": "b1616b8959bf557feb16369c6124a97a0e74ed6f49d1df73bb4b9ddf68acf3f3"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-literal-absence-r22-d3e497-f515f287bd/astra/parent/snapback2/node_modules/undici-types/snapshot-agent.d.ts",
+      "sha256": "f501234c5aeeeb5d7659412335227466aaacf30b952372d60afeb21c02c96348"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-literal-absence-r22-d3e497-f515f287bd/astra/parent/snapback2/node_modules/undici-types/mock-errors.d.ts",
+      "sha256": "40b463c6766ca1b689bfcc46d26b5e295954f32ad43e37ee6953c0a677e4ae2b"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-literal-absence-r22-d3e497-f515f287bd/astra/parent/snapback2/node_modules/undici-types/proxy-agent.d.ts",
+      "sha256": "9ac977503f15bf13ca7c82ad9a32a782f42d43e474824e8b3bffe228fd5f2639"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-literal-absence-r22-d3e497-f515f287bd/astra/parent/snapback2/node_modules/undici-types/socks5-proxy-agent.d.ts",
+      "sha256": "8b91ff5bb912be3ea213cbcf0075aace1f5d4ff249a0d227ed673868cb7bfabc"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-literal-absence-r22-d3e497-f515f287bd/astra/parent/snapback2/node_modules/undici-types/env-http-proxy-agent.d.ts",
+      "sha256": "80aae6afc67faa5ac0b32b5b8bc8cc9f7fa299cff15cf09cc2e11fd28c6ae29e"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-literal-absence-r22-d3e497-f515f287bd/astra/parent/snapback2/node_modules/undici-types/retry-handler.d.ts",
+      "sha256": "f473cd2288991ff3221165dcf73cd5d24da30391f87e85b3dd4d0450c787a391"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-literal-absence-r22-d3e497-f515f287bd/astra/parent/snapback2/node_modules/undici-types/retry-agent.d.ts",
+      "sha256": "499e5b055a5aba1e1998f7311a6c441a369831c70905cc565ceac93c28083d53"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-literal-absence-r22-d3e497-f515f287bd/astra/parent/snapback2/node_modules/undici-types/api.d.ts",
+      "sha256": "8aee8b6d4f9f62cf3776cda1305fb18763e2aade7e13cea5bbe699112df85214"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-literal-absence-r22-d3e497-f515f287bd/astra/parent/snapback2/node_modules/undici-types/cache-interceptor.d.ts",
+      "sha256": "98498b101803bb3dde9f76a56e65c14b75db1cc8bec5f4db72be541570f74fc5"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-literal-absence-r22-d3e497-f515f287bd/astra/parent/snapback2/node_modules/undici-types/interceptors.d.ts",
+      "sha256": "7cb4f431a4591b0e23002bed805dc871a874dfed6b9a3994dce68a6df73e6739"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-literal-absence-r22-d3e497-f515f287bd/astra/parent/snapback2/node_modules/undici-types/util.d.ts",
+      "sha256": "5d0375ca7310efb77e3ef18d068d53784faf62705e0ad04569597ae0e755c401"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-literal-absence-r22-d3e497-f515f287bd/astra/parent/snapback2/node_modules/undici-types/cookies.d.ts",
+      "sha256": "59af37caec41ecf7b2e76059c9672a49e682c1a2aa6f9d7dc78878f53aa284d6"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-literal-absence-r22-d3e497-f515f287bd/astra/parent/snapback2/node_modules/undici-types/patch.d.ts",
+      "sha256": "addf417b9eb3f938fddf8d81e96393a165e4be0d4a8b6402292f9c634b1cb00d"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-literal-absence-r22-d3e497-f515f287bd/astra/parent/snapback2/node_modules/undici-types/websocket.d.ts",
+      "sha256": "436d7b4543b340b0f3eef4310d524242e41369b9652aa9c70428767c4dcac455"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-literal-absence-r22-d3e497-f515f287bd/astra/parent/snapback2/node_modules/undici-types/eventsource.d.ts",
+      "sha256": "adf27937dba6af9f08a68c5b1d3fce0ca7d4b960c57e6d6c844e7d1a8e53adae"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-literal-absence-r22-d3e497-f515f287bd/astra/parent/snapback2/node_modules/undici-types/diagnostics-channel.d.ts",
+      "sha256": "12950411eeab8563b349cb7959543d92d8d02c289ed893d78499a19becb5a8cc"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-literal-absence-r22-d3e497-f515f287bd/astra/parent/snapback2/node_modules/undici-types/content-type.d.ts",
+      "sha256": "2e85db9e6fd73cfa3d7f28e0ab6b55417ea18931423bd47b409a96e4a169e8e6"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-literal-absence-r22-d3e497-f515f287bd/astra/parent/snapback2/node_modules/undici-types/cache.d.ts",
+      "sha256": "c46e079fe54c76f95c67fb89081b3e399da2c7d109e7dca8e4b58d83e332e605"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-literal-absence-r22-d3e497-f515f287bd/astra/parent/snapback2/node_modules/undici-types/index.d.ts",
+      "sha256": "e99963ae1e3a48ca7a7958c02f3e88bb963eb7978c28b68ae6b8c9f03309d83c"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-literal-absence-r22-d3e497-f515f287bd/astra/parent/snapback2/node_modules/@types/node/web-globals/fetch.d.ts",
+      "sha256": "c3f5289820990ab66b70c7fb5b63cb674001009ff84b13de40619619a9c8175f"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-literal-absence-r22-d3e497-f515f287bd/astra/parent/snapback2/node_modules/@types/node/web-globals/importmeta.d.ts",
+      "sha256": "b3275d55fac10b799c9546804126239baf020d220136163f763b55a74e50e750"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-literal-absence-r22-d3e497-f515f287bd/astra/parent/snapback2/node_modules/@types/node/web-globals/messaging.d.ts",
+      "sha256": "fa68a0a3b7cb32c00e39ee3cd31f8f15b80cac97dce51b6ee7fc14a1e8deb30b"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-literal-absence-r22-d3e497-f515f287bd/astra/parent/snapback2/node_modules/@types/node/web-globals/navigator.d.ts",
+      "sha256": "1cf059eaf468efcc649f8cf6075d3cb98e9a35a0fe9c44419ec3d2f5428d7123"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-literal-absence-r22-d3e497-f515f287bd/astra/parent/snapback2/node_modules/@types/node/web-globals/performance.d.ts",
+      "sha256": "6c36e755bced82df7fb6ce8169265d0a7bb046ab4e2cb6d0da0cb72b22033e89"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-literal-absence-r22-d3e497-f515f287bd/astra/parent/snapback2/node_modules/@types/node/web-globals/storage.d.ts",
+      "sha256": "e7721c4f69f93c91360c26a0a84ee885997d748237ef78ef665b153e622b36c1"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-literal-absence-r22-d3e497-f515f287bd/astra/parent/snapback2/node_modules/@types/node/web-globals/streams.d.ts",
+      "sha256": "7a93de4ff8a63bafe62ba86b89af1df0ccb5e40bb85b0c67d6bbcfdcf96bf3d4"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-literal-absence-r22-d3e497-f515f287bd/astra/parent/snapback2/node_modules/@types/node/web-globals/timers.d.ts",
+      "sha256": "90e85f9bc549dfe2b5749b45fe734144e96cd5d04b38eae244028794e142a77e"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-literal-absence-r22-d3e497-f515f287bd/astra/parent/snapback2/node_modules/@types/node/web-globals/url.d.ts",
+      "sha256": "e0a5deeb610b2a50a6350bd23df6490036a1773a8a71d70f2f9549ab009e67ee"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-literal-absence-r22-d3e497-f515f287bd/astra/parent/snapback2/node_modules/@types/node/assert.d.ts",
+      "sha256": "594ae90cacd813fa392ff80d2e0a8eff4e41f4a136329a940e321399dd8895b4"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-literal-absence-r22-d3e497-f515f287bd/astra/parent/snapback2/node_modules/@types/node/assert/strict.d.ts",
+      "sha256": "d1f333ade8ff35a409b4984e1f11956fe11c61855b0c7e9b59f0313e48b40c4a"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-literal-absence-r22-d3e497-f515f287bd/astra/parent/snapback2/node_modules/@types/node/async_hooks.d.ts",
+      "sha256": "0224aa4b3464895d69c413a640a19ac2166778a74eb5eb3b36b021c72d42b274"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-literal-absence-r22-d3e497-f515f287bd/astra/parent/snapback2/node_modules/@types/node/buffer.d.ts",
+      "sha256": "2e6fca0024dd8a076a886d9ec031a936ea59ad878a25b944820495d92f8381dd"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-literal-absence-r22-d3e497-f515f287bd/astra/parent/snapback2/node_modules/@types/node/child_process.d.ts",
+      "sha256": "47d917e731d06acf182baa38ac2fbd720c3555fa9160e6a40d47994515f7f0ea"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-literal-absence-r22-d3e497-f515f287bd/astra/parent/snapback2/node_modules/@types/node/cluster.d.ts",
+      "sha256": "2fbf504c4791f9d32cd766cfe6b605bcda63289b925401953a7900db9af85348"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-literal-absence-r22-d3e497-f515f287bd/astra/parent/snapback2/node_modules/@types/node/console.d.ts",
+      "sha256": "ed0fb633cae35948d9e144004299a4bdf1ab912667c787b7fbffcd6d8c7b92a2"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-literal-absence-r22-d3e497-f515f287bd/astra/parent/snapback2/node_modules/@types/node/constants.d.ts",
+      "sha256": "1678b04557dca52feab73cc67610918a7f5e25bfdba3e7fa081acd625d93106d"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-literal-absence-r22-d3e497-f515f287bd/astra/parent/snapback2/node_modules/@types/node/crypto.d.ts",
+      "sha256": "4c8a22ece1ef9fb4659ec034e1131310ca188975f39948ab38f7e4485cb46d1f"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-literal-absence-r22-d3e497-f515f287bd/astra/parent/snapback2/node_modules/@types/node/dgram.d.ts",
+      "sha256": "9c90f502816bd0179556bb875e86c944af3f6b995cde63199edbe4e0b1219aba"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-literal-absence-r22-d3e497-f515f287bd/astra/parent/snapback2/node_modules/@types/node/diagnostics_channel.d.ts",
+      "sha256": "98fc7231d6c846a8ed19bdef026ddffe5e2182cc818be74899287421ad370a87"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-literal-absence-r22-d3e497-f515f287bd/astra/parent/snapback2/node_modules/@types/node/dns.d.ts",
+      "sha256": "e494b286c8e27c52f8c7f945aa80ff223f2a3cd4f7a2619fa8991f1459e26f07"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-literal-absence-r22-d3e497-f515f287bd/astra/parent/snapback2/node_modules/@types/node/dns/promises.d.ts",
+      "sha256": "f54f5f9e10bbceba7515dfad0ffc89dffdb8d749d0604594c57a725cf6d79c20"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-literal-absence-r22-d3e497-f515f287bd/astra/parent/snapback2/node_modules/@types/node/domain.d.ts",
+      "sha256": "41d17e1ad9a002feb11c8cdd2777e5bbc0cdb1e3f595d237e4dded0b6949983b"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-literal-absence-r22-d3e497-f515f287bd/astra/parent/snapback2/node_modules/@types/node/events.d.ts",
+      "sha256": "8c7e618c2a91ea7f6b5cca272a295864e92c16413be8fc56a943e8c7d5320011"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-literal-absence-r22-d3e497-f515f287bd/astra/parent/snapback2/node_modules/@types/node/ffi.d.ts",
+      "sha256": "79a85c64bf083c5f4dd7074e804d1000c0c47301b84d48417a224decd681be30"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-literal-absence-r22-d3e497-f515f287bd/astra/parent/snapback2/node_modules/@types/node/fs.d.ts",
+      "sha256": "9d37b8a9678efbcdf38238b59ce8e6f7db70aba1a516f3a4a671a301dbacfb3d"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-literal-absence-r22-d3e497-f515f287bd/astra/parent/snapback2/node_modules/@types/node/fs/promises.d.ts",
+      "sha256": "a47a792b8cff71443be8dfb199f2b77e102a7bf9d4f90c18059f05d9af2d7413"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-literal-absence-r22-d3e497-f515f287bd/astra/parent/snapback2/node_modules/@types/node/http.d.ts",
+      "sha256": "77c33fa85a1485ccf0d7cd8e0f50677924045cc4086a39af564f608e21a46343"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-literal-absence-r22-d3e497-f515f287bd/astra/parent/snapback2/node_modules/@types/node/http2.d.ts",
+      "sha256": "22e77cc53de19959fdb4c4876e7bafd2f2a8cf8ead059abf7b299efe85f76251"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-literal-absence-r22-d3e497-f515f287bd/astra/parent/snapback2/node_modules/@types/node/https.d.ts",
+      "sha256": "2c2bdaa1d8ead9f68628d6d9d250e46ee8e81aa4898b4769a36956ae15e060fe"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-literal-absence-r22-d3e497-f515f287bd/astra/parent/snapback2/node_modules/@types/node/inspector.d.ts",
+      "sha256": "ba389fd3d7fba6670e97bc82eb12469dcb371d22f24e63859c1df5a083c823ed"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-literal-absence-r22-d3e497-f515f287bd/astra/parent/snapback2/node_modules/@types/node/inspector.generated.d.ts",
+      "sha256": "5ff4433a2deae4f85ab1377e90a7554ce6b47ae51c69a84ca30a6e22fae85834"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-literal-absence-r22-d3e497-f515f287bd/astra/parent/snapback2/node_modules/@types/node/inspector/promises.d.ts",
+      "sha256": "82b91e4e42e6c41bc7fc1b6c2dc5eba6a2ba98375eb1f210e6ff6bba2d54177e"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-literal-absence-r22-d3e497-f515f287bd/astra/parent/snapback2/node_modules/@types/node/module.d.ts",
+      "sha256": "97234c5303866576f913d0ccae7d58d6322d9e803c7bf1228a3fda46ab8087b2"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-literal-absence-r22-d3e497-f515f287bd/astra/parent/snapback2/node_modules/@types/node/net.d.ts",
+      "sha256": "5336674547d832b901f47d5602c61dd4ba91796a4711235aa4aead3386ce05a4"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-literal-absence-r22-d3e497-f515f287bd/astra/parent/snapback2/node_modules/@types/node/os.d.ts",
+      "sha256": "73eeb740dacc45adc607a4f59f90fa9dbe2717d93d82f115f45f34e18f8d644a"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-literal-absence-r22-d3e497-f515f287bd/astra/parent/snapback2/node_modules/@types/node/path.d.ts",
+      "sha256": "ec501101c2a96133a6c695f934c8f6642149cc728571b29cbb7b770984c1088e"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-literal-absence-r22-d3e497-f515f287bd/astra/parent/snapback2/node_modules/@types/node/path/posix.d.ts",
+      "sha256": "b214ebcf76c51b115453f69729ee8aa7b7f8eccdae2a922b568a45c2d7ff52f7"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-literal-absence-r22-d3e497-f515f287bd/astra/parent/snapback2/node_modules/@types/node/path/win32.d.ts",
+      "sha256": "429c9cdfa7d126255779efd7e6d9057ced2d69c81859bbab32073bad52e9ba76"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-literal-absence-r22-d3e497-f515f287bd/astra/parent/snapback2/node_modules/@types/node/perf_hooks.d.ts",
+      "sha256": "b17f272f903d155b9ec21791b5889b638977bc1dee181efb2bc317ce006d8c9b"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-literal-absence-r22-d3e497-f515f287bd/astra/parent/snapback2/node_modules/@types/node/process.d.ts",
+      "sha256": "18b03a8395192811131170042d6af50c4292b0d708789dbf5bc805b6dd9f4c14"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-literal-absence-r22-d3e497-f515f287bd/astra/parent/snapback2/node_modules/@types/node/punycode.d.ts",
+      "sha256": "230763250f20449fa7b3c9273e1967adb0023dc890d4be1553faca658ee65971"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-literal-absence-r22-d3e497-f515f287bd/astra/parent/snapback2/node_modules/@types/node/querystring.d.ts",
+      "sha256": "c3e9078b60cb329d1221f5878e88cecfa3e74460550e605a58fcfb41a66029ff"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-literal-absence-r22-d3e497-f515f287bd/astra/parent/snapback2/node_modules/@types/node/quic.d.ts",
+      "sha256": "cd2f3cdc3954c55199d688feebdc2aaa68670e86963e30b7fab2f27c0dc94553"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-literal-absence-r22-d3e497-f515f287bd/astra/parent/snapback2/node_modules/@types/node/readline.d.ts",
+      "sha256": "441b9bb09013654aa3d050e68b06464d8959b473e85868249d9d18f692acd35b"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-literal-absence-r22-d3e497-f515f287bd/astra/parent/snapback2/node_modules/@types/node/readline/promises.d.ts",
+      "sha256": "bc18a1991ba681f03e13285fa1d7b99b03b67ee671b7bc936254467177543890"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-literal-absence-r22-d3e497-f515f287bd/astra/parent/snapback2/node_modules/@types/node/repl.d.ts",
+      "sha256": "55246f15e33ff1e2e9e679b25fa9790a48db55dc63d567fe25fac8b6a0efe911"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-literal-absence-r22-d3e497-f515f287bd/astra/parent/snapback2/node_modules/@types/node/sea.d.ts",
+      "sha256": "fa94bbf532b7af8f394b95fa310980d6e20bd2d4c871c6a6cb9f70f03750a44b"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-literal-absence-r22-d3e497-f515f287bd/astra/parent/snapback2/node_modules/@types/node/sqlite.d.ts",
+      "sha256": "925734f303b7f0cc111d42aeb21781d38a79e6d5ac05b2b1400cd1861a75d27b"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-literal-absence-r22-d3e497-f515f287bd/astra/parent/snapback2/node_modules/@types/node/stream.d.ts",
+      "sha256": "5b26c4dd672d88336bb929787c9bfb55119e80ba89ec6dc923da1c063892843e"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-literal-absence-r22-d3e497-f515f287bd/astra/parent/snapback2/node_modules/@types/node/stream/consumers.d.ts",
+      "sha256": "7fa2214bb0d64701bc6f9ce8cde2fd2ff8c571e0b23065fa04a8a5a6beb91511"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-literal-absence-r22-d3e497-f515f287bd/astra/parent/snapback2/node_modules/@types/node/stream/iter.d.ts",
+      "sha256": "b8e805bcd8cfb7986d2bcf5e785e34fdfe0cb2f31a89b585e2c9204513efa8cf"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-literal-absence-r22-d3e497-f515f287bd/astra/parent/snapback2/node_modules/@types/node/stream/promises.d.ts",
+      "sha256": "f12624a4a8d042b68914eac1b0a16571fc1c523173fcdf2517c65d191bd5a86c"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-literal-absence-r22-d3e497-f515f287bd/astra/parent/snapback2/node_modules/@types/node/stream/web.d.ts",
+      "sha256": "b4769767f13a1692a66186e01c3aa186ff808d5ff72ed36eda8c37738fb2ac92"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-literal-absence-r22-d3e497-f515f287bd/astra/parent/snapback2/node_modules/@types/node/string_decoder.d.ts",
+      "sha256": "841983e39bd4cbb463be385e92fda11057cab368bf27100a801c492f1d86cbaa"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-literal-absence-r22-d3e497-f515f287bd/astra/parent/snapback2/node_modules/@types/node/test.d.ts",
+      "sha256": "441a29b18cc64c37fb196172ec1e499f60d5792edc89648e6cb550180c81050f"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-literal-absence-r22-d3e497-f515f287bd/astra/parent/snapback2/node_modules/@types/node/test/reporters.d.ts",
+      "sha256": "1ec3f3a5f04cc42df33274fbe5c0937d9a9e06f249a7a26288d7d54f0763ffd4"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-literal-absence-r22-d3e497-f515f287bd/astra/parent/snapback2/node_modules/@types/node/timers.d.ts",
+      "sha256": "e4156ddb25aa0e3b5303d372f26957b36778f0f6bbd4326359269873295e3058"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-literal-absence-r22-d3e497-f515f287bd/astra/parent/snapback2/node_modules/@types/node/timers/promises.d.ts",
+      "sha256": "cc1b433a84cae05ddc5672d4823170af78606ad21ecef60dbc4570190cbf1357"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-literal-absence-r22-d3e497-f515f287bd/astra/parent/snapback2/node_modules/@types/node/tls.d.ts",
+      "sha256": "76619734a63492651c3467de6fd43d93d7bdd836aff49b86f0e83e2c1e17111a"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-literal-absence-r22-d3e497-f515f287bd/astra/parent/snapback2/node_modules/@types/node/trace_events.d.ts",
+      "sha256": "7f78cfb2b343838612c192cb251746e3a7c62ac7675726a47e130d9b213f6580"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-literal-absence-r22-d3e497-f515f287bd/astra/parent/snapback2/node_modules/@types/node/tty.d.ts",
+      "sha256": "aed8f3e5c7e53462565eedf34a9bcb700393cb2c1ab0c768602b929c3ed3145d"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-literal-absence-r22-d3e497-f515f287bd/astra/parent/snapback2/node_modules/@types/node/url.d.ts",
+      "sha256": "8e2577e7262051fd3c5bd6ca2b2056d358ff8853565720f92455860824c25188"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-literal-absence-r22-d3e497-f515f287bd/astra/parent/snapback2/node_modules/@types/node/util.d.ts",
+      "sha256": "7ec8d7d483f7394f9da611b10d3a0e402f76ff5c991261e6ce43a15f81ca4258"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-literal-absence-r22-d3e497-f515f287bd/astra/parent/snapback2/node_modules/@types/node/util/types.d.ts",
+      "sha256": "bb9dbb4b2ad81e3e71ec5ba4314973718555b9d04ba2a17dfbf875efecb8e2c0"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-literal-absence-r22-d3e497-f515f287bd/astra/parent/snapback2/node_modules/@types/node/v8.d.ts",
+      "sha256": "9021dc5be8f3a87af5cede29221188a6497e2092b6889e0be212ef6b6b7153e9"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-literal-absence-r22-d3e497-f515f287bd/astra/parent/snapback2/node_modules/@types/node/vfs.d.ts",
+      "sha256": "db3939c70002734d9e344f35f33d151cf302d326ef08338e9beb8e7f9937d2a2"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-literal-absence-r22-d3e497-f515f287bd/astra/parent/snapback2/node_modules/@types/node/vm.d.ts",
+      "sha256": "32eccc272f35e34ff1c3d33d2c8d05e6821a6e95f648e118a5f4a0f3512895ac"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-literal-absence-r22-d3e497-f515f287bd/astra/parent/snapback2/node_modules/@types/node/wasi.d.ts",
+      "sha256": "99ab6d0d660ce4d21efb52288a39fd35bb3f556980ec5463b1ae8f304a3bbc85"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-literal-absence-r22-d3e497-f515f287bd/astra/parent/snapback2/node_modules/@types/node/worker_threads.d.ts",
+      "sha256": "632c45ccb4cdc2c3a80c7a36a63dd7763016e59cac5e07bfb3e37e3548957028"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-literal-absence-r22-d3e497-f515f287bd/astra/parent/snapback2/node_modules/@types/node/zlib.d.ts",
+      "sha256": "c9a2daf6cd1eb854cd5b9e424247c5e306692055738c2effd35f7871d942b76e"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-literal-absence-r22-d3e497-f515f287bd/astra/parent/snapback2/node_modules/@types/node/zlib/iter.d.ts",
+      "sha256": "afa1c49f8e559e413d57343339db857d2a8159435cf9cf7d4deb41718fff1b88"
+    },
+    {
+      "path": "/home/ccheever/clique-reviews/compiler-literal-absence-r22-d3e497-f515f287bd/astra/parent/snapback2/node_modules/@types/node/index.d.ts",
+      "sha256": "c46f111af647c4134ae869653130610d62da321f90ebf19e186a3ea4bed79350"
+    }
+  ],
+  "diagnostics": [
+    {
+      "file": "/home/ccheever/clique-reviews/compiler-literal-absence-r22-d3e497-f515f287bd/astra/parent/snapback2/packages/evaluator/src/runner.ts",
+      "start": 21267,
+      "code": 2345,
+      "message": "Argument of type '{ prefix: any; order: any; take: any; after: any; before: any; gt: any; gte: any; lt: any; lte: any; rule_hash: string; stop: \"limit\" | \"exhausted\"; lastReturnedSuffix: Value[] | null; provenance?: any; site: any; table: any; index: any; }' is not assignable to parameter of type 'TraceRange'.\n  Type '{ prefix: any; order: any; take: any; after: any; before: any; gt: any; gte: any; lt: any; lte: any; rule_hash: string; stop: \"limit\" | \"exhausted\"; lastReturnedSuffix: Value[] | null; provenance?: any; site: any; table: any; index: any; }' is missing the following properties from type 'TraceRange': halo, n2_suffix"
+    },
+    {
+      "file": "/home/ccheever/clique-reviews/compiler-literal-absence-r22-d3e497-f515f287bd/astra/parent/snapback2/packages/evaluator/src/runner.ts",
+      "start": 25838,
+      "code": 2345,
+      "message": "Argument of type '{ site: any; table: any; index: any; provenance: any; prefix: any; order: any; take: any; after: any; before: any; gt: any; gte: any; lt: any; lte: any; rule_hash: string; stop: \"limit\" | \"exhausted\"; lastReturnedSuffix: Value[] | null; }' is not assignable to parameter of type 'TraceRange'.\n  Type '{ site: any; table: any; index: any; provenance: any; prefix: any; order: any; take: any; after: any; before: any; gt: any; gte: any; lt: any; lte: any; rule_hash: string; stop: \"limit\" | \"exhausted\"; lastReturnedSuffix: Value[] | null; }' is missing the following properties from type 'TraceRange': halo, n2_suffix"
+    },
+    {
+      "file": "/home/ccheever/clique-reviews/compiler-literal-absence-r22-d3e497-f515f287bd/astra/parent/snapback2/packages/evaluator/src/store.ts",
+      "start": 5002,
+      "code": 2345,
+      "message": "Argument of type 'IndexAtom[]' is not assignable to parameter of type 'Value[]'.\n  Type 'IndexAtom' is not assignable to type 'Value'.\n    Type '{ Scalar: Value; }' is not assignable to type 'Value'."
+    },
+    {
+      "file": "/home/ccheever/clique-reviews/compiler-literal-absence-r22-d3e497-f515f287bd/astra/parent/snapback2/packages/evaluator/src/store.ts",
+      "start": 12558,
+      "code": 2345,
+      "message": "Argument of type 'IndexAtom[]' is not assignable to parameter of type 'Value[]'.\n  Type 'IndexAtom' is not assignable to type 'Value'.\n    Type '{ Scalar: Value; }' is not assignable to type 'Value'."
+    },
+    {
+      "file": "/home/ccheever/clique-reviews/compiler-literal-absence-r22-d3e497-f515f287bd/astra/parent/snapback2/packages/evaluator/src/store.ts",
+      "start": 14960,
+      "code": 2345,
+      "message": "Argument of type 'IndexAtom[]' is not assignable to parameter of type 'Value[]'.\n  Type 'IndexAtom' is not assignable to type 'Value'.\n    Type '{ Scalar: Value; }' is not assignable to type 'Value'."
+    },
+    {
+      "file": "/home/ccheever/clique-reviews/compiler-literal-absence-r22-d3e497-f515f287bd/astra/parent/snapback2/packages/evaluator/src/store.ts",
+      "start": 17379,
+      "code": 2322,
+      "message": "Type 'IndexAtom[]' is not assignable to type 'Value[]'.\n  Type 'IndexAtom' is not assignable to type 'Value'.\n    Type '{ Scalar: Value; }' is not assignable to type 'Value'."
+    },
+    {
+      "file": "/home/ccheever/clique-reviews/compiler-literal-absence-r22-d3e497-f515f287bd/astra/parent/snapback2/packages/evaluator/src/store.ts",
+      "start": 20109,
+      "code": 2345,
+      "message": "Argument of type 'IndexAtom[]' is not assignable to parameter of type 'Value[]'.\n  Type 'IndexAtom' is not assignable to type 'Value'.\n    Type '{ Scalar: Value; }' is not assignable to type 'Value'."
+    }
+  ]
+}

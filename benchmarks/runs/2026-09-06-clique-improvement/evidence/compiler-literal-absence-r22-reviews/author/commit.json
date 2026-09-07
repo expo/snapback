@@ -1,0 +1,13 @@
+{
+  "commit": "d3e497acdfd2cbaecbf7c6cb8f7350cb8e63580d",
+  "parent": "c73805f6affb01530c7d903c8e22e8a90f49fe48",
+  "at": "2026-09-07T10:39:17.374070+00:00",
+  "paths": [
+    "llp/1002-dev-loop.spec.md",
+    "snapback2/packages/compiler/src/insert-provenance-checks.ts",
+    "snapback2/packages/compiler/src/literal-absence-cases.ts",
+    "snapback2/packages/compiler/src/quarry/narrowing.ts",
+    "snapback2/packages/compiler/src/quarry/program.ts",
+    "snapback2/packages/compiler/src/quarry/value-type.ts"
+  ]
+}

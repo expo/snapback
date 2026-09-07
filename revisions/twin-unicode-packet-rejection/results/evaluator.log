@@ -1,0 +1,36 @@
+Unicode/search foundation: 20034 normalization rows + unlisted scalars, 1512 C/S folds, bounds and logical keys; tables 29bb626cbddaec2bce2cc1efcac329a9ea07ee725322155b791005cd7781b9e8
+indexed seek, incremental twin, Unicode and h1 regressions passed
+scope coverage, FIFO negative dominance, partial membership and directory authority regressions passed
+atomic carrier delta, immutable snapshot, metadata and rollback regressions passed
+100-lane metering, issuing-site custody, post-negative overlays and payload-free delta history regressions passed
+bounded halo loss, incremental page proof, unseen-term authority and lexical h1 bindings passed
+maximum Q2000/144-byte tagged identity h1 reservation: 10355 untimed / 10391 timed bytes of 32768
+actual Rust certificate identities and 100 required dynamic lane normalization passed
+public direct/global h1 normalization, reused ordinary site, pinned clock and v5 recursive Text.min regressions passed
+actual native v5 minimum/query/channel schema identities and scalar admission passed
+actual native V5 format/channel custody, recursive scalar admission, preexecution refusal and public Twin parity passed
+actual Public/Deny authority and incremental AVL page-union oracle passed
+local cursor operation, binding, partition, schema, program, generation and page/suffix fences passed
+3000 compact posting mutations and 2000 ordinary/derived oracle seeks passed
+4096 wide Unicode dictionary mutations, 1024 reference seeks and empty-store reuse passed
+timed local h1 continuation pins one signed execution clock and preserves malformed refusal
+native-certified ownership/public Twin allow/deny/unseen and scope-uniform compound rule controls passed
+first warm direct operation at 20/80 retained scopes performs no scope enumeration/directory refresh
+20/80/2000-owner verdict work stays constant; disagreement, duplicates, replacement/removal and rollback controls passed
+2000 deleted scopes reclaim directory metadata; shared dependency touch/digest, denial, clear and repopulation passed
+registered directory receipt replacement observes final authority and failed admission changes nothing passed
+standalone rehydrate invalidates removed receipt authority after installing replacement coverage passed
+receipt coverage retains expected keys and authority without retaining removed full row bodies passed
+2000 scoped ordinary/Unicode extent and positive indexes match 200 independent oracles; shared GC, opaque upgrade and posting bounds passed
+shared live/proof postings preserve 200 independent exact-namespace oracles and last-owner GC
+duplicate absence ownership regression passed
+atomic standalone rehydrate regression passed
+put shallow-frozen nested input isolation passed
+constructor shallow-frozen nested input isolation passed
+rehydrate shallow-frozen nested input isolation passed
+standalone typed endpoint, suffix, proof isolation, replacement and GC regressions passed
+shared immutable image omission/null, schema reprepare, media, Map, canonical bytes and body-free proof reclamation passed
+raw/prepared/cold optional indexed __proto__ admission preserves sparse ordinary and Unicode keys
+prepared range custody, constructor reuse, isolation, field ordering and owner rollback passed
+{"visibilityChecks":2,"passed":2,"failed":0}
+{"cases":225,"passed":225,"serverOnly":24,"failed":0,"corruptionPath":"replay-mismatch"}
