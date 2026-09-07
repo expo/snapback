@@ -132,6 +132,53 @@ test("a real indexed observation stays authoritative across persistent local ref
   }
 });
 
+test("cold global search includes a queued Unicode row after an unrelated persisted marker", async (context) => {
+  if (!owner.owned) return context.skip("requires the self-started indexed chat fixture");
+  const { mkdtemp, rm } = await import("node:fs/promises");
+  const { tmpdir } = await import("node:os");
+  const { join } = await import("node:path");
+  const { sqliteFactory } = await import("./sqlite-fixture.ts");
+  const directory = await mkdtemp(join(tmpdir(), "snapback-indexed-prediction-"));
+  const factory = sqliteFactory(join(directory, "state.db"));
+  let warm: any, cold: any, drain: any;
+  try {
+    warm = createClient({ url: owner.url, as: "alice", offline: { store: factory } });
+    await warm.ready;
+    drain = warm.subscribe(api.deliveries.inbox, { c: null }, () => {}, { drain: true });
+    await drain.until((event: any) => event.live === true && event.caughtUp === true, 5_000);
+    await warm.offline();
+    const queued = await warm.mutation(api.deliveries.post, {
+      conversationId: "conversation-2", body: "Café offline predicted",
+    });
+    assert.equal(queued.state, "queued");
+    assert.equal((await warm.mutation(api.deliveries.post, {
+      conversationId: "conversation-2", body: "offline second",
+    })).state, "queued");
+    const before: any = await warm.query(api.messages.search, { term: "CAFE\u0301", c: null });
+    assert.ok(before.data.some((row: any) => row.id === queued.ids[0]), JSON.stringify(before));
+    const entries = await warm.outbox.entries();
+    await warm.offlineRuntime.store.commit({
+      deliveries: [{ op: "deliveries.thread", args: { conversationId: "witness-marker", c: null }, seq: 1,
+        state: "complete", next: null, data: { $row: { table: "messages", id: "witness-marker" } },
+        rows: [{ table: "messages", id: "witness-marker", row: { id: "witness-marker", conversationId: "witness-marker",
+          authorId: "witness", body: "pre", photo: { id: "s2id-eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee-0000000000000001", width: 1, height: 1 }, at: 1 } }],
+        receipt: { ranges: [], absences: [], verdicts: [] } }],
+      outbox: { put: [{ ...entries[0], intent: "__witness", state: "committed", predicted: false }] },
+    });
+    const after: any = await warm.query(api.messages.search, { term: "CAFE\u0301", c: null });
+    assert.ok(after.data.some((row: any) => row.id === queued.ids[0]), JSON.stringify(after));
+    drain.close(); await warm.close(); warm = undefined;
+    cold = createClient({ url: owner.url, as: "alice", startOffline: true, offline: { store: factory } });
+    await cold.ready;
+    const reopened: any = await cold.query(api.messages.search, { term: "CAFE\u0301", c: null });
+    assert.equal(reopened.state, "held");
+    assert.ok(reopened.data.some((row: any) => row.id === queued.ids[0]), JSON.stringify(reopened));
+  } finally {
+    drain?.close(); await warm?.close(); await cold?.close();
+    await rm(directory, { recursive: true, force: true });
+  }
+});
+
 test("real scalar-projected log pages retire predictions using engine-minted cursor links after cold reopen", async (context) => {
   if (!owner.owned) return context.skip("requires the self-started projected log fixture");
   const { mkdtemp, rm } = await import("node:fs/promises");

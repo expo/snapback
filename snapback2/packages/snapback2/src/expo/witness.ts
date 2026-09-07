@@ -6,6 +6,9 @@ import type { ByteCache, ByteDelta } from "../store/byte-cache.js";
 import { isSnapbackRefusal } from "../client.js";
 import { runSqliteDriverConformance as conformance } from "../store/sqlite-driver.conformance.js";
 import type { SqliteDriver } from "../store/sqlite-driver.js";
+import { SearchExecution } from "../../../evaluator/src/search-runtime.js";
+import { SEARCH_CONTRACT, searchQueryToken } from "../../../evaluator/src/unicode.js";
+import { asString, field, wireJson } from "../../../evaluator/src/value-runtime.js";
 
 export interface WitnessHooks {
   beforeCommit(state: PersistedRangeState, bytes: ByteDelta): Promise<void>;
@@ -21,6 +24,29 @@ export interface WitnessControl { close(): void }
 
 /** The factory overload connects before any carrier opens; the client overload attaches to an existing client. */
 export { twinLastDecline };
+/** Witness-only view of held global-search normalization, directory selection, and postings. */
+export function witnessSearchProbe(client: SnapbackClient, terms: string[]): unknown {
+  const indexed = (client as any).offlineRuntime?.twin?.indexed;
+  const store = indexed?.store;
+  if (!store) return { state: "unhydrated" };
+  const index = store.index("messages", "bySearch");
+  const entry = [...store.directories.entries()].find(([descriptor]: [any, unknown]) =>
+    descriptor.table === "messages" && descriptor.index === "bySearch");
+  const selected = (entry?.[1] as any)?.select([], 50);
+  const heldScopes = [...index.scopes.seek(() => 0)] as Array<[any[], Set<any>]>;
+  const scopes = heldScopes.map(([scope, rows]) => ({
+    scope: scope.map(wireJson), ids: [...rows].map(row => asString(field(row, "id"))),
+  }));
+  const postings = Object.fromEntries(terms.map(term => [term, {
+    token: searchQueryToken(term, 128),
+    scopes: heldScopes.map(([scope]) => ({ scope: scope.map(wireJson), ids: [...index.scan({
+      prefix: [...scope.map(value => ({ Scalar: value })), new SearchExecution().atom(index.parts[index.derived], {
+        WordPrefix: { source: term, contract: SEARCH_CONTRACT },
+      }, 128)], after: null, before: null, range: null, order: "Desc",
+    })].map(row => asString(field(row, "id"))) })),
+  }]));
+  return { selected: selected && { ...selected, scopes: selected.scopes.map((scope: any[]) => scope.map(wireJson)) }, scopes, postings };
+}
 export function witnessControl(source: SnapbackClient | WitnessApplication, url: string): WitnessControl {
   if (!/^wss?:\/\//.test(url)) throw new TypeError("witness URL must be ws:// or wss://");
   const app = "construct" in source ? source : undefined;
