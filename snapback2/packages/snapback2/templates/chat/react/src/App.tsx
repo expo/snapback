@@ -27,7 +27,7 @@ export function App() {
         </p>
         {note ? <p role="alert">{note}</p> : null}
       </header>
-      <Search rows={rows} onOpen={setSelected} />
+      <Search onOpen={setSelected} />
       <Inbox rows={rows} selected={selected} onSelect={setSelected} />
       {selected ? <Thread conversationId={selected} viewer={auth.viewer} onNote={setNote} /> : <p>Pick a conversation.</p>}
       <DevOverlay />

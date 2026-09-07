@@ -8,6 +8,7 @@ import { multiplexFetch } from "./live-fixture.ts";
 import { fileRangeStore } from "../dist/test.mjs";
 import { canonicalProgramJson } from "../dist/sqlite-test.mjs";
 import { schemaDigest } from "../dist/index.mjs";
+import { searchQueryToken, searchWords } from "../dist/image-runtime.mjs";
 
 export const generation = "d".repeat(64);
 const namespace = "0".repeat(31) + "a";
@@ -192,6 +193,18 @@ export function fakeOwner(options: FakeOwnerOptions = {}) {
   };
   /** The delivery log page an op yields for alice, with its certified scan receipt. */
   const page = (op: string, args: any) => {
+    if (op === "messages.search") {
+      const term = searchQueryToken(String(args.term), 128);
+      const data = term === null ? [] : [...messages.values()]
+        .filter((message) => typeof message.body === "string" && searchWords(message.body, 4_000).some((word) => word.startsWith(term)))
+        .sort((a, b) => b.at - a.at || (a.id < b.id ? 1 : -1))
+        .slice(0, 20)
+        .map((message) => ({ ...message }));
+      // Search screen tests exercise the actual named operation and Unicode
+      // contract. Real receipt admission and held evaluation live in the web,
+      // Expo, and owner journeys rather than this delivery-log fixture.
+      return { state: "complete", data, next: null, seq };
+    }
     const cursor = op === "deliveries.inbox" ? (options.cursorArg ?? "c") : "c";
     const ir = scanIr(op === "deliveries.inbox" ? "deliveries.inbox" : "deliveries.thread", cursor);
     const cert = queryCertificate(ir);

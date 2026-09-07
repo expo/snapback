@@ -16,7 +16,7 @@ export function Chat() {
     <Text style={{ fontSize: 24, padding: 16 }}>Snapback Chat · {connection}</Text>
     {selected ? <><Button title="Inbox" onPress={() => select(undefined)} /><Thread conversationId={selected} /></>
       : <ScrollView contentContainerStyle={{ padding: 16 }}>
-        <Search rows={rows} onOpen={select} /><Inbox rows={rows} onSelect={select} />
+        <Search onOpen={select} /><Inbox rows={rows} onSelect={select} />
         {inbox.state === "refused" ? <Text>{inbox.refusal.rewrite ?? inbox.refusal.message}</Text> : null}
       </ScrollView>}
   </SafeAreaView>;

@@ -68,52 +68,32 @@ a program reading `connected` is `hydrating` and never predicted, even with a
 cached answer. Connections say nothing about foreground/idle state or delivery
 guarantees; this adds no channel kind or subscriber-set broadcast.
 
-## Whole-word search
+## Unicode word-prefix search
 
-`words(text)` returns whole `[A-Za-z0-9]+` runs, lowercase, deduplicated in
-first-occurrence order. Whole-word matching, not prefix search; non-ASCII splits
-words. Empty input yields `[]`. For `text <=N`, the list/`for` bound is
-`floor(N/2)+1` (2000 → 1001). `words(a ?? b)` uses the larger declared text
-maximum. Index columns must fit whole runs or the program must filter.
-`tokens(text)` extracts `@` mentions.
+`wordPrefixes` is an engine-maintained nonunique index component over one or
+more bounded text columns. Put ordinary scope columns before it and ordinary
+ordering columns after it. A query must equality-bind every scope column and
+the search component; it cannot use the index for point reads, rules, writes,
+or maintained aggregates.
 
-Messages have `conversationId`, `author`, `body: text <=2000`, and `at`:
-
-```q
-table searchWords:
-  messageId: messages
-  conversationId: conversations
-  term: text <=2000
-  at: time
-  unique byMessageTerm: messageId, term
-  by byConversationTermTime: conversationId, term, at, id
-  public
-  insert <- allow
-  update <- allow
-  delete <- allow
-```
+The chat template declares
+`by bySearch: conversationId, wordPrefixes(body), at, id` on `messages` and
+binds it through this named query:
 
 ```q
-mutation index(messageId: messages, body: text <=2000):
-  m = messages[messageId] !
-  require m.author = viewer and m.body = body else STALE_OR_NOT_AUTHOR
-  for term in words(body):
-    upsert searchWords[messageId, term] { conversationId: m.conversationId, at: m.at }
-  return true
-
-mutation edit(messageId: messages, body: text <=2000):
-  old = messages[messageId] !
-  require old.author = viewer else NOT_AUTHOR
-  for term in words(old.body):
-    delete searchWords[messageId, term]
-  update messages[messageId] { body }
-  for term in words(body):
-    upsert searchWords[messageId, term] { conversationId: old.conversationId, at: old.at }
-  return true
-
-query search(conversationId: conversations, term: text <=2000):
-  return searchWords[conversationId, term] last 20 by byConversationTermTime { messageId }
+query search(term: text <=128, c: cursor ?):
+  page = merge messages after c last 20 by bySearch:
+    [m.conversationId, term] for m in memberships[viewer] first 50 by byPrincipalConversation
+  return page
 ```
 
-Index at creation; editing an unindexed nonempty body refuses `NOT_FOUND`.
-`search` takes an already-lowercased ASCII word. Public-conversation rules.
+The pinned Unicode 17 contract is NFC, simple case fold, then NFC. Whitespace
+and Unicode punctuation separate words; accents remain significant. The term
+must normalize to exactly one word: zero words match nothing and multiple words
+are refused. The example searches every bounded conversation visible through
+the membership merge and returns one page with one cursor. Its held twin uses
+the same index and reports `held`, `partial`, or `capped` rather than presenting
+downloaded results as complete server search.
+
+`words(text)` exposes the same normalized whole words for bounded program
+logic. `tokens(text)` remains the separate mention extractor.

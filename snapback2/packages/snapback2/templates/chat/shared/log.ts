@@ -116,16 +116,3 @@ export function settledByRows(rows: readonly LogRow[], entries: readonly OutboxE
   const held = new Set(rows.map((row) => row.messageId));
   return entries.filter((entry) => entry.state === "committed" && postArgs(entry) !== undefined && held.has(entry.ids[0] ?? ""));
 }
-
-/** Offline search is a filter over the downloaded log (LLP 1012 §6); it finds nothing evicted. */
-export function searchHeld(rows: readonly LogRow[], term: string): LogRow[] {
-  const needle = term.trim().toLowerCase();
-  if (!needle) return [];
-  const seen = new Set<string>();
-  return rows.filter((row) => {
-    const body = row.message?.body;
-    if (row.kind !== "message" || !body || seen.has(row.messageId) || !body.toLowerCase().includes(needle)) return false;
-    seen.add(row.messageId);
-    return true;
-  });
-}
