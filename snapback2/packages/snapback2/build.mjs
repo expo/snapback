@@ -128,6 +128,7 @@ await build({
 });
 
 await cp(resolve(here, "../compiler/lib.d.ts"), resolve(dist, "index.d.ts"));
+await cp(resolve(here, "../compiler/lib.d.ts"), resolve(dist, "authoring-lib.d.ts"));
 await cp(resolve(here, "../compiler/subset-lib.d.ts"), resolve(dist, "compiler-lib.d.ts"));
 // @ref LLP 1003#1-authoring — effect libraries are packaged at build time; check never reads TypeScript's installed lib files.
 const effectLibs = new Map();
@@ -189,8 +190,11 @@ if (diagnostics.length > 0) {
 const emitted = declarationProgram.emit();
 if (emitted.emitSkipped) throw new Error("TypeScript skipped client declaration emit");
 await cp(resolve(declarations, "snapback2/src"), dist, { recursive: true });
+await cp(resolve(declarations, "evaluator"), resolve(dist, "evaluator"), { recursive: true });
+await cp(resolve(declarations, "compiler"), resolve(dist, "compiler"), { recursive: true });
+await rewriteEvaluatorDeclarationImports(dist);
+await writeRootPackageDeclarations();
 await rm(declarations, { recursive: true, force: true });
-await mergeOfflineProtocolDeclarations();
 
 const guideSource = resolve(here, "guide");
 const guide = resolve(dist, "guide");
@@ -336,21 +340,45 @@ if (process.argv.includes("--self-test")) {
   if (packageBuildToken) await releasePackageBuildLock(packageBuildToken);
 }
 
-async function mergeOfflineProtocolDeclarations() {
+async function writeRootPackageDeclarations() {
   const indexPath = resolve(dist, "index.d.ts");
-  const offlinePath = resolve(dist, "offline-protocol.d.ts");
-  const [indexDeclarations, offlineDeclarations] = await Promise.all([
-    readFile(indexPath, "utf8"),
-    readFile(offlinePath, "utf8"),
+  const [ambientDeclarations, source] = await Promise.all([
+    readFile(resolve(here, "../compiler/lib.d.ts"), "utf8"),
+    readFile(resolve(here, "src/index.ts"), "utf8"),
   ]);
-  const closingBrace = indexDeclarations.lastIndexOf("\n}");
-  if (closingBrace < 0) throw new Error("compiler/lib.d.ts lost its ambient snapback2 module");
-  // @ref LLP 1012#8-the-delivery-envelope-the-validator-and-resume — only the ambient copy drops redundant declare modifiers.
-  const ambientDeclarations = offlineDeclarations.trim().replace(/^export declare /gm, "export ");
-  await writeFile(
-    indexPath,
-    `${indexDeclarations.slice(0, closingBrace)}\n\n${ambientDeclarations}\n${indexDeclarations.slice(closingBrace)}`,
-  );
+  const prefix = 'declare module "snapback2" {\n';
+  const trimmed = ambientDeclarations.trimEnd();
+  if (!trimmed.startsWith(prefix) || !trimmed.endsWith("\n}")) {
+    throw new Error("compiler/lib.d.ts lost its ambient snapback2 module");
+  }
+  const body = trimmed.slice(prefix.length, -2).replace(/^  /gm, "");
+  const sourceFile = ts.createSourceFile("index.ts", source, ts.ScriptTarget.Latest, true, ts.ScriptKind.TS);
+  const reexports = sourceFile.statements
+    .filter((statement) => ts.isExportDeclaration(statement))
+    .map((statement) => statement.getText(sourceFile));
+  if (reexports.length === 0) throw new Error("src/index.ts lost its public module re-exports");
+  // @ref LLP 1012#8-the-delivery-envelope-the-validator-and-resume — the virtual compiler ambient and shipped package root have distinct module roles.
+  await writeFile(indexPath, `${body}\n\n${reexports.join("\n")}\n`);
+}
+
+async function rewriteEvaluatorDeclarationImports(root) {
+  const evaluatorRoot = resolve(root, "evaluator/src");
+  async function visit(directory) {
+    for (const entry of await readdir(directory, { withFileTypes: true })) {
+      const path = resolve(directory, entry.name);
+      if (entry.isDirectory()) {
+        if (path !== resolve(root, "evaluator")) await visit(path);
+        continue;
+      }
+      if (!entry.name.endsWith(".d.ts")) continue;
+      const evaluatorRelative = relative(dirname(path), evaluatorRoot).split(sep).join("/");
+      const evaluatorSpecifier = evaluatorRelative.startsWith(".") ? evaluatorRelative : `./${evaluatorRelative}`;
+      const source = await readFile(path, "utf8");
+      const rewritten = source.replace(/(["'])(?:\.\.\/)+evaluator\/src\//g, `$1${evaluatorSpecifier}/`);
+      if (rewritten !== source) await writeFile(path, rewritten);
+    }
+  }
+  await visit(root);
 }
 
 async function acquirePackageBuildLock() {
