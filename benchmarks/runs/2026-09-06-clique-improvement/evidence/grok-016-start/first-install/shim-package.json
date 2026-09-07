@@ -1,0 +1,124 @@
+{
+  "name": "snapback2",
+  "version": "0.0.16",
+  "description": "Snapback 2 CLI (the platform binary ships in snapback2-<os>-<arch>).",
+  "license": "MIT",
+  "type": "module",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.mjs"
+    },
+    "./client": {
+      "types": "./dist/client.d.ts",
+      "import": "./dist/client.mjs"
+    },
+    "./react": {
+      "browser": {
+        "types": "./dist/react.d.ts",
+        "import": "./dist/react.mjs"
+      },
+      "react-native": {
+        "types": "./dist/react-native.d.ts",
+        "import": "./dist/react-native.mjs"
+      },
+      "types": "./dist/react.d.ts",
+      "import": "./dist/react.mjs"
+    },
+    "./test": {
+      "types": "./dist/test.d.ts",
+      "import": "./dist/test.mjs"
+    },
+    "./react-core": {
+      "types": "./dist/react-core.d.ts",
+      "import": "./dist/react-core.mjs"
+    },
+    "./react-native": {
+      "types": "./dist/react-native.d.ts",
+      "import": "./dist/react-native.mjs"
+    },
+    "./expo": {
+      "types": "./dist/expo.d.ts",
+      "import": "./dist/expo.mjs"
+    },
+    "./expo/witness": {
+      "types": "./dist/expo/witness.d.ts",
+      "import": "./dist/expo/witness.mjs"
+    }
+  },
+  "bin": {
+    "snapback2": "bin/snapback2.mjs"
+  },
+  "files": [
+    "bin",
+    "dist",
+    "ios",
+    "expo-module.config.json",
+    "android/build.gradle",
+    "android/src"
+  ],
+  "scripts": {
+    "build": "node build.mjs",
+    "prepack": "node build.mjs",
+    "test": "node build.mjs && env -u SNAPBACK_URL node --test --test-timeout=120000 tests/"
+  },
+  "dependencies": {
+    "typescript": "5.9.2"
+  },
+  "peerDependencies": {
+    "expo": ">=54",
+    "expo-file-system": ">=19",
+    "expo-video": ">=2",
+    "react-native": ">=0.75",
+    "react": ">=18",
+    "expo-sqlite": "^16",
+    "expo-secure-store": "^15"
+  },
+  "peerDependenciesMeta": {
+    "expo": {
+      "optional": true
+    },
+    "expo-file-system": {
+      "optional": true
+    },
+    "expo-video": {
+      "optional": true
+    },
+    "react-native": {
+      "optional": true
+    },
+    "expo-sqlite": {
+      "optional": true
+    },
+    "expo-secure-store": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
+    "@types/node": "^24",
+    "@types/react": "19.1.12",
+    "@types/react-dom": "19.1.9",
+    "esbuild": "0.25.9",
+    "expo": "54.0.37",
+    "expo-file-system": "19.0.24",
+    "expo-secure-store": "15.0.8",
+    "expo-sqlite": "16.0.10",
+    "expo-video": "3.0.16",
+    "jsdom": "^26.1.0",
+    "playwright-core": "1.55.1",
+    "react": "19.1.0",
+    "react-dom": "19.1.0",
+    "react-native": "0.81.5",
+    "react-test-renderer": "19.1.0",
+    "ws": "8.18.3"
+  },
+  "optionalDependencies": {
+    "snapback2-darwin-arm64": "0.0.16"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/expo/snapback.git",
+    "directory": "snapback2/packages/snapback2"
+  }
+}

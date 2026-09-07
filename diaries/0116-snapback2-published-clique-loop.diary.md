@@ -1297,3 +1297,10 @@ Functional publication checks passed, but chat check still exceeded 1 second and
 The loop-reaching-origin candidate `ef88cac15` versus `9995d41a` received scoped READY from both closed independent Astra/xhigh and Grok4.6/xhigh reviews, with actual native and outer exits0. Seven inherited affected-type diagnostics remain exit1 and exactly equal controls; original setup failures and report precision notes remain preserved. [Full evidence](../benchmarks/runs/2026-09-06-clique-improvement/evidence/compiler-loop-reaching-r29-reviews/README.md).
 
 This is not a whole compiler/native/package clearance. Read-only integration assessment identifies the reusable3eba v5 recipe and reviewed0ecd client correction, preserves current-main uniqueness and newer features, and finds no cleared native endpoint for two outstanding62fc absence-pricing findings. Stopped scopes remain stopped; no integration, new tests, publication or frozen016 change resulted from this evidence handoff.
+
+
+## 2026-09-07 — Fresh full Grok run on published 0.0.16
+
+The fresh full run started at18:45:08Z on Office M1 Max. Actual native metadata confirms Grok4.6/xhigh. The builder receives the unchanged full instrument and exact public package, with no previous app or audit findings. All169 original leaves and the helper match; original milestone, media, scale and native requirements remain. M7 stays separate after grading.
+
+[Launch evidence](../benchmarks/runs/2026-09-06-clique-improvement/evidence/grok-016-start/README.md) records the actual process/session and environment. Shared host load and the M5 comparator hardware difference remain disclosed. This starts measurement; it does not establish a better score or any milestone pass.
