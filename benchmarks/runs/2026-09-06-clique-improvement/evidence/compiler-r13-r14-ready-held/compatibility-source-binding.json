@@ -1,0 +1,51 @@
+{
+  "at": "2026-09-07T03:13:57.069486+00:00",
+  "cases": [
+    {
+      "kind": "ordinary",
+      "authoredFiles": {
+        "probe.q": "c7115b64f947eafb21e3bb7b963328d13253075f2ea1778ca9b739318bc11114",
+        "schema.q": "c740287582bdca99b15964c6d4bd568d8bf4bfaf00a8f70beb26b7d29742803b"
+      },
+      "sameBothGraphs": true,
+      "mainIR": "8c287fd69948e4ac15b35785d70f66b7dd434744cd32094d8f0b2af1ee3c4719",
+      "candidateIR": "4e7bc284966e7e2bac3c6405492b1c7a4503d1b3a12b68a130d6988e0c5f9b03"
+    },
+    {
+      "kind": "refinement",
+      "authoredFiles": {
+        "probe.q": "10dbdda3d8b34e40faec806f74b2e2ec4be597957ee1105bf4b65e5a2c4356b0",
+        "schema.q": "72bd6b42df09ade6b89fb90587dea2828453759e24a906d3520eb008d02d2a7d"
+      },
+      "sameBothGraphs": true,
+      "mainIR": "67453498c16cf67039369a826546b7ca80ed33459ff9f77a205efce9ddaa7d7f",
+      "candidateIR": "1a52e593f03e0b9cb6b4fe30529fdbb86085703e7311157eeca2d6710ad70361"
+    },
+    {
+      "kind": "chat",
+      "authoredFiles": {
+        "seed.ts": "669b7f9c19209d59f5cbda0b9798ac2929a9117784c12cdedea36284cd774436",
+        "groups.q": "f6d1b3325d3aec1ffb63cd70fd3de39a70be2c55d3982081125b4202bc06c381",
+        "profiles.q": "dc474dc4b739bd5346efb98d4bbfbc10850a91aa1833ae911aa5adf11af03e53",
+        "notifications.q": "02cf8894ae5ed7d28ea8e56e7258dbc7e973f5ae6f253eadd7e34e94d2fa7347",
+        "feeds.q": "bfe02e3eec0c441572bc2215d51eb41b8262119590e28eb4febc3cfd1d39008b",
+        "messages.q": "cd698245480cbbe1fae20375bdb4607dd1a03886aa10320fd7c2f968a4628406",
+        "deliveries.q": "765a7807e84f358926bb304477c2479d797b8aec3483a8305cf7290f0427c498",
+        "posts.q": "683a4ab4e9733e88ad2f387d95d5a525725b1917dd79401ede09721b8d7a0df6",
+        "follows.q": "4e5faec00894e94c1c860bb9d21dde330c665767276bb7dc7372ef59b78c73f0",
+        "delivery.ts": "ad73441f683c6a6024f8b54f0ea23dc037c01a89aa24364f2aec6d50d666a528",
+        "schema.q": "f4625d0f8a45175536ee3cd26f013df6da4fa91a5c6697391b509b09616e8e04",
+        "tests/chat.test.ts": "73b5c728d98c10e0fee67eda8e288777868f4bb4f6603fd0c3c69d05d7d504f9"
+      },
+      "sameBothGraphs": true,
+      "mainIR": "a3e4aadf191fdcce86b324a419b7fac3035abfb10349f18c4d2ee60f7282303d",
+      "candidateIR": "6c305cc09800b2ae70391bfa2b52e2a8506824727a493a4465afe8997b723bc4"
+    }
+  ],
+  "nativeSourceDifference0fdToMain": [
+    "snapback2/crates/snapback2-core/src/offline.rs",
+    "snapback2/crates/snapback2/src/writer_auth.rs",
+    "snapback2/crates/snapback2/src/writer_offline.rs"
+  ],
+  "ownerSourceScope": "014 source0fd executable; core offline.rs and writer auth/offline differ from db8, decoder IR/schema/certification paths unchanged. Not wholemain runtime equivalence."
+}

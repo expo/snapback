@@ -1,0 +1,18 @@
+{
+  "observedAt": "2026-09-07T03:02:16.396747+00:00",
+  "toolSession": 18267,
+  "exitCode": 0,
+  "terminalChunk": "192b5f",
+  "thread": "01a079ad-ee99-7873-8294-561494c9a8b0",
+  "actualModel": "gpt-6-astra",
+  "effort": "xhigh",
+  "cwd": "/Users/ccheever/clique-improvement/reviews/compiler-final-r13/astra",
+  "initialFullReadBytes": 32291,
+  "finalBytes": 32298,
+  "initialSha256": "192ab432ef1f9712e642607aa5f776179df7f59c633391b16bcc6f116d77afe2",
+  "finalSha256": "c2f157caf7d075ccd9b927531145379a07907193edbd83c9a07608a6a4b30204",
+  "fullInitialReportAndExactFinalDeltaRead": true,
+  "verdict": "READY scoped",
+  "rolloutPath": "/Users/ccheever/.codex/sessions/2026/09/06/rollout-2026-09-06T19-23-57-01a079ad-ee99-7873-8294-561494c9a8b0.jsonl",
+  "initialReconstruction": "Retained review-draft.md with original R/ link expansion reconstructs the 32,291-byte report read in full before the final three wording corrections. No separate prior raw-file hash was captured before modification."
+}

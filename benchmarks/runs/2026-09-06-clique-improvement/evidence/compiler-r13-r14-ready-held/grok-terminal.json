@@ -1,0 +1,14 @@
+{
+  "observedAt": "2026-09-07T02:45:41.023110+00:00",
+  "toolSession": 4834,
+  "terminalChunk": "8b8662",
+  "exitCode": 0,
+  "uuid": "52b35357-4731-4dee-936d-9e3a74c89028",
+  "actualModel": "grok-4.6",
+  "actualReasoningEffort": "xhigh",
+  "summaryPath": "/Users/ccheever/.grok/sessions/%2FUsers%2Fccheever%2Fclique-improvement%2Freviews%2Fcompiler-final-r13%2Fgrok/52b35357-4731-4dee-936d-9e3a74c89028/summary.json",
+  "reviewBytes": 13518,
+  "reviewSha256": "350b848fbbb14444d385441e9369b0a4f310e797528858a0bfc67aa74b5b230b",
+  "reviewReadInFull": true,
+  "verdict": "READY"
+}

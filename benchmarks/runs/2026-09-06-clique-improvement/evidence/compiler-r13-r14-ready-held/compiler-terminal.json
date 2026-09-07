@@ -1,0 +1,81 @@
+{
+  "at": "2026-09-07T02:29:32.251241+00:00",
+  "commit": "251efd3872b99adc05aa0098ed2f6855829032f5",
+  "filesCompared": 218,
+  "mismatches": [],
+  "protectedEvaluatorSha256": "afc6bc7ffd25fc007787b10e0fc8bdafbe4ae61cb12f7d2442f2c2df95686618",
+  "testedManifestSha256": "9b4e421dfc3f0668b7ddc58f5bb63f98bfc028bc37bb19de99d31264dbe091cf",
+  "testedArchiveSha256": "89e9f91957fe61ca1738d675ca287a71ef4238afc6543bbf9d9fbb4a11a7b156",
+  "terminalObserved": true,
+  "reportBytes": 20517,
+  "reportSha256": "f885e12806ab0fff3d7f71bff711511e333b10b93153a833a5934c0dd8e555b8",
+  "reportReadFull": true,
+  "finalManifestSha256": "1021fec7326dcb31cf780c80e7626b4f88c87b2a449564b2c1b9b310df51413b",
+  "finalArchiveSha256": "c827a77860bc8734282583d20209bec8ef283f9771414679bc7aba15e645bdaa",
+  "toolSession": 45367,
+  "terminalExit": 0,
+  "terminalToolChunk": "ad72ca",
+  "thread": "01a078aa-b57c-7b33-ac65-6b67d2f302eb",
+  "actualTurnContexts": [
+    {
+      "model": "gpt-6-astra",
+      "effort": "xhigh",
+      "cwd": "/Users/ccheever/projects/snapback-worktrees/clique-search-compiler"
+    },
+    {
+      "model": "gpt-6-astra",
+      "effort": "xhigh",
+      "cwd": "/Users/ccheever/projects/snapback-worktrees/clique-search-compiler"
+    },
+    {
+      "model": "gpt-6-astra",
+      "effort": "xhigh",
+      "cwd": "/Users/ccheever/projects/snapback-worktrees/clique-search-compiler"
+    },
+    {
+      "model": "gpt-6-astra",
+      "effort": "xhigh",
+      "cwd": "/Users/ccheever/projects/snapback-worktrees/clique-search-compiler"
+    },
+    {
+      "model": "gpt-6-astra",
+      "effort": "xhigh",
+      "cwd": "/Users/ccheever/projects/snapback-worktrees/clique-search-compiler"
+    },
+    {
+      "model": "gpt-6-astra",
+      "effort": "xhigh",
+      "cwd": "/Users/ccheever/projects/snapback-worktrees/clique-search-compiler"
+    },
+    {
+      "model": "gpt-6-astra",
+      "effort": "xhigh",
+      "cwd": "/Users/ccheever/projects/snapback-worktrees/clique-search-compiler"
+    },
+    {
+      "model": "gpt-6-astra",
+      "effort": "xhigh",
+      "cwd": "/Users/ccheever/projects/snapback-worktrees/clique-search-compiler"
+    },
+    {
+      "model": "gpt-6-astra",
+      "effort": "xhigh",
+      "cwd": "/Users/ccheever/projects/snapback-worktrees/clique-search-compiler"
+    },
+    {
+      "model": "gpt-6-astra",
+      "effort": "xhigh",
+      "cwd": "/Users/ccheever/projects/snapback-worktrees/clique-search-compiler"
+    }
+  ],
+  "rolloutPath": "/Users/ccheever/.codex/sessions/2026/09/06/rollout-2026-09-06T14-40-48-01a078aa-b57c-7b33-ac65-6b67d2f302eb.jsonl",
+  "hashes": {
+    "report.md": "f885e12806ab0fff3d7f71bff711511e333b10b93153a833a5934c0dd8e555b8",
+    "phase.json": "d0bb7dfa8f6dd72f09694a9d6de2b5bfdd9b2e5d13e46fa6e7a8bb5d1984ea4b",
+    "final-answer.md": "8c4b70b4ff39f8824a32422b6ae7ef55f57723328b5377d06000f904114f5e48",
+    "stdout.log": "16bdf225f6894b9c811d18e3a8de0bfc90f31bbb54f5c07b32a39be00e1afb6c",
+    "stderr.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "final-source.json": "1021fec7326dcb31cf780c80e7626b4f88c87b2a449564b2c1b9b310df51413b",
+    "final-compiler.tar": "c827a77860bc8734282583d20209bec8ef283f9771414679bc7aba15e645bdaa"
+  }
+}

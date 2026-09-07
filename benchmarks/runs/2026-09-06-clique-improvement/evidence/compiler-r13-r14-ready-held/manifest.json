@@ -1,0 +1,86 @@
+{
+  "at": "2026-09-07T03:17:29.840155+00:00",
+  "disposition": "compiler-only product landing HELD; scoped reviews READY; coordinated graph required",
+  "files": {
+    "compiler-report.md": {
+      "source": "/Users/ccheever/clique-improvement/revisions/compiler-policy-clone-r13/report.md",
+      "bytes": 20517,
+      "sha256": "f885e12806ab0fff3d7f71bff711511e333b10b93153a833a5934c0dd8e555b8"
+    },
+    "compiler-terminal.json": {
+      "source": "/Users/ccheever/clique-improvement/revisions/compiler-policy-clone-r13/terminal-identity.json",
+      "bytes": 3214,
+      "sha256": "6a87cc44443ee0eac73ae9772585b683886c9b32ad81e2ae7129d4c0325769a2"
+    },
+    "docs-report.md": {
+      "source": "/Users/ccheever/clique-improvement/revisions/compiler-authoring-docs-r14/report.md",
+      "bytes": 16716,
+      "sha256": "f5e0c36137295bb336b1b61e290e0c3369fb956ba31d34b4bcdccfe7b71eba5f"
+    },
+    "docs-terminal.json": {
+      "source": "/Users/ccheever/clique-improvement/revisions/compiler-authoring-docs-r14/terminal-identity.json",
+      "bytes": 1965,
+      "sha256": "fcb92e9c1f1fe41caf0a49a82d08d1a4dbcf7e12db23f97185392380ad6aa9b2"
+    },
+    "inserted-row-diagnosis.md": {
+      "source": "/Users/ccheever/clique-improvement/revisions/compiler-authoring-docs-r14/point-key-diagnosis.md",
+      "bytes": 7136,
+      "sha256": "682549f0c4d8ae68f741a535d4b6eb938d70a022b45a0cb35038e6a43bb736bf"
+    },
+    "astra-review.md": {
+      "source": "/Users/ccheever/clique-improvement/reviews/compiler-final-r13/astra/review.md",
+      "bytes": 32298,
+      "sha256": "c2f157caf7d075ccd9b927531145379a07907193edbd83c9a07608a6a4b30204"
+    },
+    "astra-terminal.json": {
+      "source": "/Users/ccheever/clique-improvement/reviews/compiler-final-r13/astra/terminal-identity.json",
+      "bytes": 998,
+      "sha256": "d5350162712d198216c91111f287f503af1b4daa38e7b42c5670b09fc76fd79b"
+    },
+    "astra-final-delta.patch": {
+      "source": "/Users/ccheever/clique-improvement/reviews/compiler-final-r13/astra/supervisor-report-final-delta.patch",
+      "bytes": 8797,
+      "sha256": "535c51e51711e1dd7b5755719d407c6ee21e87eaea45042499ebaebe840d33d7"
+    },
+    "grok-review.md": {
+      "source": "/Users/ccheever/clique-improvement/reviews/compiler-final-r13/grok/review.md",
+      "bytes": 13518,
+      "sha256": "350b848fbbb14444d385441e9369b0a4f310e797528858a0bfc67aa74b5b230b"
+    },
+    "grok-terminal.json": {
+      "source": "/Users/ccheever/clique-improvement/reviews/compiler-final-r13/grok/terminal-identity.json",
+      "bytes": 579,
+      "sha256": "698770608915e453e65fe8d91ad989e8b28be19a97c47a09adf607ea3d97ba99"
+    },
+    "compatibility-hold.md": {
+      "source": "/Users/ccheever/clique-improvement/revisions/compiler-r13-r14-integration/main-compatibility/report.md",
+      "bytes": 5639,
+      "sha256": "24707eb3fbbef68dc79d3bc05e8f6ed4783176ab3468d84c7547c39ec3a9f3bc"
+    },
+    "compatibility-source-binding.json": {
+      "source": "/Users/ccheever/clique-improvement/revisions/compiler-r13-r14-integration/main-compatibility/source-binding.json",
+      "bytes": 2714,
+      "sha256": "fc636ef46af016389650fcc214349ab7bc80de56d1217cdcc4ef67621813e679"
+    },
+    "compatibility-owner014-summary.json": {
+      "source": "/Users/ccheever/clique-improvement/revisions/compiler-r13-r14-integration/main-compatibility/owner014/summary.json",
+      "bytes": 2702,
+      "sha256": "81f0129a937d7e9f89da882365d81c0c992dab04ec1f41eb950011967a17c000"
+    },
+    "coordinated-dependency-map.md": {
+      "source": "/Users/ccheever/clique-improvement/revisions/compiler-r13-r14-integration/coordinated-dependency-map.md",
+      "bytes": 9658,
+      "sha256": "f8bea709df29b0d5438127b1cfaba6dce5eb1fbdfda854101451a6cec67a8e74"
+    },
+    "coordinated-path-map.json": {
+      "source": "/Users/ccheever/clique-improvement/revisions/compiler-r13-r14-integration/coordinated-path-map.json",
+      "bytes": 46364,
+      "sha256": "17091c277e55ca12a0b6597c8e2a7f7afb33b55d1d3fa469ddbd0b45fea64005"
+    },
+    "twin-overlap.md": {
+      "source": "/Users/ccheever/clique-improvement/lanes/search-twin/r8-v5-integration-overlap-db8b95594.md",
+      "bytes": 5587,
+      "sha256": "d5ebbe027e9b3634df8404982eb7fe6bc600b9cd4b6c4019ba91b7d021079e3b"
+    }
+  }
+}

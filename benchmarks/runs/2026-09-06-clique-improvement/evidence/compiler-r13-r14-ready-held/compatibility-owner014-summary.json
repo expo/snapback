@@ -1,0 +1,66 @@
+[
+  {
+    "name": "main-ordinary",
+    "argv": [
+      "/Users/ccheever/projects/snapback-artifacts/clique-release/0.0.14-0fdcc846b-attempt02/qualified-artifacts/platform/package/bin/snapback2",
+      "check",
+      "--ir",
+      "/Users/ccheever/clique-improvement/revisions/compiler-r13-r14-integration/main-compatibility/collected/results/main-ordinary/project.ir.json"
+    ],
+    "pid": 94042,
+    "exit": 0,
+    "timeout": false,
+    "deadlineSeconds": 30,
+    "elapsed": 0.9195887500000001,
+    "inputSha256": "8c287fd69948e4ac15b35785d70f66b7dd434744cd32094d8f0b2af1ee3c4719",
+    "ownerSha256": "ad1bbd9271e40a8a28d15aa23002e57a1c7443b3e01837ed34ceff46f143ef36"
+  },
+  {
+    "name": "candidate-ordinary",
+    "argv": [
+      "/Users/ccheever/projects/snapback-artifacts/clique-release/0.0.14-0fdcc846b-attempt02/qualified-artifacts/platform/package/bin/snapback2",
+      "check",
+      "--ir",
+      "/Users/ccheever/clique-improvement/revisions/compiler-r13-r14-integration/main-compatibility/collected/results/candidate-ordinary/project.ir.json"
+    ],
+    "pid": 94045,
+    "exit": 1,
+    "timeout": false,
+    "deadlineSeconds": 30,
+    "elapsed": 0.029765791999999847,
+    "inputSha256": "4e7bc284966e7e2bac3c6405492b1c7a4503d1b3a12b68a130d6988e0c5f9b03",
+    "ownerSha256": "ad1bbd9271e40a8a28d15aa23002e57a1c7443b3e01837ed34ceff46f143ef36"
+  },
+  {
+    "name": "main-chat",
+    "argv": [
+      "/Users/ccheever/projects/snapback-artifacts/clique-release/0.0.14-0fdcc846b-attempt02/qualified-artifacts/platform/package/bin/snapback2",
+      "check",
+      "--ir",
+      "/Users/ccheever/clique-improvement/revisions/compiler-r13-r14-integration/main-compatibility/collected/results/main-chat/project.ir.json"
+    ],
+    "pid": 94046,
+    "exit": 0,
+    "timeout": false,
+    "deadlineSeconds": 30,
+    "elapsed": 0.5865497920000002,
+    "inputSha256": "a3e4aadf191fdcce86b324a419b7fac3035abfb10349f18c4d2ee60f7282303d",
+    "ownerSha256": "ad1bbd9271e40a8a28d15aa23002e57a1c7443b3e01837ed34ceff46f143ef36"
+  },
+  {
+    "name": "candidate-chat",
+    "argv": [
+      "/Users/ccheever/projects/snapback-artifacts/clique-release/0.0.14-0fdcc846b-attempt02/qualified-artifacts/platform/package/bin/snapback2",
+      "check",
+      "--ir",
+      "/Users/ccheever/clique-improvement/revisions/compiler-r13-r14-integration/main-compatibility/collected/results/candidate-chat/project.ir.json"
+    ],
+    "pid": 94050,
+    "exit": 1,
+    "timeout": false,
+    "deadlineSeconds": 30,
+    "elapsed": 0.04259466599999984,
+    "inputSha256": "6c305cc09800b2ae70391bfa2b52e2a8506824727a493a4465afe8997b723bc4",
+    "ownerSha256": "ad1bbd9271e40a8a28d15aa23002e57a1c7443b3e01837ed34ceff46f143ef36"
+  }
+]
