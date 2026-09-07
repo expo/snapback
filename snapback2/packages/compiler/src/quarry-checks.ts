@@ -1,6 +1,5 @@
 import { existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
-import { lowerSource } from "./compiler";
 import { lowerProject } from "./project";
 import { rustCheck } from "./rust-check";
 import { parseDocument } from "./quarry/parser";
@@ -361,30 +360,6 @@ mutation empty_last(photos: [image <=5000000] <=4):
     assert(!forge.ok && forge.diagnostics.some((item) => item.code === "E_QUARRY_TYPE"
       && item.message.includes("photo requires image asset")),
     `literal asset record forge did not remain E_QUARRY_TYPE: ${JSON.stringify(forge)}`);
-  });
-
-  test("the TypeScript lowering twin diagnoses missing asset fields and preserves descriptor/API shapes", async () => {
-    const fixture = resolve(fixtures, "assets");
-    const lowered = await lowerProject(fixture, { authoring: "any" });
-    assert(lowered.ok, `TS-authored asset fixture refused: ${lowered.ok ? "" : diagnosticsText(lowered.diagnostics)}`);
-    const columns = (lowered.project.schema.tables.media as any).columns;
-    assert(JSON.stringify(columns.photo) === JSON.stringify({ Image: { max: 5_000_000 } })
-      && JSON.stringify(columns.albums) === JSON.stringify({ Optional: { List: { of: { Image: { max: 12_000_000 } }, max: 4 } } }),
-    `TS-authored asset descriptors changed: ${JSON.stringify(columns)}`);
-    assert(lowered.apiDts.includes("photo: File | ImageAsset")
-      && lowered.apiDts.includes("albums?: (File | ImageAsset)[] | null")
-      && lowered.apiDts.includes("readonly echo: Op<{ photo: ImageAsset }, ImageAsset>")
-      && lowered.apiDts.includes("{ photo: ImageAsset; width: number; clip: VideoAsset")
-      && lowered.apiDts.includes("duration: number"),
-    `TS-authored asset fixture lost File unions or result types:\n${lowered.apiDts}`);
-
-    const invalidSource = readFileSync(resolve(fixture, "snapback/photo-duration.invalid.ts.fixture"), "utf8");
-    const invalid = lowerSource(invalidSource, "snapback/photo-duration.ts");
-    const refusal = invalid.ok ? undefined : invalid.diagnostics.find((item) => item.code === "E_ARGS_TYPE");
-    assert(refusal?.message.includes("image asset has no field duration")
-      && refusal.site.startsWith("snapback/photo-duration.ts:")
-      && refusal.rewrite.includes("args.photo.width"),
-    `TS twin returned unknown instead of a sited missing-field refusal: ${JSON.stringify(invalid)}`);
   });
 
   test("seed assets use E_SCHEMA_ASSET_SEED recursively while optional null remains allowed", async () => {

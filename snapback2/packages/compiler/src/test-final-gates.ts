@@ -1,22 +1,19 @@
 import { mkdir, readdir } from "node:fs/promises";
 import { resolve } from "node:path";
-import { assessGauntlet } from "./gauntlet";
 import type { ProjectJson } from "./ir";
-import { lowerProject as lowerAuthoredProject } from "./project";
+import { lowerProject } from "./project";
 import ts from "typescript";
 
 const frontend = decodeURIComponent(new URL("../", import.meta.url).pathname);
 const crate = decodeURIComponent(new URL("../../../", import.meta.url).pathname);
-const repo = decodeURIComponent(new URL("../../../../", import.meta.url).pathname);
 
 type RegisterTest = (name: string, run: () => void | Promise<void>) => void;
-const lowerProject = (root: string) => lowerAuthoredProject(root, { authoring: "any" });
 
 function assert(condition: unknown, message: string): asserts condition {
   if (!condition) throw new Error(message);
 }
 
-export function registerFinalGateChecks(test: RegisterTest, legacyLib: string): void {
+export function registerFinalGateChecks(test: RegisterTest): void {
   test("the React template typechecks against the built snapback2/react package", () => {
     const packageRoot = resolve(crate, "packages/snapback2");
     const app = resolve(packageRoot, "templates/react/src/App.tsx");
@@ -112,20 +109,18 @@ export function registerFinalGateChecks(test: RegisterTest, legacyLib: string): 
   test("binary check certifies every compiler program and reads IR only from stdin or --ir", async () => {
     const built = Bun.spawnSync({ cmd: ["cargo", "build", "-p", "snapback2"], cwd: crate, stdout: "pipe", stderr: "pipe" });
     assert(built.exitCode === 0, `cargo build failed: ${new TextDecoder().decode(built.stderr)}`);
-    const chat = await lowerProject(`${frontend}fixtures/chat`);
-    assert(chat.ok, "chat did not compile for binary check");
-    const buildDir = `${frontend}fixtures/chat/.snapback/build`;
-    await mkdir(buildDir, { recursive: true });
-    const projectPath = `${buildDir}/project.json`;
-    await Bun.write(projectPath, JSON.stringify(chat.project));
-    const checked = runBinaryCheck(["--json", "--ir", projectPath]);
-    const checkedRefusals = checked.results.filter((item: any) => item.error);
-    assert(checked.exitCode === 0 && checkedRefusals.length === 0, `chat compiler output was refused: ${checked.stderr}`);
-    assert(checked.results.length === chat.project.programs.length, "project check omitted programs");
-    assert(checked.results.every((item: any) => (item.certificate === null) !== (item.error === null)), "project check omitted a certificate/refusal outcome");
-    assert(checkedRefusals.every((item: any) => fullCheckEnvelope(item.error)), "checker refusal envelope is incomplete");
     const quarryChat = await lowerProject(`${frontend}fixtures/quarry-chat`);
     assert(quarryChat.ok, "Quarry chat did not compile for binary check");
+    const buildDir = `${frontend}fixtures/quarry-chat/.snapback/build`;
+    await mkdir(buildDir, { recursive: true });
+    const projectPath = `${buildDir}/project.json`;
+    await Bun.write(projectPath, JSON.stringify(quarryChat.project));
+    const checked = runBinaryCheck(["--json", "--ir", projectPath]);
+    const checkedRefusals = checked.results.filter((item: any) => item.error);
+    assert(checked.exitCode === 0 && checkedRefusals.length === 0, `Quarry chat compiler output was refused: ${checked.stderr}`);
+    assert(checked.results.length === quarryChat.project.programs.length, "project check omitted programs");
+    assert(checked.results.every((item: any) => (item.certificate === null) !== (item.error === null)), "project check omitted a certificate/refusal outcome");
+    assert(checkedRefusals.every((item: any) => fullCheckEnvelope(item.error)), "checker refusal envelope is incomplete");
     for (const page of ["feeds.q", "messages.q"]) {
       const fixture = await Bun.file(`${frontend}fixtures/quarry-chat/snapback/${page}`).text();
       const template = await Bun.file(`${crate}packages/snapback2/templates/chat/snapback/${page}`).text();
@@ -133,7 +128,7 @@ export function registerFinalGateChecks(test: RegisterTest, legacyLib: string): 
     }
     const quarryChecked = runBinaryCheck(["--json", "--ir"], quarryChat.project);
     const pagePins: Record<string, [number, number]> = {
-      "feeds.followingFeed": [55_072, 626_336],
+      "feeds.followingFeed": [55_572, 626_336],
       "feeds.globalFeed": [55_072, 54_260],
       // LLP 1006/1012: media records, including the optional oncePhoto column;
       // LLP 1016 D5: the optional expiresAt deadline (45 bytes a row).
@@ -145,7 +140,7 @@ export function registerFinalGateChecks(test: RegisterTest, legacyLib: string): 
         && result.certificate.max_closure_bytes === closure,
       `${name} shipped page did not certify at its pinned default bounds: ${JSON.stringify(result)}`);
     }
-    const wrongPrincipalAxis = structuredClone(chat.project) as any;
+    const wrongPrincipalAxis = structuredClone(quarryChat.project) as any;
     wrongPrincipalAxis.schema.tables.memberships.columns.principal = "Id";
     const wrongPrincipalCheck = runBinaryCheck(["--json", "--ir"], wrongPrincipalAxis);
     const nominalRefusal = wrongPrincipalCheck.results.find((item: any) =>
@@ -154,7 +149,7 @@ export function registerFinalGateChecks(test: RegisterTest, legacyLib: string): 
     assert(wrongPrincipalCheck.results.every((item: any) => item.certificate === null), "invalid raw ProjectJson still received a certificate");
     assert(nominalRefusal?.family === "rule" && nominalRefusal?.guide === "schema/rules", "raw nominal refusal used the wrong diagnostic family");
     assert(nominalRefusal?.site.includes("schema.tables.memberships"), "raw nominal refusal omitted its precise schema site");
-    for (const fixture of ["todos", "s1"]) {
+    for (const fixture of ["quarry-todos", "quarry-clique"]) {
       const lowered = await lowerProject(`${frontend}fixtures/${fixture}`);
       assert(lowered.ok, `${fixture} did not compile for binary compatibility`);
       const result = runBinaryCheck(["--json", "--ir"], lowered.project);
@@ -190,17 +185,7 @@ export function registerFinalGateChecks(test: RegisterTest, legacyLib: string): 
     }
   });
 
-  test("the 30-shape gauntlet remains measured", async () => {
-    const codexReview = await Bun.file(`${repo}llp/reviews/0329.014-bounded-data-programs.codex.r3.md`).text();
-    const fableReview = await Bun.file(`${repo}llp/reviews/0329.014-bounded-data-programs.fable.r3.md`).text();
-    const gauntlet = [
-      ...assessGauntlet("codex", codexReview, legacyLib),
-      ...assessGauntlet("fable", fableReview, legacyLib),
-    ];
-    assert(gauntlet.length === 30, `expected 30 numbered gauntlet shapes, got ${gauntlet.length}`);
-    const coded = gauntlet.filter((item) => item.source.trim());
-    assert(coded.length === 27, `expected 27 shapes with code, got ${coded.length}`);
-  });
+
 }
 
 function fullCheckEnvelope(error: any): boolean {

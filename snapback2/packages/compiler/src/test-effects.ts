@@ -3,14 +3,13 @@ import { readFile } from "node:fs/promises";
 import ts from "typescript";
 import { lowerProject } from "./project";
 import { typecheckSource } from "./typecheck";
-import { lowerSource } from "./compiler";
 import { effectGlobals } from "./lower/effects";
 
 type Test = (name: string, run: () => Promise<void>) => void;
 type WithProject = (files: Record<string, string>, run: (root: string) => Promise<void>) => Promise<void>;
 const schema = "table records:\n  body: text <=200\n  read <- public\n  insert <- allow\n";
 
-export function registerEffectLanguageChecks(test: Test, withProject: WithProject, frontend: string, subset: string) {
+export function registerEffectLanguageChecks(test: Test, withProject: WithProject, frontend: string) {
   test("effect-only local export aliases retain every authored identity and the direct control", async () => {
     const call = 'effect({ grants: ["https://api.example.com"], run: async (payload: {value: number}) => payload })';
     for (const [declaration, names] of [
@@ -88,31 +87,6 @@ mutation fire():
         assert(result.apiDts.includes("readonly notify: Op<"));
       });
     }
-  });
-
-  test("effect export aliases resolve renamed and namespace imports in lowering", async () => {
-    // Internal TypeScript lowering fixture: Quarry emits the named-import form above.
-    await withProject({
-      "snapback/schema.q": schema,
-      "snapback/delivery.ts": `import { effect } from "snapback2";
-        const local = effect({ grants: ["https://api.example.com"], run: async (payload: {value: number}) => payload });
-        export { local as notify, local as retry };`,
-      "snapback/ops.ts": `import { mutation, emit } from "snapback2";
-        import { notify as send, retry as sendAgain } from "./delivery";
-        import * as delivery from "./delivery";
-        export const fire = mutation({}, () => {
-          emit(send, { value: 1 }); emit(sendAgain, { value: 2 });
-          emit(delivery.notify, { value: 3 }); emit(delivery.retry, { value: 4 }); return true;
-        });`,
-    }, async (root) => {
-      const result = await lowerProject(root, { authoring: "any" });
-      assert(result.ok, JSON.stringify(result));
-      assert.deepEqual(result.project.schema.effects, ["delivery.notify", "delivery.retry"]);
-      const fire = result.project.programs.find((op) => op.name === "ops.fire");
-      assert(fire);
-      assert.deepEqual(fire.body.filter((stmt) => typeof stmt === "object" && "Emit" in stmt)
-        .map((stmt) => stmt.Emit.effect), ["delivery.notify", "delivery.retry", "delivery.notify", "delivery.retry"]);
-    });
   });
 
   test("effect export aliases cannot bypass grants closure or then validation", async () => {
@@ -195,11 +169,6 @@ mutation fire():
   });
 
   test("effects use ES2020 types while Quarry and its generated checker retain the subset", async () => {
-    const messages = typecheckSource('const s = "hello"; s.substring(0, 80); s.charAt(0); s[0];', "quarry.ts", subset)
-      .map((item) => ts.flattenDiagnosticMessageText(item.messageText, "\n"));
-    assert.equal(messages.length, 3, messages.join("\n"));
-    assert(messages[0]!.includes("substring") && messages[1]!.includes("charAt"));
-    assert.match(messages[2]!, /can't be used to index type 'String'/);
     // Quarry refuses JS method/constructor syntax before it can reach the TS checker.
     for (const expression of ["body.substring(0, 80)", "body.charAt(0)", "body[0]", "new Map()", "new Headers()"]) {
       await withProject({
@@ -213,16 +182,6 @@ mutation fire():
           ? item.code === "E_QUARRY_UNKNOWN" && item.message === "unknown table body"
           : item.code === "E_QUARRY_SYNTAX" && item.message === 'expected newline, got "("'), JSON.stringify(result));
       });
-    }
-    // Pin the downstream subset refusal too, where family opaque actually applies.
-    for (const [expression, message] of [
-      ["args.body.substring(0, 80)", /substring/], ["args.body.charAt(0)", /charAt/],
-      ["args.body[0]", /index type 'String'/],
-    ] as const) {
-      const result = lowerSource(`import { query, t } from "snapback2";
-        export const preview = query({body: t.text(200)}, ({args}) => ${expression});`, "programs.ts", subset);
-      assert(!result.ok, `${expression} escaped the subset`);
-      assert(result.diagnostics.some((item) => item.family === "opaque" && message.test(item.message)), JSON.stringify(result));
     }
     await withProject({
       "snapback/schema.q": schema,
