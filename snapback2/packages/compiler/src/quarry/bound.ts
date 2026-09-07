@@ -807,6 +807,8 @@ class ExpressionBinder {
   }
 
   private read(expression: Extract<Expr, { kind: "read" }>): BoundExpression {
+    if (expression.table === "connected") refuse(expression.site,
+      "connected supports only existence and count reads", "use exists connected[viewer] or #connected[viewer]");
     const read = this.boundRead(expression, expression.range ? "range" : "point");
     if (expression.range) {
       const type: BoundType = { kind: "page", table: read.table, max: expression.range.take };

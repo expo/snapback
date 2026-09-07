@@ -41,7 +41,6 @@ for (const [name, setup, domain, indent] of [
   ["presence", "  if values != null:\n", "values", "    "],
   ["alias presence", "  original = values\n  if original != null:\n", "original", "    "],
 ] as const) domainOperandCases.push({name:`public optional list ${name}`,public:true,max:3,argsType:inputType,
-  ...(!name.includes("presence")?{argumentDomain:"values"}:{}),
   source:`mutation probe(values: [decimal 3] <=3 ?):\n${setup}${indent}for value in ${domain}:\n${indent}  insert records {d3: value}\n  return 7\n`,
   runs:[{args:{},error:"E_INPUT: missing arg values"},{args:{values:"Null"},result:7,rows:[]},{args:{values:list()},result:7,rows:[]},
     {args:{values:list(4321)},result:7,rows:[4321]},{args:{values:list(1,2,3)},result:7,rows:[1,2,3]},
@@ -62,7 +61,7 @@ for (const [setup, domain, indent] of [
   ["", "values", "  "], ["  alias = values\n", "alias", "  "],
   ["  box = {values}\n", "box.values", "  "], ["", "values ?? more", "  "],
   ["  if values != null:\n    return 1\n  else:\n", "values", "    "],
-] as const) domainOperandCases.push({name:`public absence refusal ${setup} ${domain}`,public:true,refusal:domain==="values ?? more"?"E_OPAQUE":"E_QUARRY_UNKNOWN",
+] as const) domainOperandCases.push({name:`public absence refusal ${setup} ${domain}`,public:true,refusal:"E_QUARRY_TYPE",
   source:`mutation probe(values: [decimal 3] <=3 ?, more: [decimal 3] <=7 ?):\n${setup}${indent}for value in ${domain}:\n${indent}  insert records {d3: value}\n  return 7\n`});
 for (const fallback of ["[2,3,4,5]", "more ?? [2,3,4,5]"]) domainOperandCases.push({
   name:`public larger literal fallback ${fallback}`,public:true,max:5,
@@ -171,7 +170,8 @@ export function registerDomainOperandChecks(test: Test): void {
       const walk=(v:any):void=>{if(!v||typeof v!=="object")return;if(v.For)domains.push(v.For.domain);Object.values(v).forEach(walk);};
       walk(full.project.programs[0]!.body);
       if(item.max!==undefined){assert(domains.length>0,JSON.stringify(full));assert.equal(Math.max(...domains.map(d=>d.ArgList?.max??d.DerivedArray?.max)),item.max);}
-      if(item.argumentDomain){assert(domains.length>0);for(const d of domains)assert.equal(d.ArgList?.name,item.argumentDomain);}
+      if(item.argumentDomain){assert(domains.length>0);for(const d of domains)assert.equal(
+        d.ArgList?.name ?? d.DerivedArray?.value?.Variable,item.argumentDomain);}
       if(item.merge){assert(JSON.stringify(full.project.programs[0]!.body).includes('"Merge"'));return;}
       for(const run of item.runs??[]){
         if(run.error){assert.throws(()=>custodyActual(full,run.args),new RegExp(run.error));continue;}

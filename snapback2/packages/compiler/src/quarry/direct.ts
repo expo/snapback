@@ -8,6 +8,7 @@ type Lowering = {
   accessOrdinal: number;
   temporaryOrdinal: number;
   operandOrdinal: number;
+  usesReadTime: boolean;
   reservedNames: Set<string>;
   focals: Map<string, Expr>;
   bindings: Map<string, Expr>;
@@ -16,7 +17,7 @@ type LoweredValue = { setup: Stmt[]; value: Expr };
 
 export function lowerBoundQuarryProgram(program: BoundQuarryProgram): Program {
   const lowering: Lowering = {
-    program: program.name, accessOrdinal: 0, temporaryOrdinal: 0, operandOrdinal: 0,
+    program: program.name, accessOrdinal: 0, temporaryOrdinal: 0, operandOrdinal: 0, usesReadTime: false,
     reservedNames: new Set([...program.args.map((arg) => arg.name), ...boundLocalNames(program.body)]),
     focals: new Map(), bindings: new Map(),
   };
@@ -31,7 +32,7 @@ export function lowerBoundQuarryProgram(program: BoundQuarryProgram): Program {
     args: Object.fromEntries([...program.args]
       .sort((left, right) => left.name.localeCompare(right.name))
       .map((arg) => [arg.name, lowerArgType(arg.type)])),
-    read_time_granularity_ms: null,
+    read_time_granularity_ms: lowering.usesReadTime ? 1 : null,
     body,
   };
 }
@@ -49,7 +50,10 @@ function lowerExpression(expression: BoundExpression, lowering: Lowering): Lower
     if (!value) throw new Error(`bound focal ${expression.id} has no lowering scope`);
     return { setup: [], value };
   }
-  if (expression.kind === "input") return { setup: [], value: { Input: expression.input } };
+  if (expression.kind === "input") {
+    if (expression.input === "ReadTime") lowering.usesReadTime = true;
+    return { setup: [], value: { Input: expression.input } };
+  }
   if (expression.kind === "array") {
     const items = lowerMany(expression.items, lowering);
     return { setup: items.setup, value: { Array: items.values } };
@@ -340,13 +344,13 @@ function lowerWrite(
     const row = lowerWriteFields(fields, lowering, new Map());
     accessSite(lowering);
     if (!resultUsed) return {
-      setup: [...row.setup, { Insert: { table: expression.table.name, row: row.value } }],
+      setup: [...row.setup, { Insert: { table: dataTableName(expression.table.name), row: row.value } }],
       value: { Literal: "Null" },
     };
     const rowName = temporary(lowering, "insertRow");
     return {
       setup: [...row.setup, { Const: { name: rowName, value: row.value } },
-        { Insert: { table: expression.table.name, row: { Variable: rowName } } }],
+        { Insert: { table: dataTableName(expression.table.name), row: { Variable: rowName } } }],
       value: { Variable: rowName },
     };
   }
@@ -360,7 +364,7 @@ function lowerWrite(
   if (!directId || expression.usesFocal) {
     const rowName = temporary(lowering, "writeRow");
     setup.push({ Const: { name: rowName, value: { Get: {
-      site: accessSite(lowering), table: expression.table.name, index: expression.index.name,
+      site: accessSite(lowering), table: dataTableName(expression.table.name), index: expression.index.name,
       key: keyValues, provenance: expression.provenance,
     } } } });
     row = { Variable: rowName };
@@ -373,7 +377,7 @@ function lowerWrite(
   }
   if (expression.op === "delete") {
     accessSite(lowering);
-    setup.push({ Delete: { table: expression.table.name, key: identity } });
+    setup.push({ Delete: { table: dataTableName(expression.table.name), key: identity } });
     return { setup, value: { Literal: "Null" } };
   }
   if (expression.focal && row) lowering.focals.set(expression.focal.id, row);
@@ -385,7 +389,7 @@ function lowerWrite(
         expression.fields.filter((field) => !replacements.has(field.name)), lowering, new Map(),
       );
       accessSite(lowering);
-      setup.push(...patch.setup, { Update: { table: expression.table.name, key: identity, patch: patch.value } });
+      setup.push(...patch.setup, { Update: { table: dataTableName(expression.table.name), key: identity, patch: patch.value } });
     } else {
       if (!directId) {
         const identityName = temporary(lowering, "upsertId");
@@ -409,7 +413,7 @@ function lowerWrite(
         ...injected, ...expression.fields,
       ], lowering, replacements);
       accessSite(lowering);
-      setup.push(...builtRow.setup, { Upsert: { table: expression.table.name, key: identity, row: builtRow.value } });
+      setup.push(...builtRow.setup, { Upsert: { table: dataTableName(expression.table.name), key: identity, row: builtRow.value } });
     }
   } finally {
     if (expression.focal && row) lowering.focals.delete(expression.focal.id);
@@ -417,7 +421,7 @@ function lowerWrite(
   if (!resultUsed) return { setup, value: { Literal: "Null" } };
   return {
     setup,
-    value: { Get: { site: accessSite(lowering), table: expression.table.name, index: "byId",
+    value: { Get: { site: accessSite(lowering), table: dataTableName(expression.table.name), index: "byId",
       key: [identity], provenance: expression.provenance } },
   };
 }
@@ -613,14 +617,14 @@ function lowerPointRead(read: BoundRead, kind: "get" | "exists", lowering: Lower
   const site = accessSite(lowering);
   const key = lowerMany(read.key, lowering);
   const readValue = { [kind === "get" ? "Get" : "Exists"]: {
-    site, table: read.table.name, index: read.index.name,
+    site, table: dataTableName(read.table.name), index: read.index.name,
     key: key.values.map((value, index) => keyValue(read.key[index]!, value)), provenance: read.provenance,
   } } as Expr;
   if (read.skipNullKey) {
     if (kind !== "get" || key.values.length !== 1) throw new Error("null-skipping point read is not a unary get");
     const keyName = temporary(lowering, "derefKey");
     const resultName = temporary(lowering, "derefResult");
-    const deferred: Expr = { Get: { site, table: read.table.name, index: read.index.name,
+    const deferred: Expr = { Get: { site, table: dataTableName(read.table.name), index: read.index.name,
       key: [{ Variable: keyName }], provenance: read.provenance } };
     return {
       setup: [...key.setup,
@@ -659,7 +663,7 @@ function lowerScan(read: BoundRead, lowering: Lowering, captureKeys = true): Low
   return {
     setup: [...key.setup, ...after.setup],
     value: { Scan: {
-      site, table: read.table.name, index: read.index.name, prefix,
+      site, table: dataTableName(read.table.name), index: read.index.name, prefix,
       order: range.order, take: { Literal: range.take }, after: after.value,
       before: null, range: null,
       ...(range.opaqueCursor ? { opaque_cursor: true } : {}),
@@ -701,7 +705,7 @@ function lowerMerge(
       return { column: item.column, value: atom.Scalar };
     });
     merge.held_search = {
-      table: expression.table.name, index: expression.index.name, term: term.WordPrefix, scope,
+      table: dataTableName(expression.table.name), index: expression.index.name, term: term.WordPrefix, scope,
       suffix: expression.heldSearch.suffix, order: lane.scan.order, take: lane.scan.take, after: lane.scan.after,
       discovery: { scan: lane.source, binding: lane.binding,
         authorization_index: expression.heldSearch.authorizationIndex },
@@ -771,6 +775,8 @@ function accessSite(lowering: Lowering): string {
   lowering.accessOrdinal += 1;
   return site;
 }
+
+function dataTableName(name: string): string { return name === "connected" ? "_connected" : name; }
 
 function temporary(lowering: Lowering, stem: string): string {
   while (true) {
