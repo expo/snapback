@@ -1,0 +1,26 @@
+{
+  "at": "2026-09-07T20:48:04.267188+00:00",
+  "sourceCommit": "a606383b6e5ad7cf79555bbc4b810d6cf6ea0e92",
+  "accepted": "Scoped standard Darwin dry functional qualification",
+  "actualNativeAndOuterExit": 0,
+  "reportFullRead": "e6621e",
+  "originalLogFullRead": "76862b",
+  "independentArtifactAndCompilerSourceVerification": "26cb5b",
+  "fullPopulationCheckVerdictsRead": "453507",
+  "functionalResults": 19,
+  "receiptChecks": {
+    "todos": 6,
+    "chat": 30
+  },
+  "timing": {
+    "verdict": "RED",
+    "chatCheckSeconds": 1.056743167,
+    "targetSecondsExclusive": 1,
+    "sequentialStepsSeconds": 20.90959875,
+    "packThroughConsumerContainingSeconds": 22.63885,
+    "exactConsumerDurationClaim": false
+  },
+  "disposition": "Proceed with exact qualified017 artifact publication preparation under existing unattended rapid-publication authority, preserving original timing red. No requalification solely for this inherited class of timing miss. Root reads concrete publication capsule before execution.",
+  "comparativeWin": false,
+  "publicationExecuted": false
+}

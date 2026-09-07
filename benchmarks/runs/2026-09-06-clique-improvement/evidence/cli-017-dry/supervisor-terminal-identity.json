@@ -1,0 +1,17 @@
+{
+  "outerTool": 35985,
+  "actualOuterExitCode": 0,
+  "actualOuterChunk": "713e17",
+  "actualOuterOutput": {
+    "actualNativeExitCode": 0,
+    "identityCollectorExitCode": 0,
+    "changedInputs": []
+  },
+  "nativeTerminal": "terminal.json",
+  "nativeTerminalSha256": "1bf5e6a4bf6b4e46e9b3d48346d9108c5f7bf58050800aebfd2ab10d96c70fcc",
+  "report": "REPORT.md",
+  "reportBytes": 10526,
+  "reportSha256": "40455e21764737208f8a219e0f5c0e06b078229ef7ab52f2a6cb8f1b85fdc971",
+  "scope": "Functional dry PASS; timing RED; no publication",
+  "priorSupervisorIdentity": "supervisor-launch-identity.json"
+}

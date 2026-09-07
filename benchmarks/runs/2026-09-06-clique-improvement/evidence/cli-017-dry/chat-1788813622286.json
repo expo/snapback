@@ -1,0 +1,3266 @@
+{
+  "binary": {
+    "version": "0.0.17",
+    "digest": "rust64:9e527e09a7b19523"
+  },
+  "generation": "2522868fdb75334deae2867f590cfd8f47a65dcf84b462cc4c40b29c064eec72",
+  "commands": [
+    "snapback2 dev --foreground --port 0",
+    "seed",
+    "snapback2 test"
+  ],
+  "checks": [
+    {
+      "name": "certify",
+      "kind": "derived",
+      "verdict": "pass",
+      "ms": 652,
+      "detail": {
+        "operations": 26
+      }
+    },
+    {
+      "name": "rules",
+      "kind": "derived",
+      "verdict": "pass",
+      "ms": 39,
+      "detail": {
+        "actualBy": "data",
+        "blocked": [],
+        "coverage": "every stored row and seed persona for each completed table; no row sampling",
+        "expectedBy": "engine",
+        "probeLimit": 16384,
+        "probes": 68,
+        "tables": {
+          "conversations": {
+            "personas": 4,
+            "probes": 8,
+            "seedRows": 2
+          },
+          "deliveries": {
+            "personas": 4,
+            "probes": 16,
+            "seedRows": 4
+          },
+          "memberCounts": {
+            "personas": 4,
+            "probes": 8,
+            "seedRows": 0
+          },
+          "memberships": {
+            "personas": 4,
+            "probes": 16,
+            "seedRows": 4
+          },
+          "messageCounts": {
+            "personas": 4,
+            "probes": 8,
+            "seedRows": 0
+          },
+          "messages": {
+            "personas": 4,
+            "probes": 8,
+            "seedRows": 2
+          },
+          "notifications": {
+            "personas": 4,
+            "probes": 4,
+            "seedRows": 1
+          }
+        }
+      }
+    },
+    {
+      "name": "bounds",
+      "kind": "derived",
+      "verdict": "pass",
+      "ms": 9,
+      "detail": {
+        "blocked": [],
+        "enforcedBy": "engine",
+        "executions": [
+          {
+            "as": "alice",
+            "examined": {
+              "actual": 4,
+              "ceiling": 102
+            },
+            "op": "deliveries.inbox",
+            "readSites": [
+              {
+                "calls": {
+                  "actual": 1,
+                  "ceiling": 1
+                },
+                "site": "deliveries.inbox.0",
+                "take": 50
+              },
+              {
+                "calls": {
+                  "actual": 2,
+                  "ceiling": 50
+                },
+                "site": "deliveries.inbox.1",
+                "take": 1
+              }
+            ],
+            "ruleProbes": {
+              "actual": 4,
+              "ceiling": 100
+            },
+            "steps": {
+              "actual": 46,
+              "ceiling": 1322
+            }
+          },
+          {
+            "as": "bob",
+            "examined": {
+              "actual": 2,
+              "ceiling": 102
+            },
+            "op": "deliveries.inbox",
+            "readSites": [
+              {
+                "calls": {
+                  "actual": 1,
+                  "ceiling": 1
+                },
+                "site": "deliveries.inbox.0",
+                "take": 50
+              },
+              {
+                "calls": {
+                  "actual": 1,
+                  "ceiling": 50
+                },
+                "site": "deliveries.inbox.1",
+                "take": 1
+              }
+            ],
+            "ruleProbes": {
+              "actual": 2,
+              "ceiling": 100
+            },
+            "steps": {
+              "actual": 29,
+              "ceiling": 1322
+            }
+          },
+          {
+            "as": "charlie",
+            "examined": {
+              "actual": 2,
+              "ceiling": 102
+            },
+            "op": "deliveries.inbox",
+            "readSites": [
+              {
+                "calls": {
+                  "actual": 1,
+                  "ceiling": 1
+                },
+                "site": "deliveries.inbox.0",
+                "take": 50
+              },
+              {
+                "calls": {
+                  "actual": 1,
+                  "ceiling": 50
+                },
+                "site": "deliveries.inbox.1",
+                "take": 1
+              }
+            ],
+            "ruleProbes": {
+              "actual": 2,
+              "ceiling": 100
+            },
+            "steps": {
+              "actual": 29,
+              "ceiling": 1322
+            }
+          },
+          {
+            "as": "alice",
+            "examined": {
+              "actual": 3,
+              "ceiling": 103
+            },
+            "op": "deliveries.thread",
+            "readSites": [
+              {
+                "calls": {
+                  "actual": 1,
+                  "ceiling": 1
+                },
+                "site": "deliveries.thread.0",
+                "take": 1
+              },
+              {
+                "calls": {
+                  "actual": 1,
+                  "ceiling": 1
+                },
+                "site": "deliveries.thread.1",
+                "take": 50
+              },
+              {
+                "calls": {
+                  "actual": 1,
+                  "ceiling": 50
+                },
+                "site": "deliveries.thread.2",
+                "take": 1
+              }
+            ],
+            "ruleProbes": {
+              "actual": 2,
+              "ceiling": 102
+            },
+            "steps": {
+              "actual": 34,
+              "ceiling": 1331
+            }
+          },
+          {
+            "as": "bob",
+            "examined": {
+              "actual": 3,
+              "ceiling": 103
+            },
+            "op": "deliveries.thread",
+            "readSites": [
+              {
+                "calls": {
+                  "actual": 1,
+                  "ceiling": 1
+                },
+                "site": "deliveries.thread.0",
+                "take": 1
+              },
+              {
+                "calls": {
+                  "actual": 1,
+                  "ceiling": 1
+                },
+                "site": "deliveries.thread.1",
+                "take": 50
+              },
+              {
+                "calls": {
+                  "actual": 1,
+                  "ceiling": 50
+                },
+                "site": "deliveries.thread.2",
+                "take": 1
+              }
+            ],
+            "ruleProbes": {
+              "actual": 2,
+              "ceiling": 102
+            },
+            "steps": {
+              "actual": 34,
+              "ceiling": 1331
+            }
+          },
+          {
+            "as": "charlie",
+            "examined": {
+              "actual": 0,
+              "ceiling": 103
+            },
+            "op": "deliveries.thread",
+            "readSites": [
+              {
+                "calls": {
+                  "actual": 1,
+                  "ceiling": 1
+                },
+                "site": "deliveries.thread.0",
+                "take": 1
+              },
+              {
+                "calls": {
+                  "actual": 0,
+                  "ceiling": 1
+                },
+                "site": "deliveries.thread.1",
+                "take": 50
+              },
+              {
+                "calls": {
+                  "actual": 0,
+                  "ceiling": 50
+                },
+                "site": "deliveries.thread.2",
+                "take": 1
+              }
+            ],
+            "ruleProbes": {
+              "actual": 0,
+              "ceiling": 102
+            },
+            "steps": {
+              "actual": 4,
+              "ceiling": 1331
+            }
+          },
+          {
+            "as": "alice",
+            "examined": {
+              "actual": 2,
+              "ceiling": 145
+            },
+            "op": "feeds.followingFeed",
+            "readSites": [
+              {
+                "calls": {
+                  "actual": 1,
+                  "ceiling": 1
+                },
+                "site": "feeds.followingFeed.0",
+                "take": 20
+              },
+              {
+                "calls": {
+                  "actual": 1,
+                  "ceiling": 1
+                },
+                "site": "feeds.followingFeed.1",
+                "take": 50
+              },
+              {
+                "calls": {
+                  "actual": 0,
+                  "ceiling": 50
+                },
+                "site": "feeds.followingFeed.2",
+                "take": 20
+              },
+              {
+                "calls": {
+                  "actual": 1,
+                  "ceiling": 20
+                },
+                "site": "feeds.followingFeed.3",
+                "take": 1
+              }
+            ],
+            "ruleProbes": {
+              "actual": 0,
+              "ceiling": 0
+            },
+            "steps": {
+              "actual": 36,
+              "ceiling": 2874
+            }
+          },
+          {
+            "as": "bob",
+            "examined": {
+              "actual": 5,
+              "ceiling": 145
+            },
+            "op": "feeds.followingFeed",
+            "readSites": [
+              {
+                "calls": {
+                  "actual": 1,
+                  "ceiling": 1
+                },
+                "site": "feeds.followingFeed.0",
+                "take": 20
+              },
+              {
+                "calls": {
+                  "actual": 1,
+                  "ceiling": 1
+                },
+                "site": "feeds.followingFeed.1",
+                "take": 50
+              },
+              {
+                "calls": {
+                  "actual": 1,
+                  "ceiling": 50
+                },
+                "site": "feeds.followingFeed.2",
+                "take": 20
+              },
+              {
+                "calls": {
+                  "actual": 2,
+                  "ceiling": 20
+                },
+                "site": "feeds.followingFeed.3",
+                "take": 1
+              }
+            ],
+            "ruleProbes": {
+              "actual": 0,
+              "ceiling": 0
+            },
+            "steps": {
+              "actual": 63,
+              "ceiling": 2874
+            }
+          },
+          {
+            "as": "charlie",
+            "examined": {
+              "actual": 0,
+              "ceiling": 145
+            },
+            "op": "feeds.followingFeed",
+            "readSites": [
+              {
+                "calls": {
+                  "actual": 1,
+                  "ceiling": 1
+                },
+                "site": "feeds.followingFeed.0",
+                "take": 20
+              },
+              {
+                "calls": {
+                  "actual": 1,
+                  "ceiling": 1
+                },
+                "site": "feeds.followingFeed.1",
+                "take": 50
+              },
+              {
+                "calls": {
+                  "actual": 0,
+                  "ceiling": 50
+                },
+                "site": "feeds.followingFeed.2",
+                "take": 20
+              },
+              {
+                "calls": {
+                  "actual": 0,
+                  "ceiling": 20
+                },
+                "site": "feeds.followingFeed.3",
+                "take": 1
+              }
+            ],
+            "ruleProbes": {
+              "actual": 0,
+              "ceiling": 0
+            },
+            "steps": {
+              "actual": 14,
+              "ceiling": 2874
+            }
+          },
+          {
+            "as": "alice",
+            "examined": {
+              "actual": 4,
+              "ceiling": 42
+            },
+            "op": "feeds.globalFeed",
+            "readSites": [
+              {
+                "calls": {
+                  "actual": 1,
+                  "ceiling": 1
+                },
+                "site": "feeds.globalFeed.0",
+                "take": 20
+              },
+              {
+                "calls": {
+                  "actual": 2,
+                  "ceiling": 20
+                },
+                "site": "feeds.globalFeed.1",
+                "take": 1
+              }
+            ],
+            "ruleProbes": {
+              "actual": 0,
+              "ceiling": 0
+            },
+            "steps": {
+              "actual": 51,
+              "ceiling": 601
+            }
+          },
+          {
+            "as": "bob",
+            "examined": {
+              "actual": 4,
+              "ceiling": 42
+            },
+            "op": "feeds.globalFeed",
+            "readSites": [
+              {
+                "calls": {
+                  "actual": 1,
+                  "ceiling": 1
+                },
+                "site": "feeds.globalFeed.0",
+                "take": 20
+              },
+              {
+                "calls": {
+                  "actual": 2,
+                  "ceiling": 20
+                },
+                "site": "feeds.globalFeed.1",
+                "take": 1
+              }
+            ],
+            "ruleProbes": {
+              "actual": 0,
+              "ceiling": 0
+            },
+            "steps": {
+              "actual": 51,
+              "ceiling": 601
+            }
+          },
+          {
+            "as": "charlie",
+            "examined": {
+              "actual": 4,
+              "ceiling": 42
+            },
+            "op": "feeds.globalFeed",
+            "readSites": [
+              {
+                "calls": {
+                  "actual": 1,
+                  "ceiling": 1
+                },
+                "site": "feeds.globalFeed.0",
+                "take": 20
+              },
+              {
+                "calls": {
+                  "actual": 2,
+                  "ceiling": 20
+                },
+                "site": "feeds.globalFeed.1",
+                "take": 1
+              }
+            ],
+            "ruleProbes": {
+              "actual": 0,
+              "ceiling": 0
+            },
+            "steps": {
+              "actual": 51,
+              "ceiling": 601
+            }
+          },
+          {
+            "as": "alice",
+            "examined": {
+              "actual": 3,
+              "ceiling": 3
+            },
+            "op": "messages.summary",
+            "readSites": [
+              {
+                "calls": {
+                  "actual": 1,
+                  "ceiling": 1
+                },
+                "site": "messages.summary.0",
+                "take": 1
+              },
+              {
+                "calls": {
+                  "actual": 1,
+                  "ceiling": 1
+                },
+                "site": "messages.summary.1",
+                "take": 1
+              },
+              {
+                "calls": {
+                  "actual": 1,
+                  "ceiling": 1
+                },
+                "site": "messages.summary.2",
+                "take": 1
+              }
+            ],
+            "ruleProbes": {
+              "actual": 3,
+              "ceiling": 6
+            },
+            "steps": {
+              "actual": 10,
+              "ceiling": 22
+            }
+          },
+          {
+            "as": "bob",
+            "examined": {
+              "actual": 3,
+              "ceiling": 3
+            },
+            "op": "messages.summary",
+            "readSites": [
+              {
+                "calls": {
+                  "actual": 1,
+                  "ceiling": 1
+                },
+                "site": "messages.summary.0",
+                "take": 1
+              },
+              {
+                "calls": {
+                  "actual": 1,
+                  "ceiling": 1
+                },
+                "site": "messages.summary.1",
+                "take": 1
+              },
+              {
+                "calls": {
+                  "actual": 1,
+                  "ceiling": 1
+                },
+                "site": "messages.summary.2",
+                "take": 1
+              }
+            ],
+            "ruleProbes": {
+              "actual": 3,
+              "ceiling": 6
+            },
+            "steps": {
+              "actual": 10,
+              "ceiling": 22
+            }
+          },
+          {
+            "as": "charlie",
+            "examined": {
+              "actual": 0,
+              "ceiling": 3
+            },
+            "op": "messages.summary",
+            "readSites": [
+              {
+                "calls": {
+                  "actual": 1,
+                  "ceiling": 1
+                },
+                "site": "messages.summary.0",
+                "take": 1
+              },
+              {
+                "calls": {
+                  "actual": 0,
+                  "ceiling": 1
+                },
+                "site": "messages.summary.1",
+                "take": 1
+              },
+              {
+                "calls": {
+                  "actual": 0,
+                  "ceiling": 1
+                },
+                "site": "messages.summary.2",
+                "take": 1
+              }
+            ],
+            "ruleProbes": {
+              "actual": 0,
+              "ceiling": 6
+            },
+            "steps": {
+              "actual": 4,
+              "ceiling": 22
+            }
+          },
+          {
+            "as": "alice",
+            "examined": {
+              "actual": 2,
+              "ceiling": 53
+            },
+            "op": "messages.thread",
+            "readSites": [
+              {
+                "calls": {
+                  "actual": 1,
+                  "ceiling": 1
+                },
+                "site": "messages.thread.0",
+                "take": 1
+              },
+              {
+                "calls": {
+                  "actual": 1,
+                  "ceiling": 1
+                },
+                "site": "messages.thread.1",
+                "take": 50
+              }
+            ],
+            "ruleProbes": {
+              "actual": 2,
+              "ceiling": 4
+            },
+            "steps": {
+              "actual": 8,
+              "ceiling": 272
+            }
+          },
+          {
+            "as": "bob",
+            "examined": {
+              "actual": 2,
+              "ceiling": 53
+            },
+            "op": "messages.thread",
+            "readSites": [
+              {
+                "calls": {
+                  "actual": 1,
+                  "ceiling": 1
+                },
+                "site": "messages.thread.0",
+                "take": 1
+              },
+              {
+                "calls": {
+                  "actual": 1,
+                  "ceiling": 1
+                },
+                "site": "messages.thread.1",
+                "take": 50
+              }
+            ],
+            "ruleProbes": {
+              "actual": 2,
+              "ceiling": 4
+            },
+            "steps": {
+              "actual": 8,
+              "ceiling": 272
+            }
+          },
+          {
+            "as": "charlie",
+            "examined": {
+              "actual": 0,
+              "ceiling": 53
+            },
+            "op": "messages.thread",
+            "readSites": [
+              {
+                "calls": {
+                  "actual": 1,
+                  "ceiling": 1
+                },
+                "site": "messages.thread.0",
+                "take": 1
+              },
+              {
+                "calls": {
+                  "actual": 0,
+                  "ceiling": 1
+                },
+                "site": "messages.thread.1",
+                "take": 50
+              }
+            ],
+            "ruleProbes": {
+              "actual": 0,
+              "ceiling": 4
+            },
+            "steps": {
+              "actual": 4,
+              "ceiling": 272
+            }
+          },
+          {
+            "as": "alice",
+            "examined": {
+              "actual": 0,
+              "ceiling": 1
+            },
+            "op": "profiles.byHandle",
+            "readSites": [
+              {
+                "calls": {
+                  "actual": 1,
+                  "ceiling": 1
+                },
+                "site": "profiles.byHandle.0",
+                "take": 1
+              }
+            ],
+            "ruleProbes": {
+              "actual": 0,
+              "ceiling": 0
+            },
+            "steps": {
+              "actual": 3,
+              "ceiling": 7
+            }
+          },
+          {
+            "as": "bob",
+            "examined": {
+              "actual": 0,
+              "ceiling": 1
+            },
+            "op": "profiles.byHandle",
+            "readSites": [
+              {
+                "calls": {
+                  "actual": 1,
+                  "ceiling": 1
+                },
+                "site": "profiles.byHandle.0",
+                "take": 1
+              }
+            ],
+            "ruleProbes": {
+              "actual": 0,
+              "ceiling": 0
+            },
+            "steps": {
+              "actual": 3,
+              "ceiling": 7
+            }
+          },
+          {
+            "as": "charlie",
+            "examined": {
+              "actual": 0,
+              "ceiling": 1
+            },
+            "op": "profiles.byHandle",
+            "readSites": [
+              {
+                "calls": {
+                  "actual": 1,
+                  "ceiling": 1
+                },
+                "site": "profiles.byHandle.0",
+                "take": 1
+              }
+            ],
+            "ruleProbes": {
+              "actual": 0,
+              "ceiling": 0
+            },
+            "steps": {
+              "actual": 3,
+              "ceiling": 7
+            }
+          },
+          {
+            "as": "alice",
+            "examined": {
+              "actual": 1,
+              "ceiling": 1
+            },
+            "op": "profiles.mine",
+            "readSites": [
+              {
+                "calls": {
+                  "actual": 1,
+                  "ceiling": 1
+                },
+                "site": "profiles.mine.0",
+                "take": 1
+              }
+            ],
+            "ruleProbes": {
+              "actual": 0,
+              "ceiling": 0
+            },
+            "steps": {
+              "actual": 3,
+              "ceiling": 7
+            }
+          },
+          {
+            "as": "bob",
+            "examined": {
+              "actual": 1,
+              "ceiling": 1
+            },
+            "op": "profiles.mine",
+            "readSites": [
+              {
+                "calls": {
+                  "actual": 1,
+                  "ceiling": 1
+                },
+                "site": "profiles.mine.0",
+                "take": 1
+              }
+            ],
+            "ruleProbes": {
+              "actual": 0,
+              "ceiling": 0
+            },
+            "steps": {
+              "actual": 3,
+              "ceiling": 7
+            }
+          },
+          {
+            "as": "charlie",
+            "examined": {
+              "actual": 0,
+              "ceiling": 1
+            },
+            "op": "profiles.mine",
+            "readSites": [
+              {
+                "calls": {
+                  "actual": 1,
+                  "ceiling": 1
+                },
+                "site": "profiles.mine.0",
+                "take": 1
+              }
+            ],
+            "ruleProbes": {
+              "actual": 0,
+              "ceiling": 0
+            },
+            "steps": {
+              "actual": 3,
+              "ceiling": 7
+            }
+          }
+        ],
+        "probes": 24
+      }
+    },
+    {
+      "name": "invalidation",
+      "kind": "derived",
+      "verdict": "pass",
+      "ms": 4991,
+      "detail": {
+        "attemptLimitPerQuery": 64,
+        "attempts": 35,
+        "blocked": [],
+        "candidateLimit": 12,
+        "coverage": "one physical representative per query and certificate-intersection signature, plus concrete-disjoint silence per query; not every operation pair",
+        "deliveryProbes": 5,
+        "exclusions": 8,
+        "groups": [
+          {
+            "candidates": [
+              "follows.setFollow",
+              "posts.createPost",
+              "profiles.createMyProfile",
+              "profiles.updateMyProfile"
+            ],
+            "query": "deliveries.inbox",
+            "sites": [],
+            "witnessed": true
+          },
+          {
+            "candidates": [
+              "deliveries.edit",
+              "deliveries.post",
+              "deliveries.purgeMessage",
+              "deliveries.unsend",
+              "messages.send"
+            ],
+            "query": "deliveries.inbox",
+            "sites": [
+              [
+                "deliveries",
+                "byRecipientAt"
+              ],
+              [
+                "messages",
+                "byId"
+              ]
+            ],
+            "witnessed": true
+          },
+          {
+            "candidates": [
+              "groups.groupCreate",
+              "groups.memberAdd",
+              "groups.memberLeave",
+              "groups.memberPromote",
+              "groups.memberRemove"
+            ],
+            "query": "deliveries.inbox",
+            "sites": [
+              [
+                "memberships",
+                "byConversationPrincipal"
+              ]
+            ],
+            "witnessed": true
+          },
+          {
+            "candidates": [
+              "follows.setFollow",
+              "posts.createPost",
+              "profiles.createMyProfile",
+              "profiles.updateMyProfile"
+            ],
+            "query": "deliveries.thread",
+            "sites": [],
+            "witnessed": true
+          },
+          {
+            "candidates": [
+              "deliveries.edit",
+              "deliveries.post",
+              "deliveries.purgeMessage",
+              "deliveries.unsend",
+              "messages.send"
+            ],
+            "query": "deliveries.thread",
+            "sites": [
+              [
+                "deliveries",
+                "byRecipientConversationAt"
+              ],
+              [
+                "messages",
+                "byId"
+              ]
+            ],
+            "witnessed": true
+          },
+          {
+            "candidates": [
+              "groups.groupCreate",
+              "groups.memberAdd",
+              "groups.memberLeave",
+              "groups.memberPromote",
+              "groups.memberRemove"
+            ],
+            "query": "deliveries.thread",
+            "sites": [
+              [
+                "memberships",
+                "byConversationPrincipal"
+              ]
+            ],
+            "witnessed": true
+          },
+          {
+            "candidates": [
+              "deliveries.edit",
+              "deliveries.post",
+              "deliveries.purgeMessage",
+              "deliveries.unsend",
+              "groups.groupCreate",
+              "groups.memberAdd",
+              "groups.memberLeave",
+              "groups.memberPromote",
+              "groups.memberRemove",
+              "messages.send"
+            ],
+            "query": "feeds.followingFeed",
+            "sites": [],
+            "witnessed": true
+          },
+          {
+            "candidates": [
+              "follows.setFollow"
+            ],
+            "query": "feeds.followingFeed",
+            "sites": [
+              [
+                "follows",
+                "byFollower"
+              ]
+            ],
+            "witnessed": true
+          },
+          {
+            "candidates": [
+              "posts.createPost"
+            ],
+            "query": "feeds.followingFeed",
+            "sites": [
+              [
+                "posts",
+                "byAuthorTime"
+              ]
+            ],
+            "witnessed": true
+          },
+          {
+            "candidates": [
+              "profiles.createMyProfile",
+              "profiles.updateMyProfile"
+            ],
+            "query": "feeds.followingFeed",
+            "sites": [
+              [
+                "profiles",
+                "byPrincipal"
+              ]
+            ],
+            "witnessed": true
+          },
+          {
+            "candidates": [
+              "deliveries.edit",
+              "deliveries.post",
+              "deliveries.purgeMessage",
+              "deliveries.unsend",
+              "follows.setFollow",
+              "groups.groupCreate",
+              "groups.memberAdd",
+              "groups.memberLeave",
+              "groups.memberPromote",
+              "groups.memberRemove",
+              "messages.send"
+            ],
+            "query": "feeds.globalFeed",
+            "sites": [],
+            "witnessed": true
+          },
+          {
+            "candidates": [
+              "posts.createPost"
+            ],
+            "query": "feeds.globalFeed",
+            "sites": [
+              [
+                "posts",
+                "byTime"
+              ]
+            ],
+            "witnessed": true
+          },
+          {
+            "candidates": [
+              "profiles.createMyProfile",
+              "profiles.updateMyProfile"
+            ],
+            "query": "feeds.globalFeed",
+            "sites": [
+              [
+                "profiles",
+                "byPrincipal"
+              ]
+            ],
+            "witnessed": true
+          },
+          {
+            "candidates": [
+              "deliveries.edit",
+              "deliveries.post",
+              "deliveries.purgeMessage",
+              "deliveries.unsend",
+              "follows.setFollow",
+              "messages.send",
+              "posts.createPost",
+              "profiles.createMyProfile",
+              "profiles.updateMyProfile"
+            ],
+            "query": "messages.summary",
+            "sites": [],
+            "witnessed": true
+          },
+          {
+            "candidates": [
+              "groups.groupCreate"
+            ],
+            "query": "messages.summary",
+            "sites": [
+              [
+                "conversations",
+                "byId"
+              ],
+              [
+                "memberships",
+                "byConversationPrincipal"
+              ]
+            ],
+            "witnessed": true
+          },
+          {
+            "candidates": [
+              "groups.memberAdd",
+              "groups.memberLeave",
+              "groups.memberPromote",
+              "groups.memberRemove"
+            ],
+            "query": "messages.summary",
+            "sites": [
+              [
+                "memberships",
+                "byConversationPrincipal"
+              ]
+            ],
+            "witnessed": true
+          },
+          {
+            "candidates": [
+              "follows.setFollow",
+              "posts.createPost",
+              "profiles.createMyProfile",
+              "profiles.updateMyProfile"
+            ],
+            "query": "messages.thread",
+            "sites": [],
+            "witnessed": true
+          },
+          {
+            "candidates": [
+              "groups.groupCreate",
+              "groups.memberAdd",
+              "groups.memberLeave",
+              "groups.memberPromote",
+              "groups.memberRemove"
+            ],
+            "query": "messages.thread",
+            "sites": [
+              [
+                "memberships",
+                "byConversationPrincipal"
+              ]
+            ],
+            "witnessed": true
+          },
+          {
+            "candidates": [
+              "deliveries.edit",
+              "deliveries.post",
+              "deliveries.purgeMessage",
+              "deliveries.unsend",
+              "messages.send"
+            ],
+            "query": "messages.thread",
+            "sites": [
+              [
+                "messages",
+                "byConvTime"
+              ]
+            ],
+            "witnessed": true
+          },
+          {
+            "candidates": [
+              "deliveries.edit",
+              "deliveries.post",
+              "deliveries.purgeMessage",
+              "deliveries.unsend",
+              "follows.setFollow",
+              "groups.groupCreate",
+              "groups.memberAdd",
+              "groups.memberLeave",
+              "groups.memberPromote",
+              "groups.memberRemove",
+              "messages.send",
+              "posts.createPost"
+            ],
+            "query": "profiles.byHandle",
+            "sites": [],
+            "witnessed": true
+          },
+          {
+            "candidates": [
+              "profiles.createMyProfile",
+              "profiles.updateMyProfile"
+            ],
+            "query": "profiles.byHandle",
+            "sites": [
+              [
+                "profiles",
+                "byHandle"
+              ]
+            ],
+            "witnessed": true
+          },
+          {
+            "candidates": [
+              "deliveries.edit",
+              "deliveries.post",
+              "deliveries.purgeMessage",
+              "deliveries.unsend",
+              "follows.setFollow",
+              "groups.groupCreate",
+              "groups.memberAdd",
+              "groups.memberLeave",
+              "groups.memberPromote",
+              "groups.memberRemove",
+              "messages.send",
+              "posts.createPost"
+            ],
+            "query": "profiles.mine",
+            "sites": [],
+            "witnessed": true
+          },
+          {
+            "candidates": [
+              "profiles.createMyProfile",
+              "profiles.updateMyProfile"
+            ],
+            "query": "profiles.mine",
+            "sites": [
+              [
+                "profiles",
+                "byPrincipal"
+              ]
+            ],
+            "witnessed": true
+          }
+        ],
+        "intersectionLevel": "exact authoritative trace key x commit touched key",
+        "intersections": [
+          {
+            "mutation": "deliveries.edit",
+            "query": "deliveries.inbox",
+            "sites": [
+              {
+                "index": "byRecipientAt",
+                "table": "deliveries"
+              },
+              {
+                "index": "byId",
+                "table": "messages"
+              }
+            ]
+          },
+          {
+            "mutation": "deliveries.post",
+            "query": "deliveries.inbox",
+            "sites": [
+              {
+                "index": "byRecipientAt",
+                "table": "deliveries"
+              },
+              {
+                "index": "byId",
+                "table": "messages"
+              }
+            ]
+          },
+          {
+            "mutation": "deliveries.purgeMessage",
+            "query": "deliveries.inbox",
+            "sites": [
+              {
+                "index": "byRecipientAt",
+                "table": "deliveries"
+              },
+              {
+                "index": "byId",
+                "table": "messages"
+              }
+            ]
+          },
+          {
+            "mutation": "deliveries.unsend",
+            "query": "deliveries.inbox",
+            "sites": [
+              {
+                "index": "byRecipientAt",
+                "table": "deliveries"
+              },
+              {
+                "index": "byId",
+                "table": "messages"
+              }
+            ]
+          },
+          {
+            "mutation": "groups.groupCreate",
+            "query": "deliveries.inbox",
+            "sites": [
+              {
+                "index": "byConversationPrincipal",
+                "table": "memberships"
+              }
+            ]
+          },
+          {
+            "mutation": "groups.memberAdd",
+            "query": "deliveries.inbox",
+            "sites": [
+              {
+                "index": "byConversationPrincipal",
+                "table": "memberships"
+              }
+            ]
+          },
+          {
+            "mutation": "groups.memberLeave",
+            "query": "deliveries.inbox",
+            "sites": [
+              {
+                "index": "byConversationPrincipal",
+                "table": "memberships"
+              }
+            ]
+          },
+          {
+            "mutation": "groups.memberPromote",
+            "query": "deliveries.inbox",
+            "sites": [
+              {
+                "index": "byConversationPrincipal",
+                "table": "memberships"
+              }
+            ]
+          },
+          {
+            "mutation": "groups.memberRemove",
+            "query": "deliveries.inbox",
+            "sites": [
+              {
+                "index": "byConversationPrincipal",
+                "table": "memberships"
+              }
+            ]
+          },
+          {
+            "mutation": "messages.send",
+            "query": "deliveries.inbox",
+            "sites": [
+              {
+                "index": "byRecipientAt",
+                "table": "deliveries"
+              },
+              {
+                "index": "byId",
+                "table": "messages"
+              }
+            ]
+          },
+          {
+            "mutation": "deliveries.edit",
+            "query": "deliveries.thread",
+            "sites": [
+              {
+                "index": "byRecipientConversationAt",
+                "table": "deliveries"
+              },
+              {
+                "index": "byId",
+                "table": "messages"
+              }
+            ]
+          },
+          {
+            "mutation": "deliveries.post",
+            "query": "deliveries.thread",
+            "sites": [
+              {
+                "index": "byRecipientConversationAt",
+                "table": "deliveries"
+              },
+              {
+                "index": "byId",
+                "table": "messages"
+              }
+            ]
+          },
+          {
+            "mutation": "deliveries.purgeMessage",
+            "query": "deliveries.thread",
+            "sites": [
+              {
+                "index": "byRecipientConversationAt",
+                "table": "deliveries"
+              },
+              {
+                "index": "byId",
+                "table": "messages"
+              }
+            ]
+          },
+          {
+            "mutation": "deliveries.unsend",
+            "query": "deliveries.thread",
+            "sites": [
+              {
+                "index": "byRecipientConversationAt",
+                "table": "deliveries"
+              },
+              {
+                "index": "byId",
+                "table": "messages"
+              }
+            ]
+          },
+          {
+            "mutation": "groups.groupCreate",
+            "query": "deliveries.thread",
+            "sites": [
+              {
+                "index": "byConversationPrincipal",
+                "table": "memberships"
+              }
+            ]
+          },
+          {
+            "mutation": "groups.memberAdd",
+            "query": "deliveries.thread",
+            "sites": [
+              {
+                "index": "byConversationPrincipal",
+                "table": "memberships"
+              }
+            ]
+          },
+          {
+            "mutation": "groups.memberLeave",
+            "query": "deliveries.thread",
+            "sites": [
+              {
+                "index": "byConversationPrincipal",
+                "table": "memberships"
+              }
+            ]
+          },
+          {
+            "mutation": "groups.memberPromote",
+            "query": "deliveries.thread",
+            "sites": [
+              {
+                "index": "byConversationPrincipal",
+                "table": "memberships"
+              }
+            ]
+          },
+          {
+            "mutation": "groups.memberRemove",
+            "query": "deliveries.thread",
+            "sites": [
+              {
+                "index": "byConversationPrincipal",
+                "table": "memberships"
+              }
+            ]
+          },
+          {
+            "mutation": "messages.send",
+            "query": "deliveries.thread",
+            "sites": [
+              {
+                "index": "byRecipientConversationAt",
+                "table": "deliveries"
+              },
+              {
+                "index": "byId",
+                "table": "messages"
+              }
+            ]
+          },
+          {
+            "mutation": "follows.setFollow",
+            "query": "feeds.followingFeed",
+            "sites": [
+              {
+                "index": "byFollower",
+                "table": "follows"
+              }
+            ]
+          },
+          {
+            "mutation": "posts.createPost",
+            "query": "feeds.followingFeed",
+            "sites": [
+              {
+                "index": "byAuthorTime",
+                "table": "posts"
+              }
+            ]
+          },
+          {
+            "mutation": "profiles.createMyProfile",
+            "query": "feeds.followingFeed",
+            "sites": [
+              {
+                "index": "byPrincipal",
+                "table": "profiles"
+              }
+            ]
+          },
+          {
+            "mutation": "profiles.updateMyProfile",
+            "query": "feeds.followingFeed",
+            "sites": [
+              {
+                "index": "byPrincipal",
+                "table": "profiles"
+              }
+            ]
+          },
+          {
+            "mutation": "posts.createPost",
+            "query": "feeds.globalFeed",
+            "sites": [
+              {
+                "index": "byTime",
+                "table": "posts"
+              }
+            ]
+          },
+          {
+            "mutation": "profiles.createMyProfile",
+            "query": "feeds.globalFeed",
+            "sites": [
+              {
+                "index": "byPrincipal",
+                "table": "profiles"
+              }
+            ]
+          },
+          {
+            "mutation": "profiles.updateMyProfile",
+            "query": "feeds.globalFeed",
+            "sites": [
+              {
+                "index": "byPrincipal",
+                "table": "profiles"
+              }
+            ]
+          },
+          {
+            "mutation": "groups.groupCreate",
+            "query": "messages.summary",
+            "sites": [
+              {
+                "index": "byId",
+                "table": "conversations"
+              },
+              {
+                "index": "byConversationPrincipal",
+                "table": "memberships"
+              }
+            ]
+          },
+          {
+            "mutation": "groups.memberAdd",
+            "query": "messages.summary",
+            "sites": [
+              {
+                "index": "byConversationPrincipal",
+                "table": "memberships"
+              }
+            ]
+          },
+          {
+            "mutation": "groups.memberLeave",
+            "query": "messages.summary",
+            "sites": [
+              {
+                "index": "byConversationPrincipal",
+                "table": "memberships"
+              }
+            ]
+          },
+          {
+            "mutation": "groups.memberPromote",
+            "query": "messages.summary",
+            "sites": [
+              {
+                "index": "byConversationPrincipal",
+                "table": "memberships"
+              }
+            ]
+          },
+          {
+            "mutation": "groups.memberRemove",
+            "query": "messages.summary",
+            "sites": [
+              {
+                "index": "byConversationPrincipal",
+                "table": "memberships"
+              }
+            ]
+          },
+          {
+            "mutation": "deliveries.edit",
+            "query": "messages.thread",
+            "sites": [
+              {
+                "index": "byConvTime",
+                "table": "messages"
+              }
+            ]
+          },
+          {
+            "mutation": "deliveries.post",
+            "query": "messages.thread",
+            "sites": [
+              {
+                "index": "byConvTime",
+                "table": "messages"
+              }
+            ]
+          },
+          {
+            "mutation": "deliveries.purgeMessage",
+            "query": "messages.thread",
+            "sites": [
+              {
+                "index": "byConvTime",
+                "table": "messages"
+              }
+            ]
+          },
+          {
+            "mutation": "deliveries.unsend",
+            "query": "messages.thread",
+            "sites": [
+              {
+                "index": "byConvTime",
+                "table": "messages"
+              }
+            ]
+          },
+          {
+            "mutation": "groups.groupCreate",
+            "query": "messages.thread",
+            "sites": [
+              {
+                "index": "byConversationPrincipal",
+                "table": "memberships"
+              }
+            ]
+          },
+          {
+            "mutation": "groups.memberAdd",
+            "query": "messages.thread",
+            "sites": [
+              {
+                "index": "byConversationPrincipal",
+                "table": "memberships"
+              }
+            ]
+          },
+          {
+            "mutation": "groups.memberLeave",
+            "query": "messages.thread",
+            "sites": [
+              {
+                "index": "byConversationPrincipal",
+                "table": "memberships"
+              }
+            ]
+          },
+          {
+            "mutation": "groups.memberPromote",
+            "query": "messages.thread",
+            "sites": [
+              {
+                "index": "byConversationPrincipal",
+                "table": "memberships"
+              }
+            ]
+          },
+          {
+            "mutation": "groups.memberRemove",
+            "query": "messages.thread",
+            "sites": [
+              {
+                "index": "byConversationPrincipal",
+                "table": "memberships"
+              }
+            ]
+          },
+          {
+            "mutation": "messages.send",
+            "query": "messages.thread",
+            "sites": [
+              {
+                "index": "byConvTime",
+                "table": "messages"
+              }
+            ]
+          },
+          {
+            "mutation": "profiles.createMyProfile",
+            "query": "profiles.byHandle",
+            "sites": [
+              {
+                "index": "byHandle",
+                "table": "profiles"
+              }
+            ]
+          },
+          {
+            "mutation": "profiles.updateMyProfile",
+            "query": "profiles.byHandle",
+            "sites": [
+              {
+                "index": "byHandle",
+                "table": "profiles"
+              }
+            ]
+          },
+          {
+            "mutation": "profiles.createMyProfile",
+            "query": "profiles.mine",
+            "sites": [
+              {
+                "index": "byPrincipal",
+                "table": "profiles"
+              }
+            ]
+          },
+          {
+            "mutation": "profiles.updateMyProfile",
+            "query": "profiles.mine",
+            "sites": [
+              {
+                "index": "byPrincipal",
+                "table": "profiles"
+              }
+            ]
+          }
+        ],
+        "outcomes": [
+          {
+            "changed": true,
+            "delivered": true,
+            "disposition": "physical",
+            "error": null,
+            "invalidated": true,
+            "mutation": "deliveries.edit",
+            "mutationArgs": {
+              "baseBody": "derived test",
+              "body": "derived test",
+              "messageId": "message-2"
+            },
+            "mutationPersona": "alice",
+            "overlaps": true,
+            "probeRole": "pair",
+            "query": "deliveries.inbox",
+            "queryArgs": {
+              "c": null
+            },
+            "queryPersona": "alice",
+            "selected": true,
+            "seq": 2,
+            "sseDelivered": true,
+            "sseSeq": 2,
+            "staticConcreteMismatch": false,
+            "staticSitesIntersect": true,
+            "writes": 5
+          },
+          {
+            "disposition": "no-write",
+            "mutation": "follows.setFollow",
+            "mutationArgs": {
+              "following": false,
+              "target": "dev:bob"
+            },
+            "mutationPersona": "alice",
+            "probeRole": "pair",
+            "query": "deliveries.inbox",
+            "queryArgs": {
+              "c": null
+            },
+            "queryPersona": "alice",
+            "selected": false,
+            "seq": 2,
+            "staticSitesIntersect": false
+          },
+          {
+            "changed": false,
+            "delivered": false,
+            "disposition": "physical",
+            "error": null,
+            "invalidated": false,
+            "mutation": "follows.setFollow",
+            "mutationArgs": {
+              "following": false,
+              "target": "dev:alice"
+            },
+            "mutationPersona": "bob",
+            "overlaps": false,
+            "probeRole": "pair",
+            "query": "deliveries.inbox",
+            "queryArgs": {
+              "c": null
+            },
+            "queryPersona": "alice",
+            "selected": true,
+            "seq": 2,
+            "sseDelivered": false,
+            "sseSeq": null,
+            "staticConcreteMismatch": false,
+            "staticSitesIntersect": false,
+            "writes": 1
+          },
+          {
+            "changed": false,
+            "delivered": false,
+            "disposition": "physical",
+            "error": null,
+            "invalidated": false,
+            "mutation": "groups.groupCreate",
+            "mutationArgs": {
+              "members": [
+                "dev:bob"
+              ],
+              "title": "derived test"
+            },
+            "mutationPersona": "alice",
+            "overlaps": false,
+            "probeRole": "pair",
+            "query": "deliveries.inbox",
+            "queryArgs": {
+              "c": null
+            },
+            "queryPersona": "alice",
+            "selected": true,
+            "seq": 2,
+            "sseDelivered": false,
+            "sseSeq": null,
+            "staticConcreteMismatch": true,
+            "staticSitesIntersect": true,
+            "writes": 5
+          },
+          {
+            "disposition": "excluded",
+            "mutation": "notifications.recordNotified",
+            "mutationArgs": {
+              "effect": "notify",
+              "outboxId": "outbox-test",
+              "result": {
+                "providerId": "provider-test"
+              }
+            },
+            "mutationPersona": null,
+            "probeRole": "excluded",
+            "query": "deliveries.inbox",
+            "queryArgs": {
+              "c": null
+            },
+            "queryPersona": "alice",
+            "reason": "system-only effect continuation",
+            "selected": false,
+            "staticSitesIntersect": false
+          },
+          {
+            "changed": false,
+            "delivered": false,
+            "disposition": "physical",
+            "error": null,
+            "invalidated": false,
+            "mutation": "deliveries.edit",
+            "mutationArgs": {
+              "baseBody": "derived test",
+              "body": "derived test",
+              "messageId": "message-2"
+            },
+            "mutationPersona": "alice",
+            "overlaps": false,
+            "probeRole": "pair",
+            "query": "deliveries.thread",
+            "queryArgs": {
+              "c": null,
+              "conversationId": "conversation-1"
+            },
+            "queryPersona": "alice",
+            "selected": true,
+            "seq": 2,
+            "sseDelivered": false,
+            "sseSeq": null,
+            "staticConcreteMismatch": true,
+            "staticSitesIntersect": true,
+            "writes": 5
+          },
+          {
+            "disposition": "no-write",
+            "mutation": "follows.setFollow",
+            "mutationArgs": {
+              "following": false,
+              "target": "dev:bob"
+            },
+            "mutationPersona": "alice",
+            "probeRole": "pair",
+            "query": "deliveries.thread",
+            "queryArgs": {
+              "c": null,
+              "conversationId": "conversation-1"
+            },
+            "queryPersona": "alice",
+            "selected": false,
+            "seq": 2,
+            "staticSitesIntersect": false
+          },
+          {
+            "changed": false,
+            "delivered": false,
+            "disposition": "physical",
+            "error": null,
+            "invalidated": false,
+            "mutation": "follows.setFollow",
+            "mutationArgs": {
+              "following": false,
+              "target": "dev:alice"
+            },
+            "mutationPersona": "bob",
+            "overlaps": false,
+            "probeRole": "pair",
+            "query": "deliveries.thread",
+            "queryArgs": {
+              "c": null,
+              "conversationId": "conversation-1"
+            },
+            "queryPersona": "alice",
+            "selected": true,
+            "seq": 2,
+            "sseDelivered": false,
+            "sseSeq": null,
+            "staticConcreteMismatch": false,
+            "staticSitesIntersect": false,
+            "writes": 1
+          },
+          {
+            "changed": false,
+            "delivered": false,
+            "disposition": "physical",
+            "error": null,
+            "invalidated": false,
+            "mutation": "groups.groupCreate",
+            "mutationArgs": {
+              "members": [
+                "dev:bob"
+              ],
+              "title": "derived test"
+            },
+            "mutationPersona": "alice",
+            "overlaps": false,
+            "probeRole": "pair",
+            "query": "deliveries.thread",
+            "queryArgs": {
+              "c": null,
+              "conversationId": "conversation-1"
+            },
+            "queryPersona": "alice",
+            "selected": true,
+            "seq": 2,
+            "sseDelivered": false,
+            "sseSeq": null,
+            "staticConcreteMismatch": true,
+            "staticSitesIntersect": true,
+            "writes": 5
+          },
+          {
+            "disposition": "excluded",
+            "mutation": "notifications.recordNotified",
+            "mutationArgs": {
+              "effect": "notify",
+              "outboxId": "outbox-test",
+              "result": {
+                "providerId": "provider-test"
+              }
+            },
+            "mutationPersona": null,
+            "probeRole": "excluded",
+            "query": "deliveries.thread",
+            "queryArgs": {
+              "c": null,
+              "conversationId": "conversation-1"
+            },
+            "queryPersona": "alice",
+            "reason": "system-only effect continuation",
+            "selected": false,
+            "staticSitesIntersect": false
+          },
+          {
+            "changed": false,
+            "delivered": false,
+            "disposition": "physical",
+            "error": null,
+            "invalidated": false,
+            "mutation": "deliveries.edit",
+            "mutationArgs": {
+              "baseBody": "derived test",
+              "body": "derived test",
+              "messageId": "message-2"
+            },
+            "mutationPersona": "alice",
+            "overlaps": false,
+            "probeRole": "pair",
+            "query": "feeds.followingFeed",
+            "queryArgs": {
+              "c": null
+            },
+            "queryPersona": "alice",
+            "selected": true,
+            "seq": 2,
+            "sseDelivered": false,
+            "sseSeq": null,
+            "staticConcreteMismatch": false,
+            "staticSitesIntersect": false,
+            "writes": 5
+          },
+          {
+            "disposition": "no-write",
+            "mutation": "follows.setFollow",
+            "mutationArgs": {
+              "following": false,
+              "target": "dev:bob"
+            },
+            "mutationPersona": "alice",
+            "probeRole": "pair",
+            "query": "feeds.followingFeed",
+            "queryArgs": {
+              "c": null
+            },
+            "queryPersona": "alice",
+            "selected": false,
+            "seq": 2,
+            "staticSitesIntersect": true
+          },
+          {
+            "changed": false,
+            "delivered": false,
+            "disposition": "physical",
+            "error": null,
+            "invalidated": false,
+            "mutation": "follows.setFollow",
+            "mutationArgs": {
+              "following": false,
+              "target": "dev:alice"
+            },
+            "mutationPersona": "bob",
+            "overlaps": false,
+            "probeRole": "pair",
+            "query": "feeds.followingFeed",
+            "queryArgs": {
+              "c": null
+            },
+            "queryPersona": "alice",
+            "selected": true,
+            "seq": 2,
+            "sseDelivered": false,
+            "sseSeq": null,
+            "staticConcreteMismatch": true,
+            "staticSitesIntersect": true,
+            "writes": 1
+          },
+          {
+            "disposition": "excluded",
+            "mutation": "notifications.recordNotified",
+            "mutationArgs": {
+              "effect": "notify",
+              "outboxId": "outbox-test",
+              "result": {
+                "providerId": "provider-test"
+              }
+            },
+            "mutationPersona": null,
+            "probeRole": "excluded",
+            "query": "feeds.followingFeed",
+            "queryArgs": {
+              "c": null
+            },
+            "queryPersona": "alice",
+            "reason": "system-only effect continuation",
+            "selected": false,
+            "staticSitesIntersect": false
+          },
+          {
+            "changed": true,
+            "delivered": true,
+            "disposition": "physical",
+            "error": null,
+            "invalidated": true,
+            "mutation": "posts.createPost",
+            "mutationArgs": {
+              "body": "derived test"
+            },
+            "mutationPersona": "alice",
+            "overlaps": true,
+            "probeRole": "pair",
+            "query": "feeds.followingFeed",
+            "queryArgs": {
+              "c": null
+            },
+            "queryPersona": "alice",
+            "selected": true,
+            "seq": 2,
+            "sseDelivered": true,
+            "sseSeq": 2,
+            "staticConcreteMismatch": false,
+            "staticSitesIntersect": true,
+            "writes": 1
+          },
+          {
+            "disposition": "no-write",
+            "mutation": "profiles.createMyProfile",
+            "mutationArgs": {
+              "avatarUrl": "https://example.com/derived-avatar.png",
+              "bio": "derived test",
+              "displayName": "derived test",
+              "handle": "derived_handle",
+              "link": "https://example.com/derived",
+              "location": "derived test"
+            },
+            "mutationPersona": "alice",
+            "probeRole": "pair",
+            "query": "feeds.followingFeed",
+            "queryArgs": {
+              "c": null
+            },
+            "queryPersona": "alice",
+            "selected": false,
+            "seq": 2,
+            "staticSitesIntersect": true
+          },
+          {
+            "disposition": "no-write",
+            "mutation": "profiles.createMyProfile",
+            "mutationArgs": {
+              "avatarUrl": "https://example.com/derived-avatar.png",
+              "bio": "derived test",
+              "displayName": "derived test",
+              "handle": "derived_handle",
+              "link": "https://example.com/derived",
+              "location": "derived test"
+            },
+            "mutationPersona": "bob",
+            "probeRole": "pair",
+            "query": "feeds.followingFeed",
+            "queryArgs": {
+              "c": null
+            },
+            "queryPersona": "alice",
+            "selected": false,
+            "seq": 2,
+            "staticSitesIntersect": true
+          },
+          {
+            "changed": false,
+            "delivered": false,
+            "disposition": "physical",
+            "error": null,
+            "invalidated": false,
+            "mutation": "profiles.createMyProfile",
+            "mutationArgs": {
+              "avatarUrl": "https://example.com/derived-avatar.png",
+              "bio": "derived test",
+              "displayName": "derived test",
+              "handle": "derived_handle",
+              "link": "https://example.com/derived",
+              "location": "derived test"
+            },
+            "mutationPersona": "charlie",
+            "overlaps": false,
+            "probeRole": "pair",
+            "query": "feeds.followingFeed",
+            "queryArgs": {
+              "c": null
+            },
+            "queryPersona": "alice",
+            "selected": true,
+            "seq": 2,
+            "sseDelivered": false,
+            "sseSeq": null,
+            "staticConcreteMismatch": true,
+            "staticSitesIntersect": true,
+            "writes": 1
+          },
+          {
+            "changed": false,
+            "delivered": false,
+            "disposition": "physical",
+            "error": null,
+            "invalidated": false,
+            "mutation": "deliveries.edit",
+            "mutationArgs": {
+              "baseBody": "derived test",
+              "body": "derived test",
+              "messageId": "message-2"
+            },
+            "mutationPersona": "alice",
+            "overlaps": false,
+            "probeRole": "pair",
+            "query": "feeds.globalFeed",
+            "queryArgs": {
+              "c": null
+            },
+            "queryPersona": "alice",
+            "selected": true,
+            "seq": 2,
+            "sseDelivered": false,
+            "sseSeq": null,
+            "staticConcreteMismatch": false,
+            "staticSitesIntersect": false,
+            "writes": 5
+          },
+          {
+            "disposition": "excluded",
+            "mutation": "notifications.recordNotified",
+            "mutationArgs": {
+              "effect": "notify",
+              "outboxId": "outbox-test",
+              "result": {
+                "providerId": "provider-test"
+              }
+            },
+            "mutationPersona": null,
+            "probeRole": "excluded",
+            "query": "feeds.globalFeed",
+            "queryArgs": {
+              "c": null
+            },
+            "queryPersona": "alice",
+            "reason": "system-only effect continuation",
+            "selected": false,
+            "staticSitesIntersect": false
+          },
+          {
+            "changed": true,
+            "delivered": true,
+            "disposition": "physical",
+            "error": null,
+            "invalidated": true,
+            "mutation": "posts.createPost",
+            "mutationArgs": {
+              "body": "derived test"
+            },
+            "mutationPersona": "alice",
+            "overlaps": true,
+            "probeRole": "pair",
+            "query": "feeds.globalFeed",
+            "queryArgs": {
+              "c": null
+            },
+            "queryPersona": "alice",
+            "selected": true,
+            "seq": 2,
+            "sseDelivered": true,
+            "sseSeq": 2,
+            "staticConcreteMismatch": false,
+            "staticSitesIntersect": true,
+            "writes": 1
+          },
+          {
+            "disposition": "no-write",
+            "mutation": "profiles.createMyProfile",
+            "mutationArgs": {
+              "avatarUrl": "https://example.com/derived-avatar.png",
+              "bio": "derived test",
+              "displayName": "derived test",
+              "handle": "derived_handle",
+              "link": "https://example.com/derived",
+              "location": "derived test"
+            },
+            "mutationPersona": "alice",
+            "probeRole": "pair",
+            "query": "feeds.globalFeed",
+            "queryArgs": {
+              "c": null
+            },
+            "queryPersona": "alice",
+            "selected": false,
+            "seq": 2,
+            "staticSitesIntersect": true
+          },
+          {
+            "disposition": "no-write",
+            "mutation": "profiles.createMyProfile",
+            "mutationArgs": {
+              "avatarUrl": "https://example.com/derived-avatar.png",
+              "bio": "derived test",
+              "displayName": "derived test",
+              "handle": "derived_handle",
+              "link": "https://example.com/derived",
+              "location": "derived test"
+            },
+            "mutationPersona": "bob",
+            "probeRole": "pair",
+            "query": "feeds.globalFeed",
+            "queryArgs": {
+              "c": null
+            },
+            "queryPersona": "alice",
+            "selected": false,
+            "seq": 2,
+            "staticSitesIntersect": true
+          },
+          {
+            "changed": false,
+            "delivered": false,
+            "disposition": "physical",
+            "error": null,
+            "invalidated": false,
+            "mutation": "profiles.createMyProfile",
+            "mutationArgs": {
+              "avatarUrl": "https://example.com/derived-avatar.png",
+              "bio": "derived test",
+              "displayName": "derived test",
+              "handle": "derived_handle",
+              "link": "https://example.com/derived",
+              "location": "derived test"
+            },
+            "mutationPersona": "charlie",
+            "overlaps": false,
+            "probeRole": "pair",
+            "query": "feeds.globalFeed",
+            "queryArgs": {
+              "c": null
+            },
+            "queryPersona": "alice",
+            "selected": true,
+            "seq": 2,
+            "sseDelivered": false,
+            "sseSeq": null,
+            "staticConcreteMismatch": true,
+            "staticSitesIntersect": true,
+            "writes": 1
+          },
+          {
+            "changed": false,
+            "delivered": false,
+            "disposition": "physical",
+            "error": null,
+            "invalidated": false,
+            "mutation": "deliveries.edit",
+            "mutationArgs": {
+              "baseBody": "derived test",
+              "body": "derived test",
+              "messageId": "message-2"
+            },
+            "mutationPersona": "alice",
+            "overlaps": false,
+            "probeRole": "pair",
+            "query": "messages.summary",
+            "queryArgs": {
+              "conversationId": "conversation-1"
+            },
+            "queryPersona": "alice",
+            "selected": true,
+            "seq": 2,
+            "sseDelivered": false,
+            "sseSeq": null,
+            "staticConcreteMismatch": false,
+            "staticSitesIntersect": false,
+            "writes": 5
+          },
+          {
+            "changed": false,
+            "delivered": false,
+            "disposition": "physical",
+            "error": null,
+            "invalidated": false,
+            "mutation": "groups.groupCreate",
+            "mutationArgs": {
+              "members": [
+                "dev:bob"
+              ],
+              "title": "derived test"
+            },
+            "mutationPersona": "alice",
+            "overlaps": false,
+            "probeRole": "pair",
+            "query": "messages.summary",
+            "queryArgs": {
+              "conversationId": "conversation-1"
+            },
+            "queryPersona": "alice",
+            "selected": true,
+            "seq": 2,
+            "sseDelivered": false,
+            "sseSeq": null,
+            "staticConcreteMismatch": true,
+            "staticSitesIntersect": true,
+            "writes": 5
+          },
+          {
+            "changed": true,
+            "delivered": true,
+            "disposition": "physical",
+            "error": null,
+            "invalidated": true,
+            "mutation": "groups.memberAdd",
+            "mutationArgs": {
+              "conversationId": "conversation-1",
+              "principal": "dev:charlie"
+            },
+            "mutationPersona": "alice",
+            "overlaps": true,
+            "probeRole": "pair",
+            "query": "messages.summary",
+            "queryArgs": {
+              "conversationId": "conversation-1"
+            },
+            "queryPersona": "charlie",
+            "selected": true,
+            "seq": 2,
+            "sseDelivered": true,
+            "sseSeq": 2,
+            "staticConcreteMismatch": false,
+            "staticSitesIntersect": true,
+            "writes": 2
+          },
+          {
+            "disposition": "excluded",
+            "mutation": "notifications.recordNotified",
+            "mutationArgs": {
+              "effect": "notify",
+              "outboxId": "outbox-test",
+              "result": {
+                "providerId": "provider-test"
+              }
+            },
+            "mutationPersona": null,
+            "probeRole": "excluded",
+            "query": "messages.summary",
+            "queryArgs": {
+              "conversationId": "conversation-1"
+            },
+            "queryPersona": "alice",
+            "reason": "system-only effect continuation",
+            "selected": false,
+            "staticSitesIntersect": false
+          },
+          {
+            "changed": false,
+            "delivered": false,
+            "disposition": "physical",
+            "error": null,
+            "invalidated": false,
+            "mutation": "deliveries.edit",
+            "mutationArgs": {
+              "baseBody": "derived test",
+              "body": "derived test",
+              "messageId": "message-2"
+            },
+            "mutationPersona": "alice",
+            "overlaps": false,
+            "probeRole": "pair",
+            "query": "messages.thread",
+            "queryArgs": {
+              "c": null,
+              "conversationId": "conversation-1"
+            },
+            "queryPersona": "alice",
+            "selected": true,
+            "seq": 2,
+            "sseDelivered": false,
+            "sseSeq": null,
+            "staticConcreteMismatch": true,
+            "staticSitesIntersect": true,
+            "writes": 5
+          },
+          {
+            "disposition": "no-write",
+            "mutation": "follows.setFollow",
+            "mutationArgs": {
+              "following": false,
+              "target": "dev:bob"
+            },
+            "mutationPersona": "alice",
+            "probeRole": "pair",
+            "query": "messages.thread",
+            "queryArgs": {
+              "c": null,
+              "conversationId": "conversation-1"
+            },
+            "queryPersona": "alice",
+            "selected": false,
+            "seq": 2,
+            "staticSitesIntersect": false
+          },
+          {
+            "changed": false,
+            "delivered": false,
+            "disposition": "physical",
+            "error": null,
+            "invalidated": false,
+            "mutation": "follows.setFollow",
+            "mutationArgs": {
+              "following": false,
+              "target": "dev:alice"
+            },
+            "mutationPersona": "bob",
+            "overlaps": false,
+            "probeRole": "pair",
+            "query": "messages.thread",
+            "queryArgs": {
+              "c": null,
+              "conversationId": "conversation-1"
+            },
+            "queryPersona": "alice",
+            "selected": true,
+            "seq": 2,
+            "sseDelivered": false,
+            "sseSeq": null,
+            "staticConcreteMismatch": false,
+            "staticSitesIntersect": false,
+            "writes": 1
+          },
+          {
+            "changed": false,
+            "delivered": false,
+            "disposition": "physical",
+            "error": null,
+            "invalidated": false,
+            "mutation": "groups.groupCreate",
+            "mutationArgs": {
+              "members": [
+                "dev:bob"
+              ],
+              "title": "derived test"
+            },
+            "mutationPersona": "alice",
+            "overlaps": false,
+            "probeRole": "pair",
+            "query": "messages.thread",
+            "queryArgs": {
+              "c": null,
+              "conversationId": "conversation-1"
+            },
+            "queryPersona": "alice",
+            "selected": true,
+            "seq": 2,
+            "sseDelivered": false,
+            "sseSeq": null,
+            "staticConcreteMismatch": true,
+            "staticSitesIntersect": true,
+            "writes": 5
+          },
+          {
+            "disposition": "excluded",
+            "mutation": "notifications.recordNotified",
+            "mutationArgs": {
+              "effect": "notify",
+              "outboxId": "outbox-test",
+              "result": {
+                "providerId": "provider-test"
+              }
+            },
+            "mutationPersona": null,
+            "probeRole": "excluded",
+            "query": "messages.thread",
+            "queryArgs": {
+              "c": null,
+              "conversationId": "conversation-1"
+            },
+            "queryPersona": "alice",
+            "reason": "system-only effect continuation",
+            "selected": false,
+            "staticSitesIntersect": false
+          },
+          {
+            "changed": false,
+            "delivered": false,
+            "disposition": "physical",
+            "error": null,
+            "invalidated": false,
+            "mutation": "deliveries.edit",
+            "mutationArgs": {
+              "baseBody": "derived test",
+              "body": "derived test",
+              "messageId": "message-2"
+            },
+            "mutationPersona": "alice",
+            "overlaps": false,
+            "probeRole": "pair",
+            "query": "profiles.byHandle",
+            "queryArgs": {
+              "handle": "derived_handle"
+            },
+            "queryPersona": "alice",
+            "selected": true,
+            "seq": 2,
+            "sseDelivered": false,
+            "sseSeq": null,
+            "staticConcreteMismatch": false,
+            "staticSitesIntersect": false,
+            "writes": 5
+          },
+          {
+            "disposition": "excluded",
+            "mutation": "notifications.recordNotified",
+            "mutationArgs": {
+              "effect": "notify",
+              "outboxId": "outbox-test",
+              "result": {
+                "providerId": "provider-test"
+              }
+            },
+            "mutationPersona": null,
+            "probeRole": "excluded",
+            "query": "profiles.byHandle",
+            "queryArgs": {
+              "handle": "derived_handle"
+            },
+            "queryPersona": "alice",
+            "reason": "system-only effect continuation",
+            "selected": false,
+            "staticSitesIntersect": false
+          },
+          {
+            "disposition": "no-write",
+            "mutation": "profiles.createMyProfile",
+            "mutationArgs": {
+              "avatarUrl": "https://example.com/derived-avatar.png",
+              "bio": "derived test",
+              "displayName": "derived test",
+              "handle": "derived_handle",
+              "link": "https://example.com/derived",
+              "location": "derived test"
+            },
+            "mutationPersona": "alice",
+            "probeRole": "pair",
+            "query": "profiles.byHandle",
+            "queryArgs": {
+              "handle": "derived_handle"
+            },
+            "queryPersona": "alice",
+            "selected": false,
+            "seq": 2,
+            "staticSitesIntersect": true
+          },
+          {
+            "disposition": "no-write",
+            "mutation": "profiles.createMyProfile",
+            "mutationArgs": {
+              "avatarUrl": "https://example.com/derived-avatar.png",
+              "bio": "derived test",
+              "displayName": "derived test",
+              "handle": "derived_handle",
+              "link": "https://example.com/derived",
+              "location": "derived test"
+            },
+            "mutationPersona": "bob",
+            "probeRole": "pair",
+            "query": "profiles.byHandle",
+            "queryArgs": {
+              "handle": "derived_handle"
+            },
+            "queryPersona": "alice",
+            "selected": false,
+            "seq": 2,
+            "staticSitesIntersect": true
+          },
+          {
+            "changed": true,
+            "delivered": true,
+            "disposition": "physical",
+            "error": null,
+            "invalidated": true,
+            "mutation": "profiles.createMyProfile",
+            "mutationArgs": {
+              "avatarUrl": "https://example.com/derived-avatar.png",
+              "bio": "derived test",
+              "displayName": "derived test",
+              "handle": "derived_handle",
+              "link": "https://example.com/derived",
+              "location": "derived test"
+            },
+            "mutationPersona": "charlie",
+            "overlaps": true,
+            "probeRole": "pair",
+            "query": "profiles.byHandle",
+            "queryArgs": {
+              "handle": "derived_handle"
+            },
+            "queryPersona": "alice",
+            "selected": true,
+            "seq": 2,
+            "sseDelivered": true,
+            "sseSeq": 2,
+            "staticConcreteMismatch": false,
+            "staticSitesIntersect": true,
+            "writes": 1
+          },
+          {
+            "changed": false,
+            "delivered": false,
+            "disposition": "physical",
+            "error": null,
+            "invalidated": false,
+            "mutation": "deliveries.edit",
+            "mutationArgs": {
+              "baseBody": "derived test",
+              "body": "derived test",
+              "messageId": "message-2"
+            },
+            "mutationPersona": "alice",
+            "overlaps": false,
+            "probeRole": "pair",
+            "query": "profiles.mine",
+            "queryArgs": {},
+            "queryPersona": "alice",
+            "selected": true,
+            "seq": 2,
+            "sseDelivered": false,
+            "sseSeq": null,
+            "staticConcreteMismatch": false,
+            "staticSitesIntersect": false,
+            "writes": 5
+          },
+          {
+            "disposition": "excluded",
+            "mutation": "notifications.recordNotified",
+            "mutationArgs": {
+              "effect": "notify",
+              "outboxId": "outbox-test",
+              "result": {
+                "providerId": "provider-test"
+              }
+            },
+            "mutationPersona": null,
+            "probeRole": "excluded",
+            "query": "profiles.mine",
+            "queryArgs": {},
+            "queryPersona": "alice",
+            "reason": "system-only effect continuation",
+            "selected": false,
+            "staticSitesIntersect": false
+          },
+          {
+            "disposition": "no-write",
+            "mutation": "profiles.createMyProfile",
+            "mutationArgs": {
+              "avatarUrl": "https://example.com/derived-avatar.png",
+              "bio": "derived test",
+              "displayName": "derived test",
+              "handle": "derived_handle",
+              "link": "https://example.com/derived",
+              "location": "derived test"
+            },
+            "mutationPersona": "alice",
+            "probeRole": "pair",
+            "query": "profiles.mine",
+            "queryArgs": {},
+            "queryPersona": "alice",
+            "selected": false,
+            "seq": 2,
+            "staticSitesIntersect": true
+          },
+          {
+            "disposition": "no-write",
+            "mutation": "profiles.createMyProfile",
+            "mutationArgs": {
+              "avatarUrl": "https://example.com/derived-avatar.png",
+              "bio": "derived test",
+              "displayName": "derived test",
+              "handle": "derived_handle",
+              "link": "https://example.com/derived",
+              "location": "derived test"
+            },
+            "mutationPersona": "bob",
+            "probeRole": "pair",
+            "query": "profiles.mine",
+            "queryArgs": {},
+            "queryPersona": "alice",
+            "selected": false,
+            "seq": 2,
+            "staticSitesIntersect": true
+          },
+          {
+            "changed": false,
+            "delivered": false,
+            "disposition": "physical",
+            "error": null,
+            "invalidated": false,
+            "mutation": "profiles.createMyProfile",
+            "mutationArgs": {
+              "avatarUrl": "https://example.com/derived-avatar.png",
+              "bio": "derived test",
+              "displayName": "derived test",
+              "handle": "derived_handle",
+              "link": "https://example.com/derived",
+              "location": "derived test"
+            },
+            "mutationPersona": "charlie",
+            "overlaps": false,
+            "probeRole": "pair",
+            "query": "profiles.mine",
+            "queryArgs": {},
+            "queryPersona": "alice",
+            "selected": true,
+            "seq": 2,
+            "sseDelivered": false,
+            "sseSeq": null,
+            "staticConcreteMismatch": true,
+            "staticSitesIntersect": true,
+            "writes": 1
+          }
+        ],
+        "overlapProbes": 5,
+        "probes": 23,
+        "silenceProbes": 18,
+        "skipped": [
+          {
+            "note": "asset-typed arguments are proven by an upload journey, not the generic prover",
+            "op": "messages.sendClip",
+            "reason": "E_ASSET_PROBE_NEEDS_UPLOAD"
+          },
+          {
+            "note": "asset-typed arguments are proven by an upload journey, not the generic prover",
+            "op": "messages.sendOncePhoto",
+            "reason": "E_ASSET_PROBE_NEEDS_UPLOAD"
+          },
+          {
+            "note": "asset-typed arguments are proven by an upload journey, not the generic prover",
+            "op": "messages.sendPhoto",
+            "reason": "E_ASSET_PROBE_NEEDS_UPLOAD"
+          }
+        ],
+        "transport": "SSE"
+      }
+    },
+    {
+      "name": "replay",
+      "kind": "derived",
+      "verdict": "pass",
+      "ms": 129,
+      "detail": {
+        "attempts": 15,
+        "blocked": [],
+        "candidateLimit": 12,
+        "candidateSelection": "first two seed scopes and first six personas; exhaustion blocks",
+        "clock": "1700000000000 + mutation index",
+        "comparison": "byte-identical committed execution + authoritative trace",
+        "forks": 30,
+        "newIds": "replay-<mutation>-<ordinal>",
+        "probes": 14,
+        "skipped": [
+          {
+            "note": "asset-typed arguments are proven by an upload journey, not the generic prover",
+            "op": "messages.sendClip",
+            "reason": "E_ASSET_PROBE_NEEDS_UPLOAD"
+          },
+          {
+            "note": "asset-typed arguments are proven by an upload journey, not the generic prover",
+            "op": "messages.sendOncePhoto",
+            "reason": "E_ASSET_PROBE_NEEDS_UPLOAD"
+          },
+          {
+            "note": "asset-typed arguments are proven by an upload journey, not the generic prover",
+            "op": "messages.sendPhoto",
+            "reason": "E_ASSET_PROBE_NEEDS_UPLOAD"
+          }
+        ]
+      }
+    },
+    {
+      "name": "live-revocation",
+      "kind": "derived",
+      "verdict": "pass",
+      "ms": 300,
+      "detail": {
+        "as": "bob",
+        "deliverySeq": 2,
+        "deliveryState": "denied",
+        "initialState": "complete",
+        "maintainedRowsWritten": {
+          "messageCounts": 1
+        },
+        "membership": {
+          "id": "membership-2",
+          "table": "memberships"
+        },
+        "mutation": "groups.memberLeave",
+        "mutationSeq": 2,
+        "postDenialRows": 0,
+        "postWriteDelivery": "none",
+        "principal": "dev:bob",
+        "protectedRowsWritten": 1,
+        "protectedTable": "messages",
+        "protectedWrite": "deliveries.post",
+        "protectedWriteAs": "alice",
+        "protectedWritePrincipal": "dev:alice",
+        "protectedWriteSeq": 3,
+        "query": "messages.thread",
+        "scope": "conversation-1",
+        "transport": "served SSE + mutation API"
+      }
+    },
+    {
+      "name": "successor-policy-fence",
+      "kind": "derived",
+      "verdict": "pass",
+      "ms": 237,
+      "detail": {
+        "activeManifestGeneration": "2522868fdb75334deae2867f590cfd8f47a65dcf84b462cc4c40b29c064eec72",
+        "as": "bob",
+        "freshInvocationRule": "SNAPBACK2_TEST_SUCCESSOR_POLICY_FENCE:2522868fdb75334deae2867f590cfd8f47a65dcf84b462cc4c40b29c064eec72",
+        "freshInvocationState": "denied",
+        "generationG": "2522868fdb75334deae2867f590cfd8f47a65dcf84b462cc4c40b29c064eec72",
+        "generationG1": "f3e20616705effa692a9c71644773adacfbcdea1b9819ca5ce3ad43d05f70e49",
+        "generationG2": "2522868fdb75334deae2867f590cfd8f47a65dcf84b462cc4c40b29c064eec72",
+        "generationScope": "schema",
+        "initialState": "complete",
+        "planHashG": "74e1d8c8a846b3486cda2a3f61c1702a00cbc193acf2f15373c102668d150afc",
+        "planHashG2": "675eb92870c7025998d3f2bf9fb6bc45bc846a2c19be79ef866312a53d3bf73b",
+        "policyFreshInvocationRows": 0,
+        "policyFreshInvocationState": "complete",
+        "policyReplacement": "Deny",
+        "policyRetainedHandleRows": 0,
+        "policyRetainedHandleState": "complete",
+        "predecessorDisposition": "retained handle replanned independently under replacement policy and program generations",
+        "protectedTable": "messages",
+        "query": "messages.thread",
+        "retainedHandleRule": "SNAPBACK2_TEST_SUCCESSOR_POLICY_FENCE:2522868fdb75334deae2867f590cfd8f47a65dcf84b462cc4c40b29c064eec72",
+        "retainedHandleSeq": 1,
+        "retainedHandleState": "denied",
+        "successorDenialRule": "SNAPBACK2_TEST_SUCCESSOR_POLICY_FENCE:2522868fdb75334deae2867f590cfd8f47a65dcf84b462cc4c40b29c064eec72",
+        "transport": "two served control applies + retained SSE + fresh query API"
+      }
+    },
+    {
+      "name": "grant-incarnation-aba",
+      "kind": "derived",
+      "verdict": "pass",
+      "ms": 49,
+      "detail": {
+        "addMutation": "groups.memberAdd",
+        "as": "alice",
+        "idReused": false,
+        "memberAs": "bob",
+        "memberPrincipal": "dev:bob",
+        "membership": {
+          "capturedId": "membership-2",
+          "table": "memberships"
+        },
+        "principal": "dev:alice",
+        "promoteMutation": "groups.memberPromote",
+        "removeMutation": "groups.memberRemove",
+        "replacementId": "s2id-81a03353b51bc266c1bdde5268b073cb-0000000000009c01",
+        "scope": "conversation-1",
+        "staleReplayCode": "MEMBERSHIP_REQUIRED",
+        "staleReplayState": "rejected",
+        "successorAuthorityCode": "ADMIN_REQUIRED",
+        "successorAuthorityState": "rejected",
+        "successorProbePrincipal": "dev:charlie",
+        "successorRole": "member",
+        "transport": "served mutation API"
+      }
+    },
+    {
+      "name": "effects",
+      "kind": "derived",
+      "verdict": "pass",
+      "ms": 1,
+      "detail": {
+        "declarations": [
+          "delivery.notify"
+        ],
+        "engine": "ibex2 + vanilla hermes"
+      }
+    },
+    {
+      "name": "alice posts to the room and a non-member cannot",
+      "kind": "journey",
+      "verdict": "pass",
+      "ms": 36,
+      "detail": {
+        "file": "/Users/ccheever/clique-improvement/revisions/cli-017-release-qualification/tmp/snapback2-consumer-t6lxLd/chat/.snapback/test-run-1788813622286/project/.snapback/build/tests/chat.mjs"
+      }
+    },
+    {
+      "name": "bob replies and alice's live log thread updates",
+      "kind": "journey",
+      "verdict": "pass",
+      "ms": 32,
+      "detail": {
+        "file": "/Users/ccheever/clique-improvement/revisions/cli-017-release-qualification/tmp/snapback2-consumer-t6lxLd/chat/.snapback/test-run-1788813622286/project/.snapback/build/tests/chat.mjs"
+      }
+    },
+    {
+      "name": "alice sends and reads back a JPEG photo and synthesized MP4 clip",
+      "kind": "journey",
+      "verdict": "pass",
+      "ms": 148,
+      "detail": {
+        "file": "/Users/ccheever/clique-improvement/revisions/cli-017-release-qualification/tmp/snapback2-consumer-t6lxLd/chat/.snapback/test-run-1788813622286/project/.snapback/build/tests/chat.mjs"
+      }
+    },
+    {
+      "name": "profile ownership, uniqueness, and live public reads",
+      "kind": "journey",
+      "verdict": "pass",
+      "ms": 36,
+      "detail": {
+        "file": "/Users/ccheever/clique-improvement/revisions/cli-017-release-qualification/tmp/snapback2-consumer-t6lxLd/chat/.snapback/test-run-1788813622286/project/.snapback/build/tests/chat.mjs"
+      }
+    },
+    {
+      "name": "unfollow changes Following selection but not Global authorization",
+      "kind": "journey",
+      "verdict": "pass",
+      "ms": 44,
+      "detail": {
+        "file": "/Users/ccheever/clique-improvement/revisions/cli-017-release-qualification/tmp/snapback2-consumer-t6lxLd/chat/.snapback/test-run-1788813622286/project/.snapback/build/tests/chat.mjs"
+      }
+    },
+    {
+      "name": "group creation bootstraps one creator admin atomically",
+      "kind": "journey",
+      "verdict": "pass",
+      "ms": 50,
+      "detail": {
+        "file": "/Users/ccheever/clique-improvement/revisions/cli-017-release-qualification/tmp/snapback2-consumer-t6lxLd/chat/.snapback/test-run-1788813622286/project/.snapback/build/tests/chat.mjs"
+      }
+    },
+    {
+      "name": "conversation metadata stays inside membership",
+      "kind": "journey",
+      "verdict": "pass",
+      "ms": 24,
+      "detail": {
+        "file": "/Users/ccheever/clique-improvement/revisions/cli-017-release-qualification/tmp/snapback2-consumer-t6lxLd/chat/.snapback/test-run-1788813622286/project/.snapback/build/tests/chat.mjs"
+      }
+    },
+    {
+      "name": "scoped roles reject non-admin and stale membership authority",
+      "kind": "journey",
+      "verdict": "pass",
+      "ms": 69,
+      "detail": {
+        "file": "/Users/ccheever/clique-improvement/revisions/cli-017-release-qualification/tmp/snapback2-consumer-t6lxLd/chat/.snapback/test-run-1788813622286/project/.snapback/build/tests/chat.mjs"
+      }
+    },
+    {
+      "name": "offline",
+      "kind": "derived",
+      "verdict": "pass",
+      "ms": 2,
+      "detail": {
+        "queries": 1
+      }
+    },
+    {
+      "name": "offline drain removes an unsent body and survives a cold restart",
+      "kind": "journey",
+      "verdict": "pass",
+      "ms": 129,
+      "detail": {
+        "file": "/Users/ccheever/clique-improvement/revisions/cli-017-release-qualification/tmp/snapback2-consumer-t6lxLd/chat/.snapback/test-run-1788813622286/project/.snapback/build/tests/chat.mjs"
+      }
+    },
+    {
+      "name": "offline",
+      "kind": "derived",
+      "verdict": "pass",
+      "ms": 3,
+      "detail": {
+        "queries": 1
+      }
+    },
+    {
+      "name": "viewed photos render from the byte cache offline; a view-once photo and an unsent row do not",
+      "kind": "journey",
+      "verdict": "pass",
+      "ms": 252,
+      "detail": {
+        "file": "/Users/ccheever/clique-improvement/revisions/cli-017-release-qualification/tmp/snapback2-consumer-t6lxLd/chat/.snapback/test-run-1788813622286/project/.snapback/build/tests/chat.mjs"
+      }
+    },
+    {
+      "name": "offline",
+      "kind": "derived",
+      "verdict": "pass",
+      "ms": 28,
+      "detail": {
+        "queries": 2
+      }
+    },
+    {
+      "name": "offline sends queue, survive a restart, replay in order, and a 503 after a commit is exactly once",
+      "kind": "journey",
+      "verdict": "pass",
+      "ms": 206,
+      "detail": {
+        "file": "/Users/ccheever/clique-improvement/revisions/cli-017-release-qualification/tmp/snapback2-consumer-t6lxLd/chat/.snapback/test-run-1788813622286/project/.snapback/build/tests/chat.mjs"
+      }
+    },
+    {
+      "name": "offline",
+      "kind": "derived",
+      "verdict": "pass",
+      "ms": 27,
+      "detail": {
+        "queries": 2
+      }
+    },
+    {
+      "name": "offline edits reject stale reads by trace, and past-fence edits by the program CONFLICT",
+      "kind": "journey",
+      "verdict": "pass",
+      "ms": 260,
+      "detail": {
+        "file": "/Users/ccheever/clique-improvement/revisions/cli-017-release-qualification/tmp/snapback2-consumer-t6lxLd/chat/.snapback/test-run-1788813622286/project/.snapback/build/tests/chat.mjs"
+      }
+    },
+    {
+      "name": "offline",
+      "kind": "derived",
+      "verdict": "pass",
+      "ms": 31,
+      "detail": {
+        "queries": 2
+      }
+    },
+    {
+      "name": "a never-opened chat renders offline from the drained log and an offline send is predicted into it in order",
+      "kind": "journey",
+      "verdict": "pass",
+      "ms": 176,
+      "detail": {
+        "file": "/Users/ccheever/clique-improvement/revisions/cli-017-release-qualification/tmp/snapback2-consumer-t6lxLd/chat/.snapback/test-run-1788813622286/project/.snapback/build/tests/chat.mjs"
+      }
+    },
+    {
+      "name": "offline",
+      "kind": "derived",
+      "verdict": "pass",
+      "ms": 28,
+      "detail": {
+        "queries": 2
+      }
+    },
+    {
+      "name": "a send queued offline into a three-member group shows one bubble, keeps its message id, leaves no duplicate delivery, and reaches both other members once",
+      "kind": "journey",
+      "verdict": "pass",
+      "ms": 189,
+      "detail": {
+        "file": "/Users/ccheever/clique-improvement/revisions/cli-017-release-qualification/tmp/snapback2-consumer-t6lxLd/chat/.snapback/test-run-1788813622286/project/.snapback/build/tests/chat.mjs"
+      }
+    },
+    {
+      "name": "an expiring message is purged by the owner's schedule with every client closed",
+      "kind": "journey",
+      "verdict": "pass",
+      "ms": 80,
+      "detail": {
+        "file": "/Users/ccheever/clique-improvement/revisions/cli-017-release-qualification/tmp/snapback2-consumer-t6lxLd/chat/.snapback/test-run-1788813622286/project/.snapback/build/tests/chat.mjs"
+      }
+    }
+  ],
+  "arms": [
+    "headless"
+  ],
+  "verdict": "pass",
+  "scope": {
+    "changed": []
+  },
+  "schedules": {
+    "fired": 1,
+    "late": 1,
+    "rejected": 0
+  }
+}
