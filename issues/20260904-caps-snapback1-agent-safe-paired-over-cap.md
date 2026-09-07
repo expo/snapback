@@ -9,7 +9,8 @@
 
 `node scripts/caps.mjs` at the repo root reports one violation on main: the Snapback 1 file
 above at 1,504 lines by caps' count (1,503 by `wc -l`), and "Baseline allows 204 oversize
-files; there are 205". No Snapback 2 file is over the cap. The extra oversize file entered
+files; there are 205". The check's printed paths do not constitute a complete
+oversize-file census: it prints the smallest overflow paths. The extra oversize file entered
 the baseline count from outside the LLP 1012 program (the count moved 206 → 205 when the
 evaluator split landed, then the split of `owner.rs` removed another, and the Snapback 1 file
 remains). Every lane gate that runs `caps` has reported it since 2026-09-04 ~11:00.
@@ -29,6 +30,14 @@ reports 206 oversize files against the 204 baseline:
 
 These are the check's counts, including its trailing empty line. Both files are
 byte-unchanged from the program base `b4b203316ba628d9364b0b7f081a8fd79f877c3c`
-and the integrated upstream `624a06dfc`. No Snapback 2 file is oversized. The
+and the integrated upstream `624a06dfc`. The
 working-set and foundation counts pass at 59 and 12 respectively. This is an
-inherited failure record, not a passing `caps` result.
+inherited-file record, not a passing `caps` result or a complete attribution of
+the baseline overflow.
+
+A subsequent changed-file census during the same LLP run found introduced
+Snapback 2 overages in `registry.rs`, `quarry-program-checks.ts`, and
+`client.test.ts`. Those belong to the active LLP implementation and are being
+fixed there. The earlier inference that the two printed Snapback 1 paths
+accounted for the entire failure was incorrect. This ticket retains only the
+Snapback 1 work described above.
