@@ -6,7 +6,7 @@ import { createExpoClient, expoSqliteStore, expoSqliteDriver, SnapbackProvider }
 import { MediaView, type Media } from "./MediaView";
 import { witnessControl, runSqliteDriverConformance, type WitnessHooks } from "snapback2/expo/witness";
 import { chatOffline } from "../shared/offline.js";
-import { searchHeld, threadBubbles } from "../shared/log.js";
+import { threadBubbles } from "../shared/log.js";
 import { configuration, persist, databaseState, markerSwap, listFiles, DATABASE } from "./witness-state";
 import { Chat } from "./Chat";
 
@@ -115,9 +115,11 @@ export default function Witness({ url, controlUrl }: { url: string; controlUrl: 
             ? await client.query(api.deliveries.thread, { conversationId: args.conversationId, c: null }) : undefined;
           const entries = await client.outbox.entries();
           const rows = answer && "data" in answer && Array.isArray(answer.data) ? answer.data : [];
+          const search = typeof args.search === "string"
+            ? await client.query(api.messages.search, { term: args.search, c: null }) : undefined;
           return { snapshot: client.snapshot, coverage: await store.coverage(), outbox: entries,
             bubbles: typeof args.conversationId === "string" ? threadBubbles(rows, entries, args.conversationId) : [],
-            search: typeof args.search === "string" ? searchHeld(rows, args.search) : [],
+            search,
             answer, twin: twinLastDecline(), stores: await databaseState(), files: listFiles(), media: currentMedia ? { loaded: currentMedia.loaded, uri: currentMedia.uri } : null };
         }
         throw new Error(`unknown witness command ${verb}`);

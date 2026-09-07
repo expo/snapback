@@ -29,6 +29,8 @@ const packageRoot = resolve(workspace, "packages/snapback2");
 const dist = resolve(packageRoot, "dist");
 const binary = resolve(workspace, "target/debug/snapback2");
 const keep = process.argv.includes("--keep");
+const indexedSearchBody = "Café expires while offline";
+const indexedSearchTerm = "CAFE\u0301";
 const sessionsOnly = process.argv.includes("--sessions");
 const steps = [];
 
@@ -186,7 +188,7 @@ async function seed(url) {
     const posted = await alice.mutation(api.deliveries.post, { conversationId, body: `seeded in ${conversationId}` });
     if (posted.state !== "committed") throw new Error(`seed post was ${posted.state}`);
   }
-  const doomed = await alice.mutation(api.deliveries.post, { conversationId: "conversation-1", body: "expires while offline" });
+  const doomed = await alice.mutation(api.deliveries.post, { conversationId: "conversation-1", body: indexedSearchBody });
   alice.close();
   bob.close();
   return { conversations, doomedMessageId: doomed.state === "committed" ? doomed.data.id : undefined };
@@ -328,11 +330,20 @@ async function main() {
     const listed = await page.$$eval("nav[aria-label=Inbox] li", (nodes) => nodes.length);
     if (listed !== 3) throw new Error(`the inbox listed ${listed} chats`);
     step("seed, drain, and open three chats (two threads opened online, one left unopened)", { chats: listed, opened: opened.length });
+
+    // The UI uses the real global indexed query. A decomposed uppercase token
+    // finds the composed mixed-case word and records the exact prefix coverage.
+    await page.fill("section[aria-label=Search] input", indexedSearchTerm);
+    await page.waitForSelector(`section[aria-label=Search] li[data-message="${seeded.doomedMessageId}"]`, { timeout: 10_000 });
+    const warmSearch = await page.$eval("section[aria-label=Search] .scope", (node) => ({ state: node.getAttribute("data-state"), text: node.textContent }));
+    if (warmSearch.state !== "complete" && warmSearch.state !== "capped") throw new Error(`warm indexed search was ${JSON.stringify(warmSearch)}`);
+    step("Unicode one-word prefix runs through the live messages.search index", warmSearch);
+
     // Enqueue one message while offline.
     await context.setOffline(true);
     await page.evaluate(() => window.__snapback.offline());
-    await openChat(page, "conversation-1");
-    await page.fill("form[aria-label=Composer] input", "queued in the browser");
+    await openChat(page, neverOpened);
+    await page.fill("form[aria-label=Composer] input", "Café queued in the browser");
     // Report the composer's own reason when it will not send, instead of a bare click timeout.
     await page.waitForSelector("form[aria-label=Composer] button[type=submit]:enabled", { timeout: 10_000 }).catch(async (error) => {
       const diagnosis = await page.evaluate(async () => {
@@ -348,13 +359,14 @@ async function main() {
     await page.waitForSelector("li[data-state=queued]", { timeout: 5_000 });
     const queued = await page.$eval("li[data-state=queued]", (node) => ({ id: node.getAttribute("data-message"), text: node.textContent }));
     if (!/Sending…/.test(queued.text ?? "") || /\d:\d\d/.test(queued.text ?? "")) throw new Error(`pending bubble text was ${queued.text}`);
-    step("enqueue one message while offline", queued);
+    await page.waitForSelector(`section[aria-label=Search] li[data-message="${queued.id}"]`, { timeout: 10_000 });
+    await page.waitForFunction(() => document.querySelector("section[aria-label=Search] .scope")?.getAttribute("data-state") === "held", null, { timeout: 10_000 });
+    step("the mounted indexed search publishes the offline prediction", queued);
 
     // Kill the profile at rest, cold start with the backend unreachable.
     await close();
     page = await launch({ ownerCut: true });
-    await page.waitForSelector(`li[data-state=queued][data-message="${queued.id}"]`, { timeout: 10_000 }).catch(() => undefined);
-    await openChat(page, "conversation-1").catch(() => undefined);
+    await openChat(page, neverOpened).catch(() => undefined);
     const coldQueued = await page.$(`li[data-state=queued][data-message="${queued.id}"]`);
     const coldInbox = await page.$$eval("nav[aria-label=Inbox] li", (nodes) => nodes.length);
     if (!coldQueued || coldInbox < 3) {
@@ -367,12 +379,11 @@ async function main() {
       }).catch((e) => String(e));
       throw new Error(`cold start held ${coldInbox} chats and queued=${Boolean(coldQueued)}: ${JSON.stringify(diagnosis)}`);
     }
-    step("cold start offline: the inbox, the chats, and the queued message are there", { chats: coldInbox });
-
-    // A chat never opened online is hydrating offline (the twin, lane O2b, makes it exact later).
-    await page.click(`nav[aria-label=Inbox] li[data-conversation="${neverOpened}"] button`);
-    await page.waitForFunction(() => /Loading…/.test(document.querySelector("section[aria-label=Thread] p[role=status]")?.textContent ?? ""), null, { timeout: 10_000 });
-    step("a chat never opened online is hydrating offline (twin pending: lane O2b)", { conversationId: neverOpened });
+    await page.fill("section[aria-label=Search] input", indexedSearchTerm);
+    await page.waitForSelector(`section[aria-label=Search] li[data-message="${queued.id}"]`, { timeout: 10_000 });
+    const coldSearch = await page.$eval("section[aria-label=Search] .scope", (node) => ({ state: node.getAttribute("data-state"), text: node.textContent }));
+    if (coldSearch.state !== "held") throw new Error(`cold indexed search was ${JSON.stringify(coldSearch)}`);
+    step("cold offline: a chat never opened online renders held rows and its prediction; indexed search agrees", { chats: coldInbox, search: coldSearch });
 
     // Carrier refused → E_OFFLINE_CARRIER.
     await close();
@@ -387,7 +398,7 @@ async function main() {
     // Backend up: 503 after the first commit, kill mid-commit, exactly one row, second in order.
     page = await launch({ ownerCut: true });
     await page.evaluate(() => window.__snapback.offline());
-    await openChat(page, "conversation-1");
+    await openChat(page, neverOpened);
     await page.fill("form[aria-label=Composer] input", "second queued message");
     await page.click("form[aria-label=Composer] button[type=submit]");
     await page.waitForFunction(() => document.querySelectorAll("li[data-state=queued]").length === 2, null, { timeout: 5_000 });
@@ -406,28 +417,41 @@ async function main() {
     page = await launch();
     await page.evaluate(() => window.__snapback.outbox.settled());
     await page.evaluate(() => window.__snapback.outbox.drain());
-    await openChat(page, "conversation-1");
+    await openChat(page, neverOpened);
     await page.waitForFunction(() => document.querySelectorAll("li[data-state=queued]").length === 0, null, { timeout: 10_000 });
     const { createClient, api } = await import(resolve(dist, "client.mjs"));
     const verifier = createClient({ url: owner.url, as: "alice" });
-    const thread = await verifier.query(api.deliveries.thread, { conversationId: "conversation-1", c: null });
+    const thread = await verifier.query(api.deliveries.thread, { conversationId: neverOpened, c: null });
     verifier.close();
     const bodies = thread.data.map((row) => row.message?.body);
     const count = (body) => bodies.filter((item) => item === body).length;
-    if (count("queued in the browser") !== 1 || count("second queued message") !== 1) throw new Error(`rows: ${JSON.stringify(bodies)}`);
-    if (bodies.indexOf("second queued message") > bodies.indexOf("queued in the browser")) throw new Error("replay order was not preserved");
+    if (count("Café queued in the browser") !== 1 || count("second queued message") !== 1) throw new Error(`rows: ${JSON.stringify(bodies)}`);
+    if (bodies.indexOf("second queued message") > bodies.indexOf("Café queued in the browser")) throw new Error("replay order was not preserved");
     step("503 after the commit and a kill inside the settlement swap: exactly one row each, in order");
 
-    // Expiry (revocation) while offline is gone from the local search after the resume.
+    // Revocation received on resume invalidates the same persistent index trace.
+    await page.fill("section[aria-label=Search] input", indexedSearchTerm);
+    await page.waitForSelector(`section[aria-label=Search] li[data-message="${seeded.doomedMessageId}"]`, { timeout: 10_000 });
     await page.evaluate(() => window.__snapback.offline());
     const revoker = createClient({ url: owner.url, as: "alice" });
     const unsent = await revoker.mutation(api.deliveries.unsend, { messageId: seeded.doomedMessageId });
     revoker.close();
     if (unsent.state !== "committed") throw new Error(`unsend was ${unsent.state}`);
     await page.evaluate(() => window.__snapback.online());
-    await page.fill("section[aria-label=Search] input", "expires while offline");
-    await page.waitForFunction(() => document.querySelectorAll("section[aria-label=Search] .hits li").length === 0, null, { timeout: 10_000 });
-    step("a message revoked while offline is gone from the local search after the resume (unsend writes the same log shape as the owner's expiry schedule, LLP 1016 D5)");
+    await page.waitForFunction(({ doomed, queued }) => {
+      const ids = [...document.querySelectorAll("section[aria-label=Search] .hits li")].map((node) => node.getAttribute("data-message"));
+      const state = document.querySelector("section[aria-label=Search] .scope")?.getAttribute("data-state");
+      return !ids.includes(doomed) && ids.includes(queued) && (state === "complete" || state === "capped");
+    }, { doomed: seeded.doomedMessageId, queued: queued.id }, { timeout: 10_000 });
+    const heldAfterRevocation = await page.evaluate(async (term) => {
+      await window.__snapback.offline();
+      const result = await window.__snapback.query(window.__api.messages.search, { term, c: null });
+      return { state: result.state, ids: Array.isArray(result.data) ? result.data.map((row) => row.id) : [] };
+    }, indexedSearchTerm);
+    if (heldAfterRevocation.state !== "held" || heldAfterRevocation.ids.includes(seeded.doomedMessageId)
+      || !heldAfterRevocation.ids.includes(queued.id)) throw new Error(`held search after revocation: ${JSON.stringify(heldAfterRevocation)}`);
+    step("revocation removes only the expired indexed row; the settled prediction remains in held Unicode search (LLP 1016 D5)");
+    await page.evaluate(() => window.__snapback.online());
 
     await sharedSessions(context, page, appUrl, owner.url);
     }

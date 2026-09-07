@@ -102,7 +102,7 @@ async function type(input: HTMLInputElement, value: string): Promise<void> {
   });
 }
 
-test("the chat screens render the log, queue offline sends as pinned bubbles, settle them in place, and search the held log", async () => {
+test("the chat screens render the log, queue offline sends as pinned bubbles, settle them in place, and use indexed search", async () => {
   const restore = installDom();
   const root = await mkdtemp(join(tmpdir(), "snapback2-screens-"));
   let dead = false;
@@ -144,6 +144,15 @@ test("the chat screens render the log, queue offline sends as pinned bubbles, se
     assert.equal(welcome.getAttribute("data-state"), "row");
     assert.ok(welcome.querySelector("time"), "a server row shows the server time");
 
+    // Search is the named indexed query, including its case-normalized prefix semantics.
+    const search = document.querySelector<HTMLInputElement>("section[aria-label=Search] input")!;
+    await type(search, "WEL");
+    await waitFor(() => document.querySelectorAll("section[aria-label=Search] .hits li").length > 0, "indexed search hits");
+    assert.equal(document.querySelector("section[aria-label=Search] .scope")?.getAttribute("data-state"), "complete");
+    assert.equal(text(document.querySelector("section[aria-label=Search] .scope")), "Live indexed results");
+    assert.deepEqual([...document.querySelectorAll("section[aria-label=Search] .hits li")].map((item) => item.getAttribute("data-message")), ["message-1"]);
+    await type(search, "");
+
     await act(async () => { await client.offline(); });
     const input = document.querySelector<HTMLInputElement>("form[aria-label=Composer] input")!;
     await type(input, "queued while offline");
@@ -171,6 +180,8 @@ test("the chat screens render the log, queue offline sends as pinned bubbles, se
     assert.equal(settledBubble.getAttribute("data-state"), "row");
     assert.ok(settledBubble.querySelector("time"), "the server row carries the server time");
     assert.doesNotMatch(text(settledBubble), /Sending…/);
+    await act(async () => { await client.outbox.settled(); });
+    await waitFor(async () => (await client.outbox.entries()).length === 0, "the settled outbox dismissal");
     assert.deepEqual((await client.outbox.entries()).map((item: any) => item.state), [], "a committed post whose row arrived was dismissed");
 
     // Rejected: "Not sent" with the refusal rewrite, then dismissed by the user.
@@ -235,16 +246,8 @@ test("the chat screens render the log, queue offline sends as pinned bubbles, se
     assert.match(text(document.querySelector("li[data-state=expired]")), /Expired/);
     assert.equal(owner.executions.at(-1)?.args && (owner.executions.at(-1)!.args as any).body, "after owner expiry");
 
-    // Offline search is a filter over the downloaded log, labeled as such.
     dead = true;
     await act(async () => { await client.offline(); });
-    await type(document.querySelector<HTMLInputElement>("section[aria-label=Search] input")!, "welcome");
-    await waitFor(() => document.querySelectorAll("section[aria-label=Search] .hits li").length > 0, "search hits");
-    assert.equal(text(document.querySelector("section[aria-label=Search] .scope")), "in downloaded messages");
-    assert.deepEqual([...document.querySelectorAll("section[aria-label=Search] .hits li")].map((item) => item.getAttribute("data-message")), ["message-1"]);
-    await type(document.querySelector<HTMLInputElement>("section[aria-label=Search] input")!, "nowhere");
-    await settle(20);
-    assert.equal(document.querySelectorAll("section[aria-label=Search] .hits li").length, 0);
   } finally {
     Date.now = originalNow;
     await act(async () => { reactRoot.unmount(); });

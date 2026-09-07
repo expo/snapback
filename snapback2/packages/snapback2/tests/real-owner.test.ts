@@ -222,23 +222,36 @@ test("sixty live queries and a channel share one connection through add, remove 
     return fetch(input, init);
   } });
   const subscriptions: any[] = [];
+  const deliveries = new Map<string, unknown>();
+  const remember = (name: string) => (event: any) => deliveries.set(name, {
+    state: event?.state, live: event?.live, seq: event?.seq,
+    rows: Array.isArray(event?.data) ? event.data.length : undefined,
+    typing: event?.payload?.typing,
+  });
+  let phase = "opening sixty queries";
   try {
-    for (let i = 0; i < 60; i++) subscriptions.push(client.subscribe(api.messages.thread, { conversationId: "conversation-1", c: null }, () => {}));
+    for (let i = 0; i < 60; i++) subscriptions.push(client.subscribe(
+      api.messages.thread, { conversationId: "conversation-1", c: null }, remember(`thread-${i}`),
+    ));
     await Promise.all(subscriptions.map(sub => sub.until((event: any) => event.live === true, 5_000)));
     assert.equal(streams, 1);
-    const channel = client.channel(api.typing, { conversationId: "conversation-1" }).subscribe(() => {});
+    phase = "admitting channel with summary query";
+    const channel = client.channel(api.typing, { conversationId: "conversation-1" }).subscribe(remember("channel"));
     subscriptions.push(channel);
     // A query registered in the same control batch witnesses channel admission.
-    const witness = client.subscribe(api.messages.summary, { conversationId: "conversation-1" }, () => {});
+    const witness = client.subscribe(api.messages.summary, { conversationId: "conversation-1" }, remember("summary"));
     subscriptions.push(witness);
     await witness.until((event: any) => event.live === true, 2_000);
+    phase = "receiving channel publish";
     await client.channel(api.typing, { conversationId: "conversation-1" }).publish({ typing: true });
     await channel.until((event: any) => event.payload?.typing === true, 2_000);
-    const refused = client.subscribe(api.missing.operation, {}, () => {});
+    phase = "receiving unknown-operation refusal";
+    const refused = client.subscribe(api.missing.operation, {}, remember("missing"));
     subscriptions.push(refused);
     await assert.rejects(refused.until(() => false, 2_000), (error: any) => error.code === "E_OP_UNKNOWN");
     const removed = subscriptions.splice(0, 30);
     for (const sub of removed) sub.close();
+    phase = "receiving post-mutation query updates";
     const message = `multiplex-${Date.now()}`;
     await client.mutation(api.messages.send, { conversationId: "conversation-1", recipientId: "profile-bob", body: message });
     await Promise.all(subscriptions.slice(0, 30).map(sub => sub.until((event: any) => event.data?.some((row: any) => row.body === message), 3_000)));
@@ -246,10 +259,15 @@ test("sixty live queries and a channel share one connection through add, remove 
     const denied = await fetch(`${owner.url}/api/live/control`, { method: "POST", headers: { "Content-Type": "application/json", "X-Snapback-As": "bob" }, body: JSON.stringify({ session, close: true }) });
     assert.equal(denied.status, 400, "another principal cannot control this stream");
     await fetch(`${owner.url}/api/live/control`, { method: "POST", headers: { "Content-Type": "application/json", "X-Snapback-As": "alice" }, body: JSON.stringify({ session, close: true }) });
+    phase = "receiving stale after owner-forced close";
     await subscriptions[0].until((event: any) => event.state === "stale", 2_000);
+    phase = "receiving live delivery after reconnect";
     await subscriptions[0].until((event: any) => event.live === true, 3_000);
     assert.equal(streams, 2);
     assert.ok(controls < 15, "subscriptions are batched, not one control connection per query");
+  } catch (error) {
+    context.diagnostic(`multiplex failure phase=${phase}; streams=${streams}; controls=${controls}; deliveries=${JSON.stringify(Object.fromEntries(deliveries))}`);
+    throw error;
   } finally { for (const sub of subscriptions) sub.close(); await client.close(); }
 });
 

@@ -9,14 +9,15 @@ import { controlServer } from "./witness-expo/control.mjs";
 import { assertNoMediaOnDisk } from "./witness-expo/container.mjs";
 import { ownerHarness, seedWitness } from "./witness-expo/owner.mjs";
 
-const names = ["build, owner seed, and outward control", "login, inbox drain, three chats and two photos", "offline and two queued sends",
+const names = ["build, owner seed, and outward control", "login, inbox drain, three chats, two photos and warm indexed search", "offline and two queued sends",
   "SIGKILL at barrier; exact pre-swap state across all five stores and twin prediction", "SIGKILL at rest; same cold state",
   "persistent carrier fault reports over control", "post-commit 503, exactly-once replay and FIFO",
-  "offline expiry disappears from held search", "Expo driver conformance including real failed COMMIT", "persist online, relaunch and drain"];
+  "Unicode indexed prediction and expiry agree warm and held", "Expo driver conformance including real failed COMMIT", "persist online, relaunch and drain"];
 const steps = [];
 let control, owner, device, appPid, seed, before, queued;
 const bundleId = "dev.snapback.chat";
 const controlPort = 43219, ownerPort = 43220;
+const indexedSearchTerm = "CAFE\u0301";
 const log = (text) => process.stdout.write(`${text}\n`);
 const command = (...args) => control.command(...args);
 async function killApp() {
@@ -53,8 +54,11 @@ function coldAssertions(state) {
   assert.equal(state.outbox.filter((entry) => entry.state === "queued").length, 2);
   const facts = state.answer ? { state: state.answer.state, connection: state.answer.connection, live: state.answer.live, stale: state.answer.stale, predicted: state.answer.predicted, site: state.answer.site, reason: state.answer.reason, hydrating: state.answer.state === "hydrating", rows: Array.isArray(state.answer.data) ? state.answer.data.length : null, twin: state.twin } : null;
   assert.ok((state.answer?.predicted ?? []).includes(queued[0].intent), `predicted intent must be on the query result; answer facts: ${JSON.stringify(facts)}; outbox: ${JSON.stringify(state.outbox.map((entry) => ({ state: entry.state, predicted: entry.predicted, intent: entry.intent })))}`);
-  assert.ok(state.answer.data.some((row) => row.message?.body === "offline first"), "queued send must be inside the never-opened query's data");
+  assert.ok(state.answer.data.some((row) => row.message?.body === "Café offline first"), "queued send must be inside the never-opened query's data");
   assert.ok(state.bubbles.some((bubble) => bubble.key === queued[0].ids[0] && bubble.kind === "pending"));
+  assert.equal(state.search.state, "held");
+  assert.ok(state.search.data.some((row) => row.id === queued[0].ids[0] && row.body === "Café offline first"),
+    "cold indexed search includes the predicted message row");
   for (const room of seed.rooms) assert.ok(state.coverage.rows.some((row) => row.table === "deliveries" && row.row.conversationId === room));
 }
 async function coldMedia() {
@@ -100,6 +104,9 @@ const actions = [
     await launch(); await command("construct", { fresh: true, name: "alice", assets: seed.assets });
     await command("drain");
     for (const conversationId of seed.rooms.slice(0, 3)) await command("open", { conversationId });
+    const warmSearch = await command("state", { search: indexedSearchTerm });
+    assert.ok(warmSearch.search.state === "complete" || warmSearch.search.state === "capped");
+    assert.ok(warmSearch.search.data.some((row) => row.id === seed.doomed));
     for (const [index, asset] of seed.assets.entries()) {
       log(`view ${index + 1}/${seed.assets.length}: ${"duration" in asset ? "video" : "image"}`);
       const media = await command("view", { assetId: asset.id });
@@ -114,11 +121,11 @@ const actions = [
     }
     const container = (await run("xcrun", ["simctl", "get_app_container", device, bundleId, "data"])).trim();
     await assertNoMediaOnDisk(container, seed.forbidden);
-    return { opened: seed.rooms.slice(0, 3), neverOpened: seed.rooms[3] };
+    return { opened: seed.rooms.slice(0, 3), neverOpened: seed.rooms[3], search: warmSearch.search.state };
   },
   async () => {
     await command("offline");
-    queued = [await command("send", { conversationId: seed.rooms[3], body: "offline first" }),
+    queued = [await command("send", { conversationId: seed.rooms[3], body: "Café offline first" }),
       await command("send", { conversationId: seed.rooms[3], body: "offline second" })];
     assert.ok(queued.every((result) => result.state === "queued"));
     return queued;
@@ -129,7 +136,7 @@ const actions = [
     const pending = command("swap", { phase: "post" }).catch((error) => error.message);
     await control.event("barrier reached"); await killApp(); await pending;
     await owner.stop(); await launch(); coldStores(await command("stores")); await command("construct");
-    const state = await command("state", { conversationId: seed.rooms[3] }); coldAssertions(state);
+    const state = await command("state", { conversationId: seed.rooms[3], search: indexedSearchTerm }); coldAssertions(state);
     // A query with truly absent coverage is separate from the never-opened chat.
     const absent = await command("state", { conversationId: "never-held-conversation" });
     assert.equal(absent.answer.state, "partial");
@@ -137,7 +144,7 @@ const actions = [
   },
   async () => {
     await new Promise((resolve) => setTimeout(resolve, 1_000)); await killApp(); await launch(); coldStores(await command("stores")); await command("construct");
-    coldAssertions(await command("state", { conversationId: seed.rooms[3] })); return coldMedia();
+    coldAssertions(await command("state", { conversationId: seed.rooms[3], search: indexedSearchTerm })); return coldMedia();
   },
   async () => {
     await command("fault", { mode: "carrier" }); await killApp(); await launch();
@@ -164,19 +171,27 @@ const actions = [
     return { intents: entries.map((entry) => ({ intent: entry.intent, id: entry.ids[0], state: entry.state })), injected: owner.injected };
   },
   async () => {
+    const warm = await command("state", { conversationId: seed.rooms[0], search: indexedSearchTerm });
+    assert.ok(warm.search.state === "complete" || warm.search.state === "capped");
+    assert.ok(warm.search.data.some((row) => row.id === seed.doomed));
+    assert.ok(warm.search.data.some((row) => row.id === queued[0].ids[0]), "the settled prediction remains indexed");
     await command("offline");
-    assert.equal((await command("state", { conversationId: seed.rooms[0], search: "expires while offline" })).search.length, 1);
+    const held = await command("state", { conversationId: seed.rooms[0], search: indexedSearchTerm });
+    assert.equal(held.search.state, "held");
+    assert.ok(held.search.data.some((row) => row.id === seed.doomed));
     const { createClient, api } = await import(resolve(dist, "client.mjs"));
     const server = createClient({ url: owner.directUrl, as: "alice" });
     try { assert.equal((await server.mutation(api.witness.expire, { messageId: seed.doomed })).state, "committed"); }
     finally { await server.close(); }
     await command("online");
     await command("offline"); // Search the held answer, after resume applied the expiry.
-    const state = await command("state", { conversationId: seed.rooms[0], search: "expires while offline" });
+    const state = await command("state", { conversationId: seed.rooms[0], search: indexedSearchTerm });
     assert.ok(state.coverage.rows.every((row) => row.table !== "messages" || row.id !== seed.doomed));
-    assert.ok(state.answer.data.every((row) => row.message?.body !== "expires while offline"));
-    assert.equal(state.search.length, 0);
-    return { removed: seed.doomed };
+    assert.ok(state.answer.data.every((row) => row.message?.body !== "Café expires while offline"));
+    assert.equal(state.search.state, "held");
+    assert.ok(state.search.data.every((row) => row.id !== seed.doomed));
+    assert.ok(state.search.data.some((row) => row.id === queued[0].ids[0]));
+    return { removed: seed.doomed, preserved: queued[0].ids[0], search: state.search.state };
   },
   async () => {
     const result = await command("conformance", {}, 60_000);

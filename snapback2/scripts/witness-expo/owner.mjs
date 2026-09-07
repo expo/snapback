@@ -59,7 +59,7 @@ export async function seedWitness(url) {
     const rooms = ["conversation-1", "conversation-2"];
     for (const title of ["Third opened room", "Never opened room"]) rooms.push(committed(await alice.mutation(api.groups.groupCreate, { title, members: ["dev:bob"] })).id);
     for (const conversationId of rooms) committed(await alice.mutation(api.deliveries.post, { conversationId, body: `witness seed ${conversationId}` }));
-    const doomed = committed(await alice.mutation(api.deliveries.post, { conversationId: rooms[0], body: "expires while offline" })).id;
+    const doomed = committed(await alice.mutation(api.deliveries.post, { conversationId: rooms[0], body: "Café expires while offline" })).id;
     // The fixture is a real PNG; upload is byte-backed on the host, as on the web witness.
     const png = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jRZkAAAAASUVORK5CYII=", "base64");
     const assets = [], forbidden = [];
