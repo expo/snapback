@@ -1263,7 +1263,10 @@ fn persist_generation_transaction(
 }
 
 fn store_refusal(error: RuntimeError) -> SuccessorRefusal {
-    SuccessorRefusal::store(&error)
+    match error {
+        RuntimeError::Successor(refusal) => *refusal,
+        error => SuccessorRefusal::store(&error),
+    }
 }
 
 fn first_schema_error(errors: Vec<RuntimeError>) -> RuntimeError {

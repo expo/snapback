@@ -834,7 +834,7 @@ The isolated correction branch is pushed. Combining it with the separately repai
 
 Fresh review of the ordering repair found a separate invariant gap: uniqueness is checked over projections while ordinary survivors of a rebuilt table can be omitted. The concrete three-generation trigger is currently static, not executed. The next repair needs the complete resulting logical row set, with exact replacement exclusions; another local exemption would leave this boundary fragile. Existing ordering and asset rollback integration tests pass for their own cases.
 
-The authorized Astra reproduction/repair attempt was rejected by its provider before any tool or edit. The failed attempt and clean source are preserved; no model-switch or rephrasing retry was made. The unresolved [filesystem ticket](../issues/20260906-snapback2-rebuilt-survivor-uniqueness.md) keeps the combined candidate's limitation visible. Separate production Hermes and compiler/offline work continues. No competitor rerun or new overall score is claimed.
+The authorized Astra reproduction/repair attempt was rejected by its provider before any tool or edit. The failed attempt and clean source are preserved; no model-switch or rephrasing retry was made. The unresolved [filesystem ticket](../issues/closed/20260906-snapback2-rebuilt-survivor-uniqueness.md) keeps the combined candidate's limitation visible. Separate production Hermes and compiler/offline work continues. No competitor rerun or new overall score is claimed.
 
 
 ### 2026-09-06 — Compiler project authority repair reaches review

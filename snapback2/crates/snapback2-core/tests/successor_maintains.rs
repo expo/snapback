@@ -453,3 +453,447 @@ fn rebuilt_target_clears_stale_rows_before_a_new_unique_index_binds() {
         assert_eq!(get(&mut runtime, id).field("value"), Ok(&Value::Int(value)));
     }
 }
+
+fn survivor_tables() -> BTreeMap<String, Table> {
+    BTreeMap::from([
+        (
+            "expenses".into(),
+            table(
+                &[
+                    ("id", ColumnType::Id),
+                    ("group", ColumnType::Optional(Box::new(ColumnType::Id))),
+                    ("amount", ColumnType::Int),
+                ],
+                &[("byId", &["id"])],
+            ),
+        ),
+        (
+            "totals".into(),
+            table(
+                &[
+                    ("id", ColumnType::Id),
+                    ("group", ColumnType::Optional(Box::new(ColumnType::Id))),
+                    ("value", ColumnType::Int),
+                ],
+                &[("byId", &["id"])],
+            ),
+        ),
+        (
+            "scratch".into(),
+            table(&[("id", ColumnType::Id)], &[("byId", &["id"])]),
+        ),
+    ])
+}
+
+fn survivor_count() -> Maintain {
+    Maintain {
+        kind: MaintainKind::Count,
+        source: "expenses".into(),
+        by: vec!["group".into()],
+        target: "totals".into(),
+        readable: None,
+    }
+}
+
+fn total_row(id: &str, group: Option<&str>, value: i64) -> Value {
+    let mut fields = BTreeMap::from([
+        ("id".into(), Value::Id(id.into())),
+        ("value".into(), Value::Int(value)),
+    ]);
+    if let Some(group) = group {
+        fields.insert("group".into(), Value::Id(group.into()));
+    }
+    Value::Row(fields)
+}
+
+struct SurvivorFiles(std::path::PathBuf);
+impl SurvivorFiles {
+    fn new() -> Self {
+        static NEXT: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+        let path = std::env::temp_dir().join(format!(
+            "s2-survivor-{}-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos(),
+            NEXT.fetch_add(1, std::sync::atomic::Ordering::Relaxed)
+        ));
+        std::fs::create_dir(&path).unwrap();
+        Self(path)
+    }
+
+    fn snapshot(&self, store: &Store) -> BTreeMap<String, Vec<Vec<rusqlite::types::Value>>> {
+        let path = self.0.join("snapshot.sqlite");
+        store.snapshot_to(&path).unwrap();
+        let connection = rusqlite::Connection::open(&path).unwrap();
+        let names = connection.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' ORDER BY name").unwrap()
+            .query_map([], |r| r.get::<_, String>(0)).unwrap().collect::<Result<Vec<_>, _>>().unwrap();
+        names
+            .into_iter()
+            .map(|name| {
+                let quoted = name.replace('"', "\"\"");
+                let mut statement = connection
+                    .prepare(&format!("SELECT * FROM \"{quoted}\" ORDER BY rowid"))
+                    .unwrap();
+                let count = statement.column_count();
+                let mut rows = statement
+                    .query_map([], |row| {
+                        (0..count)
+                            .map(|i| row.get(i))
+                            .collect::<Result<Vec<rusqlite::types::Value>, _>>()
+                    })
+                    .unwrap()
+                    .collect::<Result<Vec<_>, _>>()
+                    .unwrap();
+                // Store::open refreshes only this lock-owner stamp before
+                // Runtime sees the candidate. Compare all application and
+                // generation state, including every other metadata entry.
+                if name == "_meta" {
+                    rows.retain(|row| row[0] != rusqlite::types::Value::Text("owner".into()));
+                }
+                (name, rows)
+            })
+            .collect()
+    }
+}
+impl std::ops::Drop for SurvivorFiles {
+    fn drop(&mut self) {
+        let _ = std::fs::remove_dir_all(&self.0);
+    }
+}
+
+fn seed_survivors(runtime: &mut Runtime, rows: Vec<Value>) {
+    let mut rows = rows
+        .into_iter()
+        .map(|row| ("totals".into(), row))
+        .collect::<Vec<_>>();
+    rows.push((
+        "expenses".into(),
+        object([
+            ("id", Value::Id("expense".into())),
+            ("group", Value::Id("derived".into())),
+            ("amount", Value::Int(5)),
+        ]),
+    ));
+    rows.push(("scratch".into(), object([("id", Value::Id("keep".into()))])));
+    runtime.seed(&rows).unwrap();
+}
+
+#[test]
+fn rebuilt_survivor_uniqueness_refuses_additive_migration_and_reopen_atomically() {
+    for route in ["additive", "migration", "reopen"] {
+        let files = SurvivorFiles::new();
+        let path = files.0.join("store.sqlite");
+        let tables = survivor_tables();
+        let mut runtime = Runtime::open(
+            Store::open(&path).unwrap(),
+            generation(tables.clone(), vec![]),
+        )
+        .unwrap();
+        seed_survivors(
+            &mut runtime,
+            vec![
+                total_row("legacy-a", Some("aa"), 9),
+                total_row("legacy-b", Some("bb"), 9),
+            ],
+        );
+        let predecessor = generation(tables.clone(), vec![survivor_count()]);
+        runtime.apply_successor(predecessor.clone()).unwrap();
+        let before = files.snapshot(runtime.store());
+        let seq = runtime.store().commit_seq().unwrap();
+        let mut next_tables = tables;
+        next_tables.get_mut("totals").unwrap().indexes.insert(
+            "byValue".into(),
+            Index {
+                columns: vec!["value".into()],
+                unique: true,
+            },
+        );
+        if route == "migration" {
+            next_tables.remove("scratch");
+        }
+        let next = generation(next_tables, vec![]);
+        let refusal = match route {
+            "additive" => runtime.apply_successor(next).unwrap_err(),
+            "migration" => {
+                let plan = runtime.apply_successor(next.clone()).unwrap_err().plan;
+                assert!(!plan.drops.is_empty());
+                match runtime.apply_migration(next, &plan, 0).unwrap_err() {
+                    RuntimeError::Successor(refusal) => *refusal,
+                    error => panic!("expected typed unique refusal, got {error}"),
+                }
+            }
+            _ => {
+                drop(runtime);
+                let refusal = match Runtime::open(Store::open(&path).unwrap(), next) {
+                    Ok(_) => panic!("reopen installed colliding survivors"),
+                    Err(refusal) => refusal,
+                };
+                let store = Store::open(&path).unwrap();
+                assert_eq!(
+                    files.snapshot(&store),
+                    before,
+                    "{route}: every durable table must survive refusal"
+                );
+                runtime = Runtime::open(store, predecessor.clone()).unwrap();
+                refusal
+            }
+        };
+        assert_eq!(refusal.code, "E_SUCCESSOR_UNIQUE", "{route}");
+        assert_eq!(
+            refusal.conflicts,
+            vec![UniqueConflict {
+                table: "totals".into(),
+                index: "byValue".into(),
+                key: vec![Value::Int(9)]
+            }]
+        );
+        assert_eq!(runtime.generation().hash(), predecessor.hash());
+        assert_eq!(runtime.store().commit_seq().unwrap(), seq);
+        assert_eq!(
+            files.snapshot(runtime.store()),
+            before,
+            "{route}: rows, indexes and metadata must survive refusal"
+        );
+    }
+}
+
+#[test]
+fn rebuilt_survivor_projection_collision_has_a_unique_refusal() {
+    let files = SurvivorFiles::new();
+    let tables = survivor_tables();
+    let mut runtime =
+        Runtime::open(Store::memory().unwrap(), generation(tables.clone(), vec![])).unwrap();
+    seed_survivors(&mut runtime, vec![total_row("legacy", Some("ordinary"), 1)]);
+    let before = files.snapshot(runtime.store());
+    let mut next_tables = tables;
+    next_tables.get_mut("totals").unwrap().indexes.insert(
+        "byValue".into(),
+        Index {
+            columns: vec!["value".into()],
+            unique: true,
+        },
+    );
+    let refusal = runtime
+        .apply_successor(generation(next_tables, vec![survivor_count()]))
+        .unwrap_err();
+    assert_eq!(refusal.code, "E_SUCCESSOR_UNIQUE");
+    assert_eq!(
+        refusal.conflicts,
+        vec![UniqueConflict {
+            table: "totals".into(),
+            index: "byValue".into(),
+            key: vec![Value::Int(1)]
+        }]
+    );
+    assert_eq!(files.snapshot(runtime.store()), before);
+}
+
+#[test]
+fn rebuilt_unique_index_allows_next_projection_to_replace_an_ordinary_id() {
+    let tables = survivor_tables();
+    let mut runtime =
+        Runtime::open(Store::memory().unwrap(), generation(tables.clone(), vec![])).unwrap();
+    let owned = canonical_json(&vec![Value::Id("derived".into())]);
+    seed_survivors(
+        &mut runtime,
+        vec![
+            total_row(&owned, Some("old"), 1),
+            total_row("legacy", Some("ordinary"), 1),
+        ],
+    );
+    let mut next_tables = tables;
+    next_tables.get_mut("totals").unwrap().indexes.insert(
+        "byValue".into(),
+        Index {
+            columns: vec!["value".into()],
+            unique: true,
+        },
+    );
+    let mut sum = survivor_count();
+    sum.kind = MaintainKind::Sum {
+        of: "amount".into(),
+    };
+    runtime
+        .apply_successor(generation(next_tables, vec![sum]))
+        .unwrap();
+    assert_eq!(get(&mut runtime, owned).field("value"), Ok(&Value::Int(5)));
+    assert_eq!(
+        get(&mut runtime, "legacy".into()).field("value"),
+        Ok(&Value::Int(1))
+    );
+}
+
+#[test]
+fn rebuilt_uniqueness_uses_predrop_owned_ids_when_a_source_is_removed() {
+    let tables = survivor_tables();
+    let mut runtime =
+        Runtime::open(Store::memory().unwrap(), generation(tables.clone(), vec![])).unwrap();
+    seed_survivors(&mut runtime, vec![total_row("legacy", Some("ordinary"), 1)]);
+    runtime
+        .apply_successor(generation(tables.clone(), vec![survivor_count()]))
+        .unwrap();
+    let mut next_tables = tables;
+    next_tables.remove("expenses");
+    next_tables.get_mut("totals").unwrap().indexes.insert(
+        "byValue".into(),
+        Index {
+            columns: vec!["value".into()],
+            unique: true,
+        },
+    );
+    let next = generation(next_tables, vec![]);
+    let plan = runtime.apply_successor(next.clone()).unwrap_err().plan;
+    runtime.apply_migration(next, &plan, 0).unwrap();
+    assert_eq!(
+        get(&mut runtime, "legacy".into()).field("value"),
+        Ok(&Value::Int(1))
+    );
+    let owned = canonical_json(&vec![Value::Id("derived".into())]);
+    assert_eq!(get(&mut runtime, owned), Value::Null);
+}
+
+#[test]
+fn rebuilt_survivor_unique_tuple_treats_omitted_optional_as_null() {
+    let tables = survivor_tables();
+    let mut runtime =
+        Runtime::open(Store::memory().unwrap(), generation(tables.clone(), vec![])).unwrap();
+    let mut explicit_null = total_row("explicit", None, 9);
+    if let Value::Row(fields) = &mut explicit_null {
+        fields.insert("group".into(), Value::Null);
+    }
+    seed_survivors(
+        &mut runtime,
+        vec![total_row("omitted", None, 9), explicit_null],
+    );
+    runtime
+        .apply_successor(generation(tables.clone(), vec![survivor_count()]))
+        .unwrap();
+    let mut next_tables = tables;
+    next_tables.get_mut("totals").unwrap().indexes.insert(
+        "byGroupValue".into(),
+        Index {
+            columns: vec!["group".into(), "value".into()],
+            unique: true,
+        },
+    );
+    let refusal = runtime
+        .apply_successor(generation(next_tables, vec![]))
+        .unwrap_err();
+    assert_eq!(
+        refusal.conflicts,
+        vec![UniqueConflict {
+            table: "totals".into(),
+            index: "byGroupValue".into(),
+            key: vec![Value::Null, Value::Int(9)]
+        }]
+    );
+}
+
+#[test]
+fn rebuilt_survivor_uniqueness_reports_at_most_ten_conflicting_keys() {
+    let tables = survivor_tables();
+    let mut runtime =
+        Runtime::open(Store::memory().unwrap(), generation(tables.clone(), vec![])).unwrap();
+    let rows = (0..12)
+        .flat_map(|value| {
+            (0..2).map(move |i| total_row(&format!("legacy-{value}-{i}"), Some("same"), value))
+        })
+        .collect();
+    seed_survivors(&mut runtime, rows);
+    runtime
+        .apply_successor(generation(tables.clone(), vec![survivor_count()]))
+        .unwrap();
+    let mut next_tables = tables;
+    next_tables.get_mut("totals").unwrap().indexes.insert(
+        "byValue".into(),
+        Index {
+            columns: vec!["value".into()],
+            unique: true,
+        },
+    );
+    let refusal = runtime
+        .apply_successor(generation(next_tables, vec![]))
+        .unwrap_err();
+    assert_eq!(refusal.code, "E_SUCCESSOR_UNIQUE");
+    assert_eq!(refusal.conflicts.len(), 10);
+    assert!(
+        refusal
+            .conflicts
+            .iter()
+            .all(|c| c.table == "totals" && c.index == "byValue")
+    );
+    assert_eq!(
+        refusal
+            .conflicts
+            .iter()
+            .map(|c| canonical_json(&c.key))
+            .collect::<std::collections::BTreeSet<_>>()
+            .len(),
+        10
+    );
+}
+
+#[test]
+fn rebuilt_uniqueness_uses_projection_after_preceding_target_retirement() {
+    let mut tables = survivor_tables();
+    let totals = tables.remove("totals").unwrap();
+    tables.insert("aTotals".into(), totals.clone());
+    let mut z_totals = totals;
+    z_totals.indexes.insert(
+        "byValue".into(),
+        Index {
+            columns: vec!["value".into()],
+            unique: true,
+        },
+    );
+    tables.insert("zTotals".into(), z_totals);
+    let mut runtime =
+        Runtime::open(Store::memory().unwrap(), generation(tables.clone(), vec![])).unwrap();
+    runtime
+        .seed(&[
+            ("aTotals".into(), total_row("legacy", Some("ordinary"), 9)),
+            (
+                "expenses".into(),
+                object([
+                    ("id", Value::Id("expense".into())),
+                    ("group", Value::Id("derived".into())),
+                    ("amount", Value::Int(5)),
+                ]),
+            ),
+        ])
+        .unwrap();
+    let mut maintain = survivor_count();
+    maintain.target = "aTotals".into();
+    runtime
+        .apply_successor(generation(tables.clone(), vec![maintain]))
+        .unwrap();
+    // Before retiring aTotals, the zTotals projection has two count=1 rows
+    // and would appear non-unique. The actual rebuild sees only the survivor.
+    runtime
+        .apply_successor(generation(
+            tables,
+            vec![Maintain {
+                kind: MaintainKind::Count,
+                source: "aTotals".into(),
+                target: "zTotals".into(),
+                by: vec!["group".into()],
+                readable: None,
+            }],
+        ))
+        .unwrap();
+    let files = SurvivorFiles::new();
+    let snapshot = files.snapshot(runtime.store());
+    let z_rows = snapshot["rows"]
+        .iter()
+        .filter(|r| r[0] == rusqlite::types::Value::Text("zTotals".into()))
+        .collect::<Vec<_>>();
+    assert_eq!(z_rows.len(), 1);
+    let rusqlite::types::Value::Text(body) = &z_rows[0][2] else {
+        panic!("stored row must be JSON");
+    };
+    let row: Value = serde_json::from_str(body).unwrap();
+    assert_eq!(row.field("group"), Ok(&Value::Id("ordinary".into())));
+    assert_eq!(row.field("value"), Ok(&Value::Int(1)));
+}

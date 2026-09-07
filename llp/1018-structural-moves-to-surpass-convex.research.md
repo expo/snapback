@@ -9,7 +9,7 @@ Clique benchmark
 2026-09-06); revised by Claude Fable 5.1 after the five-model panel of
 2026-09-06/07 (§9), which the author convened
 **Date:** 2026-09-06
-**Revised:** 2026-09-07 (panel revision: a second measure, move one rewritten
+**Revised:** 2026-09-07 (surviving-row uniqueness checked against each actual rebuild); 2026-09-07 (panel revision: a second measure, move one rewritten
 around what already exists, the browser-tab policy decided, count-backed cap
 probes decided, the typed IR cut, move four evidence-led, move zero added, the
 Muse scores cited, the clock repair marked landed; implementation record §10);
@@ -290,15 +290,17 @@ upload recovery. [LLP 1016](./1016-administrative-plane.rfc.md#d6--the-operator-
 provides jobs and rehearsal. M7 was not run in any lane of any scored run, so
 the present score impact of evolution friction is unknown.
 
-The [survivor-uniqueness review](../issues/20260906-snapback2-rebuilt-survivor-uniqueness.md)
-identifies a trigger in which ordinary surviving rows may escape a newly
-introduced unique index during a maintained-table transition. It is a precise
-static finding without a runtime reproduction.
+The [survivor-uniqueness issue](../issues/closed/20260906-snapback2-rebuilt-survivor-uniqueness.md)
+was reproduced and repaired on 2026-09-07: ordinary surviving rows could escape
+a new unique index during a maintained-table transition. Each rebuild now
+checks survivors plus its actual replacement projection; native regression
+tests cover atomic refusal during installation, migration, and reopening.
+This closes that correctness finding, not the M7 evidence requirement.
 
 **Decision (panel).** Evolution stays a direction, not a staffed program: run
 M7 with the existing operator tools on a populated app before commissioning
-migration machinery. The survivor-uniqueness finding is a correctness ticket
-to reproduce and fix promptly; Astra's round-two point stands that once
+migration machinery. The survivor-uniqueness repair is a correctness obligation;
+Astra's round-two point stands that once
 maintained rows back cap probes (§4), rebuild correctness is a dependency of
 that slice and cannot wait for an evolution tranche. Preserve settled-intent
 replay guarantees across operation/schema changes; never silently rewrite an

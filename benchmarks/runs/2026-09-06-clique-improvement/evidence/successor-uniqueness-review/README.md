@@ -5,3 +5,9 @@ Candidate `ed5c42db76ce87577896db9dddfd6cc8f4368b2d` repairs the reproduced orde
 The authorized Astra xhigh uniqueness reproduction/repair attempt was rejected by its provider before any tools, exit1 after27.5756s. Exact source remains clean ed5, with no reproduction or edits. The provider's actual risk flag is retained in provider-block.json; it is not a capacity failure. No rephrasing, model/identity switch or retry was attempted. Other independent work continues.
 
 The combined97fa candidate remains unqualified for this uniqueness condition. Track the unresolved issue in issues/20260906-snapback2-rebuilt-survivor-uniqueness.md. Full reports are verbatim; original external review packets remain under /Users/ccheever/clique-improvement/reviews/successor-widening-ordering-r3/. No full Clique, publication or runtime proof of this particular allegation is claimed.
+
+
+Later resolution (2026-09-07): the current-main survivor-uniqueness gap was
+reproduced and repaired; see the [closed issue](../../../../../issues/closed/20260906-snapback2-rebuilt-survivor-uniqueness.md).
+The original reviews and candidate limits above remain historical evidence.
+The new repair does not qualify or land the old combined candidate.

@@ -317,49 +317,6 @@ pub(crate) fn additive_refusal(
             }
         }
     }
-    let mut future_targets = BTreeMap::<String, BTreeMap<String, Value>>::new();
-    for target in rebuilt_targets {
-        future_targets.insert(
-            target.clone(),
-            projected_target_rows(connection, next, &target)?,
-        );
-    }
-    for (table_name, rows) in future_targets {
-        let Some(table) = next.table(&table_name) else {
-            // A destructive migration already removed an old maintained target
-            // whose declaration is absent from the successor.
-            continue;
-        };
-        for (index_name, index) in table.indexes.iter().filter(|(_, index)| index.unique) {
-            let mut counts = BTreeMap::<String, (Vec<Value>, usize)>::new();
-            for row in rows.values() {
-                let key = index
-                    .columns
-                    .iter()
-                    .map(|column| row.field(column).cloned().unwrap_or(Value::Null))
-                    .collect::<Vec<_>>();
-                counts
-                    .entry(canonical_json(&key))
-                    .and_modify(|(_, count)| *count += 1)
-                    .or_insert((key, 1));
-            }
-            for (_, (key, count)) in counts {
-                if count > 1 {
-                    let conflict = UniqueConflict {
-                        table: table_name.clone(),
-                        index: index_name.clone(),
-                        key,
-                    };
-                    if !conflicts.contains(&conflict) {
-                        conflicts.push(conflict);
-                    }
-                    if conflicts.len() == 10 {
-                        return Ok(Some(SuccessorRefusal::unique(conflicts)));
-                    }
-                }
-            }
-        }
-    }
     Ok((!conflicts.is_empty()).then(|| SuccessorRefusal::unique(conflicts)))
 }
 
@@ -689,6 +646,55 @@ fn rebuild_target(
 ) -> Result<(), RuntimeError> {
     let rows = projected_target_rows(transaction, schema, target)?;
     owned_ids.extend(rows.keys().cloned());
+    let table = schema
+        .table(target)
+        .ok_or_else(|| RuntimeError::Schema(format!("missing maintained target {target}")))?;
+    if table.indexes.values().any(|index| index.unique) {
+        // @ref LLP 1001#4-generation-and-runtime-registryrs-successorrs — uniqueness
+        // binds survivors and the replacement projection, after earlier rebuilds and
+        // migration drops; only predecessor/successor-owned IDs leave the old image.
+        let existing = fetch_rows(transaction, target)?;
+        let mut final_rows = rows.values().collect::<Vec<_>>();
+        for row in &existing {
+            if !owned_ids.contains(row.field("id")?.as_str()?) {
+                final_rows.push(row);
+            }
+        }
+        let mut conflicts = Vec::new();
+        for (index_name, index) in table.indexes.iter().filter(|(_, index)| index.unique) {
+            let mut counts = BTreeMap::<String, (Vec<Value>, usize)>::new();
+            for row in &final_rows {
+                let key = index
+                    .columns
+                    .iter()
+                    .map(|column| row.field(column).cloned().unwrap_or(Value::Null))
+                    .collect::<Vec<_>>();
+                counts
+                    .entry(canonical_json(&key))
+                    .and_modify(|(_, count)| *count += 1)
+                    .or_insert((key, 1));
+            }
+            for (_, (key, count)) in counts {
+                if count > 1 {
+                    conflicts.push(UniqueConflict {
+                        table: target.to_owned(),
+                        index: index_name.clone(),
+                        key,
+                    });
+                    if conflicts.len() == 10 {
+                        return Err(RuntimeError::Successor(Box::new(SuccessorRefusal::unique(
+                            conflicts,
+                        ))));
+                    }
+                }
+            }
+        }
+        if !conflicts.is_empty() {
+            return Err(RuntimeError::Successor(Box::new(SuccessorRefusal::unique(
+                conflicts,
+            ))));
+        }
+    }
     rebuild_owned_aggregate_target(
         transaction,
         schema,
