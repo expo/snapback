@@ -1,0 +1,93 @@
+[
+  {
+    "run": 0,
+    "actual": {
+      "state": "predicted",
+      "partialSites": [],
+      "execution": {
+        "result": {
+          "Row": {
+            "next": {
+              "Id": "id-2"
+            },
+            "original": {
+              "Array": [
+                {
+                  "Int": 2
+                },
+                "Null"
+              ]
+            }
+          }
+        },
+        "trace": {
+          "ranges": [],
+          "absences": [],
+          "points": [],
+          "merges": [],
+          "verdicts": [],
+          "steps": 30
+        },
+        "next": null,
+        "writes": [
+          {
+            "table": "records",
+            "id": "id-1",
+            "row": {
+              "Row": {
+                "id": {
+                  "Id": "id-1"
+                },
+                "label": {
+                  "String": "chosen"
+                },
+                "length": {
+                  "Int": 2
+                },
+                "payload": {
+                  "Row": {
+                    "keep": {
+                      "String": "row"
+                    },
+                    "original": {
+                      "Array": [
+                        {
+                          "Int": 2
+                        },
+                        "Null"
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          }
+        ]
+      },
+      "uncoveredSites": []
+    },
+    "decoded": {
+      "result": {
+        "next": "id-2",
+        "original": [
+          2,
+          null
+        ]
+      },
+      "rows": [
+        {
+          "id": "id-1",
+          "label": "chosen",
+          "length": 2,
+          "payload": {
+            "keep": "row",
+            "original": [
+              2,
+              null
+            ]
+          }
+        }
+      ]
+    }
+  }
+]

@@ -1,0 +1,14 @@
+{
+  "at": "2026-09-07T10:40:07.163596+00:00",
+  "commit": "d3e497acdfd2cbaecbf7c6cb8f7350cb8e63580d",
+  "parent": "c73805f6affb01530c7d903c8e22e8a90f49fe48",
+  "files": 226,
+  "compilerFiles": 224,
+  "archiveSha256": "d2a3a00607411b65ea507379afaad07fe3f8452b418c46e58b70d354a0e174ab",
+  "manifestSha256": "99776fa4a9500f66d75a8daaccf8cd03d84bbe7b3ab21b2627d19bddf6d8b87c",
+  "testedManifestSha256": "70bb1525f868e31bc5176ffc37da42785a033c12c90b88b551010f6814b8318f",
+  "testedWorkingGitArchiveEqual": true,
+  "protectedWorkingSha256": "afc6bc7ffd25fc007787b10e0fc8bdafbe4ae61cb12f7d2442f2c2df95686618",
+  "protectedUnstaged": true,
+  "status": " M snapback2/packages/evaluator/src/types.ts\n"
+}

@@ -1,0 +1,61 @@
+{
+  "at": "2026-09-07T11:12:31.414572+00:00",
+  "toolSession": 11395,
+  "actualTerminal": {
+    "chunk_id": "22859d",
+    "exit_code": 0,
+    "wall_time_seconds": 1.625e-06
+  },
+  "launchIdentity": {
+    "toolSession": 11395,
+    "threadId": "01a07b7b-9489-78c0-84cc-1354b379cca3",
+    "rollout": "/Users/ccheever/.codex/sessions/2026/09/07/rollout-2026-09-07T03-48-11-01a07b7b-9489-78c0-84cc-1354b379cca3.jsonl",
+    "actualTurnContext": {
+      "timestamp": "2026-09-07T10:48:13.796Z",
+      "ordinal": 7,
+      "type": "turn_context",
+      "payload": {
+        "turn_id": "01a07b7b-955d-7c52-aee7-b181d305a57c",
+        "root_turn_id": "01a07b7b-955d-7c52-aee7-b181d305a57c",
+        "cwd": "/Users/ccheever/clique-improvement/reviews/compiler-literal-absence-r22/astra",
+        "workspace_roots": [
+          "/Users/ccheever/clique-improvement/reviews/compiler-literal-absence-r22/astra"
+        ],
+        "current_date": "2026-09-07",
+        "timezone": "America/Los_Angeles",
+        "approval_policy": "never",
+        "approvals_reviewer": "user",
+        "sandbox_policy": {
+          "type": "danger-full-access"
+        },
+        "permission_profile": {
+          "type": "disabled"
+        },
+        "model": "gpt-6-astra",
+        "comp_hash": "3000",
+        "personality": "pragmatic",
+        "collaboration_mode": {
+          "mode": "default",
+          "settings": {
+            "model": "gpt-6-astra",
+            "reasoning_effort": "xhigh",
+            "developer_instructions": null
+          }
+        },
+        "multi_agent_version": "v2",
+        "realtime_active": false,
+        "effort": "xhigh",
+        "summary": "auto"
+      }
+    },
+    "actualNativePid": 62676,
+    "psRows": [
+      "62676 62672       01:46 /Users/ccheever/.volta/tools/image/packages/@openai/codex/lib/node_modules/@openai/codex/node_modules/@openai/codex-darwin-arm64/vendor/aarch64-apple-darwin/bin/codex exec -m gpt-6-astra -c model_reasoning_effort=xhigh --dangerously-bypass-approvals-and-sandbox --json -o final-answer.md -"
+    ]
+  },
+  "reportBytes": 19272,
+  "reportSha256": "12a879c1f65bea3211901613bca4323274fe8fef60001ac3f5f764af6a6bb51c",
+  "unchangedFromFullRead": false,
+  "peerStillLive": true,
+  "findingsWithheldFromAuthor": true
+}

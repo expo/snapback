@@ -1,0 +1,33 @@
+{
+  "pid": 3969453,
+  "supervisorPid": 3969451,
+  "cwd": "/home/ccheever/clique-reviews/compiler-literal-absence-r22-d3e497-f515f287bd/astra/candidate/snapback2",
+  "PATH": "/home/ccheever/clique-tooling/epyc-linux-tooling-20260907T010007Z-0fd567d96f/node-v22.23.2-linux-x64/bin:/home/ccheever/clique-tooling/epyc-linux-tooling-20260907T010007Z-0fd567d96f/bun-v1.3.12-linux-x64/bin:/usr/bin:/bin",
+  "TMPDIR": "/home/ccheever/clique-reviews/compiler-literal-absence-r22-d3e497-f515f287bd/astra/tmp",
+  "argv": [
+    "/home/ccheever/clique-tooling/epyc-linux-tooling-20260907T010007Z-0fd567d96f/bun-v1.3.12-linux-x64/bin/bun",
+    "/home/ccheever/clique-reviews/compiler-literal-absence-r22-d3e497-f515f287bd/astra/harness/probe.ts",
+    "/home/ccheever/clique-reviews/compiler-literal-absence-r22-d3e497-f515f287bd/astra/candidate",
+    "/home/ccheever/clique-reviews/compiler-literal-absence-r22-d3e497-f515f287bd/astra/evidence/runs/c-types-affected",
+    "types",
+    "affected"
+  ],
+  "inputHashes": {
+    "harness/custom-cases.json": "f26e2d013180a35a6f58cdd72d867ac51a778786b73680b433fe2018de5510e4",
+    "harness/dispatch.py": "cba1b8608a914e6b95f40d01c6606546d3d6da0e48b13d15e241fad19a915726",
+    "harness/probe.ts": "e6757ac213a9992967ddc9458ed9bfa6fa1670feb7a44df0d79553766a8c7d4a",
+    "harness/run.py": "b7d2828859a641036b57f70875751a15ca082080c82f40345eb63ac4ccbf5516",
+    "harness/setup.py": "9c6cb50cbc0f53f3039861d1b8396203c19276a3521f809438b2f31578735adf",
+    "harness/transport.py": "a03df4440a088896a25393ff038c668b18d4060bdac90be7569a27057c0900da",
+    "harness/verify_local.py": "6d9a5946a1ec11fc6ef1b0a6ee680150bdb3180388473d1e875628db8aeba927",
+    "harness/versions/probe-v1.ts": "64d2273897d169336d7791c4b3a4ede4373c8f4b411f9f133cea803f34903f82",
+    "harness/versions/probe-v2-preflight.ts": "28b9017adea0f5f6ada84223f4fa3cd96c1e2c7fe39df5081fd7d8f17e5bbf42"
+  },
+  "sourceManifest": "candidate-inputs-before.json",
+  "sourceManifestSha256": "d366f65947f1060c4c33fde298203a6509578e738359d0bfad6b173513dabe3a",
+  "started": "2026-09-07T11:02:13.607947+00:00",
+  "deadlineSeconds": 30,
+  "timeout": false,
+  "exit": 1,
+  "durationSeconds": 3.263241945998743
+}

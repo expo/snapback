@@ -1,0 +1,17 @@
+{
+  "parent": {
+    "comment": "c73805f6affb01530c7d903c8e22e8a90f49fe48"
+  },
+  "candidate": {
+    "comment": "d3e497acdfd2cbaecbf7c6cb8f7350cb8e63580d"
+  },
+  "preparedInputs": {
+    "total": 740,
+    "dependencies": 320,
+    "disagreements": {}
+  },
+  "finalSource": {
+    "files": 226,
+    "disagreements": {}
+  }
+}

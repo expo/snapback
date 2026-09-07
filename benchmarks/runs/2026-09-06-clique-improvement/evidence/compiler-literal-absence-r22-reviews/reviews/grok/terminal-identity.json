@@ -1,0 +1,19 @@
+{
+  "at": "2026-09-07T11:19:56.307299+00:00",
+  "toolSession": 44003,
+  "actualTerminal": {
+    "chunk_id": "92bd59",
+    "exit_code": 0,
+    "wall_time_seconds": 2.458e-06
+  },
+  "launchIdentity": {
+    "toolSession": 44003,
+    "uuid": "8d19d706-98ec-47dd-bacf-3e8c8bcc4eaa",
+    "summaryPath": "/Users/ccheever/.grok/sessions/%2FUsers%2Fccheever%2Fclique-improvement%2Freviews%2Fcompiler-literal-absence-r22%2Fgrok/8d19d706-98ec-47dd-bacf-3e8c8bcc4eaa/summary.json",
+    "actualModel": "grok-4.6",
+    "actualEffort": "xhigh",
+    "actualNativePid": 62668
+  },
+  "reportBytes": 19441,
+  "reportSha256": "a2b63e9ef796efea8117a843085e4866b2009a07137ed3adcad3123f22105e5c"
+}

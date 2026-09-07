@@ -1,0 +1,175 @@
+{
+  "schema": {
+    "tables": {
+      "records": {
+        "columns": {
+          "id": "Id",
+          "length": "Int",
+          "label": {
+            "Text": {
+              "max": 20
+            }
+          },
+          "payload": {
+            "Json": {
+              "max_bytes": 1000
+            }
+          }
+        },
+        "indexes": {
+          "byId": {
+            "components": [
+              {
+                "Column": "id"
+              }
+            ],
+            "unique": true
+          }
+        },
+        "rules": {
+          "read": {
+            "Public": {
+              "reason": "records is public in Quarry"
+            }
+          },
+          "insert": "Allow",
+          "update": "Deny",
+          "delete": "Deny"
+        },
+        "constraints": [],
+        "retain": "until-revoked"
+      }
+    },
+    "maintains": [],
+    "channels": {},
+    "auth": {
+      "password": false,
+      "guests": false
+    },
+    "effects": []
+  },
+  "programs": [
+    {
+      "name": "probe.probe",
+      "kind": "Mutation",
+      "args": {},
+      "read_time_granularity_ms": null,
+      "body": [
+        {
+          "Const": {
+            "name": "original",
+            "value": {
+              "Array": [
+                {
+                  "Literal": {
+                    "Int": 2
+                  }
+                },
+                {
+                  "Literal": "Null"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "For": {
+            "binding": "value",
+            "domain": {
+              "DerivedArray": {
+                "value": {
+                  "Variable": "original"
+                },
+                "max": 2,
+                "bound_source": "[2, null] static bound"
+              }
+            },
+            "body": [
+              {
+                "If": {
+                  "condition": {
+                    "Binary": {
+                      "op": "Ne",
+                      "left": {
+                        "Variable": "value"
+                      },
+                      "right": {
+                        "Literal": "Null"
+                      }
+                    }
+                  },
+                  "then_body": [
+                    {
+                      "Require": {
+                        "condition": {
+                          "Binary": {
+                            "op": "Gt",
+                            "left": {
+                              "Variable": "value"
+                            },
+                            "right": {
+                              "Literal": {
+                                "Int": 1
+                              }
+                            }
+                          }
+                        },
+                        "code": "LOW"
+                      }
+                    },
+                    {
+                      "Insert": {
+                        "table": "records",
+                        "row": {
+                          "Object": {
+                            "id": {
+                              "Input": "NewId"
+                            },
+                            "label": {
+                              "Literal": {
+                                "String": "chosen"
+                              }
+                            },
+                            "length": {
+                              "Variable": "value"
+                            },
+                            "payload": {
+                              "Object": {
+                                "keep": {
+                                  "Literal": {
+                                    "String": "row"
+                                  }
+                                },
+                                "original": {
+                                  "Variable": "original"
+                                }
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  ],
+                  "else_body": []
+                }
+              }
+            ]
+          }
+        },
+        {
+          "Return": {
+            "Object": {
+              "next": {
+                "Input": "NewId"
+              },
+              "original": {
+                "Variable": "original"
+              }
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "effects": []
+}

@@ -1166,3 +1166,7 @@ The isolated0ecd repair restores the earlier canonical wrapper for singleton str
 ### 2026-09-07 — Lossless Unicode packet experiment did not reduce shipped bytes
 
 The single source-bound literal/affine packet experiment matched all 11,007 decoded integers and 15,128 typed elements and passed the unchanged evaluator/foundation. It removed 3,408 minified bytes while adding 485 gzip bytes: **76,300**, still over the fixed 66,000 complete-runtime limit. The experiment was rejected and retained only as isolated evidence; smaller expanded data is not compressed-size or phone-memory proof. A progress-file mismatch delayed the already-authorized remote checks and was corrected without changing source or limits. Full evidence is in `revisions/twin-unicode-packet-rejection/`. No product publication, competitor rerun, second encoding variant or startup/resident claim followed.
+
+### 2026-09-07 — literal absence compiler repair, scoped reviews closed
+
+Frozen d3e497 restores the public `[2,null]` presence-narrowed row insertion with complete source/row/ID values; literal absence no longer invents a present Text alternative. Fresh Astra and Grok reviews both completed scoped READY. Exact reports, native model/terminal receipts and before/after witness are retained in the R22 closed-review packet. Seven foreign type errors, adapted-evaluator custody and Grok45s semantic-child admission deviation remain explicit. This is no native/package or coordinated main integration claim; inherited member-origin provenance work stays separate.
