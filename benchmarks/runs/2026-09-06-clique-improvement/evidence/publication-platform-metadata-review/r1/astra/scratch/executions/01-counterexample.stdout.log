@@ -1,0 +1,15 @@
+{
+  "before": {
+    "snapback2-darwin-arm64": "0.0.15",
+    "snapback2-linux-x64": "0.0.15",
+    "snapback2-plugin": "1.2.3",
+    "unrelated": "4.5.6"
+  },
+  "after": {
+    "unrelated": "4.5.6",
+    "snapback2-darwin-arm64": "0.0.15"
+  },
+  "normalDependenciesPreserved": true,
+  "peerDependenciesPreserved": true,
+  "peerDependenciesMetaPreserved": true
+}

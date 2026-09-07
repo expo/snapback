@@ -1,0 +1,14 @@
+{
+  "mode": "counterexample",
+  "purpose": "Repeat production-like npm pack of a host-only staged shim without extra optionals, then npm 11 ci on the generated lock",
+  "argv": [
+    "/Users/ccheever/.volta/tools/image/node/24.18.0/bin/node",
+    "/Users/ccheever/clique-improvement/reviews/publication-platform-metadata-r1/grok/scratch/npm-pack-host-only-ci.mjs"
+  ],
+  "cwd": "/Users/ccheever/clique-improvement/reviews/publication-platform-metadata-r1/grok/scratch",
+  "source": "/Users/ccheever/clique-improvement/reviews/publication-platform-metadata-r1/grok/scratch/npm-pack-host-only-ci.mjs",
+  "sourceSha256": "d3e318df786fb090030b9a8ed9b2927a3970b7e03fb1f8455834cfdf8a9fa488",
+  "timeoutSeconds": 30,
+  "startedAt": "2026-09-07T16:33:44.066552+00:00",
+  "pid": 75677
+}

@@ -1,0 +1,37 @@
+{
+  "commit": "f681a72ef3ff495edfc354291ba232c19018259e",
+  "base": "7884642fbddeb56bd18a03215e23c6761c76cd87",
+  "originalBase": "1bb06d52112a770257d3a64a4e2a3eeb8754fb4f",
+  "worktree": "/Users/ccheever/projects/snapback-worktrees/clique-publication-platform-metadata",
+  "branch": "s2/clique-publication-platform-metadata",
+  "cleanWorktree": true,
+  "sourceVersion": "0.0.15",
+  "implementationAuthor": "Persistent collaboration agent /root/clean_install_triage",
+  "externalAuthorCliSession": null,
+  "files": [
+    {
+      "path": "diaries/0116-snapback2-published-clique-loop.diary.md",
+      "bytes": 116590,
+      "sha256": "f50e6ed291da05200a0fbf7777b682feb410deed678cc318c841751a3d29f4f1",
+      "gitBlob": "ba98c5e4b60c1543e63ce27472179d79ece54178"
+    },
+    {
+      "path": "llp/1002-dev-loop.spec.md",
+      "bytes": 71645,
+      "sha256": "f8f18f422f2da5020b2c5d9a66a61ccca7009c7ad24892ebdc6ae7d9f50bcf0d",
+      "gitBlob": "d7f429854acc2555a57115a3a267f2151d722b7a"
+    },
+    {
+      "path": "snapback2/scripts/consumer-smoke.mjs",
+      "bytes": 12643,
+      "sha256": "5d7038fa4002254794f0f866bf618f08aed11532483b211243fbaad5c1217c1e",
+      "gitBlob": "b615a3b9fece58bf00b4942c816d3b18ebba3182"
+    },
+    {
+      "path": "snapback2/scripts/publish.test.mjs",
+      "bytes": 7344,
+      "sha256": "735154ea0a8819426b92cea452fe7b769752a4df7d890a6cf6d1c20bf4cd2f9d",
+      "gitBlob": "25144e4090dead3acfec24c7529069fece0852bc"
+    }
+  ]
+}

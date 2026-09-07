@@ -1,0 +1,9 @@
+{
+  "sealedAt": "2026-09-07T16:43:21.764604+00:00",
+  "manifestSha256": "626984d16678dc54863dca0253527fddddf663390d00d9bcd62c32ef53b07383",
+  "reportSha256": "7f2e485a2501cb0f519beef5f72d4197aa77d5f1eac1f4847a2f2d481bd77a4c",
+  "leafCount": 1459,
+  "bytes": 6993279,
+  "allNativeProcessesClosed": true,
+  "noSourceEditOrSuccessorDispatched": true
+}

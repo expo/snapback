@@ -1,0 +1,9 @@
+{
+  "pid": 70151,
+  "exitCode": 0,
+  "endedEpoch": 1788798507.644605,
+  "elapsedSeconds": 387.7972939014435,
+  "actualProcessWaitCompleted": true,
+  "stdoutSha256": "cc6cc8bf134e41f4b499a5b33fbfa941b42946d26c216d2887eceeec96c9aca8",
+  "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+}

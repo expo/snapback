@@ -1,0 +1,50 @@
+{
+  "candidate": "f681a72ef3ff495edfc354291ba232c19018259e",
+  "parent": "7884642fbddeb56bd18a03215e23c6761c76cd87",
+  "localHost": "M1MacBookPro14in2021Office",
+  "scope": "Read-only correction review: exact supported platform identity and unrelated optional preservation",
+  "node": "/Users/ccheever/.volta/tools/image/node/24.18.0/bin/node",
+  "npm": "/Users/ccheever/.volta/tools/image/node/24.18.0/bin/npm",
+  "nodeVersion": "v24.18.0",
+  "npmVersion": "11.16.0",
+  "limitsAreNotTargets": true,
+  "selfTestRunsMaximum": 1,
+  "selfTestCommand": [
+    "python3",
+    "run-local.py",
+    "self-test",
+    "--purpose",
+    "State the material uncertainty this verifies"
+  ],
+  "underlyingSelfTestCommand": [
+    "/Users/ccheever/.volta/tools/image/node/24.18.0/bin/node",
+    "snapshot/snapback2/scripts/publish.mjs",
+    "--self-test"
+  ],
+  "metadataCounterexamplesMaximum": 2,
+  "counterexampleCommand": [
+    "python3",
+    "run-local.py",
+    "counterexample",
+    "scratch/CASE.mjs",
+    "--purpose",
+    "State the focused metadata counterexample"
+  ],
+  "commandSecondsMaximum": 30,
+  "perTestTimeoutMilliseconds": 30000,
+  "baselineSuiteRepetition": false,
+  "fullPackageBuild": false,
+  "rustOrEngineOrNativeOrSseOrSecurityWork": false,
+  "networkRegistryPublishSshModelTools": false,
+  "sourceEditsOrLanding": false,
+  "globalPackageManagerChanges": false,
+  "writeScope": [
+    "scratch/",
+    "review.md"
+  ],
+  "preserveFirstFailures": true,
+  "recordSourceToolPidIdentity": true,
+  "stopOnlyOwnedProcesses": true,
+  "providerInputManifest": "provider-inputs.json",
+  "historicalCounterexamplesMayBeRepeated": false
+}
