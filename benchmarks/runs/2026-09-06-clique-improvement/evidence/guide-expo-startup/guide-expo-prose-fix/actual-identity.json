@@ -1,0 +1,15 @@
+{
+  "nativeSession": "/Users/ccheever/.codex/sessions/2026/09/06/rollout-2026-09-06T12-42-41-01a0783e-90b6-70b3-a096-c7a980574ceb.jsonl",
+  "uuid": "01a0783e-90b6-70b3-a096-c7a980574ceb",
+  "pid": 11285,
+  "contexts": [
+    {
+      "line": 2624,
+      "timestamp": "2026-09-07T00:06:10.964Z",
+      "model": "gpt-6-astra",
+      "effort": "xhigh",
+      "cwd": "/Users/ccheever/projects/snapback-worktrees/clique-guide",
+      "sha256": "6849cd2086fe9ec921025478bbf2941bb6862ac105a5f69c58d32946183d91bb"
+    }
+  ]
+}

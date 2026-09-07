@@ -900,3 +900,10 @@ The next cold full Astra-medium build actually launched against this published v
 The cold packet omitted choreography's original JSON-schema helper outside the copied subtree. The builder supplied an AJV substitute and reported M1 green, but that was not source-equivalent qualification. Restoring the exact frozen helper and fixture layout fixed module resolution without changing the assertions. A narrow same-session environment notice makes that repair available to the builder while retaining both milestone clocks and all previous failures.
 
 The deliberate CLI interruption also stopped its static web server; the backend remained intact. The resumed medium-effort session recorded that distinction and owns restoring its web process. No corrected choreography pass is claimed yet. This was benchmark packaging friction, not an established Snapback defect, and it provides no reason by itself to replace the existing competitor scores. [Restoration and actual resume evidence](../benchmarks/runs/2026-09-06-clique-improvement/evidence/astra-013-environment-repair/README.md).
+
+
+### 2026-09-06 — Expo startup becomes easier to discover
+
+The cold build looked for an Expo guide while the existing app guide described certified backend facts. Both commands behaved as designed, but the package introduction did not make the startup route obvious. The README and existing grammar now lead to the Expo chat init command and distinguish init, auth and app guide roles. Locally installed README commands use npx.
+
+This is Snapback documentation friction rather than a new native capability. Keyword output and fenced examples remain unchanged; the first external prose checker had a wrong no-fences assumption, and its failure is preserved alongside the corrected pass. The narrow change is not yet published or injected into the current cold benchmark. [Source and validation evidence](../benchmarks/runs/2026-09-06-clique-improvement/evidence/guide-expo-startup/README.md).

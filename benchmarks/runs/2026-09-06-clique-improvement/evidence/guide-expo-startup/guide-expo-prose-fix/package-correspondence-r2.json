@@ -1,0 +1,18 @@
+{
+  "name": "package-correspondence-r2",
+  "argv": [
+    "node",
+    "--input-type=module",
+    "-e",
+    "import assert from 'node:assert/strict';\nimport {readFileSync} from 'node:fs';\nimport {execFileSync} from 'node:child_process';\nimport vm from 'node:vm';\nconst base='8f48dc8ef72ba68197a456b1149c3d652b592d21';\nconst pkg='snapback2/packages/snapback2/';\nconst source=readFileSync(pkg+'build.mjs','utf8');\nconst extract=(start,end)=>source.slice(source.indexOf(start),source.indexOf(end,source.indexOf(start)));\nconst guideKeywords=vm.runInNewContext('('+extract('function guideKeywords(', '\\nasync function loadQuarryParser(')+')');\nconst names=['grammar','quarry','auth','live-query','effects','personas','testing','offline','job','schedule'];\nconst current=names.map(name=>({name,markdown:readFileSync(pkg+'guide/'+name+'.md','utf8')}));\nconst previous=names.map(name=>({name,markdown:execFileSync('git',['show',base+':'+pkg+'guide/'+name+'.md'],{encoding:'utf8'})}));\nconst grammar=current[0];\nconst limit=Number(source.match(/name === \"grammar\" \\? (\\d+)/)[1]);\nassert(Buffer.byteLength(grammar.markdown)<=limit,'existing package grammar byte cap');\nconst oldKeywords=JSON.stringify(guideKeywords(previous));\nconst newKeywords=JSON.stringify(guideKeywords(current));\nassert.equal(newKeywords,oldKeywords,'existing package keyword output is unchanged');\nfor(let i=1;i<names.length;i++) assert.equal(current[i].markdown,previous[i].markdown);\nconst snippets=text=>JSON.stringify([...text.matchAll(/```[^\\n]*\\n[\\s\\S]*?\\n```/g)].map(match=>match[0]));\nassert.equal(snippets(grammar.markdown),snippets(previous[0].markdown),'grammar examples unchanged');\nassert.equal(snippets(readFileSync(pkg+'README.md','utf8')),snippets(execFileSync('git',['show',base+':'+pkg+'README.md'],{encoding:'utf8'})));\nconsole.log(JSON.stringify({grammarBytes:Buffer.byteLength(grammar.markdown),grammarLimit:limit,grammarFencedSnippetsUnchanged:true,keywordCount:Object.keys(JSON.parse(newKeywords)).length,keywordOutputUnchanged:true,otherGuidePagesUnchanged:true,readmeFencedSnippetsUnchanged:true,scope:'Existing package keyword function, declared grammar byte cap, and unchanged snippet/source correspondence only; no package build, parser, typecheck or installed-package claim.'},null,2));\n"
+  ],
+  "cwd": "/Users/ccheever/projects/snapback-worktrees/clique-guide",
+  "timeoutSeconds": 60,
+  "startEpoch": 1788739874.565813,
+  "endEpoch": 1788739875.0032058,
+  "pid": 14669,
+  "exitCode": 0,
+  "timedOut": false,
+  "log": "/Users/ccheever/clique-improvement/revisions/guide-expo-prose-fix/package-correspondence-r2.log",
+  "firstFailurePreserved": "package-prose.log; first adapter incorrectly assumed grammar had no fences. No product change or parser substitution."
+}

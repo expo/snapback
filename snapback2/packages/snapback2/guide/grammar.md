@@ -1,6 +1,9 @@
 # Quarry grammar
 
-Start a project with `snapback2 guide init`; CLI options use `<command> --help`.
+Start an Expo app with `snapback2 init my-app --template chat --client expo`.
+`snapback2 guide init` covers scaffolding and CLI setup; `snapback2 guide auth`
+covers authentication; `snapback2 guide app` shows the current backend's certified
+facts. CLI options use `<command> --help`.
 `check` validates sources; `dev --status` shows what the owner has installed.
 
 Schema: `snapback/schema.q`. Programs/shapes: `snapback/<module>.q`.

@@ -1,0 +1,10 @@
+{
+  "grammarBytes": 3487,
+  "grammarLimit": 3584,
+  "grammarFencedSnippetsUnchanged": true,
+  "keywordCount": 23,
+  "keywordOutputUnchanged": true,
+  "otherGuidePagesUnchanged": true,
+  "readmeFencedSnippetsUnchanged": true,
+  "scope": "Existing package keyword function, declared grammar byte cap, and unchanged snippet/source correspondence only; no package build, parser, typecheck or installed-package claim."
+}

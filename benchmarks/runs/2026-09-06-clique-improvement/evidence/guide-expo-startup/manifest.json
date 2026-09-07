@@ -1,0 +1,46 @@
+{
+  "README.md": {
+    "bytes": 1580,
+    "sha256": "ba16ef143af6e19dda5be67c42a7fcdc76975bfebc2d6c8a910b13fe61d53bbf"
+  },
+  "guide-expo-prose-fix/actual-identity.json": {
+    "bytes": 516,
+    "sha256": "dcca2bf026a0f5b6e8a4e0f203a192ecf3db2429010c2aec6c8552d26e31e762"
+  },
+  "guide-expo-prose-fix/checks.json": {
+    "bytes": 3983,
+    "sha256": "95955941fd997f04839ce927507d1504453ddc1ce28535d119a9c594e30a48bc"
+  },
+  "guide-expo-prose-fix/package-correspondence-r2.json": {
+    "bytes": 2792,
+    "sha256": "eec62cec58123d81fef3e58fff24fc86d5a64fa278fbf000a9b200fbff925324"
+  },
+  "guide-expo-prose-fix/package-correspondence-r2.log": {
+    "bytes": 416,
+    "sha256": "0792967f68b85285b564c21bf9beeeae14efed65ff2d73334b97a0a369a39371"
+  },
+  "guide-expo-prose-fix/package-prose.log": {
+    "bytes": 706,
+    "sha256": "ffa49a1525b5357ed2dbb6f828c59559d84e3fca9e80f73840b946064ed38bbf"
+  },
+  "guide-expo-prose-fix/report.md": {
+    "bytes": 4838,
+    "sha256": "2b52f7e7a62c76a702496dc58347e1d83c81cddebee75766cae0e6b4af24c8df"
+  },
+  "guide-expo-prose-fix/terminal.json": {
+    "bytes": 109,
+    "sha256": "d3b89be454467953f82a904940df7a5974a3dc949a305d5d0044ed7435179696"
+  },
+  "guide-expo-prose-fix-r2/actual-identity.json": {
+    "bytes": 258,
+    "sha256": "5a249a61de36e04695e74ade9ce84b3c270cf4395524c53f6e5feb39d8ddd81a"
+  },
+  "guide-expo-prose-fix-r2/report.md": {
+    "bytes": 847,
+    "sha256": "0373eada9331695ad8a28296f1385656494e23c48d87bdb636a4bd90b3debdbc"
+  },
+  "guide-expo-prose-fix-r2/terminal.json": {
+    "bytes": 111,
+    "sha256": "64946df685d0777a6ec65e898b1969050dcb1f69ecbd3e0ce541509574930b69"
+  }
+}

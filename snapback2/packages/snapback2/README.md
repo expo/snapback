@@ -7,6 +7,11 @@ headless client, React web arm, and CLI shim. It requires Node 20 or newer for N
 npm install snapback2 react
 ```
 
+Start an Expo app with `npx snapback2 init my-app --template chat --client expo`.
+Use `npx snapback2 guide init` for scaffolding and CLI setup, `npx snapback2 guide auth`
+for authentication, and `npx snapback2 guide app` for the current backend's certified
+facts.
+
 ```ts
 import { api, createClient } from "snapback2/client";
 
