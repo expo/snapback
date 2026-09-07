@@ -330,9 +330,9 @@ test("native AssetImage and ordinary AssetVideo serve cached files and clear mou
       React.createElement(AssetImage, { asset: image, width: 64 }), React.createElement(AssetVideo, { asset: video }))); });
     for (let i = 0; i < 10 && !nativeImage(renderer!).props.source; i++) await settle();
     const source = nativeImage(renderer!).props.source;
-    assert.equal(source.uri, `file:///cache/snapback2/dev%3Aalice/${image.id}.w128`);
+    assert.equal(source.uri, `file:///cache/snapback2/dev%3Aalice/${image.id}.w128.png`);
     assert.ok(held.has(source.uri)); assert.equal(fetches, 1);
-    assert.equal(renderer!.root.findByType("NativeVideo").props.player.source, `file:///cache/snapback2/dev%3Aalice/${video.id}`);
+    assert.equal(renderer!.root.findByType("NativeVideo").props.player.source, `file:///cache/snapback2/dev%3Aalice/${video.id}.mp4`);
     await act(async () => store.seal()); await settle();
     assert.equal(nativeImage(renderer!).props.source, undefined); assert.equal(fetches, 1);
     assert.equal(renderer!.root.findAllByType("NativeVideo").length, 0);

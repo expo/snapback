@@ -42,7 +42,7 @@ test("native file bridge writes bytes without Blob; eviction deletes only after 
     try {
       assert.equal(await f.cache.putBytes(asset.id, 8, payload), "cached");
       const uri = await f.files.get(f.cache, asset.id, 8);
-      assert.equal(uri, "file:///cache/snapback2/dev%3Aalice/" + key);
+      assert.equal(uri, "file:///cache/snapback2/dev%3Aalice/" + key + ".png");
       assert.deepEqual(f.fs.data.get(uri!), payload.bytes);
       f.fail(true);
       await assert.rejects(f.store.commit({ tombstones: [{ table: "messages", id: "m1", seq: 2 }] }), /rollback/);
@@ -66,6 +66,9 @@ test("native file wipe drops either partition and the open partition closes its 
     assert.equal(f.fs.data.has(other), false); assert.ok(f.fs.data.has(uri!));
     await f.store.wipe("dev:alice");
     assert.equal(f.fs.data.size, 0);
+    assert.equal(await f.files.get(f.cache, asset.id, 8), undefined);
+    await assert.rejects(() => f.backend.readBytes(key), (error: any) => error?.code === "E_OFFLINE_CARRIER");
+    await f.store.open("dev:alice"); f.cache.bind("dev:alice");
     assert.equal(await f.backend.readBytes(key), undefined);
     assert.equal(await f.files.get(f.cache, asset.id, 8), undefined);
   } finally { await f.close(); }
@@ -77,13 +80,58 @@ test("native startup sweeps orphans and a missing carrier payload is deleted ins
     await f.cache.putBytes(asset.id, 8, payload);
     const uri = (await f.files.get(f.cache, asset.id, 8))!;
     const orphan = partitionDirectory(f.fs.root, "dev:alice") + "orphan";
+    const legacy = partitionDirectory(f.fs.root, "dev:alice") + key;
+    const wrongType = legacy + ".mp4";
     f.fs.data.set(orphan, payload.bytes);
+    f.fs.data.set(legacy, payload.bytes);
+    f.fs.data.set(wrongType, payload.bytes);
     await f.store.close(); await f.store.open("dev:alice");
     assert.equal(f.fs.data.has(orphan), false); assert.ok(f.fs.data.has(uri));
+    assert.equal(f.fs.data.has(legacy), false); assert.equal(f.fs.data.has(wrongType), false);
     // Simulate a carrier missing its byte payload while the derivative survives.
     const missing = { ...f.cache, getBytes: async () => undefined, viewOnce: async () => false, viewed: async () => false };
     assert.equal(await f.files.get(missing as any, asset.id, 8), undefined);
     assert.equal(f.fs.data.has(uri), false);
+  } finally { await f.close(); }
+});
+
+test("native derivatives use only verified media suffixes and replace prior type paths", async () => {
+  const f = await fixture();
+  try {
+    await f.cache.putBytes(asset.id, 8, payload);
+    const png = await f.files.get(f.cache, asset.id, 8);
+    assert.equal(png, partitionDirectory(f.fs.root, "dev:alice") + key + ".png");
+    await f.cache.putBytes(asset.id, 8, { ...payload, type: "video/quicktime; codecs=hvc1" });
+    const mov = await f.files.get(f.cache, asset.id, 8);
+    assert.equal(mov, partitionDirectory(f.fs.root, "dev:alice") + key + ".mov");
+    assert.equal(f.fs.data.has(png!), false);
+    await f.cache.putBytes(asset.id, 8, { ...payload, type: "video/mp4/../../escape" });
+    const unknown = await f.files.get(f.cache, asset.id, 8);
+    assert.equal(unknown, partitionDirectory(f.fs.root, "dev:alice") + key);
+    assert.equal(unknown!.includes("escape"), false);
+    assert.equal(f.fs.data.has(mov!), false);
+  } finally { await f.close(); }
+});
+
+test("a paused materialization cannot remove the same partition's successor derivative", async () => {
+  const f = await fixture();
+  try {
+    await f.cache.putBytes(asset.id, 8, payload);
+    let release!: () => void, reached!: () => void;
+    const hit = new Promise<void>((resolve) => { reached = resolve; });
+    const resume = new Promise<void>((resolve) => { release = resolve; });
+    const paused = {
+      viewOnce: async () => false, viewed: async () => false,
+      getBytes: async () => { reached(); await resume; return payload; },
+    };
+    const stale = f.files.get(paused as any, asset.id, 8);
+    await hit;
+    await f.store.close(); await f.store.open("dev:alice"); f.cache.bind("dev:alice");
+    const successor = await f.files.get(f.cache, asset.id, 8);
+    assert.ok(successor && f.fs.data.has(successor));
+    release();
+    assert.equal(await stale, undefined);
+    assert.ok(f.fs.data.has(successor), "stale custody must not remove the successor-owned file");
   } finally { await f.close(); }
 });
 
