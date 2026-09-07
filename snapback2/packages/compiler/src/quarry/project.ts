@@ -39,7 +39,7 @@ export async function lowerDirectQuarryProject(input: DirectQuarryProjectInput):
   else {
     if (!bound.project) return failed(input.started, bound.diagnostics.map(frontendQuarryDiagnostic));
     project = bound.project;
-    bindDiagnostics = bound.diagnostics.map(frontendQuarryDiagnostic);
+    bindDiagnostics = boundProgramDiagnostics(bound);
   }
   const diagnostics: FrontendDiagnostic[] = [
     ...bindDiagnostics,
@@ -123,6 +123,21 @@ function nestedModuleDiagnostics(paths: string[], authoredRoot: string, projectR
 
 function moduleName(path: string): string {
   return path.split(sep).at(-1)!.replace(/\.(?:q|ts)$/, "");
+}
+
+/** One operation may report at most 20 independent typed refusals, and the
+ * project boundary below applies the existing 50-item total. Recovery never
+ * exposes the partial bound program as executable output. */
+function boundProgramDiagnostics(
+  result: Extract<ReturnType<typeof tryBindQuarryProject>, { ok: false }>,
+): FrontendDiagnostic[] {
+  const grouped = new Set(result.programDiagnostics.flatMap((group) => group.diagnostics));
+  return [
+    ...result.programDiagnostics.flatMap((group) => boundedDiagnostics(
+      group.diagnostics.map(frontendQuarryDiagnostic), 20, `refusals in operation ${group.name}`,
+    )),
+    ...result.diagnostics.filter((item) => !grouped.has(item)).map(frontendQuarryDiagnostic),
+  ];
 }
 
 function relativeSite(root: string, path: string): string {

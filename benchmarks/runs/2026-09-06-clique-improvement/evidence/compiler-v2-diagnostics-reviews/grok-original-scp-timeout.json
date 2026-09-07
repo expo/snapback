@@ -1,0 +1,23 @@
+{
+  "at": "2026-09-07T20:06:45.891354+00:00",
+  "argv": [
+    "scp",
+    "-o",
+    "BatchMode=yes",
+    "-o",
+    "ConnectTimeout=10",
+    "-r",
+    "ccheever@100.65.137.99:/home/ccheever/clique-reviews/compiler-dx-v2-r1-b8f9/grok/artifacts/projects/parent/review-cases-0",
+    "ccheever@100.65.137.99:/home/ccheever/clique-reviews/compiler-dx-v2-r1-b8f9/grok/artifacts/projects/candidate/review-cases-0",
+    "/Users/ccheever/clique-improvement/reviews/compiler-dx-v2-r1/grok/work/collected/projects/"
+  ],
+  "cwd": "/Users/ccheever/clique-improvement/reviews/compiler-dx-v2-r1/grok/work",
+  "pid": 16394,
+  "deadlineSeconds": 45,
+  "elapsedSeconds": 45.018430709,
+  "exit": -9,
+  "timeout": true,
+  "handshakes": [],
+  "stdoutSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+}

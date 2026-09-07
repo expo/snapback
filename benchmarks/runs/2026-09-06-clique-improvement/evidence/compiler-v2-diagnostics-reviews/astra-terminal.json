@@ -1,0 +1,15 @@
+{
+  "pid": 70865,
+  "processIdentity": {
+    "pid": 70865,
+    "start": "Mon Sep 7 12:49:30 2026",
+    "executable": "/Users/ccheever/.volta/tools/image/packages/@openai/codex/lib/node_modules/@openai/codex/node_modules/@openai/codex-darwin-arm64/vendor/aarch64-apple-darwin/bin/codex",
+    "observed": true
+  },
+  "exitCode": 0,
+  "endedEpoch": 1788811928.884016,
+  "elapsedSeconds": 1357.945557832718,
+  "actualProcessWaitCompleted": true,
+  "stdoutSha256": "51e3a5382f97d09f2dea98d6f14d3f5901597d4464d5453838ef6ef5a456ed58",
+  "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+}

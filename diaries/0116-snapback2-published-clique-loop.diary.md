@@ -1368,3 +1368,16 @@ first doctor launch 0.808/0.5 seconds (second sample 0.042; internal work 45.990
 milliseconds). The exact metric append is retained without replacing earlier
 measurements. This does not qualify the complete browser lifecycle, native
 failed-COMMIT behavior, publication, or a new comparative score.
+
+## 2026-09-07 — Diagnostic port verified and M2 browser progress
+
+The independent main-v2 diagnostic port now reports both errors in the original failing example and gives Boolean-specific repair advice. Fifty-one focused callbacks, both package builds, existing main controls, built workers and all four final type scopes pass. Two helper-resolution failure rounds remain recorded. The author has closed; fresh independent reviews are running. [Author evidence](../benchmarks/runs/2026-09-06-clique-improvement/evidence/compiler-v2-diagnostics-author/README.md) does not claim product landing, publication or native/v5 integration.
+
+The full Grok0.0.16 run reached the harness's M2 browser9/9 under its original best-of-three rule. Follow and repost assertions still contain failed attempts, and prior red runs remain preserved. Media attachment and live feed interactions took several builder repair attempts. First iOS export failed against nested React Native0.86.2 from the supplied UI kit alongside SDK54/RN0.81.5 at the root; read-only triage does not establish a Snapback scaffolding defect. The builder independently adjusted the nested dependencies and advanced to M3. [Scoped progress evidence](../benchmarks/runs/2026-09-06-clique-improvement/evidence/grok-016-m2-progress/README.md) preserves the attempt and native-proof limits. There is no new holistic score yet.
+
+
+## 2026-09-07 — Diagnostic fix accepted and landed
+
+Both closed independent Astra/xhigh and Grok4.6/xhigh reviews returned READY for the main-v2 diagnostic port. Adjacent paired cases retained independent mismatches through lexical failures and preserved accepted output. Root read both complete reports and landed the byte-equivalent source plus0.0.17 metadata at `a606383b6`; [review evidence](../benchmarks/runs/2026-09-06-clique-improvement/evidence/compiler-v2-diagnostics-reviews/README.md) retains actual identities, terminals and collection failures. Standard artifact qualification/publication is still pending; the live benchmark remains on0.0.16.
+
+The review also caught a limitation worth following up: some accepted generated API text names internal column types without matching imports/declarations. The emitting code is unchanged from parent, and a faithful consumer reproduction is still needed. This is separate from the diagnostic repair and limits any broad generated-API claim. No new holistic score or native/v5 qualification follows from this landing.

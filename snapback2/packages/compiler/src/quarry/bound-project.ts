@@ -2,7 +2,7 @@ import { basename } from "node:path";
 import type { Program, QuarryGenerated, SchemaJson, SourceSite } from "../ir";
 import type { OperationSignature } from "../lower/effects";
 import { bindQuarrySchemaArtifact, type BoundQuarrySchemaArtifact } from "./bound-schema";
-import { bindQuarryProgram, type BoundQuarryProgram } from "./bound";
+import { bindQuarryProgram, tryBindQuarryProgram, type BoundQuarryProgram } from "./bound";
 import { lowerBoundQuarryArtifact } from "./direct";
 import type { QuarryDiagnostic } from "./ast";
 import { QuarryError } from "./diagnostics";
@@ -29,7 +29,9 @@ export type BoundQuarryProject = {
 
 export type BoundQuarryProjectResult =
   | { ok: true; project: BoundQuarryProject }
-  | { ok: false; diagnostics: QuarryDiagnostic[]; project?: BoundQuarryProject };
+  | { ok: false; diagnostics: QuarryDiagnostic[]; programDiagnostics: Array<{
+      name: string; diagnostics: QuarryDiagnostic[];
+    }>; project?: BoundQuarryProject };
 
 /** Build the complete Quarry data plane from typed bound declarations. */
 export function bindQuarryProject(prepared: PreparedQuarry): BoundQuarryProject {
@@ -43,6 +45,7 @@ export function bindQuarryProject(prepared: PreparedQuarry): BoundQuarryProject 
  * not hide independent authored refusals in later modules. */
 export function tryBindQuarryProject(prepared: PreparedQuarry): BoundQuarryProjectResult {
   const diagnostics: QuarryDiagnostic[] = [];
+  const programDiagnostics: Array<{ name: string; diagnostics: QuarryDiagnostic[] }> = [];
   let schema: BoundQuarrySchemaArtifact | undefined;
   try { schema = bindQuarrySchemaArtifact(prepared.documents, prepared.catalog); } catch (error) {
     if (!(error instanceof QuarryError)) throw error;
@@ -50,14 +53,14 @@ export function tryBindQuarryProject(prepared: PreparedQuarry): BoundQuarryProje
   }
   const boundPrograms: BoundQuarryProgram[] = [];
   for (const document of prepared.documents) for (const program of document.programs) {
-    try { boundPrograms.push(bindQuarryProgram(program, prepared.catalog, prepared.documents)); } catch (error) {
-      if (!(error instanceof QuarryError)) throw error;
-      diagnostics.push(error.diagnostic);
-    }
+    const attempted = tryBindQuarryProgram(program, prepared.catalog, prepared.documents);
+    diagnostics.push(...attempted.diagnostics);
+    if (attempted.diagnostics.length > 0) programDiagnostics.push({ name: program.name, diagnostics: attempted.diagnostics });
+    if (attempted.program) boundPrograms.push(attempted.program);
   }
-  if (!schema) return { ok: false, diagnostics };
+  if (!schema) return { ok: false, diagnostics, programDiagnostics };
   if (diagnostics.length > 0) {
-    return { ok: false, diagnostics, project: assembleBoundQuarryProject(prepared, schema, boundPrograms) };
+    return { ok: false, diagnostics, programDiagnostics, project: assembleBoundQuarryProject(prepared, schema, boundPrograms) };
   }
   return { ok: true, project: assembleBoundQuarryProject(prepared, schema, boundPrograms) };
 }

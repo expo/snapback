@@ -1,0 +1,29 @@
+{
+  "wrapperPid": 27297,
+  "nativeChildPid": 27334,
+  "startedAt": "2026-09-07T18:49:50.142702+00:00",
+  "argv": [
+    "/Users/ccheever/.volta/bin/codex",
+    "exec",
+    "-m",
+    "gpt-6-astra",
+    "-c",
+    "model_reasoning_effort=xhigh",
+    "--dangerously-bypass-approvals-and-sandbox",
+    "--json",
+    "-o",
+    "/Users/ccheever/clique-improvement/revisions/compiler-dx-v2-r1/final-answer.md",
+    "-"
+  ],
+  "cwd": "/Users/ccheever/projects/snapback-worktrees/clique-compiler-r13-integration",
+  "promptSha256": "ec4e47f49cf905c0e2b3be001b130ed512ba4f6e1cf6cb326f1bd7bf2cbaa157",
+  "launchManifestSha256": "e1144c65743dad829c4052faeb77fa65961106f42dcb4f4ee4dacbbe22f46147",
+  "requestedModel": "gpt-6-astra",
+  "requestedEffort": "xhigh",
+  "actualIdentity": null,
+  "nativeExitCode": 0,
+  "endedAt": "2026-09-07T19:38:27.545714+00:00",
+  "elapsedSeconds": 2917.379644958,
+  "stdoutSha256": "ca16baaf74b71ffc2070da73baafe19550ec87732e32a6a6d598a5ae451fd3dd",
+  "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+}

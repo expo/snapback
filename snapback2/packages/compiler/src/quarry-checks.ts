@@ -22,6 +22,7 @@ import { registerQuarryDirectContractChecks } from "./quarry-direct-contract-che
 import { runQuarryBoundApiChecks } from "./quarry-bound-api-checks";
 import { registerQuarryDirectSearchEligibilityChecks } from "./quarry-direct-search-eligibility-checks";
 import { registerQuarryChatCompositionChecks } from "./quarry-chat-composition-checks";
+import { registerQuarryDiagnosticChecks } from "./quarry-diagnostic-checks";
 import ts from "typescript";
 
 export function registerQuarryChecks(test: Test, frontend: string): void {
@@ -34,6 +35,7 @@ export function registerQuarryChecks(test: Test, frontend: string): void {
   registerQuarryDirectSearchEligibilityChecks(test);
   registerQuarryDirectProjectChecks(test, frontend);
   registerQuarryChatCompositionChecks(test, frontend);
+  registerQuarryDiagnosticChecks(test);
   test("removed system rule refuses in the parser with a deny rewrite", () => {
     for (const rule of [
       "system", "allow or system", "not system", "(deny or system)",

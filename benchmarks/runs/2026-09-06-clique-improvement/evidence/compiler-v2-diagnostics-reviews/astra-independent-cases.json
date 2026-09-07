@@ -1,0 +1,66 @@
+[
+  {
+    "name": "rollback-patch-context",
+    "files": {
+      "snapback/schema.q": "use identity\n\ntable todos:\n  title: text <=200\n  done: bool\n  ownerId: principal\n  by ownerId\n  read <- .ownerId = viewer\n  insert <- .ownerId = viewer\n  update <- .ownerId = viewer\n  delete <- .ownerId = viewer\n",
+      "snapback/todos.q": "mutation probe(todoId: todos):\n  update todos[todoId] { title: .title, done: missingInside }\n  update todos[todoId] { done: \"yes\" }\n  return missingAfter\n"
+    },
+    "expectedOk": false
+  },
+  {
+    "name": "optional-alias-after-refusal",
+    "files": {
+      "snapback/schema.q": "use identity\n\ntable todos:\n  title: text <=200\n  done: bool\n  ownerId: principal\n  by ownerId\n  read <- .ownerId = viewer\n  insert <- .ownerId = viewer\n  update <- .ownerId = viewer\n  delete <- .ownerId = viewer\n",
+      "snapback/todos.q": "mutation probe(done: bool ?):\n  lost = missingValue\n  box = { done }\n  insert todos { title: \"x\", done: box.done, ownerId: viewer }\n  return missingAfter\n"
+    },
+    "expectedOk": false
+  },
+  {
+    "name": "nested-capture-restores-optional",
+    "files": {
+      "snapback/schema.q": "use identity\n\ntable todos:\n  title: text <=200\n  done: bool\n  ownerId: principal\n  by ownerId\n  read <- .ownerId = viewer\n  insert <- .ownerId = viewer\n  update <- .ownerId = viewer\n  delete <- .ownerId = viewer\n",
+      "snapback/todos.q": "mutation probe(todoId: todos, done: bool ?):\n  for done in [\"yes\"]:\n    box = { value: done }\n    broken = { saved: new, fail: missingInner }\n    update todos[todoId] { done: box.value }\n  insert todos { title: \"x\", done, ownerId: viewer }\n  return missingAfter\n"
+    },
+    "expectedOk": false
+  },
+  {
+    "name": "fresh-binding-initializer-still-failed",
+    "files": {
+      "snapback/schema.q": "use identity\n\ntable todos:\n  title: text <=200\n  done: bool\n  ownerId: principal\n  by ownerId\n  read <- .ownerId = viewer\n  insert <- .ownerId = viewer\n  update <- .ownerId = viewer\n  delete <- .ownerId = viewer\n",
+      "snapback/todos.q": "mutation probe(todoId: todos):\n  done = missingValue\n  done = done ?? true\n  alias = { done }\n  update todos[todoId] { done: alias.done }\n  update todos[todoId] { done: \"yes\" }\n  return missingAfter\n"
+    },
+    "expectedOk": false
+  },
+  {
+    "name": "focal-context-boolean-mismatch",
+    "files": {
+      "snapback/schema.q": "use identity\n\ntable todos:\n  title: text <=200\n  done: bool\n  ownerId: principal\n  by ownerId\n  read <- .ownerId = viewer\n  insert <- .ownerId = viewer\n  update <- .ownerId = viewer\n  delete <- .ownerId = viewer\n",
+      "snapback/todos.q": "mutation probe(todoId: todos, value: text <=20 ?):\n  lost = missingValue\n  update todos[todoId] { title: .title, done: value }\n  return true\n"
+    },
+    "expectedOk": false
+  },
+  {
+    "name": "match-outer-narrowing-restored",
+    "files": {
+      "snapback/schema.q": "use identity\n\ntable todos:\n  title: text <=200\n  done: bool\n  ownerId: principal\n  by ownerId\n  read <- .ownerId = viewer\n  insert <- .ownerId = viewer\n  update <- .ownerId = viewer\n  delete <- .ownerId = viewer\n",
+      "snapback/todos.q": "mutation probe(todoId: todos, done: bool ?):\n  if done != null:\n    match todos[todoId]:\n      some done:\n        bad = missingInner\n        update todos[todoId] { done: done.title }\n      none:\n        insert todos { title: \"x\", done, ownerId: viewer }\n    insert todos { title: \"x\", done, ownerId: viewer }\n  insert todos { title: \"x\", done, ownerId: viewer }\n  return true\n"
+    },
+    "expectedOk": false
+  },
+  {
+    "name": "successful-lexical-list-control",
+    "files": {
+      "snapback/schema.q": "use identity\n\ntable todos:\n  title: text <=200\n  done: bool\n  ownerId: principal\n  by ownerId\n  read <- .ownerId = viewer\n  insert <- .ownerId = viewer\n  update <- .ownerId = viewer\n  delete <- .ownerId = viewer\n",
+      "snapback/todos.q": "mutation probe(todoId: todos, values: [bool] <=3):\n  box = { values }\n  for done in box.values:\n    update todos[todoId] { done }\n  return true\n"
+    },
+    "expectedOk": true
+  },
+  {
+    "name": "merge-compound-domain-precedence",
+    "files": {
+      "snapback/schema.q": "use identity\n\ntable todos:\n  title: text <=200\n  done: bool\n  ownerId: principal\n  by byOwner: ownerId, id\n  read <- .ownerId = viewer\n  insert <- .ownerId = viewer\n  update <- .ownerId = viewer\n  delete <- .ownerId = viewer\n",
+      "snapback/todos.q": "mutation probe(todoId: todos):\n  item = missingOuter\n  page = merge todos first 3 by byOwner:\n    [item.title] for item in todos[(todos[missingDomain] ! else DOMAIN).ownerId] first 2 by byOwner\n  update todos[todoId] { done: \"yes\" }\n  return missingAfter\n"
+    },
+    "expectedOk": false
+  }
+]

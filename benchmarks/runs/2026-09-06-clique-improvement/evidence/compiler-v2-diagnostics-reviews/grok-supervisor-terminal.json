@@ -1,0 +1,25 @@
+{
+  "family": "grok",
+  "outerToolSessionId": 95268,
+  "outerExitCode": 0,
+  "outerFinalChunkId": "deb5fb",
+  "outerCompletionObservedAt": "2026-09-07T20:14:04.448718+00:00",
+  "findingsOpened": false,
+  "files": [
+    {
+      "path": "terminal.json",
+      "sha256": "d32ca9b2acc1d0db688dc713d6da5e22b7fb4db12baefee0615e80ce93b99956",
+      "bytes": 477
+    },
+    {
+      "path": "actual-identity.json",
+      "sha256": "991789b4d70a85b8e6d42ea5f17784949dbfe14d2345b7d8e256c899a4adef5d",
+      "bytes": 553
+    },
+    {
+      "path": "input-integrity-after.json",
+      "sha256": "62ea23c2a2b9a0234c0c13a7de01e08d8968e32d00ebabd6b991a5b6f8852710",
+      "bytes": 135
+    }
+  ]
+}

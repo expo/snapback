@@ -1,0 +1,104 @@
+[
+  {
+    "path": "root-disposition.json",
+    "source": "/Users/ccheever/clique-improvement/reviews/compiler-dx-v2-r1/root-disposition.json",
+    "bytes": 1758,
+    "sha256": "b2d4b1c063306cd60a3d3d12750537ab5a884089791b911ffab04bad6affd1dc"
+  },
+  {
+    "path": "closed-pair-custody.json",
+    "source": "/Users/ccheever/clique-improvement/reviews/compiler-dx-v2-r1/closed-pair-custody.json",
+    "bytes": 134640,
+    "sha256": "f8a77f63318889f78065d150e089ae2a3bbe89ec3dcd84937a1de4ae618204d3"
+  },
+  {
+    "path": "astra-review.md",
+    "source": "/Users/ccheever/clique-improvement/reviews/compiler-dx-v2-r1/astra/work/review.md",
+    "bytes": 29306,
+    "sha256": "83227903d608072258bed7af1c386b7f492ab36776556a7a4cdb17d13fac1969"
+  },
+  {
+    "path": "grok-review.md",
+    "source": "/Users/ccheever/clique-improvement/reviews/compiler-dx-v2-r1/grok/review.md",
+    "bytes": 12414,
+    "sha256": "59a24fb140a85d5ddf9f300b1e660efa2aa96951b144a80d3d3ba375519f12c0"
+  },
+  {
+    "path": "astra-completed-owned.tar.gz",
+    "source": "/Users/ccheever/clique-improvement/reviews/compiler-dx-v2-r1/astra/work/completed-owned.tar.gz",
+    "bytes": 25105,
+    "sha256": "6aab6e21e213eab99727920704e42389eef56849879f3cd7bf0d1e833f683a46"
+  },
+  {
+    "path": "astra-independent-cases.json",
+    "source": "/Users/ccheever/clique-improvement/reviews/compiler-dx-v2-r1/astra/work/review-cases-0.json",
+    "bytes": 4842,
+    "sha256": "2873da3e392af26dcbdf6a439353f882e5159e6c46fb4afddc929577e39fc230"
+  },
+  {
+    "path": "grok-independent-cases.json",
+    "source": "/Users/ccheever/clique-improvement/reviews/compiler-dx-v2-r1/grok/work/review-cases-0.json",
+    "bytes": 2826,
+    "sha256": "d91197ed34a5b5aea575bdf2b728ca574a05b9d1b2ea9fe7da4485bb740dd2e3"
+  },
+  {
+    "path": "grok-original-scp-timeout.json",
+    "source": "/Users/ccheever/clique-improvement/reviews/compiler-dx-v2-r1/grok/work/transport/collect-cases-0/receipt.json",
+    "bytes": 892,
+    "sha256": "6df9bddc65ab4ce5b2461aeb138d976f67cebc0bf629671fd957bb2d711d5a80"
+  },
+  {
+    "path": "grok-original-tar-failure.json",
+    "source": "/Users/ccheever/clique-improvement/reviews/compiler-dx-v2-r1/grok/work/transport/collect-json-0/receipt.json",
+    "bytes": 878,
+    "sha256": "0bbbc742fd70d06a341c4f0949d973e06c8ef073c62e5186d2b3d0e177fc0c1a"
+  },
+  {
+    "path": "astra-terminal.json",
+    "source": "/Users/ccheever/clique-improvement/reviews/compiler-dx-v2-r1/astra/terminal.json",
+    "bytes": 615,
+    "sha256": "931480520d832baff99382d87c6d48d2aadd323c3d3964f2ffd62583bb398dac"
+  },
+  {
+    "path": "astra-supervisor-terminal.json",
+    "source": "/Users/ccheever/clique-improvement/reviews/compiler-dx-v2-r1/astra/supervisor-terminal.json",
+    "bytes": 682,
+    "sha256": "0be64c279b16dce26a9e6abf3ce5afbd439153b74bf6d32eaf26b075b2a609af"
+  },
+  {
+    "path": "astra-actual-identity.json",
+    "source": "/Users/ccheever/clique-improvement/reviews/compiler-dx-v2-r1/astra/actual-identity.json",
+    "bytes": 900,
+    "sha256": "0286afc03ac2e25336f58a16a46f22678350e5ce04d5192e9bed9c9c8441481d"
+  },
+  {
+    "path": "astra-input-integrity-after.json",
+    "source": "/Users/ccheever/clique-improvement/reviews/compiler-dx-v2-r1/astra/input-integrity-after.json",
+    "bytes": 135,
+    "sha256": "d5f7d915ba6ed112d50526846c32c66fdb73cef55575ffdbea42f1b7422fdeae"
+  },
+  {
+    "path": "grok-terminal.json",
+    "source": "/Users/ccheever/clique-improvement/reviews/compiler-dx-v2-r1/grok/terminal.json",
+    "bytes": 477,
+    "sha256": "d32ca9b2acc1d0db688dc713d6da5e22b7fb4db12baefee0615e80ce93b99956"
+  },
+  {
+    "path": "grok-supervisor-terminal.json",
+    "source": "/Users/ccheever/clique-improvement/reviews/compiler-dx-v2-r1/grok/supervisor-terminal.json",
+    "bytes": 681,
+    "sha256": "9bda4f942bbf084aa28c850052ccb5c63d7ad52ad780776348dafc30c03866d9"
+  },
+  {
+    "path": "grok-actual-identity.json",
+    "source": "/Users/ccheever/clique-improvement/reviews/compiler-dx-v2-r1/grok/actual-identity.json",
+    "bytes": 553,
+    "sha256": "991789b4d70a85b8e6d42ea5f17784949dbfe14d2345b7d8e256c899a4adef5d"
+  },
+  {
+    "path": "grok-input-integrity-after.json",
+    "source": "/Users/ccheever/clique-improvement/reviews/compiler-dx-v2-r1/grok/input-integrity-after.json",
+    "bytes": 135,
+    "sha256": "62ea23c2a2b9a0234c0c13a7de01e08d8968e32d00ebabd6b991a5b6f8852710"
+  }
+]
