@@ -396,6 +396,8 @@ async function sharedSessions(context, writer, appUrl, ownerUrl) {
   });
 
   const beforeWrites = replayed.length;
+  const beforeIntents = await writer.evaluate(async () =>
+    (await window.__snapback.outbox.entries()).map(entry => entry.intent));
 
   // Cut only the writer's owner transport: the follower remains live. An actual
   // page close releases the browser-owned lock without calling client.close().
@@ -416,7 +418,8 @@ async function sharedSessions(context, writer, appUrl, ownerUrl) {
   assert.deepEqual(queued.map(row => row.state), ["queued", "queued", "queued"]);
   assert.equal(replayed.length, beforeWrites, "writer-local and forwarded offline admission send no owner mutation bytes");
   assert.deepEqual(await writer.evaluate(async () => (await window.__snapback.outbox.entries()).map(entry => entry.intent)),
-    queued.map(row => row.intent), "both tabs enter one durable writer-admission order");
+    [...beforeIntents, ...queued.map(row => row.intent)],
+    "the recovered terminal stays ahead of both tabs' durable writer-admission order");
   step("both tabs durably enqueue through the one offline writer", {
     origins: ["writer", "follower", "writer"], intents: queued.map(row => row.intent),
   });
@@ -634,6 +637,11 @@ async function main() {
     await page.evaluate(() => window.__snapback.outbox.settled());
     const afterFault = await page.$$eval("li[data-state=queued]", (nodes) => nodes.length);
     if (afterFault !== 2) throw new Error(`a 503 after the commit settled an intent (${afterFault} queued)`);
+    await page.waitForSelector("ol.bubbles[data-view-source=composite]", { timeout: 10_000 });
+    const retainedThroughComposite = await page.evaluate((id) =>
+      window.__witnessPinnedBubble === document.querySelector(`li[data-message="${id}"]`), queued.id);
+    if (!retainedThroughComposite) throw new Error("partial history to coherent composite remounted the pinned bubble");
+    step("partial history becomes a coherent composite without remounting its pinned bubble");
     // Kill the profile inside the settlement swap: the barrier holds the IndexedDB transaction open.
     await page.evaluate(() => { window.__witnessBarrier = () => new Promise(() => undefined); });
     const draining = page.evaluate(() => window.__snapback.outbox.drain()).catch(() => undefined);
@@ -645,9 +653,7 @@ async function main() {
     await page.evaluate(() => window.__snapback.outbox.drain());
     await openChat(page, neverOpened);
     await page.waitForFunction(() => document.querySelectorAll("li[data-state=queued]").length === 0, null, { timeout: 10_000 });
-    const retainedBubble = await page.evaluate((id) =>
-      window.__witnessPinnedBubble === document.querySelector(`li[data-message="${id}"][data-state=row]`), queued.id);
-    if (!retainedBubble) throw new Error("partial history to coherent composite remounted the pinned bubble");
+    await page.waitForSelector(`li[data-message="${queued.id}"][data-state=row]`, { timeout: 10_000 });
     const { createClient, api } = await import(resolve(dist, "client.mjs"));
     const verifier = createClient({ url: owner.url, as: "alice" });
     const thread = await verifier.query(api.deliveries.thread, { conversationId: neverOpened, c: null });
