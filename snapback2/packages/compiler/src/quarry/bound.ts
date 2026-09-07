@@ -32,6 +32,7 @@ export type BoundType =
   | ScalarType
   | { kind: "unknown" }
   | { kind: "null" }
+  | { kind: "empty-list"; max: 0 }
   | { kind: "row"; table: BoundTableSymbol; nullable: boolean }
   | { kind: "page"; table: BoundTableSymbol; max: number; item?: BoundValueFacts }
   | { kind: "collection"; item: BoundValueFacts; max: number }
@@ -43,6 +44,7 @@ export type BoundValueFacts = {
   presence: BoundPresence;
   max?: number;
   origin: Provenance;
+  fieldProjection?: "inherited-row" | "constructed";
   tableOrigin?: BoundTableSymbol;
   readOrigin?: BoundRead;
 };
@@ -407,6 +409,10 @@ class ExpressionBinder {
     }
     if (expression.kind === "array") {
       let items = expression.items.map((item) => this.expression(item));
+      if (items.length === 0) {
+        const type: BoundType = { kind: "empty-list", max: 0 };
+        return { kind: "array", items, facts: facts(type, "Const", { max: 0 }), source };
+      }
       const target = items.map((item) => contextualTarget(item.facts.type))
         .find((type) => type && (brandedType(type) || type.kind === "ref" || type.kind === "id"));
       if (target) items = items.map((item) => contextualValue(item, target, item.source.definition));
@@ -618,6 +624,11 @@ class ExpressionBinder {
       return { kind: "binary", op, left, right, facts: facts(boolType(), "Computed"), source: this.source(expression.site) };
     }
     if (expression.op === "??") {
+      if (left.facts.type.kind === "list" && right.kind === "array") {
+        right = contextualValue(right, { ...left.facts.type, optional: false }, expression.right.site);
+      } else if (right.facts.type.kind === "list" && left.kind === "array") {
+        left = contextualValue(left, { ...right.facts.type, optional: false }, expression.left.site);
+      }
       [left, right] = contextualPair(left, right, expression.site);
       if ((left.facts.type.kind === "ref" || left.facts.type.kind === "id")
         && !idFallbackCompatible(right.facts.type, left.facts.type)) typeError(expression.right.site,
@@ -705,7 +716,7 @@ class ExpressionBinder {
     if (base.facts.type.kind === "ref") base = this.shapeBase(base, expression.base, expression.site);
     const source = this.source(expression.site);
     const baseType = base.facts.type;
-    if ((baseType.kind === "list" || baseType.kind === "page" || baseType.kind === "collection") && expression.name === "length") {
+    if ((baseType.kind === "list" || baseType.kind === "empty-list" || baseType.kind === "page" || baseType.kind === "collection") && expression.name === "length") {
       return { kind: "builtin", builtin: "Len", args: [base], facts: facts({ kind: "int", optional: false }, "Computed"), source };
     }
     let type: BoundType | undefined;
@@ -825,12 +836,18 @@ class ExpressionBinder {
         if (field.kind === "spread") {
           if (focal.facts.type.kind !== "row") return [];
           const members = ["id", ...(this.catalog.get(focal.facts.type.table.name)?.columns.keys() ?? [])];
-          return members.map((name) => ({ name, value: this.focalMember(focal, name, field.site), source }));
+          return members.map((name) => ({ name, value: projectedField(
+            this.focalMember(focal, name, field.site), "inherited-row",
+          ), source }));
         }
         if (field.kind === "bare") {
-          return [{ name: field.name, value: this.focalMember(focal, field.name, field.site), source }];
+          return [{ name: field.name, value: projectedField(
+            this.focalMember(focal, field.name, field.site), "constructed",
+          ), source }];
         }
-        return [{ name: field.name, value: this.expression(field.value), source }];
+        return [{ name: field.name, value: projectedField(
+          this.expression(field.value), "constructed",
+        ), source }];
       });
     } finally {
       this.focal = prior.focal;
@@ -1207,19 +1224,24 @@ function joinFacts(values: BoundValueFacts[], site: Site): BoundValueFacts {
   const originated = values.filter((value) => value.type.kind !== "null");
   const tableOrigin = originated[0]?.tableOrigin;
   const readOrigin = originated[0]?.readOrigin;
+  const fieldProjection = values.every((value) => value.fieldProjection === "inherited-row")
+    ? "inherited-row" : values.some((value) => value.fieldProjection) ? "constructed" : undefined;
   return { ...facts(type, origins.size === 0 ? "Const" : origins.size === 1 ? [...origins][0]! : "Computed", {
     ...(values.some((value) => value.max !== undefined) ? { max: Math.max(...values.map((value) => value.max ?? 0)) } : {}),
     ...(tableOrigin && originated.every((value) => value.tableOrigin?.id === tableOrigin.id) ? { tableOrigin } : {}),
     ...(readOrigin && originated.every((value) => value.readOrigin === readOrigin) ? { readOrigin } : {}),
+    ...(fieldProjection ? { fieldProjection } : {}),
   }), presence: values.some((value) => value.presence === "optional") ? "optional" : "required" };
 }
 
 function rowObjectType(row: Extract<BoundType, { kind: "row" }>): Extract<BoundType, { kind: "object" }> {
   const fields = new Map<string, BoundValueFacts>();
-  fields.set("id", facts({ kind: "ref", table: row.table.name, optional: row.nullable }, "Shape", { tableOrigin: row.table }));
+  fields.set("id", facts({ kind: "ref", table: row.table.name, optional: row.nullable }, "Shape", {
+    tableOrigin: row.table, fieldProjection: "inherited-row",
+  }));
   for (const column of row.table.declaration.columns) {
     fields.set(column.name, facts({ ...column.type, optional: column.type.optional || row.nullable } as ScalarType, "Shape", {
-      tableOrigin: row.table,
+      tableOrigin: row.table, fieldProjection: "inherited-row",
     }));
   }
   return { kind: "object", fields, nullable: row.nullable };
@@ -1228,6 +1250,9 @@ function rowObjectType(row: Extract<BoundType, { kind: "row" }>): Extract<BoundT
 function joinType(left: BoundType, right: BoundType, site: Site): BoundType {
   if (left.kind === "null") return optionalType(right);
   if (right.kind === "null") return optionalType(left);
+  if (left.kind === "empty-list" && right.kind === "empty-list") return left;
+  if (left.kind === "empty-list" && right.kind === "list") return right;
+  if (left.kind === "list" && right.kind === "empty-list") return left;
   if (left.kind === "ref" && right.kind === "id") return { ...left, optional: left.optional || right.optional };
   if (left.kind === "id" && right.kind === "ref") return { ...right, optional: left.optional || right.optional };
   if (left.kind === "row" && right.kind === "object") left = rowObjectType(left);
@@ -1320,6 +1345,7 @@ function loopItemFacts(domain: BoundExpression, site: Site): BoundValueFacts {
     if (type.optional) typeError(site, "for cannot iterate an optional list", "supply an empty default before the loop");
     return facts(type.item, domain.facts.origin, { max: type.max, tableOrigin: domain.facts.tableOrigin });
   }
+  if (type.kind === "empty-list") return facts({ kind: "unknown" }, domain.facts.origin, { max: 0 });
   typeError(site, `for cannot iterate ${typeName(type)}`, "iterate a bounded page or required capped list");
 }
 
@@ -1359,6 +1385,16 @@ function requireBool(value: BoundExpression, site: Site): void {
 }
 
 function contextualValue(expression: BoundExpression, target: ScalarType, site: Site): BoundExpression {
+  if (expression.kind === "array" && target.kind === "list") {
+    const itemTarget = { ...target.item, optional: target.item.optional } as ScalarType;
+    const items = expression.items.map((item) => contextualValue(item, itemTarget, item.source.definition));
+    const mismatch = items.find((item) => !assignable(item.facts.type, itemTarget));
+    if (mismatch) typeError(site, `list item expects ${typeName(itemTarget)}, got ${typeName(mismatch.facts.type)}`,
+      `use ${typeName(itemTarget)} values in this list`);
+    return { ...expression, items, facts: facts({
+      kind: "list", item: structuredClone(itemTarget), max: items.length, optional: false,
+    }, combineOrigins(items), { max: items.length }) };
+  }
   if (numericLiteralExpression(expression) && numericTarget(target)) return contextualLiteral(expression, target, site);
   if (stringLiteralExpression(expression) && (target.kind === "id" || target.kind === "ref" || target.kind === "enum")) {
     return contextualLiteral(expression, target, site);
@@ -1460,6 +1496,10 @@ function idFallbackCompatible(actual: BoundType, expected: Extract<ScalarType, {
 function facts(type: BoundType, origin: Provenance, extra: Partial<BoundValueFacts> = {}): BoundValueFacts {
   return { type, presence: presence(type), origin, ...extra };
 }
+
+function projectedField<T extends BoundExpression>(expression: T, fieldProjection: NonNullable<BoundValueFacts["fieldProjection"]>): T {
+  return { ...expression, facts: { ...expression.facts, fieldProjection } };
+}
 function presence(type: BoundType): BoundPresence {
   if (type.kind === "null") return "optional";
   if (type.kind === "row" || type.kind === "object") return type.nullable ? "optional" : "required";
@@ -1483,7 +1523,7 @@ function scalarType(type: BoundType, site: Site): ScalarType {
   typeError(site, `bounded arrays require scalar items; got ${type.kind}`, "use scalar array elements");
 }
 function isScalar(type: BoundType): type is ScalarType {
-  return !["unknown", "null", "row", "page", "collection", "object", "numeric-literal"].includes(type.kind);
+  return !["unknown", "null", "empty-list", "row", "page", "collection", "object", "numeric-literal"].includes(type.kind);
 }
 function requiredType(type: BoundType): BoundType {
   if (type.kind === "row" || type.kind === "object") return { ...type, nullable: false };
@@ -1529,6 +1569,7 @@ function scaledInteger(text: string, scale: number): number | undefined {
 }
 function assignable(actual: BoundType, expected: ScalarType): boolean {
   if (actual.kind === "null") return expected.optional;
+  if (actual.kind === "empty-list") return expected.kind === "list";
   if (actual.kind === "row") return expected.kind === "ref"
     && actual.table.name === expected.table && !actual.nullable;
   if (actual.kind === "id" && expected.kind === "ref") return !actual.optional || expected.optional;
@@ -1557,6 +1598,7 @@ function assignable(actual: BoundType, expected: ScalarType): boolean {
 }
 function writeAssignable(actual: BoundType, expected: ScalarType, authored: Expr | undefined): boolean {
   if (actual.kind === "null") return expected.optional;
+  if (actual.kind === "empty-list") return expected.kind === "list";
   if (actual.kind === "unknown") return true;
   if (actual.kind === "object" && expected.kind === "json") return !actual.nullable || expected.optional;
   if (actual.kind === "numeric-literal") {
@@ -1631,6 +1673,7 @@ function focalField(expression: Expr | undefined): string | undefined {
   return expression?.kind === "member" && expression.base.kind === "focal" ? expression.name : undefined;
 }
 function typeName(type: BoundType): string {
+  if (type.kind === "empty-list") return "[]";
   if (type.kind === "ref") return type.table;
   if (type.kind === "row") return `${type.table.name} row`;
   if (type.kind === "money") return `money ${type.currency} ${type.scale}`;

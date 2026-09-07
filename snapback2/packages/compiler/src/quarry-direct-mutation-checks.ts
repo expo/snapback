@@ -44,6 +44,10 @@ mutation explicit(id: id, owner: principal):
   row = insert rows { id, owner, sibling: new, label: 'explicit', count: 0 }
   return { rowId: row.id, fieldId: row.sibling }
 
+mutation joined(ids: [rows] <=2 ?):
+  chosen = ids ?? [new, new]
+  return { chosen, next: new }
+
 mutation blind(id: rows):
   update rows[id] { label: 'blind' }
   return true
@@ -202,6 +206,36 @@ mutation branch(owner: principal, flag: bool):
       assert(canonicalValue(explicitResult) === canonicalValue({ Row: {
         rowId: { Id: "authored-row" }, fieldId: { Id: "field-only" },
       } }), `explicit insert id acquired an implicit allocation: ${canonicalValue(explicitResult)}`);
+
+      const joined = direct.get("joined")!;
+      const joinedCertificate = checks.get("joined")!;
+      const joinedOracle = operation(oracle.project.programs, "writes.joined");
+      const joinedOracleCheck = rustCheck([joinedOracle], "synthetic", oracle.project.schema)[0]!;
+      assert(!joinedOracleCheck.error && joinedOracleCheck.certificate,
+        `joined oracle did not certify: ${JSON.stringify(joinedOracleCheck)}`);
+      const joinedOracleCertificate = joinedOracleCheck.certificate;
+      const joinedResult = (ids: Value, newIds: string[]) => {
+        const directResult = new ClientStore(oracle.project.schema, receipt(joinedCertificate))
+          .applyMutation(joined, { ...context("joined"), args: { ids }, new_ids: [...newIds] }).execution.result;
+        const oracleResult = new ClientStore(oracle.project.schema, receipt(joinedOracleCertificate))
+          .applyMutation(joinedOracle, { ...context("joined"), args: { ids }, new_ids: [...newIds] }).execution.result;
+        assert(canonicalValue(directResult) === canonicalValue(oracleResult),
+          `effectful list fallback diverged from the authored oracle: ${canonicalValue(directResult)} / ${canonicalValue(oracleResult)}`);
+        return directResult;
+      };
+      assert(canonicalValue(joinedResult("Null", ["fallback-1", "fallback-2", "after-fallback"])) === canonicalValue({ Row: {
+        chosen: { Array: [{ Id: "fallback-1" }, { Id: "fallback-2" }] }, next: { Id: "after-fallback" },
+      } }), "effectful list fallback lost left-to-right allocation order");
+      assert(canonicalValue(joinedResult({ Array: [] }, ["after-empty"])) === canonicalValue({ Row: {
+        chosen: { Array: [] }, next: { Id: "after-empty" },
+      } }), "present empty list evaluated the effectful fallback");
+      assert(canonicalValue(joinedResult({ Array: [{ Id: "provided" }] }, ["after-provided"])) === canonicalValue({ Row: {
+        chosen: { Array: [{ Id: "provided" }] }, next: { Id: "after-provided" },
+      } }), "present nonempty list evaluated the effectful fallback");
+      let joinedExhausted: { code?: string } | undefined;
+      try { joinedResult("Null", ["fallback-1", "fallback-2"]); } catch (error) { joinedExhausted = error as { code?: string }; }
+      assert(joinedExhausted?.code === "E_INPUT",
+        `effectful fallback did not consume exactly two ids before the following expression: ${JSON.stringify(joinedExhausted)}`);
 
       for (const [name, args, newIds] of [
         ["ensure", { id: { Id: "row-1" }, owner: { Id: "owner-1" } }, []],

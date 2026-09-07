@@ -26,11 +26,17 @@ import { registerScheduleChecks } from "./quarry-schedule-checks";
 import { registerQuarryProgramChecks } from "./quarry-program-checks";
 import { registerQuarryDirectMutationChecks } from "./quarry-direct-mutation-checks";
 import { registerQuarryDirectValidationChecks } from "./quarry-direct-validation-checks";
+import { registerQuarryDirectProjectChecks } from "./quarry-direct-project-checks";
+import { registerQuarryDirectArgumentChecks } from "./quarry-direct-argument-checks";
+import { runQuarryBoundApiChecks } from "./quarry-bound-api-checks";
 import ts from "typescript";
 
 export function registerQuarryChecks(test: Test, frontend: string): void {
   const fixtures = resolve(frontend, "fixtures");
   registerQuarryDirectValidationChecks(test, frontend);
+  registerQuarryDirectArgumentChecks(test);
+  test("bound Quarry API follows direct result and custody facts", runQuarryBoundApiChecks);
+  registerQuarryDirectProjectChecks(test, frontend);
   test("removed system rule refuses in the parser with a deny rewrite", () => {
     for (const rule of [
       "system", "allow or system", "not system", "(deny or system)",
