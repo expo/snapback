@@ -208,6 +208,18 @@ query sameFields(flag: bool):
   if flag:
     return rows[] first 2 by byId { * }
   return rows[] first 2 by byId
+
+query partial(id: rows):
+  row = rows[id]! else MISSING
+  return row { seenAt, amount }
+
+query exact(id: rows):
+  row = rows[id]! else MISSING
+  return row { * }
+
+query override(id: rows, replacement: time ?):
+  row = rows[id]! else MISSING
+  return row { *, seenAt: replacement }
 `);
     for (const name of ["rawFirst", "shapeFirst"]) {
       let failure: QuarryError | undefined;
@@ -220,6 +232,19 @@ query sameFields(flag: bool):
     assert(sameFields.result.type.kind === "page" && sameFields.result.type.item?.type.kind === "object"
       && !sameFields.result.type.item.type.fields.has("extra"),
     `raw page did not participate in the page item join: ${JSON.stringify(sameFields.result)}`);
+    const objectFields = (name: string) => {
+      const bound = bindQuarryProgram(program(prepared, name), prepared.catalog, prepared.documents);
+      assert(bound.result.type.kind === "object", `${name} did not return an object shape`);
+      return bound.result.type.fields;
+    };
+    assert([...objectFields("partial").values()].every((field) => field.fieldProjection === "constructed"),
+      "a partial shape was mistaken for inherited row custody");
+    assert([...objectFields("exact").values()].every((field) => field.fieldProjection === "inherited-row"),
+      "an exact spread lost inherited row custody");
+    const overridden = objectFields("override");
+    assert(overridden.get("seenAt")?.fieldProjection === "constructed"
+      && [...overridden].filter(([name]) => name !== "seenAt").every(([, field]) => field.fieldProjection === "inherited-row"),
+    "a computed shape override was mistaken for an inherited optional column");
   });
 }
 

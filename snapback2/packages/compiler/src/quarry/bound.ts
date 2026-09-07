@@ -43,6 +43,7 @@ export type BoundValueFacts = {
   presence: BoundPresence;
   max?: number;
   origin: Provenance;
+  fieldProjection?: "inherited-row" | "constructed";
   tableOrigin?: BoundTableSymbol;
   readOrigin?: BoundRead;
 };
@@ -825,12 +826,18 @@ class ExpressionBinder {
         if (field.kind === "spread") {
           if (focal.facts.type.kind !== "row") return [];
           const members = ["id", ...(this.catalog.get(focal.facts.type.table.name)?.columns.keys() ?? [])];
-          return members.map((name) => ({ name, value: this.focalMember(focal, name, field.site), source }));
+          return members.map((name) => ({ name, value: projectedField(
+            this.focalMember(focal, name, field.site), "inherited-row",
+          ), source }));
         }
         if (field.kind === "bare") {
-          return [{ name: field.name, value: this.focalMember(focal, field.name, field.site), source }];
+          return [{ name: field.name, value: projectedField(
+            this.focalMember(focal, field.name, field.site), "constructed",
+          ), source }];
         }
-        return [{ name: field.name, value: this.expression(field.value), source }];
+        return [{ name: field.name, value: projectedField(
+          this.expression(field.value), "constructed",
+        ), source }];
       });
     } finally {
       this.focal = prior.focal;
@@ -1207,19 +1214,24 @@ function joinFacts(values: BoundValueFacts[], site: Site): BoundValueFacts {
   const originated = values.filter((value) => value.type.kind !== "null");
   const tableOrigin = originated[0]?.tableOrigin;
   const readOrigin = originated[0]?.readOrigin;
+  const fieldProjection = values.every((value) => value.fieldProjection === "inherited-row")
+    ? "inherited-row" : values.some((value) => value.fieldProjection) ? "constructed" : undefined;
   return { ...facts(type, origins.size === 0 ? "Const" : origins.size === 1 ? [...origins][0]! : "Computed", {
     ...(values.some((value) => value.max !== undefined) ? { max: Math.max(...values.map((value) => value.max ?? 0)) } : {}),
     ...(tableOrigin && originated.every((value) => value.tableOrigin?.id === tableOrigin.id) ? { tableOrigin } : {}),
     ...(readOrigin && originated.every((value) => value.readOrigin === readOrigin) ? { readOrigin } : {}),
+    ...(fieldProjection ? { fieldProjection } : {}),
   }), presence: values.some((value) => value.presence === "optional") ? "optional" : "required" };
 }
 
 function rowObjectType(row: Extract<BoundType, { kind: "row" }>): Extract<BoundType, { kind: "object" }> {
   const fields = new Map<string, BoundValueFacts>();
-  fields.set("id", facts({ kind: "ref", table: row.table.name, optional: row.nullable }, "Shape", { tableOrigin: row.table }));
+  fields.set("id", facts({ kind: "ref", table: row.table.name, optional: row.nullable }, "Shape", {
+    tableOrigin: row.table, fieldProjection: "inherited-row",
+  }));
   for (const column of row.table.declaration.columns) {
     fields.set(column.name, facts({ ...column.type, optional: column.type.optional || row.nullable } as ScalarType, "Shape", {
-      tableOrigin: row.table,
+      tableOrigin: row.table, fieldProjection: "inherited-row",
     }));
   }
   return { kind: "object", fields, nullable: row.nullable };
@@ -1459,6 +1471,10 @@ function idFallbackCompatible(actual: BoundType, expected: Extract<ScalarType, {
 
 function facts(type: BoundType, origin: Provenance, extra: Partial<BoundValueFacts> = {}): BoundValueFacts {
   return { type, presence: presence(type), origin, ...extra };
+}
+
+function projectedField<T extends BoundExpression>(expression: T, fieldProjection: NonNullable<BoundValueFacts["fieldProjection"]>): T {
+  return { ...expression, facts: { ...expression.facts, fieldProjection } };
 }
 function presence(type: BoundType): BoundPresence {
   if (type.kind === "null") return "optional";
