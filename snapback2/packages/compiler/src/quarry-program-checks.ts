@@ -108,6 +108,8 @@ table reactions:
     for (const fixture of [
       { source: "query range():\n  return []\n", collision: "snapback2 helper" },
       { source: "effect notify from delivery\nquery notify():\n  return null\n", collision: "effect import" },
+      { source: "effect range from delivery\nquery ping():\n  return null\n", collision: "generated module helper" },
+      { source: "effect orderedPair from delivery\nquery ping():\n  return null\n", collision: "generated module helper" },
     ]) {
       const compiled = compileInline([
         { fileName: "snapback/schema.q", source: schema },

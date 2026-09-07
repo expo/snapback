@@ -94,6 +94,16 @@ export function emitPrograms(programs: ProgramDecl[], catalog: TableCatalog, sou
 
 function refuseGeneratedImportCollisions(programs: ProgramDecl[], effects: EffectDecl[]): void {
   const effectNames = new Set(effects.map((effect) => effect.name));
+  // An effect is imported under its own name too, so it meets the same helper bindings.
+  for (const effect of effects) {
+    if (SNAPBACK2_IMPORT_BINDING_SET.has(effect.name) || effect.name === "orderedPair") {
+      refuse(
+        effect.site,
+        `effect name ${effect.name} collides with a generated module helper`,
+        `rename the effect ${effect.name}; snapback2 helpers occupy generated module bindings`,
+      );
+    }
+  }
   for (const program of programs) {
     if (SNAPBACK2_IMPORT_BINDING_SET.has(program.name)) {
       refuse(
@@ -119,7 +129,7 @@ function refuseGeneratedImportCollisions(programs: ProgramDecl[], effects: Effec
   }
 }
 
-// @ref LLP 1004#amendment-author-2026-09-02-quarry-only — TypeScript is an
+// @ref LLP 1004#implementation-record-2026-09-02 — TypeScript is an
 // internal lowering target, so its binding namespace cannot constrain Quarry.
 function tableBinding(table: string): string { return `${table}$table`; }
 
