@@ -3,11 +3,19 @@ import type { ScalarType } from "./ast";
 import type { BoundExpression, BoundQuarryProgram, BoundRead } from "./bound";
 import { unsupported } from "./diagnostics";
 
-type Lowering = { program: string; accessOrdinal: number; temporaryOrdinal: number; operandOrdinal: number };
+type Lowering = {
+  program: string;
+  accessOrdinal: number;
+  temporaryOrdinal: number;
+  operandOrdinal: number;
+  focals: Map<string, Expr>;
+};
 type LoweredValue = { setup: Stmt[]; value: Expr };
 
 export function lowerBoundQuarryProgram(program: BoundQuarryProgram): Program {
-  const lowering: Lowering = { program: program.name, accessOrdinal: 0, temporaryOrdinal: 0, operandOrdinal: 0 };
+  const lowering: Lowering = {
+    program: program.name, accessOrdinal: 0, temporaryOrdinal: 0, operandOrdinal: 0, focals: new Map(),
+  };
   const body = program.body.flatMap((statement): Stmt[] => {
     const value = lowerExpression(statement.value, lowering);
     return [...value.setup, { Return: value.value }];
@@ -26,38 +34,25 @@ export function lowerBoundQuarryProgram(program: BoundQuarryProgram): Program {
 function lowerExpression(expression: BoundExpression, lowering: Lowering): LoweredValue {
   if (expression.kind === "literal") return { setup: [], value: { Literal: literalValue(expression) } };
   if (expression.kind === "variable") return { setup: [], value: { Variable: expression.symbol.name } };
+  if (expression.kind === "focal") {
+    const value = lowering.focals.get(expression.id);
+    if (!value) throw new Error(`bound focal ${expression.id} has no lowering scope`);
+    return { setup: [], value };
+  }
   if (expression.kind === "input") return { setup: [], value: { Input: expression.input } };
   if (expression.kind === "array") {
     const items = lowerMany(expression.items, lowering);
     return { setup: items.setup, value: { Array: items.values } };
   }
   if (expression.kind === "object") {
-    const setup: Stmt[] = [];
-    const fields: Array<{ name: string; value: Expr }> = [];
-    for (const field of expression.fields) {
-      const lowered = lowerExpression(field.value, lowering);
-      setup.push(...lowered.setup);
-      let value = lowered.value;
-      // Serde maps are sorted after lowering. Capture order-sensitive fields in
-      // authored order before that sort; each input/read/member is evaluated once.
-      if (!inlineObjectValue(value)) {
-        const name = `__operand${lowering.operandOrdinal++}`;
-        setup.push({ Const: { name, value } });
-        value = { Variable: name };
-      }
-      fields.push({ name: field.name, value });
-    }
-    return {
-      setup,
-      value: { Object: Object.fromEntries(fields.sort((left, right) => left.name.localeCompare(right.name))
-        .map((field) => [field.name, field.value])) },
-    };
+    return lowerObjectFields(expression.fields, lowering);
   }
   if (expression.kind === "unary") {
     const value = lowerExpression(expression.value, lowering);
     return { setup: value.setup, value: { Unary: { op: expression.op, value: value.value } } };
   }
   if (expression.kind === "binary") return lowerBinary(expression, lowering);
+  if (expression.kind === "shape") return lowerShape(expression, lowering);
   if (expression.kind === "member") {
     const loweredBase = lowerExpression(expression.base, lowering);
     if (expression.base.facts.presence === "optional") {
@@ -88,6 +83,86 @@ function lowerExpression(expression: BoundExpression, lowering: Lowering): Lower
   if (expression.kind === "aggregate") return lowerAggregate(expression.read, lowering);
   if (expression.kind === "scan") return lowerScan(expression.read, lowering);
   return lowerPointRead(expression.read, expression.kind, lowering);
+}
+
+function lowerShape(expression: Extract<BoundExpression, { kind: "shape" }>, lowering: Lowering): LoweredValue {
+  const base = lowerExpression(expression.base, lowering);
+  const baseName = temporary(lowering, "shapeBase");
+  if (expression.base.facts.type.kind === "page") {
+    const resultName = temporary(lowering, "shapeRows");
+    const rowName = temporary(lowering, "shapeRow");
+    lowering.focals.set(expression.focal.id, { Variable: rowName });
+    let object: LoweredValue;
+    try {
+      object = lowerObjectFields(expression.fields, lowering);
+    } finally {
+      lowering.focals.delete(expression.focal.id);
+    }
+    return {
+      setup: [
+        ...base.setup,
+        { Const: { name: baseName, value: base.value } },
+        { Const: { name: resultName, value: { Array: [] } } },
+        { For: {
+          binding: rowName,
+          domain: { DerivedArray: {
+            value: { Variable: baseName }, max: expression.base.facts.type.max,
+            bound_source: `${expression.source.definition.file}:${expression.source.definition.line}:${expression.source.definition.col} bounded shape`,
+          } },
+          body: [...object.setup, { Push: { target: resultName, value: object.value } }],
+        } },
+      ],
+      value: { Variable: resultName },
+    };
+  }
+  lowering.focals.set(expression.focal.id, { Variable: baseName });
+  let object: LoweredValue;
+  try {
+    object = lowerObjectFields(expression.fields, lowering);
+  } finally {
+    lowering.focals.delete(expression.focal.id);
+  }
+  const resultName = temporary(lowering, "shapeResult");
+  const setup: Stmt[] = [...base.setup, { Const: { name: baseName, value: base.value } }];
+  if (expression.base.facts.presence === "optional") {
+    setup.push(
+      { Let: { name: resultName, value: { Literal: "Null" } } },
+      { If: {
+        condition: { Binary: { op: "Ne", left: { Variable: baseName }, right: { Literal: "Null" } } },
+        then_body: [...object.setup, { Assign: { name: resultName, value: object.value } }],
+        else_body: [],
+      } },
+    );
+  } else {
+    setup.push(...object.setup, { Const: { name: resultName, value: object.value } });
+  }
+  return { setup, value: { Variable: resultName } };
+}
+
+function lowerObjectFields(
+  fields: Array<{ name: string; value: BoundExpression }>,
+  lowering: Lowering,
+): LoweredValue {
+  const setup: Stmt[] = [];
+  const loweredFields: Array<{ name: string; value: Expr }> = [];
+  for (const field of fields) {
+    const lowered = lowerExpression(field.value, lowering);
+    setup.push(...lowered.setup);
+    let value = lowered.value;
+    // Serde maps are sorted after lowering. Capture order-sensitive fields in
+    // authored order before that sort; each input/read/member is evaluated once.
+    if (!inlineObjectValue(value)) {
+      const name = `__operand${lowering.operandOrdinal++}`;
+      setup.push({ Const: { name, value } });
+      value = { Variable: name };
+    }
+    loweredFields.push({ name: field.name, value });
+  }
+  return {
+    setup,
+    value: { Object: Object.fromEntries(loweredFields.sort((left, right) => left.name.localeCompare(right.name))
+      .map((field) => [field.name, field.value])) },
+  };
 }
 
 function lowerBinary(

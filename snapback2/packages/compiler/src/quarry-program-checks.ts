@@ -61,7 +61,7 @@ export function registerQuarryProgramChecks(test: Test, frontend: string): void 
 
   test("direct Quarry value and bounded-read core matches public fixture programs", async () => {
     const cases = [
-      { fixture: "quarry-surface", operations: ["surface.keyedRow", "surface.wordTokens", "surface.counterTotal"] },
+      { fixture: "quarry-surface", operations: ["surface.keyedRow", "surface.wordTokens", "surface.counterTotal", "surface.postsAfter"] },
       { fixture: "quarry-todos", operations: ["todos.list"] },
       { fixture: "quarry-money", operations: ["money.atMost"] },
       { fixture: "quarry-assets", operations: ["assets.echo", "assets.echoNested"] },
@@ -93,6 +93,9 @@ export function registerQuarryProgramChecks(test: Test, frontend: string): void 
         assert(!legacyCheck.error && legacyCheck.certificate, `${name} oracle program did not certify: ${JSON.stringify(legacyCheck)}`);
         if (name === "surface.counterTotal") {
           deepStrictEqual(directCheck.certificate.bounds, legacyCheck.certificate.bounds);
+        } else if (name === "surface.postsAfter") {
+          deepStrictEqual(directCheck.certificate.read_sites, legacyCheck.certificate.read_sites);
+          deepStrictEqual(directCheck.certificate.result_pages, legacyCheck.certificate.result_pages);
         } else {
           deepStrictEqual(direct, legacy);
           deepStrictEqual(directCheck, legacyCheck);
@@ -251,6 +254,115 @@ mutation skippedNew():
     const legacy = compileQuarry(inputs);
     assert(!legacy.ok && legacy.diagnostics.some((diagnostic) => diagnostic.message.includes("generated TypeScript binding")),
       `legacy oracle unexpectedly accepted its emitter-restricted names: ${JSON.stringify(legacy)}`);
+  });
+
+  test("direct Quarry elaborates an imported named row shape with definition and use sites", async () => {
+    const schema = `table profiles:
+  principal: principal
+  displayName: text <=80
+  handle: text <=40
+  unique principal
+  public
+`;
+    const cards = "shape authorCard = { displayName, handle }\n";
+    const profile = `shape authorCard from cards
+
+query byPrincipal(principal: principal):
+  return profiles[principal] authorCard
+`;
+    await withProject({
+      "snapback/schema.q": schema,
+      "snapback/cards.q": cards,
+      "snapback/profile.q": profile,
+    }, async (root) => {
+      const inputs: QuarryInput[] = ["schema", "cards", "profile"].map((stem) => {
+        const path = join(root, "snapback", `${stem}.q`);
+        return { path, fileName: `snapback/${stem}.q`, source: readFileSync(path, "utf8") };
+      });
+      const prepared = prepareQuarry(inputs);
+      assert(prepared.ok, `direct named-shape preparation failed: ${JSON.stringify(prepared.ok ? [] : prepared.diagnostics)}`);
+      const declaration = prepared.prepared.documents[2]?.programs[0];
+      assert(declaration, "direct named-shape fixture has no operation");
+      const bound = bindQuarryProgram(declaration, prepared.prepared.catalog, prepared.prepared.documents);
+      const shape = bound.body[0]!.value;
+      assert(shape.kind === "shape" && shape.fields.length === 2, `named shape did not elaborate once: ${JSON.stringify(shape)}`);
+      assert(shape.fields.every((field) => field.source.definition.file === "snapback/cards.q"
+        && field.source.use?.file === "snapback/profile.q" && field.source.use.line === 4),
+      `named shape lost definition/use source stacks: ${JSON.stringify(shape.fields.map((field) => field.source))}`);
+
+      const direct = lowerBoundQuarryProgram(bound);
+      const oracle = await lowerProject(root);
+      assert(oracle.ok, `named-shape oracle failed: ${oracle.ok ? "" : diagnosticsText(oracle.diagnostics)}`);
+      const legacy = operation(oracle.project.programs, "profile.byPrincipal");
+      const directCheck = rustCheck([direct], "synthetic", oracle.project.schema)[0]!;
+      const legacyCheck = rustCheck([legacy], "synthetic", oracle.project.schema)[0]!;
+      assert(!directCheck.error && directCheck.certificate, `direct named shape did not certify: ${JSON.stringify(directCheck)}`);
+      assert(!legacyCheck.error && legacyCheck.certificate, `named-shape oracle did not certify: ${JSON.stringify(legacyCheck)}`);
+      const receipt: ClosureReceipt = {
+        schema_hash: directCheck.certificate.schema_hash as string,
+        rows: [{ table: "profiles", id: "profile-1", row: { Row: {
+          id: { Id: "profile-1" }, principal: { Id: "principal-1" },
+          displayName: { String: "Ada" }, handle: { String: "ada" },
+        } } }],
+        ranges: [], absences: [], verdicts: [],
+      };
+      const context: Context = { viewer: "viewer-1", principal_kind: "user", auth_epoch: 1,
+        args: { principal: { Id: "principal-1" } }, now: 1, new_ids: [], read_time: 1 };
+      const directExecution = new ClientStore(oracle.project.schema, receipt)
+        .reexecute(direct, context, directCheck.certificate).execution;
+      const legacyExecution = new ClientStore(oracle.project.schema, receipt)
+        .reexecute(legacy, context, legacyCheck.certificate).execution;
+      deepStrictEqual(directExecution.result, legacyExecution.result);
+      const observableTrace = (trace: typeof directExecution.trace) => ({
+        points: trace.points, ranges: trace.ranges, absences: trace.absences,
+        merges: trace.merges, verdicts: trace.verdicts, examined: trace.examined, rows: trace.rows,
+      });
+      deepStrictEqual(observableTrace(directExecution.trace), observableTrace(legacyExecution.trace));
+    });
+  });
+
+  test("direct Quarry shares shape recursion and depth guards with nested field uses", () => {
+    const schema = `table nodes:
+  parent: nodes ?
+  public
+`;
+    const refusal = (source: string) => {
+      const prepared = prepareQuarry([
+        { path: "/virtual/snapback/schema.q", fileName: "snapback/schema.q", source: schema },
+        { path: "/virtual/snapback/shapes.q", fileName: "snapback/shapes.q", source },
+      ]);
+      assert(prepared.ok, `shape guard fixture did not prepare: ${JSON.stringify(prepared.ok ? [] : prepared.diagnostics)}`);
+      const declaration = prepared.prepared.documents[1]?.programs[0];
+      assert(declaration, "shape guard fixture has no operation");
+      try {
+        bindQuarryProgram(declaration, prepared.prepared.catalog, prepared.prepared.documents);
+      } catch (error) {
+        return (error as { diagnostic?: { code: string; message: string } }).diagnostic;
+      }
+      return undefined;
+    };
+    const nestedCycle = refusal(`shape recursive = { parent: .parent recursive }
+query node(seed: nodes):
+  return seed recursive
+`);
+    assert(nestedCycle?.code === "E_QUARRY_UNSUPPORTED" && nestedCycle.message.includes("shape cycle"),
+      `nested field shape cycle escaped the expansion guard: ${JSON.stringify(nestedCycle)}`);
+    const spreadCycle = refusal(`shape recursive = { ...recursive }
+query node(seed: nodes):
+  return seed recursive
+`);
+    assert(spreadCycle?.code === "E_QUARRY_UNSUPPORTED" && spreadCycle.message.includes("shape cycle"),
+      `named spread cycle escaped the expansion guard: ${JSON.stringify(spreadCycle)}`);
+    const chain = Array.from({ length: 9 }, (_, index) => {
+      const number = index + 1;
+      return number === 9 ? `shape s${number} = { parent }` : `shape s${number} = { parent: .parent s${number + 1} }`;
+    }).join("\n");
+    const depth = refusal(`${chain}
+query node(seed: nodes):
+  return seed s1
+`);
+    assert(depth?.code === "E_QUARRY_UNSUPPORTED" && depth.message.includes("exceeds depth 8"),
+      `nested field shape depth escaped the shared expansion guard: ${JSON.stringify(depth)}`);
   });
 
   test("Quarry table and operation names occupy separate generated bindings", async () => {
