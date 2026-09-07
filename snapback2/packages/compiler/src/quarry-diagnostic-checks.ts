@@ -229,7 +229,7 @@ table todos:
 `, },
   { name: "lexical fresh-sorted-type-fact", source: `mutation complete(todoId: todos):
   item = missingValue
-  (item, other) = sorted("yes", true)
+  (item, other) = sorted("yes", "no")
   require item else INVALID
   return true
 `, expected: [{"code": "E_QUARRY_UNKNOWN", "message": "unknown name missingValue", "site": "2:10"}, {"code": "E_QUARRY_TYPE", "message": "condition requires bool, got text", "site": "4:11"}], },
