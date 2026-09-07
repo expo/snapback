@@ -61,3 +61,32 @@ was installed and then received E_OP_UNKNOWN. Its separate run passed all
 were running concurrently with the broad run. The earlier run stopped on
 a guide-size error introduced while editing; the guide is back below its
 4,096-byte limit and the native rebuild instructions live in the README.
+
+## Parallel papercut fixes verification — 2026-09-07
+
+An integrated run at `a68088c29` over `ba63c884e` used the unchanged
+`scripts/test.sh`, after repairing this lane's package-local dependency link.
+It took 793.840 seconds and exited 1: package tests reported 446 passes and
+eight file timeouts at the existing 10-second deadline; Rust reported 768
+passes and 17 failures; evaluator passed 218/218 plus two visibility checks;
+compiler passed 404/405. The compiler failure's nested dead-lock recovery test
+exited successfully, but its Cargo/build/test invocation took 19,416 ms against
+10,000 ms. Several Rust owner/journey waits also exceeded deadlines. These
+observations do not establish a common cause or reproduce the base commit.
+
+Two non-timing findings are distinguished: the offline guide's required reset
+endpoint wording was corrected, while the chat unsend replay value mismatch
+remains open in [its own ticket](20260907-snapback2-offline-replay-disagrees-after-chat-unsend.md).
+
+A package-only retry kept the script's file list and 10-second deadlines and
+limited concurrency to two files: 459 passed, three failed, six cancelled,
+71.514 seconds. It overlapped the compiler suite, which can rebuild `dist/`;
+the retry includes missing generated `shared/offline.js` and a scaffold init
+failure as well as timeouts. It is not a clean serial qualification, and those
+artifact errors must not be reported as established product regressions.
+Future artifact-consuming retries must follow package builds sequentially.
+
+Full logs and command/PID/duration receipts are retained locally under
+`/Users/ccheever/projects/snapback/.llp/ship-runs/20260907-parallel-papercuts/`
+(`full-test-repaired.*`, `package-two-workers.*`). The full script remained
+red; passing affected checks are separate evidence, not a replacement result.
