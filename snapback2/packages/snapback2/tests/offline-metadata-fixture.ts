@@ -25,6 +25,18 @@ export const certifiedDrain = {
   planHash: corpus.certificate.plan_hash as string,
 };
 
+/** The exact native-certified partial drain packet, for tests that need to rename only its operation. */
+export function certifiedDrainProgram() {
+  const drain = { cursor: "c" };
+  return {
+    generation: certifiedDrain.generation,
+    schemaHash: certifiedDrain.schemaHash,
+    schema: corpus.schema,
+    programs: { [certifiedDrain.op]: { kind: "query", planHash: certifiedDrain.planHash,
+      drain, ir: corpus.program, certificate: corpus.certificate } },
+  };
+}
+
 /** A separately certified ascending page whose three held rows exhaust take 5. */
 export const certifiedCompleteDrain = {
   op: completeCorpus.program.name as string,
