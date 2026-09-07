@@ -1,0 +1,40 @@
+{
+  "at": "2026-09-07T01:02:36.777841+00:00",
+  "remoteReportHashesMatched": {
+    "grader-report.md": "e2f9c936ea2fbcc7ff8aff9630cedc132000dd925ea9acd801beebb39dec6b02",
+    "grader-report.json": "b58567b313eab56cb3d547b7eec3f0782dcb78781fb042230ffbea40d760e5aa",
+    "report.md": "696679d998104b5578c3b94de2bbc98b441e0c5fe46553cf354fe122f3d982f1",
+    "launch.json": "5da256c1ed347b35008e5f155020480eeff603b8fa7b9b2f2fd62e3cc29ebc8e",
+    "terminal.json": "9a26f7c39446c5495491bab5066fc15963b29d7e936d5b0db199cc3ef853b614",
+    "root-native-identity.json": "aa0a1a87981ace6dbfe8c3a3e632f2e9249868d7c4c5947050692d46ff7e122a",
+    "evidence/source-integrity.json": "09e8ae5ebe96ebe8868af1d6a891ebe75840526f4b1d9e4123c0ecf5001af189",
+    "evidence/cleanup.json": "80152a43dff75cd8ac3e23d55ae869d6d2cde63fac900eab99606aeb7948feaa",
+    "evidence/final-process-recheck.json": "e565ca6db03479cab43717872c93544966d871f82b4ce3f3749a7ff2d364e869"
+  },
+  "sourceManifest": "2fb4778c269fb74f259cf28dfa98714a31485e1633c807e472e67bc755def986",
+  "retainedSourceFilesVerified": 334,
+  "sourceMismatches": [],
+  "terminal": {
+    "pid": 24669,
+    "exitCode": 0,
+    "endedEpoch": 1788720606.207998,
+    "elapsedSeconds": 6137.911343097687
+  },
+  "auditorIdentity": {
+    "root": "grading/grok-010/outcome",
+    "pid": 24669,
+    "startEpoch": 1788714468.296656,
+    "session": "01a077b0-c817-7e91-9960-c7d1dec4d25f",
+    "model": "gpt-6-astra",
+    "effort": "xhigh",
+    "cwd": "/Users/ccheever/clique-improvement/grading/grok-010/outcome",
+    "process": "24669 00:53 /Users/ccheever/.volta/bin/codex"
+  },
+  "originalDiagnosticStatusCounts": {
+    "pass": 69,
+    "not-run": 21,
+    "fail": 20
+  },
+  "freshScoringOrExecution": false,
+  "m5FurtherDependence": false
+}

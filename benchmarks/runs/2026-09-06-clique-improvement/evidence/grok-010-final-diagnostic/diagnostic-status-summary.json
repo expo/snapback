@@ -1,0 +1,452 @@
+{
+  "source": "unchanged original diagnostic grader JSON; not a new score or regrade",
+  "jsonSha256": "b58567b313eab56cb3d547b7eec3f0782dcb78781fb042230ffbea40d760e5aa",
+  "counts": {
+    "pass": 69,
+    "not-run": 21,
+    "fail": 20
+  },
+  "assertions": [
+    {
+      "id": "m1-a01",
+      "status": "pass"
+    },
+    {
+      "id": "m1-a02",
+      "status": "pass"
+    },
+    {
+      "id": "m1-a03",
+      "status": "not-run"
+    },
+    {
+      "id": "m1-a04",
+      "status": "pass"
+    },
+    {
+      "id": "m1-a05",
+      "status": "pass"
+    },
+    {
+      "id": "m1-a06",
+      "status": "pass"
+    },
+    {
+      "id": "m1-a07",
+      "status": "pass"
+    },
+    {
+      "id": "m1-a08",
+      "status": "pass"
+    },
+    {
+      "id": "m1-a09",
+      "status": "pass"
+    },
+    {
+      "id": "m1-a10",
+      "status": "pass"
+    },
+    {
+      "id": "m1-a11",
+      "status": "pass"
+    },
+    {
+      "id": "m1-a12",
+      "status": "pass"
+    },
+    {
+      "id": "m1-a13",
+      "status": "not-run"
+    },
+    {
+      "id": "m2-a01",
+      "status": "pass"
+    },
+    {
+      "id": "m2-a02",
+      "status": "pass"
+    },
+    {
+      "id": "m2-a03",
+      "status": "pass"
+    },
+    {
+      "id": "m2-a04",
+      "status": "pass"
+    },
+    {
+      "id": "m2-a05",
+      "status": "pass"
+    },
+    {
+      "id": "m2-a06",
+      "status": "pass"
+    },
+    {
+      "id": "m2-a07",
+      "status": "pass"
+    },
+    {
+      "id": "m2-a08",
+      "status": "pass"
+    },
+    {
+      "id": "m2-a09",
+      "status": "pass"
+    },
+    {
+      "id": "m2-a10",
+      "status": "pass"
+    },
+    {
+      "id": "m2-a11",
+      "status": "pass"
+    },
+    {
+      "id": "m2-a12",
+      "status": "pass"
+    },
+    {
+      "id": "m2-a13",
+      "status": "pass"
+    },
+    {
+      "id": "m2-a14",
+      "status": "pass"
+    },
+    {
+      "id": "m2-a15",
+      "status": "pass"
+    },
+    {
+      "id": "m2-a16",
+      "status": "pass"
+    },
+    {
+      "id": "m2-a17",
+      "status": "pass"
+    },
+    {
+      "id": "m2-a18",
+      "status": "pass"
+    },
+    {
+      "id": "m2-a19",
+      "status": "pass"
+    },
+    {
+      "id": "m2-a20",
+      "status": "pass"
+    },
+    {
+      "id": "m2-a21",
+      "status": "pass"
+    },
+    {
+      "id": "m2-a22",
+      "status": "fail"
+    },
+    {
+      "id": "m2-a23",
+      "status": "fail"
+    },
+    {
+      "id": "m2-a24",
+      "status": "fail"
+    },
+    {
+      "id": "m2-a25",
+      "status": "pass"
+    },
+    {
+      "id": "m2-a26",
+      "status": "pass"
+    },
+    {
+      "id": "m2-a27",
+      "status": "pass"
+    },
+    {
+      "id": "m3-a01",
+      "status": "pass"
+    },
+    {
+      "id": "m3-a02",
+      "status": "not-run"
+    },
+    {
+      "id": "m3-a03",
+      "status": "pass"
+    },
+    {
+      "id": "m3-a04",
+      "status": "pass"
+    },
+    {
+      "id": "m3-a05",
+      "status": "pass"
+    },
+    {
+      "id": "m3-a06",
+      "status": "pass"
+    },
+    {
+      "id": "m3-a07",
+      "status": "pass"
+    },
+    {
+      "id": "m3-a08",
+      "status": "pass"
+    },
+    {
+      "id": "m3-a09",
+      "status": "fail"
+    },
+    {
+      "id": "m3-a10",
+      "status": "pass"
+    },
+    {
+      "id": "m3-a11",
+      "status": "pass"
+    },
+    {
+      "id": "m3-a12",
+      "status": "not-run"
+    },
+    {
+      "id": "m3-a13",
+      "status": "not-run"
+    },
+    {
+      "id": "m3-a14",
+      "status": "pass"
+    },
+    {
+      "id": "m3-a15",
+      "status": "fail"
+    },
+    {
+      "id": "m4-a01",
+      "status": "pass"
+    },
+    {
+      "id": "m4-a02",
+      "status": "fail"
+    },
+    {
+      "id": "m4-a03",
+      "status": "pass"
+    },
+    {
+      "id": "m4-a04",
+      "status": "fail"
+    },
+    {
+      "id": "m4-a05",
+      "status": "pass"
+    },
+    {
+      "id": "m4-a06",
+      "status": "pass"
+    },
+    {
+      "id": "m4-a07",
+      "status": "pass"
+    },
+    {
+      "id": "m4-a08",
+      "status": "fail"
+    },
+    {
+      "id": "m4-a09",
+      "status": "not-run"
+    },
+    {
+      "id": "m4-a10",
+      "status": "pass"
+    },
+    {
+      "id": "m4-a11",
+      "status": "pass"
+    },
+    {
+      "id": "m4-a12",
+      "status": "pass"
+    },
+    {
+      "id": "m5-a01",
+      "status": "pass"
+    },
+    {
+      "id": "m5-a02",
+      "status": "pass"
+    },
+    {
+      "id": "m5-a03",
+      "status": "not-run"
+    },
+    {
+      "id": "m5-a04",
+      "status": "fail"
+    },
+    {
+      "id": "m5-a05",
+      "status": "not-run"
+    },
+    {
+      "id": "m5-a06",
+      "status": "pass"
+    },
+    {
+      "id": "m5-a07",
+      "status": "fail"
+    },
+    {
+      "id": "m5-a08",
+      "status": "pass"
+    },
+    {
+      "id": "m5-a09",
+      "status": "pass"
+    },
+    {
+      "id": "m5-a10",
+      "status": "fail"
+    },
+    {
+      "id": "m5-a11",
+      "status": "pass"
+    },
+    {
+      "id": "m5-a12",
+      "status": "fail"
+    },
+    {
+      "id": "m6-a01",
+      "status": "not-run"
+    },
+    {
+      "id": "m6-a02",
+      "status": "not-run"
+    },
+    {
+      "id": "m6-a03",
+      "status": "not-run"
+    },
+    {
+      "id": "m6-a04",
+      "status": "not-run"
+    },
+    {
+      "id": "m6-a05",
+      "status": "not-run"
+    },
+    {
+      "id": "m6-a06",
+      "status": "not-run"
+    },
+    {
+      "id": "m6-a07",
+      "status": "not-run"
+    },
+    {
+      "id": "m6-a08",
+      "status": "fail"
+    },
+    {
+      "id": "m6-a09",
+      "status": "pass"
+    },
+    {
+      "id": "m6-a10",
+      "status": "pass"
+    },
+    {
+      "id": "m6-a11",
+      "status": "fail"
+    },
+    {
+      "id": "m6-a12",
+      "status": "pass"
+    },
+    {
+      "id": "m6-a13",
+      "status": "fail"
+    },
+    {
+      "id": "m8-a01",
+      "status": "fail"
+    },
+    {
+      "id": "m8-a02",
+      "status": "fail"
+    },
+    {
+      "id": "m8-a03",
+      "status": "pass"
+    },
+    {
+      "id": "m8-a04",
+      "status": "pass"
+    },
+    {
+      "id": "m8-a05",
+      "status": "fail"
+    },
+    {
+      "id": "m8-a06",
+      "status": "not-run"
+    },
+    {
+      "id": "m8-a07",
+      "status": "pass"
+    },
+    {
+      "id": "m8-a08",
+      "status": "fail"
+    },
+    {
+      "id": "m8-a09",
+      "status": "pass"
+    },
+    {
+      "id": "m8-a10",
+      "status": "pass"
+    },
+    {
+      "id": "m8-a11",
+      "status": "not-run"
+    },
+    {
+      "id": "m8-a12",
+      "status": "not-run"
+    },
+    {
+      "id": "m8-a13",
+      "status": "pass"
+    },
+    {
+      "id": "m8-a14",
+      "status": "pass"
+    },
+    {
+      "id": "m8-a15",
+      "status": "fail"
+    },
+    {
+      "id": "m8-a16",
+      "status": "not-run"
+    },
+    {
+      "id": "m8-a17",
+      "status": "not-run"
+    },
+    {
+      "id": "m8-a18",
+      "status": "not-run"
+    }
+  ],
+  "markdownStatusCorrespondence": true
+}

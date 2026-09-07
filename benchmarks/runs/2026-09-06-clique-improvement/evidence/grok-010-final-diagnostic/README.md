@@ -1,0 +1,11 @@
+# Recovered final Grok 0.0.10 diagnostic audit
+
+The original independent Astra xhigh auditor actually exited 0 after 6137.911 seconds. Root read the complete final 93,366-byte Markdown report, terminal and retrieval handoff, then compared all 110 Markdown status entries to the original 485,517-byte JSON. The original final counts are 69 pass, 20 fail and 21 not-run. Earlier live snapshots remain historical. These are diagnostic assertion statuses, not a holistic score, formal grader qualification, M7 result or native/full-scale proof.
+
+The complete original report is retained here unchanged. It discloses its pinned AJV helper substitution, passive-loader diagnostic deviations, failed original choreography, supplementary controls and historical script-custody limits. A later supplemental pass does not replace an original failed run. The reporter's coverage labels are not accepted as proof merely because a suite returned success.
+
+Observed application failures include missing feed pagination, recipient inline media, overlapping-prefix edits, warm offline search, truncated push payloads, foreign-user aggregate updates and positive digest emission. Native behavior remains unverified. The staging-ceiling failures occurred on 0.0.10; 0.0.12 changed pending-slot accounting, but this retrieval did not rerun the application or prove its current outcome. The expired-message search absence is unqualified because its positive offline control also failed. No new generic backend defect or fix is inferred without diagnosis against the current surface.
+
+The supervisor independently matched the recovered final report and terminal hashes to M5 and verified all 334 retained application-source leaves. The committed compact record includes complete Markdown, status correspondence, identity/integrity and final-process receipts. Full original JSON, source, fixtures and detailed evidence remain at /Users/ccheever/clique-improvement/grading/grok-010/retrieval-20260907. The selected source seal excludes original private state and dependencies; it is not a whole-directory seal.
+
+No new audit, scoring, benchmark invocation or M5 cleanup occurred during retrieval. Original owned processes were cleaned up by the auditor and its final recheck found its reserved ports free. Existing Convex/Supabase baselines remain fixed.

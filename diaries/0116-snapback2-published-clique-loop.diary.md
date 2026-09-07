@@ -921,3 +921,12 @@ The next repair covers these entrypoints together, after resident harness prepar
 The corrected original-validator M1 and M2 runs passed, but M3 exposed an attribution problem: the seeded group includes Erin while the frozen receipt scenario never opens her client. The original emitted failure remains intact, including a separate DM transition failure. A later real Erin client allowed a supplemental pass; it does not replace the standalone result.
 
 During M4 the provider explicitly blocked the builder request. No retry or model switch was attempted. The authored work, export inventory, actual native terminal and surviving backend ownership are preserved; incomplete choreography and ambiguous cumulative metering remain unqualified. This stop is not scored as a Snapback product failure or a benchmark win. [Terminal and milestone evidence](../benchmarks/runs/2026-09-06-clique-improvement/evidence/astra-013-terminal/README.md). Independent repairs continue with the original competitor baselines.
+
+
+### 2026-09-06 — Final diagnostic evidence recovered before the M5 leaves
+
+The original Grok-built 0.0.10 application audit completed while the remote host was unavailable. Its final diagnostic record is now recovered: 69 pass, 20 fail and 21 not-run assertions, with no holistic score. Reading the complete report clarifies why suite flags alone were misleading: some checks asserted only API completion or literal true, while pagination, recipient media and several later workflows were missing or failing. Supplementary controls establish narrower behavior without rewriting the original failed choreography.
+
+The asset staging observations predate the published pending-slot fix. Other findings need current-surface diagnosis before treating application mistakes as platform defects. For example, push formatting already has an effect-run JavaScript path; a full message written directly into an 80-character preview field does not prove the platform lacks formatting. Native and full-scale evidence remain absent. [Complete recovered diagnostic report and custody](../benchmarks/runs/2026-09-06-clique-improvement/evidence/grok-010-final-diagnostic/README.md).
+
+M5 recovery is complete. Future Linux-compatible work is assigned to the EPYC/Hetzner fleet, with isolated pinned runtimes; Apple-specific work uses other Macs. This operational change does not replace competitor scores or turn cross-host timing into a backend comparison.

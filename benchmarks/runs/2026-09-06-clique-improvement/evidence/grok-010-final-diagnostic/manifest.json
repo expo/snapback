@@ -1,0 +1,42 @@
+{
+  "README.md": {
+    "bytes": 2332,
+    "sha256": "404a282f71f539be2eaf713d949bccdcd455da208012ab59f4fa9c7ea08de6ed"
+  },
+  "custody-receipt.json": {
+    "bytes": 1759,
+    "sha256": "14e775e23b3efb2e8b5c8981cfb30f21530bb11dabe6a7df84ad7bc828b94e24"
+  },
+  "diagnostic-status-summary.json": {
+    "bytes": 6746,
+    "sha256": "36d27885e470fc07e3c92bffa699acf6e0793d0271fb63bc2451c2b1e08d9ce6"
+  },
+  "outcome/evidence/final-process-recheck.json": {
+    "bytes": 1425,
+    "sha256": "e565ca6db03479cab43717872c93544966d871f82b4ce3f3749a7ff2d364e869"
+  },
+  "outcome/evidence/source-integrity.json": {
+    "bytes": 1159,
+    "sha256": "09e8ae5ebe96ebe8868af1d6a891ebe75840526f4b1d9e4123c0ecf5001af189"
+  },
+  "outcome/grader-report.md": {
+    "bytes": 93366,
+    "sha256": "e2f9c936ea2fbcc7ff8aff9630cedc132000dd925ea9acd801beebb39dec6b02"
+  },
+  "outcome/report.md": {
+    "bytes": 487,
+    "sha256": "696679d998104b5578c3b94de2bbc98b441e0c5fe46553cf354fe122f3d982f1"
+  },
+  "outcome/root-native-identity.json": {
+    "bytes": 324,
+    "sha256": "aa0a1a87981ace6dbfe8c3a3e632f2e9249868d7c4c5947050692d46ff7e122a"
+  },
+  "outcome/terminal.json": {
+    "bytes": 109,
+    "sha256": "9a26f7c39446c5495491bab5066fc15963b29d7e936d5b0db199cc3ef853b614"
+  },
+  "report.md": {
+    "bytes": 2891,
+    "sha256": "e75377ba50886ad3ae9ad0729a0526939dd25ff3461ee8d58082f9a478730816"
+  }
+}

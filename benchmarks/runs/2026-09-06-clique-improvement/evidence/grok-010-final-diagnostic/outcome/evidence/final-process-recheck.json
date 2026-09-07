@@ -1,0 +1,88 @@
+{
+  "at": "2026-09-06T18:47:48.735922+00:00",
+  "ports": [
+    {
+      "port": 51700,
+      "bindAvailable": true
+    },
+    {
+      "port": 51701,
+      "bindAvailable": true
+    },
+    {
+      "port": 51702,
+      "bindAvailable": true
+    },
+    {
+      "port": 51703,
+      "bindAvailable": true
+    },
+    {
+      "port": 51704,
+      "bindAvailable": true
+    },
+    {
+      "port": 51705,
+      "bindAvailable": true
+    },
+    {
+      "port": 51706,
+      "bindAvailable": true
+    },
+    {
+      "port": 51707,
+      "bindAvailable": true
+    },
+    {
+      "port": 51708,
+      "bindAvailable": true
+    },
+    {
+      "port": 51709,
+      "bindAvailable": true
+    },
+    {
+      "port": 51710,
+      "bindAvailable": true
+    },
+    {
+      "port": 51711,
+      "bindAvailable": true
+    },
+    {
+      "port": 51712,
+      "bindAvailable": true
+    },
+    {
+      "port": 51713,
+      "bindAvailable": true
+    },
+    {
+      "port": 51714,
+      "bindAvailable": true
+    },
+    {
+      "port": 51715,
+      "bindAvailable": true
+    },
+    {
+      "port": 51716,
+      "bindAvailable": true
+    },
+    {
+      "port": 51717,
+      "bindAvailable": true
+    },
+    {
+      "port": 51718,
+      "bindAvailable": true
+    },
+    {
+      "port": 51719,
+      "bindAvailable": true
+    }
+  ],
+  "originalPidsPsExit": 1,
+  "originalPidsPsOutput": "",
+  "note": "Read-only final recheck. No process was signalled."
+}

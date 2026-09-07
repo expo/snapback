@@ -1,0 +1,33 @@
+{
+  "allInstrumentFilesCompared": 170,
+  "allInstrumentHashChanges": [],
+  "at": "2026-09-06T18:29:13.480592+00:00",
+  "executionCopies": {
+    "audit-app": {
+      "changed": [],
+      "filesCompared": 334,
+      "missing": []
+    },
+    "probe-app": {
+      "changed": [],
+      "filesCompared": 334,
+      "missing": []
+    },
+    "sealed-source": {
+      "changed": [],
+      "filesCompared": 334,
+      "missing": []
+    }
+  },
+  "frozenInstrumentTreeHash": "005198664a3b3478bc110013653c54495159d3f18b4672bb1a3d98c185749a35",
+  "frozenInstrumentUnchanged": true,
+  "generatedApiMatchesOriginal": {
+    "audit-app": true,
+    "probe-app": true
+  },
+  "originalApiUnchanged": true,
+  "originalSourceTreeHashAfter": "2fb4778c269fb74f259cf28dfa98714a31485e1633c807e472e67bc755def986",
+  "originalSourceTreeHashBefore": "2fb4778c269fb74f259cf28dfa98714a31485e1633c807e472e67bc755def986",
+  "originalSourceUnchanged": true,
+  "scope": "Excluded original private state, outputs, narratives and dependencies are not integrity-scanned. Original source and complete frozen instrument byte identities are checked. No assertion of a complete original-state seal."
+}

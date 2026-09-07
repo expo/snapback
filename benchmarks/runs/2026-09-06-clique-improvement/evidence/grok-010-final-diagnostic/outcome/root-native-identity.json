@@ -1,0 +1,10 @@
+{
+  "root": "grading/grok-010/outcome",
+  "pid": 24669,
+  "startEpoch": 1788714468.296656,
+  "session": "01a077b0-c817-7e91-9960-c7d1dec4d25f",
+  "model": "gpt-6-astra",
+  "effort": "xhigh",
+  "cwd": "/Users/ccheever/clique-improvement/grading/grok-010/outcome",
+  "process": "24669 00:53 /Users/ccheever/.volta/bin/codex"
+}
