@@ -697,6 +697,20 @@ test("forwarded mutation timeout, rediscovery and recovery preserve one request 
       "payloadDigest", "principal", "protocol", "requestId", "scope"], "the recovery token carries no op or arguments");
     assert.equal(record.requestId.startsWith(`s2fr1-${record.expiresAt.toString(16)}-`), true, "expiration is part of immutable identity");
 
+    writer.writer(undefined);
+    const discovers = MemoryBroadcastChannel.messages.filter(message => message.type === "discover").length;
+    const repeated = Array.from({ length: 65 }, () => follower.mutation("deliveries.post", args, token as any));
+    await until(() => MemoryBroadcastChannel.messages.filter(message => message.type === "discover").length > discovers,
+      "the one shared recovery discovery");
+    assert.equal((follower as any).recoveryPreparations.size, 1,
+      "repeated observers of one recovery identity retain one preparation/outcome");
+    follower.stop();
+    assert.ok((await Promise.all(repeated)).every(result => result.state === "admission-unknown"
+      && (result as any).recovery === token), "all recovery observers share the unknown result");
+    follower.follower({ scope: context.scope, principal: context.principal, authEpoch: 7, established: true, persona: false });
+    writer.writer(context);
+    assert.equal((await follower.status("deliveries.post")).ready, true);
+
     (globalThis as any).BroadcastChannel = undefined;
     assert.deepEqual(await follower.mutation("deliveries.post", args, token as any), unknown,
       "no carrier after a prior send preserves the unknown outcome");
