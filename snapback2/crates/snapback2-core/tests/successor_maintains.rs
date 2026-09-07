@@ -851,59 +851,62 @@ fn rebuilt_survivor_uniqueness_reports_at_most_ten_conflicting_keys() {
 
 #[test]
 fn rebuilt_uniqueness_uses_projection_after_preceding_target_retirement() {
-    let mut tables = survivor_tables();
-    let totals = tables.remove("totals").unwrap();
-    tables.insert("aTotals".into(), totals.clone());
-    let mut z_totals = totals;
-    z_totals
-        .indexes
-        .insert("byValue".into(), unique_index(&["value"]));
-    tables.insert("zTotals".into(), z_totals);
-    let mut runtime =
-        Runtime::open(Store::memory().unwrap(), generation(tables.clone(), vec![])).unwrap();
-    runtime
-        .seed(&[
-            ("aTotals".into(), total_row("legacy", Some("ordinary"), 9)),
-            (
-                "expenses".into(),
-                object([
-                    ("id", Value::Id("expense".into())),
-                    ("group", Value::Id("derived".into())),
-                    ("amount", Value::Int(5)),
-                ]),
-            ),
-        ])
-        .unwrap();
-    let mut maintain = survivor_count();
-    maintain.target = "aTotals".into();
-    runtime
-        .apply_successor(generation(tables.clone(), vec![maintain]))
-        .unwrap();
-    // Before retiring aTotals, the zTotals projection has two count=1 rows
-    // and would appear non-unique. The actual rebuild sees only the survivor.
-    runtime
-        .apply_successor(generation(
-            tables,
-            vec![Maintain {
-                kind: MaintainKind::Count,
-                source: "aTotals".into(),
-                target: "zTotals".into(),
-                by: vec!["group".into()],
-                readable: None,
-            }],
-        ))
-        .unwrap();
-    let files = SurvivorFiles::new();
-    let snapshot = files.snapshot(runtime.store());
-    let z_rows = snapshot["rows"]
-        .iter()
-        .filter(|r| r[0] == rusqlite::types::Value::Text("zTotals".into()))
-        .collect::<Vec<_>>();
-    assert_eq!(z_rows.len(), 1);
-    let rusqlite::types::Value::Text(body) = &z_rows[0][2] else {
-        panic!("stored row must be JSON");
-    };
-    let row: Value = serde_json::from_str(body).unwrap();
-    assert_eq!(row.field("group"), Ok(&Value::Id("ordinary".into())));
-    assert_eq!(row.field("value"), Ok(&Value::Int(1)));
+    for (retired, active) in [("aTotals", "zTotals"), ("zTotals", "aTotals")] {
+        let mut tables = survivor_tables();
+        let totals = tables.remove("totals").unwrap();
+        tables.insert(retired.into(), totals.clone());
+        let mut active_totals = totals;
+        active_totals
+            .indexes
+            .insert("byValue".into(), unique_index(&["value"]));
+        tables.insert(active.into(), active_totals);
+        let mut runtime =
+            Runtime::open(Store::memory().unwrap(), generation(tables.clone(), vec![])).unwrap();
+        runtime
+            .seed(&[
+                (retired.into(), total_row("legacy", Some("ordinary"), 9)),
+                (
+                    "expenses".into(),
+                    object([
+                        ("id", Value::Id("expense".into())),
+                        ("group", Value::Id("derived".into())),
+                        ("amount", Value::Int(5)),
+                    ]),
+                ),
+            ])
+            .unwrap();
+        let mut maintain = survivor_count();
+        maintain.target = retired.into();
+        runtime
+            .apply_successor(generation(tables.clone(), vec![maintain]))
+            .unwrap();
+        // Before retirement, the successor projection has two count=1 rows
+        // and would appear non-unique. It must see only the ordinary survivor,
+        // whether the retired target sorts before or after the active target.
+        runtime
+            .apply_successor(generation(
+                tables,
+                vec![Maintain {
+                    kind: MaintainKind::Count,
+                    source: retired.into(),
+                    target: active.into(),
+                    by: vec!["group".into()],
+                    readable: None,
+                }],
+            ))
+            .unwrap();
+        let files = SurvivorFiles::new();
+        let snapshot = files.snapshot(runtime.store());
+        let active_rows = snapshot["rows"]
+            .iter()
+            .filter(|r| r[0] == rusqlite::types::Value::Text(active.into()))
+            .collect::<Vec<_>>();
+        assert_eq!(active_rows.len(), 1, "{retired} -> {active}");
+        let rusqlite::types::Value::Text(body) = &active_rows[0][2] else {
+            panic!("stored row must be JSON");
+        };
+        let row: Value = serde_json::from_str(body).unwrap();
+        assert_eq!(row.field("group"), Ok(&Value::Id("ordinary".into())));
+        assert_eq!(row.field("value"), Ok(&Value::Int(1)));
+    }
 }

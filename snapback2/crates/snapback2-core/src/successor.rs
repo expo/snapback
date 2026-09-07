@@ -465,6 +465,26 @@ pub(crate) fn apply_additive(
         .map(Ok)
         .unwrap_or_else(|| projected_predecessor_ids(transaction, current, next))?;
 
+    // A retired projection can be the source of a new maintain. Clear its
+    // engine-owned addresses before any active target reads that source;
+    // target-name order is not a dependency order. Ordinary-id survivors stay.
+    let next_targets = next
+        .maintains
+        .iter()
+        .map(|maintain| maintain.target.as_str())
+        .collect::<BTreeSet<_>>();
+    let retired_targets = current
+        .maintains
+        .iter()
+        .map(|maintain| maintain.target.as_str())
+        .filter(|target| !next_targets.contains(target))
+        .collect::<BTreeSet<_>>();
+    for target in retired_targets {
+        if let Some(ids) = predecessor_maintain_ids.remove(target) {
+            rebuild_owned_aggregate_target(transaction, next, target, &ids, vec![])?;
+        }
+    }
+
     for table_name in next.tables.keys() {
         let needs_reindex = current.tables.get(table_name).is_some_and(|table| {
             next.tables[table_name].indexes.iter().any(|(name, index)| {
