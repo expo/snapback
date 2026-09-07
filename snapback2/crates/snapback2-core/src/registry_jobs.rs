@@ -26,16 +26,17 @@ impl Runtime {
             .ok_or_else(|| RuntimeError::OpUnknown(name.into()))?;
         self.enqueue_certified_job(&program, &certificate, args, by, now, None)
     }
+    /// Sample the caller's clock only after complete live-generation admission succeeds.
     pub fn enqueue_adhoc_job(
         &mut self,
         program: &Program,
         args: BTreeMap<String, Value>,
         by: OperatorId,
-        now: i64,
+        now: impl FnOnce() -> i64,
         source: String,
     ) -> Result<String, RuntimeError> {
         let certificate = self.certify_operator_program(program)?;
-        self.enqueue_certified_job(program, &certificate, args, by, now, Some(source))
+        self.enqueue_certified_job(program, &certificate, args, by, now(), Some(source))
     }
     fn enqueue_certified_job(
         &mut self,
@@ -278,15 +279,18 @@ impl Runtime {
         })?;
         Ok(admitted.programs[&program.name].1.clone())
     }
+    /// Admission and execution share this borrow; no caller-supplied certificate can
+    /// skip generation dependencies. The clock is sampled after admission, before execution.
+    // @ref LLP 1016#d6--the-operator-seat-ad-hoc-programs-and-rehearsal — one live admission per run, with the owner's clock sampled after it.
     pub fn execute_adhoc_operator(
         &mut self,
         program: &Program,
         args: BTreeMap<String, Value>,
         by: OperatorId,
-        now: i64,
+        now: impl FnOnce() -> i64,
     ) -> Result<Execution, RuntimeError> {
         let certificate = self.certify_operator_program(program)?;
-        self.run_operator(program, &certificate, args, by, now)
+        self.run_operator(program, &certificate, args, by, now())
     }
 }
 

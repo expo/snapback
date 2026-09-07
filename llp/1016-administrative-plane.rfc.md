@@ -23,7 +23,7 @@ session, on a criticism made by a separate reviewing session the same day;
 revision (a) written at the author's instruction to take the panel's
 feedback into account with the orchestrator's own judgement
 **Date:** 2026-09-05
-**Revised:** 2026-09-05 (close-out — Status → Implemented; §12 program record); 2026-09-05 (J2 fix round 1 — coalescing narrowed to queued/running, ceiling envelopes, the owner's clock at install and reset, schedule targets out of the client map, declared schedules listed at zero, the declaration site out of the hash; §12); 2026-09-05 (J2 — implementation record for D5 in §12: schedules, `_timers`, firing, the template's server-side expiry, the digest fixture); 2026-09-05 (a.1 — the five decisions ruled, the author having delegated them to the orchestrator; implementer, lanes, and dates written; the loop-bar sequencing overridden by author ruling); 2026-09-05 (a — the panel folded: one authority model for the
+**Revised:** 2026-09-06 (single live-generation admission per ad hoc run/enqueue, preserving clock ordering); 2026-09-05 (close-out — Status → Implemented; §12 program record); 2026-09-05 (J2 fix round 1 — coalescing narrowed to queued/running, ceiling envelopes, the owner's clock at install and reset, schedule targets out of the client map, declared schedules listed at zero, the declaration site out of the hash; §12); 2026-09-05 (J2 — implementation record for D5 in §12: schedules, `_timers`, firing, the template's server-side expiry, the digest fixture); 2026-09-05 (a.1 — the five decisions ruled, the author having delegated them to the orchestrator; implementer, lanes, and dates written; the loop-bar sequencing overridden by author ruling); 2026-09-05 (a — the panel folded: one authority model for the
 system principal and the `system` rule word deleted; the job is a sequence
 of sweeps over immutable keys under a captured upper key, with cursor and
 progress as certified engine writes; narrowing moved to successor
@@ -462,15 +462,24 @@ schedule dailyDigest every 24h:
   entry point); hosted, it is an `admin` token (LLP 1015 D6, D10), and the
   ledger's `by` is the token id.
 - **Ad hoc programs.** `snapback2 run --file fix.q [args] --as system`
-  compiles the file with the same worker, certifies it against the live
-  generation through `execute_adhoc` (`registry.rs:762`) **with the same
-  admission as a declared program** — the checker today skips
-  `Generation::certify`'s effect-target validation (`registry.rs:405`); it
-  must not — executes a query, mutation, or job, and ledgers its source
-  hash. An ad hoc job persists its source in `_jobs.source` so a restart
-  can recompile it; the source is capped at 64 KiB (`E_ADHOC_SIZE`). It is
-  never installed and never in the manifest. This is the console: an agent
-  writes the repair in the language it knows.
+  compiles the file with the same worker. Compiler-output admission remains
+  separate from admission against the owner's live generation: the generation
+  can change before the writer handles the request. After seat, size and argument
+  checks and source-hash naming, a run or enqueue certifies exactly once through
+  `Runtime::certify_operator_program`, using complete `Generation::certify`
+  admission including live schema, effects, programs and schedule bindings.
+  The execution/enqueue entry takes a clock callback, sampled only after
+  admission succeeds; the same mutable runtime borrow spans both. No certificate
+  or generation cache crosses requests. A plan uses its one live certificate
+  without sampling execution time. Existing execution certificate identity
+  checks and all transaction constraints remain intact.
+  An ad hoc job persists its source in `_jobs.source` and its admitted IR and
+  certificate for restart and chunk-time binding (D2); restart never recompiles
+  source. The source is capped at 64 KiB (`E_ADHOC_SIZE`), never installed and
+  never in the manifest; the ledger names its source hash. Rehearsal retains
+  admission before the snapshot and separate execution on the copy with its
+  already pinned clock. This is the console: an agent writes the repair in
+  the language it knows.
 - **`--plan`** certifies and prints: the sweeps, the index-entry count
   under each prefix and the chunk count it implies, the engine writes, and
   the ceilings — the cheap estimate.

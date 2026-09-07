@@ -242,6 +242,21 @@ fn rehearsal_cli_jobs_queries_mutations_receipts_and_usage_exits() {
 #[test]
 fn control_run_source_modes_and_declared_job_route_share_operator_admission() {
     let (root, _, mut owner, port, secret) = boot(false);
+    control(
+        port,
+        &secret,
+        "/control/clock",
+        json!({"advanceMs":86400000}),
+    );
+    let clock = control(
+        port,
+        &secret,
+        "/control/run",
+        json!({"source":"query inspect():\n  return now\n","mode":"run"}),
+    );
+    assert_eq!(clock["state"], "complete");
+    let wall_now = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_millis() as i64;
+    assert!(clock["data"].as_i64().unwrap() > wall_now + 86000000);
     let source =
         "job repair:\n  chunk p in items first 100 by byId:\n    update items[p.id] { n: 9 }\n";
     let before = status(port, &secret)["seq"].clone();
@@ -272,9 +287,10 @@ fn control_run_source_modes_and_declared_job_route_share_operator_admission() {
         port,
         &secret,
         "/control/run",
-        json!({"source":"mutation fix(id: items, n: int):\n  update items[id] { n }\n  return true\n","args":{"id":"item-000","n":10},"mode":"run"}),
+        json!({"source":"mutation fix(id: items, n: int):\n  update items[id] { n }\n  return now\n","args":{"id":"item-000","n":10},"mode":"run"}),
     );
     assert_eq!(mutation["state"], "committed");
+    assert!(mutation["data"].as_i64().unwrap() >= clock["data"].as_i64().unwrap());
     let queued = control(
         port,
         &secret,

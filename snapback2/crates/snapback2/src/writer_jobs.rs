@@ -241,17 +241,19 @@ impl State {
         // Arguments are checked under the authored name so E_JOB_ARGS pastes the signature as written.
         let values = job_args(&program, &args)?;
         program.name = format!("adhoc:{source_hash}");
-        let certificate = self
-            .runtime()
-            .certify_operator_program(&program)
-            .map_err(|e| Refusal::from_runtime(&e))?;
         if plan {
+            let certificate = self
+                .runtime()
+                .certify_operator_program(&program)
+                .map_err(|e| Refusal::from_runtime(&e))?;
             return self
                 .runtime()
                 .plan_job(&program, &certificate, &values)
                 .map_err(|e| Refusal::from_runtime(&e));
         }
-        let now = self.now();
+        // @ref LLP 1016#d6--the-operator-seat-ad-hoc-programs-and-rehearsal — run/enqueue admit once on this writer turn, then sample now; a plan only admits.
+        let clock_offset_ms = self.clock_offset_ms;
+        let now = || unix_millis().saturating_add(clock_offset_ms);
         if program.kind == ProgramKind::Job {
             let id = self
                 .runtime_mut()

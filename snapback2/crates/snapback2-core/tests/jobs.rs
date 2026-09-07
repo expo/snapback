@@ -195,7 +195,7 @@ fn operate(runtime: &mut Runtime, body: Vec<Stmt>) {
         body,
     };
     let result = runtime
-        .execute_adhoc_operator(&program, BTreeMap::new(), OperatorId("tester".into()), 1)
+        .execute_adhoc_operator(&program, BTreeMap::new(), OperatorId("tester".into()), || 1)
         .unwrap();
     assert!(
         matches!(result.state, ExecutionState::Committed { .. }),
@@ -524,7 +524,7 @@ fn adhoc_restart_preserves_source_changed_generation_parks_and_reset_clears_jobs
             &job(1),
             BTreeMap::new(),
             OperatorId("tester".into()),
-            1,
+            || 1,
             "job fill: source retained".into(),
         )
         .unwrap();
@@ -596,7 +596,7 @@ fn executable_mismatch_at_chunk_time_parks_with_the_generation_envelope_and_keep
     let mut rt = runtime(1);
     seed(&mut rt, &["01", "02", "03"]);
     let id = rt
-        .enqueue_adhoc_job(&job(1), BTreeMap::new(), OperatorId("tester".into()), 1, "job fill: ad hoc".into())
+        .enqueue_adhoc_job(&job(1), BTreeMap::new(), OperatorId("tester".into()), || 1, "job fill: ad hoc".into())
         .unwrap();
     rt.run_chunk(&id).unwrap();
     let hash = rt.job_record(&id).unwrap().program_hash;
@@ -620,7 +620,7 @@ fn executable_mismatch_at_chunk_time_parks_with_the_generation_envelope_and_keep
     // is driven, naming the decode failure as the cause; resume refuses with the same code
     // rather than a serialization error. The owner never stops.
     let second = rt
-        .enqueue_adhoc_job(&job(1), BTreeMap::new(), OperatorId("tester".into()), 2, "job fill: ad hoc again".into())
+        .enqueue_adhoc_job(&job(1), BTreeMap::new(), OperatorId("tester".into()), || 2, "job fill: ad hoc again".into())
         .unwrap();
     let (mut rt, path2) = reopen_with_plan(rt, &hash, "not a plan", "garbage");
     std::fs::remove_file(path).unwrap();
@@ -732,7 +732,7 @@ fn ceiling_fault_at_chunk_time_parks_in_the_bound_family_and_rolls_back() {
     let mut rt = runtime(1);
     seed(&mut rt, &["01", "02", "03"]);
     let id = rt
-        .enqueue_adhoc_job(&job(1), BTreeMap::new(), OperatorId("tester".into()), 1, "job fill: ad hoc".into())
+        .enqueue_adhoc_job(&job(1), BTreeMap::new(), OperatorId("tester".into()), || 1, "job fill: ad hoc".into())
         .unwrap();
     rt.run_chunk(&id).unwrap();
     let hash = rt.job_record(&id).unwrap().program_hash;
@@ -895,4 +895,175 @@ fn mutation_return_advances_only_the_visited_prefix_of_a_chunk() {
     assert_eq!(values(&mut rt)["02"], 0);
     assert_eq!(rt.run_chunk(&id).unwrap().job.state, "done");
     assert!(values(&mut rt).values().all(|n| *n == 1));
+}
+
+#[test]
+fn adhoc_admission_precedes_clock_sampling_and_execution_input_errors() {
+    let mut rt = runtime(1);
+    seed(&mut rt, &["01"]);
+    let seq = rt.store().commit_seq().unwrap();
+    // A certification refusal must not read the clock or enter an execution/enqueue.
+    let mut invalid = job(1);
+    invalid.body.clear();
+    for enqueue in [false, true] {
+        let clock = || panic!("a refused admission sampled time");
+        let error = if enqueue {
+            rt.enqueue_adhoc_job(
+                &invalid,
+                BTreeMap::new(),
+                OperatorId("tester".into()),
+                clock,
+                "job invalid".into(),
+            )
+            .map(|_| ())
+        } else {
+            rt.execute_adhoc_operator(
+                &invalid,
+                BTreeMap::new(),
+                OperatorId("tester".into()),
+                clock,
+            )
+            .map(|_| ())
+        }
+        .unwrap_err();
+        assert!(matches!(error, RuntimeError::Schema(_)), "{error}");
+        assert_eq!(rt.store().commit_seq().unwrap(), seq);
+    }
+    let mut calls = 0;
+    let id = rt
+        .enqueue_adhoc_job(
+            &job(1),
+            BTreeMap::new(),
+            OperatorId("tester".into()),
+            || {
+                calls += 1;
+                12345
+            },
+            "job fill".into(),
+        )
+        .unwrap();
+    assert_eq!(calls, 1);
+    assert_eq!(rt.job_record(&id).unwrap().created_at, 12345);
+
+    // Core argument validation still follows admission/time; the wire validates earlier.
+    let seq = rt.store().commit_seq().unwrap();
+    let error = rt
+        .enqueue_adhoc_job(
+            &job(1),
+            BTreeMap::from([("extra".into(), Value::Int(1))]),
+            OperatorId("tester".into()),
+            || {
+                calls += 1;
+                12346
+            },
+            "job fill".into(),
+        )
+        .unwrap_err();
+    assert_eq!(error.code(), "E_JOB_ARGS");
+    assert_eq!(calls, 2);
+    assert_eq!(rt.store().commit_seq().unwrap(), seq);
+}
+
+#[test]
+fn adhoc_query_and_mutation_use_one_supplied_clock_sample() {
+    let mut rt = runtime(1);
+    for kind in [ProgramKind::Query, ProgramKind::Mutation] {
+        let p = Program {
+            name: "adhoc:clock".into(),
+            kind,
+            args: BTreeMap::new(),
+            read_time_granularity_ms: (kind == ProgramKind::Query).then_some(1),
+            body: vec![Stmt::Return(Expr::Input(if kind == ProgramKind::Query {
+                Input::ReadTime
+            } else {
+                Input::Now
+            }))],
+        };
+        let seq = rt.store().commit_seq().unwrap();
+        let mut calls = 0;
+        let result = rt
+            .execute_adhoc_operator(&p, BTreeMap::new(), OperatorId("tester".into()), || {
+                calls += 1;
+                12345
+            })
+            .unwrap();
+        assert_eq!(calls, 1);
+        assert_eq!(result.result, Value::Int(12345));
+        assert_eq!(result.seq, seq + u64::from(kind == ProgramKind::Mutation));
+        assert!(if kind == ProgramKind::Mutation {
+            matches!(result.state, ExecutionState::Committed { .. })
+        } else {
+            matches!(result.state, ExecutionState::Complete)
+        });
+    }
+}
+
+#[test]
+fn adhoc_effect_admission_uses_current_declarations_even_with_the_same_schema_hash() {
+    let project = ProjectJson {
+        version: 1,
+        schema: schema(),
+        auth: Auth::default(),
+        programs: vec![job(1)],
+        effects: vec![EffectDecl {
+            name: "notify".into(),
+            grants: vec![],
+            source: "async () => true".into(),
+            then: None,
+        }],
+    };
+    let generation = Generation::certify(&project, Ceilings::default()).unwrap();
+    let schema_hash = generation.hash();
+    let mut rt = Runtime::open(Store::memory().unwrap(), generation).unwrap();
+    let mutation = Program {
+        name: "adhoc:notify".into(),
+        kind: ProgramKind::Mutation,
+        args: BTreeMap::new(),
+        read_time_granularity_ms: None,
+        body: vec![Stmt::Emit {
+            effect: "notify".into(),
+            payload: Expr::Literal(Value::Null),
+        }],
+    };
+    let mut sweep = job(1);
+    let Stmt::For { body, .. } = &mut sweep.body[0] else {
+        unreachable!()
+    };
+    body.push(mutation.body[0].clone());
+    rt.certify_operator_program(&mutation).unwrap();
+    rt.certify_operator_program(&sweep).unwrap();
+    let mut successor = project;
+    successor.effects.clear();
+    let successor = Generation::certify(&successor, Ceilings::default()).unwrap();
+    assert_eq!(successor.hash(), schema_hash);
+    rt.apply_successor(successor).unwrap();
+    let seq = rt.store().commit_seq().unwrap();
+    let clock = || panic!("missing live effect must refuse before sampling time");
+    let error = rt
+        .execute_adhoc_operator(
+            &mutation,
+            BTreeMap::new(),
+            OperatorId("tester".into()),
+            clock,
+        )
+        .unwrap_err();
+    assert!(matches!(error, RuntimeError::Schema(_)), "{error}");
+    assert!(
+        error.to_string().contains("undeclared effect notify"),
+        "{error}"
+    );
+    let error = rt
+        .enqueue_adhoc_job(
+            &sweep,
+            BTreeMap::new(),
+            OperatorId("tester".into()),
+            clock,
+            "job notify".into(),
+        )
+        .unwrap_err();
+    assert!(
+        error.to_string().contains("undeclared effect notify"),
+        "{error}"
+    );
+    assert_eq!(rt.store().commit_seq().unwrap(), seq);
 }

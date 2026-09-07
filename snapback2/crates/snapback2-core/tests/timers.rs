@@ -305,7 +305,7 @@ fn seed(rt: &mut Runtime, rows: Vec<Value>) {
 fn operate(rt: &mut Runtime, body: Vec<Stmt>) {
     let p = program("repair", ProgramKind::Mutation, vec![], body);
     let result = rt
-        .execute_adhoc_operator(&p, BTreeMap::new(), OperatorId("tester".into()), 1)
+        .execute_adhoc_operator(&p, BTreeMap::new(), OperatorId("tester".into()), || 1)
         .unwrap();
     assert!(
         matches!(result.state, ExecutionState::Committed { .. }),

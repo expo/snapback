@@ -227,7 +227,7 @@ impl Rehearsal {
                     &program,
                     values,
                     OperatorId(by),
-                    self.now,
+                    || self.now,
                     source,
                 ),
                 None => {
@@ -258,7 +258,7 @@ impl Rehearsal {
             let execution = match source {
                 Some(_) => {
                     self.runtime
-                        .execute_adhoc_operator(&program, values, OperatorId(by), self.now)
+                        .execute_adhoc_operator(&program, values, OperatorId(by), || self.now)
                 }
                 None => self.runtime.execute_operator_at(
                     &program.name,
