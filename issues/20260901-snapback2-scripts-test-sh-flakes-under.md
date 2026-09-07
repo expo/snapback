@@ -121,3 +121,23 @@ weakened suite deadline is claimed. The final delivery changes declarations
 and focused tests, with no native/evaluator/runtime semantic delta. Its
 separate affected checks are recorded in the execution ledger and LLP 1018.
 The full output remains in the ignored local ship-run evidence directory.
+
+## Public zero-count paired-proof continuation — 2026-09-07
+
+On `6b8530f6e`, two sequential focused public-owner invocations stopped before
+the test body with `owner readiness timed out` at `owner-harness.ts:138`'s
+10-second deadline, after 25.57 and 31.53 seconds including bootstrap. Command:
+`node --test --test-timeout=60000 --test-name-pattern='public count reads enable' tests/real-owner.test.ts`.
+The harness reaped its own child. Observed host load averages ranged from
+39.84/41.07/33.38 to 64.65/46.69/36.09; this is context, not a reproduced
+baseline or proof of cause.
+
+A final bounded diagnostic changed only the owner-readiness allowance to 30
+seconds, kept the file allowance at 60 seconds, and passed in 19.20 seconds
+(7.06-second test body). The harness was restored byte-for-byte afterwards.
+No timing change ships. Twelve affected native regressions and 218 evaluator
+replays plus two visibility checks pass; the preceding pre-key-guard public
+run passed in 21.44 seconds with the original startup allowance. These are
+separate functional/scoped results; neither the final default-deadline public
+command nor the broad suite is claimed green. Logs are retained in the local
+`20260907-zero-count-proof` ship-run evidence directory.

@@ -91,3 +91,21 @@ to cap 3, suppresses a fourth prediction, and reconnects to three commits and
 one `E_CONSTRAINT` rejection. Held/unheld counts and atomic overflow remain
 controls. No injected receipt or TS runtime change is involved. These are scoped
 checks, not a complete-suite, architecture-lane or publication qualification.
+
+### Final review and guarded candidate
+
+The independent key-domain review found that a native String/Id mismatch could
+turn a real miss into false coverage after wire retagging. The final candidate
+`6b8530f6e` admits only validated scalar key domains; JSON/compound groupings
+omit the optional pair. Twelve native regressions pass, including that repair.
+The fresh [Astra review](../../llp/reviews/1018-zero-count-paired-proof.astra.md)
+reports no material findings. The regenerated corpus has 243 cases (25
+server-only); all 218 evaluator replays and two visibility checks pass.
+
+Two final-source public attempts stopped before the test body at the existing
+10-second owner-readiness deadline (25.57 and 31.53 seconds including bootstrap).
+A bounded diagnostic with a temporary 30-second readiness allowance passed in
+19.20 seconds, with all behavior assertions passing in 7.06 seconds. The
+harness is restored unchanged. That is final functional evidence, not a pass
+at the original startup deadline. The existing [timing ticket](../20260901-snapback2-scripts-test-sh-flakes-under.md)
+retains both failures. Ref-check and caps pass; no full-suite pass is claimed.

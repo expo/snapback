@@ -722,3 +722,16 @@ predict, and reconnect commits three and rejects overflow. Held/unheld and
 atomic rollback controls remain. The original cached scalar alone still grants
 no insertion authority. This closes the read-evidence gap without claiming the
 separately owned architecture/compiler/browser work complete.
+
+Final candidate `6b8530f6e` also closes a review-found wire-domain hole: reject
+mistyped scalar keys and omit JSON/compound grouping proofs before additional
+reads. All **12** focused native cases pass. The fresh
+[Astra source review](./reviews/1018-zero-count-paired-proof.astra.md) reports
+no material findings; the earlier finding and its follow-up are retained.
+The regenerated corpus is unchanged by this guard: **218/218** evaluator
+replays plus two visibility checks pass. Two final public runs failed before
+the test body at the existing 10-second owner-readiness deadline. A bounded
+diagnostic with a temporary 30-second startup allowance passed in **19.20 s**
+(7.06-second body), then restored the harness unchanged. The timing ticket
+retains those failures; this is functional evidence, not normal-deadline or
+complete-suite qualification. Ref-check and caps pass.
