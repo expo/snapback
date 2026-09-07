@@ -59,7 +59,8 @@ test("Expo production Hermes lowering keeps frozen row-image caches writable and
     const transform = async (source: string, filename: string) => {
       const result = await babel.transformAsync(source, {
         babelrc: false, configFile: false, filename,
-        presets: [[presetPath, {}]], sourceType: "module", caller: metroCaller,
+        // Runtime helpers are inlined only so this standalone transformed module can execute outside Metro's resolver.
+        presets: [[presetPath, { enableBabelRuntime: false }]], sourceType: "module", caller: metroCaller,
       });
       assert(result?.code);
       const output = join(root, filename);
