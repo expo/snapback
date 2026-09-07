@@ -89,6 +89,7 @@ function deleteDatabase(factory: IDBFactory, name: string): Promise<void> {
 class IndexedDbBackend implements RangeStoreBackend {
   readonly [preparedProjection] = true as const;
   readonly carrier = "IndexedDB";
+  get coordinationScope(): string { return `IndexedDB:${this.prefix}`; }
   private database?: IDBDatabase;
   private databaseName?: string;
   private releaseLock?: () => void;

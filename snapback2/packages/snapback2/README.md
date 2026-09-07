@@ -67,12 +67,20 @@ views once from the atomic store revision; bookkeeping-only commits stay silent.
 
 `useMutation` returns `{ run, inFlight, pending, ready, status, last, transport }`.
 `inFlight` marks an active call; `pending` lists this operation's durable queued
-intents. `last` is `queued`, `committed`, or `rejected`; queued means saved on the
+intents. `last` is `queued`, `committed`, `rejected`, or `admission-unknown`; queued means saved on the
 device for FIFO replay after resume. `status` explains readiness, the next action,
 remaining queue, and fence. `useOutbox()` exposes entries; `outbox.drain()` and
 `settled()` report `{ stopped, remaining }`. Transport failures preserve queued
 writes; a thrown failure leaves `last` untouched and sets `transport`.
 Run `snapback2 guide offline` for recovery.
+
+A second browser tab for the same account forwards ordinary mutation arguments
+to the tab holding the IndexedDB partition lock. `queued` means that writer has
+durably admitted the request. If its answer is lost after send, the follower
+gets `{ state: "admission-unknown", recovery }`; keep the opaque token and call
+`client.recoverMutation(ref, args, recovery)` with the same operation and
+arguments. Never retry that outcome as a fresh mutation. Uploads and channel
+publishes still refuse from a follower before sending bytes.
 
 ## Assets
 

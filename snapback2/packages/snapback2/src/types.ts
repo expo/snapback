@@ -114,7 +114,12 @@ export type MutationRejected = {
 };
 /** The write is durable in this device's outbox and will replay after the next resume. */
 export type MutationQueued = { state: "queued"; intent: string; ids: string[] };
-export type MutationResult<Result> = MutationCommitted<Result> | MutationRejected | MutationQueued;
+declare const mutationRecovery: unique symbol;
+/** Opaque, serializable identity for resolving a forwarded mutation whose admission is unknown. */
+export type MutationRecovery = string & { readonly [mutationRecovery]: true };
+/** The follower could not learn whether the writer durably admitted the command. */
+export type MutationAdmissionUnknown = { state: "admission-unknown"; recovery: MutationRecovery };
+export type MutationResult<Result> = MutationCommitted<Result> | MutationRejected | MutationQueued | MutationAdmissionUnknown;
 
 export type LiveQueryDelivery<Result> = ServerQueryResult<Result> & { live: true; caughtUp?: boolean; watermark?: Cursor | null };
 export type StaleDelivery<Result> = {
@@ -298,8 +303,9 @@ export type OutboxSettlement = { stopped: false | "fence" | "transport" | "autho
 
 export interface OutboxStatus {
   ready: boolean;
-  /** `follower`: another browser tab writes this account; this tab reads live and inherits the queue when that tab closes. */
-  reason: "ready" | "sealed" | "grant-missing" | "grant-expired" | "ids-exhausted" | "program-missing" | "follower";
+  /** Follower states distinguish discovery, durable capacity, and an admitted command whose writer stopped answering. */
+  reason: "ready" | "sealed" | "grant-missing" | "grant-expired" | "ids-exhausted" | "program-missing"
+    | "follower" | "writer-discovery" | "writer-capacity" | "writer-unresponsive";
   action: "none" | "login" | "resume" | "load-program";
   /** Number of queued intents; settled entries are excluded. */
   remaining: number;
@@ -352,6 +358,10 @@ export interface SnapbackClient {
     options?: { live?: false; drain?: boolean },
   ): ObservedQuery<Result>;
   mutation<Args, Result>(ref: Op<Args, Result>, args: NoInfer<AssetInput<Args>>): Promise<MutationResult<Result>>;
+  /** Resolve a forwarded mutation whose original call returned `admission-unknown`; never creates another request identity. */
+  recoverMutation<Args, Result>(
+    ref: Op<Args, Result>, args: NoInfer<AssetInput<Args>>, recovery: MutationRecovery,
+  ): Promise<MutationQueued | MutationAdmissionUnknown>;
   /** Uploads one browser File or Expo URI-backed File and returns its closed asset record. */
   upload(source: AssetUploadSource, options: AssetUploadOptions & { readonly kind: "image" }): Promise<ImageAsset>;
   upload(source: AssetUploadSource, options: AssetUploadOptions & { readonly kind: "video" }): Promise<VideoAsset>;

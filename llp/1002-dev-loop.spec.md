@@ -5,7 +5,7 @@
 **Systems:** `snapback2/crates/snapback2` (the binary: owner, server, verbs), `snapback2/packages/compiler` (project lowering, worker), `snapback2/packages/snapback2` (authoring runtime, client, React, test runner, shim), `snapback2/scripts/measure.mjs`
 **Author:** Claude Fable 5 (orchestrator) — implementers: codex gpt-5.6-sol, lanes B0 (compiler + authoring surface), B1 (owner + server + verbs), B2 (`init`, `test`, `why`, `trace`, `guide`), D (client + React + evaluator)
 **Date:** 2026-08-29
-**Revised:** 2026-09-07 (client-owned observed query snapshots; explicit named-journey verification and executable React startup; startup cleanup fixture custody); 2026-09-06 (app guide operation/certificate custody; native logical SSE body; CLI help and executable migration recovery; auth startup recovery and held transition reads; queued transitions, interrupted sync, live held reads); 2026-09-05 (keyword index fallback and recipe list; generated Quarry keyword guide, landed outbox/client custody; auth review: failed-transition custody, read restoration barrier, session kind, paused offline retries; client-owned auth restoration and retry lifecycle; catalog naming rewrites, Clique L2; shared live transport, bounded derived verification, mutation-read guidance, installed consumer qualification)
+**Revised:** 2026-09-07 (durable browser-follower admission and unknown-outcome recovery; client-owned observed query snapshots; explicit named-journey verification and executable React startup; startup cleanup fixture custody); 2026-09-06 (app guide operation/certificate custody; native logical SSE body; CLI help and executable migration recovery; auth startup recovery and held transition reads; queued transitions, interrupted sync, live held reads); 2026-09-05 (keyword index fallback and recipe list; generated Quarry keyword guide, landed outbox/client custody; auth review: failed-transition custody, read restoration barrier, session kind, paused offline retries; client-owned auth restoration and retry lifecycle; catalog naming rewrites, Clique L2; shared live transport, bounded derived verification, mutation-read guidance, installed consumer qualification)
 **Related:** LLP 1000, LLP 1001 (the engine this serves), LLP 1003 (effects),
 LLP 0329.016 §5 (the design this implements verbatim where it can), LLP
 0329.016 §5.11 (the verb table — no verb exists without its row), LLP
@@ -810,7 +810,8 @@ const client = createClient({ url, token?, tokenStore? } | { url, as }) // stora
 await client.ready                                  // restore barrier before any data request
 client.auth.signup / login / guest / logout / me
 await client.query(api.todos.list, { take: 50 })       // → { state, data, seq, … } — never throws on a typed state
-await client.mutation(api.todos.add, { title })       // → committed | rejected | queued
+await client.mutation(api.todos.add, { title })       // → committed | rejected | queued | admission-unknown
+await client.recoverMutation(api.todos.add, { title }, recovery) // same forwarded request identity
 const sub = client.subscribe(api.todos.list, args, (r) => …)   // SSE; { state: live|stale|refused|partial }; sub.close(); sub.until(pred)
 const observed = client.observe(api.todos.list, args)       // lazy { getSnapshot, subscribe }; shares sub's entry
 client.channel(api.typing, args).publish(payload) / .subscribe(cb)
@@ -830,11 +831,16 @@ stream idle past 2× the heartbeat) is `stale(since)` with reconnect and
 backoff; only a 4xx envelope on the stream is a terminal `refused`; `useMutation` returns
 `{ run, inFlight, pending, ready, status, last, transport }`: `inFlight` marks an
 active call, `pending` lists this operation's durable queued intents, and `last`
-is `committed | rejected | queued`. With local-first custody (LLP 1012 §7),
+is `committed | rejected | queued | admission-unknown`. With local-first custody (LLP 1012 §7),
 `queued` means saved on the device for FIFO replay after resume; transport loss
 keeps the same intent for retry. `status: OutboxStatus` explains readiness,
 the next action, queued count, and fence; `useOutbox()` exposes entries, and
 `outbox.drain()`/`settled()` return `{ stopped, remaining }` (`OutboxSettlement`).
+For a browser follower, `queued` means the lock-holding writer durably admitted
+the command into that shared partition. If its acknowledgment is lost after
+send, the call returns `admission-unknown` with an opaque `recovery`; callers
+pass the same operation, arguments, and token to `recoverMutation`, which can
+only recover that request and never substitutes a fresh write.
 A thrown transport failure leaves `last` untouched, sets `transport` (a
 retryable `SnapbackRefusal`, cleared by a successful run), and rejects `run()`;
 a 503 after commit must never look like a server rejection.

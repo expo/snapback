@@ -346,6 +346,10 @@ export interface FollowerHost<Authority> {
   closed(): boolean;
   /** The inherited partition is open: forget the predecessor's metadata and adopt the principal. */
   inherited(principal: string): void;
+  /** Resume finished and the follower marker is clear: announce this tab as writer. */
+  writer(principal: string): Promise<void>;
+  following(principal: string, authenticated: boolean, authEpoch?: number): void;
+  stopped(): void;
   /** Load the program and resume the inherited coverage. */
   takeover(): Promise<Authority>;
   /** Replay the inherited queue. */
@@ -357,8 +361,8 @@ interface Wait { principal: string; controller: AbortController; authenticated: 
 
 /**
  * A browser tab whose account another tab is writing. It waits for that tab's
- * lock outside the startup path, keeps the follower marker (and the write
- * refusal behind it) until the inherited partition is reauthenticated and
+ * lock outside the startup path, keeps the follower marker (and forwarding
+ * route) until the inherited partition is reauthenticated and
  * resumed, and withdraws the wait on close, restart, sign-out, session expiry,
  * and account change so a discarded tab can never take the lock later.
  */
@@ -381,12 +385,14 @@ export class TabFollower<Authority> {
     if (this.wait.principal !== principal) { this.stop(); return false; }
     if (this.wait.inherited) return false;
     if (authenticated) { this.wait.authenticated = true; this.wait.authEpoch = authEpoch; }
+    this.host.following(principal, this.wait.authenticated, this.wait.authEpoch);
     return true;
   }
 
   begin(principal: string, authenticated: boolean, authEpoch: number | undefined): void {
     const wait: Wait = { principal, controller: new AbortController(), authenticated, authEpoch, inherited: false };
     this.wait = wait;
+    this.host.following(principal, authenticated, authEpoch);
     const runtime = this.host.runtime();
     // A wait that was withdrawn or replaced while a step was in flight stops
     // at the next step; it never resumes, drains, or unfences on behalf of the
@@ -402,19 +408,24 @@ export class TabFollower<Authority> {
       if (!current()) { runtime.followed(wait); return; }
       const authority = await this.host.takeover();
       if (!current()) { runtime.followed(wait); return; }
-      this.wait = undefined;
       runtime.followed(wait);
+      await this.host.writer(principal);
+      if (!current()) return;
+      this.wait = undefined;
       this.host.drain(authority);
     }).catch((error) => {
       if (this.wait === wait) this.wait = undefined;
       runtime.followed(wait);
+      this.host.stopped();
       if (wait.controller.signal.aborted || this.host.closed()) return;
       this.host.failed(error);
     });
   }
 
   stop(): void {
-    this.wait?.controller.abort();
+    const waited = this.wait;
+    waited?.controller.abort();
     this.wait = undefined;
+    if (waited) this.host.stopped();
   }
 }

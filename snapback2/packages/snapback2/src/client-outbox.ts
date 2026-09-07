@@ -309,6 +309,7 @@ export function createOutboxApi(
   drain: () => Promise<DrainResult>,
   ready: () => Promise<void> = async () => undefined,
   offline: () => boolean = () => false,
+  forwarding?: { status(op?: string): Promise<OutboxStatus>; subscribe(listener: () => void): () => void },
 ): OutboxApi {
   const entries = async (): Promise<OutboxEntry[]> => {
     if (!runtime || runtime.principal === undefined) return [];
@@ -322,7 +323,8 @@ export function createOutboxApi(
   };
   const status = async (op?: import("./api.js").Op<any, any>): Promise<OutboxStatus> => {
     await ready().catch(() => undefined);
-    if (runtime?.following) return { ready: false, reason: "follower", action: "none", remaining: 0, fence: "inside" };
+    if (runtime?.following) return forwarding?.status(op === undefined ? undefined : referenceName(op))
+      ?? { ready: false, reason: "follower", action: "none", remaining: 0, fence: "inside" };
     if (!runtime || runtime.principal === undefined) return { ready: true, reason: "ready", action: "none", remaining: 0, fence: "inside" };
     try { return await runtime.outbox.status(op === undefined ? undefined : referenceName(op)); }
     catch (error) {
@@ -348,7 +350,8 @@ export function createOutboxApi(
       };
       push();
       const unsubscribe = runtime?.outbox.subscribe(push);
-      return () => { active = false; unsubscribe?.(); };
+      const unsubscribeForwarding = forwarding?.subscribe(push);
+      return () => { active = false; unsubscribe?.(); unsubscribeForwarding?.(); };
     },
     // @ref LLP 1012#7-writes-offline — with a partition open every write needs a
     // grant before any request leaves; the fence disables prediction and replay,

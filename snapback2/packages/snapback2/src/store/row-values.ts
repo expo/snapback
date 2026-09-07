@@ -75,3 +75,32 @@ export function hiddenRefs(before: unknown, after: unknown, output = new Map<str
   }
   return [...output.values()];
 }
+
+/** Restore references whose retention policy survived a partial fresh answer. */
+export function restoreRetained(
+  before: unknown, after: unknown, retained: Set<string>, clone: <T>(value: T) => T,
+): unknown {
+  const ref = asRowRef(before);
+  if (ref && (after === null || after === undefined) && retained.has(rowKey(ref))) return before;
+  if (Array.isArray(before) && Array.isArray(after)) {
+    const result = after.map((item, index) => index < before.length
+      ? restoreRetained(before[index], item, retained, clone) : item);
+    for (let index = after.length; index < before.length; index += 1) {
+      if (collectRefs(before[index]).some((item) => retained.has(rowKey(item)))) result.push(clone(before[index]));
+    }
+    return result;
+  }
+  if (before && after && typeof before === "object" && typeof after === "object"
+    && !Array.isArray(before) && !Array.isArray(after)) {
+    const result = clone(after as Record<string, unknown>);
+    for (const key of Object.keys(before as object)) {
+      const old = (before as Record<string, unknown>)[key];
+      if (Object.prototype.hasOwnProperty.call(result, key)) result[key] = restoreRetained(old, result[key], retained, clone);
+      else if (collectRefs(old).some((item) => retained.has(rowKey(item)))) result[key] = clone(old);
+    }
+    return result;
+  }
+  if ((after === null || after === undefined)
+    && collectRefs(before).some((item) => retained.has(rowKey(item)))) return clone(before);
+  return after;
+}

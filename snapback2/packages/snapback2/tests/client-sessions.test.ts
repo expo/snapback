@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { api, isSnapbackRefusal, SnapbackRefusal } from "../dist/client.mjs";
 import { indexedDbRangeStore } from "../dist/react.mjs";
-import { ClientQueries, SharedSubscriptions } from "../dist/client-observed-test.mjs";
+import { ClientQueries, forwardingRequestId, MutationForwarding, SharedSubscriptions } from "../dist/client-observed-test.mjs";
 import { fixtureClient as createClient } from "./live-fixture.ts";
 import { fakeOwner } from "./fake-owner.ts";
 import { FakeIndexedDb, FakeLocks } from "./fake-indexeddb.ts";
@@ -13,6 +13,31 @@ async function until(condition: () => Promise<boolean> | boolean, what: string, 
     if (Date.now() > deadline) throw new Error(`timed out waiting for ${what}`);
     await new Promise<void>((resolve) => setTimeout(resolve, 10));
   }
+}
+
+class MemoryBroadcastChannel {
+  static members = new Map<string, Set<MemoryBroadcastChannel>>();
+  static messages: any[] = [];
+  static drop: (message: any) => boolean = () => false;
+  onmessage?: (event: { data: unknown }) => void;
+  readonly name: string;
+  constructor(name: string) {
+    this.name = name;
+    const members = MemoryBroadcastChannel.members.get(name) ?? new Set();
+    members.add(this); MemoryBroadcastChannel.members.set(name, members);
+  }
+  postMessage(message: unknown) {
+    const copy = structuredClone(message);
+    MemoryBroadcastChannel.messages.push(copy);
+    if (MemoryBroadcastChannel.drop(copy)) return;
+    MemoryBroadcastChannel.deliver(this.name, copy, this);
+  }
+  static deliver(name: string, message: unknown, sender?: MemoryBroadcastChannel) {
+    for (const peer of MemoryBroadcastChannel.members.get(name) ?? []) if (peer !== sender) {
+      queueMicrotask(() => peer.onmessage?.({ data: structuredClone(message) }));
+    }
+  }
+  close() { MemoryBroadcastChannel.members.get(this.name)?.delete(this); }
 }
 
 test("a newer direct delivery fences a delayed local refresh and until sees later local revisions", async () => {
@@ -396,7 +421,7 @@ test("identical drains share one page walk and one tail", async () => {
 
 // @ref LLP 1018#3-move-one-one-coherent-reactive-client — the browser tab policy:
 // a second tab of the same account reads live, refuses writes with a named
-// reason, and inherits the partition and its queue when the writer tab closes.
+// writer's durable outbox, and inherits that partition when the writer closes.
 test("a second web tab follows the writer and inherits its queue when the writer closes", async () => {
   const database = new FakeIndexedDb();
   const locks = new FakeLocks();
@@ -411,15 +436,13 @@ test("a second web tab follows the writer and inherits its queue when the writer
 
   const follower = createClient({ url: "http://tabs.test", as: "alice", fetch: owner.fetch, offline: { store } });
   await follower.ready;
-  assert.equal((await follower.outbox.status()).reason, "follower");
-  assert.equal((await follower.outbox.status()).ready, false);
+  await until(async () => (await follower.outbox.status(api.deliveries.post)).ready, "the follower's writer admission");
   const read = await follower.query(api.deliveries.thread, { conversationId: "conversation-1", c: null });
   assert.equal(read.state, "complete", "a follower reads live");
-  await assert.rejects(
-    follower.mutation(api.deliveries.post, { conversationId: "conversation-1", body: "from the follower" }),
-    (error: unknown) => isSnapbackRefusal(error) && error.code === "E_OFFLINE_FOLLOWER",
-  );
-  assert.equal(owner.executions.length, 0, "a follower never sends plain bytes");
+  const forwarded = await follower.mutation(api.deliveries.post, { conversationId: "conversation-1", body: "from the follower" });
+  assert.equal(forwarded.state, "queued", "the follower learns the writer's durable admission");
+  await until(() => owner.executions.some((execution) => execution.intent === (forwarded as any).intent), "the forwarded replay");
+  assert.equal(owner.executions.filter((execution) => execution.intent === (forwarded as any).intent).length, 1);
 
   await writer.offline();
   const queued = await writer.mutation(api.deliveries.post, { conversationId: "conversation-1", body: "queued in the writer tab" });
@@ -428,12 +451,104 @@ test("a second web tab follows the writer and inherits its queue when the writer
   await writer.close();
 
   // The lock passes to the follower: it opens the partition and replays the inherited intent.
-  await until(async () => (await follower.outbox.status()).reason !== "follower", "the takeover");
+  await until(() => !(follower as any).offlineRuntime.following, "the follower marker clearing after takeover");
   await until(() => owner.executions.some((execution) => execution.intent === queued.intent), "the inherited replay");
-  assert.equal(owner.executions.length, 1);
+  assert.equal(owner.executions.filter((execution) => execution.intent === queued.intent).length, 1);
   const after = await follower.mutation(api.deliveries.post, { conversationId: "conversation-1", body: "from the new writer" });
   assert.equal(after.state, "committed");
   await follower.close();
+});
+
+// @ref LLP 1018.000#8-account-sessions-and-durable-follower-admission — a lost
+// answer returns an opaque recovery identity; discovery loss cannot turn that
+// prior send into a safe refusal, and recovery reuses the durable admission.
+test("forwarded mutation timeout, rediscovery and recovery preserve one request identity", async () => {
+  const Original = globalThis.BroadcastChannel;
+  const keepAlive = setInterval(() => undefined, 1_000);
+  (globalThis as any).BroadcastChannel = MemoryBroadcastChannel;
+  MemoryBroadcastChannel.members.clear(); MemoryBroadcastChannel.messages = [];
+  let dropAnswers = true, creations = 0, acknowledgments = 0;
+  MemoryBroadcastChannel.drop = message => dropAnswers && message.type === "mutation-answer";
+  const context = { scope: "forwarding-test", principal: "principal-a", authEpoch: 7, partitionIncarnation: "partition-a" };
+  const receipts = new Map<string, any>();
+  const ready = { ready: true, reason: "ready", action: "none", remaining: 0, fence: "inside" } as const;
+  const writer = new MutationForwarding({
+    writer: () => context, status: async () => ready,
+    async admit(command: any) {
+      if (command.recovery && command.expiresAt <= Date.now()) return undefined;
+      let result = receipts.get(command.requestId);
+      if (!result) { creations += 1; result = { state: "queued", intent: `intent-${creations}`, ids: [`id-${creations}`] }; receipts.set(command.requestId, result); }
+      return result;
+    },
+    async acknowledge() { acknowledgments += 1; },
+    failure: (error: unknown) => ({ code: "E_TEST", family: "test", message: String(error), guide: "test" }),
+    admitted: () => undefined,
+  });
+  const follower = new MutationForwarding({
+    writer: () => undefined, status: async () => ready,
+    admit: async () => { throw new Error("follower cannot admit"); }, acknowledge: async () => undefined,
+    failure: (error: unknown) => ({ code: "E_TEST", family: "test", message: String(error), guide: "test" }),
+    admitted: () => undefined,
+  });
+  try {
+    writer.writer(context);
+    follower.follower({ scope: context.scope, principal: context.principal, authEpoch: 7, established: true, persona: false });
+    assert.equal((await follower.status("deliveries.post")).ready, true);
+    const args = { conversationId: "conversation-1", body: "one durable send" };
+    const unknown = await follower.mutation("deliveries.post", args);
+    assert.equal(unknown.state, "admission-unknown"); assert.equal(creations, 1);
+    const token = (unknown as any).recovery as string;
+    const record = JSON.parse(Buffer.from(token.slice("s2mr1.".length), "base64url").toString());
+    assert.deepEqual(Object.keys(record).sort(), ["authEpoch", "expiresAt", "followerId", "partitionIncarnation",
+      "payloadDigest", "principal", "protocol", "requestId", "scope"], "the recovery token carries no op or arguments");
+    assert.equal(record.requestId.startsWith(`s2fr1-${record.expiresAt.toString(16)}-`), true, "expiration is part of immutable identity");
+
+    (globalThis as any).BroadcastChannel = undefined;
+    assert.deepEqual(await follower.mutation("deliveries.post", args, token as any), unknown,
+      "no carrier after a prior send preserves the unknown outcome");
+    await assert.rejects(follower.mutation("deliveries.post", { ...args, body: "never sent" }),
+      (error: unknown) => isSnapbackRefusal(error) && error.code === "E_OFFLINE_FOLLOWER",
+      "before any send, an unavailable forwarding carrier is an ordinary follower refusal");
+    (globalThis as any).BroadcastChannel = MemoryBroadcastChannel;
+    writer.writer(undefined); writer.writer(context); await new Promise(resolve => setTimeout(resolve, 0));
+    assert.equal((await follower.status("deliveries.post")).reason, "writer-unresponsive",
+      "an unrelated announcement does not clear an unknown command");
+
+    let settled = false;
+    const recovering = follower.mutation("deliveries.post", args, token as any).then(result => { settled = true; return result; });
+    await until(() => MemoryBroadcastChannel.messages.filter(message => message.type === "mutation-answer").length === 2,
+      "the successor writer's recovery answer");
+    const answers = MemoryBroadcastChannel.messages.filter(message => message.type === "mutation-answer");
+    MemoryBroadcastChannel.deliver(context.scope, answers[0]);
+    await new Promise(resolve => setTimeout(resolve, 0));
+    assert.equal(settled, false, "the predecessor writer's delayed answer cannot settle a retargeted recovery");
+    MemoryBroadcastChannel.deliver(context.scope, answers[1]);
+    const recovered = await recovering;
+    assert.deepEqual(recovered, { state: "queued", intent: "intent-1", ids: ["id-1"] });
+    await until(() => acknowledgments === 1, "the durable receipt acknowledgment");
+    assert.equal(creations, 1, "recovery queried the same durable admission");
+    const requests = MemoryBroadcastChannel.messages.filter(message => message.type === "mutation");
+    assert.equal(new Set(requests.map(message => message.requestId)).size, 1);
+
+    const forged = { ...record, expiresAt: record.expiresAt + 1_000 };
+    const forgedToken = `s2mr1.${Buffer.from(JSON.stringify(forged)).toString("base64url")}`;
+    await assert.rejects(follower.mutation("deliveries.post", args, forgedToken as any), TypeError,
+      "the same request id cannot acquire a later expiry after receipt pruning");
+
+    const expiredAt = Date.now() - 1;
+    const expiredRecord = { ...record, requestId: forwardingRequestId(expiredAt, "e".repeat(32)), expiresAt: expiredAt };
+    const expiredToken = `s2mr1.${Buffer.from(JSON.stringify(expiredRecord)).toString("base64url")}`;
+    const expired = await follower.mutation("deliveries.post", args, expiredToken as any);
+    assert.equal(expired.state, "admission-unknown");
+    dropAnswers = false;
+    assert.equal((await follower.status("deliveries.post")).ready, true,
+      "expiration removes the pending slot and cannot leave a phantom unresponsive state");
+  } finally {
+    clearInterval(keepAlive);
+    follower.stop(); writer.stop();
+    MemoryBroadcastChannel.members.clear(); MemoryBroadcastChannel.drop = () => false;
+    (globalThis as any).BroadcastChannel = Original;
+  }
 });
 
 test("a follower that closes withdraws its wait, so the next tab becomes the writer", async () => {
@@ -445,7 +560,7 @@ test("a follower that closes withdraws its wait, so the next tab becomes the wri
   await writer.ready;
   const follower = createClient({ url: "http://tabs-close.test", as: "alice", fetch: owner.fetch, offline: { store } });
   await follower.ready;
-  assert.equal((await follower.outbox.status()).reason, "follower");
+  assert.notEqual((await follower.outbox.status()).reason, "follower", "a forwarding-capable follower reports writer readiness");
   await follower.close();
   await writer.close();
   const next = createClient({ url: "http://tabs-close.test", as: "alice", fetch: owner.fetch, offline: { store } });
@@ -486,7 +601,7 @@ test("a follower's drain pages and tails live and earns no grant of its own", as
   await writer.ready;
   const follower = createClient({ url: "http://tabs-drain.test", as: "alice", fetch: owner.fetch, offline: { store } });
   await follower.ready;
-  assert.equal((await follower.outbox.status()).reason, "follower");
+  assert.notEqual((await follower.outbox.status()).reason, "follower", "forwarding availability replaces the hard follower refusal");
   const inbox = follower.subscribe(api.deliveries.inbox, { c: null }, () => undefined, { drain: true });
   const caughtUp = await inbox.until((event) => event.state === "complete" && event.caughtUp === true, 3_000);
   assert.equal(caughtUp.live, false);
@@ -517,9 +632,10 @@ test("a restored bearer second tab follows instead of refusing its own session",
   await follower.ready;
   await until(() => follower.snapshot.auth.state !== "hydrating", "the follower's restoration");
   assert.equal(follower.snapshot.auth.state, "authenticated", `follower auth: ${JSON.stringify(follower.snapshot.auth)}`);
-  assert.equal((await follower.outbox.status()).reason, "follower");
+  assert.notEqual((await follower.outbox.status()).reason, "follower", "the confirmed bearer follower can coordinate with its writer");
+  assert.equal(locks.waiting("snapback2:dev:alice"), 1);
   await writer.close();
-  await until(async () => (await follower.outbox.status()).reason !== "follower", "the bearer takeover");
+  await until(() => locks.waiting("snapback2:dev:alice") === 0 && !(follower as any).offlineRuntime.following, "the bearer takeover");
   assert.equal(follower.snapshot.auth.state, "authenticated");
   await follower.close();
 });
