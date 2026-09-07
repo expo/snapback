@@ -496,7 +496,11 @@ export async function performOfflineResume<Authority>(options: {
   if (!Number.isSafeInteger(response.seq) || Number(response.seq) < 0) {
     throw options.shape("resume response.seq must be a non-negative safe integer");
   }
-  await options.runtime.commitMany(swaps, watermark, undefined, revision, () => !options.signal?.aborted, Number(response.seq));
+  try {
+    await options.runtime.commitMany(swaps, watermark, undefined, revision, () => !options.signal?.aborted, Number(response.seq));
+  } catch (error) {
+    throw options.failure ? options.failure(error) : error;
+  }
   check();
   options.validated(options.authority);
   // @ref LLP 1012#7-writes-offline — a resume may omit a replacement grant;

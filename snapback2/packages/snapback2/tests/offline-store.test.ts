@@ -540,7 +540,7 @@ test("seal survives a cold open, confirmed re-auth unseals, and wipe deletes the
 test("carrier open failures and a second web lock holder refuse loudly", async () => {
   const badFactory: any = () => ({
     open: async () => { throw new Error("disk unavailable"); }, seal: async () => undefined,
-    wipe: async () => undefined, answer: async () => undefined, commit: async () => undefined,
+    wipe: async () => undefined, answer: async () => undefined, commit: async () => undefined, subscribeInputs: () => () => undefined,
     coverage: async () => ({ rows: [], ranges: [], absences: [], verdicts: [], watermarks: [] }),
     outbox: { all: async () => [], get: async () => undefined, put: async () => undefined, remove: async () => undefined },
   });
@@ -549,14 +549,14 @@ test("carrier open failures and a second web lock holder refuse loudly", async (
   await assert.rejects(bad.ready, (error: unknown) => error instanceof SnapbackRefusal
     && error.code === "E_OFFLINE_CARRIER" && error.envelope.rewrite?.includes("broken-test") === true);
 
-  // A second web tab of the same account is not refused: it follows the writer
-  // (live reads, writes refused E_OFFLINE_FOLLOWER) until that tab closes.
+  // A second web tab of the same account opens as a follower. This carrier
+  // test has no forwarding peer; the protocol remains in explicit discovery.
   const shared = indexedFactory();
   const first = createClient({ url: "http://offline.test", as: "alice", offline: { store: shared.factory } });
   await first.ready;
   const second = createClient({ url: "http://offline.test", as: "alice", offline: { store: shared.factory } });
   await second.ready;
-  assert.equal((await second.outbox.status()).reason, "follower");
+  assert.equal((await second.outbox.status()).reason, "writer-discovery");
   first.close();
   second.close();
 });
@@ -597,7 +597,7 @@ test("offline setup accepts unbranded custom and callable stores, invoking each 
     let calls = 0, opens = 0;
     const methods = {
       open: async () => { opens++; }, unseal: async () => {}, seal: async () => {}, wipe: async () => {},
-      answer: async () => undefined, commit: async () => {},
+      answer: async () => undefined, commit: async () => {}, subscribeInputs: () => () => undefined,
       coverage: async () => ({ rows: [], ranges: [], absences: [], verdicts: [], watermarks: [] }),
       outbox: { all: async () => [], get: async () => undefined, put: async () => {}, remove: async () => {},
         grant: async () => undefined, grants: async () => [], bounds: async () => ({}),
@@ -1206,7 +1206,7 @@ test("E_OFFLINE_RESET cold-drains a mounted drain from the null cursor", async (
   } finally {
     if (resetTimer) clearTimeout(resetTimer);
   }
-  assert.deepEqual(queryCursors, [null, null, null], "initial drain, reset drain, and pending mounted coverage revalidation all restart at the root");
+  assert.deepEqual(queryCursors, [null, null], "the initial drain and its reset replacement both restart at the root; drains are not redundantly revalidated as mounted queries");
   drain.close();
   await client.close();
   await rm(root, { recursive: true, force: true });
