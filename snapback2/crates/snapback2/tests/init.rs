@@ -80,19 +80,21 @@ fn assert_rendering(template: &str, chat: bool) {
             .iter()
             .filter_map(|program| program["name"].as_str())
             .collect::<BTreeSet<_>>();
-        // 26 operations plus the expiry schedule's binding program (never an API operation).
+        // 28 operations plus the expiry schedule's binding program (never an API operation).
         assert_eq!(
             operations.len(),
-            27,
+            29,
             "unexpected chat operation set: {operations:?}"
         );
         for operation in [
             "deliveries.inbox",
             "deliveries.thread",
+            "deliveries.conversationView",
             "deliveries.post",
             "deliveries.unsend",
             "deliveries.edit",
             "deliveries.purgeMessage",
+            "messages.search",
         ] {
             assert!(
                 operations.contains(operation),
