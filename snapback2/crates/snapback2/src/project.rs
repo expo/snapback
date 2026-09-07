@@ -1104,7 +1104,7 @@ for await (const line of createInterface({{ input: process.stdin }})) {{
         .unwrap();
         fs::write(
             snapback.join("programs.q"),
-            "query page(c: cursor ?):\n  return items[] after c first 1 by byAt\n\nquery count():\n  return count(items[] first 2 by byAt)\n\nmutation put(id: id):\n  insert items { id, at: 2, label: 'inserted' }\n  return id\n\nmutation putPrice():\n  return insert prices { amount: 2.50 }\n\nquery getPrice(id: prices):\n  return prices[id]\n",
+            "query page(c: cursor ?):\n  return items[] after c first 1 by byAt\n\nquery count():\n  return count(items[] first 2 by byAt)\n\nmutation put(id: id):\n  insert items { id, at: now, label: 'inserted' }\n  return id\n\nmutation putPrice():\n  return insert prices { amount: 2.50 }\n\nquery getPrice(id: prices):\n  return prices[id]\n",
         )
         .unwrap();
 

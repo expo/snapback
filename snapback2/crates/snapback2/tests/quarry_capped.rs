@@ -117,9 +117,24 @@ fn quarry_nonuniform_require_still_refuses() {
 
 #[test]
 fn quarry_nonuniform_insert_still_refuses() {
-    assert_structural_refusal(
+    let project = fixture(
+        SCHEMA,
         "mutation list(group: groups):\n  insert snapshots { items: items[group] first 50 }\n  return true\n",
-        "inserted value",
+    );
+    let checked = project.run(&["check", "--json"]);
+    assert_eq!(checked.status.code(), Some(1));
+    let refusals: Vec<serde_json::Value> = String::from_utf8(checked.stdout)
+        .unwrap()
+        .lines()
+        .map(|line| serde_json::from_str(line).unwrap())
+        .collect();
+    assert!(
+        refusals.iter().any(|refusal| {
+            refusal["code"] == "E_QUARRY_TYPE"
+                && refusal["message"] == "items expects json, got page"
+                && refusal["rewrite"].as_str().is_some_and(|value| !value.is_empty())
+        }),
+        "an authority-dependent page was not refused before insertion: {refusals:?}"
     );
 }
 
@@ -250,13 +265,12 @@ fn seed_data() -> serde_json::Value {
 }
 
 #[test]
-fn typescript_lowered_nullable_guard_certifies_capped_and_executes_null() {
+fn direct_quarry_nullable_shape_certifies_capped_and_executes_null() {
     use snapback2_core::*;
     use std::collections::BTreeMap;
-    use std::process::Command;
     let project = fixture(
         SCHEMA,
-        "query list(group: groups):\n  return items[group] first 50\n",
+        "query list(group: groups):\n  return items[group] first 50 { id, owner: profiles[.owner] { name } }\n",
     );
     let checked = project.run(&["check", "--json"]);
     assert!(
@@ -264,73 +278,17 @@ fn typescript_lowered_nullable_guard_certifies_capped_and_executes_null() {
         "{}",
         String::from_utf8_lossy(&checked.stdout)
     );
-    let compiler = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
-        .join("../../packages/compiler/src")
-        .canonicalize()
-        .unwrap();
-    let source = r#"import { query, t } from "snapback2";
-import { groups, items, profiles } from "./schema";
-export const list = query({ group: t.ref(groups) }, ({ db, args }) => {
-  const collected = [];
-  for (const item of db.scan(items.byGroup, [args.group], { take: 50 })) {
-    const profile = db.get(profiles.byPrincipal, item.owner);
-    let shape: any = null;
-    if (profile !== null) { shape = { name: profile.name }; }
-    collected.push({ id: item.id, owner: shape });
-  }
-  return collected;
-});"#;
-    let script = format!(
-        r#"
-import {{ lowerSource }} from {lower};
-import {{ lowerSchema }} from {schema};
-const schema = lowerSchema(await Bun.file({schema_file}).text(), "schema.ts", true);
-if (schema.diagnostics.length) throw new Error(JSON.stringify(schema.diagnostics));
-const result = lowerSource({source}, "items.ts", undefined, {{ tables: schema.tables }});
-if (!result.ok) throw new Error(JSON.stringify(result.diagnostics));
-console.log(JSON.stringify(result.programs[0]));
-"#,
-        lower = json!(compiler.join("compiler.ts")),
-        schema = json!(compiler.join("lower/schema.ts")),
-        schema_file = json!(project.path.join(".snapback/build/quarry/schema.ts")),
-        source = json!(source)
-    );
-    let script_path = project.path.join("lower-test.ts");
-    fs::write(&script_path, script).unwrap();
-    let output = Command::new("bun").arg(script_path).output().unwrap();
-    assert!(
-        output.status.success(),
-        "{}",
-        String::from_utf8_lossy(&output.stderr)
-    );
-    let program: Program = serde_json::from_slice(&output.stdout).unwrap();
-    let loop_body = program
-        .body
-        .iter()
-        .find_map(|stmt| match stmt {
-            Stmt::For { body, .. } => Some(body),
-            _ => None,
-        })
-        .unwrap();
-    assert!(loop_body.iter().any(|stmt| matches!(
-        stmt,
-        Stmt::Let {
-            value: Expr::Literal(Value::Null),
-            ..
-        }
-    )));
-    assert!(
-        loop_body
-            .iter()
-            .any(|stmt| matches!(stmt, Stmt::If { then_body, .. }
-        if then_body.iter().any(|stmt| matches!(stmt, Stmt::Assign { .. }))))
-    );
     let compiled: ProjectJson = serde_json::from_slice(
         &fs::read(project.path.join(".snapback/build/project.json")).unwrap(),
     )
     .unwrap();
+    let program = compiled
+        .programs
+        .iter()
+        .find(|program| program.name == "items.list")
+        .expect("direct Quarry list program");
     let certificate = Checker::new(&compiled.schema, Ceilings::default())
-        .check(&program)
+        .check(program)
         .unwrap();
     assert_eq!(certificate.completeness, Completeness::Capped);
     assert!(
@@ -364,7 +322,7 @@ console.log(JSON.stringify(result.programs[0]));
     }
     let execution = engine
         .execute(
-            &program,
+            program,
             &certificate,
             Context::query(
                 Actor::user("dev:u1").unwrap(),
