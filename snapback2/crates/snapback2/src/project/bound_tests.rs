@@ -1,6 +1,112 @@
 use super::*;
 
 #[test]
+fn fanout_rewrite_uses_only_the_authored_loop_binding() {
+    let root = std::env::temp_dir().join(format!(
+        "snapback2-fanout-binding-{}",
+        std::process::id()
+    ));
+    fs::create_dir_all(root.join("snapback")).unwrap();
+    let generated = "__bound_loopItem_0";
+    let repair = format!(
+        "for {generated} in memberships[conversationId] first 50 by byConversationPrincipal:"
+    );
+    for authored in ["m", "recipient_2"] {
+        fs::write(
+            root.join("snapback/ops.q"),
+            format!("mutation send():\n  for {authored} in page:\n    return null\n"),
+        )
+        .unwrap();
+        let rewritten = quarry_fanout_rewrite(
+            &root,
+            &SourceSite {
+                file: "snapback/ops.q".to_owned(),
+                line: 2,
+                col: 3,
+            },
+            &format!("ops.send/for/{generated}/0"),
+            &repair,
+        )
+        .unwrap();
+        assert_eq!(
+            rewritten,
+            format!(
+                "for {authored} in memberships[conversationId] first 50 by byConversationPrincipal:"
+            )
+        );
+        assert!(!rewritten.contains(generated));
+    }
+    assert!(
+        quarry_fanout_rewrite(
+            &root,
+            &SourceSite {
+                file: "snapback/ops.q".to_owned(),
+                line: 2,
+                col: 3,
+            },
+            "ops.send/for/a_different_binding/0",
+            &repair,
+        )
+        .is_none(),
+        "a source site for another loop must not rewrite the checker repair"
+    );
+    fs::remove_dir_all(root).unwrap();
+}
+
+#[test]
+fn compiled_fanout_repair_keeps_authored_loop_bindings() {
+    let root = std::env::temp_dir().join(format!(
+        "snapback2-compiled-fanout-binding-{}",
+        std::process::id()
+    ));
+    fs::create_dir_all(root.join("snapback")).unwrap();
+    fs::write(
+        root.join("snapback/schema.q"),
+        r#"table memberships:
+  conversationId: id
+  principal: principal
+  by byConversationPrincipal: conversationId, principal, id
+  cap 50 by conversationId
+  public
+
+table deliveries:
+  principal: principal
+  public
+  insert <- public
+"#,
+    )
+    .unwrap();
+    let compiler = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("../../packages/snapback2/dist/compiler.mjs");
+    let mut worker = CompilerWorker::spawn_path(compiler).unwrap();
+    for authored in ["m", "recipient_2"] {
+        fs::write(
+            root.join("snapback/ops.q"),
+            format!(
+                "mutation send(conversationId: id, c: cursor ?):\n  for {authored} in memberships[conversationId] after c first 50 by byConversationPrincipal:\n    insert deliveries {{ principal: {authored}.principal }}\n"
+            ),
+        )
+        .unwrap();
+        let refusals = match worker.compile(&root) {
+            Ok(_) => panic!("cursor fanout certified"),
+            Err(refusals) => refusals,
+        };
+        let refusal = refusals
+            .iter()
+            .find(|refusal| refusal.code == "E_STRUCTURAL_FANOUT")
+            .unwrap_or_else(|| panic!("missing fanout refusal: {refusals:?}"));
+        assert_eq!(refusal.site.as_deref(), Some("snapback/ops.q:2:3"));
+        let expected = format!(
+            "for {authored} in memberships[conversationId] first 50 by byConversationPrincipal:"
+        );
+        assert_eq!(refusal.rewrite.as_deref(), Some(expected.as_str()));
+        assert!(!refusal.rewrite.as_deref().unwrap().contains("__bound_"));
+    }
+    drop(worker);
+    fs::remove_dir_all(root).unwrap();
+}
+
+#[test]
 fn quarry_bound_refusals_preserve_core_repairs() {
     let root = std::env::temp_dir().join(format!("snapback2-bound-repair-{}", std::process::id()));
     fs::create_dir_all(root.join("snapback")).unwrap();

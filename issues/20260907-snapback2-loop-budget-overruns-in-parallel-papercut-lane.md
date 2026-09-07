@@ -72,3 +72,21 @@ retains the remote snapshot's synthetic Git identity; the
 [source comparison](../benchmarks/runs/2026-09-07-snapback2-published-dx/fix-evidence/source-check-final.json)
 binds its product files to the reviewed candidate. This is an additional
 observation, not a newly identified breaking commit.
+
+## Architecture integration on the reserved Mac — 2026-09-07
+
+The ordinary measurement on `4ef44ab65`, recorded at
+`2026-09-07T19:47:18.143Z`, passed all functional steps and retained two
+timing failures: installed-consumer verification **30.62 s / 30 s** and
+the first doctor sample **0.808 s / 0.5 s**. The second doctor sample
+was 0.042 s; the first is not discarded. The same run passed project
+check at 0.872 s, incremental rebuild at 2.31 s, warm release build
+at 73.26 s and init-to-dev at 1.358 s.
+
+This used the reserved Apartment Mac lane with Node 24.18.0 and Rust
+1.97.0, with package build, native build, platform witnesses and measurement
+run sequentially. It is an additional observation, not a paired attribution
+of the earlier host's slowdowns. The exact append is preserved in
+`metrics/loop.jsonl`; raw measurement and before/after metric files are in
+`.llp/ship-runs/20260907-1018-architecture/expo-search-v5-r12-*`
+in the coordinating checkout. Both budget failures remain open.

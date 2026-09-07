@@ -4,14 +4,10 @@ A commit intersecting a query's read trace makes it live. Bound every scan.
 Cursor indexes end in intrinsic `id`; pass a `cursor ?` argument to `after`.
 `null` means page one.
 
-```ts
-export const thread = query({ conversationId: t.ref(conversations) }, ({ db, ctx, args }) => {
-  db.require(
-    db.exists(memberships.byConversationPrincipal, [args.conversationId, ctx.viewer]),
-    "MEMBERSHIP_REQUIRED",
-  );
-  return db.scan(messages.byConvTime, [args.conversationId], { order: "desc", take: 50 });
-});
+```q
+query thread(conversationId: conversations, c: cursor ?):
+  require isMember(conversationId, viewer) else MEMBERSHIP_REQUIRED
+  return messages[conversationId] after c last 50
 ```
 
 `complete` and `capped` carry `next: Cursor | null`. Pass the opaque token back
@@ -100,5 +96,5 @@ the membership merge and returns one page with one cursor. Its held twin uses
 the same index and reports `held`, `partial`, or `capped` rather than presenting
 downloaded results as complete server search.
 
-`words(text)` exposes the same normalized whole words for bounded program
-logic. `tokens(text)` remains the separate mention extractor.
+The normalized word list is index-internal; Quarry has no public `words()`
+value function. `tokens(text)` remains the separate mention extractor.

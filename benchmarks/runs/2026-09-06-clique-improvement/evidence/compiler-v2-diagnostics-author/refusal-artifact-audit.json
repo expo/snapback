@@ -1,0 +1,716 @@
+{
+  "refusals": [
+    {
+      "path": "remote-complete/artifacts/projects/candidate/main-eight/main effect helper collision refusal/full.json",
+      "diagnostics": 1,
+      "sha256": "6a128fac2dcbe2a21bee3c8a39d56803042bf0fa2116052e220242c8ef4acc22",
+      "noExecutableFields": true
+    },
+    {
+      "path": "remote-complete/artifacts/projects/candidate/main-eight/main effect orderedPair collision refusal/full.json",
+      "diagnostics": 1,
+      "sha256": "d62e5c65eb73bf1476dd7c8f46ad0d777d81f595fe1d7abf3d73eeb4a2718b37",
+      "noExecutableFields": true
+    },
+    {
+      "path": "remote-complete/artifacts/projects/candidate/main-eight/main operation effect collision refusal/full.json",
+      "diagnostics": 1,
+      "sha256": "ce88bb92e703037c952a04ae7fcfda463045a909e88f6f280787697f0b4e3408",
+      "noExecutableFields": true
+    },
+    {
+      "path": "remote-complete/artifacts/projects/candidate/main-eight/main operation helper collision refusal/full.json",
+      "diagnostics": 1,
+      "sha256": "abbde1c606a1efe640973b62b178d09b9707af101efae2b1f462cdb6afbda14e",
+      "noExecutableFields": true
+    },
+    {
+      "path": "remote-complete/artifacts/projects/candidate/original-three/original14/full.json",
+      "diagnostics": 2,
+      "sha256": "a63108709b110ac3b4c1d58ed372e824ed750d62cdc50901d351c7d8582be771",
+      "noExecutableFields": true
+    },
+    {
+      "path": "remote-complete/artifacts/projects/candidate/original-three/original17/full.json",
+      "diagnostics": 1,
+      "sha256": "244e0301c1c35ba285d0502fc16a95b4b253a30327cf519adcce6900f328e2b9",
+      "noExecutableFields": true
+    },
+    {
+      "path": "remote-complete/artifacts/projects/parent/main-eight/main effect helper collision refusal/full.json",
+      "diagnostics": 1,
+      "sha256": "2efeb2ec39216fc804687786046f6545328c3bc9cceb911b276bcbb6462a48b9",
+      "noExecutableFields": true
+    },
+    {
+      "path": "remote-complete/artifacts/projects/parent/main-eight/main effect orderedPair collision refusal/full.json",
+      "diagnostics": 1,
+      "sha256": "5df0085df86a0da442355a7fb70334939495b54c96240421b383f52a6ab4b5b5",
+      "noExecutableFields": true
+    },
+    {
+      "path": "remote-complete/artifacts/projects/parent/main-eight/main operation effect collision refusal/full.json",
+      "diagnostics": 1,
+      "sha256": "b2c2e40a4a288c952f1201e4d1547b0feac66751edf3bb2356e57134c0d78509",
+      "noExecutableFields": true
+    },
+    {
+      "path": "remote-complete/artifacts/projects/parent/main-eight/main operation helper collision refusal/full.json",
+      "diagnostics": 1,
+      "sha256": "6c856bf3a1b73fedd5173bc760bd278bf223fd82c1ca2ee18d1cc5a1f7a6efd2",
+      "noExecutableFields": true
+    },
+    {
+      "path": "remote-complete/artifacts/projects/parent/original-three/original14/full.json",
+      "diagnostics": 1,
+      "sha256": "227cbe35b02aedd2d36a44262cfdc6bdc58e681a3cd980193e2ea21832b9d580",
+      "noExecutableFields": true
+    },
+    {
+      "path": "remote-complete/artifacts/projects/parent/original-three/original17/full.json",
+      "diagnostics": 1,
+      "sha256": "70b1048dc3b9aa1300965930185bc5b6c2a46ab5f9a06ad4fbc81863b42935e2",
+      "noExecutableFields": true
+    },
+    {
+      "path": "remote-complete/artifacts/diagnostics/0/project-0.json",
+      "diagnostics": 2,
+      "sha256": "611ce5aff029fd1b660392d3b875a3416d5d19d700389f52021f967b7b48016d",
+      "noExecutableFields": true
+    },
+    {
+      "path": "remote-complete/artifacts/diagnostics/1/project-1.json",
+      "diagnostics": 1,
+      "sha256": "bef38fe7bf77a7f0de609684826907131ce796ea1f7ecdba81d88d0dbb4e9862",
+      "noExecutableFields": true
+    },
+    {
+      "path": "remote-complete/artifacts/diagnostics/10/project-10.json",
+      "diagnostics": 1,
+      "sha256": "f3066c970dbf4524a7fb9e5baf017ed18d2fa6dc7e1e82b8f4fed6198c403e90",
+      "noExecutableFields": true
+    },
+    {
+      "path": "remote-complete/artifacts/diagnostics/11/project-11.json",
+      "diagnostics": 1,
+      "sha256": "e483c04dbf7427a6f03f3ec22deb9a44cd05496622f551254c7e19b3f720ea9d",
+      "noExecutableFields": true
+    },
+    {
+      "path": "remote-complete/artifacts/diagnostics/14/project-2.json",
+      "diagnostics": 2,
+      "sha256": "a1e3c2ef37f369ed11192548de9ee946a0da0b7cd1eeb14b9a2ee28e070cd1ea",
+      "noExecutableFields": true
+    },
+    {
+      "path": "remote-complete/artifacts/diagnostics/15/project-3.json",
+      "diagnostics": 2,
+      "sha256": "741c606edecff3389b701a9e1f0b081a0c7ef36e000f844afe4008d55a43c270",
+      "noExecutableFields": true
+    },
+    {
+      "path": "remote-complete/artifacts/diagnostics/16/project-4.json",
+      "diagnostics": 2,
+      "sha256": "86a347420513527903ef86c2ebf31f05c115101fcda094688cebbf48af081a2c",
+      "noExecutableFields": true
+    },
+    {
+      "path": "remote-complete/artifacts/diagnostics/17/project-5.json",
+      "diagnostics": 2,
+      "sha256": "d299b7868ee76e69d3acc4263ce2a582c585911170c42588f8a9b8f6011c2ba0",
+      "noExecutableFields": true
+    },
+    {
+      "path": "remote-complete/artifacts/diagnostics/18/project-6.json",
+      "diagnostics": 2,
+      "sha256": "66d651508a2af07eab6e0f421a2194980ff11f42178968a522aad8a11cd99b92",
+      "noExecutableFields": true
+    },
+    {
+      "path": "remote-complete/artifacts/diagnostics/19/project-7.json",
+      "diagnostics": 2,
+      "sha256": "4b2883a4ac8f2f34771c0ad6aaedc19ea836a972064220e98ee6eae2ff9b8c21",
+      "noExecutableFields": true
+    },
+    {
+      "path": "remote-complete/artifacts/diagnostics/2/project-2.json",
+      "diagnostics": 2,
+      "sha256": "5114efbe9301b1419338e7f9faf78d265f9d9cd1fdf3cc53f3386d320f005ebf",
+      "noExecutableFields": true
+    },
+    {
+      "path": "remote-complete/artifacts/diagnostics/20/project-8.json",
+      "diagnostics": 2,
+      "sha256": "1f5fecba4ec72a9c2660e8351fe9ebce39a5abe09e7be93d8371a3c4957e08dd",
+      "noExecutableFields": true
+    },
+    {
+      "path": "remote-complete/artifacts/diagnostics/21/project-9.json",
+      "diagnostics": 2,
+      "sha256": "7fbb7d3d9f5683b40462d3ddcf3775a3b3543bca42be1919cb0c936518e41b68",
+      "noExecutableFields": true
+    },
+    {
+      "path": "remote-complete/artifacts/diagnostics/22/project-10.json",
+      "diagnostics": 2,
+      "sha256": "385db5c5c851fc1c760e153c43968139ed72499739b1f5235f18891830a8fb63",
+      "noExecutableFields": true
+    },
+    {
+      "path": "remote-complete/artifacts/diagnostics/23/project-11.json",
+      "diagnostics": 2,
+      "sha256": "45b62d7432dad78787173da1434a70acae094814f87e96fa14a5e2a1514e2bae",
+      "noExecutableFields": true
+    },
+    {
+      "path": "remote-complete/artifacts/diagnostics/24/project-0.json",
+      "diagnostics": 2,
+      "sha256": "1ba6ef2ceb4cc8b3af15c9f627630fe9bb164238697750ad3b9d6a4cd86218b0",
+      "noExecutableFields": true
+    },
+    {
+      "path": "remote-complete/artifacts/diagnostics/25/project-1.json",
+      "diagnostics": 3,
+      "sha256": "5e741d232225b1d978d6228e7f01b7fc405b4f886f4bb45b4ccbcadd5ee76272",
+      "noExecutableFields": true
+    },
+    {
+      "path": "remote-complete/artifacts/diagnostics/26/project-2.json",
+      "diagnostics": 2,
+      "sha256": "4c8b3689043c9cc2b33bf968127e53b5fcf3fe6bcc123d69b91493196a117cfe",
+      "noExecutableFields": true
+    },
+    {
+      "path": "remote-complete/artifacts/diagnostics/27/project-3.json",
+      "diagnostics": 2,
+      "sha256": "5bac73f1a9f57ed6fd09f993c22ea058c1d25ee8e565c3f27ba60b1c41293ca4",
+      "noExecutableFields": true
+    },
+    {
+      "path": "remote-complete/artifacts/diagnostics/28/project-4.json",
+      "diagnostics": 2,
+      "sha256": "30878bbf8bc14e9e7defe5bed6407c21b4946ca1221305d4ab82b042090140c6",
+      "noExecutableFields": true
+    },
+    {
+      "path": "remote-complete/artifacts/diagnostics/29/project-5.json",
+      "diagnostics": 2,
+      "sha256": "c66ed1df01e8a1f33a7b2fd2eef429399b868209162d7703fa1a4ede1250f3ae",
+      "noExecutableFields": true
+    },
+    {
+      "path": "remote-complete/artifacts/diagnostics/3/project-3.json",
+      "diagnostics": 2,
+      "sha256": "efd86c165f4341118d926a271dc64c47411258dabc4c9aa59ae3b72dbce02e20",
+      "noExecutableFields": true
+    },
+    {
+      "path": "remote-complete/artifacts/diagnostics/30/project-6.json",
+      "diagnostics": 2,
+      "sha256": "2e6e15b75609abbd79265a0c7e86f81d06219fc9abba4b23e7698d5b598f0e60",
+      "noExecutableFields": true
+    },
+    {
+      "path": "remote-complete/artifacts/diagnostics/31/project-7.json",
+      "diagnostics": 3,
+      "sha256": "50cb7e207819b78d80897de69570b873c9915f61ad69fd1bf93d8695c82e1e31",
+      "noExecutableFields": true
+    },
+    {
+      "path": "remote-complete/artifacts/diagnostics/32/project-8.json",
+      "diagnostics": 3,
+      "sha256": "2747929ced915f6707746b9bdbd51021416d759a85fae61b147e0d829771d0c9",
+      "noExecutableFields": true
+    },
+    {
+      "path": "remote-complete/artifacts/diagnostics/33/project-9.json",
+      "diagnostics": 2,
+      "sha256": "64d4ad54ba0a5436342cdb88d4f4855fa8d8ef5c60ddec2fa354cb7cf6a3045b",
+      "noExecutableFields": true
+    },
+    {
+      "path": "remote-complete/artifacts/diagnostics/34/project-10.json",
+      "diagnostics": 2,
+      "sha256": "91c702ef001f8718df2e61077dd8aa30626d36a16bdc26960abf63a4ca91b363",
+      "noExecutableFields": true
+    },
+    {
+      "path": "remote-complete/artifacts/diagnostics/35/project-11.json",
+      "diagnostics": 2,
+      "sha256": "a2f0744c62bc8f0356e11fe833cab52a0a327079b4cd282832a47a5ebb9c60e4",
+      "noExecutableFields": true
+    },
+    {
+      "path": "remote-complete/artifacts/diagnostics/36/project-0.json",
+      "diagnostics": 2,
+      "sha256": "18c94be1bdb6d4dbae4cf1cd81f64735a0cd2a5e8e605de5d1b1bfe7331dbef4",
+      "noExecutableFields": true
+    },
+    {
+      "path": "remote-complete/artifacts/diagnostics/37/project-1.json",
+      "diagnostics": 2,
+      "sha256": "d44c986e865d0c7aaa702b696fd2639038c0394f40466c794d5e9ff023f524e3",
+      "noExecutableFields": true
+    },
+    {
+      "path": "remote-complete/artifacts/diagnostics/38/project-2.json",
+      "diagnostics": 3,
+      "sha256": "54d96a6ba5cd1865eab583cbf08b2faef490357f4eb538a7fc7ece474eb5fe64",
+      "noExecutableFields": true
+    },
+    {
+      "path": "remote-complete/artifacts/diagnostics/39/project-3.json",
+      "diagnostics": 4,
+      "sha256": "d8e75523e623ae0da98b048dffb68b166ec06a6136d8e398987f6d6ff37a6920",
+      "noExecutableFields": true
+    },
+    {
+      "path": "remote-complete/artifacts/diagnostics/4/project-4.json",
+      "diagnostics": 2,
+      "sha256": "266a0d1d8d113aa96c6def012621bbece7ba13c3890b8ef03d24aae9edb2e9d1",
+      "noExecutableFields": true
+    },
+    {
+      "path": "remote-complete/artifacts/diagnostics/40/project-4.json",
+      "diagnostics": 2,
+      "sha256": "09cecc9cb576aa516b77cbf34211c4720f5620804641fbe2194cf01bcd8a25b1",
+      "noExecutableFields": true
+    },
+    {
+      "path": "remote-complete/artifacts/diagnostics/41/project-5.json",
+      "diagnostics": 2,
+      "sha256": "21c2ef42f423a57a755163a1d76dcf2eb13a376ee6dab125ea0cf04dda29cfea",
+      "noExecutableFields": true
+    },
+    {
+      "path": "remote-complete/artifacts/diagnostics/48/project-0.json",
+      "diagnostics": 20,
+      "sha256": "188801e6bbe0aa5cd90a39567ce95c5368ae471b8696cc41293520192042a2be",
+      "noExecutableFields": true
+    },
+    {
+      "path": "remote-complete/artifacts/diagnostics/49/project-1.json",
+      "diagnostics": 50,
+      "sha256": "93114b65a09129605413a5c7580bf8e1554e6ae41c7c0d699fc51bcab88b1978",
+      "noExecutableFields": true
+    },
+    {
+      "path": "remote-complete/artifacts/diagnostics/5/project-5.json",
+      "diagnostics": 3,
+      "sha256": "336d3f0f93620c466f1bf97ff11cd313598df3339a122d6c88014149924ed307",
+      "noExecutableFields": true
+    },
+    {
+      "path": "remote-complete/artifacts/diagnostics/6/project-6.json",
+      "diagnostics": 2,
+      "sha256": "c1d0d82964cdf91793386b35d699277c668d1c2166e1d849f7a23d90dc3cfa44",
+      "noExecutableFields": true
+    },
+    {
+      "path": "remote-complete/artifacts/diagnostics/7/project-7.json",
+      "diagnostics": 2,
+      "sha256": "35c13a87630ec15d008e01d46db997640e23f12bc8f7a1821e04ac3577e7a0fa",
+      "noExecutableFields": true
+    },
+    {
+      "path": "remote-complete/artifacts/diagnostics/8/project-8.json",
+      "diagnostics": 1,
+      "sha256": "2f9ce36979eb259eb31227f4b271ba12154e4523ad67df2011b7ff97989d030c",
+      "noExecutableFields": true
+    },
+    {
+      "path": "remote-complete/artifacts/diagnostics/9/project-9.json",
+      "diagnostics": 1,
+      "sha256": "5aca493d6ca73a4ab96b1a9a31f83664cd93fa7c562378bfc52117f2ce2b6b1d",
+      "noExecutableFields": true
+    },
+    {
+      "path": "remote-complete/artifacts/worker/candidate/original14/full.json",
+      "diagnostics": 2,
+      "sha256": "fa00ad06d0943b150d2b13c59e285adc2c93237ca4f0b406091f6a166b23eff5",
+      "noExecutableFields": true
+    },
+    {
+      "path": "remote-complete/artifacts/worker/candidate/original17/full.json",
+      "diagnostics": 1,
+      "sha256": "8b93f1750d4e65599ff8e385a291ba08a5f11724fe870a583518809974551058",
+      "noExecutableFields": true
+    },
+    {
+      "path": "remote-complete/artifacts/worker/parent/original14/full.json",
+      "diagnostics": 1,
+      "sha256": "19ce371e49b82bfb859c2d8fa249182a29514dd5fbcb526614e3e58ee7cc2f41",
+      "noExecutableFields": true
+    },
+    {
+      "path": "remote-complete/artifacts/worker/parent/original17/full.json",
+      "diagnostics": 1,
+      "sha256": "0072f7e53a6aba55b87028448d39baf29ccb7fd4cba9f800a657c07e862c1b63",
+      "noExecutableFields": true
+    }
+  ],
+  "leaves": [
+    {
+      "path": "remote-complete/artifacts/diagnostics/0/leaves.json",
+      "sha256": "473aad17ba362e2a7f3695f03e01a30f578894089769f3b55937cc47797d2f21",
+      "noInspectionArtifacts": true
+    },
+    {
+      "path": "remote-complete/artifacts/diagnostics/1/leaves.json",
+      "sha256": "473aad17ba362e2a7f3695f03e01a30f578894089769f3b55937cc47797d2f21",
+      "noInspectionArtifacts": true
+    },
+    {
+      "path": "remote-complete/artifacts/diagnostics/10/leaves.json",
+      "sha256": "473aad17ba362e2a7f3695f03e01a30f578894089769f3b55937cc47797d2f21",
+      "noInspectionArtifacts": true
+    },
+    {
+      "path": "remote-complete/artifacts/diagnostics/11/leaves.json",
+      "sha256": "473aad17ba362e2a7f3695f03e01a30f578894089769f3b55937cc47797d2f21",
+      "noInspectionArtifacts": true
+    },
+    {
+      "path": "remote-complete/artifacts/diagnostics/12/leaves.json",
+      "sha256": "473aad17ba362e2a7f3695f03e01a30f578894089769f3b55937cc47797d2f21",
+      "noInspectionArtifacts": true
+    },
+    {
+      "path": "remote-complete/artifacts/diagnostics/13/leaves.json",
+      "sha256": "473aad17ba362e2a7f3695f03e01a30f578894089769f3b55937cc47797d2f21",
+      "noInspectionArtifacts": true
+    },
+    {
+      "path": "remote-complete/artifacts/diagnostics/14/leaves.json",
+      "sha256": "473aad17ba362e2a7f3695f03e01a30f578894089769f3b55937cc47797d2f21",
+      "noInspectionArtifacts": true
+    },
+    {
+      "path": "remote-complete/artifacts/diagnostics/15/leaves.json",
+      "sha256": "473aad17ba362e2a7f3695f03e01a30f578894089769f3b55937cc47797d2f21",
+      "noInspectionArtifacts": true
+    },
+    {
+      "path": "remote-complete/artifacts/diagnostics/16/leaves.json",
+      "sha256": "473aad17ba362e2a7f3695f03e01a30f578894089769f3b55937cc47797d2f21",
+      "noInspectionArtifacts": true
+    },
+    {
+      "path": "remote-complete/artifacts/diagnostics/17/leaves.json",
+      "sha256": "473aad17ba362e2a7f3695f03e01a30f578894089769f3b55937cc47797d2f21",
+      "noInspectionArtifacts": true
+    },
+    {
+      "path": "remote-complete/artifacts/diagnostics/18/leaves.json",
+      "sha256": "473aad17ba362e2a7f3695f03e01a30f578894089769f3b55937cc47797d2f21",
+      "noInspectionArtifacts": true
+    },
+    {
+      "path": "remote-complete/artifacts/diagnostics/19/leaves.json",
+      "sha256": "473aad17ba362e2a7f3695f03e01a30f578894089769f3b55937cc47797d2f21",
+      "noInspectionArtifacts": true
+    },
+    {
+      "path": "remote-complete/artifacts/diagnostics/2/leaves.json",
+      "sha256": "473aad17ba362e2a7f3695f03e01a30f578894089769f3b55937cc47797d2f21",
+      "noInspectionArtifacts": true
+    },
+    {
+      "path": "remote-complete/artifacts/diagnostics/20/leaves.json",
+      "sha256": "473aad17ba362e2a7f3695f03e01a30f578894089769f3b55937cc47797d2f21",
+      "noInspectionArtifacts": true
+    },
+    {
+      "path": "remote-complete/artifacts/diagnostics/21/leaves.json",
+      "sha256": "473aad17ba362e2a7f3695f03e01a30f578894089769f3b55937cc47797d2f21",
+      "noInspectionArtifacts": true
+    },
+    {
+      "path": "remote-complete/artifacts/diagnostics/22/leaves.json",
+      "sha256": "473aad17ba362e2a7f3695f03e01a30f578894089769f3b55937cc47797d2f21",
+      "noInspectionArtifacts": true
+    },
+    {
+      "path": "remote-complete/artifacts/diagnostics/23/leaves.json",
+      "sha256": "473aad17ba362e2a7f3695f03e01a30f578894089769f3b55937cc47797d2f21",
+      "noInspectionArtifacts": true
+    },
+    {
+      "path": "remote-complete/artifacts/diagnostics/24/leaves.json",
+      "sha256": "473aad17ba362e2a7f3695f03e01a30f578894089769f3b55937cc47797d2f21",
+      "noInspectionArtifacts": true
+    },
+    {
+      "path": "remote-complete/artifacts/diagnostics/25/leaves.json",
+      "sha256": "473aad17ba362e2a7f3695f03e01a30f578894089769f3b55937cc47797d2f21",
+      "noInspectionArtifacts": true
+    },
+    {
+      "path": "remote-complete/artifacts/diagnostics/26/leaves.json",
+      "sha256": "473aad17ba362e2a7f3695f03e01a30f578894089769f3b55937cc47797d2f21",
+      "noInspectionArtifacts": true
+    },
+    {
+      "path": "remote-complete/artifacts/diagnostics/27/leaves.json",
+      "sha256": "473aad17ba362e2a7f3695f03e01a30f578894089769f3b55937cc47797d2f21",
+      "noInspectionArtifacts": true
+    },
+    {
+      "path": "remote-complete/artifacts/diagnostics/28/leaves.json",
+      "sha256": "473aad17ba362e2a7f3695f03e01a30f578894089769f3b55937cc47797d2f21",
+      "noInspectionArtifacts": true
+    },
+    {
+      "path": "remote-complete/artifacts/diagnostics/29/leaves.json",
+      "sha256": "473aad17ba362e2a7f3695f03e01a30f578894089769f3b55937cc47797d2f21",
+      "noInspectionArtifacts": true
+    },
+    {
+      "path": "remote-complete/artifacts/diagnostics/3/leaves.json",
+      "sha256": "473aad17ba362e2a7f3695f03e01a30f578894089769f3b55937cc47797d2f21",
+      "noInspectionArtifacts": true
+    },
+    {
+      "path": "remote-complete/artifacts/diagnostics/30/leaves.json",
+      "sha256": "473aad17ba362e2a7f3695f03e01a30f578894089769f3b55937cc47797d2f21",
+      "noInspectionArtifacts": true
+    },
+    {
+      "path": "remote-complete/artifacts/diagnostics/31/leaves.json",
+      "sha256": "473aad17ba362e2a7f3695f03e01a30f578894089769f3b55937cc47797d2f21",
+      "noInspectionArtifacts": true
+    },
+    {
+      "path": "remote-complete/artifacts/diagnostics/32/leaves.json",
+      "sha256": "473aad17ba362e2a7f3695f03e01a30f578894089769f3b55937cc47797d2f21",
+      "noInspectionArtifacts": true
+    },
+    {
+      "path": "remote-complete/artifacts/diagnostics/33/leaves.json",
+      "sha256": "473aad17ba362e2a7f3695f03e01a30f578894089769f3b55937cc47797d2f21",
+      "noInspectionArtifacts": true
+    },
+    {
+      "path": "remote-complete/artifacts/diagnostics/34/leaves.json",
+      "sha256": "473aad17ba362e2a7f3695f03e01a30f578894089769f3b55937cc47797d2f21",
+      "noInspectionArtifacts": true
+    },
+    {
+      "path": "remote-complete/artifacts/diagnostics/35/leaves.json",
+      "sha256": "473aad17ba362e2a7f3695f03e01a30f578894089769f3b55937cc47797d2f21",
+      "noInspectionArtifacts": true
+    },
+    {
+      "path": "remote-complete/artifacts/diagnostics/36/leaves.json",
+      "sha256": "473aad17ba362e2a7f3695f03e01a30f578894089769f3b55937cc47797d2f21",
+      "noInspectionArtifacts": true
+    },
+    {
+      "path": "remote-complete/artifacts/diagnostics/37/leaves.json",
+      "sha256": "473aad17ba362e2a7f3695f03e01a30f578894089769f3b55937cc47797d2f21",
+      "noInspectionArtifacts": true
+    },
+    {
+      "path": "remote-complete/artifacts/diagnostics/38/leaves.json",
+      "sha256": "473aad17ba362e2a7f3695f03e01a30f578894089769f3b55937cc47797d2f21",
+      "noInspectionArtifacts": true
+    },
+    {
+      "path": "remote-complete/artifacts/diagnostics/39/leaves.json",
+      "sha256": "473aad17ba362e2a7f3695f03e01a30f578894089769f3b55937cc47797d2f21",
+      "noInspectionArtifacts": true
+    },
+    {
+      "path": "remote-complete/artifacts/diagnostics/4/leaves.json",
+      "sha256": "473aad17ba362e2a7f3695f03e01a30f578894089769f3b55937cc47797d2f21",
+      "noInspectionArtifacts": true
+    },
+    {
+      "path": "remote-complete/artifacts/diagnostics/40/leaves.json",
+      "sha256": "473aad17ba362e2a7f3695f03e01a30f578894089769f3b55937cc47797d2f21",
+      "noInspectionArtifacts": true
+    },
+    {
+      "path": "remote-complete/artifacts/diagnostics/41/leaves.json",
+      "sha256": "473aad17ba362e2a7f3695f03e01a30f578894089769f3b55937cc47797d2f21",
+      "noInspectionArtifacts": true
+    },
+    {
+      "path": "remote-complete/artifacts/diagnostics/42/leaves.json",
+      "sha256": "473aad17ba362e2a7f3695f03e01a30f578894089769f3b55937cc47797d2f21",
+      "noInspectionArtifacts": true
+    },
+    {
+      "path": "remote-complete/artifacts/diagnostics/43/leaves.json",
+      "sha256": "473aad17ba362e2a7f3695f03e01a30f578894089769f3b55937cc47797d2f21",
+      "noInspectionArtifacts": true
+    },
+    {
+      "path": "remote-complete/artifacts/diagnostics/44/leaves.json",
+      "sha256": "473aad17ba362e2a7f3695f03e01a30f578894089769f3b55937cc47797d2f21",
+      "noInspectionArtifacts": true
+    },
+    {
+      "path": "remote-complete/artifacts/diagnostics/45/leaves.json",
+      "sha256": "473aad17ba362e2a7f3695f03e01a30f578894089769f3b55937cc47797d2f21",
+      "noInspectionArtifacts": true
+    },
+    {
+      "path": "remote-complete/artifacts/diagnostics/46/leaves.json",
+      "sha256": "473aad17ba362e2a7f3695f03e01a30f578894089769f3b55937cc47797d2f21",
+      "noInspectionArtifacts": true
+    },
+    {
+      "path": "remote-complete/artifacts/diagnostics/47/leaves.json",
+      "sha256": "473aad17ba362e2a7f3695f03e01a30f578894089769f3b55937cc47797d2f21",
+      "noInspectionArtifacts": true
+    },
+    {
+      "path": "remote-complete/artifacts/diagnostics/48/leaves.json",
+      "sha256": "473aad17ba362e2a7f3695f03e01a30f578894089769f3b55937cc47797d2f21",
+      "noInspectionArtifacts": true
+    },
+    {
+      "path": "remote-complete/artifacts/diagnostics/49/leaves.json",
+      "sha256": "473aad17ba362e2a7f3695f03e01a30f578894089769f3b55937cc47797d2f21",
+      "noInspectionArtifacts": true
+    },
+    {
+      "path": "remote-complete/artifacts/diagnostics/5/leaves.json",
+      "sha256": "473aad17ba362e2a7f3695f03e01a30f578894089769f3b55937cc47797d2f21",
+      "noInspectionArtifacts": true
+    },
+    {
+      "path": "remote-complete/artifacts/diagnostics/6/leaves.json",
+      "sha256": "473aad17ba362e2a7f3695f03e01a30f578894089769f3b55937cc47797d2f21",
+      "noInspectionArtifacts": true
+    },
+    {
+      "path": "remote-complete/artifacts/diagnostics/7/leaves.json",
+      "sha256": "473aad17ba362e2a7f3695f03e01a30f578894089769f3b55937cc47797d2f21",
+      "noInspectionArtifacts": true
+    },
+    {
+      "path": "remote-complete/artifacts/diagnostics/8/leaves.json",
+      "sha256": "473aad17ba362e2a7f3695f03e01a30f578894089769f3b55937cc47797d2f21",
+      "noInspectionArtifacts": true
+    },
+    {
+      "path": "remote-complete/artifacts/diagnostics/9/leaves.json",
+      "sha256": "473aad17ba362e2a7f3695f03e01a30f578894089769f3b55937cc47797d2f21",
+      "noInspectionArtifacts": true
+    },
+    {
+      "path": "remote-complete/artifacts/projects/candidate/main-eight/main cap complete bound compiler-only form/leaves.json",
+      "sha256": "1b586064934c7b1424432b47dadd42a9845840349d195d2a80547547573b11d7",
+      "noInspectionArtifacts": true
+    },
+    {
+      "path": "remote-complete/artifacts/projects/candidate/main-eight/main cap complete direct compiler-only form/leaves.json",
+      "sha256": "1b586064934c7b1424432b47dadd42a9845840349d195d2a80547547573b11d7",
+      "noInspectionArtifacts": true
+    },
+    {
+      "path": "remote-complete/artifacts/projects/candidate/main-eight/main cap complete shaped compiler-only form/leaves.json",
+      "sha256": "1b586064934c7b1424432b47dadd42a9845840349d195d2a80547547573b11d7",
+      "noInspectionArtifacts": true
+    },
+    {
+      "path": "remote-complete/artifacts/projects/candidate/main-eight/main effect helper collision refusal/leaves.json",
+      "sha256": "1b586064934c7b1424432b47dadd42a9845840349d195d2a80547547573b11d7",
+      "noInspectionArtifacts": true
+    },
+    {
+      "path": "remote-complete/artifacts/projects/candidate/main-eight/main effect orderedPair collision refusal/leaves.json",
+      "sha256": "1b586064934c7b1424432b47dadd42a9845840349d195d2a80547547573b11d7",
+      "noInspectionArtifacts": true
+    },
+    {
+      "path": "remote-complete/artifacts/projects/candidate/main-eight/main operation effect collision refusal/leaves.json",
+      "sha256": "1b586064934c7b1424432b47dadd42a9845840349d195d2a80547547573b11d7",
+      "noInspectionArtifacts": true
+    },
+    {
+      "path": "remote-complete/artifacts/projects/candidate/main-eight/main operation helper collision refusal/leaves.json",
+      "sha256": "1b586064934c7b1424432b47dadd42a9845840349d195d2a80547547573b11d7",
+      "noInspectionArtifacts": true
+    },
+    {
+      "path": "remote-complete/artifacts/projects/candidate/main-eight/main table and operation alias compiler-only derivative/leaves.json",
+      "sha256": "d79dc36ffc090c78d267ac6e97f19b8b1ee8443ece4eef227b217258d39a5f2a",
+      "noInspectionArtifacts": true
+    },
+    {
+      "path": "remote-complete/artifacts/projects/candidate/original-three/original14/leaves.json",
+      "sha256": "473aad17ba362e2a7f3695f03e01a30f578894089769f3b55937cc47797d2f21",
+      "noInspectionArtifacts": true
+    },
+    {
+      "path": "remote-complete/artifacts/projects/candidate/original-three/original17/leaves.json",
+      "sha256": "473aad17ba362e2a7f3695f03e01a30f578894089769f3b55937cc47797d2f21",
+      "noInspectionArtifacts": true
+    },
+    {
+      "path": "remote-complete/artifacts/projects/candidate/original-three/original18/leaves.json",
+      "sha256": "473aad17ba362e2a7f3695f03e01a30f578894089769f3b55937cc47797d2f21",
+      "noInspectionArtifacts": true
+    },
+    {
+      "path": "remote-complete/artifacts/projects/parent/main-eight/main cap complete bound compiler-only form/leaves.json",
+      "sha256": "1b586064934c7b1424432b47dadd42a9845840349d195d2a80547547573b11d7",
+      "noInspectionArtifacts": true
+    },
+    {
+      "path": "remote-complete/artifacts/projects/parent/main-eight/main cap complete direct compiler-only form/leaves.json",
+      "sha256": "1b586064934c7b1424432b47dadd42a9845840349d195d2a80547547573b11d7",
+      "noInspectionArtifacts": true
+    },
+    {
+      "path": "remote-complete/artifacts/projects/parent/main-eight/main cap complete shaped compiler-only form/leaves.json",
+      "sha256": "1b586064934c7b1424432b47dadd42a9845840349d195d2a80547547573b11d7",
+      "noInspectionArtifacts": true
+    },
+    {
+      "path": "remote-complete/artifacts/projects/parent/main-eight/main effect helper collision refusal/leaves.json",
+      "sha256": "1b586064934c7b1424432b47dadd42a9845840349d195d2a80547547573b11d7",
+      "noInspectionArtifacts": true
+    },
+    {
+      "path": "remote-complete/artifacts/projects/parent/main-eight/main effect orderedPair collision refusal/leaves.json",
+      "sha256": "1b586064934c7b1424432b47dadd42a9845840349d195d2a80547547573b11d7",
+      "noInspectionArtifacts": true
+    },
+    {
+      "path": "remote-complete/artifacts/projects/parent/main-eight/main operation effect collision refusal/leaves.json",
+      "sha256": "1b586064934c7b1424432b47dadd42a9845840349d195d2a80547547573b11d7",
+      "noInspectionArtifacts": true
+    },
+    {
+      "path": "remote-complete/artifacts/projects/parent/main-eight/main operation helper collision refusal/leaves.json",
+      "sha256": "1b586064934c7b1424432b47dadd42a9845840349d195d2a80547547573b11d7",
+      "noInspectionArtifacts": true
+    },
+    {
+      "path": "remote-complete/artifacts/projects/parent/main-eight/main table and operation alias compiler-only derivative/leaves.json",
+      "sha256": "d79dc36ffc090c78d267ac6e97f19b8b1ee8443ece4eef227b217258d39a5f2a",
+      "noInspectionArtifacts": true
+    },
+    {
+      "path": "remote-complete/artifacts/projects/parent/original-three/original14/leaves.json",
+      "sha256": "473aad17ba362e2a7f3695f03e01a30f578894089769f3b55937cc47797d2f21",
+      "noInspectionArtifacts": true
+    },
+    {
+      "path": "remote-complete/artifacts/projects/parent/original-three/original17/leaves.json",
+      "sha256": "473aad17ba362e2a7f3695f03e01a30f578894089769f3b55937cc47797d2f21",
+      "noInspectionArtifacts": true
+    },
+    {
+      "path": "remote-complete/artifacts/projects/parent/original-three/original18/leaves.json",
+      "sha256": "473aad17ba362e2a7f3695f03e01a30f578894089769f3b55937cc47797d2f21",
+      "noInspectionArtifacts": true
+    }
+  ],
+  "reviewedCallbacks51": true,
+  "nativeInvocations": 0
+}

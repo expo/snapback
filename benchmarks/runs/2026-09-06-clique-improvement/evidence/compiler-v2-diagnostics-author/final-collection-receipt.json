@@ -1,0 +1,202 @@
+{
+  "at": "2026-09-07T19:32:26.832517+00:00",
+  "archiveTransportExit": 0,
+  "deadlineSeconds": 45,
+  "archiveSha256": "1fb8bf243514c53b5fc6a27cdad5fe1cfe80d10d7e8a1ac3faef546909d95ebb",
+  "localExtractionCorrected": true,
+  "noRemoteRerun": true,
+  "verifiedRawReceipts": [
+    {
+      "label": "build-candidate",
+      "exit": 0,
+      "pid": 71877,
+      "nativeSeconds": 2.670708038844168,
+      "transportSeconds": 6.206086,
+      "executionSha256": "af9a2fc6393c4a2aa5736ca5690dcca4205792358612488bfe2c8a9903410182"
+    },
+    {
+      "label": "build-parent",
+      "exit": 0,
+      "pid": 71554,
+      "nativeSeconds": 2.671107286820188,
+      "transportSeconds": 6.290372041,
+      "executionSha256": "450e9dd6980c9f256d97552b3d7907a75e2d5dfa6e983fefddb5cbd0621995a6"
+    },
+    {
+      "label": "candidate-affected-types",
+      "exit": 1,
+      "pid": 73763,
+      "nativeSeconds": 0.03243660391308367,
+      "transportSeconds": 3.468926,
+      "executionSha256": "2acb50b2297e0bb740a6efcb78eb06eec0341e7bfbc434a879d07b81d8e89f42"
+    },
+    {
+      "label": "candidate-affected-types-fixed",
+      "exit": 1,
+      "pid": 114956,
+      "nativeSeconds": 2.8224340851884335,
+      "transportSeconds": 6.2697959590000005,
+      "executionSha256": "7dfb44a3b0f146db3e60440715d86fc2896f46e6fb583642e593bc58056999a4"
+    },
+    {
+      "label": "candidate-main-eight",
+      "exit": 0,
+      "pid": 73427,
+      "nativeSeconds": 0.4652321068570018,
+      "transportSeconds": 3.9288854580000003,
+      "executionSha256": "8a18971b1780977f44fa0029c16594b4fe4308520a68b4b4eb7dcf79fcec13af"
+    },
+    {
+      "label": "candidate-original-three",
+      "exit": 0,
+      "pid": 72164,
+      "nativeSeconds": 0.4651983769144863,
+      "transportSeconds": 3.9364657919999995,
+      "executionSha256": "99620337f7129cdf78946ec492cb267452c56c46406bb244cbd470e50bd18386"
+    },
+    {
+      "label": "candidate-production-types",
+      "exit": 1,
+      "pid": 73606,
+      "nativeSeconds": 0.03258484601974487,
+      "transportSeconds": 3.5356320830000003,
+      "executionSha256": "7d63d39b8003c80f5cf690a45eaa428fd0920c59aa0b5f9b93f4750adf8df86b"
+    },
+    {
+      "label": "candidate-production-types-fixed",
+      "exit": 1,
+      "pid": 114892,
+      "nativeSeconds": 2.32140642311424,
+      "transportSeconds": 5.791515625,
+      "executionSha256": "1b9251fe78e80b5e4a9960f952ad714c4c7367eb1c91ec902c8cc211da582884"
+    },
+    {
+      "label": "candidate-types-final",
+      "exit": 0,
+      "pid": 117507,
+      "nativeSeconds": 5.479864459019154,
+      "transportSeconds": 8.946125749999998,
+      "executionSha256": "679f0ed7e91272b597960244f480801533a1f2333357f8091068e9459e240017"
+    },
+    {
+      "label": "candidate-worker",
+      "exit": 0,
+      "pid": 73877,
+      "nativeSeconds": 0.6159086080733687,
+      "transportSeconds": 4.074842917,
+      "executionSha256": "18be68c753efb8bc57807414697d6b2f0e24556bfa5f33c485696c7f7cdef640"
+    },
+    {
+      "label": "diagnostics-0",
+      "exit": 0,
+      "pid": 72814,
+      "nativeSeconds": 0.7160213440656662,
+      "transportSeconds": 4.170058084,
+      "executionSha256": "21e023cd0254142bd008ef0f9100855563f1c068e8dfb59a1cca9b9a91119853"
+    },
+    {
+      "label": "diagnostics-12",
+      "exit": 0,
+      "pid": 72963,
+      "nativeSeconds": 0.716124027967453,
+      "transportSeconds": 4.180994708999999,
+      "executionSha256": "9f3dab77ed536f96a2e19c33a95584adcf528643bfd376c8cf9cc00f7d8e13e9"
+    },
+    {
+      "label": "diagnostics-24",
+      "exit": 0,
+      "pid": 73088,
+      "nativeSeconds": 0.666078947018832,
+      "transportSeconds": 4.279409,
+      "executionSha256": "b5b3f7221b35a5e563d73d1ca4182947c9873b16f3fa3938da617440946027b7"
+    },
+    {
+      "label": "diagnostics-36",
+      "exit": 0,
+      "pid": 73160,
+      "nativeSeconds": 0.7160710780881345,
+      "transportSeconds": 4.1823707500000005,
+      "executionSha256": "289754376eb01788d5d008d42498fa092e7b2ef54e39fae5a0bb886548466e5e"
+    },
+    {
+      "label": "diagnostics-48",
+      "exit": 0,
+      "pid": 73231,
+      "nativeSeconds": 0.3652187332045287,
+      "transportSeconds": 3.820386833,
+      "executionSha256": "5b1d974450db1fd309294f0b1450a4dc6484e3f379abdddf895df123a8fa150e"
+    },
+    {
+      "label": "parent-affected-types",
+      "exit": 1,
+      "pid": 73707,
+      "nativeSeconds": 0.03271612385287881,
+      "transportSeconds": 3.498586,
+      "executionSha256": "7c595571be6688a5790d5979c98b501bf76d0f4b489f63fbc11c90871f548029"
+    },
+    {
+      "label": "parent-affected-types-fixed",
+      "exit": 1,
+      "pid": 114837,
+      "nativeSeconds": 2.821397041901946,
+      "transportSeconds": 6.274358,
+      "executionSha256": "2e70d048b39cf0858c56cce5d04377ceafb5478cf98ee0d8df25a4e76fe28cc8"
+    },
+    {
+      "label": "parent-main-eight",
+      "exit": 0,
+      "pid": 73352,
+      "nativeSeconds": 0.46580089908093214,
+      "transportSeconds": 3.9314450830000003,
+      "executionSha256": "4949b5712924c6feb938bf5e180815ea6605d464f10706a62592ed94b983a392"
+    },
+    {
+      "label": "parent-original-three",
+      "exit": 0,
+      "pid": 72089,
+      "nativeSeconds": 0.4157066170591861,
+      "transportSeconds": 3.867762209,
+      "executionSha256": "119b6fc31bb2415eb5231a13f6d5b6c17db2db1cf13da143937cae3f7126f058"
+    },
+    {
+      "label": "parent-production-types",
+      "exit": 1,
+      "pid": 73549,
+      "nativeSeconds": 0.032491435995325446,
+      "transportSeconds": 3.5266805420000003,
+      "executionSha256": "d855f7eee1ef27b3dae7f820788269c4385f58941abbce86b5799955b68c4f55"
+    },
+    {
+      "label": "parent-production-types-fixed",
+      "exit": 1,
+      "pid": 114726,
+      "nativeSeconds": 2.3199957970064133,
+      "transportSeconds": 5.779722875,
+      "executionSha256": "3dd30ddc56b42d5b999a1a60a8443407666ddc262151cce5103cd930b9181728"
+    },
+    {
+      "label": "parent-types-final",
+      "exit": 0,
+      "pid": 117336,
+      "nativeSeconds": 5.379194031003863,
+      "transportSeconds": 8.829831292,
+      "executionSha256": "e53fc7d562ec3a5edb254d4768f330e9b5238a7f5fef9ab5cd5b18ed12e55d79"
+    },
+    {
+      "label": "parent-worker",
+      "exit": 0,
+      "pid": 73818,
+      "nativeSeconds": 0.5658016859088093,
+      "transportSeconds": 4.109052125,
+      "executionSha256": "71ae8c8b4f306bf3a201b41bf4bdcc392a45948a481982c2dd292f0f5e447dc6"
+    },
+    {
+      "label": "setup",
+      "exit": 0,
+      "pid": 71095,
+      "nativeSeconds": 7.884177644038573,
+      "transportSeconds": 10.580514584,
+      "executionSha256": "5bc652c0f94ae1de60c0320f742df7a8c5412be6bf16dafdda241cd4b8d66324"
+    }
+  ]
+}

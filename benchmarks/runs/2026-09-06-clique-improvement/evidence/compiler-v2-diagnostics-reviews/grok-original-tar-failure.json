@@ -1,0 +1,21 @@
+{
+  "at": "2026-09-07T20:07:19.920664+00:00",
+  "argv": [
+    "ssh",
+    "-o",
+    "BatchMode=yes",
+    "-o",
+    "ConnectTimeout=10",
+    "ccheever@100.65.137.99",
+    "tar -C /home/ccheever/clique-reviews/compiler-dx-v2-r1-b8f9/grok/artifacts/projects -cf - parent/review-cases-0/*/full.json parent/review-cases-0/*/assertions.json parent/review-cases-0/*/leaves.json candidate/review-cases-0/*/full.json candidate/review-cases-0/*/assertions.json candidate/review-cases-0/*/leaves.json"
+  ],
+  "cwd": "/Users/ccheever/clique-improvement/reviews/compiler-dx-v2-r1/grok/work",
+  "pid": 19314,
+  "deadlineSeconds": 45,
+  "elapsedSeconds": 2.334965875,
+  "exit": 2,
+  "timeout": false,
+  "handshakes": [],
+  "stdoutSha256": "84ff92691f909a05b224e1c56abb4864f01b4f8e3c854e4bb4c7baf1d3f6d652",
+  "stderrSha256": "8b6b462536d94d06da6a2524527a910b014112f079f456ee641a104562516dcb"
+}

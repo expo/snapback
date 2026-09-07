@@ -1,0 +1,12 @@
+{
+  "requestedModel": "grok-4.6",
+  "requestedEffort": "xhigh",
+  "launchPid": 70862,
+  "observedAt": "2026-09-07T20:13:48.770181+00:00",
+  "sessionId": "8896d412-d840-4306-8e57-893faca086ac",
+  "source": "/Users/ccheever/.grok/sessions/%2FUsers%2Fccheever%2Fclique-improvement%2Freviews%2Fcompiler-dx-v2-r1%2Fgrok/8896d412-d840-4306-8e57-893faca086ac/summary.json",
+  "sourceSha256": "c1d16a5f73a862ce59e03a971d73d21a00132822a654c3171e68af0246625360",
+  "current_model_id": "grok-4.6",
+  "reasoning_effort": "xhigh",
+  "identityMatchesRequest": true
+}

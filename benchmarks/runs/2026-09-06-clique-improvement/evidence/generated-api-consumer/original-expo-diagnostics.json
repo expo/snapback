@@ -1,0 +1,14 @@
+[
+  {
+    "code": 2578,
+    "category": "Error",
+    "categoryValue": 1,
+    "message": "Unused '@ts-expect-error' directive.",
+    "messageText": "Unused '@ts-expect-error' directive.",
+    "start": 172,
+    "length": 51,
+    "file": "/home/ccheever/clique-revisions/generated-api-type-consumer-r1-016-20260907/astra/work/projects/original-expo/src/consumer.ts",
+    "line": 5,
+    "column": 1
+  }
+]

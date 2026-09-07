@@ -5,7 +5,7 @@
 **Systems:** `snapback2/crates/snapback2` (the binary: owner, server, verbs), `snapback2/packages/compiler` (project lowering, worker), `snapback2/packages/snapback2` (authoring runtime, client, React, test runner, shim), `snapback2/scripts/measure.mjs`
 **Author:** Claude Fable 5 (orchestrator) — implementers: codex gpt-5.6-sol, lanes B0 (compiler + authoring surface), B1 (owner + server + verbs), B2 (`init`, `test`, `why`, `trace`, `guide`), D (client + React + evaluator)
 **Date:** 2026-08-29
-**Revised:** 2026-09-07 (preserve unrelated prefixed optional packages; staged platform dependency selection and exact-lock packaging regression; durable browser-follower admission and unknown-outcome recovery; client-owned observed query snapshots; explicit named-journey verification and executable React startup; startup cleanup fixture custody); 2026-09-06 (app guide operation/certificate custody; native logical SSE body; CLI help and executable migration recovery; auth startup recovery and held transition reads; queued transitions, interrupted sync, live held reads); 2026-09-05 (keyword index fallback and recipe list; generated Quarry keyword guide, landed outbox/client custody; auth review: failed-transition custody, read restoration barrier, session kind, paused offline retries; client-owned auth restoration and retry lifecycle; catalog naming rewrites, Clique L2; shared live transport, bounded derived verification, mutation-read guidance, installed consumer qualification)
+**Revised:** 2026-09-07 (generated insert/merge consumer type bindings; implementer GPT-6 Astra); 2026-09-07 (independent Quarry diagnostics, checked-type repair advice, lexical failure isolation and merge discovery ordering; implementer GPT-6 Astra); 2026-09-07 (preserve unrelated prefixed optional packages; staged platform dependency selection and exact-lock packaging regression; durable browser-follower admission and unknown-outcome recovery; client-owned observed query snapshots; explicit named-journey verification and executable React startup; startup cleanup fixture custody); 2026-09-06 (app guide operation/certificate custody; native logical SSE body; CLI help and executable migration recovery; auth startup recovery and held transition reads; queued transitions, interrupted sync, live held reads); 2026-09-05 (keyword index fallback and recipe list; generated Quarry keyword guide, landed outbox/client custody; auth review: failed-transition custody, read restoration barrier, session kind, paused offline retries; client-owned auth restoration and retry lifecycle; catalog naming rewrites, Clique L2; shared live transport, bounded derived verification, mutation-read guidance, installed consumer qualification)
 **Related:** LLP 1000, LLP 1001 (the engine this serves), LLP 1003 (effects),
 LLP 0329.016 §5 (the design this implements verbatim where it can), LLP
 0329.016 §5.11 (the verb table — no verb exists without its row), LLP
@@ -353,7 +353,7 @@ Protocol, JSON lines on stdin/stdout, one request in flight:
 ← { "id": 0, "ok": true, "protocol": "snapback2/compiler-worker/v1", "operations": ["compile", "seed", "journeys"] }
 ← { "id": 0, "ok": false, "protocol": "snapback2/compiler-worker/v1", "operations": ["compile", "seed", "journeys"], "dependency": "compiler-core.mjs" | "typescript" }
 → { "id": 1, "op": "compile", "root": "/abs/project" }
-← { "id": 1, "ok": true, "project": <ProjectJson>, "sources": { "todos.list": { "file": "snapback/todos.ts", "line": 14, "col": 14 } }, "apiDts": "<text>", "ms": 212 }
+← { "id": 1, "ok": true, "project": <ProjectJson>, "sources": { "todos.list": { "file": "snapback/todos.q", "line": 14, "col": 14 } }, "apiDts": "<text>", "ms": 212 }
 ← { "id": 1, "ok": false, "diagnostics": [ <Refusal> ] }        // ALL diagnostics, one per module at least
 → { "id": 2, "op": "seed", "root": "…" }  ← { "id": 2, "ok": true, "seed": { "personas": [...], "rows": {...} } }
 → { "id": 3, "op": "journeys", "root": "…" }  ← { "id": 3, "ok": true, "files": ["snapback/tests/todos.test.ts"] }
@@ -388,11 +388,32 @@ replacement expression survives the Quarry diagnostic remap as executable
 `rewrite` text; guidance without a concrete edit remains a comment (Clique L2,
 GPT-6 Astra, 2026-09-05).
 A bare `refuse()` uses its message as the rewrite; unexpected caught failures do likewise.
+Recoverable Quarry statement failures retain independent bound statements for
+diagnostics only. Failed statements roll back their bound output, fresh-name
+counters, and only the local names that statement could publish; valid programs
+do not copy their accumulated scope per statement. Uses of failed bindings
+suppress dependent cascades. A fresh argument, binding, loop or match binder
+clears failure only in its lexical environment, after its initializer or domain
+has been validated. Merge discovery is bound in the outer scope before dependent
+lane prefixes, and that bound expression is lowered once, including guards and
+ID allocation. Parser and schema failures stay outside statement recovery. Any
+recovered typed refusal returns the complete bounded diagnostic envelope before
+effect lowering, program IR, API declarations or inspection artifacts can escape.
+Presence advice comes from bound source and contextual destination types:
+`! else CODE` is offered only when removing absence repairs the mismatch or
+dereference. A text assigned to a Boolean still needs `true` or `false`; a
+null-only value needs a value. These cause facts are part of direct typed value
+comparison and add no wire fields. The diagnostic recovery controls are
+registered in `src/quarry-diagnostic-checks.ts`.
 The registered Quarry language checks live in `src/quarry-language-checks.ts`, keeping `src/test.ts` within the source line cap.
 
 `api.d.ts` (written to `.snapback/build/api.d.ts`, never committed) augments
-the client's `Api` interface with every op's arg and result types, inferred
-from the authored modules by the `typescript` checker:
+the client's `Api` interface with every op's argument and result types, emitted
+from the same bound Quarry facts used for program IR. Row aliases contain
+concrete field types; they do not depend on TypeScript data descriptors.
+Insert and merge regressions consume the emitted augmentation through the
+complete SDK with the Expo config, checking exact Boolean fields and
+rejecting numeric assignments even with `skipLibCheck`:
 
 ```ts
 declare module 'snapback2/client' { interface Api { todos: { list: Op<{ take?: number }, Todo[]>; add: Op<{ title: string }, { id: string }> } } }

@@ -764,12 +764,33 @@ fn ref_based_pseudo_membership_is_refused_before_authority_proofs() {
         String::from_utf8_lossy(&checked.stdout),
         String::from_utf8_lossy(&checked.stderr),
     );
-    let output = String::from_utf8_lossy(&checked.stdout);
+    let refusals: Vec<serde_json::Value> = String::from_utf8(checked.stdout)
+        .unwrap()
+        .lines()
+        .map(|line| serde_json::from_str(line).unwrap())
+        .collect();
     assert!(
-        output.contains("\"code\":\"E_QUARRY_UNKNOWN\"")
-            && output.contains("principal is ref; principal is nominally different")
-            && output.contains("\"rewrite\":"),
-        "ref-based pseudo-membership was not refused with the nominal-axis diagnostic: {output}"
+        refusals.iter().any(|refusal| {
+            refusal["code"] == "E_QUARRY_TYPE"
+                && refusal["message"] == "recipient expects principal, got profiles"
+                && refusal["site"] == "snapback/deliveries.q:37:25"
+                && refusal["rewrite"]
+                    .as_str()
+                    .is_some_and(|value| !value.is_empty())
+        }),
+        "the ref-based recipient axis was not refused directly: {refusals:?}"
+    );
+    assert!(
+        refusals.iter().any(|refusal| {
+            refusal["code"] == "E_QUARRY_UNKNOWN"
+                && refusal["message"]
+                    == "memberships.byPrincipalConversation expects reference to profiles for principal, got principal"
+                && refusal["site"] == "snapback/messages.q:11:51"
+                && refusal["rewrite"]
+                    .as_str()
+                    .is_some_and(|value| !value.is_empty())
+        }),
+        "the nominal membership index was not refused directly: {refusals:?}"
     );
 }
 

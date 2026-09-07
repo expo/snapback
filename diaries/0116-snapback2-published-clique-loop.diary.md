@@ -1349,3 +1349,63 @@ This is not a whole compiler/native/package clearance. Read-only integration ass
 The fresh full run started at18:45:08Z on Office M1 Max. Actual native metadata confirms Grok4.6/xhigh. The builder receives the unchanged full instrument and exact public package, with no previous app or audit findings. All169 original leaves and the helper match; original milestone, media, scale and native requirements remain. M7 stays separate after grading.
 
 [Launch evidence](../benchmarks/runs/2026-09-06-clique-improvement/evidence/grok-016-start/README.md) records the actual process/session and environment. Shared host load and the M5 comparator hardware difference remain disclosed. This starts measurement; it does not establish a better score or any milestone pass.
+
+
+## 2026-09-07 — Composed queries pass on Expo; retained projections expose a browser seam
+
+At source `4ef44ab65`, the rebuilt actual Expo app again passes all ten witness
+steps with both composed-query consumers. The browser still loses its inbox
+conversation after unsend. A focused real-owner reproduction subsequently shows
+that the snapshot retains rows while all projected delivery fields become null:
+conservative revocation clears the literals, and retained history skips certified
+reevaluation. This is platform behavior a guide would not repair; the client
+selection fix is being checked against missing facts and retained history.
+
+The same source's measured chat check is 0.872 seconds, below the one-second
+budget, and incremental rebuild is 2.31 seconds. All product-loop functional
+steps finish, but timing remains red: installed consumer 30.62/30 seconds and
+first doctor launch 0.808/0.5 seconds (second sample 0.042; internal work 45.990
+milliseconds). The exact metric append is retained without replacing earlier
+measurements. This does not qualify the complete browser lifecycle, native
+failed-COMMIT behavior, publication, or a new comparative score.
+
+## 2026-09-07 — Diagnostic port verified and M2 browser progress
+
+The independent main-v2 diagnostic port now reports both errors in the original failing example and gives Boolean-specific repair advice. Fifty-one focused callbacks, both package builds, existing main controls, built workers and all four final type scopes pass. Two helper-resolution failure rounds remain recorded. The author has closed; fresh independent reviews are running. [Author evidence](../benchmarks/runs/2026-09-06-clique-improvement/evidence/compiler-v2-diagnostics-author/README.md) does not claim product landing, publication or native/v5 integration.
+
+The full Grok0.0.16 run reached the harness's M2 browser9/9 under its original best-of-three rule. Follow and repost assertions still contain failed attempts, and prior red runs remain preserved. Media attachment and live feed interactions took several builder repair attempts. First iOS export failed against nested React Native0.86.2 from the supplied UI kit alongside SDK54/RN0.81.5 at the root; read-only triage does not establish a Snapback scaffolding defect. The builder independently adjusted the nested dependencies and advanced to M3. [Scoped progress evidence](../benchmarks/runs/2026-09-06-clique-improvement/evidence/grok-016-m2-progress/README.md) preserves the attempt and native-proof limits. There is no new holistic score yet.
+
+
+## 2026-09-07 — Diagnostic fix accepted and landed
+
+Both closed independent Astra/xhigh and Grok4.6/xhigh reviews returned READY for the main-v2 diagnostic port. Adjacent paired cases retained independent mismatches through lexical failures and preserved accepted output. Root read both complete reports and landed the byte-equivalent source plus0.0.17 metadata at `a606383b6`; [review evidence](../benchmarks/runs/2026-09-06-clique-improvement/evidence/compiler-v2-diagnostics-reviews/README.md) retains actual identities, terminals and collection failures. Standard artifact qualification/publication is still pending; the live benchmark remains on0.0.16.
+
+The review also caught a limitation worth following up: some accepted generated API text names internal column types without matching imports/declarations. The emitting code is unchanged from parent, and a faithful consumer reproduction is still needed. This is separate from the diagnostic repair and limits any broad generated-API claim. No new holistic score or native/v5 qualification follows from this landing.
+
+
+## 2026-09-07 — Diagnostic release dry qualification
+
+The reviewed diagnostic port is now packaged as 0.0.17 on source `a606383b6e5ad7cf79555bbc4b810d6cf6ea0e92`. Standard Darwin dry publication completed in 254.594 seconds with all 19 installed-consumer results and all todos 6/chat 30 checks passing. The packaged compiler contains the exact reviewed source. Chat check remains slightly over its target at 1.056743167 seconds; that red is retained, and host load prevents a causal speed claim. The evidence and original failure distinctions are in [cli-017-dry](../benchmarks/runs/2026-09-06-clique-improvement/evidence/cli-017-dry/README.md).
+
+The compiler now reports the independent unknown-name and boolean mismatch together and avoids irrelevant absence advice, removing the measured repair detour. This entry records packaging and installed functional proof; 0.0.17 publication is still pending. The separate generated-API scope investigation and full Grok benchmark remain independent. No comparative score improvement is claimed from this proof alone.
+
+
+## 2026-09-07 — Generated result types can hide incorrect assignments
+
+The focused consumer investigation confirmed that a valid insert mutation can generate API types with unbound `Column` and `RowOfColumns` names. Under the actual Expo config, library diagnostics are skipped and a row boolean becomes error-derived `any`; a number assignment is incorrectly accepted. A private copy adding only the two imports restores the boolean and rejects the assignment. Four finite programs used the real 0.0.16 package and dependency graph. The [original evidence](../benchmarks/runs/2026-09-06-clique-improvement/evidence/generated-api-consumer/README.md) separates successful process execution from diagnostic cleanliness. The repair and generated-consumer coverage are assigned; no fix is claimed yet.
+
+Enabling declaration checking also exposed eleven redundant ambient `declare` modifiers in the packaged root types, unchanged by the import counterfactual. The package merge inserts emitted standalone declarations unchanged into its ambient module. This is recorded as a [separate follow-up](../issues/20260907-snapback2-published-declaration-ambient-modifiers.md), with the existing raw errors retained. Neither finding changes the immutable 0.0.17 release artifacts or the running benchmark app.
+
+
+## 2026-09-07 — Compiler diagnostic release published
+
+Version 0.0.17 is now public with the coordinated CLI fixes and reviewed compiler diagnostics. The standard publisher and all 19 consumer results passed. Its immediate registry check returned E404; a later separate observation verified both exact package SRIs and latest tags without republishing. The [publication evidence](../benchmarks/runs/2026-09-06-clique-improvement/evidence/cli-017-published/README.md) preserves the original failure and actual process closures.
+
+Chat check still misses its one-second target at 1.049318542 seconds, and the 17 measured steps total 35.026491876 seconds. Functional success does not erase these timing reds. Public-installed Expo/guide and npm11 witnesses are next. The independent generated-type repair has passed its affected before/after checks and entered blind review; the full benchmark continues on unchanged 0.0.16, with no new holistic score.
+
+
+## 2026-09-07 — Generated row type safety repaired
+
+The missing generated `Column` and `RowOfColumns` imports are repaired. Insert and merge consumers now keep their Boolean fields and reject numeric assignments under the actual Expo configuration. A pre-fix merge control failed as expected; both fixed consumers and affected source types passed. Independent Astra xhigh and Grok 4.6 xhigh reviews returned READY after actual closed runs. [Evidence and limits](../benchmarks/runs/2026-09-06-clique-improvement/evidence/generated-api-types-repair/README.md) preserve the original negative controls, private shape/Principal assertions, local setup errors, and incomplete broader declaration coverage.
+
+This removes a silent loss of editor/typechecker protection while preserving result inference. The eleven inherited ambient declaration errors remain a separate repair, and the new imports are not in the already-published 0.0.17 package. No new holistic score follows from this source landing.

@@ -1,0 +1,23 @@
+{
+  "registry": {
+    "actualTool": 61636,
+    "actualExitCode": 0,
+    "chunk": "71e05e",
+    "resultSha256": "313443d711acfeae5348342a46ac1b4d222bd0df7f124f4d49c99d029b6b81c7",
+    "allFourMatching": true
+  },
+  "stoppedObserver": {
+    "actualTool": 2625,
+    "actualExitCode": 0,
+    "chunk": "b960c6",
+    "receiptSha256": "f1894b20b37a87c526c87ee17fc06e591afd218c56d2ef84039e84e20188e3c1"
+  },
+  "finalCustody": {
+    "actualTool": 80324,
+    "actualExitCode": 0,
+    "chunk": "dbc032",
+    "receiptSha256": "154a3821ff65a6ffba7174a0c63cc01ed4ba9c291de8e9edffe8c1a005ce587e"
+  },
+  "originalExecutionReportUnchangedSha256": "c7fef5963e2d27a8563511f0d063f05b5a91fed6d35cc827bd678a3615cb69a8",
+  "noPublicationRetry": true
+}

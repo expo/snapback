@@ -169,12 +169,14 @@ fn refusal_code_guide_prints_the_wrong_and_right_pair() {
 fn quarry_keywords_print_grammar_and_definitions_beside_symbol_help() {
     let project = Project::new();
     let quarry = include_str!("../../../packages/snapback2/guide/quarry.md");
-    assert!(quarry.contains("`share`, and `words`"));
+    assert!(quarry.contains("`wordPrefixes(field)` index"));
+    assert!(quarry.contains("there is no\npublic `words()` value function"));
     assert!(quarry.contains("rather than redrawn"));
     let search = include_str!("../../../packages/snapback2/guide/live-query.md");
-    assert!(search.contains("`words(a ?? b)` uses the larger declared text\nmaximum"));
-    assert!(search.contains("already-lowercased ASCII word"));
-    assert!(search.contains("unindexed nonempty body refuses `NOT_FOUND`"));
+    assert!(search.contains("`by bySearch: conversationId, wordPrefixes(body), at, id`"));
+    assert!(search.contains("query search(term: text <=128, c: cursor ?):"));
+    assert!(search.contains("must normalize to exactly one word"));
+    assert!(search.contains("Its held twin uses\nthe same index"));
     let definitions = [
         ("maintain", "count/sum"),
         ("cap", "holds every group at N rows"),
@@ -184,7 +186,7 @@ fn quarry_keywords_print_grammar_and_definitions_beside_symbol_help() {
         ),
         ("immutable", "forbids changes to those columns"),
         ("public", "accepts an optional reason string"),
-        ("merge", "fan-ins one or more"),
+        ("merge", "combines structurally distinct"),
         ("shape", "splices"),
         ("retain", "keeps rows that went hidden"),
         ("channel", "ephemeral events"),
@@ -196,20 +198,19 @@ fn quarry_keywords_print_grammar_and_definitions_beside_symbol_help() {
             "reads current rows in index order through the upper key",
         ),
         ("after", "`after` follows scan order"),
-        ("first", "`first N` scans ascending"),
-        ("last", "`last N` scans descending"),
+        ("first", "`first` is ascending"),
+        ("last", "`last` is descending"),
         ("require", "aborts when false"),
         ("match", "branches on presence"),
         (
             "for",
-            "iterates only a bounded list/page/range/tokens/words result",
+            "`for` needs a bounded list/page/range/tokens result",
         ),
         (
             "emit",
             "durably queues an effect in the mutation's transaction",
         ),
         ("tokens", "extracts `@` mentions"),
-        ("words", "bounded ASCII whole words"),
         ("divmod", "remainder is nonnegative"),
     ];
     let grammar = project.run(&["guide", "grammar", "--json"]);
@@ -231,24 +232,12 @@ fn quarry_keywords_print_grammar_and_definitions_beside_symbol_help() {
         definitions.len(),
         "cover every grammar construct"
     );
-    assert!(
-        lines
-            .iter()
-            .find(|(name, _)| *name == "for")
-            .unwrap()
-            .1
-            .contains("tokens/words")
-    );
     for (keyword, definition) in definitions {
         let output = project.run(&["guide", keyword, "--json"]);
         let page = json_stdout(&output);
         assert!(output.status.success(), "{keyword}: {page}");
         assert_eq!(page["page"], keyword);
         let content = page["content"].as_str().unwrap();
-        if keyword == "words" {
-            assert!(content.contains("refuses `+`/template-built text"));
-            assert!(content.contains("body: text <=N"));
-        }
         assert_eq!(
             content
                 .lines()
@@ -301,9 +290,6 @@ fn quarry_keywords_print_grammar_and_definitions_beside_symbol_help() {
                 );
             }
         }
-        if keyword == "for" {
-            assert!(paragraph.contains("E_STRUCTURAL_FANOUT"), "{paragraph}");
-        }
         if keyword == "emit" {
             assert!(
                 paragraph.ends_with('.'),
@@ -318,18 +304,6 @@ fn quarry_keywords_print_grammar_and_definitions_beside_symbol_help() {
     let text = project.run(&["guide", "maintain"]);
     assert!(text.status.success());
     assert!(String::from_utf8_lossy(&text.stdout).contains("count/sum"));
-    for keyword in ["channel", "merge", "divmod", "emit"] {
-        let text = project.run(&["guide", keyword]);
-        assert!(text.status.success());
-        let content = String::from_utf8_lossy(&text.stdout);
-        assert!(content.contains("export function"), "{content}");
-        assert!(content.contains(&format!("`{keyword}`:")), "{content}");
-        assert_eq!(
-            content.matches(&format!("# `{keyword}`")).count(),
-            1,
-            "{content}"
-        );
-    }
 }
 
 #[test]
@@ -350,7 +324,9 @@ fn symbol_help_survives_missing_corrupt_and_unreadable_keyword_indexes() {
             fs::remove_file(&index).unwrap();
             fs::create_dir(&index).unwrap();
         }
-        for keyword in ["decimal", "channel", "merge", "divmod", "emit"] {
+        // The fallback is declaration-backed symbol help, independent of the
+        // generated keyword index. Keep this list on the public functions.
+        for keyword in ["decimal", "effect", "seed"] {
             let output = project.run(&["guide", keyword, "--json"]);
             let page = json_stdout(&output);
             assert!(output.status.success(), "{state} {keyword}: {page}");
@@ -429,12 +405,9 @@ fn quarry_grammar_and_refusal_guides_ship_without_double_fences() {
     let project = Project::new();
     let quarry = project.run(&["guide", "quarry"]);
     assert!(quarry.status.success());
-    assert!(
-        String::from_utf8_lossy(&quarry.stdout).contains("Quarry is the only backend language")
-    );
-    assert!(
-        String::from_utf8_lossy(&quarry.stdout).contains("puts no generated files in `snapback/`")
-    );
+    assert!(String::from_utf8_lossy(&quarry.stdout).contains("Quarry is the backend language"));
+    assert!(String::from_utf8_lossy(&quarry.stdout)
+        .contains("inspection copies\ngo in `.snapback/build/quarry/`, never `snapback/`"));
     for page in ["grammar"] {
         let output = project.run(&["guide", page]);
         assert!(output.status.success(), "{page}");
@@ -458,6 +431,14 @@ fn quarry_grammar_and_refusal_guides_ship_without_double_fences() {
     assert!(refusal.status.success(), "{content}");
     assert_eq!(content.matches("```q").count(), 2, "{content}");
     assert!(!content.contains("```ts\n```q"), "{content}");
+
+    let fanout = project.run(&["guide", "E_STRUCTURAL_FANOUT"]);
+    let content = String::from_utf8_lossy(&fanout.stdout);
+    assert!(fanout.status.success(), "{content}");
+    assert!(content.contains("# E_STRUCTURAL_FANOUT"), "{content}");
+    assert!(content.contains("Family: `bound`"), "{content}");
+    assert!(content.contains("cap 50 by conversationId"), "{content}");
+    assert_eq!(content.matches("```q").count(), 2, "{content}");
 
     let unknown = project.run(&["guide", "maintan", "--json"]);
     assert_eq!(unknown.status.code(), Some(1));
@@ -490,14 +471,14 @@ fn offline_guide_page_respects_its_budget_and_its_codes_have_pages() {
     let page = json_stdout(&output);
     let content = page["content"].as_str().unwrap();
     assert!(
-        // LLP 1017 adds the complete-by-cap explanation beside the edit recipe.
-        content.len() <= 4_352,
+        // LLP 1017's reviewed complete-by-cap and offline edit recipes share this budget.
+        content.len() <= 4_864,
         "offline guide is {} bytes",
         content.len()
     );
     assert!(
-        content.contains("fetch `/api/program`,\nre-resume."),
-        "reset recovery must resume before replay"
+        content.contains("drop coverage, keep outbox, fetch program, re-resume"),
+        "reset recovery must preserve queued writes and resume before replay"
     );
     assert!(!content.contains("cold-drain"));
     for needle in [
@@ -507,7 +488,7 @@ fn offline_guide_page_respects_its_budget_and_its_codes_have_pages() {
         "replay",
         "conflict",
         "fenceDays",
-        "mutation edit(",
+        "recoverMutation(op, sameArgs, recovery)",
         "E_OFFLINE_RESET",
         "E_OFFLINE_RESUME",
         "E_OFFLINE_INTENT_EXPIRED",

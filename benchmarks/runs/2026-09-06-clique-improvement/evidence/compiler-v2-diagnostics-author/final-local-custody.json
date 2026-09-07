@@ -1,0 +1,26 @@
+{
+  "at": "2026-09-07T19:34:45.400555+00:00",
+  "commit": "b8f9cd6af15887b4cb4644bbb18a7a394730b5cf",
+  "parent": "44faf7bee1c70329e35b398749239ca31475495f",
+  "clean": true,
+  "sourceGitArchiveEquality": true,
+  "manifestEntries": 405,
+  "regularLeaves": 403,
+  "ownedCommittedPaths": {
+    "llp/1002-dev-loop.spec.md": "5ec371e722936603caf153d3ae55d56c71eced16c737bfb83ade83905dacc1f0",
+    "snapback2/packages/compiler/src/project-program.ts": "28a11fb8f7db8a40533104575648a4ebd77a869e15e26cdecc1baec0d4b912ce",
+    "snapback2/packages/compiler/src/project.ts": "8606243b10d3a0c6475a408469888241a7d9aa5e93d33d1fad3305a58593320f",
+    "snapback2/packages/compiler/src/quarry-diagnostic-checks.ts": "0f730ebd8374be948f84b40617b24abbf96ff5ec9efe889bbb9e12c95cf504bc",
+    "snapback2/packages/compiler/src/quarry-program-checks.ts": "e56e2b1592018cc59819e33d3ed912d846845819c605280753d7d9440bb6958b",
+    "snapback2/packages/compiler/src/quarry/index.ts": "5731382aeee9b61d41ffad70fe316c56eab4d5f5462e5ffb9d4598e1e5037817",
+    "snapback2/packages/compiler/src/quarry/program.ts": "48d04955efc259938b7a63b0de1e14290e0e2730275620983a54393ec945b03a",
+    "snapback2/packages/compiler/src/type-diagnostic-cause.ts": "3e170b16b5fece31f6341ca8c94d0302c59963b7e8949a607843cec204b7557e"
+  },
+  "preservedRefs": {
+    "s2/clique-compiler-r13-integration": "be0f895cba5d7becc8a8d3f676ced45b1fd2cc03",
+    "s2/clique-search-compiler": "ef88cac15a948418d1f6d620713065ab9b57e40f"
+  },
+  "refusedResultRecords": 58,
+  "artifactLeafLists": 72,
+  "qualifiedTypesAndControlsZero": true
+}
