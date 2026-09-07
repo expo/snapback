@@ -39,6 +39,18 @@ function valueIdentity(value: QueryMachineEvent<unknown>): string {
   });
 }
 
+function freezeTree<Value>(value: Value, seen = new WeakSet<object>()): Value {
+  if (typeof value !== "object" || value === null || seen.has(value)) return value;
+  seen.add(value);
+  for (const child of Object.values(value)) freezeTree(child, seen);
+  return Object.freeze(value);
+}
+
+/** One isolated, recursively immutable publication shared by every consumer. */
+function immutablePublication<Value>(value: Value): Value {
+  return freezeTree(structuredClone(value));
+}
+
 /** Isolate a deferred query from caller mutation after observe/subscribe returns. */
 export function bindQueryRequest<Args, Result>(ref: Op<Args, Result>, args: Args) {
   const op = referenceName(ref);
@@ -58,10 +70,12 @@ export function queryEntry<Result, Event extends QueryMachineEvent<Result>>(
   open: (fanout: (event: Event) => void) => Subscription<Event>,
   refresh?: (current: QueryView<Result>, authoritative?: Event) => Promise<Event | undefined>,
 ) {
+  const initial = immutablePublication(initialQueryState<Result>());
   return {
     key,
-    initial: initialQueryState<Result>(),
-    reduce: (current: QueryView<Result>, event: Event) => reduceQueryState(current, event),
+    initial,
+    publication: immutablePublication,
+    reduce: (current: QueryView<Result>, event: Event) => freezeTree(reduceQueryState(current, event)),
     open,
     ...(refresh === undefined ? {} : { refresh }),
   };

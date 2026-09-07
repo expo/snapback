@@ -44,6 +44,8 @@ interface Entry<Event, Snapshot> {
 interface EntrySpec<Event, Snapshot> {
   key: string;
   initial: Snapshot;
+  /** Isolate the event once before reduction, replay, callbacks, or waiters see it. */
+  publication?(event: Event): Event;
   reduce(current: Snapshot, event: Event): Snapshot;
   open(fanout: (event: Event) => void): Subscription<Event>;
   /** Reevaluate this query after a committed local input revision. */
@@ -82,6 +84,30 @@ function refusalEvent(event: unknown): SnapbackRefusal | undefined {
 export class SharedSubscriptions {
   private readonly entries = new Map<string, Entry<unknown, unknown>>();
 
+  private publish<Event, Snapshot>(
+    key: string, entry: Entry<Event, Snapshot>, spec: EntrySpec<Event, Snapshot>, event: Event, direct: boolean,
+  ): void {
+    const published = spec.publication?.(event) ?? event;
+    if (direct) {
+      entry.epoch += 1;
+      if (entry.refreshing) entry.refreshPending = true;
+      if ((published as { live?: unknown } | undefined)?.live === true) entry.authoritative = published;
+    }
+    entry.last = published;
+    const next = spec.reduce(entry.snapshot, published);
+    const changed = next !== entry.snapshot;
+    entry.snapshot = next;
+    if (direct || changed) for (const each of [...entry.attachments]) {
+      each.delivered = true;
+      try { each.listener(published); } catch { /* one consumer's throw cannot starve the others */ }
+      this.settle(each, published);
+    }
+    if (changed) for (const each of [...entry.observations]) {
+      try { each.notify(); } catch { /* a snapshot observer cannot starve its peers */ }
+    }
+    this.release(key, entry);
+  }
+
   private entry<Event, Snapshot>(spec: EntrySpec<Event, Snapshot>): Entry<Event, Snapshot> {
     let entry = this.entries.get(spec.key) as Entry<Event, Snapshot> | undefined;
     if (entry) return entry;
@@ -97,27 +123,7 @@ export class SharedSubscriptions {
       refreshing: false,
       underlying: undefined as unknown as Subscription<Event>,
     };
-    const publish = (event: Event, direct: boolean) => {
-      if (direct) {
-        created.epoch += 1;
-        if (created.refreshing) created.refreshPending = true;
-        if ((event as { live?: unknown } | undefined)?.live === true) created.authoritative = event;
-      }
-      created.last = event;
-      const next = spec.reduce(created.snapshot, event);
-      const changed = next !== created.snapshot;
-      created.snapshot = next;
-      if (direct || changed) for (const each of [...created.attachments]) {
-        each.delivered = true;
-        try { each.listener(event); } catch { /* one consumer's throw cannot starve the others */ }
-        this.settle(each, event);
-      }
-      if (changed) for (const each of [...created.observations]) {
-        try { each.notify(); } catch { /* a snapshot observer cannot starve its peers */ }
-      }
-      this.release(spec.key, created);
-    };
-    created.underlying = spec.open((event) => publish(event, true));
+    created.underlying = spec.open((event) => this.publish(spec.key, created, spec, event, true));
     // A program reset forgets predecessor evidence before the fresh stream
     // answers. Both raw late-subscriber replay and observed snapshots reset.
     const resettable = created.underlying as Subscription<Event> & { reset?(): void };
@@ -151,18 +157,7 @@ export class SharedSubscriptions {
       const epoch = entry.epoch;
       void spec.refresh!(entry.snapshot, entry.authoritative).then((event) => {
         if (event === undefined || epoch !== entry.epoch || this.entries.get(key) !== entry) return;
-        entry.last = event;
-        const next = spec.reduce(entry.snapshot, event);
-        if (next === entry.snapshot) return;
-        entry.snapshot = next;
-        for (const each of [...entry.attachments]) {
-          each.delivered = true;
-          try { each.listener(event); } catch { /* one consumer cannot block the revision */ }
-          this.settle(each, event);
-        }
-        for (const each of [...entry.observations]) {
-          try { each.notify(); } catch { /* a snapshot observer cannot starve its peers */ }
-        }
+        this.publish(key, entry, spec, event, false);
       }).catch(() => undefined).finally(() => {
         entry.refreshing = false;
         if (entry.refreshPending && this.entries.get(key) === entry) this.scheduleRefresh(key, entry, spec);

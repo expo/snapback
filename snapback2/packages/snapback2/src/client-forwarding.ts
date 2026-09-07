@@ -432,6 +432,12 @@ export class MutationForwarding {
         message: "the mutation recovery belongs to another account session or offline partition",
         site: "client.recoverMutation", rewrite: "recover only under the original account partition", guide: "offline" });
     }
+    // Discovery can outlive the prior attempt's answer or expiry. Re-read the
+    // lifecycle so a successor send installs a Pending the answer can settle.
+    pending = lifecycle.pending;
+    if (pending && (pending.command.payloadDigest !== digest || pending.command.expiresAt !== record.expiresAt)) {
+      throw new TypeError("mutation recovery request identity conflicts with an in-flight command");
+    }
     const command: ForwardingCommand = { ...record, op, args: boundArgs, recovery: recovery !== undefined };
     if (!pending) {
       const expiryTimer = setTimeout(() => {

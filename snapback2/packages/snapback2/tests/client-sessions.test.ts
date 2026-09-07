@@ -457,10 +457,20 @@ test("observed queries are lazy and share one snapshot and source with raw subsc
   assert.equal(counts.subscribes, 1);
   assert.equal(client.sharedConsumers(api.deliveries.thread, args), 2);
 
-  let raw: any;
-  const subscription = client.subscribe(api.deliveries.thread, args, (event) => { raw = event; });
+  const notifications = seen.length;
+  let raw: any, mutationBlocked = false;
+  const subscription = client.subscribe(api.deliveries.thread, args, (event) => {
+    raw = event;
+    try { (event as any).data[0].conversationId = "consumer mutation"; }
+    catch (error) { mutationBlocked = error instanceof TypeError; }
+  });
   await until(() => raw?.state === "complete", "the current raw delivery replay");
   assert.strictEqual(raw.data, (first.getSnapshot() as any).data, "raw and observed consumers share the current value");
+  assert.equal(mutationBlocked, true, "one raw consumer cannot mutate the shared publication");
+  assert.equal((second.getSnapshot() as any).data[0].conversationId, "conversation-1");
+  assert.ok(Object.isFrozen(second.getSnapshot()) && Object.isFrozen((second.getSnapshot() as any).data)
+    && Object.isFrozen((second.getSnapshot() as any).data[0]), "the whole public snapshot is frozen");
+  assert.equal(seen.length, notifications, "blocked consumer mutation publishes no phantom notification");
   assert.equal(counts.subscribes, 1, "the raw subscriber reused the observed source");
   assert.equal(client.sharedConsumers(api.deliveries.thread, args), 3);
 
@@ -669,8 +679,9 @@ test("forwarded mutation timeout, rediscovery and recovery preserve one request 
   const writer = new MutationForwarding({
     writer: () => context, status: async () => ready,
     async admit(command: any) {
-      if (command.recovery && command.expiresAt <= Date.now()) return undefined;
       let result = receipts.get(command.requestId);
+      if (result) return result;
+      if (command.recovery && command.expiresAt <= Date.now()) return undefined;
       if (!result) { creations += 1; result = { state: "queued", intent: `intent-${creations}`, ids: [`id-${creations}`] }; receipts.set(command.requestId, result); }
       return result;
     },
@@ -782,11 +793,11 @@ test("forwarded mutation timeout, rediscovery and recovery preserve one request 
     assert.equal((follower as any).commands.size, 64, "expiry cannot free the retained recovery's logical slot");
     await assert.rejects(follower.mutation("deliveries.post", { ...args, body: "overflow after expiry" }),
       (error: unknown) => isSnapbackRefusal(error) && error.code === "E_OFFLINE_FORWARDING_CAPACITY");
-    follower.stop();
-    assert.equal((await expiringRetry).state, "admission-unknown");
-    assert.ok((await Promise.allSettled(behind)).every(outcome => outcome.status === "rejected"
-      && isSnapbackRefusal(outcome.reason) && outcome.reason.code === "E_OFFLINE_FOLLOWER"));
-    assert.equal((follower as any).commands.size, 0);
+    dropAnswers = false; writer.writer(context);
+    assert.equal((await expiringRetry).state, "queued",
+      "successful rediscovery installs a current Pending after the predecessor expired");
+    assert.ok((await Promise.all(behind)).every(outcome => outcome.state === "queued"));
+    await until(() => (follower as any).commands.size === 0, "all acknowledged command ownership releasing");
   } finally {
     clearInterval(keepAlive);
     follower.stop(); writer.stop();

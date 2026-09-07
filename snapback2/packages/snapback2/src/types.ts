@@ -418,7 +418,7 @@ export type QueryViewState = QueryView<unknown>["state"];
 export type QueryHookResult<Result> = QueryView<Result> & { connection: ConnectionState };
 export type QueryMachineEvent<Result> = QueryResult<Result> | SubscriptionDelivery<Result>;
 export interface ObservedQuery<Result> {
-  /** Referentially stable until the shared query publishes a different view. */
+  /** Referentially stable and recursively frozen until the shared query publishes a different view. */
   getSnapshot(): QueryView<Result>;
   /** Observes snapshot identity changes; read the value with `getSnapshot()`. */
   subscribe(notify: () => void): () => void;
