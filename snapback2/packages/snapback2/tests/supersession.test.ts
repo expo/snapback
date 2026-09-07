@@ -789,7 +789,9 @@ test("reset clears a terminal subscription latch and cold-opens it again", async
     const refused = sub.until((e: any) => e.seq === 9, 1000);
     emit(f.streams[0], { state: "refused", code: "E_TERMINAL_TEST", family: "query", message: "stopped", guide: "queries" });
     await assert.rejects(refused, (e: any) => e.code === "E_TERMINAL_TEST");
-    await assert.rejects(sub.until(() => true), (e: any) => e.code === "E_TERMINAL_TEST");
+    const latched: any = await sub.until(() => true);
+    assert.equal(latched.state, "refused");
+    assert.equal(latched.code, "E_TERMINAL_TEST", "the shared query retains a non-auth refusal for explicit inspection");
     sub.reset();
     await eventually(() => f.streams.length === 2);
     assert.equal(f.streams[1].headers.get("Last-Event-ID"), null);
