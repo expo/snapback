@@ -1,0 +1,28 @@
+{
+  "source": {
+    "version": "0.0.14",
+    "commit": "0fdcc846bc7451bbcb1804194b49737418954506",
+    "parent": "d92f3a671e33710c28bf5b44e5a8556fa59e8e46",
+    "tree": "0fea68076d38da9744f32a54d89638f728efe4b8",
+    "snapback2Tree": "b7d9fb164362aa9b951a86c41406258f878099c1",
+    "branch": "s2/clique-release-014",
+    "status": "",
+    "changed_paths": [
+      "snapback2/Cargo.lock",
+      "snapback2/Cargo.toml",
+      "snapback2/bun.lock",
+      "snapback2/packages/snapback2/package.json"
+    ],
+    "mainPushByWriter": false
+  },
+  "final_correspondence": "source-correspondence-final.json",
+  "source_manifest_sha256": "400d0e34891a420b61fd8acdf242028bd918d6a04ef4cb7bb123d41f169560af",
+  "source_archive": {
+    "commit": "0fdcc846bc7451bbcb1804194b49737418954506",
+    "path": "/Users/ccheever/clique-improvement/revisions/release-preparation-014/source.tar",
+    "sha256": "eab3ded568147118c616da6b2e47a981c06e7e272059b77499aa546d0f0384b7",
+    "leaves": 938
+  },
+  "only_new_commit_delta": "exactly four standard version files,11tokens0.0.13\u21920.0.14",
+  "source_vs_publication": "local committed source, parent owns main landing; no writer push; npm qualification failed and no publication occurred"
+}

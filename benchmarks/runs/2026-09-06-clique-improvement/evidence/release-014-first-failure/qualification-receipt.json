@@ -1,0 +1,35 @@
+{
+  "status": "FAILED_FIRST_ATTEMPT",
+  "qualified": false,
+  "source": "0fdcc846bc7451bbcb1804194b49737418954506",
+  "version": "0.0.14",
+  "command": [
+    "node",
+    "scripts/publish.mjs",
+    "--dry-run"
+  ],
+  "exitCode": 1,
+  "elapsedSeconds": 698.7994984999999,
+  "outer_timeout_reached": false,
+  "original_bounds": {
+    "consumerStepMs": 30000,
+    "consumerFetchMs": 15000,
+    "consumerRetries": 0,
+    "publisherCommandTimeout": null
+  },
+  "media_cli": {
+    "passed": 4,
+    "skipped": 0
+  },
+  "production_build_and_pack": "completed normal full media+vanilla-Hermes path, package snapshot doctor/staged checks; original pair captured",
+  "standard_consumer": "FAIL chat test30s; other emitted entries passed including both stops",
+  "dry_publish_calls": 0,
+  "actual_npm_publish_calls": 0,
+  "fresh_installed_Expo_and_runtime_guide_verification": "NOT RUN because standard qualification failed",
+  "resume_template": "NOT CREATED",
+  "first_failure_controlling": true,
+  "retries": 0,
+  "source_correction": "none",
+  "further_qualification": "await parent disposition; no automatic retry",
+  "limits_unchanged": true
+}

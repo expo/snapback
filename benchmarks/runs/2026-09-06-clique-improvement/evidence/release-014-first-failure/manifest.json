@@ -1,0 +1,85 @@
+{
+  "scope": "Fixed completed report/identity/terminal/source/outcome evidence only; no tarballs, mutable logs, secret files or current product source copied",
+  "files": {
+    "implementation-report.md": {
+      "bytes": 13482,
+      "sha256": "96523aef72ada5b02e2dc842afecbcbe1c9b03a53c2d735bf61ac4268a7fe145",
+      "original": "/Users/ccheever/clique-improvement/revisions/release-preparation-014/implementation-report.md"
+    },
+    "actual-identity.json": {
+      "bytes": 486,
+      "sha256": "96e4a0244448792f4c2a9e06771d4a9a5a470287289df5456c1f3e664e00f61f",
+      "original": "/Users/ccheever/clique-improvement/revisions/release-preparation-014/actual-identity.json"
+    },
+    "launch.json": {
+      "bytes": 651,
+      "sha256": "7382ed90b06bf7cb6c419965103865c184d888d46ba76072ed982945d6a3e535",
+      "original": "/Users/ccheever/clique-improvement/revisions/release-preparation-014/launch.json"
+    },
+    "terminal.json": {
+      "bytes": 111,
+      "sha256": "ebad1d1523843e0485cf0b3d581c8db69e88dd3fddb3834f4a027da82c4a8150",
+      "original": "/Users/ccheever/clique-improvement/revisions/release-preparation-014/terminal.json"
+    },
+    "phase.json": {
+      "bytes": 1463,
+      "sha256": "0a0e07d7084f82a17b4af179b62361223aecc6ce76099ede12bb99276d9ea011",
+      "original": "/Users/ccheever/clique-improvement/revisions/release-preparation-014/phase.json"
+    },
+    "source-receipt.json": {
+      "bytes": 1219,
+      "sha256": "21e559834d94531b2ec9a9bfa7c2332d8b6385b86b92dedda37a2e84e46d6092",
+      "original": "/Users/ccheever/clique-improvement/revisions/release-preparation-014/source-receipt.json"
+    },
+    "source-correspondence-final.json": {
+      "bytes": 793,
+      "sha256": "82924c4f45a3b846931788864a2425c4792ac0df01e0e3283901185e226c50c3",
+      "original": "/Users/ccheever/clique-improvement/revisions/release-preparation-014/source-correspondence-final.json"
+    },
+    "qualification-receipt.json": {
+      "bytes": 1138,
+      "sha256": "de8220fc7f41b112c3a2c0067c8169772bbe1addca1f1083a5a08dc0227e1601",
+      "original": "/Users/ccheever/clique-improvement/revisions/release-preparation-014/qualification-receipt.json"
+    },
+    "artifact-receipt.json": {
+      "bytes": 1934,
+      "sha256": "c02549c4eb55769de69acbc38575ff6b11af6d6913a949865c3a0f413ea1265b",
+      "original": "/Users/ccheever/clique-improvement/revisions/release-preparation-014/artifact-receipt.json"
+    },
+    "standard-installed-react-consumer.json": {
+      "bytes": 2266,
+      "sha256": "441083d32ab1f5b2e14030afefe4706ec077b6d1c9d294190d82fab112c31fd1",
+      "original": "/Users/ccheever/clique-improvement/revisions/release-preparation-014/standard-installed-react-consumer.json"
+    },
+    "installed-test-receipts.json": {
+      "bytes": 660,
+      "sha256": "25839948d3d033ac212022ece9c88ee3a0f82579f0506933d158789db911197f",
+      "original": "/Users/ccheever/clique-improvement/revisions/release-preparation-014/installed-test-receipts.json"
+    },
+    "metric-custody.json": {
+      "bytes": 551,
+      "sha256": "cb76993de2bda52c20d0bddee33dbea48b0f9d6cc3b1c0b3e9482dc38d547602",
+      "original": "/Users/ccheever/clique-improvement/revisions/release-preparation-014/metric-custody.json"
+    },
+    "cleanup-final.json": {
+      "bytes": 7906,
+      "sha256": "da25a6c4b97f6a2471ffa1ef73b010595fd8a23169755228a6568be600b51e91",
+      "original": "/Users/ccheever/clique-improvement/revisions/release-preparation-014/cleanup-final.json"
+    },
+    "first-failures.json": {
+      "bytes": 1023,
+      "sha256": "88a868f744f6731d59e7b241fa4769e68884b774f7c7eda59b2cc3567f468e0f",
+      "original": "/Users/ccheever/clique-improvement/revisions/release-preparation-014/first-failures.json"
+    },
+    "packed-guide-custody.json": {
+      "bytes": 566,
+      "sha256": "359788e2e112bb6a5ed35760797e757fc727a3f8fa5129ec55b444d927eb0087",
+      "original": "/Users/ccheever/clique-improvement/revisions/release-preparation-014/packed-guide-custody.json"
+    },
+    "supervisor-final-handoff.json": {
+      "bytes": 531,
+      "sha256": "8f58832cd6e39ce5e73b64834a20f673f6ad2aad7b656635d5236b70aae90ba2",
+      "original": "/Users/ccheever/clique-improvement/revisions/release-preparation-014/supervisor-final-handoff.json"
+    }
+  }
+}

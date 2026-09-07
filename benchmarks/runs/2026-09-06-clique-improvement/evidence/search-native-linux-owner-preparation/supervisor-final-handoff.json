@@ -1,0 +1,16 @@
+{
+  "atEpoch": 1788747628.6143339,
+  "reportFullyRead": true,
+  "reportSha256": "404007e1b22c46228997eb14e5614f558680d4bc75174a2bf901e0b524db399a",
+  "evidenceManifestSha256": "5d2d69fa42618aadf6849b3e6c2aa51b6c0a71f80d97bec36d862c273ef46aa2",
+  "filesVerified": 1110,
+  "bytesVerified": 244265317,
+  "allLeavesMatch": true,
+  "writer57461Absent": true,
+  "actualCliExitCode": 0,
+  "actualCliElapsedSeconds": 1213.5061979293823,
+  "buildAttempts": 1,
+  "buildExitCode": 0,
+  "checkPrograms": 23,
+  "noServerOrPopulation": true
+}

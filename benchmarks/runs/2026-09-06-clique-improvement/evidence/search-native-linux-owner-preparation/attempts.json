@@ -1,0 +1,55 @@
+{
+  "buildAttempts": [
+    {
+      "attempt": 0,
+      "exitCode": 0,
+      "seconds": 56.64033484458923,
+      "timeoutSeconds": 1800,
+      "retries": 0
+    }
+  ],
+  "checkAttempts": [
+    {
+      "programs": 23,
+      "exitCode": 0,
+      "seconds": 0.28272533416748047,
+      "timeoutSeconds": 30,
+      "retries": 0
+    }
+  ],
+  "preparationFailures": [
+    {
+      "stage": "local extraction after exact Git blob verification",
+      "failure": "Python3.9 TypeError: extractall() got an unexpected keyword argument 'filter'",
+      "retained": "stage_source.first.py, local-staging-failure.json, complete-source.tar",
+      "correction": "explicit archive path/type/symlink checks on same retained archive; no source edit"
+    },
+    {
+      "stage": "local retained-input bundle assembly",
+      "failure": "relative Path dot parent resolved to dot, so search-native-scale-checkpoint/prepared/project.json was absent at guessed path",
+      "retained": "input-transport-failure.json",
+      "correction": "absolute evidence root; same original inputs copied"
+    },
+    {
+      "stage": "upload command preparation",
+      "failure": "upload.tar.gz absent after local assembly failure; SSH upload did not start",
+      "retained": "input-transport-failure.json",
+      "correction": "assemble complete bundle before upload"
+    },
+    {
+      "stage": "remote staging01",
+      "failure": "upload.tar.gz absent; exit1 before extraction/source creation",
+      "retained": "staging.json, staging.stderr, remote-results/staging.launch.json",
+      "correction": "single successful upload; distinct staging02 markers; all958Git blobs then verified"
+    }
+  ],
+  "readOnlyDiscoveryErrors": [
+    "initial broad AGENTS discovery emitted interrupted-system-call paths as head closed pipe",
+    "unmatched optional /Users/ccheever/src/snapback glob",
+    "attempted exact-source read before extraction completed",
+    "guessed checkpoint/workload-plan.md absent; used original/workload-plan.md",
+    "guessed fixture/media-gen.mjs absent; used fixture/media/media-gen.mjs"
+  ],
+  "noneWereProductBuildRetries": true,
+  "noSourcePatchNoLockChangeNoFlagSimplification": true
+}

@@ -1,0 +1,26 @@
+{
+  "ownedIdentities": [
+    {
+      "pid": 3564510,
+      "expectedStartTicks": "110351627",
+      "absent": true,
+      "originalProcessRunning": false
+    },
+    {
+      "pid": 3564511,
+      "expectedStartTicks": "110351643",
+      "absent": true,
+      "originalProcessRunning": false
+    },
+    {
+      "pid": 3564518,
+      "expectedStartTicks": "110351672",
+      "absent": true,
+      "originalProcessRunning": false
+    }
+  ],
+  "signalsByOuter": [],
+  "originalSupervisorStoppedFlag": false,
+  "twinNeverLaunched": true,
+  "laterCarrierArmsNeverLaunched": true
+}

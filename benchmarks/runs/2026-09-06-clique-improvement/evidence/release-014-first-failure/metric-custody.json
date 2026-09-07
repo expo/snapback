@@ -1,0 +1,11 @@
+{
+  "before_rows": 219,
+  "after_rows": 219,
+  "before_sha256": "767df97a4d74b9b954bb9434120da61c08a98a739e1913d1149a534792ffcf8a",
+  "after_sha256": "767df97a4d74b9b954bb9434120da61c08a98a739e1913d1149a534792ffcf8a",
+  "all_prior_rows_and_multiplicity_preserved_byte_exact": true,
+  "producer_row_appended": false,
+  "why": "unchanged publisher throws at consumer failure before metric append",
+  "own_measurement_preserved_in": "receipts/production-dry-run.json (698.7994985s exit1) and original full log",
+  "metric_restoration_performed": false
+}

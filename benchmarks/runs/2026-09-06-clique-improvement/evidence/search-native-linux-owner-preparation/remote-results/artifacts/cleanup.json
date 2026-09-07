@@ -1,0 +1,54 @@
+{
+  "at": 1788747118.1930687,
+  "observations": [
+    {
+      "pid": 3565560,
+      "recordedStartTicks": "110567140",
+      "currentStartTicks": null,
+      "sameProcessStillPresent": false
+    },
+    {
+      "pid": 3565581,
+      "recordedStartTicks": "110567146",
+      "currentStartTicks": null,
+      "sameProcessStillPresent": false
+    },
+    {
+      "pid": 3565582,
+      "recordedStartTicks": "110567146",
+      "currentStartTicks": null,
+      "sameProcessStillPresent": false
+    },
+    {
+      "pid": 3565583,
+      "recordedStartTicks": "110567146",
+      "currentStartTicks": null,
+      "sameProcessStillPresent": false
+    },
+    {
+      "pid": 3565586,
+      "recordedStartTicks": "110568990",
+      "currentStartTicks": null,
+      "sameProcessStillPresent": false
+    },
+    {
+      "pid": 3565559,
+      "recordedStartTicks": "110567122",
+      "currentStartTicks": null,
+      "sameProcessStillPresent": false
+    },
+    {
+      "pid": 3568403,
+      "recordedStartTicks": "110592794",
+      "currentStartTicks": null,
+      "sameProcessStillPresent": false
+    }
+  ],
+  "signalsSent": false,
+  "deletedPaths": [],
+  "sourceUnchanged": true,
+  "originalInputsUnchanged": true,
+  "retainedRoot": "/home/ccheever/clique-tooling/search-native-linux-26c9-20260907T0203Z-01a07995",
+  "noSharedDirectoriesModified": true,
+  "note": "direct Cargo/controller/check processes and observed descendants exited naturally; 0.1s build sampler observed five identities via main-thread child lists, not exhaustive compiler-process metrology"
+}

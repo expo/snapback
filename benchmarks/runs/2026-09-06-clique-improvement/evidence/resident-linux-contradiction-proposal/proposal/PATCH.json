@@ -1,0 +1,41 @@
+{
+  "status": "PROPOSED_NOT_POPULATED",
+  "baseLinuxManifestSha256": "e1fd840712da9c00cdeeb952e2364b119107a88133b18edc3bb1379638339087",
+  "path": "fixtures/ordinary/controls.json",
+  "original": {
+    "bytes": 141482,
+    "sha256": "ebe54ec7f3d03050648dd20c1d95f9d4f1d3e06c1b248b55aa7b06e8d53b3e42"
+  },
+  "candidate": {
+    "bytes": 141517,
+    "sha256": "e17fee7642385e5e540869aedcdefdb14e5b54c9a717e21b4b1f4ef2d0dfc409"
+  },
+  "editsAgainstOriginalBytes": [
+    {
+      "originalOffset": 34525,
+      "removeUtf8": "\"planHash\":\"d30cbb0c35529e069fb41d5afacfd8b07235c09d3b2ee3bf582866c4e9854aab\"",
+      "insertUtf8": "\"planHash\":\"50e29e7800834c2030614b21a6db996c9b018ac7266b0303a2e211492dc15533\"",
+      "reason": "Bind existing timed program certificate"
+    },
+    {
+      "originalOffset": 34616,
+      "removeUtf8": "\"receipt\":",
+      "insertUtf8": "\"readTime\":2000000000000,\"receipt\":",
+      "reason": "Aligned earlier certified execution clock; same durable seq11"
+    },
+    {
+      "originalOffset": 35140,
+      "removeUtf8": "\"site\":\"resident.page.0\"",
+      "insertUtf8": "\"site\":\"resident.timedPage.0\"",
+      "reason": "Bind receipt to the existing timed Scan site"
+    },
+    {
+      "originalOffset": 38459,
+      "removeUtf8": "\"op\":\"resident.page\"",
+      "insertUtf8": "\"op\":\"resident.timedPage\"",
+      "reason": "Use existing certified timed owner; leave ordinary owner at seq10"
+    }
+  ],
+  "unchanged": "All other original execution bytes; all negative frames, rows/pages/programs/contracts, worker/support/supervisor/comparator, limits; media/Unicode fixtures unchanged",
+  "notACompleteRuntimePacket": true
+}

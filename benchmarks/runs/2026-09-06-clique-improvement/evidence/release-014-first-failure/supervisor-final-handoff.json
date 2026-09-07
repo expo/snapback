@@ -1,0 +1,15 @@
+{
+  "atEpoch": 1788746419.2048352,
+  "reportFullyRead": true,
+  "reportSha256": "96523aef72ada5b02e2dc842afecbcbe1c9b03a53c2d735bf61ac4268a7fe145",
+  "evidenceManifestSha256": "a838f022f7c5e2844969c0839b2fdc8f21d719c4b6997fe5bb23f664b9a64c1f",
+  "evidenceLeavesVerified": 82,
+  "writerActualExitCode": 0,
+  "writerElapsedSeconds": 1606.6047122478485,
+  "writerPid77089Absent": true,
+  "sourceCleanExact0fd": true,
+  "publisherActualExitCode": 1,
+  "qualified": false,
+  "retryAuthorized": false,
+  "publicationAuthorized": false
+}

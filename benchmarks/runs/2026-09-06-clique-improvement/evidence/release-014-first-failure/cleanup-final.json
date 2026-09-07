@@ -1,0 +1,492 @@
+{
+  "at_epoch": 1788746103.234367,
+  "recorded_pids": [
+    {
+      "pid": 442,
+      "present": false
+    },
+    {
+      "pid": 480,
+      "present": false
+    },
+    {
+      "pid": 492,
+      "present": false
+    },
+    {
+      "pid": 500,
+      "present": false
+    },
+    {
+      "pid": 516,
+      "present": false
+    },
+    {
+      "pid": 1482,
+      "present": false
+    },
+    {
+      "pid": 5298,
+      "present": false
+    },
+    {
+      "pid": 5329,
+      "present": false
+    },
+    {
+      "pid": 5362,
+      "present": false
+    },
+    {
+      "pid": 5383,
+      "present": false
+    },
+    {
+      "pid": 5620,
+      "present": false
+    },
+    {
+      "pid": 6395,
+      "present": false
+    },
+    {
+      "pid": 17157,
+      "present": false
+    },
+    {
+      "pid": 17180,
+      "present": false
+    },
+    {
+      "pid": 17460,
+      "present": false
+    },
+    {
+      "pid": 17787,
+      "present": false
+    },
+    {
+      "pid": 19056,
+      "present": false
+    },
+    {
+      "pid": 19146,
+      "present": false
+    },
+    {
+      "pid": 19190,
+      "present": false
+    },
+    {
+      "pid": 19191,
+      "present": false
+    },
+    {
+      "pid": 19440,
+      "present": false
+    },
+    {
+      "pid": 19453,
+      "present": false
+    },
+    {
+      "pid": 19454,
+      "present": false
+    },
+    {
+      "pid": 19673,
+      "present": false
+    },
+    {
+      "pid": 19679,
+      "present": false
+    },
+    {
+      "pid": 19681,
+      "present": false
+    },
+    {
+      "pid": 19906,
+      "present": false
+    },
+    {
+      "pid": 19911,
+      "present": false
+    },
+    {
+      "pid": 19985,
+      "present": false
+    },
+    {
+      "pid": 19988,
+      "present": false
+    },
+    {
+      "pid": 20011,
+      "present": false
+    },
+    {
+      "pid": 20067,
+      "present": false
+    },
+    {
+      "pid": 20070,
+      "present": false
+    },
+    {
+      "pid": 20093,
+      "present": false
+    },
+    {
+      "pid": 20158,
+      "present": false
+    },
+    {
+      "pid": 20241,
+      "present": false
+    },
+    {
+      "pid": 20366,
+      "present": false
+    },
+    {
+      "pid": 20369,
+      "present": false
+    },
+    {
+      "pid": 20371,
+      "present": false
+    },
+    {
+      "pid": 20398,
+      "present": false
+    },
+    {
+      "pid": 20428,
+      "present": false
+    },
+    {
+      "pid": 20443,
+      "present": false
+    },
+    {
+      "pid": 20445,
+      "present": false
+    },
+    {
+      "pid": 20469,
+      "present": false
+    },
+    {
+      "pid": 20548,
+      "present": false
+    },
+    {
+      "pid": 20572,
+      "present": false
+    },
+    {
+      "pid": 20747,
+      "present": false
+    },
+    {
+      "pid": 20756,
+      "present": false
+    },
+    {
+      "pid": 20780,
+      "present": false
+    },
+    {
+      "pid": 20923,
+      "present": false
+    },
+    {
+      "pid": 20929,
+      "present": false
+    },
+    {
+      "pid": 20951,
+      "present": false
+    },
+    {
+      "pid": 21084,
+      "present": false
+    },
+    {
+      "pid": 21101,
+      "present": false
+    },
+    {
+      "pid": 21186,
+      "present": false
+    },
+    {
+      "pid": 21191,
+      "present": false
+    },
+    {
+      "pid": 21192,
+      "present": false
+    },
+    {
+      "pid": 21218,
+      "present": false
+    },
+    {
+      "pid": 21354,
+      "present": false
+    },
+    {
+      "pid": 21357,
+      "present": false
+    },
+    {
+      "pid": 21387,
+      "present": false
+    },
+    {
+      "pid": 21493,
+      "present": false
+    },
+    {
+      "pid": 21519,
+      "present": false
+    },
+    {
+      "pid": 22658,
+      "present": false
+    },
+    {
+      "pid": 22987,
+      "present": false
+    },
+    {
+      "pid": 23194,
+      "present": false
+    },
+    {
+      "pid": 23498,
+      "present": false
+    },
+    {
+      "pid": 23953,
+      "present": false
+    },
+    {
+      "pid": 35703,
+      "present": false
+    },
+    {
+      "pid": 35736,
+      "present": false
+    },
+    {
+      "pid": 79029,
+      "present": false
+    },
+    {
+      "pid": 79034,
+      "present": false
+    },
+    {
+      "pid": 79452,
+      "present": false
+    },
+    {
+      "pid": 79453,
+      "present": false
+    },
+    {
+      "pid": 79460,
+      "present": false
+    },
+    {
+      "pid": 79461,
+      "present": false
+    },
+    {
+      "pid": 87561,
+      "present": false
+    },
+    {
+      "pid": 87600,
+      "present": false
+    },
+    {
+      "pid": 92910,
+      "present": false
+    },
+    {
+      "pid": 92952,
+      "present": false
+    },
+    {
+      "pid": 95192,
+      "present": false
+    },
+    {
+      "pid": 95221,
+      "present": false
+    },
+    {
+      "pid": 95275,
+      "present": false
+    },
+    {
+      "pid": 95299,
+      "present": false
+    },
+    {
+      "pid": 98321,
+      "present": false
+    },
+    {
+      "pid": 98322,
+      "present": false
+    },
+    {
+      "pid": 98338,
+      "present": false
+    },
+    {
+      "pid": 98339,
+      "present": false
+    },
+    {
+      "pid": 99073,
+      "present": false
+    },
+    {
+      "pid": 99074,
+      "present": false
+    },
+    {
+      "pid": 99091,
+      "present": false
+    },
+    {
+      "pid": 99093,
+      "present": false
+    },
+    {
+      "pid": 99100,
+      "present": false
+    },
+    {
+      "pid": 99105,
+      "present": false
+    },
+    {
+      "pid": 99199,
+      "present": false
+    },
+    {
+      "pid": 99212,
+      "present": false
+    },
+    {
+      "pid": 99239,
+      "present": false
+    },
+    {
+      "pid": 99246,
+      "present": false
+    },
+    {
+      "pid": 99254,
+      "present": false
+    },
+    {
+      "pid": 99260,
+      "present": false
+    },
+    {
+      "pid": 99261,
+      "present": false
+    },
+    {
+      "pid": 99341,
+      "present": false
+    },
+    {
+      "pid": 99342,
+      "present": false
+    },
+    {
+      "pid": 99359,
+      "present": false
+    },
+    {
+      "pid": 99360,
+      "present": false
+    },
+    {
+      "pid": 99361,
+      "present": false
+    },
+    {
+      "pid": 99362,
+      "present": false
+    },
+    {
+      "pid": 99399,
+      "present": false
+    },
+    {
+      "pid": 99407,
+      "present": false
+    }
+  ],
+  "all_recorded_work_pids_absent": true,
+  "owners": [
+    {
+      "pid": 20371,
+      "port": 50119,
+      "url": "http://127.0.0.1:50119",
+      "project": "/Users/ccheever/clique-improvement/revisions/release-preparation-014/tmp/snapback2-consumer-OzNNLA/todos",
+      "startedAt": 1788745840061,
+      "mode": "dev"
+    },
+    {
+      "pid": 21192,
+      "port": 50191,
+      "url": "http://127.0.0.1:50191",
+      "project": "/Users/ccheever/clique-improvement/revisions/release-preparation-014/tmp/snapback2-consumer-OzNNLA/chat",
+      "startedAt": 1788745861633,
+      "mode": "dev"
+    }
+  ],
+  "original_stop_checks": [
+    {
+      "name": "todos stop",
+      "seconds": 0.26218733300000896,
+      "ok": true
+    },
+    {
+      "name": "chat stop",
+      "seconds": 0.38130220800009557,
+      "ok": true
+    }
+  ],
+  "private_tmp_remaining": [
+    "/Users/ccheever/clique-improvement/revisions/release-preparation-014/tmp/node-compile-cache"
+  ],
+  "new_version_staging_remaining": [],
+  "signals_by_driver": [],
+  "consumer_timeout_cleanup": "Unchanged consumer-smoke kills its recorded command group on ETIMEDOUT and normally stops both detached owners; both stops passed.",
+  "scope": "only registered launches/descendants/private temp paths; sampling may miss short-lived processes; no unrelated process scan or stop",
+  "remote_or_EPYC_actions": false,
+  "launcher_terminal": "parent launch.py writes real terminal.json after CLI return",
+  "initial_observation": "cleanup-receipt.json included its own two active audit processes; all publisher/consumer/observer processes were already absent",
+  "after_audit_terminal": [
+    {
+      "pid": 35703,
+      "now_absent": true
+    },
+    {
+      "pid": 35736,
+      "now_absent": true
+    }
+  ]
+}

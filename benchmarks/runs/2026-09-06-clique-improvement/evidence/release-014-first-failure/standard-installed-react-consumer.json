@@ -1,0 +1,105 @@
+{
+  "status": "FAIL",
+  "source_commit": "0fdcc846bc7451bbcb1804194b49737418954506",
+  "original_results": {
+    "steps": [
+      {
+        "name": "install tarballs",
+        "seconds": 16.25308491700003,
+        "ok": true
+      },
+      {
+        "name": "doctor",
+        "seconds": 1.3062428749999964,
+        "ok": true
+      },
+      {
+        "name": "guide auth",
+        "seconds": 0.20805391700007023,
+        "ok": true
+      },
+      {
+        "name": "public client and React exports",
+        "seconds": 0.3597704999999842,
+        "ok": true
+      },
+      {
+        "name": "todos init",
+        "seconds": 5.458500291000004,
+        "ok": true
+      },
+      {
+        "name": "todos check",
+        "seconds": 6.0642180839999344,
+        "ok": true
+      },
+      {
+        "name": "todos React bundle",
+        "seconds": 8.00327983299992,
+        "ok": true
+      },
+      {
+        "name": "todos dev",
+        "seconds": 1.8558889590000036,
+        "ok": true
+      },
+      {
+        "name": "React live query round trip",
+        "seconds": 0.5895998329999856,
+        "ok": true
+      },
+      {
+        "name": "todos receipt",
+        "accepted": true,
+        "verdict": "pass"
+      },
+      {
+        "name": "todos test",
+        "seconds": 4.451010917000007,
+        "ok": true
+      },
+      {
+        "name": "todos stop",
+        "seconds": 0.26218733300000896,
+        "ok": true
+      },
+      {
+        "name": "chat init",
+        "seconds": 5.572736791000003,
+        "ok": true
+      },
+      {
+        "name": "chat check",
+        "seconds": 5.500827750000055,
+        "ok": true
+      },
+      {
+        "name": "chat React bundle",
+        "seconds": 3.4121784159999806,
+        "ok": true
+      },
+      {
+        "name": "chat dev",
+        "seconds": 3.2431785829999717,
+        "ok": true
+      },
+      {
+        "name": "chat test",
+        "seconds": 30.007804792000098,
+        "ok": false
+      },
+      {
+        "name": "chat stop",
+        "seconds": 0.38130220800009557,
+        "ok": true
+      }
+    ]
+  },
+  "failure": {
+    "name": "chat test",
+    "seconds": 30.007804792000098,
+    "ok": false
+  },
+  "chat_receipt": "not emitted: spawnSync timed out before acceptance callback",
+  "no_retry": true
+}

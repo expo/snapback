@@ -1,0 +1,28 @@
+{
+  "controlling": {
+    "stage": "standard installed chat test",
+    "exitCode": 1,
+    "elapsedSeconds": 698.7994984999999,
+    "originalConsumerTimeoutMs": 30000,
+    "observedChatSeconds": 30.007804792000098,
+    "error": "spawnSync node ETIMEDOUT",
+    "log": "receipts/production-dry-run.log",
+    "logSha256": "647f13be8a9d7fb6435afcb9a722e12b593ae83e33ac1e6455c72c9d4be5adea",
+    "startLoad": [
+      7.84619140625,
+      10.85546875,
+      21.20751953125
+    ],
+    "endLoad": [
+      58.2021484375,
+      40.89404296875,
+      30.18212890625
+    ],
+    "causation": "high load observed; causal attribution not proven",
+    "automaticRetries": 0
+  },
+  "external_preflight": "metadata-tooling-first-failure.json; missing tomllib before any writes",
+  "external_cleanup_audit": "cleanup-observer-first-failure.json; counted itself while active; both now terminal and absent",
+  "expected_negative_controls": "two npm wrapper guard refusals97",
+  "prior_failures": "retained unchanged in012/013 reports/receipts"
+}

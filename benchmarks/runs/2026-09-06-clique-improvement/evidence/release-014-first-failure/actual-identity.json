@@ -1,0 +1,11 @@
+{
+  "at": "2026-09-07T01:33:01.535510+00:00",
+  "uuid": "01a0781c-e0ea-7ee0-8bf7-238be0c48fa9",
+  "path": "/Users/ccheever/.codex/sessions/2026/09/06/rollout-2026-09-06T12-05-53-01a0781c-e0ea-7ee0-8bf7-238be0c48fa9.jsonl",
+  "line": 2508,
+  "timestamp": "2026-09-07T01:32:00.957Z",
+  "model": "gpt-6-astra",
+  "effort": "xhigh",
+  "cwd": "/Users/ccheever/projects/snapback-worktrees/clique-release-next",
+  "sha256": "838230480d90d54c23dd7cd84462e489a30f9f5ac9ffa3a4e107d35ae99bcf5f"
+}

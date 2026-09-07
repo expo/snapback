@@ -1,0 +1,275 @@
+{
+  "scope": "Read-only exact-source and historical-artifact media mapping clarification; no media build/helper execution/harness edit",
+  "preparedHelper": {
+    "preparedPath": "/Users/ccheever/clique-improvement/revisions/search-native-scale-checkpoint/prepared/snapback2-media",
+    "sha256": "4a37bdad6db56230438bf8c033da3e7e36e0b5e35dc70f2e058fb465a0547cbc",
+    "commands": {
+      "file": {
+        "argv": [
+          "file",
+          "/Users/ccheever/clique-improvement/revisions/search-native-scale-checkpoint/prepared/snapback2-media"
+        ],
+        "exitCode": 0,
+        "timeoutSeconds": 30,
+        "stdoutSha256": "8971e0766123168933c132c993e7fb939c9a1f40b3059854d145886f96ed87e0"
+      },
+      "otool": {
+        "argv": [
+          "otool",
+          "-L",
+          "/Users/ccheever/clique-improvement/revisions/search-native-scale-checkpoint/prepared/snapback2-media"
+        ],
+        "exitCode": 0,
+        "timeoutSeconds": 30,
+        "stdoutSha256": "97238ee7dd92e71b3650907ef1bf5121068d6cf425e934a3e9b904238c2a2e61"
+      },
+      "nm": {
+        "argv": [
+          "nm",
+          "/Users/ccheever/clique-improvement/revisions/search-native-scale-checkpoint/prepared/snapback2-media"
+        ],
+        "exitCode": 0,
+        "timeoutSeconds": 30,
+        "stdoutSha256": "57f761aa54166caa81a2d34491d6ddfdd5fa0a848dd6361639bd48a5ea42d85e"
+      }
+    },
+    "sourceBindingRecorded": {
+      "source": "/Users/ccheever/projects/snapback-worktrees/clique-search-engine/snapback2/target/debug/snapback2-media",
+      "sha256": "4a37bdad6db56230438bf8c033da3e7e36e0b5e35dc70f2e058fb465a0547cbc"
+    },
+    "recordedSourceTargetResolved": "/Users/ccheever/projects/snapback-worktrees/clique-search-engine/snapback2/target/debug",
+    "currentTargetBinaryExists": false,
+    "targetFingerprints": {}
+  },
+  "exact26c9MediaSources": {
+    "snapback2/crates/snapback2-media/Cargo.toml": {
+      "bytes": 741,
+      "gitBlob": "05c1c185d3c47fb8b61e6baee2c87b4f3b8b75c6",
+      "mode": "100644",
+      "sha256": "5f1f262f791d6c94b0198ad444a09e3d66b0a2f603aff14808e1392386556c58"
+    },
+    "snapback2/crates/snapback2-media/src/main.rs": {
+      "bytes": 728,
+      "gitBlob": "f4ccc5825375e7ebfc52bd20a5f5964684ffd9a6",
+      "mode": "100644",
+      "sha256": "f9dccdf4ea4982b6a46178ce94a8e2d6636ec3372c35e2fe49565efaec3a96d7"
+    },
+    "snapback2/crates/snapback2-media/src/media.rs": {
+      "bytes": 46970,
+      "gitBlob": "3d6231dcb1bd377b507a4ed3a06519a4bdf693a3",
+      "mode": "100644",
+      "sha256": "e2714b3b9d7bd6cfd24b85d830d94c8390980119e57df9f15855aa5999cb0c2d"
+    },
+    "snapback2/crates/snapback2-media/src/media/tests.rs": {
+      "bytes": 20685,
+      "gitBlob": "c29cb3c18960a17bd8edc83ed755c565b3617f94",
+      "mode": "100644",
+      "sha256": "c379f39e63b5755358ca9bce726693af3b521aac5bbaaf18d1403f188c9cf7ae"
+    },
+    "snapback2/crates/snapback2-media/testdata/capability.png": {
+      "bytes": 73,
+      "gitBlob": "5ef7df5247f0e964bab0706be3d8fde13dbf9026",
+      "mode": "100644",
+      "sha256": "d1c74d9fa6a257357a94654729be342d76509960f411a5f6aa70d4b73ce52b39"
+    },
+    "snapback2/crates/snapback2-media/testdata/exif-orientation-6-offset-4.heic": {
+      "bytes": 667,
+      "gitBlob": "5f52ef52a8a9861c7ff5fd61c97587ed0544db64",
+      "mode": "100644",
+      "sha256": "e96dd78b50ff4381d3416a8ef82cdd4ae57fd66a68f8966bec6f1b6587619bec"
+    },
+    "snapback2/crates/snapback2-media/testdata/exif-orientation-6.heic": {
+      "bytes": 663,
+      "gitBlob": "de9c85956b16b09fa51ffbc59ead2584b20831ff",
+      "mode": "100644",
+      "sha256": "1acd2105c23f0b2cc6ee783209dd9dadfa6d7f77e2fc34690a32afbabe59117c"
+    },
+    "snapback2/crates/snapback2-media/testdata/grid-hvc1.heic": {
+      "bytes": 781,
+      "gitBlob": "15795067a0aae8f7a3d577bcc8c22b74d6a90e4a",
+      "mode": "100644",
+      "sha256": "5b8c29a4651394ea316726eed629e55cd23b5d2063129bdfbc169f036f5f6867"
+    },
+    "snapback2/crates/snapback2-media/testdata/iovl-hvc1.heic": {
+      "bytes": 647,
+      "gitBlob": "08c62406ef3b0f8301f33e868a1ea7b01e6342b0",
+      "mode": "100644",
+      "sha256": "2e9a20e081ff55632d778c514f16db49aa8889918d76311c9d889b21354f354d"
+    },
+    "snapback2/crates/snapback2-media/testdata/irot-90-exif-6.heic": {
+      "bytes": 673,
+      "gitBlob": "e39a23d72cb6e73d12e154b8aa6ac98272468990",
+      "mode": "100644",
+      "sha256": "79332bb9304a76e9681deec2ad9b11fe958af02704fe6bee28de6760331d7345"
+    },
+    "snapback2/crates/snapback2-media/testdata/irot-90.heic": {
+      "bytes": 578,
+      "gitBlob": "f3e501086db53a4293f3d2f6939311e5fa56be4c",
+      "mode": "100644",
+      "sha256": "22f6f11539d830d58d992cf06f1afc4bec2a54d6c668fb815b618d097c59d733"
+    },
+    "snapback2/crates/snapback2-media/testdata/minimal.heic": {
+      "bytes": 568,
+      "gitBlob": "5d7583126a56f69ea619f7c6a265f1ea8b1d3e05",
+      "mode": "100644",
+      "sha256": "00c620fd86b57d1e58fc9298422d6fcfd85b6941b050ae1765ea0d9d1480f573"
+    },
+    "snapback2/crates/snapback2-media/tests/cli.rs": {
+      "bytes": 5286,
+      "gitBlob": "c7eacd76167341928ff1cbb2b4dd36caac6501de",
+      "mode": "100644",
+      "sha256": "98f3b01dd2c5ad87056789895ba7aeba0b57024bb8c2625877ecc8a09dfc98aa"
+    }
+  },
+  "exact26c9FeatureDefinitions": {
+    "default": [
+      "images"
+    ],
+    "images": [
+      "dep:image"
+    ],
+    "heic": [
+      "images",
+      "dep:libheif-rs",
+      "dep:libheif-sys"
+    ],
+    "imageFormats": [
+      "jpeg",
+      "png",
+      "webp"
+    ],
+    "heicLibheif": "libheif-rs 3, libheif-sys 5.3.1, v1_19; optional"
+  },
+  "originalHelperBuildProvenance": {
+    "recorded": [
+      "prepared binary SHA256 and original copy path",
+      "full native source inventory independently binds exact media source leaves"
+    ],
+    "notFoundInInspectedReceipts": [
+      "exact original helper build argv",
+      "explicit original helper features",
+      "binary-to-source commit attestation or matching Cargo fingerprint"
+    ],
+    "staticObservations": [
+      "Mach-O arm64, libSystem only in otool -L",
+      "image/PngEncoder/image decoder symbols retained; image-enabled binary supported by static evidence",
+      "No Linux portability or HEIC capability inferred",
+      "Exact retained binary heic_codec_available disassembles to constant false; images_codec_available calls image load and Result::is_ok. Static evidence supports images enabled / HEIC disabled. No helper execution."
+    ],
+    "inference": "Effective static paths match exact26c9 images enabled / heic disabled variants; original feature-selection argv and binary-to-source commit attestation are absent from inspected records. Default versus explicit images selection cannot be distinguished."
+  },
+  "canonicalMediaBytes": {
+    "img-01.png": {
+      "sha256": "7afbd9d91e6f1197e9fd392ba0a53dce78a66ee5a3a528a6c2641a82b2a0417c",
+      "byteCount": 2062,
+      "width": 640,
+      "height": 480
+    },
+    "img-02.png": {
+      "sha256": "ef284acb000e375fa4cffc07b3e2d228e47a6bf3b1f9078b4b7399d23c440101",
+      "byteCount": 2080,
+      "width": 640,
+      "height": 480
+    },
+    "img-03.png": {
+      "sha256": "eb986767458c2d0799441334b7ccdd70cc35e3296cea376c84f6e8f3a3774dd8",
+      "byteCount": 2087,
+      "width": 640,
+      "height": 480
+    },
+    "img-04.png": {
+      "sha256": "f0e403aaa541a4d50b35dc46ccc01c9903c96106faaa70ab96d69cb8887d44ef",
+      "byteCount": 2081,
+      "width": 640,
+      "height": 480
+    },
+    "img-05.png": {
+      "sha256": "ce7543ab1030d31f2f66fec69b5bd9c22b3c820bbdfd44d71488fed3e6607fdc",
+      "byteCount": 2072,
+      "width": 640,
+      "height": 480
+    },
+    "img-06.png": {
+      "sha256": "3b720f191084b6acf4c570fe3a2c72353f4cf887802f453e8de118579ce4695a",
+      "byteCount": 2066,
+      "width": 640,
+      "height": 480
+    },
+    "avatar-alice.png": {
+      "sha256": "283773fb9ae8f07a00e335fdd37fd9f836845594d8be3352ee0fab542c4c9984",
+      "byteCount": 729,
+      "width": 256,
+      "height": 256
+    },
+    "avatar-bob.png": {
+      "sha256": "9b49a333e2841ea99f6a708bc098a967d473183c134b5de9f35b6c36a72544d5",
+      "byteCount": 758,
+      "width": 256,
+      "height": 256
+    },
+    "vid-01.mp4": {
+      "sha256": "7e22b943746b2c858910252162f624cac396eb9e4f4100ae80e70431b7883d5f",
+      "byteCount": 49779,
+      "containerTracks": [
+        {
+          "width": 320.0,
+          "height": 240.0,
+          "timescale": 15360,
+          "durationTicks": 76800,
+          "durationSeconds": 5.0,
+          "handler": "vide"
+        },
+        {
+          "width": 0.0,
+          "height": 0.0,
+          "timescale": 48000,
+          "durationTicks": 241024,
+          "durationSeconds": 5.021333333333334,
+          "handler": "soun"
+        }
+      ]
+    }
+  },
+  "canonicalProjection": {
+    "avatars": {
+      "dimensions": "two PNGs, 256x256",
+      "route": "immutable original bytes via private avatar URL; not asset upload",
+      "originalPhase1Port": 50921,
+      "currentCheckpointPort": 50924,
+      "mappingReceiptPortTextIsHistorical": true
+    },
+    "messageImages": {
+      "count": 820,
+      "dimensions": "640x480, six pinned PNGs",
+      "route": "author bearer POST /api/upload -> original messages.sendPhoto -> separate caption operator",
+      "preserved": true
+    },
+    "messageVideos": {
+      "count": 90,
+      "dimensions": "320x240, 5.0-second video track, original MP4 with AAC track",
+      "route": "author bearer POST /api/upload -> original messages.sendClip -> separate caption operator",
+      "preserved": true
+    },
+    "viewOnce": {
+      "canonicalCount": 0,
+      "role": "separate control, original messages.sendOncePhoto still in unchanged23"
+    },
+    "backgroundPostAttachments": {
+      "excluded": true,
+      "imagePosts": 43,
+      "videoPosts": 11,
+      "reason": "original posts schema has no attachment/type fields; text/author/id/arrival rows are preserved"
+    }
+  },
+  "futureDerivative": {
+    "rootReviewRequired": true,
+    "currentHarnessUnchanged": true,
+    "requirements": [
+      "match/document helper source/features for a Linux helper",
+      "separate reviewed Linux derivative for current Darwin path/owner SHA/actual helper bindings",
+      "preserve prepared project and separate catalog/batch-catalog",
+      "preserve corrected freeze, original3+20 requests,30s deadline,literal3x/4/9 gates,8h population cap"
+    ],
+    "noScaleAuthorization": true
+  }
+}

@@ -1,0 +1,66 @@
+{
+  "commit": "26c9fd5e0d3922ce7680493c0e8f7371f4793d59",
+  "gitTree": "c7ba58cabe550cf66defdb20e9015ae9a6957d55",
+  "sourcePaths": [
+    "snapback2",
+    "AGENTS.md",
+    "rules/RULES.md",
+    "rules/NOT-DOING.md",
+    "llp/1000-snapback2.explainer.md",
+    "llp/1002-dev-loop.spec.md"
+  ],
+  "leafCount": 958,
+  "totalBytes": 22084432,
+  "archiveSha256": "89eb3a6136cc06ad212129acbd57e52e03bc9a13c5d62b7f8032c3884e43451d",
+  "manifestSha256": "7fbfd538a98144d2a6d581a98b5730c9f5ba3c7b6b49aeec2257bdd9277dd3aa",
+  "originalArchiveSha256": "350bb0a90f5b35e5f6db004637342da9d5931936536eef49ac5477f1b38746e0",
+  "nativeInventorySha256": "441fcc724145191fb00164d1f27076b2bc11783172618fb68813669b1c439696",
+  "nativeSourceGraph": "07d985316ae2d74494980a0c4871a13a877237ca0de15f97e2d12ad337518e70",
+  "nativeVerifiedLeaves": 261,
+  "originalBindings": {
+    "commit": "26c9fd5e0d3922ce7680493c0e8f7371f4793d59",
+    "files": {
+      "snapback2/Cargo.toml": {
+        "bytes": 501,
+        "sha256": "d1fdb132945cba5fae3da2da126327f7c1c1e89b237293849bb69407759ae270"
+      },
+      "snapback2/Cargo.lock": {
+        "bytes": 63812,
+        "sha256": "823ad9b7193981342b15ca95a22b45a50f97c5da87795c9c7eeb8d93711620ad"
+      },
+      "snapback2/rust-toolchain.toml": {
+        "bytes": 196,
+        "sha256": "c6db5c8bcc095f91d6f422e0cd7c5dc506523252656008b779b137d8db4a4a50"
+      },
+      "snapback2/crates/snapback2/Cargo.toml": {
+        "bytes": 706,
+        "sha256": "c31400c391819ee6536bc79463d0bd095dce00287235bd07ac3b8148656e9897"
+      },
+      "snapback2/crates/snapback2-effects/Cargo.toml": {
+        "bytes": 779,
+        "sha256": "35096ddc829ac8df1737172c02a549e587b15194ebac8da11f779dcd5797733d"
+      },
+      "snapback2/crates/snapback2-core/build.rs": {
+        "bytes": 253,
+        "sha256": "d271d33dabbc5d2d943ba80343b1ed6a46f662e00c1c66aed31494186e24f582"
+      },
+      "snapback2/crates/snapback2-core/unicode_build.rs": {
+        "bytes": 6440,
+        "sha256": "8f546a07c8f7fff8bd867a5314a2753a79c2a024e9f8b6a561a8398c5fcb060b"
+      },
+      "snapback2/scripts/hermes": {
+        "bytes": 1477,
+        "sha256": "6078222b562e85fb38538d628eb0d775da31dd96050f8db92342e8b890edbfea"
+      },
+      "snapback2/crates/snapback2-media/Cargo.toml": {
+        "bytes": 741,
+        "sha256": "5f1f262f791d6c94b0198ad444a09e3d66b0a2f603aff14808e1392386556c58"
+      }
+    },
+    "nativeSourceGraph": "07d985316ae2d74494980a0c4871a13a877237ca0de15f97e2d12ad337518e70",
+    "originalOwnerSha256": "4d0f8f0176921b56305e9969da0fcb2dd5ecedae1f65d983f537e613d0c6e46e"
+  },
+  "elapsedSeconds": 1.411268711090088,
+  "timeoutSeconds": 90,
+  "gitArchiveExportSubstDetected": false
+}

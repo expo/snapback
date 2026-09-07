@@ -1,0 +1,113 @@
+[
+  {
+    "name": "identity",
+    "argv": [
+      "/Users/ccheever/clique-improvement/revisions/search-resident-format5-preparation/executables/node",
+      "-p",
+      "JSON.stringify({pid:process.pid,execPath:process.execPath,version:process.version,platform:process.platform,arch:process.arch,versions:process.versions})"
+    ],
+    "cwd": "/Users/ccheever/clique-improvement/revisions/search-resident-format5-linux-contradiction-preparation/pure-validation-scratch",
+    "pid": 20590,
+    "startEpoch": 1788745844.238515,
+    "endEpoch": 1788745846.994557,
+    "elapsedSeconds": 2.7560420000000003,
+    "deadlineSeconds": 10,
+    "exitCode": 0,
+    "timedOut": false,
+    "populationExecuted": false,
+    "storesOpened": 0,
+    "host": "local Darwin only",
+    "nodeSha256": "18e387c90ab8a8400183e8bdd396376e1e875b91b4c874b894dcade7b35bf572",
+    "loadLog": null
+  },
+  {
+    "name": "verify-fixtures-baseline-carrier",
+    "argv": [
+      "/Users/ccheever/clique-improvement/revisions/search-resident-format5-preparation/executables/node",
+      "--experimental-loader",
+      "/Users/ccheever/clique-improvement/revisions/search-resident-format5-linux-contradiction-preparation/pure-validation-scratch/capture-loads.mjs",
+      "/Users/ccheever/clique-improvement/revisions/search-resident-format5-linux-contradiction-preparation/pure-validation-scratch/verify-fixtures.mjs"
+    ],
+    "cwd": "/Users/ccheever/clique-improvement/revisions/search-resident-format5-linux-contradiction-preparation/pure-validation-scratch",
+    "pid": 20781,
+    "startEpoch": 1788745847.177289,
+    "endEpoch": 1788745855.581473,
+    "elapsedSeconds": 8.404163875,
+    "deadlineSeconds": 30,
+    "exitCode": 0,
+    "timedOut": false,
+    "populationExecuted": false,
+    "storesOpened": 0,
+    "host": "local Darwin only",
+    "nodeSha256": "18e387c90ab8a8400183e8bdd396376e1e875b91b4c874b894dcade7b35bf572",
+    "loadLog": "/Users/ccheever/clique-improvement/revisions/search-resident-format5-linux-contradiction-preparation/checks/verify-fixtures-baseline-carrier.loads.jsonl"
+  },
+  {
+    "name": "verify-fixtures-coverage",
+    "argv": [
+      "/Users/ccheever/clique-improvement/revisions/search-resident-format5-preparation/executables/node",
+      "--experimental-loader",
+      "/Users/ccheever/clique-improvement/revisions/search-resident-format5-linux-contradiction-preparation/pure-validation-scratch/capture-loads.mjs",
+      "/Users/ccheever/clique-improvement/revisions/search-resident-format5-linux-contradiction-preparation/pure-validation-scratch/verify-fixtures.mjs",
+      "coverage"
+    ],
+    "cwd": "/Users/ccheever/clique-improvement/revisions/search-resident-format5-linux-contradiction-preparation/pure-validation-scratch",
+    "pid": 21037,
+    "startEpoch": 1788745855.758587,
+    "endEpoch": 1788745860.0241861,
+    "elapsedSeconds": 4.265593958000002,
+    "deadlineSeconds": 30,
+    "exitCode": 0,
+    "timedOut": false,
+    "populationExecuted": false,
+    "storesOpened": 0,
+    "host": "local Darwin only",
+    "nodeSha256": "18e387c90ab8a8400183e8bdd396376e1e875b91b4c874b894dcade7b35bf572",
+    "loadLog": "/Users/ccheever/clique-improvement/revisions/search-resident-format5-linux-contradiction-preparation/checks/verify-fixtures-coverage.loads.jsonl"
+  },
+  {
+    "name": "verify-controls-baseline-carrier",
+    "argv": [
+      "/Users/ccheever/clique-improvement/revisions/search-resident-format5-preparation/executables/node",
+      "--experimental-loader",
+      "/Users/ccheever/clique-improvement/revisions/search-resident-format5-linux-contradiction-preparation/pure-validation-scratch/capture-loads.mjs",
+      "/Users/ccheever/clique-improvement/revisions/search-resident-format5-linux-contradiction-preparation/pure-validation-scratch/verify-controls.mjs"
+    ],
+    "cwd": "/Users/ccheever/clique-improvement/revisions/search-resident-format5-linux-contradiction-preparation/pure-validation-scratch",
+    "pid": 21147,
+    "startEpoch": 1788745860.2157881,
+    "endEpoch": 1788745860.88748,
+    "elapsedSeconds": 0.6716927499999983,
+    "deadlineSeconds": 30,
+    "exitCode": 0,
+    "timedOut": false,
+    "populationExecuted": false,
+    "storesOpened": 0,
+    "host": "local Darwin only",
+    "nodeSha256": "18e387c90ab8a8400183e8bdd396376e1e875b91b4c874b894dcade7b35bf572",
+    "loadLog": "/Users/ccheever/clique-improvement/revisions/search-resident-format5-linux-contradiction-preparation/checks/verify-controls-baseline-carrier.loads.jsonl"
+  },
+  {
+    "name": "verify-controls-coverage",
+    "argv": [
+      "/Users/ccheever/clique-improvement/revisions/search-resident-format5-preparation/executables/node",
+      "--experimental-loader",
+      "/Users/ccheever/clique-improvement/revisions/search-resident-format5-linux-contradiction-preparation/pure-validation-scratch/capture-loads.mjs",
+      "/Users/ccheever/clique-improvement/revisions/search-resident-format5-linux-contradiction-preparation/pure-validation-scratch/verify-controls.mjs",
+      "coverage"
+    ],
+    "cwd": "/Users/ccheever/clique-improvement/revisions/search-resident-format5-linux-contradiction-preparation/pure-validation-scratch",
+    "pid": 21172,
+    "startEpoch": 1788745861.0891461,
+    "endEpoch": 1788745861.534571,
+    "elapsedSeconds": 0.44542833299999884,
+    "deadlineSeconds": 30,
+    "exitCode": 0,
+    "timedOut": false,
+    "populationExecuted": false,
+    "storesOpened": 0,
+    "host": "local Darwin only",
+    "nodeSha256": "18e387c90ab8a8400183e8bdd396376e1e875b91b4c874b894dcade7b35bf572",
+    "loadLog": "/Users/ccheever/clique-improvement/revisions/search-resident-format5-linux-contradiction-preparation/checks/verify-controls-coverage.loads.jsonl"
+  }
+]

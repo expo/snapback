@@ -1,0 +1,50 @@
+{
+  "scope": "Fixed completed report/identity/terminal/source/outcome evidence only; no tarballs, mutable logs, secret files or current product source copied",
+  "files": {
+    "REPORT.md": {
+      "bytes": 10470,
+      "sha256": "c4306cd0da564dab7760cd222415025196b6863003634f9ad71e090fd127e2ec",
+      "original": "/Users/ccheever/clique-improvement/revisions/search-resident-format5-linux-contradiction-preparation/REPORT.md"
+    },
+    "actual-identity.json": {
+      "bytes": 447,
+      "sha256": "1442e17b71671dae3799f4e90c8b9f8cea6d45d5a80790d4c84e0691be4c0ac8",
+      "original": "/Users/ccheever/clique-improvement/revisions/search-resident-format5-linux-contradiction-preparation/actual-identity.json"
+    },
+    "launch.json": {
+      "bytes": 718,
+      "sha256": "3cf108c164f836a77564804acf32d5fb597af929d68ba6a65d32d4a0a01bb8f7",
+      "original": "/Users/ccheever/clique-improvement/revisions/search-resident-format5-linux-contradiction-preparation/launch.json"
+    },
+    "terminal.json": {
+      "bytes": 109,
+      "sha256": "c9d59f0f1325df721722de7a865678341a1216f17bb6c4fc1036879b2474c1f1",
+      "original": "/Users/ccheever/clique-improvement/revisions/search-resident-format5-linux-contradiction-preparation/terminal.json"
+    },
+    "phase.json": {
+      "bytes": 1127,
+      "sha256": "2268a439c5fbc1afaae7380f1d0248bdbe63c42b68e7278c09113134e9d3fb38",
+      "original": "/Users/ccheever/clique-improvement/revisions/search-resident-format5-linux-contradiction-preparation/phase.json"
+    },
+    "proposal/PATCH.json": {
+      "bytes": 1669,
+      "sha256": "2598d94246ef118b66697e6191c86ea6ecdf151ed3d4606a98a028ac437e06ba",
+      "original": "/Users/ccheever/clique-improvement/revisions/search-resident-format5-linux-contradiction-preparation/proposal/PATCH.json"
+    },
+    "checks.json": {
+      "bytes": 5696,
+      "sha256": "e394efe071574fd8cddc74c8f6fd0e54d95b92e1cb2c053cfef9f058498a646a",
+      "original": "/Users/ccheever/clique-improvement/revisions/search-resident-format5-linux-contradiction-preparation/checks.json"
+    },
+    "final-verification.json": {
+      "bytes": 696,
+      "sha256": "535d7ae7cdb218aacfe4be909fe7687c7aa7a897633fd1bed278afa3fcfe7a85",
+      "original": "/Users/ccheever/clique-improvement/revisions/search-resident-format5-linux-contradiction-preparation/final-verification.json"
+    },
+    "supervisor-handoff.json": {
+      "bytes": 396,
+      "sha256": "037e528ec2994742cffb107ab293c51ab7446cde4519c813eba0db5e1692c6ce",
+      "original": "/Users/ccheever/clique-improvement/revisions/search-resident-format5-linux-contradiction-preparation/supervisor-handoff.json"
+    }
+  }
+}

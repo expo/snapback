@@ -1,0 +1,206 @@
+{
+  "passed": true,
+  "programCount": 23,
+  "comparisons": {
+    "feeds.followingFeed": {
+      "error": null,
+      "certificateExact": true,
+      "planHashExact": true,
+      "schemaHashExact": true,
+      "valueModelExact": true,
+      "evaluatorExact": true
+    },
+    "feeds.globalFeed": {
+      "error": null,
+      "certificateExact": true,
+      "planHashExact": true,
+      "schemaHashExact": true,
+      "valueModelExact": true,
+      "evaluatorExact": true
+    },
+    "follows.setFollow": {
+      "error": null,
+      "certificateExact": true,
+      "planHashExact": true,
+      "schemaHashExact": true,
+      "valueModelExact": true,
+      "evaluatorExact": true
+    },
+    "groups.groupCreate": {
+      "error": null,
+      "certificateExact": true,
+      "planHashExact": true,
+      "schemaHashExact": true,
+      "valueModelExact": true,
+      "evaluatorExact": true
+    },
+    "groups.memberAdd": {
+      "error": null,
+      "certificateExact": true,
+      "planHashExact": true,
+      "schemaHashExact": true,
+      "valueModelExact": true,
+      "evaluatorExact": true
+    },
+    "groups.memberLeave": {
+      "error": null,
+      "certificateExact": true,
+      "planHashExact": true,
+      "schemaHashExact": true,
+      "valueModelExact": true,
+      "evaluatorExact": true
+    },
+    "groups.memberPromote": {
+      "error": null,
+      "certificateExact": true,
+      "planHashExact": true,
+      "schemaHashExact": true,
+      "valueModelExact": true,
+      "evaluatorExact": true
+    },
+    "groups.memberRemove": {
+      "error": null,
+      "certificateExact": true,
+      "planHashExact": true,
+      "schemaHashExact": true,
+      "valueModelExact": true,
+      "evaluatorExact": true
+    },
+    "messages.send": {
+      "error": null,
+      "certificateExact": true,
+      "planHashExact": true,
+      "schemaHashExact": true,
+      "valueModelExact": true,
+      "evaluatorExact": true
+    },
+    "messages.sendClip": {
+      "error": null,
+      "certificateExact": true,
+      "planHashExact": true,
+      "schemaHashExact": true,
+      "valueModelExact": true,
+      "evaluatorExact": true
+    },
+    "messages.sendOncePhoto": {
+      "error": null,
+      "certificateExact": true,
+      "planHashExact": true,
+      "schemaHashExact": true,
+      "valueModelExact": true,
+      "evaluatorExact": true
+    },
+    "messages.sendPhoto": {
+      "error": null,
+      "certificateExact": true,
+      "planHashExact": true,
+      "schemaHashExact": true,
+      "valueModelExact": true,
+      "evaluatorExact": true
+    },
+    "messages.summary": {
+      "error": null,
+      "certificateExact": true,
+      "planHashExact": true,
+      "schemaHashExact": true,
+      "valueModelExact": true,
+      "evaluatorExact": true
+    },
+    "messages.thread": {
+      "error": null,
+      "certificateExact": true,
+      "planHashExact": true,
+      "schemaHashExact": true,
+      "valueModelExact": true,
+      "evaluatorExact": true
+    },
+    "notifications.recordNotified": {
+      "error": null,
+      "certificateExact": true,
+      "planHashExact": true,
+      "schemaHashExact": true,
+      "valueModelExact": true,
+      "evaluatorExact": true
+    },
+    "posts.createPost": {
+      "error": null,
+      "certificateExact": true,
+      "planHashExact": true,
+      "schemaHashExact": true,
+      "valueModelExact": true,
+      "evaluatorExact": true
+    },
+    "profiles.byHandle": {
+      "error": null,
+      "certificateExact": true,
+      "planHashExact": true,
+      "schemaHashExact": true,
+      "valueModelExact": true,
+      "evaluatorExact": true
+    },
+    "profiles.createMyProfile": {
+      "error": null,
+      "certificateExact": true,
+      "planHashExact": true,
+      "schemaHashExact": true,
+      "valueModelExact": true,
+      "evaluatorExact": true
+    },
+    "profiles.mine": {
+      "error": null,
+      "certificateExact": true,
+      "planHashExact": true,
+      "schemaHashExact": true,
+      "valueModelExact": true,
+      "evaluatorExact": true
+    },
+    "profiles.updateMyProfile": {
+      "error": null,
+      "certificateExact": true,
+      "planHashExact": true,
+      "schemaHashExact": true,
+      "valueModelExact": true,
+      "evaluatorExact": true
+    },
+    "search.findPeople": {
+      "error": null,
+      "certificateExact": true,
+      "planHashExact": true,
+      "schemaHashExact": true,
+      "valueModelExact": true,
+      "evaluatorExact": true
+    },
+    "search.global": {
+      "error": null,
+      "certificateExact": true,
+      "planHashExact": true,
+      "schemaHashExact": true,
+      "valueModelExact": true,
+      "evaluatorExact": true
+    },
+    "search.inConversation": {
+      "error": null,
+      "certificateExact": true,
+      "planHashExact": true,
+      "schemaHashExact": true,
+      "valueModelExact": true,
+      "evaluatorExact": true
+    }
+  },
+  "sourceSchemaEqualsPhase1": true,
+  "sourceIrEqualsPhase1": true,
+  "inputBytesEqualGuide": true,
+  "ceilingsUnchanged": true,
+  "operatorsSeparate": true,
+  "populationExecuted": false,
+  "serverExecuted": false,
+  "effectsQualified": false,
+  "terminal": {
+    "exitCode": 0,
+    "timedOut": false,
+    "elapsedSeconds": 0.28272533416748047,
+    "stdoutSha256": "20b57647f49017cf03018d0bfaf228c124999bea42b4d16f82c1b0d7fd9f1af3",
+    "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "inputUnchanged": true
+  }
+}

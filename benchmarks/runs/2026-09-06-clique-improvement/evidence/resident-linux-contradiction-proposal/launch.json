@@ -1,0 +1,23 @@
+{
+  "pid": 5301,
+  "supervisorPid": 5289,
+  "startEpoch": 1788745476.675642,
+  "argv": [
+    "/Users/ccheever/.volta/bin/codex",
+    "exec",
+    "resume",
+    "--dangerously-bypass-approvals-and-sandbox",
+    "--skip-git-repo-check",
+    "--json",
+    "-m",
+    "gpt-6-astra",
+    "-c",
+    "model_reasoning_effort=\"xhigh\"",
+    "-o",
+    "/Users/ccheever/clique-improvement/revisions/search-resident-format5-linux-contradiction-preparation/final-answer.md",
+    "01a0783e-90b6-70b3-a096-c7a980574ceb",
+    "-"
+  ],
+  "cwd": "/Users/ccheever/clique-improvement/revisions/search-resident-format5-linux-contradiction-preparation",
+  "promptSha256": "acccc417f5e18bb8404494cb238ce582c0f5dd5ca2b0a062cde7b75031361f84"
+}

@@ -1,0 +1,9 @@
+{
+  "passed": true,
+  "checkedRetrievedFiles": 41,
+  "completeLocalSourceLeaves": 958,
+  "binarySha256": "2f3cd93ccbff5902465f2514e61d8cf6fedf76228ad8e7abafe02ed5f1959175",
+  "reportSha256": "404007e1b22c46228997eb14e5614f558680d4bc75174a2bf901e0b524db399a",
+  "finishEpoch": 1788747414.400799,
+  "noFurtherProductBuildsOrChecks": true
+}

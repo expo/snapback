@@ -1,0 +1,126 @@
+{
+  "scope": "Fixed native Linux build/admission/media-scope evidence; no binary, credentials, fleet inventory or active logs",
+  "sanitization": "Fleet IP replaced only with host alias epyc-linux. Changed copies are explicitly derivatives, not byte-identical originals. Original external files remain unchanged and hash-bound.",
+  "files": {
+    "REPORT.md": {
+      "originalExternalPath": "/Users/ccheever/clique-improvement/revisions/search-native-linux-build-preparation/REPORT.md",
+      "originalBytes": 5967,
+      "originalSha256": "404007e1b22c46228997eb14e5614f558680d4bc75174a2bf901e0b524db399a",
+      "repositoryBytes": 5964,
+      "repositorySha256": "a204b31f0c9813c264e14a89535de1bd1bca411983c4021249127323608cbbc0",
+      "sanitizedDerivative": true
+    },
+    "actual-identity.json": {
+      "originalExternalPath": "/Users/ccheever/clique-improvement/revisions/search-native-linux-build-preparation/actual-identity.json",
+      "originalBytes": 476,
+      "originalSha256": "5946dd2ba56a58acabba806919a09b91c9eab144609866f9798fba50281091e0",
+      "repositoryBytes": 476,
+      "repositorySha256": "5946dd2ba56a58acabba806919a09b91c9eab144609866f9798fba50281091e0",
+      "sanitizedDerivative": false
+    },
+    "launch.json": {
+      "originalExternalPath": "/Users/ccheever/clique-improvement/revisions/search-native-linux-build-preparation/launch.json",
+      "originalBytes": 626,
+      "originalSha256": "41a2642183e63242c6b11cdd4d6748ff10155b5f70d69cb345a441871aea5066",
+      "repositoryBytes": 626,
+      "repositorySha256": "41a2642183e63242c6b11cdd4d6748ff10155b5f70d69cb345a441871aea5066",
+      "sanitizedDerivative": false
+    },
+    "terminal.json": {
+      "originalExternalPath": "/Users/ccheever/clique-improvement/revisions/search-native-linux-build-preparation/terminal.json",
+      "originalBytes": 112,
+      "originalSha256": "87d3112dab99bea9f65cf76ec0f817d78936aadf7877868bd8a54b74582ff8f9",
+      "repositoryBytes": 112,
+      "repositorySha256": "87d3112dab99bea9f65cf76ec0f817d78936aadf7877868bd8a54b74582ff8f9",
+      "sanitizedDerivative": false
+    },
+    "phase.json": {
+      "originalExternalPath": "/Users/ccheever/clique-improvement/revisions/search-native-linux-build-preparation/phase.json",
+      "originalBytes": 1003,
+      "originalSha256": "71564059fc05bcbd667f0d3e2f6627088eb72683a081bb35a362c2e949548a2d",
+      "repositoryBytes": 1003,
+      "repositorySha256": "71564059fc05bcbd667f0d3e2f6627088eb72683a081bb35a362c2e949548a2d",
+      "sanitizedDerivative": false
+    },
+    "source-receipt.json": {
+      "originalExternalPath": "/Users/ccheever/clique-improvement/revisions/search-native-linux-build-preparation/source-receipt.json",
+      "originalBytes": 2688,
+      "originalSha256": "2fe601c5a9a46e5bbf60f15f4a433654a190413e95314aabd14608571b5709ac",
+      "repositoryBytes": 2688,
+      "repositorySha256": "2fe601c5a9a46e5bbf60f15f4a433654a190413e95314aabd14608571b5709ac",
+      "sanitizedDerivative": false
+    },
+    "original-admission-bindings.json": {
+      "originalExternalPath": "/Users/ccheever/clique-improvement/revisions/search-native-linux-build-preparation/original-admission-bindings.json",
+      "originalBytes": 1145,
+      "originalSha256": "438bf11ec0a917d47d7d44cf53551f42d2ce28f5c9d6fa1abac981f9386fa2ba",
+      "repositoryBytes": 1145,
+      "repositorySha256": "438bf11ec0a917d47d7d44cf53551f42d2ce28f5c9d6fa1abac981f9386fa2ba",
+      "sanitizedDerivative": false
+    },
+    "retrieval-verification.json": {
+      "originalExternalPath": "/Users/ccheever/clique-improvement/revisions/search-native-linux-build-preparation/retrieval-verification.json",
+      "originalBytes": 427,
+      "originalSha256": "e37769abaa0c15c62110c15dfdc3b78ca74d177bdfda4762854a6611cf99afdb",
+      "repositoryBytes": 427,
+      "repositorySha256": "e37769abaa0c15c62110c15dfdc3b78ca74d177bdfda4762854a6611cf99afdb",
+      "sanitizedDerivative": false
+    },
+    "media-findings.json": {
+      "originalExternalPath": "/Users/ccheever/clique-improvement/revisions/search-native-linux-build-preparation/media-findings.json",
+      "originalBytes": 10435,
+      "originalSha256": "3016e2ba24926c389842255d05433b5f4976ec7aedeccbac7b296fe283bb2a0a",
+      "repositoryBytes": 10435,
+      "repositorySha256": "3016e2ba24926c389842255d05433b5f4976ec7aedeccbac7b296fe283bb2a0a",
+      "sanitizedDerivative": false
+    },
+    "attempts.json": {
+      "originalExternalPath": "/Users/ccheever/clique-improvement/revisions/search-native-linux-build-preparation/attempts.json",
+      "originalBytes": 2175,
+      "originalSha256": "ae72718ff8e5d25bc33dad52eaf0159cb96ddf49cc8ff4d574fb08140d884f05",
+      "repositoryBytes": 2175,
+      "repositorySha256": "ae72718ff8e5d25bc33dad52eaf0159cb96ddf49cc8ff4d574fb08140d884f05",
+      "sanitizedDerivative": false
+    },
+    "final-verification.json": {
+      "originalExternalPath": "/Users/ccheever/clique-improvement/revisions/search-native-linux-build-preparation/final-verification.json",
+      "originalBytes": 338,
+      "originalSha256": "e99f66d3e19a3299f4b546264b227ebdaadc52992a56304e15020548c0a33a8e",
+      "repositoryBytes": 338,
+      "repositorySha256": "e99f66d3e19a3299f4b546264b227ebdaadc52992a56304e15020548c0a33a8e",
+      "sanitizedDerivative": false
+    },
+    "supervisor-final-handoff.json": {
+      "originalExternalPath": "/Users/ccheever/clique-improvement/revisions/search-native-linux-build-preparation/supervisor-final-handoff.json",
+      "originalBytes": 529,
+      "originalSha256": "d0bf907c172148eb56c3fef00cac4bb506c15e68ec78b65b2f5f4281af3bbd91",
+      "repositoryBytes": 529,
+      "repositorySha256": "d0bf907c172148eb56c3fef00cac4bb506c15e68ec78b65b2f5f4281af3bbd91",
+      "sanitizedDerivative": false
+    },
+    "remote-results/artifacts/build-inspection.json": {
+      "originalExternalPath": "/Users/ccheever/clique-improvement/revisions/search-native-linux-build-preparation/remote-results/artifacts/build-inspection.json",
+      "originalBytes": 15737,
+      "originalSha256": "bdccf7788ffc4922edf1e906b57d9d4461aec60d934d53ca8a7d4ee71c15cfa3",
+      "repositoryBytes": 15737,
+      "repositorySha256": "bdccf7788ffc4922edf1e906b57d9d4461aec60d934d53ca8a7d4ee71c15cfa3",
+      "sanitizedDerivative": false
+    },
+    "remote-results/artifacts/check23-comparison.json": {
+      "originalExternalPath": "/Users/ccheever/clique-improvement/revisions/search-native-linux-build-preparation/remote-results/artifacts/check23-comparison.json",
+      "originalBytes": 5407,
+      "originalSha256": "a881840ec9687ae77052dd57477f116da1a58820dfab279879d519b50e1d1c63",
+      "repositoryBytes": 5407,
+      "repositorySha256": "a881840ec9687ae77052dd57477f116da1a58820dfab279879d519b50e1d1c63",
+      "sanitizedDerivative": false
+    },
+    "remote-results/artifacts/cleanup.json": {
+      "originalExternalPath": "/Users/ccheever/clique-improvement/revisions/search-native-linux-build-preparation/remote-results/artifacts/cleanup.json",
+      "originalBytes": 1549,
+      "originalSha256": "c0be94e4e76b1310e04a18b02bde72ece4f584f19881c1e1964c18dde6e3be64",
+      "repositoryBytes": 1549,
+      "repositorySha256": "c0be94e4e76b1310e04a18b02bde72ece4f584f19881c1e1964c18dde6e3be64",
+      "sanitizedDerivative": false
+    }
+  }
+}

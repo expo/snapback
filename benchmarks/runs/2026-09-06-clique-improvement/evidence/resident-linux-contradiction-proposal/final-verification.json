@@ -1,0 +1,26 @@
+{
+  "originalMacPacketFilesUnchanged": 508,
+  "priorFailedResultsUnchanged": 26,
+  "remoteCommands": 0,
+  "populationInvocations": 0,
+  "storesOpened": 0,
+  "pureCommandsCompleted": 5,
+  "allOwnedPureChildrenWaited": true,
+  "pureChildPids": [
+    20590,
+    20781,
+    21037,
+    21147,
+    21172
+  ],
+  "signalsSent": [],
+  "sourceEdits": 0,
+  "originalLinuxManifest": "e1fd840712da9c00cdeeb952e2364b119107a88133b18edc3bb1379638339087",
+  "linuxDerivativeNotTouched": true,
+  "proposalExecutionFileChanges": [
+    "fixtures/ordinary/controls.json"
+  ],
+  "allNegativeFramesUnchanged": true,
+  "timedAndPublicationControlsUnchanged": true,
+  "workerSupervisorComparatorSupportUnchanged": true
+}

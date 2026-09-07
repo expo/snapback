@@ -1,0 +1,13 @@
+{
+  "atEpoch": 1788746331.566039,
+  "manifestSha256": "3f386fc4d9ca558c4cf19440896dd6fe74ecfd8e805c160a3bbdaceab07aac3e",
+  "filesVerified": 93,
+  "allLeavesMatch": true,
+  "reportFullyRead": true,
+  "exactFourByteEditsVerified": true,
+  "writer5301Absent": true,
+  "actualCliExitCode": 0,
+  "elapsedSeconds": 702.6860818862915,
+  "storesOpenedBySupervisor": 0,
+  "populationAuthorized": false
+}

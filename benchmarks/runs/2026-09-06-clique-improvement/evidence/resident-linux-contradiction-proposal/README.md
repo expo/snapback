@@ -1,0 +1,5 @@
+Root read and accepted the [source-bound proposal](REPORT.md) and [four exact metadata edits](proposal/PATCH.json). Ordinary warm[0] uses the existing certified timed-page owner at an earlier aligned readTime, retaining sequence 11 fact custody while the ordinary answer remains sequence 10. All four negative frames, expected errors, complete state/backend/outbox assertions, 10k population and original limits remain unchanged.
+
+The warm answer count intentionally changes from 500 to 501; earlier timings cannot be relabeled. Four existing pure validators passed, with no store, remote command or population in preparation. The actual writer exited0 and released; all 93 frozen evidence leaves were independently verified. Stateful guard reachability and rollback remained unproven at this handoff.
+
+Root separately authorized exclusive Linux derivative assembly and one ordinary carrier→Twin pair, stopping at the first failed invocation. The new run has distinct evidence and does not retroactively repair the original failed attempt. No outcome from that separately tracked run is claimed here.

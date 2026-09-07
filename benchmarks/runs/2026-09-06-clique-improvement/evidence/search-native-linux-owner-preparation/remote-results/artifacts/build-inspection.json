@@ -1,0 +1,526 @@
+{
+  "sourceUnchanged": true,
+  "sourceLeaves": 958,
+  "binary": {
+    "path": "/home/ccheever/clique-tooling/search-native-linux-26c9-20260907T0203Z-01a07995/target/debug/snapback2",
+    "sha256": "2f3cd93ccbff5902465f2514e61d8cf6fedf76228ad8e7abafe02ed5f1959175",
+    "bytes": 149047824
+  },
+  "commands": {
+    "file": {
+      "argv": [
+        "file",
+        "/home/ccheever/clique-tooling/search-native-linux-26c9-20260907T0203Z-01a07995/target/debug/snapback2"
+      ],
+      "exitCode": 0,
+      "timeoutSeconds": 30,
+      "elapsedSeconds": 0.01193380355834961,
+      "stdoutSha256": "8b9ab559140abc436b72e0592fe89f11302fb2da37bae1ecbd8f14bb126b1699",
+      "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "elf-header": {
+      "argv": [
+        "readelf",
+        "-h",
+        "/home/ccheever/clique-tooling/search-native-linux-26c9-20260907T0203Z-01a07995/target/debug/snapback2"
+      ],
+      "exitCode": 0,
+      "timeoutSeconds": 30,
+      "elapsedSeconds": 0.003284454345703125,
+      "stdoutSha256": "c7ee503a734326134c1e14d20f2645e367e2661f5c4c4a3ac3a3943b14d5091b",
+      "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "elf-dynamic": {
+      "argv": [
+        "readelf",
+        "-d",
+        "/home/ccheever/clique-tooling/search-native-linux-26c9-20260907T0203Z-01a07995/target/debug/snapback2"
+      ],
+      "exitCode": 0,
+      "timeoutSeconds": 30,
+      "elapsedSeconds": 0.0027627944946289062,
+      "stdoutSha256": "3343d49d4f8f51acb86f5b4b3fc9779d2f8e2e47bf8cdb65f75094147386f68c",
+      "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "elf-program-headers": {
+      "argv": [
+        "readelf",
+        "-l",
+        "/home/ccheever/clique-tooling/search-native-linux-26c9-20260907T0203Z-01a07995/target/debug/snapback2"
+      ],
+      "exitCode": 0,
+      "timeoutSeconds": 30,
+      "elapsedSeconds": 0.0027844905853271484,
+      "stdoutSha256": "4a74ba4c68c6b5820a6c2e44fcdb0256ed82f5c95477f15114410c32e0f72575",
+      "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "ldd": {
+      "argv": [
+        "ldd",
+        "/home/ccheever/clique-tooling/search-native-linux-26c9-20260907T0203Z-01a07995/target/debug/snapback2"
+      ],
+      "exitCode": 0,
+      "timeoutSeconds": 30,
+      "elapsedSeconds": 0.010003089904785156,
+      "stdoutSha256": "6bf5ee7f73b79ec84556ca41d3e60595a6758251b437c9ae2cefd926aeea5975",
+      "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "rustc": {
+      "argv": [
+        "/home/ccheever/.cargo/bin/rustc",
+        "+1.97.0",
+        "-vV"
+      ],
+      "exitCode": 0,
+      "timeoutSeconds": 30,
+      "elapsedSeconds": 0.014622926712036133,
+      "stdoutSha256": "a90721a3b031e0e1c8bfc34ece79b6608d2ae53166cfb77dad281a0eb5fa6bc8",
+      "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "cargo": {
+      "argv": [
+        "/home/ccheever/.cargo/bin/cargo",
+        "+1.97.0",
+        "-Vv"
+      ],
+      "exitCode": 0,
+      "timeoutSeconds": 30,
+      "elapsedSeconds": 0.02121138572692871,
+      "stdoutSha256": "2d14d92180ac6dda2be74d1975f60be707eca61461cc091d8868820b707eb7bb",
+      "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  },
+  "toolchainExecutableHashes": {
+    "cargo": "eff12bab37b9d9e01324db4583eaf55b2cd82ac3008a7e59876e4cd2e9a028f5",
+    "rustc": "df13f58759c0662831983e3a6501c63c1fc12ea60ec4e1d1ac35e5fe43c500c0"
+  },
+  "relevantCargoFingerprints": {
+    "debug/.fingerprint/ibex2-a96d0e02833b2bf8/build-script-build-script-build.json": {
+      "sha256": "57bd981c56372c3cf41d25791d364f08d5b68263dae7a412dcdee97469908725",
+      "data": {
+        "rustc": 18169182855791486453,
+        "features": "[]",
+        "declared_features": "[\"default\", \"hermes\", \"loader\"]",
+        "target": 5408242616063297496,
+        "profile": 2225463790103693989,
+        "path": 3944958150770159945,
+        "deps": [
+          [
+            6470647976058763371,
+            "cc",
+            false,
+            3568018804573226036
+          ],
+          [
+            9857275760291862238,
+            "sha2",
+            false,
+            2703920243940956180
+          ]
+        ],
+        "local": [
+          {
+            "CheckDepInfo": {
+              "dep_info": "debug/.fingerprint/ibex2-a96d0e02833b2bf8/dep-build-script-build-script-build",
+              "checksum": false
+            }
+          }
+        ],
+        "rustflags": [],
+        "config": 9396254390672932401,
+        "compile_kind": 0
+      }
+    },
+    "debug/.fingerprint/ibex2-d49055a4aef2b7f6/lib-ibex2.json": {
+      "sha256": "2b4156448072bf0cbb359de6ad9a9c3f5d7cf490f39464dd33be4a2e42b4ab3e",
+      "data": {
+        "rustc": 18169182855791486453,
+        "features": "[]",
+        "declared_features": "[\"default\", \"hermes\", \"loader\"]",
+        "target": 11884311745052644031,
+        "profile": 15657897354478470176,
+        "path": 3084477702375598798,
+        "deps": [
+          [
+            274201027816063771,
+            "ureq",
+            false,
+            10303595292445786044
+          ],
+          [
+            767660769498874333,
+            "build_script_build",
+            false,
+            10271072895400548885
+          ],
+          [
+            1074175012458081222,
+            "form_urlencoded",
+            false,
+            3678688556619186733
+          ],
+          [
+            1528297757488249563,
+            "url",
+            false,
+            1135296935669584667
+          ],
+          [
+            6286470095574232244,
+            "rustls_native_certs",
+            false,
+            575508717951086790
+          ],
+          [
+            8156804143951879168,
+            "webpki_roots",
+            false,
+            12155674571252878046
+          ],
+          [
+            9857275760291862238,
+            "sha2",
+            false,
+            3629471645224663017
+          ],
+          [
+            13077212702700853852,
+            "base64",
+            false,
+            11740924762143789210
+          ],
+          [
+            17842390632345599209,
+            "rustls",
+            false,
+            7710248165017160223
+          ]
+        ],
+        "local": [
+          {
+            "CheckDepInfo": {
+              "dep_info": "debug/.fingerprint/ibex2-d49055a4aef2b7f6/dep-lib-ibex2",
+              "checksum": false
+            }
+          }
+        ],
+        "rustflags": [],
+        "config": 9396254390672932401,
+        "compile_kind": 0
+      }
+    },
+    "debug/.fingerprint/ibex2-f9ec8af739911f2b/run-build-script-build-script-build.json": {
+      "sha256": "6c9415ffa3748c4840246b0a0d581dfc38bba773dd114c148d1029dca3fe71e7",
+      "data": {
+        "rustc": 18169182855791486453,
+        "features": "",
+        "declared_features": "",
+        "target": 0,
+        "profile": 0,
+        "path": 0,
+        "deps": [
+          [
+            767660769498874333,
+            "build_script_build",
+            false,
+            11092443735895604326
+          ]
+        ],
+        "local": [
+          {
+            "RerunIfChanged": {
+              "output": "debug/build/ibex2-f9ec8af739911f2b/output",
+              "paths": [
+                "src/engine/hermes_shim.cc"
+              ]
+            }
+          },
+          {
+            "RerunIfEnvChanged": {
+              "var": "IBEX2_VANILLA_HERMES_DIR",
+              "val": null
+            }
+          }
+        ],
+        "rustflags": [],
+        "config": 0,
+        "compile_kind": 0
+      }
+    },
+    "debug/.fingerprint/snapback2-40e45b06f2aa723e/bin-snapback2.json": {
+      "sha256": "34922741dc0ce3f8a70b995c7dc5ab5cfa050191892f736d104e9661f81a55da",
+      "data": {
+        "rustc": 18169182855791486453,
+        "features": "[\"default\"]",
+        "declared_features": "[\"default\", \"effects\", \"hermes\"]",
+        "target": 14007185633386793419,
+        "profile": 8731458305071235362,
+        "path": 12662568435746597219,
+        "deps": [
+          [
+            192435385979317305,
+            "rusqlite",
+            false,
+            17301944018657747295
+          ],
+          [
+            3456197151409818489,
+            "snapback2_effects",
+            false,
+            17070701259710933144
+          ],
+          [
+            5330460842384404171,
+            "serde_json",
+            false,
+            12248593033894263642
+          ],
+          [
+            6557439603276904804,
+            "serde",
+            false,
+            6610222224199841508
+          ],
+          [
+            10504718112287328430,
+            "libc",
+            false,
+            6914875435316733741
+          ],
+          [
+            15961966049535497539,
+            "snapback2_core",
+            false,
+            13629048138311109931
+          ],
+          [
+            17370996505528185903,
+            "tiny_http",
+            false,
+            13158408566654482621
+          ],
+          [
+            18408407127522236545,
+            "getrandom",
+            false,
+            7000487433725805572
+          ]
+        ],
+        "local": [
+          {
+            "CheckDepInfo": {
+              "dep_info": "debug/.fingerprint/snapback2-40e45b06f2aa723e/dep-bin-snapback2",
+              "checksum": false
+            }
+          }
+        ],
+        "rustflags": [],
+        "config": 9396254390672932401,
+        "compile_kind": 0
+      }
+    },
+    "debug/.fingerprint/snapback2-core-44ce913aa1f814c1/run-build-script-build-script-build.json": {
+      "sha256": "53855e51ebd642f56f2e7106d884e044268b32b40083bfa0dbf9921fef03fad1",
+      "data": {
+        "rustc": 18169182855791486453,
+        "features": "",
+        "declared_features": "",
+        "target": 0,
+        "profile": 0,
+        "path": 0,
+        "deps": [
+          [
+            15961966049535497539,
+            "build_script_build",
+            false,
+            2740566069294284340
+          ]
+        ],
+        "local": [
+          {
+            "RerunIfChanged": {
+              "output": "debug/build/snapback2-core-44ce913aa1f814c1/output",
+              "paths": [
+                "../../unicode/17.0.0/SHA256SUMS",
+                "../../unicode/17.0.0/CaseFolding.txt",
+                "../../unicode/17.0.0/DerivedNormalizationProps.txt",
+                "../../unicode/17.0.0/NormalizationTest.txt",
+                "../../unicode/17.0.0/PropList.txt",
+                "../../unicode/17.0.0/UnicodeData.txt",
+                "build.rs",
+                "unicode_build.rs",
+                "../../unicode/17.0.0/UnicodeData.txt",
+                "../../unicode/17.0.0/PropList.txt",
+                "../../unicode/17.0.0/DerivedNormalizationProps.txt",
+                "../../unicode/17.0.0/CaseFolding.txt"
+              ]
+            }
+          }
+        ],
+        "rustflags": [],
+        "config": 0,
+        "compile_kind": 0
+      }
+    },
+    "debug/.fingerprint/snapback2-core-c945596744587666/build-script-build-script-build.json": {
+      "sha256": "64622373a3621047a27231e971c67842785dd1a76b3b9b05a8102545a928f266",
+      "data": {
+        "rustc": 18169182855791486453,
+        "features": "[]",
+        "declared_features": "[]",
+        "target": 2835126046236718539,
+        "profile": 7409704062750675268,
+        "path": 5337228359641516997,
+        "deps": [
+          [
+            9857275760291862238,
+            "sha2",
+            false,
+            2703920243940956180
+          ]
+        ],
+        "local": [
+          {
+            "CheckDepInfo": {
+              "dep_info": "debug/.fingerprint/snapback2-core-c945596744587666/dep-build-script-build-script-build",
+              "checksum": false
+            }
+          }
+        ],
+        "rustflags": [],
+        "config": 9396254390672932401,
+        "compile_kind": 0
+      }
+    },
+    "debug/.fingerprint/snapback2-core-cbb25a6d1784d133/lib-snapback2_core.json": {
+      "sha256": "b8b18b4e1b20547a47735d2d517e9e2c7aae0e9bf641a6528cb290ab86403412",
+      "data": {
+        "rustc": 18169182855791486453,
+        "features": "[]",
+        "declared_features": "[]",
+        "target": 9360243606312529307,
+        "profile": 8731458305071235362,
+        "path": 9975414993356992618,
+        "deps": [
+          [
+            192435385979317305,
+            "rusqlite",
+            false,
+            17301944018657747295
+          ],
+          [
+            4012234191921133045,
+            "thiserror",
+            false,
+            15871182258744361633
+          ],
+          [
+            5330460842384404171,
+            "serde_json",
+            false,
+            12248593033894263642
+          ],
+          [
+            6557439603276904804,
+            "serde",
+            false,
+            6610222224199841508
+          ],
+          [
+            9857275760291862238,
+            "sha2",
+            false,
+            3629471645224663017
+          ],
+          [
+            15961966049535497539,
+            "build_script_build",
+            false,
+            8838856687043814922
+          ],
+          [
+            18112009879309521262,
+            "argon2",
+            false,
+            12909062596517750604
+          ],
+          [
+            18408407127522236545,
+            "getrandom",
+            false,
+            7000487433725805572
+          ]
+        ],
+        "local": [
+          {
+            "CheckDepInfo": {
+              "dep_info": "debug/.fingerprint/snapback2-core-cbb25a6d1784d133/dep-lib-snapback2_core",
+              "checksum": false
+            }
+          }
+        ],
+        "rustflags": [],
+        "config": 9396254390672932401,
+        "compile_kind": 0
+      }
+    },
+    "debug/.fingerprint/snapback2-effects-23b624e2ed0f4110/lib-snapback2_effects.json": {
+      "sha256": "77d923ee65460ce9eab0bd5c76b0bdcea965378d8749a73f21e3553e9ff489eb",
+      "data": {
+        "rustc": 18169182855791486453,
+        "features": "[\"default\"]",
+        "declared_features": "[\"default\", \"hermes\", \"loader\"]",
+        "target": 1567764598175726605,
+        "profile": 8731458305071235362,
+        "path": 15613810865172532842,
+        "deps": [
+          [
+            767660769498874333,
+            "ibex2",
+            false,
+            1567902407247455297
+          ],
+          [
+            4012234191921133045,
+            "thiserror",
+            false,
+            15871182258744361633
+          ],
+          [
+            5330460842384404171,
+            "serde_json",
+            false,
+            12248593033894263642
+          ],
+          [
+            15961966049535497539,
+            "snapback2_core",
+            false,
+            13629048138311109931
+          ]
+        ],
+        "local": [
+          {
+            "CheckDepInfo": {
+              "dep_info": "debug/.fingerprint/snapback2-effects-23b624e2ed0f4110/dep-lib-snapback2_effects",
+              "checksum": false
+            }
+          }
+        ],
+        "rustflags": [],
+        "config": 9396254390672932401,
+        "compile_kind": 0
+      }
+    }
+  },
+  "verifiedRegistryArchives": 93,
+  "ibex": {
+    "path": "/home/ccheever/clique-tooling/search-native-linux-26c9-20260907T0203Z-01a07995/cargo-home/git/checkouts/ibex-617449cbc44c15d9/ae72807",
+    "commit": "ae72807aeaef7a2215d3f0dcf5f4e548ffc4c218",
+    "verifiedGitBlobLeaves": 2409,
+    "submodules": [],
+    "manifestSha256": "9a46667e95464ef4141716bd22af0d6242306a504a03b6c72119af9775087788"
+  },
+  "elapsedSeconds": 0.8807985782623291,
+  "lockSha256": "823ad9b7193981342b15ca95a22b45a50f97c5da87795c9c7eeb8d93711620ad"
+}

@@ -1,0 +1,534 @@
+{
+  "outcome": "FAILED_NOT_QUALIFIED; stopped after first invocation",
+  "carrierSupervisorExitCode": 1,
+  "carrierOuterElapsedSeconds": 21.99510035593994,
+  "baselineChild": {
+    "code": 1,
+    "signal": null
+  },
+  "baselineElapsedMs": 21689.663259,
+  "failure": {
+    "phase": "contradictions",
+    "error": "AssertionError [ERR_ASSERTION]: The input did not match the regular expression /conflicting durable fact/. Input:\n\n'TypeError: conflicting deliveries for resident.page at seq 11'\n",
+    "stack": "AssertionError [ERR_ASSERTION]: The input did not match the regular expression /conflicting durable fact/. Input:\n\n'TypeError: conflicting deliveries for resident.page at seq 11'\n\n    at async unchangedAfterFailure (file:///home/ccheever/clique-tooling/search-resident-format5-linux-20260907T011256Z-e51045c8/packet/worker.mjs:46:176)\n    at async file:///home/ccheever/clique-tooling/search-resident-format5-linux-20260907T011256Z-e51045c8/packet/worker.mjs:53:127\n    at async run (file:///home/ccheever/clique-tooling/search-resident-format5-linux-20260907T011256Z-e51045c8/packet/worker.mjs:45:201)\n    at async execute (file:///home/ccheever/clique-tooling/search-resident-format5-linux-20260907T011256Z-e51045c8/packet/worker.mjs:53:3)\n    at async file:///home/ccheever/clique-tooling/search-resident-format5-linux-20260907T011256Z-e51045c8/packet/carrier-process.mjs:3:6",
+    "status": "FAILED_NOT_QUALIFIED",
+    "revision": "baseline",
+    "mode": "carrier",
+    "variant": "ordinary",
+    "populationReduction": false
+  },
+  "completedPhaseTimings": [
+    {
+      "kind": "phase-done",
+      "phase": "empty",
+      "elapsedMs": 7.160018000000001
+    },
+    {
+      "kind": "phase-done",
+      "phase": "load",
+      "elapsedMs": 18126.976278000002
+    },
+    {
+      "kind": "phase-done",
+      "phase": "retained",
+      "elapsedMs": 627.4860349999981
+    },
+    {
+      "kind": "phase-done",
+      "phase": "warm",
+      "elapsedMs": 1927.1669470000015
+    },
+    {
+      "kind": "phase-done",
+      "phase": "timed",
+      "elapsedMs": 644.301832000001
+    }
+  ],
+  "sampleCounts": {
+    "external-rss": 86,
+    "sample": 184
+  },
+  "retainedSnapshots": [
+    {
+      "phase": "empty",
+      "retainedMemory": {
+        "rss": 60555264,
+        "heapTotal": 10821632,
+        "heapUsed": 5596808,
+        "external": 2275795,
+        "arrayBuffers": 77307
+      },
+      "serializedBytes": 403,
+      "stateHash": "407b31151d225d574437f71078091fce8a9ba1ffe0c0feb31b399d0377ce262c",
+      "population": {
+        "factFormat": 5,
+        "factSlots": 0,
+        "slotComponents": {
+          "rowGuards": 0,
+          "verdictGuards": 0,
+          "imageKeys": 0,
+          "extentConditions": 0,
+          "extentGuards": 0,
+          "extentMasks": 0,
+          "answerProofs": 0
+        },
+        "rows": 0,
+        "answers": 0,
+        "outbox": 0,
+        "overlayIntents": 0,
+        "overlayRows": 0,
+        "globalNegative": 0,
+        "primaryAbsenceGuards": 0,
+        "images": 0,
+        "imageRefs": 0,
+        "imageKeyParts": 0,
+        "wordOccurrences": 0,
+        "extentDescriptors": 0,
+        "extentRefs": 0,
+        "extentPresence": 0,
+        "extentConditionSerializedBytes": 0,
+        "activeMasks": 0,
+        "missingMarkers": 0,
+        "rowProofRefs": 0,
+        "verdictProofRefs": 0,
+        "extentProofRefs": 0,
+        "answerRowRefs": 0,
+        "receiptMembers": 0,
+        "receiptHalos": 0,
+        "assets": 0,
+        "viewed": 0
+      },
+      "carrierIndexOwners": null,
+      "carrierOwnGraph": {
+        "objects": 30,
+        "maps": 1,
+        "mapEntries": 0,
+        "sets": 0,
+        "setEntries": 0,
+        "arrays": 1,
+        "arrayEntries": 0,
+        "stringOccurrences": 4,
+        "stringUtf8OccurrenceBytes": 187,
+        "typedViews": 0,
+        "uniqueBackingBuffers": 0,
+        "backingBytes": 0,
+        "limits": "own-property/Map/Set graph; UTF8 string occurrence bytes are logical payload, not physical string memory; closures/WeakMap contents unavailable"
+      },
+      "twinOwnGraph": null,
+      "backend": {
+        "writes": 0,
+        "cumulativeWrittenBytes": 0,
+        "retainsParsedState": false
+      },
+      "note": "retained sample precedes audit/serialization/graph allocations; interval and parent RSS samples are lower-bound transient observations"
+    },
+    {
+      "phase": "retained",
+      "retainedMemory": {
+        "rss": 180985856,
+        "heapTotal": 89579520,
+        "heapUsed": 52269240,
+        "external": 3131125,
+        "arrayBuffers": 898555
+      },
+      "serializedBytes": 8278766,
+      "stateHash": "fe03d81f96a9acdf75804ed281535e55131092c92cec0a20c98fb379afc47e68",
+      "population": {
+        "factFormat": 5,
+        "factSlots": 105200,
+        "slotComponents": {
+          "rowGuards": 10000,
+          "verdictGuards": 0,
+          "imageKeys": 70000,
+          "extentConditions": 13800,
+          "extentGuards": 500,
+          "extentMasks": 0,
+          "answerProofs": 10900
+        },
+        "rows": 10000,
+        "answers": 500,
+        "outbox": 1,
+        "overlayIntents": 0,
+        "overlayRows": 0,
+        "globalNegative": 0,
+        "primaryAbsenceGuards": 0,
+        "images": 10000,
+        "imageRefs": 20400,
+        "imageKeyParts": 40000,
+        "wordOccurrences": 0,
+        "extentDescriptors": 500,
+        "extentRefs": 1000,
+        "extentPresence": 10400,
+        "extentConditionSerializedBytes": 305000,
+        "activeMasks": 0,
+        "missingMarkers": 0,
+        "rowProofRefs": 10400,
+        "verdictProofRefs": 0,
+        "extentProofRefs": 500,
+        "answerRowRefs": 10400,
+        "receiptMembers": 10000,
+        "receiptHalos": 400,
+        "assets": 0,
+        "viewed": 0
+      },
+      "carrierIndexOwners": {
+        "references": {
+          "entries": 10000,
+          "immediateNestedRefs": 10400
+        },
+        "absences": {
+          "entries": 0,
+          "immediateNestedRefs": 0
+        },
+        "verdicts": {
+          "entries": 0,
+          "immediateNestedRefs": 0
+        },
+        "proofOwners": {
+          "entries": 10000,
+          "immediateNestedRefs": 10400
+        },
+        "guards": {
+          "entries": 10000,
+          "immediateNestedRefs": 0
+        },
+        "extentOwners": {
+          "entries": 500,
+          "immediateNestedRefs": 0
+        },
+        "fullImages": {
+          "entries": 10000,
+          "immediateNestedRefs": 10000
+        },
+        "masks": {
+          "entries": 0,
+          "immediateNestedRefs": 0
+        },
+        "masked": {
+          "entries": 0,
+          "immediateNestedRefs": 0
+        },
+        "answers": {
+          "entries": 500,
+          "immediateNestedRefs": 0
+        },
+        "ranges": {
+          "entries": 500,
+          "immediateNestedRefs": 500
+        },
+        "preparedRanges": {
+          "entries": 500,
+          "logicalSerializedBytes": 159900
+        }
+      },
+      "carrierOwnGraph": {
+        "objects": 371552,
+        "maps": 10552,
+        "mapEntries": 112827,
+        "sets": 20725,
+        "setEntries": 23768,
+        "arrays": 77646,
+        "arrayEntries": 208091,
+        "stringOccurrences": 448614,
+        "stringUtf8OccurrenceBytes": 13654834,
+        "typedViews": 20540,
+        "uniqueBackingBuffers": 20540,
+        "backingBytes": 819200,
+        "limits": "own-property/Map/Set graph; UTF8 string occurrence bytes are logical payload, not physical string memory; closures/WeakMap contents unavailable"
+      },
+      "twinOwnGraph": null,
+      "backend": {
+        "writes": 501,
+        "cumulativeWrittenBytes": 2075714371,
+        "retainsParsedState": false
+      },
+      "note": "retained sample precedes audit/serialization/graph allocations; interval and parent RSS samples are lower-bound transient observations"
+    },
+    {
+      "phase": "warm",
+      "retainedMemory": {
+        "rss": 182648832,
+        "heapTotal": 93773824,
+        "heapUsed": 55717760,
+        "external": 3131125,
+        "arrayBuffers": 898555
+      },
+      "serializedBytes": 8288108,
+      "stateHash": "8fd2129a965eef2d083ea4472fd6c1d7e98c20e33a6f38c0b6459d0f6dd49146",
+      "population": {
+        "factFormat": 5,
+        "factSlots": 105480,
+        "slotComponents": {
+          "rowGuards": 10000,
+          "verdictGuards": 0,
+          "imageKeys": 70280,
+          "extentConditions": 13800,
+          "extentGuards": 500,
+          "extentMasks": 0,
+          "answerProofs": 10900
+        },
+        "rows": 10000,
+        "answers": 500,
+        "outbox": 1,
+        "overlayIntents": 0,
+        "overlayRows": 0,
+        "globalNegative": 0,
+        "primaryAbsenceGuards": 0,
+        "images": 10040,
+        "imageRefs": 20400,
+        "imageKeyParts": 40160,
+        "wordOccurrences": 0,
+        "extentDescriptors": 500,
+        "extentRefs": 1000,
+        "extentPresence": 10400,
+        "extentConditionSerializedBytes": 305000,
+        "activeMasks": 0,
+        "missingMarkers": 0,
+        "rowProofRefs": 10400,
+        "verdictProofRefs": 0,
+        "extentProofRefs": 500,
+        "answerRowRefs": 10400,
+        "receiptMembers": 10000,
+        "receiptHalos": 400,
+        "assets": 0,
+        "viewed": 0
+      },
+      "carrierIndexOwners": {
+        "references": {
+          "entries": 10000,
+          "immediateNestedRefs": 10400
+        },
+        "absences": {
+          "entries": 0,
+          "immediateNestedRefs": 0
+        },
+        "verdicts": {
+          "entries": 0,
+          "immediateNestedRefs": 0
+        },
+        "proofOwners": {
+          "entries": 10000,
+          "immediateNestedRefs": 10400
+        },
+        "guards": {
+          "entries": 10000,
+          "immediateNestedRefs": 0
+        },
+        "extentOwners": {
+          "entries": 500,
+          "immediateNestedRefs": 0
+        },
+        "fullImages": {
+          "entries": 10000,
+          "immediateNestedRefs": 10040
+        },
+        "masks": {
+          "entries": 0,
+          "immediateNestedRefs": 0
+        },
+        "masked": {
+          "entries": 0,
+          "immediateNestedRefs": 0
+        },
+        "answers": {
+          "entries": 500,
+          "immediateNestedRefs": 0
+        },
+        "ranges": {
+          "entries": 500,
+          "immediateNestedRefs": 500
+        },
+        "preparedRanges": {
+          "entries": 500,
+          "logicalSerializedBytes": 159900
+        }
+      },
+      "carrierOwnGraph": {
+        "objects": 372402,
+        "maps": 10545,
+        "mapEntries": 112931,
+        "sets": 20669,
+        "setEntries": 23585,
+        "arrays": 77886,
+        "arrayEntries": 208640,
+        "stringOccurrences": 448895,
+        "stringUtf8OccurrenceBytes": 13686334,
+        "typedViews": 20620,
+        "uniqueBackingBuffers": 20620,
+        "backingBytes": 819200,
+        "limits": "own-property/Map/Set graph; UTF8 string occurrence bytes are logical payload, not physical string memory; closures/WeakMap contents unavailable"
+      },
+      "twinOwnGraph": null,
+      "backend": {
+        "writes": 521,
+        "cumulativeWrittenBytes": 2241387800,
+        "retainsParsedState": false
+      },
+      "note": "retained sample precedes audit/serialization/graph allocations; interval and parent RSS samples are lower-bound transient observations"
+    },
+    {
+      "phase": "timed",
+      "retainedMemory": {
+        "rss": 196640768,
+        "heapTotal": 93773824,
+        "heapUsed": 55700256,
+        "external": 3133173,
+        "arrayBuffers": 900603
+      },
+      "serializedBytes": 8294379,
+      "stateHash": "0c0191ec9808365452fcc161bd7b71d15ebd639c4592a634189de71600a69426",
+      "population": {
+        "factFormat": 5,
+        "factSlots": 105532,
+        "slotComponents": {
+          "rowGuards": 10000,
+          "verdictGuards": 0,
+          "imageKeys": 70280,
+          "extentConditions": 13829,
+          "extentGuards": 501,
+          "extentMasks": 0,
+          "answerProofs": 10922
+        },
+        "rows": 10000,
+        "answers": 501,
+        "outbox": 1,
+        "overlayIntents": 0,
+        "overlayRows": 0,
+        "globalNegative": 0,
+        "primaryAbsenceGuards": 0,
+        "images": 10040,
+        "imageRefs": 20421,
+        "imageKeyParts": 40160,
+        "wordOccurrences": 0,
+        "extentDescriptors": 501,
+        "extentRefs": 1002,
+        "extentPresence": 10421,
+        "extentConditionSerializedBytes": 305643,
+        "activeMasks": 0,
+        "missingMarkers": 0,
+        "rowProofRefs": 10421,
+        "verdictProofRefs": 0,
+        "extentProofRefs": 501,
+        "answerRowRefs": 10421,
+        "receiptMembers": 10020,
+        "receiptHalos": 401,
+        "assets": 0,
+        "viewed": 0
+      },
+      "carrierIndexOwners": {
+        "references": {
+          "entries": 10000,
+          "immediateNestedRefs": 10421
+        },
+        "absences": {
+          "entries": 0,
+          "immediateNestedRefs": 0
+        },
+        "verdicts": {
+          "entries": 0,
+          "immediateNestedRefs": 0
+        },
+        "proofOwners": {
+          "entries": 10000,
+          "immediateNestedRefs": 10421
+        },
+        "guards": {
+          "entries": 10000,
+          "immediateNestedRefs": 0
+        },
+        "extentOwners": {
+          "entries": 501,
+          "immediateNestedRefs": 0
+        },
+        "fullImages": {
+          "entries": 10000,
+          "immediateNestedRefs": 10040
+        },
+        "masks": {
+          "entries": 0,
+          "immediateNestedRefs": 0
+        },
+        "masked": {
+          "entries": 0,
+          "immediateNestedRefs": 0
+        },
+        "answers": {
+          "entries": 501,
+          "immediateNestedRefs": 0
+        },
+        "ranges": {
+          "entries": 501,
+          "immediateNestedRefs": 501
+        },
+        "preparedRanges": {
+          "entries": 501,
+          "logicalSerializedBytes": 160235
+        }
+      },
+      "carrierOwnGraph": {
+        "objects": 372506,
+        "maps": 10546,
+        "mapEntries": 112936,
+        "sets": 20670,
+        "setEntries": 23632,
+        "arrays": 77902,
+        "arrayEntries": 208738,
+        "stringOccurrences": 449124,
+        "stringUtf8OccurrenceBytes": 13699068,
+        "typedViews": 20621,
+        "uniqueBackingBuffers": 20621,
+        "backingBytes": 819200,
+        "limits": "own-property/Map/Set graph; UTF8 string occurrence bytes are logical payload, not physical string memory; closures/WeakMap contents unavailable"
+      },
+      "twinOwnGraph": null,
+      "backend": {
+        "writes": 522,
+        "cumulativeWrittenBytes": 2249682179,
+        "retainsParsedState": false
+      },
+      "note": "retained sample precedes audit/serialization/graph allocations; interval and parent RSS samples are lower-bound transient observations"
+    }
+  ],
+  "maxExternalSampledRss": 279805952,
+  "maxChildTimerMemory": {
+    "rss": 275177472,
+    "heapUsed": 118379112,
+    "external": 37493874,
+    "arrayBuffers": 34171893
+  },
+  "subsequentPhasesNotCompleted": [
+    "contradictions",
+    "publicationRollback",
+    "populatedReopen",
+    "removeOwners",
+    "purge",
+    "reopen",
+    "reset",
+    "close"
+  ],
+  "laterCarrierArmsLaunched": false,
+  "twinLaunched": false,
+  "comparisonsProduced": false,
+  "outerContainmentTriggered": false,
+  "cleanup": [
+    {
+      "pid": 3564510,
+      "expectedStartTicks": "110351627",
+      "absent": true,
+      "originalProcessRunning": false
+    },
+    {
+      "pid": 3564511,
+      "expectedStartTicks": "110351643",
+      "absent": true,
+      "originalProcessRunning": false
+    },
+    {
+      "pid": 3564518,
+      "expectedStartTicks": "110351672",
+      "absent": true,
+      "originalProcessRunning": false
+    }
+  ],
+  "metricsScope": "Linux observations of one failed historical baseline carrier arm; sampled lower bounds, retained snapshots after GC; no cross-arm/complete lifecycle/performance qualification"
+}

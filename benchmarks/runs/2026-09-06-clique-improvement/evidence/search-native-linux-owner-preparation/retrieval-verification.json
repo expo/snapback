@@ -1,0 +1,8 @@
+{
+  "passed": true,
+  "archiveSha256": "e65732d93d47c653f2b2a6c2752e995d62fbb04071824597c57fc64bdbedfc2e",
+  "binarySha256": "2f3cd93ccbff5902465f2514e61d8cf6fedf76228ad8e7abafe02ed5f1959175",
+  "sourceManifestSha256": "7fbfd538a98144d2a6d581a98b5730c9f5ba3c7b6b49aeec2257bdd9277dd3aa",
+  "matchesOriginalSourceManifest": true,
+  "remoteRoot": "/home/ccheever/clique-tooling/search-native-linux-26c9-20260907T0203Z-01a07995"
+}

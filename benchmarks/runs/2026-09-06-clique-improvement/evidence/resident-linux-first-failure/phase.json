@@ -1,0 +1,41 @@
+{
+  "recordedUtc": "2026-09-07T01:39:23.044978+00:00",
+  "phase": "terminal-handoff",
+  "outcome": "FAILED_NOT_QUALIFIED",
+  "writerReleased": true,
+  "writer": {
+    "model": "gpt-6-astra",
+    "reasoningEffort": "xhigh",
+    "uuid": "01a0783e-90b6-70b3-a096-c7a980574ceb",
+    "cliPid": 71898,
+    "parentPid": 71889,
+    "cliExitCode": null,
+    "terminalCustody": "Parent supervisor records actual CLI terminal after return"
+  },
+  "invocationsLaunched": 1,
+  "carrierSupervisorExitCode": 1,
+  "baselineChildExitCode": 1,
+  "failurePhase": "contradictions",
+  "laterCarrierArmsLaunched": false,
+  "twinLaunched": false,
+  "comparisonsProduced": false,
+  "retries": 0,
+  "sourceChanged": false,
+  "limitsChanged": false,
+  "ownedProcessesAbsent": true,
+  "signalsSent": [],
+  "remoteExecutionRoot": "/home/ccheever/clique-tooling/search-resident-format5-linux-ordinary-20260907T012601Z-da2956f5",
+  "sourceManifestSha256": "e1fd840712da9c00cdeeb952e2364b119107a88133b18edc3bb1379638339087",
+  "retrieval": {
+    "archiveSha256": "6c71868f96ed77973953f272e54ceb50b273160c4e2afdff70ea3f420314597d",
+    "manifestSha256": "ff20d7efa844ffc636fd0c1a4b34c635f55eff110c996e51a6b471d542d1f7bf",
+    "filesVerified": 26,
+    "bytesVerified": 33282462,
+    "allFilesMatch": true,
+    "localResults": "/Users/ccheever/clique-improvement/revisions/search-resident-format5-linux-ordinary/results"
+  },
+  "report": "REPORT.md",
+  "reportSha256": "8d3f365123db89e21471a7d5761621b7b598beef8e9b56cac8db01fd60045554",
+  "cleanupReceipt": "results/cleanup.json",
+  "scope": "One failed historical ordinary10k baseline arm inside carrier invocation; no qualification or comparative conclusion; Root owns disposition"
+}

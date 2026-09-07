@@ -1,0 +1,31 @@
+{
+  "recordedUtc": "2026-09-07T01:56:04.279744+00:00",
+  "status": "PROPOSAL_READY_FOR_ROOT_INSPECTION",
+  "writerReleased": true,
+  "model": "gpt-6-astra",
+  "reasoningEffort": "xhigh",
+  "uuid": "01a0783e-90b6-70b3-a096-c7a980574ceb",
+  "cliPid": 5301,
+  "parentPid": 5289,
+  "cliExitCode": null,
+  "terminalCustody": "Parent records actual CLI terminal after return",
+  "populationExecuted": false,
+  "storesOpened": 0,
+  "remoteCommands": 0,
+  "originalWorkloadStatus": "FAILED_NOT_QUALIFIED unchanged",
+  "proposal": "proposal/PATCH.json",
+  "completeLinuxDerivativeAssembled": false,
+  "proposedChangedExecutionFiles": [
+    "fixtures/ordinary/controls.json"
+  ],
+  "pureValidatorCommands": 4,
+  "pureValidatorFailures": 0,
+  "preparationToolFailuresPreserved": "preparation-failures.json",
+  "statefulReachabilityUnproven": true,
+  "allOwnedChildrenWaited": true,
+  "signalsSent": [],
+  "sourceWorktreesTouched": false,
+  "manifestSha256": "3f386fc4d9ca558c4cf19440896dd6fe74ecfd8e805c160a3bbdaceab07aac3e",
+  "report": "REPORT.md",
+  "reportSha256": "c4306cd0da564dab7760cd222415025196b6863003634f9ad71e090fd127e2ec"
+}

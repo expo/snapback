@@ -1,0 +1,36 @@
+{
+  "status": "UNQUALIFIED_FIRST_ATTEMPT",
+  "source": "0fdcc846bc7451bbcb1804194b49737418954506",
+  "version": "0.0.14",
+  "directory": "/Users/ccheever/projects/snapback-artifacts/clique-release/0.0.14-0fdcc846b",
+  "captures": [
+    {
+      "source_tarball": "/Users/ccheever/projects/snapback-worktrees/clique-release-next/snapback2/dist/npm/publish-snapback2-darwin-arm64-0.0.14.dry-m0J853/snapback2-darwin-arm64-0.0.14.tgz",
+      "retained_tarball": "/Users/ccheever/projects/snapback-artifacts/clique-release/0.0.14-0fdcc846b/snapback2-darwin-arm64-0.0.14.tgz",
+      "name": "snapback2-darwin-arm64",
+      "version": "0.0.14",
+      "bytes": 4821150,
+      "sha256": "92cc8ce2d95c55cb582c1af17da4aaf95f5c82331cc68cf199d4e34dc954c7fb",
+      "integrity": "sha512-2UVxYTgIQJnGV+8V3gV3yQUTJ6yiftqinl5aeYW6elODy96c7yn7Lm2eq80HZqUhDIBjFjEBFWvd5R2Agfxz6w==",
+      "copy_equal_before_publisher_cleanup": true,
+      "mode": "0444"
+    },
+    {
+      "source_tarball": "/Users/ccheever/projects/snapback-worktrees/clique-release-next/snapback2/dist/npm/publish-snapback2-darwin-arm64-0.0.14.dry-m0J853/snapback2-0.0.14.tgz",
+      "retained_tarball": "/Users/ccheever/projects/snapback-artifacts/clique-release/0.0.14-0fdcc846b/snapback2-0.0.14.tgz",
+      "name": "snapback2",
+      "version": "0.0.14",
+      "bytes": 1797207,
+      "sha256": "4b699eaa4c4a28cb5a508316d14f721bcb6004d65cc6f3888acebb1d15c9867e",
+      "integrity": "sha512-dPm5mFSUA/DyWvICY6KwHIFCV6XppCogvYRZ3tX8BWV8h1QKIpQ/gPXRNDniRg0SJ4KyZfV1CKuBm2c/CdhX2w==",
+      "copy_equal_before_publisher_cleanup": true,
+      "mode": "0444"
+    }
+  ],
+  "original_file_manifest": "original-pack-receipts.json",
+  "resume_created": false,
+  "conditional_installed_verification_run": false,
+  "raw_packed_guide_correspondence": "packed-guide-custody.json; not installed/runtime qualification",
+  "wrapper_calls": "npm-custody-receipt.json",
+  "no_repack_relabel": true
+}

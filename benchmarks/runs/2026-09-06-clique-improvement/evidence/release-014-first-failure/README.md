@@ -1,0 +1,5 @@
+The first standard 0.0.14 dry-run failed at the mandatory installed chat test’s original 30-second timeout. Publisher exit1 after 698.7995 seconds controls; prior media/todos passes and captured tarballs do not qualify the release. No producer metric, successful resume, conditional Expo witness or publication followed.
+
+The [full implementation report](implementation-report.md) records exact source 0fdcc846b, original package pair, 18 consumer entries, load observations without causal attribution, and owned cleanup. Version metadata landed separately as c35418dda. Native writer completion is actual exit 0, which describes finished evidence custody rather than a passed publisher. Immutable tarballs and full raw logs remain at the external paths bound in the report; no package bytes are copied here.
+
+Root subsequently authorized one separately logged standard attempt after capacity preflight and peer scheduling, preserving this failure and the original deadlines. That authorization is not a result.

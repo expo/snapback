@@ -1,0 +1,22 @@
+{
+  "commit": "0fdcc846bc7451bbcb1804194b49737418954506",
+  "branch": "s2/clique-release-014",
+  "tree": "0fea68076d38da9744f32a54d89638f728efe4b8",
+  "status": "",
+  "leaves_checked": 938,
+  "mismatches": [],
+  "refs_preserved": {
+    "s2/clique-release-013": "ae7d86a11eecb898f4d91d21195a56017e23bee5",
+    "s2/clique-drain-main-independent": "79b95a6cf679981e2dfd3e2b07e6121c62f16f2c",
+    "s2/clique-release-ordering-drain": "97fa0f66a73d89f5d7b42171280fb62101cd90cc",
+    "s2/clique-release-next": "60f4835dea903db24c755a81a5a020d2723b71fe"
+  },
+  "only_committed_version_files": [
+    "snapback2/Cargo.lock",
+    "snapback2/Cargo.toml",
+    "snapback2/bun.lock",
+    "snapback2/packages/snapback2/package.json"
+  ],
+  "prior_original_artifacts_unchanged": true,
+  "no_main_push": true
+}
