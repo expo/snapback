@@ -67,7 +67,7 @@ test("native file wipe drops either partition and the open partition closes its 
     await f.store.wipe("dev:alice");
     assert.equal(f.fs.data.size, 0);
     assert.equal(await f.files.get(f.cache, asset.id, 8), undefined);
-    await assert.rejects(() => f.backend.readBytes(key), (error: any) => error?.code === "E_OFFLINE_CARRIER");
+    await assert.rejects(() => f.cache.getBytes(asset.id, 8), (error: any) => error?.code === "E_OFFLINE_CARRIER");
     await f.store.open("dev:alice"); f.cache.bind("dev:alice");
     assert.equal(await f.backend.readBytes(key), undefined);
     assert.equal(await f.files.get(f.cache, asset.id, 8), undefined);
