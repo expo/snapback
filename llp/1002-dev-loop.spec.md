@@ -732,7 +732,12 @@ verdict: "pass" | "fail" | "blocked", ms, detail }], arms: ["headless"], verdict
   and symbol lookup, `<keyword>` serves its grammar line and defining paragraph
   from an index generated at package build time from
   the existing guide pages; a matching symbol keeps its declaration and gains that
-  excerpt under one header. Missing, unreadable, or invalid keyword indexes never
+  excerpt under one header. The same build adds package README H2 topics, keyed by
+  lowercase headings with non-letter/digit runs replaced by hyphens (trimmed at the
+  ends), with the first prose paragraph before any subheading and a pointer to the
+  full packaged README section. README remains authoritative; H3 headings are not
+  topics, and existing constructs or earlier topics win key collisions.
+  Missing, unreadable, or invalid keyword indexes never
   suppress a symbol hit. A keyword-only lookup with a missing index is unknown;
   unreadable or invalid indexes return `E_OWNER_GUIDE` only when keyword help is
   needed. Unknown-name guidance includes index keys when readable. `--json` keeps

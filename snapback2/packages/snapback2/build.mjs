@@ -208,7 +208,7 @@ const guideErrors = [...familyErrors, ...quarryFamilyFailures(families, parseDoc
 if (guideErrors.length > 0) {
   throw new Error(`guide validation failed:\n${guideErrors.join("\n")}`);
 }
-await writeFile(resolve(guide, "keywords.json"), `${JSON.stringify(guideKeywords(guidePages), null, 2)}\n`);
+await writeFile(resolve(guide, "keywords.json"), `${JSON.stringify(guideKeywords(guidePages, await readFile(resolve(here, "README.md"), "utf8")), null, 2)}\n`);
 
 const snapshot = process.env.SNAPBACK2_PACKAGE_BUILD_SNAPSHOT;
 if (snapshot) {
@@ -247,6 +247,27 @@ if (process.argv.includes("--self-test")) {
   try { guideKeywords([{ name: "grammar", markdown: "- `spark`: `spark value`" }]); }
   catch (error) { missingDefinition = error.message.includes("spark has no defining paragraph"); }
   if (!missingDefinition) throw new Error("guide keyword extraction admitted an undefined construct");
+  const topicPages = [
+    { name: "grammar", markdown: "- `spark`: `spark value`" },
+    { name: "quarry", markdown: "# Spark\n\n`spark value` defines a signal." },
+  ];
+  const topics = guideKeywords(topicPages, [
+    "# Package", "", "## Spark", "", "Must not replace the construct.", "",
+    "## Upload & Storage!", "", "First defining paragraph", "keeps its line break.", "",
+    "Later paragraph is not the definition.", "", "### Native detail", "", "Not a topic.", "",
+    "## Upload / Storage", "", "Must not replace the first topic.", "",
+    "## Empty", "", "### Child", "", "Must not become the parent definition.", "",
+    "~~~md", "## Fenced heading", "", "Not a topic.", "~~~~", "",
+    "## After Example", "", "```sh", "example", "```", "",
+    "- A list is not the defining paragraph.", "  Nor its continuation.", "",
+    "Actual definition after the example.", "", "## !!!", "", "No usable key.",
+  ].join("\n"));
+  if (topics.spark !== guideKeywords(topicPages).spark
+    || Object.keys(topics).join(",") !== "spark,upload-storage,after-example"
+    || topics["upload-storage"] !== '# `upload-storage`\n\nFirst defining paragraph\nkeeps its line break.\n\nSee the packaged [README.md](../../README.md), section "Upload & Storage!", for the full documentation.\n'
+    || !topics["after-example"].includes("Actual definition after the example.")) {
+    throw new Error("README topics lost normalization, first-paragraph boundaries, or collision priority");
+  }
   const failures = [
     ...quarryFamilyFailures([{ family: "bound", language: "q", code: "E_BAD_CAP", right: "cap 50 by conversationId // invalid" }], parseDocument),
     ...familyFailures([
@@ -440,7 +461,7 @@ function guideFailures(pages, tsFixturesText, quarryFixturesText, parseDocument)
 }
 
 // @ref LLP 1002#8-why-trace-guide — derive keyword help from shipped prose at build time.
-function guideKeywords(pages) {
+function guideKeywords(pages, readme = "") {
   const grammar = pages.find((page) => page.name === "grammar")?.markdown ?? "";
   const definitions = [];
   for (const { name, markdown } of pages) {
@@ -470,6 +491,35 @@ function guideKeywords(pages) {
     keywords[keyword] = `# \`${keyword}\`\n\n${line.slice(2)}\n\n## ${definition.name}: ${definition.heading}\n\n${definition.paragraph}\n`;
   }
   if (Object.keys(keywords).length === 0) throw new Error("guide/grammar.md: no construct lines");
+  // README H2 topics are fallback entries; constructs and earlier topics win collisions.
+  let heading, key, fence, skipBlock = false;
+  let paragraph = [];
+  const finishParagraph = () => {
+    if (key && paragraph.length && !Object.hasOwn(keywords, key)) {
+      keywords[key] = `# \`${key}\`\n\n${paragraph.join("\n")}\n\nSee the packaged [README.md](../../README.md), section "${heading}", for the full documentation.\n`;
+    }
+    paragraph = [];
+    skipBlock = false;
+  };
+  for (const line of `${readme}\n`.split("\n")) {
+    if (fence) {
+      if (new RegExp(`^ {0,3}${fence[0]}{${fence.length},}[ \\t]*$`).test(line)) fence = undefined;
+      continue;
+    }
+    const opening = /^ {0,3}(`{3,}|~{3,})/.exec(line);
+    if (opening) { finishParagraph(); fence = opening[1]; continue; }
+    const title = /^ {0,3}(#{1,6})[ \t]+(.+?)(?:[ \t]+#+)?[ \t]*$/.exec(line);
+    if (title) {
+      finishParagraph();
+      heading = title[2];
+      key = title[1] === "##" ? heading.toLowerCase().replace(/[^\p{L}\p{N}]+/gu, "-").replace(/^-+|-+$/g, "") : undefined;
+    } else if (!line.trim()) {
+      finishParagraph();
+    } else if (key && !Object.hasOwn(keywords, key)) {
+      if (!paragraph.length && /^(?: {4}|\t| {0,3}(?:[-+*]\s|\d+[.)]\s|>|<!--|[-*_]{3,}\s*$))/.test(line)) skipBlock = true;
+      if (!skipBlock) paragraph.push(line);
+    }
+  }
   return keywords;
 }
 

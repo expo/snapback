@@ -57,18 +57,23 @@ export function registerPackageGuideChecks(test: Test, assert: Assert, withProje
     assert(readme.includes("snapback2 guide offline"), "README recovery pointer must work in a source checkout");
   });
 
-  test("the built keyword guide resolves every grammar construct", async () => {
+  test("the built keyword guide resolves grammar constructs and the README Assets topic", async () => {
     const guide = `${crate}packages/snapback2/dist/guide`;
     const grammar = await readFile(`${guide}/grammar.md`, "utf8");
     const keywords = JSON.parse(await readFile(`${guide}/keywords.json`, "utf8"));
     const entries = [...grammar.matchAll(/^- `([a-z][a-z0-9-]*)`: .+$/gm)];
     assert(entries.length > 0, "grammar lost its construct list");
-    assert(Object.keys(keywords).length === entries.length, "keyword index differs from grammar");
+    assert(Object.keys(keywords).length === entries.length + 1, "keyword index differs from grammar plus Assets");
     for (const [line, keyword] of entries) {
       const content = keywords[keyword!];
       assert(typeof content === "string" && content.includes(line.slice(2)), `${keyword}: missing grammar line`);
       assert(/\n\n## [\w-]+: [^\n]+\n\n\S/.test(content), `${keyword}: missing defining paragraph`);
     }
+    const readme = await readFile(`${crate}packages/snapback2/README.md`, "utf8");
+    const paragraph = /^## Assets\n\n([\s\S]*?)\n\n/m.exec(readme)?.[1];
+    assert(paragraph, "README lost its Assets defining paragraph");
+    assert(keywords.assets === `# \`assets\`\n\n${paragraph}\n\nSee the packaged [README.md](../../README.md), section "Assets", for the full documentation.\n`,
+      "Assets help must contain the exact README paragraph and packaged source pointer");
   });
 
   test("the guide spec lists the CLI's current recipes", async () => {
