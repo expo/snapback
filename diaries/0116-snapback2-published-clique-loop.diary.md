@@ -1370,3 +1370,8 @@ Review caught an overclaim in the first repair: waiting for one child does not p
 ## 2026-09-07 — Declaration fixes pass release qualification
 
 The 0.0.18 dry release passed all 19 installed-consumer results and the complete todos 6/chat 30 checks on Apartment M1. This source includes both generated API imports and the ambient declaration repair. [Original evidence](../benchmarks/runs/2026-09-06-clique-improvement/evidence/cli-018-dry/README.md) retains the actual publisher exit, complete receipts and artifact identities. Chat check still takes 1.056400375 seconds against its one-second target; publication and public-installed witnesses are next. A separate compiler optimization will test whether skipping discarded semantic checks reduces this wait without losing diagnostics. No performance gain or new holistic score is claimed.
+
+
+## 2026-09-07 — Grok M3 reaches its original deadline
+
+The unchanged 0.0.16 benchmark reached M3's original four-hour boundary without a preserved green completion. Its last completed attempt had five passes, one membership-flow failure and one optional skip; voluntary leave did not become observable within 20 seconds. The builder remained live, and the exact boundary snapshot is [preserved](../benchmarks/runs/2026-09-06-clique-improvement/evidence/grok-016-m3-boundary/README.md). This is an intermediate measurement, not a final score or independent attribution of the failure to Snapback. The deadline is unchanged and later progress must retain its actual timing.
