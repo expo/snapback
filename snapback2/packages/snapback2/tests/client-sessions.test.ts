@@ -23,6 +23,7 @@ class MemoryBroadcastChannel {
   static members = new Map<string, Set<MemoryBroadcastChannel>>();
   static messages: any[] = [];
   static drop: (message: any) => boolean = () => false;
+  static throwOn: (message: any) => boolean = () => false;
   onmessage?: (event: { data: unknown }) => void;
   readonly name: string;
   constructor(name: string) {
@@ -32,6 +33,7 @@ class MemoryBroadcastChannel {
   }
   postMessage(message: unknown) {
     const copy = structuredClone(message);
+    if (MemoryBroadcastChannel.throwOn(copy)) throw new Error("transport publication failed");
     MemoryBroadcastChannel.messages.push(copy);
     if (MemoryBroadcastChannel.drop(copy)) return;
     MemoryBroadcastChannel.deliver(this.name, copy, this);
@@ -146,6 +148,45 @@ test("concurrent follower mutations publish to the writer in invocation order", 
     assert.deepEqual(order, [1, 2], "preparation sequencing ends once each command is sent, not acknowledged");
   } finally {
     follower.stop(); writer.stop(); MemoryBroadcastChannel.members.clear();
+    (globalThis as any).BroadcastChannel = Original;
+  }
+});
+
+test("follower preparation and unacknowledged commands share the 64-slot bound", async () => {
+  const Original = globalThis.BroadcastChannel;
+  (globalThis as any).BroadcastChannel = MemoryBroadcastChannel;
+  MemoryBroadcastChannel.members.clear(); MemoryBroadcastChannel.messages = [];
+  MemoryBroadcastChannel.drop = () => false;
+  const ready = { ready: true, reason: "ready", action: "none", remaining: 0, fence: "inside" } as const;
+  const follower = new MutationForwarding({
+    writer: () => undefined, status: async () => ready,
+    admit: async () => { throw new Error("follower cannot admit"); }, acknowledge: async () => undefined,
+    failure: (error: unknown) => ({ code: "E_TEST", family: "test", message: String(error), guide: "test" }),
+    admitted: () => undefined,
+  });
+  try {
+    follower.follower({ scope: "forwarding-cap", principal: "principal-a", authEpoch: 7, established: true, persona: false });
+    let settled = 0;
+    const waiting = Array.from({ length: 64 }, (_, index) =>
+      follower.mutation("deliveries.post", { index }).then(
+        value => { settled += 1; return value; },
+        error => { settled += 1; throw error; },
+      ));
+    assert.equal((follower as any).preparations.size, 64, "all retained inputs occupy the fixed budget during discovery");
+    const overflow = follower.mutation("deliveries.post", { index: 64 });
+    await assert.rejects(Promise.race([
+      overflow,
+      new Promise((_, reject) => setTimeout(() => reject(new Error("overflow did not refuse promptly")), 100)),
+    ]), (error: unknown) => isSnapbackRefusal(error) && error.code === "E_OFFLINE_FORWARDING_CAPACITY");
+    assert.equal(settled, 0, "the admitted 64 remain ordered behind the one discovery");
+    follower.stop();
+    const outcomes = await Promise.allSettled(waiting);
+    assert.ok(outcomes.every(outcome => outcome.status === "rejected"
+      && isSnapbackRefusal(outcome.reason) && outcome.reason.code === "E_OFFLINE_FOLLOWER"));
+    assert.equal((follower as any).preparations.size, 0, "generation stop releases every queued reservation");
+  } finally {
+    follower.stop(); MemoryBroadcastChannel.members.clear();
+    MemoryBroadcastChannel.drop = () => false; MemoryBroadcastChannel.throwOn = () => false;
     (globalThis as any).BroadcastChannel = Original;
   }
 });
@@ -663,6 +704,13 @@ test("forwarded mutation timeout, rediscovery and recovery preserve one request 
       (error: unknown) => isSnapbackRefusal(error) && error.code === "E_OFFLINE_FOLLOWER",
       "before any send, an unavailable forwarding carrier is an ordinary follower refusal");
     (globalThis as any).BroadcastChannel = MemoryBroadcastChannel;
+    MemoryBroadcastChannel.throwOn = message => message.type === "mutation";
+    assert.deepEqual(await follower.mutation("deliveries.post", args, token as any), unknown,
+      "a synchronous recovery publication failure cannot disprove the prior send");
+    await assert.rejects(follower.mutation("deliveries.post", { ...args, body: "first throwing send" }),
+      (error: unknown) => isSnapbackRefusal(error) && error.code === "E_OFFLINE_FOLLOWER",
+      "a first-ever synchronous publication failure proves non-admission");
+    MemoryBroadcastChannel.throwOn = () => false;
     writer.writer(undefined); writer.writer(context); await new Promise(resolve => setTimeout(resolve, 0));
     assert.equal((await follower.status("deliveries.post")).reason, "writer-unresponsive",
       "an unrelated announcement does not clear an unknown command");
@@ -701,6 +749,7 @@ test("forwarded mutation timeout, rediscovery and recovery preserve one request 
     clearInterval(keepAlive);
     follower.stop(); writer.stop();
     MemoryBroadcastChannel.members.clear(); MemoryBroadcastChannel.drop = () => false;
+    MemoryBroadcastChannel.throwOn = () => false;
     (globalThis as any).BroadcastChannel = Original;
   }
 });
