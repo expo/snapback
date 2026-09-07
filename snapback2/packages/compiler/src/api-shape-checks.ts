@@ -1,13 +1,90 @@
-import { cp, mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { cp, mkdir, mkdtemp, readFile, rm, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
+import ts from "typescript";
 import { compileJourneys, lowerProject } from "./project";
 
 type Test = (name: string, run: () => void | Promise<void>) => void;
 
-export function registerApiShapeChecks(test: Test, frontend: string): void {
+export function registerApiShapeChecks(
+  test: Test,
+  frontend: string,
+  consumer: { packageRoot?: string; inspect?: (program: ts.Program) => void } = {},
+): void {
   const fixtures = resolve(frontend, "fixtures");
   const snapbackTypes = resolve(frontend, "../snapback2/dist/index.d.ts");
+
+  // @ref LLP 1002#3-the-compiler-worker-and-the-project-json — inferred result
+  // names must bind in the real client augmentation, even with skipLibCheck.
+  for (const [name, source, rowExpression] of [
+    ["insert", `mutation probe(done: bool ?):
+  row = insert todos { title: "hi", done: done! else MISSING_DONE, ownerId: viewer }
+  return { row, next: new }
+`, "result.row"],
+    ["merge", `query probe():
+  page = merge todos first 3 by byOwner:
+    [viewer]
+  return page
+`, "result[0]!"],
+  ] as const) {
+    test(`generated ${name} API preserves consumer row types with the complete SDK`, async () => {
+      await withProjectFiles(`snapback2-api-consumer-${name}-`, {
+        "snapback/schema.q": `use identity
+
+table todos:
+  title: text <=200
+  done: bool
+  ownerId: principal
+  by byOwner: ownerId, id
+  read <- .ownerId = viewer
+  insert <- .ownerId = viewer
+`,
+        "snapback/todos.q": source,
+        "tsconfig.json": await readFile(resolve(frontend, "../snapback2/templates/chat/expo/tsconfig.json"), "utf8"),
+        "src/consumer.ts": `import { api } from "snapback2/client";
+type Result = NonNullable<(typeof api.todos.probe)["__result"]>;
+declare const result: Result;
+const row = ${rowExpression};
+const done: boolean = row.done;
+// @ts-expect-error a boolean result field must not be assignable to number
+const wrong: number = row.done;
+type IsAny<T> = 0 extends (1 & T) ? true : false;
+const rowIsNotAny: IsAny<typeof row> = false;
+void [done, wrong, rowIsNotAny];
+`,
+      }, undefined, async (root) => {
+        const lowered = await lowerProject(root);
+        assert(lowered.ok, `${name} consumer backend refused: ${lowered.ok ? "" : diagnosticsText(lowered.diagnostics)}`);
+        const apiPath = join(root, ".snapback/build/api.d.ts");
+        await mkdir(dirname(apiPath), { recursive: true });
+        await writeFile(apiPath, lowered.apiDts);
+        await mkdir(join(root, "node_modules"));
+        await symlink(consumer.packageRoot ?? resolve(frontend, "../snapback2"), join(root, "node_modules/snapback2"), "junction");
+        await symlink(resolve(frontend, "../snapback2/node_modules/expo"), join(root, "node_modules/expo"), "junction");
+        const configPath = join(root, "tsconfig.json");
+        const config = ts.readConfigFile(configPath, ts.sys.readFile);
+        assert(!config.error, ts.flattenDiagnosticMessageText(config.error?.messageText ?? "", "\n"));
+        const parsed = ts.parseJsonConfigFileContent(config.config, ts.sys, root, undefined, configPath);
+        const program = ts.createProgram({ rootNames: parsed.fileNames, options: parsed.options, configFileParsingDiagnostics: parsed.errors });
+        const diagnostics = ts.getPreEmitDiagnostics(program);
+        const failures = diagnostics.map((item) => ts.formatDiagnostic(item, {
+          getCanonicalFileName: (file) => file, getCurrentDirectory: () => root, getNewLine: () => "\n",
+        }));
+        const checker = program.getTypeChecker();
+        const client = program.getSourceFile(join(root, "src/consumer.ts"))!;
+        const declarations = client.statements.filter(ts.isVariableStatement).flatMap((statement) => statement.declarationList.declarations);
+        const row = declarations.find((item) => item.name.getText() === "row")!;
+        const done = declarations.find((item) => item.name.getText() === "done")!;
+        const isAny = declarations.find((item) => item.name.getText() === "rowIsNotAny")!;
+        if (checker.getTypeAtLocation(row.name).flags & ts.TypeFlags.Any) failures.push("consumer row is any (including error-any)");
+        if (checker.typeToString(checker.getTypeAtLocation(done.initializer!)) !== "boolean") failures.push("consumer row.done is not exactly boolean");
+        // An unresolved row can make IsAny itself error-any, accepting false.
+        if (checker.typeToString(checker.getTypeAtLocation(isAny.name)) !== "false") failures.push("consumer IsAny did not resolve to false");
+        consumer.inspect?.(program);
+        assert(failures.length === 0, `${name} generated consumer failed:\n${failures.join("\n")}\n${lowered.apiDts}`);
+      });
+    });
+  }
 
   test("generated API types every Clique shaped result without any-typed fields", async () => {
     const lowered = await lowerProject(resolve(fixtures, "quarry-clique"));
