@@ -1,0 +1,604 @@
+{
+  "status": "STATIC_DATA_DIAGNOSIS_ONLY_NO_RUNTIME_EXECUTION",
+  "createdUtc": "2026-09-07T02:40:23.977164+00:00",
+  "identity": {
+    "session": "01a0783e-90b6-70b3-a096-c7a980574ceb",
+    "path": "/Users/ccheever/.codex/sessions/2026/09/06/rollout-2026-09-06T12-42-41-01a0783e-90b6-70b3-a096-c7a980574ceb.jsonl",
+    "line": 3602,
+    "timestamp": "2026-09-07T02:32:48.240Z",
+    "model": "gpt-6-astra",
+    "effort": "xhigh",
+    "cwd": "/Users/ccheever/clique-improvement/revisions/search-resident-format5-linux-h1-diagnosis",
+    "contextLineSha256": "064b03497a295c0942f54210bcb5263551f87121aa59efc69770ba5cc09dcbee",
+    "launchPid": 29365
+  },
+  "originalManifest": {
+    "path": "/Users/ccheever/clique-improvement/revisions/search-resident-format5-preparation/MANIFEST.json",
+    "bytes": 90394,
+    "sha256": "930793df6f124af02d8b72a9b4b49674c55f52d017aaea86c6fdaa1ba12b840f"
+  },
+  "actualCorrectedManifest": {
+    "path": "/Users/ccheever/clique-improvement/revisions/search-resident-format5-linux-ordinary-corrected/results/packet/MANIFEST.json",
+    "bytes": 90972,
+    "sha256": "4fdbac90dcc13fe192e89a44b3f6855da2df28f9ce179f26e6f01737c647b26b",
+    "historicalStatusField": "Preserved proposed status text is historical; assembly is separately proven by assembly-receipt.json."
+  },
+  "resultManifest": {
+    "path": "/Users/ccheever/clique-improvement/revisions/search-resident-format5-linux-ordinary-corrected/results/RESULTS-MANIFEST.json",
+    "bytes": 13950,
+    "sha256": "aa5ba537c14014fbbb39ed6dacf4921eeb8ab538fe20c95a347f822ba413ead7",
+    "scope": "Selected relevant leaves checked here; all 88 leaves previously reverified by parent, not repeated."
+  },
+  "historicalReport": {
+    "path": "/Users/ccheever/clique-improvement/revisions/search-resident-format5-linux-ordinary-corrected/REPORT.md",
+    "bytes": 9843,
+    "sha256": "dc57028a6c0ba0d7b0574ea9f657009a55b7cd219142ebfda15e5555cf0b26da"
+  },
+  "historicalTerminal": {
+    "path": "/Users/ccheever/clique-improvement/revisions/search-resident-format5-linux-ordinary-corrected/terminal.json",
+    "bytes": 110,
+    "sha256": "efdab59775ae5ef2265ae220c1e04596b66d58bd332c6c2fcd3439cb49b73f51"
+  },
+  "checkedFiles": {
+    "/Users/ccheever/clique-improvement/revisions/search-resident-format5-preparation/worker.mjs": {
+      "bytes": 12814,
+      "sha256": "2f69c1b9c3636e254f7cd4aec88ad87f6e4b68ae53b3fa7157e504343e4415b6",
+      "matchesManifest": "/Users/ccheever/clique-improvement/revisions/search-resident-format5-linux-ordinary-corrected/results/packet/MANIFEST.json"
+    },
+    "/Users/ccheever/clique-improvement/revisions/search-resident-format5-preparation/support.mjs": {
+      "bytes": 1151,
+      "sha256": "443667035e7a22200f9d4efc324d70c5faa3c5e1256cebac4a50867a0a47f785",
+      "matchesManifest": "/Users/ccheever/clique-improvement/revisions/search-resident-format5-linux-ordinary-corrected/results/packet/MANIFEST.json"
+    },
+    "/Users/ccheever/clique-improvement/revisions/search-resident-format5-preparation/supervise.mjs": {
+      "bytes": 4490,
+      "sha256": "73ddf5748bda9164cc3c27e8dad3ebc16b11bdcd80c8777692c18bb76b5e635f",
+      "matchesManifest": "/Users/ccheever/clique-improvement/revisions/search-resident-format5-linux-ordinary-corrected/results/packet/MANIFEST.json"
+    },
+    "/Users/ccheever/clique-improvement/revisions/search-resident-format5-preparation/compare-results.mjs": {
+      "bytes": 1438,
+      "sha256": "3b3631264915ae3567ab032de0a554bbf7224ef9fd647896e6d33b2a8ca5c498",
+      "matchesManifest": "/Users/ccheever/clique-improvement/revisions/search-resident-format5-linux-ordinary-corrected/results/packet/MANIFEST.json"
+    },
+    "/Users/ccheever/clique-improvement/revisions/search-resident-format5-preparation/twin-process.mjs": {
+      "bytes": 180,
+      "sha256": "eb46e941014e55a6c0d34ebf4b67e14350800dcbab2f0fcfc1ecd86960ee25ed",
+      "matchesManifest": "/Users/ccheever/clique-improvement/revisions/search-resident-format5-linux-ordinary-corrected/results/packet/MANIFEST.json"
+    },
+    "/Users/ccheever/clique-improvement/revisions/search-resident-format5-preparation/fixtures/ordinary/program.json": {
+      "bytes": 5796,
+      "sha256": "20f59a97a835b2c5256a79e9144ae7ccee0ebb89391cb2e8af8427d8b55505c4",
+      "matchesManifest": "/Users/ccheever/clique-improvement/revisions/search-resident-format5-linux-ordinary-corrected/results/packet/MANIFEST.json"
+    },
+    "/Users/ccheever/clique-improvement/revisions/search-resident-format5-preparation/fixtures/ordinary/metadata.json": {
+      "bytes": 336,
+      "sha256": "fefb41aaf35a7441710b1e5eaa40e79515c674e5d95471f77f747c15d281a7e2",
+      "matchesManifest": "/Users/ccheever/clique-improvement/revisions/search-resident-format5-linux-ordinary-corrected/results/packet/MANIFEST.json"
+    },
+    "/Users/ccheever/clique-improvement/revisions/search-resident-format5-preparation/fixtures/ordinary/pages.jsonl": {
+      "bytes": 2661000,
+      "sha256": "c668b5a3b002e9cbffb48f57c58287da6e8867db88ff9c80f2c5721457ce556e",
+      "matchesManifest": "/Users/ccheever/clique-improvement/revisions/search-resident-format5-linux-ordinary-corrected/results/packet/MANIFEST.json"
+    },
+    "/Users/ccheever/clique-improvement/revisions/search-resident-format5-preparation/fixtures/ordinary/rows.jsonl": {
+      "bytes": 1448000,
+      "sha256": "0bb4dd44d410ba0fc01c37c9f9ce96fe2a537e5168e3ec14faeba6ab82181794",
+      "matchesManifest": "/Users/ccheever/clique-improvement/revisions/search-resident-format5-linux-ordinary-corrected/results/packet/MANIFEST.json"
+    },
+    "/Users/ccheever/clique-improvement/revisions/search-resident-format5-linux-ordinary-corrected/results/packet/fixtures/ordinary/controls.json": {
+      "bytes": 141517,
+      "sha256": "e17fee7642385e5e540869aedcdefdb14e5b54c9a717e21b4b1f4ef2d0dfc409",
+      "matchesManifest": "/Users/ccheever/clique-improvement/revisions/search-resident-format5-linux-ordinary-corrected/results/packet/MANIFEST.json"
+    },
+    "/Users/ccheever/clique-improvement/revisions/search-resident-format5-preparation/sources/baseline/snapback2/packages/snapback2/src/twin.ts": {
+      "bytes": 13919,
+      "sha256": "2b75b19950c7d38af0bba7fed55f25fff5eccf693b4ffa787fcb78f6fca29342",
+      "matchesManifest": "/Users/ccheever/clique-improvement/revisions/search-resident-format5-linux-ordinary-corrected/results/packet/MANIFEST.json"
+    },
+    "/Users/ccheever/clique-improvement/revisions/search-resident-format5-preparation/sources/carrier/snapback2/packages/snapback2/src/twin.ts": {
+      "bytes": 13919,
+      "sha256": "2b75b19950c7d38af0bba7fed55f25fff5eccf693b4ffa787fcb78f6fca29342",
+      "matchesManifest": "/Users/ccheever/clique-improvement/revisions/search-resident-format5-linux-ordinary-corrected/results/packet/MANIFEST.json"
+    },
+    "/Users/ccheever/clique-improvement/revisions/search-resident-format5-preparation/sources/coverage/snapback2/packages/snapback2/src/twin.ts": {
+      "bytes": 13919,
+      "sha256": "2b75b19950c7d38af0bba7fed55f25fff5eccf693b4ffa787fcb78f6fca29342",
+      "matchesManifest": "/Users/ccheever/clique-improvement/revisions/search-resident-format5-linux-ordinary-corrected/results/packet/MANIFEST.json"
+    },
+    "/Users/ccheever/clique-improvement/revisions/search-resident-format5-preparation/sources/baseline/snapback2/packages/snapback2/src/twin-store.ts": {
+      "bytes": 12891,
+      "sha256": "6ef3f3a9ea9321e25d1c9f3b7cf6d3c3a5b5c022c00f5e1125486b8a740852c0",
+      "matchesManifest": "/Users/ccheever/clique-improvement/revisions/search-resident-format5-linux-ordinary-corrected/results/packet/MANIFEST.json"
+    },
+    "/Users/ccheever/clique-improvement/revisions/search-resident-format5-preparation/sources/carrier/snapback2/packages/snapback2/src/twin-store.ts": {
+      "bytes": 12891,
+      "sha256": "6ef3f3a9ea9321e25d1c9f3b7cf6d3c3a5b5c022c00f5e1125486b8a740852c0",
+      "matchesManifest": "/Users/ccheever/clique-improvement/revisions/search-resident-format5-linux-ordinary-corrected/results/packet/MANIFEST.json"
+    },
+    "/Users/ccheever/clique-improvement/revisions/search-resident-format5-preparation/sources/coverage/snapback2/packages/snapback2/src/twin-store.ts": {
+      "bytes": 12891,
+      "sha256": "6ef3f3a9ea9321e25d1c9f3b7cf6d3c3a5b5c022c00f5e1125486b8a740852c0",
+      "matchesManifest": "/Users/ccheever/clique-improvement/revisions/search-resident-format5-linux-ordinary-corrected/results/packet/MANIFEST.json"
+    },
+    "/Users/ccheever/clique-improvement/revisions/search-resident-format5-preparation/sources/baseline/snapback2/packages/snapback2/src/local-cursor.ts": {
+      "bytes": 7000,
+      "sha256": "245f1fac9cbf8512967ebef1ddc482609284a533b09ef5a98502607375113165",
+      "matchesManifest": "/Users/ccheever/clique-improvement/revisions/search-resident-format5-linux-ordinary-corrected/results/packet/MANIFEST.json"
+    },
+    "/Users/ccheever/clique-improvement/revisions/search-resident-format5-preparation/sources/carrier/snapback2/packages/snapback2/src/local-cursor.ts": {
+      "bytes": 7000,
+      "sha256": "245f1fac9cbf8512967ebef1ddc482609284a533b09ef5a98502607375113165",
+      "matchesManifest": "/Users/ccheever/clique-improvement/revisions/search-resident-format5-linux-ordinary-corrected/results/packet/MANIFEST.json"
+    },
+    "/Users/ccheever/clique-improvement/revisions/search-resident-format5-preparation/sources/coverage/snapback2/packages/snapback2/src/local-cursor.ts": {
+      "bytes": 7000,
+      "sha256": "245f1fac9cbf8512967ebef1ddc482609284a533b09ef5a98502607375113165",
+      "matchesManifest": "/Users/ccheever/clique-improvement/revisions/search-resident-format5-linux-ordinary-corrected/results/packet/MANIFEST.json"
+    },
+    "/Users/ccheever/clique-improvement/revisions/search-resident-format5-preparation/sources/baseline/snapback2/packages/snapback2/src/held-program.ts": {
+      "bytes": 2578,
+      "sha256": "cd5ffc54870809afc2c41a5901c3ff61f1f06e90d566e42f9089708e3f755665",
+      "matchesManifest": "/Users/ccheever/clique-improvement/revisions/search-resident-format5-linux-ordinary-corrected/results/packet/MANIFEST.json"
+    },
+    "/Users/ccheever/clique-improvement/revisions/search-resident-format5-preparation/sources/carrier/snapback2/packages/snapback2/src/held-program.ts": {
+      "bytes": 2578,
+      "sha256": "cd5ffc54870809afc2c41a5901c3ff61f1f06e90d566e42f9089708e3f755665",
+      "matchesManifest": "/Users/ccheever/clique-improvement/revisions/search-resident-format5-linux-ordinary-corrected/results/packet/MANIFEST.json"
+    },
+    "/Users/ccheever/clique-improvement/revisions/search-resident-format5-preparation/sources/coverage/snapback2/packages/snapback2/src/held-program.ts": {
+      "bytes": 2578,
+      "sha256": "cd5ffc54870809afc2c41a5901c3ff61f1f06e90d566e42f9089708e3f755665",
+      "matchesManifest": "/Users/ccheever/clique-improvement/revisions/search-resident-format5-linux-ordinary-corrected/results/packet/MANIFEST.json"
+    },
+    "/Users/ccheever/clique-improvement/revisions/search-resident-format5-preparation/sources/baseline/snapback2/packages/evaluator/src/runner.ts": {
+      "bytes": 52712,
+      "sha256": "07fe1e5ac3641cd589820ac0d17feb0afda50d3df60ab2f8b53697b91f841e64",
+      "matchesManifest": "/Users/ccheever/clique-improvement/revisions/search-resident-format5-linux-ordinary-corrected/results/packet/MANIFEST.json"
+    },
+    "/Users/ccheever/clique-improvement/revisions/search-resident-format5-preparation/sources/carrier/snapback2/packages/evaluator/src/runner.ts": {
+      "bytes": 52712,
+      "sha256": "07fe1e5ac3641cd589820ac0d17feb0afda50d3df60ab2f8b53697b91f841e64",
+      "matchesManifest": "/Users/ccheever/clique-improvement/revisions/search-resident-format5-linux-ordinary-corrected/results/packet/MANIFEST.json"
+    },
+    "/Users/ccheever/clique-improvement/revisions/search-resident-format5-preparation/sources/coverage/snapback2/packages/evaluator/src/runner.ts": {
+      "bytes": 52712,
+      "sha256": "07fe1e5ac3641cd589820ac0d17feb0afda50d3df60ab2f8b53697b91f841e64",
+      "matchesManifest": "/Users/ccheever/clique-improvement/revisions/search-resident-format5-linux-ordinary-corrected/results/packet/MANIFEST.json"
+    },
+    "/Users/ccheever/clique-improvement/revisions/search-resident-format5-preparation/sources/baseline/snapback2/packages/evaluator/src/cursor.ts": {
+      "bytes": 10419,
+      "sha256": "94f0efe7b7ff947c77294fdcc99f38f3493615d87e1c97c13bc3ee146aaa2b3f",
+      "matchesManifest": "/Users/ccheever/clique-improvement/revisions/search-resident-format5-linux-ordinary-corrected/results/packet/MANIFEST.json"
+    },
+    "/Users/ccheever/clique-improvement/revisions/search-resident-format5-preparation/sources/carrier/snapback2/packages/evaluator/src/cursor.ts": {
+      "bytes": 10419,
+      "sha256": "94f0efe7b7ff947c77294fdcc99f38f3493615d87e1c97c13bc3ee146aaa2b3f",
+      "matchesManifest": "/Users/ccheever/clique-improvement/revisions/search-resident-format5-linux-ordinary-corrected/results/packet/MANIFEST.json"
+    },
+    "/Users/ccheever/clique-improvement/revisions/search-resident-format5-preparation/sources/coverage/snapback2/packages/evaluator/src/cursor.ts": {
+      "bytes": 10419,
+      "sha256": "94f0efe7b7ff947c77294fdcc99f38f3493615d87e1c97c13bc3ee146aaa2b3f",
+      "matchesManifest": "/Users/ccheever/clique-improvement/revisions/search-resident-format5-linux-ordinary-corrected/results/packet/MANIFEST.json"
+    },
+    "/Users/ccheever/clique-improvement/revisions/search-resident-format5-preparation/sources/baseline/snapback2/packages/evaluator/src/store.ts": {
+      "bytes": 13879,
+      "sha256": "d3b76a12d0f6aa330a2fc437073d62cd37ca72632e778e66bb4bb0cc8ee9bcf3",
+      "matchesManifest": "/Users/ccheever/clique-improvement/revisions/search-resident-format5-linux-ordinary-corrected/results/packet/MANIFEST.json"
+    },
+    "/Users/ccheever/clique-improvement/revisions/search-resident-format5-preparation/sources/carrier/snapback2/packages/evaluator/src/store.ts": {
+      "bytes": 13879,
+      "sha256": "d3b76a12d0f6aa330a2fc437073d62cd37ca72632e778e66bb4bb0cc8ee9bcf3",
+      "matchesManifest": "/Users/ccheever/clique-improvement/revisions/search-resident-format5-linux-ordinary-corrected/results/packet/MANIFEST.json"
+    },
+    "/Users/ccheever/clique-improvement/revisions/search-resident-format5-preparation/sources/coverage/snapback2/packages/evaluator/src/store.ts": {
+      "bytes": 15196,
+      "sha256": "1b85895fdbee4ea5d15347d3794ee938241fc7e3e8582dcabf76aefa085929d9",
+      "matchesManifest": "/Users/ccheever/clique-improvement/revisions/search-resident-format5-linux-ordinary-corrected/results/packet/MANIFEST.json"
+    },
+    "/Users/ccheever/clique-improvement/revisions/search-resident-format5-preparation/bundles/baseline.carrier.mjs": {
+      "bytes": 222159,
+      "sha256": "def38683fab4a8bd8a2bde4f651c1231676c1500a9e943e6c5067370b1576adf",
+      "matchesManifest": "/Users/ccheever/clique-improvement/revisions/search-resident-format5-linux-ordinary-corrected/results/packet/MANIFEST.json"
+    },
+    "/Users/ccheever/clique-improvement/revisions/search-resident-format5-preparation/bundles/baseline.carrier.inputs.json": {
+      "bytes": 59817,
+      "sha256": "f036a8881bcee36af3840493eb91ea48e390046c15aaf409487a9783db421a9a",
+      "matchesManifest": "/Users/ccheever/clique-improvement/revisions/search-resident-format5-linux-ordinary-corrected/results/packet/MANIFEST.json"
+    },
+    "/Users/ccheever/clique-improvement/revisions/search-resident-format5-preparation/bundles/baseline.twin.mjs": {
+      "bytes": 333908,
+      "sha256": "92d3a09414417e704c3ac962ddfa963afb4da0359f3021b2e2c03edf3841693c",
+      "matchesManifest": "/Users/ccheever/clique-improvement/revisions/search-resident-format5-linux-ordinary-corrected/results/packet/MANIFEST.json"
+    },
+    "/Users/ccheever/clique-improvement/revisions/search-resident-format5-preparation/bundles/baseline.twin.inputs.json": {
+      "bytes": 76737,
+      "sha256": "4379a491123023d3a5d0095f9ce227093b6fef5e7807922bf7f9020ff0967f02",
+      "matchesManifest": "/Users/ccheever/clique-improvement/revisions/search-resident-format5-linux-ordinary-corrected/results/packet/MANIFEST.json"
+    },
+    "/Users/ccheever/clique-improvement/revisions/search-resident-format5-preparation/bundles/carrier.carrier.mjs": {
+      "bytes": 222152,
+      "sha256": "10ff074d2e168808169155d96e499bb58d2f77c6aaaf6db648c7f92336f383b4",
+      "matchesManifest": "/Users/ccheever/clique-improvement/revisions/search-resident-format5-linux-ordinary-corrected/results/packet/MANIFEST.json"
+    },
+    "/Users/ccheever/clique-improvement/revisions/search-resident-format5-preparation/bundles/carrier.carrier.inputs.json": {
+      "bytes": 59603,
+      "sha256": "c310f007835b52c494fe57a8a76cebf32bb918dcb322397040f35ec01bfd1ae0",
+      "matchesManifest": "/Users/ccheever/clique-improvement/revisions/search-resident-format5-linux-ordinary-corrected/results/packet/MANIFEST.json"
+    },
+    "/Users/ccheever/clique-improvement/revisions/search-resident-format5-preparation/bundles/carrier.twin.mjs": {
+      "bytes": 333891,
+      "sha256": "022880bb8aeeb038a05bf23c6cf9a1ab30db1cc78bfd0207ce4f96b2d1113751",
+      "matchesManifest": "/Users/ccheever/clique-improvement/revisions/search-resident-format5-linux-ordinary-corrected/results/packet/MANIFEST.json"
+    },
+    "/Users/ccheever/clique-improvement/revisions/search-resident-format5-preparation/bundles/carrier.twin.inputs.json": {
+      "bytes": 76460,
+      "sha256": "6a6c8c0a7ac850e2779da0e3f988dcabd99879477c58e73bc0929c7f3feed777",
+      "matchesManifest": "/Users/ccheever/clique-improvement/revisions/search-resident-format5-linux-ordinary-corrected/results/packet/MANIFEST.json"
+    },
+    "/Users/ccheever/clique-improvement/revisions/search-resident-format5-preparation/bundles/coverage.carrier.mjs": {
+      "bytes": 222185,
+      "sha256": "0536a506401d736c09c7111d5b30adc6eb09bd9c9bbc7d89f3ce76cf8e09bdc6",
+      "matchesManifest": "/Users/ccheever/clique-improvement/revisions/search-resident-format5-linux-ordinary-corrected/results/packet/MANIFEST.json"
+    },
+    "/Users/ccheever/clique-improvement/revisions/search-resident-format5-preparation/bundles/coverage.carrier.inputs.json": {
+      "bytes": 59817,
+      "sha256": "e2272b78eee730a120fea0ce8c6b6f0c9595976049ad33435aa58b7d86e0e64e",
+      "matchesManifest": "/Users/ccheever/clique-improvement/revisions/search-resident-format5-linux-ordinary-corrected/results/packet/MANIFEST.json"
+    },
+    "/Users/ccheever/clique-improvement/revisions/search-resident-format5-preparation/bundles/coverage.twin.mjs": {
+      "bytes": 335173,
+      "sha256": "153856adb6affde5a677cb25751c51eee06eeadf25ce328ec013a9f4a1b7f1b2",
+      "matchesManifest": "/Users/ccheever/clique-improvement/revisions/search-resident-format5-linux-ordinary-corrected/results/packet/MANIFEST.json"
+    },
+    "/Users/ccheever/clique-improvement/revisions/search-resident-format5-preparation/bundles/coverage.twin.inputs.json": {
+      "bytes": 76737,
+      "sha256": "1b4bc8a5dbdc74bbdf6e2072571a46fcb086e1006e93fb635a96b1cadf88aca9",
+      "matchesManifest": "/Users/ccheever/clique-improvement/revisions/search-resident-format5-linux-ordinary-corrected/results/packet/MANIFEST.json"
+    },
+    "/Users/ccheever/clique-improvement/revisions/search-resident-format5-linux-ordinary-corrected/results/run/twin/baseline/failure.json": {
+      "bytes": 4564,
+      "sha256": "66c0e81193189cd2ca3d70a93e4a6d2d0100fb8e00ff309fc73402a2b8564d19",
+      "matchesManifest": "/Users/ccheever/clique-improvement/revisions/search-resident-format5-linux-ordinary-corrected/results/RESULTS-MANIFEST.json"
+    },
+    "/Users/ccheever/clique-improvement/revisions/search-resident-format5-linux-ordinary-corrected/results/run/twin/baseline/backend.json": {
+      "bytes": 8278766,
+      "sha256": "6514a9a2cf62c57a32b8257c6531a2436febc80b596576ed8efb055030873654",
+      "matchesManifest": "/Users/ccheever/clique-improvement/revisions/search-resident-format5-linux-ordinary-corrected/results/RESULTS-MANIFEST.json"
+    },
+    "/Users/ccheever/clique-improvement/revisions/search-resident-format5-linux-ordinary-corrected/results/run/twin/baseline-observations.json": {
+      "bytes": 61705,
+      "sha256": "3755da5d9330278b9feca597bae91249869a05db8f7845a61166360e15c59c73",
+      "matchesManifest": "/Users/ccheever/clique-improvement/revisions/search-resident-format5-linux-ordinary-corrected/results/RESULTS-MANIFEST.json"
+    },
+    "/Users/ccheever/clique-improvement/revisions/search-resident-format5-linux-ordinary-corrected/results/execution-summary.json": {
+      "bytes": 144506,
+      "sha256": "2de4c3f18ad7b8d1869fb6ab2c88ebf4af0b8c211d67ad06f3cb7a4d3a3fbca1",
+      "matchesManifest": "/Users/ccheever/clique-improvement/revisions/search-resident-format5-linux-ordinary-corrected/results/RESULTS-MANIFEST.json"
+    },
+    "/Users/ccheever/clique-improvement/revisions/search-resident-format5-linux-ordinary-corrected/results/cleanup.json": {
+      "bytes": 1449,
+      "sha256": "947956c038ffc9e50c0b432b92181d9f0aa1c96efb04ef45c5b2e958289e2c7c",
+      "matchesManifest": "/Users/ccheever/clique-improvement/revisions/search-resident-format5-linux-ordinary-corrected/results/RESULTS-MANIFEST.json"
+    },
+    "/Users/ccheever/clique-improvement/revisions/search-resident-format5-linux-ordinary-corrected/results/assembly-receipt.json": {
+      "bytes": 2675,
+      "sha256": "5b752e7e4a916eb7172682f5e7531293d23d3b68077eea926f66c18d0d5f0708",
+      "matchesManifest": "/Users/ccheever/clique-improvement/revisions/search-resident-format5-linux-ordinary-corrected/results/RESULTS-MANIFEST.json"
+    },
+    "/Users/ccheever/clique-improvement/revisions/search-resident-format5-linux-ordinary-corrected/results/preflight-runtime-command-02.json": {
+      "bytes": 1670,
+      "sha256": "db18b9e9df4bb3306edc09f23b4056589facc014dc5f14afa0491e4e6894cc94",
+      "matchesManifest": "/Users/ccheever/clique-improvement/revisions/search-resident-format5-linux-ordinary-corrected/results/RESULTS-MANIFEST.json"
+    }
+  },
+  "sourceEquality": {
+    "snapback2/packages/snapback2/src/twin.ts": {
+      "arms": {
+        "baseline": {
+          "bytes": 13919,
+          "sha256": "2b75b19950c7d38af0bba7fed55f25fff5eccf693b4ffa787fcb78f6fca29342"
+        },
+        "carrier": {
+          "bytes": 13919,
+          "sha256": "2b75b19950c7d38af0bba7fed55f25fff5eccf693b4ffa787fcb78f6fca29342"
+        },
+        "coverage": {
+          "bytes": 13919,
+          "sha256": "2b75b19950c7d38af0bba7fed55f25fff5eccf693b4ffa787fcb78f6fca29342"
+        }
+      },
+      "allThreeByteIdentical": true
+    },
+    "snapback2/packages/snapback2/src/twin-store.ts": {
+      "arms": {
+        "baseline": {
+          "bytes": 12891,
+          "sha256": "6ef3f3a9ea9321e25d1c9f3b7cf6d3c3a5b5c022c00f5e1125486b8a740852c0"
+        },
+        "carrier": {
+          "bytes": 12891,
+          "sha256": "6ef3f3a9ea9321e25d1c9f3b7cf6d3c3a5b5c022c00f5e1125486b8a740852c0"
+        },
+        "coverage": {
+          "bytes": 12891,
+          "sha256": "6ef3f3a9ea9321e25d1c9f3b7cf6d3c3a5b5c022c00f5e1125486b8a740852c0"
+        }
+      },
+      "allThreeByteIdentical": true
+    },
+    "snapback2/packages/snapback2/src/local-cursor.ts": {
+      "arms": {
+        "baseline": {
+          "bytes": 7000,
+          "sha256": "245f1fac9cbf8512967ebef1ddc482609284a533b09ef5a98502607375113165"
+        },
+        "carrier": {
+          "bytes": 7000,
+          "sha256": "245f1fac9cbf8512967ebef1ddc482609284a533b09ef5a98502607375113165"
+        },
+        "coverage": {
+          "bytes": 7000,
+          "sha256": "245f1fac9cbf8512967ebef1ddc482609284a533b09ef5a98502607375113165"
+        }
+      },
+      "allThreeByteIdentical": true
+    },
+    "snapback2/packages/snapback2/src/held-program.ts": {
+      "arms": {
+        "baseline": {
+          "bytes": 2578,
+          "sha256": "cd5ffc54870809afc2c41a5901c3ff61f1f06e90d566e42f9089708e3f755665"
+        },
+        "carrier": {
+          "bytes": 2578,
+          "sha256": "cd5ffc54870809afc2c41a5901c3ff61f1f06e90d566e42f9089708e3f755665"
+        },
+        "coverage": {
+          "bytes": 2578,
+          "sha256": "cd5ffc54870809afc2c41a5901c3ff61f1f06e90d566e42f9089708e3f755665"
+        }
+      },
+      "allThreeByteIdentical": true
+    },
+    "snapback2/packages/evaluator/src/runner.ts": {
+      "arms": {
+        "baseline": {
+          "bytes": 52712,
+          "sha256": "07fe1e5ac3641cd589820ac0d17feb0afda50d3df60ab2f8b53697b91f841e64"
+        },
+        "carrier": {
+          "bytes": 52712,
+          "sha256": "07fe1e5ac3641cd589820ac0d17feb0afda50d3df60ab2f8b53697b91f841e64"
+        },
+        "coverage": {
+          "bytes": 52712,
+          "sha256": "07fe1e5ac3641cd589820ac0d17feb0afda50d3df60ab2f8b53697b91f841e64"
+        }
+      },
+      "allThreeByteIdentical": true
+    },
+    "snapback2/packages/evaluator/src/cursor.ts": {
+      "arms": {
+        "baseline": {
+          "bytes": 10419,
+          "sha256": "94f0efe7b7ff947c77294fdcc99f38f3493615d87e1c97c13bc3ee146aaa2b3f"
+        },
+        "carrier": {
+          "bytes": 10419,
+          "sha256": "94f0efe7b7ff947c77294fdcc99f38f3493615d87e1c97c13bc3ee146aaa2b3f"
+        },
+        "coverage": {
+          "bytes": 10419,
+          "sha256": "94f0efe7b7ff947c77294fdcc99f38f3493615d87e1c97c13bc3ee146aaa2b3f"
+        }
+      },
+      "allThreeByteIdentical": true
+    },
+    "snapback2/packages/evaluator/src/store.ts": {
+      "arms": {
+        "baseline": {
+          "bytes": 13879,
+          "sha256": "d3b76a12d0f6aa330a2fc437073d62cd37ca72632e778e66bb4bb0cc8ee9bcf3"
+        },
+        "carrier": {
+          "bytes": 13879,
+          "sha256": "d3b76a12d0f6aa330a2fc437073d62cd37ca72632e778e66bb4bb0cc8ee9bcf3"
+        },
+        "coverage": {
+          "bytes": 15196,
+          "sha256": "1b85895fdbee4ea5d15347d3794ee938241fc7e3e8582dcabf76aefa085929d9"
+        }
+      },
+      "allThreeByteIdentical": false,
+      "staticDifferenceScope": "Baseline and carrier are identical. Coverage changes receipt validation factoring, rehydrate transaction behavior and prepareRow factoring. The reexecute body is unchanged; Twin cursor selection and Runner cursor minting are byte-identical in all three arms. This does not prove unexecuted later-arm runtime behavior."
+    }
+  },
+  "twinBundleBranches": {
+    "baseline": {
+      "sha256": "92d3a09414417e704c3ac962ddfa963afb4da0359f3021b2e2c03edf3841693c",
+      "returnBranchLine": 7150,
+      "entry": "export { PersistentRangeStore } from './snapback2/packages/snapback2/src/store/range-store.ts';\nexport { decodeHeldProgram } from './snapback2/packages/snapback2/src/held-program.ts';\nexport { decodeDeliveryEnvelope, toClosureReceipt, deliveryRangeExtent, expandRows } from './snapback2/packages/snapback2/src/offline-protocol.ts';\nexport { canonicalSchemaJson, canonicalProgramJson } from './snapback2/packages/evaluator/src/certificate-identity.ts';\nexport { canonicalJson, validateWriteRow } from './snapback2/packages/evaluator/src/value-runtime.ts';\nexport { encodeCursor, decodeCursor } from './snapback2/packages/evaluator/src/cursor.ts';\nexport { searchWords, searchQueryToken, searchFieldWords } from './snapback2/packages/evaluator/src/unicode.ts';\nexport { imageSlots, extentSlots, proofSlots, FACT_FORMAT, FACT_SLOT_LIMIT } from './snapback2/packages/snapback2/src/store/fact-integrity.ts';\nexport { Twin } from './snapback2/packages/snapback2/src/twin.ts';",
+      "sourceEntriesChecked": [
+        "snapback2/packages/snapback2/src/twin.ts",
+        "snapback2/packages/snapback2/src/twin-store.ts",
+        "snapback2/packages/snapback2/src/local-cursor.ts",
+        "snapback2/packages/snapback2/src/held-program.ts",
+        "snapback2/packages/evaluator/src/runner.ts",
+        "snapback2/packages/evaluator/src/cursor.ts",
+        "snapback2/packages/evaluator/src/store.ts"
+      ]
+    },
+    "carrier": {
+      "sha256": "022880bb8aeeb038a05bf23c6cf9a1ab30db1cc78bfd0207ce4f96b2d1113751",
+      "returnBranchLine": 7169,
+      "entry": "export { PersistentRangeStore } from './snapback2/packages/snapback2/src/store/range-store.ts';\nexport { decodeHeldProgram } from './snapback2/packages/snapback2/src/held-program.ts';\nexport { decodeDeliveryEnvelope, toClosureReceipt, deliveryRangeExtent, expandRows } from './snapback2/packages/snapback2/src/offline-protocol.ts';\nexport { canonicalSchemaJson, canonicalProgramJson } from './snapback2/packages/evaluator/src/certificate-identity.ts';\nexport { canonicalJson, validateWriteRow } from './snapback2/packages/evaluator/src/value-runtime.ts';\nexport { encodeCursor, decodeCursor } from './snapback2/packages/evaluator/src/cursor.ts';\nexport { searchWords, searchQueryToken, searchFieldWords } from './snapback2/packages/evaluator/src/unicode.ts';\nexport { imageSlots, extentSlots, proofSlots, FACT_FORMAT, FACT_SLOT_LIMIT } from './snapback2/packages/snapback2/src/store/fact-integrity.ts';\nexport { Twin } from './snapback2/packages/snapback2/src/twin.ts';",
+      "sourceEntriesChecked": [
+        "snapback2/packages/snapback2/src/twin.ts",
+        "snapback2/packages/snapback2/src/twin-store.ts",
+        "snapback2/packages/snapback2/src/local-cursor.ts",
+        "snapback2/packages/snapback2/src/held-program.ts",
+        "snapback2/packages/evaluator/src/runner.ts",
+        "snapback2/packages/evaluator/src/cursor.ts",
+        "snapback2/packages/evaluator/src/store.ts"
+      ]
+    },
+    "coverage": {
+      "sha256": "153856adb6affde5a677cb25751c51eee06eeadf25ce328ec013a9f4a1b7f1b2",
+      "returnBranchLine": 7202,
+      "entry": "export { PersistentRangeStore } from './snapback2/packages/snapback2/src/store/range-store.ts';\nexport { decodeHeldProgram } from './snapback2/packages/snapback2/src/held-program.ts';\nexport { decodeDeliveryEnvelope, toClosureReceipt, deliveryRangeExtent, expandRows } from './snapback2/packages/snapback2/src/offline-protocol.ts';\nexport { canonicalSchemaJson, canonicalProgramJson } from './snapback2/packages/evaluator/src/certificate-identity.ts';\nexport { canonicalJson, validateWriteRow } from './snapback2/packages/evaluator/src/value-runtime.ts';\nexport { encodeCursor, decodeCursor } from './snapback2/packages/evaluator/src/cursor.ts';\nexport { searchWords, searchQueryToken, searchFieldWords } from './snapback2/packages/evaluator/src/unicode.ts';\nexport { imageSlots, extentSlots, proofSlots, FACT_FORMAT, FACT_SLOT_LIMIT } from './snapback2/packages/snapback2/src/store/fact-integrity.ts';\nexport { Twin } from './snapback2/packages/snapback2/src/twin.ts';",
+      "sourceEntriesChecked": [
+        "snapback2/packages/snapback2/src/twin.ts",
+        "snapback2/packages/snapback2/src/twin-store.ts",
+        "snapback2/packages/snapback2/src/local-cursor.ts",
+        "snapback2/packages/snapback2/src/held-program.ts",
+        "snapback2/packages/evaluator/src/runner.ts",
+        "snapback2/packages/evaluator/src/cursor.ts",
+        "snapback2/packages/evaluator/src/store.ts"
+      ]
+    }
+  },
+  "dataFindings": {
+    "backendProgramEqualsEntireFrozenProgram": true,
+    "generation": "27f1323184028dee7f1ff2d41fd6e4e9a72eb0b4cc370a0a1b8feb2cce411bf0",
+    "schemaHash": "31b0eb151216ed6c17dbe72fc672500af7d5edca12365c8a5adbc9c5f72c4fe7",
+    "backendFacts": {
+      "generation": "27f1323184028dee7f1ff2d41fd6e4e9a72eb0b4cc370a0a1b8feb2cce411bf0",
+      "schemaHash": "31b0eb151216ed6c17dbe72fc672500af7d5edca12365c8a5adbc9c5f72c4fe7",
+      "authEpoch": 1
+    },
+    "principalFromFixtureAndWorkerAccessor": "resident-viewer",
+    "operation": "resident.page",
+    "arguments": {
+      "c": null,
+      "scope": "s000"
+    },
+    "kind": "query",
+    "planHash": "d30cbb0c35529e069fb41d5afacfd8b07235c09d3b2ee3bf582866c4e9854aab",
+    "ir": {
+      "args": {
+        "c": {
+          "Optional": "Cursor"
+        },
+        "scope": {
+          "Text": {
+            "max": 16
+          }
+        }
+      },
+      "body": [
+        {
+          "Return": {
+            "Scan": {
+              "after": {
+                "Variable": "c"
+              },
+              "before": null,
+              "index": "byScopeAt",
+              "merge_site": null,
+              "opaque_cursor": true,
+              "order": "Asc",
+              "prefix": [
+                {
+                  "Scalar": {
+                    "Variable": "scope"
+                  }
+                }
+              ],
+              "provenance": "Arg",
+              "range": null,
+              "site": "resident.page.0",
+              "table": "messages",
+              "take": {
+                "Literal": 20
+              }
+            }
+          }
+        }
+      ],
+      "kind": "Query",
+      "name": "resident.page",
+      "read_time_granularity_ms": null
+    },
+    "certificateReadSites": [
+      {
+        "complete": false,
+        "decided_true": true,
+        "hoist": true,
+        "index": "byScopeAt",
+        "max_calls": 1,
+        "prefix_template": "Arg",
+        "rule_probes_per_candidate": 0,
+        "site": "resident.page.0",
+        "table": "messages",
+        "take": 20
+      }
+    ],
+    "certificateResultPages": {
+      "0": {
+        "index": "byScopeAt",
+        "merge": false,
+        "order": "Asc",
+        "site": "resident.page.0",
+        "suffix": [
+          {
+            "kind": "Int",
+            "name": "at"
+          },
+          {
+            "kind": "Id",
+            "name": "id"
+          }
+        ],
+        "table": "messages"
+      }
+    },
+    "certificateClock": null,
+    "backendCounts": {
+      "rows": 10000,
+      "answers": 500,
+      "outbox": 1
+    },
+    "firstPageState": "capped",
+    "storedNext": "WzEsIm1lc3NhZ2VzIiwiYnlTY29wZUF0IiwiQXNjIixbeyJuYW1lIjoiYXQiLCJraW5kIjoiSW50In0seyJuYW1lIjoiaWQiLCJraW5kIjoiSWQifV0sW3siSW50IjoxOX0seyJJZCI6InIwMDAtMDE5In1dXQ",
+    "storedNextProvenance": "Identical first fixture envelope.next, persisted answer.next and second fixture args.c; NOT captured returned Twin next.",
+    "storedNextDecodedByPythonBase64JsonOnly": [
+      1,
+      "messages",
+      "byScopeAt",
+      "Asc",
+      [
+        {
+          "name": "at",
+          "kind": "Int"
+        },
+        {
+          "name": "id",
+          "kind": "Id"
+        }
+      ],
+      [
+        {
+          "Int": 19
+        },
+        {
+          "Id": "r000-019"
+        }
+      ]
+    ],
+    "actualFailedTwinNext": "UNOBSERVED",
+    "inference": "Scalar untimed fresh path selects local.execution.next; same capped trace, certified result_pages[0] and last returned r000-019 imply the canonical ordinary cursor above. No observed runtime cursor value is invented."
+  },
+  "executionScope": {
+    "productModulesImported": 0,
+    "storesConstructed": 0,
+    "populationRuns": 0,
+    "readinessRuns": 0,
+    "remoteCommands": 0,
+    "packetWrites": 0,
+    "sourceWrites": 0,
+    "runtimeChecks": "None. Python standard-library hash/JSON/base64 inspection and shell source reads only."
+  },
+  "failuresThisDiagnosis": [],
+  "limits": "No workload ran. All original phase/arm/invocation/protection/sampler limits remain bound to untouched worker/support/supervisor hashes.",
+  "cleanup": "No server, worker, sampler or persistent helper launched; no signal sent. Parent owns this live CLI terminal."
+}

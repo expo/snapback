@@ -1,0 +1,24 @@
+{
+  "status": "WITHHELD_BEFORE_PUBLICATION",
+  "source": "0fdcc846bc7451bbcb1804194b49737418954506",
+  "version": "0.0.14",
+  "actualPublisherCommand": [
+    "node",
+    "scripts/publish.mjs"
+  ],
+  "actualPublisherExitCode": 1,
+  "failure": "chat original30s ETIMEDOUT",
+  "registryState": "both exact versions E404 before and after",
+  "partialPublicationObserved": false,
+  "npmPublishReached": false,
+  "registryConvergenceReached": false,
+  "registryInstalledVerificationRun": false,
+  "registryInstalledVerificationReason": "Publication withheld; exact registry versions absent. Prepared unchanged-check procedure remains unexecuted.",
+  "automaticRetry": false,
+  "qualificationHistory": "Attempt01 NOT-QUALIFIED unchanged; attempt02 successful dry-run and Expo evidence unchanged. Current actual consumer failure is separate.",
+  "sourceClean": true,
+  "producerMetricAppended": false,
+  "custody": "custody-after.json",
+  "cleanup": "cleanup.json",
+  "phaseDecision": "Stop; Root owns disposition. No source fix, new dry run, repack, timeout change, registry install substitute or main push."
+}

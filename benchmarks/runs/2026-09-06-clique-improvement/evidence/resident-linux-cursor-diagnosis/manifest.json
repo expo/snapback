@@ -1,0 +1,40 @@
+{
+  "scope": "Compact completed evidence; complete original external source reports preserved. No current source, binaries or mutable tool logs copied.",
+  "files": {
+    "REPORT.md": {
+      "bytes": 7706,
+      "sha256": "d701bc67e9ef921aa24b354cdcc19f16a7afded01203d5ab166088391c5d70a7",
+      "original": "/Users/ccheever/clique-improvement/revisions/search-resident-format5-linux-h1-diagnosis/REPORT.md"
+    },
+    "actual-identity.json": {
+      "bytes": 502,
+      "sha256": "59d500e1e75651055538dba6fde6d90af122fff29c131b00f0a70068bc4e00db",
+      "original": "/Users/ccheever/clique-improvement/revisions/search-resident-format5-linux-h1-diagnosis/actual-identity.json"
+    },
+    "launch.json": {
+      "bytes": 694,
+      "sha256": "27b28739bda7745ef02209cb9319ee855685a8decdc0d6efbc2cf8eab73022d7",
+      "original": "/Users/ccheever/clique-improvement/revisions/search-resident-format5-linux-h1-diagnosis/launch.json"
+    },
+    "terminal.json": {
+      "bytes": 110,
+      "sha256": "2cdfb634fb14b455d70767658c1dca0520beea0b17bb82b96bd07dbe798e6d86",
+      "original": "/Users/ccheever/clique-improvement/revisions/search-resident-format5-linux-h1-diagnosis/terminal.json"
+    },
+    "phase.json": {
+      "bytes": 1837,
+      "sha256": "f2fc06f46561cc1ee157282524ef69d66cab3d8eb0657b014d0c820f061c78b4",
+      "original": "/Users/ccheever/clique-improvement/revisions/search-resident-format5-linux-h1-diagnosis/phase.json"
+    },
+    "source-evidence.json": {
+      "bytes": 35378,
+      "sha256": "8b493bb196a7a99a22269b97f67dde3bbdbfea86d509b08afd8da4e04310593c",
+      "original": "/Users/ccheever/clique-improvement/revisions/search-resident-format5-linux-h1-diagnosis/source-evidence.json"
+    },
+    "supervisor-final-handoff.json": {
+      "bytes": 353,
+      "sha256": "adaf69dbed827ca35f00b1f391b5ffd255a5d5f686850375203868f07a536436",
+      "original": "/Users/ccheever/clique-improvement/revisions/search-resident-format5-linux-h1-diagnosis/supervisor-final-handoff.json"
+    }
+  }
+}

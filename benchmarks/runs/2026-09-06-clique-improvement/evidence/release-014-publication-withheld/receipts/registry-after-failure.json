@@ -1,0 +1,63 @@
+{
+  "epoch": 1788748771.2048159,
+  "driverPid": 38529,
+  "scope": "Read-only registry observation, no publication action or automatic retry",
+  "rows": [
+    {
+      "name": "snapback2-darwin-arm64",
+      "argv": [
+        "/Users/ccheever/.volta/bin/npm",
+        "view",
+        "snapback2-darwin-arm64@0.0.14",
+        "version",
+        "dist.integrity",
+        "dist.tarball",
+        "dist-tags.latest",
+        "--json",
+        "--prefer-online",
+        "--fetch-timeout=15000",
+        "--fetch-retries=0"
+      ],
+      "pid": 38537,
+      "startedEpoch": 1788748766.453918,
+      "outerBoundSeconds": 30,
+      "fetchMilliseconds": 15000,
+      "fetchRetries": 0,
+      "exitCode": 1,
+      "elapsedSeconds": 2.4462367499999997,
+      "stdoutSha256": "a137a6b1c36f6592f1565dd9e2ced15fe2077fa87d6ef0b018a501e12e6dfb9c",
+      "stderrSha256": "566b44e614de69ee3cf6c20cc441a47ef99d20369a61d36deabac0091853f752",
+      "expectedIntegrity": "sha512-2UVxYTgIQJnGV+8V3gV3yQUTJ6yiftqinl5aeYW6elODy96c7yn7Lm2eq80HZqUhDIBjFjEBFWvd5R2Agfxz6w==",
+      "pendingE404": true
+    },
+    {
+      "name": "snapback2",
+      "argv": [
+        "/Users/ccheever/.volta/bin/npm",
+        "view",
+        "snapback2@0.0.14",
+        "version",
+        "dist.integrity",
+        "dist.tarball",
+        "dist-tags.latest",
+        "--json",
+        "--prefer-online",
+        "--fetch-timeout=15000",
+        "--fetch-retries=0"
+      ],
+      "pid": 38556,
+      "startedEpoch": 1788748768.8598678,
+      "outerBoundSeconds": 30,
+      "fetchMilliseconds": 15000,
+      "fetchRetries": 0,
+      "exitCode": 1,
+      "elapsedSeconds": 2.349998791,
+      "stdoutSha256": "5b823a3f6e26a0b480375ae7bdf41b1acabf33d8addaaf6d2e3bcbdfd50c3d56",
+      "stderrSha256": "c6e07a34016b99ce5cecf01000e26c26fee6bd116ebe004eef130d9403f19368",
+      "expectedIntegrity": "sha512-dPm5mFSUA/DyWvICY6KwHIFCV6XppCogvYRZ3tX8BWV8h1QKIpQ/gPXRNDniRg0SJ4KyZfV1CKuBm2c/CdhX2w==",
+      "pendingE404": true
+    }
+  ],
+  "integritiesMatch": false,
+  "latestMatch": false
+}

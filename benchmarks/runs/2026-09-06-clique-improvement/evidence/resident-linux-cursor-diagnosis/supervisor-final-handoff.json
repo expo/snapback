@@ -1,0 +1,18 @@
+{
+  "epoch": 1788749003.0604491,
+  "fullReportRead": true,
+  "artifactHashesVerified": 3,
+  "terminal": {
+    "pid": 29365,
+    "exitCode": 0,
+    "endedEpoch": 1788748968.707387,
+    "elapsedSeconds": 604.1415078639984
+  },
+  "writerReleased": true,
+  "pidsAbsent": [
+    29365,
+    29355
+  ],
+  "proposalOnly": true,
+  "runtimeNextUnobserved": true
+}

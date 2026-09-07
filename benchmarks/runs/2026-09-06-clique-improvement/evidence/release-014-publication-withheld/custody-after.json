@@ -1,0 +1,13 @@
+{
+  "protectedFilesChecked": 82,
+  "mismatches": [],
+  "allPriorArtifactEvidenceBytesAndModesUnchanged": true,
+  "workingResumeRetained": "/Users/ccheever/projects/snapback-worktrees/clique-release-next/snapback2/dist/npm/publish-snapback2-darwin-arm64-0.0.14/resume.json",
+  "workingResumeMode": "0644",
+  "workingResumeSha256": "9f833af4bce8841f46da3049732ba3377556d8232b85fc50c935557b7e4d268d",
+  "originalResumeMode": "0444",
+  "originalResumeSha256": "9f833af4bce8841f46da3049732ba3377556d8232b85fc50c935557b7e4d268d",
+  "exactQualifiedPairOnly": true,
+  "sourceArchiveAndOriginalFailedPairUntouched": true,
+  "registryPublication": false
+}

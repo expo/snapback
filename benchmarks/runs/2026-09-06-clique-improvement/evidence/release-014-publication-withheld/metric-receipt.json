@@ -1,0 +1,12 @@
+{
+  "baselineRows": 219,
+  "afterRows": 219,
+  "beforeSha256": "767df97a4d74b9b954bb9434120da61c08a98a739e1913d1149a534792ffcf8a",
+  "afterSha256": "767df97a4d74b9b954bb9434120da61c08a98a739e1913d1149a534792ffcf8a",
+  "ownProducerAppend": false,
+  "restorationPerformed": false,
+  "historicalBytesOrderMultiplicityUnchanged": true,
+  "priorQualifiedDryProducerRow": "/Users/ccheever/clique-improvement/revisions/release-preparation-014-attempt02/producer-metric-row.jsonl",
+  "priorDryRowSha256": "31ecb12c345ff19a8083d9a49da79be5f1b6781233ee8e75847d716c00cc2192",
+  "reason": "Publisher failed before its metric append. Full before/after retained; no row discarded or pushed."
+}

@@ -1,0 +1,71 @@
+{
+  "recordedUtc": "2026-09-07T02:24:00.895681+00:00",
+  "phase": "terminal-handoff",
+  "writerReleased": true,
+  "outcome": "PAIR_STOPPED_TWIN_FAILED; CARRIER_COMPLETE_COMPARISONS_PASS",
+  "writer": {
+    "model": "gpt-6-astra",
+    "reasoningEffort": "xhigh",
+    "uuid": "01a0783e-90b6-70b3-a096-c7a980574ceb",
+    "cliPid": 25359,
+    "parentPid": 25294,
+    "cliExitCode": null,
+    "terminalCustody": "Parent records actual CLI terminal after return"
+  },
+  "invocationsLaunched": 2,
+  "retries": 0,
+  "carrier": {
+    "supervisorExitCode": 0,
+    "completeArms": 3,
+    "originalComparisonsPassed": 2,
+    "outerElapsedSeconds": 86.09794375905767
+  },
+  "twin": {
+    "supervisorExitCode": 1,
+    "arm": "baseline",
+    "phase": "load",
+    "failure": "assert(result.next?.startsWith('h1.'))",
+    "laterArmsLaunched": false,
+    "comparisonsProduced": false,
+    "outerElapsedSeconds": 19.39217991195619
+  },
+  "originalFailurePreserved": true,
+  "limitsChanged": false,
+  "sourceChanges": "Only exact preapproved external ordinary controls overlay and approved manifest; no product edits",
+  "sourceManifestSha256": "4fdbac90dcc13fe192e89a44b3f6855da2df28f9ce179f26e6f01737c647b26b",
+  "originalLinuxManifestSha256": "e1fd840712da9c00cdeeb952e2364b119107a88133b18edc3bb1379638339087",
+  "remoteTaskRoot": "/home/ccheever/clique-tooling/search-resident-format5-linux-ordinary-contradiction-e17fee76",
+  "retrieval": {
+    "archiveSha256": "3b3b6c8122eb3b9012e2cb4c74a95e947d1ac9f2325ab68f8781876f9852024f",
+    "manifestSha256": "aa5ba537c14014fbbb39ed6dacf4921eeb8ab538fe20c95a347f822ba413ead7",
+    "filesVerified": 88,
+    "bytesVerified": 175753259,
+    "allFilesMatch": true,
+    "localResults": "/Users/ccheever/clique-improvement/revisions/search-resident-format5-linux-ordinary-corrected/results",
+    "archiveAndExtractedFilesMode": "0444",
+    "extractionSeconds": 1.279339667,
+    "extractionDeadlineSeconds": 60,
+    "archiveTransferredOnce": true,
+    "originalExtractErrorPreserved": "TypeError: extractall() got an unexpected keyword argument filter; no member extracted before API failure",
+    "extractionCorrection": "Inspected empty own results directory; copied validated regular members with exclusive file creation, no archive or workload retry"
+  },
+  "archiveReceipt": {
+    "path": "/home/ccheever/clique-tooling/search-resident-format5-linux-ordinary-contradiction-e17fee76/complete-results.tar.gz",
+    "bytes": 39194543,
+    "sha256": "3b3b6c8122eb3b9012e2cb4c74a95e947d1ac9f2325ab68f8781876f9852024f",
+    "manifestSha256": "aa5ba537c14014fbbb39ed6dacf4921eeb8ab538fe20c95a347f822ba413ead7",
+    "manifestFiles": 88,
+    "capturedBytes": 175753259,
+    "archiveSeconds": 7.987042865948752,
+    "archiveDeadlineSeconds": 240,
+    "allOriginalResultsIncluded": true,
+    "remoteCollectorPid": 3569574
+  },
+  "cleanupReceipt": "results/cleanup.json",
+  "ownedProcessesAbsent": true,
+  "signalsSent": [],
+  "report": "REPORT.md",
+  "reportSha256": "dc57028a6c0ba0d7b0574ea9f657009a55b7cd219142ebfda15e5555cf0b26da",
+  "failuresReceipt": "failures.json",
+  "qualification": "No pair/P2/product/performance clearance"
+}

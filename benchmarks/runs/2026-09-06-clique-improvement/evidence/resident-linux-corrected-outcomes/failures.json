@@ -1,0 +1,30 @@
+{
+  "workload": [
+    {
+      "mode": "twin",
+      "arm": "baseline",
+      "phase": "load",
+      "childExitCode": 1,
+      "error": "assert(result.next?.startsWith('h1.'))",
+      "receipt": "results/run/twin/baseline/failure.json"
+    }
+  ],
+  "tooling": [
+    {
+      "scope": "First external capacity-probe JS command",
+      "exitCode": 1,
+      "error": "SyntaxError: Invalid or unexpected token from newline string escaping",
+      "receipt": "results/preflight-runtime-command.json",
+      "correction": "Second host probe only; assembly/source unchanged and reverified; no population had started"
+    },
+    {
+      "scope": "Local archive extraction API",
+      "exitCode": 1,
+      "error": "TypeError: extractall() got an unexpected keyword argument 'filter'",
+      "correction": "Validated already-downloaded archive; inspected empty own destination; exclusive regular-member copy",
+      "transferExitCode": 0,
+      "transferRepeated": false
+    }
+  ],
+  "originalOrdinaryFailure": "Preserved unchanged in prior search-resident-format5-linux-ordinary; no relabeling"
+}

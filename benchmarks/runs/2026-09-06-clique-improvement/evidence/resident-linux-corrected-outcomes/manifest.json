@@ -1,0 +1,65 @@
+{
+  "scope": "Compact completed evidence; complete original external source reports preserved. No current source, binaries or mutable tool logs copied.",
+  "files": {
+    "REPORT.md": {
+      "bytes": 9843,
+      "sha256": "dc57028a6c0ba0d7b0574ea9f657009a55b7cd219142ebfda15e5555cf0b26da",
+      "original": "/Users/ccheever/clique-improvement/revisions/search-resident-format5-linux-ordinary-corrected/REPORT.md"
+    },
+    "actual-identity.json": {
+      "bytes": 490,
+      "sha256": "4bb67776e5655e29fc0200099030aaf0a9db3e6e760502b961cbfac596869e30",
+      "original": "/Users/ccheever/clique-improvement/revisions/search-resident-format5-linux-ordinary-corrected/actual-identity.json"
+    },
+    "launch.json": {
+      "bytes": 706,
+      "sha256": "1136f8d4c31b2902b673b3f25d51ae72443b293516b0a02239bdc6e8a49dc30b",
+      "original": "/Users/ccheever/clique-improvement/revisions/search-resident-format5-linux-ordinary-corrected/launch.json"
+    },
+    "terminal.json": {
+      "bytes": 110,
+      "sha256": "efdab59775ae5ef2265ae220c1e04596b66d58bd332c6c2fcd3439cb49b73f51",
+      "original": "/Users/ccheever/clique-improvement/revisions/search-resident-format5-linux-ordinary-corrected/terminal.json"
+    },
+    "phase.json": {
+      "bytes": 3151,
+      "sha256": "57c6c75179549112eacfec527e6541f485dbcbf0c5a0d36c2e06272c32d83ae4",
+      "original": "/Users/ccheever/clique-improvement/revisions/search-resident-format5-linux-ordinary-corrected/phase.json"
+    },
+    "failures.json": {
+      "bytes": 1087,
+      "sha256": "4d73c901a52571ae1da9a664235b6e06ba9016e11d63f5d8567dfeea95d705c6",
+      "original": "/Users/ccheever/clique-improvement/revisions/search-resident-format5-linux-ordinary-corrected/failures.json"
+    },
+    "assembly-receipt.json": {
+      "bytes": 2675,
+      "sha256": "5b752e7e4a916eb7172682f5e7531293d23d3b68077eea926f66c18d0d5f0708",
+      "original": "/Users/ccheever/clique-improvement/revisions/search-resident-format5-linux-ordinary-corrected/assembly-receipt.json"
+    },
+    "retrieval-verification.json": {
+      "bytes": 830,
+      "sha256": "b1651c6e35c4af8dad6ea93f0a08e14234b851e3936e6c8f259546fc37d5e918",
+      "original": "/Users/ccheever/clique-improvement/revisions/search-resident-format5-linux-ordinary-corrected/retrieval-verification.json"
+    },
+    "archive-receipt.json": {
+      "bytes": 517,
+      "sha256": "a90de89c2ad92069535d8c83c858ede46d6f5da55ef3b46f47d53c99811dfa60",
+      "original": "/Users/ccheever/clique-improvement/revisions/search-resident-format5-linux-ordinary-corrected/archive-receipt.json"
+    },
+    "supervisor-final-handoff.json": {
+      "bytes": 432,
+      "sha256": "08734d0385d0c2e9b7762dac21f49b8b897d226cf7050ad66a30110fbb40fb33",
+      "original": "/Users/ccheever/clique-improvement/revisions/search-resident-format5-linux-ordinary-corrected/supervisor-final-handoff.json"
+    },
+    "results/RESULTS-MANIFEST.json": {
+      "bytes": 13950,
+      "sha256": "aa5ba537c14014fbbb39ed6dacf4921eeb8ab538fe20c95a347f822ba413ead7",
+      "original": "/Users/ccheever/clique-improvement/revisions/search-resident-format5-linux-ordinary-corrected/results/RESULTS-MANIFEST.json"
+    },
+    "results/cleanup.json": {
+      "bytes": 1449,
+      "sha256": "947956c038ffc9e50c0b432b92181d9f0aa1c96efb04ef45c5b2e958289e2c7c",
+      "original": "/Users/ccheever/clique-improvement/revisions/search-resident-format5-linux-ordinary-corrected/results/cleanup.json"
+    }
+  }
+}

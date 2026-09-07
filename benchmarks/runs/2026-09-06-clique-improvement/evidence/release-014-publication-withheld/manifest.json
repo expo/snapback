@@ -1,0 +1,93 @@
+{
+  "scope": "Compact completed evidence; complete original external source reports preserved. No current source, binaries or mutable tool logs copied.",
+  "files": {
+    "implementation-report.md": {
+      "bytes": 9645,
+      "sha256": "e37de329f03de645cc14ce4b9b5970a61096d26f8309a32d87648580a19fe48b",
+      "original": "/Users/ccheever/clique-improvement/revisions/release-publication-014/implementation-report.md"
+    },
+    "actual-identity.json": {
+      "bytes": 478,
+      "sha256": "857d77384271874727df5552974e1b80f3b821473b0052fa4d562139cb607ec9",
+      "original": "/Users/ccheever/clique-improvement/revisions/release-publication-014/actual-identity.json"
+    },
+    "launch.json": {
+      "bytes": 651,
+      "sha256": "c59de21f1b735747fa12c9b5ac2f327c276ea32f91ce94113c7ce278fad9c9e7",
+      "original": "/Users/ccheever/clique-improvement/revisions/release-publication-014/launch.json"
+    },
+    "terminal.json": {
+      "bytes": 109,
+      "sha256": "a8ec5b876e054e5af2dbc57e3ee7e9d2efb7b1a8d693181fe1bfd44df2eec9f1",
+      "original": "/Users/ccheever/clique-improvement/revisions/release-publication-014/terminal.json"
+    },
+    "phase.json": {
+      "bytes": 1159,
+      "sha256": "5ddcb89e2c923bc038c6864f578b0ea83b4098a3431d7dc95c9ea435c5c10359",
+      "original": "/Users/ccheever/clique-improvement/revisions/release-publication-014/phase.json"
+    },
+    "publication-receipt.json": {
+      "bytes": 1104,
+      "sha256": "a9991432cad59b8ec794908da4bbacf2b85352fe60fde17f7fe4772e7acc7e3d",
+      "original": "/Users/ccheever/clique-improvement/revisions/release-publication-014/publication-receipt.json"
+    },
+    "first-failure.json": {
+      "bytes": 637,
+      "sha256": "9d0f102eac3f8bfaf881122590f344373ffd342cd26b63ccdb8fb91014381aa8",
+      "original": "/Users/ccheever/clique-improvement/revisions/release-publication-014/first-failure.json"
+    },
+    "standard-installed-consumer.json": {
+      "bytes": 1761,
+      "sha256": "1f176775b41bf8443fd299c8521797a47019ca7921c7aee2bceb23cfc3cacf30",
+      "original": "/Users/ccheever/clique-improvement/revisions/release-publication-014/standard-installed-consumer.json"
+    },
+    "installed-test-receipts.json": {
+      "bytes": 660,
+      "sha256": "736a501249a4a6b99c172baaf2e39d44000ce3b3eb8604d1258f33d6a428dc92",
+      "original": "/Users/ccheever/clique-improvement/revisions/release-publication-014/installed-test-receipts.json"
+    },
+    "custody-after.json": {
+      "bytes": 646,
+      "sha256": "5811ba17040e8df2e2a79ed52bc57322e766c24a569faab5e5f3a2867902acd5",
+      "original": "/Users/ccheever/clique-improvement/revisions/release-publication-014/custody-after.json"
+    },
+    "source-correspondence-final.json": {
+      "bytes": 505,
+      "sha256": "17ad09c0c0fae963bacc305c8adce8cfd408351d44f7ac47d02f490057e9a14e",
+      "original": "/Users/ccheever/clique-improvement/revisions/release-publication-014/source-correspondence-final.json"
+    },
+    "metric-receipt.json": {
+      "bytes": 680,
+      "sha256": "606c58446842297d4f83f5c4029c9d3c9475c157f92d4d55a13c167bf9cf7dd6",
+      "original": "/Users/ccheever/clique-improvement/revisions/release-publication-014/metric-receipt.json"
+    },
+    "cleanup.json": {
+      "bytes": 2386,
+      "sha256": "1b53e22028d5e4a1b866af220955e6843e58c7f3f0fc2c1d07c89bd5c190cf19",
+      "original": "/Users/ccheever/clique-improvement/revisions/release-publication-014/cleanup.json"
+    },
+    "supervisor-final-handoff.json": {
+      "bytes": 535,
+      "sha256": "06e547646b07fae0dbbc6ba4f29ec48e2b7d6ef790571480b7834e6831de33a1",
+      "original": "/Users/ccheever/clique-improvement/revisions/release-publication-014/supervisor-final-handoff.json"
+    },
+    "receipts/production-publish.json": {
+      "bytes": 3434,
+      "sha256": "4492480d7741177753394a38fd95bd6dad3d936533f6a5fa8ed24c0da33a5447",
+      "original": "/Users/ccheever/clique-improvement/revisions/release-publication-014/receipts/production-publish.json"
+    },
+    "receipts/registry-after-failure.json": {
+      "bytes": 2036,
+      "sha256": "3949e8c32d0dd54ede5541eb8092046ea47c9e366e1505dd8b402655ed9f4aee",
+      "original": "/Users/ccheever/clique-improvement/revisions/release-publication-014/receipts/registry-after-failure.json"
+    }
+  },
+  "externalOmittedEvidence": {
+    "receipts/production-publish.log": {
+      "bytes": 1297,
+      "sha256": "4f709d05faca8bfaddbf584ead8709b5565c5e438ae475e2c46f97771c55de99",
+      "original": "/Users/ccheever/clique-improvement/revisions/release-publication-014/receipts/production-publish.log",
+      "reason": "Original output includes terminal blank line; kept byte-exact externally instead of normalizing historical evidence."
+    }
+  }
+}

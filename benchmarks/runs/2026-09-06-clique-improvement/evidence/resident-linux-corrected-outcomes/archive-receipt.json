@@ -1,0 +1,12 @@
+{
+  "path": "/home/ccheever/clique-tooling/search-resident-format5-linux-ordinary-contradiction-e17fee76/complete-results.tar.gz",
+  "bytes": 39194543,
+  "sha256": "3b3b6c8122eb3b9012e2cb4c74a95e947d1ac9f2325ab68f8781876f9852024f",
+  "manifestSha256": "aa5ba537c14014fbbb39ed6dacf4921eeb8ab538fe20c95a347f822ba413ead7",
+  "manifestFiles": 88,
+  "capturedBytes": 175753259,
+  "archiveSeconds": 7.987042865948752,
+  "archiveDeadlineSeconds": 240,
+  "allOriginalResultsIncluded": true,
+  "remoteCollectorPid": 3569574
+}

@@ -1,0 +1,19 @@
+{
+  "epoch": 1788749081.497786,
+  "fullReportRead": true,
+  "reportBytes": 9645,
+  "reportSha256": "e37de329f03de645cc14ce4b9b5970a61096d26f8309a32d87648580a19fe48b",
+  "actualCliTerminal": {
+    "pid": 28921,
+    "exitCode": 0,
+    "endedEpoch": 1788749050.23536,
+    "elapsedSeconds": 708.9823801517487
+  },
+  "writerReleased": true,
+  "cliAndSupervisorAbsent": true,
+  "sourceClean": true,
+  "outcome": "WITHHELD_BEFORE_PUBLICATION",
+  "publisherExit": 1,
+  "retryLaunched": false,
+  "originalPairIndependentAuditRepeated": false
+}

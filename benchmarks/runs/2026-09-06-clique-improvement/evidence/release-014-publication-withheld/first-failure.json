@@ -1,0 +1,19 @@
+{
+  "phase": "standard actual resume installed consumer before registry convergence",
+  "publisherExitCode": 1,
+  "publisherElapsedSeconds": 113.021234084,
+  "failedStep": {
+    "name": "chat test",
+    "seconds": 30.014592833000002,
+    "ok": false
+  },
+  "error": "ETIMEDOUT",
+  "originalStepDeadlineMilliseconds": 30000,
+  "automaticRetry": false,
+  "actualPublishReached": false,
+  "sourceChange": false,
+  "publisherTerminal": "receipts/production-publish.json",
+  "originalStdoutStderr": "receipts/production-publish.log",
+  "registryAfterFailure": "receipts/registry-after-failure.json",
+  "priorQualifiedDryRunUnchanged": true
+}

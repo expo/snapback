@@ -1,0 +1,16 @@
+{
+  "epoch": 1788748335.4756422,
+  "actualTerminal": {
+    "pid": 25359,
+    "exitCode": 0,
+    "endedEpoch": 1788747846.965873,
+    "elapsedSeconds": 829.6728618144989
+  },
+  "writerReleased": true,
+  "reportSha256": "dc57028a6c0ba0d7b0574ea9f657009a55b7cd219142ebfda15e5555cf0b26da",
+  "resultFilesVerified": 88,
+  "resultBytesVerified": 175753259,
+  "allMatch": true,
+  "pairQualified": false,
+  "actualNextWasNotLogged": true
+}

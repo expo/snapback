@@ -971,3 +971,10 @@ A bounded follow-up turned the remaining cold-movement review uncertainty into a
 After deliberate fresh capacity observation and a brief hold on new owned heavy checks, the unchanged standard publisher passed in 89.344s (88.6s producer metric); chat passed in 25.016s under its original 30s limit. Fresh original-tarball Expo/guide verification passed in 17.320s, including all 154 packaged files, the unchanged 26 public operations and the source-derived assets lookup. The exact package bytes equal the first failed pair, with separate attempt custody. The first timeout remains a failure with no proven causal attribution; no deadlines or assertions changed.
 
 [Completed preparation and writer terminal](../benchmarks/runs/2026-09-06-clique-improvement/evidence/release-014-second-qualified/README.md). Actual registry publication is a separate authorized continuation; this preparation is not a benchmark or device result.
+
+
+### 2026-09-06 — Preserve publication and resident limits after new failures
+
+The actual 0.0.14 publisher stopped before either npm publish call when chat hit its unchanged 30s deadline. Both exact versions still returned E404. The earlier successful preparation and qualified pair remain distinct; no retry, metric or registry-installed pass followed. Root authorized read-only timeout and alternate-Mac preparation. [Exact withheld-publication record](../benchmarks/runs/2026-09-06-clique-improvement/evidence/release-014-publication-withheld/README.md).
+
+The corrected Linux ordinary carrier passed all three historical arms and both full-state comparisons; Twin stopped during baseline load at its h1 assertion, before later lifecycle coverage. A separate read-only diagnosis found an ordinary-cursor contract mismatch and proposed an exact decoded-position check. Actual failed next remains unlogged, and no new population is authorized. [Mixed outcome and original limits](../benchmarks/runs/2026-09-06-clique-improvement/evidence/resident-linux-corrected-outcomes/README.md).

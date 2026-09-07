@@ -1,0 +1,38 @@
+The ordinary full-Twin fixture asks the frozen implementation for an **untimed scalar scan**, but `worker.mjs:42` demands a search/timed `h1.` continuation. The program and continuation certificate are present and consistent. This is a source-supported harness contract mismatch; the failed call's actual `next` was not recorded, so its exact runtime value remains unknown. No runtime cursor defect or successful Twin lifecycle is established.
+
+This diagnosis used only local frozen source and JSON/base64/hash inspection. No product module was imported, store constructed, workload replayed, packet edited or remote command issued. The current native session is `01a0783e-90b6-70b3-a096-c7a980574ceb`, gpt-6-astra/xhigh, CLI PID 29365, parent 29355; `actual-identity.json` binds the actual turn context. Parent owns the eventual CLI terminal.
+
+1. **Observed historical result.** The corrected ordinary carrier invocation completed all three historical arms (02a5, 4fb, 47a7) and both original whole-state comparisons, in 86.098s. The subsequent Twin invocation failed in baseline `load`, in 19.392s overall (child 19.058s). Its truthy-result, exact 20 row IDs and `state === 'capped'` checks precede the failing h1 assertion. The captured backend contains 10,000 rows, 500 answers and one outbox item, but only the `empty` phase completed. Warm, timed, contradictions, publication rollback, populated Twin replacement/reopen and later lifecycle/atomicity assertions did not complete; neither later Twin arm launched. The older uncorrected ordinary failure at conflicting deliveries for seq 11 also remains a failure. No previous receipt or result was changed.
+
+2. **Trusted inputs are present.** Worker calls `twin.evaluate('resident.page', {scope:'s000', c:null})` and supplies the decoded frozen program plus principal `resident-viewer`. The persisted backend program equals the entire fixture program, generation `27f1323184028dee7f1ff2d41fd6e4e9a72eb0b4cc370a0a1b8feb2cce411bf0`, with matching schema/facts and authEpoch 1. Operation `resident.page` is a query with plan `d30cbb0c35529e069fb41d5afacfd8b07235c09d3b2ee3bf582866c4e9854aab`. Its sole Return (path `"0"`) scans `messages.byScopeAt`, ascending, scalar prefix `scope`, take 20, cursor argument `c`, read site `resident.page.0`. IR and certificate clocks are both null. The certificate has that exact read site and `result_pages["0"]` with suffix `at:Int, id:Id`; no trusted operation, site, argument or result-page binding is missing. The separate `resident.timedPage` exists but is not the operation evaluated by `sync()`.
+
+3. **The selected continuation contract.** In frozen `twin.ts:117–136`, `search` is held execution or a WordPrefix trace. This IR has neither; `queryClock()` is false for its null clocks. The ordinary fresh return therefore selects `local.execution.next`, not the internally computed h1 token. Non-search partial execution would return `partial`, whereas the captured assertion sequence reached `capped`. Runner records the last returned suffix and `mintNext` uses the matching Return certificate to encode an ordinary cursor (`runner.ts:692–715,1190+`; `cursor.ts:21–91`). Its canonical base64url alphabet cannot contain a dot. Thus expecting `h1.` is inconsistent with this operation even though Twin can emit h1 for other operations.
+
+4. **Independent position data.** The first captured fixture envelope, persisted first answer and second page's input `c` contain the same ordinary token. Standard-library decoding gives:
+
+```json
+[1,"messages","byScopeAt","Asc",[{"name":"at","kind":"Int"},{"name":"id","kind":"Id"}],[{"Int":19},{"Id":"r000-019"}]]
+```
+
+This is the certified position after the twentieth expected row. The full token is retained in `source-evidence.json`. The static path predicts this ordinary cursor for the failed call; **the stored token is not an observation of that call's returned value**. Null, malformed or wrong-position continuations must continue to fail verification.
+
+5. **Proposed change for Root inspection only.** No fixture/program metadata repair is justified. Changing the query to timed/search merely to obtain h1 would change the exercised semantics. An observation-only notice immediately before the existing assertion could record whether `next` is present, its type and exact value; that would preserve the failure and would not unblock lifecycle coverage. The minimal semantic correction is instead an ordinary-only strict continuation expectation in a future derivative worker. Replace only the existing h1 assertion with the following proposed fragment, preserving its non-ordinary branch:
+
+```js
+if (variant === 'ordinary') {
+  assert.equal(typeof result.next, 'string');
+  assert.deepEqual(R.decodeCursor(result.next), {
+    table: 'messages', index: 'byScopeAt', order: 'Asc',
+    suffix: [{name:'at',kind:'Int'}, {name:'id',kind:'Id'}],
+    values: [{Int:19}, {Id:'r000-019'}],
+  });
+} else assert(result.next?.startsWith('h1.'));
+```
+
+`decodeCursor` is already exported by every frozen Twin bundle and rejects malformed/noncanonical encodings; the exact structured assertion rejects null and wrong positions. This is a precise contract replacement, not a broader prefix/regex or an accepted-null fallback. **This fragment is a proposal in this report only: no patch or derivative was created, applied, imported or tested. Root must approve any implementation and subsequent population separately.** It would leave the 10k fixture, three historical Twin arms, persistent carrier/TwinStore/indexed ClientStore roots, all row/state/backend/outbox assertions and lifecycle paths intact. It does not establish that those later paths will pass.
+
+Source custody: original Mac MANIFEST `930793df6f124af02d8b72a9b4b49674c55f52d017aaea86c6fdaa1ba12b840f`; actual corrected Linux MANIFEST `4fdbac90dcc13fe192e89a44b3f6855da2df28f9ce179f26e6f01737c647b26b`; results MANIFEST `aa5ba537c14014fbbb39ed6dacf4921eeb8ab538fe20c95a347f822ba413ead7`. The remote historical packet was `/home/ccheever/clique-tooling/search-resident-format5-linux-ordinary-contradiction-e17fee76/packet` on EPYC, using Linux Node 22.23.2 SHA `3517c2df0b2f8cd7f422b4b8450ef81c6889f08eb03e281d6de9079b15e6a327`; no new host/runtime observation is claimed.
+
+The exact Twin bundles are baseline `92d3a09414417e704c3ac962ddfa963afb4da0359f3021b2e2c03edf3841693c`, carrier `022880bb8aeeb038a05bf23c6cf9a1ab30db1cc78bfd0207ce4f96b2d1113751`, coverage `153856adb6affde5a677cb25751c51eee06eeadf25ce328ec013a9f4a1b7f1b2`. The same return branch occurs at bundle lines 7150, 7169 and 7202. Twin, TwinStore, held-program, local-cursor, Runner and ordinary cursor sources are each byte-identical across all three arms. Evaluator store.ts differs in coverage's receipt/rehydrate/row-preparation code; its reexecute body is unchanged. These distinctions and all exact source hashes are in `source-evidence.json`, with 50 relevant leaf hashes checked against the frozen source/results manifests. Root's earlier complete 88-result verification was not repeated.
+
+Limits and release: no runtime check was rerun and no new command failure occurred. Original invocation 1,000,000ms, arm 300,000ms and every phase deadline remain unchanged, as do RSS 1536MiB, heap/external 1024MiB, ArrayBuffer/output 512MiB, free-memory 4096/2048MiB and 250ms/100ms sampling. The original `os.freemem()` predicate remains untouched and is not relabeled as a new MemAvailable observation. No helper/server/sampler was launched or signaled, and no remote cleanup was needed. Original evidence and packets remain untouched. This read-only diagnosis provides no Twin/current-P2, native, device, performance or release qualification.

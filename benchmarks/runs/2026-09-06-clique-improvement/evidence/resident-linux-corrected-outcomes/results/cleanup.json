@@ -1,0 +1,64 @@
+{
+  "ownedIdentities": [
+    {
+      "mode": "carrier",
+      "pid": 3568724,
+      "expectedStartTicks": "110619658",
+      "absent": true,
+      "originalProcessRunning": false
+    },
+    {
+      "mode": "carrier",
+      "pid": 3568725,
+      "expectedStartTicks": "110619675",
+      "absent": true,
+      "originalProcessRunning": false
+    },
+    {
+      "mode": "carrier",
+      "pid": 3568732,
+      "expectedStartTicks": "110619704",
+      "absent": true,
+      "originalProcessRunning": false
+    },
+    {
+      "mode": "carrier",
+      "pid": 3568866,
+      "expectedStartTicks": "110622618",
+      "absent": true,
+      "originalProcessRunning": false
+    },
+    {
+      "mode": "carrier",
+      "pid": 3569039,
+      "expectedStartTicks": "110625412",
+      "absent": true,
+      "originalProcessRunning": false
+    },
+    {
+      "mode": "twin",
+      "pid": 3569365,
+      "expectedStartTicks": "110634853",
+      "absent": true,
+      "originalProcessRunning": false
+    },
+    {
+      "mode": "twin",
+      "pid": 3569366,
+      "expectedStartTicks": "110634869",
+      "absent": true,
+      "originalProcessRunning": false
+    },
+    {
+      "mode": "twin",
+      "pid": 3569373,
+      "expectedStartTicks": "110634898",
+      "absent": true,
+      "originalProcessRunning": false
+    }
+  ],
+  "signalsSent": [],
+  "originalSupervisorsOwnCleanup": true,
+  "laterTwinArmsNeverLaunched": true,
+  "sourceOrOtherProcessChanges": false
+}

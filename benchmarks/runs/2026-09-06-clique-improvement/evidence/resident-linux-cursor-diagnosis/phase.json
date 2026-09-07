@@ -1,0 +1,53 @@
+{
+  "status": "READ_ONLY_DIAGNOSIS_COMPLETE_PROPOSAL_NOT_IMPLEMENTED",
+  "writerReleased": true,
+  "releasedUtc": "2026-09-07T02:42:41.828772+00:00",
+  "session": "01a0783e-90b6-70b3-a096-c7a980574ceb",
+  "model": "gpt-6-astra",
+  "reasoning": "xhigh",
+  "cliPid": 29365,
+  "parentPid": 29355,
+  "cliExitCode": null,
+  "terminalOwner": "Parent records actual CLI terminal after return; no exit is asserted here.",
+  "conclusion": "Untimed ordinary scalar query is checked against an h1 search/timed cursor expectation. Actual failed returned next remains unobserved. Strict ordinary continuation proposal only.",
+  "historicalResults": {
+    "carrier": "All three historical arms and both comparisons passed",
+    "twin": "Baseline failed load; later arms not launched",
+    "oldUncorrectedFailure": "Preserved; not relabeled"
+  },
+  "sourceCustody": {
+    "relevantLeavesCheckedAndRecheckedUnchanged": 50,
+    "packetsModified": 0,
+    "sourceModified": 0,
+    "fixtureModified": 0,
+    "derivativeCreated": false
+  },
+  "execution": {
+    "runtimeImports": 0,
+    "storesConstructed": 0,
+    "populationRuns": 0,
+    "remoteCommands": 0,
+    "testsRun": 0,
+    "failuresThisDiagnosis": []
+  },
+  "cleanup": {
+    "longLivedOwnedChildrenStarted": 0,
+    "signalsSent": 0,
+    "remoteCleanupRequired": false
+  },
+  "artifacts": {
+    "REPORT.md": {
+      "bytes": 7706,
+      "sha256": "d701bc67e9ef921aa24b354cdcc19f16a7afded01203d5ab166088391c5d70a7"
+    },
+    "source-evidence.json": {
+      "bytes": 35378,
+      "sha256": "8b493bb196a7a99a22269b97f67dde3bbdbfea86d509b08afd8da4e04310593c"
+    },
+    "actual-identity.json": {
+      "bytes": 502,
+      "sha256": "59d500e1e75651055538dba6fde6d90af122fff29c131b00f0a70068bc4e00db"
+    }
+  },
+  "nextActionOwner": "Root; no implementation or population authorized by this handoff."
+}

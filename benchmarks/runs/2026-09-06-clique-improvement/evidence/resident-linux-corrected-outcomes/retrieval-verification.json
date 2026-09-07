@@ -1,0 +1,14 @@
+{
+  "archiveSha256": "3b3b6c8122eb3b9012e2cb4c74a95e947d1ac9f2325ab68f8781876f9852024f",
+  "manifestSha256": "aa5ba537c14014fbbb39ed6dacf4921eeb8ab538fe20c95a347f822ba413ead7",
+  "filesVerified": 88,
+  "bytesVerified": 175753259,
+  "allFilesMatch": true,
+  "localResults": "/Users/ccheever/clique-improvement/revisions/search-resident-format5-linux-ordinary-corrected/results",
+  "archiveAndExtractedFilesMode": "0444",
+  "extractionSeconds": 1.279339667,
+  "extractionDeadlineSeconds": 60,
+  "archiveTransferredOnce": true,
+  "originalExtractErrorPreserved": "TypeError: extractall() got an unexpected keyword argument filter; no member extracted before API failure",
+  "extractionCorrection": "Inspected empty own results directory; copied validated regular members with exclusive file creation, no archive or workload retry"
+}
