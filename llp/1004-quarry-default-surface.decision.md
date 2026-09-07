@@ -6,7 +6,7 @@
 templates, guide, diagnostics
 **Author:** Charlie Cheever (ruling); Claude Fable 5 (orchestrator, record)
 **Date:** 2026-08-31
-**Revised:** 2026-09-07 (typed direct compiler and expression functions; generated table-binding hygiene); 2026-09-03
+**Revised:** 2026-09-07 (final helper-purity/canonical-pair review costs and package declaration boundary); 2026-09-07 (typed direct compiler and expression functions; generated table-binding hygiene); 2026-09-03
 **Related:** LLP 1000 (decision 10), LLP 1002, LLP 1007 (§2, §5), LLP 0329.014.004,
 .009, .010, .011, `spikes/clique-diagnostic-runs/`,
 `snapback2/packages/compiler/src/quarry/`, `snapback2/packages/snapback2/guide/quarry.md`
@@ -210,8 +210,13 @@ lines and 403 test lines, leaving a reconciled reduction of 7,533 production
 lines and 5,003 test lines. Statement recovery uses bounded binding journals
 and typed presence facts in the direct binder; it preserves the 20-per-operation
 and 50-per-project diagnostic limits without restoring a TypeScript data
-frontend. All 208 compiler checks pass after this integration. LLP 1018.000
-records the separate per-file census and the frozen component dispositions.
+frontend. The final helper-purity and canonical-`sorted` review repairs add a
+further net 34 production and 152 oracle lines. The current reduction against
+the frozen baseline is therefore **7,499 production**, **4,851 oracle**, and
+**1,250 fixture** lines; all 210 compiler checks pass. The SDK declaration
+assembly is package/build work outside this compiler source census and has its
+own copied-package consumers. LLP 1018.000 records the separate per-file
+census and the frozen component dispositions.
 
 ## Non-claims
 

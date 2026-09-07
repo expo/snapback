@@ -17,7 +17,7 @@ grok-4.6 at xhigh), `llp/reviews/1010-quarry-language-amendments.*`
 **Implementer:** codex gpt-5.6-sol (xhigh), lane `s2/quarry-amend`
 (`~/projects/snapback-s2`), orchestrated and landed by Claude Fable 5.1
 **Date:** 2026-09-03
-**Revised:** 2026-09-07 (typed direct compiler supersedes the two-hop non-proposal); 2026-09-06 (pooled logical merge streams and bounded shared seek template); 2026-09-05 (Clique L10 — lazy merge implemented by GPT-6 Astra); 2026-09-05 (time arithmetic and divmod tuple rules implemented by GPT-6 Astra, Clique L2); 2026-09-03 (d — A6's optional cursor group was replaced by LLP
+**Revised:** 2026-09-07 (`sorted` canonical pair order and once-only operand evaluation); 2026-09-07 (typed direct compiler supersedes the two-hop non-proposal); 2026-09-06 (pooled logical merge streams and bounded shared seek template); 2026-09-05 (Clique L10 — lazy merge implemented by GPT-6 Astra); 2026-09-05 (time arithmetic and divmod tuple rules implemented by GPT-6 Astra, Clique L2); 2026-09-03 (d — A6's optional cursor group was replaced by LLP
 1011 B1's opaque, forward-only cursor); 2026-09-03 (c — implemented: §8 records the two landing commits
 and the one departure from the brief, the guide budget); 2026-09-03 (b — after the panel: bounds-first withdrawn; A2
 restated as program-only because rules and the IR already compare totally;
@@ -406,9 +406,13 @@ order after the table name.
   (`parser.ts`, `parseRead`; 17 uses in the Clique fixture, its unique-index
   spelling). The reference does not mention it. Document it; do not refuse
   it.
-- `sorted` exists only as the two-name tuple form `(lo, hi) = sorted(a, b)`
-  (`program.ts:105`). The reference lists it among "other built-ins" without
-  saying so. Say so.
+- `sorted` exists only as the two-name tuple form `(lo, hi) = sorted(a, b)`.
+  It evaluates `a` and then `b` exactly once and orders the resulting present,
+  compatible scalar values by the engine's total scalar order. Equal values
+  remain equal. The earlier generated and initial direct routes preserved
+  authored operand order instead of producing the canonical pair; that was a
+  semantic defect, corrected with native/twin execution rather than recorded
+  as parity.
 
 ## 7. Migrations, enumerated
 

@@ -21,7 +21,7 @@ ultra, grok-4.6 at xhigh), `llp/reviews/1011-quarry-ergonomics.*`
 **Implementer:** codex gpt-5.6-sol (xhigh), lane `s2/quarry-ergo`
 (`~/projects/snapback-s2`), orchestrated and landed by Claude Fable 5.1
 **Date:** 2026-09-03
-**Revised:** 2026-09-07 (typed bound shape/function elaboration and one decimal representation); 2026-09-06 (session-delegated Unicode key/cursor integration contract, foundation only); 2026-09-06 (nested named-shape collection snapshots implemented by GPT-6 Astra; conditional page returns implemented by GPT-6 Astra; certification-derived provenance); 2026-09-05 (null keys and non-empty Id literals implemented by GPT-6 Astra, Clique L2); 2026-09-05 (d — Codex implements imported shapes, read-authorized
+**Revised:** 2026-09-07 (expression helpers refuse authorization assertions throughout nested shapes); 2026-09-07 (typed bound shape/function elaboration and one decimal representation); 2026-09-06 (session-delegated Unicode key/cursor integration contract, foundation only); 2026-09-06 (nested named-shape collection snapshots implemented by GPT-6 Astra; conditional page returns implemented by GPT-6 Astra; certification-derived provenance); 2026-09-05 (null keys and non-empty Id literals implemented by GPT-6 Astra, Clique L2); 2026-09-05 (d — Codex implements imported shapes, read-authorized
 write results, and order-preserving filter repairs under the author's request
 to advance Quarry); 2026-09-03 (c — implemented: §8 records the two lane commits
 and the one re-pinned expectation); 2026-09-03 (b — after the panel: `fn` deferred and `shape` kept;
@@ -254,10 +254,11 @@ left to right, before the body; parameters and all generated temporaries have
 fresh symbol identities. A helper can use its parameters and read-pure context
 (`viewer`, query `now`/read time), and may perform bounded reads. It cannot
 capture caller locals or a caller shape's focal row, allocate `new`, use commit
-time, write, or emit. A named shape reached by the helper inherits that purity
-boundary. Shape and function frames share depth 8 and 4,096-node limits, retain
-definition plus use sites, and refuse cycles. Callers keep their own
-`require … else CODE`, so reuse does not collapse public refusal identities.
+time, write, emit, or assert presence/authorization with `!` or `! else CODE`. A named shape
+reached by the helper inherits that purity boundary. Shape and function frames
+share depth 8 and 4,096-node limits, retain definition plus use sites, and
+refuse cycles. Callers keep their own `require … else CODE` or `! else CODE`,
+so reuse does not collapse public refusal identities.
 
 ### Shape imports and hygiene (2026-09-05)
 
