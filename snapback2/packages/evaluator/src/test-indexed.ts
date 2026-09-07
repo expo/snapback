@@ -32,6 +32,22 @@ const schema: any = { tables: { messages: { columns: { id: 'Id', room: { Text: {
 const typed = (id: string, body: string, at = 1, caption: string | null = null): any => ({ Row: { id: { Id: id }, room: { String: 'r' }, body: { String: body }, caption: caption === null ? 'Null' : { String: caption }, at: { Int: at } } });
 const atoms = (term: string): any => [{ Scalar: { String: 'r' } }, { WordPrefix: { source: term, contract: SEARCH_CONTRACT } }];
 const prefix = (term: string) => preparePrefix(schema, 'messages', 'search', atoms(term), [undefined, 2000]);
+// Hermes treats TypedArray.from as array-like-only. Search posting custody must
+// not depend on Set's iterator being honored by that platform implementation.
+const typedArrayFrom = Object.getOwnPropertyDescriptor(Uint32Array, 'from');
+Object.defineProperty(Uint32Array, 'from', { configurable: true, value: (source: ArrayLike<number>) => {
+  const result = new Uint32Array(Number.isSafeInteger(source?.length) ? source.length : 0);
+  for (let i = 0; i < result.length; i++) result[i] = source[i]!;
+  return result;
+} });
+try {
+  const compatible = new HeldIndex<any>(schema, 'messages', 'search', schema.tables.messages.indexes.search.components);
+  const row = typed('hermes-posting', 'Café'); compatible.put(row);
+  assert.deepEqual([...compatible.scan({ prefix: prefix('café'), after: null, before: null, range: null, order: 'Asc' })], [row]);
+} finally {
+  if (typedArrayFrom) Object.defineProperty(Uint32Array, 'from', typedArrayFrom);
+  else delete (Uint32Array as any).from;
+}
 const store = new ClientStore(schema);
 for (let i = 0; i < 300; i++) store.put('messages', typed(`m${i}`, i % 2 ? 'Cafe\u0301 Straße' : 'quiet', i));
 store.put('messages', typed('caption', 'unrelated', 500, 'CAFÉ'));
