@@ -1,0 +1,74 @@
+{
+  "label": "37-chat-repeat-2-check",
+  "cwd": "/Users/ccheever/bench-snapback2-dx/published-0.0.14/chat",
+  "command": [
+    "/Users/ccheever/bench-snapback2-dx/published-0.0.14/chat/node_modules/.bin/snapback2",
+    "check",
+    "--json"
+  ],
+  "started": "2026-09-07T06:57:10.934264+00:00",
+  "wall_s": 4.622112625,
+  "exit": 0,
+  "pid": 38038,
+  "cpu_user_s": 6.559747,
+  "cpu_system_s": 0.599294,
+  "load_before": [
+    6.9775390625,
+    8.75,
+    7.40966796875
+  ],
+  "load_after": [
+    6.9775390625,
+    8.75,
+    7.40966796875
+  ],
+  "removed_env_keys": [
+    "NODE_PATH"
+  ],
+  "stdout": "{\"compilerMs\":1703.38,\"generation\":\"2522868fdb75334deae2867f590cfd8f47a65dcf84b462cc4c40b29c064eec72\",\"ok\":true,\"operations\":26,\"schemaCertificate\":{\"disclosures\":[\"messages.oncePhoto: one image delivery per authenticated principal; owning row read rule; no device byte cache\"],\"schedules\":[{\"name\":\"expireMessage\",\"target\":\"deliveries.purgeMessage\",\"trigger\":{\"row\":{\"column\":\"expiresAt\",\"table\":\"messages\"}}}]}}\n",
+  "stderr": "",
+  "host_samples": [
+    {
+      "elapsed_s": 1.0061799999999999,
+      "load": [
+        6.9775390625,
+        8.75,
+        7.40966796875
+      ],
+      "processes": "  PID  PPID  %CPU %MEM COMM\n38062 38040 174.0  0.2 node\n 8032     1 100.0  0.1 /System/Library/Frameworks/CoreServices.framework/Versions/A/Frameworks/FSEvents.framework/Versions/A/Support/fseventsd\n34205 34204   7.7  0.3 /Users/ccheever/.volta/tools/image/packages/@openai/codex/lib/node_modules/@openai/codex/node_modules/@openai/codex-darwin-arm64/vendor/aarch64-apple-darwin/bin/codex\n 3575     1   5.8  0.0 tmux\n 8461     1   5.5  0.2 /Library/SystemExtensions/45AAB62E-060A-496D-B846-1369156BAF5D/io.tailscale.ipn.macsys.network-extension.systemextension/Contents/MacOS/io.tailscale.ipn.macsys.network-extension\n 8274     1   3.7  0.1 /System/Library/DriverExtensions/com.apple.DriverKit-AppleBCMWLAN.dext/com.apple.DriverKit-AppleBCMWLAN\n 8322     1   2.0  0.0 /usr/libexec/trustd\n 8365     1   1.4  0.2 /System/Library/CoreServices/Finder.app/Contents/MacOS/Finder\n32177 32176   1.3  0.4 /Users/ccheever/.volta/tools/image/packages/@openai/codex/lib/node_modules/@openai/codex/node_modules/@openai/codex-darwin-arm64/vendor/aarch64-apple-darwin/bin/codex\n67090 67089   1.1  1.3 /Users/ccheever/.volta/tools/image/packages/@openai/codex/lib/node_modules/@openai/codex/node_modules/@openai/codex-darwin-arm64/vendor/aarch64-apple-darwin/bin/codex\n32485 32481   1.0  0.0 sshd-session: ccheever@ttys015\n32077 32070   0.9  0.0 sshd-session: ccheever@ttys001\n34321 34205   0.8  0.0 /Users/ccheever/.volta/tools/image/packages/@openai/codex/lib/node_modules/@openai/codex/node_modules/@openai/codex-darwin-arm64/vendor/aarch64-apple-darwin/bin/codex-code-mode-host\n38039 38038   0.7  0.1 node\n 8118     1   0.5  0.1 /usr/sbin/mDNSResponder\n",
+      "process_list_scope": "top 15 by sampled CPU; complete original in raw-records.jsonl.gz"
+    },
+    {
+      "elapsed_s": 2.1053338750000004,
+      "load": [
+        6.9775390625,
+        8.75,
+        7.40966796875
+      ],
+      "processes": "  PID  PPID  %CPU %MEM COMM\n38062 38040 170.2  0.3 node\n 8032     1  90.4  0.1 /System/Library/Frameworks/CoreServices.framework/Versions/A/Frameworks/FSEvents.framework/Versions/A/Support/fseventsd\n 8240     1  24.6  2.7 /System/Library/Frameworks/CoreServices.framework/Versions/A/Frameworks/Metadata.framework/Versions/A/Support/mds_stores\n 3575     1   6.4  0.0 tmux\n 8461     1   5.4  0.2 /Library/SystemExtensions/45AAB62E-060A-496D-B846-1369156BAF5D/io.tailscale.ipn.macsys.network-extension.systemextension/Contents/MacOS/io.tailscale.ipn.macsys.network-extension\n 8274     1   4.2  0.1 /System/Library/DriverExtensions/com.apple.DriverKit-AppleBCMWLAN.dext/com.apple.DriverKit-AppleBCMWLAN\n31650 31644   2.3  0.3 /Users/ccheever/.volta/tools/image/packages/@openai/codex/lib/node_modules/@openai/codex/node_modules/@openai/codex-darwin-arm64/vendor/aarch64-apple-darwin/bin/codex\n 8353     1   2.2  0.7 /Applications/cmux.app/Contents/MacOS/cmux\n67090 67089   1.5  1.3 /Users/ccheever/.volta/tools/image/packages/@openai/codex/lib/node_modules/@openai/codex/node_modules/@openai/codex-darwin-arm64/vendor/aarch64-apple-darwin/bin/codex\n32177 32176   1.5  0.4 /Users/ccheever/.volta/tools/image/packages/@openai/codex/lib/node_modules/@openai/codex/node_modules/@openai/codex-darwin-arm64/vendor/aarch64-apple-darwin/bin/codex\n38037 37468   1.2  0.0 /Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/Resources/Python.app/Contents/MacOS/Python\n42294 41614   1.1  1.0 claude\n23300 23299   1.0  0.3 /Users/ccheever/.volta/tools/image/packages/@openai/codex/lib/node_modules/@openai/codex/node_modules/@openai/codex-darwin-arm64/vendor/aarch64-apple-darwin/bin/codex\n32077 32070   0.8  0.0 sshd-session: ccheever@ttys001\n32485 32481   0.8  0.0 sshd-session: ccheever@ttys015\n",
+      "process_list_scope": "top 15 by sampled CPU; complete original in raw-records.jsonl.gz"
+    },
+    {
+      "elapsed_s": 3.2685045,
+      "load": [
+        6.9775390625,
+        8.75,
+        7.40966796875
+      ],
+      "processes": "  PID  PPID  %CPU %MEM COMM\n38062 38040 125.3  0.3 node\n 8032     1  79.7  0.1 /System/Library/Frameworks/CoreServices.framework/Versions/A/Frameworks/FSEvents.framework/Versions/A/Support/fseventsd\n 8174     1  15.9  0.1 /usr/libexec/syspolicyd\n38089 32177  13.0  0.0 /bin/zsh\n38094 38089   6.3  0.0 /Library/Developer/CommandLineTools/usr/bin/git\n 8240     1   6.0  2.7 /System/Library/Frameworks/CoreServices.framework/Versions/A/Frameworks/Metadata.framework/Versions/A/Support/mds_stores\n 3575     1   5.7  0.0 tmux\n 8461     1   5.2  0.2 /Library/SystemExtensions/45AAB62E-060A-496D-B846-1369156BAF5D/io.tailscale.ipn.macsys.network-extension.systemextension/Contents/MacOS/io.tailscale.ipn.macsys.network-extension\n 8274     1   4.5  0.1 /System/Library/DriverExtensions/com.apple.DriverKit-AppleBCMWLAN.dext/com.apple.DriverKit-AppleBCMWLAN\n38088     1   4.2  0.0 /Users/ccheever/Library/Application Support/Google/GoogleUpdater/Current/GoogleUpdater.app/Contents/MacOS/GoogleUpdater\n32177 32176   3.3  0.4 /Users/ccheever/.volta/tools/image/packages/@openai/codex/lib/node_modules/@openai/codex/node_modules/@openai/codex-darwin-arm64/vendor/aarch64-apple-darwin/bin/codex\n67090 67089   3.2  1.3 /Users/ccheever/.volta/tools/image/packages/@openai/codex/lib/node_modules/@openai/codex/node_modules/@openai/codex-darwin-arm64/vendor/aarch64-apple-darwin/bin/codex\n 8365     1   1.6  0.2 /System/Library/CoreServices/Finder.app/Contents/MacOS/Finder\n 8069     1   1.1  0.0 /usr/libexec/opendirectoryd\n 8142     1   1.1  0.1 /usr/libexec/airportd\n",
+      "process_list_scope": "top 15 by sampled CPU; complete original in raw-records.jsonl.gz"
+    },
+    {
+      "elapsed_s": 4.466077292,
+      "load": [
+        6.9775390625,
+        8.75,
+        7.40966796875
+      ],
+      "processes": "  PID  PPID  %CPU %MEM COMM\n 8032     1  91.5  0.1 /System/Library/Frameworks/CoreServices.framework/Versions/A/Frameworks/FSEvents.framework/Versions/A/Support/fseventsd\n32177 32176  10.3  0.4 /Users/ccheever/.volta/tools/image/packages/@openai/codex/lib/node_modules/@openai/codex/node_modules/@openai/codex-darwin-arm64/vendor/aarch64-apple-darwin/bin/codex\n31651 31645  10.2  0.3 /Users/ccheever/.grok/bin/grok\n 8174     1   8.1  0.1 /usr/libexec/syspolicyd\n 3575     1   7.2  0.0 tmux\n 8461     1   7.1  0.2 /Library/SystemExtensions/45AAB62E-060A-496D-B846-1369156BAF5D/io.tailscale.ipn.macsys.network-extension.systemextension/Contents/MacOS/io.tailscale.ipn.macsys.network-extension\n 8348     1   6.7  0.2 /Applications/Tailscale.app/Contents/MacOS/Tailscale\n 8274     1   6.0  0.1 /System/Library/DriverExtensions/com.apple.DriverKit-AppleBCMWLAN.dext/com.apple.DriverKit-AppleBCMWLAN\n42294 41614   5.7  1.0 claude\n38102 38088   4.7  0.0 /Users/ccheever/Library/Application Support/Google/GoogleUpdater/152.0.7933.0/GoogleUpdater.app/Contents/MacOS/GoogleUpdater\n67090 67089   4.0  1.3 /Users/ccheever/.volta/tools/image/packages/@openai/codex/lib/node_modules/@openai/codex/node_modules/@openai/codex-darwin-arm64/vendor/aarch64-apple-darwin/bin/codex\n91841 33940   2.9  1.0 claude\n 8069     1   2.7  0.0 /usr/libexec/opendirectoryd\n 8104     1   2.5  0.0 /usr/sbin/cfprefsd\n 8095     1   2.3  0.0 /usr/sbin/notifyd\n",
+      "process_list_scope": "top 15 by sampled CPU; complete original in raw-records.jsonl.gz"
+    }
+  ],
+  "host_samples_raw": "raw-records.jsonl.gz",
+  "host_sample_count": 4
+}

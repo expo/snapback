@@ -1,0 +1,31 @@
+{
+  "label": "08-dev",
+  "cwd": "/Users/ccheever/bench-snapback2-dx/published-0.0.14/app",
+  "command": [
+    "/Users/ccheever/bench-snapback2-dx/published-0.0.14/app/node_modules/.bin/snapback2",
+    "dev",
+    "--json"
+  ],
+  "started": "2026-09-07T06:51:08.589917+00:00",
+  "wall_s": 0.448364792,
+  "exit": 0,
+  "pid": 33438,
+  "cpu_user_s": 0.029715,
+  "cpu_system_s": 0.010543,
+  "load_before": [
+    5.8671875,
+    4.58349609375,
+    5.044921875
+  ],
+  "load_after": [
+    5.8671875,
+    4.58349609375,
+    5.044921875
+  ],
+  "removed_env_keys": [
+    "NODE_PATH"
+  ],
+  "stdout": "{\"generation\":\"2c0b7fb023e78d306c0d4e1366e80f2c15ef462452b852fb86374e14113fd35c\",\"pid\":33441,\"url\":\"http://127.0.0.1:58805\"}\n",
+  "stderr": "",
+  "host_samples": []
+}

@@ -1,0 +1,75 @@
+{
+  "label": "21-test-red-control",
+  "cwd": "/Users/ccheever/bench-snapback2-dx/published-0.0.14/app",
+  "command": [
+    "/Users/ccheever/bench-snapback2-dx/published-0.0.14/app/node_modules/.bin/snapback2",
+    "test",
+    "--journeys-only",
+    "--json"
+  ],
+  "started": "2026-09-07T06:53:42.804965+00:00",
+  "wall_s": 4.868572041,
+  "exit": 1,
+  "pid": 34528,
+  "cpu_user_s": 6.230722,
+  "cpu_system_s": 0.712985,
+  "load_before": [
+    10.74658203125,
+    9.7958984375,
+    7.3046875
+  ],
+  "load_after": [
+    10.6064453125,
+    9.7822265625,
+    7.314453125
+  ],
+  "removed_env_keys": [
+    "NODE_PATH"
+  ],
+  "stdout": "{\"binary\":{\"version\":\"0.0.14\",\"digest\":\"rust64:0c64cf0914f5b3e1\"},\"generation\":\"2c0b7fb023e78d306c0d4e1366e80f2c15ef462452b852fb86374e14113fd35c\",\"commands\":[\"snapback2 dev --foreground --port 0\",\"seed\",\"snapback2 test --journeys-only\"],\"checks\":[{\"name\":\"complete preserves ownership and changes done\",\"kind\":\"journey\",\"verdict\":\"fail\",\"ms\":90,\"detail\":\"completion did not change done\"},{\"name\":\"todos round trip\",\"kind\":\"journey\",\"verdict\":\"pass\",\"ms\":77,\"detail\":{\"file\":\"/Users/ccheever/bench-snapback2-dx/published-0.0.14/app/.snapback/test-run-1788764022844/project/.snapback/build/tests/todos.mjs\"}}],\"arms\":[\"headless\"],\"verdict\":\"fail\",\"scope\":{\"changed\":[]}}\n",
+  "stderr": "",
+  "host_samples": [
+    {
+      "elapsed_s": 1.003953208,
+      "load": [
+        10.74658203125,
+        9.7958984375,
+        7.3046875
+      ],
+      "processes": "  PID  PPID  %CPU %MEM COMM\n34552 34530 183.6  0.2 node\n 8032     1  91.9  0.1 /System/Library/Frameworks/CoreServices.framework/Versions/A/Frameworks/FSEvents.framework/Versions/A/Support/fseventsd\n34460 10728  27.7  0.4 /Applications/Google Chrome.app/Contents/Frameworks/Google Chrome Framework.framework/Versions/152.0.7977.76/Helpers/Google Chrome Helper (Renderer).app/Contents/MacOS/Google Chrome Helper (Renderer)\n 8240     1  23.4  2.9 /System/Library/Frameworks/CoreServices.framework/Versions/A/Frameworks/Metadata.framework/Versions/A/Support/mds_stores\n33463 33441  19.3  0.3 node\n91841 33940  16.1  1.0 claude\n 3575     1   7.8  0.0 tmux\n10728     1   7.8  0.7 /Applications/Google Chrome.app/Contents/MacOS/Google Chrome\n 8461     1   5.9  0.2 /Library/SystemExtensions/45AAB62E-060A-496D-B846-1369156BAF5D/io.tailscale.ipn.macsys.network-extension.systemextension/Contents/MacOS/io.tailscale.ipn.macsys.network-extension\n 8274     1   4.5  0.1 /System/Library/DriverExtensions/com.apple.DriverKit-AppleBCMWLAN.dext/com.apple.DriverKit-AppleBCMWLAN\n67090 67089   2.0  1.3 /Users/ccheever/.volta/tools/image/packages/@openai/codex/lib/node_modules/@openai/codex/node_modules/@openai/codex-darwin-arm64/vendor/aarch64-apple-darwin/bin/codex\n32177 32176   1.9  0.4 /Users/ccheever/.volta/tools/image/packages/@openai/codex/lib/node_modules/@openai/codex/node_modules/@openai/codex-darwin-arm64/vendor/aarch64-apple-darwin/bin/codex\n34527 34523   1.6  0.0 /Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/Resources/Python.app/Contents/MacOS/Python\n32077 32070   1.1  0.0 sshd-session: ccheever@ttys001\n32485 32481   0.9  0.0 sshd-session: ccheever@ttys015\n",
+      "process_list_scope": "top 15 by sampled CPU; complete original in raw-records.jsonl.gz"
+    },
+    {
+      "elapsed_s": 2.255928583,
+      "load": [
+        10.74658203125,
+        9.7958984375,
+        7.3046875
+      ],
+      "processes": "  PID  PPID  %CPU %MEM COMM\n 8032     1  97.2  0.1 /System/Library/Frameworks/CoreServices.framework/Versions/A/Frameworks/FSEvents.framework/Versions/A/Support/fseventsd\n34577 34530  65.8  0.2 node\n34460 10728  51.3  0.4 /Applications/Google Chrome.app/Contents/Frameworks/Google Chrome Framework.framework/Versions/152.0.7977.76/Helpers/Google Chrome Helper (Renderer).app/Contents/MacOS/Google Chrome Helper (Renderer)\n 8240     1  44.5  2.8 /System/Library/Frameworks/CoreServices.framework/Versions/A/Frameworks/Metadata.framework/Versions/A/Support/mds_stores\n10728     1  12.9  0.7 /Applications/Google Chrome.app/Contents/MacOS/Google Chrome\n 3575     1   7.6  0.0 tmux\n 8461     1   4.4  0.2 /Library/SystemExtensions/45AAB62E-060A-496D-B846-1369156BAF5D/io.tailscale.ipn.macsys.network-extension.systemextension/Contents/MacOS/io.tailscale.ipn.macsys.network-extension\n91841 33940   4.2  1.0 claude\n 8274     1   3.4  0.1 /System/Library/DriverExtensions/com.apple.DriverKit-AppleBCMWLAN.dext/com.apple.DriverKit-AppleBCMWLAN\n 8353     1   2.1  0.7 /Applications/cmux.app/Contents/MacOS/cmux\n34205 34204   1.6  0.3 /Users/ccheever/.volta/tools/image/packages/@openai/codex/lib/node_modules/@openai/codex/node_modules/@openai/codex-darwin-arm64/vendor/aarch64-apple-darwin/bin/codex\n67090 67089   1.4  1.3 /Users/ccheever/.volta/tools/image/packages/@openai/codex/lib/node_modules/@openai/codex/node_modules/@openai/codex-darwin-arm64/vendor/aarch64-apple-darwin/bin/codex\n32177 32176   1.4  0.4 /Users/ccheever/.volta/tools/image/packages/@openai/codex/lib/node_modules/@openai/codex/node_modules/@openai/codex-darwin-arm64/vendor/aarch64-apple-darwin/bin/codex\n32077 32070   1.0  0.0 sshd-session: ccheever@ttys001\n34530 34529   1.0  0.0 /Users/ccheever/bench-snapback2-dx/published-0.0.14/app/node_modules/snapback2-darwin-arm64/bin/snapback2\n",
+      "process_list_scope": "top 15 by sampled CPU; complete original in raw-records.jsonl.gz"
+    },
+    {
+      "elapsed_s": 3.3934850410000004,
+      "load": [
+        10.6064453125,
+        9.7822265625,
+        7.314453125
+      ],
+      "processes": "  PID  PPID  %CPU %MEM COMM\n34602 34580 121.9  0.2 node\n 8240     1 101.6  2.8 /System/Library/Frameworks/CoreServices.framework/Versions/A/Frameworks/Metadata.framework/Versions/A/Support/mds_stores\n 8032     1  99.2  0.1 /System/Library/Frameworks/CoreServices.framework/Versions/A/Frameworks/FSEvents.framework/Versions/A/Support/fseventsd\n34460 10728  47.3  0.4 /Applications/Google Chrome.app/Contents/Frameworks/Google Chrome Framework.framework/Versions/152.0.7977.76/Helpers/Google Chrome Helper (Renderer).app/Contents/MacOS/Google Chrome Helper (Renderer)\n10728     1  10.7  0.7 /Applications/Google Chrome.app/Contents/MacOS/Google Chrome\n 3575     1   6.4  0.0 tmux\n 8461     1   5.6  0.2 /Library/SystemExtensions/45AAB62E-060A-496D-B846-1369156BAF5D/io.tailscale.ipn.macsys.network-extension.systemextension/Contents/MacOS/io.tailscale.ipn.macsys.network-extension\n32637 32629   4.2  0.3 /Users/ccheever/.volta/tools/image/packages/@openai/codex/lib/node_modules/@openai/codex/node_modules/@openai/codex-darwin-arm64/vendor/aarch64-apple-darwin/bin/codex\n 8274     1   3.5  0.1 /System/Library/DriverExtensions/com.apple.DriverKit-AppleBCMWLAN.dext/com.apple.DriverKit-AppleBCMWLAN\n42294 41614   3.1  1.0 claude\n 8094     1   2.6  0.1 /usr/sbin/bluetoothd\n 8057     1   1.9  0.2 /System/Library/Frameworks/CoreServices.framework/Versions/A/Frameworks/Metadata.framework/Versions/A/Support/mds\n34603   367   1.7  0.0 sleep\n91841 33940   1.5  1.0 claude\n32077 32070   1.2  0.0 sshd-session: ccheever@ttys001\n",
+      "process_list_scope": "top 15 by sampled CPU; complete original in raw-records.jsonl.gz"
+    },
+    {
+      "elapsed_s": 4.5064585,
+      "load": [
+        10.6064453125,
+        9.7822265625,
+        7.314453125
+      ],
+      "processes": "  PID  PPID  %CPU %MEM COMM\n 8240     1 136.4  2.8 /System/Library/Frameworks/CoreServices.framework/Versions/A/Frameworks/Metadata.framework/Versions/A/Support/mds_stores\n 8032     1  99.4  0.1 /System/Library/Frameworks/CoreServices.framework/Versions/A/Frameworks/FSEvents.framework/Versions/A/Support/fseventsd\n34693 34530  20.1  0.1 node\n34460 10728  17.6  0.4 /Applications/Google Chrome.app/Contents/Frameworks/Google Chrome Framework.framework/Versions/152.0.7977.76/Helpers/Google Chrome Helper (Renderer).app/Contents/MacOS/Google Chrome Helper (Renderer)\n42294 41614   7.9  1.0 claude\n34602 34580   7.8  0.2 node\n 3575     1   6.3  0.0 tmux\n67090 67089   5.3  1.3 /Users/ccheever/.volta/tools/image/packages/@openai/codex/lib/node_modules/@openai/codex/node_modules/@openai/codex-darwin-arm64/vendor/aarch64-apple-darwin/bin/codex\n 8461     1   5.2  0.2 /Library/SystemExtensions/45AAB62E-060A-496D-B846-1369156BAF5D/io.tailscale.ipn.macsys.network-extension.systemextension/Contents/MacOS/io.tailscale.ipn.macsys.network-extension\n 8274     1   3.8  0.1 /System/Library/DriverExtensions/com.apple.DriverKit-AppleBCMWLAN.dext/com.apple.DriverKit-AppleBCMWLAN\n10728     1   3.7  0.7 /Applications/Google Chrome.app/Contents/MacOS/Google Chrome\n 8057     1   3.2  0.2 /System/Library/Frameworks/CoreServices.framework/Versions/A/Frameworks/Metadata.framework/Versions/A/Support/mds\n 8365     1   2.8  0.2 /System/Library/CoreServices/Finder.app/Contents/MacOS/Finder\n34530 34529   1.9  0.0 /Users/ccheever/bench-snapback2-dx/published-0.0.14/app/node_modules/snapback2-darwin-arm64/bin/snapback2\n32485 32481   1.2  0.0 sshd-session: ccheever@ttys015\n",
+      "process_list_scope": "top 15 by sampled CPU; complete original in raw-records.jsonl.gz"
+    }
+  ],
+  "host_samples_raw": "raw-records.jsonl.gz",
+  "host_sample_count": 4
+}

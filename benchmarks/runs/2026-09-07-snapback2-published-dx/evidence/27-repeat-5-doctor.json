@@ -1,0 +1,31 @@
+{
+  "label": "27-repeat-5-doctor",
+  "cwd": "/Users/ccheever/bench-snapback2-dx/published-0.0.14/app",
+  "command": [
+    "/Users/ccheever/bench-snapback2-dx/published-0.0.14/app/node_modules/.bin/snapback2",
+    "doctor",
+    "--json"
+  ],
+  "started": "2026-09-07T06:54:50.208799+00:00",
+  "wall_s": 0.25233375,
+  "exit": 0,
+  "pid": 36094,
+  "cpu_user_s": 0.181941,
+  "cpu_system_s": 0.054390999999999995,
+  "load_before": [
+    8.20068359375,
+    9.3623046875,
+    7.33203125
+  ],
+  "load_after": [
+    7.7041015625,
+    9.23974609375,
+    7.30078125
+  ],
+  "removed_env_keys": [
+    "NODE_PATH"
+  ],
+  "stdout": "{\"certified\":11,\"compiler\":{\"answered\":true,\"error\":null,\"found\":\"/Users/ccheever/bench-snapback2-dx/published-0.0.14/app/node_modules/snapback2/dist/compiler.mjs\",\"ms\":96.818542},\"effects\":\"ibex2 + vanilla hermes\",\"effectsQueued\":0,\"elapsedMs\":118.879833,\"media\":{\"required\":false},\"ok\":true,\"owner\":{\"channelSubscriptions\":0,\"effects\":{\"engine\":\"ibex2 + vanilla hermes\",\"failed\":0,\"queued\":0,\"running\":0,\"sent\":0,\"sentUnknown\":0,\"thenPending\":0},\"executions\":3,\"generation\":\"2c0b7fb023e78d306c0d4e1366e80f2c15ef462452b852fb86374e14113fd35c\",\"jobs\":{\"parked\":0,\"queued\":0,\"running\":0},\"mode\":\"dev\",\"personas\":[{\"id\":\"dev:alice\",\"kind\":\"persona\",\"name\":\"alice\"}],\"project\":\"/Users/ccheever/bench-snapback2-dx/published-0.0.14/app\",\"schedules\":{\"fired\":0,\"late\":0,\"rejected\":0},\"seq\":2,\"status\":\"ready\",\"subscriptions\":0,\"timers\":{\"due\":0,\"next_at\":null,\"rejected\":0}},\"refused\":[],\"version\":\"0.0.14\"}\n",
+  "stderr": "",
+  "host_samples": []
+}

@@ -1,0 +1,8 @@
+{
+  "owner_pid": 36587,
+  "ps_exit": 1,
+  "ps_stdout": "  PID  PPID STAT COMM\n",
+  "owner_file_exists": false,
+  "remaining_test_directories": [],
+  "browser_processes": "Both headless browsers were closed and Vite processes awaited on exit in browser-probe.mjs."
+}

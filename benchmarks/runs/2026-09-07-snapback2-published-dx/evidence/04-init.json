@@ -1,0 +1,36 @@
+{
+  "label": "04-init",
+  "cwd": "/Users/ccheever/bench-snapback2-dx/published-0.0.14/bootstrap",
+  "command": [
+    "/Users/ccheever/bench-snapback2-dx/published-0.0.14/bootstrap/node_modules/.bin/snapback2",
+    "init",
+    "/Users/ccheever/bench-snapback2-dx/published-0.0.14/app",
+    "--template",
+    "todos",
+    "--client",
+    "react",
+    "--json"
+  ],
+  "started": "2026-09-07T06:50:46.612330+00:00",
+  "wall_s": 0.593508333,
+  "exit": 0,
+  "pid": 33211,
+  "cpu_user_s": 1.064099,
+  "cpu_system_s": 0.046236,
+  "load_before": [
+    6.8916015625,
+    4.67626953125,
+    5.08837890625
+  ],
+  "load_after": [
+    6.8916015625,
+    4.67626953125,
+    5.08837890625
+  ],
+  "removed_env_keys": [
+    "NODE_PATH"
+  ],
+  "stdout": "{\"compilerMs\":100.79,\"generation\":\"2c0b7fb023e78d306c0d4e1366e80f2c15ef462452b852fb86374e14113fd35c\",\"ok\":true,\"operations\":2,\"schemaCertificate\":{\"schedules\":[]}}\n{\"next\":\"snapback2 dev\",\"ok\":true,\"project\":\"/Users/ccheever/bench-snapback2-dx/published-0.0.14/app\"}\n",
+  "stderr": "",
+  "host_samples": []
+}

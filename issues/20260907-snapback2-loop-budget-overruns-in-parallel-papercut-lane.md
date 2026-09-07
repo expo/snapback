@@ -37,3 +37,22 @@ changing product code or budgets. The existing
 tracks test deadlines separately. Raw measurement stdout and the launch
 PID/exit/duration receipt remain locally in
 `/Users/ccheever/projects/snapback/.llp/ship-runs/20260907-parallel-papercuts/measure.*`.
+
+
+## DX candidate follow-up — 2026-09-07
+
+The separate CLI DX candidate `0004ff7f2` on Hetzner450b retained both budget
+failures after a completed release prewarm and serial installed-consumer
+measurement: consumer verification 32.97 s/30 s, project check 1.260 s/1 s.
+All functional steps passed; chat has only the declared effects-disabled block.
+Doctor samples were 0.035/0.033 s, incremental rebuild 2.67 s, init-to-dev
+2.53 s. No Rust build overlapped the product measurements. This is a different
+machine from the first run, not a paired estimate of its contention penalty.
+The new explicit journey selector takes 2.337 s median in its separate
+three-pair comparison; it does not make full verification or check meet budget.
+
+[Raw measurement](../benchmarks/runs/2026-09-07-snapback2-published-dx/fix-evidence/measure-check.log)
+retains the remote snapshot's synthetic Git identity; the
+[source comparison](../benchmarks/runs/2026-09-07-snapback2-published-dx/fix-evidence/source-check-final.json)
+binds its product files to the reviewed candidate. This is an additional
+observation, not a newly identified breaking commit.

@@ -1,0 +1,30 @@
+{
+  "label": "15-diagnostics-human",
+  "cwd": "/Users/ccheever/bench-snapback2-dx/published-0.0.14/app",
+  "command": [
+    "/Users/ccheever/bench-snapback2-dx/published-0.0.14/app/node_modules/.bin/snapback2",
+    "check"
+  ],
+  "started": "2026-09-07T06:52:19.904481+00:00",
+  "wall_s": 0.289563083,
+  "exit": 1,
+  "pid": 33970,
+  "cpu_user_s": 0.33644599999999997,
+  "cpu_system_s": 0.021459,
+  "load_before": [
+    23.6435546875,
+    10.2607421875,
+    7.15625
+  ],
+  "load_after": [
+    24.47265625,
+    10.65478515625,
+    7.3134765625
+  ],
+  "removed_env_keys": [
+    "NODE_PATH"
+  ],
+  "stdout": "{\"code\":\"E_QUARRY_UNKNOWN\",\"family\":\"quarry\",\"message\":\"unknown name missingValue\",\"site\":\"snapback/todos.q:10:10\",\"rewrite\":\"-- unknown name missingValue\",\"guide\":\"quarry/names\"}\n",
+  "stderr": "",
+  "host_samples": []
+}

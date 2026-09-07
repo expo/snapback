@@ -1,0 +1,16 @@
+{
+  "compilerOptions": {
+    "jsx": "react-jsx",
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "strict": true,
+    "target": "ES2022"
+  },
+  "include": [
+    "src",
+    "shared",
+    "App.tsx",
+    "snapback",
+    ".snapback/build/api.d.ts"
+  ]
+}

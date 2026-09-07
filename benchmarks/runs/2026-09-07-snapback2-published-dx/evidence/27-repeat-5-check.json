@@ -1,0 +1,54 @@
+{
+  "label": "27-repeat-5-check",
+  "cwd": "/Users/ccheever/bench-snapback2-dx/published-0.0.14/app",
+  "command": [
+    "/Users/ccheever/bench-snapback2-dx/published-0.0.14/app/node_modules/.bin/snapback2",
+    "check",
+    "--json"
+  ],
+  "started": "2026-09-07T06:54:47.723505+00:00",
+  "wall_s": 2.3674546249999997,
+  "exit": 0,
+  "pid": 36051,
+  "cpu_user_s": 3.6689599999999998,
+  "cpu_system_s": 0.355499,
+  "load_before": [
+    8.20068359375,
+    9.3623046875,
+    7.33203125
+  ],
+  "load_after": [
+    8.20068359375,
+    9.3623046875,
+    7.33203125
+  ],
+  "removed_env_keys": [
+    "NODE_PATH"
+  ],
+  "stdout": "{\"compilerMs\":373.66,\"generation\":\"2c0b7fb023e78d306c0d4e1366e80f2c15ef462452b852fb86374e14113fd35c\",\"ok\":true,\"operations\":3,\"schemaCertificate\":{\"schedules\":[]}}\n",
+  "stderr": "",
+  "host_samples": [
+    {
+      "elapsed_s": 1.007381875,
+      "load": [
+        8.20068359375,
+        9.3623046875,
+        7.33203125
+      ],
+      "processes": "  PID  PPID  %CPU %MEM COMM\n36075 36053 101.5  0.2 node\n 8032     1  87.7  0.1 /System/Library/Frameworks/CoreServices.framework/Versions/A/Frameworks/FSEvents.framework/Versions/A/Support/fseventsd\n36086     1  17.9  0.0 /System/Library/Frameworks/CoreServices.framework/Versions/A/Frameworks/Metadata.framework/Versions/A/Support/mdworker_shared\n36087     1  17.5  0.0 /System/Library/Frameworks/CoreServices.framework/Versions/A/Frameworks/Metadata.framework/Versions/A/Support/mdworker_shared\n36084     1  17.0  0.0 /System/Library/Frameworks/CoreServices.framework/Versions/A/Frameworks/Metadata.framework/Versions/A/Support/mdworker_shared\n36085     1  12.5  0.0 /System/Library/Frameworks/CoreServices.framework/Versions/A/Frameworks/Metadata.framework/Versions/A/Support/mdworker_shared\n36083     1  11.8  0.0 /System/Library/Frameworks/CoreServices.framework/Versions/A/Frameworks/Metadata.framework/Versions/A/Support/mdworker_shared\n36080     1  11.4  0.0 /System/Library/Frameworks/CoreServices.framework/Versions/A/Frameworks/Metadata.framework/Versions/A/Support/mdworker_shared\n36078     1  11.0  0.0 /System/Library/Frameworks/CoreServices.framework/Versions/A/Frameworks/Metadata.framework/Versions/A/Support/mdworker_shared\n36081     1  10.9  0.0 /System/Library/Frameworks/CoreServices.framework/Versions/A/Frameworks/Metadata.framework/Versions/A/Support/mdworker_shared\n36079     1  10.7  0.0 /System/Library/Frameworks/CoreServices.framework/Versions/A/Frameworks/Metadata.framework/Versions/A/Support/mdworker_shared\n36077     1   9.9  0.0 /System/Library/Frameworks/CoreServices.framework/Versions/A/Frameworks/Metadata.framework/Versions/A/Support/mdworker_shared\n36076     1   8.7  0.0 /System/Library/Frameworks/CoreServices.framework/Versions/A/Frameworks/Metadata.framework/Versions/A/Support/mdworker_shared\n32177 32176   6.1  0.4 /Users/ccheever/.volta/tools/image/packages/@openai/codex/lib/node_modules/@openai/codex/node_modules/@openai/codex-darwin-arm64/vendor/aarch64-apple-darwin/bin/codex\n 3575     1   6.0  0.0 tmux\n",
+      "process_list_scope": "top 15 by sampled CPU; complete original in raw-records.jsonl.gz"
+    },
+    {
+      "elapsed_s": 2.1479083749999996,
+      "load": [
+        8.20068359375,
+        9.3623046875,
+        7.33203125
+      ],
+      "processes": "  PID  PPID  %CPU %MEM COMM\n36075 36053 226.0  0.3 node\n 8032     1  94.9  0.1 /System/Library/Frameworks/CoreServices.framework/Versions/A/Frameworks/FSEvents.framework/Versions/A/Support/fseventsd\n36091     1  12.3  0.0 /System/Library/Frameworks/CoreServices.framework/Versions/A/Frameworks/Metadata.framework/Versions/A/Support/mdworker_shared\n 3575     1   7.2  0.0 tmux\n 8274     1   3.8  0.1 /System/Library/DriverExtensions/com.apple.DriverKit-AppleBCMWLAN.dext/com.apple.DriverKit-AppleBCMWLAN\n 8461     1   3.4  0.2 /Library/SystemExtensions/45AAB62E-060A-496D-B846-1369156BAF5D/io.tailscale.ipn.macsys.network-extension.systemextension/Contents/MacOS/io.tailscale.ipn.macsys.network-extension\n67090 67089   3.2  1.3 /Users/ccheever/.volta/tools/image/packages/@openai/codex/lib/node_modules/@openai/codex/node_modules/@openai/codex-darwin-arm64/vendor/aarch64-apple-darwin/bin/codex\n36089     1   1.7  0.0 /System/Library/Frameworks/CoreServices.framework/Versions/A/Frameworks/Metadata.framework/Versions/A/Support/mdworker_shared\n23300 23299   1.1  0.3 /Users/ccheever/.volta/tools/image/packages/@openai/codex/lib/node_modules/@openai/codex/node_modules/@openai/codex-darwin-arm64/vendor/aarch64-apple-darwin/bin/codex\n32177 32176   1.1  0.4 /Users/ccheever/.volta/tools/image/packages/@openai/codex/lib/node_modules/@openai/codex/node_modules/@openai/codex-darwin-arm64/vendor/aarch64-apple-darwin/bin/codex\n91841 33940   1.1  1.0 claude\n42294 41614   1.1  1.0 claude\n32077 32070   1.0  0.0 sshd-session: ccheever@ttys001\n 8057     1   0.9  0.1 /System/Library/Frameworks/CoreServices.framework/Versions/A/Frameworks/Metadata.framework/Versions/A/Support/mds\n 8644     1   0.9  0.0 /System/Cryptexes/App/usr/libexec/SafariBookmarksSyncAgent\n",
+      "process_list_scope": "top 15 by sampled CPU; complete original in raw-records.jsonl.gz"
+    }
+  ],
+  "host_samples_raw": "raw-records.jsonl.gz",
+  "host_sample_count": 2
+}

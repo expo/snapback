@@ -1,0 +1,10 @@
+   Compiling snapback2 v0.0.14 (/home/ccheever/lanes/snapback2-dx/snapback2/crates/snapback2)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 3.08s
+     Running tests/owner.rs (target/debug/deps/owner-673a8b8579683632)
+
+running 1 test
+J1b 510 idle chunks in 8.14s
+test owner_cases::jobs_queue::jobs_queue_position_paging_beyond_500_commits_receipt_plan_and_state_refusals ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 87 filtered out; finished in 12.31s
+

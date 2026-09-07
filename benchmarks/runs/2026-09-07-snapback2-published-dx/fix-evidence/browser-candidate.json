@@ -1,0 +1,85 @@
+[
+  {
+    "mode": "printed-command",
+    "command": "snapback_url=$(npx snapback2 dev) && VITE_SNAPBACK_URL=\"${snapback_url#SNAPBACK_URL=}\" npm run dev -- --host 127.0.0.1 --port 5188 --strictPort",
+    "pid": 76073,
+    "seconds": 7.415854208000001,
+    "body": "Snapback 2\n\nBackend connection: connected.\n\nSnapback\nPersona\nalice\nConnection\nconnected\nGeneration\n2c0b7fb023e78d306c0d4e1366e80f2c15ef462452b852fb86374e14113fd35c\nLast refusal\n\u2014",
+    "requests": [
+      "http://127.0.0.1:54107/api/manifest",
+      "http://127.0.0.1:54107/api/program?generation=b2d2263f9f0bd1fb159cc1d350546525ca4ecadbb2141976888bf315afef8233",
+      "http://127.0.0.1:54107/api/manifest",
+      "http://127.0.0.1:54107/api/manifest"
+    ],
+    "failed": [],
+    "errors": [],
+    "log": "\n> dev\n> vite --host 127.0.0.1 --port 5188 --strictPort\n\n\n  VITE v7.3.6  ready in 1396 ms\n\n  \u279c  Local:   http://127.0.0.1:5188/\n",
+    "owner": {
+      "pid": 76098,
+      "port": 54107,
+      "url": "http://127.0.0.1:54107",
+      "generation": "2c0b7fb023e78d306c0d4e1366e80f2c15ef462452b852fb86374e14113fd35c",
+      "startedAt": 1788767935622,
+      "mode": "dev",
+      "project": "/Users/ccheever/bench-snapback2-dx/react-candidate"
+    }
+  },
+  {
+    "mode": "printed-command",
+    "cleanup": {
+      "status": 0,
+      "stdout": "{\"exited\":\"snapback2 dev --stop\",\"ok\":true}\n",
+      "stderr": ""
+    }
+  },
+  {
+    "mode": "unconfigured",
+    "command": "npm run dev -- --host 127.0.0.1 --port 5188 --strictPort",
+    "pid": 76190,
+    "seconds": 2.4234353339999988,
+    "body": "Snapback 2\n\nBackend connection: reconnecting.\n\nSnapback\nPersona\nalice\nConnection\nreconnecting\nGeneration\n\u2014\nLast refusal\nE_NETWORK: Failed to fetch",
+    "requests": [
+      "http://127.0.0.1:3210/api/manifest",
+      "http://127.0.0.1:3210/api/manifest",
+      "http://127.0.0.1:3210/api/manifest",
+      "http://127.0.0.1:3210/api/manifest"
+    ],
+    "failed": [
+      {
+        "url": "http://127.0.0.1:3210/api/manifest",
+        "error": {
+          "errorText": "net::ERR_CONNECTION_REFUSED"
+        }
+      },
+      {
+        "url": "http://127.0.0.1:3210/api/manifest",
+        "error": {
+          "errorText": "net::ERR_CONNECTION_REFUSED"
+        }
+      },
+      {
+        "url": "http://127.0.0.1:3210/api/manifest",
+        "error": {
+          "errorText": "net::ERR_CONNECTION_REFUSED"
+        }
+      },
+      {
+        "url": "http://127.0.0.1:3210/api/manifest",
+        "error": {
+          "errorText": "net::ERR_CONNECTION_REFUSED"
+        }
+      }
+    ],
+    "errors": [],
+    "log": "\n> dev\n> vite --host 127.0.0.1 --port 5188 --strictPort\n\n\n  VITE v7.3.6  ready in 117 ms\n\n  \u279c  Local:   http://127.0.0.1:5188/\n",
+    "owner": null
+  },
+  {
+    "mode": "unconfigured",
+    "cleanup": {
+      "status": 1,
+      "stdout": "{\"code\":\"E_OWNER_NOT_RUNNING\",\"family\":\"owner\",\"guide\":\"owner/dev\",\"message\":\"no owner is running for /Users/ccheever/bench-snapback2-dx/react-candidate\",\"rewrite\":\"snapback2 dev\"}\n",
+      "stderr": ""
+    }
+  }
+]

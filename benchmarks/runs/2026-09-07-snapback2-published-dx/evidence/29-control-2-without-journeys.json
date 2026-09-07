@@ -1,0 +1,44 @@
+{
+  "label": "29-control-2-without-journeys",
+  "cwd": "/Users/ccheever/bench-snapback2-dx/published-0.0.14/app",
+  "command": [
+    "/Users/ccheever/bench-snapback2-dx/published-0.0.14/app/node_modules/.bin/snapback2",
+    "check",
+    "--json"
+  ],
+  "started": "2026-09-07T06:55:12.284909+00:00",
+  "wall_s": 1.505927542,
+  "exit": 0,
+  "pid": 36426,
+  "cpu_user_s": 1.575496,
+  "cpu_system_s": 0.21406999999999998,
+  "load_before": [
+    6.158203125,
+    8.78564453125,
+    7.1826171875
+  ],
+  "load_after": [
+    6.158203125,
+    8.78564453125,
+    7.1826171875
+  ],
+  "removed_env_keys": [
+    "NODE_PATH"
+  ],
+  "stdout": "{\"compilerMs\":422.08,\"generation\":\"2c0b7fb023e78d306c0d4e1366e80f2c15ef462452b852fb86374e14113fd35c\",\"ok\":true,\"operations\":3,\"schemaCertificate\":{\"schedules\":[]}}\n",
+  "stderr": "",
+  "host_samples": [
+    {
+      "elapsed_s": 1.012247292,
+      "load": [
+        6.158203125,
+        8.78564453125,
+        7.1826171875
+      ],
+      "processes": "  PID  PPID  %CPU %MEM COMM\n36450 36428 118.8  0.2 node\n 8032     1  89.9  0.1 /System/Library/Frameworks/CoreServices.framework/Versions/A/Frameworks/FSEvents.framework/Versions/A/Support/fseventsd\n36452 34205  27.0  0.0 (zsh)\n 3575     1   6.9  0.0 tmux\n 8461     1   5.0  0.2 /Library/SystemExtensions/45AAB62E-060A-496D-B846-1369156BAF5D/io.tailscale.ipn.macsys.network-extension.systemextension/Contents/MacOS/io.tailscale.ipn.macsys.network-extension\n 8274     1   4.9  0.1 /System/Library/DriverExtensions/com.apple.DriverKit-AppleBCMWLAN.dext/com.apple.DriverKit-AppleBCMWLAN\n42294 41614   3.9  1.0 claude\n67090 67089   3.3  1.3 /Users/ccheever/.volta/tools/image/packages/@openai/codex/lib/node_modules/@openai/codex/node_modules/@openai/codex-darwin-arm64/vendor/aarch64-apple-darwin/bin/codex\n91841 33940   2.9  1.0 claude\n34205 34204   2.2  0.3 /Users/ccheever/.volta/tools/image/packages/@openai/codex/lib/node_modules/@openai/codex/node_modules/@openai/codex-darwin-arm64/vendor/aarch64-apple-darwin/bin/codex\n36427 36426   1.5  0.1 node\n32177 32176   1.1  0.4 /Users/ccheever/.volta/tools/image/packages/@openai/codex/lib/node_modules/@openai/codex/node_modules/@openai/codex-darwin-arm64/vendor/aarch64-apple-darwin/bin/codex\n 8365     1   1.0  0.2 /System/Library/CoreServices/Finder.app/Contents/MacOS/Finder\n32077 32070   0.9  0.0 sshd-session: ccheever@ttys001\n32485 32481   0.9  0.0 sshd-session: ccheever@ttys015\n",
+      "process_list_scope": "top 15 by sampled CPU; complete original in raw-records.jsonl.gz"
+    }
+  ],
+  "host_samples_raw": "raw-records.jsonl.gz",
+  "host_sample_count": 1
+}

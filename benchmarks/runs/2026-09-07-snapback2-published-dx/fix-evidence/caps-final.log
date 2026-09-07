@@ -1,0 +1,11 @@
+caps — budgets declared in rules/RULES.md
+
+  rules/RULES.md: 596 words
+  blocking checks: 5 (caps, ref-check, snapback2/scripts/test.sh, snapback2/scripts/measure.mjs --check, check-inventories)
+  product-latency row: filled
+  working set: 59 of 59
+  foundation: 12 of 12
+  source files: 4491 scanned, 791 skipped as generated, 48 skipped as vendored, 316 skipped as benchmark run records
+  oversize files: 204 of 204 allowed by baseline
+
+All budgets within cap. 7 categories inspected.

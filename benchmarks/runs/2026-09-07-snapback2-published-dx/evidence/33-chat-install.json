@@ -1,0 +1,57 @@
+{
+  "label": "33-chat-install",
+  "cwd": "/Users/ccheever/bench-snapback2-dx/published-0.0.14/chat",
+  "command": [
+    "npm",
+    "install",
+    "--no-audit",
+    "--no-fund",
+    "--cache",
+    "/Users/ccheever/bench-snapback2-dx/published-0.0.14/npm-cache"
+  ],
+  "started": "2026-09-07T06:55:44.734039+00:00",
+  "wall_s": 2.443627875,
+  "exit": 0,
+  "pid": 36750,
+  "cpu_user_s": 1.96459,
+  "cpu_system_s": 0.748103,
+  "load_before": [
+    7.3291015625,
+    8.78271484375,
+    7.23388671875
+  ],
+  "load_after": [
+    6.90234375,
+    8.669921875,
+    7.203125
+  ],
+  "removed_env_keys": [
+    "NODE_PATH"
+  ],
+  "stdout": "\nadded 4 packages in 2s\n",
+  "stderr": "",
+  "host_samples": [
+    {
+      "elapsed_s": 1.006372208,
+      "load": [
+        6.90234375,
+        8.669921875,
+        7.203125
+      ],
+      "processes": "  PID  PPID  %CPU %MEM COMM\n 8032     1 102.3  0.1 /System/Library/Frameworks/CoreServices.framework/Versions/A/Frameworks/FSEvents.framework/Versions/A/Support/fseventsd\n36751 36750  79.2  0.3 npm install\n 8461     1   6.2  0.2 /Library/SystemExtensions/45AAB62E-060A-496D-B846-1369156BAF5D/io.tailscale.ipn.macsys.network-extension.systemextension/Contents/MacOS/io.tailscale.ipn.macsys.network-extension\n 3575     1   4.7  0.0 tmux\n 8274     1   3.4  0.1 /System/Library/DriverExtensions/com.apple.DriverKit-AppleBCMWLAN.dext/com.apple.DriverKit-AppleBCMWLAN\n 8348     1   3.2  0.2 /Applications/Tailscale.app/Contents/MacOS/Tailscale\n 8102     1   3.0  0.3 /System/Library/PrivateFrameworks/SkyLight.framework/Resources/WindowServer\n 8094     1   1.6  0.1 /usr/sbin/bluetoothd\n36678     1   1.6  0.0 /System/Library/Frameworks/CoreServices.framework/Versions/A/Frameworks/Metadata.framework/Versions/A/Support/mdworker_shared\n 8240     1   1.4  2.6 /System/Library/Frameworks/CoreServices.framework/Versions/A/Frameworks/Metadata.framework/Versions/A/Support/mds_stores\n 8071     1   1.2  0.0 /System/Library/CoreServices/launchservicesd\n 8057     1   1.0  0.1 /System/Library/Frameworks/CoreServices.framework/Versions/A/Frameworks/Metadata.framework/Versions/A/Support/mds\n32485 32481   1.0  0.0 sshd-session: ccheever@ttys015\n32177 32176   1.0  0.4 /Users/ccheever/.volta/tools/image/packages/@openai/codex/lib/node_modules/@openai/codex/node_modules/@openai/codex-darwin-arm64/vendor/aarch64-apple-darwin/bin/codex\n32077 32070   0.9  0.0 sshd-session: ccheever@ttys001\n",
+      "process_list_scope": "top 15 by sampled CPU; complete original in raw-records.jsonl.gz"
+    },
+    {
+      "elapsed_s": 2.071716208,
+      "load": [
+        6.90234375,
+        8.669921875,
+        7.203125
+      ],
+      "processes": "  PID  PPID  %CPU %MEM COMM\n36751 36750 111.7  0.5 npm install\n 8032     1 105.0  0.1 /System/Library/Frameworks/CoreServices.framework/Versions/A/Frameworks/FSEvents.framework/Versions/A/Support/fseventsd\n36085     1  10.5  0.0 /System/Library/Frameworks/CoreServices.framework/Versions/A/Frameworks/Metadata.framework/Versions/A/Support/mdworker_shared\n 8461     1   5.9  0.2 /Library/SystemExtensions/45AAB62E-060A-496D-B846-1369156BAF5D/io.tailscale.ipn.macsys.network-extension.systemextension/Contents/MacOS/io.tailscale.ipn.macsys.network-extension\n 3575     1   5.8  0.0 tmux\n 8057     1   5.0  0.1 /System/Library/Frameworks/CoreServices.framework/Versions/A/Frameworks/Metadata.framework/Versions/A/Support/mds\n91841 33940   5.0  1.0 claude\n 8240     1   3.1  2.6 /System/Library/Frameworks/CoreServices.framework/Versions/A/Frameworks/Metadata.framework/Versions/A/Support/mds_stores\n 8274     1   2.9  0.1 /System/Library/DriverExtensions/com.apple.DriverKit-AppleBCMWLAN.dext/com.apple.DriverKit-AppleBCMWLAN\n36079     1   2.7  0.0 /System/Library/Frameworks/CoreServices.framework/Versions/A/Frameworks/Metadata.framework/Versions/A/Support/mdworker_shared\n 8117     1   2.4  0.0 /usr/libexec/runningboardd\n34928     1   2.4  0.0 /System/Library/Frameworks/CoreServices.framework/Versions/A/Frameworks/Metadata.framework/Versions/A/Support/mdworker_shared\n36081     1   2.3  0.0 /System/Library/Frameworks/CoreServices.framework/Versions/A/Frameworks/Metadata.framework/Versions/A/Support/mdworker_shared\n 8080     1   1.6  0.0 /usr/libexec/dasd\n 8297     1   1.6  0.0 /usr/libexec/UserEventAgent\n",
+      "process_list_scope": "top 15 by sampled CPU; complete original in raw-records.jsonl.gz"
+    }
+  ],
+  "host_samples_raw": "raw-records.jsonl.gz",
+  "host_sample_count": 2
+}

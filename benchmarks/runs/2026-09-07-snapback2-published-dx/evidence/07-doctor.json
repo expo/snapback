@@ -1,0 +1,31 @@
+{
+  "label": "07-doctor",
+  "cwd": "/Users/ccheever/bench-snapback2-dx/published-0.0.14/app",
+  "command": [
+    "/Users/ccheever/bench-snapback2-dx/published-0.0.14/app/node_modules/.bin/snapback2",
+    "doctor",
+    "--json"
+  ],
+  "started": "2026-09-07T06:51:08.111465+00:00",
+  "wall_s": 0.441953542,
+  "exit": 0,
+  "pid": 33411,
+  "cpu_user_s": 0.094233,
+  "cpu_system_s": 0.027177,
+  "load_before": [
+    5.8671875,
+    4.58349609375,
+    5.044921875
+  ],
+  "load_after": [
+    5.8671875,
+    4.58349609375,
+    5.044921875
+  ],
+  "removed_env_keys": [
+    "NODE_PATH"
+  ],
+  "stdout": "{\"certified\":11,\"compiler\":{\"answered\":true,\"error\":null,\"found\":\"/Users/ccheever/bench-snapback2-dx/published-0.0.14/app/node_modules/snapback2/dist/compiler.mjs\",\"ms\":45.318},\"effects\":\"ibex2 + vanilla hermes\",\"effectsQueued\":0,\"elapsedMs\":65.040042,\"media\":{\"required\":false},\"ok\":true,\"owner\":null,\"refused\":[],\"version\":\"0.0.14\"}\n",
+  "stderr": "",
+  "host_samples": []
+}

@@ -1,0 +1,87 @@
+   Compiling snapback2 v0.0.14 (/home/ccheever/lanes/snapback2-dx/snapback2/crates/snapback2)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 1.25s
+     Running tests/guide.rs (target/debug/deps/guide-41eae372362e097d)
+
+running 13 tests
+test command_guides_explain_initialization_and_successor_recovery ... ok
+test help_is_successful_without_a_project_or_compiler_and_has_no_side_effects ... ok
+test live_query_guide_explains_connected_and_the_activity_workaround ... ok
+test offline_guide_page_respects_its_budget_and_its_codes_have_pages ... FAILED
+test package_consumers_and_isolated_compiler_use_complete_private_snapshots ... ok
+test quarry_grammar_and_refusal_guides_ship_without_double_fences ... ok
+test quarry_keywords_print_grammar_and_definitions_beside_symbol_help ... ok
+test refusal_code_guide_prints_the_wrong_and_right_pair ... ok
+test source_checkout_without_keyword_index_still_serves_lib_symbols ... ok
+test symbol_help_survives_missing_corrupt_and_unreadable_keyword_indexes ... ok
+test app_guide_refuses_missing_certificates_and_failed_seed_facts_as_stale ... ok
+test app_guide_requires_exposed_operations_even_with_timer_binding_names ... ok
+test app_guide_uses_chat_expo_operations_without_internal_timer_bindings ... ok
+
+failures:
+
+---- offline_guide_page_respects_its_budget_and_its_codes_have_pages stdout ----
+
+thread 'offline_guide_page_respects_its_budget_and_its_codes_have_pages' (2667205) panicked at crates/snapback2/tests/guide.rs:459:5:
+reset recovery must resume before replay
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    offline_guide_page_respects_its_budget_and_its_codes_have_pages
+
+test result: FAILED. 12 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 7.64s
+
+error: test failed, to rerun pass `-p snapback2 --test guide`
+     Running tests/init.rs (target/debug/deps/init-fb32911a4fd48d83)
+
+running 15 tests
+test chat_template_ships_exactly_its_complete_owned_tree ... ok
+test chat_expo_scaffolds_flattened_app_shared_reducers_and_sdk54_dependencies ... ok
+test chat_react_keeps_shared_reducer_imports_after_flattening ... ok
+test init_refuses_managed_symlinks_without_writing_through_them ... ok
+test init_refuses_unreadable_managed_text_without_changing_bytes ... ok
+test init_refuses_non_utf8_managed_text_without_changing_bytes ... ok
+test quarry_certification_refusal_rewrite_starts_with_the_authored_line ... ok
+test init_is_idempotent_and_second_run_is_a_content_noop ... ok
+test quarry_clique_sends_a_dm_and_pages_feed_with_an_opaque_cursor ... ok
+test quarry_optional_reads_total_equality_and_branch_writes_execute ... ok
+test template_ts_alias_is_a_usage_error ... ok
+test quarry_surface_branch_write_executes_both_arms ... ok
+test todos_is_the_minimal_one_table_two_operation_template ... ok
+test quarry_todos_init_check_and_test_end_to_end ... ok
+test quarry_chat_init_check_and_test_end_to_end ... ok
+
+test result: ok. 15 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 26.60s
+
+     Running tests/test_verb.rs (target/debug/deps/test_verb-8389174194defc45)
+
+running 24 tests
+test blocked_without_a_reason_is_usage ... ok
+test chat_delivery_log_caps_members_and_evicts_unsent_departed_body ... ok
+test check_refuses_a_journey_type_error_before_test_runtime ... ok
+test canonical_membership_without_a_probeable_named_delete_blocks_live_revocation ... ok
+test authority_proofs_skip_earlier_unprobeable_candidates ... ok
+test explicit_block_writes_a_blocked_receipt_and_exits_one ... ok
+test chat_template_receipt_tracks_the_effect_engine_and_lists_all_journeys ... ok
+test invalidation_blocks_when_a_query_has_no_disjoint_committing_probe ... ok
+test derived_rules_read_every_visible_row_at_and_beyond_one_control_page ... ok
+test invalidation_blocks_when_every_intersecting_probe_is_rejected ... ok
+test isolated_owner_preserves_its_startup_refusal ... ok
+test named_journey_selection_rejects_invalid_modes_and_preserves_compile_failures ... ok
+test owner_start_does_not_compile_journey_sources ... ok
+test clique_sized_seed_and_69_operations_have_bounded_honest_derived_coverage ... ok
+test oversized_policy_seed_blocks_without_claiming_a_sample_passed ... ok
+test ref_based_pseudo_membership_is_refused_before_authority_proofs ... ok
+test rules_use_the_engine_verdict_when_one_synthetic_principal_is_admitted ... ok
+test named_journey_selection_is_exact_scoped_and_does_not_hide_full_suite_failures ... ok
+test rules_block_and_name_a_rule_bearing_table_with_no_seed_rows ... ok
+test test_runs_check_to_restore_a_missing_built_journey_before_owner_start ... ok
+test todos_template_passes_without_an_effects_check ... ok
+test unmatched_bare_id_blocks_with_the_operation_and_argument_name ... ok
+test synchronous_loop_times_out_and_a_leaked_handle_cannot_hold_the_runner ... ok
+test zero_journeys_is_optional_but_zero_total_checks_still_fails ... ok
+
+test result: ok. 24 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 49.28s
+
+error: 1 target failed:
+    `-p snapback2 --test guide`

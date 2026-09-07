@@ -1,0 +1,35 @@
+{
+  "label": "01-registry",
+  "cwd": "/Users/ccheever/bench-snapback2-dx/published-0.0.14/bootstrap",
+  "command": [
+    "npm",
+    "view",
+    "snapback2@0.0.14",
+    "snapback2-darwin-arm64@0.0.14",
+    "version",
+    "dist",
+    "--json"
+  ],
+  "started": "2026-09-07T06:50:23.862493+00:00",
+  "wall_s": 0.284225625,
+  "exit": 0,
+  "pid": 33008,
+  "cpu_user_s": 0.158013,
+  "cpu_system_s": 0.0525,
+  "load_before": [
+    4.474609375,
+    4.03173828125,
+    4.87939453125
+  ],
+  "load_after": [
+    4.474609375,
+    4.03173828125,
+    4.87939453125
+  ],
+  "removed_env_keys": [
+    "NODE_PATH"
+  ],
+  "stdout": "{\n  \"version\": \"0.0.14\",\n  \"dist\": {\n    \"shasum\": \"08018e9cb5cf20b404a7538ae1bfc0d54b2c8735\",\n    \"tarball\": \"https://registry.npmjs.org/snapback2/-/snapback2-0.0.14.tgz\",\n    \"fileCount\": 151,\n    \"integrity\": \"sha512-dPm5mFSUA/DyWvICY6KwHIFCV6XppCogvYRZ3tX8BWV8h1QKIpQ/gPXRNDniRg0SJ4KyZfV1CKuBm2c/CdhX2w==\",\n    \"signatures\": [\n      {\n        \"sig\": \"MEUCIFAYAaOXgKDnZ0pg5PTlKRZ8Lh8nzuA8qE1ZvVY+7dK9AiEAm52SUTtwxB7MxBeIIVotsmOopwufrLvSxM0Rit+k0FU=\",\n        \"keyid\": \"SHA256:DhQ8wR5APBvFHLF/+Tc+AYvPOdTpcIDqOhxsBHRwC7U\"\n      },\n      {\n        \"keyid\": \"SHA256:DhQ8wR5APBvFHLF/+Tc+AYvPOdTpcIDqOhxsBHRwC7U\",\n        \"sig\": \"MEQCIHgVpy3nvb8t+TIq1uaTengeANC0bW4XoBwh22fVP1QtAiBn6ljkJK/b35ljqDFobyADssPPZ9LOThljiwEUJJ+Osg==\"\n      }\n    ],\n    \"unpackedSize\": 7413988\n  }\n}\n",
+  "stderr": "",
+  "host_samples": []
+}

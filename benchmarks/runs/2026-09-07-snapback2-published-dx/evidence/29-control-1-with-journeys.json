@@ -1,0 +1,31 @@
+{
+  "label": "29-control-1-with-journeys",
+  "cwd": "/Users/ccheever/bench-snapback2-dx/published-0.0.14/app",
+  "command": [
+    "/Users/ccheever/bench-snapback2-dx/published-0.0.14/app/node_modules/.bin/snapback2",
+    "check",
+    "--json"
+  ],
+  "started": "2026-09-07T06:55:09.181144+00:00",
+  "wall_s": 0.857910792,
+  "exit": 0,
+  "pid": 36367,
+  "cpu_user_s": 1.657121,
+  "cpu_system_s": 0.065215,
+  "load_before": [
+    6.43359375,
+    8.8837890625,
+    7.20751953125
+  ],
+  "load_after": [
+    6.43359375,
+    8.8837890625,
+    7.20751953125
+  ],
+  "removed_env_keys": [
+    "NODE_PATH"
+  ],
+  "stdout": "{\"compilerMs\":121.4,\"generation\":\"2c0b7fb023e78d306c0d4e1366e80f2c15ef462452b852fb86374e14113fd35c\",\"ok\":true,\"operations\":3,\"schemaCertificate\":{\"schedules\":[]}}\n",
+  "stderr": "",
+  "host_samples": []
+}

@@ -1,0 +1,31 @@
+{
+  "label": "14-diagnostics",
+  "cwd": "/Users/ccheever/bench-snapback2-dx/published-0.0.14/app",
+  "command": [
+    "/Users/ccheever/bench-snapback2-dx/published-0.0.14/app/node_modules/.bin/snapback2",
+    "check",
+    "--json"
+  ],
+  "started": "2026-09-07T06:52:19.576984+00:00",
+  "wall_s": 0.29177304099999996,
+  "exit": 1,
+  "pid": 33937,
+  "cpu_user_s": 0.335622,
+  "cpu_system_s": 0.023049,
+  "load_before": [
+    23.6435546875,
+    10.2607421875,
+    7.15625
+  ],
+  "load_after": [
+    23.6435546875,
+    10.2607421875,
+    7.15625
+  ],
+  "removed_env_keys": [
+    "NODE_PATH"
+  ],
+  "stdout": "{\"code\":\"E_QUARRY_UNKNOWN\",\"family\":\"quarry\",\"message\":\"unknown name missingValue\",\"site\":\"snapback/todos.q:10:10\",\"rewrite\":\"-- unknown name missingValue\",\"guide\":\"quarry/names\"}\n",
+  "stderr": "",
+  "host_samples": []
+}

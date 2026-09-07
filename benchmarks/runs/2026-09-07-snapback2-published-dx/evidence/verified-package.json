@@ -1,0 +1,19 @@
+{
+  "dependencies": {
+    "react": "^19.1.1",
+    "react-dom": "^19.1.1",
+    "snapback2": "0.0.14"
+  },
+  "devDependencies": {
+    "@types/react": "^19.1.10",
+    "@types/react-dom": "^19.1.7",
+    "typescript": "^5.9.2",
+    "vite": "^7.1.4"
+  },
+  "name": "app",
+  "private": true,
+  "scripts": {
+    "dev": "vite"
+  },
+  "type": "module"
+}

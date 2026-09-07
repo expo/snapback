@@ -1,0 +1,1031 @@
+== blocking script self-test
+== compiler type checking
+== compiler tests
+test script self-test ok
+== bundle the compiler worker + client (the owner tests load dist/)
+== package offline protocol + store + bytes + outbox + twin + real owner
+✔ public never-claimed uploads still hit 20 creator and 40 owner slots without disclosing other creators (4491.020946ms)
+ℹ {"phase":"creator-cap","refusal":{"code":"E_ASSET_TOO_LARGE","family":"input","message":"your pending object ceiling is full: 20 / 20 objects. Inspect client.listUploads(); discard only ids whose future use you have abandoned with client.discardUpload(id), or wait for eligible cleanup. Receiving cleanup may retain its charge","guide":"operator","rewrite":"use bytes within the column bound; for a pending-object or byte admission ceiling, inspect client.listUploads() and discard only abandoned ids with client.discardUpload(id), or wait for eligible cleanup"}}
+ℹ {"phase":"creator-cap","refusal":{"code":"E_ASSET_TOO_LARGE","family":"input","message":"your pending object ceiling is full: 20 / 20 objects. Inspect client.listUploads(); discard only ids whose future use you have abandoned with client.discardUpload(id), or wait for eligible cleanup. Receiving cleanup may retain its charge","guide":"operator","rewrite":"use bytes within the column bound; for a pending-object or byte admission ceiling, inspect client.listUploads() and discard only abandoned ids with client.discardUpload(id), or wait for eligible cleanup"}}
+ℹ {"phase":"owner-cap","refusal":{"code":"E_ASSET_TOO_LARGE","family":"input","message":"the owner pending object ceiling is full (limit 40); your usage is 0 pending objects. Inspect client.listUploads(); discard only ids whose future use you have abandoned with client.discardUpload(id), or wait for eligible cleanup. Receiving cleanup may retain its charge. Other accounts must recover their own abandoned uploads","guide":"operator","rewrite":"use bytes within the column bound; for a pending-object or byte admission ceiling, inspect client.listUploads() and discard only abandoned ids with client.discardUpload(id), or wait for eligible cleanup"}}
+✔ 21 public replacements free pending slots and preserve released byte charges (3460.319684ms)
+ℹ {"phase":"21-replacements","usage":{"bytes":3276,"objects":0}}
+{"phase":"40-releases","listing":{"limits":{"bytes":268435456,"objects":20},"next":null,"uploads":[{"bytes":156,"createdAt":1788768067677,"id":"s2id-7384cfb3c92fa013483b666c95f70ccf-0000000000000001","kind":"image","reclaiming":false,"releasedAt":1788768074550,"state":"ready"},{"bytes":156,"createdAt":1788768067862,"id":"s2id-7384cfb3c92fa013483b666c95f70ccf-0000000000000801","kind":"image","reclaiming":false,"releasedAt":1788768074571,"state":"ready"},{"bytes":156,"createdAt":1788768068035,"id":"s2id-7384cfb3c92fa013483b666c95f70ccf-0000000000001001","kind":"image","reclaiming":false,"releasedAt":1788768074593,"state":"ready"},{"bytes":156,"createdAt":1788768068192,"id":"s2id-7384cfb3c92fa013483b666c95f70ccf-0000000000001801","kind":"image","reclaiming":false,"releasedAt":1788768074614,"state":"ready"},{"bytes":156,"createdAt":1788768068363,"id":"s2id-7384cfb3c92fa013483b666c95f70ccf-0000000000002001","kind":"image","reclaiming":false,"releasedAt":1788768074637,"state":"ready"},{"bytes":156,"createdAt":1788768068535,"id":"s2id-7384cfb3c92fa013483b666c95f70ccf-0000000000002801","kind":"image","reclaiming":false,"releasedAt":1788768074656,"state":"ready"},{"bytes":156,"createdAt":1788768068707,"id":"s2id-7384cfb3c92fa013483b666c95f70ccf-0000000000003001","kind":"image","reclaiming":false,"releasedAt":1788768074677,"state":"ready"},{"bytes":156,"createdAt":1788768068880,"id":"s2id-7384cfb3c92fa013483b666c95f70ccf-0000000000003801","kind":"image","reclaiming":false,"releasedAt":1788768074701,"state":"ready"},{"bytes":156,"createdAt":1788768069043,"id":"s2id-7384cfb3c92fa013483b666c95f70ccf-0000000000004001","kind":"image","reclaiming":false,"releasedAt":1788768074719,"state":"ready"},{"bytes":156,"createdAt":1788768069216,"id":"s2id-7384cfb3c92fa013483b666c95f70ccf-0000000000004801","kind":"image","reclaiming":false,"releasedAt":1788768074741,"state":"ready"},{"bytes":156,"createdAt":1788768069374,"id":"s2id-7384cfb3c92fa013483b666c95f70ccf-0000000000005001","kind":"image","reclaiming":false,"releasedAt":1788768074766,"state":"ready"},{"bytes":156,"createdAt":1788768069551,"id":"s2id-7384cfb3c92fa013483b666c95f70ccf-0000000000005801","kind":"image","reclaiming":false,"releasedAt":1788768074782,"state":"ready"},{"bytes":156,"createdAt":1788768069717,"id":"s2id-7384cfb3c92fa013483b666c95f70ccf-0000000000006001","kind":"image","reclaiming":false,"releasedAt":1788768074804,"state":"ready"},{"bytes":156,"createdAt":1788768069879,"id":"s2id-7384cfb3c92fa013483b666c95f70ccf-0000000000006801","kind":"image","reclaiming":false,"releasedAt":1788768074825,"state":"ready"},{"bytes":156,"createdAt":1788768070062,"id":"s2id-7384cfb3c92fa013483b666c95f70ccf-0000000000007001","kind":"image","reclaiming":false,"releasedAt":1788768074846,"state":"ready"},{"bytes":156,"createdAt":1788768070224,"id":"s2id-7384cfb3c92fa013483b666c95f70ccf-0000000000007801","kind":"image","reclaiming":false,"releasedAt":1788768074867,"state":"ready"},{"bytes":156,"createdAt":1788768070386,"id":"s2id-7384cfb3c92fa013483b666c95f70ccf-0000000000008001","kind":"image","reclaiming":false,"releasedAt":1788768074887,"state":"ready"},{"bytes":156,"createdAt":1788768070539,"id":"s2id-7384cfb3c92fa013483b666c95f70ccf-0000000000008801","kind":"image","reclaiming":false,"releasedAt":1788768074907,"state":"ready"},{"bytes":156,"createdAt":1788768070700,"id":"s2id-7384cfb3c92fa013483b666c95f70ccf-0000000000009001","kind":"image","reclaiming":false,"releasedAt":1788768074928,"state":"ready"},{"bytes":156,"createdAt":1788768070863,"id":"s2id-7384cfb3c92fa013483b666c95f70ccf-0000000000009801","kind":"image","reclaiming":false,"releasedAt":1788768074949,"state":"ready"},{"bytes":156,"createdAt":1788768071032,"id":"s2id-7384cfb3c92fa013483b666c95f70ccf-000000000000a001","kind":"image","reclaiming":false,"releasedAt":1788768074972,"state":"ready"},{"bytes":156,"createdAt":1788768071183,"id":"s2id-7384cfb3c92fa013483b666c95f70ccf-000000000000a801","kind":"image","reclaiming":false,"releasedAt":1788768074992,"state":"ready"},{"bytes":156,"createdAt":1788768071339,"id":"s2id-7384cfb3c92fa013483b666c95f70ccf-000000000000b001","kind":"image","reclaiming":false,"releasedAt":1788768075012,"state":"ready"},{"bytes":156,"createdAt":1788768071493,"id":"s2id-7384cfb3c92fa013483b666c95f70ccf-000000000000b801","kind":"image","reclaiming":false,"releasedAt":1788768075034,"state":"ready"},{"bytes":156,"createdAt":1788768071651,"id":"s2id-7384cfb3c92fa013483b666c95f70ccf-000000000000c001","kind":"image","reclaiming":false,"releasedAt":1788768075055,"state":"ready"},{"bytes":156,"createdAt":1788768071805,"id":"s2id-7384cfb3c92fa013483b666c95f70ccf-000000000000c801","kind":"image","reclaiming":false,"releasedAt":1788768075077,"state":"ready"},{"bytes":156,"createdAt":1788768071964,"id":"s2id-7384cfb3c92fa013483b666c95f70ccf-000000000000d001","kind":"image","reclaiming":false,"releasedAt":1788768075099,"state":"ready"},{"bytes":156,"createdAt":1788768072115,"id":"s2id-7384cfb3c92fa013483b666c95f70ccf-000000000000d801","kind":"image","reclaiming":false,"releasedAt":1788768075121,"state":"ready"},{"bytes":156,"createdAt":1788768072267,"id":"s2id-7384cfb3c92fa013483b666c95f70ccf-000000000000e001","kind":"image","reclaiming":false,"releasedAt":1788768075140,"state":"ready"},{"bytes":156,"createdAt":1788768072413,"id":"s2id-7384cfb3c92fa013483b666c95f70ccf-000000000000e801","kind":"image","reclaiming":false,"releasedAt":1788768075162,"state":"ready"},{"bytes":156,"createdAt":1788768072564,"id":"s2id-7384cfb3c92fa013483b666c95f70ccf-000000000000f001","kind":"image","reclaiming":false,"releasedAt":1788768075187,"state":"ready"},{"bytes":156,"createdAt":1788768072722,"id":"s2id-7384cfb3c92fa013483b666c95f70ccf-000000000000f801","kind":"image","reclaiming":false,"releasedAt":1788768075207,"state":"ready"},{"bytes":156,"createdAt":1788768072871,"id":"s2id-7384cfb3c92fa013483b666c95f70ccf-0000000000010001","kind":"image","reclaiming":false,"releasedAt":1788768075227,"state":"ready"},{"bytes":156,"createdAt":1788768073030,"id":"s2id-7384cfb3c92fa013483b666c95f70ccf-0000000000010801","kind":"image","reclaiming":false,"releasedAt":1788768075248,"state":"ready"},{"bytes":156,"createdAt":1788768073178,"id":"s2id-7384cfb3c92fa013483b666c95f70ccf-0000000000011001","kind":"image","reclaiming":false,"releasedAt":1788768075270,"state":"ready"},{"bytes":156,"createdAt":1788768073338,"id":"s2id-7384cfb3c92fa013483b666c95f70ccf-0000000000011801","kind":"image","reclaiming":false,"releasedAt":1788768075292,"state":"ready"},{"bytes":156,"createdAt":1788768073480,"id":"s2id-7384cfb3c92fa013483b666c95f70ccf-0000000000012001","kind":"image","reclaiming":false,"releasedAt":1788768075313,"state":"ready"},{"bytes":156,"createdAt":1788768073635,"id":"s2id-7384cfb3c92fa013483b666c95f70ccf-0000000000012801","kind":"image","reclaiming":false,"releasedAt":1788768075343,"state":"ready"},{"bytes":156,"createdAt":1788768073788,"id":"s2id-7384cfb3c92fa013483b666c95f70ccf-0000000000013001","kind":"image","reclaiming":false,"releasedAt":1788768075374,"state":"ready"},{"bytes":156,"createdAt":1788768073948,"id":"s2id-7384cfb3c92fa013483b666c95f70ccf-0000000000013801","kind":"image","reclaiming":false,"releasedAt":1788768075395,"state":"ready"}],"usage":{"bytes":6240,"objects":0}},"byteRefusal":{"status":422,"code":"E_ASSET_TOO_LARGE","family":"input","guide":"operator","message":"your byte admission ceiling would be exceeded: 6240 / 268435456 charged bytes; requested 268435456 bytes. Charges include released ready originals during grace, even with free pending slots. Inspect client.listUploads(); discard only ids whose future use you have abandoned with client.discardUpload(id), or wait for eligible cleanup. Receiving cleanup may retain its charge","rewrite":"use bytes within the column bound; for a pending-object or byte admission ceiling, inspect client.listUploads() and discard only abandoned ids with client.discardUpload(id), or wait for eligible cleanup"},"originalSha256":"c397de92662ce9581afea82cfcd9010a17b688096c8c8f88c1f923f4b965c54e"}
+{"phase":"restart-and-new-upload","newAsset":{"id":"s2id-7384cfb3c92fa013483b666c95f70ccf-000000000001f801","width":4,"height":4},"finalUsage":{"bytes":6084,"objects":0}}
+✔ 43 public claims, 40 successful releases, restart and a fresh small upload preserve original custody (8877.625833ms)
+react-test-renderer is deprecated. See https://react.dev/warnings/react-test-renderer
+✔ browser token custody is explicit and no storage is selected by default (4.189896ms)
+✔ dev personas cannot be combined with bearer custody (0.350008ms)
+✔ SnapbackProvider rejects a runtime persona and bearer combination (19.749403ms)
+✔ an invalid explicit bearer cannot poison persistent custody (1.203693ms)
+✔ dev persona clients refuse bearer-session transitions without sending a request (1.134933ms)
+✔ ready blocks every data transport until explicit token restore settles (41.459461ms)
+✔ a relaunched client restores the explicitly stored bearer (2.592884ms)
+✔ principal replacement fences streams, suppresses delayed old reads, and waits for persistence (5.377899ms)
+✔ delayed malformed response bodies cannot overwrite newer auth custody (6.937551ms)
+✔ delayed malformed response bodies cannot mutate a closed client (1.436339ms)
+✔ delayed subscription opens cannot mutate a closed client (6.060872ms)
+✔ delayed subscription opens cannot mutate an individually closed subscription (2.172133ms)
+✔ delayed malformed subscription refusals cannot pollute a newer bearer (1.943584ms)
+✔ a delayed valid subscription expiry clears custody after a failed replacement (1.577195ms)
+✔ an already-read terminal subscription frame survives a replacement fence (3.704283ms)
+✔ an individually closed subscription still applies already-read terminal evidence (1.926281ms)
+✔ whole-client close still applies already-read terminal evidence without delivery (2.291888ms)
+✔ E_AUTH_SESSION clears custody only for the auth refusal family (3.164187ms)
+✔ auth transitions serialize and already-dispatched writes settle before replacement (5.45311ms)
+✔ a delayed terminal write clears the old bearer before a failed replacement (4.909779ms)
+✔ a status-listener replacement cannot bypass terminal mutation invalidation (replacement succeeds: false) (1.944165ms)
+✔ a status-listener replacement cannot bypass terminal mutation invalidation (replacement succeeds: true) (1.306085ms)
+✔ a delayed terminal read cannot clear a successfully replaced bearer (9.39562ms)
+✔ a transition during slow terminal cleanup suppresses typed mutation and channel receipts (3.309991ms)
+✔ close during token persistence never resurrects the client (1.116589ms)
+✔ predecessor expiry cannot erase a durably saved replacement after close (1.430008ms)
+✔ predecessor expiry clears the old bearer after replacement persistence fails (1.523203ms)
+✔ predecessor expiry clears the old bearer after replacement persistence fails across close (3.164849ms)
+✔ close during terminal subscription cleanup stays offline and suppresses late delivery (3.983457ms)
+✔ logout and terminal session expiry clear custody and stop old-bearer reconnect (305.794938ms)
+✔ token-store clear failures stay visible on every request-based terminal path (3.438133ms)
+react-test-renderer is deprecated. See https://react.dev/warnings/react-test-renderer
+✔ terminal expiry remains terminal when persisted custody cannot be cleared (303.066018ms)
+✔ React query identity moves to a hydrating auth-generation partition (12.429453ms)
+(node:2641543) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+react-test-renderer is deprecated. See https://react.dev/warnings/react-test-renderer
+✔ parent and later child auth hooks agree across a restoration cut and reconnect (57.765972ms)
+✔ headless restoration retries at 1, 2, 4, 8, 16, 30, 30 seconds and close clears its timer (3.916752ms)
+✔ restoration coalesces simultaneous me callers and a reconnect while pending (1.324901ms)
+✔ only missing or expired authentication becomes anonymous and clears token custody (4.765367ms)
+✔ coded refusals stay visible and retry once per reconnect without a self-cycle (2.541888ms)
+✔ storage and protocol failures are refused without restoration timers (3.113432ms)
+✔ logout, account replacement and close ignore a pending predecessor me response (4.190025ms)
+✔ a mismatched stored binding never renders another token's restoring viewer (1.077195ms)
+✔ mounted queries during restoration use held coverage and only me retries carry the bearer (125.953523ms)
+✔ HTTP 503 restoration retries, and authority replacement cancels the old backoff (2.296918ms)
+✔ late terminal me evidence clears only custody that still holds that bearer (6.033481ms)
+✔ failed login preserves authenticated bearer custody and restoration (1.538772ms)
+✔ failed signup preserves authenticated bearer custody and restoration (1.156233ms)
+✔ failed guest preserves authenticated bearer custody and restoration (1.067336ms)
+✔ failed login preserves backoff bearer custody and restoration (1.072005ms)
+✔ failed signup preserves backoff bearer custody and restoration (1.049593ms)
+✔ failed guest preserves backoff bearer custody and restoration (0.981384ms)
+✔ failed login preserves pending bearer custody and restoration (1.06934ms)
+✔ failed signup preserves pending bearer custody and restoration (1.143038ms)
+✔ failed guest preserves pending bearer custody and restoration (1.00582ms)
+✔ startup metadata failure rejects ready without replacing confirmed auth (102.284222ms)
+✔ refused restoration recovers its display viewer from bearer custody (2.296597ms)
+react-test-renderer is deprecated. See https://react.dev/warnings/react-test-renderer
+✔ restart of an offline device drops both retry clocks and waits for reconnect (1.491724ms)
+✔ two persona hooks share the lazy me flight (3.308789ms)
+✔ load/save-only custody restores without an unbound viewer and recovers on reconnect (1.442391ms)
+✔ explicit me cancels the old backoff deadline and schedules its own retry (1.355708ms)
+✔ non-auth coded restoration refusal retains custody and retries once per reconnect (2.178855ms)
+react-test-renderer is deprecated. See https://react.dev/warnings/react-test-renderer
+✔ Provider manifest reconnect after network retries me once without self-cycling (2.669568ms)
+react-test-renderer is deprecated. See https://react.dev/warnings/react-test-renderer
+✔ Provider manifest reconnect after 503 retries me once without self-cycling (5.276267ms)
+✔ close one millisecond before the retry deadline starts no fetch (0.916122ms)
+react-test-renderer is deprecated. See https://react.dev/warnings/react-test-renderer
+✔ logout one millisecond before the retry deadline starts no fetch (1.237717ms)
+✔ hooks recheck lazy me after an asynchronous token load and offline startup confirmation (117.269981ms)
+react-test-renderer is deprecated. See https://react.dev/warnings/react-test-renderer
+✔ session success publishes token, kind and authEpoch together to hooks (2.401404ms)
+✔ startup resume failure rejects ready without replacing confirmed auth (194.190917ms)
+✔ a session response without kind is refused before replacing custody (0.998998ms)
+✔ failed login during offline startup before hydrate resumes retained bearer restoration (123.289966ms)
+✔ failed login during offline startup pending me resumes retained bearer restoration (128.094046ms)
+react-test-renderer is deprecated. See https://react.dev/warnings/react-test-renderer
+✔ an offline query hook leaves hydration when the stored bearer is confirmed (150.404303ms)
+✔ a terminal write wakes a read waiting on restoration without dispatching it (2.96327ms)
+✔ online restart cancels the predecessor clock and starts only the new client's restoration (1.290315ms)
+✔ logout custody-clear failure cannot keep an authenticated view after clearing memory (1.923947ms)
+✔ failed startup login before hydrate restores metadata and resumes the durable outbox (266.157803ms)
+✔ failed startup login pending me restores metadata and resumes the durable outbox (278.734622ms)
+✔ successful startup login before hydrate restores metadata and resumes the durable outbox (254.657596ms)
+✔ successful startup login pending me restores metadata and resumes the durable outbox (276.275481ms)
+✔ startup login keeps installed custody successful when offline metadata fails (146.866803ms)
+✔ startup signup keeps installed custody successful when offline metadata fails (144.26898ms)
+✔ startup guest keeps installed custody successful when offline metadata fails (131.597411ms)
+✔ held queries during a failed startup login wait for its authority (199.946847ms)
+✔ held queries during a successful startup login wait for its authority (273.320436ms)
+✔ metadata cannot report session success after custody is expired (130.214742ms)
+✔ metadata cannot report session success after custody is closed (127.860838ms)
+✔ startup session retries one failed metadata fetch through the pending recovery flight (275.352695ms)
+✔ live held reads wait for a failed startup login (196.974129ms)
+✔ live held reads wait for a successful startup login (240.364158ms)
+✔ startup recovery waits for a queued successor login before choosing its bearer (319.678895ms)
+✔ failed login during authenticated deferred resume restarts pending startup recovery (249.707822ms)
+✔ failed login cuts pending initial manifest without poisoning ready (252.838877ms)
+✔ successful login cuts pending initial manifest without poisoning ready (274.346775ms)
+✔ failed login cuts pending initial resume without poisoning ready (239.471671ms)
+✔ successful login cuts pending initial resume without poisoning ready (248.782913ms)
+✔ completed startup recovery leaves ordinary past-fence relogin waiting for explicit resume (298.916619ms)
+✔ hydrating held reads reject a transition that begins during carrier I/O (177.695702ms)
+✔ confirmed held reads reject a transition that begins during carrier I/O (156.02629ms)
+✔ offline wakes recovery waiters before an obsolete transport responds (246.390927ms)
+✔ failed-login wakes recovery waiters before an obsolete transport responds (279.625497ms)
+✔ offline releases the drain before cancelled replay-fetch returns (281.533173ms)
+✔ failed-login releases the drain before cancelled replay-fetch returns (298.771315ms)
+✔ offline releases the drain before cancelled replay-body returns (286.563809ms)
+✔ failed-login releases the drain before cancelled replay-body returns (283.054392ms)
+✔ offline releases the drain before cancelled tail-fetch returns (254.038862ms)
+✔ failed-login releases the drain before cancelled tail-fetch returns (286.104125ms)
+✔ cancelled resume ignores delayed terminal-refusal after replacement recovery (254.425399ms)
+✔ cancelled resume ignores delayed invalid-refusal-json after replacement recovery (243.113947ms)
+✔ cancelled resume ignores delayed invalid-success-json after replacement recovery (228.100266ms)
+✔ offline releases a mutation-owned drain during ignored replay-fetch abort (220.18632ms)
+✔ failed-login releases a mutation-owned drain during ignored replay-fetch abort (206.270483ms)
+✔ close releases a mutation-owned drain during ignored replay-fetch abort (207.223905ms)
+✔ expiry releases a mutation-owned drain during ignored replay-fetch abort (176.188298ms)
+✔ offline releases a mutation-owned drain during ignored replay-body abort (163.285545ms)
+✔ failed-login releases a mutation-owned drain during ignored replay-body abort (163.519365ms)
+✔ close releases a mutation-owned drain during ignored replay-body abort (222.158528ms)
+✔ expiry releases a mutation-owned drain during ignored replay-body abort (278.924219ms)
+✔ offline releases a mutation-owned drain during ignored tail-fetch abort (167.24631ms)
+✔ failed-login releases a mutation-owned drain during ignored tail-fetch abort (172.186677ms)
+✔ close releases a mutation-owned drain during ignored tail-fetch abort (182.809584ms)
+✔ expiry releases a mutation-owned drain during ignored tail-fetch abort (204.530082ms)
+✔ direct upload retains terminal fetch evidence during failed login (150.656397ms)
+✔ direct upload retains terminal fetch evidence during successful login (176.603619ms)
+✔ direct upload retains terminal body evidence during failed login (146.838289ms)
+✔ direct upload retains terminal body evidence during successful login (170.204851ms)
+✔ automatic upload retains terminal fetch evidence during failed login (155.952561ms)
+✔ automatic upload retains terminal fetch evidence during successful login (182.145506ms)
+✔ automatic upload retains terminal body evidence during failed login (159.509538ms)
+✔ automatic upload retains terminal body evidence during successful login (172.19364ms)
+✔ HTTP 401 terminal replay cancels sibling drains while preserving its own refusal (166.235289ms)
+✔ HTTP 401 terminal tail cancels sibling drains while preserving its own refusal (158.132911ms)
+✔ typed HTTP 200 terminal replay cancels sibling drains while preserving its own refusal (153.062598ms)
+✔ typed HTTP 200 terminal tail cancels sibling drains while preserving its own refusal (153.662808ms)
+✔ HTTP 401 FIFO replay expiry reaches the new mutation before enqueue and keeps only the older intent (176.285471ms)
+✔ HTTP 401 FIFO tail expiry reaches the new mutation before enqueue and keeps only the older intent (175.123185ms)
+✔ typed HTTP 200 FIFO replay expiry reaches the new mutation before enqueue and keeps only the older intent (190.476015ms)
+✔ typed HTTP 200 FIFO tail expiry reaches the new mutation before enqueue and keeps only the older intent (195.537189ms)
+✔ typed HTTP 200 resume expiry seals queued custody and retries the exact envelope after login (187.058652ms)
+An update to Ae inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to Thread inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to Composer inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to Thread inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to Thread inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to App inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to Thread inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to Thread inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to Composer inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to Thread inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to Thread inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+✔ the chat screens render the log, queue offline sends as pinned bubbles, settle them in place, and search the held log (561.730004ms)
+An update to Ae inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+✔ the composer is disabled until the inbox drain catches up and the first grant exists, then enabled (63.829629ms)
+✔ a refused send keeps the draft and shows the recovery advice (72.32598ms)
+✔ the first identity confirmation during the inbox drain does not cost the drain its grant (42.151581ms)
+▶ owner harness releases lifecycle timers and listeners
+  ✔ ready then stop (11.729287ms)
+  ✔ early exit (1.706929ms)
+  ✔ spawn error (2.145362ms)
+  ✔ invalid readiness (2.21305ms)
+  ✔ changed port (1.356139ms)
+  ✔ readiness timeout (0.812858ms)
+  ✔ exit timeout (4.820762ms)
+  ✔ exit error (1.209864ms)
+  ✔ already signalled (0.61737ms)
+✔ owner harness releases lifecycle timers and listeners (38.621536ms)
+✔ owner harness reaps its launched child and fixture when creation rejects (47.3752ms)
+✔ native Response preserves shared query/channel delivery and independent terminal refusals (44.163784ms)
+react-test-renderer is deprecated. See https://react.dev/warnings/react-test-renderer
+✔ native Response cancellation keeps peers live and preserves removed-child session evidence (5.793049ms)
+✔ status listener exceptions cannot leak registration or break peers (1.10645ms)
+react-test-renderer is deprecated. See https://react.dev/warnings/react-test-renderer
+✔ useMutation treats malformed successful bodies as ambiguous transport (14.432318ms)
+react-test-renderer is deprecated. See https://react.dev/warnings/react-test-renderer
+✔ useAuth ignores stale me responses after logout and client replacement (6.27759ms)
+✔ identical live subscriptions share one stream, one delivery, and one mounted record (73.558556ms)
+✔ identical drains share one page walk and one tail (14.702005ms)
+✔ a second web tab follows the writer and inherits its queue when the writer closes (81.288016ms)
+✔ a follower that closes withdraws its wait, so the next tab becomes the writer (6.433072ms)
+✔ two attachments sharing one callback function are two consumers (2.584818ms)
+✔ a follower's drain pages and tails live and earns no grant of its own (11.187569ms)
+✔ a restored bearer second tab follows instead of refusing its own session (18.923911ms)
+✔ a terminal refusal reaches every consumer of the shared entry it originated from (2.957329ms)
+✔ a terminal refusal from a drain's tail reaches the drain's consumers (10.998213ms)
+✔ unsupported drain reaches callback and matching waiter; current and later success waiters reject, ordinary query remains valid (51.629317ms)
+✔ legacy backward resume stays refused across offline reopen; coverage, queue, grant and IDs survive; explicit write replay is separate (80.16259ms)
+✔ React refusal reduction preserves structured log diagnostics (0.433114ms)
+(node:2641569) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+react-test-renderer is deprecated. See https://react.dev/warnings/react-test-renderer
+✔ built Expo under Hermes-like globals logs in, drains, and views a photo (379.347984ms)
+✔ Expo app shows a readiness error after the client is already constructed (21.081196ms)
+✔ witness source map contains the portable conformance runner under src and no tests (9.829947ms)
+✔ native file queue rechecks view-once after a waiting materialization (187.846692ms)
+react-test-renderer is deprecated. See https://react.dev/warnings/react-test-renderer
+✔ MediaView ordinary onLoad waits for its file source; undefined source reports loaded false (176.289499ms)
+react-test-renderer is deprecated. See https://react.dev/warnings/react-test-renderer
+✔ MediaView observes native video playback and cannot reopen a viewed photo or video (177.016725ms)
+✔ witness configuration temp rename preserves the prior version on failure and merges serialized patches (1.672444ms)
+✔ attribution regex matches actual esbuild input-map sources and excludes non-twin client modules (4.817676ms)
+✔ container-wide witness scan finds private payloads in URLSession cache, tmp, Documents, and remuxed video (20.808814ms)
+✔ fresh chat Expo scaffold from dist resolves every relative import including shared JS (2198.352235ms)
+✔ control server refuses a second socket without replacing the active controller (23.1683ms)
+✔ control reset after kill closes a stale socket and accepts the relaunched app (31.312077ms)
+✔ useAssetUrl array types require callers to handle refused positions (1072.508486ms)
+✔ witness connects before construction; persistent faults are reported over the surviving control connection (74.160729ms)
+✔ witness barrier remains parked on socket close and only barrier(off) releases it (285.038613ms)
+(node:2641581) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ Expo SecureStore uses legal keys, caches reads, bounds values, and deletes token plus principal (5.215804ms)
+✔ Expo driver scopes statements to the exclusive executor and normalizes null (1.102212ms)
+✔ Expo COMMIT failure rolls back its exclusive connection and the next queued transaction succeeds (85.472411ms)
+✔ built native entries exclude node and IndexedDB, share react-core, and ship source maps (4.36243ms)
+✔ built Expo entry exports every native component and hook by name (0.369625ms)
+✔ emitted web declarations exclude node modules and SQLite test exports (2.261341ms)
+✔ compiler source imports no Expo fetch or filesystem modules (375.120157ms)
+✔ native development dependencies match Expo SDK 54 and use real expo-sqlite declarations (10.848131ms)
+react-test-renderer is deprecated. See https://react.dev/warnings/react-test-renderer
+✔ built witness conformance opens two connections and reports WAL plus every check name (252.394432ms)
+react-test-renderer is deprecated. See https://react.dev/warnings/react-test-renderer
+✔ replacing a supplied client clears authentication, mutations, and outbox readiness before delayed work settles (51.868706ms)
+✔ built Expo provider and native hook share one context; supplied client remains caller-owned (9.845817ms)
+✔ createExpoClient defaults to Expo fetch and secure custody, preserves overrides, and never adds tokenStore beside as (11.538669ms)
+✔ createExpoClient defaults to the SQLite carrier and refuses a native open failure (2.758625ms)
+✔ browser and SecureStore principal records retain the authenticating token across a stale writer (0.787591ms)
+react-test-renderer is deprecated. See https://react.dev/warnings/react-test-renderer
+✔ Expo provider and two native auth hooks share one cut/reconnect flight (6.981523ms)
+(node:2641655) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ transport stops and successful retries report their remaining queue and preserve exactly-once writes (73.07611ms)
+✔ grant expiry and exhausted IDs expose actionable admission without consuming an intent (13.812653ms)
+✔ retained reads, readiness and offline escape do not wait on stalled authenticated startup; sealed custody stays hidden (7.190335ms)
+✔ repeated drain cursors refuse instead of looping or replacing the server watermark (17.021135ms)
+✔ real sessions change epochs across re-login, seal and cold auth; custom cursor custody drains offline on every carrier (9179.64881ms)
+✔ replacing an explicit bearer clears the old principal before persistence, so stalled cold auth cannot reveal its history (27.795006ms)
+✔ readiness still observes grant expiry after the earlier fence timer fired (5.428063ms)
+✔ authenticated startup restores a cleared token binding across restart and a later cold offline open (5.760959ms)
+✔ a token-store write crossing hydration discards the mixed principal snapshot before early reads (27.332286ms)
+✔ settled waits for cold local custody before reporting an offline queue (33.662364ms)
+react-test-renderer is deprecated. See https://react.dev/warnings/react-test-renderer
+✔ Expo File mock is Blob-shaped without inheriting from web Blob, and file:// upload uses expo/fetch without progress (38.819599ms)
+✔ a direct Expo File with progress uses expo/fetch and never constructs XMLHttpRequest (1.465335ms)
+✔ content:// Expo File upload uses Content-Length and whole-body progress (2.004728ms)
+✔ native source length comes from Expo File and refuses oversize or inaccessible URIs before upload (3.54312ms)
+✔ file:// clip runs through Expo File upload, mutation substitution, and carrier URL (4.864333ms)
+react-test-renderer is deprecated. See https://react.dev/warnings/react-test-renderer
+✔ native AssetImage fetches bytes with persona headers and renders an in-memory source without Blob (26.433907ms)
+react-test-renderer is deprecated. See https://react.dev/warnings/react-test-renderer
+✔ native AssetImage exposes bearer restoration failure without fetching unauthenticated bytes (3.860005ms)
+✔ native AssetImage waits for bearer bytes and keeps its source across callback changes (3.630454ms)
+✔ native URI refuses E_ASSET_NATIVE_FILE_API when expo-file-system has no File constructor (0.912345ms)
+(node:2641688) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+react-test-renderer is deprecated. See https://react.dev/warnings/react-test-renderer
+✔ native AssetImage and ordinary AssetVideo serve cached files and clear mounted sources on custody change (199.717876ms)
+(node:2641709) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+react-test-renderer is deprecated. See https://react.dev/warnings/react-test-renderer
+✔ view-once delayed fetch tombstoned before admission renders nothing (222.736414ms)
+react-test-renderer is deprecated. See https://react.dev/warnings/react-test-renderer
+react-test-renderer is deprecated. See https://react.dev/warnings/react-test-renderer
+react-test-renderer is deprecated. See https://react.dev/warnings/react-test-renderer
+✔ failed durable viewed mark renders nothing; reopen grants only one successful viewing (192.858643ms)
+react-test-renderer is deprecated. See https://react.dev/warnings/react-test-renderer
+react-test-renderer is deprecated. See https://react.dev/warnings/react-test-renderer
+✔ ordinary oversize media renders uncached memory and a later mount retries (143.25866ms)
+react-test-renderer is deprecated. See https://react.dev/warnings/react-test-renderer
+✔ unrelated message and watermark swaps keep the ordinary video player and position (200.371886ms)
+react-test-renderer is deprecated. See https://react.dev/warnings/react-test-renderer
+react-test-renderer is deprecated. See https://react.dev/warnings/react-test-renderer
+react-test-renderer is deprecated. See https://react.dev/warnings/react-test-renderer
+✔ combined byte, file, and hook custody: seal mid-write, principal swap mid-read, wipe mid-materialization (304.121051ms)
+react-test-renderer is deprecated. See https://react.dev/warnings/react-test-renderer
+✔ a seal cannot resurrect an uncached source even when getBytes still holds bytes (177.989825ms)
+react-test-renderer is deprecated. See https://react.dev/warnings/react-test-renderer
+react-test-renderer is deprecated. See https://react.dev/warnings/react-test-renderer
+✔ native second viewing instance cannot borrow the first instance's session (156.431341ms)
+✔ concurrent byte consumers acquire exactly one view-once allowance (143.708506ms)
+react-test-renderer is deprecated. See https://react.dev/warnings/react-test-renderer
+✔ schema once image column keeps native media off disk (181.009059ms)
+react-test-renderer is deprecated. See https://react.dev/warnings/react-test-renderer
+✔ native viewing survives layout width changing after fallback admission (160.676351ms)
+✔ ordinary fetch changed to view-once with a failed durable mark returns no bytes on either consumer (334.487831ms)
+react-test-renderer is deprecated. See https://react.dev/warnings/react-test-renderer
+✔ native ordinary image changed to view-once during fetch with a failed mark has no source (157.487917ms)
+react-test-renderer is deprecated. See https://react.dev/warnings/react-test-renderer
+✔ native ordinary layout changes still select a new derivative without a new viewing token (184.364647ms)
+✔ both byte consumers suppress a view-once fetch whose row is tombstoned before admission (317.092393ms)
+react-test-renderer is deprecated. See https://react.dev/warnings/react-test-renderer
+✔ view-once native video protects admission and memory on missing-module (163.545573ms)
+react-test-renderer is deprecated. See https://react.dev/warnings/react-test-renderer
+✔ view-once native video protects admission and memory on commit (155.884223ms)
+react-test-renderer is deprecated. See https://react.dev/warnings/react-test-renderer
+✔ view-once native video protects admission and memory on seal (177.23201ms)
+react-test-renderer is deprecated. See https://react.dev/warnings/react-test-renderer
+react-test-renderer is deprecated. See https://react.dev/warnings/react-test-renderer
+✔ view-once native video protects admission and memory on unmount (189.038883ms)
+(node:2641723) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ native file bridge writes bytes without Blob; eviction deletes only after SQLite commit (175.118387ms)
+✔ native file wipe drops either partition and the open partition closes its backend (152.434008ms)
+✔ native startup sweeps orphans and a missing carrier payload is deleted instead of served (149.211661ms)
+✔ native in-flight file write is fenced on seal and consumers receive custody invalidation (162.268063ms)
+✔ view-once native bytes stay in memory, are never written, and disappear on custody change (149.240515ms)
+✔ native once image lists consume per asset and keep the original across width changes (165.582593ms)
+(node:2641796) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ byte puts land only under a held row's lease, reads order the LRU, and the ceiling evicts least-recently-read on all three carriers (269.171637ms)
+✔ bytes leave in the commit that evicts their row: absence, range hole, tombstone, hidden, reset, and wipe (436.018367ms)
+✔ a sealed partition hides its bytes until the same principal returns, across a cold open (5.471324ms)
+✔ assetBlob reads the byte cache before the network, fills it after a fetch, and answers offline from it (42.226352ms)
+✔ a view-once row renders once: its bytes are never cached, a restart refuses them, and the held answer omits the row (13.894437ms)
+✔ the IndexedDB carrier upgrades a version-1 database, keeps payloads in their own store, and rolls bytes back with the swap (7.311533ms)
+✔ a cache read stamps the LRU in memory without rewriting the carrier; the next swap persists the order (14.778279ms)
+✔ AssetImage, AssetVideo, and useAssetUrl render held renditions from the byte cache offline without the network (166.133108ms)
+✔ schema once excludes raw byte puts before viewing and purges on successor, durably (5.766299ms)
+✔ absent assetBlob fences full Blob conversion across login (2.735472ms)
+✔ absent assetBlob fences full Blob conversion across abort (1.102122ms)
+✔ miss assetBlob fences full Blob conversion across login (2.945066ms)
+✔ miss assetBlob fences full Blob conversion across abort (1.922824ms)
+✔ bypass assetBlob fences full Blob conversion across login (2.637278ms)
+✔ bypass assetBlob fences full Blob conversion across abort (1.932502ms)
+✔ assetBlob fences cache-hit completion across login (6.986993ms)
+✔ assetBlob fences cache-hit completion across abort (6.188192ms)
+✔ assetBlob fences admission completion across login (5.221134ms)
+✔ assetBlob fences admission completion across abort (6.113862ms)
+✔ assetBlob fences final-lease completion across login (5.09659ms)
+✔ assetBlob fences final-lease completion across abort (12.415968ms)
+✔ assetBytes fences cache-hit completion across login (11.43777ms)
+✔ assetBytes fences cache-hit completion across abort (3.437922ms)
+✔ assetBytes fences admission completion across login (9.502672ms)
+✔ assetBytes fences admission completion across abort (4.00061ms)
+✔ assetBytes fences final-lease completion across login (4.124022ms)
+✔ assetBytes fences final-lease completion across abort (12.815569ms)
+✔ offline envelope goldens round-trip byte-identically and rebuild ClosureReceipt (44.061953ms)
+✔ offline envelope decoder refuses unknown protocols and malformed shapes (2.880855ms)
+✔ all-column-kind golden tags closed asset records by their declared field types (1.421392ms)
+✔ offline delivery decoder accepts the conditional unchanged marker (0.176512ms)
+✔ offline decoder enforces range, authority, and schema coherence (3.888158ms)
+✔ Limit range extent is derived from pooled rows and the generation schema (2.063298ms)
+✔ application JSON shaped like a row reference round-trips unchanged (1.033894ms)
+✔ expandRows restores pooled wire rows (0.726846ms)
+✔ offline protocol values and types are exported from the package index (2964.324931ms)
+✔ verdict inputs digest is sha256(canonical([table, index, key])) over wire values and matches the Rust goldens (7.942429ms)
+✔ a resume answered with the tail after the watermark is held under the cursor args and never replaces the drained first page (57.22774ms)
+✔ the returned-page cursor drives drain and resume, ahead of an auxiliary Cursor argument or c (48.960871ms)
+✔ an offline cold-start drain keeps the drained first page on screen while reporting the persisted watermark (412.337153ms)
+✔ a conditional unchanged reply on a held denied answer is a typed denied, not a wire-shape throw (8.499396ms)
+(node:2641855) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ RangeStore stores rows once and shares them across answers on all three carriers (189.630976ms)
+✔ the IndexedDB carrier keeps rows, answers, outbox, meta, and bytes; the version-2 projection stores are deleted and never written (5.099305ms)
+✔ a pooled row no answer references any more leaves the swap: a replaced closure drops what it stopped pooling, a dropped answer drops its pool (11.143547ms)
+✔ file and IndexedDB swaps are atomic when persistence fails (15.240227ms)
+✔ a process killed between file write and rename leaves the previous snapshot (95.862601ms)
+✔ all three carriers apply the four swap rules with until-revoked and delivered-history (313.784376ms)
+✔ O1a golden ranges evict only holes inside Exhausted bounds and the returned Limit extent (9.55504ms)
+✔ the O1a whole-answer-null golden is hidden evidence and delivered-history restores it (3.395192ms)
+✔ sequence fences make absence, hidden, and tombstone evidence monotonic and deliveries idempotent (16.389587ms)
+✔ shrunk arrays and denied answers emit the hidden signal (4.275116ms)
+✔ seal survives a cold open, confirmed re-auth unseals, and wipe deletes the partition (236.297114ms)
+✔ carrier open failures and a second web lock holder refuse loudly (50.174853ms)
+✔ offline option shape and fenceDays bounds are TypeErrors (0.549924ms)
+✔ a sealed cold start stays unreadable until auth.me confirms the same bearer principal (19.41783ms)
+✔ an envelope cannot switch the open principal partition: E_OFFLINE_AUTHORITY, and the held coverage survives (6.916782ms)
+✔ manifest retention is loaded before the first commit without an app manifest call (9.378108ms)
+✔ conditional unchanged branches before envelope decoding and refreshes the held seq (6.656042ms)
+✔ a subscription conditional unchanged frame reuses the held pooled answer (17.972883ms)
+✔ an auth-epoch mismatch cannot replace held coverage; a generation mismatch supersedes it without a refusal (19.525872ms)
+✔ held and unheld offline reads expose since and fenceDays never blocks reading (6.578766ms)
+✔ the client tombstone hook evicts the named body in the same delivery swap (9.444913ms)
+✔ the frozen delivery decoder rejects malformed custody facts (3.685909ms)
+✔ drain true follows five pages, persists the watermark, and follows a new tail page (29.192182ms)
+✔ cold resume sends the bounded shape before subscribe and a 404 falls back with validator (25.514699ms)
+✔ resume excludes its drain mount and atomically preserves a full log watermark and validator (15.221772ms)
+✔ E_OFFLINE_RESET drops coverage but preserves the durable outbox slot (27.057961ms)
+✔ E_OFFLINE_RESET cold-drains a mounted drain from the null cursor (16.928139ms)
+✔ E_OFFLINE_RESUME adjusts only structured mounted limits and never drops the log (10.674765ms)
+✔ an unstructured legacy E_OFFLINE_RESUME refuses once and leaves the client usable (5.662775ms)
+✔ resume applies its mounted swap before online resolves (21.841886ms)
+✔ clients without offline storage preserve query bytes and logical subscription arguments (6.172592ms)
+✔ a clock-reading program's later execution installs at the same seq; older, equal, and unstamped ones do not (6.233276ms)
+✔ web assetBlob and byte fetch read the transport cut after readiness resolves (6.136084ms)
+✔ web viewed allowance belongs to its viewing instance, never a second consumer or URL hook (43.523189ms)
+✔ a row viewed during URL minting cannot shift another asset's URL onto its list entry (84.375269ms)
+✔ the view-once session allowance obeys custody: a partition switch, a wipe, and a seal all drop it (33.881897ms)
+✔ a byte read in flight during a partition change never serves the previous principal's session blob (17.764262ms)
+✔ blob: URLs are revoked and re-minted when the client identity or the partition changes, not only on unmount (103.121305ms)
+✔ a viewed view-once row reads null on a fresh query, a conditional read, and a live frame, not only from the held answer (20.415985ms)
+✔ coverage() hides a viewed view-once row from the twin and marks it absent (3.587734ms)
+✔ web byte consumers refuse missing viewing tokens before fetching; ordinary assets need none (12.735018ms)
+An update to Ae inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+(node:2641875) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ web mounted image holds one viewing token; a second consumer and a remount cannot re-show it (136.120454ms)
+✔ web asset fetch reads the live transport cut after a paused cache miss (10.383949ms)
+✔ late asset validation never changes a completed offline cut back to connected (1.030898ms)
+(node:2641901) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ two overlapping enqueues consume distinct grant slices: both entries exist and used advances by the sum (381.253115ms)
+✔ a committed reply whose tail fetch fails leaves the intent queued with no rows; the retry is the same bytes and lands rows and entry in one swap (344.30315ms)
+✔ the settlement tail and the resume log both name the first-mounted drained query, never the newest page (654.730827ms)
+✔ settled() rejects with the non-retryable refusal that stopped the replay and leaves the intent queued; a retryable transport failure still resolves (33.622179ms)
+✔ the prediction overlay is dropped in the same swap as a rejected or server-expired settlement (396.792193ms)
+react-test-renderer is deprecated. See https://react.dev/warnings/react-test-renderer
+✔ a cold start with the owner cut prices its slice from the persisted write bound; without one the enqueue refuses E_OFFLINE_ID_BLOCK (690.202341ms)
+✔ SnapbackProvider constructs exactly one client across StrictMode's double mount and a parent re-render with an inline offline object (76.517519ms)
+✔ online() replays a queue held under a login grant when no resume can be built: zero deliveries, no facts, no /api/resume (29.31902ms)
+(node:2641961) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ a resume whose grant persistence crosses a seal cannot restore trust; the next login waits for its own resume on both carriers (405.594709ms)
+✔ no-facts recovery chooses the mounted drain ahead of another mounted candidate, then the recorded log, manifest Cursor, or optional query on both carriers (1039.268885ms)
+✔ cold no-facts recovery exposes E_OFFLINE_RESUME in lastRefusal and online rejects while keeping the queue on both carriers (277.750313ms)
+✔ live transport and a fresh login grant cannot release old intents; a grantless resume opens the fence and restart closes it on both carriers (427.312302ms)
+✔ partition change, seal, and wipe never inherit a successful resume for drain or prediction on both carriers (585.046292ms)
+✔ login then offline before any delivery resumes a three-day queue, including after reset, on both carriers (278.562539ms)
+✔ online refuses E_OFFLINE_RESUME and retains a past-fence queue when no query can supply resume facts (161.320331ms)
+✔ missing grant trust waits for resume and the client clock never expires an intent on both carriers (269.352637ms)
+react-test-renderer is deprecated. See https://react.dev/warnings/react-test-renderer
+✔ useOutbox exposes fence inside and past while ready stays true, then updates after grantless resume (18.820907ms)
+✔ enqueue consumes a grant slice of 1 + maxNewIds and refuses E_OFFLINE_ID_BLOCK when the grant is spent (217.922405ms)
+✔ a fresh partition without a grant refuses offline writes loudly and earns one on the drained log (28.423327ms)
+react-test-renderer is deprecated. See https://react.dev/warnings/react-test-renderer
+✔ a grant arriving without an outbox entry change flips useOutbox().ready (31.551877ms)
+✔ the drain replays FIFO after resume, one envelope per request, and both settle committed in order (258.211275ms)
+✔ a 503 after a commit leaves the intent queued, stops the drain, and the retry is the same envelope exactly once (279.087176ms)
+✔ a rejection and a trace conflict settle only their own intent and the drain continues (311.683396ms)
+✔ a three-day-old queue under fenceDays 1 waits for resume without prediction, then replays FIFO and commits on both carriers (264.080308ms)
+✔ only the owner's E_OFFLINE_INTENT_EXPIRED refusal expires an intent and the drain continues on both carriers (287.253926ms)
+✔ a committed settlement lands in the same swap as the log tail rows, or not at all (28.608535ms)
+✔ online writes carry the replay envelope under custody; a transport failure enqueues; a queued outbox keeps FIFO (21.459778ms)
+✔ a store with an open partition never sends plain bytes: no grant or no bound refuses E_OFFLINE_ID_BLOCK with no request; a client with no store sends today's bytes (7.793309ms)
+react-test-renderer is deprecated. See https://react.dev/warnings/react-test-renderer
+react-test-renderer is deprecated. See https://react.dev/warnings/react-test-renderer
+✔ useMutation resolves last queued offline with pending filtered by op, and useOutbox lists the outbox at cold start (56.05233ms)
+react-test-renderer is deprecated. See https://react.dev/warnings/react-test-renderer
+✔ useOutbox survives restart(): the queue is intact and settles through the restarted client (21.047813ms)
+✔ SnapbackProvider under StrictMode creates one lock-holding client and survives the simulated unmount (39.252663ms)
+✔ a cold start with the owner unreachable serves the held log and the outbox before any metadata arrives (321.304782ms)
+✔ tail-page retirement requires a non-empty page at a manifest-named position past the commit watermark on both carriers (50.419954ms)
+✔ only proven forward marks of the tail chooser consume patience; duplicate and backward marks do not on both carriers (27.734833ms)
+✔ authoritative predicted-row arrival clears predicted while retaining the committed entry and row on both carriers (9.368079ms)
+✔ a second nullable string argument cannot impersonate the manifest cursor on either carrier (13.717163ms)
+✔ queued primary absence survives duplicate delivery and cold reopen until settlement on both carriers (22.948405ms)
+✔ queued tombstone survives duplicate delivery and cold reopen until settlement on both carriers (16.663362ms)
+✔ queued predicted deletion survives duplicate delivery and cold reopen until settlement on both carriers (22.530851ms)
+✔ queued conditional refresh survives duplicate delivery and cold reopen until settlement on both carriers (22.767816ms)
+✔ a conditional primary absence refreshed after settlement retires at its validated seq on both carriers (10.341789ms)
+✔ resetCoverage discards queued absence retirement evidence but preserves intent and prediction (19.7692ms)
+✔ resetCoverage discards queued tombstone retirement evidence but preserves intent and prediction (17.833622ms)
+✔ a queued hidden-row eviction is not durable authoritative negative evidence on both carriers (11.511027ms)
+✔ object and array arguments, including object-entry arrays, cannot supply another query's chain on both carriers (33.661673ms)
+✔ an ambiguous link preserves the proven prefix but cannot advance beyond it on both carriers (17.661248ms)
+✔ evicting the progress page re-anchors at surviving consumed positions on both carriers (16.109912ms)
+✔ consumed progress survives cold reopen and a repeated position never double-counts on both carriers (19.632644ms)
+✔ a re-served page replaces its next link and conditional refresh cannot renew a pre-commit link on both carriers (27.624946ms)
+✔ a full delivery at a refreshed seq renews continuation evidence only after content validation (19.382132ms)
+✔ nonempty scalar projections use held closure rows to prove tail progress on both carriers (10.056804ms)
+✔ a retained denied tail cannot prove authoritative page arrival (18.325386ms)
+✔ a denied delivered-history answer cannot confirm arrival of a committed edit on both carriers (19.284338ms)
+✔ a 60-row resume followed by a 50-row-page remount cannot count the backward mark or duplicate delivery as progress on both carriers (38.859524ms)
+✔ missing and pre-commit links prove nothing; a cycle keeps only its proven prefix on both carriers (34.262462ms)
+✔ the commit snapshot round-trips after the tail moved and retires against the persisted position on both carriers (20.840003ms)
+✔ primary absence retires the committed overlay in its swap and after cold reopen on both carriers (16.515153ms)
+✔ tombstone retires the committed overlay in its swap and after cold reopen on both carriers (13.514002ms)
+✔ predicted deletion retires the committed overlay in its swap and after cold reopen on both carriers (17.504172ms)
+✔ empty answers and hidden alternate-key lookups are not authoritative absence on both carriers (24.352215ms)
+✔ resetCoverage rebases the snapshot and patience for a new tail op and cursor name on both carriers (23.702473ms)
+✔ unchanged quiet-tail resumes strictly past commit consume one miss across each cold client on both carriers (59.817408ms)
+✔ repeated online resumes at the commit seq do not consume misses in one session on both carriers (24.738701ms)
+✔ a pre-manifest c snapshot needs fresh correctly named links after reopening with an after manifest on both carriers (26.389143ms)
+✔ file: ready() and ready(op) return false on sealed custody (52.638915ms)
+✔ IndexedDB: ready() and ready(op) return false on sealed custody (16.348811ms)
+react-test-renderer is deprecated. See https://react.dev/warnings/react-test-renderer
+✔ bound adoption alone updates useMutation.ready without an entries change (61.51579ms)
+react-test-renderer is deprecated. See https://react.dev/warnings/react-test-renderer
+✔ operation change mid-probe hides old readiness and ignores superseded completions (72.940756ms)
+react-test-renderer is deprecated. See https://react.dev/warnings/react-test-renderer
+✔ time alone notifies mounted hooks at the fence boundary: the fence turns past, expiry invalidates ready (22.186834ms)
+react-test-renderer is deprecated. See https://react.dev/warnings/react-test-renderer
+✔ time alone notifies mounted hooks at the expiresAt boundary: the fence turns past, expiry invalidates ready (26.938435ms)
+▶ reconnect after a conditional refresh replays a queued send for joined and plain inboxes
+  ✔ inbox (424.397462ms)
+  ℹ integration.inbox: full seq 1 -> unchanged/full seq 2; differing fields: seq
+  ✔ inboxHeld (451.920217ms)
+  ℹ integration.inboxHeld: full seq 3 -> unchanged/full seq 4; differing fields: seq
+  ✔ inboxPlain (423.17776ms)
+  ℹ integration.inboxPlain: full seq 5 -> unchanged/full seq 6; differing fields: seq
+✔ reconnect after a conditional refresh replays a queued send for joined and plain inboxes (1308.843201ms)
+✔ real scalar-projected log pages retire predictions using engine-minted cursor links after cold reopen (176.401669ms)
+✔ settlement uses the persisted cursor name when live metadata disagrees, with real owner argument validation (779.984744ms)
+✖ the real owner refuses an object wrapper as a resume log instead of promising a tail (68.003064ms)
+✔ sixty live queries and a channel share one connection through add, remove and reconnect (353.126506ms)
+✔ real owner private asset bytes and conditional responses forbid HTTP cache storage (127.518114ms)
+✔ twenty-four refused File mutations recover their staging quota immediately (4020.762901ms)
+✔ cyclic mutation arguments release uploaded bytes without sending a mutation (2913.873688ms)
+✖ failed outbox admission or prediction leaves no upload, intent, or mutation request (2740.327109ms)
+✖ an outbox persistence failure after commit retains media for replay (84.74347ms)
+✔ a lost committed media response retains the claimed asset and explicit discard refuses it (137.171779ms)
+✖ queued media retains its uploaded bytes until the outbox commits (84.327249ms)
+✔ chat once photo uses one message and upload, each member gets one server delivery, and web stores no bytes (472.136958ms)
+✔ offline sendOncePhoto prediction under the message alias has null media and makes no asset fetch (215.720176ms)
+✔ Expo witness seed leaves Alice's schema-once image unconsumed and keeps its clip ordinary (3775.552813ms)
+✔ the package suite is pointed at a checked real owner (10.358681ms)
+ℹ real-owner mode=self-started url=http://127.0.0.1:40457
+✔ a real rejected mutation carries the complete refusal envelope (16.098961ms)
+✔ real owner stop and restart yields stale then a full first re-delivery (1778.712797ms)
+ℹ owner performs a full query re-delivery after reconnect; Last-Event-ID is not a delta-resume contract
+✔ React-free hook driver reduces eight real-owner transitions including live capped and denied (1862.880284ms)
+ℹ hook-driver transitions=hydrating -> complete -> complete -> stale -> complete -> capped -> denied -> refused
+✔ real channel membership revocation ends the subscriber with a refusal (43.035524ms)
+✔ a real stored session restores after a cut with identical snapshot views and no mounted query (32.398769ms)
+✔ serve mode refuses a persona-bound real client (1432.887214ms)
+(node:2642060) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ SQLite driver conformance: BLOBs, JSON keys, rollback, late beforeCommit, and journal mode (275.016875ms)
+ℹ journal_mode=wal; journal_mode readback, BLOB 1, BLOB 1048576, BLOB 0, JSON tuple key round trip, missing row is undefined, rollback on throw, body-ended transaction rejects and next transaction succeeds, late beforeCommit holds transaction, transaction result
+✔ every PersistedRangeState field round-trips on file, IndexedDB, and SQLite (216.68577ms)
+✔ IndexedDB rows without meta survive open with version 1 and default maps on every carrier (230.241621ms)
+✔ warm and reopened coverage, answers, and twin hydration agree on undefined and null on all three carriers (176.818833ms)
+✔ Node COMMIT failure rolls back, preserves the original error, and the next queued BEGIN succeeds (87.359889ms)
+✔ SQLite replace rolls state and byte deltas back when beforeCommit throws (142.064496ms)
+✔ SIGKILL before COMMIT preserves exactly the pre-swap rows and bytes (194.187641ms)
+✔ SIGKILL after COMMIT preserves exactly the post-swap rows and bytes (217.611641ms)
+✔ in-process locks refuse a second client on the partition and release on close (184.091363ms)
+✔ in-process locks scope one partition to its database across separate factories (279.795867ms)
+✔ custom factories share database identity locks while distinct databases do not conflict (261.535534ms)
+✔ Node realpath identity collapses a symlink and uses the deliberate scoped lock symbol (127.1863ms)
+✔ SQLite refuses an identity-less custom driver before reading or writing the database (1.171552ms)
+✔ SQLite refuses unopenable files, a journal mismatch, and competing writes as E_OFFLINE_CARRIER (134.991421ms)
+✔ SQLite wipe deletes only the named partition; shared database and sidecars remain (212.922377ms)
+(node:2642130) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+▶ conditional refresh then same-sequence redelivery survives reopen without accepting equivocation
+  ✔ Node file (25.367493ms)
+  ✔ IndexedDB (26.182475ms)
+  ✔ SQLite (232.307765ms)
+✔ conditional refresh then same-sequence redelivery survives reopen without accepting equivocation (295.158555ms)
+✔ authoritative evictions purge pooled bodies and derived literals on every carrier (211.110962ms)
+✔ array deletion, reordering and limiting preserve fresh identities and independently held rows (4.939274ms)
+✔ uniform range eviction uses engine ordering for Unicode, Bytes and optional values (11.825008ms)
+✔ escaped objects remain literals through collection, viewing, eviction and carrier reopen (226.322635ms)
+✔ held answer callers cannot mutate the store's immutable committed rows (161.510529ms)
+✔ the first metadata-only swap persists normalization of a legacy plaintext fingerprint (208.568613ms)
+✔ a new authenticated epoch accepts a same-seq revalidation then restores duplicate conflict checks (197.516058ms)
+✔ outbox-only SQLite swaps write no unchanged history and do not clone it (267.870813ms)
+✔ outbox-only IndexedDB swaps update only the entry and scalar header, including after reopen (133.245159ms)
+✔ file: query-only successor rebuilds overlapping rows at unchanged seq without a watermark (60.844889ms)
+✔ IndexedDB: query-only successor rebuilds overlapping rows at unchanged seq without a watermark (34.309932ms)
+✔ concurrent G2 and G3 deliveries coalesce into one reset with only G3 answers held (21.379907ms)
+✔ a predecessor response completing after reset is re-issued without reinstalling facts or resetting again (29.710256ms)
+✔ transport reset failure preserves the live read and snapshot refusal; the next query retries (29.892068ms)
+✔ refusal reset failure preserves the live read and snapshot refusal; the next query retries (31.166573ms)
+✔ principal replacement clears pending reads and an in-flight reset cannot cross partitions (24.450098ms)
+fatal: not a git repository (or any of the parent directories): .git
+✔ a mounted subscription cold-opens after supersession without Last-Event-ID or an old validator (31.4575ms)
+✖ tracked Snapback 2 source contains no literal NUL bytes (5.271198ms)
+✔ a reset during the initial drain page cancels old cursors and leaves one tail (35.166822ms)
+✔ a reset during the subsequent drain page cancels old cursors and leaves one tail (29.097795ms)
+✔ failed program reload keeps the durable reset marker and online retries the reset (21.869478ms)
+✔ a terminal reset refusal seals custody while the completed live read stays successful (18.426155ms)
+✔ a second successor between manifest and program coalesces into the same reset (13.259183ms)
+✔ a held-answer probe completing after supersession cannot send its old validator (18.950301ms)
+✔ file: reset drops G1 hidden evidence at N so a successor can disclose at the same N, while viewed custody survives (24.544987ms)
+✔ IndexedDB: reset drops G1 hidden evidence at N so a successor can disclose at the same N, while viewed custody survives (25.967982ms)
+✔ a successor after program load and before the fresh query commits converges within the same flight (15.737081ms)
+✔ a mounted cold reopen discovering G3 during the fresh G2 query feeds the active reset flight (32.854646ms)
+✔ three fresh-query rotations record a durable refusal instead of reporting convergence (22.871932ms)
+✔ file: cold-start convergence exhaustion resolves ready and online retries on the same client (36.20825ms)
+✔ file: cancelled reset program adoption and settlement racing login with a grant cannot deadlock the ledger (24.425422ms)
+✔ IndexedDB: cold-start convergence exhaustion resolves ready and online retries on the same client (47.347598ms)
+✔ IndexedDB: cancelled reset program adoption and settlement racing login with a grant cannot deadlock the ledger (27.520149ms)
+✔ file: an obsolete settlement tail stays queued and cannot supersede G3; retry settles atomically with G3 rows (40.029012ms)
+✔ IndexedDB: an obsolete settlement tail stays queued and cannot supersede G3; retry settles atomically with G3 rows (50.188188ms)
+✔ login aborts a reset during program reload and late work never crosses custody (15.770624ms)
+✔ login aborts a reset during fresh query and late work never crosses custody (15.416528ms)
+✔ logout aborts a reset during program reload and late work never crosses custody (13.251879ms)
+✔ logout aborts a reset during fresh query and late work never crosses custody (15.22032ms)
+✔ close aborts a reset during program reload and late work never crosses custody (14.883757ms)
+✔ close aborts a reset during fresh query and late work never crosses custody (15.613088ms)
+✔ file: cold reopen mid-rebuild preserves the pending marker and reruns mounted coverage before clearing it (22.572389ms)
+✔ file: a failed program custody swap preserves the predecessor and refuses the reset until retry (21.075014ms)
+✔ IndexedDB: cold reopen mid-rebuild preserves the pending marker and reruns mounted coverage before clearing it (26.390827ms)
+✔ IndexedDB: a failed program custody swap preserves the predecessor and refuses the reset until retry (26.102394ms)
+✔ first facts after reset must match the epoch authenticated by the predecessor and reset probe (17.574765ms)
+✔ an actual owner epoch transition refuses resume before generation and seals the old session (11.583383ms)
+✔ reset clears a terminal subscription latch and cold-opens it again (21.58325ms)
+✔ a frame decoding across reopen cannot commit or restore the predecessor event id (283.95197ms)
+✔ a terminal session frame already decoding across reset still retires the bearer and seals custody (26.186443ms)
+(node:2642168) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ hydration from coverage rebuilds every envelope golden's ClosureReceipt byte-identically (42.631654ms)
+✔ a json column shaped like the byte variant rebuilds as application data, never as bytes (2.375986ms)
+✔ every corpus query round-trips through the store; replay matches its inputs and an unpinned read clock refuses (1680.292377ms)
+✔ program custody is fetched, held per generation on all three carriers, serves a cold start with the owner cut, and is fenced by generation and auth epoch (319.752514ms)
+✔ partial reads name their reason: never-held, computed-key, and evicted (30.857171ms)
+✔ an offline send is predicted into the thread in order with its trace, a delete is predicted out, an uncovered read queues without a trace, and the overlay leaves when the rows arrive (41.707828ms)
+✔ a committed intent's overlay survives unrelated answers and an empty current-tail page; leaves with its predicted row; and two resumes retire a stranded prediction (9.388207ms)
+✔ a ReferenceError from tagArguments surfaces on query and mutation, never as hydrating or an empty trace (5.339447ms)
+✔ an online query under a new generation immediately resets and rebuilds fresh coverage without an explicit online() (34.945206ms)
+✔ a settlement swap that also carries a prediction never resurrects what it settled (2.011ms)
+✔ E_OFFLINE_RESET re-fetches the live generation's program, replaces the bounds whole, and drains the queue (22.538264ms)
+✔ an unseen schema shape is hydrating: a novel index field or column payload is refused, never hashes as the known shape, and a write queues without a prediction (23.015923ms)
+✔ evicting a middle row of a drained page makes the never-opened thread partial with reason evicted, not fresh (11.56556ms)
+✔ a connected subscription without a local store becomes hydrating on transport loss (6.523492ms)
+✔ a no-store subscription clears connected on its next ordinary frame before transport loss (1.560473ms)
+✔ connected envelopes never enter coverage, including with missing program custody and repeated durable seq (5.464001ms)
+✔ a delivery whose generation has no held program is hydrating until the program lands (13.926948ms)
+✔ connected stays hydrating despite a cached zero or count, cold reopen, and never predicts a gated mutation (14.250887ms)
+✔ covered evaluation errors surface; typed local mutation refusals omit prediction and JS bugs propagate (5.936669ms)
+✔ file: a G1 prediction overlay fails closed after a schema reset until it is retired (22.060687ms)
+✔ SQLite: a G1 prediction overlay fails closed after a schema reset until it is retired (263.109242ms)
+✔ IndexedDB: a G1 prediction overlay fails closed after a schema reset until it is retired (43.751479ms)
+✔ overlay put and remove bugs escape the hydrate catch boundary (20.599641ms)
+ℹ tests 518
+ℹ suites 0
+ℹ pass 513
+ℹ fail 5
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 29701.329128
+
+✖ failing tests:
+
+test at tests/real-owner.test.ts:187:1
+✖ the real owner refuses an object wrapper as a resume log instead of promising a tail (68.003064ms)
+  AssertionError [ERR_ASSERTION]: The input did not match the regular expression /returns no page/. Input:
+  
+  'operation integration.inboxObject cannot drain/resume a log (cursor-binding); every returned page must ascend after the same cursor with at most 50 rows'
+  
+      at TestContext.<anonymous> (file:///home/ccheever/lanes/snapback2-dx/snapback2/packages/snapback2/tests/real-owner.test.ts:210:10)
+      at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 'operation integration.inboxObject cannot drain/resume a log (cursor-binding); every returned page must ascend after the same cursor with at most 50 rows',
+    expected: /returns no page/,
+    operator: 'match',
+    diff: 'simple'
+  }
+
+test at tests/real-owner.test.ts:326:1
+✖ failed outbox admission or prediction leaves no upload, intent, or mutation request (2740.327109ms)
+  SnapbackRefusal: operation messages.thread cannot drain/resume a log (descending); every returned page must ascend after the same cursor with at most 50 rows
+      at Gt.refuse (file:///home/ccheever/lanes/snapback2-dx/snapback2/packages/snapback2/dist/client.mjs:9:108163)
+      at file:///home/ccheever/lanes/snapback2-dx/snapback2/packages/snapback2/dist/client.mjs:9:108342
+      at process.processTicksAndRejections (node:internal/process/task_queues:103:5) {
+    envelope: { code: 'E_OFFLINE_RESUME', family: 'offline', guide: 'offline', reason: 'unsupported-log', which: 'log', op: 'messages.thread', shape: 'descending', site: 'client.subscribe.drain', message: 'operation messages.thread cannot drain/resume a log (descending); every returned page must ascend after the same cursor with at most 50 rows', rewrite: 'use an ascending delivery log (after c first N, N <= 50); subscribe normally at c: null for newest-first data; reconnect if metadata is unavailable; queued writes are kept' },
+    code: 'E_OFFLINE_RESUME',
+    retryable: false,
+    status: undefined
+  }
+
+test at tests/real-owner.test.ts:362:1
+✖ an outbox persistence failure after commit retains media for replay (84.74347ms)
+  SnapbackRefusal: operation messages.thread cannot drain/resume a log (descending); every returned page must ascend after the same cursor with at most 50 rows
+      at Gt.refuse (file:///home/ccheever/lanes/snapback2-dx/snapback2/packages/snapback2/dist/client.mjs:9:108163)
+      at Object.refuse (file:///home/ccheever/lanes/snapback2-dx/snapback2/packages/snapback2/dist/client.mjs:9:116552)
+      at Nn (file:///home/ccheever/lanes/snapback2-dx/snapback2/packages/snapback2/dist/client.mjs:9:117656)
+      at file:///home/ccheever/lanes/snapback2-dx/snapback2/packages/snapback2/dist/client.mjs:9:168754 {
+    envelope: { code: 'E_OFFLINE_RESUME', family: 'offline', guide: 'offline', reason: 'unsupported-log', which: 'log', op: 'messages.thread', shape: 'descending', site: 'client.subscribe.drain', message: 'operation messages.thread cannot drain/resume a log (descending); every returned page must ascend after the same cursor with at most 50 rows', rewrite: 'use an ascending delivery log (after c first N, N <= 50); subscribe normally at c: null for newest-first data; reconnect if metadata is unavailable; queued writes are kept' },
+    code: 'E_OFFLINE_RESUME',
+    retryable: false,
+    status: undefined
+  }
+
+test at tests/real-owner.test.ts:423:1
+✖ queued media retains its uploaded bytes until the outbox commits (84.327249ms)
+  SnapbackRefusal: operation messages.thread cannot drain/resume a log (descending); every returned page must ascend after the same cursor with at most 50 rows
+      at Gt.refuse (file:///home/ccheever/lanes/snapback2-dx/snapback2/packages/snapback2/dist/client.mjs:9:108163)
+      at Object.refuse (file:///home/ccheever/lanes/snapback2-dx/snapback2/packages/snapback2/dist/client.mjs:9:116552)
+      at Nn (file:///home/ccheever/lanes/snapback2-dx/snapback2/packages/snapback2/dist/client.mjs:9:117656)
+      at file:///home/ccheever/lanes/snapback2-dx/snapback2/packages/snapback2/dist/client.mjs:9:168754 {
+    envelope: { code: 'E_OFFLINE_RESUME', family: 'offline', guide: 'offline', reason: 'unsupported-log', which: 'log', op: 'messages.thread', shape: 'descending', site: 'client.subscribe.drain', message: 'operation messages.thread cannot drain/resume a log (descending); every returned page must ascend after the same cursor with at most 50 rows', rewrite: 'use an ascending delivery log (after c first N, N <= 50); subscribe normally at c: null for newest-first data; reconnect if metadata is unavailable; queued writes are kept' },
+    code: 'E_OFFLINE_RESUME',
+    retryable: false,
+    status: undefined
+  }
+
+test at tests/supersession.test.ts:243:1
+✖ tracked Snapback 2 source contains no literal NUL bytes (5.271198ms)
+  Error: Command failed: git ls-files --cached --others --exclude-standard -z -- snapback2
+  fatal: not a git repository (or any of the parent directories): .git
+  
+      at genericNodeError (node:internal/errors:985:15)
+      at wrappedFn (node:internal/errors:539:14)
+      at checkExecSyncError (node:child_process:925:11)
+      at execFileSync (node:child_process:961:15)
+      at TestContext.<anonymous> (file:///home/ccheever/lanes/snapback2-dx/snapback2/packages/snapback2/tests/supersession.test.ts:245:17)
+      at Test.runInAsyncScope (node:async_hooks:214:14)
+      at Test.run (node:internal/test_runner/test:1103:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:785:18)
+      at Test.postRun (node:internal/test_runner/test:1232:19)
+      at Test.run (node:internal/test_runner/test:1160:12) {
+    status: 128,
+    signal: null,
+    output: [ null, <Buffer >, <Buffer 66 61 74 61 6c 3a 20 6e 6f 74 20 61 20 67 69 74 20 72 65 70 6f 73 69 74 6f 72 79 20 28 6f 72 20 61 6e 79 20 6f 66 20 74 68 65 20 70 61 72 65 6e 74 20 ... 19 more bytes> ],
+    pid: 2642217,
+    stdout: <Buffer >,
+    stderr: <Buffer 66 61 74 61 6c 3a 20 6e 6f 74 20 61 20 67 69 74 20 72 65 70 6f 73 69 74 6f 72 79 20 28 6f 72 20 61 6e 79 20 6f 66 20 74 68 65 20 70 61 72 65 6e 74 20 ... 19 more bytes>
+  }
+== cargo-nextest workspace tests (parallel, no fail-fast)
+ Downloading crates ...
+  Downloaded diff v0.1.13
+  Downloaded cfg-expr v0.20.9
+  Downloaded enumn v0.1.14
+  Downloaded four-cc v0.4.0
+  Downloaded indexmap v2.14.1
+  Downloaded libheif-sys v5.3.1+1.23.1
+  Downloaded libheif-rs v3.0.0
+  Downloaded owo-colors v4.4.0
+  Downloaded oxc_sourcemap v8.1.2
+  Downloaded pretty_assertions v1.4.1
+  Downloaded serde_spanned v1.1.1
+  Downloaded system-deps v8.0.0
+  Downloaded toml_parser v1.1.3+spec-1.1.0
+  Downloaded toml_datetime v1.1.1+spec-1.1.0
+  Downloaded toml_writer v1.1.2+spec-1.1.0
+  Downloaded toml v1.1.5+spec-1.1.0
+  Downloaded version-compare v0.2.1
+  Downloaded winnow v1.0.4
+  Downloaded yansi v1.0.1
+   Compiling bitflags v2.13.1
+   Compiling yansi v1.0.1
+   Compiling diff v0.1.13
+   Compiling rustix v1.1.4
+   Compiling linux-raw-sys v0.12.1
+   Compiling fastrand v2.5.0
+   Compiling rusqlite v0.32.1
+   Compiling png v0.18.1
+   Compiling pretty_assertions v1.4.1
+   Compiling snapback2-core v0.0.14 (/home/ccheever/lanes/snapback2-dx/snapback2/crates/snapback2-core)
+   Compiling image v0.25.10
+   Compiling tempfile v3.27.0
+   Compiling snapback2-media v0.0.14 (/home/ccheever/lanes/snapback2-dx/snapback2/crates/snapback2-media)
+   Compiling snapback2-effects v0.0.14 (/home/ccheever/lanes/snapback2-dx/snapback2/crates/snapback2-effects)
+   Compiling snapback2 v0.0.14 (/home/ccheever/lanes/snapback2-dx/snapback2/crates/snapback2)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 25.70s
+────────────
+ Nextest run ID b0eea7d4-d140-4261-a0af-4b940311424e with nextest profile: local-proof
+    Starting 787 tests across 43 binaries (4 tests skipped)
+        FAIL [   2.867s] (  6/787) snapback2::assets asset_server_upload_delivery_carrier_revoke_and_reset_round_trip
+  stdout ───
+
+    running 1 test
+    test asset_server_upload_delivery_carrier_revoke_and_reset_round_trip ... FAILED
+
+    failures:
+
+    failures:
+        asset_server_upload_delivery_carrier_revoke_and_reset_round_trip
+
+    test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 10 filtered out; finished in 2.86s
+
+  stderr ───
+
+    thread 'asset_server_upload_delivery_carrier_revoke_and_reset_round_trip' (2650687) panicked at crates/snapback2/tests/assets.rs:697:6:
+    called `Result::unwrap()` on an `Err` value: Os { code: 2, kind: NotFound, message: "No such file or directory" }
+    note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+        FAIL [   0.142s] ( 12/787) snapback2::guide offline_guide_page_respects_its_budget_and_its_codes_have_pages
+  stdout ───
+
+    running 1 test
+    test offline_guide_page_respects_its_budget_and_its_codes_have_pages ... FAILED
+
+    failures:
+
+    failures:
+        offline_guide_page_respects_its_budget_and_its_codes_have_pages
+
+    test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 12 filtered out; finished in 0.14s
+
+  stderr ───
+
+    thread 'offline_guide_page_respects_its_budget_and_its_codes_have_pages' (2651330) panicked at crates/snapback2/tests/guide.rs:479:9:
+    offline guide lacks conflict
+    note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+        FAIL [  16.028s] ( 87/787) snapback2::owner owner_cases::jobs_queue::jobs_queue_position_paging_beyond_500_commits_receipt_plan_and_state_refusals
+  stdout ───
+
+    running 1 test
+    J1b 510 idle chunks in 11.46s
+    test owner_cases::jobs_queue::jobs_queue_position_paging_beyond_500_commits_receipt_plan_and_state_refusals ... FAILED
+
+    failures:
+
+    failures:
+        owner_cases::jobs_queue::jobs_queue_position_paging_beyond_500_commits_receipt_plan_and_state_refusals
+
+    test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 87 filtered out; finished in 16.02s
+
+  stderr ───
+
+    thread 'owner_cases::jobs_queue::jobs_queue_position_paging_beyond_500_commits_receipt_plan_and_state_refusals' (2653797) panicked at crates/snapback2/tests/owner_cases/jobs_queue.rs:50:5:
+    idle chunks must run back to back: 11.464916442s
+    note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+────────────
+     Summary [ 106.182s] 787 tests run: 784 passed, 3 failed, 4 skipped
+        FAIL [   2.867s] (  6/787) snapback2::assets asset_server_upload_delivery_carrier_revoke_and_reset_round_trip
+  stdout ───
+
+    running 1 test
+    test asset_server_upload_delivery_carrier_revoke_and_reset_round_trip ... FAILED
+
+    failures:
+
+    failures:
+        asset_server_upload_delivery_carrier_revoke_and_reset_round_trip
+
+    test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 10 filtered out; finished in 2.86s
+
+  stderr ───
+
+    thread 'asset_server_upload_delivery_carrier_revoke_and_reset_round_trip' (2650687) panicked at crates/snapback2/tests/assets.rs:697:6:
+    called `Result::unwrap()` on an `Err` value: Os { code: 2, kind: NotFound, message: "No such file or directory" }
+    note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+        FAIL [   0.142s] ( 12/787) snapback2::guide offline_guide_page_respects_its_budget_and_its_codes_have_pages
+  stdout ───
+
+    running 1 test
+    test offline_guide_page_respects_its_budget_and_its_codes_have_pages ... FAILED
+
+    failures:
+
+    failures:
+        offline_guide_page_respects_its_budget_and_its_codes_have_pages
+
+    test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 12 filtered out; finished in 0.14s
+
+  stderr ───
+
+    thread 'offline_guide_page_respects_its_budget_and_its_codes_have_pages' (2651330) panicked at crates/snapback2/tests/guide.rs:479:9:
+    offline guide lacks conflict
+    note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+        FAIL [  16.028s] ( 87/787) snapback2::owner owner_cases::jobs_queue::jobs_queue_position_paging_beyond_500_commits_receipt_plan_and_state_refusals
+  stdout ───
+
+    running 1 test
+    J1b 510 idle chunks in 11.46s
+    test owner_cases::jobs_queue::jobs_queue_position_paging_beyond_500_commits_receipt_plan_and_state_refusals ... FAILED
+
+    failures:
+
+    failures:
+        owner_cases::jobs_queue::jobs_queue_position_paging_beyond_500_commits_receipt_plan_and_state_refusals
+
+    test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 87 filtered out; finished in 16.02s
+
+  stderr ───
+
+    thread 'owner_cases::jobs_queue::jobs_queue_position_paging_beyond_500_commits_receipt_plan_and_state_refusals' (2653797) panicked at crates/snapback2/tests/owner_cases/jobs_queue.rs:50:5:
+    idle chunks must run back to back: 11.464916442s
+    note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+error: test run failed
+== cargo workspace doctests (no fail-fast)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+== evaluator (IR twin vs corpus)
+Unicode/search foundation: 20034 normalization rows + unlisted scalars, 1512 C/S folds, bounds and logical keys; tables 29bb626cbddaec2bce2cc1efcac329a9ea07ee725322155b791005cd7781b9e8
+{"visibilityChecks":2,"passed":2,"failed":0}
+{"cases":218,"passed":218,"serverOnly":25,"failed":0,"corruptionPath":"replay-mismatch"}
+== compiler type checking
+$ node ../snapback2/build.mjs --unicode-only && tsc -p tsconfig.json
+== compiler tests
+{"checks":405,"passed":402,"failed":3,"names":["preparatory search contracts preserve explicit components and independent operation Q","transition rules and final-exists constraints lower to the approved IR","transition-only rule terms are rejected outside their table effects","created probes certify target, index, arity, and nominal key types","final-exists constraints preserve malformed semantic shapes and certify them","transition authoring declarations distinguish created table identifiers from final table names","removed system rule refuses in the parser with a deny rewrite","Quarry todos and full surface lower in memory and certify","Quarry named shapes expand in every use position and print as authored","Quarry nested named-shape collections isolate expansions and iterations under RBAC and cursors","Quarry named shapes refuse placement, cycles, depth, and carry definition plus use sites","Quarry imported shapes share lexical projections, unique temporaries, and page provenance","Quarry imported-shape lowering refusals rewrite the definition and identify its caller","Quarry shape imports refuse missing declarations, cycles, captures, and expansion blowups","image once is column custody, carries through lowering, and video refuses with a range repair","Quarry accepts word writes and refuses every write sigil with the word forms","Quarry image/video spellings lower as closed records through IR, manifest descriptors, and API types","asset IR rustCheck round trip — SKIP while lane A rejects Image","asset index and maintain.by matrices refuse scalar, video, optional, and list forms","Quarry recursively rejects image/video assignment mismatches and literal record forges","the TypeScript lowering twin diagnoses missing asset fields and preserves descriptor/API shapes","seed assets use E_SCHEMA_ASSET_SEED recursively while optional null remains allowed","asset records reject unknown fields with a typed Quarry rewrite and have no legacy URL compatibility","Quarry money and decimal spellings preserve scale through IR and API types","Quarry money and decimal refusals are nominal, exact-scale, and sited","Quarry composite unique-key writes lower through row identity and certify","Quarry addressed key columns refuse disagreement and paste drop-field rewrites","Quarry upsert rows refuse every authored id with a drop-field rewrite","Quarry Clique M1-M3 plus Pay regression fixture lowers and certifies all 38 operations","Quarry Clique nested row shapes use selected column widths","Quarry table and operation names occupy separate generated bindings","Quarry refuses operation names captured by generated imports at the declaration","Quarry effects, maintains, aggregate sugar, returns, objects, and count reach IR","Quarry cursor arguments lower as opaque values and certify a result-page site","Quarry range modifiers refuse permutations and repeats with the complete canonical read","Quarry refuses before with a forward after rewrite","Quarry result-page provenance covers bindings, shapes, merges, nesting, branches, and consumers","Quarry conditional range and discovered merge pages keep branch-local shapes and cursor scope","Quarry merge keeps nullable lane-prefix guards inside each discovered lane","Quarry merge lowers bounded lanes, records its certificate site, and refuses malformed lanes","Quarry cursors require a total index and pageable merges end in id","Quarry alternate-key unreadable updates are NOT_FOUND while direct-id updates are E_RULE","Quarry alternate-key update and upsert id fields are front-end refusals","Quarry consumed updates and upserts return authorized row snapshots with one evaluation","Quarry maps platform refusals and operation source sites back to .q","Quarry parser recovers and every refusal envelope is complete","Quarry conditions require Boolean operands and null is an explicit presence test","Quarry optional-column equality and inequality execute with total semantics","Quarry ordered comparison refuses an optional operand with an assertion rewrite","Quarry null equality works in either operand position without weakening nominal types","Quarry if presence tests narrow only the then-branch binding identity","Quarry where emits the schema index and indexed-prefix repairs","Quarry filter repairs preserve named keys, ordering, and pageable result provenance","Quarry filter repairs do not hoist row work or suggest non-scalar indexes","Quarry rule binders use focal dot and two-binding updates retain row images","Quarry maintain readable rules are typed against the materialized target","Quarry result annotations are refused because results are inferred","Quarry channel properties recover per line","Quarry index inference prefers an exact-length probe over a longer prefix","Quarry index inference matches known reference tables","Quarry refuses every reserved generated binding with a sited rename rewrite","Quarry validates compound and range keys against the selected index types","Quarry reference-table identity rejects named, inferred, and ranged cross-table keys","Quarry focal detection covers every expression container used by patches","Quarry focal patch preludes remain callback-local and preserve field order","Quarry shaped pages retain spread/override field types and reference identity","Quarry walked rows and shaped page rows stay row/object values","Quarry mid-body matches discard arm values and accept write-only arms","every Quarry diagnostic family rewrite is fenced parseable Quarry","principal remains nominal in Quarry rules and program values","db.insert row expressions are bound once and share the returned variable","Quarry mutually exclusive branch writes share the certifier/runtime bound","Quarry-only authoring and module placement are exact","Quarry jobs lower independent sweeps with typed prefixes and per-chunk engine writes","Quarry jobs refuse statements between chunks and cross-chunk bindings","Job guide recipe is the compiled fixture and mutable keys refuse at check","The narrowing refusal's pasted job lowers with its typed argument, enum quoting included, and certifies","A job that is not only chunk blocks refuses as E_JOB_SHAPE in the job family, naming the statement","No chat template mutation patches an immutable messages key","Quarry schedules lower row and period triggers into certified bindings on the schema","Quarry schedules refuse non-time columns, bad targets, and sub-minute or calendar durations with the schedule family","Schedule guide snippets are the compiled fixture and the chat template's server-side expiry","Quarry money builtins and branded multiplication preserve descriptors in TypeScript and IR","Quarry money builtins refuse arity, nominal, divisor, and currency-squared errors with rewrites","Quarry negation and fractional-rate refusals name the exact numeric forms","literal amounts widen through divmod and share so literal comparisons type-check","Quarry rejects a decimal literal beyond its scale at the authored q site","Quarry caps decimal and money descriptors at scale 12","operation money arguments are minor-unit numbers while results remain branded","computed money results retain named brands in generated API declarations","maintained money operands hoist absence fallback before exact builtins","Clique Pay lowers and certifies the exact 38-operation inventory","connected schema declarations refuse instead of disappearing in the TS lowerer","connected refuses Quarry maintains and table rules with a site and rewrite","connected rule refusal preserves exists connected[viewer]","connected rule refusal preserves created connected[viewer]","connected rule refusal preserves exists connected[.owner]","connected rule refusal preserves created connected[principal = .owner]","connected certifies one probe per principal read and refuses nonprogram surfaces","Quarry time difference and epoch divmod have integer parts","Quarry time arithmetic refuses undefined and absent operands with the rule","Quarry null selects optional maintained, point, exists, rule and cap keys","Quarry null equality in write objects is not a required Id sink","Quarry null cap probes remain true after the twin refuses a third omitted-parent row","Quarry optional access lowers in nested objects, comparisons, defaults and calls","Quarry optional access lowers in update patches without a coalesce workaround","Callback write keys hoist optional access once before reading the current row","Optional call operands evaluate a clock base once inside the original branch","Quarry divmod tuple binds once and preserves decimal and money parts","Quarry non-empty Id literals work in named and positional keys, equality and fallback","Quarry Id positions refuse empty literals, computed text and other-table references","Quarry naming rewrites contain catalog types and preserve a concrete repair","Unexpected Quarry failures preserve the caught message as guidance","Schedule arguments preserve generic ids while rejecting a different nominal table","Quarry merge Id literal prefixes accept positional and named keys, refusing computed text","Quarry optional list domains refuse before an omitted column can reach array execution","Argument list domains retain ArgList identity while column defaults carry max 8","Quarry bounded list columns survive aliases, optional narrowing, coalescing and nested shapes","Quarry json lists still lack a static cardinality","generated API types every Clique shaped result without any-typed fields","generated API types surface pages, collisions, and walk results","generated API types preserve branded assets through rows and shaped pages","an empty-list return arm is absorbed into its sibling array type","spread overrides omit every colliding row key","structured inference preserves exact money builtin results","single-path inference deliberately types chat insert branches","a Clique journey consumes shaped money rows with nominal result types","template journeys resolve real API types and expose optional partial data","Quarry retention policies are single tokens and parse with an omitted default","Quarry retention refusals are sited and rewrite to both valid spellings","Quarry retention words are contextual and subtraction keeps its token shape","Quarry retention lowers into every project JSON table","Quarry cap syntax and grouping refusals retain their declaration site","Quarry cap lowers once and Rust admits indexes even without writers","implicit id is an indexable cap column alone and in a tuple","unsupported rule prefix repairs give direction without unbound pasted names","chat groupCreate prices its same-key count-backed cap once per write","Quarry fanout uncapped refuses and its pasted repair certifies","Quarry fanout below cap refuses and its pasted repair certifies","Quarry fanout let-bound uncapped refuses and its pasted repair certifies","Quarry fanout nonuniform rule refuses and its pasted repair certifies","Quarry fanout cursor refuses and its pasted repair certifies","Quarry fanout nonuniform elsewhere refuses and its pasted repair certifies","Quarry complete pages certify directly, through identities and shapes, and over longer prefixes; queries are uncapped","fanout raw argument bound and known transformed binding paste literal/head repairs; unknown and merge honestly refuse","effect ES2020 witness compiles every admitted global and the full prelude response shape","effect refusals keep their family inside locals and reject non-runtime globals","effects use ES2020 types while Quarry and its generated checker retain the subset","one effect signature supplies all three metadata fields","authored helper modules get ES2020 with or without an effect export","static imports inside run refuse E_EFFECT_IMPORT","Quarry and effect diagnostics are each reported once by their own checker","the benchmark notification payload can project body.substring inside run","TextDecoder exposes no unwitnessed constructor or streaming options","compiler and Rust distinguish lowered viewer identity from a shadowed ctx","compiler uniformity mirror decides self probes and Or arms from actual prefix values","compiler self probe requires the complete nonoptional unique key on the same table","compiler literal truth uses column scaling instead of the numeric source spelling","Quarry membership self-probe enriched page","Quarry membership self-probe enriched merge","Quarry membership self-probe covering fanout","Quarry membership self-probe short fanout","F21 evaluator preserves colons in authored require codes","F8 only an exact authority-issued byId absence initializes a maintained target","F6 Cap checks updates entering full single- and multi-field groups","F15 certificate identity canonicalizes Rust BTreeMap fields","schema index width is refused before storage","authored update patches cannot carry id","F14 upsert certification distinguishes separately consuming identities","F14 evaluator rejects upsert identity divergence atomically","collection operands lower once and Map/Set preserve JavaScript uniqueness","Map.set evaluates key before setup-bearing value","Map and Set use JavaScript SameValueZero for primitive authored values","composite Map keys and Set values refuse before identity is lost","builtin arities are enforced and variadic min/max lower without truncation","Quarry-shaped Id composites certify and execute without scalar false positives","the evaluator refuses a sliced short tuple cursor exactly like the engine","cursor and viewer parity accepts valid values and rejects known wrong domains","every remaining args refusal predicate is also runtime-red","cursor-index and Id-text guide right forms type-check, lower, and certify","Decimal and Money rule literals use their schema scale","journey output cleanup refuses symlinked project components","optional row access returns null instead of dereferencing absence","optional row access guards the remainder of its property chain","authored __proto__, constructor, and prototype keys survive every lowering boundary","recurse accepts only the bound row and the operation db binding","row fields named length lower as fields","nested known object fields named length lower as fields","logical and nullish expressions guard all right-hand work","single-interpolation templates always return strings","sort comparators must use opposite parameters and one field","unsafe authored integer literals are refused before Number rounding","unsupported array callback index parameters refuse at compile time","filter executes lowered predicate setup inside each iteration","generated row aliases reject normalized collisions","journey import rewriting touches only module specifiers","F18 journey checking does not publish a successor API before owner admission","nested operation modules are diagnosed instead of omitted","unknown scan order strings are refused","seed validation checks personas, tables, rows, and every schema value shape","decimal and money seeds normalize whole-unit numbers and strings recursively","seed Bytes values require one exact externally tagged key","seed object spreads preserve authored rows and text maxima count Unicode scalars","F9 Rust package fixtures reclaim a dead package-build owner","F10 concurrent stale reclaimers cannot remove the winner's live lock","F19 blocking self-test uses a GNU-portable nonempty mktemp fixture","F20 publish self-test preserves a durable resume across dry-run staging","a killed package builder leaves a lock that the next build reclaims","publish builds its clean package snapshot before doctor and resumes a partial pair","the package shim reports spawn errors and preserves child signals","Page has no certify-time hasMore property","tuple cursors refuse only statically known runtime-invalid arity","missing point-read cursors stay runtime-authoritative while objects refuse","twin rejects every non-indexable index ingress with engine wording","valid tuple cursors lower and certify","module-helper tuple cursors use a structural return shape","loop-bound rows retain their table fact for tuple cursors","raw IR refuses known cursor arity and domains while staying silent on unknown shapes","cursor rewrites ignore rows from other tables and add typed cursor arguments","shared string literals lower per Id and Text sink in either property order","Id arithmetic refuses while runtime-valid Id textualization stays silent outside an Id sink","Id scalar rewrites bind the actual context and paste cleanly","shorthand insert Id rewrites to a property and assigned Id bindings stay runtime-authoritative","array-destructuring types follow helper structure rather than helper spelling","viewer aliases inhabit every runtime Id and Ref position","runtime-accepted read-key scalars and viewer authority are never rewritten","raw IR write certification rejects invalid Id literals and Id concatenation","stable let, helper, and inline array prefixes lower the same Id cursor and page","a reassigned let prefix keeps unknown arity silent","a full-prefix cursor rewrite removes both bounds and both twins reject the raw IR","overlong scan prefixes and point keys refuse before cursor analysis in the twin and certifier","one-column wrong-domain cursor repair is typed and not a no-op","IndexableScalar declarations admit Json while lowering refuses known object cursors","identity retargeting cannot overwrite a parent Bool cursor component","Decimal cursor components structurally match Int index columns","raw page field access is certify-red and twin-red","identity equality retargets text literals in every operand position","an optional Id nullish fallback lowers as an Id value","S1 project preserves all 17 bodies and certificate bounds with native argument types","the authored module requires imports and keeps the deterministic subset","optional property access lowers to a null-guarded conditional","one module reports every policy refusal instead of failing fast","one operation reports every lowering refusal and marks diagnostic truncation","multi-declarations and unbraced control bodies report every lowering refusal","all first-attempt refusals carry complete envelopes and mechanical rewrites","bound and collection callback fixtures still certify","count and reduce retain O(1) closure through page bindings","structural policy admits prefix-uniform private scans and refuses non-uniform twins","actual collection lowerings preserve capped page provenance through structural sinks","authored collected capped pages may return but cannot be inserted","loop collection refusals name bounds and fields without replacing the result","bound rewrite uses the refusing table's declared row width","object and array spreads lower only from static shapes and preserve override order","argument spreads expand module constants or refuse without dropping fields","non-static table and index references are sited opaque refusals, never thrown errors","snapback2 constructors resolve through named aliases and namespace imports, while empty modules refuse","the thenable property name is reserved at every generated API path","application require codes cannot impersonate platform auth refusals","schema and program namespace imports resolve table, index, emit, and then references","effect globals are available with the one-parameter run form","compiler lowering is split below the one-thousand-line source budget","project type diagnostics choose schema, args, opaque, and effect families by site","single-file type diagnostics choose the same family from the authored site","client, React, and test modules expose their real callable surfaces","authenticated client viewers inhabit generated Principal arguments","schema and effect refusals rewrite only the failing declaration","chat and todos lower schema, channels, effects, emit, API types, seed, and journeys","ref operation arguments retain their schema table in the engine IR","Principal columns and arguments stay nominal across lowering and generated APIs","ordinary strings and table refs cannot fill Principal insert, update, or argument values","Decimal, Money, and Enum descriptors type APIs and lower fractional literals to integer wire values","invalid Principal, Decimal, Money, and Enum descriptors refuse with sited descriptor rewrites","seed text values reject disallowed C0 controls and accept the priced set","Decimal, Money, and Enum descriptors type APIs and lower fractional literals to integer wire values","Decimal type facts follow lexical args and ctx bindings instead of identifier spelling","nested handler destructuring refuses with an explicit-access rewrite","duplicate operation composite bindings refuse in both orders with a single-binding rewrite","parenthesized and asserted operation composites preserve Decimal scales","helper literals are scaled per expansion context in both call orders","loop domains distinguish shadowed locals from the operation args composite","API result inference honors lexical args shadowing","long binary chains are linear-time, preserve Decimal scaling, and stop at the analysis guard","helper DAG expansion is bounded by contextual visits","Bytes descriptors lower for columns and args with the existing schema refusal family","rule literals encode Bytes only at Bytes schema positions","schema descriptor maxima stop at the Rust u32 representation","invalid Decimal, Money, and Enum descriptors refuse with sited descriptor rewrites","ambiguous provenance refuses with a complete envelope and compiling direct-origin rewrite","the real LLP 0329.017 C4 trio is body-derived and reproducible","identical helper bodies classify identically regardless of helper name","unknown origins stay ambiguous through immutable aliases and composite properties","property provenance follows composite members while proven row fields stay Shape","memberOf combines its actual members so explicit transforms dominate","loop and orderedPair bindings retain mutable-origin ambiguity","later object spreads resolve required args and refuse optional overrides","args and ctx are composites through unwrap, helpers, aliases, and spreads","nested immutable composites follow the selected leaf","collection elements are classified as alternatives at the selected path","stable let bindings, lexical shadowing, and renamed handler composites are spelling-independent","block-local shadowing ends at the block boundary","block-local declarations are unavailable after the block","reads inside a block use the block-local initializer","if-branch shadowing ends at the branch boundary","block updates preserve collection bounds on outer bindings","block updates preserve db.require narrowing on outer bindings","if-branch updates preserve conservative collection bounds on outer bindings","if-branch updates preserve db.require narrowing on outer bindings","orderedPair defaults refuse instead of disappearing from IR","recursive provenance expansion refuses with an envelope and finite depth","identity maps and filters preserve rows while transformed maps classify their return elements","slice, sort, and flatMap retain row and transformed-element origins","ordinary elements and directly mapped spreads classify each alternative","renamed args list domains retain their declared ArgList bound","nested literal and immutable object collection bounds compose","mutable rewrite candidates include every assigned direct origin","immutable aliases classify in their bind-time lexical environment","mutation and db recognition follow lexical binding identity","push couples static bounds and per-element provenance","ambiguous rewrites never guess an argument from a selected member name","deep operation-argument paths deliberately retain Arg origin","filter preserves row proof through aliases and a second filtering layer","update operands allocate sites in source order and callback keys lower once","ambiguous helper rewrites are scoped to the authored scan key","adversarial extra alias, helper, spread, and specialization layers stay uniform","site and certificate identity survive helper rename, extraction, inline, and reformat","read ordinals follow source order and carry each read's provenance into its certificate","nested nullish reads allocate ordinals left to right","site ordinals count writes in the export's source order","project lowering refuses duplicate module basenames before site identities can collide","loop-bound pushes retain every real candidate and paste a refusal","ternary members over loop bindings retain complete candidate origins","conditional members retain real candidates without an argument-name guess","push never widens a bounded argument collection without element origins","collection mutation refuses both alias copy-semantics divergence directions","generated-looking collection names retain ordinary alias and escape safety","unaliased literal accumulators compile while alias-of-copy mutation refuses","helper-return, object-wrapper, and ternary escapes refuse later mutation","mutation before a final helper escape and return stays green","later escapes in a loop body poison earlier mutations in the same cyclic body","escape-only loops and accumulators returned after a loop stay green","escape-only reads stay green while two-helper and branch escapes close mutation","push after an ordered spread override keeps both actual element origins","collection facts use the same ordered spread override as lowering","mutable collection reassignment merges origins and refuses disagreement","array literal element origins snapshot their bind-time environment","mixed collection rewrites name every real origin and stay non-lowerable","mutually exclusive push arms contribute their maximum delta","branch ambiguity names origins from both ambiguous and known arms","conditional-expression push arms merge like if branches","an inner loop sees the enclosing loop's proven end bound","a collection mutated in a loop keeps its end bound after the loop","nested loops see body-local spread copies and literal batches","two-deep mutation products reserve a later in-loop domain","branch mutation reserves the later in-loop domain","a collection mutated by its own growing iteration domain refuses","a top-level self-growing domain refuses while a different accumulator stays bounded","nested loop mutation deltas multiply and the certified program runs","three-deep nested loop mutation deltas remain multiplicative","an immutable scalar alias captures provenance before later reassignment","Decimal multiplication keeps int multipliers and refuses bare branded products","Decimal scaling requires a verified target and exponential literals classify by numeric value","Decimal scale rules and Enum membership refuse every unsupported expression form","decimal helper scales from the number string and refuses excess precision","Decimal authoring JSDoc states that numeric literals are whole units","project compilation aggregates refusals across every failing module","project diagnostic cap ends with an explicit truncation refusal","schema lowering refuses malformed constraints and every skipped authored shape","maintain lowering closes source, target, type, and ownership shapes","rule input visibility is derived and cannot be authored into the IR","reciprocal table rules accept only the current row id as its nominal Ref","rule terms and exists keys are checked against nominal schema types","rule literals respect Enum, Decimal, Money, Json, Id, and Ref domains","text constraints lower minimum, handle, and URL validation and reject invalid targets","implicit id and byId cannot be overwritten, including by update patches","effect authoring reports grants, closure, imports, and then arguments together","effect source expands JSON constant spreads and scopes every nested function and catch binding","effect closure ignores non-computed destructuring property names","effect closure refusals include parameter, destructuring, and computed-name defaults","worker refuses every TypeScript-authored export and serves the next Quarry request","Quarry words derives a 1001-item text list and direct for domain","Quarry words derives a 1001-item text list and alias for domain","Quarry words derives a 1001-item text list and column for domain","Quarry words derives a 2-item text list and literal for domain","Quarry words derives a 3-item text list and odd for domain","Quarry words derives a 1-item text list and empty for domain","Quarry words derives a 11-item text list and optional fallback for domain","Quarry words derives a 3-item text list and Unicode scalars for domain","Quarry words derives a 1001-item text list and wider column fallback for domain","Quarry words derives a 1001-item text list and narrower column fallback for domain","Quarry words derives a 1001-item text list and wider argument-to-column fallback for domain","words refuses constructed text at the Quarry boundary with a declared-bound repair","words refuses equal-max TS plus, aliases and templates with a declared-bound repair","words refuses a wider optional literal fallback rather than deriving the left bound","Quarry words refuses non-text, optional text and wrong arity with a rewrite","README mutation example typechecks with queued pending entries and an inFlight button","the built keyword guide resolves grammar constructs and the README Assets topic","npm pack from a clean dist builds every exported module and declaration","client, React, and test imports typecheck against distinct real declarations","the React template typechecks against the built snapback2/react package","the chat template's React and Expo apps typecheck against the built package and generated API","guide validation reports every family and page failure before it fails","binary check certifies every compiler program and reads IR only from stdin or --ir"]}
+FAIL effect public globals agree with Hermes and the guide/spec in exact order: ENOENT: no such file or directory, open '/home/ccheever/lanes/snapback2-dx/snapback2/packages/compiler/../../../llp/1003-effects-on-ibex2.spec.md'
+Error
+    at async <anonymous> (/home/ccheever/lanes/snapback2-dx/snapback2/packages/compiler/src/test-effects.ts:110:25)
+FAIL the guide spec lists the CLI's current recipes: ENOENT: no such file or directory, open '/home/ccheever/lanes/snapback2-dx/llp/1002-dev-loop.spec.md'
+Error
+    at async <anonymous> (/home/ccheever/lanes/snapback2-dx/snapback2/packages/compiler/src/test-package-guide.ts:83:24)
+FAIL the 30-shape gauntlet remains measured: ENOENT: no such file or directory, open '/home/ccheever/lanes/snapback2-dx/llp/reviews/0329.014-bounded-data-programs.codex.r3.md'
+Error: ENOENT: no such file or directory, open '/home/ccheever/lanes/snapback2-dx/llp/reviews/0329.014-bounded-data-programs.codex.r3.md'
+    at async <anonymous> (/home/ccheever/lanes/snapback2-dx/snapback2/packages/compiler/src/test-final-gates.ts:194:105)

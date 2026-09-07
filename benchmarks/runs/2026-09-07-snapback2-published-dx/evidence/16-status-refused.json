@@ -1,0 +1,32 @@
+{
+  "label": "16-status-refused",
+  "cwd": "/Users/ccheever/bench-snapback2-dx/published-0.0.14/app",
+  "command": [
+    "/Users/ccheever/bench-snapback2-dx/published-0.0.14/app/node_modules/.bin/snapback2",
+    "dev",
+    "--status",
+    "--json"
+  ],
+  "started": "2026-09-07T06:52:20.233019+00:00",
+  "wall_s": 0.047530499999999996,
+  "exit": 0,
+  "pid": 34000,
+  "cpu_user_s": 0.031983,
+  "cpu_system_s": 0.010310999999999999,
+  "load_before": [
+    24.47265625,
+    10.65478515625,
+    7.3134765625
+  ],
+  "load_after": [
+    24.47265625,
+    10.65478515625,
+    7.3134765625
+  ],
+  "removed_env_keys": [
+    "NODE_PATH"
+  ],
+  "stdout": "{\"channelSubscriptions\":0,\"effects\":{\"engine\":\"ibex2 + vanilla hermes\",\"failed\":0,\"queued\":0,\"running\":0,\"sent\":0,\"sentUnknown\":0,\"thenPending\":0},\"executions\":1,\"generation\":\"2c0b7fb023e78d306c0d4e1366e80f2c15ef462452b852fb86374e14113fd35c\",\"jobs\":{\"parked\":0,\"queued\":0,\"running\":0},\"mode\":\"dev\",\"personas\":[{\"id\":\"dev:alice\",\"kind\":\"persona\",\"name\":\"alice\"}],\"project\":\"/Users/ccheever/bench-snapback2-dx/published-0.0.14/app\",\"schedules\":{\"fired\":0,\"late\":0,\"rejected\":0},\"seq\":1,\"status\":{\"generation\":\"2c0b7fb023e78d306c0d4e1366e80f2c15ef462452b852fb86374e14113fd35c\",\"refused\":[{\"code\":\"E_QUARRY_UNKNOWN\",\"family\":\"quarry\",\"guide\":\"quarry/names\",\"message\":\"unknown name missingValue\",\"rewrite\":\"-- unknown name missingValue\",\"site\":\"snapback/todos.q:10:10\"}],\"state\":\"refused\"},\"subscriptions\":0,\"timers\":{\"due\":0,\"next_at\":null,\"rejected\":0}}\n",
+  "stderr": "",
+  "host_samples": []
+}

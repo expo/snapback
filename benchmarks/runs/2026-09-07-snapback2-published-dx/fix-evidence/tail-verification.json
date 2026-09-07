@@ -1,0 +1,176 @@
+[
+  {
+    "name": "baseline-apply",
+    "command": [
+      "git",
+      "apply",
+      "--reverse",
+      "/home/ccheever/lanes/snapback2-dx/integrated-product.patch"
+    ],
+    "cwd": "/home/ccheever/lanes/snapback2-dx",
+    "seconds": 0.004614591598510742,
+    "status": 0
+  },
+  {
+    "name": "baseline-package",
+    "command": [
+      "node",
+      "packages/snapback2/build.mjs"
+    ],
+    "cwd": "/home/ccheever/lanes/snapback2-dx/snapback2",
+    "seconds": 2.6465697288513184,
+    "status": 0
+  },
+  {
+    "name": "baseline-build",
+    "command": [
+      "cargo",
+      "build",
+      "--offline",
+      "--locked",
+      "-p",
+      "snapback2"
+    ],
+    "cwd": "/home/ccheever/lanes/snapback2-dx/snapback2",
+    "seconds": 2.2416720390319824,
+    "status": 0
+  },
+  {
+    "name": "baseline-real-owner",
+    "command": [
+      "node",
+      "--test",
+      "--test-timeout=10000",
+      "--test-name-pattern=real owner refuses an object|failed outbox admission|outbox persistence failure|queued media retains",
+      "tests/real-owner.test.ts"
+    ],
+    "cwd": "/home/ccheever/lanes/snapback2-dx/snapback2/packages/snapback2",
+    "seconds": 6.192638635635376,
+    "status": 1
+  },
+  {
+    "name": "candidate-restore",
+    "command": [
+      "git",
+      "apply",
+      "/home/ccheever/lanes/snapback2-dx/integrated-product.patch"
+    ],
+    "cwd": "/home/ccheever/lanes/snapback2-dx",
+    "seconds": 0.004590272903442383,
+    "status": 0
+  },
+  {
+    "name": "candidate-package-restored",
+    "command": [
+      "node",
+      "packages/snapback2/build.mjs"
+    ],
+    "cwd": "/home/ccheever/lanes/snapback2-dx/snapback2",
+    "seconds": 2.646389961242676,
+    "status": 0
+  },
+  {
+    "name": "candidate-build-restored",
+    "command": [
+      "cargo",
+      "build",
+      "--offline",
+      "--locked",
+      "-p",
+      "snapback2"
+    ],
+    "cwd": "/home/ccheever/lanes/snapback2-dx/snapback2",
+    "seconds": 2.1745448112487793,
+    "status": 0
+  },
+  {
+    "name": "assets-isolated",
+    "command": [
+      "cargo",
+      "test",
+      "--offline",
+      "--locked",
+      "-p",
+      "snapback2",
+      "--test",
+      "assets",
+      "asset_server_upload_delivery_carrier_revoke_and_reset_round_trip",
+      "--",
+      "--exact"
+    ],
+    "cwd": "/home/ccheever/lanes/snapback2-dx/snapback2",
+    "seconds": 7.066738128662109,
+    "status": 0
+  },
+  {
+    "name": "jobs-isolated",
+    "command": [
+      "cargo",
+      "test",
+      "--offline",
+      "--locked",
+      "-p",
+      "snapback2",
+      "--test",
+      "owner",
+      "owner_cases::jobs_queue::jobs_queue_position_paging_beyond_500_commits_receipt_plan_and_state_refusals",
+      "--",
+      "--exact",
+      "--nocapture"
+    ],
+    "cwd": "/home/ccheever/lanes/snapback2-dx/snapback2",
+    "seconds": 15.45317816734314,
+    "status": 0
+  },
+  {
+    "name": "source-nul-isolated",
+    "command": [
+      "node",
+      "--test",
+      "--test-timeout=10000",
+      "--test-name-pattern=tracked Snapback 2 source contains no literal NUL bytes",
+      "tests/supersession.test.ts"
+    ],
+    "cwd": "/home/ccheever/lanes/snapback2-dx/snapback2/packages/snapback2",
+    "seconds": 0.2681717872619629,
+    "status": 0
+  },
+  {
+    "name": "release-prewarm",
+    "command": [
+      "cargo",
+      "build",
+      "--offline",
+      "--locked",
+      "--release",
+      "-p",
+      "snapback2",
+      "-p",
+      "snapback2-media"
+    ],
+    "cwd": "/home/ccheever/lanes/snapback2-dx/snapback2",
+    "seconds": 74.40625762939453,
+    "status": 0
+  },
+  {
+    "name": "focused-installed",
+    "command": [
+      "node",
+      "/home/ccheever/lanes/snapback2-dx/focused-measure.mjs"
+    ],
+    "cwd": "/home/ccheever/lanes/snapback2-dx/snapback2",
+    "seconds": 61.83371090888977,
+    "status": 0
+  },
+  {
+    "name": "measure-check",
+    "command": [
+      "node",
+      "scripts/measure.mjs",
+      "--check"
+    ],
+    "cwd": "/home/ccheever/lanes/snapback2-dx/snapback2",
+    "seconds": 43.87082123756409,
+    "status": 1
+  }
+]

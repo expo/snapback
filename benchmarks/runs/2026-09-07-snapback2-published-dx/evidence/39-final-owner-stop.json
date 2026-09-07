@@ -1,0 +1,32 @@
+{
+  "label": "39-final-owner-stop",
+  "cwd": "/Users/ccheever/bench-snapback2-dx/published-0.0.14/app",
+  "command": [
+    "/Users/ccheever/bench-snapback2-dx/published-0.0.14/app/node_modules/.bin/snapback2",
+    "dev",
+    "--stop",
+    "--json"
+  ],
+  "started": "2026-09-07T06:59:11.893724+00:00",
+  "wall_s": 0.165945667,
+  "exit": 0,
+  "pid": 39700,
+  "cpu_user_s": 0.031129999999999998,
+  "cpu_system_s": 0.010751,
+  "load_before": [
+    8.34326171875,
+    8.74267578125,
+    7.576171875
+  ],
+  "load_after": [
+    8.34326171875,
+    8.74267578125,
+    7.576171875
+  ],
+  "removed_env_keys": [
+    "NODE_PATH"
+  ],
+  "stdout": "{\"exited\":\"snapback2 dev --stop\",\"ok\":true}\n",
+  "stderr": "",
+  "host_samples": []
+}

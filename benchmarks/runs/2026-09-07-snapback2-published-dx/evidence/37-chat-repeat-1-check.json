@@ -1,0 +1,44 @@
+{
+  "label": "37-chat-repeat-1-check",
+  "cwd": "/Users/ccheever/bench-snapback2-dx/published-0.0.14/chat",
+  "command": [
+    "/Users/ccheever/bench-snapback2-dx/published-0.0.14/chat/node_modules/.bin/snapback2",
+    "check",
+    "--json"
+  ],
+  "started": "2026-09-07T06:56:48.723043+00:00",
+  "wall_s": 1.3896552919999998,
+  "exit": 0,
+  "pid": 37479,
+  "cpu_user_s": 3.497347,
+  "cpu_system_s": 0.12151999999999999,
+  "load_before": [
+    8.02685546875,
+    9.080078125,
+    7.48291015625
+  ],
+  "load_after": [
+    8.02685546875,
+    9.080078125,
+    7.48291015625
+  ],
+  "removed_env_keys": [
+    "NODE_PATH"
+  ],
+  "stdout": "{\"compilerMs\":439.22,\"generation\":\"2522868fdb75334deae2867f590cfd8f47a65dcf84b462cc4c40b29c064eec72\",\"ok\":true,\"operations\":26,\"schemaCertificate\":{\"disclosures\":[\"messages.oncePhoto: one image delivery per authenticated principal; owning row read rule; no device byte cache\"],\"schedules\":[{\"name\":\"expireMessage\",\"target\":\"deliveries.purgeMessage\",\"trigger\":{\"row\":{\"column\":\"expiresAt\",\"table\":\"messages\"}}}]}}\n",
+  "stderr": "",
+  "host_samples": [
+    {
+      "elapsed_s": 1.0034807079999999,
+      "load": [
+        8.02685546875,
+        9.080078125,
+        7.48291015625
+      ],
+      "processes": "  PID  PPID  %CPU %MEM COMM\n37503 37481 242.6  0.3 node\n 8032     1 100.1  0.1 /System/Library/Frameworks/CoreServices.framework/Versions/A/Frameworks/FSEvents.framework/Versions/A/Support/fseventsd\n37473 10728  80.2  0.4 /Applications/Google Chrome.app/Contents/Frameworks/Google Chrome Framework.framework/Versions/152.0.7977.76/Helpers/Google Chrome Helper (Renderer).app/Contents/MacOS/Google Chrome Helper (Renderer)\n10728     1  17.1  0.7 /Applications/Google Chrome.app/Contents/MacOS/Google Chrome\n36609 36587   7.3  0.7 node\n 8461     1   6.3  0.2 /Library/SystemExtensions/45AAB62E-060A-496D-B846-1369156BAF5D/io.tailscale.ipn.macsys.network-extension.systemextension/Contents/MacOS/io.tailscale.ipn.macsys.network-extension\n 3575     1   3.7  0.0 tmux\n37481 37480   3.6  0.0 /Users/ccheever/bench-snapback2-dx/published-0.0.14/chat/node_modules/snapback2-darwin-arm64/bin/snapback2\n 8274     1   3.5  0.1 /System/Library/DriverExtensions/com.apple.DriverKit-AppleBCMWLAN.dext/com.apple.DriverKit-AppleBCMWLAN\n91841 33940   1.7  1.0 claude\n 8365     1   1.2  0.2 /System/Library/CoreServices/Finder.app/Contents/MacOS/Finder\n37505 37477   1.2  0.0 ps\n32485 32481   1.1  0.0 sshd-session: ccheever@ttys015\n32077 32070   0.9  0.0 sshd-session: ccheever@ttys001\n37504   367   0.9  0.0 sleep\n",
+      "process_list_scope": "top 15 by sampled CPU; complete original in raw-records.jsonl.gz"
+    }
+  ],
+  "host_samples_raw": "raw-records.jsonl.gz",
+  "host_sample_count": 1
+}

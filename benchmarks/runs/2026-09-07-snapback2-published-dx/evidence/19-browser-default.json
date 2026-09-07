@@ -1,0 +1,42 @@
+{
+  "label": "19-browser-default",
+  "mode": "default",
+  "backend": "http://127.0.0.1:58805",
+  "vitePid": 34296,
+  "wall_s": 4.061141875,
+  "requests": [
+    "http://127.0.0.1:3210/api/manifest",
+    "http://127.0.0.1:3210/api/manifest",
+    "http://127.0.0.1:3210/api/manifest",
+    "http://127.0.0.1:3210/api/manifest"
+  ],
+  "errors": [],
+  "failed": [
+    {
+      "url": "http://127.0.0.1:3210/api/manifest",
+      "error": {
+        "errorText": "net::ERR_CONNECTION_REFUSED"
+      }
+    },
+    {
+      "url": "http://127.0.0.1:3210/api/manifest",
+      "error": {
+        "errorText": "net::ERR_CONNECTION_REFUSED"
+      }
+    },
+    {
+      "url": "http://127.0.0.1:3210/api/manifest",
+      "error": {
+        "errorText": "net::ERR_CONNECTION_REFUSED"
+      }
+    },
+    {
+      "url": "http://127.0.0.1:3210/api/manifest",
+      "error": {
+        "errorText": "net::ERR_CONNECTION_REFUSED"
+      }
+    }
+  ],
+  "body": "Snapback 2\n\nThe owner URL is connected.\n\nSnapback\nPersona\nalice\nConnection\nreconnecting\nGeneration\n\u2014\nLast refusal\nE_NETWORK: Failed to fetch",
+  "vite": "\n  VITE v7.3.6  ready in 130 ms\n\n  \u279c  Local:   http://127.0.0.1:5187/\n"
+}

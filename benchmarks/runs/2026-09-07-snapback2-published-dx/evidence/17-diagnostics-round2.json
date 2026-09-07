@@ -1,0 +1,31 @@
+{
+  "label": "17-diagnostics-round2",
+  "cwd": "/Users/ccheever/bench-snapback2-dx/published-0.0.14/app",
+  "command": [
+    "/Users/ccheever/bench-snapback2-dx/published-0.0.14/app/node_modules/.bin/snapback2",
+    "check",
+    "--json"
+  ],
+  "started": "2026-09-07T06:52:30.731481+00:00",
+  "wall_s": 0.392053166,
+  "exit": 1,
+  "pid": 34062,
+  "cpu_user_s": 0.47376199999999996,
+  "cpu_system_s": 0.025349,
+  "load_before": [
+    25.28662109375,
+    11.2763671875,
+    7.57275390625
+  ],
+  "load_after": [
+    25.28662109375,
+    11.2763671875,
+    7.57275390625
+  ],
+  "removed_env_keys": [
+    "NODE_PATH"
+  ],
+  "stdout": "{\"code\":\"E_OPAQUE\",\"family\":\"opaque\",\"message\":\"in code generated from snapback/todos.q: Type 'string' is not assignable to type 'boolean | undefined'.\",\"site\":\"snapback/todos.q:9:3\",\"rewrite\":\"add ! else CODE to assert the possibly absent Quarry value before using it here\",\"guide\":\"opaque/subset\"}\n",
+  "stderr": "",
+  "host_samples": []
+}

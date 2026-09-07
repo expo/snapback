@@ -1,0 +1,70 @@
+✖ the real owner refuses an object wrapper as a resume log instead of promising a tail (59.161405ms)
+✖ failed outbox admission or prediction leaves no upload, intent, or mutation request (2711.74569ms)
+✖ an outbox persistence failure after commit retains media for replay (88.22733ms)
+✖ queued media retains its uploaded bytes until the outbox commits (47.040291ms)
+ℹ tests 4
+ℹ suites 0
+ℹ pass 0
+ℹ fail 4
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 6154.880117
+
+✖ failing tests:
+
+test at tests/real-owner.test.ts:187:1
+✖ the real owner refuses an object wrapper as a resume log instead of promising a tail (59.161405ms)
+  AssertionError [ERR_ASSERTION]: The input did not match the regular expression /returns no page/. Input:
+  
+  'operation integration.inboxObject cannot drain/resume a log (cursor-binding); every returned page must ascend after the same cursor with at most 50 rows'
+  
+      at TestContext.<anonymous> (file:///home/ccheever/lanes/snapback2-dx/snapback2/packages/snapback2/tests/real-owner.test.ts:210:10)
+      at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 'operation integration.inboxObject cannot drain/resume a log (cursor-binding); every returned page must ascend after the same cursor with at most 50 rows',
+    expected: /returns no page/,
+    operator: 'match',
+    diff: 'simple'
+  }
+
+test at tests/real-owner.test.ts:326:1
+✖ failed outbox admission or prediction leaves no upload, intent, or mutation request (2711.74569ms)
+  SnapbackRefusal: operation messages.thread cannot drain/resume a log (descending); every returned page must ascend after the same cursor with at most 50 rows
+      at Gt.refuse (file:///home/ccheever/lanes/snapback2-dx/snapback2/packages/snapback2/dist/client.mjs:9:108163)
+      at file:///home/ccheever/lanes/snapback2-dx/snapback2/packages/snapback2/dist/client.mjs:9:108342
+      at process.processTicksAndRejections (node:internal/process/task_queues:103:5) {
+    envelope: { code: 'E_OFFLINE_RESUME', family: 'offline', guide: 'offline', reason: 'unsupported-log', which: 'log', op: 'messages.thread', shape: 'descending', site: 'client.subscribe.drain', message: 'operation messages.thread cannot drain/resume a log (descending); every returned page must ascend after the same cursor with at most 50 rows', rewrite: 'use an ascending delivery log (after c first N, N <= 50); subscribe normally at c: null for newest-first data; reconnect if metadata is unavailable; queued writes are kept' },
+    code: 'E_OFFLINE_RESUME',
+    retryable: false,
+    status: undefined
+  }
+
+test at tests/real-owner.test.ts:362:1
+✖ an outbox persistence failure after commit retains media for replay (88.22733ms)
+  SnapbackRefusal: operation messages.thread cannot drain/resume a log (descending); every returned page must ascend after the same cursor with at most 50 rows
+      at Gt.refuse (file:///home/ccheever/lanes/snapback2-dx/snapback2/packages/snapback2/dist/client.mjs:9:108163)
+      at Object.refuse (file:///home/ccheever/lanes/snapback2-dx/snapback2/packages/snapback2/dist/client.mjs:9:116552)
+      at Nn (file:///home/ccheever/lanes/snapback2-dx/snapback2/packages/snapback2/dist/client.mjs:9:117656)
+      at file:///home/ccheever/lanes/snapback2-dx/snapback2/packages/snapback2/dist/client.mjs:9:168754 {
+    envelope: { code: 'E_OFFLINE_RESUME', family: 'offline', guide: 'offline', reason: 'unsupported-log', which: 'log', op: 'messages.thread', shape: 'descending', site: 'client.subscribe.drain', message: 'operation messages.thread cannot drain/resume a log (descending); every returned page must ascend after the same cursor with at most 50 rows', rewrite: 'use an ascending delivery log (after c first N, N <= 50); subscribe normally at c: null for newest-first data; reconnect if metadata is unavailable; queued writes are kept' },
+    code: 'E_OFFLINE_RESUME',
+    retryable: false,
+    status: undefined
+  }
+
+test at tests/real-owner.test.ts:423:1
+✖ queued media retains its uploaded bytes until the outbox commits (47.040291ms)
+  SnapbackRefusal: operation messages.thread cannot drain/resume a log (descending); every returned page must ascend after the same cursor with at most 50 rows
+      at Gt.refuse (file:///home/ccheever/lanes/snapback2-dx/snapback2/packages/snapback2/dist/client.mjs:9:108163)
+      at Object.refuse (file:///home/ccheever/lanes/snapback2-dx/snapback2/packages/snapback2/dist/client.mjs:9:116552)
+      at Nn (file:///home/ccheever/lanes/snapback2-dx/snapback2/packages/snapback2/dist/client.mjs:9:117656)
+      at file:///home/ccheever/lanes/snapback2-dx/snapback2/packages/snapback2/dist/client.mjs:9:168754 {
+    envelope: { code: 'E_OFFLINE_RESUME', family: 'offline', guide: 'offline', reason: 'unsupported-log', which: 'log', op: 'messages.thread', shape: 'descending', site: 'client.subscribe.drain', message: 'operation messages.thread cannot drain/resume a log (descending); every returned page must ascend after the same cursor with at most 50 rows', rewrite: 'use an ascending delivery log (after c first N, N <= 50); subscribe normally at c: null for newest-first data; reconnect if metadata is unavailable; queued writes are kept' },
+    code: 'E_OFFLINE_RESUME',
+    retryable: false,
+    status: undefined
+  }

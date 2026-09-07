@@ -1,0 +1,60 @@
+[
+  {
+    "label": "pack /home/ccheever/lanes/snapback2-dx/installed-candidate/pack/native",
+    "seconds": 1.239834187,
+    "status": 0
+  },
+  {
+    "label": "pack /home/ccheever/lanes/snapback2-dx/installed-candidate/pack/shim",
+    "seconds": 0.8016560110000001,
+    "status": 0
+  },
+  {
+    "label": "install candidate tarballs",
+    "seconds": 1.265725716,
+    "status": 0
+  },
+  {
+    "label": "installed native identity"
+  },
+  {
+    "label": "init chat",
+    "seconds": 1.5418088149999993,
+    "status": 0
+  },
+  {
+    "label": "full 1",
+    "seconds": 15.663682645000002,
+    "status": 1
+  },
+  {
+    "label": "focused 1",
+    "seconds": 2.337453536000001,
+    "status": 0
+  },
+  {
+    "label": "focused 2",
+    "seconds": 2.4243607250000023,
+    "status": 0
+  },
+  {
+    "label": "full 2",
+    "seconds": 15.905372366999996,
+    "status": 1
+  },
+  {
+    "label": "full 3",
+    "seconds": 15.89974467,
+    "status": 1
+  },
+  {
+    "label": "focused 3",
+    "seconds": 2.3142637260000045,
+    "status": 0
+  },
+  {
+    "label": "unknown selection",
+    "seconds": 2.2855918919999967,
+    "status": 1
+  }
+]

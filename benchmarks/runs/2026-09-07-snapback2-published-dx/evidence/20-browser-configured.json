@@ -1,0 +1,17 @@
+{
+  "label": "20-browser-configured",
+  "mode": "configured",
+  "backend": "http://127.0.0.1:58805",
+  "vitePid": 34333,
+  "wall_s": 2.810856083,
+  "requests": [
+    "http://127.0.0.1:58805/api/manifest",
+    "http://127.0.0.1:58805/api/program?generation=9c1ce863c6ab63f896b126a9ce9a0e728618b628101eaf4ff1d742824288d63e",
+    "http://127.0.0.1:58805/api/manifest",
+    "http://127.0.0.1:58805/api/manifest"
+  ],
+  "errors": [],
+  "failed": [],
+  "body": "Snapback 2\n\nThe owner URL is connected.\n\nSnapback\nPersona\nalice\nConnection\nconnected\nGeneration\n2c0b7fb023e78d306c0d4e1366e80f2c15ef462452b852fb86374e14113fd35c\nLast refusal\n\u2014",
+  "vite": "\n  VITE v7.3.6  ready in 205 ms\n\n  \u279c  Local:   http://127.0.0.1:5187/\n"
+}

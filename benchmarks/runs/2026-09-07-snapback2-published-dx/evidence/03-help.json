@@ -1,0 +1,30 @@
+{
+  "label": "03-help",
+  "cwd": "/Users/ccheever/bench-snapback2-dx/published-0.0.14/bootstrap",
+  "command": [
+    "/Users/ccheever/bench-snapback2-dx/published-0.0.14/bootstrap/node_modules/.bin/snapback2",
+    "--help"
+  ],
+  "started": "2026-09-07T06:50:45.940944+00:00",
+  "wall_s": 0.619501125,
+  "exit": 0,
+  "pid": 33117,
+  "cpu_user_s": 0.050941999999999994,
+  "cpu_system_s": 0.019252,
+  "load_before": [
+    6.8916015625,
+    4.67626953125,
+    5.08837890625
+  ],
+  "load_after": [
+    6.8916015625,
+    4.67626953125,
+    5.08837890625
+  ],
+  "removed_env_keys": [
+    "NODE_PATH"
+  ],
+  "stdout": "usage: snapback2 <command> [options]\n\n  init [dir]         Create or adopt a project (defaults: todos, React)\n  check              Validate sources and refresh the build cache\n  dev                Start or attach to the owner; watch and install successors\n  run <op> [json]     Execute an operation with --as <persona|system>\n  test               Prove derived checks and authored journeys\n  why <query> [json]  Explain a query with --as <persona|system>\n  trace <latest|id>   Inspect a commit, job, or timer\n  data <table>       Page through rows with --as <persona|system>\n  logs               Read the owner's logs\n  persona list       List development personas\n  reset              Clear application data and reapply the seed\n  guide [topic]      Read grammar, recipes, symbols, or refusal recovery\n  doctor             Check the installed toolchain\n  version            Print the version\n\nUse snapback2 <command> --help (or -h) for options and examples.\nStart here: snapback2 guide init\n",
+  "stderr": "",
+  "host_samples": []
+}

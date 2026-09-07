@@ -1,0 +1,31 @@
+{
+  "label": "12-test-help",
+  "cwd": "/Users/ccheever/bench-snapback2-dx/published-0.0.14/app",
+  "command": [
+    "/Users/ccheever/bench-snapback2-dx/published-0.0.14/app/node_modules/.bin/snapback2",
+    "test",
+    "--help"
+  ],
+  "started": "2026-09-07T06:51:32.172961+00:00",
+  "wall_s": 0.173649958,
+  "exit": 0,
+  "pid": 33626,
+  "cpu_user_s": 0.12007,
+  "cpu_system_s": 0.037233999999999996,
+  "load_before": [
+    16.18017578125,
+    7.13134765625,
+    5.95068359375
+  ],
+  "load_after": [
+    16.18017578125,
+    7.13134765625,
+    5.95068359375
+  ],
+  "removed_env_keys": [
+    "NODE_PATH"
+  ],
+  "stdout": "usage: snapback2 test [--project dir] [--blocked reason] [--journeys-only|--derived-only] [--json]\n\nProve the project and write a receipt. Read snapback2 guide testing.\n",
+  "stderr": "",
+  "host_samples": []
+}

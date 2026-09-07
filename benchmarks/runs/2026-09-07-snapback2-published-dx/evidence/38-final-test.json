@@ -1,0 +1,44 @@
+{
+  "label": "38-final-test",
+  "cwd": "/Users/ccheever/bench-snapback2-dx/published-0.0.14/app",
+  "command": [
+    "/Users/ccheever/bench-snapback2-dx/published-0.0.14/app/node_modules/.bin/snapback2",
+    "test",
+    "--json"
+  ],
+  "started": "2026-09-07T06:59:10.311186+00:00",
+  "wall_s": 1.5283784580000002,
+  "exit": 0,
+  "pid": 39560,
+  "cpu_user_s": 1.245896,
+  "cpu_system_s": 0.16708499999999998,
+  "load_before": [
+    8.80859375,
+    8.83984375,
+    7.603515625
+  ],
+  "load_after": [
+    8.34326171875,
+    8.74267578125,
+    7.576171875
+  ],
+  "removed_env_keys": [
+    "NODE_PATH"
+  ],
+  "stdout": "{\"binary\":{\"version\":\"0.0.14\",\"digest\":\"rust64:0c64cf0914f5b3e1\"},\"generation\":\"2c0b7fb023e78d306c0d4e1366e80f2c15ef462452b852fb86374e14113fd35c\",\"commands\":[\"snapback2 dev --foreground --port 0\",\"seed\",\"snapback2 test\"],\"checks\":[{\"name\":\"certify\",\"kind\":\"derived\",\"verdict\":\"pass\",\"ms\":350,\"detail\":{\"operations\":3}},{\"name\":\"rules\",\"kind\":\"derived\",\"verdict\":\"pass\",\"ms\":1,\"detail\":{\"actualBy\":\"data\",\"blocked\":[],\"coverage\":\"every stored row and seed persona for each completed table; no row sampling\",\"expectedBy\":\"engine\",\"probeLimit\":16384,\"probes\":2,\"tables\":{\"todos\":{\"personas\":2,\"probes\":2,\"seedRows\":1}}}},{\"name\":\"bounds\",\"kind\":\"derived\",\"verdict\":\"pass\",\"ms\":0,\"detail\":{\"blocked\":[],\"enforcedBy\":\"engine\",\"executions\":[{\"as\":\"alice\",\"examined\":{\"actual\":1,\"ceiling\":52},\"op\":\"todos.list\",\"readSites\":[{\"calls\":{\"actual\":1,\"ceiling\":1},\"site\":\"todos.list.0\",\"take\":50}],\"ruleProbes\":{\"actual\":0,\"ceiling\":0},\"steps\":{\"actual\":3,\"ceiling\":263}}],\"probes\":1}},{\"name\":\"invalidation\",\"kind\":\"derived\",\"verdict\":\"pass\",\"ms\":262,\"detail\":{\"attemptLimitPerQuery\":64,\"attempts\":3,\"blocked\":[],\"candidateLimit\":12,\"coverage\":\"one physical representative per query and certificate-intersection signature, plus concrete-disjoint silence per query; not every operation pair\",\"deliveryProbes\":1,\"exclusions\":0,\"groups\":[{\"candidates\":[\"todos.add\",\"todos.complete\"],\"query\":\"todos.list\",\"sites\":[[\"todos\",\"byOwnerId\"]],\"witnessed\":true}],\"intersectionLevel\":\"exact authoritative trace key x commit touched key\",\"intersections\":[{\"mutation\":\"todos.add\",\"query\":\"todos.list\",\"sites\":[{\"index\":\"byOwnerId\",\"table\":\"todos\"}]},{\"mutation\":\"todos.complete\",\"query\":\"todos.list\",\"sites\":[{\"index\":\"byOwnerId\",\"table\":\"todos\"}]}],\"outcomes\":[{\"changed\":true,\"delivered\":true,\"disposition\":\"physical\",\"error\":null,\"invalidated\":true,\"mutation\":\"todos.add\",\"mutationArgs\":{\"title\":\"derived test\"},\"mutationPersona\":\"alice\",\"overlaps\":true,\"probeRole\":\"pair\",\"query\":\"todos.list\",\"queryArgs\":{},\"queryPersona\":\"alice\",\"selected\":true,\"seq\":2,\"sseDelivered\":true,\"sseSeq\":2,\"staticConcreteMismatch\":false,\"staticSitesIntersect\":true,\"writes\":1},{\"changed\":true,\"delivered\":true,\"disposition\":\"physical\",\"error\":null,\"invalidated\":true,\"mutation\":\"todos.add\",\"mutationArgs\":{\"title\":\"derived test\"},\"mutationPersona\":\"alice\",\"overlaps\":true,\"probeRole\":\"silence\",\"query\":\"todos.list\",\"queryArgs\":{},\"queryPersona\":\"alice\",\"selected\":false,\"seq\":2,\"sseDelivered\":true,\"sseSeq\":2,\"staticConcreteMismatch\":false,\"staticSitesIntersect\":true,\"writes\":1},{\"changed\":false,\"delivered\":false,\"disposition\":\"physical\",\"error\":null,\"invalidated\":false,\"mutation\":\"todos.add\",\"mutationArgs\":{\"title\":\"derived test\"},\"mutationPersona\":\"__snapback2_disjoint_todos_list\",\"overlaps\":false,\"probeRole\":\"silence\",\"query\":\"todos.list\",\"queryArgs\":{},\"queryPersona\":\"alice\",\"selected\":true,\"seq\":2,\"sseDelivered\":false,\"sseSeq\":null,\"staticConcreteMismatch\":true,\"staticSitesIntersect\":true,\"writes\":1}],\"overlapProbes\":1,\"probes\":2,\"silenceProbes\":1,\"skipped\":[],\"transport\":\"SSE\"}},{\"name\":\"replay\",\"kind\":\"derived\",\"verdict\":\"pass\",\"ms\":19,\"detail\":{\"attempts\":2,\"blocked\":[],\"candidateLimit\":12,\"candidateSelection\":\"first two seed scopes and first six personas; exhaustion blocks\",\"clock\":\"1700000000000 + mutation index\",\"comparison\":\"byte-identical committed execution + authoritative trace\",\"forks\":4,\"newIds\":\"replay-<mutation>-<ordinal>\",\"probes\":2,\"skipped\":[]}},{\"name\":\"complete preserves ownership and changes done\",\"kind\":\"journey\",\"verdict\":\"pass\",\"ms\":37,\"detail\":{\"file\":\"/Users/ccheever/bench-snapback2-dx/published-0.0.14/app/.snapback/test-run-1788764350351/project/.snapback/build/tests/complete.mjs\"}},{\"name\":\"todos round trip\",\"kind\":\"journey\",\"verdict\":\"pass\",\"ms\":26,\"detail\":{\"file\":\"/Users/ccheever/bench-snapback2-dx/published-0.0.14/app/.snapback/test-run-1788764350351/project/.snapback/build/tests/todos.mjs\"}}],\"arms\":[\"headless\"],\"verdict\":\"pass\",\"scope\":{\"changed\":[]}}\n",
+  "stderr": "",
+  "host_samples": [
+    {
+      "elapsed_s": 1.0039975,
+      "load": [
+        8.80859375,
+        8.83984375,
+        7.603515625
+      ],
+      "processes": "  PID  PPID  %CPU %MEM COMM\n 8032     1 101.3  0.1 /System/Library/Frameworks/CoreServices.framework/Versions/A/Frameworks/FSEvents.framework/Versions/A/Support/fseventsd\n39607 39585  51.1  0.2 node\n 8461     1   7.0  0.2 /Library/SystemExtensions/45AAB62E-060A-496D-B846-1369156BAF5D/io.tailscale.ipn.macsys.network-extension.systemextension/Contents/MacOS/io.tailscale.ipn.macsys.network-extension\n 3575     1   4.2  0.0 tmux\n39585 39562   3.6  0.0 /Users/ccheever/bench-snapback2-dx/published-0.0.14/app/node_modules/snapback2-darwin-arm64/bin/snapback2\n 8274     1   3.5  0.1 /System/Library/DriverExtensions/com.apple.DriverKit-AppleBCMWLAN.dext/com.apple.DriverKit-AppleBCMWLAN\n91841 33940   1.0  1.0 claude\n 8348     1   0.9  0.2 /Applications/Tailscale.app/Contents/MacOS/Tailscale\n32485 32481   0.9  0.0 sshd-session: ccheever@ttys015\n39562 39561   0.7  0.0 /Users/ccheever/bench-snapback2-dx/published-0.0.14/app/node_modules/snapback2-darwin-arm64/bin/snapback2\n67090 67089   0.7  1.3 /Users/ccheever/.volta/tools/image/packages/@openai/codex/lib/node_modules/@openai/codex/node_modules/@openai/codex-darwin-arm64/vendor/aarch64-apple-darwin/bin/codex\n 8102     1   0.6  0.3 /System/Library/PrivateFrameworks/SkyLight.framework/Resources/WindowServer\n20456 20454   0.6  2.9 /Users/ccheever/.volta/tools/image/node/22.23.2/bin/node\n32077 32070   0.6  0.0 sshd-session: ccheever@ttys001\n32177 32176   0.6  0.4 /Users/ccheever/.volta/tools/image/packages/@openai/codex/lib/node_modules/@openai/codex/node_modules/@openai/codex-darwin-arm64/vendor/aarch64-apple-darwin/bin/codex\n",
+      "process_list_scope": "top 15 by sampled CPU; complete original in raw-records.jsonl.gz"
+    }
+  ],
+  "host_samples_raw": "raw-records.jsonl.gz",
+  "host_sample_count": 1
+}

@@ -1,0 +1,404 @@
+{
+  "poll_interval_s": 0.05,
+  "method": "write todos.complete return boolean, POST /api/mutation until returned value matches; no compile command",
+  "samples": [
+    {
+      "sample": 1,
+      "started": "2026-09-07T06:56:46.461616+00:00",
+      "wall_s": 0.399560709,
+      "expected": false,
+      "pass": true,
+      "host_load": [
+        8.02685546875,
+        9.080078125,
+        7.48291015625
+      ],
+      "probes": [
+        {
+          "elapsed_s": 0.042462042000000005,
+          "response": {
+            "data": true,
+            "seq": 3,
+            "state": "committed"
+          }
+        },
+        {
+          "elapsed_s": 0.103682959,
+          "response": {
+            "data": true,
+            "seq": 4,
+            "state": "committed"
+          }
+        },
+        {
+          "elapsed_s": 0.16257716700000002,
+          "response": {
+            "data": true,
+            "seq": 5,
+            "state": "committed"
+          }
+        },
+        {
+          "elapsed_s": 0.224597125,
+          "response": {
+            "data": true,
+            "seq": 6,
+            "state": "committed"
+          }
+        },
+        {
+          "elapsed_s": 0.28462525,
+          "response": {
+            "data": true,
+            "seq": 7,
+            "state": "committed"
+          }
+        },
+        {
+          "elapsed_s": 0.3380915,
+          "response": {
+            "data": true,
+            "seq": 8,
+            "state": "committed"
+          }
+        },
+        {
+          "elapsed_s": 0.399559292,
+          "response": {
+            "data": false,
+            "seq": 9,
+            "state": "committed"
+          }
+        }
+      ]
+    },
+    {
+      "sample": 2,
+      "started": "2026-09-07T06:56:46.861166+00:00",
+      "wall_s": 0.42951075000000005,
+      "expected": true,
+      "pass": true,
+      "host_load": [
+        8.02685546875,
+        9.080078125,
+        7.48291015625
+      ],
+      "probes": [
+        {
+          "elapsed_s": 0.001301500000000011,
+          "response": {
+            "data": false,
+            "seq": 10,
+            "state": "committed"
+          }
+        },
+        {
+          "elapsed_s": 0.061262167000000034,
+          "response": {
+            "data": false,
+            "seq": 11,
+            "state": "committed"
+          }
+        },
+        {
+          "elapsed_s": 0.12281962499999999,
+          "response": {
+            "data": false,
+            "seq": 12,
+            "state": "committed"
+          }
+        },
+        {
+          "elapsed_s": 0.18571895800000005,
+          "response": {
+            "data": false,
+            "seq": 13,
+            "state": "committed"
+          }
+        },
+        {
+          "elapsed_s": 0.24742329200000002,
+          "response": {
+            "data": false,
+            "seq": 14,
+            "state": "committed"
+          }
+        },
+        {
+          "elapsed_s": 0.309543833,
+          "response": {
+            "data": false,
+            "seq": 15,
+            "state": "committed"
+          }
+        },
+        {
+          "elapsed_s": 0.36657387500000005,
+          "response": {
+            "data": false,
+            "seq": 16,
+            "state": "committed"
+          }
+        },
+        {
+          "elapsed_s": 0.429509542,
+          "response": {
+            "data": true,
+            "seq": 17,
+            "state": "committed"
+          }
+        }
+      ]
+    },
+    {
+      "sample": 3,
+      "started": "2026-09-07T06:56:47.290669+00:00",
+      "wall_s": 0.46113974999999985,
+      "expected": false,
+      "pass": true,
+      "host_load": [
+        8.02685546875,
+        9.080078125,
+        7.48291015625
+      ],
+      "probes": [
+        {
+          "elapsed_s": 0.0012379169999999773,
+          "response": {
+            "data": true,
+            "seq": 18,
+            "state": "committed"
+          }
+        },
+        {
+          "elapsed_s": 0.057303667,
+          "response": {
+            "data": true,
+            "seq": 19,
+            "state": "committed"
+          }
+        },
+        {
+          "elapsed_s": 0.11180816699999996,
+          "response": {
+            "data": true,
+            "seq": 20,
+            "state": "committed"
+          }
+        },
+        {
+          "elapsed_s": 0.1760320419999999,
+          "response": {
+            "data": true,
+            "seq": 21,
+            "state": "committed"
+          }
+        },
+        {
+          "elapsed_s": 0.23063316699999992,
+          "response": {
+            "data": true,
+            "seq": 22,
+            "state": "committed"
+          }
+        },
+        {
+          "elapsed_s": 0.292216542,
+          "response": {
+            "data": true,
+            "seq": 23,
+            "state": "committed"
+          }
+        },
+        {
+          "elapsed_s": 0.3483677919999999,
+          "response": {
+            "data": true,
+            "seq": 24,
+            "state": "committed"
+          }
+        },
+        {
+          "elapsed_s": 0.4053537919999999,
+          "response": {
+            "data": true,
+            "seq": 25,
+            "state": "committed"
+          }
+        },
+        {
+          "elapsed_s": 0.461138292,
+          "response": {
+            "data": false,
+            "seq": 26,
+            "state": "committed"
+          }
+        }
+      ]
+    },
+    {
+      "sample": 4,
+      "started": "2026-09-07T06:56:47.751801+00:00",
+      "wall_s": 0.4189751669999999,
+      "expected": true,
+      "pass": true,
+      "host_load": [
+        8.02685546875,
+        9.080078125,
+        7.48291015625
+      ],
+      "probes": [
+        {
+          "elapsed_s": 0.0013203330000000069,
+          "response": {
+            "data": false,
+            "seq": 27,
+            "state": "committed"
+          }
+        },
+        {
+          "elapsed_s": 0.05543399999999998,
+          "response": {
+            "data": false,
+            "seq": 28,
+            "state": "committed"
+          }
+        },
+        {
+          "elapsed_s": 0.11771591699999995,
+          "response": {
+            "data": false,
+            "seq": 29,
+            "state": "committed"
+          }
+        },
+        {
+          "elapsed_s": 0.18345720799999987,
+          "response": {
+            "data": false,
+            "seq": 30,
+            "state": "committed"
+          }
+        },
+        {
+          "elapsed_s": 0.24133099999999996,
+          "response": {
+            "data": false,
+            "seq": 31,
+            "state": "committed"
+          }
+        },
+        {
+          "elapsed_s": 0.30350516699999996,
+          "response": {
+            "data": false,
+            "seq": 32,
+            "state": "committed"
+          }
+        },
+        {
+          "elapsed_s": 0.36183291699999987,
+          "response": {
+            "data": false,
+            "seq": 33,
+            "state": "committed"
+          }
+        },
+        {
+          "elapsed_s": 0.41897366699999994,
+          "response": {
+            "data": true,
+            "seq": 34,
+            "state": "committed"
+          }
+        }
+      ]
+    },
+    {
+      "sample": 5,
+      "started": "2026-09-07T06:56:48.170771+00:00",
+      "wall_s": 0.47907524999999995,
+      "expected": false,
+      "pass": true,
+      "host_load": [
+        8.02685546875,
+        9.080078125,
+        7.48291015625
+      ],
+      "probes": [
+        {
+          "elapsed_s": 0.0011618329999998345,
+          "response": {
+            "data": true,
+            "seq": 35,
+            "state": "committed"
+          }
+        },
+        {
+          "elapsed_s": 0.057985207999999844,
+          "response": {
+            "data": true,
+            "seq": 36,
+            "state": "committed"
+          }
+        },
+        {
+          "elapsed_s": 0.118643791,
+          "response": {
+            "data": true,
+            "seq": 37,
+            "state": "committed"
+          }
+        },
+        {
+          "elapsed_s": 0.17723674999999983,
+          "response": {
+            "data": true,
+            "seq": 38,
+            "state": "committed"
+          }
+        },
+        {
+          "elapsed_s": 0.23815804099999993,
+          "response": {
+            "data": true,
+            "seq": 39,
+            "state": "committed"
+          }
+        },
+        {
+          "elapsed_s": 0.2998065409999999,
+          "response": {
+            "data": true,
+            "seq": 40,
+            "state": "committed"
+          }
+        },
+        {
+          "elapsed_s": 0.3619460409999997,
+          "response": {
+            "data": true,
+            "seq": 41,
+            "state": "committed"
+          }
+        },
+        {
+          "elapsed_s": 0.41944187499999974,
+          "response": {
+            "data": true,
+            "seq": 42,
+            "state": "committed"
+          }
+        },
+        {
+          "elapsed_s": 0.4790733749999998,
+          "response": {
+            "data": false,
+            "seq": 43,
+            "state": "committed"
+          }
+        }
+      ]
+    }
+  ]
+}

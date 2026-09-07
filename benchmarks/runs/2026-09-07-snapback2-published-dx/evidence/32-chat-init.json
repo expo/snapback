@@ -1,0 +1,49 @@
+{
+  "label": "32-chat-init",
+  "cwd": "/Users/ccheever/bench-snapback2-dx/published-0.0.14",
+  "command": [
+    "/Users/ccheever/bench-snapback2-dx/published-0.0.14/app/node_modules/.bin/snapback2",
+    "init",
+    "/Users/ccheever/bench-snapback2-dx/published-0.0.14/chat",
+    "--template",
+    "chat",
+    "--client",
+    "none",
+    "--json"
+  ],
+  "started": "2026-09-07T06:55:43.265548+00:00",
+  "wall_s": 1.366998375,
+  "exit": 0,
+  "pid": 36721,
+  "cpu_user_s": 3.481372,
+  "cpu_system_s": 0.137245,
+  "load_before": [
+    7.3291015625,
+    8.78271484375,
+    7.23388671875
+  ],
+  "load_after": [
+    7.3291015625,
+    8.78271484375,
+    7.23388671875
+  ],
+  "removed_env_keys": [
+    "NODE_PATH"
+  ],
+  "stdout": "{\"compilerMs\":404.73,\"generation\":\"2522868fdb75334deae2867f590cfd8f47a65dcf84b462cc4c40b29c064eec72\",\"ok\":true,\"operations\":26,\"schemaCertificate\":{\"disclosures\":[\"messages.oncePhoto: one image delivery per authenticated principal; owning row read rule; no device byte cache\"],\"schedules\":[{\"name\":\"expireMessage\",\"target\":\"deliveries.purgeMessage\",\"trigger\":{\"row\":{\"column\":\"expiresAt\",\"table\":\"messages\"}}}]}}\n{\"next\":\"snapback2 dev\",\"ok\":true,\"project\":\"/Users/ccheever/bench-snapback2-dx/published-0.0.14/chat\"}\n",
+  "stderr": "",
+  "host_samples": [
+    {
+      "elapsed_s": 1.003506709,
+      "load": [
+        7.3291015625,
+        8.78271484375,
+        7.23388671875
+      ],
+      "processes": "  PID  PPID  %CPU %MEM COMM\n36745 36723 245.0  0.3 node\n 8032     1  99.1  0.1 /System/Library/Frameworks/CoreServices.framework/Versions/A/Frameworks/FSEvents.framework/Versions/A/Support/fseventsd\n36571 10728  79.8  0.4 /Applications/Google Chrome.app/Contents/Frameworks/Google Chrome Framework.framework/Versions/152.0.7977.76/Helpers/Google Chrome Helper (Renderer).app/Contents/MacOS/Google Chrome Helper (Renderer)\n10728     1  18.8  0.7 /Applications/Google Chrome.app/Contents/MacOS/Google Chrome\n 8461     1   5.6  0.2 /Library/SystemExtensions/45AAB62E-060A-496D-B846-1369156BAF5D/io.tailscale.ipn.macsys.network-extension.systemextension/Contents/MacOS/io.tailscale.ipn.macsys.network-extension\n 3575     1   3.7  0.0 tmux\n36723 36722   3.6  0.0 /Users/ccheever/bench-snapback2-dx/published-0.0.14/app/node_modules/snapback2-darwin-arm64/bin/snapback2\n 8274     1   3.2  0.1 /System/Library/DriverExtensions/com.apple.DriverKit-AppleBCMWLAN.dext/com.apple.DriverKit-AppleBCMWLAN\n32177 32176   1.6  0.4 /Users/ccheever/.volta/tools/image/packages/@openai/codex/lib/node_modules/@openai/codex/node_modules/@openai/codex-darwin-arm64/vendor/aarch64-apple-darwin/bin/codex\n91841 33940   1.2  1.0 claude\n32485 32481   1.1  0.0 sshd-session: ccheever@ttys015\n32077 32070   0.9  0.0 sshd-session: ccheever@ttys001\n 8142     1   0.4  0.1 /usr/libexec/airportd\n67090 67089   0.4  1.3 /Users/ccheever/.volta/tools/image/packages/@openai/codex/lib/node_modules/@openai/codex/node_modules/@openai/codex-darwin-arm64/vendor/aarch64-apple-darwin/bin/codex\n 8102     1   0.3  0.3 /System/Library/PrivateFrameworks/SkyLight.framework/Resources/WindowServer\n",
+      "process_list_scope": "top 15 by sampled CPU; complete original in raw-records.jsonl.gz"
+    }
+  ],
+  "host_samples_raw": "raw-records.jsonl.gz",
+  "host_sample_count": 1
+}

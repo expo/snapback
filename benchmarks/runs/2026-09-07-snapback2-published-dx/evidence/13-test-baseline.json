@@ -1,0 +1,64 @@
+{
+  "label": "13-test-baseline",
+  "cwd": "/Users/ccheever/bench-snapback2-dx/published-0.0.14/app",
+  "command": [
+    "/Users/ccheever/bench-snapback2-dx/published-0.0.14/app/node_modules/.bin/snapback2",
+    "test",
+    "--json"
+  ],
+  "started": "2026-09-07T06:51:32.486519+00:00",
+  "wall_s": 3.378240167,
+  "exit": 0,
+  "pid": 33630,
+  "cpu_user_s": 3.291755,
+  "cpu_system_s": 0.538519,
+  "load_before": [
+    16.18017578125,
+    7.13134765625,
+    5.95068359375
+  ],
+  "load_after": [
+    16.96630859375,
+    7.4443359375,
+    6.06787109375
+  ],
+  "removed_env_keys": [
+    "NODE_PATH"
+  ],
+  "stdout": "{\"binary\":{\"version\":\"0.0.14\",\"digest\":\"rust64:0c64cf0914f5b3e1\"},\"generation\":\"2c0b7fb023e78d306c0d4e1366e80f2c15ef462452b852fb86374e14113fd35c\",\"commands\":[\"snapback2 dev --foreground --port 0\",\"seed\",\"snapback2 test\"],\"checks\":[{\"name\":\"certify\",\"kind\":\"derived\",\"verdict\":\"pass\",\"ms\":1147,\"detail\":{\"operations\":2}},{\"name\":\"rules\",\"kind\":\"derived\",\"verdict\":\"pass\",\"ms\":8,\"detail\":{\"actualBy\":\"data\",\"blocked\":[],\"coverage\":\"every stored row and seed persona for each completed table; no row sampling\",\"expectedBy\":\"engine\",\"probeLimit\":16384,\"probes\":2,\"tables\":{\"todos\":{\"personas\":2,\"probes\":2,\"seedRows\":1}}}},{\"name\":\"bounds\",\"kind\":\"derived\",\"verdict\":\"pass\",\"ms\":0,\"detail\":{\"blocked\":[],\"enforcedBy\":\"engine\",\"executions\":[{\"as\":\"alice\",\"examined\":{\"actual\":1,\"ceiling\":52},\"op\":\"todos.list\",\"readSites\":[{\"calls\":{\"actual\":1,\"ceiling\":1},\"site\":\"todos.list.0\",\"take\":50}],\"ruleProbes\":{\"actual\":0,\"ceiling\":0},\"steps\":{\"actual\":3,\"ceiling\":263}}],\"probes\":1}},{\"name\":\"invalidation\",\"kind\":\"derived\",\"verdict\":\"pass\",\"ms\":282,\"detail\":{\"attemptLimitPerQuery\":64,\"attempts\":3,\"blocked\":[],\"candidateLimit\":12,\"coverage\":\"one physical representative per query and certificate-intersection signature, plus concrete-disjoint silence per query; not every operation pair\",\"deliveryProbes\":1,\"exclusions\":0,\"groups\":[{\"candidates\":[\"todos.add\"],\"query\":\"todos.list\",\"sites\":[[\"todos\",\"byOwnerId\"]],\"witnessed\":true}],\"intersectionLevel\":\"exact authoritative trace key x commit touched key\",\"intersections\":[{\"mutation\":\"todos.add\",\"query\":\"todos.list\",\"sites\":[{\"index\":\"byOwnerId\",\"table\":\"todos\"}]}],\"outcomes\":[{\"changed\":true,\"delivered\":true,\"disposition\":\"physical\",\"error\":null,\"invalidated\":true,\"mutation\":\"todos.add\",\"mutationArgs\":{\"title\":\"derived test\"},\"mutationPersona\":\"alice\",\"overlaps\":true,\"probeRole\":\"pair\",\"query\":\"todos.list\",\"queryArgs\":{},\"queryPersona\":\"alice\",\"selected\":true,\"seq\":2,\"sseDelivered\":true,\"sseSeq\":2,\"staticConcreteMismatch\":false,\"staticSitesIntersect\":true,\"writes\":1},{\"changed\":true,\"delivered\":true,\"disposition\":\"physical\",\"error\":null,\"invalidated\":true,\"mutation\":\"todos.add\",\"mutationArgs\":{\"title\":\"derived test\"},\"mutationPersona\":\"alice\",\"overlaps\":true,\"probeRole\":\"silence\",\"query\":\"todos.list\",\"queryArgs\":{},\"queryPersona\":\"alice\",\"selected\":false,\"seq\":2,\"sseDelivered\":true,\"sseSeq\":2,\"staticConcreteMismatch\":false,\"staticSitesIntersect\":true,\"writes\":1},{\"changed\":false,\"delivered\":false,\"disposition\":\"physical\",\"error\":null,\"invalidated\":false,\"mutation\":\"todos.add\",\"mutationArgs\":{\"title\":\"derived test\"},\"mutationPersona\":\"__snapback2_disjoint_todos_list\",\"overlaps\":false,\"probeRole\":\"silence\",\"query\":\"todos.list\",\"queryArgs\":{},\"queryPersona\":\"alice\",\"selected\":true,\"seq\":2,\"sseDelivered\":false,\"sseSeq\":null,\"staticConcreteMismatch\":true,\"staticSitesIntersect\":true,\"writes\":1}],\"overlapProbes\":1,\"probes\":2,\"silenceProbes\":1,\"skipped\":[],\"transport\":\"SSE\"}},{\"name\":\"replay\",\"kind\":\"derived\",\"verdict\":\"pass\",\"ms\":21,\"detail\":{\"attempts\":1,\"blocked\":[],\"candidateLimit\":12,\"candidateSelection\":\"first two seed scopes and first six personas; exhaustion blocks\",\"clock\":\"1700000000000 + mutation index\",\"comparison\":\"byte-identical committed execution + authoritative trace\",\"forks\":2,\"newIds\":\"replay-<mutation>-<ordinal>\",\"probes\":1,\"skipped\":[]}},{\"name\":\"todos round trip\",\"kind\":\"journey\",\"verdict\":\"pass\",\"ms\":78,\"detail\":{\"file\":\"/Users/ccheever/bench-snapback2-dx/published-0.0.14/app/.snapback/test-run-1788763892642/project/.snapback/build/tests/todos.mjs\"}}],\"arms\":[\"headless\"],\"verdict\":\"pass\",\"scope\":{\"changed\":[]}}\n",
+  "stderr": "",
+  "host_samples": [
+    {
+      "elapsed_s": 1.011420708,
+      "load": [
+        16.18017578125,
+        7.13134765625,
+        5.95068359375
+      ],
+      "processes": "  PID  PPID  %CPU %MEM COMM\n33654 33632 121.3  0.2 node\n 8032     1  96.4  0.1 /System/Library/Frameworks/CoreServices.framework/Versions/A/Frameworks/FSEvents.framework/Versions/A/Support/fseventsd\n33495 10728  14.3  0.5 /Applications/Google Chrome.app/Contents/Frameworks/Google Chrome Framework.framework/Versions/152.0.7977.76/Helpers/Google Chrome Helper (Renderer).app/Contents/MacOS/Google Chrome Helper (Renderer)\n33618     1  13.8  0.0 /System/Library/Frameworks/CoreServices.framework/Versions/A/Frameworks/Metadata.framework/Versions/A/Support/mdworker_shared\n33579     1  11.6  0.0 /System/Library/Frameworks/CoreServices.framework/Versions/A/Frameworks/Metadata.framework/Versions/A/Support/mdworker_shared\n33544     1  10.5  0.0 /System/Library/Frameworks/CoreServices.framework/Versions/A/Frameworks/Metadata.framework/Versions/A/Support/mdworker_shared\n33547     1  10.1  0.0 /System/Library/Frameworks/CoreServices.framework/Versions/A/Frameworks/Metadata.framework/Versions/A/Support/mdworker_shared\n67090 67089  10.1  1.3 /Users/ccheever/.volta/tools/image/packages/@openai/codex/lib/node_modules/@openai/codex/node_modules/@openai/codex-darwin-arm64/vendor/aarch64-apple-darwin/bin/codex\n32785     1   9.5  0.0 /System/Library/Frameworks/CoreServices.framework/Versions/A/Frameworks/Metadata.framework/Versions/A/Support/mdworker_shared\n 3575     1   7.3  0.0 tmux\n 8274     1   6.9  0.1 /System/Library/DriverExtensions/com.apple.DriverKit-AppleBCMWLAN.dext/com.apple.DriverKit-AppleBCMWLAN\n 8057     1   6.0  0.2 /System/Library/Frameworks/CoreServices.framework/Versions/A/Frameworks/Metadata.framework/Versions/A/Support/mds\n 8461     1   6.0  0.2 /Library/SystemExtensions/45AAB62E-060A-496D-B846-1369156BAF5D/io.tailscale.ipn.macsys.network-extension.systemextension/Contents/MacOS/io.tailscale.ipn.macsys.network-extension\n10728     1   4.8  0.7 /Applications/Google Chrome.app/Contents/MacOS/Google Chrome\n 8240     1   3.9  2.9 /System/Library/Frameworks/CoreServices.framework/Versions/A/Frameworks/Metadata.framework/Versions/A/Support/mds_stores\n",
+      "process_list_scope": "top 15 by sampled CPU; complete original in raw-records.jsonl.gz"
+    },
+    {
+      "elapsed_s": 2.152293958,
+      "load": [
+        16.18017578125,
+        7.13134765625,
+        5.95068359375
+      ],
+      "processes": "  PID  PPID  %CPU %MEM COMM\n33682 33660 143.5  0.2 node\n 8032     1 100.0  0.1 /System/Library/Frameworks/CoreServices.framework/Versions/A/Frameworks/FSEvents.framework/Versions/A/Support/fseventsd\n    1     0  26.5  0.0 /sbin/launchd\n33052     1  17.6  0.0 /System/Library/Frameworks/CoreServices.framework/Versions/A/Frameworks/Metadata.framework/Versions/A/Support/mdworker_shared\n33031     1  15.8  0.0 /System/Library/Frameworks/CoreServices.framework/Versions/A/Frameworks/Metadata.framework/Versions/A/Support/mdworker_shared\n33547     1  13.6  0.0 /System/Library/Frameworks/CoreServices.framework/Versions/A/Frameworks/Metadata.framework/Versions/A/Support/mdworker_shared\n33618     1  13.0  0.0 /System/Library/Frameworks/CoreServices.framework/Versions/A/Frameworks/Metadata.framework/Versions/A/Support/mdworker_shared\n32785     1  12.8  0.0 /System/Library/Frameworks/CoreServices.framework/Versions/A/Frameworks/Metadata.framework/Versions/A/Support/mdworker_shared\n33544     1  12.3  0.0 /System/Library/Frameworks/CoreServices.framework/Versions/A/Frameworks/Metadata.framework/Versions/A/Support/mdworker_shared\n33579     1  11.5  0.0 /System/Library/Frameworks/CoreServices.framework/Versions/A/Frameworks/Metadata.framework/Versions/A/Support/mdworker_shared\n32781     1  10.9  0.0 /System/Library/Frameworks/CoreServices.framework/Versions/A/Frameworks/Metadata.framework/Versions/A/Support/mdworker_shared\n33495 10728   7.2  0.4 /Applications/Google Chrome.app/Contents/Frameworks/Google Chrome Framework.framework/Versions/152.0.7977.76/Helpers/Google Chrome Helper (Renderer).app/Contents/MacOS/Google Chrome Helper (Renderer)\n 3575     1   6.3  0.0 tmux\n 8461     1   5.2  0.2 /Library/SystemExtensions/45AAB62E-060A-496D-B846-1369156BAF5D/io.tailscale.ipn.macsys.network-extension.systemextension/Contents/MacOS/io.tailscale.ipn.macsys.network-extension\n 8057     1   4.4  0.2 /System/Library/Frameworks/CoreServices.framework/Versions/A/Frameworks/Metadata.framework/Versions/A/Support/mds\n",
+      "process_list_scope": "top 15 by sampled CPU; complete original in raw-records.jsonl.gz"
+    },
+    {
+      "elapsed_s": 3.269282667,
+      "load": [
+        16.96630859375,
+        7.4443359375,
+        6.06787109375
+      ],
+      "processes": "  PID  PPID  %CPU %MEM COMM\n 8032     1 100.8  0.1 /System/Library/Frameworks/CoreServices.framework/Versions/A/Frameworks/FSEvents.framework/Versions/A/Support/fseventsd\n33544     1  29.4  0.0 /System/Library/Frameworks/CoreServices.framework/Versions/A/Frameworks/Metadata.framework/Versions/A/Support/mdworker_shared\n33579     1  25.0  0.0 /System/Library/Frameworks/CoreServices.framework/Versions/A/Frameworks/Metadata.framework/Versions/A/Support/mdworker_shared\n33052     1  17.7  0.0 /System/Library/Frameworks/CoreServices.framework/Versions/A/Frameworks/Metadata.framework/Versions/A/Support/mdworker_shared\n33031     1  16.1  0.0 /System/Library/Frameworks/CoreServices.framework/Versions/A/Frameworks/Metadata.framework/Versions/A/Support/mdworker_shared\n33547     1  15.2  0.0 /System/Library/Frameworks/CoreServices.framework/Versions/A/Frameworks/Metadata.framework/Versions/A/Support/mdworker_shared\n 8057     1  14.8  0.2 /System/Library/Frameworks/CoreServices.framework/Versions/A/Frameworks/Metadata.framework/Versions/A/Support/mds\n32785     1  12.5  0.0 /System/Library/Frameworks/CoreServices.framework/Versions/A/Frameworks/Metadata.framework/Versions/A/Support/mdworker_shared\n67090 67089  11.3  1.3 /Users/ccheever/.volta/tools/image/packages/@openai/codex/lib/node_modules/@openai/codex/node_modules/@openai/codex-darwin-arm64/vendor/aarch64-apple-darwin/bin/codex\n32781     1   9.3  0.0 /System/Library/Frameworks/CoreServices.framework/Versions/A/Frameworks/Metadata.framework/Versions/A/Support/mdworker_shared\n33632 33631   8.4  0.0 (snapback2)\n33618     1   8.1  0.0 /System/Library/Frameworks/CoreServices.framework/Versions/A/Frameworks/Metadata.framework/Versions/A/Support/mdworker_shared\n 8461     1   7.0  0.2 /Library/SystemExtensions/45AAB62E-060A-496D-B846-1369156BAF5D/io.tailscale.ipn.macsys.network-extension.systemextension/Contents/MacOS/io.tailscale.ipn.macsys.network-extension\n 3575     1   6.8  0.0 tmux\n 8274     1   5.3  0.1 /System/Library/DriverExtensions/com.apple.DriverKit-AppleBCMWLAN.dext/com.apple.DriverKit-AppleBCMWLAN\n",
+      "process_list_scope": "top 15 by sampled CPU; complete original in raw-records.jsonl.gz"
+    }
+  ],
+  "host_samples_raw": "raw-records.jsonl.gz",
+  "host_sample_count": 3
+}

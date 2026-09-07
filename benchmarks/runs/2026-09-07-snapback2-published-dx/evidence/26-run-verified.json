@@ -1,0 +1,35 @@
+{
+  "label": "26-run-verified",
+  "cwd": "/Users/ccheever/bench-snapback2-dx/published-0.0.14/app",
+  "command": [
+    "/Users/ccheever/bench-snapback2-dx/published-0.0.14/app/node_modules/.bin/snapback2",
+    "run",
+    "todos.list",
+    "{}",
+    "--as",
+    "alice",
+    "--json"
+  ],
+  "started": "2026-09-07T06:53:54.541180+00:00",
+  "wall_s": 0.10217495800000001,
+  "exit": 0,
+  "pid": 34900,
+  "cpu_user_s": 0.06644699999999999,
+  "cpu_system_s": 0.02524,
+  "load_before": [
+    10.6376953125,
+    9.80224609375,
+    7.3359375
+  ],
+  "load_after": [
+    10.6376953125,
+    9.80224609375,
+    7.3359375
+  ],
+  "removed_env_keys": [
+    "NODE_PATH"
+  ],
+  "stdout": "{\"data\":[{\"done\":true,\"id\":\"todo-1\",\"ownerId\":\"dev:alice\",\"title\":\"Ship Snapback 2\"}],\"next\":null,\"seq\":2,\"state\":\"complete\"}\n",
+  "stderr": "",
+  "host_samples": []
+}

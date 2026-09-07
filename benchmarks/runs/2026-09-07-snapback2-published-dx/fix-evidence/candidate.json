@@ -1,0 +1,20 @@
+{
+  "base": "63296ed84c93016339cd7942a081969d7143e71e",
+  "commit": "361d2f4236d0e6190dddfe2cc29f2e00d8507dc3",
+  "paths": [
+    "llp/1002-dev-loop.spec.md",
+    "snapback2/crates/snapback2/src/init.rs",
+    "snapback2/crates/snapback2/src/receipt.rs",
+    "snapback2/crates/snapback2/src/test.rs",
+    "snapback2/crates/snapback2/src/verbs.rs",
+    "snapback2/crates/snapback2/tests/guide.rs",
+    "snapback2/crates/snapback2/tests/test_verb.rs",
+    "snapback2/packages/snapback2/guide/testing.md",
+    "snapback2/packages/snapback2/templates/react/src/App.tsx"
+  ],
+  "remote": "100.85.211.16",
+  "remoteRoot": "/home/ccheever/lanes/snapback2-dx",
+  "build": "debug affected tests; release installed consumer and timings; effects disabled. Production publication separately owned.",
+  "integratedBase": "1936eaddbea3621777c9df9c145f90a7fe92d9db",
+  "integratedSource": "0004ff7f2d7e906b606802faeaeb15da771399d1"
+}

@@ -1,0 +1,33 @@
+{
+  "label": "23-test-changed",
+  "cwd": "/Users/ccheever/bench-snapback2-dx/published-0.0.14/app",
+  "command": [
+    "/Users/ccheever/bench-snapback2-dx/published-0.0.14/app/node_modules/.bin/snapback2",
+    "test",
+    "--changed",
+    "snapback/todos.q",
+    "--json"
+  ],
+  "started": "2026-09-07T06:53:50.311178+00:00",
+  "wall_s": 0.12957775,
+  "exit": 2,
+  "pid": 34727,
+  "cpu_user_s": 0.08957699999999999,
+  "cpu_system_s": 0.030822,
+  "load_before": [
+    10.6376953125,
+    9.80224609375,
+    7.3359375
+  ],
+  "load_after": [
+    10.6376953125,
+    9.80224609375,
+    7.3359375
+  ],
+  "removed_env_keys": [
+    "NODE_PATH"
+  ],
+  "stdout": "",
+  "stderr": "unknown option --changed\n",
+  "host_samples": []
+}

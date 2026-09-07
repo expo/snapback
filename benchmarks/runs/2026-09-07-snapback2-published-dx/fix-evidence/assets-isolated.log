@@ -1,0 +1,9 @@
+   Compiling snapback2 v0.0.14 (/home/ccheever/lanes/snapback2-dx/snapback2/crates/snapback2)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 1.24s
+     Running tests/assets.rs (target/debug/deps/assets-ed1811bb8e175ccb)
+
+running 1 test
+test asset_server_upload_delivery_carrier_revoke_and_reset_round_trip ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 10 filtered out; finished in 5.78s
+

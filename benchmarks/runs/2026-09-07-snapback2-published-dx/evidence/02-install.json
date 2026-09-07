@@ -1,0 +1,59 @@
+{
+  "label": "02-install",
+  "cwd": "/Users/ccheever/bench-snapback2-dx/published-0.0.14/bootstrap",
+  "command": [
+    "npm",
+    "install",
+    "--save-exact",
+    "--no-audit",
+    "--no-fund",
+    "--cache",
+    "/Users/ccheever/bench-snapback2-dx/published-0.0.14/npm-cache",
+    "snapback2@0.0.14"
+  ],
+  "started": "2026-09-07T06:50:24.186267+00:00",
+  "wall_s": 2.9852971249999998,
+  "exit": 0,
+  "pid": 33016,
+  "cpu_user_s": 1.2620149999999999,
+  "cpu_system_s": 0.43327899999999997,
+  "load_before": [
+    4.474609375,
+    4.03173828125,
+    4.87939453125
+  ],
+  "load_after": [
+    4.5166015625,
+    4.04736328125,
+    4.8798828125
+  ],
+  "removed_env_keys": [
+    "NODE_PATH"
+  ],
+  "stdout": "\nadded 4 packages in 3s\n",
+  "stderr": "",
+  "host_samples": [
+    {
+      "elapsed_s": 1.003627625,
+      "load": [
+        4.5166015625,
+        4.04736328125,
+        4.8798828125
+      ],
+      "processes": "  PID  PPID  %CPU %MEM COMM\n 8032     1 100.0  0.1 /System/Library/Frameworks/CoreServices.framework/Versions/A/Frameworks/FSEvents.framework/Versions/A/Support/fseventsd\n32981 10728  53.7  0.4 /Applications/Google Chrome.app/Contents/Frameworks/Google Chrome Framework.framework/Versions/152.0.7977.76/Helpers/Google Chrome Helper (Renderer).app/Contents/MacOS/Google Chrome Helper (Renderer)\n 8240     1  45.4  2.6 /System/Library/Frameworks/CoreServices.framework/Versions/A/Frameworks/Metadata.framework/Versions/A/Support/mds_stores\n33017 33016  38.5  0.3 npm install snapback2@0.0.14\n10728     1  15.8  0.7 /Applications/Google Chrome.app/Contents/MacOS/Google Chrome\n32785     1  10.0  0.0 /System/Library/Frameworks/CoreServices.framework/Versions/A/Frameworks/Metadata.framework/Versions/A/Support/mdworker_shared\n32789     1   7.8  0.0 /System/Library/Frameworks/CoreServices.framework/Versions/A/Frameworks/Metadata.framework/Versions/A/Support/mdworker_shared\n 8461     1   7.4  0.2 /Library/SystemExtensions/45AAB62E-060A-496D-B846-1369156BAF5D/io.tailscale.ipn.macsys.network-extension.systemextension/Contents/MacOS/io.tailscale.ipn.macsys.network-extension\n 8274     1   6.4  0.1 /System/Library/DriverExtensions/com.apple.DriverKit-AppleBCMWLAN.dext/com.apple.DriverKit-AppleBCMWLAN\n 8057     1   5.2  0.1 /System/Library/Frameworks/CoreServices.framework/Versions/A/Frameworks/Metadata.framework/Versions/A/Support/mds\n33019 33018   4.7  0.0 ssh\n91841 33940   4.2  1.0 claude\n 3575     1   3.1  0.0 tmux\n 8094     1   2.9  0.1 /usr/sbin/bluetoothd\n33013 33010   2.2  0.0 ssh\n",
+      "process_list_scope": "top 15 by sampled CPU; complete original in raw-records.jsonl.gz"
+    },
+    {
+      "elapsed_s": 2.040223834,
+      "load": [
+        4.5166015625,
+        4.04736328125,
+        4.8798828125
+      ],
+      "processes": "  PID  PPID  %CPU %MEM COMM\n 8032     1 100.5  0.1 /System/Library/Frameworks/CoreServices.framework/Versions/A/Frameworks/FSEvents.framework/Versions/A/Support/fseventsd\n33017 33016  76.8  0.4 npm install snapback2@0.0.14\n32981 10728  67.1  0.4 /Applications/Google Chrome.app/Contents/Frameworks/Google Chrome Framework.framework/Versions/152.0.7977.76/Helpers/Google Chrome Helper (Renderer).app/Contents/MacOS/Google Chrome Helper (Renderer)\n 8240     1  55.8  2.7 /System/Library/Frameworks/CoreServices.framework/Versions/A/Frameworks/Metadata.framework/Versions/A/Support/mds_stores\n10728     1  17.8  0.7 /Applications/Google Chrome.app/Contents/MacOS/Google Chrome\n32789     1  13.8  0.0 /System/Library/Frameworks/CoreServices.framework/Versions/A/Frameworks/Metadata.framework/Versions/A/Support/mdworker_shared\n32785     1   9.7  0.0 /System/Library/Frameworks/CoreServices.framework/Versions/A/Frameworks/Metadata.framework/Versions/A/Support/mdworker_shared\n 8057     1   6.0  0.1 /System/Library/Frameworks/CoreServices.framework/Versions/A/Frameworks/Metadata.framework/Versions/A/Support/mds\n 8274     1   5.6  0.1 /System/Library/DriverExtensions/com.apple.DriverKit-AppleBCMWLAN.dext/com.apple.DriverKit-AppleBCMWLAN\n 8461     1   4.2  0.2 /Library/SystemExtensions/45AAB62E-060A-496D-B846-1369156BAF5D/io.tailscale.ipn.macsys.network-extension.systemextension/Contents/MacOS/io.tailscale.ipn.macsys.network-extension\n 3575     1   3.8  0.0 tmux\n32790     1   2.0  0.0 /System/Library/Frameworks/CoreServices.framework/Versions/A/Frameworks/Metadata.framework/Versions/A/Support/mdworker_shared\n67090 67089   1.9  1.3 /Users/ccheever/.volta/tools/image/packages/@openai/codex/lib/node_modules/@openai/codex/node_modules/@openai/codex-darwin-arm64/vendor/aarch64-apple-darwin/bin/codex\n32077 32070   0.9  0.0 sshd-session: ccheever@ttys001\n 8067     1   0.6  0.0 /System/Library/PrivateFrameworks/CoreDuetContext.framework/Resources/contextstored\n",
+      "process_list_scope": "top 15 by sampled CPU; complete original in raw-records.jsonl.gz"
+    }
+  ],
+  "host_samples_raw": "raw-records.jsonl.gz",
+  "host_sample_count": 2
+}

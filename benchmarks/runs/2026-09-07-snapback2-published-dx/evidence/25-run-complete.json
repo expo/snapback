@@ -1,0 +1,35 @@
+{
+  "label": "25-run-complete",
+  "cwd": "/Users/ccheever/bench-snapback2-dx/published-0.0.14/app",
+  "command": [
+    "/Users/ccheever/bench-snapback2-dx/published-0.0.14/app/node_modules/.bin/snapback2",
+    "run",
+    "todos.complete",
+    "{\"todoId\":\"todo-1\"}",
+    "--as",
+    "alice",
+    "--json"
+  ],
+  "started": "2026-09-07T06:53:54.352306+00:00",
+  "wall_s": 0.10602866700000001,
+  "exit": 0,
+  "pid": 34896,
+  "cpu_user_s": 0.06804299999999999,
+  "cpu_system_s": 0.025599999999999998,
+  "load_before": [
+    10.6376953125,
+    9.80224609375,
+    7.3359375
+  ],
+  "load_after": [
+    10.6376953125,
+    9.80224609375,
+    7.3359375
+  ],
+  "removed_env_keys": [
+    "NODE_PATH"
+  ],
+  "stdout": "{\"data\":true,\"seq\":2,\"state\":\"committed\"}\n",
+  "stderr": "",
+  "host_samples": []
+}

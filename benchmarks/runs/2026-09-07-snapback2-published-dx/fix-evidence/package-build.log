@@ -1,0 +1,9 @@
+file:///home/ccheever/lanes/snapback2-dx/snapback2/packages/snapback2/build.mjs:209
+  throw new Error(`guide validation failed:\n${guideErrors.join("\n")}`);
+        ^
+
+Error: guide validation failed:
+guide/testing.md: exceeds 4096 bytes
+    at file:///home/ccheever/lanes/snapback2-dx/snapback2/packages/snapback2/build.mjs:209:9
+
+Node.js v24.13.1
