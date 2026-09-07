@@ -489,6 +489,15 @@ query before(boundary: time):
         "messageCount: { value: 0 }",
     );
     fs::write(&messages, source).unwrap();
+    let deliveries = root.join("snapback/deliveries.q");
+    let delivery_source = fs::read_to_string(&deliveries).unwrap();
+    let without_count =
+        delivery_source.replace("count: #messageCounts[conversationId]", "count: 0");
+    assert_ne!(
+        delivery_source, without_count,
+        "the chat composite query no longer reads the maintained count"
+    );
+    fs::write(&deliveries, without_count).unwrap();
     let schema_path = root.join("snapback/schema.q");
     let seed_path = root.join("snapback/seed.ts");
     let seed = fs::read_to_string(&seed_path)

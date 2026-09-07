@@ -25,14 +25,6 @@ job digestSweep:
 schedule dailyDigest every 24h:
   digestSweep
 
-mutation purgeMessage(messageId: messages):
-  msg = messages[messageId] ! else NOT_FOUND
-  delete messages[msg]
-  return null
-
-schedule expireMessage on messages at .expiresAt:
-  purgeMessage(.id)
-
 mutation sendExpiring(conversationId: conversations, body: text <=4000, expiresAt: time ?):
   require exists memberships[conversationId, viewer] else NOT_MEMBER
   row = insert messages { conversationId, authorId: viewer, body, photo: null, clip: null, expiresAt, at: now }
@@ -214,7 +206,7 @@ fn schedules_fire_on_the_dev_clock_with_clients_closed_and_the_digest_fires_once
     let firing = &trace.1[0]["firings"][0];
     assert!(trace.1[0]["timer"].is_null());
     assert_eq!(firing["schedule"], "expireMessage");
-    assert_eq!(firing["target"], "admin.purgeMessage");
+    assert_eq!(firing["target"], "deliveries.purgeMessage");
     assert_eq!(firing["rowId"], message);
     assert_eq!(
         firing["occurrence"],
@@ -320,7 +312,7 @@ fn schedules_fire_on_the_dev_clock_with_clients_closed_and_the_digest_fires_once
         "POST",
         "/api/mutation",
         &[("X-Snapback-As", "alice")],
-        json!({"op":"admin.purgeMessage","args":{"messageId":by_hand}}),
+        json!({"op":"deliveries.purgeMessage","args":{"messageId":by_hand}}),
     );
     assert!(refused.status >= 400, "{}", refused.body);
     assert_eq!(
@@ -340,7 +332,7 @@ fn schedules_fire_on_the_dev_clock_with_clients_closed_and_the_digest_fires_once
         &compiler,
         &[
             "run",
-            "admin.purgeMessage",
+            "deliveries.purgeMessage",
             &json!({"messageId": by_hand}).to_string(),
             "--as",
             "system",
