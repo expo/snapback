@@ -38,6 +38,22 @@ tracks test deadlines separately. Raw measurement stdout and the launch
 PID/exit/duration receipt remain locally in
 `/Users/ccheever/projects/snapback/.llp/ship-runs/20260907-parallel-papercuts/measure.*`.
 
+## Survivor-uniqueness repair measurement — 2026-09-07
+
+The ordinary measurement at `2026-09-07T08:43:14.213Z`, source `07b36aad2`
+(core bytes unchanged by its clean rebase and landing as `036fc240c`), again
+passed every functional step and failed the same three timing budgets:
+installed consumer 58.21 s / 30 s, project check 3.315 s / 1 s, and first
+doctor sample 1.135 s / 0.5 s. The second doctor sample passed at 0.116 s.
+Warm release build passed at 280.38 s / 300 s, incremental build at
+7.41 s / 15 s, and init-to-dev at 5.686 s / 10 s. The complete command took
+367.307 s and exited 1; its row is retained in the append-only loop log.
+
+The lane's affected core suite separately passed 420 tests (one pre-existing
+skip). No paired baseline measurement establishes the cause of these overruns,
+and this observation does not turn the timing check green. Logs and launch
+receipt: `.llp/ship-runs/survivor-uniqueness-measure.*` in the main local clone.
+
 
 ## DX candidate follow-up — 2026-09-07
 
