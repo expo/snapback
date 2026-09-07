@@ -132,7 +132,9 @@ fn quarry_nonuniform_insert_still_refuses() {
         refusals.iter().any(|refusal| {
             refusal["code"] == "E_QUARRY_TYPE"
                 && refusal["message"] == "items expects json, got page"
-                && refusal["rewrite"].as_str().is_some_and(|value| !value.is_empty())
+                && refusal["rewrite"]
+                    .as_str()
+                    .is_some_and(|value| !value.is_empty())
         }),
         "an authority-dependent page was not refused before insertion: {refusals:?}"
     );
