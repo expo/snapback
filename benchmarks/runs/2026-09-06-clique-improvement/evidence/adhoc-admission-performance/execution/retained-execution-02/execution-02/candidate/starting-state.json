@@ -1,0 +1,27 @@
+{
+  "observation": "SQL before owner startup; namespace-different execution copy",
+  "state": {
+    "counts": {
+      "conversations": 1002,
+      "follows": 5921,
+      "memberCounts": 1002,
+      "memberships": 2054,
+      "messageCounts": 903,
+      "messages": 10015,
+      "posts": 5048,
+      "profiles": 1008
+    },
+    "meta": {
+      "generation": "1ff1897c52f312d25de62a8002dd091661e88e076db3e0557421c3bd5f7703a9",
+      "id_high_water": "11590656",
+      "program_generation": "7315d72119c27ee4362f7b071fbc0292c6bc2323c0c8572c3599ea27feedae55",
+      "schema_hash": "1ff1897c52f312d25de62a8002dd091661e88e076db3e0557421c3bd5f7703a9"
+    },
+    "pending": {
+      "_jobs": 0,
+      "_outbox": 0,
+      "_timers": 0
+    },
+    "seq": 11318
+  }
+}

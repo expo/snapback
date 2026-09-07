@@ -1,0 +1,23 @@
+{
+  "argv": [
+    "/home/ccheever/clique-tooling/epyc-linux-tooling-20260907T010007Z-0fd567d96f/bun-v1.3.12-linux-x64/bin/bun",
+    "/home/ccheever/clique-tooling/search-structural-codec-0ecd-20260907T1130Z-01a07649/candidate1-root-oracles/probe.mjs",
+    "/home/ccheever/clique-tooling/search-structural-codec-0ecd-20260907T1130Z-01a07649/candidate1-bun-root/result.json"
+  ],
+  "pid": 4008682,
+  "start": "2026-09-07T12:04:38.422356+00:00",
+  "end": "2026-09-07T12:04:38.636956+00:00",
+  "elapsedSeconds": 0.21460420405492187,
+  "exitCode": 0,
+  "outerSeconds": 10,
+  "bunSha": "92a1cd8b6185f676010bb18e767dfc65c772273e79ae9984480843261939eeaa",
+  "bundleSha": "f1d2f13c0a22eb24b789adf6fb1100e718f576a6929d8b308f8ddcdfcd82022c",
+  "inputCustodySha": "473f962a34056ce089c22e795e8e9e89d0197a1b09f02a404e11b8f8e71fab4b",
+  "load": [
+    0.1435546875,
+    0.38623046875,
+    0.416015625
+  ],
+  "sharedHost": true,
+  "resultSha": "c1cc8a54ad64ff86da1672451f635280ed00e25e1cccbbd7ceef74548411e523"
+}

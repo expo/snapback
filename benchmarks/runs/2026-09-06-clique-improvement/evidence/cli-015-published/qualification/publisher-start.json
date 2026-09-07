@@ -1,0 +1,46 @@
+{
+  "command": [
+    "node",
+    "scripts/publish.mjs",
+    "--dry-run"
+  ],
+  "cwd": "/Users/ccheever/projects/snapback-worktrees/clique-cli-015-repaired-qualification-r2/snapback2",
+  "pid": 52754,
+  "driverPid": 52750,
+  "sourceCommit": "78924a1e7286907d2378221902ec22747e7d188f",
+  "sourceTree": "dc7a8cbe46867652fd68320b188cce181932ba92",
+  "snapback2Tree": "a0f040833e6084e6ddf38ce8f8f917284cc7a281",
+  "startedAt": "2026-09-07T11:23:43.799246+00:00",
+  "startLoad": [
+    30.9599609375,
+    20.4892578125,
+    12.013671875
+  ],
+  "host": "Apartment M1 MacBookPro18,2",
+  "outerTimeoutSeconds": 1800,
+  "originalBounds": {
+    "consumerStepMs": 30000,
+    "consumerFetchMs": 15000,
+    "consumerRetries": 0,
+    "publisherCommandTimeout": null
+  },
+  "environment": {
+    "PATH": "/Users/ccheever/clique-improvement/revisions/cli-015-repaired-qualification-r2/tools/rust-1.97.1/bin:/Users/ccheever/clique-improvement/revisions/cli-015-repaired-qualification-r2/tools/bun-1.3.12/bin:/Users/ccheever/clique-improvement/revisions/cli-015-repaired-qualification-r2/tools/node-22.23.2/bin:/opt/homebrew/bin:/Users/ccheever/.cargo/bin:/usr/bin:/bin:/usr/sbin:/sbin",
+    "CARGO_BUILD_JOBS": "2",
+    "CMAKE_BUILD_PARALLEL_LEVEL": "2",
+    "NEXTEST_TEST_THREADS": "2",
+    "DEVELOPER_DIR": "/Applications/Xcode.app/Contents/Developer",
+    "PKG_CONFIG": "/Users/ccheever/projects/snapback-worktrees/clique-cli-015-repaired-qualification-r2/snapback2/target/publish-tools/pkgconf/bin/pkgconf",
+    "IBEX2_VANILLA_HERMES_DIR": "/Users/ccheever/clique-improvement/revisions/asset-release-hermes/install/Frameworks-vanilla",
+    "IBEX2_HERMESC": "/Users/ccheever/clique-improvement/revisions/asset-release-hermes/install/bin/hermesc-macos-arm64",
+    "SNAPBACK2_PUBLISH_NPM": "/Users/ccheever/clique-improvement/revisions/cli-015-repaired-qualification-r2/npm-capture.py",
+    "NPM_CONFIG_CACHE": "/Users/ccheever/clique-improvement/revisions/cli-015-repaired-qualification-r2/npm-cache",
+    "TMPDIR": "/Users/ccheever/clique-improvement/revisions/cli-015-repaired-qualification-r2/tmp"
+  },
+  "scrubbedAmbientKeys": [],
+  "publisherSha256": "fc24c2c192119d11a6029ad7edfe91b7219a5623f8f91c1425607734c45bb3d2",
+  "consumerSha256": "c26bbf0e64d18cbb9557c5cf97e40ecfc045ff271ade77b749235c70dc044cf3",
+  "hermesBinding": "input-manifest.json; exact existing qualified install",
+  "runtimeSourceRepairAuthorized": false,
+  "actualPublicationAuthorized": false
+}

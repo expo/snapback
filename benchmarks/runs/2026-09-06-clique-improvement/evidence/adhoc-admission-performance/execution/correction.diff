@@ -1,0 +1,525 @@
+--- approved-packet/README.md
++++ packet-correction-01/README.md
+@@ -1,22 +1,21 @@
+-Preparation only. Root must review this exact packet, including the namespace exception below, before running it. No execution once marker or target exists yet.
++Root-directed correction preparation only. This packet has NOT run. Root must inspect its exact freeze/delta and proposed-corrected-run-command.txt before authorizing execution-02. Original packet and execution-01, its once marker, complete first failure and successful candidate build remain immutable. No second build is present in this runner.
+ 
+-The future single command is in proposed-run-command.txt. `run.py` is the durable supervisor: claim `execution-01.once.json` with exclusive creation, retain command/identity and stdout/stderr, build only candidate once, run baseline once then candidate once, preserve first failure, stop only owned Popen children, retain every source/store/result. An uncertain transport must be investigated through that marker and retained PID/start identity; never replay the command. The marker remains even on failure. No population, proxy server, asset server, extra control HTTP, retries, alternate order, repeated arms, or new baseline build.
++Execution-01 built candidate successfully in22.117881s, then failed before its first HTTP request at starting-state SQL: sqlite3.OperationalError: database is locked. The exact26c9 Store::open uses WAL plus locking_mode=EXCLUSIVE; a competing read-only connection cannot inspect the live store. Its baseline was gracefully stopped with exit0; candidate owner never started. No timings exist. The correction changes observation timing, never product locking, SQLite immutable live reads, source or workload.
+ 
+-Build: exact `cargo +1.97.0 build --locked -j16 -p snapback2`, default dev/debug/default empty features, 1800 seconds plus owned termination grace. Explicit RUSTC/RUSTDOC, installed Cargo/Rustup and full installed toolchain manifest, copied private Cargo registry/git caches, absent private target. CARGO_NET_OFFLINE=true and CARGO_NET_RETRY=0 mean missing locked input is a first failure, not a download or retry. No instrumentation, source rewrite or lock update. Candidate ELF/dependencies/SHA are inspected only after that build succeeds. Baseline ELF/helper are the original qualified Linux artifacts, individually pinned.
++Concrete observation order per future arm: copy the pristine prepared project to execution-02/{arm}/private/project; verify original checkpoint SHA; change only _meta.id_namespace to the already approved fixed per-arm value; perform full starting SQL counts/sequence/pending/generation/schema/program-generation/high-water and all original application row hashes BEFORE owner startup. Check all23 supplied message IDs absent. Launch the owner once, retain PID/start/argv/env, read only its newly generated control secret into memory, and compare generated base23 certificates to the frozen expected certificates. Make exactly3 warmups+20 measured ordinary requests, verifying each HTTP receipt/row/sequence/native timestamp immediately in memory. Write all23 nonsecret timing records and expectedPostState fields, explicitly labelled EXPECTED, not observed SQL. No SQL connection opens to the live store.
+ 
+-Each arm copies its already prepared byte-identical input project/store into a fresh private execution directory. Root must explicitly approve `--root-reviewed-fork-namespace-isolation`: before owner launch, change ONLY that execution copy's `_meta.id_namespace` to the distinct fixed value in config.json, retaining its high-water mark, source rows, effects, certificates, sequence and supplied IDs. No rotation has occurred during preparation. This is the minimal concrete alternative to opening a literal read-only fork as an owner: frozen blob_store.rs requires namespace rotation before writable fork allocation, and registry_operator.rs reserves 1024 IDs on every mutation even if the Quarry uses supplied IDs. The two source checkpoint files are byte-identical; proposed writable databases differ in allocator namespace and subsequent ordinary owner metadata/wall times. They must not be described as byte-identical timed databases. No namespace rotation can be silently omitted under this packet.
++After request23, gracefully stop only the retained Popen owner using the existing SIGTERM/wait30 cleanup. A required kill or nonzero owner exit fails the arm; no persisted correctness pass is issued. Then open only the stopped execution copy read-only, validate every returned persisted row, all23 ledger entries and their sequence/time/source/seat/by/kind/emits/write counts, original-row hashes, physical table counts and maintained g0001 count, final pending work, generation/schema/program generation and allocator high-water. Recheck the base23 certificate file. No restart between requests, extra product HTTP, lock disabling or immutable bypass of a live WAL is allowed.
+ 
+-Owner startup: each original 30-second bound, ports baseline50933/candidate50935, original source compiler wrapper, pinned Node22/Bun1.3.12 PATH, Linux helper22e38b54…dcffe8de. No inherited compiler flags, clock override, Hermes or media workload. Own generated control secrets stay in memory/private owner state. Historical credentials/configs/raw HTTP outputs are never inspected or collected. The copied SQLite files stay external under mode0700 parents, mode0600 files; their credential tables are not queried. The only media blob named by the checkpoint is independently copied and hash bound. Avatar URL strings remain historical bytes; no avatar HTTP is invoked.
++Changed observation scope is explicit: per-request receipt sequence and returned rows remain observed; final persisted ledger establishes all23 commits and write counts. Starting and final counts, pending queues, generation and allocator are observed, but intermediate pending/generation/high-water snapshots are not. expectedPostState contains the intended per-step sequence/count/1024-ID reservation progression; it is not evidence of independently observed intermediate allocator values. The final allocator assertion remains exact11590656→11614208; all23 commits/rows and final state must match. This is the concrete observational limitation for Root review, not silently claimed equivalence of SQL sampling.
+ 
+-Exactly 23 ordinary `/control/run` putMessage requests per arm: first3 warmups and next20 measured. Args and source are in workload.json and the untouched catalog; source ordinals47345–47367 are the first23 ordinary sends following the10% boundary. Intervening background source actions are not replayed: this is a small ordinary-mutation diagnostic, not a resumed scale population. All conversations, author memberships and absent supplied IDs were verified read-only against the10% copy. Compiler wrapper yields the exact23 base programs or their exact24-program ad hoc extension, with the separate compiler-result admission retained. Startup certificates must match the original23 native certificates, not a current compiler or twin.
++Candidate reuse: execution-01/candidate-owner SHA faa2a59c59e3de399df0b317991e03d5eae35873a58bd9eccd2df1e1b929f39d,149086232B, source manifest5adf7071f2d7e68658ed71153ff87c2c78ee6978c71270efdd3eb1d7c65b8642, unchanged Cargo.lock823ad9b7193981342b15ca95a22b45a50f97c5da87795c9c7eeb8d93711620ad. The retained41-leaf attempt manifest binds binary/ELF/dependencies/build command/env/terminal/first failure/once/private copy by hashes and modes; private values are never exported. The old packet freeze and old supervisor/owner absence are also checked. buildCommand/buildEnv remain historical provenance in config, never executed. Baseline2f3cd93c…95175 and original media helper22e38b54…dcffe8de are unchanged. Full original/candidate958-leaf sources,208 runtime leaves,9391 private Cargo cache leaves,3781 tool leaves, original1158-leaf Linux freeze and pristine private inputs remain checked. Rust1.97.0/Node22.23.2/Bun1.3.12 and the exact historical compiler-output wrapper remain selected. Candidate is26c9 plus only the reviewed three-file5dc dedup repair, never current main.
+ 
+-Timer: serialization, headers and connection-object construction precede timer. `perf_counter_ns` starts immediately before HTTPConnection.request; complete HTTP response body read is included; JSON decode and every assertion/SQL observation follow the endpoint. New HTTP/1.1 TCP, Connection:close, Accept-Encoding:identity. Socket and whole-request alarm30s, zero retries. Preserve original native clock wait before sending; returned timestamps must strictly increase within each arm and lie within that request's real wall interval. Clock nonprogress fails before sending after30s. Cross-arm timestamps are neither equated nor rewritten.
++The future command has exclusive stdout/stderr, execution-02.once.json and output creation, with exact new packet SHA plus --root-reviewed-fork-namespace-isolation and --root-reviewed-stopped-store-observations. No execution-02 directory or marker exists during preparation. An uncertain transport must be inspected through its retained marker/PID/start identity, never relaunched. Stop on first failure, retain every file, zero retries. Do not delete execution-01 or any checkpoint/cache/donor. Ports remain50933/50935, free binds immediately released. Baseline first, candidate second; no repeated/alternating arms or new outer deadline. No globally quiet-host gate.
+ 
+-All23 requests assert HTTP200, exact committed receipt fields, seq11319..11341, system principal, source digest, supplied row identity/author/conversation/body, null photo/clip/oncePhoto/expiresAt and native timestamp. Read-only SQL outside the HTTP timer checks every post-message count/sequence; final validation checks every persisted returned row, every new operator commit's time/source/by/seat/write counts, maintained g0001 count1000→1023, total messages10015→10038, all original app rows unchanged, other physical table counts unchanged, pending jobs/timers/outbox0 and allocator high-water+23552. Before/after generation/schema/program-generation identities are retained. Schema/certificate/full source and all nonsecret inputs remain pinned. No authorization closure receipt is invented: operator execution has its ordinary state/seq/data/principal/sourceHash wire.
++Both pristine arm inputs remain byte-identical checkpoint b19c0578be9ac74c47be14a84a2cf19efb03e69944591899135ef413e660ca53. Future timed stores are NAMESPACE-DIFFERENT: retain the exact approved baseline1865b0fad391a522af3cf671004cedbc and candidateaca07d3befbee13c4d478236ebffcd12 values, different from the master and each other. The failed baseline is stopped and allocated zero IDs; it is never reused. Supplied IDs, source rows, order and high-water remain unchanged. New independent copytree copies only, no mutable hardlinks. Historical credentials/configs/raw response bodies remain private; no historical secret values are read.
+ 
+-Retain all20 raw measured sample records and3 warmup records per arm. Median is arithmetic mean of sorted positions10/11; p95 is nearest rank ceil(.95*20)=19. Report both arms, all samples and shared host load sampled each second and at each request. Confounds include fixed baseline-first order, compiler/store/filesystem cache warmth, read-only SQL observations between requests, real wall-clock progression, different allocator namespaces, and other shared host work. No elapsed speedup is claimed during preparation; no full-population inference follows from a bounded result.
++Workload.json remains byte-identical d61e157bb7baa7c428712adb48ab2201192024f00e0d8e91988d3bc472421c90: source ordinals47345–47367, existing g0001, same23 base/24 ad hoc compiler fixture and separate catalogs. No intervening background replay or population. Each receipt must be exactly committed/system/sourceHash/seq/data, with supplied body/author/conversation/ID and null media/TTL. Sequence11318→11341; messages10015→10038; maintained count1000→1023; all original application rows unchanged; no pending jobs/timers/outbox; same schema/generation1ff1897c…703a9 and program-generation7315d721…ae55. Compiler-result admission remains separate from live-generation checking. No runtime value/evaluator change, instrumentation, certificate cache or allocator optimization.
+ 
+-`affected-controls.md` outside this directory binds minimal relevant prior evidence and its exact correspondence limits. No broad68-test replay or source review is in the proposed run. `static-validation.json` is fake harness validation only. The original linux-curve-01 failure/cap/source/store evidence is untouched.
++Request function is byte-for-byte unchanged. HTTP socket and total alarm30s; owner startup30s; clock-order wait30s outside timing; zero retries. Serialization precedes perf_counter_ns start immediately before HTTP request; stop after complete body read and before JSON parsing. Fresh HTTP connection with Connection:close/Accept-Encoding:identity. Native timestamp lies within each request's wall interval and increases within each arm. Never equate cross-arm clocks. All3 warmups and20 measurements retained; median averages sorted10th/11th, p95 nearest rank19th. Shared load retained each second and around each request.
+ 
+-Preparation validation first failed because the original cache manifest omitted24 symlink leaves; the copied cache was complete. The corrected9391-leaf manifest binds symlink text with lstat modes. The first packet/archive/terminal remain retained as packet-static-01; no product attempt occurred.
+-The second read-only validation found the recorded Linux scale freeze filename was linux-freeze-01.json, not freeze.json; its authorized SHA was unchanged. Packet-static-02 preserves that failure. The final packet uses the real path and verifies all1158 original frozen leaves and modes.
++Confounds: full starting row scan now warms pages before startup; no between-request SQL changes page/cache/scheduling effects; final scan occurs after owner stop. Fixed baseline-first order, shared-host work, file/compiler/store caches, retained build and failed zero-request baseline, distinct allocator namespaces and real clocks remain confounds. No diagnostic or full-population speedup is established. The original scale162050/167244 failure at28800s remains incomplete. No extra probes, broad tests, media, Hermes/effects qualification, population, source review, M5, publication or landing clearance.
+--- approved-packet/config.json
++++ packet-correction-01/config.json
+@@ -3,6 +3,7 @@
+     "baseline": "1865b0fad391a522af3cf671004cedbc",
+     "candidate": "aca07d3befbee13c4d478236ebffcd12"
+   },
++  "attempt": "execution-02",
+   "baselineOwner": "/home/ccheever/clique-tooling/search-native-linux-26c9-20260907T0203Z-01a07995/artifacts/snapback2-linux-x86_64-debug",
+   "buildCommand": [
+     "/home/ccheever/.cargo/bin/cargo",
+@@ -31,6 +32,8 @@
+     "RUSTUP_HOME": "/home/ccheever/.rustup",
+     "USER": "ccheever"
+   },
++  "candidateOwner": "/home/ccheever/clique-tooling/adhoc-certification-performance-26c9-20260907-r1-01a07995/execution-01/candidate-owner",
++  "candidateOwnerSha256": "faa2a59c59e3de399df0b317991e03d5eae35873a58bd9eccd2df1e1b929f39d",
+   "checkpointSha256": "b19c0578be9ac74c47be14a84a2cf19efb03e69944591899135ef413e660ca53",
+   "externalFiles": {
+     "/home/ccheever/.rustup/toolchains/1.97.0-x86_64-unknown-linux-gnu/bin/cargo": "eff12bab37b9d9e01324db4583eaf55b2cd82ac3008a7e59876e4cd2e9a028f5",
+@@ -55,6 +58,7 @@
+   "generation": "1ff1897c52f312d25de62a8002dd091661e88e076db3e0557421c3bd5f7703a9",
+   "linuxScaleFreeze": "/home/ccheever/clique-tooling/search-native-linux-26c9-20260907T0203Z-01a07995/media-preparation-20260907T0222Z-01a07995/linux-harness-26c9-01/linux-freeze-01.json",
+   "originalCommit": "26c9fd5e0d3922ce7680493c0e8f7371f4793d59",
++  "originalPacketFreezeSha256": "2d03954e48e7a4a8426ff5e421920610e0e423a07c97c0595add6c71c20f4edc",
+   "originalSource": "/home/ccheever/clique-tooling/search-native-linux-26c9-20260907T0203Z-01a07995/source",
+   "ownerEnv": {
+     "HOME": "/home/ccheever",
+--- approved-packet/freeze.json
++++ packet-correction-01/freeze.json
+@@ -1,18 +1,19 @@
+ {
+   "files": {
+-    "README.md": "1896b71249cef913e1ddfcd8a5568ef170f37c400793d1da8d523376174118e3",
++    "README.md": "b350219ab0e3976ed1923cbc275d70914c2d24c4e7c1c198835b6716a200f6bc",
+     "cache-manifest.json": "700c9930bee79ff0b134e34b76d31348e8f2f07f6f6a20e828a6db11d112cd93",
+     "candidate-source-manifest.json": "5adf7071f2d7e68658ed71153ff87c2c78ee6978c71270efdd3eb1d7c65b8642",
+     "compiler-graph.json": "320725180eecdf625544166e2492928c21fe5e375976c425962251eeeed87cfb",
+-    "config.json": "dd633367ecdc65c367cb3a3be82662b9dae9ba0658f4661df89baa98cebbe3bf",
++    "config.json": "6cac6531ee1f119f63fa916567cfaa8b62bc00cdbb4461ad336d683d153c3431",
+     "expected-certificates.json": "adede4dc9ebdd79f8478925c14347abf23e69157c3485c648e82f95bc6ae473c",
+     "installed-toolchain-manifest.json": "08bcff0313aed065e3b4b80abc2e51b76418ed6664b92338551d767917db992a",
+     "original-source-manifest.json": "7fbfd538a98144d2a6d581a98b5730c9f5ba3c7b6b49aeec2257bdd9277dd3aa",
+     "private-input-manifest.json": "2c8f4a7fae9cbff38f1c99e6d8ffba065a36d95c897b0e446e31bf94c2d14776",
+-    "run.py": "4316f9a38982df70181190ebc3db2ba037c77957d4aee47978a982388a7f254a",
++    "retained-attempt-manifest.json": "a2e267265f609dc2e75deeb23c3d551928ffc353672cd51e79cbc37d48a508e9",
++    "run.py": "7adb55f3c7bcb27377bf399f9d7bf41f4b054da28a8846f15576362f43acc613",
+     "runtime-manifest.json": "bd0bcb00cb7dd63164a58d3ccd4cf3ad1be71ca1af066163fd04979f44b6b5ff",
+-    "validate.py": "1fd6a767698576639655c01e7311d716a99ffb7e2378056ccbed8fdaf6a49744",
++    "validate.py": "cb96e5ba1e840c845182b90aa101a9d3bdbf69e8cf0a9d67c65a19e1531839b4",
+     "workload.json": "d61e157bb7baa7c428712adb48ab2201192024f00e0d8e91988d3bc472421c90"
+   },
+-  "scope": "preparation-only proposal; Root review required for execution and fork namespace isolation"
++  "scope": "Root-directed observation correction preparation only; exact Root review required before execution-02; no new build"
+ }
+--- approved-packet/retained-attempt-manifest.json
++++ packet-correction-01/retained-attempt-manifest.json
+@@ -0,0 +1,248 @@
++{
++  "execution-01.once.json": {
++    "bytes": 481,
++    "mode": "0o664",
++    "private": false,
++    "sha256": "4a35a3ad5aaae3aa033724db369d31bc4e06d97b7834552df4b3effa4abfc3ae"
++  },
++  "execution-01.supervisor.stderr": {
++    "bytes": 1277,
++    "mode": "0o664",
++    "private": false,
++    "sha256": "c77301de9dffa7010078b3103ae0fe5c32b61d4f3f77de571a214c70d0d798f9"
++  },
++  "execution-01.supervisor.stdout": {
++    "bytes": 2733,
++    "mode": "0o664",
++    "private": false,
++    "sha256": "5746e06c7b1d4b9ca45b3217d157f2fd607480a02d32cc2c72c3ca71619fd1a9"
++  },
++  "execution-01/baseline/copy.json": {
++    "bytes": 943,
++    "mode": "0o664",
++    "private": false,
++    "sha256": "31d810b3244145d40a5fbf67a8a5617c34637af75b26e0d76ea4d3fd22a50408"
++  },
++  "execution-01/baseline/host-load.jsonl": {
++    "bytes": 2520,
++    "mode": "0o664",
++    "private": false,
++    "sha256": "c8f5a3ab0cf3d86e7d8eae5c38199dbd66ade326cafca997f25ab719ea565cfd"
++  },
++  "execution-01/baseline/owner.launch.json": {
++    "bytes": 1505,
++    "mode": "0o664",
++    "private": false,
++    "sha256": "8388d1bfc593e5a6dc5698e5b42f806b4c499e036af844941dc9fcd992231f13"
++  },
++  "execution-01/baseline/owner.terminal.json": {
++    "bytes": 388,
++    "mode": "0o664",
++    "private": false,
++    "sha256": "ce81974bd8aa3d968c79ae4a30a81068a0ef79f90730a9362b69215fce4512a4"
++  },
++  "execution-01/baseline/private/owner.log": {
++    "bytes": 140,
++    "mode": "0o664",
++    "private": true,
++    "sha256": "1dcf6dd66fc2beb085835b56cb4dd0caf9f5cdbd439da9255ce558717429cb84"
++  },
++  "execution-01/baseline/private/project/.snapback/blobs/s2id-5eca0d56c732af297150a22faf9fc8f4-0000000000243001": {
++    "bytes": 2118,
++    "mode": "0o600",
++    "private": true,
++    "sha256": "5dbaca29bf4ae4b15a9c11b0fc767781e0cdf01ab4af9b83430c243288cd72df"
++  },
++  "execution-01/baseline/private/project/.snapback/build/api.d.ts": {
++    "bytes": 0,
++    "mode": "0o664",
++    "private": true,
++    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
++  },
++  "execution-01/baseline/private/project/.snapback/build/certificates.json": {
++    "bytes": 66527,
++    "mode": "0o664",
++    "private": true,
++    "sha256": "d636c1489466aae3d66202d4ce4fecd98a70a3a3547c063ec9da3f5d757e7c6c"
++  },
++  "execution-01/baseline/private/project/.snapback/build/project.json": {
++    "bytes": 104738,
++    "mode": "0o664",
++    "private": true,
++    "sha256": "6192b23db5684e8d45363e1436c0fa6cee228aa03a11183cef91fcb9e32a9b06"
++  },
++  "execution-01/baseline/private/project/.snapback/build/schema-certificate.json": {
++    "bytes": 162,
++    "mode": "0o664",
++    "private": true,
++    "sha256": "e77657371dfa164ff9167002fc151476bb358bfd724d708df295fd8e0923442f"
++  },
++  "execution-01/baseline/private/project/.snapback/log.jsonl": {
++    "bytes": 308,
++    "mode": "0o664",
++    "private": true,
++    "sha256": "368d8880822ffc9be8e745cf5af9afe3d183e5db4a0ebcf4f30e9e9a778c323f"
++  },
++  "execution-01/baseline/private/project/.snapback/store.sqlite": {
++    "bytes": 109187072,
++    "mode": "0o600",
++    "private": true,
++    "sha256": "2bae413510dfbe706407ccab7ed62ff67c49824defdbf4b80662ca3af4f81f4a"
++  },
++  "execution-01/baseline/private/project/snapback/delivery.ts": {
++    "bytes": 1148,
++    "mode": "0o664",
++    "private": true,
++    "sha256": "ad73441f683c6a6024f8b54f0ea23dc037c01a89aa24364f2aec6d50d666a528"
++  },
++  "execution-01/baseline/private/project/snapback/feeds.q": {
++    "bytes": 424,
++    "mode": "0o664",
++    "private": true,
++    "sha256": "bfe02e3eec0c441572bc2215d51eb41b8262119590e28eb4febc3cfd1d39008b"
++  },
++  "execution-01/baseline/private/project/snapback/follows.q": {
++    "bytes": 413,
++    "mode": "0o664",
++    "private": true,
++    "sha256": "4e5faec00894e94c1c860bb9d21dde330c665767276bb7dc7372ef59b78c73f0"
++  },
++  "execution-01/baseline/private/project/snapback/groups.q": {
++    "bytes": 2117,
++    "mode": "0o664",
++    "private": true,
++    "sha256": "f6d1b3325d3aec1ffb63cd70fd3de39a70be2c55d3982081125b4202bc06c381"
++  },
++  "execution-01/baseline/private/project/snapback/messages.q": {
++    "bytes": 2227,
++    "mode": "0o664",
++    "private": true,
++    "sha256": "cd698245480cbbe1fae20375bdb4607dd1a03886aa10320fd7c2f968a4628406"
++  },
++  "execution-01/baseline/private/project/snapback/notifications.q": {
++    "bytes": 184,
++    "mode": "0o664",
++    "private": true,
++    "sha256": "02cf8894ae5ed7d28ea8e56e7258dbc7e973f5ae6f253eadd7e34e94d2fa7347"
++  },
++  "execution-01/baseline/private/project/snapback/posts.q": {
++    "bytes": 208,
++    "mode": "0o664",
++    "private": true,
++    "sha256": "683a4ab4e9733e88ad2f387d95d5a525725b1917dd79401ede09721b8d7a0df6"
++  },
++  "execution-01/baseline/private/project/snapback/profiles.q": {
++    "bytes": 919,
++    "mode": "0o664",
++    "private": true,
++    "sha256": "dc474dc4b739bd5346efb98d4bbfbc10850a91aa1833ae911aa5adf11af03e53"
++  },
++  "execution-01/baseline/private/project/snapback/schema.q": {
++    "bytes": 4076,
++    "mode": "0o664",
++    "private": true,
++    "sha256": "77ad560ee30a600b6b1b8e5d5aa0b5f39308fdda6ecc919b163db701e9df7bb5"
++  },
++  "execution-01/baseline/private/project/snapback/search.q": {
++    "bytes": 469,
++    "mode": "0o644",
++    "private": true,
++    "sha256": "1e1adcc06d315b533449d4ee7fca7b2724372481625410778ce3fe7d609440a7"
++  },
++  "execution-01/baseline/private/project/snapback/seed.ts": {
++    "bytes": 2434,
++    "mode": "0o664",
++    "private": true,
++    "sha256": "623e931f2d071f9fd115cac613ff4bc6411974b831c8418a340019df04a9cef4"
++  },
++  "execution-01/baseline/private/project/snapback/tests/chat.test.ts": {
++    "bytes": 12887,
++    "mode": "0o664",
++    "private": true,
++    "sha256": "c9a86db3f028145e2094f22e97818f4adfdb6a8b2a57905d78e9e1771f41e5f7"
++  },
++  "execution-01/build.launch.json": {
++    "bytes": 1476,
++    "mode": "0o664",
++    "private": false,
++    "sha256": "dd69bf102fe16fb49925f694354980db54ee50d578b46196be5f76d46bc05dc8"
++  },
++  "execution-01/build.stderr": {
++    "bytes": 3619,
++    "mode": "0o664",
++    "private": false,
++    "sha256": "56f517612bcc611a982a1e61b393e69a6cda2f35f12e23c67e6a919615774d99"
++  },
++  "execution-01/build.stdout": {
++    "bytes": 0,
++    "mode": "0o664",
++    "private": false,
++    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
++  },
++  "execution-01/build.terminal.json": {
++    "bytes": 87,
++    "mode": "0o664",
++    "private": false,
++    "sha256": "34d1b3bed6855dba9a9b18045cf6b846a085ecbfa1778b324e0e3183e3a3fef4"
++  },
++  "execution-01/candidate-binary.json": {
++    "bytes": 401,
++    "mode": "0o664",
++    "private": false,
++    "sha256": "8a73568f058a5e39f89cfbfcbe1851aa365df7f0bc9bcbd2cdc34fef8e4c5902"
++  },
++  "execution-01/candidate-owner": {
++    "bytes": 149086232,
++    "mode": "0o775",
++    "private": false,
++    "sha256": "faa2a59c59e3de399df0b317991e03d5eae35873a58bd9eccd2df1e1b929f39d"
++  },
++  "execution-01/dependencies.stderr": {
++    "bytes": 0,
++    "mode": "0o664",
++    "private": false,
++    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
++  },
++  "execution-01/dependencies.stdout": {
++    "bytes": 297,
++    "mode": "0o664",
++    "private": false,
++    "sha256": "8d79ff1e4aeabec724a4f178e345b3da0900dc762caa12b8e6850656d0a8c733"
++  },
++  "execution-01/elf.stderr": {
++    "bytes": 0,
++    "mode": "0o664",
++    "private": false,
++    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
++  },
++  "execution-01/elf.stdout": {
++    "bytes": 2683,
++    "mode": "0o664",
++    "private": false,
++    "sha256": "521d470373dcb690ed9a67d5143ff2a54e1528a36e96203a50eda7864b37094f"
++  },
++  "execution-01/first-failure.json": {
++    "bytes": 117,
++    "mode": "0o664",
++    "private": false,
++    "sha256": "2b9a86e0016377c13f54829df5172d78fdbf1c99a2639cca57f0a4ee1d383371"
++  },
++  "execution-01/preflight.json": {
++    "bytes": 1816,
++    "mode": "0o664",
++    "private": false,
++    "sha256": "651a49596d0a6596f84d5116a36e53d183b9b2289d267b009de93b38026322ec"
++  },
++  "execution-01/supervisor.launch.json": {
++    "bytes": 395,
++    "mode": "0o664",
++    "private": false,
++    "sha256": "bcefb3b780ede803e26430d564dcbcc5822c8d59ca0cb1346477b6209e1b774b"
++  },
++  "execution-01/terminal.json": {
++    "bytes": 1953,
++    "mode": "0o664",
++    "private": false,
++    "sha256": "1e560c3054c586651fd69858088f217e32cfc619adb5778102a9dc453c7c2059"
++  }
++}
+--- approved-packet/run.py
++++ packet-correction-01/run.py
+@@ -1,5 +1,5 @@
+ #!/usr/bin/env python3
+-"""PROPOSED ONLY: one candidate build, baseline then candidate; no retry or alternate arm."""
++"""PROPOSED correction only: reuse built candidate, baseline then candidate; no retry."""
+ import argparse,collections,hashlib,http.client,json,os,pathlib,shutil,signal,socket,sqlite3,subprocess,sys,threading,time,traceback
+ from validate import *
+ P=pathlib.Path(__file__).resolve().parent; R=P.parent
+@@ -44,8 +44,24 @@
+  for arm in ('baseline','candidate'):
+   root=R/'private/arm-inputs'/arm/'project';assert sha(root/'.snapback/store.sqlite')==cfg['checkpointSha256']
+   assert not (root/'.snapback/owner.json').exists()
+- assert not (R/'target').exists(), 'candidate target must start absent; no borrowed target'
++ verify_retained_attempt(cfg)
+  return host()
++
++def verify_retained_attempt(cfg):
++ old=R/'packet';assert sha(old/'freeze.json')==cfg['originalPacketFreezeSha256']
++ for n,h in read(old/'freeze.json')['files'].items():assert sha(old/n)==h, 'original packet changed'
++ for n,v in read(P/'retained-attempt-manifest.json').items():
++  p=R/n;assert sha(p)==v['sha256'] and p.stat().st_size==v['bytes'] and oct(p.stat().st_mode&0o777)==v['mode'],n
++ # Metadata/hash verification only; no original owner state, credentials or raw response values read.
++ terminal=read(R/'execution-01/build.terminal.json');assert terminal['exit']==0 and not terminal['timedOut']
++ binding=read(R/'execution-01/candidate-binary.json');binary=pathlib.Path(cfg['candidateOwner'])
++ assert binding['path']==str(binary) and binding['sha256']==cfg['candidateOwnerSha256']==sha(binary)
++ assert binding['sourceManifest']==sha(P/'candidate-source-manifest.json')
++ assert binding['lock']==sha(R/'candidate-source/snapback2/Cargo.lock')
++ for i in [read(R/'execution-01.once.json')['identity'],read(R/'execution-01/baseline/owner.launch.json')['identity']]:
++  p=pathlib.Path('/proc')/str(i['pid'])/'stat'
++  if p.exists():
++   s=p.read_text();assert s[s.rindex(')')+2:].split()[19]!=i['startTicks'], 'retained attempt identity still present'
+ 
+ def stop(p,events):
+  if p.poll() is None:
+@@ -55,28 +71,6 @@
+   except subprocess.TimeoutExpired:
+    events.append(dict(action='SIGKILL',identity=identity(p.pid)));p.kill();p.wait(timeout=5)
+  return p.returncode
+-
+-def build(cfg,out):
+- env=cfg['buildEnv'];cmd=cfg['buildCommand'];events=[]
+- with (out/'build.stdout').open('xb') as stdout,(out/'build.stderr').open('xb') as stderr:
+-  start=time.time();p=subprocess.Popen(cmd,cwd=R/'candidate-source/snapback2',env=env,stdout=stdout,stderr=stderr,start_new_session=True)
+-  launch=dict(command=cmd,env=env,cwd=str(R/'candidate-source/snapback2'),identity=identity(p.pid),atEpoch=start,deadlineSeconds=1800,features='default []; no Hermes',profile='default dev/debug',retries=0)
+-  write(out/'build.launch.json',launch);print(json.dumps(launch),flush=True)
+-  try:p.wait(timeout=1800)
+-  except subprocess.TimeoutExpired:
+-   events.append(dict(action='SIGTERM owned Cargo process group',identity=identity(p.pid)));os.killpg(p.pid,signal.SIGTERM)
+-   try:p.wait(timeout=10)
+-   except subprocess.TimeoutExpired:os.killpg(p.pid,signal.SIGKILL);p.wait(timeout=5)
+-   write(out/'build.terminal.json',dict(exit=p.returncode,timedOut=True,elapsed=time.time()-start,cleanup=events));raise RuntimeError('first build exceeded 1800s')
+-  write(out/'build.terminal.json',dict(exit=p.returncode,timedOut=False,elapsed=time.time()-start,cleanup=events))
+-  assert p.returncode==0, 'first candidate build failed; no retry'
+- binary=R/'target/debug/snapback2';dest=out/'candidate-owner';shutil.copy2(binary,dest)
+- for label,cmd in [('elf',['readelf','-h','-d',str(dest)]),('dependencies',['ldd',str(dest)])]:
+-  result=subprocess.run(cmd,capture_output=True,timeout=30);(out/(label+'.stdout')).write_bytes(result.stdout);(out/(label+'.stderr')).write_bytes(result.stderr);assert result.returncode==0
+- header=dest.read_bytes()[:20];assert header[:6]==b'\x7fELF\x02\x01' and int.from_bytes(header[18:20],'little')==62
+- assert b'not found' not in (out/'dependencies.stdout').read_bytes()
+- write(out/'candidate-binary.json',dict(path=str(dest),sha256=sha(dest),bytes=dest.stat().st_size,sourceManifest=sha(P/'candidate-source-manifest.json'),lock=sha(R/'candidate-source/snapback2/Cargo.lock')))
+- return dest
+ 
+ def alarm(*_):raise TimeoutError('original HTTP30s deadline')
+ def request(port,secret,source,q,private):
+@@ -106,9 +100,17 @@
+  c.execute("UPDATE _meta SET value=? WHERE key='id_namespace'",[namespace]);c.commit();c.close()
+  assert state(db)==before, 'namespace isolation changed counts/sequence/high-water/generation'
+  write(a/'copy.json',dict(sourceSha256=cfg['checkpointSha256'],isolatedSha256=sha(db),onlyLogicalEdit='_meta.id_namespace',namespace=namespace,before=before))
++ started=assert_start(db,workload,cfg)
++ assert started['meta']['id_high_water']==before['meta']['id_high_water']
++ write(a/'starting-state.json',dict(observation='SQL before owner startup; namespace-different execution copy',state=started))
+  port=cfg['ports'][name];s=socket.socket();s.bind(('127.0.0.1',port));s.close()
+  env=cfg['ownerEnv'];cmd=[str(binary),'dev','--project',str(home),'--port',str(port),'--foreground','--json']
+- log=(private/'owner.log').open('xb');p=None;events=[];rows=[];records=[];samplerStop=threading.Event()
++ log=(private/'owner.log').open('xb');p=None;events=[];rows=[];records=[];samplerStop=threading.Event();stopped=False
++ def finish_owner():
++  nonlocal stopped
++  code=stop(p,events);stopped=True
++  write(a/'owner.terminal.json',dict(exit=code,cleanup=events,atEpoch=time.time()))
++  return code
+  def sample():
+   with (a/'host-load.jsonl').open('x') as f:
+    while not samplerStop.wait(1):f.write(json.dumps(dict(atEpoch=time.time(),load=os.getloadavg()))+'\n');f.flush()
+@@ -123,12 +125,8 @@
+    time.sleep(.05)
+   info=read(home/'.snapback/owner.json');assert info['pid']==p.pid and info['port']==port and info['generation']==cfg['generation']
+   secret=info['secret'] # newly generated own secret used only in memory; never logged/copied.
+-  started=state(db);assert started['seq']==workload['sequence'] and started['counts']==workload['sourceCounts']
+-  assert all(v==0 for v in started['pending'].values())
+-  assert started['meta']['generation']==cfg['generation'] and started['meta']['program_generation']==cfg['programGeneration']
+-  assert started['meta']['id_high_water']==before['meta']['id_high_water']
+   certs=read(home/'.snapback/build/certificates.json');expected=read(P/'expected-certificates.json');assert certs==expected and len(certs)==23,'base certificates changed'
+-  write(a/'starting-state.json',started);write(a/'certificate-binding.json',dict(sha256=sha(home/'.snapback/build/certificates.json'),expectedSemanticSha256=digest(expected),programs=23))
++  write(a/'certificate-binding.json',dict(sha256=sha(home/'.snapback/build/certificates.json'),expectedSemanticSha256=digest(expected),programs=23))
+   source=read(R/'runtime/prepared/catalog.json')['putMessage']['source'];last_at=workload['maxMessageAt']
+   responses=private/'responses';responses.mkdir(mode=0o700)
+   for q in workload['requests']:
+@@ -140,40 +138,40 @@
+    value,record=request(port,secret,source,q,responses)
+    row=assert_response(value,q,source,workload['sequence']+q['index'],last_at,record['wallStartMs'],record['wallEndMs'])
+    last_at=row['at'];rows.append(row);records.append(record)
+-   # Commit/state checks outside timer, on the COPY only, no extra product request.
+-   st=state(db);assert st['seq']==workload['sequence']+q['index'];assert st['counts']==dict(workload['sourceCounts'],messages=10015+q['index'])
+-   assert st['meta']['program_generation']==cfg['programGeneration'] and st['meta']['generation']==cfg['generation']
+-   assert st['meta']['schema_hash']==cfg['generation']
+-   assert int(st['meta']['id_high_water'])==int(before['meta']['id_high_water'])+q['index']*1024
+-   assert all(v==0 for v in st['pending'].values())
+-   write(a/('mutation-%02d.json'%q['index']),dict(request=q,receipt=dict(state=value['state'],seq=value['seq'],principal=value['principal'],sourceHash=value['sourceHash']),row=row,timing=record,postState=st))
++   # Receipt/row/native-clock validation is immediate. No external SQL while the owner holds EXCLUSIVE.
++   expected_state=dict(seq=workload['sequence']+q['index'],counts=dict(workload['sourceCounts'],messages=10015+q['index']),idHighWater=int(before['meta']['id_high_water'])+q['index']*1024)
++   write(a/('mutation-%02d.json'%q['index']),dict(request=q,receipt=dict(state=value['state'],seq=value['seq'],principal=value['principal'],sourceHash=value['sourceHash']),row=row,timing=record,expectedPostState=expected_state,observation='receipt verified in memory; intermediate SQL state not observed; persisted rows and full ledger checked after stop'))
++  assert finish_owner()==0 and not any(e['action']=='SIGKILL' for e in events), 'graceful owner stop required before SQL'
+   result=assert_final(db,R/'private/checkpoint-10.sqlite',workload,rows,source)
++  assert result['meta']['generation']==result['meta']['schema_hash']==cfg['generation']
++  assert result['meta']['program_generation']==cfg['programGeneration']
+   assert int(result['meta']['id_high_water'])==int(before['meta']['id_high_water'])+23*1024
+-  summary=dict(final=result,timing=stats([r['ms'] for r in records if r['phase']=='measured']),warmups=3,measured=20,retries=0,order=name,scope='historical source-bound putMessage diagnostic; no scale or publication qualification')
++  assert read(home/'.snapback/build/certificates.json')==expected, 'final base certificates changed'
++  summary=dict(final=result,timing=stats([r['ms'] for r in records if r['phase']=='measured']),warmups=3,measured=20,retries=0,order=name,observation='all persisted rows/ledger/counts/generation/allocator checked after graceful stop; no intermediate SQL snapshots',scope='historical source-bound putMessage diagnostic; no scale or publication qualification')
+   write(a/'result.json',summary);return summary
+  finally:
+   samplerStop.set();sampler.join(timeout=5)
+-  if p is not None:write(a/'owner.terminal.json',dict(exit=stop(p,events),cleanup=events,atEpoch=time.time()))
++  if p is not None and not stopped:finish_owner()
+   log.close()
+ 
+ def main():
+- parser=argparse.ArgumentParser();parser.add_argument('--execute',action='store_true');parser.add_argument('--packet-sha256',required=True);parser.add_argument('--root-reviewed-fork-namespace-isolation',action='store_true');args=parser.parse_args()
+- assert args.execute and args.root_reviewed_fork_namespace_isolation, 'Root must explicitly approve execution and proposed fork namespace isolation'
++ parser=argparse.ArgumentParser();parser.add_argument('--execute',action='store_true');parser.add_argument('--packet-sha256',required=True);parser.add_argument('--root-reviewed-fork-namespace-isolation',action='store_true');parser.add_argument('--root-reviewed-stopped-store-observations',action='store_true');args=parser.parse_args()
++ assert args.execute and args.root_reviewed_fork_namespace_isolation and args.root_reviewed_stopped_store_observations, 'Root must review this exact correction before execution'
+  freeze=P/'freeze.json';assert sha(freeze)==args.packet_sha256,'packet approval hash mismatch'
+  for n,v in read(freeze)['files'].items():assert sha(P/n)==v,'changed execution packet'
+  cfg=read(P/'config.json');assert len(set(cfg['armNamespaces'].values()))==2
+  pre=verify(cfg)
+  for port in cfg['ports'].values():
+   s=socket.socket();s.bind(('127.0.0.1',port));s.close()
+- out=R/'execution-01';assert not out.exists();claim(R/'execution-01.once.json',dict(identity=identity(os.getpid()),atEpoch=time.time(),packetSha256=args.packet_sha256,command=sys.argv))
++ out=R/cfg['attempt'];assert cfg['attempt']=='execution-02' and not out.exists();claim(R/(cfg['attempt']+'.once.json'),dict(identity=identity(os.getpid()),atEpoch=time.time(),packetSha256=args.packet_sha256,command=sys.argv))
+  out.mkdir(mode=0o700);write(out/'preflight.json',pre);write(out/'supervisor.launch.json',dict(identity=identity(os.getpid()),atEpoch=time.time(),command=sys.argv))
+  code=1
+  try:
+-  candidate=build(cfg,out)
++  candidate=pathlib.Path(cfg['candidateOwner']);write(out/'candidate-reuse.json',dict(path=str(candidate),sha256=sha(candidate),builtIn='execution-01',newBuild=False))
+   verify_manifest(R/'candidate-source',read(P/'candidate-source-manifest.json'))
+   workload=read(P/'workload.json');results={}
+   for name,binary in [('baseline',pathlib.Path(cfg['baselineOwner'])),('candidate',candidate)]:results[name]=arm(cfg,name,binary,out,workload)
+-  write(out/'results.json',dict(arms=results,confounds=['fixed baseline-first order','shared host load','OS/filesystem/compiler/store warm state','different real wall-clock timestamps','isolated allocator namespaces only; same high-water marks'],claim='one bounded historical diagnostic; no full population speedup inference'))
++  write(out/'results.json',dict(arms=results,confounds=['fixed baseline-first order','shared host load','OS/filesystem/compiler/store warm state','starting SQL scan warms pages; final SQL moved after stop; no between-request SQL/cache effects','intermediate counts/pending/generation/allocator states are not SQL observations','different real wall-clock timestamps','isolated allocator namespaces only; same high-water marks','retained build and failed zero-request baseline may warm caches'],claim='one bounded historical diagnostic; no full population speedup inference'))
+   code=0
+  except BaseException as e:
+   write(out/'first-failure.json',dict(type=type(e).__name__,message=str(e),atEpoch=time.time(),retries=0));raise
+@@ -185,6 +183,7 @@
+    verify_manifest(R/'runtime',read(P/'runtime-manifest.json'))
+    verify_manifest(pathlib.Path(cfg['originalSource']),read(P/'original-source-manifest.json'))
+    for path,h in cfg['externalFiles'].items():assert sha(pathlib.Path(path))==h,path
++   verify_retained_attempt(cfg)
+   except BaseException as e:
+    protected_error=dict(type=type(e).__name__,message=str(e));code=1
+   write(out/'terminal.json',dict(exit=code,atEpoch=time.time(),host=host(),protectedInputError=protected_error,writerReleased=True))
+--- approved-packet/validate.py
++++ packet-correction-01/validate.py
+@@ -46,6 +46,21 @@
+   if id not in exclude:h.update(json.dumps([id,data],separators=(',',':')).encode()+b'\n')
+  return h.hexdigest()
+ 
++def assert_start(db,workload,cfg):
++ # Called only before owner startup, after the permitted namespace change.
++ s=state(db)
++ assert s['counts']==workload['sourceCounts'] and s['seq']==workload['sequence']
++ assert all(v==0 for v in s['pending'].values())
++ assert s['meta']['generation']==s['meta']['schema_hash']==cfg['generation']
++ assert s['meta']['program_generation']==cfg['programGeneration']
++ c=connect(db)
++ try:
++  assert {t:table_hash(c,t) for t in workload['tableHashes']}==workload['tableHashes'], 'original starting rows changed'
++  for q in workload['requests']:
++   assert c.execute("SELECT COUNT(*) FROM rows WHERE table_name='messages' AND row_id=?",[q['args']['id']]).fetchone()[0]==0
++ finally:c.close()
++ return s
++
+ def assert_final(db,original,workload,returned,source):
+  c=connect(db);o=connect(original,True)
+  try:

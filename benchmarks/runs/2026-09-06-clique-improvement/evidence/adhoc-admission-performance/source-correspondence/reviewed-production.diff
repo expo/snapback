@@ -1,0 +1,96 @@
+diff --git a/snapback2/crates/snapback2-core/src/registry_jobs.rs b/snapback2/crates/snapback2-core/src/registry_jobs.rs
+index 671f1c8aa..f06b1e090 100644
+--- a/snapback2/crates/snapback2-core/src/registry_jobs.rs
++++ b/snapback2/crates/snapback2-core/src/registry_jobs.rs
+@@ -26,16 +26,17 @@ impl Runtime {
+             .ok_or_else(|| RuntimeError::OpUnknown(name.into()))?;
+         self.enqueue_certified_job(&program, &certificate, args, by, now, None)
+     }
++    /// Sample the caller's clock only after complete live-generation admission succeeds.
+     pub fn enqueue_adhoc_job(
+         &mut self,
+         program: &Program,
+         args: BTreeMap<String, Value>,
+         by: OperatorId,
+-        now: i64,
++        now: impl FnOnce() -> i64,
+         source: String,
+     ) -> Result<String, RuntimeError> {
+         let certificate = self.certify_operator_program(program)?;
+-        self.enqueue_certified_job(program, &certificate, args, by, now, Some(source))
++        self.enqueue_certified_job(program, &certificate, args, by, now(), Some(source))
+     }
+     fn enqueue_certified_job(
+         &mut self,
+@@ -278,15 +279,18 @@ impl Runtime {
+         })?;
+         Ok(admitted.programs[&program.name].1.clone())
+     }
++    /// Admission and execution share this borrow; no caller-supplied certificate can
++    /// skip generation dependencies. The clock is sampled after admission, before execution.
++    // @ref LLP 1016#d6--the-operator-seat-ad-hoc-programs-and-rehearsal — one live admission per run, with the owner's clock sampled after it.
+     pub fn execute_adhoc_operator(
+         &mut self,
+         program: &Program,
+         args: BTreeMap<String, Value>,
+         by: OperatorId,
+-        now: i64,
++        now: impl FnOnce() -> i64,
+     ) -> Result<Execution, RuntimeError> {
+         let certificate = self.certify_operator_program(program)?;
+-        self.run_operator(program, &certificate, args, by, now)
++        self.run_operator(program, &certificate, args, by, now())
+     }
+ }
+ 
+diff --git a/snapback2/crates/snapback2/src/rehearsal.rs b/snapback2/crates/snapback2/src/rehearsal.rs
+index 38169b5e9..b11e9717c 100644
+--- a/snapback2/crates/snapback2/src/rehearsal.rs
++++ b/snapback2/crates/snapback2/src/rehearsal.rs
+@@ -227,7 +227,7 @@ impl Rehearsal {
+                     &program,
+                     values,
+                     OperatorId(by),
+-                    self.now,
++                    || self.now,
+                     source,
+                 ),
+                 None => {
+@@ -258,7 +258,7 @@ impl Rehearsal {
+             let execution = match source {
+                 Some(_) => {
+                     self.runtime
+-                        .execute_adhoc_operator(&program, values, OperatorId(by), self.now)
++                        .execute_adhoc_operator(&program, values, OperatorId(by), || self.now)
+                 }
+                 None => self.runtime.execute_operator_at(
+                     &program.name,
+diff --git a/snapback2/crates/snapback2/src/writer_jobs.rs b/snapback2/crates/snapback2/src/writer_jobs.rs
+index 758cd8b79..25e3dc75f 100644
+--- a/snapback2/crates/snapback2/src/writer_jobs.rs
++++ b/snapback2/crates/snapback2/src/writer_jobs.rs
+@@ -241,17 +241,19 @@ impl State {
+         // Arguments are checked under the authored name so E_JOB_ARGS pastes the signature as written.
+         let values = job_args(&program, &args)?;
+         program.name = format!("adhoc:{source_hash}");
+-        let certificate = self
+-            .runtime()
+-            .certify_operator_program(&program)
+-            .map_err(|e| Refusal::from_runtime(&e))?;
+         if plan {
++            let certificate = self
++                .runtime()
++                .certify_operator_program(&program)
++                .map_err(|e| Refusal::from_runtime(&e))?;
+             return self
+                 .runtime()
+                 .plan_job(&program, &certificate, &values)
+                 .map_err(|e| Refusal::from_runtime(&e));
+         }
+-        let now = self.now();
++        // @ref LLP 1016#d6--the-operator-seat-ad-hoc-programs-and-rehearsal — run/enqueue admit once on this writer turn, then sample now; a plan only admits.
++        let clock_offset_ms = self.clock_offset_ms;
++        let now = || unix_millis().saturating_add(clock_offset_ms);
+         if program.kind == ProgramKind::Job {
+             let id = self
+                 .runtime_mut()

@@ -1,0 +1,46 @@
+{
+  "version": "0.0.15",
+  "qualifiedSource": "78924a1e7286907d2378221902ec22747e7d188f",
+  "registryVerified": true,
+  "freshInstallVerified": true,
+  "expoVerified": true,
+  "guideVerified": true,
+  "packedRegularLeavesVerified": 156,
+  "packages": {
+    "snapback2-darwin-arm64": {
+      "version": "0.0.15",
+      "integrity": "sha512-O9Zx/4wAPwraH77N2rsCuvorIey49aMRl6tckV3cRkGHuZow1lKelsM0ushU8S3kZC5yD1OnFVUHERNex9jRBw=="
+    },
+    "snapback2": {
+      "version": "0.0.15",
+      "integrity": "sha512-+Ucp3/J4sG7BJwKdeMzPXQpj+dhc3R2Q/pBQoohXxTRV3hiPAWBojHtaQ4ums0SxlQ0wDsss5w2mmmiTj3YRFg=="
+    }
+  },
+  "sourceReceipts": [
+    {
+      "path": "/Users/ccheever/clique-improvement/revisions/cli-015-publication-execution-r2/registry-observation-04.json",
+      "sha256": "0259c9e15e0a5eec0f3bba65f37d12f8ec2c7fc3a50cec91696088e0c7b59e96"
+    },
+    {
+      "path": "/Users/ccheever/clique-improvement/revisions/cli-015-publication-execution-r2/installed-expo-verification.json",
+      "sha256": "46bfc60869f76123e9099e853fa4f5636274401b9df51fef9bcf70319bb8a4bf"
+    },
+    {
+      "path": "/Users/ccheever/clique-improvement/revisions/cli-015-publication-execution-r2/installed-expo-remaining.json",
+      "sha256": "f93de214439642780ec7f0b9f75fea2772053dce1ae18cc1db3721771149bac6"
+    },
+    {
+      "path": "/Users/ccheever/clique-improvement/revisions/cli-015-publication-execution-r2/installed-files-before.json",
+      "sha256": "a35ff2fe7e10e66ac68846aac998e3c5646e8a5169dbe884cf8c284fff04e649"
+    },
+    {
+      "path": "/Users/ccheever/clique-improvement/revisions/cli-015-publication-execution-r2/verification-source-receipt.json",
+      "sha256": "3ae2bbcc42e669941d76a6f2f7f4d49ce84d176ef1008ba9cb3fad4f068be3d7"
+    },
+    {
+      "path": "/Users/ccheever/clique-improvement/revisions/cli-015-publication-execution-r2/version-receipt.json",
+      "sha256": "b81704c0da43488ec7b995d21025351a845ae315c845c92a6b30b0c6954eaae2"
+    }
+  ],
+  "scope": "Registry exact pair and fresh installed Expo/init/check/guide; no native device or benchmark outcome claim."
+}

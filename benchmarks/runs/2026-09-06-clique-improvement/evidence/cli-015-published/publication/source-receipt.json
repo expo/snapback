@@ -1,0 +1,21 @@
+{
+  "sourceCommit": "78924a1e7286907d2378221902ec22747e7d188f",
+  "OfficeFrozenSource": "/Users/ccheever/projects/snapback-worktrees/clique-cli-journey-repair-r2",
+  "officeGitHeadVerified": "78924a1e7286907d2378221902ec22747e7d188f",
+  "officeGitStatusPorcelain": "",
+  "remoteSource": "/Users/ccheever/projects/snapback-worktrees/clique-cli-015-publish-78924a1e7",
+  "sourceLeaves": 943,
+  "sourceManifestSha256": "b577f52a96c76c70f848b53b8b9808095564680d06080a840fb51697c60f9412",
+  "sourceArchiveSha256": "d8760290722f180e2b13167e8cb37cac1d92b1927f92d4e969506293c268951d",
+  "bundleSha256": "8749222b91f380829d8238243a8d8aaee0a8f70b9b2fa2e12f493d15c0008f2c",
+  "publisherSha256": "fc24c2c192119d11a6029ad7edfe91b7219a5623f8f91c1425607734c45bb3d2",
+  "consumerSha256": "c26bbf0e64d18cbb9557c5cf97e40ecfc045ff271ade77b749235c70dc044cf3",
+  "before": "local-custody.json and stage-result.json, immediate actual helper custody events",
+  "after": "final-remote-custody.json",
+  "landedCommit": "624a06dfc66e182a1f41c5fd85f9fbd191ba4bcb",
+  "landingReceipt": "/Users/ccheever/clique-improvement/revisions/cli-015-integration/landing-receipt.json",
+  "landingReceiptSha256": "61a93ae7cf0926887b017e6feb57fd99aea961e1a9d7691e166e4d508b688086",
+  "all13FinalLandingBlobsMatchQualifiedSource": true,
+  "currentMainCumulativeQualificationClaim": false,
+  "productSourceEditsOrPushesThisTurn": false
+}

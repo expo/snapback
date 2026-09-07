@@ -1,0 +1,61 @@
+{
+  "atEpoch": 1788781640.418595,
+  "candidate": "78924a1e7286907d2378221902ec22747e7d188f",
+  "baseline": "9bee8119d7c009ec4182797dfb54699917ab8231",
+  "reviews": [
+    {
+      "role": "astra",
+      "inputLeavesVerified": 1990,
+      "manifestSha256": "52b2d332f5f79944201f8bf1e09a9a703e0fde21b946bec2aa63c6e57e38b62e",
+      "reportBytes": 7107,
+      "reportSha256": "60a7ee9b3a5412e2ef21b04c37e38dcc8f1e3127709816103ad4b5a6947bdb7f",
+      "terminal": {
+        "pid": 78320,
+        "exitCode": 0,
+        "endedEpoch": 1788780071.857631,
+        "elapsedSeconds": 386.49058389663696
+      },
+      "actualIdentity": {
+        "source": "/Users/ccheever/.codex/sessions/2026/09/07/rollout-2026-09-07T04-14-46-01a07b93-ea4f-7590-9dba-f50936435721.jsonl",
+        "line": 8,
+        "timestamp": "2026-09-07T11:14:50.210Z",
+        "model": "gpt-6-astra",
+        "effort": "xhigh",
+        "sha256": "0b394e961ebf7201b85f426db3c76fc97521ede6e4055e2df5077cc0e2f563a2",
+        "pid": 78320
+      },
+      "verdict": "READY"
+    },
+    {
+      "role": "grok",
+      "inputLeavesVerified": 1990,
+      "manifestSha256": "52b2d332f5f79944201f8bf1e09a9a703e0fde21b946bec2aa63c6e57e38b62e",
+      "reportBytes": 14076,
+      "reportSha256": "5c4be9eeb47e4ba5e350ebc98a173d97f826436db2f3aed9c706d640894bae36",
+      "terminal": {
+        "pid": 78341,
+        "exitCode": 0,
+        "endedEpoch": 1788780576.7721431,
+        "elapsedSeconds": 891.0110368728638
+      },
+      "actualIdentity": {
+        "source": "/Users/ccheever/.grok/sessions/%2FUsers%2Fccheever%2Fclique-improvement%2Freviews%2Fcli-journey-selection-r2%2Fgrok/01a07b93-ef61-7420-8716-65210adaa011/summary.json",
+        "sha256": "ec9f2be642d37d07a98f48b451f682e3a7cab347bddbdc121277d95a13051c18",
+        "session": "01a07b93-ef61-7420-8716-65210adaa011",
+        "model": "grok-4.6",
+        "effort": "xhigh",
+        "pid": 78341
+      },
+      "verdict": "READY"
+    }
+  ],
+  "bothActualHandlesConsumed": true,
+  "allFrozenInputsUnchanged": true,
+  "scope": "Independent source reviews of focused selection/exit/help repair; prior affected evidence read, no independent runtime reproduction required or claimed.",
+  "limitations": [
+    "Astra notes leaked-handle fixture does not exclude an extra failure record and historical build01 raw bundles unavailable.",
+    "Grok phrase historical published binary for ff894 is inaccurate: ff8940.0.15 was dry-run-only/unpublished. Original report retained verbatim.",
+    "Earlier JS bundle equivalence remains unproven; current943 inputs, source maps and actual final controls bind current candidate."
+  ],
+  "rootDisposition": "Both full reports and actual terminals read; scoped READY accepted. Actual publication requires exact repaired-source qualification and registry/installed evidence."
+}

@@ -1,0 +1,572 @@
+{
+  "assets": [
+    {
+      "bytes": 2118,
+      "id": "s2id-5eca0d56c732af297150a22faf9fc8f4-0000000000243001",
+      "original": "/home/ccheever/clique-tooling/search-native-linux-26c9-20260907T0203Z-01a07995/media-preparation-20260907T0222Z-01a07995/linux-harness-26c9-01/attempts/linux-curve-01/private/project/.snapback/blobs/s2id-5eca0d56c732af297150a22faf9fc8f4-0000000000243001",
+      "sha256": "5dbaca29bf4ae4b15a9c11b0fc767781e0cdf01ab4af9b83430c243288cd72df"
+    }
+  ],
+  "finalMessageCount": 10038,
+  "finalSequence": 11341,
+  "maintainedBefore": [
+    {
+      "conversationId": "g0001",
+      "id": "[{\"Id\":\"g0001\"}]",
+      "value": 1000
+    }
+  ],
+  "maxMessageAt": 1788753452774,
+  "requests": [
+    {
+      "args": {
+        "authorId": "dev:u0001",
+        "body": "Busy group coffee signal 01001.",
+        "conversationId": "g0001",
+        "id": "mg0001-01001"
+      },
+      "index": 1,
+      "phase": "warmup",
+      "sourceAction": {
+        "actor": "u0001",
+        "args": [
+          "mg0001-01001",
+          "g0001",
+          "Busy group coffee signal 01001."
+        ],
+        "file": "scale.log",
+        "line": 47259,
+        "ordinal": 47345,
+        "timestamp": "2026-01-01T13:07:37Z",
+        "verb": "send"
+      }
+    },
+    {
+      "args": {
+        "authorId": "dev:u0002",
+        "body": "Busy group coffee signal 01002.",
+        "conversationId": "g0001",
+        "id": "mg0001-01002"
+      },
+      "index": 2,
+      "phase": "warmup",
+      "sourceAction": {
+        "actor": "u0002",
+        "args": [
+          "mg0001-01002",
+          "g0001",
+          "Busy group coffee signal 01002."
+        ],
+        "file": "scale.log",
+        "line": 47260,
+        "ordinal": 47346,
+        "timestamp": "2026-01-01T13:07:38Z",
+        "verb": "send"
+      }
+    },
+    {
+      "args": {
+        "authorId": "dev:u0003",
+        "body": "Busy group coffee signal 01003.",
+        "conversationId": "g0001",
+        "id": "mg0001-01003"
+      },
+      "index": 3,
+      "phase": "warmup",
+      "sourceAction": {
+        "actor": "u0003",
+        "args": [
+          "mg0001-01003",
+          "g0001",
+          "Busy group coffee signal 01003."
+        ],
+        "file": "scale.log",
+        "line": 47261,
+        "ordinal": 47347,
+        "timestamp": "2026-01-01T13:07:39Z",
+        "verb": "send"
+      }
+    },
+    {
+      "args": {
+        "authorId": "dev:u0004",
+        "body": "Busy group coffee signal 01004.",
+        "conversationId": "g0001",
+        "id": "mg0001-01004"
+      },
+      "index": 4,
+      "phase": "measured",
+      "sourceAction": {
+        "actor": "u0004",
+        "args": [
+          "mg0001-01004",
+          "g0001",
+          "Busy group coffee signal 01004."
+        ],
+        "file": "scale.log",
+        "line": 47262,
+        "ordinal": 47348,
+        "timestamp": "2026-01-01T13:07:40Z",
+        "verb": "send"
+      }
+    },
+    {
+      "args": {
+        "authorId": "dev:u0005",
+        "body": "Busy group coffee signal 01005.",
+        "conversationId": "g0001",
+        "id": "mg0001-01005"
+      },
+      "index": 5,
+      "phase": "measured",
+      "sourceAction": {
+        "actor": "u0005",
+        "args": [
+          "mg0001-01005",
+          "g0001",
+          "Busy group coffee signal 01005."
+        ],
+        "file": "scale.log",
+        "line": 47263,
+        "ordinal": 47349,
+        "timestamp": "2026-01-01T13:07:41Z",
+        "verb": "send"
+      }
+    },
+    {
+      "args": {
+        "authorId": "dev:u0006",
+        "body": "Busy group coffee signal 01006.",
+        "conversationId": "g0001",
+        "id": "mg0001-01006"
+      },
+      "index": 6,
+      "phase": "measured",
+      "sourceAction": {
+        "actor": "u0006",
+        "args": [
+          "mg0001-01006",
+          "g0001",
+          "Busy group coffee signal 01006."
+        ],
+        "file": "scale.log",
+        "line": 47264,
+        "ordinal": 47350,
+        "timestamp": "2026-01-01T13:07:42Z",
+        "verb": "send"
+      }
+    },
+    {
+      "args": {
+        "authorId": "dev:u0007",
+        "body": "Busy group coffee signal 01007.",
+        "conversationId": "g0001",
+        "id": "mg0001-01007"
+      },
+      "index": 7,
+      "phase": "measured",
+      "sourceAction": {
+        "actor": "u0007",
+        "args": [
+          "mg0001-01007",
+          "g0001",
+          "Busy group coffee signal 01007."
+        ],
+        "file": "scale.log",
+        "line": 47265,
+        "ordinal": 47351,
+        "timestamp": "2026-01-01T13:07:43Z",
+        "verb": "send"
+      }
+    },
+    {
+      "args": {
+        "authorId": "dev:u0008",
+        "body": "Busy group coffee signal 01008.",
+        "conversationId": "g0001",
+        "id": "mg0001-01008"
+      },
+      "index": 8,
+      "phase": "measured",
+      "sourceAction": {
+        "actor": "u0008",
+        "args": [
+          "mg0001-01008",
+          "g0001",
+          "Busy group coffee signal 01008."
+        ],
+        "file": "scale.log",
+        "line": 47266,
+        "ordinal": 47352,
+        "timestamp": "2026-01-01T13:07:44Z",
+        "verb": "send"
+      }
+    },
+    {
+      "args": {
+        "authorId": "dev:u0009",
+        "body": "Busy group coffee signal 01009.",
+        "conversationId": "g0001",
+        "id": "mg0001-01009"
+      },
+      "index": 9,
+      "phase": "measured",
+      "sourceAction": {
+        "actor": "u0009",
+        "args": [
+          "mg0001-01009",
+          "g0001",
+          "Busy group coffee signal 01009."
+        ],
+        "file": "scale.log",
+        "line": 47267,
+        "ordinal": 47353,
+        "timestamp": "2026-01-01T13:07:45Z",
+        "verb": "send"
+      }
+    },
+    {
+      "args": {
+        "authorId": "dev:u0010",
+        "body": "Busy group coffee signal 01010.",
+        "conversationId": "g0001",
+        "id": "mg0001-01010"
+      },
+      "index": 10,
+      "phase": "measured",
+      "sourceAction": {
+        "actor": "u0010",
+        "args": [
+          "mg0001-01010",
+          "g0001",
+          "Busy group coffee signal 01010."
+        ],
+        "file": "scale.log",
+        "line": 47268,
+        "ordinal": 47354,
+        "timestamp": "2026-01-01T13:07:46Z",
+        "verb": "send"
+      }
+    },
+    {
+      "args": {
+        "authorId": "dev:u0011",
+        "body": "Busy group coffee signal 01011.",
+        "conversationId": "g0001",
+        "id": "mg0001-01011"
+      },
+      "index": 11,
+      "phase": "measured",
+      "sourceAction": {
+        "actor": "u0011",
+        "args": [
+          "mg0001-01011",
+          "g0001",
+          "Busy group coffee signal 01011."
+        ],
+        "file": "scale.log",
+        "line": 47269,
+        "ordinal": 47355,
+        "timestamp": "2026-01-01T13:07:47Z",
+        "verb": "send"
+      }
+    },
+    {
+      "args": {
+        "authorId": "dev:u0012",
+        "body": "Busy group coffee signal 01012.",
+        "conversationId": "g0001",
+        "id": "mg0001-01012"
+      },
+      "index": 12,
+      "phase": "measured",
+      "sourceAction": {
+        "actor": "u0012",
+        "args": [
+          "mg0001-01012",
+          "g0001",
+          "Busy group coffee signal 01012."
+        ],
+        "file": "scale.log",
+        "line": 47270,
+        "ordinal": 47356,
+        "timestamp": "2026-01-01T13:07:48Z",
+        "verb": "send"
+      }
+    },
+    {
+      "args": {
+        "authorId": "dev:u0013",
+        "body": "Busy group coffee signal 01013.",
+        "conversationId": "g0001",
+        "id": "mg0001-01013"
+      },
+      "index": 13,
+      "phase": "measured",
+      "sourceAction": {
+        "actor": "u0013",
+        "args": [
+          "mg0001-01013",
+          "g0001",
+          "Busy group coffee signal 01013."
+        ],
+        "file": "scale.log",
+        "line": 47271,
+        "ordinal": 47357,
+        "timestamp": "2026-01-01T13:07:49Z",
+        "verb": "send"
+      }
+    },
+    {
+      "args": {
+        "authorId": "dev:u0014",
+        "body": "Busy group coffee signal 01014.",
+        "conversationId": "g0001",
+        "id": "mg0001-01014"
+      },
+      "index": 14,
+      "phase": "measured",
+      "sourceAction": {
+        "actor": "u0014",
+        "args": [
+          "mg0001-01014",
+          "g0001",
+          "Busy group coffee signal 01014."
+        ],
+        "file": "scale.log",
+        "line": 47272,
+        "ordinal": 47358,
+        "timestamp": "2026-01-01T13:07:50Z",
+        "verb": "send"
+      }
+    },
+    {
+      "args": {
+        "authorId": "dev:u0015",
+        "body": "Busy group coffee signal 01015.",
+        "conversationId": "g0001",
+        "id": "mg0001-01015"
+      },
+      "index": 15,
+      "phase": "measured",
+      "sourceAction": {
+        "actor": "u0015",
+        "args": [
+          "mg0001-01015",
+          "g0001",
+          "Busy group coffee signal 01015."
+        ],
+        "file": "scale.log",
+        "line": 47273,
+        "ordinal": 47359,
+        "timestamp": "2026-01-01T13:07:51Z",
+        "verb": "send"
+      }
+    },
+    {
+      "args": {
+        "authorId": "dev:u0016",
+        "body": "Busy group coffee signal 01016.",
+        "conversationId": "g0001",
+        "id": "mg0001-01016"
+      },
+      "index": 16,
+      "phase": "measured",
+      "sourceAction": {
+        "actor": "u0016",
+        "args": [
+          "mg0001-01016",
+          "g0001",
+          "Busy group coffee signal 01016."
+        ],
+        "file": "scale.log",
+        "line": 47274,
+        "ordinal": 47360,
+        "timestamp": "2026-01-01T13:07:52Z",
+        "verb": "send"
+      }
+    },
+    {
+      "args": {
+        "authorId": "dev:u0017",
+        "body": "Busy group coffee signal 01017.",
+        "conversationId": "g0001",
+        "id": "mg0001-01017"
+      },
+      "index": 17,
+      "phase": "measured",
+      "sourceAction": {
+        "actor": "u0017",
+        "args": [
+          "mg0001-01017",
+          "g0001",
+          "Busy group coffee signal 01017."
+        ],
+        "file": "scale.log",
+        "line": 47275,
+        "ordinal": 47361,
+        "timestamp": "2026-01-01T13:07:53Z",
+        "verb": "send"
+      }
+    },
+    {
+      "args": {
+        "authorId": "dev:u0018",
+        "body": "Busy group coffee signal 01018.",
+        "conversationId": "g0001",
+        "id": "mg0001-01018"
+      },
+      "index": 18,
+      "phase": "measured",
+      "sourceAction": {
+        "actor": "u0018",
+        "args": [
+          "mg0001-01018",
+          "g0001",
+          "Busy group coffee signal 01018."
+        ],
+        "file": "scale.log",
+        "line": 47276,
+        "ordinal": 47362,
+        "timestamp": "2026-01-01T13:07:54Z",
+        "verb": "send"
+      }
+    },
+    {
+      "args": {
+        "authorId": "dev:u0019",
+        "body": "Busy group coffee signal 01019.",
+        "conversationId": "g0001",
+        "id": "mg0001-01019"
+      },
+      "index": 19,
+      "phase": "measured",
+      "sourceAction": {
+        "actor": "u0019",
+        "args": [
+          "mg0001-01019",
+          "g0001",
+          "Busy group coffee signal 01019."
+        ],
+        "file": "scale.log",
+        "line": 47277,
+        "ordinal": 47363,
+        "timestamp": "2026-01-01T13:07:55Z",
+        "verb": "send"
+      }
+    },
+    {
+      "args": {
+        "authorId": "dev:u0020",
+        "body": "Busy group coffee signal 01020.",
+        "conversationId": "g0001",
+        "id": "mg0001-01020"
+      },
+      "index": 20,
+      "phase": "measured",
+      "sourceAction": {
+        "actor": "u0020",
+        "args": [
+          "mg0001-01020",
+          "g0001",
+          "Busy group coffee signal 01020."
+        ],
+        "file": "scale.log",
+        "line": 47278,
+        "ordinal": 47364,
+        "timestamp": "2026-01-01T13:07:56Z",
+        "verb": "send"
+      }
+    },
+    {
+      "args": {
+        "authorId": "dev:u0021",
+        "body": "Busy group coffee signal 01021.",
+        "conversationId": "g0001",
+        "id": "mg0001-01021"
+      },
+      "index": 21,
+      "phase": "measured",
+      "sourceAction": {
+        "actor": "u0021",
+        "args": [
+          "mg0001-01021",
+          "g0001",
+          "Busy group coffee signal 01021."
+        ],
+        "file": "scale.log",
+        "line": 47279,
+        "ordinal": 47365,
+        "timestamp": "2026-01-01T13:07:57Z",
+        "verb": "send"
+      }
+    },
+    {
+      "args": {
+        "authorId": "dev:u0022",
+        "body": "Busy group coffee signal 01022.",
+        "conversationId": "g0001",
+        "id": "mg0001-01022"
+      },
+      "index": 22,
+      "phase": "measured",
+      "sourceAction": {
+        "actor": "u0022",
+        "args": [
+          "mg0001-01022",
+          "g0001",
+          "Busy group coffee signal 01022."
+        ],
+        "file": "scale.log",
+        "line": 47280,
+        "ordinal": 47366,
+        "timestamp": "2026-01-01T13:07:58Z",
+        "verb": "send"
+      }
+    },
+    {
+      "args": {
+        "authorId": "dev:u0023",
+        "body": "Busy group coffee signal 01023.",
+        "conversationId": "g0001",
+        "id": "mg0001-01023"
+      },
+      "index": 23,
+      "phase": "measured",
+      "sourceAction": {
+        "actor": "u0023",
+        "args": [
+          "mg0001-01023",
+          "g0001",
+          "Busy group coffee signal 01023."
+        ],
+        "file": "scale.log",
+        "line": 47281,
+        "ordinal": 47367,
+        "timestamp": "2026-01-01T13:07:59Z",
+        "verb": "send"
+      }
+    }
+  ],
+  "sequence": 11318,
+  "sourceCounts": {
+    "conversations": 1002,
+    "follows": 5921,
+    "memberCounts": 1002,
+    "memberships": 2054,
+    "messageCounts": 903,
+    "messages": 10015,
+    "posts": 5048,
+    "profiles": 1008
+  },
+  "tableHashes": {
+    "conversations": "47b503007b46ceca03ef0231e85e1cb3f581c5ff576cf74c32c69f8541da8e29",
+    "follows": "51571cd28238eb1c275ae78e1e6821a3b55dea2b63f343463723bad598a49afe",
+    "memberCounts": "0ee9e189a5fcf254bfe961b78260a4f5c365465050fb9e1f313af27ec3d82181",
+    "memberships": "606c91416df9a9c1c9de1dc398615fae0405c43d6e360d8539f66a4d9a131361",
+    "messageCounts": "33b1bac858acdb8a7c80db72e91a51ab3e99df8b3363cc82e7f952909196c984",
+    "messages": "aa75fbadf92c4cd4e5f359bfcf29e3eb9694503b9b8d31b21833e009b251ef14",
+    "posts": "4139cdbaeff9bb22bc61e861cd45338064939b50ea80a49eda38cc9a5612a552",
+    "profiles": "9334822dedbbc4ef5c5f7f5f3fe6db24b0aa045484416fbe4aa8d800ac3a2f2a"
+  }
+}

@@ -1,0 +1,12 @@
+{
+  "argv": [
+    "/home/ccheever/clique-tooling/epyc-linux-tooling-20260907T010007Z-0fd567d96f/node-v22.23.2-linux-x64/bin/node",
+    "/home/ccheever/clique-tooling/search-structural-codec-0ecd-20260907T1130Z-01a07649/capture-oracles-r1.mjs"
+  ],
+  "pid": 3989587,
+  "startedUtc": "2026-09-07T11:33:36.795912+00:00",
+  "endedUtc": "2026-09-07T11:33:37.261156+00:00",
+  "elapsedSeconds": 0.465244177961722,
+  "exitCode": 0,
+  "outerSeconds": 10
+}

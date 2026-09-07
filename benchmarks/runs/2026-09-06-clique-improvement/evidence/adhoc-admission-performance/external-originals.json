@@ -1,0 +1,861 @@
+{
+  "copies": [
+    {
+      "path": "execution/REPORT.md",
+      "source": "/Users/ccheever/clique-improvement/revisions/adhoc-certification-performance-execution-r1/REPORT.md",
+      "sourceBytes": 15056,
+      "sourceSha256": "92e98ff50295a51024ac9b826d66aecc406a4aa2539fa29be85f0582ac312ec3",
+      "bytes": 15056,
+      "sha256": "92e98ff50295a51024ac9b826d66aecc406a4aa2539fa29be85f0582ac312ec3",
+      "verbatim": true
+    },
+    {
+      "path": "execution/REPORT-before-execution-02.md",
+      "source": "/Users/ccheever/clique-improvement/revisions/adhoc-certification-performance-execution-r1/REPORT-before-execution-02.md",
+      "sourceBytes": 13231,
+      "sourceSha256": "cc5dd328fcc2957557430c6826c3197ac3ea7a15b5e487658055380476dfd983",
+      "bytes": 13231,
+      "sha256": "cc5dd328fcc2957557430c6826c3197ac3ea7a15b5e487658055380476dfd983",
+      "verbatim": true
+    },
+    {
+      "path": "execution/actual-identity.json",
+      "source": "/Users/ccheever/clique-improvement/revisions/adhoc-certification-performance-execution-r1/actual-identity.json",
+      "sourceBytes": 333,
+      "sourceSha256": "a44b7e4884b51efe2a87e407b07bc995ef0822561b7d534b7a038c6995740700",
+      "bytes": 333,
+      "sha256": "a44b7e4884b51efe2a87e407b07bc995ef0822561b7d534b7a038c6995740700",
+      "verbatim": true
+    },
+    {
+      "path": "execution/launch.json",
+      "source": "/Users/ccheever/clique-improvement/revisions/adhoc-certification-performance-execution-r1/launch.json",
+      "sourceBytes": 696,
+      "sourceSha256": "4c47603e42c687e75a1e3cfb6e2f7f80909fc31b120f8722ed10dcddce0dc6b0",
+      "bytes": 696,
+      "sha256": "4c47603e42c687e75a1e3cfb6e2f7f80909fc31b120f8722ed10dcddce0dc6b0",
+      "verbatim": true
+    },
+    {
+      "path": "execution/terminal.json",
+      "source": "/Users/ccheever/clique-improvement/revisions/adhoc-certification-performance-execution-r1/terminal.json",
+      "sourceBytes": 109,
+      "sourceSha256": "e11e061a9f41c38c9c32bd5de142dc96541d2bfd1caef5dfd93b9b8e3c49a174",
+      "bytes": 109,
+      "sha256": "e11e061a9f41c38c9c32bd5de142dc96541d2bfd1caef5dfd93b9b8e3c49a174",
+      "verbatim": true
+    },
+    {
+      "path": "execution/phase.json",
+      "source": "/Users/ccheever/clique-improvement/revisions/adhoc-certification-performance-execution-r1/phase.json",
+      "sourceBytes": 715,
+      "sourceSha256": "4c327cfc4c17638bf9364b03addeaff78e9ca02109e4bdcbaff40869ac49bbdc",
+      "bytes": 715,
+      "sha256": "4c327cfc4c17638bf9364b03addeaff78e9ca02109e4bdcbaff40869ac49bbdc",
+      "verbatim": true
+    },
+    {
+      "path": "execution/immutable-handoff.json",
+      "source": "/Users/ccheever/clique-improvement/revisions/adhoc-certification-performance-execution-r1/immutable-handoff.json",
+      "sourceBytes": 2642,
+      "sourceSha256": "6e0586152d45500f9e1a52104aa11a0b12fd764c77b365919d8ec030d9dd196d",
+      "bytes": 2642,
+      "sha256": "6e0586152d45500f9e1a52104aa11a0b12fd764c77b365919d8ec030d9dd196d",
+      "verbatim": true
+    },
+    {
+      "path": "execution/evidence-manifest.json",
+      "source": "/Users/ccheever/clique-improvement/revisions/adhoc-certification-performance-execution-r1/evidence-manifest.json",
+      "sourceBytes": 27398,
+      "sourceSha256": "dcbe4bf8aa090d34eb5eb535bfca11c4c07662daa28477d12c3967bb126cdcbd",
+      "bytes": 27398,
+      "sha256": "dcbe4bf8aa090d34eb5eb535bfca11c4c07662daa28477d12c3967bb126cdcbd",
+      "verbatim": true
+    },
+    {
+      "path": "execution/execution-02-timing-records.json",
+      "source": "/Users/ccheever/clique-improvement/revisions/adhoc-certification-performance-execution-r1/execution-02-timing-records.json",
+      "sourceBytes": 37995,
+      "sourceSha256": "7cef008a4c3214c24876529acab618ae2839db8f3cef1889c1b2a19660cd7be1",
+      "bytes": 37995,
+      "sha256": "7cef008a4c3214c24876529acab618ae2839db8f3cef1889c1b2a19660cd7be1",
+      "verbatim": true
+    },
+    {
+      "path": "execution/execution-02-timings.csv",
+      "source": "/Users/ccheever/clique-improvement/revisions/adhoc-certification-performance-execution-r1/execution-02-timings.csv",
+      "sourceBytes": 828,
+      "sourceSha256": "ac9cacc996fbfde7cc16670d63856292ee5f614eabc02a93e577ab2b0beb022a",
+      "bytes": 828,
+      "sha256": "ac9cacc996fbfde7cc16670d63856292ee5f614eabc02a93e577ab2b0beb022a",
+      "verbatim": true
+    },
+    {
+      "path": "execution/execution-02-arm-results.json",
+      "source": "/Users/ccheever/clique-improvement/revisions/adhoc-certification-performance-execution-r1/execution-02-arm-results.json",
+      "sourceBytes": 6591,
+      "sourceSha256": "c7309f6b799b28bc2410a92f068f778cb72318653f86b7513ded2f4dfd7e2913",
+      "bytes": 6591,
+      "sha256": "c7309f6b799b28bc2410a92f068f778cb72318653f86b7513ded2f4dfd7e2913",
+      "verbatim": true
+    },
+    {
+      "path": "execution/arm-results.json",
+      "source": "/Users/ccheever/clique-improvement/revisions/adhoc-certification-performance-execution-r1/arm-results.json",
+      "sourceBytes": 5728,
+      "sourceSha256": "8bb94273422c73885318e308c2e09bdbd0fc946dfa7362c8e934125d64402351",
+      "bytes": 5728,
+      "sha256": "8bb94273422c73885318e308c2e09bdbd0fc946dfa7362c8e934125d64402351",
+      "verbatim": true
+    },
+    {
+      "path": "execution/owner-lock-source.json",
+      "source": "/Users/ccheever/clique-improvement/revisions/adhoc-certification-performance-execution-r1/owner-lock-source.json",
+      "sourceBytes": 1707,
+      "sourceSha256": "d73e4f608e0267c0cc17425af67eb3892dd37202b502482313a03e6a5313d05c",
+      "bytes": 1707,
+      "sha256": "d73e4f608e0267c0cc17425af67eb3892dd37202b502482313a03e6a5313d05c",
+      "verbatim": true
+    },
+    {
+      "path": "execution/correction.diff",
+      "source": "/Users/ccheever/clique-improvement/revisions/adhoc-certification-performance-execution-r1/correction.diff",
+      "sourceBytes": 42186,
+      "sourceSha256": "4edf7e196b3a3d92f32bdd5e0c2ac4034f2f46b90dab8389d66bb0e2316f49ae",
+      "bytes": 42186,
+      "sha256": "4edf7e196b3a3d92f32bdd5e0c2ac4034f2f46b90dab8389d66bb0e2316f49ae",
+      "verbatim": true
+    },
+    {
+      "path": "execution/correction-changes.json",
+      "source": "/Users/ccheever/clique-improvement/revisions/adhoc-certification-performance-execution-r1/correction-changes.json",
+      "sourceBytes": 2886,
+      "sourceSha256": "4d015165995473e496cc4458eb485a4a7d97ece77d4552e7710309a499c3ed6f",
+      "bytes": 2886,
+      "sha256": "4d015165995473e496cc4458eb485a4a7d97ece77d4552e7710309a499c3ed6f",
+      "verbatim": true
+    },
+    {
+      "path": "execution/correction-packet-binding.json",
+      "source": "/Users/ccheever/clique-improvement/revisions/adhoc-certification-performance-execution-r1/correction-packet-binding.json",
+      "sourceBytes": 665,
+      "sourceSha256": "7b2c46f748b45e6f3c21c0a00aa6522d4608b7752b4847290fb12955b8a77c57",
+      "bytes": 665,
+      "sha256": "7b2c46f748b45e6f3c21c0a00aa6522d4608b7752b4847290fb12955b8a77c57",
+      "verbatim": true
+    },
+    {
+      "path": "execution/correction-static-validation.json",
+      "source": "/Users/ccheever/clique-improvement/revisions/adhoc-certification-performance-execution-r1/correction-static-validation.json",
+      "sourceBytes": 873,
+      "sourceSha256": "802f696340f89895213814e1bf67bf1e6ea412a07a1a179c7f0b4032f8478717",
+      "bytes": 873,
+      "sha256": "802f696340f89895213814e1bf67bf1e6ea412a07a1a179c7f0b4032f8478717",
+      "verbatim": true
+    },
+    {
+      "path": "execution/proposed-corrected-run-command.txt",
+      "source": "/Users/ccheever/clique-improvement/revisions/adhoc-certification-performance-execution-r1/proposed-corrected-run-command.txt",
+      "sourceBytes": 418,
+      "sourceSha256": "211ab9a54f9532736319acecd58a550e6ee576d4482c5fb45c0820dadf6a63f3",
+      "bytes": 418,
+      "sha256": "211ab9a54f9532736319acecd58a550e6ee576d4482c5fb45c0820dadf6a63f3",
+      "verbatim": true
+    },
+    {
+      "path": "execution/approved-run-command.txt",
+      "source": "/Users/ccheever/clique-improvement/revisions/adhoc-certification-performance-execution-r1/approved-run-command.txt",
+      "sourceBytes": 657,
+      "sourceSha256": "e82ae60b76b569d97562c92b6a075cbf94d164e7b6136581a5b32f5d814e76d4",
+      "bytes": 657,
+      "sha256": "e82ae60b76b569d97562c92b6a075cbf94d164e7b6136581a5b32f5d814e76d4",
+      "verbatim": true
+    },
+    {
+      "path": "execution/execution-02-collection-verification.json",
+      "source": "/Users/ccheever/clique-improvement/revisions/adhoc-certification-performance-execution-r1/execution-02-collection-verification.json",
+      "sourceBytes": 291,
+      "sourceSha256": "fd58fd155e53e5fc052f1444ee44de49a80b0b39fca1cbdf6c17a8b96bb92fc0",
+      "bytes": 291,
+      "sha256": "fd58fd155e53e5fc052f1444ee44de49a80b0b39fca1cbdf6c17a8b96bb92fc0",
+      "verbatim": true
+    },
+    {
+      "path": "execution/collection-verification.json",
+      "source": "/Users/ccheever/clique-improvement/revisions/adhoc-certification-performance-execution-r1/collection-verification.json",
+      "sourceBytes": 967,
+      "sourceSha256": "9e90578334da690d58c5edcba568c95bf7b727228c9b87503ccf3278909690e3",
+      "bytes": 967,
+      "sha256": "9e90578334da690d58c5edcba568c95bf7b727228c9b87503ccf3278909690e3",
+      "verbatim": true
+    },
+    {
+      "path": "execution/execution-02-root-admission.md",
+      "source": "/Users/ccheever/clique-improvement/revisions/adhoc-certification-performance-execution-r1/execution-02-root-admission.md",
+      "sourceBytes": 2072,
+      "sourceSha256": "f620e9e2afecd6612b58277ce152012b26d9c5fce4fc3a7b53c0ed1c0d2e7fbd",
+      "bytes": 2072,
+      "sha256": "f620e9e2afecd6612b58277ce152012b26d9c5fce4fc3a7b53c0ed1c0d2e7fbd",
+      "verbatim": true
+    },
+    {
+      "path": "execution/execution-02-root-final-disposition.md",
+      "source": "/Users/ccheever/clique-improvement/revisions/adhoc-certification-performance-execution-r1/execution-02-root-final-disposition.md",
+      "sourceBytes": 2783,
+      "sourceSha256": "da4c5f8c049afd542bfe1740e60161b28e43601cc5ef6c4058a073ab73631461",
+      "bytes": 2783,
+      "sha256": "da4c5f8c049afd542bfe1740e60161b28e43601cc5ef6c4058a073ab73631461",
+      "verbatim": true
+    },
+    {
+      "path": "execution/execution-02-preflight.json",
+      "source": "/Users/ccheever/clique-improvement/revisions/adhoc-certification-performance-execution-r1/execution-02-preflight.json",
+      "sourceBytes": 787,
+      "sourceSha256": "fa905c7f8cba384b9ef572bc3b074578791468c628a43b59763826938ad2bf5d",
+      "bytes": 797,
+      "sha256": "0df7725c46289aea5c6f3c28d90b7a2909e9ae2d200117dda619e1ed09aa0c68",
+      "verbatim": false
+    },
+    {
+      "path": "execution/execution-02-preflight.stdout",
+      "source": "/Users/ccheever/clique-improvement/revisions/adhoc-certification-performance-execution-r1/execution-02-preflight.stdout",
+      "sourceBytes": 2695,
+      "sourceSha256": "f0666cefc95d9ca60eef44c141ac63cc83953c24b5b7ed4b6a612ce3a385f5a7",
+      "bytes": 2695,
+      "sha256": "f0666cefc95d9ca60eef44c141ac63cc83953c24b5b7ed4b6a612ce3a385f5a7",
+      "verbatim": true
+    },
+    {
+      "path": "execution/execution-02-launch-exact.json",
+      "source": "/Users/ccheever/clique-improvement/revisions/adhoc-certification-performance-execution-r1/execution-02-launch-exact.json",
+      "sourceBytes": 870,
+      "sourceSha256": "5745528511b89b33f45d8c8f8a772e75072008288735b432d1678b002e7ee002",
+      "bytes": 880,
+      "sha256": "f949e9f59efa23055832e5b009062e7c8ff54f0dec7380081d3719bede141020",
+      "verbatim": false
+    },
+    {
+      "path": "execution/execution-02-status-01.json",
+      "source": "/Users/ccheever/clique-improvement/revisions/adhoc-certification-performance-execution-r1/execution-02-status-01.json",
+      "sourceBytes": 784,
+      "sourceSha256": "8aaad75d1c6c783502d7962fc7095a96d9bb092c494bcee6be64082492544d1d",
+      "bytes": 794,
+      "sha256": "a0d48ff1c7246602788358d7aa7a99ff81fd5782d73c664b85ebac9c4098ffb5",
+      "verbatim": false
+    },
+    {
+      "path": "execution/retained-results/custody/analysis.json",
+      "source": "/Users/ccheever/clique-improvement/revisions/adhoc-certification-performance-execution-r1/retained-results/custody/analysis.json",
+      "sourceBytes": 6815,
+      "sourceSha256": "905b49fb7a09be17c8e8cdd5e4682ec6f48070a8a38430fdc9ca7a8052ad58fc",
+      "bytes": 6815,
+      "sha256": "905b49fb7a09be17c8e8cdd5e4682ec6f48070a8a38430fdc9ca7a8052ad58fc",
+      "verbatim": true
+    },
+    {
+      "path": "execution/retained-results/custody/result-manifest.json",
+      "source": "/Users/ccheever/clique-improvement/revisions/adhoc-certification-performance-execution-r1/retained-results/custody/result-manifest.json",
+      "sourceBytes": 8218,
+      "sourceSha256": "a2e267265f609dc2e75deeb23c3d551928ffc353672cd51e79cbc37d48a508e9",
+      "bytes": 8218,
+      "sha256": "a2e267265f609dc2e75deeb23c3d551928ffc353672cd51e79cbc37d48a508e9",
+      "verbatim": true
+    },
+    {
+      "path": "execution/retained-results/execution-01/baseline/copy.json",
+      "source": "/Users/ccheever/clique-improvement/revisions/adhoc-certification-performance-execution-r1/retained-results/execution-01/baseline/copy.json",
+      "sourceBytes": 943,
+      "sourceSha256": "31d810b3244145d40a5fbf67a8a5617c34637af75b26e0d76ea4d3fd22a50408",
+      "bytes": 943,
+      "sha256": "31d810b3244145d40a5fbf67a8a5617c34637af75b26e0d76ea4d3fd22a50408",
+      "verbatim": true
+    },
+    {
+      "path": "execution/retained-results/execution-01/baseline/host-load.jsonl",
+      "source": "/Users/ccheever/clique-improvement/revisions/adhoc-certification-performance-execution-r1/retained-results/execution-01/baseline/host-load.jsonl",
+      "sourceBytes": 2520,
+      "sourceSha256": "c8f5a3ab0cf3d86e7d8eae5c38199dbd66ade326cafca997f25ab719ea565cfd",
+      "bytes": 2520,
+      "sha256": "c8f5a3ab0cf3d86e7d8eae5c38199dbd66ade326cafca997f25ab719ea565cfd",
+      "verbatim": true
+    },
+    {
+      "path": "execution/retained-results/execution-01/baseline/owner.launch.json",
+      "source": "/Users/ccheever/clique-improvement/revisions/adhoc-certification-performance-execution-r1/retained-results/execution-01/baseline/owner.launch.json",
+      "sourceBytes": 1505,
+      "sourceSha256": "8388d1bfc593e5a6dc5698e5b42f806b4c499e036af844941dc9fcd992231f13",
+      "bytes": 1505,
+      "sha256": "8388d1bfc593e5a6dc5698e5b42f806b4c499e036af844941dc9fcd992231f13",
+      "verbatim": true
+    },
+    {
+      "path": "execution/retained-results/execution-01/baseline/owner.terminal.json",
+      "source": "/Users/ccheever/clique-improvement/revisions/adhoc-certification-performance-execution-r1/retained-results/execution-01/baseline/owner.terminal.json",
+      "sourceBytes": 388,
+      "sourceSha256": "ce81974bd8aa3d968c79ae4a30a81068a0ef79f90730a9362b69215fce4512a4",
+      "bytes": 388,
+      "sha256": "ce81974bd8aa3d968c79ae4a30a81068a0ef79f90730a9362b69215fce4512a4",
+      "verbatim": true
+    },
+    {
+      "path": "execution/retained-results/execution-01/build.launch.json",
+      "source": "/Users/ccheever/clique-improvement/revisions/adhoc-certification-performance-execution-r1/retained-results/execution-01/build.launch.json",
+      "sourceBytes": 1476,
+      "sourceSha256": "dd69bf102fe16fb49925f694354980db54ee50d578b46196be5f76d46bc05dc8",
+      "bytes": 1476,
+      "sha256": "dd69bf102fe16fb49925f694354980db54ee50d578b46196be5f76d46bc05dc8",
+      "verbatim": true
+    },
+    {
+      "path": "execution/retained-results/execution-01/build.stderr",
+      "source": "/Users/ccheever/clique-improvement/revisions/adhoc-certification-performance-execution-r1/retained-results/execution-01/build.stderr",
+      "sourceBytes": 3619,
+      "sourceSha256": "56f517612bcc611a982a1e61b393e69a6cda2f35f12e23c67e6a919615774d99",
+      "bytes": 3619,
+      "sha256": "56f517612bcc611a982a1e61b393e69a6cda2f35f12e23c67e6a919615774d99",
+      "verbatim": true
+    },
+    {
+      "path": "execution/retained-results/execution-01/build.stdout",
+      "source": "/Users/ccheever/clique-improvement/revisions/adhoc-certification-performance-execution-r1/retained-results/execution-01/build.stdout",
+      "sourceBytes": 0,
+      "sourceSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "verbatim": true
+    },
+    {
+      "path": "execution/retained-results/execution-01/build.terminal.json",
+      "source": "/Users/ccheever/clique-improvement/revisions/adhoc-certification-performance-execution-r1/retained-results/execution-01/build.terminal.json",
+      "sourceBytes": 87,
+      "sourceSha256": "34d1b3bed6855dba9a9b18045cf6b846a085ecbfa1778b324e0e3183e3a3fef4",
+      "bytes": 87,
+      "sha256": "34d1b3bed6855dba9a9b18045cf6b846a085ecbfa1778b324e0e3183e3a3fef4",
+      "verbatim": true
+    },
+    {
+      "path": "execution/retained-results/execution-01/candidate-binary.json",
+      "source": "/Users/ccheever/clique-improvement/revisions/adhoc-certification-performance-execution-r1/retained-results/execution-01/candidate-binary.json",
+      "sourceBytes": 401,
+      "sourceSha256": "8a73568f058a5e39f89cfbfcbe1851aa365df7f0bc9bcbd2cdc34fef8e4c5902",
+      "bytes": 401,
+      "sha256": "8a73568f058a5e39f89cfbfcbe1851aa365df7f0bc9bcbd2cdc34fef8e4c5902",
+      "verbatim": true
+    },
+    {
+      "path": "execution/retained-results/execution-01/dependencies.stderr",
+      "source": "/Users/ccheever/clique-improvement/revisions/adhoc-certification-performance-execution-r1/retained-results/execution-01/dependencies.stderr",
+      "sourceBytes": 0,
+      "sourceSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "verbatim": true
+    },
+    {
+      "path": "execution/retained-results/execution-01/dependencies.stdout",
+      "source": "/Users/ccheever/clique-improvement/revisions/adhoc-certification-performance-execution-r1/retained-results/execution-01/dependencies.stdout",
+      "sourceBytes": 297,
+      "sourceSha256": "8d79ff1e4aeabec724a4f178e345b3da0900dc762caa12b8e6850656d0a8c733",
+      "bytes": 297,
+      "sha256": "8d79ff1e4aeabec724a4f178e345b3da0900dc762caa12b8e6850656d0a8c733",
+      "verbatim": true
+    },
+    {
+      "path": "execution/retained-results/execution-01/elf.stderr",
+      "source": "/Users/ccheever/clique-improvement/revisions/adhoc-certification-performance-execution-r1/retained-results/execution-01/elf.stderr",
+      "sourceBytes": 0,
+      "sourceSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "verbatim": true
+    },
+    {
+      "path": "execution/retained-results/execution-01/elf.stdout",
+      "source": "/Users/ccheever/clique-improvement/revisions/adhoc-certification-performance-execution-r1/retained-results/execution-01/elf.stdout",
+      "sourceBytes": 2683,
+      "sourceSha256": "521d470373dcb690ed9a67d5143ff2a54e1528a36e96203a50eda7864b37094f",
+      "bytes": 2683,
+      "sha256": "521d470373dcb690ed9a67d5143ff2a54e1528a36e96203a50eda7864b37094f",
+      "verbatim": true
+    },
+    {
+      "path": "execution/retained-results/execution-01/first-failure.json",
+      "source": "/Users/ccheever/clique-improvement/revisions/adhoc-certification-performance-execution-r1/retained-results/execution-01/first-failure.json",
+      "sourceBytes": 117,
+      "sourceSha256": "2b9a86e0016377c13f54829df5172d78fdbf1c99a2639cca57f0a4ee1d383371",
+      "bytes": 117,
+      "sha256": "2b9a86e0016377c13f54829df5172d78fdbf1c99a2639cca57f0a4ee1d383371",
+      "verbatim": true
+    },
+    {
+      "path": "execution/retained-results/execution-01/preflight.json",
+      "source": "/Users/ccheever/clique-improvement/revisions/adhoc-certification-performance-execution-r1/retained-results/execution-01/preflight.json",
+      "sourceBytes": 1816,
+      "sourceSha256": "651a49596d0a6596f84d5116a36e53d183b9b2289d267b009de93b38026322ec",
+      "bytes": 1816,
+      "sha256": "651a49596d0a6596f84d5116a36e53d183b9b2289d267b009de93b38026322ec",
+      "verbatim": true
+    },
+    {
+      "path": "execution/retained-results/execution-01/supervisor.launch.json",
+      "source": "/Users/ccheever/clique-improvement/revisions/adhoc-certification-performance-execution-r1/retained-results/execution-01/supervisor.launch.json",
+      "sourceBytes": 395,
+      "sourceSha256": "bcefb3b780ede803e26430d564dcbcc5822c8d59ca0cb1346477b6209e1b774b",
+      "bytes": 395,
+      "sha256": "bcefb3b780ede803e26430d564dcbcc5822c8d59ca0cb1346477b6209e1b774b",
+      "verbatim": true
+    },
+    {
+      "path": "execution/retained-results/execution-01/terminal.json",
+      "source": "/Users/ccheever/clique-improvement/revisions/adhoc-certification-performance-execution-r1/retained-results/execution-01/terminal.json",
+      "sourceBytes": 1953,
+      "sourceSha256": "1e560c3054c586651fd69858088f217e32cfc619adb5778102a9dc453c7c2059",
+      "bytes": 1953,
+      "sha256": "1e560c3054c586651fd69858088f217e32cfc619adb5778102a9dc453c7c2059",
+      "verbatim": true
+    },
+    {
+      "path": "execution/retained-results/execution-01.once.json",
+      "source": "/Users/ccheever/clique-improvement/revisions/adhoc-certification-performance-execution-r1/retained-results/execution-01.once.json",
+      "sourceBytes": 481,
+      "sourceSha256": "4a35a3ad5aaae3aa033724db369d31bc4e06d97b7834552df4b3effa4abfc3ae",
+      "bytes": 481,
+      "sha256": "4a35a3ad5aaae3aa033724db369d31bc4e06d97b7834552df4b3effa4abfc3ae",
+      "verbatim": true
+    },
+    {
+      "path": "execution/retained-results/execution-01.supervisor.stderr",
+      "source": "/Users/ccheever/clique-improvement/revisions/adhoc-certification-performance-execution-r1/retained-results/execution-01.supervisor.stderr",
+      "sourceBytes": 1277,
+      "sourceSha256": "c77301de9dffa7010078b3103ae0fe5c32b61d4f3f77de571a214c70d0d798f9",
+      "bytes": 1277,
+      "sha256": "c77301de9dffa7010078b3103ae0fe5c32b61d4f3f77de571a214c70d0d798f9",
+      "verbatim": true
+    },
+    {
+      "path": "execution/retained-results/execution-01.supervisor.stdout",
+      "source": "/Users/ccheever/clique-improvement/revisions/adhoc-certification-performance-execution-r1/retained-results/execution-01.supervisor.stdout",
+      "sourceBytes": 2733,
+      "sourceSha256": "5746e06c7b1d4b9ca45b3217d157f2fd607480a02d32cc2c72c3ca71619fd1a9",
+      "bytes": 2733,
+      "sha256": "5746e06c7b1d4b9ca45b3217d157f2fd607480a02d32cc2c72c3ca71619fd1a9",
+      "verbatim": true
+    },
+    {
+      "path": "execution/retained-execution-02/custody/analysis.json",
+      "source": "/Users/ccheever/clique-improvement/revisions/adhoc-certification-performance-execution-r1/retained-execution-02/custody/analysis.json",
+      "sourceBytes": 59148,
+      "sourceSha256": "5a4dd323ab837ce9223e55dc22530b473afe8647984a17db32dc6b6aa1a6bdae",
+      "bytes": 59148,
+      "sha256": "5a4dd323ab837ce9223e55dc22530b473afe8647984a17db32dc6b6aa1a6bdae",
+      "verbatim": true
+    },
+    {
+      "path": "execution/retained-execution-02/custody/result-manifest.json",
+      "source": "/Users/ccheever/clique-improvement/revisions/adhoc-certification-performance-execution-r1/retained-execution-02/custody/result-manifest.json",
+      "sourceBytes": 40953,
+      "sourceSha256": "ab2202f2cb85b81b381af802273cfbffbb2223538b6a9e6e38e4557ef8bf1fc4",
+      "bytes": 40953,
+      "sha256": "ab2202f2cb85b81b381af802273cfbffbb2223538b6a9e6e38e4557ef8bf1fc4",
+      "verbatim": true
+    },
+    {
+      "path": "execution/retained-execution-02/execution-02/baseline/certificate-binding.json",
+      "source": "/Users/ccheever/clique-improvement/revisions/adhoc-certification-performance-execution-r1/retained-execution-02/execution-02/baseline/certificate-binding.json",
+      "sourceBytes": 197,
+      "sourceSha256": "074b381d5928abd5a1edf33b68470080d6002178e2042936dcc20d3e54222a3b",
+      "bytes": 197,
+      "sha256": "074b381d5928abd5a1edf33b68470080d6002178e2042936dcc20d3e54222a3b",
+      "verbatim": true
+    },
+    {
+      "path": "execution/retained-execution-02/execution-02/baseline/copy.json",
+      "source": "/Users/ccheever/clique-improvement/revisions/adhoc-certification-performance-execution-r1/retained-execution-02/execution-02/baseline/copy.json",
+      "sourceBytes": 943,
+      "sourceSha256": "31d810b3244145d40a5fbf67a8a5617c34637af75b26e0d76ea4d3fd22a50408",
+      "bytes": 943,
+      "sha256": "31d810b3244145d40a5fbf67a8a5617c34637af75b26e0d76ea4d3fd22a50408",
+      "verbatim": true
+    },
+    {
+      "path": "execution/retained-execution-02/execution-02/baseline/host-load.jsonl",
+      "source": "/Users/ccheever/clique-improvement/revisions/adhoc-certification-performance-execution-r1/retained-execution-02/execution-02/baseline/host-load.jsonl",
+      "sourceBytes": 591,
+      "sourceSha256": "89704438a48f09ff4260d03a00e39fea6eab238579837ea3854850960ed4b0a9",
+      "bytes": 591,
+      "sha256": "89704438a48f09ff4260d03a00e39fea6eab238579837ea3854850960ed4b0a9",
+      "verbatim": true
+    },
+    {
+      "path": "execution/retained-execution-02/execution-02/baseline/owner.launch.json",
+      "source": "/Users/ccheever/clique-improvement/revisions/adhoc-certification-performance-execution-r1/retained-execution-02/execution-02/baseline/owner.launch.json",
+      "sourceBytes": 1504,
+      "sourceSha256": "239dd8358bf7865e8d66bfea18e60393525f2bce183afe681983ddfbc4da4500",
+      "bytes": 1504,
+      "sha256": "239dd8358bf7865e8d66bfea18e60393525f2bce183afe681983ddfbc4da4500",
+      "verbatim": true
+    },
+    {
+      "path": "execution/retained-execution-02/execution-02/baseline/owner.terminal.json",
+      "source": "/Users/ccheever/clique-improvement/revisions/adhoc-certification-performance-execution-r1/retained-execution-02/execution-02/baseline/owner.terminal.json",
+      "sourceBytes": 387,
+      "sourceSha256": "8d6958d7ee2b0d27115887b3b922eda08ceb4d8b3323603bf2f75c4e4687331d",
+      "bytes": 387,
+      "sha256": "8d6958d7ee2b0d27115887b3b922eda08ceb4d8b3323603bf2f75c4e4687331d",
+      "verbatim": true
+    },
+    {
+      "path": "execution/retained-execution-02/execution-02/baseline/result.json",
+      "source": "/Users/ccheever/clique-improvement/revisions/adhoc-certification-performance-execution-r1/retained-execution-02/execution-02/baseline/result.json",
+      "sourceBytes": 1165,
+      "sourceSha256": "42b5bc3d70f5f833bbe2eef1ee873ad6489fb8ee5a9c414d25a3284baacbf64b",
+      "bytes": 1165,
+      "sha256": "42b5bc3d70f5f833bbe2eef1ee873ad6489fb8ee5a9c414d25a3284baacbf64b",
+      "verbatim": true
+    },
+    {
+      "path": "execution/retained-execution-02/execution-02/baseline/starting-state.json",
+      "source": "/Users/ccheever/clique-improvement/revisions/adhoc-certification-performance-execution-r1/retained-execution-02/execution-02/baseline/starting-state.json",
+      "sourceBytes": 755,
+      "sourceSha256": "c0a5700d55f91660c9b175cf3ab288bffbbd342f297b424734898c7e7775bf63",
+      "bytes": 755,
+      "sha256": "c0a5700d55f91660c9b175cf3ab288bffbbd342f297b424734898c7e7775bf63",
+      "verbatim": true
+    },
+    {
+      "path": "execution/retained-execution-02/execution-02/candidate/certificate-binding.json",
+      "source": "/Users/ccheever/clique-improvement/revisions/adhoc-certification-performance-execution-r1/retained-execution-02/execution-02/candidate/certificate-binding.json",
+      "sourceBytes": 197,
+      "sourceSha256": "074b381d5928abd5a1edf33b68470080d6002178e2042936dcc20d3e54222a3b",
+      "bytes": 197,
+      "sha256": "074b381d5928abd5a1edf33b68470080d6002178e2042936dcc20d3e54222a3b",
+      "verbatim": true
+    },
+    {
+      "path": "execution/retained-execution-02/execution-02/candidate/copy.json",
+      "source": "/Users/ccheever/clique-improvement/revisions/adhoc-certification-performance-execution-r1/retained-execution-02/execution-02/candidate/copy.json",
+      "sourceBytes": 943,
+      "sourceSha256": "a67a0e4a7fe4ff1574dc91986bac444a9df2fe07e169aa258174e2e7003a6339",
+      "bytes": 943,
+      "sha256": "a67a0e4a7fe4ff1574dc91986bac444a9df2fe07e169aa258174e2e7003a6339",
+      "verbatim": true
+    },
+    {
+      "path": "execution/retained-execution-02/execution-02/candidate/host-load.jsonl",
+      "source": "/Users/ccheever/clique-improvement/revisions/adhoc-certification-performance-execution-r1/retained-execution-02/execution-02/candidate/host-load.jsonl",
+      "sourceBytes": 429,
+      "sourceSha256": "751a13d74f4853a992401d81222f0d5d7b4a4f0046ec28003242e05a1138cbcf",
+      "bytes": 429,
+      "sha256": "751a13d74f4853a992401d81222f0d5d7b4a4f0046ec28003242e05a1138cbcf",
+      "verbatim": true
+    },
+    {
+      "path": "execution/retained-execution-02/execution-02/candidate/owner.launch.json",
+      "source": "/Users/ccheever/clique-improvement/revisions/adhoc-certification-performance-execution-r1/retained-execution-02/execution-02/candidate/owner.launch.json",
+      "sourceBytes": 1504,
+      "sourceSha256": "c283b1fcf8cf4c7836cb2ff5b0324ead8198314db36510e84b101a98cd512d2b",
+      "bytes": 1504,
+      "sha256": "c283b1fcf8cf4c7836cb2ff5b0324ead8198314db36510e84b101a98cd512d2b",
+      "verbatim": true
+    },
+    {
+      "path": "execution/retained-execution-02/execution-02/candidate/owner.terminal.json",
+      "source": "/Users/ccheever/clique-improvement/revisions/adhoc-certification-performance-execution-r1/retained-execution-02/execution-02/candidate/owner.terminal.json",
+      "sourceBytes": 387,
+      "sourceSha256": "1e2ef5ccd7d6b50974ea4c62ee406cf574790098db6ea78af13011040a12a518",
+      "bytes": 387,
+      "sha256": "1e2ef5ccd7d6b50974ea4c62ee406cf574790098db6ea78af13011040a12a518",
+      "verbatim": true
+    },
+    {
+      "path": "execution/retained-execution-02/execution-02/candidate/result.json",
+      "source": "/Users/ccheever/clique-improvement/revisions/adhoc-certification-performance-execution-r1/retained-execution-02/execution-02/candidate/result.json",
+      "sourceBytes": 1165,
+      "sourceSha256": "ade049c951d370a299bd914ac324ff763c3b794c08f0dce3fb3a06abcd496f96",
+      "bytes": 1165,
+      "sha256": "ade049c951d370a299bd914ac324ff763c3b794c08f0dce3fb3a06abcd496f96",
+      "verbatim": true
+    },
+    {
+      "path": "execution/retained-execution-02/execution-02/candidate/starting-state.json",
+      "source": "/Users/ccheever/clique-improvement/revisions/adhoc-certification-performance-execution-r1/retained-execution-02/execution-02/candidate/starting-state.json",
+      "sourceBytes": 755,
+      "sourceSha256": "c0a5700d55f91660c9b175cf3ab288bffbbd342f297b424734898c7e7775bf63",
+      "bytes": 755,
+      "sha256": "c0a5700d55f91660c9b175cf3ab288bffbbd342f297b424734898c7e7775bf63",
+      "verbatim": true
+    },
+    {
+      "path": "execution/retained-execution-02/execution-02/candidate-reuse.json",
+      "source": "/Users/ccheever/clique-improvement/revisions/adhoc-certification-performance-execution-r1/retained-execution-02/execution-02/candidate-reuse.json",
+      "sourceBytes": 263,
+      "sourceSha256": "2d802bb6e46c4dc50b59c94adcc80dcf39ed185281973096c913563556d49221",
+      "bytes": 263,
+      "sha256": "2d802bb6e46c4dc50b59c94adcc80dcf39ed185281973096c913563556d49221",
+      "verbatim": true
+    },
+    {
+      "path": "execution/retained-execution-02/execution-02/preflight.json",
+      "source": "/Users/ccheever/clique-improvement/revisions/adhoc-certification-performance-execution-r1/retained-execution-02/execution-02/preflight.json",
+      "sourceBytes": 1812,
+      "sourceSha256": "521d2d5fd1f29262b680253ecd565b211deeccd7fe214feaa863efddf075bc25",
+      "bytes": 1812,
+      "sha256": "521d2d5fd1f29262b680253ecd565b211deeccd7fe214feaa863efddf075bc25",
+      "verbatim": true
+    },
+    {
+      "path": "execution/retained-execution-02/execution-02/results.json",
+      "source": "/Users/ccheever/clique-improvement/revisions/adhoc-certification-performance-execution-r1/retained-execution-02/execution-02/results.json",
+      "sourceBytes": 3263,
+      "sourceSha256": "831660e360cf316ae2f2f467159fbd81233f195767eb97439b4924c9ff2da271",
+      "bytes": 3263,
+      "sha256": "831660e360cf316ae2f2f467159fbd81233f195767eb97439b4924c9ff2da271",
+      "verbatim": true
+    },
+    {
+      "path": "execution/retained-execution-02/execution-02/supervisor.launch.json",
+      "source": "/Users/ccheever/clique-improvement/revisions/adhoc-certification-performance-execution-r1/retained-execution-02/execution-02/supervisor.launch.json",
+      "sourceBytes": 459,
+      "sourceSha256": "8fa86d6fcced472862933941cd5d09cfe1704bd713cc5a84c24c7c92078671ed",
+      "bytes": 459,
+      "sha256": "8fa86d6fcced472862933941cd5d09cfe1704bd713cc5a84c24c7c92078671ed",
+      "verbatim": true
+    },
+    {
+      "path": "execution/retained-execution-02/execution-02/terminal.json",
+      "source": "/Users/ccheever/clique-improvement/revisions/adhoc-certification-performance-execution-r1/retained-execution-02/execution-02/terminal.json",
+      "sourceBytes": 1957,
+      "sourceSha256": "18d9b38e7a9935452633d07e89cca44c9e05afeed5b420f447ec10c86775de9a",
+      "bytes": 1957,
+      "sha256": "18d9b38e7a9935452633d07e89cca44c9e05afeed5b420f447ec10c86775de9a",
+      "verbatim": true
+    },
+    {
+      "path": "execution/retained-execution-02/execution-02.once.json",
+      "source": "/Users/ccheever/clique-improvement/revisions/adhoc-certification-performance-execution-r1/retained-execution-02/execution-02.once.json",
+      "sourceBytes": 545,
+      "sourceSha256": "8d422f160ea45f3ac618d66bbd060d81f4be3bb74e56cb83b33cc94b71b5a69e",
+      "bytes": 545,
+      "sha256": "8d422f160ea45f3ac618d66bbd060d81f4be3bb74e56cb83b33cc94b71b5a69e",
+      "verbatim": true
+    },
+    {
+      "path": "execution/retained-execution-02/execution-02.supervisor.stderr",
+      "source": "/Users/ccheever/clique-improvement/revisions/adhoc-certification-performance-execution-r1/retained-execution-02/execution-02.supervisor.stderr",
+      "sourceBytes": 0,
+      "sourceSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "verbatim": true
+    },
+    {
+      "path": "execution/retained-execution-02/execution-02.supervisor.stdout",
+      "source": "/Users/ccheever/clique-improvement/revisions/adhoc-certification-performance-execution-r1/retained-execution-02/execution-02.supervisor.stdout",
+      "sourceBytes": 2792,
+      "sourceSha256": "86f86196f564bbd510604b15aa852169eb1326dcdd6c03e72f5a4add88bb4419",
+      "bytes": 2792,
+      "sha256": "86f86196f564bbd510604b15aa852169eb1326dcdd6c03e72f5a4add88bb4419",
+      "verbatim": true
+    },
+    {
+      "path": "corrected-packet/README.md",
+      "source": "/Users/ccheever/clique-improvement/revisions/adhoc-certification-performance-execution-r1/packet-correction-01/README.md",
+      "sourceBytes": 7568,
+      "sourceSha256": "b350219ab0e3976ed1923cbc275d70914c2d24c4e7c1c198835b6716a200f6bc",
+      "bytes": 7568,
+      "sha256": "b350219ab0e3976ed1923cbc275d70914c2d24c4e7c1c198835b6716a200f6bc",
+      "verbatim": true
+    },
+    {
+      "path": "corrected-packet/run.py",
+      "source": "/Users/ccheever/clique-improvement/revisions/adhoc-certification-performance-execution-r1/packet-correction-01/run.py",
+      "sourceBytes": 14690,
+      "sourceSha256": "7adb55f3c7bcb27377bf399f9d7bf41f4b054da28a8846f15576362f43acc613",
+      "bytes": 14690,
+      "sha256": "7adb55f3c7bcb27377bf399f9d7bf41f4b054da28a8846f15576362f43acc613",
+      "verbatim": true
+    },
+    {
+      "path": "corrected-packet/validate.py",
+      "source": "/Users/ccheever/clique-improvement/revisions/adhoc-certification-performance-execution-r1/packet-correction-01/validate.py",
+      "sourceBytes": 5288,
+      "sourceSha256": "cb96e5ba1e840c845182b90aa101a9d3bdbf69e8cf0a9d67c65a19e1531839b4",
+      "bytes": 5288,
+      "sha256": "cb96e5ba1e840c845182b90aa101a9d3bdbf69e8cf0a9d67c65a19e1531839b4",
+      "verbatim": true
+    },
+    {
+      "path": "corrected-packet/config.json",
+      "source": "/Users/ccheever/clique-improvement/revisions/adhoc-certification-performance-execution-r1/packet-correction-01/config.json",
+      "sourceBytes": 6468,
+      "sourceSha256": "6cac6531ee1f119f63fa916567cfaa8b62bc00cdbb4461ad336d683d153c3431",
+      "bytes": 6468,
+      "sha256": "6cac6531ee1f119f63fa916567cfaa8b62bc00cdbb4461ad336d683d153c3431",
+      "verbatim": true
+    },
+    {
+      "path": "corrected-packet/workload.json",
+      "source": "/Users/ccheever/clique-improvement/revisions/adhoc-certification-performance-execution-r1/packet-correction-01/workload.json",
+      "sourceBytes": 14391,
+      "sourceSha256": "d61e157bb7baa7c428712adb48ab2201192024f00e0d8e91988d3bc472421c90",
+      "bytes": 14391,
+      "sha256": "d61e157bb7baa7c428712adb48ab2201192024f00e0d8e91988d3bc472421c90",
+      "verbatim": true
+    },
+    {
+      "path": "corrected-packet/expected-certificates.json",
+      "source": "/Users/ccheever/clique-improvement/revisions/adhoc-certification-performance-execution-r1/packet-correction-01/expected-certificates.json",
+      "sourceBytes": 66692,
+      "sourceSha256": "adede4dc9ebdd79f8478925c14347abf23e69157c3485c648e82f95bc6ae473c",
+      "bytes": 66692,
+      "sha256": "adede4dc9ebdd79f8478925c14347abf23e69157c3485c648e82f95bc6ae473c",
+      "verbatim": true
+    },
+    {
+      "path": "corrected-packet/freeze.json",
+      "source": "/Users/ccheever/clique-improvement/revisions/adhoc-certification-performance-execution-r1/packet-correction-01/freeze.json",
+      "sourceBytes": 1498,
+      "sourceSha256": "a12127b21575ba169c2847117c0a81c1a815676c8439d72c5972b90e05c92eed",
+      "bytes": 1498,
+      "sha256": "a12127b21575ba169c2847117c0a81c1a815676c8439d72c5972b90e05c92eed",
+      "verbatim": true
+    },
+    {
+      "path": "source-correspondence/REPORT.md",
+      "source": "/Users/ccheever/clique-improvement/revisions/adhoc-certification-performance-preparation/REPORT.md",
+      "sourceBytes": 5086,
+      "sourceSha256": "87a247c717533cd93d6aee92d3f66194ed527b329fee3b4f638097153caf49f3",
+      "bytes": 5086,
+      "sha256": "87a247c717533cd93d6aee92d3f66194ed527b329fee3b4f638097153caf49f3",
+      "verbatim": true
+    },
+    {
+      "path": "source-correspondence/current-source-correspondence.json",
+      "source": "/Users/ccheever/clique-improvement/revisions/adhoc-certification-performance-preparation/current-source-correspondence.json",
+      "sourceBytes": 1260,
+      "sourceSha256": "b4c39d4f1bedf2b61cd73233294e5679e8fb641a891fc4ce29a6346b7eb128aa",
+      "bytes": 1260,
+      "sha256": "b4c39d4f1bedf2b61cd73233294e5679e8fb641a891fc4ce29a6346b7eb128aa",
+      "verbatim": true
+    },
+    {
+      "path": "source-correspondence/scale-base-correspondence.json",
+      "source": "/Users/ccheever/clique-improvement/revisions/adhoc-certification-performance-preparation/scale-base-correspondence.json",
+      "sourceBytes": 1176,
+      "sourceSha256": "907914d96000daa74aca65e11676ad97da59fd1fa366b12e3e71b7768902c43e",
+      "bytes": 1176,
+      "sha256": "907914d96000daa74aca65e11676ad97da59fd1fa366b12e3e71b7768902c43e",
+      "verbatim": true
+    },
+    {
+      "path": "source-correspondence/reviewed-production.diff",
+      "source": "/Users/ccheever/clique-improvement/revisions/adhoc-certification-performance-preparation/reviewed-production.diff",
+      "sourceBytes": 4437,
+      "sourceSha256": "f72efe79a4f9139747666995869804454770fc204360e14a6c50cfef45a794f7",
+      "bytes": 4437,
+      "sha256": "f72efe79a4f9139747666995869804454770fc204360e14a6c50cfef45a794f7",
+      "verbatim": true
+    },
+    {
+      "path": "original-preparation/REPORT.md",
+      "source": "/Users/ccheever/clique-improvement/revisions/adhoc-certification-performance-custody-r1/REPORT.md",
+      "sourceBytes": 11961,
+      "sourceSha256": "4e0a9ab6ff8b8491bf0e5b62ae6bd9e0d99c9b7f65fd34a6db3d33745edb74ac",
+      "bytes": 11961,
+      "sha256": "4e0a9ab6ff8b8491bf0e5b62ae6bd9e0d99c9b7f65fd34a6db3d33745edb74ac",
+      "verbatim": true
+    },
+    {
+      "path": "original-preparation/trust-source-correspondence.json",
+      "source": "/Users/ccheever/clique-improvement/revisions/adhoc-certification-performance-custody-r1/trust-source-correspondence.json",
+      "sourceBytes": 3562,
+      "sourceSha256": "4586dcd4e14cc290d195b0b5e685228f60d8814ff5d127e546b3f8ec5158b325",
+      "bytes": 3562,
+      "sha256": "4586dcd4e14cc290d195b0b5e685228f60d8814ff5d127e546b3f8ec5158b325",
+      "verbatim": true
+    },
+    {
+      "path": "original-preparation/final-binding-delta.diff",
+      "source": "/Users/ccheever/clique-improvement/revisions/adhoc-certification-performance-custody-r1/final-binding-delta.diff",
+      "sourceBytes": 4351,
+      "sourceSha256": "3441f669a48a8bfb36c1a79c29108d1ce2d24a4989c5a74508841955b9b35bdc",
+      "bytes": 4351,
+      "sha256": "3441f669a48a8bfb36c1a79c29108d1ce2d24a4989c5a74508841955b9b35bdc",
+      "verbatim": true
+    },
+    {
+      "path": "scheduling/r24-timing-exception-receipts.json",
+      "source": "/Users/ccheever/clique-improvement/reviews/compiler-effectful-member-origin-r24/astra/timing-exception-receipts.json",
+      "sourceBytes": 3682,
+      "sourceSha256": "f2c5f5da9c7e762b414a2604b86c7fc331ef1ea1ef66ff419b36d36e44e46033",
+      "bytes": 3682,
+      "sha256": "f2c5f5da9c7e762b414a2604b86c7fc331ef1ea1ef66ff419b36d36e44e46033",
+      "verbatim": true
+    },
+    {
+      "path": "execution/root-timing-verification.json",
+      "source": "/Users/ccheever/clique-improvement/revisions/adhoc-certification-performance-execution-r1/root-timing-verification.json",
+      "sourceBytes": 441,
+      "sourceSha256": "173f49de12e68647b11147439dcfe3067a5a62eb3daffef16ad889771cec2d96",
+      "bytes": 441,
+      "sha256": "173f49de12e68647b11147439dcfe3067a5a62eb3daffef16ad889771cec2d96",
+      "verbatim": true
+    }
+  ],
+  "redactions": [
+    {
+      "path": "execution/execution-02-preflight.json",
+      "derivation": "Only private non-loopback IPv4 literals replaced with <private-fleet-address>."
+    },
+    {
+      "path": "execution/execution-02-launch-exact.json",
+      "derivation": "Only private non-loopback IPv4 literals replaced with <private-fleet-address>."
+    },
+    {
+      "path": "execution/execution-02-status-01.json",
+      "derivation": "Only private non-loopback IPv4 literals replaced with <private-fleet-address>."
+    }
+  ],
+  "largeExternal": [
+    {
+      "path": "/Users/ccheever/clique-improvement/revisions/adhoc-certification-performance-execution-r1/packet-correction-01/cache-manifest.json",
+      "bytes": 2123827,
+      "sha256": "700c9930bee79ff0b134e34b76d31348e8f2f07f6f6a20e828a6db11d112cd93"
+    },
+    {
+      "path": "/Users/ccheever/clique-improvement/revisions/adhoc-certification-performance-execution-r1/packet-correction-01/candidate-source-manifest.json",
+      "bytes": 235084,
+      "sha256": "5adf7071f2d7e68658ed71153ff87c2c78ee6978c71270efdd3eb1d7c65b8642"
+    },
+    {
+      "path": "/Users/ccheever/clique-improvement/revisions/adhoc-certification-performance-execution-r1/packet-correction-01/compiler-graph.json",
+      "bytes": 2087,
+      "sha256": "320725180eecdf625544166e2492928c21fe5e375976c425962251eeeed87cfb"
+    },
+    {
+      "path": "/Users/ccheever/clique-improvement/revisions/adhoc-certification-performance-execution-r1/packet-correction-01/installed-toolchain-manifest.json",
+      "bytes": 927635,
+      "sha256": "08bcff0313aed065e3b4b80abc2e51b76418ed6664b92338551d767917db992a"
+    },
+    {
+      "path": "/Users/ccheever/clique-improvement/revisions/adhoc-certification-performance-execution-r1/packet-correction-01/original-source-manifest.json",
+      "bytes": 235084,
+      "sha256": "7fbfd538a98144d2a6d581a98b5730c9f5ba3c7b6b49aeec2257bdd9277dd3aa"
+    },
+    {
+      "path": "/Users/ccheever/clique-improvement/revisions/adhoc-certification-performance-execution-r1/packet-correction-01/private-input-manifest.json",
+      "bytes": 5542,
+      "sha256": "2c8f4a7fae9cbff38f1c99e6d8ffba065a36d95c897b0e446e31bf94c2d14776"
+    },
+    {
+      "path": "/Users/ccheever/clique-improvement/revisions/adhoc-certification-performance-execution-r1/packet-correction-01/retained-attempt-manifest.json",
+      "bytes": 8218,
+      "sha256": "a2e267265f609dc2e75deeb23c3d551928ffc353672cd51e79cbc37d48a508e9"
+    },
+    {
+      "path": "/Users/ccheever/clique-improvement/revisions/adhoc-certification-performance-execution-r1/packet-correction-01/runtime-manifest.json",
+      "bytes": 42841,
+      "sha256": "bd0bcb00cb7dd63164a58d3ccd4cf3ad1be71ca1af066163fd04979f44b6b5ff"
+    }
+  ]
+}

@@ -1,0 +1,9 @@
+{
+  "utc": "2026-09-07T11:32:09.497932+00:00",
+  "inventory": "/home/ccheever/clique-tooling/search-twin-runtime-redesign-23a0-candidate1-20260907T0852Z/dependency-manifest.json",
+  "inventorySha256": "e6ac59cbac74fef0bbe17620816adc958eb5054f90d697a334ff877a423ffc85",
+  "entries": 23974,
+  "donorVerified": true,
+  "copyVerified": true,
+  "symlinkTargetsVerified": true
+}

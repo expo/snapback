@@ -1,0 +1,50 @@
+{
+  "version": "0.0.15",
+  "sourceCommit": "78924a1e7286907d2378221902ec22747e7d188f",
+  "artifactRoot": "/Users/ccheever/projects/snapback-artifacts/clique-release/0.0.15-78924a1e7",
+  "artifacts": [
+    {
+      "name": "snapback2-darwin-arm64",
+      "path": "/Users/ccheever/projects/snapback-artifacts/clique-release/0.0.15-78924a1e7/snapback2-darwin-arm64-0.0.15.tgz",
+      "sha256": "896dd57bc7b29411607a0941228a488151c1d43e7e53bf32919130d1bf07739c",
+      "integrity": "sha512-O9Zx/4wAPwraH77N2rsCuvorIey49aMRl6tckV3cRkGHuZow1lKelsM0ushU8S3kZC5yD1OnFVUHERNex9jRBw==",
+      "mode": "0o444",
+      "registryIntegrityMatches": true,
+      "registryLatest": "0.0.15"
+    },
+    {
+      "name": "snapback2",
+      "path": "/Users/ccheever/projects/snapback-artifacts/clique-release/0.0.15-78924a1e7/snapback2-0.0.15.tgz",
+      "sha256": "4f9a3457de13d821176df3180095fce4cce694d779e4f7c392b91a69f4c5c1f0",
+      "integrity": "sha512-+Ucp3/J4sG7BJwKdeMzPXQpj+dhc3R2Q/pBQoohXxTRV3hiPAWBojHtaQ4ums0SxlQ0wDsss5w2mmmiTj3YRFg==",
+      "mode": "0o444",
+      "registryIntegrityMatches": true,
+      "registryLatest": "0.0.15"
+    }
+  ],
+  "originalResumeSha256": "a1c54faba85a87fe84237f8d5daf1a971d358aeeca286cfebd4812a81edead64",
+  "originalResumeMode": "0o444",
+  "workingResumeMode": "0o644",
+  "workingResumeUnchangedHash": "a1c54faba85a87fe84237f8d5daf1a971d358aeeca286cfebd4812a81edead64",
+  "originalQualifiedBinariesMode": "0o700",
+  "rebuildOrRepack": false,
+  "publisherInvocations": 1,
+  "publisherPid": 66665,
+  "publisherExitCode": 0,
+  "publisherSeconds": 37.253329916,
+  "activationExitCode": 1,
+  "activationSeconds": 49.341696541000005,
+  "originalActivationPublicationUnknownPreserved": true,
+  "registryConfirmedBy": "registry-observation-04.json",
+  "registryConfirmedEpoch": 1788782699.139384,
+  "freshRegistryPackedFileCounts": {
+    "snapback2-darwin-arm64": 3,
+    "snapback2": 153
+  },
+  "freshInstalledVerificationComplete": true,
+  "installedProof": [
+    "installed-expo-verification.json",
+    "installed-expo-remaining.json"
+  ],
+  "priorVerificationFixtureFailurePreserved": true
+}

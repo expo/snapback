@@ -1,0 +1,91 @@
+{
+  "arms": {
+    "baseline": {
+      "final": {
+        "counts": {
+          "conversations": 1002,
+          "follows": 5921,
+          "memberCounts": 1002,
+          "memberships": 2054,
+          "messageCounts": 903,
+          "messages": 10038,
+          "posts": 5048,
+          "profiles": 1008
+        },
+        "meta": {
+          "generation": "1ff1897c52f312d25de62a8002dd091661e88e076db3e0557421c3bd5f7703a9",
+          "id_high_water": "11614208",
+          "program_generation": "7315d72119c27ee4362f7b071fbc0292c6bc2323c0c8572c3599ea27feedae55",
+          "schema_hash": "1ff1897c52f312d25de62a8002dd091661e88e076db3e0557421c3bd5f7703a9"
+        },
+        "pending": {
+          "_jobs": 0,
+          "_outbox": 0,
+          "_timers": 0
+        },
+        "seq": 11341
+      },
+      "measured": 20,
+      "observation": "all persisted rows/ledger/counts/generation/allocator checked after graceful stop; no intermediate SQL snapshots",
+      "order": "baseline",
+      "retries": 0,
+      "scope": "historical source-bound putMessage diagnostic; no scale or publication qualification",
+      "timing": {
+        "median_ms": 285.8132565,
+        "n": 20,
+        "p95_definition": "nearest rank ceil(.95*n), twentieth-sample set retained without selection",
+        "p95_ms": 286.738263
+      },
+      "warmups": 3
+    },
+    "candidate": {
+      "final": {
+        "counts": {
+          "conversations": 1002,
+          "follows": 5921,
+          "memberCounts": 1002,
+          "memberships": 2054,
+          "messageCounts": 903,
+          "messages": 10038,
+          "posts": 5048,
+          "profiles": 1008
+        },
+        "meta": {
+          "generation": "1ff1897c52f312d25de62a8002dd091661e88e076db3e0557421c3bd5f7703a9",
+          "id_high_water": "11614208",
+          "program_generation": "7315d72119c27ee4362f7b071fbc0292c6bc2323c0c8572c3599ea27feedae55",
+          "schema_hash": "1ff1897c52f312d25de62a8002dd091661e88e076db3e0557421c3bd5f7703a9"
+        },
+        "pending": {
+          "_jobs": 0,
+          "_outbox": 0,
+          "_timers": 0
+        },
+        "seq": 11341
+      },
+      "measured": 20,
+      "observation": "all persisted rows/ledger/counts/generation/allocator checked after graceful stop; no intermediate SQL snapshots",
+      "order": "candidate",
+      "retries": 0,
+      "scope": "historical source-bound putMessage diagnostic; no scale or publication qualification",
+      "timing": {
+        "median_ms": 194.597961,
+        "n": 20,
+        "p95_definition": "nearest rank ceil(.95*n), twentieth-sample set retained without selection",
+        "p95_ms": 195.280439
+      },
+      "warmups": 3
+    }
+  },
+  "claim": "one bounded historical diagnostic; no full population speedup inference",
+  "confounds": [
+    "fixed baseline-first order",
+    "shared host load",
+    "OS/filesystem/compiler/store warm state",
+    "starting SQL scan warms pages; final SQL moved after stop; no between-request SQL/cache effects",
+    "intermediate counts/pending/generation/allocator states are not SQL observations",
+    "different real wall-clock timestamps",
+    "isolated allocator namespaces only; same high-water marks",
+    "retained build and failed zero-request baseline may warm caches"
+  ]
+}

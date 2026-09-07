@@ -1,0 +1,15 @@
+{
+  "atEpoch": 1788782397.4003403,
+  "cleanup": [
+    {
+      "action": "SIGTERM",
+      "identity": {
+        "bootId": "76ef40aa-0ed8-4f57-85c6-898bb42ea7e4",
+        "exe": "/home/ccheever/clique-tooling/search-native-linux-26c9-20260907T0203Z-01a07995/artifacts/snapback2-linux-x86_64-debug",
+        "pid": 4006102,
+        "startTicks": "114128522"
+      }
+    }
+  ],
+  "exit": 0
+}

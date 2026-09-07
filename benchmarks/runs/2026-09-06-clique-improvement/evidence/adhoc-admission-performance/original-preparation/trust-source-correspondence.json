@@ -1,0 +1,80 @@
+[
+  {
+    "path": "snapback2/crates/snapback2-core/tests/operator.rs",
+    "reviewedSha256": "55ccc8d0d67e91bb06e4d1222cf0546eececdd3656dd62d3aadd88cc1b443df0",
+    "candidateSha256": "62602ca4a14c406d0d23fc51256a8aaa274b7d632352e18f4ea72c15fe770c21",
+    "equal": false
+  },
+  {
+    "path": "snapback2/crates/snapback2-core/tests/timers.rs",
+    "reviewedSha256": "4b36515fb4b05888fe1cad47476eee8920ad83a61365b3b2d5be3d1eefed8465",
+    "candidateSha256": "b23b03c2e5c6face019586705d920f174b9f80050dde49aad79fcf75f0179366",
+    "equal": false
+  },
+  {
+    "path": "snapback2/crates/snapback2-core/tests/jobs.rs",
+    "reviewedSha256": "020b1e011101de404351b11d4051c1970ce6b804e0169510ffef2bd11a4d405e",
+    "candidateSha256": "f65d082586ffea43cf3cd06a44e2788d67fbd6ae076264f3fcaa2df8d3fa3072",
+    "equal": false
+  },
+  {
+    "path": "snapback2/crates/snapback2-core/src/registry_jobs.rs",
+    "reviewedSha256": "07111480e23043331b9bebaaf3a7878f72e7dd4adc625de4e75c68098dbd9829",
+    "candidateSha256": "07111480e23043331b9bebaaf3a7878f72e7dd4adc625de4e75c68098dbd9829",
+    "equal": true
+  },
+  {
+    "path": "snapback2/crates/snapback2-core/src/registry.rs",
+    "reviewedSha256": "084930fff5af711897182e313b2172cd3d119e53d55e24ef232d6a7e05ae6f4c",
+    "candidateSha256": "6ab8023dc49599721a739e79ac81aa6384e8db43e345de190419e509eed4086d",
+    "equal": false
+  },
+  {
+    "path": "snapback2/crates/snapback2/tests/owner_cases/operator.rs",
+    "reviewedSha256": "540739a45135e3af9ee36f637d2992bed0bc772e7bab40620fe933193b64c465",
+    "candidateSha256": "540739a45135e3af9ee36f637d2992bed0bc772e7bab40620fe933193b64c465",
+    "equal": true
+  },
+  {
+    "path": "snapback2/crates/snapback2/tests/owner_cases/rehearsal.rs",
+    "reviewedSha256": "e1a912bea8c9b604a22a002205e41ed7022643c4e50203833e0734ed1fd87f49",
+    "candidateSha256": "16cc63236573e3fe44ad91b8f9e117bf5f570f6c9f5a8b6c169e1856f476c733",
+    "equal": false
+  },
+  {
+    "path": "snapback2/crates/snapback2/tests/owner_cases/jobs.rs",
+    "reviewedSha256": "085e756b435a9665e68e672530329e5ea2377efa3a50cceb7fd3da976cf470a5",
+    "candidateSha256": "e3ff773a0f17593a8b706f84c40e242a6e77947c848abd61127b57749669e04f",
+    "equal": false
+  },
+  {
+    "path": "snapback2/crates/snapback2/src/writer_operator.rs",
+    "reviewedSha256": "373940cea7788167c089812ea78a0e61666b2e92b398bf581ed014a26a2de295",
+    "candidateSha256": "373940cea7788167c089812ea78a0e61666b2e92b398bf581ed014a26a2de295",
+    "equal": true
+  },
+  {
+    "path": "snapback2/crates/snapback2/src/control_run.rs",
+    "reviewedSha256": "e3f37933c962d9aa09b3d1234faa9e8cf63a7daaa9be6b143d483756f3ade6ac",
+    "candidateSha256": "e3f37933c962d9aa09b3d1234faa9e8cf63a7daaa9be6b143d483756f3ade6ac",
+    "equal": true
+  },
+  {
+    "path": "snapback2/crates/snapback2/src/writer_rehearsal.rs",
+    "reviewedSha256": "cd91a5ef6a9c14e1910327b88db255ec88415a866afee06044f662f243308bbc",
+    "candidateSha256": "cd91a5ef6a9c14e1910327b88db255ec88415a866afee06044f662f243308bbc",
+    "equal": true
+  },
+  {
+    "path": "snapback2/crates/snapback2/src/rehearsal_tests.rs",
+    "reviewedSha256": "6eabf895528198949988454bc7de23cbcb2d09c0d1177c25c23c1489f52d86ac",
+    "candidateSha256": "1404cba36df54309b8b1e339ce0140f0d94beffeb2b88671256e270c9417228a",
+    "equal": false
+  },
+  {
+    "path": "snapback2/crates/snapback2/src/project.rs",
+    "reviewedSha256": "25fdc40ea83bed3ea41acc41d5ae0c68b9ced1185d608bd7728942f7d3116691",
+    "candidateSha256": "fab4d9410faf38bed353d425d9ef00287a286ed3fcecd951757b327436efe704",
+    "equal": false
+  }
+]

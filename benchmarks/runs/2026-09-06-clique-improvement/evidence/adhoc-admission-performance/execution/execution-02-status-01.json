@@ -1,0 +1,27 @@
+{
+  "argv": [
+    "ssh",
+    "-o",
+    "ProxyCommand=/Applications/Tailscale.app/Contents/MacOS/Tailscale nc %h %p",
+    "-o",
+    "BatchMode=yes",
+    "-o",
+    "ConnectTimeout=20",
+    "-o",
+    "ServerAliveInterval=15",
+    "-o",
+    "ServerAliveCountMax=3",
+    "ccheever@<private-fleet-address>",
+    "/usr/bin/python3 -B -"
+  ],
+  "startedEpoch": 1788783526.927755,
+  "localPid": 36401,
+  "timeoutSeconds": 60,
+  "inputPath": "execution_02_status.py",
+  "inputSha256": "aab73c981cc6697dd32c956236b6b0503f5050a76bfd8d39908aadd6aac2c607",
+  "exitCode": 0,
+  "timedOut": false,
+  "elapsedSeconds": 2.6413307189941406,
+  "stdoutSha256": "1379097c109f7e486240ce70000929b3e79cb311f71ab5e904c6403ee1724a92",
+  "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+}

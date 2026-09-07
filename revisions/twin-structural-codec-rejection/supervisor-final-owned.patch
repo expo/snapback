@@ -1,0 +1,1074 @@
+diff --git a/snapback2/packages/evaluator/src/certificate-identity.ts b/snapback2/packages/evaluator/src/certificate-identity.ts
+index 9f663cb91..7b5797840 100644
+--- a/snapback2/packages/evaluator/src/certificate-identity.ts
++++ b/snapback2/packages/evaluator/src/certificate-identity.ts
+@@ -1,335 +1,128 @@
+-// @ref LLP 1001#10-what-binds-and-how-it-is-checked — certificate identity uses
+-// Rust serde's BTreeMap order even when a direct TypeScript caller constructed
+-// the equivalent object with a different property insertion order.
+-
+-import { compareCodepoints } from './hash';
+-import { EvalError } from "./errors";
++// @ref LLP 1001#10-what-binds-and-how-it-is-checked — native canonical field
++// order and malformed/default refusal policies belong to the fixed grammar.
++import { structural, type Form, type Grammar } from './structural-codec';
+ 
++// These public boundary adapters retain the original root property/method failure
++// sites. Nested construction and validation are performed by the shared codec.
+ export function canonicalProgramJson(program: any): string {
+-  return JSON.stringify({
+-    ...pick(program, ["name", "kind", "args", "read_time_granularity_ms", "body"], "program"),
+-    args: sortedMap(program.args ?? {}, normalizeArgType),
+-    body: (program.body ?? []).map(normalizeStatement),
+-  });
++  const out = structural(program, ['record', 'program', ['name','kind','args','read_time_granularity_ms','body']], grammar);
++  out.args = structural(program.args ?? {}, ['map', 'arg'], grammar);
++  out.body = (program.body ?? []).map(normalizeStatement);
++  return JSON.stringify(out);
+ }
+ 
+-// @ref LLP 1012#8-the-delivery-envelope-the-validator-and-resume — schema and
+-// rule identity mirror serde's struct-field order and skip rules exactly, so
+-// the hash is the same whether the schema arrived in struct order (the
+-// corpus) or through a sorted `serde_json::Value` (`GET /api/program`).
+-//
+-// An unseen shape never hashes equal to a known one: a payload with a field
+-// serde's struct does not carry is refused (`E_SCHEMA`) rather than dropped,
+-// since dropping would let two different schemas hash the same; an unknown
+-// variant is kept whole with its payload deep-sorted, so it hashes
+-// deterministically and unlike anything this normalizer knows. The twin
+-// treats a refusal as `hydrating` and never predicts under it.
++// @ref LLP 1012#8-the-delivery-envelope-the-validator-and-resume — skip/unknown
++// policies preserve authenticated identity; they do not admit an unknown program.
+ export function canonicalSchemaJson(schema: any): string {
+-  known(schema, ["tables", "schedules", "maintains", "channels", "auth", "effects"], "schema");
+-  const canonical: Record<string, any> = {
+-    tables: sortedMap(schema.tables ?? {}, normalizeTable),
+-  };
+-  // @ref LLP 1016#d5--schedules-row-timers-and-periods-on-the-owners-clock — a schedule on the
+-  // schema is scalars only (its binding is a program named here), in serde's field order.
+-  if (schema.schedules !== undefined && schema.schedules.length > 0) {
++  structural(schema, ['record', 'schema', ['tables','schedules','maintains','channels','auth','effects'], null, 'validate'], grammar);
++  const canonical: Record<string, any> = { tables: structural(schema.tables ?? {}, ['map', 'table'], grammar) };
++  if (schema.schedules !== undefined && schema.schedules.length > 0)
+     canonical.schedules = schema.schedules.map(normalizeSchedule);
+-  }
+   canonical.maintains = (schema.maintains ?? []).map(normalizeMaintain);
+-  if (schema.channels !== undefined && Object.keys(schema.channels).length > 0) {
+-    canonical.channels = sortedMap(schema.channels, normalizeChannel);
+-  }
+-  if (schema.auth !== undefined && schema.auth !== null) known(schema.auth, ["password", "guests"], "auth");
+-  if (schema.auth !== undefined && (schema.auth.password || schema.auth.guests)) {
++  if (schema.channels !== undefined && Object.keys(schema.channels).length > 0)
++    canonical.channels = structural(schema.channels, ['map', 'channel'], grammar);
++  if (schema.auth !== undefined && schema.auth !== null)
++    structural(schema.auth, ['record', 'auth', ['password','guests'], null, 'validate'], grammar);
++  if (schema.auth !== undefined && (schema.auth.password || schema.auth.guests))
+     canonical.auth = { password: schema.auth.password, guests: schema.auth.guests };
+-  }
+   if (schema.effects !== undefined && schema.effects.length > 0) canonical.effects = schema.effects;
+   return JSON.stringify(canonical);
+ }
+-
+-function normalizeSchedule(schedule: any): any {
+-  // `site` is the declaration's position, for diagnostics only: serde skips it, so it is never in
+-  // the hash (a blank line above a schedule is not a successor). A compiler-shaped payload still
+-  // carries it; the shape is known, and the bytes leave it out.
+-  const out = pick(schedule, ["name", "trigger", "target", "binding", "site"], "schedule");
+-  delete out.site;
+-  const [kind, data] = tagged(schedule.trigger);
+-  out.trigger = kind === "row"
+-    ? { row: pick(data, ["table", "column"], "schedule trigger") }
+-    : kind === "every"
+-      ? { every: pick(data, ["durationMs"], "schedule trigger") }
+-      : { [kind]: deepSorted(data) };
+-  return out;
+-}
+-
+-/** Refuses a payload carrying a field the serde struct does not: a shape this hasher has never seen. */
+-function known(record: any, fields: readonly string[], what: string): void {
+-  if (typeof record !== "object" || record === null || Array.isArray(record)) {
+-    throw new EvalError("E_SCHEMA", `${what} must be an object`);
+-  }
+-  const unknown = Object.keys(record).filter((key) => !fields.includes(key));
+-  if (unknown.length > 0) {
+-    throw new EvalError("E_SCHEMA", `unknown ${what} field ${unknown.join(", ")}: a schema shape newer than this evaluator`);
+-  }
+-}
+-
+-/** The struct's fields in serde order, and nothing else: `known` plus the reconstruction in one step. */
+-function pick(record: any, fields: readonly string[], what: string, transforms: Transforms = {}): Record<string, any> {
+-  known(record, fields, what);
+-  const out: Record<string, any> = {};
+-  for (const field of fields) if (record[field] !== undefined) out[field] = record[field];
+-  // Copy in serde order before transforming in refusal order: these orders can differ (Scan.take/prefix).
+-  for (const field of Object.keys(transforms)) out[field] = transforms[field](record[field]);
+-  return out;
+-}
+-
+-type Normalize = (value: any) => any;
+-type Transforms = Record<string, Normalize>;
+-const list = (normalize: Normalize): Normalize => value => value.map(normalize);
+-const struct = (what: string, fields: Record<string, Normalize | null>, complete = false): Normalize => {
+-  const names = Object.keys(fields);
+-  return value => {
+-    const out = complete ? (known(value, names, what), {}) : pick(value, names, what);
+-    for (const name of names) if (fields[name] || complete) out[name] = fields[name] ? fields[name]!(value[name]) : value[name];
+-    return out;
+-  };
+-};
+-
+-/** Static constructor dispatch, without retaining input trees or registering new shapes. */
+-function node(value: any, constructors: Transforms, unknown: Normalize): any {
+-  const [kind, data] = tagged(value);
+-  return Object.hasOwn(constructors, kind) ? { [kind]: constructors[kind](data) } : unknown(value);
+-}
+-const unchanged: Normalize = value => value;
+-const unknownPayload: Normalize = value => { const [kind, data] = tagged(value); return { [kind]: deepSorted(data) }; };
+-
+-/** An unknown variant's payload with every object's keys sorted: deterministic, and never a known shape's bytes. */
+-function deepSorted(value: any): any {
+-  if (Array.isArray(value)) return value.map(deepSorted);
+-  if (typeof value !== "object" || value === null) return value;
+-  return sortedMap(value, deepSorted);
+-}
+-
+-/** A rule in serde's field order: what `Schema::rule_hash` serializes beside the schema hash. */
+-export function canonicalRuleJson(rule: any): string {
+-  return JSON.stringify(normalizeRule(rule));
+-}
+-
+-
+-function normalizeMaintainKind(kind: any): any {
+-  if (typeof kind !== "object" || kind === null) return kind;
+-  const [tag, data] = tagged(kind);
+-  return { [tag]: tag === "Sum" ? pick(data, ["of"], "maintain.kind.Sum") : deepSorted(data) };
+-}
+-
+-
+-function normalizeRules(rules: any): any {
+-  if (rules === undefined || rules === null) return rules;
+-  return ruleRecord(rules);
+-}
+-
+-export function normalizeRule(rule: any): any {
+-  return typeof rule !== "object" || rule === null ? rule : node(rule, RULE, unknownPayload);
+-}
+-
+-function normalizeRuleTerm(term: any): any {
+-  if (typeof term !== "object" || term === null) return term;
+-  return node(term, RULE_TERM, unknownPayload);
+-}
+-
+-function normalizeConstraint(constraint: any): any {
+-  return typeof constraint !== "object" || constraint === null ? constraint : node(constraint, CONSTRAINT, unknownPayload);
+-}
+-
+-function normalizeColumnType(column: any): any {
+-  if (typeof column !== "object" || column === null) return column;
+-  const [kind, data] = tagged(column);
+-  if (kind === "Optional") return { Optional: normalizeColumnType(data) };
+-  const what = `column.${kind}`;
+-  if (kind === "List") return { List: { ...pick(data, ["of", "max"], what), of: normalizeColumnType(data.of) } };
+-  if (kind === "Image") {
+-    known(data, ["max", "once"], what);
+-    if (data.once !== undefined && typeof data.once !== "boolean") throw new TypeError("column.Image.once must be boolean");
+-    return { Image: { max: data.max, ...(data.once === true ? { once: true } : {}) } };
+-  }
+-  const fields = COLUMN_FIELDS[kind];
+-  return { [kind]: fields === undefined ? deepSorted(data) : pick(data, fields, what) };
+-}
+-
+-/** The payload fields of each struct-variant column kind, in serde order. */
+-const COLUMN_FIELDS: Record<string, readonly string[]> = {
+-  Text: ["max"], Bytes: ["max"], Image: ["max"], Video: ["max"], Enum: ["variants"], Decimal: ["scale"],
+-  Money: ["currency", "scale"], Ref: ["table"], Json: ["max_bytes"],
+-};
+-
+-function normalizeArgType(arg: any): any {
+-  if (typeof arg !== "object" || arg === null) return arg;
+-  const [kind, data] = tagged(arg);
+-  if (kind === "Optional") return { Optional: normalizeArgType(data) };
+-  if (kind === "Text") {
+-    known(data, ["max", "min", "format"], "arg.Text");
+-    if (data.min !== undefined && (!Number.isInteger(data.min) || data.min < 0 || data.min > 0xffffffff))
+-      throw new TypeError("arg.Text.min must be u32");
+-    if (data.format !== undefined && data.format !== 'handle' && data.format !== 'url')
+-      throw new TypeError('arg.Text.format must be handle or url');
+-    return { Text: { max: data.max, ...(data.min ? { min: data.min } : {}), ...(data.format === undefined ? {} : { format: data.format }) } };
+-  }
+-  if (kind === "List") {
+-    // `ArgType::List { of: Option<Box<ArgType>>, max }`: `of` is skipped when
+-    // absent, and a payload carrying any other field is refused like every
+-    // struct variant, never rebuilt without it.
+-    known(data, ["of", "max"], "arg.List");
+-    return { List: {
+-      ...(data.of === null || data.of === undefined ? {} : { of: normalizeArgType(data.of) }),
+-      max: data.max,
+-    } };
+-  }
+-  return normalizeColumnType(arg);
+-}
+-
+-function normalizeStatement(statement: any): any {
+-  if (typeof statement === "string") return statement;
+-  const [kind, data] = tagged(statement);
+-  // The original field lookup refused inherited object names before examining children.
+-  // Keep that refusal boundary; an unknown constructor must not turn them into hashable IR.
+-  if (!Object.hasOwn(STATEMENT, kind) && kind in STATEMENT) pick(data, STATEMENT[kind] as any, kind);
+-  return node(statement, STATEMENT, unchanged);
+-}
+-
+-function normalizeDomain(domain: any): any {
+-  const [kind, data] = tagged(domain);
+-  // Unknown domains retain the tag wrapper and opaque payload, including one-key strings/arrays.
+-  return { [kind]: Object.hasOwn(DOMAIN, kind) ? DOMAIN[kind](data) : data };
+-}
+-function normalizeExpression(expression: any): any { return node(expression, EXPRESSION, unchanged); }
+-
+-function normalizeLanes(lanes: any[]): any[] {
+-  return lanes.map(({ setup, ...lane }: any) => ({ ...(setup?.length ? { setup: setup.map(normalizeStatement) } : {}),
+-    ...pick(lane, ["scan", "source", "binding"], "merge lane"), scan: normalizeScan(lane.scan),
+-    ...(lane.source == null ? {} : { source: normalizeScan(lane.source) }),
+-  }));
+-}
+-
+-function normalizeHeldSearch(d: any): any {
+-  known(d, ["table", "index", "term", "scope", "suffix", "order", "take", "after", "discovery"], "held_search");
+-  return {
+-    table: d.table, index: d.index,
+-    term: { source: normalizeExpression(d.term.source), contract: d.term.contract, source_max: d.term.source_max },
+-    scope: d.scope.map((s: any) => ({ column: s.column, value: normalizeExpression(s.value) })),
+-    suffix: d.suffix, order: d.order, take: normalizeBound(d.take), after: nullableExpression(d.after),
+-    discovery: { scan: normalizeScan(d.discovery.scan), binding: d.discovery.binding, authorization_index: d.discovery.authorization_index },
+-  };
+-}
+-
+-function normalizeScan(scan: any): any {
+-  return pick(scan, ["site","table","index","prefix","order","take","after","before","range","opaque_cursor","merge_site","provenance"], "scan", SCAN);
+-}
+-
+-function normalizeBound(bound: any): any {
+-  const [kind, data] = tagged(bound);
+-  return { [kind]: kind === 'Arg' ? pick(data, ['name','max'], 'bound') : data };
+-}
+-
+-function nullableExpression(expression: any): any {
+-  return expression === null ? null : normalizeExpression(expression);
+-}
+-
+-function normalizeValue(value: any): any {
+-  if (typeof value === "string") return value;
+-  const [kind, data] = tagged(value);
+-  if (kind === "Array") return { Array: data.map(normalizeValue) };
+-  if (kind === "Row" || kind === "Map") return { [kind]: sortedMap(data, normalizeValue) };
+-  return value;
+-}
+-
+-const normalizeMaintain = struct("maintain", {
+-  kind: normalizeMaintainKind, source: null, by: null, target: null,
+-  readable: value => value == null ? null : normalizeRule(value),
+-}, true);
+-const normalizeTable = struct("table", {
+-  columns: value => sortedMap(value ?? {}, normalizeColumnType), indexes: value => sortedMap(value ?? {}, normalizeIndex),
+-  rules: normalizeRules, constraints: value => (value ?? []).map(normalizeConstraint), retain: value => value ?? "until-revoked",
+-}, true);
+-const normalizeIndex = struct("index", { components: list(component => {
+-  const [tag, value] = tagged(component);
+-  if (tag === "Column") return { Column: value };
+-  if (tag !== "WordPrefixes") throw new EvalError("E_SCHEMA", "unknown index component");
+-  return { WordPrefixes: pick(value, ["fields","contract"], "WordPrefixes") };
+-}), unique: null });
+-const normalizeChannel = struct("channel", {
+-  args: value => sortedMap(value ?? {}, normalizeArgType), publish: normalizeRule, subscribe: normalizeRule, ttl_ms: null,
+-}, true);
+-const ruleRecord = struct("rules", { read: normalizeRule, insert: normalizeRule, update: normalizeRule, delete: normalizeRule }, true);
+-
+-// These are the existing serde field/transform orders. Domain-specific skips and unknown variants
+-// remain explicit; a shared constructor does not turn unknown input into an admitted program.
+-const RULE_TERM: Transforms = { Literal: normalizeValue, Field: unchanged, OldField: unchanged, NextField: unchanged };
+-const RULE: Transforms = {
+-  Eq: list(normalizeRuleTerm), Ne: list(normalizeRuleTerm), And: list(normalizeRule), Or: list(normalizeRule), Not: normalizeRule,
+-  Exists: struct("rule.Exists", { "table": null, "index": null, "key": list(normalizeRuleTerm), "provenance": null }),
+-  Created: struct("rule.Created", { "table": null, "index": null, "key": list(normalizeRuleTerm), "provenance": null }),
+-  Public: struct("rule.Public", { "reason": null }),
+-};
+-const CONSTRAINT: Transforms = {
+-  Unique: struct("constraint.Unique", { "index": null }), Cap: struct("constraint.Cap", { "by": null, "max": null }),
+-  Immutable: struct("constraint.Immutable", { "fields": null }),
+-  Text: data => {
+-    known(data, ["field","min","format"], "constraint.Text");
+-    return { field: data.field, min: data.min ?? 0, ...(data.format == null ? {} : { format: data.format }) };
+-  },
+-  FinalExistsOnInsert: struct("constraint.FinalExistsOnInsert", { "table": null, "index": null, "key": list(normalizeRuleTerm) }),
+-};
+-const STATEMENT: Transforms = {
+-  Const: struct("Const", { "name": null, "value": normalizeExpression }),
+-  Let: struct("Let", { "name": null, "value": normalizeExpression }),
+-  Assign: struct("Assign", { "name": null, "value": normalizeExpression }),
+-  Push: struct("Push", { "target": null, "value": normalizeExpression }),
+-  If: struct("If", { "condition": normalizeExpression, "then_body": list(normalizeStatement), "else_body": list(normalizeStatement) }),
+-  For: struct("For", { "binding": null, "domain": normalizeDomain, "body": list(normalizeStatement) }),
+-  Require: struct("Require", { "condition": normalizeExpression, "code": null }),
+-  Insert: struct("Insert", { "table": null, "row": normalizeExpression }),
+-  Update: struct("Update", { "table": null, "key": normalizeExpression, "patch": normalizeExpression }),
+-  Upsert: struct("Upsert", { "table": null, "key": normalizeExpression, "row": normalizeExpression }),
+-  Delete: struct("Delete", { "table": null, "key": normalizeExpression }),
+-  Emit: struct("Emit", { "effect": null, "payload": normalizeExpression }), Return: normalizeExpression,
++export function canonicalRuleJson(rule: any): string { return JSON.stringify(normalizeRule(rule)); }
++export function normalizeRule(rule: any): any { return structural(rule, 'rule', grammar); }
++
++// Named boundary callbacks preserve native malformed-root error text. All
++// constructor work is dispatched to the grammar, with no private legacy walker.
++const normalizeStatement = (value: any) => structural(value, 'statement', grammar);
++const normalizeSchedule = (value: any) => structural(value, 'schedule', grammar);
++const normalizeMaintain = (value: any) => structural(value, 'maintain', grammar);
++
++// Only fixed source descriptions are allocated here. No constructor closes over
++// an input, and no normalized schema or second IR tree survives a call.
++const record = (name: string | null, fields: Record<string, Form>, complete = false, pre: any[] = []): Form =>
++  ['record', name, Object.keys(fields), Object.fromEntries(Object.entries(fields).filter(([, rule]) => rule !== null)), complete, pre];
++const list = (of: Form, receiver = 'value'): Form => ['list', of, 'map', receiver];
++const nullable = (of: Form): Form => ['nullable', false, of];
++const defaults = (value: any, of: Form): Form => ['default', 'nullish', value, of];
++const map = (of: Form): Form => ['map', of];
++const opaque = (cases: Record<string, Form>): Form => ['variant', cases, 'opaque'];
++const columnFields: Record<string, Form> = {
++  Text: record('column.Text', { max: null }), Bytes: record('column.Bytes', { max: null }),
++  Video: record('column.Video', { max: null }), Enum: record('column.Enum', { variants: null }),
++  Decimal: record('column.Decimal', { scale: null }), Money: record('column.Money', { currency: null, scale: null }),
++  Ref: record('column.Ref', { table: null }), Json: record('column.Json', { max_bytes: null }),
+ };
+-const DOMAIN: Transforms = {
+-  Page: normalizeScan,
+-  DerivedArray: struct("DerivedArray", { "value": normalizeExpression, "max": null, "bound_source": null }),
+-  Recurse: struct("Recurse", { "site": null, "table": null, "index": null, "seed": normalizeExpression, "next_field": null, "depth": null, "fanout": null, "provenance": null }),
+-  LiteralRange: struct("LiteralRange", { "start": null, "end_exclusive": null }), ArgList: struct("ArgList", { "name": null, "max": null }),
+-};
+-const read = struct("read", { "site": null, "table": null, "index": null, "key": list(normalizeExpression), "provenance": null });
+-const EXPRESSION: Transforms = {
+-  Literal: normalizeValue, Field: struct("Field", { "base": normalizeExpression, "name": null }),
+-  Array: list(normalizeExpression), Object: value => sortedMap(value, normalizeExpression),
+-  Binary: struct("Binary", { "op": null, "left": normalizeExpression, "right": normalizeExpression }),
+-  Unary: struct("Unary", { "op": null, "value": normalizeExpression }),
+-  Builtin: struct("Builtin", { "builtin": null, "args": list(normalizeExpression) }),
+-  Get: read, Exists: read, Scan: normalizeScan,
+-  Merge: struct("Merge", { "site": null, "lanes": normalizeLanes, "held_search": value => value ? normalizeHeldSearch(value) : value }),
+-};
+-const SCAN: Transforms = {
+-  take: normalizeBound,
+-  prefix: list(key => {
+-    const [tag, value] = tagged(key);
+-    if (tag === "Scalar") return { Scalar: normalizeExpression(value) };
+-    if (tag !== "WordPrefix") throw new EvalError("E_SCHEMA", "unknown index key expression");
+-    return { WordPrefix: pick(value, ["source","contract","source_max"], "WordPrefix", { source: normalizeExpression }) };
+-  }),
+-  after: nullableExpression, before: nullableExpression,
+-  range: value => value === null ? null : pick(value, ["gt","gte","lt","lte"], "range", {
+-    gt: nullableExpression, gte: nullableExpression, lt: nullableExpression, lte: nullableExpression,
++const read = record('read', { site: null, table: null, index: null, key: list('expression'), provenance: null });
++const grammar: Grammar = {
++  column: ['variant', {
++    ...columnFields, Optional: 'column', List: record('column.List', { of: 'column', max: null }),
++    Image: record('column.Image', { max: null, once: ['omit', 'unlessTrue', null] }, true,
++      [['once', ['check','boolean','column.Image.once must be boolean']]]),
++  }, 'deep', 'primitive', 'column.'],
++  arg: ['variant', {
++    Optional: 'arg',
++    Text: record('arg.Text', { max: null, min: ['omit','falsy',null], format: null }, true,
++      [['min', ['check','u32','arg.Text.min must be u32']], ['format', ['check','format','arg.Text.format must be handle or url']]]),
++    List: record('arg.List', { of: ['omit','nullish','arg'], max: null }, true),
++  }, 'column', 'primitive'],
++  table: record('table', { columns: defaults({}, map('column')), indexes: defaults({}, map('index')),
++    rules: ['nullable',true,'rules'], constraints: defaults([],list('constraint','(value ?? [])')), retain: defaults('until-revoked',null) }, true),
++  index: record('index', { components: list('component'), unique: null }),
++  component: ['variant', { Column: null, WordPrefixes: record('WordPrefixes', { fields: null, contract: null }) }, 'error:unknown index component'],
++  rules: record('rules', { read: 'rule', insert: 'rule', update: 'rule', delete: 'rule' }, true),
++  channel: record('channel', { args: defaults({},map('arg')), publish: 'rule', subscribe: 'rule', ttl_ms: null }, true),
++  maintain: record('maintain', { kind: 'maintainKind', source: null, by: null, target: null, readable: defaults(null,nullable('rule')) }, true),
++  maintainKind: ['variant', { Sum: record('maintain.kind.Sum', { of: null }) }, 'deep', 'primitive'],
++  // @ref LLP 1016#d5--schedules-row-timers-and-periods-on-the-owners-clock — site is diagnostic-only and omitted from identity.
++  schedule: ['record','schedule',['name','trigger','target','binding','site'], { site: ['omit','always',null], trigger: 'trigger' }],
++  trigger: ['variant', { row: record('schedule trigger', { table: null, column: null }), every: record('schedule trigger', { durationMs: null }) }, 'deep'],
++  value: ['variant', { Array: list('value','data'), Row: map('value'), Map: map('value') }, 'whole', 'string'],
++  ruleTerm: ['variant', { Literal: 'value', Field: null, OldField: null, NextField: null }, 'deep', 'primitive'],
++  rule: ['variant', {
++    Eq: list('ruleTerm'), Ne: list('ruleTerm'), And: list('rule'), Or: list('rule'), Not: 'rule',
++    Exists: record('rule.Exists', { table: null, index: null, key: list('ruleTerm'), provenance: null }),
++    Created: record('rule.Created', { table: null, index: null, key: list('ruleTerm'), provenance: null }),
++    Public: record('rule.Public', { reason: null }),
++  }, 'deep', 'primitive'],
++  constraint: ['variant', {
++    Unique: record('constraint.Unique', { index: null }), Cap: record('constraint.Cap', { by: null, max: null }),
++    Immutable: record('constraint.Immutable', { fields: null }),
++    Text: record('constraint.Text', { field: null, min: defaults(0,null), format: ['omit','nullish',null] }, true),
++    FinalExistsOnInsert: record('constraint.FinalExistsOnInsert', { table: null, index: null, key: list('ruleTerm') }),
++  }, 'deep', 'primitive'],
++  statement: ['variant', {
++    Const: record('Const', { name: null, value: 'expression' }), Let: record('Let', { name: null, value: 'expression' }),
++    Assign: record('Assign', { name: null, value: 'expression' }), Push: record('Push', { target: null, value: 'expression' }),
++    If: record('If', { condition: 'expression', then_body: list('statement'), else_body: list('statement') }),
++    For: record('For', { binding: null, domain: 'domain', body: list('statement') }),
++    Require: record('Require', { condition: 'expression', code: null }),
++    Insert: record('Insert', { table: null, row: 'expression' }),
++    Update: record('Update', { table: null, key: 'expression', patch: 'expression' }),
++    Upsert: record('Upsert', { table: null, key: 'expression', row: 'expression' }), Delete: record('Delete', { table: null, key: 'expression' }),
++    Emit: record('Emit', { effect: null, payload: 'expression' }), Return: 'expression',
++  }, 'whole', 'string', true],
++  domain: opaque({ Page: 'scan',
++    DerivedArray: record('DerivedArray', { value: 'expression', max: null, bound_source: null }),
++    Recurse: record('Recurse', { site: null, table: null, index: null, seed: 'expression', next_field: null, depth: null, fanout: null, provenance: null }),
++    LiteralRange: record('LiteralRange', { start: null, end_exclusive: null }), ArgList: record('ArgList', { name: null, max: null }),
+   }),
++  expression: ['variant', {
++    Literal: 'value', Field: record('Field', { base: 'expression', name: null }), Array: list('expression'), Object: map('expression'),
++    Binary: record('Binary', { op: null, left: 'expression', right: 'expression' }), Unary: record('Unary', { op: null, value: 'expression' }),
++    Builtin: record('Builtin', { builtin: null, args: list('expression') }), Get: read, Exists: read, Scan: 'scan',
++    Merge: record('Merge', { site: null, lanes: list(['lane'],'lanes'), held_search: ['truthy','held'] }),
++  }, 'whole'],
++  scan: ['record','scan',['site','table','index','prefix','order','take','after','before','range','opaque_cursor','merge_site','provenance'], {
++    take: 'bound', prefix: list('key'), after: nullable('expression'), before: nullable('expression'),
++    range: nullable(record('range', { gt: nullable('expression'), gte: nullable('expression'), lt: nullable('expression'), lte: nullable('expression') })),
++  }],
++  bound: opaque({ Arg: record('bound', { name: null, max: null }) }),
++  key: ['variant', { Scalar: 'expression', WordPrefix: record('WordPrefix', { source: 'expression', contract: null, source_max: null }) }, 'error:unknown index key expression'],
++  held: record('held_search', {
++    table: null, index: null,
++    term: record(null, { source: 'expression', contract: null, source_max: null }, true),
++    scope: ['scope'],
++    suffix: null, order: null, take: 'bound', after: nullable('expression'),
++    discovery: record(null, { scan: 'scan', binding: null, authorization_index: null }, true),
++  }, true),
+ };
+-
+-function sortedMap(value: Record<string, any>, normalize: (item: any) => any): Record<string, any> {
+-  const result: Record<string, any> = Object.create(null);
+-  for (const key of Object.keys(value).sort(compareCodepoints)) result[key] = normalize(value[key]);
+-  return result;
+-}
+-
+-function tagged(value: any): [string, any] {
+-  const keys = Object.keys(value);
+-  if (keys.length !== 1) throw new Error("E_TRACE_SUBSET: malformed externally tagged IR");
+-  return [keys[0]!, value[keys[0]!]];
+-}
+diff --git a/snapback2/packages/evaluator/src/structural-codec.ts b/snapback2/packages/evaluator/src/structural-codec.ts
+new file mode 100644
+index 000000000..e38241779
+--- /dev/null
++++ b/snapback2/packages/evaluator/src/structural-codec.ts
+@@ -0,0 +1,267 @@
++// @ref LLP 1001#10-what-binds-and-how-it-is-checked — structural construction has
++// separate field/output and refusal orders; the grammar never certifies its input.
++import { compareCodepoints, utf8Length } from './hash';
++import { EvalError } from './errors';
++import coreIrContract from '../../../crates/snapback2-core/ir-contract.json' with { type: 'json' };
++import { asObject, canonicalBytes, canonicalValue, scalarText, validateIdentity,
++  validHttpUrl, wireObject } from './value-runtime';
++import type { Value } from './types';
++import { decodeCursor } from './cursor';
++
++/** Fixed source grammar, not a compiled or cached representation of a caller's schema. */
++export type Form = string | null | readonly any[];
++export type Grammar = Record<string, Form>;
++const omitted = Symbol();
++type Context = { descriptor?: any; label?: string; fanout?: boolean; internal?: boolean; asset?: boolean;
++  fail?: (path: string, detail: string) => never; reserved?: boolean };
++
++/** Array policies preserve the original hole behavior: inspection visits holes,
++ * while map/forEach construction and refinement preserve/skip them respectively. */
++function sequence(value: any, visit: (item: any, index: number) => any, mode = 'map', receiver = 'value'): any {
++  if (mode === 'all') { let i = 0; for (const item of value) visit(item, i++); return; }
++  if (mode === 'forEach') return value.forEach(visit);
++  // Native TypeErrors include these expressions on JSC/Bun. The callbacks only
++  // dispatch into this codec; no former recursive constructor survives here.
++  if (receiver === 'data') { const data = value, normalizeValue = visit; return data.map(normalizeValue); }
++  if (receiver === 'setup') { const setup = value, normalizeStatement = visit; return setup.map(normalizeStatement); }
++  if (receiver === '(value ?? [])') { const normalizeConstraint = visit; return (value ?? []).map(normalizeConstraint); }
++  const normalize = visit;
++  return value.map(normalize);
++}
++
++export function structural(value: any, form: Form, grammar: Grammar = {}, context: Context = {}): any {
++  if (form === null) return value;
++  if (typeof form === 'string') return structural(value, grammar[form], grammar, context);
++  const [op, a, b, c, mode, pre] = form;
++  const child = (input: any, rule: Form, ctx = context) => structural(input, rule, grammar, ctx);
++  switch (op) {
++    case 'list': return sequence(value, item => child(item, a), b, c);
++    case 'map': {
++      const out = Object.create(null), keys = Object.keys(value);
++      if (b !== false) keys.sort(compareCodepoints);
++      for (const key of keys) out[key] = child(value[key], a);
++      return out;
++    }
++    case 'record': {
++      const fields: readonly string[] = b;
++      if (a !== null) {
++        if (typeof value !== 'object' || value === null || Array.isArray(value))
++          throw new EvalError('E_SCHEMA', `${a} must be an object`);
++        const unknown = Object.keys(value).filter(key => !fields.includes(key));
++        if (unknown.length) throw new EvalError('E_SCHEMA', `unknown ${a} field ${unknown.join(', ')}: a schema shape newer than this evaluator`);
++      }
++      if (mode === 'validate') return;
++      for (const [name, rule] of pre ?? []) child(value[name], rule);
++      const out: Record<string, any> = {};
++      if (!mode) for (const field of fields) if (value[field] !== undefined) out[field] = value[field];
++      for (const field of mode ? fields : Object.keys(c ?? {})) {
++        const result = child(value[field], c?.[field] ?? null);
++        if (result === omitted) delete out[field]; else out[field] = result;
++      }
++      return out;
++    }
++    case 'variant': {
++      if (c === 'primitive' && (typeof value !== 'object' || value === null) || c === 'string' && typeof value === 'string') return value;
++      const keys = Object.keys(value);
++      if (keys.length !== 1) throw new Error('E_TRACE_SUBSET: malformed externally tagged IR');
++      const kind = keys[0], payload = value[kind];
++      if (Object.hasOwn(a, kind)) return { [kind]: child(payload, a[kind]) };
++      if (mode && kind in a) return child(payload, ['record', `${mode === true ? '' : mode}${kind}`, a[kind]]);
++      if (b === 'whole') return value;
++      if (b === 'opaque') return { [kind]: payload };
++      if (b === 'deep') return { [kind]: child(payload, ['deep']) };
++      if (typeof b === 'string' && b.startsWith('error:')) throw new EvalError('E_SCHEMA', b.slice(6));
++      return child(value, b);
++    }
++    case 'deep':
++      return Array.isArray(value) ? child(value, ['list', ['deep']])
++        : value !== null && typeof value === 'object' ? child(value, ['map', ['deep']]) : value;
++    case 'default': return child((a === 'nullish' ? value == null : value === undefined) ? b : value, c);
++    case 'nullable': return value === null || a && value === undefined ? value : child(value, b);
++    case 'omit':
++      if (a === 'always' || a === 'falsy' && !value || a === 'nullish' && value == null || a === 'unlessTrue' && value !== true) return omitted;
++      return child(value, b);
++    case 'check':
++      if (value !== undefined && (a === 'u32' ? !Number.isInteger(value) || value < 0 || value > 0xffffffff
++        : a === 'format' ? value !== 'handle' && value !== 'url' : typeof value !== 'boolean')) throw new TypeError(b);
++      return value;
++    case 'lane': {
++      const { setup, ...lane } = value;
++      const out = setup?.length ? { setup: child(setup, ['list', 'statement', 'map', 'setup']) } : {};
++      return { ...out, ...child(lane, ['record', 'merge lane', ['scan','source','binding'], { scan: 'scan' }]),
++        ...(lane.source == null ? {} : { source: child(lane.source, 'scan') }) };
++    }
++    case 'scope': {
++      const d = { scope: value }, normalizeExpression = (input: any) => child(input, 'expression');
++      return d.scope.map((s: any) => ({ column: s.column, value: normalizeExpression(s.value) }));
++    }
++    case 'truthy': return value ? child(value, a) : value;
++    case 'inspect': {
++      if (value === 'Null') return;
++      if (!value || typeof value !== 'object' || Object.keys(value).length !== 1)
++        throw new EvalError('E_INPUT', `${context.label} is not a tagged value`);
++      const kind = Object.keys(value)[0], data = value[kind];
++      if (kind === 'Bool' && typeof data === 'boolean' || kind === 'Int' && Number.isSafeInteger(data)) return;
++      if ((kind === 'String' || kind === 'Id') && typeof data === 'string') {
++        if (kind === 'Id') validateIdentity(data); else scalarText(data);
++        context.reserved ||= kind === 'Id' && data === coreIrContract.systemPrincipalId; return;
++      }
++      if (kind === 'Bytes' && canonicalBytes(data)) return;
++      if (kind === 'Array' && Array.isArray(data)) return child(data, ['list', ['inspect'], 'all']);
++      if ((kind === 'Row' || kind === 'Map') && data !== null && typeof data === 'object' && !Array.isArray(data)) {
++        for (const [key, item] of Object.entries(data)) { scalarText(key); child(item, ['inspect']); }
++        return;
++      }
++      throw new EvalError('E_INPUT', `${context.label} is not a valid value`);
++    }
++    case 'admit': {
++      const ctx = { ...context, reserved: false };
++      child(value, ['inspect'], ctx);
++      if (!ctx.internal && ctx.reserved) throw new EvalError('E_INPUT', `${ctx.label} cannot carry the reserved system principal`);
++      let descriptor = ctx.descriptor;
++      while (descriptor?.Image === undefined && descriptor?.Video === undefined) {
++        if (descriptor?.Optional !== undefined) descriptor = descriptor.Optional;
++        else if (descriptor?.List?.of != null) descriptor = descriptor.List.of;
++        else break;
++      }
++      ctx.asset = descriptor?.Image !== undefined || descriptor?.Video !== undefined;
++      child(value, ['type'], ctx); return;
++    }
++    case 'row': {
++      const columns = a;
++      if (columns === undefined) throw new EvalError('E_SCHEMA', `missing table ${b}`);
++      const object = asObject(value);
++      if (!Object.hasOwn(object, 'id')) throw new EvalError('E_SCHEMA', `${b} row lacks id`);
++      const unknown = Object.keys(object).find(name => !Object.hasOwn(columns, name));
++      if (unknown !== undefined) throw new EvalError('E_INPUT', `${b} row contains undeclared field ${unknown}`);
++      for (const [name, descriptor] of Object.entries<any>(columns)) {
++        const item = Object.hasOwn(object, name) ? object[name] : undefined;
++        if (item === undefined && descriptor?.Optional === undefined) throw new EvalError('E_INPUT', `${b}.${name} is required`);
++        if (item !== undefined) child(item, ['admit'], { descriptor, label: `${b}.${name}`, fanout: false });
++      }
++      return;
++    }
++    case 'wireRow': {
++      const columns = a?.tables?.[b]?.columns, fail = context.fail!;
++      if (!wireObject(columns)) fail(`schema.tables.${b}.columns`, 'is missing');
++      const tagged: Record<string, Value> = Object.create(null);
++      for (const [name, item] of Object.entries(value)) {
++        if (!(name in columns)) fail(`rows.${b}.${name}`, 'is not a declared column');
++        tagged[name] = child(item, ['wire'], { ...context, descriptor: columns[name], label: `rows.${b}.${name}` });
++      }
++      return { Row: tagged };
++    }
++    case 'json': {
++      if (value === null) return 'Null';
++      const kind = typeof value;
++      if (kind === 'boolean') return { Bool: value };
++      if (kind === 'number') return { Int: value };
++      if (kind === 'string') return { String: value };
++      return Array.isArray(value) ? { Array: child(value, ['list', ['json']]) }
++        : { Map: Object.fromEntries(Object.entries(value).map(([key, item]) => [key, child(item, ['json'])])) };
++    }
++    case 'wire': {
++      const descriptor = context.descriptor, label = context.label!, fail = context.fail!;
++      if (wireObject(descriptor) && 'Optional' in descriptor)
++        return value === null ? 'Null' : child(value, form, { ...context, descriptor: descriptor.Optional });
++      if (value === null) return 'Null';
++      if (descriptor === 'Id' || descriptor === 'Principal' || wireObject(descriptor) && 'Ref' in descriptor) {
++        if (typeof value !== 'string') fail(label, 'expected id string');
++        validateIdentity(value); return { Id: value };
++      }
++      if (wireObject(descriptor) && ('Text' in descriptor || 'Enum' in descriptor)) {
++        if (typeof value !== 'string') fail(label, 'expected text string');
++        const tagged = { String: value }; child(tagged, ['admit'], { ...context, fanout: false }); return tagged;
++      }
++      if (['Int','Time'].includes(String(descriptor)) || wireObject(descriptor) && ('Decimal' in descriptor || 'Money' in descriptor)) {
++        if (!Number.isSafeInteger(value)) fail(label, 'expected safe integer'); return { Int: value };
++      }
++      if (descriptor === 'Bool') { if (typeof value !== 'boolean') fail(label, 'expected boolean'); return { Bool: value }; }
++      if (wireObject(descriptor) && 'Bytes' in descriptor) {
++        const bytes = wireObject(value) && 'Bytes' in value ? value.Bytes : undefined;
++        if (!wireObject(value) || Object.keys(value).length !== 1 || typeof bytes !== 'string' || !canonicalBytes(bytes)) fail(label, 'expected canonical Bytes');
++        return { Bytes: bytes };
++      }
++      if (wireObject(descriptor) && 'List' in descriptor) {
++        if (!Array.isArray(value)) fail(label, 'expected array');
++        return { Array: sequence(value, (item, index) => child(item, form, { ...context, descriptor: descriptor.List.of, label: `${label}[${index}]` })) };
++      }
++      if (wireObject(descriptor) && ('Image' in descriptor || 'Video' in descriptor)) {
++        const tagged = child(value, ['json']);
++        try { child(tagged, ['admit'], { ...context, fanout: false }); }
++        catch (error) { if (error instanceof EvalError && error.code === 'E_ASSET_TYPE') fail((error as any).path ?? label, error.message); throw error; }
++        return tagged;
++      }
++      if (wireObject(descriptor) && 'Json' in descriptor) return child(value, ['json']);
++      fail(label, 'has an unsupported schema descriptor');
++    }
++    case 'type': {
++      const descriptor = context.descriptor, label = context.label!, { asset, fanout } = context;
++      if (descriptor?.Optional !== undefined) return value === 'Null' ? [] : child(value, form, { ...context, descriptor: descriptor.Optional });
++      const kind = value === 'Null' ? 'Null' : Object.keys(value)[0], data = value === 'Null' ? null : value[kind];
++      const refuse = (message: string, overflow = false): never => { throw asset ? assetError(label, message)
++        : new EvalError(fanout && overflow ? 'E_FANOUT' : 'E_INPUT', `${label} ${message}`); };
++      if (descriptor?.List !== undefined) {
++        if (kind !== 'Array') return refuse('must be a list');
++        if (data.length > descriptor.List.max) refuse(`exceeds list max ${descriptor.List.max}`, true);
++        const ids: string[] | undefined = asset ? [] : undefined;
++        if (descriptor.List.of != null) sequence(data, (item, index) => {
++          const found = child(item, form, { ...context, descriptor: descriptor.List.of, label: asset ? `${label}[${index}]` : label });
++          if (ids && found) for (const id of found) ids.push(id);
++        }, 'forEach', 'value.Array');
++        if (ids) {
++          const seen = new Set<string>(), duplicate = ids.find(id => seen.has(id) || !seen.add(id));
++          if (duplicate !== undefined) throw assetError(label, `repeats asset id ${duplicate}; asset ids in a list must be unique`);
++        }
++        return ids;
++      }
++      if (asset) {
++        const name = descriptor?.Image !== undefined ? 'image' : descriptor?.Video !== undefined ? 'video' : null;
++        if (name === null) throw new EvalError('E_SCHEMA', `unsupported asset type for ${label}`);
++        if (kind !== 'Map') throw assetError(label, `must be a closed ${name} asset map`);
++        const fields = name === 'image' ? ['height','id','width'] : ['duration','height','id','width'];
++        const keys = Object.keys(data).sort(compareCodepoints);
++        if (keys.length !== fields.length || keys.some((key, i) => key !== fields[i])) throw assetError(label, `must contain exactly ${fields.join(', ')}`);
++        const id = data.id?.String ?? '';
++        if (!/^s2id-[0-9a-f]{32}-[0-9a-f]{16}$/.test(id) || id.endsWith('-0000000000000000')) throw assetError(`${label}.id`, 'must be a minted s2id');
++        for (const field of name === 'image' ? ['width','height'] : ['width','height','duration']) {
++          const member = data[field];
++          if (member === 'Null' || !Object.hasOwn(member, 'Int') || !Number.isSafeInteger(member.Int) || member.Int <= 0)
++            throw assetError(`${label}.${field}`, 'must be a positive i53 integer');
++        }
++        return [id];
++      }
++      if (descriptor === 'Cursor') { if (kind !== 'String') refuse('must be a cursor string'); decodeCursor(data); return; }
++      if (descriptor === 'Scalar') return;
++      if (descriptor === 'Id' || descriptor === 'Principal' || descriptor?.Ref !== undefined) { if (kind !== 'Id') refuse('must be an id'); return; }
++      if (descriptor?.Text !== undefined) {
++        if (kind !== 'String') refuse('must be text');
++        for (const character of data) {
++          const code = character.codePointAt(0)!;
++          if (code < 0x20 && ![9,10,13].includes(code)) refuse(`contains disallowed control character U+${code.toString(16).toUpperCase().padStart(4, '0')}`);
++        }
++        const length = Array.from(data).length;
++        if (length > descriptor.Text.max) refuse(`exceeds text max ${descriptor.Text.max}`);
++        if (fanout && length < (descriptor.Text.min ?? 0)) refuse(`is shorter than text min ${descriptor.Text.min}`);
++        if (fanout && descriptor.Text.format !== undefined && !(descriptor.Text.format === 'handle'
++          ? /^[a-z0-9_]*$/.test(data) : descriptor.Text.format === 'url' && validHttpUrl(data))) refuse(`has invalid ${String(descriptor.Text.format)} format`);
++        return;
++      }
++      if (descriptor?.Bytes !== undefined) {
++        if (kind !== 'Bytes' || !canonicalBytes(data)) refuse('must be bytes');
++        if (data.length / 2 > descriptor.Bytes.max) refuse(`exceeds bytes max ${descriptor.Bytes.max}`); return;
++      }
++      if (['Int','Time'].includes(descriptor) || descriptor?.Decimal !== undefined || descriptor?.Money !== undefined) { if (kind !== 'Int' || !Number.isSafeInteger(data)) refuse('must be an i53 integer'); return; }
++      if (descriptor === 'Bool') { if (kind !== 'Bool') refuse('must be a boolean'); return; }
++      if (descriptor?.Json !== undefined) { if (utf8Length(canonicalValue(value)) > descriptor.Json.max_bytes) refuse(`exceeds JSON max ${descriptor.Json.max_bytes} bytes`); return; }
++      if (descriptor?.Enum !== undefined) { if (kind !== 'String' || !descriptor.Enum.variants.includes(data)) refuse('is not a declared enum value'); return; }
++      throw new EvalError('E_SCHEMA', `unsupported type for ${label}`);
++    }
++    default: throw new Error(`unknown structural operation ${op}`);
++  }
++}
++
++// @ref LLP 1006#6-the-write-validated-not-stamped — shape/path checking owns no ledger authority.
++function assetError(path: string, message: string): EvalError {
++  return Object.assign(new EvalError('E_ASSET_TYPE', `${path} ${message}`), { path });
++}
+diff --git a/snapback2/packages/evaluator/src/test.ts b/snapback2/packages/evaluator/src/test.ts
+index 238cf8758..98b5409d7 100644
+--- a/snapback2/packages/evaluator/src/test.ts
++++ b/snapback2/packages/evaluator/src/test.ts
+@@ -27,6 +27,8 @@ import {
+ import { canonicalSchemaJson, canonicalProgramJson } from "./certificate-identity";
+ import { EvalError } from "./errors";
+ import { queryState } from "./runner";
++import { validateTypedValue, validateWriteRow, rowFromWire, valueFromWire } from "./value-runtime";
++import coreIrContract from "../../../crates/snapback2-core/ir-contract.json" with { type: "json" };
+ 
+ function assert(condition: unknown, message: string): asserts condition {
+   if (!condition) throw new Error(message);
+@@ -1059,6 +1061,58 @@ const expectCode = (run: () => unknown, code: string, label: string) => {
+   console.log("canonical domain fallback: 5 fixed parent controls passed");
+ }
+ 
++// @ref LLP 1001#10-what-binds-and-how-it-is-checked — fixed parent observations include refusal order, not only successful hashes.
++{
++  const refusal = (body: () => unknown, name: string, message: string, code?: string, path?: string) => {
++    let caught: any;
++    try { body(); } catch (error) { caught = error; }
++    assert(caught?.name === name && caught?.message === message && caught?.code === code && caught?.path === path,
++      `admission refusal changed: ${JSON.stringify({ name: caught?.name, message: caught?.message, code: caught?.code, path: caught?.path })}`);
++  };
++  const reserved = { Id: coreIrContract.systemPrincipalId };
++  refusal(() => validateTypedValue('Scalar', { Array: [reserved, { Int: 0.5 }] }, 'arg x', false),
++    'Error', 'E_INPUT: arg x is not a valid value', 'E_INPUT');
++  refusal(() => validateTypedValue('Int', { Array: [{ String: 'bad' }, reserved] }, 'arg x', false),
++    'Error', 'E_INPUT: arg x cannot carry the reserved system principal', 'E_INPUT');
++  const schema = { tables: { t: { columns: { id: 'Id', text: { Text: { max: 2 } } } } } };
++  const fail = (path: string, detail: string): never => { throw new TypeError(`${path}: ${detail}`); };
++  refusal(() => rowFromWire(schema, 't', { bad: 1, text: 'bad' }, fail),
++    'TypeError', 'rows.t.bad: is not a declared column');
++  refusal(() => rowFromWire(schema, 't', { text: 'bad', bad: 1 }, fail),
++    'Error', 'E_INPUT: rows.t.text exceeds text max 2', 'E_INPUT');
++  const id = 's2id-00000000000000000000000000000000-0000000000000001';
++  const asset = { Map: { id: { String: id }, width: { Int: 1 }, height: { Int: 2 } } };
++  refusal(() => validateTypedValue({ List: { of: { Optional: { Image: { max: 1 } } }, max: 2 } },
++    { Array: [asset, asset] }, 'arg x', false), 'Error',
++    `E_ASSET_TYPE: arg x repeats asset id ${id}; asset ids in a list must be unique`, 'E_ASSET_TYPE', 'arg x');
++  refusal(() => valueFromWire({ Image: { max: 1 } }, { id, width: 0, height: 3 }, 'rows.t.value', fail),
++    'TypeError', 'rows.t.value.width: E_ASSET_TYPE: rows.t.value.width must be a positive i53 integer');
++  const json = JSON.parse('{"Bytes":"ab","__proto__":null,"💠":1}');
++  const tagged = valueFromWire({ Json: { max_bytes: 100 } }, json, 'json', fail) as { Map: Record<string, Value> };
++  assert(tagged.Map.Bytes && canonicalValue(tagged.Map.Bytes) === '{"String":"ab"}'
++    && Object.hasOwn(tagged.Map, '__proto__') && tagged.Map.__proto__ === 'Null', 'JSON markers or own keys were reinterpreted');
++  const sparse: any[] = new Array(2); sparse[1] = 'x';
++  const list = valueFromWire({ List: { of: { Text: { max: 2 } }, max: 2 } }, sparse, 'list', fail) as { Array: Value[] };
++  assert(list.Array.length === 2 && !(0 in list.Array) && canonicalValue(list.Array[1]) === '{"String":"x"}',
++    'wire construction collapsed a sparse array');
++  // The same native dereference binds Node and Bun wording separately; typed
++  // product errors above stay fixed strings. This is not a second accepted error.
++  const schemaBoundary = (schema: any) => schema.tables?.t?.columns;
++  for (const missing of [undefined, null]) {
++    let native: any; try { schemaBoundary(missing); } catch (error) { native = error; }
++    refusal(() => validateWriteRow(missing, 't', { Row: { id: { Id: 'x' } } }), native.name, native.message);
++  }
++  const order: string[] = [];
++  const observed = { get tables() { order.push('tables'); return {}; }, get maintains() { order.push('maintains'); return []; } };
++  assert(canonicalSchemaJson(observed) === '{"tables":{},"maintains":[]}' && order.join(',') === 'tables,maintains',
++    'schema shape checking traversed fields before their canonical construction phase');
++  const authOrder: string[] = [];
++  canonicalSchemaJson({ tables: {}, auth: { get password() { authOrder.push('password'); return false; },
++    get guests() { authOrder.push('guests'); return false; } } });
++  assert(authOrder.join(',') === 'password,guests', 'auth shape checking read values before the skip policy');
++  console.log('structural admission: fixed parent refusal, wire isolation and root-order controls passed');
++}
++
+ console.log(
+   JSON.stringify({
+     cases: cases.length,
+diff --git a/snapback2/packages/evaluator/src/value-runtime.ts b/snapback2/packages/evaluator/src/value-runtime.ts
+index a1962edd8..bf3c90492 100644
+--- a/snapback2/packages/evaluator/src/value-runtime.ts
++++ b/snapback2/packages/evaluator/src/value-runtime.ts
+@@ -1,6 +1,6 @@
++import { structural } from './structural-codec';
+ import { compareCodepoints } from './hash';
+ export { compareCodepoints } from './hash';
+-import coreIrContract from "../../../crates/snapback2-core/ir-contract.json" with { type: "json" };
+ import { canonicalRuleJson, canonicalSchemaJson } from "./certificate-identity";
+ import { EvalError } from "./errors";
+ import { sha256, utf8Length } from "./hash";
+@@ -258,19 +258,7 @@ export function canonicalJson(value: unknown): string {
+ }
+ 
+ export function validateWriteRow(schema: any, tableName: string, row: Value): void {
+-  const columns = schema.tables?.[tableName]?.columns;
+-  if (columns === undefined) throw new EvalError("E_SCHEMA", `missing table ${tableName}`);
+-  const object = asObject(row);
+-  if (!hasOwn(object, "id")) throw new EvalError("E_SCHEMA", `${tableName} row lacks id`);
+-  const unknown = Object.keys(object).find((name) => !hasOwn(columns, name));
+-  if (unknown !== undefined)
+-    throw new EvalError("E_INPUT", `${tableName} row contains undeclared field ${unknown}`);
+-  for (const [name, descriptor] of Object.entries<any>(columns)) {
+-    const value = hasOwn(object, name) ? object[name] : undefined;
+-    if (value === undefined && descriptor?.Optional === undefined)
+-      throw new EvalError("E_INPUT", `${tableName}.${name} is required`);
+-    if (value !== undefined) validateTypedValue(descriptor, value, `${tableName}.${name}`, false);
+-  }
++  structural(row, ['row', schema.tables?.[tableName]?.columns, tableName]);
+ }
+ 
+ export function validateInputs(schema: any, program: any, inputs: Record<string, Value>): void {
+@@ -295,167 +283,12 @@ export function validateScanCursor(schema: any, scan: any, bindings: Map<string,
+ }
+ 
+ 
+-export function validateTypedValue(
+-  descriptor: any,
+-  value: Value,
+-  label: string,
+-  fanoutForLongList: boolean,
+-  internalKey = false,
+-): void {
+-  const reserved = inspectValue(value, label);
+-  if (!internalKey && reserved)
+-    throw new EvalError("E_INPUT", `${label} cannot carry the reserved system principal`);
+-  validateType(descriptor, value, label, fanoutForLongList, descriptorContainsAsset(descriptor));
+-}
+-
+-// The complete scalar/shape preflight precedes every type refusal. Recursive descriptors
+-// reuse it, including assets, rather than walking each nested value again.
+-function validateType(descriptor: any, value: Value, label: string, fanout: boolean, asset: boolean): string[] | void {
+-  if (descriptor?.Optional !== undefined) {
+-    return value === "Null" ? [] : validateType(descriptor.Optional, value, label, fanout, asset);
+-  }
+-  if (descriptor?.List !== undefined) {
+-    const refuse = (message: string, overflow = false): never => { throw asset ? assetType(label,message) : new EvalError(
+-      fanout && overflow ? 'E_FANOUT' : 'E_INPUT', `${label} ${message}`); };
+-    if (!isVariant(value, "Array")) return refuse("must be a list");
+-    if (value.Array.length > descriptor.List.max) refuse(`exceeds list max ${descriptor.List.max}`,true);
+-    const ids: string[] | undefined = asset ? [] : undefined;
+-    if (descriptor.List.of !== null && descriptor.List.of !== undefined) {
+-      value.Array.forEach((item, index) => {
+-        const child = validateType(descriptor.List.of, item, asset ? `${label}[${index}]` : label, fanout, asset);
+-        if (ids && child) for (const id of child) ids.push(id);
+-      });
+-    }
+-    if (ids) {
+-      const seen = new Set<string>(), duplicate = ids.find(id => seen.has(id) || !seen.add(id));
+-      if (duplicate !== undefined) throw assetType(label, `repeats asset id ${duplicate}; asset ids in a list must be unique`);
+-    }
+-    return ids;
+-  }
+-  if (asset) return validateAsset(descriptor,value,label);
+-  if (descriptor === "Cursor") {
+-    if (!isVariant(value, "String")) throw new EvalError("E_INPUT", `${label} must be a cursor string`);
+-    decodeCursor(value.String);
+-    return;
+-  }
+-  if (descriptor === "Scalar") return;
+-  if (descriptor === "Id" || descriptor === "Principal" || descriptor?.Ref !== undefined) {
+-    if (!isVariant(value, "Id")) throw new EvalError("E_INPUT", `${label} must be an id`);
+-    return;
+-  }
+-  if (descriptor?.Text !== undefined) {
+-    if (!isVariant(value, "String")) throw new EvalError("E_INPUT", `${label} must be text`);
+-    const codePoint = disallowedTextControlCodePoint(value.String);
+-    if (codePoint !== undefined)
+-      throw new EvalError("E_INPUT", `${label} contains disallowed control character U+${codePoint.toString(16).toUpperCase().padStart(4, "0")}`);
+-    const length = Array.from(value.String).length;
+-    if (length > descriptor.Text.max)
+-      throw new EvalError("E_INPUT", `${label} exceeds text max ${descriptor.Text.max}`);
+-    // Argument refinements apply recursively before any program body executes; column Text is unchanged.
+-    if (fanout && length < (descriptor.Text.min ?? 0))
+-      throw new EvalError("E_INPUT", `${label} is shorter than text min ${descriptor.Text.min}`);
+-    if (fanout && descriptor.Text.format !== undefined && !(descriptor.Text.format === 'handle'
+-      ? /^[a-z0-9_]*$/.test(value.String) : descriptor.Text.format === 'url' && validHttpUrl(value.String)))
+-      throw new EvalError('E_INPUT', `${label} has invalid ${String(descriptor.Text.format)} format`);
+-    return;
+-  }
+-  if (descriptor?.Bytes !== undefined) {
+-    if (!isVariant(value, "Bytes") || !canonicalBytes(value.Bytes))
+-      throw new EvalError("E_INPUT", `${label} must be bytes`);
+-    if (value.Bytes.length / 2 > descriptor.Bytes.max)
+-      throw new EvalError("E_INPUT", `${label} exceeds bytes max ${descriptor.Bytes.max}`);
+-    return;
+-  }
+-  if (["Int", "Time"].includes(descriptor) || descriptor?.Decimal !== undefined || descriptor?.Money !== undefined) {
+-    if (!isVariant(value, "Int") || !Number.isSafeInteger(value.Int))
+-      throw new EvalError("E_INPUT", `${label} must be an i53 integer`);
+-    return;
+-  }
+-  if (descriptor === "Bool") {
+-    if (!isVariant(value, "Bool")) throw new EvalError("E_INPUT", `${label} must be a boolean`);
+-    return;
+-  }
+-  if (descriptor?.Json !== undefined) {
+-    if (utf8Length(canonicalValue(value)) > descriptor.Json.max_bytes)
+-      throw new EvalError("E_INPUT", `${label} exceeds JSON max ${descriptor.Json.max_bytes} bytes`);
+-    return;
+-  }
+-  if (descriptor?.Enum !== undefined) {
+-    if (!isVariant(value, "String") || !descriptor.Enum.variants.includes(value.String))
+-      throw new EvalError("E_INPUT", `${label} is not a declared enum value`);
+-    return;
+-  }
+-  throw new EvalError("E_SCHEMA", `unsupported type for ${label}`);
+-}
+-
+-function disallowedTextControlCodePoint(text: string): number | undefined {
+-  for (const character of text) {
+-    const codePoint = character.codePointAt(0)!;
+-    if (codePoint < 0x20 && ![0x09, 0x0a, 0x0d].includes(codePoint)) return codePoint;
+-  }
+-  return undefined;
+-}
+-
+-function descriptorContainsAsset(descriptor: any): boolean {
+-  if (descriptor?.Image !== undefined || descriptor?.Video !== undefined) return true;
+-  if (descriptor?.Optional !== undefined) return descriptorContainsAsset(descriptor.Optional);
+-  if (descriptor?.List?.of !== null && descriptor?.List?.of !== undefined)
+-    return descriptorContainsAsset(descriptor.List.of);
+-  return false;
+-}
+-
+-// @ref LLP 1006#6-the-write-validated-not-stamped — the twin enforces the closed asset record and list uniqueness but owns no ledger authority.
+-function validateAsset(descriptor: any, value: Value, label: string): string[] {
+-  const kind = descriptor?.Image !== undefined ? "image" : descriptor?.Video !== undefined ? "video" : null;
+-  if (kind === null) throw new EvalError("E_SCHEMA", `unsupported asset type for ${label}`);
+-  if (!isVariant(value, "Map")) throw assetType(label, `must be a closed ${kind} asset map`);
+-  const expected = kind === "image" ? ["height", "id", "width"] : ["duration", "height", "id", "width"];
+-  const actual = Object.keys(value.Map).sort(compareCodepoints);
+-  if (actual.length !== expected.length || actual.some((name, index) => name !== expected[index]))
+-    throw assetType(label, `must contain exactly ${expected.join(", ")}`);
+-  const idValue = value.Map.id;
+-  const id = isVariant(idValue, "String") ? idValue.String : "";
+-  if (!validEngineId(id)) throw assetType(`${label}.id`, "must be a minted s2id");
+-  for (const field of kind === "image" ? ["width", "height"] : ["width", "height", "duration"]) {
+-    const member = value.Map[field];
+-    if (!isVariant(member, "Int") || !Number.isSafeInteger(member.Int) || member.Int <= 0)
+-      throw assetType(`${label}.${field}`, "must be a positive i53 integer");
+-  }
+-  return [id];
+-}
+-
+-function validEngineId(id: string): boolean {
+-  return /^s2id-[0-9a-f]{32}-[0-9a-f]{16}$/.test(id) && !id.endsWith("-0000000000000000");
+-}
+-
+-function assetType(path: string, message: string): EvalError {
+-  return Object.assign(new EvalError("E_ASSET_TYPE", `${path} ${message}`), { path });
++/** Full shape/scalar admission precedes reserved identity and type refinement. */
++export function validateTypedValue(descriptor: any, value: Value, label: string, fanoutForLongList: boolean, internalKey = false): void {
++  structural(value, ['admit'], {}, { descriptor, label, fanout: fanoutForLongList, internal: internalKey });
+ }
+-
+-export function assertValue(value: Value, label: string): void { inspectValue(value, label); }
+-
+-/** Collect reserved identity while validating every child; a later shape error still wins. */
+-function inspectValue(value: Value, label: string): boolean {
+-  if (value === "Null") return false;
+-  if (!value || typeof value !== "object" || Object.keys(value).length !== 1) throw new EvalError("E_INPUT", `${label} is not a tagged value`);
+-  const kind = kindOf(value);
+-  const data = (value as any)[kind];
+-  if (kind === "Bool" && typeof data === "boolean" || kind === "Int" && Number.isSafeInteger(data)) return false;
+-  if ((kind === "String" || kind === "Id") && typeof data === "string") {
+-    if (kind === "Id") validateIdentity(data); else scalarText(data);
+-    return kind === "Id" && data === coreIrContract.systemPrincipalId;
+-  }
+-  if (kind === "Bytes" && canonicalBytes(data)) return false;
+-  let reserved = false;
+-  if (kind === "Array" && Array.isArray(data)) {
+-    for (const item of data) reserved = inspectValue(item, label) || reserved;
+-    return reserved;
+-  }
+-  if ((kind === "Row" || kind === "Map") && data !== null && typeof data === "object" && !Array.isArray(data)) {
+-    for (const [key, item] of Object.entries(data)) { scalarText(key); reserved = inspectValue(item as Value, label) || reserved; }
+-    return reserved;
+-  }
+-  throw new EvalError("E_INPUT", `${label} is not a valid value`);
++export function assertValue(value: Value, label: string): void {
++  structural(value, ['inspect'], {}, { label });
+ }
+ 
+ export function canonicalBytes(value: unknown): value is string {
+@@ -517,66 +350,8 @@ export function wireObject(value: any): value is Record<string, any> {
+     && (Object.getPrototypeOf(value) === Object.prototype || Object.getPrototypeOf(value) === null);
+ }
+ export function rowFromWire(schema: any, table: string, row: Record<string, unknown>, fail: WireRefusal): Value {
+-  const columns = schema?.tables?.[table]?.columns;
+-  if (!wireObject(columns)) fail(`schema.tables.${table}.columns`, 'is missing');
+-  const tagged: Record<string, Value> = Object.create(null);
+-  for (const [name,value] of Object.entries(row)) {
+-    if (!(name in columns)) fail(`rows.${table}.${name}`, 'is not a declared column');
+-    tagged[name] = valueFromWire(columns[name],value,`rows.${table}.${name}`,fail);
+-  }
+-  return { Row: tagged };
++  return structural(row, ['wireRow', schema, table], {}, { fail });
+ }
+-
+ export function valueFromWire(descriptor: any, value: any, path: string, fail: WireRefusal): Value {
+-  if (wireObject(descriptor) && "Optional" in descriptor) return value === null ? "Null" : valueFromWire(descriptor.Optional, value, path, fail);
+-  if (value === null) return "Null";
+-  if (descriptor === "Id" || descriptor === "Principal" || wireObject(descriptor) && "Ref" in descriptor) {
+-    if (typeof value !== "string") fail(path, "expected id string");
+-    validateIdentity(value);
+-    return { Id: value };
+-  }
+-  if (wireObject(descriptor) && ("Text" in descriptor || "Enum" in descriptor)) {
+-    if (typeof value !== "string") fail(path, "expected text string");
+-    const tagged = { String: value };
+-    validateTypedValue(descriptor, tagged, path, false);
+-    return tagged;
+-  }
+-  if (["Int", "Time"].includes(String(descriptor)) || wireObject(descriptor) && ("Decimal" in descriptor || "Money" in descriptor)) {
+-    if (!Number.isSafeInteger(value)) fail(path, "expected safe integer"); return { Int: value as number };
+-  }
+-  if (descriptor === "Bool") { if (typeof value !== "boolean") fail(path, "expected boolean"); return { Bool: value as boolean }; }
+-  if (wireObject(descriptor) && "Bytes" in descriptor) {
+-    const bytes = wireObject(value) && "Bytes" in value ? value.Bytes : undefined;
+-    if (!wireObject(value) || Object.keys(value).length !== 1 || typeof bytes !== "string" || !canonicalBytes(bytes))
+-      fail(path, "expected canonical Bytes");
+-    return { Bytes: bytes };
+-  }
+-  if (wireObject(descriptor) && "List" in descriptor) {
+-    if (!Array.isArray(value)) fail(path, "expected array");
+-    return { Array: value.map((item: any, index: number) => valueFromWire(descriptor.List.of, item, `${path}[${index}]`, fail)) };
+-  }
+-  if (wireObject(descriptor) && ("Image" in descriptor || "Video" in descriptor)) {
+-    const tagged = tagJson(value);
+-    try { validateTypedValue(descriptor, tagged, path, false); }
+-    catch (error) {
+-      // Preserve the public decoder's path-bearing TypeError while sharing evaluator asset validation.
+-      if (error instanceof EvalError && error.code === 'E_ASSET_TYPE') fail((error as any).path ?? path, error.message);
+-      throw error;
+-    }
+-    return tagged;
+-  }
+-  // @ref LLP 1012#8-the-delivery-envelope-the-validator-and-resume — tag by
+-  // the declared column type only: a `json` value shaped `{ "Bytes": "…" }` is
+-  // application data, never the byte variant (O1a review).
+-  if (wireObject(descriptor) && "Json" in descriptor) return tagJson(value);
+-  fail(path, "has an unsupported schema descriptor");
+-}
+-
+-function tagJson(value: any): Value {
+-  if (value === null) return "Null";
+-  if (typeof value === "boolean") return { Bool: value };
+-  if (typeof value === "number") return { Int: value };
+-  if (typeof value === "string") return { String: value };
+-  if (Array.isArray(value)) return { Array: value.map(tagJson) };
+-  return { Map: Object.fromEntries(Object.entries(value).map(([key, item]) => [key, tagJson(item)])) };
++  return structural(value, ['wire'], {}, { descriptor, label: path, fail });
+ }

@@ -1,0 +1,16 @@
+{
+  "utc": "2026-09-07T12:23:12.400545+00:00",
+  "pid": 4017408,
+  "load": [
+    0.5654296875,
+    0.40576171875,
+    0.37646484375
+  ],
+  "availableBytes": 261924253696,
+  "diskFree": 880970182656,
+  "sharedHost": true,
+  "nodeSha": "3517c2df0b2f8cd7f422b4b8450ef81c6889f08eb03e281d6de9079b15e6a327",
+  "sourceManifestSha": "eddbf9a02011cbec713d3c5a245af612ea5d5a7821f7201a3a53d11625f6cf50",
+  "hookSha": "1e32173ad1400279cfbf275d84af524176340aee0fd122ce3f15bd6cca3611a6",
+  "historicalAttributionSha": "3ddb00ba296422eb1c76430449bbd27d5387689e3e4b3032fde462a9843e7d67"
+}

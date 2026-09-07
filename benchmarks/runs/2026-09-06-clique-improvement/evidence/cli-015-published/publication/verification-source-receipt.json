@@ -1,0 +1,12 @@
+{
+  "preparedSha256": "4afb0646d52a533ecebf64d7316d844ffcd685f45c13934de1f3e201a8670845",
+  "executedSha256": "7540284f96091bf3088ee3b4697bcc80465334deed77d9bd9451e37a90002598",
+  "delta": "only successful observation04 filename; observations01/02/03 remain negative and unchanged",
+  "successfulObservationSha256": "0259c9e15e0a5eec0f3bba65f37d12f8ec2c7fc3a50cec91696088e0c7b59e96",
+  "originalOuterSeconds": 300,
+  "eachCommandSeconds": 30,
+  "fetchMs": 15000,
+  "fetchRetries": 0,
+  "auth": false,
+  "epoch": 1788782743.172322
+}

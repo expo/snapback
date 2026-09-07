@@ -1,0 +1,6 @@
+{
+  "equal": true,
+  "beforeSha256": "a186b510211406e22ff4cc0b538210c0732e186291e243ea8d8b3f9281471fc6",
+  "afterSha256": "a186b510211406e22ff4cc0b538210c0732e186291e243ea8d8b3f9281471fc6",
+  "scope": "same2,425inputs on pinnedBun; native error messages are compared within each runtime"
+}

@@ -1,0 +1,574 @@
+{
+  "epoch": 1788783255.7113862,
+  "writerReleased": true,
+  "bundleSha256": "8749222b91f380829d8238243a8d8aaee0a8f70b9b2fa2e12f493d15c0008f2c",
+  "reportSha256": "ece72ec848ed1539a0ef0711b6d4691496db1a448025034663c24fd987235b06",
+  "actualIdentityReceiptSha256": "f7281dd8516ca57071b22f874e630e1c404cd350f638dd6f4881fb4b03e208f4",
+  "parentTerminalPending": true,
+  "files": [
+    {
+      "path": "REPORT.md",
+      "bytes": 11018,
+      "sha256": "ece72ec848ed1539a0ef0711b6d4691496db1a448025034663c24fd987235b06",
+      "mode": "0o444"
+    },
+    {
+      "path": "activation-events.jsonl",
+      "bytes": 20786,
+      "sha256": "16e39e2a3cab1abe37482230137e8881a4fdf2b6cddf8998517aa4fd66b76ff8",
+      "mode": "0o444"
+    },
+    {
+      "path": "activation-intent.json",
+      "bytes": 502,
+      "sha256": "e4f2d76a9b687e6dad20fc96e13be0c62ff4b95aa56fe8e094d611f4abd32caf",
+      "mode": "0o444"
+    },
+    {
+      "path": "activation-launch.py",
+      "bytes": 3738,
+      "sha256": "a75ec31c7ba38b9f4c637cd0cbc0c8ad99e78a6b6a87722f390d24f8238dfd91",
+      "mode": "0o444"
+    },
+    {
+      "path": "activation-result.json",
+      "bytes": 443,
+      "sha256": "1e613b107336660dc6762417b29afbf5ebf2104a25afd62f96c68fd5f6932410",
+      "mode": "0o444"
+    },
+    {
+      "path": "activation-running.json",
+      "bytes": 334,
+      "sha256": "5c6be9e33bd039ec6fbf54b164afa327c501bbdbd2e4f7731c2479cd2c29166f",
+      "mode": "0o444"
+    },
+    {
+      "path": "archive-receipt.json",
+      "bytes": 1382,
+      "sha256": "8abfc00d7a4680ea5a1da3333f2b2a4c16ac0965e75cd93bda367466a1668954",
+      "mode": "0o444"
+    },
+    {
+      "path": "artifact-publication-receipt.json",
+      "bytes": 2111,
+      "sha256": "a266fd7ff00efbec6e00e2a77ec832f0bd73ec8ec969bfee3835d2f184b1566e",
+      "mode": "0o444"
+    },
+    {
+      "path": "bundle-stage-remote.py",
+      "bytes": 5691,
+      "sha256": "db95fc864a27adf72b70e5e54413252ac51e0b1224a17681e005d9cfd809150f",
+      "mode": "0o444"
+    },
+    {
+      "path": "bundle-stage-result.json",
+      "bytes": 712,
+      "sha256": "04ee6b3da3a6f385acf99537279c69153889ac7268723698abf0f741d4c93ccf",
+      "mode": "0o444"
+    },
+    {
+      "path": "cleanup.json",
+      "bytes": 2669,
+      "sha256": "93510e43045520c5d7a0ffc09b598444d4758c99799b44ca4a4c6f39af02a17f",
+      "mode": "0o444"
+    },
+    {
+      "path": "command-environment-receipt.json",
+      "bytes": 2442,
+      "sha256": "df1b86751d4ddf125cd66362a5607a8c76c0fa36282003ccb21534f0a15a6ea0",
+      "mode": "0o444"
+    },
+    {
+      "path": "expo-backend-after.json",
+      "bytes": 1013,
+      "sha256": "d8adc1bad956c68c1d4f39bf2d4bc99b8b7d3cf8f48238a509d44b6e6929cd0a",
+      "mode": "0o444"
+    },
+    {
+      "path": "expo-backend-before.json",
+      "bytes": 1013,
+      "sha256": "d8adc1bad956c68c1d4f39bf2d4bc99b8b7d3cf8f48238a509d44b6e6929cd0a",
+      "mode": "0o444"
+    },
+    {
+      "path": "expo-cache-after-check-after.json",
+      "bytes": 1271,
+      "sha256": "579eb90822f79d9c16229e9076c58a053f1d9298152fea9f0d92d86a955b25c5",
+      "mode": "0o444"
+    },
+    {
+      "path": "expo-cache-after-check-before.json",
+      "bytes": 1271,
+      "sha256": "579eb90822f79d9c16229e9076c58a053f1d9298152fea9f0d92d86a955b25c5",
+      "mode": "0o444"
+    },
+    {
+      "path": "expo-cache-before-check-after.json",
+      "bytes": 1271,
+      "sha256": "579eb90822f79d9c16229e9076c58a053f1d9298152fea9f0d92d86a955b25c5",
+      "mode": "0o444"
+    },
+    {
+      "path": "expo-cache-before-check-before.json",
+      "bytes": 1271,
+      "sha256": "579eb90822f79d9c16229e9076c58a053f1d9298152fea9f0d92d86a955b25c5",
+      "mode": "0o444"
+    },
+    {
+      "path": "expo-project-after-check-guide.json",
+      "bytes": 4291,
+      "sha256": "3cf7a87e3c59b37808248a500a098093f9b7ad9a7ad9d6a02c8695c2bdcb298e",
+      "mode": "0o444"
+    },
+    {
+      "path": "expo-project-after-init.json",
+      "bytes": 4291,
+      "sha256": "3cf7a87e3c59b37808248a500a098093f9b7ad9a7ad9d6a02c8695c2bdcb298e",
+      "mode": "0o444"
+    },
+    {
+      "path": "final-answer.md",
+      "bytes": 309,
+      "sha256": "daeab8beaf16d3b9e2e88e93a950f41d09f649df0b822acfed9a876f0d1bc8d8",
+      "mode": "0o444"
+    },
+    {
+      "path": "final-custody-remote-source.py",
+      "bytes": 930,
+      "sha256": "46b5f9b7d52ae467975451e5565d8960545cf3fbf8fd07039db8a8ca082bbf2a",
+      "mode": "0o444"
+    },
+    {
+      "path": "final-remote-custody.json",
+      "bytes": 522,
+      "sha256": "93fae3331dab2c3727319b6dfd5c60e3b36cbad235b4f716848b2b6b8df09acd",
+      "mode": "0o444"
+    },
+    {
+      "path": "final-remote-custody.py",
+      "bytes": 2395,
+      "sha256": "838887cf44ba660a6a146bfe0f321f7dc3c7747f492e1b5f78348480eca3c4cf",
+      "mode": "0o444"
+    },
+    {
+      "path": "finish-owned-cleanup.py",
+      "bytes": 3061,
+      "sha256": "cc8a12521e5f90fd2a4724f20d0848fb538098a2d25ab7b8f9e59689bc181bec",
+      "mode": "0o444"
+    },
+    {
+      "path": "guide-index-first-failure-diagnosis.json",
+      "bytes": 117,
+      "sha256": "a08030104c7f81759c88af0cf15f6cd10d6d9cb5fa0049a2ce122de5b8937d6f",
+      "mode": "0o444"
+    },
+    {
+      "path": "installed-expo-remaining.json",
+      "bytes": 22566,
+      "sha256": "f93de214439642780ec7f0b9f75fea2772053dce1ae18cc1db3721771149bac6",
+      "mode": "0o444"
+    },
+    {
+      "path": "installed-expo-verification.json",
+      "bytes": 3770,
+      "sha256": "46bfc60869f76123e9099e853fa4f5636274401b9df51fef9bcf70319bb8a4bf",
+      "mode": "0o444"
+    },
+    {
+      "path": "installed-files-after.json",
+      "bytes": 16202,
+      "sha256": "a35ff2fe7e10e66ac68846aac998e3c5646e8a5169dbe884cf8c284fff04e649",
+      "mode": "0o444"
+    },
+    {
+      "path": "installed-files-before.json",
+      "bytes": 16202,
+      "sha256": "a35ff2fe7e10e66ac68846aac998e3c5646e8a5169dbe884cf8c284fff04e649",
+      "mode": "0o444"
+    },
+    {
+      "path": "installed-guide-fixes.json",
+      "bytes": 6938,
+      "sha256": "b998c221e1b981d149b3322830354b47c325f0ab3f03120687d8fa407c73ac8c",
+      "mode": "0o444"
+    },
+    {
+      "path": "local-custody.json",
+      "bytes": 622,
+      "sha256": "461232d96479cde2b6193b82e23402749f8bc7a3362bc85628ea6cdc233ff12f",
+      "mode": "0o444"
+    },
+    {
+      "path": "metric-all-original-bytes.jsonl",
+      "bytes": 359886,
+      "sha256": "945c7796064d1d1ebf3ec4f7462c19609718fec9f3e0a50e00462e012a4a2d9c",
+      "mode": "0o444"
+    },
+    {
+      "path": "metric-baseline.jsonl",
+      "bytes": 359620,
+      "sha256": "68d04f61ca488a15ff29b1d961f6ef27442c7ef911ffcd18558ad7b69844b91f",
+      "mode": "0o444"
+    },
+    {
+      "path": "metric-own-append.jsonl",
+      "bytes": 266,
+      "sha256": "3327235da56fe0031ad1fbbacfc4902cd353ae0b0f4a16886f63750a342c2c1f",
+      "mode": "0o444"
+    },
+    {
+      "path": "metric-receipt.json",
+      "bytes": 1130,
+      "sha256": "3b068ccd937bf466a791ad869d183bfb2309d26585bbba7214101120582803fa",
+      "mode": "0o444"
+    },
+    {
+      "path": "nonsecret-bundle.tar",
+      "bytes": 1638400,
+      "sha256": "34b047e6e55cfead5eefc815b0c3f8baae9c52b93fa957d19b7014cf8f679264",
+      "mode": "0o444"
+    },
+    {
+      "path": "observe-registry-01.py",
+      "bytes": 3349,
+      "sha256": "3faee548ee0844309a48dad32e709616c50695e4c92990bb1483a7e13ef40541",
+      "mode": "0o444"
+    },
+    {
+      "path": "observe-registry-02.py",
+      "bytes": 3349,
+      "sha256": "50ec5870fb29f0524442f8d9774c186ec8891cde5992adcb8200ced8f13a37b7",
+      "mode": "0o444"
+    },
+    {
+      "path": "observe-registry-03.py",
+      "bytes": 3349,
+      "sha256": "af8ca499e68ab01f74981a293bdbf98d0aa425075b58dbe2b78c95f99e05695d",
+      "mode": "0o444"
+    },
+    {
+      "path": "observe-registry-04.py",
+      "bytes": 3349,
+      "sha256": "fd0fcca04a942c5ff33842f33c5be3400976fcc41292b84e0f515a408742d901",
+      "mode": "0o444"
+    },
+    {
+      "path": "observe-stopped-state.py",
+      "bytes": 4602,
+      "sha256": "3f02c237ca3e09900bf81461160f3f5dbb38a23a6e96a0811421d703b43db00a",
+      "mode": "0o444"
+    },
+    {
+      "path": "phase.json",
+      "bytes": 2607,
+      "sha256": "cdba60fa071c12240f6ada5eb1e296d3fd129369c2540d05a962c804aa026396",
+      "mode": "0o444"
+    },
+    {
+      "path": "publisher-source-reconciliation.json",
+      "bytes": 1056,
+      "sha256": "aa10d751d2bf6619d6fd590bba1256bb8e6b1ab131450ce3a3958b29d0cac077",
+      "mode": "0o444"
+    },
+    {
+      "path": "registry-observation-01.json",
+      "bytes": 3170,
+      "sha256": "20611fbd7148061ab884e9aa586d57102124c4170f905ab869c56931f6bd7379",
+      "mode": "0o444"
+    },
+    {
+      "path": "registry-observation-02.json",
+      "bytes": 3171,
+      "sha256": "25748dcc9debac7c082619dacfe70bb94d9f951ee997785328b348a82c64e40b",
+      "mode": "0o444"
+    },
+    {
+      "path": "registry-observation-03.json",
+      "bytes": 3165,
+      "sha256": "8777827b912b734ddb400deaf63299c9cd60c6042eb3825422b904cd8bfc0b24",
+      "mode": "0o444"
+    },
+    {
+      "path": "registry-observation-04.json",
+      "bytes": 3261,
+      "sha256": "0259c9e15e0a5eec0f3bba65f37d12f8ec2c7fc3a50cec91696088e0c7b59e96",
+      "mode": "0o444"
+    },
+    {
+      "path": "route-preflight-remote.py",
+      "bytes": 3689,
+      "sha256": "1881070595bd1c7a5ea3a7411335a5b3f6dce75ccd620ea4ceacd26626b58dce",
+      "mode": "0o444"
+    },
+    {
+      "path": "route-preflight-result.json",
+      "bytes": 867,
+      "sha256": "87dd8dd6dea10a26cfde5ca91d09e3286fd5c4c4a0be41eab12a3e1d7b3b3bec",
+      "mode": "0o444"
+    },
+    {
+      "path": "run-verification.py",
+      "bytes": 1153,
+      "sha256": "36f3a1727f55878d3dde65f4c7dd490dbab9ab530f5989f564e5a984539b11f8",
+      "mode": "0o444"
+    },
+    {
+      "path": "source-receipt.json",
+      "bytes": 1395,
+      "sha256": "4e6a088e288477d69e83e082d57eb683ead61ef03a16903c492d4f0ec879c6ae",
+      "mode": "0o444"
+    },
+    {
+      "path": "source-stage-remote.py",
+      "bytes": 5301,
+      "sha256": "16e4808711fd24c39913229474e32d8f2155127bf2829de4cadc6e50df20a681",
+      "mode": "0o444"
+    },
+    {
+      "path": "source-stage-result.json",
+      "bytes": 710,
+      "sha256": "31c61412a3d94758915552e8f2cdc66d10c1c57e4f39d84a2c33278f25d14e64",
+      "mode": "0o444"
+    },
+    {
+      "path": "stage-result.json",
+      "bytes": 271,
+      "sha256": "f151ad938bc94e94fe77c29d3f8407684037d2f3e8699a4567657d72fb5e46b9",
+      "mode": "0o444"
+    },
+    {
+      "path": "stage.py",
+      "bytes": 8292,
+      "sha256": "667bb9feb75db6cae8e487e440a55b45cc3c472b5a7a3f48a0efeaec7708e313",
+      "mode": "0o444"
+    },
+    {
+      "path": "standard-consumer-receipt.json",
+      "bytes": 2148,
+      "sha256": "46baf4ff3b93badac98dd57bf765a8a01c2c247965c0dfa2aa314add9bc7e869",
+      "mode": "0o444"
+    },
+    {
+      "path": "stopped-state-remote.py",
+      "bytes": 2660,
+      "sha256": "d3454d4b9f828c3e06d1f4d26c21a5d53904e7e3ed7c86ed212b115e2cb551a1",
+      "mode": "0o444"
+    },
+    {
+      "path": "stopped-state-result.json",
+      "bytes": 35758,
+      "sha256": "4454bea9868d468fa695268993230b214455e9f760cf8e3a0f2ffdf824981cab",
+      "mode": "0o444"
+    },
+    {
+      "path": "verification-derivative.diff",
+      "bytes": 9224,
+      "sha256": "b7aa92d7838fa7fba49c5bda1702fcef56d1e4460af1cf4e36f9e00863f3ee02",
+      "mode": "0o444"
+    },
+    {
+      "path": "verification-first-failure-disposition.json",
+      "bytes": 1035,
+      "sha256": "90d7d4320669d7da3d90e43db848b828c654a8745852e8b1775152227cec19ae",
+      "mode": "0o444"
+    },
+    {
+      "path": "verification-observation-binding.diff",
+      "bytes": 857,
+      "sha256": "f31da428fdcefadff064c5228264daeb169999b00b70f7378db90f5c46aa54f9",
+      "mode": "0o444"
+    },
+    {
+      "path": "verification-remaining.diff",
+      "bytes": 10643,
+      "sha256": "2c8d36490d31601bff4622d26ae0b4ad248e8a4ebaa1bed8499fdd7d72f266c3",
+      "mode": "0o444"
+    },
+    {
+      "path": "verification-source-receipt.json",
+      "bytes": 532,
+      "sha256": "3ae2bbcc42e669941d76a6f2f7f4d49ce84d176ef1008ba9cb3fad4f068be3d7",
+      "mode": "0o444"
+    },
+    {
+      "path": "verify-registry-expo-04.py",
+      "bytes": 13151,
+      "sha256": "7540284f96091bf3088ee3b4697bcc80465334deed77d9bd9451e37a90002598",
+      "mode": "0o444"
+    },
+    {
+      "path": "verify-registry-expo-remaining.py",
+      "bytes": 12478,
+      "sha256": "c891e3997b18b2ff5d9995f61e27a5bdd34eb8ce913936ec49789c86c383fd2d",
+      "mode": "0o444"
+    },
+    {
+      "path": "verify-registry-expo.py",
+      "bytes": 13151,
+      "sha256": "4afb0646d52a533ecebf64d7316d844ffcd685f45c13934de1f3e201a8670845",
+      "mode": "0o444"
+    },
+    {
+      "path": "version-receipt.json",
+      "bytes": 216,
+      "sha256": "b81704c0da43488ec7b995d21025351a845ae315c845c92a6b30b0c6954eaae2",
+      "mode": "0o444"
+    },
+    {
+      "path": "logs/registry-expo-remaining.json",
+      "bytes": 556,
+      "sha256": "c8dd79350c945e5294241b1a717f4970f29d30747bf811d8ba4f6fcd37da6daf",
+      "mode": "0o444"
+    },
+    {
+      "path": "logs/registry-expo-remaining.log",
+      "bytes": 19350,
+      "sha256": "71819ce70fcea21971d8f0716ece7fbc84960f63c6a24678319c7643ed88691d",
+      "mode": "0o444"
+    },
+    {
+      "path": "logs/registry-expo.json",
+      "bytes": 552,
+      "sha256": "597a53faadbac084d7e417e7d6d84f266e7b700f743b63bf3f67a91270bd3493",
+      "mode": "0o444"
+    },
+    {
+      "path": "logs/registry-expo.log",
+      "bytes": 305,
+      "sha256": "bb3a8398da1d830164679d765472f18f6d5b81560bd9985e8db0aa864b84df17",
+      "mode": "0o444"
+    },
+    {
+      "path": "receipts/expo-installed-check.json",
+      "bytes": 791,
+      "sha256": "74bd033a76762c84b7cb6221eefb8f8a7d83edaddf90cd2e57d472be1d87bdb5",
+      "mode": "0o444"
+    },
+    {
+      "path": "receipts/expo-installed-check.log",
+      "bytes": 414,
+      "sha256": "8dccb49925bdfe2da1fbf12508c8391aaac291e2dd6175afce07c99a43fe8ca7",
+      "mode": "0o444"
+    },
+    {
+      "path": "receipts/expo-installed-doctor.json",
+      "bytes": 653,
+      "sha256": "2599ecb262709881dcadd7151444f6c54923985783a3686e3cbaba6b0ebb4f01",
+      "mode": "0o444"
+    },
+    {
+      "path": "receipts/expo-installed-doctor.log",
+      "bytes": 390,
+      "sha256": "1f616444fa62a95d9e663a0149caf98f176d938dc085637d839ae826f5f98486",
+      "mode": "0o444"
+    },
+    {
+      "path": "receipts/expo-installed-guide-after-check.json",
+      "bytes": 806,
+      "sha256": "71752716abd3ffff61f1a0a28ce03ce482d844841e03cf830cafc4a1de37d9d9",
+      "mode": "0o444"
+    },
+    {
+      "path": "receipts/expo-installed-guide-after-check.log",
+      "bytes": 55301,
+      "sha256": "090a3850712d8355a5ce0aea8fb8a6cb1907614ac3ebe67edea2161919f7aafe",
+      "mode": "0o444"
+    },
+    {
+      "path": "receipts/expo-installed-guide-before-check.json",
+      "bytes": 815,
+      "sha256": "18280f2b1ba289f6f13bb0792044b8a8b2d6caa3857b8aa310ec19d4d52761f4",
+      "mode": "0o444"
+    },
+    {
+      "path": "receipts/expo-installed-guide-before-check.log",
+      "bytes": 55301,
+      "sha256": "090a3850712d8355a5ce0aea8fb8a6cb1907614ac3ebe67edea2161919f7aafe",
+      "mode": "0o444"
+    },
+    {
+      "path": "receipts/expo-installed-init.json",
+      "bytes": 830,
+      "sha256": "9cafe0005f0752fbc02d6151e74d4e8a9f5da07936779963d8ec7c5582d19530",
+      "mode": "0o444"
+    },
+    {
+      "path": "receipts/expo-installed-init.log",
+      "bytes": 720,
+      "sha256": "28819c7aa5328ddb63732663c41e00ebeceb69c68ebdd7932daae4731277dc8c",
+      "mode": "0o444"
+    },
+    {
+      "path": "receipts/expo-installed-media.json",
+      "bytes": 797,
+      "sha256": "7b151678f1c522fbf9326b98f5ffc235dbcba484e9c514fdd7125cc1a62bd343",
+      "mode": "0o444"
+    },
+    {
+      "path": "receipts/expo-installed-media.log",
+      "bytes": 28,
+      "sha256": "a3145da94d0da5767e824df99dce5294b9f13dfe6b280dc3d16fb0aa9307d0cb",
+      "mode": "0o444"
+    },
+    {
+      "path": "receipts/expo-installed-version.json",
+      "bytes": 642,
+      "sha256": "39638d27d1aacde55d40f8fe789db8a010190068e4bb2d753925d365cd84ae60",
+      "mode": "0o444"
+    },
+    {
+      "path": "receipts/expo-installed-version.log",
+      "bytes": 17,
+      "sha256": "5cc704416f2e378014c60ef48e6b37b7ef56bfc543f1ceea41ba339dfe39a93b",
+      "mode": "0o444"
+    },
+    {
+      "path": "receipts/installed-guide-assets.json",
+      "bytes": 667,
+      "sha256": "57885765fdfd498014ceca76d732d2119a7aae38039d92827e9ce7d352155e2e",
+      "mode": "0o444"
+    },
+    {
+      "path": "receipts/installed-guide-assets.log",
+      "bytes": 1127,
+      "sha256": "dee46a64a6aeb84edcd2bb2bf1dd6f0f470d7911a926e79a4bc62721f8c93371",
+      "mode": "0o444"
+    },
+    {
+      "path": "receipts/installed-guide-init.json",
+      "bytes": 664,
+      "sha256": "d331ccd65865918532083f6c2b9cb7fb1de1dec43423b26ad92a01b1892e9633",
+      "mode": "0o444"
+    },
+    {
+      "path": "receipts/installed-guide-init.log",
+      "bytes": 750,
+      "sha256": "9f7a45424c42ea1733ec68424440ed45607b63a30c1bcd8c5a8eda181ce471d5",
+      "mode": "0o444"
+    },
+    {
+      "path": "receipts/installed-guide-testing.json",
+      "bytes": 670,
+      "sha256": "e30e0ff0605c7e2aaeda4431054f53335c4d6962ad16f297848af8d030baea72",
+      "mode": "0o444"
+    },
+    {
+      "path": "receipts/installed-guide-testing.log",
+      "bytes": 4287,
+      "sha256": "6e876e6eb38ad4a819530b56c6d19e8b1abfd7c5091b506d3e30af9814335f78",
+      "mode": "0o444"
+    },
+    {
+      "path": "receipts/registry-package-install.json",
+      "bytes": 901,
+      "sha256": "4271d2ec3a2fde6f569fd86d31868709dccc9703431bcfe39561c1880c713646",
+      "mode": "0o444"
+    },
+    {
+      "path": "receipts/registry-package-install.log",
+      "bytes": 232,
+      "sha256": "a823b930d7046b0cab9951c23778e25ae17d87da285cc60928d41eb68a7d6061",
+      "mode": "0o444"
+    }
+  ]
+}

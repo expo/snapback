@@ -1,0 +1,43 @@
+{
+  "sourceCommit": "78924a1e7286907d2378221902ec22747e7d188f",
+  "standardDryRunExit": 0,
+  "standardDryRunSeconds": 254.671439416,
+  "actualPublication": false,
+  "tarballs": [
+    {
+      "source_tarball": "/Users/ccheever/projects/snapback-worktrees/clique-cli-015-repaired-qualification-r2/snapback2/dist/npm/publish-snapback2-darwin-arm64-0.0.15.dry-565ek7/snapback2-darwin-arm64-0.0.15.tgz",
+      "retained_tarball": "/Users/ccheever/projects/snapback-artifacts/clique-release/0.0.15-78924a1e7/snapback2-darwin-arm64-0.0.15.tgz",
+      "name": "snapback2-darwin-arm64",
+      "version": "0.0.15",
+      "bytes": 4825373,
+      "sha256": "896dd57bc7b29411607a0941228a488151c1d43e7e53bf32919130d1bf07739c",
+      "integrity": "sha512-O9Zx/4wAPwraH77N2rsCuvorIey49aMRl6tckV3cRkGHuZow1lKelsM0ushU8S3kZC5yD1OnFVUHERNex9jRBw==",
+      "copy_equal_before_publisher_cleanup": true,
+      "mode": "0444",
+      "captureReceipt": "/Users/ccheever/projects/snapback-artifacts/clique-release/0.0.15-78924a1e7/npm-calls/1788780454517244000-58363.json"
+    },
+    {
+      "source_tarball": "/Users/ccheever/projects/snapback-worktrees/clique-cli-015-repaired-qualification-r2/snapback2/dist/npm/publish-snapback2-darwin-arm64-0.0.15.dry-565ek7/snapback2-0.0.15.tgz",
+      "retained_tarball": "/Users/ccheever/projects/snapback-artifacts/clique-release/0.0.15-78924a1e7/snapback2-0.0.15.tgz",
+      "name": "snapback2",
+      "version": "0.0.15",
+      "bytes": 1846236,
+      "sha256": "4f9a3457de13d821176df3180095fce4cce694d779e4f7c392b91a69f4c5c1f0",
+      "integrity": "sha512-+Ucp3/J4sG7BJwKdeMzPXQpj+dhc3R2Q/pBQoohXxTRV3hiPAWBojHtaQ4ums0SxlQ0wDsss5w2mmmiTj3YRFg==",
+      "copy_equal_before_publisher_cleanup": true,
+      "mode": "0444",
+      "captureReceipt": "/Users/ccheever/projects/snapback-artifacts/clique-release/0.0.15-78924a1e7/npm-calls/1788780455232946000-58381.json"
+    }
+  ],
+  "qualified": true,
+  "sourceArchiveSha256": "cca806e5ec7ada9c1be977b064cb4bde88e05361c4183003bf416ac229565801",
+  "wrapperSha256": "5b6cd0358f9693921fbe5fd451b0b51805b5f714ddd7b607c1a5a951b4dfdad9",
+  "resume": {
+    "path": "/Users/ccheever/projects/snapback-artifacts/clique-release/0.0.15-78924a1e7/resume-ready.json",
+    "sha256": "a1c54faba85a87fe84237f8d5daf1a971d358aeeca286cfebd4812a81edead64",
+    "mode": "0444",
+    "origin": "Durable reconstruction from original qualified pack bytes and actual standard dry-run metric; dry-run emits no resume. Future actual publication must use separate0644 copy."
+  },
+  "engineSha256": "f25035f81baf6b8443a5b1a199d6358876d83918650971df91ae336e7f5b5f83",
+  "mediaSha256": "de91f9cbe1f9fa13068e09fb45af664c19b5932de7e90e8ce8ca551e835430d6"
+}

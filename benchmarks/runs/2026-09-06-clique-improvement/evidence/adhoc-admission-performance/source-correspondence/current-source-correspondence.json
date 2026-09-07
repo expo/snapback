@@ -1,0 +1,31 @@
+{
+  "atEpoch": 1788779744.112365,
+  "currentMainObservation": "b4b203316ba628d9364b0b7f081a8fd79f877c3c",
+  "landedRepair": "5dc433f9d02fe645139bfd322c96de24d0310e4f",
+  "publicationEvidenceCommit": "52252ad24101b2f4f83ff59f9ccec4ee0e97f3e5",
+  "allThreeExact": true,
+  "files": [
+    {
+      "path": "snapback2/crates/snapback2/src/writer_jobs.rs",
+      "bytes": 11367,
+      "sha256": "a7fdd58a3911b8854073a4c53177d709f4514b0c53650c981b6177d4e9d6a05e",
+      "landedSha256": "a7fdd58a3911b8854073a4c53177d709f4514b0c53650c981b6177d4e9d6a05e",
+      "equalsReviewedLandedRepair": true
+    },
+    {
+      "path": "snapback2/crates/snapback2-core/src/registry_jobs.rs",
+      "bytes": 13425,
+      "sha256": "07111480e23043331b9bebaaf3a7878f72e7dd4adc625de4e75c68098dbd9829",
+      "landedSha256": "07111480e23043331b9bebaaf3a7878f72e7dd4adc625de4e75c68098dbd9829",
+      "equalsReviewedLandedRepair": true
+    },
+    {
+      "path": "snapback2/crates/snapback2/src/rehearsal.rs",
+      "bytes": 11936,
+      "sha256": "80026d3b39407d36c638e9b91d3d642c1361f87940c8340674484f2df265f60f",
+      "landedSha256": "80026d3b39407d36c638e9b91d3d642c1361f87940c8340674484f2df265f60f",
+      "equalsReviewedLandedRepair": true
+    }
+  ],
+  "noProductExecution": true
+}

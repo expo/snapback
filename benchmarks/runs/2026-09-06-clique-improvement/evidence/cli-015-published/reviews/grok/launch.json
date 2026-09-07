@@ -1,0 +1,26 @@
+{
+  "pid": 78341,
+  "supervisorPid": 78283,
+  "startEpoch": 1788779685.761108,
+  "argv": [
+    "/Users/ccheever/.grok/bin/grok",
+    "--prompt-file",
+    "/Users/ccheever/clique-improvement/reviews/cli-journey-selection-r2/grok/prompt.md",
+    "--cwd",
+    "/Users/ccheever/clique-improvement/reviews/cli-journey-selection-r2/grok",
+    "-m",
+    "grok-4.6",
+    "--reasoning-effort",
+    "xhigh",
+    "--output-format",
+    "plain",
+    "--disable-web-search",
+    "--permission-mode",
+    "auto",
+    "--max-turns",
+    "120"
+  ],
+  "cwd": "/Users/ccheever/clique-improvement/reviews/cli-journey-selection-r2/grok",
+  "candidate": "78924a1e7286907d2378221902ec22747e7d188f",
+  "manifestSha256": "52b2d332f5f79944201f8bf1e09a9a703e0fde21b946bec2aa63c6e57e38b62e"
+}

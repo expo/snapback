@@ -1,0 +1,6 @@
+{
+  "commit": "78924a1e7286907d2378221902ec22747e7d188f",
+  "landedCommit": "624a06dfc66e182a1f41c5fd85f9fbd191ba4bcb",
+  "version": "0.0.15",
+  "scope": "exact original qualified source/pair, not cumulative main"
+}

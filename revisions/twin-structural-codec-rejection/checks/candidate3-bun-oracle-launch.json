@@ -1,0 +1,18 @@
+{
+  "name": "candidate3-bun-oracle",
+  "argv": [
+    "/home/ccheever/clique-tooling/epyc-linux-tooling-20260907T010007Z-0fd567d96f/bun-v1.3.12-linux-x64/bin/bun",
+    "/home/ccheever/clique-tooling/search-structural-codec-0ecd-20260907T1130Z-01a07649/candidate3-oracles/probe.mjs",
+    "/home/ccheever/clique-tooling/search-structural-codec-0ecd-20260907T1130Z-01a07649/candidate3-bun-result.json"
+  ],
+  "cwd": "/home/ccheever/clique-tooling/search-structural-codec-0ecd-20260907T1130Z-01a07649/candidate3-source",
+  "outerSeconds": 10,
+  "pid": 4010495,
+  "startedUtc": "2026-09-07T12:10:55.358223+00:00",
+  "load": [
+    0.234375,
+    0.23583984375,
+    0.3203125
+  ],
+  "availableBytes": 261816897536
+}

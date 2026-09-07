@@ -1,0 +1,79 @@
+{
+  "version": "0.0.15",
+  "source": "78924a1e7286907d2378221902ec22747e7d188f",
+  "ok": false,
+  "scope": "fresh exact-version registry install compared with original qualified tarballs; untouched chat Expo init/check/guide; no native device execution",
+  "consumer_directory": "/Users/ccheever/clique-improvement/revisions/cli-015-publication-execution-r2/registry-installed-consumer",
+  "checks": [
+    {
+      "name": "registry-package-install",
+      "argv": [
+        "/Users/ccheever/.volta/tools/image/node/22.23.2/bin/node",
+        "/Users/ccheever/.volta/tools/image/node/22.23.2/lib/node_modules/npm/bin/npm-cli.js",
+        "install",
+        "--ignore-scripts",
+        "--no-audit",
+        "--no-fund",
+        "--legacy-peer-deps",
+        "--prefer-offline",
+        "--fetch-retries=0",
+        "--fetch-timeout=15000",
+        "snapback2-darwin-arm64@0.0.15",
+        "snapback2@0.0.15"
+      ],
+      "cwd": "/Users/ccheever/clique-improvement/revisions/cli-015-publication-execution-r2/registry-installed-consumer",
+      "timeout_seconds": 30,
+      "started_epoch": 1788782743.609925,
+      "pid": 12381,
+      "process_identity": "12381 Mon Sep  7 05:05:43 2026     /Users/ccheever/.volta/tools/image/node/22.23.2/bin/node",
+      "exit_code": 0,
+      "elapsed_seconds": 4.501723458,
+      "log_sha256": "a823b930d7046b0cab9951c23778e25ae17d87da285cc60928d41eb68a7d6061"
+    },
+    {
+      "name": "snapback2-darwin-arm64 all packed file equality",
+      "ok": true,
+      "files": 3
+    },
+    {
+      "name": "snapback2 all packed file equality",
+      "ok": true,
+      "files": 153
+    },
+    {
+      "name": "final source guide pages and Expo/dependency/export invariants",
+      "ok": true,
+      "guide_source_hashes": {
+        "dist/guide/auth.md": "b1a0c09c5e3e9530e1ed63159638fec4fd02959368dc4c8723c19d8725044afc",
+        "dist/guide/effects.md": "3c89cc25b95bc09c7d9a5d82beaba0bccf9937b96534fdab33fc06b1561ff8d4",
+        "dist/guide/grammar.md": "72d30c2239e39d59d2a685e7980712c99f2f3de44a25fa5d30d3cbf9bb9e6adc",
+        "dist/guide/job.md": "12dfa00fc148a5b4809f156c3e7448e51a223686b24cf3aa9fa9eada3ccac827",
+        "dist/guide/live-query.md": "df0f5fb16ca2e30aa99b440f94780f36b77cdb446e10d53dd7eaa5d49277a2a8",
+        "dist/guide/offline.md": "3639df79c25c25469b8b79eeeb2518cf39158fca3b9a9cc6d55cea001c07d751",
+        "dist/guide/operator.md": "4a0cc20606a3565ca25ad1a0d857a9b7ccfe0e6e9b441a07288eca117591a481",
+        "dist/guide/personas.md": "9c46d0bb067b8b0c7ea4260b91f73e3cbf6fe128b795d7fe2aee01674d7b5f03",
+        "dist/guide/quarry.md": "97670544ffa897b81a6935fc5bec8580492ac19517f43f5ccd87c1c7c48b8961",
+        "dist/guide/schedule.md": "a5541a51341ff03997f1de2ab23048f9fa0efad7355a6509fad860a8809a8c61",
+        "dist/guide/testing.md": "5c1e65a304c5a376892a1fce9be2f68f8d252eb71753280eb21665c762474a44"
+      }
+    }
+  ],
+  "started_epoch": 1788782743.4305851,
+  "tarballs": [
+    {
+      "package": "snapback2-darwin-arm64",
+      "path": "/Users/ccheever/projects/snapback-artifacts/clique-release/0.0.15-78924a1e7/snapback2-darwin-arm64-0.0.15.tgz",
+      "sha256": "896dd57bc7b29411607a0941228a488151c1d43e7e53bf32919130d1bf07739c",
+      "bytes": 4825373,
+      "integrity": "sha512-O9Zx/4wAPwraH77N2rsCuvorIey49aMRl6tckV3cRkGHuZow1lKelsM0ushU8S3kZC5yD1OnFVUHERNex9jRBw=="
+    },
+    {
+      "package": "snapback2",
+      "path": "/Users/ccheever/projects/snapback-artifacts/clique-release/0.0.15-78924a1e7/snapback2-0.0.15.tgz",
+      "sha256": "4f9a3457de13d821176df3180095fce4cce694d779e4f7c392b91a69f4c5c1f0",
+      "bytes": 1846236,
+      "integrity": "sha512-+Ucp3/J4sG7BJwKdeMzPXQpj+dhc3R2Q/pBQoohXxTRV3hiPAWBojHtaQ4ums0SxlQ0wDsss5w2mmmiTj3YRFg=="
+    }
+  ],
+  "finished_epoch": 1788782749.244839
+}

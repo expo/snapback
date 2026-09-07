@@ -1,0 +1,11 @@
+--- prepared015/verify-registry-expo.py
++++ executed015/verify-registry-expo-04.py
+@@ -7,7 +7,7 @@
+ import os,json,hashlib,subprocess,time,tarfile,base64,signal,re
+ r=Path(__file__).resolve().parent
+ root=Path('/Users/ccheever/projects/snapback-artifacts/clique-release/0.0.15-78924a1e7')
+-assert json.loads((r/'registry-observation-02.json').read_text())['allMatching']
++assert json.loads((r/'registry-observation-04.json').read_text())['allMatching']
+ assert any(e.get('phase')=='publisher' and e.get('status')=='complete' and e.get('exitCode')==0 for e in map(json.loads,(r/'activation-events.jsonl').read_text().splitlines()))
+ consumer=r/'registry-installed-consumer'; assert not consumer.exists()
+ consumer.mkdir();(consumer/'package.json').write_text(json.dumps({'name':'snapback2-0-0-15-registry-verification','private':True,'type':'module'})+'\n')

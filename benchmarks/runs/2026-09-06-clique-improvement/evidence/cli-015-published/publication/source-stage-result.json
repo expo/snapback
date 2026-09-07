@@ -1,0 +1,29 @@
+{
+  "phase": "source-stage",
+  "sshPid": 7803,
+  "driverPid": 7786,
+  "startedEpoch": 1788782283.372737,
+  "endedEpoch": 1788782285.7825,
+  "elapsedSeconds": 2.4097415829999997,
+  "exitCode": 0,
+  "timeout": false,
+  "stderrPresent": false,
+  "unclassifiedOutputPresent": false,
+  "events": [
+    {
+      "phase": "source-stage",
+      "pid": 66475,
+      "epoch": 1788782285.4260302,
+      "pass": true,
+      "sourceLeaves": 943,
+      "createdSource": true
+    }
+  ],
+  "pass": true,
+  "sourceFile": "source-stage-remote.py",
+  "sourceSha256": "16e4808711fd24c39913229474e32d8f2155127bf2829de4cadc6e50df20a681",
+  "outerSeconds": 60,
+  "childReaped": true,
+  "automaticRetry": false,
+  "authAccess": false
+}

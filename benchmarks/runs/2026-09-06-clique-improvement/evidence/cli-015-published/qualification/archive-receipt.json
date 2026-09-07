@@ -1,0 +1,20 @@
+{
+  "sourceCommit": "78924a1e7286907d2378221902ec22747e7d188f",
+  "archives": [
+    {
+      "name": "source.tar.gz",
+      "bytes": 122797232,
+      "sha256": "cca806e5ec7ada9c1be977b064cb4bde88e05361c4183003bf416ac229565801"
+    }
+  ],
+  "sourceLeaves": 19609,
+  "reviewedLeaves": 943,
+  "all943ContentsMatchGitArchive": true,
+  "all943InstalledModesMatchReviewedSource": true,
+  "sourceInstallManifest": "source-install-manifest.json",
+  "rawGitArchiveManifest": "source-archive-manifest.json",
+  "firstFailure": "receipts/source-archive-first-failure.json",
+  "metadataCorrectionOnly": true,
+  "completeBeforeTransfer": true,
+  "epoch": 1788779952.8771641
+}

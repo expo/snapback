@@ -1,0 +1,66 @@
+{
+  "utc": "2026-09-07T12:43:38.190090+00:00",
+  "author": "search_feasibility supervisor; no new external author",
+  "scope": "Read-only recommendation from existing source/evidence; no execution, build, measure, variant or product mutation",
+  "sourceCommit": "0ecd6015a7a1f0c291a224baef37f832b6b3154a",
+  "readScope": "Full prior final source-only plan, current handoff and byte delta; full TwinStore/Twin hydrate/FactIndex/Coverage and targeted ClientStore/range-preparation source sections. No whole-graph semantic review claimed.",
+  "inputs": [
+    {
+      "path": "/Users/ccheever/projects/snapback-worktrees/clique-domain-fallback/snapback2/packages/snapback2/src/twin-store.ts",
+      "bytes": 14433,
+      "sha256": "2d0cb8572529117a0424150599de76f38404801a9f08cd3977b8668f61d1ab87"
+    },
+    {
+      "path": "/Users/ccheever/projects/snapback-worktrees/clique-domain-fallback/snapback2/packages/snapback2/src/twin-hydrate.ts",
+      "bytes": 3187,
+      "sha256": "4b0f4fd621fe9adffd94e1463be859033b0cb37873820630bbf1d1deb5acf055"
+    },
+    {
+      "path": "/Users/ccheever/projects/snapback-worktrees/clique-domain-fallback/snapback2/packages/evaluator/src/store.ts",
+      "bytes": 15470,
+      "sha256": "5e1d0c7cbea8b95b2594f68f21a6d1027461ba778b12a799d872287ed09fd0d5"
+    },
+    {
+      "path": "/Users/ccheever/projects/snapback-worktrees/clique-domain-fallback/snapback2/packages/evaluator/src/coverage.ts",
+      "bytes": 12514,
+      "sha256": "c0936f440370dcbf92b28677217fe5d36ac411ca86864de006e62b663a878781"
+    },
+    {
+      "path": "/Users/ccheever/projects/snapback-worktrees/clique-domain-fallback/snapback2/packages/evaluator/src/range-preparation.ts",
+      "bytes": 11933,
+      "sha256": "cb8d6cd6dd585b0fcbc5a872d44f59bddd745ae97290fd774358a807f1dc1bed"
+    },
+    {
+      "path": "/Users/ccheever/projects/snapback-worktrees/clique-domain-fallback/snapback2/packages/snapback2/src/store/carrier-index.ts",
+      "bytes": 12872,
+      "sha256": "68a05f3a1cfae80c35473359f7aacab402f8a614d8dcc1aa9956d757e4782a0d"
+    },
+    {
+      "path": "/Users/ccheever/projects/snapback-worktrees/clique-domain-fallback/snapback2/packages/snapback2/src/store/fact-index.ts",
+      "bytes": 3834,
+      "sha256": "dcdc0771fde6d3d4c3c067acc09e76a923009dd830a816d89de9d92f2efb2a5e"
+    },
+    {
+      "path": "/Users/ccheever/clique-improvement/lanes/search-twin/r8-post-unicode-design/PLAN.md",
+      "bytes": 15737,
+      "sha256": "3e78b762373a70ea1b0c575b3e896104fd287b5126040b118967de1c2d1c7ecc"
+    },
+    {
+      "path": "/Users/ccheever/clique-improvement/lanes/search-twin/r8-structural-codec-experiment/historical-byte-attribution.json",
+      "bytes": 22052,
+      "sha256": "3ddb00ba296422eb1c76430449bbd27d5387689e3e4b3032fde462a9843e7d67"
+    },
+    {
+      "path": "/Users/ccheever/clique-improvement/lanes/search-twin/r8-structural-codec-experiment/final-byte-delta.json",
+      "bytes": 2087,
+      "sha256": "4f4dce2c7d1b9e5713b387d05b720d8e6e9cf9fe6def516dc6188ef3162a4718"
+    },
+    {
+      "path": "/Users/ccheever/clique-improvement/lanes/search-twin/r8-structural-codec-experiment/handoff.md",
+      "bytes": 15058,
+      "sha256": "dfa6711fa4eaa8ab9fd6db1173bdb821505aded83147e5bded167daa9e6bea82"
+    }
+  ],
+  "reportBytes": 5103,
+  "reportSha256": "aa18ef19b8d5e8faf45c0bc16a99aaf4e12b9b50df9fc8537077947e669f470e"
+}

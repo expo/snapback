@@ -1,0 +1,104 @@
+{
+  "utc": "2026-09-07T11:16:41.860579+00:00",
+  "head": "0ecd6015a7a1f0c291a224baef37f832b6b3154a",
+  "clean": true,
+  "priorTerminalReceipt": "/Users/ccheever/clique-improvement/lanes/search-twin/r8-post-unicode-design/supervisor-terminal.json",
+  "priorActualExit": 0,
+  "priorPid59707Absent": true,
+  "rootApproval": "/Users/ccheever/clique-improvement/lanes/search-twin/r8-structural-codec-experiment/progress.md",
+  "workloadSha256": "c037b2ad7f74317576c342e03a39a895d31073e2db50c6b69dcafb989527c99c",
+  "context": [
+    {
+      "path": "AGENTS.md",
+      "sha256": "29fd47ac60573e0058bfe912e30038a7c7bcecb38d306878c7ec1f1190a4041e",
+      "contextReusedFrom": "/Users/ccheever/projects/snapback-worktrees/clique-domain-fallback/AGENTS.md",
+      "scope": "root fence and supplied governing instructions"
+    },
+    {
+      "path": "skills/llp-orient/SKILL.md",
+      "sha256": "88caee954dee018ca31f1c14f604e6c248cdea599b02489e1c895d3c10a602e0",
+      "contextReusedFrom": "/Users/ccheever/projects/snapback-worktrees/clique-domain-fallback/skills/llp-orient/SKILL.md",
+      "scope": "full skill; reused scoped context"
+    },
+    {
+      "path": "snapback2/AGENTS.md",
+      "sha256": "851f07e0594805947ce024144921f2b9ee61c69fa2882f66e2e51c82b885806e",
+      "contextReusedFrom": "/Users/ccheever/projects/snapback-worktrees/clique-domain-fallback/snapback2/AGENTS.md",
+      "scope": "full fence/command guidance"
+    },
+    {
+      "path": "rules/RULES.md",
+      "sha256": "653fbf27e821ae0f3d205934a4c803f1c02d93eef22f3594a35a89a3c3d6e726",
+      "contextReusedFrom": "/Users/ccheever/projects/snapback-worktrees/clique-domain-fallback/rules/RULES.md",
+      "scope": "full governing rules"
+    },
+    {
+      "path": "rules/NOT-DOING.md",
+      "sha256": "0a09ec35dede6027f7fe4a73661999881cbb25a33298820b31795a9b4d0bd9ae",
+      "contextReusedFrom": "/Users/ccheever/projects/snapback-worktrees/clique-domain-fallback/rules/NOT-DOING.md",
+      "scope": "full governing exclusions"
+    },
+    {
+      "path": "llp/1000-snapback2.explainer.md",
+      "sha256": "effc90eaf8bdf14e8ead5613cf7b76fb8558648b7db31015038709963598c343",
+      "contextReusedFrom": "/Users/ccheever/projects/snapback-worktrees/clique-domain-fallback/llp/1000-snapback2.explainer.md",
+      "scope": "14-108 orientation/decisions; earlier scoped context reused"
+    },
+    {
+      "path": "llp/1001-query-engine.spec.md",
+      "sha256": "aa0a506bd3a978e0764883b8bf59857199f7de5f2b7b0e0bd671b5b53ce803bf",
+      "contextReusedFrom": "/Users/ccheever/projects/snapback-worktrees/clique-domain-fallback/llp/1001-query-engine.spec.md",
+      "scope": "932-990 foundation;1045-1098 correspondence; earlier scoped context reused"
+    },
+    {
+      "path": "llp/1012-local-first-v1.spec.md",
+      "sha256": "186693769f121bc2cd9217ea50bc6b9aeabb4f9aeccb6a0ab120de348548ad04",
+      "contextReusedFrom": "/Users/ccheever/projects/snapback-worktrees/clique-domain-fallback/llp/1012-local-first-v1.spec.md",
+      "scope": "286-363 carrier;530-588 held search;893-953 envelope; earlier scoped sections4/5/7/8 reused"
+    },
+    {
+      "path": "llp/1013-expo-arm.spec.md",
+      "sha256": "6ea0b7cc5a13336cf86fce2269520c9b2c151d7d96bf54e78af5b191de01e57f",
+      "contextReusedFrom": "/Users/ccheever/projects/snapback-worktrees/clique-domain-fallback/llp/1013-expo-arm.spec.md",
+      "scope": "242-311 projection/SQLite; earlier scoped context reused"
+    },
+    {
+      "path": "snapback2/packages/snapback2/guide/offline.md",
+      "sha256": "dba34363cbd633822cd70fdb04f3235cf6caa2574644718794f4b2a58f4f2d6e",
+      "contextReusedFrom": "/Users/ccheever/projects/snapback-worktrees/clique-domain-fallback/snapback2/packages/snapback2/guide/offline.md",
+      "scope": "full page"
+    },
+    {
+      "path": "snapback2/packages/snapback2/guide/live-query.md",
+      "sha256": "2197cfb755344d3a387fb3f6ef4513a373ef26da9a481f22e44622f53e53f75f",
+      "contextReusedFrom": "/Users/ccheever/projects/snapback-worktrees/clique-domain-fallback/snapback2/packages/snapback2/guide/live-query.md",
+      "scope": "full page/current surface; historical ASCII superseded by session"
+    }
+  ],
+  "beforeSources": [
+    {
+      "path": "snapback2/packages/evaluator/src/value-runtime.ts",
+      "copy": "/Users/ccheever/clique-improvement/lanes/search-twin/r8-structural-codec-experiment/before-source/snapback2/packages/evaluator/src/value-runtime.ts",
+      "bytes": 27491,
+      "sha256": "ad3fc24fc0ee4b018c975db1455cfbc19bd8d5526be64be22a654b0751bf2b9e"
+    },
+    {
+      "path": "snapback2/packages/evaluator/src/certificate-identity.ts",
+      "copy": "/Users/ccheever/clique-improvement/lanes/search-twin/r8-structural-codec-experiment/before-source/snapback2/packages/evaluator/src/certificate-identity.ts",
+      "bytes": 17958,
+      "sha256": "b0bfde1824b83958c344388861c99e1ad5eba90534ec16a1a5cd31e1a37d09d0"
+    },
+    {
+      "path": "snapback2/packages/evaluator/src/row-image.ts",
+      "copy": "/Users/ccheever/clique-improvement/lanes/search-twin/r8-structural-codec-experiment/before-source/snapback2/packages/evaluator/src/row-image.ts",
+      "bytes": 6875,
+      "sha256": "4b9474bc5e4b33cc12c70475ab142c865c89cc0d23ef2967753a93cf19adb80c"
+    },
+    {
+      "path": "snapback2/packages/evaluator/src/types.ts",
+      "copy": "/Users/ccheever/clique-improvement/lanes/search-twin/r8-structural-codec-experiment/before-source/snapback2/packages/evaluator/src/types.ts",
+      "bytes": 6075,
+      "sha256": "afc6bc7ffd25fc007787b10e0fc8bdafbe4ae61cb12f7d2442f2c2df95686618"
+    }
+  ]
+}

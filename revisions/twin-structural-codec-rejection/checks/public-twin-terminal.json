@@ -1,0 +1,25 @@
+{
+  "name": "public-twin",
+  "argv": [
+    "/home/ccheever/clique-tooling/epyc-linux-tooling-20260907T010007Z-0fd567d96f/node-v22.23.2-linux-x64/bin/node",
+    "--test",
+    "--test-timeout=10000",
+    "--test-name-pattern=atomic carrier snapshots|a json column shaped|every corpus query|program custody is fetched|a ReferenceError from tagArguments|an unseen schema shape|evicting a middle row|h1 stays local|enrolled ordinary conditionals|native-certified derived page|public offline movement",
+    "snapback2/packages/snapback2/tests/twin.test.ts"
+  ],
+  "cwd": "/home/ccheever/clique-tooling/search-structural-codec-0ecd-20260907T1130Z-01a07649/candidate3-source",
+  "outerSeconds": 30,
+  "originalInternalMilliseconds": 10000,
+  "pid": 4010822,
+  "startedUtc": "2026-09-07T12:11:19.889875+00:00",
+  "load": [
+    0.63232421875,
+    0.33056640625,
+    0.3505859375
+  ],
+  "availableBytes": 261577986048,
+  "endedUtc": "2026-09-07T12:11:24.165094+00:00",
+  "elapsedSeconds": 4.275220962008461,
+  "exitCode": 0,
+  "logSha256": "0680bfd5ff45ba8781bc80d846db849e48a40253cbd057cd6ca1e00e926d363c"
+}

@@ -1,0 +1,8 @@
+{
+  "retainedOriginalToolManifest": "/Users/ccheever/clique-improvement/revisions/cli-dx-release-015-qualification/input-manifest.json",
+  "metadataLeavesCompared": 67495,
+  "mismatches": [],
+  "newNodeImage": "Original released Apartment Node22.23.2 image copied bytes/modes/symlinks independently; full rows in input-manifest.json and actual versions in capacity-before-publisher.json",
+  "hermesVerifiedReadOnlyLeaves": 68,
+  "note": "Public Cargo index/source data and generated bare Git config are allowed cache metadata; no user/global config, credential or log copy."
+}

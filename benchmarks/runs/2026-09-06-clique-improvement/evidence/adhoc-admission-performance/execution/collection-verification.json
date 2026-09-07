@@ -1,0 +1,27 @@
+{
+  "verifiedPublicFiles": [
+    "execution-01.once.json",
+    "execution-01.supervisor.stderr",
+    "execution-01.supervisor.stdout",
+    "execution-01/baseline/copy.json",
+    "execution-01/baseline/host-load.jsonl",
+    "execution-01/baseline/owner.launch.json",
+    "execution-01/baseline/owner.terminal.json",
+    "execution-01/build.launch.json",
+    "execution-01/build.stderr",
+    "execution-01/build.stdout",
+    "execution-01/build.terminal.json",
+    "execution-01/candidate-binary.json",
+    "execution-01/dependencies.stderr",
+    "execution-01/dependencies.stdout",
+    "execution-01/elf.stderr",
+    "execution-01/elf.stdout",
+    "execution-01/first-failure.json",
+    "execution-01/preflight.json",
+    "execution-01/supervisor.launch.json",
+    "execution-01/terminal.json"
+  ],
+  "privateBodiesCopied": false,
+  "candidateBinaryRetainedRemote": true,
+  "retainedArchiveSha256": "f47c840418840377f8f45c874f839184fb80600a3dd5b436df71918638b954d0"
+}

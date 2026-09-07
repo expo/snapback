@@ -1,0 +1,137 @@
+{
+  "epoch": 1788783025.722168,
+  "localOwnedPidAndGroupObservations": [
+    {
+      "pid": 8035,
+      "absent": true,
+      "groupAbsent": true
+    },
+    {
+      "pid": 8056,
+      "absent": true,
+      "groupAbsent": true
+    },
+    {
+      "pid": 8167,
+      "absent": true,
+      "groupAbsent": true
+    },
+    {
+      "pid": 8206,
+      "absent": true,
+      "groupAbsent": true
+    },
+    {
+      "pid": 12374,
+      "absent": true,
+      "groupAbsent": true
+    },
+    {
+      "pid": 12379,
+      "absent": true,
+      "groupAbsent": true
+    },
+    {
+      "pid": 12381,
+      "absent": true,
+      "groupAbsent": true
+    },
+    {
+      "pid": 14501,
+      "absent": true,
+      "groupAbsent": true
+    },
+    {
+      "pid": 14514,
+      "absent": true,
+      "groupAbsent": true
+    },
+    {
+      "pid": 14520,
+      "absent": true,
+      "groupAbsent": true
+    },
+    {
+      "pid": 14527,
+      "absent": true,
+      "groupAbsent": true
+    },
+    {
+      "pid": 14531,
+      "absent": true,
+      "groupAbsent": true
+    },
+    {
+      "pid": 14535,
+      "absent": true,
+      "groupAbsent": true
+    },
+    {
+      "pid": 14542,
+      "absent": true,
+      "groupAbsent": true
+    },
+    {
+      "pid": 14549,
+      "absent": true,
+      "groupAbsent": true
+    },
+    {
+      "pid": 14556,
+      "absent": true,
+      "groupAbsent": true
+    },
+    {
+      "pid": 14599,
+      "absent": true,
+      "groupAbsent": true
+    },
+    {
+      "pid": 14608,
+      "absent": true,
+      "groupAbsent": true
+    },
+    {
+      "pid": 14635,
+      "absent": true,
+      "groupAbsent": true
+    }
+  ],
+  "localObservedOwnerCount": 19,
+  "allObservedLocalOwnersAbsent": true,
+  "remoteObservedOwnerCount": 56,
+  "allObservedRemoteOwnersAbsent": true,
+  "remotePrivateStorageAbsent": {
+    "cache": true,
+    "logs": true,
+    "tmp": true
+  },
+  "newPublicRegistryCacheRemoval": [
+    {
+      "path": "registry-install-cache",
+      "regularFiles": 13,
+      "bytes": 26783137,
+      "removed": true,
+      "contentCopied": false
+    },
+    {
+      "path": "registry-verification-state/logs",
+      "regularFiles": 0,
+      "bytes": 0,
+      "removed": true,
+      "contentCopied": false
+    },
+    {
+      "path": "registry-verification-state/tmp",
+      "regularFiles": 552,
+      "bytes": 1341896,
+      "removed": true,
+      "contentCopied": false
+    }
+  ],
+  "sourceArtifactsAndInstalledConsumerRetained": true,
+  "foreignSignals": 0,
+  "cleanupSignals": 0,
+  "localHelperTmpEmpty": true,
+  "scopeLimit": "Only recorded owners/groups observed; no claim from a broad process scan. Native author CLI remains active until parent records actual terminal."
+}

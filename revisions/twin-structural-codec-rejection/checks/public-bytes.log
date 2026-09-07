@@ -1,0 +1,54 @@
+TAP version 13
+# (node:4010706) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+# (Use `node --trace-warnings ...` to show where the warning was created)
+# Subtest: byte puts land only under a held row's lease, reads order the LRU, and the ceiling evicts least-recently-read on all three carriers
+ok 1 - byte puts land only under a held row's lease, reads order the LRU, and the ceiling evicts least-recently-read on all three carriers
+  ---
+  duration_ms: 63.394055
+  type: 'test'
+  ...
+# Subtest: a view-once row renders once: its bytes are never cached, a restart refuses them, and the held answer omits the row
+ok 2 - a view-once row renders once: its bytes are never cached, a restart refuses them, and the held answer omits the row
+  ---
+  duration_ms: 34.513815
+  type: 'test'
+  ...
+# Subtest: schema once excludes raw byte puts before viewing and purges on successor, durably
+ok 3 - schema once excludes raw byte puts before viewing and purges on successor, durably
+  ---
+  duration_ms: 11.261484
+  type: 'test'
+  ...
+# Subtest: assetBlob fences final-lease completion across login
+ok 4 - assetBlob fences final-lease completion across login
+  ---
+  duration_ms: 9.527404
+  type: 'test'
+  ...
+# Subtest: assetBlob fences final-lease completion across abort
+ok 5 - assetBlob fences final-lease completion across abort
+  ---
+  duration_ms: 4.420778
+  type: 'test'
+  ...
+# Subtest: assetBytes fences final-lease completion across login
+ok 6 - assetBytes fences final-lease completion across login
+  ---
+  duration_ms: 5.629831
+  type: 'test'
+  ...
+# Subtest: assetBytes fences final-lease completion across abort
+ok 7 - assetBytes fences final-lease completion across abort
+  ---
+  duration_ms: 4.589311
+  type: 'test'
+  ...
+1..7
+# tests 7
+# suites 0
+# pass 7
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 563.882816

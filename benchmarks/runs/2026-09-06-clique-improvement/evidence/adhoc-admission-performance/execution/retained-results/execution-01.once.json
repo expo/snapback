@@ -1,0 +1,17 @@
+{
+  "identity": {
+    "pid": 4003258,
+    "startTicks": "114125900",
+    "exe": "/usr/bin/python3.12",
+    "bootId": "76ef40aa-0ed8-4f57-85c6-898bb42ea7e4"
+  },
+  "atEpoch": 1788782344.1531577,
+  "packetSha256": "2d03954e48e7a4a8426ff5e421920610e0e423a07c97c0595add6c71c20f4edc",
+  "command": [
+    "packet/run.py",
+    "--execute",
+    "--packet-sha256",
+    "2d03954e48e7a4a8426ff5e421920610e0e423a07c97c0595add6c71c20f4edc",
+    "--root-reviewed-fork-namespace-isolation"
+  ]
+}

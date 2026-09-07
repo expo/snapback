@@ -1,0 +1,67 @@
+{
+  "commit": "78924a1e7286907d2378221902ec22747e7d188f",
+  "version": "0.0.15",
+  "source": "/Users/ccheever/projects/snapback-worktrees/clique-cli-015-publish-78924a1e7",
+  "officeSource": "/Users/ccheever/projects/snapback-worktrees/clique-release-next",
+  "home": "/Users/ccheever",
+  "artifacts": "/Users/ccheever/projects/snapback-artifacts/clique-release/0.0.15-78924a1e7",
+  "tool": "/Users/ccheever/clique-improvement/revisions/cli-015-repaired-qualification-r2/tools/node-22.23.2",
+  "officeTool": "/Users/ccheever/.volta/tools/image/node/22.23.2",
+  "remoteRun": "/Users/ccheever/clique-improvement/revisions/cli-015-publication-preparation-r2/production-execution",
+  "remoteBundle": "/Users/ccheever/clique-improvement/revisions/cli-015-publication-preparation-r2/bundle",
+  "endpoint": "ccheever@<private-fleet-address>",
+  "hostAlias": "apartment-m1",
+  "sourceLeaves": 943,
+  "resume": {
+    "name": "snapback2-darwin-arm64",
+    "version": "0.0.15",
+    "bin": "/Users/ccheever/projects/snapback-artifacts/clique-release/0.0.15-78924a1e7/qualified-artifacts/platform/package/bin/snapback2",
+    "mediaBin": "/Users/ccheever/projects/snapback-artifacts/clique-release/0.0.15-78924a1e7/qualified-artifacts/platform/package/bin/snapback2-media",
+    "mediaBytes": 2147968,
+    "withoutEngine": false,
+    "withoutEngineBytes": 3812224,
+    "withEngineBytes": 7029808,
+    "mediaDigest": "de91f9cbe1f9fa13068e09fb45af664c19b5932de7e90e8ce8ca551e835430d6",
+    "artifacts": [
+      {
+        "name": "snapback2-darwin-arm64",
+        "version": "0.0.15",
+        "tarball": "/Users/ccheever/projects/snapback-artifacts/clique-release/0.0.15-78924a1e7/snapback2-darwin-arm64-0.0.15.tgz",
+        "integrity": "sha512-O9Zx/4wAPwraH77N2rsCuvorIey49aMRl6tckV3cRkGHuZow1lKelsM0ushU8S3kZC5yD1OnFVUHERNex9jRBw=="
+      },
+      {
+        "name": "snapback2",
+        "version": "0.0.15",
+        "tarball": "/Users/ccheever/projects/snapback-artifacts/clique-release/0.0.15-78924a1e7/snapback2-0.0.15.tgz",
+        "integrity": "sha512-+Ucp3/J4sG7BJwKdeMzPXQpj+dhc3R2Q/pBQoohXxTRV3hiPAWBojHtaQ4ums0SxlQ0wDsss5w2mmmiTj3YRFg=="
+      }
+    ]
+  },
+  "resumeSha256": "a1c54faba85a87fe84237f8d5daf1a971d358aeeca286cfebd4812a81edead64",
+  "metricSha256": "68d04f61ca488a15ff29b1d961f6ef27442c7ef911ffcd18558ad7b69844b91f",
+  "metricRows": 222,
+  "inputs": {
+    "source-manifest.json": "b577f52a96c76c70f848b53b8b9808095564680d06080a840fb51697c60f9412",
+    "node-input-manifest.json": "e799a24c1d9b11b655c7b503b11e4f2763df71b695cef09b0d9cebd855d62579",
+    "resume-readiness.json": "6adb66b4d7f08c2a58b42371c98c4f48f8b5068190d1509cc87e09b337f38d5f",
+    "artifact-inputs.json": "bda3147ea47cd3c2391f006cc1bc55507d2e36920e43b3d4a64a34e9fd14f59d",
+    "endpoint.json": "eccc14fcbe9b173a61594c42e7e2e3c2253cdb8d77b8dc2dd13194d4a9e7609b"
+  },
+  "publisherSeconds": 1800,
+  "readinessSeconds": 30,
+  "fetchMs": 15000,
+  "fetchRetries": 0,
+  "jobs": 2,
+  "hostModel": "MacBookPro18,2",
+  "hostModelProvenance": {
+    "path": "/Users/ccheever/clique-improvement/revisions/release-apartment-014-staging/apartment-preflight.stdout",
+    "sha256": "e066b43ac5203997421da4f4a4d85b57e2a6fda6d23aef7d16cb6cda7337f0c2",
+    "command": [
+      "/usr/sbin/sysctl",
+      "-n",
+      "hw.model",
+      "hw.memsize",
+      "hw.ncpu"
+    ]
+  }
+}

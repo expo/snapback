@@ -1,0 +1,19 @@
+{
+  "actualRemoteSupervisorExit": 0,
+  "allFinalAssertionsPassed": true,
+  "atEpoch": 1788783883.972383,
+  "authorUUID": "01a07995-a7ce-73a2-a76b-957b8d0bf3d9",
+  "baselineRequests": 23,
+  "buildReuseInExecution02": true,
+  "builds": 1,
+  "candidateRequests": 23,
+  "furtherExecutionAuthorized": false,
+  "originalRemoteSupervisorExit": 1,
+  "ownedExecutionIdentitiesAbsent": true,
+  "phase": "complete-execution-02-passed-original-failure-retained",
+  "portsFree": true,
+  "requestRetries": 0,
+  "rootAdmissionSha256": "f620e9e2afecd6612b58277ce152012b26d9c5fce4fc3a7b53c0ed1c0d2e7fbd",
+  "rootFinalDispositionSha256": "da4c5f8c049afd542bfe1740e60161b28e43601cc5ef6c4058a073ab73631461",
+  "writerReleased": true
+}

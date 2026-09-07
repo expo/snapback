@@ -1,0 +1,1637 @@
+{
+  "atEpoch": 1788783619.8082106,
+  "scope": "completed exact bounded historical diagnostic; no population inference",
+  "terminal": {
+    "atEpoch": 1788783528.236445,
+    "exit": 0,
+    "host": {
+      "atEpoch": 1788783528.2364461,
+      "disk": {
+        "free": 881003888640,
+        "total": 1853945503744,
+        "used": 878690869248
+      },
+      "load": [
+        1.11767578125,
+        0.5185546875,
+        0.41064453125
+      ],
+      "memory": "MemTotal:       263608880 kB\nMemFree:        116327828 kB\nMemAvailable:   255597312 kB\nBuffers:         3008396 kB\nCached:         115514912 kB\nSwapCached:         2472 kB\nActive:         23711944 kB\nInactive:       95026864 kB\nActive(anon):     228268 kB\nInactive(anon):     5832 kB\nActive(file):   23483676 kB\nInactive(file): 95021032 kB\nUnevictable:       36280 kB\nMlocked:           27280 kB\nSwapTotal:      33554428 kB\nSwapFree:       33483516 kB\nZswap:                 0 kB\nZswapped:              0 kB\nDirty:              3148 kB\nWriteback:             0 kB\nAnonPages:        252012 kB\nMapped:           259924 kB\nShmem:              9608 kB\nKReclaimable:   23155140 kB\nSlab:           25749672 kB\nSReclaimable:   23155140 kB\nSUnreclaim:      2594532 kB\nKernelStack:       23744 kB\nPageTables:         7100 kB\nSecPageTables:         0 kB\nNFS_Unstable:          0 kB\nBounce:                0 kB\nWritebackTmp:          0 kB\nCommitLimit:    165358868 kB\nCommitted_AS:    1958936 kB\nVmallocTotal:   13743895347199 kB\nVmallocUsed:      478780 kB\nVmallocChunk:          0 kB\nPercpu:           913536 kB\nHardwareCorrupted:     0 kB\nAnonHugePages:         0 kB\nShmemHugePages:        0 kB\nShmemPmdMapped:        0 kB\nFileHugePages:         0 kB\nFilePmdMapped:         0 kB\nUnaccepted:            0 kB\nHugePages_Total:       0\nHugePages_Free:        0\nHugePages_Rsvd:        0\nHugePages_Surp:        0\nHugepagesize:       2048 kB\nHugetlb:               0 kB\nDirectMap4k:      478568 kB\nDirectMap2M:    24401920 kB\nDirectMap1G:    244318208 kB\n"
+    },
+    "protectedInputError": null,
+    "writerReleased": true
+  },
+  "results": {
+    "arms": {
+      "baseline": {
+        "final": {
+          "counts": {
+            "conversations": 1002,
+            "follows": 5921,
+            "memberCounts": 1002,
+            "memberships": 2054,
+            "messageCounts": 903,
+            "messages": 10038,
+            "posts": 5048,
+            "profiles": 1008
+          },
+          "meta": {
+            "generation": "1ff1897c52f312d25de62a8002dd091661e88e076db3e0557421c3bd5f7703a9",
+            "id_high_water": "11614208",
+            "program_generation": "7315d72119c27ee4362f7b071fbc0292c6bc2323c0c8572c3599ea27feedae55",
+            "schema_hash": "1ff1897c52f312d25de62a8002dd091661e88e076db3e0557421c3bd5f7703a9"
+          },
+          "pending": {
+            "_jobs": 0,
+            "_outbox": 0,
+            "_timers": 0
+          },
+          "seq": 11341
+        },
+        "measured": 20,
+        "observation": "all persisted rows/ledger/counts/generation/allocator checked after graceful stop; no intermediate SQL snapshots",
+        "order": "baseline",
+        "retries": 0,
+        "scope": "historical source-bound putMessage diagnostic; no scale or publication qualification",
+        "timing": {
+          "median_ms": 285.8132565,
+          "n": 20,
+          "p95_definition": "nearest rank ceil(.95*n), twentieth-sample set retained without selection",
+          "p95_ms": 286.738263
+        },
+        "warmups": 3
+      },
+      "candidate": {
+        "final": {
+          "counts": {
+            "conversations": 1002,
+            "follows": 5921,
+            "memberCounts": 1002,
+            "memberships": 2054,
+            "messageCounts": 903,
+            "messages": 10038,
+            "posts": 5048,
+            "profiles": 1008
+          },
+          "meta": {
+            "generation": "1ff1897c52f312d25de62a8002dd091661e88e076db3e0557421c3bd5f7703a9",
+            "id_high_water": "11614208",
+            "program_generation": "7315d72119c27ee4362f7b071fbc0292c6bc2323c0c8572c3599ea27feedae55",
+            "schema_hash": "1ff1897c52f312d25de62a8002dd091661e88e076db3e0557421c3bd5f7703a9"
+          },
+          "pending": {
+            "_jobs": 0,
+            "_outbox": 0,
+            "_timers": 0
+          },
+          "seq": 11341
+        },
+        "measured": 20,
+        "observation": "all persisted rows/ledger/counts/generation/allocator checked after graceful stop; no intermediate SQL snapshots",
+        "order": "candidate",
+        "retries": 0,
+        "scope": "historical source-bound putMessage diagnostic; no scale or publication qualification",
+        "timing": {
+          "median_ms": 194.597961,
+          "n": 20,
+          "p95_definition": "nearest rank ceil(.95*n), twentieth-sample set retained without selection",
+          "p95_ms": 195.280439
+        },
+        "warmups": 3
+      }
+    },
+    "claim": "one bounded historical diagnostic; no full population speedup inference",
+    "confounds": [
+      "fixed baseline-first order",
+      "shared host load",
+      "OS/filesystem/compiler/store warm state",
+      "starting SQL scan warms pages; final SQL moved after stop; no between-request SQL/cache effects",
+      "intermediate counts/pending/generation/allocator states are not SQL observations",
+      "different real wall-clock timestamps",
+      "isolated allocator namespaces only; same high-water marks",
+      "retained build and failed zero-request baseline may warm caches"
+    ]
+  },
+  "arms": {
+    "baseline": {
+      "start": {
+        "observation": "SQL before owner startup; namespace-different execution copy",
+        "state": {
+          "counts": {
+            "conversations": 1002,
+            "follows": 5921,
+            "memberCounts": 1002,
+            "memberships": 2054,
+            "messageCounts": 903,
+            "messages": 10015,
+            "posts": 5048,
+            "profiles": 1008
+          },
+          "meta": {
+            "generation": "1ff1897c52f312d25de62a8002dd091661e88e076db3e0557421c3bd5f7703a9",
+            "id_high_water": "11590656",
+            "program_generation": "7315d72119c27ee4362f7b071fbc0292c6bc2323c0c8572c3599ea27feedae55",
+            "schema_hash": "1ff1897c52f312d25de62a8002dd091661e88e076db3e0557421c3bd5f7703a9"
+          },
+          "pending": {
+            "_jobs": 0,
+            "_outbox": 0,
+            "_timers": 0
+          },
+          "seq": 11318
+        }
+      },
+      "final": {
+        "final": {
+          "counts": {
+            "conversations": 1002,
+            "follows": 5921,
+            "memberCounts": 1002,
+            "memberships": 2054,
+            "messageCounts": 903,
+            "messages": 10038,
+            "posts": 5048,
+            "profiles": 1008
+          },
+          "meta": {
+            "generation": "1ff1897c52f312d25de62a8002dd091661e88e076db3e0557421c3bd5f7703a9",
+            "id_high_water": "11614208",
+            "program_generation": "7315d72119c27ee4362f7b071fbc0292c6bc2323c0c8572c3599ea27feedae55",
+            "schema_hash": "1ff1897c52f312d25de62a8002dd091661e88e076db3e0557421c3bd5f7703a9"
+          },
+          "pending": {
+            "_jobs": 0,
+            "_outbox": 0,
+            "_timers": 0
+          },
+          "seq": 11341
+        },
+        "measured": 20,
+        "observation": "all persisted rows/ledger/counts/generation/allocator checked after graceful stop; no intermediate SQL snapshots",
+        "order": "baseline",
+        "retries": 0,
+        "scope": "historical source-bound putMessage diagnostic; no scale or publication qualification",
+        "timing": {
+          "median_ms": 285.8132565,
+          "n": 20,
+          "p95_definition": "nearest rank ceil(.95*n), twentieth-sample set retained without selection",
+          "p95_ms": 286.738263
+        },
+        "warmups": 3
+      },
+      "copy": {
+        "before": {
+          "counts": {
+            "conversations": 1002,
+            "follows": 5921,
+            "memberCounts": 1002,
+            "memberships": 2054,
+            "messageCounts": 903,
+            "messages": 10015,
+            "posts": 5048,
+            "profiles": 1008
+          },
+          "meta": {
+            "generation": "1ff1897c52f312d25de62a8002dd091661e88e076db3e0557421c3bd5f7703a9",
+            "id_high_water": "11590656",
+            "program_generation": "7315d72119c27ee4362f7b071fbc0292c6bc2323c0c8572c3599ea27feedae55",
+            "schema_hash": "1ff1897c52f312d25de62a8002dd091661e88e076db3e0557421c3bd5f7703a9"
+          },
+          "pending": {
+            "_jobs": 0,
+            "_outbox": 0,
+            "_timers": 0
+          },
+          "seq": 11318
+        },
+        "isolatedSha256": "964edb5e7542db341d0d551b0c3ac12fb4e205e853f153c5764f74d0ad99ff90",
+        "namespace": "1865b0fad391a522af3cf671004cedbc",
+        "onlyLogicalEdit": "_meta.id_namespace",
+        "sourceSha256": "b19c0578be9ac74c47be14a84a2cf19efb03e69944591899135ef413e660ca53"
+      },
+      "records": [
+        {
+          "deadlineSeconds": 30,
+          "index": 1,
+          "loadAfter": [
+            0.7724609375,
+            0.42431640625,
+            0.37890625
+          ],
+          "loadBefore": [
+            0.7724609375,
+            0.42431640625,
+            0.37890625
+          ],
+          "ms": 312.525026,
+          "phase": "warmup",
+          "requestSha256": "eb5aa31f671857abc11a48e3a611f3b09222935655e1d99d10277816aff4f436",
+          "responseBytes": 330,
+          "responseSha256": "270fbe56c4dfb657c17871fd54ff20d2325ec1929f9b558457a30f53a4e6f429",
+          "status": 200,
+          "wallEndMs": 1788783514945,
+          "wallStartMs": 1788783514632,
+          "sequence": 11319,
+          "receiptState": "committed",
+          "sourceHash": "c51f1f6084adced73e2fdf79aa7a20f06ce57d2b4a9f2fbaae0aae25da4fa3fb",
+          "nativeAtMs": 1788783514848,
+          "suppliedId": "mg0001-01001"
+        },
+        {
+          "deadlineSeconds": 30,
+          "index": 2,
+          "loadAfter": [
+            0.7724609375,
+            0.42431640625,
+            0.37890625
+          ],
+          "loadBefore": [
+            0.7724609375,
+            0.42431640625,
+            0.37890625
+          ],
+          "ms": 286.352195,
+          "phase": "warmup",
+          "requestSha256": "48189413b4d077f33c2e41c0a40c4c5b4032dca70228446df0d6458a94f057e5",
+          "responseBytes": 330,
+          "responseSha256": "492dc7c9a97d927122a5b982b66aa583e455ef0da0c4de63b93afa4526fd3f66",
+          "status": 200,
+          "wallEndMs": 1788783515232,
+          "wallStartMs": 1788783514945,
+          "sequence": 11320,
+          "receiptState": "committed",
+          "sourceHash": "c51f1f6084adced73e2fdf79aa7a20f06ce57d2b4a9f2fbaae0aae25da4fa3fb",
+          "nativeAtMs": 1788783515136,
+          "suppliedId": "mg0001-01002"
+        },
+        {
+          "deadlineSeconds": 30,
+          "index": 3,
+          "loadAfter": [
+            0.7724609375,
+            0.42431640625,
+            0.37890625
+          ],
+          "loadBefore": [
+            0.7724609375,
+            0.42431640625,
+            0.37890625
+          ],
+          "ms": 286.133487,
+          "phase": "warmup",
+          "requestSha256": "09b404f63003ad3f583825a75370f6b115d8039d0938be34b3bb7ecbb4c11810",
+          "responseBytes": 330,
+          "responseSha256": "ba1eda9a15455f79f6354cd816448faf673056c4d4088b882039e75440dc50b7",
+          "status": 200,
+          "wallEndMs": 1788783515519,
+          "wallStartMs": 1788783515232,
+          "sequence": 11321,
+          "receiptState": "committed",
+          "sourceHash": "c51f1f6084adced73e2fdf79aa7a20f06ce57d2b4a9f2fbaae0aae25da4fa3fb",
+          "nativeAtMs": 1788783515423,
+          "suppliedId": "mg0001-01003"
+        },
+        {
+          "deadlineSeconds": 30,
+          "index": 4,
+          "loadAfter": [
+            0.791015625,
+            0.43408203125,
+            0.38232421875
+          ],
+          "loadBefore": [
+            0.7724609375,
+            0.42431640625,
+            0.37890625
+          ],
+          "ms": 285.42765,
+          "phase": "measured",
+          "requestSha256": "24435b340325c0c64d6ac6f9c5e6507a63c6e1c785ea432265fe4f5de38fdaf3",
+          "responseBytes": 330,
+          "responseSha256": "b2d048af158e40838da29b43bb24326c11c28edd39447a4de3822d7fff27226b",
+          "status": 200,
+          "wallEndMs": 1788783515805,
+          "wallStartMs": 1788783515520,
+          "sequence": 11322,
+          "receiptState": "committed",
+          "sourceHash": "c51f1f6084adced73e2fdf79aa7a20f06ce57d2b4a9f2fbaae0aae25da4fa3fb",
+          "nativeAtMs": 1788783515710,
+          "suppliedId": "mg0001-01004"
+        },
+        {
+          "deadlineSeconds": 30,
+          "index": 5,
+          "loadAfter": [
+            0.791015625,
+            0.43408203125,
+            0.38232421875
+          ],
+          "loadBefore": [
+            0.791015625,
+            0.43408203125,
+            0.38232421875
+          ],
+          "ms": 286.363612,
+          "phase": "measured",
+          "requestSha256": "eda404a5b9c71cbb532f422147c4d5d3c0695e3f4117f58e1f0b42fe34e8b1e7",
+          "responseBytes": 330,
+          "responseSha256": "b10173a479ad1bed49bd338a3efc72c97f47648b2b01156b517aa8f9000c0ac5",
+          "status": 200,
+          "wallEndMs": 1788783516092,
+          "wallStartMs": 1788783515806,
+          "sequence": 11323,
+          "receiptState": "committed",
+          "sourceHash": "c51f1f6084adced73e2fdf79aa7a20f06ce57d2b4a9f2fbaae0aae25da4fa3fb",
+          "nativeAtMs": 1788783515996,
+          "suppliedId": "mg0001-01005"
+        },
+        {
+          "deadlineSeconds": 30,
+          "index": 6,
+          "loadAfter": [
+            0.791015625,
+            0.43408203125,
+            0.38232421875
+          ],
+          "loadBefore": [
+            0.791015625,
+            0.43408203125,
+            0.38232421875
+          ],
+          "ms": 285.566567,
+          "phase": "measured",
+          "requestSha256": "d5d7b9c7566f46432562e15f627ff9e1309404d283d2072e3baed431694b268e",
+          "responseBytes": 330,
+          "responseSha256": "bcd7e06d5710a09340b913b51e66a183f1929539c0529bae67c28626a0229810",
+          "status": 200,
+          "wallEndMs": 1788783516379,
+          "wallStartMs": 1788783516093,
+          "sequence": 11324,
+          "receiptState": "committed",
+          "sourceHash": "c51f1f6084adced73e2fdf79aa7a20f06ce57d2b4a9f2fbaae0aae25da4fa3fb",
+          "nativeAtMs": 1788783516284,
+          "suppliedId": "mg0001-01006"
+        },
+        {
+          "deadlineSeconds": 30,
+          "index": 7,
+          "loadAfter": [
+            0.791015625,
+            0.43408203125,
+            0.38232421875
+          ],
+          "loadBefore": [
+            0.791015625,
+            0.43408203125,
+            0.38232421875
+          ],
+          "ms": 286.481729,
+          "phase": "measured",
+          "requestSha256": "7f4f0150334c2dd52026d810ddbba6649328053ee6c2ad611563e63e6050d968",
+          "responseBytes": 330,
+          "responseSha256": "c283def8df80a33b64c255bc5287b7d33e609f77789195d74f0c4e41ef7d05a8",
+          "status": 200,
+          "wallEndMs": 1788783516667,
+          "wallStartMs": 1788783516380,
+          "sequence": 11325,
+          "receiptState": "committed",
+          "sourceHash": "c51f1f6084adced73e2fdf79aa7a20f06ce57d2b4a9f2fbaae0aae25da4fa3fb",
+          "nativeAtMs": 1788783516571,
+          "suppliedId": "mg0001-01007"
+        },
+        {
+          "deadlineSeconds": 30,
+          "index": 8,
+          "loadAfter": [
+            0.791015625,
+            0.43408203125,
+            0.38232421875
+          ],
+          "loadBefore": [
+            0.791015625,
+            0.43408203125,
+            0.38232421875
+          ],
+          "ms": 285.9553,
+          "phase": "measured",
+          "requestSha256": "c90559aff11093df1c1944292481187b59451884cd945dbca836922cdf48d9d3",
+          "responseBytes": 330,
+          "responseSha256": "a49bb794c783cf47e96d42805f9bf0d242380fdfb65f8a02ba75f1b8d432222b",
+          "status": 200,
+          "wallEndMs": 1788783516954,
+          "wallStartMs": 1788783516668,
+          "sequence": 11326,
+          "receiptState": "committed",
+          "sourceHash": "c51f1f6084adced73e2fdf79aa7a20f06ce57d2b4a9f2fbaae0aae25da4fa3fb",
+          "nativeAtMs": 1788783516858,
+          "suppliedId": "mg0001-01008"
+        },
+        {
+          "deadlineSeconds": 30,
+          "index": 9,
+          "loadAfter": [
+            0.791015625,
+            0.43408203125,
+            0.38232421875
+          ],
+          "loadBefore": [
+            0.791015625,
+            0.43408203125,
+            0.38232421875
+          ],
+          "ms": 286.229351,
+          "phase": "measured",
+          "requestSha256": "831afafa988543240235e6bf89c85d64d5c5f47c3d61e5d39a39e217525d7075",
+          "responseBytes": 330,
+          "responseSha256": "2ab26e98af37042075603d93d2daea68732ce68b2a90a5b47fecfbd62c471381",
+          "status": 200,
+          "wallEndMs": 1788783517241,
+          "wallStartMs": 1788783516955,
+          "sequence": 11327,
+          "receiptState": "committed",
+          "sourceHash": "c51f1f6084adced73e2fdf79aa7a20f06ce57d2b4a9f2fbaae0aae25da4fa3fb",
+          "nativeAtMs": 1788783517145,
+          "suppliedId": "mg0001-01009"
+        },
+        {
+          "deadlineSeconds": 30,
+          "index": 10,
+          "loadAfter": [
+            0.791015625,
+            0.43408203125,
+            0.38232421875
+          ],
+          "loadBefore": [
+            0.791015625,
+            0.43408203125,
+            0.38232421875
+          ],
+          "ms": 286.113537,
+          "phase": "measured",
+          "requestSha256": "f269969fad88f12e52476ce7a74504783aaf9418e56eb306a7c4fab8a8916deb",
+          "responseBytes": 330,
+          "responseSha256": "23597b82bb9a2b583eb15b9cb0ad3e29ddcb9fa9805e90894c76a80d3a77a41e",
+          "status": 200,
+          "wallEndMs": 1788783517528,
+          "wallStartMs": 1788783517242,
+          "sequence": 11328,
+          "receiptState": "committed",
+          "sourceHash": "c51f1f6084adced73e2fdf79aa7a20f06ce57d2b4a9f2fbaae0aae25da4fa3fb",
+          "nativeAtMs": 1788783517432,
+          "suppliedId": "mg0001-01010"
+        },
+        {
+          "deadlineSeconds": 30,
+          "index": 11,
+          "loadAfter": [
+            0.791015625,
+            0.43408203125,
+            0.38232421875
+          ],
+          "loadBefore": [
+            0.791015625,
+            0.43408203125,
+            0.38232421875
+          ],
+          "ms": 286.738263,
+          "phase": "measured",
+          "requestSha256": "228fffe5276f957db8b1578f3ebb75ee93f986e6ba160586162b74397bd2de34",
+          "responseBytes": 330,
+          "responseSha256": "af1ae31f0ae76caf6b12011af8dbf8ee36de71090dd1bd7194b760e70d704673",
+          "status": 200,
+          "wallEndMs": 1788783517816,
+          "wallStartMs": 1788783517530,
+          "sequence": 11329,
+          "receiptState": "committed",
+          "sourceHash": "c51f1f6084adced73e2fdf79aa7a20f06ce57d2b4a9f2fbaae0aae25da4fa3fb",
+          "nativeAtMs": 1788783517720,
+          "suppliedId": "mg0001-01011"
+        },
+        {
+          "deadlineSeconds": 30,
+          "index": 12,
+          "loadAfter": [
+            0.791015625,
+            0.43408203125,
+            0.38232421875
+          ],
+          "loadBefore": [
+            0.791015625,
+            0.43408203125,
+            0.38232421875
+          ],
+          "ms": 286.457823,
+          "phase": "measured",
+          "requestSha256": "9210eea96219248a922c375f652964fdae4493865fd0c38762cb1abe5eb5f8ae",
+          "responseBytes": 330,
+          "responseSha256": "df953f2d85355ad9bcff55f284fd5b1b3fe0a5be45267f44bd486cbd827450ec",
+          "status": 200,
+          "wallEndMs": 1788783518104,
+          "wallStartMs": 1788783517817,
+          "sequence": 11330,
+          "receiptState": "committed",
+          "sourceHash": "c51f1f6084adced73e2fdf79aa7a20f06ce57d2b4a9f2fbaae0aae25da4fa3fb",
+          "nativeAtMs": 1788783518008,
+          "suppliedId": "mg0001-01012"
+        },
+        {
+          "deadlineSeconds": 30,
+          "index": 13,
+          "loadAfter": [
+            0.791015625,
+            0.43408203125,
+            0.38232421875
+          ],
+          "loadBefore": [
+            0.791015625,
+            0.43408203125,
+            0.38232421875
+          ],
+          "ms": 287.452093,
+          "phase": "measured",
+          "requestSha256": "3eae9f334a2dab3add56b4f25ca6fb64d6822970d4f07a670c3f37ddd48a5efe",
+          "responseBytes": 330,
+          "responseSha256": "0f5c323d4aa5fed065f2e22c3ebde152c29d7273928649893298b99105147dd0",
+          "status": 200,
+          "wallEndMs": 1788783518393,
+          "wallStartMs": 1788783518105,
+          "sequence": 11331,
+          "receiptState": "committed",
+          "sourceHash": "c51f1f6084adced73e2fdf79aa7a20f06ce57d2b4a9f2fbaae0aae25da4fa3fb",
+          "nativeAtMs": 1788783518295,
+          "suppliedId": "mg0001-01013"
+        },
+        {
+          "deadlineSeconds": 30,
+          "index": 14,
+          "loadAfter": [
+            0.791015625,
+            0.43408203125,
+            0.38232421875
+          ],
+          "loadBefore": [
+            0.791015625,
+            0.43408203125,
+            0.38232421875
+          ],
+          "ms": 286.290932,
+          "phase": "measured",
+          "requestSha256": "e8c20662a440ecd05c1804b20b20141905eeef0ebdae543809aab7255b397f03",
+          "responseBytes": 330,
+          "responseSha256": "d5aa9c81fb9385376da95a6f8b7ff11c0bc4a59608c499e89d5968cff08e0643",
+          "status": 200,
+          "wallEndMs": 1788783518680,
+          "wallStartMs": 1788783518394,
+          "sequence": 11332,
+          "receiptState": "committed",
+          "sourceHash": "c51f1f6084adced73e2fdf79aa7a20f06ce57d2b4a9f2fbaae0aae25da4fa3fb",
+          "nativeAtMs": 1788783518585,
+          "suppliedId": "mg0001-01014"
+        },
+        {
+          "deadlineSeconds": 30,
+          "index": 15,
+          "loadAfter": [
+            0.791015625,
+            0.43408203125,
+            0.38232421875
+          ],
+          "loadBefore": [
+            0.791015625,
+            0.43408203125,
+            0.38232421875
+          ],
+          "ms": 285.707328,
+          "phase": "measured",
+          "requestSha256": "e6ea6436b60644648c225a0b96a04ad671040ed30fda7583e61ccc6edfe0161e",
+          "responseBytes": 330,
+          "responseSha256": "84b87e0d8350d19dec2ff8b457a043e3d7620d93da05be1cea04d734b2056fc1",
+          "status": 200,
+          "wallEndMs": 1788783518966,
+          "wallStartMs": 1788783518681,
+          "sequence": 11333,
+          "receiptState": "committed",
+          "sourceHash": "c51f1f6084adced73e2fdf79aa7a20f06ce57d2b4a9f2fbaae0aae25da4fa3fb",
+          "nativeAtMs": 1788783518871,
+          "suppliedId": "mg0001-01015"
+        },
+        {
+          "deadlineSeconds": 30,
+          "index": 16,
+          "loadAfter": [
+            0.791015625,
+            0.43408203125,
+            0.38232421875
+          ],
+          "loadBefore": [
+            0.791015625,
+            0.43408203125,
+            0.38232421875
+          ],
+          "ms": 285.274059,
+          "phase": "measured",
+          "requestSha256": "b07aa2e03a8e094a32d220a5984feaa217c7a5d37ef5bc1892251133480562a2",
+          "responseBytes": 330,
+          "responseSha256": "f93bec04abcb19c0641c81175b46dd258275c3ca436911cffdfe8fb7edd80935",
+          "status": 200,
+          "wallEndMs": 1788783519253,
+          "wallStartMs": 1788783518968,
+          "sequence": 11334,
+          "receiptState": "committed",
+          "sourceHash": "c51f1f6084adced73e2fdf79aa7a20f06ce57d2b4a9f2fbaae0aae25da4fa3fb",
+          "nativeAtMs": 1788783519157,
+          "suppliedId": "mg0001-01016"
+        },
+        {
+          "deadlineSeconds": 30,
+          "index": 17,
+          "loadAfter": [
+            0.791015625,
+            0.43408203125,
+            0.38232421875
+          ],
+          "loadBefore": [
+            0.791015625,
+            0.43408203125,
+            0.38232421875
+          ],
+          "ms": 285.919185,
+          "phase": "measured",
+          "requestSha256": "5e7e1b12d05cb8cf7deecdd45c73ac00903f3f355f0c4b83e6347c343d1f03ca",
+          "responseBytes": 330,
+          "responseSha256": "cf637bd691cefe33f85ae160937309fe3c02f4ea0bcecdc2c3f36db78d173cfc",
+          "status": 200,
+          "wallEndMs": 1788783519540,
+          "wallStartMs": 1788783519254,
+          "sequence": 11335,
+          "receiptState": "committed",
+          "sourceHash": "c51f1f6084adced73e2fdf79aa7a20f06ce57d2b4a9f2fbaae0aae25da4fa3fb",
+          "nativeAtMs": 1788783519444,
+          "suppliedId": "mg0001-01017"
+        },
+        {
+          "deadlineSeconds": 30,
+          "index": 18,
+          "loadAfter": [
+            0.791015625,
+            0.43408203125,
+            0.38232421875
+          ],
+          "loadBefore": [
+            0.791015625,
+            0.43408203125,
+            0.38232421875
+          ],
+          "ms": 284.993658,
+          "phase": "measured",
+          "requestSha256": "3c0541f967f28168f2bc921b76483f39b15fa575ca822f979dc380c646410657",
+          "responseBytes": 330,
+          "responseSha256": "ef3118985ee0398061de2514d8b15012f2bbd487f4a14799306aab29017e810d",
+          "status": 200,
+          "wallEndMs": 1788783519826,
+          "wallStartMs": 1788783519541,
+          "sequence": 11336,
+          "receiptState": "committed",
+          "sourceHash": "c51f1f6084adced73e2fdf79aa7a20f06ce57d2b4a9f2fbaae0aae25da4fa3fb",
+          "nativeAtMs": 1788783519731,
+          "suppliedId": "mg0001-01018"
+        },
+        {
+          "deadlineSeconds": 30,
+          "index": 19,
+          "loadAfter": [
+            0.791015625,
+            0.43408203125,
+            0.38232421875
+          ],
+          "loadBefore": [
+            0.791015625,
+            0.43408203125,
+            0.38232421875
+          ],
+          "ms": 285.060387,
+          "phase": "measured",
+          "requestSha256": "2c9eb3627a1181ed6f8461972ccae0cdb723776c5877c78474174f812ee418ac",
+          "responseBytes": 330,
+          "responseSha256": "9de208b7c9b4b167f83f75a05f3e98a6f6045a1858ebf3067f5e90b6ca40c420",
+          "status": 200,
+          "wallEndMs": 1788783520112,
+          "wallStartMs": 1788783519827,
+          "sequence": 11337,
+          "receiptState": "committed",
+          "sourceHash": "c51f1f6084adced73e2fdf79aa7a20f06ce57d2b4a9f2fbaae0aae25da4fa3fb",
+          "nativeAtMs": 1788783520016,
+          "suppliedId": "mg0001-01019"
+        },
+        {
+          "deadlineSeconds": 30,
+          "index": 20,
+          "loadAfter": [
+            0.791015625,
+            0.43408203125,
+            0.38232421875
+          ],
+          "loadBefore": [
+            0.791015625,
+            0.43408203125,
+            0.38232421875
+          ],
+          "ms": 285.025084,
+          "phase": "measured",
+          "requestSha256": "bab8da0d7faa9dc44e0eaa9fb0bbb280600e27cfa23807ce6e44052c78a324ef",
+          "responseBytes": 330,
+          "responseSha256": "8ed4723dc86541aa2b4e8f8ba89d93c3625cf6e5c835790c44aa24096822ebb3",
+          "status": 200,
+          "wallEndMs": 1788783520399,
+          "wallStartMs": 1788783520114,
+          "sequence": 11338,
+          "receiptState": "committed",
+          "sourceHash": "c51f1f6084adced73e2fdf79aa7a20f06ce57d2b4a9f2fbaae0aae25da4fa3fb",
+          "nativeAtMs": 1788783520304,
+          "suppliedId": "mg0001-01020"
+        },
+        {
+          "deadlineSeconds": 30,
+          "index": 21,
+          "loadAfter": [
+            1.12841796875,
+            0.51025390625,
+            0.4072265625
+          ],
+          "loadBefore": [
+            0.791015625,
+            0.43408203125,
+            0.38232421875
+          ],
+          "ms": 285.697964,
+          "phase": "measured",
+          "requestSha256": "2697ece5d3957a060179574f6b3e7d920d10f604c63edac347563b07f53304e2",
+          "responseBytes": 330,
+          "responseSha256": "e7030292a5f4345dcb1aad2124c6c90c18d1eedb597fb8ac053b6e3395c0b689",
+          "status": 200,
+          "wallEndMs": 1788783520685,
+          "wallStartMs": 1788783520399,
+          "sequence": 11339,
+          "receiptState": "committed",
+          "sourceHash": "c51f1f6084adced73e2fdf79aa7a20f06ce57d2b4a9f2fbaae0aae25da4fa3fb",
+          "nativeAtMs": 1788783520589,
+          "suppliedId": "mg0001-01021"
+        },
+        {
+          "deadlineSeconds": 30,
+          "index": 22,
+          "loadAfter": [
+            1.12841796875,
+            0.51025390625,
+            0.4072265625
+          ],
+          "loadBefore": [
+            1.12841796875,
+            0.51025390625,
+            0.4072265625
+          ],
+          "ms": 285.510973,
+          "phase": "measured",
+          "requestSha256": "1df1e246a2ead1e2e8d0d3d2f6d3287b6179d7db593395f3de30b91024a76ab1",
+          "responseBytes": 330,
+          "responseSha256": "0d8b6eda4a4f048c41c2d4470ac58335c651fa2dc4a93bd4cf5f17bf730da8b7",
+          "status": 200,
+          "wallEndMs": 1788783520972,
+          "wallStartMs": 1788783520686,
+          "sequence": 11340,
+          "receiptState": "committed",
+          "sourceHash": "c51f1f6084adced73e2fdf79aa7a20f06ce57d2b4a9f2fbaae0aae25da4fa3fb",
+          "nativeAtMs": 1788783520876,
+          "suppliedId": "mg0001-01022"
+        },
+        {
+          "deadlineSeconds": 30,
+          "index": 23,
+          "loadAfter": [
+            1.12841796875,
+            0.51025390625,
+            0.4072265625
+          ],
+          "loadBefore": [
+            1.12841796875,
+            0.51025390625,
+            0.4072265625
+          ],
+          "ms": 285.37576,
+          "phase": "measured",
+          "requestSha256": "aaeebf5888e0d69ae8a62cdff246b8f42d0df5932d2ad7fbc67f8db878eba0b1",
+          "responseBytes": 330,
+          "responseSha256": "060f05a22317b47ae371464650b2492da8fbc72b0c68face0a5ab74d1d95efbd",
+          "status": 200,
+          "wallEndMs": 1788783521258,
+          "wallStartMs": 1788783520973,
+          "sequence": 11341,
+          "receiptState": "committed",
+          "sourceHash": "c51f1f6084adced73e2fdf79aa7a20f06ce57d2b4a9f2fbaae0aae25da4fa3fb",
+          "nativeAtMs": 1788783521163,
+          "suppliedId": "mg0001-01023"
+        }
+      ],
+      "load": {
+        "samples": 7,
+        "minimum": [
+          0.7724609375,
+          0.42431640625,
+          0.37890625
+        ],
+        "maximum": [
+          1.12841796875,
+          0.51025390625,
+          0.4072265625
+        ]
+      }
+    },
+    "candidate": {
+      "start": {
+        "observation": "SQL before owner startup; namespace-different execution copy",
+        "state": {
+          "counts": {
+            "conversations": 1002,
+            "follows": 5921,
+            "memberCounts": 1002,
+            "memberships": 2054,
+            "messageCounts": 903,
+            "messages": 10015,
+            "posts": 5048,
+            "profiles": 1008
+          },
+          "meta": {
+            "generation": "1ff1897c52f312d25de62a8002dd091661e88e076db3e0557421c3bd5f7703a9",
+            "id_high_water": "11590656",
+            "program_generation": "7315d72119c27ee4362f7b071fbc0292c6bc2323c0c8572c3599ea27feedae55",
+            "schema_hash": "1ff1897c52f312d25de62a8002dd091661e88e076db3e0557421c3bd5f7703a9"
+          },
+          "pending": {
+            "_jobs": 0,
+            "_outbox": 0,
+            "_timers": 0
+          },
+          "seq": 11318
+        }
+      },
+      "final": {
+        "final": {
+          "counts": {
+            "conversations": 1002,
+            "follows": 5921,
+            "memberCounts": 1002,
+            "memberships": 2054,
+            "messageCounts": 903,
+            "messages": 10038,
+            "posts": 5048,
+            "profiles": 1008
+          },
+          "meta": {
+            "generation": "1ff1897c52f312d25de62a8002dd091661e88e076db3e0557421c3bd5f7703a9",
+            "id_high_water": "11614208",
+            "program_generation": "7315d72119c27ee4362f7b071fbc0292c6bc2323c0c8572c3599ea27feedae55",
+            "schema_hash": "1ff1897c52f312d25de62a8002dd091661e88e076db3e0557421c3bd5f7703a9"
+          },
+          "pending": {
+            "_jobs": 0,
+            "_outbox": 0,
+            "_timers": 0
+          },
+          "seq": 11341
+        },
+        "measured": 20,
+        "observation": "all persisted rows/ledger/counts/generation/allocator checked after graceful stop; no intermediate SQL snapshots",
+        "order": "candidate",
+        "retries": 0,
+        "scope": "historical source-bound putMessage diagnostic; no scale or publication qualification",
+        "timing": {
+          "median_ms": 194.597961,
+          "n": 20,
+          "p95_definition": "nearest rank ceil(.95*n), twentieth-sample set retained without selection",
+          "p95_ms": 195.280439
+        },
+        "warmups": 3
+      },
+      "copy": {
+        "before": {
+          "counts": {
+            "conversations": 1002,
+            "follows": 5921,
+            "memberCounts": 1002,
+            "memberships": 2054,
+            "messageCounts": 903,
+            "messages": 10015,
+            "posts": 5048,
+            "profiles": 1008
+          },
+          "meta": {
+            "generation": "1ff1897c52f312d25de62a8002dd091661e88e076db3e0557421c3bd5f7703a9",
+            "id_high_water": "11590656",
+            "program_generation": "7315d72119c27ee4362f7b071fbc0292c6bc2323c0c8572c3599ea27feedae55",
+            "schema_hash": "1ff1897c52f312d25de62a8002dd091661e88e076db3e0557421c3bd5f7703a9"
+          },
+          "pending": {
+            "_jobs": 0,
+            "_outbox": 0,
+            "_timers": 0
+          },
+          "seq": 11318
+        },
+        "isolatedSha256": "240edc13609780b2ae652ad2093a3d2f17551a08a65db820a927e581d7db089f",
+        "namespace": "aca07d3befbee13c4d478236ebffcd12",
+        "onlyLogicalEdit": "_meta.id_namespace",
+        "sourceSha256": "b19c0578be9ac74c47be14a84a2cf19efb03e69944591899135ef413e660ca53"
+      },
+      "records": [
+        {
+          "deadlineSeconds": 30,
+          "index": 1,
+          "loadAfter": [
+            1.12841796875,
+            0.51025390625,
+            0.4072265625
+          ],
+          "loadBefore": [
+            1.12841796875,
+            0.51025390625,
+            0.4072265625
+          ],
+          "ms": 219.875386,
+          "phase": "warmup",
+          "requestSha256": "eb5aa31f671857abc11a48e3a611f3b09222935655e1d99d10277816aff4f436",
+          "responseBytes": 330,
+          "responseSha256": "895f744b82c8705f55a4a28c4870242dee1f9ffd29a04bcb14dcd75438f0d3a3",
+          "status": 200,
+          "wallEndMs": 1788783522319,
+          "wallStartMs": 1788783522099,
+          "sequence": 11319,
+          "receiptState": "committed",
+          "sourceHash": "c51f1f6084adced73e2fdf79aa7a20f06ce57d2b4a9f2fbaae0aae25da4fa3fb",
+          "nativeAtMs": 1788783522312,
+          "suppliedId": "mg0001-01001"
+        },
+        {
+          "deadlineSeconds": 30,
+          "index": 2,
+          "loadAfter": [
+            1.12841796875,
+            0.51025390625,
+            0.4072265625
+          ],
+          "loadBefore": [
+            1.12841796875,
+            0.51025390625,
+            0.4072265625
+          ],
+          "ms": 195.281481,
+          "phase": "warmup",
+          "requestSha256": "48189413b4d077f33c2e41c0a40c4c5b4032dca70228446df0d6458a94f057e5",
+          "responseBytes": 330,
+          "responseSha256": "703d3ad6d5f3386952fb075be6c81fdcb8ec274709e01e3c9e05084683b9fb83",
+          "status": 200,
+          "wallEndMs": 1788783522515,
+          "wallStartMs": 1788783522319,
+          "sequence": 11320,
+          "receiptState": "committed",
+          "sourceHash": "c51f1f6084adced73e2fdf79aa7a20f06ce57d2b4a9f2fbaae0aae25da4fa3fb",
+          "nativeAtMs": 1788783522510,
+          "suppliedId": "mg0001-01002"
+        },
+        {
+          "deadlineSeconds": 30,
+          "index": 3,
+          "loadAfter": [
+            1.12841796875,
+            0.51025390625,
+            0.4072265625
+          ],
+          "loadBefore": [
+            1.12841796875,
+            0.51025390625,
+            0.4072265625
+          ],
+          "ms": 194.689974,
+          "phase": "warmup",
+          "requestSha256": "09b404f63003ad3f583825a75370f6b115d8039d0938be34b3bb7ecbb4c11810",
+          "responseBytes": 330,
+          "responseSha256": "97920a5662236e4507e1254eaab691338b924de49e72b977c1c9771a45e54732",
+          "status": 200,
+          "wallEndMs": 1788783522710,
+          "wallStartMs": 1788783522515,
+          "sequence": 11321,
+          "receiptState": "committed",
+          "sourceHash": "c51f1f6084adced73e2fdf79aa7a20f06ce57d2b4a9f2fbaae0aae25da4fa3fb",
+          "nativeAtMs": 1788783522705,
+          "suppliedId": "mg0001-01003"
+        },
+        {
+          "deadlineSeconds": 30,
+          "index": 4,
+          "loadAfter": [
+            1.12841796875,
+            0.51025390625,
+            0.4072265625
+          ],
+          "loadBefore": [
+            1.12841796875,
+            0.51025390625,
+            0.4072265625
+          ],
+          "ms": 194.562152,
+          "phase": "measured",
+          "requestSha256": "24435b340325c0c64d6ac6f9c5e6507a63c6e1c785ea432265fe4f5de38fdaf3",
+          "responseBytes": 330,
+          "responseSha256": "dd27dcba57248fa855a37af9466bf912d5f6d7059dbc9e4ceb2ae483987b376f",
+          "status": 200,
+          "wallEndMs": 1788783522905,
+          "wallStartMs": 1788783522711,
+          "sequence": 11322,
+          "receiptState": "committed",
+          "sourceHash": "c51f1f6084adced73e2fdf79aa7a20f06ce57d2b4a9f2fbaae0aae25da4fa3fb",
+          "nativeAtMs": 1788783522901,
+          "suppliedId": "mg0001-01004"
+        },
+        {
+          "deadlineSeconds": 30,
+          "index": 5,
+          "loadAfter": [
+            1.12841796875,
+            0.51025390625,
+            0.4072265625
+          ],
+          "loadBefore": [
+            1.12841796875,
+            0.51025390625,
+            0.4072265625
+          ],
+          "ms": 195.248751,
+          "phase": "measured",
+          "requestSha256": "eda404a5b9c71cbb532f422147c4d5d3c0695e3f4117f58e1f0b42fe34e8b1e7",
+          "responseBytes": 330,
+          "responseSha256": "d386107d74abe49fbc761253ffeb9d5dd13ec5c86ba0432b6ce80ec548fc930b",
+          "status": 200,
+          "wallEndMs": 1788783523102,
+          "wallStartMs": 1788783522906,
+          "sequence": 11323,
+          "receiptState": "committed",
+          "sourceHash": "c51f1f6084adced73e2fdf79aa7a20f06ce57d2b4a9f2fbaae0aae25da4fa3fb",
+          "nativeAtMs": 1788783523097,
+          "suppliedId": "mg0001-01005"
+        },
+        {
+          "deadlineSeconds": 30,
+          "index": 6,
+          "loadAfter": [
+            1.12841796875,
+            0.51025390625,
+            0.4072265625
+          ],
+          "loadBefore": [
+            1.12841796875,
+            0.51025390625,
+            0.4072265625
+          ],
+          "ms": 194.234712,
+          "phase": "measured",
+          "requestSha256": "d5d7b9c7566f46432562e15f627ff9e1309404d283d2072e3baed431694b268e",
+          "responseBytes": 330,
+          "responseSha256": "b304d1ab39eacf1960f61355ab07b815b55cbc3850ca467a49355f4d402418e4",
+          "status": 200,
+          "wallEndMs": 1788783523297,
+          "wallStartMs": 1788783523103,
+          "sequence": 11324,
+          "receiptState": "committed",
+          "sourceHash": "c51f1f6084adced73e2fdf79aa7a20f06ce57d2b4a9f2fbaae0aae25da4fa3fb",
+          "nativeAtMs": 1788783523292,
+          "suppliedId": "mg0001-01006"
+        },
+        {
+          "deadlineSeconds": 30,
+          "index": 7,
+          "loadAfter": [
+            1.12841796875,
+            0.51025390625,
+            0.4072265625
+          ],
+          "loadBefore": [
+            1.12841796875,
+            0.51025390625,
+            0.4072265625
+          ],
+          "ms": 194.772458,
+          "phase": "measured",
+          "requestSha256": "7f4f0150334c2dd52026d810ddbba6649328053ee6c2ad611563e63e6050d968",
+          "responseBytes": 330,
+          "responseSha256": "e5a53c3b7144b60f9f684add54edcec7b8e70e9bf00fd601bb090518e17291b1",
+          "status": 200,
+          "wallEndMs": 1788783523493,
+          "wallStartMs": 1788783523298,
+          "sequence": 11325,
+          "receiptState": "committed",
+          "sourceHash": "c51f1f6084adced73e2fdf79aa7a20f06ce57d2b4a9f2fbaae0aae25da4fa3fb",
+          "nativeAtMs": 1788783523488,
+          "suppliedId": "mg0001-01007"
+        },
+        {
+          "deadlineSeconds": 30,
+          "index": 8,
+          "loadAfter": [
+            1.12841796875,
+            0.51025390625,
+            0.4072265625
+          ],
+          "loadBefore": [
+            1.12841796875,
+            0.51025390625,
+            0.4072265625
+          ],
+          "ms": 194.844896,
+          "phase": "measured",
+          "requestSha256": "c90559aff11093df1c1944292481187b59451884cd945dbca836922cdf48d9d3",
+          "responseBytes": 330,
+          "responseSha256": "38643f5a1baf526e5e1de89c53e1b0867abfc52d2b4f212922f0c5d50bee18f5",
+          "status": 200,
+          "wallEndMs": 1788783523689,
+          "wallStartMs": 1788783523494,
+          "sequence": 11326,
+          "receiptState": "committed",
+          "sourceHash": "c51f1f6084adced73e2fdf79aa7a20f06ce57d2b4a9f2fbaae0aae25da4fa3fb",
+          "nativeAtMs": 1788783523684,
+          "suppliedId": "mg0001-01008"
+        },
+        {
+          "deadlineSeconds": 30,
+          "index": 9,
+          "loadAfter": [
+            1.12841796875,
+            0.51025390625,
+            0.4072265625
+          ],
+          "loadBefore": [
+            1.12841796875,
+            0.51025390625,
+            0.4072265625
+          ],
+          "ms": 195.280439,
+          "phase": "measured",
+          "requestSha256": "831afafa988543240235e6bf89c85d64d5c5f47c3d61e5d39a39e217525d7075",
+          "responseBytes": 330,
+          "responseSha256": "8d2f5690feb1bde35807f6dd219c37e0de6f9fa069251fa0b2cc02a12be24825",
+          "status": 200,
+          "wallEndMs": 1788783523885,
+          "wallStartMs": 1788783523690,
+          "sequence": 11327,
+          "receiptState": "committed",
+          "sourceHash": "c51f1f6084adced73e2fdf79aa7a20f06ce57d2b4a9f2fbaae0aae25da4fa3fb",
+          "nativeAtMs": 1788783523881,
+          "suppliedId": "mg0001-01009"
+        },
+        {
+          "deadlineSeconds": 30,
+          "index": 10,
+          "loadAfter": [
+            1.12841796875,
+            0.51025390625,
+            0.4072265625
+          ],
+          "loadBefore": [
+            1.12841796875,
+            0.51025390625,
+            0.4072265625
+          ],
+          "ms": 195.14744,
+          "phase": "measured",
+          "requestSha256": "f269969fad88f12e52476ce7a74504783aaf9418e56eb306a7c4fab8a8916deb",
+          "responseBytes": 330,
+          "responseSha256": "5cfc0b89456a42bd19094db96d941d3e8089e5fed144e82d5570a3553dbb11ae",
+          "status": 200,
+          "wallEndMs": 1788783524081,
+          "wallStartMs": 1788783523886,
+          "sequence": 11328,
+          "receiptState": "committed",
+          "sourceHash": "c51f1f6084adced73e2fdf79aa7a20f06ce57d2b4a9f2fbaae0aae25da4fa3fb",
+          "nativeAtMs": 1788783524076,
+          "suppliedId": "mg0001-01010"
+        },
+        {
+          "deadlineSeconds": 30,
+          "index": 11,
+          "loadAfter": [
+            1.12841796875,
+            0.51025390625,
+            0.4072265625
+          ],
+          "loadBefore": [
+            1.12841796875,
+            0.51025390625,
+            0.4072265625
+          ],
+          "ms": 194.669604,
+          "phase": "measured",
+          "requestSha256": "228fffe5276f957db8b1578f3ebb75ee93f986e6ba160586162b74397bd2de34",
+          "responseBytes": 330,
+          "responseSha256": "5ef1e22f00c54670aff4821a5b9f59d3cc5c562a21e15ed9f59ced27943df282",
+          "status": 200,
+          "wallEndMs": 1788783524277,
+          "wallStartMs": 1788783524082,
+          "sequence": 11329,
+          "receiptState": "committed",
+          "sourceHash": "c51f1f6084adced73e2fdf79aa7a20f06ce57d2b4a9f2fbaae0aae25da4fa3fb",
+          "nativeAtMs": 1788783524272,
+          "suppliedId": "mg0001-01011"
+        },
+        {
+          "deadlineSeconds": 30,
+          "index": 12,
+          "loadAfter": [
+            1.12841796875,
+            0.51025390625,
+            0.4072265625
+          ],
+          "loadBefore": [
+            1.12841796875,
+            0.51025390625,
+            0.4072265625
+          ],
+          "ms": 194.693229,
+          "phase": "measured",
+          "requestSha256": "9210eea96219248a922c375f652964fdae4493865fd0c38762cb1abe5eb5f8ae",
+          "responseBytes": 330,
+          "responseSha256": "2129af78ac495822f8771171b4b0f9faedfbf3badad9577ebc7cd9083679c6a8",
+          "status": 200,
+          "wallEndMs": 1788783524472,
+          "wallStartMs": 1788783524278,
+          "sequence": 11330,
+          "receiptState": "committed",
+          "sourceHash": "c51f1f6084adced73e2fdf79aa7a20f06ce57d2b4a9f2fbaae0aae25da4fa3fb",
+          "nativeAtMs": 1788783524467,
+          "suppliedId": "mg0001-01012"
+        },
+        {
+          "deadlineSeconds": 30,
+          "index": 13,
+          "loadAfter": [
+            1.12841796875,
+            0.51025390625,
+            0.4072265625
+          ],
+          "loadBefore": [
+            1.12841796875,
+            0.51025390625,
+            0.4072265625
+          ],
+          "ms": 195.799658,
+          "phase": "measured",
+          "requestSha256": "3eae9f334a2dab3add56b4f25ca6fb64d6822970d4f07a670c3f37ddd48a5efe",
+          "responseBytes": 330,
+          "responseSha256": "c988754bfea3db71c5189087479c7d6a295198d620625491a3fcdeb5e8f6cf62",
+          "status": 200,
+          "wallEndMs": 1788783524669,
+          "wallStartMs": 1788783524474,
+          "sequence": 11331,
+          "receiptState": "committed",
+          "sourceHash": "c51f1f6084adced73e2fdf79aa7a20f06ce57d2b4a9f2fbaae0aae25da4fa3fb",
+          "nativeAtMs": 1788783524663,
+          "suppliedId": "mg0001-01013"
+        },
+        {
+          "deadlineSeconds": 30,
+          "index": 14,
+          "loadAfter": [
+            1.12841796875,
+            0.51025390625,
+            0.4072265625
+          ],
+          "loadBefore": [
+            1.12841796875,
+            0.51025390625,
+            0.4072265625
+          ],
+          "ms": 194.659238,
+          "phase": "measured",
+          "requestSha256": "e8c20662a440ecd05c1804b20b20141905eeef0ebdae543809aab7255b397f03",
+          "responseBytes": 330,
+          "responseSha256": "6e575811aa3d712e9909033bb827bf9a7e5393dbe2d9b1545eb14a599671ecd9",
+          "status": 200,
+          "wallEndMs": 1788783524865,
+          "wallStartMs": 1788783524670,
+          "sequence": 11332,
+          "receiptState": "committed",
+          "sourceHash": "c51f1f6084adced73e2fdf79aa7a20f06ce57d2b4a9f2fbaae0aae25da4fa3fb",
+          "nativeAtMs": 1788783524860,
+          "suppliedId": "mg0001-01014"
+        },
+        {
+          "deadlineSeconds": 30,
+          "index": 15,
+          "loadAfter": [
+            1.12841796875,
+            0.51025390625,
+            0.4072265625
+          ],
+          "loadBefore": [
+            1.12841796875,
+            0.51025390625,
+            0.4072265625
+          ],
+          "ms": 194.63377,
+          "phase": "measured",
+          "requestSha256": "e6ea6436b60644648c225a0b96a04ad671040ed30fda7583e61ccc6edfe0161e",
+          "responseBytes": 330,
+          "responseSha256": "1494457796f09cad4420c584c9d7180c4f873c3486b8ded77c2b56a3aa988463",
+          "status": 200,
+          "wallEndMs": 1788783525061,
+          "wallStartMs": 1788783524866,
+          "sequence": 11333,
+          "receiptState": "committed",
+          "sourceHash": "c51f1f6084adced73e2fdf79aa7a20f06ce57d2b4a9f2fbaae0aae25da4fa3fb",
+          "nativeAtMs": 1788783525056,
+          "suppliedId": "mg0001-01015"
+        },
+        {
+          "deadlineSeconds": 30,
+          "index": 16,
+          "loadAfter": [
+            1.12841796875,
+            0.51025390625,
+            0.4072265625
+          ],
+          "loadBefore": [
+            1.12841796875,
+            0.51025390625,
+            0.4072265625
+          ],
+          "ms": 193.769053,
+          "phase": "measured",
+          "requestSha256": "b07aa2e03a8e094a32d220a5984feaa217c7a5d37ef5bc1892251133480562a2",
+          "responseBytes": 330,
+          "responseSha256": "c5689dd2d76c5073de4b95aa4052c67395cebdda3757a1fe31da67885ea3f1f4",
+          "status": 200,
+          "wallEndMs": 1788783525256,
+          "wallStartMs": 1788783525062,
+          "sequence": 11334,
+          "receiptState": "committed",
+          "sourceHash": "c51f1f6084adced73e2fdf79aa7a20f06ce57d2b4a9f2fbaae0aae25da4fa3fb",
+          "nativeAtMs": 1788783525251,
+          "suppliedId": "mg0001-01016"
+        },
+        {
+          "deadlineSeconds": 30,
+          "index": 17,
+          "loadAfter": [
+            1.12841796875,
+            0.51025390625,
+            0.4072265625
+          ],
+          "loadBefore": [
+            1.12841796875,
+            0.51025390625,
+            0.4072265625
+          ],
+          "ms": 194.216614,
+          "phase": "measured",
+          "requestSha256": "5e7e1b12d05cb8cf7deecdd45c73ac00903f3f355f0c4b83e6347c343d1f03ca",
+          "responseBytes": 330,
+          "responseSha256": "cdd9360e525d01f5fdff6471ced0c5c2c936630f767c620c15c4c6929740ce10",
+          "status": 200,
+          "wallEndMs": 1788783525451,
+          "wallStartMs": 1788783525257,
+          "sequence": 11335,
+          "receiptState": "committed",
+          "sourceHash": "c51f1f6084adced73e2fdf79aa7a20f06ce57d2b4a9f2fbaae0aae25da4fa3fb",
+          "nativeAtMs": 1788783525446,
+          "suppliedId": "mg0001-01017"
+        },
+        {
+          "deadlineSeconds": 30,
+          "index": 18,
+          "loadAfter": [
+            1.11767578125,
+            0.5185546875,
+            0.41064453125
+          ],
+          "loadBefore": [
+            1.12841796875,
+            0.51025390625,
+            0.4072265625
+          ],
+          "ms": 194.124116,
+          "phase": "measured",
+          "requestSha256": "3c0541f967f28168f2bc921b76483f39b15fa575ca822f979dc380c646410657",
+          "responseBytes": 330,
+          "responseSha256": "90b9085fd671f2678b22468a5cdc1f34e6bad08f4da0c52e1da8e9b070f94994",
+          "status": 200,
+          "wallEndMs": 1788783525646,
+          "wallStartMs": 1788783525452,
+          "sequence": 11336,
+          "receiptState": "committed",
+          "sourceHash": "c51f1f6084adced73e2fdf79aa7a20f06ce57d2b4a9f2fbaae0aae25da4fa3fb",
+          "nativeAtMs": 1788783525642,
+          "suppliedId": "mg0001-01018"
+        },
+        {
+          "deadlineSeconds": 30,
+          "index": 19,
+          "loadAfter": [
+            1.11767578125,
+            0.5185546875,
+            0.41064453125
+          ],
+          "loadBefore": [
+            1.11767578125,
+            0.5185546875,
+            0.41064453125
+          ],
+          "ms": 193.646019,
+          "phase": "measured",
+          "requestSha256": "2c9eb3627a1181ed6f8461972ccae0cdb723776c5877c78474174f812ee418ac",
+          "responseBytes": 330,
+          "responseSha256": "12c864c086da5d05d777839f0c2c0aab8f87719c4737c79c04b93218fec22b06",
+          "status": 200,
+          "wallEndMs": 1788783525841,
+          "wallStartMs": 1788783525647,
+          "sequence": 11337,
+          "receiptState": "committed",
+          "sourceHash": "c51f1f6084adced73e2fdf79aa7a20f06ce57d2b4a9f2fbaae0aae25da4fa3fb",
+          "nativeAtMs": 1788783525837,
+          "suppliedId": "mg0001-01019"
+        },
+        {
+          "deadlineSeconds": 30,
+          "index": 20,
+          "loadAfter": [
+            1.11767578125,
+            0.5185546875,
+            0.41064453125
+          ],
+          "loadBefore": [
+            1.11767578125,
+            0.5185546875,
+            0.41064453125
+          ],
+          "ms": 193.320581,
+          "phase": "measured",
+          "requestSha256": "bab8da0d7faa9dc44e0eaa9fb0bbb280600e27cfa23807ce6e44052c78a324ef",
+          "responseBytes": 330,
+          "responseSha256": "d50140c0640492c161b5dff3a8b772f6735874468fb5d9d520186afb60676763",
+          "status": 200,
+          "wallEndMs": 1788783526036,
+          "wallStartMs": 1788783525842,
+          "sequence": 11338,
+          "receiptState": "committed",
+          "sourceHash": "c51f1f6084adced73e2fdf79aa7a20f06ce57d2b4a9f2fbaae0aae25da4fa3fb",
+          "nativeAtMs": 1788783526031,
+          "suppliedId": "mg0001-01020"
+        },
+        {
+          "deadlineSeconds": 30,
+          "index": 21,
+          "loadAfter": [
+            1.11767578125,
+            0.5185546875,
+            0.41064453125
+          ],
+          "loadBefore": [
+            1.11767578125,
+            0.5185546875,
+            0.41064453125
+          ],
+          "ms": 193.801322,
+          "phase": "measured",
+          "requestSha256": "2697ece5d3957a060179574f6b3e7d920d10f604c63edac347563b07f53304e2",
+          "responseBytes": 330,
+          "responseSha256": "d2027b8d88e4626df014154de8fa1b69e3ec8258e549ca371d98b7c90f418150",
+          "status": 200,
+          "wallEndMs": 1788783526231,
+          "wallStartMs": 1788783526037,
+          "sequence": 11339,
+          "receiptState": "committed",
+          "sourceHash": "c51f1f6084adced73e2fdf79aa7a20f06ce57d2b4a9f2fbaae0aae25da4fa3fb",
+          "nativeAtMs": 1788783526226,
+          "suppliedId": "mg0001-01021"
+        },
+        {
+          "deadlineSeconds": 30,
+          "index": 22,
+          "loadAfter": [
+            1.11767578125,
+            0.5185546875,
+            0.41064453125
+          ],
+          "loadBefore": [
+            1.11767578125,
+            0.5185546875,
+            0.41064453125
+          ],
+          "ms": 193.708713,
+          "phase": "measured",
+          "requestSha256": "1df1e246a2ead1e2e8d0d3d2f6d3287b6179d7db593395f3de30b91024a76ab1",
+          "responseBytes": 330,
+          "responseSha256": "ab8239d5418eacc369ba4fb93a3bf3816dc767d4b0d63d48fe2d9f6951794ca5",
+          "status": 200,
+          "wallEndMs": 1788783526425,
+          "wallStartMs": 1788783526232,
+          "sequence": 11340,
+          "receiptState": "committed",
+          "sourceHash": "c51f1f6084adced73e2fdf79aa7a20f06ce57d2b4a9f2fbaae0aae25da4fa3fb",
+          "nativeAtMs": 1788783526421,
+          "suppliedId": "mg0001-01022"
+        },
+        {
+          "deadlineSeconds": 30,
+          "index": 23,
+          "loadAfter": [
+            1.11767578125,
+            0.5185546875,
+            0.41064453125
+          ],
+          "loadBefore": [
+            1.11767578125,
+            0.5185546875,
+            0.41064453125
+          ],
+          "ms": 194.265147,
+          "phase": "measured",
+          "requestSha256": "aaeebf5888e0d69ae8a62cdff246b8f42d0df5932d2ad7fbc67f8db878eba0b1",
+          "responseBytes": 330,
+          "responseSha256": "1716ad22928297ceec980f237091bed681f59bcedbeafae8c047ea5ae29efd80",
+          "status": 200,
+          "wallEndMs": 1788783526621,
+          "wallStartMs": 1788783526427,
+          "sequence": 11341,
+          "receiptState": "committed",
+          "sourceHash": "c51f1f6084adced73e2fdf79aa7a20f06ce57d2b4a9f2fbaae0aae25da4fa3fb",
+          "nativeAtMs": 1788783526616,
+          "suppliedId": "mg0001-01023"
+        }
+      ],
+      "load": {
+        "samples": 5,
+        "minimum": [
+          1.11767578125,
+          0.51025390625,
+          0.4072265625
+        ],
+        "maximum": [
+          1.12841796875,
+          0.5185546875,
+          0.41064453125
+        ]
+      }
+    }
+  },
+  "cleanup": [
+    {
+      "pid": 4014690,
+      "startTicks": "114242846",
+      "exe": "/usr/bin/python3.12",
+      "bootId": "76ef40aa-0ed8-4f57-85c6-898bb42ea7e4",
+      "state": "absent"
+    },
+    {
+      "bootId": "76ef40aa-0ed8-4f57-85c6-898bb42ea7e4",
+      "exe": "/home/ccheever/clique-tooling/search-native-linux-26c9-20260907T0203Z-01a07995/artifacts/snapback2-linux-x86_64-debug",
+      "pid": 4014694,
+      "startTicks": "114243271",
+      "state": "absent"
+    },
+    {
+      "bootId": "76ef40aa-0ed8-4f57-85c6-898bb42ea7e4",
+      "exe": "/home/ccheever/clique-tooling/adhoc-certification-performance-26c9-20260907-r1-01a07995/execution-01/candidate-owner",
+      "pid": 4014815,
+      "startTicks": "114244018",
+      "state": "absent"
+    }
+  ],
+  "ports": [
+    {
+      "port": 50933,
+      "bindable": true,
+      "reserved": false
+    },
+    {
+      "port": 50935,
+      "bindable": true,
+      "reserved": false
+    }
+  ],
+  "protectedInputsAndToolsExact": true,
+  "cacheAndDonorExact": true,
+  "original41LeafAttemptExact": true,
+  "correctedPacketExact": true,
+  "host": {
+    "atEpoch": 1788783618.4373896,
+    "load": [
+      0.51220703125,
+      0.46826171875,
+      0.400390625
+    ],
+    "memory": "MemTotal:       263608880 kB\nMemFree:        116458284 kB\nMemAvailable:   255745584 kB\nBuffers:         3009336 kB\nCached:         115529560 kB\nSwapCached:         2472 kB\nActive:         23715532 kB\nInactive:       95042664 kB\nActive(anon):     231856 kB\nInactive(anon):     5832 kB\nActive(file):   23483676 kB\nInactive(file): 95036832 kB\nUnevictable:       36280 kB\nMlocked:           27280 kB\nSwapTotal:      33554428 kB\nSwapFree:       33483516 kB\nZswap:                 0 kB\nZswapped:              0 kB\nDirty:               420 kB\nWriteback:             0 kB\nAnonPages:        255732 kB\nMapped:           260688 kB\nShmem:              9608 kB\nKReclaimable:   23157156 kB\nSlab:           25752216 kB\nSReclaimable:   23157156 kB\nSUnreclaim:      2595060 kB\nKernelStack:       23696 kB\nPageTables:         7368 kB\nSecPageTables:         0 kB\nNFS_Unstable:          0 kB\nBounce:                0 kB\nWritebackTmp:          0 kB\nCommitLimit:    165358868 kB\nCommitted_AS:    1956368 kB\nVmallocTotal:   13743895347199 kB\nVmallocUsed:      478364 kB\nVmallocChunk:          0 kB\nPercpu:           916992 kB\nHardwareCorrupted:     0 kB\nAnonHugePages:         0 kB\nShmemHugePages:        0 kB\nShmemPmdMapped:        0 kB\nFileHugePages:         0 kB\nFilePmdMapped:         0 kB\nUnaccepted:            0 kB\nHugePages_Total:       0\nHugePages_Free:        0\nHugePages_Rsvd:        0\nHugePages_Surp:        0\nHugepagesize:       2048 kB\nHugetlb:               0 kB\nDirectMap4k:      478568 kB\nDirectMap2M:    24401920 kB\nDirectMap1G:    244318208 kB\n",
+    "disk": {
+      "total": 1853945503744,
+      "used": 878706880512,
+      "free": 880987877376
+    }
+  },
+  "privateCustody": "all hashes retained; no raw private HTTP, owner configs/logs or SQLite copies exported; normalized mutation files remain remote"
+}

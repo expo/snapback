@@ -1,0 +1,21 @@
+{
+  "name": "public-carrier-admission",
+  "argv": [
+    "/home/ccheever/clique-tooling/epyc-linux-tooling-20260907T010007Z-0fd567d96f/node-v22.23.2-linux-x64/bin/node",
+    "--test",
+    "--test-timeout=10000",
+    "--test-name-pattern=typed full cursor bounds|carrier preflight preserves|authenticated sparse optional images|equal authenticated refresh|repeated immutable pools|closed extents retain all-ID|delayed FULL replaces every interior|native26c9 movement",
+    "snapback2/packages/snapback2/tests/store-review.test.ts"
+  ],
+  "cwd": "/home/ccheever/clique-tooling/search-structural-codec-0ecd-20260907T1130Z-01a07649/candidate3-source",
+  "outerSeconds": 30,
+  "originalInternalMilliseconds": 10000,
+  "pid": 4010718,
+  "startedUtc": "2026-09-07T12:11:10.450293+00:00",
+  "load": [
+    0.56494140625,
+    0.30712890625,
+    0.3427734375
+  ],
+  "availableBytes": 261659078656
+}

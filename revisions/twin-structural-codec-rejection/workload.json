@@ -1,0 +1,187 @@
+{
+  "status": "PREPARED FOR ROOT READ; NO EXECUTION",
+  "base": "0ecd6015a7a1f0c291a224baef37f832b6b3154a",
+  "host": "exclusive EPYC Linux; fresh capacity and coordinator admission before substantive commands",
+  "toolPins": {
+    "node": "22.23.2",
+    "bun": "1.3.12",
+    "esbuild": "0.25.9",
+    "gzip": "Node gzipSync({level:9})"
+  },
+  "phases": [
+    {
+      "name": "before-policy-oracles",
+      "command": "bounded direct existing/correctly extended pure admission/canonical probes against immutable0ecd; full strings/errors/source manifest retained",
+      "outerSeconds": 10,
+      "count": "one parent capture per concrete oracle set before edits; same input after",
+      "noNewNativeOwner": true
+    },
+    {
+      "name": "package-build",
+      "command": "node build.mjs",
+      "cwd": "snapback2/packages/snapback2",
+      "outerSeconds": 120
+    },
+    {
+      "name": "full-evaluator",
+      "command": "bun src/test.ts",
+      "cwd": "snapback2/packages/evaluator",
+      "outerSeconds": 120,
+      "environment": "exact native corpus + immutable26c9 SNAPBACK2_BIN; prior whole-contract mismatch remains scoped",
+      "includesFoundation": true
+    },
+    {
+      "name": "after-policy-oracles",
+      "outerSeconds": 10,
+      "command": "same captured inputs/source-bound probe, compare full outputs and first error identity/order to parent",
+      "independentInputChanges": "must be disclosed, not normalized away"
+    },
+    {
+      "name": "existing-public-controls",
+      "commandTemplate": [
+        "node",
+        "--test",
+        "--test-timeout=10000",
+        "--test-name-pattern=<exact pattern>",
+        "snapback2/packages/snapback2/tests/<file>.test.ts"
+      ],
+      "outerSeconds": 30,
+      "internalMilliseconds": 10000,
+      "groups": {
+        "protocol": {
+          "file": "offline-protocol",
+          "pattern": "offline envelope goldens|offline envelope decoder|all-column-kind|offline decoder enforces|Limit range extent|application JSON|expandRows restores|verdict inputs digest|answer traversal",
+          "why": "wire value/reference grammar, escaped application markers, typed bounds and all-column admission"
+        },
+        "sqlite": {
+          "file": "sqlite",
+          "pattern": "every PersistedRangeState|warm and reopened coverage|SQLite replace rolls|database projection owns only|database reset completion|generic database metadata|answer retention keeps|public offline expansion",
+          "why": "exact JSON normalization, omission, rollback, metadata ownership and cold projection"
+        },
+        "retention": {
+          "file": "offline-store",
+          "pattern": "stores rows once|delivered-history|hidden|evict|outbox|retention|purge|shared rows",
+          "why": "no body mirror or changed returned shapes/lifetimes"
+        },
+        "bytes": {
+          "file": "offline-bytes",
+          "pattern": "lease|view-once|view once|viewed|schema once|aliases|nested",
+          "why": "asset typing, viewed isolation and aliases"
+        },
+        "carrier-admission": {
+          "file": "store-review",
+          "pattern": "typed full cursor bounds|carrier preflight preserves|authenticated sparse optional images|equal authenticated refresh|repeated immutable pools|closed extents retain all-ID|delayed FULL replaces every interior|native26c9 movement",
+          "why": "shared conversion must preserve refusal order, exact sparse bytes, immutable issuing keys, all-ID contradictions and native frame interpretation"
+        },
+        "cap": {
+          "file": "store-review",
+          "pattern": "timed guard slot exhaustion|revalidation reset markers refuse concurrent",
+          "why": "one complete original saturation/second recovery population; shared admission/cold conversion must not alter logical charge or refusal/rollback"
+        },
+        "movement": {
+          "file": "store-review",
+          "pattern": "checked extent membership follows immutable assertion sequences",
+          "why": "ONE unchanged whole movement unit, all warm/cold/Time/Unicode/batch orders and Limit edges"
+        }
+      }
+    },
+    {
+      "name": "public-cross-arm-controls",
+      "command": "exact existing selectors below; narrowly necessary added codec controls get a named separate test selector frozen with their source before execution",
+      "outerSeconds": 30,
+      "internalMilliseconds": 10000,
+      "minimumCases": [
+        "shallow-frozen external put/constructor/rehydrate isolation",
+        "actual forcedOffline/hydrating/retry/subscription complete/capped/partial/denied projection",
+        "equal-image no-revision sharing and changed interior issuing-key invalidation",
+        "forged nominal image/range inputs and schema/table/kind/sparse mismatch refusal"
+      ],
+      "commandTemplate": [
+        "node",
+        "--test",
+        "--test-timeout=10000",
+        "--test-name-pattern=<exact pattern>",
+        "snapback2/packages/snapback2/tests/<file>.test.ts"
+      ],
+      "groups": {
+        "twin": {
+          "file": "twin",
+          "pattern": "atomic carrier snapshots|a json column shaped|every corpus query|program custody is fetched|a ReferenceError from tagArguments|an unseen schema shape|evicting a middle row|h1 stays local|enrolled ordinary conditionals|native-certified derived page|public offline movement",
+          "why": "actual built-client/cold/checked-program conversion and existing shared nominal ownership controls"
+        },
+        "held-shape": {
+          "file": "offline-store",
+          "pattern": "conditional public query states|held public query states",
+          "why": "complete/capped cursors, denied payload omission, partial no-next across actual forced/hydrating/retry paths"
+        }
+      }
+    },
+    {
+      "name": "caps",
+      "command": "node scripts/caps.mjs",
+      "cwd": "repository root",
+      "outerSeconds": 30,
+      "scope": "existing caps, no new gate"
+    },
+    {
+      "name": "refs",
+      "command": "./ref-check --verbose",
+      "cwd": "repository root",
+      "outerSeconds": 120,
+      "scope": "existing reference rules"
+    },
+    {
+      "name": "diff",
+      "command": "git diff --check",
+      "cwd": "repository root",
+      "outerSeconds": 10,
+      "scope": "existing diff check"
+    },
+    {
+      "name": "ONE-final-full-size",
+      "command": "node --import <existing counted-measure hook> build.mjs --measure-twin",
+      "cwd": "snapback2/packages/snapback2",
+      "outerSeconds": 60,
+      "entrySha256": "3ba527bb0fe022dcaab8b54a20055fe1484cf1a11e1d4744f54e1739d489d2ac",
+      "ceiling": 66000,
+      "target": 64000,
+      "historicalReference": 75815,
+      "selectedParentMeasured": false,
+      "rejectIfAtLeastHistoricalReference": true,
+      "noSecondMeasure": true
+    }
+  ],
+  "noChanges": [
+    "no test deadline increase",
+    "no population reduction",
+    "no sharding of original whole movement/cap controls",
+    "no corpus/tool switch to erase a red",
+    "no new native build/server/population",
+    "no resident/phone/benchmark run",
+    "no Unicode packet variant",
+    "no root/compressor/measurement omission"
+  ],
+  "scopeNote": "Root deliberate one broader-codec candidate; correctness iterations retain first reds, final fixed-size measurement occurs only after stable source. Root reads exact workload before author launch.",
+  "oracleInputFamilies": [
+    {
+      "family": "tagged admission",
+      "fixedCases": "every existing Value/Column/Arg constructor plus nested Optional/List/Text format boundaries; competing outer shape/scalar/reserved-principal/refinement failures; exact original error name/code/message/order",
+      "nativeScope": "native26c9 valid/refinement corpus remains separate from synthetic malformed values"
+    },
+    {
+      "family": "wire construction",
+      "fixedCases": "input-field permutations versus schema missing-field order; safe-integer Time boundaries; Row/Map/Json-shaped Bytes/assets; invalid asset path and reserved id ordering; omitted/null/undefined, sparse arrays and own __proto__; recursively shallow-frozen aliases",
+      "outputs": "full tagged/wire outputs, exact errors and original-input post-call equality"
+    },
+    {
+      "family": "canonical reconstruction",
+      "fixedCases": "existing broad constructor capture (r8-runtime-size-redesign/probe.ts/capture-probe.mjs) with exact0ecd source; five fallback controls from r8-domain-fallback-repair; known/unknown/empty/short wrappers, default and explicit null forms, recursive Arg Text min/format and Column distinctions; competing Scan.take/prefix failures",
+      "outputs": "full canonical JSON strings plus hashes and exact first error; do not substitute a digest-only oracle"
+    },
+    {
+      "family": "retained public boundaries",
+      "fixedCases": "existing built cross-arm image/range identity and generic isolation inputs; native-authenticated bounds/issuing-key packet controls; warm/cold refusal snapshots and outbox equality",
+      "outputs": "full before/after state and nominal-reference/revision assertions, clearly labeled synthetic versus actual native inputs"
+    }
+  ]
+}

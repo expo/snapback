@@ -1,0 +1,312 @@
+[
+  {
+    "name": "candidate3-oracle",
+    "argv": [
+      "/home/ccheever/clique-tooling/epyc-linux-tooling-20260907T010007Z-0fd567d96f/node-v22.23.2-linux-x64/bin/node",
+      "/home/ccheever/clique-tooling/search-structural-codec-0ecd-20260907T1130Z-01a07649/capture-root-oracles.mjs"
+    ],
+    "cwd": "/home/ccheever/clique-tooling/search-structural-codec-0ecd-20260907T1130Z-01a07649/candidate3-source",
+    "outerSeconds": 10,
+    "pid": 4010445,
+    "startedUtc": "2026-09-07T12:10:54.630444+00:00",
+    "load": [
+      0.234375,
+      0.23583984375,
+      0.3203125
+    ],
+    "availableBytes": 261992714240,
+    "endedUtc": "2026-09-07T12:10:55.145776+00:00",
+    "elapsedSeconds": 0.515336561948061,
+    "exitCode": 0,
+    "logSha256": "92d3674dd385b634af71f63421bbae25d65c8022cd54da79fab91e77214dc4a5"
+  },
+  {
+    "name": "candidate3-bun-oracle",
+    "argv": [
+      "/home/ccheever/clique-tooling/epyc-linux-tooling-20260907T010007Z-0fd567d96f/bun-v1.3.12-linux-x64/bin/bun",
+      "/home/ccheever/clique-tooling/search-structural-codec-0ecd-20260907T1130Z-01a07649/candidate3-oracles/probe.mjs",
+      "/home/ccheever/clique-tooling/search-structural-codec-0ecd-20260907T1130Z-01a07649/candidate3-bun-result.json"
+    ],
+    "cwd": "/home/ccheever/clique-tooling/search-structural-codec-0ecd-20260907T1130Z-01a07649/candidate3-source",
+    "outerSeconds": 10,
+    "pid": 4010495,
+    "startedUtc": "2026-09-07T12:10:55.358223+00:00",
+    "load": [
+      0.234375,
+      0.23583984375,
+      0.3203125
+    ],
+    "availableBytes": 261816897536,
+    "endedUtc": "2026-09-07T12:10:55.572854+00:00",
+    "elapsedSeconds": 0.2146337500307709,
+    "exitCode": 0,
+    "logSha256": "571382c61564752891cb682c2fa15c035e4dc6cc95c28025f6094db39a5c2d0e"
+  },
+  {
+    "name": "package-build",
+    "argv": [
+      "/home/ccheever/clique-tooling/epyc-linux-tooling-20260907T010007Z-0fd567d96f/node-v22.23.2-linux-x64/bin/node",
+      "build.mjs"
+    ],
+    "cwd": "/home/ccheever/clique-tooling/search-structural-codec-0ecd-20260907T1130Z-01a07649/candidate3-source/snapback2/packages/snapback2",
+    "outerSeconds": 120,
+    "pid": 4010507,
+    "startedUtc": "2026-09-07T12:10:55.784615+00:00",
+    "load": [
+      0.2958984375,
+      0.24853515625,
+      0.32421875
+    ],
+    "availableBytes": 261727973376,
+    "endedUtc": "2026-09-07T12:10:58.905115+00:00",
+    "elapsedSeconds": 3.120506990933791,
+    "exitCode": 0,
+    "logSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  {
+    "name": "full-evaluator",
+    "argv": [
+      "/home/ccheever/clique-tooling/epyc-linux-tooling-20260907T010007Z-0fd567d96f/bun-v1.3.12-linux-x64/bin/bun",
+      "src/test.ts"
+    ],
+    "cwd": "/home/ccheever/clique-tooling/search-structural-codec-0ecd-20260907T1130Z-01a07649/candidate3-source/snapback2/packages/evaluator",
+    "outerSeconds": 120,
+    "pid": 4010617,
+    "startedUtc": "2026-09-07T12:11:00.251037+00:00",
+    "load": [
+      0.2958984375,
+      0.24853515625,
+      0.32421875
+    ],
+    "availableBytes": 261904134144,
+    "endedUtc": "2026-09-07T12:11:07.132352+00:00",
+    "elapsedSeconds": 6.881325345952064,
+    "exitCode": 0,
+    "logSha256": "3bbfe95b9dd3171a64e83f822918f4fd2107628b3079f35e692c41815446312f"
+  },
+  {
+    "name": "public-protocol",
+    "argv": [
+      "/home/ccheever/clique-tooling/epyc-linux-tooling-20260907T010007Z-0fd567d96f/node-v22.23.2-linux-x64/bin/node",
+      "--test",
+      "--test-timeout=10000",
+      "--test-name-pattern=offline envelope goldens|offline envelope decoder|all-column-kind|offline decoder enforces|Limit range extent|application JSON|expandRows restores|verdict inputs digest|answer traversal",
+      "snapback2/packages/snapback2/tests/offline-protocol.test.ts"
+    ],
+    "cwd": "/home/ccheever/clique-tooling/search-structural-codec-0ecd-20260907T1130Z-01a07649/candidate3-source",
+    "outerSeconds": 30,
+    "originalInternalMilliseconds": 10000,
+    "pid": 4010647,
+    "startedUtc": "2026-09-07T12:11:07.375903+00:00",
+    "load": [
+      0.56494140625,
+      0.30712890625,
+      0.3427734375
+    ],
+    "availableBytes": 261786988544,
+    "endedUtc": "2026-09-07T12:11:07.891692+00:00",
+    "elapsedSeconds": 0.5157914848532528,
+    "exitCode": 0,
+    "logSha256": "692b9ded19b2cc743cb83f2a782536af0c95b121a384f482da84c62bd4936850"
+  },
+  {
+    "name": "public-sqlite",
+    "argv": [
+      "/home/ccheever/clique-tooling/epyc-linux-tooling-20260907T010007Z-0fd567d96f/node-v22.23.2-linux-x64/bin/node",
+      "--test",
+      "--test-timeout=10000",
+      "--test-name-pattern=every PersistedRangeState|warm and reopened coverage|SQLite replace rolls|database projection owns only|database reset completion|generic database metadata|answer retention keeps|public offline expansion",
+      "snapback2/packages/snapback2/tests/sqlite.test.ts"
+    ],
+    "cwd": "/home/ccheever/clique-tooling/search-structural-codec-0ecd-20260907T1130Z-01a07649/candidate3-source",
+    "outerSeconds": 30,
+    "originalInternalMilliseconds": 10000,
+    "pid": 4010664,
+    "startedUtc": "2026-09-07T12:11:08.131553+00:00",
+    "load": [
+      0.56494140625,
+      0.30712890625,
+      0.3427734375
+    ],
+    "availableBytes": 261699780608,
+    "endedUtc": "2026-09-07T12:11:08.697317+00:00",
+    "elapsedSeconds": 0.5657668709754944,
+    "exitCode": 0,
+    "logSha256": "150fb5e2afefcd22be8004fdc8436554665e38053096e7b6c162999dc084248d"
+  },
+  {
+    "name": "public-retention",
+    "argv": [
+      "/home/ccheever/clique-tooling/epyc-linux-tooling-20260907T010007Z-0fd567d96f/node-v22.23.2-linux-x64/bin/node",
+      "--test",
+      "--test-timeout=10000",
+      "--test-name-pattern=stores rows once|delivered-history|hidden|evict|outbox|retention|purge|shared rows",
+      "snapback2/packages/snapback2/tests/offline-store.test.ts"
+    ],
+    "cwd": "/home/ccheever/clique-tooling/search-structural-codec-0ecd-20260907T1130Z-01a07649/candidate3-source",
+    "outerSeconds": 30,
+    "originalInternalMilliseconds": 10000,
+    "pid": 4010681,
+    "startedUtc": "2026-09-07T12:11:08.937295+00:00",
+    "load": [
+      0.56494140625,
+      0.30712890625,
+      0.3427734375
+    ],
+    "availableBytes": 261701771264,
+    "endedUtc": "2026-09-07T12:11:09.352762+00:00",
+    "elapsedSeconds": 0.41546993399970233,
+    "exitCode": 0,
+    "logSha256": "aa09c1cf1d8d02a562bf37be64b85f87af9571387d5168659b67b2aad710ad0a"
+  },
+  {
+    "name": "public-bytes",
+    "argv": [
+      "/home/ccheever/clique-tooling/epyc-linux-tooling-20260907T010007Z-0fd567d96f/node-v22.23.2-linux-x64/bin/node",
+      "--test",
+      "--test-timeout=10000",
+      "--test-name-pattern=lease|view-once|view once|viewed|schema once|aliases|nested",
+      "snapback2/packages/snapback2/tests/offline-bytes.test.ts"
+    ],
+    "cwd": "/home/ccheever/clique-tooling/search-structural-codec-0ecd-20260907T1130Z-01a07649/candidate3-source",
+    "outerSeconds": 30,
+    "originalInternalMilliseconds": 10000,
+    "pid": 4010700,
+    "startedUtc": "2026-09-07T12:11:09.592824+00:00",
+    "load": [
+      0.56494140625,
+      0.30712890625,
+      0.3427734375
+    ],
+    "availableBytes": 261672501248,
+    "endedUtc": "2026-09-07T12:11:10.208687+00:00",
+    "elapsedSeconds": 0.6158676350023597,
+    "exitCode": 0,
+    "logSha256": "5ac264b534d1c44d05a3089845a6b35ac027a1abb7f41bcd201331bb2eec7d3d"
+  },
+  {
+    "name": "public-carrier-admission",
+    "argv": [
+      "/home/ccheever/clique-tooling/epyc-linux-tooling-20260907T010007Z-0fd567d96f/node-v22.23.2-linux-x64/bin/node",
+      "--test",
+      "--test-timeout=10000",
+      "--test-name-pattern=typed full cursor bounds|carrier preflight preserves|authenticated sparse optional images|equal authenticated refresh|repeated immutable pools|closed extents retain all-ID|delayed FULL replaces every interior|native26c9 movement",
+      "snapback2/packages/snapback2/tests/store-review.test.ts"
+    ],
+    "cwd": "/home/ccheever/clique-tooling/search-structural-codec-0ecd-20260907T1130Z-01a07649/candidate3-source",
+    "outerSeconds": 30,
+    "originalInternalMilliseconds": 10000,
+    "pid": 4010718,
+    "startedUtc": "2026-09-07T12:11:10.450293+00:00",
+    "load": [
+      0.56494140625,
+      0.30712890625,
+      0.3427734375
+    ],
+    "availableBytes": 261659078656,
+    "endedUtc": "2026-09-07T12:11:11.466948+00:00",
+    "elapsedSeconds": 1.0166580581571907,
+    "exitCode": 0,
+    "logSha256": "a241612bb2f95a2777d5e531b1609b8e5f7180cce1a7c603cae48ac9e247e6ee"
+  },
+  {
+    "name": "public-cap",
+    "argv": [
+      "/home/ccheever/clique-tooling/epyc-linux-tooling-20260907T010007Z-0fd567d96f/node-v22.23.2-linux-x64/bin/node",
+      "--test",
+      "--test-timeout=10000",
+      "--test-name-pattern=timed guard slot exhaustion|revalidation reset markers refuse concurrent",
+      "snapback2/packages/snapback2/tests/store-review.test.ts"
+    ],
+    "cwd": "/home/ccheever/clique-tooling/search-structural-codec-0ecd-20260907T1130Z-01a07649/candidate3-source",
+    "outerSeconds": 30,
+    "originalInternalMilliseconds": 10000,
+    "pid": 4010736,
+    "startedUtc": "2026-09-07T12:11:11.707825+00:00",
+    "load": [
+      0.60009765625,
+      0.31884765625,
+      0.3466796875
+    ],
+    "availableBytes": 261568122880,
+    "endedUtc": "2026-09-07T12:11:13.727349+00:00",
+    "elapsedSeconds": 2.0195271589327604,
+    "exitCode": 0,
+    "logSha256": "925e06ad7d9ffeb1097c072915210bb8175df7cdd205d6fbd365c98f7287981d"
+  },
+  {
+    "name": "public-movement",
+    "argv": [
+      "/home/ccheever/clique-tooling/epyc-linux-tooling-20260907T010007Z-0fd567d96f/node-v22.23.2-linux-x64/bin/node",
+      "--test",
+      "--test-timeout=10000",
+      "--test-name-pattern=checked extent membership follows immutable assertion sequences",
+      "snapback2/packages/snapback2/tests/store-review.test.ts"
+    ],
+    "cwd": "/home/ccheever/clique-tooling/search-structural-codec-0ecd-20260907T1130Z-01a07649/candidate3-source",
+    "outerSeconds": 30,
+    "originalInternalMilliseconds": 10000,
+    "pid": 4010797,
+    "startedUtc": "2026-09-07T12:11:13.968898+00:00",
+    "load": [
+      0.60009765625,
+      0.31884765625,
+      0.3466796875
+    ],
+    "availableBytes": 261400621056,
+    "endedUtc": "2026-09-07T12:11:19.648145+00:00",
+    "elapsedSeconds": 5.679249772801995,
+    "exitCode": 0,
+    "logSha256": "d61840119edd92dd37e34f0fe12f10d0a586ff4f90fde068e5e76416bdef7e39"
+  },
+  {
+    "name": "public-twin",
+    "argv": [
+      "/home/ccheever/clique-tooling/epyc-linux-tooling-20260907T010007Z-0fd567d96f/node-v22.23.2-linux-x64/bin/node",
+      "--test",
+      "--test-timeout=10000",
+      "--test-name-pattern=atomic carrier snapshots|a json column shaped|every corpus query|program custody is fetched|a ReferenceError from tagArguments|an unseen schema shape|evicting a middle row|h1 stays local|enrolled ordinary conditionals|native-certified derived page|public offline movement",
+      "snapback2/packages/snapback2/tests/twin.test.ts"
+    ],
+    "cwd": "/home/ccheever/clique-tooling/search-structural-codec-0ecd-20260907T1130Z-01a07649/candidate3-source",
+    "outerSeconds": 30,
+    "originalInternalMilliseconds": 10000,
+    "pid": 4010822,
+    "startedUtc": "2026-09-07T12:11:19.889875+00:00",
+    "load": [
+      0.63232421875,
+      0.33056640625,
+      0.3505859375
+    ],
+    "availableBytes": 261577986048,
+    "endedUtc": "2026-09-07T12:11:24.165094+00:00",
+    "elapsedSeconds": 4.275220962008461,
+    "exitCode": 0,
+    "logSha256": "0680bfd5ff45ba8781bc80d846db849e48a40253cbd057cd6ca1e00e926d363c"
+  },
+  {
+    "name": "public-held-shape",
+    "argv": [
+      "/home/ccheever/clique-tooling/epyc-linux-tooling-20260907T010007Z-0fd567d96f/node-v22.23.2-linux-x64/bin/node",
+      "--test",
+      "--test-timeout=10000",
+      "--test-name-pattern=conditional public query states|held public query states",
+      "snapback2/packages/snapback2/tests/offline-store.test.ts"
+    ],
+    "cwd": "/home/ccheever/clique-tooling/search-structural-codec-0ecd-20260907T1130Z-01a07649/candidate3-source",
+    "outerSeconds": 30,
+    "originalInternalMilliseconds": 10000,
+    "pid": 4010891,
+    "startedUtc": "2026-09-07T12:11:24.407421+00:00",
+    "load": [
+      0.7421875,
+      0.3583984375,
+      0.35986328125
+    ],
+    "availableBytes": 261643079680,
+    "endedUtc": "2026-09-07T12:11:25.474830+00:00",
+    "elapsedSeconds": 1.067412142874673,
+    "exitCode": 0,
+    "logSha256": "f8dd9d92e851c01e4db4726efc21e52a854c189468d3e9ce282f7c5f82c8500d"
+  }
+]

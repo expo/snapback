@@ -1,0 +1,30 @@
+{
+  "utc": "2026-09-07T12:10:42.908923+00:00",
+  "base": "0ecd6015a7a1f0c291a224baef37f832b6b3154a",
+  "source": [
+    {
+      "path": "snapback2/packages/evaluator/src/value-runtime.ts",
+      "sha256": "7c98784d80568f5cdafc3fb8f350b3bd5ccd3c2c7a0bccd1457a2190fb2150a4",
+      "bytes": 15336,
+      "lines": 358
+    },
+    {
+      "path": "snapback2/packages/evaluator/src/certificate-identity.ts",
+      "sha256": "3d1ca81946f88047012023bd01f17e0f4d6055ec2f09740e1b02b53ed20a1851",
+      "bytes": 10139,
+      "lines": 129
+    },
+    {
+      "path": "snapback2/packages/evaluator/src/structural-codec.ts",
+      "sha256": "79e4d5c63720a1b23d281653d62f7bad1d2f2b8f11cdb6790ea8c595ce54b94c",
+      "bytes": 17290,
+      "lines": 268
+    },
+    {
+      "path": "snapback2/packages/evaluator/src/test.ts",
+      "sha256": "9362ba7a2444ac2b04f4fc60fe45b587fec58789c95a0c0a2c16040e8bd15a57",
+      "bytes": 59664,
+      "lines": 1125
+    }
+  ]
+}

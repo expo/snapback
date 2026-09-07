@@ -1,0 +1,173 @@
+{
+  "utc": "2026-09-07T12:15:28.432508+00:00",
+  "ownedManifestSha256": "956692adafc002df2a86573ecc606a625a5cf8081f994530dbd8ec5e1846cdf3",
+  "consumedLogicalInputs": 27,
+  "sourceManifestEntries": 695,
+  "nodeFullByteEquality": true,
+  "nodeResultSha256": "d34a7f0fa335ac7c402fb284ed944ac8f2730cb04aa7cef8b2b2dcd7d3222475",
+  "bunFullByteEquality": true,
+  "bunResultSha256": "a186b510211406e22ff4cc0b538210c0732e186291e243ea8d8b3f9281471fc6",
+  "allLogHashesVerified": true,
+  "all13RawLogsFullReadBySupervisor": true,
+  "checks": [
+    {
+      "name": "candidate3-bun-oracle",
+      "pid": 4010495,
+      "exit": 0,
+      "seconds": 0.2146337500307709,
+      "outerSeconds": 10,
+      "counts": {}
+    },
+    {
+      "name": "candidate3-oracle",
+      "pid": 4010445,
+      "exit": 0,
+      "seconds": 0.515336561948061,
+      "outerSeconds": 10,
+      "counts": {}
+    },
+    {
+      "name": "full-evaluator",
+      "pid": 4010617,
+      "exit": 0,
+      "seconds": 6.881325345952064,
+      "outerSeconds": 120,
+      "counts": {}
+    },
+    {
+      "name": "package-build",
+      "pid": 4010507,
+      "exit": 0,
+      "seconds": 3.120506990933791,
+      "outerSeconds": 120,
+      "counts": {}
+    },
+    {
+      "name": "public-bytes",
+      "pid": 4010700,
+      "exit": 0,
+      "seconds": 0.6158676350023597,
+      "outerSeconds": 30,
+      "counts": {
+        "tests": "7",
+        "pass": "7",
+        "fail": "0",
+        "cancelled": "0",
+        "skipped": "0"
+      }
+    },
+    {
+      "name": "public-cap",
+      "pid": 4010736,
+      "exit": 0,
+      "seconds": 2.0195271589327604,
+      "outerSeconds": 30,
+      "counts": {
+        "tests": "2",
+        "pass": "2",
+        "fail": "0",
+        "cancelled": "0",
+        "skipped": "0"
+      }
+    },
+    {
+      "name": "public-carrier-admission",
+      "pid": 4010718,
+      "exit": 0,
+      "seconds": 1.0166580581571907,
+      "outerSeconds": 30,
+      "counts": {
+        "tests": "14",
+        "pass": "14",
+        "fail": "0",
+        "cancelled": "0",
+        "skipped": "0"
+      }
+    },
+    {
+      "name": "public-held-shape",
+      "pid": 4010891,
+      "exit": 0,
+      "seconds": 1.067412142874673,
+      "outerSeconds": 30,
+      "counts": {
+        "tests": "22",
+        "pass": "22",
+        "fail": "0",
+        "cancelled": "0",
+        "skipped": "0"
+      }
+    },
+    {
+      "name": "public-movement",
+      "pid": 4010797,
+      "exit": 0,
+      "seconds": 5.679249772801995,
+      "outerSeconds": 30,
+      "counts": {
+        "tests": "43",
+        "pass": "43",
+        "fail": "0",
+        "cancelled": "0",
+        "skipped": "0"
+      }
+    },
+    {
+      "name": "public-protocol",
+      "pid": 4010647,
+      "exit": 0,
+      "seconds": 0.5157914848532528,
+      "outerSeconds": 30,
+      "counts": {
+        "tests": "9",
+        "pass": "9",
+        "fail": "0",
+        "cancelled": "0",
+        "skipped": "0"
+      }
+    },
+    {
+      "name": "public-retention",
+      "pid": 4010681,
+      "exit": 0,
+      "seconds": 0.41546993399970233,
+      "outerSeconds": 30,
+      "counts": {
+        "tests": "10",
+        "pass": "10",
+        "fail": "0",
+        "cancelled": "0",
+        "skipped": "0"
+      }
+    },
+    {
+      "name": "public-sqlite",
+      "pid": 4010664,
+      "exit": 0,
+      "seconds": 0.5657668709754944,
+      "outerSeconds": 30,
+      "counts": {
+        "tests": "8",
+        "pass": "8",
+        "fail": "0",
+        "cancelled": "0",
+        "skipped": "0"
+      }
+    },
+    {
+      "name": "public-twin",
+      "pid": 4010822,
+      "exit": 0,
+      "seconds": 4.275220962008461,
+      "outerSeconds": 30,
+      "counts": {
+        "tests": "14",
+        "pass": "14",
+        "fail": "0",
+        "cancelled": "0",
+        "skipped": "0"
+      }
+    }
+  ],
+  "scope": "Source-bound affected correctness only, no bundle/whole-native/phone/resident qualification."
+}

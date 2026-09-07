@@ -1,0 +1,11 @@
+{
+  "sourcePath": "snapback2/crates/snapback2-core/src/store.rs",
+  "sourceIdentity": {
+    "bytes": 51024,
+    "gitBlob": "28e179b9244d2ca769295e8925c55ce0644e0a51",
+    "mode": "100644",
+    "sha256": "c829eda270dac692a81f3566933c096bfa55d23ceb530218670fc850a2264996"
+  },
+  "lines108through130": "        let connection = Connection::open(path)?;\n        let owner = owner_stamp();\n        let acquired = (|| -> Result<(), RuntimeError> {\n            connection.busy_timeout(Duration::from_millis(500))?;\n            reject_incompatible_store(inspect_store_format(&connection)?)?;\n            connection.pragma_update(None, \"foreign_keys\", \"OFF\")?;\n            connection.pragma_update(None, \"journal_mode\", \"WAL\")?;\n            connection.pragma_update(None, \"locking_mode\", \"EXCLUSIVE\")?;\n            connection.execute_batch(\"BEGIN IMMEDIATE\")?;\n            reject_incompatible_store(inspect_store_format(&connection)?)?;\n            Self::initialize_schema(&connection)?;\n            connection.execute(\n                \"INSERT INTO _meta(key, value) VALUES ('owner', ?1)\n                 ON CONFLICT(key) DO UPDATE SET value = excluded.value\",\n                [&owner],\n            )?;\n            connection.execute_batch(\"COMMIT\")?;\n            // Keep the owner readable from the main database file even while\n            // EXCLUSIVE mode prevents a competing connection from reading WAL.\n            connection.execute_batch(\"PRAGMA wal_checkpoint(TRUNCATE)\")?;\n            connection.busy_timeout(Duration::from_secs(5))?;\n            Ok(())\n        })();",
+  "observation": "Read exact frozen source only; no product changes or live SQLite access"
+}

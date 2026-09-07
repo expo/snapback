@@ -1,0 +1,110 @@
+{
+  "hostAlias": "Office",
+  "authTransferred": false,
+  "publisherInvoked": false,
+  "observationRounds": 1,
+  "fetchMilliseconds": 15000,
+  "fetchRetries": 0,
+  "commandSeconds": 30,
+  "checks": [
+    {
+      "package": "snapback2-darwin-arm64",
+      "field": "dist.integrity",
+      "argv": [
+        "/Users/ccheever/.volta/tools/image/node/22.23.2/bin/node",
+        "/Users/ccheever/.volta/tools/image/node/22.23.2/lib/node_modules/npm/bin/npm-cli.js",
+        "view",
+        "snapback2-darwin-arm64@0.0.15",
+        "dist.integrity",
+        "--json",
+        "--fetch-timeout=15000",
+        "--fetch-retries=0"
+      ],
+      "pid": 9900,
+      "startedEpoch": 1788782423.31347,
+      "timeoutSeconds": 30,
+      "timedOut": false,
+      "exitCode": 0,
+      "seconds": 2.427414458,
+      "stderrPresent": true,
+      "childReaped": true,
+      "state": "matching",
+      "value": "sha512-O9Zx/4wAPwraH77N2rsCuvorIey49aMRl6tckV3cRkGHuZow1lKelsM0ushU8S3kZC5yD1OnFVUHERNex9jRBw=="
+    },
+    {
+      "package": "snapback2-darwin-arm64",
+      "field": "dist-tags.latest",
+      "argv": [
+        "/Users/ccheever/.volta/tools/image/node/22.23.2/bin/node",
+        "/Users/ccheever/.volta/tools/image/node/22.23.2/lib/node_modules/npm/bin/npm-cli.js",
+        "view",
+        "snapback2-darwin-arm64",
+        "dist-tags.latest",
+        "--json",
+        "--fetch-timeout=15000",
+        "--fetch-retries=0"
+      ],
+      "pid": 9913,
+      "startedEpoch": 1788782425.73523,
+      "timeoutSeconds": 30,
+      "timedOut": false,
+      "exitCode": 0,
+      "seconds": 1.5099831670000001,
+      "stderrPresent": false,
+      "childReaped": true,
+      "state": "matching",
+      "value": "0.0.15"
+    },
+    {
+      "package": "snapback2",
+      "field": "dist.integrity",
+      "argv": [
+        "/Users/ccheever/.volta/tools/image/node/22.23.2/bin/node",
+        "/Users/ccheever/.volta/tools/image/node/22.23.2/lib/node_modules/npm/bin/npm-cli.js",
+        "view",
+        "snapback2@0.0.15",
+        "dist.integrity",
+        "--json",
+        "--fetch-timeout=15000",
+        "--fetch-retries=0"
+      ],
+      "pid": 9920,
+      "startedEpoch": 1788782427.243189,
+      "timeoutSeconds": 30,
+      "timedOut": false,
+      "exitCode": 1,
+      "seconds": 1.3884694590000004,
+      "stderrPresent": true,
+      "childReaped": true,
+      "state": "absent",
+      "code": "E404"
+    },
+    {
+      "package": "snapback2",
+      "field": "dist-tags.latest",
+      "argv": [
+        "/Users/ccheever/.volta/tools/image/node/22.23.2/bin/node",
+        "/Users/ccheever/.volta/tools/image/node/22.23.2/lib/node_modules/npm/bin/npm-cli.js",
+        "view",
+        "snapback2",
+        "dist-tags.latest",
+        "--json",
+        "--fetch-timeout=15000",
+        "--fetch-retries=0"
+      ],
+      "pid": 9926,
+      "startedEpoch": 1788782428.632875,
+      "timeoutSeconds": 30,
+      "timedOut": false,
+      "exitCode": 0,
+      "seconds": 1.3020870420000001,
+      "stderrPresent": false,
+      "childReaped": true,
+      "state": "different",
+      "value": "0.0.14"
+    }
+  ],
+  "clean": true,
+  "allMatching": false,
+  "finishedEpoch": 1788782430.178153
+}
