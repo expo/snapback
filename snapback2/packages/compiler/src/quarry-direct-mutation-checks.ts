@@ -56,6 +56,9 @@ mutation ensureIndexed(owner: principal):
 mutation focalNested(id: rows):
   return update rows[id] { label: owners[.related! else RELATED_REQUIRED]! else OWNER_REQUIRED .label }
 
+mutation snapshots(id: rows):
+  return { first: update rows[id] { count: 1 }, second: update rows[id] { count: 2 } }
+
 mutation remove(id: rows):
   delete rows[id]
   return true
@@ -113,7 +116,7 @@ mutation branch(owner: principal, flag: bool):
         args: name === "indexed" ? { owner: { Id: "owner-1" } } : { id: { Id: "row-1" } },
         now: 23, read_time: 19, new_ids: [],
       });
-      for (const name of ["blind", "direct", "focal", "indexed", "remove"]) {
+      for (const name of ["blind", "direct", "focal", "indexed", "snapshots", "remove"]) {
         const program = direct.get(name)!;
         const certificate = checks.get(name)!;
         const legacy = operation(oracle.project.programs, `writes.${name}`);
@@ -128,6 +131,13 @@ mutation branch(owner: principal, flag: bool):
         deepStrictEqual(directExecution.trace.points.map((point: { table: string }) => point.table),
           oracleExecution.trace.points.map((point: { table: string }) => point.table));
         deepStrictEqual(directStore.rows("rows"), oracleStore.rows("rows"));
+        if (name === "snapshots") {
+          const result = directExecution.result;
+          assert(result !== "Null" && "Row" in result
+            && canonicalValue(result.Row.first) === canonicalValue({ Row: { ...row.Row, count: { Int: 1 } } })
+            && canonicalValue(result.Row.second) === canonicalValue({ Row: { ...row.Row, count: { Int: 2 } } }),
+          `later write changed an earlier direct result snapshot: ${JSON.stringify(result)}`);
+        }
       }
 
       for (const [name, args, newIds] of [
