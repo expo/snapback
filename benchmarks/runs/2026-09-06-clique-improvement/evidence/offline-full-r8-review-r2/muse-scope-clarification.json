@@ -1,0 +1,11 @@
+{
+  "utc": "2026-09-07T01:44:54.272831+00:00",
+  "source": "Root explicit wording clarification",
+  "requestedReview": "Muse1.3/ultra",
+  "availability": "not established under prior explicit ultra gate and usual-directory alternate-host CLI checks",
+  "globalServiceOutageClaim": false,
+  "substitution": false,
+  "newSupervisorProbe": false,
+  "thirdReviewClaim": false,
+  "frozenPacketModified": false
+}

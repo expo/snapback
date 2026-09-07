@@ -1,0 +1,11 @@
+{
+  "utc": "2026-09-07T01:41:12.355920+00:00",
+  "commit": "cb578e197535290d9c3c7394246584e12459e77a",
+  "base": "e1c6e2b79a9e13ceb363f647f52807218aa2b57a",
+  "manifestSha256": "3132426a426ecc98f05f065954b993079e757a960ed186dca0c9f7f7f2f09e99",
+  "filesVerified": 2106,
+  "bytesVerified": 248336757,
+  "errors": [],
+  "priorReviewsProvided": false,
+  "immutableGitSourceExport": true
+}

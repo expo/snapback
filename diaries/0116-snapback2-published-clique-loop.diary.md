@@ -939,3 +939,12 @@ The cold build's `guide assets` lookup could not reach upload and rendering inst
 Both independent reviews approve the exact three-file change, with focused generation and private native lookup evidence. The retained projection is not a complete rebuilt package, so standard production qualification still follows. The original failed lookup and incomplete cold run remain unchanged, with no replay or new score. [Full reviews and source custody](../benchmarks/runs/2026-09-06-clique-improvement/evidence/guide-readme-topics/README.md).
 
 The recovered0.0.11 preparation also remains failed: its consumer timeout controls even though captured output contains passing checks. [Original report and terminal/cleanup custody](../benchmarks/runs/2026-09-06-clique-improvement/evidence/release-011-recovered/README.md) preserve that result. Existing competitor baselines remain reusable.
+
+
+### 2026-09-06 — Page coverage still needs separate exhaustion evidence
+
+The next complete R8 review exposed a distinction that the narrow entrypoint tests missed. A malformed empty-range cursor can persist before hydration rejects it, and consuming the one held halo can turn a capped page into an unsupported complete result. Astra reproduced both with exact before/final source records; Grok's independent source review found no material defect. The disagreement does not clear either concrete reproduction.
+
+The authorized repair must validate complete bounds before publication and keep exact page values separate from proof that the server range is exhausted. This matters for offline behavior: a full-looking held page must not promise that an unseen tail does not exist. The initial halo/program fixture is native, while malformed receipt derivatives and queued-overlay installation are explicitly synthetic. No public/native bypass or new competitor behavior was established.
+
+The preceding entrypoint fix passes its scoped public/Twin controls but grows the complete runtime to 72,709 gzip, still 6,709 over budget. Original movement failures and realistic current resident qualification remain open. [Full reports, terminal identities and exact probe evidence](../benchmarks/runs/2026-09-06-clique-improvement/evidence/offline-full-r8-review-r2/README.md). This records engineering friction and required follow-up, not a full Clique win or a reason to rebuild valid Convex/Supabase baselines.

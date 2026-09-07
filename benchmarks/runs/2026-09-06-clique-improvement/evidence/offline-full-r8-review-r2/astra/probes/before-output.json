@@ -1,0 +1,518 @@
+{
+  "stage": "before",
+  "cases": [
+    {
+      "name": "halo-delete-r0",
+      "original": {
+        "state": "capped",
+        "data": {
+          "now": 1788745713386,
+          "rows": [
+            {
+              "at": 0,
+              "id": "r0"
+            },
+            {
+              "at": 1,
+              "id": "r1"
+            },
+            {
+              "at": 2,
+              "id": "r2"
+            },
+            {
+              "at": 3,
+              "id": "r3"
+            },
+            {
+              "at": 4,
+              "id": "r4"
+            },
+            {
+              "at": 5,
+              "id": "r5"
+            },
+            {
+              "at": 6,
+              "id": "r6"
+            },
+            {
+              "at": 7,
+              "id": "r7"
+            },
+            {
+              "at": 8,
+              "id": "r8"
+            },
+            {
+              "at": 9,
+              "id": "r9"
+            }
+          ]
+        },
+        "next": null,
+        "seq": 1,
+        "since": 1788745713332
+      },
+      "prediction": {
+        "predicted": true,
+        "overlay": [
+          {
+            "table": "events",
+            "id": "r0",
+            "row": {},
+            "removed": true
+          }
+        ],
+        "trace": {
+          "points": [],
+          "verdicts": []
+        },
+        "partialRanges": [],
+        "uncovered": [],
+        "omitted": []
+      },
+      "warm": {
+        "state": "complete",
+        "data": {
+          "now": 1788745713416,
+          "rows": [
+            {
+              "at": 1,
+              "id": "r1"
+            },
+            {
+              "at": 2,
+              "id": "r2"
+            },
+            {
+              "at": 3,
+              "id": "r3"
+            },
+            {
+              "at": 4,
+              "id": "r4"
+            },
+            {
+              "at": 5,
+              "id": "r5"
+            },
+            {
+              "at": 6,
+              "id": "r6"
+            },
+            {
+              "at": 7,
+              "id": "r7"
+            },
+            {
+              "at": 8,
+              "id": "r8"
+            },
+            {
+              "at": 9,
+              "id": "r9"
+            },
+            {
+              "at": 10,
+              "id": "halo"
+            }
+          ]
+        },
+        "next": null,
+        "seq": 1,
+        "since": 1788745713332,
+        "predicted": [
+          "remove-one"
+        ]
+      },
+      "cold": {
+        "state": "complete",
+        "data": {
+          "now": 1788745713441,
+          "rows": [
+            {
+              "at": 1,
+              "id": "r1"
+            },
+            {
+              "at": 2,
+              "id": "r2"
+            },
+            {
+              "at": 3,
+              "id": "r3"
+            },
+            {
+              "at": 4,
+              "id": "r4"
+            },
+            {
+              "at": 5,
+              "id": "r5"
+            },
+            {
+              "at": 6,
+              "id": "r6"
+            },
+            {
+              "at": 7,
+              "id": "r7"
+            },
+            {
+              "at": 8,
+              "id": "r8"
+            },
+            {
+              "at": 9,
+              "id": "r9"
+            },
+            {
+              "at": 10,
+              "id": "halo"
+            }
+          ]
+        },
+        "next": null,
+        "seq": 0,
+        "since": 1788745713332,
+        "predicted": [
+          "remove-one"
+        ]
+      },
+      "storedRange": {
+        "absence": false,
+        "after": null,
+        "before": null,
+        "gt": null,
+        "gte": null,
+        "haloId": "halo",
+        "index": "byAt",
+        "lt": null,
+        "lte": null,
+        "order": "Asc",
+        "prefix": [],
+        "rowIds": [
+          "r0",
+          "r1",
+          "r2",
+          "r3",
+          "r4",
+          "r5",
+          "r6",
+          "r7",
+          "r8",
+          "r9"
+        ],
+        "ruleHash": "75127f113f0cdaab190e505b9cd62b78c7a92d6a43028a5db3d98dcd342c95ca",
+        "site": "clock.range",
+        "stop": "Limit",
+        "table": "events",
+        "take": 10,
+        "heldSuffix": [
+          {
+            "Int": 9
+          },
+          {
+            "Id": "r9"
+          }
+        ]
+      }
+    },
+    {
+      "name": "halo-delete-halo",
+      "original": {
+        "state": "capped",
+        "data": {
+          "now": 1788745713478,
+          "rows": [
+            {
+              "at": 0,
+              "id": "r0"
+            },
+            {
+              "at": 1,
+              "id": "r1"
+            },
+            {
+              "at": 2,
+              "id": "r2"
+            },
+            {
+              "at": 3,
+              "id": "r3"
+            },
+            {
+              "at": 4,
+              "id": "r4"
+            },
+            {
+              "at": 5,
+              "id": "r5"
+            },
+            {
+              "at": 6,
+              "id": "r6"
+            },
+            {
+              "at": 7,
+              "id": "r7"
+            },
+            {
+              "at": 8,
+              "id": "r8"
+            },
+            {
+              "at": 9,
+              "id": "r9"
+            }
+          ]
+        },
+        "next": null,
+        "seq": 1,
+        "since": 1788745713465
+      },
+      "prediction": {
+        "predicted": true,
+        "overlay": [
+          {
+            "table": "events",
+            "id": "halo",
+            "row": {},
+            "removed": true
+          }
+        ],
+        "trace": {
+          "points": [],
+          "verdicts": []
+        },
+        "partialRanges": [],
+        "uncovered": [],
+        "omitted": []
+      },
+      "warm": {
+        "state": "complete",
+        "data": {
+          "now": 1788745713480,
+          "rows": [
+            {
+              "at": 0,
+              "id": "r0"
+            },
+            {
+              "at": 1,
+              "id": "r1"
+            },
+            {
+              "at": 2,
+              "id": "r2"
+            },
+            {
+              "at": 3,
+              "id": "r3"
+            },
+            {
+              "at": 4,
+              "id": "r4"
+            },
+            {
+              "at": 5,
+              "id": "r5"
+            },
+            {
+              "at": 6,
+              "id": "r6"
+            },
+            {
+              "at": 7,
+              "id": "r7"
+            },
+            {
+              "at": 8,
+              "id": "r8"
+            },
+            {
+              "at": 9,
+              "id": "r9"
+            }
+          ]
+        },
+        "next": null,
+        "seq": 1,
+        "since": 1788745713465,
+        "predicted": [
+          "remove-one"
+        ]
+      },
+      "cold": {
+        "state": "complete",
+        "data": {
+          "now": 1788745713488,
+          "rows": [
+            {
+              "at": 0,
+              "id": "r0"
+            },
+            {
+              "at": 1,
+              "id": "r1"
+            },
+            {
+              "at": 2,
+              "id": "r2"
+            },
+            {
+              "at": 3,
+              "id": "r3"
+            },
+            {
+              "at": 4,
+              "id": "r4"
+            },
+            {
+              "at": 5,
+              "id": "r5"
+            },
+            {
+              "at": 6,
+              "id": "r6"
+            },
+            {
+              "at": 7,
+              "id": "r7"
+            },
+            {
+              "at": 8,
+              "id": "r8"
+            },
+            {
+              "at": 9,
+              "id": "r9"
+            }
+          ]
+        },
+        "next": null,
+        "seq": 0,
+        "since": 1788745713465,
+        "predicted": [
+          "remove-one"
+        ]
+      },
+      "storedRange": {
+        "absence": false,
+        "after": null,
+        "before": null,
+        "gt": null,
+        "gte": null,
+        "haloId": "halo",
+        "index": "byAt",
+        "lt": null,
+        "lte": null,
+        "order": "Asc",
+        "prefix": [],
+        "rowIds": [
+          "r0",
+          "r1",
+          "r2",
+          "r3",
+          "r4",
+          "r5",
+          "r6",
+          "r7",
+          "r8",
+          "r9"
+        ],
+        "ruleHash": "75127f113f0cdaab190e505b9cd62b78c7a92d6a43028a5db3d98dcd342c95ca",
+        "site": "clock.range",
+        "stop": "Limit",
+        "table": "events",
+        "take": 10,
+        "heldSuffix": [
+          {
+            "Int": 9
+          },
+          {
+            "Id": "r9"
+          }
+        ]
+      }
+    },
+    {
+      "name": "empty-bound",
+      "after": 0,
+      "admitted": true,
+      "changed": true,
+      "local": {
+        "state": "partial",
+        "data": {
+          "now": 1788745713510,
+          "rows": []
+        },
+        "reason": "never-held",
+        "site": "clock.range",
+        "sites": [
+          {
+            "site": "clock.range",
+            "reason": "never-held"
+          }
+        ],
+        "seq": 1,
+        "since": 1788745713493
+      },
+      "factSlots": 0
+    },
+    {
+      "name": "empty-bound",
+      "after": [
+        0
+      ],
+      "admitted": true,
+      "changed": true,
+      "local": {
+        "state": "partial",
+        "data": {
+          "now": 1788745713520,
+          "rows": []
+        },
+        "reason": "never-held",
+        "site": "clock.range",
+        "sites": [
+          {
+            "site": "clock.range",
+            "reason": "never-held"
+          }
+        ],
+        "seq": 1,
+        "since": 1788745713517
+      },
+      "factSlots": 0
+    },
+    {
+      "name": "empty-bound",
+      "after": [
+        0,
+        "edge"
+      ],
+      "admitted": true,
+      "changed": true,
+      "local": {
+        "state": "partial",
+        "data": {
+          "now": 1788745713526,
+          "rows": []
+        },
+        "reason": "never-held",
+        "site": "clock.range",
+        "sites": [
+          {
+            "site": "clock.range",
+            "reason": "never-held"
+          }
+        ],
+        "seq": 1,
+        "since": 1788745713524
+      },
+      "factSlots": 0
+    }
+  ]
+}

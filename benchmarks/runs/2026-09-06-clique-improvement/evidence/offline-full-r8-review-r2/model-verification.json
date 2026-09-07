@@ -1,0 +1,24 @@
+{
+  "verifiedUtc": "2026-09-07T01:42:40.053442+00:00",
+  "reviews": {
+    "astra": {
+      "session": "01a07986-d222-78e0-b8c6-73c9503d3740",
+      "metadata": "/Users/ccheever/.codex/sessions/2026/09/06/rollout-2026-09-06T18-41-13-01a07986-d222-78e0-b8c6-73c9503d3740.jsonl",
+      "model": "gpt-6-astra",
+      "effort": "xhigh",
+      "timestamp": "2026-09-07T01:41:19.390Z",
+      "pid": 949
+    },
+    "grok": {
+      "session": "cdfee5b9-0f04-490e-98bc-fcd3ce9b6528",
+      "metadata": "/Users/ccheever/.grok/sessions/%2FUsers%2Fccheever%2Fclique-improvement%2Freviews%2Fsearch-twin-r8-complete-r2%2Fgrok/cdfee5b9-0f04-490e-98bc-fcd3ce9b6528/summary.json",
+      "model": "grok-4.6",
+      "effort": "xhigh",
+      "pid": 945
+    }
+  },
+  "muse": {
+    "available": false,
+    "provenance": "Root reported unavailable, no substitute or supervisor probe claimed"
+  }
+}

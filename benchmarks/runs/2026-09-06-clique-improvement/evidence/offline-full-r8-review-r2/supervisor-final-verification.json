@@ -1,0 +1,62 @@
+{
+  "utc": "2026-09-07T02:07:01.998354+00:00",
+  "base": "e1c6e2b79a9e13ceb363f647f52807218aa2b57a",
+  "commit": "cb578e197535290d9c3c7394246584e12459e77a",
+  "packetManifest": {
+    "path": "/Users/ccheever/clique-improvement/reviews/search-twin-r8-complete-r2/packet/manifest.json",
+    "bytes": 716880,
+    "sha256": "3132426a426ecc98f05f065954b993079e757a960ed186dca0c9f7f7f2f09e99"
+  },
+  "packetFilesVerified": 2106,
+  "probeSourcesAndOriginsVerified": 97,
+  "probeArtifactsVerified": 8,
+  "errors": [],
+  "reports": {
+    "astra": {
+      "path": "/Users/ccheever/clique-improvement/reviews/search-twin-r8-complete-r2/astra/REPORT.md",
+      "bytes": 24334,
+      "sha256": "124edb8f16149a8768263d6fe39341ac602aa0f01820c6cc2145974d50c7848f"
+    },
+    "grok": {
+      "path": "/Users/ccheever/clique-improvement/reviews/search-twin-r8-complete-r2/grok/REPORT.md",
+      "bytes": 18657,
+      "sha256": "ffe1accd7a6a36dc22187ac379180e8596a5b56f0e934372df80d7a1a9e5c08a"
+    }
+  },
+  "terminals": {
+    "astra": {
+      "pid": 949,
+      "exitCode": 0,
+      "endedEpoch": 1788746506.5725272,
+      "elapsedSeconds": 1233.031274318695
+    },
+    "grok": {
+      "pid": 945,
+      "exitCode": 0,
+      "endedEpoch": 1788746505.157474,
+      "elapsedSeconds": 1231.7476620674133
+    }
+  },
+  "pidObservation": "",
+  "effectiveModels": {
+    "astra": [
+      {
+        "timestamp": "2026-09-07T01:41:19.390Z",
+        "model": "gpt-6-astra",
+        "effort": "xhigh"
+      },
+      {
+        "timestamp": "2026-09-07T01:54:17.571Z",
+        "model": "gpt-6-astra",
+        "effort": "xhigh"
+      }
+    ],
+    "grok": {
+      "session_summary": "Full-R8 Correctness Review e1c6e2b-cb578e1 Packet",
+      "current_model_id": "grok-4.6",
+      "reasoning_effort": "xhigh"
+    }
+  },
+  "muse": "Requested Muse1.3/ultra availability not established under prior gate and host checks; no global outage/substitution/new probe/third review claim. Original reports wording retained.",
+  "supervisorProductExecutions": 0
+}

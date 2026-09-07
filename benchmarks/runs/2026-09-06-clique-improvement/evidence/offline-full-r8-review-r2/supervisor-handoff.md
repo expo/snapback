@@ -1,0 +1,19 @@
+# Full R8 R2 review handoff
+
+Frozen scope: e1c6e2b79a9e13ceb363f647f52807218aa2b57a through cb578e197535290d9c3c7394246584e12459e77a, including original 4e927. Both full reports, the Astra probe, and both complete probe outputs were read. No additional product execution was performed by the supervisor.
+
+- Astra: **NEEDS_CHANGES**, two P2s; 24,334 bytes, SHA256 124edb8f16149a8768263d6fe39341ac602aa0f01820c6cc2145974d50c7848f. Actual native gpt-6-astra/xhigh, UUID 01a07986-d222-78e0-b8c6-73c9503d3740. PID 949 exited 0; execution handle 18625 closed.
+- Grok: **READY for scoped correctness only**, source review without new execution; 18,657 bytes, SHA256 ffe1accd7a6a36dc22187ac379180e8596a5b56f0e934372df80d7a1a9e5c08a. Actual native grok-4.6/xhigh, UUID cdfee5b9-0f04-490e-98bc-fcd3ce9b6528. PID 945 exited 0; execution handle 86188 closed.
+
+The two Astra findings remain material despite the other reviewer finding none:
+
+1. **Malformed empty-range bounds persist before later hydration refusal.** On actual checked OfflineRuntime.accept/commit, synthetic empty Exhausted derivatives of the native-certified halo fixture accept after:0 and after:[0], persist four fact slots, then immediate Twin evaluation throws E_TYPE cursor suffix width mismatch. A full [Time,Id] control evaluates partial normally. The inherited base accepts all three and remains partial; stricter final CoverageIndex validation exposes the post-commit failure. No claim that native emits these malformed frames, full Client transport was exercised, or this probe established cold/outbox rollback.
+2. **Limit halo consumption can falsely establish complete.** Unchanged native first page/program plus actual Twin.predict removal of either one member or halo, installed through a carrier with synthetic queued intent, yields capped→complete warm and cold while the retained receipt remains Limit. Exact e1c6 reproduces this inherited issue. The fixture does not contain a page cursor; it proves the wrong state label, not cursor loss. A compatible unheld tail establishes why held-iterator exhaustion is insufficient; no newly emitted native tail response was run.
+
+Astra ran only two tiny Bun diagnostic commands, once per frozen snapshot, approximately 0.634s/0.508s. They catch observed errors, so exit 0 is diagnostic completion, not correctness PASS. No per-file deadline or PID was captured. The source record is a conservative static import closure including type-only imports, not a dynamic-load capture. The supervisor independently verified all 2,106 frozen packet leaves, all 97 probe source copies AND origins, and all eight probe artifacts with zero mismatches. Actual effective model metadata and terminal records are bound in supervisor-final-verification.json; all owned PIDs are absent. The packet and mutually blind review reports were not modified.
+
+Grok's cold moved-key coverage concern remains an explicitly unproven uncertainty, not a third established defect. Its other source-only uncertainties do not constitute test failures. Any next repair should preserve complete suffix versus scalar-bound distinctions and separate page values from exhaustion proof, with exact rejection/rollback and warm/cold controls. Root owns the next implementation decision; no new writer turn started.
+
+Current fixed five-root size remains 72,709 gzip, FAIL 6,709 over 66,000. Original movement failures and current resident qualification remain open. The later historical EPYC baseline-only partial run and its contradiction-assertion failure are separate evidence, not provided as peer review material and not a current-candidate result. Neither verdict clears landing or publication.
+
+Muse wording in original reports is retained. The precise scope is that requested Muse1.3/ultra availability was not established under the prior gate and host checks; no global service outage, substitute, fresh probe, or third review is claimed.

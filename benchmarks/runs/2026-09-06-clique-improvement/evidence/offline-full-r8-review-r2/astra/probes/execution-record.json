@@ -1,0 +1,122 @@
+{
+  "review": {
+    "base": "e1c6e2b79a9e13ceb363f647f52807218aa2b57a",
+    "final": "cb578e197535290d9c3c7394246584e12459e77a",
+    "native": "26c9fd5e0d3922ce7680493c0e8f7371f4793d59",
+    "custody": "../custody-check.json"
+  },
+  "cwd": "/Users/ccheever/clique-improvement/reviews/search-twin-r8-complete-r2/astra",
+  "runtime": {
+    "path": "/Users/ccheever/.bun/bin/bun",
+    "version": "1.3.12",
+    "sha256": "39e644cea4e6db24a3af36013695655d6f789b4b98f1f13bacb882ac6e5c3c18",
+    "verifiedAgainst": "../../packet/evidence/r8-entrypoint-repair/executables.json",
+    "executed": true
+  },
+  "otherVerifiedRuntime": {
+    "path": "/Users/ccheever/.volta/tools/image/node/22.23.2/bin/node",
+    "version": "v22.23.2",
+    "sha256": "18e387c90ab8a8400183e8bdd396376e1e875b91b4c874b894dcade7b35bf572",
+    "executedForProbes": false
+  },
+  "preparationTool": {
+    "path": "/Library/Developer/CommandLineTools/usr/bin/python3",
+    "version": "3.9.6 (default, May 22 2026, 11:13:45) \n[Clang 21.0.0 (clang-2100.1.1.101)]",
+    "sha256": "bdea59019a38eb6600cc9e71e984a97fedadc406448431281e7657030f54987e",
+    "use": "stdlib-only source copying, JSON summaries and hashing; not product execution"
+  },
+  "sourceCapture": {
+    "manifest": "copied-sources.json",
+    "count": 97,
+    "bytes": 1152015,
+    "method": "Conservative static relative import closure including type-only imports, byte-identical copies, plus fixture JSON. This is not a dynamic module-load trace.",
+    "generatedDependency": "Both snapshots use the exact evaluator/dist/unicode-tables.ts copied from frozen packet/evidence/r8-entrypoint-repair/final-standalone-corrected.sources. No generation/build/install occurred.",
+    "builtins": "Harness node:fs and runtime builtins are supplied by verified Bun; no package dependencies were installed."
+  },
+  "runs": [
+    {
+      "stage": "final",
+      "argv": [
+        "/Users/ccheever/.bun/bin/bun",
+        "--no-install",
+        "probes/correctness.ts",
+        "final"
+      ],
+      "stdout": "final-output.json",
+      "stderr": "final-stderr.log",
+      "exit": 0,
+      "toolWallTimeSeconds": 0.634467583,
+      "deadlineSeconds": null,
+      "pid": null,
+      "pidNote": "not captured by exec_command",
+      "interpretation": "diagnostic harness completed; expected refusal/errors are caught and reported, so exit 0 is not a correctness PASS"
+    },
+    {
+      "stage": "before",
+      "argv": [
+        "/Users/ccheever/.bun/bin/bun",
+        "--no-install",
+        "probes/correctness.ts",
+        "before"
+      ],
+      "stdout": "before-output.json",
+      "stderr": "before-stderr.log",
+      "exit": 0,
+      "toolWallTimeSeconds": 0.507892167,
+      "deadlineSeconds": null,
+      "pid": null,
+      "pidNote": "not captured by exec_command",
+      "interpretation": "diagnostic harness completed; expected refusal/errors are caught and reported, so exit 0 is not a correctness PASS"
+    }
+  ],
+  "inputNotes": [
+    "Both runs use the identical final nativeR8.halo program and first envelope; before fixture is captured but not used by the harness.",
+    "Predicted remove overlays are produced by actual Twin.predict; carrier installation uses a synthetic queued entry with probe-grant, not public Client grant admission.",
+    "Empty-bound envelopes are synthetic controls through actual OfflineRuntime.accept/commit, not native emissions and not full Client transport.",
+    "Memory backend JSON-roundtrips every replacement; halo cases close/reopen from that saved state. Empty-bound cases test immediate evaluation only.",
+    "Host Date.now is not pinned; sampled values are preserved in output and no tested scan bound depends on local time.",
+    "inputs.json is written identically by each run and stores the native fixture plus all three synthetic bound frames; the source records exact outbox construction."
+  ],
+  "artifacts": [
+    {
+      "path": "correctness.ts",
+      "bytes": 3639,
+      "sha256": "5bb4be0903f0dc5fb4858eac5b134a807a50027dd7510a276baed16e3215da39"
+    },
+    {
+      "path": "copy-sources.py",
+      "bytes": 1824,
+      "sha256": "fa86a125c6d5517a6b3402e884ddcdb796081265eace32339f1da21119fc1a8f"
+    },
+    {
+      "path": "copied-sources.json",
+      "bytes": 42231,
+      "sha256": "40bf141a840439c13ef43ba623f21e31a77a16fa08fe25ed6be75acf98f041fc"
+    },
+    {
+      "path": "inputs.json",
+      "bytes": 18611,
+      "sha256": "50136a195bc8a01496b6db30418df4c84d2aafb8edbc65956507d0daa397d4d6"
+    },
+    {
+      "path": "final-output.json",
+      "bytes": 9714,
+      "sha256": "c6af790ae722257b8f757e384e5b734b03324c906128855056230e0e87e0b8fb"
+    },
+    {
+      "path": "final-stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "before-output.json",
+      "bytes": 10179,
+      "sha256": "006e430f71698329757b6f96fcab0dc39f6c9873d8d43f33d21eb4cb2ed483de"
+    },
+    {
+      "path": "before-stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  ]
+}
