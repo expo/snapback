@@ -9,13 +9,13 @@ Clique benchmark
 2026-09-06); revised by Claude Fable 5.1 after the five-model panel of
 2026-09-06/07 (§9), which the author convened
 **Date:** 2026-09-06
-**Revised:** 2026-09-07 (pending-client schema conflict exercise and formal M7 handoff); 2026-09-07 (surviving-row uniqueness checked against each actual rebuild); 2026-09-07 (panel revision: a second measure, move one rewritten
+**Revised:** 2026-09-07 (two focused draft RFCs and three bounded architecture investigations, §12); 2026-09-07 (pending-client schema conflict exercise and formal M7 handoff); 2026-09-07 (surviving-row uniqueness checked against each actual rebuild); 2026-09-07 (panel revision: a second measure, move one rewritten
 around what already exists, the browser-tab policy decided, count-backed cap
 probes decided, the typed IR cut, move four evidence-led, move zero added, the
 Muse scores cited, the clock repair marked landed; implementation record §10);
 2026-09-06 (initial evidence-backed assessment)
 **Related:** LLP 1000, LLP 1001, LLP 1002, LLP 1004, LLP 1010, LLP 1011,
-LLP 1012, LLP 1013, LLP 1015, LLP 1016, LLP 1017, LLP 0329.014.007;
+LLP 1012, LLP 1013, LLP 1015, LLP 1016, LLP 1017, LLP 1018.001, LLP 1018.002, LLP 0329.014.007;
 `benchmarks/briefs/social-messenger.md`,
 `benchmarks/runs/2026-09-06-clique-improvement/README.md`,
 `benchmarks/runs/2026-09-05-clique-full-3x3/holistic-scores.md`;
@@ -298,8 +298,9 @@ predictably, preserve their semantics on both evaluators, and explain real
 constraints at Quarry source locations. A cold builder authors search once
 and owns no corrective postings-maintenance implementation.
 
-**Confidence:** high on hygiene and diagnostics; the typed path is not
-proposed.
+**Confidence (original round):** high on hygiene and diagnostics; the typed
+path was not proposed in that round. The subsequent candidate and focused
+proposal are accounted for in §12.
 
 ## 6. Move four: evolution of the whole application
 
@@ -527,4 +528,68 @@ directly. Its outstanding hosted admission and MCP work remain owned by
 LLP 1015. That archive operation removed only the current link; it does not
 close residual issues or change either document's status. This document
 leaves the working set when §10's slices have landed and the next cold run's
-diaries have been counted against §1's two measures.
+diaries have been counted against §1's two measures, and §12's follow-ups have
+an explicit disposition or another active owner. New architecture work does
+not replace the cold-run requirement.
+
+The two focused draft RFCs added on 2026-09-07 replace the current links to
+LLP 0329.017 and LLP 0329.018, keeping the working set at 59. Those prototype
+research documents retain their paths and statuses; LLP 0329.022 still links
+them as panel history. Current Quarry and client contracts are governed by
+LLP 1000, LLP 1004 and LLP 1012. This is working-set curation, not a new ruling
+on the older proposals. The concurrent architecture lane separately replaces
+LLP 1014's current link; this change does not consume that slot.
+
+## 12. Further unification: two drafts and three investigations
+
+Charlie commissioned this follow-up structure on 2026-09-07: retain this
+umbrella, write focused proposals where a semantic contract needs review, and
+keep bounded investigations here. The following are proposed directions, not
+five newly accepted implementations. Codex owns the draft and investigation
+dispositions; existing implementation lanes retain their work.
+
+| Direction | Record and next deliverable | Completion criterion |
+|---|---|---|
+| One checked Quarry representation | [LLP 1018.001](./1018.001-quarry-checked-representation.rfc.md), Draft. Map the existing typed compiler candidate to one owner for each semantic fact and count actual deletions. | Reconcile the candidate and independently check semantic parity, diagnostics, and the final maintenance/loop cost; do not build a competing compiler. |
+| Dependency-scoped invalidation | [LLP 1018.002](./1018.002-dependency-scoped-invalidation.rfc.md), Draft. Audit identity producers/consumers and a conservative transitive policy closure. | Review a bounded authorization-preserving proposal with an explicit implementation owner/date, or retain broad invalidation with the reason recorded. |
+| Read evidence | Start with the [public zero-count ticket](../issues/20260907-snapback2-public-zero-count-does-not-enable-offline-cap-prediction.md). Trace the same count from native execution through receipt/store/twin to prediction. | Account for positive count, proved absence, and unheld count; identify the smallest missing evidence or close against an actual witness in the architecture candidate. |
+| Query lifecycle ownership | Map mounted queries, shared entries, drains, resume, principal/epoch changes, projection refresh and disposal against the existing client candidate. | Name one owner for each transition, expose duplicated state, and justify each remaining distinct lifetime with a concrete race or behavior. |
+| Public extension points | Inventory actual consumers of public client/runtime/compiler seams in package exports, templates, demos and tests, including effect/carrier needs. | Classify each seam as required, internal, or unsupported; propose deletion with its caller change where justified, without adding a new extension framework. |
+
+The existing architecture integration branch is
+`llp-ship/20260907-1018-architecture/integration`; the inspected snapshot
+`2cae5d9a2` includes `llp/1018.000-composable-architecture-next-moves.research.md`,
+typed direct lowering, persistent query work, a coherent observation API,
+sparse aggregate work and follower forwarding. That branch's commissioning,
+qualification and landing record are separate. These drafts do not restart its
+work or claim it has landed. In particular, §5's typed-IR deferral and §10's
+filed forwarding describe the original round, not a veto of later commissioned
+work. Reconcile against the candidate that actually lands before assigning gaps.
+
+For read evidence, complete `0` is not by itself proof that a particular
+maintained-count key is absent. A candidate must carry sufficient authorized
+evidence to distinguish known absence from an unheld count, survive a cold
+reopen, and keep cap overflow atomic on both evaluators. Compare any candidate's
+sparse aggregate representation and receipt changes before proposing another
+representation. Record findings in the existing ticket and count report; a
+passing synthetic zero result alone does not close the issue.
+
+For lifecycle ownership, start from the shared-session implementation in §10
+and account for the candidate's observation API. A stable snapshot for one named
+query does not make independent query deliveries atomic. Preserve drain cursor
+ownership, last-consumer disposal, same-principal epoch changes, stale async
+completion fencing, follower takeover, and committed/predicted state separation.
+Record a transition table here before proposing another controller or store.
+
+For extension points, distinguish a supported external consumer from a test
+that imports an implementation detail. Count repository consumers and state
+the limits of that census; absence in the repository is not proof of no external
+use. Keep justified effect and carrier boundaries. Record a compact consumer
+table here, then make only explicitly scoped deletion proposals.
+
+These three investigations add no sub-LLPs, tests, registries or gates merely
+for tracking. Runtime changes discovered by them need their concrete scope
+resolved against the existing architecture work and governing implemented
+contracts. Their outcome may be a deletion, a bounded fix, or no change. Judge
+the result by §1's application corrective infrastructure and probe-discovered
+contract measures, alongside maintenance cost, rather than abstraction count.
