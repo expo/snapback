@@ -1,4 +1,4 @@
-import { twinLastDecline } from "snapback2/expo/witness";
+import { twinLastDecline, witnessSearchProbe } from "snapback2/expo/witness";
 import React, { useEffect, useState } from "react";
 import { Text, View } from "react-native";
 import { api, SnapbackRefusal, type AssetRecord, type ImageAsset, type RangeStore, type SnapbackClient, type Subscription } from "snapback2/client";
@@ -117,9 +117,14 @@ export default function Witness({ url, controlUrl }: { url: string; controlUrl: 
           const rows = answer && "data" in answer && Array.isArray(answer.data) ? answer.data : [];
           const search = typeof args.search === "string"
             ? await client.query(api.messages.search, { term: args.search, c: null }) : undefined;
+          const diagnosticTerms = ["caf", "café"];
+          const searchVariants = args.searchDiagnostics === true ? Object.fromEntries(await Promise.all([
+            ["ascii", diagnosticTerms[0]], ["precomposed", diagnosticTerms[1]],
+          ].map(async ([name, term]) => [name, await client.query(api.messages.search, { term, c: null })]))) : undefined;
           return { snapshot: client.snapshot, coverage: await store.coverage(), outbox: entries,
             bubbles: typeof args.conversationId === "string" ? threadBubbles(rows, entries, args.conversationId) : [],
-            search,
+            search, searchVariants, searchProbe: args.searchDiagnostics === true
+              ? witnessSearchProbe(client, [...diagnosticTerms, String(args.search)]) : undefined,
             answer, twin: twinLastDecline(), stores: await databaseState(), files: listFiles(), media: currentMedia ? { loaded: currentMedia.loaded, uri: currentMedia.uri } : null };
         }
         throw new Error(`unknown witness command ${verb}`);

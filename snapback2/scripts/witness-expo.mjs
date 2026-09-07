@@ -93,7 +93,9 @@ function coldAssertions(state) {
     })) : null,
   } : null;
   const facts = { answer: queryFacts(state.answer), search: queryFacts(state.search),
-    twin: state.twin, roomCoverage: state.coverage.rows.filter((row) => row.row?.conversationId === seed.rooms[3]) };
+    searchVariants: Object.fromEntries(Object.entries(state.searchVariants ?? {}).map(([name, answer]) => [name, queryFacts(answer)])),
+    searchProbe: state.searchProbe, twin: state.twin,
+    roomCoverage: state.coverage.rows.filter((row) => row.row?.conversationId === seed.rooms[3]) };
   assert.ok((state.answer?.predicted ?? []).includes(queued[0].intent), `predicted intent must be on the query result; answer facts: ${JSON.stringify(facts)}; outbox: ${JSON.stringify(state.outbox.map((entry) => ({ state: entry.state, predicted: entry.predicted, intent: entry.intent })))}`);
   assert.ok(state.answer.data.some((row) => row.message?.body === "Café offline first"), "queued send must be inside the never-opened query's data");
   assert.ok(state.bubbles.some((bubble) => bubble.key === queued[0].ids[0] && bubble.kind === "pending"));
@@ -189,7 +191,7 @@ const actions = [
     const pending = command("swap", { phase: "post" }).catch((error) => error.message);
     await control.event("barrier reached"); await killApp(); await pending;
     await owner.stop(); await launch(); coldStores(await command("stores")); await command("construct");
-    const state = await command("state", { conversationId: seed.rooms[3], search: indexedSearchTerm }); coldAssertions(state);
+    const state = await command("state", { conversationId: seed.rooms[3], search: indexedSearchTerm, searchDiagnostics: true }); coldAssertions(state);
     // A query with truly absent coverage is separate from the never-opened chat.
     const absent = await command("state", { conversationId: "never-held-conversation" });
     assert.equal(absent.answer.state, "partial");
