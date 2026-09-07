@@ -4,7 +4,7 @@ import { deepStrictEqual } from "node:assert";
 import ts from "typescript";
 import { collectEffectCatalog, lowerEffects, type SourceModule } from "./lower/effects";
 import { createProjectProgram, loadCompilerLib, projectTypeDiagnostics } from "./project-program";
-import { lowerProject } from "./project";
+import { lowerProject, lowerSeed } from "./project";
 import { rustCheck } from "./rust-check";
 import { boundEffectDeclarationSources } from "./quarry/bound-effects-stubs";
 import { bindQuarryProject } from "./quarry/bound-project";
@@ -90,13 +90,20 @@ export function registerQuarryDirectProjectChecks(test: Test, frontend: string):
 
   test("direct-only Quarry projects skip effect declarations and still assemble", async () => {
     await withProject({
-      "snapback/schema.q": "table rows:\n  public\n",
+      "snapback/schema.q": "table rows:\n  label: text <=20\n  public\n",
       "snapback/rows.q": "query list():\n  return rows[] first 2 by byId\n",
+      "snapback/seed.ts": `export default {
+  personas: ["alice"],
+  rows: { rows: [{ id: "row-1", label: "first" }] },
+};
+`,
     }, async (root) => {
       const lowered = await lowerProject(root);
+      const seed = await lowerSeed(root);
       assert(lowered.ok && lowered.project.effects.length === 0
-        && lowered.project.programs.length === 1 && lowered.quarry.every((item) => item.generated.endsWith(".ir.json")),
-      `direct-only project did not assemble without the effect checker: ${JSON.stringify(lowered)}`);
+        && lowered.project.programs.length === 1 && lowered.quarry.every((item) => item.generated.endsWith(".ir.json"))
+        && seed.ok && seed.seed.personas[0] === "alice" && seed.seed.rows.rows?.length === 1,
+      `direct-only project or seed did not assemble without generated TypeScript: ${JSON.stringify({ lowered, seed })}`);
     });
   });
 
