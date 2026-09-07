@@ -1,4 +1,4 @@
-import type { ArgType, IndexComponent, SchemaJson, TableJson, Value } from "../ir";
+import type { ArgType, IndexComponent, SchemaJson, SourceSite, TableJson, Value } from "../ir";
 import { expandedNumericLiteral } from "../syntax";
 import type { ChannelDecl, Document, Expr, MaintainDecl, RuleDecl, ScalarType, TableCatalog, TableDecl } from "./ast";
 import { orderedTables, selectIndex } from "./catalog";
@@ -19,25 +19,45 @@ type RuleTerm = { value: unknown; kind: "field" | "other"; field?: string; metho
 
 /** Lower prepared Quarry declarations directly into the executable schema contract. */
 export function bindQuarrySchema(documents: Document[], catalog: TableCatalog): SchemaJson {
+  return bindQuarrySchemaArtifact(documents, catalog).schema;
+}
+
+export type BoundQuarrySchemaArtifact = {
+  schema: SchemaJson;
+  sources: Array<[string, SourceSite]>;
+};
+
+/** Keep executable constraints and their authored locations in one ordered artifact. */
+export function bindQuarrySchemaArtifact(documents: Document[], catalog: TableCatalog): BoundQuarrySchemaArtifact {
   const tables: Record<string, TableJson> = Object.create(null);
+  const sources: Array<[string, SourceSite]> = [];
   for (const declaration of orderedTables(catalog)) {
-    if (declaration.name !== "connected") tables[declaration.name] = bindTable(declaration, catalog);
+    if (declaration.name === "connected") continue;
+    const bound = bindTable(declaration, catalog);
+    tables[declaration.name] = bound.table;
+    for (const [offset, site] of bound.constraintSources.entries()) {
+      sources.push([`schema.tables.${declaration.name}.constraints[${offset}]`, site]);
+    }
   }
   const channels: Record<string, unknown> = Object.create(null);
   for (const declaration of documents.flatMap((document) => document.channels)) {
     channels[declaration.name] = bindChannel(declaration, catalog);
   }
   const identity = documents.find((document) => document.identity)?.identity;
-  return {
+  const schema: SchemaJson = {
     tables,
     maintains: documents.flatMap((document) => document.maintains).map((item) => bindMaintain(item, catalog)),
     channels,
     auth: { password: identity?.password ?? false, guests: identity?.guests ?? false },
     effects: [],
   };
+  return { schema, sources };
 }
 
-function bindTable(declaration: TableDecl, catalog: TableCatalog): TableJson {
+function bindTable(
+  declaration: TableDecl,
+  catalog: TableCatalog,
+): { table: TableJson; constraintSources: SourceSite[] } {
   const columns: Record<string, unknown> = Object.assign(Object.create(null), { id: "Id" });
   for (const column of declaration.columns) columns[column.name] = bindColumn(column.type, catalog, column.site);
   const indexes: Record<string, unknown> = Object.create(null);
@@ -54,14 +74,16 @@ function bindTable(declaration: TableDecl, catalog: TableCatalog): TableJson {
       rules[effect] = rule ? bindRule(rule, catalog, declaration) : "Deny";
     }
   }
-  return {
+  const constraints = bindConstraints(declaration, catalog);
+  const table: TableJson = {
     columns,
     indexes,
     rules,
-    constraints: bindConstraints(declaration, catalog),
+    constraints: constraints.values,
     // @ref LLP 1012#5-retention-revocation-and-the-fence — omission is an explicit IR default.
     retain: declaration.retain?.policy ?? "until-revoked",
   };
+  return { table, constraintSources: constraints.sources };
 }
 
 function bindColumn(type: ScalarType, catalog: TableCatalog, site: TableDecl["site"]): unknown {
@@ -86,20 +108,30 @@ function bindColumn(type: ScalarType, catalog: TableCatalog, site: TableDecl["si
   return type.optional ? { Optional: descriptor } : descriptor;
 }
 
-function bindConstraints(declaration: TableDecl, catalog: TableCatalog): unknown[] {
+function bindConstraints(
+  declaration: TableDecl,
+  catalog: TableCatalog,
+): { values: unknown[]; sources: SourceSite[] } {
   const constraints: unknown[] = [];
+  const sources: SourceSite[] = [];
+  const add = (value: unknown, site: SourceSite) => {
+    constraints.push(value);
+    sources.push(site);
+  };
   for (const index of declaration.indexes.filter((item) => item.unique)) {
-    constraints.push({ Unique: { index: index.name } });
+    add({ Unique: { index: index.name } }, index.site);
   }
-  for (const cap of declaration.caps) constraints.push({ Cap: { by: [...cap.by], max: cap.max } });
-  for (const immutable of declaration.immutable) constraints.push({ Immutable: { fields: [...immutable.columns] } });
+  for (const cap of declaration.caps) add({ Cap: { by: [...cap.by], max: cap.max } }, cap.site);
+  for (const immutable of declaration.immutable) {
+    add({ Immutable: { fields: [...immutable.columns] } }, immutable.site);
+  }
   for (const column of declaration.columns) {
     if (column.type.kind === "text" && (column.type.min !== undefined || column.type.format)) {
-      constraints.push({ Text: {
+      add({ Text: {
         field: column.name,
         min: column.type.min ?? 0,
         ...(column.type.format ? { format: column.type.format } : {}),
-      } });
+      } }, column.site);
     }
   }
   for (const declarationConstraint of declaration.finalExists) {
@@ -114,13 +146,13 @@ function bindConstraints(declaration: TableDecl, catalog: TableCatalog): unknown
       (value) => ruleTermType(value, context),
       read.site,
     );
-    constraints.push({ FinalExistsOnInsert: {
+    add({ FinalExistsOnInsert: {
       table: tableName(catalog, read.table, read.site),
       index: index.name,
       key: read.keys.map((item) => bindRuleTerm(item.value, context).value),
-    } });
+    } }, declarationConstraint.site);
   }
-  return constraints;
+  return { values: constraints, sources };
 }
 
 function bindMaintain(declaration: MaintainDecl, catalog: TableCatalog): unknown {

@@ -1,9 +1,8 @@
 import { basename } from "node:path";
 import type { Program, QuarryGenerated, SchemaJson, SourceSite } from "../ir";
 import type { OperationSignature } from "../lower/effects";
-import { bindQuarrySchema } from "./bound-schema";
+import { bindQuarrySchemaArtifact, type BoundQuarrySchemaArtifact } from "./bound-schema";
 import { bindQuarryProgram, type BoundQuarryProgram } from "./bound";
-import { orderedTables } from "./catalog";
 import { lowerBoundQuarryArtifact } from "./direct";
 import type { QuarryDiagnostic } from "./ast";
 import { QuarryError } from "./diagnostics";
@@ -34,7 +33,7 @@ export type BoundQuarryProjectResult =
 
 /** Build the complete Quarry data plane from typed bound declarations. */
 export function bindQuarryProject(prepared: PreparedQuarry): BoundQuarryProject {
-  const schema = bindQuarrySchema(prepared.documents, prepared.catalog);
+  const schema = bindQuarrySchemaArtifact(prepared.documents, prepared.catalog);
   const boundPrograms = prepared.documents.flatMap((document) => document.programs.map((program) =>
     bindQuarryProgram(program, prepared.catalog, prepared.documents)));
   return assembleBoundQuarryProject(prepared, schema, boundPrograms);
@@ -44,8 +43,8 @@ export function bindQuarryProject(prepared: PreparedQuarry): BoundQuarryProject 
  * not hide independent authored refusals in later modules. */
 export function tryBindQuarryProject(prepared: PreparedQuarry): BoundQuarryProjectResult {
   const diagnostics: QuarryDiagnostic[] = [];
-  let schema: SchemaJson | undefined;
-  try { schema = bindQuarrySchema(prepared.documents, prepared.catalog); } catch (error) {
+  let schema: BoundQuarrySchemaArtifact | undefined;
+  try { schema = bindQuarrySchemaArtifact(prepared.documents, prepared.catalog); } catch (error) {
     if (!(error instanceof QuarryError)) throw error;
     diagnostics.push(error.diagnostic);
   }
@@ -62,9 +61,10 @@ export function tryBindQuarryProject(prepared: PreparedQuarry): BoundQuarryProje
 
 function assembleBoundQuarryProject(
   prepared: PreparedQuarry,
-  schema: SchemaJson,
+  schemaArtifact: BoundQuarrySchemaArtifact,
   boundPrograms: BoundQuarryProgram[],
 ): BoundQuarryProject {
+  const { schema } = schemaArtifact;
   if (prepared.schedules.length > 0) schema.schedules = prepared.schedules.map(({ bindingName, ...schedule }) => ({
     ...schedule, binding: bindingName,
   }));
@@ -89,7 +89,7 @@ function assembleBoundQuarryProject(
     boundArgs: program.args.map((argument) => ({ name: argument.name, type: argument.type })),
   }]));
   const sourceEntries: Array<[string, SourceSite]> = [
-    ...schemaConstraintSources(prepared),
+    ...schemaArtifact.sources,
     ...artifacts.flatMap((artifact) => artifact.sources),
     ...boundPrograms.map((program): [string, SourceSite] => [program.name, program.source.definition]),
   ];
@@ -108,21 +108,4 @@ function assembleBoundQuarryProject(
     }];
   });
   return { prepared, schema, boundPrograms, programs, clientPrograms, effects, operationSignatures, sources, inspection };
-}
-
-function schemaConstraintSources(prepared: PreparedQuarry): Array<[string, SourceSite]> {
-  const entries: Array<[string, SourceSite]> = [];
-  for (const table of orderedTables(prepared.catalog)) {
-    if (table.name === "connected") continue;
-    let offset = 0;
-    const add = (site: SourceSite) => entries.push([`schema.tables.${table.name}.constraints[${offset++}]`, site]);
-    for (const index of table.indexes.filter((candidate) => candidate.unique)) add(index.site);
-    for (const cap of table.caps) add(cap.site);
-    for (const immutable of table.immutable) add(immutable.site);
-    for (const column of table.columns) {
-      if (column.type.kind === "text" && (column.type.min !== undefined || column.type.format)) add(column.site);
-    }
-    for (const finalExists of table.finalExists) add(finalExists.site);
-  }
-  return entries;
 }
