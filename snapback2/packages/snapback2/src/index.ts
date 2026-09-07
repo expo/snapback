@@ -152,8 +152,6 @@ export function decimal<const S extends number>(value: number, scale: S): Decima
   return encoded as Decimal<S>;
 }
 
-export { words } from "../../evaluator/src/text";
-
 export function mentionTokens(value: string): string[] {
   return value.split(" ").filter((part) => part.startsWith("@"));
 }
