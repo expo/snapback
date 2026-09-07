@@ -1,0 +1,24 @@
+{
+  "sessionId": "01a07d78-1edd-76d1-8fe6-c68ba63decd1",
+  "expectedSessionId": "01a07d78-1edd-76d1-8fe6-c68ba63decd1",
+  "launchPid": 41626,
+  "source": "/Users/ccheever/.codex/sessions/2026/09/07/rollout-2026-09-07T13-03-39-01a07d78-1edd-76d1-8fe6-c68ba63decd1.jsonl",
+  "sourceSha256AtClose": "4bc056ba14804d8d74dc525e17dd9bfdf3a3a1e6e891d8b58b2336ac89a4f102",
+  "newRecordsOffset": 2993377,
+  "turnContexts": [
+    {
+      "model": "gpt-6-astra",
+      "effort": "xhigh",
+      "cwd": "/Users/ccheever/projects/snapback-worktrees/clique-diagnostic-release-version",
+      "timestamp": "2026-09-07T21:06:17.543Z"
+    },
+    {
+      "model": "gpt-6-astra",
+      "effort": "xhigh",
+      "cwd": "/Users/ccheever/projects/snapback-worktrees/clique-diagnostic-release-version",
+      "timestamp": "2026-09-07T21:09:35.866Z"
+    }
+  ],
+  "identityMatchesRequest": true,
+  "onlyOwnNewNativeIdentityRecordsRetained": true
+}

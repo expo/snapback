@@ -1,0 +1,12 @@
+{
+  "outerTool": 83477,
+  "actualOuterExitCode": 0,
+  "actualOuterChunk": "8eb64e",
+  "actualNativeExitCode": 0,
+  "nativeIdentityMatches": true,
+  "nativeTerminalSha256": "7e2113412a216a5f9f02a39a69ed70faa3b3454d8f6cf49dec110492b4f295bc",
+  "reportBytes": 8597,
+  "reportSha256": "c7fef5963e2d27a8563511f0d063f05b5a91fed6d35cc827bd678a3615cb69a8",
+  "allInputAndPriorOutputChanges": [],
+  "scope": "Publisher0; first registry1/E404; activation1; no retry; dependent observers unrun"
+}

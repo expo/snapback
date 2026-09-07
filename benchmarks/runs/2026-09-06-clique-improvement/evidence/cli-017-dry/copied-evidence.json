@@ -1,0 +1,95 @@
+{
+  "copies": [
+    {
+      "path": "REPORT.md",
+      "source": "/Users/ccheever/clique-improvement/revisions/cli-017-dry-preparation/packet/REPORT.md",
+      "bytes": 10526,
+      "sha256": "40455e21764737208f8a219e0f5c0e06b078229ef7ab52f2a6cb8f1b85fdc971"
+    },
+    {
+      "path": "terminal.json",
+      "source": "/Users/ccheever/clique-improvement/revisions/cli-017-dry-preparation/packet/terminal.json",
+      "bytes": 616,
+      "sha256": "1bf5e6a4bf6b4e46e9b3d48346d9108c5f7bf58050800aebfd2ab10d96c70fcc"
+    },
+    {
+      "path": "actual-identity.json",
+      "source": "/Users/ccheever/clique-improvement/revisions/cli-017-dry-preparation/packet/actual-identity.json",
+      "bytes": 803,
+      "sha256": "5afa978cac4a54f0b0453235cf072662cef9a2ea77ac521fbe6efa7ee077f437"
+    },
+    {
+      "path": "supervisor-terminal-identity.json",
+      "source": "/Users/ccheever/clique-improvement/revisions/cli-017-dry-preparation/packet/supervisor-terminal-identity.json",
+      "bytes": 598,
+      "sha256": "3938723e172a76280565137b5220b0fc68c5d5b8c314bd127ca024a4acb42ae5"
+    },
+    {
+      "path": "input-integrity-after.json",
+      "source": "/Users/ccheever/clique-improvement/revisions/cli-017-dry-preparation/packet/input-integrity-after.json",
+      "bytes": 145,
+      "sha256": "5457cc07ed21d26ee18c17699eb3f92904b73f9e6522dc02d7e360db18bcb77b"
+    },
+    {
+      "path": "root-disposition.json",
+      "source": "/Users/ccheever/clique-improvement/revisions/cli-017-dry-preparation/root-disposition.json",
+      "bytes": 1075,
+      "sha256": "c658c102f75f95a68d2b3819714ccc6264dc21a634afbee9228f741b60a31e67"
+    },
+    {
+      "path": "root-packed-verification.json",
+      "source": "/Users/ccheever/clique-improvement/revisions/cli-017-dry-preparation/root-packed-verification.json",
+      "bytes": 8826,
+      "sha256": "16770edf62a9635d230abf43d339cf35cf7592dabc229289dd2a35a847a4241e"
+    },
+    {
+      "path": "production-dry-run.log",
+      "source": "/Users/ccheever/clique-improvement/revisions/cli-017-dry-preparation/packet/apartment-results/receipts/production-dry-run.log",
+      "bytes": 12858,
+      "sha256": "77382c102ffbc5ab5f044f9d283cc4621a9b710996b5136ce2cda4571a0da719"
+    },
+    {
+      "path": "artifact-receipt.json",
+      "source": "/Users/ccheever/clique-improvement/revisions/cli-017-dry-preparation/packet/apartment-results/artifact-receipt.json",
+      "bytes": 3419,
+      "sha256": "e8c398200940fc45fba32b00cdc678dd3793cb925ff6febaee6b127e62fa7d66"
+    },
+    {
+      "path": "standard-installed-react-consumer.json",
+      "source": "/Users/ccheever/clique-improvement/revisions/cli-017-dry-preparation/packet/apartment-results/standard-installed-react-consumer.json",
+      "bytes": 1867,
+      "sha256": "0265baf1f3ef57da599f6825b467db2695b30ef18f1c2f0883304637589b7293"
+    },
+    {
+      "path": "full-template-receipt-custody.json",
+      "source": "/Users/ccheever/clique-improvement/revisions/cli-017-dry-preparation/packet/apartment-results/full-template-receipt-custody.json",
+      "bytes": 137,
+      "sha256": "4d27a3b40319f237ded69ad37935b57cfcf37a3b1cad1c50c04342273ea19186"
+    },
+    {
+      "path": "metric-custody.json",
+      "source": "/Users/ccheever/clique-improvement/revisions/cli-017-dry-preparation/packet/apartment-results/metric-custody.json",
+      "bytes": 454,
+      "sha256": "870665a3195e54a022acf50a8aaeb52b61ab3fbaad170da947594e0cd12f48fb"
+    },
+    {
+      "path": "source-after-publisher.json",
+      "source": "/Users/ccheever/clique-improvement/revisions/cli-017-dry-preparation/packet/apartment-results/source-after-publisher.json",
+      "bytes": 185,
+      "sha256": "eaa43d86715392aa64002606e35affa2b30cb8967200e596ba29fdc59ac05dfe"
+    },
+    {
+      "path": "chat-1788813622286.json",
+      "source": "/Users/ccheever/clique-improvement/revisions/cli-017-dry-preparation/packet/apartment-results/installed-test-receipts/chat-1788813622286.json",
+      "bytes": 94574,
+      "sha256": "0fb3a33594bb8ce960f876331dd4203d49429ecac27a304b3de26a9d64c1c03d"
+    },
+    {
+      "path": "todos-1788813616850.json",
+      "source": "/Users/ccheever/clique-improvement/revisions/cli-017-dry-preparation/packet/apartment-results/installed-test-receipts/todos-1788813616850.json",
+      "bytes": 6301,
+      "sha256": "94368f3380f07a4598519d560aca692f7efff9898717289b12f8146ff56750f7"
+    }
+  ],
+  "reportsUnchanged": true
+}

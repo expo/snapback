@@ -1,0 +1,10 @@
+--- customer-tsconfig.json
++++ declaration-tsconfig.json
+@@ -1,6 +1,6 @@
+ {
+   "compilerOptions": {
+-    "skipLibCheck": true,
++    "skipLibCheck": false,
+     "strict": true
+   },
+   "extends": "expo/tsconfig.base",

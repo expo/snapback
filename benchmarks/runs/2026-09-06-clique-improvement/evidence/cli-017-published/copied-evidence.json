@@ -1,0 +1,71 @@
+{
+  "files": [
+    {
+      "source": "/Users/ccheever/clique-improvement/revisions/cli-017-publication-execution-r1/REPORT.md",
+      "path": "REPORT.md",
+      "bytes": 8597,
+      "sha256": "c7fef5963e2d27a8563511f0d063f05b5a91fed6d35cc827bd678a3615cb69a8"
+    },
+    {
+      "source": "/Users/ccheever/clique-improvement/revisions/cli-017-publication-execution-r1/activation-events.jsonl",
+      "path": "activation-events.jsonl",
+      "bytes": 21776,
+      "sha256": "0ee4797f14e31834f1eaa30b913fc3d749c75d99c7a84d0ffa728976a855b508"
+    },
+    {
+      "source": "/Users/ccheever/clique-improvement/revisions/cli-017-publication-execution-r1/activation-result.json",
+      "path": "activation-result.json",
+      "bytes": 441,
+      "sha256": "93110ddb6b34c9369086e64876c5739ff93fd0aaa74b40ee60e248bde5f90a82"
+    },
+    {
+      "source": "/Users/ccheever/clique-improvement/revisions/cli-017-publication-execution-r1/terminal.json",
+      "path": "terminal.json",
+      "bytes": 615,
+      "sha256": "7e2113412a216a5f9f02a39a69ed70faa3b3454d8f6cf49dec110492b4f295bc"
+    },
+    {
+      "source": "/Users/ccheever/clique-improvement/revisions/cli-017-publication-execution-r1/actual-identity.json",
+      "path": "actual-identity.json",
+      "bytes": 921,
+      "sha256": "401786f25131d0fcd4f0325ce6542fbbff80e39795eb360d3b174efa5bd9ff45"
+    },
+    {
+      "source": "/Users/ccheever/clique-improvement/revisions/cli-017-publication-execution-r1/supervisor-terminal-identity.json",
+      "path": "supervisor-terminal-identity.json",
+      "bytes": 486,
+      "sha256": "40031862f443478f630447fc8a4dd4c9aa9259689d11b60b1334ed137a700557"
+    },
+    {
+      "source": "/Users/ccheever/clique-improvement/revisions/cli-017-publication-execution-r1/root-activation-disposition.json",
+      "path": "root-activation-disposition.json",
+      "bytes": 982,
+      "sha256": "6dc35c31e0ab734f836009a13b480ac02af66e186975fa306f513d4181516009"
+    },
+    {
+      "source": "/Users/ccheever/clique-improvement/revisions/cli-017-publication-execution-r1/stopped-state-result.json",
+      "path": "stopped-state-result.json",
+      "bytes": 37355,
+      "sha256": "f1894b20b37a87c526c87ee17fc06e591afd218c56d2ef84039e84e20188e3c1"
+    },
+    {
+      "source": "/Users/ccheever/clique-improvement/revisions/cli-017-publication-execution-r1/final-remote-custody.json",
+      "path": "final-remote-custody.json",
+      "bytes": 521,
+      "sha256": "154a3821ff65a6ffba7174a0c63cc01ed4ba9c291de8e9edffe8c1a005ce587e"
+    },
+    {
+      "source": "/Users/ccheever/clique-improvement/revisions/cli-017-registry-reconciliation-r1/registry-observation-01.json",
+      "path": "registry-observation-01.json",
+      "bytes": 3262,
+      "sha256": "313443d711acfeae5348342a46ac1b4d222bd0df7f124f4d49c99d029b6b81c7"
+    },
+    {
+      "source": "/Users/ccheever/clique-improvement/revisions/cli-017-registry-reconciliation-r1/closure.json",
+      "path": "reconciliation-closure.json",
+      "bytes": 729,
+      "sha256": "c229e31c559a78adec4986225ece905f24234154a249d39001ecf77545ca41dd"
+    }
+  ],
+  "copy": "Exact bytes; original historical failure/pending fields remain unchanged."
+}

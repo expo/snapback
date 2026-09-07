@@ -1,0 +1,13 @@
+{
+  "compilerOptions": {
+    "skipLibCheck": true,
+    "strict": true
+  },
+  "extends": "expo/tsconfig.base",
+  "include": [
+    "App.tsx",
+    "src",
+    "shared",
+    ".snapback/build/api.d.ts"
+  ]
+}

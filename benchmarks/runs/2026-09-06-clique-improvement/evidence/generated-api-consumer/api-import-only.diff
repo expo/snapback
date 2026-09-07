@@ -1,0 +1,8 @@
+--- callback-13-api.d.ts
++++ counterfactual-api.d.ts
+@@ -1,4 +1,4 @@
+-import type { Bytes, Cursor, Decimal, ImageAsset, Json, Money, Page, Principal, VideoAsset } from 'snapback2';
++import type { Bytes, Column, RowOfColumns, Cursor, Decimal, ImageAsset, Json, Money, Page, Principal, VideoAsset } from 'snapback2';
+ import type { Channel, Op } from 'snapback2/client';
+ 
+ type ConnectedRow = {

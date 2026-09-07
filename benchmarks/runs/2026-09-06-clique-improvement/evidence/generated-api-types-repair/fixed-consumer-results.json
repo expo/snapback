@@ -1,0 +1,12 @@
+[
+  {
+    "name": "generated insert API preserves consumer row types with the complete SDK",
+    "passed": true,
+    "elapsedMs": 475
+  },
+  {
+    "name": "generated merge API preserves consumer row types with the complete SDK",
+    "passed": true,
+    "elapsedMs": 243
+  }
+]

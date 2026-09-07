@@ -1,0 +1,85 @@
+{
+  "status": "complete",
+  "writerReleased": true,
+  "verdict": "READY",
+  "candidate": "8f7c6c208926923e89eaf1111f914fa7fb8ca2da",
+  "parent": "fbaee64a17f024c991194d0f0f55bb232f3c13cc",
+  "inboxSha256": "79552f11a337a7218c9aabbf9f24f06fe71778ac1a721435f20476ea714742e5",
+  "packetSha256": "cb4ed2a0e9bb2503d84d72ce3a5086bd30beb091710acb7c04fdb5294bd855b1",
+  "reviewProbeSha256": "f898ef8b0e35f3a306a8cb021b937f8ca87e4318f561d29f74cc5bd537bf8bf3",
+  "payloadSha256": "d99295853de1dc14dbddc184e385c1aa5b56b7d8e5756aac44fc6f7734b8a77b",
+  "ownedResultsSha256": "1191341b452dae8cf4bd70c1f516947b4086cd885bf7505e098eff3a419543b4",
+  "population": {
+    "script": "review-probe.ts",
+    "argv": ["fixed", "insert,merge"],
+    "consumerPrograms": 2,
+    "affectedTypePrograms": 0,
+    "privateCounterfactuals": 0
+  },
+  "stages": [
+    {"stage": "orientation-and-source-read", "status": "complete"},
+    {"stage": "freeze-probe-and-repack-payload", "status": "complete"},
+    {"stage": "bootstrap-mkdir-01", "status": "complete", "exit": 0},
+    {"stage": "bootstrap-upload-01", "status": "complete", "exit": 0},
+    {"stage": "bootstrap-extract-01", "status": "complete", "exit": 0},
+    {"stage": "setup-01", "status": "complete", "exit": 0},
+    {"stage": "review-consumers-01", "status": "complete", "exit": 0},
+    {"stage": "integrity-after-01", "status": "complete", "exit": 0},
+    {"stage": "collect-01", "status": "complete", "exit": 0},
+    {"stage": "download-01", "status": "complete", "exit": 0},
+    {"stage": "review-write", "status": "complete"}
+  ],
+  "counts": {
+    "semanticCommands": 1,
+    "semanticReruns": 0,
+    "consumerPrograms": 2,
+    "affectedTypePrograms": 0,
+    "mechanicalRemoteChildren": 3,
+    "bootstrapRemoteChildren": 2,
+    "sshScpTransports": 8,
+    "builds": 0,
+    "installs": 0
+  },
+  "remoteChildren": [
+    {"label": "bootstrap-mkdir-01", "pid": 260034, "tool": "/usr/bin/python3.12", "argv": ["-c", "mkdir"], "cwd": "/home/ccheever", "deadlineSeconds": 30, "elapsedSeconds": 0.009033918380737305, "exit": 0, "timeout": false, "waitedTerminal": true},
+    {"label": "bootstrap-extract-01", "pid": 260131, "tool": "/usr/bin/python3.12", "argv": ["-c", "extract"], "cwd": "/home/ccheever", "deadlineSeconds": 30, "elapsedSeconds": 0.02717304229736328, "exit": 0, "timeout": false, "waitedTerminal": true},
+    {"label": "setup-01", "pid": 260189, "controllerPid": 260188, "tool": "/usr/bin/python3.12", "argv": ["/usr/bin/python3", "/home/ccheever/clique-reviews/generated-api-types-repair-r1-8f7c6c20/grok/work/remote-setup.py", "setup-01"], "cwd": "/home/ccheever/clique-reviews/generated-api-types-repair-r1-8f7c6c20/grok/work", "deadlineSeconds": 30, "elapsedSeconds": 8.384346689097583, "exit": 0, "timeout": false, "waitedTerminal": true, "postWaitAbsent": true},
+    {"label": "review-consumers-01", "pid": 260314, "controllerPid": 260313, "tool": "/home/ccheever/clique-tooling/epyc-linux-tooling-20260907T010007Z-0fd567d96f/bun-v1.3.12-linux-x64/bin/bun", "argv": ["/home/ccheever/clique-tooling/epyc-linux-tooling-20260907T010007Z-0fd567d96f/bun-v1.3.12-linux-x64/bin/bun", "/home/ccheever/clique-reviews/generated-api-types-repair-r1-8f7c6c20/grok/work/review-probe.ts", "fixed", "insert,merge"], "cwd": "/home/ccheever/clique-reviews/generated-api-types-repair-r1-8f7c6c20/grok/work/sources/fixed/snapback2/packages/compiler", "deadlineSeconds": 30, "elapsedSeconds": 1.0675651328638196, "exit": 0, "timeout": false, "waitedTerminal": true, "postWaitAbsent": true},
+    {"label": "integrity-after-01", "pid": 260434, "controllerPid": 260433, "tool": "/usr/bin/python3.12", "argv": ["/usr/bin/python3", "/home/ccheever/clique-reviews/generated-api-types-repair-r1-8f7c6c20/grok/work/remote-setup.py", "integrity-after-01"], "cwd": "/home/ccheever/clique-reviews/generated-api-types-repair-r1-8f7c6c20/grok/work", "deadlineSeconds": 30, "elapsedSeconds": 5.680076632881537, "exit": 0, "timeout": false, "waitedTerminal": true, "postWaitAbsent": true},
+    {"label": "collect-01", "pid": 260483, "controllerPid": 260482, "tool": "/usr/bin/python3.12", "argv": ["/usr/bin/python3", "/home/ccheever/clique-reviews/generated-api-types-repair-r1-8f7c6c20/grok/work/remote-setup.py", "collect-01"], "cwd": "/home/ccheever/clique-reviews/generated-api-types-repair-r1-8f7c6c20/grok/work", "deadlineSeconds": 30, "elapsedSeconds": 0.1651482549495995, "exit": 0, "timeout": false, "waitedTerminal": true, "postWaitAbsent": true}
+  ],
+  "transports": [
+    {"label": "bootstrap-mkdir-01", "pid": 68455, "tool": "/usr/bin/ssh", "deadlineSeconds": 45, "elapsedSeconds": 2.280780666, "exit": 0, "timeout": false, "waitedTerminal": true, "localPidAbsentAfter": true},
+    {"label": "bootstrap-upload-01", "pid": 69411, "tool": "/usr/bin/scp", "deadlineSeconds": 45, "elapsedSeconds": 6.864221833, "exit": 0, "timeout": false, "waitedTerminal": true, "localPidAbsentAfter": true},
+    {"label": "bootstrap-extract-01", "pid": 69867, "tool": "/usr/bin/ssh", "deadlineSeconds": 45, "elapsedSeconds": 2.283591458, "exit": 0, "timeout": false, "waitedTerminal": true, "localPidAbsentAfter": true},
+    {"label": "setup-01", "pid": 70043, "tool": "/usr/bin/ssh", "deadlineSeconds": 45, "elapsedSeconds": 11.36814225, "exit": 0, "timeout": false, "waitedTerminal": true, "handshakeAck": "79552f11a337a7218c9aabbf9f24f06fe71778ac1a721435f20476ea714742e5", "localPidAbsentAfter": true},
+    {"label": "review-consumers-01", "pid": 70325, "tool": "/usr/bin/ssh", "deadlineSeconds": 45, "elapsedSeconds": 3.9048597910000002, "exit": 0, "timeout": false, "waitedTerminal": true, "handshakeAck": "79552f11a337a7218c9aabbf9f24f06fe71778ac1a721435f20476ea714742e5", "localPidAbsentAfter": true},
+    {"label": "integrity-after-01", "pid": 70465, "tool": "/usr/bin/ssh", "deadlineSeconds": 45, "elapsedSeconds": 8.584902667, "exit": 0, "timeout": false, "waitedTerminal": true, "handshakeAck": "79552f11a337a7218c9aabbf9f24f06fe71778ac1a721435f20476ea714742e5", "localPidAbsentAfter": true},
+    {"label": "collect-01", "pid": 70630, "tool": "/usr/bin/ssh", "deadlineSeconds": 45, "elapsedSeconds": 2.868901583, "exit": 0, "timeout": false, "waitedTerminal": true, "handshakeAck": "79552f11a337a7218c9aabbf9f24f06fe71778ac1a721435f20476ea714742e5", "localPidAbsentAfter": true},
+    {"label": "download-01", "pid": 70874, "tool": "/usr/bin/scp", "deadlineSeconds": 45, "elapsedSeconds": 11.654886915999999, "exit": 0, "timeout": false, "waitedTerminal": true, "localPidAbsentAfter": true}
+  ],
+  "consumerResults": {
+    "insert": {"passed": true, "elapsedMs": 474, "diagnostics": 0, "apiDtsSha256": "ba7398b06a0ae364668818c63e131326230a24d69b59b1e304fb3c584868474b"},
+    "merge": {"passed": true, "elapsedMs": 241, "diagnostics": 0, "apiDtsSha256": "1ce410ebcbe671023d829453de2ec4eb8f1144579baaf15b30db48222b964667"}
+  },
+  "integrityAfter": {
+    "dependency-owner": true,
+    "dependency-private": true,
+    "sdk": true,
+    "sdk-donor": true,
+    "linksUnchanged": true
+  },
+  "unknownRemoteState": false,
+  "originalFailures": [
+    {"kind": "local-path", "attempts": 2, "exit": 2, "detail": "python3 bootstrap-dispatch.py mkdir invoked from workspace root before cd work/; no remote process; corrected without bound change or semantic replay"}
+  ],
+  "authorRecordedDiscoveryCorrections": 3,
+  "muse": "unavailable-unestablished",
+  "peerCrossfeed": false,
+  "limits": [
+    "Two consumer Programs only; no affected source-type Program",
+    "No pre-fix or prior-investigation semantic replay",
+    "Eleven inherited SDK TS1038 diagnostics out of scope",
+    "No build/install/native/publication/benchmark"
+  ]
+}

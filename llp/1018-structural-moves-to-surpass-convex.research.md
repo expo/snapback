@@ -9,14 +9,13 @@ Clique benchmark
 2026-09-06); revised by Claude Fable 5.1 after the five-model panel of
 2026-09-06/07 (§9), which the author convened
 **Date:** 2026-09-06
-**Revised:** 2026-09-07 (follow-on LLP 1018.000 linked; closed-ticket links repaired);
-2026-09-07 (pending-client schema conflict exercise and formal M7 handoff); 2026-09-07 (surviving-row uniqueness checked against each actual rebuild); 2026-09-07 (panel revision: a second measure, move one rewritten
+**Revised:** 2026-09-07 (follow-on LLP 1018.000 linked; closed-ticket links repaired); 2026-09-07 (focused panel: witness-first sequence and finite compiler closeout, §13); 2026-09-07 (two focused draft RFCs and three bounded architecture investigations, §12); 2026-09-07 (pending-client schema conflict exercise and formal M7 handoff); 2026-09-07 (surviving-row uniqueness checked against each actual rebuild); 2026-09-07 (panel revision: a second measure, move one rewritten
 around what already exists, the browser-tab policy decided, count-backed cap
 probes decided, the typed IR cut, move four evidence-led, move zero added, the
 Muse scores cited, the clock repair marked landed; implementation record §10);
 2026-09-06 (initial evidence-backed assessment)
 **Related:** LLP 1018.000 (further architectural directions), LLP 1000, LLP 1001, LLP 1002, LLP 1004, LLP 1010, LLP 1011,
-LLP 1012, LLP 1013, LLP 1015, LLP 1016, LLP 1017, LLP 0329.014.007;
+LLP 1012, LLP 1013, LLP 1015, LLP 1016, LLP 1017, LLP 1018.001, LLP 1018.002, LLP 0329.014.007;
 `benchmarks/briefs/social-messenger.md`,
 `benchmarks/runs/2026-09-06-clique-improvement/README.md`,
 `benchmarks/runs/2026-09-05-clique-full-3x3/holistic-scores.md`;
@@ -299,8 +298,9 @@ predictably, preserve their semantics on both evaluators, and explain real
 constraints at Quarry source locations. A cold builder authors search once
 and owns no corrective postings-maintenance implementation.
 
-**Confidence:** high on hygiene and diagnostics; the typed path is not
-proposed.
+**Confidence (original round):** high on hygiene and diagnostics; the typed
+path was not proposed in that round. The subsequent candidate and focused
+proposal are accounted for in §12.
 
 ## 6. Move four: evolution of the whole application
 
@@ -533,4 +533,122 @@ directly. Its outstanding hosted admission and MCP work remain owned by
 LLP 1015. That archive operation removed only the current link; it does not
 close residual issues or change either document's status. This document
 leaves the working set when §10's slices have landed and the next cold run's
-diaries have been counted against §1's two measures.
+diaries have been counted against §1's two measures, and §12's follow-ups have
+an explicit disposition or another active owner. New architecture work does
+not replace the cold-run requirement.
+
+The two focused draft RFCs added on 2026-09-07 replace the current links to
+LLP 0329.017 and LLP 0329.018, keeping the working set at 59. Those prototype
+research documents retain their paths and statuses; LLP 0329.022 still links
+them as panel history. Current Quarry and client contracts are governed by
+LLP 1000, LLP 1004 and LLP 1012. This is working-set curation, not a new ruling
+on the older proposals. The concurrent architecture lane separately replaces
+LLP 1014's current link; this change does not consume that slot.
+
+## 12. Further unification: two drafts and three investigations
+
+Charlie commissioned this follow-up structure on 2026-09-07: retain this
+umbrella, write focused proposals where a semantic contract needs review, and
+keep bounded investigations here. The following are proposed directions, not
+five newly accepted implementations. Codex owns the draft and investigation
+dispositions; existing implementation lanes retain their work.
+
+| Direction | Record and next deliverable | Completion criterion |
+|---|---|---|
+| One checked Quarry representation | [LLP 1018.001](./1018.001-quarry-checked-representation.rfc.md), Draft. Map the existing typed compiler candidate to one owner for each semantic fact and count actual deletions. | Reconcile the candidate and independently check semantic parity, diagnostics, and the final maintenance/loop cost; do not build a competing compiler. |
+| Dependency-scoped invalidation | [LLP 1018.002](./1018.002-dependency-scoped-invalidation.rfc.md), Draft. Audit identity producers/consumers and a conservative transitive policy closure. | Review a bounded authorization-preserving proposal with an explicit implementation owner/date, or retain broad invalidation with the reason recorded. |
+| Read evidence | Start with the [public zero-count ticket](../issues/20260907-snapback2-public-zero-count-does-not-enable-offline-cap-prediction.md). Trace the same count from native execution through receipt/store/twin to prediction. | Account for positive count, proved absence, and unheld count; identify the smallest missing evidence or close against an actual witness in the architecture candidate. |
+| Query lifecycle ownership | Map mounted queries, shared entries, drains, resume, principal/epoch changes, projection refresh and disposal against the existing client candidate. | Name one owner for each transition, expose duplicated state, and justify each remaining distinct lifetime with a concrete race or behavior. |
+| Public extension points | Inventory actual consumers of public client/runtime/compiler seams in package exports, templates, demos and tests, including effect/carrier needs. | Classify each seam as required, internal, or unsupported; propose deletion with its caller change where justified, without adding a new extension framework. |
+
+The existing architecture integration branch is
+`llp-ship/20260907-1018-architecture/integration`; the inspected snapshot
+`2cae5d9a2` includes `llp/1018.000-composable-architecture-next-moves.research.md`,
+typed direct lowering, persistent query work, a coherent observation API,
+sparse aggregate work and follower forwarding. That branch's commissioning,
+qualification and landing record are separate. These drafts do not restart its
+work or claim it has landed. In particular, §5's typed-IR deferral and §10's
+filed forwarding describe the original round, not a veto of later commissioned
+work. Reconcile against the candidate that actually lands before assigning gaps.
+
+For read evidence, complete `0` is not by itself proof that a particular
+maintained-count key is absent. A candidate must carry sufficient authorized
+evidence to distinguish known absence from an unheld count, survive a cold
+reopen, and keep cap overflow atomic on both evaluators. Compare any candidate's
+sparse aggregate representation and receipt changes before proposing another
+representation. Record findings in the existing ticket and count report; a
+passing synthetic zero result alone does not close the issue.
+
+For lifecycle ownership, start from the shared-session implementation in §10
+and account for the candidate's observation API. A stable snapshot for one named
+query does not make independent query deliveries atomic. Preserve drain cursor
+ownership, last-consumer disposal, same-principal epoch changes, stale async
+completion fencing, follower takeover, and committed/predicted state separation.
+Record a transition table here before proposing another controller or store.
+
+For extension points, distinguish a supported external consumer from a test
+that imports an implementation detail. Count repository consumers and state
+the limits of that census; absence in the repository is not proof of no external
+use. Keep justified effect and carrier boundaries. Record a compact consumer
+table here, then make only explicitly scoped deletion proposals.
+
+These three investigations add no sub-LLPs, tests, registries or gates merely
+for tracking. Runtime changes discovered by them need their concrete scope
+resolved against the existing architecture work and governing implemented
+contracts. Their outcome may be a deletion, a bounded fix, or no change. Judge
+the result by §1's application corrective infrastructure and probe-discovered
+contract measures, alongside maintenance cost, rather than abstraction count.
+
+## 13. Focused panel disposition — 2026-09-07
+
+Charlie requested Muse Spark 1.3 at xhigh, Grok 4.6 at xhigh, Antigravity
+Gemini 3.8 Flash at high, and this author, explicitly delegating the plan
+decisions to the author. Actual initial responses and one shared discussion
+round are preserved in the [Muse](./reviews/1018-focused-plan-panel.muse.md),
+[Grok](./reviews/1018-focused-plan-panel.grok.md) and
+[Gemini](./reviews/1018-focused-plan-panel.gemini.md) artifacts. The
+[author assessment](./reviews/1018-focused-plan-panel.codex.md) is not an
+independent review. These are advisory plan discussions, not approvals of code
+or the final revised document bytes. The children remain Draft.
+
+**Decision: make the follow-up a finite sequence driven by witnessed behavior.**
+Consume facts where they were established instead of reconstructing their
+meaning downstream. Checked Quarry facts, authorized absence, static policy
+dependencies and actual dynamic reads are different kinds of evidence; this
+principle does not call for a universal IR, dependency key or evidence framework.
+
+| Priority | Revised work and stopping point |
+|---|---|
+| First: existing client failures and read evidence | The architecture lane owns its actual browser settlement failure. Alongside that repair, check public zero-count acquisition → justified held evidence → prediction → cold reopen → reconnect on its candidate. Close an already satisfied gap; otherwise propose the smallest missing producer/consumer repair. Keep denial, unheld counts and cap rollback controls. |
+| Parallel, finite: compiler closeout | LLP 1018.001 consumes the existing net census and all 32 repair dispositions; inspect only residual differences. Preserve the real packaged-consumer negative type witness. Fold settled constraints into LLP 1002/1004 and archive the child current link after disposition; its acceptance cannot hold the existing lane. |
+| Bounded research: invalidation | LLP 1018.002 gets one focused audit day to identify a useful safe subset with all other checks retained. The recorded conflict is already at a rule hash; no repeated open-ended autopsy. No new hash or wire domain is assigned in this round. |
+| Within those slices: lifecycle and exports | Trace ownership at the actual zero-count/unsend/recovery failures and census the exports those compiler/client changes touch. Limit the export pass to half a day; record residual questions here. No independent lifecycle rewrite, global consumer survey or extension framework. |
+
+The browser record updated at `8bea2c347` reports an unsend count reaching 2
+then regressing to capped sequence 7/count 3 on `301e59bb6`. This is lane
+evidence, not a new panel test or a settled root-cause diagnosis. It warrants
+settlement/authority-transition work ahead of speculative simplification.
+`client.observe`'s stable snapshot does not prove that recovery, drains and
+account transitions already have correct ownership.
+
+I accept the panel's concern about duplicate governance, and address it with
+delta-only closeout and an archive condition in LLP 1018.001. I do not rename
+or retire the newly commissioned document merely to convert its checklist to a
+different format. The existing compiler census is net −7,663 production lines;
+27 CLOSED, 4 OUTSIDE-Q and 1 RETAIN are 32 dispositions, not five missing fixes.
+
+I decline blanket cancellation of separately commissioned forwarding and
+incremental-query work. Their actual correctness, complexity and scoped
+measurements remain the architecture lane's obligations. The panel supplied
+no isolated measurement supporting an 11 KB forwarding increase, and the Web
+Lock preserves a single admission authority; forwarding is not general
+multi-writer consensus. Neither sunk implementation cost nor a longer list of
+states settles the value judgment.
+
+I also decline one giant test combining compiler type safety, zero-count
+prediction and browser unsend. Reuse relevant fixtures and named operations,
+but retain focused witnesses at their failure boundaries so a declaration
+failure cannot be concealed by a runtime pass, and each failure is diagnosable.
+The shared goal is less application correction and fewer independently owned
+interpretations, not fewer test names. Publication and cold-builder outcomes
+retain their existing qualification requirements.

@@ -1,0 +1,21 @@
+{
+  "requestedModel": "gpt-6-astra",
+  "requestedEffort": "xhigh",
+  "launchPid": 13148,
+  "sourceCommit": "a606383b6e5ad7cf79555bbc4b810d6cf6ea0e92",
+  "observedAt": "2026-09-07T20:47:10.265090+00:00",
+  "sessionId": "01a07d90-3893-7532-bba3-bf6edf6b5adf",
+  "source": "/Users/ccheever/.codex/sessions/2026/09/07/rollout-2026-09-07T13-29-58-01a07d90-3893-7532-bba3-bf6edf6b5adf.jsonl",
+  "sourceSha256": "2fda1b0a4773b4a5922f5d0c50086f70265e03b878411663dc15b2f36693d3c9",
+  "turnContexts": [
+    {
+      "line": 8,
+      "model": "gpt-6-astra",
+      "effort": "xhigh",
+      "cwd": "/Users/ccheever/clique-improvement/revisions/cli-017-dry-preparation/packet",
+      "timestamp": "2026-09-07T20:30:02.854Z"
+    }
+  ],
+  "identityMatchesRequest": true,
+  "onlyOwnNativeIdentityRecordsRetained": true
+}

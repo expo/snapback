@@ -1,0 +1,33 @@
+{
+  "outerToolSessionId": 68506,
+  "outerExitCode": 0,
+  "outerFinalChunkId": "0816c2",
+  "observedAt": "2026-09-07T20:50:08.654144+00:00",
+  "files": [
+    {
+      "path": "/Users/ccheever/clique-improvement/revisions/generated-api-type-consumer-r1/astra/terminal.json",
+      "bytes": 616,
+      "sha256": "1ef807caccabd4d1ad1678578d3e7d78987addd86a4ab3620d58aa8bfc7ad7cf"
+    },
+    {
+      "path": "/Users/ccheever/clique-improvement/revisions/generated-api-type-consumer-r1/astra/actual-identity.json",
+      "bytes": 699,
+      "sha256": "29827649b7c4ac23858435a55006bcf3f3696ff21c07449523ade54f39f86255"
+    },
+    {
+      "path": "/Users/ccheever/clique-improvement/revisions/generated-api-type-consumer-r1/astra/input-integrity-after.json",
+      "bytes": 135,
+      "sha256": "1f8ca5c5a2764e6a76be92b6e1f0b684b2b32d482fd26ba4c52d1730ff2e953c"
+    },
+    {
+      "path": "/Users/ccheever/clique-improvement/revisions/generated-api-type-consumer-r1/astra/REPORT.md",
+      "bytes": 5585,
+      "sha256": "6940f3a0072aa35ba736c6fb265a4e9701daec64c1d8e12b7d1e7b9c8b8ca227"
+    },
+    {
+      "path": "/Users/ccheever/clique-improvement/revisions/generated-api-type-consumer-r1/astra/phase.json",
+      "bytes": 3309,
+      "sha256": "c970691746b906f6af473a6531687878417402a9b71de9ff07b244d4b9299d34"
+    }
+  ]
+}

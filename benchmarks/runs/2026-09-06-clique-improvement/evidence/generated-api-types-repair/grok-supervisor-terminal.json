@@ -1,0 +1,39 @@
+{
+  "at": "2026-09-07T21:36:05.992707+00:00",
+  "outerToolSession": 7697,
+  "outerExitCode": 0,
+  "outerTerminalChunk": "f3808d",
+  "native": {
+    "pid": 55958,
+    "processIdentity": {
+      "pid": 55958,
+      "start": "Mon Sep 7 14:21:14 2026",
+      "executable": "/Users/ccheever/.grok/bin/grok",
+      "observed": true
+    },
+    "exitCode": 0,
+    "endedEpoch": 1788816935.8064692,
+    "elapsedSeconds": 861.2096931934357,
+    "actualProcessWaitCompleted": true,
+    "stdoutSha256": "c0efa41305a404869eb43cf95faf2889c1ea125720d2d4c289791544519f091e",
+    "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "actualIdentity": {
+    "requestedModel": "grok-4.6",
+    "requestedEffort": "xhigh",
+    "launchPid": 55958,
+    "observedAt": "2026-09-07T21:35:36.219973+00:00",
+    "sessionId": "a0229791-51e2-4728-baa6-f21b2ac07c16",
+    "source": "/Users/ccheever/.grok/sessions/%2FUsers%2Fccheever%2Fclique-improvement%2Freviews%2Fgenerated-api-types-repair-r1%2Fgrok/a0229791-51e2-4728-baa6-f21b2ac07c16/summary.json",
+    "sourceSha256": "e5312fcf6f6634d168ebdb2490e101828a46492a7164b3f312b1c630cea46009",
+    "current_model_id": "grok-4.6",
+    "reasoning_effort": "xhigh",
+    "identityMatchesRequest": true
+  },
+  "inputIntegrity": {
+    "unchanged": true,
+    "changedInputs": [],
+    "manifestSha256": "a44d3fb92ee86d459e9e76a10580dcfafe5ccd200d718c8441fc4c6c48d2fef2"
+  },
+  "findingsUnopenedPendingPeerClosure": true
+}

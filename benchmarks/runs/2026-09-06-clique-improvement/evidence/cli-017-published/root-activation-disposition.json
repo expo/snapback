@@ -1,0 +1,29 @@
+{
+  "at": "2026-09-07T21:15:05.275735+00:00",
+  "fullReadEvidence": [
+    "507e5f",
+    "00a591"
+  ],
+  "publisher": {
+    "pid": 99036,
+    "actualExitCode": 0,
+    "seconds": 49.369427459
+  },
+  "consumerResults": 19,
+  "timedSteps": 17,
+  "timedStepSumSeconds": 35.026491875999994,
+  "timedStepSumIsExactSmokeDuration": false,
+  "functionalPass": true,
+  "timing": "RED",
+  "chatCheckSeconds": 1.049318542,
+  "registryObservation": {
+    "pid": 3430,
+    "actualExitCode": 1,
+    "code": "E404",
+    "package": "snapback2-darwin-arm64"
+  },
+  "activationExitCode": 1,
+  "publicationRegistryReconciled": false,
+  "disposition": "Retain successful publisher separately from failed immediate observation. No republish. Close original native/outer execution; prepare distinct finite read-only reconciliation using established016 method. Skipped dependent custody observations remain gated on reconciliation. Public installed witnesses follow afterward.",
+  "automaticRetry": false
+}
