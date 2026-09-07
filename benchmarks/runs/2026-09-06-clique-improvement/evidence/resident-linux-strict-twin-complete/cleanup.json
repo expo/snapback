@@ -1,0 +1,37 @@
+{
+  "ownedIdentities": [
+    {
+      "pid": 3594687,
+      "expectedStartTicks": "110994574",
+      "absent": true,
+      "originalProcessRunning": false
+    },
+    {
+      "pid": 3594689,
+      "expectedStartTicks": "110994591",
+      "absent": true,
+      "originalProcessRunning": false
+    },
+    {
+      "pid": 3594697,
+      "expectedStartTicks": "110994619",
+      "absent": true,
+      "originalProcessRunning": false
+    },
+    {
+      "pid": 3595035,
+      "expectedStartTicks": "110997888",
+      "absent": true,
+      "originalProcessRunning": false
+    },
+    {
+      "pid": 3595787,
+      "expectedStartTicks": "111001043",
+      "absent": true,
+      "originalProcessRunning": false
+    }
+  ],
+  "signalsSent": [],
+  "originalSupervisorOwnsCleanup": true,
+  "sourceOrOtherProcessChanges": false
+}

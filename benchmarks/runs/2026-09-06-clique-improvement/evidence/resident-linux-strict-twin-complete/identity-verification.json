@@ -1,0 +1,15 @@
+{
+  "verifiedUtc": "2026-09-07T03:20:40.219491+00:00",
+  "origin": "Actual current native turn_context; separate detail receipt, no actual-identity overwrite",
+  "identity": {
+    "session": "01a0783e-90b6-70b3-a096-c7a980574ceb",
+    "launchPid": 81715,
+    "model": "gpt-6-astra",
+    "effort": "xhigh",
+    "path": "/Users/ccheever/.codex/sessions/2026/09/06/rollout-2026-09-06T12-42-41-01a0783e-90b6-70b3-a096-c7a980574ceb.jsonl",
+    "line": 3846,
+    "timestamp": "2026-09-07T03:00:46.801Z",
+    "contextLineSha256": "71934d8828bd6907cb2c1c2f1234c8db18133ea0ddb8c5f4c1e392c01109b0ab"
+  },
+  "parentPid": 81675
+}

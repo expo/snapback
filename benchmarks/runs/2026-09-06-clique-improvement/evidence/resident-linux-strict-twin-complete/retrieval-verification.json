@@ -1,0 +1,16 @@
+{
+  "status": "COMPLETE_RESULTS_RETRIEVED_AND_HASH_VERIFIED",
+  "createdUtc": "2026-09-07T03:23:13.556635+00:00",
+  "resultRoot": "/Users/ccheever/clique-improvement/revisions/search-resident-format5-linux-cursor-execution/results",
+  "archiveBytes": 42939510,
+  "archiveSha256": "b1756879c9f2fcf0c7868533d32db455a2c0f9f7894f107316a592f8745a5c1e",
+  "resultManifestSha256": "3c7c5ef019e910fd4a5b4ee576ded174aa7e51b2a85bd04b64f483d13c0e2ba8",
+  "verifiedFiles": 79,
+  "verifiedBytes": 192409138,
+  "allOriginalResultsIncluded": true,
+  "localSourceLeavesReverified": 514,
+  "remoteSourceModeVectorEqualsLocal": true,
+  "ownedProcessesAllAbsent": true,
+  "supervisorExitCode": 0,
+  "invocationComplete": true
+}

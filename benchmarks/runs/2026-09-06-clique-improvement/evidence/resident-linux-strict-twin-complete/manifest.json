@@ -1,0 +1,98 @@
+{
+  "scope": "Compact byte-exact original evidence; raw result set retained externally",
+  "externalResultRoot": "/Users/ccheever/clique-improvement/revisions/search-resident-format5-linux-cursor-execution/results",
+  "externalResultFiles": 79,
+  "externalResultBytes": 192409138,
+  "files": {
+    "report.md": {
+      "source": "/Users/ccheever/clique-improvement/revisions/search-resident-format5-linux-cursor-execution/REPORT.md",
+      "bytes": 8467,
+      "sha256": "4ee82aa48f1ae524ec28e5a6a782ae878bb2d3e699715bd5678bd08027e225a7",
+      "copy": "byte-identical"
+    },
+    "writer-terminal.json": {
+      "source": "/Users/ccheever/clique-improvement/revisions/search-resident-format5-linux-cursor-execution/terminal.json",
+      "bytes": 112,
+      "sha256": "322e99c3917ca574f3e6a0ca3b454c89c5416c574411de76ad442c2a700bc36b",
+      "copy": "byte-identical"
+    },
+    "identity-verification.json": {
+      "source": "/Users/ccheever/clique-improvement/revisions/search-resident-format5-linux-cursor-execution/identity-verification.json",
+      "bytes": 618,
+      "sha256": "6844484f5ac5403fe1ce8d4315913201b8d23e81f9cde7424dc5ab70fb8c91bf",
+      "copy": "byte-identical"
+    },
+    "supervisor-final-handoff.json": {
+      "source": "/Users/ccheever/clique-improvement/revisions/search-resident-format5-linux-cursor-execution/supervisor-final-handoff.json",
+      "bytes": 580,
+      "sha256": "0522e8b56d7380570c851675db1f577a6b2f871564ef70f2bc23a0d2bcf129f8",
+      "copy": "byte-identical"
+    },
+    "retrieval-verification.json": {
+      "source": "/Users/ccheever/clique-improvement/revisions/search-resident-format5-linux-cursor-execution/retrieval-verification.json",
+      "bytes": 709,
+      "sha256": "98468f6f4758ccb3587ed18bdc2d0401a81dc113ac4bafbe367cd26ee73d9271",
+      "copy": "byte-identical"
+    },
+    "postprocessing-first-failure.json": {
+      "source": "/Users/ccheever/clique-improvement/revisions/search-resident-format5-linux-cursor-execution/postprocessing-first-failure.json",
+      "bytes": 585,
+      "sha256": "7562ae86a987175c5081dba8049466977733f742601139c000f313242787e401",
+      "copy": "byte-identical"
+    },
+    "scheduling-release.original.json": {
+      "source": "/Users/ccheever/clique-improvement/revisions/search-resident-format5-linux-cursor-execution/scheduling-release.original.json",
+      "bytes": 1175,
+      "sha256": "e9b6bab0d63216df522ad5f025f98c44563ec1aeea952295e1b20171900bd56f",
+      "copy": "byte-identical"
+    },
+    "scheduling-after-run.original.json": {
+      "source": "/Users/ccheever/clique-improvement/revisions/search-resident-format5-linux-cursor-execution/scheduling-after-run.original.json",
+      "bytes": 1175,
+      "sha256": "e9b6bab0d63216df522ad5f025f98c44563ec1aeea952295e1b20171900bd56f",
+      "copy": "byte-identical"
+    },
+    "archive-receipt.json": {
+      "source": "/Users/ccheever/clique-improvement/revisions/search-resident-format5-linux-cursor-execution/archive-receipt.json",
+      "bytes": 500,
+      "sha256": "075c5a552879d1026faaec6d0d7ee324d8a6aae7a5c60c2bffeaf97bc757176c",
+      "copy": "byte-identical"
+    },
+    "RESULTS-MANIFEST.json": {
+      "source": "/Users/ccheever/clique-improvement/revisions/search-resident-format5-linux-cursor-execution/results/RESULTS-MANIFEST.json",
+      "bytes": 12520,
+      "sha256": "3c7c5ef019e910fd4a5b4ee576ded174aa7e51b2a85bd04b64f483d13c0e2ba8",
+      "copy": "byte-identical"
+    },
+    "cleanup.json": {
+      "source": "/Users/ccheever/clique-improvement/revisions/search-resident-format5-linux-cursor-execution/results/cleanup.json",
+      "bytes": 812,
+      "sha256": "387e907aaa861a1176aee296692e3714e369fd5233822de8c2440326b5f06123",
+      "copy": "byte-identical"
+    },
+    "source-final-verification.json": {
+      "source": "/Users/ccheever/clique-improvement/revisions/search-resident-format5-linux-cursor-execution/results/source-final-verification.json",
+      "bytes": 36638,
+      "sha256": "97dfa52e2d0c70c332d8f8e2fdb22afb2e75851770bac20d70533139f4e363a0",
+      "copy": "byte-identical"
+    },
+    "invocation-terminal.json": {
+      "source": "/Users/ccheever/clique-improvement/revisions/search-resident-format5-linux-cursor-execution/results/run/twin.terminal.json",
+      "bytes": 4810,
+      "sha256": "0cc8d43da8893d1ae9cfde5bf83e3b55103054a72f2708cf852ea2bfa1cba3ec",
+      "copy": "byte-identical"
+    },
+    "comparison-carrier.json": {
+      "source": "/Users/ccheever/clique-improvement/revisions/search-resident-format5-linux-cursor-execution/results/run/twin/comparison-carrier.json",
+      "bytes": 599,
+      "sha256": "3c08d9047da3c8f9f907d60f2c949e4f9c8c3eb1b950be5f6ee42b29504147e2",
+      "copy": "byte-identical"
+    },
+    "comparison-coverage.json": {
+      "source": "/Users/ccheever/clique-improvement/revisions/search-resident-format5-linux-cursor-execution/results/run/twin/comparison-coverage.json",
+      "bytes": 599,
+      "sha256": "3c08d9047da3c8f9f907d60f2c949e4f9c8c3eb1b950be5f6ee42b29504147e2",
+      "copy": "byte-identical"
+    }
+  }
+}

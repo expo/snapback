@@ -1,0 +1,323 @@
+{
+  "status": "TWIN_COMPLETE_COMPARISONS_PASS",
+  "sourceManifestSha256": "5dd489f577b77d7604d894c6052c64a78df7d6914a6b06c78cf90779e7edec00",
+  "files": {
+    "capacity-preflight.json": {
+      "bytes": 1158,
+      "sha256": "b006336349424cb73cc7e4c505707cd0318169332c414e8158ae1bb2d01fb4ab"
+    },
+    "cleanup.json": {
+      "bytes": 812,
+      "sha256": "387e907aaa861a1176aee296692e3714e369fd5233822de8c2440326b5f06123"
+    },
+    "creation-preflight.json": {
+      "bytes": 366,
+      "sha256": "daddb9989e63c9cef86fed3aa2e91050f137ec8d586c7eb27ed57956e17f2975"
+    },
+    "execution-summary.json": {
+      "bytes": 162445,
+      "sha256": "fa224d207e5c8b2f9857120ff6422a72633c610f8602cf6f65601b9df3446284"
+    },
+    "intent.json": {
+      "bytes": 2492,
+      "sha256": "24e1c338461fa6fe299e1b90f02a5c792fc3c859a034330d1dc08ea64f6a3548"
+    },
+    "run/intent.json": {
+      "bytes": 2492,
+      "sha256": "24e1c338461fa6fe299e1b90f02a5c792fc3c859a034330d1dc08ea64f6a3548"
+    },
+    "run/launch-capacity.json": {
+      "bytes": 901,
+      "sha256": "04d35e2e4a040e4c9177d636b5019904ba014992be2f3bc755b14c3469ea72a5"
+    },
+    "run/run-once.py": {
+      "bytes": 6600,
+      "sha256": "ea85d375a56c2c5f530d09cc788d532736c94ef234b14cc0051d61f9b74ffa6b"
+    },
+    "run/scheduling-custody.json": {
+      "bytes": 305,
+      "sha256": "00af30ff405dfeeafebee1b55933de8ea26998db68a8f12255ab7f2b5ef37c59"
+    },
+    "run/scheduling-release.json": {
+      "bytes": 1175,
+      "sha256": "e9b6bab0d63216df522ad5f025f98c44563ec1aeea952295e1b20171900bd56f"
+    },
+    "run/twin/baseline/backend.json": {
+      "bytes": 6590,
+      "sha256": "1e83199fb7e05426bfcc132dc4c06e30ba761b94fb029abe080619a4a824178f"
+    },
+    "run/twin/baseline/contradictions.state.json": {
+      "bytes": 8298821,
+      "sha256": "2cb8150b1378745d8540f383125d92eb1a7b6e84cdf71501ec495abba10c801d"
+    },
+    "run/twin/baseline/empty.state.json": {
+      "bytes": 403,
+      "sha256": "407b31151d225d574437f71078091fce8a9ba1ffe0c0feb31b399d0377ce262c"
+    },
+    "run/twin/baseline/populatedReopen.state.json": {
+      "bytes": 8298821,
+      "sha256": "2cb8150b1378745d8540f383125d92eb1a7b6e84cdf71501ec495abba10c801d"
+    },
+    "run/twin/baseline/populatedTwinReplacement.state.json": {
+      "bytes": 8298821,
+      "sha256": "2cb8150b1378745d8540f383125d92eb1a7b6e84cdf71501ec495abba10c801d"
+    },
+    "run/twin/baseline/publicationRollback.state.json": {
+      "bytes": 8298821,
+      "sha256": "2cb8150b1378745d8540f383125d92eb1a7b6e84cdf71501ec495abba10c801d"
+    },
+    "run/twin/baseline/purge.state.json": {
+      "bytes": 993158,
+      "sha256": "48c821d18c514e33b3be134f0239439b71e34d25cf95ea771c2d8bef46a625dd"
+    },
+    "run/twin/baseline/removeOwners.state.json": {
+      "bytes": 3732158,
+      "sha256": "8240b420fd99b1583a029307eb65c0dfd0baae9bef70943342a6e13c1cdb28ff"
+    },
+    "run/twin/baseline/reopen.state.json": {
+      "bytes": 993158,
+      "sha256": "48c821d18c514e33b3be134f0239439b71e34d25cf95ea771c2d8bef46a625dd"
+    },
+    "run/twin/baseline/reset.state.json": {
+      "bytes": 6590,
+      "sha256": "43ab0abb2ff1990f4bfc74619a9f631c03173243d70ca635e58865e60abde005"
+    },
+    "run/twin/baseline/result.json": {
+      "bytes": 51643,
+      "sha256": "77c5f2e5364e6a96f41a64c8673a0af16922827f805a319c55757bb6bc024812"
+    },
+    "run/twin/baseline/retained.state.json": {
+      "bytes": 8278766,
+      "sha256": "fe03d81f96a9acdf75804ed281535e55131092c92cec0a20c98fb379afc47e68"
+    },
+    "run/twin/baseline/timed.state.json": {
+      "bytes": 8298821,
+      "sha256": "2cb8150b1378745d8540f383125d92eb1a7b6e84cdf71501ec495abba10c801d"
+    },
+    "run/twin/baseline/warm.state.json": {
+      "bytes": 8298804,
+      "sha256": "3e32624d1f5db36157578a5c2024d012aadebf9f9b7b76d8caa388eef156b114"
+    },
+    "run/twin/baseline-launch.json": {
+      "bytes": 500,
+      "sha256": "18ccf95ffb449e4350e275d48a97ad7ec7b130d5cc572df729abc63551ab35dc"
+    },
+    "run/twin/baseline-observations.json": {
+      "bytes": 91660,
+      "sha256": "9c7812f2b62e3f0f96b0b5bfe9630ae4ba22072f015ecb065454c3e9d00a4bee"
+    },
+    "run/twin/carrier/backend.json": {
+      "bytes": 6590,
+      "sha256": "1e83199fb7e05426bfcc132dc4c06e30ba761b94fb029abe080619a4a824178f"
+    },
+    "run/twin/carrier/contradictions.state.json": {
+      "bytes": 8298821,
+      "sha256": "2cb8150b1378745d8540f383125d92eb1a7b6e84cdf71501ec495abba10c801d"
+    },
+    "run/twin/carrier/empty.state.json": {
+      "bytes": 403,
+      "sha256": "407b31151d225d574437f71078091fce8a9ba1ffe0c0feb31b399d0377ce262c"
+    },
+    "run/twin/carrier/populatedReopen.state.json": {
+      "bytes": 8298821,
+      "sha256": "2cb8150b1378745d8540f383125d92eb1a7b6e84cdf71501ec495abba10c801d"
+    },
+    "run/twin/carrier/populatedTwinReplacement.state.json": {
+      "bytes": 8298821,
+      "sha256": "2cb8150b1378745d8540f383125d92eb1a7b6e84cdf71501ec495abba10c801d"
+    },
+    "run/twin/carrier/publicationRollback.state.json": {
+      "bytes": 8298821,
+      "sha256": "2cb8150b1378745d8540f383125d92eb1a7b6e84cdf71501ec495abba10c801d"
+    },
+    "run/twin/carrier/purge.state.json": {
+      "bytes": 993158,
+      "sha256": "48c821d18c514e33b3be134f0239439b71e34d25cf95ea771c2d8bef46a625dd"
+    },
+    "run/twin/carrier/removeOwners.state.json": {
+      "bytes": 3732158,
+      "sha256": "8240b420fd99b1583a029307eb65c0dfd0baae9bef70943342a6e13c1cdb28ff"
+    },
+    "run/twin/carrier/reopen.state.json": {
+      "bytes": 993158,
+      "sha256": "48c821d18c514e33b3be134f0239439b71e34d25cf95ea771c2d8bef46a625dd"
+    },
+    "run/twin/carrier/reset.state.json": {
+      "bytes": 6590,
+      "sha256": "43ab0abb2ff1990f4bfc74619a9f631c03173243d70ca635e58865e60abde005"
+    },
+    "run/twin/carrier/result.json": {
+      "bytes": 51637,
+      "sha256": "ac0f532ced8fa99bbd61c4f8eb5999a75d39cc9aef39f56d93514d5fc66548c2"
+    },
+    "run/twin/carrier/retained.state.json": {
+      "bytes": 8278766,
+      "sha256": "fe03d81f96a9acdf75804ed281535e55131092c92cec0a20c98fb379afc47e68"
+    },
+    "run/twin/carrier/timed.state.json": {
+      "bytes": 8298821,
+      "sha256": "2cb8150b1378745d8540f383125d92eb1a7b6e84cdf71501ec495abba10c801d"
+    },
+    "run/twin/carrier/warm.state.json": {
+      "bytes": 8298804,
+      "sha256": "3e32624d1f5db36157578a5c2024d012aadebf9f9b7b76d8caa388eef156b114"
+    },
+    "run/twin/carrier-launch.json": {
+      "bytes": 499,
+      "sha256": "c622af05bd53783d4b4ef49a3a5d782507d27df75099d42a02ff578c479bc0d8"
+    },
+    "run/twin/carrier-observations.json": {
+      "bytes": 89619,
+      "sha256": "99c032db30566c51424fd3b742c10e9977035a7a45b8a8547656d5ff611d36a7"
+    },
+    "run/twin/comparison-carrier.json": {
+      "bytes": 599,
+      "sha256": "3c08d9047da3c8f9f907d60f2c949e4f9c8c3eb1b950be5f6ee42b29504147e2"
+    },
+    "run/twin/comparison-coverage.json": {
+      "bytes": 599,
+      "sha256": "3c08d9047da3c8f9f907d60f2c949e4f9c8c3eb1b950be5f6ee42b29504147e2"
+    },
+    "run/twin/coverage/backend.json": {
+      "bytes": 6590,
+      "sha256": "1e83199fb7e05426bfcc132dc4c06e30ba761b94fb029abe080619a4a824178f"
+    },
+    "run/twin/coverage/contradictions.state.json": {
+      "bytes": 8298821,
+      "sha256": "2cb8150b1378745d8540f383125d92eb1a7b6e84cdf71501ec495abba10c801d"
+    },
+    "run/twin/coverage/empty.state.json": {
+      "bytes": 403,
+      "sha256": "407b31151d225d574437f71078091fce8a9ba1ffe0c0feb31b399d0377ce262c"
+    },
+    "run/twin/coverage/populatedReopen.state.json": {
+      "bytes": 8298821,
+      "sha256": "2cb8150b1378745d8540f383125d92eb1a7b6e84cdf71501ec495abba10c801d"
+    },
+    "run/twin/coverage/populatedTwinReplacement.state.json": {
+      "bytes": 8298821,
+      "sha256": "2cb8150b1378745d8540f383125d92eb1a7b6e84cdf71501ec495abba10c801d"
+    },
+    "run/twin/coverage/publicationRollback.state.json": {
+      "bytes": 8298821,
+      "sha256": "2cb8150b1378745d8540f383125d92eb1a7b6e84cdf71501ec495abba10c801d"
+    },
+    "run/twin/coverage/purge.state.json": {
+      "bytes": 993158,
+      "sha256": "48c821d18c514e33b3be134f0239439b71e34d25cf95ea771c2d8bef46a625dd"
+    },
+    "run/twin/coverage/removeOwners.state.json": {
+      "bytes": 3732158,
+      "sha256": "8240b420fd99b1583a029307eb65c0dfd0baae9bef70943342a6e13c1cdb28ff"
+    },
+    "run/twin/coverage/reopen.state.json": {
+      "bytes": 993158,
+      "sha256": "48c821d18c514e33b3be134f0239439b71e34d25cf95ea771c2d8bef46a625dd"
+    },
+    "run/twin/coverage/reset.state.json": {
+      "bytes": 6590,
+      "sha256": "43ab0abb2ff1990f4bfc74619a9f631c03173243d70ca635e58865e60abde005"
+    },
+    "run/twin/coverage/result.json": {
+      "bytes": 51644,
+      "sha256": "6d7ec81f450483f1d31c2c9201f6528c8b9758c678cab246e85cf61e7e9da4d0"
+    },
+    "run/twin/coverage/retained.state.json": {
+      "bytes": 8278766,
+      "sha256": "fe03d81f96a9acdf75804ed281535e55131092c92cec0a20c98fb379afc47e68"
+    },
+    "run/twin/coverage/timed.state.json": {
+      "bytes": 8298821,
+      "sha256": "2cb8150b1378745d8540f383125d92eb1a7b6e84cdf71501ec495abba10c801d"
+    },
+    "run/twin/coverage/warm.state.json": {
+      "bytes": 8298804,
+      "sha256": "3e32624d1f5db36157578a5c2024d012aadebf9f9b7b76d8caa388eef156b114"
+    },
+    "run/twin/coverage-launch.json": {
+      "bytes": 500,
+      "sha256": "37690a44563231aac7ea2686dda052f24c59ffe009da630da9bfc8577a90189d"
+    },
+    "run/twin/coverage-observations.json": {
+      "bytes": 90542,
+      "sha256": "62fb19cefef6e138c195b9a568724ff3d51fb38748b5ed9a6dde4a9ee367179a"
+    },
+    "run/twin.baseline.identity.json": {
+      "bytes": 1231,
+      "sha256": "f8694f024c0f4eb4ca1109a3ab8ecc7e92728f33a8b103bdd9bcc26bdff1dac1"
+    },
+    "run/twin.carrier.identity.json": {
+      "bytes": 1228,
+      "sha256": "6e61e6519e56b95a152806739f6ce4f91dcfbb6c9bc94d4c24a853321d1a4045"
+    },
+    "run/twin.coverage.identity.json": {
+      "bytes": 1231,
+      "sha256": "7eefcac22a760e065a686095ec2df344928c631518e05f487f4d02bed1335c18"
+    },
+    "run/twin.launch.json": {
+      "bytes": 2274,
+      "sha256": "1506ce6da529d816755c9b2d11cca5c4230aeb9e69891c1c6650eb1f1efa5e4a"
+    },
+    "run/twin.once.json": {
+      "bytes": 207,
+      "sha256": "bae5bb4f64b937ca409841fbded0e2a7bb4b79afbe11610e0be5e676c407bc4c"
+    },
+    "run/twin.outer-launch.json": {
+      "bytes": 347,
+      "sha256": "f768caf52dc422443216cc153833954825f6c021edd56202db211d44e65eb2b8"
+    },
+    "run/twin.outer-start.json": {
+      "bytes": 213,
+      "sha256": "c859e1d8fb0a69b17b9c660f8aa04ef08914aa0bc9d8cddd66bdce56e1206e54"
+    },
+    "run/twin.outer.stderr": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "run/twin.outer.stdout": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "run/twin.supervisor.stderr": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "run/twin.supervisor.stdout": {
+      "bytes": 1200,
+      "sha256": "1e324b50b2c51918b34f16652db5fbe22b8a2762ae42c5084fc536b10a9175dc"
+    },
+    "run/twin.terminal.json": {
+      "bytes": 4810,
+      "sha256": "0cc8d43da8893d1ae9cfde5bf83e3b55103054a72f2708cf852ea2bfa1cba3ec"
+    },
+    "source-final-verification.json": {
+      "bytes": 36638,
+      "sha256": "97dfa52e2d0c70c332d8f8e2fdb22afb2e75851770bac20d70533139f4e363a0"
+    },
+    "transport-receipt.json": {
+      "bytes": 1291,
+      "sha256": "540f57995f2cbfff1f4374fef82c1f2d51ed33f788f9a42fb1e6c4677b6c538d"
+    },
+    "packet/MANIFEST.json": {
+      "bytes": 91210,
+      "sha256": "5dd489f577b77d7604d894c6052c64a78df7d6914a6b06c78cf90779e7edec00"
+    },
+    "packet/worker.mjs": {
+      "bytes": 13112,
+      "sha256": "e354e5e81d2c6ff8af6eeacc91a2ffbade4f57f8c6ad62c0006b77188778ab5d"
+    },
+    "packet/fixtures/ordinary/controls.json": {
+      "bytes": 141517,
+      "sha256": "e17fee7642385e5e540869aedcdefdb14e5b54c9a717e21b4b1f4ef2d0dfc409"
+    },
+    "packet/CURSOR-ADAPTATION.json": {
+      "bytes": 2273,
+      "sha256": "b251e543a3e571759317a4ce352704d19aa79aa0071cf6ca465aea49971e37d7"
+    },
+    "packet/MANIFEST.parent-corrected-linux.json": {
+      "bytes": 90972,
+      "sha256": "4fdbac90dcc13fe192e89a44b3f6855da2df28f9ce179f26e6f01737c647b26b"
+    }
+  },
+  "sourceScope": "Every task-owned result/custody file, complete sampler/state/backend/terminal outputs; relevant packet provenance and modified worker. Full exact source retained locally and remotely."
+}

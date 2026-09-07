@@ -1,0 +1,21 @@
+{
+  "epoch": 1788751632.45412,
+  "reportReadInFull": true,
+  "reportBytes": 8467,
+  "reportSha256": "4ee82aa48f1ae524ec28e5a6a782ae878bb2d3e699715bd5678bd08027e225a7",
+  "actualTerminal": {
+    "pid": 81715,
+    "exitCode": 0,
+    "endedEpoch": 1788751583.5006452,
+    "elapsedSeconds": 1541.7619190216064
+  },
+  "writerReleased": true,
+  "phaseArtifactLeavesVerified": 11,
+  "localProcessObservation": {
+    "exitCode": 1,
+    "stdout": "  PID  PPID ELAPSED STAT COMMAND\n"
+  },
+  "actualRemoteInvocationExit": 0,
+  "historicalOrdinaryOnly": true,
+  "noNewRunAuthorized": true
+}

@@ -1,0 +1,113 @@
+{
+  "mode": "twin",
+  "supervisorPid": 3594689,
+  "supervisorExitCode": 0,
+  "outerPid": 3594687,
+  "invocationComplete": true,
+  "completionReceiptError": null,
+  "outerContainmentTriggered": false,
+  "outerSignals": [],
+  "elapsedSeconds": 96.82169769797474,
+  "hostAfter": {
+    "epoch": 1788751124.4490135,
+    "loadAverage": [
+      2.79052734375,
+      1.68505859375,
+      1.0458984375
+    ],
+    "procMeminfo": {
+      "MemTotalBytes": 269935493120,
+      "MemFreeBytes": 201675583488,
+      "MemAvailableBytes": 262401445888
+    },
+    "note": "MemAvailable is separate from os.freemem; no replacement predicate."
+  },
+  "observedChildren": {
+    "baseline": {
+      "originalLaunch": {
+        "pid": 3594697,
+        "revision": "baseline",
+        "mode": "twin",
+        "fixture": "ordinary",
+        "startUtc": "2026-09-07T03:17:07.914Z",
+        "node": "v22.23.2",
+        "totalDeadlineMs": 300000,
+        "hostRssLimitBytes": 1610612736,
+        "heapFlagMiB": 1024,
+        "externalLimitBytes": 1073741824,
+        "arrayBufferLimitBytes": 536870912,
+        "startFreeFloorBytes": 4294967296,
+        "runningFreeFloorBytes": 2147483648,
+        "rssSampleMs": 250,
+        "childMemorySampleMs": 100,
+        "samplerPid": 3594689,
+        "populationReduction": false
+      },
+      "identity": {
+        "pid": 3594697,
+        "startTicks": "110994619",
+        "state": "R",
+        "executable": "/home/ccheever/clique-tooling/search-resident-format5-linux-cursor-e354e5e8/packet/executables/node",
+        "argv": "[b'/home/ccheever/clique-tooling/search-resident-format5-linux-cursor-e354e5e8/packet/executables/node', b'--expose-gc', b'--max-old-space-size=1024', b'/home/ccheever/clique-tooling/search-resident-format5-linux-cursor-e354e5e8/packet/twin-process.mjs', b'--execute-population', b'--revision', b'baseline', b'--fixture', b'ordinary', b'--output', b'/home/ccheever/clique-tooling/search-resident-format5-linux-cursor-e354e5e8/run/twin/baseline']"
+      }
+    },
+    "carrier": {
+      "originalLaunch": {
+        "pid": 3595035,
+        "revision": "carrier",
+        "mode": "twin",
+        "fixture": "ordinary",
+        "startUtc": "2026-09-07T03:17:40.602Z",
+        "node": "v22.23.2",
+        "totalDeadlineMs": 300000,
+        "hostRssLimitBytes": 1610612736,
+        "heapFlagMiB": 1024,
+        "externalLimitBytes": 1073741824,
+        "arrayBufferLimitBytes": 536870912,
+        "startFreeFloorBytes": 4294967296,
+        "runningFreeFloorBytes": 2147483648,
+        "rssSampleMs": 250,
+        "childMemorySampleMs": 100,
+        "samplerPid": 3594689,
+        "populationReduction": false
+      },
+      "identity": {
+        "pid": 3595035,
+        "startTicks": "110997888",
+        "state": "R",
+        "executable": "/home/ccheever/clique-tooling/search-resident-format5-linux-cursor-e354e5e8/packet/executables/node",
+        "argv": "[b'/home/ccheever/clique-tooling/search-resident-format5-linux-cursor-e354e5e8/packet/executables/node', b'--expose-gc', b'--max-old-space-size=1024', b'/home/ccheever/clique-tooling/search-resident-format5-linux-cursor-e354e5e8/packet/twin-process.mjs', b'--execute-population', b'--revision', b'carrier', b'--fixture', b'ordinary', b'--output', b'/home/ccheever/clique-tooling/search-resident-format5-linux-cursor-e354e5e8/run/twin/carrier']"
+      }
+    },
+    "coverage": {
+      "originalLaunch": {
+        "pid": 3595787,
+        "revision": "coverage",
+        "mode": "twin",
+        "fixture": "ordinary",
+        "startUtc": "2026-09-07T03:18:12.148Z",
+        "node": "v22.23.2",
+        "totalDeadlineMs": 300000,
+        "hostRssLimitBytes": 1610612736,
+        "heapFlagMiB": 1024,
+        "externalLimitBytes": 1073741824,
+        "arrayBufferLimitBytes": 536870912,
+        "startFreeFloorBytes": 4294967296,
+        "runningFreeFloorBytes": 2147483648,
+        "rssSampleMs": 250,
+        "childMemorySampleMs": 100,
+        "samplerPid": 3594689,
+        "populationReduction": false
+      },
+      "identity": {
+        "pid": 3595787,
+        "startTicks": "111001043",
+        "state": "R",
+        "executable": "/home/ccheever/clique-tooling/search-resident-format5-linux-cursor-e354e5e8/packet/executables/node",
+        "argv": "[b'/home/ccheever/clique-tooling/search-resident-format5-linux-cursor-e354e5e8/packet/executables/node', b'--expose-gc', b'--max-old-space-size=1024', b'/home/ccheever/clique-tooling/search-resident-format5-linux-cursor-e354e5e8/packet/twin-process.mjs', b'--execute-population', b'--revision', b'coverage', b'--fixture', b'ordinary', b'--output', b'/home/ccheever/clique-tooling/search-resident-format5-linux-cursor-e354e5e8/run/twin/coverage']"
+      }
+    }
+  },
+  "stopFurtherInvocations": false,
+  "originalSupervisorOwnsPhaseStopsAndCleanup": true
+}

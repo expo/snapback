@@ -1,0 +1,10 @@
+{
+  "recordedUtc": "2026-09-07T03:24:24.172199+00:00",
+  "exitCode": 1,
+  "error": "KeyError: 'population'",
+  "scope": "Read-only local optional summary formatting after successful workload and complete archive verification. The closed-collected receipt has no population field.",
+  "command": "Python snapshot-summary projection in native stdout.log; no source or workload execution.",
+  "preservation": "Original results unchanged. Reporting now checks the existing optional field; no assertion or execution input changed.",
+  "workloadFailure": false,
+  "workloadRetried": false
+}

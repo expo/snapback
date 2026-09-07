@@ -1,0 +1,24 @@
+{
+  "epoch": 1788750946.427808,
+  "populationAllowedNow": true,
+  "nativeStatus": "/Users/ccheever/clique-improvement/revisions/search-native-linux-scale-execution/status-11.stdout",
+  "nativeStatusSha256": "35622f6afdc98bab6f496996e006e76734ea56f0ada3214a739a90896780424a",
+  "nativeStatusEpoch": 1788750899.3010201,
+  "nativeOwner": 3585645,
+  "nativePhase": "canonical send population; no timing sample/checkpoint yet",
+  "currentOrdinal": 15735,
+  "firstCheckpointOrdinal": 24864,
+  "remainingActions": 9129,
+  "recentObservedSendActionMs": [
+    286.2711630295962,
+    285.55703698657453,
+    285.6841408647597,
+    284.8182071465999,
+    285.0361361633986
+  ],
+  "estimatedRemainingPopulationSecondsAtFastestSampledSend": 2600.1054130413104,
+  "originalTwinInvocationLimitSeconds": 1000,
+  "assessment": "Current serialized-message population provides over twice the full Twin invocation window at fastest sampled send latency. This is an observed-rate scheduling estimate, not a new timing guarantee or changed native interval. Retain actual overlap evidence if scheduling changes.",
+  "originalBoundsUnchanged": true,
+  "noNativeInterruptionOrIntervalChange": true
+}
