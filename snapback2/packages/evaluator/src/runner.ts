@@ -747,11 +747,21 @@ export class Runner {
     }
   }
 
-  private applyAggregate(maintain: any, source: Value, direction: number): void {
-    // @ref LLP 1001#4-generation-and-runtime-registryrs-successorrs — maintained targets are engine-owned but still validated.
+  private maintainedGroup(maintain: any, source: Value): {
+    source: Value;
+    group: Value[];
+    idValue: string;
+  } {
     source = materializeOptionalFields(this.schema, maintain.source, source);
     const group = maintain.by.map((name: string) => clone(field(source, name)));
-    const idValue = canonicalValues(group);
+    return { source, group, idValue: canonicalValues(group) };
+  }
+
+  private applyAggregate(maintain: any, source: Value, direction: number): void {
+    // @ref LLP 1001#4-generation-and-runtime-registryrs-successorrs — maintained targets are engine-owned but still validated.
+    const groupAddress = this.maintainedGroup(maintain, source);
+    source = groupAddress.source;
+    const { group, idValue } = groupAddress;
     const [kind, data] = variant(maintain.kind);
     const delta =
       kind === "Count" ? direction : safeNumber(direction * asInt(field(source, data.of)));
@@ -850,6 +860,24 @@ export class Runner {
           (effect === "update" && data.by.some((name: string) =>
             canonicalValue(field(old!, name)) !== canonicalValue(field(row, name))));
         if (!entersGroup) continue;
+        const maintain = (this.schema.maintains ?? []).find((candidate: any) =>
+          candidate.source === tableName &&
+          variant(candidate.kind)[0] === "Count" &&
+          candidate.by.length === data.by.length &&
+          candidate.by.every((name: string, index: number) => name === data.by[index]),
+        );
+        if (maintain !== undefined) {
+          const group = this.maintainedGroup(maintain, row);
+          const countRow = this.store.byId(maintain.target, group.idValue);
+          if (countRow !== null) {
+            this.trace.examined = (this.trace.examined ?? 0) + 1;
+            if (asInt(field(countRow, "value")) >= data.max)
+              throw new EvalError("E_CONSTRAINT", `${tableName} cap ${data.max} reached for group (${data.by.join(", ")}) = ${canonicalValue({ Array: group.group })}`);
+            continue;
+          }
+          // @ref LLP 1017#24-metering — an unheld maintained row is not zero;
+          // retain the source-scan coverage test used before this fast path.
+        }
         const entry = Object.entries<any>(table.indexes).find(([, index]) =>
           startsWith(index.columns, data.by),
         );

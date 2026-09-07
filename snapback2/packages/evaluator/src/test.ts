@@ -56,6 +56,13 @@ for (const item of serverOnly) {
   try { evaluateCase(item); } catch (error) { refused = error instanceof EvalError && error.message.includes("server-only"); }
   assert(refused, `${item.name}: server-only case was evaluated`);
 }
+const unbackedCap = serverOnly.find((item) => item.name === "cap-1000-49-inserts-unbacked-refused");
+assert(
+  unbackedCap?.certificationRewrite?.includes(
+    "maintain membershipsCount = count memberships by principal:",
+  ) && unbackedCap.certificationRewrite.includes("prices at one row per write"),
+  "the unbacked cap refusal lost its exact count-maintain rewrite",
+);
 for (const testCase of cases) {
   const hydration = hydrateCase(testCase);
   assert(hydration.planState === "ready", hydration.diagnostic ?? testCase.name);

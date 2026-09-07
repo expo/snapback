@@ -522,6 +522,11 @@ impl<'a> Checker<'a> {
                     && let Some((index, _)) = crate::cap::enforcement_index(table, by)
                 {
                     indexes_required.insert(format!("{}.{index}", write.table));
+                    if let Some(maintain) =
+                        crate::cap::count_maintain(self.schema, &write.table, by)
+                    {
+                        indexes_required.insert(format!("{}.byId", maintain.target));
+                    }
                 }
             }
             if matches!(write.kind, WriteKind::Insert | WriteKind::Upsert) {
@@ -592,6 +597,11 @@ impl<'a> Checker<'a> {
                     ),
                 };
                 constraint_checks.insert(format!("{trace_table}:{label}"));
+                if let crate::schema::Constraint::Cap { by, .. } = constraint
+                    && let Some(maintain) = crate::cap::count_maintain(self.schema, &table_name, by)
+                {
+                    constraint_checks.insert(format!("{}:{label}", maintain.target));
+                }
             }
             for (index_name, index) in &table.indexes {
                 if index.unique {
@@ -1281,13 +1291,24 @@ impl<'a> Analyzer<'a> {
         let mut summary = write_summary(table, kind, calls, factors);
         // @ref LLP 1017#24-metering — reserve only probes a writer may perform.
         for (by, max) in crate::cap::write_caps(self.schema, table, kind, patch) {
-            let rows = u64::from(max).saturating_mul(calls);
+            let maintained = crate::cap::count_maintain(self.schema, table, by);
+            let rows = if maintained.is_some() {
+                1
+            } else {
+                u64::from(max)
+            }
+            .saturating_mul(calls);
             summary.examined = summary.examined.saturating_add(rows);
             summary.index_entries = summary.index_entries.saturating_add(rows);
             summary.steps = summary.steps.saturating_add(rows.saturating_mul(5));
-            summary
-                .costs
-                .scan(Cost::cap(table, by, max, calls, factors));
+            summary.costs.scan(Cost::cap(
+                table,
+                by,
+                max,
+                maintained.map(|maintain| maintain.target.as_str()),
+                calls,
+                factors,
+            ));
         }
         let probe_multiplier = self.write_rule_probe_bound(table, kind);
         let maintained_final_probes = self

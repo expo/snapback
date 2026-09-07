@@ -198,3 +198,154 @@ fn refusing_cap_probe_is_charged_before_returning_constraint_error() {
     );
     runner.assert_bounds().unwrap();
 }
+
+#[test]
+fn same_key_count_tracks_writes_inside_one_program_and_refuses_after_max() {
+    let mut memberships = public_table(
+        BTreeMap::from([
+            ("id".into(), ColumnType::Id),
+            ("principal".into(), ColumnType::Principal),
+        ]),
+        BTreeMap::from([
+            (
+                "byId".into(),
+                Index {
+                    columns: vec!["id".into()],
+                    unique: true,
+                },
+            ),
+            (
+                "byPrincipal".into(),
+                Index {
+                    columns: vec!["principal".into(), "id".into()],
+                    unique: false,
+                },
+            ),
+        ]),
+    );
+    memberships.constraints.push(Constraint::Cap {
+        by: vec!["principal".into()],
+        max: 3,
+    });
+    let counts = public_table(
+        BTreeMap::from([
+            ("id".into(), ColumnType::Id),
+            ("principal".into(), ColumnType::Principal),
+            ("value".into(), ColumnType::Int),
+        ]),
+        BTreeMap::from([
+            (
+                "byId".into(),
+                Index {
+                    columns: vec!["id".into()],
+                    unique: true,
+                },
+            ),
+            (
+                "byPrincipal".into(),
+                Index {
+                    columns: vec!["principal".into()],
+                    unique: true,
+                },
+            ),
+        ]),
+    );
+    let schema = Schema {
+        tables: BTreeMap::from([
+            ("memberships".into(), memberships),
+            ("membershipCounts".into(), counts),
+        ]),
+        maintains: vec![Maintain {
+            kind: MaintainKind::Count,
+            source: "memberships".into(),
+            by: vec!["principal".into()],
+            target: "membershipCounts".into(),
+            readable: None,
+        }],
+        ..Schema::default()
+    };
+    let insert = |id: &str| Stmt::Insert {
+        table: "memberships".into(),
+        row: Expr::Literal(crate::object([
+            ("id", Value::Id(id.into())),
+            ("principal", Value::Id("alice".into())),
+        ])),
+    };
+    let fill = Program {
+        name: "memberships.fill".into(),
+        kind: ProgramKind::Mutation,
+        args: BTreeMap::new(),
+        read_time_granularity_ms: None,
+        body: vec![insert("m1"), insert("m2"), insert("m3")],
+    };
+    let certificate = Checker::new(&schema, Ceilings::default())
+        .check(&fill)
+        .unwrap();
+    assert_eq!(certificate.max_examined, 3);
+    assert_eq!(certificate.max_index_entries, 3);
+    assert!(
+        certificate
+            .indexes_required
+            .contains(&"memberships.byPrincipal".to_owned())
+    );
+    assert!(
+        certificate
+            .indexes_required
+            .contains(&"membershipCounts.byId".to_owned())
+    );
+    let mut engine = Engine::memory(schema.clone()).unwrap();
+    let execution = engine
+        .execute(
+            &fill,
+            &certificate,
+            Context::mutation(Actor::user("alice").unwrap(), BTreeMap::new()),
+        )
+        .unwrap();
+    assert_eq!(execution.trace.examined, 3);
+    let cap_inputs: Vec<_> = execution
+        .trace
+        .constraint_inputs
+        .iter()
+        .filter(|input| input.check.starts_with("Cap("))
+        .collect();
+    assert_eq!(cap_inputs.len(), 3);
+    assert!(cap_inputs.iter().all(|input| {
+        input.table == "membershipCounts"
+            && input.index == "byId"
+            && matches!(input.prefix.as_slice(), [Value::Id(_)])
+    }));
+    let count_id = canonical_json(&vec![Value::Id("alice".into())]);
+    assert_eq!(
+        engine.rows("membershipCounts").unwrap()[0]
+            .field("value")
+            .unwrap(),
+        &Value::Int(3)
+    );
+    assert_eq!(
+        engine.rows("membershipCounts").unwrap()[0]
+            .field("id")
+            .unwrap(),
+        &Value::Id(count_id)
+    );
+
+    let over = Program {
+        name: "memberships.over".into(),
+        body: vec![insert("m4")],
+        ..fill
+    };
+    let certificate = Checker::new(&schema, Ceilings::default())
+        .check(&over)
+        .unwrap();
+    assert_eq!(
+        engine
+            .execute(
+                &over,
+                &certificate,
+                Context::mutation(Actor::user("alice").unwrap(), BTreeMap::new()),
+            )
+            .unwrap_err()
+            .code(),
+        "E_CONSTRAINT"
+    );
+    assert_eq!(engine.rows("memberships").unwrap().len(), 3);
+}

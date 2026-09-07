@@ -739,6 +739,7 @@ fn certification_refusal_case(
     let envelope = serde_json::json!({ "Error": error_code });
     CorpusCase {
         server_only: false,
+        certification_rewrite: None,
         corpus_version: CORPUS_VERSION,
         name: name.to_owned(),
         category: category.to_owned(),

@@ -160,6 +160,13 @@ fn cap_reserve_refusal_names_cap_and_fitting_chunk() {
         "{error}"
     );
     assert!(error.rewrite.contains("cap 1000 by follower on follows"));
+    assert!(
+        error
+            .rewrite
+            .contains("maintain followsCount = count follows by follower:"),
+        "{error}"
+    );
+    assert!(error.rewrite.contains("prices at one row per write"));
 }
 #[test]
 fn nested_output_names_both_sublists_and_their_wide_fields() {

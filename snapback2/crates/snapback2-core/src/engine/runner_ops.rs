@@ -232,14 +232,9 @@ impl<'a> Runner<'a> {
             .schema
             .table(&maintain.source)
             .ok_or_else(|| RuntimeError::Schema(format!("missing table {}", maintain.source)))?;
-        let mut source = source.clone();
-        materialize_optional_fields(&mut source, table);
-        let group: Vec<_> = maintain
-            .by
-            .iter()
-            .map(|field| source.field(field).cloned())
-            .collect::<Result<_, _>>()?;
-        let id = canonical_json(&group);
+        let group = crate::cap::maintained_group(table, source, &maintain.by)?;
+        let source = group.source;
+        let id = group.id;
         let delta = match &maintain.kind {
             MaintainKind::Count => direction,
             MaintainKind::Sum { of } => direction
@@ -276,7 +271,7 @@ impl<'a> Runner<'a> {
             ("id".to_owned(), Value::Id(id.clone())),
             ("value".to_owned(), Value::Int(next as i64)),
         ]);
-        for (field, value) in maintain.by.iter().zip(group) {
+        for (field, value) in maintain.by.iter().zip(group.key) {
             row.insert(field.clone(), value);
         }
         self.write_aggregate_row(&maintain.target, Value::Row(row))
@@ -481,6 +476,52 @@ impl<'a> Runner<'a> {
                         Effect::Read | Effect::Delete => false,
                     };
                     if !increases_group {
+                        continue;
+                    }
+                    if let Some(maintain) = crate::cap::count_maintain(self.schema, table_name, by)
+                    {
+                        let group = crate::cap::maintained_group(&table, new, by)?;
+                        let count_row = self.fetch_id(&maintain.target, &group.id)?;
+                        let proven_absent = self.authority_absences.iter().any(
+                            |(target, index, key)| {
+                                target == &maintain.target
+                                    && index == "byId"
+                                    && matches!(key.as_slice(), [Value::Id(value)] if value == &group.id)
+                            },
+                        );
+                        if count_row.is_none()
+                            && self.rule_authority == RuleAuthority::ReceiptOnly
+                            && !proven_absent
+                        {
+                            // @ref LLP 1017#24-metering — the one-row reserve cannot
+                            // honestly cover a source scan. Match aggregate replay and
+                            // make the tentative mutation partial instead of inventing zero.
+                            self.mark_missing_authority();
+                            continue;
+                        }
+                        let count = count_row
+                            .as_ref()
+                            .map(|row| row.field("value").and_then(Value::as_int))
+                            .transpose()?
+                            .unwrap_or(0);
+                        self.trace.examined += 1;
+                        self.trace.constraint_inputs.push(ConstraintTrace {
+                            table: maintain.target.clone(),
+                            check: format!("Cap({by:?},{max})"),
+                            index: "byId".to_owned(),
+                            prefix: vec![Value::Id(group.id.clone())],
+                            examined_ids: count_row
+                                .as_ref()
+                                .map(|_| vec![group.id.clone()])
+                                .unwrap_or_default(),
+                        });
+                        if count >= i64::from(*max) {
+                            return Err(RuntimeError::Constraint(format!(
+                                "{table_name} cap {max} reached for group ({}) = {}",
+                                by.join(", "),
+                                canonical_json(&Value::Array(group.key))
+                            )));
+                        }
                         continue;
                     }
                     let (index_name, index) = crate::cap::enforcement_index(&table, by)

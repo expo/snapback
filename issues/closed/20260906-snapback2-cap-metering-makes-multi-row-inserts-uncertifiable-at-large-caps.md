@@ -33,3 +33,12 @@ Related: LLP 1017 §3 (metering), LLP 1001 §9 (ceilings).
 ## Partly addressed (2026-09-06, Clique findings program)
 
 wave 1 L3 made cap metering patch-sensitive (only writes touching the cap key are charged; main 53748c499, LLP 1017 §2.4); the per-insert N charge this ticket describes is unchanged and still open.
+
+## Resolved (2026-09-07)
+
+Caps now read an exact same-`by` count maintain through its deterministic
+`byId` row and reserve one examined entry, one index entry, and five steps per
+write. The unbacked scan and its `N`/`N`/`5N` reserve remain, and `E_BOUND`
+pastes the Quarry count-maintain line that changes the price. Shared corpus
+cases cover refusal at the cap, the count-backed 49-row atomic insert under
+`cap 1000`, and the unbacked certification refusal.

@@ -85,6 +85,7 @@ export interface CorpusExpected {
 
 export interface CorpusCase {
   serverOnly?: boolean;
+  certificationRewrite?: string;
   corpusVersion: number;
   name: string;
   category: string;

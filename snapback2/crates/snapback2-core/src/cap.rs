@@ -3,9 +3,44 @@
 
 use crate::certificate::{CheckError, WriteKind};
 use crate::ir::Expr;
-use crate::schema::{Constraint, Index, Schema, Table};
-use crate::value::Value;
+use crate::schema::{Constraint, Index, Maintain, MaintainKind, Schema, Table};
+use crate::value::{Value, ValueError, canonical_json};
 use std::collections::BTreeSet;
+
+pub(crate) struct MaintainedGroup {
+    pub(crate) source: Value,
+    pub(crate) key: Vec<Value>,
+    pub(crate) id: String,
+}
+
+/// Derive the maintained row address from the same normalized source image
+/// everywhere that address is used.
+pub(crate) fn maintained_group(
+    table: &Table,
+    source: &Value,
+    by: &[String],
+) -> Result<MaintainedGroup, ValueError> {
+    let mut source = source.clone();
+    crate::engine::materialize_optional_fields(&mut source, table);
+    let key = by
+        .iter()
+        .map(|field| source.field(field).cloned())
+        .collect::<Result<Vec<_>, _>>()?;
+    let id = canonical_json(&key);
+    Ok(MaintainedGroup { source, key, id })
+}
+
+pub(crate) fn count_maintain<'a>(
+    schema: &'a Schema,
+    source: &str,
+    by: &[String],
+) -> Option<&'a Maintain> {
+    schema.maintains.iter().find(|maintain| {
+        maintain.source == source
+            && maintain.by == by
+            && matches!(maintain.kind, MaintainKind::Count)
+    })
+}
 
 pub(crate) fn group_key(row: &Value, by: &[String]) -> Vec<Value> {
     by.iter()

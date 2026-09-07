@@ -66,7 +66,7 @@ export function registerQuarryFanoutChecks(test: Test, frontend: string): void {
     }
   });
 
-  test("chat groupCreate reserves fifty times fifty cap candidates", async () => {
+  test("chat groupCreate prices its same-key count-backed cap once per write", async () => {
     const chat = await lowerProject(resolve(frontend, "../snapback2/templates/chat"));
     assert(chat.ok, "chat template did not lower");
     const p = chat.project.programs.find((p) => p.name === "groups.groupCreate")!;
@@ -79,8 +79,12 @@ export function registerQuarryFanoutChecks(test: Test, frontend: string): void {
     if (uncapped.schedules) uncapped.schedules = Array.isArray(uncapped.schedules) ? [] : {};
     const [baseline] = rustCheck([p], "synthetic", { ...uncapped, effects: [] });
     assert(baseline && !baseline.error && baseline.certificate, `uncapped groupCreate baseline refused: ${JSON.stringify(baseline?.error)}`);
-    assert(Number(checked.certificate.max_examined) - Number(baseline.certificate.max_examined) === 50 * 50, "groupCreate did not reserve 50 × 50 examined");
-    assert(Number(checked.certificate.max_index_entries) - Number(baseline.certificate.max_index_entries) === 50 * 50, "groupCreate did not reserve 50 × 50 index entries");
+    assert(Number(checked.certificate.max_examined) - Number(baseline.certificate.max_examined) === 50, "groupCreate did not reserve 50 × 1 examined");
+    assert(Number(checked.certificate.max_index_entries) - Number(baseline.certificate.max_index_entries) === 50, "groupCreate did not reserve 50 × 1 index entries");
+    assert(Number(checked.certificate.max_steps) - Number(baseline.certificate.max_steps) === 50 * 5, "groupCreate did not reserve 50 × 5 cap steps");
+    const indexes = checked.certificate.indexes_required as string[];
+    assert(indexes.includes("memberships.byConversationPrincipal"), "groupCreate lost the cap enforcement index");
+    assert(indexes.includes("memberCounts.byId"), "groupCreate lost the maintained count point index");
   });
 
   const reasons = [

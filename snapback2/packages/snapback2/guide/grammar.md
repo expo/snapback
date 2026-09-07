@@ -31,7 +31,7 @@ optional. `once` is image-column-only; `cursor` is operation-only. Text may add 
 ## Constructs
 
 - `maintain`: `maintain name = count table by fields:`; sum uses `sum table of column`.
-- `cap`: `cap N by columns` bounds each table group.
+- `cap`: `cap N by columns` bounds each group; reserve is N/N/5N per write, or 1/1/5 with an exact same-`by` count maintain.
 - `unique`: `unique [name:] columns` declares a unique index.
 - `immutable`: `immutable columns` forbids changes.
 - `public`: `public ['reason']` declares public reads.

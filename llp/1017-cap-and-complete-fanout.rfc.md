@@ -27,7 +27,7 @@ against origin/main `873f1eb1f` (§0)
 (`~/projects/snapback-s2`), orchestrated and landed by Claude Fable 5.1 —
 §1 as its own landing first, §2–§4 after the panel
 **Date:** 2026-09-05
-**Revised:** 2026-09-05 (e — Clique L3: patch-sensitive cap probes and admission; d — after the blind code review of the implementation)
+**Revised:** 2026-09-07 (count-backed cap probes); 2026-09-05 (e — Clique L3: patch-sensitive cap probes and admission; d — after the blind code review of the implementation)
 **Related:** LLP 1001 §3 (read and write states; the 2026-08-30 hoist
 amendment) §9 (schema additions; `Constraint::Cap` exists in the engine
 but is undocumented there until this RFC's lane amends it), LLP 1004 (Quarry is the
@@ -296,6 +296,17 @@ cap's `E_CONSTRAINT`. `seed_program`'s ceilings therefore exempt
 still runs for every seeded row. A follow-up ticket, not this RFC: when a
 `maintain … count` exists over the same `by`, the check may read the
 maintained row instead (one examined row, exact).
+
+**Implementation record (2026-09-07).** The follow-up above is implemented:
+when a count maintain names the same source and the exact ordered `by` tuple,
+the cap probe reads that target's deterministic `byId` row, treats an
+authoritatively absent row as zero, and reserves one examined entry, one index
+entry, and five steps per write; without it the scan and `N`/`N`/`5N` reserve
+remain. Receipt-only execution never fabricates an absent count. The chat
+template already has `maintain memberCounts = count memberships by
+conversationId`, so `groups.groupCreate`'s cap-specific reserve falls from
+`50 × 50 = 2,500` examined/index entries and `12,500` steps to `50 × 1 = 50`
+examined/index entries and `250` steps.
 
 ### 2.5 Successor admission
 

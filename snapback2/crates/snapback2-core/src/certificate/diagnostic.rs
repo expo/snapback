@@ -6,7 +6,12 @@ use super::*;
 pub(super) enum Repair {
     Range { nested: bool },
     Merge,
-    Cap { name: String, calls: u64, max: u64 },
+    Cap {
+        name: String,
+        calls: u64,
+        per_call: u64,
+        maintain_line: Option<String>,
+    },
     Probe,
     Uniformity,
     Work,
@@ -70,29 +75,51 @@ impl Cost {
             repair,
         }
     }
-    // @ref LLP 1017#24-metering — each reserved cap contributes its own calls times N, including unknown patches.
+    // @ref LLP 1017#24-metering — each reserved cap names whether it scans N
+    // candidates or reads one same-key maintained count.
     pub fn cap(
         table: &str,
         by: &[String],
         max: u32,
+        maintained_target: Option<&str>,
         calls: u64,
         factors: &[(String, u64)],
     ) -> Self {
         let name = format!("cap {max} by {} on {table}", by.join(", "));
+        let per_call = if maintained_target.is_some() {
+            1
+        } else {
+            u64::from(max)
+        };
+        let source = maintained_target.map_or_else(
+            || format!("{calls} calls × {name}{}", context(factors)),
+            |target| {
+                format!(
+                    "{calls} calls × maintained {name} via {target}.byId (1 row per write){}",
+                    context(factors)
+                )
+            },
+        );
         Self {
-            value: calls.saturating_mul(u64::from(max)),
-            source: format!("{calls} calls × {name}{}", context(factors)),
+            value: calls.saturating_mul(per_call),
+            source,
             repair: Repair::Cap {
                 name,
                 calls,
-                max: u64::from(max),
+                per_call,
+                maintain_line: (maintained_target.is_none() && max > 1).then(|| {
+                    format!(
+                        "maintain {table}Count = count {table} by {}:",
+                        by.join(", ")
+                    )
+                }),
             },
         }
     }
     fn scaled(mut self, n: u64) -> Self {
         self.value = self.value.saturating_mul(n);
-        if let Repair::Cap { max, .. } = &mut self.repair {
-            *max = max.saturating_mul(n);
+        if let Repair::Cap { per_call, .. } = &mut self.repair {
+            *per_call = per_call.saturating_mul(n);
         }
         self.source = format!("{} × {n}", self.source);
         self
@@ -100,13 +127,28 @@ impl Cost {
     pub fn rewrite(&self, actual: u64, ceiling: u64) -> String {
         match &self.repair {
             Repair::Merge => "structural repair: use a smaller lane bound, a smaller page, two reads (they are two snapshots), or a maintained feed".into(),
-            Repair::Cap { name, calls, max } => {
+            Repair::Cap {
+                name,
+                calls,
+                per_call,
+                maintain_line,
+            } => {
                 let other = actual.saturating_sub(self.value);
-                let fits = ceiling.saturating_sub(other).saturating_div((*max).max(1)).min(*calls);
-                if fits == 0 {
+                let fits = ceiling
+                    .saturating_sub(other)
+                    .saturating_div((*per_call).max(1))
+                    .min(*calls);
+                let chunk = if fits == 0 {
                     format!("structural repair: {name} leaves no positive chunk size under this ceiling with the other reserves unchanged; reduce the other work or split the job")
                 } else {
                     format!("reduce the chunk from {calls} to at most {fits} writes for {name}; {fits} fits this ceiling with the other reserves unchanged")
+                };
+                if let Some(line) = maintain_line {
+                    format!(
+                        "add this schema maintain with its read rule:\n{line}\nthe cap probe then prices at one row per write; {chunk}"
+                    )
+                } else {
+                    chunk
                 }
             }
             Repair::Range { nested: true } => "replace the nested population scan with maintain.count/sum, or reduce its declared bound".into(),
@@ -242,10 +284,25 @@ impl Checker<'_> {
                 });
             }
             let terms = sorted_terms(terms);
-            let rewrite = terms
+            let maintain_line = terms.iter().find_map(|term| match &term.repair {
+                Repair::Cap {
+                    maintain_line: Some(line),
+                    ..
+                } => Some(line),
+                _ => None,
+            });
+            let mut rewrite = terms
                 .first()
                 .map(|t| t.rewrite(actual, ceiling))
                 .unwrap_or_else(|| "reduce the declared work bound".into());
+            if name != "steps"
+                && let Some(line) = maintain_line
+                && !rewrite.contains(line)
+            {
+                rewrite.push_str(&format!(
+                    "; add this schema maintain with its read rule:\n{line}\nthe cap probe then prices at one row per write"
+                ));
+            }
             (
                 terms
                     .iter()

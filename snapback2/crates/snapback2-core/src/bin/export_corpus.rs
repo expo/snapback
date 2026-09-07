@@ -35,6 +35,8 @@ const RANDOM_SEED: u64 = 0x5eed_0329_0140_0003;
 struct CorpusCase {
     #[serde(skip_serializing_if = "std::ops::Not::not")]
     server_only: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    certification_rewrite: Option<String>,
     corpus_version: u32,
     name: String,
     category: String,
@@ -1013,6 +1015,7 @@ fn case_from_parts(
     );
     CorpusCase {
         server_only: false,
+        certification_rewrite: None,
         corpus_version: CORPUS_VERSION,
         name: name.to_owned(),
         category: category.to_owned(),

@@ -5,6 +5,7 @@ mod review;
 
 pub(super) fn add_cap_cases(cases: &mut Vec<CorpusCase>) {
     review::add(cases);
+    add_count_backed_cases(cases);
     let schema = schema(50);
     for (name, count, upsert) in [
         ("cap-metered-insert", 49, false),
@@ -403,6 +404,182 @@ pub(super) fn add_cap_cases(cases: &mut Vec<CorpusCase>) {
     ));
 }
 
+fn add_count_backed_cases(cases: &mut Vec<CorpusCase>) {
+    let schema = count_backed_schema(3);
+    let insert = |row_id: &str| Stmt::Insert {
+        table: "memberships".into(),
+        row: Expr::Literal(object([
+            ("id", id(row_id)),
+            ("conversationId", id("c1")),
+            ("principal", id("alice")),
+            ("role", text("member")),
+        ])),
+    };
+    let fill = program(
+        "count-backed-cap-fill-to-max",
+        vec![insert("m1"), insert("m2"), insert("m3")],
+    );
+    let fill_certificate = Checker::new(&schema, Ceilings::default())
+        .check(&fill)
+        .unwrap();
+    assert_eq!(fill_certificate.max_examined, 3);
+    assert_eq!(fill_certificate.max_index_entries, 3);
+    let mut engine = Engine::memory(schema.clone()).unwrap();
+    let fill_execution = engine.execute(&fill, &fill_certificate, context()).unwrap();
+    assert_eq!(fill_execution.trace.examined, 3);
+    let over = program("count-backed-cap-refuses-at-max", vec![insert("m4")]);
+    let over_certificate = Checker::new(&schema, Ceilings::default())
+        .check(&over)
+        .unwrap();
+    assert_eq!(over_certificate.max_examined, 1);
+    assert_eq!(
+        engine
+            .execute(&over, &over_certificate, context())
+            .unwrap_err()
+            .code(),
+        "E_CONSTRAINT"
+    );
+    let mut receipt = ClosureReceipt::default();
+    for table in ["memberships", "membershipCounts"] {
+        receipt.rows.extend(
+            engine
+                .rows(table)
+                .unwrap()
+                .into_iter()
+                .map(|row| RowRecord {
+                    table: table.to_owned(),
+                    id: row.field("id").unwrap().as_str().unwrap().to_owned(),
+                    row,
+                }),
+        );
+    }
+    let case = case_from_parts(
+        &over.name.clone(),
+        "cap",
+        schema,
+        over,
+        context(),
+        receipt,
+        vec![],
+        None,
+        None,
+    );
+    assert_eq!(case.expected.error_code.as_deref(), Some("E_CONSTRAINT"));
+    cases.push(case);
+
+    let schema = count_backed_schema(1000);
+    let principals: Vec<_> = (0..49).map(|n| id(&format!("u{n}"))).collect();
+    let bulk = Program {
+        name: "cap-1000-49-inserts-count-backed".into(),
+        kind: ProgramKind::Mutation,
+        args: BTreeMap::from([(
+            "members".into(),
+            ArgType::List {
+                of: Some(Box::new(ArgType::Principal)),
+                max: 49,
+            },
+        )]),
+        read_time_granularity_ms: None,
+        body: vec![
+            Stmt::For {
+                binding: "principal".into(),
+                domain: LoopDomain::ArgList {
+                    name: "members".into(),
+                    max: 49,
+                },
+                body: vec![Stmt::Insert {
+                    table: "memberships".into(),
+                    row: Expr::Object(BTreeMap::from([
+                        ("id".into(), Expr::Input(Input::NewId)),
+                        ("conversationId".into(), Expr::Literal(id("c1"))),
+                        ("principal".into(), var("principal")),
+                        ("role".into(), Expr::Literal(text("member"))),
+                    ])),
+                }],
+            },
+            Stmt::Return(Expr::Literal(Value::Null)),
+        ],
+    };
+    let mut bulk_context = context();
+    bulk_context
+        .args
+        .insert("members".into(), Value::Array(principals.clone()));
+    bulk_context.new_ids = (0..49).map(|n| format!("m{n}")).collect();
+    let certificate = Checker::new(&schema, Ceilings::default())
+        .check(&bulk)
+        .unwrap();
+    assert_eq!(certificate.max_examined, 49);
+    assert_eq!(certificate.max_index_entries, 49);
+    assert_eq!(certificate.max_steps, 787);
+    assert!(
+        certificate
+            .indexes_required
+            .contains(&"membershipCounts.byId".to_owned())
+    );
+    let mut engine = Engine::memory(schema.clone()).unwrap();
+    let mut receipt = ClosureReceipt::default();
+    for principal in &principals {
+        let count_id = snapback2_core::value::canonical_json(&vec![principal.clone()]);
+        let row = object([
+            ("id", Value::Id(count_id.clone())),
+            ("principal", principal.clone()),
+            ("value", Value::Int(0)),
+        ]);
+        engine.seed("membershipCounts", row.clone()).unwrap();
+        receipt.rows.push(RowRecord {
+            table: "membershipCounts".into(),
+            id: count_id,
+            row,
+        });
+    }
+    let execution = engine
+        .execute(&bulk, &certificate, bulk_context.clone())
+        .unwrap();
+    assert_eq!(execution.trace.examined, 49);
+    assert_eq!(engine.rows("memberships").unwrap().len(), 49);
+    let case = case_from_parts(
+        &bulk.name.clone(),
+        "cap",
+        schema.clone(),
+        bulk.clone(),
+        bulk_context.clone(),
+        receipt,
+        vec![],
+        None,
+        None,
+    );
+    assert_eq!(case.expected.local_state, "predicted");
+    cases.push(case);
+
+    let mut unbacked = schema;
+    unbacked.maintains.clear();
+    unbacked.tables.remove("membershipCounts");
+    let errors = Checker::new(&unbacked, Ceilings::default())
+        .check_all(&bulk)
+        .unwrap_err();
+    let error = errors
+        .iter()
+        .find(|error| {
+            error.code == "E_BOUND" && error.message.starts_with("examined entries 49000")
+        })
+        .unwrap();
+    let maintain_line = "maintain membershipsCount = count memberships by principal:";
+    assert!(error.rewrite.contains(maintain_line), "{error}");
+    assert!(
+        error.rewrite.contains("prices at one row per write"),
+        "{error}"
+    );
+    let mut case = refused(
+        "cap-1000-49-inserts-unbacked-refused",
+        unbacked,
+        bulk,
+        "E_BOUND",
+        "examined entries 49000 exceeds",
+    );
+    case.certification_rewrite = Some(error.rewrite.clone());
+    cases.push(case);
+}
+
 fn schema(max: u32) -> Schema {
     let mut memberships = public_table(
         BTreeMap::from([
@@ -443,6 +620,39 @@ fn schema(max: u32) -> Schema {
         ]),
         ..Schema::default()
     }
+}
+
+fn count_backed_schema(max: u32) -> Schema {
+    let mut schema = schema(max);
+    let memberships = schema.tables.get_mut("memberships").unwrap();
+    memberships.indexes.insert(
+        "byPrincipalConversation".into(),
+        index(&["principal", "conversationId", "id"], false),
+    );
+    memberships.constraints = vec![Constraint::Cap {
+        by: vec!["principal".into()],
+        max,
+    }];
+    let counts = public_table(
+        BTreeMap::from([
+            ("id".into(), ColumnType::Id),
+            ("principal".into(), ColumnType::Principal),
+            ("value".into(), ColumnType::Int),
+        ]),
+        BTreeMap::from([
+            ("byId".into(), index(&["id"], true)),
+            ("byPrincipal".into(), index(&["principal"], true)),
+        ]),
+    );
+    schema.tables.insert("membershipCounts".into(), counts);
+    schema.maintains.push(Maintain {
+        kind: MaintainKind::Count,
+        source: "memberships".into(),
+        by: vec!["principal".into()],
+        target: "membershipCounts".into(),
+        readable: None,
+    });
+    schema
 }
 fn index(columns: &[&str], unique: bool) -> Index {
     Index {
@@ -528,6 +738,7 @@ fn refused(name: &str, schema: Schema, program: Program, code: &str, reason: &st
     let envelope = json!({"Error": code});
     CorpusCase {
         server_only: true,
+        certification_rewrite: None,
         corpus_version: CORPUS_VERSION,
         name: name.into(),
         category: "fanout".into(),
