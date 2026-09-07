@@ -188,7 +188,7 @@ lines in four replaced areas: 5,640 lines of TypeScript program
 type/binding/lowering recovery, 1,185 of TypeScript schema lowering, 1,602 in
 the Quarry-to-TypeScript program/schema emitters, and 697 in API type
 reconstruction. Every module in that scope is absent from the production
-path. The wider cutover diff removes 11,788 production lines and adds 4,125;
+path. The cutover at `0e7435310` removes 11,788 production lines and adds 4,125;
 3,703 of the additions are the direct bound, schema, API, project, source and
 lowering modules. This is a source-custody result, not 9,124 lines of semantic
 deletion: the emitter and API rows were replaced, and the direct refusal,
@@ -204,6 +204,14 @@ surface. The frozen compiler-repair inventory closes 27 items on direct
 witnesses, classifies four TypeScript-descriptor/address items as outside
 Quarry, and retains one source-custody item for effects, seeds, journeys and
 diagnostic presentation.
+
+The following upstream diagnostic port at `fa4bd6aae` adds a net 130 production
+lines and 403 test lines, leaving a reconciled reduction of 7,533 production
+lines and 5,003 test lines. Statement recovery uses bounded binding journals
+and typed presence facts in the direct binder; it preserves the 20-per-operation
+and 50-per-project diagnostic limits without restoring a TypeScript data
+frontend. All 208 compiler checks pass after this integration. LLP 1018.000
+records the separate per-file census and the frozen component dispositions.
 
 ## Non-claims
 
