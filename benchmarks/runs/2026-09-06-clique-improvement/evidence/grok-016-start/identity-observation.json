@@ -1,0 +1,17 @@
+{
+  "observedAt": "2026-09-07T18:46:41.489717+00:00",
+  "nativeSummaryPath": "/Users/ccheever/.grok/sessions/%2FUsers%2Fccheever%2Fclique-full-grok-016-20260907%2Flanes%2Fgrok-snapback2/0385309d-8a1a-4211-b4b8-6fc3c04998d1/summary.json",
+  "summarySha256": "aafd7c05c786823ca4075644685b08933125c8082c56ec59843ded141c4e1013",
+  "startPath": "/Users/ccheever/clique-full-grok-016-20260907/logs/grok-snapback2.start.json",
+  "startSha256": "65eba3b2e8a4a4580f498a00e93cc3d4fa01b3f64a5ea13cded1504d4c1994dc",
+  "processObservationArgv": [
+    "/bin/ps",
+    "-p",
+    "25558,25560",
+    "-o",
+    "pid=,ppid=,lstart=,etime=,stat=,comm="
+  ],
+  "processObservationExitCode": 0,
+  "terminalPresent": false,
+  "thoughtBodiesReadForIdentity": false
+}

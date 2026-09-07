@@ -1,0 +1,10 @@
+{
+  "at": "2026-09-07T18:11:19.868947+00:00",
+  "localArchiveVerifiedLeaves": 742,
+  "mismatches": [],
+  "localArchiveSha256": "dd5e6694451beac5c405fac7fb29d6e0c9a5c32ba7958b927b54a7f2c8462436",
+  "fullExtractedLocalSupplement": "/Users/ccheever/clique-improvement/reviews/compiler-loop-reaching-origins-r29/grok/supervisor-collected",
+  "diagnosticCount": 7,
+  "entireDiagnosticArrayEqualsControl": true,
+  "scope": "Verified full local archive and extracted only already-collected bytes; no remote calls or reviewer resume."
+}
