@@ -215,6 +215,68 @@ fn range_point_and_absence_invalidation_is_exact_and_reruns_coalesce() {
         .unwrap()
         .remove(0);
     assert_eq!(runtime.invalidated(&changed), vec![range_id, point_id]);
+
+    // A failed rerun keeps the last authoritative trace, so an overlapping
+    // commit can retry the same stable subscription id.
+    let failed = runtime.rerun_with_contexts(&[(
+        range_id,
+        Context::query(Actor::user("u1").unwrap(), BTreeMap::new()),
+    )]);
+    assert_eq!(failed[0].id, range_id);
+    assert!(failed[0].execution.is_err());
+    let retry_seq = runtime
+        .seed(&[("items".to_owned(), item("a3", "a", "retry"))])
+        .unwrap();
+    let retry_commit = runtime
+        .store()
+        .commits_since(retry_seq - 1, 1)
+        .unwrap()
+        .remove(0);
+    assert!(runtime.invalidated(&retry_commit).contains(&range_id));
+
+    // Unrelated subscriptions make the work-count assertion sensitive to a
+    // rebuild-all implementation. Moving one range replaces only its old and
+    // new trace keys and preserves its id.
+    for index in 0..64 {
+        runtime
+            .subscribe(
+                "items.byId",
+                Context::query(
+                    Actor::user("u1").unwrap(),
+                    BTreeMap::from([("id".to_owned(), Value::Id(format!("unrelated-{index}")))]),
+                ),
+            )
+            .unwrap();
+    }
+    let moved = runtime.rerun_with_contexts(&[(
+        range_id,
+        Context::query(
+            Actor::user("u1").unwrap(),
+            BTreeMap::from([("group".to_owned(), Value::Id("b".to_owned()))]),
+        ),
+    )]);
+    assert_eq!(moved[0].id, range_id);
+    assert!(moved[0].execution.is_ok());
+    assert_eq!(runtime.subscriptions().len(), 67);
+
+    let old_seq = runtime
+        .seed(&[("items".to_owned(), item("a4", "a", "old trace"))])
+        .unwrap();
+    let old_commit = runtime
+        .store()
+        .commits_since(old_seq - 1, 1)
+        .unwrap()
+        .remove(0);
+    assert!(!runtime.invalidated(&old_commit).contains(&range_id));
+    let new_seq = runtime
+        .seed(&[("items".to_owned(), item("b2", "b", "new trace"))])
+        .unwrap();
+    let new_commit = runtime
+        .store()
+        .commits_since(new_seq - 1, 1)
+        .unwrap()
+        .remove(0);
+    assert!(runtime.invalidated(&new_commit).contains(&range_id));
 }
 
 #[test]
