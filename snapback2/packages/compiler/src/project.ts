@@ -302,12 +302,13 @@ export async function lowerSeed(root: string): Promise<
   }
 
   let tables: Record<string, { columns?: Record<string, unknown> }>;
-  try {
-    const schemaSource = await readFile(join(projectRoot, "snapback", "schema.ts"), "utf8");
+  const seedTsSchemaPath = join(projectRoot, "snapback", "schema.ts");
+  if (existsSync(seedTsSchemaPath)) {
+    const schemaSource = await readFile(seedTsSchemaPath, "utf8");
     const loweredSchema = lowerSchema(schemaSource, "snapback/schema.ts", false);
     if (loweredSchema.diagnostics.length > 0) return { ok: false, diagnostics: loweredSchema.diagnostics };
     tables = loweredSchema.schema.tables as Record<string, { columns?: Record<string, unknown> }>;
-  } catch {
+  } else {
     const authoredRoot = join(projectRoot, "snapback");
     const paths = (await discoverModulePaths(authoredRoot)).filter((item) => item.endsWith(".q"));
     const inputs: QuarryInput[] = await Promise.all(paths.map(async (item) => ({
@@ -321,14 +322,8 @@ export async function lowerSeed(root: string): Promise<
       tables = bindQuarrySchema(prepared.prepared.documents, prepared.prepared.catalog).tables as
         Record<string, { columns?: Record<string, unknown> }>;
     } catch (error) {
-      const item = error instanceof QuarryError
-        ? error.diagnostic
-        : {
-            file: "snapback/schema.q", line: 1, col: 1, code: "E_QUARRY_UNKNOWN" as const,
-            message: error instanceof Error ? error.message : String(error),
-            rewrite: error instanceof Error ? error.message : String(error), guide: "quarry/names",
-          };
-      return { ok: false, diagnostics: [frontendQuarryDiagnostic(item)] };
+      if (!(error instanceof QuarryError)) throw error;
+      return { ok: false, diagnostics: [frontendQuarryDiagnostic(error.diagnostic)] };
     }
   }
   const rows = record.rows as Record<string, unknown>;
