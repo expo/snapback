@@ -202,7 +202,12 @@ const actions = [
       searchProbe, media: await coldMedia(4) };
   },
   async () => {
-    await new Promise((resolve) => setTimeout(resolve, 1_000)); await killApp(); await launch(); coldStores(await command("stores")); await command("construct");
+    await new Promise((resolve) => setTimeout(resolve, 1_000));
+    // Step 4 intentionally constructed and exercised the client after proving
+    // the raw pre-swap recovery. Step 5 owns a new at-rest baseline immediately
+    // before its kill so ordinary completed activity cannot masquerade as a
+    // torn durable write.
+    before = await command("stores"); await killApp(); await launch(); coldStores(await command("stores")); await command("construct");
     coldAssertions(await command("state", { conversationId: seed.rooms[3], search: indexedSearchTerm })); return coldMedia(5);
   },
   async () => {
