@@ -768,6 +768,33 @@ mutation explicitAmbientNames():
         && !body.includes('"input":"Now"') && !body.includes('"input":"NewId"'),
       `explicit ambient-named fn parameters did not lower from their actuals: ${body}`);
     }
+    const nestedContext = compileInline([
+      { fileName: "snapback/schema.q", source: "table nodes:\n  value: int\n  public\n" },
+      { fileName: "snapback/ops.q", source: `shape card = { who: viewer }
+fn direct(viewer: principal) = viewer
+fn shaped(node: nodes, viewer: principal) = node card
+query context(id: nodes, supplied: principal):
+  return { direct: direct(supplied), nested: shaped(id, supplied) }
+` },
+    ]);
+    assert(nestedContext.ok,
+      `named-shape ambient viewer control refused: ${nestedContext.ok ? "" : diagnosticsText(nestedContext.diagnostics)}`);
+    if (nestedContext.ok) {
+      const program = operation(nestedContext.project.programs, "ops.context");
+      const checked = rustCheck([program], "synthetic", nestedContext.project.schema)[0]!;
+      assert(!checked.error && checked.certificate,
+        `named-shape ambient viewer control did not certify: ${JSON.stringify(checked)}`);
+      const receipt: ClosureReceipt = { rows: [{ table: "nodes", id: "node-1", row: {
+        Row: { id: { Id: "node-1" }, value: { Int: 1 } },
+      } }], ranges: [], absences: [], verdicts: [] };
+      const context: Context = { viewer: "viewer-1", principal_kind: "user", auth_epoch: 1,
+        args: { id: { Id: "node-1" }, supplied: { Id: "supplied-1" } }, now: 1, new_ids: [], read_time: 1 };
+      const execution = new ClientStore(nestedContext.project.schema, receipt)
+        .reexecute(program, context, checked.certificate).execution;
+      deepStrictEqual(execution.result, { Row: {
+        direct: { Id: "supplied-1" }, nested: { Row: { who: { Id: "viewer-1" } } },
+      } });
+    }
     const schema = `table nodes:
   label: text <=40
   public

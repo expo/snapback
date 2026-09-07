@@ -20,6 +20,11 @@ export function registerQuarryDirectContractChecks(test: Test): void {
         && refusal.message.includes("reserved E_AUTH_* namespace") && refusal.rewrite === "ACCESS_DENIED"
         && refusal.guide === "programs/refusals",
       `${name} reserved-code contract changed: ${JSON.stringify(result)}`);
+      const repaired = compileInline([
+        { fileName: "snapback/schema.q", source: "table rows:\n  value: int\n  public\n" },
+        { fileName: `snapback/${name}.q`, source: `query bad(id: rows):\n${statement.replace(/E_AUTH_[A-Z]+/, refusal!.rewrite)}\n` },
+      ]);
+      assert(repaired.ok, `${name} token rewrite did not recompile: ${JSON.stringify(repaired)}`);
     }
   });
 

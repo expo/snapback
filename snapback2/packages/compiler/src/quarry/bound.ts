@@ -390,10 +390,13 @@ class ExpressionBinder {
 
   private name(name: string, site: Site): BoundExpression {
     const source = this.source(site);
-    if (this.namedShapeDepth > 0 && !CONTEXT_NAMES.has(name)) throw new QuarryError(
-      this.diagnosticSite(site), `named shapes cannot capture operation name ${name}`,
-      "E_QUARRY_UNKNOWN", `use .${name} for a focal-row field, or move the argument-dependent field into the caller's shape block`,
-    );
+    if (this.namedShapeDepth > 0) {
+      if (!CONTEXT_NAMES.has(name)) throw new QuarryError(
+        this.diagnosticSite(site), `named shapes cannot capture operation name ${name}`,
+        "E_QUARRY_UNKNOWN", `use .${name} for a focal-row field, or move the argument-dependent field into the caller's shape block`,
+      );
+      return this.contextName(name, source, site);
+    }
     const argument = this.scope.get(name);
     if (argument) return { kind: "variable", symbol: argument,
       facts: argument.kind === "argument" ? facts(argument.type, argument.origin) : argument.facts, source };
