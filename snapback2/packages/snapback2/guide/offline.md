@@ -1,9 +1,9 @@
 # Offline
 
 `offline.store`: IndexedDB (web), SQLite (Expo), files (Node).
-Expiry seals; sign-out/replacement wipes. One writer per account; a second web tab
-follows (live reads, writes refuse E_OFFLINE_FOLLOWER, inherits partition and queue
-when the writer closes); elsewhere E_OFFLINE_LOCK. Past `fenceDays` (1..30), reads
+Expiry seals; sign-out/replacement wipes. One writer/account. Second web tab:
+live reads, writes E_OFFLINE_FOLLOWER, inherits partition/queue on writer close;
+elsewhere E_OFFLINE_LOCK. Past `fenceDays` (1..30), reads
 are stale; prediction/replay await resume. Queued writes survive; held reads/`offline()`
 bypass startup auth.
 
@@ -14,51 +14,50 @@ bypass startup auth.
 Use an ascending append log (`after c first N`, N <=50); append edit/removal
 events for history. Callbacks emit one page; held coverage is not live history.
 
-Every return must continue a certified ascending page via the same Cursor argument
+Every return needs a certified ascending page via the same Cursor argument
 (aliases/shapes/branches too); auxiliary reads confer none. Mixed-order/non-page returns refuse E_OFFLINE_RESUME with
 `reason: "unsupported-log"`, `op`, `shape`, before watermark/catch-up.
 Newest-first: subscribe at `c: null`; page older with opaque `next`. `caughtUp`: exhausted; `live`: active tail.
 
-Offline drains need held eligibility metadata or reconnect. Repeated cursors
-refuse; offline traversal keeps the server watermark. Covered reads are exact; others partial.
+Offline drains need held eligibility or reconnect. Repeated cursors refuse;
+offline traversal keeps server watermark. Covered reads exact; others partial.
 
 ## Recovery
 
 `run()` queues offline: `{ state: "queued", intent, ids }`; replay is FIFO.
 `useOutbox()`: entries/dismiss/ready/status/fence (inside/past).
-`useMutation(op).status` and `client.outbox.status(op)` explain readiness:
+Readiness: `useMutation(op).status`, `client.outbox.status(op)`:
 reason: ready/sealed/grant-missing/grant-expired/ids-exhausted/program-missing/follower;
 action: none/login/resume/load-program; remaining: queued count; fence.
-Expired grants stop new writes; the owner judges queued ones.
-Predicted previews; committed confirms.
+Expired grants stop admission; owner judges queued writes.
+Prediction previews; commit confirms.
 
-`outbox.drain()`/`settled()` return `{ stopped, remaining }`: false means drained;
-fence/transport/authority/offline/pending explains a pause; queued bytes stay. Retry via
-`online()` or online `outbox.drain()`; reconnect alone replays nothing.
+`outbox.drain()`/`settled()`: `{ stopped, remaining }`; false means drained;
+fence/transport/authority/offline/pending means paused; queued bytes stay.
+Retry `online()` or online `outbox.drain()`; reconnect alone replays nothing.
 Unclaimed media expires 24h after creation/last release; grants/leases never extend it.
 After a replay refusal use a new upload/intent; never rewrite queued args.
 
 ## Resume
 
-Equal validators: unchanged. `/api/manifest` carries retention;
-`GET /api/program?generation=` supplies schema, IR, certificates, drain metadata.
+Equal validators: unchanged. `/api/manifest`: retention;
+`GET /api/program?generation=`: schema, IR, certificates, drain metadata.
 
 `POST /api/resume { protocol: 1, generation, schemaHash, authEpoch, remaining?,
 log?: { op, args, watermark, validator }, mounted: [{ op, args, validator }] }`
 runs log then mounted, to 1 MiB (`more` past it).
 Only E_OFFLINE_RESUME `{ reason: "limit", which: "mounted", cap }` permits one
 smaller retry (mounted <=32); other refusals never drop log.
-Backward watermarks keep the hook refused and `online()`
-rejected across reopen. Coverage, valid grants, pinned IDs and queued bytes stay.
-`outbox.drain()` may replay within existing trust,
-skipping an unsupported settlement tail. Write success leaves
-`online()` rejected.
+Backward watermarks keep hooks/`online()` refused across reopen; coverage,
+valid grants, pinned IDs and queued bytes stay. `outbox.drain()` may replay
+within existing trust, skipping unsupported settlement tails; write success
+keeps `online()` refused.
 
 E_OFFLINE_RESET: drop coverage, keep outbox, fetch `/api/program`,
 re-resume.
-Stale authEpoch seals (E_AUTH_SESSION); foreign delivery refuses
-E_OFFLINE_AUTHORITY, preserving coverage. Without facts, query a receipt then
-resume; without a query, refuse and keep the queue.
+Stale authEpoch seals: E_AUTH_SESSION. Foreign delivery: E_OFFLINE_AUTHORITY,
+coverage retained. No facts: query a receipt then resume; no query: refuse,
+keep queue.
 
 ## Grants and bytes
 
@@ -67,6 +66,8 @@ Replay `{ grant, offset, count, intent, trace }` needs session; same bytes
 reuse terminals across op/schema changes. Changed bytes: E_OFFLINE_INTENT_REUSE;
 bad slice: E_OFFLINE_ID_BLOCK; expiry: E_OFFLINE_INTENT_EXPIRED.
 Traced points/verdicts conflict: E_OFFLINE_CONFLICT; ranges rerun.
+Rule verdicts bind the whole schema; even an additive column may conflict.
+Read current data, then submit a new intent; never rewrite queued args/trace.
 Past-fence traces empty; program checks apply.
 
 ```quarry

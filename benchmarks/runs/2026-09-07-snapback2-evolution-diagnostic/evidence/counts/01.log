@@ -1,0 +1,28 @@
+✖ public count reads enable multi-principal offline cap prediction without inventing missing counts (4990.630375ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 0
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 14598.004458
+
+✖ failing tests:
+
+test at snapback2/packages/snapback2/tests/real-owner.test.ts:983:1
+✖ public count reads enable multi-principal offline cap prediction without inventing missing counts (4990.630375ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  false !== true
+  
+      at TestContext.<anonymous> (file:///Users/ccheever/projects/snapback-worktrees/clique-successor-widening-uniqueness/snapback2/packages/snapback2/tests/real-owner.test.ts:1055:14)
+      at async Test.run (node:internal/test_runner/test:1332:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:385:3) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

@@ -1,0 +1,11 @@
+✔ durable client intents survive a schema successor and a lost acknowledgement survives operation removal (16284.863375ms)
+ℹ schema reset preserved 1 original messages; two predicted intents settled E_OFFLINE_CONFLICT, and two explicit new intents advanced the first room count by two
+ℹ lost acknowledgement retried byte-identically after operation removal; stored terminal settled with one message; new call refused E_OP_UNKNOWN
+ℹ tests 1
+ℹ suites 0
+ℹ pass 1
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 25603.3655

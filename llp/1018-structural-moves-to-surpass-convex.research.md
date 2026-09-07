@@ -9,7 +9,7 @@ Clique benchmark
 2026-09-06); revised by Claude Fable 5.1 after the five-model panel of
 2026-09-06/07 (§9), which the author convened
 **Date:** 2026-09-06
-**Revised:** 2026-09-07 (surviving-row uniqueness checked against each actual rebuild); 2026-09-07 (panel revision: a second measure, move one rewritten
+**Revised:** 2026-09-07 (pending-client schema conflict exercise and formal M7 handoff); 2026-09-07 (surviving-row uniqueness checked against each actual rebuild); 2026-09-07 (panel revision: a second measure, move one rewritten
 around what already exists, the browser-tab policy decided, count-backed cap
 probes decided, the typed IR cut, move four evidence-led, move zero added, the
 Muse scores cited, the clock repair marked landed; implementation record §10);
@@ -190,6 +190,15 @@ when the writer closes. Current resource budgets and guarantees survive.
 opportunity; high on the decomposition above, which is what the panel
 converged on; the remaining open half is forwarding.
 
+**Real-browser diagnostic (2026-09-07).** A source-built React chat in
+Chromium shares one logical live child between two consumers. A follower
+renders live data, refuses writes before transport, and inherits two queued
+intents in FIFO order when the writer page closes; each produces one owner
+row, then the new writer commits. Actual IndexedDB/Web Locks are exercised.
+[Raw attempts and limits](../benchmarks/runs/2026-09-07-snapback2-1018-browser/README.md)
+retain setup/readiness races and the successful witness. This is source
+engineering evidence, not a published cold-builder result or forwarding.
+
 ## 4. Move two: efficient execution and certification that agree
 
 **Finding.** The [cap-metering ticket](../issues/20260906-snapback2-cap-metering-makes-multi-row-inserts-uncertifiable-at-large-caps.md)
@@ -242,6 +251,16 @@ transaction's budget keeps the explicit continuation model of
 [LLP 1016](./1016-administrative-plane.rfc.md).
 
 **Confidence:** high.
+
+**Public-acquisition diagnostic (2026-09-07).** Ordinary count queries let
+an offline client predict a two-principal allocation from held nonzero counts;
+leaving one count unheld suppresses prediction. Cap overflow rolls the whole
+owner mutation back. A public zero count currently carries no row or absence
+in its receipt and therefore does not enable prediction; the conservative
+[coverage gap is filed](../issues/20260907-snapback2-public-zero-count-does-not-enable-offline-cap-prediction.md).
+[Raw evidence](../benchmarks/runs/2026-09-07-snapback2-evolution-diagnostic/README.md#public-count-acquisition-and-offline-prediction)
+uses real owner/auth/query paths, not injected count rows. It does not qualify
+49 actual inserts, scale, native clients, or a published cold-builder run.
 
 ## 5. Move three: Quarry owns semantics and earns its learning cost
 
@@ -312,6 +331,15 @@ contract remains [LLP 1015](./1015-control-plane.rfc.md).
 prior data and behavior, and exercises the relevant pending-client transition
 without reconstructing undocumented operational knowledge or writing bespoke
 data surgery. The official M7 acceptance remains unchanged.
+
+**Pending-client diagnostic (2026-09-07).** Rule verdicts bind the complete
+schema (`Schema::rule_hash`, LLP 1001 §7), so even an optional-column addition
+can make an unsettled predicted intent conflict. Preserving its replay bytes
+and exposing `E_OFFLINE_CONFLICT` is the current contract; a user retries
+with a new intent after reading current data. An already stored terminal
+remains replayable after an operation is removed. The
+[engineering exercise and M7 handoff](../benchmarks/runs/2026-09-07-snapback2-evolution-diagnostic/README.md)
+record this boundary separately from the fresh M7 result.
 
 **Confidence:** medium on the direction; low on present score impact.
 

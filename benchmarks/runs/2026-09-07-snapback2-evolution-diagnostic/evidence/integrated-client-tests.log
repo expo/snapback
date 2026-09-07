@@ -1,0 +1,17 @@
+✔ durable client intents survive a schema successor and a lost acknowledgement survives operation removal (14777.140666ms)
+ℹ schema reset preserved 1 original messages; two predicted intents settled E_OFFLINE_CONFLICT, and two explicit new intents advanced the first room count by two
+ℹ lost acknowledgement retried byte-identically after operation removal; stored terminal settled with one message; new call refused E_OP_UNKNOWN
+✔ public count reads enable multi-principal offline cap prediction without inventing missing counts (5030.516833ms)
+ℹ held: {"before":[1,1],"predicted":true,"trace":{"points":[],"verdicts":[]},"state":"committed","final":[2,2]}
+ℹ unheld: {"before":[1],"predicted":false,"trace":{"points":[],"verdicts":[]},"state":"committed","final":[2,2]}
+ℹ zero public query receipt: [{"authority":{"authEpoch":3,"principal":"guest:3Yubke7kgCV2yLJC49giFw"},"data":0,"generation":"c7bddf6761bc7dedae692e2aa9dcccf29b52568a701d92966ddc6392a4a1a206","next":null,"planHash":"ab4c10b759185c46cbc9027b470aaae9b756fc07b33535a1052b5ad0a750e440","protocol":1,"receipt":{"absences":[],"ranges":[],"verdicts":[]},"rows":[],"schemaHash":"7dac35e2a6fb6978dc842b6971fe9ca9fdc9287f9b0d2c361ad196a4b2f1f6be","seq":3,"state":"complete","validator":"4b77d35e5b086c48ebca715d62333b932132a5138dd4126df788943317a908de"}]
+ℹ zero: {"before":[0],"predicted":false,"trace":{"points":[],"verdicts":[]},"state":"committed","final":[1]}
+ℹ overflow: {"before":[1,3],"predicted":false,"trace":{"points":[],"verdicts":[]},"state":"rejected","final":[1,3]}
+ℹ tests 2
+ℹ suites 0
+ℹ pass 2
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 29904.222375

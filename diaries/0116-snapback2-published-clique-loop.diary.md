@@ -1092,3 +1092,52 @@ proved preservation of the actual migrated store.
 The fresh 23a0 review found an inherited gap in the public backend replacement contract despite the prior root-deletion repair. Existing undefined children could trigger a misleading carrier error; trailing array holes could successfully persist as a shorter array. Astra's exact three-source projection probes and current public-backend synthetic-driver control distinguish failed replacement with retained prior state from a successful wrong cold roundtrip. Grok's independent source-only READY does not negate that executed observation. This is unlanded runtime evidence, not a published app or real-device diagnosis.
 
 The same author is authorized to repair generic JSON semantics before entry splitting while retaining bounded journal updates and keys-only committed ownership. Required rollback/retry/reopen/outbox controls remain scoped and source-bound. No repair completion is claimed here. [Closed full reports, original probes and actual reviewer identities/terminals](../benchmarks/runs/2026-09-06-clique-improvement/evidence/offline-range-preparation-review/README.md). The complete runtime measurement of 75,799 gzip still fails the 66,000 ceiling, independent of correctness improvements; no comparator rebuild, new resident population or phone claim accompanied this evidence work.
+
+
+## 2026-09-07 — Pending client intents across an actual successor
+
+A source-built client and real owner preserved queued envelopes through
+close, an optional-column addition, and reopen. The surprising result was
+that both predicted writes correctly conflicted: scoped rule verdicts bind
+the entire schema, so the apparently harmless addition invalidated their
+previous authority evidence. The client exposed E_OFFLINE_CONFLICT and kept
+the original data intact; explicit new intents then committed and maintained
+the count. The guide now explains that recovery without suggesting that an
+agent rewrite an admitted intent.
+
+A deliberately lost acknowledgement after an actual commit was easier:
+after restart and operation removal, the cold client retried identical bytes,
+received the stored terminal, and left exactly one message. The ordinary
+client and operator paths needed no application-owned corrective cache,
+subscription coordinator, resume anchor, or data surgery. One contract needed
+probing before the guide update. These are engineering observations, not
+fresh-builder measurements or a Convex/Supabase comparison.
+
+The [evidence and original failures](../benchmarks/runs/2026-09-07-snapback2-evolution-diagnostic/README.md)
+separate this graceful file-carrier reopen exercise from physical process
+kill, native qualification, and formal M7. M7's handoff is prepared for the
+existing full benchmark lane; its prerequisite current-release M6 application
+and grading remain outstanding.
+
+
+The independent [real-browser session exercise](../benchmarks/runs/2026-09-07-snapback2-1018-browser/README.md)
+also passed duplicate subscriptions and follower takeover through the ordinary
+React chat template and actual IndexedDB/Web Locks. Two queued posts survived
+closing the writer page and settled in order through the follower. The witness
+needed to observe operation readiness immediately before disconnecting and
+actual replay before asserting settlement; transient empty follower state was
+not evidence of queue loss. No application cache, per-tab database, recovery
+polling, or queue merger was added. These known-template observations do not
+establish fresh-builder discovery counts or published-package qualification.
+
+
+The count exercise used public queries and separate real guest clients instead
+of fabricated coverage. Two held principal counts supported a predicted atomic
+allocation; one missing count correctly disabled prediction. A complete zero
+query carried no absence evidence, so a new group's allocation still queued
+without prediction and committed on reconnect. This conservative limitation is
+[filed](../issues/20260907-snapback2-public-zero-count-does-not-enable-offline-cap-prediction.md).
+A full second principal rejected the allocation and rolled back the first
+insert. This qualifies representative two-principal acquisition and cap
+behavior; it is not the 49-insert scale witness. The earlier schema-conflict
+[guide gap is closed](../issues/closed/20260907-guide-gap-snapback2-schema-changes-can-conflict-queued-writes.md).

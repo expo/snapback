@@ -110,3 +110,170 @@ receipts contain exact invocations. Stop the owned development server when done.
 This prepared exercise may help choose a later M7 workload, but cannot replace
 M7's required fresh session, full application, offline vote, media preservation,
 and prior milestone regression evidence.
+
+
+## Pending-client successor exercise — source build, 2026-09-07
+
+The [real-owner client regression](../../../snapback2/packages/snapback2/tests/real-owner.test.ts)
+passes against source base `df959d36a` plus this change, using rebuilt package
+bundles and the real Rust owner, Node 24.18.0, and the file carrier. This is
+source qualification; the package metadata still says 0.0.14 and these are
+not the published 0.0.14 artifacts used above. No runtime code changed.
+
+The seeded chat contains two conversations with Alice/Bob and Alice/Charlie
+memberships. Alice drains the ordinary inbox, holds a thread and count, and
+queues two predicted posts without sending mutation requests. The client and
+owner close; an optional message category is added; the owner and client
+reopen with their persistent stores. The client receives `E_OFFLINE_RESET`,
+then replays both admitted envelopes in FIFO order without changing args,
+grant, offset, slice size, intent identity, or trace.
+
+Both intents settle as `E_OFFLINE_CONFLICT`: rule verdicts bind the complete
+schema, so even an unrelated optional column invalidates their previous rule
+hashes. The original message remains unchanged except for `category: null`,
+and neither conflicted intent writes a message. Two explicitly admitted
+new intents commit once each and advance the maintained count by two. The
+guide now explains this consequence and the new-intent recovery path.
+
+A second case drops the response only after the real owner commits a post.
+The client retains it as queued, closes, and reopens after the owner restarts
+with the operation renamed. Its retry is byte-identical and receives the
+original stored terminal; exactly one message exists. A fresh call to the
+removed operation refuses `E_OP_UNKNOWN`.
+
+[Final output](evidence/pending-client/final.log): one named regression passes,
+16.285 seconds in the test and 25.603 seconds including harness setup. Both
+owned owners, the isolated application, and its file-carrier directory are
+closed/removed through the harness's cleanup. This uses graceful close and
+reopen, not a physical process-kill witness or a native-carrier qualification.
+
+Original unsuccessful attempts are retained: [unsupported test import](evidence/pending-client/round1.log),
+[incorrect commit expectation](evidence/pending-client/round2.log),
+[full conflict diagnosis](evidence/pending-client/diagnosis.log), and
+[discarded unheld-room assumption](evidence/pending-client/contract.log).
+The last attempt incorrectly assumed the second room was unheld; the inbox
+drain had already hydrated it, so that supplementary case was removed.
+There is no claim here about unpredicted writes across a schema change.
+The final conflict assertion follows `Schema::rule_hash`'s documented
+complete-schema binding; the authority check was not relaxed.
+
+For LLP 1018's two outcome measures, this engineering exercise used **zero
+application-owned corrective caches, coordinators, resume anchors, or data
+repair code**, and exposed **one contract requiring probing**: conservative
+schema-wide invalidation of saved rule verdicts. Test transport observation,
+post-commit response loss, and owned fixture setup are diagnostic apparatus,
+not application requirements. These observations do not replace counts from
+a fresh builder's diary or establish formal M7.
+
+## Public count acquisition and offline prediction
+
+The second real-owner regression builds a separate Quarry fixture with
+`cap 3 by principal`, matching `maintain principalCounts = count capEntries
+by principal`, and one mutation looping over at most 49 principal arguments.
+This execution uses two-principal cases. Only ordinary source rows are
+seeded; the owner builds maintained counts. Separate file-backed guest clients
+acquire their grants through `auth.guest()` and their counts through public
+queries. No count rows, receipts, grants, or coverage are injected.
+
+| Publicly acquired coverage | Offline observation | Owner result after reconnect |
+|---|---|---|
+| Both principal counts held at one | Predicts both increments; offline count queries return two | Both commit at two |
+| Only the first principal's count held | Queues without prediction, empty trace | Both commit at two |
+| Query returns zero for a new group | Queues without prediction, empty trace | Commits at one |
+| Counts one and three, second principal at cap | Queues without prediction, empty trace | E_CONSTRAINT; both remain one and three, proving rollback of the first insert |
+
+The zero case exposes a conservative coverage gap: the actual complete query
+returns `data: 0`, `rows: []`, and empty `absences`, `ranges`, and `verdicts`.
+The count fast path consequently has no absence evidence to trust. The
+[follow-up](../../../issues/20260907-snapback2-public-zero-count-does-not-enable-offline-cap-prediction.md)
+records it without claiming unsafe zero inference or a completed repair.
+Held nonzero counts work; an unheld count is never treated as zero.
+
+[Final output](evidence/counts/04-scope-reduced.log): one regression passes,
+5.418 seconds in the test and 14.436 seconds including owner setup. Earlier
+[persona grant setup failures](evidence/counts/01.log),
+[second setup attempt](evidence/counts/02.log), and
+[incorrect zero-prediction expectation](evidence/counts/03.log) remain intact.
+After the bounded attempts, zero prediction was explicitly left unqualified;
+the final diagnostic asserts the observed conservative behavior and exercises
+its reconnect and cap rollback. No runtime behavior changed.
+
+These public queries establish practical acquisition for representative
+multi-principal prediction, not a 49-insert execution, scale measurement,
+native-carrier qualification, or published cold-builder outcome. No
+application corrective infrastructure was needed. Grant acquisition through
+a real auth session is documented; the unresolved zero-count coverage limit
+is an engineering discovery rather than a newly required application cache.
+
+## Formal M7 handoff readiness — 2026-09-07
+
+Formal M7 remains open. This diagnostic and the pending-client successor
+exercise are engineering evidence, separate from the fresh builder result.
+The current-release prerequisite application is not ready: the 0.0.13 Astra
+run stopped during M4, and the next full published Grok run is prepared at
+`/Users/ccheever/clique-full-grok-015-20260907` with the original 169 instrument
+leaves but no final package pin or application yet. The existing release
+owner is repairing the closed CLI review findings before publication and
+installed verification. Its prepared `ff894d7ce` source predates the
+survivor-uniqueness fix `036fc240c`; a published claim covering that fix needs
+a qualified package that includes it. This is the coordination state observed
+on 2026-09-07, not an instruction to change a frozen release artifact.
+
+Use that existing benchmark lane for the prerequisite. Once its continuous
+run reaches M6, attempts M8 under the original dependency rules, and is graded:
+
+1. Preserve its authored source, lockfile, published package identity,
+   original instrument, custom-client API contract, and actual milestone
+   results. Prepare a separate instance without builder essays or grading
+   narratives in the fresh agent's context.
+2. Seed the canonical pre-replay starter log into a fresh backend. Do not use
+   the scale-replay database or acceptance-mutated development store. Export
+   the M6 field manifest through the custom-client API with each persona
+   before M7 starts. Preserve snapshot hashes, visible IDs/counts, and any
+   existing count structures. Keep credentials private.
+3. Give the fresh builder the unchanged M7 brief and same aid condition.
+   Record its own clock, applicable original metering, diary, and closing
+   essay before numeric grading. Prior milestone failures remain prior
+   failures; they are not repaired within M7's budget.
+4. Verify polls, idempotent changeable votes, live tallies, offline vote
+   settlement, visible-message count backfill and forward maintenance,
+   pre-existing data preservation, and previously-green milestone
+   regressions. Counts exclude tombstoned and expired messages and include
+   polls.
+5. Count LLP 1018's two outcomes in the diary: application-owned corrective
+   infrastructure and contracts learned by probing rather than diagnostics,
+   status, or the guide.
+
+These steps implement the existing [M7 brief](../../briefs/social-messenger.md)
+(the heading is “M7 — Day-2 evolution”) and [benchmark protocol](../../protocol.md),
+without adding an acceptance. Empty attachment/reaction fields in the starter
+must be reported as empty-case preservation. Populated preservation and
+already-queued intents across a successor remain separately labeled supplements.
+
+Historical preparation examples remain useful, with their original limits:
+[0.0.6 diagnostic grading](../2026-09-06-clique-improvement/evidence/m7-completion-006/independent-grader-report.md)
+and [0.0.8 preservation evidence](../2026-09-06-clique-improvement/evidence/m7-preservation/README.md).
+The latter proves m7-a08 only: 15 messages, 48 persona views, and 18
+profile/post assets, with no message attachments or reactions. It does not
+establish complete M7 or native qualification; its resumed token metering
+was invalid. Neither historical record closes this current-release handoff.
+
+
+## Integrated validation
+
+The two added real-owner regressions pass together in
+[29.904 seconds](evidence/integrated-client-tests.log), including harness setup.
+The [real Chromium session witness](../2026-09-07-snapback2-1018-browser/README.md)
+and its nine focused fake-owner regressions also pass at the same runtime
+source. Package build/guide validation, caps, ref-check (412 LLP documents,
+7,725 references, zero errors), and source/doc whitespace checks pass.
+Raw test logs preserve reporter whitespace; the unrestricted committed
+whitespace check flags those original log lines. No production runtime
+code changed and no full battery or new loop-performance qualification is
+claimed.
+
+The offline recipe initially exceeded its existing 4,352-byte limit
+([original build refusal](evidence/guide-over-budget.log),
+[compression attempt](evidence/guide-compression-over-budget.log)). Existing
+prose was shortened while preserving the documented contracts; the final
+page is 4,352 bytes and package build passes. The limit was not raised.

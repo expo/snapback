@@ -69,5 +69,9 @@ builder's independent discovery process.
 - react.mjs: `c8e3a707248bb6cf25beb9cdbfd74e3c111febcdc71e1cb7866519283abcbd88`
 - compiler.mjs: `9c93d2adc425eab14d977a2a8b0d1228a0a5c8c27c4e59bc889efe9863490a78`
 
-Scoped validation also passed: `node --check`, `git diff --check`, caps
+Scoped validation also passed: `node --check`, source/doc whitespace checks, caps
 (7 categories), and ref-check (412 LLPs, 7,723 refs, zero errors).
+
+Raw attempt logs retain original reporter whitespace, including the first
+setup refusal’s blank final line; unrestricted committed whitespace checks
+flag those raw lines.

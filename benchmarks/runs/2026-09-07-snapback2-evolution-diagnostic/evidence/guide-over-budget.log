@@ -1,0 +1,9 @@
+file:///Users/ccheever/projects/snapback-worktrees/clique-successor-widening-uniqueness/snapback2/packages/snapback2/build.mjs:209
+  throw new Error(`guide validation failed:\n${guideErrors.join("\n")}`);
+        ^
+
+Error: guide validation failed:
+guide/offline.md: exceeds 4352 bytes
+    at file:///Users/ccheever/projects/snapback-worktrees/clique-successor-widening-uniqueness/snapback2/packages/snapback2/build.mjs:209:9
+
+Node.js v24.18.0
