@@ -24,6 +24,7 @@ import {
 import { registerJobChecks } from "./quarry-job-checks";
 import { registerScheduleChecks } from "./quarry-schedule-checks";
 import { registerQuarryProgramChecks } from "./quarry-program-checks";
+import { registerQuarryDirectMutationChecks } from "./quarry-direct-mutation-checks";
 import ts from "typescript";
 
 export function registerQuarryChecks(test: Test, frontend: string): void {
@@ -1089,6 +1090,7 @@ query spread(c: conversations):
   });
 
   registerQuarryProgramChecks(test, frontend);
+  registerQuarryDirectMutationChecks(test, frontend);
   registerJobChecks(test, frontend);
   registerScheduleChecks(test, frontend);
 }

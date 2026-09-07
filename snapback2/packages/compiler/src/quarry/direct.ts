@@ -20,8 +20,11 @@ export function lowerBoundQuarryProgram(program: BoundQuarryProgram): Program {
     reservedNames: new Set([...program.args.map((arg) => arg.name), ...boundLocalNames(program.body)]),
     focals: new Map(), bindings: new Map(),
   };
+  if (program.focal) lowering.focals.set(program.focal.id, { Object: Object.fromEntries(program.args
+    .map((arg): [string, Expr] => [arg.name, { Variable: arg.name }])
+    .sort(([left], [right]) => left.localeCompare(right))) });
   const body = lowerStatements(program.body, lowering);
-  if (statementsFallThrough(program.body)) body.push({ Return: { Literal: "Null" } });
+  if (program.kind !== "job" && statementsFallThrough(program.body)) body.push({ Return: { Literal: "Null" } });
   return {
     name: program.name,
     kind: program.kind === "query" ? "Query" : program.kind === "mutation" ? "Mutation" : "job",
@@ -99,6 +102,7 @@ function lowerExpression(expression: BoundExpression, lowering: Lowering): Lower
   }
   if (expression.kind === "aggregate") return lowerAggregate(expression.read, lowering);
   if (expression.kind === "scan") return lowerScan(expression.read, lowering);
+  if (expression.kind === "write") return lowerWrite(expression, lowering, true);
   return lowerPointRead(expression.read, expression.kind, lowering);
 }
 
@@ -108,6 +112,14 @@ function lowerStatements(statements: BoundStatement[], lowering: Lowering): Stmt
     if (statement.kind === "return") {
       const value = lowerExpression(statement.value, lowering);
       body.push(...value.setup, { Return: value.value });
+      continue;
+    }
+    if (statement.kind === "expr") {
+      const value = statement.value.kind === "write"
+        ? lowerWrite(statement.value, lowering, statement.completion)
+        : lowerExpression(statement.value, lowering);
+      body.push(...value.setup);
+      if (statement.completion) body.push({ Return: value.value });
       continue;
     }
     if (statement.kind === "bind") {
@@ -204,12 +216,130 @@ function boundLocalNames(statements: BoundStatement[]): string[] {
 function statementsFallThrough(statements: BoundStatement[]): boolean {
   for (const statement of statements) {
     if (statement.kind === "return") return false;
+    if (statement.kind === "expr" && statement.completion) return false;
     if (statement.kind === "if"
       && !statementsFallThrough(statement.thenBody) && !statementsFallThrough(statement.elseBody)) return false;
     if (statement.kind === "match"
       && !statementsFallThrough(statement.someBody) && !statementsFallThrough(statement.noneBody)) return false;
   }
   return true;
+}
+
+function lowerWrite(
+  expression: Extract<BoundExpression, { kind: "write" }>,
+  lowering: Lowering,
+  resultUsed: boolean,
+): LoweredValue {
+  if (expression.op === "insert") {
+    const idField = expression.fields.find((field) => field.name === "id");
+    const fields = idField ? expression.fields : [{
+      name: "id", expected: { kind: "id", optional: false } as const,
+      value: { kind: "input", input: "NewId", facts: {
+        type: { kind: "id", optional: false }, presence: "required", origin: "Computed",
+      }, source: expression.source } as BoundExpression,
+      source: expression.source,
+    }, ...expression.fields];
+    const row = lowerWriteFields(fields, lowering, new Map());
+    const rowName = temporary(lowering, "insertRow");
+    accessSite(lowering);
+    return {
+      setup: [...row.setup, { Const: { name: rowName, value: row.value } },
+        { Insert: { table: expression.table.name, row: { Variable: rowName } } }],
+      value: { Variable: rowName },
+    };
+  }
+  if (!expression.index || expression.key.length === 0) throw new Error("bound write has no point address");
+  const keys = lowerMany(expression.key, lowering);
+  const keyValues = keys.values.map((value, index) => keyValue(expression.key[index]!, value));
+  const directId = expression.index.name === "byId" && keyValues.length === 1;
+  const setup: Stmt[] = [...keys.setup];
+  let row: Expr | undefined;
+  let identity: Expr = keyValues[0]!;
+  if (!directId || expression.usesFocal) {
+    const rowName = temporary(lowering, "writeRow");
+    setup.push({ Const: { name: rowName, value: { Get: {
+      site: accessSite(lowering), table: expression.table.name, index: expression.index.name,
+      key: keyValues, provenance: expression.provenance,
+    } } } });
+    row = { Variable: rowName };
+    if (!directId) {
+      if (expression.op === "delete" || expression.op === "update") setup.push({ Require: {
+        condition: { Binary: { op: "Ne", left: row, right: { Literal: "Null" } } }, code: "NOT_FOUND",
+      } });
+      identity = { Field: { base: row, name: "id" } };
+    }
+  }
+  if (expression.op === "delete") {
+    accessSite(lowering);
+    setup.push({ Delete: { table: expression.table.name, key: identity } });
+    return { setup, value: { Literal: "Null" } };
+  }
+  if (expression.focal && row) lowering.focals.set(expression.focal.id, row);
+  try {
+    const replacements = new Map<string, Expr>();
+    expression.addressedColumns.forEach((column, index) => replacements.set(column, keyValues[index]!));
+    if (expression.op === "update") {
+      const patch = lowerWriteFields(
+        expression.fields.filter((field) => !replacements.has(field.name)), lowering, new Map(),
+      );
+      accessSite(lowering);
+      setup.push(...patch.setup, { Update: { table: expression.table.name, key: identity, patch: patch.value } });
+    } else {
+      if (!directId) {
+        const identityName = temporary(lowering, "upsertId");
+        setup.push({ Let: { name: identityName, value: { Literal: "Null" } } }, { If: {
+          condition: { Binary: { op: "Ne", left: row!, right: { Literal: "Null" } } },
+          then_body: [{ Assign: { name: identityName, value: identity } }],
+          else_body: [{ Assign: { name: identityName, value: { Input: "NewId" } } }],
+        } });
+        identity = { Variable: identityName };
+      }
+      replacements.set("id", identity);
+      const present = new Set(expression.fields.map((field) => field.name));
+      const injected = expression.addressedColumns
+        .flatMap((column, index) => present.has(column) || column === "id" ? [] : [{
+          name: column, expected: expression.table.declaration.columns.find((field) => field.name === column)!.type,
+          value: expression.key[index]!, source: expression.source,
+        }]);
+      const builtRow = lowerWriteFields([
+        { name: "id", expected: { kind: "id", optional: false } as const,
+          value: expression.key[0]!, source: expression.source },
+        ...injected, ...expression.fields,
+      ], lowering, replacements);
+      accessSite(lowering);
+      setup.push(...builtRow.setup, { Upsert: { table: expression.table.name, key: identity, row: builtRow.value } });
+    }
+  } finally {
+    if (expression.focal && row) lowering.focals.delete(expression.focal.id);
+  }
+  if (!resultUsed) return { setup, value: { Literal: "Null" } };
+  return {
+    setup,
+    value: { Get: { site: accessSite(lowering), table: expression.table.name, index: "byId",
+      key: [identity], provenance: expression.provenance } },
+  };
+}
+
+function lowerWriteFields(
+  fields: Extract<BoundExpression, { kind: "write" }>["fields"],
+  lowering: Lowering,
+  replacements: Map<string, Expr>,
+): LoweredValue {
+  const setup: Stmt[] = [];
+  const entries: Array<{ name: string; value: Expr }> = [];
+  for (const field of fields) {
+    const replacement = replacements.get(field.name);
+    let value: Expr;
+    if (replacement) value = replacement;
+    else {
+      const lowered = captureObservable(lowerExpression(field.value, lowering), lowering);
+      setup.push(...lowered.setup);
+      value = field.coercion === "row-id" ? { Field: { base: lowered.value, name: "id" } } : lowered.value;
+    }
+    entries.push({ name: field.name, value });
+  }
+  return { setup, value: { Object: Object.fromEntries(entries
+    .sort((left, right) => left.name.localeCompare(right.name)).map((field) => [field.name, field.value])) } };
 }
 
 function lowerInvocation(expression: Extract<BoundExpression, { kind: "invoke" }>, lowering: Lowering): LoweredValue {
