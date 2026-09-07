@@ -1,0 +1,63 @@
+{
+  "at": "2026-09-07T00:05:03.935689+00:00",
+  "scope": "read-only preservation of builder-generated M2 completion; not independent outcome grading",
+  "firstGreenAt": "2026-09-07T00:01:39.463Z",
+  "m2Start": 1788738309,
+  "m2Deadline": 1788752709,
+  "m3Start": 1788739373,
+  "m3Deadline": 1788753773,
+  "manifest": [
+    {
+      "source": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/evidence/m2-original-summary.json",
+      "retained": "evidence/m2-original-summary.json",
+      "sha256": "fdd7f8db788b0495309aec297f9ccadd50e9ef4318b36b16f8e7164b1f5a3450",
+      "bytes": 2713
+    },
+    {
+      "source": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/evidence/m2-suite.json",
+      "retained": "evidence/m2-suite.json",
+      "sha256": "c02c921e7db6baedf23f75390f822ad6deab68fc28780c36226ab3d8d8a1d3de",
+      "bytes": 388
+    },
+    {
+      "source": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/evidence/m2-suite-status.json",
+      "retained": "evidence/m2-suite-status.json",
+      "sha256": "15139add86fe96fc6a0a85f2c42977bbf610a52cc9c8c9897b8994b9b5faf39c",
+      "bytes": 66
+    },
+    {
+      "source": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/evidence/m2-choreography-original.jsonl",
+      "retained": "evidence/m2-choreography-original.jsonl",
+      "sha256": "e71dde26abbfc3a6903b853fb3d98b659e568d5cd3d5ddbe2b0b26e9a413bc44",
+      "bytes": 10154
+    },
+    {
+      "source": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/evidence/m2-choreography-original.jsonl.observations.jsonl",
+      "retained": "evidence/m2-choreography-original.jsonl.observations.jsonl",
+      "sha256": "834936114b21095219302fdd26c8af41dd7fbc7a0e3e435eeec55bc7a42385c9",
+      "bytes": 7213
+    },
+    {
+      "source": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/evidence/m2-choreo1.txt",
+      "retained": "evidence/m2-choreo1.txt",
+      "sha256": "f519011fdc921c5f1716abe0cee3095e866494c34ea6d8bf2f3911b4d0536021",
+      "bytes": 5676
+    },
+    {
+      "source": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/scripts/choreo.mjs",
+      "retained": "scripts/choreo.mjs",
+      "sha256": "174108afe431fb7033fa61e67f55c978981a969798d3ea2ca5b92d8406b2b897",
+      "bytes": 1012
+    },
+    {
+      "source": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/run-log.md",
+      "retained": "run-log.md",
+      "sha256": "a2500b86096a2600754c150a24bdb433bb97389bd01c5cc1a025dc1b76cc7f50",
+      "bytes": 6281
+    }
+  ],
+  "nativeInvocationEvents": 2,
+  "missingEvidence": "Builder run-log 1788739400 says the reused raw JSONL path was truncated. First failed M2 raw JSONL is lost. Bounded m2-choreo1.txt remains. No original lost raw or full history reconstruction claimed.",
+  "benchmarkActions": 0,
+  "reruns": 0
+}

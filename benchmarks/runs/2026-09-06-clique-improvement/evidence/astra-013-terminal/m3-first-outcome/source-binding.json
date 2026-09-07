@@ -1,0 +1,29 @@
+{
+  "at": "2026-09-07T00:17:00.127217+00:00",
+  "bindings": [
+    {
+      "file": "instrument/fixtures/starter-m3.log",
+      "pin": "f40559f37722c79178be664a11f8a6485f1508fd",
+      "gitPath": "benchmarks/fixtures/social-messenger/starter-m3.log",
+      "sha256": "b3d3d922cd6e7a8cec252ff24d2d9beb3fcf490f882fd375703f4ae93eb32690",
+      "frozenSha256": "b3d3d922cd6e7a8cec252ff24d2d9beb3fcf490f882fd375703f4ae93eb32690",
+      "equalsFrozen": true
+    },
+    {
+      "file": "instrument/social-messenger.md",
+      "pin": "f40559f37722c79178be664a11f8a6485f1508fd",
+      "gitPath": "benchmarks/briefs/social-messenger.md",
+      "sha256": "129fd79c5a2b19c7312fc41ed931647b79e2c4afc611c3cc431e0e26a452fbc6",
+      "frozenSha256": "129fd79c5a2b19c7312fc41ed931647b79e2c4afc611c3cc431e0e26a452fbc6",
+      "equalsFrozen": true
+    },
+    {
+      "file": "choreography/choreography.mjs",
+      "pin": "f40559f37722c79178be664a11f8a6485f1508fd",
+      "gitPath": "benchmarks/tools/social-messenger/choreography/choreography.mjs",
+      "sha256": "8caf5ebdc9a85a2757fe5109740184bdac37977ac98d0a583f16f9dea383177f",
+      "frozenSha256": "8caf5ebdc9a85a2757fe5109740184bdac37977ac98d0a583f16f9dea383177f",
+      "equalsFrozen": true
+    }
+  ]
+}

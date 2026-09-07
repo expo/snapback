@@ -1,0 +1,2162 @@
+{
+  "at": "2026-09-07T00:29:19.738807+00:00",
+  "files": [
+    {
+      "kind": "actual-native-runtime",
+      "source": "/Users/ccheever/clique-improvement/revisions/astra013-resume-preparation/ready/runtime/native-rollout.jsonl",
+      "retained": "native/native-rollout.jsonl",
+      "bytes": 5176890,
+      "sha256": "ff62b395b69bba25784a1afa462d5fa38c7f5004c28281927de9c26dfe03daf2"
+    },
+    {
+      "kind": "actual-native-runtime",
+      "source": "/Users/ccheever/clique-improvement/revisions/astra013-resume-preparation/ready/runtime/stderr.log",
+      "retained": "native/stderr.log",
+      "bytes": 423,
+      "sha256": "89dde7b51e58617cde1009838daa6ad0f6f25a41d73d5d0b66c4420243a7cbbe"
+    },
+    {
+      "kind": "actual-native-runtime",
+      "source": "/Users/ccheever/clique-improvement/revisions/astra013-resume-preparation/ready/runtime/native-evidence.json",
+      "retained": "native/native-evidence.json",
+      "bytes": 821,
+      "sha256": "313e2d137465b71e4774c2ab111f458bcc13d19f2d1eec35849474928aa69689"
+    },
+    {
+      "kind": "actual-native-runtime",
+      "source": "/Users/ccheever/clique-improvement/revisions/astra013-resume-preparation/ready/runtime/stdout.ndjson",
+      "retained": "native/stdout.ndjson",
+      "bytes": 488291,
+      "sha256": "5b1c3b15ccf545341653b5e95792d629471f72bc6d459925f1d8e8bc77451325"
+    },
+    {
+      "kind": "actual-native-runtime",
+      "source": "/Users/ccheever/clique-improvement/revisions/astra013-resume-preparation/ready/runtime/native-usage-events.json",
+      "retained": "native/native-usage-events.json",
+      "bytes": 181,
+      "sha256": "112ad9b1a5b51633eb243e83c61b0270b3f28dfd7680dfb211748b87a7f1caf0"
+    },
+    {
+      "kind": "actual-native-runtime",
+      "source": "/Users/ccheever/clique-improvement/revisions/astra013-resume-preparation/ready/runtime/terminal.json",
+      "retained": "native/terminal.json",
+      "bytes": 471,
+      "sha256": "84d6df5b611d6146eceac8892fc8e46f59bbb534b7b9799f227121e1739c177c"
+    },
+    {
+      "kind": "actual-native-runtime",
+      "source": "/Users/ccheever/clique-improvement/revisions/astra013-resume-preparation/ready/runtime/launch.json",
+      "retained": "native/launch.json",
+      "bytes": 1653,
+      "sha256": "f89bf942b94b46b487b101b8c741a1127a8697ed8c8584071dfdac944b24c52f"
+    },
+    {
+      "kind": "actual-native-runtime",
+      "source": "/Users/ccheever/clique-improvement/revisions/astra013-resume-preparation/ready/runtime/native-meter-unavailable.json",
+      "retained": "native/native-meter-unavailable.json",
+      "bytes": 144,
+      "sha256": "d7880d9b1487ab58d00855ce909406fcc1e330897fd9a64f46287f561dc13c51"
+    },
+    {
+      "kind": "actual-native-runtime",
+      "source": "/Users/ccheever/clique-improvement/revisions/astra013-resume-preparation/ready/runtime/preflight.json",
+      "retained": "native/preflight.json",
+      "bytes": 6088,
+      "sha256": "aa30928cc4756781f16da2d337f097c1d9f361191fb132fc4312761625ddabdd"
+    },
+    {
+      "kind": "authored-source",
+      "source": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/ui/screens.md",
+      "retained": "source/ui/screens.md",
+      "bytes": 13988,
+      "sha256": "360f55de7912191c6723fb7b93a53c6a60f54a3f4f80e181c45fd5e7f469b5d7"
+    },
+    {
+      "kind": "authored-source",
+      "source": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/ui/NEUTRALITY.md",
+      "retained": "source/ui/NEUTRALITY.md",
+      "bytes": 8633,
+      "sha256": "f6905ea379c0b09720869ea6f93362190c8ad79b8e2176b2cc39e69b1f397385"
+    },
+    {
+      "kind": "authored-source",
+      "source": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/ui/README.md",
+      "retained": "source/ui/README.md",
+      "bytes": 4667,
+      "sha256": "45006f252753430c4a9819354de9f9fbe2dacb01322e834bec8dddc2ae39ebd4"
+    },
+    {
+      "kind": "authored-source",
+      "source": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/ui/package-lock.json",
+      "retained": "source/ui/package-lock.json",
+      "bytes": 107273,
+      "sha256": "7f85af6400935faf9e2938402dbb32a697040bf51fff2ff8f2ebf99a133e710d"
+    },
+    {
+      "kind": "authored-source",
+      "source": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/ui/package.json",
+      "retained": "source/ui/package.json",
+      "bytes": 577,
+      "sha256": "15fa8a0fc0b19bdebb1b1e22caa29c7c3870c654448ecf3e65d8efa7c8d3bdbb"
+    },
+    {
+      "kind": "authored-source",
+      "source": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/ui/VERSION",
+      "retained": "source/ui/VERSION",
+      "bytes": 9,
+      "sha256": "3e51ce18e5b67d13ed0abad920df3b9b0cc9d06dce99b6369423b426e332e9fe"
+    },
+    {
+      "kind": "authored-source",
+      "source": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/ui/tsconfig.json",
+      "retained": "source/ui/tsconfig.json",
+      "bytes": 483,
+      "sha256": "2cc903a9988d9a855b708f4db8acd679dd015a691cb4ee26a6bfb5cd3074ef52"
+    },
+    {
+      "kind": "authored-source",
+      "source": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/ui/index.ts",
+      "retained": "source/ui/index.ts",
+      "bytes": 836,
+      "sha256": "ddefaf68b4cbcf90bfc60de0f3d1cfd87101eae71a63971354e8c008eec1f26b"
+    },
+    {
+      "kind": "authored-source",
+      "source": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/ui/test/observability-contract.test.mjs",
+      "retained": "source/ui/test/observability-contract.test.mjs",
+      "bytes": 2201,
+      "sha256": "c2e97def1b1751b1bdcb0512040337fd1b2f0835843511a3df4004b4683f21ba"
+    },
+    {
+      "kind": "authored-source",
+      "source": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/ui/test/quoted-reply.test.mjs",
+      "retained": "source/ui/test/quoted-reply.test.mjs",
+      "bytes": 862,
+      "sha256": "981b75d68007c9d128b9f79ac1ede2c2d0fe4363a81ac95c2340166088f1ea20"
+    },
+    {
+      "kind": "authored-source",
+      "source": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/ui/assets/clique-logo.png",
+      "retained": "source/ui/assets/clique-logo.png",
+      "bytes": 828554,
+      "sha256": "9406d0121af03c131dc2c173a9cf848242be6cbf2ac28eb7303d6f1c5377df05"
+    },
+    {
+      "kind": "authored-source",
+      "source": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/ui/src/ReactionPicker.tsx",
+      "retained": "source/ui/src/ReactionPicker.tsx",
+      "bytes": 3123,
+      "sha256": "b9915553325c3ff09dcfa9234a307e2c947f4f423c25359393cf5c9ba2d6bcfb"
+    },
+    {
+      "kind": "authored-source",
+      "source": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/ui/src/PollDisplay.tsx",
+      "retained": "source/ui/src/PollDisplay.tsx",
+      "bytes": 4402,
+      "sha256": "7e925c52b426fa8e5d2e371fcc60e3fb32d6349ad59567c56e5e3f67c38aa531"
+    },
+    {
+      "kind": "authored-source",
+      "source": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/ui/src/ReceiptTicks.tsx",
+      "retained": "source/ui/src/ReceiptTicks.tsx",
+      "bytes": 1700,
+      "sha256": "a1ac8a8d039b1db716d46325228ed8169a068d9aea05137391cb7b5ed02a4ce1"
+    },
+    {
+      "kind": "authored-source",
+      "source": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/ui/src/InsightsSummary.tsx",
+      "retained": "source/ui/src/InsightsSummary.tsx",
+      "bytes": 2060,
+      "sha256": "2be73279d8b4fcec36253d0e7f19218e32bcaf5d79a756d9433e0852d22da605"
+    },
+    {
+      "kind": "authored-source",
+      "source": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/ui/src/FeedCard.tsx",
+      "retained": "source/ui/src/FeedCard.tsx",
+      "bytes": 9249,
+      "sha256": "13be800f84dba8fbad13b545982690a5c1301fcedd0d6d8cdc2741474bba04ff"
+    },
+    {
+      "kind": "authored-source",
+      "source": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/ui/src/ChatSettingsForm.tsx",
+      "retained": "source/ui/src/ChatSettingsForm.tsx",
+      "bytes": 15197,
+      "sha256": "5aec6478ea056eefc9b6f6e7bbcfd56d8d635e5558c017e261725ec2879e1a9a"
+    },
+    {
+      "kind": "authored-source",
+      "source": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/ui/src/FeedTabs.tsx",
+      "retained": "source/ui/src/FeedTabs.tsx",
+      "bytes": 2417,
+      "sha256": "ddd5ef212c8cd97927538d56432f1c989e90e8611c7033f5f5e8ab40af077da7"
+    },
+    {
+      "kind": "authored-source",
+      "source": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/ui/src/InsightsBarList.tsx",
+      "retained": "source/ui/src/InsightsBarList.tsx",
+      "bytes": 3580,
+      "sha256": "503f0cf202b0e4cf316dd8537b544ea45bb9e8f0e45c51b0f2666fe88778e242"
+    },
+    {
+      "kind": "authored-source",
+      "source": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/ui/src/ChatListRow.tsx",
+      "retained": "source/ui/src/ChatListRow.tsx",
+      "bytes": 4035,
+      "sha256": "0649e3f59b209997dd88b690cdb8292a22af4240a2e1856bb39c573847d59c2f"
+    },
+    {
+      "kind": "authored-source",
+      "source": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/ui/src/ProfileForm.tsx",
+      "retained": "source/ui/src/ProfileForm.tsx",
+      "bytes": 11452,
+      "sha256": "2d4eed03035a3fbcf700d9bce8eb9bc52afac88c81739dd025f8c8cf198c6bb7"
+    },
+    {
+      "kind": "authored-source",
+      "source": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/ui/src/SearchBar.tsx",
+      "retained": "source/ui/src/SearchBar.tsx",
+      "bytes": 6284,
+      "sha256": "c0327283375be77223811c282de46cb6b7c20385088026c359fe1aa9d79cd420"
+    },
+    {
+      "kind": "authored-source",
+      "source": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/ui/src/TrendingRow.tsx",
+      "retained": "source/ui/src/TrendingRow.tsx",
+      "bytes": 2351,
+      "sha256": "cdaf53d7e9c6c8432cefca5662f41cd72fda689e3462cb90f506b37ec597a1f8"
+    },
+    {
+      "kind": "authored-source",
+      "source": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/ui/src/QuotedReply.tsx",
+      "retained": "source/ui/src/QuotedReply.tsx",
+      "bytes": 1998,
+      "sha256": "65e24e92c10d2773582854b05a56574630b351945699d4b1a158760c3e0213ec"
+    },
+    {
+      "kind": "authored-source",
+      "source": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/ui/src/AuthForm.tsx",
+      "retained": "source/ui/src/AuthForm.tsx",
+      "bytes": 4535,
+      "sha256": "c222139ae5f5bd1ab2aaad81e9b473f9eaa3596c3999d581ace23225e9d78efb"
+    },
+    {
+      "kind": "authored-source",
+      "source": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/ui/src/tokens.ts",
+      "retained": "source/ui/src/tokens.ts",
+      "bytes": 1935,
+      "sha256": "dd5f86492fe4a7e4595c255f0b0c48f3ab563a726765230eb528d41f80773c02"
+    },
+    {
+      "kind": "authored-source",
+      "source": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/ui/src/PollCompose.tsx",
+      "retained": "source/ui/src/PollCompose.tsx",
+      "bytes": 5401,
+      "sha256": "5a143045095ae1bae8e640317799fbbed49db436594a0dd72226b9620f525054"
+    },
+    {
+      "kind": "authored-source",
+      "source": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/ui/src/MessageBubble.tsx",
+      "retained": "source/ui/src/MessageBubble.tsx",
+      "bytes": 10810,
+      "sha256": "7e59f6154708cc1efe659ea5e6dffe5f533394451b4801b419d0bd68f07dec6d"
+    },
+    {
+      "kind": "authored-source",
+      "source": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/ui/src/Avatar.tsx",
+      "retained": "source/ui/src/Avatar.tsx",
+      "bytes": 2089,
+      "sha256": "f2fd0c6507bc727cb3066ca4f33edae05fc3e963ba3d51e8efcc62256b6411f5"
+    },
+    {
+      "kind": "authored-source",
+      "source": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/ui/src/Composer.tsx",
+      "retained": "source/ui/src/Composer.tsx",
+      "bytes": 6858,
+      "sha256": "0c9179e47bb78a42a42e6743f512ecc497d814cfb007ed45f9155410e00074c2"
+    },
+    {
+      "kind": "authored-source",
+      "source": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/ui/src/TypingIndicator.tsx",
+      "retained": "source/ui/src/TypingIndicator.tsx",
+      "bytes": 2625,
+      "sha256": "9c792b0a53c87482008c9f2effce9943b329fab6fd600b7411a8e6ada76078d9"
+    },
+    {
+      "kind": "authored-source",
+      "source": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/ui/src/linkify.tsx",
+      "retained": "source/ui/src/linkify.tsx",
+      "bytes": 1060,
+      "sha256": "5e705a9336b230c74fcd2a5cb00fd9096b78fd526b54882e77b8e48158428717"
+    },
+    {
+      "kind": "authored-source",
+      "source": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/App.tsx",
+      "retained": "source/App.tsx",
+      "bytes": 1371,
+      "sha256": "d6dbff9f99632f2e6ef174829072b0f5f74fd6f6748e6ef26476ad98c01e6e6b"
+    },
+    {
+      "kind": "authored-source",
+      "source": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/metro.config.cjs",
+      "retained": "source/metro.config.cjs",
+      "bytes": 888,
+      "sha256": "46db9720e4b717318b89f6fbf579096c61f34d90aac54ac2bff438ace7860f13"
+    },
+    {
+      "kind": "authored-source",
+      "source": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/app/settings.tsx",
+      "retained": "source/app/settings.tsx",
+      "bytes": 273,
+      "sha256": "e9500b0ffdff5c119d85e73a4fc2f029451a7419f9647b328ac01e06635ebe2e"
+    },
+    {
+      "kind": "authored-source",
+      "source": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/app/index.tsx",
+      "retained": "source/app/index.tsx",
+      "bytes": 157,
+      "sha256": "00706a5b309bb28a40b25b765fd0f253d95bc13b86e3c943dd8450cc53cf9179"
+    },
+    {
+      "kind": "authored-source",
+      "source": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/app/chats.tsx",
+      "retained": "source/app/chats.tsx",
+      "bytes": 158,
+      "sha256": "51305e4d5af626451bff72fc593a1b4a33e0bdf4a068865070e39010f03a9204"
+    },
+    {
+      "kind": "authored-source",
+      "source": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/app/new-chat.tsx",
+      "retained": "source/app/new-chat.tsx",
+      "bytes": 162,
+      "sha256": "db3a03ccdee5d4eeddec3f7e653a2171303ff34321aee6ad6b68ecbbeb7b7192"
+    },
+    {
+      "kind": "authored-source",
+      "source": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/app/_layout.tsx",
+      "retained": "source/app/_layout.tsx",
+      "bytes": 714,
+      "sha256": "2f2101a7b4487a0b4cd8741067783d713cbddd24f93c14571ca00ad8f42db079"
+    },
+    {
+      "kind": "authored-source",
+      "source": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/app/post/[id].tsx",
+      "retained": "source/app/post/[id].tsx",
+      "bytes": 275,
+      "sha256": "ba65ccc9638f3517e836fbb475d745493e8ae6d6435ee89504d5ca23c01e32f4"
+    },
+    {
+      "kind": "authored-source",
+      "source": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/app/chat/[id]/settings.tsx",
+      "retained": "source/app/chat/[id]/settings.tsx",
+      "bytes": 300,
+      "sha256": "adccbb7e1a8b90154b5b2fd321038d9f4a3bcdc27207b5b69af9a5b605330631"
+    },
+    {
+      "kind": "authored-source",
+      "source": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/app/chat/[id]/index.tsx",
+      "retained": "source/app/chat/[id]/index.tsx",
+      "bytes": 309,
+      "sha256": "a2a786eb01f37d644503ee5e548be423d14a1cb8d4595784a631830c7de1f427"
+    },
+    {
+      "kind": "authored-source",
+      "source": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/app/profile/[handle].tsx",
+      "retained": "source/app/profile/[handle].tsx",
+      "bytes": 295,
+      "sha256": "04de589442c8454ecc9eddc8701f8fb1c2a401f827479dfe708362978713f3ba"
+    },
+    {
+      "kind": "authored-source",
+      "source": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/app/profile/edit.tsx",
+      "retained": "source/app/profile/edit.tsx",
+      "bytes": 179,
+      "sha256": "81b97190c2eef389e58d74dd52d01987aab85a2dca3b27a6a8372a6805abdb29"
+    },
+    {
+      "kind": "authored-source",
+      "source": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/app/conversation/[handle].tsx",
+      "retained": "source/app/conversation/[handle].tsx",
+      "bytes": 312,
+      "sha256": "55dbd7ec5d34d068939f493b796345a2adc0622ad6f967f3674a575247561fc8"
+    },
+    {
+      "kind": "authored-source",
+      "source": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/app/conversation/group/[group]/settings.tsx",
+      "retained": "source/app/conversation/group/[group]/settings.tsx",
+      "bytes": 322,
+      "sha256": "328ee291bbf38737165414147747aa70732684809c51398664e8b7356d1274b0"
+    },
+    {
+      "kind": "authored-source",
+      "source": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/app/conversation/group/[group]/index.tsx",
+      "retained": "source/app/conversation/group/[group]/index.tsx",
+      "bytes": 320,
+      "sha256": "97a9242f3c3fbaa79b32de5e6f7d395d0319f2074fe4547917e56ef76a3c1b25"
+    },
+    {
+      "kind": "authored-source",
+      "source": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/app.json",
+      "retained": "source/app.json",
+      "bytes": 331,
+      "sha256": "99317eaa9f894a37d7d1565a63e8a4139dc587f3fc77928c2f983f07913f6004"
+    },
+    {
+      "kind": "authored-source",
+      "source": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/config/windows.production.json",
+      "retained": "source/config/windows.production.json",
+      "bytes": 438,
+      "sha256": "c43a0ae50d80488f7e52f652d682b8e9d443b00e95269c71a4f98ac4fb870764"
+    },
+    {
+      "kind": "authored-source",
+      "source": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/config/windows.active.json",
+      "retained": "source/config/windows.active.json",
+      "bytes": 483,
+      "sha256": "75028815dc2f599e60d6499b1671a4a3bfd3c2c33521d1fc62c4ab985f2312e2"
+    },
+    {
+      "kind": "authored-source",
+      "source": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/template/shared/offline.js",
+      "retained": "source/template/shared/offline.js",
+      "bytes": 1346,
+      "sha256": "3fc8f970044627aab41d2c7a4f079c9d6cfeab303715f4955400cad89770afa2"
+    },
+    {
+      "kind": "authored-source",
+      "source": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/template/shared/log.js",
+      "retained": "source/template/shared/log.js",
+      "bytes": 4010,
+      "sha256": "37ae65c8d755e5fb9a793c415a7a116b499628ccbd8946d6c25d954a6a5cc37b"
+    },
+    {
+      "kind": "authored-source",
+      "source": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/template/shared/offline.ts",
+      "retained": "source/template/shared/offline.ts",
+      "bytes": 1608,
+      "sha256": "04d78283ba4ba52228d8a1ddcb1ca9758242358694d31e6c6e809eaf20333fd6"
+    },
+    {
+      "kind": "authored-source",
+      "source": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/template/shared/log.ts",
+      "retained": "source/template/shared/log.ts",
+      "bytes": 6454,
+      "sha256": "7a3fe9c8461bd98166d69832b65ab6054e49ccb9c98a00be315f13ac4f87f5aa"
+    },
+    {
+      "kind": "authored-source",
+      "source": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/template/snapback/seed.ts",
+      "retained": "source/template/snapback/seed.ts",
+      "bytes": 2593,
+      "sha256": "669b7f9c19209d59f5cbda0b9798ac2929a9117784c12cdedea36284cd774436"
+    },
+    {
+      "kind": "authored-source",
+      "source": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/template/snapback/groups.q",
+      "retained": "source/template/snapback/groups.q",
+      "bytes": 2117,
+      "sha256": "f6d1b3325d3aec1ffb63cd70fd3de39a70be2c55d3982081125b4202bc06c381"
+    },
+    {
+      "kind": "authored-source",
+      "source": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/template/snapback/profiles.q",
+      "retained": "source/template/snapback/profiles.q",
+      "bytes": 919,
+      "sha256": "dc474dc4b739bd5346efb98d4bbfbc10850a91aa1833ae911aa5adf11af03e53"
+    },
+    {
+      "kind": "authored-source",
+      "source": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/template/snapback/notifications.q",
+      "retained": "source/template/snapback/notifications.q",
+      "bytes": 184,
+      "sha256": "02cf8894ae5ed7d28ea8e56e7258dbc7e973f5ae6f253eadd7e34e94d2fa7347"
+    },
+    {
+      "kind": "authored-source",
+      "source": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/template/snapback/feeds.q",
+      "retained": "source/template/snapback/feeds.q",
+      "bytes": 424,
+      "sha256": "bfe02e3eec0c441572bc2215d51eb41b8262119590e28eb4febc3cfd1d39008b"
+    },
+    {
+      "kind": "authored-source",
+      "source": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/template/snapback/messages.q",
+      "retained": "source/template/snapback/messages.q",
+      "bytes": 2227,
+      "sha256": "cd698245480cbbe1fae20375bdb4607dd1a03886aa10320fd7c2f968a4628406"
+    },
+    {
+      "kind": "authored-source",
+      "source": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/template/snapback/deliveries.q",
+      "retained": "source/template/snapback/deliveries.q",
+      "bytes": 2437,
+      "sha256": "765a7807e84f358926bb304477c2479d797b8aec3483a8305cf7290f0427c498"
+    },
+    {
+      "kind": "authored-source",
+      "source": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/template/snapback/posts.q",
+      "retained": "source/template/snapback/posts.q",
+      "bytes": 208,
+      "sha256": "683a4ab4e9733e88ad2f387d95d5a525725b1917dd79401ede09721b8d7a0df6"
+    },
+    {
+      "kind": "authored-source",
+      "source": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/template/snapback/follows.q",
+      "retained": "source/template/snapback/follows.q",
+      "bytes": 413,
+      "sha256": "4e5faec00894e94c1c860bb9d21dde330c665767276bb7dc7372ef59b78c73f0"
+    },
+    {
+      "kind": "authored-source",
+      "source": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/template/snapback/delivery.ts",
+      "retained": "source/template/snapback/delivery.ts",
+      "bytes": 1148,
+      "sha256": "ad73441f683c6a6024f8b54f0ea23dc037c01a89aa24364f2aec6d50d666a528"
+    },
+    {
+      "kind": "authored-source",
+      "source": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/template/snapback/schema.q",
+      "retained": "source/template/snapback/schema.q",
+      "bytes": 3962,
+      "sha256": "f4625d0f8a45175536ee3cd26f013df6da4fa91a5c6697391b509b09616e8e04"
+    },
+    {
+      "kind": "authored-source",
+      "source": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/template/snapback/tests/chat.test.ts",
+      "retained": "source/template/snapback/tests/chat.test.ts",
+      "bytes": 43787,
+      "sha256": "73b5c728d98c10e0fee67eda8e288777868f4bb4f6603fd0c3c69d05d7d504f9"
+    },
+    {
+      "kind": "authored-source",
+      "source": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/template/src/Witness.tsx",
+      "retained": "source/template/src/Witness.tsx",
+      "bytes": 8426,
+      "sha256": "8450b82ef7699811d96591385201e0c783c72b03c69f1e6d63c33b9b8866a1ba"
+    },
+    {
+      "kind": "authored-source",
+      "source": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/template/src/Composer.tsx",
+      "retained": "source/template/src/Composer.tsx",
+      "bytes": 2213,
+      "sha256": "29173755ededf6c9593682132b64ab7c1e64f47ed7aec2c960acf5cd9f9545da"
+    },
+    {
+      "kind": "authored-source",
+      "source": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/template/src/Chat.tsx",
+      "retained": "source/template/src/Chat.tsx",
+      "bytes": 1242,
+      "sha256": "1c4c152710915dc142a9ceb129c1ddf729808db5e8c6648784a99104c22cfae8"
+    },
+    {
+      "kind": "authored-source",
+      "source": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/template/src/MediaView.tsx",
+      "retained": "source/template/src/MediaView.tsx",
+      "bytes": 1639,
+      "sha256": "adb2c30346bf7e86607b80ce9b0b5e541e5826bd373ff13f2edb5b38e57eb947"
+    },
+    {
+      "kind": "authored-source",
+      "source": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/template/src/witness-state.ts",
+      "retained": "source/template/src/witness-state.ts",
+      "bytes": 4398,
+      "sha256": "6c021e679738bc152059ace701d5276023732d654162a1902cbefcf2b6e2f40c"
+    },
+    {
+      "kind": "authored-source",
+      "source": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/template/src/screens/Search.tsx",
+      "retained": "source/template/src/screens/Search.tsx",
+      "bytes": 672,
+      "sha256": "476beab04341b6fe017bc37b8a7d92c7b85de99cf8fb4d0dad2dba660866735b"
+    },
+    {
+      "kind": "authored-source",
+      "source": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/template/src/screens/Inbox.tsx",
+      "retained": "source/template/src/screens/Inbox.tsx",
+      "bytes": 675,
+      "sha256": "f72af0b86e4a57dd5b9b8c65b1a28cd6de7c2a7321963bce60791215cb0b6ec1"
+    },
+    {
+      "kind": "authored-source",
+      "source": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/template/src/screens/Thread.tsx",
+      "retained": "source/template/src/screens/Thread.tsx",
+      "bytes": 1931,
+      "sha256": "1d04683a10e7ffdfdc9adcd0085981d0358f2f430c02db888a6e70337bad73b4"
+    },
+    {
+      "kind": "authored-source",
+      "source": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/index.js",
+      "retained": "source/index.js",
+      "bytes": 99,
+      "sha256": "af10e01cf5fa6d399a83829926cc80d935c1dca8fb01313ab7cb54aab84c028b"
+    },
+    {
+      "kind": "authored-source",
+      "source": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/shared/offline.js",
+      "retained": "source/shared/offline.js",
+      "bytes": 1346,
+      "sha256": "3fc8f970044627aab41d2c7a4f079c9d6cfeab303715f4955400cad89770afa2"
+    },
+    {
+      "kind": "authored-source",
+      "source": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/shared/log.js",
+      "retained": "source/shared/log.js",
+      "bytes": 4010,
+      "sha256": "37ae65c8d755e5fb9a793c415a7a116b499628ccbd8946d6c25d954a6a5cc37b"
+    },
+    {
+      "kind": "authored-source",
+      "source": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/shared/offline.ts",
+      "retained": "source/shared/offline.ts",
+      "bytes": 1608,
+      "sha256": "04d78283ba4ba52228d8a1ddcb1ca9758242358694d31e6c6e809eaf20333fd6"
+    },
+    {
+      "kind": "authored-source",
+      "source": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/shared/log.ts",
+      "retained": "source/shared/log.ts",
+      "bytes": 6454,
+      "sha256": "7a3fe9c8461bd98166d69832b65ab6054e49ccb9c98a00be315f13ac4f87f5aa"
+    },
+    {
+      "kind": "authored-source",
+      "source": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/choreo-adapter.json",
+      "retained": "source/choreo-adapter.json",
+      "bytes": 203,
+      "sha256": "2daa1e340f4c0936ea85f0536aefc113f11e72c673e4a9c963e8dac8a64a9c71"
+    },
+    {
+      "kind": "authored-source",
+      "source": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/public/fixtures/img-01.png",
+      "retained": "source/public/fixtures/img-01.png",
+      "bytes": 2062,
+      "sha256": "7afbd9d91e6f1197e9fd392ba0a53dce78a66ee5a3a528a6c2641a82b2a0417c"
+    },
+    {
+      "kind": "authored-source",
+      "source": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/.gitignore",
+      "retained": "source/.gitignore",
+      "bytes": 11,
+      "sha256": "3bad7dd36101229cca1a3093b4c0c5964e780cf66048d28d246fea69caf80f27"
+    },
+    {
+      "kind": "authored-source",
+      "source": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/package-lock.json",
+      "retained": "source/package-lock.json",
+      "bytes": 395541,
+      "sha256": "6aa646ee735c4a831576c6503c9dbf9f2f759d45ec428e4619332e7be9441792"
+    },
+    {
+      "kind": "authored-source",
+      "source": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/package.json",
+      "retained": "source/package.json",
+      "bytes": 1057,
+      "sha256": "d1b21e0f457b7c93bac36ba9c9e24605bd68fc687b7665a4d6eb10570d70134d"
+    },
+    {
+      "kind": "authored-source",
+      "source": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/run-log.md",
+      "retained": "source/run-log.md",
+      "bytes": 8500,
+      "sha256": "1c6bf7eb314248a828ce4ce40db7ca247010ce6418e98b1511b317bc38d70c7e"
+    },
+    {
+      "kind": "authored-source",
+      "source": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/scripts/seed.mjs",
+      "retained": "source/scripts/seed.mjs",
+      "bytes": 3663,
+      "sha256": "794e95894e1b754d65524aacf3013482d816c0ffd631bda691858c202eddbfac"
+    },
+    {
+      "kind": "authored-source",
+      "source": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/scripts/acceptance.mjs",
+      "retained": "source/scripts/acceptance.mjs",
+      "bytes": 4370,
+      "sha256": "d46967eba5a3e182e135ec18e4032e6d1d1543a9e6a0f6a2f3abb89b397537b7"
+    },
+    {
+      "kind": "authored-source",
+      "source": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/scripts/configure.mjs",
+      "retained": "source/scripts/configure.mjs",
+      "bytes": 725,
+      "sha256": "3b45dc211f5aa8296d3e0df25eff0347169c7350a661cdca9b62e082aee0daf1"
+    },
+    {
+      "kind": "authored-source",
+      "source": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/scripts/inspect-receipts.mjs",
+      "retained": "source/scripts/inspect-receipts.mjs",
+      "bytes": 738,
+      "sha256": "142ac0213ecdfaddddc518754918fb7d79a3b8e9036fab5b6c4db7f952e63e2c"
+    },
+    {
+      "kind": "authored-source",
+      "source": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/scripts/setup.mjs",
+      "retained": "source/scripts/setup.mjs",
+      "bytes": 1167,
+      "sha256": "02514eace3eaaaf45774e3418c8bed871d903576a5300d635240f9d74d3ca457"
+    },
+    {
+      "kind": "authored-source",
+      "source": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/scripts/debug-two.mjs",
+      "retained": "source/scripts/debug-two.mjs",
+      "bytes": 541,
+      "sha256": "8686d40da77a3136e4794e404f1d119c1eaddee08eba2adab875f93f14836e0c"
+    },
+    {
+      "kind": "authored-source",
+      "source": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/scripts/debug-signup.mjs",
+      "retained": "source/scripts/debug-signup.mjs",
+      "bytes": 626,
+      "sha256": "b3a217f8860ea62b8db4dece0edf7dfe643dd6c7c1f502f4acb9a57fdeb433ea"
+    },
+    {
+      "kind": "authored-source",
+      "source": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/scripts/log.mjs",
+      "retained": "source/scripts/log.mjs",
+      "bytes": 140,
+      "sha256": "feff29d210d864fddc567dc8546d2590405a524cff55aa547ce16f717892c7cc"
+    },
+    {
+      "kind": "authored-source",
+      "source": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/scripts/erin-client.mjs",
+      "retained": "source/scripts/erin-client.mjs",
+      "bytes": 1405,
+      "sha256": "0f47066f452cbb92e72ee84baed0042029de2a010781cb6ec5bd9e5994d6b5af"
+    },
+    {
+      "kind": "authored-source",
+      "source": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/scripts/choreo.mjs",
+      "retained": "source/scripts/choreo.mjs",
+      "bytes": 1012,
+      "sha256": "174108afe431fb7033fa61e67f55c978981a969798d3ea2ca5b92d8406b2b897"
+    },
+    {
+      "kind": "authored-source",
+      "source": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/scripts/check.mjs",
+      "retained": "source/scripts/check.mjs",
+      "bytes": 677,
+      "sha256": "a7575242ca7e32872efe45704b894eea61e469435283ee4da1f9f83b72815537"
+    },
+    {
+      "kind": "authored-source",
+      "source": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/scripts/schema-validator.mjs",
+      "retained": "source/scripts/schema-validator.mjs",
+      "bytes": 368,
+      "sha256": "1ae864cab274eda3c7c00f5c80eb1f38bf20dfe259f6078fb4894a00aa79751d"
+    },
+    {
+      "kind": "authored-source",
+      "source": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/scripts/acceptance-m4.mjs",
+      "retained": "source/scripts/acceptance-m4.mjs",
+      "bytes": 3273,
+      "sha256": "ddd2451f920adc42ea4033aeb21b06e932230db30412bc6dec8b8e4fc0fc52f0"
+    },
+    {
+      "kind": "authored-source",
+      "source": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/scripts/debug-media.mjs",
+      "retained": "source/scripts/debug-media.mjs",
+      "bytes": 824,
+      "sha256": "91bc0a40f2f890530e6c463059497e751e536489a33f0128a07f4154c497c69e"
+    },
+    {
+      "kind": "authored-source",
+      "source": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/scripts/boundary.mjs",
+      "retained": "source/scripts/boundary.mjs",
+      "bytes": 367,
+      "sha256": "5ac0f3c8904d998c028df49956e567db40c3e8fcdb0bf7dabea8ef5a4e6a4356"
+    },
+    {
+      "kind": "authored-source",
+      "source": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/scripts/harness-loader.mjs",
+      "retained": "source/scripts/harness-loader.mjs",
+      "bytes": 261,
+      "sha256": "80775a29ba20b29cef5819f132571adeeec519131cb8dc95af864709d9273da6"
+    },
+    {
+      "kind": "authored-source",
+      "source": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/scripts/acceptance-m2.mjs",
+      "retained": "source/scripts/acceptance-m2.mjs",
+      "bytes": 7001,
+      "sha256": "0bbb93476690530bf71540566f63e9275c9cb014c764e5279a8e07b2b294fd97"
+    },
+    {
+      "kind": "authored-source",
+      "source": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/scripts/acceptance-m3.mjs",
+      "retained": "source/scripts/acceptance-m3.mjs",
+      "bytes": 4610,
+      "sha256": "a06feef4950893b285d627a4317b1df84173ed8555916d9fd9a8bf7ca38b5ea3"
+    },
+    {
+      "kind": "authored-source",
+      "source": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/scripts/serve.mjs",
+      "retained": "source/scripts/serve.mjs",
+      "bytes": 829,
+      "sha256": "9df5c36b11d425ba929440b724e53dafc6c2ffc07be0aaf73bc90675301abb24"
+    },
+    {
+      "kind": "authored-source",
+      "source": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/scripts/m4-windows.mjs",
+      "retained": "source/scripts/m4-windows.mjs",
+      "bytes": 2205,
+      "sha256": "1f8667cd4cafd01dce7c633c92838ec6183d347917d1680a861ac716ed3d2d74"
+    },
+    {
+      "kind": "authored-source",
+      "source": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/setup-identity.json",
+      "retained": "source/setup-identity.json",
+      "bytes": 1206,
+      "sha256": "ac10701ede640c065009f57da148ff1a7317f99061d51a15b4444955bb006e07"
+    },
+    {
+      "kind": "authored-source",
+      "source": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/tsconfig.json",
+      "retained": "source/tsconfig.json",
+      "bytes": 285,
+      "sha256": "00e94f084add3f1ff39439ee818b6c1e4e9058949a0f791973cfc9dcb8fcefdc"
+    },
+    {
+      "kind": "authored-source",
+      "source": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/AGENTS.md",
+      "retained": "source/AGENTS.md",
+      "bytes": 835,
+      "sha256": "98038f7ff77bf34ba977d53e1bfa849ddcec50799afe65375840a9f9fc4450a4"
+    },
+    {
+      "kind": "authored-source",
+      "source": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/diary.md",
+      "retained": "source/diary.md",
+      "bytes": 4873,
+      "sha256": "14e816606e54cc599cebed678350556e6f54cdf059359dadc8cdb05dcf62986e"
+    },
+    {
+      "kind": "authored-source",
+      "source": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/snapback/chats.q",
+      "retained": "source/snapback/chats.q",
+      "bytes": 3825,
+      "sha256": "1b9618858ac3f537115141a0f0efbf5484fe3ab7f07d0894f8adf30314f2a5e0"
+    },
+    {
+      "kind": "authored-source",
+      "source": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/snapback/social.q",
+      "retained": "source/snapback/social.q",
+      "bytes": 1587,
+      "sha256": "078fd423580c5ec18b3238cd017909589ba72b0948129ab41f99b9c4916adf64"
+    },
+    {
+      "kind": "authored-source",
+      "source": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/snapback/seed.ts",
+      "retained": "source/snapback/seed.ts",
+      "bytes": 184,
+      "sha256": "af62eac86fd0071fb44e21a6f75e626539d9d20ea93cd670756cdedd91282810"
+    },
+    {
+      "kind": "authored-source",
+      "source": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/snapback/profiles.q",
+      "retained": "source/snapback/profiles.q",
+      "bytes": 1210,
+      "sha256": "60b98159bf6012eee6d204d2b686abcf72a0e5e2471b8536041338a03c012b55"
+    },
+    {
+      "kind": "authored-source",
+      "source": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/snapback/config.q",
+      "retained": "source/snapback/config.q",
+      "bytes": 362,
+      "sha256": "8b544f2789fa1da40aa634e2073d8204eaf5aabce57382e0b9e294cde4c01d94"
+    },
+    {
+      "kind": "authored-source",
+      "source": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/snapback/messages.q",
+      "retained": "source/snapback/messages.q",
+      "bytes": 5448,
+      "sha256": "8c97087c22dd51ad45c0ec95d9d8817e48b4529c29fc40cfc00b088057942194"
+    },
+    {
+      "kind": "authored-source",
+      "source": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/snapback/posts.q",
+      "retained": "source/snapback/posts.q",
+      "bytes": 1651,
+      "sha256": "cf55a99eada7a54b98446f6b33f3adaa318e4e0e627a927395440fbd93ea1d8d"
+    },
+    {
+      "kind": "authored-source",
+      "source": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/snapback/schema.q",
+      "retained": "source/snapback/schema.q",
+      "bytes": 6359,
+      "sha256": "9c9fe3c1f493ac73a28e230525a9435fe7972a46c4e28d689291ae9c6f63e7f9"
+    },
+    {
+      "kind": "authored-source",
+      "source": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/src/Shell.tsx",
+      "retained": "source/src/Shell.tsx",
+      "bytes": 2596,
+      "sha256": "dc33c94e7990d0c26735b9ee5a781757c569655424d27dcfeed9c0ec149ba9b1"
+    },
+    {
+      "kind": "authored-source",
+      "source": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/src/Feed.tsx",
+      "retained": "source/src/Feed.tsx",
+      "bytes": 6059,
+      "sha256": "4bf06f52d613a6a4a4bcfe178fa9021dcb2fbd554d0451d00fd3e6e0cc30a3c7"
+    },
+    {
+      "kind": "authored-source",
+      "source": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/src/Witness.tsx",
+      "retained": "source/src/Witness.tsx",
+      "bytes": 8426,
+      "sha256": "8450b82ef7699811d96591385201e0c783c72b03c69f1e6d63c33b9b8866a1ba"
+    },
+    {
+      "kind": "authored-source",
+      "source": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/src/asset-uri.web.ts",
+      "retained": "source/src/asset-uri.web.ts",
+      "bytes": 607,
+      "sha256": "5606665ebf61da72037d37735755f155d3aaa0caec0274c1295898f5277f38ed"
+    },
+    {
+      "kind": "authored-source",
+      "source": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/src/asset-uri.ts",
+      "retained": "source/src/asset-uri.ts",
+      "bytes": 117,
+      "sha256": "8fdc6f4f5fee6ebad15c7536f7afec2bc6fb11514e372f4b1dddb373d4f61c78"
+    },
+    {
+      "kind": "authored-source",
+      "source": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/src/client.web.ts",
+      "retained": "source/src/client.web.ts",
+      "bytes": 585,
+      "sha256": "0106ea06f27a64c50fa40ef54a737f739f980d878a63c4396ca4a6b6d712b495"
+    },
+    {
+      "kind": "authored-source",
+      "source": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/src/Profile.tsx",
+      "retained": "source/src/Profile.tsx",
+      "bytes": 2778,
+      "sha256": "26c1fc536f1beb4da3f9372eb2dec758d5b062462a99f45436b8f3c03a5bc159"
+    },
+    {
+      "kind": "authored-source",
+      "source": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/src/Composer.tsx",
+      "retained": "source/src/Composer.tsx",
+      "bytes": 2213,
+      "sha256": "29173755ededf6c9593682132b64ab7c1e64f47ed7aec2c960acf5cd9f9545da"
+    },
+    {
+      "kind": "authored-source",
+      "source": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/src/client.ts",
+      "retained": "source/src/client.ts",
+      "bytes": 245,
+      "sha256": "bf102c094b6ca2b24fab8d3278c1156645b6a43f469f7217c1eff0aa45ddbd0f"
+    },
+    {
+      "kind": "authored-source",
+      "source": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/src/native-web.js",
+      "retained": "source/src/native-web.js",
+      "bytes": 1054,
+      "sha256": "80c3093548fd233f244d0b1139bc1f59ca84258892291111a2568c82bcedc1a7"
+    },
+    {
+      "kind": "authored-source",
+      "source": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/src/Chat.tsx",
+      "retained": "source/src/Chat.tsx",
+      "bytes": 14933,
+      "sha256": "d460e0f5fcf85ceaa7ebd09e59ab5433e25484ac006f07400b772d08dd36cc14"
+    },
+    {
+      "kind": "authored-source",
+      "source": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/src/MediaView.tsx",
+      "retained": "source/src/MediaView.tsx",
+      "bytes": 1639,
+      "sha256": "adb2c30346bf7e86607b80ce9b0b5e541e5826bd373ff13f2edb5b38e57eb947"
+    },
+    {
+      "kind": "authored-source",
+      "source": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/src/witness-state.ts",
+      "retained": "source/src/witness-state.ts",
+      "bytes": 4398,
+      "sha256": "6c021e679738bc152059ace701d5276023732d654162a1902cbefcf2b6e2f40c"
+    },
+    {
+      "kind": "authored-source",
+      "source": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/src/screens/Search.tsx",
+      "retained": "source/src/screens/Search.tsx",
+      "bytes": 672,
+      "sha256": "476beab04341b6fe017bc37b8a7d92c7b85de99cf8fb4d0dad2dba660866735b"
+    },
+    {
+      "kind": "authored-source",
+      "source": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/src/screens/Inbox.tsx",
+      "retained": "source/src/screens/Inbox.tsx",
+      "bytes": 675,
+      "sha256": "f72af0b86e4a57dd5b9b8c65b1a28cd6de7c2a7321963bce60791215cb0b6ec1"
+    },
+    {
+      "kind": "authored-source",
+      "source": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/src/screens/Thread.tsx",
+      "retained": "source/src/screens/Thread.tsx",
+      "bytes": 1931,
+      "sha256": "1d04683a10e7ffdfdc9adcd0085981d0358f2f430c02db888a6e70337bad73b4"
+    },
+    {
+      "kind": "authored-source",
+      "source": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/src/web-primitives/compatible.js",
+      "retained": "source/src/web-primitives/compatible.js",
+      "bytes": 604,
+      "sha256": "6c8e82a48cbb0ae4c18d26c0a8e17e31485fdf53c1781974f93f2283f546b783"
+    },
+    {
+      "kind": "authored-source",
+      "source": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/src/web-primitives/Pressable.js",
+      "retained": "source/src/web-primitives/Pressable.js",
+      "bytes": 142,
+      "sha256": "d0a6d55d801a77adf36099737f050b36710c1e36f6749425f8b62c7120dec8bb"
+    },
+    {
+      "kind": "authored-source",
+      "source": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/src/web-primitives/Image.js",
+      "retained": "source/src/web-primitives/Image.js",
+      "bytes": 138,
+      "sha256": "e3edb6c1f1f27b5e816c8db70b5b4b9563863af45709fdff34e6c0ab5e840935"
+    },
+    {
+      "kind": "authored-source",
+      "source": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/src/web-primitives/View.js",
+      "retained": "source/src/web-primitives/View.js",
+      "bytes": 137,
+      "sha256": "6b2b00740fef1ac6bd934f003b7eb837bdaa3d41ea4495cf194bbda3381130ab"
+    },
+    {
+      "kind": "authored-source",
+      "source": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/src/web-primitives/Text.js",
+      "retained": "source/src/web-primitives/Text.js",
+      "bytes": 137,
+      "sha256": "3685ff0101af97e2b4ece5f6b8cd81f275890d16bb0844a4ae27ea7eddeadb8f"
+    },
+    {
+      "kind": "builder-evidence-at-terminal",
+      "source": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/evidence/m3-ios.txt",
+      "retained": "builder-evidence/m3-ios.txt",
+      "bytes": 2596,
+      "sha256": "f819f3f323dfb6162c664968bdb8faa5309c5068ba5f4e67303fa5f4acffd4f7"
+    },
+    {
+      "kind": "builder-evidence-at-terminal",
+      "source": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/evidence/m2-types1.txt",
+      "retained": "builder-evidence/m2-types1.txt",
+      "bytes": 1477,
+      "sha256": "2488645e0cc3cf52eb054cbe70713af17aa7dee626a7f8773c1d0b92b2218bac"
+    },
+    {
+      "kind": "builder-evidence-at-terminal",
+      "source": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/evidence/m3-choreography-original-1788740052445.jsonl",
+      "retained": "builder-evidence/m3-choreography-original-1788740052445.jsonl",
+      "bytes": 7870,
+      "sha256": "47b90df64f7c1aa7aa98439b328299b2ad6eec2800d9a76e0c435bfe5d872e86"
+    },
+    {
+      "kind": "builder-evidence-at-terminal",
+      "source": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/evidence/m1-coverage.json",
+      "retained": "builder-evidence/m1-coverage.json",
+      "bytes": 534,
+      "sha256": "98c878f8950aea6084f323fea6eb536ea4d2cfb8042555260a673d5cbef389d0"
+    },
+    {
+      "kind": "builder-evidence-at-terminal",
+      "source": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/evidence/m2-acceptance1.txt",
+      "retained": "builder-evidence/m2-acceptance1.txt",
+      "bytes": 525,
+      "sha256": "67af84f7dbbf6de56d055769158bf6fc518b7947ff8322733ca413bf262f1c1f"
+    },
+    {
+      "kind": "builder-evidence-at-terminal",
+      "source": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/evidence/m2-choreography-original.jsonl.observations.jsonl",
+      "retained": "builder-evidence/m2-choreography-original.jsonl.observations.jsonl",
+      "bytes": 7213,
+      "sha256": "834936114b21095219302fdd26c8af41dd7fbc7a0e3e435eeec55bc7a42385c9"
+    },
+    {
+      "kind": "builder-evidence-at-terminal",
+      "source": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/evidence/web-launch.pid",
+      "retained": "builder-evidence/web-launch.pid",
+      "bytes": 6,
+      "sha256": "dbae2a48916396121e68e8acf60728ce456b4475ff7a6eb126e45aec561e4734"
+    },
+    {
+      "kind": "builder-evidence-at-terminal",
+      "source": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/evidence/m2-suite-status.json",
+      "retained": "builder-evidence/m2-suite-status.json",
+      "bytes": 66,
+      "sha256": "15139add86fe96fc6a0a85f2c42977bbf610a52cc9c8c9897b8994b9b5faf39c"
+    },
+    {
+      "kind": "builder-evidence-at-terminal",
+      "source": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/evidence/m4-choreography-latest.json",
+      "retained": "builder-evidence/m4-choreography-latest.json",
+      "bytes": 71,
+      "sha256": "5e4c9ba3c2314da0751bd74eb177be0c2a0e79cc5c45344cd60a9186baacabc4"
+    },
+    {
+      "kind": "builder-evidence-at-terminal",
+      "source": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/evidence/m4-check1.txt",
+      "retained": "builder-evidence/m4-check1.txt",
+      "bytes": 47535,
+      "sha256": "ce86f59f14006d2d943f88c13b22567893d8f3de7cb027267e45b139ce953ea9"
+    },
+    {
+      "kind": "builder-evidence-at-terminal",
+      "source": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/evidence/m2-types3.txt",
+      "retained": "builder-evidence/m2-types3.txt",
+      "bytes": 4044,
+      "sha256": "16ca245866c7d518ac71817d709474e7f8889d354e184bae7cc9b9165adbe37c"
+    },
+    {
+      "kind": "builder-evidence-at-terminal",
+      "source": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/evidence/m2-owner-status.json",
+      "retained": "builder-evidence/m2-owner-status.json",
+      "bytes": 542,
+      "sha256": "364142b4ab4779bca9a920f0bc53cdeddd11bb6381b1cc23751f7da391dff930"
+    },
+    {
+      "kind": "builder-evidence-at-terminal",
+      "source": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/evidence/m2-media-diagnostic.txt",
+      "retained": "builder-evidence/m2-media-diagnostic.txt",
+      "bytes": 1609,
+      "sha256": "d98b0e8cff94cace1fcef4ea0f796cf0de39fdff0a7db3964f568cfa551fab05"
+    },
+    {
+      "kind": "builder-evidence-at-terminal",
+      "source": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/evidence/m2-types2.txt",
+      "retained": "builder-evidence/m2-types2.txt",
+      "bytes": 1477,
+      "sha256": "2488645e0cc3cf52eb054cbe70713af17aa7dee626a7f8773c1d0b92b2218bac"
+    },
+    {
+      "kind": "builder-evidence-at-terminal",
+      "source": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/evidence/m3-ios-final.txt",
+      "retained": "builder-evidence/m3-ios-final.txt",
+      "bytes": 1489,
+      "sha256": "02fe9817faea7148e604c30f3b8f2a6bd9acbbfe1b05526b297e2882b7abb7bd"
+    },
+    {
+      "kind": "builder-evidence-at-terminal",
+      "source": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/evidence/m3-1788740027785-previous-suite.json",
+      "retained": "builder-evidence/m3-1788740027785-previous-suite.json",
+      "bytes": 178,
+      "sha256": "7c5f084f6fc7e88c752efc086400ae4b88dd4c108d6e8c8d54d4a0fd8ca55a38"
+    },
+    {
+      "kind": "builder-evidence-at-terminal",
+      "source": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/evidence/m2-acceptance2.txt",
+      "retained": "builder-evidence/m2-acceptance2.txt",
+      "bytes": 407,
+      "sha256": "9f914a2a41580162686d441ddafb6df3eef11ca301005e9df454695e86a7c17c"
+    },
+    {
+      "kind": "builder-evidence-at-terminal",
+      "source": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/evidence/m4-1788740717797-previous-suite.json",
+      "retained": "builder-evidence/m4-1788740717797-previous-suite.json",
+      "bytes": 339,
+      "sha256": "aae8fb9f9719009e418dedd79ab80f361f13b5f51f964a9e73b6e0ee6b822ef6"
+    },
+    {
+      "kind": "builder-evidence-at-terminal",
+      "source": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/evidence/m1-choreo-startup.txt",
+      "retained": "builder-evidence/m1-choreo-startup.txt",
+      "bytes": 1247,
+      "sha256": "ab63cb67cfd7ff28b286c97d25ee6a20a90795ddcd58197837ba9f184472edda"
+    },
+    {
+      "kind": "builder-evidence-at-terminal",
+      "source": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/evidence/seed-m2.jsonl",
+      "retained": "builder-evidence/seed-m2.jsonl",
+      "bytes": 12009,
+      "sha256": "8854999dc3334595ab52de9992fe5c94947d87301e03ab1c88bc129310f88472"
+    },
+    {
+      "kind": "builder-evidence-at-terminal",
+      "source": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/evidence/m2-ios.txt",
+      "retained": "builder-evidence/m2-ios.txt",
+      "bytes": 2088,
+      "sha256": "3b9e40152d5d77d348480b2e0c79facfaf3c668deda7bc49b4b33896f42683d1"
+    },
+    {
+      "kind": "builder-evidence-at-terminal",
+      "source": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/evidence/m3-suite-status.json",
+      "retained": "builder-evidence/m3-suite-status.json",
+      "bytes": 66,
+      "sha256": "c9c9fd6db1547f698a1943e9c5be210503e5cdb6866b0c0465e19f7308bfde84"
+    },
+    {
+      "kind": "builder-evidence-at-terminal",
+      "source": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/evidence/m2-types5.txt",
+      "retained": "builder-evidence/m2-types5.txt",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "kind": "builder-evidence-at-terminal",
+      "source": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/evidence/m3-owner-status.json",
+      "retained": "builder-evidence/m3-owner-status.json",
+      "bytes": 545,
+      "sha256": "b1fd082263d1fbc1535861eef261e1d041e1489d05b7ea8975c5b69811c48b58"
+    },
+    {
+      "kind": "builder-evidence-at-terminal",
+      "source": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/evidence/m1-acceptance.txt",
+      "retained": "builder-evidence/m1-acceptance.txt",
+      "bytes": 932,
+      "sha256": "70e180334ae3e2e3d6f74a768156549b6f8da1d304036f527d2ea9001139ef7b"
+    },
+    {
+      "kind": "builder-evidence-at-terminal",
+      "source": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/evidence/m2-types4.txt",
+      "retained": "builder-evidence/m2-types4.txt",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "kind": "builder-evidence-at-terminal",
+      "source": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/evidence/npm-init.txt",
+      "retained": "builder-evidence/npm-init.txt",
+      "bytes": 355,
+      "sha256": "fc71b525eb304e503b8726bca7f2a303253ba14c18a11a77cd223b863aa36896"
+    },
+    {
+      "kind": "builder-evidence-at-terminal",
+      "source": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/evidence/m2-coverage.json",
+      "retained": "builder-evidence/m2-coverage.json",
+      "bytes": 1740,
+      "sha256": "17a09f2dbfd83bdc489ae0cd95fcf08fb37fb03d1d4bebbe77acb5f96d14ad66"
+    },
+    {
+      "kind": "builder-evidence-at-terminal",
+      "source": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/evidence/m1-choreography.jsonl.observations.jsonl",
+      "retained": "builder-evidence/m1-choreography.jsonl.observations.jsonl",
+      "bytes": 1645,
+      "sha256": "f67fff0c1a8d231c55f8d52f8d27795b2891820ec6c60e1d62f184017fc1db5f"
+    },
+    {
+      "kind": "builder-evidence-at-terminal",
+      "source": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/evidence/m1-web-export2.txt",
+      "retained": "builder-evidence/m1-web-export2.txt",
+      "bytes": 1794,
+      "sha256": "74a2fc57a09aa4923298b397ff99a077e1e8c872ec5242353ad3c38b782b0203"
+    },
+    {
+      "kind": "builder-evidence-at-terminal",
+      "source": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/evidence/m3-1788740027786-previous-coverage.json",
+      "retained": "builder-evidence/m3-1788740027786-previous-coverage.json",
+      "bytes": 555,
+      "sha256": "822465242153047bcef45e1fb64429ca5c301d8eea1a2a878ccef954843e0a54"
+    },
+    {
+      "kind": "builder-evidence-at-terminal",
+      "source": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/evidence/m3-erin-client.log",
+      "retained": "builder-evidence/m3-erin-client.log",
+      "bytes": 776,
+      "sha256": "634c68a0a78f8206cea3f8f0420bf04ca8d18ed0e79ac78bb7c46f0bb8ae9db1"
+    },
+    {
+      "kind": "builder-evidence-at-terminal",
+      "source": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/evidence/m4-suite-failure.png",
+      "retained": "builder-evidence/m4-suite-failure.png",
+      "bytes": 45723,
+      "sha256": "ee81d9b4beb8fd142ee057f7aaab7e183d65922b97cb5a5c8cfba8c5c98a6834"
+    },
+    {
+      "kind": "builder-evidence-at-terminal",
+      "source": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/evidence/m1-original-summary.json",
+      "retained": "builder-evidence/m1-original-summary.json",
+      "bytes": 2710,
+      "sha256": "74260ff64353b66bef501e801360161d1055a1e02411d001e8df719739491070"
+    },
+    {
+      "kind": "builder-evidence-at-terminal",
+      "source": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/evidence/m1-web-export3.txt",
+      "retained": "builder-evidence/m1-web-export3.txt",
+      "bytes": 1794,
+      "sha256": "fbff27efd108d1c4a64ecb808b6f6e49a55e66c5c61af578f6c23eebfd7dfb29"
+    },
+    {
+      "kind": "builder-evidence-at-terminal",
+      "source": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/evidence/init.txt",
+      "retained": "builder-evidence/init.txt",
+      "bytes": 123,
+      "sha256": "af1b847dc84d7fddd97da1986b1a0a21bf00e64f97bc8f793769888826b39165"
+    },
+    {
+      "kind": "builder-evidence-at-terminal",
+      "source": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/evidence/guide-index.txt",
+      "retained": "builder-evidence/guide-index.txt",
+      "bytes": 3284,
+      "sha256": "c616a124011e5bd321dbc0d7831de1be1e9067a2074fadc5fefb6623466d06c0"
+    },
+    {
+      "kind": "builder-evidence-at-terminal",
+      "source": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/evidence/m1-suite-failure.png",
+      "retained": "builder-evidence/m1-suite-failure.png",
+      "bytes": 6530,
+      "sha256": "6540e84804bdaa043ebd209ab38689b044869f887efc59e9b04f5125913cb7c2"
+    },
+    {
+      "kind": "builder-evidence-at-terminal",
+      "source": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/evidence/static-server.log",
+      "retained": "builder-evidence/static-server.log",
+      "bytes": 32,
+      "sha256": "d54d34f14c520c95f218aead5a3028b71237f5161af818eaac437a999b7024d9"
+    },
+    {
+      "kind": "builder-evidence-at-terminal",
+      "source": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/evidence/m1-ios-export2.txt",
+      "retained": "builder-evidence/m1-ios-export2.txt",
+      "bytes": 1856,
+      "sha256": "7574ab0a1b1f003d4539f98ec599a3abda7f27dde806ab520fb168f4f6507cb7"
+    },
+    {
+      "kind": "builder-evidence-at-terminal",
+      "source": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/evidence/guide-testing.txt",
+      "retained": "builder-evidence/guide-testing.txt",
+      "bytes": 3439,
+      "sha256": "3f5bbe0d894f8a47e2f18ab98d32161be00839745deb9d23228c7eb49b1c76f1"
+    },
+    {
+      "kind": "builder-evidence-at-terminal",
+      "source": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/evidence/m3-original-summary.json",
+      "retained": "builder-evidence/m3-original-summary.json",
+      "bytes": 2757,
+      "sha256": "bde256fb591299abfc0f10b3e9f52c5eed0ee285e269a58c041f015fb62ae92d"
+    },
+    {
+      "kind": "builder-evidence-at-terminal",
+      "source": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/evidence/m1-choreography.jsonl",
+      "retained": "builder-evidence/m1-choreography.jsonl",
+      "bytes": 4135,
+      "sha256": "941088a31394a4fb8e407dbfcdb6e221bdab597b5313121a3bbaff8ca078b4fa"
+    },
+    {
+      "kind": "builder-evidence-at-terminal",
+      "source": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/evidence/m1-web-export4.txt",
+      "retained": "builder-evidence/m1-web-export4.txt",
+      "bytes": 1794,
+      "sha256": "e4bb1d0325a2fef6816965a4e30b3e72b804e7c174942852088dc46993fe11db"
+    },
+    {
+      "kind": "builder-evidence-at-terminal",
+      "source": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/evidence/m4-assets-guide.txt",
+      "retained": "builder-evidence/m4-assets-guide.txt",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "kind": "builder-evidence-at-terminal",
+      "source": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/evidence/m1-types-final.txt",
+      "retained": "builder-evidence/m1-types-final.txt",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "kind": "builder-evidence-at-terminal",
+      "source": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/evidence/m1-typecheck.txt",
+      "retained": "builder-evidence/m1-typecheck.txt",
+      "bytes": 301,
+      "sha256": "7732c1cc6371a605701c3f1242df9c53c458e1c36c125ddaf615050f3be33ed6"
+    },
+    {
+      "kind": "builder-evidence-at-terminal",
+      "source": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/evidence/m4-choreography-original-1788740721462.jsonl.observations.jsonl",
+      "retained": "builder-evidence/m4-choreography-original-1788740721462.jsonl.observations.jsonl",
+      "bytes": 1106,
+      "sha256": "436cb8d587d1b22d969f5174303bd745ade663972862a1f70907422ace864e31"
+    },
+    {
+      "kind": "builder-evidence-at-terminal",
+      "source": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/evidence/m1-final-export.txt",
+      "retained": "builder-evidence/m1-final-export.txt",
+      "bytes": 5570,
+      "sha256": "39672779e89e68672bc1358f7dacf71c73b06f7c515a1736e77fedeb10bebcc9"
+    },
+    {
+      "kind": "builder-evidence-at-terminal",
+      "source": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/evidence/seed-m3.jsonl",
+      "retained": "builder-evidence/seed-m3.jsonl",
+      "bytes": 4398,
+      "sha256": "1d78b88666937d8b9e7cc2c62342986286bb5d5ae99537df38990735a71916c0"
+    },
+    {
+      "kind": "builder-evidence-at-terminal",
+      "source": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/evidence/m2-seed.txt",
+      "retained": "builder-evidence/m2-seed.txt",
+      "bytes": 14627,
+      "sha256": "50f1551ddc10b972c2c930ca948e70205fb98b7fe05b12f2eb1ac92fd9e32280"
+    },
+    {
+      "kind": "builder-evidence-at-terminal",
+      "source": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/evidence/m3-seed.txt",
+      "retained": "builder-evidence/m3-seed.txt",
+      "bytes": 91,
+      "sha256": "fbdd84c8de038574b63c2a66309fffabe6a468d058069d238d322ca476578d57"
+    },
+    {
+      "kind": "builder-evidence-at-terminal",
+      "source": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/evidence/m4-1788740717798-previous-suite-status.json",
+      "retained": "builder-evidence/m4-1788740717798-previous-suite-status.json",
+      "bytes": 102,
+      "sha256": "3f9bf32d7d355416c78e42d0896c793737ba0785ba6aa969ddf0432f41309605"
+    },
+    {
+      "kind": "builder-evidence-at-terminal",
+      "source": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/evidence/m3-choreo2.txt",
+      "retained": "builder-evidence/m3-choreo2.txt",
+      "bytes": 308,
+      "sha256": "4f85b0e7afa3e131ebdc5a07bd4692aec3c08084ea2c2f59942f9074570f107f"
+    },
+    {
+      "kind": "builder-evidence-at-terminal",
+      "source": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/evidence/m4-suite-status.json",
+      "retained": "builder-evidence/m4-suite-status.json",
+      "bytes": 66,
+      "sha256": "71548e23f0499061dc20a330527b4e66f3128b0ed05928c993a9ca47d86a5855"
+    },
+    {
+      "kind": "builder-evidence-at-terminal",
+      "source": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/evidence/m3-check1.txt",
+      "retained": "builder-evidence/m3-check1.txt",
+      "bytes": 800,
+      "sha256": "07d4b8935196eb261b39b8b7b719c7fc7f3bddba85b40279d545d820257bfc5c"
+    },
+    {
+      "kind": "builder-evidence-at-terminal",
+      "source": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/evidence/m1-typecheck2.txt",
+      "retained": "builder-evidence/m1-typecheck2.txt",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "kind": "builder-evidence-at-terminal",
+      "source": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/evidence/m3-acceptance1.txt",
+      "retained": "builder-evidence/m3-acceptance1.txt",
+      "bytes": 241,
+      "sha256": "80568e65ef7f131b56ef406f1a4b8633d4bda9fe07db59bd41ceab1444ad417c"
+    },
+    {
+      "kind": "builder-evidence-at-terminal",
+      "source": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/evidence/m1-choreography-original.jsonl",
+      "retained": "builder-evidence/m1-choreography-original.jsonl",
+      "bytes": 4130,
+      "sha256": "cbd74cafd822f577033b65703956c1866c4ec8f8d4fb474754b6e806efa78dc6"
+    },
+    {
+      "kind": "builder-evidence-at-terminal",
+      "source": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/evidence/check-1788740334397.txt",
+      "retained": "builder-evidence/check-1788740334397.txt",
+      "bytes": 19,
+      "sha256": "05132e5123e009a8730a46ae3993ff333c06ded0b601ae1041aec6d37f89ae20"
+    },
+    {
+      "kind": "builder-evidence-at-terminal",
+      "source": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/evidence/m3-instrument-skip.json",
+      "retained": "builder-evidence/m3-instrument-skip.json",
+      "bytes": 765,
+      "sha256": "08f47250610ba81301455a832ed57f3b33286bf8ce0a229d34070b53964d9d95"
+    },
+    {
+      "kind": "builder-evidence-at-terminal",
+      "source": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/evidence/web-server2.log",
+      "retained": "builder-evidence/web-server2.log",
+      "bytes": 371,
+      "sha256": "c1b88d350c0cf7e98ebe31a2f0e977f66e5e4e24dc25a352c07c315e0c2234ea"
+    },
+    {
+      "kind": "builder-evidence-at-terminal",
+      "source": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/evidence/m1-suite-status.json",
+      "retained": "builder-evidence/m1-suite-status.json",
+      "bytes": 66,
+      "sha256": "f80b5d6d358a9c0fb1661910e3b06cc8f0761c0d22063b8496f79cdf79f607bf"
+    },
+    {
+      "kind": "builder-evidence-at-terminal",
+      "source": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/evidence/validator-repair-provenance.json",
+      "retained": "builder-evidence/validator-repair-provenance.json",
+      "bytes": 939,
+      "sha256": "67d7fc305aa66c8cac9b4b24065ae4fdd503bc927c2003f3d62813ce70ca0b18"
+    },
+    {
+      "kind": "builder-evidence-at-terminal",
+      "source": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/evidence/m1-seed-repeat.txt",
+      "retained": "builder-evidence/m1-seed-repeat.txt",
+      "bytes": 91,
+      "sha256": "b20f39e17c0d8dbbe05eb4857f6637362afc87c7b1672c3ef26160619f3bd0e7"
+    },
+    {
+      "kind": "builder-evidence-at-terminal",
+      "source": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/evidence/m3-choreo1.txt",
+      "retained": "builder-evidence/m3-choreo1.txt",
+      "bytes": 1570,
+      "sha256": "7a87627a3ac0ff32201f8c1402ccb5f0c4cb3547b79ab50f6c8aad707a620c67"
+    },
+    {
+      "kind": "builder-evidence-at-terminal",
+      "source": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/evidence/m3-check2.txt",
+      "retained": "builder-evidence/m3-check2.txt",
+      "bytes": 19,
+      "sha256": "528b538906c0080cf0467012b689902256e917cd9b7c47806bf9aaf0b4ecfdb1"
+    },
+    {
+      "kind": "builder-evidence-at-terminal",
+      "source": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/evidence/seed-m1.jsonl",
+      "retained": "builder-evidence/seed-m1.jsonl",
+      "bytes": 5208,
+      "sha256": "ba512ec540367d6ef94e7db0b3f9791d31e906c8dbbf4526f33dbb0196ea88c0"
+    },
+    {
+      "kind": "builder-evidence-at-terminal",
+      "source": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/evidence/m3-acceptance2.txt",
+      "retained": "builder-evidence/m3-acceptance2.txt",
+      "bytes": 241,
+      "sha256": "29eaa3d5fcf2281faac214a88bc492b433891ac891c2e1ac9b91a976340c51c1"
+    },
+    {
+      "kind": "builder-evidence-at-terminal",
+      "source": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/evidence/npm-install.txt",
+      "retained": "builder-evidence/npm-install.txt",
+      "bytes": 73,
+      "sha256": "f10d5fedf5fb94cba9c4b3a7ff32833af5f6995f7e348f76d91123508c16e6a3"
+    },
+    {
+      "kind": "builder-evidence-at-terminal",
+      "source": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/evidence/m2-suite.json",
+      "retained": "builder-evidence/m2-suite.json",
+      "bytes": 388,
+      "sha256": "c02c921e7db6baedf23f75390f822ad6deab68fc28780c36226ab3d8d8a1d3de"
+    },
+    {
+      "kind": "builder-evidence-at-terminal",
+      "source": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/evidence/web-server3.log",
+      "retained": "builder-evidence/web-server3.log",
+      "bytes": 284,
+      "sha256": "f07c7b6d73689cafb297a256ea8c330a5ccdcd19aaf5c5ed60ea296ef8708011"
+    },
+    {
+      "kind": "builder-evidence-at-terminal",
+      "source": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/evidence/m1-acceptance7.txt",
+      "retained": "builder-evidence/m1-acceptance7.txt",
+      "bytes": 262,
+      "sha256": "89515d0626665182d46c4a45d6931e0073c2374c332c0414e1ff733b1054f8d3"
+    },
+    {
+      "kind": "builder-evidence-at-terminal",
+      "source": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/evidence/backend-start.json",
+      "retained": "builder-evidence/backend-start.json",
+      "bytes": 125,
+      "sha256": "e0169b4bb3e384d0789f7a44ac55aa717d09fb8268e27aff0962e10a717beb41"
+    },
+    {
+      "kind": "builder-evidence-at-terminal",
+      "source": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/evidence/m1-choreo-run.txt",
+      "retained": "builder-evidence/m1-choreo-run.txt",
+      "bytes": 851,
+      "sha256": "78f36caaa7fa47b3bcf61ecd9240ed93cd4447ce650e647697698aeae8e00ec4"
+    },
+    {
+      "kind": "builder-evidence-at-terminal",
+      "source": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/evidence/m4-choreo1.txt",
+      "retained": "builder-evidence/m4-choreo1.txt",
+      "bytes": 131,
+      "sha256": "39ddb4dd779b3852775379e007cf37393496d2f0831294f322524998707e3000"
+    },
+    {
+      "kind": "builder-evidence-at-terminal",
+      "source": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/evidence/m3-web-export3.txt",
+      "retained": "builder-evidence/m3-web-export3.txt",
+      "bytes": 1794,
+      "sha256": "5ece8b7536b1a071e23a1077296226199e24efbd90b3706f68552e769a7bd86c"
+    },
+    {
+      "kind": "builder-evidence-at-terminal",
+      "source": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/evidence/m3-web-export2.txt",
+      "retained": "builder-evidence/m3-web-export2.txt",
+      "bytes": 1794,
+      "sha256": "e2aca0c582e67baee264cc8d0713029fc7d2e3de340b59a624f7de6ef9e08dbd"
+    },
+    {
+      "kind": "builder-evidence-at-terminal",
+      "source": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/evidence/m4-web-export.txt",
+      "retained": "builder-evidence/m4-web-export.txt",
+      "bytes": 1794,
+      "sha256": "c6e27f5d700186e5ef26bfa7b9932a5e1db7006c373bbb77a8e12a1a75b0c02c"
+    },
+    {
+      "kind": "builder-evidence-at-terminal",
+      "source": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/evidence/m1-original-acceptance1.txt",
+      "retained": "builder-evidence/m1-original-acceptance1.txt",
+      "bytes": 262,
+      "sha256": "5a989a59080ae256f9b546d1981f4ce7894b3cfe40fdfcc56c593decfb131f1e"
+    },
+    {
+      "kind": "builder-evidence-at-terminal",
+      "source": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/evidence/m1-acceptance6.txt",
+      "retained": "builder-evidence/m1-acceptance6.txt",
+      "bytes": 744,
+      "sha256": "a7615c7cb5dc4b6326ffbeaa192907fba7db10ef5bd87de3ea51296f3cfad135"
+    },
+    {
+      "kind": "builder-evidence-at-terminal",
+      "source": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/evidence/m3-receipt-diagnostic.txt",
+      "retained": "builder-evidence/m3-receipt-diagnostic.txt",
+      "bytes": 1878,
+      "sha256": "8ac1cd96251732e027e13a1d9268904377e179566eda8fb12981d2969a3fed5c"
+    },
+    {
+      "kind": "builder-evidence-at-terminal",
+      "source": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/evidence/m2-latest-trace.json",
+      "retained": "builder-evidence/m2-latest-trace.json",
+      "bytes": 1938,
+      "sha256": "7d2108a98a082884251e286371d21c0e3a183d6fbeb2208900ccd78074004554"
+    },
+    {
+      "kind": "builder-evidence-at-terminal",
+      "source": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/evidence/m1-suite.json",
+      "retained": "builder-evidence/m1-suite.json",
+      "bytes": 179,
+      "sha256": "8667763f063801f74e3ad8745247c9da80a2e601ce0772d9bbda63410c348dd3"
+    },
+    {
+      "kind": "builder-evidence-at-terminal",
+      "source": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/evidence/guide-app.txt",
+      "retained": "builder-evidence/guide-app.txt",
+      "bytes": 49153,
+      "sha256": "5543ec187a984f54028758ee4020c4a24e8e7350e467224dbab7ef04adebd354"
+    },
+    {
+      "kind": "builder-evidence-at-terminal",
+      "source": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/evidence/m4-configure.txt",
+      "retained": "builder-evidence/m4-configure.txt",
+      "bytes": 1253,
+      "sha256": "fc54a1239fb6d9950587e5646d6a4cefd2cfd2f03af1bd36d3b8648d6e211d05"
+    },
+    {
+      "kind": "builder-evidence-at-terminal",
+      "source": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/evidence/m1-acceptance4.txt",
+      "retained": "builder-evidence/m1-acceptance4.txt",
+      "bytes": 3003,
+      "sha256": "1400335d9896d97e61d35b14662e69169b31f1367c0ea822f6e5887b89e67896"
+    },
+    {
+      "kind": "builder-evidence-at-terminal",
+      "source": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/evidence/m4-configure2.txt",
+      "retained": "builder-evidence/m4-configure2.txt",
+      "bytes": 1253,
+      "sha256": "8851b7ba7b73f8f86dd12cd52db379b7ccc575dfc3b47ffa6b6d5543536840e1"
+    },
+    {
+      "kind": "builder-evidence-at-terminal",
+      "source": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/evidence/m2-feed-plan.json",
+      "retained": "builder-evidence/m2-feed-plan.json",
+      "bytes": 3372,
+      "sha256": "29adf6758e990d776244337180186e23a0263714d61e0a663a35516096450a30"
+    },
+    {
+      "kind": "builder-evidence-at-terminal",
+      "source": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/evidence/m3-web-export.txt",
+      "retained": "builder-evidence/m3-web-export.txt",
+      "bytes": 2905,
+      "sha256": "93cd5b6197f77742493620811e5a81cb0faa69d590b1dbafcf98cd7f0fedc60d"
+    },
+    {
+      "kind": "builder-evidence-at-terminal",
+      "source": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/evidence/m3-choreography-original-1788740052445.jsonl.observations.jsonl",
+      "retained": "builder-evidence/m3-choreography-original-1788740052445.jsonl.observations.jsonl",
+      "bytes": 3941,
+      "sha256": "4c0d7291ad6170cdc1adc371fe02ae5a1696d75ccdff765c833192a3d83000a8"
+    },
+    {
+      "kind": "builder-evidence-at-terminal",
+      "source": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/evidence/m1-acceptance5.txt",
+      "retained": "builder-evidence/m1-acceptance5.txt",
+      "bytes": 262,
+      "sha256": "7598b4b4e9ec0a326c85b57b7248072697b23f81fae19808155830034bb0b9ae"
+    },
+    {
+      "kind": "builder-evidence-at-terminal",
+      "source": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/evidence/m4-configure3.txt",
+      "retained": "builder-evidence/m4-configure3.txt",
+      "bytes": 66,
+      "sha256": "16e8fb3e0f57a5260fc25726c29c03973746c1909f757c431fc3a895f841eea0"
+    },
+    {
+      "kind": "builder-evidence-at-terminal",
+      "source": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/evidence/m1-choreography-original.jsonl.observations.jsonl",
+      "retained": "builder-evidence/m1-choreography-original.jsonl.observations.jsonl",
+      "bytes": 1647,
+      "sha256": "5911d81e3cf38d74a41a378c1ce63bda4360d9d11e3cbc44349ced6de39ad4a1"
+    },
+    {
+      "kind": "builder-evidence-at-terminal",
+      "source": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/evidence/m2-choreography-original.jsonl",
+      "retained": "builder-evidence/m2-choreography-original.jsonl",
+      "bytes": 10154,
+      "sha256": "e71dde26abbfc3a6903b853fb3d98b659e568d5cd3d5ddbe2b0b26e9a413bc44"
+    },
+    {
+      "kind": "builder-evidence-at-terminal",
+      "source": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/evidence/m2-web-export.txt",
+      "retained": "builder-evidence/m2-web-export.txt",
+      "bytes": 2294,
+      "sha256": "2dc56223a94b6489373acb3db43b8e75691ded7a2468f0424dc7ff1a89e21f82"
+    },
+    {
+      "kind": "builder-evidence-at-terminal",
+      "source": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/evidence/guide-expo.txt",
+      "retained": "builder-evidence/guide-expo.txt",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "kind": "builder-evidence-at-terminal",
+      "source": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/evidence/m4-suite.json",
+      "retained": "builder-evidence/m4-suite.json",
+      "bytes": 150,
+      "sha256": "9ed885ceb951e55859197f895ec631d6560c261044382ec3be09b28eefcd7a31"
+    },
+    {
+      "kind": "builder-evidence-at-terminal",
+      "source": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/evidence/m3-owner-status2.json",
+      "retained": "builder-evidence/m3-owner-status2.json",
+      "bytes": 545,
+      "sha256": "53cd10f4ee6359a5c787420539ec1ffc0cfa3b3bd9f1ba97a21afdbf84168d78"
+    },
+    {
+      "kind": "builder-evidence-at-terminal",
+      "source": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/evidence/m1-personas.txt",
+      "retained": "builder-evidence/m1-personas.txt",
+      "bytes": 3,
+      "sha256": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570"
+    },
+    {
+      "kind": "builder-evidence-at-terminal",
+      "source": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/evidence/m2-media-diagnostic2.txt",
+      "retained": "builder-evidence/m2-media-diagnostic2.txt",
+      "bytes": 1609,
+      "sha256": "797df0049d04297bf9a4939a0cc3289513b75522c8a8ea3b6be763ea264323c2"
+    },
+    {
+      "kind": "builder-evidence-at-terminal",
+      "source": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/evidence/m2-media-diagnostic3.txt",
+      "retained": "builder-evidence/m2-media-diagnostic3.txt",
+      "bytes": 1655,
+      "sha256": "c480b9727c7ebcf47dbeae79da3485e0ba4a08ed07ef80521b48cd9baae31094"
+    },
+    {
+      "kind": "builder-evidence-at-terminal",
+      "source": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/evidence/m4-app-guide.txt",
+      "retained": "builder-evidence/m4-app-guide.txt",
+      "bytes": 93935,
+      "sha256": "3137dfe4abb9b6af9fe99d003f848b503651eba72ed8f42dcf420b69f8f6630e"
+    },
+    {
+      "kind": "builder-evidence-at-terminal",
+      "source": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/evidence/expo-install.txt",
+      "retained": "builder-evidence/expo-install.txt",
+      "bytes": 2013,
+      "sha256": "e336db5b5c8b93bbe43c3ed55b0fb78c2a48bd2421a5b0e264d7b3b246c8d0cc"
+    },
+    {
+      "kind": "builder-evidence-at-terminal",
+      "source": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/evidence/m3-types1.txt",
+      "retained": "builder-evidence/m3-types1.txt",
+      "bytes": 181,
+      "sha256": "9f60c6eda757e641ed07bef910753405853538e81e88b15d2a5f2067f071693a"
+    },
+    {
+      "kind": "builder-evidence-at-terminal",
+      "source": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/evidence/m3-choreography-latest.json",
+      "retained": "builder-evidence/m3-choreography-latest.json",
+      "bytes": 71,
+      "sha256": "524a96cb3fd31819d4d54ea7d99a978ea511ce80b0dbdec5fc0996fd257ae799"
+    },
+    {
+      "kind": "builder-evidence-at-terminal",
+      "source": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/evidence/m1-acceptance2.txt",
+      "retained": "builder-evidence/m1-acceptance2.txt",
+      "bytes": 932,
+      "sha256": "70e180334ae3e2e3d6f74a768156549b6f8da1d304036f527d2ea9001139ef7b"
+    },
+    {
+      "kind": "builder-evidence-at-terminal",
+      "source": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/evidence/m4-web-export2.txt",
+      "retained": "builder-evidence/m4-web-export2.txt",
+      "bytes": 1794,
+      "sha256": "34c827ee1710e5cca9298cb8ac93092206610faa5c6c231b004997f6e0ea9778"
+    },
+    {
+      "kind": "builder-evidence-at-terminal",
+      "source": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/evidence/m4-1788740717799-previous-coverage.json",
+      "retained": "builder-evidence/m4-1788740717799-previous-coverage.json",
+      "bytes": 400,
+      "sha256": "267d8f3ed50c72d7a0bf4ad9803149ab071f21be9f323b23fb249c470f6c5fdf"
+    },
+    {
+      "kind": "builder-evidence-at-terminal",
+      "source": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/evidence/m3-choreography-original-1788739892924.jsonl",
+      "retained": "builder-evidence/m3-choreography-original-1788739892924.jsonl",
+      "bytes": 8039,
+      "sha256": "db394b6a185cab25d73824f13504f54b8f7258bf6c8f66f24a2158e4b29a85f5"
+    },
+    {
+      "kind": "builder-evidence-at-terminal",
+      "source": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/evidence/choreo-install.txt",
+      "retained": "builder-evidence/choreo-install.txt",
+      "bytes": 138,
+      "sha256": "4e6092d26abefb88b29cd6374a2ecc4b8699e16d2aeb2c22b869c4772098bc01"
+    },
+    {
+      "kind": "builder-evidence-at-terminal",
+      "source": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/evidence/m1-acceptance3.txt",
+      "retained": "builder-evidence/m1-acceptance3.txt",
+      "bytes": 681,
+      "sha256": "942712c04b8226604aa3fffe507e63f81ca7a12ff7c13230a2d1221a25874845"
+    },
+    {
+      "kind": "builder-evidence-at-terminal",
+      "source": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/evidence/m3-types2.txt",
+      "retained": "builder-evidence/m3-types2.txt",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "kind": "builder-evidence-at-terminal",
+      "source": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/evidence/m4-types2.txt",
+      "retained": "builder-evidence/m4-types2.txt",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "kind": "builder-evidence-at-terminal",
+      "source": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/evidence/m1-ios-final.txt",
+      "retained": "builder-evidence/m1-ios-final.txt",
+      "bytes": 1489,
+      "sha256": "d5d0e7e643aa46e7f81d45e80ddaf90340f227d518ddeb7d2f99d402d0e113d4"
+    },
+    {
+      "kind": "builder-evidence-at-terminal",
+      "source": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/evidence/static-server-resume.log",
+      "retained": "builder-evidence/static-server-resume.log",
+      "bytes": 31,
+      "sha256": "bae47dd63977b258805a89ca1d3eeddc09ad5c1db954c44d83520bcfcb3ab6f0"
+    },
+    {
+      "kind": "builder-evidence-at-terminal",
+      "source": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/evidence/m2-web-export5.txt",
+      "retained": "builder-evidence/m2-web-export5.txt",
+      "bytes": 2294,
+      "sha256": "b422fef4af51231bbb26031f97762cf0358287576eb5c3e8d132217cc7860cb1"
+    },
+    {
+      "kind": "builder-evidence-at-terminal",
+      "source": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/evidence/m4-choreography-original-1788740721462.jsonl",
+      "retained": "builder-evidence/m4-choreography-original-1788740721462.jsonl",
+      "bytes": 1310,
+      "sha256": "398a2558562becb76efa7bccf7d76f146cc834b3ff04575777bde5a2915cecae"
+    },
+    {
+      "kind": "builder-evidence-at-terminal",
+      "source": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/evidence/m2-seed2.txt",
+      "retained": "builder-evidence/m2-seed2.txt",
+      "bytes": 91,
+      "sha256": "4c40a99a55313ecc795d275bd477f35e2d7b2c5532aeadca2d461a5dd2def7c0"
+    },
+    {
+      "kind": "builder-evidence-at-terminal",
+      "source": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/evidence/m3-erin-client.json",
+      "retained": "builder-evidence/m3-erin-client.json",
+      "bytes": 300,
+      "sha256": "8708bd54b76be7b60489697f7d32b56f1d87aaaaadc5344510c1382c165ec20a"
+    },
+    {
+      "kind": "builder-evidence-at-terminal",
+      "source": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/evidence/test-help.txt",
+      "retained": "builder-evidence/test-help.txt",
+      "bytes": 169,
+      "sha256": "790d3bdc8e9d829ac1cbb897b69aa05859a0e786ad781187a8ee79c7b9ecab4e"
+    },
+    {
+      "kind": "builder-evidence-at-terminal",
+      "source": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/evidence/m2-choreo1.txt",
+      "retained": "builder-evidence/m2-choreo1.txt",
+      "bytes": 5676,
+      "sha256": "f519011fdc921c5f1716abe0cee3095e866494c34ea6d8bf2f3911b4d0536021"
+    },
+    {
+      "kind": "builder-evidence-at-terminal",
+      "source": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/evidence/m2-check1.txt",
+      "retained": "builder-evidence/m2-check1.txt",
+      "bytes": 1328,
+      "sha256": "74875b4acb055c999601d706d73895b114bf455abb278d871bc8f902454a48dc"
+    },
+    {
+      "kind": "builder-evidence-at-terminal",
+      "source": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/evidence/m2-web-export4.txt",
+      "retained": "builder-evidence/m2-web-export4.txt",
+      "bytes": 1960,
+      "sha256": "c9cf020c4be0b409864be0a4db4a407fc99e55c53a2658e1b542d22cfbed3e15"
+    },
+    {
+      "kind": "builder-evidence-at-terminal",
+      "source": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/evidence/m3-coverage.json",
+      "retained": "builder-evidence/m3-coverage.json",
+      "bytes": 555,
+      "sha256": "822465242153047bcef45e1fb64429ca5c301d8eea1a2a878ccef954843e0a54"
+    },
+    {
+      "kind": "builder-evidence-at-terminal",
+      "source": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/evidence/m4-types1.txt",
+      "retained": "builder-evidence/m4-types1.txt",
+      "bytes": 80,
+      "sha256": "ea7dd1f10673459b681c014fe08918bfee9a624f75fdaae86c1c24d4b81a2708"
+    },
+    {
+      "kind": "builder-evidence-at-terminal",
+      "source": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/evidence/m1-summary.json",
+      "retained": "builder-evidence/m1-summary.json",
+      "bytes": 2711,
+      "sha256": "67df5c13dc38d32a6ca288ab86f0e868845149734e7ba51628a74c0b7f7f29d9"
+    },
+    {
+      "kind": "builder-evidence-at-terminal",
+      "source": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/evidence/m2-check3.txt",
+      "retained": "builder-evidence/m2-check3.txt",
+      "bytes": 1377,
+      "sha256": "42c99b28ac0bf9b399ddf28145d6ce526f3e48eeb54bfd3a20011c22deaf20a8"
+    },
+    {
+      "kind": "builder-evidence-at-terminal",
+      "source": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/evidence/m1-seed.txt",
+      "retained": "builder-evidence/m1-seed.txt",
+      "bytes": 91,
+      "sha256": "b20f39e17c0d8dbbe05eb4857f6637362afc87c7b1672c3ef26160619f3bd0e7"
+    },
+    {
+      "kind": "builder-evidence-at-terminal",
+      "source": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/evidence/guide-auth.txt",
+      "retained": "builder-evidence/guide-auth.txt",
+      "bytes": 4081,
+      "sha256": "09c5a8a82e9da8d48a288731811c3f1854a6e991910399b7ecab5fc860bf45d2"
+    },
+    {
+      "kind": "builder-evidence-at-terminal",
+      "source": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/evidence/m1-choreo-run3.txt",
+      "retained": "builder-evidence/m1-choreo-run3.txt",
+      "bytes": 659,
+      "sha256": "57ebb5d852d07a1007497aff43a74fd6acecc9d78c37eb0d85fcae9749b34bef"
+    },
+    {
+      "kind": "builder-evidence-at-terminal",
+      "source": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/evidence/m3-choreography-original-1788739892924.jsonl.observations.jsonl",
+      "retained": "builder-evidence/m3-choreography-original-1788739892924.jsonl.observations.jsonl",
+      "bytes": 3935,
+      "sha256": "7046361e5123dd3e460a29c53d0d0c9fc99bed8f35edddeabc1672adf1d0ac21"
+    },
+    {
+      "kind": "builder-evidence-at-terminal",
+      "source": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/evidence/m1-choreo-run2.txt",
+      "retained": "builder-evidence/m1-choreo-run2.txt",
+      "bytes": 1318,
+      "sha256": "f488c00cc366061f20de387ef3cbaacd746ef1d75ed565abbb5b7cd6efa1ef0a"
+    },
+    {
+      "kind": "builder-evidence-at-terminal",
+      "source": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/evidence/m3-suite.json",
+      "retained": "builder-evidence/m3-suite.json",
+      "bytes": 178,
+      "sha256": "81ddd49e23e922f7cc0c77af5a5cc3bef336eb2642f74613ff953f59bc340724"
+    },
+    {
+      "kind": "builder-evidence-at-terminal",
+      "source": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/evidence/seed-state.json",
+      "retained": "builder-evidence/seed-state.json",
+      "bytes": 518,
+      "sha256": "7cfb4a1d1943a1bac910dd8d254acd413fe5942cbd585b87b669eb62e772dd9d"
+    },
+    {
+      "kind": "builder-evidence-at-terminal",
+      "source": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/evidence/m2-choreo2.txt",
+      "retained": "builder-evidence/m2-choreo2.txt",
+      "bytes": 308,
+      "sha256": "b0bb66a662de32485f58367175b7c4a04369374940f647d9516571530378b2b4"
+    },
+    {
+      "kind": "builder-evidence-at-terminal",
+      "source": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/evidence/m2-check2.txt",
+      "retained": "builder-evidence/m2-check2.txt",
+      "bytes": 1328,
+      "sha256": "74875b4acb055c999601d706d73895b114bf455abb278d871bc8f902454a48dc"
+    },
+    {
+      "kind": "builder-evidence-at-terminal",
+      "source": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/evidence/m1-choreo-startup2.txt",
+      "retained": "builder-evidence/m1-choreo-startup2.txt",
+      "bytes": 1205,
+      "sha256": "eabb8f8a6b82ddfe42d11b9d951f55dd015b4ce09c5b3eb47910238039abcbba"
+    },
+    {
+      "kind": "builder-evidence-at-terminal",
+      "source": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/evidence/guide-init.txt",
+      "retained": "builder-evidence/guide-init.txt",
+      "bytes": 466,
+      "sha256": "744288741fe8535750a538e0f4d066637de338e8ae22c26cc58478fb290b2cac"
+    },
+    {
+      "kind": "builder-evidence-at-terminal",
+      "source": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/evidence/m2-web-export3.txt",
+      "retained": "builder-evidence/m2-web-export3.txt",
+      "bytes": 1896,
+      "sha256": "aa96f187093804b61b4d4eb6aaebe89732c9f54f7e8ed5473ce32d6db5cfc2d0"
+    },
+    {
+      "kind": "builder-evidence-at-terminal",
+      "source": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/evidence/guide-quarry.txt",
+      "retained": "builder-evidence/guide-quarry.txt",
+      "bytes": 15863,
+      "sha256": "97670544ffa897b81a6935fc5bec8580492ac19517f43f5ccd87c1c7c48b8961"
+    },
+    {
+      "kind": "builder-evidence-at-terminal",
+      "source": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/evidence/m2-check6.txt",
+      "retained": "builder-evidence/m2-check6.txt",
+      "bytes": 19,
+      "sha256": "380054b57fa9e855409de75a6bbd25ebd300ea9e71daad853b2db11ca808ae1d"
+    },
+    {
+      "kind": "builder-evidence-at-terminal",
+      "source": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/evidence/m1-check.txt",
+      "retained": "builder-evidence/m1-check.txt",
+      "bytes": 18,
+      "sha256": "eacf66606f2f21a5b858ffb69f95faac6ac3d2bc048ee8f0a64624bae5b0a4b8"
+    },
+    {
+      "kind": "builder-evidence-at-terminal",
+      "source": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/evidence/m4-coverage.json",
+      "retained": "builder-evidence/m4-coverage.json",
+      "bytes": 397,
+      "sha256": "eb9167ae71703b44168b44479269054b3b7d63647861fe70920718e9905be47b"
+    },
+    {
+      "kind": "builder-evidence-at-terminal",
+      "source": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/evidence/web-server.log",
+      "retained": "builder-evidence/web-server.log",
+      "bytes": 554,
+      "sha256": "3ca858f91dfa5dbb231b932881774b87bd0296fb1b87908285cdf647c660cea7"
+    },
+    {
+      "kind": "builder-evidence-at-terminal",
+      "source": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/evidence/expo-align.txt",
+      "retained": "builder-evidence/expo-align.txt",
+      "bytes": 749,
+      "sha256": "5c35a023d3689cc01e0a78e1684884ec8b41e692fbc26f31a36095a6d67fbb12"
+    },
+    {
+      "kind": "builder-evidence-at-terminal",
+      "source": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/evidence/check-1788740316348.txt",
+      "retained": "builder-evidence/check-1788740316348.txt",
+      "bytes": 322,
+      "sha256": "f00db7041e16a32149f33412db89380cbc552f56670d14991259692363d84a5e"
+    },
+    {
+      "kind": "builder-evidence-at-terminal",
+      "source": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/evidence/m1-ios-export.txt",
+      "retained": "builder-evidence/m1-ios-export.txt",
+      "bytes": 1890,
+      "sha256": "895e65e717809dd8c57f5c7942e180e020c40f0ddfc86b1f073e8a4d8945b30e"
+    },
+    {
+      "kind": "builder-evidence-at-terminal",
+      "source": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/evidence/m4-suite1.txt",
+      "retained": "builder-evidence/m4-suite1.txt",
+      "bytes": 528,
+      "sha256": "f4f2279c2daef3d17a6372a3ea791f6cbc54cefcf8fd658476211283ebf9f73a"
+    },
+    {
+      "kind": "builder-evidence-at-terminal",
+      "source": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/evidence/m4-windows1.txt",
+      "retained": "builder-evidence/m4-windows1.txt",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "kind": "builder-evidence-at-terminal",
+      "source": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/evidence/m1-web-export.txt",
+      "retained": "builder-evidence/m1-web-export.txt",
+      "bytes": 3419,
+      "sha256": "4bf70a55b54ea5bf5c9da407df32b12898126d55e8622e5e12252fa0a3c50a7c"
+    },
+    {
+      "kind": "builder-evidence-at-terminal",
+      "source": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/evidence/m2-web-export2.txt",
+      "retained": "builder-evidence/m2-web-export2.txt",
+      "bytes": 1793,
+      "sha256": "b587436ed6ca2e26f3d2ce7d620375e12942f5fb0ede73af180b80a01185ca19"
+    },
+    {
+      "kind": "builder-evidence-at-terminal",
+      "source": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/evidence/m3-1788740027786-previous-suite-status.json",
+      "retained": "builder-evidence/m3-1788740027786-previous-suite-status.json",
+      "bytes": 66,
+      "sha256": "c9c9fd6db1547f698a1943e9c5be210503e5cdb6866b0c0465e19f7308bfde84"
+    },
+    {
+      "kind": "builder-evidence-at-terminal",
+      "source": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/evidence/m4-window-live.json",
+      "retained": "builder-evidence/m4-window-live.json",
+      "bytes": 131,
+      "sha256": "c1fe5d86cf439ed147d708ab33828c7fc0ffdcd9accc1c4df9e80d4ff4805454"
+    },
+    {
+      "kind": "builder-evidence-at-terminal",
+      "source": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/evidence/m2-ios-final.txt",
+      "retained": "builder-evidence/m2-ios-final.txt",
+      "bytes": 1655,
+      "sha256": "8795b4da6f1d2743a127383807da53f12144e1dd59e2b7f0c5d2e1c9c18e0a6d"
+    },
+    {
+      "kind": "builder-evidence-at-terminal",
+      "source": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/evidence/m2-check5.txt",
+      "retained": "builder-evidence/m2-check5.txt",
+      "bytes": 1829,
+      "sha256": "8149326d0dd492ae8626c524213d138b047907415b1b4e26953cf003222689a6"
+    },
+    {
+      "kind": "builder-evidence-at-terminal",
+      "source": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/evidence/m2-original-summary.json",
+      "retained": "builder-evidence/m2-original-summary.json",
+      "bytes": 2713,
+      "sha256": "fdd7f8db788b0495309aec297f9ccadd50e9ef4318b36b16f8e7164b1f5a3450"
+    },
+    {
+      "kind": "builder-evidence-at-terminal",
+      "source": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/evidence/m1-choreo-run4.txt",
+      "retained": "builder-evidence/m1-choreo-run4.txt",
+      "bytes": 639,
+      "sha256": "5d7481d692d88c6e2d8b7a8c71dc9c5a3e8f2b5a0511aef0d87dc834cc956b29"
+    },
+    {
+      "kind": "builder-evidence-at-terminal",
+      "source": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/evidence/m2-check4.txt",
+      "retained": "builder-evidence/m2-check4.txt",
+      "bytes": 1377,
+      "sha256": "42c99b28ac0bf9b399ddf28145d6ce526f3e48eeb54bfd3a20011c22deaf20a8"
+    },
+    {
+      "kind": "builder-evidence-at-terminal",
+      "source": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/evidence/m4-suite2.txt",
+      "retained": "builder-evidence/m4-suite2.txt",
+      "bytes": 203,
+      "sha256": "24ab0e045009f2702090f21da023ee6f6fd19ac8c39a9a8aa8e250ab8fd52075"
+    },
+    {
+      "kind": "builder-evidence-at-terminal",
+      "source": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/evidence/m1-original-choreo1.txt",
+      "retained": "builder-evidence/m1-original-choreo1.txt",
+      "bytes": 308,
+      "sha256": "ed83b0c5eac60936342213e32036ca2a7740814e8a96f494ab02e1d37d65ac5f"
+    }
+  ],
+  "excluded": "Live .snapback database/control secrets, dependencies, caches, and immutable instrument copies excluded; no inconsistent live DB snapshot. Export artifacts retained in place and hash-inventoried."
+}

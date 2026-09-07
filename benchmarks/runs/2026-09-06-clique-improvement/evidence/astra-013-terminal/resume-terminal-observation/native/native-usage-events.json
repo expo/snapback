@@ -1,0 +1,6 @@
+{
+  "source": "exact native events from resumed process only",
+  "events": [],
+  "totals": null,
+  "reason": "Do not add process summaries to same-UUID cumulative rollout totals"
+}

@@ -1,0 +1,135 @@
+{
+  "at": "2026-09-06T23:59:59.243504+00:00",
+  "scope": "read-only preservation of builder-generated completed M1; not independent outcome grading",
+  "firstOriginalValidatorGreenAt": "2026-09-06T23:54:34.805Z",
+  "m1Start": 1788737520,
+  "m1Deadline": 1788751920,
+  "elapsedOriginalSeconds": 1354.805,
+  "m2OriginalStart": 1788738309,
+  "m2Deadline": 1788752709,
+  "manifest": [
+    {
+      "source": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/evidence/m1-original-summary.json",
+      "retained": "evidence/m1-original-summary.json",
+      "bytes": 2710,
+      "sha256": "74260ff64353b66bef501e801360161d1055a1e02411d001e8df719739491070"
+    },
+    {
+      "source": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/evidence/m1-choreography-original.jsonl",
+      "retained": "evidence/m1-choreography-original.jsonl",
+      "bytes": 4130,
+      "sha256": "cbd74cafd822f577033b65703956c1866c4ec8f8d4fb474754b6e806efa78dc6"
+    },
+    {
+      "source": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/evidence/m1-choreography-original.jsonl.observations.jsonl",
+      "retained": "evidence/m1-choreography-original.jsonl.observations.jsonl",
+      "bytes": 1647,
+      "sha256": "5911d81e3cf38d74a41a378c1ce63bda4360d9d11e3cbc44349ced6de39ad4a1"
+    },
+    {
+      "source": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/evidence/m1-original-choreo1.txt",
+      "retained": "evidence/m1-original-choreo1.txt",
+      "bytes": 308,
+      "sha256": "ed83b0c5eac60936342213e32036ca2a7740814e8a96f494ab02e1d37d65ac5f"
+    },
+    {
+      "source": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/evidence/m1-original-acceptance1.txt",
+      "retained": "evidence/m1-original-acceptance1.txt",
+      "bytes": 262,
+      "sha256": "5a989a59080ae256f9b546d1981f4ce7894b3cfe40fdfcc56c593decfb131f1e"
+    },
+    {
+      "source": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/evidence/m1-suite.json",
+      "retained": "evidence/m1-suite.json",
+      "bytes": 179,
+      "sha256": "8667763f063801f74e3ad8745247c9da80a2e601ce0772d9bbda63410c348dd3"
+    },
+    {
+      "source": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/evidence/m1-suite-status.json",
+      "retained": "evidence/m1-suite-status.json",
+      "bytes": 66,
+      "sha256": "f80b5d6d358a9c0fb1661910e3b06cc8f0761c0d22063b8496f79cdf79f607bf"
+    },
+    {
+      "source": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/evidence/validator-repair-provenance.json",
+      "retained": "evidence/validator-repair-provenance.json",
+      "bytes": 939,
+      "sha256": "67d7fc305aa66c8cac9b4b24065ae4fdd503bc927c2003f3d62813ce70ca0b18"
+    },
+    {
+      "source": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/evidence/pre-validator-repair/choreo.mjs",
+      "retained": "evidence/pre-validator-repair/choreo.mjs",
+      "bytes": 849,
+      "sha256": "9a7d370fa245c2e303bec83d784cc54cb1c0758ce5cb08b6670765774f297dd5"
+    },
+    {
+      "source": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/scripts/choreo.mjs",
+      "retained": "scripts/choreo.mjs",
+      "bytes": 882,
+      "sha256": "eaee62f9cc3ca03e58c2b2c8c78c02a7223eebd32b4eb2804eaa2b73b2daab86"
+    },
+    {
+      "source": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/scripts/harness-loader.mjs",
+      "retained": "scripts/harness-loader.mjs",
+      "bytes": 261,
+      "sha256": "80775a29ba20b29cef5819f132571adeeec519131cb8dc95af864709d9273da6"
+    },
+    {
+      "source": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/scripts/schema-validator.mjs",
+      "retained": "scripts/schema-validator.mjs",
+      "bytes": 368,
+      "sha256": "1ae864cab274eda3c7c00f5c80eb1f38bf20dfe259f6078fb4894a00aa79751d"
+    },
+    {
+      "source": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/setup-identity.json",
+      "retained": "setup-identity.json",
+      "bytes": 1206,
+      "sha256": "ac10701ede640c065009f57da148ff1a7317f99061d51a15b4444955bb006e07"
+    },
+    {
+      "source": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/run-log.md",
+      "retained": "run-log.md",
+      "bytes": 5333,
+      "sha256": "6534e495e0f05661143ed8f8660cfab162c44fd15cf321d299b4fa1a5bf46b83"
+    }
+  ],
+  "frozenSourceChecks": [
+    {
+      "source": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/choreography/choreography.mjs",
+      "gitCommit": "f40559f37722c79178be664a11f8a6485f1508fd",
+      "gitPath": "benchmarks/tools/social-messenger/choreography/choreography.mjs",
+      "sha256": "8caf5ebdc9a85a2757fe5109740184bdac37977ac98d0a583f16f9dea383177f",
+      "frozenSha256": "8caf5ebdc9a85a2757fe5109740184bdac37977ac98d0a583f16f9dea383177f",
+      "equal": true
+    },
+    {
+      "source": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/choreography/setup-identity.mjs",
+      "gitCommit": "f40559f37722c79178be664a11f8a6485f1508fd",
+      "gitPath": "benchmarks/tools/social-messenger/choreography/setup-identity.mjs",
+      "sha256": "0c0b4fe28c3c519ac3e58f7a6a2f2af8967ee505b8770b1a5413f5a0cd896fe8",
+      "frozenSha256": "0c0b4fe28c3c519ac3e58f7a6a2f2af8967ee505b8770b1a5413f5a0cd896fe8",
+      "equal": true
+    },
+    {
+      "source": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/lib/json-schema.mjs",
+      "gitCommit": "f40559f37722c79178be664a11f8a6485f1508fd",
+      "gitPath": "benchmarks/tools/lib/json-schema.mjs",
+      "sha256": "7b882f6147e6efde88bc41f4dbc6806e712fb54c2e1b47a214a5d59e96f02660",
+      "frozenSha256": "7b882f6147e6efde88bc41f4dbc6806e712fb54c2e1b47a214a5d59e96f02660",
+      "equal": true
+    }
+  ],
+  "execution": {
+    "completedNativeItem": "item_5",
+    "exitCode": 0,
+    "command": "npm run acceptance -- --milestone m1; node scripts/choreo.mjs m1",
+    "wrapperHasLoaderFlag": false,
+    "retainedAjvFilesAreNotImportedByCurrentWrapper": true,
+    "evidenceLimit": "Source and completed command establish direct original-helper resolution; no dynamic module-load trace was collected."
+  },
+  "oldFailureReceiptsRetained": true,
+  "builderActions": 0,
+  "reruns": 0,
+  "supervisorReadFailureRetained": "Prior read attempted ready/metadata.json instead of resume-metadata.json; FileNotFoundError, no mutation or child run.",
+  "launchScrubsNodeOptions": true
+}

@@ -1,0 +1,73 @@
+{
+  "at": "2026-09-07T00:18:53.707055+00:00",
+  "scope": "builder-generated supplemental M3 completion with added real Erin client; not standalone frozen-only success or independent grading",
+  "firstSupplementalGreenAt": "2026-09-07T00:14:58.617Z",
+  "m3OriginalStart": 1788739373,
+  "m3OriginalDeadline": 1788753773,
+  "m4Start": 1788740150,
+  "m4Deadline": 1788754550,
+  "addedActorPid": 15952,
+  "standaloneResult": "failed, application, choreography-failed; group and DM transitions failed their original waits",
+  "builderSkipLabel": "retained as attribution only, not built-in emitter skip",
+  "manifest": [
+    {
+      "source": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/evidence/m3-original-summary.json",
+      "retained": "evidence/m3-original-summary.json",
+      "bytes": 2757,
+      "sha256": "bde256fb591299abfc0f10b3e9f52c5eed0ee285e269a58c041f015fb62ae92d"
+    },
+    {
+      "source": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/evidence/m3-suite.json",
+      "retained": "evidence/m3-suite.json",
+      "bytes": 178,
+      "sha256": "81ddd49e23e922f7cc0c77af5a5cc3bef336eb2642f74613ff953f59bc340724"
+    },
+    {
+      "source": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/evidence/m3-suite-status.json",
+      "retained": "evidence/m3-suite-status.json",
+      "bytes": 66,
+      "sha256": "c9c9fd6db1547f698a1943e9c5be210503e5cdb6866b0c0465e19f7308bfde84"
+    },
+    {
+      "source": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/evidence/m3-choreography-original-1788740052445.jsonl",
+      "retained": "evidence/m3-choreography-original-1788740052445.jsonl",
+      "bytes": 7870,
+      "sha256": "47b90df64f7c1aa7aa98439b328299b2ad6eec2800d9a76e0c435bfe5d872e86"
+    },
+    {
+      "source": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/evidence/m3-choreography-original-1788740052445.jsonl.observations.jsonl",
+      "retained": "evidence/m3-choreography-original-1788740052445.jsonl.observations.jsonl",
+      "bytes": 3941,
+      "sha256": "4c0d7291ad6170cdc1adc371fe02ae5a1696d75ccdff765c833192a3d83000a8"
+    },
+    {
+      "source": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/evidence/m3-choreo2.txt",
+      "retained": "evidence/m3-choreo2.txt",
+      "bytes": 308,
+      "sha256": "4f85b0e7afa3e131ebdc5a07bd4692aec3c08084ea2c2f59942f9074570f107f"
+    },
+    {
+      "source": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/evidence/m3-erin-client.json",
+      "retained": "evidence/m3-erin-client.json",
+      "bytes": 300,
+      "sha256": "8708bd54b76be7b60489697f7d32b56f1d87aaaaadc5344510c1382c165ec20a"
+    },
+    {
+      "source": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/evidence/m3-erin-client-ended.json",
+      "missingAtCapture": true
+    },
+    {
+      "source": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/evidence/m3-instrument-skip.json",
+      "retained": "evidence/m3-instrument-skip.json",
+      "bytes": 765,
+      "sha256": "08f47250610ba81301455a832ed57f3b33286bf8ce0a229d34070b53964d9d95"
+    },
+    {
+      "source": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/run-log.md",
+      "retained": "run-log.md",
+      "bytes": 8054,
+      "sha256": "830d519309b775dbd8e1356b91a74de7b56fd5c85f6cde512f3123204f7a33b5"
+    }
+  ],
+  "supervisorActions": 0
+}

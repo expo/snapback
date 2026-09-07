@@ -1,0 +1,9 @@
+# Cold 0.0.13 benchmark terminal record
+
+The actual same-UUID Astra medium CLI exited 1 at 2026-09-07T00:25:43.719Z during M4. Root read its terminal, exact final CLI error/turn.failed and complete supervisor report. The provider explicitly blocked the request as “Potentially unintended activity”; separate rollout-recording errors do not replace that cause. No retry, resume, rephrase or model switch was performed or authorized.
+
+M1's corrected original-validator run and M2 passed their recorded suites and choreography. Earlier substitute-validator M1 evidence remains source-deviant. The first failed M2 raw JSONL was overwritten; its bounded diagnostic survives, but complete failure history is not claimed. M3's original frozen run failed both DM transitions and group receipts. A concrete fixture/harness pairing leaves seeded Erin unopened despite the all-recipient rule; that does not explain the DM failure. The later actual Erin-client pass is supplemental. M4 remains incomplete. No final holistic score, native-device qualification or goal completion follows.
+
+This compact record includes the complete handoff, exact terminal and meter refusal, copied-source/native inventory, export inventory, process observations and milestone receipts. Full 308-leaf source/evidence/native custody (7,872,839 bytes) remains at /Users/ccheever/clique-improvement/revisions/astra013-supervision/resume-terminal-observation. Its manifest and the separately inventoried 234 export leaves are custody records, not independent grading. Live database/control secrets and dependencies were excluded. Backend 90947 and its compiler child remained observed; no live database copy or cleanup success is claimed.
+
+Original clocks, failures and source identities stay intact. Usage totals remain null because cumulative native identity/usage cannot be reconciled unambiguously. Competitor baselines remain unchanged. Independent compiler/offline repair tasks continue separately.

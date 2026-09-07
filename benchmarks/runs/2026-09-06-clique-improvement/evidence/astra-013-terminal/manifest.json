@@ -1,0 +1,66 @@
+{
+  "README.md": {
+    "bytes": 1974,
+    "sha256": "f258155a2aed7349cc11ff68ba2eb6be3ea5e59bcc8df153c2427442eea79ebb"
+  },
+  "m1-original-completion/receipt.json": {
+    "bytes": 6645,
+    "sha256": "a4adefefbe0933c7c69b866aaaaa74315d500375968afd56dce6f41c92bbcb87"
+  },
+  "m2-original-completion/receipt.json": {
+    "bytes": 2978,
+    "sha256": "b56992ad88afde9bd1de0b81dd8c761faa10891c5a50e51df6670ae467829aeb"
+  },
+  "m3-first-outcome/report.md": {
+    "bytes": 2841,
+    "sha256": "f4fe045c469bdcb4b36a06cfc4575ca4efdb952091187d07fd181c4af2208a4b"
+  },
+  "m3-first-outcome/source-binding.json": {
+    "bytes": 1241,
+    "sha256": "63bc5ba66d520464242f2b33073a3c733d54019a18db8d54f83f25c246cc8331"
+  },
+  "m3-supplemental-completion/actor-observation.json": {
+    "bytes": 223,
+    "sha256": "959e0fa6177cb88e9f731dcd90a07675c4470f8aefc111e4ac2d7c7f6b56cb73"
+  },
+  "m3-supplemental-completion/receipt.json": {
+    "bytes": 3553,
+    "sha256": "8a48069ea02a63198a562b09a4ebb7706ad11cc1cb79a933cccfa97bd01d6465"
+  },
+  "resume-terminal-observation/artifact-inventory.json": {
+    "bytes": 65622,
+    "sha256": "ee6c6d7cc6f0d22682557085f2ad016d4e348d90f47c3946911451a378458ab0"
+  },
+  "resume-terminal-observation/initial-processes.json": {
+    "bytes": 1086,
+    "sha256": "6d9f02517246f568f87247a1d016f7f31f5cdee56ea80c46f4b7d1ef75c8462f"
+  },
+  "resume-terminal-observation/manifest.json": {
+    "bytes": 103142,
+    "sha256": "3bfaadfb253978432e9eb7a3fb39b60bb14f19934cc6c255c5768a2b17c6346b"
+  },
+  "resume-terminal-observation/native/native-meter-unavailable.json": {
+    "bytes": 144,
+    "sha256": "d7880d9b1487ab58d00855ce909406fcc1e330897fd9a64f46287f561dc13c51"
+  },
+  "resume-terminal-observation/native/native-usage-events.json": {
+    "bytes": 181,
+    "sha256": "112ad9b1a5b51633eb243e83c61b0270b3f28dfd7680dfb211748b87a7f1caf0"
+  },
+  "resume-terminal-observation/native/stderr.log": {
+    "bytes": 423,
+    "sha256": "89dde7b51e58617cde1009838daa6ad0f6f25a41d73d5d0b66c4420243a7cbbe"
+  },
+  "resume-terminal-observation/native/terminal.json": {
+    "bytes": 471,
+    "sha256": "84d6df5b611d6146eceac8892fc8e46f59bbb534b7b9799f227121e1739c177c"
+  },
+  "resume-terminal-observation/owned-directory-processes.json": {
+    "bytes": 514,
+    "sha256": "220632ccc9eb7619f7f06bdf537fb5dcd9c4fce4f5cc924b5fcc1cb8c4c7791b"
+  },
+  "resume-terminal-observation/report.md": {
+    "bytes": 4642,
+    "sha256": "3c888f909e910d16a4a7b5aea6a4f4fa30bdf25b70d37ee721932c589f5830df"
+  }
+}

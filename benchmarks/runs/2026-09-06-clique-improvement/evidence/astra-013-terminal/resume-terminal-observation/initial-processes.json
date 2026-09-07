@@ -1,0 +1,36 @@
+{
+  "observedAt": "2026-09-07T00:26:52.854499+00:00",
+  "recordedProcessChecks": [
+    {
+      "recordedPid": 2479,
+      "exitCode": 1,
+      "process": ""
+    },
+    {
+      "recordedPid": 2465,
+      "exitCode": 1,
+      "process": ""
+    },
+    {
+      "recordedPid": 2864,
+      "exitCode": 1,
+      "process": ""
+    },
+    {
+      "recordedPid": 90947,
+      "exitCode": 0,
+      "process": "90947     1 Sun Sep  6 16:35:00 2026     /Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/node_modules/snapback2-darwin-arm64/bin/snapback2 dev --project /Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2 --foreground --owner-child --json --port 52300\n"
+    },
+    {
+      "recordedPid": 15952,
+      "exitCode": 1,
+      "process": ""
+    }
+  ],
+  "ownedPortListenerInspection": {
+    "exitCode": 0,
+    "stdout": "COMMAND     PID     USER   FD   TYPE             DEVICE SIZE/OFF NODE NAME\nsnapback2 90947 ccheever    7u  IPv4 0x2c1ea1a0cb5d463d      0t0  TCP 127.0.0.1:52300 (LISTEN)\n",
+    "stderr": ""
+  },
+  "actions": 0
+}

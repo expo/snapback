@@ -914,3 +914,10 @@ This is Snapback documentation friction rather than a new native capability. Key
 The full review went back before the first R8 change instead of assuming that intermediate implementation was already reviewed. Astra reproduced two inherited standalone defects: externally frozen wrappers still allow nested caller mutation, and malformed receipt boundaries can destroy prior authority before refusing. Grok found a separate public offline projection path that bypasses the online denied/partial field filters. Both complete reviews require changes.
 
 The next repair covers these entrypoints together, after resident harness preparation releases the same writer. This is additional correctness work, not resource progress: 72,555 gzip bytes remains over budget, original movement deadlines remain failed, and realistic paginated resident measurement is pending. [Reviews and exact limits](../benchmarks/runs/2026-09-06-clique-improvement/evidence/offline-full-r8-review/README.md). Existing competitor baselines remain fixed.
+
+
+### 2026-09-06 — Cold run stops during M4 at a provider block
+
+The corrected original-validator M1 and M2 runs passed, but M3 exposed an attribution problem: the seeded group includes Erin while the frozen receipt scenario never opens her client. The original emitted failure remains intact, including a separate DM transition failure. A later real Erin client allowed a supplemental pass; it does not replace the standalone result.
+
+During M4 the provider explicitly blocked the builder request. No retry or model switch was attempted. The authored work, export inventory, actual native terminal and surviving backend ownership are preserved; incomplete choreography and ambiguous cumulative metering remain unqualified. This stop is not scored as a Snapback product failure or a benchmark win. [Terminal and milestone evidence](../benchmarks/runs/2026-09-06-clique-improvement/evidence/astra-013-terminal/README.md). Independent repairs continue with the original competitor baselines.

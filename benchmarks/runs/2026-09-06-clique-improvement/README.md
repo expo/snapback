@@ -5,7 +5,15 @@ and Supabase for each requested builder: Astra medium, Grok 4.6 xhigh, and
 Muse 1.3 ultra. **Not achieved.** Retain the full canonical Clique scope,
 including independent grading and the fresh-session M7 evolution phase.
 
-## Current checkpoint — 2026-09-06, 23:56Z
+## Current checkpoint — 2026-09-07, 00:33Z
+
+The cold published 0.0.13 Astra medium run ended during M4 with an explicit provider safety block, actual exit 1 at 00:25:43.719Z. It will not be retried through a different model or wording. Corrected original-validator M1 and M2 passed; standalone M3 failed, while its later added-Erin pass remains supplemental. M4 is incomplete and cumulative token totals remain unavailable. [Complete terminal disposition and custody](evidence/astra-013-terminal/README.md).
+
+The Expo startup guide correction is pushed at c0290a936 but is not yet published. The full offline review record and three remaining defects are pushed at 8f96c6b1c; both fresh reviewers require changes. The 72,555-byte gzip result and original movement deadlines remain failed. Resident harness preparation is still separate from an authorized population run. The compiler's three remaining effectful fallbacks now pass the unchanged native checker on an early candidate; execution controls and final reviews remain pending.
+
+Original competitor baselines stay fixed. No new holistic score or requested three-family win is established; Muse ultra and the offline M5 peer remain unavailable.
+
+## Historical checkpoint — 2026-09-06, 23:56Z
 
 The original frozen validator missing from the cold packet has been restored.
 The same Astra medium session resumed after an owned interruption, with M1/M2

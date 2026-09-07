@@ -1,0 +1,15 @@
+{
+  "pid": 2479,
+  "exitCode": 1,
+  "endedEpoch": 1788740743.718732,
+  "elapsedSeconds": 1933.5735890865326,
+  "threadEvents": [
+    {
+      "type": "thread.started",
+      "thread_id": "01a07910-1413-7ee0-846b-2ad93b1924ea"
+    }
+  ],
+  "expectedSameUuid": "01a07910-1413-7ee0-846b-2ad93b1924ea",
+  "stdoutSha256": "5b1c3b15ccf545341653b5e95792d629471f72bc6d459925f1d8e8bc77451325",
+  "stderrSha256": "89dde7b51e58617cde1009838daa6ad0f6f25a41d73d5d0b66c4420243a7cbbe"
+}
