@@ -59,13 +59,14 @@ fn revocation_candidate_requires_an_explicit_membership_guard() {
     assert!(!query_isolates_protected_table(
         &program, &reads, &recipe, "messages"
     ));
-    program.body.insert(
-        0,
-        Stmt::Require {
-            condition: Expr::Exists(membership),
-            code: "MEMBERSHIP_REQUIRED".to_owned(),
-        },
-    );
+    program.body.insert(0, Stmt::Const {
+        name: "expandedHelper".to_owned(),
+        value: Expr::Exists(membership),
+    });
+    program.body.insert(1, Stmt::Require {
+        condition: Expr::Variable("expandedHelper".to_owned()),
+        code: "MEMBERSHIP_REQUIRED".to_owned(),
+    });
     assert!(query_isolates_protected_table(
         &program, &reads, &recipe, "messages"
     ));
