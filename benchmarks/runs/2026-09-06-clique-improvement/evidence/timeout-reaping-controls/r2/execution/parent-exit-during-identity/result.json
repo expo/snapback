@@ -1,0 +1,28 @@
+{
+  "case": "parent-exit-during-identity",
+  "ok": true,
+  "startedEpoch": 1788819108.618002,
+  "helper": "parent-helper.py",
+  "scope": "controlled measurement regression; never an install or017 qualification",
+  "parentOmittedReceiptReproduced": true,
+  "ownedChildActuallyReaped": true,
+  "ownedGroupAbsent": true,
+  "executeError": {
+    "type": "RuntimeError",
+    "message": "process identity unavailable/changed"
+  },
+  "instrumentation": {
+    "identityCalls": 2,
+    "signals": [],
+    "exitEventsWithoutReaping": 1,
+    "syntheticDeadline": true,
+    "originalIdentity": "89999 Mon Sep  7 15:11:48 2026     /Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/Resources/Python.app/Contents/MacOS/Python"
+  },
+  "childPid": 89999,
+  "actualReturnCode": 0,
+  "retainedLogSha256": "69c1e1c12f0673574be7378d650d135b3285d299f10469991b7adf7556d519f2",
+  "runningReceiptRetained": true,
+  "controllerFinalActualReturnCode": 0,
+  "endedEpoch": 1788819108.8606799,
+  "wallSeconds": 0.24267937499999992
+}

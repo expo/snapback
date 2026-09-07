@@ -1,0 +1,16 @@
+{
+  "api.d.ts": "86afb0da7c843f0874de6854a3a07598825324bcf6f9258e2a99fbe8ca5a676e",
+  "schema-certificate.json": "028d8982f1807611a83cd0e6bbdc101ea2ed47c9b1fa5db1ad5ca80d0e070450",
+  "project.json": "6f67246c4e7a900396372dba4d2583e9bf1e7ce5ece0472974509e7a58b07c19",
+  "certificates.json": "e038164ed71e6b0ab2e55f95042b36598915568a915a5bd564c4c52b06fca5c3",
+  "tests/chat.mjs": "59a84692e1e68990d2f704470fc5fd13ced4576c980ed39224017f03e7aa89a7",
+  "quarry/schema.ts": "68dac449f6a9fd41b7c9aab4a7b7da784ff24fb3478b48301a1009cea83e6d64",
+  "quarry/profiles.ts": "cd48194259387961e9bd77d5270942fb5ece386b16c42fdddf1eff7b8eebdedb",
+  "quarry/deliveries.ts": "82afce27c323492ea3f8186ca9017f5094c556ae35aefea8c3ce60221dac2a46",
+  "quarry/notifications.ts": "52a442873020f48ff568444664dbbc4d3c812ef03f9e4a6134ec2e9e0b84b1a6",
+  "quarry/messages.ts": "94a14ca658c0bbb56b73eccb2b66acce8385834ff04a2a85f90d4d91ee36548f",
+  "quarry/groups.ts": "e663db6e93cdaf7fae93e2f0a60f99b376dbad6e964f51917cbb2850048f61a9",
+  "quarry/follows.ts": "3d679d1008489150485a06c933deea15df4eeb7d60767f7694c8a15ba012ea7f",
+  "quarry/posts.ts": "9de921462e3937047bf55b726695d187ade9c13ae33627f6def25e3af76fdb29",
+  "quarry/feeds.ts": "8cd038ea62945b7265ae2ac60463c7aab80667244fb26df6c895907228ebb11a"
+}

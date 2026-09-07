@@ -1,0 +1,29 @@
+{
+  "status": "PREPARATION_ONLY_REGRESSIONS_UNEXECUTED",
+  "parent": {
+    "path": "/Users/ccheever/clique-improvement/revisions/cli-017-default-install-witness-preparation/verify-default-install-ci.py",
+    "sha256": "2c21f71603cef8d81f34456f5fda0268c81de2a15ba989af62e29f428967f45c"
+  },
+  "candidate": {
+    "path": "/Users/ccheever/clique-improvement/revisions/default-install-timeout-race-repair-r1/candidate-helper.py",
+    "sha256": "c10d60e9dc8617f73f0c8e343abb450a0e81e6bfc4f9b8e8df69a9eab813ae9f"
+  },
+  "helperDiffSha256": "f024160f7f4a7f32496012fbeed1b3862b8331c721522552088348152b174a94",
+  "workloadSha256": "21551fa147952c61f8c1da899645d5033f7db2fb8014f137bb59bff2aaff10b9",
+  "regressionSourceSha256": "eaf4d0f6dcd8ad062afdf193131c43a0e7f4f30b50e30ff4f11a967f5686147a",
+  "runnerSha256": "15906044f28378e9efd6cea8ffd057534028c09d4fd5c43a084c23da7ba4abab",
+  "controlledChildSha256": "a73ce3014d7a5d4de2ed2f05f82d1537270dda23f9b322628c9912663ec00a9a",
+  "originalEvidenceSha256": "877a7d37ce221a2d1ba2383322de4afb34224e4f55197e2fd3f3f841cf027883",
+  "futureLaunchArgv": [
+    "/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/bin/python3.9",
+    "-I",
+    "-B",
+    "/Users/ccheever/clique-improvement/revisions/default-install-timeout-race-repair-r1/run-regressions.py",
+    "--execute-root-approved"
+  ],
+  "cwd": "/Users/ccheever/clique-improvement/revisions/default-install-timeout-race-repair-r1",
+  "regressionCases": 6,
+  "executionApprovalRequired": "Root FULL read exact candidate/diff/regression source/runner/workload/evidence, then new approved regressionAuthorized root-approval.json pinning input-manifest.json hash. No approval is created here.",
+  "releaseHelperDeploymentAuthorized": false,
+  "original017ActualInstallExitCode": null
+}

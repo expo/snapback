@@ -1,0 +1,31 @@
+{
+  "at": "2026-09-07T22:12:57.285663+00:00",
+  "outerTool": 16623,
+  "actualOuterExit": 0,
+  "outerExitEvidence": "2e546f",
+  "fullRootRead": "16fb0b REPORT+all6results",
+  "passedCases": 6,
+  "loopElapsed": 10.023559333,
+  "reportSha256": "a2a3e17b85f51a381e6d4c69305d66d424c978b9bfae5738674dff93e78d4adb",
+  "ownedProcessObservation": {
+    "pids": [
+      89984,
+      89990,
+      90004,
+      90019,
+      90026,
+      90051,
+      90098,
+      90103,
+      90040,
+      90089,
+      90015,
+      90023,
+      89999
+    ],
+    "psExit": 1,
+    "stdout": "",
+    "stderr": ""
+  },
+  "limits": "Controlled harness tests, not install latency or017 qualification. Original npm exit unknown; r1 harness failure preserved. Source awaits independent reviews."
+}

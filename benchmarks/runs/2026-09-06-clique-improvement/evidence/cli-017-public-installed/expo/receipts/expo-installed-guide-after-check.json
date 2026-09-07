@@ -1,0 +1,21 @@
+{
+  "name": "expo-installed-guide-after-check",
+  "argv": [
+    "/Users/ccheever/.volta/tools/image/node/22.23.2/bin/node",
+    "/Users/ccheever/clique-improvement/revisions/cli-017-registry-expo-verification-preparation/execution/registry-installed-consumer/node_modules/snapback2/bin/snapback2.mjs",
+    "guide",
+    "app",
+    "--project",
+    "/Users/ccheever/clique-improvement/revisions/cli-017-registry-expo-verification-preparation/execution/registry-installed-consumer/chat-expo",
+    "--json"
+  ],
+  "cwd": "/Users/ccheever/clique-improvement/revisions/cli-017-registry-expo-verification-preparation/execution/registry-installed-consumer",
+  "timeout_seconds": 30,
+  "started_epoch": 1788817157.3915808,
+  "pid": 74606,
+  "process_identity": "74606 Mon Sep  7 14:39:17 2026     /Users/ccheever/.volta/tools/image/node/22.23.2/bin/node",
+  "exit_code": 0,
+  "actual_return_code": 0,
+  "elapsed_seconds": 4.8513307089999955,
+  "log_sha256": "090a3850712d8355a5ce0aea8fb8a6cb1907614ac3ebe67edea2161919f7aafe"
+}

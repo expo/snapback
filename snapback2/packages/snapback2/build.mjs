@@ -345,9 +345,11 @@ async function mergeOfflineProtocolDeclarations() {
   ]);
   const closingBrace = indexDeclarations.lastIndexOf("\n}");
   if (closingBrace < 0) throw new Error("compiler/lib.d.ts lost its ambient snapback2 module");
+  // @ref LLP 1012#8-the-delivery-envelope-the-validator-and-resume — only the ambient copy drops redundant declare modifiers.
+  const ambientDeclarations = offlineDeclarations.trim().replace(/^export declare /gm, "export ");
   await writeFile(
     indexPath,
-    `${indexDeclarations.slice(0, closingBrace)}\n\n${offlineDeclarations.trim()}\n${indexDeclarations.slice(closingBrace)}`,
+    `${indexDeclarations.slice(0, closingBrace)}\n\n${ambientDeclarations}\n${indexDeclarations.slice(closingBrace)}`,
   );
 }
 

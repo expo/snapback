@@ -30,3 +30,37 @@ query to the cap predictor. Preserve generation/authority fences, missing
 versus zero, denied counts, atomic cap rollback, and source-scan fallback.
 Verify actual public acquisition and cold reopen without injected rows or
 receipts. Do not infer zero from an empty response or weaken authorization.
+
+## Bounded execution finding — 2026-09-07
+
+The missing receipt has two causes. Native `get_tracked` records the authored
+alternate group-index absence, but `offline::project` exports only `byId`
+absence facts. The client store likewise rejects alternate-index negative
+receipts because its negative-fact path evicts by primary ID.
+
+A separately metered primary-ID probe was tested on candidate `56b0323bd`.
+Five targeted native regressions passed, including retained noncanonical rows,
+a canonical-looking ID stored under another group, and admission accounting.
+The actual public query then delivered the correct primary absence. After cold
+reopen, the client still correctly refused prediction: `Runner.applyAggregate`
+passes its primary-absence check, but the inserted maintained row's unique
+group-index check also requires held group absence or complete group coverage.
+The file carrier preserves the receipt; persistence is not the missing link.
+
+The original group read and canonical primary-ID read are **not equivalent**:
+LLP 1001 permits ordinary target survivors. A primary miss cannot prove the
+unique group unoccupied, and a group miss cannot prove the canonical ID absent.
+The initial Astra review's substitution objection is preserved in
+[the actual review](../llp/reviews/1018-zero-count-design.astra.md).
+
+The incomplete runtime optimization was removed. The next implementation must
+acquire both facts through real reads, carry authorized full-group coverage
+through existing range evidence or explicitly revise alternate-absence custody,
+and keep hidden-hit/miss indistinguishability, eviction semantics, resource
+bounds, authority/generation fences, and native/twin uniqueness aligned.
+Do not bypass the target unique check or infer either fact from scalar zero.
+The existing public test now also cold-reopens every carrier: held nonzero
+counts remain usable, unheld/zero counts remain unpredicted, and reconnect
+retains owner commit/atomic-overflow behavior. An exact cached zero remains a
+complete stale answer through `offlineView`; that answer is not new authority
+for the target insertion. The ticket remains open.

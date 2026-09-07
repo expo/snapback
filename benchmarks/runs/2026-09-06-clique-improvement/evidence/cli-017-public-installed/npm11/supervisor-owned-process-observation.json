@@ -1,0 +1,15 @@
+{
+  "observedEpoch": 1788817288.371686,
+  "argv": [
+    "/bin/ps",
+    "-p",
+    "74883,74847,74714",
+    "-o",
+    "pid=,ppid=,pgid=,lstart=,comm="
+  ],
+  "exitCode": 1,
+  "stdout": "",
+  "stderr": "",
+  "signalsSent": false,
+  "absenceDoesNotEstablishChildExitCode": true
+}

@@ -1,0 +1,209 @@
+{
+  "status": "PREPARATION_ONLY_REGRESSION_EXECUTION_HELD",
+  "files": [
+    {
+      "path": "parent-helper.py",
+      "bytes": 16085,
+      "sha256": "2c21f71603cef8d81f34456f5fda0268c81de2a15ba989af62e29f428967f45c",
+      "mode": 292
+    },
+    {
+      "path": "candidate-helper.py",
+      "bytes": 16802,
+      "sha256": "c10d60e9dc8617f73f0c8e343abb450a0e81e6bfc4f9b8e8df69a9eab813ae9f",
+      "mode": 292
+    },
+    {
+      "path": "helper.diff",
+      "bytes": 1656,
+      "sha256": "2e95a6668c374bd0d54239d7e55f83a7b1cf669edd0a2aaa9a9feb08c53bacda",
+      "mode": 292
+    },
+    {
+      "path": "controlled-child.py",
+      "bytes": 528,
+      "sha256": "a73ce3014d7a5d4de2ed2f05f82d1537270dda23f9b322628c9912663ec00a9a",
+      "mode": 292
+    },
+    {
+      "path": "regression.py",
+      "bytes": 11487,
+      "sha256": "0c5ff342fd73cf88b26d858e0fb0f9dfa27d5c56fc04cb6fbb6801261c455fad",
+      "mode": 292
+    },
+    {
+      "path": "run-regressions.py",
+      "bytes": 4639,
+      "sha256": "15906044f28378e9efd6cea8ffd057534028c09d4fd5c43a084c23da7ba4abab",
+      "mode": 292
+    },
+    {
+      "path": "runner-vs-original.diff",
+      "bytes": 8219,
+      "sha256": "09b659dd4044f8f664807cfd31b984538a6aa5365fbaa84ba2afc8e1dd6ec123",
+      "mode": 292
+    },
+    {
+      "path": "original-evidence.json",
+      "bytes": 3410,
+      "sha256": "877a7d37ce221a2d1ba2383322de4afb34224e4f55197e2fd3f3f841cf027883",
+      "mode": 292
+    },
+    {
+      "path": "workload.json",
+      "bytes": 11104,
+      "sha256": "7382462e18e558df73b28d316094e2b1a3e434f4f69c8ee47906837e60d6be12",
+      "mode": 292
+    },
+    {
+      "path": "request.json",
+      "bytes": 1983,
+      "sha256": "a67ba15c20fe16c7ab9f76d2be2d2f043af09d4fb9147ec7ede79da847cc7595",
+      "mode": 292
+    },
+    {
+      "path": "root-approval.template.json",
+      "bytes": 202,
+      "sha256": "6233fbae643f480ce671e3d4501a56134fc7510c5c04b3f9415fec6fbed56ef1",
+      "mode": 292
+    },
+    {
+      "path": "regression-prompt.md",
+      "bytes": 3176,
+      "sha256": "ec2259bfdcc4836f39bbdcd56d72b9b08395fba2e536c70ea05975bed258236e",
+      "mode": 292
+    },
+    {
+      "path": "static-inspection.json",
+      "bytes": 1069,
+      "sha256": "d9cfd7966bc4071e01bc7a8056ebc4e9c3fa6a59d870872f9dd823bb139071a1",
+      "mode": 292
+    },
+    {
+      "path": "REPORT.md",
+      "bytes": 3002,
+      "sha256": "ab55d47bfda80490fd1cb745331cb058edee3a0e6bcc748951d6b997ffe93ad5",
+      "mode": 292
+    },
+    {
+      "path": "original-evidence/outer.log",
+      "bytes": 2234,
+      "sha256": "fcb185bb02575a75505b8dfc33b70efdcffe1b5888fbb8aee07bd425212c9594",
+      "mode": 292
+    },
+    {
+      "path": "original-evidence/report.json",
+      "bytes": 2852,
+      "sha256": "359592b6d4b7beaaec1b4ba88042ec1f7062ac732c00869c66f8c7e2fa828719",
+      "mode": 292
+    },
+    {
+      "path": "original-evidence/receipts/default-install.running.json",
+      "bytes": 890,
+      "sha256": "6a889b4aafc9abffe9b9f3b7e0e3e2482daa8da3fa5a12f919dab061504bfeae",
+      "mode": 292
+    },
+    {
+      "path": "original-evidence/receipts/default-install.log",
+      "bytes": 234,
+      "sha256": "01cbf96849b2c87cd0f0e008d1b79e940faf9f971baf0dd040c5119311da840f",
+      "mode": 292
+    },
+    {
+      "path": "original-evidence/terminal.json",
+      "bytes": 893,
+      "sha256": "80a35da34eac6e1806f59593004297b4a22eeff647c98a065382e1d93c1f5d43",
+      "mode": 292
+    },
+    {
+      "path": "original-evidence/supervisor-owned-process-observation.json",
+      "bytes": 276,
+      "sha256": "6d2a34fa442c1bf5c403c291223568fde94bf91f0f0192f15735fb717adff050",
+      "mode": 292
+    },
+    {
+      "path": "original-evidence/supervisor-owned-group-observation.json",
+      "bytes": 391,
+      "sha256": "29e73655182553b4cd36a55e6e11ede9c03b7fe1a54c8a99f920798c4a458795",
+      "mode": 292
+    },
+    {
+      "path": "regression-vs-r1.diff",
+      "bytes": 1083,
+      "sha256": "791e63c67dda1cb370b73e6245e042fe51807fd638e946276ea96c1bb5fe4c78",
+      "mode": 292
+    },
+    {
+      "path": "path-bindings-vs-r1.diff",
+      "bytes": 16309,
+      "sha256": "addd5c3b6e4c021e963308edde8be597321f3dd937918225bda4191438496be0",
+      "mode": 292
+    },
+    {
+      "path": "unchanged-inputs.json",
+      "bytes": 6102,
+      "sha256": "991657ca38bdf240cec0ff9e054f5a943b57fb6a55abc0b8ae50b281aae37371",
+      "mode": 292
+    },
+    {
+      "path": "r1-failure.json",
+      "bytes": 3339,
+      "sha256": "ecae5b6fa83079694459cda4d917f2a7abe879c0a9df4c6f2aa64778d869a379",
+      "mode": 292
+    },
+    {
+      "path": "r1-failure/REPORT.json",
+      "bytes": 1371,
+      "sha256": "8a76b40850b7a3a86756320d502cf50688cc3ea768033bd7c5ec2bcfc74c5166",
+      "mode": 292
+    },
+    {
+      "path": "r1-failure/parent-exit-during-identity.outer.log",
+      "bytes": 2306,
+      "sha256": "b46c17367b6b6d15bda4d7613b433cab5f58ed81cbf0104f9f4068c5028f258c",
+      "mode": 292
+    },
+    {
+      "path": "r1-failure/parent-exit-during-identity.terminal.json",
+      "bytes": 961,
+      "sha256": "1fb3b41f06c7226695ce660c808e3262fda9e62afca7d9c9c5e10889412cc1af",
+      "mode": 292
+    },
+    {
+      "path": "r1-failure/parent-exit-during-identity/result.json",
+      "bytes": 403,
+      "sha256": "aa3e60825000e588c576b444e2f7ed20b1579b7f1bb706a01a324b6353b30c81",
+      "mode": 292
+    },
+    {
+      "path": "r1-failure/parent-exit-during-identity/receipts/probe.running.json",
+      "bytes": 1013,
+      "sha256": "b7dc619da556da164dbe90b927faa2b78cfcef50e6ac0215a1641eef22e28406",
+      "mode": 292
+    },
+    {
+      "path": "r1-failure/parent-exit-during-identity/receipts/probe.log",
+      "bytes": 47,
+      "sha256": "69c1e1c12f0673574be7378d650d135b3285d299f10469991b7adf7556d519f2",
+      "mode": 292
+    },
+    {
+      "path": "r1-failure/root-owned-process-observation.json",
+      "bytes": 282,
+      "sha256": "efe8a48b00f3eaace168c0df75c817495ab788038a42b877c62368911d46f46b",
+      "mode": 292
+    }
+  ],
+  "originalInputs": "original-evidence.json pins immutable helper/runner/seven original failure bodies and missing terminal; admission verifies each",
+  "exclusions": [
+    "self manifest; Root separately pins its hash",
+    "future root-approval.json and execution outputs",
+    "author launch/log/identity/native/outer closure and mutable supervisor inbox/phase"
+  ],
+  "testCases": 6,
+  "candidateScope": "Helpers unchanged from r1; sole harness kqueue lifetime correction, owned path bindings; r1 failure and original017 unknown exit preserved",
+  "derivativeOf": {
+    "path": "/Users/ccheever/clique-improvement/revisions/default-install-timeout-race-repair-r1/input-manifest.json",
+    "sha256": "401f6c6a2e51aa51baf52e24649fa7f2cda79411722604a7f37893f2da4fd1c1"
+  }
+}

@@ -1,0 +1,139 @@
+{
+  "status": "PREPARATION_ONLY_REGRESSION_EXECUTION_HELD",
+  "files": [
+    {
+      "path": "parent-helper.py",
+      "bytes": 16085,
+      "sha256": "2c21f71603cef8d81f34456f5fda0268c81de2a15ba989af62e29f428967f45c",
+      "mode": 292
+    },
+    {
+      "path": "candidate-helper.py",
+      "bytes": 16802,
+      "sha256": "c10d60e9dc8617f73f0c8e343abb450a0e81e6bfc4f9b8e8df69a9eab813ae9f",
+      "mode": 292
+    },
+    {
+      "path": "helper.diff",
+      "bytes": 1656,
+      "sha256": "f024160f7f4a7f32496012fbeed1b3862b8331c721522552088348152b174a94",
+      "mode": 292
+    },
+    {
+      "path": "controlled-child.py",
+      "bytes": 528,
+      "sha256": "a73ce3014d7a5d4de2ed2f05f82d1537270dda23f9b322628c9912663ec00a9a",
+      "mode": 292
+    },
+    {
+      "path": "regression.py",
+      "bytes": 11438,
+      "sha256": "eaf4d0f6dcd8ad062afdf193131c43a0e7f4f30b50e30ff4f11a967f5686147a",
+      "mode": 292
+    },
+    {
+      "path": "run-regressions.py",
+      "bytes": 4639,
+      "sha256": "15906044f28378e9efd6cea8ffd057534028c09d4fd5c43a084c23da7ba4abab",
+      "mode": 292
+    },
+    {
+      "path": "runner-vs-original.diff",
+      "bytes": 8219,
+      "sha256": "73072d0e5503f7f110ec75db7078dcc5a1cf77204c09a30da01bfa69fa8e51bb",
+      "mode": 292
+    },
+    {
+      "path": "original-evidence.json",
+      "bytes": 3410,
+      "sha256": "877a7d37ce221a2d1ba2383322de4afb34224e4f55197e2fd3f3f841cf027883",
+      "mode": 292
+    },
+    {
+      "path": "workload.json",
+      "bytes": 11104,
+      "sha256": "21551fa147952c61f8c1da899645d5033f7db2fb8014f137bb59bff2aaff10b9",
+      "mode": 292
+    },
+    {
+      "path": "request.json",
+      "bytes": 1805,
+      "sha256": "bf19c580853e63344c0722529ceab7376853a8b5c48788d9ccc03fbd32b37883",
+      "mode": 292
+    },
+    {
+      "path": "root-approval.template.json",
+      "bytes": 202,
+      "sha256": "6233fbae643f480ce671e3d4501a56134fc7510c5c04b3f9415fec6fbed56ef1",
+      "mode": 292
+    },
+    {
+      "path": "regression-prompt.md",
+      "bytes": 3176,
+      "sha256": "ec2259bfdcc4836f39bbdcd56d72b9b08395fba2e536c70ea05975bed258236e",
+      "mode": 292
+    },
+    {
+      "path": "static-inspection.json",
+      "bytes": 1376,
+      "sha256": "632809af8b2e91624ca8e271b74a582e9d1e2d298667f655b6a5e4c19b934a81",
+      "mode": 292
+    },
+    {
+      "path": "REPORT.md",
+      "bytes": 6200,
+      "sha256": "e59bdf3a9e1f8fd96c7265a07b39e32270aa4fb151e5946d38edb70cda1494ac",
+      "mode": 292
+    },
+    {
+      "path": "original-evidence/outer.log",
+      "bytes": 2234,
+      "sha256": "fcb185bb02575a75505b8dfc33b70efdcffe1b5888fbb8aee07bd425212c9594",
+      "mode": 292
+    },
+    {
+      "path": "original-evidence/report.json",
+      "bytes": 2852,
+      "sha256": "359592b6d4b7beaaec1b4ba88042ec1f7062ac732c00869c66f8c7e2fa828719",
+      "mode": 292
+    },
+    {
+      "path": "original-evidence/receipts/default-install.running.json",
+      "bytes": 890,
+      "sha256": "6a889b4aafc9abffe9b9f3b7e0e3e2482daa8da3fa5a12f919dab061504bfeae",
+      "mode": 292
+    },
+    {
+      "path": "original-evidence/receipts/default-install.log",
+      "bytes": 234,
+      "sha256": "01cbf96849b2c87cd0f0e008d1b79e940faf9f971baf0dd040c5119311da840f",
+      "mode": 292
+    },
+    {
+      "path": "original-evidence/terminal.json",
+      "bytes": 893,
+      "sha256": "80a35da34eac6e1806f59593004297b4a22eeff647c98a065382e1d93c1f5d43",
+      "mode": 292
+    },
+    {
+      "path": "original-evidence/supervisor-owned-process-observation.json",
+      "bytes": 276,
+      "sha256": "6d2a34fa442c1bf5c403c291223568fde94bf91f0f0192f15735fb717adff050",
+      "mode": 292
+    },
+    {
+      "path": "original-evidence/supervisor-owned-group-observation.json",
+      "bytes": 391,
+      "sha256": "29e73655182553b4cd36a55e6e11ede9c03b7fe1a54c8a99f920798c4a458795",
+      "mode": 292
+    }
+  ],
+  "originalInputs": "original-evidence.json pins immutable helper/runner/seven original failure bodies and missing terminal; admission verifies each",
+  "exclusions": [
+    "self manifest; Root separately pins its hash",
+    "future root-approval.json and execution outputs",
+    "author launch/log/identity/native/outer closure and mutable supervisor inbox/phase"
+  ],
+  "testCases": 6,
+  "candidateScope": "execute() measurement-only derivative; original017 unknown exit preserved"
+}
