@@ -11,6 +11,7 @@ import { decodeDeliveryEnvelope } from "../dist/index.mjs";
 import { indexedDbRangeStore } from "../dist/react.mjs";
 import { fileRangeStore } from "../dist/test.mjs";
 import { sqliteFactory } from "./sqlite-fixture.ts";
+import { offlineView } from "../dist/sqlite-test.mjs";
 import { FakeIndexedDb, FakeLocks } from "./fake-indexeddb.ts";
 
 import { certifiedDrain, certifiedDrainEnvelope, certifiedDrainMetadataResponse, generation, schemaHash, planHash, metadataResponse } from "./offline-metadata-fixture.ts";
@@ -409,6 +410,72 @@ test("the O1a whole-answer-null golden is hidden evidence and delivered-history 
   const answer = await store.answer<any>("messages.alternate", {});
   assert.equal(answer?.retained, true);
   assert.equal(answer?.data.body, "hello");
+  await store.close?.();
+  await rm(root, { recursive: true, force: true });
+});
+
+test("retained reconstruction keeps independent pages and falls back when the rerun lacks authority", async () => {
+  const root = await tempRoot();
+  const store = fileRangeStore(root)();
+  await store.open("alice");
+  const message = (id: string, at: number) => ({
+    table: "messages", id, row: { id, body: id, conversationId: "c1", at },
+  });
+  await store.commit({ retention: { messages: "delivered-history" }, deliveries: [{
+    op: "thread", args: { c: null }, state: "capped",
+    data: [
+      { position: "first", message: ref("messages", "m1") },
+      { position: "second", message: ref("messages", "m2") },
+    ],
+    next: "server-page-2", seq: 10, rows: [message("m1", 1), message("m2", 2)],
+    receipt: { ranges: [range({ rowIds: ["m1", "m2"], stop: "Limit" })], absences: [], verdicts: [] },
+  }, {
+    op: "thread", args: { c: "server-page-2" }, state: "complete",
+    data: [
+      { position: "third", message: ref("messages", "m3") },
+      { position: "fourth", message: ref("messages", "m4") },
+    ],
+    next: null, seq: 10, rows: [message("m3", 3), message("m4", 4)],
+    receipt: { ranges: [range({ after: [2, "m2"], rowIds: ["m3", "m4"] })], absences: [], verdicts: [] },
+  }] });
+  await store.commit({ retention: { messages: "delivered-history" }, deliveries: [{
+    op: "thread", args: { c: null }, state: "capped",
+    data: [
+      { position: "first", message: ref("messages", "m1") },
+      { position: "second", message: null },
+    ],
+    next: "server-page-2", seq: 11, rows: [message("m1", 1)],
+    receipt: { ranges: [], absences: [["messages", "byId", ["m2"]]], verdicts: [] },
+  }] });
+
+  const retained = await store.answer<any>("thread", { c: null });
+  assert.equal(retained?.retained, true, "revoking one row conservatively purges its retained projection");
+  const secondPage = await store.answer<any>("thread", { c: "server-page-2" });
+  assert.deepEqual(secondPage?.data.map((entry: any) => entry.message.id), ["m3", "m4"],
+    "history outside the bounded answer remains in its independently held page");
+
+  const currentPage = [
+    { position: "first", message: { id: "m1", body: "m1", conversationId: "c1", at: 1 } },
+    { position: "second", message: null },
+  ];
+  const reconstructed = offlineView(retained, {
+    state: "capped", data: currentPage, next: "local-page-2", seq: 99,
+  });
+  assert.equal(reconstructed.state, "capped");
+  assert.deepEqual(reconstructed.data, currentPage, "a complete local rerun repairs only the authored page");
+  assert.equal(reconstructed.next, "local-page-2", "the reconstructed page keeps its own continuation");
+  assert.equal(reconstructed.seq, retained.seq, "reconstruction retains the issuing owner sequence");
+
+  for (const local of [{ state: "partial", reason: "never-held", site: "thread.range", seq: 99 },
+    { state: "denied", rule: "MEMBERSHIP_REQUIRED", seq: 99 }] as const) {
+    const fallback = offlineView(retained, local);
+    assert.equal(fallback.retained, true);
+    assert.deepEqual(fallback.data, retained.data,
+      `${local.state} local evidence cannot replace readable delivered history`);
+    assert.equal(fallback.next, "server-page-2", "missing authority preserves the held continuation");
+  }
+  assert.deepEqual((await store.answer<any>("thread", { c: "server-page-2" }))?.data, secondPage?.data,
+    "selecting the current bounded reconstruction does not rewrite another held page");
   await store.close?.();
   await rm(root, { recursive: true, force: true });
 });
