@@ -24,6 +24,7 @@ import {
 import { registerJobChecks } from "./quarry-job-checks";
 import { registerScheduleChecks } from "./quarry-schedule-checks";
 import { registerQuarryProgramChecks } from "./quarry-program-checks";
+import { registerQuarryDirectCoreChecks } from "./quarry-direct-core-checks";
 import { registerQuarryDirectMutationChecks } from "./quarry-direct-mutation-checks";
 import { registerQuarryDirectValidationChecks } from "./quarry-direct-validation-checks";
 import { registerQuarryDirectProjectChecks } from "./quarry-direct-project-checks";
@@ -36,6 +37,7 @@ import ts from "typescript";
 export function registerQuarryChecks(test: Test, frontend: string): void {
   const fixtures = resolve(frontend, "fixtures");
   registerQuarryDirectValidationChecks(test, frontend);
+  registerQuarryDirectCoreChecks(test, frontend);
   registerQuarryDirectArgumentChecks(test);
   test("bound Quarry API follows direct result and custody facts", runQuarryBoundApiChecks);
   registerQuarryDirectSearchEligibilityChecks(test);

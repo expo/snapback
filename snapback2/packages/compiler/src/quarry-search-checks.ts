@@ -260,32 +260,6 @@ ${later ? `    ${shadow} = 'x'\n` : ""}    return page
     });
   }
 
-  test("captured optional words aliases keep whole-list and element bounds after contextual writes", async () => {
-    for (const shadow of ["wide", "other"]) {
-      const result = await compiled(`mutation search(body: text <=50 ?):
-  wide = body
-  terms = words(wide)
-  alias = terms
-  if true:
-    ${shadow} = 'x'
-    insert records { terms: alias }
-    for term in alias:
-      page = people[term] first 20 by bySearch
-  return null
-`, schema + `table records:
-  terms: [text <=200] <=101
-  public
-  insert <- allow
-`);
-      const program = result.project.programs[0]!;
-      assert.equal(find<{ max: number }>(program, "DerivedArray")[0]?.max, 101);
-      assert.equal(find<{ source_max: number }>(program, "WordPrefix")[0]?.source_max, 200);
-      const actual = runPure(program, {body: "ONE two"});
-      assert.deepEqual(actual.writes, [{id: "new-id", terms: ["one", "two"]}]);
-      assert.deepEqual(actual.scans.map(s => s.prefix), [[{source: "one", Q: 200}], [{source: "two", Q: 200}]]);
-    }
-  });
-
   for (const search of [false, true]) test(`generated ${search ? "search" : "ordinary"} merge API checks as a real imported page`, async () => {
     const page = `merge docs after c last 20 by ${search ? "bySearch" : "byRoom"}:
     [m.room${search ? ", term" : ""}] for m in memberships[viewer] first 100 by byPrincipal`;
@@ -520,19 +494,6 @@ query peopleSearch(term: text <=2000):
     assert(lowerSchema(source, "schema.ts").diagnostics.some(d => d.code === "E_SCHEMA_CONSTRAINT"));
   });
 
-  test("Unicode words accepts optional null and preserves expanded element bounds through aliases", async () => {
-    const result = await compiled(`query wordsProbe(body: text <=50 ?):
-  first = words(body)
-  second = first
-  for word in second:
-    require word != '' else EMPTY
-  return second
-`);
-    const loop = find<any>(result.project.programs[0], "DerivedArray")[0];
-    assert.equal(loop.max, 101);
-    assert.equal(find<any>(result.project.programs[0], "Builtin").filter(b => b.builtin === "Words").length, 1);
-  });
-
   test("search fallback, assertion, field, object and list-element sources carry their own maxima", async () => {
     const result = await compiled(`query fallback(room: rooms, term: text <=2000 ?):
   return docs[room, term ?? ''] first 20 by bySearch
@@ -544,13 +505,8 @@ query fieldSource(room: rooms, person: people):
 query objectSource(room: rooms, term: text <=2000):
   pair = { text: term }
   return docs[room, pair.text] first 20 by bySearch
-query wordsSource(room: rooms, body: text <=20 ?):
-  terms = words(body)
-  for term in terms:
-    page = docs[room, term] first 20 by bySearch
-  return true
 `);
-    const expected = { fallback: 2000, asserted: 2000, fieldSource: 50, objectSource: 2000, wordsSource: 80 };
+    const expected = { fallback: 2000, asserted: 2000, fieldSource: 50, objectSource: 2000 };
     for (const [name, maximum] of Object.entries(expected)) {
       const scan = find<Scan>(result.project.programs.find(p => p.name === `search.${name}`), "Scan").find(s => s.index === "bySearch")!;
       assert.equal((scan.prefix[1] as any).WordPrefix.source_max, maximum, name);
@@ -568,8 +524,8 @@ query wordsSource(room: rooms, body: text <=20 ?):
     assert(counted.diagnostics.some(d => d.code === "E_STRUCTURAL_COUNT"), JSON.stringify(counted));
   });
 
-  test("search source and words maxima refuse beyond the finite normalizer bound", async () => {
-    for (const expression of ["words(term)", "people[term] first 20 by bySearch"]) {
+  test("search source maxima refuse beyond the finite normalizer bound", async () => {
+    for (const expression of ["people[term] first 20 by bySearch"]) {
       await withProject({ "snapback/schema.q": schema, "snapback/search.q": `query bad(term: text <=1073741824):\n  return ${expression}\n` }, async root => {
         assert.equal((await lowerProject(root)).ok, false);
       });

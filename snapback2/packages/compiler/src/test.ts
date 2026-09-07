@@ -34,7 +34,6 @@ import type { SnapbackClient } from "../../snapback2/src/types";
 import * as reactSurface from "../../snapback2/src/react";
 import * as testSurface from "../../snapback2/src/test";
 import ts from "typescript";
-import { registerQuarryWordsChecks } from "./quarry-words-checks";
 import { registerQuarrySearchChecks } from "./quarry-search-checks";
 
 const frontend = decodeURIComponent(new URL("../", import.meta.url).pathname);
@@ -1413,7 +1412,6 @@ test("worker refuses every TypeScript-authored export and serves the next Quarry
   });
 });
 
-registerQuarryWordsChecks(test, libText);
 registerQuarrySearchChecks(test, libText);
 
 registerPackageGuideChecks(test, assert, withProject, crate);

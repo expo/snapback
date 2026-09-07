@@ -382,6 +382,12 @@ class ExpressionBinder {
 
   private name(name: string, site: Site): BoundExpression {
     const source = this.source(site);
+    if (this.helperDepth > 0 && (name === "commit" || (name === "now" && this.program.kind !== "query"))) {
+      throw new QuarryError(
+        this.diagnosticSite(site), `fn expressions are read-pure and cannot use mutation ${name} time`,
+        "E_QUARRY_UNSUPPORTED", "pass the needed time as an explicit fn argument",
+      );
+    }
     if (this.helperDepth > 0 && name === "new") throw new QuarryError(
       this.diagnosticSite(site), "new is mutation-only caller state and is not available inside fn expressions",
       "E_QUARRY_UNSUPPORTED", "pass the new value as an explicit fn argument",
