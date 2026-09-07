@@ -65,6 +65,18 @@ fn command_guides_explain_initialization_and_successor_recovery() {
     let output = project.run(&["test", "--help"]);
     assert!(output.status.success());
     assert!(String::from_utf8_lossy(&output.stdout).contains("--journey name"));
+    assert!(String::from_utf8_lossy(&output.stdout).contains("--journey=--help"));
+    let page = json_stdout(&project.run(&["guide", "testing", "--json"]));
+    let content = page["content"].as_str().unwrap();
+    for needle in [
+        "--journey=--help",
+        "--journey=-h",
+        "registration drift",
+        "Duplicates",
+        "Five-second",
+    ] {
+        assert!(content.contains(needle), "{content}");
+    }
     let output = project.run(&["guide", "E_SUCCESSOR_DESTRUCTIVE", "--json"]);
     assert!(output.status.success());
     let page = json_stdout(&output);

@@ -84,7 +84,7 @@ Execute through the owner. --plan inspects; --wait streams chunk receipts;
 --dry-run rehearses on a discarded snapshot. Read snapback2 guide job."
         }
         "test" => {
-            "usage: snapback2 test [--project dir] [--blocked reason] [--journeys-only|--derived-only|--journey name] [--json]\n\nProve the project and write a receipt. --journey selects an exact authored name,\nruns only its matching journeys, and records scope.journey. It does not infer\naffected coverage. Use plain test for the full suite. Read snapback2 guide testing."
+            "usage: snapback2 test [--project dir] [--blocked reason] [--journeys-only|--derived-only|--journey name] [--json]\n\nProve the project and write a receipt. --journey selects an exact authored name,\nruns every matching registration, and records scope.journey. Registration drift\nfails before a focused body runs. Use --journey=--help for a literal option name.\nIt does not infer affected coverage. Use plain test for the full suite. Read snapback2 guide testing."
         }
         "why" => {
             "usage: snapback2 why <query> [args-json] --as <persona|system> [--project dir] [--json]\n\nExplain query rows, rules, and bounds through the owner."
@@ -364,6 +364,20 @@ impl<'a> ParsedOptions<'a> {
     }
 }
 
+pub(crate) fn help_requested(args: &[String], value_flags: &[&str]) -> bool {
+    let mut index = 1;
+    while let Some(arg) = args.get(index) {
+        if value_flags.contains(&arg.as_str()) {
+            index += 2;
+        } else if matches!(arg.as_str(), "--help" | "-h") {
+            return true;
+        } else {
+            index += 1;
+        }
+    }
+    false
+}
+
 pub(crate) fn parse_options<'a>(
     args: &'a [String],
     value_flags: &[&str],
@@ -378,12 +392,23 @@ pub(crate) fn parse_options<'a>(
     let mut index = 1;
     while index < args.len() {
         let arg = args[index].as_str();
+        if let Some((flag, value)) = arg.split_once('=')
+            && value_flags.contains(&flag)
+        {
+            if values.insert(flag, value).is_some() {
+                return Err(usage(&format!("{flag} may be passed only once")));
+            }
+            index += 1;
+            continue;
+        }
         if value_flags.contains(&arg) {
             let Some(value) = args.get(index + 1) else {
                 return Err(usage(&format!("{arg} requires a value")));
             };
             if value.starts_with("--") {
-                return Err(usage(&format!("{arg} requires a value, not {value}")));
+                return Err(usage(&format!(
+                    "{arg} requires a value, not {value}; use {arg}={value} for a literal value"
+                )));
             }
             if values.insert(arg, value.as_str()).is_some() {
                 return Err(usage(&format!("{arg} may be passed only once")));
@@ -409,4 +434,63 @@ pub(crate) fn parse_options<'a>(
         booleans,
         positionals,
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn args(values: &[&str]) -> Vec<String> {
+        values.iter().map(|v| (*v).to_owned()).collect()
+    }
+
+    #[test]
+    fn literal_values_preserve_bytes_and_normal_option_refusals() {
+        for value in ["--help", "-h", "--list", "name=part", "", "two words"] {
+            let argv = args(&["test", &format!("--journey={value}"), "--json"]);
+            let options = parse_options(&argv, crate::test::VALUE_FLAGS, &["--json"]).unwrap();
+            assert_eq!(options.value("--journey"), Some(value));
+            assert!(options.has("--json"));
+            assert_eq!(options.positionals(), &["test"]);
+        }
+        for values in [
+            vec!["test", "--journey=a", "--journey", "b"],
+            vec!["test", "--journey", "a", "--journey=b"],
+            vec!["test", "--json=true"],
+            vec!["test", "--unknown=value"],
+            vec!["test", "--journey", "--help"],
+        ] {
+            assert_eq!(
+                parse_options(&args(&values), crate::test::VALUE_FLAGS, &["--json"]).err(),
+                Some(ExitCode::from(2))
+            );
+        }
+    }
+
+    #[test]
+    fn help_detection_consumes_only_declared_values() {
+        for values in [
+            vec!["test", "--journey", "-h"],
+            vec!["test", "--journey=--help"],
+            vec!["test", "--project", "-h", "--journey=-h"],
+            vec!["test", "--blocked", "--help"],
+        ] {
+            assert!(
+                !help_requested(&args(&values), crate::test::VALUE_FLAGS),
+                "{values:?}"
+            );
+        }
+        for values in [
+            vec!["test", "--help"],
+            vec!["test", "-h"],
+            vec!["test", "--journey=-h", "--help"],
+            vec!["test", "--journey", "-h", "--help"],
+            vec!["test", "--unknown", "--help"],
+        ] {
+            assert!(
+                help_requested(&args(&values), crate::test::VALUE_FLAGS),
+                "{values:?}"
+            );
+        }
+    }
 }

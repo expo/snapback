@@ -40,6 +40,8 @@ use self::test_policy::check_rules;
 #[cfg(test)]
 use self::test_policy::rule_id_sets_match;
 
+pub(crate) const VALUE_FLAGS: &[&str] = &["--blocked", "--project", "--journey"];
+
 pub fn run(args: &[String]) -> ExitCode {
     if args.iter().enumerate().any(|(index, arg)| {
         arg == "--blocked"
@@ -51,7 +53,7 @@ pub fn run(args: &[String]) -> ExitCode {
     }
     let options = match verbs::parse_options(
         args,
-        &["--blocked", "--project", "--journey"],
+        VALUE_FLAGS,
         &["--journeys-only", "--derived-only", "--json"],
     ) {
         Ok(options) => options,
@@ -168,7 +170,7 @@ pub fn run(args: &[String]) -> ExitCode {
         "snapback2 dev --foreground --port 0".to_owned(),
         "seed".to_owned(),
         if let Some(name) = selected_journey {
-            format!("snapback2 test --journey '{}'", name.replace('\'', "'\\''"))
+            format!("snapback2 test --journey='{}'", name.replace('\'', "'\\''"))
         } else if journeys_only {
             "snapback2 test --journeys-only".to_owned()
         } else if derived_only {
@@ -796,17 +798,19 @@ fn run_journeys(root: &Path, owner: &OwnerInfo, selected: Option<&str>) -> Vec<C
             continue;
         }
         available.extend(names.iter().cloned());
+        // @ref LLP 1002#7-test-and-the-receipt — focused receipts bind discovery to execution, including duplicate registrations.
+        let expected_names = selected.map(|_| serde_json::to_string(&names).unwrap());
         for (index, name) in names.into_iter().enumerate() {
             if selected.is_some_and(|selected| selected != name) {
                 continue;
             }
             matched = true;
             let mut command = journey_command(&runner, owner);
-            command
-                .arg("--journey-index")
-                .arg(index.to_string())
-                .arg("--")
-                .arg(&file);
+            command.arg("--journey-index").arg(index.to_string());
+            if let Some(expected) = &expected_names {
+                command.arg("--expected-journeys").arg(expected);
+            }
+            command.arg("--").arg(&file);
             let output = match supervise_journey_runner(command) {
                 Ok(output) => output,
                 Err(error) => {

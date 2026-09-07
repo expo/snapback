@@ -570,11 +570,17 @@ distinguish source validation from owner installation.
 ## 7. `test` and the receipt
 
 **Focused verification (2026-09-07).** `test --journey "name"` executes only
-journeys registered under that exact name, including duplicate registrations
-across files. It skips derived checks, preserves backend compilation and
-certification plus per-journey process isolation and deadlines, and records
-`scope.journey` on success and failure receipts. A missing name fails with the
-available names; loading or compilation failures remain failures. It cannot
+journeys registered under that exact name, including every duplicate within
+and across files. `--journey=VALUE` accepts literal option-shaped names such as
+`--help` and `-h`; help scanning respects the test verb's option values. Each
+focused body process verifies the discovered registration names and order
+before execution. Changed names, order or duplicate counts fail visibly;
+a discovery index alone is not execution identity. Plain full-suite execution
+keeps its existing path. Focused execution skips the top-level derived families;
+durable journey clients still run embedded offline checks. It preserves backend
+compilation and certification plus per-journey process isolation and deadlines,
+and records `scope.journey` on success and failure receipts. A missing name fails
+with available names; loading or compilation failures remain failures. It cannot
 combine with `--derived-only` or `--blocked`. This is explicit selection, not
 an automatic affected-coverage claim; plain `test` still proves the full suite.
 

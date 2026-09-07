@@ -113,6 +113,15 @@ async function runEntry(): Promise<void> {
     }
     try {
       const journeys = await loadJourneyFile(files[0]!);
+      // @ref LLP 1002#7-test-and-the-receipt — reject registration drift before a focused body can run.
+      const expectedNames = argument("--expected-journeys");
+      if (expectedNames !== undefined) {
+        const expected: unknown = JSON.parse(expectedNames);
+        if (!Array.isArray(expected) || expected.length !== journeys.length
+          || expected.some((name, i) => typeof name !== "string" || name !== journeys[i]!.name)) {
+          throw new Error("journey registrations changed between discovery and execution; keep names and order stable");
+        }
+      }
       const check = journeys[index];
       if (!check) throw new Error(`journey index ${index} is out of range`);
       if (!await runCheck(check, files[0]!, url, secret, storeRoot)) process.exitCode = 1;
