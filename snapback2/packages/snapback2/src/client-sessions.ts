@@ -33,6 +33,8 @@ interface Entry<Event, Snapshot> {
   readonly initial: Snapshot;
   snapshot: Snapshot;
   last?: Event;
+  /** Latest live server value; local revisions may return to it after overlays settle. */
+  authoritative?: Event;
   epoch: number;
   refreshPending: boolean;
   refreshScheduled: boolean;
@@ -45,7 +47,7 @@ interface EntrySpec<Event, Snapshot> {
   reduce(current: Snapshot, event: Event): Snapshot;
   open(fanout: (event: Event) => void): Subscription<Event>;
   /** Reevaluate this query after a committed local input revision. */
-  refresh?(current: Snapshot): Promise<Event | undefined>;
+  refresh?(current: Snapshot, authoritative?: Event): Promise<Event | undefined>;
 }
 
 interface ObservedSnapshot<Snapshot> {
@@ -99,6 +101,7 @@ export class SharedSubscriptions {
       if (direct) {
         created.epoch += 1;
         if (created.refreshing) created.refreshPending = true;
+        if ((event as { live?: unknown } | undefined)?.live === true) created.authoritative = event;
       }
       created.last = event;
       const next = spec.reduce(created.snapshot, event);
@@ -123,6 +126,7 @@ export class SharedSubscriptions {
       resettable.reset = () => {
         created.epoch += 1;
         created.last = undefined;
+        created.authoritative = undefined;
         const changed = created.snapshot !== spec.initial;
         created.snapshot = spec.initial;
         if (changed) for (const each of [...created.observations]) {
@@ -145,7 +149,7 @@ export class SharedSubscriptions {
       entry.refreshPending = false;
       entry.refreshing = true;
       const epoch = entry.epoch;
-      void spec.refresh!(entry.snapshot).then((event) => {
+      void spec.refresh!(entry.snapshot, entry.authoritative).then((event) => {
         if (event === undefined || epoch !== entry.epoch || this.entries.get(key) !== entry) return;
         entry.last = event;
         const next = spec.reduce(entry.snapshot, event);
