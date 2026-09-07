@@ -1,0 +1,255 @@
+{
+  "files": [
+    {
+      "path": "/Users/ccheever/clique-improvement/revisions/cli-017-registry-expo-verification-preparation/execution/environment.json",
+      "bytes": 1336,
+      "sha256": "84c14d726b8c9afd610d00b33f9e49efc5e6b45dc55407f8d15e304abbd5d532"
+    },
+    {
+      "path": "/Users/ccheever/clique-improvement/revisions/cli-017-registry-expo-verification-preparation/execution/expo-backend-after.json",
+      "bytes": 1013,
+      "sha256": "d8adc1bad956c68c1d4f39bf2d4bc99b8b7d3cf8f48238a509d44b6e6929cd0a"
+    },
+    {
+      "path": "/Users/ccheever/clique-improvement/revisions/cli-017-registry-expo-verification-preparation/execution/expo-backend-before.json",
+      "bytes": 1013,
+      "sha256": "d8adc1bad956c68c1d4f39bf2d4bc99b8b7d3cf8f48238a509d44b6e6929cd0a"
+    },
+    {
+      "path": "/Users/ccheever/clique-improvement/revisions/cli-017-registry-expo-verification-preparation/execution/expo-cache-after-check-after.json",
+      "bytes": 1271,
+      "sha256": "0522f8b67ef66f95c63271f2922d752501f4f0ade945479d760fceacadecbdfa"
+    },
+    {
+      "path": "/Users/ccheever/clique-improvement/revisions/cli-017-registry-expo-verification-preparation/execution/expo-cache-after-check-before.json",
+      "bytes": 1271,
+      "sha256": "0522f8b67ef66f95c63271f2922d752501f4f0ade945479d760fceacadecbdfa"
+    },
+    {
+      "path": "/Users/ccheever/clique-improvement/revisions/cli-017-registry-expo-verification-preparation/execution/expo-cache-before-check-after.json",
+      "bytes": 1271,
+      "sha256": "0522f8b67ef66f95c63271f2922d752501f4f0ade945479d760fceacadecbdfa"
+    },
+    {
+      "path": "/Users/ccheever/clique-improvement/revisions/cli-017-registry-expo-verification-preparation/execution/expo-cache-before-check-before.json",
+      "bytes": 1271,
+      "sha256": "0522f8b67ef66f95c63271f2922d752501f4f0ade945479d760fceacadecbdfa"
+    },
+    {
+      "path": "/Users/ccheever/clique-improvement/revisions/cli-017-registry-expo-verification-preparation/execution/expo-project-after-check-guide.json",
+      "bytes": 4291,
+      "sha256": "3e7eaab1f4d93bee26a35869786cd05dfd1afafaa53fce6624ee02b5634e1fd2"
+    },
+    {
+      "path": "/Users/ccheever/clique-improvement/revisions/cli-017-registry-expo-verification-preparation/execution/expo-project-after-init.json",
+      "bytes": 4291,
+      "sha256": "3e7eaab1f4d93bee26a35869786cd05dfd1afafaa53fce6624ee02b5634e1fd2"
+    },
+    {
+      "path": "/Users/ccheever/clique-improvement/revisions/cli-017-registry-expo-verification-preparation/execution/installed-expo-verification.json",
+      "bytes": 33306,
+      "sha256": "aed47c997a7550e4ee61a47a3610c99544cfc403c616545bb1c7d72f4f3da36e"
+    },
+    {
+      "path": "/Users/ccheever/clique-improvement/revisions/cli-017-registry-expo-verification-preparation/execution/installed-files-after.json",
+      "bytes": 16202,
+      "sha256": "43526e4fe25287be8b88b71a57c54089ac2d75f3c821c23ceb9d34b0f3f8fa7d"
+    },
+    {
+      "path": "/Users/ccheever/clique-improvement/revisions/cli-017-registry-expo-verification-preparation/execution/installed-files-before.json",
+      "bytes": 16202,
+      "sha256": "43526e4fe25287be8b88b71a57c54089ac2d75f3c821c23ceb9d34b0f3f8fa7d"
+    },
+    {
+      "path": "/Users/ccheever/clique-improvement/revisions/cli-017-registry-expo-verification-preparation/execution/installed-guide-fixes.json",
+      "bytes": 6938,
+      "sha256": "3d4baab97a4a9986a9454294736dc61a7f81777b4c04bfc1db6fc554b3144875"
+    },
+    {
+      "path": "/Users/ccheever/clique-improvement/revisions/cli-017-registry-expo-verification-preparation/execution/outer.log",
+      "bytes": 28110,
+      "sha256": "e14efcc5df31aa7515b89ee262582a555e6e7f09fccaa0e3af598a23e5f42560"
+    },
+    {
+      "path": "/Users/ccheever/clique-improvement/revisions/cli-017-registry-expo-verification-preparation/execution/owner.json",
+      "bytes": 351,
+      "sha256": "cd816555862324755bf8bd4506f2e467b7d282c7ac4b8a06741d6c7dd2fc8039"
+    },
+    {
+      "path": "/Users/ccheever/clique-improvement/revisions/cli-017-registry-expo-verification-preparation/execution/receipts/expo-installed-check.json",
+      "bytes": 994,
+      "sha256": "780512a8edda0040333763b9d97035fa6c3aaa56dc7e0fb00630c1f31b89ff60"
+    },
+    {
+      "path": "/Users/ccheever/clique-improvement/revisions/cli-017-registry-expo-verification-preparation/execution/receipts/expo-installed-check.log",
+      "bytes": 414,
+      "sha256": "611cc6bb00b98bf2122d12037c309cf16f3280a24f8d900e1ee83a78b9bb37c3"
+    },
+    {
+      "path": "/Users/ccheever/clique-improvement/revisions/cli-017-registry-expo-verification-preparation/execution/receipts/expo-installed-doctor.json",
+      "bytes": 833,
+      "sha256": "101a24c5c4d303c8d40ba80264161558ea464c526d464390cb75ecfccfae3361"
+    },
+    {
+      "path": "/Users/ccheever/clique-improvement/revisions/cli-017-registry-expo-verification-preparation/execution/receipts/expo-installed-doctor.log",
+      "bytes": 430,
+      "sha256": "3e502cdb0170d7b36fbfed3011e91dff12cd71d092eff7f30b7f5edc9d808964"
+    },
+    {
+      "path": "/Users/ccheever/clique-improvement/revisions/cli-017-registry-expo-verification-preparation/execution/receipts/expo-installed-guide-after-check.json",
+      "bytes": 1018,
+      "sha256": "f372977aefa31f8146693df8460ffed59855195c2603bd8f1e15ddb0870a2373"
+    },
+    {
+      "path": "/Users/ccheever/clique-improvement/revisions/cli-017-registry-expo-verification-preparation/execution/receipts/expo-installed-guide-after-check.log",
+      "bytes": 55301,
+      "sha256": "090a3850712d8355a5ce0aea8fb8a6cb1907614ac3ebe67edea2161919f7aafe"
+    },
+    {
+      "path": "/Users/ccheever/clique-improvement/revisions/cli-017-registry-expo-verification-preparation/execution/receipts/expo-installed-guide-before-check.json",
+      "bytes": 1018,
+      "sha256": "7864d8f2971c277a110093ca2d6d5b326324bfc5a34e25e17da320bd4f1e036e"
+    },
+    {
+      "path": "/Users/ccheever/clique-improvement/revisions/cli-017-registry-expo-verification-preparation/execution/receipts/expo-installed-guide-before-check.log",
+      "bytes": 55301,
+      "sha256": "090a3850712d8355a5ce0aea8fb8a6cb1907614ac3ebe67edea2161919f7aafe"
+    },
+    {
+      "path": "/Users/ccheever/clique-improvement/revisions/cli-017-registry-expo-verification-preparation/execution/receipts/expo-installed-init.json",
+      "bytes": 1027,
+      "sha256": "7c49f72a341ea8ec302a3d886f5c08756a7d444ff47fde17e42bde52612617f8"
+    },
+    {
+      "path": "/Users/ccheever/clique-improvement/revisions/cli-017-registry-expo-verification-preparation/execution/receipts/expo-installed-init.log",
+      "bytes": 768,
+      "sha256": "64efa96587755f335478fa900877a4ab24ad1b915b68cbb08d27bbe13e1598fa"
+    },
+    {
+      "path": "/Users/ccheever/clique-improvement/revisions/cli-017-registry-expo-verification-preparation/execution/receipts/expo-installed-media.json",
+      "bytes": 903,
+      "sha256": "a9a9065aef29aeecc6f62b5d32a738eb0de56a10153aae9d5764627dcf0e1669"
+    },
+    {
+      "path": "/Users/ccheever/clique-improvement/revisions/cli-017-registry-expo-verification-preparation/execution/receipts/expo-installed-media.log",
+      "bytes": 28,
+      "sha256": "a3145da94d0da5767e824df99dce5294b9f13dfe6b280dc3d16fb0aa9307d0cb"
+    },
+    {
+      "path": "/Users/ccheever/clique-improvement/revisions/cli-017-registry-expo-verification-preparation/execution/receipts/expo-installed-version.json",
+      "bytes": 821,
+      "sha256": "aad79e125cfdae057eef8dbc93915eb36dfca286522318e62469fe2443a13428"
+    },
+    {
+      "path": "/Users/ccheever/clique-improvement/revisions/cli-017-registry-expo-verification-preparation/execution/receipts/expo-installed-version.log",
+      "bytes": 17,
+      "sha256": "54a36bfe02f108ce5fc97bf2367cc1159e2621779c3f6237500aaa94081ff69c"
+    },
+    {
+      "path": "/Users/ccheever/clique-improvement/revisions/cli-017-registry-expo-verification-preparation/execution/receipts/installed-guide-assets.json",
+      "bytes": 845,
+      "sha256": "e58536501a2c9d2b963fc426722dc3a468a0e6fbb6392d5762863658175283c4"
+    },
+    {
+      "path": "/Users/ccheever/clique-improvement/revisions/cli-017-registry-expo-verification-preparation/execution/receipts/installed-guide-assets.log",
+      "bytes": 1127,
+      "sha256": "dee46a64a6aeb84edcd2bb2bf1dd6f0f470d7911a926e79a4bc62721f8c93371"
+    },
+    {
+      "path": "/Users/ccheever/clique-improvement/revisions/cli-017-registry-expo-verification-preparation/execution/receipts/installed-guide-init.json",
+      "bytes": 843,
+      "sha256": "6e1c3ec22bcf0b60d6e58f86fdf861150c5459e25f3ac2edb09923d4273643c8"
+    },
+    {
+      "path": "/Users/ccheever/clique-improvement/revisions/cli-017-registry-expo-verification-preparation/execution/receipts/installed-guide-init.log",
+      "bytes": 750,
+      "sha256": "9f7a45424c42ea1733ec68424440ed45607b63a30c1bcd8c5a8eda181ce471d5"
+    },
+    {
+      "path": "/Users/ccheever/clique-improvement/revisions/cli-017-registry-expo-verification-preparation/execution/receipts/installed-guide-offline.json",
+      "bytes": 849,
+      "sha256": "3052ae8fd8b226abbfc91173b316c8d372698c3412ecfbbc8fc3f92e063f6c80"
+    },
+    {
+      "path": "/Users/ccheever/clique-improvement/revisions/cli-017-registry-expo-verification-preparation/execution/receipts/installed-guide-offline.log",
+      "bytes": 4929,
+      "sha256": "dae37e138765b707e6b5fb34fe8d19332d2016c3ff80a73efd83c465a6cb51ef"
+    },
+    {
+      "path": "/Users/ccheever/clique-improvement/revisions/cli-017-registry-expo-verification-preparation/execution/receipts/installed-guide-testing.json",
+      "bytes": 850,
+      "sha256": "06b95f3c91222a3f509409b92c34993c5eed9a2fd42308424d04e059fa71e981"
+    },
+    {
+      "path": "/Users/ccheever/clique-improvement/revisions/cli-017-registry-expo-verification-preparation/execution/receipts/installed-guide-testing.log",
+      "bytes": 4287,
+      "sha256": "6e876e6eb38ad4a819530b56c6d19e8b1abfd7c5091b506d3e30af9814335f78"
+    },
+    {
+      "path": "/Users/ccheever/clique-improvement/revisions/cli-017-registry-expo-verification-preparation/execution/receipts/registry-package-install.json",
+      "bytes": 953,
+      "sha256": "56165a6019416527c10b66150e2c9cd11434843af74a7475e0013555af9b6182"
+    },
+    {
+      "path": "/Users/ccheever/clique-improvement/revisions/cli-017-registry-expo-verification-preparation/execution/receipts/registry-package-install.log",
+      "bytes": 233,
+      "sha256": "8e33cc39dc2fe6e0cef6cce0c45f8fe633acca1da7c107bc967daf3b2fe075ae"
+    },
+    {
+      "path": "/Users/ccheever/clique-improvement/revisions/cli-017-registry-expo-verification-preparation/execution/terminal.json",
+      "bytes": 733,
+      "sha256": "7e69c4e1df059721f2d009a7e810dbe74ec5361e84e4f3098cba137a2b368d11"
+    },
+    {
+      "path": "/Users/ccheever/clique-improvement/revisions/cli-017-default-install-witness-preparation/execution/environment.json",
+      "bytes": 1193,
+      "sha256": "cbfe76e71cc015d739c2fa156386bda6c7a0031f95f95b52aee2ac51b93a1282"
+    },
+    {
+      "path": "/Users/ccheever/clique-improvement/revisions/cli-017-default-install-witness-preparation/execution/outer.log",
+      "bytes": 2234,
+      "sha256": "fcb185bb02575a75505b8dfc33b70efdcffe1b5888fbb8aee07bd425212c9594"
+    },
+    {
+      "path": "/Users/ccheever/clique-improvement/revisions/cli-017-default-install-witness-preparation/execution/owner.json",
+      "bytes": 351,
+      "sha256": "495cea39bd9591502849dd3df85876c7125b7423417e4199ae56efe8c595ecb1"
+    },
+    {
+      "path": "/Users/ccheever/clique-improvement/revisions/cli-017-default-install-witness-preparation/execution/packed-files.json",
+      "bytes": 26187,
+      "sha256": "9eb2bf490bb4639a11916bb75315ca616d8efa07bc2a173a46d8a80b08b04107"
+    },
+    {
+      "path": "/Users/ccheever/clique-improvement/revisions/cli-017-default-install-witness-preparation/execution/receipts/default-install.log",
+      "bytes": 234,
+      "sha256": "01cbf96849b2c87cd0f0e008d1b79e940faf9f971baf0dd040c5119311da840f"
+    },
+    {
+      "path": "/Users/ccheever/clique-improvement/revisions/cli-017-default-install-witness-preparation/execution/receipts/default-install.running.json",
+      "bytes": 890,
+      "sha256": "6a889b4aafc9abffe9b9f3b7e0e3e2482daa8da3fa5a12f919dab061504bfeae"
+    },
+    {
+      "path": "/Users/ccheever/clique-improvement/revisions/cli-017-default-install-witness-preparation/execution/report.json",
+      "bytes": 2852,
+      "sha256": "359592b6d4b7beaaec1b4ba88042ec1f7062ac732c00869c66f8c7e2fa828719"
+    },
+    {
+      "path": "/Users/ccheever/clique-improvement/revisions/cli-017-default-install-witness-preparation/execution/supervisor-owned-group-observation.json",
+      "bytes": 391,
+      "sha256": "29e73655182553b4cd36a55e6e11ede9c03b7fe1a54c8a99f920798c4a458795"
+    },
+    {
+      "path": "/Users/ccheever/clique-improvement/revisions/cli-017-default-install-witness-preparation/execution/supervisor-owned-process-observation.json",
+      "bytes": 276,
+      "sha256": "6d2a34fa442c1bf5c403c291223568fde94bf91f0f0192f15735fb717adff050"
+    },
+    {
+      "path": "/Users/ccheever/clique-improvement/revisions/cli-017-default-install-witness-preparation/execution/terminal.json",
+      "bytes": 893,
+      "sha256": "80a35da34eac6e1806f59593004297b4a22eeff647c98a065382e1d93c1f5d43"
+    }
+  ],
+  "scope": "Original complete top-level reports/inventories/environment/outer logs and all per-command receipts/logs; no dependency-tree copy"
+}

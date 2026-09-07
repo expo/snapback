@@ -1,0 +1,22 @@
+{
+  "CARGO_BUILD_JOBS": "2",
+  "CMAKE_BUILD_PARALLEL_LEVEL": "2",
+  "HOME": "/Users/ccheever",
+  "LANG": "C",
+  "LC_ALL": "C",
+  "LOGNAME": "ccheever",
+  "NEXTEST_TEST_THREADS": "2",
+  "NPM_CONFIG_CACHE": "/Users/ccheever/clique-improvement/revisions/cli-017-registry-expo-verification-preparation/execution/registry-install-cache",
+  "NPM_CONFIG_FETCH_RETRIES": "0",
+  "NPM_CONFIG_FETCH_TIMEOUT": "15000",
+  "NPM_CONFIG_GLOBALCONFIG": "/Users/ccheever/clique-improvement/revisions/cli-017-registry-expo-verification-preparation/execution/registry-verification-state/global.npmrc",
+  "NPM_CONFIG_LOGS_DIR": "/Users/ccheever/clique-improvement/revisions/cli-017-registry-expo-verification-preparation/execution/registry-verification-state/logs",
+  "NPM_CONFIG_LOGS_MAX": "0",
+  "NPM_CONFIG_REGISTRY": "https://registry.npmjs.org/",
+  "NPM_CONFIG_STRICT_SSL": "true",
+  "NPM_CONFIG_TIMING": "false",
+  "NPM_CONFIG_USERCONFIG": "/Users/ccheever/clique-improvement/revisions/cli-017-registry-expo-verification-preparation/execution/registry-verification-state/user.npmrc",
+  "PATH": "/Users/ccheever/.volta/tools/image/node/22.23.2/bin:/usr/bin:/bin:/usr/sbin:/sbin",
+  "TMPDIR": "/Users/ccheever/clique-improvement/revisions/cli-017-registry-expo-verification-preparation/execution/registry-verification-state/tmp",
+  "USER": "ccheever"
+}

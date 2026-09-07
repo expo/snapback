@@ -1346,3 +1346,10 @@ Chat check still misses its one-second target at 1.049318542 seconds, and the 17
 The missing generated `Column` and `RowOfColumns` imports are repaired. Insert and merge consumers now keep their Boolean fields and reject numeric assignments under the actual Expo configuration. A pre-fix merge control failed as expected; both fixed consumers and affected source types passed. Independent Astra xhigh and Grok 4.6 xhigh reviews returned READY after actual closed runs. [Evidence and limits](../benchmarks/runs/2026-09-06-clique-improvement/evidence/generated-api-types-repair/README.md) preserve the original negative controls, private shape/Principal assertions, local setup errors, and incomplete broader declaration coverage.
 
 This removes a silent loss of editor/typechecker protection while preserving result inference. The eleven inherited ambient declaration errors remain a separate repair, and the new imports are not in the already-published 0.0.17 package. No new holistic score follows from this source landing.
+
+
+## 2026-09-07 — Public Expo success and default-install timeout
+
+The fresh public 0.0.17 Expo/guide witness passed all 12 commands and all 156 file comparisons, preserving 26 public operations and the whole generated project. Its total was 77.791 seconds. The separate default npm11 install exceeded 30 seconds; a process-identity cleanup race then prevented an actual install exit receipt, and ci never ran. The npm log says packages were added, but that cannot turn this attempt into a pass. [Complete evidence](../benchmarks/runs/2026-09-06-clique-improvement/evidence/cli-017-public-installed/README.md) retains both results and later owned-process absence without rerunning either witness.
+
+The timeout-reporting helper repair is assigned separately. The original timeout and existing publication timing reds remain; the cause of this slower install is not established. No new benchmark score follows.

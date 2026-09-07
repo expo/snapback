@@ -1,0 +1,116 @@
+{
+  "README_sha256": "4928844fa0680279e123ab5b6d69ce6821f528bc25d3715f2c2ccce10a8a79fa",
+  "grammar_sha256": "72d30c2239e39d59d2a685e7980712c99f2f3de44a25fa5d30d3cbf9bb9e6adc",
+  "exact_committed_packed_startup_prose": true,
+  "source_commit": "a606383b6e5ad7cf79555bbc4b810d6cf6ea0e92",
+  "npx_README_route": true,
+  "source_grammar_route": true,
+  "assets_exact_first_README_paragraph_and_packaged_pointer": true,
+  "assets_content": "# `assets`\n\nGenerated image and video arguments accept either their closed record or a\nbrowser `File`. The client reads the operation's current manifest descriptors,\npreflights every file against its byte bound, uploads them, and substitutes the\nreturned records before invoking the mutation. An Expo source may instead be\n`{ uri, size?, fileSize?, type?, mimeType? }`, matching Expo ImagePicker's\n`uri`/`fileSize`/`mimeType` fields. The optional `expo-file-system` peer opens\n`file://` and `content://` URIs as a native Blob-compatible `File`; when neither size\nfield is supplied, its `File.size` provides the required upload length. The\nweb bundle does not include that peer, and URI bytes never pass through a\ncustom owner `fetch` supplied to `createClient`. Native File uploads use the\ndocumented direct File body through `expo/fetch`; progress reports whole-body\nstart and successful completion (0, then total) because that transport does\nnot expose streaming request progress.\n\nSee the packaged [README.md](../../README.md), section \"Assets\", for the full documentation.\n",
+  "prior_construct_count": 23,
+  "all_prior_construct_values_unchanged": false,
+  "unchanged_prior_construct_count": 22,
+  "changed_constructs": [
+    "cap"
+  ],
+  "all_23_constructs_match_current_source_contract": true,
+  "cap_current_source_line": "`cap`: `cap N by columns` bounds each group; reserve is N/N/5N per write, or 1/1/5 with an exact same-`by` count maintain.",
+  "construct_values": {
+    "maintain": {
+      "before_sha256": "30b9a7ff98bba57b92512bc20972466b238fc3ac1f6d8d751ccf95147af08255",
+      "after_sha256": "30b9a7ff98bba57b92512bc20972466b238fc3ac1f6d8d751ccf95147af08255"
+    },
+    "cap": {
+      "before_sha256": "0a6531ed6b3aa274eec21586de446471c151a2bca7ad55334adf944b5933a057",
+      "after_sha256": "796334f677a81885d2d10e62c400657a107877e075d0ecc80b5f705ddd2bfb62"
+    },
+    "unique": {
+      "before_sha256": "78d45cc3b2dd77cc98b1a3996589d4e1633cc630f330be933b522ad1cafaffec",
+      "after_sha256": "78d45cc3b2dd77cc98b1a3996589d4e1633cc630f330be933b522ad1cafaffec"
+    },
+    "immutable": {
+      "before_sha256": "0362ad456957ec045d706b1ea667656b4af0369e715c67725c84409fd076a2a9",
+      "after_sha256": "0362ad456957ec045d706b1ea667656b4af0369e715c67725c84409fd076a2a9"
+    },
+    "public": {
+      "before_sha256": "a9c2827f505a1b036b870d6b2f89390f2f660c2ca372f6b6335995fe89ab1e27",
+      "after_sha256": "a9c2827f505a1b036b870d6b2f89390f2f660c2ca372f6b6335995fe89ab1e27"
+    },
+    "retain": {
+      "before_sha256": "522b0a5151ef73b5ba573cab634482774f5e2148464c34af21d85fd01507541d",
+      "after_sha256": "522b0a5151ef73b5ba573cab634482774f5e2148464c34af21d85fd01507541d"
+    },
+    "channel": {
+      "before_sha256": "b7bbd5049e85061fef372fac900a39de729c8c324fff12a0686ed28641da7ffe",
+      "after_sha256": "b7bbd5049e85061fef372fac900a39de729c8c324fff12a0686ed28641da7ffe"
+    },
+    "connected": {
+      "before_sha256": "c9c3aaf849d72a64068638be241a3deb9576f4b09230da80047b4e4569b49f97",
+      "after_sha256": "c9c3aaf849d72a64068638be241a3deb9576f4b09230da80047b4e4569b49f97"
+    },
+    "schedule": {
+      "before_sha256": "c8e596132c2f8013d9e92a3c58768a5edd51b950811e457c352c04f10d408796",
+      "after_sha256": "c8e596132c2f8013d9e92a3c58768a5edd51b950811e457c352c04f10d408796"
+    },
+    "job": {
+      "before_sha256": "8382102fcd5ddbc538d5ab1d4d6de9924cc09f7df96eed3e56e7826e398f388b",
+      "after_sha256": "8382102fcd5ddbc538d5ab1d4d6de9924cc09f7df96eed3e56e7826e398f388b"
+    },
+    "chunk": {
+      "before_sha256": "aedf556ee52025bbd2e7afa5e260af06c5fa2e75efe0e921f4383283595248f8",
+      "after_sha256": "aedf556ee52025bbd2e7afa5e260af06c5fa2e75efe0e921f4383283595248f8"
+    },
+    "shape": {
+      "before_sha256": "d5601b18082a9a1f863304075cf1e4569f2eda35d8159e7924a1dbb6dcb4032a",
+      "after_sha256": "d5601b18082a9a1f863304075cf1e4569f2eda35d8159e7924a1dbb6dcb4032a"
+    },
+    "merge": {
+      "before_sha256": "41a7d3e79134615587f249e1e68424826a2dc4e54587758cd4c944a16b5d1cd0",
+      "after_sha256": "41a7d3e79134615587f249e1e68424826a2dc4e54587758cd4c944a16b5d1cd0"
+    },
+    "after": {
+      "before_sha256": "18837bf954a5ee715e7a48ec648797574201609feb6d8e578e6f72f861ab8e96",
+      "after_sha256": "18837bf954a5ee715e7a48ec648797574201609feb6d8e578e6f72f861ab8e96"
+    },
+    "first": {
+      "before_sha256": "d201e0789ec67468a4313622b41bf687a72eb5beba4916afba08f440e6526e86",
+      "after_sha256": "d201e0789ec67468a4313622b41bf687a72eb5beba4916afba08f440e6526e86"
+    },
+    "last": {
+      "before_sha256": "d0ff7d8cc71dad17e3c6d89a981867071f51cbb76378f2cf96250bbcdde66174",
+      "after_sha256": "d0ff7d8cc71dad17e3c6d89a981867071f51cbb76378f2cf96250bbcdde66174"
+    },
+    "require": {
+      "before_sha256": "dbbd54290a87c133c712ed28b4c7afb454d222657432afac6b310cf498cf2ca2",
+      "after_sha256": "dbbd54290a87c133c712ed28b4c7afb454d222657432afac6b310cf498cf2ca2"
+    },
+    "match": {
+      "before_sha256": "83a8bcb20fa641ffd7159b08dec0d54d55bef612b800ffd64265e266b90bb0dd",
+      "after_sha256": "83a8bcb20fa641ffd7159b08dec0d54d55bef612b800ffd64265e266b90bb0dd"
+    },
+    "for": {
+      "before_sha256": "8f103967830cd7cdd094e65f28f41a930fe7b4c7b7bc316fb7a769f3353ece6b",
+      "after_sha256": "8f103967830cd7cdd094e65f28f41a930fe7b4c7b7bc316fb7a769f3353ece6b"
+    },
+    "emit": {
+      "before_sha256": "cf261ec6d8c9d1f605075ca2aaace4851c7a47f6249915612379e939abc9ce38",
+      "after_sha256": "cf261ec6d8c9d1f605075ca2aaace4851c7a47f6249915612379e939abc9ce38"
+    },
+    "tokens": {
+      "before_sha256": "8c2839eb577dc1cf879ccc5b8021bb055e5701319854a77246bbcc418b60d50c",
+      "after_sha256": "8c2839eb577dc1cf879ccc5b8021bb055e5701319854a77246bbcc418b60d50c"
+    },
+    "words": {
+      "before_sha256": "98a81aafd5c072c2a5c5a033e3841d764d833efc3fcae209546bb4b296d3bf74",
+      "after_sha256": "98a81aafd5c072c2a5c5a033e3841d764d833efc3fcae209546bb4b296d3bf74"
+    },
+    "divmod": {
+      "before_sha256": "207156bb33178eded812a50c21e351f12de72cc0b4ab12699327aec234438ce5",
+      "after_sha256": "207156bb33178eded812a50c21e351f12de72cc0b4ab12699327aec234438ce5"
+    }
+  },
+  "new_index_count": 24,
+  "old_original_tarball": "/Users/ccheever/projects/snapback-artifacts/clique-release/0.0.13-ae7d86a11/snapback2-0.0.13.tgz",
+  "old_tarball_sha256": "4c379cba193ad57e996145e378e7c58c606a8b1027ca69fb82404b08d72d38c5",
+  "old_keywords_sha256": "6471b0566d1705d3a33d1096824a105a803783a4e156df388531101cf3a6ed58"
+}

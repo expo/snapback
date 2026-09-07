@@ -1,0 +1,10 @@
+{
+  "observedEpoch": 1788817321.097822,
+  "psExitCode": 0,
+  "selection": "exact recorded PID, immediate parent ID, or recorded process group 74883/74847 only",
+  "matchingRows": [],
+  "signalsSent": false,
+  "unrelatedProcessRowsNotRetained": true,
+  "npmInstallExitCode": null,
+  "reason": "Original wait timed out, cleanup identity error; later absence is not successful exit evidence"
+}
