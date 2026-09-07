@@ -1,12 +1,22 @@
 // @ref LLP 1018#3-move-one-one-coherent-reactive-client — identical live
 // queries share one entry: one transport child, one current delivery, one
 // mounted record, released when the last consumer closes.
+import { SnapbackRefusal, copyRefusal } from "./client-wire.js";
 import type { Subscription } from "./types.js";
+
+interface Waiter<Event> {
+  predicate: (event: Event) => boolean;
+  resolve: (event: Event) => void;
+  reject: (error: Error) => void;
+  timer: ReturnType<typeof setTimeout>;
+}
 
 interface Attachment<Event> {
   listener: (event: Event) => void;
   /** The stream has spoken to this consumer; a queued replay is then redundant. */
   delivered: boolean;
+  closed: boolean;
+  readonly waiters: Set<Waiter<Event>>;
 }
 
 interface Observation {
@@ -43,6 +53,19 @@ interface ObservedSnapshot<Snapshot> {
   subscribe(notify: () => void): () => void;
 }
 
+function subscriptionClosed(): Error {
+  const error = new Error("subscription closed");
+  error.name = "AbortError";
+  return error;
+}
+
+function refusalEvent(event: unknown): SnapbackRefusal | undefined {
+  const value = event as { state?: unknown; code?: unknown; family?: unknown; message?: unknown; guide?: unknown } | undefined;
+  return value?.state === "refused" && typeof value.code === "string" && typeof value.family === "string"
+    && typeof value.message === "string" && typeof value.guide === "string"
+    ? new SnapbackRefusal(copyRefusal(value as never)) : undefined;
+}
+
 /**
  * Reference-counted subscriptions keyed by the caller's identity string
  * (authority generation, kind, operation, arguments). The first consumer of
@@ -73,6 +96,10 @@ export class SharedSubscriptions {
       underlying: undefined as unknown as Subscription<Event>,
     };
     const publish = (event: Event, direct: boolean) => {
+      if (direct) {
+        created.epoch += 1;
+        if (created.refreshing) created.refreshPending = true;
+      }
       created.last = event;
       const next = spec.reduce(created.snapshot, event);
       const changed = next !== created.snapshot;
@@ -80,6 +107,7 @@ export class SharedSubscriptions {
       if (direct || changed) for (const each of [...created.attachments]) {
         each.delivered = true;
         try { each.listener(event); } catch { /* one consumer's throw cannot starve the others */ }
+        this.settle(each, event);
       }
       if (changed) for (const each of [...created.observations]) {
         try { each.notify(); } catch { /* a snapshot observer cannot starve its peers */ }
@@ -107,9 +135,8 @@ export class SharedSubscriptions {
     return created;
   }
 
-  private queueRefresh<Event, Snapshot>(key: string, entry: Entry<Event, Snapshot>, spec: EntrySpec<Event, Snapshot>): void {
+  private scheduleRefresh<Event, Snapshot>(key: string, entry: Entry<Event, Snapshot>, spec: EntrySpec<Event, Snapshot>): void {
     if (!spec.refresh) return;
-    entry.refreshPending = true;
     if (entry.refreshScheduled || entry.refreshing) return;
     entry.refreshScheduled = true;
     setTimeout(() => {
@@ -127,13 +154,14 @@ export class SharedSubscriptions {
         for (const each of [...entry.attachments]) {
           each.delivered = true;
           try { each.listener(event); } catch { /* one consumer cannot block the revision */ }
+          this.settle(each, event);
         }
         for (const each of [...entry.observations]) {
           try { each.notify(); } catch { /* a snapshot observer cannot starve its peers */ }
         }
       }).catch(() => undefined).finally(() => {
         entry.refreshing = false;
-        if (entry.refreshPending && this.entries.get(key) === entry) this.queueRefresh(key, entry, spec);
+        if (entry.refreshPending && this.entries.get(key) === entry) this.scheduleRefresh(key, entry, spec);
       });
     }, 0);
   }
@@ -144,12 +172,47 @@ export class SharedSubscriptions {
     entry.underlying.close();
   }
 
+  private settle<Event>(attachment: Attachment<Event>, event: Event): void {
+    const refusal = refusalEvent(event);
+    for (const waiter of [...attachment.waiters]) {
+      if (refusal) {
+        clearTimeout(waiter.timer);
+        attachment.waiters.delete(waiter);
+        waiter.reject(refusal);
+        continue;
+      }
+      let matched = false;
+      try { matched = waiter.predicate(event); }
+      catch (error) {
+        clearTimeout(waiter.timer);
+        attachment.waiters.delete(waiter);
+        waiter.reject(error instanceof Error ? error : new Error(String(error)));
+        continue;
+      }
+      if (!matched) continue;
+      clearTimeout(waiter.timer);
+      attachment.waiters.delete(waiter);
+      waiter.resolve(event);
+    }
+  }
+
+  private closeAttachment<Event>(attachment: Attachment<Event>): void {
+    if (attachment.closed) return;
+    attachment.closed = true;
+    const error = subscriptionClosed();
+    for (const waiter of attachment.waiters) {
+      clearTimeout(waiter.timer);
+      waiter.reject(error);
+    }
+    attachment.waiters.clear();
+  }
+
   attach<Event, Snapshot>(
     spec: EntrySpec<Event, Snapshot>,
     listener: (event: Event) => void,
   ): Subscription<Event> {
     const current = this.entry(spec);
-    const attachment: Attachment<Event> = { listener, delivered: false };
+    const attachment: Attachment<Event> = { listener, delivered: false, closed: false, waiters: new Set() };
     current.attachments.add(attachment);
     // A late consumer sees where the entry is *now*: what is current when the
     // replay runs, never a captured older delivery, and nothing at all once the
@@ -160,16 +223,33 @@ export class SharedSubscriptions {
       if (replay === undefined) return;
       attachment.delivered = true;
       try { listener(replay); } catch { /* isolated like any other fan-out */ }
+      this.settle(attachment, replay);
     });
     let closed = false;
     const handle: Subscription<Event> & { reset?(): void; reconnect?(): void } = {
       close: () => {
         if (closed) return;
         closed = true;
+        this.closeAttachment(attachment);
         current.attachments.delete(attachment);
         this.release(spec.key, current);
       },
-      until: (predicate, timeoutMs) => current.underlying.until(predicate, timeoutMs),
+      until: (predicate, timeoutMs = 30_000) => {
+        if (attachment.closed) return Promise.reject(subscriptionClosed());
+        if (current.last !== undefined) {
+          const refusal = refusalEvent(current.last);
+          if (refusal) return Promise.reject(refusal);
+          try { if (predicate(current.last)) return Promise.resolve(current.last); }
+          catch (error) { return Promise.reject(error instanceof Error ? error : new Error(String(error))); }
+        }
+        return new Promise((resolve, reject) => {
+          const waiter: Waiter<Event> = { predicate, resolve, reject, timer: setTimeout(() => {
+            attachment.waiters.delete(waiter);
+            reject(new Error(`subscription condition timed out after ${timeoutMs} ms`));
+          }, timeoutMs) };
+          attachment.waiters.add(waiter);
+        });
+      },
     };
     // The stream's own controls (a successor's reset, a forced reconnect) stay
     // reachable through the handle; they act on the shared stream for everyone.
@@ -210,7 +290,12 @@ export class SharedSubscriptions {
 
   /** Coalesce committed local input revisions to at most one evaluation per active entry at a time. */
   refresh(): void {
-    for (const [key, entry] of this.entries) this.queueRefresh(key, entry, entry.spec);
+    for (const [key, entry] of this.entries) {
+      if (!entry.spec.refresh) continue;
+      entry.epoch += 1;
+      entry.refreshPending = true;
+      this.scheduleRefresh(key, entry, entry.spec);
+    }
   }
 
   /** Retire subscribed views whose captured client authority is no longer current. */
@@ -236,7 +321,10 @@ export class SharedSubscriptions {
       const owner = entry.underlying as Subscription<unknown> & { owns?(subscription: Subscription<unknown>): boolean };
       const preserved = except !== undefined && (owner === except || owner.owns?.(except) === true);
       if (preserved) { entry.last = undefined; entry.snapshot = entry.initial; }
-      if (!preserved) { entry.attachments.clear(); this.entries.delete(key); }
+      if (!preserved) {
+        for (const attachment of entry.attachments) this.closeAttachment(attachment);
+        entry.attachments.clear(); this.entries.delete(key);
+      }
       const observations = [...entry.observations];
       entry.observations.clear();
       if (!preserved) entry.underlying.close();

@@ -72,6 +72,7 @@ await build({
     "react-core": resolve(here, "src/react-core.tsx"),
     expo: resolve(here, "src/expo.ts"),
     "react-native": resolve(here, "src/react-native.tsx"),
+    "client-sessions-test": resolve(here, "src/client-sessions.ts"),
     "witness-test": resolve(here, "tests/witness-exports.ts"),
   },
   outdir: dist,
