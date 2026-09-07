@@ -1185,7 +1185,7 @@
       "memberships.read": "3ade239c6096ddda633835debdffd5e228d2bf99028ae3b910926cdab25802c6",
       "unreads.read": "1d8d3e1fffce8674adaa3a3530c8cfa0532160a8f015033e4deaa5a13fc2e7d1"
     },
-    "evaluator_version": "bounded-spike-rust-search-text-refinements-4",
+    "evaluator_version": "bounded-spike-rust-search-text-refinements-5",
     "value_model_version": "i53-codepoint-bytes-unicode-search-text-refinements-v5",
     "read_sites": [
       {

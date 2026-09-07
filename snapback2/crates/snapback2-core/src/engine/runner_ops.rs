@@ -11,6 +11,12 @@ use std::cmp::Ordering;
 use std::collections::{BTreeMap, BTreeSet, VecDeque};
 use thiserror::Error;
 
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum RowChangeOrigin {
+    Source,
+    Maintained,
+}
+
 impl<'a> Runner<'a> {
     pub(super) fn insert(&mut self, table: &str, row: Value) -> Result<(), RuntimeError> {
         validate_row(&self.schema, table, &row)?;
@@ -39,16 +45,7 @@ impl<'a> Runner<'a> {
             params![table, id, canonical_json(&row)],
         )?;
         let work = reindex_row(self.tx, self.schema, table, &row)?;
-        self.search_nodes.clear();
-        self.derive_charge(work)?;
-        self.remember_created_row(table, &row)?;
-        self.inserted_rows.push((table.to_owned(), row.clone()));
-        self.clear_rule_memos();
-        self.touch_row(table, &row)?;
-        self.bump_write(table);
-        self.maintain_timers(table, None, Some(&row))?;
-        self.maintain(table, None, Some(&row))?;
-        Ok(())
+        self.finish_row_change(table, None, Some(&row), work, RowChangeOrigin::Source)
     }
 
     pub(super) fn update(
@@ -126,21 +123,12 @@ impl<'a> Runner<'a> {
                 self.context.now.unwrap_or_else(unix_millis),
             )?;
         }
-        self.touch_row(table, &old)?;
         self.tx.execute(
             "UPDATE rows SET data = ?3 WHERE table_name = ?1 AND row_id = ?2",
             params![table, key_id, canonical_json(&new)],
         )?;
         let work = reindex_row(self.tx, self.schema, table, &new)?;
-        self.search_nodes.clear();
-        self.derive_charge(work)?;
-        self.refresh_created_points(table, &new)?;
-        self.clear_rule_memos();
-        self.touch_row(table, &new)?;
-        self.bump_write(table);
-        self.maintain_timers(table, Some(&old), Some(&new))?;
-        self.maintain(table, Some(&old), Some(&new))?;
-        Ok(())
+        self.finish_row_change(table, Some(&old), Some(&new), work, RowChangeOrigin::Source)
     }
 
     pub(super) fn delete(&mut self, table: &str, id: &str) -> Result<(), RuntimeError> {
@@ -166,19 +154,59 @@ impl<'a> Runner<'a> {
                 self.context.now.unwrap_or_else(unix_millis),
             )?;
         }
-        self.touch_row(table, &old)?;
         self.tx.execute(
             "DELETE FROM rows WHERE table_name = ?1 AND row_id = ?2",
             params![table, id],
         )?;
         let work = delete_index_row(self.tx, table, id)?;
+        self.finish_row_change(table, Some(&old), None, work, RowChangeOrigin::Source)
+    }
+
+    /// Complete the shared post-validation portion of one physical row change.
+    /// SQLite owns the row and ordinary index mutation before this point; the
+    /// runner owns derived invalidation, provenance, timers, and aggregates in
+    /// the same transaction before the next statement may execute.
+    // @ref LLP 1001#2-what-a-commit-records — every physical source or
+    // maintained-target row change records the same transactional lifecycle.
+    fn finish_row_change(
+        &mut self,
+        table: &str,
+        old: Option<&Value>,
+        new: Option<&Value>,
+        index_work: search_index::Derivation,
+        origin: RowChangeOrigin,
+    ) -> Result<(), RuntimeError> {
         self.search_nodes.clear();
-        self.derive_charge(work)?;
-        self.forget_created_points(table, id);
+        self.derive_charge(index_work)?;
+        match (old, new) {
+            (None, Some(row)) => {
+                self.remember_created_row(table, row)?;
+            }
+            (Some(_), Some(row)) => {
+                self.refresh_created_points(table, row)?;
+            }
+            (Some(row), None) => {
+                self.forget_created_points(table, row.field("id")?.as_str()?);
+            }
+            _ => {}
+        }
+        if old.is_none()
+            && let Some(row) = new
+        {
+            self.inserted_rows.push((table.to_owned(), row.clone()));
+        }
         self.clear_rule_memos();
+        if let Some(row) = old {
+            self.touch_row(table, row)?;
+        }
+        if let Some(row) = new {
+            self.touch_row(table, row)?;
+        }
         self.bump_write(table);
-        self.maintain_timers(table, Some(&old), None)?;
-        self.maintain(table, Some(&old), None)?;
+        self.maintain_timers(table, old, new)?;
+        if origin == RowChangeOrigin::Source {
+            self.maintain(table, old, new)?;
+        }
         Ok(())
     }
 
@@ -218,37 +246,59 @@ impl<'a> Runner<'a> {
             .cloned()
             .collect();
         for maintain in maintains {
+            let table = self.schema.table(&maintain.source).ok_or_else(|| {
+                RuntimeError::Schema(format!("missing table {}", maintain.source))
+            })?;
+            // A row move applies the old group before the new group. This is
+            // observable when the maintained target has a cross-group unique
+            // constraint, so do not derive execution order from address sort.
+            let mut changes = Vec::<(String, Vec<Value>, i128)>::new();
             if let Some(old) = old {
-                self.apply_aggregate(&maintain, old, -1)?;
+                let group = crate::cap::maintained_group(table, old, &maintain.by)?;
+                let delta = self.aggregate_delta(&maintain, &group.source, -1)?;
+                changes.push((group.id, group.key, delta));
             }
             if let Some(new) = new {
-                self.apply_aggregate(&maintain, new, 1)?;
+                let group = crate::cap::maintained_group(table, new, &maintain.by)?;
+                let delta = self.aggregate_delta(&maintain, &group.source, 1)?;
+                if let Some(change) = changes.iter_mut().find(|change| change.0 == group.id) {
+                    change.2 += delta;
+                } else {
+                    changes.push((group.id, group.key, delta));
+                }
+            }
+            for (id, key, delta) in changes {
+                self.apply_aggregate_change(&maintain, id, key, delta)?;
             }
         }
         Ok(())
     }
 
-    pub(super) fn apply_aggregate(
-        &mut self,
+    fn aggregate_delta(
+        &self,
         maintain: &Maintain,
         source: &Value,
         direction: i64,
-    ) -> Result<(), RuntimeError> {
-        let table = self
-            .schema
-            .table(&maintain.source)
-            .ok_or_else(|| RuntimeError::Schema(format!("missing table {}", maintain.source)))?;
-        let group = crate::cap::maintained_group(table, source, &maintain.by)?;
-        let source = group.source;
-        let id = group.id;
-        let delta = match &maintain.kind {
-            MaintainKind::Count => direction,
-            MaintainKind::Sum { of } => direction
-                .checked_mul(source.field(of)?.as_int()?)
+    ) -> Result<i128, RuntimeError> {
+        Ok(match &maintain.kind {
+            MaintainKind::Count => i128::from(direction),
+            MaintainKind::Sum { of } => i128::from(direction)
+                .checked_mul(i128::from(source.field(of)?.as_int()?))
                 .ok_or_else(|| {
                     RuntimeError::Constraint("aggregate multiplication overflow".to_owned())
                 })?,
-        };
+        })
+    }
+
+    // @ref LLP 1001#4-generation-and-runtime-registryrs-successorrs — maintained rows
+    // use the canonical sparse representation and ordinary row lifecycle.
+    fn apply_aggregate_change(
+        &mut self,
+        maintain: &Maintain,
+        id: String,
+        key: Vec<Value>,
+        delta: i128,
+    ) -> Result<(), RuntimeError> {
         let existing = self.fetch_id(&maintain.target, &id)?;
         // @ref LLP 1001#2-what-a-commit-records — a local aggregate may start
         // from zero only when authority proved the deterministic target absent.
@@ -269,18 +319,36 @@ impl<'a> Runner<'a> {
             .map(Value::as_int)
             .transpose()?
             .unwrap_or(0);
-        let next = old_value as i128 + delta as i128;
+        let next = i128::from(old_value) + delta;
         if !(I53_MIN as i128..=I53_MAX as i128).contains(&next) {
             return Err(ValueError::Overflow(next).into());
+        }
+        let empty = next == 0;
+        if empty {
+            if let Some(existing) = existing {
+                return self.delete_aggregate_row(&maintain.target, existing);
+            }
+            return Ok(());
         }
         let mut row = BTreeMap::from([
             ("id".to_owned(), Value::Id(id.clone())),
             ("value".to_owned(), Value::Int(next as i64)),
         ]);
-        for (field, value) in maintain.by.iter().zip(group.key) {
+        for (field, value) in maintain.by.iter().zip(key) {
             row.insert(field.clone(), value);
         }
         self.write_aggregate_row(&maintain.target, Value::Row(row.into()))
+    }
+
+    fn delete_aggregate_row(&mut self, target: &str, row: Value) -> Result<(), RuntimeError> {
+        let id = row.field("id")?.as_str()?.to_owned();
+        self.check_constraints(target, Some(&row), &row, Effect::Delete)?;
+        self.tx.execute(
+            "DELETE FROM rows WHERE table_name = ?1 AND row_id = ?2",
+            params![target, id],
+        )?;
+        let work = delete_index_row(self.tx, target, &id)?;
+        self.finish_row_change(target, Some(&row), None, work, RowChangeOrigin::Maintained)
     }
 
     pub(super) fn write_aggregate_row(
@@ -299,9 +367,6 @@ impl<'a> Runner<'a> {
         // LLP 1001 §7 ruling: maintained targets are engine-owned, so aggregate
         // writes bypass user insert/update/delete rules but never constraints or unique indexes.
         self.check_constraints(target, existing.as_ref(), &row, effect)?;
-        if let Some(existing) = &existing {
-            self.touch_row(target, existing)?;
-        }
         self.tx.execute(
             "INSERT INTO rows(table_name, row_id, data) VALUES (?1, ?2, ?3)
              ON CONFLICT(table_name, row_id) DO UPDATE SET data = excluded.data",
@@ -311,19 +376,13 @@ impl<'a> Runner<'a> {
             .fetch_id(target, &id)?
             .expect("aggregate row was just upserted");
         let work = reindex_row(self.tx, self.schema, target, &aggregate)?;
-        self.search_nodes.clear();
-        self.derive_charge(work)?;
-        if effect == Effect::Insert {
-            self.remember_created_row(target, &aggregate)?;
-            self.inserted_rows
-                .push((target.to_owned(), aggregate.clone()));
-        } else {
-            self.refresh_created_points(target, &aggregate)?;
-        }
-        self.clear_rule_memos();
-        self.touch_row(target, &aggregate)?;
-        self.bump_write(target);
-        Ok(())
+        self.finish_row_change(
+            target,
+            existing.as_ref(),
+            Some(&aggregate),
+            work,
+            RowChangeOrigin::Maintained,
+        )
     }
 
     // @ref LLP 1001#4-generation-and-runtime-registryrs-successorrs — stale
@@ -339,20 +398,7 @@ impl<'a> Runner<'a> {
             if !ids.contains(&id) {
                 continue;
             }
-            // Maintained targets are engine-owned, but their declared
-            // constraints still bind successor rebuild deletions.
-            self.check_constraints(target, Some(&row), &row, Effect::Delete)?;
-            self.touch_row(target, &row)?;
-            self.tx.execute(
-                "DELETE FROM rows WHERE table_name = ?1 AND row_id = ?2",
-                params![target, id],
-            )?;
-            let work = delete_index_row(self.tx, target, &id)?;
-            self.search_nodes.clear();
-            self.derive_charge(work)?;
-            self.forget_created_points(target, &id);
-            self.clear_rule_memos();
-            self.bump_write(target);
+            self.delete_aggregate_row(target, row)?;
         }
         Ok(())
     }

@@ -42,7 +42,7 @@ import {
 import type { Context, Execution, Trace, TraceRange, TraceVerdict, TraceWrite, Value } from "./types";
 
 export const CURRENT_VALUE_MODEL_VERSION = "i53-codepoint-bytes-unicode-search-text-refinements-v5";
-export const CURRENT_EVALUATOR = "bounded-spike-rust-search-text-refinements-4";
+export const CURRENT_EVALUATOR = "bounded-spike-rust-search-text-refinements-5";
 
 type Flow =
   | { kind: "next" }
@@ -801,8 +801,22 @@ export class Runner {
   private maintain(source: string, old: Value | null, next: Value | null): void {
     for (const maintain of this.schema.maintains ?? []) {
       if (maintain.source !== source) continue;
-      if (old !== null) this.applyAggregate(maintain, old, -1);
-      if (next !== null) this.applyAggregate(maintain, next, 1);
+      const changes = new Map<string, { group: Value[]; delta: bigint }>();
+      const add = (row: Value, direction: number): void => {
+        const address = this.maintainedGroup(maintain, row);
+        const [kind, data] = variant(maintain.kind);
+        const delta = kind === "Count"
+          ? BigInt(direction)
+          : BigInt(direction) * BigInt(asInt(field(address.source, data.of)));
+        const prior = changes.get(address.idValue);
+        if (prior) {
+          prior.delta += delta;
+        } else changes.set(address.idValue, { group: address.group, delta });
+      };
+      if (old !== null) add(old, -1);
+      if (next !== null) add(next, 1);
+      for (const [idValue, change] of changes)
+        this.applyAggregateChange(maintain, idValue, change.group, change.delta);
     }
   }
 
@@ -816,14 +830,13 @@ export class Runner {
     return { source, group, idValue: canonicalValues(group) };
   }
 
-  private applyAggregate(maintain: any, source: Value, direction: number): void {
+  private applyAggregateChange(
+    maintain: any,
+    idValue: string,
+    group: Value[],
+    delta: bigint,
+  ): void {
     // @ref LLP 1001#4-generation-and-runtime-registryrs-successorrs — maintained targets are engine-owned but still validated.
-    const groupAddress = this.maintainedGroup(maintain, source);
-    source = groupAddress.source;
-    const { group, idValue } = groupAddress;
-    const [kind, data] = variant(maintain.kind);
-    const delta =
-      kind === "Count" ? direction : safeNumber(direction * asInt(field(source, data.of)));
     const existing = this.store.byId(maintain.target, idValue);
     if (existing === null && !this.store.authorityAbsence(maintain.target, idValue)) {
       this.partial.add("missing-authority");
@@ -832,9 +845,28 @@ export class Runner {
       return;
     }
     const oldValue = existing === null ? 0 : asInt(field(existing, "value"));
+    const exact = BigInt(oldValue) + delta;
+    if (exact < BigInt(Number.MIN_SAFE_INTEGER) || exact > BigInt(Number.MAX_SAFE_INTEGER))
+      throw new EvalError("E_OVERFLOW", "integer overflow");
+    const value = Number(exact);
+    const empty = value === 0;
+    if (empty) {
+      if (existing !== null) {
+        this.checkConstraints(maintain.target, existing, existing, "delete");
+        this.store.remove(maintain.target, idValue);
+        this.writes.set(`${maintain.target}\0${idValue}`, {
+          table: maintain.target,
+          id: idValue,
+          row: null,
+        });
+        this.forgetCreatedPoints(maintain.target, idValue);
+        this.ruleMemo.clear();
+      }
+      return;
+    }
     const object: Record<string, Value> = Object.assign(Object.create(null), {
       id: { Id: idValue },
-      value: int(oldValue + delta),
+      value: int(value),
     });
     maintain.by.forEach((name: string, index: number) => {
       object[name] = group[index];
@@ -921,7 +953,8 @@ export class Runner {
         )
       )
         throw new EvalError("E_CONSTRAINT", `${tableName} immutable fields changed`);
-      if (kind === "Unique") this.checkUnique(tableName, data.index, old, row);
+      if (kind === "Unique" && effect !== "delete")
+        this.checkUnique(tableName, data.index, old, row);
       if (kind === "Cap") {
         const entersGroup =
           effect === "insert" ||
@@ -994,7 +1027,7 @@ export class Runner {
       }
     }
     for (const [indexName, index] of Object.entries<any>(table.indexes)) {
-      if (index.unique) this.checkUnique(tableName, indexName, old, row);
+      if (effect !== "delete" && index.unique) this.checkUnique(tableName, indexName, old, row);
     }
   }
 

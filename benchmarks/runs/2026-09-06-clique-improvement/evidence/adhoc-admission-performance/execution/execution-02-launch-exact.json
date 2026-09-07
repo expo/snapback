@@ -1,0 +1,27 @@
+{
+  "argv": [
+    "ssh",
+    "-o",
+    "ProxyCommand=/Applications/Tailscale.app/Contents/MacOS/Tailscale nc %h %p",
+    "-o",
+    "BatchMode=yes",
+    "-o",
+    "ConnectTimeout=20",
+    "-o",
+    "ServerAliveInterval=15",
+    "-o",
+    "ServerAliveCountMax=3",
+    "ccheever@<private-fleet-address>",
+    "sh -s"
+  ],
+  "startedEpoch": 1788783507.813759,
+  "localPid": 36225,
+  "timeoutSeconds": 60,
+  "inputPath": "/Users/ccheever/clique-improvement/revisions/adhoc-certification-performance-execution-r1/proposed-corrected-run-command.txt",
+  "inputSha256": "211ab9a54f9532736319acecd58a550e6ee576d4482c5fb45c0820dadf6a63f3",
+  "exitCode": 0,
+  "timedOut": false,
+  "elapsedSeconds": 2.4680519104003906,
+  "stdoutSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+}

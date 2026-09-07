@@ -1,0 +1,57 @@
+[
+  {
+    "name": "caps",
+    "argv": [
+      "/Users/ccheever/.volta/tools/image/node/22.23.2/bin/node",
+      "scripts/caps.mjs"
+    ],
+    "cwd": "/Users/ccheever/projects/snapback-worktrees/clique-structural-codec",
+    "pid": 17446,
+    "start": "2026-09-07T12:13:31.630614+00:00",
+    "outerSeconds": 30,
+    "host": "Darwin",
+    "node": "/Users/ccheever/.volta/tools/image/node/22.23.2/bin/node",
+    "nodeSha256": "18e387c90ab8a8400183e8bdd396376e1e875b91b4c874b894dcade7b35bf572",
+    "end": "2026-09-07T12:13:35.366773+00:00",
+    "elapsedSeconds": 3.7363076250000002,
+    "exitCode": 0,
+    "logSha256": "0a41984104a58d491252d3fdc949feb0185c91e7b85573378f6da2f3d0e028a4"
+  },
+  {
+    "name": "refs",
+    "argv": [
+      "./ref-check",
+      "--verbose"
+    ],
+    "cwd": "/Users/ccheever/projects/snapback-worktrees/clique-structural-codec",
+    "pid": 17524,
+    "start": "2026-09-07T12:13:35.368086+00:00",
+    "outerSeconds": 120,
+    "host": "Darwin",
+    "node": "/Users/ccheever/.volta/tools/image/node/22.23.2/bin/node",
+    "nodeSha256": "18e387c90ab8a8400183e8bdd396376e1e875b91b4c874b894dcade7b35bf572",
+    "end": "2026-09-07T12:13:47.958829+00:00",
+    "elapsedSeconds": 12.590888416000002,
+    "exitCode": 0,
+    "logSha256": "5a410155c8496207a216daf5da0882b95f4e157e9c0676befe2f2c88a5284748"
+  },
+  {
+    "name": "diff",
+    "argv": [
+      "git",
+      "diff",
+      "--check"
+    ],
+    "cwd": "/Users/ccheever/projects/snapback-worktrees/clique-structural-codec",
+    "pid": 17593,
+    "start": "2026-09-07T12:13:47.961075+00:00",
+    "outerSeconds": 10,
+    "host": "Darwin",
+    "node": "/Users/ccheever/.volta/tools/image/node/22.23.2/bin/node",
+    "nodeSha256": "18e387c90ab8a8400183e8bdd396376e1e875b91b4c874b894dcade7b35bf572",
+    "end": "2026-09-07T12:13:48.218095+00:00",
+    "elapsedSeconds": 0.25707337500000094,
+    "exitCode": 0,
+    "logSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  }
+]

@@ -143,7 +143,7 @@
     "rule_hashes": {
       "events.insert": "5d3344e720a31c25f61eb50c6ab2dda77417895c8673fb2db99abdce2dd36ac7"
     },
-    "evaluator_version": "bounded-spike-rust-search-text-refinements-4",
+    "evaluator_version": "bounded-spike-rust-search-text-refinements-5",
     "value_model_version": "i53-codepoint-bytes-unicode-search-text-refinements-v5",
     "read_sites": [],
     "write_sites": [

@@ -1,0 +1,27 @@
+{
+  "scaleBase": "26c9fd5e0d3922ce7680493c0e8f7371f4793d59",
+  "reviewBase": "97b4a5b2c218162f8a20a03928574dbd50608106",
+  "reviewedRepair": "cd610a50e9aab41c3e13620e0aefe8d6da5115f3",
+  "files": [
+    {
+      "path": "snapback2/crates/snapback2/src/writer_jobs.rs",
+      "scaleBaseSha256": "64d2910e56afbf3c7e15431948db75d9513f4d5e87ac3f579f1ee63fb779cccd",
+      "reviewBaseSha256": "64d2910e56afbf3c7e15431948db75d9513f4d5e87ac3f579f1ee63fb779cccd",
+      "equal": true
+    },
+    {
+      "path": "snapback2/crates/snapback2-core/src/registry_jobs.rs",
+      "scaleBaseSha256": "96a2868c3fa6fe42a5a59251b8d56afad01b28dc6304d45cd2763ac39fc812d1",
+      "reviewBaseSha256": "96a2868c3fa6fe42a5a59251b8d56afad01b28dc6304d45cd2763ac39fc812d1",
+      "equal": true
+    },
+    {
+      "path": "snapback2/crates/snapback2/src/rehearsal.rs",
+      "scaleBaseSha256": "db6fe29a5675bb9186a63f102157f1d8e5b8f98e42dff6e933540515d5c55eb6",
+      "reviewBaseSha256": "db6fe29a5675bb9186a63f102157f1d8e5b8f98e42dff6e933540515d5c55eb6",
+      "equal": true
+    }
+  ],
+  "allThreeEqual": true,
+  "productionDiffSha256": "f72efe79a4f9139747666995869804454770fc204360e14a6c50cfef45a794f7"
+}

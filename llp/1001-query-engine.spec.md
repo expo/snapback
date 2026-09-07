@@ -5,7 +5,7 @@
 **Systems:** `snapback2/crates/snapback2-core` (`store`, `registry`, `live`, `identity`, `successor`, the engine, the IR)
 **Author:** Claude Fable 5 (orchestrator) — implementer: codex gpt-5.6-sol, lane A
 **Date:** 2026-08-29
-**Revised:** 2026-09-07 (surviving-row uniqueness checked against each actual rebuild); 2026-09-07 (schema-owned maintained address widths/references and scoped successor reindex); 2026-09-07 (native v5 search/text integration preserving count-backed caps and ad hoc admission); 2026-09-07 (count-backed cap probes); 2026-09-06 (fixed complete local-runtime measurement roots: 66,000-byte ceiling, 64,000 target); 2026-09-06 (generation-owned policy hashes, pooled merge seeks and bounded shared templates); 2026-09-06 (measured full-entry search trade: 50,000-byte ceiling, 48,000 target); 2026-09-06 (session-delegated Unicode/search foundation and downstream contracts); 2026-09-06 (conditional result-page provenance and branch-scoped cursor validation); 2026-09-05 (Clique L12 — §3 receipt-only null invariant and §5.1 `connected`); 2026-09-05 (Clique L9 — bounded ASCII words builtin and constructed-text boundary); 2026-09-05 (Clique L10 — lazy merge, receipt retention and global local-pagination cursor rule); 2026-09-05 (Clique L8b — nested point-read shapes preserve page state; early exits preserve capped taint); 2026-09-05 (Clique L8a — prefix-local self-probe and decided-disjunction visibility proofs); 2026-09-05 (Clique L3 — honest bound refusals and patch-sensitive cap metering; LLP 1016 J2 — §1's system tables gain `_jobs` and `_timers`; LLP 1017 §1, then §2 and §3)
+**Revised:** 2026-09-07 (canonical sparse aggregates and shared maintained-row lifecycle); 2026-09-07 (LLP 1018.000: persistent query IDs, context-aware batches and incremental dependency membership); 2026-09-07 (surviving-row uniqueness checked against each actual rebuild); 2026-09-07 (schema-owned maintained address widths/references and scoped successor reindex); 2026-09-07 (native v5 search/text integration preserving count-backed caps and ad hoc admission); 2026-09-07 (count-backed cap probes); 2026-09-06 (fixed complete local-runtime measurement roots: 66,000-byte ceiling, 64,000 target); 2026-09-06 (generation-owned policy hashes, pooled merge seeks and bounded shared templates); 2026-09-06 (measured full-entry search trade: 50,000-byte ceiling, 48,000 target); 2026-09-06 (session-delegated Unicode/search foundation and downstream contracts); 2026-09-06 (conditional result-page provenance and branch-scoped cursor validation); 2026-09-05 (Clique L12 — §3 receipt-only null invariant and §5.1 `connected`); 2026-09-05 (Clique L9 — bounded ASCII words builtin and constructed-text boundary); 2026-09-05 (Clique L10 — lazy merge, receipt retention and global local-pagination cursor rule); 2026-09-05 (Clique L8b — nested point-read shapes preserve page state; early exits preserve capped taint); 2026-09-05 (Clique L8a — prefix-local self-probe and decided-disjunction visibility proofs); 2026-09-05 (Clique L3 — honest bound refusals and patch-sensitive cap metering; LLP 1016 J2 — §1's system tables gain `_jobs` and `_timers`; LLP 1017 §1, then §2 and §3)
 **Related:** LLP 1000, LLP 1002 (the loop that serves this), LLP 1003 (effects
 through the outbox this spec defines), LLP 0329.014.004 §7 (runtime), LLP
 0329.014.000 §6 (execution, trace, states), LLP 0329.016 §5.6 (no silent
@@ -528,6 +528,32 @@ Successor rebuilds own exactly the union of target row IDs projected by the
 predecessor and successor maintain declarations: they replace or remove those
 IDs and preserve every other target row and index entry.
 
+Engine-owned maintained count and sum targets use one canonical sparse
+representation: the target row exists exactly when its aggregate value is nonzero. A nonempty
+sum whose contributions cancel to zero therefore has no physical target row;
+the scalar aggregate surface continues to return zero for that absent address,
+while direct target-row visibility observes absence. One source row change
+combines its old and new contributions by group before touching a target, so a
+same-group update cannot transiently delete and recreate the row. A zero
+transition uses the ordinary engine-owned delete lifecycle, and a nonzero
+transition uses the ordinary insert/update lifecycle: constraints, indexes
+(including search), touched keys, created-row bookkeeping, timers, write
+accounting, and rollback all remain in the source transaction. Clean successor
+rebuild omits zero-valued projections by the same rule. Row schedules declared
+on maintained targets are certified as maintained write amplification and are
+created, replaced, or removed with those target rows.
+
+This semantic change advances the evaluator identity to
+`bounded-spike-rust-search-text-refinements-5`; v4 held operations are not
+admitted by a v5 client or native engine. Native stores persist that evaluator
+identity separately from the schema hash. The first v5 open of an installed
+v4-era store transactionally removes zero-valued maintained rows whose ids
+exactly reproduce their grouping tuples, using the ordinary delete lifecycle,
+then records v5. This one-time target scan does not rebuild from source and
+preserves legacy ordinary-id rows outside the engine projection. Successor
+uniqueness checks omit zero-valued replacement rows, although their exact ids
+remain owned for removal.
+
 Three rulings from the 2026-08-30 review (M3, M4, M8):
 
 - **Atomic.** `apply_successor` and `apply_migration` run in one transaction
@@ -606,7 +632,8 @@ rebuilds and generation metadata remain in the same rollback transaction.
 Count-backed cap addresses, one-row reserves, proven absences and N fallback do
 not change; successor caps still count base rows.
 
-This correction retains the v5 value/evaluator identities. The coordinated
+This correction retains the v5 value identity and uses the evaluator v5
+boundary recorded above. The coordinated
 TypeScript evaluator/client uses shared typed and wire validators for this same
 domain, including absent buckets and immutable first-image custody. Exact native
 Ref/Optional/List roundtrip/refusal fixtures and combined-graph owner replays
@@ -622,10 +649,12 @@ pub struct Delivery { pub id: SubscriptionId, pub seq: u64, pub execution: Resul
 impl Runtime {
     pub fn subscribe(&mut self, op: &str, context: Context) -> Result<(SubscriptionId, Execution), RuntimeError>;
     pub fn unsubscribe(&mut self, id: SubscriptionId);
-    /// Which subscriptions a commit touched. Pure; O(touched keys · matching entries).
+    /// Pure exact-key lookup and conservative prefix-group matching.
     pub fn invalidated(&self, commit: &CommitRecord) -> Vec<SubscriptionId>;
     /// Re-execute the named subscriptions once each (coalesced), diff against the last result digest.
     pub fn rerun(&mut self, ids: &[SubscriptionId]) -> Vec<Delivery>;
+    /// Refresh context and execution in the same persistent subscription slot.
+    pub fn rerun_with_contexts(&mut self, entries: &[(SubscriptionId, Context)]) -> Vec<Delivery>;
     pub fn subscriptions(&self) -> Vec<SubscriptionInfo>;   // for `dev --status`, `why`, `trace`
 }
 ```
@@ -647,9 +676,29 @@ coalesce — the state is part of the digest, so `Complete` → `Denied` over th
 same payload is a change. Every write emits at least one touched entry for its
 table even when the table has no index, so `constraint_inputs` overlap works
 without assuming `byId` exists (round 2 G2/G3).
-`rerun` executes at most once per id per call, in id order, and updates the
-subscription's key entries from the fresh trace. Subscriptions live in memory
-with the owner; a restart re-subscribes from the clients (LLP 1002).
+`rerun` executes at most once per id per call, in id order. The context-aware
+batch keeps each `SubscriptionId`; the last context supplied for a repeated id
+wins. The owner samples one clock for the batch and refreshes `now` and
+`read_time` without unsubscribing and subscribing again. It still derives
+ordinary and offline frames from the full execution and compares frame digests;
+a terminal delivery removes the owner entry and detaches its runtime slot once.
+
+Trace dependencies are normalized sets. A successful execution, including a
+denied or partial result, replaces only the old/new set difference. Point,
+absence, and rule-input keys share exact membership; constraints use table
+membership. Ranges use `(table, index) → canonical prefix → subscription IDs`,
+so attaching, replacing, or removing a range uses keyed membership rather than
+scanning all subscribers of that index. Empty prefix and index buckets are
+pruned. Invalidation still conservatively examines the distinct prefix groups
+of each touched index, including search scope touches; this is not a claim
+that range invalidation costs only the number of final matches.
+
+A runtime error has no replacement authoritative trace: retain the old
+dependencies for a later retry while remembering the latest context and error
+digest. Core callers can retry that slot; the owner's terminal transport path
+detaches it. Subscriptions live in memory with the owner; a restart
+re-subscribes from the clients (LLP 1002). This implements the persistent-query
+move in LLP 1018.000; no leaf-read cache is introduced.
 
 A `Delivery` for a subscription whose read is now `Denied` (a revoked
 membership) is delivered with that state — the client sees `denied`, not a
@@ -1110,7 +1159,7 @@ full search heap qualification still includes runtime/table/store overhead.
 (xhigh), `clique-native-v5-integration` lane. The native engine now uses
 `Index.components`, `Scalar`/`WordPrefix` scan positions and logical `IndexAtom`
 receipts under value identity `i53-codepoint-bytes-unicode-search-text-refinements-v5`
-and evaluator `bounded-spike-rust-search-text-refinements-4`. Held source
+and evaluator `bounded-spike-rust-search-text-refinements-5`. Held source
 descriptors are rederived under their certified Q and dependency custody;
 a tag alone is never trusted. Ordinary points, scalar suffixes and bounds retain
 their roles. This reconciles the implemented v5 engine onto current native

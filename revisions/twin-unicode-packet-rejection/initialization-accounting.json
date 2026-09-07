@@ -1,0 +1,93 @@
+{
+  "scope": "static candidate source/payload accounting; not startup, latency, RSS or resident measurement",
+  "columns": [
+    {
+      "literalPackets": 50,
+      "affinePackets": 52,
+      "literalValues": 328,
+      "affineValues": 1753,
+      "maxRun": 541,
+      "maxOperand": 75328,
+      "bytes": 569
+    },
+    {
+      "literalPackets": 12,
+      "affinePackets": 22,
+      "literalValues": 50,
+      "affineValues": 2031,
+      "maxRun": 542,
+      "maxOperand": 1085,
+      "bytes": 133
+    },
+    {
+      "literalPackets": 20,
+      "affinePackets": 20,
+      "literalValues": 1972,
+      "affineValues": 109,
+      "maxRun": 743,
+      "maxOperand": 305178,
+      "bytes": 3273
+    },
+    {
+      "literalPackets": 18,
+      "affinePackets": 17,
+      "literalValues": 821,
+      "affineValues": 225,
+      "maxRun": 238,
+      "maxOperand": 138086,
+      "bytes": 950
+    },
+    {
+      "literalPackets": 1,
+      "affinePackets": 0,
+      "literalValues": 1209,
+      "affineValues": 0,
+      "maxRun": 1209,
+      "maxOperand": 30166,
+      "bytes": 1534
+    },
+    {
+      "literalPackets": 1,
+      "affinePackets": 0,
+      "literalValues": 2103,
+      "affineValues": 0,
+      "maxRun": 2103,
+      "maxOperand": 85121,
+      "bytes": 2242
+    },
+    {
+      "literalPackets": 1,
+      "affinePackets": 0,
+      "literalValues": 406,
+      "affineValues": 0,
+      "maxRun": 406,
+      "maxOperand": 29699,
+      "bytes": 475
+    }
+  ],
+  "columnValues": 11007,
+  "finalTypedArrayBytes": 60512,
+  "temporaryCompositionPermutationBytes": 1922,
+  "retainedMetadata": {
+    "columnLengthIntegers": 7,
+    "rowCountIntegers": 5,
+    "maxColumnInteger": 1,
+    "packetStrings": 7,
+    "otherConstants": "legacy semantic digest/maxdepth/maxNFD retained; new packet digest separately emitted, no second payload"
+  },
+  "removedRuntimeOwners": [
+    "7 expanded number[] columns (11007 values)",
+    "expanded decomposition number[] (8324 values)",
+    "composition outer array + 961 triple arrays (2883 values)",
+    "composition c.flat() temporary (2883 values)",
+    "expanded range outputs (1209+2103+609 values)",
+    "per-decomposition xs temporary [0,0] and shared previous/positions arrays"
+  ],
+  "addedTransientOwners": [
+    "7 PacketReader instances + reader array, bounded fields",
+    "one Uint16Array(961) composition permutation (1922 payload bytes)",
+    "small initialization result and row/count validation arrays; released after destructuring"
+  ],
+  "digestSourceSha256": "456dd54aa74a4a796604d65e413be8d47fdf8f71d5c8ff48d9109bc3a8f723e9",
+  "noMemoryClaim": true
+}

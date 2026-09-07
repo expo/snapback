@@ -1,0 +1,146 @@
+TAP version 13
+# (node:4010897) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+# (Use `node --trace-warnings ...` to show where the warning was created)
+# Subtest: conditional public query states preserve denial/partial shape and complete/capped cursors warm and cold
+    # Subtest: denied/false
+    ok 1 - denied/false
+      ---
+      duration_ms: 46.645954
+      type: 'test'
+      ...
+    # Subtest: denied/true
+    ok 2 - denied/true
+      ---
+      duration_ms: 15.576173
+      type: 'test'
+      ...
+    # Subtest: partial/false
+    ok 3 - partial/false
+      ---
+      duration_ms: 8.975146
+      type: 'test'
+      ...
+    # Subtest: partial/true
+    ok 4 - partial/true
+      ---
+      duration_ms: 12.615844
+      type: 'test'
+      ...
+    # Subtest: complete/false
+    ok 5 - complete/false
+      ---
+      duration_ms: 8.093604
+      type: 'test'
+      ...
+    # Subtest: complete/true
+    ok 6 - complete/true
+      ---
+      duration_ms: 9.376958
+      type: 'test'
+      ...
+    # Subtest: capped/false
+    ok 7 - capped/false
+      ---
+      duration_ms: 7.908276
+      type: 'test'
+      ...
+    # Subtest: capped/true
+    ok 8 - capped/true
+      ---
+      duration_ms: 10.295977
+      type: 'test'
+      ...
+    1..8
+ok 1 - conditional public query states preserve denial/partial shape and complete/capped cursors warm and cold
+  ---
+  duration_ms: 121.369314
+  type: 'test'
+  ...
+# Subtest: held public query states omit denied payload and nonpage cursors through offline entrypoints
+    # Subtest: denied/forced
+    ok 1 - denied/forced
+      ---
+      duration_ms: 7.301326
+      type: 'test'
+      ...
+    # Subtest: denied/hydrating
+    ok 2 - denied/hydrating
+      ---
+      duration_ms: 7.625723
+      type: 'test'
+      ...
+    # Subtest: denied/retry
+    ok 3 - denied/retry
+      ---
+      duration_ms: 157.268206
+      type: 'test'
+      ...
+    # Subtest: partial/forced
+    ok 4 - partial/forced
+      ---
+      duration_ms: 15.256743
+      type: 'test'
+      ...
+    # Subtest: partial/hydrating
+    ok 5 - partial/hydrating
+      ---
+      duration_ms: 11.275695
+      type: 'test'
+      ...
+    # Subtest: partial/retry
+    ok 6 - partial/retry
+      ---
+      duration_ms: 161.561563
+      type: 'test'
+      ...
+    # Subtest: complete/forced
+    ok 7 - complete/forced
+      ---
+      duration_ms: 11.610077
+      type: 'test'
+      ...
+    # Subtest: complete/hydrating
+    ok 8 - complete/hydrating
+      ---
+      duration_ms: 13.720841
+      type: 'test'
+      ...
+    # Subtest: complete/retry
+    ok 9 - complete/retry
+      ---
+      duration_ms: 165.974388
+      type: 'test'
+      ...
+    # Subtest: capped/forced
+    ok 10 - capped/forced
+      ---
+      duration_ms: 9.306593
+      type: 'test'
+      ...
+    # Subtest: capped/hydrating
+    ok 11 - capped/hydrating
+      ---
+      duration_ms: 11.184188
+      type: 'test'
+      ...
+    # Subtest: capped/retry
+    ok 12 - capped/retry
+      ---
+      duration_ms: 160.422615
+      type: 'test'
+      ...
+    1..12
+ok 2 - held public query states omit denied payload and nonpage cursors through offline entrypoints
+  ---
+  duration_ms: 734.532
+  type: 'test'
+  ...
+1..2
+# tests 22
+# suites 0
+# pass 22
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 1013.789778

@@ -1,0 +1,67 @@
+{
+  "actualAuthorTerminal": "parent captures after this return; not fabricated",
+  "actualRemoteSupervisorTerminal": 0,
+  "all46TimingRecordsSha256": "7cef008a4c3214c24876529acab618ae2839db8f3cef1889c1b2a19660cd7be1",
+  "authorUUID": "01a07995-a7ce-73a2-a76b-957b8d0bf3d9",
+  "candidateOwnerSha256": "faa2a59c59e3de399df0b317991e03d5eae35873a58bd9eccd2df1e1b929f39d",
+  "completedResultManifestSha256": "ab2202f2cb85b81b381af802273cfbffbb2223538b6a9e6e38e4557ef8bf1fc4",
+  "correctedCommandSha256": "211ab9a54f9532736319acecd58a550e6ee576d4482c5fb45c0820dadf6a63f3",
+  "correctedPacketFreezeSha256": "a12127b21575ba169c2847117c0a81c1a815676c8439d72c5972b90e05c92eed",
+  "evidenceLeaves": 151,
+  "evidenceManifestSha256": "dcbe4bf8aa090d34eb5eb535bfca11c4c07662daa28477d12c3967bb126cdcbd",
+  "finalRequestsPerArm": 23,
+  "firstFailurePreserved": true,
+  "furtherProductActions": false,
+  "originalResultManifestSha256": "a2e267265f609dc2e75deeb23c3d551928ffc353672cd51e79cbc37d48a508e9",
+  "ownerCleanup": [
+    {
+      "bootId": "76ef40aa-0ed8-4f57-85c6-898bb42ea7e4",
+      "exe": "/usr/bin/python3.12",
+      "pid": 4014690,
+      "startTicks": "114242846",
+      "state": "absent"
+    },
+    {
+      "bootId": "76ef40aa-0ed8-4f57-85c6-898bb42ea7e4",
+      "exe": "/home/ccheever/clique-tooling/search-native-linux-26c9-20260907T0203Z-01a07995/artifacts/snapback2-linux-x86_64-debug",
+      "pid": 4014694,
+      "startTicks": "114243271",
+      "state": "absent"
+    },
+    {
+      "bootId": "76ef40aa-0ed8-4f57-85c6-898bb42ea7e4",
+      "exe": "/home/ccheever/clique-tooling/adhoc-certification-performance-26c9-20260907-r1-01a07995/execution-01/candidate-owner",
+      "pid": 4014815,
+      "startTicks": "114244018",
+      "state": "absent"
+    }
+  ],
+  "phaseSha256": "4c327cfc4c17638bf9364b03addeaff78e9ca02109e4bdcbaff40869ac49bbdc",
+  "ports": [
+    {
+      "bindable": true,
+      "port": 50933,
+      "reserved": false
+    },
+    {
+      "bindable": true,
+      "port": 50935,
+      "reserved": false
+    }
+  ],
+  "readyForActualCliReturn": true,
+  "remoteRoot": "/home/ccheever/clique-tooling/adhoc-certification-performance-26c9-20260907-r1-01a07995",
+  "remoteSupervisor": {
+    "atEpoch": 1788783528.236445,
+    "pid": 4014690,
+    "startTicks": "114242846"
+  },
+  "report": {
+    "bytes": 15056,
+    "sha256": "92e98ff50295a51024ac9b826d66aecc406a4aa2539fa29be85f0582ac312ec3"
+  },
+  "requestRetries": 0,
+  "rootAdmissionSha256": "f620e9e2afecd6612b58277ce152012b26d9c5fce4fc3a7b53c0ed1c0d2e7fbd",
+  "rootFinalDispositionSha256": "da4c5f8c049afd542bfe1740e60161b28e43601cc5ef6c4058a073ab73631461",
+  "writerReleased": true
+}

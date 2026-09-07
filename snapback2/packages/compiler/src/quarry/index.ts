@@ -26,23 +26,40 @@ export type QuarryVirtualModule = {
 export type QuarryCompileResult =
   | { ok: true; schema: QuarryVirtualModule; modules: QuarryVirtualModule[] }
   | { ok: false; diagnostics: FrontendDiagnostic[] };
+export type PreparedQuarry = {
+  documents: Document[];
+  catalog: TableCatalog;
+  schedules: ReturnType<typeof prepareSchedules>;
+  diagnostics: QuarryDiagnostic[];
+};
+export type QuarryPrepareResult =
+  | { ok: true; prepared: PreparedQuarry }
+  | { ok: false; diagnostics: FrontendDiagnostic[] };
 
-// @ref LLP 1004#what-default-binds — Quarry is a compiler front end whose
-// generated TypeScript exists only in memory and retains authored source sites.
-export function compileQuarry(inputs: QuarryInput[]): QuarryCompileResult {
+// This is the shared authored-source front half. The legacy generated-TypeScript
+// oracle temporarily asks for its AST shape expansion; the direct route leaves
+// named forms intact for the bound elaborator.
+export function prepareQuarry(
+  inputs: QuarryInput[],
+  options: { legacyExpandShapes?: boolean; legacyGeneratedBindings?: boolean } = {},
+): QuarryPrepareResult {
   const diagnostics: QuarryDiagnostic[] = [];
   let documents: Document[] = [];
   for (const input of inputs) {
-    const parsed = parseDocument(input.fileName, input.source);
+    const parsed = parseDocument(input.fileName, input.source, {
+      legacyGeneratedBindings: options.legacyGeneratedBindings,
+    });
     documents.push(parsed.document);
     diagnostics.push(...parsed.diagnostics);
   }
   diagnostics.push(...placementDiagnostics(documents));
   if (diagnostics.length > 0) return { ok: false, diagnostics: diagnostics.map(frontend) };
-  const expansion = expandDocuments(documents);
-  documents = expansion.documents;
-  diagnostics.push(...expansion.diagnostics);
-  if (diagnostics.length > 0) return { ok: false, diagnostics: diagnostics.map(frontend) };
+  if (options.legacyExpandShapes) {
+    const expansion = expandDocuments(documents);
+    documents = expansion.documents;
+    diagnostics.push(...expansion.diagnostics);
+    if (diagnostics.length > 0) return { ok: false, diagnostics: diagnostics.map(frontend) };
+  }
 
   let catalog: TableCatalog;
   try {
@@ -56,6 +73,15 @@ export function compileQuarry(inputs: QuarryInput[]): QuarryCompileResult {
 
   let schedules: ReturnType<typeof prepareSchedules> = [];
   try { schedules = prepareSchedules(documents, catalog); } catch (error) { diagnostics.push(caughtDiagnostic(error)); }
+  return { ok: true, prepared: { documents, catalog, schedules, diagnostics } };
+}
+
+// @ref LLP 1004#what-default-binds — Quarry is a compiler front end whose
+// generated TypeScript exists only in memory and retains authored source sites.
+export function compileQuarry(inputs: QuarryInput[]): QuarryCompileResult {
+  const result = prepareQuarry(inputs, { legacyExpandShapes: true, legacyGeneratedBindings: true });
+  if (!result.ok) return result;
+  const { documents, catalog, schedules, diagnostics } = result.prepared;
 
   const schemaDocument = documents.find((document) => basename(document.file) === "schema.q")!;
   const schemaInput = inputs.find((input) => input.fileName === schemaDocument.file)!;
@@ -134,15 +160,21 @@ function placementDiagnostics(documents: Document[]): QuarryDiagnostic[] {
     const declarationSite = document.tables[0]?.site ?? document.maintains[0]?.site ?? document.channels[0]?.site
       ?? (document.identity ? { file: document.file, line: 1, col: 1 } : undefined);
     if (!isSchema && declarationSite) diagnostics.push(placement(document.file, declarationSite.line, declarationSite.col, "tables, maintains, channels, and use identity belong in schema.q", "move this declaration to snapback/schema.q"));
-    if (isSchema && (document.shapes.length > 0 || document.shapeImports.length > 0)) {
-      const site = (document.shapes[0] ?? document.shapeImports[0])!.site;
-      diagnostics.push(placement(document.file, site.line, site.col, "shape declarations belong in an operations .q module, not schema.q", "move this shape declaration to snapback/<module>.q"));
+    if (isSchema && (document.shapes.length > 0 || document.shapeImports.length > 0
+      || document.functions.length > 0 || document.functionImports.length > 0)) {
+      const site = (document.shapes[0] ?? document.shapeImports[0]
+        ?? document.functions[0] ?? document.functionImports[0])!.site;
+      diagnostics.push(placement(document.file, site.line, site.col, "shape and fn declarations belong in an operations .q module, not schema.q", "move this declaration to snapback/<module>.q"));
     }
     if (isSchema && (document.programs.length > 0 || document.effects.length > 0)) {
       const site = document.programs[0]?.site ?? document.effects[0]!.site;
       diagnostics.push(placement(document.file, site.line, site.col, "schema.q holds declarations only; query, mutation, and effect declarations belong in a program module", "move this declaration to snapback/<module>.q"));
     }
-    if (!isSchema && document.programs.length === 0 && document.schedules.length === 0 && document.shapes.length === 0 && document.shapeImports.length === 0) diagnostics.push(placement(document.file, 1, 1, `${basename(document.file)} must declare at least one query, mutation, or shape`, "add a query, mutation, or shape, or remove the empty module"));
+    if (!isSchema && document.programs.length === 0 && document.schedules.length === 0
+      && document.shapes.length === 0 && document.shapeImports.length === 0
+      && document.functions.length === 0 && document.functionImports.length === 0) {
+      diagnostics.push(placement(document.file, 1, 1, `${basename(document.file)} must declare at least one query, mutation, shape, or fn`, "add a query, mutation, shape, or fn, or remove the empty module"));
+    }
     if (!isSchema && document.programs.length === 0 && document.effects.length > 0) diagnostics.push(placement(document.file, document.effects[0]!.site.line, document.effects[0]!.site.col, "effect imports need a query or mutation in this module", "move this effect import to the mutation module that emits it"));
     const stem = basename(document.file).slice(0, -2);
     if (!/^[A-Za-z_$][A-Za-z0-9_$-]*$/.test(stem)) diagnostics.push(placement(document.file, 1, 1, `file stem ${stem} cannot become an API namespace`, "rename the module to an identifier-like stem"));

@@ -11,7 +11,7 @@
     "derived_scratch_bytes": 0,
     "derived_steps": 0,
     "disclosures": [],
-    "evaluator_version": "bounded-spike-rust-search-text-refinements-4",
+    "evaluator_version": "bounded-spike-rust-search-text-refinements-5",
     "halo_rows": 1,
     "indexes_required": [
       "membershipCounts.byId"

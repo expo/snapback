@@ -9,12 +9,13 @@ Clique benchmark
 2026-09-06); revised by Claude Fable 5.1 after the five-model panel of
 2026-09-06/07 (§9), which the author convened
 **Date:** 2026-09-06
-**Revised:** 2026-09-07 (pending-client schema conflict exercise and formal M7 handoff); 2026-09-07 (surviving-row uniqueness checked against each actual rebuild); 2026-09-07 (panel revision: a second measure, move one rewritten
+**Revised:** 2026-09-07 (follow-on LLP 1018.000 linked; closed-ticket links repaired);
+2026-09-07 (pending-client schema conflict exercise and formal M7 handoff); 2026-09-07 (surviving-row uniqueness checked against each actual rebuild); 2026-09-07 (panel revision: a second measure, move one rewritten
 around what already exists, the browser-tab policy decided, count-backed cap
 probes decided, the typed IR cut, move four evidence-led, move zero added, the
 Muse scores cited, the clock repair marked landed; implementation record §10);
 2026-09-06 (initial evidence-backed assessment)
-**Related:** LLP 1000, LLP 1001, LLP 1002, LLP 1004, LLP 1010, LLP 1011,
+**Related:** LLP 1018.000 (further architectural directions), LLP 1000, LLP 1001, LLP 1002, LLP 1004, LLP 1010, LLP 1011,
 LLP 1012, LLP 1013, LLP 1015, LLP 1016, LLP 1017, LLP 0329.014.007;
 `benchmarks/briefs/social-messenger.md`,
 `benchmarks/runs/2026-09-06-clique-improvement/README.md`,
@@ -201,7 +202,7 @@ engineering evidence, not a published cold-builder result or forwarding.
 
 ## 4. Move two: efficient execution and certification that agree
 
-**Finding.** The [cap-metering ticket](../issues/20260906-snapback2-cap-metering-makes-multi-row-inserts-uncertifiable-at-large-caps.md)
+**Finding.** The [cap-metering ticket](../issues/closed/20260906-snapback2-cap-metering-makes-multi-row-inserts-uncertifiable-at-large-caps.md)
 records 49 membership inserts being priced against a cap of 1,000 per
 principal. The resulting examined-row bound forced a 50-person group into
 multiple mutations. Patch-sensitive accounting partly improved this; the
@@ -266,7 +267,7 @@ uses real owner/auth/query paths, not injected count rows. It does not qualify
 
 **Finding.** A valid table and query both named `reactions` collided in
 generated TypeScript and surfaced an opaque error at the module's first
-line. The builder renamed the operation. This [published 0.0.8 finding](../issues/20260906-snapback2-quarry-operation-table-name-collision.md)
+line. The builder renamed the operation. This [published 0.0.8 finding](../issues/closed/20260906-snapback2-quarry-operation-table-name-collision.md)
 is evidence that an internal representation can impose an unintended public
 language constraint; it is not evidence that the lowering path is broken.
 
@@ -519,6 +520,11 @@ and `caps`); capability claims stay gated on a published cold run.
   not a ticket.
 
 ## 11. Working-set disposition
+
+Follow-on research: [LLP 1018.000](./1018.000-composable-architecture-next-moves.research.md)
+records further architectural directions after the three implementation slices
+above. Its original Draft assessment preserves this document's decisions and
+outstanding cold-run measures.
 
 This document entered `llp/current/` in place of the link to implemented
 LLP 1016, keeping the working set at 59. LLP 1016 stays at its original path,

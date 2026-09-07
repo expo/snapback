@@ -1,7 +1,6 @@
 # Testing
 
-The seed is static data, applied as one system commit before derived checks and
-authored journeys:
+The static seed is one system commit before derived checks and journeys:
 
 ```ts
     profiles: [
@@ -38,14 +37,16 @@ every journey through the headless wire client, removes the test store, and
 writes `.snapback/receipts/<timestamp>.json`. Zero checks cannot pass. Use
 `snapback2 test --blocked "reason"` for an honest blocked receipt.
 
-Run `snapback2 test --journey "todos round trip"` with an exact authored name.
-It executes every registration with
-that name, skips other journeys and derived checks, and records `scope.journey`
-in the receipt. An unknown name fails and lists available names. Compilation
-and certification still validate the backend; loading failures remain failures.
-Selection does not infer affected coverage. Run `snapback2 test` for the full suite. `--journey` cannot combine with
-`--derived-only` or `--blocked`; each selected journey retains its five-second
-host deadline and process isolation.
+Select: `snapback2 test --journey "todos round trip"`.
+Literals: `--journey=--help` or `--journey=-h`, not just quotes.
+Duplicates run; scope is `scope.journey`. Focused processes compare
+names/body source/order/count; registration drift fails before a wrong body.
+Keep captured state stable: source identity cannot inspect it. Unsuccessful
+runner exits fail. Skips other journeys and top-level derived checks;
+embedded offline checks remain. Unknown names fail with available names;
+compile/load failures remain. Five-second deadlines and isolation remain.
+Cannot combine with `--derived-only` or `--blocked` or infer affected coverage.
+Plain `snapback2 test` runs the full suite.
 
 Projects with scoped memberships also run the canonical `live-revocation`,
 `successor-policy-fence`, and `grant-incarnation-aba` authorization proofs.

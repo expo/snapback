@@ -14,6 +14,7 @@ const names = ["build, owner seed, and outward control", "login, inbox drain, th
   "persistent carrier fault reports over control", "post-commit 503, exactly-once replay and FIFO",
   "Unicode indexed prediction and expiry agree warm and held", "Expo driver conformance including real failed COMMIT", "persist online, relaunch and drain"];
 const steps = [];
+const mediaFailures = [];
 let control, owner, device, appPid, seed, before, queued;
 const bundleId = "dev.snapback.chat";
 const controlPort = 43219, ownerPort = 43220;
@@ -42,6 +43,14 @@ async function buildAndInstall(cli, buildEnv) {
   await run("xcrun", ["simctl", "install", device, app], { timeout: 60_000 });
   return ["## expo prebuild", prebuild, "## pod install", pods, "## xcodebuild", xcode,
     `## installed\n${app}`].join("\n");
+}
+async function mediaCheck(step, name, body) {
+  try { return { name, result: await body() }; }
+  catch (error) {
+    const failure = { step, name, message: String(error) };
+    mediaFailures.push(failure); log(`${step}. MEDIA FAIL — ${name}\n${failure.message}`);
+    return { name, error: failure.message };
+  }
 }
 async function killApp() {
   if (!appPid) throw new Error("no pid recorded at launch");
@@ -84,22 +93,30 @@ function coldAssertions(state) {
     "cold indexed search includes the predicted message row");
   for (const room of seed.rooms) assert.ok(state.coverage.rows.some((row) => row.table === "deliveries" && row.row.conversationId === room));
 }
-async function coldMedia() {
-  const ordinary = await command("view", { assetId: seed.assets[0].id });
-  assert.equal(ordinary.loaded, true); assert.match(ordinary.uri, /^file:\/\//);
-  const once = await command("view", { assetId: seed.assets[1].id, hidden: true });
-  assert.equal(once.viewed, true); assert.equal(once.loaded, false); assert.equal(once.uri, undefined); assert.deepEqual(once.files, []);
-  // Check the actual container as well as the application's report.
-  const container = (await run("xcrun", ["simctl", "get_app_container", device, bundleId, "data"])).trim();
-  const { walk } = await import("./expo-project.mjs");
-  const files = await walk(resolve(container, "Library/Caches/snapback2"));
-  assert.ok(files.some((path) => path.includes(seed.assets[0].id)));
-  assert.ok(files.every((path) => !path.includes(seed.assets[1].id)));
-  const clip = await command("view", { assetId: seed.assets[2].id });
-  assert.equal(clip.refusal, undefined); assert.equal(clip.viewed, false);
-  assert.equal(clip.loaded, true); assert.match(clip.uri, /^file:\/\//);
-  await assertNoMediaOnDisk(container, seed.forbidden);
-  return { ordinary, once, clip };
+async function coldMedia(step) {
+  const results = [];
+  results.push(await mediaCheck(step, "cold ordinary image", async () => {
+    const ordinary = await command("view", { assetId: seed.assets[0].id });
+    assert.equal(ordinary.loaded, true); assert.match(ordinary.uri, /^file:\/\//); return ordinary;
+  }));
+  results.push(await mediaCheck(step, "cold view-once image", async () => {
+    const once = await command("view", { assetId: seed.assets[1].id, hidden: true });
+    assert.equal(once.viewed, true); assert.equal(once.loaded, false); assert.equal(once.uri, undefined); assert.deepEqual(once.files, []); return once;
+  }));
+  results.push(await mediaCheck(step, "cold ordinary video", async () => {
+    const clip = await command("view", { assetId: seed.assets[2].id });
+    assert.equal(clip.refusal, undefined); assert.equal(clip.viewed, false);
+    assert.equal(clip.loaded, true); assert.match(clip.uri, /^file:\/\//); return clip;
+  }));
+  results.push(await mediaCheck(step, "cold container custody", async () => {
+    const container = (await run("xcrun", ["simctl", "get_app_container", device, bundleId, "data"])).trim();
+    const { walk } = await import("./expo-project.mjs");
+    const files = await walk(resolve(container, "Library/Caches/snapback2"));
+    assert.ok(files.some((path) => path.includes(seed.assets[0].id)));
+    assert.ok(files.every((path) => !path.includes(seed.assets[1].id)));
+    await assertNoMediaOnDisk(container, seed.forbidden); return files;
+  }));
+  return results;
 }
 
 const actions = [
@@ -132,21 +149,23 @@ const actions = [
     const warmSearch = await command("state", { search: indexedSearchTerm });
     assert.ok(warmSearch.search.state === "complete" || warmSearch.search.state === "capped");
     assert.ok(warmSearch.search.data.some((row) => row.id === seed.doomed));
-    for (const [index, asset] of seed.assets.entries()) {
-      log(`view ${index + 1}/${seed.assets.length}: ${"duration" in asset ? "video" : "image"}`);
-      const media = await command("view", { assetId: asset.id });
-      if ("duration" in asset) {
-        assert.equal(media.refusal, undefined); assert.equal(media.viewed, false);
-        assert.equal(media.loaded, true); assert.equal(media.playing, true);
-        assert.match(media.uri, /^file:\/\//);
-        continue;
-      }
-      assert.equal(media.loaded, true, JSON.stringify(media));
-      assert.match(media.uri, index === 0 ? /^file:\/\// : /^data:/);
-    }
-    const container = (await run("xcrun", ["simctl", "get_app_container", device, bundleId, "data"])).trim();
-    await assertNoMediaOnDisk(container, seed.forbidden);
-    return { opened: seed.rooms.slice(0, 3), neverOpened: seed.rooms[3], search: warmSearch.search.state };
+    const media = [];
+    for (const [index, asset] of seed.assets.entries()) media.push(await mediaCheck(2,
+      `warm ${"duration" in asset ? "video" : "image"} ${index + 1}/${seed.assets.length}`, async () => {
+        const result = await command("view", { assetId: asset.id });
+        if ("duration" in asset) {
+          assert.equal(result.refusal, undefined); assert.equal(result.viewed, false);
+          assert.equal(result.loaded, true); assert.equal(result.playing, true); assert.match(result.uri, /^file:\/\//);
+        } else {
+          assert.equal(result.loaded, true, JSON.stringify(result)); assert.match(result.uri, index === 0 ? /^file:\/\// : /^data:/);
+        }
+        return result;
+      }));
+    await mediaCheck(2, "warm container custody", async () => {
+      const container = (await run("xcrun", ["simctl", "get_app_container", device, bundleId, "data"])).trim();
+      await assertNoMediaOnDisk(container, seed.forbidden); return container;
+    });
+    return { opened: seed.rooms.slice(0, 3), neverOpened: seed.rooms[3], search: warmSearch.search.state, media };
   },
   async () => {
     await command("offline");
@@ -165,11 +184,11 @@ const actions = [
     // A query with truly absent coverage is separate from the never-opened chat.
     const absent = await command("state", { conversationId: "never-held-conversation" });
     assert.equal(absent.answer.state, "partial");
-    return { stores: Object.fromEntries(Object.entries(state.stores).map(([key, rows]) => [key, rows.length])), media: await coldMedia() };
+    return { stores: Object.fromEntries(Object.entries(state.stores).map(([key, rows]) => [key, rows.length])), media: await coldMedia(4) };
   },
   async () => {
     await new Promise((resolve) => setTimeout(resolve, 1_000)); await killApp(); await launch(); coldStores(await command("stores")); await command("construct");
-    coldAssertions(await command("state", { conversationId: seed.rooms[3], search: indexedSearchTerm })); return coldMedia();
+    coldAssertions(await command("state", { conversationId: seed.rooms[3], search: indexedSearchTerm })); return coldMedia(5);
   },
   async () => {
     await command("fault", { mode: "carrier" }); await killApp(); await launch();
@@ -237,8 +256,11 @@ export async function main() {
     for (let i = 0; i < actions.length; i++) {
       if (failure) { steps.push({ step: i + 1, name: names[i], result: "not run", reason: `step ${failure.step} failed` }); log(`${i + 1}. NOT RUN — ${names[i]} (step ${failure.step} failed)`); continue; }
       try {
-        const detail = await actions[i](); steps.push({ step: i + 1, name: names[i], result: "pass", detail });
-        log(`${i + 1}. PASS — ${names[i]} — ${JSON.stringify(detail)}`);
+        const beforeMedia = mediaFailures.length;
+        const detail = await actions[i]();
+        const media = mediaFailures.slice(beforeMedia);
+        steps.push({ step: i + 1, name: names[i], result: media.length ? "fail" : "pass", detail, ...(media.length ? { errors: media } : {}) });
+        log(`${i + 1}. ${media.length ? "FAIL" : "PASS"} — ${names[i]} — ${JSON.stringify(detail)}`);
       } catch (error) {
         const message = error instanceof Error ? error.stack ?? String(error) : String(error);
         failure = { step: i + 1, message }; steps.push({ step: i + 1, name: names[i], result: "fail", error: failure.message });
@@ -252,10 +274,11 @@ export async function main() {
   const record = { date: new Date().toISOString(), platform: "ios", steps };
   await mkdir(resolve(workspace, "target"), { recursive: true });
   await writeFile(resolve(workspace, "target/e2-witness-result.json"), JSON.stringify(record, null, 2) + "\n");
-  if (failure) {
+  const finalFailure = [failure, ...mediaFailures].filter(Boolean).sort((a, b) => a.step - b.step)[0];
+  if (finalFailure) {
     // One bounded, updatable ticket for this scheduled witness, not one per run.
     const ticket = resolve(workspace, "../issues/20260904-snapback2-expo-witness.md");
-    await writeFile(ticket, `# Snapback 2 Expo witness needs qualification\n\nStatus: Open\n\nLast run: ${record.date}\nFailing step: ${failure.step} — ${names[failure.step - 1]}\n\n\`\`\`\n${failure.message}\n\`\`\`\n\nRun \`cd snapback2 && node scripts/witness-expo.mjs\` outside the sandbox. Success requires all ten steps; see \`target/e2-witness-result.json\`. Android and Expo web remain outside E2.\n`);
+    await writeFile(ticket, `# Snapback 2 Expo witness needs qualification\n\nStatus: Open\n\nLast run: ${record.date}\nFailing step: ${finalFailure.step} — ${names[finalFailure.step - 1]}\n\n\`\`\`\n${finalFailure.message}\n\`\`\`\n\nRun \`cd snapback2 && node scripts/witness-expo.mjs\` outside the sandbox. Success requires all ten steps; see \`target/e2-witness-result.json\`. Android and Expo web remain outside E2.\n`);
     process.exitCode = 1;
   }
 }

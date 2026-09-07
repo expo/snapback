@@ -1416,16 +1416,19 @@ fn execute_empty(
 }
 
 fn assert_aggregate(engine: &Engine, table: &str, group: &str, expected: i64) {
-    let found = engine
-        .rows(table)
-        .unwrap()
-        .into_iter()
-        .find(|row| {
-            row.as_object()
-                .unwrap()
-                .values()
-                .any(|value| value == &id(group))
-        })
-        .unwrap();
+    let found = engine.rows(table).unwrap().into_iter().find(|row| {
+        row.as_object()
+            .unwrap()
+            .values()
+            .any(|value| value == &id(group))
+    });
+    if expected == 0 {
+        assert!(
+            found.is_none(),
+            "zero aggregates use the canonical sparse representation"
+        );
+        return;
+    }
+    let found = found.unwrap();
     assert_eq!(found.field("value").unwrap(), &Value::Int(expected));
 }

@@ -1,0 +1,223 @@
+{
+  "scope": "Projection of all15 retained differences; full original data unchanged. No semantic waiver or equality verdict.",
+  "differences": [
+    {
+      "name": "scan-order:2313",
+      "beforeError": {
+        "name": "TypeError",
+        "message": "null is not an object (evaluating 'value.map')"
+      },
+      "afterError": {
+        "name": "TypeError",
+        "message": "null is not an object (evaluating 'value[mode]')"
+      },
+      "beforeOrder": null,
+      "afterOrder": null,
+      "otherFieldsEqual": true
+    },
+    {
+      "name": "program-field:body:2359",
+      "beforeError": {
+        "name": "TypeError",
+        "message": "(program2.body ?? []).map is not a function. (In '(program2.body ?? []).map(normalizeStatement)', '(program2.body ?? []).map' is undefined)"
+      },
+      "afterError": {
+        "name": "TypeError",
+        "message": "(program2.body ?? []).map is not a function. (In '(program2.body ?? []).map((value) => structural(value, \"statement\", grammar))', '(program2.body ?? []).map' is undefined)"
+      },
+      "beforeOrder": null,
+      "afterOrder": null,
+      "otherFieldsEqual": true
+    },
+    {
+      "name": "schema-field:maintains:2362",
+      "beforeError": {
+        "name": "TypeError",
+        "message": "(schema2.maintains ?? []).map is not a function. (In '(schema2.maintains ?? []).map(normalizeMaintain)', '(schema2.maintains ?? []).map' is undefined)"
+      },
+      "afterError": {
+        "name": "TypeError",
+        "message": "(schema2.maintains ?? []).map is not a function. (In '(schema2.maintains ?? []).map((value) => structural(value, \"maintain\", grammar))', '(schema2.maintains ?? []).map' is undefined)"
+      },
+      "beforeOrder": null,
+      "afterOrder": null,
+      "otherFieldsEqual": true
+    },
+    {
+      "name": "schema-parent:Constraint:2368",
+      "beforeError": {
+        "name": "TypeError",
+        "message": "(value ?? []).map is not a function. (In '(value ?? []).map(normalizeConstraint)', '(value ?? []).map' is undefined)"
+      },
+      "afterError": {
+        "name": "TypeError",
+        "message": "(value ?? []).map is not a function"
+      },
+      "beforeOrder": null,
+      "afterOrder": null,
+      "otherFieldsEqual": true
+    },
+    {
+      "name": "program-field:body:2370",
+      "beforeError": {
+        "name": "TypeError",
+        "message": "(program2.body ?? []).map is not a function. (In '(program2.body ?? []).map(normalizeStatement)', '(program2.body ?? []).map' is undefined)"
+      },
+      "afterError": {
+        "name": "TypeError",
+        "message": "(program2.body ?? []).map is not a function. (In '(program2.body ?? []).map((value) => structural(value, \"statement\", grammar))', '(program2.body ?? []).map' is undefined)"
+      },
+      "beforeOrder": null,
+      "afterOrder": null,
+      "otherFieldsEqual": true
+    },
+    {
+      "name": "schema-field:schedules:2372",
+      "beforeError": {
+        "name": "TypeError",
+        "message": "schema2.schedules.map is not a function. (In 'schema2.schedules.map(normalizeSchedule)', 'schema2.schedules.map' is undefined)"
+      },
+      "afterError": {
+        "name": "TypeError",
+        "message": "schema2.schedules.map is not a function. (In 'schema2.schedules.map((value) => structural(value, \"schedule\", grammar))', 'schema2.schedules.map' is undefined)"
+      },
+      "beforeOrder": null,
+      "afterOrder": null,
+      "otherFieldsEqual": true
+    },
+    {
+      "name": "schema-field:maintains:2373",
+      "beforeError": {
+        "name": "TypeError",
+        "message": "(schema2.maintains ?? []).map is not a function. (In '(schema2.maintains ?? []).map(normalizeMaintain)', '(schema2.maintains ?? []).map' is undefined)"
+      },
+      "afterError": {
+        "name": "TypeError",
+        "message": "(schema2.maintains ?? []).map is not a function. (In '(schema2.maintains ?? []).map((value) => structural(value, \"maintain\", grammar))', '(schema2.maintains ?? []).map' is undefined)"
+      },
+      "beforeOrder": null,
+      "afterOrder": null,
+      "otherFieldsEqual": true
+    },
+    {
+      "name": "schema-parent:Constraint:2379",
+      "beforeError": {
+        "name": "TypeError",
+        "message": "(value ?? []).map is not a function. (In '(value ?? []).map(normalizeConstraint)', '(value ?? []).map' is undefined)"
+      },
+      "afterError": {
+        "name": "TypeError",
+        "message": "(value ?? []).map is not a function"
+      },
+      "beforeOrder": null,
+      "afterOrder": null,
+      "otherFieldsEqual": true
+    },
+    {
+      "name": "program-field:body:2381",
+      "beforeError": {
+        "name": "TypeError",
+        "message": "(program2.body ?? []).map is not a function. (In '(program2.body ?? []).map(normalizeStatement)', '(program2.body ?? []).map' is undefined)"
+      },
+      "afterError": {
+        "name": "TypeError",
+        "message": "(program2.body ?? []).map is not a function. (In '(program2.body ?? []).map((value) => structural(value, \"statement\", grammar))', '(program2.body ?? []).map' is undefined)"
+      },
+      "beforeOrder": null,
+      "afterOrder": null,
+      "otherFieldsEqual": true
+    },
+    {
+      "name": "schema-field:maintains:2384",
+      "beforeError": {
+        "name": "TypeError",
+        "message": "(schema2.maintains ?? []).map is not a function. (In '(schema2.maintains ?? []).map(normalizeMaintain)', '(schema2.maintains ?? []).map' is undefined)"
+      },
+      "afterError": {
+        "name": "TypeError",
+        "message": "(schema2.maintains ?? []).map is not a function. (In '(schema2.maintains ?? []).map((value) => structural(value, \"maintain\", grammar))', '(schema2.maintains ?? []).map' is undefined)"
+      },
+      "beforeOrder": null,
+      "afterOrder": null,
+      "otherFieldsEqual": true
+    },
+    {
+      "name": "schema-parent:Constraint:2390",
+      "beforeError": {
+        "name": "TypeError",
+        "message": "(value ?? []).map is not a function. (In '(value ?? []).map(normalizeConstraint)', '(value ?? []).map' is undefined)"
+      },
+      "afterError": {
+        "name": "TypeError",
+        "message": "(value ?? []).map is not a function"
+      },
+      "beforeOrder": null,
+      "afterOrder": null,
+      "otherFieldsEqual": true
+    },
+    {
+      "name": "write-schema-root:2413",
+      "beforeError": {
+        "name": "TypeError",
+        "message": "undefined is not an object (evaluating 'schema2.tables')"
+      },
+      "afterError": {
+        "name": "Error",
+        "code": "E_SCHEMA",
+        "message": "E_SCHEMA: missing table t"
+      },
+      "beforeOrder": null,
+      "afterOrder": null,
+      "otherFieldsEqual": true
+    },
+    {
+      "name": "write-schema-root:2415",
+      "beforeError": {
+        "name": "TypeError",
+        "message": "null is not an object (evaluating 'schema2.tables')"
+      },
+      "afterError": {
+        "name": "Error",
+        "code": "E_SCHEMA",
+        "message": "E_SCHEMA: missing table t"
+      },
+      "beforeOrder": null,
+      "afterOrder": null,
+      "otherFieldsEqual": true
+    },
+    {
+      "name": "canonical-read-order:schema",
+      "beforeError": null,
+      "afterError": null,
+      "beforeOrder": [
+        "tables",
+        "maintains"
+      ],
+      "afterOrder": [
+        "tables",
+        "tables",
+        "maintains",
+        "maintains",
+        "tables",
+        "maintains"
+      ],
+      "otherFieldsEqual": false
+    },
+    {
+      "name": "canonical-read-order:auth",
+      "beforeError": null,
+      "afterError": null,
+      "beforeOrder": [
+        "password",
+        "guests"
+      ],
+      "afterOrder": [
+        "password",
+        "guests",
+        "password",
+        "guests"
+      ],
+      "otherFieldsEqual": false
+    }
+  ]
+}

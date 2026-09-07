@@ -1,0 +1,9 @@
+{
+  "utc": "2026-09-07T12:22:01.371003+00:00",
+  "archiveSha256": "c9aaa8e8da10513fdae0ce8a7eeba3f753f234d01454b5e74436772b30b616b9",
+  "manifestSha256": "b8596444c8fd15cb0abe21ecc5e1b46b6d8cd5194a61d2513d299ffde4a919a6",
+  "allArtifactFilesVerified": 153,
+  "sourceMapsVerified": 14,
+  "embeddedSourceCopiesVerified": 433,
+  "scope": "Read-only custody verification of existing build; no build or test rerun."
+}

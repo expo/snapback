@@ -1,0 +1,32 @@
+{
+  "utc": "2026-09-07T12:25:35.815121+00:00",
+  "disposition": "REJECTED FOR SIZE",
+  "actualTerminal": {
+    "argv": [
+      "/home/ccheever/clique-tooling/epyc-linux-tooling-20260907T010007Z-0fd567d96f/node-v22.23.2-linux-x64/bin/node",
+      "--import",
+      "/home/ccheever/clique-tooling/search-structural-codec-0ecd-20260907T1130Z-01a07649/final-measure-import.mjs",
+      "build.mjs",
+      "--measure-twin"
+    ],
+    "pid": 4017409,
+    "cwd": "/home/ccheever/clique-tooling/search-structural-codec-0ecd-20260907T1130Z-01a07649/candidate3-source/snapback2/packages/snapback2",
+    "startedUtc": "2026-09-07T12:23:12.536706+00:00",
+    "outerSeconds": 60,
+    "endedUtc": "2026-09-07T12:23:13.052143+00:00",
+    "elapsedSeconds": 0.515444572083652,
+    "exitCode": 1,
+    "logSha": "077ea95a6661260c00968e8ee6222911c6317f8f89c9f33c1d72c9301d48ad7d"
+  },
+  "entrySha256": "3ba527bb0fe022dcaab8b54a20055fe1484cf1a11e1d4744f54e1739d489d2ac",
+  "bundleSha256": "9a03c998c6cb40c0078cb7d87d8f0061f3faf66ec7485ed4d65d76738d142c5e",
+  "bundleBytes": 231755,
+  "reportedNodeGzip9Bytes": 76335,
+  "fixedCeiling": 66000,
+  "historical82cAnchor": 75815,
+  "selected0ecdParentMeasured": false,
+  "physicalInputsIndependentlyHashVerified": 51,
+  "metafileInputsIncludingVirtual": 52,
+  "attributionSha256": "dfa5d08125bb72af6bfb3813cd929bc483408bdb197a526482d33ff7ac670e09",
+  "scope": "Original single measured result audited read-only; no recompression/rebuild/rerun. Every measured source copy matches frozen candidate3 manifest and every available live path."
+}

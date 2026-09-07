@@ -51,7 +51,7 @@ const editIr = { name: "deliveries.edit", kind: "Mutation", args: {}, read_time_
 const digest = (ir: unknown) => createHash('sha256').update(canonicalProgramJson(ir)).digest('hex');
 const certificate = (ir: unknown, kind: string) => ({
   plan_hash: digest(ir), schema_hash: schemaHash,
-  evaluator_version: 'bounded-spike-rust-search-text-refinements-4', value_model_version: 'i53-codepoint-bytes-unicode-search-text-refinements-v5',
+  evaluator_version: 'bounded-spike-rust-search-text-refinements-5', value_model_version: 'i53-codepoint-bytes-unicode-search-text-refinements-v5',
   max_steps: 1000000, max_heap_bytes: 8388608, max_closure_bytes: 4194304, max_output_bytes: 1048576,
   write_sites: [{ table: 'messages', kind, max_rows: 1 }, { table: 'deliveries', kind: 'Insert', max_rows: 50 }],
 });
@@ -92,7 +92,7 @@ const queryCertificate = (ir: ReturnType<typeof scanIr>) => {
       "deliveries.read": "f6ddd28fe7b2931a7192f7b58e6aaaf98366f6d1d525aefca5dcb682d3f35e53",
       "messages.read": "f6ddd28fe7b2931a7192f7b58e6aaaf98366f6d1d525aefca5dcb682d3f35e53",
     },
-    evaluator_version: 'bounded-spike-rust-search-text-refinements-4', value_model_version: 'i53-codepoint-bytes-unicode-search-text-refinements-v5',
+    evaluator_version: 'bounded-spike-rust-search-text-refinements-5', value_model_version: 'i53-codepoint-bytes-unicode-search-text-refinements-v5',
     read_sites: [
       { site: scan.site, table: "deliveries", index: scan.index, prefix_template: inbox ? "Viewer" : "Shape", take: 50,
         max_calls: 1, rule_probes_per_candidate: 0, hoist: true, decided_true: true, complete: false },

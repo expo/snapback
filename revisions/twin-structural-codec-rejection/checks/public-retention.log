@@ -1,0 +1,72 @@
+TAP version 13
+# (node:4010687) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+# (Use `node --trace-warnings ...` to show where the warning was created)
+# Subtest: RangeStore stores rows once and shares them across answers on all three carriers
+ok 1 - RangeStore stores rows once and shares them across answers on all three carriers
+  ---
+  duration_ms: 30.66127
+  type: 'test'
+  ...
+# Subtest: the IndexedDB carrier keeps rows, answers, outbox, meta, and bytes; the version-2 projection stores are deleted and never written
+ok 2 - the IndexedDB carrier keeps rows, answers, outbox, meta, and bytes; the version-2 projection stores are deleted and never written
+  ---
+  duration_ms: 6.590401
+  type: 'test'
+  ...
+# Subtest: all three carriers apply the four swap rules with until-revoked and delivered-history
+ok 3 - all three carriers apply the four swap rules with until-revoked and delivered-history
+  ---
+  duration_ms: 106.11142
+  type: 'test'
+  ...
+# Subtest: O1a golden ranges evict only holes inside Exhausted bounds and the returned Limit extent
+ok 4 - O1a golden ranges evict only holes inside Exhausted bounds and the returned Limit extent
+  ---
+  duration_ms: 18.941248
+  type: 'test'
+  ...
+# Subtest: the O1a whole-answer-null golden is hidden evidence and delivered-history restores it
+ok 5 - the O1a whole-answer-null golden is hidden evidence and delivered-history restores it
+  ---
+  duration_ms: 2.872046
+  type: 'test'
+  ...
+# Subtest: sequence fences make absence, hidden, and tombstone evidence monotonic and deliveries idempotent
+ok 6 - sequence fences make absence, hidden, and tombstone evidence monotonic and deliveries idempotent
+  ---
+  duration_ms: 10.148495
+  type: 'test'
+  ...
+# Subtest: shrunk arrays and denied answers emit the hidden signal
+ok 7 - shrunk arrays and denied answers emit the hidden signal
+  ---
+  duration_ms: 5.830391
+  type: 'test'
+  ...
+# Subtest: manifest retention is loaded before the first commit without an app manifest call
+ok 8 - manifest retention is loaded before the first commit without an app manifest call
+  ---
+  duration_ms: 24.330608
+  type: 'test'
+  ...
+# Subtest: the client tombstone hook evicts the named body in the same delivery swap
+ok 9 - the client tombstone hook evicts the named body in the same delivery swap
+  ---
+  duration_ms: 6.466024
+  type: 'test'
+  ...
+# Subtest: E_OFFLINE_RESET drops coverage but preserves the durable outbox slot
+ok 10 - E_OFFLINE_RESET drops coverage but preserves the durable outbox slot
+  ---
+  duration_ms: 16.590964
+  type: 'test'
+  ...
+1..10
+# tests 10
+# suites 0
+# pass 10
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 373.749243

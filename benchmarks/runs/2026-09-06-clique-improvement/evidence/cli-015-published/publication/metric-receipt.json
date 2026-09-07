@@ -1,0 +1,22 @@
+{
+  "sourceBaselineRows": 222,
+  "actualPublisherAfterRows": 223,
+  "baselineSha256": "68d04f61ca488a15ff29b1d961f6ef27442c7ef911ffcd18558ad7b69844b91f",
+  "actualOwnAppendSha256": "3327235da56fe0031ad1fbbacfc4902cd353ae0b0f4a16886f63750a342c2c1f",
+  "actualAllOriginalBytesSha256": "945c7796064d1d1ebf3ec4f7462c19609718fec9f3e0a50e00462e012a4a2d9c",
+  "custody": "Exact remote baseline plus validated original append bytes reproduced locally and checked against remote all-bytes SHA; original remote files retained. Local copies0444.",
+  "sourceBaselineRestoredByReviewedHelper": true,
+  "orderAndMultiplicityPreserved": true,
+  "actualRow": {
+    "at": "2026-09-07T11:59:22.002Z",
+    "publish_s": 37.2,
+    "production_binary_bytes": 7029808,
+    "production_binary_without_engine_bytes": 3812224,
+    "production_binary_with_engine_bytes": 7029808,
+    "production_media_binary_bytes": 2147968,
+    "engine": "ibex2 + vanilla hermes",
+    "dry": false
+  },
+  "oldDryRunMetric": "retained separately under cli-015-repaired-qualification-r2; not overwritten or silently merged",
+  "metricLanding": "Root owns; none by author"
+}

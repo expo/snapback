@@ -334,7 +334,7 @@
     "rule_hashes": {
       "messages.read": "56555365e08c5f206eda1a31751e8ffd686d203c6d0634dc813c9a53082b3ff9"
     },
-    "evaluator_version": "bounded-spike-rust-search-text-refinements-4",
+    "evaluator_version": "bounded-spike-rust-search-text-refinements-5",
     "value_model_version": "i53-codepoint-bytes-unicode-search-text-refinements-v5",
     "read_sites": [
       {

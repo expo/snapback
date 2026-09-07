@@ -317,50 +317,9 @@ pub(crate) fn additive_refusal(
             }
         }
     }
-    let mut future_targets = BTreeMap::<String, BTreeMap<String, Value>>::new();
-    for target in rebuilt_targets {
-        future_targets.insert(
-            target.clone(),
-            projected_target_rows(connection, next, &target)?,
-        );
-    }
-    for (table_name, rows) in future_targets {
-        let Some(table) = next.table(&table_name) else {
-            // A destructive migration already removed an old maintained target
-            // whose declaration is absent from the successor.
-            continue;
-        };
-        for (index_name, index) in table.indexes.iter().filter(|(_, index)| index.unique) {
-            let mut counts = BTreeMap::<String, (Vec<Value>, usize)>::new();
-            for row in rows.values() {
-                let key = index
-                    .components
-                    .iter()
-                    .filter_map(crate::search_key::IndexComponent::column)
-                    .map(|column| row.field(column).cloned().unwrap_or(Value::Null))
-                    .collect::<Vec<_>>();
-                counts
-                    .entry(canonical_json(&key))
-                    .and_modify(|(_, count)| *count += 1)
-                    .or_insert((key, 1));
-            }
-            for (_, (key, count)) in counts {
-                if count > 1 {
-                    let conflict = UniqueConflict {
-                        table: table_name.clone(),
-                        index: index_name.clone(),
-                        key,
-                    };
-                    if !conflicts.contains(&conflict) {
-                        conflicts.push(conflict);
-                    }
-                    if conflicts.len() == 10 {
-                        return Ok(Some(SuccessorRefusal::unique(conflicts)));
-                    }
-                }
-            }
-        }
-    }
+    // Rebuilt targets validate the final survivor-plus-projection state inside
+    // rebuild_target. Deferring that check preserves dependency order when one
+    // maintained target is the next target's source.
     Ok((!conflicts.is_empty()).then(|| SuccessorRefusal::unique(conflicts)))
 }
 
@@ -505,6 +464,26 @@ pub(crate) fn apply_additive(
     let mut predecessor_maintain_ids = predecessor_maintain_ids
         .map(Ok)
         .unwrap_or_else(|| projected_predecessor_ids(transaction, current, next))?;
+
+    // A retired projection can be the source of a new maintain. Clear its
+    // engine-owned addresses before any active target reads that source;
+    // target-name order is not a dependency order. Ordinary-id survivors stay.
+    let next_targets = next
+        .maintains
+        .iter()
+        .map(|maintain| maintain.target.as_str())
+        .collect::<BTreeSet<_>>();
+    let retired_targets = current
+        .maintains
+        .iter()
+        .map(|maintain| maintain.target.as_str())
+        .filter(|target| !next_targets.contains(target))
+        .collect::<BTreeSet<_>>();
+    for target in retired_targets {
+        if let Some(ids) = predecessor_maintain_ids.remove(target) {
+            rebuild_owned_aggregate_target(transaction, next, target, &ids, vec![])?;
+        }
+    }
 
     for table_name in next.tables.keys() {
         let needs_reindex = current.tables.get(table_name).is_some_and(|table| {
@@ -766,7 +745,7 @@ pub(crate) fn projected_predecessor_ids(
         .collect()
 }
 
-fn rebuild_target(
+pub(crate) fn rebuild_target(
     transaction: &Transaction<'_>,
     schema: &Schema,
     target: &str,
@@ -786,7 +765,10 @@ fn rebuild_target(
             existing.push(row);
             Ok(())
         })?;
-        let mut final_rows = rows.values().collect::<Vec<_>>();
+        let mut final_rows = rows
+            .values()
+            .filter(|row| row.field("value").and_then(Value::as_int) != Ok(0))
+            .collect::<Vec<_>>();
         for row in &existing {
             if !owned_ids.contains(row.field("id")?.as_str()?) {
                 final_rows.push(row);
@@ -835,6 +817,51 @@ fn rebuild_target(
         &owned_ids,
         rows.into_values().collect(),
     )
+}
+
+// @ref LLP 1001#4-generation-and-runtime-registryrs-successorrs — an evaluator
+// identity change reconciles its durable engine-owned representation once.
+/// One-time evaluator migration from dense zero aggregates to the canonical
+/// sparse representation. Exact group-address rows belong to the engine;
+/// legacy ordinary-id survivors in the same table remain untouched.
+pub(crate) fn reconcile_sparse_aggregate_rows(
+    transaction: &Transaction<'_>,
+    schema: &Schema,
+    required: bool,
+) -> Result<(), RuntimeError> {
+    if !required {
+        return Ok(());
+    }
+    let targets = schema
+        .maintains
+        .iter()
+        .map(|maintain| maintain.target.clone())
+        .collect::<BTreeSet<_>>();
+    for target in targets {
+        let maintain = schema
+            .maintains
+            .iter()
+            .find(|maintain| maintain.target == target)
+            .expect("target came from a maintain declaration");
+        let mut zero_ids = BTreeSet::new();
+        for_row_batches(transaction, &target, |row| {
+            let expected = canonical_json(
+                &maintain
+                    .by
+                    .iter()
+                    .map(|field| row.field(field).cloned())
+                    .collect::<Result<Vec<_>, _>>()?,
+            );
+            if row.field("value")?.as_int()? == 0 && row.field("id")?.as_str()? == expected {
+                zero_ids.insert(expected);
+            }
+            Ok(())
+        })?;
+        if !zero_ids.is_empty() {
+            rebuild_owned_aggregate_target(transaction, schema, &target, &zero_ids, vec![])?;
+        }
+    }
+    Ok(())
 }
 
 fn projected_target_rows(

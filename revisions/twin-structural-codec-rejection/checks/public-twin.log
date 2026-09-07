@@ -1,0 +1,97 @@
+TAP version 13
+# (node:4010828) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+# (Use `node --trace-warnings ...` to show where the warning was created)
+# Subtest: atomic carrier snapshots retain every envelope golden's issuing ClosureReceipt byte-identically
+ok 1 - atomic carrier snapshots retain every envelope golden's issuing ClosureReceipt byte-identically
+  ---
+  duration_ms: 70.2879
+  type: 'test'
+  ...
+# Subtest: a json column shaped like the byte variant rebuilds as application data, never as bytes
+ok 2 - a json column shaped like the byte variant rebuilds as application data, never as bytes
+  ---
+  duration_ms: 3.025526
+  type: 'test'
+  ...
+# Subtest: every corpus query round-trips through atomic carrier snapshots and replays with its pinned execution inputs
+ok 3 - every corpus query round-trips through atomic carrier snapshots and replays with its pinned execution inputs
+  ---
+  duration_ms: 3152.108717
+  type: 'test'
+  ...
+# Subtest: program custody is fetched, held per generation on all three carriers, serves a cold start with the owner cut, and is fenced by generation and auth epoch
+ok 4 - program custody is fetched, held per generation on all three carriers, serves a cold start with the owner cut, and is fenced by generation and auth epoch
+  ---
+  duration_ms: 167.719925
+  type: 'test'
+  ...
+# Subtest: a ReferenceError from tagArguments surfaces on query and mutation, never as hydrating or an empty trace
+ok 5 - a ReferenceError from tagArguments surfaces on query and mutation, never as hydrating or an empty trace
+  ---
+  duration_ms: 21.584341
+  type: 'test'
+  ...
+# Subtest: an unseen schema shape is hydrating: a novel index field or column payload is refused, never hashes as the known shape, and a write queues without a prediction
+ok 6 - an unseen schema shape is hydrating: a novel index field or column payload is refused, never hashes as the known shape, and a write queues without a prediction
+  ---
+  duration_ms: 37.041034
+  type: 'test'
+  ...
+# Subtest: evicting a middle row of a drained page makes the never-opened thread partial with reason evicted, not fresh
+ok 7 - evicting a middle row of a drained page makes the never-opened thread partial with reason evicted, not fresh
+  ---
+  duration_ms: 22.025702
+  type: 'test'
+  ...
+# Subtest: h1 stays local across query transport, subscription reconnect and cold reopen
+ok 8 - h1 stays local across query transport, subscription reconnect and cold reopen
+  ---
+  duration_ms: 312.819377
+  type: 'test'
+  ...
+# Subtest: enrolled ordinary conditionals fetch one authenticated full reply without a validator across query and SSE
+    # Subtest: query
+    ok 1 - query
+      ---
+      duration_ms: 19.569339
+      type: 'test'
+      ...
+    # Subtest: subscription
+    ok 2 - subscription
+      ---
+      duration_ms: 11.971458
+      type: 'test'
+      ...
+    # Subtest: failed-full
+    ok 3 - failed-full
+      ---
+      duration_ms: 8.39044
+      type: 'test'
+      ...
+    1..3
+ok 9 - enrolled ordinary conditionals fetch one authenticated full reply without a validator across query and SSE
+  ---
+  duration_ms: 43.007199
+  type: 'test'
+  ...
+# Subtest: native-certified derived page keeps its public local cursor after halo replacement
+ok 10 - native-certified derived page keeps its public local cursor after halo replacement
+  ---
+  duration_ms: 46.41629
+  type: 'test'
+  ...
+# Subtest: public offline movement propagates detected partial coverage and the known halo through cold, retry and subscription
+ok 11 - public offline movement propagates detected partial coverage and the known halo through cold, retry and subscription
+  ---
+  duration_ms: 173.842656
+  type: 'test'
+  ...
+1..11
+# tests 14
+# suites 0
+# pass 14
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 4213.2688

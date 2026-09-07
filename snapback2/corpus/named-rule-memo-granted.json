@@ -198,7 +198,7 @@
       "docs.read": "6de22694d2e41cbe361b47190bba810003f6cbdf532cb88adef8b51f8bc7cc36",
       "grants.insert": "82042e944093f90611662f6f97339eed88659df896a42c295b552025f6152787"
     },
-    "evaluator_version": "bounded-spike-rust-search-text-refinements-4",
+    "evaluator_version": "bounded-spike-rust-search-text-refinements-5",
     "value_model_version": "i53-codepoint-bytes-unicode-search-text-refinements-v5",
     "read_sites": [
       {

@@ -1,0 +1,41 @@
+--- inbox-read-packet/run.py
++++ final-packet/run.py
+@@ -35,6 +35,11 @@
+  for path,v in read(P/'installed-toolchain-manifest.json').items():assert sha(pathlib.Path(path))==v['sha256'],path
+  for section,rows in read(P/'cache-manifest.json').items():verify_manifest(R/'cargo-home'/section,rows)
+  for path,h in cfg['externalFiles'].items():assert sha(pathlib.Path(path))==h,path
++ sf=pathlib.Path(cfg['linuxScaleFreeze']);frozen=read(sf)
++ assert frozen['leaf_count']==1158
++ for n,h in frozen['files'].items():
++  p=sf.parent/n;assert sha(p)==h,n
++  assert oct(p.stat().st_mode&0o777)==frozen['file_modes'][n],n
+  assert sha(R/'private/checkpoint-10.sqlite')==cfg['checkpointSha256']
+  for arm in ('baseline','candidate'):
+   root=R/'private/arm-inputs'/arm/'project';assert sha(root/'.snapback/store.sqlite')==cfg['checkpointSha256']
+--- inbox-read-packet/config.json
++++ final-packet/config.json
+@@ -44,7 +44,8 @@
+     "/home/ccheever/clique-tooling/search-native-linux-26c9-20260907T0203Z-01a07995/media-preparation-20260907T0222Z-01a07995/artifacts/snapback2-media-linux-x86_64-debug": "22e38b54a4f2b20a6abdd1f768eb0be5527b9ac9d63da0a56e14e934dcffe8de",
+     "/home/ccheever/clique-tooling/search-native-linux-26c9-20260907T0203Z-01a07995/media-preparation-20260907T0222Z-01a07995/linux-harness-26c9-01/attempts/linux-curve-01/failure.json": "8da352d304194b63cb23bfc46b72a8156ea51a6a23e12af26aab1ab7199e22cd",
+     "/home/ccheever/clique-tooling/search-native-linux-26c9-20260907T0203Z-01a07995/media-preparation-20260907T0222Z-01a07995/linux-harness-26c9-01/attempts/linux-curve-01/private/project/.snapback/forks/checkpoint-10.sqlite": "b19c0578be9ac74c47be14a84a2cf19efb03e69944591899135ef413e660ca53",
+-    "/home/ccheever/clique-tooling/search-native-linux-26c9-20260907T0203Z-01a07995/media-preparation-20260907T0222Z-01a07995/linux-harness-26c9-01/freeze.json": "24c45abe52e97d17f7e5fd4ec9ce35ae83ef6727909989590fa153ae7ed941c7",
++    "/home/ccheever/clique-tooling/search-native-linux-26c9-20260907T0203Z-01a07995/media-preparation-20260907T0222Z-01a07995/linux-harness-26c9-01/linux-freeze-01.json": "24c45abe52e97d17f7e5fd4ec9ce35ae83ef6727909989590fa153ae7ed941c7",
++    "/home/ccheever/clique-tooling/search-native-linux-26c9-20260907T0203Z-01a07995/media-preparation-20260907T0222Z-01a07995/linux-harness-26c9-01/linux-proposal.json": "1402d4e7f3e7927f2a8b2439e3a8ad96e66d3f85996b8725f0728fe768845c27",
+     "/home/ccheever/clique-tooling/search-native-linux-26c9-20260907T0203Z-01a07995/original/native-source.tar.gz": "350bb0a90f5b35e5f6db004637342da9d5931936536eef49ac5477f1b38746e0",
+     "/usr/bin/lsof": "16f8094579681168a91d19bc9057a74a06d7da64619c0e3e189b0c84649779f7",
+     "/usr/bin/ps": "8e86f498aa4aabfcea6c179d6181557140b4597f1c39bb94e2aba32158b58297",
+@@ -52,6 +53,7 @@
+     "/usr/bin/uname": "c6e023b172383fae5318c600e6f2f3a153513df62bf06ad6c9269296d2a78e89"
+   },
+   "generation": "1ff1897c52f312d25de62a8002dd091661e88e076db3e0557421c3bd5f7703a9",
++  "linuxScaleFreeze": "/home/ccheever/clique-tooling/search-native-linux-26c9-20260907T0203Z-01a07995/media-preparation-20260907T0222Z-01a07995/linux-harness-26c9-01/linux-freeze-01.json",
+   "originalCommit": "26c9fd5e0d3922ce7680493c0e8f7371f4793d59",
+   "originalSource": "/home/ccheever/clique-tooling/search-native-linux-26c9-20260907T0203Z-01a07995/source",
+   "ownerEnv": {
+--- inbox-read-packet/README.md
++++ final-packet/README.md
+@@ -19,3 +19,4 @@
+ `affected-controls.md` outside this directory binds minimal relevant prior evidence and its exact correspondence limits. No broad68-test replay or source review is in the proposed run. `static-validation.json` is fake harness validation only. The original linux-curve-01 failure/cap/source/store evidence is untouched.
+ 
+ Preparation validation first failed because the original cache manifest omitted24 symlink leaves; the copied cache was complete. The corrected9391-leaf manifest binds symlink text with lstat modes. The first packet/archive/terminal remain retained as packet-static-01; no product attempt occurred.
++The second read-only validation found the recorded Linux scale freeze filename was linux-freeze-01.json, not freeze.json; its authorized SHA was unchanged. Packet-static-02 preserves that failure. The final packet uses the real path and verifies all1158 original frozen leaves and modes.

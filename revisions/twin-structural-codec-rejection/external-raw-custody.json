@@ -1,0 +1,106 @@
+{
+  "capturedUtc": "2026-09-07T12:30:25.173777+00:00",
+  "note": "Large immutable raw oracle results, consumed source copies and archives remain at the exact external paths; this index does not replace those originals or assert their contents were all human-read.",
+  "files": [
+    {
+      "path": "/Users/ccheever/clique-improvement/lanes/search-twin/r8-structural-codec-experiment/bun-diagnostic/candidate1-bun-root/result.json",
+      "bytes": 2921937,
+      "sha256": "c1cc8a54ad64ff86da1672451f635280ed00e25e1cccbbd7ceef74548411e523"
+    },
+    {
+      "path": "/Users/ccheever/clique-improvement/lanes/search-twin/r8-structural-codec-experiment/bun-diagnostic/parent-bun-root/result.json",
+      "bytes": 2921907,
+      "sha256": "a186b510211406e22ff4cc0b538210c0732e186291e243ea8d8b3f9281471fc6"
+    },
+    {
+      "path": "/Users/ccheever/clique-improvement/lanes/search-twin/r8-structural-codec-experiment/bun-diagnostic.tar.gz",
+      "bytes": 167196,
+      "sha256": "c44ebfc22c7ff6723938175caa502f568a1858862b822f303b642e52ac4332a9"
+    },
+    {
+      "path": "/Users/ccheever/clique-improvement/lanes/search-twin/r8-structural-codec-experiment/candidate1-evidence/candidate1-oracles/result.json",
+      "bytes": 2914251,
+      "sha256": "13b1dfb04b7cb003b94969342762b6c48ca1007904b8e2ed913c002b438fb648"
+    },
+    {
+      "path": "/Users/ccheever/clique-improvement/lanes/search-twin/r8-structural-codec-experiment/candidate1-evidence.tar.gz",
+      "bytes": 219127,
+      "sha256": "f9cdcce8ac319b6929a8c160c55d49c77d832ee5f9677ad2d2e98cb10c7fe2bf"
+    },
+    {
+      "path": "/Users/ccheever/clique-improvement/lanes/search-twin/r8-structural-codec-experiment/candidate1-upload.tar.gz",
+      "bytes": 13900,
+      "sha256": "2e3cf27ce98ba3c8579ad20105fe09ca557d8aaedc1495b1d0a347f10c75e2f2"
+    },
+    {
+      "path": "/Users/ccheever/clique-improvement/lanes/search-twin/r8-structural-codec-experiment/candidate2-upload.tar.gz",
+      "bytes": 31732,
+      "sha256": "1d56c85d2319e916dadbfc687be74f6f2c44353f16c4d85682c4da816b6ad685"
+    },
+    {
+      "path": "/Users/ccheever/clique-improvement/lanes/search-twin/r8-structural-codec-experiment/candidate3-evidence/candidate3-oracles/result.json",
+      "bytes": 2920390,
+      "sha256": "d34a7f0fa335ac7c402fb284ed944ac8f2730cb04aa7cef8b2b2dcd7d3222475"
+    },
+    {
+      "path": "/Users/ccheever/clique-improvement/lanes/search-twin/r8-structural-codec-experiment/candidate3-evidence.tar.gz",
+      "bytes": 336949,
+      "sha256": "9a9ac77a46390e7bdad96e7c2c8b52599da7f6613c359b5e06bbd8177996eacf"
+    },
+    {
+      "path": "/Users/ccheever/clique-improvement/lanes/search-twin/r8-structural-codec-experiment/candidate3-public-build.tar.gz",
+      "bytes": 2704188,
+      "sha256": "c9aaa8e8da10513fdae0ce8a7eeba3f753f234d01454b5e74436772b30b616b9"
+    },
+    {
+      "path": "/Users/ccheever/clique-improvement/lanes/search-twin/r8-structural-codec-experiment/candidate3-upload.tar.gz",
+      "bytes": 32243,
+      "sha256": "4a3f20dd899780b189d0388bb06f1e2537941a133def56b79c4cde8a31c26cc6"
+    },
+    {
+      "path": "/Users/ccheever/clique-improvement/lanes/search-twin/r8-structural-codec-experiment/final-measure-evidence.tar.gz",
+      "bytes": 244270,
+      "sha256": "4dfc2b2d2645a0c0d626efd793b3dd49d83573df5e36bc1122e117b039183d9a"
+    },
+    {
+      "path": "/Users/ccheever/clique-improvement/lanes/search-twin/r8-structural-codec-experiment/final-measure-upload.tar.gz",
+      "bytes": 7058,
+      "sha256": "18fd9139113e6779f164ca9b6d21b5873fbe57c1fe7a918f65b3d90ce4886da6"
+    },
+    {
+      "path": "/Users/ccheever/clique-improvement/lanes/search-twin/r8-structural-codec-experiment/parent-evidence/before-oracles-r1/result.json",
+      "bytes": 2914251,
+      "sha256": "13b1dfb04b7cb003b94969342762b6c48ca1007904b8e2ed913c002b438fb648"
+    },
+    {
+      "path": "/Users/ccheever/clique-improvement/lanes/search-twin/r8-structural-codec-experiment/parent-evidence.tar.gz",
+      "bytes": 271039,
+      "sha256": "2273abaae48ff8c9f36604acc28c7d139e8da0de2231a1e5148f6d0d26224d06"
+    },
+    {
+      "path": "/Users/ccheever/clique-improvement/lanes/search-twin/r8-structural-codec-experiment/parent-upload.tar.gz",
+      "bytes": 71529,
+      "sha256": "d728d67c3e66dc0b0c311500e26a30c398062fe68f53da20b0705225e7f41970"
+    },
+    {
+      "path": "/Users/ccheever/clique-improvement/lanes/search-twin/r8-structural-codec-experiment/root-evidence/candidate1-root-oracles/result.json",
+      "bytes": 2920427,
+      "sha256": "0abb04489d122df31380fbf45873bab826e6e1bb30814304e2c6896675d6f5c1"
+    },
+    {
+      "path": "/Users/ccheever/clique-improvement/lanes/search-twin/r8-structural-codec-experiment/root-evidence/parent-root-oracles/result.json",
+      "bytes": 2920390,
+      "sha256": "d34a7f0fa335ac7c402fb284ed944ac8f2730cb04aa7cef8b2b2dcd7d3222475"
+    },
+    {
+      "path": "/Users/ccheever/clique-improvement/lanes/search-twin/r8-structural-codec-experiment/root-evidence.tar.gz",
+      "bytes": 362702,
+      "sha256": "6258b1efee10b202daf025c47e11c89cf31e47a2ea242057785c90d12d94ab5d"
+    },
+    {
+      "path": "/Users/ccheever/clique-improvement/lanes/search-twin/r8-structural-codec-experiment/root-oracle-upload.tar.gz",
+      "bytes": 5723,
+      "sha256": "19f9023071e0ef37b0ed795d6f1c8ce82c59782112a4dfa806579a28d0d68296"
+    }
+  ]
+}

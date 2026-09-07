@@ -155,7 +155,11 @@ fn branch_certificate_contains_the_executed_physical_writes() {
 
     assert!(matches!(execution.state, ExecutionState::Committed { .. }));
     assert_eq!(execution.trace.writes.get("events"), Some(&2));
-    assert_eq!(execution.trace.writes.get("counts"), Some(&4));
+    assert_eq!(
+        execution.trace.writes.get("counts"),
+        None,
+        "same-group source edits reserve maintained work but do not change the sparse target"
+    );
 }
 
 fn insert_and_read_aggregate(aggregate_id: &str) -> Program {

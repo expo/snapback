@@ -1,0 +1,6 @@
+{
+  "equal": true,
+  "beforeSha256": "d34a7f0fa335ac7c402fb284ed944ac8f2730cb04aa7cef8b2b2dcd7d3222475",
+  "afterSha256": "d34a7f0fa335ac7c402fb284ed944ac8f2730cb04aa7cef8b2b2dcd7d3222475",
+  "scope": "complete raw outputs,2,425 policy cases+250canonical entries;12post-edit added controls explicitly separate"
+}

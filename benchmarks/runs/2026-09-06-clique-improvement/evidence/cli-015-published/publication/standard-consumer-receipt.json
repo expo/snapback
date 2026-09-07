@@ -1,0 +1,104 @@
+{
+  "source": "original reviewed helper allowlisted step events; raw secret-bearing stream deliberately not retained",
+  "steps": [
+    {
+      "step": "install tarballs",
+      "seconds": 8.271540417,
+      "ok": true
+    },
+    {
+      "step": "doctor",
+      "seconds": 0.3750900419999998,
+      "ok": true
+    },
+    {
+      "step": "guide auth",
+      "seconds": 0.035215124999998806,
+      "ok": true
+    },
+    {
+      "step": "public client and React exports",
+      "seconds": 0.04488591699999961,
+      "ok": true
+    },
+    {
+      "step": "todos init",
+      "seconds": 0.6788791250000012,
+      "ok": true
+    },
+    {
+      "step": "todos check",
+      "seconds": 0.683939875,
+      "ok": true
+    },
+    {
+      "step": "todos React bundle",
+      "seconds": 1.5137795829999996,
+      "ok": true
+    },
+    {
+      "step": "todos dev",
+      "seconds": 0.44800337500000026,
+      "ok": true
+    },
+    {
+      "step": "React live query round trip",
+      "seconds": 0.14019416699999965,
+      "ok": true
+    },
+    {
+      "step": "todos receipt",
+      "accepted": true,
+      "verdict": "pass"
+    },
+    {
+      "step": "todos test",
+      "seconds": 1.420937,
+      "ok": true
+    },
+    {
+      "step": "todos stop",
+      "seconds": 0.18634954199999992,
+      "ok": true
+    },
+    {
+      "step": "chat init",
+      "seconds": 1.0487594579999986,
+      "ok": true
+    },
+    {
+      "step": "chat check",
+      "seconds": 1.058153957999999,
+      "ok": true
+    },
+    {
+      "step": "chat React bundle",
+      "seconds": 0.8077645840000005,
+      "ok": true
+    },
+    {
+      "step": "chat dev",
+      "seconds": 1.059412042,
+      "ok": true
+    },
+    {
+      "step": "chat receipt",
+      "accepted": true,
+      "verdict": "pass"
+    },
+    {
+      "step": "chat test",
+      "seconds": 9.966484000000001,
+      "ok": true
+    },
+    {
+      "step": "chat stop",
+      "seconds": 0.24755975000000036,
+      "ok": true
+    }
+  ],
+  "all19Passed": true,
+  "publisherExit": 0,
+  "fullTodosChatUnchanged": true,
+  "rawIndividualTestReceipts": "not retained by accepted runtime; qualification originals remain separately"
+}

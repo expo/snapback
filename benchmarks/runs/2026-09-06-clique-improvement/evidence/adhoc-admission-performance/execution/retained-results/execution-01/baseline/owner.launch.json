@@ -1,0 +1,32 @@
+{
+  "atEpoch": 1788782366.9358442,
+  "binarySha256": "2f3cd93ccbff5902465f2514e61d8cf6fedf76228ad8e7abafe02ed5f1959175",
+  "command": [
+    "/home/ccheever/clique-tooling/search-native-linux-26c9-20260907T0203Z-01a07995/artifacts/snapback2-linux-x86_64-debug",
+    "dev",
+    "--project",
+    "/home/ccheever/clique-tooling/adhoc-certification-performance-26c9-20260907-r1-01a07995/execution-01/baseline/private/project",
+    "--port",
+    "50933",
+    "--foreground",
+    "--json"
+  ],
+  "env": {
+    "HOME": "/home/ccheever",
+    "LANG": "C.UTF-8",
+    "LC_ALL": "C.UTF-8",
+    "LOGNAME": "ccheever",
+    "PATH": "/home/ccheever/clique-tooling/epyc-linux-tooling-20260907T010007Z-0fd567d96f/node-v22.23.2-linux-x64/bin:/home/ccheever/clique-tooling/epyc-linux-tooling-20260907T010007Z-0fd567d96f/bun-v1.3.12-linux-x64/bin:/usr/bin:/bin",
+    "SNAPBACK2_COMPILER": "/home/ccheever/clique-tooling/adhoc-certification-performance-26c9-20260907-r1-01a07995/runtime/compiler-wrapper.mjs",
+    "SNAPBACK2_MEDIA": "/home/ccheever/clique-tooling/search-native-linux-26c9-20260907T0203Z-01a07995/media-preparation-20260907T0222Z-01a07995/artifacts/snapback2-media-linux-x86_64-debug",
+    "USER": "ccheever"
+  },
+  "identity": {
+    "bootId": "76ef40aa-0ed8-4f57-85c6-898bb42ea7e4",
+    "exe": "/home/ccheever/clique-tooling/search-native-linux-26c9-20260907T0203Z-01a07995/artifacts/snapback2-linux-x86_64-debug",
+    "pid": 4006102,
+    "startTicks": "114128522"
+  },
+  "port": 50933,
+  "startupSeconds": 30
+}

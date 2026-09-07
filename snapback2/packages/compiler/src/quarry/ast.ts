@@ -30,6 +30,8 @@ export type ShapeField =
 
 export type ShapeDecl = { name: string; fields: ShapeField[]; site: Site };
 export type ShapeImport = { name: string; module: string; site: Site };
+export type FunctionDecl = { name: string; args: ArgDecl[]; body: Expr; site: Site };
+export type FunctionImport = { name: string; module: string; site: Site };
 
 export type Expr =
   | { kind: "name"; name: string; site: Site }
@@ -134,6 +136,8 @@ export type Document = {
   effects: EffectDecl[];
   shapes: ShapeDecl[];
   shapeImports: ShapeImport[];
+  functions: FunctionDecl[];
+  functionImports: FunctionImport[];
   programs: ProgramDecl[];
   schedules: ScheduleDecl[];
 };

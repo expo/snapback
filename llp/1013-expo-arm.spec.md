@@ -179,6 +179,16 @@ author may veto any at the review.
    admission remains fail-closed: it does not refund the viewing allowance.
    Native event objects are adapted to the public zero-argument playback
    callback. The viewing identity stays the mounted instance across layout.
+   *Ordinary native-file amendment, 2026-09-07 (simulator finding; implementer:
+   Codex).* AVFoundation will not identify the verified H.264 fixture at an
+   extensionless cache path. Durable carrier keys remain extensionless; the
+   native derivative maps only the five server-verified media types to fixed
+   `.jpg`, `.png`, `.webp`, `.mp4`, or `.mov` suffixes. Unknown MIME values
+   cannot contribute path text. Replacement and startup sweep both remove old
+   extensionless or wrong-type derivatives. The simulator records warm and cold
+   media failures independently so one playback fault does not suppress query,
+   recovery, fault, replay, expiry, or driver evidence; any media fault still
+   fails the overall witness.
 8. **The chat template gets an Expo app beside its web app, and the shared reducers are
    packaged.** `templates/chat/expo/` with Inbox, Thread, Composer, and Search as React Native
    views on the same hooks; the reducers (`conversations`, `threadBubbles`, `searchHeld`, the

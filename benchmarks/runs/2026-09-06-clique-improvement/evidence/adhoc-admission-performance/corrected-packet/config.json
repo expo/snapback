@@ -1,0 +1,80 @@
+{
+  "armNamespaces": {
+    "baseline": "1865b0fad391a522af3cf671004cedbc",
+    "candidate": "aca07d3befbee13c4d478236ebffcd12"
+  },
+  "attempt": "execution-02",
+  "baselineOwner": "/home/ccheever/clique-tooling/search-native-linux-26c9-20260907T0203Z-01a07995/artifacts/snapback2-linux-x86_64-debug",
+  "buildCommand": [
+    "/home/ccheever/.cargo/bin/cargo",
+    "+1.97.0",
+    "build",
+    "--locked",
+    "-j16",
+    "-p",
+    "snapback2"
+  ],
+  "buildEnv": {
+    "CARGO_HOME": "/home/ccheever/clique-tooling/adhoc-certification-performance-26c9-20260907-r1-01a07995/cargo-home",
+    "CARGO_NET_GIT_FETCH_WITH_CLI": "true",
+    "CARGO_NET_OFFLINE": "true",
+    "CARGO_NET_RETRY": "0",
+    "CARGO_TARGET_DIR": "/home/ccheever/clique-tooling/adhoc-certification-performance-26c9-20260907-r1-01a07995/target",
+    "CARGO_TERM_COLOR": "never",
+    "GIT_TERMINAL_PROMPT": "0",
+    "HOME": "/home/ccheever",
+    "LANG": "C.UTF-8",
+    "LC_ALL": "C.UTF-8",
+    "LOGNAME": "ccheever",
+    "PATH": "/home/ccheever/.cargo/bin:/home/ccheever/.local/bin:/usr/local/bin:/usr/bin:/bin",
+    "RUSTC": "/home/ccheever/.rustup/toolchains/1.97.0-x86_64-unknown-linux-gnu/bin/rustc",
+    "RUSTDOC": "/home/ccheever/.rustup/toolchains/1.97.0-x86_64-unknown-linux-gnu/bin/rustdoc",
+    "RUSTUP_HOME": "/home/ccheever/.rustup",
+    "USER": "ccheever"
+  },
+  "candidateOwner": "/home/ccheever/clique-tooling/adhoc-certification-performance-26c9-20260907-r1-01a07995/execution-01/candidate-owner",
+  "candidateOwnerSha256": "faa2a59c59e3de399df0b317991e03d5eae35873a58bd9eccd2df1e1b929f39d",
+  "checkpointSha256": "b19c0578be9ac74c47be14a84a2cf19efb03e69944591899135ef413e660ca53",
+  "externalFiles": {
+    "/home/ccheever/.rustup/toolchains/1.97.0-x86_64-unknown-linux-gnu/bin/cargo": "eff12bab37b9d9e01324db4583eaf55b2cd82ac3008a7e59876e4cd2e9a028f5",
+    "/home/ccheever/.rustup/toolchains/1.97.0-x86_64-unknown-linux-gnu/bin/rustc": "df13f58759c0662831983e3a6501c63c1fc12ea60ec4e1d1ac35e5fe43c500c0",
+    "/home/ccheever/.rustup/toolchains/1.97.0-x86_64-unknown-linux-gnu/bin/rustdoc": "ed74ac3f2be8270ed5da788cdecb8cd0e530fb6b5b380e63aedb62323beb7c85",
+    "/home/ccheever/clique-tooling/epyc-linux-tooling-20260907T010007Z-0fd567d96f/bun-v1.3.12-linux-x64/bin/bun": "92a1cd8b6185f676010bb18e767dfc65c772273e79ae9984480843261939eeaa",
+    "/home/ccheever/clique-tooling/epyc-linux-tooling-20260907T010007Z-0fd567d96f/node-v22.23.2-linux-x64/bin/node": "3517c2df0b2f8cd7f422b4b8450ef81c6889f08eb03e281d6de9079b15e6a327",
+    "/home/ccheever/clique-tooling/epyc-linux-tooling-20260907T010007Z-0fd567d96f/node-v24.18.0-linux-x64/bin/node": "41a74efb34cbde5c7632cdac0cf8bd1a14d0b8d73dc1e82755014d9a9ce70f5c",
+    "/home/ccheever/clique-tooling/search-native-linux-26c9-20260907T0203Z-01a07995/artifacts/snapback2-linux-x86_64-debug": "2f3cd93ccbff5902465f2514e61d8cf6fedf76228ad8e7abafe02ed5f1959175",
+    "/home/ccheever/clique-tooling/search-native-linux-26c9-20260907T0203Z-01a07995/complete-source.tar": "89eb3a6136cc06ad212129acbd57e52e03bc9a13c5d62b7f8032c3884e43451d",
+    "/home/ccheever/clique-tooling/search-native-linux-26c9-20260907T0203Z-01a07995/media-preparation-20260907T0222Z-01a07995/artifacts/snapback2-media-linux-x86_64-debug": "22e38b54a4f2b20a6abdd1f768eb0be5527b9ac9d63da0a56e14e934dcffe8de",
+    "/home/ccheever/clique-tooling/search-native-linux-26c9-20260907T0203Z-01a07995/media-preparation-20260907T0222Z-01a07995/linux-harness-26c9-01/attempts/linux-curve-01/failure.json": "8da352d304194b63cb23bfc46b72a8156ea51a6a23e12af26aab1ab7199e22cd",
+    "/home/ccheever/clique-tooling/search-native-linux-26c9-20260907T0203Z-01a07995/media-preparation-20260907T0222Z-01a07995/linux-harness-26c9-01/attempts/linux-curve-01/private/project/.snapback/forks/checkpoint-10.sqlite": "b19c0578be9ac74c47be14a84a2cf19efb03e69944591899135ef413e660ca53",
+    "/home/ccheever/clique-tooling/search-native-linux-26c9-20260907T0203Z-01a07995/media-preparation-20260907T0222Z-01a07995/linux-harness-26c9-01/linux-freeze-01.json": "24c45abe52e97d17f7e5fd4ec9ce35ae83ef6727909989590fa153ae7ed941c7",
+    "/home/ccheever/clique-tooling/search-native-linux-26c9-20260907T0203Z-01a07995/media-preparation-20260907T0222Z-01a07995/linux-harness-26c9-01/linux-proposal.json": "1402d4e7f3e7927f2a8b2439e3a8ad96e66d3f85996b8725f0728fe768845c27",
+    "/home/ccheever/clique-tooling/search-native-linux-26c9-20260907T0203Z-01a07995/original/native-source.tar.gz": "350bb0a90f5b35e5f6db004637342da9d5931936536eef49ac5477f1b38746e0",
+    "/usr/bin/lsof": "16f8094579681168a91d19bc9057a74a06d7da64619c0e3e189b0c84649779f7",
+    "/usr/bin/ps": "8e86f498aa4aabfcea6c179d6181557140b4597f1c39bb94e2aba32158b58297",
+    "/usr/bin/python3.12": "1643dacd9feaedc58f3cc581e4d22577dfe25c09b10282936186ccf0f2e61118",
+    "/usr/bin/uname": "c6e023b172383fae5318c600e6f2f3a153513df62bf06ad6c9269296d2a78e89"
+  },
+  "generation": "1ff1897c52f312d25de62a8002dd091661e88e076db3e0557421c3bd5f7703a9",
+  "linuxScaleFreeze": "/home/ccheever/clique-tooling/search-native-linux-26c9-20260907T0203Z-01a07995/media-preparation-20260907T0222Z-01a07995/linux-harness-26c9-01/linux-freeze-01.json",
+  "originalCommit": "26c9fd5e0d3922ce7680493c0e8f7371f4793d59",
+  "originalPacketFreezeSha256": "2d03954e48e7a4a8426ff5e421920610e0e423a07c97c0595add6c71c20f4edc",
+  "originalSource": "/home/ccheever/clique-tooling/search-native-linux-26c9-20260907T0203Z-01a07995/source",
+  "ownerEnv": {
+    "HOME": "/home/ccheever",
+    "LANG": "C.UTF-8",
+    "LC_ALL": "C.UTF-8",
+    "LOGNAME": "ccheever",
+    "PATH": "/home/ccheever/clique-tooling/epyc-linux-tooling-20260907T010007Z-0fd567d96f/node-v22.23.2-linux-x64/bin:/home/ccheever/clique-tooling/epyc-linux-tooling-20260907T010007Z-0fd567d96f/bun-v1.3.12-linux-x64/bin:/usr/bin:/bin",
+    "SNAPBACK2_COMPILER": "/home/ccheever/clique-tooling/adhoc-certification-performance-26c9-20260907-r1-01a07995/runtime/compiler-wrapper.mjs",
+    "SNAPBACK2_MEDIA": "/home/ccheever/clique-tooling/search-native-linux-26c9-20260907T0203Z-01a07995/media-preparation-20260907T0222Z-01a07995/artifacts/snapback2-media-linux-x86_64-debug",
+    "USER": "ccheever"
+  },
+  "ports": {
+    "baseline": 50933,
+    "candidate": 50935
+  },
+  "programGeneration": "7315d72119c27ee4362f7b071fbc0292c6bc2323c0c8572c3599ea27feedae55",
+  "remoteRoot": "/home/ccheever/clique-tooling/adhoc-certification-performance-26c9-20260907-r1-01a07995",
+  "repairCommit": "cd610a50e9aab41c3e13620e0aefe8d6da5115f3"
+}

@@ -1,0 +1,158 @@
+{
+  "atEpoch": 1788780777.671445,
+  "worktree": "/Users/ccheever/projects/snapback-worktrees/clique-cli-015-integration",
+  "mainBase": "f113b4e895ba24fc21aba1790536d536ec7d5408",
+  "integratedCommit": "624a06dfc66e182a1f41c5fd85f9fbd191ba4bcb",
+  "qualifiedSource": "78924a1e7286907d2378221902ec22747e7d188f",
+  "originalQualifiedBase": "22427817eca887b50e4f25d787d8c2fb29368a4f",
+  "exact13FileDeltaMatches": true,
+  "files": [
+    {
+      "path": "llp/1002-dev-loop.spec.md",
+      "bytes": 70252,
+      "sha256": "5c027d2a46d3c9201d4f36175a173855720fbd6eecb99e81049a32c2a3cc2418"
+    },
+    {
+      "path": "snapback2/Cargo.lock",
+      "bytes": 63816,
+      "sha256": "17b58f37d28f9c4f45a42d39654aa42faec68770a0e3c7d50f5cf5a55637131b"
+    },
+    {
+      "path": "snapback2/Cargo.toml",
+      "bytes": 502,
+      "sha256": "a0ddb76ea61778e8d3395edad9b77e3d9fdbabee34c643fd4633e3dd70224609"
+    },
+    {
+      "path": "snapback2/bun.lock",
+      "bytes": 179294,
+      "sha256": "28bdc0ce39f70be6af1433d7de17b0be6638583209c5181e8dba6a7910bfa664"
+    },
+    {
+      "path": "snapback2/crates/snapback2/src/main.rs",
+      "bytes": 5215,
+      "sha256": "f5e8256da77ed1b6d8c8691ac0ee5ad11f1d1387d2d412db3b088259e05f71fa"
+    },
+    {
+      "path": "snapback2/crates/snapback2/src/test.rs",
+      "bytes": 49068,
+      "sha256": "90186464784249d47dc60e4551613bf64b7e86b76bb0ff482c4b5e016eb4cd06"
+    },
+    {
+      "path": "snapback2/crates/snapback2/src/verbs.rs",
+      "bytes": 18226,
+      "sha256": "354a0de16cee6d4f45864dcfe2251d72b6c4e8295e8107e317a7920211f93a9f"
+    },
+    {
+      "path": "snapback2/crates/snapback2/tests/guide.rs",
+      "bytes": 28774,
+      "sha256": "3eacb747cc0eea44b7e7eef876bde28f157d15751e5dce8f20d9c86cc132acd1"
+    },
+    {
+      "path": "snapback2/crates/snapback2/tests/test_verb.rs",
+      "bytes": 50229,
+      "sha256": "6e95630aa47eb982599522407d17076571f02293a89716cd2752ba8553ff3217"
+    },
+    {
+      "path": "snapback2/crates/snapback2/tests/test_verb/selection.rs",
+      "bytes": 12385,
+      "sha256": "127239704cb23e0d1019c5d9a765f52064ad7886342a8622a96189091cbabcb7"
+    },
+    {
+      "path": "snapback2/packages/snapback2/guide/testing.md",
+      "bytes": 4096,
+      "sha256": "5c1e65a304c5a376892a1fce9be2f68f8d252eb71753280eb21665c762474a44"
+    },
+    {
+      "path": "snapback2/packages/snapback2/package.json",
+      "bytes": 2968,
+      "sha256": "ed07eb8aa705bb1b1a4f94ec0fe9116c49e822cf7a83560523aa43c602b4469c"
+    },
+    {
+      "path": "snapback2/packages/snapback2/src/test.ts",
+      "bytes": 12612,
+      "sha256": "9392c960e7ab865d7a05c10a21a8247954070a6f943a09ffd67135706d1bd74d"
+    }
+  ],
+  "concurrentS2PathsPreserved": [
+    {
+      "path": "snapback2/crates/snapback2-core/src/registry.rs",
+      "sha256": "d68e758f5460037f304982bdb868f6576d4c85ec80c37804b5ab12c5eeca46ee"
+    },
+    {
+      "path": "snapback2/crates/snapback2-core/src/successor.rs",
+      "sha256": "70d1126e4e5acd29f1b8025a410ed9e14d5b0393d266373d31d0b7006c7a595c"
+    },
+    {
+      "path": "snapback2/crates/snapback2-core/tests/successor_maintains.rs",
+      "sha256": "de1dbae929f46bf3f5eed313c3b89376073af083696f5bf46ed0dabf2d9b512d"
+    },
+    {
+      "path": "snapback2/metrics/loop.jsonl",
+      "sha256": "6ca5d80c0a7337339c4ea5eae315ccd6afa70efa88744101385ae2336a274952"
+    },
+    {
+      "path": "snapback2/packages/snapback2/guide/offline.md",
+      "sha256": "babc205b2ac76d53626ff9ade743214abf55dd48d4f0f361bb5ae736c1fbda5f"
+    },
+    {
+      "path": "snapback2/packages/snapback2/tests/real-owner.test.ts",
+      "sha256": "3cf51d9b991251e831a9ad4228a0c1c721efc656ba64e95ecf5e7536dd316399"
+    },
+    {
+      "path": "snapback2/scripts/witness-web.mjs",
+      "sha256": "fd80bb733c6a6601b50ca5c5b987b83a4256268399cbbc1f0bf5816a1c19a8c1"
+    }
+  ],
+  "diffSha256": "008d8a824ae51bdf106985e25fbdeb831b6cfa2b97c63387ca751cfa34d2f867",
+  "diffBytes": 38232,
+  "semanticConflicts": false,
+  "commands": [
+    {
+      "argv": [
+        "git",
+        "worktree",
+        "add",
+        "-b",
+        "s2/clique-cli-015-integration",
+        "/Users/ccheever/projects/snapback-worktrees/clique-cli-015-integration",
+        "f113b4e895ba24fc21aba1790536d536ec7d5408"
+      ],
+      "pid": 93197,
+      "exitCode": 0,
+      "seconds": 16.390815019607544
+    },
+    {
+      "argv": [
+        "git",
+        "cherry-pick",
+        "ff894d7cefbb2190c09e03ab6ed4f40414f4d034"
+      ],
+      "pid": 93517,
+      "exitCode": 0,
+      "seconds": 0.6482541561126709
+    },
+    {
+      "argv": [
+        "git",
+        "cherry-pick",
+        "9bee8119d7c009ec4182797dfb54699917ab8231"
+      ],
+      "pid": 93525,
+      "exitCode": 0,
+      "seconds": 0.26132702827453613
+    },
+    {
+      "argv": [
+        "git",
+        "cherry-pick",
+        "78924a1e7286907d2378221902ec22747e7d188f"
+      ],
+      "pid": 93527,
+      "exitCode": 0,
+      "seconds": 0.27266979217529297
+    }
+  ],
+  "clean": true,
+  "pushed": false,
+  "qualificationScope": "Original immutable78924 production pair; this integration preserves current main-only source and does not relabel old artifacts as a new integrated-source build. No expensive rerun solely for base advance."
+}

@@ -1,0 +1,630 @@
+{
+  "candidate": "78924a1e7286907d2378221902ec22747e7d188f",
+  "baseline": "9bee8119d7c009ec4182797dfb54699917ab8231",
+  "changedPaths": [
+    "llp/1002-dev-loop.spec.md",
+    "snapback2/crates/snapback2/src/main.rs",
+    "snapback2/crates/snapback2/src/test.rs",
+    "snapback2/crates/snapback2/src/verbs.rs",
+    "snapback2/crates/snapback2/tests/guide.rs",
+    "snapback2/crates/snapback2/tests/test_verb/selection.rs",
+    "snapback2/packages/snapback2/guide/testing.md",
+    "snapback2/packages/snapback2/src/test.ts"
+  ],
+  "patchSha256": "d6286f5b796be780b3d09e8ed1ed988262e9e8484df2bc6b86d3488544c61ddd",
+  "verifiedSourceLeaves": 943,
+  "scope": "Eight-file focused registration identity, runner exit-status and help compatibility repair. Complete surrounding candidate/baseline source. No native/compiler/offline integration.",
+  "evidenceAttribution": "Snapshot01 combined13guide+29test_verb+2parser passes. Rust-only numeric-exit/grace correction02 targeted2 passes. Original2001-registration argument-length failure retained. Final aggregate snapshot03 package/build and8 actual selection controls pass; not repeated44-case run.",
+  "artifactLimit": "Earlier build01 raw JS bundles unavailable. Build cwd is a source-backed possible cause, not proven byte equivalence. Final before-runtime/post-test outputs, source maps and943 source leaves bind final8 controls directly. Inspect current build helper.",
+  "qualification": "No repaired-source Darwin qualification/publication yet; historicalff894 dry-run is separate.",
+  "symlinks": "Git symlink blob bytes are immutable plain text, no external traversal.",
+  "independence": "No author narratives/self-review or any peer reviewer reports.",
+  "rawEvidence": [
+    {
+      "path": "evidence/actual-identity.json",
+      "original": "/Users/ccheever/clique-improvement/revisions/cli-journey-selection-repair-r2/actual-identity.json",
+      "bytes": 345,
+      "sha256": "f9ad6c16f6c8f0b3d9f4d75601f093b80ec4dfd4d5cbf81cf7692046031b151c"
+    },
+    {
+      "path": "evidence/before-custody.json",
+      "original": "/Users/ccheever/clique-improvement/revisions/cli-journey-selection-repair-r2/before-custody.json",
+      "bytes": 5778,
+      "sha256": "545f2da091d4a86b54aa0089691c91dcced3f96a2df95c8feabd42fac7fad02b"
+    },
+    {
+      "path": "evidence/cleanup.json",
+      "original": "/Users/ccheever/clique-improvement/revisions/cli-journey-selection-repair-r2/cleanup.json",
+      "bytes": 812,
+      "sha256": "9d134445ad66fc8b5425e6c9e332005a7effbbab55b9d3b02a704aab05f83afd"
+    },
+    {
+      "path": "evidence/identity-size-before/fixture.ts",
+      "original": "/Users/ccheever/clique-improvement/revisions/cli-journey-selection-repair-r2/identity-size-before/fixture.ts",
+      "bytes": 179,
+      "sha256": "8b710a8e80d85c4a8fb889a17b2333d69580ee3f5c4b1822e072e2e7c916d81d"
+    },
+    {
+      "path": "evidence/identity-size-before/focused.stderr",
+      "original": "/Users/ccheever/clique-improvement/revisions/cli-journey-selection-repair-r2/identity-size-before/focused.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "evidence/identity-size-before/focused.stdout",
+      "original": "/Users/ccheever/clique-improvement/revisions/cli-journey-selection-repair-r2/identity-size-before/focused.stdout",
+      "bytes": 447,
+      "sha256": "b6f7c86b407a565477f9c9709a898b8a9e10aa115f745a469884b93e07f31f76"
+    },
+    {
+      "path": "evidence/identity-size-before/init.stderr",
+      "original": "/Users/ccheever/clique-improvement/revisions/cli-journey-selection-repair-r2/identity-size-before/init.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "evidence/identity-size-before/init.stdout",
+      "original": "/Users/ccheever/clique-improvement/revisions/cli-journey-selection-repair-r2/identity-size-before/init.stdout",
+      "bytes": 420,
+      "sha256": "b90f1553934dc48da74c9e11f28fe9d306720f927512240a7cbd999ac639f63f"
+    },
+    {
+      "path": "evidence/identity-size-before/project/.gitignore",
+      "original": "/Users/ccheever/clique-improvement/revisions/cli-journey-selection-repair-r2/identity-size-before/project/.gitignore",
+      "bytes": 11,
+      "sha256": "3bad7dd36101229cca1a3093b4c0c5964e780cf66048d28d246fea69caf80f27"
+    },
+    {
+      "path": "evidence/identity-size-before/project/.snapback/build/api.d.ts",
+      "original": "/Users/ccheever/clique-improvement/revisions/cli-journey-selection-repair-r2/identity-size-before/project/.snapback/build/api.d.ts",
+      "bytes": 543,
+      "sha256": "78b0e84b90d2e33d92cf326d77e028425f481f52c2b069b1b24b88866cdfa234"
+    },
+    {
+      "path": "evidence/identity-size-before/project/.snapback/build/certificates.json",
+      "original": "/Users/ccheever/clique-improvement/revisions/cli-journey-selection-repair-r2/identity-size-before/project/.snapback/build/certificates.json",
+      "bytes": 2544,
+      "sha256": "1bb67b39191bc72d97f12902abfd15ab7b8f795967f6439fc307153aa7c298b3"
+    },
+    {
+      "path": "evidence/identity-size-before/project/.snapback/build/project.json",
+      "original": "/Users/ccheever/clique-improvement/revisions/cli-journey-selection-repair-r2/identity-size-before/project/.snapback/build/project.json",
+      "bytes": 3593,
+      "sha256": "1ae5a09519ddaace2c46bc4b9e40cd9b9c9ab8de808c6075c02bfa63864a26f8"
+    },
+    {
+      "path": "evidence/identity-size-before/project/.snapback/build/quarry/schema.ts",
+      "original": "/Users/ccheever/clique-improvement/revisions/cli-journey-selection-repair-r2/identity-size-before/project/.snapback/build/quarry/schema.ts",
+      "bytes": 1878,
+      "sha256": "6b9e6ed9505e42f08f676cabe4947a00250ef8b3c767e4f8447e5a5bff19440e"
+    },
+    {
+      "path": "evidence/identity-size-before/project/.snapback/build/quarry/todos.ts",
+      "original": "/Users/ccheever/clique-improvement/revisions/cli-journey-selection-repair-r2/identity-size-before/project/.snapback/build/quarry/todos.ts",
+      "bytes": 1026,
+      "sha256": "d3bddcd292dec89898b697e01212fd72b6301cb409879afe60a7e16161049451"
+    },
+    {
+      "path": "evidence/identity-size-before/project/.snapback/build/schema-certificate.json",
+      "original": "/Users/ccheever/clique-improvement/revisions/cli-journey-selection-repair-r2/identity-size-before/project/.snapback/build/schema-certificate.json",
+      "bytes": 21,
+      "sha256": "a39c475e0db93dc086de828510a988f10eb814fd0e2cb6d72ee9160aba3dd410"
+    },
+    {
+      "path": "evidence/identity-size-before/project/.snapback/build/tests/todos.mjs",
+      "original": "/Users/ccheever/clique-improvement/revisions/cli-journey-selection-repair-r2/identity-size-before/project/.snapback/build/tests/todos.mjs",
+      "bytes": 279,
+      "sha256": "960c09326285e18a7c6edea64306f1f13c0337b6f00c9881c9147af37b6e7bbb"
+    },
+    {
+      "path": "evidence/identity-size-before/project/.snapback/receipts/1788778577585.json",
+      "original": "/Users/ccheever/clique-improvement/revisions/cli-journey-selection-repair-r2/identity-size-before/project/.snapback/receipts/1788778577585.json",
+      "bytes": 601,
+      "sha256": "7ce8d691ec2b32250681ffb84207673422f51040cfc70c13f4a16b368ac47b00"
+    },
+    {
+      "path": "evidence/identity-size-before/project/AGENTS.md",
+      "original": "/Users/ccheever/clique-improvement/revisions/cli-journey-selection-repair-r2/identity-size-before/project/AGENTS.md",
+      "bytes": 937,
+      "sha256": "56a1c284cf047ba835cc3a8a2815b74d970b977ce537529ef2d26a4259982470"
+    },
+    {
+      "path": "evidence/identity-size-before/project/package.json",
+      "original": "/Users/ccheever/clique-improvement/revisions/cli-journey-selection-repair-r2/identity-size-before/project/package.json",
+      "bytes": 114,
+      "sha256": "a5a846df37fc721222ee6ce50f7a3a34738c03a40f58b05ee954e097219aa676"
+    },
+    {
+      "path": "evidence/identity-size-before/project/snapback/schema.q",
+      "original": "/Users/ccheever/clique-improvement/revisions/cli-journey-selection-repair-r2/identity-size-before/project/snapback/schema.q",
+      "bytes": 212,
+      "sha256": "2f6dcba63d81eb0d4cc87baf951a863852f21a46d581011d72d1eee7c2f6d0f1"
+    },
+    {
+      "path": "evidence/identity-size-before/project/snapback/seed.ts",
+      "original": "/Users/ccheever/clique-improvement/revisions/cli-journey-selection-repair-r2/identity-size-before/project/snapback/seed.ts",
+      "bytes": 204,
+      "sha256": "dc7823a5d1260b70af913acdb7c619c6d60d4fbf3c8d213e42f44c45f94c6882"
+    },
+    {
+      "path": "evidence/identity-size-before/project/snapback/tests/todos.test.ts",
+      "original": "/Users/ccheever/clique-improvement/revisions/cli-journey-selection-repair-r2/identity-size-before/project/snapback/tests/todos.test.ts",
+      "bytes": 179,
+      "sha256": "8b710a8e80d85c4a8fb889a17b2333d69580ee3f5c4b1822e072e2e7c916d81d"
+    },
+    {
+      "path": "evidence/identity-size-before/project/snapback/todos.q",
+      "original": "/Users/ccheever/clique-improvement/revisions/cli-journey-selection-repair-r2/identity-size-before/project/snapback/todos.q",
+      "bytes": 165,
+      "sha256": "bacc72cee40548f50c8fd20b99ddb03f3d8ff9b0448fefe68713be3e356e04ca"
+    },
+    {
+      "path": "evidence/identity-size-before/project/tsconfig.json",
+      "original": "/Users/ccheever/clique-improvement/revisions/cli-journey-selection-repair-r2/identity-size-before/project/tsconfig.json",
+      "bytes": 264,
+      "sha256": "92eff4cc1a7e5afe49c5418a570d15a45087ffad285b3be529be028e805ef6c3"
+    },
+    {
+      "path": "evidence/identity-size-before/receipt.json",
+      "original": "/Users/ccheever/clique-improvement/revisions/cli-journey-selection-repair-r2/identity-size-before/receipt.json",
+      "bytes": 1084,
+      "sha256": "7ee06234fbf6411dfd8b5014e15c7cb461226577fbe56254d9f3b57a0efdad04"
+    },
+    {
+      "path": "evidence/identity-size-custody.json",
+      "original": "/Users/ccheever/clique-improvement/revisions/cli-journey-selection-repair-r2/identity-size-custody.json",
+      "bytes": 5949,
+      "sha256": "a765cdc049ff1271398f55f7d68538a93f19c8db4064160b3013559f8648902c"
+    },
+    {
+      "path": "evidence/original-before/before-continue/blocked-h.stderr",
+      "original": "/Users/ccheever/clique-improvement/revisions/cli-journey-selection-repair-r2/original-before/before-continue/blocked-h.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "evidence/original-before/before-continue/blocked-h.stdout",
+      "original": "/Users/ccheever/clique-improvement/revisions/cli-journey-selection-repair-r2/original-before/before-continue/blocked-h.stdout",
+      "bytes": 432,
+      "sha256": "f34729f80419dd76611a39915f687c5adc9e8cd6e0222bb280ea364f2410d331"
+    },
+    {
+      "path": "evidence/original-before/before-continue/blocked-help.stderr",
+      "original": "/Users/ccheever/clique-improvement/revisions/cli-journey-selection-repair-r2/original-before/before-continue/blocked-help.stderr",
+      "bytes": 98,
+      "sha256": "dd56716c6270eafd1a49e3b65c3bba292224aaa0968a4777eec53d4db64319c4"
+    },
+    {
+      "path": "evidence/original-before/before-continue/blocked-help.stdout",
+      "original": "/Users/ccheever/clique-improvement/revisions/cli-journey-selection-repair-r2/original-before/before-continue/blocked-help.stdout",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "evidence/original-before/before-continue/exit-cli.stderr",
+      "original": "/Users/ccheever/clique-improvement/revisions/cli-journey-selection-repair-r2/original-before/before-continue/exit-cli.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "evidence/original-before/before-continue/exit-cli.stdout",
+      "original": "/Users/ccheever/clique-improvement/revisions/cli-journey-selection-repair-r2/original-before/before-continue/exit-cli.stdout",
+      "bytes": 566,
+      "sha256": "dd5adf3fd934448e22a1a57a27decb9f3c87a4be14a02fe7057aff68cf90b645"
+    },
+    {
+      "path": "evidence/original-before/before-continue/exit-fixture.ts",
+      "original": "/Users/ccheever/clique-improvement/revisions/cli-journey-selection-repair-r2/original-before/before-continue/exit-fixture.ts",
+      "bytes": 145,
+      "sha256": "8b087ab082e85e6129459d301b7388c0a070d2d79df13466c83ee4537e7f08d7"
+    },
+    {
+      "path": "evidence/original-before/before-continue/exit-init.stderr",
+      "original": "/Users/ccheever/clique-improvement/revisions/cli-journey-selection-repair-r2/original-before/before-continue/exit-init.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "evidence/original-before/before-continue/exit-init.stdout",
+      "original": "/Users/ccheever/clique-improvement/revisions/cli-journey-selection-repair-r2/original-before/before-continue/exit-init.stdout",
+      "bytes": 404,
+      "sha256": "3d7ede966e757c4c33e835f25300646beaf6d4cbcf4a1b085258e041bc816f86"
+    },
+    {
+      "path": "evidence/original-before/before-continue/exit-raw-runner.stderr",
+      "original": "/Users/ccheever/clique-improvement/revisions/cli-journey-selection-repair-r2/original-before/before-continue/exit-raw-runner.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "evidence/original-before/before-continue/exit-raw-runner.stdout",
+      "original": "/Users/ccheever/clique-improvement/revisions/cli-journey-selection-repair-r2/original-before/before-continue/exit-raw-runner.stdout",
+      "bytes": 229,
+      "sha256": "64c09844412952faba5583fb88f39829c7536feb09d379cb2fbcc2bcee3eb144"
+    },
+    {
+      "path": "evidence/original-before/before-continue/exit/.snapback/build/tests/todos.mjs",
+      "original": "/Users/ccheever/clique-improvement/revisions/cli-journey-selection-repair-r2/original-before/before-continue/exit/.snapback/build/tests/todos.mjs",
+      "bytes": 195,
+      "sha256": "0bd4051cd42708f526dcddccedd6066db6d64949a16eebd96c96661d79ecc0f1"
+    },
+    {
+      "path": "evidence/original-before/before-continue/exit/.snapback/receipts/1788777504695.json",
+      "original": "/Users/ccheever/clique-improvement/revisions/cli-journey-selection-repair-r2/original-before/before-continue/exit/.snapback/receipts/1788777504695.json",
+      "bytes": 720,
+      "sha256": "776a9eb81ca8d55d652d9e91b1bb4280a31716e4556eaac36aa9f6b14b3ec088"
+    },
+    {
+      "path": "evidence/original-before/before-continue/exit/.snapback/receipts/1788777507503.json",
+      "original": "/Users/ccheever/clique-improvement/revisions/cli-journey-selection-repair-r2/original-before/before-continue/exit/.snapback/receipts/1788777507503.json",
+      "bytes": 431,
+      "sha256": "a361d816cc9879b6bfd8213c834346c1f510a147b0ce59aded6ab3421bb71c7c"
+    },
+    {
+      "path": "evidence/original-before/before-continue/exit/snapback/tests/todos.test.ts",
+      "original": "/Users/ccheever/clique-improvement/revisions/cli-journey-selection-repair-r2/original-before/before-continue/exit/snapback/tests/todos.test.ts",
+      "bytes": 145,
+      "sha256": "8b087ab082e85e6129459d301b7388c0a070d2d79df13466c83ee4537e7f08d7"
+    },
+    {
+      "path": "evidence/original-before/before-continue/project-h.stderr",
+      "original": "/Users/ccheever/clique-improvement/revisions/cli-journey-selection-repair-r2/original-before/before-continue/project-h.stderr",
+      "bytes": 199,
+      "sha256": "a6684d7ebdfcc5fed23d237c67de43a249a39487de219faa2ef353e08f3676d1"
+    },
+    {
+      "path": "evidence/original-before/before-continue/project-h.stdout",
+      "original": "/Users/ccheever/clique-improvement/revisions/cli-journey-selection-repair-r2/original-before/before-continue/project-h.stdout",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "evidence/original-before/before-continue/project-help.stderr",
+      "original": "/Users/ccheever/clique-improvement/revisions/cli-journey-selection-repair-r2/original-before/before-continue/project-help.stderr",
+      "bytes": 81,
+      "sha256": "d38490038759ad49a3ce0a0d27c5eaec478436a846e35ebb0d6b311f13fee1a0"
+    },
+    {
+      "path": "evidence/original-before/before-continue/project-help.stdout",
+      "original": "/Users/ccheever/clique-improvement/revisions/cli-journey-selection-repair-r2/original-before/before-continue/project-help.stdout",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "evidence/original-before/before-continue/receipt.json",
+      "original": "/Users/ccheever/clique-improvement/revisions/cli-journey-selection-repair-r2/original-before/before-continue/receipt.json",
+      "bytes": 4286,
+      "sha256": "05a120a94ed41d2d15d173b615fce4c3f8dd1c3588897096337d5d1d1fd62f37"
+    },
+    {
+      "path": "evidence/original-before/before-continue/swap-raw-runner.stderr",
+      "original": "/Users/ccheever/clique-improvement/revisions/cli-journey-selection-repair-r2/original-before/before-continue/swap-raw-runner.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "evidence/original-before/before-continue/swap-raw-runner.stdout",
+      "original": "/Users/ccheever/clique-improvement/revisions/cli-journey-selection-repair-r2/original-before/before-continue/swap-raw-runner.stdout",
+      "bytes": 220,
+      "sha256": "fe0b163f10cda990e9f0969756ff8266aa61d3e57266235586b1be113e3241da"
+    },
+    {
+      "path": "evidence/original-before/before/receipt.json",
+      "original": "/Users/ccheever/clique-improvement/revisions/cli-journey-selection-repair-r2/original-before/before/receipt.json",
+      "bytes": 1067,
+      "sha256": "d1eee1de9ca213af62e744f2717ee307bdd010b65c0ec624b9d884011658fe2b"
+    },
+    {
+      "path": "evidence/original-before/before/swap-cli.stderr",
+      "original": "/Users/ccheever/clique-improvement/revisions/cli-journey-selection-repair-r2/original-before/before/swap-cli.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "evidence/original-before/before/swap-cli.stdout",
+      "original": "/Users/ccheever/clique-improvement/revisions/cli-journey-selection-repair-r2/original-before/before/swap-cli.stdout",
+      "bytes": 783,
+      "sha256": "d64dfd979dc8b56cd735833784fb9ac733d9d2be08ae3a1b0c822a73c8dd8830"
+    },
+    {
+      "path": "evidence/original-before/before/swap-fixture.ts",
+      "original": "/Users/ccheever/clique-improvement/revisions/cli-journey-selection-repair-r2/original-before/before/swap-fixture.ts",
+      "bytes": 378,
+      "sha256": "3e6ccf19fe23acecf8f281cccc241ab438c6c10b5a0a9794212c6cd5e89ae602"
+    },
+    {
+      "path": "evidence/original-before/before/swap-init.stderr",
+      "original": "/Users/ccheever/clique-improvement/revisions/cli-journey-selection-repair-r2/original-before/before/swap-init.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "evidence/original-before/before/swap-init.stdout",
+      "original": "/Users/ccheever/clique-improvement/revisions/cli-journey-selection-repair-r2/original-before/before/swap-init.stdout",
+      "bytes": 386,
+      "sha256": "a93658f5f5625f0be5fd8e96b4dc4a8b303a57adc98ac2bca4f23ed5f2d31b04"
+    },
+    {
+      "path": "evidence/original-before/before/swap/.snapback/build/tests/todos.mjs",
+      "original": "/Users/ccheever/clique-improvement/revisions/cli-journey-selection-repair-r2/original-before/before/swap/.snapback/build/tests/todos.mjs",
+      "bytes": 435,
+      "sha256": "5c86f9066c9612b9e6351ff80bfb24a2bf8ef71101d4165670099278e32e8bcf"
+    },
+    {
+      "path": "evidence/original-before/before/swap/.snapback/receipts/1788777367306.json",
+      "original": "/Users/ccheever/clique-improvement/revisions/cli-journey-selection-repair-r2/original-before/before/swap/.snapback/receipts/1788777367306.json",
+      "bytes": 1004,
+      "sha256": "b2030ea32d7503cdd502ad943a1a57172f1ee429d99de34de4b70651dc58960f"
+    },
+    {
+      "path": "evidence/original-before/before/swap/snapback/tests/todos.test.ts",
+      "original": "/Users/ccheever/clique-improvement/revisions/cli-journey-selection-repair-r2/original-before/before/swap/snapback/tests/todos.test.ts",
+      "bytes": 378,
+      "sha256": "3e6ccf19fe23acecf8f281cccc241ab438c6c10b5a0a9794212c6cd5e89ae602"
+    },
+    {
+      "path": "evidence/prior-corrected-fixture/checks-03.json",
+      "original": "/Users/ccheever/clique-improvement/reviews/cli-journey-selection-r1/astra/supplement-corrected-fixture/checks-03.json",
+      "bytes": 2253,
+      "sha256": "63ce630e91ceaeab0fc7ecfb24981da060010abb738c765ae94c580b496bb1e9"
+    },
+    {
+      "path": "evidence/prior-corrected-fixture/drift-03.stderr",
+      "original": "/Users/ccheever/clique-improvement/reviews/cli-journey-selection-r1/astra/supplement-corrected-fixture/drift-03.stderr",
+      "bytes": 269,
+      "sha256": "13c7a723a21e1daae784f38a7c5375519a53bd6bdd07aa94c57b8cc7342c41ba"
+    },
+    {
+      "path": "evidence/prior-corrected-fixture/drift-03.stdout",
+      "original": "/Users/ccheever/clique-improvement/reviews/cli-journey-selection-r1/astra/supplement-corrected-fixture/drift-03.stdout",
+      "bytes": 191,
+      "sha256": "a6223e5efdbbd5c66cafdfc0465353196b284b9fe0f75f8e674c8ddd4c068b03"
+    },
+    {
+      "path": "evidence/prior-corrected-fixture/manifest.json",
+      "original": "/Users/ccheever/clique-improvement/reviews/cli-journey-selection-r1/astra/supplement-corrected-fixture/manifest.json",
+      "bytes": 1732,
+      "sha256": "d14598f7d8da1483b03f0d7b5f760b578f5af31505c162814b987af2be16115c"
+    },
+    {
+      "path": "evidence/prior-corrected-fixture/source-correspondence-02.json",
+      "original": "/Users/ccheever/clique-improvement/reviews/cli-journey-selection-r1/astra/supplement-corrected-fixture/source-correspondence-02.json",
+      "bytes": 193,
+      "sha256": "be8e6955b3f544ff6a280225b80433094d12478b00e6b8228d99cdaff5033604"
+    },
+    {
+      "path": "evidence/prior-corrected-fixture/source-delta-04.json",
+      "original": "/Users/ccheever/clique-improvement/reviews/cli-journey-selection-r1/astra/supplement-corrected-fixture/source-delta-04.json",
+      "bytes": 2465,
+      "sha256": "1f703045a70e29edea6da2b27d130c039aab2dea77e016088c0efd367dc9e112"
+    },
+    {
+      "path": "evidence/receipts/baseline-help.json",
+      "original": "/Users/ccheever/clique-improvement/revisions/cli-journey-selection-repair-r2/receipts/baseline-help.json",
+      "bytes": 3445,
+      "sha256": "a1cff08521729cb68a2ad777317a82d33dd746debde527872b06dbeaf76b2435"
+    },
+    {
+      "path": "evidence/receipts/built-path-observation.json",
+      "original": "/Users/ccheever/clique-improvement/revisions/cli-journey-selection-repair-r2/receipts/built-path-observation.json",
+      "bytes": 201,
+      "sha256": "23a3c9921ab8adc4bcaf669a97c060098b65a73a27438099b5641377452f2fcd"
+    },
+    {
+      "path": "evidence/receipts/static-checks.json",
+      "original": "/Users/ccheever/clique-improvement/revisions/cli-journey-selection-repair-r2/receipts/static-checks.json",
+      "bytes": 366,
+      "sha256": "afde48cd167a7b79257ce11f61ec752cfde0c17f9a8576d5e5d9c9319ad32909"
+    },
+    {
+      "path": "evidence/remote-final-evidence/affected-01.stderr",
+      "original": "/Users/ccheever/clique-improvement/revisions/cli-journey-selection-repair-r2/remote-final-evidence/affected-01.stderr",
+      "bytes": 343,
+      "sha256": "14e443e287d24a11ffa1ab62a5028cc20bfff55910ab7998a0a528cf5f6abf2e"
+    },
+    {
+      "path": "evidence/remote-final-evidence/affected-01.stdout",
+      "original": "/Users/ccheever/clique-improvement/revisions/cli-journey-selection-repair-r2/remote-final-evidence/affected-01.stdout",
+      "bytes": 3431,
+      "sha256": "37cf13940e07ab22fa23544af47a5f056c5d4c94fe8dfc1785ad23e9bd0f4cf4"
+    },
+    {
+      "path": "evidence/remote-final-evidence/build-01.stderr",
+      "original": "/Users/ccheever/clique-improvement/revisions/cli-journey-selection-repair-r2/remote-final-evidence/build-01.stderr",
+      "bytes": 3487,
+      "sha256": "ed69818630112a868648d26b19e9d67b6db2236c109c31bebbba851a39a0dd0f"
+    },
+    {
+      "path": "evidence/remote-final-evidence/build-01.stdout",
+      "original": "/Users/ccheever/clique-improvement/revisions/cli-journey-selection-repair-r2/remote-final-evidence/build-01.stdout",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "evidence/remote-final-evidence/build-aggregate.stderr",
+      "original": "/Users/ccheever/clique-improvement/revisions/cli-journey-selection-repair-r2/remote-final-evidence/build-aggregate.stderr",
+      "bytes": 192,
+      "sha256": "2d5201199dd0758dab858bce98458f5362eb7c90cc4f0f69090188b7ff5878b0"
+    },
+    {
+      "path": "evidence/remote-final-evidence/build-aggregate.stdout",
+      "original": "/Users/ccheever/clique-improvement/revisions/cli-journey-selection-repair-r2/remote-final-evidence/build-aggregate.stdout",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "evidence/remote-final-evidence/build-final.stderr",
+      "original": "/Users/ccheever/clique-improvement/revisions/cli-journey-selection-repair-r2/remote-final-evidence/build-final.stderr",
+      "bytes": 192,
+      "sha256": "f4052e53b4cfc41d80cc7aacc4882e63c3c9627a49b274c948100f12cbb53013"
+    },
+    {
+      "path": "evidence/remote-final-evidence/build-final.stdout",
+      "original": "/Users/ccheever/clique-improvement/revisions/cli-journey-selection-repair-r2/remote-final-evidence/build-final.stdout",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "evidence/remote-final-evidence/checks-01.json",
+      "original": "/Users/ccheever/clique-improvement/revisions/cli-journey-selection-repair-r2/remote-final-evidence/checks-01.json",
+      "bytes": 4127,
+      "sha256": "f5fb923774e6e7b2242756664983deb6219f2bb59d483aa7ad618f94510a87df"
+    },
+    {
+      "path": "evidence/remote-final-evidence/checks-aggregate.json",
+      "original": "/Users/ccheever/clique-improvement/revisions/cli-journey-selection-repair-r2/remote-final-evidence/checks-aggregate.json",
+      "bytes": 3372,
+      "sha256": "2eae03dffa5f9a4a59a6b15c582db1767e4f1545f9819165f54f1f0a8642ca32"
+    },
+    {
+      "path": "evidence/remote-final-evidence/checks-final.json",
+      "original": "/Users/ccheever/clique-improvement/revisions/cli-journey-selection-repair-r2/remote-final-evidence/checks-final.json",
+      "bytes": 3700,
+      "sha256": "57c01e385f0beb10eb0df826c5e4d58f12cfd4b5e1a2c0bbd3c57c0b25eac277"
+    },
+    {
+      "path": "evidence/remote-final-evidence/exit-final.stderr",
+      "original": "/Users/ccheever/clique-improvement/revisions/cli-journey-selection-repair-r2/remote-final-evidence/exit-final.stderr",
+      "bytes": 272,
+      "sha256": "4fdc7b4eb4872aa6815b6ecb82b08fa827678f848216c716ccc3c9f91aca54c7"
+    },
+    {
+      "path": "evidence/remote-final-evidence/exit-final.stdout",
+      "original": "/Users/ccheever/clique-improvement/revisions/cli-journey-selection-repair-r2/remote-final-evidence/exit-final.stdout",
+      "bytes": 200,
+      "sha256": "46b7aefa40999f815408f646ef676a83024c8c5706d2cb5038abf8117fd8abe9"
+    },
+    {
+      "path": "evidence/remote-final-evidence/grace-final.stderr",
+      "original": "/Users/ccheever/clique-improvement/revisions/cli-journey-selection-repair-r2/remote-final-evidence/grace-final.stderr",
+      "bytes": 152,
+      "sha256": "c47b9043d37df2333cb63b652250856821fae9fd80e44f23d0409959dad88230"
+    },
+    {
+      "path": "evidence/remote-final-evidence/grace-final.stdout",
+      "original": "/Users/ccheever/clique-improvement/revisions/cli-journey-selection-repair-r2/remote-final-evidence/grace-final.stdout",
+      "bytes": 195,
+      "sha256": "585000ef6107f3011d32a3115cefecea1660f7fa992291de56dbc51e342419bd"
+    },
+    {
+      "path": "evidence/remote-final-evidence/package-01.stderr",
+      "original": "/Users/ccheever/clique-improvement/revisions/cli-journey-selection-repair-r2/remote-final-evidence/package-01.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "evidence/remote-final-evidence/package-01.stdout",
+      "original": "/Users/ccheever/clique-improvement/revisions/cli-journey-selection-repair-r2/remote-final-evidence/package-01.stdout",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "evidence/remote-final-evidence/package-aggregate.stderr",
+      "original": "/Users/ccheever/clique-improvement/revisions/cli-journey-selection-repair-r2/remote-final-evidence/package-aggregate.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "evidence/remote-final-evidence/package-aggregate.stdout",
+      "original": "/Users/ccheever/clique-improvement/revisions/cli-journey-selection-repair-r2/remote-final-evidence/package-aggregate.stdout",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "evidence/remote-final-evidence/parser-01.stderr",
+      "original": "/Users/ccheever/clique-improvement/revisions/cli-journey-selection-repair-r2/remote-final-evidence/parser-01.stderr",
+      "bytes": 843,
+      "sha256": "8aa1eca9915e0189f24a941b74d1878424066bf9b252784d1410f4a5b65de513"
+    },
+    {
+      "path": "evidence/remote-final-evidence/parser-01.stdout",
+      "original": "/Users/ccheever/clique-improvement/revisions/cli-journey-selection-repair-r2/remote-final-evidence/parser-01.stdout",
+      "bytes": 280,
+      "sha256": "e546a5548565bd9b617334e51c7d0a6c962947545b9936b8e9db5ed6c9f06e5a"
+    },
+    {
+      "path": "evidence/remote-final-evidence/selection-aggregate.stderr",
+      "original": "/Users/ccheever/clique-improvement/revisions/cli-journey-selection-repair-r2/remote-final-evidence/selection-aggregate.stderr",
+      "bytes": 272,
+      "sha256": "99cbccc421d6f37a285ff22573878f98d6410e2f3f7893f9507504c393117a40"
+    },
+    {
+      "path": "evidence/remote-final-evidence/selection-aggregate.stdout",
+      "original": "/Users/ccheever/clique-improvement/revisions/cli-journey-selection-repair-r2/remote-final-evidence/selection-aggregate.stdout",
+      "bytes": 807,
+      "sha256": "5e7ad5a9de868c1241b42d76437978af65227ef1e6dcc640713041212016df5e"
+    },
+    {
+      "path": "evidence/remote-final-evidence/source-correspondence-final.json",
+      "original": "/Users/ccheever/clique-improvement/revisions/cli-journey-selection-repair-r2/remote-final-evidence/source-correspondence-final.json",
+      "bytes": 193,
+      "sha256": "b9dcccc3110aff38f3a2411f71c1fb013b3bf9f14418472de06ab60be2ab061f"
+    },
+    {
+      "path": "evidence/remote-final-evidence/source-correspondence.json",
+      "original": "/Users/ccheever/clique-improvement/revisions/cli-journey-selection-repair-r2/remote-final-evidence/source-correspondence.json",
+      "bytes": 193,
+      "sha256": "c3925b81503cde469472aba0460087ba19d3d4c50bc44b97578191f9718aed99"
+    },
+    {
+      "path": "evidence/remote-final-evidence/source-delta-01.json",
+      "original": "/Users/ccheever/clique-improvement/revisions/cli-journey-selection-repair-r2/remote-final-evidence/source-delta-01.json",
+      "bytes": 2195,
+      "sha256": "b7230f7e7dbdda41d55b02570ce648dcc4274a9afda1e630966aff84b0ad6d64"
+    },
+    {
+      "path": "evidence/remote-final-evidence/source-delta-02.json",
+      "original": "/Users/ccheever/clique-improvement/revisions/cli-journey-selection-repair-r2/remote-final-evidence/source-delta-02.json",
+      "bytes": 2195,
+      "sha256": "e6a89dc468c410518d7d2a3253658f081fd5be1b62727996fabb8a3c83bcee21"
+    },
+    {
+      "path": "evidence/remote-final-evidence/source-delta-03.json",
+      "original": "/Users/ccheever/clique-improvement/revisions/cli-journey-selection-repair-r2/remote-final-evidence/source-delta-03.json",
+      "bytes": 2195,
+      "sha256": "d7c32d1ea8e3fc874715fafed6b9ac190886f08261503ff2798c7ac105fbd4da"
+    },
+    {
+      "path": "evidence/remote-final-evidence/stage.json",
+      "original": "/Users/ccheever/clique-improvement/revisions/cli-journey-selection-repair-r2/remote-final-evidence/stage.json",
+      "bytes": 1581,
+      "sha256": "08067530b2e0577a82618ac842cd578b4e204e9f6a80c4a113fe1a6767c2c9e7"
+    },
+    {
+      "path": "evidence/source-receipt.json",
+      "original": "/Users/ccheever/clique-improvement/revisions/cli-journey-selection-repair-r2/source-receipt.json",
+      "bytes": 194652,
+      "sha256": "ea49fb0c4ac8553aeab1e3906a0e5e0399d09cc8ad75dea9734bb797911ed7ff"
+    },
+    {
+      "path": "evidence/terminal.json",
+      "original": "/Users/ccheever/clique-improvement/revisions/cli-journey-selection-repair-r2/terminal.json",
+      "bytes": 111,
+      "sha256": "d9956f664a3e8e064eccaada23aad3fe75efb38e587570594a9d6815cc8bc9b6"
+    },
+    {
+      "path": "evidence/test-receipt.json",
+      "original": "/Users/ccheever/clique-improvement/revisions/cli-journey-selection-repair-r2/test-receipt.json",
+      "bytes": 14863,
+      "sha256": "ca44076b2a0165fbebdd09d3f2c761a22fec97be9da0b8e5d8d018901ea8b28c"
+    },
+    {
+      "path": "evidence/tested-source-01.json",
+      "original": "/Users/ccheever/clique-improvement/revisions/cli-journey-selection-repair-r2/tested-source-01.json",
+      "bytes": 194369,
+      "sha256": "677fe9043d8a8122ff88c15ea07fad6f4395a9d5a898dfaf26935f6f3efc900f"
+    },
+    {
+      "path": "evidence/tested-source-02.json",
+      "original": "/Users/ccheever/clique-improvement/revisions/cli-journey-selection-repair-r2/tested-source-02.json",
+      "bytes": 194369,
+      "sha256": "380698f4ad307647c2a955e61669a79152f0e6db38d7a44f416bde1015707315"
+    },
+    {
+      "path": "evidence/tested-source-03.json",
+      "original": "/Users/ccheever/clique-improvement/revisions/cli-journey-selection-repair-r2/tested-source-03.json",
+      "bytes": 194369,
+      "sha256": "8b33f03dc48e63189fd784cf569dfb1d5f1982ee0f99af56c2c16c9f992e5a24"
+    }
+  ]
+}

@@ -1,0 +1,32 @@
+{
+  "scripts/acceptance.mjs": {
+    "sha256": "110aa745bf73a52764785c75cbac5ed5628d843431ea4f48234d5717c293e0cf",
+    "bytes": 13669,
+    "snapshot": "/Users/ccheever/clique-improvement/next-run/grok-015/acceptance-audit-20260907T1445/acceptance.mjs"
+  },
+  "scripts/coverage.mjs": {
+    "sha256": "097de832ae2d02fd1b510c7b0247e786efcf7ec1cf824c4b2931c301e7600120",
+    "bytes": 790,
+    "snapshot": "/Users/ccheever/clique-improvement/next-run/grok-015/acceptance-audit-20260907T1445/coverage.mjs"
+  },
+  "instrument/schema/social-messenger/assertions.json": {
+    "sha256": "e15c3952856148fef9872f9d509159b47fe0066bdca904330ae96196ba732d04",
+    "bytes": 40419,
+    "snapshot": "/Users/ccheever/clique-improvement/next-run/grok-015/acceptance-audit-20260907T1445/assertions.json"
+  },
+  "receipts/suite-m3.json": {
+    "sha256": "b05eca753b812a604f452cfdc72dd329b1465730dc0d03750654766b9bb5823e",
+    "bytes": 6393,
+    "snapshot": "/Users/ccheever/clique-improvement/next-run/grok-015/acceptance-audit-20260907T1445/suite-m3.json"
+  },
+  "receipts/choreo-m3.jsonl": {
+    "sha256": "9389434f5959a72698014355a563a4e2db36e32e36d98083582d00f2931e8e69",
+    "bytes": 3543,
+    "snapshot": "/Users/ccheever/clique-improvement/next-run/grok-015/acceptance-audit-20260907T1445/choreo-m3.jsonl"
+  },
+  "preserved/choreo-m3-complete-144207.jsonl": {
+    "sha256": "0a9b029174f5066dce5e5d88c673faa57e5c9d567c93b40c5a5da815c67792db",
+    "bytes": 8492,
+    "snapshot": "/Users/ccheever/clique-improvement/next-run/grok-015/m3-observations/0a9b029174f5066dce5e5d88c673faa57e5c9d567c93b40c5a5da815c67792db.jsonl"
+  }
+}

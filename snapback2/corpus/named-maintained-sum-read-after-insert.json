@@ -162,7 +162,7 @@
       "balances.read": "ded0b325f80779ee64a36b95dd57d53ccd2239507c9f92f374b3222bcdbc75f1",
       "ledger.insert": "ad1ee2179bf47067255c0b64f4a245c917c293cd0b47cbddbf47dddbf2339ffe"
     },
-    "evaluator_version": "bounded-spike-rust-search-text-refinements-4",
+    "evaluator_version": "bounded-spike-rust-search-text-refinements-5",
     "value_model_version": "i53-codepoint-bytes-unicode-search-text-refinements-v5",
     "read_sites": [
       {

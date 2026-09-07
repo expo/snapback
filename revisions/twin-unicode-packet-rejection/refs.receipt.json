@@ -1,0 +1,15 @@
+{
+  "command": [
+    "/Users/ccheever/projects/snapback-worktrees/clique-unicode-packets/ref-check",
+    "--verbose"
+  ],
+  "cwd": "/Users/ccheever/projects/snapback-worktrees/clique-unicode-packets",
+  "pid": 24074,
+  "start": "2026-09-07T10:15:05.405945+00:00",
+  "end": "2026-09-07T10:15:15.419609+00:00",
+  "elapsedSeconds": 10.013673459,
+  "deadlineSeconds": 10.0,
+  "exit": 124,
+  "host": "MacBookPro",
+  "executableSha256": "a5be0508011f5fa122d639a18021e6e1e4feea1b93cbc6b74fd7cffeb0d3a66f"
+}

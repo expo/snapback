@@ -1,0 +1,19 @@
+{
+  "files": {
+    "README.md": "b350219ab0e3976ed1923cbc275d70914c2d24c4e7c1c198835b6716a200f6bc",
+    "cache-manifest.json": "700c9930bee79ff0b134e34b76d31348e8f2f07f6f6a20e828a6db11d112cd93",
+    "candidate-source-manifest.json": "5adf7071f2d7e68658ed71153ff87c2c78ee6978c71270efdd3eb1d7c65b8642",
+    "compiler-graph.json": "320725180eecdf625544166e2492928c21fe5e375976c425962251eeeed87cfb",
+    "config.json": "6cac6531ee1f119f63fa916567cfaa8b62bc00cdbb4461ad336d683d153c3431",
+    "expected-certificates.json": "adede4dc9ebdd79f8478925c14347abf23e69157c3485c648e82f95bc6ae473c",
+    "installed-toolchain-manifest.json": "08bcff0313aed065e3b4b80abc2e51b76418ed6664b92338551d767917db992a",
+    "original-source-manifest.json": "7fbfd538a98144d2a6d581a98b5730c9f5ba3c7b6b49aeec2257bdd9277dd3aa",
+    "private-input-manifest.json": "2c8f4a7fae9cbff38f1c99e6d8ffba065a36d95c897b0e446e31bf94c2d14776",
+    "retained-attempt-manifest.json": "a2e267265f609dc2e75deeb23c3d551928ffc353672cd51e79cbc37d48a508e9",
+    "run.py": "7adb55f3c7bcb27377bf399f9d7bf41f4b054da28a8846f15576362f43acc613",
+    "runtime-manifest.json": "bd0bcb00cb7dd63164a58d3ccd4cf3ad1be71ca1af066163fd04979f44b6b5ff",
+    "validate.py": "cb96e5ba1e840c845182b90aa101a9d3bdbf69e8cf0a9d67c65a19e1531839b4",
+    "workload.json": "d61e157bb7baa7c428712adb48ab2201192024f00e0d8e91988d3bc472421c90"
+  },
+  "scope": "Root-directed observation correction preparation only; exact Root review required before execution-02; no new build"
+}

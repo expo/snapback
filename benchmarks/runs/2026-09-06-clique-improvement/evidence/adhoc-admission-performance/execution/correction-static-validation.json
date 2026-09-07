@@ -1,0 +1,34 @@
+{
+  "scope": "fake/structural only; zero product processes/builds/HTTP or SQLite stores",
+  "unchangedRequestAndTimer": true,
+  "unchangedReceiptAndFinalLedgerValidators": true,
+  "unchangedSourceToolInputGraph": true,
+  "noBuildFunction": true,
+  "scenarios": [
+    {
+      "injectedFailure": null,
+      "fakeCalls": 23,
+      "ownedFakeStops": 1,
+      "finalPersistedStageReached": true,
+      "exception": null,
+      "liveSQL": false
+    },
+    {
+      "injectedFailure": "request7",
+      "fakeCalls": 7,
+      "ownedFakeStops": 1,
+      "finalPersistedStageReached": false,
+      "exception": "TimeoutError",
+      "liveSQL": false
+    },
+    {
+      "injectedFailure": "stop",
+      "fakeCalls": 23,
+      "ownedFakeStops": 1,
+      "finalPersistedStageReached": false,
+      "exception": "AssertionError",
+      "liveSQL": false
+    }
+  ],
+  "statistics": true
+}

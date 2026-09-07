@@ -1,0 +1,248 @@
+{
+  "execution-01.once.json": {
+    "bytes": 481,
+    "mode": "0o664",
+    "private": false,
+    "sha256": "4a35a3ad5aaae3aa033724db369d31bc4e06d97b7834552df4b3effa4abfc3ae"
+  },
+  "execution-01.supervisor.stderr": {
+    "bytes": 1277,
+    "mode": "0o664",
+    "private": false,
+    "sha256": "c77301de9dffa7010078b3103ae0fe5c32b61d4f3f77de571a214c70d0d798f9"
+  },
+  "execution-01.supervisor.stdout": {
+    "bytes": 2733,
+    "mode": "0o664",
+    "private": false,
+    "sha256": "5746e06c7b1d4b9ca45b3217d157f2fd607480a02d32cc2c72c3ca71619fd1a9"
+  },
+  "execution-01/baseline/copy.json": {
+    "bytes": 943,
+    "mode": "0o664",
+    "private": false,
+    "sha256": "31d810b3244145d40a5fbf67a8a5617c34637af75b26e0d76ea4d3fd22a50408"
+  },
+  "execution-01/baseline/host-load.jsonl": {
+    "bytes": 2520,
+    "mode": "0o664",
+    "private": false,
+    "sha256": "c8f5a3ab0cf3d86e7d8eae5c38199dbd66ade326cafca997f25ab719ea565cfd"
+  },
+  "execution-01/baseline/owner.launch.json": {
+    "bytes": 1505,
+    "mode": "0o664",
+    "private": false,
+    "sha256": "8388d1bfc593e5a6dc5698e5b42f806b4c499e036af844941dc9fcd992231f13"
+  },
+  "execution-01/baseline/owner.terminal.json": {
+    "bytes": 388,
+    "mode": "0o664",
+    "private": false,
+    "sha256": "ce81974bd8aa3d968c79ae4a30a81068a0ef79f90730a9362b69215fce4512a4"
+  },
+  "execution-01/baseline/private/owner.log": {
+    "bytes": 140,
+    "mode": "0o664",
+    "private": true,
+    "sha256": "1dcf6dd66fc2beb085835b56cb4dd0caf9f5cdbd439da9255ce558717429cb84"
+  },
+  "execution-01/baseline/private/project/.snapback/blobs/s2id-5eca0d56c732af297150a22faf9fc8f4-0000000000243001": {
+    "bytes": 2118,
+    "mode": "0o600",
+    "private": true,
+    "sha256": "5dbaca29bf4ae4b15a9c11b0fc767781e0cdf01ab4af9b83430c243288cd72df"
+  },
+  "execution-01/baseline/private/project/.snapback/build/api.d.ts": {
+    "bytes": 0,
+    "mode": "0o664",
+    "private": true,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "execution-01/baseline/private/project/.snapback/build/certificates.json": {
+    "bytes": 66527,
+    "mode": "0o664",
+    "private": true,
+    "sha256": "d636c1489466aae3d66202d4ce4fecd98a70a3a3547c063ec9da3f5d757e7c6c"
+  },
+  "execution-01/baseline/private/project/.snapback/build/project.json": {
+    "bytes": 104738,
+    "mode": "0o664",
+    "private": true,
+    "sha256": "6192b23db5684e8d45363e1436c0fa6cee228aa03a11183cef91fcb9e32a9b06"
+  },
+  "execution-01/baseline/private/project/.snapback/build/schema-certificate.json": {
+    "bytes": 162,
+    "mode": "0o664",
+    "private": true,
+    "sha256": "e77657371dfa164ff9167002fc151476bb358bfd724d708df295fd8e0923442f"
+  },
+  "execution-01/baseline/private/project/.snapback/log.jsonl": {
+    "bytes": 308,
+    "mode": "0o664",
+    "private": true,
+    "sha256": "368d8880822ffc9be8e745cf5af9afe3d183e5db4a0ebcf4f30e9e9a778c323f"
+  },
+  "execution-01/baseline/private/project/.snapback/store.sqlite": {
+    "bytes": 109187072,
+    "mode": "0o600",
+    "private": true,
+    "sha256": "2bae413510dfbe706407ccab7ed62ff67c49824defdbf4b80662ca3af4f81f4a"
+  },
+  "execution-01/baseline/private/project/snapback/delivery.ts": {
+    "bytes": 1148,
+    "mode": "0o664",
+    "private": true,
+    "sha256": "ad73441f683c6a6024f8b54f0ea23dc037c01a89aa24364f2aec6d50d666a528"
+  },
+  "execution-01/baseline/private/project/snapback/feeds.q": {
+    "bytes": 424,
+    "mode": "0o664",
+    "private": true,
+    "sha256": "bfe02e3eec0c441572bc2215d51eb41b8262119590e28eb4febc3cfd1d39008b"
+  },
+  "execution-01/baseline/private/project/snapback/follows.q": {
+    "bytes": 413,
+    "mode": "0o664",
+    "private": true,
+    "sha256": "4e5faec00894e94c1c860bb9d21dde330c665767276bb7dc7372ef59b78c73f0"
+  },
+  "execution-01/baseline/private/project/snapback/groups.q": {
+    "bytes": 2117,
+    "mode": "0o664",
+    "private": true,
+    "sha256": "f6d1b3325d3aec1ffb63cd70fd3de39a70be2c55d3982081125b4202bc06c381"
+  },
+  "execution-01/baseline/private/project/snapback/messages.q": {
+    "bytes": 2227,
+    "mode": "0o664",
+    "private": true,
+    "sha256": "cd698245480cbbe1fae20375bdb4607dd1a03886aa10320fd7c2f968a4628406"
+  },
+  "execution-01/baseline/private/project/snapback/notifications.q": {
+    "bytes": 184,
+    "mode": "0o664",
+    "private": true,
+    "sha256": "02cf8894ae5ed7d28ea8e56e7258dbc7e973f5ae6f253eadd7e34e94d2fa7347"
+  },
+  "execution-01/baseline/private/project/snapback/posts.q": {
+    "bytes": 208,
+    "mode": "0o664",
+    "private": true,
+    "sha256": "683a4ab4e9733e88ad2f387d95d5a525725b1917dd79401ede09721b8d7a0df6"
+  },
+  "execution-01/baseline/private/project/snapback/profiles.q": {
+    "bytes": 919,
+    "mode": "0o664",
+    "private": true,
+    "sha256": "dc474dc4b739bd5346efb98d4bbfbc10850a91aa1833ae911aa5adf11af03e53"
+  },
+  "execution-01/baseline/private/project/snapback/schema.q": {
+    "bytes": 4076,
+    "mode": "0o664",
+    "private": true,
+    "sha256": "77ad560ee30a600b6b1b8e5d5aa0b5f39308fdda6ecc919b163db701e9df7bb5"
+  },
+  "execution-01/baseline/private/project/snapback/search.q": {
+    "bytes": 469,
+    "mode": "0o644",
+    "private": true,
+    "sha256": "1e1adcc06d315b533449d4ee7fca7b2724372481625410778ce3fe7d609440a7"
+  },
+  "execution-01/baseline/private/project/snapback/seed.ts": {
+    "bytes": 2434,
+    "mode": "0o664",
+    "private": true,
+    "sha256": "623e931f2d071f9fd115cac613ff4bc6411974b831c8418a340019df04a9cef4"
+  },
+  "execution-01/baseline/private/project/snapback/tests/chat.test.ts": {
+    "bytes": 12887,
+    "mode": "0o664",
+    "private": true,
+    "sha256": "c9a86db3f028145e2094f22e97818f4adfdb6a8b2a57905d78e9e1771f41e5f7"
+  },
+  "execution-01/build.launch.json": {
+    "bytes": 1476,
+    "mode": "0o664",
+    "private": false,
+    "sha256": "dd69bf102fe16fb49925f694354980db54ee50d578b46196be5f76d46bc05dc8"
+  },
+  "execution-01/build.stderr": {
+    "bytes": 3619,
+    "mode": "0o664",
+    "private": false,
+    "sha256": "56f517612bcc611a982a1e61b393e69a6cda2f35f12e23c67e6a919615774d99"
+  },
+  "execution-01/build.stdout": {
+    "bytes": 0,
+    "mode": "0o664",
+    "private": false,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "execution-01/build.terminal.json": {
+    "bytes": 87,
+    "mode": "0o664",
+    "private": false,
+    "sha256": "34d1b3bed6855dba9a9b18045cf6b846a085ecbfa1778b324e0e3183e3a3fef4"
+  },
+  "execution-01/candidate-binary.json": {
+    "bytes": 401,
+    "mode": "0o664",
+    "private": false,
+    "sha256": "8a73568f058a5e39f89cfbfcbe1851aa365df7f0bc9bcbd2cdc34fef8e4c5902"
+  },
+  "execution-01/candidate-owner": {
+    "bytes": 149086232,
+    "mode": "0o775",
+    "private": false,
+    "sha256": "faa2a59c59e3de399df0b317991e03d5eae35873a58bd9eccd2df1e1b929f39d"
+  },
+  "execution-01/dependencies.stderr": {
+    "bytes": 0,
+    "mode": "0o664",
+    "private": false,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "execution-01/dependencies.stdout": {
+    "bytes": 297,
+    "mode": "0o664",
+    "private": false,
+    "sha256": "8d79ff1e4aeabec724a4f178e345b3da0900dc762caa12b8e6850656d0a8c733"
+  },
+  "execution-01/elf.stderr": {
+    "bytes": 0,
+    "mode": "0o664",
+    "private": false,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "execution-01/elf.stdout": {
+    "bytes": 2683,
+    "mode": "0o664",
+    "private": false,
+    "sha256": "521d470373dcb690ed9a67d5143ff2a54e1528a36e96203a50eda7864b37094f"
+  },
+  "execution-01/first-failure.json": {
+    "bytes": 117,
+    "mode": "0o664",
+    "private": false,
+    "sha256": "2b9a86e0016377c13f54829df5172d78fdbf1c99a2639cca57f0a4ee1d383371"
+  },
+  "execution-01/preflight.json": {
+    "bytes": 1816,
+    "mode": "0o664",
+    "private": false,
+    "sha256": "651a49596d0a6596f84d5116a36e53d183b9b2289d267b009de93b38026322ec"
+  },
+  "execution-01/supervisor.launch.json": {
+    "bytes": 395,
+    "mode": "0o664",
+    "private": false,
+    "sha256": "bcefb3b780ede803e26430d564dcbcc5822c8d59ca0cb1346477b6209e1b774b"
+  },
+  "execution-01/terminal.json": {
+    "bytes": 1953,
+    "mode": "0o664",
+    "private": false,
+    "sha256": "1e560c3054c586651fd69858088f217e32cfc619adb5778102a9dc453c7c2059"
+  }
+}

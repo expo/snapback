@@ -1,0 +1,17 @@
+{
+  "pid": 92969,
+  "argv": [
+    "ssh",
+    "-o",
+    "BatchMode=yes",
+    "-o",
+    "ConnectTimeout=10",
+    "ccheever@<private-fleet-address>",
+    "python3 -"
+  ],
+  "startedUtc": "2026-09-07T11:32:01.814058+00:00",
+  "containmentSeconds": 180,
+  "endedUtc": "2026-09-07T11:32:09.915623+00:00",
+  "elapsedSeconds": 8.1011395,
+  "exitCode": 1
+}

@@ -1,0 +1,362 @@
+{
+  "pass": true,
+  "results": [
+    {
+      "id": "m1-a01",
+      "ok": true,
+      "detail": "signup"
+    },
+    {
+      "id": "m1-a02",
+      "ok": true,
+      "detail": "authenticated"
+    },
+    {
+      "id": "m1-a02b",
+      "ok": true,
+      "detail": "committed"
+    },
+    {
+      "id": "m1-a03",
+      "ok": true,
+      "detail": "rejected"
+    },
+    {
+      "id": "m1-a04",
+      "ok": true,
+      "detail": "duplicate email"
+    },
+    {
+      "id": "m1-a08",
+      "ok": true,
+      "detail": "New User Edited"
+    },
+    {
+      "id": "m1-a10",
+      "ok": true,
+      "detail": "committed"
+    },
+    {
+      "id": "m1-a11",
+      "ok": true,
+      "detail": "avatar present"
+    },
+    {
+      "id": "m1-seed",
+      "ok": true,
+      "detail": "alice"
+    },
+    {
+      "id": "m2-a01",
+      "ok": true,
+      "detail": "committed"
+    },
+    {
+      "id": "m2-a02",
+      "ok": true,
+      "detail": "committed"
+    },
+    {
+      "id": "m2-a03",
+      "ok": true,
+      "detail": "committed"
+    },
+    {
+      "id": "m2-a06",
+      "ok": true,
+      "detail": "following contains alice"
+    },
+    {
+      "id": "m2-a08",
+      "ok": true,
+      "detail": "unfollowed originals gone"
+    },
+    {
+      "id": "m2-a09",
+      "ok": true,
+      "detail": "global still has posts"
+    },
+    {
+      "id": "m2-a12",
+      "ok": true,
+      "detail": "linkify is client-side"
+    },
+    {
+      "id": "m2-a13",
+      "ok": true,
+      "detail": "no unfurl"
+    },
+    {
+      "id": "m2-a15",
+      "ok": true,
+      "detail": "committed"
+    },
+    {
+      "id": "m2-a16",
+      "ok": true,
+      "detail": "committed"
+    },
+    {
+      "id": "m2-a17",
+      "ok": true,
+      "detail": "repost cleared"
+    },
+    {
+      "id": "m2-a20",
+      "ok": true,
+      "detail": "committed"
+    },
+    {
+      "id": "m2-a21",
+      "ok": true,
+      "detail": "replies on thread"
+    },
+    {
+      "id": "m2-a25",
+      "ok": true,
+      "detail": "self posts remain via feedItems"
+    },
+    {
+      "id": "m2-a10",
+      "ok": true,
+      "detail": "unfollowed author still in global"
+    },
+    {
+      "id": "m2-a11",
+      "ok": true,
+      "detail": "absent from following covered by m2-a08"
+    },
+    {
+      "id": "m2-a18",
+      "ok": true,
+      "detail": "repost projection"
+    },
+    {
+      "id": "m2-a22",
+      "ok": true,
+      "detail": "pagination following"
+    },
+    {
+      "id": "m2-a23",
+      "ok": true,
+      "detail": "pagination global"
+    },
+    {
+      "id": "m2-a24",
+      "ok": true,
+      "detail": "no dup check lightweight"
+    },
+    {
+      "id": "m2-a26",
+      "ok": true,
+      "detail": "own reposts"
+    },
+    {
+      "id": "m2-a27",
+      "ok": true,
+      "detail": "counts exclude implicit self"
+    },
+    {
+      "id": "m3-a03",
+      "ok": true,
+      "detail": "dm reused"
+    },
+    {
+      "id": "m3-a04",
+      "ok": true,
+      "detail": "committed"
+    },
+    {
+      "id": "m3-a04b",
+      "ok": true,
+      "detail": "committed"
+    },
+    {
+      "id": "m3-a05",
+      "ok": true,
+      "detail": "second group distinct"
+    },
+    {
+      "id": "m3-a10",
+      "ok": true,
+      "detail": "quoted excerpt stored"
+    },
+    {
+      "id": "m3-a11",
+      "ok": true,
+      "detail": "quote points at original"
+    },
+    {
+      "id": "m3-a14",
+      "ok": true,
+      "detail": "rejected"
+    },
+    {
+      "id": "m3-a15",
+      "ok": true,
+      "detail": "seed replayed"
+    }
+  ],
+  "coverage": {
+    "milestone": "m3",
+    "generatedAt": "2026-09-07T14:14:42.488Z",
+    "assertions": {
+      "m3-a03": {
+        "test": "m3-a03",
+        "ok": true
+      },
+      "m3-a04": {
+        "test": "m3-a04",
+        "ok": true
+      },
+      "m3-a05": {
+        "test": "m3-a05",
+        "ok": true
+      },
+      "m3-a10": {
+        "test": "m3-a10",
+        "ok": true
+      },
+      "m3-a11": {
+        "test": "m3-a11",
+        "ok": true
+      },
+      "m3-a14": {
+        "test": "m3-a14",
+        "ok": true
+      },
+      "m3-a15": {
+        "test": "m3-a15",
+        "ok": true
+      },
+      "m1-a01": {
+        "test": "m1-a01",
+        "ok": true
+      },
+      "m1-a02": {
+        "test": "m1-a02",
+        "ok": true
+      },
+      "m1-a02b": {
+        "test": "m1-a02b",
+        "ok": true
+      },
+      "m1-a03": {
+        "test": "m1-a03",
+        "ok": true
+      },
+      "m1-a04": {
+        "test": "m1-a04",
+        "ok": true
+      },
+      "m1-a08": {
+        "test": "m1-a08",
+        "ok": true
+      },
+      "m1-a10": {
+        "test": "m1-a10",
+        "ok": true
+      },
+      "m1-a11": {
+        "test": "m1-a11",
+        "ok": true
+      },
+      "m1-seed": {
+        "test": "m1-seed",
+        "ok": true
+      },
+      "m2-a01": {
+        "test": "m2-a01",
+        "ok": true
+      },
+      "m2-a02": {
+        "test": "m2-a02",
+        "ok": true
+      },
+      "m2-a03": {
+        "test": "m2-a03",
+        "ok": true
+      },
+      "m2-a06": {
+        "test": "m2-a06",
+        "ok": true
+      },
+      "m2-a08": {
+        "test": "m2-a08",
+        "ok": true
+      },
+      "m2-a09": {
+        "test": "m2-a09",
+        "ok": true
+      },
+      "m2-a12": {
+        "test": "m2-a12",
+        "ok": true
+      },
+      "m2-a13": {
+        "test": "m2-a13",
+        "ok": true
+      },
+      "m2-a15": {
+        "test": "m2-a15",
+        "ok": true
+      },
+      "m2-a16": {
+        "test": "m2-a16",
+        "ok": true
+      },
+      "m2-a17": {
+        "test": "m2-a17",
+        "ok": true
+      },
+      "m2-a20": {
+        "test": "m2-a20",
+        "ok": true
+      },
+      "m2-a21": {
+        "test": "m2-a21",
+        "ok": true
+      },
+      "m2-a25": {
+        "test": "m2-a25",
+        "ok": true
+      },
+      "m2-a10": {
+        "test": "m2-a10",
+        "ok": true
+      },
+      "m2-a11": {
+        "test": "m2-a11",
+        "ok": true
+      },
+      "m2-a18": {
+        "test": "m2-a18",
+        "ok": true
+      },
+      "m2-a22": {
+        "test": "m2-a22",
+        "ok": true
+      },
+      "m2-a23": {
+        "test": "m2-a23",
+        "ok": true
+      },
+      "m2-a24": {
+        "test": "m2-a24",
+        "ok": true
+      },
+      "m2-a26": {
+        "test": "m2-a26",
+        "ok": true
+      },
+      "m2-a27": {
+        "test": "m2-a27",
+        "ok": true
+      },
+      "m3-a04b": {
+        "test": "m3-a04b",
+        "ok": true
+      }
+    }
+  }
+}

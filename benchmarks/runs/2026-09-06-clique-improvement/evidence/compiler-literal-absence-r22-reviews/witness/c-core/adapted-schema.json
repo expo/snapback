@@ -1,0 +1,47 @@
+{
+  "tables": {
+    "records": {
+      "columns": {
+        "id": "Id",
+        "length": "Int",
+        "label": {
+          "Text": {
+            "max": 20
+          }
+        },
+        "payload": {
+          "Json": {
+            "max_bytes": 1000
+          }
+        }
+      },
+      "indexes": {
+        "byId": {
+          "unique": true,
+          "columns": [
+            "id"
+          ]
+        }
+      },
+      "rules": {
+        "read": {
+          "Public": {
+            "reason": "records is public in Quarry"
+          }
+        },
+        "insert": "Allow",
+        "update": "Deny",
+        "delete": "Deny"
+      },
+      "constraints": [],
+      "retain": "until-revoked"
+    }
+  },
+  "maintains": [],
+  "channels": {},
+  "auth": {
+    "password": false,
+    "guests": false
+  },
+  "effects": []
+}

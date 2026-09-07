@@ -1,0 +1,9 @@
+{
+  "archiveSha256": "c69dd26eba82277510bbfbc248081f2d75c9af998373eee438cd8310d675192e",
+  "resultLeaves": 204,
+  "privateLeaves": 136,
+  "copiedPublicFiles": 22,
+  "allCopiedPublicFilesVerified": true,
+  "normalizedMutationRowsRemainRemote": true,
+  "privateRawBodiesNeverExported": true
+}

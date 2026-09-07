@@ -1,0 +1,19 @@
+{
+  "name": "diff",
+  "argv": [
+    "git",
+    "diff",
+    "--check"
+  ],
+  "cwd": "/Users/ccheever/projects/snapback-worktrees/clique-structural-codec",
+  "pid": 17593,
+  "start": "2026-09-07T12:13:47.961075+00:00",
+  "outerSeconds": 10,
+  "host": "Darwin",
+  "node": "/Users/ccheever/.volta/tools/image/node/22.23.2/bin/node",
+  "nodeSha256": "18e387c90ab8a8400183e8bdd396376e1e875b91b4c874b894dcade7b35bf572",
+  "end": "2026-09-07T12:13:48.218095+00:00",
+  "elapsedSeconds": 0.25707337500000094,
+  "exitCode": 0,
+  "logSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+}

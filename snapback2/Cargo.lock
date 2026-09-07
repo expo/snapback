@@ -1758,7 +1758,7 @@ checksum = "e8e2fb0f499abb4d162f2bedad68f5ef91a1682b5a03596ddb67efd37768d100"
 
 [[package]]
 name = "snapback2"
-version = "0.0.14"
+version = "0.0.15"
 dependencies = [
  "getrandom 0.3.4",
  "image",
@@ -1773,7 +1773,7 @@ dependencies = [
 
 [[package]]
 name = "snapback2-core"
-version = "0.0.14"
+version = "0.0.15"
 dependencies = [
  "argon2",
  "getrandom 0.3.4",
@@ -1787,7 +1787,7 @@ dependencies = [
 
 [[package]]
 name = "snapback2-effects"
-version = "0.0.14"
+version = "0.0.15"
 dependencies = [
  "ibex2",
  "serde_json",
@@ -1797,7 +1797,7 @@ dependencies = [
 
 [[package]]
 name = "snapback2-media"
-version = "0.0.14"
+version = "0.0.15"
 dependencies = [
  "image",
  "libheif-rs",

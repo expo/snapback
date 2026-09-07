@@ -1,0 +1,17 @@
+{
+  "atEpoch": 1788783513.8801095,
+  "command": [
+    "packet-correction-01/run.py",
+    "--execute",
+    "--packet-sha256",
+    "a12127b21575ba169c2847117c0a81c1a815676c8439d72c5972b90e05c92eed",
+    "--root-reviewed-fork-namespace-isolation",
+    "--root-reviewed-stopped-store-observations"
+  ],
+  "identity": {
+    "bootId": "76ef40aa-0ed8-4f57-85c6-898bb42ea7e4",
+    "exe": "/usr/bin/python3.12",
+    "pid": 4014690,
+    "startTicks": "114242846"
+  }
+}

@@ -1,0 +1,74 @@
+{
+  "holdPosted": "2026-09-07T12:17:32.033168+00:00",
+  "holdReleased": "2026-09-07T12:20:22.228852+00:00",
+  "performanceReportedCompleteBy": "2026-09-07T12:18:47Z",
+  "actualChildrenStartedDuringHold": [
+    {
+      "label": "candidate-custom-proof",
+      "receiptPath": "/Users/ccheever/clique-improvement/reviews/compiler-effectful-member-origin-r24/astra/evidence/remote/review-work/results/candidate-custom-proof/execution.json",
+      "receiptSha256": "3689405399834e68d43050daf8199fcc25fab5d4b8d6cf7ccbcddc260216d3ec",
+      "pid": 4015663,
+      "start": "2026-09-07T12:19:33.112080+00:00",
+      "derivedEnd": "2026-09-07T12:19:33.749242+00:00",
+      "durationSeconds": 0.6371615119278431,
+      "exit": 1,
+      "deadlineSeconds": 30
+    },
+    {
+      "label": "candidate-custom-values",
+      "receiptPath": "/Users/ccheever/clique-improvement/reviews/compiler-effectful-member-origin-r24/astra/evidence/remote/review-work/results/candidate-custom-values/execution.json",
+      "receiptSha256": "af35ccdbec5f3974a3e1a86324ba2edc564ec4efa7ad10f6919421b615dc8d40",
+      "pid": 4015486,
+      "start": "2026-09-07T12:19:24.082232+00:00",
+      "derivedEnd": "2026-09-07T12:19:24.603814+00:00",
+      "durationSeconds": 0.521582119865343,
+      "exit": 0,
+      "deadlineSeconds": 30
+    },
+    {
+      "label": "parent-captures",
+      "receiptPath": "/Users/ccheever/clique-improvement/reviews/compiler-effectful-member-origin-r24/astra/evidence/remote/review-work/results/parent-captures/execution.json",
+      "receiptSha256": "a71a3389c642105fba6cdd66e2df754e97bef94685241445355aabf6972c6f2a",
+      "pid": 4014297,
+      "start": "2026-09-07T12:18:08.795108+00:00",
+      "derivedEnd": "2026-09-07T12:18:09.415640+00:00",
+      "durationSeconds": 0.6205317061394453,
+      "exit": 0,
+      "deadlineSeconds": 30
+    },
+    {
+      "label": "parent-custom-values",
+      "receiptPath": "/Users/ccheever/clique-improvement/reviews/compiler-effectful-member-origin-r24/astra/evidence/remote/review-work/results/parent-custom-values/execution.json",
+      "receiptSha256": "2cc9311f8c37ea13f0795a06c84392cc72be333e7428ef883634ba332d343858",
+      "pid": 4016099,
+      "start": "2026-09-07T12:19:54.486343+00:00",
+      "derivedEnd": "2026-09-07T12:19:54.983567+00:00",
+      "durationSeconds": 0.4972235830500722,
+      "exit": 0,
+      "deadlineSeconds": 30
+    },
+    {
+      "label": "parent-diagnostics-controls",
+      "receiptPath": "/Users/ccheever/clique-improvement/reviews/compiler-effectful-member-origin-r24/astra/evidence/remote/review-work/results/parent-diagnostics-controls/execution.json",
+      "receiptSha256": "237a43a5f13c444c2897958c33ed2a6aed3cff31596643e56bddcc00dcef4072",
+      "pid": 4015364,
+      "start": "2026-09-07T12:19:08.785088+00:00",
+      "derivedEnd": "2026-09-07T12:19:09.419508+00:00",
+      "durationSeconds": 0.6344201711472124,
+      "exit": 0,
+      "deadlineSeconds": 30
+    },
+    {
+      "label": "parent-refusals",
+      "receiptPath": "/Users/ccheever/clique-improvement/reviews/compiler-effectful-member-origin-r24/astra/evidence/remote/review-work/results/parent-refusals/execution.json",
+      "receiptSha256": "c3b21ecb25bf5a2ca6c63373ba9e38675ca44b40e52b231c38a0960223f2880f",
+      "pid": 4015091,
+      "start": "2026-09-07T12:18:55.020809+00:00",
+      "derivedEnd": "2026-09-07T12:18:55.679358+00:00",
+      "durationSeconds": 0.6585490831639618,
+      "exit": 0,
+      "deadlineSeconds": 30
+    }
+  ],
+  "scope": "Timing metadata only; no reviewer source/findings. Start is native receipt at; end derived from elapsed. Exact performance overlap requires actual arm interval, not inferred from full hold."
+}

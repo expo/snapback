@@ -1,0 +1,386 @@
+{
+  "differences": [
+    {
+      "before": {
+        "name": "write-schema-root:2413",
+        "input": {
+          "objectPrototype": "Object",
+          "entries": [
+            [
+              "schema",
+              {
+                "type": "undefined"
+              }
+            ],
+            [
+              "row",
+              {
+                "objectPrototype": "Object",
+                "entries": [
+                  [
+                    "Row",
+                    {
+                      "objectPrototype": "Object",
+                      "entries": [
+                        [
+                          "id",
+                          {
+                            "objectPrototype": "Object",
+                            "entries": [
+                              [
+                                "Id",
+                                "x"
+                              ]
+                            ]
+                          }
+                        ]
+                      ]
+                    }
+                  ]
+                ]
+              }
+            ]
+          ]
+        },
+        "error": {
+          "name": "TypeError",
+          "message": "Cannot read properties of undefined (reading 'tables')"
+        },
+        "inputAfter": {
+          "objectPrototype": "Object",
+          "entries": [
+            [
+              "schema",
+              {
+                "type": "undefined"
+              }
+            ],
+            [
+              "row",
+              {
+                "objectPrototype": "Object",
+                "entries": [
+                  [
+                    "Row",
+                    {
+                      "objectPrototype": "Object",
+                      "entries": [
+                        [
+                          "id",
+                          {
+                            "objectPrototype": "Object",
+                            "entries": [
+                              [
+                                "Id",
+                                "x"
+                              ]
+                            ]
+                          }
+                        ]
+                      ]
+                    }
+                  ]
+                ]
+              }
+            ]
+          ]
+        }
+      },
+      "after": {
+        "name": "write-schema-root:2413",
+        "input": {
+          "objectPrototype": "Object",
+          "entries": [
+            [
+              "schema",
+              {
+                "type": "undefined"
+              }
+            ],
+            [
+              "row",
+              {
+                "objectPrototype": "Object",
+                "entries": [
+                  [
+                    "Row",
+                    {
+                      "objectPrototype": "Object",
+                      "entries": [
+                        [
+                          "id",
+                          {
+                            "objectPrototype": "Object",
+                            "entries": [
+                              [
+                                "Id",
+                                "x"
+                              ]
+                            ]
+                          }
+                        ]
+                      ]
+                    }
+                  ]
+                ]
+              }
+            ]
+          ]
+        },
+        "error": {
+          "name": "Error",
+          "code": "E_SCHEMA",
+          "message": "E_SCHEMA: missing table t"
+        },
+        "inputAfter": {
+          "objectPrototype": "Object",
+          "entries": [
+            [
+              "schema",
+              {
+                "type": "undefined"
+              }
+            ],
+            [
+              "row",
+              {
+                "objectPrototype": "Object",
+                "entries": [
+                  [
+                    "Row",
+                    {
+                      "objectPrototype": "Object",
+                      "entries": [
+                        [
+                          "id",
+                          {
+                            "objectPrototype": "Object",
+                            "entries": [
+                              [
+                                "Id",
+                                "x"
+                              ]
+                            ]
+                          }
+                        ]
+                      ]
+                    }
+                  ]
+                ]
+              }
+            ]
+          ]
+        }
+      }
+    },
+    {
+      "before": {
+        "name": "write-schema-root:2415",
+        "input": {
+          "objectPrototype": "Object",
+          "entries": [
+            [
+              "schema",
+              null
+            ],
+            [
+              "row",
+              {
+                "objectPrototype": "Object",
+                "entries": [
+                  [
+                    "Row",
+                    {
+                      "objectPrototype": "Object",
+                      "entries": [
+                        [
+                          "id",
+                          {
+                            "objectPrototype": "Object",
+                            "entries": [
+                              [
+                                "Id",
+                                "x"
+                              ]
+                            ]
+                          }
+                        ]
+                      ]
+                    }
+                  ]
+                ]
+              }
+            ]
+          ]
+        },
+        "error": {
+          "name": "TypeError",
+          "message": "Cannot read properties of null (reading 'tables')"
+        },
+        "inputAfter": {
+          "objectPrototype": "Object",
+          "entries": [
+            [
+              "schema",
+              null
+            ],
+            [
+              "row",
+              {
+                "objectPrototype": "Object",
+                "entries": [
+                  [
+                    "Row",
+                    {
+                      "objectPrototype": "Object",
+                      "entries": [
+                        [
+                          "id",
+                          {
+                            "objectPrototype": "Object",
+                            "entries": [
+                              [
+                                "Id",
+                                "x"
+                              ]
+                            ]
+                          }
+                        ]
+                      ]
+                    }
+                  ]
+                ]
+              }
+            ]
+          ]
+        }
+      },
+      "after": {
+        "name": "write-schema-root:2415",
+        "input": {
+          "objectPrototype": "Object",
+          "entries": [
+            [
+              "schema",
+              null
+            ],
+            [
+              "row",
+              {
+                "objectPrototype": "Object",
+                "entries": [
+                  [
+                    "Row",
+                    {
+                      "objectPrototype": "Object",
+                      "entries": [
+                        [
+                          "id",
+                          {
+                            "objectPrototype": "Object",
+                            "entries": [
+                              [
+                                "Id",
+                                "x"
+                              ]
+                            ]
+                          }
+                        ]
+                      ]
+                    }
+                  ]
+                ]
+              }
+            ]
+          ]
+        },
+        "error": {
+          "name": "Error",
+          "code": "E_SCHEMA",
+          "message": "E_SCHEMA: missing table t"
+        },
+        "inputAfter": {
+          "objectPrototype": "Object",
+          "entries": [
+            [
+              "schema",
+              null
+            ],
+            [
+              "row",
+              {
+                "objectPrototype": "Object",
+                "entries": [
+                  [
+                    "Row",
+                    {
+                      "objectPrototype": "Object",
+                      "entries": [
+                        [
+                          "id",
+                          {
+                            "objectPrototype": "Object",
+                            "entries": [
+                              [
+                                "Id",
+                                "x"
+                              ]
+                            ]
+                          }
+                        ]
+                      ]
+                    }
+                  ]
+                ]
+              }
+            ]
+          ]
+        }
+      }
+    },
+    {
+      "before": {
+        "name": "canonical-read-order:schema",
+        "value": "{\"tables\":{},\"maintains\":[]}",
+        "order": [
+          "tables",
+          "maintains"
+        ]
+      },
+      "after": {
+        "name": "canonical-read-order:schema",
+        "value": "{\"tables\":{},\"maintains\":[]}",
+        "order": [
+          "tables",
+          "tables",
+          "maintains",
+          "maintains",
+          "tables",
+          "maintains"
+        ]
+      }
+    },
+    {
+      "before": {
+        "name": "canonical-read-order:auth",
+        "value": "{\"tables\":{},\"maintains\":[]}",
+        "order": [
+          "password",
+          "guests"
+        ]
+      },
+      "after": {
+        "name": "canonical-read-order:auth",
+        "value": "{\"tables\":{},\"maintains\":[]}",
+        "order": [
+          "password",
+          "guests",
+          "password",
+          "guests"
+        ]
+      }
+    }
+  ],
+  "beforeSha": "d34a7f0fa335ac7c402fb284ed944ac8f2730cb04aa7cef8b2b2dcd7d3222475",
+  "afterSha": "0abb04489d122df31380fbf45873bab826e6e1bb30814304e2c6896675d6f5c1"
+}

@@ -1,0 +1,97 @@
+TAP version 13
+# (node:4010724) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+# (Use `node --trace-warnings ...` to show where the warning was created)
+# Subtest: unchanged native26c9 movement, revocation and halo deliveries survive public admission on every carrier
+    # Subtest: Node file/false
+    ok 1 - Node file/false
+      ---
+      duration_ms: 126.357164
+      type: 'test'
+      ...
+    # Subtest: Node file/true
+    ok 2 - Node file/true
+      ---
+      duration_ms: 80.414073
+      type: 'test'
+      ...
+    # Subtest: IndexedDB/false
+    ok 3 - IndexedDB/false
+      ---
+      duration_ms: 110.018568
+      type: 'test'
+      ...
+    # Subtest: IndexedDB/true
+    ok 4 - IndexedDB/true
+      ---
+      duration_ms: 117.153676
+      type: 'test'
+      ...
+    # Subtest: SQLite/false
+    ok 5 - SQLite/false
+      ---
+      duration_ms: 87.56941
+      type: 'test'
+      ...
+    # Subtest: SQLite/true
+    ok 6 - SQLite/true
+      ---
+      duration_ms: 84.211887
+      type: 'test'
+      ...
+    1..6
+ok 1 - unchanged native26c9 movement, revocation and halo deliveries survive public admission on every carrier
+  ---
+  duration_ms: 614.32406
+  type: 'test'
+  ...
+# Subtest: closed extents retain all-ID consistency after conditional refresh and GC without globalizing nonmembership
+ok 2 - closed extents retain all-ID consistency after conditional refresh and GC without globalizing nonmembership
+  ---
+  duration_ms: 47.588709
+  type: 'test'
+  ...
+# Subtest: repeated immutable pools preserve receipt isolation, backend rollback and keys-only custody after body collection
+ok 3 - repeated immutable pools preserve receipt isolation, backend rollback and keys-only custody after body collection
+  ---
+  duration_ms: 13.222815
+  type: 'test'
+  ...
+# Subtest: carrier preflight preserves the first source refusal and skips stale ordinary fact payloads
+ok 4 - carrier preflight preserves the first source refusal and skips stale ordinary fact payloads
+  ---
+  duration_ms: 2.989232
+  type: 'test'
+  ...
+# Subtest: typed full cursor bounds refuse before empty or populated carrier and checked-runtime publication
+ok 5 - typed full cursor bounds refuse before empty or populated carrier and checked-runtime publication
+  ---
+  duration_ms: 53.853702
+  type: 'test'
+  ...
+# Subtest: delayed FULL replaces every interior issuing position even when newer current bodies and endpoints are unchanged
+ok 6 - delayed FULL replaces every interior issuing position even when newer current bodies and endpoints are unchanged
+  ---
+  duration_ms: 27.352589
+  type: 'test'
+  ...
+# Subtest: authenticated sparse optional images retain exact bytes and refuse same-sequence explicit null atomically
+ok 7 - authenticated sparse optional images retain exact bytes and refuse same-sequence explicit null atomically
+  ---
+  duration_ms: 14.474321
+  type: 'test'
+  ...
+# Subtest: equal authenticated refresh shares built current ownership without semantic revisions across replay and cold replacement
+ok 8 - equal authenticated refresh shares built current ownership without semantic revisions across replay and cold replacement
+  ---
+  duration_ms: 44.727679
+  type: 'test'
+  ...
+1..8
+# tests 14
+# suites 0
+# pass 14
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 979.399598

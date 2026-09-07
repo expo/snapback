@@ -1,0 +1,17 @@
+{
+  "command": [
+    "/usr/bin/git",
+    "commit",
+    "-F",
+    "/Users/ccheever/clique-improvement/lanes/search-twin/r8-unicode-packet-candidate/commit-message.txt"
+  ],
+  "cwd": "/Users/ccheever/projects/snapback-worktrees/clique-unicode-packets",
+  "pid": 55142,
+  "start": "2026-09-07T10:36:21.287836+00:00",
+  "end": "2026-09-07T10:36:21.483654+00:00",
+  "elapsedSeconds": 0.19594012500000002,
+  "deadlineSeconds": 30.0,
+  "exit": 0,
+  "host": "MacBookPro",
+  "executableSha256": "44a68ddc1983d6cff3fd35ba3f9ba5f82004216f1dcde69892b3d1b06e408698"
+}

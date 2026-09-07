@@ -1,0 +1,76 @@
+{
+  "atEpoch": 1788781356.405565,
+  "commit": "624a06dfc66e182a1f41c5fd85f9fbd191ba4bcb",
+  "remote-after-hook-setup": "624a06dfc66e182a1f41c5fd85f9fbd191ba4bcb",
+  "remoteExactAtObservation": true,
+  "cleanAtObservation": true,
+  "qualifiedSource": "78924a1e7286907d2378221902ec22747e7d188f",
+  "mainBaseAtPush": "f113b4e895ba24fc21aba1790536d536ec7d5408",
+  "diffSha256": "008d8a824ae51bdf106985e25fbdeb831b6cfa2b97c63387ca751cfa34d2f867",
+  "changedPaths": 13,
+  "all13FinalBlobsMatchQualifiedSource": true,
+  "semanticConflicts": false,
+  "commands": [
+    {
+      "name": "fetch-2",
+      "argv": [
+        "git",
+        "fetch",
+        "origin",
+        "main"
+      ],
+      "pid": 97861,
+      "startEpoch": 1788781335.865193,
+      "exitCode": 0,
+      "seconds": 1.3502919673919678,
+      "stdoutSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderrSha256": "d929073f60b6226f09f1a00f6445daf3f326dbdbb788787a0e04d20643b01bdf"
+    },
+    {
+      "name": "rebase-2",
+      "argv": [
+        "git",
+        "rebase",
+        "origin/main"
+      ],
+      "pid": 97886,
+      "startEpoch": 1788781337.2500129,
+      "exitCode": 0,
+      "seconds": 0.1398000717163086,
+      "stdoutSha256": "84c030355bc3a365ca420a6bf97d39b3c29e3f95629b201631eed44030416b00",
+      "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "push-2",
+      "argv": [
+        "git",
+        "push",
+        "origin",
+        "HEAD:main"
+      ],
+      "pid": 97910,
+      "startEpoch": 1788781338.45639,
+      "exitCode": 0,
+      "seconds": 16.59139132499695,
+      "stdoutSha256": "07eab1494c19afe53af4e384f64dbc6e1d40baa48aed250f4fc0c844cde0127e",
+      "stderrSha256": "b81f14669edc15fc66618bb5b2eed427e901aaa73a081c078a90abb6d0f2983f"
+    },
+    {
+      "name": "remote-after-hook-setup",
+      "argv": [
+        "git",
+        "ls-remote",
+        "origin",
+        "refs/heads/main"
+      ],
+      "pid": 98886,
+      "startEpoch": 1788781355.075986,
+      "exitCode": 0,
+      "seconds": 0.9629812240600586,
+      "stdoutSha256": "6100855eddfa4e7353301f86e1bbefdfed2ef243563178b3c028e3870f7f3e0b",
+      "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  ],
+  "publication": false,
+  "qualification": "Retained exact78924 artifacts; no later-main cumulative build claim"
+}

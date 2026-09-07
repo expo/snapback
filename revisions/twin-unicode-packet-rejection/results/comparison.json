@@ -1,0 +1,18 @@
+{
+  "name": "comparison",
+  "argv": [
+    "/home/ccheever/clique-tooling/epyc-linux-tooling-20260907T010007Z-0fd567d96f/node-v22.23.2-linux-x64/bin/node",
+    "--experimental-strip-types",
+    "/home/ccheever/clique-tooling/search-unicode-packets-82c43-candidate1-20260907T1025Z-01a07649/compare.mjs"
+  ],
+  "cwd": "/home/ccheever/clique-tooling/search-unicode-packets-82c43-candidate1-20260907T1025Z-01a07649",
+  "pid": 3938721,
+  "started": "2026-09-07T10:30:04.626596+00:00",
+  "elapsedSeconds": 0.11411863681860268,
+  "ended": "2026-09-07T10:30:04.740715+00:00",
+  "exit": 0,
+  "outerDeadlineSeconds": 10,
+  "host": "EPYC Linux",
+  "nodeSha256": "3517c2df0b2f8cd7f422b4b8450ef81c6889f08eb03e281d6de9079b15e6a327",
+  "bunSha256": "92a1cd8b6185f676010bb18e767dfc65c772273e79ae9984480843261939eeaa"
+}

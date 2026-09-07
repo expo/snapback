@@ -1,0 +1,60 @@
+TAP version 13
+# (node:4010670) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+# (Use `node --trace-warnings ...` to show where the warning was created)
+# Subtest: every PersistedRangeState field round-trips on file, IndexedDB, and SQLite
+ok 1 - every PersistedRangeState field round-trips on file, IndexedDB, and SQLite
+  ---
+  duration_ms: 32.819976
+  type: 'test'
+  ...
+# Subtest: warm and reopened coverage, answers, and incremental snapshots agree on undefined and null on all three carriers
+ok 2 - warm and reopened coverage, answers, and incremental snapshots agree on undefined and null on all three carriers
+  ---
+  duration_ms: 32.383472
+  type: 'test'
+  ...
+# Subtest: SQLite replace rolls state and byte deltas back when beforeCommit throws
+ok 3 - SQLite replace rolls state and byte deltas back when beforeCommit throws
+  ---
+  duration_ms: 8.965592
+  type: 'test'
+  ...
+# Subtest: database projection owns only presence after mutable replacement, abort, cold deletion and reclamation
+ok 4 - database projection owns only presence after mutable replacement, abort, cold deletion and reclamation
+  ---
+  duration_ms: 31.350133
+  type: 'test'
+  ...
+# Subtest: database reset completion removes metadata children through failure, retry and populated reopen
+ok 5 - database reset completion removes metadata children through failure, retry and populated reopen
+  ---
+  duration_ms: 148.453193
+  type: 'test'
+  ...
+# Subtest: generic database metadata replacement preserves JSON omission and array length through abort, retry and cold open
+ok 6 - generic database metadata replacement preserves JSON omission and array length through abort, retry and cold open
+  ---
+  duration_ms: 86.528811
+  type: 'test'
+  ...
+# Subtest: answer retention keeps short-array and escaped membership through refusal, cold open and purge
+ok 7 - answer retention keeps short-array and escaped membership through refusal, cold open and purge
+  ---
+  duration_ms: 8.665852
+  type: 'test'
+  ...
+# Subtest: public offline expansion isolates before viewed authority awaits and preserves escaped literal roots
+ok 8 - public offline expansion isolates before viewed authority awaits and preserves escaped literal roots
+  ---
+  duration_ms: 1.424045
+  type: 'test'
+  ...
+1..8
+# tests 8
+# suites 0
+# pass 8
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 487.60809

@@ -1,0 +1,43 @@
+{
+  "sourceCommit": "78924a1e7286907d2378221902ec22747e7d188f",
+  "epoch": 1788780718.3916109,
+  "currentSourceLeaves": 943,
+  "priorFinalEightSelectionSourceLeavesIdentical": true,
+  "priorEightSelectionReceipt": "/Users/ccheever/clique-improvement/revisions/cli-journey-selection-repair-r2/test-receipt.json",
+  "priorEightSelectionReceiptSha256": "ca44076b2a0165fbebdd09d3f2c761a22fec97be9da0b8e5d8d018901ea8b28c",
+  "priorEightSelectionSourceSha256": "8b33f03dc48e63189fd784cf569dfb1d5f1982ee0f99af56c2c16c9f992e5a24",
+  "qualifiedPackedSourceMaps": [
+    {
+      "artifact": "/Users/ccheever/projects/snapback-artifacts/clique-release/0.0.15-78924a1e7/qualified-artifacts/shim/package/dist/test.mjs",
+      "bytes": 412978,
+      "sha256": "14238c5415423694a327dbf10527f7c2bd6f94ced2dbcde369dcbb373d26fec4",
+      "mapSha256": "e748d06ea6280e954992beda741ddfc7f85eabeb4059199ab337e33ba00369d8",
+      "embeddedFinalTestSource": [
+        {
+          "path": "../src/test.ts",
+          "sha256": "9392c960e7ab865d7a05c10a21a8247954070a6f943a09ffd67135706d1bd74d"
+        }
+      ]
+    },
+    {
+      "artifact": "/Users/ccheever/projects/snapback-artifacts/clique-release/0.0.15-78924a1e7/qualified-artifacts/shim/package/dist/test-runner.mjs",
+      "bytes": 412985,
+      "sha256": "7514137b9c1c202186520b3855ca5da287239330d98089ca198e8cd478f1bd3a",
+      "mapSha256": "e748d06ea6280e954992beda741ddfc7f85eabeb4059199ab337e33ba00369d8",
+      "embeddedFinalTestSource": [
+        {
+          "path": "../src/test.ts",
+          "sha256": "9392c960e7ab865d7a05c10a21a8247954070a6f943a09ffd67135706d1bd74d"
+        }
+      ]
+    }
+  ],
+  "localFrozenWorktreeClean": true,
+  "statusCommand": {
+    "pid": 92935,
+    "exitCode": 0,
+    "stdout": "",
+    "stderr": ""
+  },
+  "oldJsRawLimitation": "Earlier r2 build01 raw JS bundles were not retained; no historical byte-equivalence claim. These exact current qualified package maps bind directly to final source; no source-map equivalence assumption substitutes for source bytes."
+}

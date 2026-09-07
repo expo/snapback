@@ -270,7 +270,7 @@
     "rule_hashes": {
       "memberships.insert": "31967b0f2f1846479361dbc030c2f91b2cb8a7d6c80a4888c35f9a2c9f802d95"
     },
-    "evaluator_version": "bounded-spike-rust-search-text-refinements-4",
+    "evaluator_version": "bounded-spike-rust-search-text-refinements-5",
     "value_model_version": "i53-codepoint-bytes-unicode-search-text-refinements-v5",
     "read_sites": [],
     "write_sites": [
