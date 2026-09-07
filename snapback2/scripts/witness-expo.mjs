@@ -12,7 +12,7 @@ import { ownerHarness, seedWitness } from "./witness-expo/owner.mjs";
 const names = ["build, owner seed, and outward control", "login, inbox drain, three chats, two photos and warm indexed search", "offline and two queued sends",
   "SIGKILL at barrier; exact pre-swap state across all five stores and twin prediction", "SIGKILL at rest; same cold state",
   "persistent carrier fault reports over control", "post-commit 503, exactly-once replay and FIFO",
-  "Unicode indexed prediction and expiry agree warm and held", "Expo driver conformance including real failed COMMIT", "persist online, relaunch and drain"];
+  "Unicode indexed prediction and expiry agree warm and held", "Expo driver conformance and transaction rollback checks", "persist online, relaunch and drain"];
 const steps = [];
 const mediaFailures = [];
 let control, owner, device, appPid, seed, before, queued;

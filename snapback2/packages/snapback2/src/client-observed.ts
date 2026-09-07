@@ -113,11 +113,21 @@ export class ClientQueries {
       return { state: "refused", live: false, ...envelope };
     }
     if (!this.host.active(fence) || (current.live && event.state === "hydrating")) return undefined;
-    if (!current.live || event.state === "refused") return event as SubscriptionDelivery<Result>;
-    if (event.state === "held" && authoritative
+    // A drain is caught up only after DrainSubscription.mark has finished its
+    // watermark and replay-grant work. A store-input refresh can see the page
+    // committed by that mark while the mark is still pending; it may update the
+    // value, but cannot publish caughtUp ahead of the drain lifecycle.
+    let refreshed = event as QueryMachineEvent<Result>;
+    if (drain && event.state !== "refused") {
+      const { caughtUp: _caughtUp, ...value } = event as QueryMachineEvent<Result> & { caughtUp?: boolean };
+      const caughtUp = (current as QueryView<Result> & { caughtUp?: boolean }).caughtUp;
+      refreshed = { ...value, ...(caughtUp === undefined ? {} : { caughtUp }) } as QueryMachineEvent<Result>;
+    }
+    if (!current.live || event.state === "refused") return refreshed as SubscriptionDelivery<Result>;
+    if (refreshed.state === "held" && authoritative
       && (authoritative.state === "complete" || authoritative.state === "capped")
-      && valueIdentity(event) === valueIdentity(authoritative)) return authoritative;
-    const { connection: _connection, stale: _stale, ...fresh } = event as QueryMachineEvent<Result> & {
+      && valueIdentity(refreshed) === valueIdentity(authoritative)) return authoritative;
+    const { connection: _connection, stale: _stale, ...fresh } = refreshed as QueryMachineEvent<Result> & {
       connection?: unknown; stale?: unknown;
     };
     return { ...fresh, live: true } as SubscriptionDelivery<Result>;

@@ -11,6 +11,9 @@ import { join } from "node:path";
 import { test } from "node:test";
 import { api } from "../dist/client.mjs";
 import { fileRangeStore } from "../dist/test.mjs";
+import {
+  certifiedCompleteDrain, certifiedCompleteDrainEnvelope, certifiedCompleteDrainProgram,
+} from "./offline-metadata-fixture.ts";
 
 const generation = "d".repeat(64);
 const schemaHash = "e".repeat(64);
@@ -231,35 +234,35 @@ test("an offline cold-start drain keeps the drained first page on screen while r
   const root = await mkdtemp(join(tmpdir(), "snapback2-cold-drain-view-"));
   try {
     const store = fileRangeStore(root)();
+    const program = certifiedCompleteDrainProgram();
+    const firstPage = { ...certifiedCompleteDrainEnvelope("1".repeat(64), 3), op: certifiedCompleteDrain.op, args: { c: null } };
+    const tailPage = { ...certifiedCompleteDrainEnvelope("2".repeat(64), 3), op: certifiedCompleteDrain.op,
+      args: { c: "cursor-9" }, data: [], rows: [], receipt: { ranges: [], absences: [], verdicts: [] } };
     await store.open("dev:alice");
     await store.commit({
       // A supported cold drain carries the owner's held eligibility metadata.
-      // The opaque answer fixture stays held-only; no executable twin is needed.
-      programs: { [generation]: {
-        generation, schemaHash, schema: { tables: {} },
-        programs: { "deliveries.inbox": { kind: "query", planHash, drain: { cursor: "c" },
-          ir: { args: { c: { Optional: "Cursor" } }, body: [] }, certificate: { plan_hash: planHash } } },
-      } },
-      deliveries: [
-        { op: "deliveries.inbox", args: { c: null }, state: "complete", data: ["first page"], next: null, seq: 3, validator: "1".repeat(64), receipt: emptyReceipt() },
-        { op: "deliveries.inbox", args: { c: "cursor-9" }, state: "complete", data: ["after the watermark"], next: null, seq: 3, validator: "2".repeat(64), receipt: emptyReceipt() },
-      ],
+      // Use the compiler-owned certified pagination program and receipts.
+      programs: { [certifiedCompleteDrain.generation]: program },
+      deliveries: [firstPage, tailPage],
       watermark: {
-        op: "deliveries.inbox", args: { c: null }, watermark: "cursor-9", validator: "2".repeat(64),
-        generation, schemaHash, authEpoch: 7, updatedAt: 10,
+        op: certifiedCompleteDrain.op, args: { c: null }, watermark: "cursor-9", validator: "2".repeat(64),
+        generation: certifiedCompleteDrain.generation, schemaHash: certifiedCompleteDrain.schemaHash, authEpoch: 7, updatedAt: 10,
       },
     });
+    const expectedFirst = await store.answer<any>(certifiedCompleteDrain.op, { c: null });
+    const expectedTail = await store.answer<any>(certifiedCompleteDrain.op, { c: "cursor-9" });
+    assert.notDeepEqual(expectedFirst?.data, expectedTail?.data, "the fixture distinguishes its first page and tail");
     await store.close?.();
     // The owner is unreachable: every request fails as a network cut.
     const client = createClient({
-      url: "http://cold-drain.test", as: "alice", offline: { store: fileRangeStore(root) },
+      url: "http://cold-drain.test", as: "alice", startOffline: true, offline: { store: fileRangeStore(root) },
       fetch: async () => { throw new TypeError("fetch failed: owner cut"); },
     });
     let drain: { close(): void } | undefined;
     try {
       await client.ready.catch(() => undefined);
       const views: any[] = [];
-      const subscription = client.subscribe(api.deliveries.inbox as any, { c: null }, (view) => views.push(view), { drain: true });
+      const subscription = client.subscribe((api as any)[certifiedCompleteDrain.op], { c: null }, (view) => views.push(view), { drain: true });
       drain = subscription;
       await subscription.until((view: any) => view.caughtUp === true, 2_000);
       // The tail subscription opens a tick after the caught-up delivery; let it settle.
@@ -267,7 +270,7 @@ test("an offline cold-start drain keeps the drained first page on screen while r
       const last = views.at(-1);
       assert.equal(last.state, "complete");
       assert.equal(last.caughtUp, true);
-      assert.deepEqual(last.data, ["first page"], "the caught-up view is the drained page, not the tail after the watermark");
+      assert.deepEqual(last.data, expectedFirst?.data, "the caught-up view is the drained first page");
       assert.equal(last.watermark, "cursor-9", "the persisted watermark is still the reported resume position");
     } finally {
       drain?.close();
