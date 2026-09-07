@@ -292,6 +292,14 @@ query partialPage(flag: bool):
 
 mutation sortedNew():
   (first, second) = sorted(new, new)
+  return [first, second, new]
+
+query sortedPrincipals(a: principal, b: principal):
+  (first, second) = sorted(a, b)
+  return [first, second]
+
+query sortedReadOrder(left: conversations, right: conversations):
+  (first, second) = sorted((conversations[left]! else LEFT_MISSING).title, (conversations[right]! else RIGHT_MISSING).title)
   return [first, second]
 `;
     await withProject({ "snapback/schema.q": schema, "snapback/ops.q": operations }, async (root) => {
@@ -486,15 +494,67 @@ mutation sortedNew():
       assert(!sortedNewLegacyCheck.error && sortedNewLegacyCheck.certificate,
         `sorted tuple oracle did not certify: ${JSON.stringify(sortedNewLegacyCheck)}`);
       const sortedContext = (): Context => ({ viewer: "viewer-1", principal_kind: "user", auth_epoch: 1,
-        args: {}, now: 1, new_ids: ["first-id", "second-id"], read_time: 1 });
+        args: {}, now: 1, new_ids: ["z-id", "a-id", "tail-id"], read_time: 1 });
       const sortedExecution = new ClientStore(oracle.project.schema)
         .applyMutation(sortedNew, sortedContext(), false, sortedNewCheck.certificate).execution;
       const sortedLegacyExecution = new ClientStore(oracle.project.schema)
         .applyMutation(sortedNewLegacy, sortedContext(), false, sortedNewLegacyCheck.certificate).execution;
       assert(canonicalValue(sortedExecution.result) === canonicalValue(sortedLegacyExecution.result)
-        && canonicalValue(sortedExecution.result) === canonicalValue({ Array: [{ Id: "first-id" }, { Id: "second-id" }] }),
+        && canonicalValue(sortedExecution.result) === canonicalValue({ Array: [{ Id: "a-id" }, { Id: "z-id" }, { Id: "tail-id" }] }),
       `sorted tuple did not evaluate its actuals once left-to-right: ${canonicalValue(sortedExecution.result)}`);
+
+      const sortedPrincipals = directProgram("sortedPrincipals");
+      const sortedPrincipalsCheck = rustCheck([sortedPrincipals], "synthetic", oracle.project.schema)[0]!;
+      assert(!sortedPrincipalsCheck.error && sortedPrincipalsCheck.certificate,
+        `direct sorted principals did not certify: ${JSON.stringify(sortedPrincipalsCheck)}`);
+      for (const [a, b, expected] of [["z", "a", ["a", "z"]], ["same", "same", ["same", "same"]]] as const) {
+        const execution = new ClientStore(oracle.project.schema).reexecute(sortedPrincipals, {
+          viewer: "viewer-1", principal_kind: "user", auth_epoch: 1,
+          args: { a: { Id: a }, b: { Id: b } }, now: 1, new_ids: [], read_time: 1,
+        }, sortedPrincipalsCheck.certificate).execution;
+        deepStrictEqual(execution.result, { Array: expected.map((value) => ({ Id: value })) });
+      }
+
+      const sortedReadOrder = directProgram("sortedReadOrder");
+      const sortedReadCheck = rustCheck([sortedReadOrder], "synthetic", oracle.project.schema)[0]!;
+      assert(!sortedReadCheck.error && sortedReadCheck.certificate,
+        `direct sorted read order did not certify: ${JSON.stringify(sortedReadCheck)}`);
+      const sortedRows: ClosureReceipt = { schema_hash: sortedReadCheck.certificate.schema_hash as string,
+        rows: [
+          { table: "conversations", id: "left", row: { Row: { id: { Id: "left" }, title: { String: "z" } } } },
+          { table: "conversations", id: "right", row: { Row: { id: { Id: "right" }, title: { String: "a" } } } },
+        ], ranges: [], absences: [], verdicts: [] };
+      const sortedReadContext: Context = { viewer: "viewer-1", principal_kind: "user", auth_epoch: 1,
+        args: { left: { Id: "left" }, right: { Id: "right" } }, now: 1, new_ids: [], read_time: 1 };
+      const sortedReadExecution = new ClientStore(oracle.project.schema, sortedRows)
+        .reexecute(sortedReadOrder, sortedReadContext, sortedReadCheck.certificate).execution;
+      deepStrictEqual(sortedReadExecution.result, { Array: [{ String: "a" }, { String: "z" }] });
+      deepStrictEqual(sortedReadExecution.trace.points.map((point) => point.key[0]), [{ Id: "left" }, { Id: "right" }]);
+      const sortedAbsences: ClosureReceipt = { schema_hash: sortedReadCheck.certificate.schema_hash as string,
+        rows: [], ranges: [], absences: [
+          ["conversations", "byId", [{ Id: "left" }]], ["conversations", "byId", [{ Id: "right" }]],
+        ], verdicts: [] };
+      let sortedFailure: { code?: string; authoredCode?: string; trace?: { points: Array<{ key: Value[] }> } } | undefined;
+      try {
+        new ClientStore(oracle.project.schema, sortedAbsences)
+          .reexecute(sortedReadOrder, sortedReadContext, sortedReadCheck.certificate);
+      } catch (error) {
+        sortedFailure = error as typeof sortedFailure;
+      }
+      assert(sortedFailure?.code === "E_REQUIRE" && sortedFailure.authoredCode === "LEFT_MISSING",
+        `sorted evaluated its right actual before the left refusal: ${JSON.stringify(sortedFailure)}`);
+      deepStrictEqual(sortedFailure.trace?.points.map((point) => point.key[0]), [{ Id: "left" }]);
     });
+
+    const incompatibleSorted = compileInline([
+      { fileName: "snapback/schema.q", source: schema },
+      { fileName: "snapback/ops.q", source: `query invalid(a: principal, b: int):
+  (first, second) = sorted(a, b)
+  return first
+` },
+    ]);
+    assert(!incompatibleSorted.ok && diagnosticsText(incompatibleSorted.diagnostics).includes("compatible ordered operands"),
+      `sorted admitted incompatible nominal operands: ${incompatibleSorted.ok ? "compiled" : diagnosticsText(incompatibleSorted.diagnostics)}`);
 
     const joinInputs: QuarryInput[] = [
       { path: "/virtual/snapback/schema.q", fileName: "snapback/schema.q", source: schema },
@@ -914,7 +974,8 @@ query node(id: nodes):
       try {
         bindQuarryProgram(declaration, prepared.prepared.catalog, prepared.prepared.documents);
       } catch (error) {
-        return (error as { diagnostic?: { code: string; message: string } }).diagnostic;
+        return (error as { diagnostic?: { code: string; message: string; file: string; line: number;
+          expandedFrom?: { file: string; line: number } } }).diagnostic;
       }
       return undefined;
     };
@@ -949,6 +1010,32 @@ query node(id: nodes):
       "fn clock from cards\nquery node(id: nodes):\n  return clock()\n",
     );
     assert(queryTime === undefined, `fn could not use query read time: ${JSON.stringify(queryTime)}`);
+
+    const callerAssertion = compileInline([
+      { fileName: "snapback/schema.q", source: schema },
+      { fileName: "snapback/ops.q", source: `fn find(node: nodes) = nodes[node]
+query required(id: nodes):
+  return find(id)! else NOT_FOUND
+` },
+    ]);
+    assert(callerAssertion.ok,
+      `caller-side assertion of a helper result was refused: ${callerAssertion.ok ? "" : diagnosticsText(callerAssertion.diagnostics)}`);
+    if (callerAssertion.ok) {
+      const required = operation(callerAssertion.project.programs, "ops.required");
+      assert(JSON.stringify(required.body).includes('"code":"NOT_FOUND"'),
+        `caller-side assertion did not lower a requirement: ${JSON.stringify(required.body)}`);
+      const requiredCheck = rustCheck([required], "synthetic", callerAssertion.project.schema)[0]!;
+      assert(!requiredCheck.error && requiredCheck.certificate,
+        `caller-side helper assertion did not certify: ${JSON.stringify(requiredCheck)}`);
+    }
+    const helperAssertion = refusal(
+      "fn find(node: nodes) = nodes[node]! else NOT_FOUND\n",
+      "fn find from cards\nquery node(id: nodes):\n  return find(id)\n",
+    );
+    assert(helperAssertion?.code === "E_QUARRY_UNSUPPORTED" && helperAssertion.message.includes("cannot assert authorization")
+      && helperAssertion.file === "snapback/cards.q" && helperAssertion.line === 1
+      && helperAssertion.expandedFrom?.file === "snapback/ops.q" && helperAssertion.expandedFrom.line === 3,
+    `fn assertion lost its definition/use provenance or escaped purity: ${JSON.stringify(helperAssertion)}`);
   });
 
   test("direct Quarry shares shape recursion and depth guards with nested field uses", () => {

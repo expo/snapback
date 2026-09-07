@@ -336,6 +336,9 @@ class ExpressionBinder {
     }
     if (expression.kind === "binary") return this.binary(expression);
     if (expression.kind === "assert") {
+      if (this.helperDepth > 0) unsupported(this.diagnosticSite(expression.site),
+        "fn expressions are read-pure and cannot assert authorization",
+        "return the optional value and assert it in the calling query or mutation");
       validateRefusalCode(expression.site, expression.code);
       const value = this.expression(expression.value);
       return { kind: "assert", value, code: expression.code,
@@ -855,15 +858,41 @@ class ExpressionBinder {
   }
 
   private sortedPair(expression: Extract<Expr, { kind: "call" }>): BoundExpression {
-    const args = expression.args.map((argument) => this.expression(argument));
+    let [left, right] = expression.args.map((argument) => this.expression(argument)) as [BoundExpression, BoundExpression];
+    [left, right] = contextualPair(left, right, expression.site);
+    if (representationMismatch(left.facts.type, right.facts.type)) decimalScale(expression.site,
+      `sorted operands ${typeName(left.facts.type)} and ${typeName(right.facts.type)} have different representations`,
+      "sort values with one decimal or money scale");
+    if (!isScalar(left.facts.type) || !isScalar(right.facts.type)
+      || !comparable(left.facts.type, right.facts.type) || !orderedType(left.facts.type)) {
+      typeError(expression.site,
+        `sorted requires compatible ordered operands, got ${typeName(left.facts.type)} and ${typeName(right.facts.type)}`,
+        "sort two present values with the same nominal text, Id, enum, numeric, or time type");
+    }
+    if (left.facts.presence === "optional" || right.facts.presence === "optional") typeError(expression.site,
+      "sorted requires present operands", "assert optional operands before sorting them");
     const source = this.source(expression.site);
+    const values = [left, right];
+    const identity = `${this.program.site.file}:${this.program.name}:sorted:${this.budget.expansionId++}`;
+    const bindings = values.map((value, index) => ({
+      symbol: { kind: "argument", id: `${identity}:argument:${index}`, name: index === 0 ? "left" : "right",
+        type: structuredClone(value.facts.type), origin: value.facts.origin, source: value.source } satisfies BoundArgumentSymbol,
+      value,
+    }));
+    const operands = bindings.map(({ symbol }) => ({
+      kind: "variable", symbol, facts: facts(symbol.type, symbol.origin), source: symbol.source,
+    }) satisfies BoundExpression);
+    const resultType = scalarType(joinType(left.facts.type, right.facts.type, expression.site), expression.site);
     const fields = [
-      { name: "first", value: args[0]!, source },
-      { name: "second", value: args[1]!, source },
+      { name: "first", value: { kind: "builtin", builtin: "Min", args: operands,
+        facts: facts(resultType, "Computed"), source } satisfies BoundExpression, source },
+      { name: "second", value: { kind: "builtin", builtin: "Max", args: operands,
+        facts: facts(resultType, "Computed"), source } satisfies BoundExpression, source },
     ];
-    return { kind: "object", fields, facts: facts({
+    const body = { kind: "object", fields, facts: facts({
       kind: "object", fields: new Map(fields.map((field) => [field.name, field.value.facts])), nullable: false,
-    }, combineOrigins(args)), source };
+    }, "Computed"), source } satisfies BoundExpression;
+    return { kind: "invoke", bindings, body, facts: body.facts, source };
   }
 
   private functionCall(expression: Extract<Expr, { kind: "call" }>): BoundExpression {
