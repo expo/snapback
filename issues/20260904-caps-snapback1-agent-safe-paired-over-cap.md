@@ -41,3 +41,14 @@ Snapback 2 overages in `registry.rs`, `quarry-program-checks.ts`, and
 fixed there. The earlier inference that the two printed Snapback 1 paths
 accounted for the entire failure was incorrect. This ticket retains only the
 Snapback 1 work described above.
+
+A complete committed-source census at `2ba58d435` resolves attribution: program
+base `b4b203316` has exactly 204 oversize files, within its 204 allowance. The
+candidate has 206; the only added oversize files are
+`snapback2/packages/compiler/src/quarry-program-checks.ts` (2,384) and
+`snapback2/packages/snapback2/tests/client.test.ts` (1,523). The earlier
+`registry.rs` overage has been repaired. The two printed Snapback 1 paths
+already belong to the allowed base count. Thus this candidate has no inherited
+caps failure: its remaining overflow is entirely the two active Snapback 2
+repairs. This historical Snapback 1 cleanup ticket must not be used to excuse
+that introduced failure.
