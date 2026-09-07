@@ -1,7 +1,7 @@
-# caps: `crates/snapback-tools/src/bin/snapback-agent-safe-paired.rs` is over the 1,500-line cap and the oversize baseline is exceeded by one
+# caps: two Snapback 1 files exceed the 1,500-line cap
 
 **Status:** Open
-**Systems:** Snapback 1 (`crates/snapback-tools`), `scripts/caps.mjs` baseline
+**Systems:** Snapback 1 (`crates/snapback-tools`, `packages/snapback-contract`), `scripts/caps.mjs` baseline
 **Date:** 2026-09-04
 **Related:** rules/RULES.md (the cap); every LLP 1012/1013 lane report since landing 5 names it as the one pre-existing violation
 
@@ -16,6 +16,19 @@ remains). Every lane gate that runs `caps` has reported it since 2026-09-04 ~11:
 
 ## Resolution wanted
 
-Trim the four lines (or split the binary) in Snapback 1, or re-baseline `scripts/caps.mjs`
-with a ruling; either way `caps` should exit 0 on main so lane gates stop carrying a known
-red.
+Bring both files below the source cap through the affected Snapback 1 work. Do not
+increase the oversize baseline to absorb them.
+
+## 2026-09-07 verification
+
+The LLP 1018.000 integration at `e93236bfbc024b43412f3e3856c961f046bfd6c1`
+reports 206 oversize files against the 204 baseline:
+
+- `crates/snapback-tools/src/bin/snapback-agent-safe-paired.rs`: 1,504 lines.
+- `packages/snapback-contract/agent-authority-contract.test.mjs`: 1,508 lines.
+
+These are the check's counts, including its trailing empty line. Both files are
+byte-unchanged from the program base `b4b203316ba628d9364b0b7f081a8fd79f877c3c`
+and the integrated upstream `624a06dfc`. No Snapback 2 file is oversized. The
+working-set and foundation counts pass at 59 and 12 respectively. This is an
+inherited failure record, not a passing `caps` result.
