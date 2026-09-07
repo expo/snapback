@@ -325,8 +325,13 @@ export async function seededStore(factory: ReturnType<typeof fileRangeStore>): P
   await store.commit({
     deliveries: [{
       op: "deliveries.inbox", args: { c: null }, state: "complete", data: [], next: null, seq: 3,
-      validator: "1".repeat(64), receipt: emptyReceipt(),
+      validator: "1".repeat(64), rows: [], receipt: { ranges: [{
+        site: "deliveries.inbox.0", table: "deliveries", index: "byRecipientAt", prefix: [{ Scalar: "dev:alice" }],
+        order: "Asc", take: 50, after: null, before: null, gt: null, gte: null, lt: null, lte: null,
+        ruleHash: defaultInbox.rule_hashes["deliveries.read"], rowIds: [], stop: "Exhausted", absence: true,
+      }], absences: [], verdicts: [] },
     }],
+    schema,
     watermark: {
       op: "deliveries.inbox", args: { c: null }, watermark: "cursor-9", validator: "1".repeat(64),
       generation, schemaHash, authEpoch: 7, updatedAt: 10,
