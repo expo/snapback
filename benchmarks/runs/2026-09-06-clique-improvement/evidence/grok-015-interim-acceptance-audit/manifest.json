@@ -23,5 +23,10 @@
     "sha256": "9389434f5959a72698014355a563a4e2db36e32e36d98083582d00f2931e8e69",
     "bytes": 3543,
     "snapshot": "/Users/ccheever/clique-improvement/next-run/grok-015/acceptance-audit-20260907T1445/choreo-m3.jsonl"
+  },
+  "preserved/choreo-m3-complete-144207.jsonl": {
+    "sha256": "0a9b029174f5066dce5e5d88c673faa57e5c9d567c93b40c5a5da815c67792db",
+    "bytes": 8492,
+    "snapshot": "/Users/ccheever/clique-improvement/next-run/grok-015/m3-observations/0a9b029174f5066dce5e5d88c673faa57e5c9d567c93b40c5a5da815c67792db.jsonl"
   }
 }
