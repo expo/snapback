@@ -29,6 +29,7 @@ import { registerQuarryDirectValidationChecks } from "./quarry-direct-validation
 import { registerQuarryDirectProjectChecks } from "./quarry-direct-project-checks";
 import { registerQuarryDirectArgumentChecks } from "./quarry-direct-argument-checks";
 import { runQuarryBoundApiChecks } from "./quarry-bound-api-checks";
+import { registerQuarryDirectSearchEligibilityChecks } from "./quarry-direct-search-eligibility-checks";
 import ts from "typescript";
 
 export function registerQuarryChecks(test: Test, frontend: string): void {
@@ -36,6 +37,7 @@ export function registerQuarryChecks(test: Test, frontend: string): void {
   registerQuarryDirectValidationChecks(test, frontend);
   registerQuarryDirectArgumentChecks(test);
   test("bound Quarry API follows direct result and custody facts", runQuarryBoundApiChecks);
+  registerQuarryDirectSearchEligibilityChecks(test);
   registerQuarryDirectProjectChecks(test, frontend);
   test("removed system rule refuses in the parser with a deny rewrite", () => {
     for (const rule of [
