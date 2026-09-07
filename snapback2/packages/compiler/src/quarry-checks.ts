@@ -30,7 +30,7 @@ import ts from "typescript";
 
 export function registerQuarryChecks(test: Test, frontend: string): void {
   const fixtures = resolve(frontend, "fixtures");
-  registerQuarryDirectValidationChecks(test);
+  registerQuarryDirectValidationChecks(test, frontend);
   test("removed system rule refuses in the parser with a deny rewrite", () => {
     for (const rule of [
       "system", "allow or system", "not system", "(deny or system)",

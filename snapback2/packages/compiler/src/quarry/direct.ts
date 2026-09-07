@@ -73,6 +73,8 @@ function lowerExpression(expression: BoundExpression, lowering: Lowering): Lower
   }
   if (expression.kind === "invoke") return lowerInvocation(expression, lowering);
   if (expression.kind === "shape") return lowerShape(expression, lowering);
+  if (expression.kind === "range") return lowerRange(expression, lowering);
+  if (expression.kind === "walk") return lowerWalk(expression, lowering);
   if (expression.kind === "member") {
     const loweredBase = lowerExpression(expression.base, lowering);
     if (expression.base.facts.presence === "optional") {
@@ -100,6 +102,7 @@ function lowerExpression(expression: BoundExpression, lowering: Lowering): Lower
     const args = lowerMany(expression.args, lowering);
     return { setup: args.setup, value: { Builtin: { builtin: expression.builtin, args: args.values } } };
   }
+  if (expression.kind === "merge") return lowerMerge(expression, lowering);
   if (expression.kind === "aggregate") return lowerAggregate(expression.read, lowering);
   if (expression.kind === "scan") return lowerScan(expression.read, lowering);
   if (expression.kind === "write") return lowerWrite(expression, lowering, true);
@@ -145,6 +148,11 @@ function lowerStatements(statements: BoundStatement[], lowering: Lowering): Stmt
       body.push(...condition.setup, { Require: { condition: condition.value, code: statement.code } });
       continue;
     }
+    if (statement.kind === "emit") {
+      const payload = lowerExpression(statement.payload, lowering);
+      body.push(...payload.setup, { Emit: { effect: statement.effect, payload: payload.value } });
+      continue;
+    }
     if (statement.kind === "if") {
       const condition = captureObservable(lowerExpression(statement.condition, lowering), lowering);
       const outerBindings = new Map(lowering.bindings);
@@ -157,10 +165,15 @@ function lowerStatements(statements: BoundStatement[], lowering: Lowering): Stmt
       continue;
     }
     if (statement.kind === "for") {
-      const domain = lowerExpression(statement.domain, lowering);
+      const domain = statement.domain.kind === "range"
+        ? { setup: [], value: { Literal: "Null" } as Expr }
+        : statement.domain.kind === "array" ? lowerLoopArray(statement.domain, lowering)
+          : lowerExpression(statement.domain, lowering);
       const binding = temporary(lowering, "loopItem");
       let loopDomain: Extract<Stmt, { For: unknown }>["For"]["domain"];
-      if (statement.domain.facts.type.kind === "page" && "Scan" in domain.value) {
+      if (statement.domain.kind === "range") {
+        loopDomain = { LiteralRange: { start: statement.domain.start, end_exclusive: statement.domain.end } };
+      } else if (statement.domain.facts.type.kind === "page" && "Scan" in domain.value) {
         loopDomain = { Page: domain.value.Scan };
       } else if (statement.domain.facts.type.kind === "list" && statement.domain.kind === "variable"
         && statement.domain.symbol.kind === "argument") {
@@ -225,6 +238,46 @@ function statementsFallThrough(statements: BoundStatement[]): boolean {
   return true;
 }
 
+function lowerLoopArray(expression: Extract<BoundExpression, { kind: "array" }>, lowering: Lowering): LoweredValue {
+  const items = expression.items.map((item) => lowerExpression(item, lowering));
+  if (items.every((item) => item.setup.length === 0)) return { setup: [], value: { Array: items.map((item) => item.value) } };
+  const captured = captureMany(items, lowering);
+  return { setup: captured.setup, value: { Array: captured.values } };
+}
+
+function lowerRange(expression: Extract<BoundExpression, { kind: "range" }>, lowering: Lowering): LoweredValue {
+  const result = temporary(lowering, "rangeValues");
+  const item = temporary(lowering, "rangeValue");
+  return {
+    setup: [
+      { Const: { name: result, value: { Array: [] } } },
+      { For: { binding: item, domain: { LiteralRange: { start: expression.start, end_exclusive: expression.end } },
+        body: [{ Push: { target: result, value: { Variable: item } } }] } },
+    ],
+    value: { Variable: result },
+  };
+}
+
+function lowerWalk(expression: Extract<BoundExpression, { kind: "walk" }>, lowering: Lowering): LoweredValue {
+  // Like point reads, the traversal owns its lexical access identity before
+  // evaluating the seed expression's nested reads.
+  const site = accessSite(lowering);
+  const seed = captureObservable(lowerExpression(expression.seed, lowering), lowering);
+  const result = temporary(lowering, "walkRows");
+  const row = temporary(lowering, "walkRow");
+  return {
+    setup: [
+      ...seed.setup,
+      { Const: { name: result, value: { Array: [] } } },
+      { For: { binding: row, domain: { Recurse: {
+        site, table: expression.table.name, index: expression.index.name, seed: keyValue(expression.seed, seed.value),
+        next_field: expression.column, depth: expression.depth, fanout: 1, provenance: "Shape",
+      } }, body: [{ Push: { target: result, value: { Variable: row } } }] } },
+    ],
+    value: { Variable: result },
+  };
+}
+
 function lowerWrite(
   expression: Extract<BoundExpression, { kind: "write" }>,
   lowering: Lowering,
@@ -237,11 +290,15 @@ function lowerWrite(
       value: { kind: "input", input: "NewId", facts: {
         type: { kind: "id", optional: false }, presence: "required", origin: "Computed",
       }, source: expression.source } as BoundExpression,
-      source: expression.source,
+      atomicInsertId: true as const, source: expression.source,
     }, ...expression.fields];
     const row = lowerWriteFields(fields, lowering, new Map());
-    const rowName = temporary(lowering, "insertRow");
     accessSite(lowering);
+    if (!resultUsed) return {
+      setup: [...row.setup, { Insert: { table: expression.table.name, row: row.value } }],
+      value: { Literal: "Null" },
+    };
+    const rowName = temporary(lowering, "insertRow");
     return {
       setup: [...row.setup, { Const: { name: rowName, value: row.value } },
         { Insert: { table: expression.table.name, row: { Variable: rowName } } }],
@@ -332,7 +389,8 @@ function lowerWriteFields(
     let value: Expr;
     if (replacement) value = replacement;
     else {
-      const lowered = captureObservable(lowerExpression(field.value, lowering), lowering);
+      const raw = lowerExpression(field.value, lowering);
+      const lowered = field.atomicInsertId ? raw : captureObservable(raw, lowering);
       setup.push(...lowered.setup);
       value = field.coercion === "row-id" ? { Field: { base: lowered.value, name: "id" } } : lowered.value;
     }
@@ -510,26 +568,46 @@ function lowerPointRead(read: BoundRead, kind: "get" | "exists", lowering: Lower
   // the established lexical access ordering.
   const site = accessSite(lowering);
   const key = lowerMany(read.key, lowering);
+  const readValue = { [kind === "get" ? "Get" : "Exists"]: {
+    site, table: read.table.name, index: read.index.name,
+    key: key.values.map((value, index) => keyValue(read.key[index]!, value)), provenance: read.provenance,
+  } } as Expr;
+  if (read.skipNullKey) {
+    if (kind !== "get" || key.values.length !== 1) throw new Error("null-skipping point read is not a unary get");
+    const keyName = temporary(lowering, "derefKey");
+    const resultName = temporary(lowering, "derefResult");
+    const deferred: Expr = { Get: { site, table: read.table.name, index: read.index.name,
+      key: [{ Variable: keyName }], provenance: read.provenance } };
+    return {
+      setup: [...key.setup,
+        { Const: { name: keyName, value: key.values[0]! } },
+        { Let: { name: resultName, value: { Literal: "Null" } } },
+        { If: { condition: { Binary: { op: "Ne", left: { Variable: keyName }, right: { Literal: "Null" } } },
+          then_body: [{ Assign: { name: resultName, value: deferred } }], else_body: [] } }],
+      value: { Variable: resultName },
+    };
+  }
   return {
     setup: key.setup,
-    value: { [kind === "get" ? "Get" : "Exists"]: {
-      site, table: read.table.name, index: read.index.name,
-      key: key.values.map((value, index) => keyValue(read.key[index]!, value)), provenance: read.provenance,
-    } } as Expr,
+    value: readValue,
   };
 }
 
-function lowerScan(read: BoundRead, lowering: Lowering): LoweredValue {
+function lowerScan(read: BoundRead, lowering: Lowering, captureKeys = true): LoweredValue {
   const range = read.range;
   if (!range) throw new Error("bound scan has no range");
-  const key = lowerMany(read.key, lowering);
+  const loweredKeys = read.key.map((expression) => lowerExpression(expression, lowering));
+  const key = captureKeys ? captureMany(loweredKeys, lowering) : {
+    setup: loweredKeys.flatMap((value) => value.setup), values: loweredKeys.map((value) => value.value),
+  };
   const after = range.after ? lowerExpression(range.after, lowering) : { setup: [], value: null } as const;
   const prefix = key.values.map((value, index): IndexKeyExpr => {
     const component = range.components[index];
-    if (!component || !("Column" in component)) {
-      unsupported(read.source.definition, "derived search in the basic direct scan seam", "keep search on the parity oracle until held-search lowering lands");
-    }
-    return { Scalar: keyValue(read.key[index]!, value) };
+    if (!component) throw new Error("bound scan key has no index component");
+    if ("Column" in component) return { Scalar: keyValue(read.key[index]!, value) };
+    const type = read.key[index]!.facts.type;
+    if (type.kind !== "text" || type.optional) throw new Error("bound word-prefix key is not required text");
+    return { WordPrefix: { source: value, contract: component.WordPrefixes.contract, source_max: type.max } };
   });
   // Scan identities follow prefix/cursor expression identities, matching the
   // legacy lexical lowering order.
@@ -541,9 +619,51 @@ function lowerScan(read: BoundRead, lowering: Lowering): LoweredValue {
       order: range.order, take: { Literal: range.take }, after: after.value,
       before: null, range: null,
       ...(range.opaqueCursor ? { opaque_cursor: true } : {}),
-      merge_site: null, provenance: read.provenance,
+      merge_site: range.mergeSite ?? null, provenance: read.provenance,
     } },
   };
+}
+
+function lowerMerge(
+  expression: Extract<BoundExpression, { kind: "merge" }>,
+  lowering: Lowering,
+): LoweredValue {
+  const setup: Stmt[] = [];
+  const lanes: Extract<Expr, { Merge: unknown }>["Merge"]["lanes"] = [];
+  for (const lane of expression.lanes) {
+    const source = lane.sourceRead ? lowerScan(lane.sourceRead, lowering) : undefined;
+    if (source) setup.push(...source.setup);
+    const priorBindings = new Map(lowering.bindings);
+    let binding = "";
+    if (lane.symbol) {
+      binding = temporary(lowering, "mergeRow");
+      lowering.bindings.set(lane.symbol.id, { Variable: binding });
+    }
+    const scan = lowerScan(lane.scan, lowering, expression.heldSearch === undefined);
+    lowering.bindings = priorBindings;
+    if (!("Scan" in scan.value) || source && !("Scan" in source.value)) throw new Error("bound merge lane did not lower to scans");
+    lanes.push({ ...(scan.setup.length ? { setup: scan.setup } : {}), scan: scan.value.Scan,
+      source: source && "Scan" in source.value ? source.value.Scan : null, binding });
+  }
+  const merge: Extract<Expr, { Merge: unknown }>["Merge"] = { site: expression.site, lanes };
+  if (expression.heldSearch) {
+    const lane = lanes[0]!;
+    const derived = expression.index.declaration.components.findIndex((component) => "WordPrefixes" in component);
+    const term = lane.scan.prefix[derived];
+    if (!term || !("WordPrefix" in term) || !lane.source) throw new Error("bound held search lost its term or discovery scan");
+    const scope = expression.heldSearch.scope.map((item, index) => {
+      const atom = lane.scan.prefix[index];
+      if (!atom || !("Scalar" in atom)) throw new Error("bound held search lost a scalar scope key");
+      return { column: item.column, value: atom.Scalar };
+    });
+    merge.held_search = {
+      table: expression.table.name, index: expression.index.name, term: term.WordPrefix, scope,
+      suffix: expression.heldSearch.suffix, order: lane.scan.order, take: lane.scan.take, after: lane.scan.after,
+      discovery: { scan: lane.source, binding: lane.binding,
+        authorization_index: expression.heldSearch.authorizationIndex },
+    };
+  }
+  return { setup, value: { Merge: merge } };
 }
 
 function lowerAggregate(read: BoundRead, lowering: Lowering): LoweredValue {
