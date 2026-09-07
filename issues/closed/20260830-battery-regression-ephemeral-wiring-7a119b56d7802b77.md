@@ -1,0 +1,45 @@
+# complete battery red: regression-ephemeral-wiring
+
+**Status:** Closed
+**Reopened by battery run:** `local.20260906T145321Z.2fd1b33c02f7`
+**Closure:** `signature absent from determinate FAIL`
+**Closed at revision:** `1936eaddbea3621777c9df9c145f90a7fe92d9db`
+**Impact:** 5
+**Urgency:** 5
+**Ease:** 4
+**Confidence:** 5
+**Systems:** Testing, CI
+**Date:** 2026-08-30
+**Battery gate:** `regression-ephemeral-wiring`
+**Failure signature:** `sha256:7a119b56d7802b7711fbadbc5f2863511a0c26eda5a5317bc7fc69c6a7eccf02`
+**First observed run:** `local.20260830T160622Z.0fdfadbe8e67`
+**Last observed run:** `local.20260907T021018Z.6954679b09ae`
+**Last processed run:** `local.20260907T124933Z.1936eaddbea3`
+**Detected at revision:** `0fdfadbe8e67a5c930d282e5efe91a633aa76e35`
+**Last observed revision:** `6954679b09aedf975783ec04650aa3e7728ba9d5`
+**Consecutive red runs:** `2`
+**Escalation:** `pending (2/4)`
+**Related:** LLP 0189 D-1, LLP 0175 D2.3
+
+## Summary
+
+The scheduled complete canonical battery reported `regression-ephemeral-wiring` as a root
+failure (exit 1). This ticket is keyed by gate plus the normalized
+root-failure signature and remains idempotent while open. Dependent `BLOCKED`
+results do not create tickets.
+
+## Standing claim cross-references
+
+- `single_table_v1` — `crates/snapback-engine/src/local-persistent-store-publication.anchor.v1.json`
+
+These are the standing published claims whose recorded LLP 0189 D-4 scope
+derives `regression-ephemeral-wiring` as claim-relevant for this battery revision.
+
+## Reproduce and repair
+
+```sh
+bun demos/_kit/tests/regression-ephemeral-wiring.mjs
+```
+
+Fix forward, rerun the complete battery, and let the next determinate pass close
+this signature. Four consecutive red observations require author escalation.
