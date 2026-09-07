@@ -50,11 +50,12 @@ Only E_OFFLINE_RESUME `{ reason: "limit", which: "mounted", cap }` permits one
 smaller retry (mounted <=32); other refusals never drop log.
 Backward watermarks keep the hook refused and `online()`
 rejected across reopen. Coverage, valid grants, pinned IDs and queued bytes stay.
-Explicit `outbox.drain()` may replay within existing trust,
+`outbox.drain()` may replay within existing trust,
 skipping an unsupported settlement tail. Write success leaves
 `online()` rejected.
 
-E_OFFLINE_RESET: drop coverage, keep outbox, fetch program, re-resume.
+E_OFFLINE_RESET: drop coverage, keep outbox, fetch `/api/program`,
+re-resume.
 Stale authEpoch seals (E_AUTH_SESSION); foreign delivery refuses
 E_OFFLINE_AUTHORITY, preserving coverage. Without facts, query a receipt then
 resume; without a query, refuse and keep the queue.
