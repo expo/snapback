@@ -75,7 +75,16 @@ export class ClientQueries {
     current: QueryView<Result>, fence: QueryFence,
   ): Promise<SubscriptionDelivery<Result> | undefined> {
     if (!this.host.active(fence)) return undefined;
-    const event = await this.host.local(request.ref, request.args, drain);
+    let event: QueryMachineEvent<Result>;
+    try {
+      event = await this.host.local(request.ref, request.args, drain);
+    } catch (error) {
+      if (!this.host.active(fence) || (isSnapbackRefusal(error) && error.code === "E_AUTH_SUPERSEDED")) return undefined;
+      const envelope = isSnapbackRefusal(error)
+        ? error.envelope
+        : { code: "E_CLIENT", family: "owner", message: String(error), guide: "owner/connect" };
+      return { state: "refused", live: false, ...envelope };
+    }
     if (!this.host.active(fence) || (current.live && event.state === "hydrating")) return undefined;
     if (!current.live || event.state === "refused") return event as SubscriptionDelivery<Result>;
     const { connection: _connection, stale: _stale, ...fresh } = event as QueryMachineEvent<Result> & {

@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { api, isSnapbackRefusal } from "../dist/client.mjs";
+import { api, isSnapbackRefusal, SnapbackRefusal } from "../dist/client.mjs";
 import { indexedDbRangeStore } from "../dist/react.mjs";
-import { SharedSubscriptions } from "../dist/client-sessions-test.mjs";
+import { ClientQueries, SharedSubscriptions } from "../dist/client-observed-test.mjs";
 import { fixtureClient as createClient } from "./live-fixture.ts";
 import { fakeOwner } from "./fake-owner.ts";
 import { FakeIndexedDb, FakeLocks } from "./fake-indexeddb.ts";
@@ -60,6 +60,55 @@ test("a newer direct delivery fences a delayed local refresh and until sees late
   assert.deepEqual(await predicted, { revision: 3, source: "local" });
   assert.deepEqual(heard.at(-1), { revision: 3, source: "local" });
   subscription.close();
+});
+
+test("a current local reevaluation refusal publishes while an obsolete-authority failure is fenced", async () => {
+  const refusal = () => new SnapbackRefusal({
+    code: "E_OFFLINE_CARRIER", family: "offline", message: "local store failed", guide: "offline",
+  });
+  let identity: readonly [number, number] = [1, 1];
+  let publish!: (event: any) => void;
+  let local = async () => { throw refusal(); };
+  const queries = new ClientQueries({
+    identity: () => identity,
+    active: (fence: readonly [number, number]) => fence[0] === identity[0] && fence[1] === identity[1],
+    open: (_ref: unknown, _args: unknown, listener: (event: any) => void) => {
+      publish = listener;
+      return { close: () => undefined, until: async () => { throw new Error("must use shared until"); } };
+    },
+    query: async () => { throw new Error("unused"); },
+    local: () => local(),
+  } as any);
+  const args = { term: "wel", c: null };
+  const observed = queries.observe(api.messages.search, args);
+  const raw = queries.subscribe(api.messages.search, args, () => undefined);
+  const stop = observed.subscribe(() => undefined);
+  publish({ state: "complete", live: true, data: [], next: null, seq: 1 });
+  const waiting = raw.until(() => false, 1_000);
+  queries.refresh();
+  await assert.rejects(waiting, (error: unknown) => isSnapbackRefusal(error) && error.code === "E_OFFLINE_CARRIER");
+  await until(() => observed.getSnapshot().state === "refused", "the shared local refusal snapshot");
+  assert.equal((observed.getSnapshot() as any).refusal.code, "E_OFFLINE_CARRIER");
+  raw.close(); stop();
+
+  let failObsolete!: () => void;
+  let markStarted!: () => void;
+  const started = new Promise<void>((resolve) => { markStarted = resolve; });
+  const delayed = new Promise<void>((resolve) => { failObsolete = resolve; });
+  local = async () => { markStarted(); await delayed; throw refusal(); };
+  const old = queries.observe(api.messages.search, { term: "old", c: null });
+  const states: string[] = [];
+  const stopOld = old.subscribe(() => { states.push(old.getSnapshot().state); });
+  publish({ state: "complete", live: true, data: [], next: null, seq: 2 });
+  queries.refresh();
+  await started;
+  identity = [2, 2];
+  queries.clear();
+  failObsolete();
+  await new Promise<void>((resolve) => setTimeout(resolve, 20));
+  assert.equal(old.getSnapshot().state, "hydrating");
+  assert.deepEqual(states.slice(-2), ["complete", "hydrating"], "obsolete local failure published no refusal");
+  stopOld();
 });
 
 /** Counts logical subscription children the multiplexed transport adds, and direct query pages. */
