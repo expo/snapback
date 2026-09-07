@@ -32,14 +32,15 @@ function packedPackage(directory, manifest) {
   return { name: manifest.name, version: manifest.version, tarball };
 }
 
-for (const selected of [[platforms[0]], platforms]) {
+for (const selected of [[platforms[0]], [platforms[1]], platforms]) {
   test(`stages exactly ${selected.map(p => p.name).join(' and ')}`, t => {
     const directory = fixture(t);
-    writePackage(directory, { ...source, optionalDependencies: { ...source.optionalDependencies, unrelated: '1.2.3' } });
+    const unrelated = { unrelated: '1.2.3', 'snapback2-plugin': '2.3.4', 'snapback2-plugin-tools': '3.4.5' };
+    writePackage(directory, { ...source, optionalDependencies: { ...source.optionalDependencies, ...unrelated } });
     stagePlatformDependencies(directory, selected);
     const staged = JSON.parse(readFileSync(resolve(directory, 'package.json'), 'utf8'));
     assert.deepEqual(staged.optionalDependencies, {
-      unrelated: '1.2.3', ...Object.fromEntries(selected.map(p => [p.name, p.version])),
+      ...unrelated, ...Object.fromEntries(selected.map(p => [p.name, p.version])),
     });
     assert.deepEqual(staged.peerDependencies, source.peerDependencies);
     assert.deepEqual(staged.peerDependenciesMeta, source.peerDependenciesMeta);
@@ -55,7 +56,8 @@ test('refuses absent, mismatched, duplicate and non-platform selections without 
   writePackage(directory, source);
   const before = readFileSync(resolve(directory, 'package.json'));
   for (const selected of [[], [{ ...platforms[0], version: '0.0.0-invalid' }],
-    [platforms[0], platforms[0]], [{ name: 'react', version }]]) {
+    [platforms[0], platforms[0]],
+    ...['react', 'snapback2-plugin', 'snapback2-plugin-tools', 'snapback2-darwin-x64'].map(name => [{ name, version }])]) {
     assert.throws(() => stagePlatformDependencies(directory, selected), /platform/);
     assert.deepEqual(readFileSync(resolve(directory, 'package.json')), before);
   }

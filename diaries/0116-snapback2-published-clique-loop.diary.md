@@ -1263,3 +1263,20 @@ installs under npm 11.16.0 with default peer and optional dependency semantics.
 These mechanical package tests do not qualify a Linux binary or a new release.
 Selected non-secret setup evidence is retained in
 [`clean-install-platform-triage-20260907.json`](../benchmarks/runs/2026-09-06-clique-improvement/evidence/clean-install-platform-triage-20260907.json).
+
+## 2026-09-07 — Packaging review caught an overly broad name filter
+
+The independent Astra review reproduced loss of an unrelated optional
+`snapback2-plugin`: staging removed every dependency with the `snapback2-`
+prefix. The fixture had preserved only a package named `unrelated`, so it missed
+the collision. Platform selection now uses the two exact supported package
+identities for both removal and validation. The preservation fixtures include
+`snapback2-plugin` and `snapback2-plugin-tools`, each single-platform selection,
+and both platforms together, while retaining normal and peer metadata.
+
+The closed review evidence also preserves two distinct limits: installing both
+platform tarballs as mandatory dependencies fails on the foreign platform, and
+an unresolved synthetic optional still exposes npm 11's lock behavior. Neither
+is repaired or disguised by this small preservation correction. Host-only
+packaging evidence does not qualify a Linux runtime or alter the old published
+package and application locks.
