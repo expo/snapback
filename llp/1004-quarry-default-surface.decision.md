@@ -6,7 +6,7 @@
 templates, guide, diagnostics
 **Author:** Charlie Cheever (ruling); Claude Fable 5 (orchestrator, record)
 **Date:** 2026-08-31
-**Revised:** 2026-09-07 (generated table-binding hygiene); 2026-09-03
+**Revised:** 2026-09-07 (typed direct compiler and expression functions; generated table-binding hygiene); 2026-09-03
 **Related:** LLP 1000 (decision 10), LLP 1002, LLP 1007 (§2, §5), LLP 0329.014.004,
 .009, .010, .011, `spikes/clique-diagnostic-runs/`,
 `snapback2/packages/compiler/src/quarry/`, `snapback2/packages/snapback2/guide/quarry.md`
@@ -86,14 +86,13 @@ where the code departs from the letter of the ruling:
    directory — the unchanged worker could not read Quarry — is gone.
 2. **The front end lives inside the compiler.** `quarryc` is no longer a
    program or a package; `packages/quarry` is deleted. The Quarry front end is
-   `packages/compiler/src/quarry/`, and the worker's `lowerProject` compiles
-   `.q` sources to the TypeScript authoring text **in memory** and lowers it as
-   virtual modules. Nothing is written under `snapback/`; the generated text is
-   available under `.snapback/build/quarry/` for inspection only. The dual
-   `.ts`/`.q.ts` emit and the `__quarrySource` sentinel are deleted.
+   `packages/compiler/src/quarry/`: `prepareQuarry` parses and builds the
+   catalog, one typed bound elaborator resolves names, shapes and expression
+   functions, and the direct lowerer emits IR. It does not print or typecheck a
+   TypeScript data module. Nothing is written under `snapback/`; executable
+   `.ir.json` inspection copies live under `.snapback/build/quarry/`.
 3. **Sites.** Diagnostics on Quarry sources report `snapback/<file>.q:line:col`
-   (the emitted `// q:file:line:col` markers are consumed by the compiler, not
-   by the reader), including certification refusals from the binary; rewrites
+   from bound definition/use stacks, including certification refusals from the binary; rewrites
    for Quarry-origin refusals are Quarry text. Quarry's own refusals are one
    family, `quarry`, with codes `E_QUARRY_*`, each with a `guide` page.
 4. **The guide.** `snapback2 guide quarry` serves `guide/quarry.md`, which is
@@ -112,8 +111,9 @@ where the code departs from the letter of the ruling:
    ranges/formats, `immutable`, `after insert` (final-exists), `created`,
    `system`, `(old, next)` update rules, `return`, object literals, `count`,
    `where` on range reads, and inline `new` are all spelled; `decimal <scale>` and
-   `money <CUR> [scale]` followed on 2026-09-02 (`929a45268`). `asset`, `schedule`,
-   `merge`, `while`, and user functions remain refused as not-platform.
+   `money <CUR> [scale]` followed on 2026-09-02 (`929a45268`). `merge`,
+   expression-only `fn`, assets, and schedules are now implemented; `while`,
+   recursion, block functions, and effectful functions remain refused.
 7. **Blocking coverage.** The Quarry tests run in the compiler leg of
    `snapback2/scripts/test.sh`; the check count stays five (LLP 1007 §5 item 8).
    Both templates ship in both renderings (`todos`, `chat`, `todos-ts`,
@@ -128,9 +128,10 @@ replication and P2 the parity instrument remain scheduled, not started. The
 packaged-consumer smoke rung (`issues/20260831-packaged-consumer-smoke-rung.md`)
 is LLP 1007 §5 item 7 and is still open.
 
-2026-09-07 — Generated program modules import each table as `<table>$table`
-and route every table reference through that binding, so table and operation
-public names may coincide without sharing an internal TypeScript identity.
+2026-09-07 — The direct compiler assigns every table, argument, local, focal,
+shape instance, and function parameter its own bound identity. Legal table and
+operation names may coincide without generated TypeScript aliases or emitter
+name restrictions.
 
 ## Money and decimal worked out (2026-09-03)
 
@@ -160,17 +161,29 @@ rules, channels, maintains, queries, and mutations is deleted (`8c6a82483`):
 `init --ts` and the `todos-ts`/`chat-ts` renderings, `guide typescript`, and
 the two-surface parity test are gone, and the worker refuses a project with
 `snapback/schema.ts` or a `.ts` module exporting a query, mutation, table,
-channel, or schema (`E_QUARRY_ONLY`). TypeScript remains the lowering target
-the front end emits into and the language of three harness files: `seed.ts`,
+channel, or schema (`E_QUARRY_ONLY`). Since the 2026-09-07 direct-compiler
+amendment, TypeScript is only the language of three harness files: `seed.ts`,
 `tests/*.test.ts`, and effect modules, which export effects only and name
 their `then` mutation from a Quarry module. Workstream P2 (the standing
 two-surface parity instrument) is withdrawn with the second front end; P1
 replication stands. `rules/NOT-DOING.md`'s "one language, one spelling" line
 is now true in code.
 
+## Typed direct-compiler amendment (2026-09-07)
+
+Quarry's production path is parse → catalog → typed bound elaboration → IR.
+The bound representation owns symbol identity, nominal and optional types,
+bounds, provenance, definition/use sites, and left-to-right once-only
+evaluation. Named shapes and expression-only functions instantiate in that
+single elaboration phase; the former AST expansion pass and the generated
+TypeScript data emitter are not production stages. Schema JSON consumes the
+direct schema binder; operation IR, API declarations, and effect declaration
+stubs consume the same bound program facts and direct type catalog.
+Rust remains the independent certifier of every emitted program.
+
 ## Non-claims
 
 This does not publish anything (the first-publish ceremony remains the
-author's), does not deprecate the TS surface, does not adopt LLP
+author's), does not restore a TypeScript data-authoring surface, does not adopt LLP
 0329.014.004's unimplemented dimensions into the platform, and does not
 change Snapback 1.

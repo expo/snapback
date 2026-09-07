@@ -38,9 +38,10 @@ the third on 2026-09-04, LLP 1012 §12):
 
 - **A second authoring profile, a plan algebra, or a JS handler lane.** One language —
   Quarry (LLP 1004; the TypeScript authoring surface was deleted on 2026-09-02, LLP
-  1007 §4b) — one spelling. TypeScript is the lowering target and the harness language
-  (seeds, journeys, effect bodies), never a way to author tables, rules, queries, or
-  mutations. Familiar vs Explicit cost every v1 doc twice (LLP 0317 bundle 6).
+  1007 §4b) — one spelling. Quarry binds directly to typed IR. TypeScript is limited to
+  seeds, journeys, and effect bodies, never a lowering target or a way to author tables,
+  rules, queries, or mutations. Familiar vs Explicit cost every v1 doc twice (LLP 0317
+  bundle 6).
 - **JavaScript in the data plane.** Queries and mutations run in the Rust IR
   interpreter inside the SQLite transaction. Ibex 2 is linked only by
   `snapback2-effects`, only with `--features hermes`, only for effects.

@@ -17,7 +17,7 @@ grok-4.6 at xhigh), `llp/reviews/1010-quarry-language-amendments.*`
 **Implementer:** codex gpt-5.6-sol (xhigh), lane `s2/quarry-amend`
 (`~/projects/snapback-s2`), orchestrated and landed by Claude Fable 5.1
 **Date:** 2026-09-03
-**Revised:** 2026-09-06 (pooled logical merge streams and bounded shared seek template); 2026-09-05 (Clique L10 — lazy merge implemented by GPT-6 Astra); 2026-09-05 (time arithmetic and divmod tuple rules implemented by GPT-6 Astra, Clique L2); 2026-09-03 (d — A6's optional cursor group was replaced by LLP
+**Revised:** 2026-09-07 (typed direct compiler supersedes the two-hop non-proposal); 2026-09-06 (pooled logical merge streams and bounded shared seek template); 2026-09-05 (Clique L10 — lazy merge implemented by GPT-6 Astra); 2026-09-05 (time arithmetic and divmod tuple rules implemented by GPT-6 Astra, Clique L2); 2026-09-03 (d — A6's optional cursor group was replaced by LLP
 1011 B1's opaque, forward-only cursor); 2026-09-03 (c — implemented: §8 records the two landing commits
 and the one departure from the brief, the guide budget); 2026-09-03 (b — after the panel: bounds-first withdrawn; A2
 restated as program-only because rules and the IR already compare totally;
@@ -82,9 +82,10 @@ Clique L10 later replaces that lowering). Deferred:
   The get-or-create idiom (`profiles.q`, `follows.q`, `social.q`'s
   `toggleRepost`) is race-safe under the single-writer transaction and the
   traced point read; the defect is boilerplate. Ticketed, not here.
-- A direct Quarry → IR lowering. Quarry lowers to TypeScript text in memory
-  and that lowers to IR; two-hop lowering is where check-green, runtime-red
-  keeps living. A platform RFC, not a language amendment.
+- A direct Quarry → IR lowering. This was outside revision (b)'s commissioned
+  language scope. The 2026-09-07 LLP 1004 amendment supersedes the implementation
+  fact: production now uses one typed bound elaboration and direct IR lowering;
+  TypeScript remains only for effects, seeds, and journeys.
 - The second-family replication LLP 1004 schedules as P1.
 
 ## A1. Words for writes
