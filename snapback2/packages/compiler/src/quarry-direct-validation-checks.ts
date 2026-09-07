@@ -192,6 +192,35 @@ query orderedAsset(left: image <=100, right: image <=100):
       || schemaFailure.message.includes("int positions take integer literals")),
       `direct schema emitted a fractional Int literal: ${schemaFailure?.diagnostic.code} ${schemaFailure?.message}`);
   });
+
+  test("direct Quarry joins raw and shaped page items structurally in either branch order", () => {
+    const prepared = prepare(schema, `query rawFirst(flag: bool):
+  if flag:
+    return rows[] first 2 by byId
+  return rows[] first 2 by byId { *, extra: 1 }
+
+query shapeFirst(flag: bool):
+  if flag:
+    return rows[] first 2 by byId { *, extra: 1 }
+  return rows[] first 2 by byId
+
+query sameFields(flag: bool):
+  if flag:
+    return rows[] first 2 by byId { * }
+  return rows[] first 2 by byId
+`);
+    for (const name of ["rawFirst", "shapeFirst"]) {
+      let failure: QuarryError | undefined;
+      try { bindQuarryProgram(program(prepared, name), prepared.catalog, prepared.documents); }
+      catch (error) { if (error instanceof QuarryError) failure = error; else throw error; }
+      assert(failure?.diagnostic.code === "E_QUARRY_TYPE" && failure.message.includes("different fields"),
+        `${name} unsoundly claimed a shaped-only page field: ${failure?.diagnostic.code} ${failure?.message}`);
+    }
+    const sameFields = bindQuarryProgram(program(prepared, "sameFields"), prepared.catalog, prepared.documents);
+    assert(sameFields.result.type.kind === "page" && sameFields.result.type.item?.type.kind === "object"
+      && !sameFields.result.type.item.type.fields.has("extra"),
+    `raw page did not participate in the page item join: ${JSON.stringify(sameFields.result)}`);
+  });
 }
 
 function prepare(schemaSource: string, operationSource: string) {

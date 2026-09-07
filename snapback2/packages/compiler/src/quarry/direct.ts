@@ -290,7 +290,7 @@ function lowerWrite(
       value: { kind: "input", input: "NewId", facts: {
         type: { kind: "id", optional: false }, presence: "required", origin: "Computed",
       }, source: expression.source } as BoundExpression,
-      atomicInsertId: true as const, source: expression.source,
+      source: expression.source,
     }, ...expression.fields];
     const row = lowerWriteFields(fields, lowering, new Map());
     accessSite(lowering);
@@ -389,8 +389,7 @@ function lowerWriteFields(
     let value: Expr;
     if (replacement) value = replacement;
     else {
-      const raw = lowerExpression(field.value, lowering);
-      const lowered = field.atomicInsertId ? raw : captureObservable(raw, lowering);
+      const lowered = captureObservable(lowerExpression(field.value, lowering), lowering);
       setup.push(...lowered.setup);
       value = field.coercion === "row-id" ? { Field: { base: lowered.value, name: "id" } } : lowered.value;
     }

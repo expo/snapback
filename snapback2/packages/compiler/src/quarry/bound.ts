@@ -74,7 +74,7 @@ export type BoundExpression = BoundExpressionBase & (
       lanes: BoundMergeLane[]; heldSearch?: BoundHeldSearch }
   | { kind: "write"; op: "insert" | "update" | "upsert" | "delete";
       table: BoundTableSymbol; index?: BoundIndexSymbol; key: BoundExpression[];
-      fields: Array<{ name: string; value: BoundExpression; expected: ScalarType; coercion?: "row-id"; atomicInsertId?: true; source: BoundSourceStack }>;
+      fields: Array<{ name: string; value: BoundExpression; expected: ScalarType; coercion?: "row-id"; source: BoundSourceStack }>;
       focal?: Extract<BoundExpression, { kind: "focal" }>; usesFocal: boolean; addressedColumns: string[]; provenance: Provenance }
   | { kind: "get" | "exists" | "scan" | "aggregate"; read: BoundRead }
 );
@@ -1241,8 +1241,11 @@ function joinType(left: BoundType, right: BoundType, site: Site): BoundType {
   }
   if (left.kind === "page" && right.kind === "page") {
     if (left.table.name !== right.table.name) typeError(site, "conditional returns pages from different tables", "return pages from one table");
-    const item = left.item && right.item ? joinFacts([left.item, right.item], site) : left.item ?? right.item;
-    return { ...left, ...(item ? { item } : {}), max: Math.max(left.max, right.max) };
+    const rawItem = (page: typeof left): BoundValueFacts => facts(
+      { kind: "row", table: page.table, nullable: false }, "Shape", { tableOrigin: page.table },
+    );
+    const item = joinFacts([left.item ?? rawItem(left), right.item ?? rawItem(right)], site);
+    return { ...left, item, max: Math.max(left.max, right.max) };
   }
   if (left.kind === "collection" && right.kind === "collection") {
     return { kind: "collection", item: joinFacts([left.item, right.item], site), max: Math.max(left.max, right.max) };
