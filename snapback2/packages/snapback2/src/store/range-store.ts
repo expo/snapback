@@ -27,11 +27,11 @@ import {
   type ViewedRecord,
 } from "./byte-cache.js";
 
-import { advanceOverlay, cursorChain, pagePosition, type OverlayWatermark } from "./overlay-retirement.js";
+import { pagePosition, retireOverlays, type OverlayWatermark } from "./overlay-retirement.js";
 import { canonical } from "./canonical.js";
 import { sha256 } from "../../../evaluator/src/hash.js";
 import { compareArrays, totalCompare } from "../../../evaluator/src/value-runtime.js";
-import { prepareWireRow, preparedDeliveryRows, tagWireValue, type TaggedValue, type WireValue } from "../offline-protocol.js";
+import { prepareWireRow, preparedDeliveryRows, tagWireValue, type TaggedValue } from "../offline-protocol.js";
 import { asRowRef, collectRefs, mapRowValues, purgeAnswerData, restoreRetained, rowKey, hiddenRefs } from "./row-values.js";
 import {
   applyForwarding,
@@ -41,6 +41,7 @@ import {
   type ForwardingStore,
   type ForwardingSwap,
 } from "./forwarding.js";
+import { MaintainedTransitions } from "./maintained-coherence.js";
 
 export type { ForwardingCustody, ForwardingReceipt } from "./forwarding.js";
 
@@ -519,9 +520,6 @@ export function tailWatermark(watermarks: WatermarkRecord[]): WatermarkRecord | 
     || canonicalAnswerKey(a.op, a.args).localeCompare(canonicalAnswerKey(b.op, b.args)))[0];
 }
 
-/** Two post-commit resumes or proven tail advances retire a stranded prediction. */
-const OVERLAY_PATIENCE = 2;
-
 function outboxOrder(entries: Record<string, OutboxEntry>): OutboxEntry[] {
   return Object.values(entries).sort((a, b) =>
     (a.order ?? a.createdAt) - (b.order ?? b.createdAt) || a.createdAt - b.createdAt || (a.intent < b.intent ? -1 : 1));
@@ -529,7 +527,8 @@ function outboxOrder(entries: Record<string, OutboxEntry>): OutboxEntry[] {
 
 function changesCoverage(swap: StoreSwap): boolean {
   return !!(swap.resetCoverage || swap.deliveries?.length || swap.refreshes?.length || swap.tombstones?.length
-    || swap.dropAnswers?.length || swap.bytes || swap.viewed?.length || swap.schema || swap.programs);
+    || swap.dropAnswers?.length || swap.bytes || swap.viewed?.length || swap.schema || swap.programs
+    || swap.outbox?.put?.some((entry) => entry.state === "committed"));
 }
 
 /** Shared swap engine; carrier subclasses only provide the atomic replace. */
@@ -980,94 +979,7 @@ export class PersistentRangeStore implements RangeStore {
       delete state.overlayWatermarks[intent];
       delete state.overlayNegatives[intent];
     }
-    // @ref LLP 1012#7-writes-offline — retire on authoritative row/negative
-    // evidence, a non-empty page reached by a post-commit next-cursor chain,
-    // or two misses (proven forward marks or successful resumes, once per swap).
-    // A reset rebases the snapshot at the new drain's current head; opaque cursor names
-    // and positions from the former coverage cannot order the new log.
-    const answers = Object.keys(state.overlay).some((intent) => state.outbox[intent]?.state === "committed")
-      ? Object.values(state.answers) : [];
-    const pages = answers.filter((answer) => {
-      // Denial can retain the previous complete state for history rendering;
-      // that retained content supplies no fresh arrival or continuation proof.
-      const nonempty = Array.isArray(answer.data) ? answer.data.length > 0 : collectRefs(answer.data).length > 0;
-      return !answer.clockOnly && !answer.retained && (answer.state === "complete" || answer.state === "capped") && answer.receipt !== undefined
-        && !answer.receipt.ranges.some((range) => (range.evictedIds?.length ?? 0) > 0)
-        && nonempty && answer.refs.length > 0 && answer.refs.every((ref) => state.rows[rowKey(ref)] !== undefined);
-    });
-    const chains = new Map<string, { chain: string[]; reached: Set<string | null | undefined> }>();
-    for (const intent of Object.keys(state.overlay)) {
-      const entry = state.outbox[intent];
-      if (entry === undefined || entry.state === "rejected" || entry.state === "expired") {
-        delete state.overlay[intent];
-        delete state.overlayMisses[intent];
-        delete state.overlayWatermarks[intent];
-        delete state.overlayNegatives[intent];
-        if (entry) delete entry.predicted;
-        continue;
-      }
-      for (const row of state.overlay[intent]!) {
-        const key = rowKey(row);
-        const evidence = authoritativeNegatives.get(key);
-        if (evidence !== undefined && evidence.seq >= (state.overlayNegatives[intent]?.[key]?.seq ?? -1)) {
-          (state.overlayNegatives[intent] ??= {})[key] = evidence;
-        }
-      }
-      if (entry.state !== "committed") continue;
-      if (state.overlayWatermarks[intent] == null && tail !== undefined) {
-        const snapshot = committedNow.has(intent) && state.overlayWatermarks[intent] !== null ? previousTail ?? tail : tail;
-        state.overlayWatermarks[intent] = {
-          op: snapshot.op, args: clone(snapshot.args), cursorArg: snapshot.cursorArg ?? "c",
-          watermark: snapshot.watermark,
-        };
-      }
-      const committedSeq = (entry.response as { seq?: unknown } | undefined)?.seq;
-      if (!Number.isSafeInteger(committedSeq)) {
-        delete state.overlay[intent];
-        delete state.overlayMisses[intent];
-        delete state.overlayWatermarks[intent];
-        delete state.overlayNegatives[intent];
-        delete entry.predicted;
-        continue;
-      }
-      const overlay = state.overlay[intent]!;
-      const seq = Number(committedSeq);
-      // A deletion is confirmed by absence, never by a still-present row.
-      const predicted = new Set(overlay.filter((row) => !row.removed).map(rowKey));
-      const committedWatermark = state.overlayWatermarks[intent] ?? undefined;
-      const chainKey = committedWatermark ? canonical({ op: committedWatermark.op, args: committedWatermark.args,
-        cursorArg: committedWatermark.cursorArg, watermark: committedWatermark.watermark, seq }) : "";
-      if (!chains.has(chainKey)) {
-        const chain = committedWatermark ? cursorChain(pages, committedWatermark, seq) : [];
-        chains.set(chainKey, { chain, reached: new Set(chain) });
-      }
-      const { chain, reached } = chains.get(chainKey)!;
-      const negative = overlay.some((row) => {
-        const evidence = state.overlayNegatives[intent]?.[rowKey(row)];
-        return evidence !== undefined && evidence.seq >= seq && (state.rowSeq[rowKey(row)] ?? -1) <= evidence.seq;
-      });
-      // The closure's pooled halo/rule-input row is authoritative arrival too.
-      const arrived = negative || answers.some((answer) => answer.seq >= seq && !answer.retained && answer.state !== "denied"
-        && answer.refs.some((ref) => predicted.has(rowKey(ref)) && state.rows[rowKey(ref)] !== undefined))
-        || (predicted.size > 0 && committedWatermark !== undefined && pages.some((page) => page.seq >= seq
-          && reached.has(pagePosition(page, committedWatermark))));
-      const advanced = committedWatermark !== undefined && swap.watermark !== undefined
-        && tail !== undefined && canonicalAnswerKey(tail.op, tail.args) === canonicalAnswerKey(swap.watermark.op, swap.watermark.args)
-        && advanceOverlay(committedWatermark, tail, chain);
-      const onlyClock = !!swap.deliveries?.length && swap.deliveries.every(d => clockOnly.has(canonicalAnswerKey(d.op, d.args))) && !swap.refreshes?.length;
-      const moved = !onlyClock && (advanced || (swap.resumeSeq !== undefined && swap.resumeSeq > seq));
-      const misses = arrived ? 0 : (state.overlayMisses[intent] ?? 0)
-        + (moved && !committedNow.has(intent) ? 1 : 0);
-      if (!arrived && misses < OVERLAY_PATIENCE) {
-        if (misses > 0) state.overlayMisses[intent] = misses;
-        continue;
-      }
-      delete state.overlay[intent];
-      delete state.overlayMisses[intent];
-      delete state.overlayWatermarks[intent];
-      delete state.overlayNegatives[intent];
-      delete entry.predicted;
-    }
+    retireOverlays(state, swap, authoritativeNegatives, clockOnly, previousTail, tail, committedNow, canonicalAnswerKey, clone);
     return state;
   }
 
@@ -1095,6 +1007,14 @@ export class PersistentRangeStore implements RangeStore {
     const base = raw(state);
     const index = this.referenceIndex ??= new CarrierIndex({ ...base,
       programs: swap.programs ?? base.programs, facts: swap.facts ?? base.facts }, this.referenceSchema, (key,answer) => { state.answers[key] = answer; });
+    const programGeneration = swap.facts?.generation ?? state.facts?.generation;
+    const program = (programGeneration ? (swap.programs?.[programGeneration] ?? state.programs[programGeneration]) : undefined)
+      ?? Object.values(swap.programs ?? {})[0] ?? Object.values(state.programs)[0];
+    const maintained = new MaintainedTransitions(swap.schema ?? program?.schema ?? this.referenceSchema);
+    const authorityEvictions = new Map<string, StoreTombstone>();
+    for (const eviction of maintained.committed(swap.outbox?.put ?? [], state.overlay, swap.overlay?.put)) {
+      recordEviction(authorityEvictions, eviction);
+    }
     const changedAnswers = new Set<string>();
     const before = new Map<string, StoredAnswer | undefined>();
     const remember = (key: string) => { if (!before.has(key)) before.set(key, raw(state.answers[key])); changedAnswers.add(key); };
@@ -1273,6 +1193,9 @@ export class PersistentRangeStore implements RangeStore {
           throw new TypeError(`conflicting row ${row.table}/${row.id} at seq ${delivery.seq}`);
         }
         if ((state.rowSeq[storageKey] ?? -1) > delivery.seq) continue;
+        const priorRow = state.rows[storageKey] && raw(state.rows[storageKey]);
+        maintained.transition(priorRow, row, delivery.seq);
+        if (!priorRow || canonical(priorRow.row) !== canonical(row.row)) maintained.target(row, delivery.seq);
         if (state.extentNegative[storageKey]) state.extentNegative[storageKey].active = false;
         state.rows[storageKey] = RowImage.is(row.row) ? { ...row } : clone(row);
         state.rowSeq[storageKey] = delivery.seq;
@@ -1386,16 +1309,51 @@ export class PersistentRangeStore implements RangeStore {
       const answer = state.answers[canonicalAnswerKey(refresh.op, refresh.args)];
       if (answer?.needsFactProofs) throw new FullRevalidationRequired(answer.op, answer.args);
     }
+    // A primary deletion is a source transition too. Extent holes are not: a
+    // row leaving local coverage does not prove that the database aggregate
+    // changed.
+    for (const [key, eviction] of explicitEvictions) {
+      const held = state.rows[key];
+      if (held && (state.rowSeq[key] ?? -1) <= eviction.seq && (state.negative[key] ?? -1) <= eviction.seq) {
+        maintained.transition(raw(held), undefined, eviction.seq);
+      }
+      maintained.target(eviction, eviction.seq);
+    }
+    for (const eviction of maintained.invalidations()) recordEviction(authorityEvictions, eviction);
+    // The inverse arrival order is also possible: a maintained target can be
+    // refreshed by one mounted query before this named query receives the
+    // source rows from its own coherent delivery. Keep the old query result as
+    // an explicitly unusable partial until that owner speaks again. Its data
+    // remains held for authorized-history fallback; the partial marker keeps a
+    // cold/offline reevaluation from assembling fields from different commits.
+    for (const [key, seq] of maintained.targetChanges) {
+      const owners = new Set(index.references.get(key) ?? []);
+      for (const owner of changedAnswers) if (state.answers[owner]?.refs.some((ref) => rowKey(ref) === key)) owners.add(owner);
+      for (const owner of owners) {
+        const answer = state.answers[owner];
+        if (!answer || answer.seq >= seq || answer.state === "denied") continue;
+        remember(owner);
+        answer.state = "partial";
+        answer.reason = "maintained-coherence";
+        delete answer.next;
+      }
+    }
     const appliedEvictions = new Set<string>();
-    for (const [key, eviction, global] of [...[...explicitEvictions].map(([key, value]) => [key, value, true] as const),
-      ...[...extentEvictions].map(([key, value]) => [key, value, false] as const)]) {
+    for (const [key, eviction, kind] of [...[...explicitEvictions].map(([key, value]) => [key, value, "global"] as const),
+      ...[...extentEvictions].map(([key, value]) => [key, value, "extent"] as const),
+      ...[...authorityEvictions].map(([key, value]) => [key, value, "authority"] as const)]) {
       if ((state.negative[key] ?? -1) > eviction.seq) continue;
       if ((state.rowSeq[key] ?? -1) > eviction.seq) continue;
-      if (global) {
+      // A target row or primary absence from this same/later database image is
+      // the authority we were waiting for; never erase it because its source
+      // sibling happened to be applied first in this swap.
+      if (kind === "authority" && ((state.rowSeq[key] ?? -1) >= eviction.seq
+        || (explicitEvictions.get(key)?.seq ?? -1) >= eviction.seq)) continue;
+      if (kind === "global") {
         state.negative[key] = eviction.seq;
         if ((state.extentNegative[key]?.seq ?? Infinity) <= eviction.seq) { delete state.extentNegative[key]; state.factSlots--; }
       }
-      else {
+      else if (kind === "extent") {
         if ((state.negative[key] ?? -1) >= eviction.seq) continue;
         if (state.rows[key] && (state.rowSeq[key] ?? -1) > (obsoleteImages.get(key) ?? -1)) {
           const image = integrity.prepare(raw(state.rows[key]));
@@ -1405,13 +1363,35 @@ export class PersistentRangeStore implements RangeStore {
         if (state.extentNegative[key] === undefined) state.factSlots++;
         state.extentNegative[key] = { seq: eviction.seq, active: true, cause: extentMeaning(evictionConditions.get(key)![0]) };
       }
+      else {
+        // This is missing authority, not proof of absence. Remove any older
+        // point/extent masks so neither the old body nor an old negative can
+        // satisfy the maintained read while its target catches up.
+        if ((state.negative[key] ?? -1) <= eviction.seq) delete state.negative[key];
+        if ((state.extentNegative[key]?.seq ?? Infinity) <= eviction.seq) { delete state.extentNegative[key]; state.factSlots--; }
+      }
       appliedEvictions.add(key);
       delete state.rows[key];
       delete state.rowSeq[key];
-      for (const answerKey of candidates(key)) {
+      for (const answerKey of kind === "authority"
+        ? new Set([...candidates(key), ...candidates(key, true), ...Object.entries(state.answers)
+          .filter(([, answer]) => answer.receipt?.ranges.some((range) => range.table === eviction.table))
+          .map(([owner]) => owner)])
+        : candidates(key)) {
         const answer = state.answers[answerKey]; if (!answer) continue;
-        if (!answer.refs.some(ref => rowKey(ref) === key)) continue;
         remember(answerKey);
+        let affected = answer.refs.some(ref => rowKey(ref) === key);
+        if (kind === "authority" && answer.receipt?.absences.some(([table, name, values]) =>
+          name === "byId" && rowKey({ table, id: String(values[0]) }) === key)) {
+          answer.receipt.absences = answer.receipt.absences.filter(([table, name, values]) =>
+            name !== "byId" || rowKey({ table, id: String(values[0]) }) !== key);
+          affected = true;
+        }
+        if (kind === "authority" && answer.receipt?.ranges.some((range) => range.table === eviction.table)) {
+          answer.receipt.ranges = answer.receipt.ranges.filter((range) => range.table !== eviction.table);
+          affected = true;
+        }
+        if (!affected) continue;
         for (let i = 0; i < (answer.receipt?.ranges.length ?? 0); i++) {
           const range = answer.receipt!.ranges[i];
           if (range.table !== eviction.table) continue;
@@ -1427,12 +1407,11 @@ export class PersistentRangeStore implements RangeStore {
             answer.receipt!.ranges[i] = changed;
           }
         }
-        if (!answer.refs.some((ref) => rowKey(ref) === key)) continue;
         answer.refs = answer.refs.filter((ref) => rowKey(ref) !== key);
         if (answer.data !== undefined) answer.data = purgeAnswerData(answer.data, eviction);
         if (!answer.retained && answer.state !== "denied") {
           answer.state = "partial";
-          answer.reason = "evicted";
+          answer.reason = kind === "authority" ? "missing-authority" : "evicted";
           delete answer.next;
         }
       }
