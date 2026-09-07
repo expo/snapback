@@ -1420,3 +1420,28 @@ The timeout-reporting helper repair is assigned separately. The original timeout
 ## 2026-09-07 — Timeout reporting controls
 
 The install witness could lose its command terminal when npm exited during timeout identity inspection. A narrow helper derivative now keeps the timeout failure separate from the actual child exit. Six controlled tests passed; changed identities receive no helper signal, and unknown receipts remain unknown even when the test controller later observes a clean exit. The first test attempt exposed a Python 3.9 kqueue context-manager incompatibility and is preserved alongside the correction. [Exact evidence](../benchmarks/runs/2026-09-06-clique-improvement/evidence/timeout-reaping-controls/README.md). This improves measurement reliability; it does not explain or fix the slow npm install, qualify 0.0.17 retroactively, or establish a better Clique score. Independent review is pending.
+
+## 2026-09-07 — Real installed consumers expose a fan-out retirement seam
+
+The LLP 1018.000 candidate30e passes all10 actual Expo checks, including cold
+Unicode search, the five-store crash barrier, media and exactly-once replay.
+The same candidate's installed-package chat journey finds two local delivery
+rows after an offline three-member-group send settles. The twin's viewer-only
+fan-out and the owner's complete fan-out mint different delivery IDs; the current row-by-row
+retirement is the leading explanation for the prediction beside the served row.
+The duplicate is an observed product failure, even though the Expo witness passes. The queued bubble keeps
+its message identity; settlement must also retire the superseded delivery.
+
+The browser harness had two separate mistakes: it included a previous committed
+recovery intent in a later queue expectation, and compared a saved DOM node
+across closing and restarting Chromium. Neither assertion diagnoses a product
+regression. Group the harness repairs, keep actual crash-recovery and same-page
+DOM-identity checks distinct, and retain the original failed runs.
+
+The composed query makes count/messages/preview authoring straightforward, but
+correctness still depends on coherent authority and prediction retirement under
+independent query delivery. An installed consumer and actual platform runs catch
+different seams; no one passing suite can substitute for the others. Runtime
+footprint is80,524 gzip on the complete entry: below82,000, above the80,000 target.
+The product loop also retains a first-doctor0.687s failure against0.5s; its second
+0.043s result does not erase the first sample.

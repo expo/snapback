@@ -18,6 +18,8 @@ export class CarrierIndex {
   readonly assets: RowAssets;
   readonly references = new Map<string, Set<string>>();
   readonly absences = new Map<string, Set<string>>();
+  /** Conservative target-table membership for range-owning answers. */
+  readonly rangeTables = new Map<string, Set<string>>();
   readonly verdicts = new Map<string, Set<string>>();
   readonly proofOwners = new Map<string, Set<string>>();
   readonly positives: FactIndex;
@@ -162,6 +164,7 @@ export class CarrierIndex {
       for (const proof of answerProofs(held)) { this.member(this.proofOwners,proof[0],key,delta); this.positive(proof,held.seq,delta); }
       for (const id of held.extentProofs ?? []) this.extentReference(id,held.seq,delta);
       if (this.schemaReady) for (const range of held.receipt?.ranges ?? []) {
+        this.member(this.rangeTables,range.table,key,delta);
         const meaning = this.rangeKey(range,held.op), owners = this.ranges.get(meaning) ?? new Map<string,Set<ReceiptRange>>();
         const ranges = owners.get(key) ?? new Set<ReceiptRange>();
         if (delta > 0) ranges.add(range); else ranges.delete(range);

@@ -254,6 +254,14 @@ test("a successor writer retires status work addressed to its predecessor", asyn
     first.writer(context);
     follower.follower({ scope: context.scope, principal: context.principal, authEpoch: 7, established: true, persona: false });
     assert.equal((await follower.status()).ready, true);
+    await new Promise(resolve => setTimeout(resolve, 0));
+    let unchangedNotifications = 0;
+    const stopNotifications = follower.subscribe(() => { unchangedNotifications++; });
+    assert.equal((await follower.status()).ready, true);
+    await new Promise(resolve => setTimeout(resolve, 0));
+    assert.equal(unchangedNotifications, 0,
+      "a successful status answer does not recursively invalidate the probe that requested it");
+    stopNotifications();
     MemoryBroadcastChannel.drop = message => message.type === "status-answer";
     const requests = MemoryBroadcastChannel.messages.filter(message => message.type === "status").length;
     const stale = follower.status();

@@ -606,9 +606,9 @@ test("an offline send is predicted into the thread in order with its trace, a de
   }
 });
 
-// @ref LLP 1012#7-writes-offline — the overlay drops only on authoritative
-// arrival or after two successful resumes at or after the commit seq.
-test("a committed intent's overlay survives unrelated answers and an empty current-tail page; leaves with its predicted row; and two resumes retire a stranded prediction", async () => {
+// @ref LLP 1012#7-writes-offline — authoritative arrival retires matching
+// rows; the remaining overlay leaves after its own evidence or two resumes.
+test("a committed intent's overlay retires rows independently and two resumes retire a stranded prediction", async () => {
   const base = { grant: "g", offset: 0, count: 3, ids: ["m", "d", "x"], op: "deliveries.post", args: { conversationId: "c1" }, issuedSeq: 0, createdAt: 1, updatedAt: 1 };
   const overlay = [{ table: "messages", id: "m", row: { id: "m", body: "predicted" } }, { table: "deliveries", id: "d", row: { id: "d", messageId: "m" } }];
   const committed = { ...base, intent: "g:0", state: "committed" as const, predicted: true, response: { state: "committed", seq: 30, data: { id: "m" } } };
@@ -624,8 +624,12 @@ test("a committed intent's overlay survives unrelated answers and an empty curre
       { table: "deliveries", id: "d-other", row: { id: "d-other", messageId: "m-other" } },
     ]), false],
     ["an empty page at the held tail position", page("deliveries.inbox", { c: "cursor-9" }, 32, []), false],
-    ["a delivery holding the predicted message row", page("deliveries.thread", { conversationId: "c1" }, 32, [
+    ["a delivery holding only the predicted message row", page("deliveries.thread", { conversationId: "c1" }, 32, [
       { table: "messages", id: "m", row: { id: "m", body: "predicted" } },
+    ]), false],
+    ["a delivery holding both predicted rows", page("deliveries.thread", { conversationId: "c1" }, 32, [
+      { table: "messages", id: "m", row: { id: "m", body: "predicted" } },
+      { table: "deliveries", id: "d", row: { id: "d", messageId: "m" } },
     ]), true],
   ];
   for (const [label, arrival, leaves] of cases) {
@@ -640,7 +644,10 @@ test("a committed intent's overlay survives unrelated answers and an empty curre
       await store.commit({ outbox: { put: [committed] } });
       assert.ok((await store.outbox.overlay())["g:0"], `${label}: a commit with no rows in its swap keeps its overlay`);
       await store.commit({ deliveries: [arrival] });
-      assert.equal((await store.outbox.overlay())["g:0"] !== undefined, !leaves, `${label}: the overlay ${leaves ? "did not leave" : "left"}`);
+      const remaining = (await store.outbox.overlay())["g:0"];
+      assert.equal(remaining !== undefined, !leaves, `${label}: the overlay ${leaves ? "did not leave" : "left"}`);
+      if (label.includes("only the predicted message")) assert.deepEqual(remaining, [overlay[1]],
+        `${label}: its unconfirmed delivery sibling remains predicted`);
       assert.equal((await store.outbox.get("g:0"))!.predicted, leaves ? undefined : true, `${label}: prediction follows overlay custody`);
       await store.close?.();
     } finally {

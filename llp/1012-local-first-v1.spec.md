@@ -1045,9 +1045,11 @@ bounded miss rule retires it first, the query is partial rather than exposing th
 target. Arrival can run in the other order: a changed maintained target marks every older
 named answer that references it `partial/maintained-coherence`. That marker and the answer's
 authorized history survive a cold reopen, and a global-pool rerun cannot promote the record;
-only a new delivery for that named query, or one overlay carrying its source and target
-together, publishes another usable complete/capped value. Unrelated source-field updates
-whose maintained contribution is unchanged withdraw no target authority.
+owners that proved sparse zero by a point absence or target range are fenced too. Only a new
+delivery for that named query publishes another usable complete/capped value. A later overlay
+cannot prove that an earlier remote sibling arrived; partial history can still show its local
+prediction without presenting a count or preview. Unrelated source-field updates whose
+maintained contribution is unchanged withdraw no target authority.
 
 **Retirement follow-up (2026-09-06).** Reset also clears each overlay's saved primary
 absences and tombstones: these are coverage facts, so a delayed terminal cannot use a

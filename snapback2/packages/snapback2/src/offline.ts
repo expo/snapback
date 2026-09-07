@@ -951,9 +951,10 @@ export class OfflineRuntime {
  * The offline view uses the twin's current local answer. For retained history,
  * a complete/capped/held rerun can reconstruct conservatively purged literals;
  * a denied, partial, or unavailable rerun falls back to the readable retained
- * answer. Held owner facts (`seq`, the drain watermark and `caughtUp`) stay with
- * reconstructed data: the stored answer is the covered case, not a second
- * mechanism (LLP 1012 §6).
+ * answer. A maintained sibling delivery leaves its named owner partial until
+ * that owner delivers again. Held owner facts (`seq`, the drain watermark and
+ * `caughtUp`) stay with reconstructed data: the stored answer is the covered
+ * case, not a second mechanism (LLP 1012 §6).
  */
 export function offlineView<Result>(held: HeldAnswer<Result> | undefined, local?: LocalAnswer): any {
   const exactHeld = held !== undefined && (held.state === "complete" || held.state === "capped");
@@ -966,10 +967,10 @@ export function offlineView<Result>(held: HeldAnswer<Result> | undefined, local?
     && (local.state === "complete" || local.state === "capped" || local.state === "held");
   // A sibling query may deliver an engine-maintained target before this named
   // query's source rows. The store marks this owner's prior answer partial;
-  // do not let a global-pool rerun upgrade that mixed generation. A real local
-  // prediction is coherent because its source and target share one overlay.
-  const waitingForCoherentOwner = held?.state === "partial" && held.reason === "maintained-coherence"
-    && !(local?.predicted?.length);
+  // do not let a global-pool rerun upgrade that mixed generation. A later
+  // overlay cannot prove that an earlier remote sibling also arrived; only a
+  // new delivery for this named query clears the marker.
+  const waitingForCoherentOwner = held?.state === "partial" && held.reason === "maintained-coherence";
   const useLocal = local !== undefined && !waitingForCoherentOwner && (!held?.retained || reconstructed);
   if (!useLocal) {
     if (!held) return { state: "hydrating", live: false, connection: "offline" };

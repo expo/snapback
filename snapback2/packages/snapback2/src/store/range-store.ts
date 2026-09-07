@@ -1327,8 +1327,28 @@ export class PersistentRangeStore implements RangeStore {
     // remains held for authorized-history fallback; the partial marker keeps a
     // cold/offline reevaluation from assembling fields from different commits.
     for (const [key, seq] of maintained.targetChanges) {
-      const owners = new Set(index.references.get(key) ?? []);
+      const table = key.slice(0, key.indexOf("\0"));
+      const owners = new Set([...(index.references.get(key) ?? []), ...(index.absences.get(key) ?? [])]);
       for (const owner of changedAnswers) if (state.answers[owner]?.refs.some((ref) => rowKey(ref) === key)) owners.add(owner);
+      const targetImage = imageAt(key, seq)?.keys;
+      if (targetImage) {
+        // Closed extents are indexed by their exact typed key space. Seek only
+        // ranges that contain this maintained row; an unrelated group on the
+        // same target table never enters the candidate set.
+        for (const extent of index.closed.matching(table, targetImage, 0)) {
+          for (const held of index.matchingKey(rangeMeaningKey(extent.condition))) owners.add(held.owner);
+        }
+        // A range installed earlier in this same swap is not in the persistent
+        // reverse index yet. Only changed owners need this bounded supplement.
+        for (const owner of changedAnswers) {
+          const answer = state.answers[owner];
+          for (const range of answer?.receipt?.ranges ?? []) {
+            if (range.table !== table) continue;
+            const condition = index.extent(range, answer!.op, new Map());
+            if (condition && extentContains(targetImage, condition)) owners.add(owner);
+          }
+        }
+      }
       for (const owner of owners) {
         const answer = state.answers[owner];
         if (!answer || answer.seq >= seq || answer.state === "denied") continue;
@@ -1374,9 +1394,7 @@ export class PersistentRangeStore implements RangeStore {
       delete state.rows[key];
       delete state.rowSeq[key];
       for (const answerKey of kind === "authority"
-        ? new Set([...candidates(key), ...candidates(key, true), ...Object.entries(state.answers)
-          .filter(([, answer]) => answer.receipt?.ranges.some((range) => range.table === eviction.table))
-          .map(([owner]) => owner)])
+        ? new Set([...candidates(key), ...candidates(key, true), ...(index.rangeTables.get(eviction.table) ?? []), ...changedAnswers])
         : candidates(key)) {
         const answer = state.answers[answerKey]; if (!answer) continue;
         remember(answerKey);
@@ -1389,6 +1407,7 @@ export class PersistentRangeStore implements RangeStore {
         }
         if (kind === "authority" && answer.receipt?.ranges.some((range) => range.table === eviction.table)) {
           answer.receipt.ranges = answer.receipt.ranges.filter((range) => range.table !== eviction.table);
+          answer.extentProofs = answer.extentProofs?.filter((id) => state.factExtents[id]?.condition.table !== eviction.table);
           affected = true;
         }
         if (!affected) continue;
@@ -1409,9 +1428,11 @@ export class PersistentRangeStore implements RangeStore {
         }
         answer.refs = answer.refs.filter((ref) => rowKey(ref) !== key);
         if (answer.data !== undefined) answer.data = purgeAnswerData(answer.data, eviction);
-        if (!answer.retained && answer.state !== "denied") {
+        if (answer.state !== "denied" && (!answer.retained || kind === "authority")) {
           answer.state = "partial";
-          answer.reason = kind === "authority" ? "missing-authority" : "evicted";
+          answer.reason = answer.reason === "maintained-coherence"
+            ? answer.reason
+            : kind === "authority" ? "missing-authority" : "evicted";
           delete answer.next;
         }
       }
