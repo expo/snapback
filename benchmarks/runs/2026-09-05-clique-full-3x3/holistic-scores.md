@@ -1,112 +1,112 @@
 # Clique full run: builder-model scores (0–100)
 
-Scorers: astra = gpt-6-astra, grok = grok-4.6. Each model scored from its own three lanes' narrative files only; read-only sessions at xhigh.
+Scorers: astra = gpt-6-astra, grok = grok-4.6, muse = muse-spark-1.3. Each model scored from its own three lanes' narrative files only; read-only sessions at xhigh.
 
 ## Overall (holistic)
 
-| Backend | astra | grok | mean |
-|---|---|---|---|
-| snapback2 | 64 | 57 | 60 |
-| convex | 84 | 78 | 81 |
-| supabase | 77 | 47 | 62 |
+| Backend | astra | grok | muse | mean |
+|---|---|---|---|---|
+| snapback2 | 64 | 57 | 78 | 66 |
+| convex | 84 | 78 | 82 | 81 |
+| supabase | 77 | 47 | 62 | 62 |
 
 ## By category (mean across scorers, then each scorer)
 
 ### setup_and_docs
 
-| Backend | astra | grok | mean |
-|---|---|---|---|
-| snapback2 | 63 | 65 | 64 |
-| convex | 83 | 68 | 76 |
-| supabase | 85 | 66 | 76 |
+| Backend | astra | grok | muse | mean |
+|---|---|---|---|---|
+| snapback2 | 63 | 65 | 38 | 55 |
+| convex | 83 | 68 | 85 | 79 |
+| supabase | 85 | 66 | 70 | 74 |
 
 ### data_modeling
 
-| Backend | astra | grok | mean |
-|---|---|---|---|
-| snapback2 | 68 | 73 | 70 |
-| convex | 88 | 76 | 82 |
-| supabase | 94 | 86 | 90 |
+| Backend | astra | grok | muse | mean |
+|---|---|---|---|---|
+| snapback2 | 68 | 73 | 85 | 75 |
+| convex | 88 | 76 | 80 | 81 |
+| supabase | 94 | 86 | 85 | 88 |
 
 ### authorization
 
-| Backend | astra | grok | mean |
-|---|---|---|---|
-| snapback2 | 84 | 82 | 83 |
-| convex | 83 | 70 | 76 |
-| supabase | 78 | 56 | 67 |
+| Backend | astra | grok | muse | mean |
+|---|---|---|---|---|
+| snapback2 | 84 | 82 | 80 | 82 |
+| convex | 83 | 70 | 85 | 79 |
+| supabase | 78 | 56 | 86 | 73 |
 
 ### queries_and_live
 
-| Backend | astra | grok | mean |
-|---|---|---|---|
-| snapback2 | 67 | 58 | 62 |
-| convex | 87 | 84 | 86 |
-| supabase | 72 | 38 | 55 |
+| Backend | astra | grok | muse | mean |
+|---|---|---|---|---|
+| snapback2 | 67 | 58 | 55 | 60 |
+| convex | 87 | 84 | 85 | 85 |
+| supabase | 72 | 38 | 72 | 61 |
 
 ### writes_and_transactions
 
-| Backend | astra | grok | mean |
-|---|---|---|---|
-| snapback2 | 76 | 86 | 81 |
-| convex | 94 | 88 | 91 |
-| supabase | 93 | 84 | 88 |
+| Backend | astra | grok | muse | mean |
+|---|---|---|---|---|
+| snapback2 | 76 | 86 | 85 | 82 |
+| convex | 94 | 88 | 88 | 90 |
+| supabase | 93 | 84 | 75 | 84 |
 
 ### offline_sync
 
-| Backend | astra | grok | mean |
-|---|---|---|---|
-| snapback2 | 74 | 76 | 75 |
-| convex | 50 | 46 | 48 |
-| supabase | 50 | 38 | 44 |
+| Backend | astra | grok | muse | mean |
+|---|---|---|---|---|
+| snapback2 | 74 | 76 | 92 | 81 |
+| convex | 50 | 46 | 35 | 44 |
+| supabase | 50 | 38 | 40 | 43 |
 
 ### media_assets
 
-| Backend | astra | grok | mean |
-|---|---|---|---|
-| snapback2 | 43 | 58 | 50 |
-| convex | 80 | 78 | 79 |
-| supabase | 79 | 52 | 66 |
+| Backend | astra | grok | muse | mean |
+|---|---|---|---|---|
+| snapback2 | 43 | 58 | 80 | 60 |
+| convex | 80 | 78 | 88 | 82 |
+| supabase | 79 | 52 | 75 | 69 |
 
 ### background_work
 
-| Backend | astra | grok | mean |
-|---|---|---|---|
-| snapback2 | 70 | 80 | 75 |
-| convex | 89 | 72 | 80 |
-| supabase | 73 | 30 | 52 |
+| Backend | astra | grok | muse | mean |
+|---|---|---|---|---|
+| snapback2 | 70 | 80 | 45 | 65 |
+| convex | 89 | 72 | 75 | 79 |
+| supabase | 73 | 30 | 85 | 63 |
 
 ### client_integration
 
-| Backend | astra | grok | mean |
-|---|---|---|---|
-| snapback2 | 69 | 44 | 56 |
-| convex | 85 | 82 | 84 |
-| supabase | 70 | 40 | 55 |
+| Backend | astra | grok | muse | mean |
+|---|---|---|---|---|
+| snapback2 | 69 | 44 | 65 | 59 |
+| convex | 85 | 82 | 70 | 79 |
+| supabase | 70 | 40 | 62 | 57 |
 
 ### diagnostics_dev_loop
 
-| Backend | astra | grok | mean |
-|---|---|---|---|
-| snapback2 | 68 | 80 | 74 |
-| convex | 86 | 74 | 80 |
-| supabase | 82 | 60 | 71 |
+| Backend | astra | grok | muse | mean |
+|---|---|---|---|---|
+| snapback2 | 68 | 80 | 50 | 66 |
+| convex | 86 | 74 | 72 | 77 |
+| supabase | 82 | 60 | 68 | 70 |
 
 ### scale_and_limits
 
-| Backend | astra | grok | mean |
-|---|---|---|---|
-| snapback2 | 68 | 40 | 54 |
-| convex | 82 | 72 | 77 |
-| supabase | 78 | 34 | 56 |
+| Backend | astra | grok | muse | mean |
+|---|---|---|---|---|
+| snapback2 | 68 | 40 | 78 | 62 |
+| convex | 82 | 72 | 85 | 80 |
+| supabase | 78 | 34 | 30 | 47 |
 
 ### operations
 
-| Backend | astra | grok | mean |
-|---|---|---|---|
-| snapback2 | 43 | 55 | 49 |
-| convex | 86 | 70 | 78 |
-| supabase | 80 | 58 | 69 |
+| Backend | astra | grok | muse | mean |
+|---|---|---|---|---|
+| snapback2 | 43 | 55 | 60 | 53 |
+| convex | 86 | 70 | 72 | 76 |
+| supabase | 80 | 58 | 70 | 69 |
 
 ## Verdicts
 
@@ -126,6 +126,14 @@ Scorers: astra = gpt-6-astra, grok = grok-4.6. Each model scored from its own th
   - (grok) Supabase uniquely bought password auth and SQL constraints in hour one, then reimplemented live (poll), offline (localStorage), digest (Node setInterval), and media refusal (byte proxy) because hosted-without-CLI Realtime, Edge, and Storage policy were not operable as product features.
   - (grok) All three paid RN-web/Playwright observability (agent-error); only Snapback's Metro export and 256-subscription cap and Convex's non-ticking queries were charged as backend live-query defects.
   - (grok) Writes and idempotency were easy everywhere (Quarry mutation IDs, Convex mutations, SQL ON CONFLICT); what separated scores was whether live, time, offline, and media revocation were platform primitives or an application.
+- **muse on snapback2:** The powerful local-first choice, priced in probes: unmatched offline sync and replay verification, discounted by undocumented seams. Would use again for: I would use it again for an offline-first messenger with queued writes, durable restart, and replay-scale verification.
+- **muse on convex:** The fastest correct realtime single-device backend here, with the best docs and local loop, until disconnection enters the picture. Would use again for: I would use it again for an online-first social app with a custom client API, live feeds, and in-band scheduled work.
+- **muse on supabase:** The fastest relational stack with auth, media, and scheduled jobs, charging calendar time for bulk identity and hand-built sync instead. Would use again for: I would use it again for a relational app with auth, media, and cron-driven digests where bulk signup throughput is not the bottleneck.
+  - (muse) Offline sync separated the three most: Snapback shipped a durable FIFO idempotent outbox with restart recovery while Convex and Supabase hand-built queues, the latter's own diary conceding the B4-30 shape.
+  - (muse) Scheduled work inverted that ranking: Supabase pg_cron digest and expiry ticks were transactional and exercised exactly, Convex kept a scheduler chain in-band but never ran the shortened digest, and Snapback evidenced no digest at all.
+  - (muse) Scale drew the hardest line: Snapback and Convex both settled the full 167,157-action replay with exact checkpoints while Supabase never completed it, throttled by hosted-auth signup limits to sample-50 only.
+  - (muse) Auth economics differed symmetrically: Supabase Auth and Snapback identity were nearly free while Convex paid a hand-rolled bcrypt B2 tax inside isolate constraints.
+  - (muse) Documentation maturity ordered Convex first with answers findable, Supabase second with answers spread across products but written, and Snapback last with grant, drain, echo, and lease contracts derived from probes.
 
 ## Notes per category
 
@@ -228,4 +236,54 @@ Scorers: astra = gpt-6-astra, grok = grok-4.6. Each model scored from its own th
 - diagnostics_dev_loop 60: Postgres errors and PATCH 400s were inspectable. Hosted Realtime and storage were opaque without CLI; M3 suite needed a storage fetch failed retry (environment).
 - scale_and_limits 34: Scale replay on tenant scale started then was killed for hosted-project contention with choreography; invariant verification never ran (final-report, run-log 1788652740).
 - operations 58: Prefix clqfg_ DDL over DIRECT_URL and drop-prefix cleanup worked (20 tables). Shared hosted project plus non-namespaced auth.users made a second instance a bad neighbor.
+
+### muse
+
+**snapback2**
+
+- overall 78: All milestones green plus full 167k replay PASS; the outbox repaid the probing tax, but a third of build time derived undocumented contracts from behavior.
+- setup_and_docs 38: Template plus fast check started quickly, but dev/reset have no --help, reset kept seed rows, and grants/outbox/drain/lease semantics came only from probes.
+- data_modeling 85: schema.q joins express thread, feed, and counts as one declaration; check catches shape errors; windows, TTLs, and tokens stay declarative in server time.
+- authorization 80: Identity plus handle index came free; membership-gated URLs and the VIEW_ONCE_CONSUMED gate split cleanly, though grant minting stays an uncited ritual.
+- queries_and_live 55: Join-heavy live thread is one declaration, but capped streams carry no backfill cursor, display thread caps at newest-30, and the navigator lock starves second pages.
+- writes_and_transactions 85: Server-time deadline windows, idempotent set-state toggles, sid resend dedupe, and FIFO outbox carried a 167,157-action replay with zero failures.
+- offline_sync 92: Durable FIFO idempotent outbox with restart recovery arrived as platform capability; M6 asserted peer-visible order, blindness, and receipts without writing queue code.
+- media_assets 80: Credentialed membership-gated URLs render real bytes and tombstone plus asset refusal works, but the viewed-guard lives only in .d.ts prose without refusal codes.
+- background_work 45: Disappearing TTLs are declarative, but push is a recordNotified stub and the M8 suite shows insights only, with no digest or trending implementation evidenced.
+- client_integration 65: Template plus browser-free protocol suites excel, but resume-cap stalls need surgical recovery, the second page boots memory-only, and aggregates must gate quiescence manually.
+- diagnostics_dev_loop 50: check is fast and precise, yet truncated 120-char miss lines caused four misdiagnosed loops while byte, echo, and grant seams surfaced without codes or docs.
+- scale_and_limits 78: Full replay PASS near 160/s with 10/50/final checkpoints green; capped by newest-30 display history and a member-list read path recorded as a gap.
+- operations 60: Isolated backends spin up cheaply and replay ran pristine, but reset left seed rows, lifecycle flags are undiscovered, and fresh instances mean separate project dirs.
+
+**convex**
+
+- overall 82: Every milestone green with a fully verified 167k replay; fastest online-first downhill run, charging only at hand-rolled auth and hand-built offline.
+- setup_and_docs 85: Anonymous local binary on two ports behaved like an appliance; docs answered needs except the undocumented dynamic-import ban and isolate-swallowed error codes.
+- data_modeling 80: Schema as code with indexes beside queries and set-state intents mapping 1:1; loops replace GROUP BY and materialized views, which the envelope must judge.
+- authorization 85: Membership lookup inside each query unifies reads and live updates; per-fetch mediaServe checks re-run expiry and membership, refusing with 410 after delete.
+- queries_and_live 85: Subscriptions carry DMs, receipts, member changes, and feeds with the feed query as contract; only typing needs a table-plus-expiry workaround and one settling flake.
+- writes_and_transactions 88: Idempotent set-state intents with client mutation IDs, DM keys, send idempotency keys, server-time windows, and tombstones; replay settled 167,157 of 167,157.
+- offline_sync 35: No durable cache, queue, presence, or conflict story exists; snapshot store, ordered outbox, blob cache, and LWW are hand-built client code, the B4-30 shape.
+- media_assets 88: Upload-URL pattern composed with send with almost no ceremony; per-fetch authorization made tombstone and view-once refusal fall out of one function, green first-attempt.
+- background_work 75: ctx.scheduler kept expiry, purge, and digest in-band with idempotent per-period rows and a replay flag; digest was built but never run on shortened config.
+- client_integration 70: Web hooks, snapshots, and flush are strong, but RNW twice dropped legacy a11y props blinding choreography, and simulator proofs stay ABSENT after a boot TypeError.
+- diagnostics_dev_loop 72: Errors are accurate though codes need the [CODE] convention; the isolate ban burned twenty minutes, and per-query operation budgets guided verification rework honestly.
+- scale_and_limits 85: Full replay settled with 67/67 verification including every named O5 fixture exact; only full-table collects exceed per-query budgets, forcing driver-stepped counting.
+- operations 72: Local appliance with idempotent seed and lane-untouched scale copy; dashboard port is unmanaged and one unlogged mid-run reset wiped posts, costing residue diagnosis.
+
+**supabase**
+
+- overall 62: All web milestones green with the strongest scheduled-work story, but the full replay never completed, native failed on version skew, and one like-count flake stays open.
+- setup_and_docs 70: Auth signup with instant sessions and RLS was fastest to M1 green, but shared-project residue forced a prefix move and shortened-config wiring was lane-built, not documented.
+- data_modeling 85: Tables, policies, functions, triggers, and cron carry the app; window-function pagination, partial indexes, and on-conflict upserts made replay idempotent almost by accident.
+- authorization 86: RLS turns row visibility into declarative SQL enforced on every path; member-add, edit-window, and revoked-Bearer [REDACTED] each took a few testable lines.
+- queries_and_live 72: Feed RPC cursor pagination and broadcast typing fit well, but convergence is hand-built sync with commit gates, reconnect retries, DELETE routing fixes, and history paging.
+- writes_and_transactions 75: Set-state intents, arrival-time created_at with send cap, and transactional functions are solid, but a second-send queue drop and the open m8-a02 like flake weigh down.
+- offline_sync 40: Queue, pending states, flush order, and durable web restart are entirely hand-built client code on AsyncStorage, with simulator proofs not-recorded and backfill ghosts removed.
+- media_assets 75: Authed upload endpoint into a prefixed bucket with unique paths fixed a silent identical-bytes dedupe; view-once revocation works, but the seam caused the nastiest bug.
+- background_work 85: digest_tick and expire_tick in plpgsql on pg_cron are transactional with zero-activity skip and idempotent re-tick, exercised firsthand with exact counts and no double-emit.
+- client_integration 62: Thin lane server over a 1671-line hand sync store with coalescing and slim-restore; most effort went to client contracts, and native is blocked by RN versus Expo skew.
+- diagnostics_dev_loop 68: Postgres and RLS errors are testable, but the hardest bugs sat at seams far from cause, and the repeat-run likes-received stall remains an open flake.
+- scale_and_limits 30: Full 167,157-action replay never completed with no checkpoint receipt; hosted-auth throttling near 30 signups per 5 minutes paced registers, leaving sample-50 as the only green.
+- operations 70: Versioned idempotent seed verified 18/18 exact and the closing prefix drop verified zero remaining objects, but fresh instances must be constructed and auth.users stays shared.
 

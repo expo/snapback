@@ -74,9 +74,11 @@ holistic assessment, not independent acceptance grading.
 | --- | ---: | ---: | ---: |
 | Astra medium | 64 | 84 | 77 |
 | Grok 4.6 xhigh | 57 | 78 | 47 |
+| Muse Spark 1.3 xhigh | 78 | 82 | 62 |
+| **mean** | **66** | **81** | **62** |
 
-Muse scores are added once its three lanes are complete (its snapback2 lane is;
-see Status). Its three attempt-2 builder PIDs (92425, 92498, 92520) were verified
+Muse scores were added 2026-09-07 ~02:00Z once its three lanes were complete (see
+Status); its scorer read its own lanes' narratives at xhigh like the other two. Its three attempt-2 builder PIDs (92425, 92498, 92520) were verified
 live on 2026-09-06; 92425 exited on its own after writing its report, and the
 harness stopped 92498 and 92520 on 2026-09-07 ~00:40Z for the reasons in Status
 and replaced each with a continued session. A fresh Muse 1.3 probe requesting ultra reported
