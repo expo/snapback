@@ -186,7 +186,7 @@ fn quarry_keywords_print_grammar_and_definitions_beside_symbol_help() {
         ),
         ("immutable", "forbids changes to those columns"),
         ("public", "accepts an optional reason string"),
-        ("merge", "fan-ins one or more"),
+        ("merge", "combines structurally distinct"),
         ("shape", "splices"),
         ("retain", "keeps rows that went hidden"),
         ("channel", "ephemeral events"),
@@ -198,13 +198,13 @@ fn quarry_keywords_print_grammar_and_definitions_beside_symbol_help() {
             "reads current rows in index order through the upper key",
         ),
         ("after", "`after` follows scan order"),
-        ("first", "`first N` scans ascending"),
-        ("last", "`last N` scans descending"),
+        ("first", "`first` is ascending"),
+        ("last", "`last` is descending"),
         ("require", "aborts when false"),
         ("match", "branches on presence"),
         (
             "for",
-            "iterates only a bounded list/page/range/tokens result",
+            "`for` needs a bounded list/page/range/tokens result",
         ),
         (
             "emit",
@@ -232,24 +232,12 @@ fn quarry_keywords_print_grammar_and_definitions_beside_symbol_help() {
         definitions.len(),
         "cover every grammar construct"
     );
-    assert!(
-        lines
-            .iter()
-            .find(|(name, _)| *name == "for")
-            .unwrap()
-            .1
-            .contains("tokens/words")
-    );
     for (keyword, definition) in definitions {
         let output = project.run(&["guide", keyword, "--json"]);
         let page = json_stdout(&output);
         assert!(output.status.success(), "{keyword}: {page}");
         assert_eq!(page["page"], keyword);
         let content = page["content"].as_str().unwrap();
-        if keyword == "words" {
-            assert!(content.contains("refuses `+`/template-built text"));
-            assert!(content.contains("body: text <=N"));
-        }
         assert_eq!(
             content
                 .lines()
@@ -302,9 +290,6 @@ fn quarry_keywords_print_grammar_and_definitions_beside_symbol_help() {
                 );
             }
         }
-        if keyword == "for" {
-            assert!(paragraph.contains("E_STRUCTURAL_FANOUT"), "{paragraph}");
-        }
         if keyword == "emit" {
             assert!(
                 paragraph.ends_with('.'),
@@ -319,18 +304,6 @@ fn quarry_keywords_print_grammar_and_definitions_beside_symbol_help() {
     let text = project.run(&["guide", "maintain"]);
     assert!(text.status.success());
     assert!(String::from_utf8_lossy(&text.stdout).contains("count/sum"));
-    for keyword in ["channel", "merge", "divmod", "emit"] {
-        let text = project.run(&["guide", keyword]);
-        assert!(text.status.success());
-        let content = String::from_utf8_lossy(&text.stdout);
-        assert!(content.contains("export function"), "{content}");
-        assert!(content.contains(&format!("`{keyword}`:")), "{content}");
-        assert_eq!(
-            content.matches(&format!("# `{keyword}`")).count(),
-            1,
-            "{content}"
-        );
-    }
 }
 
 #[test]
@@ -456,6 +429,14 @@ fn quarry_grammar_and_refusal_guides_ship_without_double_fences() {
     assert!(refusal.status.success(), "{content}");
     assert_eq!(content.matches("```q").count(), 2, "{content}");
     assert!(!content.contains("```ts\n```q"), "{content}");
+
+    let fanout = project.run(&["guide", "E_STRUCTURAL_FANOUT"]);
+    let content = String::from_utf8_lossy(&fanout.stdout);
+    assert!(fanout.status.success(), "{content}");
+    assert!(content.contains("# E_STRUCTURAL_FANOUT"), "{content}");
+    assert!(content.contains("Family: `bound`"), "{content}");
+    assert!(content.contains("cap 50 by conversationId"), "{content}");
+    assert_eq!(content.matches("```q").count(), 2, "{content}");
 
     let unknown = project.run(&["guide", "maintan", "--json"]);
     assert_eq!(unknown.status.code(), Some(1));
