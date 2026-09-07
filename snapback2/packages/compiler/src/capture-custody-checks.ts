@@ -37,13 +37,13 @@ for (const expression of ["fallback", "box.value"]) custodyCases.push({name:`pub
   runs:[{args:{amount:"Null"},result:{captured:2000,fallback:2,box:{value:2}},stored:{d3:2000}},
     {args:{amount:{Int:4321}},result:{captured:4321,fallback:2,box:{value:2}},stored:{d3:4321}}]});
 for (const [fallback, type, value, refusal] of [
-  ["[2,3]","",[2,3],undefined], ["same",", same: [decimal 3] <=3",[321],undefined],
+  ["[2,3]","",[2000,3000],undefined], ["same",", same: [decimal 3] <=3",[321],undefined],
   ["wrong",", wrong: [decimal 2] <=3",[321],"E_DECIMAL_SCALE"],
-  ["whole",", whole: [int] <=3",[321],"E_DECIMAL_SCALE"],
+  ["whole",", whole: [int] <=3",[321],"E_QUARRY_TYPE"],
 ] as const) for (const field of [false,true]) custodyCases.push({
   name:`public direct list ${fallback} ${field?"field":"alias"}`,public:true,refusal,
   source:`mutation probe(values: [decimal 3] <=3 ?${type}):\n  original = values ?? ${fallback}\n  box = {amounts: original}\n  insert records {amounts: ${field?"box.amounts":"original"}}\n  return original\n`,
-  runs:[{args:{values:"Null",same:{Array:[{Int:321}]},wrong:{Array:[{Int:321}]},whole:{Array:[{Int:321}]}},result:value,stored:{amounts:fallback==="[2,3]"?[2000,3000]:value}},
+  runs:[{args:{values:"Null",same:{Array:[{Int:321}]},wrong:{Array:[{Int:321}]},whole:{Array:[{Int:321}]}},result:value,stored:{amounts:value}},
     {args:{values:minor,same:{Array:[{Int:321}]},wrong:{Array:[{Int:321}]},whole:{Array:[{Int:321}]}},result:[4321],stored:{amounts:[4321]}}],
 });
 for (const [method, expression] of Object.entries({

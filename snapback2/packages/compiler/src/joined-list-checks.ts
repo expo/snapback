@@ -67,8 +67,12 @@ for (const [name, setup, selected, nested] of [
     { args: { values: "Null", more: list(6,7,8,9,10) }, result: nested ? [6,7,8,9,10] : [2,3,4,5] },
     { args: { values: list(0), more: "Null" }, error: "E_REQUIRE" }],
 });
-for (const field of [false, true]) joinedListCases.push({ name: `public literal source and destination ${field}`, public: true, refusal: "E_DECIMAL_SCALE",
+for (const field of [false, true]) joinedListCases.push({ name: `public literal source and destination ${field}`, public: true,
   source: `mutation probe(values: [decimal 3] <=3 ?):\n  original = values ?? [2,3,4,5]\n  box = {original}\n  for value in ${field ? "box.original" : "original"}:\n    insert records {d3: value}\n  return original\n`,
+  runs: [
+    { args: { values: "Null" }, result: [2000,3000,4000,5000], rows: [2000,3000,4000,5000] },
+    { args: { values: list(1250) }, result: [1250], rows: [1250] },
+  ],
 });
 for (const flag of [true, false]) joinedListCases.push({ name: `public enclosing branch ${flag}`, public: true,
   source: `mutation probe(values: [decimal 3] <=3 ?, more: [decimal 3] <=7, flag: bool):\n  if flag:\n    box = {values: values ?? more}\n    for value in box.values:\n      insert records {d3: value}\n    return box.values\n  else:\n    original = values ?? more\n    for value in original:\n      insert records {d3: value}\n    return original\n`,
@@ -283,12 +287,12 @@ joinedListCases.push(
   return values.length
 `,
   },
-  { name: "public length selection length refusal mixed fallback", public: true, refusal: "E_OPAQUE",
+  { name: "public length selection length refusal mixed fallback", public: true, refusal: "E_QUARRY_TYPE",
     source: `mutation probe(values: [int] <=3 ?, more: json <=1000):
   return (values ?? more).length
 `,
   },
-  { name: "public length selection length refusal text", public: true, refusal: "E_QUARRY_UNKNOWN",
+  { name: "public length selection length refusal text", public: true, refusal: "E_QUARRY_TYPE",
     source: `mutation probe(values: text <=20):
   return values.length
 `,

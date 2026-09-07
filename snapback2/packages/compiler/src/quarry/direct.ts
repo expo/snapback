@@ -8,6 +8,7 @@ type Lowering = {
   accessOrdinal: number;
   temporaryOrdinal: number;
   operandOrdinal: number;
+  usesReadTime: boolean;
   reservedNames: Set<string>;
   focals: Map<string, Expr>;
   bindings: Map<string, Expr>;
@@ -16,7 +17,7 @@ type LoweredValue = { setup: Stmt[]; value: Expr };
 
 export function lowerBoundQuarryProgram(program: BoundQuarryProgram): Program {
   const lowering: Lowering = {
-    program: program.name, accessOrdinal: 0, temporaryOrdinal: 0, operandOrdinal: 0,
+    program: program.name, accessOrdinal: 0, temporaryOrdinal: 0, operandOrdinal: 0, usesReadTime: false,
     reservedNames: new Set([...program.args.map((arg) => arg.name), ...boundLocalNames(program.body)]),
     focals: new Map(), bindings: new Map(),
   };
@@ -31,7 +32,7 @@ export function lowerBoundQuarryProgram(program: BoundQuarryProgram): Program {
     args: Object.fromEntries([...program.args]
       .sort((left, right) => left.name.localeCompare(right.name))
       .map((arg) => [arg.name, lowerArgType(arg.type)])),
-    read_time_granularity_ms: program.kind === "query" && JSON.stringify(body).includes('"Input":"ReadTime"') ? 1 : null,
+    read_time_granularity_ms: lowering.usesReadTime ? 1 : null,
     body,
   };
 }
@@ -49,7 +50,10 @@ function lowerExpression(expression: BoundExpression, lowering: Lowering): Lower
     if (!value) throw new Error(`bound focal ${expression.id} has no lowering scope`);
     return { setup: [], value };
   }
-  if (expression.kind === "input") return { setup: [], value: { Input: expression.input } };
+  if (expression.kind === "input") {
+    if (expression.input === "ReadTime") lowering.usesReadTime = true;
+    return { setup: [], value: { Input: expression.input } };
+  }
   if (expression.kind === "array") {
     const items = lowerMany(expression.items, lowering);
     return { setup: items.setup, value: { Array: items.values } };
