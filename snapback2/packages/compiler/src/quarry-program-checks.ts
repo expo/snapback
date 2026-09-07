@@ -321,6 +321,50 @@ query byPrincipal(principal: principal):
     });
   });
 
+  test("direct Quarry shares shape recursion and depth guards with nested field uses", () => {
+    const schema = `table nodes:
+  parent: nodes ?
+  public
+`;
+    const refusal = (source: string) => {
+      const prepared = prepareQuarry([
+        { path: "/virtual/snapback/schema.q", fileName: "snapback/schema.q", source: schema },
+        { path: "/virtual/snapback/shapes.q", fileName: "snapback/shapes.q", source },
+      ]);
+      assert(prepared.ok, `shape guard fixture did not prepare: ${JSON.stringify(prepared.ok ? [] : prepared.diagnostics)}`);
+      const declaration = prepared.prepared.documents[1]?.programs[0];
+      assert(declaration, "shape guard fixture has no operation");
+      try {
+        bindQuarryProgram(declaration, prepared.prepared.catalog, prepared.prepared.documents);
+      } catch (error) {
+        return (error as { diagnostic?: { code: string; message: string } }).diagnostic;
+      }
+      return undefined;
+    };
+    const nestedCycle = refusal(`shape recursive = { parent: .parent recursive }
+query node(seed: nodes):
+  return seed recursive
+`);
+    assert(nestedCycle?.code === "E_QUARRY_UNSUPPORTED" && nestedCycle.message.includes("shape cycle"),
+      `nested field shape cycle escaped the expansion guard: ${JSON.stringify(nestedCycle)}`);
+    const spreadCycle = refusal(`shape recursive = { ...recursive }
+query node(seed: nodes):
+  return seed recursive
+`);
+    assert(spreadCycle?.code === "E_QUARRY_UNSUPPORTED" && spreadCycle.message.includes("shape cycle"),
+      `named spread cycle escaped the expansion guard: ${JSON.stringify(spreadCycle)}`);
+    const chain = Array.from({ length: 9 }, (_, index) => {
+      const number = index + 1;
+      return number === 9 ? `shape s${number} = { parent }` : `shape s${number} = { parent: .parent s${number + 1} }`;
+    }).join("\n");
+    const depth = refusal(`${chain}
+query node(seed: nodes):
+  return seed s1
+`);
+    assert(depth?.code === "E_QUARRY_UNSUPPORTED" && depth.message.includes("exceeds depth 8"),
+      `nested field shape depth escaped the shared expansion guard: ${JSON.stringify(depth)}`);
+  });
+
   test("Quarry table and operation names occupy separate generated bindings", async () => {
     const schema = `table messages:
   body: text <=100

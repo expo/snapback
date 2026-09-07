@@ -154,6 +154,7 @@ class ExpressionBinder {
   private expansionUse: Site | undefined;
   private namedShapeDepth = 0;
   private shapeFile: string;
+  private readonly expansionFrames: string[] = [];
 
   constructor(
     private readonly program: ProgramDecl,
@@ -302,8 +303,8 @@ class ExpressionBinder {
       source: this.source(expression.site),
     };
     const fields = expression.kind === "shapeUse"
-      ? this.namedShapeFields(expression.name, expression.site, focal, 1, [])
-      : this.shapeFields(expression.fields, focal, this.shapeFile, this.expansionUse, 0, [], false);
+      ? this.namedShapeFields(expression.name, expression.site, focal)
+      : this.shapeFields(expression.fields, focal, this.shapeFile, this.expansionUse, false);
     const objectType: BoundType = {
       kind: "object", fields: new Map(fields.map((field) => [field.name, field.value.facts])),
       nullable: base.facts.type.kind === "row" && base.facts.type.nullable,
@@ -337,22 +338,25 @@ class ExpressionBinder {
     name: string,
     useSite: Site,
     focal: Extract<BoundExpression, { kind: "focal" }>,
-    depth: number,
-    stack: string[],
   ): Array<{ name: string; value: BoundExpression; source: BoundSourceStack }> {
     const { declaration, document } = this.shapes.resolve(this.shapeFile, name, useSite);
     const identity = `${document.file}:${name}`;
-    if (stack.includes(identity)) throw new QuarryError(
+    if (this.expansionFrames.includes(identity)) throw new QuarryError(
       this.diagnosticSite(declaration.site, useSite),
-      `shape cycle ${[...stack, identity].join(" -> ")} is not supported; shape ${name} was used at ${siteText(useSite)}`,
+      `shape cycle ${[...this.expansionFrames, identity].join(" -> ")} is not supported; shape ${name} was used at ${siteText(useSite)}`,
       "E_QUARRY_UNSUPPORTED", `remove the recursive ${name} shape use`,
     );
-    if (depth > MAX_EXPANSION_DEPTH) throw new QuarryError(
+    if (this.expansionFrames.length + 1 > MAX_EXPANSION_DEPTH) throw new QuarryError(
       this.diagnosticSite(declaration.site, useSite),
       `shape expansion exceeds depth ${MAX_EXPANSION_DEPTH}; shape ${name} was used at ${siteText(useSite)}`,
       "E_QUARRY_UNSUPPORTED", `inline or split the projection so it expands through at most ${MAX_EXPANSION_DEPTH} named shapes`,
     );
-    return this.shapeFields(declaration.fields, focal, document.file, useSite, depth, [...stack, identity], true);
+    this.expansionFrames.push(identity);
+    try {
+      return this.shapeFields(declaration.fields, focal, document.file, useSite, true);
+    } finally {
+      this.expansionFrames.pop();
+    }
   }
 
   private shapeFields(
@@ -360,8 +364,6 @@ class ExpressionBinder {
     focal: Extract<BoundExpression, { kind: "focal" }>,
     file: string,
     useSite: Site | undefined,
-    depth: number,
-    stack: string[],
     named: boolean,
   ): Array<{ name: string; value: BoundExpression; source: BoundSourceStack }> {
     const prior = { focal: this.focal, use: this.expansionUse, named: this.namedShapeDepth, file: this.shapeFile };
@@ -372,7 +374,7 @@ class ExpressionBinder {
     try {
       return fields.flatMap((field) => {
         if (field.kind === "namedSpread") {
-          return this.namedShapeFields(field.name, useSite ?? field.site, focal, depth + 1, stack);
+          return this.namedShapeFields(field.name, useSite ?? field.site, focal);
         }
         const source = this.source(field.site);
         if (field.kind === "spread") {
