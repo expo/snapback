@@ -494,8 +494,8 @@ fn offline_guide_page_respects_its_budget_and_its_codes_have_pages() {
         content.len()
     );
     assert!(
-        content.contains("fetch `/api/program`,\nre-resume."),
-        "reset recovery must resume before replay"
+        content.contains("drop coverage, keep outbox, fetch program, re-resume"),
+        "reset recovery must preserve queued writes and resume before replay"
     );
     assert!(!content.contains("cold-drain"));
     for needle in [
