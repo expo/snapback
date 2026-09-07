@@ -1,0 +1,29 @@
+npm error code EBADPLATFORM
+npm error notsup Unsupported platform for snapback2-linux-x64@0.0.15: wanted {"os":"linux","cpu":"x64"} (current: {"os":"darwin","cpu":"arm64"})
+npm error notsup Valid os:   linux
+npm error notsup Actual os:  darwin
+npm error notsup Valid cpu:  x64
+npm error notsup Actual cpu: arm64
+npm error A complete log of this run can be found in: /Users/ccheever/clique-improvement/reviews/publication-platform-metadata-r1/astra/scratch/npm-cache/_logs/2026-09-07T16_25_08_232Z-debug-0.log
+
+node:internal/modules/run_main:107
+    triggerUncaughtException(
+    ^
+
+AssertionError [ERR_ASSERTION]: a consumer of both selected platform artifacts should retain platform-optional installation semantics
+
+1 !== 0
+
+    at file:///Users/ccheever/clique-improvement/reviews/publication-platform-metadata-r1/astra/scratch/multiple-platform-install.mjs:57:8
+    at ModuleJob.run (node:internal/modules/esm/module_job:439:25)
+    at async node:internal/modules/esm/loader:643:26
+    at async asyncRunEntryPointWithESMLoader (node:internal/modules/run_main:101:5) {
+  generatedMessage: false,
+  code: 'ERR_ASSERTION',
+  actual: 1,
+  expected: 0,
+  operator: 'strictEqual',
+  diff: 'simple'
+}
+
+Node.js v24.18.0

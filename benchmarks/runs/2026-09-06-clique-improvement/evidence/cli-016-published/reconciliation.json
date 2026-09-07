@@ -1,0 +1,29 @@
+{
+  "at": "2026-09-07T18:24:58.280878+00:00",
+  "source": "8eeea0dddcf00c45a43f7f1051b14747919302b6",
+  "version": "0.0.16",
+  "publishedPairConfirmed": true,
+  "actualPublisherPid": 54071,
+  "actualPublisherExit": 0,
+  "publisherSeconds": 40.4200095,
+  "all19FunctionalPassed": true,
+  "activationOuterExit": 1,
+  "originalFailure": "Immediate postpublication Darwin registry viewE404; preserved; no republish",
+  "registryObservation": {
+    "path": "/Users/ccheever/clique-improvement/revisions/cli-016-publication-execution-r1/registry-observation-01.json",
+    "sha256": "302f28717004e03553144cb84aabaebb58082d1e5837716d65a203dc9af06986",
+    "all4ExactIntegrityAndLatestMatched": true
+  },
+  "activationEvents": {
+    "path": "/Users/ccheever/clique-improvement/revisions/cli-016-publication-execution-r1/activation-events.jsonl",
+    "sha256": "ca8076d0e7c505d04c7fd06e553b27913f9f0b7103209e09807021b0a7f6cd2a"
+  },
+  "qualifiedBindings": {
+    "path": "/Users/ccheever/clique-improvement/revisions/cli-016-publication-preparation-r1/bindings.json",
+    "sha256": "fb8197d3e77958c7fa9fac6e094a5408cf14a4f6d7c64e9b8ca3baeddb61d31b"
+  },
+  "timing": "RED:chat1.082446709/1 and sum17sequentialsteps31.401559001/30; exactsmokedurationnotreported; originaldryREDretained",
+  "cleanup": "Helper terminalclean true; separate final stopped-state/sourcecustody still pending",
+  "rootFullRead": "All emitted19step summary and actualactivationterminal; full4publicobservationreceipt; exactqualifiedpair/source bindings",
+  "qualificationScope": "Darwinarm64 andshim; publicfreshinstalls notyetverified"
+}

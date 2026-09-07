@@ -275,7 +275,6 @@ struct RetentionAssignmentPrice {
 }
 
 pub(crate) struct RetentionEstimator<'a> {
-    words: BTreeMap<String, usize>,
     schema: &'a Schema,
     max_held_bytes: u64,
     peak: Flow,
@@ -287,7 +286,6 @@ impl<'a> RetentionEstimator<'a> {
     pub(crate) fn estimate(schema: &'a Schema, program: &Program) -> ByteShape {
         let mut estimator = Self {
             schema,
-            words: crate::certificate::search::words(schema, program).bounds,
             max_held_bytes: 0,
             peak: Flow::default(),
             has_fixed_width_result: false,
@@ -732,19 +730,6 @@ impl<'a> RetentionEstimator<'a> {
                             },
                         );
                         (flow, length, true)
-                    }
-                    Builtin::Words => {
-                        let n = self
-                            .words
-                            .get(&crate::value::canonical_json(expression))
-                            .copied();
-                        let bytes = n
-                            .map(crate::certificate::search::words_bytes)
-                            .unwrap_or(u64::MAX);
-                        let mut flow = Flow::value(bytes).retain_value_width();
-                        flow.whole_element = true;
-                        flow.depends_on_scan = first.0.depends_on_scan;
-                        (flow, n.map(|n| (n as u64) * 2 + 1), true)
                     }
                     Builtin::Len
                     | Builtin::Min

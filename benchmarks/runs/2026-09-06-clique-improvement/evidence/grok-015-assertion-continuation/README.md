@@ -1,0 +1,17 @@
+# Grok 0.0.15 diagnostic audit continuation
+
+The unchanged application ran after disclosed setup repair: Node 24.18.0 with npm 10.9.8 installed the original lock, the omitted unchanged helper was restored, and separate choreography dependencies were acquired. This does not erase the original npm 11 failures or reproduce identical benchmark conditions. No app source or lock was repaired.
+
+The preserved [auditor report](grader-report.md) covers all 110 in-scope assertions. Its authored totals are 53 pass, 17 fail and 40 not-run (fresh runtime: 52/15/43); these are neither a formal grade nor Root-validated complete-pass totals. The 58 acceptance mappings remain 13 substantiated, 15 partial and 30 unsubstantiated. Script exit zero and valid receipt structure do not establish complete acceptance coverage.
+
+Root read the full 191,513-character Markdown report and checked the relevant frozen choreography. [Root validation](root-validation.json) rejects complete-pass credit for m2-a18: Bob reposts into his own feed and then directly follows Alice; the test never establishes a distinct followed reposter surfacing an unfollowed original. The two-image compound, decoded avatar and physical process-kill requirements also exceed the observations. Original classifications remain unchanged for provenance.
+
+Concrete failures include feed pagination stuck at 20 despite a next cursor, three eligible message edits refused with E_RULE, digest counts inconsistent with unread nonexpired messages, missing video rendering and incomplete custom-client operations. These are observed app failures or explicitly labeled source findings, not blanket engine-cause claims. Bounded authentication, live updates and one-use asset retrieval also have positive evidence.
+
+The actual Astra xhigh continuation reused session 01a07c6c-4e14-74f1-aaab-23b0265825f4 after its prior terminal. PID 48977 exited 0 after 3458.94074010849 seconds; Root observed controller tool 62158 exit 0. Root corrections and the holistic score were not sent back to the independent auditor.
+
+No new score is computed. The separate Grok holistic score remains 63 versus retained Convex 78 and Supabase 47. Full-scale replay/census, M7, native interaction, all five size requirements and the other requested model outcomes remain outstanding. The audit's delegated native exclusion does not narrow the program goal.
+
+This concise landing preserves the original Markdown report and its dispatch/terminal, environment correspondence and separate Root interpretation. Other report-relative links resolve in the retained complete external directory `/Users/ccheever/clique-improvement/grading/grok-015/outcome-continuation-r2`; source trees, private state, fixture credentials and raw transcripts are not copied here. The original JSON report is retained there with SHA256 `05e152b4c1908291b877180dc2ce27a50f8cc363ed2262e613bb99f556efc31c`. Custody hashes establish byte correspondence, not semantic truth.
+
+[Mechanical custody supplement](root-custody-supplement.json) verifies 334 original/copy files, three symlinks, 156 SDK files, 710 choreography-tool files and 1,964 npm files. Exactly 14 declared receipt outputs changed in the copy. Historical cleanup matches 22 recorded PID/start/parent identities; eight executable-label differences and the initial strict-comparison failures are preserved. This is captured cleanup evidence, not a new live process check.

@@ -1,5 +1,5 @@
 import { spawn } from "node:child_process";
-import { cp, mkdir, readFile, readdir, realpath, symlink } from "node:fs/promises";
+import { cp, mkdir, readFile, readdir, realpath, rm, symlink } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 export const workspace = resolve(dirname(fileURLToPath(import.meta.url)), "..");
@@ -26,11 +26,15 @@ export function run(command, args, options = {}) {
   });
 }
 export async function prepareExpoProject() {
-  await mkdir(resolve(workspace, "target"), { recursive: true });
+  await mkdir(project, { recursive: true });
+  // `init` validates an existing app before refreshing it. This directory is
+  // witness-owned, so replace its backend first and remove leaves retired by
+  // a newer template revision while retaining the native build caches.
+  await rm(resolve(project, "snapback"), { recursive: true, force: true });
+  await cp(resolve(dist, "templates/chat/snapback"), resolve(project, "snapback"), { recursive: true });
   await run(binary, ["init", project, "--template", "chat", "--client", "expo", "--json"]);
   // This is a dedicated generated measurement/witness project, not an app the
   // user edits: refresh its frontend after rebuilding the package.
-  await cp(resolve(dist, "templates/chat/snapback"), resolve(project, "snapback"), { recursive: true });
   await cp(resolve(dist, "templates/chat/expo"), project, { recursive: true, dereference: true });
   // `init` places `shared/` only when absent; a rebuilt package must refresh it too, or the
   // project mixes revisions (fresh screens over stale reducers).

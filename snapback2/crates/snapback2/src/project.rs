@@ -252,11 +252,25 @@ impl CompilerWorker {
                         error.code.as_str(),
                         "E_STRUCTURAL_FANOUT" | "E_SCHEMA_CONSTRAINT" | "E_BOUND" | "E_STEPS"
                     );
-                    let rewrite = source
-                        .filter(|_| !precise)
-                        .filter(|site| site.file.ends_with(".q"))
-                        .map(|site| quarry_certification_rewrite(root, site, &error.message))
-                        .unwrap_or(error.rewrite);
+                    let rewrite = if error.code == "E_STRUCTURAL_FANOUT" {
+                        source
+                            .filter(|site| site.file.ends_with(".q"))
+                            .and_then(|site| {
+                                quarry_fanout_rewrite(
+                                    root,
+                                    site,
+                                    error.site.as_deref()?,
+                                    &error.rewrite,
+                                )
+                            })
+                            .unwrap_or_else(|| error.rewrite.clone())
+                    } else {
+                        source
+                            .filter(|_| !precise)
+                            .filter(|site| site.file.ends_with(".q"))
+                            .map(|site| quarry_certification_rewrite(root, site, &error.message))
+                            .unwrap_or_else(|| error.rewrite.clone())
+                    };
                     let mut refusal =
                         Refusal::new(error.code, family, error.message, rewrite, guide);
                     if refusal.code == "E_STRUCTURAL_FANOUT" {
@@ -706,6 +720,42 @@ fn quarry_certification_rewrite(root: &Path, site: &SourceSite, message: &str) -
     format!("-- {first_message_line}")
 }
 
+fn quarry_fanout_rewrite(
+    root: &Path,
+    source_site: &SourceSite,
+    checker_site: &str,
+    rewrite: &str,
+) -> Option<String> {
+    let (head, tail) = rewrite.split_once(" in ")?;
+    let generated = head.strip_prefix("for ")?;
+    let (loop_site, ordinal) = checker_site.rsplit_once('/')?;
+    let (_, site_binding) = loop_site.rsplit_once("/for/")?;
+    if site_binding != generated
+        || ordinal.is_empty()
+        || !ordinal.bytes().all(|byte| byte.is_ascii_digit())
+    {
+        return None;
+    }
+    let path = Path::new(&source_site.file);
+    if !path
+        .components()
+        .all(|component| matches!(component, Component::Normal(_)))
+        || source_site.line == 0
+    {
+        return None;
+    }
+    let source = fs::read_to_string(root.join(path)).ok()?;
+    let authored_line = source.lines().nth(source_site.line as usize - 1)?.trim();
+    let (authored, _) = authored_line.strip_prefix("for ")?.split_once(" in ")?;
+    let mut chars = authored.chars();
+    if !chars.next().is_some_and(|ch| ch == '_' || ch.is_ascii_alphabetic())
+        || !chars.all(|ch| ch == '_' || ch.is_ascii_alphanumeric())
+    {
+        return None;
+    }
+    Some(format!("for {authored} in {tail}"))
+}
+
 fn validate_quarry_outputs(outputs: &[QuarryGenerated]) -> Result<(), Refusal> {
     for output in outputs {
         validate_quarry_generated(output)?;
@@ -1104,7 +1154,7 @@ for await (const line of createInterface({{ input: process.stdin }})) {{
         .unwrap();
         fs::write(
             snapback.join("programs.q"),
-            "query page(c: cursor ?):\n  return items[] after c first 1 by byAt\n\nquery count():\n  return count(items[] first 2 by byAt)\n\nmutation put(id: id):\n  insert items { id, at: 2, label: 'inserted' }\n  return id\n\nmutation putPrice():\n  return insert prices { amount: 2.50 }\n\nquery getPrice(id: prices):\n  return prices[id]\n",
+            "query page(c: cursor ?):\n  return items[] after c first 1 by byAt\n\nquery count():\n  return count(items[] first 2 by byAt)\n\nmutation put(id: id):\n  insert items { id, at: now, label: 'inserted' }\n  return id\n\nmutation putPrice():\n  return insert prices { amount: 2.50 }\n\nquery getPrice(id: prices):\n  return prices[id]\n",
         )
         .unwrap();
 

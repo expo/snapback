@@ -54,13 +54,27 @@ export default function Witness({ url, controlUrl }: { url: string; controlUrl: 
         }
         if (verb === "open") {
           selected = String(args.conversationId);
-          const sub = client.subscribe(api.deliveries.thread, { conversationId: selected, c: null }, () => {});
-          subscriptions.push(sub);
-          await sub.until((value) => value.state === "complete");
+          const queryArgs = { conversationId: selected };
+          const first = client.subscribe(api.deliveries.conversationView, queryArgs, () => {});
+          const second = client.subscribe(api.deliveries.conversationView, queryArgs, () => {});
+          const [left, right] = await Promise.all([
+            first.until((value) => value.state === "complete" || value.state === "capped"),
+            second.until((value) => value.state === "complete" || value.state === "capped"),
+          ]);
+          if ((left.state !== "complete" && left.state !== "capped")
+            || (right.state !== "complete" && right.state !== "capped")) throw new Error("conversation view did not resolve");
+          const two = client.sharedConsumers(api.deliveries.conversationView, queryArgs);
+          first.close();
+          const one = client.sharedConsumers(api.deliveries.conversationView, queryArgs);
+          subscriptions.push(second);
+          // Retain the existing paginated read's independent receipt for the
+          // partial-history fallback; it is not a field of the composite.
+          await client.query(api.deliveries.thread, { conversationId: selected, c: null });
           // Media mutations predate the delivery recipe; drain this named read to
           // hold their row leases too (messages.sendPhoto has no delivery fanout).
           await client.query(api.messages.thread, { conversationId: selected, c: null });
-          return client.query(api.deliveries.thread, { conversationId: selected, c: null });
+          return { state: left.state, sameValue: left.data === right.data, consumers: [two, one],
+            next: [left.next, right.next], data: left.data };
         }
         if (verb === "send") return client.mutation(api.deliveries.post, {
           conversationId: typeof args.conversationId === "string" ? args.conversationId : selected, body: String(args.body),
@@ -113,6 +127,8 @@ export default function Witness({ url, controlUrl }: { url: string; controlUrl: 
         if (verb === "state") {
           const answer = typeof args.conversationId === "string"
             ? await client.query(api.deliveries.thread, { conversationId: args.conversationId, c: null }) : undefined;
+          const conversationView = typeof args.conversationId === "string"
+            ? await client.query(api.deliveries.conversationView, { conversationId: args.conversationId }) : undefined;
           const entries = await client.outbox.entries();
           const rows = answer && "data" in answer && Array.isArray(answer.data) ? answer.data : [];
           const search = typeof args.search === "string"
@@ -125,7 +141,8 @@ export default function Witness({ url, controlUrl }: { url: string; controlUrl: 
             bubbles: typeof args.conversationId === "string" ? threadBubbles(rows, entries, args.conversationId) : [],
             search, searchVariants, searchProbe: args.searchDiagnostics === true
               ? witnessSearchProbe(client, [...diagnosticTerms, String(args.search)]) : undefined,
-            answer, twin: twinLastDecline(), stores: await databaseState(), files: listFiles(), media: currentMedia ? { loaded: currentMedia.loaded, uri: currentMedia.uri } : null };
+            answer, conversationView, twin: twinLastDecline(), stores: await databaseState(), files: listFiles(),
+            media: currentMedia ? { loaded: currentMedia.loaded, uri: currentMedia.uri } : null };
         }
         throw new Error(`unknown witness command ${verb}`);
       },

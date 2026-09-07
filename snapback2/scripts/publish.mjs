@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // Publish snapback2 to npm: stage immutable tarballs, then converge the
 // platform package and shim to that exact pair. `--dry-run` commits neither.
-import { consumerSmoke } from "./consumer-smoke.mjs";
+import { consumerSmoke, stagePlatformDependencies, verifyPlatformDependencies } from "./consumer-smoke.mjs";
 import { strict as assert } from "node:assert";
 import { createHash } from "node:crypto";
 import { spawnSync } from "node:child_process";
@@ -575,6 +575,8 @@ function prepare(version, name, stateDirectory) {
   }, null, 2)}\n`);
 
   const platformPack = pack(platformStage, stateDirectory);
+  const platformArtifacts = [{ name, version, ...platformPack }];
+  stagePlatformDependencies(shimStage, platformArtifacts);
   const shimPack = pack(shimStage, stateDirectory);
   const resume = {
     name,
@@ -586,7 +588,7 @@ function prepare(version, name, stateDirectory) {
     withoutEngineBytes,
     withEngineBytes,
     artifacts: [
-      { name, version, ...platformPack },
+      ...platformArtifacts,
       { name: "snapback2", version, ...shimPack },
     ],
   };
@@ -597,7 +599,11 @@ function stagePublication(version, name, stateDirectory, resumePath, options = {
   const dryRun = options.dryRun ?? dry;
   const prepareArtifacts = options.prepareArtifacts ?? prepare;
   const qualifyArtifacts = options.qualifyArtifacts
-    ?? ((staged) => qualifyStagedMedia(staged, name));
+    ?? ((staged) => {
+      qualifyStagedMedia(staged, name);
+      verifyPlatformDependencies(staged.artifacts);
+      return staged;
+    });
   if (!dryRun) {
     const staged = loadResume(resumePath, name, version)
       ?? prepareArtifacts(version, name, stateDirectory);
@@ -625,6 +631,9 @@ function stagePublication(version, name, stateDirectory, resumePath, options = {
 }
 
 function runSelfTest() {
+  const packagingTests = spawnSync(process.execPath, ["--test", "--test-timeout=30000", resolve(root, "scripts/publish.test.mjs")], {
+    stdio: "inherit",
+  });
   const directory = mkdtempSync(resolve(tmpdir(), "snapback2-publish-self-test-"));
   try {
     assert.ok(de265CmakeOptions.includes("-DCMAKE_POSITION_INDEPENDENT_CODE=ON"));
@@ -855,6 +864,7 @@ function runSelfTest() {
   } finally {
     rmSync(directory, { recursive: true, force: true });
   }
+  if (packagingTests.status !== 0) throw new Error("publication packaging tests failed");
 }
 
 function main() {

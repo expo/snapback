@@ -1,6 +1,6 @@
 # snapback2
 
-Snapback 2's package contains the Quarry compiler, TypeScript lowering descriptors,
+Snapback 2's package contains the Quarry compiler, TypeScript effect and test helpers,
 headless client, React web arm, and CLI shim. It requires Node 20 or newer for Node clients.
 
 ```sh

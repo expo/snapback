@@ -157,6 +157,8 @@ fn chat_template_receipt_tracks_the_effect_engine_and_lists_all_journeys() {
     );
     assert_eq!(fence["detail"]["generationScope"], "schema");
     assert_eq!(fence["detail"]["policyReplacement"], "Deny");
+    assert_eq!(fence["detail"]["policyRetiredHeldSearchDescriptors"], 1);
+    assert_eq!(fence["detail"]["staleHeldSearchDescriptorRefused"], true);
     assert_eq!(fence["detail"]["policyRetainedHandleState"], "complete");
     assert_eq!(fence["detail"]["policyRetainedHandleRows"], 0);
     assert_eq!(fence["detail"]["policyFreshInvocationState"], "complete");
@@ -257,12 +259,14 @@ fn chat_template_receipt_tracks_the_effect_engine_and_lists_all_journeys() {
     }));
     let bounds = check(&receipt, "bounds");
     let executions = bounds["detail"]["executions"].as_array().unwrap();
-    assert_eq!(executions.len(), 24, "{bounds}");
+    assert_eq!(executions.len(), 30, "{bounds}");
     for operation in [
+        "deliveries.conversationView",
         "deliveries.inbox",
         "deliveries.thread",
         "feeds.followingFeed",
         "feeds.globalFeed",
+        "messages.search",
         "messages.summary",
         "messages.thread",
         "profiles.byHandle",
@@ -292,7 +296,7 @@ fn chat_template_receipt_tracks_the_effect_engine_and_lists_all_journeys() {
         );
         assert_eq!(
             execution["steps"],
-            serde_json::json!({ "actual": if admitted { 8 } else { 4 }, "ceiling": 272 })
+            serde_json::json!({ "actual": if admitted { 14 } else { 10 }, "ceiling": 278 })
         );
         assert_eq!(execution["readSites"].as_array().unwrap().len(), 2);
         assert_eq!(
@@ -760,12 +764,33 @@ fn ref_based_pseudo_membership_is_refused_before_authority_proofs() {
         String::from_utf8_lossy(&checked.stdout),
         String::from_utf8_lossy(&checked.stderr),
     );
-    let output = String::from_utf8_lossy(&checked.stdout);
+    let refusals: Vec<serde_json::Value> = String::from_utf8(checked.stdout)
+        .unwrap()
+        .lines()
+        .map(|line| serde_json::from_str(line).unwrap())
+        .collect();
     assert!(
-        output.contains("\"code\":\"E_QUARRY_UNKNOWN\"")
-            && output.contains("principal is ref; principal is nominally different")
-            && output.contains("\"rewrite\":"),
-        "ref-based pseudo-membership was not refused with the nominal-axis diagnostic: {output}"
+        refusals.iter().any(|refusal| {
+            refusal["code"] == "E_QUARRY_TYPE"
+                && refusal["message"] == "recipient expects principal, got profiles"
+                && refusal["site"] == "snapback/deliveries.q:37:25"
+                && refusal["rewrite"]
+                    .as_str()
+                    .is_some_and(|value| !value.is_empty())
+        }),
+        "the ref-based recipient axis was not refused directly: {refusals:?}"
+    );
+    assert!(
+        refusals.iter().any(|refusal| {
+            refusal["code"] == "E_QUARRY_UNKNOWN"
+                && refusal["message"]
+                    == "memberships.byPrincipalConversation expects reference to profiles for principal, got principal"
+                && refusal["site"] == "snapback/messages.q:11:51"
+                && refusal["rewrite"]
+                    .as_str()
+                    .is_some_and(|value| !value.is_empty())
+        }),
+        "the nominal membership index was not refused directly: {refusals:?}"
     );
 }
 
@@ -1113,7 +1138,7 @@ fn blocked_without_a_reason_is_usage() {
 }
 
 #[test]
-fn clique_sized_seed_and_69_operations_have_bounded_honest_derived_coverage() {
+fn clique_sized_seed_and_71_operations_have_bounded_honest_derived_coverage() {
     let project = Project::new();
     assert!(project.init("chat", "none").status.success());
     // The reduced Clique bar has no external I/O. Retain the real template's
@@ -1161,8 +1186,8 @@ fn clique_sized_seed_and_69_operations_have_bounded_honest_derived_coverage() {
     let elapsed = started.elapsed();
     let receipt = json_stdout(&output);
     assert!(output.status.success(), "{receipt}");
-    // 25 template operations after removing notifications, plus 44 sends.
-    assert_eq!(check(&receipt, "certify")["detail"]["operations"], 69);
+    // 27 template operations after removing notifications, plus 44 sends.
+    assert_eq!(check(&receipt, "certify")["detail"]["operations"], 71);
     let rules = check(&receipt, "rules");
     assert_eq!(rules["detail"]["tables"]["messages"]["probes"], 32 * 4);
     let invalidation = check(&receipt, "invalidation");

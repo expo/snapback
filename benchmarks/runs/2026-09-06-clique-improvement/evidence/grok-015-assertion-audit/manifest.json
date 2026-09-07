@@ -1,0 +1,9 @@
+{
+  "grader-report.md": "cfcc12c68fcd1b44948df3214a32ff74b730f6e5ebdbc772a10aac4dabc55982",
+  "grader-report.json": "64f4d20eea5cb0fd071a2cce489baa51560602950d30af50e467bcad0bc1e853",
+  "terminal.json": "8819c5026ce9cc658a68d43e51f331b3a3f55035aaffb68f0f72f4375d1eca93",
+  "root-validation.json": "e2906e86467eaf48fa15168fb481ee1786c01fef72adea74456a488d74afef23",
+  "prompt.md": "a40b28cc031237ead7e1bf13a331f7bc62247093a30e80102de1471ca69a83d9",
+  "audit/evidence/npm-ci-attempt1.log": "59e3baab60e723cec4ca2aabb9b86bad81b59ff50fc481bdd4faf15458dfc77b",
+  "audit/evidence/npm-ci-attempt2.log": "42a43db4616cc29708efa2570dde70ca9473b8b9b9ed81893d7b4b250282430c"
+}

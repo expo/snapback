@@ -17,7 +17,7 @@ enum Fact {
 struct Env {
     facts: BTreeMap<String, Fact>,
     values: BTreeMap<String, Meaning>,
-    words: std::rc::Rc<std::cell::RefCell<Words>>,
+    audit: std::rc::Rc<std::cell::RefCell<SearchAudit>>,
     calls: u64,
 }
 impl std::ops::Deref for Env {
@@ -146,13 +146,6 @@ fn fact(s: &Schema, e: &Expr, env: &Env) -> Fact {
                 .map(|(k, v)| (k.clone(), fact(s, v, env)))
                 .collect(),
         ),
-        Expr::Builtin {
-            builtin: Builtin::Words,
-            args,
-        } => match args.first().map(|e| fact(s, e, env)) {
-            Some(Fact::Text(n, _)) => Fact::List(Box::new(Fact::Text(n.saturating_mul(4), false))),
-            _ => Fact::Unknown,
-        },
         _ => Fact::Unknown,
     }
 }
@@ -207,18 +200,16 @@ fn error(site: &str, message: &str) -> CheckError {
 }
 
 #[derive(Clone, Default)]
-pub(crate) struct Words {
-    pub bounds: BTreeMap<String, usize>,
-    pub work: crate::engine::search_index::Derivation,
+pub(crate) struct SearchAudit {
     read_meanings: BTreeMap<String, Option<Meaning>>,
 }
-pub(crate) fn words(schema: &Schema, program: &Program) -> Words {
+fn audit(schema: &Schema, program: &Program) -> SearchAudit {
     analyze(schema, program).1
 }
 pub(super) fn validate(schema: &Schema, program: &Program) -> Vec<CheckError> {
     analyze(schema, program).0
 }
-fn analyze(schema: &Schema, program: &Program) -> (Vec<CheckError>, Words) {
+fn analyze(schema: &Schema, program: &Program) -> (Vec<CheckError>, SearchAudit) {
     let mut env = Env {
         facts: program
             .args
@@ -230,14 +221,14 @@ fn analyze(schema: &Schema, program: &Program) -> (Vec<CheckError>, Words) {
             .keys()
             .map(|n| (n.clone(), Meaning::Argument(n.clone())))
             .collect(),
-        words: Default::default(),
+        audit: Default::default(),
         calls: 1,
     };
     let mut errors = Vec::new();
     let mut sites = BTreeSet::new();
     statements(schema, &program.body, &mut env, &mut errors, &mut sites);
-    let words = env.words.borrow().clone();
-    (errors, words)
+    let audit = env.audit.borrow().clone();
+    (errors, audit)
 }
 fn statements(
     s: &Schema,
@@ -411,35 +402,6 @@ fn expression(
             expression(s, left, env, errors, sites);
             expression(s, right, env, errors, sites)
         }
-        Expr::Builtin {
-            builtin: Builtin::Words,
-            args,
-        } => {
-            for e in args {
-                expression(s, e, env, errors, sites)
-            }
-            let bound = match args.first().map(|e| fact(s, e, env)) {
-                Some(Fact::Text(n, _)) => Some(n),
-                _ if matches!(args.first(), Some(Expr::Literal(Value::Null))) => Some(0),
-                _ => None,
-            };
-            if let Some(n) = bound {
-                let mut words = env.words.borrow_mut();
-                words
-                    .bounds
-                    .entry(crate::value::canonical_json(e))
-                    .and_modify(|old| *old = (*old).max(n))
-                    .or_insert(n);
-                let mut work = words_bound(n);
-                work.steps = work.steps.saturating_mul(env.calls);
-                words.work.add(work);
-            } else {
-                errors.push(error(
-                    "Words",
-                    "words requires declared bounded text (optional null is allowed)",
-                ));
-            }
-        }
         Expr::Array(v) | Expr::Builtin { args: v, .. } => {
             for v in v {
                 expression(s, v, env, errors, sites)
@@ -493,7 +455,7 @@ fn check_scan(
                     contract: c,
                 },
             ) => {
-                env.words.borrow_mut().read_meanings.insert(
+                env.audit.borrow_mut().read_meanings.insert(
                     scan.site.clone(),
                     meaning(source, env).filter(lane_invariant),
                 );
@@ -739,8 +701,8 @@ pub(super) fn derivation_bound(
     reads: &BTreeMap<String, ReadSite>,
 ) -> crate::engine::search_index::Derivation {
     use crate::engine::search_index::{Derivation, table_write_bound};
-    let audit = words(schema, program);
-    let mut out = audit.work;
+    let audit = audit(schema, program);
+    let mut out = crate::engine::search_index::Derivation::default();
     for w in writes {
         if let Some(t) = schema.table(&w.table) {
             let mut b = table_write_bound(
@@ -827,21 +789,5 @@ pub(super) fn derivation_bound(
 
 #[cfg(test)]
 pub(crate) mod tests;
-
-// Tagged Array overhead is 12; W bounds occurrences before dedup, U bounds all output scalars.
-pub(crate) fn words_bytes(n: usize) -> u64 {
-    let u = (n as u64).saturating_mul(4);
-    4 * u + 17 * (u / 2 + 1) + 12
-}
-pub(crate) fn words_bound(n: usize) -> crate::engine::search_index::Derivation {
-    let u = (n as u64).saturating_mul(4);
-    let w = u / 2 + 1;
-    crate::engine::search_index::Derivation {
-        steps: (crate::unicode::normalization_step_bound(n).unwrap_or(usize::MAX) as u64)
-            .saturating_add(2 * n as u64 + 3 * u + w),
-        scratch: (crate::unicode::normalization_scratch_bytes(n).unwrap_or(usize::MAX) as u64)
-            .saturating_add(24 * n as u64 + 160 * w),
-    }
-}
 
 pub(crate) mod closure;

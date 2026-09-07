@@ -1,0 +1,19 @@
+{
+  "requestedModel": "gpt-6-astra",
+  "requestedEffort": "xhigh",
+  "launchPid": 81714,
+  "observedAt": "2026-09-07T17:04:01.278680+00:00",
+  "sessionId": "01a07ccf-3476-7710-b690-f55d9e4d2bb5",
+  "source": "/Users/ccheever/.codex/sessions/2026/09/07/rollout-2026-09-07T09-59-09-01a07ccf-3476-7710-b690-f55d9e4d2bb5.jsonl",
+  "sourceSha256": "a35ee1ed29cd0eda9459c5174033315c8d3680450e82b4df2e70190738b2afae",
+  "turnContexts": [
+    {
+      "line": 8,
+      "model": "gpt-6-astra",
+      "effort": "xhigh",
+      "cwd": "/Users/ccheever/clique-improvement/reviews/publication-platform-metadata-r2/astra",
+      "timestamp": "2026-09-07T16:59:12.440Z"
+    }
+  ],
+  "identityMatchesRequest": true
+}

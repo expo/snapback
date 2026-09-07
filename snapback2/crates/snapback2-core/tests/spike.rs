@@ -1376,9 +1376,12 @@ fn every_frozen_corpus_case_replays_its_certification_outcome() {
             }
         }
     }
+    // Public Words retirement removed exactly edge-ascii-words,
+    // search-words-optional-null, and search-words-unicode; no replacement
+    // case was added. Unicode index/search coverage remains in this corpus.
     assert_eq!(
         cases.len(),
-        252,
+        249,
         "the complete frozen corpus must be checked"
     );
     assert!(

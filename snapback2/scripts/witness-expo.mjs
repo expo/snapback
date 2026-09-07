@@ -12,7 +12,7 @@ import { ownerHarness, seedWitness } from "./witness-expo/owner.mjs";
 const names = ["build, owner seed, and outward control", "login, inbox drain, three chats, two photos and warm indexed search", "offline and two queued sends",
   "SIGKILL at barrier; exact pre-swap state across all five stores and twin prediction", "SIGKILL at rest; same cold state",
   "persistent carrier fault reports over control", "post-commit 503, exactly-once replay and FIFO",
-  "Unicode indexed prediction and expiry agree warm and held", "Expo driver conformance including real failed COMMIT", "persist online, relaunch and drain"];
+  "Unicode indexed prediction and expiry agree warm and held", "Expo driver conformance and transaction rollback checks", "persist online, relaunch and drain"];
 const steps = [];
 const mediaFailures = [];
 let control, owner, device, appPid, seed, before, queued;
@@ -93,12 +93,19 @@ function coldAssertions(state) {
     })) : null,
   } : null;
   const facts = { answer: queryFacts(state.answer), search: queryFacts(state.search),
+    conversationView: state.conversationView ? {
+      state: state.conversationView.state, connection: state.conversationView.connection,
+      live: state.conversationView.live, predicted: state.conversationView.predicted,
+      reason: state.conversationView.reason, site: state.conversationView.site,
+      data: state.conversationView.data,
+    } : null,
     searchVariants: Object.fromEntries(Object.entries(state.searchVariants ?? {}).map(([name, answer]) => [name, queryFacts(answer)])),
     searchProbe: state.searchProbe, twin: state.twin,
     roomCoverage: state.coverage.rows.filter((row) => row.row?.conversationId === seed.rooms[3]) };
   assert.ok((state.answer?.predicted ?? []).includes(queued[0].intent), `predicted intent must be on the query result; answer facts: ${JSON.stringify(facts)}; outbox: ${JSON.stringify(state.outbox.map((entry) => ({ state: entry.state, predicted: entry.predicted, intent: entry.intent })))}`);
   assert.ok(state.answer.data.some((row) => row.message?.body === "Café offline first"), "queued send must be inside the never-opened query's data");
   assert.ok(state.bubbles.some((bubble) => bubble.key === queued[0].ids[0] && bubble.kind === "pending"));
+  assert.equal(state.conversationView.state, "partial", "missing count authority keeps the whole composite partial");
   assert.equal(state.search.state, "held");
   assert.ok(state.search.data.some((row) => row.id === queued[0].ids[0] && row.body === "Café offline first"),
     `cold indexed search includes the predicted message row; query facts: ${JSON.stringify(facts)}; expected: ${JSON.stringify({ id: queued[0].ids[0], body: "Café offline first", intent: queued[0].intent })}; outbox: ${JSON.stringify(state.outbox.map((entry) => ({ state: entry.state, predicted: entry.predicted, intent: entry.intent, ids: entry.ids })))}`);
@@ -156,7 +163,11 @@ const actions = [
   async () => {
     await launch(); await command("construct", { fresh: true, name: "alice", assets: seed.assets });
     await command("drain");
-    for (const conversationId of seed.rooms.slice(0, 3)) await command("open", { conversationId });
+    const views = [];
+    for (const conversationId of seed.rooms.slice(0, 3)) views.push(await command("open", { conversationId }));
+    assert.ok(views.every((view) => (view.state === "complete" || view.state === "capped") && view.sameValue
+      && JSON.stringify(view.consumers) === JSON.stringify([2, 1])
+      && JSON.stringify(view.next) === JSON.stringify([null, null])));
     const warmSearch = await command("state", { search: indexedSearchTerm });
     assert.ok(warmSearch.search.state === "complete" || warmSearch.search.state === "capped");
     assert.ok(warmSearch.search.data.some((row) => row.id === seed.doomed));
@@ -176,7 +187,10 @@ const actions = [
       const container = (await run("xcrun", ["simctl", "get_app_container", device, bundleId, "data"])).trim();
       await assertNoMediaOnDisk(container, seed.forbidden); return container;
     });
-    return { opened: seed.rooms.slice(0, 3), neverOpened: seed.rooms[3], search: warmSearch.search.state, media };
+    return { opened: seed.rooms.slice(0, 3), neverOpened: seed.rooms[3], coherentViews: views.map((view) => ({
+      consumers: view.consumers, next: view.next, count: view.data.count,
+      preview: view.data.preview[0]?.message?.body,
+    })), search: warmSearch.search.state, media };
   },
   async () => {
     await command("offline");
@@ -195,10 +209,19 @@ const actions = [
     // A query with truly absent coverage is separate from the never-opened chat.
     const absent = await command("state", { conversationId: "never-held-conversation" });
     assert.equal(absent.answer.state, "partial");
-    return { stores: Object.fromEntries(Object.entries(state.stores).map(([key, rows]) => [key, rows.length])), media: await coldMedia(4) };
+    const probe = state.searchProbe ?? {};
+    const searchProbe = { runtime: probe.runtime, postings: Object.fromEntries(Object.entries(probe.postings ?? {}).map(([term, value]) =>
+      [term, { token: value.token, counts: value.scopes.map((scope) => scope.ids.length) }])) };
+    return { stores: Object.fromEntries(Object.entries(state.stores).map(([key, rows]) => [key, rows.length])),
+      searchProbe, media: await coldMedia(4) };
   },
   async () => {
-    await new Promise((resolve) => setTimeout(resolve, 1_000)); await killApp(); await launch(); coldStores(await command("stores")); await command("construct");
+    await new Promise((resolve) => setTimeout(resolve, 1_000));
+    // Step 4 intentionally constructed and exercised the client after proving
+    // the raw pre-swap recovery. Step 5 owns a new at-rest baseline immediately
+    // before its kill so ordinary completed activity cannot masquerade as a
+    // torn durable write.
+    before = await command("stores"); await killApp(); await launch(); coldStores(await command("stores")); await command("construct");
     coldAssertions(await command("state", { conversationId: seed.rooms[3], search: indexedSearchTerm })); return coldMedia(5);
   },
   async () => {

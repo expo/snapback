@@ -183,7 +183,12 @@ export class HeldIndex<Row = Value> {
           }
         }
       }
-      keys = { parts,nodes: Uint32Array.from(nodes),scope: parts.slice(0,this.derived).map(scalar),refs: 0,identity };
+      // @ref LLP 1012#indexed-held-search — Hermes TypedArray.from currently reads an array-like `.length` and
+      // does not consume Set's iterator. Fill the compact owner directly so
+      // every retained prefix node becomes a posting on every client arm.
+      const ownedNodes = new Uint32Array(nodes.size); let offset = 0;
+      for (const node of nodes) ownedNodes[offset++] = node;
+      keys = { parts,nodes: ownedNodes,scope: parts.slice(0,this.derived).map(scalar),refs: 0,identity };
       this.prepared.set(identity,keys);
     }
     keys.refs++;

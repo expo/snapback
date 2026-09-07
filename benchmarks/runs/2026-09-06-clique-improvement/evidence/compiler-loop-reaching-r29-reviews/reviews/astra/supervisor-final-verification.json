@@ -1,0 +1,10 @@
+{
+  "at": "2026-09-07T18:03:30.390421+00:00",
+  "manifestLeaves": 743,
+  "mismatches": [],
+  "reportFullRead": true,
+  "reportSha256": "782e4093437dc12092115cd5520c901a174136604031ba7ea385a72447d80a80",
+  "diagnosticCount": 7,
+  "fullDiagnosticsEqualControl": true,
+  "scope": "Local custody and complete diagnostic object comparison. Original report retained; no native product validation."
+}

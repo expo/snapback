@@ -1,0 +1,86 @@
+{
+  "kind": "source/environment correspondence; diagnostic continuation",
+  "createdAt": "2026-09-07T16:42:24.132915+00:00",
+  "sourceManifest": "audit/evidence/source-manifest-before.json",
+  "originalChanges": [],
+  "copyProductSourceChanges": [],
+  "allowedOriginalSourceHelperRestoration": [
+    "audit/lanes/lib/json-schema.mjs"
+  ],
+  "symlinks": [
+    {
+      "source": "/Users/ccheever/clique-full-grok-015-20260907/lanes/grok-snapback2/instrument",
+      "copy": "audit/lanes/grok-snapback2/instrument",
+      "type": "symlink",
+      "target": "../../instrument",
+      "originalUnchanged": true,
+      "copyUnchanged": true
+    },
+    {
+      "source": "/Users/ccheever/clique-full-grok-015-20260907/lanes/grok-snapback2/metering",
+      "copy": "audit/lanes/grok-snapback2/metering",
+      "type": "symlink",
+      "target": "../../instrument/metering",
+      "originalUnchanged": true,
+      "copyUnchanged": true
+    },
+    {
+      "source": "/Users/ccheever/clique-full-grok-015-20260907/fixtures/social-messenger",
+      "copy": "audit/fixtures/social-messenger",
+      "type": "symlink",
+      "target": "../instrument/fixtures",
+      "originalUnchanged": true,
+      "copyUnchanged": true
+    }
+  ],
+  "packageAndLockHashes": {
+    "package.json": "8bc17fcfb3b2001703c0e38d72f77dd5da166d18b1bd317de138aa426ca4ffc5",
+    "package-lock.json": "fda9f42de3d575aa8ef904caa456c8d7e71156413777e0c81b79b11cb044e6c9"
+  },
+  "node": {
+    "path": "/Users/ccheever/.volta/tools/image/node/24.18.0/bin/node",
+    "sha256": "ee6fb0e015284d83a91e8ec5213f43a157f8a392b58555301682892ba928c04a",
+    "unchanged": true
+  },
+  "npm": {
+    "original": "11.16.0",
+    "continuation": "10.9.8",
+    "distributionEntriesVerified": 1964,
+    "allUnchanged": true,
+    "explicitCLI": "/Users/ccheever/.volta/tools/image/node/22.23.2/lib/node_modules/npm/bin/npm-cli.js",
+    "notUnchangedBenchmarkConditions": true
+  },
+  "appCi": {
+    "pid": 52129,
+    "exitCode": 0,
+    "elapsedSeconds": 25.915070292,
+    "dependencyOnlyTimeoutSeconds": 120
+  },
+  "relocation": {
+    "originalOwner": 52700,
+    "originalWeb": 52701,
+    "auditOwner": 52800,
+    "auditWeb": 52801,
+    "sourceDiff": null,
+    "method": "CLI ports and existing URL environment variables"
+  },
+  "webEnvironmentCorrection": {
+    "BROWSER": "none",
+    "reason": "Suppress Expo default desktop-open utility after its first attempt; initial scope deviation retained"
+  },
+  "harnessTooling": "Fresh registry archive extraction at original pinned versions outside app; no app/choreography source, package or lock edits",
+  "state": "Original private state never copied/read/reset. Fresh audit state retained after shutdown.",
+  "identityLimit": "Actual headless-shell hash starts after first pinned choreography, before independent web; initial preflight hashed regular Chromium instead.",
+  "hostAfter": {
+    "uname": {
+      "system": "Darwin",
+      "node": "MacBookPro",
+      "release": "25.6.0",
+      "version": "Darwin Kernel Version 25.6.0: Sat Jul 11 15:26:21 PDT 2026; root:xnu-12377.161.13~4/RELEASE_ARM64_T6000",
+      "machine": "arm64"
+    },
+    "macVersion": "26.6",
+    "model": "MacBookPro18,4",
+    "loadAverage": "{ 4.17 4.60 8.42 }"
+  }
+}

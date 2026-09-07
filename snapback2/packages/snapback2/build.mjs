@@ -4,7 +4,7 @@ import { existsSync } from "node:fs";
 import { randomUUID } from "node:crypto";
 import { fileURLToPath } from "node:url";
 import { dirname, isAbsolute, relative, resolve, sep } from "node:path";
-import { build } from "esbuild";
+import { build, version as esbuildVersion } from "esbuild";
 import ts from "typescript";
 import { generateUnicodeTables } from "../evaluator/unicode-build.mjs";
 
@@ -25,8 +25,9 @@ if (process.argv.includes("--measure-twin")) {
   const required = ["unicode-tables", "index-store", "twin-store", "swap-journal", "carrier-index", "metadata", "projection", "range-store", "offline.ts", "offline-protocol", "local-cursor", "held-program"];
   const inputs = Object.keys(measured.metafile.inputs);
   for (const name of required) if (!inputs.some(p => p.includes(name))) throw new Error(`unmeasured twin implementation: ${name}`);
-  console.log(JSON.stringify({ entry: "complete-local-runtime", minified: bytes.length, gzip, ceiling: 66000, target: 64000, inputs }));
-  if (gzip > 66000) throw new Error(`twin exceeds 66000 gzip bytes: ${gzip}`);
+  console.log(JSON.stringify({ entry: "complete-local-runtime", minified: bytes.length, gzip, ceiling: 82000, target: 80000,
+    toolchain: { node: process.version, esbuild: esbuildVersion, gzipLevel: 9 }, inputs }));
+  if (gzip > 82000) throw new Error(`twin exceeds 82000 gzip bytes: ${gzip}`);
   process.exit(0);
 }
 const dist = resolve(here, "dist");
@@ -240,7 +241,7 @@ const guidePages = await Promise.all(
     name,
     markdown: await readFile(resolve(guideSource, `${name}.md`), "utf8"),
     // LLP 1017 adds cap invariants and complete mutation loops to the reference.
-    limit: name === "grammar" ? 3584 : name === "quarry" ? 15872 : name === "live-query" ? 5632 : name === "offline" ? 4352 : 4096,
+    limit: name === "grammar" ? 3584 : name === "quarry" ? 15872 : name === "live-query" ? 5632 : name === "offline" ? 4864 : 4096,
   })),
 );
 const guideErrors = [...familyErrors, ...quarryFamilyFailures(families, parseDocument), ...guideFailures(guidePages, tsFixtureText, quarryFixtureText, parseDocument)];

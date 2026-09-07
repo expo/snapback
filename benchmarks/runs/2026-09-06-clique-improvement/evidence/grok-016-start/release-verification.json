@@ -1,0 +1,84 @@
+{
+  "defaultNpm11FreshCiVerified": true,
+  "defaultNpm11InstallVerified": true,
+  "expoVerified": true,
+  "freshInstallVerified": true,
+  "guideVerified": true,
+  "originalPublicationOuterFailurePreserved": {
+    "exitCode": 1,
+    "failure": "Immediate postpublication Darwin registry viewE404; preserved; no republish"
+  },
+  "packages": {
+    "snapback2": {
+      "actualReceipt": "/Users/ccheever/clique-improvement/revisions/cli-016-publication-execution-r1/registry-observation-01.json",
+      "integrity": "sha512-I+toLV7Fx18boa9RAXbzzrDB5vYG9bKjeKALXenuk1aEPHKMhKyrS5XH88ojAVOIkpqf62GNyXBXr+4ZkLAkjg==",
+      "tarballSha256": "947387b55f2dad398a1ca8d5846e8bd349ff0cffd1e54206a5c9e32e4c09586e",
+      "version": "0.0.16"
+    },
+    "snapback2-darwin-arm64": {
+      "actualReceipt": "/Users/ccheever/clique-improvement/revisions/cli-016-publication-execution-r1/registry-observation-01.json",
+      "integrity": "sha512-hrBaHPL53pcjOzv7qX5Vi9AVIaPO2e4O6yG0xpyJ3/FClHoqxrIJgz5nmr77egDh1XwjOfI1mjz6dizzkN1tLQ==",
+      "tarballSha256": "350586250099d14175251f8a9465fb0dc01e162b391c8ea99f4e114f9a35ba4d",
+      "version": "0.0.16"
+    }
+  },
+  "packedRegularLeavesVerified": 156,
+  "qualifiedSource": "8eeea0dddcf00c45a43f7f1051b14747919302b6",
+  "registryVerified": true,
+  "sourceReceipts": [
+    {
+      "path": "/Users/ccheever/clique-improvement/revisions/cli-016-publication-execution-r1/root-publication-reconciliation.json",
+      "sha256": "4ff9ee8a20431abc109f433a9881d9c7525e0374ce169dda0a4011544cddb3b0"
+    },
+    {
+      "path": "/Users/ccheever/clique-improvement/revisions/cli-016-publication-execution-r1/registry-observation-01.json",
+      "sha256": "302f28717004e03553144cb84aabaebb58082d1e5837716d65a203dc9af06986"
+    },
+    {
+      "path": "/Users/ccheever/clique-improvement/revisions/cli-016-registry-expo-verification-preparation/execution/installed-expo-verification.json",
+      "sha256": "fa1756908a1b973fba125df6572f2e852c5095d15a99d584451a8b77cc6e5621"
+    },
+    {
+      "path": "/Users/ccheever/clique-improvement/revisions/cli-016-default-install-witness-preparation/execution/report.json",
+      "sha256": "ff8a77a7938fce28aec58e36fe649c13832b77801e6a675d03ff3894cf425c2e"
+    },
+    {
+      "path": "/Users/ccheever/clique-improvement/revisions/cli-016-root-installed-verification.json",
+      "sha256": "f8bd15c2f3468bdf855bba8da2507679be7237b67b9b63444a1a2fd465a81270"
+    },
+    {
+      "path": "/Users/ccheever/clique-improvement/revisions/cli-016-public-installed-verification-handoff/handoff.json",
+      "sha256": "4221efe3a3a8a27261c96aba23179167a0469104540ee80fae52c3d5d358148f"
+    },
+    {
+      "path": "/Users/ccheever/clique-improvement/revisions/cli-016-release-qualification-continuation-r1/supervisor-terminal.json",
+      "sha256": "e59ac5e2b95ca6f1212070f1113def010b060761d057b6cabcfacf4cace6979a"
+    },
+    {
+      "path": "/Users/ccheever/clique-improvement/revisions/cli-016-registry-expo-verification-preparation/execution/terminal.json",
+      "sha256": "77d3faf37acdde15316a7b14169ec5f62f54e4403be7d26fc91e0902e496bc88"
+    },
+    {
+      "path": "/Users/ccheever/clique-improvement/revisions/cli-016-default-install-witness-preparation/execution/terminal.json",
+      "sha256": "83bd421b0f776a032cd43c99fe15da5dacf3dd7784e0925d858a0a64f6ce1704"
+    },
+    {
+      "path": "/Users/ccheever/clique-improvement/revisions/cli-016-default-install-witness-binding-preparation/source-shim-package.json",
+      "sha256": "3d3a01fb551ce167cf9b0e4ae5cdeb679e13523bee30290ffaf808a58c3b91c2"
+    }
+  ],
+  "standardQualificationScope": "Complete19 functional results and actual publication verified; dry and activation timing reds remain red",
+  "standardQualificationVerified": true,
+  "status": "Actual public and installed receipts bound; not benchmark execution",
+  "timingDisclosures": {
+    "activation": "RED:chat1.082446709/1 and sum17sequentialsteps31.401559001/30; exactsmokedurationnotreported; originaldryREDretained",
+    "originalDry": {
+      "actualSeconds": 1.050835625000007,
+      "budgetMet": false,
+      "budgetSeconds": 1,
+      "path": "/Users/ccheever/clique-improvement/revisions/cli-016-release-qualification-continuation-r1/latency-budget-observation-01.json",
+      "sha256": "d5d0f9fed3d30874326c6b9313a9c673f35e6b02a9ff5da782a79e974f28119e"
+    }
+  },
+  "version": "0.0.16"
+}

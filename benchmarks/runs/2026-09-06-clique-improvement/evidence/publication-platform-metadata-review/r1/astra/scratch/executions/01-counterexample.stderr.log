@@ -1,0 +1,23 @@
+node:internal/modules/run_main:107
+    triggerUncaughtException(
+    ^
+
+AssertionError [ERR_ASSERTION]: staging must preserve an unrelated optional dependency that is not an OS/architecture package
++ actual - expected
+
++ undefined
+- '1.2.3'
+
+    at file:///Users/ccheever/clique-improvement/reviews/publication-platform-metadata-r1/astra/scratch/preserve-optional.mjs:22:8
+    at ModuleJob.run (node:internal/modules/esm/module_job:439:25)
+    at async node:internal/modules/esm/loader:643:26
+    at async asyncRunEntryPointWithESMLoader (node:internal/modules/run_main:101:5) {
+  generatedMessage: false,
+  code: 'ERR_ASSERTION',
+  actual: undefined,
+  expected: '1.2.3',
+  operator: 'strictEqual',
+  diff: 'simple'
+}
+
+Node.js v24.18.0

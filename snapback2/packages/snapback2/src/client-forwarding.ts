@@ -240,7 +240,10 @@ export class MutationForwarding {
   private submissionTail: Promise<void> = Promise.resolve();
   private unresponsive = false;
 
-  constructor(private readonly host: ForwardingHost) {}
+  constructor(
+    private readonly host: ForwardingHost,
+    private readonly responseTimeout = RESPONSE_TIMEOUT,
+  ) {}
 
   get available(): boolean { return typeof globalThis.BroadcastChannel === "function"; }
 
@@ -319,7 +322,7 @@ export class MutationForwarding {
     const timer = setTimeout(() => {
       this.statusWaiters.delete(requestId); this.unresponsive = true; this.notify();
       resolve(followerStatus("writer-unresponsive"));
-    }, RESPONSE_TIMEOUT);
+    }, this.responseTimeout);
     (timer as { unref?: () => void }).unref?.();
     this.statusWaiters.set(requestId, { followerId: follower.followerId,
       writerIncarnation: writer.writerIncarnation, resolve, timer });
@@ -457,7 +460,7 @@ export class MutationForwarding {
         }
         this.releaseCommand(lifecycle);
         this.updateUnresponsive();
-      }, Math.max(recovery === undefined ? 0 : RESPONSE_TIMEOUT, record.expiresAt - Date.now()));
+      }, Math.max(recovery === undefined ? 0 : this.responseTimeout, record.expiresAt - Date.now()));
       (expiryTimer as { unref?: () => void }).unref?.();
       pending = { command, recovery: token, generation: this.generation, sent: false, timedOut: false, expiryTimer };
       lifecycle.pending = pending;
@@ -478,7 +481,7 @@ export class MutationForwarding {
       pending.attempt = undefined; pending.timedOut = true; this.discovered = undefined;
       this.unresponsive = true; this.notify();
       resolve({ state: "admission-unknown", recovery: pending.recovery });
-    }, RESPONSE_TIMEOUT);
+    }, this.responseTimeout);
     (timer as { unref?: () => void }).unref?.();
     pending.targetWriterIncarnation = targetWriterIncarnation;
     pending.attempt = { promise, resolve, reject, timer, targetWriterIncarnation };
@@ -524,7 +527,7 @@ export class MutationForwarding {
     if (!follower || !this.available || (!follower.persona && (!follower.established || follower.authEpoch === undefined))) return undefined;
     if (this.validWriter(this.discovered, follower)) return this.discovered;
     this.post({ protocol: PROTOCOL, type: "discover", followerId: follower.followerId });
-    const deadline = Date.now() + RESPONSE_TIMEOUT;
+    const deadline = Date.now() + this.responseTimeout;
     while (generation === this.generation && Date.now() < deadline) {
       await new Promise<void>(resolve => setTimeout(resolve, 10));
       if (generation !== this.generation || this.followerRole !== follower) return undefined;

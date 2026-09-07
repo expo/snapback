@@ -13,7 +13,7 @@ import { fileRangeStore } from "../dist/test.mjs";
 import { sqliteFactory } from "./sqlite-fixture.ts";
 import { FakeIndexedDb, FakeLocks } from "./fake-indexeddb.ts";
 
-import { generation, schemaHash, planHash, metadataResponse } from "./offline-metadata-fixture.ts";
+import { certifiedDrain, certifiedDrainEnvelope, certifiedDrainMetadataResponse, generation, schemaHash, planHash, metadataResponse } from "./offline-metadata-fixture.ts";
 
 const emptyReceipt = () => ({ ranges: [], absences: [], verdicts: [] });
 const row = (table: string, id: string, body = id) => ({ table, id, row: { id, body } });
@@ -540,7 +540,7 @@ test("seal survives a cold open, confirmed re-auth unseals, and wipe deletes the
 test("carrier open failures and a second web lock holder refuse loudly", async () => {
   const badFactory: any = () => ({
     open: async () => { throw new Error("disk unavailable"); }, seal: async () => undefined,
-    wipe: async () => undefined, answer: async () => undefined, commit: async () => undefined,
+    wipe: async () => undefined, answer: async () => undefined, commit: async () => undefined, subscribeInputs: () => () => undefined,
     coverage: async () => ({ rows: [], ranges: [], absences: [], verdicts: [], watermarks: [] }),
     outbox: { all: async () => [], get: async () => undefined, put: async () => undefined, remove: async () => undefined },
   });
@@ -549,14 +549,14 @@ test("carrier open failures and a second web lock holder refuse loudly", async (
   await assert.rejects(bad.ready, (error: unknown) => error instanceof SnapbackRefusal
     && error.code === "E_OFFLINE_CARRIER" && error.envelope.rewrite?.includes("broken-test") === true);
 
-  // A second web tab of the same account is not refused: it follows the writer
-  // (live reads, writes refused E_OFFLINE_FOLLOWER) until that tab closes.
+  // A second web tab of the same account opens as a follower. This carrier
+  // test has no forwarding peer; the protocol remains in explicit discovery.
   const shared = indexedFactory();
   const first = createClient({ url: "http://offline.test", as: "alice", offline: { store: shared.factory } });
   await first.ready;
   const second = createClient({ url: "http://offline.test", as: "alice", offline: { store: shared.factory } });
   await second.ready;
-  assert.equal((await second.outbox.status()).reason, "follower");
+  assert.equal((await second.outbox.status()).reason, "writer-discovery");
   first.close();
   second.close();
 });
@@ -573,6 +573,71 @@ test("offline option shape and fenceDays bounds are TypeErrors", () => {
     () => createClient({ url: "http://options.test", as: "alice", offline: { store: {} } } as any),
     TypeError,
   );
+});
+
+test("offline factory returns fail at setup with the browser spelling, before auth or I/O", () => {
+  let requests = 0;
+  const options = { url: "http://options.test", fetch: async () => { requests++; throw new Error("unexpected I/O"); } };
+  const setupError = (error: unknown) => error instanceof TypeError
+    && /offline\.store must return a RangeStore with open\(\)/.test(error.message)
+    && error.message.includes("store: indexedDbRangeStore()")
+    && error.message.includes("snapback2 guide offline");
+  // The exported builder returns a factory; the client needs the builder's result.
+  assert.throws(() => createClient({ ...options, offline: { store: indexedDbRangeStore } } as any), setupError);
+  for (const returned of [undefined, null, 1, true, "store", {}, { open: 1 }, Promise.resolve({}), () => ({})]) {
+    let calls = 0;
+    assert.throws(() => createClient({ ...options, offline: { store: () => { calls++; return returned; } } } as any), setupError);
+    assert.equal(calls, 1, "validation must not invoke the factory again");
+  }
+  assert.equal(requests, 0);
+});
+
+test("offline setup accepts unbranded custom and callable stores, invoking each factory once", async () => {
+  for (const callable of [false, true]) {
+    let calls = 0, opens = 0;
+    const methods = {
+      open: async () => { opens++; }, unseal: async () => {}, seal: async () => {}, wipe: async () => {},
+      answer: async () => undefined, commit: async () => {}, subscribeInputs: () => () => undefined,
+      coverage: async () => ({ rows: [], ranges: [], absences: [], verdicts: [], watermarks: [] }),
+      outbox: { all: async () => [], get: async () => undefined, put: async () => {}, remove: async () => {},
+        grant: async () => undefined, grants: async () => [], bounds: async () => ({}),
+        overlay: async () => ({}), programs: async () => ({}) },
+    };
+    // Inherited methods and callable objects both satisfy the structural contract.
+    const custom = callable ? Object.assign(() => {}, methods) : Object.create(methods);
+    const client = createClient({ url: "http://custom.test", as: "alice", startOffline: true,
+      offline: { store: () => { calls++; return custom; } } });
+    try {
+      await client.ready;
+      await client.offline();
+      assert.deepEqual(await client.outbox.entries(), []);
+      assert.equal(opens, 1);
+      assert.equal(calls, 1);
+    } finally { client.close(); }
+  }
+});
+
+test("offline setup preserves throwing factories and unavailable carrier refusals", async () => {
+  for (const failure of [new Error("factory failed"), new TypeError("factory failed"),
+    Object.assign(new TypeError("carrier unavailable"), { code: "E_OFFLINE_CARRIER" })]) {
+    let calls = 0;
+    const factory = Object.assign(() => { calls++; throw failure; }, { carrier: "custom-test" });
+    assert.throws(() => createClient({ url: "http://factory.test", offline: { store: factory } }),
+      (error: unknown) => error instanceof SnapbackRefusal && error.message === failure.message
+        && error.code === ((failure as any).code ?? "E_OFFLINE_STATE") && error.envelope.site === "client.offline");
+    assert.equal(calls, 1);
+  }
+  let calls = 0;
+  const unavailable = indexedDbRangeStore({ indexedDB: {} as any, locks: {} as any });
+  const client = createClient({ url: "http://unavailable.test", as: "alice", startOffline: true,
+    offline: { store: Object.assign(() => { calls++; return unavailable(); }, { carrier: "IndexedDB" }) } });
+  try {
+    await assert.rejects(client.ready, (error: unknown) => error instanceof SnapbackRefusal
+      && error.code === "E_OFFLINE_CARRIER" && error.envelope.site === "RangeStore.open"
+      && error.message === "IndexedDB and Web Locks are required"
+      && error.envelope.rewrite === "install or configure the IndexedDB carrier");
+    assert.equal(calls, 1);
+  } finally { client.close(); }
 });
 
 test("a sealed cold start stays unreadable until auth.me confirms the same bearer principal", async () => {
@@ -892,7 +957,7 @@ test("drain true follows five pages, persists the watermark, and follows a new t
     url: "http://drain.test", as: "alice", offline: { store: fileRangeStore(root) },
     fetch: async (input, init) => {
       const url = String(input);
-      const metadata = metadataResponse(input);
+      const metadata = certifiedDrainMetadataResponse(input);
       if (metadata) return metadata;
       if (url.endsWith("/api/resume")) {
         return new Response(JSON.stringify({ code: "E_ROUTE", family: "op", message: "not found", guide: "op/reference" }), { status: 404 });
@@ -901,14 +966,14 @@ test("drain true follows five pages, persists the watermark, and follows a new t
         const args = JSON.parse(String(init?.body)).args;
         cursors.push(args.c);
         const next = nextByCursor.get(args.c);
-        const page = envelope([args.c], String(cursors.length).repeat(64), cursors.length);
+        const page = certifiedDrainEnvelope([args.c], String(cursors.length).repeat(64), cursors.length);
         page.state = next === null ? "complete" : "capped";
         page.next = next;
         return new Response(JSON.stringify(page), { status: 200 });
       }
       subscriptions += 1;
       if (subscriptions !== 1) return sse(undefined, true);
-      const tail = envelope(["tail"], "a".repeat(64), 10);
+      const tail = certifiedDrainEnvelope(["tail"], "a".repeat(64), 10);
       tail.state = "capped";
       tail.next = "c5";
       return sse(tail);
@@ -916,7 +981,7 @@ test("drain true follows five pages, persists the watermark, and follows a new t
   });
   await client.ready;
   const seen: any[] = [];
-  const drain = client.subscribe(api.deliveries.inbox as any, { c: null }, (value) => seen.push(value), { drain: true });
+  const drain = client.subscribe((api as any).local.partial, { c: null }, (value) => seen.push(value), { drain: true });
   const caught = await drain.until((value) => value.state === "complete" && value.caughtUp === true && value.watermark === "c5", 2_000);
   assert.equal(caught.state, "complete");
   assert.deepEqual(cursors, [null, "c1", "c2", "c3", "c4", "c5"]);
@@ -927,19 +992,19 @@ test("drain true follows five pages, persists the watermark, and follows a new t
   const watermark = (await inspect.coverage()).watermarks[0];
   assert.equal(watermark?.watermark, "c5");
   assert.equal(watermark?.validator, "6".repeat(64), "the base args carry the tail answer's validator");
-  const heldDrain = await inspect.answer("deliveries.inbox", { c: null });
+  const heldDrain = await inspect.answer(certifiedDrain.op, { c: null });
   assert.equal(heldDrain?.caughtUp, true);
   assert.equal(heldDrain?.watermark, "c5");
   const coverageBefore = await inspect.coverage();
   await inspect.close?.();
-  // A cold reopen with the transport cut: the drain is answered from the store, adopts the
-  // persisted watermark instead of the twin's own page chain, and records nothing (LLP 1012 §6).
+  // A cold reopen adopts the persisted watermark instead of the twin's own
+  // page chain, and records nothing (LLP 1012 §6).
   const cold = createClient({
     url: "http://drain.test", as: "alice", offline: { store: fileRangeStore(root) }, startOffline: true,
     fetch: async () => { throw new TypeError("network cut"); },
   } as Parameters<typeof createClient>[0]);
   await cold.ready;
-  const coldDrain = cold.subscribe(api.deliveries.inbox as any, { c: null }, () => undefined, { drain: true });
+  const coldDrain = cold.subscribe((api as any).local.partial, { c: null }, () => undefined, { drain: true });
   const coldCaught = await coldDrain.until((value) => (value.state === "complete" || value.state === "capped") && value.caughtUp === true, 2_000);
   assert.equal(coldCaught.watermark, "c5", "an offline drain adopts the persisted watermark");
   assert.equal(coldCaught.connection, "offline");
@@ -948,7 +1013,7 @@ test("drain true follows five pages, persists the watermark, and follows a new t
   const reopened = fileRangeStore(root)();
   await reopened.open("dev:alice");
   assert.deepEqual(await reopened.coverage(), coverageBefore, "an offline drain writes no coverage");
-  assert.equal((await reopened.answer("deliveries.inbox", { c: null }))?.watermark, "c5");
+  assert.equal((await reopened.answer(certifiedDrain.op, { c: null }))?.watermark, "c5");
   await reopened.close?.();
   await rm(root, { recursive: true, force: true });
 });
@@ -960,18 +1025,18 @@ function envelope(data: unknown, validator = "1".repeat(64), seq = 3) {
     rows: [], receipt: emptyReceipt(), validator,
   };
 }
-
-async function seededResumeStore(root: string): Promise<void> {
+async function seededResumeStore(root: string, exact = false): Promise<void> {
+  const identity = exact ? certifiedDrain : { op: "deliveries.inbox", generation, schemaHash };
   const store = fileRangeStore(root)();
   await store.open("dev:alice");
   await store.commit({
     deliveries: [{
-      op: "deliveries.inbox", args: { c: null }, state: "complete", data: [], next: null, seq: 3,
+      op: identity.op, args: { c: null }, state: "complete", data: [], next: null, seq: 3,
       validator: "1".repeat(64), receipt: emptyReceipt(),
     }],
     watermark: {
-      op: "deliveries.inbox", args: { c: null }, watermark: "cursor-9", validator: "1".repeat(64),
-      generation, schemaHash, authEpoch: 7, updatedAt: 10,
+      op: identity.op, args: { c: null }, watermark: "cursor-9", validator: "1".repeat(64),
+      generation: identity.generation, schemaHash: identity.schemaHash, authEpoch: 7, updatedAt: 10,
     },
   });
   await store.close?.();
@@ -1014,36 +1079,36 @@ test("cold resume sends the bounded shape before subscribe and a 404 falls back 
 
 test("resume excludes its drain mount and atomically preserves a full log watermark and validator", async () => {
   const root = await tempRoot();
-  await seededResumeStore(root);
+  await seededResumeStore(root, true);
   let resumes = 0;
   let reconnectRequest: any;
   const client = createClient({
     url: "http://resume-watermark.test", as: "alice", offline: { store: fileRangeStore(root) },
     fetch: async (input, init) => {
       const url = String(input);
-      const metadata = metadataResponse(input);
+      const metadata = certifiedDrainMetadataResponse(input);
       if (metadata) return metadata;
       if (url.endsWith("/api/resume")) {
         const request = JSON.parse(String(init?.body));
         resumes += 1;
         if (resumes === 1) return new Response(JSON.stringify({
-          seq: 3, generation, schemaHash,
+          seq: 3, generation: certifiedDrain.generation, schemaHash: certifiedDrain.schemaHash,
           authority: { principal: "dev:alice", authEpoch: 7 }, log: { unchanged: true }, mounted: [],
         }), { status: 200 });
         reconnectRequest = request;
         return new Response(JSON.stringify({
-          seq: 5, generation, schemaHash,
+          seq: 5, generation: certifiedDrain.generation, schemaHash: certifiedDrain.schemaHash,
           authority: { principal: "dev:alice", authEpoch: 7 },
-          log: { ...envelope([], "8".repeat(64), 5), watermark: "cursor-10" },
+          log: { ...certifiedDrainEnvelope([], "8".repeat(64), 5), watermark: "cursor-10" },
           mounted: [],
         }), { status: 200 });
       }
-      if (url.includes("/api/query")) return new Response(JSON.stringify(envelope([], "4".repeat(64), 4)), { status: 200 });
+      if (url.includes("/api/query")) return new Response(JSON.stringify(certifiedDrainEnvelope([], "4".repeat(64), 4)), { status: 200 });
       return sse(undefined, true);
     },
   });
   await client.ready;
-  const drain = client.subscribe(api.deliveries.inbox as any, { c: null }, () => undefined, { drain: true });
+  const drain = client.subscribe((api as any).local.partial, { c: null }, () => undefined, { drain: true });
   await drain.until((value) => value.state === "complete" && value.caughtUp === true);
   await client.offline();
   await client.online();
@@ -1052,7 +1117,7 @@ test("resume excludes its drain mount and atomically preserves a full log waterm
   client.close();
   const inspect = fileRangeStore(root)();
   await inspect.open("dev:alice");
-  const watermark = (await inspect.coverage()).watermarks.find((item) => item.op === "deliveries.inbox");
+  const watermark = (await inspect.coverage()).watermarks.find((item) => item.op === certifiedDrain.op);
   assert.equal(watermark?.watermark, "cursor-10");
   assert.equal(watermark?.validator, "8".repeat(64));
   await inspect.close?.();
@@ -1085,7 +1150,7 @@ test("E_OFFLINE_RESET drops coverage but preserves the durable outbox slot", asy
 
 test("E_OFFLINE_RESET cold-drains a mounted drain from the null cursor", async () => {
   const root = await tempRoot();
-  await seededResumeStore(root);
+  await seededResumeStore(root, true);
   let resumes = 0;
   const queryCursors: Array<string | null> = [];
   let sawResetDrain!: () => void;
@@ -1094,12 +1159,12 @@ test("E_OFFLINE_RESET cold-drains a mounted drain from the null cursor", async (
     url: "http://reset-drain.test", as: "alice", offline: { store: fileRangeStore(root) },
     fetch: async (input, init) => {
       const url = String(input);
-      const metadata = metadataResponse(input);
+      const metadata = certifiedDrainMetadataResponse(input);
       if (metadata) return metadata;
       if (url.endsWith("/api/resume")) {
         resumes += 1;
         if (resumes === 1) return new Response(JSON.stringify({
-          seq: 3, generation, schemaHash,
+          seq: 3, generation: certifiedDrain.generation, schemaHash: certifiedDrain.schemaHash,
           authority: { principal: "dev:alice", authEpoch: 7 }, log: { unchanged: true }, mounted: [],
           grant: { id: "s2id-00000000000000000000000000000001-0000000000000001", from: "s2id-00000000000000000000000000000001-0000000000000001", count: 8192, mintedAt: Date.now(), expiresAt: Date.now() + 86400000 },
         }), { status: 200 });
@@ -1124,7 +1189,7 @@ test("E_OFFLINE_RESET cold-drains a mounted drain from the null cursor", async (
   let caughtUpEvents = 0;
   let sawResetSettled!: () => void;
   const resetSettled = new Promise<void>((resolve) => { sawResetSettled = resolve; });
-  const drain = client.subscribe(api.deliveries.inbox as any, { c: null }, (event: any) => {
+  const drain = client.subscribe((api as any).local.partial, { c: null }, (event: any) => {
     if (event.caughtUp === true && ++caughtUpEvents === 2) sawResetSettled();
   }, { drain: true });
   await drain.until((value) => value.state === "complete" && value.caughtUp === true);
@@ -1141,7 +1206,7 @@ test("E_OFFLINE_RESET cold-drains a mounted drain from the null cursor", async (
   } finally {
     if (resetTimer) clearTimeout(resetTimer);
   }
-  assert.deepEqual(queryCursors, [null, null, null], "initial drain, reset drain, and pending mounted coverage revalidation all restart at the root");
+  assert.deepEqual(queryCursors, [null, null], "the initial drain and its reset replacement both restart at the root; drains are not redundantly revalidated as mounted queries");
   drain.close();
   await client.close();
   await rm(root, { recursive: true, force: true });

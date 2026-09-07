@@ -1,0 +1,27 @@
+{
+  "packedOptionalDependencies": {
+    "snapback2-darwin-arm64": "0.0.15"
+  },
+  "lockSnapback2OptionalDependencies": {
+    "snapback2-darwin-arm64": "0.0.15"
+  },
+  "lockLinux": null,
+  "lockHost": {
+    "version": "0.0.15",
+    "resolved": "file:../dist/npm/publish-snapback2-darwin-arm64-0.0.15/snapback2-darwin-arm64-0.0.15.tgz",
+    "integrity": "sha512-hXUgWyeqokdoxKAgG1Ltm05qIyvspGFHJAAk63RBxCOeGRWAhh9vfPYq3Ag5OcLN4vk9emSTyG/pxLbsYqqzVw==",
+    "cpu": [
+      "arm64"
+    ],
+    "os": [
+      "darwin"
+    ]
+  },
+  "producerDependencies": {
+    "react": "file:../dist/npm/publish-snapback2-darwin-arm64-0.0.15/react-19.1.1.tgz",
+    "snapback2": "file:../dist/npm/publish-snapback2-darwin-arm64-0.0.15/snapback2-0.0.15.tgz",
+    "snapback2-darwin-arm64": "file:../dist/npm/publish-snapback2-darwin-arm64-0.0.15/snapback2-darwin-arm64-0.0.15.tgz",
+    "typescript": "file:../dist/npm/publish-snapback2-darwin-arm64-0.0.15/typescript-5.9.2.tgz"
+  }
+}
+host-only npm pack metadata: linux absent; npm 11 ci accepted unchanged lock

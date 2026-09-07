@@ -1,0 +1,21 @@
+{
+  "nodeVersion": "v24.18.0",
+  "npmVersion": "11.16.0",
+  "files": [
+    {
+      "path": "/Users/ccheever/.volta/tools/image/node/24.18.0/bin/node",
+      "bytes": 120965360,
+      "sha256": "ee6fb0e015284d83a91e8ec5213f43a157f8a392b58555301682892ba928c04a"
+    },
+    {
+      "path": "/Users/ccheever/.volta/tools/image/node/24.18.0/lib/node_modules/npm/bin/npm-cli.js",
+      "bytes": 54,
+      "sha256": "8e5f6f3429f8cdbe693cdc29904e9d5a7b127a494bd15c804bd54c7403bfcbe7"
+    },
+    {
+      "path": "/Users/ccheever/.volta/tools/image/node/24.18.0/lib/node_modules/npm/package.json",
+      "bytes": 6595,
+      "sha256": "60ff022e32b5d8291d3e09849fd0cee6bbbff4e4d8352ad258214b1adf070714"
+    }
+  ]
+}

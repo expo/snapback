@@ -1,0 +1,191 @@
+{
+  "candidate": "7884642fbddeb56bd18a03215e23c6761c76cd87",
+  "parent": "1bb06d52112a770257d3a64a4e2a3eeb8754fb4f",
+  "completedAt": "2026-09-07T16:43:21.465814+00:00",
+  "findingsFirstReadAfterBothActualTerminals": true,
+  "records": [
+    {
+      "family": "astra",
+      "terminal": {
+        "pid": 70151,
+        "exitCode": 0,
+        "endedEpoch": 1788798507.644605,
+        "elapsedSeconds": 387.7972939014435,
+        "actualProcessWaitCompleted": true,
+        "stdoutSha256": "cc6cc8bf134e41f4b499a5b33fbfa941b42946d26c216d2887eceeec96c9aca8",
+        "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "identity": {
+        "requestedModel": "gpt-6-astra",
+        "requestedEffort": "xhigh",
+        "launchPid": 70151,
+        "observedAt": "2026-09-07T16:28:27.729577+00:00",
+        "sessionId": "01a07cad-3245-7c82-97ff-578fc3cf1a53",
+        "source": "/Users/ccheever/.codex/sessions/2026/09/07/rollout-2026-09-07T09-22-00-01a07cad-3245-7c82-97ff-578fc3cf1a53.jsonl",
+        "sourceSha256": "084f71db64ede1e13232034f6c5b49b35e491fcc54a6b39bf98ec8e3c9e0f5e4",
+        "turnContexts": [
+          {
+            "line": 8,
+            "model": "gpt-6-astra",
+            "effort": "xhigh",
+            "cwd": "/Users/ccheever/clique-improvement/reviews/publication-platform-metadata-r1/astra",
+            "timestamp": "2026-09-07T16:22:03.754Z"
+          }
+        ],
+        "identityMatchesRequest": true
+      },
+      "inputLeavesVerified": 75,
+      "reviewSha256": "d8934a93ff6e3ad19dbe5ec89913e99986c1cb8d7646188df275b24321f6d370",
+      "finalAnswerSha256": "430176a0fff24192bb2972abfbb5567e954e224450f6c8adca1c60be11e70888",
+      "executions": [
+        {
+          "terminalPath": "astra/scratch/executions/01-counterexample.terminal.json",
+          "launch": {
+            "mode": "counterexample",
+            "purpose": "Check whether host-only staging preserves an unrelated snapback2-plugin optional dependency",
+            "argv": [
+              "/Users/ccheever/.volta/tools/image/node/24.18.0/bin/node",
+              "/Users/ccheever/clique-improvement/reviews/publication-platform-metadata-r1/astra/scratch/preserve-optional.mjs"
+            ],
+            "cwd": "/Users/ccheever/clique-improvement/reviews/publication-platform-metadata-r1/astra/scratch",
+            "source": "/Users/ccheever/clique-improvement/reviews/publication-platform-metadata-r1/astra/scratch/preserve-optional.mjs",
+            "sourceSha256": "e94b577338ded406a24dd253b3c96487b1bee85bf4ccf883eb984a2f0cec954a",
+            "timeoutSeconds": 30,
+            "startedAt": "2026-09-07T16:24:57.893265+00:00",
+            "pid": 72005
+          },
+          "terminal": {
+            "pid": 72005,
+            "exitCode": 1,
+            "timedOut": false,
+            "elapsedSeconds": 0.23373191700000007,
+            "actualProcessWaitCompleted": true,
+            "stdoutSha256": "4571b6be6ebe4f92adc995f34332f0e1adffafe9e7908ba438c880a00febf140",
+            "stderrSha256": "5f4584dbe2549a83f6020652dc90f439e47611754d6af4f0f395c0b3f3e62e3b"
+          }
+        },
+        {
+          "terminalPath": "astra/scratch/executions/02-counterexample.terminal.json",
+          "launch": {
+            "mode": "counterexample",
+            "purpose": "Check whether two correctly selected npm-packed platforms with os/cpu constraints survive the production mandatory-artifact install shape",
+            "argv": [
+              "/Users/ccheever/.volta/tools/image/node/24.18.0/bin/node",
+              "/Users/ccheever/clique-improvement/reviews/publication-platform-metadata-r1/astra/scratch/multiple-platform-install.mjs"
+            ],
+            "cwd": "/Users/ccheever/clique-improvement/reviews/publication-platform-metadata-r1/astra/scratch",
+            "source": "/Users/ccheever/clique-improvement/reviews/publication-platform-metadata-r1/astra/scratch/multiple-platform-install.mjs",
+            "sourceSha256": "fbab116efe3509e45d158f27b2d63c07e6d5d821d1f89d8e5444daed847e8ccb",
+            "timeoutSeconds": 30,
+            "startedAt": "2026-09-07T16:25:03.165809+00:00",
+            "pid": 72038
+          },
+          "terminal": {
+            "pid": 72038,
+            "exitCode": 1,
+            "timedOut": false,
+            "elapsedSeconds": 5.930208125,
+            "actualProcessWaitCompleted": true,
+            "stdoutSha256": "62610182400154657eaa336a291a2ac2b146bcae413ba19b1005953f06551b91",
+            "stderrSha256": "674e75dcf904c9a6056d1cf426160daaa56acc24ab66933784c054e15083186b"
+          }
+        }
+      ]
+    },
+    {
+      "family": "grok",
+      "terminal": {
+        "pid": 70152,
+        "exitCode": 0,
+        "endedEpoch": 1788799012.806666,
+        "elapsedSeconds": 892.9426627159119,
+        "actualProcessWaitCompleted": true,
+        "stdoutSha256": "ddd40a8dca573d3eb0fabfa352cd59847c31a8c18e933dcbef048d5ad2a7a483",
+        "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "identity": {
+        "requestedModel": "grok-4.6",
+        "requestedEffort": "xhigh",
+        "launchPid": 70152,
+        "observedAt": "2026-09-07T16:36:52.903555+00:00",
+        "sessionId": "eaf7686b-d470-4961-9875-bcbbccfb3562",
+        "source": "/Users/ccheever/.grok/sessions/%2FUsers%2Fccheever%2Fclique-improvement%2Freviews%2Fpublication-platform-metadata-r1%2Fgrok/eaf7686b-d470-4961-9875-bcbbccfb3562/summary.json",
+        "sourceSha256": "7cd9cf446651d99432c429d4521447a30072a096000de7242cfade09d36085f1",
+        "current_model_id": "grok-4.6",
+        "reasoning_effort": "xhigh",
+        "identityMatchesRequest": true
+      },
+      "inputLeavesVerified": 75,
+      "reviewSha256": "78871a9d534a7d597e9310499d8909b513758e2f59b53bc6a4618269a7b11dc5",
+      "finalAnswerSha256": "a892e728fca0958d84c78f98754703439531634ea886972b2f3e0200aea8a578",
+      "executions": [
+        {
+          "terminalPath": "grok/scratch/executions/01-counterexample.terminal.json",
+          "launch": {
+            "mode": "counterexample",
+            "purpose": "Check whether npm pack from a workspace-root cwd preserves Darwin-only staged optionalDependencies and yields a linux-free npm 11 lock that npm ci accepts",
+            "argv": [
+              "/Users/ccheever/.volta/tools/image/node/24.18.0/bin/node",
+              "/Users/ccheever/clique-improvement/reviews/publication-platform-metadata-r1/grok/scratch/npm-pack-staged-shim.mjs"
+            ],
+            "cwd": "/Users/ccheever/clique-improvement/reviews/publication-platform-metadata-r1/grok/scratch",
+            "source": "/Users/ccheever/clique-improvement/reviews/publication-platform-metadata-r1/grok/scratch/npm-pack-staged-shim.mjs",
+            "sourceSha256": "080bdb2cbfbc5552cac77930af3093638bc88a69822867b3703edd9fef712794",
+            "timeoutSeconds": 30,
+            "startedAt": "2026-09-07T16:32:29.134937+00:00",
+            "pid": 75095
+          },
+          "terminal": {
+            "pid": 75095,
+            "exitCode": 1,
+            "timedOut": false,
+            "elapsedSeconds": 5.965642958,
+            "actualProcessWaitCompleted": true,
+            "stdoutSha256": "ecc451a68daa2c81ef09c413197b64a4a91f773dd203a39c36c2e9ec9286459c",
+            "stderrSha256": "19cfa2bbcea0c036b3310bddbfb5f7881ea163d10e013f28ff208d70fc5e1365"
+          }
+        },
+        {
+          "terminalPath": "grok/scratch/executions/02-counterexample.terminal.json",
+          "launch": {
+            "mode": "counterexample",
+            "purpose": "Repeat production-like npm pack of a host-only staged shim without extra optionals, then npm 11 ci on the generated lock",
+            "argv": [
+              "/Users/ccheever/.volta/tools/image/node/24.18.0/bin/node",
+              "/Users/ccheever/clique-improvement/reviews/publication-platform-metadata-r1/grok/scratch/npm-pack-host-only-ci.mjs"
+            ],
+            "cwd": "/Users/ccheever/clique-improvement/reviews/publication-platform-metadata-r1/grok/scratch",
+            "source": "/Users/ccheever/clique-improvement/reviews/publication-platform-metadata-r1/grok/scratch/npm-pack-host-only-ci.mjs",
+            "sourceSha256": "d3e318df786fb090030b9a8ed9b2927a3970b7e03fb1f8455834cfdf8a9fa488",
+            "timeoutSeconds": 30,
+            "startedAt": "2026-09-07T16:33:44.066552+00:00",
+            "pid": 75677
+          },
+          "terminal": {
+            "pid": 75677,
+            "exitCode": 0,
+            "timedOut": false,
+            "elapsedSeconds": 4.800723208000001,
+            "actualProcessWaitCompleted": true,
+            "stdoutSha256": "92a69e49ea64039a6f82daa13fce24e1df6ce06710b31fbd635e74dd0dd9499e",
+            "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          }
+        }
+      ]
+    }
+  ],
+  "extraProviderInput": "grok/observed-extra-input/provenance.json",
+  "grokUsageModelAlias": [
+    "grok-4.6-build"
+  ],
+  "supervisorFullRead": [
+    "both complete review.md and final-answer.md",
+    "all four counterexample sources",
+    "all four execution launches, complete stdout, complete stderr, actual terminals",
+    "both native launch, terminal, identity, input-integrity-after records",
+    "complete native command/tool-call inventory"
+  ],
+  "extraSkillSupervisorRead": "Complete native body preserved; only partial content inspected by supervisor; root will read the complete bound body",
+  "disposition": "REQUEST_CHANGES controls because Astra reproduced loss of an unrelated prefixed optional dependency; Grok READY did not test that contract case",
+  "authorship": "Persistent collaboration agent /root/clean_install_triage authored candidate directly. Mechanical check launches are not external author identities."
+}

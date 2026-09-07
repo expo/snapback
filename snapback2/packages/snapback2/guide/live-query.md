@@ -24,6 +24,11 @@ Effective local commits (prediction, settlement, coverage, authority) reevaluate
 once; bookkeeping stays silent. Resets publish `hydrating`; `{live:false}` never
 follows revisions.
 
+When a screen needs a list, count, and preview coherently, return all three from
+one named query and mount that same ref and arguments in each consumer. A
+partial composite stays one partial value. If separate held history is useful as
+a fallback, hide its count and preview until the composite is usable.
+
 One SSE connection carries up to 256 query/channel subscriptions per client,
 including HTTP/1.1. Adding/closing one leaves peers active. Unmount unused
 components; CSS hiding keeps queries active. Close the client with its scope.

@@ -198,6 +198,30 @@ async function seed(url) {
 async function openChat(page, conversationId) {
   await page.click(`nav[aria-label=Inbox] li[data-conversation="${conversationId}"] button`);
   await page.waitForSelector("section[aria-label=Thread] li[data-state=row]", { timeout: 10_000 });
+  await page.waitForFunction((id) => {
+    const summary = document.querySelector("section[aria-label=Thread] .thread-summary");
+    const messages = document.querySelector("section[aria-label=Thread] ol.bubbles");
+    const source = messages?.getAttribute("data-view-source");
+    return window.__snapback.sharedConsumers(window.__api.deliveries.conversationView, { conversationId: id }) === 2
+      && (source === "composite"
+        ? summary?.getAttribute("data-view-state") === messages?.getAttribute("data-view-state")
+          && summary?.getAttribute("data-view-seq") === messages?.getAttribute("data-view-seq")
+        : source === "partial-history" && summary?.getAttribute("data-view-state") === "partial"
+          && !summary?.hasAttribute("data-count") && !summary?.hasAttribute("data-preview-message"));
+  }, conversationId, { timeout: 10_000 });
+  return page.evaluate((id) => {
+    const summary = document.querySelector("section[aria-label=Thread] .thread-summary");
+    const messages = document.querySelector("section[aria-label=Thread] ol.bubbles");
+    return { conversationId: id,
+      consumers: window.__snapback.sharedConsumers(window.__api.deliveries.conversationView, { conversationId: id }),
+      state: summary?.getAttribute("data-view-state"), seq: summary?.getAttribute("data-view-seq"),
+      count: summary?.getAttribute("data-count"), previewMessage: summary?.getAttribute("data-preview-message"),
+      source: messages?.getAttribute("data-view-source"),
+      historyState: document.querySelector("section[aria-label=Thread] .thread-history-note")?.getAttribute("data-history-state"),
+      historyText: document.querySelector("section[aria-label=Thread] .thread-history-note")?.textContent,
+      rows: [...(messages?.querySelectorAll("li[data-message]") ?? [])].map((node) => node.getAttribute("data-message")),
+    };
+  }, conversationId);
 }
 
 // @ref LLP 1018.000#8-account-sessions-and-durable-follower-admission — actual
@@ -216,21 +240,24 @@ async function sharedSessions(context, writer, appUrl, ownerUrl) {
     if (request.url() === ownerUrl + "/api/mutation") replayed.push(request.postDataJSON());
   });
   try {
-  const sharedArgs = { conversationId: "conversation-2", c: null };
+  const sharedArgs = { conversationId: "conversation-2" };
   const shared = await writer.evaluate(async (args) => {
     const client = window.__snapback;
-    const op = window.__api.deliveries.thread;
+    const op = window.__api.deliveries.conversationView;
     const first = client.subscribe(op, args, () => undefined);
     const second = client.subscribe(op, args, () => undefined);
     let firstOpen = true, secondOpen = true;
     try {
-      const [a, b] = await Promise.all([first.until(e => e.state === "complete", 5000), second.until(e => e.state === "complete", 5000)]);
+      const resolved = e => e.state === "complete" || e.state === "capped";
+      const [a, b] = await Promise.all([first.until(resolved, 5000), second.until(resolved, 5000)]);
       const two = client.sharedConsumers(op, args);
       first.close(); firstOpen = false;
       const one = client.sharedConsumers(op, args);
-      const survivor = await second.until(e => e.state === "complete", 5000);
+      const survivor = await second.until(resolved, 5000);
       second.close(); secondOpen = false;
-      return { two, one, zero: client.sharedConsumers(op, args), seq: [a.seq, b.seq, survivor.seq], data: [a.data, b.data, survivor.data] };
+      return { two, one, zero: client.sharedConsumers(op, args), seq: [a.seq, b.seq, survivor.seq],
+        next: [a.next, b.next, survivor.next], sameIdentity: a.data === b.data && b.data === survivor.data,
+        data: [a.data, b.data, survivor.data] };
     } finally {
       if (firstOpen) first.close();
       if (secondOpen) second.close();
@@ -238,9 +265,15 @@ async function sharedSessions(context, writer, appUrl, ownerUrl) {
   }, sharedArgs);
   assert.deepEqual([shared.two, shared.one, shared.zero], [2, 1, 0]);
   assert.equal(new Set(shared.seq).size, 1);
+  assert.deepEqual(shared.next, [null, null, null], "the composite record has no continuation");
+  assert.equal(shared.sameIdentity, true, "both consumers read the entry's one immutable value");
   assert.deepEqual(shared.data[0], shared.data[1]);
   assert.deepEqual(shared.data[0], shared.data[2]);
-  const children = added.filter(child => child.path.includes("deliveries.thread"));
+  assert.ok(Array.isArray(shared.data[0].messages) && shared.data[0].messages.length <= 50);
+  assert.ok(Array.isArray(shared.data[0].preview) && shared.data[0].preview.length <= 1);
+  assert.equal(typeof shared.data[0].count, "number");
+  if (shared.data[0].preview.length) assert.equal(shared.data[0].preview[0].id, shared.data[0].messages[0].id);
+  const children = added.filter(child => child.path.includes("deliveries.conversationView"));
   const described = children.map(child => {
     const path = new URL(child.path, ownerUrl);
     let args;
@@ -249,7 +282,7 @@ async function sharedSessions(context, writer, appUrl, ownerUrl) {
     } catch { args = { malformed: path.searchParams.get("args") }; }
     return { id: child.id, op: path.searchParams.get("op"), args, lastEventId: child.lastEventId };
   });
-  const targetChildren = described.filter(child => child.op === "deliveries.thread"
+  const targetChildren = described.filter(child => child.op === "deliveries.conversationView"
     && child.args.conversationId === sharedArgs.conversationId);
   const targetIds = [...new Set(targetChildren.map(child => child.id))];
   assert.equal(targetIds.length, 1,
@@ -262,8 +295,10 @@ async function sharedSessions(context, writer, appUrl, ownerUrl) {
     .filter(request => request.path === "/api/live/control").slice(-8));
   assert.ok(controls.some(control => control.remove?.includes(targetIds[0])),
     `last close must remove the active owner stream: ${JSON.stringify({ targetIds, controls, transport })}`);
-  step("two app consumers share one logical owner subscription; closing one preserves the other", {
+  step("two app consumers share one coherent list/count/preview snapshot; closing one preserves the other", {
     consumers: [2, 1, 0], streamId: targetIds[0], addOccurrences: targetChildren.length,
+    seq: shared.seq[0], next: shared.next[0], count: shared.data[0].count,
+    preview: shared.data[0].preview[0]?.message?.body,
     siblingAdds: described.filter(child => !targetIds.includes(child.id)), transport,
   });
   } catch (error) {
@@ -369,10 +404,17 @@ async function main() {
     } else {
     await page.waitForFunction(() => /log downloaded/.test(document.querySelector("[role=status][data-connection]")?.textContent ?? ""), null, { timeout: 15_000 });
     const [neverOpened, ...opened] = [...seeded.conversations].reverse();
-    for (const conversationId of opened) await openChat(page, conversationId);
+    const coherentViews = [];
+    for (const conversationId of opened) coherentViews.push(await openChat(page, conversationId));
     const listed = await page.$$eval("nav[aria-label=Inbox] li", (nodes) => nodes.length);
     if (listed !== 3) throw new Error(`the inbox listed ${listed} chats`);
-    step("seed, drain, and open three chats (two threads opened online, one left unopened)", { chats: listed, opened: opened.length });
+    if (coherentViews.some((view) => view.consumers !== 2 || (view.state !== "complete" && view.state !== "capped")
+      || !/^\d+$/.test(view.count ?? "") || !view.previewMessage || !view.rows.includes(view.previewMessage))) {
+      throw new Error(`mounted composite consumers were incoherent: ${JSON.stringify(coherentViews)}`);
+    }
+    step("seed, drain, and open three chats with one coherent list/count/preview value", {
+      chats: listed, opened: opened.length, coherentViews,
+    });
 
     // The UI uses the real global indexed query. A decomposed uppercase token
     // finds the composed mixed-case word and records the exact prefix coverage.
@@ -386,10 +428,55 @@ async function main() {
     if (warmSearch.state !== "complete" && warmSearch.state !== "capped") throw new Error(`warm indexed search was ${JSON.stringify(warmSearch)}`);
     step("Unicode one-word prefix runs through the live messages.search index", warmSearch);
 
+    // A warmed composite remains one value through a local prediction, its
+    // settlement, and a removal whose newest delivery intentionally has no body.
+    const coherentConversation = opened[0];
+    const beforeComposite = await openChat(page, coherentConversation);
+    await context.setOffline(true); await page.evaluate(() => window.__snapback.offline());
+    const predictedComposite = await page.evaluate(async ({ conversationId, body }) =>
+      window.__snapback.mutation(window.__api.deliveries.post, { conversationId, body }),
+    { conversationId: coherentConversation, body: "coherent offline prediction" });
+    if (predictedComposite.state !== "queued") throw new Error(`composite prediction was ${JSON.stringify(predictedComposite)}`);
+    await page.waitForFunction(({ id }) => {
+      const summary = document.querySelector("section[aria-label=Thread] .thread-summary");
+      const list = document.querySelector("section[aria-label=Thread] ol.bubbles");
+      return summary?.getAttribute("data-preview-message") === id
+        && list?.getAttribute("data-view-source") === "composite"
+        && list.querySelector(`li[data-message="${id}"][data-state="queued"]`);
+    }, { id: predictedComposite.ids[0] }, { timeout: 10_000 });
+    const predictedView = await openChat(page, coherentConversation);
+    await context.setOffline(false);
+    await page.evaluate(async () => { await window.__snapback.online(); await window.__snapback.outbox.settled(); });
+    await page.waitForSelector(`li[data-message="${predictedComposite.ids[0]}"][data-state="row"]`, { timeout: 10_000 });
+    const settledView = await openChat(page, coherentConversation);
+    const removed = await page.evaluate((messageId) =>
+      window.__snapback.mutation(window.__api.deliveries.unsend, { messageId }), predictedComposite.ids[0]);
+    if (removed.state !== "committed") throw new Error(`composite revocation was ${JSON.stringify(removed)}`);
+    await page.waitForFunction(({ id, count }) => {
+      const summary = document.querySelector("section[aria-label=Thread] .thread-summary");
+      return !document.querySelector(`section[aria-label=Thread] li[data-message="${id}"]`)
+        && summary?.getAttribute("data-count") === count
+        && !summary.hasAttribute("data-preview-message");
+    }, { id: predictedComposite.ids[0], count: beforeComposite.count }, { timeout: 10_000 });
+    const revokedView = await openChat(page, coherentConversation);
+    if (predictedView.source !== "composite" || settledView.source !== "composite" || revokedView.source !== "composite"
+      || predictedView.seq === settledView.seq || settledView.seq === revokedView.seq
+      || settledView.count === beforeComposite.count || revokedView.count !== beforeComposite.count) {
+      throw new Error(`composite lifecycle was incoherent: ${JSON.stringify({ beforeComposite, predictedView, settledView, revokedView })}`);
+    }
+    step("one composite snapshot covers offline prediction, settlement, and bodyless revocation", {
+      before: beforeComposite, predicted: predictedView, settled: settledView, revoked: revokedView,
+    });
+
     // Enqueue one message while offline.
     await context.setOffline(true);
     await page.evaluate(() => window.__snapback.offline());
-    await openChat(page, neverOpened);
+    const partialHistory = await openChat(page, neverOpened);
+    if (partialHistory.source !== "partial-history" || partialHistory.state !== "partial"
+      || partialHistory.count !== null || partialHistory.previewMessage !== null
+      || !partialHistory.historyState || !/Count and preview unavailable/.test(partialHistory.historyText ?? "")) {
+      throw new Error(`never-opened history exposed an independently fresh composite field: ${JSON.stringify(partialHistory)}`);
+    }
     await page.fill("form[aria-label=Composer] input", "Café queued in the browser");
     // Report the composer's own reason when it will not send, instead of a bare click timeout.
     await page.waitForSelector("form[aria-label=Composer] button[type=submit]:enabled", { timeout: 10_000 }).catch(async (error) => {
@@ -408,12 +495,14 @@ async function main() {
     if (!/Sending…/.test(queued.text ?? "") || /\d:\d\d/.test(queued.text ?? "")) throw new Error(`pending bubble text was ${queued.text}`);
     await page.waitForSelector(`section[aria-label=Search] li[data-message="${queued.id}"]`, { timeout: 10_000 });
     await page.waitForFunction(() => document.querySelector("section[aria-label=Search] .scope")?.getAttribute("data-state") === "held", null, { timeout: 10_000 });
-    step("the mounted indexed search publishes the offline prediction", queued);
+    step("the mounted indexed search publishes the offline prediction; partial history hides composite count and preview", {
+      queued, partialHistory,
+    });
 
     // Kill the profile at rest, cold start with the backend unreachable.
     await close();
     page = await launch({ ownerCut: true });
-    await openChat(page, neverOpened).catch(() => undefined);
+    const coldPartialHistory = await openChat(page, neverOpened).catch(() => undefined);
     const coldQueued = await page.$(`li[data-state=queued][data-message="${queued.id}"]`);
     const coldInbox = await page.$$eval("nav[aria-label=Inbox] li", (nodes) => nodes.length);
     if (!coldQueued || coldInbox < 3) {
@@ -430,7 +519,13 @@ async function main() {
     await page.waitForSelector(`section[aria-label=Search] li[data-message="${queued.id}"]`, { timeout: 10_000 });
     const coldSearch = await page.$eval("section[aria-label=Search] .scope", (node) => ({ state: node.getAttribute("data-state"), text: node.textContent }));
     if (coldSearch.state !== "held") throw new Error(`cold indexed search was ${JSON.stringify(coldSearch)}`);
-    step("cold offline: a chat never opened online renders held rows and its prediction; indexed search agrees", { chats: coldInbox, search: coldSearch });
+    if (coldPartialHistory?.source !== "partial-history" || coldPartialHistory.count !== null
+      || coldPartialHistory.previewMessage !== null || !coldPartialHistory.historyState
+      || !/Count and preview unavailable/.test(coldPartialHistory.historyText ?? "")) {
+      throw new Error(`cold partial history exposed composite count or preview: ${JSON.stringify(coldPartialHistory)}`);
+    }
+    step("cold offline: a chat never opened online renders partial history without count/preview; indexed search agrees",
+      { chats: coldInbox, search: coldSearch, partialHistory: coldPartialHistory });
 
     // Carrier refused → E_OFFLINE_CARRIER.
     await close();
@@ -449,6 +544,7 @@ async function main() {
     await page.fill("form[aria-label=Composer] input", "second queued message");
     await page.click("form[aria-label=Composer] button[type=submit]");
     await page.waitForFunction(() => document.querySelectorAll("li[data-state=queued]").length === 2, null, { timeout: 5_000 });
+    await page.evaluate((id) => { window.__witnessPinnedBubble = document.querySelector(`li[data-message="${id}"]`); }, queued.id);
     await context.unroute(cutOwner);
     await page.evaluate(() => { window.__witnessFaults.push({ path: "/api/mutation", status: 503 }); });
     await page.evaluate(() => window.__snapback.online());
@@ -466,6 +562,9 @@ async function main() {
     await page.evaluate(() => window.__snapback.outbox.drain());
     await openChat(page, neverOpened);
     await page.waitForFunction(() => document.querySelectorAll("li[data-state=queued]").length === 0, null, { timeout: 10_000 });
+    const retainedBubble = await page.evaluate((id) =>
+      window.__witnessPinnedBubble === document.querySelector(`li[data-message="${id}"][data-state=row]`), queued.id);
+    if (!retainedBubble) throw new Error("partial history to coherent composite remounted the pinned bubble");
     const { createClient, api } = await import(resolve(dist, "client.mjs"));
     const verifier = createClient({ url: owner.url, as: "alice" });
     const thread = await verifier.query(api.deliveries.thread, { conversationId: neverOpened, c: null });
@@ -474,7 +573,7 @@ async function main() {
     const count = (body) => bodies.filter((item) => item === body).length;
     if (count("Café queued in the browser") !== 1 || count("second queued message") !== 1) throw new Error(`rows: ${JSON.stringify(bodies)}`);
     if (bodies.indexOf("second queued message") > bodies.indexOf("Café queued in the browser")) throw new Error("replay order was not preserved");
-    step("503 after the commit and a kill inside the settlement swap: exactly one row each, in order");
+    step("503 after the commit and a kill inside the settlement swap: exactly one row each, in order; the partial-history bubble survived the coherent transition");
 
     // Revocation received on resume invalidates the same persistent index trace.
     await page.fill("section[aria-label=Search] input", indexedSearchTerm);

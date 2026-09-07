@@ -1,0 +1,222 @@
+TAP version 13
+# (node:45152) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+# (Use `node --trace-warnings ...` to show where the warning was created)
+# Subtest: RangeStore stores rows once and shares them across answers on all three carriers
+ok 1 - RangeStore stores rows once and shares them across answers on all three carriers
+  ---
+  duration_ms: 75.517042
+  type: 'test'
+  ...
+# Subtest: the IndexedDB carrier keeps rows, answers, outbox, meta, and bytes; the version-2 projection stores are deleted and never written
+ok 2 - the IndexedDB carrier keeps rows, answers, outbox, meta, and bytes; the version-2 projection stores are deleted and never written
+  ---
+  duration_ms: 11.3
+  type: 'test'
+  ...
+# Subtest: a pooled row no answer references any more leaves the swap: a replaced closure drops what it stopped pooling, a dropped answer drops its pool
+ok 3 - a pooled row no answer references any more leaves the swap: a replaced closure drops what it stopped pooling, a dropped answer drops its pool
+  ---
+  duration_ms: 19.600416
+  type: 'test'
+  ...
+# Subtest: file and IndexedDB swaps are atomic when persistence fails
+ok 4 - file and IndexedDB swaps are atomic when persistence fails
+  ---
+  duration_ms: 33.487167
+  type: 'test'
+  ...
+# Subtest: a process killed between file write and rename leaves the previous snapshot
+ok 5 - a process killed between file write and rename leaves the previous snapshot
+  ---
+  duration_ms: 203.261
+  type: 'test'
+  ...
+# Subtest: all three carriers apply the four swap rules with until-revoked and delivered-history
+ok 6 - all three carriers apply the four swap rules with until-revoked and delivered-history
+  ---
+  duration_ms: 229.116042
+  type: 'test'
+  ...
+# Subtest: O1a golden ranges evict only holes inside Exhausted bounds and the returned Limit extent
+ok 7 - O1a golden ranges evict only holes inside Exhausted bounds and the returned Limit extent
+  ---
+  duration_ms: 79.565333
+  type: 'test'
+  ...
+# Subtest: the O1a whole-answer-null golden is hidden evidence and delivered-history restores it
+ok 8 - the O1a whole-answer-null golden is hidden evidence and delivered-history restores it
+  ---
+  duration_ms: 35.425792
+  type: 'test'
+  ...
+# Subtest: sequence fences make absence, hidden, and tombstone evidence monotonic and deliveries idempotent
+ok 9 - sequence fences make absence, hidden, and tombstone evidence monotonic and deliveries idempotent
+  ---
+  duration_ms: 77.995833
+  type: 'test'
+  ...
+# Subtest: shrunk arrays and denied answers emit the hidden signal
+ok 10 - shrunk arrays and denied answers emit the hidden signal
+  ---
+  duration_ms: 44.512792
+  type: 'test'
+  ...
+# Subtest: seal survives a cold open, confirmed re-auth unseals, and wipe deletes the partition
+ok 11 - seal survives a cold open, confirmed re-auth unseals, and wipe deletes the partition
+  ---
+  duration_ms: 64.081375
+  type: 'test'
+  ...
+# Subtest: carrier open failures and a second web lock holder refuse loudly
+ok 12 - carrier open failures and a second web lock holder refuse loudly
+  ---
+  duration_ms: 90.016542
+  type: 'test'
+  ...
+# Subtest: offline option shape and fenceDays bounds are TypeErrors
+ok 13 - offline option shape and fenceDays bounds are TypeErrors
+  ---
+  duration_ms: 1.0375
+  type: 'test'
+  ...
+# Subtest: offline factory returns fail at setup with the browser spelling, before auth or I/O
+ok 14 - offline factory returns fail at setup with the browser spelling, before auth or I/O
+  ---
+  duration_ms: 1.87175
+  type: 'test'
+  ...
+# Subtest: offline setup accepts unbranded custom and callable stores, invoking each factory once
+ok 15 - offline setup accepts unbranded custom and callable stores, invoking each factory once
+  ---
+  duration_ms: 1.7275
+  type: 'test'
+  ...
+# Subtest: offline setup preserves throwing factories and unavailable carrier refusals
+ok 16 - offline setup preserves throwing factories and unavailable carrier refusals
+  ---
+  duration_ms: 3.20375
+  type: 'test'
+  ...
+# Subtest: a sealed cold start stays unreadable until auth.me confirms the same bearer principal
+ok 17 - a sealed cold start stays unreadable until auth.me confirms the same bearer principal
+  ---
+  duration_ms: 59.502333
+  type: 'test'
+  ...
+# Subtest: an envelope cannot switch the open principal partition: E_OFFLINE_AUTHORITY, and the held coverage survives
+ok 18 - an envelope cannot switch the open principal partition: E_OFFLINE_AUTHORITY, and the held coverage survives
+  ---
+  duration_ms: 30.231583
+  type: 'test'
+  ...
+# Subtest: manifest retention is loaded before the first commit without an app manifest call
+ok 19 - manifest retention is loaded before the first commit without an app manifest call
+  ---
+  duration_ms: 30.216292
+  type: 'test'
+  ...
+# Subtest: conditional unchanged branches before envelope decoding and refreshes the held seq
+ok 20 - conditional unchanged branches before envelope decoding and refreshes the held seq
+  ---
+  duration_ms: 43.071666
+  type: 'test'
+  ...
+# Subtest: a subscription conditional unchanged frame reuses the held pooled answer
+ok 21 - a subscription conditional unchanged frame reuses the held pooled answer
+  ---
+  duration_ms: 66.127667
+  type: 'test'
+  ...
+# Subtest: an auth-epoch mismatch cannot replace held coverage; a generation mismatch supersedes it without a refusal
+ok 22 - an auth-epoch mismatch cannot replace held coverage; a generation mismatch supersedes it without a refusal
+  ---
+  duration_ms: 24.798709
+  type: 'test'
+  ...
+# Subtest: held and unheld offline reads expose since and fenceDays never blocks reading
+ok 23 - held and unheld offline reads expose since and fenceDays never blocks reading
+  ---
+  duration_ms: 20.82325
+  type: 'test'
+  ...
+# Subtest: the client tombstone hook evicts the named body in the same delivery swap
+ok 24 - the client tombstone hook evicts the named body in the same delivery swap
+  ---
+  duration_ms: 33.788709
+  type: 'test'
+  ...
+# Subtest: the frozen delivery decoder rejects malformed custody facts
+ok 25 - the frozen delivery decoder rejects malformed custody facts
+  ---
+  duration_ms: 7.503208
+  type: 'test'
+  ...
+# Subtest: drain true follows five pages, persists the watermark, and follows a new tail page
+ok 26 - drain true follows five pages, persists the watermark, and follows a new tail page
+  ---
+  duration_ms: 132.844292
+  type: 'test'
+  ...
+# Subtest: cold resume sends the bounded shape before subscribe and a 404 falls back with validator
+ok 27 - cold resume sends the bounded shape before subscribe and a 404 falls back with validator
+  ---
+  duration_ms: 48.4115
+  type: 'test'
+  ...
+# Subtest: resume excludes its drain mount and atomically preserves a full log watermark and validator
+ok 28 - resume excludes its drain mount and atomically preserves a full log watermark and validator
+  ---
+  duration_ms: 91.707125
+  type: 'test'
+  ...
+# Subtest: E_OFFLINE_RESET drops coverage but preserves the durable outbox slot
+ok 29 - E_OFFLINE_RESET drops coverage but preserves the durable outbox slot
+  ---
+  duration_ms: 117.552834
+  type: 'test'
+  ...
+# Subtest: E_OFFLINE_RESET cold-drains a mounted drain from the null cursor
+ok 30 - E_OFFLINE_RESET cold-drains a mounted drain from the null cursor
+  ---
+  duration_ms: 111.821875
+  type: 'test'
+  ...
+# Subtest: E_OFFLINE_RESUME adjusts only structured mounted limits and never drops the log
+ok 31 - E_OFFLINE_RESUME adjusts only structured mounted limits and never drops the log
+  ---
+  duration_ms: 59.020041
+  type: 'test'
+  ...
+# Subtest: an unstructured legacy E_OFFLINE_RESUME refuses once and leaves the client usable
+ok 32 - an unstructured legacy E_OFFLINE_RESUME refuses once and leaves the client usable
+  ---
+  duration_ms: 43.386542
+  type: 'test'
+  ...
+# Subtest: resume applies its mounted swap before online resolves
+ok 33 - resume applies its mounted swap before online resolves
+  ---
+  duration_ms: 69.010417
+  type: 'test'
+  ...
+# Subtest: clients without offline storage preserve query bytes and logical subscription arguments
+ok 34 - clients without offline storage preserve query bytes and logical subscription arguments
+  ---
+  duration_ms: 10.25275
+  type: 'test'
+  ...
+# Subtest: a clock-reading program's later execution installs at the same seq; older, equal, and unstamped ones do not
+ok 35 - a clock-reading program's later execution installs at the same seq; older, equal, and unstamped ones do not
+  ---
+  duration_ms: 33.988542
+  type: 'test'
+  ...
+1..35
+# tests 35
+# suites 0
+# pass 35
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 2415.512167

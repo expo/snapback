@@ -410,7 +410,7 @@ fn check_grammar_schema_aggregation_and_numeric_flags_are_strict() {
     let scan = |site: &str| {
         json!({ "Scan": {
             "site": site, "table": "docs", "index": "byScope",
-            "prefix": [{ "Variable": "scope" }], "order": "Asc",
+            "prefix": [{ "Scalar": { "Variable": "scope" } }], "order": "Asc",
             "take": { "Literal": 8 }, "after": null, "before": null,
             "range": null, "provenance": "Arg"
         }})

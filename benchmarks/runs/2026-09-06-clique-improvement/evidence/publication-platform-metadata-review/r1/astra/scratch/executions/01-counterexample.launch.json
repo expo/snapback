@@ -1,0 +1,14 @@
+{
+  "mode": "counterexample",
+  "purpose": "Check whether host-only staging preserves an unrelated snapback2-plugin optional dependency",
+  "argv": [
+    "/Users/ccheever/.volta/tools/image/node/24.18.0/bin/node",
+    "/Users/ccheever/clique-improvement/reviews/publication-platform-metadata-r1/astra/scratch/preserve-optional.mjs"
+  ],
+  "cwd": "/Users/ccheever/clique-improvement/reviews/publication-platform-metadata-r1/astra/scratch",
+  "source": "/Users/ccheever/clique-improvement/reviews/publication-platform-metadata-r1/astra/scratch/preserve-optional.mjs",
+  "sourceSha256": "e94b577338ded406a24dd253b3c96487b1bee85bf4ccf883eb984a2f0cec954a",
+  "timeoutSeconds": 30,
+  "startedAt": "2026-09-07T16:24:57.893265+00:00",
+  "pid": 72005
+}

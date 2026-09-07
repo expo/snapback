@@ -1,0 +1,144 @@
+{
+  "candidate": "ef88cac15a948418d1f6d620713065ab9b57e40f",
+  "parent": "9995d41a45b61bbebb79b6b239a6b7bddaf6e4ec",
+  "originals": [
+    {
+      "source": "/Users/ccheever/clique-improvement/reviews/compiler-loop-reaching-origins-r29/closed-pair-manifest.json",
+      "path": "reviews/closed-pair-manifest.json",
+      "bytes": 1747,
+      "sha256": "13425654d0a3c16a231250dc7503a84376e6c77a578b71d7aa5cdef8c023c023",
+      "copy": "verbatim",
+      "packetPath": "files/reviews/closed-pair-manifest.json"
+    },
+    {
+      "source": "/Users/ccheever/clique-improvement/reviews/compiler-loop-reaching-origins-r29/closed-pair-disposition.md",
+      "path": "reviews/closed-pair-disposition.md",
+      "bytes": 1878,
+      "sha256": "6127aafcafdaa43dfa2c1516b30962681187acf8eda64ff3e5d737c600c46266",
+      "copy": "verbatim",
+      "packetPath": "files/reviews/closed-pair-disposition.md"
+    },
+    {
+      "source": "/Users/ccheever/clique-improvement/reviews/compiler-loop-reaching-origins-r29/astra/review.md",
+      "path": "reviews/astra/review.md",
+      "bytes": 18742,
+      "sha256": "782e4093437dc12092115cd5520c901a174136604031ba7ea385a72447d80a80",
+      "copy": "verbatim",
+      "packetPath": "files/reviews/astra/review.md"
+    },
+    {
+      "source": "/Users/ccheever/clique-improvement/reviews/compiler-loop-reaching-origins-r29/astra/terminal-identity.json",
+      "path": "reviews/astra/terminal-identity.json",
+      "bytes": 4442,
+      "sha256": "f4894a9576506b437d728fc05e8aa4004996b95614a99bdc87245d83561008ae",
+      "copy": "verbatim",
+      "packetPath": "files/reviews/astra/terminal-identity.json"
+    },
+    {
+      "source": "/Users/ccheever/clique-improvement/reviews/compiler-loop-reaching-origins-r29/astra/native-terminal-receipt.json",
+      "path": "reviews/astra/native-terminal-receipt.json",
+      "bytes": 1280,
+      "sha256": "d0b32bee279c63012a62b7302eaf8498f05b1d887b5d91444abdcb2fc2cceb98",
+      "copy": "verbatim",
+      "packetPath": "files/reviews/astra/native-terminal-receipt.json"
+    },
+    {
+      "source": "/Users/ccheever/clique-improvement/reviews/compiler-loop-reaching-origins-r29/astra/supervisor-final-verification.json",
+      "path": "reviews/astra/supervisor-final-verification.json",
+      "bytes": 394,
+      "sha256": "c235e95676a60fe61ee98c97eccb3d182f12a9c49ad88150fc63f49d6b1ad83b",
+      "copy": "verbatim",
+      "packetPath": "files/reviews/astra/supervisor-final-verification.json"
+    },
+    {
+      "source": "/Users/ccheever/clique-improvement/reviews/compiler-loop-reaching-origins-r29/grok/review.md",
+      "path": "reviews/grok/review.md",
+      "bytes": 17672,
+      "sha256": "75957ac97b35b3346961dcdd12d19754141845ff94628b34bb1b2ed9c80c8331",
+      "copy": "verbatim",
+      "packetPath": "files/reviews/grok/review.md"
+    },
+    {
+      "source": "/Users/ccheever/clique-improvement/reviews/compiler-loop-reaching-origins-r29/grok/terminal-identity.json",
+      "path": "reviews/grok/terminal-identity.json",
+      "bytes": 4050,
+      "sha256": "04e8b131a12812c59dd27fab49f63870abfb0aa0d63f34ff3e5b0d583b488914",
+      "copy": "verbatim",
+      "packetPath": "files/reviews/grok/terminal-identity.json"
+    },
+    {
+      "source": "/Users/ccheever/clique-improvement/reviews/compiler-loop-reaching-origins-r29/grok/native-terminal-receipt.json",
+      "path": "reviews/grok/native-terminal-receipt.json",
+      "bytes": 1543,
+      "sha256": "40fab997b7386bf53365e29ae962275d8c511c096350a4b9a87520fdb552700b",
+      "copy": "verbatim",
+      "packetPath": "files/reviews/grok/native-terminal-receipt.json"
+    },
+    {
+      "source": "/Users/ccheever/clique-improvement/reviews/compiler-loop-reaching-origins-r29/grok/supervisor-final-verification.json",
+      "path": "reviews/grok/supervisor-final-verification.json",
+      "bytes": 529,
+      "sha256": "cd9e490fc89fd309551823f89b6cc69773badffad1c3509d6dee549ef960a3b4",
+      "copy": "verbatim",
+      "packetPath": "files/reviews/grok/supervisor-final-verification.json"
+    },
+    {
+      "source": "/Users/ccheever/clique-improvement/reviews/compiler-loop-reaching-origins-r29/astra/supervisor-initial-setup-tool-receipt.json",
+      "path": "reviews/astra/supervisor-initial-setup-tool-receipt.json",
+      "bytes": 3316,
+      "sha256": "21173fefe6aedcbe20c59a0501bca6ab0bacce3ce8ac7fa84f1ab60c554224a6",
+      "copy": "verbatim",
+      "packetPath": "files/reviews/astra/supervisor-initial-setup-tool-receipt.json"
+    },
+    {
+      "source": "/Users/ccheever/clique-improvement/reviews/compiler-loop-reaching-origins-r29/astra/evidence/artifacts/test-types/candidate/result.json",
+      "path": "types/astra-result.json",
+      "bytes": 39823,
+      "sha256": "cb5c5c0af1a79dc11fa6efbab94faeafd9ab45c2a070288cb7525a12ee24e0fd",
+      "copy": "verbatim",
+      "packetPath": "files/types/astra-result.json"
+    },
+    {
+      "source": "/Users/ccheever/clique-improvement/reviews/compiler-loop-reaching-origins-r29/grok/supervisor-collected/artifacts/test-types/sources/candidate/result.json",
+      "path": "types/grok-result.json",
+      "bytes": 40783,
+      "sha256": "92db208079d371f38bf353dff3ad98120abb50012107b98b0532b46868d11fd0",
+      "copy": "verbatim",
+      "packetPath": "files/types/grok-result.json"
+    },
+    {
+      "source": "/Users/ccheever/clique-improvement/revisions/compiler-r29-integration-plan/report.md",
+      "path": "integration/compiler-integration-plan.md",
+      "bytes": 14055,
+      "sha256": "627432476f279537e79af0bce318f724df8f928d8c97903ebcf4ad19bcae8e28",
+      "copy": "verbatim",
+      "packetPath": "files/integration/compiler-integration-plan.md"
+    },
+    {
+      "source": "/Users/ccheever/clique-improvement/revisions/compiler-r29-dependency-eligibility/report.md",
+      "path": "integration/dependency-eligibility.md",
+      "bytes": 14509,
+      "sha256": "387c6c4d1ea8d705ceffcf9b0205ab16bdc46108fbc0a3618efb420678fcfe0b",
+      "copy": "verbatim",
+      "packetPath": "files/integration/dependency-eligibility.md"
+    }
+  ],
+  "generated": [
+    {
+      "path": "README.md",
+      "bytes": 327,
+      "sha256": "33521cef9daaebf32cf85e4eff4282235cb061e20fc8a3ef2be6534003fe839b"
+    },
+    {
+      "path": "files/README.md",
+      "bytes": 2716,
+      "sha256": "198e73b15210c19aefce3f8764a78248494cd2acbc9a50b0b65c8bec1dee1e3d"
+    },
+    {
+      "path": "diary-append.md",
+      "bytes": 965,
+      "sha256": "15bf80c958f03539b12e1d207e1aa658af2a06e7df3f0ba2ce2e6523f1c49662"
+    }
+  ],
+  "pathConvention": "originals.path is relative to proposed repository evidence directory; packetPath is relative to this external packet."
+}

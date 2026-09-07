@@ -32,6 +32,22 @@ const schema: any = { tables: { messages: { columns: { id: 'Id', room: { Text: {
 const typed = (id: string, body: string, at = 1, caption: string | null = null): any => ({ Row: { id: { Id: id }, room: { String: 'r' }, body: { String: body }, caption: caption === null ? 'Null' : { String: caption }, at: { Int: at } } });
 const atoms = (term: string): any => [{ Scalar: { String: 'r' } }, { WordPrefix: { source: term, contract: SEARCH_CONTRACT } }];
 const prefix = (term: string) => preparePrefix(schema, 'messages', 'search', atoms(term), [undefined, 2000]);
+// Hermes treats TypedArray.from as array-like-only. Search posting custody must
+// not depend on Set's iterator being honored by that platform implementation.
+const typedArrayFrom = Object.getOwnPropertyDescriptor(Uint32Array, 'from');
+Object.defineProperty(Uint32Array, 'from', { configurable: true, value: (source: ArrayLike<number>) => {
+  const result = new Uint32Array(Number.isSafeInteger(source?.length) ? source.length : 0);
+  for (let i = 0; i < result.length; i++) result[i] = source[i]!;
+  return result;
+} });
+try {
+  const compatible = new HeldIndex<any>(schema, 'messages', 'search', schema.tables.messages.indexes.search.components);
+  const row = typed('hermes-posting', 'Café'); compatible.put(row);
+  assert.deepEqual([...compatible.scan({ prefix: prefix('café'), after: null, before: null, range: null, order: 'Asc' })], [row]);
+} finally {
+  if (typedArrayFrom) Object.defineProperty(Uint32Array, 'from', typedArrayFrom);
+  else delete (Uint32Array as any).from;
+}
 const store = new ClientStore(schema);
 for (let i = 0; i < 300; i++) store.put('messages', typed(`m${i}`, i % 2 ? 'Cafe\u0301 Straße' : 'quiet', i));
 store.put('messages', typed('caption', 'unrelated', 500, 'CAFÉ'));
@@ -433,28 +449,6 @@ assert.equal(cachedSearch.atom(component, { WordPrefix: { source: 'Café', contr
 assert.throws(() => cachedSearch.atom(component, { WordPrefix: { source: 'Café', contract: SEARCH_CONTRACT, extra: 1 } }, 2000), { code: 'E_INPUT' });
 assert.throws(() => cachedSearch.atom(component, 2, 2000), { code: 'E_INPUT' });
 console.log('actual Rust certificate identities and 100 required dynamic lane normalization passed');
-
-// Unmodified final26c9 corpus/receipt/certificate: Unicode Words, optional null and real derived work.
-const wordsCase = searchFixtures.nativeR8.words.case;
-const wordsStore = new ClientStore(wordsCase.schema, wordsCase.receipt, { program: wordsCase.program });
-const wordsRun = (body: any, certificate = wordsCase.certificate) => wordsStore.reexecute(wordsCase.program,
-  { ...wordsCase.context, args: { body } }, certificate).execution;
-const wordsExecution = wordsRun(wordsCase.context.args.body);
-assert.deepEqual(wordsExecution.result, wordsCase.expected.localResult);
-assert((wordsExecution.trace.derived_steps ?? 0) > 1000, 'non-ASCII Words includes normalization and token traversal');
-assert((wordsExecution.trace.derived_scratch_bytes ?? 0) > 3000, 'Words includes scratch and retained output/dedup data');
-assert.equal(wordsExecution.trace.steps, wordsExecution.trace.derived_steps! + 5);
-assert.deepEqual(wordsRun('Null').result, { Array: [] });
-assert.equal(wordsRun('Null').trace.derived_steps, undefined, 'null performs no Unicode work');
-for (const text of ['\u{10ffff}'.repeat(50), 'a '.repeat(25), 'é'.repeat(50), 'a\u0301'.repeat(25)]) {
-  const run = wordsRun({ String: text });
-  assert(run.trace.steps! <= wordsCase.certificate.max_steps);
-  assert(run.trace.derived_scratch_bytes! <= wordsCase.certificate.derived_scratch_bytes);
-}
-// Tightened local budgets exercise refusal, not purported new native certificates.
-assert.throws(() => wordsRun(wordsCase.context.args.body, { ...wordsCase.certificate, derived_steps: 1 }), { code: 'E_STEPS' });
-assert.throws(() => wordsRun(wordsCase.context.args.body, { ...wordsCase.certificate, derived_scratch_bytes: 1 }), { code: 'E_HEAP' });
-assert.throws(() => wordsRun({ String: 'x'.repeat(51) }), { code: 'E_INPUT' });
 
 // Public warm direct/global execution shares cursor normalization and accounts for preparation in the Runner ledger.
 const publicState = emptyState(), publicChanges = new StoreChanges<typeof publicState>(); publicChanges.reset();

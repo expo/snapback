@@ -1,0 +1,14 @@
+{
+  "mode": "counterexample",
+  "purpose": "Check whether two correctly selected npm-packed platforms with os/cpu constraints survive the production mandatory-artifact install shape",
+  "argv": [
+    "/Users/ccheever/.volta/tools/image/node/24.18.0/bin/node",
+    "/Users/ccheever/clique-improvement/reviews/publication-platform-metadata-r1/astra/scratch/multiple-platform-install.mjs"
+  ],
+  "cwd": "/Users/ccheever/clique-improvement/reviews/publication-platform-metadata-r1/astra/scratch",
+  "source": "/Users/ccheever/clique-improvement/reviews/publication-platform-metadata-r1/astra/scratch/multiple-platform-install.mjs",
+  "sourceSha256": "fbab116efe3509e45d158f27b2d63c07e6d5d821d1f89d8e5444daed847e8ccb",
+  "timeoutSeconds": 30,
+  "startedAt": "2026-09-07T16:25:03.165809+00:00",
+  "pid": 72038
+}

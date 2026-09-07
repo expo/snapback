@@ -19,6 +19,9 @@ export function sendingStatus(status: OutboxStatus, connection: ConnectionState,
       "ids-exhausted": "Reconnect to continue sending. Queued messages stay saved.",
       "program-missing": "Connect to download this conversation before sending.",
       follower: "Another tab is sending for this account. Send from that tab, or close it to send here.",
+      "writer-discovery": "Preparing another tab to send…",
+      "writer-capacity": "Too many messages are waiting. Try again after earlier sends finish.",
+      "writer-unresponsive": "The sending tab is not responding. Keep this tab open and try again.",
     };
     return { reason: status.reason, message: messages[status.reason], canSync: status.action === "resume" || status.action === "load-program" };
   }

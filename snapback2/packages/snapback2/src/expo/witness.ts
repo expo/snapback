@@ -45,7 +45,8 @@ export function witnessSearchProbe(client: SnapbackClient, terms: string[]): unk
       }, 128)], after: null, before: null, range: null, order: "Desc",
     })].map(row => asString(field(row, "id"))) })),
   }]));
-  return { selected: selected && { ...selected, scopes: selected.scopes.map((scope: any[]) => scope.map(wireJson)) }, scopes, postings };
+  return { selected: selected && { ...selected, scopes: selected.scopes.map((scope: any[]) => scope.map(wireJson)) }, scopes, postings,
+    runtime: { typedArrayFromSet: [...Uint32Array.from(new Set([3, 5]) as any)] } };
 }
 export function witnessControl(source: SnapbackClient | WitnessApplication, url: string): WitnessControl {
   if (!/^wss?:\/\//.test(url)) throw new TypeError("witness URL must be ws:// or wss://");

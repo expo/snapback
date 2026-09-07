@@ -1204,3 +1204,167 @@ The full published0.0.15 Grok run reached9/9 M2 browser passes after preserving 
 Reading the actual application acceptance source exposed a separate measurement problem: quoted-reply tests check stored IDs without rendering or tapping; seed replay checks only the presence of data, not duplicate identities; pagination labels never request a second page. Unmapped required tests can inherit an unrelated pass, although that fallback did not activate in the captured M3 receipt. These are gaps in the app-authored tests, not proof of corresponding Snapback engine defects. Improving the build experience requires observable complete behavior, not accepting convenient green labels.
 
 [Source-bound interim audit and unchanged receipts](../benchmarks/runs/2026-09-06-clique-improvement/evidence/grok-015-interim-acceptance-audit/README.md) retain the exact evidence. Final acceptance source must be audited again before grading. The live benchmark was left untouched; valid Convex/Supabase baselines remain reused, and the Office/M5 hardware difference remains a confound. No new full milestone or comparative win is claimed.
+
+### 2026-09-07 — Published0.0.15 Grok score is63; Convex remains ahead
+
+The completed Grok build received63/100 from a fresh Grok4.6/xhigh narrative scorer. The retained earlier scores are Snapback57, Convex78 and Supabase47, so the result remains short of the goal. This uses the same anchors/categories but a disclosed single-backend prompt, and Office differs from the baseline M5 host; the six-point difference is not a controlled causal improvement estimate.
+
+The builder finished in10204.303s with M1/M2 browser green, M3/M4 red and later browser/full-scale/native proof absent. The scorer calls out web offline, Quarry expressiveness/authorization friction and incomplete scale evidence; it also noticed permissive view-once and trending tests. Those narrative attributions need the separate assertion audit before being treated as proven product defects. [Full score, prompt delta and terminal custody](../benchmarks/runs/2026-09-06-clique-improvement/evidence/grok-015-holistic/README.md). The independent Astra audit remains running; no comparator rerun or holistic win is claimed.
+
+
+## 2026-09-07 — Independent Grok 0.0.15 assertion audit
+
+The independent Astra xhigh audit finished, but fresh runtime phases aborted: the unchanged lock failed npm ci twice on missing snapback2-linux-x64 metadata, and the isolated choreography copy omitted an external helper. No runtime product verdict follows from those setup failures. Clean-install triage is assigned separately; the original app, lock, receipts and failed attempts are preserved.
+
+Source review exposed missing feed pagination/video playback, newest-ten Trending instead of the requested ranking, incomplete custom-client operations and incorrect digest counter wiring. Of 58 mapped acceptance entries, 13 mapped tests support their stated scope, 15 are partial and 30 unsupported. Passing suite labels therefore do not establish full functionality. All 110 assertions have fresh runtime not-run; source judgments remain distinct. Grok's holistic 63 remains below Convex 78; no both-backend win or native/full-scale completion is claimed.
+
+Evidence: [independent assertion audit](../benchmarks/runs/2026-09-06-clique-improvement/evidence/grok-015-assertion-audit/README.md). Root read the full report and independently checked 334 original/copy source and symlink pairs. The next execution decision depends on clean-install evidence, while compiler and web factory-setup repairs continue independently.
+
+
+## 2026-09-07 — Make browser carrier setup mistakes actionable
+
+The published client let `offline: { store: indexedDbRangeStore }` construct, then failed during login with E_OFFLINE_CARRIER and “this.store.open is not a function.” A minimal browser reproduction established the builder/factory mistake. The fix rejects it at construction with the corrected `indexedDbRangeStore()` spelling and adds the missing setup example to the offline guide. Valid custom factories and carrier failures retain their behavior.
+
+Candidate620616271 passed35 affected tests and real IndexedDB/Web Locks setup controls; independent Astra xhigh and Grok4.6 xhigh reviews both returned READY. Root integrated the five files unchanged. The guide-only budget grows512 bytes for432 bytes of setup guidance. This is an ergonomic repair, not proof of the original app's only failure, the offline bar, or a comparative benchmark win. Publication qualification remains separate.
+
+[Source review and evidence](../benchmarks/runs/2026-09-06-clique-improvement/evidence/web-carrier-setup-r1/README.md) preserve those limits and actual review identities.
+
+
+## 2026-09-07 — Runtime audit confirms incomplete app behavior
+
+The unchanged published0.0.15 Grok app ran under an explicitly changed npm10 toolchain after the npm11 setup failures. Feed pagination remained stuck at20, eligible edits failed three times, and digest counts disagreed with actual unread messages. Authentication, ordinary live updates and first/second view-once asset retrieval had bounded positive observations. No app repairs were mixed into this audit.
+
+Root read the complete report and caught a coverage overclaim: an own-repost test does not establish visibility through a different followed reposter. Two-image rendering, avatar decoding and physical process restart likewise require stronger observations. Passing app-authored suite labels are not enough; these gaps remain visible instead of becoming a better-looking score. The separate Grok63 remains below Convex78; Supabase47 and valid comparator baselines are retained.
+
+[Preserved audit and separate Root validation](../benchmarks/runs/2026-09-06-clique-improvement/evidence/grok-015-assertion-continuation/README.md). Native, full-scale, M7 and the full model/size requirements remain outstanding. This evidence does not attribute every app defect to the backend.
+
+## 2026-09-07 — Exact-lock installation exposed an absent optional platform
+
+The completed Grok 0.0.15 app could not reach startup in the independent audit:
+its two original `npm ci` attempts failed on `snapback2-linux-x64@`. Producer
+and auditor both recorded Node 24.18.0 and npm 11.16.0 on Darwin arm64. The
+original and audit locks were byte-identical. Registry metadata was easy to
+compare by integrity; the surprising friction was that a Linux package never
+published for this release could prevent a Darwin install.
+
+Three preserved dependency-only controls isolated npm's optional-dependency
+behavior. npm 11 reproduced the failure; npm 10.9.8 installed the unchanged
+app lock, with all 723 installed entries matching locked version, URL and
+integrity. That is a disclosed setup workaround, not an app acceptance result.
+The original failed audit and its receipts remain intact. The smaller publication
+consumer also lacked React because its separate install used
+`--legacy-peer-deps`; repository consumer qualification already supplies React.
+
+The product change selects optional platform dependencies from the artifacts
+staged for publication and checks resumed tarball identities and dependencies.
+A Darwin-only release no longer references an absent Linux version. Metadata
+tests preserve multiple selected platforms, and a fresh exact-lock fixture
+installs under npm 11.16.0 with default peer and optional dependency semantics.
+These mechanical package tests do not qualify a Linux binary or a new release.
+Selected non-secret setup evidence is retained in
+[`clean-install-platform-triage-20260907.json`](../benchmarks/runs/2026-09-06-clique-improvement/evidence/clean-install-platform-triage-20260907.json).
+
+## 2026-09-07 — Packaging review caught an overly broad name filter
+
+The independent Astra review reproduced loss of an unrelated optional
+`snapback2-plugin`: staging removed every dependency with the `snapback2-`
+prefix. The fixture had preserved only a package named `unrelated`, so it missed
+the collision. Platform selection now uses the two exact supported package
+identities for both removal and validation. The preservation fixtures include
+`snapback2-plugin` and `snapback2-plugin-tools`, each single-platform selection,
+and both platforms together, while retaining normal and peer metadata.
+
+The closed review evidence also preserves two distinct limits: installing both
+platform tarballs as mandatory dependencies fails on the foreign platform, and
+an unresolved synthetic optional still exposes npm 11's lock behavior. Neither
+is repaired or disguised by this small preservation correction. Host-only
+packaging evidence does not qualify a Linux runtime or alter the old published
+package and application locks.
+
+## 2026-09-07 — Source-run architecture work exposed a native search difference
+
+The LLP 1018.000 implementation uses the existing chat template to exercise
+bounded reusable functions and a composed conversation query. Shared membership,
+log, and preview helpers remove repeated application logic. One native query
+now returns messages, the maintained count, and a preview at one execution
+sequence. The useful constraint is also visible: this record has no page cursor,
+and downloaded history alone does not prove its count. Actual screen integration
+is still in progress, with an explicitly partial history fallback.
+
+The difficult part was carrying the same indexed search through a real Expo
+restart. Node checks passed, yet the simulator retained both predicted messages
+and their conversation scope while search returned no rows. Batched diagnostics
+isolated empty token postings. Hermes returned an empty array for
+`Uint32Array.from(new Set([3, 5]))`; explicitly filling the sized typed array
+restored postings without a temporary array. A production transform under Node
+had caught earlier private-field portability errors but could not expose this
+runtime behavior. The actual simulator was necessary.
+
+At source integration `e61612c58`, the rebuilt package and native binary pass
+all ten existing Expo witness steps: strict decomposed-Unicode cold search,
+five-store crash recovery, cached images/video, exactly-once replay, expiry,
+and relaunch/drain. The at-rest restart now compares with a baseline captured
+after intervening completed app activity; the earlier raw pre-swap comparison
+is preserved. The transaction probe still does not qualify a native `COMMIT`
+failure. These are source-run results, not a new published-package result or
+a comparison with Convex or Supabase. Compiler deletion, composite-screen
+qualification, independent final reviews, and the runtime size deficit remain
+open in [LLP 1018.000](../llp/1018.000-composable-architecture-next-moves.research.md).
+
+At the later `91adf1c8c` checkpoint, the real screens consume the composed
+record and the Expo witness passes all ten steps again. The record makes the
+count and preview straightforward to share across consumers; a capped preview
+still permits a usable record with no root continuation. A never-opened offline
+conversation needs an explicitly partial history fallback, without a count or
+preview. Five real-owner screen tests and the 117 affected client checks pass.
+The browser's longer lifecycle exposes an unresolved disappearing inbox row
+after unsend, so the complete Web result remains red. This is useful friction:
+unit and initial-render checks did not substitute for the full interaction.
+
+The reviewed allocation amendment is now applied and its unchanged five-root
+check passes at 79,207 gzip bytes against 82,000, with an 80,000 working target.
+The historical failures against 66,000 remain failures. No new comparative
+score, publication, or native failed-`COMMIT` qualification follows.
+
+
+## 2026-09-07 — Published fixes survive public installs
+
+Published 0.0.16 carries the browser carrier setup guidance and staged-platform packaging fix, including the earlier CLI DX delivery. Fresh public Expo/guide verification passed all 12 commands. A separate default npm 11 install and fresh exact-lock npm ci both passed with all 156 packed files verified in both consumers. This removes the reproduced new-package setup obstacle without rewriting historical 0.0.15 locks or audit failures.
+
+Functional publication checks passed, but chat check still exceeded 1 second and the 17 measured consumer steps alone totaled 31.402 seconds against 30. The initial registry E404 is preserved; later exact public identities confirmed publication without republishing. No native-device or benchmark improvement follows from installation proof. Grok remains 63 versus Convex 78 and Supabase 47 until a new full run is graded.
+
+[Release and installed evidence](../benchmarks/runs/2026-09-06-clique-improvement/evidence/cli-016-published/README.md) records the commands, original failures, actual terminals and source/artifact identities. Compiler diagnostics remain in the separately reviewed, unintegrated compiler work.
+
+
+
+### 2026-09-07 — Compiler R29 closed review and integration hold
+
+The loop-reaching-origin candidate `ef88cac15` versus `9995d41a` received scoped READY from both closed independent Astra/xhigh and Grok4.6/xhigh reviews, with actual native and outer exits0. Seven inherited affected-type diagnostics remain exit1 and exactly equal controls; original setup failures and report precision notes remain preserved. [Full evidence](../benchmarks/runs/2026-09-06-clique-improvement/evidence/compiler-loop-reaching-r29-reviews/README.md).
+
+This is not a whole compiler/native/package clearance. Read-only integration assessment identifies the reusable3eba v5 recipe and reviewed0ecd client correction, preserves current-main uniqueness and newer features, and finds no cleared native endpoint for two outstanding62fc absence-pricing findings. Stopped scopes remain stopped; no integration, new tests, publication or frozen016 change resulted from this evidence handoff.
+
+
+## 2026-09-07 — Fresh full Grok run on published 0.0.16
+
+The fresh full run started at18:45:08Z on Office M1 Max. Actual native metadata confirms Grok4.6/xhigh. The builder receives the unchanged full instrument and exact public package, with no previous app or audit findings. All169 original leaves and the helper match; original milestone, media, scale and native requirements remain. M7 stays separate after grading.
+
+[Launch evidence](../benchmarks/runs/2026-09-06-clique-improvement/evidence/grok-016-start/README.md) records the actual process/session and environment. Shared host load and the M5 comparator hardware difference remain disclosed. This starts measurement; it does not establish a better score or any milestone pass.
+
+
+## 2026-09-07 — Composed queries pass on Expo; retained projections expose a browser seam
+
+At source `4ef44ab65`, the rebuilt actual Expo app again passes all ten witness
+steps with both composed-query consumers. The browser still loses its inbox
+conversation after unsend. A focused real-owner reproduction subsequently shows
+that the snapshot retains rows while all projected delivery fields become null:
+conservative revocation clears the literals, and retained history skips certified
+reevaluation. This is platform behavior a guide would not repair; the client
+selection fix is being checked against missing facts and retained history.
+
+The same source's measured chat check is 0.872 seconds, below the one-second
+budget, and incremental rebuild is 2.31 seconds. All product-loop functional
+steps finish, but timing remains red: installed consumer 30.62/30 seconds and
+first doctor launch 0.808/0.5 seconds (second sample 0.042; internal work 45.990
+milliseconds). The exact metric append is retained without replacing earlier
+measurements. This does not qualify the complete browser lifecycle, native
+failed-COMMIT behavior, publication, or a new comparative score.

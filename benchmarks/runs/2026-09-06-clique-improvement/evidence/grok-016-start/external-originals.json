@@ -1,0 +1,68 @@
+[
+  {
+    "copy": "prompt.md",
+    "original": "/Users/ccheever/clique-improvement/next-run/grok-016/launch-binding-r1/prompt.final.md",
+    "bytes": 5588,
+    "sha256": "12b3526f1de53e0b39a744cdd5da1d7c906331e20b553be4f13489ac18cd2319"
+  },
+  {
+    "copy": "environment.md",
+    "original": "/Users/ccheever/clique-improvement/next-run/grok-016/launch-binding-r1/ENVIRONMENT.md",
+    "bytes": 4399,
+    "sha256": "167a3d594e23de5f10c2e4c139795fc17fbdac5158d6eefcedfa3a3a76c32e24"
+  },
+  {
+    "copy": "release-verification.json",
+    "original": "/Users/ccheever/clique-improvement/next-run/grok-016/launch-binding-r1/release-verification.json",
+    "bytes": 4362,
+    "sha256": "0072c166bee6030b24b6e055e26cff00874ca3882e12940de100221a47730889"
+  },
+  {
+    "copy": "start.json",
+    "original": "/Users/ccheever/clique-improvement/next-run/grok-016/native-observation-r1/start.json",
+    "bytes": 5710,
+    "sha256": "65eba3b2e8a4a4580f498a00e93cc3d4fa01b3f64a5ea13cded1504d4c1994dc"
+  },
+  {
+    "copy": "native-summary.json",
+    "original": "/Users/ccheever/clique-improvement/next-run/grok-016/native-observation-r1/summary.initial.json",
+    "bytes": 790,
+    "sha256": "aafd7c05c786823ca4075644685b08933125c8082c56ec59843ded141c4e1013"
+  },
+  {
+    "copy": "identity-observation.json",
+    "original": "/Users/ccheever/clique-improvement/next-run/grok-016/native-observation-r1/identity-observation.json",
+    "bytes": 743,
+    "sha256": "d0be3795634ea85aa60d659610b9dc7d783c3a064d5fd95a96b3b1ffb8d354eb"
+  },
+  {
+    "copy": "first-install/observation.json",
+    "original": "/Users/ccheever/clique-improvement/next-run/grok-016/native-observation-r1/first-install/observation.json",
+    "bytes": 2335,
+    "sha256": "13df4f216147cf1a44194292f0cee81f76f9dae6f4af6361e45836b31e805057"
+  },
+  {
+    "copy": "first-install/package.json",
+    "original": "/Users/ccheever/clique-improvement/next-run/grok-016/native-observation-r1/first-install/package.json",
+    "bytes": 301,
+    "sha256": "62d03284d370213f2c36899bada46d2810bb108bd130d4c8fe457f24fdd73162"
+  },
+  {
+    "copy": "first-install/package-lock.json",
+    "original": "/Users/ccheever/clique-improvement/next-run/grok-016/native-observation-r1/first-install/package-lock.json",
+    "bytes": 2667,
+    "sha256": "82fd6c64fc419e728427465b06e7943af595772cc55de5f39e1de761b9f1d277"
+  },
+  {
+    "copy": "first-install/shim-package.json",
+    "original": "/Users/ccheever/clique-improvement/next-run/grok-016/native-observation-r1/first-install/shim-package.json",
+    "bytes": 2931,
+    "sha256": "86f8ed8341a71c2ae091db83b6026ad5364e86f2adbe2d714908dd04ab6d141a"
+  },
+  {
+    "copy": "first-install/darwin-package.json",
+    "original": "/Users/ccheever/clique-improvement/next-run/grok-016/native-observation-r1/first-install/darwin-package.json",
+    "bytes": 347,
+    "sha256": "9fe0481c58244683724498f857d5536b007a2354fe3dfb7e2325b3534a925651"
+  }
+]

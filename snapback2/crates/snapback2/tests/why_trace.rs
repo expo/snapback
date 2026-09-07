@@ -226,7 +226,7 @@ fn auth_recipe_executes_scoped_admin_reads_and_diagnoses_owner_only_absence() {
         fs::write(&schema_path, schema).unwrap();
         // Compile and execute the shipped promotion snippet, not a copied fixture.
         fs::write(project.path.join("snapback/groups.q"), format!(
-            "{}\n\nquery inspectMembership(membershipId: memberships):\n  return memberships[membershipId]\n", snippets[3]
+            "fn isAdmin from access\n\n{}\n\nquery inspectMembership(membershipId: memberships):\n  return memberships[membershipId]\n", snippets[3]
         )).unwrap();
         // This fixture changes roster visibility; remove unrelated delivery fanout
         // operations that require the template's uniform roster read policy.

@@ -108,7 +108,7 @@ for (const s of ['\ud800', '\udfff', 'a\ud800z', '\ud800\ud800', '\udc00\ud800']
 assert.equal(scalarLength('𐐀', 1), 1);
 assert.throws(() => normalizeSearch('𐐀a', 1), SearchInputError);
 for (const q of [-1, 1.5, NaN, Infinity, 0x40000000]) assert.throws(() => normalizeSearch('', q), SearchInputError);
-assert.deepEqual(searchWords('Élodie hello_world', 2000), ['élodie', 'hello', 'world'], 'authoring words uses the shared Unicode contract');
+assert.deepEqual(searchWords('Élodie hello_world', 2000), ['élodie', 'hello', 'world'], 'indexed fields use the shared Unicode contract');
 
 for (const [source, expected] of [
   ['\u0315\u0300'.repeat(1000), '\u0300'.repeat(1000) + '\u0315'.repeat(1000)],

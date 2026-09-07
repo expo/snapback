@@ -1,0 +1,49 @@
+{
+  "closedAt": "2026-09-07T18:11:55.818533+00:00",
+  "candidate": "ef88cac15a948418d1f6d620713065ab9b57e40f",
+  "parent": "9995d41a45b61bbebb79b6b239a6b7bddaf6e4ec",
+  "bothActualNativeAndOuterExits": 0,
+  "verdicts": {
+    "astra": "READY",
+    "grok": "READY"
+  },
+  "scope": "Scoped R29 compiler delta; no cumulative compiler/native/package/integration/publication clearance",
+  "bindings": {
+    "astra/review.md": {
+      "sha256": "782e4093437dc12092115cd5520c901a174136604031ba7ea385a72447d80a80",
+      "bytes": 18742
+    },
+    "astra/terminal-identity.json": {
+      "sha256": "f4894a9576506b437d728fc05e8aa4004996b95614a99bdc87245d83561008ae",
+      "bytes": 4442
+    },
+    "astra/native-terminal-receipt.json": {
+      "sha256": "d0b32bee279c63012a62b7302eaf8498f05b1d887b5d91444abdcb2fc2cceb98",
+      "bytes": 1280
+    },
+    "astra/supervisor-final-verification.json": {
+      "sha256": "c235e95676a60fe61ee98c97eccb3d182f12a9c49ad88150fc63f49d6b1ad83b",
+      "bytes": 394
+    },
+    "grok/review.md": {
+      "sha256": "75957ac97b35b3346961dcdd12d19754141845ff94628b34bb1b2ed9c80c8331",
+      "bytes": 17672
+    },
+    "grok/terminal-identity.json": {
+      "sha256": "04e8b131a12812c59dd27fab49f63870abfb0aa0d63f34ff3e5b0d583b488914",
+      "bytes": 4050
+    },
+    "grok/native-terminal-receipt.json": {
+      "sha256": "40fab997b7386bf53365e29ae962275d8c511c096350a4b9a87520fdb552700b",
+      "bytes": 1543
+    },
+    "grok/supervisor-final-verification.json": {
+      "sha256": "cd9e490fc89fd309551823f89b6cc69773badffad1c3509d6dee549ef960a3b4",
+      "bytes": 529
+    },
+    "closed-pair-disposition.md": {
+      "sha256": "6127aafcafdaa43dfa2c1516b30962681187acf8eda64ff3e5d737c600c46266",
+      "bytes": 1878
+    }
+  }
+}

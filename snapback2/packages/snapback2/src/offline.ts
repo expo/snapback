@@ -160,6 +160,9 @@ export function admitDrain(op: string, contract: DrainContract | undefined): str
     rewrite: "use an ascending delivery log (after c first N, N <= 50); subscribe normally at c: null for newest-first data; reconnect if metadata is unavailable; queued writes are kept" });
 }
 
+// @ref LLP 1012#15-diagnostics — invalid options are TypeErrors; carrier-thrown errors retain their refusal semantics.
+export class InvalidOfflineStoreError extends TypeError {}
+
 export class OfflineRuntime {
   readonly store: RangeStore;
   readonly fenceDays: number;
@@ -204,6 +207,10 @@ export class OfflineRuntime {
 
   constructor(private readonly options: OfflineClientOptions) {
     this.store = options.store();
+    // Check the result once, structurally: custom carriers need no built-in brand.
+    if (typeof this.store?.open !== "function") {
+      throw new InvalidOfflineStoreError("createClient offline.store must return a RangeStore with open(); for IndexedDB, use offline: { store: indexedDbRangeStore() }. See snapback2 guide offline");
+    }
     this.fenceDays = options.fenceDays ?? 7;
     this.maxAssetBytes = options.maxAssetBytes ?? 256 * 1024 * 1024;
     this.bytes = new ByteCache(this.store, { maxAssetBytes: this.maxAssetBytes });

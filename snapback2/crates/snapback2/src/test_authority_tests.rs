@@ -13,6 +13,71 @@ fn protected_write_recipe() -> Recipe {
     }
 }
 
+#[test]
+fn revocation_candidate_prefers_a_membership_guard_dependency() {
+    let recipe = protected_write_recipe();
+    let membership = snapback2_core::Read {
+        site: "messages.thread.0".to_owned(),
+        table: recipe.membership_table.clone(),
+        index: recipe.membership_index.clone(),
+        key: Vec::new(),
+        provenance: KeyProvenance::Const,
+    };
+    let reads = vec![
+        ReadSite {
+            site: membership.site.clone(),
+            table: membership.table.clone(),
+            index: membership.index.clone(),
+            prefix_template: KeyProvenance::Const,
+            take: 1,
+            max_calls: 1,
+            rule_probes_per_candidate: 0,
+            hoist: false,
+            decided_true: false,
+            complete: false,
+        },
+        ReadSite {
+            site: "messages.thread.1".to_owned(),
+            table: "messages".to_owned(),
+            index: "byConversation".to_owned(),
+            prefix_template: KeyProvenance::Const,
+            take: 50,
+            max_calls: 1,
+            rule_probes_per_candidate: 0,
+            hoist: false,
+            decided_true: false,
+            complete: false,
+        },
+    ];
+    let mut program = Program {
+        name: "messages.thread".to_owned(),
+        kind: ProgramKind::Query,
+        args: BTreeMap::new(),
+        read_time_granularity_ms: None,
+        body: vec![Stmt::Return(Expr::Literal(Value::Null))],
+    };
+    assert!(!query_isolates_protected_table(
+        &program, &reads, &recipe, "messages"
+    ));
+    program.body.insert(
+        0,
+        Stmt::Const {
+            name: "expandedHelper".to_owned(),
+            value: Expr::Exists(membership),
+        },
+    );
+    program.body.insert(
+        1,
+        Stmt::Require {
+            condition: Expr::Variable("expandedHelper".to_owned()),
+            code: "MEMBERSHIP_REQUIRED".to_owned(),
+        },
+    );
+    assert!(query_isolates_protected_table(
+        &program, &reads, &recipe, "messages"
+    ));
+}
+
 fn probe_mutation(scoped: bool) -> Program {
     Program {
         name: "messages.send".to_owned(),
