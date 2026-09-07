@@ -1,11 +1,15 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
+import React from "react";
+import TestRenderer, { act } from "react-test-renderer";
 import { api, isSnapbackRefusal, SnapbackRefusal } from "../dist/client.mjs";
-import { indexedDbRangeStore } from "../dist/react.mjs";
-import { ClientQueries, forwardingRequestId, MutationForwarding, SharedSubscriptions } from "../dist/client-observed-test.mjs";
+import { indexedDbRangeStore, SnapbackProvider, useQuery } from "../dist/react.mjs";
+import { ClientQueries, forwardingRequestId, MutationForwarding, SharedSubscriptions, TabFollower } from "../dist/client-observed-test.mjs";
 import { fixtureClient as createClient } from "./live-fixture.ts";
 import { fakeOwner } from "./fake-owner.ts";
 import { FakeIndexedDb, FakeLocks } from "./fake-indexeddb.ts";
+
+(globalThis as any).IS_REACT_ACT_ENVIRONMENT = true;
 
 async function until(condition: () => Promise<boolean> | boolean, what: string, timeoutMs = 5_000): Promise<void> {
   const deadline = Date.now() + timeoutMs;
@@ -39,6 +43,155 @@ class MemoryBroadcastChannel {
   }
   close() { MemoryBroadcastChannel.members.get(this.name)?.delete(this); }
 }
+
+test("two React queries read one client-owned snapshot and release it by refcount", async () => {
+  let opens = 0;
+  const fetch = async (input: string | URL | Request) => {
+    const path = new URL(String(input)).pathname;
+    if (path === "/api/manifest") return new Response(JSON.stringify({
+      generation: "test", programGeneration: "program", ops: {}, channels: {}, auth: {},
+    }), { headers: { "content-type": "application/json" } });
+    if (path === "/api/subscribe") {
+      opens += 1;
+      const bytes = new TextEncoder().encode(`data: ${JSON.stringify({
+        state: "complete", data: [{ id: "message-1" }], seq: 1, next: null,
+      })}\n\n`);
+      return new Response(new ReadableStream({ start(controller) { controller.enqueue(bytes); } }),
+        { headers: { "content-type": "text/event-stream" } });
+    }
+    throw new Error(`unexpected route ${path}`);
+  };
+  const client = createClient({ url: "http://react-observed.test", as: "alice", fetch });
+  await client.ready;
+  const args = { conversationId: "general" };
+  let first: any, second: any;
+  function First() { first = useQuery(api.messages.thread, args); return null; }
+  function Second() { second = useQuery(api.messages.thread, args); return null; }
+  let renderer: TestRenderer.ReactTestRenderer;
+  await act(async () => {
+    renderer = TestRenderer.create(React.createElement(SnapbackProvider, { client },
+      React.createElement(React.Fragment, null, React.createElement(First), React.createElement(Second))));
+    await new Promise(resolve => setTimeout(resolve, 20));
+  });
+  assert.equal(first.state, "complete"); assert.equal(second.state, "complete");
+  assert.strictEqual(first.data, second.data, "both hooks select the same client-owned value");
+  assert.equal(opens, 1); assert.equal((client as any).sharedConsumers(api.messages.thread, args), 2);
+  await act(async () => { renderer!.unmount(); });
+  assert.equal((client as any).sharedConsumers(api.messages.thread, args), 0);
+  await client.close();
+});
+
+test("a delayed predecessor follower failure cannot stop its successor route", async () => {
+  const predecessor = Promise.withResolvers<void>(), successor = Promise.withResolvers<void>();
+  let route = "none", stops = 0, failures = 0;
+  const follower = new TabFollower({
+    runtime: () => ({
+      follow: (principal: string) => principal === "predecessor" ? predecessor.promise : successor.promise,
+      followed: () => undefined,
+      reauthenticate: async () => undefined,
+    }),
+    closed: () => false,
+    inherited: () => undefined,
+    writer: async (principal: string) => { route = `writer:${principal}`; },
+    following: (principal: string) => { route = `follower:${principal}`; },
+    stopped: () => { stops += 1; route = "stopped"; },
+    takeover: async () => "authority",
+    drain: () => undefined,
+    failed: () => { failures += 1; },
+  });
+  follower.begin("predecessor", true, 1);
+  follower.stop();
+  follower.begin("successor", true, 2);
+  predecessor.reject(new Error("late predecessor open failure"));
+  await new Promise(resolve => setTimeout(resolve, 0));
+  assert.equal(route, "follower:successor");
+  assert.equal(stops, 1, "only the explicit predecessor withdrawal stops its route");
+  assert.equal(failures, 0, "obsolete failure evidence is not published into the successor");
+  successor.resolve();
+  await until(() => route === "writer:successor", "the successor writer route");
+});
+
+test("concurrent follower mutations publish to the writer in invocation order", async () => {
+  const Original = globalThis.BroadcastChannel;
+  (globalThis as any).BroadcastChannel = MemoryBroadcastChannel;
+  MemoryBroadcastChannel.members.clear(); MemoryBroadcastChannel.messages = [];
+  MemoryBroadcastChannel.drop = () => false;
+  const context = { scope: "forwarding-order", principal: "principal-a", authEpoch: 7, partitionIncarnation: "partition-a" };
+  const order: number[] = [];
+  const ready = { ready: true, reason: "ready", action: "none", remaining: 0, fence: "inside" } as const;
+  const writer = new MutationForwarding({
+    writer: () => context, status: async () => ready,
+    async admit(command: any) {
+      order.push(command.args.order);
+      return { state: "queued", intent: `intent-${command.args.order}`, ids: [`id-${command.args.order}`] };
+    },
+    acknowledge: async () => undefined,
+    failure: (error: unknown) => ({ code: "E_TEST", family: "test", message: String(error), guide: "test" }),
+    admitted: () => undefined,
+  });
+  const follower = new MutationForwarding({
+    writer: () => undefined, status: async () => ready,
+    admit: async () => { throw new Error("follower cannot admit"); }, acknowledge: async () => undefined,
+    failure: (error: unknown) => ({ code: "E_TEST", family: "test", message: String(error), guide: "test" }),
+    admitted: () => undefined,
+  });
+  try {
+    follower.follower({ scope: context.scope, principal: context.principal, authEpoch: 7, established: true, persona: false });
+    const first = follower.mutation("deliveries.post", { order: 1 });
+    await until(() => MemoryBroadcastChannel.messages.some(message => message.type === "discover"), "first discovery request");
+    writer.writer(context);
+    await new Promise(resolve => setTimeout(resolve, 0));
+    const second = follower.mutation("deliveries.post", { order: 2 });
+    await Promise.all([first, second]);
+    assert.deepEqual(order, [1, 2], "preparation sequencing ends once each command is sent, not acknowledged");
+  } finally {
+    follower.stop(); writer.stop(); MemoryBroadcastChannel.members.clear();
+    (globalThis as any).BroadcastChannel = Original;
+  }
+});
+
+test("account replacement invalidates unsent discovery and queued follower preparation", async () => {
+  const Original = globalThis.BroadcastChannel;
+  (globalThis as any).BroadcastChannel = MemoryBroadcastChannel;
+  MemoryBroadcastChannel.members.clear(); MemoryBroadcastChannel.messages = [];
+  MemoryBroadcastChannel.drop = () => false;
+  const old = { scope: "forwarding-old", principal: "principal-a", authEpoch: 7, partitionIncarnation: "partition-a" };
+  const successor = { scope: old.scope, principal: old.principal, authEpoch: 8, partitionIncarnation: "partition-b" };
+  const ready = { ready: true, reason: "ready", action: "none", remaining: 0, fence: "inside" } as const;
+  const admitted: string[] = [];
+  const writer = new MutationForwarding({
+    writer: () => successor, status: async () => ready,
+    admit: async (command: any) => {
+      admitted.push(command.args.body);
+      return { state: "queued", intent: "successor-intent", ids: ["successor-id"] };
+    },
+    acknowledge: async () => undefined,
+    failure: (error: unknown) => ({ code: "E_TEST", family: "test", message: String(error), guide: "test" }),
+    admitted: () => undefined,
+  });
+  const follower = new MutationForwarding({
+    writer: () => undefined, status: async () => ready,
+    admit: async () => { throw new Error("follower cannot admit"); }, acknowledge: async () => undefined,
+    failure: (error: unknown) => ({ code: "E_TEST", family: "test", message: String(error), guide: "test" }),
+    admitted: () => undefined,
+  });
+  try {
+    follower.follower({ scope: old.scope, principal: old.principal, authEpoch: 7, established: true, persona: false });
+    const first = follower.mutation("deliveries.post", { body: "obsolete first" });
+    const second = follower.mutation("deliveries.post", { body: "obsolete second" });
+    await until(() => MemoryBroadcastChannel.messages.some(message => message.type === "discover"), "obsolete discovery request");
+    follower.follower({ scope: successor.scope, principal: successor.principal, authEpoch: 8, established: true, persona: false });
+    writer.writer(successor);
+    await assert.rejects(first, (error: unknown) => isSnapbackRefusal(error) && error.code === "E_OFFLINE_FOLLOWER");
+    await assert.rejects(second, (error: unknown) => isSnapbackRefusal(error) && error.code === "E_OFFLINE_FOLLOWER");
+    assert.deepEqual(admitted, [], "neither known-unsent predecessor command attaches to the successor channel");
+    assert.equal((await follower.mutation("deliveries.post", { body: "successor" })).state, "queued");
+    assert.deepEqual(admitted, ["successor"]);
+  } finally {
+    follower.stop(); writer.stop(); MemoryBroadcastChannel.members.clear();
+    (globalThis as any).BroadcastChannel = Original;
+  }
+});
 
 test("a newer direct delivery fences a delayed local refresh and until sees later local revisions", async () => {
   type Event = { revision: number; source: "local" | "server" };
@@ -529,6 +682,7 @@ test("forwarded mutation timeout, rediscovery and recovery preserve one request 
     assert.equal(creations, 1, "recovery queried the same durable admission");
     const requests = MemoryBroadcastChannel.messages.filter(message => message.type === "mutation");
     assert.equal(new Set(requests.map(message => message.requestId)).size, 1);
+    assert.equal(requests.at(-1).recovery, true, "retrying an unknown command uses recovery expiration semantics");
 
     const forged = { ...record, expiresAt: record.expiresAt + 1_000 };
     const forgedToken = `s2mr1.${Buffer.from(JSON.stringify(forged)).toString("base64url")}`;

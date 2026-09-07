@@ -222,6 +222,8 @@ export class MutationForwarding {
   private readonly pending = new Map<string, Pending>();
   private readonly statusWaiters = new Map<string, StatusWaiter>();
   private readonly listeners = new Set<() => void>();
+  /** Serializes discovery and send publication in one follower's invocation order. */
+  private submissionTail: Promise<void> = Promise.resolve();
   private unresponsive = false;
 
   constructor(private readonly host: ForwardingHost) {}
@@ -249,8 +251,10 @@ export class MutationForwarding {
 
   follower(context: ForwardingFollower): void {
     if (this.followerRole && this.followerRole.scope === context.scope
-      && this.followerRole.principal === context.principal) {
-      this.followerRole = { ...this.followerRole, ...context };
+      && this.followerRole.principal === context.principal
+      && this.followerRole.authEpoch === context.authEpoch
+      && this.followerRole.established === context.established
+      && this.followerRole.persona === context.persona) {
       this.discovered = undefined;
       this.post({ protocol: PROTOCOL, type: "discover", followerId: this.followerRole.followerId });
       this.notify();
@@ -287,11 +291,12 @@ export class MutationForwarding {
 
   async status(op?: string): Promise<OutboxStatus> {
     const follower = this.followerRole;
+    const generation = this.generation;
     if (!follower) return followerStatus("follower");
     if (!this.available) return followerStatus("follower");
     if (this.unresponsive) return followerStatus("writer-unresponsive");
     const writer = await this.discover();
-    if (!writer) return followerStatus("writer-discovery");
+    if (!writer || !this.currentFollower(follower, generation)) return followerStatus("writer-discovery");
     if (this.pending.size >= LOCAL_PENDING_LIMIT) return followerStatus("writer-capacity");
     const requestId = randomId();
     const { promise, resolve } = deferred<OutboxStatus>();
@@ -308,9 +313,23 @@ export class MutationForwarding {
   }
 
   async mutation(op: string, args: unknown, recovery?: MutationRecovery): Promise<MutationQueued | MutationAdmissionUnknown> {
+    const generation = this.generation;
+    const follower = this.followerRole;
     const boundArgs = structuredClone(args);
     const digest = payloadDigest(op, boundArgs);
-    const role = this.followerRole;
+    const prepared = this.submissionTail.then(() =>
+      this.prepareMutation(op, boundArgs, digest, generation, follower, recovery));
+    this.submissionTail = prepared.then(() => undefined, () => undefined);
+    return (await prepared).outcome;
+  }
+
+  private async prepareMutation(
+    op: string, boundArgs: unknown, digest: string, generation: number,
+    invokedFollower: (ForwardingFollower & { followerId: string }) | undefined,
+    recovery?: MutationRecovery,
+  ): Promise<{ outcome: Promise<MutationQueued | MutationAdmissionUnknown> }> {
+    if (!this.currentFollower(invokedFollower, generation)) throw followerRefusal("client.mutation.forward");
+    const role = invokedFollower;
     let record: RecoveryRecord;
     if (recovery !== undefined) {
       record = decode(recovery);
@@ -318,7 +337,7 @@ export class MutationForwarding {
     } else {
       if (!role) throw followerRefusal("client.mutation.forward");
       const writer = await this.discover();
-      if (!writer) throw followerRefusal("client.mutation.forward");
+      if (!writer || !this.currentFollower(role, generation)) throw followerRefusal("client.mutation.forward");
       const expiresAt = Date.now() + COMMAND_LIFETIME;
       record = {
         protocol: PROTOCOL, requestId: forwardingRequestId(expiresAt, randomId()), followerId: role.followerId, payloadDigest: digest,
@@ -330,15 +349,17 @@ export class MutationForwarding {
     const currentWriter = this.host.writer();
     if (currentWriter) {
       this.verifyRecovery(record, currentWriter, digest);
-      const result = await this.host.admit({ ...record, op, args: boundArgs, recovery: recovery !== undefined });
-      if (!result) return { state: "admission-unknown", recovery: token };
-      this.host.admitted();
-      return result;
+      const outcome = this.host.admit({ ...record, op, args: boundArgs, recovery: recovery !== undefined }).then(result => {
+        if (!result) return { state: "admission-unknown" as const, recovery: token };
+        this.host.admitted();
+        return result;
+      });
+      return { outcome };
     }
     if (!role) throw followerRefusal("client.mutation.forward");
     this.verifyFollower(record, role, digest);
     if (!this.available) {
-      if (recovery !== undefined) return { state: "admission-unknown", recovery: token };
+      if (recovery !== undefined) return { outcome: Promise.resolve({ state: "admission-unknown", recovery: token }) };
       throw followerRefusal("client.mutation.forward");
     }
     let pending = this.pending.get(record.requestId);
@@ -346,8 +367,8 @@ export class MutationForwarding {
       throw new TypeError("mutation recovery request identity conflicts with an in-flight command");
     }
     const writer = await this.discover();
-    if (!writer) {
-      if (recovery !== undefined) return { state: "admission-unknown", recovery: token };
+    if (!writer || !this.currentFollower(role, generation)) {
+      if (recovery !== undefined) return { outcome: Promise.resolve({ state: "admission-unknown", recovery: token }) };
       throw followerRefusal("client.mutation.forward");
     }
     if (writer.authEpoch !== record.authEpoch || writer.partitionIncarnation !== record.partitionIncarnation) {
@@ -375,8 +396,11 @@ export class MutationForwarding {
       pending = { command, recovery: token, generation: this.generation, timedOut: false, expiryTimer };
       this.pending.set(record.requestId, pending);
     }
-    if (pending.attempt) return pending.attempt.promise;
-    return this.send(pending, writer.writerIncarnation);
+    else if (recovery !== undefined && !pending.command.recovery) {
+      pending.command = { ...pending.command, recovery: true };
+    }
+    if (pending.attempt) return { outcome: pending.attempt.promise };
+    return { outcome: this.send(pending, writer.writerIncarnation) };
   }
 
   private send(pending: Pending, targetWriterIncarnation: string): Promise<MutationQueued | MutationAdmissionUnknown> {
@@ -390,7 +414,11 @@ export class MutationForwarding {
     (timer as { unref?: () => void }).unref?.();
     pending.targetWriterIncarnation = targetWriterIncarnation;
     pending.attempt = { promise, resolve, reject, timer, targetWriterIncarnation };
-    this.post({ protocol: PROTOCOL, type: "mutation", ...pending.command, targetWriterIncarnation });
+    if (!this.post({ protocol: PROTOCOL, type: "mutation", ...pending.command, targetWriterIncarnation })) {
+      clearTimeout(timer); clearTimeout(pending.expiryTimer);
+      pending.attempt = undefined; this.pending.delete(pending.command.requestId);
+      this.updateUnresponsive(); reject(followerRefusal("client.mutation.forward"));
+    }
     return promise;
   }
 
@@ -414,16 +442,23 @@ export class MutationForwarding {
 
   private async discover(): Promise<WriterAnnouncement | undefined> {
     const follower = this.followerRole;
+    const generation = this.generation;
     if (!follower || !this.available || (!follower.persona && (!follower.established || follower.authEpoch === undefined))) return undefined;
     if (this.validWriter(this.discovered, follower)) return this.discovered;
-    const generation = this.generation;
     this.post({ protocol: PROTOCOL, type: "discover", followerId: follower.followerId });
     const deadline = Date.now() + RESPONSE_TIMEOUT;
     while (generation === this.generation && Date.now() < deadline) {
       await new Promise<void>(resolve => setTimeout(resolve, 10));
+      if (generation !== this.generation || this.followerRole !== follower) return undefined;
       if (this.validWriter(this.discovered, follower)) return this.discovered;
     }
     return undefined;
+  }
+
+  private currentFollower(
+    follower: (ForwardingFollower & { followerId: string }) | undefined, generation: number,
+  ): boolean {
+    return this.generation === generation && this.followerRole === follower;
   }
 
   private validWriter(writer: WriterAnnouncement | undefined, follower: ForwardingFollower): writer is WriterAnnouncement {
@@ -441,8 +476,10 @@ export class MutationForwarding {
     };
   }
 
-  private post(message: Message): void {
-    try { this.channel?.postMessage(message); } catch { /* discovery or response timeout preserves the public outcome */ }
+  private post(message: Message): boolean {
+    if (!this.channel) return false;
+    try { this.channel.postMessage(message); return true; }
+    catch { return false; /* a synchronous transport failure is known non-admission */ }
   }
 
   private async announce(): Promise<void> {

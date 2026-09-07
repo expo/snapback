@@ -414,8 +414,10 @@ export class TabFollower<Authority> {
       this.wait = undefined;
       this.host.drain(authority);
     }).catch((error) => {
-      if (this.wait === wait) this.wait = undefined;
+      const currentWait = this.wait === wait;
+      if (currentWait) this.wait = undefined;
       runtime.followed(wait);
+      if (!currentWait) return;
       this.host.stopped();
       if (wait.controller.signal.aborted || this.host.closed()) return;
       this.host.failed(error);

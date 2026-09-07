@@ -200,8 +200,8 @@ async function openChat(page, conversationId) {
   await page.waitForSelector("section[aria-label=Thread] li[data-state=row]", { timeout: 10_000 });
 }
 
-// @ref LLP 1018#3-move-one-one-coherent-reactive-client — actual Chromium tabs,
-// Web Locks, IndexedDB, and the owner qualify the same policy as the unit fixture.
+// @ref LLP 1018.000#8-account-sessions-and-durable-follower-admission — actual
+// Chromium tabs, Web Locks, BroadcastChannel, IndexedDB, and the owner prove one queue.
 async function sharedSessions(context, writer, appUrl, ownerUrl) {
   await writer.waitForFunction(async () => window.__snapback && (await window.__snapback.outbox.status()).ready,
     null, { timeout: 15_000 });
@@ -235,18 +235,11 @@ async function sharedSessions(context, writer, appUrl, ownerUrl) {
 
   const follower = await context.newPage();
   await follower.goto(appUrl);
-  await follower.waitForFunction(async () => window.__snapback && (await window.__snapback.outbox.status()).reason === "follower",
+  await follower.waitForFunction(async () => window.__snapback
+    && (await window.__snapback.outbox.status(window.__api.deliveries.post)).ready,
     null, { timeout: 15_000 });
   await openChat(follower, "conversation-1");
   const beforeWrites = replayed.length;
-  const refusal = await follower.evaluate(async () => {
-    try { return await window.__snapback.mutation(window.__api.deliveries.post,
-      { conversationId: "conversation-1", body: "forbidden follower write" }); }
-    catch (error) { return { code: error.code }; }
-  });
-  assert.equal(refusal.code, "E_OFFLINE_FOLLOWER");
-  assert.equal(replayed.length, beforeWrites, "follower refuses before sending mutation bytes");
-  step("second tab renders live rows and refuses writes before transport", refusal);
 
   // Cut only the writer's owner transport: the follower remains live. An actual
   // page close releases the browser-owned lock without calling client.close().
@@ -257,22 +250,25 @@ async function sharedSessions(context, writer, appUrl, ownerUrl) {
   step("writer readiness before going offline", await writer.evaluate(async () => ({ status: await window.__snapback.outbox.status(), post: await window.__snapback.outbox.status(window.__api.deliveries.post), entries: await window.__snapback.outbox.entries() })));
   await writer.evaluate(() => window.__snapback.offline());
   step("writer readiness after going offline", await writer.evaluate(async () => ({ status: await window.__snapback.outbox.status(), post: await window.__snapback.outbox.status(window.__api.deliveries.post) })));
-  const queued = await writer.evaluate(async () => {
-    const rows = [];
-    for (const body of ["1018 writer first", "1018 writer second"]) {
-      rows.push(await window.__snapback.mutation(window.__api.deliveries.post, { conversationId: "conversation-1", body }));
-    }
-    return rows;
+  const writerFirst = await writer.evaluate(() => window.__snapback.mutation(window.__api.deliveries.post,
+    { conversationId: "conversation-1", body: "1018 writer first" }));
+  const followerMiddle = await follower.evaluate(() => window.__snapback.mutation(window.__api.deliveries.post,
+    { conversationId: "conversation-1", body: "1018 follower middle" }));
+  const writerSecond = await writer.evaluate(() => window.__snapback.mutation(window.__api.deliveries.post,
+    { conversationId: "conversation-1", body: "1018 writer second" }));
+  const queued = [writerFirst, followerMiddle, writerSecond];
+  assert.deepEqual(queued.map(row => row.state), ["queued", "queued", "queued"]);
+  assert.equal(replayed.length, beforeWrites, "writer-local and forwarded offline admission send no owner mutation bytes");
+  assert.deepEqual(await writer.evaluate(async () => (await window.__snapback.outbox.entries()).map(entry => entry.intent)),
+    queued.map(row => row.intent), "both tabs enter one durable writer-admission order");
+  step("both tabs durably enqueue through the one offline writer", {
+    origins: ["writer", "follower", "writer"], intents: queued.map(row => row.intent),
   });
-  assert.deepEqual(queued.map(row => row.state), ["queued", "queued"]);
-  assert.equal(replayed.length, beforeWrites, "offline writer has sent neither intent");
-  step("writer durably queues two intents while its owner transport is cut", { intents: queued.map(row => row.intent) });
   await writer.close();
-  await follower.waitForFunction(async () => (await window.__snapback.outbox.status()).reason !== "follower",
-    null, { timeout: 15_000 });
   await follower.bringToFront();
   const replayDeadline = Date.now() + 15_000;
-  while (replayed.slice(beforeWrites).filter(request => queued.some(row => row.intent === request.replay?.intent)).length < 2 && Date.now() < replayDeadline) await follower.waitForTimeout(100);
+  while (replayed.slice(beforeWrites).filter(request => queued.some(row => row.intent === request.replay?.intent)).length < 3
+    && Date.now() < replayDeadline) await follower.waitForTimeout(100);
   step("takeover observation", await follower.evaluate(async () => ({ status: await window.__snapback.outbox.status(), entries: await window.__snapback.outbox.entries() })));
   await follower.waitForFunction(async () => (await window.__snapback.outbox.entries()).filter(e => e.state === "queued").length === 0, null, { timeout: 15_000 });
   await follower.evaluate(() => window.__snapback.outbox.settled());
@@ -284,14 +280,19 @@ async function sharedSessions(context, writer, appUrl, ownerUrl) {
     const thread = await verifier.query(api.deliveries.thread, { conversationId: "conversation-1", c: null });
     assert.equal(thread.state, "complete");
     const bodies = thread.data.map(row => row.message?.body);
-    for (const body of ["1018 writer first", "1018 writer second"]) assert.equal(bodies.filter(item => item === body).length, 1);
-    assert.ok(bodies.indexOf("1018 writer second") < bodies.indexOf("1018 writer first"), "newest-first owner rows preserve FIFO commit order");
-    assert.ok(!bodies.includes("forbidden follower write"));
+    for (const body of ["1018 writer first", "1018 follower middle", "1018 writer second"]) {
+      assert.equal(bodies.filter(item => item === body).length, 1);
+    }
+    assert.ok(bodies.indexOf("1018 writer second") < bodies.indexOf("1018 follower middle")
+      && bodies.indexOf("1018 follower middle") < bodies.indexOf("1018 writer first"),
+    "newest-first owner rows preserve the durable cross-tab admission order");
   } finally { await verifier.close(); }
   const after = await follower.evaluate(() => window.__snapback.mutation(window.__api.deliveries.post,
     { conversationId: "conversation-1", body: "1018 new writer" }));
   assert.equal(after.state, "committed");
-  step("closing the writer page transfers its real Web Lock and durable FIFO queue; the new writer commits", { replayIntents: inherited.map(request => request.replay.intent), rowsPerIntent: 1 });
+  step("closing the writer transfers its Web Lock and one cross-tab FIFO queue; the new writer commits", {
+    replayIntents: inherited.map(request => request.replay.intent), rowsPerIntent: 1,
+  });
 }
 
 async function main() {
