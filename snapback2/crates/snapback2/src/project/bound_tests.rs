@@ -87,7 +87,10 @@ table deliveries:
             ),
         )
         .unwrap();
-        let refusals = worker.compile(&root).expect_err("cursor fanout certified");
+        let refusals = match worker.compile(&root) {
+            Ok(_) => panic!("cursor fanout certified"),
+            Err(refusals) => refusals,
+        };
         let refusal = refusals
             .iter()
             .find(|refusal| refusal.code == "E_STRUCTURAL_FANOUT")
