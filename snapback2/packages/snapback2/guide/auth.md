@@ -73,12 +73,12 @@ The chat template admits members:
 ```
 
 `read <- .principal = viewer` hides other seats from admins too. Admin rosters
-need self plus scoped admin read access. Write rules enforce admin authority,
-immutable scope/principal, and promotion:
+need self plus scoped admin read access. Shared `isAdmin` keeps each caller's
+refusal code:
 
 ```q
 mutation memberPromote(conversationId: conversations, membershipId: memberships):
-  require exists memberships[conversationId, viewer, 'admin'] else ADMIN_REQUIRED
+  require isAdmin(conversationId, viewer) else ADMIN_REQUIRED
   membership = memberships[membershipId] ! else MEMBERSHIP_REQUIRED
   require membership.conversationId = conversationId else MEMBERSHIP_SCOPE_REQUIRED
   require membership.role = 'member' else MEMBER_REQUIRED
