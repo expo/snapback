@@ -1,0 +1,139 @@
+{
+  "sourceCommit": "78924a1e7286907d2378221902ec22747e7d188f",
+  "epoch": 1788780939.5254421,
+  "writerReleased": true,
+  "actualPublication": false,
+  "nativeTerminalOwnedBySupervisorAfterReturn": true,
+  "leaves": [
+    {
+      "path": "REPORT.md",
+      "bytes": 11078,
+      "sha256": "be2a7dfc5d94fe882e252bfb85dae45b6f053c758584f04fc91a8bdfbba7f7ef"
+    },
+    {
+      "path": "phase.json",
+      "bytes": 3852,
+      "sha256": "57105cf0ebc8c63d0898ec0c4dd67b897c3b595a5b3471106e34cf128c5847e5"
+    },
+    {
+      "path": "final-answer.md",
+      "bytes": 469,
+      "sha256": "eafef62d0a587fce5c02042683667bb608be0ddd5e83a6dd5a9e3aa9befa93ce"
+    },
+    {
+      "path": "qualification-receipt.json",
+      "bytes": 4345,
+      "sha256": "20b5b3a175ca2ecb82bfed912aebfcf49f92325b04897d60e380ebe1fee75f2a"
+    },
+    {
+      "path": "publisher-start.json",
+      "bytes": 2453,
+      "sha256": "b7f81b84a99e6cb89d53d3b667fa6c0cb56df78d79825a389859c6df999916e9"
+    },
+    {
+      "path": "command-manifest.json",
+      "bytes": 1930,
+      "sha256": "b760c6afb1afa7d21f4ee8f0b3f95ffbef017636d4d4fedb8f13d1d31c8ad211"
+    },
+    {
+      "path": "execution-config.json",
+      "bytes": 2452,
+      "sha256": "fd44ec990b31c5ae62dc48df202fd29226ad3168ddb3785e4022226be0eddb07"
+    },
+    {
+      "path": "archive-receipt.json",
+      "bytes": 661,
+      "sha256": "0ad58b3623a1f566a6ace955c7a693ba10c2ffd4cc468bea107d2681b1dcb7f0"
+    },
+    {
+      "path": "source-install-manifest.json",
+      "bytes": 4887467,
+      "sha256": "18237f6b3a42aefa7e5722f8eb0210713f09e322ddbd1f7e797edaeb3aa6a512"
+    },
+    {
+      "path": "source-943.json",
+      "bytes": 194652,
+      "sha256": "ea49fb0c4ac8553aeab1e3906a0e5e0399d09cc8ad75dea9734bb797911ed7ff"
+    },
+    {
+      "path": "final-source-binding.json",
+      "bytes": 2035,
+      "sha256": "72540a19019aecec0b023840b6e28058a7ef19a7790a50eedf739ef4ade0d97c"
+    },
+    {
+      "path": "tool-provenance-correspondence.json",
+      "bytes": 577,
+      "sha256": "f9b5776872fc685ac7c5140959e77d570dc29a3c3a2b567855fb8f8dfd7cc48c"
+    },
+    {
+      "path": "finish-cleanup.json",
+      "bytes": 101300,
+      "sha256": "b4143abe9623793f10958495635d450b673be7cd8d766c5d8b05de30f2e229dd"
+    },
+    {
+      "path": "results-archive.json",
+      "bytes": 44486,
+      "sha256": "1a6ce9c7687ca568768df71b72d4974e037aa686eb84757b6890d727dda8eca4"
+    },
+    {
+      "path": "apartment-results/receipts/production-dry-run.json",
+      "bytes": 2733,
+      "sha256": "7ccbe1dbcf5eafd119236cdf71459b26833320289e8b0f5fb9cdd16d55de9beb"
+    },
+    {
+      "path": "apartment-results/receipts/production-dry-run.log",
+      "bytes": 12902,
+      "sha256": "742fc3155fe8f300558947b2a74a77d1bd486e86e03114ea39003f50e061b06b"
+    },
+    {
+      "path": "apartment-results/standard-installed-react-consumer.json",
+      "bytes": 1867,
+      "sha256": "d186a8a937316e291758b1b22b92566f97fed943c66020e0756ee398f230755c"
+    },
+    {
+      "path": "apartment-results/artifact-receipt.json",
+      "bytes": 2686,
+      "sha256": "8012eb1963f25e98aa529b6c8f3ba510e6efa7613502a5e34f15f81167341c4f"
+    },
+    {
+      "path": "apartment-results/metric-custody.json",
+      "bytes": 454,
+      "sha256": "995b236627bbfb8cdf9d6736ef09d8667b699443b4fb34ba41d80e9a71556819"
+    },
+    {
+      "path": "apartment-results/metric-own-append.jsonl",
+      "bytes": 266,
+      "sha256": "303404e11d191d50dc48f2d346f9809690dbb8ef69cd31093ccbde08bf149f0d"
+    },
+    {
+      "path": "apartment-results/source-after-publisher.json",
+      "bytes": 185,
+      "sha256": "480134f50a6645b560807a654a4b842dabd5f5feb41f9f394dd9e7014c6403d6"
+    },
+    {
+      "path": "apartment-results/input-copy-receipt.json",
+      "bytes": 413,
+      "sha256": "ab8e352a612c5b46a36710211239bc6c8bcc75ca86650f4feee30cdccf72324b"
+    },
+    {
+      "path": "receipts/production.json",
+      "bytes": 824,
+      "sha256": "066ae1d44b8462c925318d38fc7f4f445aab6aed510b3343cc15ca95614dd6aa"
+    },
+    {
+      "path": "receipts/source-archive-first-failure.json",
+      "bytes": 577193,
+      "sha256": "79ae7e1341595396958836f28be4a49bd9b96b9146322b6a5b998c58f6732252"
+    },
+    {
+      "path": "actual-identity.json",
+      "bytes": 334,
+      "sha256": "2dbe094a0c6907fdaaeb843ba7868cb8a7aaceabb7564d5549dde4762b2fa5a6"
+    },
+    {
+      "path": "consumption.json",
+      "bytes": 3663,
+      "sha256": "f47b1da2fe6e0849e239caafd5a4a8c5d6ac402d86badf59c7a48b62e124b337"
+    }
+  ]
+}

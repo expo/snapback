@@ -1,0 +1,15 @@
+{
+  "sourceCommit": "78924a1e7286907d2378221902ec22747e7d188f",
+  "publisherSha256": "fc24c2c192119d11a6029ad7edfe91b7219a5623f8f91c1425607734c45bb3d2",
+  "observedPublisherExit": 0,
+  "observedMetricDry": false,
+  "sourceBackedBehavior": "convergeArtifacts iterates both staged artifacts: matching existing SRI skips publish; missing version invokes normal npm publish; different SRI throws. The normal command helper rejects nonzero status. Metric is appended only after both iterations complete. No read-after-publish visibility loop is present inside convergeArtifacts.",
+  "references": {
+    "registryIntegrity": 440,
+    "convergeArtifacts": 455,
+    "normalPublishCallback": 883,
+    "metricAfterConvergence": 894
+  },
+  "limit": "Metadata-only helper did not retain individual npm raw output. Publisher exit0 and dry:false metric establish completed normal control flow, not registry visibility or its delay cause. Original initial E404/unknown fields remain unchanged.",
+  "action": "bounded public existing-state observations only; no replay"
+}

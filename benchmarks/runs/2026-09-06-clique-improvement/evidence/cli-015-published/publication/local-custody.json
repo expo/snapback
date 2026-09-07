@@ -1,0 +1,17 @@
+{
+  "epoch": 1788782200.997041,
+  "phase": "local-custody-pass",
+  "source": "78924a1e7286907d2378221902ec22747e7d188f",
+  "sourceLeaves": 943,
+  "bundleSha256": "8749222b91f380829d8238243a8d8aaee0a8f70b9b2fa2e12f493d15c0008f2c",
+  "bundleLeaves": 11,
+  "pairResumeAndModesVerified": true,
+  "archive": {
+    "path": "/Users/ccheever/clique-improvement/revisions/cli-015-publication-preparation-r2/source-stage.tar.gz",
+    "sha256": "d8760290722f180e2b13167e8cb37cac1d92b1927f92d4e969506293c268951d",
+    "bytes": 3204176,
+    "completeBeforeAnyTransfer": true
+  },
+  "officeExecutionAbsent": true,
+  "authRead": false
+}

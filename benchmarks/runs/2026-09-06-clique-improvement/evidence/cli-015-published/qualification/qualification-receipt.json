@@ -1,0 +1,107 @@
+{
+  "sourceCommit": "78924a1e7286907d2378221902ec22747e7d188f",
+  "sourceHeadCommand": {
+    "pid": 93591,
+    "exitCode": 0
+  },
+  "standardResult": "apartment-results/receipts/production-dry-run.json",
+  "standardConsumer": "apartment-results/standard-installed-react-consumer.json",
+  "originalConsumerResults": 19,
+  "originalFullJourneyReceipts": "apartment-results/installed-test-receipts.json",
+  "npmCalls": [
+    {
+      "receipt": "/Users/ccheever/projects/snapback-artifacts/clique-release/0.0.15-78924a1e7/npm-calls/1788780454517244000-58363.json",
+      "argv": [
+        "pack",
+        "--ignore-scripts",
+        "--json",
+        "--pack-destination",
+        "/Users/ccheever/projects/snapback-worktrees/clique-cli-015-repaired-qualification-r2/snapback2/dist/npm/publish-snapback2-darwin-arm64-0.0.15.dry-565ek7",
+        "/Users/ccheever/projects/snapback-worktrees/clique-cli-015-repaired-qualification-r2/snapback2/dist/npm/publish-snapback2-darwin-arm64-0.0.15.dry-565ek7/snapback2-darwin-arm64"
+      ],
+      "pid": 58363,
+      "npmPid": 58369,
+      "exitCode": 0,
+      "refused": false
+    },
+    {
+      "receipt": "/Users/ccheever/projects/snapback-artifacts/clique-release/0.0.15-78924a1e7/npm-calls/1788780455232946000-58381.json",
+      "argv": [
+        "pack",
+        "--ignore-scripts",
+        "--json",
+        "--pack-destination",
+        "/Users/ccheever/projects/snapback-worktrees/clique-cli-015-repaired-qualification-r2/snapback2/dist/npm/publish-snapback2-darwin-arm64-0.0.15.dry-565ek7",
+        "/Users/ccheever/projects/snapback-worktrees/clique-cli-015-repaired-qualification-r2/snapback2/dist/npm/publish-snapback2-darwin-arm64-0.0.15.dry-565ek7/shim"
+      ],
+      "pid": 58381,
+      "npmPid": 58384,
+      "exitCode": 0,
+      "refused": false
+    },
+    {
+      "receipt": "/Users/ccheever/projects/snapback-artifacts/clique-release/0.0.15-78924a1e7/npm-calls/1788780456247649000-58438.json",
+      "argv": [
+        "install",
+        "--ignore-scripts",
+        "--no-audit",
+        "--no-fund",
+        "--legacy-peer-deps",
+        "--prefer-offline",
+        "--fetch-retries=0",
+        "--fetch-timeout=15000",
+        "/Users/ccheever/projects/snapback-worktrees/clique-cli-015-repaired-qualification-r2/snapback2/dist/npm/publish-snapback2-darwin-arm64-0.0.15.dry-565ek7/snapback2-darwin-arm64-0.0.15.tgz",
+        "/Users/ccheever/projects/snapback-worktrees/clique-cli-015-repaired-qualification-r2/snapback2/dist/npm/publish-snapback2-darwin-arm64-0.0.15.dry-565ek7/snapback2-0.0.15.tgz",
+        "react@19.1.1",
+        "react-dom@19.1.1",
+        "vite@7.1.4",
+        "@types/react@19.1.12",
+        "@types/react-dom@19.1.9",
+        "react-test-renderer@19.1.1"
+      ],
+      "pid": 58438,
+      "npmPid": 58440,
+      "exitCode": 0,
+      "refused": false
+    },
+    {
+      "receipt": "/Users/ccheever/projects/snapback-artifacts/clique-release/0.0.15-78924a1e7/npm-calls/1788780477343607000-58993.json",
+      "argv": [
+        "publish",
+        "/Users/ccheever/projects/snapback-worktrees/clique-cli-015-repaired-qualification-r2/snapback2/dist/npm/publish-snapback2-darwin-arm64-0.0.15.dry-565ek7/snapback2-darwin-arm64-0.0.15.tgz",
+        "--access",
+        "public",
+        "--dry-run",
+        "--ignore-scripts"
+      ],
+      "pid": 58993,
+      "npmPid": 58996,
+      "exitCode": 0,
+      "refused": false
+    },
+    {
+      "receipt": "/Users/ccheever/projects/snapback-artifacts/clique-release/0.0.15-78924a1e7/npm-calls/1788780477816117000-59003.json",
+      "argv": [
+        "publish",
+        "/Users/ccheever/projects/snapback-worktrees/clique-cli-015-repaired-qualification-r2/snapback2/dist/npm/publish-snapback2-darwin-arm64-0.0.15.dry-565ek7/snapback2-0.0.15.tgz",
+        "--access",
+        "public",
+        "--dry-run",
+        "--ignore-scripts"
+      ],
+      "pid": 59003,
+      "npmPid": 59005,
+      "exitCode": 0,
+      "refused": false
+    }
+  ],
+  "actualPublication": false,
+  "registryQueries": 0,
+  "wrapperUnchangedSha256": "5b6cd0358f9693921fbe5fd451b0b51805b5f714ddd7b607c1a5a951b4dfdad9",
+  "packedRegularFiles": 156,
+  "metrics": "apartment-results/metric-custody.json",
+  "sourceBinding": "final-source-binding.json",
+  "cleanup": "finish-cleanup.json",
+  "oldJsRawLimitPreserved": true,
+  "currentReviewsRead": false
+}

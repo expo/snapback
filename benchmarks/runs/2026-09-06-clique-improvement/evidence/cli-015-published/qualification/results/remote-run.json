@@ -1,0 +1,18 @@
+{
+  "pid": 52748,
+  "driverPid": 52750,
+  "observerPid": 52749,
+  "startedEpoch": 1788780222.7205818,
+  "load": [
+    30.9599609375,
+    20.4892578125,
+    12.013671875
+  ],
+  "sourceCommit": "78924a1e7286907d2378221902ec22747e7d188f",
+  "outerPublisherSeconds": 1800,
+  "automaticRetry": false,
+  "driverExitCode": 0,
+  "observerExitCode": 0,
+  "seconds": 255.803672,
+  "endedEpoch": 1788780478.520001
+}

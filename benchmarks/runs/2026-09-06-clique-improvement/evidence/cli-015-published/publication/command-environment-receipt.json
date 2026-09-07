@@ -1,0 +1,47 @@
+{
+  "provenance": "exact frozen control.py child_environment, remote.py runner invocation and actual helper metadata; no ambient environment dump",
+  "argv": [
+    "/Users/ccheever/clique-improvement/revisions/cli-015-repaired-qualification-r2/tools/node-22.23.2/bin/node",
+    "scripts/publish.mjs"
+  ],
+  "cwd": "/Users/ccheever/projects/snapback-worktrees/clique-cli-015-publish-78924a1e7/snapback2",
+  "nonsecretEnvironment": {
+    "HOME": "/Users/ccheever",
+    "USER": "ccheever",
+    "LOGNAME": "ccheever",
+    "LANG": "C",
+    "LC_ALL": "C",
+    "PATH": "/Users/ccheever/clique-improvement/revisions/cli-015-repaired-qualification-r2/tools/node-22.23.2/bin:/usr/bin:/bin:/usr/sbin:/sbin",
+    "NPM_CONFIG_REGISTRY": "https://registry.npmjs.org/",
+    "NPM_CONFIG_STRICT_SSL": "true",
+    "NPM_CONFIG_USERCONFIG": "/Users/ccheever/clique-improvement/revisions/cli-015-publication-preparation-r2/production-execution/user.npmrc",
+    "NPM_CONFIG_GLOBALCONFIG": "/Users/ccheever/clique-improvement/revisions/cli-015-publication-preparation-r2/production-execution/global.npmrc",
+    "NPM_CONFIG_CACHE": "/Users/ccheever/clique-improvement/revisions/cli-015-publication-preparation-r2/production-execution/cache",
+    "NPM_CONFIG_LOGS_DIR": "/Users/ccheever/clique-improvement/revisions/cli-015-publication-preparation-r2/production-execution/logs",
+    "NPM_CONFIG_LOGS_MAX": "0",
+    "NPM_CONFIG_TIMING": "false",
+    "NPM_CONFIG_FETCH_TIMEOUT": "15000",
+    "NPM_CONFIG_FETCH_RETRIES": "0",
+    "CARGO_BUILD_JOBS": "2",
+    "CMAKE_BUILD_PARALLEL_LEVEL": "2",
+    "NEXTEST_TEST_THREADS": "2",
+    "TMPDIR": "/Users/ccheever/clique-improvement/revisions/cli-015-publication-preparation-r2/production-execution/tmp"
+  },
+  "additionalEnvironmentNamesOnly": [
+    "npm_config_//registry.npmjs.org/:_authToken"
+  ],
+  "secretValuesReadBySupervisor": false,
+  "sourceCommit": "78924a1e7286907d2378221902ec22747e7d188f",
+  "publisherPid": 66665,
+  "publisherStartedEpoch": 1788782324.757117,
+  "resumeSelection": "Unchanged publish.mjs main computes dist/npm/publish-snapback2-darwin-arm64-0.0.15/resume.json; loadResume checks name/version/artifact SRI. It does not read SNAPBACK2_PUBLISH_RESUME. No unsupported variable or script change was introduced.",
+  "dryOnlyNpmOverridePresent": false,
+  "originalBounds": {
+    "publisher": 1800,
+    "consumer": 30,
+    "fetchMs": 15000,
+    "fetchRetries": 0,
+    "jobs": 2,
+    "SSH": 2100
+  }
+}

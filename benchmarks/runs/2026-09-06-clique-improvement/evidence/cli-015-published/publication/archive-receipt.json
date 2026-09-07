@@ -1,0 +1,20 @@
+{
+  "path": "/Users/ccheever/clique-improvement/revisions/cli-015-publication-execution-r2/nonsecret-bundle.tar",
+  "sha256": "34b047e6e55cfead5eefc815b0c3f8baae9c52b93fa957d19b7014cf8f679264",
+  "bytes": 1638400,
+  "files": {
+    "bundle.json": "8749222b91f380829d8238243a8d8aaee0a8f70b9b2fa2e12f493d15c0008f2c",
+    "custody.py": "76e562706f0c8ad44d8863cf4b9202b936ad3dbf463fa22c0862827f5db8fcde",
+    "control.py": "3bf3f26827ac473c62c86e0311c717ba8fb00f543eeb58020eada930001408e5",
+    "remote.py": "b4e897192b0e7b141518b2a5769e28d32fce2e099bafa6822873ff8d80cc3499",
+    "office.py": "b4e7dfd6eccf9ff91d3cabd7a10a7a19d154244d6df391f45fc5ffaed8a10fe1",
+    "feeder.cjs": "122d85a4722308d7a0200735305e6e2b4d8d926425ac5a5b6bab345e7fa7c9b5",
+    "bindings.json": "50fd7e038afab4ecfb5c60ee07a7bfb9f5954d0f3f4e5984e5fa73853e3423e0",
+    "inputs/artifact-inputs.json": "bda3147ea47cd3c2391f006cc1bc55507d2e36920e43b3d4a64a34e9fd14f59d",
+    "inputs/endpoint.json": "eccc14fcbe9b173a61594c42e7e2e3c2253cdb8d77b8dc2dd13194d4a9e7609b",
+    "inputs/node-input-manifest.json": "e799a24c1d9b11b655c7b503b11e4f2763df71b695cef09b0d9cebd855d62579",
+    "inputs/resume-readiness.json": "6adb66b4d7f08c2a58b42371c98c4f48f8b5068190d1509cc87e09b337f38d5f",
+    "inputs/source-manifest.json": "b577f52a96c76c70f848b53b8b9808095564680d06080a840fb51697c60f9412"
+  },
+  "completeBeforeTransfer": true
+}

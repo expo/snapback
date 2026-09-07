@@ -1,0 +1,63 @@
+{
+  "sourceCommit": "78924a1e7286907d2378221902ec22747e7d188f",
+  "publisherSha256": "fc24c2c192119d11a6029ad7edfe91b7219a5623f8f91c1425607734c45bb3d2",
+  "consumerSha256": "c26bbf0e64d18cbb9557c5cf97e40ecfc045ff271ade77b749235c70dc044cf3",
+  "executionConfig": "execution-config.json",
+  "helpers": [
+    {
+      "path": "stage-inputs-remote.py",
+      "bytes": 5068,
+      "sha256": "7a10a95f323e597d5b1ddd49f36f5dfefb62c277730754b5794171a2c0e6cd2e"
+    },
+    {
+      "path": "stage-source-remote.py",
+      "bytes": 2648,
+      "sha256": "180e556db234fe1dbbff9faf3ef9d6721a7bd3385377cfc21e200552c734e131"
+    },
+    {
+      "path": "stage-execution.py",
+      "bytes": 2386,
+      "sha256": "229930bfdadc9f0007ed9be2596f6caef70379502990e796f6ce73744e964898"
+    },
+    {
+      "path": "publish-driver.py",
+      "bytes": 6194,
+      "sha256": "380456b8b74d31c5a4b2c922fe71dda7b3f1a3f2bf8108a7fc06e1e9b801dc75"
+    },
+    {
+      "path": "remote-run.py",
+      "bytes": 1568,
+      "sha256": "ba07123863f6a7f65fff0d91efde53bda4be8c2f8f34b516830e90e9157d58e2"
+    },
+    {
+      "path": "npm-capture.py",
+      "bytes": 2683,
+      "sha256": "5b6cd0358f9693921fbe5fd451b0b51805b5f714ddd7b607c1a5a951b4dfdad9"
+    },
+    {
+      "path": "retain-consumer-receipts.py",
+      "bytes": 1746,
+      "sha256": "f2c74512c577a0ade090360e2a9aebbd88ac12827a3fe394254683116620806e"
+    },
+    {
+      "path": "finalize-remote.py",
+      "bytes": 7209,
+      "sha256": "7b13074e2402a0bdb2d299cc1277dfed9531b7362ddc767a58c546d45dfaea7e"
+    },
+    {
+      "path": "execution-config.json",
+      "bytes": 2452,
+      "sha256": "fd44ec990b31c5ae62dc48df202fd29226ad3168ddb3785e4022226be0eddb07"
+    }
+  ],
+  "bounds": {
+    "publisher": 1800,
+    "consumer": 30,
+    "fetchMilliseconds": 15000,
+    "fetchRetries": 0,
+    "cargoJobs": 2,
+    "nextestThreads": 2
+  },
+  "sourceRepairAuthorized": false,
+  "actualPublicationAuthorized": false
+}

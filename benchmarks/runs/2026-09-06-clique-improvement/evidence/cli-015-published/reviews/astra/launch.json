@@ -1,0 +1,27 @@
+{
+  "pid": 78320,
+  "supervisorPid": 78281,
+  "startEpoch": 1788779685.367048,
+  "argv": [
+    "/Users/ccheever/.volta/bin/codex",
+    "exec",
+    "-s",
+    "read-only",
+    "--skip-git-repo-check",
+    "--color",
+    "never",
+    "--json",
+    "-m",
+    "gpt-6-astra",
+    "-c",
+    "model_reasoning_effort=\"xhigh\"",
+    "-C",
+    "/Users/ccheever/clique-improvement/reviews/cli-journey-selection-r2/astra",
+    "-o",
+    "/Users/ccheever/clique-improvement/reviews/cli-journey-selection-r2/astra/review.md",
+    "-"
+  ],
+  "cwd": "/Users/ccheever/clique-improvement/reviews/cli-journey-selection-r2/astra",
+  "candidate": "78924a1e7286907d2378221902ec22747e7d188f",
+  "manifestSha256": "52b2d332f5f79944201f8bf1e09a9a703e0fde21b946bec2aa63c6e57e38b62e"
+}

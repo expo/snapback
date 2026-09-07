@@ -1,0 +1,18 @@
+{
+  "epoch": 1788782951.2901912,
+  "firstFailure": "logs/registry-expo.json",
+  "firstFailureLogSha256": "bb3a8398da1d830164679d765472f18f6d5b81560bd9985e8db0aa864b84df17",
+  "cause": "old013 cap keyword first line changed in exact current78924 grammar; all22 other construct values are unchanged. Correct expected cap line is derived from current qualified grammar, not old013.",
+  "additionalUnexecutedFixtureCorrection": "guide init is verbs::command_help from current verbs.rs (guide.rs43), not dist/guide/init.md; testing remains packaged markdown.",
+  "remainingScriptSha256": "c891e3997b18b2ff5d9995f61e27a5bdd34eb8ce913936ec49789c86c383fd2d",
+  "freshInstallRepeated": false,
+  "initial156AuditRepeated": false,
+  "fullPublisherRepeated": false,
+  "originalBoundsUnchanged": {
+    "outer": 300,
+    "command": 30,
+    "fetch": 15000,
+    "retries": 0
+  },
+  "remainingWork": "guide lookup, version/doctor/media, untouched Expo init/check/guide and unchanged installed files after; completed initial proof referenced exactly"
+}

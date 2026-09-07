@@ -1,0 +1,118 @@
+{
+  "activationStatus": "Nonsecret packet complete. Root inbox authorizes actual publication after this native turn exits and supervisor consumes terminal; landing receipt is now present. No acquisition/auth/network/publisher execution in this preparation.",
+  "bundleSha256": "8749222b91f380829d8238243a8d8aaee0a8f70b9b2fa2e12f493d15c0008f2c",
+  "priorApprovedBundleSha256": "87440737b078174fb50565f8638d40bd6c1cbc1821d086710d95220b48dc2f58",
+  "officeInvocation": [
+    "/usr/bin/python3",
+    "-B",
+    "/Users/ccheever/clique-improvement/revisions/cli-015-publication-preparation-r2/office.py",
+    "--activate-reviewed-production-015",
+    "8749222b91f380829d8238243a8d8aaee0a8f70b9b2fa2e12f493d15c0008f2c"
+  ],
+  "officeInvocationCwd": "/Users/ccheever/clique-improvement/revisions/cli-015-publication-preparation-r2",
+  "officeAuthContext": "/Users/ccheever/projects/snapback-worktrees/clique-release-next",
+  "officeAuthContextMeaning": "The original approved frozen Office cwd is retained for effective-key configuration loading only; current source/pair is78924. Publisher/consumer script hashes match there; feeder bytes unchanged. No token loaded in preparation.",
+  "sshArgv": [
+    "/usr/bin/ssh",
+    "-T",
+    "-o",
+    "BatchMode=yes",
+    "-o",
+    "StrictHostKeyChecking=yes",
+    "-o",
+    "ConnectTimeout=8",
+    "-o",
+    "ConnectionAttempts=1",
+    "-o",
+    "ForwardAgent=no",
+    "-o",
+    "ClearAllForwardings=yes",
+    "-o",
+    "ServerAliveInterval=10",
+    "-o",
+    "ServerAliveCountMax=2",
+    "ccheever@<private-fleet-address>",
+    "/usr/bin/python3",
+    "-B",
+    "/Users/ccheever/clique-improvement/revisions/cli-015-publication-preparation-r2/bundle/remote.py",
+    "--activate-reviewed-production-015",
+    "8749222b91f380829d8238243a8d8aaee0a8f70b9b2fa2e12f493d15c0008f2c"
+  ],
+  "remoteBundle": "/Users/ccheever/clique-improvement/revisions/cli-015-publication-preparation-r2/bundle",
+  "remoteSource": "/Users/ccheever/projects/snapback-worktrees/clique-cli-015-publish-78924a1e7",
+  "remoteRun": "/Users/ccheever/clique-improvement/revisions/cli-015-publication-preparation-r2/production-execution",
+  "officeRun": "/Users/ccheever/clique-improvement/revisions/cli-015-publication-preparation-r2/office-execution",
+  "bundleFilesToStage": "bundle.json plus exactly its11 leaves, mode0444, exclusive remoteBundle; source-stage.tar.gz separately authenticated and extracted exclusively to remoteSource before activation",
+  "sourceArchive": {
+    "path": "/Users/ccheever/clique-improvement/revisions/cli-015-publication-preparation-r2/source-stage.tar.gz",
+    "sha256": "d8760290722f180e2b13167e8cb37cac1d92b1927f92d4e969506293c268951d",
+    "bytes": 3204176,
+    "completeBeforeAnyTransfer": true
+  },
+  "expectedRemoteSourceFiles": "943 exact Git-bound leaves plus the separate0644 working resume; no target/node_modules/project dependencies; full production source and producer caches retained separately",
+  "workingResume": {
+    "loadResumePreconditionsSatisfiedByReadOnlyInspection": true,
+    "publisherInvoked": false,
+    "fallbackToPrepareExists": true,
+    "prelaunchRevalidationRequired": true,
+    "localPreparedWorkingResume": "/Users/ccheever/clique-improvement/revisions/cli-015-publication-preparation-r2/source-stage/snapback2/dist/npm/publish-snapback2-darwin-arm64-0.0.15/resume.json",
+    "futureWorkingResume": "/Users/ccheever/projects/snapback-worktrees/clique-cli-015-publish-78924a1e7/snapback2/dist/npm/publish-snapback2-darwin-arm64-0.0.15/resume.json",
+    "workingMode": "0o644",
+    "originalMode": "0o444",
+    "sha256": "a1c54faba85a87fe84237f8d5daf1a971d358aeeca286cfebd4812a81edead64",
+    "resume": {
+      "name": "snapback2-darwin-arm64",
+      "version": "0.0.15",
+      "bin": "/Users/ccheever/projects/snapback-artifacts/clique-release/0.0.15-78924a1e7/qualified-artifacts/platform/package/bin/snapback2",
+      "mediaBin": "/Users/ccheever/projects/snapback-artifacts/clique-release/0.0.15-78924a1e7/qualified-artifacts/platform/package/bin/snapback2-media",
+      "mediaBytes": 2147968,
+      "withoutEngine": false,
+      "withoutEngineBytes": 3812224,
+      "withEngineBytes": 7029808,
+      "mediaDigest": "de91f9cbe1f9fa13068e09fb45af664c19b5932de7e90e8ce8ca551e835430d6",
+      "artifacts": [
+        {
+          "name": "snapback2-darwin-arm64",
+          "version": "0.0.15",
+          "tarball": "/Users/ccheever/projects/snapback-artifacts/clique-release/0.0.15-78924a1e7/snapback2-darwin-arm64-0.0.15.tgz",
+          "integrity": "sha512-O9Zx/4wAPwraH77N2rsCuvorIey49aMRl6tckV3cRkGHuZow1lKelsM0ushU8S3kZC5yD1OnFVUHERNex9jRBw=="
+        },
+        {
+          "name": "snapback2",
+          "version": "0.0.15",
+          "tarball": "/Users/ccheever/projects/snapback-artifacts/clique-release/0.0.15-78924a1e7/snapback2-0.0.15.tgz",
+          "integrity": "sha512-+Ucp3/J4sG7BJwKdeMzPXQpj+dhc3R2Q/pBQoohXxTRV3hiPAWBojHtaQ4ums0SxlQ0wDsss5w2mmmiTj3YRFg=="
+        }
+      ]
+    },
+    "sourceVersion": "0.0.15",
+    "sourceJsDependenciesRequiredForValidResume": false,
+    "productBinariesExecuted": false,
+    "originalQualifiedBinariesMode": "0o700",
+    "remoteStageNotExecuted": true
+  },
+  "publisherArgv": [
+    "/Users/ccheever/clique-improvement/revisions/cli-015-repaired-qualification-r2/tools/node-22.23.2/bin/node",
+    "scripts/publish.mjs"
+  ],
+  "publisherCwd": "/Users/ccheever/projects/snapback-worktrees/clique-cli-015-publish-78924a1e7/snapback2",
+  "bounds": {
+    "publisherSeconds": 1800,
+    "consumerStepMs": 30000,
+    "fetchMs": 15000,
+    "fetchRetries": 0,
+    "jobs": 2,
+    "readinessSeconds": 30,
+    "frameSeconds": 10,
+    "officeReadySeconds": 60,
+    "officeTotalTransportSeconds": 2100,
+    "retry": false
+  },
+  "secretEnvironmentKey": "npm_config_//registry.npmjs.org/:_authToken",
+  "acquisition": "Only after verified remote READY; unchanged pinned Office feeder reads one effective registry-scoped key from env/user source and sends privateFD frame via exact authenticated SSH stdin; no value/hash/length metadata",
+  "realNpmReadiness": "whoami and owner ls for both package names, before complete unchanged publisher, original30s/fetch15s/zero-retry; no direct npm publish shortcut",
+  "postPublisher": "Four bounded real registry observations of exact0.0.15 dist.integrity and latest for both packages; retain E404/unknown; no automatic republish. Follow with established fresh registry installation/file equality of all156 packed regular files and untouched Expo/init/check/guide checks, original bounds, only after authorized actual publisher success.",
+  "runtimeRequirements": "Fresh source/tool/home-prefix/config/resume/filemode/SRI custody; fresh reasonable capacity and ownership. Prior full media/engine qualification retained; standard staged media checks and all19 fresh consumer results remain mandatory. Valid resume requires no Cargo/Node workspace deps/Hermes rebuild.",
+  "practicalCustody": "private0700 task cache/log/tmp; no deliberate credential files, global auth/config edits or raw output/env/argv logging. Conditional npm cache header persistence and OS swap/same-user environment visibility remain practical limitations. Clean only owned cache/log/tmp after verified child absence; SSH loss can remain unknown.",
+  "landingReceipt": "/Users/ccheever/clique-improvement/revisions/cli-015-integration/landing-receipt.json"
+}

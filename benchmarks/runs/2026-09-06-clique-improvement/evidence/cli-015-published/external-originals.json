@@ -1,0 +1,943 @@
+{
+  "copies": [
+    {
+      "path": "benchmark-start/ENVIRONMENT.md",
+      "source": "/Users/ccheever/clique-improvement/next-run/grok-015/host-preparation/ENVIRONMENT.md",
+      "sourceBytes": 4238,
+      "sourceSha256": "5c144f1e2c07dd27d5e4439973292f4dda10abe732641561a2a07dc517335a18",
+      "bytes": 4238,
+      "sha256": "5c144f1e2c07dd27d5e4439973292f4dda10abe732641561a2a07dc517335a18",
+      "verbatim": true
+    },
+    {
+      "path": "benchmark-start/grok-snapback2.start.json",
+      "source": "/Users/ccheever/clique-full-grok-015-20260907/logs/grok-snapback2.start.json",
+      "sourceBytes": 5691,
+      "sourceSha256": "50f4ba1dea3f02fc36f84d630c521c4963a37ba296f5d76c500b718488583f0f",
+      "bytes": 5691,
+      "sha256": "50f4ba1dea3f02fc36f84d630c521c4963a37ba296f5d76c500b718488583f0f",
+      "verbatim": true
+    },
+    {
+      "path": "benchmark-start/launch-authorized.json",
+      "source": "/Users/ccheever/clique-full-grok-015-20260907/logs/launch-authorized.json",
+      "sourceBytes": 5560,
+      "sourceSha256": "2a6fa36ed6df7ec84f1a99dfb7b397d647e3846cacf4c0b569b4302542d65854",
+      "bytes": 5560,
+      "sha256": "2a6fa36ed6df7ec84f1a99dfb7b397d647e3846cacf4c0b569b4302542d65854",
+      "verbatim": true
+    },
+    {
+      "path": "benchmark-start/launch.py",
+      "source": "/Users/ccheever/clique-improvement/next-run/grok-015/launch.py",
+      "sourceBytes": 5054,
+      "sourceSha256": "8af8783fc1599618af5d7abbe7aa0f2d369673164b419f56a0ad2bc791192803",
+      "bytes": 5054,
+      "sha256": "8af8783fc1599618af5d7abbe7aa0f2d369673164b419f56a0ad2bc791192803",
+      "verbatim": true
+    },
+    {
+      "path": "benchmark-start/release-verification.json",
+      "source": "/Users/ccheever/clique-improvement/next-run/grok-015/release-verification.json",
+      "sourceBytes": 2079,
+      "sourceSha256": "70360f1704c36973d596f6cbbb2316b3e7c118174816e25ddd1ec57abdd27bae",
+      "bytes": 2079,
+      "sha256": "70360f1704c36973d596f6cbbb2316b3e7c118174816e25ddd1ec57abdd27bae",
+      "verbatim": true
+    },
+    {
+      "path": "integration/landing-receipt.json",
+      "source": "/Users/ccheever/clique-improvement/revisions/cli-015-integration/landing-receipt.json",
+      "sourceBytes": 2396,
+      "sourceSha256": "61a93ae7cf0926887b017e6feb57fd99aea961e1a9d7691e166e4d508b688086",
+      "bytes": 2396,
+      "sha256": "61a93ae7cf0926887b017e6feb57fd99aea961e1a9d7691e166e4d508b688086",
+      "verbatim": true
+    },
+    {
+      "path": "integration/source-correspondence.json",
+      "source": "/Users/ccheever/clique-improvement/revisions/cli-015-integration/source-correspondence.json",
+      "sourceBytes": 5206,
+      "sourceSha256": "dc07507932fbc2d5a3807a7de955f05f6e546b909dae9e08d52d44b45bf263fa",
+      "bytes": 5206,
+      "sha256": "dc07507932fbc2d5a3807a7de955f05f6e546b909dae9e08d52d44b45bf263fa",
+      "verbatim": true
+    },
+    {
+      "path": "publication/REPORT.md",
+      "source": "/Users/ccheever/clique-improvement/revisions/cli-015-publication-execution-r2/REPORT.md",
+      "sourceBytes": 11018,
+      "sourceSha256": "ece72ec848ed1539a0ef0711b6d4691496db1a448025034663c24fd987235b06",
+      "bytes": 11018,
+      "sha256": "ece72ec848ed1539a0ef0711b6d4691496db1a448025034663c24fd987235b06",
+      "verbatim": true
+    },
+    {
+      "path": "publication/activation-events.jsonl",
+      "source": "/Users/ccheever/clique-improvement/revisions/cli-015-publication-execution-r2/activation-events.jsonl",
+      "sourceBytes": 20786,
+      "sourceSha256": "16e39e2a3cab1abe37482230137e8881a4fdf2b6cddf8998517aa4fd66b76ff8",
+      "bytes": 20786,
+      "sha256": "16e39e2a3cab1abe37482230137e8881a4fdf2b6cddf8998517aa4fd66b76ff8",
+      "verbatim": true
+    },
+    {
+      "path": "publication/activation-intent.json",
+      "source": "/Users/ccheever/clique-improvement/revisions/cli-015-publication-execution-r2/activation-intent.json",
+      "sourceBytes": 502,
+      "sourceSha256": "e4f2d76a9b687e6dad20fc96e13be0c62ff4b95aa56fe8e094d611f4abd32caf",
+      "bytes": 502,
+      "sha256": "e4f2d76a9b687e6dad20fc96e13be0c62ff4b95aa56fe8e094d611f4abd32caf",
+      "verbatim": true
+    },
+    {
+      "path": "publication/activation-result.json",
+      "source": "/Users/ccheever/clique-improvement/revisions/cli-015-publication-execution-r2/activation-result.json",
+      "sourceBytes": 443,
+      "sourceSha256": "1e613b107336660dc6762417b29afbf5ebf2104a25afd62f96c68fd5f6932410",
+      "bytes": 443,
+      "sha256": "1e613b107336660dc6762417b29afbf5ebf2104a25afd62f96c68fd5f6932410",
+      "verbatim": true
+    },
+    {
+      "path": "publication/activation-running.json",
+      "source": "/Users/ccheever/clique-improvement/revisions/cli-015-publication-execution-r2/activation-running.json",
+      "sourceBytes": 334,
+      "sourceSha256": "5c6be9e33bd039ec6fbf54b164afa327c501bbdbd2e4f7731c2479cd2c29166f",
+      "bytes": 334,
+      "sha256": "5c6be9e33bd039ec6fbf54b164afa327c501bbdbd2e4f7731c2479cd2c29166f",
+      "verbatim": true
+    },
+    {
+      "path": "publication/actual-identity.json",
+      "source": "/Users/ccheever/clique-improvement/revisions/cli-015-publication-execution-r2/actual-identity.json",
+      "sourceBytes": 333,
+      "sourceSha256": "f7281dd8516ca57071b22f874e630e1c404cd350f638dd6f4881fb4b03e208f4",
+      "bytes": 333,
+      "sha256": "f7281dd8516ca57071b22f874e630e1c404cd350f638dd6f4881fb4b03e208f4",
+      "verbatim": true
+    },
+    {
+      "path": "publication/archive-receipt.json",
+      "source": "/Users/ccheever/clique-improvement/revisions/cli-015-publication-execution-r2/archive-receipt.json",
+      "sourceBytes": 1382,
+      "sourceSha256": "8abfc00d7a4680ea5a1da3333f2b2a4c16ac0965e75cd93bda367466a1668954",
+      "bytes": 1382,
+      "sha256": "8abfc00d7a4680ea5a1da3333f2b2a4c16ac0965e75cd93bda367466a1668954",
+      "verbatim": true
+    },
+    {
+      "path": "publication/artifact-publication-receipt.json",
+      "source": "/Users/ccheever/clique-improvement/revisions/cli-015-publication-execution-r2/artifact-publication-receipt.json",
+      "sourceBytes": 2111,
+      "sourceSha256": "a266fd7ff00efbec6e00e2a77ec832f0bd73ec8ec969bfee3835d2f184b1566e",
+      "bytes": 2111,
+      "sha256": "a266fd7ff00efbec6e00e2a77ec832f0bd73ec8ec969bfee3835d2f184b1566e",
+      "verbatim": true
+    },
+    {
+      "path": "publication/bundle-stage-result.json",
+      "source": "/Users/ccheever/clique-improvement/revisions/cli-015-publication-execution-r2/bundle-stage-result.json",
+      "sourceBytes": 712,
+      "sourceSha256": "04ee6b3da3a6f385acf99537279c69153889ac7268723698abf0f741d4c93ccf",
+      "bytes": 712,
+      "sha256": "04ee6b3da3a6f385acf99537279c69153889ac7268723698abf0f741d4c93ccf",
+      "verbatim": true
+    },
+    {
+      "path": "publication/cleanup.json",
+      "source": "/Users/ccheever/clique-improvement/revisions/cli-015-publication-execution-r2/cleanup.json",
+      "sourceBytes": 2669,
+      "sourceSha256": "93510e43045520c5d7a0ffc09b598444d4758c99799b44ca4a4c6f39af02a17f",
+      "bytes": 2669,
+      "sha256": "93510e43045520c5d7a0ffc09b598444d4758c99799b44ca4a4c6f39af02a17f",
+      "verbatim": true
+    },
+    {
+      "path": "publication/command-environment-receipt.json",
+      "source": "/Users/ccheever/clique-improvement/revisions/cli-015-publication-execution-r2/command-environment-receipt.json",
+      "sourceBytes": 2442,
+      "sourceSha256": "df1b86751d4ddf125cd66362a5607a8c76c0fa36282003ccb21534f0a15a6ea0",
+      "bytes": 2442,
+      "sha256": "df1b86751d4ddf125cd66362a5607a8c76c0fa36282003ccb21534f0a15a6ea0",
+      "verbatim": true
+    },
+    {
+      "path": "publication/expo-backend-after.json",
+      "source": "/Users/ccheever/clique-improvement/revisions/cli-015-publication-execution-r2/expo-backend-after.json",
+      "sourceBytes": 1013,
+      "sourceSha256": "d8adc1bad956c68c1d4f39bf2d4bc99b8b7d3cf8f48238a509d44b6e6929cd0a",
+      "bytes": 1013,
+      "sha256": "d8adc1bad956c68c1d4f39bf2d4bc99b8b7d3cf8f48238a509d44b6e6929cd0a",
+      "verbatim": true
+    },
+    {
+      "path": "publication/expo-backend-before.json",
+      "source": "/Users/ccheever/clique-improvement/revisions/cli-015-publication-execution-r2/expo-backend-before.json",
+      "sourceBytes": 1013,
+      "sourceSha256": "d8adc1bad956c68c1d4f39bf2d4bc99b8b7d3cf8f48238a509d44b6e6929cd0a",
+      "bytes": 1013,
+      "sha256": "d8adc1bad956c68c1d4f39bf2d4bc99b8b7d3cf8f48238a509d44b6e6929cd0a",
+      "verbatim": true
+    },
+    {
+      "path": "publication/expo-cache-after-check-after.json",
+      "source": "/Users/ccheever/clique-improvement/revisions/cli-015-publication-execution-r2/expo-cache-after-check-after.json",
+      "sourceBytes": 1271,
+      "sourceSha256": "579eb90822f79d9c16229e9076c58a053f1d9298152fea9f0d92d86a955b25c5",
+      "bytes": 1271,
+      "sha256": "579eb90822f79d9c16229e9076c58a053f1d9298152fea9f0d92d86a955b25c5",
+      "verbatim": true
+    },
+    {
+      "path": "publication/expo-cache-after-check-before.json",
+      "source": "/Users/ccheever/clique-improvement/revisions/cli-015-publication-execution-r2/expo-cache-after-check-before.json",
+      "sourceBytes": 1271,
+      "sourceSha256": "579eb90822f79d9c16229e9076c58a053f1d9298152fea9f0d92d86a955b25c5",
+      "bytes": 1271,
+      "sha256": "579eb90822f79d9c16229e9076c58a053f1d9298152fea9f0d92d86a955b25c5",
+      "verbatim": true
+    },
+    {
+      "path": "publication/expo-cache-before-check-after.json",
+      "source": "/Users/ccheever/clique-improvement/revisions/cli-015-publication-execution-r2/expo-cache-before-check-after.json",
+      "sourceBytes": 1271,
+      "sourceSha256": "579eb90822f79d9c16229e9076c58a053f1d9298152fea9f0d92d86a955b25c5",
+      "bytes": 1271,
+      "sha256": "579eb90822f79d9c16229e9076c58a053f1d9298152fea9f0d92d86a955b25c5",
+      "verbatim": true
+    },
+    {
+      "path": "publication/expo-cache-before-check-before.json",
+      "source": "/Users/ccheever/clique-improvement/revisions/cli-015-publication-execution-r2/expo-cache-before-check-before.json",
+      "sourceBytes": 1271,
+      "sourceSha256": "579eb90822f79d9c16229e9076c58a053f1d9298152fea9f0d92d86a955b25c5",
+      "bytes": 1271,
+      "sha256": "579eb90822f79d9c16229e9076c58a053f1d9298152fea9f0d92d86a955b25c5",
+      "verbatim": true
+    },
+    {
+      "path": "publication/expo-project-after-check-guide.json",
+      "source": "/Users/ccheever/clique-improvement/revisions/cli-015-publication-execution-r2/expo-project-after-check-guide.json",
+      "sourceBytes": 4291,
+      "sourceSha256": "3cf7a87e3c59b37808248a500a098093f9b7ad9a7ad9d6a02c8695c2bdcb298e",
+      "bytes": 4291,
+      "sha256": "3cf7a87e3c59b37808248a500a098093f9b7ad9a7ad9d6a02c8695c2bdcb298e",
+      "verbatim": true
+    },
+    {
+      "path": "publication/expo-project-after-init.json",
+      "source": "/Users/ccheever/clique-improvement/revisions/cli-015-publication-execution-r2/expo-project-after-init.json",
+      "sourceBytes": 4291,
+      "sourceSha256": "3cf7a87e3c59b37808248a500a098093f9b7ad9a7ad9d6a02c8695c2bdcb298e",
+      "bytes": 4291,
+      "sha256": "3cf7a87e3c59b37808248a500a098093f9b7ad9a7ad9d6a02c8695c2bdcb298e",
+      "verbatim": true
+    },
+    {
+      "path": "publication/final-custody.json",
+      "source": "/Users/ccheever/clique-improvement/revisions/cli-015-publication-execution-r2/final-custody.json",
+      "sourceBytes": 17849,
+      "sourceSha256": "9e36e03177512502f2f6f05060e3493a0187af78c856348f86688d6a4b42cdcc",
+      "bytes": 17849,
+      "sha256": "9e36e03177512502f2f6f05060e3493a0187af78c856348f86688d6a4b42cdcc",
+      "verbatim": true
+    },
+    {
+      "path": "publication/final-remote-custody.json",
+      "source": "/Users/ccheever/clique-improvement/revisions/cli-015-publication-execution-r2/final-remote-custody.json",
+      "sourceBytes": 522,
+      "sourceSha256": "93fae3331dab2c3727319b6dfd5c60e3b36cbad235b4f716848b2b6b8df09acd",
+      "bytes": 522,
+      "sha256": "93fae3331dab2c3727319b6dfd5c60e3b36cbad235b4f716848b2b6b8df09acd",
+      "verbatim": true
+    },
+    {
+      "path": "publication/installed-expo-remaining.json",
+      "source": "/Users/ccheever/clique-improvement/revisions/cli-015-publication-execution-r2/installed-expo-remaining.json",
+      "sourceBytes": 22566,
+      "sourceSha256": "f93de214439642780ec7f0b9f75fea2772053dce1ae18cc1db3721771149bac6",
+      "bytes": 22566,
+      "sha256": "f93de214439642780ec7f0b9f75fea2772053dce1ae18cc1db3721771149bac6",
+      "verbatim": true
+    },
+    {
+      "path": "publication/installed-expo-verification.json",
+      "source": "/Users/ccheever/clique-improvement/revisions/cli-015-publication-execution-r2/installed-expo-verification.json",
+      "sourceBytes": 3770,
+      "sourceSha256": "46bfc60869f76123e9099e853fa4f5636274401b9df51fef9bcf70319bb8a4bf",
+      "bytes": 3770,
+      "sha256": "46bfc60869f76123e9099e853fa4f5636274401b9df51fef9bcf70319bb8a4bf",
+      "verbatim": true
+    },
+    {
+      "path": "publication/installed-files-after.json",
+      "source": "/Users/ccheever/clique-improvement/revisions/cli-015-publication-execution-r2/installed-files-after.json",
+      "sourceBytes": 16202,
+      "sourceSha256": "a35ff2fe7e10e66ac68846aac998e3c5646e8a5169dbe884cf8c284fff04e649",
+      "bytes": 16202,
+      "sha256": "a35ff2fe7e10e66ac68846aac998e3c5646e8a5169dbe884cf8c284fff04e649",
+      "verbatim": true
+    },
+    {
+      "path": "publication/installed-files-before.json",
+      "source": "/Users/ccheever/clique-improvement/revisions/cli-015-publication-execution-r2/installed-files-before.json",
+      "sourceBytes": 16202,
+      "sourceSha256": "a35ff2fe7e10e66ac68846aac998e3c5646e8a5169dbe884cf8c284fff04e649",
+      "bytes": 16202,
+      "sha256": "a35ff2fe7e10e66ac68846aac998e3c5646e8a5169dbe884cf8c284fff04e649",
+      "verbatim": true
+    },
+    {
+      "path": "publication/launch.json",
+      "source": "/Users/ccheever/clique-improvement/revisions/cli-015-publication-execution-r2/launch.json",
+      "sourceBytes": 673,
+      "sourceSha256": "b9ff9c0d166ef8e6db21a3db605a42297dc3611461f22da76063a9fe67cacfc4",
+      "bytes": 673,
+      "sha256": "b9ff9c0d166ef8e6db21a3db605a42297dc3611461f22da76063a9fe67cacfc4",
+      "verbatim": true
+    },
+    {
+      "path": "publication/local-custody.json",
+      "source": "/Users/ccheever/clique-improvement/revisions/cli-015-publication-execution-r2/local-custody.json",
+      "sourceBytes": 622,
+      "sourceSha256": "461232d96479cde2b6193b82e23402749f8bc7a3362bc85628ea6cdc233ff12f",
+      "bytes": 622,
+      "sha256": "461232d96479cde2b6193b82e23402749f8bc7a3362bc85628ea6cdc233ff12f",
+      "verbatim": true
+    },
+    {
+      "path": "publication/metric-own-append.jsonl",
+      "source": "/Users/ccheever/clique-improvement/revisions/cli-015-publication-execution-r2/metric-own-append.jsonl",
+      "sourceBytes": 266,
+      "sourceSha256": "3327235da56fe0031ad1fbbacfc4902cd353ae0b0f4a16886f63750a342c2c1f",
+      "bytes": 266,
+      "sha256": "3327235da56fe0031ad1fbbacfc4902cd353ae0b0f4a16886f63750a342c2c1f",
+      "verbatim": true
+    },
+    {
+      "path": "publication/metric-receipt.json",
+      "source": "/Users/ccheever/clique-improvement/revisions/cli-015-publication-execution-r2/metric-receipt.json",
+      "sourceBytes": 1130,
+      "sourceSha256": "3b068ccd937bf466a791ad869d183bfb2309d26585bbba7214101120582803fa",
+      "bytes": 1130,
+      "sha256": "3b068ccd937bf466a791ad869d183bfb2309d26585bbba7214101120582803fa",
+      "verbatim": true
+    },
+    {
+      "path": "publication/phase.json",
+      "source": "/Users/ccheever/clique-improvement/revisions/cli-015-publication-execution-r2/phase.json",
+      "sourceBytes": 2607,
+      "sourceSha256": "cdba60fa071c12240f6ada5eb1e296d3fd129369c2540d05a962c804aa026396",
+      "bytes": 2607,
+      "sha256": "cdba60fa071c12240f6ada5eb1e296d3fd129369c2540d05a962c804aa026396",
+      "verbatim": true
+    },
+    {
+      "path": "publication/publisher-source-reconciliation.json",
+      "source": "/Users/ccheever/clique-improvement/revisions/cli-015-publication-execution-r2/publisher-source-reconciliation.json",
+      "sourceBytes": 1056,
+      "sourceSha256": "aa10d751d2bf6619d6fd590bba1256bb8e6b1ab131450ce3a3958b29d0cac077",
+      "bytes": 1056,
+      "sha256": "aa10d751d2bf6619d6fd590bba1256bb8e6b1ab131450ce3a3958b29d0cac077",
+      "verbatim": true
+    },
+    {
+      "path": "publication/registry-observation-01.json",
+      "source": "/Users/ccheever/clique-improvement/revisions/cli-015-publication-execution-r2/registry-observation-01.json",
+      "sourceBytes": 3170,
+      "sourceSha256": "20611fbd7148061ab884e9aa586d57102124c4170f905ab869c56931f6bd7379",
+      "bytes": 3170,
+      "sha256": "20611fbd7148061ab884e9aa586d57102124c4170f905ab869c56931f6bd7379",
+      "verbatim": true
+    },
+    {
+      "path": "publication/registry-observation-02.json",
+      "source": "/Users/ccheever/clique-improvement/revisions/cli-015-publication-execution-r2/registry-observation-02.json",
+      "sourceBytes": 3171,
+      "sourceSha256": "25748dcc9debac7c082619dacfe70bb94d9f951ee997785328b348a82c64e40b",
+      "bytes": 3171,
+      "sha256": "25748dcc9debac7c082619dacfe70bb94d9f951ee997785328b348a82c64e40b",
+      "verbatim": true
+    },
+    {
+      "path": "publication/registry-observation-03.json",
+      "source": "/Users/ccheever/clique-improvement/revisions/cli-015-publication-execution-r2/registry-observation-03.json",
+      "sourceBytes": 3165,
+      "sourceSha256": "8777827b912b734ddb400deaf63299c9cd60c6042eb3825422b904cd8bfc0b24",
+      "bytes": 3165,
+      "sha256": "8777827b912b734ddb400deaf63299c9cd60c6042eb3825422b904cd8bfc0b24",
+      "verbatim": true
+    },
+    {
+      "path": "publication/registry-observation-04.json",
+      "source": "/Users/ccheever/clique-improvement/revisions/cli-015-publication-execution-r2/registry-observation-04.json",
+      "sourceBytes": 3261,
+      "sourceSha256": "0259c9e15e0a5eec0f3bba65f37d12f8ec2c7fc3a50cec91696088e0c7b59e96",
+      "bytes": 3261,
+      "sha256": "0259c9e15e0a5eec0f3bba65f37d12f8ec2c7fc3a50cec91696088e0c7b59e96",
+      "verbatim": true
+    },
+    {
+      "path": "publication/source-receipt.json",
+      "source": "/Users/ccheever/clique-improvement/revisions/cli-015-publication-execution-r2/source-receipt.json",
+      "sourceBytes": 1395,
+      "sourceSha256": "4e6a088e288477d69e83e082d57eb683ead61ef03a16903c492d4f0ec879c6ae",
+      "bytes": 1395,
+      "sha256": "4e6a088e288477d69e83e082d57eb683ead61ef03a16903c492d4f0ec879c6ae",
+      "verbatim": true
+    },
+    {
+      "path": "publication/source-stage-result.json",
+      "source": "/Users/ccheever/clique-improvement/revisions/cli-015-publication-execution-r2/source-stage-result.json",
+      "sourceBytes": 710,
+      "sourceSha256": "31c61412a3d94758915552e8f2cdc66d10c1c57e4f39d84a2c33278f25d14e64",
+      "bytes": 710,
+      "sha256": "31c61412a3d94758915552e8f2cdc66d10c1c57e4f39d84a2c33278f25d14e64",
+      "verbatim": true
+    },
+    {
+      "path": "publication/stage-result.json",
+      "source": "/Users/ccheever/clique-improvement/revisions/cli-015-publication-execution-r2/stage-result.json",
+      "sourceBytes": 271,
+      "sourceSha256": "f151ad938bc94e94fe77c29d3f8407684037d2f3e8699a4567657d72fb5e46b9",
+      "bytes": 271,
+      "sha256": "f151ad938bc94e94fe77c29d3f8407684037d2f3e8699a4567657d72fb5e46b9",
+      "verbatim": true
+    },
+    {
+      "path": "publication/standard-consumer-receipt.json",
+      "source": "/Users/ccheever/clique-improvement/revisions/cli-015-publication-execution-r2/standard-consumer-receipt.json",
+      "sourceBytes": 2148,
+      "sourceSha256": "46baf4ff3b93badac98dd57bf765a8a01c2c247965c0dfa2aa314add9bc7e869",
+      "bytes": 2148,
+      "sha256": "46baf4ff3b93badac98dd57bf765a8a01c2c247965c0dfa2aa314add9bc7e869",
+      "verbatim": true
+    },
+    {
+      "path": "publication/terminal.json",
+      "source": "/Users/ccheever/clique-improvement/revisions/cli-015-publication-execution-r2/terminal.json",
+      "sourceBytes": 110,
+      "sourceSha256": "680f889bdbc37d0cbf06ec14e7110d49f0ee72516d06bfc4a72c904c4b23af5f",
+      "bytes": 110,
+      "sha256": "680f889bdbc37d0cbf06ec14e7110d49f0ee72516d06bfc4a72c904c4b23af5f",
+      "verbatim": true
+    },
+    {
+      "path": "publication/verification-derivative.diff",
+      "source": "/Users/ccheever/clique-improvement/revisions/cli-015-publication-execution-r2/verification-derivative.diff",
+      "sourceBytes": 9224,
+      "sourceSha256": "b7aa92d7838fa7fba49c5bda1702fcef56d1e4460af1cf4e36f9e00863f3ee02",
+      "bytes": 9224,
+      "sha256": "b7aa92d7838fa7fba49c5bda1702fcef56d1e4460af1cf4e36f9e00863f3ee02",
+      "verbatim": true
+    },
+    {
+      "path": "publication/verification-first-failure-disposition.json",
+      "source": "/Users/ccheever/clique-improvement/revisions/cli-015-publication-execution-r2/verification-first-failure-disposition.json",
+      "sourceBytes": 1035,
+      "sourceSha256": "90d7d4320669d7da3d90e43db848b828c654a8745852e8b1775152227cec19ae",
+      "bytes": 1035,
+      "sha256": "90d7d4320669d7da3d90e43db848b828c654a8745852e8b1775152227cec19ae",
+      "verbatim": true
+    },
+    {
+      "path": "publication/verification-observation-binding.diff",
+      "source": "/Users/ccheever/clique-improvement/revisions/cli-015-publication-execution-r2/verification-observation-binding.diff",
+      "sourceBytes": 857,
+      "sourceSha256": "f31da428fdcefadff064c5228264daeb169999b00b70f7378db90f5c46aa54f9",
+      "bytes": 857,
+      "sha256": "f31da428fdcefadff064c5228264daeb169999b00b70f7378db90f5c46aa54f9",
+      "verbatim": true
+    },
+    {
+      "path": "publication/verification-remaining.diff",
+      "source": "/Users/ccheever/clique-improvement/revisions/cli-015-publication-execution-r2/verification-remaining.diff",
+      "sourceBytes": 10643,
+      "sourceSha256": "2c8d36490d31601bff4622d26ae0b4ad248e8a4ebaa1bed8499fdd7d72f266c3",
+      "bytes": 10643,
+      "sha256": "2c8d36490d31601bff4622d26ae0b4ad248e8a4ebaa1bed8499fdd7d72f266c3",
+      "verbatim": true
+    },
+    {
+      "path": "publication/verification-source-receipt.json",
+      "source": "/Users/ccheever/clique-improvement/revisions/cli-015-publication-execution-r2/verification-source-receipt.json",
+      "sourceBytes": 532,
+      "sourceSha256": "3ae2bbcc42e669941d76a6f2f7f4d49ce84d176ef1008ba9cb3fad4f068be3d7",
+      "bytes": 532,
+      "sha256": "3ae2bbcc42e669941d76a6f2f7f4d49ce84d176ef1008ba9cb3fad4f068be3d7",
+      "verbatim": true
+    },
+    {
+      "path": "publication/verify-registry-expo-04.py",
+      "source": "/Users/ccheever/clique-improvement/revisions/cli-015-publication-execution-r2/verify-registry-expo-04.py",
+      "sourceBytes": 13151,
+      "sourceSha256": "7540284f96091bf3088ee3b4697bcc80465334deed77d9bd9451e37a90002598",
+      "bytes": 13151,
+      "sha256": "7540284f96091bf3088ee3b4697bcc80465334deed77d9bd9451e37a90002598",
+      "verbatim": true
+    },
+    {
+      "path": "publication/verify-registry-expo-remaining.py",
+      "source": "/Users/ccheever/clique-improvement/revisions/cli-015-publication-execution-r2/verify-registry-expo-remaining.py",
+      "sourceBytes": 12478,
+      "sourceSha256": "c891e3997b18b2ff5d9995f61e27a5bdd34eb8ce913936ec49789c86c383fd2d",
+      "bytes": 12478,
+      "sha256": "c891e3997b18b2ff5d9995f61e27a5bdd34eb8ce913936ec49789c86c383fd2d",
+      "verbatim": true
+    },
+    {
+      "path": "publication/version-receipt.json",
+      "source": "/Users/ccheever/clique-improvement/revisions/cli-015-publication-execution-r2/version-receipt.json",
+      "sourceBytes": 216,
+      "sourceSha256": "b81704c0da43488ec7b995d21025351a845ae315c845c92a6b30b0c6954eaae2",
+      "bytes": 216,
+      "sha256": "b81704c0da43488ec7b995d21025351a845ae315c845c92a6b30b0c6954eaae2",
+      "verbatim": true
+    },
+    {
+      "path": "publication-helper/bindings.json",
+      "source": "/Users/ccheever/clique-improvement/revisions/cli-015-publication-preparation-r2/bindings.json",
+      "sourceBytes": 3317,
+      "sourceSha256": "50fd7e038afab4ecfb5c60ee07a7bfb9f5954d0f3f4e5984e5fa73853e3423e0",
+      "bytes": 3327,
+      "sha256": "10610a308410f01b61c1daa0892409ba5699cf033307226ea2edcf917d3b9f49",
+      "verbatim": false
+    },
+    {
+      "path": "publication-helper/bundle.json",
+      "source": "/Users/ccheever/clique-improvement/revisions/cli-015-publication-preparation-r2/bundle.json",
+      "sourceBytes": 1579,
+      "sourceSha256": "8749222b91f380829d8238243a8d8aaee0a8f70b9b2fa2e12f493d15c0008f2c",
+      "bytes": 1579,
+      "sha256": "8749222b91f380829d8238243a8d8aaee0a8f70b9b2fa2e12f493d15c0008f2c",
+      "verbatim": true
+    },
+    {
+      "path": "publication-helper/command-manifest.json",
+      "source": "/Users/ccheever/clique-improvement/revisions/cli-015-publication-preparation-r2/command-manifest.json",
+      "sourceBytes": 7375,
+      "sourceSha256": "9f6845f2e6ed9389ce83cffd4e71c4f5cf4cd37fed841e64583446853b646427",
+      "bytes": 7385,
+      "sha256": "c227c32e3ad295a593730b3314c4303cecaf84a2e474808e7e066869f1973a58",
+      "verbatim": false
+    },
+    {
+      "path": "qualification/REPORT.md",
+      "source": "/Users/ccheever/clique-improvement/revisions/cli-015-repaired-qualification-r2/REPORT.md",
+      "sourceBytes": 11078,
+      "sourceSha256": "be2a7dfc5d94fe882e252bfb85dae45b6f053c758584f04fc91a8bdfbba7f7ef",
+      "bytes": 11078,
+      "sha256": "be2a7dfc5d94fe882e252bfb85dae45b6f053c758584f04fc91a8bdfbba7f7ef",
+      "verbatim": true
+    },
+    {
+      "path": "qualification/actual-identity.json",
+      "source": "/Users/ccheever/clique-improvement/revisions/cli-015-repaired-qualification-r2/actual-identity.json",
+      "sourceBytes": 334,
+      "sourceSha256": "2dbe094a0c6907fdaaeb843ba7868cb8a7aaceabb7564d5549dde4762b2fa5a6",
+      "bytes": 334,
+      "sha256": "2dbe094a0c6907fdaaeb843ba7868cb8a7aaceabb7564d5549dde4762b2fa5a6",
+      "verbatim": true
+    },
+    {
+      "path": "qualification/archive-receipt.json",
+      "source": "/Users/ccheever/clique-improvement/revisions/cli-015-repaired-qualification-r2/archive-receipt.json",
+      "sourceBytes": 661,
+      "sourceSha256": "0ad58b3623a1f566a6ace955c7a693ba10c2ffd4cc468bea107d2681b1dcb7f0",
+      "bytes": 661,
+      "sha256": "0ad58b3623a1f566a6ace955c7a693ba10c2ffd4cc468bea107d2681b1dcb7f0",
+      "verbatim": true
+    },
+    {
+      "path": "qualification/command-manifest.json",
+      "source": "/Users/ccheever/clique-improvement/revisions/cli-015-repaired-qualification-r2/command-manifest.json",
+      "sourceBytes": 1930,
+      "sourceSha256": "b760c6afb1afa7d21f4ee8f0b3f95ffbef017636d4d4fedb8f13d1d31c8ad211",
+      "bytes": 1930,
+      "sha256": "b760c6afb1afa7d21f4ee8f0b3f95ffbef017636d4d4fedb8f13d1d31c8ad211",
+      "verbatim": true
+    },
+    {
+      "path": "qualification/final-custody.json",
+      "source": "/Users/ccheever/clique-improvement/revisions/cli-015-repaired-qualification-r2/final-custody.json",
+      "sourceBytes": 4481,
+      "sourceSha256": "d17793e3d9f5da6c0723ce5ab3e7dad9c687fd560f8db880f6aaf68ab4a6756f",
+      "bytes": 4481,
+      "sha256": "d17793e3d9f5da6c0723ce5ab3e7dad9c687fd560f8db880f6aaf68ab4a6756f",
+      "verbatim": true
+    },
+    {
+      "path": "qualification/final-source-binding.json",
+      "source": "/Users/ccheever/clique-improvement/revisions/cli-015-repaired-qualification-r2/final-source-binding.json",
+      "sourceBytes": 2035,
+      "sourceSha256": "72540a19019aecec0b023840b6e28058a7ef19a7790a50eedf739ef4ade0d97c",
+      "bytes": 2035,
+      "sha256": "72540a19019aecec0b023840b6e28058a7ef19a7790a50eedf739ef4ade0d97c",
+      "verbatim": true
+    },
+    {
+      "path": "qualification/launch.json",
+      "source": "/Users/ccheever/clique-improvement/revisions/cli-015-repaired-qualification-r2/launch.json",
+      "sourceBytes": 676,
+      "sourceSha256": "f4ab7d65e083e01331d0ab0b5fbc62e01c580656cedb47cc7a08f292340609a4",
+      "bytes": 676,
+      "sha256": "f4ab7d65e083e01331d0ab0b5fbc62e01c580656cedb47cc7a08f292340609a4",
+      "verbatim": true
+    },
+    {
+      "path": "qualification/publisher-start.json",
+      "source": "/Users/ccheever/clique-improvement/revisions/cli-015-repaired-qualification-r2/publisher-start.json",
+      "sourceBytes": 2453,
+      "sourceSha256": "b7f81b84a99e6cb89d53d3b667fa6c0cb56df78d79825a389859c6df999916e9",
+      "bytes": 2453,
+      "sha256": "b7f81b84a99e6cb89d53d3b667fa6c0cb56df78d79825a389859c6df999916e9",
+      "verbatim": true
+    },
+    {
+      "path": "qualification/qualification-receipt.json",
+      "source": "/Users/ccheever/clique-improvement/revisions/cli-015-repaired-qualification-r2/qualification-receipt.json",
+      "sourceBytes": 4345,
+      "sourceSha256": "20b5b3a175ca2ecb82bfed912aebfcf49f92325b04897d60e380ebe1fee75f2a",
+      "bytes": 4345,
+      "sha256": "20b5b3a175ca2ecb82bfed912aebfcf49f92325b04897d60e380ebe1fee75f2a",
+      "verbatim": true
+    },
+    {
+      "path": "qualification/results/artifact-receipt.json",
+      "source": "/Users/ccheever/clique-improvement/revisions/cli-015-repaired-qualification-r2/apartment-results/artifact-receipt.json",
+      "sourceBytes": 2686,
+      "sourceSha256": "8012eb1963f25e98aa529b6c8f3ba510e6efa7613502a5e34f15f81167341c4f",
+      "bytes": 2686,
+      "sha256": "8012eb1963f25e98aa529b6c8f3ba510e6efa7613502a5e34f15f81167341c4f",
+      "verbatim": true
+    },
+    {
+      "path": "qualification/results/cleanup.json",
+      "source": "/Users/ccheever/clique-improvement/revisions/cli-015-repaired-qualification-r2/apartment-results/cleanup.json",
+      "sourceBytes": 27471,
+      "sourceSha256": "1ae68651dac030fc398f4495408af6daa8f28e2eeef1444d0a4d4dd337a8c833",
+      "bytes": 27471,
+      "sha256": "1ae68651dac030fc398f4495408af6daa8f28e2eeef1444d0a4d4dd337a8c833",
+      "verbatim": true
+    },
+    {
+      "path": "qualification/results/installed-test-receipts/chat-1788780467141.json",
+      "source": "/Users/ccheever/clique-improvement/revisions/cli-015-repaired-qualification-r2/apartment-results/installed-test-receipts/chat-1788780467141.json",
+      "sourceBytes": 94635,
+      "sourceSha256": "935cc9b60dc3adcf450a557883a811def0bcfebffbc64d43030817eb5a6634f8",
+      "bytes": 94635,
+      "sha256": "935cc9b60dc3adcf450a557883a811def0bcfebffbc64d43030817eb5a6634f8",
+      "verbatim": true
+    },
+    {
+      "path": "qualification/results/installed-test-receipts/todos-1788780461721.json",
+      "source": "/Users/ccheever/clique-improvement/revisions/cli-015-repaired-qualification-r2/apartment-results/installed-test-receipts/todos-1788780461721.json",
+      "sourceBytes": 6304,
+      "sourceSha256": "8bb9b5275a6d0e7a9d2d13c5656e4358b2c6891f02a9ed4dbb996d3667c12d79",
+      "bytes": 6304,
+      "sha256": "8bb9b5275a6d0e7a9d2d13c5656e4358b2c6891f02a9ed4dbb996d3667c12d79",
+      "verbatim": true
+    },
+    {
+      "path": "qualification/results/installed-test-receipts.json",
+      "source": "/Users/ccheever/clique-improvement/revisions/cli-015-repaired-qualification-r2/apartment-results/installed-test-receipts.json",
+      "sourceBytes": 1240,
+      "sourceSha256": "21d7fde0ba186ef4782e01a970c5c83d2d747b56f4a451903f4fdb5a35a6b0bf",
+      "bytes": 1240,
+      "sha256": "21d7fde0ba186ef4782e01a970c5c83d2d747b56f4a451903f4fdb5a35a6b0bf",
+      "verbatim": true
+    },
+    {
+      "path": "qualification/results/metric-custody.json",
+      "source": "/Users/ccheever/clique-improvement/revisions/cli-015-repaired-qualification-r2/apartment-results/metric-custody.json",
+      "sourceBytes": 454,
+      "sourceSha256": "995b236627bbfb8cdf9d6736ef09d8667b699443b4fb34ba41d80e9a71556819",
+      "bytes": 454,
+      "sha256": "995b236627bbfb8cdf9d6736ef09d8667b699443b4fb34ba41d80e9a71556819",
+      "verbatim": true
+    },
+    {
+      "path": "qualification/results/metric-own-append.jsonl",
+      "source": "/Users/ccheever/clique-improvement/revisions/cli-015-repaired-qualification-r2/apartment-results/metric-own-append.jsonl",
+      "sourceBytes": 266,
+      "sourceSha256": "303404e11d191d50dc48f2d346f9809690dbb8ef69cd31093ccbde08bf149f0d",
+      "bytes": 266,
+      "sha256": "303404e11d191d50dc48f2d346f9809690dbb8ef69cd31093ccbde08bf149f0d",
+      "verbatim": true
+    },
+    {
+      "path": "qualification/results/remote-run.json",
+      "source": "/Users/ccheever/clique-improvement/revisions/cli-015-repaired-qualification-r2/apartment-results/remote-run.json",
+      "sourceBytes": 404,
+      "sourceSha256": "50a9da29b09a97ccd3a8371f19df0e23e6c91577ea03178afba222a31f211de1",
+      "bytes": 404,
+      "sha256": "50a9da29b09a97ccd3a8371f19df0e23e6c91577ea03178afba222a31f211de1",
+      "verbatim": true
+    },
+    {
+      "path": "qualification/results/source-after-publisher.json",
+      "source": "/Users/ccheever/clique-improvement/revisions/cli-015-repaired-qualification-r2/apartment-results/source-after-publisher.json",
+      "sourceBytes": 185,
+      "sourceSha256": "480134f50a6645b560807a654a4b842dabd5f5feb41f9f394dd9e7014c6403d6",
+      "bytes": 185,
+      "sha256": "480134f50a6645b560807a654a4b842dabd5f5feb41f9f394dd9e7014c6403d6",
+      "verbatim": true
+    },
+    {
+      "path": "qualification/results/source-before-publisher.json",
+      "source": "/Users/ccheever/clique-improvement/revisions/cli-015-repaired-qualification-r2/apartment-results/source-before-publisher.json",
+      "sourceBytes": 390,
+      "sourceSha256": "61878c48b5c9fbb5a7751e4bdf739a0fcbfeb552c417a4755185b8b8083eb33b",
+      "bytes": 390,
+      "sha256": "61878c48b5c9fbb5a7751e4bdf739a0fcbfeb552c417a4755185b8b8083eb33b",
+      "verbatim": true
+    },
+    {
+      "path": "qualification/results/standard-installed-react-consumer.json",
+      "source": "/Users/ccheever/clique-improvement/revisions/cli-015-repaired-qualification-r2/apartment-results/standard-installed-react-consumer.json",
+      "sourceBytes": 1867,
+      "sourceSha256": "d186a8a937316e291758b1b22b92566f97fed943c66020e0756ee398f230755c",
+      "bytes": 1867,
+      "sha256": "d186a8a937316e291758b1b22b92566f97fed943c66020e0756ee398f230755c",
+      "verbatim": true
+    },
+    {
+      "path": "qualification/source-943.json",
+      "source": "/Users/ccheever/clique-improvement/revisions/cli-015-repaired-qualification-r2/source-943.json",
+      "sourceBytes": 194652,
+      "sourceSha256": "ea49fb0c4ac8553aeab1e3906a0e5e0399d09cc8ad75dea9734bb797911ed7ff",
+      "bytes": 194652,
+      "sha256": "ea49fb0c4ac8553aeab1e3906a0e5e0399d09cc8ad75dea9734bb797911ed7ff",
+      "verbatim": true
+    },
+    {
+      "path": "qualification/terminal.json",
+      "source": "/Users/ccheever/clique-improvement/revisions/cli-015-repaired-qualification-r2/terminal.json",
+      "sourceBytes": 107,
+      "sourceSha256": "b37b6c6bae6628ec00448284fc0160b6cf164e860088e83a79d8174a59a2ab81",
+      "bytes": 107,
+      "sha256": "b37b6c6bae6628ec00448284fc0160b6cf164e860088e83a79d8174a59a2ab81",
+      "verbatim": true
+    },
+    {
+      "path": "qualification/tool-provenance-correspondence.json",
+      "source": "/Users/ccheever/clique-improvement/revisions/cli-015-repaired-qualification-r2/tool-provenance-correspondence.json",
+      "sourceBytes": 577,
+      "sourceSha256": "f9b5776872fc685ac7c5140959e77d570dc29a3c3a2b567855fb8f8dfd7cc48c",
+      "bytes": 577,
+      "sha256": "f9b5776872fc685ac7c5140959e77d570dc29a3c3a2b567855fb8f8dfd7cc48c",
+      "verbatim": true
+    },
+    {
+      "path": "reviews/astra/actual-identity.json",
+      "source": "/Users/ccheever/clique-improvement/reviews/cli-journey-selection-r2/astra/actual-identity.json",
+      "sourceBytes": 331,
+      "sourceSha256": "223582072c2b09859574f83256ac12db5c16a5c24693e82ffd048a53779f39f9",
+      "bytes": 331,
+      "sha256": "223582072c2b09859574f83256ac12db5c16a5c24693e82ffd048a53779f39f9",
+      "verbatim": true
+    },
+    {
+      "path": "reviews/astra/launch.json",
+      "source": "/Users/ccheever/clique-improvement/reviews/cli-journey-selection-r2/astra/launch.json",
+      "sourceBytes": 759,
+      "sourceSha256": "e140823af61e583fc5b6ba97e147a6d5b314a2997e8a8ad9ec0113920afd4185",
+      "bytes": 759,
+      "sha256": "e140823af61e583fc5b6ba97e147a6d5b314a2997e8a8ad9ec0113920afd4185",
+      "verbatim": true
+    },
+    {
+      "path": "reviews/astra/prompt.md",
+      "source": "/Users/ccheever/clique-improvement/reviews/cli-journey-selection-r2/astra/prompt.md",
+      "sourceBytes": 2005,
+      "sourceSha256": "bde3c3317736dd409f3f6fcb1d373af2bedf3ae3e82e2d8743b89fed94ae4abe",
+      "bytes": 2005,
+      "sha256": "bde3c3317736dd409f3f6fcb1d373af2bedf3ae3e82e2d8743b89fed94ae4abe",
+      "verbatim": true
+    },
+    {
+      "path": "reviews/astra/review.md",
+      "source": "/Users/ccheever/clique-improvement/reviews/cli-journey-selection-r2/astra/review.md",
+      "sourceBytes": 7107,
+      "sourceSha256": "60a7ee9b3a5412e2ef21b04c37e38dcc8f1e3127709816103ad4b5a6947bdb7f",
+      "bytes": 7107,
+      "sha256": "60a7ee9b3a5412e2ef21b04c37e38dcc8f1e3127709816103ad4b5a6947bdb7f",
+      "verbatim": true
+    },
+    {
+      "path": "reviews/astra/source-facts.json",
+      "source": "/Users/ccheever/clique-improvement/reviews/cli-journey-selection-r2/astra/source-facts.json",
+      "sourceBytes": 34876,
+      "sourceSha256": "03b6050665a651e4ce84190cf9ef8b60fe67f79300ecb7c00762fffedb288e1b",
+      "bytes": 34876,
+      "sha256": "03b6050665a651e4ce84190cf9ef8b60fe67f79300ecb7c00762fffedb288e1b",
+      "verbatim": true
+    },
+    {
+      "path": "reviews/astra/terminal.json",
+      "source": "/Users/ccheever/clique-improvement/reviews/cli-journey-selection-r2/astra/terminal.json",
+      "sourceBytes": 111,
+      "sourceSha256": "17b3095541387b3e18188a603ca5f162a5b2137b1eaa0b556658b22d5c890b63",
+      "bytes": 111,
+      "sha256": "17b3095541387b3e18188a603ca5f162a5b2137b1eaa0b556658b22d5c890b63",
+      "verbatim": true
+    },
+    {
+      "path": "reviews/grok/actual-identity.json",
+      "source": "/Users/ccheever/clique-improvement/reviews/cli-journey-selection-r2/grok/actual-identity.json",
+      "sourceBytes": 377,
+      "sourceSha256": "815ff463d1352dad856e353a385feb1130e369179acb7c78863168e4295f0d9d",
+      "bytes": 377,
+      "sha256": "815ff463d1352dad856e353a385feb1130e369179acb7c78863168e4295f0d9d",
+      "verbatim": true
+    },
+    {
+      "path": "reviews/grok/launch.json",
+      "source": "/Users/ccheever/clique-improvement/reviews/cli-journey-selection-r2/grok/launch.json",
+      "sourceBytes": 766,
+      "sourceSha256": "884c02111fb4948ffffd33ae238081d8b69cbd30f49efbc4d33c793af54c6b5f",
+      "bytes": 766,
+      "sha256": "884c02111fb4948ffffd33ae238081d8b69cbd30f49efbc4d33c793af54c6b5f",
+      "verbatim": true
+    },
+    {
+      "path": "reviews/grok/prompt.md",
+      "source": "/Users/ccheever/clique-improvement/reviews/cli-journey-selection-r2/grok/prompt.md",
+      "sourceBytes": 2005,
+      "sourceSha256": "bde3c3317736dd409f3f6fcb1d373af2bedf3ae3e82e2d8743b89fed94ae4abe",
+      "bytes": 2005,
+      "sha256": "bde3c3317736dd409f3f6fcb1d373af2bedf3ae3e82e2d8743b89fed94ae4abe",
+      "verbatim": true
+    },
+    {
+      "path": "reviews/grok/review.md",
+      "source": "/Users/ccheever/clique-improvement/reviews/cli-journey-selection-r2/grok/review.md",
+      "sourceBytes": 14076,
+      "sourceSha256": "5c4be9eeb47e4ba5e350ebc98a173d97f826436db2f3aed9c706d640894bae36",
+      "bytes": 14076,
+      "sha256": "5c4be9eeb47e4ba5e350ebc98a173d97f826436db2f3aed9c706d640894bae36",
+      "verbatim": true
+    },
+    {
+      "path": "reviews/grok/source-facts.json",
+      "source": "/Users/ccheever/clique-improvement/reviews/cli-journey-selection-r2/grok/source-facts.json",
+      "sourceBytes": 34876,
+      "sourceSha256": "03b6050665a651e4ce84190cf9ef8b60fe67f79300ecb7c00762fffedb288e1b",
+      "bytes": 34876,
+      "sha256": "03b6050665a651e4ce84190cf9ef8b60fe67f79300ecb7c00762fffedb288e1b",
+      "verbatim": true
+    },
+    {
+      "path": "reviews/grok/terminal.json",
+      "source": "/Users/ccheever/clique-improvement/reviews/cli-journey-selection-r2/grok/terminal.json",
+      "sourceBytes": 111,
+      "sourceSha256": "ce7950461adc6821b68253fd729749745757e22a702caf7a9415633b2d32d574",
+      "bytes": 111,
+      "sha256": "ce7950461adc6821b68253fd729749745757e22a702caf7a9415633b2d32d574",
+      "verbatim": true
+    },
+    {
+      "path": "reviews/supervisor-closed-verification.json",
+      "source": "/Users/ccheever/clique-improvement/reviews/cli-journey-selection-r2/supervisor-closed-verification.json",
+      "sourceBytes": 2816,
+      "sourceSha256": "7e79e38b0f46598f9d1799e546c8aed38f5e7f4f3e64d147bb05e0fa2d50ea07",
+      "bytes": 2816,
+      "sha256": "7e79e38b0f46598f9d1799e546c8aed38f5e7f4f3e64d147bb05e0fa2d50ea07",
+      "verbatim": true
+    },
+    {
+      "path": "publication/actual-turn-context.json",
+      "source": "/Users/ccheever/.codex/sessions/2026/09/06/rollout-2026-09-06T12-05-53-01a0781c-e0ea-7ee0-8bf7-238be0c48fa9.jsonl",
+      "sourceLine": 7635,
+      "sourceBytes": 865,
+      "sourceSha256": "f873b9c626452b5c57b4dfd2ab3419d9c454aadeb15b5d608f66fff6791fc558",
+      "bytes": 865,
+      "sha256": "f873b9c626452b5c57b4dfd2ab3419d9c454aadeb15b5d608f66fff6791fc558",
+      "verbatim": true,
+      "lineTerminatorIncluded": false
+    },
+    {
+      "path": "qualification/actual-turn-context.json",
+      "source": "/Users/ccheever/.codex/sessions/2026/09/06/rollout-2026-09-06T12-05-53-01a0781c-e0ea-7ee0-8bf7-238be0c48fa9.jsonl",
+      "sourceLine": 7153,
+      "sourceBytes": 867,
+      "sourceSha256": "2b29f3358224bf6395328492fcd0b126b5e0bc7bd72d58839ca7729e597e429a",
+      "bytes": 867,
+      "sha256": "2b29f3358224bf6395328492fcd0b126b5e0bc7bd72d58839ca7729e597e429a",
+      "verbatim": true,
+      "lineTerminatorIncluded": false
+    },
+    {
+      "path": "reviews/astra/actual-turn-context.json",
+      "source": "/Users/ccheever/.codex/sessions/2026/09/07/rollout-2026-09-07T04-14-46-01a07b93-ea4f-7590-9dba-f50936435721.jsonl",
+      "sourceLine": 8,
+      "sourceBytes": 983,
+      "sourceSha256": "0b394e961ebf7201b85f426db3c76fc97521ede6e4055e2df5077cc0e2f563a2",
+      "bytes": 983,
+      "sha256": "0b394e961ebf7201b85f426db3c76fc97521ede6e4055e2df5077cc0e2f563a2",
+      "verbatim": true,
+      "lineTerminatorIncluded": false
+    }
+  ],
+  "redactions": [
+    {
+      "path": "publication-helper/bindings.json",
+      "derivation": "Only private non-loopback IPv4 literals replaced with <private-fleet-address>."
+    },
+    {
+      "path": "publication-helper/command-manifest.json",
+      "derivation": "Only private non-loopback IPv4 literals replaced with <private-fleet-address>."
+    }
+  ],
+  "largeExternal": [
+    {
+      "path": "/Users/ccheever/clique-improvement/revisions/cli-015-publication-execution-r2/metric-baseline.jsonl",
+      "bytes": 359620,
+      "sha256": "68d04f61ca488a15ff29b1d961f6ef27442c7ef911ffcd18558ad7b69844b91f",
+      "retainedExternal": true
+    },
+    {
+      "path": "/Users/ccheever/clique-improvement/revisions/cli-015-publication-execution-r2/metric-all-original-bytes.jsonl",
+      "bytes": 359886,
+      "sha256": "945c7796064d1d1ebf3ec4f7462c19609718fec9f3e0a50e00462e012a4a2d9c",
+      "retainedExternal": true
+    },
+    {
+      "path": "/Users/ccheever/clique-improvement/revisions/cli-015-repaired-qualification-r2/source-archive-manifest.json",
+      "bytes": 4887467,
+      "sha256": "1e052d07e11c9907012125c62790bec2604a0c11d741dfb966ea23da97368299",
+      "retainedExternal": true
+    },
+    {
+      "path": "/Users/ccheever/clique-improvement/revisions/cli-015-repaired-qualification-r2/source-install-manifest.json",
+      "bytes": 4887467,
+      "sha256": "18237f6b3a42aefa7e5722f8eb0210713f09e322ddbd1f7e797edaeb3aa6a512",
+      "retainedExternal": true
+    },
+    {
+      "path": "/Users/ccheever/clique-improvement/revisions/cli-015-repaired-qualification-r2/source-mode-mapping.json",
+      "bytes": 3172856,
+      "sha256": "4f3ef6683b7061997a6897ff9454721c7cb92857e9c2c5d45f2475880d37c88a",
+      "retainedExternal": true
+    },
+    {
+      "path": "/Users/ccheever/clique-improvement/revisions/cli-015-repaired-qualification-r2/apartment-results/input-manifest.json",
+      "bytes": 81961776,
+      "sha256": "ab4e1894f0ccc2906774d4254eb49797ffb3c6b4f7b55b07658b3e9a04e05fdd",
+      "retainedExternal": true
+    },
+    {
+      "path": "/Users/ccheever/clique-improvement/revisions/cli-015-repaired-qualification-r2/apartment-results/metric-baseline.jsonl",
+      "bytes": 359620,
+      "sha256": "68d04f61ca488a15ff29b1d961f6ef27442c7ef911ffcd18558ad7b69844b91f",
+      "retainedExternal": true
+    },
+    {
+      "path": "/Users/ccheever/clique-improvement/revisions/cli-015-repaired-qualification-r2/apartment-results/metric-after.jsonl",
+      "bytes": 359886,
+      "sha256": "55bfacd54637607a68d03782e53f20f7d78b659928bd8a87eae6ff84197c59e4",
+      "retainedExternal": true
+    }
+  ]
+}
