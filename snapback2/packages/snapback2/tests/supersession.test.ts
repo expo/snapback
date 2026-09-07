@@ -34,6 +34,8 @@ const overlapRow = overlap.rows[0];
 const successor = certifiedSuccessorProgram();
 const successorPrograms = aliasPrograms(successor.program, ["messages.second", "messages.third"]);
 const successorPage = certifiedSuccessorPage();
+const expandedPage = (page: any) => page.data.map((ref: any) =>
+  page.rows.find((row: any) => row.table === ref.$row.table && row.id === ref.$row.id)?.row);
 async function eventually(check: () => Promise<boolean> | boolean) {
   for (let n = 0; n < 200; n++) { if (await check()) return; await pause(); }
   assert.fail("condition did not settle");
@@ -125,6 +127,7 @@ async function fixture(carrier: "file" | "IndexedDB" = "file", bearer = false) {
         const coverage = await store.coverage(), answer = await store.answer(op, {});
         return coverage.facts?.generation === generation && coverage.facts.schemaHash === state.schemaHash
           && !coverage.superseded && answer?.state === "complete"
+          && JSON.stringify(answer.data) === JSON.stringify(expandedPage(packet().page))
           && queries.some(query => query.op === op && query.generation === generation && query.schemaHash === state.schemaHash);
       });
     },
@@ -138,7 +141,7 @@ for (const carrier of ["file", "IndexedDB"] as const) {
     try {
       f.state.generation = hex(2);
       const live: any = await f.client.query(api.messages.second, {});
-      assert.equal(live.state, "complete");
+      assert.equal(live.state, "capped");
       assert.equal(f.queries.at(-1).generation, hex(2), "the successful live response was requested from G2");
       await f.rebuilt();
       assert.equal(f.resets(), 1);
@@ -149,7 +152,7 @@ for (const carrier of ["file", "IndexedDB"] as const) {
         rows: [{ ...overlapRow, row: { ...overlapRow.row, at: -1 } }] }] });
       assert.equal((await f.store.coverage()).rows.find((row: any) => row.id === overlapRow.id)?.row.at, overlapRow.row.at);
       await f.client.offline();
-      assert.equal((await f.client.query(api.messages.second, {})).state, "complete");
+      assert.equal((await f.client.query(api.messages.second, {})).state, "capped");
     } finally { await f.close(); }
   });
 }
@@ -171,7 +174,9 @@ test("concurrent G2 and G3 deliveries coalesce into one reset with only G3 answe
     assert.equal(f.resets(), 1);
     assert.equal(f.resumes.length, 1);
     assert.deepEqual((await f.store.coverage()).facts, { generation: hex(3), schemaHash: successor.schemaHash, authEpoch: 1 });
-    assert.equal((await f.store.answer("messages.second", {})).seq, 7);
+    assert.deepEqual((await f.store.answer("messages.second", {})).data, expandedPage(successorPage),
+      "the G2 operation was rebuilt with G3's distinct-schema result");
+    assert.deepEqual((await f.store.answer("messages.third", {})).data, expandedPage(successorPage));
     assert.equal(await f.store.answer("messages.first", {}), undefined);
     assert.equal(f.queries.filter(q => q.op === "messages.second").length, 2, "the buffered G2 answer was re-issued under G3");
   } finally { gate.resolve(); await f.close(); }
@@ -405,7 +410,12 @@ for (const carrier of ["file", "IndexedDB"] as const) {
     const f = await fixture(carrier);
     try {
       f.state.seq = 8;
-      f.hooks.query = async () => json({ ...f.envelope({}), rows: [], data: [] });
+      f.hooks.query = async () => {
+        const envelope = f.envelope({});
+        return json({ ...envelope, rows: [], data: [], receipt: { ...envelope.receipt,
+          ranges: envelope.receipt.ranges.map(({ haloId: _haloId, ...range }: any) =>
+            ({ ...range, rowIds: [], stop: "Exhausted" })) } });
+      };
       await f.client.query(api.messages.first, {});
       assert.equal((await f.store.coverage()).rows.length, 0);
       assert.deepEqual((await f.store.coverage()).evicted, overlap.rows.map(({ table, id }: any) => ({ table, id })));
@@ -414,7 +424,7 @@ for (const carrier of ["file", "IndexedDB"] as const) {
       f.state.generation = hex(2);
       await f.client.query(api.messages.second, {});
       await f.rebuilt();
-      assert.deepEqual((await f.store.answer("messages.second", {})).data, overlap.data);
+      assert.deepEqual((await f.store.answer("messages.second", {})).data, expandedPage(overlap));
       assert.deepEqual((await f.store.coverage()).viewed, [{ table: overlapRow.table, id: "viewed" }]);
       // The negative guard still applies inside G2, even to a late equal-seq row.
       await f.store.commit({ tombstones: [{ table: overlapRow.table, id: overlapRow.id, seq: 9 }] });
@@ -512,10 +522,10 @@ for (const carrier of ["file", "IndexedDB"] as const) {
       await client.online();
       await f.rebuilt("messages.first", hex(5));
       assert.equal(f.client, client, "recovery did not replace the client");
-      assert.equal((await client.query(api.messages.first, {})).state, "complete");
+      assert.equal((await client.query(api.messages.first, {})).state, "capped");
       assert.equal(client.snapshot.lastRefusal, undefined);
       await client.offline();
-      assert.equal((await client.query(api.messages.first, {})).state, "complete");
+      assert.equal((await client.query(api.messages.first, {})).state, "capped");
     } finally { sub?.close(); await f.close(); }
   });
 
@@ -619,7 +629,7 @@ for (const carrier of ["file", "IndexedDB"] as const) {
       assert.deepEqual(replays[1], replays[0]);
       const settlements = swaps.filter(s => s.outbox?.put?.some((e: any) => e.state === "committed"));
       assert.equal(settlements.length, 1);
-      assert.equal(settlements[0].deliveries[0].generation, hex(3));
+      assert.equal(settlements[0].facts.generation, hex(3));
       assert.equal((await f.store.answer("messages.log", {})).seq, 7);
     } finally { tail.resolve(); retry.resolve(); await f.close(); }
   });
@@ -718,7 +728,7 @@ for (const carrier of ["file", "IndexedDB"] as const) {
       await f.client.close();
       await f.reopen(true);
       assert.ok((await f.store.outbox.programs())[hex(2)]);
-      assert.equal((await f.client.query(api.messages.second, {})).state, "complete");
+      assert.equal((await f.client.query(api.messages.second, {})).state, "capped");
     } finally { await f.close(); }
   });
 }
@@ -766,6 +776,7 @@ test("reset clears a terminal subscription latch and cold-opens it again", async
   try {
     sub = f.client.subscribe(api.messages.first, {}, () => undefined);
     await eventually(() => f.streams.length === 1);
+    await sub.until((e: any) => e.seq === 7, 1000);
     const refused = sub.until((e: any) => e.seq === 8, 1000);
     emit(f.streams[0], { state: "refused", code: "E_OP_UNKNOWN", family: "op", message: "replaced", guide: "op/manifest" });
     await assert.rejects(refused, (e: any) => e.code === "E_OP_UNKNOWN");
