@@ -5,7 +5,7 @@
 **Systems:** `snapback2/crates/snapback2` (the binary: owner, server, verbs), `snapback2/packages/compiler` (project lowering, worker), `snapback2/packages/snapback2` (authoring runtime, client, React, test runner, shim), `snapback2/scripts/measure.mjs`
 **Author:** Claude Fable 5 (orchestrator) — implementers: codex gpt-5.6-sol, lanes B0 (compiler + authoring surface), B1 (owner + server + verbs), B2 (`init`, `test`, `why`, `trace`, `guide`), D (client + React + evaluator)
 **Date:** 2026-08-29
-**Revised:** 2026-09-06 (app guide operation/certificate custody; native logical SSE body; CLI help and executable migration recovery; auth startup recovery and held transition reads; queued transitions, interrupted sync, live held reads); 2026-09-05 (keyword index fallback and recipe list; generated Quarry keyword guide, landed outbox/client custody; auth review: failed-transition custody, read restoration barrier, session kind, paused offline retries; client-owned auth restoration and retry lifecycle; catalog naming rewrites, Clique L2; shared live transport, bounded derived verification, mutation-read guidance, installed consumer qualification)
+**Revised:** 2026-09-07 (startup cleanup fixture custody); 2026-09-06 (app guide operation/certificate custody; native logical SSE body; CLI help and executable migration recovery; auth startup recovery and held transition reads; queued transitions, interrupted sync, live held reads); 2026-09-05 (keyword index fallback and recipe list; generated Quarry keyword guide, landed outbox/client custody; auth review: failed-transition custody, read restoration barrier, session kind, paused offline retries; client-owned auth restoration and retry lifecycle; catalog naming rewrites, Clique L2; shared live transport, bounded derived verification, mutation-read guidance, installed consumer qualification)
 **Related:** LLP 1000, LLP 1001 (the engine this serves), LLP 1003 (effects),
 LLP 0329.016 §5 (the design this implements verbatim where it can), LLP
 0329.016 §5.11 (the verb table — no verb exists without its row), LLP
@@ -570,7 +570,15 @@ distinguish source validation from owner installation.
 ## 7. `test` and the receipt
 
 `test` starts a fresh owner (`--foreground`, ephemeral port, store at
-`.snapback/test-<ts>.sqlite`, deleted after), applies the seed, then runs:
+`.snapback/test-<ts>.sqlite`, deleted after), applies the seed, then runs
+derived checks and journeys.
+
+Startup cleanup owns scratch and store paths before the first fallible setup
+step, and reaps the directly launched owner before removing those paths and
+SQLite sidecars. Its Unix regression fixture launches `/bin/sleep` directly
+and asserts that the recorded PID no longer exists. A PATH-resolved `node`
+may be a launcher such as Volta; killing that launcher can leave its Node
+descendant alive, so it is not a stand-in for the directly launched owner.
 
 **Derived checks** (generated from the schema, certificate, and seed; visible
 read-only in the receipt, never editable):

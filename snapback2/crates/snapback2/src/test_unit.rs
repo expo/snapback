@@ -4,6 +4,7 @@ use snapback2_core::{Ceilings, Checker, Engine, RuntimeError, Value};
 use std::io::Write;
 use std::net::{TcpListener, TcpStream};
 
+#[cfg(unix)]
 #[test]
 fn startup_cleanup_guard_reaps_the_child_and_removes_every_test_path() {
     let root = std::env::temp_dir().join(format!(
@@ -15,21 +16,44 @@ fn startup_cleanup_guard_reaps_the_child_and_removes_every_test_path() {
     let store = root.join(".snapback/test-failed.sqlite");
     fs::create_dir_all(&scratch).unwrap();
     fs::write(&store, b"test").unwrap();
-    let child = Command::new("node")
-        .args(["-e", "setInterval(() => {}, 1000)"])
-        .spawn()
-        .unwrap();
+    let wal = store.with_extension("sqlite-wal");
+    let shm = store.with_extension("sqlite-shm");
+    fs::write(&wal, b"test").unwrap();
+    fs::write(&shm, b"test").unwrap();
+    // @ref LLP 1002#7-test-and-the-receipt — mirror the direct owner executable.
+    // Like IsolatedOwner's current_exe, launch the executable directly. A PATH
+    // `node` can be a Volta shim whose Node descendant survives Child::kill.
+    let child = Command::new("/bin/sleep").arg("60").spawn().unwrap();
+    let pid = child.id() as i32;
     let mut cleanup = OwnerCleanup {
         child: Some(child),
         scratch: scratch.clone(),
         store: store.clone(),
     };
+    assert!(
+        cleanup
+            .child
+            .as_mut()
+            .unwrap()
+            .try_wait()
+            .unwrap()
+            .is_none()
+    );
+    assert_eq!(unsafe { libc::kill(pid, 0) }, 0);
+    eprintln!("startup cleanup launched direct sleep PID {pid}");
 
     cleanup.clean();
 
     assert!(cleanup.child.is_none());
+    assert_eq!(unsafe { libc::kill(pid, 0) }, -1, "child {pid} survived");
+    assert_eq!(
+        std::io::Error::last_os_error().raw_os_error(),
+        Some(libc::ESRCH)
+    );
     assert!(!scratch.exists());
     assert!(!store.exists());
+    assert!(!wal.exists());
+    assert!(!shm.exists());
     let _ = fs::remove_dir_all(root);
 }
 

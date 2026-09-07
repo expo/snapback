@@ -2,35 +2,6 @@ use super::*;
 use snapback2_core::{Ceilings, Checker, Engine, RuntimeError, Value};
 
 #[test]
-fn startup_cleanup_guard_reaps_the_child_and_removes_every_test_path() {
-    let root = std::env::temp_dir().join(format!(
-        "snapback2-startup-cleanup-{}-{}",
-        std::process::id(),
-        timestamp()
-    ));
-    let scratch = root.join(".snapback/test-run-failed");
-    let store = root.join(".snapback/test-failed.sqlite");
-    fs::create_dir_all(&scratch).unwrap();
-    fs::write(&store, b"test").unwrap();
-    let child = Command::new("node")
-        .args(["-e", "setInterval(() => {}, 1000)"])
-        .spawn()
-        .unwrap();
-    let mut cleanup = OwnerCleanup {
-        child: Some(child),
-        scratch: scratch.clone(),
-        store: store.clone(),
-    };
-
-    cleanup.clean();
-
-    assert!(cleanup.child.is_none());
-    assert!(!scratch.exists());
-    assert!(!store.exists());
-    let _ = fs::remove_dir_all(root);
-}
-
-#[test]
 fn generated_args_exercises_every_arg_type_variant() {
     let program = Program {
         name: "all.args".to_owned(),
