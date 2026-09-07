@@ -219,9 +219,11 @@ See `snapback2 guide effects` for the executable TypeScript recipe.
 
 ```q
 effect notify from delivery
+fn isMember from access
+fn conversationMembers from access
 
 query thread(conversationId: conversations, c: cursor ?):
-  require exists memberships[conversationId, viewer] else MEMBERSHIP_REQUIRED
+  require isMember(conversationId, viewer) else MEMBERSHIP_REQUIRED
   return messages[conversationId] after c last 50
 
 ```
@@ -230,17 +232,17 @@ Send:
 
 ```q
 mutation send(conversationId: conversations, recipientId: profiles, body: text <=4000):
-  require exists memberships[conversationId, viewer] else NOT_MEMBER
+  require isMember(conversationId, viewer) else NOT_MEMBER
   recipient = profiles[recipientId] ! else RECIPIENT_UNKNOWN
-  require exists memberships[conversationId, recipient.principal] else RECIPIENT_NOT_MEMBER
+  require isMember(conversationId, recipient.principal) else RECIPIENT_NOT_MEMBER
   row = insert messages { conversationId, authorId: viewer, body, photo: null, clip: null, at: now }
-  for m in memberships[conversationId] first 50 by byConversationPrincipal:
+  for m in conversationMembers(conversationId):
     insert deliveries { recipient: m.principal, conversationId, messageId: row.id, kind: 'message', at: now }
   emit notify { to: recipient.principal, body }
   return { id: row.id }
 ```
 
-The loop covers the group because memberships is capped at 50 per conversation.
+`conversationMembers` retains the cap-50 bounded fanout.
 
 Edit/unsend target current members. Departed recipients evict unsent bodies by
 point absence on held-page revalidation, not tombstones (LLP 1012 §5).
