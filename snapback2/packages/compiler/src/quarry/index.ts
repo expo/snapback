@@ -41,12 +41,14 @@ export type QuarryPrepareResult =
 // named forms intact for the bound elaborator.
 export function prepareQuarry(
   inputs: QuarryInput[],
-  options: { legacyExpandShapes?: boolean } = {},
+  options: { legacyExpandShapes?: boolean; legacyGeneratedBindings?: boolean } = {},
 ): QuarryPrepareResult {
   const diagnostics: QuarryDiagnostic[] = [];
   let documents: Document[] = [];
   for (const input of inputs) {
-    const parsed = parseDocument(input.fileName, input.source);
+    const parsed = parseDocument(input.fileName, input.source, {
+      legacyGeneratedBindings: options.legacyGeneratedBindings,
+    });
     documents.push(parsed.document);
     diagnostics.push(...parsed.diagnostics);
   }
@@ -77,7 +79,7 @@ export function prepareQuarry(
 // @ref LLP 1004#what-default-binds — Quarry is a compiler front end whose
 // generated TypeScript exists only in memory and retains authored source sites.
 export function compileQuarry(inputs: QuarryInput[]): QuarryCompileResult {
-  const result = prepareQuarry(inputs, { legacyExpandShapes: true });
+  const result = prepareQuarry(inputs, { legacyExpandShapes: true, legacyGeneratedBindings: true });
   if (!result.ok) return result;
   const { documents, catalog, schedules, diagnostics } = result.prepared;
 
