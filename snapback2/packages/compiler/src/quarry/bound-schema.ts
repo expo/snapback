@@ -290,6 +290,9 @@ function bindLiteral(expr: Extract<Expr, { kind: "literal" }>, expected?: Scalar
     }
     return { Int: Number(scaled) };
   }
+  if (!Number.isInteger(expr.value)) typeError(expr.site,
+    "fractional numeric literals require a decimal or money context",
+    "use an integer literal or compare against a decimal or money column");
   return { Int: expr.value };
 }
 
