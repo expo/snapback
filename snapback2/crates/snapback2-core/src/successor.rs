@@ -317,50 +317,9 @@ pub(crate) fn additive_refusal(
             }
         }
     }
-    let mut future_targets = BTreeMap::<String, BTreeMap<String, Value>>::new();
-    for target in rebuilt_targets {
-        future_targets.insert(
-            target.clone(),
-            projected_target_rows(connection, next, &target)?,
-        );
-    }
-    for (table_name, rows) in future_targets {
-        let Some(table) = next.table(&table_name) else {
-            // A destructive migration already removed an old maintained target
-            // whose declaration is absent from the successor.
-            continue;
-        };
-        for (index_name, index) in table.indexes.iter().filter(|(_, index)| index.unique) {
-            let mut counts = BTreeMap::<String, (Vec<Value>, usize)>::new();
-            for row in rows.values() {
-                let key = index
-                    .components
-                    .iter()
-                    .filter_map(crate::search_key::IndexComponent::column)
-                    .map(|column| row.field(column).cloned().unwrap_or(Value::Null))
-                    .collect::<Vec<_>>();
-                counts
-                    .entry(canonical_json(&key))
-                    .and_modify(|(_, count)| *count += 1)
-                    .or_insert((key, 1));
-            }
-            for (_, (key, count)) in counts {
-                if count > 1 {
-                    let conflict = UniqueConflict {
-                        table: table_name.clone(),
-                        index: index_name.clone(),
-                        key,
-                    };
-                    if !conflicts.contains(&conflict) {
-                        conflicts.push(conflict);
-                    }
-                    if conflicts.len() == 10 {
-                        return Ok(Some(SuccessorRefusal::unique(conflicts)));
-                    }
-                }
-            }
-        }
-    }
+    // Rebuilt targets validate the final survivor-plus-projection state inside
+    // rebuild_target. Deferring that check preserves dependency order when one
+    // maintained target is the next target's source.
     Ok((!conflicts.is_empty()).then(|| SuccessorRefusal::unique(conflicts)))
 }
 

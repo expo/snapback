@@ -836,7 +836,11 @@ fn maintained_update_writes_are_charged_twice_and_exact_ceiling_matches_runtime(
         )
         .unwrap();
     assert_eq!(execution.trace.writes.get("source"), Some(&1024));
-    assert_eq!(execution.trace.writes.get("counts"), Some(&2048));
+    assert_eq!(
+        execution.trace.writes.get("counts"),
+        None,
+        "same-group source edits reserve maintained work but do not change the sparse target"
+    );
 }
 
 fn width_schema(width: usize) -> Schema {
