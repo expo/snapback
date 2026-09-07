@@ -4,6 +4,8 @@ import type { OperationSignature } from "../lower/effects";
 import { bindQuarrySchema } from "./bound-schema";
 import { bindQuarryProgram, type BoundQuarryProgram } from "./bound";
 import { lowerBoundQuarryProgram } from "./direct";
+import type { QuarryDiagnostic } from "./ast";
+import { QuarryError } from "./diagnostics";
 import type { PreparedQuarry } from "./index";
 
 export type BoundEffectReference = {
@@ -25,14 +27,46 @@ export type BoundQuarryProject = {
   inspection: QuarryGenerated[];
 };
 
+export type BoundQuarryProjectResult =
+  | { ok: true; project: BoundQuarryProject }
+  | { ok: false; diagnostics: QuarryDiagnostic[] };
+
 /** Build the complete Quarry data plane from typed bound declarations. */
 export function bindQuarryProject(prepared: PreparedQuarry): BoundQuarryProject {
   const schema = bindQuarrySchema(prepared.documents, prepared.catalog);
+  const boundPrograms = prepared.documents.flatMap((document) => document.programs.map((program) =>
+    bindQuarryProgram(program, prepared.catalog, prepared.documents)));
+  return assembleBoundQuarryProject(prepared, schema, boundPrograms);
+}
+
+/** Production aggregation binds every operation so one bad declaration does
+ * not hide independent authored refusals in later modules. */
+export function tryBindQuarryProject(prepared: PreparedQuarry): BoundQuarryProjectResult {
+  const diagnostics: QuarryDiagnostic[] = [];
+  let schema: SchemaJson | undefined;
+  try { schema = bindQuarrySchema(prepared.documents, prepared.catalog); } catch (error) {
+    if (!(error instanceof QuarryError)) throw error;
+    diagnostics.push(error.diagnostic);
+  }
+  const boundPrograms: BoundQuarryProgram[] = [];
+  for (const document of prepared.documents) for (const program of document.programs) {
+    try { boundPrograms.push(bindQuarryProgram(program, prepared.catalog, prepared.documents)); } catch (error) {
+      if (!(error instanceof QuarryError)) throw error;
+      diagnostics.push(error.diagnostic);
+    }
+  }
+  if (!schema || diagnostics.length > 0) return { ok: false, diagnostics };
+  return { ok: true, project: assembleBoundQuarryProject(prepared, schema, boundPrograms) };
+}
+
+function assembleBoundQuarryProject(
+  prepared: PreparedQuarry,
+  schema: SchemaJson,
+  boundPrograms: BoundQuarryProgram[],
+): BoundQuarryProject {
   if (prepared.schedules.length > 0) schema.schedules = prepared.schedules.map(({ bindingName, ...schedule }) => ({
     ...schedule, binding: bindingName,
   }));
-  const boundPrograms = prepared.documents.flatMap((document) => document.programs.map((program) =>
-    bindQuarryProgram(program, prepared.catalog, prepared.documents)));
   const programs = boundPrograms.map(lowerBoundQuarryProgram).sort((left, right) => left.name.localeCompare(right.name));
   const scheduleTargets = new Set(prepared.schedules.map((schedule) => schedule.target));
   const scheduleBindings = new Set(prepared.schedules.map((schedule) => schedule.bindingName));

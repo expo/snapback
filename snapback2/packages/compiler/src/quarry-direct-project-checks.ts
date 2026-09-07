@@ -1,14 +1,47 @@
 import { readFileSync, readdirSync } from "node:fs";
 import { join, resolve } from "node:path";
+import { deepStrictEqual } from "node:assert";
 import ts from "typescript";
 import { collectEffectCatalog, lowerEffects, type SourceModule } from "./lower/effects";
 import { createProjectProgram, loadCompilerLib, projectTypeDiagnostics } from "./project-program";
+import { lowerProject } from "./project";
+import { rustCheck } from "./rust-check";
 import { boundEffectDeclarationSources } from "./quarry/bound-effects-stubs";
 import { bindQuarryProject } from "./quarry/bound-project";
 import { prepareQuarry, type QuarryInput } from "./quarry/index";
-import { assert, type Test } from "./quarry-check-helpers";
+import { assert, type Test, withProject } from "./quarry-check-helpers";
 
 export function registerQuarryDirectProjectChecks(test: Test, frontend: string): void {
+  test("production Quarry project uses the bound data plane and aggregates authored refusals", async () => {
+    const root = resolve(frontend, "fixtures/quarry-chat");
+    const prepared = fixture(root);
+    const expected = bindQuarryProject(prepared);
+    const production = await lowerProject(root);
+    assert(production.ok, `production direct Quarry project refused: ${production.ok ? "" : JSON.stringify(production.diagnostics)}`);
+    deepStrictEqual(production.project.programs, expected.programs);
+    const failures = rustCheck(production.project.programs, "synthetic", production.project.schema, undefined, production.project.effects)
+      .filter((checked) => checked.error);
+    assert(failures.length === 0, `production direct Quarry programs did not certify: ${JSON.stringify(failures)}`);
+    assert(production.project.effects.some((effect) => effect.name === "delivery.notify")
+      && production.quarry.every((item) => item.generated.endsWith(".ir.json") && !item.source.includes("GENERATED"))
+      && Object.values(production.sources).every((site) => site.file.endsWith(".q"))
+      && production.apiDts.includes("interface Api"),
+    `production assembly retained generated TypeScript custody: ${JSON.stringify(production.quarry)}`);
+
+    await withProject({
+      "snapback/schema.q": "table rows:\n  public\n",
+      "snapback/a.q": "query first():\n  return missing\n",
+      "snapback/b.q": "query second():\n  return alsoMissing\n",
+    }, async (invalidRoot) => {
+      const invalid = await lowerProject(invalidRoot);
+      assert(!invalid.ok && invalid.diagnostics.length === 2
+        && invalid.diagnostics.every((item) => item.code === "E_QUARRY_UNKNOWN")
+        && invalid.diagnostics.some((item) => item.site === "snapback/a.q:2:10")
+        && invalid.diagnostics.some((item) => item.site === "snapback/b.q:2:10"),
+      `production direct diagnostics did not aggregate authored sites: ${JSON.stringify(invalid)}`);
+    });
+  });
+
   test("direct Quarry project exposes executable IR and declaration-only effect signatures", () => {
     const root = resolve(frontend, "fixtures/quarry-chat");
     const prepared = fixture(root);
