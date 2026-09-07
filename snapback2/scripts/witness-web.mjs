@@ -206,33 +206,71 @@ async function sharedSessions(context, writer, appUrl, ownerUrl) {
   await writer.waitForFunction(async () => window.__snapback && (await window.__snapback.outbox.status()).ready,
     null, { timeout: 15_000 });
   const added = [];
+  const controls = [];
   const replayed = [];
   context.on("request", (request) => {
-    if (request.url() === ownerUrl + "/api/live/control") added.push(...(request.postDataJSON()?.add ?? []));
+    if (request.url() === ownerUrl + "/api/live/control") {
+      const body = request.postDataJSON() ?? {};
+      controls.push(body); added.push(...(body.add ?? []));
+    }
     if (request.url() === ownerUrl + "/api/mutation") replayed.push(request.postDataJSON());
   });
-  const shared = await writer.evaluate(async () => {
+  try {
+  const sharedArgs = { conversationId: "conversation-2", c: null };
+  const shared = await writer.evaluate(async (args) => {
     const client = window.__snapback;
     const op = window.__api.deliveries.thread;
-    const args = { conversationId: "conversation-2", c: null };
     const first = client.subscribe(op, args, () => undefined);
     const second = client.subscribe(op, args, () => undefined);
-    const [a, b] = await Promise.all([first.until(e => e.state === "complete", 5000), second.until(e => e.state === "complete", 5000)]);
-    const two = client.sharedConsumers(op, args);
-    first.close();
-    const one = client.sharedConsumers(op, args);
-    const survivor = await second.until(e => e.state === "complete", 5000);
-    second.close();
-    return { two, one, zero: client.sharedConsumers(op, args), seq: [a.seq, b.seq, survivor.seq], data: [a.data, b.data, survivor.data] };
-  });
+    let firstOpen = true, secondOpen = true;
+    try {
+      const [a, b] = await Promise.all([first.until(e => e.state === "complete", 5000), second.until(e => e.state === "complete", 5000)]);
+      const two = client.sharedConsumers(op, args);
+      first.close(); firstOpen = false;
+      const one = client.sharedConsumers(op, args);
+      const survivor = await second.until(e => e.state === "complete", 5000);
+      second.close(); secondOpen = false;
+      return { two, one, zero: client.sharedConsumers(op, args), seq: [a.seq, b.seq, survivor.seq], data: [a.data, b.data, survivor.data] };
+    } finally {
+      if (firstOpen) first.close();
+      if (secondOpen) second.close();
+    }
+  }, sharedArgs);
   assert.deepEqual([shared.two, shared.one, shared.zero], [2, 1, 0]);
   assert.equal(new Set(shared.seq).size, 1);
   assert.deepEqual(shared.data[0], shared.data[1]);
   assert.deepEqual(shared.data[0], shared.data[2]);
   const children = added.filter(child => child.path.includes("deliveries.thread"));
-  assert.equal(children.length, 1, "duplicate app consumers add exactly one logical owner subscription");
-  step("two app consumers share one logical owner subscription; closing one preserves the other", { consumers: [2, 1, 0], logicalSubscriptions: children.length });
+  const described = children.map(child => {
+    const path = new URL(child.path, ownerUrl);
+    let args;
+    try {
+      args = JSON.parse(path.searchParams.get("args") ?? "{}");
+    } catch { args = { malformed: path.searchParams.get("args") }; }
+    return { id: child.id, op: path.searchParams.get("op"), args, lastEventId: child.lastEventId };
+  });
+  const targetChildren = described.filter(child => child.op === "deliveries.thread"
+    && child.args.conversationId === sharedArgs.conversationId);
+  const targetIds = [...new Set(targetChildren.map(child => child.id))];
+  assert.equal(targetIds.length, 1,
+    `duplicate app consumers add exactly one logical owner stream identity: ${JSON.stringify({ described, controls })}`);
+  const removeDeadline = Date.now() + 2_000;
+  while (!controls.some(control => control.remove?.includes(targetIds[0])) && Date.now() < removeDeadline) {
+    await writer.waitForTimeout(25);
+  }
+  const transport = await writer.evaluate(() => window.__witnessRequests
+    .filter(request => request.path === "/api/live/control").slice(-8));
+  assert.ok(controls.some(control => control.remove?.includes(targetIds[0])),
+    `last close must remove the active owner stream: ${JSON.stringify({ targetIds, controls, transport })}`);
+  step("two app consumers share one logical owner subscription; closing one preserves the other", {
+    consumers: [2, 1, 0], streamId: targetIds[0], addOccurrences: targetChildren.length,
+    siblingAdds: described.filter(child => !targetIds.includes(child.id)), transport,
+  });
+  } catch (error) {
+    fail("two app consumers share one logical owner subscription and release it", error);
+  }
 
+  try {
   const follower = await context.newPage();
   await follower.goto(appUrl);
   await follower.waitForFunction(async () => window.__snapback
@@ -293,6 +331,9 @@ async function sharedSessions(context, writer, appUrl, ownerUrl) {
   step("closing the writer transfers its Web Lock and one cross-tab FIFO queue; the new writer commits", {
     replayIntents: inherited.map(request => request.replay.intent), rowsPerIntent: 1,
   });
+  } catch (error) {
+    fail("two offline tabs share one durable queue and transfer writer ownership", error);
+  }
 }
 
 async function main() {

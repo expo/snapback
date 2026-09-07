@@ -84,13 +84,22 @@ function coldStores(cold) {
 }
 function coldAssertions(state) {
   assert.equal(state.outbox.filter((entry) => entry.state === "queued").length, 2);
-  const facts = state.answer ? { state: state.answer.state, connection: state.answer.connection, live: state.answer.live, stale: state.answer.stale, predicted: state.answer.predicted, site: state.answer.site, reason: state.answer.reason, hydrating: state.answer.state === "hydrating", rows: Array.isArray(state.answer.data) ? state.answer.data.length : null, twin: state.twin } : null;
+  const queryFacts = (answer) => answer ? {
+    state: answer.state, connection: answer.connection, live: answer.live,
+    stale: answer.stale, predicted: answer.predicted, site: answer.site,
+    reason: answer.reason, data: Array.isArray(answer.data) ? answer.data.map((row) => ({
+      id: row.id, conversationId: row.conversationId, body: row.body,
+      messageId: row.message?.id, messageBody: row.message?.body,
+    })) : null,
+  } : null;
+  const facts = { answer: queryFacts(state.answer), search: queryFacts(state.search),
+    twin: state.twin, roomCoverage: state.coverage.rows.filter((row) => row.row?.conversationId === seed.rooms[3]) };
   assert.ok((state.answer?.predicted ?? []).includes(queued[0].intent), `predicted intent must be on the query result; answer facts: ${JSON.stringify(facts)}; outbox: ${JSON.stringify(state.outbox.map((entry) => ({ state: entry.state, predicted: entry.predicted, intent: entry.intent })))}`);
   assert.ok(state.answer.data.some((row) => row.message?.body === "Café offline first"), "queued send must be inside the never-opened query's data");
   assert.ok(state.bubbles.some((bubble) => bubble.key === queued[0].ids[0] && bubble.kind === "pending"));
   assert.equal(state.search.state, "held");
   assert.ok(state.search.data.some((row) => row.id === queued[0].ids[0] && row.body === "Café offline first"),
-    "cold indexed search includes the predicted message row");
+    `cold indexed search includes the predicted message row; query facts: ${JSON.stringify(facts)}; expected: ${JSON.stringify({ id: queued[0].ids[0], body: "Café offline first", intent: queued[0].intent })}; outbox: ${JSON.stringify(state.outbox.map((entry) => ({ state: entry.state, predicted: entry.predicted, intent: entry.intent, ids: entry.ids })))}`);
   for (const room of seed.rooms) assert.ok(state.coverage.rows.some((row) => row.table === "deliveries" && row.row.conversationId === room));
 }
 async function coldMedia(step) {
