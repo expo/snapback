@@ -336,6 +336,10 @@ async function main() {
     // finds the composed mixed-case word and records the exact prefix coverage.
     await page.fill("section[aria-label=Search] input", indexedSearchTerm);
     await page.waitForSelector(`section[aria-label=Search] li[data-message="${seeded.doomedMessageId}"]`, { timeout: 10_000 });
+    await page.waitForFunction(() => {
+      const state = document.querySelector("section[aria-label=Search] .scope")?.getAttribute("data-state");
+      return state === "complete" || state === "capped";
+    }, null, { timeout: 10_000 });
     const warmSearch = await page.$eval("section[aria-label=Search] .scope", (node) => ({ state: node.getAttribute("data-state"), text: node.textContent }));
     if (warmSearch.state !== "complete" && warmSearch.state !== "capped") throw new Error(`warm indexed search was ${JSON.stringify(warmSearch)}`);
     step("Unicode one-word prefix runs through the live messages.search index", warmSearch);
@@ -433,6 +437,10 @@ async function main() {
     // Revocation received on resume invalidates the same persistent index trace.
     await page.fill("section[aria-label=Search] input", indexedSearchTerm);
     await page.waitForSelector(`section[aria-label=Search] li[data-message="${seeded.doomedMessageId}"]`, { timeout: 10_000 });
+    await page.waitForFunction(() => {
+      const state = document.querySelector("section[aria-label=Search] .scope")?.getAttribute("data-state");
+      return state === "complete" || state === "capped";
+    }, null, { timeout: 10_000 });
     await page.evaluate(() => window.__snapback.offline());
     const revoker = createClient({ url: owner.url, as: "alice" });
     const unsent = await revoker.mutation(api.deliveries.unsend, { messageId: seeded.doomedMessageId });
