@@ -1136,7 +1136,10 @@ fn generated_arg(
             // Search terms must normalize to one word, while still respecting
             // narrow authored bounds used by fixture and application queries.
             "term" if format.is_none() => {
-                json!("d".repeat((*min).max(1).min(*max) as usize))
+                let length = (*min).max(1).min(*max) as usize;
+                let mut term = "welcome"[..length.min("welcome".len())].to_owned();
+                term.extend(std::iter::repeat_n('x', length.saturating_sub(term.len())));
+                json!(term)
             }
             "handle" => json!("derived_handle"),
             "avatarUrl" => json!("https://example.com/derived-avatar.png"),

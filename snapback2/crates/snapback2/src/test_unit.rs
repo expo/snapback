@@ -210,7 +210,7 @@ fn generated_args_exercises_every_arg_type_variant() {
     assert_eq!(args["list"], json!([]));
     assert_eq!(args["decimal"], 100);
     assert_eq!(args["money"], 100);
-    assert_eq!(args["term"], "ddd");
+    assert_eq!(args["term"], "wel");
 }
 
 #[test]
