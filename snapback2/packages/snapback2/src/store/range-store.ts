@@ -77,6 +77,8 @@ export interface HeldAnswer<Result = unknown> {
   watermark?: string | null;
   reason?: string;
   rule?: string;
+  /** The owner's execution read time of a clock-reading program's answer (LLP 1012 §8). */
+  readTime?: number;
 }
 
 export interface StoredAnswer extends Omit<HeldAnswer, "data"> {
@@ -237,6 +239,7 @@ export interface StoreDelivery {
   deliveredAt?: number;
   reason?: string;
   rule?: string;
+  readTime?: number;
 }
 
 export interface StoreTombstone extends RowRef { seq: number }
@@ -1082,7 +1085,14 @@ export class PersistentRangeStore implements RangeStore {
         const fullSeq = old.nextSeq ?? old.seq;
         if (fullSeq === delivery.seq
           || old.fingerprint !== sha256(canonical({ ...fingerprintPayload, seq: fullSeq }))) {
-          throw new TypeError(`conflicting deliveries for ${delivery.op} at seq ${delivery.seq}`);
+          // @ref LLP 1012#8-the-delivery-envelope-the-validator-and-resume — a program that
+          // reads the clock re-executes at one durable seq with a different answer; the
+          // owner's execution read time orders those deliveries. A later execution installs,
+          // an older one is stale and stays out; the same read time with different bytes,
+          // or no read time at all, is the equivocation this refuses.
+          const later = typeof delivery.readTime === "number" && typeof old.readTime === "number" && delivery.readTime !== old.readTime;
+          if (!later) throw new TypeError(`conflicting deliveries for ${delivery.op} at seq ${delivery.seq}`);
+          if (delivery.readTime! < old.readTime!) continue;
         }
       }
       for (const row of delivery.rows ?? []) {
@@ -1152,6 +1162,7 @@ export class PersistentRangeStore implements RangeStore {
         ...(retained ? { retained: true } : {}),
         ...(delivery.reason === undefined ? {} : { reason: delivery.reason }),
         ...(delivery.rule === undefined ? {} : { rule: delivery.rule }),
+        ...(delivery.readTime === undefined ? {} : { readTime: delivery.readTime }),
         refs,
         order: ++state.clock,
         fingerprint,

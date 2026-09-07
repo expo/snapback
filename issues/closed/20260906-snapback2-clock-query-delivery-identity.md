@@ -1,6 +1,6 @@
 # Snapback2 clock-sensitive queries conflict on legitimate same-sequence delivery
 
-Status: Open
+Status: Closed (repaired on main 2026-09-07; unpublished)
 Date: 2026-09-06
 Scope: Snapback2 owner query envelope and persistent client delivery identity
 
@@ -131,3 +131,25 @@ Runs, screenshots, and recordings under
 `~/verify-snapback2-liveoffline-20260906/evidence-native-clock/`. With the
 Node disagreement control above, the candidate meets this ticket's closing
 bar except that it has not landed; close on landing.
+
+## Resolution on main (2026-09-07)
+
+Repaired on `main` independently of the lanes' larger candidate, with the
+same wire field so both clients read the same owner: the owner stamps a
+delivery with the execution read time it pinned whenever the program's
+certificate carries `read_time_granularity_ms` (`DeliveryEnvelopeV1.readTime`,
+outside the validator), and the client orders same-`seq` deliveries of that
+op by the stamp — a later execution installs, an older one arriving late is
+stale and stays out, the same stamp with different bytes or no stamp at all
+is still the equivocation this ticket preserves (LLP 1012 §8).
+
+Verified with the retained tests, all against main's rebuilt owner and client:
+`d2-clock-conflict.mjs` 5/5 (was 3/5); disagreement control
+`h2-owner-reset-same-seq.mjs` 8/8 (non-timed same-seq still refused, typed);
+`f-denied-next.mjs` 6/6; and the actual native case on the Expo SQLite
+carrier (apartment M1, Release Hermes, run `native-clock-main-repair`): the
+second read installs the moved `now` at seq 1 and the cold read after a
+`SIGKILL` and relaunch is complete. Unit coverage: a store test for later,
+older, equal, and unstamped same-seq deliveries with a cold reopen, and an
+owner envelope test that the stamp is optional and never moves the validator.
+The published 0.0.13 does not carry this yet; the next publication will.

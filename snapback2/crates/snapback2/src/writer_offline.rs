@@ -41,6 +41,12 @@ pub(super) fn envelope_json(
         .iter()
         .any(|site| site.table == snapback2_core::CONNECTED_TABLE)
         .then_some(true);
+    // @ref LLP 1012#8-the-delivery-envelope-the-validator-and-resume — a program whose
+    // certificate reads the clock re-executes at one durable seq with a different answer;
+    // the execution read time pinned on this context lets the client order those deliveries.
+    if certificate.read_time_granularity_ms.is_some() {
+        envelope.read_time = context.read_time;
+    }
     Ok(serde_json::to_value(envelope).expect("delivery envelope is serializable"))
 }
 

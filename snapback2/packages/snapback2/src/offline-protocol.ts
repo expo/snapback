@@ -90,6 +90,8 @@ export interface DeliveryEnvelopeV1 {
   rows: DeliveryRow[];
   receipt: DeliveryReceipt;
   validator: string;
+  /** The owner's execution read time, only for a program whose certificate reads the clock. */
+  readTime?: number;
 }
 
 export interface DeliveryUnchanged {
@@ -157,7 +159,8 @@ export function decodeDeliveryEnvelope(json: unknown): DeliveryEnvelopeV1 {
   object(json, "$", [
     "protocol", "generation", "schemaHash", "planHash", "authority", "state",
     "data", "next", "seq", "rows", "receipt", "validator",
-  ], ["reason", "rule", "connected"]);
+  ], ["reason", "rule", "connected", "readTime"]);
+  if (json.readTime !== undefined) uint(json.readTime, "$.readTime");
   if (json.connected !== undefined && json.connected !== true) fail("$.connected", "must be true when present");
   if (json.protocol !== 1) fail("$.protocol", "unsupported delivery protocol");
   digest(json.generation, "$.generation");

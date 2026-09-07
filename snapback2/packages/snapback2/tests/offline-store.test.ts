@@ -1315,3 +1315,33 @@ test("clients without offline storage preserve query bytes and logical subscript
   sub.close();
   client.close();
 });
+
+// @ref LLP 1012#8-the-delivery-envelope-the-validator-and-resume — a program that reads the
+// clock re-executes at one durable seq with a different answer; the owner's execution read
+// time orders those deliveries. Every other same-seq disagreement stays an equivocation.
+test("a clock-reading program's later execution installs at the same seq; older, equal, and unstamped ones do not", async () => {
+  const root = await tempRoot();
+  let store = fileRangeStore(root)();
+  await store.open("dev:alice");
+  const timed = { op: "clock.serverNow", args: {}, state: "complete" as const, next: null, seq: 7, receipt: emptyReceipt() };
+  await store.commit({ deliveries: [{ ...timed, data: { now: 1000 }, validator: "1".repeat(64), readTime: 1000 }] });
+  await store.commit({ deliveries: [{ ...timed, data: { now: 2000 }, validator: "2".repeat(64), readTime: 2000 }] });
+  assert.deepEqual((await store.answer("clock.serverNow", {}))?.data, { now: 2000 }, "a later execution installs at the same seq");
+  await store.commit({ deliveries: [{ ...timed, data: { now: 1500 }, validator: "3".repeat(64), readTime: 1500 }] });
+  assert.deepEqual((await store.answer("clock.serverNow", {}))?.data, { now: 2000 }, "an older execution arriving late is stale and stays out");
+  await assert.rejects(store.commit({ deliveries: [{ ...timed, data: { now: 2001 }, validator: "4".repeat(64), readTime: 2000 }] }),
+    /conflicting deliveries/, "the same read time with different bytes is equivocation");
+  const plain = { op: "plain", args: {}, state: "complete" as const, data: [1], next: null, seq: 8, receipt: emptyReceipt() };
+  await store.commit({ deliveries: [plain] });
+  await assert.rejects(store.commit({ deliveries: [{ ...plain, data: [2] }] }), /conflicting deliveries/, "an unstamped program still refuses");
+  await store.close?.();
+  store = fileRangeStore(root)();
+  await store.open("dev:alice");
+  const cold = await store.answer("clock.serverNow", {});
+  assert.deepEqual(cold?.data, { now: 2000 });
+  assert.equal(cold?.readTime, 2000, "the stamp survives a cold reopen");
+  await store.commit({ deliveries: [{ ...timed, data: { now: 3000 }, validator: "5".repeat(64), readTime: 3000 }] });
+  assert.deepEqual((await store.answer("clock.serverNow", {}))?.data, { now: 3000 }, "and still orders after the reopen");
+  await store.close?.();
+  await rm(root, { recursive: true, force: true });
+});

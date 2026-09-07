@@ -987,8 +987,21 @@ type DeliveryEnvelopeV1 = {
     verdicts: Verdict[];
   };
   validator: string;       // server-minted; opaque; echoed, never recomputed
+  readTime?: number;       // the owner's execution read time, only when the certificate reads the clock (2026-09-07)
 }
 ```
+
+**Clock-reading programs (2026-09-07).** A query whose certificate carries
+`read_time_granularity_ms` re-executes at one durable `seq` with a different
+answer, because `now` moved. The owner stamps such deliveries with the
+execution read time it pinned; the client orders same-`seq` deliveries of that
+op by the stamp: a later execution installs, an older one arriving late is
+stale and stays out, and the same stamp with different bytes — or a delivery
+without one — is the equivocation §8 refuses. The stamp is outside the
+validator and the fingerprint: an answer's identity is its bytes, the stamp
+only says which execution is later. Found on the published 0.0.10 by the
+independent verification (`clock.serverNow` refused on its second read,
+warm and cold, on Node and the Expo carrier).
 
 Rows appear once, in the pool; `data` and the receipt reference them by
 `(table, id)` through engine-tracked provenance — never by body equality, so two

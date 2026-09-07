@@ -581,6 +581,7 @@ export class OfflineRuntime {
           ...(envelope?.validator === undefined ? {} : { validator: envelope.validator }),
           ...(envelope?.receipt === undefined ? {} : { receipt: envelope.receipt }),
           ...(envelope?.rows === undefined ? {} : { rows: envelope.rows }),
+          ...(envelope?.readTime === undefined ? {} : { readTime: envelope.readTime }),
           ...("reason" in source && typeof source.reason === "string" ? { reason: source.reason } : {}),
           ...("rule" in source && typeof source.rule === "string" ? { rule: source.rule } : {}),
           deliveredAt: Date.now(),

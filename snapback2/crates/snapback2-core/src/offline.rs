@@ -252,6 +252,11 @@ pub struct DeliveryEnvelopeV1 {
     pub validator: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub connected: Option<bool>,
+    /// The owner's execution read time, present only for a program whose certificate reads
+    /// the clock: such a program re-executes at one durable seq with a different answer, and
+    /// this stamp orders those deliveries on the client. Outside the validator by design.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub read_time: Option<i64>,
 }
 
 pub struct DeliveryProjectionContext<'a> {
@@ -377,6 +382,7 @@ pub fn project(
     });
     Ok(DeliveryEnvelopeV1 {
         connected: None,
+        read_time: None,
         protocol: DELIVERY_PROTOCOL_V1,
         generation: context.generation.to_owned(),
         schema_hash: context.schema_hash.to_owned(),
@@ -686,6 +692,25 @@ mod tests {
         let serialized = serde_json::to_value(&envelope).unwrap();
         assert!(serialized["receipt"]["ranges"][0].get("halo").is_none());
         assert!(serialized["receipt"].get("rows").is_none());
+    }
+
+    #[test]
+    fn envelope_read_time_is_optional_and_outside_the_validator() {
+        let execution = execution(ClosureReceipt {
+            schema_hash: Some(hash('b')),
+            rows: vec![row("message-1", "hello")],
+            ranges: Vec::new(),
+            absences: Vec::new(),
+            verdicts: Vec::new(),
+        });
+        let mut envelope = project_test(&execution, &hash('d'), "alice", 3);
+        let bare = serde_json::to_value(&envelope).unwrap();
+        assert!(bare.get("readTime").is_none(), "no stamp unless the program reads the clock");
+        let validator = envelope.validator.clone();
+        envelope.read_time = Some(1_788_000_000_000);
+        let stamped = serde_json::to_value(&envelope).unwrap();
+        assert_eq!(stamped["readTime"], json!(1_788_000_000_000_i64));
+        assert_eq!(envelope.validator, validator, "the stamp never moves the validator");
     }
 
     #[test]
