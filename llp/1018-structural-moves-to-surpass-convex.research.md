@@ -1,0 +1,459 @@
+# LLP 1018: Structural moves to surpass Convex in Clique
+
+**Type:** Research
+**Status:** Active
+**Systems:** Snapback 2 client and offline runtime, live queries, query engine,
+certification, Quarry compiler, schema evolution, agent authoring experience,
+Clique benchmark
+**Author:** Codex gpt-6-astra (initial draft, commissioned by Charlie Cheever,
+2026-09-06); revised by Claude Fable 5.1 after the five-model panel of
+2026-09-06/07 (§9), which the author convened
+**Date:** 2026-09-06
+**Revised:** 2026-09-07 (panel revision: a second measure, move one rewritten
+around what already exists, the browser-tab policy decided, count-backed cap
+probes decided, the typed IR cut, move four evidence-led, move zero added, the
+Muse scores cited, the clock repair marked landed; implementation record §10);
+2026-09-06 (initial evidence-backed assessment)
+**Related:** LLP 1000, LLP 1001, LLP 1002, LLP 1004, LLP 1010, LLP 1011,
+LLP 1012, LLP 1013, LLP 1015, LLP 1016, LLP 1017, LLP 0329.014.007;
+`benchmarks/briefs/social-messenger.md`,
+`benchmarks/runs/2026-09-06-clique-improvement/README.md`,
+`benchmarks/runs/2026-09-05-clique-full-3x3/holistic-scores.md`;
+`llp/reviews/1018-panel.*.md`
+
+## 1. Thesis and scope
+
+Snapback's best primitives are increasingly competitive. Its remaining
+disadvantage is how much application code connects those primitives into a
+working product, and how much of the platform's contract a builder has to
+discover by probing it. The structural investment should make authorization,
+live queries, persistence, prediction, search, and evolution compose through
+the ordinary application surface, and make every seam a builder meets explain
+itself.
+
+The architectural measure is a pair, both countable from a build diary:
+
+- **Application-owned infrastructure removed**: corrective caches, custom
+  indexers, subscription coordinators, resume anchors, per-tab database
+  forks, and recovery scripts. A smaller backend declaration is insufficient
+  if its client needs a second synchronization implementation.
+- **Contracts derived from behavior**: every readiness rule, cursor shape,
+  grant ritual, lease, or refusal a builder learned by experiment instead of
+  from a diagnostic, a `status` reason, or a guide line. Muse's 0.0.4 scorer
+  put a third of its build time here; Astra's setup and diagnostics rows say
+  the same in fewer words (§2).
+
+The first measure without the second lets a platform remove code by moving
+friction into opaque refusals; the second without the first lets it document
+its way around plumbing it should own. Both are Snapback-attributed
+correction loops in the loop bar's terms (`rules/NOT-DOING.md`).
+
+This Research LLP records findings, decisions, priorities, and success
+criteria. The panel of §9 converted the draft's proposals into the decisions
+of §3–§7; §10 records which slices were built under those decisions, by whom,
+and on what date. Concrete amendments to a mechanism still extend the
+relevant existing LLP (1012 for the client, 1017 for caps, 1004 for lowering).
+
+The covering-document search found mechanisms in LLPs 1001/1002,
+1011/1012, and 1015/1016/1017, and an earlier competitive assessment in
+[LLP 0329.014.007](./0329.014.007-competitive-and-local-first-assessment.research.md).
+This is a separate Snapback 2 assessment because it draws on published
+Clique builds across those mechanisms, rather than specifying one parent
+proposal.
+
+## 2. Evidence and what the scores establish
+
+The [original narrative assessment](../benchmarks/runs/2026-09-05-clique-full-3x3/holistic-scores.md)
+scored Snapback 0.0.4 / Convex / Supabase at 64 / 84 / 77 for Astra,
+57 / 78 / 47 for Grok, and, added on 2026-09-07 once its three lanes finished,
+78 / 82 / 62 for Muse Spark 1.3 (mean of three scorers 66 / 81 / 62). The
+[later Astra diagnostic assessment](../benchmarks/runs/2026-09-06-clique-improvement/evidence/astra-008-interim-holistic/score.md)
+scored Snapback 0.0.8 / Convex / Supabase at 72 / 83 / 74, reusing historical
+competitor narratives.
+
+| Category | Astra: Snapback 0.0.8 | Astra: Convex | Muse: Snapback 0.0.4 |
+|---|---:|---:|---:|
+| Authorization | 92 | 82 | 80 |
+| Media assets | 94 | 76 | 80 |
+| Offline sync | 68 | 48 | 92 |
+| Writes and transactions | 89 | 93 | 85 |
+| Background work | 89 | 88 | 45 |
+| Queries and live updates | 65 | 87 | 55 |
+| Client integration | 63 | 83 | 65 |
+| Diagnostics and dev loop | 65 | 87 | 50 |
+| Setup and docs | 68 | 83 | 38 |
+| Scale and limits | 58 | 80 | — |
+
+Two scorers, two packages, one shape: Snapback wins or ties where the work is
+a primitive (authorization, media, offline persistence, writes) and loses
+where the work is composition or discovery (queries and live, client
+integration, diagnostics, setup). Muse's notes name the discovery half
+directly: "dev/reset have no --help", "grants/outbox/drain/lease semantics
+came only from probes", "truncated 120-char miss lines caused four
+misdiagnosed loops", "the viewed-guard lives only in .d.ts prose". Astra's
+0.0.8 notes name the composition half: "a separate inbox client/cache, fresh
+time-dependent queries and a root resume anchor around confirmed SDK
+defects", "the second page boots memory-only".
+
+These are individual narrative observations, not statistical estimates or
+independent acceptance grades. The changed competitor rescore does not lower
+the original fixed comparison bar of 84. Nor is 64 to 72 a controlled causal
+estimate of improvement. Later package fixes receive no retrospective credit.
+Muse's ultra-effort scoring remains unavailable; its xhigh scores are what
+exist.
+
+The [retained checkpoint](../benchmarks/runs/2026-09-06-clique-improvement/README.md)
+at 2026-09-07 00:33Z records publication of 0.0.13, an incomplete cold run,
+and no new holistic score or three-family win. Nothing here claims that
+0.0.13 has the same defects or scores as 0.0.8.
+
+Two features of the [canonical rubric](../benchmarks/briefs/social-messenger.md#scoring)
+matter to prioritization. Offline behavior O4 and offline authoring B4
+together carry 16 weighted points; day-2 evolution B8 and operations B11
+carry 11. One failed degradation predicate keeps O5 at its floor, so the feed
+alone cannot lift that band. Holistic scoring is separate and non-formulaic.
+Unexercised dimensions can prevent a weighted total, so component
+improvements alone cannot establish a comparative win.
+
+## 3. Move one: one coherent reactive client
+
+**Finding.** The 0.0.8 assessment records a separate inbox client/cache,
+fresh time-dependent queries, and a root resume anchor around confirmed SDK
+defects. The [multi-tab finding](../issues/20260906-snapback2-second-browser-tab-cannot-share-the-offline-carrier.md)
+records a builder allocating a database per browser tab to work around
+one-writer ownership, with the second tab's queue never merging. These are
+application architecture changes, not verbose hook setup.
+
+**What already exists (panel correction).** The draft asked for "one
+transactional ownership boundary for row versions, coverage, answers, outbox
+settlement, and invalidation". That boundary exists: `OfflineRuntime.commitMany`
+serializes every delivery, watermark, settlement, tombstone, and fact change
+into one `PersistentRangeStore.commit` swap, and `OutboxLedger.enqueue`
+commits grant consumption, intent, and prediction together. The wire is
+already one physical SSE stream with fenced logical children (`SharedSse`).
+The clock-dependent delivery identity the draft listed as unlanded was
+repaired on main on 2026-09-07 (`issues/closed/20260906-snapback2-clock-query-delivery-identity.md`:
+the owner stamps `readTime`, the client orders same-sequence deliveries);
+it awaits publication, not design. None of this is rebuilt.
+
+**What was missing, and is now decided.** The client fought itself in the
+layer between the swap and the screen:
+
+- Every `subscribe` opened its own logical stream and kept its own state;
+  two components reading one query were two subscriptions with two current
+  answers, and the `mounted` set was last-writer-wins, so closing either
+  duplicate evicted the query from resume for the survivor. **Decision:** one
+  shared, reference-counted entry per `(authority generation, kind, op,
+  args)`; later consumers attach to the first consumer's stream and see its
+  current delivery first; the entry closes with its last consumer; each
+  subscription removes only its own mounted record. `useQuery` is unchanged:
+  it already had the right shape and now reads a shared entry.
+- The browser carrier refused a second tab outright (`E_OFFLINE_LOCK` from a
+  Web Lock requested `ifAvailable`), which killed the tab's client at
+  startup. **Decision, the tab policy:** a second tab of the same account is a
+  **follower**: it reads live through the ordinary wire, its `outbox.status()`
+  reports `reason: "follower"` with `ready: false`, every write refuses
+  `E_OFFLINE_FOLLOWER` before any bytes leave, and it waits on the writer lock
+  outside the startup path; when the writer tab closes, the follower acquires
+  the lock, opens the partition, resumes, and replays the queue the writer
+  left. The wait is withdrawn on close, sign-out, and account change, so a
+  discarded follower can never steal a lock later. Followers never send
+  plain writes: a plain write landing ahead of the writer's queued intents
+  would invert their order when that queue is inherited (Gemini and Grok,
+  §9). SQLite carriers keep refusing at once: a second client of one native
+  process is a programming error, not a tab. Forwarding follower writes to
+  the writer (BroadcastChannel command forwarding) is deferred and filed; the
+  ticket's "two tabs, one offline write each, both settle" witness therefore
+  stays open and is stated as such in the guide. A frozen or throttled
+  background writer keeps its lock; that is the one-writer contract, not a
+  regression.
+- Distinct per-row queries are not solved by sharing. The recipe remains the
+  enriched page (`return page { *, message: messages[.messageId] }`, LLP 1012
+  §3); no public plan algebra is introduced (`rules/NOT-DOING.md`).
+
+Resource behavior is a constraint, not a preference. The
+[full R8 review](../benchmarks/runs/2026-09-06-clique-improvement/evidence/offline-full-r8-review/astra/REPORT.md)
+records a 72,555-byte gzip search candidate against the 66,000-byte ceiling;
+the client work here adds no retained copy (the shared entry holds one
+delivery per key, which the stream held anyway) and measured +203 gzip bytes
+on the boundary roots of LLP 1012 (§10).
+
+**Success criterion (rewritten).** A fresh builder uses the packaged client on
+React web and Expo for cold offline reads/search, predicted writes, restart,
+revocation, and reconnect, without inventing an inbox cache, permanent resume
+anchor, corrective polling loop, or per-tab database. Two components reading
+one query cost one stream and never disagree. A second browser tab reads live,
+refuses writes with a named reason, and inherits the single durable queue
+when the writer closes. Current resource budgets and guarantees survive.
+
+**Confidence:** high that client coherence is the largest structural
+opportunity; high on the decomposition above, which is what the panel
+converged on; the remaining open half is forwarding.
+
+## 4. Move two: efficient execution and certification that agree
+
+**Finding.** The [cap-metering ticket](../issues/20260906-snapback2-cap-metering-makes-multi-row-inserts-uncertifiable-at-large-caps.md)
+records 49 membership inserts being priced against a cap of 1,000 per
+principal. The resulting examined-row bound forced a 50-person group into
+multiple mutations. Patch-sensitive accounting partly improved this; the
+per-insert charge remained open. A declared bound on one relationship was
+constraining atomic work on another relationship.
+
+**Decision (panel).** Charging once per distinct cap key does not fix the
+recorded case: 49 invitees under `cap 1000 by principal` are 49 distinct keys
+and still 49,000 examined rows (Gemini, Grok, and Muse each caught the
+orchestrator's round-one arithmetic). The honest fix is the one LLP 1017 §2.4
+already named as its follow-up: when the schema declares
+`maintain <t> = count <table> by <exactly the cap's by columns>`, the engine's
+cap probe reads that maintained row (one examined row, exact) instead of
+scanning up to N, and the certificate reserves one examined row per call
+instead of N. In-transaction exactness holds because `check_constraints` runs
+before the row lands and `maintain` runs after each write in the same
+transaction, so a 49-row loop sees its own earlier inserts. The `check`
+refusal for an over-budget cap reserve pastes the exact `maintain` line the
+builder needs, so the remaining cost of the decision is one declaration and
+zero correction loops. The twin uses a held count row the same way and keeps
+today's scan-or-partial behavior when the row is not held: a missing count is
+never zero (Grok, Astra). Successor admission keeps scanning base rows; a
+count row is never trusted during a rebuild. An engine-owned hidden count is
+rejected: it would tax every capped write, add twin coverage and rebuild
+obligations, and hide the cost the declaration makes visible.
+
+Treat the execution strategy and its certificate as one design obligation.
+Each saving must follow from the actual implementation, including writes that
+maintain the optimization's own state. A smaller certificate over unchanged
+expensive execution is not a repair.
+
+The feed work demonstrates the approach. The [lazy merge repair](../issues/closed/20260906-snapback2-following-feed-merge-ceiling-under-brief-envelope.md)
+admitted the 500-follow, 20-row feed at 1,025 examined rows, or 1,185 with
+card reads. The [later retained-memory candidate](../benchmarks/runs/2026-09-06-clique-improvement/evidence/feed-final/final-report.md)
+passed the original ratio checks at all three checkpoints, with ratios
+approximately 2.00, 2.13, and 2.24. That is candidate evidence under its
+recorded conditions, not a new published-package score. It also weakens the
+argument that the earlier miss requires replacing SQLite.
+
+**Success criterion.** A mutation inserting 49 rows under `cap 1000 by
+principal` certifies under default ceilings once the matching count is
+declared, executes atomically, and refuses at the cap exactly as the scan
+did; without the declaration it refuses `E_BOUND` with the declaration in its
+rewrite. The 500-follow feed and enriched message pages keep certifying and
+satisfy the existing scale predicates. Work that genuinely exceeds a
+transaction's budget keeps the explicit continuation model of
+[LLP 1016](./1016-administrative-plane.rfc.md).
+
+**Confidence:** high.
+
+## 5. Move three: Quarry owns semantics and earns its learning cost
+
+**Finding.** A valid table and query both named `reactions` collided in
+generated TypeScript and surfaced an opaque error at the module's first
+line. The builder renamed the operation. This [published 0.0.8 finding](../issues/20260906-snapback2-quarry-operation-table-name-collision.md)
+is evidence that an internal representation can impose an unintended public
+language constraint; it is not evidence that the lowering path is broken.
+
+**Decision (panel, unanimous).** Repair binding hygiene now: generated table
+bindings get identities that cannot collide with operation, argument, local,
+effect, or helper names, and every table reference prints through one
+helper; public names are unchanged and `api.d.ts` exposes both. Collisions the
+lowering cannot alias refuse at the Quarry declaration site with a family, a
+site, and a rewrite. Diagnostics point at authored Quarry locations, never at
+the generated module's first line.
+
+**Cut from this round: the typed intermediate representation.** No scorer
+attributed a point to the lowering path beyond the collision, and a compiler
+replacement that must preserve effects, once-only evaluation, refusal
+behavior, the generated client types, native/twin agreement, and the
+subsecond check budget is weeks of risk for a Clique outcome the client and
+the certificate decide. It may be reopened only on several demonstrated
+failure classes or a census showing substantial machinery it would delete.
+Reusable helpers (`fn`) stay deferred under [LLP 1011 §0](./1011-quarry-ergonomics.rfc.md#0-not-proposed--the-price-of-the-thesis-and-what-the-panel-deferred).
+
+The larger authoring payoff is one declaration supplying several guarantees.
+The already authorized indexed Unicode search work is the example: maintained
+server indexing and the same search semantics over held local data, with
+explicit partial results when coverage is insufficient. That work is not
+paused for anything here.
+
+**Success criterion.** Routine combinations of supported constructs compile
+predictably, preserve their semantics on both evaluators, and explain real
+constraints at Quarry source locations. A cold builder authors search once
+and owns no corrective postings-maintenance implementation.
+
+**Confidence:** high on hygiene and diagnostics; the typed path is not
+proposed.
+
+## 6. Move four: evolution of the whole application
+
+**Finding.** The [operator guide](../snapback2/packages/snapback2/guide/operator.md)
+already teaches expand, fill, contract, refusal of invalid narrowing, and
+upload recovery. [LLP 1016](./1016-administrative-plane.rfc.md#d6--the-operator-seat-ad-hoc-programs-and-rehearsal)
+provides jobs and rehearsal. M7 was not run in any lane of any scored run, so
+the present score impact of evolution friction is unknown.
+
+The [survivor-uniqueness review](../issues/20260906-snapback2-rebuilt-survivor-uniqueness.md)
+identifies a trigger in which ordinary surviving rows may escape a newly
+introduced unique index during a maintained-table transition. It is a precise
+static finding without a runtime reproduction.
+
+**Decision (panel).** Evolution stays a direction, not a staffed program: run
+M7 with the existing operator tools on a populated app before commissioning
+migration machinery. The survivor-uniqueness finding is a correctness ticket
+to reproduce and fix promptly; Astra's round-two point stands that once
+maintained rows back cap probes (§4), rebuild correctness is a dependency of
+that slice and cannot wait for an evolution tranche. Preserve settled-intent
+replay guarantees across operation/schema changes; never silently rewrite an
+admitted queued intent to fit a new generation. Restoring a snapshot must not
+be presented as code-only rollback if it loses later writes; the control-plane
+contract remains [LLP 1015](./1015-control-plane.rfc.md).
+
+**Success criterion.** A fresh M7 agent evolves a populated app, verifies its
+prior data and behavior, and exercises the relevant pending-client transition
+without reconstructing undocumented operational knowledge or writing bespoke
+data surgery. The official M7 acceptance remains unchanged.
+
+**Confidence:** medium on the direction; low on present score impact.
+
+## 7. Move zero: the contract is discoverable
+
+**Finding.** Both scorers that saw Snapback lose put the loss partly on
+discovery, and it is the cheapest gap on the board: no `--help` on `dev` and
+`reset`, `check` miss lines truncated to 120 characters that cost four
+misdiagnosed loops, grant minting as "an uncited ritual", the view-once guard
+living only in `.d.ts` prose, missing worked examples for paginated history,
+inbox restoration, and multiple tabs (Muse and Astra narratives, §2).
+
+**Decision.** Every seam a builder met by probing gets a code, a `status`
+reason, or a guide line, in that order of preference, and nothing else:
+no documentation platform, no new page beyond the twelve, no calendar
+freshness dates (`rules/NOT-DOING.md`). This round pays for the tab policy
+(`E_OFFLINE_FOLLOWER`, the `follower` readiness reason, and the guide's
+one-writer line), and the cap rewrite that pastes the `maintain` line (§4).
+The remaining items above are filed as tickets against the specific verb or
+page; each is an afternoon, none is a design.
+
+**Success criterion.** A fresh builder's diary attributes no correction loop
+to a contract the platform knew and did not say.
+
+**Confidence:** high; the evidence is two independent narratives naming the
+same seams.
+
+## 8. Priority, constraints, and the next decision
+
+Investment order after the panel: move zero (cheapest, least speculative),
+move one (largest), move two (most legible single defect), move three
+(hygiene only), move four (evidence-led). The order expresses confidence and
+score opportunity; it does not require stopping already authorized work in
+another area. Lazy merge, indexed search, and the landed clock repair are
+already structural moves within this direction, and publication of the
+clock repair is the first action.
+
+For each move, the concrete change names the application workaround it
+removes, the existing component that assumes responsibility, the invariant it
+preserves, and the smallest published-path witness that would establish the
+result (§10 does this for the slices built). Use the existing benchmark
+narratives and affected checks to record this; no new registry or gate is
+proposed.
+
+[The repository rules](../rules/RULES.md) and
+[scope tradeoffs](../rules/NOT-DOING.md) still apply. This document does not
+increase runtime budgets, authorize a second authoring language or JavaScript
+data plane, introduce a public plan algebra, add a hidden engine-maintained
+count, or add the deferred offline features. Ordinary affected checks and
+publication policy remain separate from the full benchmark; a complete run
+is evidence of the comparative outcome, not a new ambient landing gate.
+
+The principal open questions are now narrower: whether follower-write
+forwarding earns its protocol; how often Clique holds the count rows the
+twin needs to predict multi-principal writes; whether the collision aliasing
+leaves any generated identifier the builder can still see; and how much M7
+friction remains after the existing recovery tools are used correctly.
+
+No numerical score gain is forecast. A new cold builder experience and the
+canonical independent grading, including native and M7 evidence, must settle
+whether the changes actually surpass the retained Convex baseline.
+
+## 9. Panel record (2026-09-06/07)
+
+The author convened five models on the draft: Astra (gpt-6-astra, xhigh,
+the drafter), Claude Fable 5.1 (orchestrator), Grok 4.6 (xhigh), Muse Spark
+1.3 (xhigh; ultra is closed on this account), and Gemini 3.8 Flash (high).
+Round one was blind and independent; round two showed every position to
+every panelist and asked for fire on the two designs being implemented. The
+verbatim reviews are sealed under `llp/reviews/1018-panel.<model>.md` with
+the run record in `llp/reviews/1018-panel.run.md`. The orchestrator decided;
+the panel's findings that changed the document:
+
+- All five: keep the thesis; the store's swap and the clock repair already
+  exist; cut the typed IR; keep `fn` deferred; add discoverability.
+- Muse, Gemini, Astra, Grok: add a second measure (correction loops or
+  contracts derived from behavior).
+- Astra, Grok, Claude: the first slice is a shared, refcounted query entry
+  above the store; the `mounted` set was last-writer-wins.
+- Gemini, then Grok and Astra in round two: a follower tab that sends plain
+  writes inverts the writer's queue order; followers must be read-only, the
+  wait must sit outside startup and be abortable, sign-out semantics must be
+  settled, and the ticket's two-offline-writes witness stays open.
+- Gemini, Grok, Muse: per-distinct-key cap metering does not fix the
+  recorded case; the maintained count does, provided an unheld count is never
+  read as zero and the `check` rewrite pastes the declaration.
+- Gemini, Grok, Muse: hold the 1,500-line file cap and the 66,000-byte
+  runtime ceiling as constraints on the client work.
+- Astra: rebuild correctness becomes a dependency of count-backed probes.
+- Astra, Gemini, Grok, Muse, Claude: the clock ticket is closed and repaired
+  on main, unpublished.
+
+Dissent recorded and overruled: Grok's round-one advice to build no tab
+policy now (the builder hit it; the read-only follower costs no bytes and one
+lock mode); Gemini's round-one leader-plus-BroadcastChannel followers (a
+second protocol and retained copy against the byte ceiling, deferred).
+
+## 10. Implementation record
+
+Slices built under the decisions above, in the session that revised this
+document; each names its lane, implementer, and verification. Landing
+follows `rules/RULES.md` (optimistic landing after `snapback2/scripts/test.sh`
+and `caps`); capability claims stay gated on a published cold run.
+
+- **Shared query entries and the browser-tab policy** (§3). Lane
+  `s2/clique-client-sessions`, implemented by Claude Fable 5.1, 2026-09-07.
+  `packages/snapback2/src/client-sessions.ts` (the refcounted entries),
+  `client.ts` (`subscribe` attaches to an entry; `openOffline` turns a held
+  lock into a follower; takeover resumes and drains), `client-channels.ts`
+  (the channel handle, extracted so `client.ts` stays under the cap),
+  `store/locks.ts` and `store/indexeddb.ts` (waiting, abortable lock requests;
+  the release is awaited so a reopen cannot race it), `store/range-store.ts`
+  (`acquire`; the partition counts as open only after the carrier opened),
+  `offline.ts` (`follow`, `following`, `canFollow`; a follower's live
+  deliveries are shown, not held), `client-outbox.ts` (`E_OFFLINE_FOLLOWER`;
+  `reason: "follower"`), `types.ts`, the offline guide and families. Tests:
+  `tests/client-sessions.test.ts` (two consumers share one stream, a late
+  consumer sees the current delivery, the last close releases; two drains
+  share one page walk and one tail; a follower reads live, refuses writes,
+  and inherits the writer's queued intent on close; a closed follower never
+  takes the lock). The one-writer test in `offline-store.test.ts` now asserts
+  the follower. Boundary roots measured 40,006 → 40,209 gzip bytes
+  (esbuild 0.25 minified ESM, gzip 9, the LLP 1012 roots) on this machine.
+- **Count-backed cap probes** (§4). Lane `s2/clique-cap-count`, codex
+  gpt-5.6-sol at xhigh, brief in the run record; engine probe, certificate
+  reserve, `check` rewrite, twin parity, corpus cases, LLP 1017 §2.4
+  amendment, ticket closure. Status at revision time: in progress; the
+  landing commit is recorded in the run record when it lands.
+- **Quarry binding hygiene** (§5). Lane `s2/clique-quarry-collision`, codex
+  gpt-5.6-sol at xhigh; aliased table bindings, one printing helper,
+  failing-before regression, ticket closure. Status at revision time: in
+  progress; recorded in the run record when it lands.
+- **Filed, not built:** follower-write forwarding; the move-zero seams that
+  are not part of the two slices above (`--help` on `dev`/`reset`,
+  untruncated `check` miss lines, grant minting in the auth guide, the
+  view-once refusal code).
+
+## 11. Working-set disposition
+
+This document entered `llp/current/` in place of the link to implemented
+LLP 1016, keeping the working set at 59. LLP 1016 stays at its original path,
+its implementation constraints still apply, and this document links it
+directly. Its outstanding hosted admission and MCP work remain owned by
+LLP 1015. That archive operation removed only the current link; it does not
+close residual issues or change either document's status. This document
+leaves the working set when §10's slices have landed and the next cold run's
+diaries have been counted against §1's two measures.
