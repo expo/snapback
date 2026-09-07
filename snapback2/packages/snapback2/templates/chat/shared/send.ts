@@ -46,7 +46,7 @@ export function useSendController({
   const mounted = useRef(false);
   const note = useRef(onNote);
   note.current = onNote;
-  const syncToken = useRef<object>();
+  const syncToken = useRef<object | undefined>(undefined);
   useEffect(() => { mounted.current = true; return () => { mounted.current = false; }; }, []);
   useEffect(() => {
     const pending = custody.unknown;
