@@ -715,6 +715,7 @@ fn chat_template_ships_exactly_its_complete_owned_tree() {
     assert_eq!(
         shipped,
         [
+            "access.q",
             "deliveries.q",
             "delivery.ts",
             "feeds.q",

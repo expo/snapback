@@ -148,6 +148,14 @@ fn generated_args_exercises_every_arg_type_variant() {
                     format: None,
                 },
             ),
+            (
+                "term".to_owned(),
+                ArgType::Text {
+                    max: 3,
+                    min: 3,
+                    format: None,
+                },
+            ),
             ("bytes".to_owned(), ArgType::Bytes { max: 20 }),
             ("int".to_owned(), ArgType::Int),
             ("bool".to_owned(), ArgType::Bool),
@@ -196,12 +204,13 @@ fn generated_args_exercises_every_arg_type_variant() {
     };
     let args = generated_args(&program, &seed).unwrap();
 
-    assert_eq!(args.as_object().unwrap().len(), 14);
+    assert_eq!(args.as_object().unwrap().len(), 15);
     assert_eq!(args["todoRef"], "todo-1");
     assert_eq!(args["enum"], "first");
     assert_eq!(args["list"], json!([]));
     assert_eq!(args["decimal"], 100);
     assert_eq!(args["money"], 100);
+    assert_eq!(args["term"], "ddd");
 }
 
 #[test]

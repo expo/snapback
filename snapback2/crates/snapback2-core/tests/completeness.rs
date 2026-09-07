@@ -141,31 +141,6 @@ fn generation(schema: Schema, program: Program, ceilings: Ceilings) -> Generatio
     .unwrap()
 }
 
-#[test]
-fn words_cannot_erase_capped_page_dependence_through_text_conversion() {
-    let schema = schema("group");
-    let mut program = page_program(20, false);
-    program.body = vec![Stmt::Return(Expr::Builtin {
-        builtin: Builtin::Words,
-        args: vec![Expr::Builtin {
-            builtin: Builtin::Concat,
-            args: vec![
-                Expr::Literal(Value::String(String::new())),
-                Expr::Scan(page(None, 20)),
-            ],
-        }],
-    })];
-    let errors = Checker::new(&schema, Ceilings::default())
-        .check_all(&program)
-        .unwrap_err();
-    assert!(
-        errors
-            .iter()
-            .any(|error| error.code == "E_STRUCTURAL_COUNT"),
-        "{errors:?}"
-    );
-}
-
 fn doc(id: &str, group: &str, owner: &str, order: i64) -> Value {
     object([
         ("id", Value::Id(id.to_owned())),

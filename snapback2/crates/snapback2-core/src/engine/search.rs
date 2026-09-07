@@ -3,7 +3,6 @@ use super::runner::Runner;
 use super::*;
 use crate::ir::{IndexKeyExpr, Scan};
 use crate::search_key::{IndexAtom, LogicalIndexAtom, NormalizedWordPrefix, WordPrefix};
-use crate::unicode::SearchNormalizer;
 
 impl Runner<'_> {
     pub(super) fn derive_charge(
@@ -113,50 +112,6 @@ impl Runner<'_> {
             logical.push(meaning);
         }
         Ok((atoms, logical, physical, empty))
-    }
-}
-
-impl Runner<'_> {
-    pub(super) fn unicode_words(&mut self, value: Value) -> Result<Value, RuntimeError> {
-        if value == Value::Null {
-            return Ok(Value::Array(Vec::new()));
-        }
-        let source = value.as_str()?;
-        let n = source.chars().count();
-        crate::unicode::validate_search_source(source, n)
-            .map_err(|e| RuntimeError::Input(e.to_string()))?;
-        let (text, stats) = SearchNormalizer::default()
-            .normalize(source, n)
-            .map_err(|e| RuntimeError::Input(e.to_string()))?;
-        let mut seen = std::collections::HashSet::new();
-        let mut output = Vec::new();
-        let mut occurrences = 0;
-        for word in text
-            .split(crate::unicode::is_search_boundary)
-            .filter(|w| !w.is_empty())
-        {
-            occurrences += 1;
-            if seen.insert(word) {
-                output.push(Value::String(word.to_owned()));
-            }
-        }
-        let u = text.chars().count();
-        let step = crate::unicode::normalization_steps(&stats) + 2 * n + 3 * u + occurrences;
-        let output_bytes = output
-            .iter()
-            .map(|v| v.as_str().unwrap().len())
-            .sum::<usize>();
-        let scratch = stats.scratch_bytes
-            + source.len()
-            + text.capacity()
-            + output_bytes
-            + output.capacity() * std::mem::size_of::<Value>()
-            + seen.capacity() * 24;
-        self.derive_charge(search_index::Derivation {
-            steps: step as u64,
-            scratch: scratch as u64,
-        })?;
-        Ok(Value::Array(output))
     }
 }
 

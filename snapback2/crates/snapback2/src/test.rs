@@ -1132,8 +1132,12 @@ fn generated_arg(
         )),
         ArgType::Ref { table } => seed_id_arg(op, name, Some(table.as_str()), seed, sample)?,
         ArgType::Scalar | ArgType::Json { .. } => scalar_arg(name),
-        ArgType::Text { .. } => match name {
-            "term" => json!("derived"),
+        ArgType::Text { min, max, format } => match name {
+            // Search terms must normalize to one word, while still respecting
+            // narrow authored bounds used by fixture and application queries.
+            "term" if format.is_none() => {
+                json!("d".repeat((*min).max(1).min(*max) as usize))
+            }
             "handle" => json!("derived_handle"),
             "avatarUrl" => json!("https://example.com/derived-avatar.png"),
             "link" => json!("https://example.com/derived"),

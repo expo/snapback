@@ -7,7 +7,6 @@ use crate::value::Value;
 use std::collections::BTreeMap;
 
 pub(crate) struct OutputEstimator<'a> {
-    pub(crate) words: BTreeMap<String, usize>,
     pub(crate) schema: &'a Schema,
     pub(crate) max_result: u64,
     pub(crate) next_identity: u64,

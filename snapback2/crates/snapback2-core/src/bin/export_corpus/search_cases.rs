@@ -123,32 +123,4 @@ pub(super) fn add(cases: &mut Vec<CorpusCase>) {
             ));
         }
     }
-    let program = programs
-        .iter()
-        .find(|p| p.name == "search.tokenize")
-        .unwrap();
-    for (name, source) in [
-        ("search-words-optional-null", Value::Null),
-        (
-            "search-words-unicode",
-            text("Straße STRASSE cafe\u{301} CAFÉ 漢字"),
-        ),
-    ] {
-        let context = Context::query(
-            Actor::user("alice").unwrap(),
-            BTreeMap::from([("body".into(), source)]),
-        );
-        let execution = authoritative(&mut engine, &schema, program, context.clone());
-        cases.push(case_from_parts(
-            name,
-            "unicode-search",
-            schema.clone(),
-            program.clone(),
-            context,
-            execution.receipt,
-            vec![],
-            None,
-            None,
-        ));
-    }
 }
