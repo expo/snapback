@@ -80,3 +80,29 @@ Retained repro and evidence (outside the repository, per scratch policy):
 The script fails on 0.0.10 and is retained unchanged so a published repair can
 be confirmed with the same test. The unpublished candidate under
 `evidence/clock-v5-persistence/` has not been verified through this path.
+
+## Independent verification of the candidate repair (2026-09-06, unlanded)
+
+The coherent candidate is three committed lane tips together: owner from
+`s2/clique-search-engine` (26c9fd5e0), the compiler bundle from
+`s2/clique-search-compiler` (0aba7948f, which the engine owner requires:
+"unknown variant `Field`, expected `Scalar` or `WordPrefix`" with the
+engine tree's own bundle), and the client from `s2/clique-search-twin`
+(e1c6e2b79). Built in private detached worktrees, nothing in the lanes touched.
+
+- `d2-clock-conflict.mjs` (the public-Quarry `serverNow` reproduction that
+  fails 3/5 on 0.0.10 and on main): 5/5. The re-query after a 10 s clock
+  advance installs at the same durable seq with the moved `now`; a cold
+  reopen of the same partition reads it; consecutive re-reads stay complete.
+- Disagreement control `h2-owner-reset-same-seq.mjs`: a non-timed query
+  whose reset owner database reaches the same seq with different rows is
+  still refused, typed `E_OFFLINE_DELIVERY` (8/8) — the repair does not
+  weaken durable-data equivocation refusals.
+- Regression pass on the same pair: durable sends 12/12, account transitions
+  9/9, revocation while offline 10/10, reconnect/reload 7/7. The denied
+  re-ask (`f-denied-next.mjs`) still throws at this twin tip; the fix for it
+  landed on main separately (`8b6c25b39`) and is also present, uncommitted,
+  in the twin working tree.
+
+Logs under `~/verify-snapback2-liveoffline-20260906/evidence-candidate-pair/`.
+Still open until the candidate lands and the native case is re-run on it.
