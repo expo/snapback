@@ -1,0 +1,18 @@
+{
+  "label": "17-rooms-after-rehearsal",
+  "command": [
+    "/Users/ccheever/bench-snapback2-dx/published-0.0.14/bootstrap/node_modules/.bin/snapback2",
+    "data",
+    "rooms",
+    "--as",
+    "system",
+    "--json"
+  ],
+  "cwd": "/Users/ccheever/bench-snapback2-evolution/0.0.14/app",
+  "started": "2026-09-07T07:20:19.340199+00:00",
+  "wall_s": 0.13778558299999988,
+  "pid": 49215,
+  "exit": 0,
+  "stdout": "{\"data\":[{\"category\":null,\"id\":\"room-1\",\"ownerId\":\"dev:alice\",\"title\":\"Room 1\"},{\"category\":null,\"id\":\"room-2\",\"ownerId\":\"dev:alice\",\"title\":\"Room 2\"},{\"category\":null,\"id\":\"room-3\",\"ownerId\":\"dev:bob\",\"title\":\"Room 3\"}],\"next\":null,\"principal\":\"system\",\"seq\":1,\"state\":\"complete\",\"trace\":{\"absences\":[],\"constraint_inputs\":[],\"emits\":[],\"examined\":3,\"points\":[],\"ranges\":[{\"absence\":false,\"after\":null,\"before\":null,\"examined_ids\":[\"room-1\",\"room-2\",\"room-3\"],\"gt\":null,\"gte\":null,\"halo\":null,\"index\":\"byId\",\"lt\":null,\"lte\":null,\"n2_key\":null,\"order\":\"Asc\",\"prefix\":[],\"returned_ids\":[\"room-1\",\"room-2\",\"room-3\"],\"rule_hash\":\"6fe38ca7ac066fb7da5b220ae2907b4a583040eed8e6a307fcd100e9e9f251bc\",\"site\":\"<owner:data:rooms.byId>\",\"stop\":\"Exhausted\",\"table\":\"rooms\",\"take\":50,\"visible_ids\":[\"room-1\",\"room-2\",\"room-3\"]}],\"rows\":[{\"id\":\"room-1\",\"row\":{\"Row\":{\"category\":\"Null\",\"id\":{\"Id\":\"room-1\"},\"ownerId\":{\"Id\":\"dev:alice\"},\"title\":{\"String\":\"Room 1\"}}},\"table\":\"rooms\"},{\"id\":\"room-2\",\"row\":{\"Row\":{\"category\":\"Null\",\"id\":{\"Id\":\"room-2\"},\"ownerId\":{\"Id\":\"dev:alice\"},\"title\":{\"String\":\"Room 2\"}}},\"table\":\"rooms\"},{\"id\":\"room-3\",\"row\":{\"Row\":{\"category\":\"Null\",\"id\":{\"Id\":\"room-3\"},\"ownerId\":{\"Id\":\"dev:bob\"},\"title\":{\"String\":\"Room 3\"}}},\"table\":\"rooms\"}],\"rule_inputs\":[],\"rule_probes\":0,\"steps\":3,\"touched\":[],\"writes\":{}}}\n",
+  "stderr": ""
+}

@@ -1,0 +1,19 @@
+{
+  "label": "16-rehearse-fill",
+  "command": [
+    "/Users/ccheever/bench-snapback2-dx/published-0.0.14/bootstrap/node_modules/.bin/snapback2",
+    "run",
+    "admin.fillCategories",
+    "--as",
+    "system",
+    "--dry-run",
+    "--json"
+  ],
+  "cwd": "/Users/ccheever/bench-snapback2-evolution/0.0.14/app",
+  "started": "2026-09-07T07:20:19.183948+00:00",
+  "wall_s": 0.15520470899999994,
+  "pid": 49212,
+  "exit": 0,
+  "stdout": "{\"assetReleaseCount\":0,\"assetsReleased\":[],\"assetsTruncated\":false,\"chunks\":1,\"copyDiscarded\":true,\"detailLimit\":100,\"dryRun\":true,\"effectCount\":0,\"effects\":[],\"effectsTruncated\":false,\"elapsedMs\":15.3285,\"executionMs\":4.543,\"job\":\"job_s2id-62d9068300ff22a42c0fecc37e0132ed-0000000000000001\",\"kind\":\"job\",\"now\":1788765619315,\"op\":\"admin.fillCategories\",\"refusals\":[],\"rowsWritten\":{\"rooms\":3},\"snapshotSeq\":1,\"state\":\"done\"}\n",
+  "stderr": ""
+}

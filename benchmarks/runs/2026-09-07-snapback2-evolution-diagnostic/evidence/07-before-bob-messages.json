@@ -1,0 +1,19 @@
+{
+  "label": "07-before-bob-messages",
+  "command": [
+    "/Users/ccheever/bench-snapback2-dx/published-0.0.14/bootstrap/node_modules/.bin/snapback2",
+    "run",
+    "records.listMessages",
+    "{}",
+    "--as",
+    "bob",
+    "--json"
+  ],
+  "cwd": "/Users/ccheever/bench-snapback2-evolution/0.0.14/app",
+  "started": "2026-09-07T07:18:33.703778+00:00",
+  "wall_s": 0.12062416599999998,
+  "pid": 48253,
+  "exit": 0,
+  "stdout": "{\"data\":[{\"at\":10,\"body\":\"Preserve message 10 \u2014 caf\u00e9\",\"id\":\"message-10\",\"ownerId\":\"dev:bob\",\"roomId\":\"room-3\"},{\"at\":11,\"body\":\"Preserve message 11 \u2014 caf\u00e9\",\"id\":\"message-11\",\"ownerId\":\"dev:bob\",\"roomId\":\"room-3\"},{\"at\":12,\"body\":\"Preserve message 12 \u2014 caf\u00e9\",\"id\":\"message-12\",\"ownerId\":\"dev:bob\",\"roomId\":\"room-3\"},{\"at\":9,\"body\":\"Preserve message 9 \u2014 caf\u00e9\",\"id\":\"message-9\",\"ownerId\":\"dev:bob\",\"roomId\":\"room-3\"}],\"next\":null,\"seq\":1,\"state\":\"complete\"}\n",
+  "stderr": ""
+}

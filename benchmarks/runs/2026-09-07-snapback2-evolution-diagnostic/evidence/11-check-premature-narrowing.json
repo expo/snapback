@@ -1,0 +1,15 @@
+{
+  "label": "11-check-premature-narrowing",
+  "command": [
+    "/Users/ccheever/bench-snapback2-dx/published-0.0.14/bootstrap/node_modules/.bin/snapback2",
+    "check",
+    "--json"
+  ],
+  "cwd": "/Users/ccheever/bench-snapback2-evolution/0.0.14/app",
+  "started": "2026-09-07T07:19:03.105400+00:00",
+  "wall_s": 3.5251410830000003,
+  "pid": 48459,
+  "exit": 0,
+  "stdout": "{\"compilerMs\":527.36,\"generation\":\"02d00627323f8d0b752a529a8d38213203c346f4cd082d8f15c6e4dbeaac0721\",\"ok\":true,\"operations\":7,\"schemaCertificate\":{\"schedules\":[]}}\n",
+  "stderr": ""
+}

@@ -28,6 +28,10 @@ its null count and up to ten IDs; absent fields count as null. The primary site
 names the first conflict in table/column order. Its pasted fill job accepts the
 typed replacement value as an argument. A refused
 application keeps the previous generation and appears in `dev --status --json`.
+Before making the column required, update any `seed.ts` rows to supply it too.
+The owner validates seeds before applying a successor, even to a populated store;
+`E_SEED_VALUE` can therefore appear before the stored-row narrowing check.
+Changing seed values does not fill existing rows: run the fill job first.
 
 ## Recovering abandoned media uploads
 

@@ -1,0 +1,19 @@
+{
+  "label": "23-after-alice-receipts",
+  "command": [
+    "/Users/ccheever/bench-snapback2-dx/published-0.0.14/bootstrap/node_modules/.bin/snapback2",
+    "run",
+    "records.listReceipts",
+    "{}",
+    "--as",
+    "alice",
+    "--json"
+  ],
+  "cwd": "/Users/ccheever/bench-snapback2-evolution/0.0.14/app",
+  "started": "2026-09-07T07:21:51.315892+00:00",
+  "wall_s": 0.135822875,
+  "pid": 50340,
+  "exit": 0,
+  "stdout": "{\"data\":[{\"id\":\"receipt-1\",\"messageId\":\"message-1\",\"ownerId\":\"dev:alice\",\"readAt\":101},{\"id\":\"receipt-2\",\"messageId\":\"message-2\",\"ownerId\":\"dev:alice\",\"readAt\":102},{\"id\":\"receipt-3\",\"messageId\":\"message-3\",\"ownerId\":\"dev:alice\",\"readAt\":103},{\"id\":\"receipt-4\",\"messageId\":\"message-4\",\"ownerId\":\"dev:alice\",\"readAt\":104},{\"id\":\"receipt-5\",\"messageId\":\"message-5\",\"ownerId\":\"dev:alice\",\"readAt\":105},{\"id\":\"receipt-6\",\"messageId\":\"message-6\",\"ownerId\":\"dev:alice\",\"readAt\":106},{\"id\":\"receipt-7\",\"messageId\":\"message-7\",\"ownerId\":\"dev:alice\",\"readAt\":107},{\"id\":\"receipt-8\",\"messageId\":\"message-8\",\"ownerId\":\"dev:alice\",\"readAt\":108}],\"next\":null,\"seq\":3,\"state\":\"complete\"}\n",
+  "stderr": ""
+}

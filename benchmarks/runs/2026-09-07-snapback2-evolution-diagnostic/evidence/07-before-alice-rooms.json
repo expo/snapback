@@ -1,0 +1,19 @@
+{
+  "label": "07-before-alice-rooms",
+  "command": [
+    "/Users/ccheever/bench-snapback2-dx/published-0.0.14/bootstrap/node_modules/.bin/snapback2",
+    "run",
+    "records.listRooms",
+    "{}",
+    "--as",
+    "alice",
+    "--json"
+  ],
+  "cwd": "/Users/ccheever/bench-snapback2-evolution/0.0.14/app",
+  "started": "2026-09-07T07:18:33.303428+00:00",
+  "wall_s": 0.068202459,
+  "pid": 48238,
+  "exit": 0,
+  "stdout": "{\"data\":[{\"id\":\"room-1\",\"ownerId\":\"dev:alice\",\"title\":\"Room 1\"},{\"id\":\"room-2\",\"ownerId\":\"dev:alice\",\"title\":\"Room 2\"}],\"next\":null,\"seq\":1,\"state\":\"complete\"}\n",
+  "stderr": ""
+}

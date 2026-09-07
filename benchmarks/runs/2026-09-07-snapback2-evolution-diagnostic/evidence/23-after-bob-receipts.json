@@ -1,0 +1,19 @@
+{
+  "label": "23-after-bob-receipts",
+  "command": [
+    "/Users/ccheever/bench-snapback2-dx/published-0.0.14/bootstrap/node_modules/.bin/snapback2",
+    "run",
+    "records.listReceipts",
+    "{}",
+    "--as",
+    "bob",
+    "--json"
+  ],
+  "cwd": "/Users/ccheever/bench-snapback2-evolution/0.0.14/app",
+  "started": "2026-09-07T07:21:51.834116+00:00",
+  "wall_s": 0.1008517499999999,
+  "pid": 50353,
+  "exit": 0,
+  "stdout": "{\"data\":[{\"id\":\"receipt-10\",\"messageId\":\"message-10\",\"ownerId\":\"dev:bob\",\"readAt\":110},{\"id\":\"receipt-11\",\"messageId\":\"message-11\",\"ownerId\":\"dev:bob\",\"readAt\":111},{\"id\":\"receipt-12\",\"messageId\":\"message-12\",\"ownerId\":\"dev:bob\",\"readAt\":112},{\"id\":\"receipt-9\",\"messageId\":\"message-9\",\"ownerId\":\"dev:bob\",\"readAt\":109}],\"next\":null,\"seq\":3,\"state\":\"complete\"}\n",
+  "stderr": ""
+}

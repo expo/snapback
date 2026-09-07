@@ -1,0 +1,19 @@
+{
+  "label": "26-live-send",
+  "command": [
+    "/Users/ccheever/bench-snapback2-dx/published-0.0.14/bootstrap/node_modules/.bin/snapback2",
+    "run",
+    "records.send",
+    "{\"roomId\": \"room-1\", \"body\": \"after migration\"}",
+    "--as",
+    "alice",
+    "--json"
+  ],
+  "cwd": "/Users/ccheever/bench-snapback2-evolution/0.0.14/app",
+  "started": "2026-09-07T07:21:52.146507+00:00",
+  "wall_s": 0.09774799999999995,
+  "pid": 50362,
+  "exit": 0,
+  "stdout": "{\"data\":{\"id\":\"s2id-3e1d4bf3baad07b7f37ea33398e9f766-0000000000000c01\"},\"seq\":4,\"state\":\"committed\"}\n",
+  "stderr": ""
+}

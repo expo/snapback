@@ -1,0 +1,19 @@
+{
+  "label": "23-after-bob-rooms",
+  "command": [
+    "/Users/ccheever/bench-snapback2-dx/published-0.0.14/bootstrap/node_modules/.bin/snapback2",
+    "run",
+    "records.listRooms",
+    "{}",
+    "--as",
+    "bob",
+    "--json"
+  ],
+  "cwd": "/Users/ccheever/bench-snapback2-evolution/0.0.14/app",
+  "started": "2026-09-07T07:21:51.452866+00:00",
+  "wall_s": 0.13592150000000003,
+  "pid": 50343,
+  "exit": 0,
+  "stdout": "{\"data\":[{\"category\":\"general\",\"id\":\"room-3\",\"ownerId\":\"dev:bob\",\"title\":\"Room 3\"}],\"next\":null,\"seq\":3,\"state\":\"complete\"}\n",
+  "stderr": ""
+}

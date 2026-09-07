@@ -1,0 +1,16 @@
+{
+  "label": "21-status-narrowing-filled",
+  "command": [
+    "/Users/ccheever/bench-snapback2-dx/published-0.0.14/bootstrap/node_modules/.bin/snapback2",
+    "dev",
+    "--status",
+    "--json"
+  ],
+  "cwd": "/Users/ccheever/bench-snapback2-evolution/0.0.14/app",
+  "started": "2026-09-07T07:20:22.224504+00:00",
+  "wall_s": 0.14116054100000053,
+  "pid": 49259,
+  "exit": 0,
+  "stdout": "{\"channelSubscriptions\":0,\"effects\":{\"engine\":\"ibex2 + vanilla hermes\",\"failed\":0,\"queued\":0,\"running\":0,\"sent\":0,\"sentUnknown\":0,\"thenPending\":0},\"executions\":13,\"generation\":\"02d00627323f8d0b752a529a8d38213203c346f4cd082d8f15c6e4dbeaac0721\",\"jobs\":{\"parked\":0,\"queued\":0,\"running\":0},\"mode\":\"dev\",\"personas\":[{\"id\":\"dev:alice\",\"kind\":\"persona\",\"name\":\"alice\"},{\"id\":\"dev:bob\",\"kind\":\"persona\",\"name\":\"bob\"}],\"project\":\"/Users/ccheever/bench-snapback2-evolution/0.0.14/app\",\"schedules\":{\"fired\":0,\"late\":0,\"rejected\":0},\"seq\":3,\"status\":\"ready\",\"subscriptions\":0,\"timers\":{\"due\":0,\"next_at\":null,\"rejected\":0}}\n",
+  "stderr": ""
+}

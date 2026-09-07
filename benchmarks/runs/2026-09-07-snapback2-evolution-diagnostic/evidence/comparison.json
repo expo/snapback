@@ -1,0 +1,75 @@
+{
+  "snapshots": {
+    "alice/rooms": {
+      "pass": true,
+      "rows": 2,
+      "comparison": "all original fields; rooms.category is the intended addition"
+    },
+    "alice/messages": {
+      "pass": true,
+      "rows": 8,
+      "comparison": "all original fields; rooms.category is the intended addition"
+    },
+    "alice/reactions": {
+      "pass": true,
+      "rows": 4,
+      "comparison": "all original fields; rooms.category is the intended addition"
+    },
+    "alice/receipts": {
+      "pass": true,
+      "rows": 8,
+      "comparison": "all original fields; rooms.category is the intended addition"
+    },
+    "bob/rooms": {
+      "pass": true,
+      "rows": 1,
+      "comparison": "all original fields; rooms.category is the intended addition"
+    },
+    "bob/messages": {
+      "pass": true,
+      "rows": 4,
+      "comparison": "all original fields; rooms.category is the intended addition"
+    },
+    "bob/reactions": {
+      "pass": true,
+      "rows": 2,
+      "comparison": "all original fields; rooms.category is the intended addition"
+    },
+    "bob/receipts": {
+      "pass": true,
+      "rows": 4,
+      "comparison": "all original fields; rooms.category is the intended addition"
+    }
+  },
+  "rebuilt_counts": {
+    "room-1": 4,
+    "room-2": 4,
+    "room-3": 4
+  },
+  "forward_count": 5,
+  "restart_count": 5,
+  "verdict": "pass",
+  "scope": "diagnostic; not canonical M7",
+  "restart_preservation": {
+    "rooms": {
+      "original_rows": 3,
+      "original_fields_equal": true,
+      "current_rows": 3
+    },
+    "messages": {
+      "original_rows": 12,
+      "original_fields_equal": true,
+      "current_rows": 13
+    },
+    "reactions": {
+      "original_rows": 6,
+      "original_fields_equal": true,
+      "current_rows": 6
+    },
+    "receipts": {
+      "original_rows": 12,
+      "original_fields_equal": true,
+      "current_rows": 12
+    }
+  }
+}

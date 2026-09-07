@@ -1,0 +1,19 @@
+{
+  "label": "07-before-alice-messages",
+  "command": [
+    "/Users/ccheever/bench-snapback2-dx/published-0.0.14/bootstrap/node_modules/.bin/snapback2",
+    "run",
+    "records.listMessages",
+    "{}",
+    "--as",
+    "alice",
+    "--json"
+  ],
+  "cwd": "/Users/ccheever/bench-snapback2-evolution/0.0.14/app",
+  "started": "2026-09-07T07:18:33.372124+00:00",
+  "wall_s": 0.06844916699999999,
+  "pid": 48241,
+  "exit": 0,
+  "stdout": "{\"data\":[{\"at\":1,\"body\":\"Preserve message 1 \u2014 caf\u00e9\",\"id\":\"message-1\",\"ownerId\":\"dev:alice\",\"roomId\":\"room-1\"},{\"at\":2,\"body\":\"Preserve message 2 \u2014 caf\u00e9\",\"id\":\"message-2\",\"ownerId\":\"dev:alice\",\"roomId\":\"room-1\"},{\"at\":3,\"body\":\"Preserve message 3 \u2014 caf\u00e9\",\"id\":\"message-3\",\"ownerId\":\"dev:alice\",\"roomId\":\"room-1\"},{\"at\":4,\"body\":\"Preserve message 4 \u2014 caf\u00e9\",\"id\":\"message-4\",\"ownerId\":\"dev:alice\",\"roomId\":\"room-1\"},{\"at\":5,\"body\":\"Preserve message 5 \u2014 caf\u00e9\",\"id\":\"message-5\",\"ownerId\":\"dev:alice\",\"roomId\":\"room-2\"},{\"at\":6,\"body\":\"Preserve message 6 \u2014 caf\u00e9\",\"id\":\"message-6\",\"ownerId\":\"dev:alice\",\"roomId\":\"room-2\"},{\"at\":7,\"body\":\"Preserve message 7 \u2014 caf\u00e9\",\"id\":\"message-7\",\"ownerId\":\"dev:alice\",\"roomId\":\"room-2\"},{\"at\":8,\"body\":\"Preserve message 8 \u2014 caf\u00e9\",\"id\":\"message-8\",\"ownerId\":\"dev:alice\",\"roomId\":\"room-2\"}],\"next\":null,\"seq\":1,\"state\":\"complete\"}\n",
+  "stderr": ""
+}

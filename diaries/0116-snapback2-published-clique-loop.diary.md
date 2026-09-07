@@ -1058,3 +1058,30 @@ The same author is repairing these paths in R17, with value representation kept 
 Fresh review of unlanded 2ce04895 found that successful in-memory reset completion was insufficient evidence of durability. The public reset/rebuild/complete path cleared its pending marker and held 11 rows, but the shared database projection omitted deletions for the removed metadata root's children. Cold reopen restored the pending marker. Astra reproduced this through shipped adapter JavaScript with a synthetic transactional map driver; Grok's independent source-only READY does not refute the counterexample. This is candidate-runtime evidence, not a published app diagnosis or real-device test.
 
 The concrete follow-up is changed-root key ownership and real SQLite/FakeIndexedDB completion/reopen plus failed-publication/retry controls. Preserve the removal of serialized body mirrors; adding payload retention to recover child keys would undo the ownership objective. Root authorized the same writer to include this bounded repair in the range-preparation successor. No completion or landing is claimed. The unchanged full five-root measurement 74,399 gzip remains 8,399 over 66,000 despite correctness and ownership improvements. [Closed reports, original/final probes and actual review identities/terminals](../benchmarks/runs/2026-09-06-clique-improvement/evidence/offline-image-dedup-review/README.md). No comparator rerun, current resident measurement or phone qualification followed from this evidence packaging.
+
+## 2026-09-07 — Prepared populated-evolution diagnostic on 0.0.14
+
+This was a scoped engineering exercise, not a cold Clique builder or formal M7
+continuation. Three rooms, 12 messages, six reactions and 12 read receipts
+survived a maintained-count rebuild and an ordinary column's expand/fill/contract
+cycle, with snapshots through both personas and a restart check. Rehearsal
+left live categories null; the real job filled them and allowed narrowing. A
+new message advanced its room count from four to five and survived restart.
+
+The existing maintain declaration and operator job made this straightforward:
+no raw SQL or custom repair tool was needed. The unpleasant part was discovery.
+The published compiler still required queries to avoid table names, and the
+first narrowing attempt failed on seed shape before it reached live data.
+Updating the seed did not backfill the store; the guide now says so beside
+the fill recipe. An initial journey result-narrowing error was mine and the
+diagnostic identified it clearly. Checks took several seconds on this host,
+while individual operator calls were generally fractions of a second.
+
+Compared with hand-written SQL migrations, the certified fill and discarded
+rehearsal snapshot reduced manual repair work here; no Convex/Supabase timing
+comparison was run. Media bytes, polls, expiry semantics, native clients, and
+offline intents across schema changes remain unexercised. The unchanged
+journey ran on fresh isolated seeds; before/after API snapshots independently
+proved preservation of the actual migrated store.
+
+[Fixture, limitations, and original failures](../benchmarks/runs/2026-09-07-snapback2-evolution-diagnostic/README.md).

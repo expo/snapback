@@ -1,0 +1,19 @@
+{
+  "label": "30-count-after-restart",
+  "command": [
+    "/Users/ccheever/bench-snapback2-dx/published-0.0.14/bootstrap/node_modules/.bin/snapback2",
+    "run",
+    "records.countForRoom",
+    "{\"roomId\": \"room-1\"}",
+    "--as",
+    "alice",
+    "--json"
+  ],
+  "cwd": "/Users/ccheever/bench-snapback2-evolution/0.0.14/app",
+  "started": "2026-09-07T07:21:53.510415+00:00",
+  "wall_s": 0.1476070420000002,
+  "pid": 50398,
+  "exit": 0,
+  "stdout": "{\"data\":{\"id\":\"[{\\\"Id\\\":\\\"room-1\\\"},{\\\"Id\\\":\\\"dev:alice\\\"}]\",\"ownerId\":\"dev:alice\",\"roomId\":\"room-1\",\"value\":5},\"next\":null,\"seq\":4,\"state\":\"complete\"}\n",
+  "stderr": ""
+}

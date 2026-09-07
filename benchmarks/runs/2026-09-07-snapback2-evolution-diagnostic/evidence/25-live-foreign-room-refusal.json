@@ -1,0 +1,19 @@
+{
+  "label": "25-live-foreign-room-refusal",
+  "command": [
+    "/Users/ccheever/bench-snapback2-dx/published-0.0.14/bootstrap/node_modules/.bin/snapback2",
+    "run",
+    "records.send",
+    "{\"roomId\": \"room-1\", \"body\": \"foreign write\"}",
+    "--as",
+    "bob",
+    "--json"
+  ],
+  "cwd": "/Users/ccheever/bench-snapback2-evolution/0.0.14/app",
+  "started": "2026-09-07T07:21:52.042436+00:00",
+  "wall_s": 0.10311691700000014,
+  "pid": 50359,
+  "exit": 1,
+  "stdout": "{\"code\":\"ROOM_MISSING\",\"family\":\"input\",\"guide\":\"input/runtime\",\"message\":\"E_REQUIRE:ROOM_MISSING: program requirement failed\",\"rewrite\":\"fix the rejected mutation input and retry\",\"state\":\"rejected\"}\n",
+  "stderr": ""
+}

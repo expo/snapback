@@ -1,0 +1,15 @@
+{
+  "label": "01c-check-baseline",
+  "command": [
+    "/Users/ccheever/bench-snapback2-dx/published-0.0.14/bootstrap/node_modules/.bin/snapback2",
+    "check",
+    "--json"
+  ],
+  "cwd": "/Users/ccheever/bench-snapback2-evolution/0.0.14/app",
+  "started": "2026-09-07T07:17:28.266643+00:00",
+  "wall_s": 4.194571083,
+  "pid": 47785,
+  "exit": 0,
+  "stdout": "{\"compilerMs\":439.28,\"generation\":\"dab8f3d05f099b73f6216557e99a7820f50c030bc151d3e3230c9e2b99aa6f12\",\"ok\":true,\"operations\":5,\"schemaCertificate\":{\"schedules\":[]}}\n",
+  "stderr": ""
+}

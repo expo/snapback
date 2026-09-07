@@ -1,0 +1,16 @@
+{
+  "label": "12b-status-narrowing-valid-seed",
+  "command": [
+    "/Users/ccheever/bench-snapback2-dx/published-0.0.14/bootstrap/node_modules/.bin/snapback2",
+    "dev",
+    "--status",
+    "--json"
+  ],
+  "cwd": "/Users/ccheever/bench-snapback2-evolution/0.0.14/app",
+  "started": "2026-09-07T07:19:42.141994+00:00",
+  "wall_s": 0.140583291,
+  "pid": 48748,
+  "exit": 0,
+  "stdout": "{\"channelSubscriptions\":0,\"effects\":{\"engine\":\"ibex2 + vanilla hermes\",\"failed\":0,\"queued\":0,\"running\":0,\"sent\":0,\"sentUnknown\":0,\"thenPending\":0},\"executions\":11,\"generation\":\"15b22c92d10a9b5480344edd3bbd6979a6e2faaf9525c3604668e1a45201abcd\",\"jobs\":{\"parked\":0,\"queued\":0,\"running\":0},\"mode\":\"dev\",\"personas\":[{\"id\":\"dev:alice\",\"kind\":\"persona\",\"name\":\"alice\"},{\"id\":\"dev:bob\",\"kind\":\"persona\",\"name\":\"bob\"}],\"project\":\"/Users/ccheever/bench-snapback2-evolution/0.0.14/app\",\"schedules\":{\"fired\":0,\"late\":0,\"rejected\":0},\"seq\":1,\"status\":{\"generation\":\"02d00627323f8d0b752a529a8d38213203c346f4cd082d8f15c6e4dbeaac0721\",\"refused\":[{\"capConflicts\":[],\"code\":\"E_SUCCESSOR_NARROWING\",\"column\":\"category\",\"conflicts\":[],\"family\":\"successor\",\"guide\":\"successor/migrations\",\"message\":\"rooms.category cannot become required: 3 stored rows are null or absent; fill the optional column with the pasted job, then declare it required and apply again\",\"narrowings\":[{\"column\":\"category\",\"nullRows\":3,\"sample\":[\"room-1\",\"room-2\",\"room-3\"],\"table\":\"rooms\"}],\"nullRows\":3,\"plan\":{\"drops\":[]},\"rewrite\":\"-- keep rooms.category optional and apply, then fill it:\\njob fill_rooms_category(value: text <=40):\\n  chunk p in rooms first 100 by byId:\\n    update rooms[p.id] { category: p.category ?? value }\",\"sample\":[\"room-1\",\"room-2\",\"room-3\"],\"site\":\"rooms.category\",\"table\":\"rooms\"}],\"state\":\"refused\"},\"subscriptions\":0,\"timers\":{\"due\":0,\"next_at\":null,\"rejected\":0}}\n",
+  "stderr": ""
+}

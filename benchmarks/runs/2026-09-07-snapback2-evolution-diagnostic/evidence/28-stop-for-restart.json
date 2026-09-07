@@ -1,0 +1,16 @@
+{
+  "label": "28-stop-for-restart",
+  "command": [
+    "/Users/ccheever/bench-snapback2-dx/published-0.0.14/bootstrap/node_modules/.bin/snapback2",
+    "dev",
+    "--stop",
+    "--json"
+  ],
+  "cwd": "/Users/ccheever/bench-snapback2-evolution/0.0.14/app",
+  "started": "2026-09-07T07:21:52.334265+00:00",
+  "wall_s": 0.23560154100000008,
+  "pid": 50368,
+  "exit": 0,
+  "stdout": "{\"exited\":\"snapback2 dev --stop\",\"ok\":true}\n",
+  "stderr": ""
+}

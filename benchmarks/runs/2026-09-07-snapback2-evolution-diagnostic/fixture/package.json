@@ -1,0 +1,8 @@
+{
+  "dependencies": {
+    "snapback2": "0.0.14"
+  },
+  "name": "app",
+  "private": true,
+  "type": "module"
+}

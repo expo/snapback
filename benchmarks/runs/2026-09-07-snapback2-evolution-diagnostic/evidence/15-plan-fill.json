@@ -1,0 +1,19 @@
+{
+  "label": "15-plan-fill",
+  "command": [
+    "/Users/ccheever/bench-snapback2-dx/published-0.0.14/bootstrap/node_modules/.bin/snapback2",
+    "run",
+    "admin.fillCategories",
+    "--as",
+    "system",
+    "--plan",
+    "--json"
+  ],
+  "cwd": "/Users/ccheever/bench-snapback2-evolution/0.0.14/app",
+  "started": "2026-09-07T07:20:19.039984+00:00",
+  "wall_s": 0.14258033400000025,
+  "pid": 49209,
+  "exit": 0,
+  "stdout": "{\"chunks\":\"unbounded\",\"engineWrites\":[\"_jobs\"],\"kind\":\"job\",\"name\":\"admin.fillCategories\",\"programHash\":\"14d19a24441eb0bfd2066e4c00e835ca6798645b6ac30d110fe232a17c14a233\",\"sweeps\":[{\"ceilings\":{\"bound_product\":\"admin.fillCategories.0 take 100 (+2 reserve) \u00d7 1 calls on rooms = 102 + admin.fillCategories.0.__upper take 1 (+2 reserve) \u00d7 1 calls on rooms = 3\",\"completeness\":\"Page\",\"constraint_checks\":[\"rooms:Unique(byId)\"],\"disclosures\":[],\"evaluator_version\":\"bounded-spike-rust-1\",\"halo_rows\":1,\"indexes_required\":[\"rooms.byId\"],\"maintained_amplification\":0,\"max_closure_bytes\":0,\"max_examined\":105,\"max_heap_bytes\":90496,\"max_index_entries\":105,\"max_output_bytes\":6,\"max_rule_probes\":0,\"max_steps\":2828,\"plan_hash\":\"e022c0280e2d463f9119f0c9dba1da1441df1075cab9ebc84cb107b60bb64c3e\",\"prediction_sites\":[],\"program\":\"admin.fillCategories\",\"read_sites\":[{\"complete\":false,\"decided_true\":true,\"hoist\":true,\"index\":\"byId\",\"max_calls\":1,\"prefix_template\":\"Const\",\"rule_probes_per_candidate\":0,\"site\":\"admin.fillCategories.0\",\"table\":\"rooms\",\"take\":100},{\"complete\":false,\"decided_true\":true,\"hoist\":true,\"index\":\"byId\",\"max_calls\":1,\"prefix_template\":\"Const\",\"rule_probes_per_candidate\":0,\"site\":\"admin.fillCategories.0.__upper\",\"table\":\"rooms\",\"take\":1}],\"read_time_granularity_ms\":null,\"rule_hashes\":{\"rooms.read\":\"21f99aa9983a660add1776d275a179b1c9df0030413e81f544e76f183fbef130\",\"rooms.update\":\"21f99aa9983a660add1776d275a179b1c9df0030413e81f544e76f183fbef130\"},\"schema_hash\":\"15b22c92d10a9b5480344edd3bbd6979a6e2faaf9525c3604668e1a45201abcd\",\"tables\":{\"messageCounts\":{\"retain\":\"until-revoked\"},\"messages\":{\"retain\":\"until-revoked\"},\"reactions\":{\"retain\":\"until-revoked\"},\"receipts\":{\"retain\":\"until-revoked\"},\"rooms\":{\"retain\":\"until-revoked\"}},\"value_model_version\":\"i53-codepoint-bytes-v2\",\"write_sites\":[{\"kind\":\"Update\",\"max_rows\":100,\"table\":\"rooms\"},{\"kind\":\"Update\",\"max_rows\":1,\"table\":\"_jobs\"}]},\"entries\":3,\"impliedChunks\":1,\"index\":\"byId\",\"prefix\":[],\"prefixTemplate\":[],\"table\":\"rooms\",\"take\":100}]}\n",
+  "stderr": ""
+}

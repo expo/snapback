@@ -1,0 +1,18 @@
+{
+  "label": "31-restarted-rooms",
+  "command": [
+    "/Users/ccheever/bench-snapback2-dx/published-0.0.14/bootstrap/node_modules/.bin/snapback2",
+    "data",
+    "rooms",
+    "--as",
+    "system",
+    "--json"
+  ],
+  "cwd": "/Users/ccheever/bench-snapback2-evolution/0.0.14/app",
+  "started": "2026-09-07T07:21:54.344839+00:00",
+  "wall_s": 0.2066447079999998,
+  "pid": 50420,
+  "exit": 0,
+  "stdout": "{\"data\":[{\"category\":\"general\",\"id\":\"room-1\",\"ownerId\":\"dev:alice\",\"title\":\"Room 1\"},{\"category\":\"general\",\"id\":\"room-2\",\"ownerId\":\"dev:alice\",\"title\":\"Room 2\"},{\"category\":\"general\",\"id\":\"room-3\",\"ownerId\":\"dev:bob\",\"title\":\"Room 3\"}],\"next\":null,\"principal\":\"system\",\"seq\":4,\"state\":\"complete\",\"trace\":{\"absences\":[],\"constraint_inputs\":[],\"emits\":[],\"examined\":3,\"points\":[],\"ranges\":[{\"absence\":false,\"after\":null,\"before\":null,\"examined_ids\":[\"room-1\",\"room-2\",\"room-3\"],\"gt\":null,\"gte\":null,\"halo\":null,\"index\":\"byId\",\"lt\":null,\"lte\":null,\"n2_key\":null,\"order\":\"Asc\",\"prefix\":[],\"returned_ids\":[\"room-1\",\"room-2\",\"room-3\"],\"rule_hash\":\"cdcde74b0e9c957a67a5904505131ca1c8ef128ae0bdc780c697d7699ca5711d\",\"site\":\"<owner:data:rooms.byId>\",\"stop\":\"Exhausted\",\"table\":\"rooms\",\"take\":50,\"visible_ids\":[\"room-1\",\"room-2\",\"room-3\"]}],\"rows\":[{\"id\":\"room-1\",\"row\":{\"Row\":{\"category\":{\"String\":\"general\"},\"id\":{\"Id\":\"room-1\"},\"ownerId\":{\"Id\":\"dev:alice\"},\"title\":{\"String\":\"Room 1\"}}},\"table\":\"rooms\"},{\"id\":\"room-2\",\"row\":{\"Row\":{\"category\":{\"String\":\"general\"},\"id\":{\"Id\":\"room-2\"},\"ownerId\":{\"Id\":\"dev:alice\"},\"title\":{\"String\":\"Room 2\"}}},\"table\":\"rooms\"},{\"id\":\"room-3\",\"row\":{\"Row\":{\"category\":{\"String\":\"general\"},\"id\":{\"Id\":\"room-3\"},\"ownerId\":{\"Id\":\"dev:bob\"},\"title\":{\"String\":\"Room 3\"}}},\"table\":\"rooms\"}],\"rule_inputs\":[],\"rule_probes\":0,\"steps\":3,\"touched\":[],\"writes\":{}}}\n",
+  "stderr": ""
+}

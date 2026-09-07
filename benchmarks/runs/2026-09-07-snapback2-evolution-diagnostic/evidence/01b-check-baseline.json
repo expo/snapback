@@ -1,0 +1,15 @@
+{
+  "label": "01b-check-baseline",
+  "command": [
+    "/Users/ccheever/bench-snapback2-dx/published-0.0.14/bootstrap/node_modules/.bin/snapback2",
+    "check",
+    "--json"
+  ],
+  "cwd": "/Users/ccheever/bench-snapback2-evolution/0.0.14/app",
+  "started": "2026-09-07T07:17:12.498596+00:00",
+  "wall_s": 5.976750083000001,
+  "pid": 47615,
+  "exit": 1,
+  "stdout": "{\"code\":\"E_OP_INVALID\",\"family\":\"op\",\"message\":\"Property 'data' does not exist on type 'QueryResult<Page<MessagesRow>>'.\\n  Property 'data' does not exist on type 'QueryDenied'.\",\"site\":\"snapback/tests/preservation.test.ts:12:28\",\"rewrite\":\"fix the journey TypeScript error and rerun snapback2 check\",\"guide\":\"testing/journeys\"}\n",
+  "stderr": ""
+}

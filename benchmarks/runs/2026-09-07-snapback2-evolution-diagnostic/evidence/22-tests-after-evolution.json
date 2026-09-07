@@ -1,0 +1,16 @@
+{
+  "label": "22-tests-after-evolution",
+  "command": [
+    "/Users/ccheever/bench-snapback2-dx/published-0.0.14/bootstrap/node_modules/.bin/snapback2",
+    "test",
+    "--journeys-only",
+    "--json"
+  ],
+  "cwd": "/Users/ccheever/bench-snapback2-evolution/0.0.14/app",
+  "started": "2026-09-07T07:20:22.368438+00:00",
+  "wall_s": 3.2568399590000006,
+  "pid": 49262,
+  "exit": 0,
+  "stdout": "{\"binary\":{\"version\":\"0.0.14\",\"digest\":\"rust64:0c64cf0914f5b3e1\"},\"generation\":\"02d00627323f8d0b752a529a8d38213203c346f4cd082d8f15c6e4dbeaac0721\",\"commands\":[\"snapback2 dev --foreground --port 0\",\"seed\",\"snapback2 test --journeys-only\"],\"checks\":[{\"name\":\"populated private rows and rejected write survive\",\"kind\":\"journey\",\"verdict\":\"pass\",\"ms\":78,\"detail\":{\"file\":\"/Users/ccheever/bench-snapback2-evolution/0.0.14/app/.snapback/test-run-1788765622496/project/.snapback/build/tests/preservation.mjs\"}}],\"arms\":[\"headless\"],\"verdict\":\"pass\",\"scope\":{\"changed\":[]}}\n",
+  "stderr": ""
+}

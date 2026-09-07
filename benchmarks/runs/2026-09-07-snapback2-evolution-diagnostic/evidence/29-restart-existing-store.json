@@ -1,0 +1,15 @@
+{
+  "label": "29-restart-existing-store",
+  "command": [
+    "/Users/ccheever/bench-snapback2-dx/published-0.0.14/bootstrap/node_modules/.bin/snapback2",
+    "dev",
+    "--json"
+  ],
+  "cwd": "/Users/ccheever/bench-snapback2-evolution/0.0.14/app",
+  "started": "2026-09-07T07:21:52.570729+00:00",
+  "wall_s": 0.9384397499999999,
+  "pid": 50371,
+  "exit": 0,
+  "stdout": "{\"generation\":\"02d00627323f8d0b752a529a8d38213203c346f4cd082d8f15c6e4dbeaac0721\",\"pid\":50374,\"url\":\"http://127.0.0.1:62508\"}\n",
+  "stderr": ""
+}

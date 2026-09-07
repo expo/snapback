@@ -1,0 +1,19 @@
+{
+  "label": "07-before-alice-reactions",
+  "command": [
+    "/Users/ccheever/bench-snapback2-dx/published-0.0.14/bootstrap/node_modules/.bin/snapback2",
+    "run",
+    "records.listReactions",
+    "{}",
+    "--as",
+    "alice",
+    "--json"
+  ],
+  "cwd": "/Users/ccheever/bench-snapback2-evolution/0.0.14/app",
+  "started": "2026-09-07T07:18:33.441070+00:00",
+  "wall_s": 0.07450004099999999,
+  "pid": 48244,
+  "exit": 0,
+  "stdout": "{\"data\":[{\"emoji\":\"\ud83d\udc4d\",\"id\":\"reaction-2\",\"messageId\":\"message-2\",\"ownerId\":\"dev:alice\"},{\"emoji\":\"\ud83d\udc4d\",\"id\":\"reaction-4\",\"messageId\":\"message-4\",\"ownerId\":\"dev:alice\"},{\"emoji\":\"\ud83d\udc4d\",\"id\":\"reaction-6\",\"messageId\":\"message-6\",\"ownerId\":\"dev:alice\"},{\"emoji\":\"\ud83d\udc4d\",\"id\":\"reaction-8\",\"messageId\":\"message-8\",\"ownerId\":\"dev:alice\"}],\"next\":null,\"seq\":1,\"state\":\"complete\"}\n",
+  "stderr": ""
+}

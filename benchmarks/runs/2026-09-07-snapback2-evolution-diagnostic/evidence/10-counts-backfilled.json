@@ -1,0 +1,18 @@
+{
+  "label": "10-counts-backfilled",
+  "command": [
+    "/Users/ccheever/bench-snapback2-dx/published-0.0.14/bootstrap/node_modules/.bin/snapback2",
+    "data",
+    "messageCounts",
+    "--as",
+    "system",
+    "--json"
+  ],
+  "cwd": "/Users/ccheever/bench-snapback2-evolution/0.0.14/app",
+  "started": "2026-09-07T07:18:38.158510+00:00",
+  "wall_s": 0.1373337499999998,
+  "pid": 48315,
+  "exit": 0,
+  "stdout": "{\"data\":[{\"id\":\"[{\\\"Id\\\":\\\"room-1\\\"},{\\\"Id\\\":\\\"dev:alice\\\"}]\",\"ownerId\":\"dev:alice\",\"roomId\":\"room-1\",\"value\":4},{\"id\":\"[{\\\"Id\\\":\\\"room-2\\\"},{\\\"Id\\\":\\\"dev:alice\\\"}]\",\"ownerId\":\"dev:alice\",\"roomId\":\"room-2\",\"value\":4},{\"id\":\"[{\\\"Id\\\":\\\"room-3\\\"},{\\\"Id\\\":\\\"dev:bob\\\"}]\",\"ownerId\":\"dev:bob\",\"roomId\":\"room-3\",\"value\":4}],\"next\":null,\"principal\":\"system\",\"seq\":1,\"state\":\"complete\",\"trace\":{\"absences\":[],\"constraint_inputs\":[],\"emits\":[],\"examined\":3,\"points\":[],\"ranges\":[{\"absence\":false,\"after\":null,\"before\":null,\"examined_ids\":[\"[{\\\"Id\\\":\\\"room-1\\\"},{\\\"Id\\\":\\\"dev:alice\\\"}]\",\"[{\\\"Id\\\":\\\"room-2\\\"},{\\\"Id\\\":\\\"dev:alice\\\"}]\",\"[{\\\"Id\\\":\\\"room-3\\\"},{\\\"Id\\\":\\\"dev:bob\\\"}]\"],\"gt\":null,\"gte\":null,\"halo\":null,\"index\":\"byId\",\"lt\":null,\"lte\":null,\"n2_key\":null,\"order\":\"Asc\",\"prefix\":[],\"returned_ids\":[\"[{\\\"Id\\\":\\\"room-1\\\"},{\\\"Id\\\":\\\"dev:alice\\\"}]\",\"[{\\\"Id\\\":\\\"room-2\\\"},{\\\"Id\\\":\\\"dev:alice\\\"}]\",\"[{\\\"Id\\\":\\\"room-3\\\"},{\\\"Id\\\":\\\"dev:bob\\\"}]\"],\"rule_hash\":\"6fe38ca7ac066fb7da5b220ae2907b4a583040eed8e6a307fcd100e9e9f251bc\",\"site\":\"<owner:data:messageCounts.byId>\",\"stop\":\"Exhausted\",\"table\":\"messageCounts\",\"take\":50,\"visible_ids\":[\"[{\\\"Id\\\":\\\"room-1\\\"},{\\\"Id\\\":\\\"dev:alice\\\"}]\",\"[{\\\"Id\\\":\\\"room-2\\\"},{\\\"Id\\\":\\\"dev:alice\\\"}]\",\"[{\\\"Id\\\":\\\"room-3\\\"},{\\\"Id\\\":\\\"dev:bob\\\"}]\"]}],\"rows\":[{\"id\":\"[{\\\"Id\\\":\\\"room-1\\\"},{\\\"Id\\\":\\\"dev:alice\\\"}]\",\"row\":{\"Row\":{\"id\":{\"Id\":\"[{\\\"Id\\\":\\\"room-1\\\"},{\\\"Id\\\":\\\"dev:alice\\\"}]\"},\"ownerId\":{\"Id\":\"dev:alice\"},\"roomId\":{\"Id\":\"room-1\"},\"value\":{\"Int\":4}}},\"table\":\"messageCounts\"},{\"id\":\"[{\\\"Id\\\":\\\"room-2\\\"},{\\\"Id\\\":\\\"dev:alice\\\"}]\",\"row\":{\"Row\":{\"id\":{\"Id\":\"[{\\\"Id\\\":\\\"room-2\\\"},{\\\"Id\\\":\\\"dev:alice\\\"}]\"},\"ownerId\":{\"Id\":\"dev:alice\"},\"roomId\":{\"Id\":\"room-2\"},\"value\":{\"Int\":4}}},\"table\":\"messageCounts\"},{\"id\":\"[{\\\"Id\\\":\\\"room-3\\\"},{\\\"Id\\\":\\\"dev:bob\\\"}]\",\"row\":{\"Row\":{\"id\":{\"Id\":\"[{\\\"Id\\\":\\\"room-3\\\"},{\\\"Id\\\":\\\"dev:bob\\\"}]\"},\"ownerId\":{\"Id\":\"dev:bob\"},\"roomId\":{\"Id\":\"room-3\"},\"value\":{\"Int\":4}}},\"table\":\"messageCounts\"}],\"rule_inputs\":[],\"rule_probes\":0,\"steps\":3,\"touched\":[],\"writes\":{}}}\n",
+  "stderr": ""
+}
