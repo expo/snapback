@@ -246,6 +246,64 @@ query override(id: rows, replacement: time ?):
       && [...overridden].filter(([name]) => name !== "seenAt").every(([, field]) => field.fieldProjection === "inherited-row"),
     "a computed shape override was mistaken for an inherited optional column");
   });
+
+  test("direct Quarry gives empty lists a bottom type and contextual bounded joins", () => {
+    const prepared = prepare(schema, `fn size(values: [int] <=3) = count(values)
+
+query empty():
+  return []
+
+query callEmpty():
+  return size([])
+
+query selected(flag: bool):
+  if flag:
+    return []
+  return [1, 2, 3]
+
+query fallback(values: [int] <=3 ?):
+  return values ?? []
+
+query wider(values: [int] <=3 ?, more: [int] <=7):
+  return values ?? more
+`);
+    const bound = new Map(["empty", "callEmpty", "selected", "fallback", "wider"].map((name) => [name,
+      bindQuarryProgram(program(prepared, name), prepared.catalog, prepared.documents)]));
+    assert(bound.get("empty")!.result.type.kind === "empty-list" && bound.get("empty")!.result.max === 0,
+      `standalone [] lost its zero bound: ${JSON.stringify(bound.get("empty")!.result)}`);
+    assert(bound.get("callEmpty")!.result.type.kind === "int",
+      `typed fn did not contextualize []: ${JSON.stringify(bound.get("callEmpty")!.result)}`);
+    for (const name of ["selected", "fallback"]) {
+      const result = bound.get(name)!.result;
+      assert(result.type.kind === "list" && result.type.item.kind === "int" && result.type.max === 3
+        && !result.type.optional && result.presence === "required",
+      `${name} did not retain the nonempty list's type/bound: ${JSON.stringify(result)}`);
+    }
+    const wider = bound.get("wider")!.result;
+    assert(wider.type.kind === "list" && wider.type.item.kind === "int" && wider.type.max === 7
+      && !wider.type.optional && wider.presence === "required",
+    `coalesce did not retain the wider fallback bound: ${JSON.stringify(wider)}`);
+    const schemaJson = bindQuarrySchema(prepared.documents, prepared.catalog);
+    const direct = new Map([...bound].map(([name, value]) => [name, lowerBoundQuarryProgram(value)]));
+    const certificates = new Map([...direct].map(([name, value]) => {
+      const checked = rustCheck([value], "synthetic", schemaJson)[0]!;
+      assert(!checked.error && checked.certificate, `${name} empty-list program did not certify: ${JSON.stringify(checked)}`);
+      return [name, checked.certificate] as const;
+    }));
+    const execute = (name: string, args: Context["args"]) => new ClientStore(schemaJson).reexecute(direct.get(name)!, {
+      viewer: "viewer", principal_kind: "user", auth_epoch: 1, args, now: 1, read_time: 1, new_ids: [],
+    }, certificates.get(name)).execution.result;
+    deepStrictEqual(execute("empty", {}), { Array: [] });
+    deepStrictEqual(execute("callEmpty", {}), { Int: 0 });
+    deepStrictEqual(execute("selected", { flag: { Bool: true } }), { Array: [] });
+    deepStrictEqual(execute("selected", { flag: { Bool: false } }), { Array: [{ Int: 1 }, { Int: 2 }, { Int: 3 }] });
+    deepStrictEqual(execute("fallback", { values: "Null" }), { Array: [] });
+    deepStrictEqual(execute("fallback", { values: { Array: [{ Int: 7 }] } }), { Array: [{ Int: 7 }] });
+    deepStrictEqual(execute("wider", { values: "Null", more: { Array: [{ Int: 7 }, { Int: 8 }] } }),
+      { Array: [{ Int: 7 }, { Int: 8 }] });
+    deepStrictEqual(execute("wider", { values: { Array: [{ Int: 1 }] }, more: { Array: [{ Int: 7 }] } }),
+      { Array: [{ Int: 1 }] });
+  });
 }
 
 function prepare(schemaSource: string, operationSource: string) {

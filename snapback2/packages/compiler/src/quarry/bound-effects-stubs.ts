@@ -57,6 +57,7 @@ function valueFacts(facts: BoundValueFacts, rows: Map<string, string>): string {
 function boundType(type: BoundType, rows: Map<string, string>): string {
   if (type.kind === "unknown" || type.kind === "numeric-literal") return "unknown";
   if (type.kind === "null") return "null";
+  if (type.kind === "empty-list") return "never[]";
   if (type.kind === "row") return `${rows.get(type.table.name) ?? "Record<string, Json>"}${type.nullable ? " | null" : ""}`;
   if (type.kind === "page") return `Page<${type.item ? valueFacts(type.item, rows) : rows.get(type.table.name) ?? "Record<string, Json>"}>`;
   if (type.kind === "collection") return `Array<${valueFacts(type.item, rows)}>`;
