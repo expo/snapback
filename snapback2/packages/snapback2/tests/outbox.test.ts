@@ -953,7 +953,9 @@ test("a committed settlement lands in the same swap as the log tail rows, or not
   const after = fileRangeStore(root)();
   await after.open("dev:alice");
   assert.equal((await after.outbox.all())[0]?.state, "committed");
-  assert.deepEqual((await after.coverage()).rows.map((row) => row.id), [pinned], "the tail page holds the committed row");
+  assert.deepEqual((await after.coverage()).rows.map((row) => [row.table, row.id]), [
+    ["deliveries", `delivery-${pinned}`], ["messages", pinned],
+  ], "the tail page holds the committed message and its derived delivery row");
   const tail = await after.answer("deliveries.inbox", { c: "cursor-9" });
   assert.equal((tail?.data as any[])[0]?.message?.id, pinned);
   await after.close?.();
