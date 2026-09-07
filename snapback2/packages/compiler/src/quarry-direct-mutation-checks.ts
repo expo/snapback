@@ -281,6 +281,43 @@ schedule expireMessage on messages at .expiresAt:
       }
     });
   });
+
+  test("direct Quarry fn expansion cannot smuggle writes through a mutation caller or named shape", () => {
+    const schema = `table rows:
+  owner: principal
+  label: text <=40
+  count: int
+  public
+  insert <- allow
+`;
+    const refusal = (operations: string) => {
+      const prepared = prepareQuarry([
+        { path: "/virtual/schema.q", fileName: "snapback/schema.q", source: schema },
+        { path: "/virtual/ops.q", fileName: "snapback/ops.q", source: operations },
+      ]);
+      assert(prepared.ok, `fn write refusal did not prepare: ${JSON.stringify(prepared.ok ? [] : prepared.diagnostics)}`);
+      const declaration = prepared.prepared.documents[1]!.programs[0]!;
+      try {
+        bindQuarryProgram(declaration, prepared.prepared.catalog, prepared.prepared.documents);
+      } catch (error) {
+        return (error as { diagnostic?: { code: string; message: string } }).diagnostic;
+      }
+      return undefined;
+    };
+    const direct = refusal(`fn add(owner: principal) = insert rows { owner, label: 'x', count: 0 }
+mutation invoke(owner: principal):
+  return add(owner)
+`);
+    assert(direct?.code === "E_QUARRY_UNSUPPORTED" && direct.message.includes("read-pure"),
+      `fn body write escaped through a mutation caller: ${JSON.stringify(direct)}`);
+    const shaped = refusal(`shape illicit = { made: insert rows { owner: viewer, label: 'x', count: 0 } }
+fn project(row: rows) = row illicit
+mutation invoke(id: rows):
+  return project(id)
+`);
+    assert(shaped?.code === "E_QUARRY_UNSUPPORTED" && shaped.message.includes("read-pure"),
+      `fn named shape write escaped through a mutation caller: ${JSON.stringify(shaped)}`);
+  });
 }
 
 function withoutIdentityHashes(value: unknown): unknown {

@@ -426,6 +426,8 @@ class ExpressionBinder {
   }
 
   private write(expression: Extract<Expr, { kind: "write" }>): BoundExpression {
+    if (this.helperDepth > 0) unsupported(this.diagnosticSite(expression.site),
+      "fn expressions are read-pure and cannot write", "move the write into the calling mutation");
     if (this.program.kind === "query") refuse(this.diagnosticSite(expression.site), "queries cannot write", "change query to mutation");
     if (expression.table === "connected") refuse(this.diagnosticSite(expression.site), "connected is read-only", "use exists connected[viewer] or #connected[viewer]");
     const info = this.catalog.get(expression.table);
