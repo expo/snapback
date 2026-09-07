@@ -30,6 +30,7 @@ import { registerQuarryDirectProjectChecks } from "./quarry-direct-project-check
 import { registerQuarryDirectArgumentChecks } from "./quarry-direct-argument-checks";
 import { runQuarryBoundApiChecks } from "./quarry-bound-api-checks";
 import { registerQuarryDirectSearchEligibilityChecks } from "./quarry-direct-search-eligibility-checks";
+import { registerQuarryChatCompositionChecks } from "./quarry-chat-composition-checks";
 import ts from "typescript";
 
 export function registerQuarryChecks(test: Test, frontend: string): void {
@@ -39,6 +40,7 @@ export function registerQuarryChecks(test: Test, frontend: string): void {
   test("bound Quarry API follows direct result and custody facts", runQuarryBoundApiChecks);
   registerQuarryDirectSearchEligibilityChecks(test);
   registerQuarryDirectProjectChecks(test, frontend);
+  registerQuarryChatCompositionChecks(test, frontend);
   test("removed system rule refuses in the parser with a deny rewrite", () => {
     for (const rule of [
       "system", "allow or system", "not system", "(deny or system)",

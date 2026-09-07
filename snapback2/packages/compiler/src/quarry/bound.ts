@@ -3,7 +3,7 @@ import type { IndexComponent, Provenance } from "../ir";
 import { columnAt, derivedPosition, ordinaryColumns } from "../index-components";
 import type { Document, Expr, FunctionDecl, IndexDecl, ProgramDecl, ScalarType, ShapeDecl, ShapeField, Site, Stmt as QuarryStatement, TableCatalog, TableDecl } from "./ast";
 import { selectIndex } from "./catalog";
-import { QuarryError, refuse, typeError, unsupported } from "./diagnostics";
+import { decimalScale, opaque, QuarryError, refuse, typeError, unsupported } from "./diagnostics";
 
 const MAX_EXPANSION_DEPTH = 8;
 const MAX_EXPANDED_NODES = 4096;
@@ -43,6 +43,8 @@ export type BoundValueFacts = {
   type: BoundType;
   presence: BoundPresence;
   max?: number;
+  /** This int, or every int item in this list, still represents authored whole units. */
+  wholeUnits?: true;
   origin: Provenance;
   fieldProjection?: "inherited-row" | "constructed";
   tableOrigin?: BoundTableSymbol;
@@ -56,6 +58,8 @@ export type BoundExpression = BoundExpressionBase & (
   | { kind: "focal"; id: string }
   | { kind: "input"; input: "Viewer" | "Now" | "NewId" | "ReadTime" }
   | { kind: "array"; items: BoundExpression[] }
+  | { kind: "scale"; value: BoundExpression; multiplier: number; preserveNull: boolean }
+  | { kind: "scale-list"; value: BoundExpression; multiplier: number; max: number; preserveNull: boolean }
   | { kind: "object"; fields: Array<{ name: string; value: BoundExpression; source: BoundSourceStack }> }
   | { kind: "unary"; op: "Not" | "Neg"; value: BoundExpression }
   | { kind: "binary"; op: string; left: BoundExpression; right: BoundExpression; scaleDivisor?: number }
@@ -421,7 +425,9 @@ class ExpressionBinder {
         items[0]?.facts.type ?? ({ kind: "null" } as const),
       );
       const type: ScalarType = { kind: "list", item: scalarType(itemType, expression.site), max: items.length, optional: false };
-      return { kind: "array", items, facts: facts(type, combineOrigins(items), { max: items.length }), source };
+      return { kind: "array", items, facts: facts(type, combineOrigins(items), {
+        max: items.length, ...(items.every((item) => item.facts.wholeUnits) ? { wholeUnits: true } : {}),
+      }), source };
     }
     if (expression.kind === "object") {
       const fields = expression.fields.map((field) => ({
@@ -439,7 +445,9 @@ class ExpressionBinder {
         `unary - requires a present numeric value, got ${typeName(value.facts.type)}`,
         "negate an int, decimal, or money value");
       const type = expression.op === "not" ? boolType() : value.facts.type;
-      return { kind: "unary", op: expression.op === "not" ? "Not" : "Neg", value, facts: facts(type, "Computed"), source };
+      return { kind: "unary", op: expression.op === "not" ? "Not" : "Neg", value, facts: facts(type, "Computed", {
+        ...(expression.op !== "not" && value.facts.wholeUnits ? { wholeUnits: true } : {}),
+      }), source };
     }
     if (expression.kind === "binary") return this.binary(expression);
     if (expression.kind === "assert") {
@@ -526,8 +534,12 @@ class ExpressionBinder {
           expected,
           this.diagnosticSite(field.site),
         );
-        if (!writeAssignable(value.facts.type, expected, field.value)) typeError(this.diagnosticSite(field.site),
-          `${field.name} expects ${typeName(expected)}, got ${typeName(value.facts.type)}`, `use a ${typeName(expected)} value for ${field.name}`);
+        if (!writeAssignable(value.facts.type, expected, field.value)) {
+          const message = `${field.name} expects ${typeName(expected)}, got ${typeName(value.facts.type)}`;
+          const rewrite = `use a ${typeName(expected)} value for ${field.name}`;
+          if (representationMismatch(value.facts.type, expected)) decimalScale(this.diagnosticSite(field.site), message, rewrite);
+          typeError(this.diagnosticSite(field.site), message, rewrite);
+        }
         return { name: field.name, value, expected,
           ...(value.facts.type.kind === "row" ? { coercion: "row-id" as const } : {}), source: this.source(field.site) };
       });
@@ -577,7 +589,9 @@ class ExpressionBinder {
       type = fractionalDigits === 0 ? { kind: "int", optional: false } : { kind: "numeric-literal", fractionalDigits };
     }
     return { kind: "literal", value: expression.value, numericText: expression.numericText,
-      facts: facts(type, "Const"), source: this.source(expression.site) };
+      facts: facts(type, "Const", {
+        ...(typeof expression.value === "number" && Number.isInteger(expression.value) ? { wholeUnits: true } : {}),
+      }), source: this.source(expression.site) };
   }
 
   private name(name: string, site: Site): BoundExpression {
@@ -643,6 +657,9 @@ class ExpressionBinder {
         return { kind: "binary", op, left, right, facts: facts(boolType(), "Computed"), source: this.source(expression.site) };
       }
       [left, right] = contextualPair(left, right, expression.site);
+      if (representationMismatch(left.facts.type, right.facts.type)) decimalScale(expression.site,
+        `cannot compare ${typeName(left.facts.type)} with ${typeName(right.facts.type)}`,
+        "compare decimal or money values with one scale");
       if (!comparable(left.facts.type, right.facts.type)) typeError(expression.site,
         `cannot compare nominal ${typeName(left.facts.type)} with ${typeName(right.facts.type)}`,
         "compare values with the same nominal type");
@@ -683,8 +700,12 @@ class ExpressionBinder {
       `integer ${expression.op} is not an implicit rounding operation`,
       `use divmod(left, right).${op === "Div" ? "quotient" : "remainder"}`);
     if (brand && (op === "Add" || op === "Sub")) {
-      if (!leftBrand || !rightBrand || !sameBrand(leftBrand, rightBrand)) typeError(expression.site,
-        `${expression.op} requires matching ${typeName(brand)} values`, `use two matching ${typeName(brand)} values`);
+      if (!leftBrand || !rightBrand || !sameBrand(leftBrand, rightBrand)) {
+        const message = `${expression.op} requires matching ${typeName(brand)} values`;
+        const rewrite = `use two matching ${typeName(brand)} values`;
+        if (representationMismatch(left.facts.type, right.facts.type)) decimalScale(expression.site, message, rewrite);
+        typeError(expression.site, message, rewrite);
+      }
       return { kind: "binary", op, left, right, facts: facts(leftBrand, "Computed"), source: this.source(expression.site) };
     }
     if (brand && op === "Mul") {
@@ -708,7 +729,9 @@ class ExpressionBinder {
       || left.facts.presence === "optional" || right.facts.presence === "optional") typeError(expression.site,
         `${expression.op} requires present numeric operands; got ${typeName(leftType)} and ${typeName(rightType)}`,
         "use present int, decimal, or money values");
-    return { kind: "binary", op, left, right, facts: facts(requiredType(leftType), "Computed"), source: this.source(expression.site) };
+    return { kind: "binary", op, left, right, facts: facts(requiredType(leftType), "Computed", {
+      ...(left.facts.wholeUnits && right.facts.wholeUnits ? { wholeUnits: true } : {}),
+    }), source: this.source(expression.site) };
   }
 
   private member(expression: Extract<Expr, { kind: "member" }>): BoundExpression {
@@ -716,6 +739,10 @@ class ExpressionBinder {
     if (base.facts.type.kind === "ref") base = this.shapeBase(base, expression.base, expression.site);
     const source = this.source(expression.site);
     const baseType = base.facts.type;
+    if ((baseType.kind === "json" || baseType.kind === "unknown") && expression.name === "length") {
+      opaque(expression.site, `cannot prove .length on opaque ${baseType.kind}`,
+        "select .length from a declared bounded list");
+    }
     if ((baseType.kind === "list" || baseType.kind === "empty-list" || baseType.kind === "page" || baseType.kind === "collection") && expression.name === "length") {
       if (base.facts.presence === "optional") typeError(expression.site,
         "list length requires a present list; its maximum does not prove presence",
@@ -724,6 +751,7 @@ class ExpressionBinder {
     }
     let type: BoundType | undefined;
     let origin: Provenance = "Computed";
+    let wholeUnits: true | undefined;
     if (baseType.kind === "row") {
       const column = expression.name === "id"
         ? { kind: "ref", table: baseType.table.name, optional: false } as ScalarType
@@ -736,13 +764,16 @@ class ExpressionBinder {
       if (field) type = baseType.nullable ? optionalType(field.type) : field.type;
       if (type && base.kind === "variable" && base.symbol.narrowedMembers?.has(expression.name)) type = requiredType(type);
       origin = field?.origin ?? "Computed";
+      wholeUnits = field?.wholeUnits;
     } else if (baseType.kind === "json" || baseType.kind === "unknown") {
       type = { kind: "unknown" };
     } else if (baseType.kind === "image" || baseType.kind === "video") {
       if (["width", "height", "duration"].includes(expression.name)) type = { kind: "int", optional: baseType.optional };
     }
     if (!type) typeError(expression.site, `cannot select .${expression.name} from ${baseType.kind}`, "select a declared row or object field");
-    return { kind: "member", base, name: expression.name, facts: facts(type, origin), source };
+    return { kind: "member", base, name: expression.name, facts: facts(type, origin, {
+      ...(wholeUnits ? { wholeUnits } : {}),
+    }), source };
   }
 
   private shape(expression: Extract<Expr, { kind: "shape" | "shapeUse" }>): BoundExpression {
@@ -978,11 +1009,13 @@ class ExpressionBinder {
     );
     const bindings = declaration.args.map((parameter, index) => {
       const value = contextualValue(actuals[index]!, parameter.type, this.diagnosticSite(expression.args[index]?.site ?? expression.site));
-      if (!assignable(value.facts.type, parameter.type)) typeError(
-        this.diagnosticSite(expression.args[index]?.site ?? expression.site),
-        `fn ${expression.name} argument ${parameter.name} expects ${typeName(parameter.type)}, got ${typeName(value.facts.type)}`,
-        `pass ${parameter.name}: ${typeName(parameter.type)}`,
-      );
+      if (!assignable(value.facts.type, parameter.type)) {
+        const site = this.diagnosticSite(expression.args[index]?.site ?? expression.site);
+        const message = `fn ${expression.name} argument ${parameter.name} expects ${typeName(parameter.type)}, got ${typeName(value.facts.type)}`;
+        const rewrite = `pass ${parameter.name}: ${typeName(parameter.type)}`;
+        if (representationMismatch(value.facts.type, parameter.type)) decimalScale(site, message, rewrite);
+        typeError(site, message, rewrite);
+      }
       const symbol: BoundArgumentSymbol = {
         kind: "argument", id: `${identity}:call:${this.budget.expansionId++}:argument:${index}`,
         name: parameter.name, type: structuredClone(parameter.type), origin: value.facts.origin,
@@ -1243,6 +1276,7 @@ function joinFacts(values: BoundValueFacts[], site: Site): BoundValueFacts {
     ...(tableOrigin && originated.every((value) => value.tableOrigin?.id === tableOrigin.id) ? { tableOrigin } : {}),
     ...(readOrigin && originated.every((value) => value.readOrigin === readOrigin) ? { readOrigin } : {}),
     ...(fieldProjection ? { fieldProjection } : {}),
+    ...(originated.length > 0 && originated.every((value) => value.wholeUnits) ? { wholeUnits: true } : {}),
   }), presence: values.some((value) => value.presence === "optional") ? "optional" : "required" };
 }
 
@@ -1301,11 +1335,14 @@ function joinType(left: BoundType, right: BoundType, site: Site): BoundType {
   if (!isScalar(left) || !isScalar(right)) return left;
   if (left.kind === "ref" && right.kind === "ref" && left.table !== right.table) typeError(site,
     `conditional returns ${left.table} and ${right.table} references`, "return references to one table");
-  if (left.kind === "decimal" && right.kind === "decimal" && left.scale !== right.scale) typeError(site,
+  if (left.kind === "decimal" && right.kind === "decimal" && left.scale !== right.scale) decimalScale(site,
     `conditional returns decimal ${left.scale} and decimal ${right.scale}`, "return decimals with one scale");
   if (left.kind === "money" && right.kind === "money"
-    && (left.currency !== right.currency || left.scale !== right.scale)) typeError(site,
-    "conditional returns different money brands", "return money with one currency and scale");
+    && (left.currency !== right.currency || left.scale !== right.scale)) {
+    if (left.currency === right.currency) decimalScale(site,
+      "conditional returns money with different scales", "return money with one scale");
+    typeError(site, "conditional returns different money brands", "return money with one currency and scale");
+  }
   if (left.kind === "list" && right.kind === "list") {
     const item = joinType(left.item, right.item, site);
     if (!isScalar(item)) typeError(site, "conditional list items disagree", "return lists with one scalar item type");
@@ -1401,13 +1438,35 @@ function contextualValue(expression: BoundExpression, target: ScalarType, site: 
     const itemTarget = { ...target.item, optional: target.item.optional } as ScalarType;
     const items = expression.items.map((item) => contextualValue(item, itemTarget, item.source.definition));
     const mismatch = items.find((item) => !assignable(item.facts.type, itemTarget));
-    if (mismatch) typeError(site, `list item expects ${typeName(itemTarget)}, got ${typeName(mismatch.facts.type)}`,
-      `use ${typeName(itemTarget)} values in this list`);
+    if (mismatch) {
+      const message = `list item expects ${typeName(itemTarget)}, got ${typeName(mismatch.facts.type)}`;
+      const rewrite = `use ${typeName(itemTarget)} values in this list`;
+      if (representationMismatch(mismatch.facts.type, itemTarget)) decimalScale(site, message, rewrite);
+      typeError(site, message, rewrite);
+    }
     return { ...expression, items, facts: facts({
       kind: "list", item: structuredClone(itemTarget), max: items.length, optional: false,
-    }, combineOrigins(items), { max: items.length }) };
+    }, combineOrigins(items), { max: items.length,
+      ...(items.every((item) => item.facts.wholeUnits) ? { wholeUnits: true } : {}) }) };
   }
   if (numericLiteralExpression(expression) && numericTarget(target)) return contextualLiteral(expression, target, site);
+  if (expression.facts.wholeUnits && expression.facts.type.kind === "int"
+    && (target.kind === "decimal" || target.kind === "money")) {
+    if (expression.facts.presence === "optional" && !target.optional) return expression;
+    const preserveNull = expression.facts.presence === "optional";
+    return { kind: "scale", value: expression, multiplier: 10 ** target.scale, preserveNull,
+      facts: facts({ ...target, optional: preserveNull }, expression.facts.origin), source: expression.source };
+  }
+  if (expression.facts.wholeUnits && expression.facts.type.kind === "list" && target.kind === "list"
+    && expression.facts.type.item.kind === "int"
+    && (target.item.kind === "decimal" || target.item.kind === "money")) {
+    if (expression.facts.presence === "optional" && !target.optional) return expression;
+    const preserveNull = expression.facts.presence === "optional";
+    return { kind: "scale-list", value: expression, multiplier: 10 ** target.item.scale,
+      max: expression.facts.type.max, preserveNull, facts: facts({
+        ...target, item: { ...target.item, optional: false }, max: expression.facts.type.max, optional: preserveNull,
+      }, expression.facts.origin, { max: expression.facts.type.max }), source: expression.source };
+  }
   if (stringLiteralExpression(expression) && (target.kind === "id" || target.kind === "ref" || target.kind === "enum")) {
     return contextualLiteral(expression, target, site);
   }
@@ -1417,14 +1476,8 @@ function contextualValue(expression: BoundExpression, target: ScalarType, site: 
 function contextualPair(left: BoundExpression, right: BoundExpression, site: Site): [BoundExpression, BoundExpression] {
   const leftTarget = contextualTarget(right.facts.type);
   const rightTarget = contextualTarget(left.facts.type);
-  if (numericLiteralExpression(left) && leftTarget && numericTarget(leftTarget)) left = contextualLiteral(left, leftTarget, site);
-  if (numericLiteralExpression(right) && rightTarget && numericTarget(rightTarget)) right = contextualLiteral(right, rightTarget, site);
-  if (stringLiteralExpression(left) && leftTarget && (leftTarget.kind === "id" || leftTarget.kind === "ref")) {
-    left = contextualLiteral(left, leftTarget, site);
-  }
-  if (stringLiteralExpression(right) && rightTarget && (rightTarget.kind === "id" || rightTarget.kind === "ref")) {
-    right = contextualLiteral(right, rightTarget, site);
-  }
+  if (leftTarget) left = contextualValue(left, leftTarget, site);
+  if (rightTarget) right = contextualValue(right, rightTarget, site);
   return [left, right];
 }
 
@@ -1436,7 +1489,9 @@ function contextualTarget(type: BoundType): ScalarType | undefined {
 function contextualLiteral(expression: BoundExpression, target: ScalarType, site: Site): BoundExpression {
   if (expression.kind === "unary" && expression.op === "Neg") {
     const value = contextualLiteral(expression.value, target, site);
-    return { ...expression, value, facts: facts({ ...target, optional: false } as ScalarType, expression.facts.origin) };
+    return { ...expression, value, facts: facts({ ...target, optional: false } as ScalarType, expression.facts.origin, {
+      ...(target.kind === "int" ? { wholeUnits: true } : {}),
+    }) };
   }
   if (expression.kind !== "literal") return expression;
   if (typeof expression.value === "string" && target.kind === "enum") {
@@ -1453,10 +1508,15 @@ function contextualLiteral(expression: BoundExpression, target: ScalarType, site
   const text = expression.numericText ?? String(expression.value);
   const scale = target.kind === "decimal" || target.kind === "money" ? target.scale : 0;
   const wireValue = scaledInteger(text, scale);
-  if (wireValue === undefined) typeError(site,
-    `${decimalPlaces(text)} fractional digits do not fit ${typeName(target)}`,
-    target.kind === "decimal" || target.kind === "money" ? `use at most ${target.scale} fractional digits` : "use an integer literal");
-  return { ...expression, wireValue, facts: facts({ ...target, optional: false } as ScalarType, expression.facts.origin) };
+  if (wireValue === undefined) {
+    const message = `${decimalPlaces(text)} fractional digits do not fit ${typeName(target)}`;
+    const rewrite = target.kind === "decimal" || target.kind === "money" ? `use at most ${target.scale} fractional digits` : "use an integer literal";
+    if (target.kind === "decimal" || target.kind === "money") decimalScale(site, message, rewrite);
+    typeError(site, message, rewrite);
+  }
+  return { ...expression, wireValue, facts: facts({ ...target, optional: false } as ScalarType, expression.facts.origin, {
+    ...(target.kind === "int" ? { wholeUnits: true } : {}),
+  }) };
 }
 
 function numericLiteralExpression(expression: BoundExpression): boolean {
@@ -1607,6 +1667,13 @@ function assignable(actual: BoundType, expected: ScalarType): boolean {
     return actual.max <= expected.max && assignable(actual.item, expected.item);
   }
   return true;
+}
+function representationMismatch(actual: BoundType, expected: BoundType): boolean {
+  if (actual.kind === "decimal" && expected.kind === "decimal") return actual.scale !== expected.scale;
+  if (actual.kind === "money" && expected.kind === "money") {
+    return actual.currency === expected.currency && actual.scale !== expected.scale;
+  }
+  return actual.kind === "list" && expected.kind === "list" && representationMismatch(actual.item, expected.item);
 }
 function writeAssignable(actual: BoundType, expected: ScalarType, authored: Expr | undefined): boolean {
   if (actual.kind === "null") return expected.optional;

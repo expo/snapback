@@ -54,6 +54,19 @@ function lowerExpression(expression: BoundExpression, lowering: Lowering): Lower
     const items = lowerMany(expression.items, lowering);
     return { setup: items.setup, value: { Array: items.values } };
   }
+  if (expression.kind === "scale") {
+    const value = captureObservable(lowerExpression(expression.value, lowering), lowering);
+    const scaled = { Binary: {
+      op: "Mul" as const, left: value.value, right: { Literal: { Int: expression.multiplier } },
+    } } satisfies Expr;
+    if (!expression.preserveNull) return { setup: value.setup, value: scaled };
+    const result = temporary(lowering, "scaledOptional");
+    return { setup: [...value.setup,
+      { Let: { name: result, value: { Literal: "Null" } } },
+      { If: { condition: { Binary: { op: "Ne", left: value.value, right: { Literal: "Null" } } },
+        then_body: [{ Assign: { name: result, value: scaled } }], else_body: [] } }], value: { Variable: result } };
+  }
+  if (expression.kind === "scale-list") return lowerScaledList(expression, lowering);
   if (expression.kind === "object") {
     return lowerObjectFields(expression.fields, lowering);
   }
@@ -254,6 +267,38 @@ function lowerRange(expression: Extract<BoundExpression, { kind: "range" }>, low
       { For: { binding: item, domain: { LiteralRange: { start: expression.start, end_exclusive: expression.end } },
         body: [{ Push: { target: result, value: { Variable: item } } }] } },
     ],
+    value: { Variable: result },
+  };
+}
+
+function lowerScaledList(
+  expression: Extract<BoundExpression, { kind: "scale-list" }>,
+  lowering: Lowering,
+): LoweredValue {
+  const source = captureObservable(lowerExpression(expression.value, lowering), lowering);
+  const result = temporary(lowering, "scaledList");
+  const item = temporary(lowering, "scaledItem");
+  const converted: Stmt[] = [
+    { Const: { name: result, value: { Array: [] } } },
+    { For: { binding: item, domain: { DerivedArray: {
+      value: source.value, max: expression.max,
+      bound_source: `${expression.source.definition.file}:${expression.source.definition.line}:${expression.source.definition.col} whole-unit conversion`,
+    } }, body: [{ Push: { target: result, value: { Binary: {
+      op: "Mul", left: { Variable: item }, right: { Literal: { Int: expression.multiplier } },
+    } } } }] } },
+  ];
+  if (expression.preserveNull) {
+    const optionalResult = temporary(lowering, "scaledOptionalList");
+    return {
+      setup: [...source.setup,
+        { Let: { name: optionalResult, value: { Literal: "Null" } } },
+        { If: { condition: { Binary: { op: "Ne", left: source.value, right: { Literal: "Null" } } },
+          then_body: [...converted, { Assign: { name: optionalResult, value: { Variable: result } } }], else_body: [] } }],
+      value: { Variable: optionalResult },
+    };
+  }
+  return {
+    setup: [...source.setup, ...converted],
     value: { Variable: result },
   };
 }
