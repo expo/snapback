@@ -95,5 +95,5 @@ the membership merge and returns one page with one cursor. Its held twin uses
 the same index and reports `held`, `partial`, or `capped` rather than presenting
 downloaded results as complete server search.
 
-`words(text)` exposes the same normalized whole words for bounded program
-logic. `tokens(text)` remains the separate mention extractor.
+The normalized word list is index-internal; Quarry has no public `words()`
+value function. `tokens(text)` remains the separate mention extractor.

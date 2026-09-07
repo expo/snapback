@@ -29,7 +29,7 @@ export type BoundQuarryProject = {
 
 export type BoundQuarryProjectResult =
   | { ok: true; project: BoundQuarryProject }
-  | { ok: false; diagnostics: QuarryDiagnostic[] };
+  | { ok: false; diagnostics: QuarryDiagnostic[]; project?: BoundQuarryProject };
 
 /** Build the complete Quarry data plane from typed bound declarations. */
 export function bindQuarryProject(prepared: PreparedQuarry): BoundQuarryProject {
@@ -55,7 +55,10 @@ export function tryBindQuarryProject(prepared: PreparedQuarry): BoundQuarryProje
       diagnostics.push(error.diagnostic);
     }
   }
-  if (!schema || diagnostics.length > 0) return { ok: false, diagnostics };
+  if (!schema) return { ok: false, diagnostics };
+  if (diagnostics.length > 0) {
+    return { ok: false, diagnostics, project: assembleBoundQuarryProject(prepared, schema, boundPrograms) };
+  }
   return { ok: true, project: assembleBoundQuarryProject(prepared, schema, boundPrograms) };
 }
 

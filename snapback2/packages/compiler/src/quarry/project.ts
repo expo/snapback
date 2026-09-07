@@ -7,7 +7,7 @@ import { collectEffectCatalog, lowerEffects, type EffectCatalog, type SourceModu
 import { createProjectProgram, loadCompilerLib, projectTypeDiagnostics } from "../project-program";
 import { generateBoundApiDts } from "./bound-api";
 import { boundEffectDeclarationSources } from "./bound-effects-stubs";
-import { tryBindQuarryProject } from "./bound-project";
+import { tryBindQuarryProject, type BoundQuarryProject } from "./bound-project";
 import { frontendQuarryDiagnostic, prepareQuarry, type QuarryInput } from "./index";
 
 export type DirectQuarryProjectInput = {
@@ -33,9 +33,16 @@ export async function lowerDirectQuarryProject(input: DirectQuarryProjectInput):
   if (!prepared.ok) return failed(input.started, prepared.diagnostics);
 
   const bound = tryBindQuarryProject(prepared.prepared);
-  if (!bound.ok) return failed(input.started, bound.diagnostics.map(frontendQuarryDiagnostic));
-  const project = bound.project;
+  let project: BoundQuarryProject;
+  let bindDiagnostics: FrontendDiagnostic[] = [];
+  if (bound.ok) project = bound.project;
+  else {
+    if (!bound.project) return failed(input.started, bound.diagnostics.map(frontendQuarryDiagnostic));
+    project = bound.project;
+    bindDiagnostics = bound.diagnostics.map(frontendQuarryDiagnostic);
+  }
   const diagnostics: FrontendDiagnostic[] = [
+    ...bindDiagnostics,
     ...nestedModuleDiagnostics(input.discoveredModulePaths, input.authoredRoot, input.projectRoot),
     ...duplicateModuleBasenameDiagnostics([
       ...input.tsModulePaths,
@@ -70,11 +77,13 @@ export async function lowerDirectQuarryProject(input: DirectQuarryProjectInput):
     `export const ${expected.localName} = effect({ ... }) from snapback/${expected.moduleName}.ts`,
     "effects/authoring",
   ));
-  if (project.boundPrograms.length === 0 && effectCatalog.size === 0) diagnostics.push(typeDiagnostic(
+  if (prepared.prepared.documents.every((document) => document.programs.length === 0) && effectCatalog.size === 0) {
+    diagnostics.push(typeDiagnostic(
     "E_OP_NONE", "op", "snapback/schema.q", 1, 1,
     "project declares no query, mutation, or effect",
     "query operation():\n  return null", "programs/operations",
-  ));
+    ));
+  }
   const loweredEffects = lowerEffects(effectCatalog, project.operationSignatures);
   diagnostics.push(...loweredEffects.diagnostics);
   if (diagnostics.length > 0) return failed(input.started, diagnostics);

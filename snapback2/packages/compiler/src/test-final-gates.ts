@@ -1,6 +1,7 @@
 import { mkdir, mkdtemp, readdir, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
+import { pathToFileURL } from "node:url";
 import type { ProjectJson } from "./ir";
 import { lowerProject } from "./project";
 import ts from "typescript";
@@ -114,6 +115,17 @@ export function registerFinalGateChecks(test: RegisterTest): void {
     });
     assert(built.exitCode === 0,
       `package build failed: ${new TextDecoder().decode(built.stderr)}`);
+    const rootModule = await import(`${pathToFileURL(resolve(packageRoot, "dist/index.mjs")).href}?surface=${Date.now()}`);
+    const rootDeclarations = await Bun.file(resolve(packageRoot, "dist/index.d.ts")).text();
+    const removedDataNames = ["schema", "table", "t", "rule", "channel", "query", "mutation", "emit", "range",
+      "mentionTokens", "words", "deterministicShare", "concat", "max", "min", "divmod", "mergeByIndex", "recurse"];
+    assert(removedDataNames.every((name) => !(name in rootModule)),
+      `root runtime still exports TypeScript data helpers: ${removedDataNames.filter((name) => name in rootModule)}`);
+    assert(removedDataNames.every((name) => !new RegExp(`export (?:function|const|type) ${name}\\b`).test(rootDeclarations)),
+      "root declarations still expose the deleted TypeScript data language");
+    assert(["effect", "seed", "decimal"].every((name) => typeof rootModule[name] === "function")
+      && ["effect", "seed", "decimal"].every((name) => new RegExp(`export function ${name}\\b`).test(rootDeclarations)),
+    "root package lost a retained effect, seed, or client decimal helper");
     const bundle = resolve(packageRoot, "dist/compiler.mjs");
     const shipped = await Bun.file(bundle).text();
     const shippedCore = await Bun.file(resolve(packageRoot, "dist/compiler-core.mjs")).text();
