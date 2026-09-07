@@ -5,7 +5,7 @@
 **Systems:** `snapback2/crates/snapback2-core` (`store`, `registry`, `live`, `identity`, `successor`, the engine, the IR)
 **Author:** Claude Fable 5 (orchestrator) — implementer: codex gpt-5.6-sol, lane A
 **Date:** 2026-08-29
-**Revised:** 2026-09-07 (surviving-row uniqueness checked against each actual rebuild); 2026-09-07 (schema-owned maintained address widths/references and scoped successor reindex); 2026-09-07 (native v5 search/text integration preserving count-backed caps and ad hoc admission); 2026-09-07 (count-backed cap probes); 2026-09-06 (fixed complete local-runtime measurement roots: 66,000-byte ceiling, 64,000 target); 2026-09-06 (generation-owned policy hashes, pooled merge seeks and bounded shared templates); 2026-09-06 (measured full-entry search trade: 50,000-byte ceiling, 48,000 target); 2026-09-06 (session-delegated Unicode/search foundation and downstream contracts); 2026-09-06 (conditional result-page provenance and branch-scoped cursor validation); 2026-09-05 (Clique L12 — §3 receipt-only null invariant and §5.1 `connected`); 2026-09-05 (Clique L9 — bounded ASCII words builtin and constructed-text boundary); 2026-09-05 (Clique L10 — lazy merge, receipt retention and global local-pagination cursor rule); 2026-09-05 (Clique L8b — nested point-read shapes preserve page state; early exits preserve capped taint); 2026-09-05 (Clique L8a — prefix-local self-probe and decided-disjunction visibility proofs); 2026-09-05 (Clique L3 — honest bound refusals and patch-sensitive cap metering; LLP 1016 J2 — §1's system tables gain `_jobs` and `_timers`; LLP 1017 §1, then §2 and §3)
+**Revised:** 2026-09-07 (LLP 1018.000: persistent query IDs, context-aware batches and incremental dependency membership); 2026-09-07 (surviving-row uniqueness checked against each actual rebuild); 2026-09-07 (schema-owned maintained address widths/references and scoped successor reindex); 2026-09-07 (native v5 search/text integration preserving count-backed caps and ad hoc admission); 2026-09-07 (count-backed cap probes); 2026-09-06 (fixed complete local-runtime measurement roots: 66,000-byte ceiling, 64,000 target); 2026-09-06 (generation-owned policy hashes, pooled merge seeks and bounded shared templates); 2026-09-06 (measured full-entry search trade: 50,000-byte ceiling, 48,000 target); 2026-09-06 (session-delegated Unicode/search foundation and downstream contracts); 2026-09-06 (conditional result-page provenance and branch-scoped cursor validation); 2026-09-05 (Clique L12 — §3 receipt-only null invariant and §5.1 `connected`); 2026-09-05 (Clique L9 — bounded ASCII words builtin and constructed-text boundary); 2026-09-05 (Clique L10 — lazy merge, receipt retention and global local-pagination cursor rule); 2026-09-05 (Clique L8b — nested point-read shapes preserve page state; early exits preserve capped taint); 2026-09-05 (Clique L8a — prefix-local self-probe and decided-disjunction visibility proofs); 2026-09-05 (Clique L3 — honest bound refusals and patch-sensitive cap metering; LLP 1016 J2 — §1's system tables gain `_jobs` and `_timers`; LLP 1017 §1, then §2 and §3)
 **Related:** LLP 1000, LLP 1002 (the loop that serves this), LLP 1003 (effects
 through the outbox this spec defines), LLP 0329.014.004 §7 (runtime), LLP
 0329.014.000 §6 (execution, trace, states), LLP 0329.016 §5.6 (no silent
@@ -622,10 +622,12 @@ pub struct Delivery { pub id: SubscriptionId, pub seq: u64, pub execution: Resul
 impl Runtime {
     pub fn subscribe(&mut self, op: &str, context: Context) -> Result<(SubscriptionId, Execution), RuntimeError>;
     pub fn unsubscribe(&mut self, id: SubscriptionId);
-    /// Which subscriptions a commit touched. Pure; O(touched keys · matching entries).
+    /// Pure exact-key lookup and conservative prefix-group matching.
     pub fn invalidated(&self, commit: &CommitRecord) -> Vec<SubscriptionId>;
     /// Re-execute the named subscriptions once each (coalesced), diff against the last result digest.
     pub fn rerun(&mut self, ids: &[SubscriptionId]) -> Vec<Delivery>;
+    /// Refresh context and execution in the same persistent subscription slot.
+    pub fn rerun_with_contexts(&mut self, entries: &[(SubscriptionId, Context)]) -> Vec<Delivery>;
     pub fn subscriptions(&self) -> Vec<SubscriptionInfo>;   // for `dev --status`, `why`, `trace`
 }
 ```
@@ -647,9 +649,29 @@ coalesce — the state is part of the digest, so `Complete` → `Denied` over th
 same payload is a change. Every write emits at least one touched entry for its
 table even when the table has no index, so `constraint_inputs` overlap works
 without assuming `byId` exists (round 2 G2/G3).
-`rerun` executes at most once per id per call, in id order, and updates the
-subscription's key entries from the fresh trace. Subscriptions live in memory
-with the owner; a restart re-subscribes from the clients (LLP 1002).
+`rerun` executes at most once per id per call, in id order. The context-aware
+batch keeps each `SubscriptionId`; the last context supplied for a repeated id
+wins. The owner samples one clock for the batch and refreshes `now` and
+`read_time` without unsubscribing and subscribing again. It still derives
+ordinary and offline frames from the full execution and compares frame digests;
+a terminal delivery removes the owner entry and detaches its runtime slot once.
+
+Trace dependencies are normalized sets. A successful execution, including a
+denied or partial result, replaces only the old/new set difference. Point,
+absence, and rule-input keys share exact membership; constraints use table
+membership. Ranges use `(table, index) → canonical prefix → subscription IDs`,
+so attaching, replacing, or removing a range uses keyed membership rather than
+scanning all subscribers of that index. Empty prefix and index buckets are
+pruned. Invalidation still conservatively examines the distinct prefix groups
+of each touched index, including search scope touches; this is not a claim
+that range invalidation costs only the number of final matches.
+
+A runtime error has no replacement authoritative trace: retain the old
+dependencies for a later retry while remembering the latest context and error
+digest. Core callers can retry that slot; the owner's terminal transport path
+detaches it. Subscriptions live in memory with the owner; a restart
+re-subscribes from the clients (LLP 1002). This implements the persistent-query
+move in LLP 1018.000; no leaf-read cache is introduced.
 
 A `Delivery` for a subscription whose read is now `Denied` (a revoked
 membership) is delivered with that state — the client sees `denied`, not a

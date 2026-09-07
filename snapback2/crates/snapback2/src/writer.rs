@@ -1243,19 +1243,32 @@ impl State {
 
     fn rerun_live(&mut self, ids: &[u64], force: bool) -> Vec<LedgerDelivery> {
         let mut deliveries = Vec::new();
-        for id in ids {
-            let Some(mut client) = self.live.get(id).cloned() else {
-                continue;
-            };
-            self.runtime_mut().unsubscribe(client.runtime_id);
-            let now = self.now();
+        let now = self.now();
+        let mut clients = ids
+            .iter()
+            .filter_map(|id| self.live.get(id).cloned().map(|client| (*id, client)))
+            .collect::<BTreeMap<_, _>>();
+        for client in clients.values_mut() {
             client.context.now = Some(now);
             client.context.read_time = Some(now);
-            match self
-                .runtime_mut()
-                .subscribe(&client.op, client.context.clone())
-            {
-                Ok((runtime_id, execution)) => {
+        }
+        let requests = clients
+            .values()
+            .map(|client| (client.runtime_id, client.context.clone()))
+            .collect::<Vec<_>>();
+        let by_runtime = clients
+            .iter()
+            .map(|(id, client)| (client.runtime_id, *id))
+            .collect::<BTreeMap<_, _>>();
+        for delivery in self.runtime_mut().rerun_with_contexts(&requests) {
+            let Some(id) = by_runtime.get(&delivery.id).copied() else {
+                continue;
+            };
+            let Some(mut client) = clients.remove(&id) else {
+                continue;
+            };
+            match delivery.execution {
+                Ok(execution) => {
                     let refused = client
                         .drain
                         .then(|| self.admit_drain(&client.op).err())
@@ -1277,20 +1290,24 @@ impl State {
                         )
                     };
                     let changed = frame_digest(&frame) != frame_digest(&client.last_frame);
-                    client.runtime_id = runtime_id;
                     client.last_frame = frame.clone();
-                    if force || changed {
+                    if force || changed || terminal {
                         let _ = client.events.send_latest(SseEvent {
                             seq: Some(execution.seq),
                             data: frame,
                             terminal,
                         });
                         deliveries.push(LedgerDelivery {
-                            id: *id,
+                            id,
                             seq: execution.seq,
                         });
                     }
-                    self.live.insert(*id, client);
+                    if terminal {
+                        self.live.remove(&id);
+                        self.runtime_mut().unsubscribe(client.runtime_id);
+                    } else {
+                        self.live.insert(id, client);
+                    }
                 }
                 Err(error) => {
                     let seq = self.runtime().store().commit_seq().unwrap_or_default();
@@ -1300,8 +1317,9 @@ impl State {
                         data: frame,
                         terminal,
                     });
-                    deliveries.push(LedgerDelivery { id: *id, seq });
-                    self.live.remove(id);
+                    deliveries.push(LedgerDelivery { id, seq });
+                    self.live.remove(&id);
+                    self.runtime_mut().unsubscribe(client.runtime_id);
                 }
             }
         }
