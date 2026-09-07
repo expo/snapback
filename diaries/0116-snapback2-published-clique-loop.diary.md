@@ -1237,3 +1237,29 @@ The unchanged published0.0.15 Grok app ran under an explicitly changed npm10 too
 Root read the complete report and caught a coverage overclaim: an own-repost test does not establish visibility through a different followed reposter. Two-image rendering, avatar decoding and physical process restart likewise require stronger observations. Passing app-authored suite labels are not enough; these gaps remain visible instead of becoming a better-looking score. The separate Grok63 remains below Convex78; Supabase47 and valid comparator baselines are retained.
 
 [Preserved audit and separate Root validation](../benchmarks/runs/2026-09-06-clique-improvement/evidence/grok-015-assertion-continuation/README.md). Native, full-scale, M7 and the full model/size requirements remain outstanding. This evidence does not attribute every app defect to the backend.
+
+## 2026-09-07 — Exact-lock installation exposed an absent optional platform
+
+The completed Grok 0.0.15 app could not reach startup in the independent audit:
+its two original `npm ci` attempts failed on `snapback2-linux-x64@`. Producer
+and auditor both recorded Node 24.18.0 and npm 11.16.0 on Darwin arm64. The
+original and audit locks were byte-identical. Registry metadata was easy to
+compare by integrity; the surprising friction was that a Linux package never
+published for this release could prevent a Darwin install.
+
+Three preserved dependency-only controls isolated npm's optional-dependency
+behavior. npm 11 reproduced the failure; npm 10.9.8 installed the unchanged
+app lock, with all 723 installed entries matching locked version, URL and
+integrity. That is a disclosed setup workaround, not an app acceptance result.
+The original failed audit and its receipts remain intact. The smaller publication
+consumer also lacked React because its separate install used
+`--legacy-peer-deps`; repository consumer qualification already supplies React.
+
+The product change selects optional platform dependencies from the artifacts
+staged for publication and checks resumed tarball identities and dependencies.
+A Darwin-only release no longer references an absent Linux version. Metadata
+tests preserve multiple selected platforms, and a fresh exact-lock fixture
+installs under npm 11.16.0 with default peer and optional dependency semantics.
+These mechanical package tests do not qualify a Linux binary or a new release.
+Selected non-secret setup evidence is retained in
+[`clean-install-platform-triage-20260907.json`](../benchmarks/runs/2026-09-06-clique-improvement/evidence/clean-install-platform-triage-20260907.json).

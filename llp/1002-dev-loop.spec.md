@@ -5,7 +5,7 @@
 **Systems:** `snapback2/crates/snapback2` (the binary: owner, server, verbs), `snapback2/packages/compiler` (project lowering, worker), `snapback2/packages/snapback2` (authoring runtime, client, React, test runner, shim), `snapback2/scripts/measure.mjs`
 **Author:** Claude Fable 5 (orchestrator) — implementers: codex gpt-5.6-sol, lanes B0 (compiler + authoring surface), B1 (owner + server + verbs), B2 (`init`, `test`, `why`, `trace`, `guide`), D (client + React + evaluator)
 **Date:** 2026-08-29
-**Revised:** 2026-09-07 (explicit named-journey verification and executable React startup; startup cleanup fixture custody); 2026-09-06 (app guide operation/certificate custody; native logical SSE body; CLI help and executable migration recovery; auth startup recovery and held transition reads; queued transitions, interrupted sync, live held reads); 2026-09-05 (keyword index fallback and recipe list; generated Quarry keyword guide, landed outbox/client custody; auth review: failed-transition custody, read restoration barrier, session kind, paused offline retries; client-owned auth restoration and retry lifecycle; catalog naming rewrites, Clique L2; shared live transport, bounded derived verification, mutation-read guidance, installed consumer qualification)
+**Revised:** 2026-09-07 (staged platform dependency selection and exact-lock packaging regression; explicit named-journey verification and executable React startup; startup cleanup fixture custody); 2026-09-06 (app guide operation/certificate custody; native logical SSE body; CLI help and executable migration recovery; auth startup recovery and held transition reads; queued transitions, interrupted sync, live held reads); 2026-09-05 (keyword index fallback and recipe list; generated Quarry keyword guide, landed outbox/client custody; auth review: failed-transition custody, read restoration barrier, session kind, paused offline retries; client-owned auth restoration and retry lifecycle; catalog naming rewrites, Clique L2; shared live transport, bounded derived verification, mutation-read guidance, installed consumer qualification)
 **Related:** LLP 1000, LLP 1001 (the engine this serves), LLP 1003 (effects),
 LLP 0329.016 §5 (the design this implements verbatim where it can), LLP
 0329.016 §5.11 (the verb table — no verb exists without its row), LLP
@@ -1002,6 +1002,19 @@ tarballs and requires every check to pass, including effects. The packed
 README travels with the compiler, client, templates, and guide. Gates from
 `rules/RULES.md`: `check` < 1 s, `doctor` < 0.5 s; from LLP 0329.016 §8:
 `init` → `dev` ≤ 10 s. This implements LLP 1007 §5 item 7 (2026-09-05).
+
+The packed shim's optional platform dependencies name exactly the platform
+artifacts selected for that publication, all at the shim's version. The current
+publisher qualifies and stages its host platform; it does not require an
+unreleased Linux binary for a Darwin release. The selection helper also
+preserves multiple platforms when supplied together. Production qualification
+checks the packed package identities and dependency map, including resumed
+tarballs; a mismatched immutable shim is refused and must be staged again.
+Development consumer packing uses the same selection. `publish.mjs --self-test`
+includes an offline fixture install followed by a fresh `npm ci` with unchanged
+package/lock bytes and default peer/optional dependency semantics. This is
+packaging evidence, separate from runtime/platform qualification and the
+consumer's existing 30-second budget.
 
 ## Deferred (not binding)
 

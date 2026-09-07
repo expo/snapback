@@ -1,0 +1,225 @@
+{
+  "date": "2026-09-07",
+  "scope": "Dependency-only setup diagnostic; no app acceptance or Linux runtime claim",
+  "sourceEvidence": "/Users/ccheever/clique-improvement/revisions/clean-install-triage-r1",
+  "sourceEvidenceManifestSha256": "5b62ce5c97c0c36da4297cea79b7f632baceea6aa772c2369ef628103a61c35a",
+  "producerToolchain": {
+    "node": "v24.18.0",
+    "npm": "11.16.0",
+    "platform": "darwin",
+    "arch": "arm64",
+    "source": "original app receipts/setup-identity.json"
+  },
+  "auditToolchain": {
+    "node": "v24.18.0",
+    "npm": "11.16.0"
+  },
+  "auditOriginalAttempts": [
+    {
+      "attempt": 1,
+      "error": [
+        "npm error code EUSAGE",
+        "npm error",
+        "npm error `npm ci` can only install packages when your package.json and package-lock.json or npm-shrinkwrap.json are in sync. Please update your lock file with `npm install` before continuing.",
+        "npm error",
+        "npm error Missing: snapback2-linux-x64@ from lock file",
+        "npm error"
+      ]
+    },
+    {
+      "attempt": 2,
+      "error": [
+        "npm error code EUSAGE",
+        "npm error",
+        "npm error `npm ci` can only install packages when your package.json and package-lock.json or npm-shrinkwrap.json are in sync. Please update your lock file with `npm install` before continuing.",
+        "npm error",
+        "npm error Missing: snapback2-linux-x64@ from lock file",
+        "npm error"
+      ]
+    }
+  ],
+  "registry": [
+    {
+      "name": "snapback2",
+      "version": "0.0.15",
+      "url": "https://registry.npmjs.org/snapback2/0.0.15",
+      "status": 200,
+      "observedAt": "2026-09-07T15:37:51.063911+00:00",
+      "optionalDependencies": {
+        "snapback2-linux-x64": "0.0.15",
+        "snapback2-darwin-arm64": "0.0.15"
+      },
+      "integrity": "sha512-+Ucp3/J4sG7BJwKdeMzPXQpj+dhc3R2Q/pBQoohXxTRV3hiPAWBojHtaQ4ums0SxlQ0wDsss5w2mmmiTj3YRFg=="
+    },
+    {
+      "name": "snapback2-darwin-arm64",
+      "version": "0.0.15",
+      "url": "https://registry.npmjs.org/snapback2-darwin-arm64/0.0.15",
+      "status": 200,
+      "observedAt": "2026-09-07T15:37:51.208389+00:00",
+      "optionalDependencies": null,
+      "integrity": "sha512-O9Zx/4wAPwraH77N2rsCuvorIey49aMRl6tckV3cRkGHuZow1lKelsM0ushU8S3kZC5yD1OnFVUHERNex9jRBw=="
+    },
+    {
+      "name": "snapback2-linux-x64",
+      "version": "0.0.15",
+      "url": "https://registry.npmjs.org/snapback2-linux-x64/0.0.15",
+      "status": 404,
+      "observedAt": "2026-09-07T15:37:51.370632+00:00",
+      "body": "Not Found"
+    }
+  ],
+  "controls": [
+    {
+      "id": "01-app-npm11",
+      "node": "v24.18.0",
+      "npm": "11.16.0",
+      "platform": "darwin",
+      "machine": "arm64",
+      "deadlineSeconds": 120,
+      "timingScope": "triage only",
+      "exitCode": 1,
+      "timedOut": false,
+      "elapsedSeconds": 3.609562833,
+      "inputHashes": {
+        "package.json": "8bc17fcfb3b2001703c0e38d72f77dd5da166d18b1bd317de138aa426ca4ffc5",
+        "package-lock.json": "fda9f42de3d575aa8ef904caa456c8d7e71156413777e0c81b79b11cb044e6c9"
+      },
+      "afterHashes": {
+        "package.json": "8bc17fcfb3b2001703c0e38d72f77dd5da166d18b1bd317de138aa426ca4ffc5",
+        "package-lock.json": "fda9f42de3d575aa8ef904caa456c8d7e71156413777e0c81b79b11cb044e6c9"
+      },
+      "inputUnchanged": true,
+      "nodeModulesAbsentBefore": true,
+      "dependencyConfig": "omit=\ninclude=\nlegacy-peer-deps=false\ninstall-links=false\nignore-scripts=false\nstrict-peer-deps=false\nregistry=https://registry.npmjs.org/\n",
+      "installedIdentity": {},
+      "stderrExcerpt": [
+        "npm error code EUSAGE",
+        "npm error",
+        "npm error `npm ci` can only install packages when your package.json and package-lock.json or npm-shrinkwrap.json are in sync. Please update your lock file with `npm install` before continuing.",
+        "npm error",
+        "npm error Missing: snapback2-linux-x64@ from lock file",
+        "npm error",
+        "npm error Clean install a project",
+        "npm error"
+      ]
+    },
+    {
+      "id": "02-app-npm10",
+      "node": "v24.18.0",
+      "npm": "10.9.8",
+      "platform": "darwin",
+      "machine": "arm64",
+      "deadlineSeconds": 120,
+      "timingScope": "triage only",
+      "exitCode": 0,
+      "timedOut": false,
+      "elapsedSeconds": 24.135163084,
+      "inputHashes": {
+        "package.json": "8bc17fcfb3b2001703c0e38d72f77dd5da166d18b1bd317de138aa426ca4ffc5",
+        "package-lock.json": "fda9f42de3d575aa8ef904caa456c8d7e71156413777e0c81b79b11cb044e6c9"
+      },
+      "afterHashes": {
+        "package.json": "8bc17fcfb3b2001703c0e38d72f77dd5da166d18b1bd317de138aa426ca4ffc5",
+        "package-lock.json": "fda9f42de3d575aa8ef904caa456c8d7e71156413777e0c81b79b11cb044e6c9"
+      },
+      "inputUnchanged": true,
+      "nodeModulesAbsentBefore": true,
+      "dependencyConfig": "omit=\ninclude=\nlegacy-peer-deps=false\ninstall-links=false\nignore-scripts=false\nstrict-peer-deps=false\nregistry=https://registry.npmjs.org/\n",
+      "installedIdentity": {
+        "snapback2": {
+          "version": "0.0.15",
+          "sha256": "ed07eb8aa705bb1b1a4f94ec0fe9116c49e822cf7a83560523aa43c602b4469c"
+        },
+        "snapback2-darwin-arm64": {
+          "version": "0.0.15",
+          "sha256": "513f3bdd50ab8d59e2bd3a9f7c3b6a9def61b37c4cf2f2f09077cceb3f9d3bee"
+        },
+        "react": {
+          "version": "19.1.0",
+          "sha256": "8f3eb41d5562d73fd0b367319a8b7f03b36740f2dbd58214581307e0b5aa7a04"
+        },
+        "expo": {
+          "version": "54.0.37",
+          "sha256": "ba7bb712b504740da353e913fc09a13fcda261811b83ce4c14506f98d2cc7365"
+        },
+        "typescript": {
+          "version": "5.9.2",
+          "sha256": "5a0bb7f286c4b3f1413a42c05f902311b161f70e5f52d9da10490443bfd595a3"
+        }
+      },
+      "stderrExcerpt": [
+        "npm warn deprecated rimraf@3.0.2: Rimraf versions prior to v4 are no longer supported",
+        "npm warn deprecated uuid@7.0.3: uuid@10 and below is no longer supported.  For ESM codebases, update to uuid@latest.  For CommonJS codebases, use uuid@11 (but be aware this version will likely be deprecated in 2028).",
+        "npm warn deprecated inflight@1.0.6: This module is not supported, and leaks memory. Do not use it. Check out lru-cache if you want a good and tested way to coalesce async requests by a key value, which is much more comprehensive and powerful.",
+        "npm warn deprecated glob@7.2.3: Old versions of glob are not supported, and contain widely publicized security vulnerabilities, which have been fixed in the current version. Please update. Support for old versions may be purchased (at exorbitant rates) by contacting i@izs.me",
+        "npm warn deprecated glob@7.2.3: Old versions of glob are not supported, and contain widely publicized security vulnerabilities, which have been fixed in the current version. Please update. Support for old versions may be purchased (at exorbitant rates) by contacting i@izs.me",
+        "npm warn deprecated glob@7.2.3: Old versions of glob are not supported, and contain widely publicized security vulnerabilities, which have been fixed in the current version. Please update. Support for old versions may be purchased (at exorbitant rates) by contacting i@izs.me",
+        "npm warn deprecated glob@7.2.3: Old versions of glob are not supported, and contain widely publicized security vulnerabilities, which have been fixed in the current version. Please update. Support for old versions may be purchased (at exorbitant rates) by contacting i@izs.me"
+      ]
+    },
+    {
+      "id": "03-consumer-npm11",
+      "node": "v24.18.0",
+      "npm": "11.16.0",
+      "platform": "darwin",
+      "machine": "arm64",
+      "deadlineSeconds": 120,
+      "timingScope": "triage only",
+      "exitCode": 1,
+      "timedOut": false,
+      "elapsedSeconds": 1.417879375,
+      "inputHashes": {
+        "package.json": "a74d3e13e2453ba2a0a2215d8d40a9f3555a740cc3c0c726b7575c0c61ec6cf4",
+        "package-lock.json": "bd4b4d7c34fc25bbe0250ff285fd6b87da3cec3de29f354c3c489248354c309f"
+      },
+      "afterHashes": {
+        "package.json": "a74d3e13e2453ba2a0a2215d8d40a9f3555a740cc3c0c726b7575c0c61ec6cf4",
+        "package-lock.json": "bd4b4d7c34fc25bbe0250ff285fd6b87da3cec3de29f354c3c489248354c309f"
+      },
+      "inputUnchanged": true,
+      "nodeModulesAbsentBefore": true,
+      "dependencyConfig": "omit=\ninclude=\nlegacy-peer-deps=false\ninstall-links=false\nignore-scripts=false\nstrict-peer-deps=false\nregistry=https://registry.npmjs.org/\n",
+      "installedIdentity": {},
+      "stderrExcerpt": [
+        "npm error code EUSAGE",
+        "npm error",
+        "npm error `npm ci` can only install packages when your package.json and package-lock.json or npm-shrinkwrap.json are in sync. Please update your lock file with `npm install` before continuing.",
+        "npm error",
+        "npm error Missing: react@19.2.8 from lock file",
+        "npm error Missing: snapback2-linux-x64@ from lock file",
+        "npm error",
+        "npm error Clean install a project"
+      ]
+    }
+  ],
+  "successfulClosure": {
+    "installedPackageEntries": 723,
+    "inputPackageEntriesExcludingRoot": 733,
+    "identityFields": [
+      "version",
+      "resolved",
+      "integrity"
+    ],
+    "mismatches": [],
+    "omittedInputPaths": [
+      "node_modules/lightningcss-android-arm64",
+      "node_modules/lightningcss-darwin-x64",
+      "node_modules/lightningcss-freebsd-x64",
+      "node_modules/lightningcss-linux-arm-gnueabihf",
+      "node_modules/lightningcss-linux-arm64-gnu",
+      "node_modules/lightningcss-linux-arm64-musl",
+      "node_modules/lightningcss-linux-x64-gnu",
+      "node_modules/lightningcss-linux-x64-musl",
+      "node_modules/lightningcss-win32-arm64-msvc",
+      "node_modules/lightningcss-win32-x64-msvc"
+    ]
+  },
+  "limitations": [
+    "Original npm ci argv was recovered, but no original wall deadline was recovered. The120-second control bound is diagnostic only.",
+    "The publication consumer control additionally lacks React after its separate --legacy-peer-deps install; repository consumer-smoke explicitly supplies React.",
+    "No original app, package, lock, audit report or registry artifact was repaired or overwritten.",
+    "npm10.9.8 is a disclosed environment workaround; the source fix selects only staged platform dependencies."
+  ],
+  "upstreamIssue": "https://github.com/npm/cli/issues/9846"
+}
