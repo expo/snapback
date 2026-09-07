@@ -1,0 +1,183 @@
+{
+  "scope": "canonicalProgramJson only; no engine, native owner, build, or product suite",
+  "results": [
+    {
+      "name": "one-character-string",
+      "input": {
+        "name": "q",
+        "kind": "Query",
+        "args": {},
+        "read_time_granularity_ms": null,
+        "body": [
+          {
+            "For": {
+              "binding": "item",
+              "domain": "x",
+              "body": []
+            }
+          },
+          {
+            "Return": {
+              "Literal": "Null"
+            }
+          }
+        ]
+      },
+      "parent": {
+        "value": "{\"name\":\"q\",\"kind\":\"Query\",\"args\":{},\"read_time_granularity_ms\":null,\"body\":[{\"For\":{\"binding\":\"item\",\"domain\":{\"0\":\"x\"},\"body\":[]}},{\"Return\":{\"Literal\":\"Null\"}}]}",
+        "sha256": "4e23a065bf3cf1b09c95458a5f319a2b8c265a098b4750b9810f5f4734c5ced1"
+      },
+      "candidate": {
+        "value": "{\"name\":\"q\",\"kind\":\"Query\",\"args\":{},\"read_time_granularity_ms\":null,\"body\":[{\"For\":{\"binding\":\"item\",\"domain\":{\"0\":\"x\"},\"body\":[]}},{\"Return\":{\"Literal\":\"Null\"}}]}",
+        "sha256": "4e23a065bf3cf1b09c95458a5f319a2b8c265a098b4750b9810f5f4734c5ced1"
+      },
+      "equal": true
+    },
+    {
+      "name": "one-element-array",
+      "input": {
+        "name": "q",
+        "kind": "Query",
+        "args": {},
+        "read_time_granularity_ms": null,
+        "body": [
+          {
+            "For": {
+              "binding": "item",
+              "domain": [
+                {
+                  "Literal": "Null"
+                }
+              ],
+              "body": []
+            }
+          },
+          {
+            "Return": {
+              "Literal": "Null"
+            }
+          }
+        ]
+      },
+      "parent": {
+        "value": "{\"name\":\"q\",\"kind\":\"Query\",\"args\":{},\"read_time_granularity_ms\":null,\"body\":[{\"For\":{\"binding\":\"item\",\"domain\":{\"0\":{\"Literal\":\"Null\"}},\"body\":[]}},{\"Return\":{\"Literal\":\"Null\"}}]}",
+        "sha256": "8ad7c1e0b4535e081aefea7e037e7bedac52426ba718c9302843201785e5a024"
+      },
+      "candidate": {
+        "value": "{\"name\":\"q\",\"kind\":\"Query\",\"args\":{},\"read_time_granularity_ms\":null,\"body\":[{\"For\":{\"binding\":\"item\",\"domain\":{\"0\":{\"Literal\":\"Null\"}},\"body\":[]}},{\"Return\":{\"Literal\":\"Null\"}}]}",
+        "sha256": "8ad7c1e0b4535e081aefea7e037e7bedac52426ba718c9302843201785e5a024"
+      },
+      "equal": true
+    },
+    {
+      "name": "unknown-object-control",
+      "input": {
+        "name": "q",
+        "kind": "Query",
+        "args": {},
+        "read_time_granularity_ms": null,
+        "body": [
+          {
+            "For": {
+              "binding": "item",
+              "domain": {
+                "FutureDomain": {
+                  "z": 1,
+                  "a": 2
+                }
+              },
+              "body": []
+            }
+          },
+          {
+            "Return": {
+              "Literal": "Null"
+            }
+          }
+        ]
+      },
+      "parent": {
+        "value": "{\"name\":\"q\",\"kind\":\"Query\",\"args\":{},\"read_time_granularity_ms\":null,\"body\":[{\"For\":{\"binding\":\"item\",\"domain\":{\"FutureDomain\":{\"z\":1,\"a\":2}},\"body\":[]}},{\"Return\":{\"Literal\":\"Null\"}}]}",
+        "sha256": "f3e0897658024bebf843b123af77a1b62e00be99e7d114110ed488a3f2f95789"
+      },
+      "candidate": {
+        "value": "{\"name\":\"q\",\"kind\":\"Query\",\"args\":{},\"read_time_granularity_ms\":null,\"body\":[{\"For\":{\"binding\":\"item\",\"domain\":{\"FutureDomain\":{\"z\":1,\"a\":2}},\"body\":[]}},{\"Return\":{\"Literal\":\"Null\"}}]}",
+        "sha256": "f3e0897658024bebf843b123af77a1b62e00be99e7d114110ed488a3f2f95789"
+      },
+      "equal": true
+    },
+    {
+      "name": "known-domain-control",
+      "input": {
+        "name": "q",
+        "kind": "Query",
+        "args": {},
+        "read_time_granularity_ms": null,
+        "body": [
+          {
+            "For": {
+              "binding": "item",
+              "domain": {
+                "LiteralRange": {
+                  "end_exclusive": 1,
+                  "start": 0
+                }
+              },
+              "body": []
+            }
+          },
+          {
+            "Return": {
+              "Literal": "Null"
+            }
+          }
+        ]
+      },
+      "parent": {
+        "value": "{\"name\":\"q\",\"kind\":\"Query\",\"args\":{},\"read_time_granularity_ms\":null,\"body\":[{\"For\":{\"binding\":\"item\",\"domain\":{\"LiteralRange\":{\"start\":0,\"end_exclusive\":1}},\"body\":[]}},{\"Return\":{\"Literal\":\"Null\"}}]}",
+        "sha256": "a0393d0c8857f06be4b7825b7ac2ff960bff48aa1afa3b84c9cd2f5a598487c2"
+      },
+      "candidate": {
+        "value": "{\"name\":\"q\",\"kind\":\"Query\",\"args\":{},\"read_time_granularity_ms\":null,\"body\":[{\"For\":{\"binding\":\"item\",\"domain\":{\"LiteralRange\":{\"start\":0,\"end_exclusive\":1}},\"body\":[]}},{\"Return\":{\"Literal\":\"Null\"}}]}",
+        "sha256": "a0393d0c8857f06be4b7825b7ac2ff960bff48aa1afa3b84c9cd2f5a598487c2"
+      },
+      "equal": true
+    },
+    {
+      "name": "empty-object-refusal-control",
+      "input": {
+        "name": "q",
+        "kind": "Query",
+        "args": {},
+        "read_time_granularity_ms": null,
+        "body": [
+          {
+            "For": {
+              "binding": "item",
+              "domain": {},
+              "body": []
+            }
+          },
+          {
+            "Return": {
+              "Literal": "Null"
+            }
+          }
+        ]
+      },
+      "parent": {
+        "error": {
+          "name": "Error",
+          "message": "E_TRACE_SUBSET: malformed externally tagged IR"
+        }
+      },
+      "candidate": {
+        "error": {
+          "name": "Error",
+          "message": "E_TRACE_SUBSET: malformed externally tagged IR"
+        }
+      },
+      "equal": true
+    }
+  ]
+}

@@ -1,0 +1,20 @@
+{
+  "observedUtc": "2026-09-07T10:16:35.218429+00:00",
+  "toolSession": 90727,
+  "actualToolExitCode": 0,
+  "pid": 19351,
+  "pidAbsent": true,
+  "launcher": {
+    "pid": 19351,
+    "exitCode": 0,
+    "endedEpoch": 1788775993.7255528,
+    "elapsedSeconds": 371.7935121059418
+  },
+  "reportBytes": 7657,
+  "reportSha256": "885184895d6e2d6165f0492aba59ea3636ebcc5fe510b5baf9de463f440cb5da",
+  "reportFullyReadBySupervisor": true,
+  "reportVerbatim": true,
+  "verdict": "READY",
+  "scope": "Narrow0ecd two-file correctness/ownership only; no new runtimeprobes or size/native/main/phoneclearance.",
+  "processLimitation": "Initial outside-packet filename enumeration; reviewer states no content read, stopped, preserved verbatim."
+}

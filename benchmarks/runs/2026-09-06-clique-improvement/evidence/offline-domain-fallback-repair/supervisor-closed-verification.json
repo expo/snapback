@@ -1,0 +1,9 @@
+{
+  "observedUtc": "2026-09-07T10:16:35.218429+00:00",
+  "packetManifestSha256": "bee6b4e20068c523161bd6aac27a04999f168cca7adb3d0b8e6a43e4a242e7f9",
+  "checkedLeaves": 2212,
+  "errors": [],
+  "bothActualTerminalsCollected": true,
+  "bothFullReportsRead": true,
+  "disposition": "BothREADYnarrow; preserve Astra filenameenumeration limitation. No newsizeclaim; source0ecd not measured."
+}

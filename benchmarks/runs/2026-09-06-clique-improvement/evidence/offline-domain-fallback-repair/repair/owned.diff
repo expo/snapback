@@ -1,0 +1,66 @@
+diff --git a/snapback2/packages/evaluator/src/certificate-identity.ts b/snapback2/packages/evaluator/src/certificate-identity.ts
+index eb1e096fe..9f663cb91 100644
+--- a/snapback2/packages/evaluator/src/certificate-identity.ts
++++ b/snapback2/packages/evaluator/src/certificate-identity.ts
+@@ -195,7 +195,11 @@ function normalizeStatement(statement: any): any {
+   return node(statement, STATEMENT, unchanged);
+ }
+ 
+-function normalizeDomain(domain: any): any { return node(domain, DOMAIN, unchanged); }
++function normalizeDomain(domain: any): any {
++  const [kind, data] = tagged(domain);
++  // Unknown domains retain the tag wrapper and opaque payload, including one-key strings/arrays.
++  return { [kind]: Object.hasOwn(DOMAIN, kind) ? DOMAIN[kind](data) : data };
++}
+ function normalizeExpression(expression: any): any { return node(expression, EXPRESSION, unchanged); }
+ 
+ function normalizeLanes(lanes: any[]): any[] {
+diff --git a/snapback2/packages/evaluator/src/test.ts b/snapback2/packages/evaluator/src/test.ts
+index 9398ec11a..238cf8758 100644
+--- a/snapback2/packages/evaluator/src/test.ts
++++ b/snapback2/packages/evaluator/src/test.ts
+@@ -1021,6 +1021,44 @@ const expectCode = (run: () => unknown, code: string, label: string) => {
+   }
+ }
+ 
++// Fixed parent 23a0 canonicalProgramJson observations: synthetic domains, not native IR admission.
++{
++  const program = (domain: unknown) => ({ name: "q", kind: "Query", args: {}, read_time_granularity_ms: null,
++    body: [{ For: { binding: "item", domain, body: [] } }, { Return: { Literal: "Null" } }] });
++  const controls = [
++    {
++      name: "one-character-string", domain: "x",
++      json: '{"name":"q","kind":"Query","args":{},"read_time_granularity_ms":null,"body":[{"For":{"binding":"item","domain":{"0":"x"},"body":[]}},{"Return":{"Literal":"Null"}}]}',
++      hash: "4e23a065bf3cf1b09c95458a5f319a2b8c265a098b4750b9810f5f4734c5ced1",
++    },
++    {
++      name: "one-element-array", domain: [{ Literal: "Null" }],
++      json: '{"name":"q","kind":"Query","args":{},"read_time_granularity_ms":null,"body":[{"For":{"binding":"item","domain":{"0":{"Literal":"Null"}},"body":[]}},{"Return":{"Literal":"Null"}}]}',
++      hash: "8ad7c1e0b4535e081aefea7e037e7bedac52426ba718c9302843201785e5a024",
++    },
++    {
++      name: "unknown-object-control", domain: { FutureDomain: { z: 1, a: 2 } },
++      json: '{"name":"q","kind":"Query","args":{},"read_time_granularity_ms":null,"body":[{"For":{"binding":"item","domain":{"FutureDomain":{"z":1,"a":2}},"body":[]}},{"Return":{"Literal":"Null"}}]}',
++      hash: "f3e0897658024bebf843b123af77a1b62e00be99e7d114110ed488a3f2f95789",
++    },
++    {
++      name: "known-domain-control", domain: { LiteralRange: { end_exclusive: 1, start: 0 } },
++      json: '{"name":"q","kind":"Query","args":{},"read_time_granularity_ms":null,"body":[{"For":{"binding":"item","domain":{"LiteralRange":{"start":0,"end_exclusive":1}},"body":[]}},{"Return":{"Literal":"Null"}}]}',
++      hash: "a0393d0c8857f06be4b7825b7ac2ff960bff48aa1afa3b84c9cd2f5a598487c2",
++    },
++  ];
++  for (const control of controls) {
++    const json = canonicalProgramJson(program(control.domain));
++    assert(json === control.json, `${control.name}: canonical program bytes differ from parent`);
++    assert(sha256(json) === control.hash, `${control.name}: canonical program hash differs from parent`);
++  }
++  let error: any;
++  try { canonicalProgramJson(program({})); } catch (caught) { error = caught; }
++  assert(error instanceof Error && error.constructor === Error && error.name === "Error" && error.code === undefined
++    && error.message === "E_TRACE_SUBSET: malformed externally tagged IR", "empty-object-refusal-control: exact parent error changed");
++  console.log("canonical domain fallback: 5 fixed parent controls passed");
++}
++
+ console.log(
+   JSON.stringify({
+     cases: cases.length,

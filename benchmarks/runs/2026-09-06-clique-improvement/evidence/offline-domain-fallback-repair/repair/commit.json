@@ -1,0 +1,9 @@
+{
+  "commit": "0ecd6015a7a1f0c291a224baef37f832b6b3154a",
+  "parent": "82c43ca456022682670941494dd828e099fca3d8",
+  "branch": "s2/clique-domain-fallback",
+  "status": "",
+  "utc": "2026-09-07T09:59:40.941759+00:00",
+  "pushed": false,
+  "executedOwnedBlobHashesEqual": true
+}

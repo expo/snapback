@@ -1,0 +1,20 @@
+{
+  "observedUtc": "2026-09-07T10:16:35.218429+00:00",
+  "toolSession": 82648,
+  "actualToolExitCode": 0,
+  "pid": 19392,
+  "pidAbsent": true,
+  "launcher": {
+    "pid": 19392,
+    "exitCode": 0,
+    "endedEpoch": 1788776066.7957702,
+    "elapsedSeconds": 443.664345741272
+  },
+  "reportBytes": 10725,
+  "reportSha256": "0b61d200bbd4d7b86fe3383cfebee8f6684f2f157700a84742e7e0cc0462f7cb",
+  "reportFullyReadBySupervisor": true,
+  "reportVerbatim": true,
+  "verdict": "READY",
+  "scope": "Narrow0ecd two-file correctness/ownership only; no new runtimeprobes or size/native/main/phoneclearance.",
+  "processLimitation": "No new runtimeprobe; static source/selected hashes only."
+}

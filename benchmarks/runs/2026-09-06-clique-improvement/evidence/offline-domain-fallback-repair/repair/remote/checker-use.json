@@ -1,0 +1,9 @@
+{
+  "path": "/home/ccheever/clique-tooling/search-native-linux-26c9-20260907T0203Z-01a07995/artifacts/snapback2-linux-x86_64-debug",
+  "sha256": "2f3cd93ccbff5902465f2514e61d8cf6fedf76228ad8e7abafe02ed5f1959175",
+  "corpusManifestSha": "1260e32eebb2653c9ec121ff0bd27429a7be37af28f0957d993ebe2bdd4c9cd2",
+  "sourceManifestSha": "bb6217f9fc7c6f1a564b06bb76830bf29fe2e155d5eeb4141a9ac92d2204fce3",
+  "testEntrySha": "8b362090015e90fbe96c04ccd516dff594a9109ff46a913697053390b283f504",
+  "testMergeSha": "936e2b88ab481776efc39cbd7f06c49c035527a6e959664949de9cd9f8329c93",
+  "role": "existing checker, check --ir --json only, not owner/server/population"
+}

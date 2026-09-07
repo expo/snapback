@@ -1,0 +1,16 @@
+{
+  "utc": "2026-09-07T09:56:41.767995+00:00",
+  "originalManifestSha": "8d86a503fe37c3d4d70cd9146189dadf1f5043f47ce1b183aa381b5772cc8246",
+  "sourceManifestSha": "bb6217f9fc7c6f1a564b06bb76830bf29fe2e155d5eeb4141a9ac92d2204fce3",
+  "inputsBeforeSha": "2c3f91a3926a11e777df800281b6c10bcd27fb9b15c18c54c97169ad65bdb64d",
+  "originalTreeBeforeSha": "e33a456dc41b73d6f67cc793b2efbb2af3c32f23042a32434a0595f94d94a942",
+  "copiedFilesAndLinks": 24857,
+  "changedPaths": [
+    "snapback2/packages/evaluator/src/certificate-identity.ts",
+    "snapback2/packages/evaluator/src/test.ts"
+  ],
+  "harnessSha": "40acc44ff00a21578308778625f8a5bc09983b0ba0e7d07b3e130e966afcfec3",
+  "priorBuildReceiptSha": "b2efdf96fcfc6f1531f810069b948a77f1f878672a0fd53fba5c31809f7cfdbf",
+  "priorDependencyManifestSha": "e6ac59cbac74fef0bbe17620816adc958eb5054f90d697a334ff877a423ffc85",
+  "note": "Complete source/dependencies/generated artifacts copied by value; all symlinks stay inside derivative; no install or separate build. Historical package build receipt is reused only as the unchanged harness prerequisite. Existing evaluator entry may regenerate its own identical Unicode artifact."
+}

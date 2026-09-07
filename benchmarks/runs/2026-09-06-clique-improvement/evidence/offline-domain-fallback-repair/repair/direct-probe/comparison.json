@@ -1,0 +1,43 @@
+{
+  "passed": 5,
+  "checks": [
+    {
+      "name": "one-character-string",
+      "originalInputEqual": true,
+      "fullParentAndRepairResultEqual": true,
+      "fixedParentOracleEqual": true,
+      "originalCandidateEqual": false
+    },
+    {
+      "name": "one-element-array",
+      "originalInputEqual": true,
+      "fullParentAndRepairResultEqual": true,
+      "fixedParentOracleEqual": true,
+      "originalCandidateEqual": false
+    },
+    {
+      "name": "unknown-object-control",
+      "originalInputEqual": true,
+      "fullParentAndRepairResultEqual": true,
+      "fixedParentOracleEqual": true,
+      "originalCandidateEqual": true
+    },
+    {
+      "name": "known-domain-control",
+      "originalInputEqual": true,
+      "fullParentAndRepairResultEqual": true,
+      "fixedParentOracleEqual": true,
+      "originalCandidateEqual": true
+    },
+    {
+      "name": "empty-object-refusal-control",
+      "originalInputEqual": true,
+      "fullParentAndRepairResultEqual": true,
+      "fixedParentOracleEqual": true,
+      "originalCandidateEqual": true
+    }
+  ],
+  "originalOutputSha": "7972c9e206d57a285d6bc2c61e8f93381b636a7123e045498e938bfd2578682f",
+  "repairedOutputSha": "e8add0bd2d6ab9515a3fb90eabec06f4f942e07f1a894d8d00e531183524f4e2",
+  "inputSourcesUnchangedAfter": true
+}

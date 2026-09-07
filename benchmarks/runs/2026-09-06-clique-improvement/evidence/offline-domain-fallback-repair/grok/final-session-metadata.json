@@ -1,0 +1,27 @@
+{
+  "observedUtc": "2026-09-07T10:16:35.218429+00:00",
+  "source": "/Users/ccheever/.grok/sessions/%2FUsers%2Fccheever%2Fclique-improvement%2Freviews%2Fsearch-twin-domain-fallback-r1%2Fgrok/5bbec534-fbc7-4bdb-8d13-dbdec053ae27/summary.json",
+  "sha256": "e906055879557a2253c59894b76648ab34fdb8729dbb8f26dcd83f626b49b37d",
+  "metadata": {
+    "info": {
+      "id": "5bbec534-fbc7-4bdb-8d13-dbdec053ae27",
+      "cwd": "/Users/ccheever/clique-improvement/reviews/search-twin-domain-fallback-r1/grok"
+    },
+    "session_summary": "Independent grok code review session",
+    "created_at": "2026-09-07T10:07:04.389772Z",
+    "updated_at": "2026-09-07T10:14:26.023304Z",
+    "num_messages": 307,
+    "num_chat_messages": 104,
+    "current_model_id": "grok-4.6",
+    "next_trace_turn": 1,
+    "chat_format_version": 1,
+    "session_kind": "headless",
+    "request_id": "ef547815-e1ae-4152-a2f0-81c1f08303a3",
+    "grok_home": "/Users/ccheever/.grok",
+    "last_active_at": "2026-09-07T10:14:26.023304Z",
+    "generated_title": "Independent grok code review session",
+    "agent_name": "grok-build-plan",
+    "sandbox_profile": "off",
+    "reasoning_effort": "xhigh"
+  }
+}

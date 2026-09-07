@@ -1,0 +1,20 @@
+{
+  "observedUtc": "2026-09-07T10:04:46.034390+00:00",
+  "toolSession": 71067,
+  "actualToolExitCode": 0,
+  "pid": 4781,
+  "pidAbsent": true,
+  "launcherExitCode": 0,
+  "endUtc": "2026-09-07T10:00:45.898882+00:00",
+  "elapsedSeconds": 821.3701539039612,
+  "commit": "0ecd6015a7a1f0c291a224baef37f832b6b3154a",
+  "clean": true,
+  "ownedGitBlobHashesMatch": true,
+  "fullOwnedDiffSha256": "ca92a2b585ad3b30a6cd34b8e369e21218a4c9d5c4fb1b44c426b06807c5ca29",
+  "evidenceFilesChecked": 788,
+  "errors": [],
+  "firstSupervisorAttempt": "KeyError bytes: two manifest symlink records use target/hash without bytes; corrected by checking exact link target/hash, no product or evidence execution repeated.",
+  "reportFullyReadBySupervisor": true,
+  "reportSha256": "feaafe6d926698b68790389eb3407aff298b18b9b5e0a838f593cdd5f7624f52",
+  "scope": "Narrow repair affected evidence passed; no size measurement, no landing. Fresh blind pair pending."
+}

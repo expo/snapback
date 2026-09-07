@@ -1,0 +1,17 @@
+{
+  "name": "evaluator-with-checker",
+  "argv": [
+    "/home/ccheever/clique-tooling/epyc-linux-tooling-20260907T010007Z-0fd567d96f/bun-v1.3.12-linux-x64/bin/bun",
+    "src/test.ts"
+  ],
+  "cwd": "/home/ccheever/clique-tooling/search-twin-domain-fallback-82c43-20260907T0955Z/source/snapback2/packages/evaluator",
+  "pid": 3921619,
+  "started": "2026-09-07T09:56:42.409843+00:00",
+  "elapsedSeconds": 6.679725396214053,
+  "ended": "2026-09-07T09:56:49.089573+00:00",
+  "exit": 0,
+  "outerDeadlineSeconds": 120,
+  "host": "EPYC Linux",
+  "nodeSha": "3517c2df0b2f8cd7f422b4b8450ef81c6889f08eb03e281d6de9079b15e6a327",
+  "bunSha": "92a1cd8b6185f676010bb18e767dfc65c772273e79ae9984480843261939eeaa"
+}

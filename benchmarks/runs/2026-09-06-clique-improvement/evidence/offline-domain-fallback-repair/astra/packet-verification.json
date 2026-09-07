@@ -1,0 +1,64 @@
+{
+  "timeUtc": "2026-09-07T10:11:30.601581+00:00",
+  "status": "PASS",
+  "kind": "static packet and supplied-evidence verification; no product execution",
+  "manifestSha256": "bee6b4e20068c523161bd6aac27a04999f168cca7adb3d0b8e6a43e4a242e7f9",
+  "entries": 2212,
+  "kinds": {
+    "file": 2206,
+    "symlink": 6
+  },
+  "missingOrUnlisted": [],
+  "changedPaths": [
+    "snapback2/packages/evaluator/src/certificate-identity.ts",
+    "snapback2/packages/evaluator/src/test.ts"
+  ],
+  "gitBlobs": {
+    "snapback2/packages/evaluator/src/certificate-identity.ts": {
+      "beforeGitBlob": "eb1e096fe2955d6091a1a7a8936e713df14f832e",
+      "sourceGitBlob": "9f663cb914af76dd742b5d43cf50c86ed8493f60",
+      "sourceSha256": "b0bfde1824b83958c344388861c99e1ad5eba90534ec16a1a5cd31e1a37d09d0"
+    },
+    "snapback2/packages/evaluator/src/test.ts": {
+      "beforeGitBlob": "9398ec11a7e891121fea03f4055a18e4ef8bb41f",
+      "sourceGitBlob": "238cf87582a785cbc76aa22d336442daf8ad82b9",
+      "sourceSha256": "8b362090015e90fbe96c04ccd516dff594a9109ff46a913697053390b283f504"
+    }
+  },
+  "executedSourceEntriesVerified": 694,
+  "currentSourceOverlapEqual": 414,
+  "nativeCorpusEntriesEqual": 280,
+  "recordedRemoteBeforeAfterInventoriesEqual": 24857,
+  "probeControls": [
+    {
+      "name": "one-character-string",
+      "originalEqual": false,
+      "repairedFullResultEqual": true
+    },
+    {
+      "name": "one-element-array",
+      "originalEqual": false,
+      "repairedFullResultEqual": true
+    },
+    {
+      "name": "unknown-object-control",
+      "originalEqual": true,
+      "repairedFullResultEqual": true
+    },
+    {
+      "name": "known-domain-control",
+      "originalEqual": true,
+      "repairedFullResultEqual": true
+    },
+    {
+      "name": "empty-object-refusal-control",
+      "originalEqual": true,
+      "repairedFullResultEqual": true
+    }
+  ],
+  "limitation": "Remote dependency files and executable binaries were not accessed; their identities/execution are supplied receipts. Historical paths were not followed.",
+  "verifierCorrections": [
+    "The first inline audit incorrectly expected a symlink target field; this verifier checks target bytes and SHA256 as the manifest specifies.",
+    "The first script execution stopped on Python zip(strict=True) compatibility; replaced with an explicit length assertion. Neither issue was a packet defect."
+  ]
+}

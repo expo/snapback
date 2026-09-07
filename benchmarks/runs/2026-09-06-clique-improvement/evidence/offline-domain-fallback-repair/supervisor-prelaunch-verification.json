@@ -1,0 +1,11 @@
+{
+  "observedUtc": "2026-09-07T10:07:01.396791+00:00",
+  "packetManifestSha256": "bee6b4e20068c523161bd6aac27a04999f168cca7adb3d0b8e6a43e4a242e7f9",
+  "checkedLeaves": 2212,
+  "errors": [],
+  "standaloneAuthorPeerNarrativePathMatches": [],
+  "contextFullyReadBySupervisor": true,
+  "source": "0ecd6015a7a1f0c291a224baef37f832b6b3154a",
+  "base": "82c43ca456022682670941494dd828e099fca3d8",
+  "authorActualTerminalVerified": true
+}

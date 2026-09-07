@@ -1,0 +1,14 @@
+{
+  "startedUtc": "2026-09-07T09:53:41.220790+00:00",
+  "pid": 11359,
+  "argv": [
+    "/Users/ccheever/.bun/bin/bun",
+    "/Users/ccheever/clique-improvement/lanes/search-twin/r8-domain-fallback-repair/direct-probe/probe.ts"
+  ],
+  "cwd": "/Users/ccheever/clique-improvement/lanes/search-twin/r8-domain-fallback-repair/direct-probe",
+  "timeoutSeconds": 10,
+  "runtimeVersion": "1.3.12",
+  "runtimeSha256": "39e644cea4e6db24a3af36013695655d6f789b4b98f1f13bacb882ac6e5c3c18",
+  "sourcesSha256": "8f414cc2f65cfcc4bf20be998401397cf13f2337088bf2d52ff3d30c30af05f0",
+  "probeSha256": "1132b7fa195098e8c1aebbd6c803e31c44dec1130b2d8220d4efad54544a9e1f"
+}

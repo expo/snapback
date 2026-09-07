@@ -1,0 +1,20 @@
+{
+  "utc": "2026-09-07T09:56:55.855049+00:00",
+  "harnessExit": 0,
+  "allInputsUnchanged": true,
+  "originalReadOnlyTreeUnchanged": true,
+  "inputsAfterSha": "2c3f91a3926a11e777df800281b6c10bcd27fb9b15c18c54c97169ad65bdb64d",
+  "originalTreeAfterSha": "e33a456dc41b73d6f67cc793b2efbb2af3c32f23042a32434a0595f94d94a942",
+  "evaluatorLogSha": "014ce69c09c5588060101d7bfa0a4e5689d51121da7a1082b250b6be27d74c19",
+  "originalFiveControlsPassed": true,
+  "evaluatorSummary": {
+    "cases": 225,
+    "passed": 225,
+    "serverOnly": 24,
+    "failed": 0,
+    "corruptionPath": "replay-mismatch"
+  },
+  "checkerSha256": "2f3cd93ccbff5902465f2514e61d8cf6fedf76228ad8e7abafe02ed5f1959175",
+  "bunSha256": "92a1cd8b6185f676010bb18e767dfc65c772273e79ae9984480843261939eeaa",
+  "qualification": "Full affected evaluator only; no native owner or current-main integration, size, cap, movement, resident, or device qualification."
+}
