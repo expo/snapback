@@ -28,12 +28,14 @@ import { registerQuarryDirectMutationChecks } from "./quarry-direct-mutation-che
 import { registerQuarryDirectValidationChecks } from "./quarry-direct-validation-checks";
 import { registerQuarryDirectProjectChecks } from "./quarry-direct-project-checks";
 import { registerQuarryDirectArgumentChecks } from "./quarry-direct-argument-checks";
+import { runQuarryBoundApiChecks } from "./quarry-bound-api-checks";
 import ts from "typescript";
 
 export function registerQuarryChecks(test: Test, frontend: string): void {
   const fixtures = resolve(frontend, "fixtures");
   registerQuarryDirectValidationChecks(test, frontend);
   registerQuarryDirectArgumentChecks(test);
+  test("bound Quarry API follows direct result and custody facts", runQuarryBoundApiChecks);
   registerQuarryDirectProjectChecks(test, frontend);
   test("removed system rule refuses in the parser with a deny rewrite", () => {
     for (const rule of [

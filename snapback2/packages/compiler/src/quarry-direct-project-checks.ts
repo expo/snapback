@@ -13,7 +13,7 @@ export function registerQuarryDirectProjectChecks(test: Test, frontend: string):
     const root = resolve(frontend, "fixtures/quarry-chat");
     const prepared = fixture(root);
     const project = bindQuarryProject(prepared);
-    const declarations = boundEffectDeclarationSources(prepared.catalog, project.boundPrograms);
+    const declarations = boundEffectDeclarationSources(prepared.catalog, project.clientPrograms);
     const schemaPath = join(root, declarations.schema.fileName);
     const moduleSources: Array<readonly [string, string]> = declarations.modules.map((module) =>
       [join(root, module.fileName), module.source]);
@@ -49,6 +49,56 @@ export function registerQuarryDirectProjectChecks(test: Test, frontend: string):
     `system programs leaked into the direct client set: ${JSON.stringify([...client])}`);
     assert(Object.values(project.sources).every((site) => site.file.endsWith(".q")),
       `direct source custody escaped authored Quarry: ${JSON.stringify(project.sources)}`);
+  });
+
+  test("bound effect declarations share API types and export legal reserved and colliding names", () => {
+    const result = prepareQuarry([
+      { path: "/virtual/snapback/schema.q", fileName: "snapback/schema.q", source: `table foo_bar:
+  public
+
+table fooBar:
+  public
+
+table class:
+  public
+` },
+      { path: "/virtual/snapback/names.q", fileName: "snapback/names.q", source: `query class(
+  default: int,
+  maybe: int ?,
+  mode: enum('on', 'off')
+):
+  return { chosen: mode, maybe, literal: 2 }
+` },
+    ]);
+    assert(result.ok, `direct declaration-name fixture did not prepare: ${JSON.stringify(result.ok ? [] : result.diagnostics)}`);
+    const project = bindQuarryProject(result.prepared);
+    const declarations = boundEffectDeclarationSources(result.prepared.catalog, project.clientPrograms);
+    const module = declarations.modules.find((item) => item.fileName === "snapback/names.ts")!;
+    assert(declarations.schema.source.includes(" as class }") && module.source.includes(" as class }")
+      && !module.source.includes("unknown") && module.source.includes(`mode: "on" | "off"`)
+      && module.source.includes("maybe?: number | null") && module.source.includes("literal: number"),
+    `bound declaration printer lost reserved exports or shared types: ${JSON.stringify(declarations)}`);
+    const aliases = [...declarations.schema.source.matchAll(/export type (FooBarRow\S*)/g)].map((match) => match[1]);
+    assert(aliases.length === 2 && new Set(aliases).size === 2,
+      `colliding table names reused an effect declaration alias: ${JSON.stringify(aliases)}`);
+    const schemaPath = "/virtual/snapback/schema.ts";
+    const consumerPath = "/virtual/snapback/consumer.ts";
+    const checked = createProjectProgram(schemaPath, declarations.schema.source, [
+      ...declarations.modules.map((item) => [`/virtual/${item.fileName}`, item.source] as const),
+      [consumerPath, `import type { Operation, Table } from 'snapback2';
+import { class as classTable, foo_bar, fooBar } from './schema';
+import { class as classOperation } from './names';
+const operation: Operation<
+  { default: number; maybe?: number | null; mode: 'on' | 'off' },
+  { chosen: 'on' | 'off'; maybe: number | null; literal: number },
+  'query'
+> = classOperation;
+const tables: Array<Table<Record<string, unknown>>> = [classTable, foo_bar, fooBar];
+void [operation, tables];
+`] as const,
+    ], loadCompilerLib(true), ts.ScriptTarget.ES2020);
+    const diagnostics = projectTypeDiagnostics(checked.program, "/virtual");
+    assert(diagnostics.length === 0, `reserved/colliding bound declaration consumer failed: ${JSON.stringify(diagnostics)}`);
   });
 }
 
