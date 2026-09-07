@@ -100,7 +100,7 @@ fn chat_template_receipt_tracks_the_effect_engine_and_lists_all_journeys() {
     let revocation = check(&receipt, "live-revocation");
     assert_eq!(revocation["detail"]["as"], "bob", "{revocation}");
     assert_eq!(
-        revocation["detail"]["query"], "messages.search",
+        revocation["detail"]["query"], "messages.thread",
         "{revocation}"
     );
     assert_eq!(
@@ -798,11 +798,11 @@ mutation aaaUnprobeableLeave(orphanId: id, membershipId: memberships):
     let receipt = json_stdout(&output);
     let revocation = check(&receipt, "live-revocation");
     assert_eq!(revocation["verdict"], "pass", "{revocation}");
-    assert_eq!(revocation["detail"]["query"], "messages.search");
+    assert_eq!(revocation["detail"]["query"], "messages.thread");
     assert_eq!(revocation["detail"]["mutation"], "groups.memberLeave");
     let fence = check(&receipt, "successor-policy-fence");
     assert_eq!(fence["verdict"], "pass", "{fence}");
-    assert_eq!(fence["detail"]["query"], "messages.search");
+    assert_eq!(fence["detail"]["query"], "messages.thread");
     let aba = check(&receipt, "grant-incarnation-aba");
     assert_eq!(aba["verdict"], "pass", "{aba}");
     assert_eq!(aba["detail"]["staleReplayState"], "rejected", "{aba}");

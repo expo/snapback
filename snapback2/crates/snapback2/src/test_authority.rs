@@ -1098,9 +1098,15 @@ fn query_isolates_protected_table(
     recipe: &Recipe,
     protected_table: &str,
 ) -> bool {
+    // A discovery scan can legitimately become an empty global-search lane
+    // after membership removal. The terminal-revocation witness therefore
+    // needs an explicit point membership guard, not mere table overlap.
     read_sites
         .iter()
         .all(|site| site.table == recipe.membership_table || site.table == protected_table)
+        && read_sites
+            .iter()
+            .any(|site| site.table == recipe.membership_table && site.take == 1)
 }
 
 fn protected_write_eligible(
