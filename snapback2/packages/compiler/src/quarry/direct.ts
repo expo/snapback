@@ -784,7 +784,7 @@ function lowerRequiredArgType(type: ScalarType): ArgType {
     case "bool": return "Bool";
     case "time": return "Time";
     case "text": return { Text: { max: type.max,
-      ...(type.min === undefined ? {} : { min: type.min }),
+      ...(type.min ? { min: type.min } : {}),
       ...(type.format === undefined ? {} : { format: type.format }) } };
     case "bytes": return { Bytes: { max: type.max } };
     case "image": return { Image: { max: type.max } };
