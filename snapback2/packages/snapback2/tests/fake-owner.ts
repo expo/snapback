@@ -6,10 +6,10 @@ import { multiplexFetch } from "./live-fixture.ts";
  * (dedup, 503-after-commit, rejection, conflict), and the delivery log.
  */
 import { fileRangeStore } from "../dist/test.mjs";
+import { canonicalProgramJson } from "../dist/sqlite-test.mjs";
 import { schemaDigest } from "../dist/index.mjs";
 
 export const generation = "d".repeat(64);
-export const planHash = "f".repeat(64);
 const namespace = "0".repeat(31) + "a";
 export const DAY = 24 * 60 * 60 * 1_000;
 const schema = {
@@ -17,6 +17,23 @@ const schema = {
     messages: {
       columns: { id: "Id", conversationId: "Id", authorId: "Principal", body: { Text: { max: 4000 } }, at: "Time" },
       indexes: { byId: { components: [{ Column: "id" }], unique: true } },
+      rules: { read: "Allow", insert: "Allow", update: "Allow", delete: "Allow" },
+      constraints: [],
+      retain: "until-revoked",
+    },
+    deliveries: {
+      columns: {
+        id: "Id", recipient: "Principal", conversationId: "Id", messageId: "Id",
+        kind: { Text: { max: 20 } }, at: "Time",
+      },
+      indexes: {
+        byId: { components: [{ Column: "id" }], unique: true },
+        byRecipientAt: { components: [{ Column: "recipient" }, { Column: "at" }, { Column: "id" }], unique: false },
+        byRecipientConversationAt: {
+          components: [{ Column: "recipient" }, { Column: "conversationId" }, { Column: "at" }, { Column: "id" }],
+          unique: false,
+        },
+      },
       rules: { read: "Allow", insert: "Allow", update: "Allow", delete: "Allow" },
       constraints: [],
       retain: "until-revoked",
@@ -30,12 +47,71 @@ const postIr = { name: "deliveries.post", kind: "Mutation", args: { body: { Text
   body: [{ Insert: { table: "messages", row: { Object: { at: { Input: "Now" }, authorId: { Input: "Viewer" },
     body: { Variable: "body" }, conversationId: { Variable: "conversationId" }, id: { Input: "NewId" } } } } }] };
 const editIr = { name: "deliveries.edit", kind: "Mutation", args: {}, read_time_granularity_ms: null, body: [] };
+const digest = (ir: unknown) => createHash('sha256').update(canonicalProgramJson(ir)).digest('hex');
 const certificate = (ir: unknown, kind: string) => ({
-  plan_hash: createHash('sha256').update(JSON.stringify(ir)).digest('hex'), schema_hash: schemaHash,
+  plan_hash: digest(ir), schema_hash: schemaHash,
   evaluator_version: 'bounded-spike-rust-search-text-refinements-4', value_model_version: 'i53-codepoint-bytes-unicode-search-text-refinements-v5',
   max_steps: 1000000, max_heap_bytes: 8388608, max_closure_bytes: 4194304, max_output_bytes: 1048576,
   write_sites: [{ table: 'messages', kind, max_rows: 1 }, { table: 'deliveries', kind: 'Insert', max_rows: 50 }],
 });
+const scanIr = (name: "deliveries.inbox" | "deliveries.thread", cursor: string) => {
+  const thread = name === "deliveries.thread";
+  const row = "row";
+  const field = (name: string) => ({ Field: { base: { Variable: row }, name } });
+  return {
+    name, kind: "Query", args: {
+      ...(thread ? { conversationId: "Id" } : {}), [cursor]: { Optional: "Cursor" },
+    }, read_time_granularity_ms: null,
+    body: [
+      { Const: { name: "page", value: { Scan: {
+        site: `${name}.0`, table: "deliveries", index: thread ? "byRecipientConversationAt" : "byRecipientAt",
+        prefix: [{ Scalar: { Input: "Viewer" } }, ...(thread ? [{ Scalar: { Variable: "conversationId" } }] : [])],
+        order: thread ? "Desc" : "Asc", take: { Literal: 50 }, after: { Variable: cursor }, before: null,
+        range: null, opaque_cursor: true, merge_site: null, provenance: thread ? "Shape" : "Viewer",
+      } } } },
+      { Const: { name: "rows", value: { Array: [] } } },
+      { For: { binding: row, domain: { DerivedArray: { value: { Variable: "page" }, max: 50, bound_source: "page static bound" } }, body: [
+        { Push: { target: "rows", value: { Object: {
+          at: field("at"), conversationId: field("conversationId"), id: field("id"), kind: field("kind"),
+          message: { Get: { site: `${name}.1`, table: "messages", index: "byId", key: [field("messageId")], provenance: "Shape" } },
+          messageId: field("messageId"), recipient: field("recipient"),
+        } } } },
+      ] } },
+      { Return: { Variable: "rows" } },
+    ],
+  };
+};
+const queryCertificate = (ir: ReturnType<typeof scanIr>) => {
+  const scan = (ir.body[0] as any).Const.value.Scan;
+  const inbox = ir.name === "deliveries.inbox";
+  return {
+    program: ir.name, plan_hash: digest(ir), schema_hash: schemaHash,
+    tables: { deliveries: { retain: "until-revoked" }, messages: { retain: "until-revoked" } },
+    rule_hashes: {
+      "deliveries.read": "f6ddd28fe7b2931a7192f7b58e6aaaf98366f6d1d525aefca5dcb682d3f35e53",
+      "messages.read": "f6ddd28fe7b2931a7192f7b58e6aaaf98366f6d1d525aefca5dcb682d3f35e53",
+    },
+    evaluator_version: 'bounded-spike-rust-search-text-refinements-4', value_model_version: 'i53-codepoint-bytes-unicode-search-text-refinements-v5',
+    read_sites: [
+      { site: scan.site, table: "deliveries", index: scan.index, prefix_template: inbox ? "Viewer" : "Shape", take: 50,
+        max_calls: 1, rule_probes_per_candidate: 0, hoist: true, decided_true: true, complete: false },
+      { site: `${ir.name}.1`, table: "messages", index: "byId", prefix_template: "Shape", take: 1,
+        max_calls: 50, rule_probes_per_candidate: 0, hoist: false, complete: false },
+    ],
+    result_pages: { "3": { site: scan.site, table: "deliveries", index: scan.index, order: scan.order,
+      suffix: [{ name: "at", kind: "Time" }, { name: "id", kind: "Id" }], merge: false } },
+    write_sites: [], maintained_amplification: 0, constraint_checks: [], max_examined: 102, max_index_entries: 102,
+    max_rule_probes: 0, max_steps: inbox ? 1320 : 1321, derived_steps: 0, derived_scratch_bytes: 0,
+    max_heap_bytes: inbox ? 42240 : 42272, max_output_bytes: 866512, max_closure_bytes: 865900,
+    completeness: "Page", prediction_sites: [], read_time_granularity_ms: null, halo_rows: 1,
+    indexes_required: [`deliveries.${scan.index}`, "messages.byId"], disclosures: [],
+    bound_product: `${scan.site} take 50 (+2 reserve) × 1 calls on deliveries = 52 + ${ir.name}.1 point read on messages × 50 calls (calls from page static bound 50) = 50`,
+  };
+};
+const drainFrom = (certificate: ReturnType<typeof queryCertificate>, cursor: string) =>
+  Object.values(certificate.result_pages)[0]!.order === "Asc" ? { cursor } : { reason: "descending" };
+const defaultInbox = queryCertificate(scanIr("deliveries.inbox", "c"));
+export const planHash = defaultInbox.plan_hash;
 
 export function engineId(sequence: number): string {
   return `s2id-${namespace}-${sequence.toString(16).padStart(16, "0")}`;
@@ -114,20 +190,38 @@ export function fakeOwner(options: FakeOwnerOptions = {}) {
     }
     return { id: ids[0] };
   };
-  /** The delivery log page an op yields for alice: one `message` row per held message. */
+  /** The delivery log page an op yields for alice, with its certified scan receipt. */
   const page = (op: string, args: any) => {
+    const cursor = op === "deliveries.inbox" ? (options.cursorArg ?? "c") : "c";
+    const ir = scanIr(op === "deliveries.inbox" ? "deliveries.inbox" : "deliveries.thread", cursor);
+    const cert = queryCertificate(ir);
     const wanted = [...messages.values()]
       .filter((message) => op !== "deliveries.thread" || message.conversationId === args.conversationId)
-      .sort((a, b) => b.at - a.at || (a.id < b.id ? 1 : -1));
-    const rows = wanted.map((message) => ({ table: "messages", id: message.id, row: { ...message } }));
+      .sort((a, b) => op === "deliveries.inbox"
+        ? a.at - b.at || (a.id < b.id ? -1 : 1)
+        : b.at - a.at || (a.id < b.id ? 1 : -1));
+    const deliveries = wanted.map((message) => ({
+      id: `delivery-${message.id}`, recipient: "dev:alice", conversationId: message.conversationId,
+      messageId: message.id, kind: "message", at: message.at,
+    }));
+    const rows = [
+      ...deliveries.map((delivery) => ({ table: "deliveries", id: delivery.id, row: delivery })),
+      ...wanted.map((message) => ({ table: "messages", id: message.id, row: { ...message } })),
+    ];
+    const scan = (ir.body[0] as any).Const.value.Scan;
     return {
-      protocol: 1, generation, schemaHash, planHash,
+      protocol: 1, generation, schemaHash, planHash: cert.plan_hash,
       authority: { principal: "dev:alice", authEpoch: 7 }, state: "complete",
-      data: wanted.map((message) => ({
-        id: `delivery-${message.id}`, recipient: "dev:alice", conversationId: message.conversationId,
-        messageId: message.id, kind: "message", at: message.at, message: ref("messages", message.id),
-      })),
-      next: null, seq, rows, receipt: emptyReceipt(), validator: String(seq).padStart(64, "0"),
+      data: deliveries.map((delivery) => ({ ...delivery, message: ref("messages", delivery.messageId) })),
+      next: null, seq, rows,
+      receipt: { ranges: [{
+        site: scan.site, table: "deliveries", index: scan.index,
+        prefix: [{ Scalar: "dev:alice" }, ...(op === "deliveries.thread" ? [{ Scalar: args.conversationId }] : [])],
+        order: scan.order, take: 50, after: null, before: null, gt: null, gte: null, lt: null, lte: null,
+        ruleHash: cert.rule_hashes["deliveries.read"], rowIds: deliveries.map(({ id }) => id),
+        stop: "Exhausted", absence: deliveries.length === 0,
+      }], absences: [], verdicts: [] },
+      validator: String(seq).padStart(64, "0"),
     };
   };
   const mint = () => {
@@ -143,25 +237,30 @@ export function fakeOwner(options: FakeOwnerOptions = {}) {
     requests.push(url.pathname);
     if (options.dead?.()) throw new TypeError("fetch failed");
     if (url.pathname === "/api/manifest") {
+      const cursor = options.cursorArg ?? "c";
+      const inboxIr = scanIr("deliveries.inbox", cursor);
+      const inboxCert = queryCertificate(inboxIr);
       return json({
         generation: "schema-generation", programGeneration: generation,
         ops: options.cursorArg ? {
-          "deliveries.inbox": { kind: "query", planHash, drain: { cursor: options.cursorArg }, args: { [options.cursorArg]: { Optional: "Cursor" } } },
+          "deliveries.inbox": { kind: "query", planHash: inboxCert.plan_hash, drain: drainFrom(inboxCert, cursor), args: inboxIr.args },
         } : {},
         channels: {}, auth: {},
         tables: { messages: { retain: "delivered-history" } },
       });
     }
     if (url.pathname === "/api/program") {
+      const cursor = options.cursorArg ?? "c";
+      const inboxIr = scanIr("deliveries.inbox", cursor);
+      const inboxCert = queryCertificate(inboxIr);
+      const threadIr = scanIr("deliveries.thread", "c");
+      const threadCert = queryCertificate(threadIr);
       return json({
         generation, schemaHash,
         schema,
         programs: {
-          "deliveries.inbox": (() => {
-            const ir = { name: "deliveries.inbox", kind: "Query", args: { [options.cursorArg ?? "c"]: { Optional: "Cursor" } }, read_time_granularity_ms: null, body: [] };
-            const cert = { ...certificate(ir, "Insert"), write_sites: [] };
-            return { kind: "query", planHash: cert.plan_hash, drain: { cursor: options.cursorArg ?? "c" }, ir, certificate: cert };
-          })(),
+          "deliveries.inbox": { kind: "query", planHash: inboxCert.plan_hash, drain: drainFrom(inboxCert, cursor), ir: inboxIr, certificate: inboxCert },
+          "deliveries.thread": { kind: "query", planHash: threadCert.plan_hash, drain: drainFrom(threadCert, "c"), ir: threadIr, certificate: threadCert },
           "deliveries.post": { kind: "mutation", planHash: certificate(postIr, 'Insert').plan_hash, ir: postIr, certificate: certificate(postIr, 'Insert') },
           "deliveries.edit": { kind: "mutation", planHash: certificate(editIr, 'Update').plan_hash, ir: editIr, certificate: certificate(editIr, 'Update') },
         },
@@ -226,8 +325,13 @@ export async function seededStore(factory: ReturnType<typeof fileRangeStore>): P
   await store.commit({
     deliveries: [{
       op: "deliveries.inbox", args: { c: null }, state: "complete", data: [], next: null, seq: 3,
-      validator: "1".repeat(64), receipt: emptyReceipt(),
+      validator: "1".repeat(64), rows: [], receipt: { ranges: [{
+        site: "deliveries.inbox.0", table: "deliveries", index: "byRecipientAt", prefix: [{ Scalar: "dev:alice" }],
+        order: "Asc", take: 50, after: null, before: null, gt: null, gte: null, lt: null, lte: null,
+        ruleHash: defaultInbox.rule_hashes["deliveries.read"], rowIds: [], stop: "Exhausted", absence: true,
+      }], absences: [], verdicts: [] },
     }],
+    schema,
     watermark: {
       op: "deliveries.inbox", args: { c: null }, watermark: "cursor-9", validator: "1".repeat(64),
       generation, schemaHash, authEpoch: 7, updatedAt: 10,

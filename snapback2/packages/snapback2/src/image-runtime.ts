@@ -3,5 +3,5 @@
 export * from '../../evaluator/src/row-image.js';
 export { EvalError, requireRowIdentity } from '../../evaluator/src/errors.js';
 export { SEARCH_CONTRACT, SearchInputError, SearchNormalizer, scalarLength, searchFieldWords,
-  searchQueryToken, searchWordWork, normalizationSteps } from '../../evaluator/src/unicode.js';
+  searchQueryToken, searchWords, searchWordWork, normalizationSteps } from '../../evaluator/src/unicode.js';
 export * from '../../evaluator/src/range-preparation.js';

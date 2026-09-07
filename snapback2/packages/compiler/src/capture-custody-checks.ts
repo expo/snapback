@@ -118,15 +118,11 @@ custodyCases.push(
   {name:"private require literal default",source:privateSource('db.require(true); db.require(true,"CODE"); db.assert(true); return 7;'),runs:[{result:7}]},
 );
 
-/** Only ordinary schema indexes are adapted to the frozen evaluator's fixture
- * format. Program IR is passed unchanged, and this is no native qualification. */
+/** Program IR and v5 schema are passed unchanged to the evaluator fixture. */
 export function custodyActual(full: Extract<Awaited<ReturnType<typeof lowerProject>>, {ok:true}>, args: Record<string,Value> = {},
   fixtureReceipt?: Omit<ClosureReceipt,"schema_hash">) {
   const schema = structuredClone(full.project.schema) as any;
-  for (const table of Object.values(schema.tables) as any[]) for (const index of Object.values(table.indexes) as any[]) {
-    if (index.components) { index.columns=index.components.map((component:any)=>component.Column); delete index.components; }
-  }
-  // Explicit initial fixture facts belong to this adapted evaluator schema.
+  // Explicit initial fixture facts belong to this evaluator schema.
   // They are test inputs, not a native-issued receipt or authority proof.
   const receipt = fixtureReceipt ? {...fixtureReceipt,schema_hash:sha256(canonicalSchemaJson(schema))}
     : {rows:[],ranges:[],absences:[],verdicts:[]};
