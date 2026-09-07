@@ -49,7 +49,6 @@ fn command_guides_explain_initialization_and_successor_recovery() {
             "snapback2 init my-app --template chat --client react",
         ),
         ("init", "VITE_SNAPBACK_URL=\"${snapback_url#SNAPBACK_URL=}\" npm run dev"),
-        ("test", "--journey name"),
         ("dev", "--apply-migration file"),
         ("check", "does not install"),
     ] {
@@ -63,6 +62,9 @@ fn command_guides_explain_initialization_and_successor_recovery() {
         assert_eq!(page["page"], command);
         assert!(page["content"].as_str().unwrap().contains(needle), "{page}");
     }
+    let output = project.run(&["test", "--help"]);
+    assert!(output.status.success());
+    assert!(String::from_utf8_lossy(&output.stdout).contains("--journey name"));
     let output = project.run(&["guide", "E_SUCCESSOR_DESTRUCTIVE", "--json"]);
     assert!(output.status.success());
     let page = json_stdout(&output);
@@ -455,7 +457,7 @@ fn offline_guide_page_respects_its_budget_and_its_codes_have_pages() {
         content.len()
     );
     assert!(
-        content.contains("fetch `/api/program`,\nre-resume."),
+        content.contains("E_OFFLINE_RESET: drop coverage, keep outbox, fetch program, re-resume."),
         "reset recovery must resume before replay"
     );
     assert!(!content.contains("cold-drain"));
