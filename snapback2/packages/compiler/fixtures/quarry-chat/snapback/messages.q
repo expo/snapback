@@ -4,6 +4,11 @@ query thread(conversationId: conversations, c: cursor ?):
   require exists memberships[conversationId, viewer] else MEMBERSHIP_REQUIRED
   return messages[conversationId] after c last 50
 
+query search(term: text <=128, c: cursor ?):
+  page = merge messages after c last 20 by bySearch:
+    [m.conversationId, term] for m in memberships[viewer] first 50 by byPrincipalConversation
+  return page
+
 query summary(conversationId: conversations):
   require exists memberships[conversationId, viewer] else MEMBERSHIP_REQUIRED
   return {
