@@ -1006,3 +1006,12 @@ Apartment M1 accepted the exact 0.0.14 source, private Node/npm image, qualified
 The once-only complete Office publisher retry again stopped at the original30s chat-test deadline, despite current authentication, exact valid resume custody and the acknowledged hold on new heavy checks. Todos and the preceding consumer steps passed; no chat receipt completed. Both normal owner stops passed, all59 recorded work PIDs were absent, and both exact package versions remained E404. No npm publication or metric append occurred.
 
 [Full failure and timer custody](../benchmarks/runs/2026-09-06-clique-improvement/evidence/release-014-office-second-withheld/README.md) distinguish130.924s driver time from129.030s publisher time and126.744s summed consumer steps. The temporary chat project was removed by normal cleanup, so a precise unlogged failure cannot be invented. Root authorized a separate secure-authentication design for a complete unchanged Apartment invocation; no arbitrary Office retry or credential transfer follows from this record. The original qualified package bytes and earlier outcomes remain intact.
+
+
+### 2026-09-06 — Cold public pages expose missing coverage dependencies
+
+The third full R8 review finds two more gaps that narrow store tests missed. After two ordering keys move, the actual cold offline Client selects a historical capped answer expanded with new bodies and drops its known halo. A delayed FULL page changes interior issuing keys without changing current bodies or the last endpoint; warm and cold then disagree about coverage. These are source-bound counterexamples with native initial fixtures and synthetic later frames, not a native emission or device claim.
+
+The next coherent ownership replacement must carry exact issuing-key and missing/fallback custody into receipt comparison and preserve the local partial result through public retry/subscription paths. Keeping the old row-pool hash as a shortcut would retain both the duplicate work and the semantic bug. Complete Astra/Grok verdicts disagree; both actual terminals and the disclosed Astra coordination-file read are preserved. [Round3 evidence](../benchmarks/runs/2026-09-06-clique-improvement/evidence/offline-full-r8-review-r3/README.md).
+
+This is required correctness work, not byte-budget progress:73,023gzip is still7,023over66,000, original movement deadlines remain unqualified, and historical resident results do not qualify this current source. Existing Convex/Supabase baselines remain fixed; no new full Clique score follows.

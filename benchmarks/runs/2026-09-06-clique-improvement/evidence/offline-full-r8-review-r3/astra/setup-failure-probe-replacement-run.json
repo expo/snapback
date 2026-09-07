@@ -1,0 +1,10 @@
+{
+  "argv": [
+    "/Users/ccheever/.bun/bin/bun",
+    "probe-replacement.ts"
+  ],
+  "cwd": "/Users/ccheever/clique-improvement/reviews/search-twin-r8-complete-r3/astra",
+  "start_utc": "2026-09-07T03:31:48.189646+00:00",
+  "elapsed_seconds": 0.11321591600000001,
+  "returncode": 1
+}

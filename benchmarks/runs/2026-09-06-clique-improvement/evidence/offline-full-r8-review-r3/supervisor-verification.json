@@ -1,0 +1,764 @@
+{
+  "createdUtc": "2026-09-07T03:58:44.968049+00:00",
+  "method": "read-only byte/hash and persisted-output checks; no new product execution",
+  "reviewArtifacts": {
+    "files": 228,
+    "bytes": 2548457,
+    "mismatches": []
+  },
+  "sourceCopies": {
+    "probe-source-manifest.json": {
+      "files": 96,
+      "exactPacketMatches": true
+    },
+    "probe-before-manifest.json": {
+      "files": 93,
+      "exactPacketMatches": true
+    }
+  },
+  "identicalInputPairs": [
+    "probe-public-movement",
+    "probe-replacement"
+  ],
+  "terminal": {
+    "astra": {
+      "pid": 11114,
+      "exitCode": 0,
+      "endedEpoch": 1788752992.534225,
+      "elapsedSeconds": 1412.5102360248566
+    },
+    "grok": {
+      "pid": 11116,
+      "exitCode": 0,
+      "endedEpoch": 1788752735.0027862,
+      "elapsedSeconds": 1154.896821975708
+    }
+  },
+  "pidAbsent": true,
+  "models": {
+    "astra": {
+      "utc": "2026-09-07T03:27:02.466705+00:00",
+      "session": "01a079e7-0cb8-7922-9e6b-ea1c0f06d6d8",
+      "source": "/Users/ccheever/.codex/sessions/2026/09/06/rollout-2026-09-06T20-26-20-01a079e7-0cb8-7922-9e6b-ea1c0f06d6d8.jsonl",
+      "contextTimestamp": "2026-09-07T03:26:23.977Z",
+      "model": "gpt-6-astra",
+      "effort": "xhigh",
+      "reasoningEffort": null,
+      "collaborationMode": {
+        "mode": "default",
+        "settings": {
+          "model": "gpt-6-astra",
+          "reasoning_effort": "xhigh",
+          "developer_instructions": null
+        }
+      },
+      "requestedModel": "gpt-6-astra",
+      "requestedEffort": "xhigh"
+    },
+    "grok": {
+      "utc": "2026-09-07T03:27:24.089083+00:00",
+      "session": "6bf289e4-442a-4e60-9d4c-c893c0f123a9",
+      "source": "/Users/ccheever/.grok/sessions/%2FUsers%2Fccheever%2Fclique-improvement%2Freviews%2Fsearch-twin-r8-complete-r3%2Fgrok/6bf289e4-442a-4e60-9d4c-c893c0f123a9/summary.json",
+      "sourceSha256AtObservation": "af78224efa0cfd1d36c8dd2f24f5619218c3a2a0388bcdae16a413a8f33cc9d5",
+      "current_model_id": "grok-4.6",
+      "reasoning_effort": "xhigh",
+      "session_kind": "headless",
+      "requestedModel": "grok-4.6",
+      "requestedEffort": "xhigh",
+      "nativeCli": true,
+      "noHighToXhighRelabel": true
+    }
+  },
+  "proceduralDisclosure": "Astra opened packet/native/integration-inputs-at-freeze.md containing owner coordination, excluded from finding evidence. Neither reviewer read peer/prior reviews or same-session size design. This disclosed boundary issue is retained, not silently labeled perfect independence.",
+  "muse": "Requested Muse1.3/ultra availability not established; no substitute/global outage/new probe/third review.",
+  "probe-public-movement": {
+    "final": {
+      "local": {
+        "state": "partial",
+        "seq": 2,
+        "reason": "never-held",
+        "rows": [
+          {
+            "at": 0,
+            "id": "r0"
+          },
+          {
+            "at": 1,
+            "id": "r1"
+          },
+          {
+            "at": 2,
+            "id": "r2"
+          },
+          {
+            "at": 3,
+            "id": "r3"
+          },
+          {
+            "at": 4,
+            "id": "r4"
+          },
+          {
+            "at": 5,
+            "id": "r5"
+          },
+          {
+            "at": 6,
+            "id": "r6"
+          },
+          {
+            "at": 7,
+            "id": "r7"
+          },
+          {
+            "at": 10,
+            "id": "halo"
+          },
+          {
+            "at": 100,
+            "id": "r8"
+          }
+        ]
+      },
+      "held": {
+        "state": "capped",
+        "seq": 1,
+        "rows": [
+          {
+            "at": 0,
+            "id": "r0"
+          },
+          {
+            "at": 1,
+            "id": "r1"
+          },
+          {
+            "at": 2,
+            "id": "r2"
+          },
+          {
+            "at": 3,
+            "id": "r3"
+          },
+          {
+            "at": 4,
+            "id": "r4"
+          },
+          {
+            "at": 5,
+            "id": "r5"
+          },
+          {
+            "at": 6,
+            "id": "r6"
+          },
+          {
+            "at": 7,
+            "id": "r7"
+          },
+          {
+            "at": 100,
+            "id": "r8"
+          },
+          {
+            "at": 101,
+            "id": "r9"
+          }
+        ],
+        "next": null
+      },
+      "publicResult": {
+        "state": "capped",
+        "seq": 1,
+        "rows": [
+          {
+            "at": 0,
+            "id": "r0"
+          },
+          {
+            "at": 1,
+            "id": "r1"
+          },
+          {
+            "at": 2,
+            "id": "r2"
+          },
+          {
+            "at": 3,
+            "id": "r3"
+          },
+          {
+            "at": 4,
+            "id": "r4"
+          },
+          {
+            "at": 5,
+            "id": "r5"
+          },
+          {
+            "at": 6,
+            "id": "r6"
+          },
+          {
+            "at": 7,
+            "id": "r7"
+          },
+          {
+            "at": 100,
+            "id": "r8"
+          },
+          {
+            "at": 101,
+            "id": "r9"
+          }
+        ],
+        "next": null,
+        "connection": "offline"
+      },
+      "requests": 0,
+      "knownHeldHalo": {
+        "id": "halo",
+        "row": {
+          "at": 10,
+          "id": "halo"
+        },
+        "table": "events"
+      }
+    },
+    "before": {
+      "local": {
+        "state": "partial",
+        "seq": 2,
+        "reason": "never-held",
+        "rows": [
+          {
+            "at": 0,
+            "id": "r0"
+          },
+          {
+            "at": 1,
+            "id": "r1"
+          },
+          {
+            "at": 2,
+            "id": "r2"
+          },
+          {
+            "at": 3,
+            "id": "r3"
+          },
+          {
+            "at": 4,
+            "id": "r4"
+          },
+          {
+            "at": 5,
+            "id": "r5"
+          },
+          {
+            "at": 6,
+            "id": "r6"
+          },
+          {
+            "at": 7,
+            "id": "r7"
+          },
+          {
+            "at": 10,
+            "id": "halo"
+          },
+          {
+            "at": 100,
+            "id": "r8"
+          }
+        ]
+      },
+      "held": {
+        "state": "capped",
+        "seq": 1,
+        "rows": [
+          {
+            "at": 0,
+            "id": "r0"
+          },
+          {
+            "at": 1,
+            "id": "r1"
+          },
+          {
+            "at": 2,
+            "id": "r2"
+          },
+          {
+            "at": 3,
+            "id": "r3"
+          },
+          {
+            "at": 4,
+            "id": "r4"
+          },
+          {
+            "at": 5,
+            "id": "r5"
+          },
+          {
+            "at": 6,
+            "id": "r6"
+          },
+          {
+            "at": 7,
+            "id": "r7"
+          },
+          {
+            "at": 100,
+            "id": "r8"
+          },
+          {
+            "at": 101,
+            "id": "r9"
+          }
+        ],
+        "next": null
+      },
+      "publicResult": {
+        "state": "capped",
+        "seq": 1,
+        "rows": [
+          {
+            "at": 0,
+            "id": "r0"
+          },
+          {
+            "at": 1,
+            "id": "r1"
+          },
+          {
+            "at": 2,
+            "id": "r2"
+          },
+          {
+            "at": 3,
+            "id": "r3"
+          },
+          {
+            "at": 4,
+            "id": "r4"
+          },
+          {
+            "at": 5,
+            "id": "r5"
+          },
+          {
+            "at": 6,
+            "id": "r6"
+          },
+          {
+            "at": 7,
+            "id": "r7"
+          },
+          {
+            "at": 10,
+            "id": "halo"
+          },
+          {
+            "at": 100,
+            "id": "r8"
+          }
+        ],
+        "next": null,
+        "connection": "offline"
+      },
+      "requests": 0,
+      "knownHeldHalo": {
+        "id": "halo",
+        "row": {
+          "at": 10,
+          "id": "halo"
+        },
+        "table": "events"
+      }
+    }
+  },
+  "probe-replacement": {
+    "final": {
+      "initial": {
+        "state": "capped",
+        "rows": [
+          {
+            "at": 0,
+            "id": "r0"
+          },
+          {
+            "at": 1,
+            "id": "r1"
+          },
+          {
+            "at": 2,
+            "id": "r2"
+          },
+          {
+            "at": 3,
+            "id": "r3"
+          },
+          {
+            "at": 4,
+            "id": "r4"
+          },
+          {
+            "at": 5,
+            "id": "r5"
+          },
+          {
+            "at": 6,
+            "id": "r6"
+          },
+          {
+            "at": 7,
+            "id": "r7"
+          },
+          {
+            "at": 8,
+            "id": "r8"
+          },
+          {
+            "at": 9,
+            "id": "r9"
+          }
+        ],
+        "next": null
+      },
+      "afterLatest": {
+        "state": "capped",
+        "rows": [
+          {
+            "at": 0,
+            "id": "r0"
+          },
+          {
+            "at": 1,
+            "id": "r1"
+          },
+          {
+            "at": 2,
+            "id": "r2"
+          },
+          {
+            "at": 3,
+            "id": "r3"
+          },
+          {
+            "at": 4,
+            "id": "r4"
+          },
+          {
+            "at": 5,
+            "id": "r5"
+          },
+          {
+            "at": 6,
+            "id": "r6"
+          },
+          {
+            "at": 7,
+            "id": "r7"
+          },
+          {
+            "at": 8,
+            "id": "r8"
+          },
+          {
+            "at": 9,
+            "id": "r9"
+          }
+        ],
+        "next": null
+      },
+      "warm": {
+        "state": "capped",
+        "rows": [
+          {
+            "at": 0,
+            "id": "r0"
+          },
+          {
+            "at": 1,
+            "id": "r1"
+          },
+          {
+            "at": 2,
+            "id": "r2"
+          },
+          {
+            "at": 3,
+            "id": "r3"
+          },
+          {
+            "at": 4,
+            "id": "r4"
+          },
+          {
+            "at": 5,
+            "id": "r5"
+          },
+          {
+            "at": 6,
+            "id": "r6"
+          },
+          {
+            "at": 7,
+            "id": "r7"
+          },
+          {
+            "at": 8,
+            "id": "r8"
+          },
+          {
+            "at": 9,
+            "id": "r9"
+          }
+        ],
+        "next": null
+      },
+      "cold": {
+        "state": "partial",
+        "rows": [
+          {
+            "at": 0,
+            "id": "r0"
+          },
+          {
+            "at": 1,
+            "id": "r1"
+          },
+          {
+            "at": 2,
+            "id": "r2"
+          },
+          {
+            "at": 3,
+            "id": "r3"
+          },
+          {
+            "at": 4,
+            "id": "r4"
+          },
+          {
+            "at": 5,
+            "id": "r5"
+          },
+          {
+            "at": 6,
+            "id": "r6"
+          },
+          {
+            "at": 7,
+            "id": "r7"
+          },
+          {
+            "at": 8,
+            "id": "r8"
+          },
+          {
+            "at": 9,
+            "id": "r9"
+          }
+        ],
+        "reason": "never-held",
+        "sites": [
+          {
+            "site": "clock.range",
+            "reason": "never-held"
+          }
+        ]
+      },
+      "persistedUnchanged": true
+    },
+    "before": {
+      "initial": {
+        "state": "capped",
+        "rows": [
+          {
+            "at": 0,
+            "id": "r0"
+          },
+          {
+            "at": 1,
+            "id": "r1"
+          },
+          {
+            "at": 2,
+            "id": "r2"
+          },
+          {
+            "at": 3,
+            "id": "r3"
+          },
+          {
+            "at": 4,
+            "id": "r4"
+          },
+          {
+            "at": 5,
+            "id": "r5"
+          },
+          {
+            "at": 6,
+            "id": "r6"
+          },
+          {
+            "at": 7,
+            "id": "r7"
+          },
+          {
+            "at": 8,
+            "id": "r8"
+          },
+          {
+            "at": 9,
+            "id": "r9"
+          }
+        ],
+        "next": null
+      },
+      "afterLatest": {
+        "state": "capped",
+        "rows": [
+          {
+            "at": 0,
+            "id": "r0"
+          },
+          {
+            "at": 1,
+            "id": "r1"
+          },
+          {
+            "at": 2,
+            "id": "r2"
+          },
+          {
+            "at": 3,
+            "id": "r3"
+          },
+          {
+            "at": 4,
+            "id": "r4"
+          },
+          {
+            "at": 5,
+            "id": "r5"
+          },
+          {
+            "at": 6,
+            "id": "r6"
+          },
+          {
+            "at": 7,
+            "id": "r7"
+          },
+          {
+            "at": 8,
+            "id": "r8"
+          },
+          {
+            "at": 9,
+            "id": "r9"
+          }
+        ],
+        "next": null
+      },
+      "warm": {
+        "state": "capped",
+        "rows": [
+          {
+            "at": 0,
+            "id": "r0"
+          },
+          {
+            "at": 1,
+            "id": "r1"
+          },
+          {
+            "at": 2,
+            "id": "r2"
+          },
+          {
+            "at": 3,
+            "id": "r3"
+          },
+          {
+            "at": 4,
+            "id": "r4"
+          },
+          {
+            "at": 5,
+            "id": "r5"
+          },
+          {
+            "at": 6,
+            "id": "r6"
+          },
+          {
+            "at": 7,
+            "id": "r7"
+          },
+          {
+            "at": 8,
+            "id": "r8"
+          },
+          {
+            "at": 9,
+            "id": "r9"
+          }
+        ],
+        "next": null
+      },
+      "cold": {
+        "state": "capped",
+        "rows": [
+          {
+            "at": 0,
+            "id": "r0"
+          },
+          {
+            "at": 1,
+            "id": "r1"
+          },
+          {
+            "at": 2,
+            "id": "r2"
+          },
+          {
+            "at": 3,
+            "id": "r3"
+          },
+          {
+            "at": 4,
+            "id": "r4"
+          },
+          {
+            "at": 5,
+            "id": "r5"
+          },
+          {
+            "at": 6,
+            "id": "r6"
+          },
+          {
+            "at": 7,
+            "id": "r7"
+          },
+          {
+            "at": 8,
+            "id": "r8"
+          },
+          {
+            "at": 9,
+            "id": "r9"
+          }
+        ],
+        "next": null
+      },
+      "persistedUnchanged": true
+    }
+  }
+}

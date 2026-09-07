@@ -1,0 +1,153 @@
+{
+  "local": {
+    "state": "partial",
+    "seq": 2,
+    "reason": "never-held",
+    "rows": [
+      {
+        "at": 0,
+        "id": "r0"
+      },
+      {
+        "at": 1,
+        "id": "r1"
+      },
+      {
+        "at": 2,
+        "id": "r2"
+      },
+      {
+        "at": 3,
+        "id": "r3"
+      },
+      {
+        "at": 4,
+        "id": "r4"
+      },
+      {
+        "at": 5,
+        "id": "r5"
+      },
+      {
+        "at": 6,
+        "id": "r6"
+      },
+      {
+        "at": 7,
+        "id": "r7"
+      },
+      {
+        "at": 10,
+        "id": "halo"
+      },
+      {
+        "at": 100,
+        "id": "r8"
+      }
+    ]
+  },
+  "held": {
+    "state": "capped",
+    "seq": 1,
+    "rows": [
+      {
+        "at": 0,
+        "id": "r0"
+      },
+      {
+        "at": 1,
+        "id": "r1"
+      },
+      {
+        "at": 2,
+        "id": "r2"
+      },
+      {
+        "at": 3,
+        "id": "r3"
+      },
+      {
+        "at": 4,
+        "id": "r4"
+      },
+      {
+        "at": 5,
+        "id": "r5"
+      },
+      {
+        "at": 6,
+        "id": "r6"
+      },
+      {
+        "at": 7,
+        "id": "r7"
+      },
+      {
+        "at": 100,
+        "id": "r8"
+      },
+      {
+        "at": 101,
+        "id": "r9"
+      }
+    ],
+    "next": null
+  },
+  "publicResult": {
+    "state": "capped",
+    "seq": 1,
+    "rows": [
+      {
+        "at": 0,
+        "id": "r0"
+      },
+      {
+        "at": 1,
+        "id": "r1"
+      },
+      {
+        "at": 2,
+        "id": "r2"
+      },
+      {
+        "at": 3,
+        "id": "r3"
+      },
+      {
+        "at": 4,
+        "id": "r4"
+      },
+      {
+        "at": 5,
+        "id": "r5"
+      },
+      {
+        "at": 6,
+        "id": "r6"
+      },
+      {
+        "at": 7,
+        "id": "r7"
+      },
+      {
+        "at": 10,
+        "id": "halo"
+      },
+      {
+        "at": 100,
+        "id": "r8"
+      }
+    ],
+    "next": null,
+    "connection": "offline"
+  },
+  "requests": 0,
+  "knownHeldHalo": {
+    "id": "halo",
+    "row": {
+      "at": 10,
+      "id": "halo"
+    },
+    "table": "events"
+  }
+}

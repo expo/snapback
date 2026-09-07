@@ -1,0 +1,3 @@
+error: Cannot find module '../dist/unicode-tables' from '/Users/ccheever/clique-improvement/reviews/search-twin-r8-complete-r3/astra/probe-source/snapback2/packages/evaluator/src/unicode-tables.ts'
+
+Bun v1.3.12 (macOS arm64)

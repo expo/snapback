@@ -1,0 +1,33 @@
+{
+  "externalReviewRoot": "/Users/ccheever/clique-improvement/reviews/search-twin-r8-complete-r3",
+  "base": "e1c6e2b79a9e13ceb363f647f52807218aa2b57a",
+  "commit": "36feaacc9c5bf2ccede2623653252e67c0152f26",
+  "packetManifest": {
+    "path": "/Users/ccheever/clique-improvement/reviews/search-twin-r8-complete-r3/packet/manifest.json",
+    "sha256": "56b018ddd0d1fa562837e4c45a2681ed1f7370698cf253dd32a29023ffae9782",
+    "bytes": 1005462
+  },
+  "delta": {
+    "path": "/Users/ccheever/clique-improvement/reviews/search-twin-r8-complete-r3/packet/delta.patch",
+    "sha256": "5f56c9c159d506d35c16bfdc29a4bdf86f5d7a79525e83b3b396424391d45237",
+    "bytes": 294240
+  },
+  "nativeOwner": "26c9fd5e0d3922ce7680493c0e8f7371f4793d59",
+  "nativeOwnerSha256": "4d0f8f0176921b56305e9969da0fcb2dd5ecedae1f65d983f537e613d0c6e46e",
+  "sourceCopies": {
+    "probe-source-manifest.json": {
+      "files": 96,
+      "exactPacketMatches": true
+    },
+    "probe-before-manifest.json": {
+      "files": 93,
+      "exactPacketMatches": true
+    }
+  },
+  "rawReviewArtifactManifest": {
+    "path": "/Users/ccheever/clique-improvement/reviews/search-twin-r8-complete-r3/astra/review-artifacts.json",
+    "sha256": "fd06c40867dad6486ce227a4c9671494bbec421da9285df33a0d452014fd750d",
+    "bytes": 40517
+  },
+  "copyPolicy": "Exact reports, probes, inputs, stdout/stderr, run/state/model/terminal receipts retained here. Full copied product/native sources and raw CLI streams remain external with exact manifest pointers. Report absolute links retain original meaning."
+}
