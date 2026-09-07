@@ -1309,6 +1309,45 @@ test("useMutation keeps the last server receipt separate from transport failure"
   await act(async () => { renderer!.unmount(); });
 });
 
+test("two React queries read one client-owned snapshot and release it by refcount", async () => {
+  let opens = 0;
+  const fetch = async (input: string | URL | Request) => {
+    const path = new URL(String(input)).pathname;
+    if (path === "/api/manifest") {
+      return fetchJson({ generation: "test", programGeneration: "program", ops: {}, channels: {}, auth: {} });
+    }
+    if (path === "/api/subscribe") {
+      opens += 1;
+      return hangingSse(`data: ${JSON.stringify({ state: "complete", data: [{ id: "message-1" }], seq: 1, next: null })}\n\n`);
+    }
+    throw new Error(`unexpected route ${path}`);
+  };
+  const client = createClient({ url: "http://react-observed.test", as: "alice", fetch });
+  await client.ready;
+  const args = { conversationId: "general" };
+  let first: any;
+  let second: any;
+  function First() { first = useQuery(api.messages.thread, args); return null; }
+  function Second() { second = useQuery(api.messages.thread, args); return null; }
+  let renderer: TestRenderer.ReactTestRenderer;
+  await act(async () => {
+    renderer = TestRenderer.create(React.createElement(
+      SnapbackProvider,
+      { client },
+      React.createElement(React.Fragment, null, React.createElement(First), React.createElement(Second)),
+    ));
+    await new Promise((resolve) => setTimeout(resolve, 20));
+  });
+  assert.equal(first.state, "complete");
+  assert.equal(second.state, "complete");
+  assert.strictEqual(first.data, second.data, "both hooks select the same client-owned value");
+  assert.equal(opens, 1);
+  assert.equal((client as any).sharedConsumers(api.messages.thread, args), 2);
+  await act(async () => { renderer!.unmount(); });
+  assert.equal((client as any).sharedConsumers(api.messages.thread, args), 0);
+  await client.close();
+});
+
 test("useQuery renders hydrating immediately when its identity changes", async () => {
   const renders: Array<{ op: string; state: string }> = [];
   const fetch = async (input: string | URL | Request) => {

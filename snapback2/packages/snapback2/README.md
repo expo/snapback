@@ -21,6 +21,10 @@ const page = await client.query(api.messages.thread, { conversationId: "conversa
 const sub = client.subscribe(api.messages.thread, { conversationId: "conversation-1", c: null }, console.log);
 await sub.until((delivery) => delivery.state === "complete" && delivery.live);
 sub.close();
+
+const observed = client.observe(api.messages.thread, { conversationId: "conversation-1", c: null });
+const stop = observed.subscribe(() => console.log(observed.getSnapshot()));
+stop();
 ```
 
 The generated `.snapback/build/api.d.ts` is the only source of `api` members, so
@@ -53,6 +57,11 @@ connection failure remains `hydrating`. Transport status is separately exposed a
 `connection: "connected" | "reconnecting" | "offline"`. `useQuery` subscribes by
 default; pass `{ live: false }` for a one-shot query, which remains `hydrating` and
 retries while its connection is reconnecting.
+
+`client.observe` is the lazy headless form of the same query resource. Its
+first listener opens the shared subscription and its last listener releases
+it. Identical headless and React consumers read the same immutable `QueryView`;
+successor and account resets publish `hydrating` before new-authority data.
 
 `useMutation` returns `{ run, inFlight, pending, ready, status, last, transport }`.
 `inFlight` marks an active call; `pending` lists this operation's durable queued

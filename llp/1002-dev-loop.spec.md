@@ -5,7 +5,7 @@
 **Systems:** `snapback2/crates/snapback2` (the binary: owner, server, verbs), `snapback2/packages/compiler` (project lowering, worker), `snapback2/packages/snapback2` (authoring runtime, client, React, test runner, shim), `snapback2/scripts/measure.mjs`
 **Author:** Claude Fable 5 (orchestrator) — implementers: codex gpt-5.6-sol, lanes B0 (compiler + authoring surface), B1 (owner + server + verbs), B2 (`init`, `test`, `why`, `trace`, `guide`), D (client + React + evaluator)
 **Date:** 2026-08-29
-**Revised:** 2026-09-07 (explicit named-journey verification and executable React startup; startup cleanup fixture custody); 2026-09-06 (app guide operation/certificate custody; native logical SSE body; CLI help and executable migration recovery; auth startup recovery and held transition reads; queued transitions, interrupted sync, live held reads); 2026-09-05 (keyword index fallback and recipe list; generated Quarry keyword guide, landed outbox/client custody; auth review: failed-transition custody, read restoration barrier, session kind, paused offline retries; client-owned auth restoration and retry lifecycle; catalog naming rewrites, Clique L2; shared live transport, bounded derived verification, mutation-read guidance, installed consumer qualification)
+**Revised:** 2026-09-07 (client-owned observed query snapshots; explicit named-journey verification and executable React startup; startup cleanup fixture custody); 2026-09-06 (app guide operation/certificate custody; native logical SSE body; CLI help and executable migration recovery; auth startup recovery and held transition reads; queued transitions, interrupted sync, live held reads); 2026-09-05 (keyword index fallback and recipe list; generated Quarry keyword guide, landed outbox/client custody; auth review: failed-transition custody, read restoration barrier, session kind, paused offline retries; client-owned auth restoration and retry lifecycle; catalog naming rewrites, Clique L2; shared live transport, bounded derived verification, mutation-read guidance, installed consumer qualification)
 **Related:** LLP 1000, LLP 1001 (the engine this serves), LLP 1003 (effects),
 LLP 0329.016 §5 (the design this implements verbatim where it can), LLP
 0329.016 §5.11 (the verb table — no verb exists without its row), LLP
@@ -829,6 +829,7 @@ client.auth.signup / login / guest / logout / me
 await client.query(api.todos.list, { take: 50 })       // → { state, data, seq, … } — never throws on a typed state
 await client.mutation(api.todos.add, { title })       // → committed | rejected | queued
 const sub = client.subscribe(api.todos.list, args, (r) => …)   // SSE; { state: live|stale|refused|partial }; sub.close(); sub.until(pred)
+const observed = client.observe(api.todos.list, args)       // lazy { getSnapshot, subscribe }; shares sub's entry
 client.channel(api.typing, args).publish(payload) / .subscribe(cb)
 ```
 
@@ -862,6 +863,20 @@ typed terminal result; automatic mutation cleanup still precedes expiry.
 **Transport status is not a query state**: hooks and the provider expose `connection: connected |
 reconnecting | offline` separately, and a network failure leaves a query
 `hydrating` with `connection: reconnecting`, never `refused`.
+
+One client owns one immutable `QueryView` for each authority generation,
+operation, canonical argument value, and live/drain mode. `client.observe()`
+returns stable `getSnapshot()` and `subscribe(notify)` functions over that
+entry. Obtaining the observer is lazy: it opens no transport and retains no
+inactive entry. The first listener opens the same entry used by
+`client.subscribe`; the last listener or raw subscriber releases it. React and
+Expo `useQuery` consume that external store, so identical mounted hooks read
+the same snapshot and data identity. A program reset publishes `hydrating`
+before reopening the stream. An account transition or client close retires
+the entry, notifies snapshot listeners once, and makes the old observer return
+its stable `hydrating` fallback, so it cannot expose the retired account's
+data. `{ live: false }` uses the same lazy snapshot lifecycle for its retrying
+one-shot query; drain remains live-only.
 
 The default fetch transport binds the host global receiver, so browser JSON
 and SSE requests work without a custom fetch wrapper. An explicitly supplied

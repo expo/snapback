@@ -9,10 +9,31 @@ interface Attachment<Event> {
   delivered: boolean;
 }
 
-interface Entry<Event> {
+interface Observation {
+  notify: () => void;
+  active: () => boolean;
+  retire: () => void;
+}
+
+interface Entry<Event, Snapshot> {
   underlying: Subscription<Event>;
   readonly attachments: Set<Attachment<Event>>;
+  readonly observations: Set<Observation>;
+  readonly initial: Snapshot;
+  snapshot: Snapshot;
   last?: Event;
+}
+
+interface EntrySpec<Event, Snapshot> {
+  key: string;
+  initial: Snapshot;
+  reduce(current: Snapshot, event: Event): Snapshot;
+  open(fanout: (event: Event) => void): Subscription<Event>;
+}
+
+interface ObservedSnapshot<Snapshot> {
+  getSnapshot(): Snapshot;
+  subscribe(notify: () => void): () => void;
 }
 
 /**
@@ -27,35 +48,62 @@ interface Entry<Event> {
  * query from the mounted set another consumer still relies on.
  */
 export class SharedSubscriptions {
-  private readonly entries = new Map<string, Entry<unknown>>();
+  private readonly entries = new Map<string, Entry<unknown, unknown>>();
 
-  attach<Event>(
-    key: string,
-    open: (fanout: (event: Event) => void) => Subscription<Event>,
+  private entry<Event, Snapshot>(spec: EntrySpec<Event, Snapshot>): Entry<Event, Snapshot> {
+    let entry = this.entries.get(spec.key) as Entry<Event, Snapshot> | undefined;
+    if (entry) return entry;
+    const created: Entry<Event, Snapshot> = {
+      attachments: new Set(),
+      observations: new Set(),
+      initial: spec.initial,
+      snapshot: spec.initial,
+      underlying: undefined as unknown as Subscription<Event>,
+    };
+    created.underlying = spec.open((event) => {
+      created.last = event;
+      const next = spec.reduce(created.snapshot, event);
+      const changed = next !== created.snapshot;
+      created.snapshot = next;
+      for (const each of [...created.attachments]) {
+        each.delivered = true;
+        try { each.listener(event); } catch { /* one consumer's throw cannot starve the others */ }
+      }
+      if (changed) for (const each of [...created.observations]) {
+        try { each.notify(); } catch { /* a snapshot observer cannot starve its peers */ }
+      }
+      this.release(spec.key, created);
+    });
+    // A program reset forgets predecessor evidence before the fresh stream
+    // answers. Both raw late-subscriber replay and observed snapshots reset.
+    const resettable = created.underlying as Subscription<Event> & { reset?(): void };
+    if (typeof resettable.reset === "function") {
+      const reset = resettable.reset.bind(resettable);
+      resettable.reset = () => {
+        created.last = undefined;
+        const changed = created.snapshot !== spec.initial;
+        created.snapshot = spec.initial;
+        if (changed) for (const each of [...created.observations]) {
+          try { each.notify(); } catch { /* isolated like delivery */ }
+        }
+        reset();
+      };
+    }
+    this.entries.set(spec.key, created as Entry<unknown, unknown>);
+    return created;
+  }
+
+  private release<Event, Snapshot>(key: string, entry: Entry<Event, Snapshot>): void {
+    if (entry.attachments.size > 0 || entry.observations.size > 0 || this.entries.get(key) !== entry) return;
+    this.entries.delete(key);
+    entry.underlying.close();
+  }
+
+  attach<Event, Snapshot>(
+    spec: EntrySpec<Event, Snapshot>,
     listener: (event: Event) => void,
   ): Subscription<Event> {
-    let entry = this.entries.get(key) as Entry<Event> | undefined;
-    if (!entry) {
-      const created: Entry<Event> = { attachments: new Set(), underlying: undefined as unknown as Subscription<Event> };
-      created.underlying = open((event) => {
-        created.last = event;
-        for (const each of [...created.attachments]) {
-          each.delivered = true;
-          try { each.listener(event); } catch { /* one consumer's throw cannot starve the others */ }
-        }
-      });
-      // A reset (E_OFFLINE_RESET, a successor) forgets the current delivery, so
-      // a consumer attaching before the fresh stream answers is not replayed
-      // coverage the reset dropped.
-      const resettable = created.underlying as Subscription<Event> & { reset?(): void };
-      if (typeof resettable.reset === "function") {
-        const reset = resettable.reset.bind(resettable);
-        resettable.reset = () => { created.last = undefined; reset(); };
-      }
-      entry = created;
-      this.entries.set(key, created as Entry<unknown>);
-    }
-    const current = entry;
+    const current = this.entry(spec);
     const attachment: Attachment<Event> = { listener, delivered: false };
     current.attachments.add(attachment);
     // A late consumer sees where the entry is *now*: what is current when the
@@ -74,10 +122,7 @@ export class SharedSubscriptions {
         if (closed) return;
         closed = true;
         current.attachments.delete(attachment);
-        if (current.attachments.size === 0 && this.entries.get(key) === current) {
-          this.entries.delete(key);
-          current.underlying.close();
-        }
+        this.release(spec.key, current);
       },
       until: (predicate, timeoutMs) => current.underlying.until(predicate, timeoutMs),
     };
@@ -89,9 +134,45 @@ export class SharedSubscriptions {
     return handle;
   }
 
+  /** A lazy external-store view over the same entry used by `attach`. */
+  observe<Event, Snapshot>(spec: EntrySpec<Event, Snapshot>, active: () => boolean = () => true): ObservedSnapshot<Snapshot> {
+    const fallback = spec.initial;
+    let retired = false;
+    return {
+      getSnapshot: () => retired || !active()
+        ? fallback : (this.entries.get(spec.key) as Entry<Event, Snapshot> | undefined)?.snapshot ?? fallback,
+      subscribe: (notify) => {
+        if (retired || !active()) return () => undefined;
+        const entry = this.entry(spec);
+        const observation: Observation = { notify, active, retire: () => { retired = true; } };
+        entry.observations.add(observation);
+        let closed = false;
+        return () => {
+          if (closed) return;
+          closed = true;
+          entry.observations.delete(observation);
+          this.release(spec.key, entry);
+        };
+      },
+    };
+  }
+
   /** How many consumers share `key` right now (tests and diagnostics). */
   consumers(key: string): number {
-    return this.entries.get(key)?.attachments.size ?? 0;
+    const entry = this.entries.get(key);
+    return entry === undefined ? 0 : entry.attachments.size + entry.observations.size;
+  }
+
+  /** Retire subscribed views whose captured client authority is no longer current. */
+  retireInactive(): void {
+    for (const [key, entry] of [...this.entries]) {
+      const retired = [...entry.observations].filter((observation) => !observation.active());
+      for (const observation of retired) { entry.observations.delete(observation); observation.retire(); }
+      if (retired.length > 0) {
+        this.release(key, entry);
+        for (const observation of retired) try { observation.notify(); } catch { /* isolated like delivery */ }
+      }
+    }
   }
 
   /**
@@ -102,9 +183,16 @@ export class SharedSubscriptions {
   clear(except?: Subscription<unknown>): void {
     for (const [key, entry] of [...this.entries]) {
       const owner = entry.underlying as Subscription<unknown> & { owns?(subscription: Subscription<unknown>): boolean };
-      if (except !== undefined && (owner === except || owner.owns?.(except) === true)) continue;
-      entry.attachments.clear();
-      this.entries.delete(key);
+      const preserved = except !== undefined && (owner === except || owner.owns?.(except) === true);
+      if (preserved) { entry.last = undefined; entry.snapshot = entry.initial; }
+      if (!preserved) { entry.attachments.clear(); this.entries.delete(key); }
+      const observations = [...entry.observations];
+      entry.observations.clear();
+      if (!preserved) entry.underlying.close();
+      for (const each of observations) {
+        each.retire();
+        try { each.notify(); } catch { /* a retired observer cannot block reset */ }
+      }
     }
   }
 }

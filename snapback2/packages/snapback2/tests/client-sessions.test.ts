@@ -78,6 +78,81 @@ test("identical live subscriptions share one stream, one delivery, and one mount
   await client.close();
 });
 
+test("observed queries are lazy and share one snapshot and source with raw subscribers", async () => {
+  const owner = fakeOwner({ seed: true });
+  const { counts, fetch } = counting(owner);
+  const client = createClient({ url: "http://observed.test", as: "alice", fetch });
+  await client.ready;
+  const args = { conversationId: "conversation-1", c: null };
+  const lateArgs = { ...args };
+  const lateOptions: any = {};
+  const first = client.observe(api.deliveries.thread, lateArgs, lateOptions);
+  const second = client.observe(api.deliveries.thread, args);
+  lateArgs.conversationId = "conversation-2";
+  lateOptions.live = false;
+  lateOptions.drain = true;
+
+  assert.strictEqual(first.getSnapshot(), first.getSnapshot(), "an unused observer has one stable hydrating snapshot");
+  assert.equal(first.getSnapshot().state, "hydrating");
+  assert.equal(counts.subscribes, 0, "obtaining an observer opens no transport");
+  assert.equal(client.sharedConsumers(api.deliveries.thread, args), 0, "an unused observer retains no entry");
+
+  const seen: string[] = [];
+  const stopFirst = first.subscribe(() => { seen.push(`first:${first.getSnapshot().state}`); });
+  const stopSecond = second.subscribe(() => { seen.push(`second:${second.getSnapshot().state}`); });
+  await until(() => first.getSnapshot().state === "complete", "the observed delivery");
+  assert.strictEqual(first.getSnapshot(), second.getSnapshot(), "both observers own the same immutable snapshot");
+  assert.ok((first.getSnapshot() as any).data.every((row: any) => row.conversationId === "conversation-1"),
+    "late attach uses the arguments and mode captured when observe returned");
+  assert.equal(counts.subscribes, 1);
+  assert.equal(client.sharedConsumers(api.deliveries.thread, args), 2);
+
+  let raw: any;
+  const subscription = client.subscribe(api.deliveries.thread, args, (event) => { raw = event; });
+  await until(() => raw?.state === "complete", "the current raw delivery replay");
+  assert.strictEqual(raw.data, (first.getSnapshot() as any).data, "raw and observed consumers share the current value");
+  assert.equal(counts.subscribes, 1, "the raw subscriber reused the observed source");
+  assert.equal(client.sharedConsumers(api.deliveries.thread, args), 3);
+
+  (subscription as typeof subscription & { reset(): void }).reset();
+  assert.equal(first.getSnapshot().state, "hydrating", "program reset synchronously forgets predecessor data");
+  assert.equal(seen.at(-2), "first:hydrating");
+  assert.equal(seen.at(-1), "second:hydrating");
+  await until(() => first.getSnapshot().state === "complete", "the successor delivery");
+  assert.equal(counts.subscribes, 2, "program reset reopens the one shared source");
+
+  stopFirst();
+  subscription.close();
+  assert.equal(client.sharedConsumers(api.deliveries.thread, args), 1);
+  stopSecond();
+  assert.equal(client.sharedConsumers(api.deliveries.thread, args), 0);
+  assert.ok(seen.includes("first:complete") && seen.includes("second:complete"));
+  await client.close();
+});
+
+test("closing a client retires an observed authority snapshot before later delivery", async () => {
+  const owner = fakeOwner({ seed: true });
+  const { counts, fetch } = counting(owner);
+  const client = createClient({ url: "http://observed-reset.test", as: "alice", fetch });
+  await client.ready;
+  const observed = client.observe(api.deliveries.thread, { conversationId: "conversation-1", c: null });
+  const unused = client.observe(api.deliveries.thread, { conversationId: "conversation-unused", c: null });
+  const states: string[] = [];
+  const stop = observed.subscribe(() => { states.push(observed.getSnapshot().state); });
+  await until(() => observed.getSnapshot().state === "complete", "the predecessor snapshot");
+  await client.close();
+  assert.equal(observed.getSnapshot().state, "hydrating", "retirement forgot the predecessor value");
+  assert.deepEqual(states.slice(-2), ["complete", "hydrating"]);
+  const opened = counts.subscribes;
+  const stopRetired = observed.subscribe(() => assert.fail("a retired observer notified again"));
+  const stopUnused = unused.subscribe(() => assert.fail("an unused old-authority observer notified"));
+  assert.equal(counts.subscribes, opened, "old observers cannot reopen transport after retirement");
+  assert.strictEqual(unused.getSnapshot(), unused.getSnapshot(), "the unused retired view keeps one fallback");
+  stopRetired();
+  stopUnused();
+  stop();
+});
+
 test("identical drains share one page walk and one tail", async () => {
   const owner = fakeOwner({ seed: true, cursorArg: "c" });
   const { counts, fetch } = counting(owner);

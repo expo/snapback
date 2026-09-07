@@ -25,6 +25,9 @@ Subscribe through `client.subscribe(api.messages.thread, args, listener)`.
 Each SSE data frame is a query response or refusal. Connection `live`/`stale`
 facts belong to the client and never replace `complete`/`capped`/`denied`.
 
+`client.observe(ref,args)` is a lazy `{getSnapshot,subscribe}` store shared by
+raw and React. Resets publish `hydrating`; `{live:false}` is one-shot.
+
 One SSE connection carries up to 256 query/channel subscriptions per client,
 including HTTP/1.1. Adding/closing one leaves peers active. Unmount unused
 components; CSS hiding keeps queries active. Close the client with its scope.
