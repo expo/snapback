@@ -1,5 +1,6 @@
 import { basename, dirname, join } from "node:path";
 import type { IndexComponent, Provenance } from "../ir";
+import { ordinaryColumns } from "../index-components";
 import type { Document, Expr, FunctionDecl, IndexDecl, ProgramDecl, ScalarType, ShapeDecl, ShapeField, Site, Stmt as QuarryStatement, TableCatalog, TableDecl } from "./ast";
 import { selectIndex } from "./catalog";
 import { QuarryError, refuse, typeError, unsupported } from "./diagnostics";
@@ -63,6 +64,10 @@ export type BoundExpression = BoundExpressionBase & (
       value: BoundExpression;
       coercion?: "row-id";
     }>; body: BoundExpression }
+  | { kind: "write"; op: "insert" | "update" | "upsert" | "delete";
+      table: BoundTableSymbol; index?: BoundIndexSymbol; key: BoundExpression[];
+      fields: Array<{ name: string; value: BoundExpression; expected: ScalarType; coercion?: "row-id"; source: BoundSourceStack }>;
+      focal?: Extract<BoundExpression, { kind: "focal" }>; usesFocal: boolean; addressedColumns: string[]; provenance: Provenance }
   | { kind: "get" | "exists" | "scan" | "aggregate"; read: BoundRead }
 );
 
@@ -83,6 +88,7 @@ export type BoundRead = {
 
 export type BoundStatement =
   | { kind: "return"; value: BoundExpression; source: BoundSourceStack }
+  | { kind: "expr"; value: BoundExpression; completion: boolean; source: BoundSourceStack }
   | { kind: "bind"; symbols: BoundLocalSymbol[]; tupleFields?: string[]; value: BoundExpression; source: BoundSourceStack }
   | { kind: "require"; condition: BoundExpression; code: string; source: BoundSourceStack }
   | { kind: "if"; condition: BoundExpression; thenBody: BoundStatement[]; elseBody: BoundStatement[]; source: BoundSourceStack }
@@ -93,6 +99,7 @@ export type BoundQuarryProgram = {
   name: string;
   kind: ProgramDecl["kind"];
   args: BoundArgumentSymbol[];
+  focal?: Extract<BoundExpression, { kind: "focal" }>;
   result: BoundValueFacts;
   body: BoundStatement[];
   source: BoundSourceStack;
@@ -100,21 +107,30 @@ export type BoundQuarryProgram = {
 
 /** Bind one operation without routing its data plane through generated TypeScript. */
 export function bindQuarryProgram(program: ProgramDecl, catalog: TableCatalog, documents: Document[] = []): BoundQuarryProgram {
-  if (program.focalTable) unsupported(program.site, "focal table operations in the direct Quarry statement seam", "keep this operation on the parity oracle until direct focal rules land");
   const operationName = `${basename(program.site.file, ".q")}.${program.name}`;
   const args = program.args.map((arg, index): BoundArgumentSymbol => ({
     kind: "argument", id: `${operationName}:argument:${index}`, name: arg.name,
     type: structuredClone(arg.type), origin: "Arg", source: sourceStack(arg.site),
   }));
+  let focal: Extract<BoundExpression, { kind: "focal" }> | undefined;
+  if (program.focalTable) {
+    const info = catalog.get(program.focalTable);
+    if (!info) refuse(program.site, `unknown focal table ${program.focalTable}`);
+    const table: BoundTableSymbol = { kind: "table", id: `table:${program.focalTable}`, name: program.focalTable,
+      declaration: info.declaration, source: sourceStack(info.declaration.site) };
+    focal = { kind: "focal", id: `${operationName}:focal`, facts: facts({ kind: "row", table, nullable: false }, "Arg", {
+      tableOrigin: table,
+    }), source: sourceStack(program.site) };
+  }
   const binder = new ExpressionBinder(
     program, catalog, new Map(args.map((arg) => [arg.name, arg])),
     new BoundShapeRegistry(documents), new BoundFunctionRegistry(documents),
-    { nodes: 0, expansionId: 0, shapeId: 0 },
+    { nodes: 0, expansionId: 0, shapeId: 0 }, focal,
   );
   const body = binder.statements(program.body, false);
   const returns = completionFacts(body);
   return {
-    name: operationName, kind: program.kind, args, result: joinFacts(returns, program.site),
+    name: operationName, kind: program.kind, args, ...(focal ? { focal } : {}), result: joinFacts(returns, program.site),
     body, source: sourceStack(program.site),
   };
 }
@@ -232,15 +248,18 @@ class ExpressionBinder {
     private readonly shapes: BoundShapeRegistry,
     private readonly functions: BoundFunctionRegistry,
     private readonly budget: ExpansionBudget,
+    initialFocal?: Extract<BoundExpression, { kind: "focal" }>,
   ) {
     this.shapeFile = program.site.file;
     this.functionFile = program.site.file;
+    this.focal = initialFocal;
   }
 
-  statements(statements: QuarryStatement[], allowOuterShadow = true): BoundStatement[] {
+  statements(statements: QuarryStatement[], allowOuterShadow = true, completion = true): BoundStatement[] {
     const bound: BoundStatement[] = [];
     const declaredHere = new Set<string>();
-    for (const statement of statements) {
+    for (const [statementIndex, statement] of statements.entries()) {
+      const completes = completion && statementIndex === statements.length - 1;
       const source = this.source(statement.site);
       if (statement.kind === "return") {
         bound.push({ kind: "return", value: this.expression(statement.value), source });
@@ -253,6 +272,8 @@ class ExpressionBinder {
         const value = statement.names.length === 2 && statement.value.kind === "call" && statement.value.name === "sorted"
           ? this.sortedPair(statement.value)
           : this.expression(statement.value);
+        if (value.kind === "write" && value.op === "delete") refuse(this.diagnosticSite(statement.site),
+          "delete does not yield a value; return a confirmation value after the write");
         const tupleFields = statement.names.length === 1 ? undefined
           : statement.value.kind === "call" && statement.value.name === "sorted"
             ? ["first", "second"] : ["quotient", "remainder"];
@@ -283,9 +304,9 @@ class ExpressionBinder {
         let elseBody: BoundStatement[];
         try {
           this.scope = narrowedScope(condition, prior, true);
-          thenBody = this.statements(statement.thenBody);
+          thenBody = this.statements(statement.thenBody, true, completes);
           this.scope = narrowedScope(condition, prior, false);
-          elseBody = this.statements(statement.elseBody);
+          elseBody = this.statements(statement.elseBody, true, completes);
         } finally {
           this.scope = prior;
         }
@@ -302,7 +323,7 @@ class ExpressionBinder {
         try {
           this.scope = new Map(prior);
           this.scope.set(statement.name, symbol);
-          body = this.statements(statement.body);
+          body = this.statements(statement.body, true, false);
         } finally {
           this.scope = prior;
         }
@@ -325,13 +346,18 @@ class ExpressionBinder {
         try {
           this.scope = new Map(prior);
           this.scope.set(statement.someName, symbol);
-          someBody = this.statements(statement.someBody);
+          someBody = this.statements(statement.someBody, true, completes);
           this.scope = new Map(prior);
-          noneBody = this.statements(statement.noneBody);
+          noneBody = this.statements(statement.noneBody, true, completes);
         } finally {
           this.scope = prior;
         }
         bound.push({ kind: "match", value: point, symbol, someBody, noneBody, source });
+      } else if (statement.kind === "expr") {
+        const value = this.expression(statement.value);
+        if (!completes && value.kind !== "write") refuse(this.diagnosticSite(statement.site),
+          "a non-final expression must be a write; bind it if its value is needed");
+        bound.push({ kind: "expr", value, completion: completes, source });
       } else {
         unsupported(this.diagnosticSite(statement.site), `${statement.kind} in the direct Quarry statement seam`, "keep this operation on the parity oracle until its bound statement form lands");
       }
@@ -394,8 +420,88 @@ class ExpressionBinder {
       const type = { ...value, optional: false } as ScalarType;
       return { kind: "aggregate", read, facts: facts(type, "Computed", { readOrigin: read }), source };
     }
+    if (expression.kind === "write") return this.write(expression);
     if (expression.kind === "created") refuse(expression.site, "created is valid only in an insert table rule");
     unsupported(expression.site, `${expression.kind} in the direct Quarry expression seam`, "keep this operation on the parity oracle until its bound form lands");
+  }
+
+  private write(expression: Extract<Expr, { kind: "write" }>): BoundExpression {
+    if (this.program.kind === "query") refuse(this.diagnosticSite(expression.site), "queries cannot write", "change query to mutation");
+    if (expression.table === "connected") refuse(this.diagnosticSite(expression.site), "connected is read-only", "use exists connected[viewer] or #connected[viewer]");
+    const info = this.catalog.get(expression.table);
+    if (!info) refuse(this.diagnosticSite(expression.site), `unknown table ${expression.table}`);
+    const table: BoundTableSymbol = { kind: "table", id: `table:${expression.table}`, name: expression.table,
+      declaration: info.declaration, source: sourceStack(info.declaration.site) };
+    let index: BoundIndexSymbol | undefined;
+    let key: BoundExpression[] = [];
+    let addressedColumns: string[] = [];
+    if (expression.op !== "insert") {
+      const keyed = expression.keys.map((part) => ({ authored: part.value, bound: this.expression(part.value) }));
+      const selected = selectIndex(this.catalog, expression.table, expression.keys, "point", undefined,
+        (authored) => scalarForIndex(keyed.find((item) => item.authored === authored)?.bound.facts.type), expression.site);
+      index = { kind: "index", id: `${table.id}:index:${selected.name}`, name: selected.name,
+        declaration: selected, table, source: sourceStack(selected.site) };
+      key = keyed.map((item) => item.bound);
+      addressedColumns = ordinaryColumns(selected.components) ?? [];
+      this.validateAddressedFields(expression, addressedColumns);
+    }
+    const focal = expression.op !== "insert" ? {
+      kind: "focal" as const, id: `${this.program.site.file}:${this.program.name}:write:${this.budget.shapeId++}`,
+      facts: facts({ kind: "row" as const, table, nullable: expression.op === "upsert" }, "Shape", { tableOrigin: table }),
+      source: this.source(expression.site),
+    } : undefined;
+    const prior = this.focal;
+    if (focal) this.focal = focal;
+    let fields: Extract<BoundExpression, { kind: "write" }>["fields"];
+    try {
+      const seen = new Set<string>();
+      fields = expression.fields.map((field) => {
+        if (seen.has(field.name)) typeError(this.diagnosticSite(field.site), `duplicate write field ${field.name}`, `remove the repeated ${field.name} field`);
+        seen.add(field.name);
+        const expected = field.name === "id"
+          ? { kind: "id", optional: false } satisfies ScalarType
+          : info.columns.get(field.name);
+        if (!expected) typeError(this.diagnosticSite(field.site), `unknown ${expression.table} field ${field.name}`, `use a declared ${expression.table} column`);
+        const value = this.expression(field.value ?? { kind: "name", name: field.name, site: field.site });
+        if (!writeAssignable(value.facts.type, expected, field.value)) typeError(this.diagnosticSite(field.site),
+          `${field.name} expects ${typeName(expected)}, got ${typeName(value.facts.type)}`, `use a ${typeName(expected)} value for ${field.name}`);
+        return { name: field.name, value, expected,
+          ...(value.facts.type.kind === "row" ? { coercion: "row-id" as const } : {}), source: this.source(field.site) };
+      });
+    } finally {
+      this.focal = prior;
+    }
+    const usesFocal = !!focal && fields.some((field) => boundMentionsFocal(field.value, focal.id));
+    if (expression.op === "insert" || expression.op === "upsert") {
+      const names = new Set(fields.map((field) => field.name));
+      for (const [name, column] of info.columns) if (!column.optional && !names.has(name) && !addressedColumns.includes(name)) {
+        typeError(this.diagnosticSite(expression.site), `${expression.op} ${expression.table} is missing required field ${name}`,
+          `add ${name} to the ${expression.op} row`);
+      }
+    }
+    const resultType: BoundType = expression.op === "insert"
+      ? { kind: "row", table, nullable: false }
+      : expression.op === "delete" ? { kind: "null" }
+        : { kind: "row", table, nullable: true };
+    return { kind: "write", op: expression.op, table, ...(index ? { index } : {}), key, fields,
+      ...(focal ? { focal } : {}), usesFocal, addressedColumns, provenance: combineOrigins(key),
+      facts: facts(resultType, "Computed", { tableOrigin: table }), source: this.source(expression.site) };
+  }
+
+  private validateAddressedFields(expression: Extract<Expr, { kind: "write" }>, columns: string[]): void {
+    if (expression.op === "delete") return;
+    const authoredId = expression.fields.find((field) => field.name === "id");
+    if (authoredId) typeError(this.diagnosticSite(authoredId.site), expression.op === "upsert"
+      ? "upsert rows may not name id; identity comes from the addressed row or is minted on insert"
+      : "update patches may not name id; row identity is immutable", `remove id from the ${expression.op} fields`);
+    for (const [offset, column] of columns.entries()) {
+      const field = expression.fields.find((candidate) => candidate.name === column);
+      if (!field) continue;
+      const value = field.value ?? { kind: "name", name: field.name, site: field.site } satisfies Expr;
+      if (expressionText(value) === expressionText(expression.keys[offset]!.value)) continue;
+      typeError(this.diagnosticSite(field.site), `${expression.op} may not reassign addressed key column ${column}`,
+        `remove ${column} from the ${expression.op} fields`);
+    }
   }
 
   private literal(expression: Extract<Expr, { kind: "literal" }>): BoundExpression {
@@ -757,6 +863,9 @@ function completionFacts(statements: BoundStatement[]): BoundValueFacts[] {
     if (statement.kind === "return") {
       returns.push(statement.value.facts);
       fallsThrough = false;
+    } else if (statement.kind === "expr" && statement.completion) {
+      returns.push(statement.value.facts);
+      fallsThrough = false;
     } else if (statement.kind === "if") {
       const thenCompletion = completionFacts(statement.thenBody);
       const elseCompletion = completionFacts(statement.elseBody);
@@ -786,6 +895,7 @@ function completionFacts(statements: BoundStatement[]): BoundValueFacts[] {
 function statementsFallThrough(statements: BoundStatement[]): boolean {
   for (const statement of statements) {
     if (statement.kind === "return") return false;
+    if (statement.kind === "expr" && statement.completion) return false;
     if (statement.kind === "if"
       && !statementsFallThrough(statement.thenBody) && !statementsFallThrough(statement.elseBody)) return false;
     if (statement.kind === "match"
@@ -1004,6 +1114,50 @@ function assignable(actual: BoundType, expected: ScalarType): boolean {
     return actual.max <= expected.max && assignable(actual.item, expected.item);
   }
   return true;
+}
+function writeAssignable(actual: BoundType, expected: ScalarType, authored: Expr | undefined): boolean {
+  if (actual.kind === "null") return expected.optional;
+  if (actual.kind === "numeric-literal") {
+    if (expected.kind === "int") return actual.fractionalDigits === 0;
+    if (expected.kind === "decimal" || expected.kind === "money") return actual.fractionalDigits <= expected.scale;
+    return false;
+  }
+  if (authored?.kind === "literal" && typeof authored.value === "number" && expected.kind === "int") {
+    return Number.isInteger(authored.value);
+  }
+  return assignable(actual, expected);
+}
+function boundMentionsFocal(expression: BoundExpression, id: string): boolean {
+  if (expression.kind === "focal") return expression.id === id;
+  if (expression.kind === "array") return expression.items.some((item) => boundMentionsFocal(item, id));
+  if (expression.kind === "object" || expression.kind === "shape") {
+    return (expression.kind === "shape" && boundMentionsFocal(expression.base, id))
+      || expression.fields.some((field) => boundMentionsFocal(field.value, id));
+  }
+  if (expression.kind === "unary" || expression.kind === "assert") return boundMentionsFocal(expression.value, id);
+  if (expression.kind === "binary") return boundMentionsFocal(expression.left, id) || boundMentionsFocal(expression.right, id);
+  if (expression.kind === "member") return boundMentionsFocal(expression.base, id);
+  if (expression.kind === "builtin") return expression.args.some((arg) => boundMentionsFocal(arg, id));
+  if (expression.kind === "invoke") return expression.bindings.some((binding) => boundMentionsFocal(binding.value, id))
+    || boundMentionsFocal(expression.body, id);
+  if (["get", "exists", "scan", "aggregate"].includes(expression.kind)) {
+    const read = (expression as Extract<BoundExpression, { kind: "get" | "exists" | "scan" | "aggregate" }>).read;
+    return read.key.some((key) => boundMentionsFocal(key, id))
+      || (!!read.range?.after && boundMentionsFocal(read.range.after, id));
+  }
+  if (expression.kind === "write") return expression.key.some((key) => boundMentionsFocal(key, id))
+    || expression.fields.some((field) => boundMentionsFocal(field.value, id));
+  return false;
+}
+function expressionText(expression: Expr): string {
+  const withoutSites = (value: unknown): unknown => {
+    if (Array.isArray(value)) return value.map(withoutSites);
+    if (!value || typeof value !== "object") return value;
+    return Object.fromEntries(Object.entries(value as Record<string, unknown>)
+      .filter(([name]) => name !== "site")
+      .map(([name, child]) => [name, withoutSites(child)]));
+  };
+  return JSON.stringify(withoutSites(expression));
 }
 function typeName(type: BoundType): string {
   if (type.kind === "ref") return type.table;
