@@ -25,7 +25,7 @@ import {
   type CorpusCase,
   type Value,
 } from "./evaluator";
-import { canonicalSchemaJson } from "./certificate-identity";
+import { canonicalProgramJson, canonicalSchemaJson } from "./certificate-identity";
 import { EvalError } from "./errors";
 import { queryState } from "./runner";
 
@@ -1005,6 +1005,25 @@ const expectCode = (run: () => unknown, code: string, label: string) => {
   assert(channelHash === sha256(canonicalSchemaJson(structuredClone(withChannel))), "the known channel hash moved");
   // The known schema itself still hashes as before the strictness landed.
   assert(knownHash === sha256(canonicalSchemaJson(structuredClone(known))), "the known hash moved");
+}
+
+// @ref LLP 1001#unicode-search-foundation — unknown future loop domains keep
+// their external tag while known domains continue through canonical v5 custody.
+{
+  const program = (domain: unknown) => ({ name: "q", kind: "Query", args: {}, read_time_granularity_ms: null,
+    body: [{ For: { binding: "item", domain, body: [] } }, { Return: { Literal: "Null" } }] });
+  const controls = [
+    ["x", { "0": "x" }],
+    [[{ Literal: "Null" }], { "0": { Literal: "Null" } }],
+    [{ FutureDomain: { z: 1, a: 2 } }, { FutureDomain: { z: 1, a: 2 } }],
+    [{ LiteralRange: { end_exclusive: 1, start: 0 } }, { LiteralRange: { start: 0, end_exclusive: 1 } }],
+  ] as const;
+  for (const [domain, expected] of controls) {
+    const canonical = JSON.parse(canonicalProgramJson(program(domain)));
+    assert(JSON.stringify(canonical.body[0].For.domain) === JSON.stringify(expected),
+      `canonical domain tag/payload changed for ${JSON.stringify(domain)}`);
+  }
+  expectCode(() => canonicalProgramJson(program({})), "E_TRACE_SUBSET", "empty loop-domain tag");
 }
 
 console.log(
