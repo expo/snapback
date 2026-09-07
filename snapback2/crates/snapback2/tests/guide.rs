@@ -169,12 +169,14 @@ fn refusal_code_guide_prints_the_wrong_and_right_pair() {
 fn quarry_keywords_print_grammar_and_definitions_beside_symbol_help() {
     let project = Project::new();
     let quarry = include_str!("../../../packages/snapback2/guide/quarry.md");
-    assert!(quarry.contains("`share`, and `words`"));
+    assert!(quarry.contains("`wordPrefixes(field)` index"));
+    assert!(quarry.contains("there is no\npublic `words()` value function"));
     assert!(quarry.contains("rather than redrawn"));
     let search = include_str!("../../../packages/snapback2/guide/live-query.md");
-    assert!(search.contains("`words(a ?? b)` uses the larger declared text\nmaximum"));
-    assert!(search.contains("already-lowercased ASCII word"));
-    assert!(search.contains("unindexed nonempty body refuses `NOT_FOUND`"));
+    assert!(search.contains("`by bySearch: conversationId, wordPrefixes(body), at, id`"));
+    assert!(search.contains("query search(term: text <=128, c: cursor ?):"));
+    assert!(search.contains("must normalize to exactly one word"));
+    assert!(search.contains("Its held twin uses\nthe same index"));
     let definitions = [
         ("maintain", "count/sum"),
         ("cap", "holds every group at N rows"),
@@ -202,14 +204,13 @@ fn quarry_keywords_print_grammar_and_definitions_beside_symbol_help() {
         ("match", "branches on presence"),
         (
             "for",
-            "iterates only a bounded list/page/range/tokens/words result",
+            "iterates only a bounded list/page/range/tokens result",
         ),
         (
             "emit",
             "durably queues an effect in the mutation's transaction",
         ),
         ("tokens", "extracts `@` mentions"),
-        ("words", "bounded ASCII whole words"),
         ("divmod", "remainder is nonnegative"),
     ];
     let grammar = project.run(&["guide", "grammar", "--json"]);
@@ -429,12 +430,9 @@ fn quarry_grammar_and_refusal_guides_ship_without_double_fences() {
     let project = Project::new();
     let quarry = project.run(&["guide", "quarry"]);
     assert!(quarry.status.success());
-    assert!(
-        String::from_utf8_lossy(&quarry.stdout).contains("Quarry is the only backend language")
-    );
-    assert!(
-        String::from_utf8_lossy(&quarry.stdout).contains("puts no generated files in `snapback/`")
-    );
+    assert!(String::from_utf8_lossy(&quarry.stdout).contains("Quarry is the backend language"));
+    assert!(String::from_utf8_lossy(&quarry.stdout)
+        .contains("inspection copies\ngo in `.snapback/build/quarry/`, never `snapback/`"));
     for page in ["grammar"] {
         let output = project.run(&["guide", page]);
         assert!(output.status.success(), "{page}");
@@ -490,8 +488,8 @@ fn offline_guide_page_respects_its_budget_and_its_codes_have_pages() {
     let page = json_stdout(&output);
     let content = page["content"].as_str().unwrap();
     assert!(
-        // LLP 1017 adds the complete-by-cap explanation beside the edit recipe.
-        content.len() <= 4_352,
+        // LLP 1017's reviewed complete-by-cap and offline edit recipes share this budget.
+        content.len() <= 4_864,
         "offline guide is {} bytes",
         content.len()
     );
