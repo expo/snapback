@@ -28,6 +28,16 @@ fn table(columns: &[(&str, ColumnType)], indexes: &[(&str, &[&str])]) -> Table {
     )
 }
 
+fn unique_index(columns: &[&str]) -> Index {
+    Index {
+        components: columns
+            .iter()
+            .map(|column| snapback2_core::search_key::IndexComponent::Column((*column).into()))
+            .collect(),
+        unique: true,
+    }
+}
+
 fn generation(tables: BTreeMap<String, Table>, maintains: Vec<Maintain>) -> Generation {
     let programs = if tables.contains_key("totals") {
         vec![Program {
@@ -512,7 +522,7 @@ fn total_row(id: &str, group: Option<&str>, value: i64) -> Value {
     if let Some(group) = group {
         fields.insert("group".into(), Value::Id(group.into()));
     }
-    Value::Row(fields)
+    Value::Row(fields.into())
 }
 
 struct SurvivorFiles(std::path::PathBuf);
@@ -614,10 +624,7 @@ fn rebuilt_survivor_uniqueness_refuses_additive_migration_and_reopen_atomically(
         let mut next_tables = tables;
         next_tables.get_mut("totals").unwrap().indexes.insert(
             "byValue".into(),
-            Index {
-                columns: vec!["value".into()],
-                unique: true,
-            },
+            unique_index(&["value"]),
         );
         if route == "migration" {
             next_tables.remove("scratch");
@@ -679,10 +686,7 @@ fn rebuilt_survivor_projection_collision_has_a_unique_refusal() {
     let mut next_tables = tables;
     next_tables.get_mut("totals").unwrap().indexes.insert(
         "byValue".into(),
-        Index {
-            columns: vec!["value".into()],
-            unique: true,
-        },
+        unique_index(&["value"]),
     );
     let refusal = runtime
         .apply_successor(generation(next_tables, vec![survivor_count()]))
@@ -715,10 +719,7 @@ fn rebuilt_unique_index_allows_next_projection_to_replace_an_ordinary_id() {
     let mut next_tables = tables;
     next_tables.get_mut("totals").unwrap().indexes.insert(
         "byValue".into(),
-        Index {
-            columns: vec!["value".into()],
-            unique: true,
-        },
+        unique_index(&["value"]),
     );
     let mut sum = survivor_count();
     sum.kind = MaintainKind::Sum {
@@ -747,10 +748,7 @@ fn rebuilt_uniqueness_uses_predrop_owned_ids_when_a_source_is_removed() {
     next_tables.remove("expenses");
     next_tables.get_mut("totals").unwrap().indexes.insert(
         "byValue".into(),
-        Index {
-            columns: vec!["value".into()],
-            unique: true,
-        },
+        unique_index(&["value"]),
     );
     let next = generation(next_tables, vec![]);
     let plan = runtime.apply_successor(next.clone()).unwrap_err().plan;
@@ -782,10 +780,7 @@ fn rebuilt_survivor_unique_tuple_treats_omitted_optional_as_null() {
     let mut next_tables = tables;
     next_tables.get_mut("totals").unwrap().indexes.insert(
         "byGroupValue".into(),
-        Index {
-            columns: vec!["group".into(), "value".into()],
-            unique: true,
-        },
+        unique_index(&["group", "value"]),
     );
     let refusal = runtime
         .apply_successor(generation(next_tables, vec![]))
@@ -817,10 +812,7 @@ fn rebuilt_survivor_uniqueness_reports_at_most_ten_conflicting_keys() {
     let mut next_tables = tables;
     next_tables.get_mut("totals").unwrap().indexes.insert(
         "byValue".into(),
-        Index {
-            columns: vec!["value".into()],
-            unique: true,
-        },
+        unique_index(&["value"]),
     );
     let refusal = runtime
         .apply_successor(generation(next_tables, vec![]))
@@ -852,10 +844,7 @@ fn rebuilt_uniqueness_uses_projection_after_preceding_target_retirement() {
     let mut z_totals = totals;
     z_totals.indexes.insert(
         "byValue".into(),
-        Index {
-            columns: vec!["value".into()],
-            unique: true,
-        },
+        unique_index(&["value"]),
     );
     tables.insert("zTotals".into(), z_totals);
     let mut runtime =
