@@ -1304,3 +1304,10 @@ This is not a whole compiler/native/package clearance. Read-only integration ass
 The fresh full run started at18:45:08Z on Office M1 Max. Actual native metadata confirms Grok4.6/xhigh. The builder receives the unchanged full instrument and exact public package, with no previous app or audit findings. All169 original leaves and the helper match; original milestone, media, scale and native requirements remain. M7 stays separate after grading.
 
 [Launch evidence](../benchmarks/runs/2026-09-06-clique-improvement/evidence/grok-016-start/README.md) records the actual process/session and environment. Shared host load and the M5 comparator hardware difference remain disclosed. This starts measurement; it does not establish a better score or any milestone pass.
+
+
+## 2026-09-07 — Diagnostic port verified and M2 browser progress
+
+The independent main-v2 diagnostic port now reports both errors in the original failing example and gives Boolean-specific repair advice. Fifty-one focused callbacks, both package builds, existing main controls, built workers and all four final type scopes pass. Two helper-resolution failure rounds remain recorded. The author has closed; fresh independent reviews are running. [Author evidence](../benchmarks/runs/2026-09-06-clique-improvement/evidence/compiler-v2-diagnostics-author/README.md) does not claim product landing, publication or native/v5 integration.
+
+The full Grok0.0.16 run reached the harness's M2 browser9/9 under its original best-of-three rule. Follow and repost assertions still contain failed attempts, and prior red runs remain preserved. Media attachment and live feed interactions took several builder repair attempts. First iOS export failed against nested React Native0.86.2 from the supplied UI kit alongside SDK54/RN0.81.5 at the root; read-only triage does not establish a Snapback scaffolding defect. The builder independently adjusted the nested dependencies and advanced to M3. [Scoped progress evidence](../benchmarks/runs/2026-09-06-clique-improvement/evidence/grok-016-m2-progress/README.md) preserves the attempt and native-proof limits. There is no new holistic score yet.

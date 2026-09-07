@@ -1,0 +1,74 @@
+[
+  {
+    "path": "REPORT.md",
+    "source": "/Users/ccheever/clique-improvement/revisions/compiler-dx-v2-r1/REPORT.md",
+    "bytes": 14391,
+    "sha256": "374181bf94ca35e8f3751e874d4d06d202fdb7184d30b93254556dac7543b467"
+  },
+  {
+    "path": "phase.json",
+    "source": "/Users/ccheever/clique-improvement/revisions/compiler-dx-v2-r1/phase.json",
+    "bytes": 1243,
+    "sha256": "2b4466f7474e45ff25fa57bdda066b25489139e3d15b48bbd35f7433e64b7ab9"
+  },
+  {
+    "path": "terminal-identity.json",
+    "source": "/Users/ccheever/clique-improvement/revisions/compiler-dx-v2-r1/terminal-identity.json",
+    "bytes": 817,
+    "sha256": "11a9f55521b38fb5bbde04c6b376f669bad2684fa4945a151fa334e7a680cdc6"
+  },
+  {
+    "path": "native-terminal-receipt.json",
+    "source": "/Users/ccheever/clique-improvement/revisions/compiler-dx-v2-r1/native-terminal-receipt.json",
+    "bytes": 1055,
+    "sha256": "00719f005dc31f8fdc07d7adf10b5977cfbcd852efc0363ab45126ea24f4ab89"
+  },
+  {
+    "path": "actual-launch-identity.json",
+    "source": "/Users/ccheever/clique-improvement/revisions/compiler-dx-v2-r1/actual-launch-identity.json",
+    "bytes": 2475,
+    "sha256": "11a614442f9ca60e1041cdeaf178b9fb4f700c636b0b8774cddc77c1d861301a"
+  },
+  {
+    "path": "comparison.json",
+    "source": "/Users/ccheever/clique-improvement/revisions/compiler-dx-v2-r1/comparison.json",
+    "bytes": 34167,
+    "sha256": "649f4806444cbffdfd878fea104fe44d1e607653d0d76dade5d21c637e5e8224"
+  },
+  {
+    "path": "accepted-comparison.json",
+    "source": "/Users/ccheever/clique-improvement/revisions/compiler-dx-v2-r1/accepted-comparison.json",
+    "bytes": 1549,
+    "sha256": "1c697a6acae7542d19a95064345877497a1d4c20a15c7c852318105c1a265707"
+  },
+  {
+    "path": "completed-final-results.tar.gz",
+    "source": "/Users/ccheever/clique-improvement/revisions/compiler-dx-v2-r1/completed-final-results.tar.gz",
+    "bytes": 96314,
+    "sha256": "1fb8bf243514c53b5fc6a27cdad5fe1cfe80d10d7e8a1ac3faef546909d95ebb"
+  },
+  {
+    "path": "final-local-custody.json",
+    "source": "/Users/ccheever/clique-improvement/revisions/compiler-dx-v2-r1/final-local-custody.json",
+    "bytes": 1571,
+    "sha256": "10d1acafc0d3c45593b80158ddfb095e16f137c974b6688fbcf39929b8c58a5f"
+  },
+  {
+    "path": "remote-final-custody.json",
+    "source": "/Users/ccheever/clique-improvement/revisions/compiler-dx-v2-r1/remote-final-custody.json",
+    "bytes": 988,
+    "sha256": "6e5a0d171efdca027e8b5a027ce46f8873caeaf8d5761e9e206882a979b60b6f"
+  },
+  {
+    "path": "final-collection-receipt.json",
+    "source": "/Users/ccheever/clique-improvement/revisions/compiler-dx-v2-r1/final-collection-receipt.json",
+    "bytes": 6624,
+    "sha256": "e5104b68aa92bf13618909bb382d4a4381563e3f67e6bf9c3f9c4a622f52e5b2"
+  },
+  {
+    "path": "refusal-artifact-audit.json",
+    "source": "/Users/ccheever/clique-improvement/revisions/compiler-dx-v2-r1/refusal-artifact-audit.json",
+    "bytes": 29453,
+    "sha256": "5309778d9fc4bc8899db4958c26f9a15516dfdf8fead21c201f1229c635b310f"
+  }
+]

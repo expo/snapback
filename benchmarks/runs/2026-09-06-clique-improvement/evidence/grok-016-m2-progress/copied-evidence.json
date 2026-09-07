@@ -1,0 +1,32 @@
+[
+  {
+    "path": "receipts-m2.jsonl",
+    "source": "/Users/ccheever/clique-improvement/next-run/grok-016/native-observation-r1/m2-browser-green/receipts-m2.jsonl",
+    "bytes": 10327,
+    "sha256": "33504794fda1aafe7002c1186c0b34fc5da9874c8cc93517ed6060782d507782"
+  },
+  {
+    "path": "suite-m2.json",
+    "source": "/Users/ccheever/clique-improvement/next-run/grok-016/native-observation-r1/m2-browser-green/suite-m2.json",
+    "bytes": 1282,
+    "sha256": "d8d773679f1c62f9f7cf08182e98b8df4af6949a4855a5c7d68c4d99038c0f4a"
+  },
+  {
+    "path": "suite-status.json",
+    "source": "/Users/ccheever/clique-improvement/next-run/grok-016/native-observation-r1/m2-browser-green/suite-status.json",
+    "bytes": 66,
+    "sha256": "b37011d8e4c4d206156440b1a2f287619e4d5ad6ad0385a8c5f5769da52da6ce"
+  },
+  {
+    "path": "attempt-scope-note.json",
+    "source": "/Users/ccheever/clique-improvement/next-run/grok-016/native-observation-r1/m2-browser-green/attempt-scope-note.json",
+    "bytes": 2032,
+    "sha256": "c2b311f9be78a1b1e203e914154d49eca2c7d776aa1a0ff3e3cb9d7397f44f04"
+  },
+  {
+    "path": "ios-dependency-triage.md",
+    "source": "/Users/ccheever/clique-improvement/revisions/compiler-016-ios-dependency-triage/report.md",
+    "bytes": 5642,
+    "sha256": "6195124bb9b14f2a12764a81c5f492574f64e59eed5023cc6f14872d576e9415"
+  }
+]

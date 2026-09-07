@@ -1,0 +1,18 @@
+{
+  "at": "2026-09-07T19:39:00.332092+00:00",
+  "outerToolSession": 81302,
+  "outerExitCode": 0,
+  "outerChunk": "02dceb",
+  "nativeTerminalReceipt": "native-terminal-receipt.json",
+  "nativeExitCode": 0,
+  "actualLaunchIdentity": "actual-launch-identity.json",
+  "phase": "phase.json",
+  "finalReportSha256": "374181bf94ca35e8f3751e874d4d06d202fdb7184d30b93254556dac7543b467",
+  "finalReportBytes": 14391,
+  "fullReadReceipt": "2405b3 first14113B +618fe6 final appendix",
+  "priorReportReconstructedFromFinalPrefix": true,
+  "priorReportBytes": 14113,
+  "priorReportSha256": "b7c38b974050346f3173281c4d95a98cad498eb7745af825ed9a131aa6132714",
+  "reportDelta": "Append278bytes manifest-custody paragraph only; original entire14113-byte prefix retained",
+  "sourceCommit": "b8f9cd6af15887b4cb4644bbb18a7a394730b5cf"
+}
