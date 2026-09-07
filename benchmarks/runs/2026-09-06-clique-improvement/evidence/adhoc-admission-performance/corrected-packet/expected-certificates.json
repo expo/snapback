@@ -1,0 +1,2306 @@
+{
+  "feeds.followingFeed": {
+    "bound_product": "merge snapback/feeds.q:11:10: 51 lanes heads + 20 advances + 2 lookahead \u00d7 1 calls (feeds.followingFeed.0 \u00d7 1; feeds.followingFeed.2 \u00d7 50) = 73 + feeds.followingFeed.1 take 50 (+2 reserve) \u00d7 1 calls on follows = 52 + feeds.followingFeed.3 point read on profiles \u00d7 20 calls (calls from page static bound 20) = 20",
+    "completeness": "Page",
+    "constraint_checks": [],
+    "derived_scratch_bytes": 0,
+    "derived_steps": 0,
+    "disclosures": [],
+    "evaluator_version": "bounded-spike-rust-search-text-refinements-4",
+    "halo_rows": 1,
+    "indexes_required": [
+      "follows.byFollower",
+      "posts.byAuthorTime",
+      "profiles.byPrincipal"
+    ],
+    "maintained_amplification": 0,
+    "max_closure_bytes": 626336,
+    "max_examined": 145,
+    "max_heap_bytes": 91968,
+    "max_index_entries": 145,
+    "max_output_bytes": 55072,
+    "max_rule_probes": 0,
+    "max_steps": 2874,
+    "merge_sites": [
+      {
+        "lane_sites": [
+          "feeds.followingFeed.0",
+          "feeds.followingFeed.2"
+        ],
+        "max_lanes": 51,
+        "site": "snapback/feeds.q:11:10",
+        "take": 20,
+        "uniform": true
+      }
+    ],
+    "plan_hash": "572ff893f0e1aa9d9a83c45b63ebbfa64611b3cbf4f8d9eda6edb05cd18751e2",
+    "prediction_sites": [],
+    "program": "feeds.followingFeed",
+    "read_sites": [
+      {
+        "complete": false,
+        "decided_true": true,
+        "hoist": true,
+        "index": "byAuthorTime",
+        "max_calls": 1,
+        "prefix_template": "Viewer",
+        "rule_probes_per_candidate": 0,
+        "site": "feeds.followingFeed.0",
+        "table": "posts",
+        "take": 20
+      },
+      {
+        "complete": false,
+        "decided_true": true,
+        "hoist": true,
+        "index": "byFollower",
+        "max_calls": 1,
+        "prefix_template": "Viewer",
+        "rule_probes_per_candidate": 0,
+        "site": "feeds.followingFeed.1",
+        "table": "follows",
+        "take": 50
+      },
+      {
+        "complete": false,
+        "decided_true": true,
+        "hoist": true,
+        "index": "byAuthorTime",
+        "max_calls": 50,
+        "prefix_template": "Shape",
+        "rule_probes_per_candidate": 0,
+        "site": "feeds.followingFeed.2",
+        "table": "posts",
+        "take": 20
+      },
+      {
+        "complete": false,
+        "hoist": false,
+        "index": "byPrincipal",
+        "max_calls": 20,
+        "prefix_template": "Shape",
+        "rule_probes_per_candidate": 0,
+        "site": "feeds.followingFeed.3",
+        "table": "profiles",
+        "take": 1
+      }
+    ],
+    "read_time_granularity_ms": null,
+    "result_pages": {
+      "4": {
+        "index": "byAuthorTime",
+        "merge": true,
+        "order": "Desc",
+        "site": "snapback/feeds.q:11:10",
+        "suffix": [
+          {
+            "kind": "Time",
+            "name": "at"
+          },
+          {
+            "kind": "Id",
+            "name": "id"
+          }
+        ],
+        "table": "posts"
+      }
+    },
+    "rule_hashes": {
+      "follows.read": "f44bd37d017f5204a92723cf1ea7a879d493c0648ff0550327fe4aed8035e1cf",
+      "posts.read": "2676b29ca7bb39dd5c6f5d4bced06eb5256fe54fa3e96597559d007f1bda3994",
+      "profiles.read": "ce9783d3180530307e0249a5650db64d93cb334952621f6c266247c06a9cddee"
+    },
+    "schema_hash": "1ff1897c52f312d25de62a8002dd091661e88e076db3e0557421c3bd5f7703a9",
+    "tables": {
+      "conversations": {
+        "retain": "until-revoked"
+      },
+      "deliveries": {
+        "retain": "until-revoked"
+      },
+      "follows": {
+        "retain": "until-revoked"
+      },
+      "memberCounts": {
+        "retain": "until-revoked"
+      },
+      "memberships": {
+        "retain": "until-revoked"
+      },
+      "messageCounts": {
+        "retain": "until-revoked"
+      },
+      "messages": {
+        "retain": "delivered-history"
+      },
+      "notifications": {
+        "retain": "until-revoked"
+      },
+      "posts": {
+        "retain": "until-revoked"
+      },
+      "profiles": {
+        "retain": "until-revoked"
+      }
+    },
+    "value_model_version": "i53-codepoint-bytes-unicode-search-text-refinements-v5",
+    "write_sites": []
+  },
+  "feeds.globalFeed": {
+    "bound_product": "feeds.globalFeed.0 take 20 (+2 reserve) \u00d7 1 calls on posts = 22 + feeds.globalFeed.1 point read on profiles \u00d7 20 calls (calls from page static bound 20) = 20",
+    "completeness": "Page",
+    "constraint_checks": [],
+    "derived_scratch_bytes": 0,
+    "derived_steps": 0,
+    "disclosures": [],
+    "evaluator_version": "bounded-spike-rust-search-text-refinements-4",
+    "halo_rows": 1,
+    "indexes_required": [
+      "posts.byTime",
+      "profiles.byPrincipal"
+    ],
+    "maintained_amplification": 0,
+    "max_closure_bytes": 54260,
+    "max_examined": 42,
+    "max_heap_bytes": 19232,
+    "max_index_entries": 42,
+    "max_output_bytes": 55072,
+    "max_rule_probes": 0,
+    "max_steps": 601,
+    "plan_hash": "c4e602ebc1062361327c3bb095044e8eb35b52d87e72cac1d77724f2d0e59689",
+    "prediction_sites": [],
+    "program": "feeds.globalFeed",
+    "read_sites": [
+      {
+        "complete": false,
+        "decided_true": true,
+        "hoist": true,
+        "index": "byTime",
+        "max_calls": 1,
+        "prefix_template": "Const",
+        "rule_probes_per_candidate": 0,
+        "site": "feeds.globalFeed.0",
+        "table": "posts",
+        "take": 20
+      },
+      {
+        "complete": false,
+        "hoist": false,
+        "index": "byPrincipal",
+        "max_calls": 20,
+        "prefix_template": "Shape",
+        "rule_probes_per_candidate": 0,
+        "site": "feeds.globalFeed.1",
+        "table": "profiles",
+        "take": 1
+      }
+    ],
+    "read_time_granularity_ms": null,
+    "result_pages": {
+      "4": {
+        "index": "byTime",
+        "merge": false,
+        "order": "Desc",
+        "site": "feeds.globalFeed.0",
+        "suffix": [
+          {
+            "kind": "Time",
+            "name": "at"
+          },
+          {
+            "kind": "Id",
+            "name": "id"
+          }
+        ],
+        "table": "posts"
+      }
+    },
+    "rule_hashes": {
+      "posts.read": "2676b29ca7bb39dd5c6f5d4bced06eb5256fe54fa3e96597559d007f1bda3994",
+      "profiles.read": "ce9783d3180530307e0249a5650db64d93cb334952621f6c266247c06a9cddee"
+    },
+    "schema_hash": "1ff1897c52f312d25de62a8002dd091661e88e076db3e0557421c3bd5f7703a9",
+    "tables": {
+      "conversations": {
+        "retain": "until-revoked"
+      },
+      "deliveries": {
+        "retain": "until-revoked"
+      },
+      "follows": {
+        "retain": "until-revoked"
+      },
+      "memberCounts": {
+        "retain": "until-revoked"
+      },
+      "memberships": {
+        "retain": "until-revoked"
+      },
+      "messageCounts": {
+        "retain": "until-revoked"
+      },
+      "messages": {
+        "retain": "delivered-history"
+      },
+      "notifications": {
+        "retain": "until-revoked"
+      },
+      "posts": {
+        "retain": "until-revoked"
+      },
+      "profiles": {
+        "retain": "until-revoked"
+      }
+    },
+    "value_model_version": "i53-codepoint-bytes-unicode-search-text-refinements-v5",
+    "write_sites": []
+  },
+  "follows.setFollow": {
+    "bound_product": "follows.setFollow.0 point read on follows \u00d7 1 calls = 1",
+    "completeness": "Page",
+    "constraint_checks": [
+      "follows:Immutable([\"follower\", \"followed\", \"at\"])",
+      "follows:Unique(byFollowerFollowed)",
+      "follows:Unique(byId)"
+    ],
+    "derived_scratch_bytes": 0,
+    "derived_steps": 0,
+    "disclosures": [],
+    "evaluator_version": "bounded-spike-rust-search-text-refinements-4",
+    "halo_rows": 1,
+    "indexes_required": [
+      "follows.byFollowerFollowed"
+    ],
+    "maintained_amplification": 0,
+    "max_closure_bytes": 510,
+    "max_examined": 1,
+    "max_heap_bytes": 1888,
+    "max_index_entries": 1,
+    "max_output_bytes": 1354,
+    "max_rule_probes": 0,
+    "max_steps": 59,
+    "plan_hash": "2c45128f5a7251be8c546d618c6a4d10c8f7be580d45a214f5a338208214cfb9",
+    "prediction_sites": [],
+    "program": "follows.setFollow",
+    "read_sites": [
+      {
+        "complete": false,
+        "hoist": false,
+        "index": "byFollowerFollowed",
+        "max_calls": 1,
+        "prefix_template": "Shape",
+        "rule_probes_per_candidate": 0,
+        "site": "follows.setFollow.0",
+        "table": "follows",
+        "take": 1
+      }
+    ],
+    "read_time_granularity_ms": null,
+    "rule_hashes": {
+      "follows.delete": "f56c69d8a9589775ac173e90049ae93ca8e16a5116950268571e2f5630703003",
+      "follows.insert": "f56c69d8a9589775ac173e90049ae93ca8e16a5116950268571e2f5630703003",
+      "follows.read": "f44bd37d017f5204a92723cf1ea7a879d493c0648ff0550327fe4aed8035e1cf"
+    },
+    "schema_hash": "1ff1897c52f312d25de62a8002dd091661e88e076db3e0557421c3bd5f7703a9",
+    "tables": {
+      "conversations": {
+        "retain": "until-revoked"
+      },
+      "deliveries": {
+        "retain": "until-revoked"
+      },
+      "follows": {
+        "retain": "until-revoked"
+      },
+      "memberCounts": {
+        "retain": "until-revoked"
+      },
+      "memberships": {
+        "retain": "until-revoked"
+      },
+      "messageCounts": {
+        "retain": "until-revoked"
+      },
+      "messages": {
+        "retain": "delivered-history"
+      },
+      "notifications": {
+        "retain": "until-revoked"
+      },
+      "posts": {
+        "retain": "until-revoked"
+      },
+      "profiles": {
+        "retain": "until-revoked"
+      }
+    },
+    "value_model_version": "i53-codepoint-bytes-unicode-search-text-refinements-v5",
+    "write_sites": [
+      {
+        "kind": "Insert",
+        "max_rows": 1,
+        "table": "follows"
+      },
+      {
+        "kind": "Delete",
+        "max_rows": 1,
+        "table": "follows"
+      }
+    ]
+  },
+  "groups.groupCreate": {
+    "bound_product": "49 calls \u00d7 cap 50 by conversationId on memberships (calls from arg members max 49) = 2450 + 1 calls \u00d7 cap 50 by conversationId on memberships = 50",
+    "completeness": "Page",
+    "constraint_checks": [
+      "conversations:Unique(byId)",
+      "conversations:Unique(byIdCreator)",
+      "memberCounts:Unique(byConversation)",
+      "memberCounts:Unique(byId)",
+      "memberships:Cap([\"conversationId\"],50)",
+      "memberships:FinalExistsOnInsert(conversations->memberships.byConversationPrincipalRole,[Field(\"id\"), Field(\"creatorId\"), Literal(String(\"admin\"))])",
+      "memberships:Immutable([\"conversationId\", \"principal\", \"joinedAt\"])",
+      "memberships:Unique(byConversationPrincipal)",
+      "memberships:Unique(byId)"
+    ],
+    "derived_scratch_bytes": 0,
+    "derived_steps": 0,
+    "disclosures": [],
+    "evaluator_version": "bounded-spike-rust-search-text-refinements-4",
+    "halo_rows": 1,
+    "indexes_required": [
+      "conversations.byIdCreator",
+      "memberships.byConversationPrincipal",
+      "memberships.byConversationPrincipalRole"
+    ],
+    "maintained_amplification": 50,
+    "maintained_writes": {
+      "memberCounts": 50
+    },
+    "max_closure_bytes": 0,
+    "max_examined": 2500,
+    "max_heap_bytes": 426304,
+    "max_index_entries": 2500,
+    "max_output_bytes": 327,
+    "max_rule_probes": 151,
+    "max_steps": 13322,
+    "plan_hash": "b20001746b534824ef2ab193aa4c4b41af1875c1654d180ddd447c35ea142211",
+    "prediction_sites": [],
+    "program": "groups.groupCreate",
+    "read_sites": [],
+    "read_time_granularity_ms": null,
+    "rule_hashes": {
+      "conversations.insert": "8a204a772b317d6c86e72c49f80886fa232a1ceb317664e4f53eda8b83888164",
+      "memberships.insert": "383286784abe0e0296473bc7cfae00202c2ec14acd8b098688b90f2e7bf38d43"
+    },
+    "schema_hash": "1ff1897c52f312d25de62a8002dd091661e88e076db3e0557421c3bd5f7703a9",
+    "tables": {
+      "conversations": {
+        "retain": "until-revoked"
+      },
+      "deliveries": {
+        "retain": "until-revoked"
+      },
+      "follows": {
+        "retain": "until-revoked"
+      },
+      "memberCounts": {
+        "retain": "until-revoked"
+      },
+      "memberships": {
+        "retain": "until-revoked"
+      },
+      "messageCounts": {
+        "retain": "until-revoked"
+      },
+      "messages": {
+        "retain": "delivered-history"
+      },
+      "notifications": {
+        "retain": "until-revoked"
+      },
+      "posts": {
+        "retain": "until-revoked"
+      },
+      "profiles": {
+        "retain": "until-revoked"
+      }
+    },
+    "value_model_version": "i53-codepoint-bytes-unicode-search-text-refinements-v5",
+    "write_sites": [
+      {
+        "kind": "Insert",
+        "max_rows": 1,
+        "table": "conversations"
+      },
+      {
+        "kind": "Insert",
+        "max_rows": 1,
+        "table": "memberships"
+      },
+      {
+        "kind": "Insert",
+        "max_rows": 49,
+        "table": "memberships"
+      }
+    ]
+  },
+  "groups.memberAdd": {
+    "bound_product": "1 calls \u00d7 cap 50 by conversationId on memberships = 50 + groups.memberAdd.0 point read on memberships \u00d7 1 calls = 1 + groups.memberAdd.1 point read on memberCounts \u00d7 1 calls = 1",
+    "completeness": "Page",
+    "constraint_checks": [
+      "memberCounts:Unique(byConversation)",
+      "memberCounts:Unique(byId)",
+      "memberships:Cap([\"conversationId\"],50)",
+      "memberships:Immutable([\"conversationId\", \"principal\", \"joinedAt\"])",
+      "memberships:Unique(byConversationPrincipal)",
+      "memberships:Unique(byId)"
+    ],
+    "derived_scratch_bytes": 0,
+    "derived_steps": 0,
+    "disclosures": [],
+    "evaluator_version": "bounded-spike-rust-search-text-refinements-4",
+    "halo_rows": 1,
+    "indexes_required": [
+      "conversations.byIdCreator",
+      "memberCounts.byConversation",
+      "memberships.byConversationPrincipal",
+      "memberships.byConversationPrincipalRole"
+    ],
+    "maintained_amplification": 1,
+    "maintained_writes": {
+      "memberCounts": 1
+    },
+    "max_closure_bytes": 0,
+    "max_examined": 52,
+    "max_heap_bytes": 10080,
+    "max_index_entries": 52,
+    "max_output_bytes": 566,
+    "max_rule_probes": 7,
+    "max_steps": 315,
+    "plan_hash": "31499151711f1de256ac6b8594684ad3285388c3cef219818052a8e2c7759ff7",
+    "prediction_sites": [],
+    "program": "groups.memberAdd",
+    "read_sites": [
+      {
+        "complete": false,
+        "hoist": false,
+        "index": "byConversationPrincipalRole",
+        "max_calls": 1,
+        "prefix_template": "Shape",
+        "rule_probes_per_candidate": 2,
+        "site": "groups.memberAdd.0",
+        "table": "memberships",
+        "take": 1
+      },
+      {
+        "complete": false,
+        "hoist": false,
+        "index": "byConversation",
+        "max_calls": 1,
+        "prefix_template": "Arg",
+        "rule_probes_per_candidate": 2,
+        "site": "groups.memberAdd.1",
+        "table": "memberCounts",
+        "take": 1
+      }
+    ],
+    "read_time_granularity_ms": null,
+    "rule_hashes": {
+      "memberCounts.read": "069663173a7bb4813640a549d0b838145c880e9cec16e87829948181fe342896",
+      "memberships.insert": "383286784abe0e0296473bc7cfae00202c2ec14acd8b098688b90f2e7bf38d43",
+      "memberships.read": "069663173a7bb4813640a549d0b838145c880e9cec16e87829948181fe342896"
+    },
+    "schema_hash": "1ff1897c52f312d25de62a8002dd091661e88e076db3e0557421c3bd5f7703a9",
+    "tables": {
+      "conversations": {
+        "retain": "until-revoked"
+      },
+      "deliveries": {
+        "retain": "until-revoked"
+      },
+      "follows": {
+        "retain": "until-revoked"
+      },
+      "memberCounts": {
+        "retain": "until-revoked"
+      },
+      "memberships": {
+        "retain": "until-revoked"
+      },
+      "messageCounts": {
+        "retain": "until-revoked"
+      },
+      "messages": {
+        "retain": "delivered-history"
+      },
+      "notifications": {
+        "retain": "until-revoked"
+      },
+      "posts": {
+        "retain": "until-revoked"
+      },
+      "profiles": {
+        "retain": "until-revoked"
+      }
+    },
+    "value_model_version": "i53-codepoint-bytes-unicode-search-text-refinements-v5",
+    "write_sites": [
+      {
+        "kind": "Insert",
+        "max_rows": 1,
+        "table": "memberships"
+      }
+    ]
+  },
+  "groups.memberLeave": {
+    "bound_product": "groups.memberLeave.0 point read on memberships \u00d7 1 calls = 1",
+    "completeness": "Page",
+    "constraint_checks": [
+      "memberCounts:Unique(byConversation)",
+      "memberCounts:Unique(byId)",
+      "memberships:Cap([\"conversationId\"],50)",
+      "memberships:Immutable([\"conversationId\", \"principal\", \"joinedAt\"])",
+      "memberships:Unique(byConversationPrincipal)",
+      "memberships:Unique(byId)"
+    ],
+    "derived_scratch_bytes": 0,
+    "derived_steps": 0,
+    "disclosures": [],
+    "evaluator_version": "bounded-spike-rust-search-text-refinements-4",
+    "halo_rows": 1,
+    "indexes_required": [
+      "memberships.byConversationPrincipal",
+      "memberships.byConversationPrincipalRole"
+    ],
+    "maintained_amplification": 1,
+    "maintained_writes": {
+      "memberCounts": 1
+    },
+    "max_closure_bytes": 0,
+    "max_examined": 1,
+    "max_heap_bytes": 992,
+    "max_index_entries": 1,
+    "max_output_bytes": 6,
+    "max_rule_probes": 4,
+    "max_steps": 31,
+    "plan_hash": "03c013efe931faa1f469e0c724732b0cf1d2c63581ab4628374fa433b6760e36",
+    "prediction_sites": [],
+    "program": "groups.memberLeave",
+    "read_sites": [
+      {
+        "complete": false,
+        "hoist": false,
+        "index": "byConversationPrincipal",
+        "max_calls": 1,
+        "prefix_template": "Shape",
+        "rule_probes_per_candidate": 2,
+        "site": "groups.memberLeave.0",
+        "table": "memberships",
+        "take": 1
+      }
+    ],
+    "read_time_granularity_ms": null,
+    "rule_hashes": {
+      "memberships.delete": "dba855602d9a2d40640e3784de4f95278f0c07903064fc759736e11fea574688",
+      "memberships.read": "069663173a7bb4813640a549d0b838145c880e9cec16e87829948181fe342896"
+    },
+    "schema_hash": "1ff1897c52f312d25de62a8002dd091661e88e076db3e0557421c3bd5f7703a9",
+    "tables": {
+      "conversations": {
+        "retain": "until-revoked"
+      },
+      "deliveries": {
+        "retain": "until-revoked"
+      },
+      "follows": {
+        "retain": "until-revoked"
+      },
+      "memberCounts": {
+        "retain": "until-revoked"
+      },
+      "memberships": {
+        "retain": "until-revoked"
+      },
+      "messageCounts": {
+        "retain": "until-revoked"
+      },
+      "messages": {
+        "retain": "delivered-history"
+      },
+      "notifications": {
+        "retain": "until-revoked"
+      },
+      "posts": {
+        "retain": "until-revoked"
+      },
+      "profiles": {
+        "retain": "until-revoked"
+      }
+    },
+    "value_model_version": "i53-codepoint-bytes-unicode-search-text-refinements-v5",
+    "write_sites": [
+      {
+        "kind": "Delete",
+        "max_rows": 1,
+        "table": "memberships"
+      }
+    ]
+  },
+  "groups.memberPromote": {
+    "bound_product": "groups.memberPromote.0 point read on memberships \u00d7 1 calls = 1 + groups.memberPromote.1 point read on memberships \u00d7 1 calls = 1",
+    "completeness": "Page",
+    "constraint_checks": [
+      "memberCounts:Unique(byConversation)",
+      "memberCounts:Unique(byId)",
+      "memberships:Cap([\"conversationId\"],50)",
+      "memberships:Immutable([\"conversationId\", \"principal\", \"joinedAt\"])",
+      "memberships:Unique(byConversationPrincipal)",
+      "memberships:Unique(byId)"
+    ],
+    "derived_scratch_bytes": 0,
+    "derived_steps": 0,
+    "disclosures": [],
+    "evaluator_version": "bounded-spike-rust-search-text-refinements-4",
+    "halo_rows": 1,
+    "indexes_required": [
+      "memberships.byConversationPrincipal",
+      "memberships.byConversationPrincipalRole",
+      "memberships.byId"
+    ],
+    "maintained_amplification": 2,
+    "maintained_writes": {
+      "memberCounts": 2
+    },
+    "max_closure_bytes": 0,
+    "max_examined": 2,
+    "max_heap_bytes": 1472,
+    "max_index_entries": 2,
+    "max_output_bytes": 6,
+    "max_rule_probes": 8,
+    "max_steps": 46,
+    "plan_hash": "3d9eb59f966de148fbde1cf4fecc8ea50da2a6cc51b47a33a91411cb10e32a2c",
+    "prediction_sites": [],
+    "program": "groups.memberPromote",
+    "read_sites": [
+      {
+        "complete": false,
+        "hoist": false,
+        "index": "byConversationPrincipalRole",
+        "max_calls": 1,
+        "prefix_template": "Shape",
+        "rule_probes_per_candidate": 2,
+        "site": "groups.memberPromote.0",
+        "table": "memberships",
+        "take": 1
+      },
+      {
+        "complete": false,
+        "hoist": false,
+        "index": "byId",
+        "max_calls": 1,
+        "prefix_template": "Arg",
+        "rule_probes_per_candidate": 2,
+        "site": "groups.memberPromote.1",
+        "table": "memberships",
+        "take": 1
+      }
+    ],
+    "read_time_granularity_ms": null,
+    "rule_hashes": {
+      "memberships.read": "069663173a7bb4813640a549d0b838145c880e9cec16e87829948181fe342896",
+      "memberships.update": "53afb53a000cbf5a8cc0b693152d60ee15b09bd687263de674e61a358e1ee28b"
+    },
+    "schema_hash": "1ff1897c52f312d25de62a8002dd091661e88e076db3e0557421c3bd5f7703a9",
+    "tables": {
+      "conversations": {
+        "retain": "until-revoked"
+      },
+      "deliveries": {
+        "retain": "until-revoked"
+      },
+      "follows": {
+        "retain": "until-revoked"
+      },
+      "memberCounts": {
+        "retain": "until-revoked"
+      },
+      "memberships": {
+        "retain": "until-revoked"
+      },
+      "messageCounts": {
+        "retain": "until-revoked"
+      },
+      "messages": {
+        "retain": "delivered-history"
+      },
+      "notifications": {
+        "retain": "until-revoked"
+      },
+      "posts": {
+        "retain": "until-revoked"
+      },
+      "profiles": {
+        "retain": "until-revoked"
+      }
+    },
+    "value_model_version": "i53-codepoint-bytes-unicode-search-text-refinements-v5",
+    "write_sites": [
+      {
+        "kind": "Update",
+        "max_rows": 1,
+        "table": "memberships"
+      }
+    ]
+  },
+  "groups.memberRemove": {
+    "bound_product": "groups.memberRemove.0 point read on memberships \u00d7 1 calls = 1 + groups.memberRemove.1 point read on memberships \u00d7 1 calls = 1",
+    "completeness": "Page",
+    "constraint_checks": [
+      "memberCounts:Unique(byConversation)",
+      "memberCounts:Unique(byId)",
+      "memberships:Cap([\"conversationId\"],50)",
+      "memberships:Immutable([\"conversationId\", \"principal\", \"joinedAt\"])",
+      "memberships:Unique(byConversationPrincipal)",
+      "memberships:Unique(byId)"
+    ],
+    "derived_scratch_bytes": 0,
+    "derived_steps": 0,
+    "disclosures": [],
+    "evaluator_version": "bounded-spike-rust-search-text-refinements-4",
+    "halo_rows": 1,
+    "indexes_required": [
+      "memberships.byConversationPrincipal",
+      "memberships.byConversationPrincipalRole",
+      "memberships.byId"
+    ],
+    "maintained_amplification": 1,
+    "maintained_writes": {
+      "memberCounts": 1
+    },
+    "max_closure_bytes": 0,
+    "max_examined": 2,
+    "max_heap_bytes": 1408,
+    "max_index_entries": 2,
+    "max_output_bytes": 6,
+    "max_rule_probes": 6,
+    "max_steps": 44,
+    "plan_hash": "9aacbeb165d58378cf5d3f4827eca1e369937a0cfd7ad58d190009e8979a7d56",
+    "prediction_sites": [],
+    "program": "groups.memberRemove",
+    "read_sites": [
+      {
+        "complete": false,
+        "hoist": false,
+        "index": "byConversationPrincipalRole",
+        "max_calls": 1,
+        "prefix_template": "Shape",
+        "rule_probes_per_candidate": 2,
+        "site": "groups.memberRemove.0",
+        "table": "memberships",
+        "take": 1
+      },
+      {
+        "complete": false,
+        "hoist": false,
+        "index": "byId",
+        "max_calls": 1,
+        "prefix_template": "Arg",
+        "rule_probes_per_candidate": 2,
+        "site": "groups.memberRemove.1",
+        "table": "memberships",
+        "take": 1
+      }
+    ],
+    "read_time_granularity_ms": null,
+    "rule_hashes": {
+      "memberships.delete": "dba855602d9a2d40640e3784de4f95278f0c07903064fc759736e11fea574688",
+      "memberships.read": "069663173a7bb4813640a549d0b838145c880e9cec16e87829948181fe342896"
+    },
+    "schema_hash": "1ff1897c52f312d25de62a8002dd091661e88e076db3e0557421c3bd5f7703a9",
+    "tables": {
+      "conversations": {
+        "retain": "until-revoked"
+      },
+      "deliveries": {
+        "retain": "until-revoked"
+      },
+      "follows": {
+        "retain": "until-revoked"
+      },
+      "memberCounts": {
+        "retain": "until-revoked"
+      },
+      "memberships": {
+        "retain": "until-revoked"
+      },
+      "messageCounts": {
+        "retain": "until-revoked"
+      },
+      "messages": {
+        "retain": "delivered-history"
+      },
+      "notifications": {
+        "retain": "until-revoked"
+      },
+      "posts": {
+        "retain": "until-revoked"
+      },
+      "profiles": {
+        "retain": "until-revoked"
+      }
+    },
+    "value_model_version": "i53-codepoint-bytes-unicode-search-text-refinements-v5",
+    "write_sites": [
+      {
+        "kind": "Delete",
+        "max_rows": 1,
+        "table": "memberships"
+      }
+    ]
+  },
+  "messages.send": {
+    "bound_product": "messages.send.4 take 50 (+2 reserve) \u00d7 1 calls on memberships = 52 + messages.send.0 point read on memberships \u00d7 1 calls = 1 + messages.send.1 point read on profiles \u00d7 1 calls = 1 + messages.send.2 point read on memberships \u00d7 1 calls = 1",
+    "completeness": "Page",
+    "constraint_checks": [
+      "deliveries:Immutable([\"recipient\", \"conversationId\", \"messageId\", \"kind\", \"at\"])",
+      "deliveries:Unique(byId)",
+      "messageCounts:Unique(byConversation)",
+      "messageCounts:Unique(byId)",
+      "messages:Immutable([\"conversationId\", \"authorId\"])",
+      "messages:Unique(byId)"
+    ],
+    "derived_scratch_bytes": 1271844,
+    "derived_steps": 817153,
+    "disclosures": [],
+    "evaluator_version": "bounded-spike-rust-search-text-refinements-4",
+    "halo_rows": 1,
+    "indexes_required": [
+      "memberships.byConversationPrincipal",
+      "profiles.byId"
+    ],
+    "maintained_amplification": 1,
+    "maintained_writes": {
+      "messageCounts": 1
+    },
+    "max_closure_bytes": 0,
+    "max_examined": 55,
+    "max_heap_bytes": 1306212,
+    "max_index_entries": 55,
+    "max_output_bytes": 16585,
+    "max_rule_probes": 108,
+    "max_steps": 818227,
+    "plan_hash": "db23c74d25e11d245c35f869fd06a6d148b0a0a9c8ea09d5f66243ebef9dc4a1",
+    "prediction_sites": [],
+    "program": "messages.send",
+    "read_sites": [
+      {
+        "complete": false,
+        "hoist": false,
+        "index": "byConversationPrincipal",
+        "max_calls": 1,
+        "prefix_template": "Shape",
+        "rule_probes_per_candidate": 2,
+        "site": "messages.send.0",
+        "table": "memberships",
+        "take": 1
+      },
+      {
+        "complete": false,
+        "hoist": false,
+        "index": "byId",
+        "max_calls": 1,
+        "prefix_template": "Arg",
+        "rule_probes_per_candidate": 0,
+        "site": "messages.send.1",
+        "table": "profiles",
+        "take": 1
+      },
+      {
+        "complete": false,
+        "hoist": false,
+        "index": "byConversationPrincipal",
+        "max_calls": 1,
+        "prefix_template": "Shape",
+        "rule_probes_per_candidate": 2,
+        "site": "messages.send.2",
+        "table": "memberships",
+        "take": 1
+      },
+      {
+        "complete": true,
+        "hoist": true,
+        "index": "byConversationPrincipal",
+        "max_calls": 1,
+        "prefix_template": "Arg",
+        "rule_probes_per_candidate": 2,
+        "site": "messages.send.4",
+        "table": "memberships",
+        "take": 50
+      }
+    ],
+    "read_time_granularity_ms": null,
+    "rule_hashes": {
+      "deliveries.insert": "069663173a7bb4813640a549d0b838145c880e9cec16e87829948181fe342896",
+      "memberships.read": "069663173a7bb4813640a549d0b838145c880e9cec16e87829948181fe342896",
+      "messages.insert": "65e1f45bdd2e0f04912def37fd11056ead42c3adb637335efbd22ccf7c9c1bed",
+      "profiles.read": "ce9783d3180530307e0249a5650db64d93cb334952621f6c266247c06a9cddee"
+    },
+    "schema_hash": "1ff1897c52f312d25de62a8002dd091661e88e076db3e0557421c3bd5f7703a9",
+    "tables": {
+      "conversations": {
+        "retain": "until-revoked"
+      },
+      "deliveries": {
+        "retain": "until-revoked"
+      },
+      "follows": {
+        "retain": "until-revoked"
+      },
+      "memberCounts": {
+        "retain": "until-revoked"
+      },
+      "memberships": {
+        "retain": "until-revoked"
+      },
+      "messageCounts": {
+        "retain": "until-revoked"
+      },
+      "messages": {
+        "retain": "delivered-history"
+      },
+      "notifications": {
+        "retain": "until-revoked"
+      },
+      "posts": {
+        "retain": "until-revoked"
+      },
+      "profiles": {
+        "retain": "until-revoked"
+      }
+    },
+    "value_model_version": "i53-codepoint-bytes-unicode-search-text-refinements-v5",
+    "write_sites": [
+      {
+        "kind": "Insert",
+        "max_rows": 1,
+        "table": "messages"
+      },
+      {
+        "kind": "Insert",
+        "max_rows": 50,
+        "table": "deliveries"
+      },
+      {
+        "kind": "Emit",
+        "max_rows": 1,
+        "table": "_outbox"
+      }
+    ]
+  },
+  "messages.sendClip": {
+    "bound_product": "messages.sendClip.0 point read on memberships \u00d7 1 calls = 1",
+    "completeness": "Page",
+    "constraint_checks": [
+      "messageCounts:Unique(byConversation)",
+      "messageCounts:Unique(byId)",
+      "messages:Immutable([\"conversationId\", \"authorId\"])",
+      "messages:Unique(byId)"
+    ],
+    "derived_scratch_bytes": 1271844,
+    "derived_steps": 817153,
+    "disclosures": [],
+    "evaluator_version": "bounded-spike-rust-search-text-refinements-4",
+    "halo_rows": 1,
+    "indexes_required": [
+      "memberships.byConversationPrincipal"
+    ],
+    "maintained_amplification": 1,
+    "maintained_writes": {
+      "messageCounts": 1
+    },
+    "max_closure_bytes": 0,
+    "max_examined": 1,
+    "max_heap_bytes": 1272932,
+    "max_index_entries": 1,
+    "max_output_bytes": 2003,
+    "max_rule_probes": 4,
+    "max_steps": 817187,
+    "plan_hash": "86f6ac23aa35bacc3a839739b90c3f507932e4a34a92e6b42eed75cd3e4357ed",
+    "prediction_sites": [],
+    "program": "messages.sendClip",
+    "read_sites": [
+      {
+        "complete": false,
+        "hoist": false,
+        "index": "byConversationPrincipal",
+        "max_calls": 1,
+        "prefix_template": "Shape",
+        "rule_probes_per_candidate": 2,
+        "site": "messages.sendClip.0",
+        "table": "memberships",
+        "take": 1
+      }
+    ],
+    "read_time_granularity_ms": null,
+    "rule_hashes": {
+      "memberships.read": "069663173a7bb4813640a549d0b838145c880e9cec16e87829948181fe342896",
+      "messages.insert": "65e1f45bdd2e0f04912def37fd11056ead42c3adb637335efbd22ccf7c9c1bed"
+    },
+    "schema_hash": "1ff1897c52f312d25de62a8002dd091661e88e076db3e0557421c3bd5f7703a9",
+    "tables": {
+      "conversations": {
+        "retain": "until-revoked"
+      },
+      "deliveries": {
+        "retain": "until-revoked"
+      },
+      "follows": {
+        "retain": "until-revoked"
+      },
+      "memberCounts": {
+        "retain": "until-revoked"
+      },
+      "memberships": {
+        "retain": "until-revoked"
+      },
+      "messageCounts": {
+        "retain": "until-revoked"
+      },
+      "messages": {
+        "retain": "delivered-history"
+      },
+      "notifications": {
+        "retain": "until-revoked"
+      },
+      "posts": {
+        "retain": "until-revoked"
+      },
+      "profiles": {
+        "retain": "until-revoked"
+      }
+    },
+    "value_model_version": "i53-codepoint-bytes-unicode-search-text-refinements-v5",
+    "write_sites": [
+      {
+        "kind": "Insert",
+        "max_rows": 1,
+        "table": "messages"
+      }
+    ]
+  },
+  "messages.sendOncePhoto": {
+    "bound_product": "messages.sendOncePhoto.2 take 50 (+2 reserve) \u00d7 1 calls on memberships = 52 + messages.sendOncePhoto.0 point read on memberships \u00d7 1 calls = 1",
+    "completeness": "Page",
+    "constraint_checks": [
+      "deliveries:Immutable([\"recipient\", \"conversationId\", \"messageId\", \"kind\", \"at\"])",
+      "deliveries:Unique(byId)",
+      "messageCounts:Unique(byConversation)",
+      "messageCounts:Unique(byId)",
+      "messages:Immutable([\"conversationId\", \"authorId\"])",
+      "messages:Unique(byId)"
+    ],
+    "derived_scratch_bytes": 1271844,
+    "derived_steps": 817153,
+    "disclosures": [],
+    "evaluator_version": "bounded-spike-rust-search-text-refinements-4",
+    "halo_rows": 1,
+    "indexes_required": [
+      "memberships.byConversationPrincipal"
+    ],
+    "maintained_amplification": 1,
+    "maintained_writes": {
+      "messageCounts": 1
+    },
+    "max_closure_bytes": 0,
+    "max_examined": 53,
+    "max_heap_bytes": 1305284,
+    "max_index_entries": 53,
+    "max_output_bytes": 1655,
+    "max_rule_probes": 106,
+    "max_steps": 818198,
+    "plan_hash": "04308a3a0dd109999ec5156a52b6c0646a1a4cd7d7405c622263c340902a9bb1",
+    "prediction_sites": [],
+    "program": "messages.sendOncePhoto",
+    "read_sites": [
+      {
+        "complete": false,
+        "hoist": false,
+        "index": "byConversationPrincipal",
+        "max_calls": 1,
+        "prefix_template": "Shape",
+        "rule_probes_per_candidate": 2,
+        "site": "messages.sendOncePhoto.0",
+        "table": "memberships",
+        "take": 1
+      },
+      {
+        "complete": true,
+        "hoist": true,
+        "index": "byConversationPrincipal",
+        "max_calls": 1,
+        "prefix_template": "Arg",
+        "rule_probes_per_candidate": 2,
+        "site": "messages.sendOncePhoto.2",
+        "table": "memberships",
+        "take": 50
+      }
+    ],
+    "read_time_granularity_ms": null,
+    "rule_hashes": {
+      "deliveries.insert": "069663173a7bb4813640a549d0b838145c880e9cec16e87829948181fe342896",
+      "memberships.read": "069663173a7bb4813640a549d0b838145c880e9cec16e87829948181fe342896",
+      "messages.insert": "65e1f45bdd2e0f04912def37fd11056ead42c3adb637335efbd22ccf7c9c1bed"
+    },
+    "schema_hash": "1ff1897c52f312d25de62a8002dd091661e88e076db3e0557421c3bd5f7703a9",
+    "tables": {
+      "conversations": {
+        "retain": "until-revoked"
+      },
+      "deliveries": {
+        "retain": "until-revoked"
+      },
+      "follows": {
+        "retain": "until-revoked"
+      },
+      "memberCounts": {
+        "retain": "until-revoked"
+      },
+      "memberships": {
+        "retain": "until-revoked"
+      },
+      "messageCounts": {
+        "retain": "until-revoked"
+      },
+      "messages": {
+        "retain": "delivered-history"
+      },
+      "notifications": {
+        "retain": "until-revoked"
+      },
+      "posts": {
+        "retain": "until-revoked"
+      },
+      "profiles": {
+        "retain": "until-revoked"
+      }
+    },
+    "value_model_version": "i53-codepoint-bytes-unicode-search-text-refinements-v5",
+    "write_sites": [
+      {
+        "kind": "Insert",
+        "max_rows": 1,
+        "table": "messages"
+      },
+      {
+        "kind": "Insert",
+        "max_rows": 50,
+        "table": "deliveries"
+      }
+    ]
+  },
+  "messages.sendPhoto": {
+    "bound_product": "messages.sendPhoto.0 point read on memberships \u00d7 1 calls = 1",
+    "completeness": "Page",
+    "constraint_checks": [
+      "messageCounts:Unique(byConversation)",
+      "messageCounts:Unique(byId)",
+      "messages:Immutable([\"conversationId\", \"authorId\"])",
+      "messages:Unique(byId)"
+    ],
+    "derived_scratch_bytes": 1271844,
+    "derived_steps": 817153,
+    "disclosures": [],
+    "evaluator_version": "bounded-spike-rust-search-text-refinements-4",
+    "halo_rows": 1,
+    "indexes_required": [
+      "memberships.byConversationPrincipal"
+    ],
+    "maintained_amplification": 1,
+    "maintained_writes": {
+      "messageCounts": 1
+    },
+    "max_closure_bytes": 0,
+    "max_examined": 1,
+    "max_heap_bytes": 1272868,
+    "max_index_entries": 1,
+    "max_output_bytes": 1617,
+    "max_rule_probes": 4,
+    "max_steps": 817185,
+    "plan_hash": "a13bf19a59861affef6e236662fe4476e7d5bda0f474901a899419c640573567",
+    "prediction_sites": [],
+    "program": "messages.sendPhoto",
+    "read_sites": [
+      {
+        "complete": false,
+        "hoist": false,
+        "index": "byConversationPrincipal",
+        "max_calls": 1,
+        "prefix_template": "Shape",
+        "rule_probes_per_candidate": 2,
+        "site": "messages.sendPhoto.0",
+        "table": "memberships",
+        "take": 1
+      }
+    ],
+    "read_time_granularity_ms": null,
+    "rule_hashes": {
+      "memberships.read": "069663173a7bb4813640a549d0b838145c880e9cec16e87829948181fe342896",
+      "messages.insert": "65e1f45bdd2e0f04912def37fd11056ead42c3adb637335efbd22ccf7c9c1bed"
+    },
+    "schema_hash": "1ff1897c52f312d25de62a8002dd091661e88e076db3e0557421c3bd5f7703a9",
+    "tables": {
+      "conversations": {
+        "retain": "until-revoked"
+      },
+      "deliveries": {
+        "retain": "until-revoked"
+      },
+      "follows": {
+        "retain": "until-revoked"
+      },
+      "memberCounts": {
+        "retain": "until-revoked"
+      },
+      "memberships": {
+        "retain": "until-revoked"
+      },
+      "messageCounts": {
+        "retain": "until-revoked"
+      },
+      "messages": {
+        "retain": "delivered-history"
+      },
+      "notifications": {
+        "retain": "until-revoked"
+      },
+      "posts": {
+        "retain": "until-revoked"
+      },
+      "profiles": {
+        "retain": "until-revoked"
+      }
+    },
+    "value_model_version": "i53-codepoint-bytes-unicode-search-text-refinements-v5",
+    "write_sites": [
+      {
+        "kind": "Insert",
+        "max_rows": 1,
+        "table": "messages"
+      }
+    ]
+  },
+  "messages.summary": {
+    "bound_product": "messages.summary.0 point read on memberships \u00d7 1 calls = 1 + messages.summary.1 point read on conversations \u00d7 1 calls = 1 + messages.summary.2 point read on messageCounts \u00d7 1 calls = 1",
+    "completeness": "Page",
+    "constraint_checks": [],
+    "derived_scratch_bytes": 0,
+    "derived_steps": 0,
+    "disclosures": [],
+    "evaluator_version": "bounded-spike-rust-search-text-refinements-4",
+    "halo_rows": 1,
+    "indexes_required": [
+      "conversations.byId",
+      "memberships.byConversationPrincipal",
+      "messageCounts.byConversation"
+    ],
+    "maintained_amplification": 0,
+    "max_closure_bytes": 1185,
+    "max_examined": 3,
+    "max_heap_bytes": 704,
+    "max_index_entries": 3,
+    "max_output_bytes": 1227,
+    "max_rule_probes": 6,
+    "max_steps": 22,
+    "plan_hash": "6870c6e6896312c145f95369bce87baa750ffae6c14c49fbd76c98032a33b322",
+    "prediction_sites": [],
+    "program": "messages.summary",
+    "read_sites": [
+      {
+        "complete": false,
+        "hoist": false,
+        "index": "byConversationPrincipal",
+        "max_calls": 1,
+        "prefix_template": "Shape",
+        "rule_probes_per_candidate": 2,
+        "site": "messages.summary.0",
+        "table": "memberships",
+        "take": 1
+      },
+      {
+        "complete": false,
+        "hoist": false,
+        "index": "byId",
+        "max_calls": 1,
+        "prefix_template": "Arg",
+        "rule_probes_per_candidate": 2,
+        "site": "messages.summary.1",
+        "table": "conversations",
+        "take": 1
+      },
+      {
+        "complete": false,
+        "hoist": false,
+        "index": "byConversation",
+        "max_calls": 1,
+        "prefix_template": "Arg",
+        "rule_probes_per_candidate": 2,
+        "site": "messages.summary.2",
+        "table": "messageCounts",
+        "take": 1
+      }
+    ],
+    "read_time_granularity_ms": null,
+    "rule_hashes": {
+      "conversations.read": "65791b227d22ca7766d79e71b0cab5959a9e6d027a329ce8fb10135d09078aef",
+      "memberships.read": "069663173a7bb4813640a549d0b838145c880e9cec16e87829948181fe342896",
+      "messageCounts.read": "069663173a7bb4813640a549d0b838145c880e9cec16e87829948181fe342896"
+    },
+    "schema_hash": "1ff1897c52f312d25de62a8002dd091661e88e076db3e0557421c3bd5f7703a9",
+    "tables": {
+      "conversations": {
+        "retain": "until-revoked"
+      },
+      "deliveries": {
+        "retain": "until-revoked"
+      },
+      "follows": {
+        "retain": "until-revoked"
+      },
+      "memberCounts": {
+        "retain": "until-revoked"
+      },
+      "memberships": {
+        "retain": "until-revoked"
+      },
+      "messageCounts": {
+        "retain": "until-revoked"
+      },
+      "messages": {
+        "retain": "delivered-history"
+      },
+      "notifications": {
+        "retain": "until-revoked"
+      },
+      "posts": {
+        "retain": "until-revoked"
+      },
+      "profiles": {
+        "retain": "until-revoked"
+      }
+    },
+    "value_model_version": "i53-codepoint-bytes-unicode-search-text-refinements-v5",
+    "write_sites": []
+  },
+  "messages.thread": {
+    "bound_product": "messages.thread.1 take 50 (+2 reserve) \u00d7 1 calls on messages = 52 + messages.thread.0 point read on memberships \u00d7 1 calls = 1",
+    "completeness": "Page",
+    "constraint_checks": [],
+    "derived_scratch_bytes": 0,
+    "derived_steps": 0,
+    "disclosures": [],
+    "evaluator_version": "bounded-spike-rust-search-text-refinements-4",
+    "halo_rows": 1,
+    "indexes_required": [
+      "memberships.byConversationPrincipal",
+      "messages.byConvTime"
+    ],
+    "maintained_amplification": 0,
+    "max_closure_bytes": 869400,
+    "max_examined": 53,
+    "max_heap_bytes": 8704,
+    "max_index_entries": 53,
+    "max_output_bytes": 869462,
+    "max_rule_probes": 4,
+    "max_steps": 272,
+    "plan_hash": "ba76b5c97dd4c2029a654abe4ee15e8ce032f852ab176f5f97a0f126e7f6736a",
+    "prediction_sites": [],
+    "program": "messages.thread",
+    "read_sites": [
+      {
+        "complete": false,
+        "hoist": false,
+        "index": "byConversationPrincipal",
+        "max_calls": 1,
+        "prefix_template": "Shape",
+        "rule_probes_per_candidate": 2,
+        "site": "messages.thread.0",
+        "table": "memberships",
+        "take": 1
+      },
+      {
+        "complete": false,
+        "hoist": true,
+        "index": "byConvTime",
+        "max_calls": 1,
+        "prefix_template": "Arg",
+        "rule_probes_per_candidate": 2,
+        "site": "messages.thread.1",
+        "table": "messages",
+        "take": 50
+      }
+    ],
+    "read_time_granularity_ms": null,
+    "result_pages": {
+      "1": {
+        "index": "byConvTime",
+        "merge": false,
+        "order": "Desc",
+        "site": "messages.thread.1",
+        "suffix": [
+          {
+            "kind": "Time",
+            "name": "at"
+          },
+          {
+            "kind": "Id",
+            "name": "id"
+          }
+        ],
+        "table": "messages"
+      }
+    },
+    "rule_hashes": {
+      "memberships.read": "069663173a7bb4813640a549d0b838145c880e9cec16e87829948181fe342896",
+      "messages.read": "069663173a7bb4813640a549d0b838145c880e9cec16e87829948181fe342896"
+    },
+    "schema_hash": "1ff1897c52f312d25de62a8002dd091661e88e076db3e0557421c3bd5f7703a9",
+    "tables": {
+      "conversations": {
+        "retain": "until-revoked"
+      },
+      "deliveries": {
+        "retain": "until-revoked"
+      },
+      "follows": {
+        "retain": "until-revoked"
+      },
+      "memberCounts": {
+        "retain": "until-revoked"
+      },
+      "memberships": {
+        "retain": "until-revoked"
+      },
+      "messageCounts": {
+        "retain": "until-revoked"
+      },
+      "messages": {
+        "retain": "delivered-history"
+      },
+      "notifications": {
+        "retain": "until-revoked"
+      },
+      "posts": {
+        "retain": "until-revoked"
+      },
+      "profiles": {
+        "retain": "until-revoked"
+      }
+    },
+    "value_model_version": "i53-codepoint-bytes-unicode-search-text-refinements-v5",
+    "write_sites": []
+  },
+  "notifications.recordNotified": {
+    "bound_product": null,
+    "completeness": "Page",
+    "constraint_checks": [
+      "notifications:Unique(byId)",
+      "notifications:Unique(byOutbox)"
+    ],
+    "derived_scratch_bytes": 0,
+    "derived_steps": 0,
+    "disclosures": [],
+    "evaluator_version": "bounded-spike-rust-search-text-refinements-4",
+    "halo_rows": 1,
+    "indexes_required": [],
+    "maintained_amplification": 0,
+    "max_closure_bytes": 0,
+    "max_examined": 0,
+    "max_heap_bytes": 768,
+    "max_index_entries": 0,
+    "max_output_bytes": 13,
+    "max_rule_probes": 0,
+    "max_steps": 24,
+    "plan_hash": "11ce1993dffd2fb3d4c8bb01cef058090eb28d05ad60d56a5085f63f3df68637",
+    "prediction_sites": [],
+    "program": "notifications.recordNotified",
+    "read_sites": [],
+    "read_time_granularity_ms": null,
+    "rule_hashes": {
+      "notifications.insert": "a985354ccb8536a450d7fdb2a13381bf360407fcb683312848af6b3a18f12f53"
+    },
+    "schema_hash": "1ff1897c52f312d25de62a8002dd091661e88e076db3e0557421c3bd5f7703a9",
+    "tables": {
+      "conversations": {
+        "retain": "until-revoked"
+      },
+      "deliveries": {
+        "retain": "until-revoked"
+      },
+      "follows": {
+        "retain": "until-revoked"
+      },
+      "memberCounts": {
+        "retain": "until-revoked"
+      },
+      "memberships": {
+        "retain": "until-revoked"
+      },
+      "messageCounts": {
+        "retain": "until-revoked"
+      },
+      "messages": {
+        "retain": "delivered-history"
+      },
+      "notifications": {
+        "retain": "until-revoked"
+      },
+      "posts": {
+        "retain": "until-revoked"
+      },
+      "profiles": {
+        "retain": "until-revoked"
+      }
+    },
+    "value_model_version": "i53-codepoint-bytes-unicode-search-text-refinements-v5",
+    "write_sites": [
+      {
+        "kind": "Insert",
+        "max_rows": 1,
+        "table": "notifications"
+      }
+    ]
+  },
+  "posts.createPost": {
+    "bound_product": "posts.createPost.0 point read on profiles \u00d7 1 calls = 1",
+    "completeness": "Page",
+    "constraint_checks": [
+      "posts:Immutable([\"author\", \"at\"])",
+      "posts:Text(body,min=1,format=None)",
+      "posts:Unique(byId)",
+      "profiles:FinalExistsOnInsert(posts->profiles.byPrincipal,[Field(\"author\")])"
+    ],
+    "derived_scratch_bytes": 0,
+    "derived_steps": 0,
+    "disclosures": [],
+    "evaluator_version": "bounded-spike-rust-search-text-refinements-4",
+    "halo_rows": 1,
+    "indexes_required": [
+      "profiles.byPrincipal"
+    ],
+    "maintained_amplification": 0,
+    "max_closure_bytes": 0,
+    "max_examined": 1,
+    "max_heap_bytes": 960,
+    "max_index_entries": 1,
+    "max_output_bytes": 6952,
+    "max_rule_probes": 1,
+    "max_steps": 30,
+    "plan_hash": "b02bb18d0dffeb49a11f757cfdab35e9e187ce686407107ce6e179f916ecc2c8",
+    "prediction_sites": [],
+    "program": "posts.createPost",
+    "read_sites": [
+      {
+        "complete": false,
+        "hoist": false,
+        "index": "byPrincipal",
+        "max_calls": 1,
+        "prefix_template": "Viewer",
+        "rule_probes_per_candidate": 0,
+        "site": "posts.createPost.0",
+        "table": "profiles",
+        "take": 1
+      }
+    ],
+    "read_time_granularity_ms": null,
+    "rule_hashes": {
+      "posts.insert": "259fd0a2bfeecdc8f4481a746505535aa7a9579faaefe12fb62c6da000f2298e",
+      "profiles.read": "ce9783d3180530307e0249a5650db64d93cb334952621f6c266247c06a9cddee"
+    },
+    "schema_hash": "1ff1897c52f312d25de62a8002dd091661e88e076db3e0557421c3bd5f7703a9",
+    "tables": {
+      "conversations": {
+        "retain": "until-revoked"
+      },
+      "deliveries": {
+        "retain": "until-revoked"
+      },
+      "follows": {
+        "retain": "until-revoked"
+      },
+      "memberCounts": {
+        "retain": "until-revoked"
+      },
+      "memberships": {
+        "retain": "until-revoked"
+      },
+      "messageCounts": {
+        "retain": "until-revoked"
+      },
+      "messages": {
+        "retain": "delivered-history"
+      },
+      "notifications": {
+        "retain": "until-revoked"
+      },
+      "posts": {
+        "retain": "until-revoked"
+      },
+      "profiles": {
+        "retain": "until-revoked"
+      }
+    },
+    "value_model_version": "i53-codepoint-bytes-unicode-search-text-refinements-v5",
+    "write_sites": [
+      {
+        "kind": "Insert",
+        "max_rows": 1,
+        "table": "posts"
+      }
+    ]
+  },
+  "profiles.byHandle": {
+    "bound_product": "profiles.byHandle.0 point read on profiles \u00d7 1 calls = 1",
+    "completeness": "Page",
+    "constraint_checks": [],
+    "derived_scratch_bytes": 0,
+    "derived_steps": 0,
+    "disclosures": [],
+    "evaluator_version": "bounded-spike-rust-search-text-refinements-4",
+    "halo_rows": 1,
+    "indexes_required": [
+      "profiles.byHandle"
+    ],
+    "maintained_amplification": 0,
+    "max_closure_bytes": 18142,
+    "max_examined": 1,
+    "max_heap_bytes": 224,
+    "max_index_entries": 1,
+    "max_output_bytes": 18142,
+    "max_rule_probes": 0,
+    "max_steps": 7,
+    "plan_hash": "1f14a14e8015cb2f9ae2c03cfac1a5de7cbe319cb868afc33e51a81a30828a08",
+    "prediction_sites": [],
+    "program": "profiles.byHandle",
+    "read_sites": [
+      {
+        "complete": false,
+        "hoist": false,
+        "index": "byHandle",
+        "max_calls": 1,
+        "prefix_template": "Arg",
+        "rule_probes_per_candidate": 0,
+        "site": "profiles.byHandle.0",
+        "table": "profiles",
+        "take": 1
+      }
+    ],
+    "read_time_granularity_ms": null,
+    "rule_hashes": {
+      "profiles.read": "ce9783d3180530307e0249a5650db64d93cb334952621f6c266247c06a9cddee"
+    },
+    "schema_hash": "1ff1897c52f312d25de62a8002dd091661e88e076db3e0557421c3bd5f7703a9",
+    "tables": {
+      "conversations": {
+        "retain": "until-revoked"
+      },
+      "deliveries": {
+        "retain": "until-revoked"
+      },
+      "follows": {
+        "retain": "until-revoked"
+      },
+      "memberCounts": {
+        "retain": "until-revoked"
+      },
+      "memberships": {
+        "retain": "until-revoked"
+      },
+      "messageCounts": {
+        "retain": "until-revoked"
+      },
+      "messages": {
+        "retain": "delivered-history"
+      },
+      "notifications": {
+        "retain": "until-revoked"
+      },
+      "posts": {
+        "retain": "until-revoked"
+      },
+      "profiles": {
+        "retain": "until-revoked"
+      }
+    },
+    "value_model_version": "i53-codepoint-bytes-unicode-search-text-refinements-v5",
+    "write_sites": []
+  },
+  "profiles.createMyProfile": {
+    "bound_product": "profiles.createMyProfile.0 point read on profiles \u00d7 1 calls = 1",
+    "completeness": "Page",
+    "constraint_checks": [
+      "profiles:Immutable([\"principal\"])",
+      "profiles:Text(avatarUrl,min=0,format=Some(Url))",
+      "profiles:Text(displayName,min=1,format=None)",
+      "profiles:Text(handle,min=3,format=Some(Handle))",
+      "profiles:Text(link,min=0,format=Some(Url))",
+      "profiles:Unique(byHandle)",
+      "profiles:Unique(byId)",
+      "profiles:Unique(byPrincipal)"
+    ],
+    "derived_scratch_bytes": 24572,
+    "derived_steps": 16339,
+    "disclosures": [],
+    "evaluator_version": "bounded-spike-rust-search-text-refinements-4",
+    "halo_rows": 1,
+    "indexes_required": [
+      "profiles.byPrincipal"
+    ],
+    "maintained_amplification": 0,
+    "max_closure_bytes": 18142,
+    "max_examined": 1,
+    "max_heap_bytes": 25948,
+    "max_index_entries": 1,
+    "max_output_bytes": 36140,
+    "max_rule_probes": 0,
+    "max_steps": 16382,
+    "plan_hash": "d11e62269bbf611b5e766646dceba609b3002ba9fbba9e1b896ef31d495df50a",
+    "prediction_sites": [],
+    "program": "profiles.createMyProfile",
+    "read_sites": [
+      {
+        "complete": false,
+        "hoist": false,
+        "index": "byPrincipal",
+        "max_calls": 1,
+        "prefix_template": "Viewer",
+        "rule_probes_per_candidate": 0,
+        "site": "profiles.createMyProfile.0",
+        "table": "profiles",
+        "take": 1
+      }
+    ],
+    "read_time_granularity_ms": null,
+    "rule_hashes": {
+      "profiles.insert": "01c4272fc8297e0e8d336cbdcf7a18914b8ef18dc62868eaefcc4b6ad0363902",
+      "profiles.read": "ce9783d3180530307e0249a5650db64d93cb334952621f6c266247c06a9cddee"
+    },
+    "schema_hash": "1ff1897c52f312d25de62a8002dd091661e88e076db3e0557421c3bd5f7703a9",
+    "tables": {
+      "conversations": {
+        "retain": "until-revoked"
+      },
+      "deliveries": {
+        "retain": "until-revoked"
+      },
+      "follows": {
+        "retain": "until-revoked"
+      },
+      "memberCounts": {
+        "retain": "until-revoked"
+      },
+      "memberships": {
+        "retain": "until-revoked"
+      },
+      "messageCounts": {
+        "retain": "until-revoked"
+      },
+      "messages": {
+        "retain": "delivered-history"
+      },
+      "notifications": {
+        "retain": "until-revoked"
+      },
+      "posts": {
+        "retain": "until-revoked"
+      },
+      "profiles": {
+        "retain": "until-revoked"
+      }
+    },
+    "value_model_version": "i53-codepoint-bytes-unicode-search-text-refinements-v5",
+    "write_sites": [
+      {
+        "kind": "Insert",
+        "max_rows": 1,
+        "table": "profiles"
+      }
+    ]
+  },
+  "profiles.mine": {
+    "bound_product": "profiles.mine.0 point read on profiles \u00d7 1 calls = 1",
+    "completeness": "Page",
+    "constraint_checks": [],
+    "derived_scratch_bytes": 0,
+    "derived_steps": 0,
+    "disclosures": [],
+    "evaluator_version": "bounded-spike-rust-search-text-refinements-4",
+    "halo_rows": 1,
+    "indexes_required": [
+      "profiles.byPrincipal"
+    ],
+    "maintained_amplification": 0,
+    "max_closure_bytes": 18142,
+    "max_examined": 1,
+    "max_heap_bytes": 224,
+    "max_index_entries": 1,
+    "max_output_bytes": 18142,
+    "max_rule_probes": 0,
+    "max_steps": 7,
+    "plan_hash": "07d7cd8cd3073af43041f769b3866fd0aaef609e740557b362a96b0b6cfd99d1",
+    "prediction_sites": [],
+    "program": "profiles.mine",
+    "read_sites": [
+      {
+        "complete": false,
+        "hoist": false,
+        "index": "byPrincipal",
+        "max_calls": 1,
+        "prefix_template": "Viewer",
+        "rule_probes_per_candidate": 0,
+        "site": "profiles.mine.0",
+        "table": "profiles",
+        "take": 1
+      }
+    ],
+    "read_time_granularity_ms": null,
+    "rule_hashes": {
+      "profiles.read": "ce9783d3180530307e0249a5650db64d93cb334952621f6c266247c06a9cddee"
+    },
+    "schema_hash": "1ff1897c52f312d25de62a8002dd091661e88e076db3e0557421c3bd5f7703a9",
+    "tables": {
+      "conversations": {
+        "retain": "until-revoked"
+      },
+      "deliveries": {
+        "retain": "until-revoked"
+      },
+      "follows": {
+        "retain": "until-revoked"
+      },
+      "memberCounts": {
+        "retain": "until-revoked"
+      },
+      "memberships": {
+        "retain": "until-revoked"
+      },
+      "messageCounts": {
+        "retain": "until-revoked"
+      },
+      "messages": {
+        "retain": "delivered-history"
+      },
+      "notifications": {
+        "retain": "until-revoked"
+      },
+      "posts": {
+        "retain": "until-revoked"
+      },
+      "profiles": {
+        "retain": "until-revoked"
+      }
+    },
+    "value_model_version": "i53-codepoint-bytes-unicode-search-text-refinements-v5",
+    "write_sites": []
+  },
+  "profiles.updateMyProfile": {
+    "bound_product": "profiles.updateMyProfile.0 point read on profiles \u00d7 1 calls = 1",
+    "completeness": "Page",
+    "constraint_checks": [
+      "profiles:Immutable([\"principal\"])",
+      "profiles:Text(avatarUrl,min=0,format=Some(Url))",
+      "profiles:Text(displayName,min=1,format=None)",
+      "profiles:Text(handle,min=3,format=Some(Handle))",
+      "profiles:Text(link,min=0,format=Some(Url))",
+      "profiles:Unique(byHandle)",
+      "profiles:Unique(byId)",
+      "profiles:Unique(byPrincipal)"
+    ],
+    "derived_scratch_bytes": 25480,
+    "derived_steps": 18579,
+    "disclosures": [],
+    "evaluator_version": "bounded-spike-rust-search-text-refinements-4",
+    "halo_rows": 1,
+    "indexes_required": [
+      "profiles.byPrincipal"
+    ],
+    "maintained_amplification": 0,
+    "max_closure_bytes": 150,
+    "max_examined": 1,
+    "max_heap_bytes": 26792,
+    "max_index_entries": 1,
+    "max_output_bytes": 18142,
+    "max_rule_probes": 0,
+    "max_steps": 18620,
+    "plan_hash": "a00e7a79ea9cf2a8fdc390a322d1a454c5edf2ae36c620684ee767683c78c759",
+    "prediction_sites": [],
+    "program": "profiles.updateMyProfile",
+    "read_sites": [
+      {
+        "complete": false,
+        "hoist": false,
+        "index": "byPrincipal",
+        "max_calls": 1,
+        "prefix_template": "Viewer",
+        "rule_probes_per_candidate": 0,
+        "site": "profiles.updateMyProfile.0",
+        "table": "profiles",
+        "take": 1
+      }
+    ],
+    "read_time_granularity_ms": null,
+    "rule_hashes": {
+      "profiles.read": "ce9783d3180530307e0249a5650db64d93cb334952621f6c266247c06a9cddee",
+      "profiles.update": "01c4272fc8297e0e8d336cbdcf7a18914b8ef18dc62868eaefcc4b6ad0363902"
+    },
+    "schema_hash": "1ff1897c52f312d25de62a8002dd091661e88e076db3e0557421c3bd5f7703a9",
+    "tables": {
+      "conversations": {
+        "retain": "until-revoked"
+      },
+      "deliveries": {
+        "retain": "until-revoked"
+      },
+      "follows": {
+        "retain": "until-revoked"
+      },
+      "memberCounts": {
+        "retain": "until-revoked"
+      },
+      "memberships": {
+        "retain": "until-revoked"
+      },
+      "messageCounts": {
+        "retain": "until-revoked"
+      },
+      "messages": {
+        "retain": "delivered-history"
+      },
+      "notifications": {
+        "retain": "until-revoked"
+      },
+      "posts": {
+        "retain": "until-revoked"
+      },
+      "profiles": {
+        "retain": "until-revoked"
+      }
+    },
+    "value_model_version": "i53-codepoint-bytes-unicode-search-text-refinements-v5",
+    "write_sites": [
+      {
+        "kind": "Update",
+        "max_rows": 1,
+        "table": "profiles"
+      }
+    ]
+  },
+  "search.findPeople": {
+    "bound_product": "search.findPeople.0 take 20 (+2 reserve) \u00d7 1 calls on profiles = 22",
+    "completeness": "Page",
+    "constraint_checks": [],
+    "derived_scratch_bytes": 703089,
+    "derived_steps": 353091,
+    "disclosures": [],
+    "evaluator_version": "bounded-spike-rust-search-text-refinements-4",
+    "halo_rows": 1,
+    "indexes_required": [
+      "profiles.byNameWords"
+    ],
+    "maintained_amplification": 0,
+    "max_closure_bytes": 410213,
+    "max_examined": 22,
+    "max_heap_bytes": 706737,
+    "max_index_entries": 22,
+    "max_output_bytes": 362872,
+    "max_rule_probes": 0,
+    "max_steps": 353205,
+    "plan_hash": "6fd114e00f970100073202981f8a5c74dce37503c7ce8268dcde035186743f8f",
+    "prediction_sites": [],
+    "program": "search.findPeople",
+    "read_sites": [
+      {
+        "complete": false,
+        "decided_true": true,
+        "hoist": true,
+        "index": "byNameWords",
+        "max_calls": 1,
+        "prefix_template": "Arg",
+        "rule_probes_per_candidate": 0,
+        "site": "search.findPeople.0",
+        "table": "profiles",
+        "take": 20
+      }
+    ],
+    "read_time_granularity_ms": null,
+    "result_pages": {
+      "0": {
+        "index": "byNameWords",
+        "merge": false,
+        "order": "Asc",
+        "site": "search.findPeople.0",
+        "suffix": [
+          {
+            "kind": "Id",
+            "name": "id"
+          }
+        ],
+        "table": "profiles"
+      }
+    },
+    "rule_hashes": {
+      "profiles.read": "ce9783d3180530307e0249a5650db64d93cb334952621f6c266247c06a9cddee"
+    },
+    "schema_hash": "1ff1897c52f312d25de62a8002dd091661e88e076db3e0557421c3bd5f7703a9",
+    "tables": {
+      "conversations": {
+        "retain": "until-revoked"
+      },
+      "deliveries": {
+        "retain": "until-revoked"
+      },
+      "follows": {
+        "retain": "until-revoked"
+      },
+      "memberCounts": {
+        "retain": "until-revoked"
+      },
+      "memberships": {
+        "retain": "until-revoked"
+      },
+      "messageCounts": {
+        "retain": "until-revoked"
+      },
+      "messages": {
+        "retain": "delivered-history"
+      },
+      "notifications": {
+        "retain": "until-revoked"
+      },
+      "posts": {
+        "retain": "until-revoked"
+      },
+      "profiles": {
+        "retain": "until-revoked"
+      }
+    },
+    "value_model_version": "i53-codepoint-bytes-unicode-search-text-refinements-v5",
+    "write_sites": []
+  },
+  "search.global": {
+    "bound_product": "merge snapback/search.q:5:10: 100 lanes heads + 20 advances + 2 lookahead \u00d7 1 calls (search.global.1 \u00d7 100) = 122 + search.global.0 take 100 (+2 reserve) \u00d7 1 calls on memberships = 102",
+    "completeness": "Page",
+    "constraint_checks": [],
+    "derived_scratch_bytes": 5459958,
+    "derived_steps": 353091,
+    "disclosures": [],
+    "evaluator_version": "bounded-spike-rust-search-text-refinements-4",
+    "halo_rows": 1,
+    "indexes_required": [
+      "memberships.byConversationPrincipal",
+      "memberships.byPrincipalConversation",
+      "messages.bySearch"
+    ],
+    "maintained_amplification": 0,
+    "max_closure_bytes": 3557738,
+    "max_examined": 224,
+    "max_heap_bytes": 5606358,
+    "max_index_entries": 224,
+    "max_output_bytes": 347792,
+    "max_rule_probes": 200,
+    "max_steps": 357666,
+    "merge_sites": [
+      {
+        "lane_sites": [
+          "search.global.1"
+        ],
+        "max_lanes": 100,
+        "site": "snapback/search.q:5:10",
+        "take": 20,
+        "uniform": true
+      }
+    ],
+    "plan_hash": "429cc175eaf9763797bc95be00d878070acb77887abd63f04114cc5638e55899",
+    "prediction_sites": [],
+    "program": "search.global",
+    "read_sites": [
+      {
+        "complete": false,
+        "decided_true": true,
+        "hoist": true,
+        "index": "byPrincipalConversation",
+        "max_calls": 1,
+        "prefix_template": "Viewer",
+        "rule_probes_per_candidate": 0,
+        "site": "search.global.0",
+        "table": "memberships",
+        "take": 100
+      },
+      {
+        "complete": false,
+        "hoist": true,
+        "index": "bySearch",
+        "max_calls": 100,
+        "prefix_template": "Shape",
+        "rule_probes_per_candidate": 2,
+        "site": "search.global.1",
+        "table": "messages",
+        "take": 20
+      }
+    ],
+    "read_time_granularity_ms": null,
+    "result_pages": {
+      "1": {
+        "index": "bySearch",
+        "merge": true,
+        "order": "Desc",
+        "site": "snapback/search.q:5:10",
+        "suffix": [
+          {
+            "kind": "Time",
+            "name": "at"
+          },
+          {
+            "kind": "Id",
+            "name": "id"
+          }
+        ],
+        "table": "messages"
+      }
+    },
+    "rule_hashes": {
+      "memberships.read": "069663173a7bb4813640a549d0b838145c880e9cec16e87829948181fe342896",
+      "messages.read": "069663173a7bb4813640a549d0b838145c880e9cec16e87829948181fe342896"
+    },
+    "schema_hash": "1ff1897c52f312d25de62a8002dd091661e88e076db3e0557421c3bd5f7703a9",
+    "tables": {
+      "conversations": {
+        "retain": "until-revoked"
+      },
+      "deliveries": {
+        "retain": "until-revoked"
+      },
+      "follows": {
+        "retain": "until-revoked"
+      },
+      "memberCounts": {
+        "retain": "until-revoked"
+      },
+      "memberships": {
+        "retain": "until-revoked"
+      },
+      "messageCounts": {
+        "retain": "until-revoked"
+      },
+      "messages": {
+        "retain": "delivered-history"
+      },
+      "notifications": {
+        "retain": "until-revoked"
+      },
+      "posts": {
+        "retain": "until-revoked"
+      },
+      "profiles": {
+        "retain": "until-revoked"
+      }
+    },
+    "value_model_version": "i53-codepoint-bytes-unicode-search-text-refinements-v5",
+    "write_sites": []
+  },
+  "search.inConversation": {
+    "bound_product": "search.inConversation.0 take 20 (+2 reserve) \u00d7 1 calls on messages = 22",
+    "completeness": "Page",
+    "constraint_checks": [],
+    "derived_scratch_bytes": 690225,
+    "derived_steps": 353091,
+    "disclosures": [],
+    "evaluator_version": "bounded-spike-rust-search-text-refinements-4",
+    "halo_rows": 1,
+    "indexes_required": [
+      "memberships.byConversationPrincipal",
+      "messages.bySearch"
+    ],
+    "maintained_amplification": 0,
+    "max_closure_bytes": 397349,
+    "max_examined": 22,
+    "max_heap_bytes": 693905,
+    "max_index_entries": 22,
+    "max_output_bytes": 347792,
+    "max_rule_probes": 2,
+    "max_steps": 353206,
+    "plan_hash": "6197c6e6109bece8953e28a11f51579e11b0049050580f693624ce5b0e19adbe",
+    "prediction_sites": [],
+    "program": "search.inConversation",
+    "read_sites": [
+      {
+        "complete": false,
+        "hoist": true,
+        "index": "bySearch",
+        "max_calls": 1,
+        "prefix_template": "Arg",
+        "rule_probes_per_candidate": 2,
+        "site": "search.inConversation.0",
+        "table": "messages",
+        "take": 20
+      }
+    ],
+    "read_time_granularity_ms": null,
+    "result_pages": {
+      "0": {
+        "index": "bySearch",
+        "merge": false,
+        "order": "Desc",
+        "site": "search.inConversation.0",
+        "suffix": [
+          {
+            "kind": "Time",
+            "name": "at"
+          },
+          {
+            "kind": "Id",
+            "name": "id"
+          }
+        ],
+        "table": "messages"
+      }
+    },
+    "rule_hashes": {
+      "messages.read": "069663173a7bb4813640a549d0b838145c880e9cec16e87829948181fe342896"
+    },
+    "schema_hash": "1ff1897c52f312d25de62a8002dd091661e88e076db3e0557421c3bd5f7703a9",
+    "tables": {
+      "conversations": {
+        "retain": "until-revoked"
+      },
+      "deliveries": {
+        "retain": "until-revoked"
+      },
+      "follows": {
+        "retain": "until-revoked"
+      },
+      "memberCounts": {
+        "retain": "until-revoked"
+      },
+      "memberships": {
+        "retain": "until-revoked"
+      },
+      "messageCounts": {
+        "retain": "until-revoked"
+      },
+      "messages": {
+        "retain": "delivered-history"
+      },
+      "notifications": {
+        "retain": "until-revoked"
+      },
+      "posts": {
+        "retain": "until-revoked"
+      },
+      "profiles": {
+        "retain": "until-revoked"
+      }
+    },
+    "value_model_version": "i53-codepoint-bytes-unicode-search-text-refinements-v5",
+    "write_sites": []
+  }
+}

@@ -1,0 +1,30 @@
+{
+  "before": {
+    "counts": {
+      "conversations": 1002,
+      "follows": 5921,
+      "memberCounts": 1002,
+      "memberships": 2054,
+      "messageCounts": 903,
+      "messages": 10015,
+      "posts": 5048,
+      "profiles": 1008
+    },
+    "meta": {
+      "generation": "1ff1897c52f312d25de62a8002dd091661e88e076db3e0557421c3bd5f7703a9",
+      "id_high_water": "11590656",
+      "program_generation": "7315d72119c27ee4362f7b071fbc0292c6bc2323c0c8572c3599ea27feedae55",
+      "schema_hash": "1ff1897c52f312d25de62a8002dd091661e88e076db3e0557421c3bd5f7703a9"
+    },
+    "pending": {
+      "_jobs": 0,
+      "_outbox": 0,
+      "_timers": 0
+    },
+    "seq": 11318
+  },
+  "isolatedSha256": "240edc13609780b2ae652ad2093a3d2f17551a08a65db820a927e581d7db089f",
+  "namespace": "aca07d3befbee13c4d478236ebffcd12",
+  "onlyLogicalEdit": "_meta.id_namespace",
+  "sourceSha256": "b19c0578be9ac74c47be14a84a2cf19efb03e69944591899135ef413e660ca53"
+}

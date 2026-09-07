@@ -1,0 +1,65 @@
+{
+  "changes": [
+    {
+      "afterSha256": "b350219ab0e3976ed1923cbc275d70914c2d24c4e7c1c198835b6716a200f6bc",
+      "beforeSha256": "1896b71249cef913e1ddfcd8a5568ef170f37c400793d1da8d523376174118e3",
+      "bytes": 7568,
+      "mode": "0o644",
+      "path": "README.md",
+      "rationale": "Describe actual first failure, precise observation correction and limitations, candidate reuse, future custody and unchanged workload"
+    },
+    {
+      "afterSha256": "6cac6531ee1f119f63fa916567cfaa8b62bc00cdbb4461ad336d683d153c3431",
+      "beforeSha256": "dd633367ecdc65c367cb3a3be82662b9dae9ba0658f4661df89baa98cebbe3bf",
+      "bytes": 6468,
+      "mode": "0o644",
+      "path": "config.json",
+      "rationale": "Add execution-02 and retained candidate/old-packet identity only; every original config key remains exact"
+    },
+    {
+      "afterSha256": "a12127b21575ba169c2847117c0a81c1a815676c8439d72c5972b90e05c92eed",
+      "beforeSha256": "2d03954e48e7a4a8426ff5e421920610e0e423a07c97c0595add6c71c20f4edc",
+      "bytes": 1498,
+      "mode": "0o644",
+      "path": "freeze.json",
+      "rationale": "Bind separately named correction packet"
+    },
+    {
+      "afterSha256": "a2e267265f609dc2e75deeb23c3d551928ffc353672cd51e79cbc37d48a508e9",
+      "beforeSha256": null,
+      "bytes": 8218,
+      "mode": "0o644",
+      "path": "retained-attempt-manifest.json",
+      "rationale": "Bind immutable first attempt41 leaves including private hashes only"
+    },
+    {
+      "afterSha256": "7adb55f3c7bcb27377bf399f9d7bf41f4b054da28a8846f15576362f43acc613",
+      "beforeSha256": "4316f9a38982df70181190ebc3db2ba037c77957d4aee47978a982388a7f254a",
+      "bytes": 14690,
+      "mode": "0o644",
+      "path": "run.py",
+      "rationale": "Remove build execution; bind retained first attempt/candidate; move full SQL before startup and after graceful stop; retain immediate HTTP checks; explicitly label expected intermediate states; execution-02 marker and observation-review flag"
+    },
+    {
+      "afterSha256": "cb96e5ba1e840c845182b90aa101a9d3bdbf69e8cf0a9d67c65a19e1531839b4",
+      "beforeSha256": "1fd6a767698576639655c01e7311d716a99ffb7e2378056ccbed8fdaf6a49744",
+      "bytes": 5288,
+      "mode": "0o644",
+      "path": "validate.py",
+      "rationale": "Add full pre-start state/original-row/absent-ID assertions; existing final and receipt validators byte-identical"
+    }
+  ],
+  "correctionFreeze": "a12127b21575ba169c2847117c0a81c1a815676c8439d72c5972b90e05c92eed",
+  "originalFreeze": "2d03954e48e7a4a8426ff5e421920610e0e423a07c97c0595add6c71c20f4edc",
+  "unchangedLeaves": [
+    "cache-manifest.json",
+    "candidate-source-manifest.json",
+    "compiler-graph.json",
+    "expected-certificates.json",
+    "installed-toolchain-manifest.json",
+    "original-source-manifest.json",
+    "private-input-manifest.json",
+    "runtime-manifest.json",
+    "workload.json"
+  ]
+}

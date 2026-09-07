@@ -1,0 +1,6 @@
+{
+  "atEpoch": 1788782397.4007883,
+  "message": "database is locked",
+  "retries": 0,
+  "type": "OperationalError"
+}

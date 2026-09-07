@@ -1,0 +1,9 @@
+# PROPOSED ONLY: Root must review this freeze and fork namespace isolation.
+# Execute on EPYC through existing SSH/Tailscale. No shorter outer deadline.
+(
+  cd /home/ccheever/clique-tooling/adhoc-certification-performance-26c9-20260907-r1-01a07995
+  set -C
+  nohup /usr/bin/python3 -B packet/run.py --execute --packet-sha256 2d03954e48e7a4a8426ff5e421920610e0e423a07c97c0595add6c71c20f4edc --root-reviewed-fork-namespace-isolation > execution-01.supervisor.stdout 2> execution-01.supervisor.stderr < /dev/null &
+)
+# Inspect execution-01.once.json and execution-01/supervisor.launch.json immediately.
+# Never replay uncertain launch or remove a once marker.

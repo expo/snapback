@@ -1,0 +1,14 @@
+Traceback (most recent call last):
+  File "/home/ccheever/clique-tooling/adhoc-certification-performance-26c9-20260907-r1-01a07995/packet/run.py", line 192, in <module>
+    if __name__=='__main__':main()
+                            ^^^^^^
+  File "/home/ccheever/clique-tooling/adhoc-certification-performance-26c9-20260907-r1-01a07995/packet/run.py", line 175, in main
+    for name,binary in [('baseline',pathlib.Path(cfg['baselineOwner'])),('candidate',candidate)]:results[name]=arm(cfg,name,binary,out,workload)
+                                                                                                               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/ccheever/clique-tooling/adhoc-certification-performance-26c9-20260907-r1-01a07995/packet/run.py", line 126, in arm
+    started=state(db);assert started['seq']==workload['sequence'] and started['counts']==workload['sourceCounts']
+            ^^^^^^^^^
+  File "/home/ccheever/clique-tooling/adhoc-certification-performance-26c9-20260907-r1-01a07995/packet/validate.py", line 38, in state
+    counts=dict(c.execute('SELECT table_name,COUNT(*) FROM rows GROUP BY table_name'))
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+sqlite3.OperationalError: database is locked

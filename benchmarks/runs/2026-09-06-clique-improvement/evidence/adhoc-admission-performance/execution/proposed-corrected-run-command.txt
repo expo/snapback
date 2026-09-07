@@ -1,0 +1,5 @@
+(
+  cd /home/ccheever/clique-tooling/adhoc-certification-performance-26c9-20260907-r1-01a07995
+  set -C
+  nohup /usr/bin/python3 -B packet-correction-01/run.py --execute --packet-sha256 a12127b21575ba169c2847117c0a81c1a815676c8439d72c5972b90e05c92eed --root-reviewed-fork-namespace-isolation --root-reviewed-stopped-store-observations > execution-02.supervisor.stdout 2> execution-02.supervisor.stderr < /dev/null &
+)

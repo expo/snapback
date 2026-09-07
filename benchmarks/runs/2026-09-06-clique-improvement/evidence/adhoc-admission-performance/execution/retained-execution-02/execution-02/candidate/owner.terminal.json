@@ -1,0 +1,15 @@
+{
+  "atEpoch": 1788783526.7866902,
+  "cleanup": [
+    {
+      "action": "SIGTERM",
+      "identity": {
+        "bootId": "76ef40aa-0ed8-4f57-85c6-898bb42ea7e4",
+        "exe": "/home/ccheever/clique-tooling/adhoc-certification-performance-26c9-20260907-r1-01a07995/execution-01/candidate-owner",
+        "pid": 4014815,
+        "startTicks": "114244018"
+      }
+    }
+  ],
+  "exit": 0
+}

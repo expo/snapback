@@ -1,0 +1,77 @@
+{
+  "atEpoch": 1788784394.7757492,
+  "all46RecordsVerified": true,
+  "statistics": {
+    "baseline": {
+      "median_ms": 285.8132565,
+      "p95_ms": 286.738263,
+      "measured": 20,
+      "warmups": 3
+    },
+    "candidate": {
+      "median_ms": 194.597961,
+      "p95_ms": 195.280439,
+      "measured": 20,
+      "warmups": 3
+    }
+  },
+  "sourceManifestLeavesVerified": 151,
+  "allFinalPublicStateEqual": true,
+  "rawPrivateRowsLedgerCustody": "Remote stopped stores and raw responses remain hash-bound, not exported or newly reexecuted.",
+  "actualAuthorTerminal": {
+    "pid": 7629,
+    "exitCode": 0,
+    "endedEpoch": 1788783892.983545,
+    "elapsedSeconds": 1628.372143983841
+  },
+  "firstFailureRetained": true,
+  "scheduling": {
+    "scope": "Timing-only corroboration; no reviewer source, findings or test output consumed.",
+    "ownerWindowEpoch": [
+      1788783514.427839,
+      1788783526.7866902
+    ],
+    "r24Children": [
+      {
+        "pid": 4015663,
+        "start": "2026-09-07T12:19:33.112080+00:00",
+        "durationSeconds": 0.6371615119278431,
+        "overlapsTimedOwnerWindow": false
+      },
+      {
+        "pid": 4015486,
+        "start": "2026-09-07T12:19:24.082232+00:00",
+        "durationSeconds": 0.521582119865343,
+        "overlapsTimedOwnerWindow": false
+      },
+      {
+        "pid": 4014297,
+        "start": "2026-09-07T12:18:08.795108+00:00",
+        "durationSeconds": 0.6205317061394453,
+        "overlapsTimedOwnerWindow": false
+      },
+      {
+        "pid": 4016099,
+        "start": "2026-09-07T12:19:54.486343+00:00",
+        "durationSeconds": 0.4972235830500722,
+        "overlapsTimedOwnerWindow": false
+      },
+      {
+        "pid": 4015364,
+        "start": "2026-09-07T12:19:08.785088+00:00",
+        "durationSeconds": 0.6344201711472124,
+        "overlapsTimedOwnerWindow": false
+      },
+      {
+        "pid": 4015091,
+        "start": "2026-09-07T12:18:55.020809+00:00",
+        "durationSeconds": 0.6585490831639618,
+        "overlapsTimedOwnerWindow": false
+      }
+    ],
+    "r24HoldException": true,
+    "r24ActualOwnerWindowOverlap": false,
+    "r25": "Compiler supervisor reported12:18:40.960/3.253s and12:18:44.391/3.207s overlapping actual arms; frozen author report retains this attributed observation.",
+    "inferenceLimit": "Six R24 children occurred during the posted hold, but all were outside both timed owner intervals. This does not establish host quietness."
+  }
+}

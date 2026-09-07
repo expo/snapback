@@ -1,0 +1,23 @@
+{
+  "pid": 7629,
+  "supervisorPid": 7619,
+  "startEpoch": 1788782264.611403,
+  "argv": [
+    "/Users/ccheever/.volta/bin/codex",
+    "exec",
+    "resume",
+    "--dangerously-bypass-approvals-and-sandbox",
+    "--skip-git-repo-check",
+    "--json",
+    "-m",
+    "gpt-6-astra",
+    "-c",
+    "model_reasoning_effort=\"xhigh\"",
+    "-o",
+    "/Users/ccheever/clique-improvement/revisions/adhoc-certification-performance-execution-r1/final-answer.md",
+    "01a07995-a7ce-73a2-a76b-957b8d0bf3d9",
+    "-"
+  ],
+  "cwd": "/Users/ccheever/clique-improvement/revisions/adhoc-certification-performance-execution-r1",
+  "promptSha256": "7b3980fe7ccf7355d5840484e3474fe07fdd33d19c64660c8cd628bfe85490ed"
+}

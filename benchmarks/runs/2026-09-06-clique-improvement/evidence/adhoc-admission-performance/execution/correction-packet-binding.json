@@ -1,0 +1,11 @@
+{
+  "archiveBytes": 3717120,
+  "archiveSha256": "5fd9c2d0ab980816b5b9115e8fa09a30b87d828d85ea29a8b93a10e4de82c308",
+  "commandSha256": "211ab9a54f9532736319acecd58a550e6ee576d4482c5fb45c0820dadf6a63f3",
+  "deltaSha256": "4edf7e196b3a3d92f32bdd5e0c2ac4034f2f46b90dab8389d66bb0e2316f49ae",
+  "executed": false,
+  "freezeSha256": "a12127b21575ba169c2847117c0a81c1a815676c8439d72c5972b90e05c92eed",
+  "futureAttempt": "/home/ccheever/clique-tooling/adhoc-certification-performance-26c9-20260907-r1-01a07995/execution-02",
+  "leaves": 14,
+  "remotePacket": "/home/ccheever/clique-tooling/adhoc-certification-performance-26c9-20260907-r1-01a07995/packet-correction-01"
+}

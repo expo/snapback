@@ -1,0 +1,15 @@
+{
+  "baseline": {
+    "n": 20,
+    "medianMs": 285.8132565,
+    "p95Ms": 286.738263
+  },
+  "candidate": {
+    "n": 20,
+    "medianMs": 194.597961,
+    "p95Ms": 195.280439
+  },
+  "medianReductionPercent": 31.91429838384702,
+  "utc": "2026-09-07T12:32:01.842834+00:00",
+  "scope": "Independent arithmetic and all 46 exported record assertions; not raw private response or store revalidation. Fixed order and shared-host confounds retained."
+}
