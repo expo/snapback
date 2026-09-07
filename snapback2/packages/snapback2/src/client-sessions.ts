@@ -94,16 +94,23 @@ export class SharedSubscriptions {
     return this.entries.get(key)?.attachments.size ?? 0;
   }
 
-  /** Forget every entry and consumer: the client closed its transports underneath them. */
-  clear(): void {
-    for (const entry of this.entries.values()) entry.attachments.clear();
-    this.entries.clear();
+  /**
+   * Forget every entry whose transport the client is closing underneath it,
+   * consumers included. The one stream a terminal refusal originates from stays
+   * attached, so its consumers still hear that refusal.
+   */
+  clear(except?: Subscription<unknown>): void {
+    for (const [key, entry] of [...this.entries]) {
+      if (entry.underlying === except) continue;
+      entry.attachments.clear();
+      this.entries.delete(key);
+    }
   }
 }
 
 /** What the follower tab needs from the client: the runtime, and the client's own takeover steps. */
 export interface FollowerHost<Authority> {
-  runtime(): { follow(principal: string, signal: AbortSignal): Promise<void>; followed(): void; reauthenticate(principal: string, authEpoch?: number): Promise<void> };
+  runtime(): { follow(principal: string, signal: AbortSignal): Promise<void>; followed(principal: string): void; reauthenticate(principal: string, authEpoch?: number): Promise<void> };
   closed(): boolean;
   /** The inherited partition is open: forget the predecessor's metadata and adopt the principal. */
   inherited(principal: string): void;
@@ -114,7 +121,7 @@ export interface FollowerHost<Authority> {
   failed(error: unknown): void;
 }
 
-interface Wait { principal: string; controller: AbortController; authenticated: boolean; authEpoch: number | undefined }
+interface Wait { principal: string; controller: AbortController; authenticated: boolean; authEpoch: number | undefined; inherited: boolean }
 
 /**
  * A browser tab whose account another tab is writing. It waits for that tab's
@@ -133,30 +140,41 @@ export class TabFollower<Authority> {
    * A later open of the principal already waited for (the restored bearer
    * confirming its account) keeps the wait and records the confirmed epoch for
    * the takeover; an open of another principal withdraws it. True when the
-   * caller should treat the open as settled.
+   * caller should treat the open as settled. Once the lock is granted the
+   * partition is open, so a confirmation arriving then takes the ordinary open
+   * path and reauthenticates itself.
    */
   confirm(principal: string, authenticated: boolean, authEpoch: number | undefined): boolean {
     if (!this.wait) return false;
     if (this.wait.principal !== principal) { this.stop(); return false; }
+    if (this.wait.inherited) return false;
     if (authenticated) { this.wait.authenticated = true; this.wait.authEpoch = authEpoch; }
     return true;
   }
 
   begin(principal: string, authenticated: boolean, authEpoch: number | undefined): void {
-    const wait: Wait = { principal, controller: new AbortController(), authenticated, authEpoch };
+    const wait: Wait = { principal, controller: new AbortController(), authenticated, authEpoch, inherited: false };
     this.wait = wait;
     const runtime = this.host.runtime();
+    // A wait that was withdrawn or replaced while a step was in flight stops
+    // at the next step; it never resumes, drains, or unfences on behalf of the
+    // account that replaced it (its own marker is released by `follow`'s
+    // rejection or by `followed(principal)` here, never a newer wait's).
+    const current = () => this.wait === wait && !wait.controller.signal.aborted && !this.host.closed();
     void runtime.follow(principal, wait.controller.signal).then(async () => {
-      if (wait.controller.signal.aborted || this.host.closed()) return;
+      if (!current()) { runtime.followed(principal); return; }
+      wait.inherited = true;
       this.host.inherited(principal);
       if (wait.authenticated) await runtime.reauthenticate(principal, wait.authEpoch);
+      if (!current()) { runtime.followed(principal); return; }
       const authority = await this.host.takeover();
-      if (this.wait === wait) this.wait = undefined;
-      runtime.followed();
+      if (!current()) { runtime.followed(principal); return; }
+      this.wait = undefined;
+      runtime.followed(principal);
       this.host.drain(authority);
     }).catch((error) => {
       if (this.wait === wait) this.wait = undefined;
-      runtime.followed();
+      runtime.followed(principal);
       if (wait.controller.signal.aborted || this.host.closed()) return;
       this.host.failed(error);
     });

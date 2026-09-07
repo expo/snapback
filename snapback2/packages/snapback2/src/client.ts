@@ -1405,7 +1405,7 @@ class Client implements SnapbackClient {
 
   private closeTransports(except?: Subscription<unknown>): void {
     this.live.close();
-    this.shared.clear();
+    this.shared.clear(except);
     for (const subscription of [...this.subscriptions]) {
       if (subscription !== except) subscription.close();
     }

@@ -272,19 +272,22 @@ export class OfflineRuntime {
     try {
       await this.store.acquire(principal, signal);
       if (signal.aborted) {
-        await this.store.close?.();
+        // Granted after the wait was withdrawn: give the lock back, unless the
+        // queue has meanwhile opened another partition, whose open released it.
+        await this.serial(async () => { if (this.partition === undefined) await this.store.close?.(); });
         throwIfAborted(signal);
       }
       await this.open(principal);
     } catch (error) {
-      this.followed();
+      this.followed(principal);
       throw error;
     }
     // Still following: the client clears the marker once the inherited partition is reauthenticated and resumed.
   }
 
-  /** The takeover finished, or failed: this tab is the writer now, or nothing. */
-  followed(): void {
+  /** The takeover for `principal` finished, or failed: this tab is its writer now, or nothing. A newer wait's marker is not touched. */
+  followed(principal: string): void {
+    if (this.followingPrincipal !== principal) return;
     this.followingPrincipal = undefined;
     this.outbox.notify();
   }

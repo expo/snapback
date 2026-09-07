@@ -174,17 +174,16 @@ test("two attachments sharing one callback function are two consumers", async ()
   assert.equal(client.sharedConsumers(api.deliveries.thread, args), 2);
   first.close();
   assert.equal(client.sharedConsumers(api.deliveries.thread, args), 1, "closing one attachment keeps the other");
-  const before = calls;
+  assert.ok(calls >= 1, "the shared callback heard the delivery");
   const again = await second.until((event) => event.state === "complete", 2_000);
-  assert.equal(again.state, "complete");
-  assert.ok(calls >= before);
+  assert.equal(again.state, "complete", "the surviving attachment still reads the shared stream");
   assert.equal(counts.subscribes, 1);
   second.close();
   assert.equal(client.sharedConsumers(api.deliveries.thread, args), 0);
   await client.close();
 });
 
-test("a follower's drain pages and tails live without touching the writer's watermark or grant", async () => {
+test("a follower's drain pages and tails live and earns no grant of its own", async () => {
   const database = new FakeIndexedDb();
   const locks = new FakeLocks();
   const store = indexedDbRangeStore({ indexedDB: database as any, locks: locks as any });

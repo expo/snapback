@@ -190,7 +190,8 @@ export async function answerOffline<Result>(
   drain = false,
 ): Promise<QueryResult<Result>> {
   try {
-    if (drain) runtime?.drainCursor(op);
+    // A follower's drain was admitted from the manifest; its held custody names no cursor yet.
+    if (drain && runtime && !runtime.following) runtime.drainCursor(op);
     const held = await runtime?.answer<Result>(op, args);
     const local = held?.retained ? undefined : await runtime?.evaluate(op, args);
     return offlineView(held, local) as QueryResult<Result>;
