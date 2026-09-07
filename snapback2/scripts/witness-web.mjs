@@ -80,6 +80,25 @@ import { api } from "snapback2/client";
 (window as any).__api = api;
 import { App } from "${resolve(packageRoot, "templates/chat/react/src/App.tsx")}";
 
+const broadcast = ((window as any).__witnessBroadcast = {
+  sent: [] as Array<Record<string, unknown>>,
+  dropped: [] as Array<Record<string, unknown>>,
+  dropNextMutationAnswer: false,
+});
+// Keep Chromium's real cross-tab channel. The armed witness hook suppresses
+// only one writer reply after the client has produced its durable queued result.
+const nativeBroadcastPost = BroadcastChannel.prototype.postMessage;
+BroadcastChannel.prototype.postMessage = function(message: unknown) {
+  const copy = structuredClone(message) as Record<string, unknown>;
+  broadcast.sent.push(copy);
+  if (broadcast.dropNextMutationAnswer && copy.type === "mutation-answer") {
+    broadcast.dropNextMutationAnswer = false;
+    broadcast.dropped.push(copy);
+    return;
+  }
+  nativeBroadcastPost.call(this, message);
+};
+
 const faults: Array<{ path: string; status: number }> = ((window as any).__witnessFaults = []);
 const requests: Array<Record<string, unknown>> = ((window as any).__witnessRequests = []);
 const transport: typeof fetch = async (input, init) => {
@@ -312,6 +331,70 @@ async function sharedSessions(context, writer, appUrl, ownerUrl) {
     && (await window.__snapback.outbox.status(window.__api.deliveries.post)).ready,
     null, { timeout: 15_000 });
   await openChat(follower, "conversation-1");
+
+  const lostAckBody = "1018 one admitted send with a lost answer";
+  const beforeLostAckWrites = replayed.length;
+  await writer.evaluate(() => { window.__witnessBroadcast.dropNextMutationAnswer = true; });
+  await follower.fill("form[aria-label=Composer] input[aria-label=Message]", lostAckBody);
+  await follower.waitForSelector("form[aria-label=Composer] button[type=submit]:enabled", { timeout: 10_000 });
+  await follower.click("form[aria-label=Composer] button[type=submit]");
+  await follower.waitForFunction(() => [...document.querySelectorAll("form[aria-label=Composer] button")]
+    .some(button => button.textContent === "Check send"), null, { timeout: 5_000 });
+  const unknownUi = await follower.evaluate(() => {
+    const form = document.querySelector("form[aria-label=Composer]");
+    const buttons = [...(form?.querySelectorAll("button") ?? [])];
+    return {
+      draft: form?.querySelector("input[aria-label=Message]")?.value,
+      sendDisabled: form?.querySelector("button[type=submit]")?.disabled,
+      checkDisabled: buttons.find(button => button.textContent === "Check send")?.disabled,
+      alert: document.querySelector("main > header [role=alert]")?.textContent,
+    };
+  });
+  assert.deepEqual(unknownUi, {
+    draft: lostAckBody, sendDisabled: true, checkDisabled: false,
+    alert: "Send confirmation was lost. Check this send before sending another message.",
+  }, "a lost answer preserves the draft and blocks a fresh send until explicit recovery");
+  const initialRequests = await follower.evaluate((body) => window.__witnessBroadcast.sent
+    .filter(message => message.type === "mutation" && message.args?.body === body), lostAckBody);
+  const droppedAnswers = await writer.evaluate(() => window.__witnessBroadcast.dropped);
+  assert.equal(initialRequests.length, 1, `one initial forwarded command: ${JSON.stringify(initialRequests)}`);
+  assert.equal(droppedAnswers.length, 1, `one answer was intercepted: ${JSON.stringify(droppedAnswers)}`);
+  assert.equal(droppedAnswers[0].requestId, initialRequests[0].requestId,
+    "the intercepted answer belongs to the Composer's forwarded command");
+  assert.equal(droppedAnswers[0].result?.state, "queued",
+    "the test drops only the answer produced after durable writer admission");
+
+  await follower.evaluate(() => [...document.querySelectorAll("form[aria-label=Composer] button")]
+    .find(button => button.textContent === "Check send")?.click());
+  await follower.waitForFunction(() => {
+    const form = document.querySelector("form[aria-label=Composer]");
+    return form?.querySelector("input[aria-label=Message]")?.value === ""
+      && ![...(form?.querySelectorAll("button") ?? [])].some(button => button.textContent === "Check send");
+  }, null, { timeout: 5_000 });
+  await writer.evaluate(() => window.__snapback.outbox.settled());
+  const recoveryRequests = await follower.evaluate((body) => window.__witnessBroadcast.sent
+    .filter(message => message.type === "mutation" && message.args?.body === body), lostAckBody);
+  assert.equal(recoveryRequests.length, 2,
+    `recovery publishes the original command once more: ${JSON.stringify(recoveryRequests)}`);
+  assert.equal(new Set(recoveryRequests.map(message => message.requestId)).size, 1,
+    "Check send reuses the original request identity");
+  const ownerWrites = replayed.slice(beforeLostAckWrites)
+    .filter(request => request.op === "deliveries.post" && request.args?.body === lostAckBody);
+  assert.equal(ownerWrites.length, 1, `recovery must not execute a second owner mutation: ${JSON.stringify(ownerWrites)}`);
+  const verification = await import(resolve(dist, "client.mjs"));
+  const lostAckVerifier = verification.createClient({ url: ownerUrl, as: "alice" });
+  try {
+    const thread = await lostAckVerifier.query(verification.api.deliveries.thread,
+      { conversationId: "conversation-1", c: null });
+    assert.equal(thread.state, "complete");
+    assert.equal(thread.data.filter(row => row.message?.body === lostAckBody).length, 1,
+      "the server stores exactly one message for the recovered request");
+  } finally { await lostAckVerifier.close(); }
+  step("the real follower Composer recovers one durably admitted send after its acknowledgment is lost", {
+    requestId: initialRequests[0].requestId, intent: droppedAnswers[0].result.intent,
+    forwardedAttempts: recoveryRequests.length, ownerWrites: ownerWrites.length, serverRows: 1,
+  });
+
   const beforeWrites = replayed.length;
 
   // Cut only the writer's owner transport: the follower remains live. An actual
