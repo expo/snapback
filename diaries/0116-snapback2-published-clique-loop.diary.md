@@ -1310,3 +1310,18 @@ failure. These are source-run results, not a new published-package result or
 a comparison with Convex or Supabase. Compiler deletion, composite-screen
 qualification, independent final reviews, and the runtime size deficit remain
 open in [LLP 1018.000](../llp/1018.000-composable-architecture-next-moves.research.md).
+
+At the later `91adf1c8c` checkpoint, the real screens consume the composed
+record and the Expo witness passes all ten steps again. The record makes the
+count and preview straightforward to share across consumers; a capped preview
+still permits a usable record with no root continuation. A never-opened offline
+conversation needs an explicitly partial history fallback, without a count or
+preview. Five real-owner screen tests and the 117 affected client checks pass.
+The browser's longer lifecycle exposes an unresolved disappearing inbox row
+after unsend, so the complete Web result remains red. This is useful friction:
+unit and initial-render checks did not substitute for the full interaction.
+
+The reviewed allocation amendment is now applied and its unchanged five-root
+check passes at 79,207 gzip bytes against 82,000, with an 80,000 working target.
+The historical failures against 66,000 remain failures. No new comparative
+score, publication, or native failed-`COMMIT` qualification follows.
