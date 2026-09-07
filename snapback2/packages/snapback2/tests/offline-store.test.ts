@@ -603,6 +603,71 @@ test("offline option shape and fenceDays bounds are TypeErrors", () => {
   );
 });
 
+test("offline factory returns fail at setup with the browser spelling, before auth or I/O", () => {
+  let requests = 0;
+  const options = { url: "http://options.test", fetch: async () => { requests++; throw new Error("unexpected I/O"); } };
+  const setupError = (error: unknown) => error instanceof TypeError
+    && /offline\.store must return a RangeStore with open\(\)/.test(error.message)
+    && error.message.includes("store: indexedDbRangeStore()")
+    && error.message.includes("snapback2 guide offline");
+  // The exported builder returns a factory; the client needs the builder's result.
+  assert.throws(() => createClient({ ...options, offline: { store: indexedDbRangeStore } } as any), setupError);
+  for (const returned of [undefined, null, 1, true, "store", {}, { open: 1 }, Promise.resolve({}), () => ({})]) {
+    let calls = 0;
+    assert.throws(() => createClient({ ...options, offline: { store: () => { calls++; return returned; } } } as any), setupError);
+    assert.equal(calls, 1, "validation must not invoke the factory again");
+  }
+  assert.equal(requests, 0);
+});
+
+test("offline setup accepts unbranded custom and callable stores, invoking each factory once", async () => {
+  for (const callable of [false, true]) {
+    let calls = 0, opens = 0;
+    const methods = {
+      open: async () => { opens++; }, unseal: async () => {}, seal: async () => {}, wipe: async () => {},
+      answer: async () => undefined, commit: async () => {},
+      coverage: async () => ({ rows: [], ranges: [], absences: [], verdicts: [], watermarks: [] }),
+      outbox: { all: async () => [], get: async () => undefined, put: async () => {}, remove: async () => {},
+        grant: async () => undefined, grants: async () => [], bounds: async () => ({}),
+        overlay: async () => ({}), programs: async () => ({}) },
+    };
+    // Inherited methods and callable objects both satisfy the structural contract.
+    const custom = callable ? Object.assign(() => {}, methods) : Object.create(methods);
+    const client = createClient({ url: "http://custom.test", as: "alice", startOffline: true,
+      offline: { store: () => { calls++; return custom; } } });
+    try {
+      await client.ready;
+      await client.offline();
+      assert.deepEqual(await client.outbox.entries(), []);
+      assert.equal(opens, 1);
+      assert.equal(calls, 1);
+    } finally { client.close(); }
+  }
+});
+
+test("offline setup preserves throwing factories and unavailable carrier refusals", async () => {
+  for (const failure of [new Error("factory failed"), new TypeError("factory failed"),
+    Object.assign(new TypeError("carrier unavailable"), { code: "E_OFFLINE_CARRIER" })]) {
+    let calls = 0;
+    const factory = Object.assign(() => { calls++; throw failure; }, { carrier: "custom-test" });
+    assert.throws(() => createClient({ url: "http://factory.test", offline: { store: factory } }),
+      (error: unknown) => error instanceof SnapbackRefusal && error.message === failure.message
+        && error.code === ((failure as any).code ?? "E_OFFLINE_STATE") && error.envelope.site === "client.offline");
+    assert.equal(calls, 1);
+  }
+  let calls = 0;
+  const unavailable = indexedDbRangeStore({ indexedDB: {} as any, locks: {} as any });
+  const client = createClient({ url: "http://unavailable.test", as: "alice", startOffline: true,
+    offline: { store: Object.assign(() => { calls++; return unavailable(); }, { carrier: "IndexedDB" }) } });
+  try {
+    await assert.rejects(client.ready, (error: unknown) => error instanceof SnapbackRefusal
+      && error.code === "E_OFFLINE_CARRIER" && error.envelope.site === "RangeStore.open"
+      && error.message === "IndexedDB and Web Locks are required"
+      && error.envelope.rewrite === "install or configure the IndexedDB carrier");
+    assert.equal(calls, 1);
+  } finally { client.close(); }
+});
+
 test("a sealed cold start stays unreadable until auth.me confirms the same bearer principal", async () => {
   const root = await tempRoot();
   const values = new Map<string, string>();

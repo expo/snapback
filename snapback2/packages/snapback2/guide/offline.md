@@ -1,6 +1,20 @@
 # Offline
 
 `offline.store`: IndexedDB (web), SQLite (Expo), files (Node).
+
+```js
+import { createClient } from "snapback2/client";
+import { indexedDbRangeStore } from "snapback2/react";
+const client = createClient({
+  url: "http://127.0.0.1:3210",
+  offline: { store: indexedDbRangeStore() },
+});
+```
+
+Call `indexedDbRangeStore()` to get the factory. Custom factories return a
+RangeStore; a result without `open()` fails at setup with `TypeError`.
+IndexedDB and Web Locks are required; no memory fallback.
+
 Expiry seals; sign-out/replacement wipes. One writer/account. Second web tab:
 live reads, writes E_OFFLINE_FOLLOWER, inherits partition/queue on writer close;
 elsewhere E_OFFLINE_LOCK. Past `fenceDays` (1..30), reads
