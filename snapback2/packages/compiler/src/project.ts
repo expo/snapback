@@ -14,13 +14,15 @@ import { boundOperationDiagnostics } from "./operation-diagnostics";
 import { callLeaf, moduleJsonConstants, objectOf, property, staticJson } from "./lower/static";
 import { exportedVariables, hasExport, propertyName, unwrapCall, walk } from "./syntax";
 import { typeDiagnosticSite } from "./type-diagnostic-site";
-import { compileQuarry, type QuarryInput } from "./quarry/index";
+import { frontendQuarryDiagnostic, prepareQuarry, type QuarryInput } from "./quarry/index";
 import { createProjectProgram, loadCompilerLib, projectTypeDiagnostics } from "./project-program";
 import { moduleSeedJsonConstants, staticSeedJson, validateSeedRow } from "./project-seed";
 import { sortSerdeMaps } from "./project-sort";
 import { quarryOnlyDiagnostics, type LowerProjectOptions } from "./project-authoring";
 import { apiRowName, generateApiDts } from "./project-api-types";
 import { lowerDirectQuarryProject } from "./quarry/project";
+import { bindQuarrySchema } from "./quarry/bound-schema";
+import { QuarryError } from "./quarry/diagnostics";
 // @ref LLP 1002#3-the-compiler-worker-and-the-project-json — one lowering pass owns the ProjectJson, sources, API types, and aggregate refusals.
 
 export async function lowerProject(root: string, options: LowerProjectOptions = {}): Promise<ProjectResult> {
@@ -156,8 +158,7 @@ export async function lowerProject(root: string, options: LowerProjectOptions = 
     }
   }
 
-  const operationBounded = boundProjectOperationDiagnostics(diagnostics, modules, operations)
-    ;
+  const operationBounded = boundProjectOperationDiagnostics(diagnostics, modules, operations);
   if (operationBounded.length > 0) {
     return { ok: false, diagnostics: boundedDiagnostics(operationBounded, 50, "project refusals"), ms: elapsed(started) };
   }
@@ -300,10 +301,12 @@ export async function lowerSeed(root: string): Promise<
     diagnostics.push(diagnostic(module, "E_SEED_PERSONA", expression ?? sourceFile, "seed personas must be unique, non-empty strings", source));
   }
 
-  let schemaSource: string;
-  let quarrySchema = false;
+  let tables: Record<string, { columns?: Record<string, unknown> }>;
   try {
-    schemaSource = await readFile(join(projectRoot, "snapback", "schema.ts"), "utf8");
+    const schemaSource = await readFile(join(projectRoot, "snapback", "schema.ts"), "utf8");
+    const loweredSchema = lowerSchema(schemaSource, "snapback/schema.ts", false);
+    if (loweredSchema.diagnostics.length > 0) return { ok: false, diagnostics: loweredSchema.diagnostics };
+    tables = loweredSchema.schema.tables as Record<string, { columns?: Record<string, unknown> }>;
   } catch {
     const authoredRoot = join(projectRoot, "snapback");
     const paths = (await discoverModulePaths(authoredRoot)).filter((item) => item.endsWith(".q"));
@@ -312,14 +315,22 @@ export async function lowerSeed(root: string): Promise<
       fileName: relativeSite(projectRoot, item),
       source: await readFile(item, "utf8"),
     })));
-    const compiled = compileQuarry(inputs);
-    if (!compiled.ok) return { ok: false, diagnostics: compiled.diagnostics };
-    schemaSource = compiled.schema.source;
-    quarrySchema = true;
+    const prepared = prepareQuarry(inputs);
+    if (!prepared.ok) return { ok: false, diagnostics: prepared.diagnostics };
+    try {
+      tables = bindQuarrySchema(prepared.prepared.documents, prepared.prepared.catalog).tables as
+        Record<string, { columns?: Record<string, unknown> }>;
+    } catch (error) {
+      const item = error instanceof QuarryError
+        ? error.diagnostic
+        : {
+            file: "snapback/schema.q", line: 1, col: 1, code: "E_QUARRY_UNKNOWN" as const,
+            message: error instanceof Error ? error.message : String(error),
+            rewrite: error instanceof Error ? error.message : String(error), guide: "quarry/names",
+          };
+      return { ok: false, diagnostics: [frontendQuarryDiagnostic(item)] };
+    }
   }
-  const loweredSchema = lowerSchema(schemaSource, "snapback/schema.ts", quarrySchema);
-  if (loweredSchema.diagnostics.length > 0) return { ok: false, diagnostics: loweredSchema.diagnostics };
-  const tables = loweredSchema.schema.tables as Record<string, { columns?: Record<string, unknown> }>;
   const rows = record.rows as Record<string, unknown>;
   for (const [table, seeded] of Object.entries(rows)) {
     if (!Object.hasOwn(tables, table)) {

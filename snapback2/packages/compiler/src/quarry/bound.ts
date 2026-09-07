@@ -717,6 +717,9 @@ class ExpressionBinder {
     const source = this.source(expression.site);
     const baseType = base.facts.type;
     if ((baseType.kind === "list" || baseType.kind === "empty-list" || baseType.kind === "page" || baseType.kind === "collection") && expression.name === "length") {
+      if (base.facts.presence === "optional") typeError(expression.site,
+        "list length requires a present list; its maximum does not prove presence",
+        "coalesce the possibly absent list with [] before selecting .length");
       return { kind: "builtin", builtin: "Len", args: [base], facts: facts({ kind: "int", optional: false }, "Computed"), source };
     }
     let type: BoundType | undefined;
@@ -889,7 +892,16 @@ class ExpressionBinder {
       const type: ScalarType = { kind: "list", item: { kind: "text", max: 4096, optional: false }, max: 64, optional: false };
       return { kind: "builtin", builtin: "MentionTokens", args, facts: facts(type, "Computed", { max: 64 }), source };
     }
-    if (expression.name === "count") return { kind: "builtin", builtin: "Len", args, facts: facts({ kind: "int", optional: false }, "Computed"), source };
+    if (expression.name === "count") {
+      const argument = args[0];
+      if (args.length !== 1 || !argument || !["list", "empty-list", "page", "collection"].includes(argument.facts.type.kind)) {
+        typeError(expression.site, "count(x) requires exactly one bounded list or page", "use count(presentBoundedList)");
+      }
+      if (argument.facts.presence === "optional") typeError(expression.site,
+        "count requires a present list; its maximum does not prove presence",
+        "coalesce the possibly absent list with [] before calling count");
+      return { kind: "builtin", builtin: "Len", args, facts: facts({ kind: "int", optional: false }, "Computed"), source };
+    }
     if (expression.name === "min" || expression.name === "max") {
       if (args.length < 2) typeError(expression.site, `${expression.name} requires at least two arguments`, `use ${expression.name}(a, b)`);
       const builtin = expression.name === "min" ? "Min" : "Max";
