@@ -1,0 +1,17 @@
+{
+  "approvalSha256": "8bb69b123841394b3e20a4f8420476905e41a99a871490a07dbc92c47563d5b1",
+  "failures": [
+    {
+      "family": "astra",
+      "actualExit": 1,
+      "chunk": "f8b12a"
+    },
+    {
+      "family": "grok",
+      "actualExit": 1,
+      "chunk": "e2c00b"
+    }
+  ],
+  "error": "KeyError: candidate at launch.py36 before Popen",
+  "nativeLaunched": false
+}

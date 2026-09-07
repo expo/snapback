@@ -1,0 +1,9 @@
+{
+  "approved": true,
+  "scope": "One fresh blind correction review per family; scoped read-only inspections; no count ceiling; 30 seconds per inspection; zero semantic execution; both actual native and outer closures before findings",
+  "launchPlanSha256": "9be9d1ceb47d73236cf87c62e576ccec28674c72b9f681b0dcd3a6a18f1bb412",
+  "approvedAt": "2026-09-07T22:49:28.682019+00:00",
+  "rootFullPromptAndWorkloadRead": "56a1b2",
+  "peerPromptDiffAndInboxRead": "246786",
+  "verifiedInputs": 190
+}

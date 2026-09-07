@@ -1,0 +1,45 @@
+{
+  "pairClosed": true,
+  "disposition": "CHANGES_REQUIRED",
+  "scope": "Static helper metadata finding; six controlled passes retained; no017 replay or npm success claim",
+  "families": {
+    "astra": {
+      "terminalReceipt": "/Users/ccheever/clique-improvement/reviews/default-install-timeout-race-r1/astra/supervisor-terminal-identity.json",
+      "reportBytes": 12633,
+      "reportSha256": "8b85bc27313d82315bcd5b70013a33256e09d1610dcf81a684459f533ab52fa5",
+      "actualOuterExitCode": 0,
+      "actualNativeExitCode": 0,
+      "nativeEndedEpoch": 1788820190.100179,
+      "nativeToolCounts": {},
+      "completedCommandInspections": 20,
+      "observedInboxReads": [
+        "item_1"
+      ],
+      "verdict": "CHANGES_REQUIRED"
+    },
+    "grok": {
+      "terminalReceipt": "/Users/ccheever/clique-improvement/reviews/default-install-timeout-race-r1/grok/supervisor-terminal-identity.json",
+      "reportBytes": 15465,
+      "reportSha256": "edeb754ad3a602433d972903d6b26a83cc47d641fd3a5ecbafede3154c9eff67",
+      "actualOuterExitCode": 0,
+      "actualNativeExitCode": 0,
+      "nativeEndedEpoch": 1788820219.8252318,
+      "nativeToolCounts": {
+        "read_file": 67,
+        "list_dir": 3,
+        "run_terminal_command": 1,
+        "write": 3
+      },
+      "completedCommandInspections": 0,
+      "observedInboxReads": [
+        "call-05fc654c-eada-47f1-905c-8ff0ad5a2a5e-1"
+      ],
+      "verdict": "READY",
+      "actualReadOnlyInspectionCalls": 71,
+      "original30AndProspective60Exceeded": true,
+      "reportCountQualification": "Report says1 of30 commands, but native file inspections also count; actual71. Report preserved verbatim."
+    }
+  },
+  "amendments": "Delivery only; no observed reread. Second amendment22:30:36Z postdates both native terminals; no claim it governed completed reviews.",
+  "accountingCorrection": "Initial substring scan also matched supervisor-inbox text inside report-write content. Inspected actual tool72: write review.md, not inbox read; excluded from final read count."
+}

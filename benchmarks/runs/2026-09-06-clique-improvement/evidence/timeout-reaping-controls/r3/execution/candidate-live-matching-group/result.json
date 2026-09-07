@@ -1,0 +1,58 @@
+{
+  "case": "candidate-live-matching-group",
+  "ok": true,
+  "startedEpoch": 1788821147.941237,
+  "helper": "candidate-helper.py",
+  "scope": "controlled measurement regression; never an install or017 qualification",
+  "helperReceipt": {
+    "actualProcessWaitCompleted": true,
+    "actualReturnCode": -9,
+    "argv": [
+      "/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/bin/python3.9",
+      "-I",
+      "-B",
+      "/Users/ccheever/clique-improvement/revisions/default-install-timeout-race-repair-r3/controlled-child.py",
+      "/Users/ccheever/clique-improvement/revisions/default-install-timeout-race-repair-r3/execution/candidate-live-matching-group/ready",
+      "/Users/ccheever/clique-improvement/revisions/default-install-timeout-race-repair-r3/execution/candidate-live-matching-group/gate"
+    ],
+    "attempt": 1,
+    "automaticRetry": false,
+    "cwd": "/Users/ccheever/clique-improvement/revisions/default-install-timeout-race-repair-r3/execution/candidate-live-matching-group",
+    "elapsedSeconds": 31.0,
+    "endedEpoch": 1788821148.094621,
+    "exitCode": 124,
+    "logSha256": "5b9d5a5493ac69fb240a9e353f7c441dcb7345be7920b9b708cb48a9e6cb4632",
+    "name": "probe",
+    "pid": 30481,
+    "processGroup": 30481,
+    "processIdentity": "30481 Mon Sep  7 15:45:47 2026     /Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/Resources/Python.app/Contents/MacOS/Python",
+    "startedEpoch": 1788821147.9415889,
+    "timedOut": true,
+    "timeoutSeconds": 30
+  },
+  "ownedChildActuallyReaped": true,
+  "ownedGroupAbsent": true,
+  "executeError": {
+    "type": "RuntimeError",
+    "message": "probe failed; retain first failure and stop"
+  },
+  "instrumentation": {
+    "identityCalls": 2,
+    "signals": [
+      {
+        "pgid": 30481,
+        "signal": 9
+      }
+    ],
+    "exitEventsWithoutReaping": 0,
+    "syntheticDeadline": true,
+    "originalIdentity": "30481 Mon Sep  7 15:45:47 2026     /Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/Resources/Python.app/Contents/MacOS/Python"
+  },
+  "childPid": 30481,
+  "actualReturnCode": -9,
+  "retainedLogSha256": "5b9d5a5493ac69fb240a9e353f7c441dcb7345be7920b9b708cb48a9e6cb4632",
+  "runningReceiptRetained": false,
+  "controllerFinalActualReturnCode": -9,
+  "endedEpoch": 1788821148.0984,
+  "wallSeconds": 0.157166209
+}

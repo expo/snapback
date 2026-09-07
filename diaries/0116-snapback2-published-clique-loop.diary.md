@@ -1361,3 +1361,7 @@ The install witness could lose its command terminal when npm exited during timeo
 ## 2026-09-07 — Built package declaration checking repaired
 
 The ambient root now omits redundant `declare` modifiers while the standalone protocol declarations remain intact. Actual built-package consumers pass with library checking enabled and complete diagnostics; the old test filtered out the very library errors users could encounter. Both independent reviews returned READY. [Evidence](../benchmarks/runs/2026-09-06-clique-improvement/evidence/published-declaration-repair/README.md) retains the historical eleven errors, exact consumer populations, source checks, and review limits. This restores declaration checking for the affected consumers without asking app authors to suppress it. The fix and earlier generated API imports are awaiting the next release; no new Clique score is claimed.
+
+## 2026-09-07 — Timeout helper independently accepted
+
+Review caught an overclaim in the first repair: waiting for one child does not prove every log writer has finished. The corrected helper removes that claim and records the log as a snapshot. All six controls still pass, and both fresh reviews returned READY. [R3 evidence](../benchmarks/runs/2026-09-06-clique-improvement/evidence/timeout-reaping-controls/r3/README.md) preserves the earlier review, harness failure, and unknown original install exit. This accepted helper becomes the base for the next public install witness; it improves the honesty and completeness of measurements without turning a timeout into success.
