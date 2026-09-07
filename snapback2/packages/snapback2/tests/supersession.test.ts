@@ -141,7 +141,7 @@ for (const carrier of ["file", "IndexedDB"] as const) {
     try {
       f.state.generation = hex(2);
       const live: any = await f.client.query(api.messages.second, {});
-      assert.equal(live.state, "capped");
+      assert.equal(live.state, "complete");
       assert.equal(f.queries.at(-1).generation, hex(2), "the successful live response was requested from G2");
       await f.rebuilt();
       assert.equal(f.resets(), 1);
@@ -428,7 +428,10 @@ for (const carrier of ["file", "IndexedDB"] as const) {
       assert.deepEqual((await f.store.coverage()).viewed, [{ table: overlapRow.table, id: "viewed" }]);
       // The negative guard still applies inside G2, even to a late equal-seq row.
       await f.store.commit({ tombstones: [{ table: overlapRow.table, id: overlapRow.id, seq: 9 }] });
-      await f.store.commit({ deliveries: [{ op: "late", args: {}, ...f.envelope({}), seq: 9 }] });
+      await assert.rejects(
+        f.store.commit({ deliveries: [{ op: "late", args: {}, ...f.envelope({}), seq: 9 }] }),
+        /conflicting durable fact/,
+      );
       assert.equal((await f.store.coverage()).rows.length, 0);
     } finally { await f.close(); }
   });
@@ -522,7 +525,7 @@ for (const carrier of ["file", "IndexedDB"] as const) {
       await client.online();
       await f.rebuilt("messages.first", hex(5));
       assert.equal(f.client, client, "recovery did not replace the client");
-      assert.equal((await client.query(api.messages.first, {})).state, "capped");
+      assert.equal((await client.query(api.messages.first, {})).state, "complete");
       assert.equal(client.snapshot.lastRefusal, undefined);
       await client.offline();
       assert.equal((await client.query(api.messages.first, {})).state, "capped");
@@ -776,16 +779,17 @@ test("reset clears a terminal subscription latch and cold-opens it again", async
   try {
     sub = f.client.subscribe(api.messages.first, {}, () => undefined);
     await eventually(() => f.streams.length === 1);
-    await sub.until((e: any) => e.seq === 7, 1000);
-    const refused = sub.until((e: any) => e.seq === 8, 1000);
+    emit(f.streams[0], { ...f.envelope({}), seq: 8 }, "before-refusal");
+    await sub.until((e: any) => e.seq === 8, 1000);
+    const refused = sub.until((e: any) => e.seq === 9, 1000);
     emit(f.streams[0], { state: "refused", code: "E_OP_UNKNOWN", family: "op", message: "replaced", guide: "op/manifest" });
     await assert.rejects(refused, (e: any) => e.code === "E_OP_UNKNOWN");
     await assert.rejects(sub.until(() => true), (e: any) => e.code === "E_OP_UNKNOWN");
     sub.reset();
     await eventually(() => f.streams.length === 2);
     assert.equal(f.streams[1].headers.get("Last-Event-ID"), null);
-    emit(f.streams[1], { ...f.envelope({}), seq: 8 }, "new-id");
-    assert.equal((await sub.until((e: any) => e.seq === 8, 1000)).state, "complete");
+    emit(f.streams[1], { ...f.envelope({}), seq: 9 }, "new-id");
+    assert.equal((await sub.until((e: any) => e.seq === 9, 1000)).state, "complete");
   } finally { sub?.close(); await f.close(); }
 });
 
