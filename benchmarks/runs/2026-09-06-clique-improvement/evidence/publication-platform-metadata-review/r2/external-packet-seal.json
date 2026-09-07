@@ -1,0 +1,11 @@
+{
+  "sealedAt": "2026-09-07T17:10:36.978254+00:00",
+  "candidate": "f681a72ef3ff495edfc354291ba232c19018259e",
+  "manifestSha256": "3fbf5d52c503e2562aa47865e1e71eb322bb310215cc4c077e3912a86a7cb882",
+  "reportSha256": "50448037a948a2fb9abf101a3c8cb527a2bf44510ce23a1ba64db759f7ddbab4",
+  "leafCount": 248,
+  "bytes": 4128071,
+  "bothActualTerminals": true,
+  "bothReady": true,
+  "optionalExecutions": 0
+}

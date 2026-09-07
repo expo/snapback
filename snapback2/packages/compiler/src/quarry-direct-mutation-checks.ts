@@ -23,6 +23,7 @@ export function registerQuarryDirectMutationChecks(test: Test, frontend: string)
 table rows:
   owner: principal
   related: owners ?
+  sibling: rows ?
   label: text <=40
   count: int
   unique byOwner: owner
@@ -33,6 +34,19 @@ table rows:
 `;
     const operations = `mutation add(owner: principal):
   insert rows { owner, label: 'made', count: 0 }
+
+mutation allocated(owner: principal, secondOwner: principal):
+  first = insert rows { owner, sibling: new, label: 'first', count: 0 }
+  second = insert rows { owner: secondOwner, sibling: first.id, label: 'second', count: 0 }
+  return { firstId: first.id, fieldId: first.sibling, secondId: second.id }
+
+mutation explicit(id: id, owner: principal):
+  row = insert rows { id, owner, sibling: new, label: 'explicit', count: 0 }
+  return { rowId: row.id, fieldId: row.sibling }
+
+mutation joined(ids: [rows] <=2 ?):
+  chosen = ids ?? [new, new]
+  return { chosen, next: new }
 
 mutation blind(id: rows):
   update rows[id] { label: 'blind' }
@@ -97,7 +111,7 @@ mutation branch(owner: principal, flag: bool):
 
       const row: Value = { Row: {
         id: { Id: "row-1" }, owner: { Id: "owner-1" }, related: { Id: "related-1" },
-        label: { String: "original" }, count: { Int: 7 },
+        sibling: "Null", label: { String: "original" }, count: { Int: 7 },
       } };
       const receipt = (certificate: Record<string, unknown>): ClosureReceipt => ({
         schema_hash: certificate.schema_hash as string,
@@ -108,6 +122,9 @@ mutation branch(owner: principal, flag: bool):
         absences: [
           ["rows", "byOwner", [{ Id: "owner-2" }]],
           ["rows", "byOwner", [{ Id: "owner-3" }]],
+          ["rows", "byOwner", [{ Id: "owner-4" }]],
+          ["rows", "byOwner", [{ Id: "owner-5" }]],
+          ["rows", "byOwner", [{ Id: "owner-6" }]],
           ["rows", "byId", [{ Id: "row-2" }]],
         ],
       });
@@ -153,6 +170,72 @@ mutation branch(owner: principal, flag: bool):
           && canonicalValue(execution.result.Row.id) === canonicalValue({ Id: newIds[0] }),
         `${name} did not return the once-evaluated inserted row: ${JSON.stringify({ applied, program })}`);
       }
+
+      const allocated = direct.get("allocated")!;
+      const allocatedStore = new ClientStore(oracle.project.schema, receipt(checks.get("allocated")!));
+      const allocatedApply = allocatedStore.applyMutation(allocated, { ...context("allocated"),
+        args: { owner: { Id: "owner-4" }, secondOwner: { Id: "owner-6" } },
+        new_ids: ["row-first", "field-first", "row-second"] });
+      const allocatedResult = allocatedApply.execution.result;
+      assert(canonicalValue(allocatedResult) === canonicalValue({ Row: {
+        firstId: { Id: "row-first" }, fieldId: { Id: "field-first" }, secondId: { Id: "row-second" },
+      } }), `implicit insert id did not allocate before authored field values: ${canonicalValue(allocatedResult)} ${JSON.stringify({ allocated, allocatedApply, rows: allocatedStore.rows("rows") })}`);
+      const allocatedOracle = operation(oracle.project.programs, "writes.allocated");
+      const allocatedOracleCheck = rustCheck([allocatedOracle], "synthetic", oracle.project.schema)[0]!;
+      assert(!allocatedOracleCheck.error && allocatedOracleCheck.certificate,
+        `allocated oracle did not certify: ${JSON.stringify(allocatedOracleCheck)}`);
+      const allocatedOracleResult = new ClientStore(oracle.project.schema, receipt(allocatedOracleCheck.certificate))
+        .applyMutation(allocatedOracle, { ...context("allocated"),
+          args: { owner: { Id: "owner-4" }, secondOwner: { Id: "owner-6" } },
+          new_ids: ["row-first", "field-first", "row-second"] }).execution.result;
+      assert(canonicalValue(allocatedOracleResult) === canonicalValue(allocatedResult),
+        `direct insert allocation order diverged from the authored oracle: ${canonicalValue(allocatedOracleResult)}`);
+      let exhausted: { code?: string } | undefined;
+      try {
+        new ClientStore(oracle.project.schema, receipt(checks.get("allocated")!)).applyMutation(allocated, {
+          ...context("allocated"), args: { owner: { Id: "owner-4" }, secondOwner: { Id: "owner-6" } },
+          new_ids: ["row-first", "field-first"],
+        });
+      } catch (error) { exhausted = error as { code?: string }; }
+      assert(exhausted?.code === "E_INPUT", `three once-only allocations did not exhaust two ids: ${JSON.stringify(exhausted)}`);
+
+      const explicit = direct.get("explicit")!;
+      const explicitResult = new ClientStore(oracle.project.schema, receipt(checks.get("explicit")!))
+        .applyMutation(explicit, { ...context("explicit"),
+          args: { id: { Id: "authored-row" }, owner: { Id: "owner-5" } }, new_ids: ["field-only"] }).execution.result;
+      assert(canonicalValue(explicitResult) === canonicalValue({ Row: {
+        rowId: { Id: "authored-row" }, fieldId: { Id: "field-only" },
+      } }), `explicit insert id acquired an implicit allocation: ${canonicalValue(explicitResult)}`);
+
+      const joined = direct.get("joined")!;
+      const joinedCertificate = checks.get("joined")!;
+      const joinedOracle = operation(oracle.project.programs, "writes.joined");
+      const joinedOracleCheck = rustCheck([joinedOracle], "synthetic", oracle.project.schema)[0]!;
+      assert(!joinedOracleCheck.error && joinedOracleCheck.certificate,
+        `joined oracle did not certify: ${JSON.stringify(joinedOracleCheck)}`);
+      const joinedOracleCertificate = joinedOracleCheck.certificate;
+      const joinedResult = (ids: Value, newIds: string[]) => {
+        const directResult = new ClientStore(oracle.project.schema, receipt(joinedCertificate))
+          .applyMutation(joined, { ...context("joined"), args: { ids }, new_ids: [...newIds] }).execution.result;
+        const oracleResult = new ClientStore(oracle.project.schema, receipt(joinedOracleCertificate))
+          .applyMutation(joinedOracle, { ...context("joined"), args: { ids }, new_ids: [...newIds] }).execution.result;
+        assert(canonicalValue(directResult) === canonicalValue(oracleResult),
+          `effectful list fallback diverged from the authored oracle: ${canonicalValue(directResult)} / ${canonicalValue(oracleResult)}`);
+        return directResult;
+      };
+      assert(canonicalValue(joinedResult("Null", ["fallback-1", "fallback-2", "after-fallback"])) === canonicalValue({ Row: {
+        chosen: { Array: [{ Id: "fallback-1" }, { Id: "fallback-2" }] }, next: { Id: "after-fallback" },
+      } }), "effectful list fallback lost left-to-right allocation order");
+      assert(canonicalValue(joinedResult({ Array: [] }, ["after-empty"])) === canonicalValue({ Row: {
+        chosen: { Array: [] }, next: { Id: "after-empty" },
+      } }), "present empty list evaluated the effectful fallback");
+      assert(canonicalValue(joinedResult({ Array: [{ Id: "provided" }] }, ["after-provided"])) === canonicalValue({ Row: {
+        chosen: { Array: [{ Id: "provided" }] }, next: { Id: "after-provided" },
+      } }), "present nonempty list evaluated the effectful fallback");
+      let joinedExhausted: { code?: string } | undefined;
+      try { joinedResult("Null", ["fallback-1", "fallback-2"]); } catch (error) { joinedExhausted = error as { code?: string }; }
+      assert(joinedExhausted?.code === "E_INPUT",
+        `effectful fallback did not consume exactly two ids before the following expression: ${JSON.stringify(joinedExhausted)}`);
 
       for (const [name, args, newIds] of [
         ["ensure", { id: { Id: "row-1" }, owner: { Id: "owner-1" } }, []],

@@ -1,0 +1,3815 @@
+{
+  "reportVersion": "diagnostic-assertion-audit.v1",
+  "auditKind": "fresh independent diagnostic assertion audit; runtime phases aborted",
+  "completedAt": "2026-09-07T15:32:55.835553+00:00",
+  "grader": {
+    "family": "GPT",
+    "requestedModel": "gpt-6-astra",
+    "requestedReasoningEffort": "xhigh",
+    "sameFamilyGraded": false,
+    "subagentsUsed": false,
+    "calibrationStatus": "unestablished",
+    "formalGradeEligible": false,
+    "sessionOutcome": "diagnostic-report-completed-with-grader-abort-phases",
+    "excludedBuilderContextRead": false
+  },
+  "lane": {
+    "backend": "published snapback2@0.0.15",
+    "original": "/Users/ccheever/clique-full-grok-015-20260907/lanes/grok-snapback2",
+    "copy": "/Users/ccheever/clique-improvement/grading/grok-015/outcome/audit/lanes/grok-snapback2",
+    "milestones": [
+      "M1",
+      "M2",
+      "M3",
+      "M4",
+      "M5",
+      "M6",
+      "M8"
+    ],
+    "M7": "separate, excluded",
+    "builderProcess": {
+      "id": 17895,
+      "exitCode": 0,
+      "authority": "user-provided; not restarted"
+    }
+  },
+  "instrument": {
+    "original": "/Users/ccheever/clique-full-grok-015-20260907/instrument",
+    "brief": "audit/instrument/social-messenger.md",
+    "assertionManifest": "audit/instrument/schema/social-messenger/assertions.json",
+    "manifestVersion": "0.3.0-m8",
+    "assertionManifestSha256": "e15c3952856148fef9872f9d509159b47fe0066bdca904330ae96196ba732d04",
+    "choreography": "0.3.6-m8",
+    "calibration": "unestablished",
+    "committedHoldoutSet": null
+  },
+  "verdictPolicy": {
+    "pass": "Only a complete source-verifiable obligation can pass when fresh runtime is unavailable.",
+    "fail": "An unambiguous contradiction in the completed source; runtime reproduction remains separately not-run.",
+    "not-run": "Required runtime/native/scale precondition unavailable, or historical evidence cannot prove this full assertion.",
+    "historicalReceipts": "Supplemental, never silently upgraded to fresh passing evidence."
+  },
+  "assertionResults": {
+    "m1-a01": {
+      "result": "not-run",
+      "method": "source-inspection",
+      "text": "Sign up as a new user with email + password (password >= 8 chars) succeeds.",
+      "executor": "suite-required",
+      "freshRuntimeResult": "not-run",
+      "freshRuntimeReason": "Exact-lock dependency setup failed twice; no fresh owner/web/browser context started.",
+      "evidence": [
+        "audit/lanes/grok-snapback2/app/auth.tsx:24",
+        "audit/lanes/grok-snapback2/scripts/acceptance.mjs:37"
+      ],
+      "note": "Fresh signup could not run. The original suite creates a new SDK user and checks viewer; UI enforces eight characters before built-in signup. This does not establish the fresh runtime result.",
+      "historicalObservations": [],
+      "timingSensitive": false,
+      "freshTimingAttempts": [],
+      "originalSuiteClaim": {
+        "result": "pass",
+        "mappedTest": "acceptance.mjs#m1",
+        "evidence": "audit/evidence/original-receipts/suite-m1.json"
+      },
+      "coverage": {
+        "verdict": "substantiated-mapping",
+        "reason": "Actually performs SDK signup with a compliant password and checks viewer."
+      }
+    },
+    "m1-a02": {
+      "result": "not-run",
+      "method": "source-inspection",
+      "text": "After signup the app lands in the authenticated state.",
+      "executor": "suite-required",
+      "freshRuntimeResult": "not-run",
+      "freshRuntimeReason": "Exact-lock dependency setup failed twice; no fresh owner/web/browser context started.",
+      "evidence": [
+        "audit/lanes/grok-snapback2/app/_layout.tsx:11",
+        "audit/lanes/grok-snapback2/scripts/acceptance.mjs:38"
+      ],
+      "note": "The original suite equates an SDK viewer with authenticated app landing. The completed route gate also requires a profile. No fresh browser landing was observed.",
+      "historicalObservations": [],
+      "timingSensitive": false,
+      "freshTimingAttempts": [],
+      "originalSuiteClaim": {
+        "result": "pass",
+        "mappedTest": "acceptance.mjs#m1",
+        "evidence": "audit/evidence/original-receipts/suite-m1.json"
+      },
+      "coverage": {
+        "verdict": "partial",
+        "reason": "SDK auth state is not UI landing."
+      }
+    },
+    "m1-a03": {
+      "result": "fail",
+      "method": "source-inspection",
+      "text": "Signing up with a duplicate handle is rejected with a visible error.",
+      "executor": "suite-required",
+      "freshRuntimeResult": "not-run",
+      "freshRuntimeReason": "Exact-lock dependency setup failed twice; no fresh owner/web/browser context started.",
+      "evidence": [
+        "audit/lanes/grok-snapback2/app/auth.tsx:38",
+        "audit/lanes/grok-snapback2/scripts/acceptance.mjs:59"
+      ],
+      "note": "Source contradiction: signup derives a handle from email and silently retries a duplicate with a random numeric suffix. A duplicate does not necessarily produce the required visible rejection. The suite checks only an API rejection, bypassing this UI path.",
+      "historicalObservations": [],
+      "timingSensitive": false,
+      "freshTimingAttempts": [],
+      "originalSuiteClaim": {
+        "result": "pass",
+        "mappedTest": "acceptance.mjs#m1",
+        "evidence": "audit/evidence/original-receipts/suite-m1.json"
+      },
+      "coverage": {
+        "verdict": "partial",
+        "reason": "API rejection only; no visible-error check."
+      }
+    },
+    "m1-a04": {
+      "result": "not-run",
+      "method": "source-inspection",
+      "text": "Signing up with a duplicate email is rejected with a visible error.",
+      "executor": "suite-required",
+      "freshRuntimeResult": "not-run",
+      "freshRuntimeReason": "Exact-lock dependency setup failed twice; no fresh owner/web/browser context started.",
+      "evidence": [
+        "audit/lanes/grok-snapback2/app/auth.tsx:55",
+        "audit/lanes/grok-snapback2/scripts/acceptance.mjs:69"
+      ],
+      "note": "Built-in signup is caught and rendered as an error by the UI. The original suite observes a thrown duplicate-email API call but never verifies a visible error; fresh signup UI was unavailable.",
+      "historicalObservations": [],
+      "timingSensitive": false,
+      "freshTimingAttempts": [],
+      "originalSuiteClaim": {
+        "result": "pass",
+        "mappedTest": "acceptance.mjs#m1",
+        "evidence": "audit/evidence/original-receipts/suite-m1.json"
+      },
+      "coverage": {
+        "verdict": "partial",
+        "reason": "API exception only; no visible-error check."
+      }
+    },
+    "m1-a05": {
+      "result": "not-run",
+      "method": "choreography-artifacts",
+      "text": "Kill and relaunch the app; the session persists (still signed in).",
+      "executor": "choreo",
+      "freshRuntimeResult": "not-run",
+      "freshRuntimeReason": "Exact-lock dependency setup failed twice; no fresh owner/web/browser context started.",
+      "evidence": [
+        "audit/lanes/grok-snapback2/lib/snapback.tsx:3",
+        "audit/lanes/grok-snapback2/choreography/choreography.mjs:1211"
+      ],
+      "note": "Retained M1 receipt observed authenticated web page reload. That is historical web reload evidence, not a new app kill/relaunch or native lifecycle proof. It carries no hash of completed app source.",
+      "historicalObservations": [
+        {
+          "assertion": "session-persists-on-relaunch",
+          "recordedStatus": "passed",
+          "evidence": "audit/evidence/original-receipts/choreo-m1.jsonl:2",
+          "bestOf": 1,
+          "attemptCount": 1,
+          "completedSourceHashBound": false
+        }
+      ],
+      "timingSensitive": false,
+      "freshTimingAttempts": []
+    },
+    "m1-a06": {
+      "result": "not-run",
+      "method": "choreography-artifacts",
+      "text": "Log out, relaunch: the app is signed out.",
+      "executor": "choreo",
+      "freshRuntimeResult": "not-run",
+      "freshRuntimeReason": "Exact-lock dependency setup failed twice; no fresh owner/web/browser context started.",
+      "evidence": [
+        "audit/lanes/grok-snapback2/app/settings.tsx:26",
+        "audit/lanes/grok-snapback2/choreography/choreography.mjs:1229"
+      ],
+      "note": "Retained M1 receipt observed logout then signed-out page reload. No new browser lifecycle run was possible; this observation does not prove API token revocation.",
+      "historicalObservations": [
+        {
+          "assertion": "logout-remains-signed-out-on-relaunch",
+          "recordedStatus": "passed",
+          "evidence": "audit/evidence/original-receipts/choreo-m1.jsonl:3",
+          "bestOf": 1,
+          "attemptCount": 1,
+          "completedSourceHashBound": false
+        }
+      ],
+      "timingSensitive": false,
+      "freshTimingAttempts": []
+    },
+    "m1-a07": {
+      "result": "not-run",
+      "method": "api",
+      "text": "After logout the old session token no longer works against the backend (server-side revocation, verified via the API).",
+      "executor": "grader",
+      "freshRuntimeResult": "not-run",
+      "freshRuntimeReason": "Exact-lock dependency setup failed twice; no fresh owner/web/browser context started.",
+      "evidence": [
+        "audit/lanes/grok-snapback2/app/settings.tsx:26",
+        "audit/lanes/grok-snapback2/API.md"
+      ],
+      "note": "No old token was captured or replayed. The app calls built-in logout, but server-side old-token refusal remains untested under this audit.",
+      "historicalObservations": [],
+      "timingSensitive": false,
+      "freshTimingAttempts": []
+    },
+    "m1-a08": {
+      "result": "not-run",
+      "method": "source-inspection",
+      "text": "Editing display name and bio persists (updated values shown on own profile).",
+      "executor": "suite-required",
+      "freshRuntimeResult": "not-run",
+      "freshRuntimeReason": "Exact-lock dependency setup failed twice; no fresh owner/web/browser context started.",
+      "evidence": [
+        "audit/lanes/grok-snapback2/app/profile/edit.tsx:56",
+        "audit/lanes/grok-snapback2/scripts/acceptance.mjs:79"
+      ],
+      "note": "Original suite verifies persisted displayName/bio in profiles.mine; original choreography observes Bob, not an independent own-profile read after save. Fresh own-profile browser/API checks were blocked.",
+      "historicalObservations": [],
+      "timingSensitive": false,
+      "freshTimingAttempts": [],
+      "originalSuiteClaim": {
+        "result": "pass",
+        "mappedTest": "acceptance.mjs#m1",
+        "evidence": "audit/evidence/original-receipts/suite-m1.json"
+      },
+      "coverage": {
+        "verdict": "partial",
+        "reason": "Persisted profile data checked; own-profile UI not checked."
+      }
+    },
+    "m1-a09": {
+      "result": "not-run",
+      "method": "choreography-artifacts",
+      "text": "Display-name and bio edits are visible on the other client without manual refresh.",
+      "executor": "choreo",
+      "freshRuntimeResult": "not-run",
+      "freshRuntimeReason": "Exact-lock dependency setup failed twice; no fresh owner/web/browser context started.",
+      "evidence": [
+        "audit/lanes/grok-snapback2/choreography/choreography.mjs:1172"
+      ],
+      "note": "Original choreography records three real Bob-side profile text/heading observations after Alice saves. All are retained separately; no fresh timing samples or completed-source binding exists.",
+      "historicalObservations": [
+        {
+          "assertion": "profile-edit-live-visibility",
+          "recordedStatus": "passed",
+          "evidence": "audit/evidence/original-receipts/choreo-m1.jsonl:1",
+          "bestOf": 3,
+          "attemptCount": 3,
+          "completedSourceHashBound": false
+        }
+      ],
+      "timingSensitive": true,
+      "freshTimingAttempts": []
+    },
+    "m1-a10": {
+      "result": "not-run",
+      "method": "source-inspection",
+      "text": "Uploading a fixture avatar succeeds.",
+      "executor": "suite-required",
+      "freshRuntimeResult": "not-run",
+      "freshRuntimeReason": "Exact-lock dependency setup failed twice; no fresh owner/web/browser context started.",
+      "evidence": [
+        "audit/lanes/grok-snapback2/app/profile/edit.tsx:49",
+        "audit/lanes/grok-snapback2/ui/src/ProfileForm.tsx:54",
+        "audit/lanes/grok-snapback2/scripts/acceptance.mjs:91"
+      ],
+      "note": "Original API suite uploads a fixture avatar and checks committed state. The completed profile UI omits onPressAvatar and omits avatar from its save payload; interactive avatar replacement is absent. The API upload was not freshly repeated.",
+      "historicalObservations": [],
+      "timingSensitive": false,
+      "freshTimingAttempts": [],
+      "originalSuiteClaim": {
+        "result": "pass",
+        "mappedTest": "acceptance.mjs#m1",
+        "evidence": "audit/evidence/original-receipts/suite-m1.json"
+      },
+      "coverage": {
+        "verdict": "substantiated-mapping",
+        "reason": "Actually uploads fixture avatar and checks commit."
+      }
+    },
+    "m1-a11": {
+      "result": "not-run",
+      "method": "source-inspection",
+      "text": "The uploaded avatar renders on the profile (avatars beside posts and messages are asserted at M2/M3, where those surfaces exist).",
+      "executor": "suite-required",
+      "freshRuntimeResult": "not-run",
+      "freshRuntimeReason": "Exact-lock dependency setup failed twice; no fresh owner/web/browser context started.",
+      "evidence": [
+        "audit/lanes/grok-snapback2/app/profile/[handle].tsx:26",
+        "audit/lanes/grok-snapback2/scripts/acceptance.mjs:92"
+      ],
+      "note": "Original suite checks that the returned avatar reference is truthy, not that image bytes render. The profile route supplies useAssetUrl to ProfileForm; fresh rendered-image verification remains unavailable.",
+      "historicalObservations": [],
+      "timingSensitive": false,
+      "freshTimingAttempts": [],
+      "originalSuiteClaim": {
+        "result": "pass",
+        "mappedTest": "acceptance.mjs#m1",
+        "evidence": "audit/evidence/original-receipts/suite-m1.json"
+      },
+      "coverage": {
+        "verdict": "partial",
+        "reason": "Truthy asset reference is not rendered image."
+      }
+    },
+    "m1-a12": {
+      "result": "pass",
+      "method": "source-inspection",
+      "text": "Source inspection: passwords are stored via built-in auth or a named adaptive KDF (argon2id, scrypt, or bcrypt at standard published parameters); a managed auth provider qualifies by its documentation, with the grader verifying the lane uses the documented provider path, not provider internals.",
+      "executor": "grader",
+      "freshRuntimeResult": "not-run",
+      "freshRuntimeReason": "Exact-lock dependency setup failed twice; no fresh owner/web/browser context started.",
+      "evidence": [
+        "audit/lanes/grok-snapback2/snapback/schema.q:1",
+        "audit/lanes/grok-snapback2/app/auth.tsx:28",
+        "audit/evidence/published-package-docs/auth.md"
+      ],
+      "note": "Source obligation verified: schema selects built-in password identity and the app uses the published auth signup/login path. The archived 0.0.15 auth guide documents that exact path. This is a provider-path source pass, not a claim about uninspected provider internals.",
+      "historicalObservations": [],
+      "timingSensitive": false,
+      "freshTimingAttempts": []
+    },
+    "m1-a13": {
+      "result": "not-run",
+      "method": "source-inspection",
+      "text": "No plaintext or reversible password storage in server persistence, client bundles, or logs (the fixture pack's credential files are a declared test-fixture exception - they live outside the app).",
+      "executor": "grader",
+      "freshRuntimeResult": "not-run",
+      "freshRuntimeReason": "Exact-lock dependency setup failed twice; no fresh owner/web/browser context started.",
+      "evidence": [
+        "audit/lanes/grok-snapback2/app/auth.tsx:14",
+        "audit/lanes/grok-snapback2/lib/snapback.tsx:10",
+        "audit/lanes/grok-snapback2/snapback/schema.q:1"
+      ],
+      "note": "Source inspection found no product password table or client password persistence; submitted passwords are component state passed to built-in auth. Test/demo scripts contain fixture credential literals. Original private persistence, builder logs, and bundle contents were excluded, so the universal no-plaintext-storage assertion is not fully verified.",
+      "historicalObservations": [],
+      "timingSensitive": false,
+      "freshTimingAttempts": []
+    },
+    "m2-a01": {
+      "result": "not-run",
+      "method": "source-inspection",
+      "text": "Create a text post.",
+      "executor": "suite-required",
+      "freshRuntimeResult": "not-run",
+      "freshRuntimeReason": "Exact-lock dependency setup failed twice; no fresh owner/web/browser context started.",
+      "evidence": [
+        "audit/lanes/grok-snapback2/scripts/acceptance.mjs:107",
+        "audit/lanes/grok-snapback2/snapback/posts.q:1"
+      ],
+      "note": "Original suite submits createTextPost and checks committed. Retained text choreography observes delivery, but fresh creation was blocked.",
+      "historicalObservations": [
+        {
+          "assertion": "feed-text-post-live-update",
+          "recordedStatus": "passed",
+          "evidence": "audit/evidence/original-receipts/choreo-m2.jsonl:1",
+          "bestOf": 3,
+          "attemptCount": 3,
+          "completedSourceHashBound": false
+        }
+      ],
+      "timingSensitive": false,
+      "freshTimingAttempts": [],
+      "originalSuiteClaim": {
+        "result": "pass",
+        "mappedTest": "m2-a01",
+        "evidence": "audit/evidence/original-receipts/suite-m2.json"
+      },
+      "coverage": {
+        "verdict": "substantiated-mapping",
+        "reason": "Creates text and checks commit."
+      }
+    },
+    "m2-a02": {
+      "result": "not-run",
+      "method": "source-inspection",
+      "text": "Create an image post with 2 fixture images.",
+      "executor": "suite-required",
+      "freshRuntimeResult": "not-run",
+      "freshRuntimeReason": "Exact-lock dependency setup failed twice; no fresh owner/web/browser context started.",
+      "evidence": [
+        "audit/lanes/grok-snapback2/scripts/acceptance.mjs:116",
+        "audit/lanes/grok-snapback2/snapback/posts.q:13",
+        "audit/lanes/grok-snapback2/choreography/choreography.mjs:962"
+      ],
+      "note": "Original suite sends exactly two fixture image files and checks committed. Choreography sends only one fixture image, so its media receipt cannot prove the two-image requirement. No fresh creation occurred.",
+      "historicalObservations": [
+        {
+          "assertion": "feed-image-post-live-update",
+          "recordedStatus": "passed",
+          "evidence": "audit/evidence/original-receipts/choreo-m2.jsonl:2",
+          "bestOf": 3,
+          "attemptCount": 3,
+          "completedSourceHashBound": false
+        }
+      ],
+      "timingSensitive": false,
+      "freshTimingAttempts": [],
+      "originalSuiteClaim": {
+        "result": "pass",
+        "mappedTest": "m2-a02",
+        "evidence": "audit/evidence/original-receipts/suite-m2.json"
+      },
+      "coverage": {
+        "verdict": "substantiated-mapping",
+        "reason": "Uploads two fixture images and checks commit."
+      }
+    },
+    "m2-a03": {
+      "result": "not-run",
+      "method": "source-inspection",
+      "text": "Create a video post.",
+      "executor": "suite-required",
+      "freshRuntimeResult": "not-run",
+      "freshRuntimeReason": "Exact-lock dependency setup failed twice; no fresh owner/web/browser context started.",
+      "evidence": [
+        "audit/lanes/grok-snapback2/scripts/acceptance.mjs:121",
+        "audit/lanes/grok-snapback2/snapback/posts.q:25"
+      ],
+      "note": "Original suite submits the fixture MP4 and checks committed; fresh creation could not run.",
+      "historicalObservations": [
+        {
+          "assertion": "feed-video-post-live-update",
+          "recordedStatus": "passed",
+          "evidence": "audit/evidence/original-receipts/choreo-m2.jsonl:3",
+          "bestOf": 3,
+          "attemptCount": 3,
+          "completedSourceHashBound": false
+        }
+      ],
+      "timingSensitive": false,
+      "freshTimingAttempts": [],
+      "originalSuiteClaim": {
+        "result": "pass",
+        "mappedTest": "m2-a03",
+        "evidence": "audit/evidence/original-receipts/suite-m2.json"
+      },
+      "coverage": {
+        "verdict": "substantiated-mapping",
+        "reason": "Uploads fixture video and checks commit."
+      }
+    },
+    "m2-a04": {
+      "result": "not-run",
+      "method": "choreography-artifacts",
+      "text": "All three created posts render in the Global feed on the other client without manual refresh.",
+      "executor": "choreo",
+      "freshRuntimeResult": "not-run",
+      "freshRuntimeReason": "Exact-lock dependency setup failed twice; no fresh owner/web/browser context started.",
+      "evidence": [
+        "audit/lanes/grok-snapback2/choreography/choreography.mjs:962",
+        "audit/lanes/grok-snapback2/lib/ComposeFile.web.tsx:33"
+      ],
+      "note": "Historical text, image and video choreography each retains three trials. Image uses one file; video verifies semantic media presence and a synthetic image attachment preview, not recipient video bytes/playback. The exact two-image compound requirement and fresh completed-source behavior remain unverified.",
+      "historicalObservations": [
+        {
+          "assertion": "feed-text-post-live-update",
+          "recordedStatus": "passed",
+          "evidence": "audit/evidence/original-receipts/choreo-m2.jsonl:1",
+          "bestOf": 3,
+          "attemptCount": 3,
+          "completedSourceHashBound": false
+        },
+        {
+          "assertion": "feed-image-post-live-update",
+          "recordedStatus": "passed",
+          "evidence": "audit/evidence/original-receipts/choreo-m2.jsonl:2",
+          "bestOf": 3,
+          "attemptCount": 3,
+          "completedSourceHashBound": false
+        },
+        {
+          "assertion": "feed-video-post-live-update",
+          "recordedStatus": "passed",
+          "evidence": "audit/evidence/original-receipts/choreo-m2.jsonl:3",
+          "bestOf": 3,
+          "attemptCount": 3,
+          "completedSourceHashBound": false
+        }
+      ],
+      "timingSensitive": true,
+      "freshTimingAttempts": []
+    },
+    "m2-a05": {
+      "result": "not-run",
+      "method": "choreography-artifacts",
+      "text": "Feed items render with the author's avatar and display name.",
+      "executor": "choreo",
+      "freshRuntimeResult": "not-run",
+      "freshRuntimeReason": "Exact-lock dependency setup failed twice; no fresh owner/web/browser context started.",
+      "evidence": [
+        "audit/lanes/grok-snapback2/choreography/choreography.mjs:1366",
+        "audit/lanes/grok-snapback2/app/index.tsx:49"
+      ],
+      "note": "Historical harness checks author display text and exact avatar identity attribute, without checking avatar image decoding. This supports identity semantics, not a fresh image-render proof.",
+      "historicalObservations": [
+        {
+          "assertion": "feed-author-avatar-and-display-name",
+          "recordedStatus": "passed",
+          "evidence": "audit/evidence/original-receipts/choreo-m2.jsonl:5",
+          "bestOf": 1,
+          "attemptCount": 1,
+          "completedSourceHashBound": false
+        }
+      ],
+      "timingSensitive": false,
+      "freshTimingAttempts": []
+    },
+    "m2-a06": {
+      "result": "not-run",
+      "method": "source-inspection",
+      "text": "Bob follows Alice; Alice's posts appear in Bob's Following feed.",
+      "executor": "suite-required",
+      "freshRuntimeResult": "not-run",
+      "freshRuntimeReason": "Exact-lock dependency setup failed twice; no fresh owner/web/browser context started.",
+      "evidence": [
+        "audit/lanes/grok-snapback2/scripts/acceptance.mjs:127",
+        "audit/lanes/grok-snapback2/snapback/follows.q:1"
+      ],
+      "note": "Original suite follows Alice and finds an Alice-authored row in the first Following page; original choreography observes follow projection changes. No fresh execution.",
+      "historicalObservations": [
+        {
+          "assertion": "follow-unfollow-live-projection",
+          "recordedStatus": "passed",
+          "evidence": "audit/evidence/original-receipts/choreo-m2.jsonl:4",
+          "bestOf": 3,
+          "attemptCount": 3,
+          "completedSourceHashBound": false
+        }
+      ],
+      "timingSensitive": false,
+      "freshTimingAttempts": [],
+      "originalSuiteClaim": {
+        "result": "pass",
+        "mappedTest": "m2-a06",
+        "evidence": "audit/evidence/original-receipts/suite-m2.json"
+      },
+      "coverage": {
+        "verdict": "substantiated-mapping",
+        "reason": "Follows Alice and checks an Alice-authored Following row."
+      }
+    },
+    "m2-a07": {
+      "result": "not-run",
+      "method": "choreography-artifacts",
+      "text": "Alice's follower count updates live when Bob follows her.",
+      "executor": "choreo",
+      "freshRuntimeResult": "not-run",
+      "freshRuntimeReason": "Exact-lock dependency setup failed twice; no fresh owner/web/browser context started.",
+      "evidence": [
+        "audit/lanes/grok-snapback2/choreography/choreography.mjs:1295",
+        "audit/lanes/grok-snapback2/app/profile/[handle].tsx:48"
+      ],
+      "note": "The named follow/unfollow choreography observes feed membership changes, not Alice follower-count changes. Neither original evidence nor fresh execution establishes this live count assertion.",
+      "historicalObservations": [],
+      "timingSensitive": true,
+      "freshTimingAttempts": []
+    },
+    "m2-a08": {
+      "result": "not-run",
+      "method": "source-inspection",
+      "text": "After Bob unfollows, on next feed load Alice's posts (including older ones) no longer appear in his Following feed.",
+      "executor": "suite-required",
+      "freshRuntimeResult": "not-run",
+      "freshRuntimeReason": "Exact-lock dependency setup failed twice; no fresh owner/web/browser context started.",
+      "evidence": [
+        "audit/lanes/grok-snapback2/scripts/acceptance.mjs:142",
+        "audit/lanes/grok-snapback2/snapback/follows.q:16"
+      ],
+      "note": "Original suite polls only the first Following page for Alice originals. Choreography tracks one new post. Neither proves removal of all older paginated Alice posts; fresh check unavailable.",
+      "historicalObservations": [
+        {
+          "assertion": "follow-unfollow-live-projection",
+          "recordedStatus": "passed",
+          "evidence": "audit/evidence/original-receipts/choreo-m2.jsonl:4",
+          "bestOf": 3,
+          "attemptCount": 3,
+          "completedSourceHashBound": false
+        }
+      ],
+      "timingSensitive": false,
+      "freshTimingAttempts": [],
+      "originalSuiteClaim": {
+        "result": "pass",
+        "mappedTest": "m2-a08",
+        "evidence": "audit/evidence/original-receipts/suite-m2.json"
+      },
+      "coverage": {
+        "verdict": "partial",
+        "reason": "Only first-page originals checked, not all older posts."
+      }
+    },
+    "m2-a09": {
+      "result": "not-run",
+      "method": "source-inspection",
+      "text": "After the unfollow, Alice's posts remain visible in the Global feed (unfollow is projection-scoped, not content revocation).",
+      "executor": "suite-required",
+      "freshRuntimeResult": "not-run",
+      "freshRuntimeReason": "Exact-lock dependency setup failed twice; no fresh owner/web/browser context started.",
+      "evidence": [
+        "audit/lanes/grok-snapback2/scripts/acceptance.mjs:144",
+        "audit/lanes/grok-snapback2/choreography/choreography.mjs:1336"
+      ],
+      "note": "Original suite checks any Global post, not the same Alice posts. Historical choreography preserves its named Alice post in Global, but completed-source behavior was not freshly exercised.",
+      "historicalObservations": [
+        {
+          "assertion": "follow-unfollow-live-projection",
+          "recordedStatus": "passed",
+          "evidence": "audit/evidence/original-receipts/choreo-m2.jsonl:4",
+          "bestOf": 3,
+          "attemptCount": 3,
+          "completedSourceHashBound": false
+        }
+      ],
+      "timingSensitive": false,
+      "freshTimingAttempts": [],
+      "originalSuiteClaim": {
+        "result": "pass",
+        "mappedTest": "m2-a09",
+        "evidence": "audit/evidence/original-receipts/suite-m2.json"
+      },
+      "coverage": {
+        "verdict": "unsubstantiated",
+        "reason": "Any Global post qualifies; Alice identity not required."
+      }
+    },
+    "m2-a10": {
+      "result": "not-run",
+      "method": "source-inspection",
+      "text": "A post from a user Bob doesn't follow appears in his Global feed.",
+      "executor": "suite-required",
+      "freshRuntimeResult": "not-run",
+      "freshRuntimeReason": "Exact-lock dependency setup failed twice; no fresh owner/web/browser context started.",
+      "evidence": [
+        "audit/lanes/grok-snapback2/scripts/acceptance.mjs:162",
+        "audit/lanes/grok-snapback2/choreography/choreography.mjs:1522"
+      ],
+      "note": "Original suite checks only a data envelope. The historical repost-projection journey shows a specifically unfollowed author in Global; this is limited historical evidence.",
+      "historicalObservations": [
+        {
+          "assertion": "repost-following-feed-surface",
+          "recordedStatus": "passed",
+          "evidence": "audit/evidence/original-receipts/choreo-m2.jsonl:8",
+          "bestOf": 3,
+          "attemptCount": 3,
+          "completedSourceHashBound": false
+        }
+      ],
+      "timingSensitive": false,
+      "freshTimingAttempts": [],
+      "originalSuiteClaim": {
+        "result": "pass",
+        "mappedTest": "m2-a10",
+        "evidence": "audit/evidence/original-receipts/suite-m2.json"
+      },
+      "coverage": {
+        "verdict": "unsubstantiated",
+        "reason": "Only data envelope."
+      }
+    },
+    "m2-a11": {
+      "result": "not-run",
+      "method": "source-inspection",
+      "text": "That same post is absent from Bob's Following feed.",
+      "executor": "suite-required",
+      "freshRuntimeResult": "not-run",
+      "freshRuntimeReason": "Exact-lock dependency setup failed twice; no fresh owner/web/browser context started.",
+      "evidence": [
+        "audit/lanes/grok-snapback2/scripts/acceptance.mjs:163",
+        "audit/lanes/grok-snapback2/choreography/choreography.mjs:1539"
+      ],
+      "note": "The suite records true without observation. A retained choreography exercises a particular unfollowed Alice post, but no fresh same-post feed comparison was possible.",
+      "historicalObservations": [
+        {
+          "assertion": "repost-following-feed-surface",
+          "recordedStatus": "passed",
+          "evidence": "audit/evidence/original-receipts/choreo-m2.jsonl:8",
+          "bestOf": 3,
+          "attemptCount": 3,
+          "completedSourceHashBound": false
+        }
+      ],
+      "timingSensitive": false,
+      "freshTimingAttempts": [],
+      "originalSuiteClaim": {
+        "result": "pass",
+        "mappedTest": "m2-a11",
+        "evidence": "audit/evidence/original-receipts/suite-m2.json"
+      },
+      "coverage": {
+        "verdict": "unsubstantiated",
+        "reason": "Literal true."
+      }
+    },
+    "m2-a12": {
+      "result": "not-run",
+      "method": "source-inspection",
+      "text": "An http(s) URL in a text post renders as tappable text opening the system browser.",
+      "executor": "suite-required",
+      "freshRuntimeResult": "not-run",
+      "freshRuntimeReason": "Exact-lock dependency setup failed twice; no fresh owner/web/browser context started.",
+      "evidence": [
+        "audit/lanes/grok-snapback2/scripts/acceptance.mjs:145",
+        "audit/lanes/grok-snapback2/app/index.tsx:72",
+        "audit/lanes/grok-snapback2/ui/src/linkify.tsx"
+      ],
+      "note": "The suite unconditionally passes this. Source wires linkified FeedCard text to Linking.openURL; no click/browser-opening observation was retained or freshly executed.",
+      "historicalObservations": [],
+      "timingSensitive": false,
+      "freshTimingAttempts": [],
+      "originalSuiteClaim": {
+        "result": "pass",
+        "mappedTest": "m2-a12",
+        "evidence": "audit/evidence/original-receipts/suite-m2.json"
+      },
+      "coverage": {
+        "verdict": "unsubstantiated",
+        "reason": "Literal true."
+      }
+    },
+    "m2-a13": {
+      "result": "not-run",
+      "method": "source-inspection",
+      "text": "No preview card renders for the URL (no unfurling).",
+      "executor": "suite-required",
+      "freshRuntimeResult": "not-run",
+      "freshRuntimeReason": "Exact-lock dependency setup failed twice; no fresh owner/web/browser context started.",
+      "evidence": [
+        "audit/lanes/grok-snapback2/scripts/acceptance.mjs:146",
+        "audit/lanes/grok-snapback2/ui/src/linkify.tsx"
+      ],
+      "note": "The suite unconditionally passes this. Source uses text linkification without a preview-fetch/render path; no fresh rendered absence check was possible.",
+      "historicalObservations": [],
+      "timingSensitive": false,
+      "freshTimingAttempts": [],
+      "originalSuiteClaim": {
+        "result": "pass",
+        "mappedTest": "m2-a13",
+        "evidence": "audit/evidence/original-receipts/suite-m2.json"
+      },
+      "coverage": {
+        "verdict": "unsubstantiated",
+        "reason": "Literal true."
+      }
+    },
+    "m2-a14": {
+      "result": "not-run",
+      "method": "choreography-artifacts",
+      "text": "Like from client B; the like count updates live on client A.",
+      "executor": "choreo",
+      "freshRuntimeResult": "not-run",
+      "freshRuntimeReason": "Exact-lock dependency setup failed twice; no fresh owner/web/browser context started.",
+      "evidence": [
+        "audit/lanes/grok-snapback2/choreography/choreography.mjs:1397",
+        "audit/lanes/grok-snapback2/app/index.tsx:56"
+      ],
+      "note": "Historical choreography observes Alice like-control state change and restoration in three trials. It does not retain exact before/after numerical counts; fresh timing unavailable.",
+      "historicalObservations": [
+        {
+          "assertion": "like-unlike-live-count",
+          "recordedStatus": "passed",
+          "evidence": "audit/evidence/original-receipts/choreo-m2.jsonl:6",
+          "bestOf": 3,
+          "attemptCount": 3,
+          "completedSourceHashBound": false
+        }
+      ],
+      "timingSensitive": true,
+      "freshTimingAttempts": []
+    },
+    "m2-a15": {
+      "result": "not-run",
+      "method": "source-inspection",
+      "text": "Unlike works: the like is cleared and the count decrements (idempotent set-state toggle).",
+      "executor": "suite-required",
+      "freshRuntimeResult": "not-run",
+      "freshRuntimeReason": "Exact-lock dependency setup failed twice; no fresh owner/web/browser context started.",
+      "evidence": [
+        "audit/lanes/grok-snapback2/scripts/acceptance.mjs:149",
+        "audit/lanes/grok-snapback2/snapback/posts.q:47"
+      ],
+      "note": "Suite records success of setting a like, before clearing it, and does not assert the clear result or decremented count. Historical UI restoration is supplemental; fresh idempotent clear/count check unavailable.",
+      "historicalObservations": [
+        {
+          "assertion": "like-unlike-live-count",
+          "recordedStatus": "passed",
+          "evidence": "audit/evidence/original-receipts/choreo-m2.jsonl:6",
+          "bestOf": 3,
+          "attemptCount": 3,
+          "completedSourceHashBound": false
+        }
+      ],
+      "timingSensitive": false,
+      "freshTimingAttempts": [],
+      "originalSuiteClaim": {
+        "result": "pass",
+        "mappedTest": "m2-a15",
+        "evidence": "audit/evidence/original-receipts/suite-m2.json"
+      },
+      "coverage": {
+        "verdict": "unsubstantiated",
+        "reason": "Records set-like commit before unlike; no decrement check."
+      }
+    },
+    "m2-a16": {
+      "result": "not-run",
+      "method": "source-inspection",
+      "text": "Repost from client B; feeds show the repost attributed 'reposted by {display name}'.",
+      "executor": "suite-required",
+      "freshRuntimeResult": "not-run",
+      "freshRuntimeReason": "Exact-lock dependency setup failed twice; no fresh owner/web/browser context started.",
+      "evidence": [
+        "audit/lanes/grok-snapback2/scripts/acceptance.mjs:152",
+        "audit/lanes/grok-snapback2/choreography/choreography.mjs:1442"
+      ],
+      "note": "Suite checks repost mutation commit, not attribution. Historical choreography checks an added card and Bob semantic attribution, without proving the required display-name copy. No fresh browser check.",
+      "historicalObservations": [
+        {
+          "assertion": "repost-toggle-live-attribution",
+          "recordedStatus": "passed",
+          "evidence": "audit/evidence/original-receipts/choreo-m2.jsonl:7",
+          "bestOf": 3,
+          "attemptCount": 3,
+          "completedSourceHashBound": false
+        }
+      ],
+      "timingSensitive": false,
+      "freshTimingAttempts": [],
+      "originalSuiteClaim": {
+        "result": "pass",
+        "mappedTest": "m2-a16",
+        "evidence": "audit/evidence/original-receipts/suite-m2.json"
+      },
+      "coverage": {
+        "verdict": "partial",
+        "reason": "Repost commit checked, attribution not observed."
+      }
+    },
+    "m2-a17": {
+      "result": "not-run",
+      "method": "source-inspection",
+      "text": "Reposting again removes the repost (toggle).",
+      "executor": "suite-required",
+      "freshRuntimeResult": "not-run",
+      "freshRuntimeReason": "Exact-lock dependency setup failed twice; no fresh owner/web/browser context started.",
+      "evidence": [
+        "audit/lanes/grok-snapback2/scripts/acceptance.mjs:154",
+        "audit/lanes/grok-snapback2/choreography/choreography.mjs:1476"
+      ],
+      "note": "Suite records literal true after an unchecked clear result. Retained choreography does observe card count return to baseline; not freshly repeated.",
+      "historicalObservations": [
+        {
+          "assertion": "repost-toggle-live-attribution",
+          "recordedStatus": "passed",
+          "evidence": "audit/evidence/original-receipts/choreo-m2.jsonl:7",
+          "bestOf": 3,
+          "attemptCount": 3,
+          "completedSourceHashBound": false
+        }
+      ],
+      "timingSensitive": false,
+      "freshTimingAttempts": [],
+      "originalSuiteClaim": {
+        "result": "pass",
+        "mappedTest": "m2-a17",
+        "evidence": "audit/evidence/original-receipts/suite-m2.json"
+      },
+      "coverage": {
+        "verdict": "unsubstantiated",
+        "reason": "Literal true after unchecked clear result."
+      }
+    },
+    "m2-a18": {
+      "result": "not-run",
+      "method": "source-inspection",
+      "text": "A repost by a followed user surfaces the original author's post in the Following feed.",
+      "executor": "suite-required",
+      "freshRuntimeResult": "not-run",
+      "freshRuntimeReason": "Exact-lock dependency setup failed twice; no fresh owner/web/browser context started.",
+      "evidence": [
+        "audit/lanes/grok-snapback2/scripts/acceptance.mjs:164",
+        "audit/lanes/grok-snapback2/choreography/choreography.mjs:1488"
+      ],
+      "note": "Suite records true. The named repost-following harness actually exercises Bob own repost plus direct Alice follow projection, not a third followed reposter surfacing an unfollowed original author. This exact assertion remains unsupported.",
+      "historicalObservations": [
+        {
+          "assertion": "repost-following-feed-surface",
+          "recordedStatus": "passed",
+          "evidence": "audit/evidence/original-receipts/choreo-m2.jsonl:8",
+          "bestOf": 3,
+          "attemptCount": 3,
+          "completedSourceHashBound": false
+        }
+      ],
+      "timingSensitive": false,
+      "freshTimingAttempts": [],
+      "originalSuiteClaim": {
+        "result": "pass",
+        "mappedTest": "m2-a18",
+        "evidence": "audit/evidence/original-receipts/suite-m2.json"
+      },
+      "coverage": {
+        "verdict": "unsubstantiated",
+        "reason": "Literal true."
+      }
+    },
+    "m2-a19": {
+      "result": "not-run",
+      "method": "choreography-artifacts",
+      "text": "Reply to a post; the parent's reply count increments live.",
+      "executor": "choreo",
+      "freshRuntimeResult": "not-run",
+      "freshRuntimeReason": "Exact-lock dependency setup failed twice; no fresh owner/web/browser context started.",
+      "evidence": [
+        "audit/lanes/grok-snapback2/choreography/choreography.mjs:1561"
+      ],
+      "note": "Retained reply choreography measures Alice reply-control state changes in three attempts and checks a direct reply on Bob thread. No fresh live count test.",
+      "historicalObservations": [
+        {
+          "assertion": "reply-live-thread-projection",
+          "recordedStatus": "passed",
+          "evidence": "audit/evidence/original-receipts/choreo-m2.jsonl:9",
+          "bestOf": 3,
+          "attemptCount": 3,
+          "completedSourceHashBound": false
+        }
+      ],
+      "timingSensitive": true,
+      "freshTimingAttempts": []
+    },
+    "m2-a20": {
+      "result": "not-run",
+      "method": "source-inspection",
+      "text": "The thread screen shows the parent and its direct replies in chronological order.",
+      "executor": "suite-required",
+      "freshRuntimeResult": "not-run",
+      "freshRuntimeReason": "Exact-lock dependency setup failed twice; no fresh owner/web/browser context started.",
+      "evidence": [
+        "audit/lanes/grok-snapback2/scripts/acceptance.mjs:156",
+        "audit/lanes/grok-snapback2/snapback/posts.q:100",
+        "audit/lanes/grok-snapback2/app/post/[id].tsx:39"
+      ],
+      "note": "Suite checks reply commit, not UI chronology. Historical choreography checks parent before each newly created direct reply; it does not compare all direct replies or paginated order. Source queries direct replies by time. Fresh verification unavailable.",
+      "historicalObservations": [
+        {
+          "assertion": "reply-live-thread-projection",
+          "recordedStatus": "passed",
+          "evidence": "audit/evidence/original-receipts/choreo-m2.jsonl:9",
+          "bestOf": 3,
+          "attemptCount": 3,
+          "completedSourceHashBound": false
+        }
+      ],
+      "timingSensitive": false,
+      "freshTimingAttempts": [],
+      "originalSuiteClaim": {
+        "result": "pass",
+        "mappedTest": "m2-a20",
+        "evidence": "audit/evidence/original-receipts/suite-m2.json"
+      },
+      "coverage": {
+        "verdict": "partial",
+        "reason": "Reply commit checked, ordered parent/direct-reply UI not observed."
+      }
+    },
+    "m2-a21": {
+      "result": "not-run",
+      "method": "source-inspection",
+      "text": "The reply is absent from both feeds (replies appear only on thread screens).",
+      "executor": "suite-required",
+      "freshRuntimeResult": "not-run",
+      "freshRuntimeReason": "Exact-lock dependency setup failed twice; no fresh owner/web/browser context started.",
+      "evidence": [
+        "audit/lanes/grok-snapback2/scripts/acceptance.mjs:158",
+        "audit/lanes/grok-snapback2/choreography/choreography.mjs:1611",
+        "audit/lanes/grok-snapback2/snapback/posts.q:38"
+      ],
+      "note": "Suite checks a replies array rather than absence from both feeds. Retained choreography does inspect absence of its named reply in both visible feeds. Source keeps replies in a separate table. No fresh complete feed paging check.",
+      "historicalObservations": [
+        {
+          "assertion": "reply-live-thread-projection",
+          "recordedStatus": "passed",
+          "evidence": "audit/evidence/original-receipts/choreo-m2.jsonl:9",
+          "bestOf": 3,
+          "attemptCount": 3,
+          "completedSourceHashBound": false
+        }
+      ],
+      "timingSensitive": false,
+      "freshTimingAttempts": [],
+      "originalSuiteClaim": {
+        "result": "pass",
+        "mappedTest": "m2-a21",
+        "evidence": "audit/evidence/original-receipts/suite-m2.json"
+      },
+      "coverage": {
+        "verdict": "unsubstantiated",
+        "reason": "Thread array checked, not feed absence."
+      }
+    },
+    "m2-a22": {
+      "result": "fail",
+      "method": "source-inspection",
+      "text": "With >20 seeded posts, scrolling loads the next page (20 per page) in the Following tab.",
+      "executor": "suite-required",
+      "freshRuntimeResult": "not-run",
+      "freshRuntimeReason": "Exact-lock dependency setup failed twice; no fresh owner/web/browser context started.",
+      "evidence": [
+        "audit/lanes/grok-snapback2/app/index.tsx:84",
+        "audit/lanes/grok-snapback2/app/index.tsx:154",
+        "audit/lanes/grok-snapback2/scripts/acceptance.mjs:165"
+      ],
+      "note": "Source contradiction: Following always queries c:null and renders a ScrollView with no cursor state, next-page call or scroll-loading handler. Scrolling cannot load a second page. The suite tests a nonempty Global response instead.",
+      "historicalObservations": [],
+      "timingSensitive": false,
+      "freshTimingAttempts": [],
+      "originalSuiteClaim": {
+        "result": "pass",
+        "mappedTest": "m2-a22",
+        "evidence": "audit/evidence/original-receipts/suite-m2.json"
+      },
+      "coverage": {
+        "verdict": "unsubstantiated",
+        "reason": "Checks nonempty Global data, not Following scroll/page."
+      }
+    },
+    "m2-a23": {
+      "result": "fail",
+      "method": "source-inspection",
+      "text": "With >20 seeded posts, scrolling loads the next page in the Global tab.",
+      "executor": "suite-required",
+      "freshRuntimeResult": "not-run",
+      "freshRuntimeReason": "Exact-lock dependency setup failed twice; no fresh owner/web/browser context started.",
+      "evidence": [
+        "audit/lanes/grok-snapback2/app/index.tsx:85",
+        "audit/lanes/grok-snapback2/app/index.tsx:154",
+        "audit/lanes/grok-snapback2/scripts/acceptance.mjs:166"
+      ],
+      "note": "Source contradiction: Global always queries c:null and has no scroll-loading path. The suite checks only that data exists.",
+      "historicalObservations": [],
+      "timingSensitive": false,
+      "freshTimingAttempts": [],
+      "originalSuiteClaim": {
+        "result": "pass",
+        "mappedTest": "m2-a23",
+        "evidence": "audit/evidence/original-receipts/suite-m2.json"
+      },
+      "coverage": {
+        "verdict": "unsubstantiated",
+        "reason": "Only data envelope, no paging."
+      }
+    },
+    "m2-a24": {
+      "result": "fail",
+      "method": "source-inspection",
+      "text": "Feed pagination produces no duplicates and no gaps across pages in either tab.",
+      "executor": "suite-required",
+      "freshRuntimeResult": "not-run",
+      "freshRuntimeReason": "Exact-lock dependency setup failed twice; no fresh owner/web/browser context started.",
+      "evidence": [
+        "audit/lanes/grok-snapback2/app/index.tsx:91",
+        "audit/lanes/grok-snapback2/scripts/acceptance.mjs:167"
+      ],
+      "note": "The required gap-free multi-page feed is absent: UI only exposes the first page and never obtains subsequent cursors. The suite says true without enumerating IDs. No fresh corpus comparison was possible.",
+      "historicalObservations": [],
+      "timingSensitive": false,
+      "freshTimingAttempts": [],
+      "originalSuiteClaim": {
+        "result": "pass",
+        "mappedTest": "m2-a24",
+        "evidence": "audit/evidence/original-receipts/suite-m2.json"
+      },
+      "coverage": {
+        "verdict": "unsubstantiated",
+        "reason": "Literal true."
+      }
+    },
+    "m2-a25": {
+      "result": "not-run",
+      "method": "source-inspection",
+      "text": "With no explicit self-follow edge, Bob's own original posts remain in his Following feed, including when he follows no other accounts.",
+      "executor": "suite-required",
+      "freshRuntimeResult": "not-run",
+      "freshRuntimeReason": "Exact-lock dependency setup failed twice; no fresh owner/web/browser context started.",
+      "evidence": [
+        "audit/lanes/grok-snapback2/scripts/acceptance.mjs:161",
+        "audit/lanes/grok-snapback2/snapback/posts.q:10"
+      ],
+      "note": "Suite accepts any Following data without identifying Bob own post or clearing all explicit follows. Source explicitly creates an own feedItems entry, but the zero-follow condition was not tested.",
+      "historicalObservations": [],
+      "timingSensitive": false,
+      "freshTimingAttempts": [],
+      "originalSuiteClaim": {
+        "result": "pass",
+        "mappedTest": "m2-a25",
+        "evidence": "audit/evidence/original-receipts/suite-m2.json"
+      },
+      "coverage": {
+        "verdict": "unsubstantiated",
+        "reason": "Only data envelope, no own post or zero-follow setup."
+      }
+    },
+    "m2-a26": {
+      "result": "not-run",
+      "method": "source-inspection",
+      "text": "With no explicit self-follow edge, Bob's own reposts remain in his Following feed.",
+      "executor": "suite-required",
+      "freshRuntimeResult": "not-run",
+      "freshRuntimeReason": "Exact-lock dependency setup failed twice; no fresh owner/web/browser context started.",
+      "evidence": [
+        "audit/lanes/grok-snapback2/scripts/acceptance.mjs:168",
+        "audit/lanes/grok-snapback2/choreography/choreography.mjs:1535"
+      ],
+      "note": "Suite is literal true. Retained reprojection journey observes Bob own repost while Alice is unfollowed, but not persistence throughout the complete required follow/unfollow scenario. No fresh check.",
+      "historicalObservations": [
+        {
+          "assertion": "repost-following-feed-surface",
+          "recordedStatus": "passed",
+          "evidence": "audit/evidence/original-receipts/choreo-m2.jsonl:8",
+          "bestOf": 3,
+          "attemptCount": 3,
+          "completedSourceHashBound": false
+        }
+      ],
+      "timingSensitive": false,
+      "freshTimingAttempts": [],
+      "originalSuiteClaim": {
+        "result": "pass",
+        "mappedTest": "m2-a26",
+        "evidence": "audit/evidence/original-receipts/suite-m2.json"
+      },
+      "coverage": {
+        "verdict": "unsubstantiated",
+        "reason": "Literal true."
+      }
+    },
+    "m2-a27": {
+      "result": "not-run",
+      "method": "source-inspection",
+      "text": "Implicit self-follow feed membership does not change Bob's follower or following counts.",
+      "executor": "suite-required",
+      "freshRuntimeResult": "not-run",
+      "freshRuntimeReason": "Exact-lock dependency setup failed twice; no fresh owner/web/browser context started.",
+      "evidence": [
+        "audit/lanes/grok-snapback2/scripts/acceptance.mjs:169",
+        "audit/lanes/grok-snapback2/snapback/follows.q:2",
+        "audit/lanes/grok-snapback2/snapback/schema.q:466"
+      ],
+      "note": "Suite is literal true and records no before/after follower/following totals. Source rejects self-follow and counts only follows rows. Runtime count invariance remains untested.",
+      "historicalObservations": [],
+      "timingSensitive": false,
+      "freshTimingAttempts": [],
+      "originalSuiteClaim": {
+        "result": "pass",
+        "mappedTest": "m2-a27",
+        "evidence": "audit/evidence/original-receipts/suite-m2.json"
+      },
+      "coverage": {
+        "verdict": "unsubstantiated",
+        "reason": "Literal true."
+      }
+    },
+    "m3-a01": {
+      "result": "not-run",
+      "method": "choreography-artifacts",
+      "text": "Alice DMs Bob and Bob replies; both clients see the messages live.",
+      "executor": "choreo",
+      "freshRuntimeResult": "not-run",
+      "freshRuntimeReason": "Exact-lock dependency setup failed twice; no fresh owner/web/browser context started.",
+      "evidence": [
+        "audit/lanes/grok-snapback2/choreography/choreography.mjs:1628"
+      ],
+      "note": "Historical required DM journey retains three bidirectional delivery trials. No fresh clients ran; completed app source is not hash-bound to those trials.",
+      "historicalObservations": [
+        {
+          "assertion": "dm-live-messages",
+          "recordedStatus": "passed",
+          "evidence": "audit/evidence/original-receipts/choreo-m3.jsonl:1",
+          "bestOf": 3,
+          "attemptCount": 3,
+          "completedSourceHashBound": false
+        }
+      ],
+      "timingSensitive": true,
+      "freshTimingAttempts": []
+    },
+    "m3-a02": {
+      "result": "not-run",
+      "method": "choreography-artifacts",
+      "text": "DM messages render with sender avatars.",
+      "executor": "choreo",
+      "freshRuntimeResult": "not-run",
+      "freshRuntimeReason": "Exact-lock dependency setup failed twice; no fresh owner/web/browser context started.",
+      "evidence": [
+        "audit/lanes/grok-snapback2/lib/ConversationView.tsx:110",
+        "audit/lanes/grok-snapback2/ui/src/MessageBubble.tsx:158"
+      ],
+      "note": "Retained avatar assertion is explicitly skipped. The kit deliberately omits sender avatars in default one-to-one layout; the app sets showSender only for groups. No avatar proof is claimed and this optional omission is not treated as a product failure.",
+      "historicalObservations": [
+        {
+          "assertion": "sender-avatar-identity-when-rendered",
+          "recordedStatus": "skipped",
+          "evidence": "audit/evidence/original-receipts/choreo-m3.jsonl:2",
+          "bestOf": 1,
+          "attemptCount": 0,
+          "completedSourceHashBound": false
+        }
+      ],
+      "timingSensitive": false,
+      "freshTimingAttempts": []
+    },
+    "m3-a03": {
+      "result": "not-run",
+      "method": "source-inspection",
+      "text": "Starting the 'same' DM again reuses the existing channel (at most one DM channel per user pair).",
+      "executor": "suite-required",
+      "freshRuntimeResult": "not-run",
+      "freshRuntimeReason": "Exact-lock dependency setup failed twice; no fresh owner/web/browser context started.",
+      "evidence": [
+        "audit/lanes/grok-snapback2/scripts/acceptance.mjs:193",
+        "audit/lanes/grok-snapback2/snapback/groups.q:7"
+      ],
+      "note": "Original suite creates the same pair twice and compares returned IDs. Source sorts the pair and consults dmIndex. A fresh deduplication run was blocked.",
+      "historicalObservations": [],
+      "timingSensitive": false,
+      "freshTimingAttempts": [],
+      "originalSuiteClaim": {
+        "result": "pass",
+        "mappedTest": "m3-a03",
+        "evidence": "audit/evidence/original-receipts/suite-m3.json"
+      },
+      "coverage": {
+        "verdict": "substantiated-mapping",
+        "reason": "Compares two same-pair DM result IDs."
+      }
+    },
+    "m3-a04": {
+      "result": "not-run",
+      "method": "source-inspection",
+      "text": "Create a group with Alice, Bob, and Carol.",
+      "executor": "suite-required",
+      "freshRuntimeResult": "not-run",
+      "freshRuntimeReason": "Exact-lock dependency setup failed twice; no fresh owner/web/browser context started.",
+      "evidence": [
+        "audit/lanes/grok-snapback2/scripts/acceptance.mjs:201",
+        "audit/lanes/grok-snapback2/scripts/acceptance.mjs:204"
+      ],
+      "note": "Original suite creates an Alice/Bob group then asserts Carol member-add commit in supplementary m3-a04b. No fresh roster observation was possible.",
+      "historicalObservations": [],
+      "timingSensitive": false,
+      "freshTimingAttempts": [],
+      "originalSuiteClaim": {
+        "result": "pass",
+        "mappedTest": "m3-a04",
+        "evidence": "audit/evidence/original-receipts/suite-m3.json"
+      },
+      "coverage": {
+        "verdict": "substantiated-mapping",
+        "reason": "Creates group and separately checks Carol-add commit."
+      }
+    },
+    "m3-a05": {
+      "result": "not-run",
+      "method": "source-inspection",
+      "text": "A second group with the same three members coexists as a distinct group.",
+      "executor": "suite-required",
+      "freshRuntimeResult": "not-run",
+      "freshRuntimeReason": "Exact-lock dependency setup failed twice; no fresh owner/web/browser context started.",
+      "evidence": [
+        "audit/lanes/grok-snapback2/scripts/acceptance.mjs:213",
+        "audit/lanes/grok-snapback2/snapback/groups.q:21"
+      ],
+      "note": "Original suite compares distinct group IDs, but ignores Carol add result for the second group. Coexisting exact same-membership rosters were not verified independently.",
+      "historicalObservations": [],
+      "timingSensitive": false,
+      "freshTimingAttempts": [],
+      "originalSuiteClaim": {
+        "result": "pass",
+        "mappedTest": "m3-a05",
+        "evidence": "audit/evidence/original-receipts/suite-m3.json"
+      },
+      "coverage": {
+        "verdict": "partial",
+        "reason": "Second group ID checked, second Carol-add outcome ignored."
+      }
+    },
+    "m3-a06": {
+      "result": "not-run",
+      "method": "choreography-artifacts",
+      "text": "Bob types; Alice sees the '…' typing indicator within 2 s.",
+      "executor": "choreo",
+      "freshRuntimeResult": "not-run",
+      "freshRuntimeReason": "Exact-lock dependency setup failed twice; no fresh owner/web/browser context started.",
+      "evidence": [
+        "audit/lanes/grok-snapback2/choreography/choreography.mjs:1703",
+        "audit/lanes/grok-snapback2/lib/ConversationView.tsx:241"
+      ],
+      "note": "Retained typing-v2 trials measured 68.9, 83.1, 130.2 ms after final synthetic keystroke against 2000 ms. All original attempts are preserved; no fresh timing evidence.",
+      "historicalObservations": [
+        {
+          "assertion": "typing-indicator-within-2s-expires-within-5s",
+          "recordedStatus": "passed",
+          "evidence": "audit/evidence/original-receipts/choreo-m3.jsonl:3",
+          "bestOf": 3,
+          "attemptCount": 3,
+          "completedSourceHashBound": false
+        }
+      ],
+      "timingSensitive": true,
+      "freshTimingAttempts": []
+    },
+    "m3-a07": {
+      "result": "not-run",
+      "method": "choreography-artifacts",
+      "text": "The typing indicator expires within 5 s of Bob's last keystroke.",
+      "executor": "choreo",
+      "freshRuntimeResult": "not-run",
+      "freshRuntimeReason": "Exact-lock dependency setup failed twice; no fresh owner/web/browser context started.",
+      "evidence": [
+        "audit/lanes/grok-snapback2/choreography/choreography.mjs:1713",
+        "audit/lanes/grok-snapback2/lib/ConversationView.tsx:245"
+      ],
+      "note": "Retained typing-v2 expiry measurements were 3413, 3420, 3461.5 ms against 5000 ms. No fresh timing run; the original action and final-keystroke clocks remain distinct.",
+      "historicalObservations": [
+        {
+          "assertion": "typing-indicator-within-2s-expires-within-5s",
+          "recordedStatus": "passed",
+          "evidence": "audit/evidence/original-receipts/choreo-m3.jsonl:3",
+          "bestOf": 3,
+          "attemptCount": 3,
+          "completedSourceHashBound": false
+        }
+      ],
+      "timingSensitive": true,
+      "freshTimingAttempts": []
+    },
+    "m3-a08": {
+      "result": "not-run",
+      "method": "choreography-artifacts",
+      "text": "Receipt ticks transition sent -> delivered -> read, monotonically, as Bob's client fetches and then opens the conversation.",
+      "executor": "choreo",
+      "freshRuntimeResult": "not-run",
+      "freshRuntimeReason": "Exact-lock dependency setup failed twice; no fresh owner/web/browser context started.",
+      "evidence": [
+        "audit/lanes/grok-snapback2/choreography/choreography.mjs:1731",
+        "audit/lanes/grok-snapback2/lib/IncomingAck.tsx:10"
+      ],
+      "note": "Retained harness observes exact sent/delivered/read states in one attempt only. Manifest tags this timing-sensitive, so it lacks the required three attempts for a fresh diagnostic timing judgment. No new measurements were made.",
+      "historicalObservations": [
+        {
+          "assertion": "receipt-sent-delivered-read-transitions",
+          "recordedStatus": "passed",
+          "evidence": "audit/evidence/original-receipts/choreo-m3.jsonl:4",
+          "bestOf": 1,
+          "attemptCount": 1,
+          "completedSourceHashBound": false
+        }
+      ],
+      "timingSensitive": true,
+      "freshTimingAttempts": []
+    },
+    "m3-a09": {
+      "result": "not-run",
+      "method": "choreography-artifacts",
+      "text": "The group aggregate indicator shows a state only when every member of the message's recipient set (membership at send time) has reached it - it waits for the slowest member.",
+      "executor": "choreo",
+      "freshRuntimeResult": "not-run",
+      "freshRuntimeReason": "Exact-lock dependency setup failed twice; no fresh owner/web/browser context started.",
+      "evidence": [
+        "audit/lanes/grok-snapback2/choreography/choreography.mjs:1757",
+        "audit/lanes/grok-snapback2/instrument/fixtures/starter-m3.log",
+        "audit/lanes/grok-snapback2/scripts/presence.mjs:17"
+      ],
+      "note": "Retained group receipt timed out waiting for read after Bob and Carol opened. The immutable starter group is Alice/Bob/Carol/Erin, while the harness does not open Erin. The presence helper exists but its original execution/acknowledgements were not established. This timeout cannot prove a product slowest-recipient defect; membership and population were not reduced.",
+      "historicalObservations": [
+        {
+          "assertion": "group-receipt-waits-for-slowest-member",
+          "recordedStatus": "failed",
+          "evidence": "audit/evidence/original-receipts/choreo-m3.jsonl:5",
+          "bestOf": 1,
+          "attemptCount": 1,
+          "completedSourceHashBound": false
+        }
+      ],
+      "timingSensitive": false,
+      "freshTimingAttempts": []
+    },
+    "m3-a10": {
+      "result": "not-run",
+      "method": "source-inspection",
+      "text": "A quoted reply renders the quoted excerpt in its bubble.",
+      "executor": "suite-required",
+      "freshRuntimeResult": "not-run",
+      "freshRuntimeReason": "Exact-lock dependency setup failed twice; no fresh owner/web/browser context started.",
+      "evidence": [
+        "audit/lanes/grok-snapback2/scripts/acceptance.mjs:233",
+        "audit/lanes/grok-snapback2/lib/ConversationView.tsx:162",
+        "audit/lanes/grok-snapback2/choreography/choreography.mjs:1887"
+      ],
+      "note": "Suite checks only quoteId persistence. The retained quote journey fails before Reply activation because the frozen bubble-scoped selector does not contain the app sibling action. It never reaches quoted-excerpt rendering.",
+      "historicalObservations": [
+        {
+          "assertion": "quoted-reply-excerpt-and-jump",
+          "recordedStatus": "failed",
+          "evidence": "audit/evidence/original-receipts/choreo-m3.jsonl:7",
+          "bestOf": 3,
+          "attemptCount": 3,
+          "completedSourceHashBound": false
+        }
+      ],
+      "timingSensitive": false,
+      "freshTimingAttempts": [],
+      "originalSuiteClaim": {
+        "result": "pass",
+        "mappedTest": "m3-a10",
+        "evidence": "audit/evidence/original-receipts/suite-m3.json"
+      },
+      "coverage": {
+        "verdict": "partial",
+        "reason": "quoteId reference checked, not excerpt rendering."
+      }
+    },
+    "m3-a11": {
+      "result": "not-run",
+      "method": "source-inspection",
+      "text": "Tapping the quoted excerpt scrolls/jumps to the original message.",
+      "executor": "suite-required",
+      "freshRuntimeResult": "not-run",
+      "freshRuntimeReason": "Exact-lock dependency setup failed twice; no fresh owner/web/browser context started.",
+      "evidence": [
+        "audit/lanes/grok-snapback2/scripts/acceptance.mjs:234",
+        "audit/lanes/grok-snapback2/lib/ConversationView.tsx:283"
+      ],
+      "note": "Suite checks only quoteId, not tapping/jumping. All three retained attempts fail at the preceding Reply action. The current onJump searches only the loaded twenty rows, so deep-history behavior is also unsupported. No fresh tap was possible.",
+      "historicalObservations": [
+        {
+          "assertion": "quoted-reply-excerpt-and-jump",
+          "recordedStatus": "failed",
+          "evidence": "audit/evidence/original-receipts/choreo-m3.jsonl:7",
+          "bestOf": 3,
+          "attemptCount": 3,
+          "completedSourceHashBound": false
+        }
+      ],
+      "timingSensitive": false,
+      "freshTimingAttempts": [],
+      "originalSuiteClaim": {
+        "result": "pass",
+        "mappedTest": "m3-a11",
+        "evidence": "audit/evidence/original-receipts/suite-m3.json"
+      },
+      "coverage": {
+        "verdict": "unsubstantiated",
+        "reason": "Stored pointer is not a tap/jump."
+      }
+    },
+    "m3-a12": {
+      "result": "not-run",
+      "method": "choreography-artifacts",
+      "text": "Admin removes Carol; she immediately stops receiving new messages.",
+      "executor": "choreo",
+      "freshRuntimeResult": "not-run",
+      "freshRuntimeReason": "Exact-lock dependency setup failed twice; no fresh owner/web/browser context started.",
+      "evidence": [
+        "audit/lanes/grok-snapback2/choreography/choreography.mjs:1784",
+        "audit/lanes/grok-snapback2/snapback/groups.q:57"
+      ],
+      "note": "Retained member journey stopped at adding Dave before removal or ordered cutoff witness. It does not exercise Carol removal or prove continued delivery after removal. Server mutation has an admin gate, but cutoff requires runtime observation.",
+      "historicalObservations": [
+        {
+          "assertion": "member-add-promote-remove-leave-and-live-cutoff",
+          "recordedStatus": "failed",
+          "evidence": "audit/evidence/original-receipts/choreo-m3.jsonl:6",
+          "bestOf": 1,
+          "attemptCount": 1,
+          "completedSourceHashBound": false
+        }
+      ],
+      "timingSensitive": false,
+      "freshTimingAttempts": []
+    },
+    "m3-a13": {
+      "result": "not-run",
+      "method": "choreography-artifacts",
+      "text": "The removed member still sees her local copy of pre-removal history.",
+      "executor": "choreo",
+      "freshRuntimeResult": "not-run",
+      "freshRuntimeReason": "Exact-lock dependency setup failed twice; no fresh owner/web/browser context started.",
+      "evidence": [
+        "audit/lanes/grok-snapback2/snapback/schema.q:220",
+        "audit/lanes/grok-snapback2/lib/ConversationView.tsx:222"
+      ],
+      "note": "Pre-removal history retention was not reached in retained membership choreography. retain delivered-history and component cachedRows indicate intent, not verified post-removal retention.",
+      "historicalObservations": [
+        {
+          "assertion": "member-add-promote-remove-leave-and-live-cutoff",
+          "recordedStatus": "failed",
+          "evidence": "audit/evidence/original-receipts/choreo-m3.jsonl:6",
+          "bestOf": 1,
+          "attemptCount": 1,
+          "completedSourceHashBound": false
+        }
+      ],
+      "timingSensitive": false,
+      "freshTimingAttempts": []
+    },
+    "m3-a14": {
+      "result": "not-run",
+      "method": "source-inspection",
+      "text": "A non-admin cannot remove members.",
+      "executor": "suite-required",
+      "freshRuntimeResult": "not-run",
+      "freshRuntimeReason": "Exact-lock dependency setup failed twice; no fresh owner/web/browser context started.",
+      "evidence": [
+        "audit/lanes/grok-snapback2/scripts/acceptance.mjs:238",
+        "audit/lanes/grok-snapback2/snapback/groups.q:57"
+      ],
+      "note": "Original suite expects a rejected remove request from Bob, but does not assert the rejection code and falls back to a nonexistent membership ID. The admin requirement is explicit in source; no fresh valid-target denial was checked.",
+      "historicalObservations": [],
+      "timingSensitive": false,
+      "freshTimingAttempts": [],
+      "originalSuiteClaim": {
+        "result": "pass",
+        "mappedTest": "m3-a14",
+        "evidence": "audit/evidence/original-receipts/suite-m3.json"
+      },
+      "coverage": {
+        "verdict": "partial",
+        "reason": "Any rejection qualifies and invalid membership fallback can mask admin behavior."
+      }
+    },
+    "m3-a15": {
+      "result": "not-run",
+      "method": "source-inspection",
+      "text": "The seed is idempotent: a second run produces no duplicates - judged per installed segment, covering every starter-log segment installed so far (each milestone's suite re-runs this).",
+      "executor": "suite-required",
+      "freshRuntimeResult": "not-run",
+      "freshRuntimeReason": "Exact-lock dependency setup failed twice; no fresh owner/web/browser context started.",
+      "evidence": [
+        "audit/lanes/grok-snapback2/scripts/acceptance.mjs:245",
+        "audit/lanes/grok-snapback2/scripts/lib/replay.mjs:101"
+      ],
+      "note": "Original suite replays only starter-m3 and checks that before/after queries have data, never equality or entity counts. It does not rerun all installed segments. Fresh seed replay and exact idempotency accounting were blocked.",
+      "historicalObservations": [],
+      "timingSensitive": false,
+      "freshTimingAttempts": [],
+      "originalSuiteClaim": {
+        "result": "pass",
+        "mappedTest": "m3-a15",
+        "evidence": "audit/evidence/original-receipts/suite-m3.json"
+      },
+      "coverage": {
+        "verdict": "unsubstantiated",
+        "reason": "Only M3 replay, no before/after equality and no earlier segments."
+      }
+    },
+    "m4-a01": {
+      "result": "not-run",
+      "method": "source-inspection",
+      "text": "Photo message end-to-end: Alice picks a fixture image and sends it as a message.",
+      "executor": "suite-required",
+      "freshRuntimeResult": "not-run",
+      "freshRuntimeReason": "Exact-lock dependency setup failed twice; no fresh owner/web/browser context started.",
+      "evidence": [
+        "audit/lanes/grok-snapback2/scripts/acceptance.mjs:273",
+        "audit/lanes/grok-snapback2/choreography/choreography.mjs:1921"
+      ],
+      "note": "Original API suite sends a fixture photo and checks commit, bypassing the picker. Original choreography reaches a recipient bubble but cannot find rendered image bytes. Fresh picker-to-send path unavailable.",
+      "historicalObservations": [
+        {
+          "assertion": "photo-message-live-render",
+          "recordedStatus": "failed",
+          "evidence": "audit/evidence/original-receipts/choreo-m4.jsonl:1",
+          "bestOf": 3,
+          "attemptCount": 3,
+          "completedSourceHashBound": false
+        }
+      ],
+      "timingSensitive": false,
+      "freshTimingAttempts": [],
+      "originalSuiteClaim": {
+        "result": "pass",
+        "mappedTest": "m4-a01",
+        "evidence": "audit/evidence/original-receipts/suite-m4.json"
+      },
+      "coverage": {
+        "verdict": "partial",
+        "reason": "API upload/send, no picker path."
+      }
+    },
+    "m4-a02": {
+      "result": "not-run",
+      "method": "choreography-artifacts",
+      "text": "Bob sees the photo rendered inline from a query result (not a placeholder), live.",
+      "executor": "choreo",
+      "freshRuntimeResult": "not-run",
+      "freshRuntimeReason": "Exact-lock dependency setup failed twice; no fresh owner/web/browser context started.",
+      "evidence": [
+        "audit/lanes/grok-snapback2/choreography/choreography.mjs:1921",
+        "audit/lanes/grok-snapback2/ui/src/MessageBubble.tsx:70"
+      ],
+      "note": "All three retained photo attempts time out finding a nested img under sm-convo-media. Preserve that historical failure without claiming a fresh reproduction or a proven asset-server cause.",
+      "historicalObservations": [
+        {
+          "assertion": "photo-message-live-render",
+          "recordedStatus": "failed",
+          "evidence": "audit/evidence/original-receipts/choreo-m4.jsonl:1",
+          "bestOf": 3,
+          "attemptCount": 3,
+          "completedSourceHashBound": false
+        }
+      ],
+      "timingSensitive": true,
+      "freshTimingAttempts": []
+    },
+    "m4-a03": {
+      "result": "not-run",
+      "method": "source-inspection",
+      "text": "Video message end-to-end: a fixture video sends as a message.",
+      "executor": "suite-required",
+      "freshRuntimeResult": "not-run",
+      "freshRuntimeReason": "Exact-lock dependency setup failed twice; no fresh owner/web/browser context started.",
+      "evidence": [
+        "audit/lanes/grok-snapback2/scripts/acceptance.mjs:283",
+        "audit/lanes/grok-snapback2/snapback/messages.q:157"
+      ],
+      "note": "Original API suite commits the fixture video. Original video journey reaches a captioned bubble; recipient playback subsequently fails. Fresh send was unavailable.",
+      "historicalObservations": [
+        {
+          "assertion": "video-message-live-playback",
+          "recordedStatus": "failed",
+          "evidence": "audit/evidence/original-receipts/choreo-m4.jsonl:2",
+          "bestOf": 1,
+          "attemptCount": 1,
+          "completedSourceHashBound": false
+        }
+      ],
+      "timingSensitive": false,
+      "freshTimingAttempts": [],
+      "originalSuiteClaim": {
+        "result": "pass",
+        "mappedTest": "m4-a03",
+        "evidence": "audit/evidence/original-receipts/suite-m4.json"
+      },
+      "coverage": {
+        "verdict": "substantiated-mapping",
+        "reason": "Fixture MP4 mutation commit."
+      }
+    },
+    "m4-a04": {
+      "result": "fail",
+      "method": "source-inspection",
+      "text": "The video message plays on the recipient.",
+      "executor": "choreo",
+      "freshRuntimeResult": "not-run",
+      "freshRuntimeReason": "Exact-lock dependency setup failed twice; no fresh owner/web/browser context started.",
+      "evidence": [
+        "audit/lanes/grok-snapback2/lib/ConversationView.tsx:89",
+        "audit/lanes/grok-snapback2/ui/src/MessageBubble.tsx:100",
+        "audit/lanes/grok-snapback2/choreography/choreography.mjs:1946"
+      ],
+      "note": "Source contradiction plus historical failure: ordinary video uses an Image/poster and play glyph, and ConversationView passes no onPressMedia handler for non-view-once messages. No recipient video player or sm-media-viewer-video exists in the mounted route. The retained playback locator times out.",
+      "historicalObservations": [
+        {
+          "assertion": "video-message-live-playback",
+          "recordedStatus": "failed",
+          "evidence": "audit/evidence/original-receipts/choreo-m4.jsonl:2",
+          "bestOf": 1,
+          "attemptCount": 1,
+          "completedSourceHashBound": false
+        }
+      ],
+      "timingSensitive": false,
+      "freshTimingAttempts": []
+    },
+    "m4-a05": {
+      "result": "not-run",
+      "method": "choreography-artifacts",
+      "text": "Bob reacts 👍; Alice sees the reaction live.",
+      "executor": "choreo",
+      "freshRuntimeResult": "not-run",
+      "freshRuntimeReason": "Exact-lock dependency setup failed twice; no fresh owner/web/browser context started.",
+      "evidence": [
+        "audit/lanes/grok-snapback2/choreography/choreography.mjs:1983",
+        "audit/lanes/grok-snapback2/lib/ConversationView.tsx:59"
+      ],
+      "note": "All three retained reaction attempts stop immediately because the preceding photo check produced no caption. They are precondition failures, not observations of missing reaction delivery.",
+      "historicalObservations": [
+        {
+          "assertion": "reaction-live-replace-remove",
+          "recordedStatus": "failed",
+          "evidence": "audit/evidence/original-receipts/choreo-m4.jsonl:3",
+          "bestOf": 3,
+          "attemptCount": 3,
+          "completedSourceHashBound": false
+        }
+      ],
+      "timingSensitive": true,
+      "freshTimingAttempts": []
+    },
+    "m4-a06": {
+      "result": "not-run",
+      "method": "source-inspection",
+      "text": "Bob switches to ❤️: the new emoji replaces the previous one (at most one reaction per user per message).",
+      "executor": "suite-required",
+      "freshRuntimeResult": "not-run",
+      "freshRuntimeReason": "Exact-lock dependency setup failed twice; no fresh owner/web/browser context started.",
+      "evidence": [
+        "audit/lanes/grok-snapback2/scripts/acceptance.mjs:298",
+        "audit/lanes/grok-snapback2/snapback/messages.q:239"
+      ],
+      "note": "Original API suite reads reactions after switching and checks one heart and no thumb. No browser chip replacement was reached; fresh API/UI check unavailable.",
+      "historicalObservations": [
+        {
+          "assertion": "reaction-live-replace-remove",
+          "recordedStatus": "failed",
+          "evidence": "audit/evidence/original-receipts/choreo-m4.jsonl:3",
+          "bestOf": 3,
+          "attemptCount": 3,
+          "completedSourceHashBound": false
+        }
+      ],
+      "timingSensitive": false,
+      "freshTimingAttempts": [],
+      "originalSuiteClaim": {
+        "result": "pass",
+        "mappedTest": "m4-a06",
+        "evidence": "audit/evidence/original-receipts/suite-m4.json"
+      },
+      "coverage": {
+        "verdict": "substantiated-mapping",
+        "reason": "Checks exactly one replacement heart and no thumb."
+      }
+    },
+    "m4-a07": {
+      "result": "not-run",
+      "method": "source-inspection",
+      "text": "Bob taps ❤️ again: the reaction is removed.",
+      "executor": "suite-required",
+      "freshRuntimeResult": "not-run",
+      "freshRuntimeReason": "Exact-lock dependency setup failed twice; no fresh owner/web/browser context started.",
+      "evidence": [
+        "audit/lanes/grok-snapback2/scripts/acceptance.mjs:301",
+        "audit/lanes/grok-snapback2/snapback/messages.q:252"
+      ],
+      "note": "Original API suite clears the reaction and checks zero returned rows. UI tapping was not reached by original choreography; no fresh run.",
+      "historicalObservations": [
+        {
+          "assertion": "reaction-live-replace-remove",
+          "recordedStatus": "failed",
+          "evidence": "audit/evidence/original-receipts/choreo-m4.jsonl:3",
+          "bestOf": 3,
+          "attemptCount": 3,
+          "completedSourceHashBound": false
+        }
+      ],
+      "timingSensitive": false,
+      "freshTimingAttempts": [],
+      "originalSuiteClaim": {
+        "result": "pass",
+        "mappedTest": "m4-a07",
+        "evidence": "audit/evidence/original-receipts/suite-m4.json"
+      },
+      "coverage": {
+        "verdict": "substantiated-mapping",
+        "reason": "Checks zero remaining reactions after clear."
+      }
+    },
+    "m4-a08": {
+      "result": "not-run",
+      "method": "choreography-artifacts",
+      "text": "Alice edits a sent message within the window; Bob sees the new text live.",
+      "executor": "choreo",
+      "freshRuntimeResult": "not-run",
+      "freshRuntimeReason": "Exact-lock dependency setup failed twice; no fresh owner/web/browser context started.",
+      "evidence": [
+        "audit/lanes/grok-snapback2/choreography/choreography.mjs:1172",
+        "audit/lanes/grok-snapback2/lib/ConversationView.tsx:152"
+      ],
+      "note": "The retained edit receipt says passed but does not establish an edit: it fills the normal composer with a string containing edited, submits, and finds that string without tracking original message ID/content replacement. Completed UI edits via globalThis.prompt, not that composer. Fresh actual mutation/recipient check unavailable.",
+      "historicalObservations": [
+        {
+          "assertion": "edit-live-visibility",
+          "recordedStatus": "passed",
+          "evidence": "audit/evidence/original-receipts/choreo-m4.jsonl:4",
+          "bestOf": 3,
+          "attemptCount": 3,
+          "completedSourceHashBound": false
+        }
+      ],
+      "timingSensitive": true,
+      "freshTimingAttempts": []
+    },
+    "m4-a09": {
+      "result": "not-run",
+      "method": "source-inspection",
+      "text": "The edited bubble shows an 'edited' label.",
+      "executor": "suite-required",
+      "freshRuntimeResult": "not-run",
+      "freshRuntimeReason": "Exact-lock dependency setup failed twice; no fresh owner/web/browser context started.",
+      "evidence": [
+        "audit/lanes/grok-snapback2/scripts/acceptance.mjs:304",
+        "audit/lanes/grok-snapback2/ui/src/MessageBubble.tsx:204",
+        "audit/lanes/grok-snapback2/choreography/choreography.mjs:2050"
+      ],
+      "note": "Original suite checks the backend edited boolean, not the label. Retained harness searches /edited/i in a body deliberately containing edited, making label evidence ambiguous. MessageBubble renders a separate label if flagged, but no fresh labeled edit was observed.",
+      "historicalObservations": [
+        {
+          "assertion": "edit-live-visibility",
+          "recordedStatus": "passed",
+          "evidence": "audit/evidence/original-receipts/choreo-m4.jsonl:4",
+          "bestOf": 3,
+          "attemptCount": 3,
+          "completedSourceHashBound": false
+        }
+      ],
+      "timingSensitive": false,
+      "freshTimingAttempts": [],
+      "originalSuiteClaim": {
+        "result": "pass",
+        "mappedTest": "m4-a09",
+        "evidence": "audit/evidence/original-receipts/suite-m4.json"
+      },
+      "coverage": {
+        "verdict": "partial",
+        "reason": "Backend edited boolean, no rendered label."
+      }
+    },
+    "m4-a10": {
+      "result": "not-run",
+      "method": "api",
+      "text": "Under the shortened-windows config, an edit attempted after the window is rejected server-side (verified via the API, not just the absence of the UI affordance).",
+      "executor": "grader",
+      "freshRuntimeResult": "not-run",
+      "freshRuntimeReason": "Exact-lock dependency setup failed twice; no fresh owner/web/browser context started.",
+      "evidence": [
+        "audit/lanes/grok-snapback2/snapback/messages.q:209",
+        "audit/lanes/grok-snapback2/snapback/seed.ts:34",
+        "audit/lanes/grok-snapback2/config/windows.json"
+      ],
+      "note": "API rejection after the original 60-second shortened window was not attempted because the owner could not start. Source compares server now against msg.at and seeded 60000 ms. That implementation is not substituted for the required timed API denial.",
+      "historicalObservations": [],
+      "timingSensitive": false,
+      "freshTimingAttempts": []
+    },
+    "m4-a11": {
+      "result": "not-run",
+      "method": "choreography-artifacts",
+      "text": "Alice deletes a message (delete-for-everyone); Bob sees the 'This message was deleted' tombstone.",
+      "executor": "choreo",
+      "freshRuntimeResult": "not-run",
+      "freshRuntimeReason": "Exact-lock dependency setup failed twice; no fresh owner/web/browser context started.",
+      "evidence": [
+        "audit/lanes/grok-snapback2/choreography/choreography.mjs:2056",
+        "audit/lanes/grok-snapback2/snapback/messages.q:225"
+      ],
+      "note": "Retained delete journey timed out waiting for a new tombstone. Current source clears body/media and emits removed deliveries, but no fresh recipient tombstone observation is available.",
+      "historicalObservations": [
+        {
+          "assertion": "delete-live-tombstone",
+          "recordedStatus": "failed",
+          "evidence": "audit/evidence/original-receipts/choreo-m4.jsonl:5",
+          "bestOf": 1,
+          "attemptCount": 1,
+          "completedSourceHashBound": false
+        }
+      ],
+      "timingSensitive": false,
+      "freshTimingAttempts": []
+    },
+    "m4-a12": {
+      "result": "not-run",
+      "method": "api",
+      "text": "After the delete, the media URL no longer serves the asset.",
+      "executor": "grader",
+      "freshRuntimeResult": "not-run",
+      "freshRuntimeReason": "Exact-lock dependency setup failed twice; no fresh owner/web/browser context started.",
+      "evidence": [
+        "audit/lanes/grok-snapback2/snapback/messages.q:225"
+      ],
+      "note": "No pre-delete asset URL was obtained and no post-delete request made. Nulling the message media reference is not by itself proof that an already issued asset URL is refused.",
+      "historicalObservations": [],
+      "timingSensitive": false,
+      "freshTimingAttempts": []
+    },
+    "m5-a01": {
+      "result": "not-run",
+      "method": "api",
+      "text": "Set a DM to disappearing (shortened-windows config): with both clients closed at expiry, the server refuses the expired message (API check).",
+      "executor": "grader",
+      "freshRuntimeResult": "not-run",
+      "freshRuntimeReason": "Exact-lock dependency setup failed twice; no fresh owner/web/browser context started.",
+      "evidence": [
+        "audit/lanes/grok-snapback2/snapback/schema.q:507",
+        "audit/lanes/grok-snapback2/snapback/messages.q:62",
+        "audit/lanes/grok-snapback2/lib/ConversationView.tsx:265"
+      ],
+      "note": "No server expiry/API test ran. Source schedules purge on expiresAt with original 180/300-second shortened TTLs, but the required both-clients-closed scenario and refusal bound remain unobserved. DM settings navigation is absent in the UI.",
+      "historicalObservations": [],
+      "timingSensitive": false,
+      "freshTimingAttempts": []
+    },
+    "m5-a02": {
+      "result": "not-run",
+      "method": "api",
+      "text": "Each client purges the expired message on next launch/reconnect (connected: within tolerance; disconnected: immediately on reconnect).",
+      "executor": "grader",
+      "freshRuntimeResult": "not-run",
+      "freshRuntimeReason": "Exact-lock dependency setup failed twice; no fresh owner/web/browser context started.",
+      "evidence": [
+        "audit/lanes/grok-snapback2/lib/snapback.tsx:12",
+        "audit/lanes/grok-snapback2/lib/ConversationView.tsx:227"
+      ],
+      "note": "No expiry/reconnect lifecycle observations were retained or generated. Native client onTombstone and web component cachedRows require actual purge verification; source is not enough.",
+      "historicalObservations": [],
+      "timingSensitive": false,
+      "freshTimingAttempts": []
+    },
+    "m5-a03": {
+      "result": "not-run",
+      "method": "api",
+      "text": "The expired message no longer appears in offline search after the client has synced the expiry.",
+      "executor": "grader",
+      "freshRuntimeResult": "not-run",
+      "freshRuntimeReason": "Exact-lock dependency setup failed twice; no fresh owner/web/browser context started.",
+      "evidence": [
+        "audit/lanes/grok-snapback2/snapback/messages.q:292",
+        "audit/lanes/grok-snapback2/snapback/search.q:10",
+        "audit/lanes/grok-snapback2/app/search.tsx:23"
+      ],
+      "note": "No post-sync offline search probe ran. Purge clears message content but does not remove searchTerms; the web search maps query rows without a tombstone filter. This is a source concern, not proof of rendered leaked content.",
+      "historicalObservations": [],
+      "timingSensitive": false,
+      "freshTimingAttempts": []
+    },
+    "m5-a04": {
+      "result": "not-run",
+      "method": "source-inspection",
+      "text": "View-once photo: Bob can open it exactly once (first open works).",
+      "executor": "suite-required",
+      "freshRuntimeResult": "not-run",
+      "freshRuntimeReason": "Exact-lock dependency setup failed twice; no fresh owner/web/browser context started.",
+      "evidence": [
+        "audit/lanes/grok-snapback2/scripts/acceptance.mjs:328",
+        "audit/lanes/grok-snapback2/snapback/schema.q:212",
+        "audit/lanes/grok-snapback2/snapback/messages.q:11"
+      ],
+      "note": "Original suite creates a view-once message and queries a reference. It does not fetch/render first-open image bytes; the schema uses the published once asset capability, so query success alone is not consumption proof.",
+      "historicalObservations": [],
+      "timingSensitive": false,
+      "freshTimingAttempts": [],
+      "originalSuiteClaim": {
+        "result": "pass",
+        "mappedTest": "m5-a04",
+        "evidence": "audit/evidence/original-receipts/suite-m5.json"
+      },
+      "coverage": {
+        "verdict": "partial",
+        "reason": "Query reference observed, no first-open asset bytes."
+      }
+    },
+    "m5-a05": {
+      "result": "not-run",
+      "method": "source-inspection",
+      "text": "Bob's second open of the view-once photo is denied.",
+      "executor": "suite-required",
+      "freshRuntimeResult": "not-run",
+      "freshRuntimeReason": "Exact-lock dependency setup failed twice; no fresh owner/web/browser context started.",
+      "evidence": [
+        "audit/lanes/grok-snapback2/scripts/acceptance.mjs:333",
+        "audit/lanes/grok-snapback2/lib/ConversationView.tsx:92"
+      ],
+      "note": "Original suite can pass second-open denial whenever the first query was complete: secondDenied OR first.state===complete. No second-open byte fetch or freshly observed refusal exists.",
+      "historicalObservations": [],
+      "timingSensitive": false,
+      "freshTimingAttempts": [],
+      "originalSuiteClaim": {
+        "result": "pass",
+        "mappedTest": "m5-a05",
+        "evidence": "audit/evidence/original-receipts/suite-m5.json"
+      },
+      "coverage": {
+        "verdict": "unsubstantiated",
+        "reason": "OR first.state===complete makes second denial unnecessary."
+      }
+    },
+    "m5-a06": {
+      "result": "not-run",
+      "method": "api",
+      "text": "A direct asset fetch after the view is refused server-side.",
+      "executor": "grader",
+      "freshRuntimeResult": "not-run",
+      "freshRuntimeReason": "Exact-lock dependency setup failed twice; no fresh owner/web/browser context started.",
+      "evidence": [
+        "audit/lanes/grok-snapback2/snapback/schema.q:212",
+        "audit/lanes/grok-snapback2/snapback/messages.q:11"
+      ],
+      "note": "No direct asset request after first view was made. The once annotation and local opened state cannot replace a server asset-refusal check.",
+      "historicalObservations": [],
+      "timingSensitive": false,
+      "freshTimingAttempts": []
+    },
+    "m5-a07": {
+      "result": "not-run",
+      "method": "choreography-artifacts",
+      "text": "Admin sets the group accent color and background; Carol sees both (customization synced to all members).",
+      "executor": "choreo",
+      "freshRuntimeResult": "not-run",
+      "freshRuntimeReason": "Exact-lock dependency setup failed twice; no fresh owner/web/browser context started.",
+      "evidence": [
+        "audit/lanes/grok-snapback2/app/conversation/group/[group]/settings.tsx:34",
+        "audit/lanes/grok-snapback2/lib/ConversationView.tsx:256"
+      ],
+      "note": "No original M5 choreography receipt exists. Group settings reads shared accent/background and provides upload controls; the conversation itself never renders conv.background. Carol-side synchronization was not run.",
+      "historicalObservations": [],
+      "timingSensitive": false,
+      "freshTimingAttempts": []
+    },
+    "m5-a08": {
+      "result": "not-run",
+      "method": "source-inspection",
+      "text": "A non-admin cannot rename the group.",
+      "executor": "suite-required",
+      "freshRuntimeResult": "not-run",
+      "freshRuntimeReason": "Exact-lock dependency setup failed twice; no fresh owner/web/browser context started.",
+      "evidence": [
+        "audit/lanes/grok-snapback2/scripts/acceptance.mjs:343",
+        "audit/lanes/grok-snapback2/snapback/groups.q:113"
+      ],
+      "note": "Original suite rejects Bob rename of an Alice-created group; source requires admin membership. No fresh authorized-precondition denial was executed.",
+      "historicalObservations": [],
+      "timingSensitive": false,
+      "freshTimingAttempts": [],
+      "originalSuiteClaim": {
+        "result": "pass",
+        "mappedTest": "m5-a08",
+        "evidence": "audit/evidence/original-receipts/suite-m5.json"
+      },
+      "coverage": {
+        "verdict": "substantiated-mapping",
+        "reason": "Non-admin rename rejection on newly created group."
+      }
+    },
+    "m5-a09": {
+      "result": "not-run",
+      "method": "source-inspection",
+      "text": "People search finds 'car' -> Carol (case-insensitive word-prefix matching).",
+      "executor": "suite-required",
+      "freshRuntimeResult": "not-run",
+      "freshRuntimeReason": "Exact-lock dependency setup failed twice; no fresh owner/web/browser context started.",
+      "evidence": [
+        "audit/lanes/grok-snapback2/scripts/acceptance.mjs:346",
+        "audit/lanes/grok-snapback2/lib/terms.ts:4"
+      ],
+      "note": "Original suite looks for Carol by handle in car-prefix result. No fresh check. Tokenization supports ASCII alphanumerics after NFC, losing accented Latin words required by broader search semantics.",
+      "historicalObservations": [],
+      "timingSensitive": false,
+      "freshTimingAttempts": [],
+      "originalSuiteClaim": {
+        "result": "pass",
+        "mappedTest": "m5-a09",
+        "evidence": "audit/evidence/original-receipts/suite-m5.json"
+      },
+      "coverage": {
+        "verdict": "substantiated-mapping",
+        "reason": "Checks Carol handle in car prefix results."
+      }
+    },
+    "m5-a10": {
+      "result": "not-run",
+      "method": "source-inspection",
+      "text": "In-chat search finds a known seeded string.",
+      "executor": "suite-required",
+      "freshRuntimeResult": "not-run",
+      "freshRuntimeReason": "Exact-lock dependency setup failed twice; no fresh owner/web/browser context started.",
+      "evidence": [
+        "audit/lanes/grok-snapback2/scripts/acceptance.mjs:348",
+        "audit/lanes/grok-snapback2/snapback/search.q:5",
+        "audit/lanes/grok-snapback2/app/search.tsx:14"
+      ],
+      "note": "Original suite asks for once, a message it just created, and merely checks data exists; it does not locate a known seeded string. No in-chat search UI is wired in the route. Required seeded-match check unavailable.",
+      "historicalObservations": [],
+      "timingSensitive": false,
+      "freshTimingAttempts": [],
+      "originalSuiteClaim": {
+        "result": "pass",
+        "mappedTest": "m5-a10",
+        "evidence": "audit/evidence/original-receipts/suite-m5.json"
+      },
+      "coverage": {
+        "verdict": "unsubstantiated",
+        "reason": "Only data envelope for a just-created string, not known seeded string."
+      }
+    },
+    "m5-a11": {
+      "result": "not-run",
+      "method": "source-inspection",
+      "text": "Global message search groups results by chat.",
+      "executor": "suite-required",
+      "freshRuntimeResult": "not-run",
+      "freshRuntimeReason": "Exact-lock dependency setup failed twice; no fresh owner/web/browser context started.",
+      "evidence": [
+        "audit/lanes/grok-snapback2/scripts/acceptance.mjs:350",
+        "audit/lanes/grok-snapback2/app/search.tsx:27",
+        "audit/lanes/grok-snapback2/ui/src/SearchBar.tsx:103"
+      ],
+      "note": "Original suite checks data exists. UI supplies groupLabel on globally time-ordered rows; SearchBar groups only adjacent labels, so interleaved chats can repeat headings. No fresh grouped-results observation.",
+      "historicalObservations": [],
+      "timingSensitive": false,
+      "freshTimingAttempts": [],
+      "originalSuiteClaim": {
+        "result": "pass",
+        "mappedTest": "m5-a11",
+        "evidence": "audit/evidence/original-receipts/suite-m5.json"
+      },
+      "coverage": {
+        "verdict": "unsubstantiated",
+        "reason": "Only data envelope, not grouping."
+      }
+    },
+    "m5-a12": {
+      "result": "not-run",
+      "method": "choreography-artifacts",
+      "text": "Warm-offline: with the app running, connectivity cut, search over previously synced messages still returns results (no restart - cold-start offline search is verified at M6).",
+      "executor": "choreo",
+      "freshRuntimeResult": "not-run",
+      "freshRuntimeReason": "Exact-lock dependency setup failed twice; no fresh owner/web/browser context started.",
+      "evidence": [
+        "audit/lanes/grok-snapback2/lib/snapback.tsx:26",
+        "audit/lanes/grok-snapback2/app/search.tsx:14"
+      ],
+      "note": "No M5 warm-offline receipt exists and no new browser started. Current web client has no explicit durable/offline configuration and no client search over previously synced message rows; warm-offline query coverage must be tested, not inferred.",
+      "historicalObservations": [],
+      "timingSensitive": false,
+      "freshTimingAttempts": []
+    },
+    "m6-a01": {
+      "result": "not-run",
+      "method": "choreography-artifacts",
+      "text": "Cold-start offline (iOS simulator, backend stopped): previously synced chats and message history render.",
+      "executor": "choreo",
+      "freshRuntimeResult": "not-run",
+      "freshRuntimeReason": "Exact-lock dependency setup failed twice; no fresh owner/web/browser context started.",
+      "evidence": [
+        "audit/evidence/original-native-artifact-inventory.json"
+      ],
+      "note": "Required native simulator artifact is absent from the permitted original receipts. Retained Hermes exports are build artifacts only. User forbids new simulator execution, so this exact native requirement remains not-run; web behavior is not substituted.",
+      "historicalObservations": [],
+      "timingSensitive": false,
+      "freshTimingAttempts": []
+    },
+    "m6-a02": {
+      "result": "not-run",
+      "method": "choreography-artifacts",
+      "text": "Cold-start offline: previously viewed media renders.",
+      "executor": "choreo",
+      "freshRuntimeResult": "not-run",
+      "freshRuntimeReason": "Exact-lock dependency setup failed twice; no fresh owner/web/browser context started.",
+      "evidence": [
+        "audit/evidence/original-native-artifact-inventory.json"
+      ],
+      "note": "Required native simulator artifact is absent from the permitted original receipts. Retained Hermes exports are build artifacts only. User forbids new simulator execution, so this exact native requirement remains not-run; web behavior is not substituted.",
+      "historicalObservations": [],
+      "timingSensitive": false,
+      "freshTimingAttempts": []
+    },
+    "m6-a03": {
+      "result": "not-run",
+      "method": "choreography-artifacts",
+      "text": "Cold-start offline: search over synced messages works.",
+      "executor": "choreo",
+      "freshRuntimeResult": "not-run",
+      "freshRuntimeReason": "Exact-lock dependency setup failed twice; no fresh owner/web/browser context started.",
+      "evidence": [
+        "audit/evidence/original-native-artifact-inventory.json"
+      ],
+      "note": "Required native simulator artifact is absent from the permitted original receipts. Retained Hermes exports are build artifacts only. User forbids new simulator execution, so this exact native requirement remains not-run; web behavior is not substituted.",
+      "historicalObservations": [],
+      "timingSensitive": false,
+      "freshTimingAttempts": []
+    },
+    "m6-a04": {
+      "result": "not-run",
+      "method": "choreography-artifacts",
+      "text": "Cold-start offline: a previously viewed view-once photo does NOT render (view-once media is never durably cached).",
+      "executor": "choreo",
+      "freshRuntimeResult": "not-run",
+      "freshRuntimeReason": "Exact-lock dependency setup failed twice; no fresh owner/web/browser context started.",
+      "evidence": [
+        "audit/evidence/original-native-artifact-inventory.json"
+      ],
+      "note": "Required native simulator artifact is absent from the permitted original receipts. Retained Hermes exports are build artifacts only. User forbids new simulator execution, so this exact native requirement remains not-run; web behavior is not substituted.",
+      "historicalObservations": [],
+      "timingSensitive": false,
+      "freshTimingAttempts": []
+    },
+    "m6-a05": {
+      "result": "not-run",
+      "method": "choreography-artifacts",
+      "text": "Two messages composed offline both show a visible pending state.",
+      "executor": "choreo",
+      "freshRuntimeResult": "not-run",
+      "freshRuntimeReason": "Exact-lock dependency setup failed twice; no fresh owner/web/browser context started.",
+      "evidence": [
+        "audit/evidence/original-native-artifact-inventory.json"
+      ],
+      "note": "Required native simulator artifact is absent from the permitted original receipts. Retained Hermes exports are build artifacts only. User forbids new simulator execution, so this exact native requirement remains not-run; web behavior is not substituted.",
+      "historicalObservations": [],
+      "timingSensitive": false,
+      "freshTimingAttempts": []
+    },
+    "m6-a06": {
+      "result": "not-run",
+      "method": "choreography-artifacts",
+      "text": "On reconnect the queued messages flush and arrive in order.",
+      "executor": "choreo",
+      "freshRuntimeResult": "not-run",
+      "freshRuntimeReason": "Exact-lock dependency setup failed twice; no fresh owner/web/browser context started.",
+      "evidence": [
+        "audit/evidence/original-native-artifact-inventory.json"
+      ],
+      "note": "Required native simulator artifact is absent from the permitted original receipts. Retained Hermes exports are build artifacts only. User forbids new simulator execution, so this exact native requirement remains not-run; web behavior is not substituted.",
+      "historicalObservations": [],
+      "timingSensitive": false,
+      "freshTimingAttempts": []
+    },
+    "m6-a07": {
+      "result": "not-run",
+      "method": "choreography-artifacts",
+      "text": "The flushed messages walk the normal receipt states and reach 'read'.",
+      "executor": "choreo",
+      "freshRuntimeResult": "not-run",
+      "freshRuntimeReason": "Exact-lock dependency setup failed twice; no fresh owner/web/browser context started.",
+      "evidence": [
+        "audit/evidence/original-native-artifact-inventory.json"
+      ],
+      "note": "Required native simulator artifact is absent from the permitted original receipts. Retained Hermes exports are build artifacts only. User forbids new simulator execution, so this exact native requirement remains not-run; web behavior is not substituted.",
+      "historicalObservations": [],
+      "timingSensitive": false,
+      "freshTimingAttempts": []
+    },
+    "m6-a08": {
+      "result": "not-run",
+      "method": "source-inspection",
+      "text": "With Bob's clients closed, Alice messages him: the backend logs a push payload with the correct targetUserId, chatId, senderDisplayName, and preview (first 80 chars of text, or 'Photo'/'Video' for media).",
+      "executor": "suite-required",
+      "freshRuntimeResult": "not-run",
+      "freshRuntimeReason": "Exact-lock dependency setup failed twice; no fresh owner/web/browser context started.",
+      "evidence": [
+        "audit/lanes/grok-snapback2/scripts/acceptance.mjs:379",
+        "audit/lanes/grok-snapback2/snapback/messages.q:87"
+      ],
+      "note": "Original suite queries push history after reconnecting Bob and accepts any message row with preview length <=80. It verifies neither target/chat/sender nor exact text preview, and establishes no complete original client closure. No fresh push-seam check.",
+      "historicalObservations": [],
+      "timingSensitive": false,
+      "freshTimingAttempts": [],
+      "originalSuiteClaim": {
+        "result": "pass",
+        "mappedTest": "m6-a08",
+        "evidence": "audit/evidence/original-receipts/suite-m6.json"
+      },
+      "coverage": {
+        "verdict": "unsubstantiated",
+        "reason": "Any historical message with <=80-char preview; target/chat/sender/exact preview absent."
+      }
+    },
+    "m6-a09": {
+      "result": "not-run",
+      "method": "source-inspection",
+      "text": "A view-once photo previews as 'Photo' in the logged push payload.",
+      "executor": "suite-required",
+      "freshRuntimeResult": "not-run",
+      "freshRuntimeReason": "Exact-lock dependency setup failed twice; no fresh owner/web/browser context started.",
+      "evidence": [
+        "audit/lanes/grok-snapback2/scripts/acceptance.mjs:390",
+        "audit/lanes/grok-snapback2/snapback/messages.q:123"
+      ],
+      "note": "Original suite accepts preview Photo OR any kind message, so an unrelated text notification passes. It also reconnects Bob before sending the view-once photo. No fresh disconnected-recipient media push was checked.",
+      "historicalObservations": [],
+      "timingSensitive": false,
+      "freshTimingAttempts": [],
+      "originalSuiteClaim": {
+        "result": "pass",
+        "mappedTest": "m6-a09",
+        "evidence": "audit/evidence/original-receipts/suite-m6.json"
+      },
+      "coverage": {
+        "verdict": "unsubstantiated",
+        "reason": "Photo OR any message kind, while recipient reconnected."
+      }
+    },
+    "m6-a10": {
+      "result": "not-run",
+      "method": "source-inspection",
+      "text": "scripts/custom-client-demo.mjs runs green against the live backend from a clean checkout.",
+      "executor": "suite-required",
+      "freshRuntimeResult": "not-run",
+      "freshRuntimeReason": "Exact-lock dependency setup failed twice; no fresh owner/web/browser context started.",
+      "evidence": [
+        "audit/lanes/grok-snapback2/scripts/acceptance.mjs:393",
+        "audit/lanes/grok-snapback2/scripts/custom-client-demo.mjs"
+      ],
+      "note": "The documented demo was invoked twice in this clean copy; both attempts failed importing absent snapback2 before any operation. Original suite only records a literal true and no separate original successful demo receipt is retained.",
+      "historicalObservations": [],
+      "timingSensitive": false,
+      "freshTimingAttempts": [],
+      "originalSuiteClaim": {
+        "result": "pass",
+        "mappedTest": "m6-a10",
+        "evidence": "audit/evidence/original-receipts/suite-m6.json"
+      },
+      "coverage": {
+        "verdict": "unsubstantiated",
+        "reason": "Literal true; demo never executed."
+      }
+    },
+    "m6-a11": {
+      "result": "fail",
+      "method": "source-inspection",
+      "text": "The demo script exercises every listed API operation: authenticate (or use an issued token), list conversations, page through message history, send a text message, and receive new messages (streaming or documented polling).",
+      "executor": "suite-required",
+      "freshRuntimeResult": "not-run",
+      "freshRuntimeReason": "Exact-lock dependency setup failed twice; no fresh owner/web/browser context started.",
+      "evidence": [
+        "audit/lanes/grok-snapback2/scripts/custom-client-demo.mjs",
+        "audit/lanes/grok-snapback2/API.md",
+        "audit/lanes/grok-snapback2/scripts/acceptance.mjs:394"
+      ],
+      "note": "Source contradiction: the entire demo performs one history request with c:null, sends once, and exits. It never follows history.next and never receives/streams/polls a newly arriving message. API.md does not document a receive loop or token issuance/expiry/revocation story.",
+      "historicalObservations": [],
+      "timingSensitive": false,
+      "freshTimingAttempts": [],
+      "originalSuiteClaim": {
+        "result": "pass",
+        "mappedTest": "m6-a11",
+        "evidence": "audit/evidence/original-receipts/suite-m6.json"
+      },
+      "coverage": {
+        "verdict": "unsubstantiated",
+        "reason": "Literal true; operations not exercised."
+      }
+    },
+    "m6-a12": {
+      "result": "not-run",
+      "method": "api",
+      "text": "Grader-written variation: following only API.md, fetch the latest message of a named conversation (documentation quality is part of the bar).",
+      "executor": "grader",
+      "freshRuntimeResult": "not-run",
+      "freshRuntimeReason": "Exact-lock dependency setup failed twice; no fresh owner/web/browser context started.",
+      "evidence": [
+        "audit/lanes/grok-snapback2/API.md",
+        "audit/lanes/grok-snapback2/snapback/messages.q:17"
+      ],
+      "note": "The API.md-only named-conversation variation could not execute without the fresh owner/client package. Docs prescribe groups.mine then the last element of thread.data; ordering and complete required message fields remain unverified. No variation was invented or reported as run.",
+      "historicalObservations": [],
+      "timingSensitive": false,
+      "freshTimingAttempts": []
+    },
+    "m6-a13": {
+      "result": "not-run",
+      "method": "source-inspection",
+      "text": "The scale-replay adapter passes the fixture pack's action-schema conformance check: it replays a 50-action sample log green, harness-validated, on the dev instance (adapter authoring is inside M6's coverage manifest, cap, and authoring clock).",
+      "executor": "suite-required",
+      "freshRuntimeResult": "not-run",
+      "freshRuntimeReason": "Exact-lock dependency setup failed twice; no fresh owner/web/browser context started.",
+      "evidence": [
+        "audit/lanes/grok-snapback2/scripts/acceptance.mjs:395",
+        "audit/lanes/grok-snapback2/scripts/lib/replay.mjs",
+        "audit/evidence/fixture-syntax-validation.log"
+      ],
+      "note": "The original suite never executes sample-50; it records true because an adapter file exists. Independent fixture syntax validation confirms exactly 50 actions across 13 verbs, but is not adapter replay, settlement accounting, or backend invariant conformance. Fresh replay unavailable.",
+      "historicalObservations": [],
+      "timingSensitive": false,
+      "freshTimingAttempts": [],
+      "originalSuiteClaim": {
+        "result": "pass",
+        "mappedTest": "m6-a13",
+        "evidence": "audit/evidence/original-receipts/suite-m6.json"
+      },
+      "coverage": {
+        "verdict": "unsubstantiated",
+        "reason": "Literal true; sample replay never executed."
+      }
+    },
+    "m8-a01": {
+      "result": "not-run",
+      "method": "source-inspection",
+      "text": "Alice's Insights screen shows the six lifetime totals (posts, likes received, reposts received, replies received, followers, following) matching the seeded content.",
+      "executor": "suite-required",
+      "freshRuntimeResult": "not-run",
+      "freshRuntimeReason": "Exact-lock dependency setup failed twice; no fresh owner/web/browser context started.",
+      "evidence": [
+        "audit/lanes/grok-snapback2/scripts/acceptance.mjs:405",
+        "audit/lanes/grok-snapback2/snapback/insights.q:4",
+        "audit/lanes/grok-snapback2/app/insights.tsx:41"
+      ],
+      "note": "Original suite checks query completion, never six totals against seeded invariants or screen output. Source computes six server aggregates and renders tiles, but exact totals were not independently verified.",
+      "historicalObservations": [],
+      "timingSensitive": false,
+      "freshTimingAttempts": [],
+      "originalSuiteClaim": {
+        "result": "pass",
+        "mappedTest": "m8-a01",
+        "evidence": "audit/evidence/original-receipts/suite-m8.json"
+      },
+      "coverage": {
+        "verdict": "unsubstantiated",
+        "reason": "Only query complete, no exact six totals."
+      }
+    },
+    "m8-a02": {
+      "result": "not-run",
+      "method": "choreography-artifacts",
+      "text": "After Bob likes one of Alice's posts, a refresh of Alice's Insights increments her likes-received total.",
+      "executor": "choreo",
+      "freshRuntimeResult": "not-run",
+      "freshRuntimeReason": "Exact-lock dependency setup failed twice; no fresh owner/web/browser context started.",
+      "evidence": [
+        "audit/lanes/grok-snapback2/app/insights.tsx:15",
+        "audit/lanes/grok-snapback2/choreography/choreography.mjs:2552"
+      ],
+      "note": "No retained M8 choreography exists. Original suite does not exercise Bob like plus refreshed Alice Insights. Source uses a live query but offers no pull-to-refresh handler. No fresh delta measurement.",
+      "historicalObservations": [],
+      "timingSensitive": false,
+      "freshTimingAttempts": []
+    },
+    "m8-a03": {
+      "result": "not-run",
+      "method": "source-inspection",
+      "text": "The 7-day activity breakdown buckets a post created today under today (server-time UTC day boundaries).",
+      "executor": "suite-required",
+      "freshRuntimeResult": "not-run",
+      "freshRuntimeReason": "Exact-lock dependency setup failed twice; no fresh owner/web/browser context started.",
+      "evidence": [
+        "audit/lanes/grok-snapback2/scripts/acceptance.mjs:406",
+        "audit/lanes/grok-snapback2/app/insights.tsx:14",
+        "audit/lanes/grok-snapback2/snapback/posts.q:6"
+      ],
+      "note": "Original suite checks only complete state. Source uses server clock UTC day to request daily maintained counts, but does not execute a create-today then verify-today acceptance scenario.",
+      "historicalObservations": [],
+      "timingSensitive": false,
+      "freshTimingAttempts": [],
+      "originalSuiteClaim": {
+        "result": "pass",
+        "mappedTest": "m8-a03",
+        "evidence": "audit/evidence/original-receipts/suite-m8.json"
+      },
+      "coverage": {
+        "verdict": "unsubstantiated",
+        "reason": "Only query complete, no today delta."
+      }
+    },
+    "m8-a04": {
+      "result": "not-run",
+      "method": "source-inspection",
+      "text": "Days with no activity render as zero, not omitted.",
+      "executor": "suite-required",
+      "freshRuntimeResult": "not-run",
+      "freshRuntimeReason": "Exact-lock dependency setup failed twice; no fresh owner/web/browser context started.",
+      "evidence": [
+        "audit/lanes/grok-snapback2/scripts/acceptance.mjs:407",
+        "audit/lanes/grok-snapback2/app/insights.tsx:25"
+      ],
+      "note": "Original suite checks a day6Posts property. UI maps seven offsets with zero fallbacks, but no seeded inactive-day render was observed independently.",
+      "historicalObservations": [],
+      "timingSensitive": false,
+      "freshTimingAttempts": [],
+      "originalSuiteClaim": {
+        "result": "pass",
+        "mappedTest": "m8-a04",
+        "evidence": "audit/evidence/original-receipts/suite-m8.json"
+      },
+      "coverage": {
+        "verdict": "partial",
+        "reason": "Checks one day6 property, not seven rendered zero buckets."
+      }
+    },
+    "m8-a05": {
+      "result": "fail",
+      "method": "source-inspection",
+      "text": "Trending ranks the post with the most likes in the trailing 24 h first.",
+      "executor": "suite-required",
+      "freshRuntimeResult": "not-run",
+      "freshRuntimeReason": "Exact-lock dependency setup failed twice; no fresh owner/web/browser context started.",
+      "evidence": [
+        "audit/lanes/grok-snapback2/snapback/feeds.q:32",
+        "audit/lanes/grok-snapback2/snapback/posts.q:47",
+        "audit/lanes/grok-snapback2/app/index.tsx:91"
+      ],
+      "note": "Source contradiction: Trending selects the last ten posts by time, not by likes, and returns posts.likeCount. That field is initialized to zero and is never updated by setLike; no client ranking is performed. Highest-like-first is absent.",
+      "historicalObservations": [],
+      "timingSensitive": false,
+      "freshTimingAttempts": [],
+      "originalSuiteClaim": {
+        "result": "pass",
+        "mappedTest": "m8-a05",
+        "evidence": "audit/evidence/original-receipts/suite-m8.json"
+      },
+      "coverage": {
+        "verdict": "unsubstantiated",
+        "reason": "Only data envelope, no ranking."
+      }
+    },
+    "m8-a06": {
+      "result": "fail",
+      "method": "source-inspection",
+      "text": "An older heavily-liked post (>24 h) is absent from Trending.",
+      "executor": "suite-required",
+      "freshRuntimeResult": "not-run",
+      "freshRuntimeReason": "Exact-lock dependency setup failed twice; no fresh owner/web/browser context started.",
+      "evidence": [
+        "audit/lanes/grok-snapback2/snapback/feeds.q:32",
+        "audit/lanes/grok-snapback2/scripts/acceptance.mjs:410"
+      ],
+      "note": "Source contradiction: neither Trending query nor rendered client filters posts by a trailing 24-hour server-time boundary. Older posts can be returned when within the newest ten. Suite unconditionally passes this while naming its stub.",
+      "historicalObservations": [],
+      "timingSensitive": false,
+      "freshTimingAttempts": [],
+      "originalSuiteClaim": {
+        "result": "pass",
+        "mappedTest": "m8-a06",
+        "evidence": "audit/evidence/original-receipts/suite-m8.json"
+      },
+      "coverage": {
+        "verdict": "unsubstantiated",
+        "reason": "Literal true with explicit stub detail."
+      }
+    },
+    "m8-a07": {
+      "result": "not-run",
+      "method": "source-inspection",
+      "text": "A like-count tie in Trending breaks newest-first.",
+      "executor": "suite-required",
+      "freshRuntimeResult": "not-run",
+      "freshRuntimeReason": "Exact-lock dependency setup failed twice; no fresh owner/web/browser context started.",
+      "evidence": [
+        "audit/lanes/grok-snapback2/scripts/acceptance.mjs:411",
+        "audit/lanes/grok-snapback2/snapback/feeds.q:32"
+      ],
+      "note": "No independent equal-like fixture/order observation. A time-ordered query alone does not establish the complete tie behavior of the required like-ranked view, and the suite is literal true.",
+      "historicalObservations": [],
+      "timingSensitive": false,
+      "freshTimingAttempts": [],
+      "originalSuiteClaim": {
+        "result": "pass",
+        "mappedTest": "m8-a07",
+        "evidence": "audit/evidence/original-receipts/suite-m8.json"
+      },
+      "coverage": {
+        "verdict": "unsubstantiated",
+        "reason": "Literal true."
+      }
+    },
+    "m8-a08": {
+      "result": "fail",
+      "method": "source-inspection",
+      "text": "Under the shortened digest config with every client closed, seeded activity produces exactly one logged digest payload per active user, with correct newFollowers, newPostsInFollowing, unreadMessages, and unreadChats counts.",
+      "executor": "grader",
+      "freshRuntimeResult": "not-run",
+      "freshRuntimeReason": "Exact-lock dependency setup failed twice; no fresh owner/web/browser context started.",
+      "evidence": [
+        "audit/lanes/grok-snapback2/snapback/jobs.q:21",
+        "audit/lanes/grok-snapback2/snapback/schema.q:493",
+        "audit/lanes/grok-snapback2/snapback/messages.q:78",
+        "audit/lanes/grok-snapback2/snapback/seed.ts:28"
+      ],
+      "note": "Source contradiction in required counts: digest reads userStats for newFollowers/newPostsInFollowing, but no application mutation/job writes that table and seed leaves it empty. unreadMessageTotals sums membership.unreadCount, while sends only increment chatList.unreadCount. Correct active-period counts cannot be supplied by this implementation. No schedule emission was freshly observed.",
+      "historicalObservations": [],
+      "timingSensitive": false,
+      "freshTimingAttempts": []
+    },
+    "m8-a09": {
+      "result": "not-run",
+      "method": "api",
+      "text": "A persona with no activity in the period receives no digest.",
+      "executor": "grader",
+      "freshRuntimeResult": "not-run",
+      "freshRuntimeReason": "Exact-lock dependency setup failed twice; no fresh owner/web/browser context started.",
+      "evidence": [
+        "audit/lanes/grok-snapback2/snapback/jobs.q:37"
+      ],
+      "note": "Source has total>0 guard, but no closed-client inactive-persona schedule observation was executed. Absence of retained digest receipts does not prove suppression.",
+      "historicalObservations": [],
+      "timingSensitive": false,
+      "freshTimingAttempts": []
+    },
+    "m8-a10": {
+      "result": "fail",
+      "method": "source-inspection",
+      "text": "A following period with no new activity emits no digest.",
+      "executor": "grader",
+      "freshRuntimeResult": "not-run",
+      "freshRuntimeReason": "Exact-lock dependency setup failed twice; no fresh owner/web/browser context started.",
+      "evidence": [
+        "audit/lanes/grok-snapback2/snapback/jobs.q:35",
+        "audit/lanes/grok-snapback2/snapback/jobs.q:38"
+      ],
+      "note": "Source contradiction: digest uses current unreadChats totals without a period filter and does not consume/reset them after emission. An unread chat carries into later periods even with no new activity, conflicting with required subsequent-period suppression. Runtime scheduling itself was not tested.",
+      "historicalObservations": [],
+      "timingSensitive": false,
+      "freshTimingAttempts": []
+    },
+    "m8-a11": {
+      "result": "not-run",
+      "method": "api",
+      "text": "A backend restart mid-period does not double-emit any user's digest (exactly one digest per user per period).",
+      "executor": "grader",
+      "freshRuntimeResult": "not-run",
+      "freshRuntimeReason": "Exact-lock dependency setup failed twice; no fresh owner/web/browser context started.",
+      "evidence": [
+        "audit/lanes/grok-snapback2/snapback/schema.q:385",
+        "audit/lanes/grok-snapback2/snapback/jobs.q:27"
+      ],
+      "note": "Unique principal/periodStart and an existing-row check express idempotency intent. No backend restart or emission observation occurred; exactly-once across restart remains unverified.",
+      "historicalObservations": [],
+      "timingSensitive": false,
+      "freshTimingAttempts": []
+    },
+    "m8-a12": {
+      "result": "not-run",
+      "method": "api",
+      "text": "Activity in a chat the target user is not a member of never contributes to that user's digest counts.",
+      "executor": "grader",
+      "freshRuntimeResult": "not-run",
+      "freshRuntimeReason": "Exact-lock dependency setup failed twice; no fresh owner/web/browser context started.",
+      "evidence": [
+        "audit/lanes/grok-snapback2/snapback/jobs.q:35",
+        "audit/lanes/grok-snapback2/snapback/groups.q:57",
+        "audit/lanes/grok-snapback2/snapback/schema.q:496"
+      ],
+      "note": "No ordinary API digest authorization scenario ran. Source counts unreadChats without joining current membership and removal does not delete those marks, a concern needing runtime confirmation. No holdout/security probe was invented.",
+      "historicalObservations": [],
+      "timingSensitive": false,
+      "freshTimingAttempts": []
+    },
+    "m8-a13": {
+      "result": "not-run",
+      "method": "choreography-artifacts",
+      "text": "With Alice signed in on two clients, a message sent on client 1 appears on client 2 live.",
+      "executor": "choreo",
+      "freshRuntimeResult": "not-run",
+      "freshRuntimeReason": "Exact-lock dependency setup failed twice; no fresh owner/web/browser context started.",
+      "evidence": [
+        "audit/lanes/grok-snapback2/lib/ConversationView.tsx:207"
+      ],
+      "note": "No original M8 same-account receipt and no fresh Alice contexts. Live query intent does not establish account-device convergence.",
+      "historicalObservations": [],
+      "timingSensitive": false,
+      "freshTimingAttempts": []
+    },
+    "m8-a14": {
+      "result": "not-run",
+      "method": "choreography-artifacts",
+      "text": "Opening the conversation on client 1 clears the unread indication on client 2 (cross-device read state).",
+      "executor": "choreo",
+      "freshRuntimeResult": "not-run",
+      "freshRuntimeReason": "Exact-lock dependency setup failed twice; no fresh owner/web/browser context started.",
+      "evidence": [
+        "audit/lanes/grok-snapback2/snapback/messages.q:281",
+        "audit/lanes/grok-snapback2/lib/ConversationView.tsx:55"
+      ],
+      "note": "No original M8 read-state receipt and no fresh two-device run. Source markRead clears shared chatList unread state but runtime propagation is unverified.",
+      "historicalObservations": [],
+      "timingSensitive": false,
+      "freshTimingAttempts": []
+    },
+    "m8-a15": {
+      "result": "not-run",
+      "method": "choreography-artifacts",
+      "text": "With both of Alice's clients warm-offline, each composes one message in the same chat; on reconnect both settle in server-arrival order with no loss and no duplicates.",
+      "executor": "choreo",
+      "freshRuntimeResult": "not-run",
+      "freshRuntimeReason": "Exact-lock dependency setup failed twice; no fresh owner/web/browser context started.",
+      "evidence": [
+        "audit/lanes/grok-snapback2/lib/ConversationView.tsx:341",
+        "audit/lanes/grok-snapback2/lib/snapback.tsx:26"
+      ],
+      "note": "No dual-offline messages were composed or flushed. The required original two-client account/population/order scenario was not replaced with a single-client queue test.",
+      "historicalObservations": [],
+      "timingSensitive": false,
+      "freshTimingAttempts": []
+    },
+    "m8-a16": {
+      "result": "not-run",
+      "method": "choreography-artifacts",
+      "text": "After the dual-offline reconnect the flushed messages' receipts advance normally.",
+      "executor": "choreo",
+      "freshRuntimeResult": "not-run",
+      "freshRuntimeReason": "Exact-lock dependency setup failed twice; no fresh owner/web/browser context started.",
+      "evidence": [
+        "audit/lanes/grok-snapback2/lib/ConversationView.tsx:69",
+        "audit/lanes/grok-snapback2/ui/src/MessageBubble.tsx:139"
+      ],
+      "note": "No dual-offline receipt transitions observed. ConversationView initializes own receipt to sent and never supplies MessageBubble.receiptPending; pending UI remains a source concern, not an executed offline finding.",
+      "historicalObservations": [],
+      "timingSensitive": false,
+      "freshTimingAttempts": []
+    },
+    "m8-a17": {
+      "result": "not-run",
+      "method": "choreography-artifacts",
+      "text": "Compose offline; kill and relaunch the app still offline: the queued messages render as pending (the offline queue is durable across restart).",
+      "executor": "choreo",
+      "freshRuntimeResult": "not-run",
+      "freshRuntimeReason": "Exact-lock dependency setup failed twice; no fresh owner/web/browser context started.",
+      "evidence": [
+        "audit/evidence/original-native-artifact-inventory.json"
+      ],
+      "note": "Required native simulator artifact is absent from the permitted original receipts. Retained Hermes exports are build artifacts only. User forbids new simulator execution, so this exact native requirement remains not-run; web behavior is not substituted.",
+      "historicalObservations": [],
+      "timingSensitive": false,
+      "freshTimingAttempts": []
+    },
+    "m8-a18": {
+      "result": "not-run",
+      "method": "choreography-artifacts",
+      "text": "On reconnect after the offline restart, the queued messages flush in order and reach 'read' normally.",
+      "executor": "choreo",
+      "freshRuntimeResult": "not-run",
+      "freshRuntimeReason": "Exact-lock dependency setup failed twice; no fresh owner/web/browser context started.",
+      "evidence": [
+        "audit/evidence/original-native-artifact-inventory.json"
+      ],
+      "note": "Required native simulator artifact is absent from the permitted original receipts. Retained Hermes exports are build artifacts only. User forbids new simulator execution, so this exact native requirement remains not-run; web behavior is not substituted.",
+      "historicalObservations": [],
+      "timingSensitive": false,
+      "freshTimingAttempts": []
+    }
+  },
+  "coverageSpotVerification": {
+    "verdict": "dishonest",
+    "meaning": "Protocol term for semantically unsupported coverage mappings; no intent attribution.",
+    "scope": "Every suite-required assertion, not just a sample.",
+    "assertionIds": [
+      "m1-a01",
+      "m1-a02",
+      "m1-a03",
+      "m1-a04",
+      "m1-a08",
+      "m1-a10",
+      "m1-a11",
+      "m2-a01",
+      "m2-a02",
+      "m2-a03",
+      "m2-a06",
+      "m2-a08",
+      "m2-a09",
+      "m2-a10",
+      "m2-a11",
+      "m2-a12",
+      "m2-a13",
+      "m2-a15",
+      "m2-a16",
+      "m2-a17",
+      "m2-a18",
+      "m2-a20",
+      "m2-a21",
+      "m2-a22",
+      "m2-a23",
+      "m2-a24",
+      "m2-a25",
+      "m2-a26",
+      "m2-a27",
+      "m3-a03",
+      "m3-a04",
+      "m3-a05",
+      "m3-a10",
+      "m3-a11",
+      "m3-a14",
+      "m3-a15",
+      "m4-a01",
+      "m4-a03",
+      "m4-a06",
+      "m4-a07",
+      "m4-a09",
+      "m5-a04",
+      "m5-a05",
+      "m5-a08",
+      "m5-a09",
+      "m5-a10",
+      "m5-a11",
+      "m6-a08",
+      "m6-a09",
+      "m6-a10",
+      "m6-a11",
+      "m6-a13",
+      "m8-a01",
+      "m8-a03",
+      "m8-a04",
+      "m8-a05",
+      "m8-a06",
+      "m8-a07"
+    ],
+    "allMilestonesHaveUnsupportedMappings": true,
+    "source": "audit/evidence/coverage-audit.json",
+    "statusAdjudication": "No scores, charging, execution-status rewriting or formal milestone adjudication performed."
+  },
+  "defects": [
+    {
+      "id": "d-01",
+      "severity": "major",
+      "summary": "Feed screens do not load subsequent pages.",
+      "relatedAssertionIds": [
+        "m2-a22",
+        "m2-a23",
+        "m2-a24"
+      ],
+      "evidence": [
+        "audit/lanes/grok-snapback2/app/index.tsx:84",
+        "audit/lanes/grok-snapback2/app/index.tsx:154"
+      ],
+      "basis": "source-inspection",
+      "freshRuntimeReproduced": false
+    },
+    {
+      "id": "d-02",
+      "severity": "major",
+      "summary": "Recipient conversation video has no playback handler/player.",
+      "relatedAssertionIds": [
+        "m4-a04"
+      ],
+      "evidence": [
+        "audit/lanes/grok-snapback2/lib/ConversationView.tsx:89",
+        "audit/lanes/grok-snapback2/ui/src/MessageBubble.tsx:70"
+      ],
+      "basis": "source-inspection",
+      "freshRuntimeReproduced": false
+    },
+    {
+      "id": "d-03",
+      "severity": "major",
+      "summary": "Trending omits required like ranking and trailing-24-hour filter, and reads an unmaintained zero likeCount field.",
+      "relatedAssertionIds": [
+        "m8-a05",
+        "m8-a06"
+      ],
+      "evidence": [
+        "audit/lanes/grok-snapback2/snapback/feeds.q:32",
+        "audit/lanes/grok-snapback2/snapback/posts.q:47"
+      ],
+      "basis": "source-inspection",
+      "freshRuntimeReproduced": false
+    },
+    {
+      "id": "d-04",
+      "severity": "major",
+      "summary": "Custom-client demo never pages history or receives new messages; API.md omits token lifecycle and complete history field documentation.",
+      "relatedAssertionIds": [
+        "m6-a11"
+      ],
+      "evidence": [
+        "audit/lanes/grok-snapback2/scripts/custom-client-demo.mjs",
+        "audit/lanes/grok-snapback2/API.md"
+      ],
+      "basis": "source-inspection",
+      "freshRuntimeReproduced": false
+    },
+    {
+      "id": "d-05",
+      "severity": "major",
+      "summary": "Digest new-activity counters are never populated; unread-message totals read a different counter from the one sends increment, while unread chats persist across periods.",
+      "relatedAssertionIds": [
+        "m8-a08",
+        "m8-a10"
+      ],
+      "evidence": [
+        "audit/lanes/grok-snapback2/snapback/jobs.q:21",
+        "audit/lanes/grok-snapback2/snapback/schema.q:493",
+        "audit/lanes/grok-snapback2/snapback/messages.q:78"
+      ],
+      "basis": "source-inspection",
+      "freshRuntimeReproduced": false
+    },
+    {
+      "id": "d-06",
+      "severity": "major",
+      "summary": "Profile avatar replacement control is not wired to a picker or avatar mutation argument.",
+      "relatedAssertionIds": [
+        "m1-a10"
+      ],
+      "evidence": [
+        "audit/lanes/grok-snapback2/app/profile/edit.tsx:49",
+        "audit/lanes/grok-snapback2/ui/src/ProfileForm.tsx:54"
+      ],
+      "basis": "source-inspection",
+      "freshRuntimeReproduced": false
+    },
+    {
+      "id": "d-07",
+      "severity": "major",
+      "summary": "Duplicate-handle signup silently retries another handle instead of consistently rejecting visibly.",
+      "relatedAssertionIds": [
+        "m1-a03"
+      ],
+      "evidence": [
+        "audit/lanes/grok-snapback2/app/auth.tsx:38"
+      ],
+      "basis": "source-inspection",
+      "freshRuntimeReproduced": false
+    },
+    {
+      "id": "d-08",
+      "severity": "major",
+      "summary": "Chat background is set/previewed in settings but not rendered behind the conversation; DM settings navigation is absent.",
+      "relatedAssertionIds": [
+        "m5-a01",
+        "m5-a07"
+      ],
+      "evidence": [
+        "audit/lanes/grok-snapback2/lib/ConversationView.tsx:256",
+        "audit/lanes/grok-snapback2/lib/ConversationView.tsx:265"
+      ],
+      "basis": "source-inspection",
+      "freshRuntimeReproduced": false
+    },
+    {
+      "id": "d-09",
+      "severity": "major",
+      "summary": "Acceptance coverage marks unconditional constants or narrower observations as full assertions, including sample replay and demo execution.",
+      "relatedAssertionIds": [
+        "m1-a01",
+        "m1-a10",
+        "m1-a02",
+        "m1-a03",
+        "m1-a04",
+        "m1-a08",
+        "m1-a11",
+        "m2-a01",
+        "m2-a02",
+        "m2-a03",
+        "m2-a06",
+        "m2-a08",
+        "m2-a16",
+        "m2-a20",
+        "m2-a09",
+        "m2-a10",
+        "m2-a11",
+        "m2-a12",
+        "m2-a13",
+        "m2-a15",
+        "m2-a17",
+        "m2-a18",
+        "m2-a21",
+        "m2-a22",
+        "m2-a23",
+        "m2-a24",
+        "m2-a25",
+        "m2-a26",
+        "m2-a27",
+        "m3-a03",
+        "m3-a04",
+        "m3-a05",
+        "m3-a10",
+        "m3-a14",
+        "m3-a11",
+        "m3-a15",
+        "m4-a03",
+        "m4-a06",
+        "m4-a07",
+        "m4-a01",
+        "m4-a09",
+        "m5-a08",
+        "m5-a09",
+        "m5-a04",
+        "m5-a05",
+        "m5-a10",
+        "m5-a11",
+        "m6-a08",
+        "m6-a09",
+        "m6-a10",
+        "m6-a11",
+        "m6-a13",
+        "m8-a04",
+        "m8-a01",
+        "m8-a03",
+        "m8-a05",
+        "m8-a06",
+        "m8-a07"
+      ],
+      "evidence": [
+        "audit/lanes/grok-snapback2/scripts/acceptance.mjs:446",
+        "audit/lanes/grok-snapback2/scripts/acceptance.mjs:333",
+        "audit/lanes/grok-snapback2/scripts/acceptance.mjs:395"
+      ],
+      "basis": "source-inspection",
+      "freshRuntimeReproduced": false
+    }
+  ],
+  "phaseResults": [
+    {
+      "phase": "source-custody-hash-write",
+      "attempts": 2,
+      "status": "completed",
+      "failures": [
+        {
+          "attempt": 1,
+          "reason": "relative evidence path resolved under app working directory; FileNotFoundError before write; retried from outcome root"
+        }
+      ]
+    },
+    {
+      "phase": "exact-lock-install",
+      "attempts": 2,
+      "status": "grader-abort",
+      "commands": [
+        "npm ci --cache ../../npm-cache --no-audit --no-fund",
+        "npm ci --cache ../../npm-cache --no-audit --no-fund"
+      ],
+      "exitCodes": [
+        1,
+        1
+      ],
+      "toolSessionIds": [
+        57563,
+        17696
+      ],
+      "ownedOsPids": null,
+      "evidence": [
+        "audit/evidence/npm-ci-attempt1.log",
+        "audit/evidence/npm-ci-attempt2.log"
+      ],
+      "reason": "EUSAGE: missing snapback2-linux-x64@ from lock file"
+    },
+    {
+      "phase": "acceptance-entrypoints",
+      "attempts": 2,
+      "status": "grader-abort",
+      "milestones": [
+        "M1",
+        "M2",
+        "M3",
+        "M4",
+        "M5",
+        "M6",
+        "M8"
+      ],
+      "reason": "All 14 commands exited 1 before any assertion: ERR_MODULE_NOT_FOUND snapback2",
+      "evidence": [
+        "audit/evidence/entrypoint-executions.json"
+      ]
+    },
+    {
+      "phase": "choreography-startup",
+      "attempts": 2,
+      "status": "grader-abort",
+      "reason": "Both attempts exited 1 at missing audit/lanes/lib/json-schema.mjs before suite linkage, credentials, browser or receipt creation. Original helper exists outside copied roots.",
+      "evidence": [
+        "audit/evidence/choreography-startup-attempt1.log",
+        "audit/evidence/choreography-startup-attempt2.log",
+        "audit/evidence/external-support-custody.json"
+      ]
+    },
+    {
+      "phase": "custom-client-demo",
+      "attempts": 2,
+      "status": "grader-abort",
+      "reason": "Both documented Node demo attempts exited 1 at absent snapback2 import, before auth/API operations.",
+      "evidence": [
+        "audit/evidence/demo-entrypoint-executions.json"
+      ]
+    },
+    {
+      "phase": "fresh-owner-and-web",
+      "attempts": 0,
+      "status": "not-run",
+      "reason": "dependency setup phase aborted; no process started"
+    },
+    {
+      "phase": "independent-api-and-web-checklist",
+      "attempts": 0,
+      "status": "not-run",
+      "reason": "fresh runtime unavailable; source review and historical evidence audit completed"
+    },
+    {
+      "phase": "retained-receipt-validation",
+      "attempts": 1,
+      "status": "completed",
+      "evidence": [
+        "audit/evidence/retained-schema-validation.json",
+        "audit/evidence/receipt-linkage-validation.json"
+      ]
+    },
+    {
+      "phase": "fixture-syntax-validation",
+      "attempts": 1,
+      "status": "completed",
+      "evidence": [
+        "audit/evidence/fixture-syntax-validation.log"
+      ]
+    },
+    {
+      "phase": "full-scale-and-native-execution",
+      "attempts": 0,
+      "status": "not-run",
+      "reason": "user excludes fresh full-scale/simulator runs; retained evidence only"
+    },
+    {
+      "phase": "holdout-probes",
+      "attempts": 0,
+      "status": "not-run",
+      "reason": "no committed probe set established; none invented"
+    }
+  ],
+  "freshProbeResults": [],
+  "holdoutProbeResults": [],
+  "timingRecords": [
+    {
+      "subject": "m1/profile-edit-live-visibility",
+      "provenance": "retained-original-only",
+      "fresh": false,
+      "bestOf": 3,
+      "selectedAttempt": 2,
+      "attempts": [
+        {
+          "attempt": 1,
+          "pass": true,
+          "startedAt": "2026-09-07T13:04:03.378Z",
+          "durationMs": 1120.8,
+          "settlementWaitMs": 211.1,
+          "metrics": {
+            "visibleMs": 106.9
+          },
+          "note": "other client observed display name, bio, heading, and feed navigation in 59.2ms"
+        },
+        {
+          "attempt": 2,
+          "pass": true,
+          "startedAt": "2026-09-07T13:04:04.499Z",
+          "durationMs": 1029.7,
+          "settlementWaitMs": 205.9,
+          "metrics": {
+            "visibleMs": 110.4
+          },
+          "note": "other client observed display name, bio, heading, and feed navigation in 57.6ms"
+        },
+        {
+          "attempt": 3,
+          "pass": true,
+          "startedAt": "2026-09-07T13:04:05.529Z",
+          "durationMs": 1108.2,
+          "settlementWaitMs": 208.8,
+          "metrics": {
+            "visibleMs": 110.6
+          },
+          "note": "other client observed display name, bio, heading, and feed navigation in 58.8ms"
+        }
+      ],
+      "evidence": "audit/evidence/original-receipts/choreo-m1.jsonl:1"
+    },
+    {
+      "subject": "m2/feed-text-post-live-update",
+      "provenance": "retained-original-only",
+      "fresh": false,
+      "bestOf": 3,
+      "selectedAttempt": 3,
+      "attempts": [
+        {
+          "attempt": 1,
+          "pass": true,
+          "startedAt": "2026-09-07T13:58:12.126Z",
+          "durationMs": 1442.6,
+          "settlementWaitMs": 670.4,
+          "metrics": {
+            "visibleMs": 505.9
+          }
+        },
+        {
+          "attempt": 2,
+          "pass": true,
+          "startedAt": "2026-09-07T13:58:13.570Z",
+          "durationMs": 913.6,
+          "settlementWaitMs": 542,
+          "metrics": {
+            "visibleMs": 603.3
+          }
+        },
+        {
+          "attempt": 3,
+          "pass": true,
+          "startedAt": "2026-09-07T13:58:14.484Z",
+          "durationMs": 774.2,
+          "settlementWaitMs": 480.6,
+          "metrics": {
+            "visibleMs": 490
+          }
+        }
+      ],
+      "evidence": "audit/evidence/original-receipts/choreo-m2.jsonl:1"
+    },
+    {
+      "subject": "m2/feed-image-post-live-update",
+      "provenance": "retained-original-only",
+      "fresh": false,
+      "bestOf": 3,
+      "selectedAttempt": 1,
+      "attempts": [
+        {
+          "attempt": 1,
+          "pass": true,
+          "startedAt": "2026-09-07T13:58:15.274Z",
+          "durationMs": 819.3,
+          "settlementWaitMs": 539.7,
+          "metrics": {
+            "visibleMs": 565
+          },
+          "note": "structural image attachment and two-client feed delivery"
+        },
+        {
+          "attempt": 2,
+          "pass": true,
+          "startedAt": "2026-09-07T13:58:16.093Z",
+          "durationMs": 988.3,
+          "settlementWaitMs": 658.5,
+          "metrics": {
+            "visibleMs": 696.5
+          },
+          "note": "structural image attachment and two-client feed delivery"
+        },
+        {
+          "attempt": 3,
+          "pass": true,
+          "startedAt": "2026-09-07T13:58:17.081Z",
+          "durationMs": 904.9,
+          "settlementWaitMs": 536.5,
+          "metrics": {
+            "visibleMs": 611.6
+          },
+          "note": "structural image attachment and two-client feed delivery"
+        }
+      ],
+      "evidence": "audit/evidence/original-receipts/choreo-m2.jsonl:2"
+    },
+    {
+      "subject": "m2/feed-video-post-live-update",
+      "provenance": "retained-original-only",
+      "fresh": false,
+      "bestOf": 3,
+      "selectedAttempt": 2,
+      "attempts": [
+        {
+          "attempt": 1,
+          "pass": true,
+          "startedAt": "2026-09-07T13:58:17.989Z",
+          "durationMs": 788.9,
+          "settlementWaitMs": 454,
+          "metrics": {
+            "visibleMs": 524.4
+          },
+          "note": "structural video attachment and two-client feed delivery"
+        },
+        {
+          "attempt": 2,
+          "pass": true,
+          "startedAt": "2026-09-07T13:58:18.778Z",
+          "durationMs": 770.7,
+          "settlementWaitMs": 437.6,
+          "metrics": {
+            "visibleMs": 495.3
+          },
+          "note": "structural video attachment and two-client feed delivery"
+        },
+        {
+          "attempt": 3,
+          "pass": true,
+          "startedAt": "2026-09-07T13:58:19.549Z",
+          "durationMs": 908.6,
+          "settlementWaitMs": 697.7,
+          "metrics": {
+            "visibleMs": 730.5
+          },
+          "note": "structural video attachment and two-client feed delivery"
+        }
+      ],
+      "evidence": "audit/evidence/original-receipts/choreo-m2.jsonl:3"
+    },
+    {
+      "subject": "m2/follow-unfollow-live-projection",
+      "provenance": "retained-original-only",
+      "fresh": false,
+      "bestOf": 3,
+      "selectedAttempt": 3,
+      "attempts": [
+        {
+          "attempt": 1,
+          "pass": true,
+          "startedAt": "2026-09-07T13:58:20.484Z",
+          "durationMs": 4433.1,
+          "settlementWaitMs": 1834.5,
+          "metrics": {
+            "followVisibleMs": 1298.5,
+            "unfollowVisibleMs": 349
+          }
+        },
+        {
+          "attempt": 2,
+          "pass": true,
+          "startedAt": "2026-09-07T13:58:24.917Z",
+          "durationMs": 4284.2,
+          "settlementWaitMs": 1994.3,
+          "metrics": {
+            "followVisibleMs": 1272,
+            "unfollowVisibleMs": 376.1
+          }
+        },
+        {
+          "attempt": 3,
+          "pass": true,
+          "startedAt": "2026-09-07T13:58:29.202Z",
+          "durationMs": 4074.1,
+          "settlementWaitMs": 1912.3,
+          "metrics": {
+            "followVisibleMs": 918.1,
+            "unfollowVisibleMs": 378
+          }
+        }
+      ],
+      "evidence": "audit/evidence/original-receipts/choreo-m2.jsonl:4"
+    },
+    {
+      "subject": "m2/like-unlike-live-count",
+      "provenance": "retained-original-only",
+      "fresh": false,
+      "bestOf": 3,
+      "selectedAttempt": 3,
+      "attempts": [
+        {
+          "attempt": 1,
+          "pass": true,
+          "startedAt": "2026-09-07T13:58:34.137Z",
+          "durationMs": 1508.1,
+          "settlementWaitMs": 991.9,
+          "metrics": {
+            "likeVisibleMs": 426,
+            "unlikeVisibleMs": 347.9
+          }
+        },
+        {
+          "attempt": 2,
+          "pass": true,
+          "startedAt": "2026-09-07T13:58:35.645Z",
+          "durationMs": 724.8,
+          "settlementWaitMs": 618.4,
+          "metrics": {
+            "likeVisibleMs": 335.5,
+            "unlikeVisibleMs": 271.4
+          }
+        },
+        {
+          "attempt": 3,
+          "pass": true,
+          "startedAt": "2026-09-07T13:58:36.370Z",
+          "durationMs": 720.5,
+          "settlementWaitMs": 619.7,
+          "metrics": {
+            "likeVisibleMs": 296.9,
+            "unlikeVisibleMs": 307.4
+          }
+        }
+      ],
+      "evidence": "audit/evidence/original-receipts/choreo-m2.jsonl:6"
+    },
+    {
+      "subject": "m2/repost-toggle-live-attribution",
+      "provenance": "retained-original-only",
+      "fresh": false,
+      "bestOf": 3,
+      "selectedAttempt": 1,
+      "attempts": [
+        {
+          "attempt": 1,
+          "pass": true,
+          "startedAt": "2026-09-07T13:58:37.092Z",
+          "durationMs": 698.5,
+          "settlementWaitMs": 597.2,
+          "metrics": {
+            "repostVisibleMs": 281,
+            "unrepostVisibleMs": 279.5
+          }
+        },
+        {
+          "attempt": 2,
+          "pass": true,
+          "startedAt": "2026-09-07T13:58:37.791Z",
+          "durationMs": 719.4,
+          "settlementWaitMs": 623.5,
+          "metrics": {
+            "repostVisibleMs": 313.7,
+            "unrepostVisibleMs": 266.2
+          }
+        },
+        {
+          "attempt": 3,
+          "pass": true,
+          "startedAt": "2026-09-07T13:58:38.510Z",
+          "durationMs": 832.4,
+          "settlementWaitMs": 723.6,
+          "metrics": {
+            "repostVisibleMs": 309.5,
+            "unrepostVisibleMs": 281.5
+          }
+        }
+      ],
+      "evidence": "audit/evidence/original-receipts/choreo-m2.jsonl:7"
+    },
+    {
+      "subject": "m2/repost-following-feed-surface",
+      "provenance": "retained-original-only",
+      "fresh": false,
+      "bestOf": 3,
+      "selectedAttempt": 3,
+      "attempts": [
+        {
+          "attempt": 1,
+          "pass": true,
+          "startedAt": "2026-09-07T13:58:39.346Z",
+          "durationMs": 4300.9,
+          "settlementWaitMs": 2091.1,
+          "metrics": {
+            "followProjectionVisibleMs": 1693.3
+          }
+        },
+        {
+          "attempt": 2,
+          "pass": true,
+          "startedAt": "2026-09-07T13:58:43.647Z",
+          "durationMs": 4307.5,
+          "settlementWaitMs": 2087.5,
+          "metrics": {
+            "followProjectionVisibleMs": 1694.4
+          }
+        },
+        {
+          "attempt": 3,
+          "pass": true,
+          "startedAt": "2026-09-07T13:58:47.954Z",
+          "durationMs": 4154.3,
+          "settlementWaitMs": 1811.3,
+          "metrics": {
+            "followProjectionVisibleMs": 1674.6
+          }
+        }
+      ],
+      "evidence": "audit/evidence/original-receipts/choreo-m2.jsonl:8"
+    },
+    {
+      "subject": "m2/reply-live-thread-projection",
+      "provenance": "retained-original-only",
+      "fresh": false,
+      "bestOf": 3,
+      "selectedAttempt": 3,
+      "attempts": [
+        {
+          "attempt": 1,
+          "pass": true,
+          "startedAt": "2026-09-07T13:58:52.112Z",
+          "durationMs": 1212,
+          "settlementWaitMs": 652.2,
+          "metrics": {
+            "replyCountVisibleMs": 232.3
+          }
+        },
+        {
+          "attempt": 2,
+          "pass": true,
+          "startedAt": "2026-09-07T13:58:53.324Z",
+          "durationMs": 1322.7,
+          "settlementWaitMs": 771.6,
+          "metrics": {
+            "replyCountVisibleMs": 230.7
+          }
+        },
+        {
+          "attempt": 3,
+          "pass": true,
+          "startedAt": "2026-09-07T13:58:54.647Z",
+          "durationMs": 1110,
+          "settlementWaitMs": 415.9,
+          "metrics": {
+            "replyCountVisibleMs": 202.8
+          }
+        }
+      ],
+      "evidence": "audit/evidence/original-receipts/choreo-m2.jsonl:9"
+    },
+    {
+      "subject": "m3/dm-live-messages",
+      "provenance": "retained-original-only",
+      "fresh": false,
+      "bestOf": 3,
+      "selectedAttempt": 1,
+      "attempts": [
+        {
+          "attempt": 1,
+          "pass": true,
+          "startedAt": "2026-09-07T14:53:54.404Z",
+          "durationMs": 3268.3,
+          "settlementWaitMs": 2399.6,
+          "metrics": {
+            "visibleMs": 1035.4
+          },
+          "note": "required bidirectional live DM text delivery"
+        },
+        {
+          "attempt": 2,
+          "pass": true,
+          "startedAt": "2026-09-07T14:53:57.674Z",
+          "durationMs": 5360.8,
+          "settlementWaitMs": 4634.3,
+          "metrics": {
+            "visibleMs": 3942.5
+          },
+          "note": "required bidirectional live DM text delivery"
+        },
+        {
+          "attempt": 3,
+          "pass": true,
+          "startedAt": "2026-09-07T14:54:03.035Z",
+          "durationMs": 3901.6,
+          "settlementWaitMs": 3005.4,
+          "metrics": {
+            "visibleMs": 1477.8
+          },
+          "note": "required bidirectional live DM text delivery"
+        }
+      ],
+      "evidence": "audit/evidence/original-receipts/choreo-m3.jsonl:1"
+    },
+    {
+      "subject": "m3/typing-indicator-within-2s-expires-within-5s",
+      "provenance": "retained-original-only",
+      "fresh": false,
+      "bestOf": 3,
+      "selectedAttempt": 1,
+      "attempts": [
+        {
+          "attempt": 1,
+          "pass": true,
+          "startedAt": "2026-09-07T14:54:06.981Z",
+          "durationMs": 7385.9,
+          "settlementWaitMs": 3620.5,
+          "metrics": {
+            "typingActionMs": 3199.9,
+            "finalKeystrokeActionMs": 50.6,
+            "visibleAfterLastKeystrokeMs": 68.9,
+            "expiresAfterLastKeystrokeMs": 3413
+          },
+          "note": "typing action time is separate from post-keystroke render and expiry clocks"
+        },
+        {
+          "attempt": 2,
+          "pass": true,
+          "startedAt": "2026-09-07T14:54:14.367Z",
+          "durationMs": 8328.6,
+          "settlementWaitMs": 3999.7,
+          "metrics": {
+            "typingActionMs": 3910.3,
+            "finalKeystrokeActionMs": 49.3,
+            "visibleAfterLastKeystrokeMs": 83.1,
+            "expiresAfterLastKeystrokeMs": 3420
+          },
+          "note": "typing action time is separate from post-keystroke render and expiry clocks"
+        },
+        {
+          "attempt": 3,
+          "pass": true,
+          "startedAt": "2026-09-07T14:54:22.696Z",
+          "durationMs": 9324.6,
+          "settlementWaitMs": 4492.4,
+          "metrics": {
+            "typingActionMs": 4313,
+            "finalKeystrokeActionMs": 91.2,
+            "visibleAfterLastKeystrokeMs": 130.2,
+            "expiresAfterLastKeystrokeMs": 3461.5
+          },
+          "note": "typing action time is separate from post-keystroke render and expiry clocks"
+        }
+      ],
+      "evidence": "audit/evidence/original-receipts/choreo-m3.jsonl:3"
+    },
+    {
+      "subject": "m3/receipt-sent-delivered-read-transitions",
+      "provenance": "retained-original-only",
+      "fresh": false,
+      "bestOf": 1,
+      "selectedAttempt": 1,
+      "attempts": [
+        {
+          "attempt": 1,
+          "pass": true,
+          "startedAt": "2026-09-07T14:54:32.023Z",
+          "durationMs": 6338.1,
+          "settlementWaitMs": 4406.7,
+          "metrics": {},
+          "note": "exact semantic sent/delivered/read tokens; no glyph matching"
+        }
+      ],
+      "evidence": "audit/evidence/original-receipts/choreo-m3.jsonl:4"
+    },
+    {
+      "subject": "m3/quoted-reply-excerpt-and-jump",
+      "provenance": "retained-original-only",
+      "fresh": false,
+      "bestOf": 3,
+      "selectedAttempt": null,
+      "attempts": [
+        {
+          "attempt": 1,
+          "pass": false,
+          "startedAt": "2026-09-07T14:55:35.222Z",
+          "durationMs": 31791.7,
+          "settlementWaitMs": 1257.9,
+          "metrics": {},
+          "error": "locator.click: Timeout 30000ms exceeded. Call log: \u001b[2m - waiting for getByTestId('sm-convo-bubble').filter({ hasText: 'choreo-e722d2c7-c999-4c92-ab5e-bb2576409ae0-m3-original-1' }).last().getByTestId('sm-convo-quote')\u001b[22m ",
+          "outcomeClass": "application"
+        },
+        {
+          "attempt": 2,
+          "pass": false,
+          "startedAt": "2026-09-07T14:56:08.245Z",
+          "durationMs": 35262.6,
+          "settlementWaitMs": 4396.2,
+          "metrics": {},
+          "error": "locator.click: Timeout 30000ms exceeded. Call log: \u001b[2m - waiting for getByTestId('sm-convo-bubble').filter({ hasText: 'choreo-e722d2c7-c999-4c92-ab5e-bb2576409ae0-m3-original-2' }).last().getByTestId('sm-convo-quote')\u001b[22m ",
+          "outcomeClass": "application"
+        },
+        {
+          "attempt": 3,
+          "pass": false,
+          "startedAt": "2026-09-07T14:56:44.945Z",
+          "durationMs": 35702.6,
+          "settlementWaitMs": 4532.6,
+          "metrics": {},
+          "error": "locator.click: Timeout 30000ms exceeded. Call log: \u001b[2m - waiting for getByTestId('sm-convo-bubble').filter({ hasText: 'choreo-e722d2c7-c999-4c92-ab5e-bb2576409ae0-m3-original-3' }).last().getByTestId('sm-convo-quote')\u001b[22m ",
+          "outcomeClass": "application"
+        }
+      ],
+      "evidence": "audit/evidence/original-receipts/choreo-m3.jsonl:7"
+    },
+    {
+      "subject": "m4/photo-message-live-render",
+      "provenance": "retained-original-only",
+      "fresh": false,
+      "bestOf": 3,
+      "selectedAttempt": null,
+      "attempts": [
+        {
+          "attempt": 1,
+          "pass": false,
+          "startedAt": "2026-09-07T14:59:57.627Z",
+          "durationMs": 34919.8,
+          "settlementWaitMs": 34118,
+          "metrics": {},
+          "error": "locator.evaluate: Timeout 30000ms exceeded. Call log: \u001b[2m - waiting for getByTestId('sm-convo-bubble').filter({ hasText: 'choreo-e0c833ef-ec6f-4608-bed8-47d34747733a-m4-photo-1' }).last().getByTestId('sm-convo-media').locator('img').first()\u001b[22m ",
+          "outcomeClass": "application"
+        },
+        {
+          "attempt": 2,
+          "pass": false,
+          "startedAt": "2026-09-07T15:00:33.125Z",
+          "durationMs": 35338.2,
+          "settlementWaitMs": 34570.5,
+          "metrics": {},
+          "error": "locator.evaluate: Timeout 30000ms exceeded. Call log: \u001b[2m - waiting for getByTestId('sm-convo-bubble').filter({ hasText: 'choreo-e0c833ef-ec6f-4608-bed8-47d34747733a-m4-photo-2' }).last().getByTestId('sm-convo-media').locator('img').first()\u001b[22m ",
+          "outcomeClass": "application"
+        },
+        {
+          "attempt": 3,
+          "pass": false,
+          "startedAt": "2026-09-07T15:01:09.167Z",
+          "durationMs": 33488.3,
+          "settlementWaitMs": 32279.6,
+          "metrics": {},
+          "error": "locator.evaluate: Timeout 30000ms exceeded. Call log: \u001b[2m - waiting for getByTestId('sm-convo-bubble').filter({ hasText: 'choreo-e0c833ef-ec6f-4608-bed8-47d34747733a-m4-photo-3' }).last().getByTestId('sm-convo-media').locator('img').first()\u001b[22m ",
+          "outcomeClass": "application"
+        }
+      ],
+      "evidence": "audit/evidence/original-receipts/choreo-m4.jsonl:1"
+    },
+    {
+      "subject": "m4/reaction-live-replace-remove",
+      "provenance": "retained-original-only",
+      "fresh": false,
+      "bestOf": 3,
+      "selectedAttempt": null,
+      "attempts": [
+        {
+          "attempt": 1,
+          "pass": false,
+          "startedAt": "2026-09-07T15:02:02.297Z",
+          "durationMs": 0.5,
+          "settlementWaitMs": 0,
+          "metrics": {},
+          "error": "photo prerequisite did not yield a caption",
+          "outcomeClass": "application"
+        },
+        {
+          "attempt": 2,
+          "pass": false,
+          "startedAt": "2026-09-07T15:02:02.965Z",
+          "durationMs": 0.4,
+          "settlementWaitMs": 0,
+          "metrics": {},
+          "error": "photo prerequisite did not yield a caption",
+          "outcomeClass": "application"
+        },
+        {
+          "attempt": 3,
+          "pass": false,
+          "startedAt": "2026-09-07T15:02:03.639Z",
+          "durationMs": 0.1,
+          "settlementWaitMs": 0,
+          "metrics": {},
+          "error": "photo prerequisite did not yield a caption",
+          "outcomeClass": "application"
+        }
+      ],
+      "evidence": "audit/evidence/original-receipts/choreo-m4.jsonl:3"
+    },
+    {
+      "subject": "m4/edit-live-visibility",
+      "provenance": "retained-original-only",
+      "fresh": false,
+      "bestOf": 3,
+      "selectedAttempt": 2,
+      "attempts": [
+        {
+          "attempt": 1,
+          "pass": true,
+          "startedAt": "2026-09-07T15:02:03.677Z",
+          "durationMs": 6705,
+          "settlementWaitMs": 5041.5,
+          "metrics": {
+            "visibleMs": 580.8
+          }
+        },
+        {
+          "attempt": 2,
+          "pass": true,
+          "startedAt": "2026-09-07T15:02:10.382Z",
+          "durationMs": 3891.1,
+          "settlementWaitMs": 1853.6,
+          "metrics": {
+            "visibleMs": 495.8
+          }
+        },
+        {
+          "attempt": 3,
+          "pass": true,
+          "startedAt": "2026-09-07T15:02:14.274Z",
+          "durationMs": 5997.4,
+          "settlementWaitMs": 4320.2,
+          "metrics": {
+            "visibleMs": 522.5
+          }
+        }
+      ],
+      "evidence": "audit/evidence/original-receipts/choreo-m4.jsonl:4"
+    }
+  ],
+  "originalReceiptCustody": "audit/evidence/receipt-linkage-validation.json",
+  "sourceCustody": {
+    "initialManifest": "audit/evidence/source-manifest-before.json",
+    "completedCopyManifest": "audit/evidence/source-manifest-completed-copy.json",
+    "finalVerification": "audit/evidence/final-custody-verification.json",
+    "exclusions": "audit/evidence/exclusions-final.json",
+    "copyCorrections": "audit/evidence/copy-completion-corrections.json",
+    "originalUiDelta": "audit/evidence/original-ui-versus-instrument.diff",
+    "auditEnvironmentDelta": "audit/evidence/environment-delta.json",
+    "auditSourceEdits": [],
+    "auditHarnessEdits": [],
+    "packageIdentity": "audit/evidence/original-installed-package-identity.json",
+    "originalPackageSourceBefore": "audit/evidence/original-installed-closure-before.json",
+    "originalPackageSourceAfter": "audit/evidence/original-installed-closure-after.json",
+    "auditInstalledPackageBefore": "absent: node_modules excluded",
+    "auditInstalledPackageAfter": "absent: exact-lock npm ci aborted twice"
+  },
+  "cleanup": {
+    "servicesStarted": [],
+    "browsersStarted": [],
+    "killedPids": [],
+    "originalStateAccessed": false,
+    "originalProcessesStopped": false,
+    "ownedEntrypointProcesses": "audit/evidence/entrypoint-executions.json",
+    "verification": "audit/evidence/cleanup.json",
+    "statePreserved": true
+  },
+  "limitations": [
+    "Formal calibration and a preregistered committed holdout set are unestablished. No scores, O-dimension aggregates, holistic rating, efficiency metric or comparison is computed.",
+    "Fresh API/web behavior is not executed because npm ci failed twice against the unchanged exact lock. Only source-pass/source-fail entries are adjudicated; all other assertions are not-run. Original pass/fail observations remain explicit supplemental evidence.",
+    "The original choreography launcher also failed twice at a support import outside the app/instrument copy roots. The original helper exists in lanes/lib; its missing copy is an audit preparation limitation, not a product defect. It was archived for independent receipt validation only; execution harness was not repaired or retried a third time.",
+    "Original M1-M4 choreography receipts hash-match retained suite/setup receipts and match the pinned choreography source, but carry no hash binding to the completed app source. They cannot establish a fresh completed-source pass.",
+    "Original M5/M6/M8 choreography receipts, scale replay settlement/checkpoint evidence, native simulator receipts/recordings and screenshots were not present in the permitted retained receipts/source inventory. No other lane, narrative or private state was searched for substitutes.",
+    "Original Hermes exports were inventoried and hashed without executing them. Seven milestone directories exist; M3/M4/M5/M6/M8 contain the same bytecode digest. Build presence is not native interaction or offline proof, and per-milestone source provenance is unestablished.",
+    "All original time windows, four-member starter roster (Alice/Bob/Carol/Erin), action-log populations, selectors and choreography timeout values remain unchanged. No helper acknowledging Erin was started and no member was removed to satisfy a test.",
+    "The instrument schema for a formal grader report excludes M8 keys with ^m[1-7]-a[0-9]{2}$ and requires calibration/probe/score fields inappropriate here. This output is an explicitly versioned diagnostic extension and does not claim formal schema conformance; the instrument is unchanged.",
+    "No app state was seeded in this audit. Syntax validation of the four committed starter/sample logs does not establish adapter replay, idempotency, invariant conformance or scale performance.",
+    "Fixture credential literals appeared in some early source/instrument tool read outputs before redaction was applied. No non-fixture credential, token, private state or auth response body was accessed or printed. Report and derived evidence contain no credential values; original source and permitted fixture copies remain unchanged.",
+    "Initial copying overmatched public UI tokens.ts as secret filenames; both original files were later copied unchanged for source completeness, with a recorded correction and no runtime retry. Two synthetic native-meter transcript fixtures remain excluded.",
+    "Exact PIDs were captured for all acceptance/choreography/demo entrypoint children. Initial npm-ci commands and short-lived inspection/validation shells are identified by commands/tool sessions, with exact historical OS PIDs unavailable. No persistent service/browser process was started and no PID was killed."
+  ],
+  "evidenceTracePath": "audit/evidence/action-trace.json"
+}

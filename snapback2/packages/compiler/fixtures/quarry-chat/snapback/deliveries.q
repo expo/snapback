@@ -32,6 +32,7 @@ mutation post(conversationId: conversations, body: text <=4000, expiresAt: time 
 mutation unsend(messageId: messages):
   msg = messages[messageId] ! else NOT_FOUND
   require msg.authorId = viewer else NOT_AUTHOR
+  -- @ref LLP 1012#5-retention-revocation-and-the-fence — departed recipients evict the deleted body through the next held-page point absence.
   for m in conversationMembers(msg.conversationId):
     insert deliveries { recipient: m.principal, conversationId: msg.conversationId, messageId, kind: 'removed', at: now }
   delete messages[msg]
@@ -46,6 +47,7 @@ mutation edit(messageId: messages, body: text <=4000, baseBody: text <=4000):
     insert deliveries { recipient: m.principal, conversationId: msg.conversationId, messageId, kind: 'edit', at: now }
   return null
 
+-- @ref LLP 1016#d5--schedules-row-timers-and-periods-on-the-owners-clock — expiry is the owner's timer, never a client action; the expired log rows are the tombstone every recipient drains.
 mutation purgeMessage(messageId: messages):
   msg = messages[messageId] ! else NOT_FOUND
   for m in conversationMembers(msg.conversationId):

@@ -97,29 +97,31 @@ export class PreparedRange {
 }
 
 /** Nominal owner leaf: generic JSON persists only its original enumerable fields. */
+const receiptState = new WeakMap<object,{ prepared: PreparedRange; wire: boolean }>();
 export class RangeReceipt {
-  #prepared: PreparedRange;
-  #wire: boolean;
+  declare private readonly receiptBrand: void;
   private constructor(value: object, prepared: PreparedRange, wire: boolean) {
     for (const [key,child] of Object.entries(value)) Object.defineProperty(this,key,{ value: child,enumerable: true });
-    this.#prepared = prepared; this.#wire = wire;
+    receiptState.set(this,{ prepared,wire });
     Object.setPrototypeOf(this,Object.prototype); immutable(this);
   }
-  static is(value: unknown): value is RangeReceipt { return !!value && typeof value === 'object' && #prepared in value; }
+  static is(value: unknown): value is RangeReceipt { return !!value && typeof value === 'object' && receiptState.has(value); }
   static get(value: unknown, wire: boolean): PreparedRange | undefined {
-    return RangeReceipt.is(value) && value.#wire === wire ? value.#prepared : undefined;
+    if (!value || typeof value !== 'object') return undefined;
+    const state = receiptState.get(value);
+    return state?.wire === wire ? state.prepared : undefined;
   }
   /** The caller owns the copied DTO; the prepared parameter object itself is immutable. */
   static own<T extends object>(value: T, prepared: PreparedRange, wire: boolean): T {
     return new RangeReceipt(value,prepared,wire) as unknown as T;
   }
   static change<T extends object>(value: T, changes: Partial<T>): T {
-    const held = RangeReceipt.is(value) ? value : undefined;
+    const held = receiptState.get(value);
     const allowed = ['rowIds','row_ids','haloId','halo','evictedIds','evicted_ids','heldSuffix','held_suffix'];
     if (Object.keys(changes).some(key => !allowed.includes(key))) throw new TypeError('range parameter changes require admission');
     const next = { ...value,...clone(changes) };
     for (const key of Object.keys(changes)) if ((changes as any)[key] === undefined) delete (next as any)[key];
-    return held ? new RangeReceipt(next,held.#prepared,held.#wire) as unknown as T : next;
+    return held ? new RangeReceipt(next,held.prepared,held.wire) as unknown as T : next;
   }
   static tagged(range: any, prepared: PreparedRange): ReceiptRange {
     const value: ReceiptRange = { ...prepared.value,row_ids: range.rowIds,stop: range.stop,absence: range.absence,

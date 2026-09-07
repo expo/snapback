@@ -1,0 +1,9 @@
+{
+  "pid": 81713,
+  "exitCode": 0,
+  "endedEpoch": 1788800806.812723,
+  "elapsedSeconds": 458.1723380088806,
+  "actualProcessWaitCompleted": true,
+  "stdoutSha256": "c102e68fddbc5209481153e515a9283b75dc2f5c6e7f72014c0abd18ef47bfda",
+  "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+}

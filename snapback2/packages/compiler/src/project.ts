@@ -13,14 +13,16 @@ import { lowerSchema } from "./lower/schema";
 import { boundOperationDiagnostics } from "./operation-diagnostics";
 import { callLeaf, moduleJsonConstants, objectOf, property, staticJson } from "./lower/static";
 import { exportedVariables, hasExport, propertyName, unwrapCall, walk } from "./syntax";
-import { capSites } from "./quarry/cap-sites";
 import { typeDiagnosticSite } from "./type-diagnostic-site";
-import { compileQuarry, quarryInspection, remapVirtualDiagnostic, remapVirtualSource, type QuarryInput, type QuarryVirtualModule } from "./quarry/index";
+import { frontendQuarryDiagnostic, prepareQuarry, type QuarryInput } from "./quarry/index";
 import { createProjectProgram, loadCompilerLib, projectTypeDiagnostics } from "./project-program";
 import { moduleSeedJsonConstants, staticSeedJson, validateSeedRow } from "./project-seed";
 import { sortSerdeMaps } from "./project-sort";
 import { quarryOnlyDiagnostics, type LowerProjectOptions } from "./project-authoring";
 import { apiRowName, generateApiDts } from "./project-api-types";
+import { lowerDirectQuarryProject } from "./quarry/project";
+import { bindQuarrySchema } from "./quarry/bound-schema";
+import { QuarryError } from "./quarry/diagnostics";
 // @ref LLP 1002#3-the-compiler-worker-and-the-project-json — one lowering pass owns the ProjectJson, sources, API types, and aggregate refusals.
 
 export async function lowerProject(root: string, options: LowerProjectOptions = {}): Promise<ProjectResult> {
@@ -67,26 +69,15 @@ export async function lowerProject(root: string, options: LowerProjectOptions = 
     };
   }
 
-  let schemaPath = tsSchemaPath;
-  let schemaSource = hasTsSchema ? await readFile(tsSchemaPath, "utf8") : "";
-  let virtualModules: QuarryVirtualModule[] = [];
-  if (hasQuarrySchema) {
-    const inputs: QuarryInput[] = await Promise.all(quarryPaths.map(async (path) => ({
-      path,
-      fileName: relativeSite(projectRoot, path),
-      source: await readFile(path, "utf8"),
-    })));
-    if (options.adhocSource !== undefined) inputs.push({ path: join(authoredRoot, "__adhoc.q"), fileName: "snapback/__adhoc.q", source: options.adhocSource });
-    const compiled = compileQuarry(inputs);
-    if (!compiled.ok) return { ok: false, diagnostics: boundedDiagnostics(compiled.diagnostics, 50, "Quarry refusals"), ms: elapsed(started) };
-    schemaPath = compiled.schema.path;
-    schemaSource = compiled.schema.source;
-    virtualModules = [compiled.schema, ...compiled.modules];
-  }
-  const virtualByFile = new Map(virtualModules.map((module) => [relativeSite(projectRoot, module.path), module]));
+  if (hasQuarrySchema) return lowerDirectQuarryProject({
+    started, projectRoot, authoredRoot, discoveredModulePaths, quarryPaths, tsModulePaths,
+    ...(options.adhocSource === undefined ? {} : { adhocSource: options.adhocSource }),
+  });
+
+  const schemaPath = tsSchemaPath;
+  const schemaSource = await readFile(tsSchemaPath, "utf8");
   const diskModuleSources = await Promise.all(tsModulePaths.map(async (path) => [path, await readFile(path, "utf8")] as const));
-  const virtualModuleSources = virtualModules.filter((module) => module !== virtualModules[0]).map((module) => [module.path, module.source] as const);
-  const moduleSources = [...diskModuleSources, ...virtualModuleSources].sort(([left], [right]) => left.localeCompare(right));
+  const moduleSources = diskModuleSources.sort(([left], [right]) => left.localeCompare(right));
   const checked = createProjectProgram(schemaPath, schemaSource, moduleSources, loadCompilerLib());
   bindDescriptorProgram(checked.program, checked.library);
   const modules: SourceModule[] = moduleSources.map(([path, source]) => ({
@@ -96,8 +87,8 @@ export async function lowerProject(root: string, options: LowerProjectOptions = 
     sourceFile: checked.program.getSourceFile(path)!,
   }));
   const schemaFileName = relativeSite(projectRoot, schemaPath);
-  const schema = lowerSchema(schemaSource, schemaFileName, hasQuarrySchema, checked.program.getSourceFile(schemaPath));
-  const programPaths = [...tsModulePaths, ...quarryPaths.filter((path) => basename(path) !== "schema.q")];
+  const schema = lowerSchema(schemaSource, schemaFileName, false, checked.program.getSourceFile(schemaPath));
+  const programPaths = tsModulePaths;
   const diagnostics = [
     ...schema.diagnostics,
     ...nestedModuleDiagnostics(discoveredModulePaths, authoredRoot, projectRoot),
@@ -121,15 +112,14 @@ export async function lowerProject(root: string, options: LowerProjectOptions = 
   diagnostics.push(...reservedApiPathDiagnostics(operations, schemaSource, schemaFileName));
   const catalog = collectEffectCatalog(modules);
   // @ref LLP 1003#1-authoring — authored TypeScript and Quarry-generated modules use separate checker libraries.
-  const effectPaths = new Set(hasQuarrySchema ? tsModulePaths : [...catalog.values()].map((item) => item.module.sourceFile.fileName));
+  const effectPaths = new Set([...catalog.values()].map((item) => item.module.sourceFile.fileName));
   const effectSite = (node: ts.Node) => {
     const path = node.getSourceFile().fileName;
     if (!effectPaths.has(path)) return false;
-    // The internal TS fixtures can mix operations and effects. Authored Quarry projects cannot.
-    return hasQuarrySchema || typeDiagnosticSite(node, relativeSite(projectRoot, path)).family === "effect";
+    return typeDiagnosticSite(node, relativeSite(projectRoot, path)).family === "effect";
   };
   diagnostics.push(...projectTypeDiagnostics(checked.program, projectRoot, (node) => !effectSite(node))
-    .map((item) => remapDiagnostic(item, virtualByFile, true)));
+  );
   if (effectPaths.size > 0) {
     const effectChecked = createProjectProgram(schemaPath, schemaSource, moduleSources, loadCompilerLib(true), ts.ScriptTarget.ES2020);
     diagnostics.push(...projectTypeDiagnostics(effectChecked.program, projectRoot, effectSite, effectPaths).map((item) =>
@@ -140,16 +130,12 @@ export async function lowerProject(root: string, options: LowerProjectOptions = 
 
   const programs: Program[] = [];
   const sources: Record<string, SourceSite> = Object.create(null);
-  for (const virtual of virtualModules) capSites(virtual, schema.schema, sources);
   const bindingsByModule = new Map<string, Map<string, TableInfo>>();
   for (const module of modules) {
     const tables = tableBindings(module, schema.tables, diagnostics);
     bindingsByModule.set(module.moduleName, tables);
     // Authored helpers are type-checked above; only data programs need IR lowering.
     // Keep E_OP_NONE for a project with no operations or effects at all.
-    if (hasQuarrySchema && !virtualByFile.has(module.fileName)
-      && (operations.size > 0 || catalog.size > 0)
-      && ![...operations.values()].some((operation) => operation.moduleName === module.moduleName)) continue;
     const effects = effectBindings(module, catalog);
     const lowered = lowerSource(module.source, module.fileName, undefined, {
       tables,
@@ -159,14 +145,7 @@ export async function lowerProject(root: string, options: LowerProjectOptions = 
       sourceSites: sources,
     });
     if (lowered.ok) {
-      const jobs = new Set(virtualByFile.get(module.fileName)?.jobs ?? []);
       for (const program of lowered.programs) {
-        if (jobs.has(program.name.split(".").at(-1)!)) {
-          program.kind = "job";
-          // The mutation emitter adds a final null return; a job has only sweeps.
-          const last = program.body.at(-1);
-          if (last && typeof last === "object" && "Return" in last) program.body.pop();
-        }
         programs.push(sortSerdeMaps(program));
       }
       for (const declaration of operations.values()) {
@@ -179,8 +158,7 @@ export async function lowerProject(root: string, options: LowerProjectOptions = 
     }
   }
 
-  const operationBounded = boundProjectOperationDiagnostics(diagnostics, modules, operations)
-    .map((item) => remapDiagnostic(item, virtualByFile, false));
+  const operationBounded = boundProjectOperationDiagnostics(diagnostics, modules, operations);
   if (operationBounded.length > 0) {
     return { ok: false, diagnostics: boundedDiagnostics(operationBounded, 50, "project refusals"), ms: elapsed(started) };
   }
@@ -188,28 +166,17 @@ export async function lowerProject(root: string, options: LowerProjectOptions = 
   schema.schema.effects = loweredEffects.effects.map((item) => item.name);
   // A schedule's binding stays a certified program in the project, named from the schema and
   // never a client operation; the schema itself carries only scalars, so its hash mirrors.
-  const schedules = virtualModules[0]?.schedules ?? [];
-  if (schedules.length) schema.schema.schedules = schedules.map(({ bindingName, ...schedule }) => {
-    operations.delete(bindingName);
-    delete sources[bindingName];
-    return { ...schedule, binding: bindingName };
-  });
   programs.sort((left, right) => left.name.localeCompare(right.name));
   // @ref LLP 1016#d5--schedules-row-timers-and-periods-on-the-owners-clock — a schedule target is a
   // system program the timer runs as the owner: like a job and a binding it never enters the client
   // operation map (the owner refuses it on /api/*); a client-callable version is a second program.
-  const scheduleTargets = new Set(schedules.map((schedule) => schedule.target));
-  const clientOperations = new Map([...operations].filter(([name]) => programs.find((p) => p.name === name)?.kind !== "job" && !scheduleTargets.has(name)));
-  const apiDts = generateApiDts(clientOperations, checked.program, checked.checker, schema.tables, bindingsByModule);
+  const apiDts = generateApiDts(operations, checked.program, checked.checker, schema.tables, bindingsByModule);
   return {
     ok: true,
     project: { schema: schema.schema, programs, effects: loweredEffects.effects },
-    sources: Object.fromEntries(Object.entries(sources).map(([name, site]) => {
-      const virtual = virtualByFile.get(site.file);
-      return [name, virtual ? remapVirtualSource(site, virtual) : site] as [string, SourceSite];
-    }).sort(([left], [right]) => left.localeCompare(right))),
+    sources: Object.fromEntries(Object.entries(sources).sort(([left], [right]) => left.localeCompare(right))),
     apiDts,
-    quarry: quarryInspection(virtualModules),
+    quarry: [],
     ms: elapsed(started),
   };
 }
@@ -334,11 +301,14 @@ export async function lowerSeed(root: string): Promise<
     diagnostics.push(diagnostic(module, "E_SEED_PERSONA", expression ?? sourceFile, "seed personas must be unique, non-empty strings", source));
   }
 
-  let schemaSource: string;
-  let quarrySchema = false;
-  try {
-    schemaSource = await readFile(join(projectRoot, "snapback", "schema.ts"), "utf8");
-  } catch {
+  let tables: Record<string, { columns?: Record<string, unknown> }>;
+  const seedTsSchemaPath = join(projectRoot, "snapback", "schema.ts");
+  if (existsSync(seedTsSchemaPath)) {
+    const schemaSource = await readFile(seedTsSchemaPath, "utf8");
+    const loweredSchema = lowerSchema(schemaSource, "snapback/schema.ts", false);
+    if (loweredSchema.diagnostics.length > 0) return { ok: false, diagnostics: loweredSchema.diagnostics };
+    tables = loweredSchema.schema.tables as Record<string, { columns?: Record<string, unknown> }>;
+  } else {
     const authoredRoot = join(projectRoot, "snapback");
     const paths = (await discoverModulePaths(authoredRoot)).filter((item) => item.endsWith(".q"));
     const inputs: QuarryInput[] = await Promise.all(paths.map(async (item) => ({
@@ -346,14 +316,16 @@ export async function lowerSeed(root: string): Promise<
       fileName: relativeSite(projectRoot, item),
       source: await readFile(item, "utf8"),
     })));
-    const compiled = compileQuarry(inputs);
-    if (!compiled.ok) return { ok: false, diagnostics: compiled.diagnostics };
-    schemaSource = compiled.schema.source;
-    quarrySchema = true;
+    const prepared = prepareQuarry(inputs);
+    if (!prepared.ok) return { ok: false, diagnostics: prepared.diagnostics };
+    try {
+      tables = bindQuarrySchema(prepared.prepared.documents, prepared.prepared.catalog).tables as
+        Record<string, { columns?: Record<string, unknown> }>;
+    } catch (error) {
+      if (!(error instanceof QuarryError)) throw error;
+      return { ok: false, diagnostics: [frontendQuarryDiagnostic(error.diagnostic)] };
+    }
   }
-  const loweredSchema = lowerSchema(schemaSource, "snapback/schema.ts", quarrySchema);
-  if (loweredSchema.diagnostics.length > 0) return { ok: false, diagnostics: loweredSchema.diagnostics };
-  const tables = loweredSchema.schema.tables as Record<string, { columns?: Record<string, unknown> }>;
   const rows = record.rows as Record<string, unknown>;
   for (const [table, seeded] of Object.entries(rows)) {
     if (!Object.hasOwn(tables, table)) {
@@ -670,16 +642,6 @@ function firstInvalidStaticSpread(node: ts.Node, constants: Map<string, unknown>
 
 function moduleName(path: string): string {
   return path.split(sep).at(-1)!.replace(/\.(?:q|ts)$/, "");
-}
-
-function remapDiagnostic(
-  diagnostic: FrontendDiagnostic,
-  virtualByFile: Map<string, QuarryVirtualModule>,
-  generatedTypeError: boolean,
-): FrontendDiagnostic {
-  const file = diagnostic.site.replace(/:\d+:\d+$/, "");
-  const virtual = virtualByFile.get(file);
-  return virtual ? remapVirtualDiagnostic(diagnostic, virtual, generatedTypeError) : diagnostic;
 }
 
 function relativeSite(root: string, path: string): string {

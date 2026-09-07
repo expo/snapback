@@ -1,0 +1,27 @@
+{
+  "type": "end",
+  "stopReason": "end_turn",
+  "sessionId": "49a66049-ca91-473d-abe1-9e3096a79c75",
+  "requestId": "da06f3ba-cc0c-4e50-bdeb-9e13180bed4e",
+  "usage": {
+    "input_tokens": 138575,
+    "cache_read_input_tokens": 754560,
+    "cache_creation_input_tokens": 0,
+    "output_tokens": 24175,
+    "reasoning_tokens": 18058,
+    "total_tokens": 917310
+  },
+  "num_turns": 11,
+  "total_cost_usd": 0.1359116,
+  "total_cost_usd_ticks": 1359116000,
+  "modelUsage": {
+    "grok-4.6-build": {
+      "inputTokens": 138575,
+      "outputTokens": 24175,
+      "cacheReadInputTokens": 754560,
+      "cacheCreationInputTokens": 0,
+      "modelCalls": 11,
+      "costUSD": 0.1359116
+    }
+  }
+}

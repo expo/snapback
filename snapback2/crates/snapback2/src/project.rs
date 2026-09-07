@@ -718,10 +718,8 @@ fn validate_quarry_generated(output: &QuarryGenerated) -> Result<(), Refusal> {
     let bare = generated
         .file_name()
         .is_some_and(|name| name == output.generated.as_str())
-        && generated
-            .extension()
-            .is_some_and(|extension| extension == "ts")
-        && generated.file_stem().is_some_and(|stem| !stem.is_empty())
+        && output.generated.ends_with(".ir.json")
+        && output.generated.len() > ".ir.json".len()
         && !output.generated.contains('/')
         && !output.generated.contains('\\')
         && !output.generated.contains("..");
@@ -731,7 +729,7 @@ fn validate_quarry_generated(output: &QuarryGenerated) -> Result<(), Refusal> {
     Err(Refusal::owner(
         "E_OWNER_COMPILER_PROTOCOL",
         format!(
-            "compiler Quarry artifact {} named unsafe inspection file {:?}; expected a bare *.ts file name",
+            "compiler Quarry artifact {} named unsafe inspection file {:?}; expected a bare *.ir.json file name",
             output.file, output.generated
         ),
         "reinstall snapback2 so the binary and compiler worker use the same protocol",
@@ -1012,13 +1010,28 @@ for await (const line of createInterface({{ input: process.stdin }})) {{
 
     #[test]
     fn compiler_quarry_protocol_is_strict_and_rejects_unsafe_generated_names() {
+        validate_quarry_generated(&QuarryGenerated {
+            file: "snapback/schema.q".to_owned(),
+            generated: "schema.ir.json".to_owned(),
+            source: "{}".to_owned(),
+        })
+        .expect("direct IR inspection name should be admitted");
+        for generated in ["schema.ts", ".ir.json", "nested/schema.ir.json", "schema.ir.json.."] {
+            let error = validate_quarry_generated(&QuarryGenerated {
+                file: "snapback/schema.q".to_owned(),
+                generated: generated.to_owned(),
+                source: String::new(),
+            })
+            .expect_err("obsolete or unsafe inspection name should refuse");
+            assert_eq!(error.code, "E_OWNER_COMPILER_PROTOCOL", "{generated}");
+        }
         let root = std::env::current_dir().unwrap().canonicalize().unwrap();
         let project = "project: { schema: { tables: {}, maintains: [], channels: {}, auth: { password: false, guests: false }, effects: [] }, programs: [], effects: [] }, sources: {}, apiDts: '', ms: 0";
         let cases = [
             (
                 "unsafe-name",
                 format!(
-                    "({{ id: request.id, ok: true, {project}, quarry: [{{ file: 'snapback/schema.q', generated: '../escape.ts', source: '' }}] }})"
+                    "({{ id: request.id, ok: true, {project}, quarry: [{{ file: 'snapback/schema.q', generated: '../escape.ir.json', source: '' }}] }})"
                 ),
                 "snapback/schema.q",
             ),

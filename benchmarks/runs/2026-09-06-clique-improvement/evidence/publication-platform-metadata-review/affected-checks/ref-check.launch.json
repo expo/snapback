@@ -1,0 +1,26 @@
+{
+  "argv": [
+    "./ref-check",
+    "--verbose"
+  ],
+  "cwd": "/Users/ccheever/projects/snapback-worktrees/clique-publication-platform-metadata",
+  "pid": 79254,
+  "startedAt": "2026-09-07T16:48:32.325847+00:00",
+  "runnerPython": "/Library/Developer/CommandLineTools/usr/bin/python3",
+  "runnerSha256": "6d7b799ca9156c7f242e3f057f449b2e30f4507253dff6f77ddda5eaa7815396",
+  "toolchainManifestSha256": "94a0a4bf5bb9f4dfd4840e68740e37025e45f06a4ed258988996793127a7448b",
+  "timeoutSeconds": 60,
+  "timeoutMeaning": "Local whole-command supervision only; existing per-test/consumer 30-second limits unchanged",
+  "environment": {
+    "PATH": "/Users/ccheever/.volta/tools/image/node/24.18.0/bin:/usr/bin:/bin:/usr/sbin:/sbin",
+    "LANG": "C",
+    "CI": "1",
+    "TMPDIR": "/Users/ccheever/clique-improvement/revisions/publication-platform-metadata-r2/tmp",
+    "SNAPBACK2_PUBLISH_NPM": "/Users/ccheever/.volta/tools/image/node/24.18.0/bin/npm",
+    "npm_config_cache": "/Users/ccheever/clique-improvement/revisions/publication-platform-metadata-r2/npm-cache",
+    "npm_config_userconfig": "/Users/ccheever/clique-improvement/revisions/publication-platform-metadata-r2/empty-npmrc",
+    "npm_config_globalconfig": "/Users/ccheever/clique-improvement/revisions/publication-platform-metadata-r2/empty-npmrc",
+    "npm_config_offline": "true",
+    "npm_config_registry": "http://127.0.0.1:9"
+  }
+}

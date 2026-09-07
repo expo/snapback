@@ -1,0 +1,59 @@
+{
+  "kind": "Root semantic validation of diagnostic audit, separate from preserved authored report",
+  "createdAt": "2026-09-07T17:00:11.889229+00:00",
+  "reportSha256": "0b7a490c811abddd8635714c49cdab73804c8d8acbf764a57f7553c29c5be633",
+  "fullMarkdownReadCharacters": 191513,
+  "jsonReadScope": "mechanical complete parse and selected fields; no claim of full prose read of raw JSON",
+  "actualOuterToolTerminal": {
+    "session_id": 62158,
+    "exit_code": 0,
+    "chunk_id": "509c97"
+  },
+  "authoredCounts": {
+    "result": {
+      "pass": 53,
+      "fail": 17,
+      "not-run": 40
+    },
+    "freshRuntime": {
+      "pass": 52,
+      "fail": 15,
+      "not-run": 43
+    },
+    "suiteMappings": {
+      "substantiated": 13,
+      "partial": 15,
+      "unsubstantiated": 30
+    },
+    "notFormalOrRootValidatedPassTotals": true
+  },
+  "scopeCorrections": {
+    "m2-a18": "Current pass unsupported: exact unchanged choreography1488\u20131555 uses Bob viewerRepost then direct Alice follow, no distinct followed reposter. Root does not accept this as complete assertion pass; original authored report retained.",
+    "m2-a04": "Pinned composeMediaPost962\u2013997 selects a single fixture; combined two-image creation/remote rendering not directly observed as one exact case.",
+    "m2-a05": "Exactdisplayname + avatar semantic identity, not decoded avatar image proof.",
+    "m1-a05": "Page reload/close+newpage evidence only, not physical/native process kill/relaunch.",
+    "scopeRuling": "Report user-forbids-native wording refers solely to delegated audit scope; native/fullscale/M7 remain global goal requirements."
+  },
+  "m2a18RootDisposition": "Exact assertion unproven; authored PASS is not accepted as complete coverage. No formal regrade performed.",
+  "additionalScopeLimits": [
+    "Like button state toggling does not independently retain the exact numerical count assertion.",
+    "npm 10.9.8 continuation with Node 24.18.0 is a disclosed environment change from the failed npm 11 setup; original app and lock remain unchanged.",
+    "M7, full-scale replay/census, native interaction and all five size requirements remain outstanding.",
+    "Acceptance-script exit zero and receipt schema validity do not establish assertion completeness.",
+    "Original failures, preparation retries and original timing limits remain historical evidence."
+  ],
+  "confirmedFindingExamples": [
+    "Feed browser pagination stops at 20 despite backend next cursor.",
+    "Three eligible message-edit attempts return E_RULE and do not mark the message edited.",
+    "Digest unread counts disagree with observed nonexpired unread messages.",
+    "API history documentation describes the wrong ordering; sample custom client does not demonstrate all required pagination and receive operations."
+  ],
+  "positiveScopeExamples": [
+    "Bounded ordinary signup, token revocation and live profile/feed/DM observations.",
+    "View-once asset first retrieval succeeds and subsequent retrieval is refused."
+  ],
+  "graderIsolation": "Root findings and holistic score were not sent back to the independent auditor; authored reports retained byte-for-byte.",
+  "formalGrade": false,
+  "comparativeWinClaim": false,
+  "custodyStatus": "Mechanical supplement confirms declared byte correspondence. Root read source/cohort summaries, report links and complete final cleanup reconciliation fields; full metadata listing parsed, not a full manual read claim. Historical 22 signal identities match PID/start/parent; eight executable-label differences and initial strict-comparison failures retained. No current liveness claim."
+}

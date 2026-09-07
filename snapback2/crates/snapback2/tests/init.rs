@@ -106,12 +106,18 @@ fn assert_rendering(template: &str, chat: bool) {
             !stale_inspection.exists(),
             "check retained a stale Quarry inspection entry"
         );
-        for generated in ["schema.ts", "todos.ts"] {
+        for generated in ["schema.ir.json", "todos.ir.json"] {
             let source = std::fs::read_to_string(
                 project.path.join(".snapback/build/quarry").join(generated),
             )
             .unwrap_or_else(|error| panic!("missing Quarry inspection copy {generated}: {error}"));
-            assert!(source.starts_with("// GENERATED"), "{generated}: {source}");
+            let value: serde_json::Value = serde_json::from_str(&source)
+                .unwrap_or_else(|error| panic!("invalid Quarry IR inspection {generated}: {error}: {source}"));
+            if generated == "schema.ir.json" {
+                assert!(value["tables"].is_object(), "{generated}: {value}");
+            } else {
+                assert!(value.as_array().is_some_and(|programs| !programs.is_empty()), "{generated}: {value}");
+            }
         }
     }
 

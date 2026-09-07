@@ -1,0 +1,9 @@
+{
+  "sourcePath": "/Users/ccheever/.grok/bundled/skills/review/SKILL.md",
+  "toolCallId": "call-cc9270ea-8afe-4675-8bbb-19209ea2ae2c-0",
+  "actualReturnedBodySha256": "656c5e50f5aba43417cc80c2227ffbc1c830661bc7ce879d1ec980583e637204",
+  "matchesBoundBody": true,
+  "expectedPacketBody": "provider-inputs/grok-bundled-review.SKILL.md",
+  "observation": "Grok read the original provider path rather than the suggested packet copy; actual returned body exactly matches the explicitly bound input. No new unbound body or broader workflow observed.",
+  "nativeStdoutSha256": "c102e68fddbc5209481153e515a9283b75dc2f5c6e7f72014c0abd18ef47bfda"
+}

@@ -1,0 +1,85 @@
+{
+  "candidate": "f681a72ef3ff495edfc354291ba232c19018259e",
+  "parent": "7884642fbddeb56bd18a03215e23c6761c76cd87",
+  "completedAt": "2026-09-07T17:10:36.863948+00:00",
+  "findingsFirstReadAfterBothActualTerminals": true,
+  "records": [
+    {
+      "family": "astra",
+      "terminal": {
+        "pid": 81714,
+        "exitCode": 0,
+        "endedEpoch": 1788800641.2014048,
+        "elapsedSeconds": 292.4113779067993,
+        "actualProcessWaitCompleted": true,
+        "stdoutSha256": "3666901bad7422e613d07529fa44257f27fb74624cb8b5c85c914b63a82c247c",
+        "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "identity": {
+        "requestedModel": "gpt-6-astra",
+        "requestedEffort": "xhigh",
+        "launchPid": 81714,
+        "observedAt": "2026-09-07T17:04:01.278680+00:00",
+        "sessionId": "01a07ccf-3476-7710-b690-f55d9e4d2bb5",
+        "source": "/Users/ccheever/.codex/sessions/2026/09/07/rollout-2026-09-07T09-59-09-01a07ccf-3476-7710-b690-f55d9e4d2bb5.jsonl",
+        "sourceSha256": "a35ee1ed29cd0eda9459c5174033315c8d3680450e82b4df2e70190738b2afae",
+        "turnContexts": [
+          {
+            "line": 8,
+            "model": "gpt-6-astra",
+            "effort": "xhigh",
+            "cwd": "/Users/ccheever/clique-improvement/reviews/publication-platform-metadata-r2/astra",
+            "timestamp": "2026-09-07T16:59:12.440Z"
+          }
+        ],
+        "identityMatchesRequest": true
+      },
+      "inputLeavesVerified": 98,
+      "reviewSha256": "4d721fa25539a73af376d4174b07efaa99274fa8158ee7aaa30d9a1ec7e96581",
+      "finalAnswerSha256": "4d440fd08be2743f843b5ce66642d3a0b2655020b2eabf079c467875f83b7650",
+      "optionalExecutions": 0,
+      "verdict": "READY"
+    },
+    {
+      "family": "grok",
+      "terminal": {
+        "pid": 81713,
+        "exitCode": 0,
+        "endedEpoch": 1788800806.812723,
+        "elapsedSeconds": 458.1723380088806,
+        "actualProcessWaitCompleted": true,
+        "stdoutSha256": "c102e68fddbc5209481153e515a9283b75dc2f5c6e7f72014c0abd18ef47bfda",
+        "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "identity": {
+        "requestedModel": "grok-4.6",
+        "requestedEffort": "xhigh",
+        "launchPid": 81713,
+        "observedAt": "2026-09-07T17:06:46.892030+00:00",
+        "sessionId": "49a66049-ca91-473d-abe1-9e3096a79c75",
+        "source": "/Users/ccheever/.grok/sessions/%2FUsers%2Fccheever%2Fclique-improvement%2Freviews%2Fpublication-platform-metadata-r2%2Fgrok/49a66049-ca91-473d-abe1-9e3096a79c75/summary.json",
+        "sourceSha256": "1f2ab17aeffaa6fb3f3dd31606e1de67abc164123f7835783e2877d6d232df5a",
+        "current_model_id": "grok-4.6",
+        "reasoning_effort": "xhigh",
+        "identityMatchesRequest": true
+      },
+      "inputLeavesVerified": 98,
+      "reviewSha256": "aa880514b28701d3c2ab8ecf7c99cd3252692439865435b0c46966dff9e795ed",
+      "finalAnswerSha256": "1d8a51dcbb490f3a806dc168b8d64cd94d8ea7d0688bf507374af99c861246d5",
+      "optionalExecutions": 0,
+      "verdict": "READY"
+    }
+  ],
+  "supervisorFullRead": [
+    "Both complete review.md reports and both final answers",
+    "Both native launch/terminal/identity/input-integrity records",
+    "Complete native command/tool inventory metadata; no optional execution sources exist"
+  ],
+  "providerObservation": "grok/provider-input-observation.json",
+  "grokUsageModelAlias": [
+    "grok-4.6-build"
+  ],
+  "disposition": "Both READY for this scoped source correction; no runtime or publication qualification inferred",
+  "sourceIntegrity": "source-integrity-at-closure.json",
+  "newSourceOrModelRunsDuringClosure": false
+}

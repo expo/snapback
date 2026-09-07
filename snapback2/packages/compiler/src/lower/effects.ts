@@ -2,6 +2,7 @@ import ts from "typescript";
 import { expandArgumentObject } from "../args";
 import { diagnostic } from "../diagnostics";
 import type { EffectJson, FrontendDiagnostic } from "../ir";
+import type { ScalarType } from "../quarry/ast";
 import { exportedVariables, staticMemberPath, unwrapCall, unwrapExpression, walk } from "../syntax";
 import { callLeaf, moduleJsonConstants, objectOf, property, staticJson, stringArray } from "./static";
 
@@ -35,6 +36,15 @@ export type OperationDecl = {
   exportName: string;
   kind: "query" | "mutation";
   call: ts.CallExpression;
+};
+
+export type OperationSignature = {
+  name: string;
+  moduleName: string;
+  exportName: string;
+  kind: "query" | "mutation" | "job";
+  call?: ts.CallExpression;
+  boundArgs?: Array<{ name: string; type: ScalarType }>;
 };
 
 export type EffectCatalog = Map<string, { module: SourceModule; exportName: string; call: ts.CallExpression }>;
@@ -83,7 +93,7 @@ export function effectBindings(module: SourceModule, catalog: EffectCatalog): Ma
 
 export function lowerEffects(
   catalog: EffectCatalog,
-  operations: Map<string, OperationDecl>,
+  operations: Map<string, OperationSignature>,
 ): { effects: EffectJson[]; diagnostics: FrontendDiagnostic[] } {
   const effects: EffectJson[] = [];
   const diagnostics: FrontendDiagnostic[] = [];
@@ -98,7 +108,7 @@ function lowerEffect(
   name: string,
   module: SourceModule,
   call: ts.CallExpression,
-  operations: Map<string, OperationDecl>,
+  operations: Map<string, OperationSignature>,
   diagnostics: FrontendDiagnostic[],
 ): EffectJson | undefined {
   const config = objectOf(call.arguments[0]);
@@ -120,7 +130,7 @@ function lowerEffect(
   const thenNode = property(config, "then");
   if (thenNode) {
     const resolved = resolveOperation(module, thenNode, operations);
-    if (!resolved || resolved.kind !== "mutation" || !validThenArgs(resolved.call)) {
+    if (!resolved || resolved.kind !== "mutation" || !validThenArgs(resolved)) {
       diagnostics.push(effectDiagnostic(
         module,
         "E_EFFECT_THEN_ARGS",
@@ -257,7 +267,7 @@ function isInsideType(node: ts.Node): boolean {
   return false;
 }
 
-function resolveOperation(module: SourceModule, node: ts.Expression, operations: Map<string, OperationDecl>): OperationDecl | undefined {
+function resolveOperation(module: SourceModule, node: ts.Expression, operations: Map<string, OperationSignature>): OperationSignature | undefined {
   const path = staticMemberPath(node);
   if (!path) return undefined;
   const local = !path.includes(".") ? operations.get(`${module.moduleName}.${path}`) : undefined;
@@ -282,7 +292,18 @@ function resolveOperation(module: SourceModule, node: ts.Expression, operations:
   return undefined;
 }
 
-function validThenArgs(call: ts.CallExpression): boolean {
+function validThenArgs(operation: OperationSignature): boolean {
+  if (operation.boundArgs) {
+    const entries = [...operation.boundArgs].sort((left, right) => left.name.localeCompare(right.name));
+    if (entries.map((item) => item.name).join(",") !== "effect,outboxId,result") return false;
+    const byName = new Map(entries.map((item) => [item.name, item.type]));
+    const outbox = byName.get("outboxId");
+    const effect = byName.get("effect");
+    return !!outbox && !outbox.optional && ["id", "text"].includes(outbox.kind)
+      && !!effect && !effect.optional && effect.kind === "text";
+  }
+  const call = operation.call;
+  if (!call) return false;
   const args = objectOf(call.arguments[0]);
   if (!args) return false;
   const entries = expandArgumentObject(args).entries;

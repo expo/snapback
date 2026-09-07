@@ -4,6 +4,55 @@ import { copyFileSync, cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync,
 import { tmpdir } from 'node:os';
 import { dirname, resolve } from 'node:path';
 
+// @ref LLP 1002#11-measured — a packed shim names only the platform artifacts in its publication.
+function isPlatformPackage(name) {
+  return name === 'snapback2-darwin-arm64' || name === 'snapback2-linux-x64';
+}
+
+function selectedPlatformDependencies(manifest, artifacts) {
+  if (!artifacts.length) throw new Error('a staged shim needs at least one platform artifact');
+  const dependencies = Object.fromEntries(Object.entries(manifest.optionalDependencies ?? {})
+    .filter(([name]) => !isPlatformPackage(name)));
+  for (const artifact of artifacts) {
+    if (!isPlatformPackage(artifact.name)
+      || artifact.version !== manifest.version || Object.hasOwn(dependencies, artifact.name)) {
+      throw new Error(`invalid staged platform ${artifact.name}@${artifact.version} for snapback2@${manifest.version}`);
+    }
+    dependencies[artifact.name] = artifact.version;
+  }
+  return dependencies;
+}
+
+export function stagePlatformDependencies(directory, artifacts) {
+  const path = resolve(directory, 'package.json');
+  const manifest = JSON.parse(readFileSync(path, 'utf8'));
+  manifest.optionalDependencies = selectedPlatformDependencies(manifest, artifacts);
+  writeFileSync(path, `${JSON.stringify(manifest, null, 2)}\n`);
+}
+
+export function verifyPlatformDependencies(artifacts) {
+  const shim = artifacts.find(artifact => artifact.name === 'snapback2');
+  if (!shim) throw new Error('staged publication has no snapback2 shim artifact');
+  const manifests = new Map(artifacts.map(artifact => {
+    const unpacked = spawnSync('tar', ['-xOzf', artifact.tarball, 'package/package.json'], {
+      encoding: 'utf8', timeout: 30_000,
+    });
+    if (unpacked.status !== 0) throw new Error(`cannot read staged package ${artifact.tarball}: ${unpacked.stderr}`);
+    const manifest = JSON.parse(unpacked.stdout);
+    if (manifest.name !== artifact.name || manifest.version !== artifact.version) {
+      throw new Error(`staged package ${artifact.tarball} does not match ${artifact.name}@${artifact.version}`);
+    }
+    return [artifact.name, manifest];
+  }));
+  const manifest = manifests.get(shim.name);
+  const expected = selectedPlatformDependencies(manifest, artifacts.filter(artifact => artifact !== shim));
+  const actual = manifest.optionalDependencies ?? {};
+  if (Object.keys(actual).length !== Object.keys(expected).length
+    || Object.entries(expected).some(([name, version]) => actual[name] !== version)) {
+    throw new Error('staged shim optionalDependencies do not match its platform artifacts; stage a new publication');
+  }
+}
+
 export function receiptVerdict(result, allowNoEngine = false) {
   let receipt;
   try { receipt = JSON.parse(result.stdout); } catch { return { accepted: false, verdict: 'invalid receipt' }; }
@@ -121,6 +170,7 @@ export function packDevelopmentConsumer(root, binary) {
     const media = resolve(dirname(binary), 'snapback2-media');
     if (existsSync(media)) copyFileSync(media, resolve(platform, 'bin/snapback2-media'));
     writeFileSync(resolve(platform, 'package.json'), JSON.stringify({ name, version: pkg.version, files: ['bin'], os: [process.platform], cpu: [process.arch] }));
+    stagePlatformDependencies(shim, [{ name, version: pkg.version }]);
     const artifacts = [platform, shim].map(path => {
       const result = spawnSync('npm', ['pack', '--ignore-scripts', '--json', '--pack-destination', directory, path], { encoding: 'utf8', env: cleanEnvironment(), timeout: 30_000 });
       if (result.status !== 0) throw new Error(`npm pack failed: ${result.stderr}`);

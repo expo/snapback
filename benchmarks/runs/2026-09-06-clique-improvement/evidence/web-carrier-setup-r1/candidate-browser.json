@@ -1,0 +1,72 @@
+{
+  "label": "candidate-final",
+  "pkg": "/Users/ccheever/projects/snapback-worktrees/clique-web-carrier-setup/snapback2/packages/snapback2",
+  "sourceHashes": {
+    "dist/client.mjs": "bf26906c547d6e0a99722dcc37681086a1d58cbbb9c87b07a6445228f4d1501b",
+    "dist/react.mjs": "c8e3a707248bb6cf25beb9cdbfd74e3c111febcdc71e1cb7866519283abcbd88",
+    "dist/react-core.mjs": "7747eb1ef3102fcc3f9756a2fe96b2bd2e30f768ebc5c021a19945c528afca2c",
+    "dist/guide/offline.md": "31a42886c46fd0925f7c367cce6c93cb33fe40d8da8fcbd4537d86c8d2514376"
+  },
+  "bundleSha256": "225b94dcade393f231a549dd142834f9dc84e107d3af510e49690e87d8357b70",
+  "host": "M1MacBookPro14in2021Office",
+  "node": "v22.23.2",
+  "nodeExecutable": "/Users/ccheever/.volta/tools/image/node/22.23.2/bin/node",
+  "pid": 45170,
+  "browserPid": 45176,
+  "browserVersion": "140.0.7339.186",
+  "port": 52900,
+  "result": {
+    "indexedDB": "function",
+    "webLocks": "function",
+    "mistake": {
+      "name": "TypeError",
+      "message": "createClient offline.store must return a RangeStore with open(); for IndexedDB, use offline: { store: indexedDbRangeStore() }. See snapback2 guide offline"
+    },
+    "control": {
+      "ready": true,
+      "status": {
+        "ready": false,
+        "reason": "grant-missing",
+        "action": "resume",
+        "remaining": 0,
+        "fence": "inside"
+      },
+      "factoryCalls": 1,
+      "locks": {
+        "held": [
+          {
+            "clientId": "3ca5d579-9b89-497c-827b-80d01de3273e",
+            "mode": "exclusive",
+            "name": "snapback2:dev:control"
+          }
+        ],
+        "pending": []
+      },
+      "databases": [
+        {
+          "name": "web-carrier-setup:dev:control",
+          "version": 3
+        }
+      ],
+      "factoryCallsAfterOffline": 1,
+      "reopened": [
+        "stored in real IndexedDB"
+      ]
+    },
+    "unavailable": {
+      "name": "SnapbackRefusal",
+      "message": "IndexedDB and Web Locks are required",
+      "code": "E_OFFLINE_CARRIER",
+      "envelope": {
+        "code": "E_OFFLINE_CARRIER",
+        "family": "offline",
+        "message": "IndexedDB and Web Locks are required",
+        "site": "RangeStore.open",
+        "rewrite": "install or configure the IndexedDB carrier",
+        "guide": "offline"
+      }
+    }
+  },
+  "errors": [],
+  "cleanup": "owned browser server/context and HTTP server closed"
+}

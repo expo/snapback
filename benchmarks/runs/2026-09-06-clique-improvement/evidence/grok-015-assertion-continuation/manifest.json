@@ -1,0 +1,40 @@
+{
+  "kind": "Evidence copy custody, not a product gate or semantic certificate",
+  "files": [
+    {
+      "path": "README.md",
+      "bytes": 3430,
+      "sha256": "2a0aaf89b2b7a2409c75e6c32f911780440e89cbc44bd35d99290d3641552946"
+    },
+    {
+      "path": "grader-report.md",
+      "bytes": 191977,
+      "sha256": "0b7a490c811abddd8635714c49cdab73804c8d8acbf764a57f7553c29c5be633"
+    },
+    {
+      "path": "prompt.md",
+      "bytes": 3937,
+      "sha256": "711bb4eedd52bf24dd8b75f27ea87cad81298e4eb536c37cf8c0e3b43476a962"
+    },
+    {
+      "path": "root-custody-supplement.json",
+      "bytes": 104402,
+      "sha256": "2fa694960883b95a2e8177480409376b00f699f74dcd4e7a339024f32977db93"
+    },
+    {
+      "path": "root-validation.json",
+      "bytes": 3614,
+      "sha256": "7ea5591592113072b743150422c0ba4500943ca00e230a15c08119ad88d2b77a"
+    },
+    {
+      "path": "source-environment-correspondence.json",
+      "bytes": 3226,
+      "sha256": "e6e6c945235005677ea062e264fa83b4ae539e4e0b5aa02adb9c3b080ecacca9"
+    },
+    {
+      "path": "terminal.json",
+      "bytes": 109,
+      "sha256": "985efd9004b573ca69b93ce1a440486f36614daa7b3e889a9753a352bcb39417"
+    }
+  ]
+}

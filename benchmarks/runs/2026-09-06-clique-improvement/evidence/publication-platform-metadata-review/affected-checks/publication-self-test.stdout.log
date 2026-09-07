@@ -1,0 +1,18 @@
+✔ stages exactly snapback2-darwin-arm64 (123.291541ms)
+✔ stages exactly snapback2-linux-x64 (90.236958ms)
+✔ stages exactly snapback2-darwin-arm64 and snapback2-linux-x64 (166.127833ms)
+✔ refuses absent, mismatched, duplicate and non-platform selections without editing the shim (10.53ms)
+✔ rejects a resumed shim that advertises a platform outside its immutable artifacts (82.0375ms)
+✔ rejects artifact records that disagree with the packed package identity (109.346667ms)
+✔ a selected platform shim installs from an unchanged lock in a fresh npm consumer (3902.090834ms)
+ℹ Node v24.18.0; npm 11.16.0; offline synthetic tarballs, default peer and optional dependencies
+ℹ tests 7
+ℹ suites 0
+ℹ pass 7
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 4684.344917
+publish: snapback2-test-platform@0.0.1 already matches staged artifact
+publish self-test ok; staged helper qualified; macOS floors and Linux dependencies checked; codec cache archives digest-bound; resume without HEIC refused; helper digest bound; durable dry-run resume preserved
