@@ -59,6 +59,17 @@ export class DrainSubscription<Args, Result> implements Subscription<Subscriptio
     this.start(null);
   }
 
+  /** Reopen the live tail after the client's shared transport is cut. */
+  reconnect(): void {
+    if (this.closed || this.failure) return;
+    // Client.subscribeRegular tracks an established tail itself, so the
+    // client's transport loop reconnects that child exactly once. The outer
+    // drain owns only the no-tail case: a cut while paging or marking invalidates
+    // the old generation and restarts from its last proven page position.
+    if (this.tail) return;
+    this.start(this.watermark);
+  }
+
   until(
     predicate: (event: SubscriptionDelivery<Result>) => boolean,
     timeoutMs = 30_000,

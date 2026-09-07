@@ -18,11 +18,47 @@ export const planHash = "f".repeat(64);
 // native checker. Tests which execute a drain use its exact schema, IR and
 // certificate instead of teaching strict custody to accept synthetic metadata.
 const corpus = JSON.parse(readFileSync(new URL("../../../corpus/local-pagination-partial-clears-next.json", import.meta.url), "utf8"));
+const completeCorpus = JSON.parse(readFileSync(new URL("../../../corpus/opaque-cursor-complete-next-null.json", import.meta.url), "utf8"));
 export const certifiedDrain = {
   op: corpus.program.name as string,
   generation: "e".repeat(64), schemaHash: corpus.certificate.schema_hash as string,
   planHash: corpus.certificate.plan_hash as string,
 };
+
+/** A separately certified ascending page whose three held rows exhaust take 5. */
+export const certifiedCompleteDrain = {
+  op: completeCorpus.program.name as string,
+  generation: "c".repeat(64), schemaHash: completeCorpus.certificate.schema_hash as string,
+  planHash: completeCorpus.certificate.plan_hash as string,
+};
+
+export function certifiedCompleteDrainProgram() {
+  const drain = { cursor: "c" };
+  return {
+    generation: certifiedCompleteDrain.generation,
+    schemaHash: certifiedCompleteDrain.schemaHash,
+    schema: completeCorpus.schema,
+    programs: { [certifiedCompleteDrain.op]: { kind: "query", planHash: certifiedCompleteDrain.planHash,
+      drain, ir: completeCorpus.program, certificate: completeCorpus.certificate } },
+  };
+}
+
+export function certifiedCompleteDrainEnvelope(validator = "1".repeat(64), seq = 3) {
+  const source = completeCorpus.receipt.ranges[0];
+  const rows = completeCorpus.receipt.rows.map((item: any) => ({ table: item.table, id: item.id,
+    row: Object.fromEntries(Object.entries(item.row.Row).map(([name, value]: [string, any]) => [name, Object.values(value)[0]])) }));
+  const rowIds = source.row_ids as string[];
+  return {
+    protocol: 1, generation: certifiedCompleteDrain.generation, schemaHash: certifiedCompleteDrain.schemaHash,
+    planHash: certifiedCompleteDrain.planHash, authority: { principal: "dev:alice", authEpoch: 7 },
+    state: "complete" as const, data: rowIds.map((id) => ({ $row: { table: source.table, id } })), next: null, seq,
+    rows, receipt: { ranges: [{
+      site: source.site, table: source.table, index: source.index, prefix: source.prefix, order: source.order,
+      take: source.take, after: source.after, before: source.before, gt: source.gt, gte: source.gte,
+      lt: source.lt, lte: source.lte, ruleHash: source.rule_hash, rowIds, stop: source.stop, absence: source.absence,
+    }], absences: [], verdicts: [] }, validator,
+  };
+}
 
 export function certifiedDrainPage(page: 1 | 2) {
   const source = corpus.receipt.ranges[0];

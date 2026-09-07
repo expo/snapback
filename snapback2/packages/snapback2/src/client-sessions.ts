@@ -174,12 +174,6 @@ export class SharedSubscriptions {
   private settle<Event>(attachment: Attachment<Event>, event: Event): void {
     const refusal = refusalEvent(event);
     for (const waiter of [...attachment.waiters]) {
-      if (refusal) {
-        clearTimeout(waiter.timer);
-        attachment.waiters.delete(waiter);
-        waiter.reject(refusal);
-        continue;
-      }
       let matched = false;
       try { matched = waiter.predicate(event); }
       catch (error) {
@@ -188,10 +182,14 @@ export class SharedSubscriptions {
         waiter.reject(error instanceof Error ? error : new Error(String(error)));
         continue;
       }
-      if (!matched) continue;
+      if (!matched && !refusal) continue;
       clearTimeout(waiter.timer);
       attachment.waiters.delete(waiter);
-      waiter.resolve(event);
+      // Terminal auth custody invalidates the operation even when a predicate
+      // accepts the envelope. Other query refusals remain observable as values
+      // to a predicate that explicitly asks for them.
+      if (matched && refusal?.envelope.family !== "auth") waiter.resolve(event);
+      else waiter.reject(refusal!);
     }
   }
 
@@ -237,8 +235,10 @@ export class SharedSubscriptions {
         if (attachment.closed) return Promise.reject(subscriptionClosed());
         if (current.last !== undefined) {
           const refusal = refusalEvent(current.last);
-          if (refusal) return Promise.reject(refusal);
-          try { if (predicate(current.last)) return Promise.resolve(current.last); }
+          try {
+            if (predicate(current.last) && refusal?.envelope.family !== "auth") return Promise.resolve(current.last);
+            if (refusal) return Promise.reject(refusal);
+          }
           catch (error) { return Promise.reject(error instanceof Error ? error : new Error(String(error))); }
         }
         return new Promise((resolve, reject) => {

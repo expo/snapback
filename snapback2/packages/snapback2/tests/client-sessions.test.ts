@@ -4,7 +4,7 @@ import React from "react";
 import TestRenderer, { act } from "react-test-renderer";
 import { api, isSnapbackRefusal, SnapbackRefusal } from "../dist/client.mjs";
 import { indexedDbRangeStore, SnapbackProvider, useQuery } from "../dist/react.mjs";
-import { ClientQueries, forwardingRequestId, MutationForwarding, SharedSubscriptions, TabFollower } from "../dist/client-observed-test.mjs";
+import { ClientQueries, DrainSubscription, forwardingRequestId, MutationForwarding, SharedSubscriptions, TabFollower } from "../dist/client-observed-test.mjs";
 import { fixtureClient as createClient } from "./live-fixture.ts";
 import { fakeOwner } from "./fake-owner.ts";
 import { FakeIndexedDb, FakeLocks } from "./fake-indexeddb.ts";
@@ -404,6 +404,66 @@ test("a live indexed query preserves its authoritative state until its effective
   stop();
 });
 
+test("a drain local refresh cannot claim caught-up before its mark finishes", async () => {
+  let publish!: (event: any) => void;
+  let localData = [{ id: "persisted-page" }];
+  const queries = new ClientQueries({
+    identity: () => [1, 1] as const,
+    active: () => true,
+    open: (_ref: unknown, _args: unknown, listener: (event: any) => void) => {
+      publish = listener;
+      return { close: () => undefined, until: async () => { throw new Error("must use shared until"); } };
+    },
+    query: async () => { throw new Error("unused"); },
+    local: async () => ({ state: "held", live: false, connection: "offline", data: localData,
+      next: null, seq: 2, caughtUp: true, watermark: "persisted" }),
+  } as any);
+  const subscription = queries.subscribe(api.deliveries.inbox, { c: null }, () => undefined, { drain: true });
+  let settled = false;
+  const caught = subscription.until((event: any) => event.caughtUp === true, 2_000).then(value => {
+    settled = true; return value;
+  });
+  queries.refresh();
+  await new Promise<void>((resolve) => setTimeout(resolve, 20));
+  assert.equal(settled, false, "the persisted page cannot outrun watermark/grant admission");
+  publish({ state: "complete", live: true, data: localData, next: null, seq: 2, caughtUp: true, watermark: "persisted" });
+  assert.equal((await caught as any).caughtUp, true, "the drain's own marked delivery settles caught-up");
+
+  localData = [{ id: "predicted-page" }];
+  queries.refresh();
+  await new Promise<void>((resolve) => setTimeout(resolve, 20));
+  assert.equal((await subscription.until((event: any) => event.data?.[0]?.id === "predicted-page", 2_000) as any).caughtUp, true,
+    "later local value revisions retain the completed drain lifecycle");
+  subscription.close();
+});
+
+test("a drain reconnect during page or mark startup fences the predecessor and starts once", async () => {
+  for (const delayed of ["page", "mark"] as const) {
+    const gate = Promise.withResolvers<void>();
+    let queries = 0, marks = 0, tails = 0;
+    const events: any[] = [];
+    const drain = new DrainSubscription<any, any>({
+      args: { c: null },
+      query: async () => {
+        queries += 1;
+        if (delayed === "page" && queries === 1) await gate.promise;
+        return { state: "complete", data: [queries], next: null, seq: queries };
+      },
+      subscribe: () => { tails += 1; return { close: () => undefined, until: async () => { throw new Error("unused"); } }; },
+      mark: async () => { marks += 1; if (delayed === "mark" && marks === 1) await gate.promise; },
+      onEvent: (event) => events.push(event),
+    });
+    await until(() => delayed === "page" ? queries === 1 : marks === 1, `${delayed} predecessor start`);
+    drain.reconnect();
+    await until(() => delayed === "page" ? queries === 2 : marks === 2, `${delayed} successor start`);
+    gate.resolve();
+    await until(() => events.length === 1, `${delayed} successor delivery`);
+    assert.deepEqual(events[0].data, [2], `${delayed} predecessor cannot publish after reconnect`);
+    assert.equal(tails, 1, `${delayed} reconnect creates one successor tail`);
+    drain.close();
+  }
+});
+
 /** Counts logical subscription children the multiplexed transport adds, and direct query pages. */
 function counting(owner: ReturnType<typeof fakeOwner>) {
   const counts = { subscribes: 0, queries: 0 };
@@ -657,6 +717,9 @@ test("identical drains share one page walk and one tail", async () => {
   await until(() => counts.subscribes >= 1, "the shared tail");
   assert.equal(counts.subscribes, 1, "one tail serves both drains");
   assert.equal(client.sharedConsumers(api.deliveries.inbox, { c: null }, true), 2);
+  await client.offline(); await client.online();
+  await until(() => counts.subscribes >= 2, "the drain tail after reconnect");
+  assert.equal(counts.subscribes, 2, "the shared drain reopens exactly one tail after a transport cut");
   first.close();
   second.close();
   assert.equal(client.sharedConsumers(api.deliveries.inbox, { c: null }, true), 0);
@@ -748,6 +811,7 @@ test("forwarded mutation timeout, rediscovery and recovery preserve one request 
   let dropAnswers = true, creations = 0, acknowledgments = 0;
   MemoryBroadcastChannel.drop = message => dropAnswers && message.type === "mutation-answer";
   const context = { scope: "forwarding-test", principal: "principal-a", authEpoch: 7, partitionIncarnation: "partition-a" };
+  const responseTimeout = 30;
   const receipts = new Map<string, any>();
   const ready = { ready: true, reason: "ready", action: "none", remaining: 0, fence: "inside" } as const;
   const writer = new MutationForwarding({
@@ -762,13 +826,13 @@ test("forwarded mutation timeout, rediscovery and recovery preserve one request 
     async acknowledge() { acknowledgments += 1; },
     failure: (error: unknown) => ({ code: "E_TEST", family: "test", message: String(error), guide: "test" }),
     admitted: () => undefined,
-  });
+  }, responseTimeout);
   const follower = new MutationForwarding({
     writer: () => undefined, status: async () => ready,
     admit: async () => { throw new Error("follower cannot admit"); }, acknowledge: async () => undefined,
     failure: (error: unknown) => ({ code: "E_TEST", family: "test", message: String(error), guide: "test" }),
     admitted: () => undefined,
-  });
+  }, responseTimeout);
   try {
     writer.writer(context);
     follower.follower({ scope: context.scope, principal: context.principal, authEpoch: 7, established: true, persona: false });
@@ -855,7 +919,7 @@ test("forwarded mutation timeout, rediscovery and recovery preserve one request 
     // A recovery preparation owns the same logical slot even if the older
     // Pending expires while rediscovery is still in flight.
     dropAnswers = true;
-    const nearExpiry = Date.now() + 2_600;
+    const nearExpiry = Date.now() + responseTimeout + 10;
     const expiringRecord = { ...record, requestId: forwardingRequestId(nearExpiry, "d".repeat(32)), expiresAt: nearExpiry };
     const expiringToken = `s2mr1.${Buffer.from(JSON.stringify(expiringRecord)).toString("base64url")}`;
     assert.equal((await follower.mutation("deliveries.post", args, expiringToken as any)).state, "admission-unknown");

@@ -55,7 +55,7 @@ const certificate = (ir: unknown, kind: string) => ({
   max_steps: 1000000, max_heap_bytes: 8388608, max_closure_bytes: 4194304, max_output_bytes: 1048576,
   write_sites: [{ table: 'messages', kind, max_rows: 1 }, { table: 'deliveries', kind: 'Insert', max_rows: 50 }],
 });
-const scanIr = (name: "deliveries.inbox" | "deliveries.thread", cursor: string) => {
+const scanIr = (name: "deliveries.inbox" | "deliveries.inboxAlternate" | "deliveries.thread", cursor: string) => {
   const thread = name === "deliveries.thread";
   const row = "row";
   const field = (name: string) => ({ Field: { base: { Variable: row }, name } });
@@ -84,7 +84,7 @@ const scanIr = (name: "deliveries.inbox" | "deliveries.thread", cursor: string) 
 };
 const queryCertificate = (ir: ReturnType<typeof scanIr>) => {
   const scan = (ir.body[0] as any).Const.value.Scan;
-  const inbox = ir.name === "deliveries.inbox";
+  const inbox = ir.name !== "deliveries.thread";
   return {
     program: ir.name, plan_hash: digest(ir), schema_hash: schemaHash,
     tables: { deliveries: { retain: "until-revoked" }, messages: { retain: "until-revoked" } },
@@ -205,12 +205,13 @@ export function fakeOwner(options: FakeOwnerOptions = {}) {
       // Expo, and owner journeys rather than this delivery-log fixture.
       return { state: "complete", data, next: null, seq };
     }
-    const cursor = op === "deliveries.inbox" ? (options.cursorArg ?? "c") : "c";
-    const ir = scanIr(op === "deliveries.inbox" ? "deliveries.inbox" : "deliveries.thread", cursor);
+    const inbox = op !== "deliveries.thread";
+    const cursor = inbox ? (options.cursorArg ?? "c") : "c";
+    const ir = scanIr(inbox ? op as "deliveries.inbox" | "deliveries.inboxAlternate" : "deliveries.thread", cursor);
     const cert = queryCertificate(ir);
     const wanted = [...messages.values()]
-      .filter((message) => op !== "deliveries.thread" || message.conversationId === args.conversationId)
-      .sort((a, b) => op === "deliveries.inbox"
+      .filter((message) => inbox || message.conversationId === args.conversationId)
+      .sort((a, b) => inbox
         ? a.at - b.at || (a.id < b.id ? -1 : 1)
         : b.at - a.at || (a.id < b.id ? 1 : -1));
     const deliveries = wanted.map((message) => ({
@@ -229,7 +230,7 @@ export function fakeOwner(options: FakeOwnerOptions = {}) {
       next: null, seq, rows,
       receipt: { ranges: [{
         site: scan.site, table: "deliveries", index: scan.index,
-        prefix: [{ Scalar: "dev:alice" }, ...(op === "deliveries.thread" ? [{ Scalar: args.conversationId }] : [])],
+        prefix: [{ Scalar: "dev:alice" }, ...(inbox ? [] : [{ Scalar: args.conversationId }])],
         order: scan.order, take: 50, after: null, before: null, gt: null, gte: null, lt: null, lte: null,
         ruleHash: cert.rule_hashes["deliveries.read"], rowIds: deliveries.map(({ id }) => id),
         stop: "Exhausted", absence: deliveries.length === 0,
@@ -269,11 +270,14 @@ export function fakeOwner(options: FakeOwnerOptions = {}) {
       const inboxCert = queryCertificate(inboxIr);
       const threadIr = scanIr("deliveries.thread", "c");
       const threadCert = queryCertificate(threadIr);
+      const alternateIr = scanIr("deliveries.inboxAlternate", "c");
+      const alternateCert = queryCertificate(alternateIr);
       return json({
         generation, schemaHash,
         schema,
         programs: {
           "deliveries.inbox": { kind: "query", planHash: inboxCert.plan_hash, drain: drainFrom(inboxCert, cursor), ir: inboxIr, certificate: inboxCert },
+          "deliveries.inboxAlternate": { kind: "query", planHash: alternateCert.plan_hash, drain: drainFrom(alternateCert, "c"), ir: alternateIr, certificate: alternateCert },
           "deliveries.thread": { kind: "query", planHash: threadCert.plan_hash, drain: drainFrom(threadCert, "c"), ir: threadIr, certificate: threadCert },
           "deliveries.post": { kind: "mutation", planHash: certificate(postIr, 'Insert').plan_hash, ir: postIr, certificate: certificate(postIr, 'Insert') },
           "deliveries.edit": { kind: "mutation", planHash: certificate(editIr, 'Update').plan_hash, ir: editIr, certificate: certificate(editIr, 'Update') },

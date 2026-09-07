@@ -161,9 +161,10 @@ export function useQuery<Args, Result>(
   const live = options.live !== false;
   if (!live && options.drain) throw new TypeError("useQuery drain requires a live subscription");
   const operation = referenceName(ref);
+  const restoring = !!snapshot.token && snapshot.auth.state === "hydrating";
   const observed = useMemo(
     () => client.observe(ref, stableArgs, live ? { drain: options.drain } : { live: false }),
-    [client, snapshot.authGeneration, operation, argsKey, live, options.drain],
+    [client, snapshot.authGeneration, operation, argsKey, live, options.drain, restoring],
   );
   const state = useSyncExternalStore(observed.subscribe, observed.getSnapshot, observed.getSnapshot);
 
