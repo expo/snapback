@@ -1280,3 +1280,33 @@ an unresolved synthetic optional still exposes npm 11's lock behavior. Neither
 is repaired or disguised by this small preservation correction. Host-only
 packaging evidence does not qualify a Linux runtime or alter the old published
 package and application locks.
+
+## 2026-09-07 — Source-run architecture work exposed a native search difference
+
+The LLP 1018.000 implementation uses the existing chat template to exercise
+bounded reusable functions and a composed conversation query. Shared membership,
+log, and preview helpers remove repeated application logic. One native query
+now returns messages, the maintained count, and a preview at one execution
+sequence. The useful constraint is also visible: this record has no page cursor,
+and downloaded history alone does not prove its count. Actual screen integration
+is still in progress, with an explicitly partial history fallback.
+
+The difficult part was carrying the same indexed search through a real Expo
+restart. Node checks passed, yet the simulator retained both predicted messages
+and their conversation scope while search returned no rows. Batched diagnostics
+isolated empty token postings. Hermes returned an empty array for
+`Uint32Array.from(new Set([3, 5]))`; explicitly filling the sized typed array
+restored postings without a temporary array. A production transform under Node
+had caught earlier private-field portability errors but could not expose this
+runtime behavior. The actual simulator was necessary.
+
+At source integration `e61612c58`, the rebuilt package and native binary pass
+all ten existing Expo witness steps: strict decomposed-Unicode cold search,
+five-store crash recovery, cached images/video, exactly-once replay, expiry,
+and relaunch/drain. The at-rest restart now compares with a baseline captured
+after intervening completed app activity; the earlier raw pre-swap comparison
+is preserved. The transaction probe still does not qualify a native `COMMIT`
+failure. These are source-run results, not a new published-package result or
+a comparison with Convex or Supabase. Compiler deletion, composite-screen
+qualification, independent final reviews, and the runtime size deficit remain
+open in [LLP 1018.000](../llp/1018.000-composable-architecture-next-moves.research.md).
