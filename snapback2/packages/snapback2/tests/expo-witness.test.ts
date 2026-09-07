@@ -62,3 +62,20 @@ test("witness barrier remains parked on socket close and only barrier(off) relea
     assert.equal(commits, 1);
   } finally { control.close(); globalThis.WebSocket = Original; }
 });
+
+test("witness failures retain their command phase and remote stack", async () => {
+  const Original = globalThis.WebSocket;
+  globalThis.WebSocket = Socket as any;
+  const control = witnessControl({
+    async construct() { throw new Error("portable row image failure"); },
+  }, "ws://localhost:43219");
+  try {
+    await tick();
+    const socket = Socket.all.at(-1)!;
+    socket.command(1, "construct"); await tick();
+    const failed = socket.sent.at(-1);
+    assert.equal(failed.ok, false);
+    assert.equal(failed.error.phase, "command:construct");
+    assert.match(failed.error.stack, /portable row image failure/);
+  } finally { control.close(); globalThis.WebSocket = Original; }
+});

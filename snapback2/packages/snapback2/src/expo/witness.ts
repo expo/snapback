@@ -81,14 +81,18 @@ export function witnessControl(source: SnapbackClient | WitnessApplication, url:
       // Commands are independent so barrier(off) can release a suspended swap.
       void (async () => {
         let id: unknown;
+        let phase = "decode command";
         try {
           const request = JSON.parse(String(message.data));
           id = request.id;
           if (typeof request.verb !== "string") throw new TypeError("witness command needs a verb");
+          phase = `command:${request.verb}`;
           const result = await run(request.verb, request.args ?? {});
           send({ id, ok: true, result });
         } catch (error) {
-          send({ id, ok: false, error: isSnapbackRefusal(error) ? error.envelope : { message: String(error), stack: error instanceof Error ? error.stack : undefined } });
+          const details = isSnapbackRefusal(error) ? error.envelope : { message: String(error) };
+          send({ id, ok: false, error: { ...details, phase,
+            stack: error instanceof Error ? error.stack : undefined } });
         }
       })();
     };
