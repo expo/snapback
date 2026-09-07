@@ -1,0 +1,21 @@
+{
+  "actualReturnCode": 0,
+  "argv": [
+    "/usr/bin/python3",
+    "-B",
+    "/Users/ccheever/clique-improvement/revisions/cli-016-registry-expo-verification-preparation/verify-registry-expo.py",
+    "--execute-root-approved"
+  ],
+  "automaticRetry": false,
+  "cwd": "/Users/ccheever/clique-improvement/revisions/cli-016-registry-expo-verification-preparation",
+  "driverPid": 19500,
+  "elapsedSeconds": 18.318776125,
+  "endedEpoch": 1788805610.373825,
+  "exitCode": 0,
+  "logSha256": "56985614dcc98513aca340762f5e7906ef5e385d9e6d85440509b7dfd6f13c08",
+  "pid": 19506,
+  "processGroup": 19506,
+  "processIdentity": "19506 Mon Sep  7 11:26:32 2026     /usr/bin/python3",
+  "startedEpoch": 1788805592.0551171,
+  "timeoutSeconds": 300
+}

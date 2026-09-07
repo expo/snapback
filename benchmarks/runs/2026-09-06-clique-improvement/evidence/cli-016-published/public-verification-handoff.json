@@ -1,0 +1,74 @@
+{
+  "actualQualifiedRegularFiles": 156,
+  "defaultGeneratedInputCustody": {
+    "package-lock.json": {
+      "bytes": 2654,
+      "sha256": "b2cea309f3f94398207c131b63608ce58c47f642e372e3fea0dedab682a319be"
+    },
+    "package.json": {
+      "bytes": 170,
+      "sha256": "5253975d3d52d0ef62ae22af36286521911b41b28b24b014d7826f483e380b8d"
+    }
+  },
+  "original015FailuresAndNpm10WorkaroundRemainHistorical": true,
+  "results": {
+    "defaultNpm11": {
+      "actualDriverPid": 19850,
+      "actualDriverProcessIdentity": "19850 Mon Sep  7 11:27:43 2026     /Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/Resources/Python.app/Contents/MacOS/Python",
+      "actualHelperPid": 19870,
+      "actualHelperProcessIdentity": "19870 Mon Sep  7 11:27:49 2026     /Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/bin/python3.9",
+      "actualMeasuredHelperSeconds": 11.248037709000002,
+      "actualOuterExitCode": 0,
+      "actualToolSessionId": 83532,
+      "commandCount": 2,
+      "commandTerminalsAllVerified": true,
+      "executionEntryCount": 1434,
+      "executionManifestSha256": "640d991b5f584031cf9b3730ea2bae96dcc6968a71b4ee1f36bc153cd3a3c050",
+      "executionRegularFileCount": 1231,
+      "preparationLeavesUnchanged": 12,
+      "report": {
+        "path": "/Users/ccheever/clique-improvement/revisions/cli-016-default-install-witness-preparation/execution/report.json",
+        "sha256": "ff8a77a7938fce28aec58e36fe649c13832b77801e6a675d03ff3894cf425c2e"
+      },
+      "sealedAt": "2026-09-07T18:30:27.030099+00:00",
+      "source": "8eeea0dddcf00c45a43f7f1051b14747919302b6",
+      "terminal": {
+        "path": "/Users/ccheever/clique-improvement/revisions/cli-016-default-install-witness-preparation/execution/terminal.json",
+        "sha256": "83bd421b0f776a032cd43c99fe15da5dacf3dd7784e0925d858a0a64f6ce1704"
+      }
+    },
+    "standard": {
+      "actualDriverPid": 19500,
+      "actualDriverProcessIdentity": "19500 Mon Sep  7 11:26:29 2026     /Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/Resources/Python.app/Contents/MacOS/Python",
+      "actualHelperPid": 19506,
+      "actualHelperProcessIdentity": "19506 Mon Sep  7 11:26:32 2026     /usr/bin/python3",
+      "actualMeasuredHelperSeconds": 18.318776125,
+      "actualOuterExitCode": 0,
+      "actualToolSessionId": 23086,
+      "commandCount": 12,
+      "commandTerminalsAllVerified": true,
+      "executionEntryCount": 1046,
+      "executionManifestSha256": "7c2818d67d796ac5dc552362aad8698ee8ea863860d19014d544fe6e3bcd79fe",
+      "executionRegularFileCount": 944,
+      "preparationLeavesUnchanged": 72,
+      "report": {
+        "path": "/Users/ccheever/clique-improvement/revisions/cli-016-registry-expo-verification-preparation/execution/installed-expo-verification.json",
+        "sha256": "fa1756908a1b973fba125df6572f2e852c5095d15a99d584451a8b77cc6e5621"
+      },
+      "sealedAt": "2026-09-07T18:30:26.327259+00:00",
+      "source": "8eeea0dddcf00c45a43f7f1051b14747919302b6",
+      "terminal": {
+        "path": "/Users/ccheever/clique-improvement/revisions/cli-016-registry-expo-verification-preparation/execution/terminal.json",
+        "sha256": "77d3faf37acdde15316a7b14169ec5f62f54e4403be7d26fc91e0902e496bc88"
+      }
+    }
+  },
+  "retryPerformed": false,
+  "scope": "Public installed CLI/template and separate default dependency witness only; no benchmark/native-device/Linux/offline-bar claim",
+  "serialOrderVerified": true,
+  "source": "8eeea0dddcf00c45a43f7f1051b14747919302b6",
+  "sourceHelperBenchmarkEdits": false,
+  "standardAndDefaultPassed": true,
+  "standardTimingRedRetained": true,
+  "version": "0.0.16"
+}

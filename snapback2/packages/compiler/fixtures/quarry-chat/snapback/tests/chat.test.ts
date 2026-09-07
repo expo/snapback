@@ -12,7 +12,7 @@ journey("alice sends bob a message", async ({ as }) => {
   });
   if (sent.state !== "committed") throw new Error(`send was ${sent.state}`);
   const after = await alice.query(api.messages.thread, { conversationId: "conversation-1", c: before.next });
-  if (!("data" in after) || !after.data?.some((row: { body?: string }) => row.body === "hello bob")) throw new Error("sent message was not readable");
+  if (!("data" in after) || !after.data?.some((row: { body?: string | null }) => row.body === "hello bob")) throw new Error("sent message was not readable");
   const sideBefore = await alice.query(api.messages.thread, { conversationId: "conversation-2", c: null });
   if (sideBefore.state !== "complete") throw new Error(`side thread was ${sideBefore.state}`);
   const rejected = await alice.mutation(api.messages.send, {
@@ -24,7 +24,7 @@ journey("alice sends bob a message", async ({ as }) => {
   const sideAfter = await alice.query(api.messages.thread, { conversationId: "conversation-2", c: null });
   if (sideAfter.state !== "complete") throw new Error(`side thread became ${sideAfter.state}`);
   if (sideAfter.seq !== sideBefore.seq) throw new Error("rejected private send committed message or outbox work");
-  if (sideAfter.data.some((row: { body?: string }) => row.body === "must not cross the conversation boundary")) {
+  if (sideAfter.data.some((row: { body?: string | null }) => row.body === "must not cross the conversation boundary")) {
     throw new Error("rejected private send persisted its message body");
   }
 });
@@ -48,7 +48,7 @@ journey("bob replies and alice's live thread updates", async ({ as }) => {
     await thread.until((delivery) =>
       "data" in delivery
       && Array.isArray(delivery.data)
-      && delivery.data.some((row: { body?: string }) => row.body === "hello alice")
+      && delivery.data.some((row: { body?: string | null }) => row.body === "hello alice")
     );
   } finally {
     thread.close();

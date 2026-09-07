@@ -1,0 +1,86 @@
+[
+  {
+    "copy": "publication-report.md",
+    "original": "/Users/ccheever/clique-improvement/revisions/cli-016-publication-execution-r1/REPORT.md",
+    "bytes": 8004,
+    "sha256": "fac7347edd26c409bd54c0b5010fae544eda0ae8628588946d59eb462a869b87",
+    "transformation": "none"
+  },
+  {
+    "copy": "publication-terminal.json",
+    "original": "/Users/ccheever/clique-improvement/revisions/cli-016-publication-execution-r1/supervisor-terminal.json",
+    "bytes": 10733,
+    "sha256": "20f14aaf2ce719bf5d1997dbcadf93254ecdee97e861735c2ed0d5927685cc88",
+    "transformation": "none"
+  },
+  {
+    "copy": "registry.json",
+    "original": "/Users/ccheever/clique-improvement/revisions/cli-016-publication-execution-r1/registry-observation-01.json",
+    "bytes": 3255,
+    "sha256": "302f28717004e03553144cb84aabaebb58082d1e5837716d65a203dc9af06986",
+    "transformation": "none"
+  },
+  {
+    "copy": "original-activation-failure.json",
+    "original": "/Users/ccheever/clique-improvement/revisions/cli-016-publication-execution-r1/activation-first-failure.json",
+    "bytes": 6897,
+    "sha256": "b0a70aa911b0a8733b3a70759c170107643aebd53e573be702bf87afa0299b60",
+    "transformation": "none"
+  },
+  {
+    "copy": "final-custody.json",
+    "original": "/Users/ccheever/clique-improvement/revisions/cli-016-publication-execution-r1/final-remote-custody.json",
+    "bytes": 522,
+    "sha256": "7b6fe3361a1e522220b6ffa9ec23f6b9ba9845f10bd1ac98bac9e141056cfadd",
+    "transformation": "none"
+  },
+  {
+    "copy": "reconciliation.json",
+    "original": "/Users/ccheever/clique-improvement/revisions/cli-016-publication-execution-r1/root-publication-reconciliation.json",
+    "bytes": 1602,
+    "sha256": "4ff9ee8a20431abc109f433a9881d9c7525e0374ce169dda0a4011544cddb3b0",
+    "transformation": "none"
+  },
+  {
+    "copy": "public-verification-handoff.json",
+    "original": "/Users/ccheever/clique-improvement/revisions/cli-016-public-installed-verification-handoff/handoff.json",
+    "bytes": 3725,
+    "sha256": "4221efe3a3a8a27261c96aba23179167a0469104540ee80fae52c3d5d358148f",
+    "transformation": "none"
+  },
+  {
+    "copy": "public-expo-guide.json",
+    "original": "/Users/ccheever/clique-improvement/revisions/cli-016-registry-expo-verification-preparation/execution/installed-expo-verification.json",
+    "bytes": 33368,
+    "sha256": "fa1756908a1b973fba125df6572f2e852c5095d15a99d584451a8b77cc6e5621",
+    "transformation": "none"
+  },
+  {
+    "copy": "default-install-ci.json",
+    "original": "/Users/ccheever/clique-improvement/revisions/cli-016-default-install-witness-preparation/execution/report.json",
+    "bytes": 5199,
+    "sha256": "ff8a77a7938fce28aec58e36fe649c13832b77801e6a675d03ff3894cf425c2e",
+    "transformation": "none"
+  },
+  {
+    "copy": "expo-terminal.json",
+    "original": "/Users/ccheever/clique-improvement/revisions/cli-016-registry-expo-verification-preparation/execution/terminal.json",
+    "bytes": 734,
+    "sha256": "77d3faf37acdde15316a7b14169ec5f62f54e4403be7d26fc91e0902e496bc88",
+    "transformation": "none"
+  },
+  {
+    "copy": "default-terminal.json",
+    "original": "/Users/ccheever/clique-improvement/revisions/cli-016-default-install-witness-preparation/execution/terminal.json",
+    "bytes": 892,
+    "sha256": "83bd421b0f776a032cd43c99fe15da5dacf3dd7784e0925d858a0a64f6ce1704",
+    "transformation": "none"
+  },
+  {
+    "copy": "root-installed-verification.json",
+    "original": "/Users/ccheever/clique-improvement/revisions/cli-016-root-installed-verification.json",
+    "bytes": 839,
+    "sha256": "f8bd15c2f3468bdf855bba8da2507679be7237b67b9b63444a1a2fd465a81270",
+    "transformation": "none"
+  }
+]

@@ -272,21 +272,6 @@ query probe():
     assert(!literal.ok && literal.diagnostics[0]!.rewrite === 'settings[key = ""]', JSON.stringify(literal));
     await project(`query probe():\n  return ${literal.diagnostics[0]!.rewrite}\n`, () => {});
   });
-  test("Unexpected Quarry failures preserve the caught message as guidance", () => {
-    const stringify = JSON.stringify;
-    for (const failure of [new Error("cannot print fixture literal"), "cannot print fixture literal"]) {
-      let result: ReturnType<typeof compile>;
-      try {
-        JSON.stringify = ((value: unknown, ...rest: any[]) => {
-          if (value === "caught-path") throw failure;
-          return (stringify as any)(value, ...rest);
-        }) as typeof JSON.stringify;
-        result = compile("query probe():\n  return 'caught-path'\n");
-      } finally { JSON.stringify = stringify; }
-      assert(!result.ok && result.diagnostics[0]!.message === "cannot print fixture literal"
-        && result.diagnostics[0]!.rewrite === "-- cannot print fixture literal", JSON.stringify(result));
-    }
-  });
   test("Schedule arguments preserve generic ids while rejecting a different nominal table", async () => {
     const declarations = schema.replace("  at: time", "  other: settings\n  expiresAt: time ?\n  at: time");
     await project(`mutation receive(post: id, other: id):

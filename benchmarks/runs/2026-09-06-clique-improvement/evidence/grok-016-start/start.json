@@ -1,0 +1,281 @@
+{
+  "command": [
+    "/Users/ccheever/.grok/bin/grok",
+    "--prompt-file",
+    "/Users/ccheever/clique-improvement/next-run/grok-016/launch-binding-r1/prompt.final.md",
+    "--cwd",
+    "/Users/ccheever/clique-full-grok-016-20260907/lanes/grok-snapback2",
+    "-m",
+    "grok-4.6",
+    "--reasoning-effort",
+    "xhigh",
+    "--output-format",
+    "streaming-json",
+    "--permission-mode",
+    "bypassPermissions",
+    "--no-subagents",
+    "--session-id",
+    "0385309d-8a1a-4211-b4b8-6fc3c04998d1",
+    "--max-turns",
+    "10000"
+  ],
+  "sessionId": "0385309d-8a1a-4211-b4b8-6fc3c04998d1",
+  "model": "grok-4.6",
+  "effort": "xhigh",
+  "cwd": "/Users/ccheever/clique-full-grok-016-20260907/lanes/grok-snapback2",
+  "promptSha256": "12b3526f1de53e0b39a744cdd5da1d7c906331e20b553be4f13489ac18cd2319",
+  "releaseVerificationSha256": "0072c166bee6030b24b6e055e26cff00874ca3882e12940de100221a47730889",
+  "preparationReceiptSha256": "1c229c7b4af08ad65c15447d364ae7b9e4614423aef180b710162def79ae2d35",
+  "ports": [
+    {
+      "port": 52920,
+      "family": 2,
+      "bindable": true,
+      "reserved": false
+    },
+    {
+      "port": 52920,
+      "family": 30,
+      "bindable": true,
+      "reserved": false
+    },
+    {
+      "port": 52921,
+      "family": 2,
+      "bindable": true,
+      "reserved": false
+    },
+    {
+      "port": 52921,
+      "family": 30,
+      "bindable": true,
+      "reserved": false
+    },
+    {
+      "port": 52922,
+      "family": 2,
+      "bindable": true,
+      "reserved": false
+    },
+    {
+      "port": 52922,
+      "family": 30,
+      "bindable": true,
+      "reserved": false
+    },
+    {
+      "port": 52923,
+      "family": 2,
+      "bindable": true,
+      "reserved": false
+    },
+    {
+      "port": 52923,
+      "family": 30,
+      "bindable": true,
+      "reserved": false
+    },
+    {
+      "port": 52924,
+      "family": 2,
+      "bindable": true,
+      "reserved": false
+    },
+    {
+      "port": 52924,
+      "family": 30,
+      "bindable": true,
+      "reserved": false
+    },
+    {
+      "port": 52925,
+      "family": 2,
+      "bindable": true,
+      "reserved": false
+    },
+    {
+      "port": 52925,
+      "family": 30,
+      "bindable": true,
+      "reserved": false
+    },
+    {
+      "port": 52926,
+      "family": 2,
+      "bindable": true,
+      "reserved": false
+    },
+    {
+      "port": 52926,
+      "family": 30,
+      "bindable": true,
+      "reserved": false
+    },
+    {
+      "port": 52927,
+      "family": 2,
+      "bindable": true,
+      "reserved": false
+    },
+    {
+      "port": 52927,
+      "family": 30,
+      "bindable": true,
+      "reserved": false
+    },
+    {
+      "port": 52928,
+      "family": 2,
+      "bindable": true,
+      "reserved": false
+    },
+    {
+      "port": 52928,
+      "family": 30,
+      "bindable": true,
+      "reserved": false
+    },
+    {
+      "port": 52929,
+      "family": 2,
+      "bindable": true,
+      "reserved": false
+    },
+    {
+      "port": 52929,
+      "family": 30,
+      "bindable": true,
+      "reserved": false
+    },
+    {
+      "port": 52930,
+      "family": 2,
+      "bindable": true,
+      "reserved": false
+    },
+    {
+      "port": 52930,
+      "family": 30,
+      "bindable": true,
+      "reserved": false
+    },
+    {
+      "port": 52931,
+      "family": 2,
+      "bindable": true,
+      "reserved": false
+    },
+    {
+      "port": 52931,
+      "family": 30,
+      "bindable": true,
+      "reserved": false
+    },
+    {
+      "port": 52932,
+      "family": 2,
+      "bindable": true,
+      "reserved": false
+    },
+    {
+      "port": 52932,
+      "family": 30,
+      "bindable": true,
+      "reserved": false
+    },
+    {
+      "port": 52933,
+      "family": 2,
+      "bindable": true,
+      "reserved": false
+    },
+    {
+      "port": 52933,
+      "family": 30,
+      "bindable": true,
+      "reserved": false
+    },
+    {
+      "port": 52934,
+      "family": 2,
+      "bindable": true,
+      "reserved": false
+    },
+    {
+      "port": 52934,
+      "family": 30,
+      "bindable": true,
+      "reserved": false
+    },
+    {
+      "port": 52935,
+      "family": 2,
+      "bindable": true,
+      "reserved": false
+    },
+    {
+      "port": 52935,
+      "family": 30,
+      "bindable": true,
+      "reserved": false
+    },
+    {
+      "port": 52936,
+      "family": 2,
+      "bindable": true,
+      "reserved": false
+    },
+    {
+      "port": 52936,
+      "family": 30,
+      "bindable": true,
+      "reserved": false
+    },
+    {
+      "port": 52937,
+      "family": 2,
+      "bindable": true,
+      "reserved": false
+    },
+    {
+      "port": 52937,
+      "family": 30,
+      "bindable": true,
+      "reserved": false
+    },
+    {
+      "port": 52938,
+      "family": 2,
+      "bindable": true,
+      "reserved": false
+    },
+    {
+      "port": 52938,
+      "family": 30,
+      "bindable": true,
+      "reserved": false
+    },
+    {
+      "port": 52939,
+      "family": 2,
+      "bindable": true,
+      "reserved": false
+    },
+    {
+      "port": 52939,
+      "family": 30,
+      "bindable": true,
+      "reserved": false
+    }
+  ],
+  "loadAtLaunch": "11:45  up 22 days,  5:38, 8 users, load averages: 6.33 6.21 6.19",
+  "host": "OfficeM1Max; differs from retained M5 comparator",
+  "sourceCommit": "f40559f37722c79178be664a11f8a6485f1508fd",
+  "qualifiedPackageSource": "8eeea0dddcf00c45a43f7f1051b14747919302b6",
+  "turnLimit": "10000 native orchestration ceiling, not a benchmark token cap",
+  "benchmark": "Original full milestones/populations/deadlines unchanged; M7 separate after grading; Grok token accounting null/advisory",
+  "pid": 25560,
+  "supervisorPid": 25558,
+  "startedEpoch": 1788806708.0304441,
+  "startedAt": "2026-09-07T18:45:08.054542+00:00"
+}

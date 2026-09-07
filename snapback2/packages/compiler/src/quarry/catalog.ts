@@ -34,7 +34,7 @@ export function buildCatalog(documents: Document[]): TableCatalog {
         indexNames.add(index.name);
         const problem = componentProblem(index.components, index.unique, name => {
           const type = name === "id" ? { kind: "id" } : columns.get(name);
-          // Ordinary column-domain refusals are aggregated by schema lowering, as before.
+          // Ordinary column-domain refusals are aggregated before catalog construction.
           return type ? { indexable: true,
             ...(type.kind === "text" ? { textMax: (type as Extract<ScalarType, { kind: "text" }>).max } : {}) } : undefined;
         });

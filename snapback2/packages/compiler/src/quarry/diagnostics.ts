@@ -68,6 +68,7 @@ function guideFor(code: QuarryCode): string {
   if (code === "E_EMIT_IN_QUERY") return "effects/authoring";
   if (code === "E_OPAQUE") return "programs/refusals";
   if (code === "E_OP_RESERVED") return "programs/refusals";
+  if (code === "E_UNBOUND_LOOP") return "bound/loop";
   if (code === "E_QUARRY_SYNTAX") return "quarry/grammar";
   if (code === "E_QUARRY_AMBIGUOUS") return "quarry/indexes";
   if (code === "E_QUARRY_UNSUPPORTED") return "quarry/refusals";
