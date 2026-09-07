@@ -26,6 +26,7 @@ export type BoundType =
   | { kind: "null" }
   | { kind: "row"; table: BoundTableSymbol; nullable: boolean }
   | { kind: "page"; table: BoundTableSymbol; max: number }
+  | { kind: "collection"; item: BoundValueFacts; max: number }
   | { kind: "object"; fields: ReadonlyMap<string, BoundValueFacts>; nullable: boolean }
   | { kind: "numeric-literal"; fractionalDigits: number };
 
@@ -267,7 +268,7 @@ class ExpressionBinder {
     const base = this.expression(expression.base);
     const source = this.source(expression.site);
     const baseType = base.facts.type;
-    if ((baseType.kind === "list" || baseType.kind === "page") && expression.name === "length") {
+    if ((baseType.kind === "list" || baseType.kind === "page" || baseType.kind === "collection") && expression.name === "length") {
       return { kind: "builtin", builtin: "Len", args: [base], facts: facts({ kind: "int", optional: false }, "Computed"), source };
     }
     let type: BoundType | undefined;
@@ -291,26 +292,29 @@ class ExpressionBinder {
 
   private shape(expression: Extract<Expr, { kind: "shape" | "shapeUse" }>): BoundExpression {
     const base = this.shapeBase(this.expression(expression.base), expression.base, expression.site);
-    if (base.facts.type.kind === "page") {
-      unsupported(this.diagnosticSite(expression.site), "page shapes in the direct Quarry row-shape seam", "keep this operation on the parity oracle until direct bounded collectors land");
-    }
-    if (base.facts.type.kind !== "row") {
+    if (base.facts.type.kind !== "row" && base.facts.type.kind !== "page") {
       typeError(this.diagnosticSite(expression.site), "shapes may focus only a row, reference, or page", "apply the shape to a table read or typed table reference");
     }
+    const table = base.facts.type.table;
     const focal: Extract<BoundExpression, { kind: "focal" }> = {
       kind: "focal", id: `${this.program.site.file}:${this.program.name}:shape:${this.budget.shapeId++}`,
-      facts: facts({ ...base.facts.type, nullable: false }, "Shape", { tableOrigin: base.facts.type.table }),
+      facts: facts({ kind: "row", table, nullable: false }, "Shape", { tableOrigin: table }),
       source: this.source(expression.site),
     };
     const fields = expression.kind === "shapeUse"
       ? this.namedShapeFields(expression.name, expression.site, focal, 1, [])
       : this.shapeFields(expression.fields, focal, this.shapeFile, this.expansionUse, 0, [], false);
-    const type: BoundType = {
+    const objectType: BoundType = {
       kind: "object", fields: new Map(fields.map((field) => [field.name, field.value.facts])),
-      nullable: base.facts.type.nullable,
+      nullable: base.facts.type.kind === "row" && base.facts.type.nullable,
     };
+    const type: BoundType = base.facts.type.kind === "page"
+      ? { kind: "collection", item: facts(objectType, "Shape", { tableOrigin: table }), max: base.facts.type.max }
+      : objectType;
     return { kind: "shape", base, focal, fields,
-      facts: facts(type, "Shape", { tableOrigin: base.facts.type.table }), source: this.source(expression.site) };
+      facts: facts(type, "Shape", {
+        ...(base.facts.type.kind === "page" ? { max: base.facts.type.max } : {}), tableOrigin: table,
+      }), source: this.source(expression.site) };
   }
 
   private shapeBase(base: BoundExpression, authored: Expr, site: Site): BoundExpression {
@@ -498,7 +502,7 @@ function scalarType(type: BoundType, site: Site): ScalarType {
   typeError(site, `bounded arrays require scalar items; got ${type.kind}`, "use scalar array elements");
 }
 function isScalar(type: BoundType): type is ScalarType {
-  return !["null", "row", "page", "object", "numeric-literal"].includes(type.kind);
+  return !["null", "row", "page", "collection", "object", "numeric-literal"].includes(type.kind);
 }
 function requiredType(type: BoundType): BoundType {
   if (type.kind === "row" || type.kind === "object") return { ...type, nullable: false };

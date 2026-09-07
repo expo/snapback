@@ -88,6 +88,33 @@ function lowerExpression(expression: BoundExpression, lowering: Lowering): Lower
 function lowerShape(expression: Extract<BoundExpression, { kind: "shape" }>, lowering: Lowering): LoweredValue {
   const base = lowerExpression(expression.base, lowering);
   const baseName = temporary(lowering, "shapeBase");
+  if (expression.base.facts.type.kind === "page") {
+    const resultName = temporary(lowering, "shapeRows");
+    const rowName = temporary(lowering, "shapeRow");
+    lowering.focals.set(expression.focal.id, { Variable: rowName });
+    let object: LoweredValue;
+    try {
+      object = lowerObjectFields(expression.fields, lowering);
+    } finally {
+      lowering.focals.delete(expression.focal.id);
+    }
+    return {
+      setup: [
+        ...base.setup,
+        { Const: { name: baseName, value: base.value } },
+        { Const: { name: resultName, value: { Array: [] } } },
+        { For: {
+          binding: rowName,
+          domain: { DerivedArray: {
+            value: { Variable: baseName }, max: expression.base.facts.type.max,
+            bound_source: `${expression.source.definition.file}:${expression.source.definition.line}:${expression.source.definition.col} bounded shape`,
+          } },
+          body: [...object.setup, { Push: { target: resultName, value: object.value } }],
+        } },
+      ],
+      value: { Variable: resultName },
+    };
+  }
   lowering.focals.set(expression.focal.id, { Variable: baseName });
   let object: LoweredValue;
   try {

@@ -61,7 +61,7 @@ export function registerQuarryProgramChecks(test: Test, frontend: string): void 
 
   test("direct Quarry value and bounded-read core matches public fixture programs", async () => {
     const cases = [
-      { fixture: "quarry-surface", operations: ["surface.keyedRow", "surface.wordTokens", "surface.counterTotal"] },
+      { fixture: "quarry-surface", operations: ["surface.keyedRow", "surface.wordTokens", "surface.counterTotal", "surface.postsAfter"] },
       { fixture: "quarry-todos", operations: ["todos.list"] },
       { fixture: "quarry-money", operations: ["money.atMost"] },
       { fixture: "quarry-assets", operations: ["assets.echo", "assets.echoNested"] },
@@ -93,6 +93,9 @@ export function registerQuarryProgramChecks(test: Test, frontend: string): void 
         assert(!legacyCheck.error && legacyCheck.certificate, `${name} oracle program did not certify: ${JSON.stringify(legacyCheck)}`);
         if (name === "surface.counterTotal") {
           deepStrictEqual(directCheck.certificate.bounds, legacyCheck.certificate.bounds);
+        } else if (name === "surface.postsAfter") {
+          deepStrictEqual(directCheck.certificate.read_sites, legacyCheck.certificate.read_sites);
+          deepStrictEqual(directCheck.certificate.result_pages, legacyCheck.certificate.result_pages);
         } else {
           deepStrictEqual(direct, legacy);
           deepStrictEqual(directCheck, legacyCheck);
