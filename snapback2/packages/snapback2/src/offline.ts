@@ -276,10 +276,17 @@ export class OfflineRuntime {
         throwIfAborted(signal);
       }
       await this.open(principal);
-    } finally {
-      if (this.followingPrincipal === principal) this.followingPrincipal = undefined;
-      this.outbox.notify();
+    } catch (error) {
+      this.followed();
+      throw error;
     }
+    // Still following: the client clears the marker once the inherited partition is reauthenticated and resumed.
+  }
+
+  /** The takeover finished, or failed: this tab is the writer now, or nothing. */
+  followed(): void {
+    this.followingPrincipal = undefined;
+    this.outbox.notify();
   }
 
   async open(principal: string, authenticated = false): Promise<void> {
@@ -299,6 +306,10 @@ export class OfflineRuntime {
       }
       if (this.partition !== undefined && this.partition !== principal) await this.store.wipe(this.partition);
       if (this.partition !== principal) {
+        // Between the old partition's wipe and the new one's open the runtime
+        // names no partition: a refused open (a follower) must not leave it on
+        // the old principal, where a delivery would meet an authority mismatch.
+        this.partition = undefined;
         this.coverageRevision += 1;
         this.facts = this.superseded = this.held = undefined;
         this.latestSeq = 0;

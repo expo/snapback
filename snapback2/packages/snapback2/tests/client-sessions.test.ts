@@ -159,3 +159,74 @@ test("a follower that closes withdraws its wait, so the next tab becomes the wri
   assert.notEqual((await next.outbox.status()).reason, "follower", "the closed follower did not take the lock");
   await next.close();
 });
+
+test("two attachments sharing one callback function are two consumers", async () => {
+  const owner = fakeOwner({ seed: true });
+  const { counts, fetch } = counting(owner);
+  const client = createClient({ url: "http://same-callback.test", as: "alice", fetch });
+  await client.ready;
+  const args = { conversationId: "conversation-1", c: null };
+  let calls = 0;
+  const listener = () => { calls += 1; };
+  const first = client.subscribe(api.deliveries.thread, args, listener);
+  const second = client.subscribe(api.deliveries.thread, args, listener);
+  await second.until((event) => event.state === "complete", 2_000);
+  assert.equal(client.sharedConsumers(api.deliveries.thread, args), 2);
+  first.close();
+  assert.equal(client.sharedConsumers(api.deliveries.thread, args), 1, "closing one attachment keeps the other");
+  const before = calls;
+  const again = await second.until((event) => event.state === "complete", 2_000);
+  assert.equal(again.state, "complete");
+  assert.ok(calls >= before);
+  assert.equal(counts.subscribes, 1);
+  second.close();
+  assert.equal(client.sharedConsumers(api.deliveries.thread, args), 0);
+  await client.close();
+});
+
+test("a follower's drain pages and tails live without touching the writer's watermark or grant", async () => {
+  const database = new FakeIndexedDb();
+  const locks = new FakeLocks();
+  const store = indexedDbRangeStore({ indexedDB: database as any, locks: locks as any });
+  const owner = fakeOwner({ seed: true, cursorArg: "c" });
+  const writer = createClient({ url: "http://tabs-drain.test", as: "alice", fetch: owner.fetch, offline: { store } });
+  await writer.ready;
+  const follower = createClient({ url: "http://tabs-drain.test", as: "alice", fetch: owner.fetch, offline: { store } });
+  await follower.ready;
+  assert.equal((await follower.outbox.status()).reason, "follower");
+  const inbox = follower.subscribe(api.deliveries.inbox, { c: null }, () => undefined, { drain: true });
+  const caughtUp = await inbox.until((event) => event.state === "complete" && event.caughtUp === true, 3_000);
+  assert.equal(caughtUp.live, false);
+  assert.equal(owner.grantsMinted(), 0, "a follower earns no grant of its own");
+  inbox.close();
+  await follower.close();
+  await writer.close();
+});
+
+// The restored bearer tab: hydration opens the bound principal and starts following;
+// confirming the session opens the same principal again, which must keep the wait.
+test("a restored bearer second tab follows instead of refusing its own session", async () => {
+  const database = new FakeIndexedDb();
+  const locks = new FakeLocks();
+  const store = indexedDbRangeStore({ indexedDB: database as any, locks: locks as any });
+  const owner = fakeOwner({ seed: true, meEpoch: 7 });
+  const custody = () => {
+    let token: string | null = "token-a";
+    let binding: { token: string; principal: string } | null = { token, principal: "dev:alice" };
+    return { load: () => token, save: (value: string | null) => { token = value; },
+      loadPrincipalBinding: () => binding,
+      savePrincipal: (principal: string | null, bearer?: string) => { binding = principal && bearer ? { token: bearer, principal } : null; } };
+  };
+  const writer = createClient({ url: "http://tabs-bearer.test", tokenStore: custody(), fetch: owner.fetch, offline: { store } });
+  await writer.ready;
+  await until(() => writer.snapshot.auth.state === "authenticated", "the writer's session");
+  const follower = createClient({ url: "http://tabs-bearer.test", tokenStore: custody(), fetch: owner.fetch, offline: { store } });
+  await follower.ready;
+  await until(() => follower.snapshot.auth.state !== "hydrating", "the follower's restoration");
+  assert.equal(follower.snapshot.auth.state, "authenticated", `follower auth: ${JSON.stringify(follower.snapshot.auth)}`);
+  assert.equal((await follower.outbox.status()).reason, "follower");
+  await writer.close();
+  await until(async () => (await follower.outbox.status()).reason !== "follower", "the bearer takeover");
+  assert.equal(follower.snapshot.auth.state, "authenticated");
+  await follower.close();
+});

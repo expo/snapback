@@ -1,7 +1,7 @@
 import { ClientAuth, anonymousAuth, restoreAuthToken, saveAuthToken, storageRefusal, ensureBearerTransition } from "./client-auth.js";
 import { SharedSse } from "./live.js";
 import type { AssetFetchOptions } from "./store/byte-cache.js";
-import { throwIfAborted, withAbort } from "./client-wire.js";
+import { followerRefusal, throwIfAborted, withAbort } from "./client-wire.js";
 import { api, referenceName, type Api, type ApiProxy, type Channel as ChannelRef, type Op } from "./api.js";
 import { captureGrant, createOutboxApi, drainOutbox, submitMutation, type DrainResult } from "./client-outbox.js";
 import {
@@ -44,7 +44,7 @@ import {
   wireSubscription,
 } from "./client-wire.js";
 import { admitDrain, type OfflineRuntime, type MountedQuery } from "./offline.js";
-import { SharedSubscriptions } from "./client-sessions.js";
+import { SharedSubscriptions, TabFollower } from "./client-sessions.js";
 import { createChannel, type ChannelHost } from "./client-channels.js";
 import { ReconnectingSse } from "./sse.js";
 import type { SseResponse } from "./sse-parser.js";
@@ -131,8 +131,13 @@ class Client implements SnapbackClient {
   private readonly live: SharedSse;
   private readonly mounted = new Map<string, MountedQuery>();
   private readonly shared = new SharedSubscriptions();
-  /** Set while this browser tab waits for another tab to release the account's writer lock. */
-  private following?: { principal: Principal; controller: AbortController };
+  /** This browser tab while another tab holds the account's writer lock (LLP 1018 §3). */
+  private readonly follower = new TabFollower<Authority>({
+    runtime: () => this.offlineRuntime!, closed: () => this.closed,
+    inherited: (principal) => { this.supersessionQueries.clear(); this.offlineMetadataLoaded = false; this.currentPrincipal = principal as Principal; },
+    takeover: () => this.takeover(), drain: (authority) => { void this.drainNow(authority).catch(() => undefined); },
+    failed: (error) => { this.patchSnapshot({ lastRefusal: this.offlineRefusal(error, "RangeStore.open").envelope }); },
+  });
   private offlineMetadataLoaded = false;
   private offlineStartupPending = false;
   private resumeTail: Promise<void> = Promise.resolve();
@@ -219,7 +224,8 @@ class Client implements SnapbackClient {
     const localAuthority = await this.transitionAuthority();
     this.ensureAuthority(localAuthority);
     const op = referenceName(ref);
-    if (drain) this.offlineRuntime?.drainCursor(op);
+    // A follower admits a drain the way a client with no store does: from the manifest, not held custody.
+    if (drain && this.offlineRuntime && !this.offlineRuntime.following) this.offlineRuntime.drainCursor(op);
     if (this.currentToken && this.authState.value.state === "hydrating" && this.offlineRuntime
       && (this.startupComplete || this.offlineRuntime.principal)) {
       const held = await answerOffline<Result>(this.offlineRuntime, op, args, error => this.offlineRefusal(error), drain);
@@ -381,7 +387,7 @@ class Client implements SnapbackClient {
     drain = false,
   ): Subscription<SubscriptionDelivery<Result>> {
     const op = referenceName(ref);
-    const mountedKey = `${op}\u0000${stableSerialize(args)}`;
+    const mountedKey = `${op}\u0000live\u0000${stableSerialize(args)}`;
     const mountedRecord: MountedQuery = { op, args, drain: false };
     if (!drain) this.mounted.set(mountedKey, mountedRecord);
     let lastPair: { seq: number; data?: Result } | undefined;
@@ -499,7 +505,8 @@ class Client implements SnapbackClient {
       runtime: this.offlineRuntime,
       ready: this.ready,
       mounted: this.mounted,
-      cursor: async () => this.offlineRuntime ? this.offlineRuntime.drainCursor(op) : admitDrain(op, (await this.manifest()).ops[op]?.drain),
+      cursor: async () => this.offlineRuntime && !this.offlineRuntime.following
+        ? this.offlineRuntime.drainCursor(op) : admitDrain(op, (await this.manifest()).ops[op]?.drain),
       query: (pageArgs: Args) => this.query(ref, pageArgs, true),
       subscribe: (tailArgs, onEvent) => this.subscribeRegular(ref, tailArgs, onEvent, true),
       track: (subscription) => this.track(subscription),
@@ -578,6 +585,7 @@ class Client implements SnapbackClient {
       shutdown: async () => {
         this.closed = true;
         this.lifetimeController.abort();
+        this.follower.stop();
         this.authState.stop();
         this.abortSync();
         this.operationFence += 1;
@@ -614,7 +622,7 @@ class Client implements SnapbackClient {
     this.closed = true;
     this.lifetimeController.abort();
     this.startupController.abort();
-    this.stopFollowing();
+    this.follower.stop();
     this.authState.stop();
     this.abortSync();
     this.operationFence += 1;
@@ -1001,7 +1009,7 @@ class Client implements SnapbackClient {
 
   private async openOffline(principal: Principal, authenticated = false, authEpoch?: number): Promise<void> {
     if (!this.offlineRuntime) return;
-    if (this.following && this.following.principal !== principal) this.stopFollowing();
+    if (this.follower.confirm(principal, authenticated, authEpoch)) return;
     try {
       const changed = this.offlineRuntime.principal !== principal;
       await this.offlineRuntime.open(principal, authenticated);
@@ -1014,37 +1022,16 @@ class Client implements SnapbackClient {
       // @ref LLP 1018#3-move-one-one-coherent-reactive-client — on web a held writer lock makes this
       // client a follower: live reads, refused writes, the partition and its queue inherited on close.
       const code = error && typeof error === "object" ? (error as { code?: unknown }).code : undefined;
-      if (code === "E_OFFLINE_LOCK" && this.offlineRuntime.canFollow && !this.following) {
-        this.follow(principal, authenticated, authEpoch);
+      if (code === "E_OFFLINE_LOCK" && this.offlineRuntime.canFollow) {
+        this.follower.begin(principal, authenticated, authEpoch);
         return;
       }
       throw this.offlineRefusal(error, "RangeStore.open");
     }
   }
 
-  private follow(principal: Principal, authenticated: boolean, authEpoch: number | undefined): void {
-    const runtime = this.offlineRuntime!;
-    const controller = new AbortController();
-    this.following = { principal, controller };
-    void runtime.follow(principal, controller.signal).then(async () => {
-      if (controller.signal.aborted || this.closed) return;
-      this.following = undefined;
-      this.supersessionQueries.clear();
-      this.offlineMetadataLoaded = false;
-      this.currentPrincipal = principal;
-      if (authenticated) await runtime.reauthenticate(principal, authEpoch);
-      await this.takeover();
-    }).catch((error) => {
-      if (controller.signal.aborted || this.closed) return;
-      this.following = undefined;
-      this.patchSnapshot({ lastRefusal: this.offlineRefusal(error, "RangeStore.open").envelope });
-    });
-  }
-
-  private stopFollowing(): void { this.following?.controller.abort(); this.following = undefined; }
-
-  /** The writer tab closed: load the program, resume the inherited coverage, and replay the inherited queue. */
-  private async takeover(): Promise<void> {
+  /** The writer tab closed: load the program and resume the inherited coverage; the caller replays the inherited queue. */
+  private async takeover(): Promise<Authority> {
     const authority = await this.operationAuthority();
     try {
       await this.ensureOfflineMetadata(authority);
@@ -1053,8 +1040,7 @@ class Client implements SnapbackClient {
       if (!(isSnapbackRefusal(error)
         && (error.retryable || error.code === "E_OFFLINE_RESUME" || error.code === "E_OFFLINE_RESET"))) throw error;
     }
-    this.offlineRuntime!.outbox.notify();
-    void this.drainNow(authority).catch(() => undefined);
+    return authority;
   }
 
   private async sealOffline(): Promise<void> {
@@ -1066,7 +1052,7 @@ class Client implements SnapbackClient {
   private async wipeOffline(): Promise<void> {
     if (!this.offlineRuntime) return;
     // A follower owns no partition: sign-out withdraws its wait and touches nothing the writer tab holds.
-    this.stopFollowing();
+    this.follower.stop();
     this.abortSync();
     this.supersessionQueries.clear();
     try { await this.offlineRuntime.wipe(); this.currentPrincipal = undefined; }
@@ -1317,6 +1303,7 @@ class Client implements SnapbackClient {
       if (this.currentToken !== authority.token
         || this.custodyGeneration !== authority.custodyGeneration) return { cleared: false };
       this.operationFence += 1;
+      this.follower.stop();
       this.abortSync(options.signal);
       if (!options.fromAuth) this.authState.reset({ state: "hydrating" });
       const fence = this.operationFence;
@@ -1404,6 +1391,8 @@ class Client implements SnapbackClient {
   }
 
   private trackWrite<Result>(run: () => Promise<Result>): Promise<Result> {
+    // A follower tab's write is refused here, ahead of uploads, cleanup, and channel publishes alike.
+    if (this.offlineRuntime?.following) return Promise.reject(followerRefusal("client.write"));
     const request = run();
     this.writes.add(request as Promise<unknown>);
     void request.finally(() => this.writes.delete(request as Promise<unknown>)).catch(() => undefined);

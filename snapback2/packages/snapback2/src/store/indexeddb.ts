@@ -90,6 +90,8 @@ class IndexedDbBackend implements RangeStoreBackend {
   private releaseLock?: () => void;
   private lockedPartition?: PrincipalPartition;
   private lockRequest?: Promise<unknown>;
+  /** Withdraws a still-queued waiting request when the carrier closes. */
+  private pendingAbort?: AbortController;
   private readonly projection = new ProjectionCache();
 
   constructor(
@@ -202,6 +204,8 @@ class IndexedDbBackend implements RangeStoreBackend {
 
   /** Resolves once the lock manager has seen the release, so the next request (ours or another tab's) cannot race it. */
   private async releaseHeldLock(): Promise<void> {
+    this.pendingAbort?.abort();
+    this.pendingAbort = undefined;
     const request = this.lockRequest;
     this.releaseLock?.();
     this.releaseLock = undefined;
@@ -220,7 +224,14 @@ class IndexedDbBackend implements RangeStoreBackend {
       acquiredReject = reject;
     });
     const released = new Promise<void>((resolve) => { releaseResolve = resolve; });
-    const request = this.locks.request(`snapback2:${partition}`, options, async (lock) => {
+    // A waiting request is cancellable by the caller's signal and by this carrier closing.
+    const pending = options.ifAvailable ? undefined : new AbortController();
+    if (pending) {
+      if (options.signal?.aborted) pending.abort();
+      options.signal?.addEventListener("abort", () => pending.abort(), { once: true });
+      this.pendingAbort = pending;
+    }
+    const request = this.locks.request(`snapback2:${partition}`, pending ? { signal: pending.signal } : { ifAvailable: true }, async (lock) => {
       if (!lock) {
         acquiredReject(new OfflineStoreFailure(
           "E_OFFLINE_LOCK",
@@ -228,14 +239,20 @@ class IndexedDbBackend implements RangeStoreBackend {
         ));
         return;
       }
-      if (options.signal?.aborted) return;
+      if (pending?.signal.aborted) {
+        // Granted and withdrawn in the same instant: hold nothing, and let the waiter see the withdrawal.
+        const error = new Error("lock request aborted"); error.name = "AbortError";
+        acquiredReject(error);
+        return;
+      }
       this.releaseLock = releaseResolve;
       this.lockedPartition = partition;
       acquiredResolve();
       await released;
     });
     void request.catch(acquiredReject);
-    await acquired;
+    try { await acquired; }
+    finally { if (this.pendingAbort === pending) this.pendingAbort = undefined; }
     this.lockRequest = request;
   }
 }

@@ -216,7 +216,7 @@ export function createOfflineDrain<Args, Result>(options: {
   /** Performs a resume; a drained log that holds no replay grant asks for one here. */
   resume?(): Promise<void>;
 }): Subscription<SubscriptionDelivery<Result>> {
-  const key = `${options.op}\u0000${stableSerialize(options.args)}`;
+  const key = `${options.op}\u0000drain\u0000${stableSerialize(options.args)}`;
 
   const draining = new DrainSubscription<Args, Result>({
     args: options.args,
@@ -228,7 +228,8 @@ export function createOfflineDrain<Args, Result>(options: {
       return options.cursor();
     },
     mark: async (watermark, current, offline) => {
-      if (!options.runtime || offline) return;
+      // A follower tab pages and tails live; the writer tab owns the watermark and the grant.
+      if (!options.runtime || offline || options.runtime.following) return;
       options.runtime.drainCursor(options.op);
       const revision = options.runtime.coverageRevision;
       const tailArgs = { ...(options.args as Record<string, unknown>), [options.runtime.cursorArg(options.op)]: watermark };
