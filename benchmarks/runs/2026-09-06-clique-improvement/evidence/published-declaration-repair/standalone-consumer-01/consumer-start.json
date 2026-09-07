@@ -1,0 +1,14 @@
+{
+  "kind": "standalone",
+  "at": "2026-09-07T22:20:13.101Z",
+  "packageRoot": "/home/ccheever/clique-revisions/published-declaration-ambient-repair-r1-20260907/work/candidate-package",
+  "helperPackageRoot": "/home/ccheever/clique-revisions/published-declaration-ambient-repair-r1-20260907/work/source/snapback2/packages/snapback2",
+  "expectedRootPopulation": [
+    "<owned temporary project>/consumer.ts"
+  ],
+  "skipLibCheck": false,
+  "consumerSha256": "3c9e9b2516147ce9afd013d128654adeeb6c51810ebb405a4ac13d759d709d43",
+  "typescript": "5.9.2",
+  "typescriptPath": "/home/ccheever/clique-revisions/published-declaration-ambient-repair-r1-20260907/work/deps/node_modules/.bun/typescript@5.9.2/node_modules/typescript/lib/typescript.js",
+  "typescriptSha256": "e5f1f6b3e82228a89873cc7b941b2465185e839c0692860f83e3e63e53f94c2b"
+}

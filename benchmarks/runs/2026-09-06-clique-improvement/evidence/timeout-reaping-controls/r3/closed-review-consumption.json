@@ -1,0 +1,94 @@
+{
+  "consumedBeforeAnyDerivativeEdit": true,
+  "epoch": 1788820478.0476422,
+  "files": [
+    {
+      "path": "closed-review-custody.json",
+      "bytes": 3648,
+      "sha256": "70f98545962cf55bc951f573921ba93b9d02a5a28305ca685918c58ee8185e3c",
+      "fullRead": true
+    },
+    {
+      "path": "supervisor-inbox.md",
+      "bytes": 284,
+      "sha256": "7972092ae02a829cbb6084c90aa7f9e749ead8df730afa586d8c863db92e4b74",
+      "fullRead": true
+    },
+    {
+      "path": "closed-reviews/astra/review.md",
+      "bytes": 12633,
+      "sha256": "8b85bc27313d82315bcd5b70013a33256e09d1610dcf81a684459f533ab52fa5",
+      "fullRead": true
+    },
+    {
+      "path": "closed-reviews/grok/review.md",
+      "bytes": 15465,
+      "sha256": "edeb754ad3a602433d972903d6b26a83cc47d641fd3a5ecbafede3154c9eff67",
+      "fullRead": true
+    },
+    {
+      "path": "closed-reviews/astra/actual-identity.json",
+      "bytes": 698,
+      "sha256": "113297c8b8caffd1b9b5e33ce539986612b0b717af148c05b961dc4e79886b52",
+      "fullRead": true
+    },
+    {
+      "path": "closed-reviews/astra/terminal.json",
+      "bytes": 615,
+      "sha256": "0f74e5b398f8a26a31032d7e42ed81ab392afa09a01e242b863fc0622695aead",
+      "fullRead": true
+    },
+    {
+      "path": "closed-reviews/astra/supervisor-terminal-identity.json",
+      "bytes": 1858,
+      "sha256": "8e4fb65d8717d5783588aa3672304c5a9f4b1e9ccf6a160876ebb202cb133954",
+      "fullRead": true
+    },
+    {
+      "path": "closed-reviews/grok/actual-identity.json",
+      "bytes": 567,
+      "sha256": "d0f6dfcccbcdea57b810a2cb99913709494e828622394657b979f383980fd976",
+      "fullRead": true
+    },
+    {
+      "path": "closed-reviews/grok/terminal.json",
+      "bytes": 480,
+      "sha256": "f09515e71c1deb443169a67fd83984be2dc8bffe27708ed041aeb3c0009123f7",
+      "fullRead": true
+    },
+    {
+      "path": "closed-reviews/grok/supervisor-terminal-identity.json",
+      "bytes": 1577,
+      "sha256": "2db4524c415fec2921e735b62f740d25b3c396bf2e6dc6eaa1339083c70f80dd",
+      "fullRead": true
+    },
+    {
+      "path": "closed-reviews/closed-pair-disposition.json",
+      "bytes": 2033,
+      "sha256": "fb9547fbf37586c930cc3a9030d4ac28c3aa21877fea98f01a646ea20052c70b",
+      "fullRead": true
+    },
+    {
+      "path": "closed-reviews/supervisor-read-only-amendment.json",
+      "bytes": 722,
+      "sha256": "c8a63a53bd987fad76ff986659909c67a14f1f70dbc5fe235d87759849aaf1c0",
+      "fullRead": true
+    },
+    {
+      "path": "closed-reviews/supervisor-read-only-amendment-02.json",
+      "bytes": 469,
+      "sha256": "62a73b8fa535fc7e59b5e331dc841155aad748e0ed3e35b90b643852f1b72edd",
+      "fullRead": true
+    }
+  ],
+  "controllingDisposition": "Astra introduced logComplete finding controls; Grok observed single-child READY does not refute inherited descendant-writer possibility. No re-triage or descendant execution.",
+  "firstPreparationErrors": [
+    {
+      "kind": "read_output_truncated",
+      "toolChunk": "bf1e4d",
+      "effect": "Initial combined read truncated Grok report in tool output.",
+      "correction": "Full Grok report read separately in chunk b4aae9 before any derivative edit.",
+      "semanticOrExecutionEffect": false
+    }
+  ]
+}

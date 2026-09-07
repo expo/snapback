@@ -1,0 +1,15 @@
+{
+  "at": "2026-09-07T22:30:36.446745+00:00",
+  "authority": "Root explicit second prospective amendment",
+  "priorObservedGrokCalls": 71,
+  "original30AndProspective60ExcessPreserved": true,
+  "consumption": "not yet observed",
+  "families": {
+    "astra": {
+      "inboxSha256": "9ea14f8deefacf2116d8b1014c6368dc6e1e8ec1ae33950bda0cb630011e1956"
+    },
+    "grok": {
+      "inboxSha256": "9ea14f8deefacf2116d8b1014c6368dc6e1e8ec1ae33950bda0cb630011e1956"
+    }
+  }
+}

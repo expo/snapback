@@ -1,0 +1,204 @@
+{
+  "recordedAt": "2026-09-07T22:28:03.273300+00:00",
+  "outerSessionId": 29283,
+  "outerExitCode": 0,
+  "outerTerminalChunkId": "adb997",
+  "nativeTerminal": {
+    "pid": 91964,
+    "processIdentity": {
+      "pid": 91964,
+      "start": "Mon Sep 7 15:17:23 2026",
+      "executable": "/Users/ccheever/.volta/tools/image/packages/@openai/codex/lib/node_modules/@openai/codex/node_modules/@openai/codex-darwin-arm64/vendor/aarch64-apple-darwin/bin/codex",
+      "observed": true
+    },
+    "exitCode": 0,
+    "endedEpoch": 1788820039.2283788,
+    "elapsedSeconds": 595.7966578006744,
+    "actualProcessWaitCompleted": true,
+    "stdoutSha256": "91611b59c26a8daf727af290b0abef10b4690b094719452822a7d21f64d01700",
+    "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "actualIdentity": {
+    "observedAt": "2026-09-07T22:27:20.764944+00:00",
+    "sessionId": "01a07d95-ef94-7b51-81c6-7aa8434c5441",
+    "expectedSessionId": "01a07d95-ef94-7b51-81c6-7aa8434c5441",
+    "launchPid": 91964,
+    "source": "/Users/ccheever/.codex/sessions/2026/09/07/rollout-2026-09-07T13-36-13-01a07d95-ef94-7b51-81c6-7aa8434c5441.jsonl",
+    "sourceSha256": "24e05a7023fe2898f5ac6ff64db2c39a108f9588b33aa9231f23dae4eb9981b8",
+    "newRecordsOffset": 6871940,
+    "priorNativePrefixUnchanged": true,
+    "turnContexts": [
+      {
+        "model": "gpt-6-astra",
+        "effort": "xhigh",
+        "cwd": "/Users/ccheever/projects/snapback-worktrees/clique-published-declarations",
+        "timestamp": "2026-09-07T22:17:29.941Z"
+      }
+    ],
+    "identityMatchesRequest": true
+  },
+  "sourceCommit": "367d263b8f44fda994397d5f8bb8b8110951d021",
+  "sourceStatus": "",
+  "writerReleased": true,
+  "frozenPacketUnchanged": true,
+  "priorInputsUnchanged": true,
+  "transports": [
+    {
+      "label": "bootstrap-extract-01",
+      "sha256": "5d07185cc8546151cb4884596eb1f57e7d6d5537a1a10e918458f9c2f1388869",
+      "pid": 93259,
+      "exit": 0,
+      "waited": true,
+      "timeout": false
+    },
+    {
+      "label": "bootstrap-mkdir-01",
+      "sha256": "c08ba6a76ac7ec45125108ab93afa44e826e784d165444fc7a8bb82b7b00134d",
+      "pid": 92899,
+      "exit": 0,
+      "waited": true,
+      "timeout": false
+    },
+    {
+      "label": "bootstrap-upload-01",
+      "sha256": "afd0f0dddec96d4946d2153cc00b4d97d5e2edcbd957649ce47ccbf437c41c83",
+      "pid": 93013,
+      "exit": 0,
+      "waited": true,
+      "timeout": false
+    },
+    {
+      "label": "collect-01",
+      "sha256": "6c66463e6485e7f981630945dd04c8981870e41dbeaa5a12a4aaa4336204c922",
+      "pid": 95257,
+      "exit": 0,
+      "waited": true,
+      "timeout": false
+    },
+    {
+      "label": "download-01",
+      "sha256": "d2852ee51e644351a1c6651253d139fe33aa3849e14ab4e784a34e10bbae4f5a",
+      "pid": 95603,
+      "exit": 0,
+      "waited": true,
+      "timeout": false
+    },
+    {
+      "label": "integrity-after-01",
+      "sha256": "8bfa8e04ca8994d36b7ab771d03016e173ad7b81668a35f7cd65564a9a54899b",
+      "pid": 94659,
+      "exit": 0,
+      "waited": true,
+      "timeout": false
+    },
+    {
+      "label": "package-build-01",
+      "sha256": "3dce8c5825be7c115cc01f2fe1894d15e0d65f960b90a3b8e61b80d6be05d5d5",
+      "pid": 93876,
+      "exit": 0,
+      "waited": true,
+      "timeout": false
+    },
+    {
+      "label": "public-consumer-01",
+      "sha256": "3aaf6c0dadddd15bd09cf27104e994b318473b8e5ab27d1b3956d93ffb08b458",
+      "pid": 94089,
+      "exit": 0,
+      "waited": true,
+      "timeout": false
+    },
+    {
+      "label": "setup-01",
+      "sha256": "22ec4407f07cdaa3aa6e56cc6e1851029c4634635f9d12324774b4f9e90dbfe9",
+      "pid": 93539,
+      "exit": 0,
+      "waited": true,
+      "timeout": false
+    },
+    {
+      "label": "snapshot-01",
+      "sha256": "6d8f111ba31cbbcfee51cabdd3f1bfb1501a9f4d1881c2c4c785a6a02609b7ea",
+      "pid": 94031,
+      "exit": 0,
+      "waited": true,
+      "timeout": false
+    },
+    {
+      "label": "source-type-01",
+      "sha256": "ca3559f3d775b1cad095d94844141edd01e9d004074e84dab0b5f06075799e09",
+      "pid": 94547,
+      "exit": 0,
+      "waited": true,
+      "timeout": false
+    },
+    {
+      "label": "standalone-consumer-01",
+      "sha256": "38199bdd463563acfd52818a9aebfe0a75843602fbf8acfe34e20e5a313049dd",
+      "pid": 94293,
+      "exit": 0,
+      "waited": true,
+      "timeout": false
+    }
+  ],
+  "files": [
+    {
+      "path": "terminal.json",
+      "bytes": 616,
+      "sha256": "01829ec5b466237e73e7db89ee4086e448919b78db2e4a3457bf3632a264a053"
+    },
+    {
+      "path": "actual-identity.json",
+      "bytes": 741,
+      "sha256": "3a1bc52e2e3378e72030a10f85e8a67976002acca71bf4743ac7d5fa13c52b57"
+    },
+    {
+      "path": "actual-turn-context.jsonl",
+      "bytes": 857,
+      "sha256": "8009dede930ac937c5dcd06d3257a12f7977196c84bb14d46b3274c133b15885"
+    },
+    {
+      "path": "prior-input-integrity-after.json",
+      "bytes": 90,
+      "sha256": "da8f987cc98031933e8ff644e50d78bf32e91fe5214e40b1a62f9de553ac75bb"
+    },
+    {
+      "path": "work/REPORT.md",
+      "bytes": 5516,
+      "sha256": "ba50c2831e6789cb0d7007568c2f50640080ce6202f9eec149ac054c2f3a62a1"
+    },
+    {
+      "path": "work/phase.json",
+      "bytes": 2329,
+      "sha256": "7886b7071a6bdca5c18964440221b79d1aa961d784672c35d4edca03ae7568e8"
+    },
+    {
+      "path": "work/execution-summary.json",
+      "bytes": 4985,
+      "sha256": "d0c5162ced77ae85be8b8a27a67e4589f5d85ccbe6dcfcff70e78319042fcf9c"
+    },
+    {
+      "path": "work/execution-closure.json",
+      "bytes": 13089,
+      "sha256": "c20faf91933a4265587fbf0a9a0a79f1d12a0aa5be4fe446b8501b41a1d1d7f5"
+    },
+    {
+      "path": "work/collection-receipt.json",
+      "bytes": 428,
+      "sha256": "0d963c53cdfe4d99593f6d14d942d2c440f20d6508ffccb8b99765812bfcb186"
+    },
+    {
+      "path": "work/execution-ledger.json",
+      "bytes": 9497,
+      "sha256": "2593f81513baf43d5eb398b4ed7417cf45d635f3b134bbf2faa4fea34be46558"
+    }
+  ],
+  "authorSummary": {
+    "builds": 1,
+    "consumers": 2,
+    "sourcePrograms": 1,
+    "runtimeFailures": 0,
+    "semanticReplays": 0
+  },
+  "readLimit": "Supervisor full-read final REPORT/phase96e6e3 and summaryfbe7c1; mechanically verified12 transport terminal fields; Root independently full-read actual diagnostics/programs/types/artifact custody. Outer adb997 printed initial large launch metadata truncated; native/identity records checked directly.",
+  "inboxHandoff": "supervisor-handoff-request.json appended after all12 admitted transports closed; no additional execution; does not retroactively change captured acknowledgments."
+}

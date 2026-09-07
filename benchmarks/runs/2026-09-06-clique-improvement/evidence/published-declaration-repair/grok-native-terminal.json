@@ -1,0 +1,15 @@
+{
+  "pid": 5248,
+  "processIdentity": {
+    "pid": 5248,
+    "start": "Mon Sep 7 15:35:17 2026",
+    "executable": "/Users/ccheever/.grok/bin/grok",
+    "observed": true
+  },
+  "exitCode": 0,
+  "endedEpoch": 1788821102.702116,
+  "elapsedSeconds": 584.9122309684753,
+  "actualProcessWaitCompleted": true,
+  "stdoutSha256": "0eb2896b846f31ca714b219fe355295867a52da648adaf2021f1b9b8de93437a",
+  "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+}

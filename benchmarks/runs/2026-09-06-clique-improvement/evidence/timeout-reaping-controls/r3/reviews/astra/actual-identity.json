@@ -1,0 +1,19 @@
+{
+  "requestedModel": "gpt-6-astra",
+  "requestedEffort": "xhigh",
+  "launchPid": 52268,
+  "observedAt": "2026-09-07T22:59:49.916754+00:00",
+  "sessionId": "01a07e11-165a-7782-ae5d-93be1f67a2ad",
+  "source": "/Users/ccheever/.codex/sessions/2026/09/07/rollout-2026-09-07T15-50-44-01a07e11-165a-7782-ae5d-93be1f67a2ad.jsonl",
+  "sourceSha256": "7743d54e1e618b9db4af1f710ac7eb0ab5d82b612de6f3192f44873109595c6b",
+  "turnContexts": [
+    {
+      "line": 8,
+      "model": "gpt-6-astra",
+      "effort": "xhigh",
+      "cwd": "/Users/ccheever/clique-improvement/reviews/default-install-timeout-race-r2/astra",
+      "timestamp": "2026-09-07T22:50:46.482Z"
+    }
+  ],
+  "identityMatchesRequest": true
+}

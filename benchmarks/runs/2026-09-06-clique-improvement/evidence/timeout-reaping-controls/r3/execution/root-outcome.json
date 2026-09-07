@@ -1,0 +1,13 @@
+{
+  "recordedAt": "2026-09-07T22:46:24.805388+00:00",
+  "runnerSession": 83351,
+  "actualOuterExitCode": 0,
+  "terminalChunk": "185f15",
+  "fullResultsReadChunk": "3e6ebd",
+  "manifestVerifiedChunk": "49e735",
+  "manifestSha256": "160dc883f3792cb74fee1de513d1cda771fc21c40713b13524e6f9bbce127c4a",
+  "reportSha256": "ff02a23ae5f6ff4a2607d4641971057b9eb7bb11effad452b5cac569aa12c612",
+  "sixControlsPassed": true,
+  "semanticRetries": 0,
+  "scope": "Controlled tests only; original017 install exit remains unknown; fresh correction review pending"
+}

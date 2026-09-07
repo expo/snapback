@@ -1,0 +1,197 @@
+{
+  "status": "PREPARATION_ONLY_ROOT_EXACT_READ_REQUIRED",
+  "python": {
+    "path": "/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/bin/python3.9",
+    "sha256": "bdea59019a38eb6600cc9e71e984a97fedadc406448431281e7657030f54987e"
+  },
+  "sourceVersion": "0.0.17",
+  "sourceCommit": "a606383b6e5ad7cf79555bbc4b810d6cf6ea0e92",
+  "candidateSha256": "b66c1e0e7eddb99d6a17a3902a0d3fb116f35618c47068d16b8d97a87438fa0a",
+  "parentSha256": "2c21f71603cef8d81f34456f5fda0268c81de2a15ba989af62e29f428967f45c",
+  "command": [
+    "/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/bin/python3.9",
+    "-I",
+    "-B",
+    "/Users/ccheever/clique-improvement/revisions/default-install-timeout-race-repair-r3/run-regressions.py",
+    "--execute-root-approved"
+  ],
+  "cwd": "/Users/ccheever/clique-improvement/revisions/default-install-timeout-race-repair-r3",
+  "commands": [
+    {
+      "case": "parent-exit-during-identity",
+      "argv": [
+        "/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/bin/python3.9",
+        "-I",
+        "-B",
+        "/Users/ccheever/clique-improvement/revisions/default-install-timeout-race-repair-r3/regression.py",
+        "--execute-root-approved",
+        "--case",
+        "parent-exit-during-identity"
+      ],
+      "cwd": "/Users/ccheever/clique-improvement/revisions/default-install-timeout-race-repair-r3",
+      "timeoutSeconds": 15,
+      "attempts": 1,
+      "expected": "Parent reproduces identity exception and omitted terminal; retained running record has no logComplete field. Own controlled child exits0 and controller actually reaps it. No claim about original017 install exit.",
+      "controlledChildArgv": [
+        "/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/bin/python3.9",
+        "-I",
+        "-B",
+        "/Users/ccheever/clique-improvement/revisions/default-install-timeout-race-repair-r3/controlled-child.py",
+        "/Users/ccheever/clique-improvement/revisions/default-install-timeout-race-repair-r3/execution/parent-exit-during-identity/ready",
+        "/Users/ccheever/clique-improvement/revisions/default-install-timeout-race-repair-r3/execution/parent-exit-during-identity/gate"
+      ]
+    },
+    {
+      "case": "candidate-exit-during-identity",
+      "argv": [
+        "/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/bin/python3.9",
+        "-I",
+        "-B",
+        "/Users/ccheever/clique-improvement/revisions/default-install-timeout-race-repair-r3/regression.py",
+        "--execute-root-approved",
+        "--case",
+        "candidate-exit-during-identity"
+      ],
+      "cwd": "/Users/ccheever/clique-improvement/revisions/default-install-timeout-race-repair-r3",
+      "timeoutSeconds": 15,
+      "attempts": 1,
+      "expected": "Real NOTE_EXIT during identity inspection, no test reaping; execute records timeout124 and actual0, direct-child wait completed, running removed; logComplete absent, log hash is a receipt-time snapshot.",
+      "controlledChildArgv": [
+        "/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/bin/python3.9",
+        "-I",
+        "-B",
+        "/Users/ccheever/clique-improvement/revisions/default-install-timeout-race-repair-r3/controlled-child.py",
+        "/Users/ccheever/clique-improvement/revisions/default-install-timeout-race-repair-r3/execution/candidate-exit-during-identity/ready",
+        "/Users/ccheever/clique-improvement/revisions/default-install-timeout-race-repair-r3/execution/candidate-exit-during-identity/gate"
+      ]
+    },
+    {
+      "case": "candidate-live-matching-group",
+      "argv": [
+        "/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/bin/python3.9",
+        "-I",
+        "-B",
+        "/Users/ccheever/clique-improvement/revisions/default-install-timeout-race-repair-r3/regression.py",
+        "--execute-root-approved",
+        "--case",
+        "candidate-live-matching-group"
+      ],
+      "cwd": "/Users/ccheever/clique-improvement/revisions/default-install-timeout-race-repair-r3",
+      "timeoutSeconds": 15,
+      "attempts": 1,
+      "expected": "Real matching PID/start/group receives exactly one SIGKILL; timeout124/actual-9, direct child reaped, group absent; logComplete absent, log hash is a receipt-time snapshot.",
+      "controlledChildArgv": [
+        "/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/bin/python3.9",
+        "-I",
+        "-B",
+        "/Users/ccheever/clique-improvement/revisions/default-install-timeout-race-repair-r3/controlled-child.py",
+        "/Users/ccheever/clique-improvement/revisions/default-install-timeout-race-repair-r3/execution/candidate-live-matching-group/ready",
+        "/Users/ccheever/clique-improvement/revisions/default-install-timeout-race-repair-r3/execution/candidate-live-matching-group/gate"
+      ]
+    },
+    {
+      "case": "candidate-changed-identity",
+      "argv": [
+        "/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/bin/python3.9",
+        "-I",
+        "-B",
+        "/Users/ccheever/clique-improvement/revisions/default-install-timeout-race-repair-r3/regression.py",
+        "--execute-root-approved",
+        "--case",
+        "candidate-changed-identity"
+      ],
+      "cwd": "/Users/ccheever/clique-improvement/revisions/default-install-timeout-race-repair-r3",
+      "timeoutSeconds": 15,
+      "attempts": 1,
+      "expected": "Live own child with deterministic mismatched identity receives no helper signal; bounded wait remains unknown,124/actual null and running retained; logComplete absent, log hash is a receipt-time snapshot. Later controlled exit0 is separate and cannot rewrite receipt.",
+      "controlledChildArgv": [
+        "/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/bin/python3.9",
+        "-I",
+        "-B",
+        "/Users/ccheever/clique-improvement/revisions/default-install-timeout-race-repair-r3/controlled-child.py",
+        "/Users/ccheever/clique-improvement/revisions/default-install-timeout-race-repair-r3/execution/candidate-changed-identity/ready",
+        "/Users/ccheever/clique-improvement/revisions/default-install-timeout-race-repair-r3/execution/candidate-changed-identity/gate"
+      ]
+    },
+    {
+      "case": "candidate-disappears-before-group-query",
+      "argv": [
+        "/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/bin/python3.9",
+        "-I",
+        "-B",
+        "/Users/ccheever/clique-improvement/revisions/default-install-timeout-race-repair-r3/regression.py",
+        "--execute-root-approved",
+        "--case",
+        "candidate-disappears-before-group-query"
+      ],
+      "cwd": "/Users/ccheever/clique-improvement/revisions/default-install-timeout-race-repair-r3",
+      "timeoutSeconds": 15,
+      "attempts": 1,
+      "expected": "Matching identity then actual kernel exit and controlled ProcessLookupError; no signal, timeout124/actual0, execute reaps direct child; logComplete absent, log hash is a receipt-time snapshot.",
+      "controlledChildArgv": [
+        "/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/bin/python3.9",
+        "-I",
+        "-B",
+        "/Users/ccheever/clique-improvement/revisions/default-install-timeout-race-repair-r3/controlled-child.py",
+        "/Users/ccheever/clique-improvement/revisions/default-install-timeout-race-repair-r3/execution/candidate-disappears-before-group-query/ready",
+        "/Users/ccheever/clique-improvement/revisions/default-install-timeout-race-repair-r3/execution/candidate-disappears-before-group-query/gate"
+      ]
+    },
+    {
+      "case": "candidate-before-deadline",
+      "argv": [
+        "/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/bin/python3.9",
+        "-I",
+        "-B",
+        "/Users/ccheever/clique-improvement/revisions/default-install-timeout-race-repair-r3/regression.py",
+        "--execute-root-approved",
+        "--case",
+        "candidate-before-deadline"
+      ],
+      "cwd": "/Users/ccheever/clique-improvement/revisions/default-install-timeout-race-repair-r3",
+      "timeoutSeconds": 15,
+      "attempts": 1,
+      "expected": "Unmodified real clock, child released before deadline; actual0 remains accepted, receipt/log custody and no signal; logComplete absent, log hash is a receipt-time snapshot.",
+      "controlledChildArgv": [
+        "/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/bin/python3.9",
+        "-I",
+        "-B",
+        "/Users/ccheever/clique-improvement/revisions/default-install-timeout-race-repair-r3/controlled-child.py",
+        "/Users/ccheever/clique-improvement/revisions/default-install-timeout-race-repair-r3/execution/candidate-before-deadline/ready",
+        "/Users/ccheever/clique-improvement/revisions/default-install-timeout-race-repair-r3/execution/candidate-before-deadline/gate"
+      ]
+    }
+  ],
+  "regressionExecutionLoopSeconds": 100,
+  "regressionCaseSeconds": 15,
+  "controlledChildGateSafetySeconds": 8,
+  "fifoReadyWaitSeconds": 3,
+  "kernelExitObservationSeconds": 3,
+  "controllerActualWaitSeconds": 3,
+  "controllerEmergencyWaitSeconds": 2,
+  "candidatePostTimeoutTerminalObservationSeconds": 2,
+  "releaseSemanticChildDeadlineSeconds": 30,
+  "releaseOuterDeadlineSeconds": 90,
+  "attemptsPerCase": 1,
+  "population": {
+    "cases": 6,
+    "regressionCaseProcesses": 6,
+    "controlledPythonChildren": 6,
+    "identityMetrology": "Existing /bin/ps -p OWN_PID -o pid=,lstart=,comm=,2s each; at most2 helper identity processes per case plus runner/6 case identities. Cleanup identities only for those recorded owners on an outer failure."
+  },
+  "environment": {
+    "PATH": "/usr/bin:/bin",
+    "LANG": "C",
+    "LC_ALL": "C"
+  },
+  "instrumentation": "Only regression-local module namespace proxies for monotonic/identity/getpgid/killpg and Popen capture. Real Popen and child.wait are never replaced. First monotonic call is real baseline, subsequent calls report elapsed31s to reach the existing30s wait timeout without modifying release constants. Darwin kqueue NOTE_EXIT observes real exit without reaping. Success control uses real clock. No production seam or argv/env changes.",
+  "cleanup": "Single owned child per case, private FIFO release plus actual wait. Exact matching helper group may receive SIGKILL; changed/disappeared identities receive none. Test-controller emergency kill is limited to its direct unreaped Popen child and makes no passing regression claim. Runner timeout uses only recorded matching groups, retains refusal/unknown and stops.",
+  "outerLimitScope": "100s execution-loop budget and15s per regression case follow original wait/log/receipt shape; initial local input admission precedes the loop. Explicit2s terminal observation/cleanup bounds do not convert semantic timeout to success. No production deadline changes.",
+  "notAuthorized": [
+    "regression execution during preparation",
+    "npm/install/ci/network/auth/publication",
+    "native/Rust/device/benchmark scope",
+    "017 replay or retroactive qualification",
+    "source/peer/tool/deadline changes"
+  ]
+}

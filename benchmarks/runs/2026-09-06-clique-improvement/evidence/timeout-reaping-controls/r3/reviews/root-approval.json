@@ -1,0 +1,41 @@
+{
+  "approved": true,
+  "scope": "One fresh blind correction review per family; scoped read-only inspections; no count ceiling; 30 seconds per inspection; zero semantic execution; both actual native and outer closures before findings",
+  "launchPlanSha256": "9be9d1ceb47d73236cf87c62e576ccec28674c72b9f681b0dcd3a6a18f1bb412",
+  "approvedAt": "2026-09-07T22:49:28.682019+00:00",
+  "rootFullPromptAndWorkloadRead": "56a1b2",
+  "peerPromptDiffAndInboxRead": "246786",
+  "verifiedInputs": 190,
+  "candidate": "b66c1e0e7eddb99d6a17a3902a0d3fb116f35618c47068d16b8d97a87438fa0a",
+  "families": {
+    "astra": {
+      "manifestSha256": "67ad108e72b1c75d56a5da09c7dfa40f6d8642481e3c4a9af59a3e36ad82c452",
+      "promptSha256": "3b7c2b22e803270d7333c1ab89a5a1c1fe6b4e52b81ea2740faeb5109fbcf6a7",
+      "workloadSha256": "c0628bef2264599195f129c67583c3880b05a673a095a49a9726b70e6be7c53d",
+      "requestSha256": "f79b336313a5dc8cee48ce894833e1acb7b19427576db1bae16d1524fae83dfb",
+      "inboxSha256": "70b73ee7db297406ee996f732395d66b08da6441f05f8111c6441187d0a7ded8",
+      "inputs": 95,
+      "command": [
+        "python3",
+        "/Users/ccheever/clique-improvement/reviews/default-install-timeout-race-r2/launch.py",
+        "astra"
+      ]
+    },
+    "grok": {
+      "manifestSha256": "67ad108e72b1c75d56a5da09c7dfa40f6d8642481e3c4a9af59a3e36ad82c452",
+      "promptSha256": "844df587b32c882839a889157eda1f050d097d4c2a3375db0c6b35e924ec9011",
+      "workloadSha256": "c0628bef2264599195f129c67583c3880b05a673a095a49a9726b70e6be7c53d",
+      "requestSha256": "ac2732e319c32268a9f0a368352f401f344310a78691febf57767fe38d6a6217",
+      "inboxSha256": "70b73ee7db297406ee996f732395d66b08da6441f05f8111c6441187d0a7ded8",
+      "inputs": 95,
+      "command": [
+        "python3",
+        "/Users/ccheever/clique-improvement/reviews/default-install-timeout-race-r2/launch.py",
+        "grok"
+      ]
+    }
+  },
+  "launchScriptSha256": "7caebfaff3e0f7519209a145a2e48b4dd3676835e3c62a80f6291e42bf2609b1",
+  "identityCollectorSha256": "ac20bd97e629c7dd4973a97528e547f31764f8d14cdc8b5c38d3e11332d39545",
+  "prelaunchCorrection": "Root initial approval omitted required binding fields; wrappers exited1 before Popen (f8b12a/e2c00b). Corrected metadata only; no native review attempt yet. Launcher fully re-read1a8254. Existing byte-identical backup preserved."
+}
