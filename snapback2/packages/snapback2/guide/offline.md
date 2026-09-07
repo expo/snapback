@@ -62,14 +62,19 @@ resume; without a query, refuse and keep the queue.
 
 ## Grants and bytes
 
-Login/guest/resume mint 30-day principal-bound grants when remaining IDs
-are absent or below 1024. Replay carries `{ grant, offset, count, intent, trace }`.
-Identical bytes return stored terminals despite operation/schema changes;
-session required. Different bytes: E_OFFLINE_INTENT_REUSE. Invalid
-slice: E_OFFLINE_ID_BLOCK. Owner expiry: E_OFFLINE_INTENT_EXPIRED. A 503 after
-commit never double-sends. Changed traced points/verdicts: E_OFFLINE_CONFLICT;
-ranges re-execute. Past-fence traces are empty; program checks still apply.
-Compare-and-set edits: `require msg.body = baseBody else CONFLICT`.
+Login/guest/resume: 30-day principal-bound grants if remaining IDs absent/<1024.
+Replay `{ grant, offset, count, intent, trace }` needs session; same bytes
+reuse terminals across op/schema changes. Changed bytes: E_OFFLINE_INTENT_REUSE;
+bad slice: E_OFFLINE_ID_BLOCK; expiry: E_OFFLINE_INTENT_EXPIRED.
+Traced points/verdicts conflict: E_OFFLINE_CONFLICT; ranges rerun.
+Past-fence traces empty; program checks apply.
+
+```quarry
+mutation edit(id: messages, base: text <=4000, body: text <=4000):
+  m = messages[id] ! else MISSING
+  require m.body = base else CONFLICT
+  update messages[id] { body }
+```
 
 Bytes share row leases, keyed (assetId,width), under maxAssetBytes (256 MiB LRU).
 `image <=N once` is schema-owned: no cache or offline fetch (aliases, predictions

@@ -90,3 +90,14 @@ Full logs and command/PID/duration receipts are retained locally under
 `/Users/ccheever/projects/snapback/.llp/ship-runs/20260907-parallel-papercuts/`
 (`full-test-repaired.*`, `package-two-workers.*`). The full script remained
 red; passing affected checks are separate evidence, not a replacement result.
+
+After the measurement and all overlapping package builds finished, a sequential
+run of Expo, typing, native-custody, and Expo-harness tests passed 49/49 in
+12.113 seconds, retaining the 10-second per-file deadline. This includes the
+previously failing scaffold and generated shared-module cases. The cleanup
+fixture passed separately. The offline guide check first exposed two further
+missing example terms after the endpoint was restored; restoring the concrete
+compare-and-set mutation within 4,350 bytes then passed the existing guide
+test. No assertions or deadlines were weakened, and no third full-suite run
+is claimed. The separate loop measurement's functional steps passed, but its
+timing overruns are retained in [the budget ticket](20260907-snapback2-loop-budget-overruns-in-parallel-papercut-lane.md).
