@@ -448,3 +448,510 @@ fn typed_reference_list_refusals_use_the_declared_target_before_fanout() {
     assert_eq!(runtime.store().commit_seq().unwrap(), before);
     assert_eq!(runtime.engine.rows("links").unwrap(), rows);
 }
+
+#[test]
+fn sparse_aggregate_lifecycle_matches_rebuild_timers_and_rollback() {
+    use crate::search_key::IndexComponent;
+    use crate::timers::{Schedule, Trigger};
+
+    let index = |columns: &[&str], unique| Index {
+        components: columns
+            .iter()
+            .map(|column| IndexComponent::Column((*column).into()))
+            .collect(),
+        unique,
+    };
+    let source = public_table(
+        BTreeMap::from([
+            ("id".into(), ColumnType::Id),
+            ("label".into(), ColumnType::Text { max: 20 }),
+            ("at".into(), ColumnType::Time),
+            ("amount".into(), ColumnType::Int),
+        ]),
+        BTreeMap::from([
+            ("byId".into(), index(&["id"], true)),
+            ("byGroup".into(), index(&["label", "at", "id"], false)),
+        ]),
+    );
+    let target = public_table(
+        BTreeMap::from([
+            ("id".into(), ColumnType::Id),
+            ("label".into(), ColumnType::Text { max: 20 }),
+            ("at".into(), ColumnType::Time),
+            ("value".into(), ColumnType::Int),
+        ]),
+        BTreeMap::from([
+            ("byId".into(), index(&["id"], true)),
+            ("byAt".into(), index(&["at"], true)),
+            ("byValue".into(), index(&["value"], true)),
+            (
+                "byWords".into(),
+                Index {
+                    unique: false,
+                    components: vec![
+                        IndexComponent::WordPrefixes {
+                            fields: vec!["label".into()],
+                            contract: crate::search_key::SearchContract::Unicode17,
+                        },
+                        IndexComponent::Column("at".into()),
+                        IndexComponent::Column("id".into()),
+                    ],
+                },
+            ),
+        ]),
+    );
+    let schema = Schema {
+        tables: BTreeMap::from([("ledger".into(), source), ("balances".into(), target)]),
+        maintains: vec![Maintain {
+            kind: MaintainKind::Sum {
+                of: "amount".into(),
+            },
+            source: "ledger".into(),
+            by: vec!["label".into(), "at".into()],
+            target: "balances".into(),
+            readable: Some(RuleExpr::Allow),
+        }],
+        schedules: vec![Schedule {
+            name: "balance.due".into(),
+            trigger: Trigger::Row {
+                table: "balances".into(),
+                column: "at".into(),
+            },
+            target: "noop".into(),
+            binding: "noop.bind".into(),
+            site: "test:1:1".into(),
+        }],
+        ..Schema::default()
+    };
+    let row = |id: &str, at: i64, amount: i64| {
+        object([
+            ("id", Value::Id(id.into())),
+            ("label", Value::String("room".into())),
+            ("at", Value::Int(at)),
+            ("amount", Value::Int(amount)),
+        ])
+    };
+    let run = |engine: &mut Engine, name: &str, body: Vec<Stmt>| {
+        let program = Program {
+            name: name.into(),
+            kind: ProgramKind::Mutation,
+            args: BTreeMap::new(),
+            read_time_granularity_ms: None,
+            body,
+        };
+        let certificate = Checker::new(&schema, Ceilings::default())
+            .check(&program)
+            .unwrap();
+        assert!(
+            certificate
+                .write_sites
+                .iter()
+                .any(|write| write.table == "_timers"),
+            "maintained target schedules are part of the certified write bound"
+        );
+        engine.execute(
+            &program,
+            &certificate,
+            Context::mutation(Actor::user("alice").unwrap(), BTreeMap::new()),
+        )
+    };
+    let insert = |value| Stmt::Insert {
+        table: "ledger".into(),
+        row: Expr::Literal(value),
+    };
+    let update = |id: &str, fields| Stmt::Update {
+        table: "ledger".into(),
+        key: Expr::Literal(Value::Id(id.into())),
+        patch: Expr::Literal(fields),
+    };
+    let delete = |id: &str| Stmt::Delete {
+        table: "ledger".into(),
+        key: Expr::Literal(Value::Id(id.into())),
+    };
+    let mut engine = Engine::memory(schema.clone()).unwrap();
+
+    run(&mut engine, "insert.a", vec![insert(row("a", 100, 5))]).unwrap();
+    assert_eq!(
+        engine.rows("balances").unwrap()[0].field("value"),
+        Ok(&Value::Int(5))
+    );
+    assert_eq!(engine.store.due_timers(1_000, 10).unwrap().len(), 1);
+
+    run(&mut engine, "insert.b", vec![insert(row("b", 100, -5))]).unwrap();
+    assert!(
+        engine.rows("balances").unwrap().is_empty(),
+        "a nonempty zero-sum group has the canonical absent target"
+    );
+    assert_eq!(
+        engine
+            .store
+            .conn
+            .query_row(
+                "SELECT COUNT(*) FROM _search_postings WHERE table_name='balances'",
+                [],
+                |row| row.get::<_, i64>(0),
+            )
+            .unwrap(),
+        0
+    );
+    assert!(engine.store.due_timers(1_000, 10).unwrap().is_empty());
+
+    run(
+        &mut engine,
+        "update.same",
+        vec![update("b", object([("amount", Value::Int(-4))]))],
+    )
+    .unwrap();
+    assert_eq!(
+        engine.rows("balances").unwrap()[0].field("value"),
+        Ok(&Value::Int(1))
+    );
+    assert_eq!(engine.store.due_timers(1_000, 10).unwrap().len(), 1);
+
+    run(
+        &mut engine,
+        "update.move",
+        vec![update("b", object([("at", Value::Int(200))]))],
+    )
+    .unwrap();
+    assert_eq!(engine.rows("balances").unwrap().len(), 2);
+    assert_eq!(engine.store.due_timers(1_000, 10).unwrap().len(), 2);
+
+    run(&mut engine, "delete.a", vec![delete("a")]).unwrap();
+    assert_eq!(engine.rows("balances").unwrap().len(), 1);
+    assert_eq!(
+        engine.rows("balances").unwrap()[0].field("at"),
+        Ok(&Value::Int(200))
+    );
+    assert_eq!(engine.store.due_timers(1_000, 10).unwrap().len(), 1);
+
+    let before_rows = engine.rows("balances").unwrap();
+    let before_timers = engine.store.due_timers(1_000, 10).unwrap();
+    let mut owned_ids = before_rows
+        .iter()
+        .map(|row| Ok(row.field("id")?.as_str()?.to_owned()))
+        .collect::<Result<BTreeSet<_>, RuntimeError>>()
+        .unwrap();
+    let zero_id = canonical_json(&vec![Value::String("room".into()), Value::Int(100)]);
+    owned_ids.insert(zero_id.clone());
+    let mut projected = before_rows.clone();
+    projected.push(object([
+        ("id", Value::Id(zero_id)),
+        ("label", Value::String("room".into())),
+        ("at", Value::Int(100)),
+        ("value", Value::Int(0)),
+    ]));
+    let tx = engine.store.conn.transaction().unwrap();
+    rebuild_owned_aggregate_target(&tx, &schema, "balances", &owned_ids, projected).unwrap();
+    tx.commit().unwrap();
+    assert_eq!(engine.rows("balances").unwrap(), before_rows);
+    assert_eq!(engine.store.due_timers(1_000, 10).unwrap(), before_timers);
+    assert!(
+        engine
+            .store
+            .conn
+            .query_row(
+                "SELECT COUNT(*) FROM _search_postings WHERE table_name='balances'",
+                [],
+                |row| row.get::<_, i64>(0),
+            )
+            .unwrap()
+            > 0
+    );
+
+    let refused = run(
+        &mut engine,
+        "rollback.zero",
+        vec![
+            update("b", object([("amount", Value::Int(0))])),
+            Stmt::Require {
+                condition: Expr::Literal(Value::Bool(false)),
+                code: "ROLLBACK".into(),
+            },
+        ],
+    );
+    assert!(refused.is_err() || matches!(refused.unwrap().state, ExecutionState::Rejected { .. }));
+    assert_eq!(engine.rows("balances").unwrap(), before_rows);
+    assert_eq!(engine.store.due_timers(1_000, 10).unwrap(), before_timers);
+
+    run(&mut engine, "delete.b", vec![delete("b")]).unwrap();
+    assert!(engine.rows("balances").unwrap().is_empty());
+    assert!(engine.store.due_timers(1_000, 10).unwrap().is_empty());
+    assert_eq!(
+        engine
+            .store
+            .conn
+            .query_row(
+                "SELECT COUNT(*) FROM _search_postings WHERE table_name='balances'",
+                [],
+                |row| row.get::<_, i64>(0),
+            )
+            .unwrap(),
+        0
+    );
+
+    let mut zero_projection = Engine::memory(schema.clone()).unwrap();
+    for (name, value) in [
+        ("zero.100.a", row("za", 100, 2)),
+        ("zero.100.b", row("zb", 100, -2)),
+        ("zero.200.a", row("zc", 200, 3)),
+        ("zero.200.b", row("zd", 200, -3)),
+    ] {
+        run(&mut zero_projection, name, vec![insert(value)]).unwrap();
+    }
+    let tx = zero_projection.store.conn.transaction().unwrap();
+    crate::successor::rebuild_target(&tx, &schema, "balances", BTreeSet::new()).unwrap();
+    tx.commit().unwrap();
+    assert!(zero_projection.rows("balances").unwrap().is_empty());
+
+    // Address order puts 300 before 400, but the source row moves from 400
+    // to 300. Releasing the old group's unique aggregate value first makes
+    // the move admissible in both native and the receipt-only evaluator.
+    let mut ordered = Engine::memory(schema.clone()).unwrap();
+    run(&mut ordered, "ordered.a", vec![insert(row("a", 400, 1))]).unwrap();
+    run(&mut ordered, "ordered.b", vec![insert(row("b", 400, 1))]).unwrap();
+    run(&mut ordered, "ordered.c", vec![insert(row("c", 300, 1))]).unwrap();
+    let unique_refusal = run(
+        &mut ordered,
+        "ordered.move",
+        vec![update("b", object([("at", Value::Int(300))]))],
+    );
+    assert!(
+        unique_refusal.is_err()
+            || matches!(
+                unique_refusal.unwrap().state,
+                ExecutionState::Rejected { .. }
+            )
+    );
+    let values = ordered
+        .rows("balances")
+        .unwrap()
+        .into_iter()
+        .map(|row| {
+            (
+                row.field("at").unwrap().as_int().unwrap(),
+                row.field("value").unwrap().as_int().unwrap(),
+            )
+        })
+        .collect::<BTreeMap<_, _>>();
+    assert_eq!(values.get(&400), Some(&2));
+    assert_eq!(values.get(&300), Some(&1));
+
+    let mut released = Engine::memory(schema.clone()).unwrap();
+    run(
+        &mut released,
+        "released.insert",
+        vec![insert(row("move", 400, 1))],
+    )
+    .unwrap();
+    run(
+        &mut released,
+        "released.move",
+        vec![update("move", object([("at", Value::Int(300))]))],
+    )
+    .unwrap();
+    let released_rows = released.rows("balances").unwrap();
+    assert_eq!(released_rows.len(), 1);
+    assert_eq!(released_rows[0].field("at"), Ok(&Value::Int(300)));
+    assert_eq!(released_rows[0].field("value"), Ok(&Value::Int(1)));
+
+    let path = std::env::temp_dir().join(format!(
+        "snapback2-sparse-evaluator-migration-{}-{}.sqlite",
+        std::process::id(),
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_nanos()
+    ));
+    let mut v4_schema = schema.clone();
+    for table in ["ledger", "balances"] {
+        v4_schema.tables.get_mut(table).unwrap().columns.insert(
+            "at".into(),
+            ColumnType::Optional(Box::new(ColumnType::Time)),
+        );
+    }
+    v4_schema
+        .tables
+        .get_mut("balances")
+        .unwrap()
+        .indexes
+        .remove("byValue");
+    let timer_target = Program {
+        name: "noop".into(),
+        kind: ProgramKind::Mutation,
+        args: BTreeMap::from([("id".into(), ArgType::Id)]),
+        read_time_granularity_ms: None,
+        body: vec![Stmt::Return(Expr::Literal(Value::Null))],
+    };
+    let timer_binding = Program {
+        name: "noop.bind".into(),
+        kind: ProgramKind::Query,
+        args: BTreeMap::from([("id".into(), ArgType::Id)]),
+        read_time_granularity_ms: None,
+        body: vec![Stmt::Return(Expr::Object(BTreeMap::from([
+            ("enabled".into(), Expr::Literal(Value::Bool(true))),
+            (
+                "args".into(),
+                Expr::Object(BTreeMap::from([("id".into(), Expr::Variable("id".into()))])),
+            ),
+        ])))],
+    };
+    let v4_generation = crate::Generation::certify(
+        &project(v4_schema.clone(), vec![timer_target, timer_binding]),
+        Ceilings::default(),
+    )
+    .unwrap();
+    {
+        let mut runtime = crate::Runtime::open(Store::open(&path).unwrap(), v4_generation).unwrap();
+        runtime
+            .seed(&[("ledger".into(), row("legacy-a", 100, 5))])
+            .unwrap();
+        let cancelling = row("legacy-b", 100, -5);
+        runtime
+            .store()
+            .conn
+            .execute(
+                "INSERT INTO rows(table_name,row_id,data) VALUES (?1,?2,?3)",
+                rusqlite::params!["ledger", "legacy-b", canonical_json(&cancelling)],
+            )
+            .unwrap();
+        crate::engine::reindex_row(&runtime.store().conn, &v4_schema, "ledger", &cancelling)
+            .unwrap();
+        let legacy = object([
+            (
+                "id",
+                Value::Id(canonical_json(&vec![
+                    Value::String("room".into()),
+                    Value::Int(100),
+                ])),
+            ),
+            ("label", Value::String("room".into())),
+            ("at", Value::Int(100)),
+            ("value", Value::Int(0)),
+        ]);
+        runtime
+            .store()
+            .conn
+            .execute(
+                "UPDATE rows SET data=?1 WHERE table_name='balances' AND row_id=?2",
+                rusqlite::params![
+                    canonical_json(&legacy),
+                    legacy.field("id").unwrap().as_str().unwrap()
+                ],
+            )
+            .unwrap();
+        crate::engine::reindex_row(&runtime.store().conn, &v4_schema, "balances", &legacy).unwrap();
+        let survivor = object([
+            ("id", Value::Id("legacy-survivor".into())),
+            ("label", Value::String("room".into())),
+            ("at", Value::Int(999)),
+            ("value", Value::Int(0)),
+        ]);
+        runtime
+            .store()
+            .conn
+            .execute(
+                "INSERT INTO rows(table_name,row_id,data) VALUES (?1,?2,?3)",
+                rusqlite::params!["balances", "legacy-survivor", canonical_json(&survivor)],
+            )
+            .unwrap();
+        crate::engine::reindex_row(&runtime.store().conn, &v4_schema, "balances", &survivor)
+            .unwrap();
+        for (id, at) in [("legacy-conflict-a", 997), ("legacy-conflict-b", 998)] {
+            let conflict = object([
+                ("id", Value::Id(id.into())),
+                ("label", Value::String("room".into())),
+                ("at", Value::Int(at)),
+                ("value", Value::Int(7)),
+            ]);
+            runtime
+                .store()
+                .conn
+                .execute(
+                    "INSERT INTO rows(table_name,row_id,data) VALUES (?1,?2,?3)",
+                    rusqlite::params!["balances", id, canonical_json(&conflict)],
+                )
+                .unwrap();
+            crate::engine::reindex_row(&runtime.store().conn, &v4_schema, "balances", &conflict)
+                .unwrap();
+        }
+        runtime.store().conn.execute(
+            "INSERT INTO _meta(key,value) VALUES ('evaluator_version',?1) ON CONFLICT(key) DO UPDATE SET value=excluded.value",
+            ["bounded-spike-rust-search-text-refinements-4"],
+        ).unwrap();
+    }
+    let mut v5_schema = v4_schema.clone();
+    v5_schema
+        .tables
+        .get_mut("balances")
+        .unwrap()
+        .indexes
+        .insert("byValue".into(), index(&["value"], true));
+    v5_schema.schedules.clear();
+    let v5_generation =
+        crate::Generation::certify(&project(v5_schema, vec![]), Ceilings::default()).unwrap();
+    let refusal = match crate::Runtime::open(Store::open(&path).unwrap(), v5_generation.clone()) {
+        Ok(_) => panic!("surviving unique conflict must refuse evaluator upgrade"),
+        Err(refusal) => refusal,
+    };
+    assert_eq!(refusal.code, "E_SUCCESSOR_UNIQUE");
+    {
+        let store = Store::open(&path).unwrap();
+        assert_eq!(
+            store.meta("evaluator_version").unwrap().as_deref(),
+            Some("bounded-spike-rust-search-text-refinements-4")
+        );
+        assert_eq!(
+            store.due_timers(1_000, 10).unwrap().len(),
+            1,
+            "failed successor rolls back old timer cleanup"
+        );
+        store
+            .conn
+            .execute(
+                "DELETE FROM rows WHERE table_name='balances' AND row_id='legacy-conflict-b'",
+                [],
+            )
+            .unwrap();
+        crate::engine::delete_index_row(&store.conn, "balances", "legacy-conflict-b").unwrap();
+    }
+    let reopened = crate::Runtime::open(Store::open(&path).unwrap(), v5_generation).unwrap();
+    assert_eq!(
+        reopened
+            .store()
+            .conn
+            .query_row(
+                "SELECT COUNT(*) FROM rows WHERE table_name='balances'",
+                [],
+                |row| row.get::<_, i64>(0),
+            )
+            .unwrap(),
+        2
+    );
+    let survivors = crate::engine::fetch_table_connection(&reopened.store().conn, "balances")
+        .unwrap()
+        .into_iter()
+        .map(|row| row.field("id").unwrap().as_str().unwrap().to_owned())
+        .collect::<BTreeSet<_>>();
+    assert_eq!(
+        survivors,
+        BTreeSet::from(["legacy-conflict-a".into(), "legacy-survivor".into()])
+    );
+    assert!(reopened.store().due_timers(1_000, 10).unwrap().is_empty());
+    assert_eq!(
+        reopened
+            .store()
+            .meta("evaluator_version")
+            .unwrap()
+            .as_deref(),
+        Some(crate::certificate::CURRENT_EVALUATOR_VERSION)
+    );
+    drop(reopened);
+    for candidate in [
+        path.clone(),
+        path.with_extension("sqlite-wal"),
+        path.with_extension("sqlite-shm"),
+    ] {
+        let _ = std::fs::remove_file(candidate);
+    }
+}

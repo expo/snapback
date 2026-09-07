@@ -766,7 +766,7 @@ pub(crate) fn projected_predecessor_ids(
         .collect()
 }
 
-fn rebuild_target(
+pub(crate) fn rebuild_target(
     transaction: &Transaction<'_>,
     schema: &Schema,
     target: &str,
@@ -786,7 +786,10 @@ fn rebuild_target(
             existing.push(row);
             Ok(())
         })?;
-        let mut final_rows = rows.values().collect::<Vec<_>>();
+        let mut final_rows = rows
+            .values()
+            .filter(|row| row.field("value").and_then(Value::as_int) != Ok(0))
+            .collect::<Vec<_>>();
         for row in &existing {
             if !owned_ids.contains(row.field("id")?.as_str()?) {
                 final_rows.push(row);
@@ -835,6 +838,47 @@ fn rebuild_target(
         &owned_ids,
         rows.into_values().collect(),
     )
+}
+
+// @ref LLP 1001#4-generation-and-runtime-registryrs-successorrs — an evaluator
+// identity change reconciles its durable engine-owned representation once.
+/// One-time evaluator migration from dense zero aggregates to the canonical
+/// sparse representation. Exact group-address rows belong to the engine;
+/// legacy ordinary-id survivors in the same table remain untouched.
+pub(crate) fn reconcile_sparse_aggregate_rows(
+    transaction: &Transaction<'_>,
+    schema: &Schema,
+) -> Result<(), RuntimeError> {
+    let targets = schema
+        .maintains
+        .iter()
+        .map(|maintain| maintain.target.clone())
+        .collect::<BTreeSet<_>>();
+    for target in targets {
+        let maintain = schema
+            .maintains
+            .iter()
+            .find(|maintain| maintain.target == target)
+            .expect("target came from a maintain declaration");
+        let mut zero_ids = BTreeSet::new();
+        for_row_batches(transaction, &target, |row| {
+            let expected = canonical_json(
+                &maintain
+                    .by
+                    .iter()
+                    .map(|field| row.field(field).cloned())
+                    .collect::<Result<Vec<_>, _>>()?,
+            );
+            if row.field("value")?.as_int()? == 0 && row.field("id")?.as_str()? == expected {
+                zero_ids.insert(expected);
+            }
+            Ok(())
+        })?;
+        if !zero_ids.is_empty() {
+            rebuild_owned_aggregate_target(transaction, schema, &target, &zero_ids, vec![])?;
+        }
+    }
+    Ok(())
 }
 
 fn projected_target_rows(

@@ -116,7 +116,7 @@
     "rule_hashes": {
       "profiles.insert": "adad79b1b162e845a2359d62bc7dfce0840ac346e6e97b4bf81ee9fb23193a49"
     },
-    "evaluator_version": "bounded-spike-rust-search-text-refinements-4",
+    "evaluator_version": "bounded-spike-rust-search-text-refinements-5",
     "value_model_version": "i53-codepoint-bytes-unicode-search-text-refinements-v5",
     "read_sites": [],
     "write_sites": [

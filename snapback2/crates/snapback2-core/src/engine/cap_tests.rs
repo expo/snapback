@@ -375,6 +375,34 @@ fn same_key_count_tracks_writes_inside_one_program_and_refuses_after_max() {
         "E_CONSTRAINT"
     );
     assert_eq!(engine.rows("memberships").unwrap().len(), 3);
+    let clear = Program {
+        name: "memberships.clear".into(),
+        kind: ProgramKind::Mutation,
+        args: BTreeMap::new(),
+        read_time_granularity_ms: None,
+        body: ["m1", "m2", "m3"]
+            .into_iter()
+            .map(|id| Stmt::Delete {
+                table: "memberships".into(),
+                key: Expr::Literal(Value::Id(id.into())),
+            })
+            .collect(),
+    };
+    let certificate = Checker::new(&schema, Ceilings::default())
+        .check(&clear)
+        .unwrap();
+    engine
+        .execute(
+            &clear,
+            &certificate,
+            Context::mutation(Actor::user("alice").unwrap(), BTreeMap::new()),
+        )
+        .unwrap();
+    assert!(engine.rows("memberships").unwrap().is_empty());
+    assert!(
+        engine.rows("membershipCounts").unwrap().is_empty(),
+        "the final count deletion removes the sparse aggregate row"
+    );
 }
 
 #[test]

@@ -215,7 +215,7 @@
       "follows.read": "26984c19d744569c392816cf6695e7ec5c3fcbee63f8a1c88859ec5d64558608",
       "posts.read": "26984c19d744569c392816cf6695e7ec5c3fcbee63f8a1c88859ec5d64558608"
     },
-    "evaluator_version": "bounded-spike-rust-search-text-refinements-4",
+    "evaluator_version": "bounded-spike-rust-search-text-refinements-5",
     "value_model_version": "i53-codepoint-bytes-unicode-search-text-refinements-v5",
     "read_sites": [
       {

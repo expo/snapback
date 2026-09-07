@@ -1139,7 +1139,7 @@
     "rule_hashes": {
       "secretDocs.read": "1687ef423d901e1edd1dbffe8436ac4333928a5138dafc313d7ecd9542718134"
     },
-    "evaluator_version": "bounded-spike-rust-search-text-refinements-4",
+    "evaluator_version": "bounded-spike-rust-search-text-refinements-5",
     "value_model_version": "i53-codepoint-bytes-unicode-search-text-refinements-v5",
     "read_sites": [
       {

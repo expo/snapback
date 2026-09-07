@@ -38,7 +38,7 @@
     "rule_hashes": {
       "_connected.read": "eb6c66c656962016af576570fd1c713a082a19d18fe5f262423bf41dc82f8e29"
     },
-    "evaluator_version": "bounded-spike-rust-search-text-refinements-4",
+    "evaluator_version": "bounded-spike-rust-search-text-refinements-5",
     "value_model_version": "i53-codepoint-bytes-unicode-search-text-refinements-v5",
     "read_sites": [
       {

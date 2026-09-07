@@ -1164,7 +1164,7 @@
     "rule_hashes": {
       "accounts.read": "dbe2d0b37ac4a5a7c8a109f4ecf71e21374449784921c59cf4fe46bc01406d6b"
     },
-    "evaluator_version": "bounded-spike-rust-search-text-refinements-4",
+    "evaluator_version": "bounded-spike-rust-search-text-refinements-5",
     "value_model_version": "i53-codepoint-bytes-unicode-search-text-refinements-v5",
     "read_sites": [
       {

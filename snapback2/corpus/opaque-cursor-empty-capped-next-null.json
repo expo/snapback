@@ -186,7 +186,7 @@
     "rule_hashes": {
       "posts.read": "5350e52bf03f7cfd637b1998b81c451a3a9a1a8f3356e6a47a3bc8be383c4a14"
     },
-    "evaluator_version": "bounded-spike-rust-search-text-refinements-4",
+    "evaluator_version": "bounded-spike-rust-search-text-refinements-5",
     "value_model_version": "i53-codepoint-bytes-unicode-search-text-refinements-v5",
     "read_sites": [
       {

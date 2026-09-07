@@ -216,7 +216,7 @@
     "rule_hashes": {
       "memberships.insert": "628850de29ccf70c7dcb9814614ca5d9d64ba40f1cbec28934c311b0c6cd037b"
     },
-    "evaluator_version": "bounded-spike-rust-search-text-refinements-4",
+    "evaluator_version": "bounded-spike-rust-search-text-refinements-5",
     "value_model_version": "i53-codepoint-bytes-unicode-search-text-refinements-v5",
     "read_sites": [],
     "write_sites": [
