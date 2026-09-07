@@ -1116,7 +1116,7 @@ class ExpressionBinder {
     if (!authorization) return;
     const discoveryColumns = ordinaryColumns(lane.sourceRead.index.declaration.components);
     if (!discoveryColumns || discoveryColumns[0] !== "principal" || discoveryColumns[1] !== scope[0]?.column
-      || lane.sourceRead.key.length !== 1 || lane.sourceRead.key[0]?.kind !== "input" || lane.sourceRead.key[0].input !== "Viewer") return;
+      || lane.sourceRead.key.length !== 1 || !invariantViewer(lane.sourceRead.key[0]!)) return;
     const discoveryRule = lane.sourceRead.table.declaration.rules.find((rule) => rule.effect === "read")?.value;
     const discoveryViewer = discoveryRule?.kind === "exists" ? discoveryRule.read.keys[1]?.value : undefined;
     if (!discoveryRule || discoveryRule.kind !== "exists" || discoveryRule.read.table !== lane.sourceRead.table.name
@@ -1663,7 +1663,11 @@ function literalInteger(expression: Expr | undefined): number | undefined {
 }
 function invariantSearchTerm(expression: BoundExpression): boolean {
   return expression.kind === "literal" || expression.kind === "input" && expression.input === "Viewer"
-    || expression.kind === "variable" && expression.symbol.kind === "argument";
+    || expression.kind === "variable" && expression.facts.origin === "Arg";
+}
+function invariantViewer(expression: BoundExpression): boolean {
+  return expression.kind === "input" && expression.input === "Viewer"
+    || expression.kind === "variable" && expression.facts.origin === "Viewer";
 }
 function boundMemberOf(expression: BoundExpression, symbolId: string): string | undefined {
   return expression.kind === "member" && expression.base.kind === "variable" && expression.base.symbol.id === symbolId
