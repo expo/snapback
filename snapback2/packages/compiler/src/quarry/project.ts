@@ -3,7 +3,7 @@ import { basename, dirname, relative, resolve, sep } from "node:path";
 import ts from "typescript";
 import { boundedDiagnostics, typeDiagnostic } from "../diagnostics";
 import type { FrontendDiagnostic, ProjectResult } from "../ir";
-import { collectEffectCatalog, lowerEffects, type SourceModule } from "../lower/effects";
+import { collectEffectCatalog, lowerEffects, type EffectCatalog, type SourceModule } from "../lower/effects";
 import { createProjectProgram, loadCompilerLib, projectTypeDiagnostics } from "../project-program";
 import { generateBoundApiDts } from "./bound-api";
 import { boundEffectDeclarationSources } from "./bound-effects-stubs";
@@ -43,24 +43,27 @@ export async function lowerDirectQuarryProject(input: DirectQuarryProjectInput):
     ], input.projectRoot),
   ];
 
-  const declarations = boundEffectDeclarationSources(prepared.prepared.catalog, project.boundPrograms);
-  const schemaPath = resolve(input.projectRoot, declarations.schema.fileName);
-  const diskSources = await Promise.all(input.tsModulePaths.map(async (path) => [path, await readFile(path, "utf8")] as const));
-  const declarationSources = declarations.modules.map((module) =>
-    [resolve(input.projectRoot, module.fileName), module.source] as const);
-  const checked = createProjectProgram(schemaPath, declarations.schema.source,
-    [...diskSources, ...declarationSources].sort(([left], [right]) => left.localeCompare(right)),
-    loadCompilerLib(true), ts.ScriptTarget.ES2020);
-  const effectPaths = new Set(input.tsModulePaths);
-  diagnostics.push(...projectTypeDiagnostics(checked.program, input.projectRoot, () => true, effectPaths).map((item) =>
-    item.family === "effect" ? item : {
-      ...item, code: "E_EFFECT_TYPE" as const, family: "effect" as const, guide: "effects/authoring",
+  let effectCatalog: EffectCatalog = new Map();
+  if (input.tsModulePaths.length > 0) {
+    const declarations = boundEffectDeclarationSources(prepared.prepared.catalog, project.boundPrograms);
+    const schemaPath = resolve(input.projectRoot, declarations.schema.fileName);
+    const diskSources = await Promise.all(input.tsModulePaths.map(async (path) => [path, await readFile(path, "utf8")] as const));
+    const declarationSources = declarations.modules.map((module) =>
+      [resolve(input.projectRoot, module.fileName), module.source] as const);
+    const checked = createProjectProgram(schemaPath, declarations.schema.source,
+      [...diskSources, ...declarationSources].sort(([left], [right]) => left.localeCompare(right)),
+      loadCompilerLib(true), ts.ScriptTarget.ES2020);
+    const effectPaths = new Set(input.tsModulePaths);
+    diagnostics.push(...projectTypeDiagnostics(checked.program, input.projectRoot, () => true, effectPaths).map((item) =>
+      item.family === "effect" ? item : {
+        ...item, code: "E_EFFECT_TYPE" as const, family: "effect" as const, guide: "effects/authoring",
+      }));
+    const effectModules: SourceModule[] = diskSources.map(([path, source]) => ({
+      moduleName: moduleName(path), fileName: relativeSite(input.projectRoot, path), source,
+      sourceFile: checked.program.getSourceFile(path)!,
     }));
-  const effectModules: SourceModule[] = diskSources.map(([path, source]) => ({
-    moduleName: moduleName(path), fileName: relativeSite(input.projectRoot, path), source,
-    sourceFile: checked.program.getSourceFile(path)!,
-  }));
-  const effectCatalog = collectEffectCatalog(effectModules);
+    effectCatalog = collectEffectCatalog(effectModules);
+  }
   for (const expected of project.effects) if (!effectCatalog.has(expected.name)) diagnostics.push(typeDiagnostic(
     "E_EFFECT_UNKNOWN", "effect", expected.source.file, expected.source.line, expected.source.col,
     `effect ${expected.name} is not exported by snapback/${expected.moduleName}.ts`,

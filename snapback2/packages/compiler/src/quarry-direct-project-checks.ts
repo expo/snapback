@@ -46,7 +46,7 @@ export function registerQuarryDirectProjectChecks(test: Test, frontend: string):
     const root = resolve(frontend, "fixtures/quarry-chat");
     const prepared = fixture(root);
     const project = bindQuarryProject(prepared);
-    const declarations = boundEffectDeclarationSources(prepared.catalog, project.clientPrograms);
+    const declarations = boundEffectDeclarationSources(prepared.catalog, project.boundPrograms);
     const schemaPath = join(root, declarations.schema.fileName);
     const moduleSources: Array<readonly [string, string]> = declarations.modules.map((module) =>
       [join(root, module.fileName), module.source]);
@@ -72,16 +72,32 @@ export function registerQuarryDirectProjectChecks(test: Test, frontend: string):
   });
 
   test("direct Quarry project keeps jobs and schedule bindings out of the client operation set", () => {
-    const project = bindQuarryProject(fixture(resolve(frontend, "fixtures/quarry-schedules")));
+    const prepared = fixture(resolve(frontend, "fixtures/quarry-schedules"));
+    const project = bindQuarryProject(prepared);
     const client = new Set(project.clientPrograms.map((program) => program.name));
+    const effectDeclarations = boundEffectDeclarationSources(prepared.catalog, project.boundPrograms);
+    const admin = effectDeclarations.modules.find((module) => module.fileName === "snapback/admin.ts")?.source ?? "";
     assert(project.schema.schedules?.length === 2
       && project.programs.some((program) => program.name === "admin.digestSweep" && program.kind === "job")
       && project.programs.some((program) => program.name.includes("_timerBinding_"))
       && !client.has("admin.digestSweep") && !client.has("admin.purgeMessage")
-      && ![...client].some((name) => name.includes("_timerBinding_")),
+      && ![...client].some((name) => name.includes("_timerBinding_"))
+      && admin.includes(" as purgeMessage }") && !admin.includes("digestSweep") && !admin.includes("_timerBinding_"),
     `system programs leaked into the direct client set: ${JSON.stringify([...client])}`);
     assert(Object.values(project.sources).every((site) => site.file.endsWith(".q")),
       `direct source custody escaped authored Quarry: ${JSON.stringify(project.sources)}`);
+  });
+
+  test("direct-only Quarry projects skip effect declarations and still assemble", async () => {
+    await withProject({
+      "snapback/schema.q": "table rows:\n  public\n",
+      "snapback/rows.q": "query list():\n  return rows[] first 2 by byId\n",
+    }, async (root) => {
+      const lowered = await lowerProject(root);
+      assert(lowered.ok && lowered.project.effects.length === 0
+        && lowered.project.programs.length === 1 && lowered.quarry.every((item) => item.generated.endsWith(".ir.json")),
+      `direct-only project did not assemble without the effect checker: ${JSON.stringify(lowered)}`);
+    });
   });
 
   test("bound effect declarations share API types and export legal reserved and colliding names", () => {

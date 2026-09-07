@@ -9,7 +9,9 @@ export type BoundEffectDeclarationSources = {
 
 /** Declaration-only modules let authored TypeScript effects check imports and
  * `then` signatures without recovering data semantics from generated code.
- * The caller supplies the project's already-filtered client operation set. */
+ * The caller supplies all bound operations. Jobs and timer bindings have no
+ * callable declaration; a scheduled mutation target remains a valid server
+ * `then` target even though it is absent from the client API. */
 export function boundEffectDeclarationSources(
   catalog: TableCatalog,
   programs: readonly BoundQuarryProgram[],
