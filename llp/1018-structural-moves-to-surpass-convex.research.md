@@ -458,8 +458,8 @@ and `caps`); capability claims stay gated on a published cold run.
   also caught a template typecheck the new readiness reason broke, fixed in
   the same lane.
 - **Count-backed cap probes** (§4). Lane `s2/clique-cap-count`, codex
-  gpt-5.6-sol at xhigh, 2026-09-07; landed on main as `f087a2c48`,
-  `2484edb77`, `ed315ac20`: the engine's cap probe reads a same-`by`
+  gpt-5.6-sol at xhigh, 2026-09-07; landed on main as `45acedecb`,
+  `ba6f316d4`, `cbf764717`: the engine's cap probe reads a same-`by`
   maintained count (one examined row, exact within the transaction), the
   certificate reserves 1 / 1 / 5 per write instead of N / N / 5N (chat
   `groupCreate` 2,500 → 50 examined rows; the 49-row fixture under `cap 1000
