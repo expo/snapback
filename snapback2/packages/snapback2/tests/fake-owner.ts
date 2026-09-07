@@ -255,6 +255,7 @@ export function fakeOwner(options: FakeOwnerOptions = {}) {
       const inboxCert = queryCertificate(inboxIr);
       return json({
         generation: "schema-generation", programGeneration: generation,
+        schemaHash, schema,
         ops: options.cursorArg ? {
           "deliveries.inbox": { kind: "query", planHash: inboxCert.plan_hash, drain: drainFrom(inboxCert, cursor), args: inboxIr.args },
         } : {},
