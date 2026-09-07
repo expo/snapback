@@ -6,6 +6,52 @@ import { assert, compileInline, diagnosticsText, operation, withProject, type Te
 
 /** Public contracts retained while deleting the generated-TypeScript oracle. */
 export function registerQuarryDirectContractChecks(test: Test): void {
+  test("direct Quarry reserves E_AUTH refusal codes with sited rewrites", () => {
+    for (const [name, statement] of [
+      ["require", "  require true else E_AUTH_REQUIRED\n  return null"],
+      ["assert", "  return rows[id]! else E_AUTH_SESSION"],
+    ] as const) {
+      const result = compileInline([
+        { fileName: "snapback/schema.q", source: "table rows:\n  value: int\n  public\n" },
+        { fileName: `snapback/${name}.q`, source: `query bad(id: rows):\n${statement}\n` },
+      ]);
+      const refusal = result.ok ? undefined : result.diagnostics.find((entry) => entry.code === "E_OP_RESERVED");
+      assert(refusal?.family === "op" && refusal.site.startsWith(`snapback/${name}.q:`)
+        && refusal.message.includes("reserved E_AUTH_* namespace") && refusal.rewrite === "ACCESS_DENIED"
+        && refusal.guide === "programs/refusals",
+      `${name} reserved-code contract changed: ${JSON.stringify(result)}`);
+      const repaired = compileInline([
+        { fileName: "snapback/schema.q", source: "table rows:\n  value: int\n  public\n" },
+        { fileName: `snapback/${name}.q`, source: `query bad(id: rows):\n${statement.replace(/E_AUTH_[A-Z]+/, refusal!.rewrite)}\n` },
+      ]);
+      assert(repaired.ok, `${name} token rewrite did not recompile: ${JSON.stringify(repaired)}`);
+    }
+  });
+
+  test("direct project aggregation retains every source until its explicit truncation refusal", async () => {
+    const files: Record<string, string> = {
+      "snapback/schema.q": "table rows:\n  value: int\n  public\n",
+    };
+    for (let index = 0; index < 55; index += 1) {
+      const suffix = String(index).padStart(2, "0");
+      files[`snapback/bad${suffix}.q`] = `query bad${suffix}():\n  return missing${suffix}\n`;
+    }
+    await withProject(files, async root => {
+      const result = await lowerProject(root);
+      assert(!result.ok && result.diagnostics.length === 50,
+        `project diagnostic bound changed: ${JSON.stringify(result)}`);
+      assert(result.diagnostics[0]?.site === "snapback/bad00.q:2:10"
+        && result.diagnostics.at(-1)?.site === "snapback/bad49.q:2:10",
+      `project diagnostics lost stable source ordering: ${JSON.stringify(result.diagnostics)}`);
+      const truncated = result.diagnostics.at(-1);
+      assert(truncated?.code === "E_DIAG_TRUNCATED" && truncated.family === "opaque"
+        && truncated.message === "…and 6 more project refusals"
+        && truncated.rewrite.includes("Fix the remaining diagnostics")
+        && truncated.guide === "opaque/subset",
+      `project diagnostic truncation lost its count or envelope: ${JSON.stringify(truncated)}`);
+    });
+  });
+
   test("direct Quarry range modifiers refuse noncanonical order and before with executable rewrites", () => {
     const schema = "table posts:\n  author: principal\n  at: time\n  by byAuthorAt: author, at, id\n  public\n";
     for (const item of [

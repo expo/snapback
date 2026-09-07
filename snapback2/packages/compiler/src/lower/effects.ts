@@ -1,5 +1,4 @@
 import ts from "typescript";
-import { expandArgumentObject } from "../args";
 import { diagnostic } from "../diagnostics";
 import type { EffectJson, FrontendDiagnostic } from "../ir";
 import type { ScalarType } from "../quarry/ast";
@@ -293,25 +292,14 @@ function resolveOperation(module: SourceModule, node: ts.Expression, operations:
 }
 
 function validThenArgs(operation: OperationSignature): boolean {
-  if (operation.boundArgs) {
-    const entries = [...operation.boundArgs].sort((left, right) => left.name.localeCompare(right.name));
-    if (entries.map((item) => item.name).join(",") !== "effect,outboxId,result") return false;
-    const byName = new Map(entries.map((item) => [item.name, item.type]));
-    const outbox = byName.get("outboxId");
-    const effect = byName.get("effect");
-    return !!outbox && !outbox.optional && ["id", "text"].includes(outbox.kind)
-      && !!effect && !effect.optional && effect.kind === "text";
-  }
-  const call = operation.call;
-  if (!call) return false;
-  const args = objectOf(call.arguments[0]);
-  if (!args) return false;
-  const entries = expandArgumentObject(args).entries;
-  if (entries.map((item) => item.name).sort().join(",") !== "effect,outboxId,result") return false;
-  const descriptors = new Map(entries.map((item) => [item.name, callLeaf(item.value)]));
-  return ["id", "text"].includes(descriptors.get("outboxId") ?? "")
-    && descriptors.get("effect") === "text"
-    && descriptors.has("result");
+  if (!operation.boundArgs) return false;
+  const entries = [...operation.boundArgs].sort((left, right) => left.name.localeCompare(right.name));
+  if (entries.map((item) => item.name).join(",") !== "effect,outboxId,result") return false;
+  const byName = new Map(entries.map((item) => [item.name, item.type]));
+  const outbox = byName.get("outboxId");
+  const effect = byName.get("effect");
+  return !!outbox && !outbox.optional && ["id", "text"].includes(outbox.kind)
+    && !!effect && !effect.optional && effect.kind === "text";
 }
 
 function validGrant(grant: string): boolean {

@@ -140,7 +140,11 @@ function containsAsset(type: ScalarType): boolean {
 export function frontendQuarryDiagnostic(item: QuarryDiagnostic): FrontendDiagnostic {
   return {
     code: item.code,
-    family: item.code === "E_SCHEMA_CONSTRAINT" ? "schema" : item.code.startsWith("E_SCHEDULE_") ? "schedule" : "quarry",
+    family: item.code.startsWith("E_SCHEMA_") ? "schema"
+      : item.code.startsWith("E_SCHEDULE_") ? "schedule"
+        : item.code === "E_EMIT_IN_QUERY" ? "effect"
+          : item.code === "E_DECIMAL_SCALE" ? "args"
+            : item.code.startsWith("E_OP_") ? "op" : "quarry",
     message: item.message,
     site: `${item.file}:${item.line}:${item.col}`,
     rewrite: item.executableRewrite || item.code === "E_QUARRY_UNSUPPORTED" && item.rewrite === "deny"

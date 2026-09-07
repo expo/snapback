@@ -116,10 +116,15 @@ class ExpressionBinder {
         });
         bound.push({ kind: "bind", symbols, value, source, ...(tupleFields ? { tupleFields } : {}) });
       } else if (statement.kind === "require") {
+        validateRefusalCode(statement.site, statement.code);
         const condition = this.expression(statement.condition);
         requireBool(condition, statement.condition.site);
         bound.push({ kind: "require", condition, code: statement.code, source });
       } else if (statement.kind === "emit") {
+        if (this.program.kind === "query") throw new QuarryError(
+          this.diagnosticSite(statement.site), "queries cannot emit effects", "E_EMIT_IN_QUERY",
+          "change query to mutation before emitting an effect",
+        );
         const effect = this.effects.get(statement.effect);
         if (!effect) refuse(this.diagnosticSite(statement.site),
           `unknown effect ${statement.effect}; declare effect ${statement.effect} from <module>`);
@@ -239,6 +244,7 @@ class ExpressionBinder {
     }
     if (expression.kind === "binary") return this.binary(expression);
     if (expression.kind === "assert") {
+      validateRefusalCode(expression.site, expression.code);
       const value = this.expression(expression.value);
       return { kind: "assert", value, code: expression.code,
         facts: facts(requiredType(value.facts.type), value.facts.origin, {
@@ -384,16 +390,6 @@ class ExpressionBinder {
 
   private name(name: string, site: Site): BoundExpression {
     const source = this.source(site);
-    if (this.helperDepth > 0 && (name === "commit" || (name === "now" && this.program.kind !== "query"))) {
-      throw new QuarryError(
-        this.diagnosticSite(site), `fn expressions are read-pure and cannot use mutation ${name} time`,
-        "E_QUARRY_UNSUPPORTED", "pass the needed time as an explicit fn argument",
-      );
-    }
-    if (this.helperDepth > 0 && name === "new") throw new QuarryError(
-      this.diagnosticSite(site), "new is mutation-only caller state and is not available inside fn expressions",
-      "E_QUARRY_UNSUPPORTED", "pass the new value as an explicit fn argument",
-    );
     if (this.namedShapeDepth > 0) {
       if (!CONTEXT_NAMES.has(name)) throw new QuarryError(
         this.diagnosticSite(site), `named shapes cannot capture operation name ${name}`,
@@ -413,6 +409,16 @@ class ExpressionBinder {
   }
 
   private contextName(name: string, source: BoundSourceStack, site: Site): BoundExpression {
+    if (this.helperDepth > 0 && (name === "commit" || (name === "now" && this.program.kind !== "query"))) {
+      throw new QuarryError(
+        this.diagnosticSite(site), `fn expressions are read-pure and cannot use mutation ${name} time`,
+        "E_QUARRY_UNSUPPORTED", "pass the needed time as an explicit fn argument",
+      );
+    }
+    if (this.helperDepth > 0 && name === "new") throw new QuarryError(
+      this.diagnosticSite(site), "new is mutation-only caller state and is not available inside fn expressions",
+      "E_QUARRY_UNSUPPORTED", "pass the new value as an explicit fn argument",
+    );
     if (name === "viewer") return { kind: "input", input: "Viewer", facts: facts({ kind: "principal", optional: false }, "Viewer"), source };
     if (name === "now") return { kind: "input", input: this.program.kind === "query" ? "ReadTime" : "Now",
       facts: facts({ kind: "time", optional: false }, "Computed"), source };
@@ -1138,6 +1144,12 @@ function narrowedScope(
 function requireBool(value: BoundExpression, site: Site): void {
   if (value.facts.type.kind !== "bool" || value.facts.type.optional) typeError(site,
     `condition requires bool, got ${typeName(value.facts.type)}`, "use a required Boolean comparison");
+}
+
+function validateRefusalCode(site: Site, code: string): void {
+  if (!code.startsWith("E_AUTH_")) return;
+  throw new QuarryError(site, `application refusal code ${code} uses the reserved E_AUTH_* namespace`,
+    "E_OP_RESERVED", "ACCESS_DENIED", undefined, true);
 }
 
 function contextualValue(expression: BoundExpression, target: ScalarType, site: Site): BoundExpression {

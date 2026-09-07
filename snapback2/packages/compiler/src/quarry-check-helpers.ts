@@ -3,8 +3,7 @@ import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import ts from "typescript";
-import { authoredTypeFromColumn, unknownType, type TableInfo } from "./authored-types";
-import type { FrontendDiagnostic, IndexComponent, Program, SchemaJson } from "./ir";
+import type { FrontendDiagnostic, Program } from "./ir";
 import { frontendQuarryDiagnostic, prepareQuarry, type QuarryInput } from "./quarry/index";
 import { tryBindQuarryProject, type BoundQuarryProject } from "./quarry/bound-project";
 
@@ -37,25 +36,6 @@ function compileDirect(inputs: QuarryInput[]): DirectTestCompileResult {
   return bound.ok ? bound : { ok: false, diagnostics: bound.diagnostics.map(frontendQuarryDiagnostic) };
 }
 
-/** Adapter for legacy TypeScript-lowerer checks that need a table catalog but
- * no generated Quarry TypeScript. */
-export function directTables(schema: SchemaJson): Map<string, TableInfo> {
-  return new Map(Object.entries(schema.tables).map(([name, table]) => {
-    const direct = table as typeof table & { columns?: Record<string, unknown>;
-      indexes?: Record<string, { components: IndexComponent[]; unique?: boolean }>; rules?: { read?: unknown } };
-    const columns = Object.fromEntries(Object.entries(direct.columns ?? {})
-      .map(([column, type]) => [column, authoredTypeFromColumn(type)]));
-    const indexes = Object.fromEntries(Object.entries(direct.indexes ?? {}).map(([index, declaration]) => [index, {
-      components: declaration.components,
-      types: declaration.components.map((component: IndexComponent) => "Column" in component
-        ? columns[component.Column] ?? unknownType
-        : { kind: "string" as const }),
-      ...(declaration.unique ? { unique: true } : {}),
-    }]));
-    return [name, { name, private: direct.rules?.read !== "Allow", columns, indexes,
-      readRule: direct.rules?.read } satisfies TableInfo];
-  }));
-}
 
 export async function withProject<T>(files: Record<string, string>, run: (root: string) => Promise<T>): Promise<T> {
   const root = await mkdtemp(join(tmpdir(), "snapback2-quarry-check-"));

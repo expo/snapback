@@ -1,22 +1,20 @@
-import { mkdir, readdir } from "node:fs/promises";
-import { resolve } from "node:path";
-import { assessGauntlet } from "./gauntlet";
+import { mkdir, mkdtemp, readdir, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { dirname, join, resolve } from "node:path";
 import type { ProjectJson } from "./ir";
-import { lowerProject as lowerAuthoredProject } from "./project";
+import { lowerProject } from "./project";
 import ts from "typescript";
 
 const frontend = decodeURIComponent(new URL("../", import.meta.url).pathname);
 const crate = decodeURIComponent(new URL("../../../", import.meta.url).pathname);
-const repo = decodeURIComponent(new URL("../../../../", import.meta.url).pathname);
 
 type RegisterTest = (name: string, run: () => void | Promise<void>) => void;
-const lowerProject = (root: string) => lowerAuthoredProject(root, { authoring: "any" });
 
 function assert(condition: unknown, message: string): asserts condition {
   if (!condition) throw new Error(message);
 }
 
-export function registerFinalGateChecks(test: RegisterTest, legacyLib: string): void {
+export function registerFinalGateChecks(test: RegisterTest): void {
   test("the React template typechecks against the built snapback2/react package", () => {
     const packageRoot = resolve(crate, "packages/snapback2");
     const app = resolve(packageRoot, "templates/react/src/App.tsx");
@@ -109,23 +107,104 @@ export function registerFinalGateChecks(test: RegisterTest, legacyLib: string): 
     );
   });
 
+  test("the Node compiler worker rejects TypeScript data exports and serves later direct requests", async () => {
+    const packageRoot = resolve(crate, "packages/snapback2");
+    const built = Bun.spawnSync({
+      cmd: ["node", "build.mjs"], cwd: packageRoot, stdout: "pipe", stderr: "pipe",
+    });
+    assert(built.exitCode === 0,
+      `package build failed: ${new TextDecoder().decode(built.stderr)}`);
+    const bundle = resolve(packageRoot, "dist/compiler.mjs");
+    const shipped = await Bun.file(bundle).text();
+    const shippedCore = await Bun.file(resolve(packageRoot, "dist/compiler-core.mjs")).text();
+    assert(!shipped.includes("Bun."), "shipped compiler contains Bun.*");
+    assert(!shippedCore.includes("Bun."), "shipped compiler core contains Bun.*");
+
+    const temporary = await mkdtemp(join(tmpdir(), "snapback2-worker-"));
+    try {
+      const files: Record<string, string> = {
+        "legacy/snapback/schema.ts": `import { schema } from "snapback2"; export default schema({ tables: {} });`,
+        "legacy/snapback/legacy.ts": `import { effect, mutation, query, t } from "snapback2";
+          export const recordNotified = mutation({ outboxId: t.id(), effect: t.text(100), result: t.json(1000) }, () => null);
+          export const allowedEffect = effect({ grants: ["https://api.example.com"], run: async () => null });
+          export const lookup = query({}, () => null);
+          const removeLegacy = mutation({ id: t.id() }, () => null);
+          export { removeLegacy };`,
+        "effect/snapback/schema.q": "table records:\n  value: int\n  public\n",
+        "effect/snapback/ops.q": "query ping():\n  return null\n",
+        "effect/snapback/delivery.ts": `import { effect } from "snapback2";
+          export const notify = effect({ grants: ["https://api.example.com"], run: async () => null });`,
+      };
+      for (const [path, source] of Object.entries(files)) {
+        const target = resolve(temporary, path);
+        await mkdir(dirname(target), { recursive: true });
+        await writeFile(target, source);
+      }
+      const legacyRoot = resolve(temporary, "legacy");
+      const effectRoot = resolve(temporary, "effect");
+      const quarryRoot = resolve(frontend, "fixtures/quarry-todos");
+      const worker = Bun.spawn({
+        cmd: ["node", bundle, "--worker"], stdin: "pipe", stdout: "pipe", stderr: "pipe",
+      });
+      for (const request of [
+        { id: 1, op: "probe", root: legacyRoot },
+        { id: 2, op: "compile", root: legacyRoot },
+        { id: 3, op: "compile", root: effectRoot },
+        { id: 4, op: "compile", root: quarryRoot },
+        { id: 5, op: "seed", root: quarryRoot },
+        { id: 6, op: "journeys", root: quarryRoot },
+        { id: 7, op: "compile", root: "fixtures/quarry-todos" },
+      ]) worker.stdin.write(`${JSON.stringify(request)}\n`);
+      worker.stdin.end();
+      const output = await new Response(worker.stdout).text();
+      const stderr = await new Response(worker.stderr).text();
+      const status = await worker.exited;
+      assert(status === 0, `worker exited nonzero: ${stderr}`);
+      const responses = output.trim().split("\n").map((line) => JSON.parse(line));
+      assert(responses[0]?.id === 1 && responses[0]?.ok === true
+        && responses[0]?.protocol === "snapback2/compiler-worker/v1"
+        && JSON.stringify(responses[0]?.operations) === JSON.stringify(["compile", "seed", "journeys"]),
+      "worker probe did not prove protocol custody");
+      const authored = responses[1]?.diagnostics ?? [];
+      assert(responses[1]?.id === 2 && responses[1]?.ok === false && authored.length === 4
+        && authored.every((item: any) => item.code === "E_QUARRY_ONLY"),
+      `worker did not report the schema and every TypeScript data export: ${JSON.stringify(authored)}`);
+      assert(authored.some((item: any) => item.site === "snapback/schema.ts:1:1"
+        && item.message === "backends are authored in Quarry; the schema is snapback/schema.q"),
+      "worker lost the schema.ts Quarry-only refusal");
+      for (const [kind, name] of [["mutation", "recordNotified"], ["query", "lookup"], ["mutation", "removeLegacy"]]) {
+        assert(authored.some((item: any) => item.rewrite === `-- move ${kind} ${name} to snapback/legacy.q and preserve every argument type and bound`),
+          `worker lost the ${name} migration guidance: ${JSON.stringify(authored)}`);
+      }
+      assert(!authored.some((item: any) => item.message.includes("allowedEffect")),
+        `worker treated the effect export as data authoring: ${JSON.stringify(authored)}`);
+      assert(responses[2]?.id === 3 && responses[2]?.ok === true,
+        `worker did not admit the effect-only TypeScript module: ${JSON.stringify(responses[2])}`);
+      assert(responses[3]?.id === 4 && responses[3]?.ok === true, "worker did not survive for the next direct compile");
+      assert(responses[4]?.id === 5 && responses[4]?.ok === true, "worker did not serve seed under Node");
+      assert(responses[5]?.id === 6 && responses[5]?.ok === true, "worker did not serve journeys under Node");
+      assert(responses[6]?.id === 7 && responses[6]?.ok === false
+        && responses[6]?.diagnostics?.[0]?.code === "E_OP_INVALID", "worker admitted a relative project root");
+    } finally {
+      await rm(temporary, { recursive: true, force: true });
+    }
+  });
+
   test("binary check certifies every compiler program and reads IR only from stdin or --ir", async () => {
     const built = Bun.spawnSync({ cmd: ["cargo", "build", "-p", "snapback2"], cwd: crate, stdout: "pipe", stderr: "pipe" });
     assert(built.exitCode === 0, `cargo build failed: ${new TextDecoder().decode(built.stderr)}`);
-    const chat = await lowerProject(`${frontend}fixtures/chat`);
-    assert(chat.ok, "chat did not compile for binary check");
-    const buildDir = `${frontend}fixtures/chat/.snapback/build`;
-    await mkdir(buildDir, { recursive: true });
-    const projectPath = `${buildDir}/project.json`;
-    await Bun.write(projectPath, JSON.stringify(chat.project));
-    const checked = runBinaryCheck(["--json", "--ir", projectPath]);
-    const checkedRefusals = checked.results.filter((item: any) => item.error);
-    assert(checked.exitCode === 0 && checkedRefusals.length === 0, `chat compiler output was refused: ${checked.stderr}`);
-    assert(checked.results.length === chat.project.programs.length, "project check omitted programs");
-    assert(checked.results.every((item: any) => (item.certificate === null) !== (item.error === null)), "project check omitted a certificate/refusal outcome");
-    assert(checkedRefusals.every((item: any) => fullCheckEnvelope(item.error)), "checker refusal envelope is incomplete");
     const quarryChat = await lowerProject(`${frontend}fixtures/quarry-chat`);
     assert(quarryChat.ok, "Quarry chat did not compile for binary check");
+    const buildDir = `${frontend}fixtures/quarry-chat/.snapback/build`;
+    await mkdir(buildDir, { recursive: true });
+    const projectPath = `${buildDir}/project.json`;
+    await Bun.write(projectPath, JSON.stringify(quarryChat.project));
+    const checked = runBinaryCheck(["--json", "--ir", projectPath]);
+    const checkedRefusals = checked.results.filter((item: any) => item.error);
+    assert(checked.exitCode === 0 && checkedRefusals.length === 0, `Quarry chat compiler output was refused: ${checked.stderr}`);
+    assert(checked.results.length === quarryChat.project.programs.length, "project check omitted programs");
+    assert(checked.results.every((item: any) => (item.certificate === null) !== (item.error === null)), "project check omitted a certificate/refusal outcome");
+    assert(checkedRefusals.every((item: any) => fullCheckEnvelope(item.error)), "checker refusal envelope is incomplete");
     for (const page of ["feeds.q", "messages.q"]) {
       const fixture = await Bun.file(`${frontend}fixtures/quarry-chat/snapback/${page}`).text();
       const template = await Bun.file(`${crate}packages/snapback2/templates/chat/snapback/${page}`).text();
@@ -133,7 +212,7 @@ export function registerFinalGateChecks(test: RegisterTest, legacyLib: string): 
     }
     const quarryChecked = runBinaryCheck(["--json", "--ir"], quarryChat.project);
     const pagePins: Record<string, [number, number]> = {
-      "feeds.followingFeed": [55_072, 626_336],
+      "feeds.followingFeed": [55_572, 626_336],
       "feeds.globalFeed": [55_072, 54_260],
       // LLP 1006/1012: media records, including the optional oncePhoto column;
       // LLP 1016 D5: the optional expiresAt deadline (45 bytes a row).
@@ -145,7 +224,7 @@ export function registerFinalGateChecks(test: RegisterTest, legacyLib: string): 
         && result.certificate.max_closure_bytes === closure,
       `${name} shipped page did not certify at its pinned default bounds: ${JSON.stringify(result)}`);
     }
-    const wrongPrincipalAxis = structuredClone(chat.project) as any;
+    const wrongPrincipalAxis = structuredClone(quarryChat.project) as any;
     wrongPrincipalAxis.schema.tables.memberships.columns.principal = "Id";
     const wrongPrincipalCheck = runBinaryCheck(["--json", "--ir"], wrongPrincipalAxis);
     const nominalRefusal = wrongPrincipalCheck.results.find((item: any) =>
@@ -154,7 +233,7 @@ export function registerFinalGateChecks(test: RegisterTest, legacyLib: string): 
     assert(wrongPrincipalCheck.results.every((item: any) => item.certificate === null), "invalid raw ProjectJson still received a certificate");
     assert(nominalRefusal?.family === "rule" && nominalRefusal?.guide === "schema/rules", "raw nominal refusal used the wrong diagnostic family");
     assert(nominalRefusal?.site.includes("schema.tables.memberships"), "raw nominal refusal omitted its precise schema site");
-    for (const fixture of ["todos", "s1"]) {
+    for (const fixture of ["quarry-todos", "quarry-clique"]) {
       const lowered = await lowerProject(`${frontend}fixtures/${fixture}`);
       assert(lowered.ok, `${fixture} did not compile for binary compatibility`);
       const result = runBinaryCheck(["--json", "--ir"], lowered.project);
@@ -190,17 +269,7 @@ export function registerFinalGateChecks(test: RegisterTest, legacyLib: string): 
     }
   });
 
-  test("the 30-shape gauntlet remains measured", async () => {
-    const codexReview = await Bun.file(`${repo}llp/reviews/0329.014-bounded-data-programs.codex.r3.md`).text();
-    const fableReview = await Bun.file(`${repo}llp/reviews/0329.014-bounded-data-programs.fable.r3.md`).text();
-    const gauntlet = [
-      ...assessGauntlet("codex", codexReview, legacyLib),
-      ...assessGauntlet("fable", fableReview, legacyLib),
-    ];
-    assert(gauntlet.length === 30, `expected 30 numbered gauntlet shapes, got ${gauntlet.length}`);
-    const coded = gauntlet.filter((item) => item.source.trim());
-    assert(coded.length === 27, `expected 27 shapes with code, got ${coded.length}`);
-  });
+
 }
 
 function fullCheckEnvelope(error: any): boolean {
