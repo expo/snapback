@@ -1044,6 +1044,7 @@ fn query_plan(
                 .filter(|(_, (program, certificate))| {
                     program.kind == ProgramKind::Query
                         && query_isolates_protected_table(
+                            program,
                             &certificate.read_sites,
                             recipe,
                             &protected.table,
@@ -1094,13 +1095,72 @@ fn query_plan(
 }
 
 fn query_isolates_protected_table(
+    program: &Program,
     read_sites: &[ReadSite],
     recipe: &Recipe,
     protected_table: &str,
 ) -> bool {
+    // A discovery scan can legitimately become an empty global-search lane
+    // after membership removal. The terminal-revocation witness therefore
+    // needs an explicit membership Require, not mere table overlap or take 1.
     read_sites
         .iter()
         .all(|site| site.table == recipe.membership_table || site.table == protected_table)
+        // This is only a bounded candidate preference. A dependency can be
+        // semantically weakened (for example, `member || true`); the served
+        // post-revocation terminal delivery below is the authority witness.
+        && program_has_membership_guard_dependency(program, recipe)
+}
+
+fn program_has_membership_guard_dependency(program: &Program, recipe: &Recipe) -> bool {
+    let mut membership_values = BTreeSet::new();
+    for statement in &program.body {
+        match statement {
+            Stmt::Const { name, value }
+            | Stmt::Let { name, value }
+            | Stmt::Assign { name, value } => {
+                if expression_depends_on_membership(value, recipe, &membership_values) {
+                    membership_values.insert(name.clone());
+                } else {
+                    membership_values.remove(name);
+                }
+            }
+            Stmt::Require { condition, .. }
+                if expression_depends_on_membership(condition, recipe, &membership_values) =>
+            {
+                return true;
+            }
+            _ => {}
+        }
+    }
+    false
+}
+
+fn expression_depends_on_membership(
+    expression: &Expr,
+    recipe: &Recipe,
+    membership_values: &BTreeSet<String>,
+) -> bool {
+    match expression {
+        Expr::Variable(name) => membership_values.contains(name),
+        Expr::Get(read) | Expr::Exists(read) => {
+            read.table == recipe.membership_table && read.index == recipe.membership_index
+        }
+        Expr::Field { base, .. } | Expr::Unary { value: base, .. } => {
+            expression_depends_on_membership(base, recipe, membership_values)
+        }
+        Expr::Binary { left, right, .. } => {
+            expression_depends_on_membership(left, recipe, membership_values)
+                || expression_depends_on_membership(right, recipe, membership_values)
+        }
+        Expr::Builtin { args, .. } | Expr::Array(args) => args
+            .iter()
+            .any(|argument| expression_depends_on_membership(argument, recipe, membership_values)),
+        Expr::Object(fields) => fields
+            .values()
+            .any(|value| expression_depends_on_membership(value, recipe, membership_values)),
+        Expr::Literal(_) | Expr::Input(_) | Expr::Scan(_) | Expr::Merge(_) => false,
+    }
 }
 
 fn protected_write_eligible(

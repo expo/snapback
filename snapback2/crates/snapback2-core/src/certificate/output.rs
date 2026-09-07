@@ -7,8 +7,7 @@ use crate::collection_rewrite::{
 };
 use crate::growth::{
     ProvenanceBinding, assignment_growth, collection_price_from,
-    expression_from as provenance_expression_from, geometric_sum, has_word_list, saturating_power,
-    take_identity,
+    expression_from as provenance_expression_from, geometric_sum, saturating_power, take_identity,
 };
 use crate::ir::*;
 use crate::retention::{argument_max, collection_bytes};
@@ -19,7 +18,6 @@ impl<'a> OutputEstimator<'a> {
     pub(super) fn estimate(schema: &'a Schema, program: &Program) -> OutputEstimate {
         let mut estimator = Self {
             schema,
-            words: super::search::words(schema, program).bounds,
             max_result: canonical_json(&Value::Null).len() as u64,
             next_identity: program.args.len() as u64 + 1,
             shape: ByteShape::leaf(4, "null value"),
@@ -85,7 +83,7 @@ impl<'a> OutputEstimator<'a> {
                     variables.insert(
                         name.clone(),
                         OutputBound {
-                            whole_element: has_word_list(value, variables, |v| v.whole_element),
+                            whole_element: false,
                             bytes,
                             instances: calls,
                             collection,
@@ -97,8 +95,7 @@ impl<'a> OutputEstimator<'a> {
                     );
                 }
                 Stmt::Assign { name, value } => {
-                    let whole_element = has_word_list(value, variables, |v| v.whole_element)
-                        || variables.get(name).is_some_and(|v| v.whole_element);
+                    let whole_element = variables.get(name).is_some_and(|v| v.whole_element);
                     let instances = variables.get(name).map_or(calls, |bound| bound.instances);
                     let assignment = assignment_growth(
                         variables.get(name).map(|bound| &bound.provenance),
@@ -179,7 +176,7 @@ impl<'a> OutputEstimator<'a> {
                     }
                 }
                 Stmt::Push { target, value } => {
-                    let whole_element = has_word_list(value, variables, |v| v.whole_element);
+                    let whole_element = false;
                     let shape = self.expression_shape(value, variables);
                     let label = loops
                         .last()
@@ -263,12 +260,7 @@ impl<'a> OutputEstimator<'a> {
                     nested.insert(
                         binding.clone(),
                         OutputBound {
-                            whole_element: match domain {
-                                LoopDomain::DerivedArray { value, .. } => {
-                                    has_word_list(value, variables, |v| v.whole_element)
-                                }
-                                _ => false,
-                            },
+                            whole_element: false,
                             bytes: element,
                             instances: nested_calls,
                             collection: matches!(
@@ -332,13 +324,8 @@ impl<'a> OutputEstimator<'a> {
             }
             LoopDomain::DerivedArray { value, max, .. } => (
                 u64::from(*max),
-                self.expression(value, variables).saturating_div(
-                    if has_word_list(value, variables, |v| v.whole_element) {
-                        1
-                    } else {
-                        u64::from(*max).max(1)
-                    },
-                ),
+                self.expression(value, variables)
+                    .saturating_div(u64::from(*max).max(1)),
             ),
             LoopDomain::Recurse(recurse) => {
                 let nodes = geometric_sum(u64::from(recurse.fanout), recurse.depth);
@@ -400,12 +387,6 @@ impl<'a> OutputEstimator<'a> {
                     .map(|value| self.expression(value, variables))
                     .max()
                     .unwrap_or(0),
-                // @ref LLP 1001#unicode-search-foundation — U=4N and W=floor(U/2)+1, carried through bindings.
-                Builtin::Words => self
-                    .words
-                    .get(&canonical_json(expression))
-                    .map(|n| super::search::words_bytes(*n))
-                    .unwrap_or(u64::MAX),
                 Builtin::MentionTokens => args
                     .first()
                     .map(|value| self.expression(value, variables).saturating_mul(2))

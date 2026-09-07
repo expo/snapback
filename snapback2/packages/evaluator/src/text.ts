@@ -1,5 +1,3 @@
-import { searchWords } from "./unicode";
-
 export function splitMentionTokens(text: string): string[] {
   const tokens: string[] = [];
   let token = "";
@@ -13,14 +11,6 @@ export function splitMentionTokens(text: string): string[] {
   }
   if (token.length > 0) tokens.push(token);
   return tokens;
-}
-
-// @ref LLP 1001#unicode-search-foundation — direct authoring calls use the same
-// pinned Unicode normalization and token boundaries as compiled Words.
-/** Authoring-time form of the evaluator's pinned Unicode Words builtin. */
-export function words(value: string | null | undefined): string[] {
-  const source = value ?? null;
-  return searchWords(source, source?.length ?? 0);
 }
 
 function isMentionWhitespace(point: number): boolean {
