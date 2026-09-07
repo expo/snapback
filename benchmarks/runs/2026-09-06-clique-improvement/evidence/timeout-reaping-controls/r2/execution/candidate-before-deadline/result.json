@@ -1,0 +1,50 @@
+{
+  "case": "candidate-before-deadline",
+  "ok": true,
+  "startedEpoch": 1788819117.594704,
+  "helper": "candidate-helper.py",
+  "scope": "controlled measurement regression; never an install or017 qualification",
+  "helperReceipt": {
+    "actualProcessWaitCompleted": true,
+    "actualReturnCode": 0,
+    "argv": [
+      "/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/bin/python3.9",
+      "-I",
+      "-B",
+      "/Users/ccheever/clique-improvement/revisions/default-install-timeout-race-repair-r2/controlled-child.py",
+      "/Users/ccheever/clique-improvement/revisions/default-install-timeout-race-repair-r2/execution/candidate-before-deadline/ready",
+      "/Users/ccheever/clique-improvement/revisions/default-install-timeout-race-repair-r2/execution/candidate-before-deadline/gate"
+    ],
+    "attempt": 1,
+    "automaticRetry": false,
+    "cwd": "/Users/ccheever/clique-improvement/revisions/default-install-timeout-race-repair-r2/execution/candidate-before-deadline",
+    "elapsedSeconds": 0.239600959,
+    "endedEpoch": 1788819117.834976,
+    "exitCode": 0,
+    "logComplete": true,
+    "logSha256": "69c1e1c12f0673574be7378d650d135b3285d299f10469991b7adf7556d519f2",
+    "name": "probe",
+    "pid": 90103,
+    "processGroup": 90103,
+    "processIdentity": "90103 Mon Sep  7 15:11:57 2026     /Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/Resources/Python.app/Contents/MacOS/Python",
+    "startedEpoch": 1788819117.59537,
+    "timeoutSeconds": 30
+  },
+  "ownedChildActuallyReaped": true,
+  "ownedGroupAbsent": true,
+  "executeError": null,
+  "instrumentation": {
+    "identityCalls": 1,
+    "signals": [],
+    "exitEventsWithoutReaping": 0,
+    "syntheticDeadline": false,
+    "originalIdentity": "90103 Mon Sep  7 15:11:57 2026     /Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/Resources/Python.app/Contents/MacOS/Python"
+  },
+  "childPid": 90103,
+  "actualReturnCode": 0,
+  "retainedLogSha256": "69c1e1c12f0673574be7378d650d135b3285d299f10469991b7adf7556d519f2",
+  "runningReceiptRetained": false,
+  "controllerFinalActualReturnCode": 0,
+  "endedEpoch": 1788819117.840891,
+  "wallSeconds": 0.246189667
+}

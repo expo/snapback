@@ -1,0 +1,58 @@
+{
+  "case": "candidate-disappears-before-group-query",
+  "ok": true,
+  "startedEpoch": 1788819116.313704,
+  "helper": "candidate-helper.py",
+  "scope": "controlled measurement regression; never an install or017 qualification",
+  "helperReceipt": {
+    "actualProcessWaitCompleted": true,
+    "actualReturnCode": 0,
+    "argv": [
+      "/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/bin/python3.9",
+      "-I",
+      "-B",
+      "/Users/ccheever/clique-improvement/revisions/default-install-timeout-race-repair-r2/controlled-child.py",
+      "/Users/ccheever/clique-improvement/revisions/default-install-timeout-race-repair-r2/execution/candidate-disappears-before-group-query/ready",
+      "/Users/ccheever/clique-improvement/revisions/default-install-timeout-race-repair-r2/execution/candidate-disappears-before-group-query/gate"
+    ],
+    "attempt": 1,
+    "automaticRetry": false,
+    "cleanupFailure": {
+      "message": "controlled disappearance after matching identity",
+      "type": "ProcessLookupError"
+    },
+    "cwd": "/Users/ccheever/clique-improvement/revisions/default-install-timeout-race-repair-r2/execution/candidate-disappears-before-group-query",
+    "elapsedSeconds": 31.0,
+    "endedEpoch": 1788819116.897653,
+    "exitCode": 124,
+    "logComplete": true,
+    "logSha256": "69c1e1c12f0673574be7378d650d135b3285d299f10469991b7adf7556d519f2",
+    "name": "probe",
+    "pid": 90089,
+    "processGroup": 90089,
+    "processIdentity": "90089 Mon Sep  7 15:11:56 2026     /Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/Resources/Python.app/Contents/MacOS/Python",
+    "startedEpoch": 1788819116.314107,
+    "timedOut": true,
+    "timeoutSeconds": 30
+  },
+  "ownedChildActuallyReaped": true,
+  "ownedGroupAbsent": true,
+  "executeError": {
+    "type": "RuntimeError",
+    "message": "probe failed; retain first failure and stop"
+  },
+  "instrumentation": {
+    "identityCalls": 2,
+    "signals": [],
+    "exitEventsWithoutReaping": 1,
+    "syntheticDeadline": true,
+    "originalIdentity": "90089 Mon Sep  7 15:11:56 2026     /Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/Resources/Python.app/Contents/MacOS/Python"
+  },
+  "childPid": 90089,
+  "actualReturnCode": 0,
+  "retainedLogSha256": "69c1e1c12f0673574be7378d650d135b3285d299f10469991b7adf7556d519f2",
+  "runningReceiptRetained": false,
+  "controllerFinalActualReturnCode": 0,
+  "endedEpoch": 1788819116.909916,
+  "wallSeconds": 0.596207959
+}
