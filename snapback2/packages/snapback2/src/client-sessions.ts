@@ -101,7 +101,8 @@ export class SharedSubscriptions {
    */
   clear(except?: Subscription<unknown>): void {
     for (const [key, entry] of [...this.entries]) {
-      if (entry.underlying === except) continue;
+      const owner = entry.underlying as Subscription<unknown> & { owns?(subscription: Subscription<unknown>): boolean };
+      if (except !== undefined && (owner === except || owner.owns?.(except) === true)) continue;
       entry.attachments.clear();
       this.entries.delete(key);
     }

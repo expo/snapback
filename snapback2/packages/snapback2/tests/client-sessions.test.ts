@@ -229,3 +229,32 @@ test("a restored bearer second tab follows instead of refusing its own session",
   assert.equal(follower.snapshot.auth.state, "authenticated");
   await follower.close();
 });
+
+// A terminal session refusal closes every other transport; the consumers of the
+// stream it came from must still hear it (the auth-ownership suite's contract).
+test("a terminal refusal reaches every consumer of the shared entry it originated from", async () => {
+  let opens = 0;
+  const client = createClient({
+    url: "http://shared-terminal.test",
+    tokenStore: { load: () => "expired-token", save: () => undefined },
+    fetch: async (input: string | URL | Request) => {
+      const url = new URL(String(input));
+      if (url.pathname === "/api/auth/me") return new Response(JSON.stringify({ viewer: "principal-a", kind: "account" }), { status: 200 });
+      if (url.pathname === "/api/manifest") return new Response(JSON.stringify({ generation: "g", programGeneration: "p", ops: {}, channels: {}, auth: {} }), { status: 200 });
+      opens += 1;
+      const frame = JSON.stringify({ state: "refused", code: "E_AUTH_SESSION", family: "auth", message: "expired", guide: "auth/session" });
+      return new Response(new ReadableStream<Uint8Array>({ start(controller) { controller.enqueue(new TextEncoder().encode(`data: ${frame}\n\n`)); } }),
+        { status: 200, headers: { "content-type": "text/event-stream" } });
+    },
+  });
+  await client.ready;
+  const heard: string[] = [];
+  const first = client.subscribe(api.deliveries.thread, { conversationId: "c", c: null }, (event) => { heard.push(`first:${event.state}`); });
+  const second = client.subscribe(api.deliveries.thread, { conversationId: "c", c: null }, (event) => { heard.push(`second:${event.state}`); });
+  await assert.rejects(first.until(() => true, 3_000), (error: unknown) => isSnapbackRefusal(error) && error.code === "E_AUTH_SESSION");
+  await until(() => heard.includes("first:refused") && heard.includes("second:refused"), "both consumers hearing the refusal");
+  assert.equal(opens, 1, "one stream served both consumers");
+  first.close();
+  second.close();
+  await client.close();
+});

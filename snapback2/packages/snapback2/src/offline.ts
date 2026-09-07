@@ -274,9 +274,10 @@ export class OfflineRuntime {
     try {
       await this.store.acquire(principal, signal);
       if (signal.aborted) {
-        // Granted after the wait was withdrawn: give the lock back, unless the
-        // queue has meanwhile opened another partition, whose open released it.
-        await this.serial(async () => { if (this.partition === undefined) await this.store.close?.(); });
+        // Granted after the wait was withdrawn: give exactly this lock back. A
+        // request a newer wait has queued, or a partition an open has since
+        // taken, is not touched.
+        await this.store.giveBack?.(principal);
         throwIfAborted(signal);
       }
       await this.open(principal);

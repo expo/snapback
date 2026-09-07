@@ -301,6 +301,8 @@ export interface RangeStore {
   open(partition: PrincipalPartition): Promise<void>;
   /** Waits for the partition's writer lock (a browser tab following the writer); absent on carriers that refuse at once. */
   acquire?(partition: PrincipalPartition, signal?: AbortSignal): Promise<void>;
+  /** Gives back a lock `acquire` won but `open` never used, touching no other request. */
+  giveBack?(partition: PrincipalPartition): Promise<void>;
   unseal(): Promise<void>;
   seal(): Promise<void>;
   wipe(partition: PrincipalPartition): Promise<void>;
@@ -357,6 +359,8 @@ export interface RangeStoreBackend {
   open(partition: PrincipalPartition): Promise<PersistedRangeState | undefined>;
   /** Waits for the partition's writer lock so a later `open` finds it held; carriers without a waiting lock omit it. */
   acquire?(partition: PrincipalPartition, signal?: AbortSignal): Promise<void>;
+  /** Releases a lock `acquire` won that no open uses; a queued request of another wait is left alone. */
+  giveBack?(partition: PrincipalPartition): Promise<void>;
   /** One carrier transaction: the state, plus the byte payloads to write and the keys to drop. */
   replace(state: PersistedRangeState, bytes: ByteDelta, previous?: PersistedRangeState): Promise<void>;
   readBytes?(key: string): Promise<Uint8Array | undefined>;
@@ -646,9 +650,11 @@ export class PersistentRangeStore implements RangeStore {
   };
 
   readonly acquire?: (partition: PrincipalPartition, signal?: AbortSignal) => Promise<void>;
+  readonly giveBack?: (partition: PrincipalPartition) => Promise<void>;
 
   constructor(private readonly backend: RangeStoreBackend) {
     if (backend.acquire) this.acquire = (partition, signal) => backend.acquire!(partition, signal);
+    if (backend.giveBack) this.giveBack = (partition) => backend.giveBack!(partition);
   }
 
   async open(partition: PrincipalPartition): Promise<void> {

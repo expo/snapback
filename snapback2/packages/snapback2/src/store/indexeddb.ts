@@ -110,6 +110,17 @@ class IndexedDbBackend implements RangeStoreBackend {
     await this.acquireLock(partition, signal ? { signal } : {});
   }
 
+  /** A lock won by `acquire` that no open uses goes back; a request another wait has queued is not touched. */
+  async giveBack(partition: PrincipalPartition): Promise<void> {
+    if (this.lockedPartition !== partition || this.database) return;
+    const request = this.lockRequest;
+    this.releaseLock?.();
+    this.releaseLock = undefined;
+    this.lockedPartition = undefined;
+    this.lockRequest = undefined;
+    if (request) await request.catch(() => undefined);
+  }
+
   async open(partition: PrincipalPartition): Promise<PersistedRangeState | undefined> {
     this.closeDatabase();
     const databaseName = `${this.prefix}${partition}`;

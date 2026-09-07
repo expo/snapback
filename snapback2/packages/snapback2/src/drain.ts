@@ -43,6 +43,11 @@ export class DrainSubscription<Args, Result> implements Subscription<Subscriptio
     this.fail(error);
   }
 
+  /** Whether `subscription` is this drain's live tail (the stream a terminal refusal can originate from). */
+  owns(subscription: Subscription<unknown>): boolean {
+    return this.tail !== undefined && (this.tail as Subscription<unknown>) === subscription;
+  }
+
   /** Discard a stale cursor after E_OFFLINE_RESET and cold-drain from the prefix root. */
   reset(): void {
     if (this.closed) return;
