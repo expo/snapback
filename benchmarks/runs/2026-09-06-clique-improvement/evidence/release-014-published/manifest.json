@@ -1,0 +1,364 @@
+{
+  "sourceCommit": "0fdcc846bc7451bbcb1804194b49737418954506",
+  "sourceRoot": "/Users/ccheever/clique-improvement/revisions/release-apartment-014-auth-output-activation-supervision",
+  "publicationVersion": "0.0.14",
+  "files": [
+    {
+      "path": "REPORT.md",
+      "externalOriginal": "/Users/ccheever/clique-improvement/revisions/release-apartment-014-auth-output-activation-supervision/REPORT.md",
+      "originalBytes": 9728,
+      "originalSha256": "b93cd7fb50a87e71cfd0f24feb0444d5723e2028a39170304f81f88ced09c039",
+      "bytes": 9728,
+      "sha256": "b93cd7fb50a87e71cfd0f24feb0444d5723e2028a39170304f81f88ced09c039",
+      "byteExactOriginal": true,
+      "transformations": []
+    },
+    {
+      "path": "publication-receipt.json",
+      "externalOriginal": "/Users/ccheever/clique-improvement/revisions/release-apartment-014-auth-output-activation-supervision/publication-receipt.json",
+      "originalBytes": 6235,
+      "originalSha256": "a3ffa74111a1e348e7ebdb4d50fb6206bab18c4e7cb318ea42f572927d50dc09",
+      "bytes": 6235,
+      "sha256": "a3ffa74111a1e348e7ebdb4d50fb6206bab18c4e7cb318ea42f572927d50dc09",
+      "byteExactOriginal": true,
+      "transformations": []
+    },
+    {
+      "path": "terminal.json",
+      "externalOriginal": "/Users/ccheever/clique-improvement/revisions/release-apartment-014-auth-output-activation-supervision/terminal.json",
+      "originalBytes": 111,
+      "originalSha256": "0217cf0e30b176b29bfa06e76002c213c3ba493b947ddaa7c2580ade1f623cab",
+      "bytes": 111,
+      "sha256": "0217cf0e30b176b29bfa06e76002c213c3ba493b947ddaa7c2580ade1f623cab",
+      "byteExactOriginal": true,
+      "transformations": []
+    },
+    {
+      "path": "phase.json",
+      "externalOriginal": "/Users/ccheever/clique-improvement/revisions/release-apartment-014-auth-output-activation-supervision/phase.json",
+      "originalBytes": 863,
+      "originalSha256": "1e060477d9428ff56bc3808632e347fefca48dac3ed5f4a954475f3f45a7ae1e",
+      "bytes": 863,
+      "sha256": "1e060477d9428ff56bc3808632e347fefca48dac3ed5f4a954475f3f45a7ae1e",
+      "byteExactOriginal": true,
+      "transformations": []
+    },
+    {
+      "path": "supervisor-actual-identity.json",
+      "externalOriginal": "/Users/ccheever/clique-improvement/revisions/release-apartment-014-auth-output-activation-supervision/supervisor-actual-identity.json",
+      "originalBytes": 321,
+      "originalSha256": "52165a147dd6a777dd03ba8852fad65c6495aecc7ec78803d470ffc2a5fecb3a",
+      "bytes": 321,
+      "sha256": "52165a147dd6a777dd03ba8852fad65c6495aecc7ec78803d470ffc2a5fecb3a",
+      "byteExactOriginal": true,
+      "transformations": []
+    },
+    {
+      "path": "supervisor-final-handoff.json",
+      "externalOriginal": "/Users/ccheever/clique-improvement/revisions/release-apartment-014-auth-output-activation-supervision/supervisor-final-handoff.json",
+      "originalBytes": 1706,
+      "originalSha256": "b25fd92de4f238b5189d9ecc4e07d28e10e750783e8042a3f95abf5b33cdaaf6",
+      "bytes": 1706,
+      "sha256": "b25fd92de4f238b5189d9ecc4e07d28e10e750783e8042a3f95abf5b33cdaaf6",
+      "byteExactOriginal": true,
+      "transformations": []
+    },
+    {
+      "path": "source-correspondence.json",
+      "externalOriginal": "/Users/ccheever/clique-improvement/revisions/release-apartment-014-auth-output-activation-supervision/source-correspondence.json",
+      "originalBytes": 1458,
+      "originalSha256": "53e0a28839e343d038b8bbb0b23750ad3f384b652aa613bf9620980a586941fa",
+      "bytes": 1458,
+      "sha256": "53e0a28839e343d038b8bbb0b23750ad3f384b652aa613bf9620980a586941fa",
+      "byteExactOriginal": true,
+      "transformations": []
+    },
+    {
+      "path": "cleanup.json",
+      "externalOriginal": "/Users/ccheever/clique-improvement/revisions/release-apartment-014-auth-output-activation-supervision/cleanup.json",
+      "originalBytes": 1857,
+      "originalSha256": "c43285a13b4e6c5435fa53633174e0ccb91c339551b0ce9087d34a2a6239cd83",
+      "bytes": 1857,
+      "sha256": "c43285a13b4e6c5435fa53633174e0ccb91c339551b0ce9087d34a2a6239cd83",
+      "byteExactOriginal": true,
+      "transformations": []
+    },
+    {
+      "path": "final-custody.json",
+      "externalOriginal": "/Users/ccheever/clique-improvement/revisions/release-apartment-014-auth-output-activation-supervision/final-custody.json",
+      "originalBytes": 4238,
+      "originalSha256": "274e9e390d2ff54717456795134ac0de47f3795f438946ca790d9aa3b1c5d582",
+      "bytes": 4238,
+      "sha256": "274e9e390d2ff54717456795134ac0de47f3795f438946ca790d9aa3b1c5d582",
+      "byteExactOriginal": true,
+      "transformations": []
+    },
+    {
+      "path": "procedure-correspondence.json",
+      "externalOriginal": "/Users/ccheever/clique-improvement/revisions/release-apartment-014-auth-output-activation-supervision/procedure-correspondence.json",
+      "originalBytes": 747,
+      "originalSha256": "e324da3a5abfb9567c0a800a3b08201a1828a67ed022edcb5d5f266eece83b37",
+      "bytes": 747,
+      "sha256": "e324da3a5abfb9567c0a800a3b08201a1828a67ed022edcb5d5f266eece83b37",
+      "byteExactOriginal": true,
+      "transformations": []
+    },
+    {
+      "path": "verify-registry-expo.py",
+      "externalOriginal": "/Users/ccheever/clique-improvement/revisions/release-apartment-014-auth-output-activation-supervision/verify-registry-expo.py",
+      "originalBytes": 11747,
+      "originalSha256": "f99b02f015cc22522561e48b51d0cfb2d48724e0be12503b9976eeac060d1fec",
+      "bytes": 11747,
+      "sha256": "f99b02f015cc22522561e48b51d0cfb2d48724e0be12503b9976eeac060d1fec",
+      "byteExactOriginal": true,
+      "transformations": []
+    },
+    {
+      "path": "verify-registry-expo.diff",
+      "externalOriginal": "/Users/ccheever/clique-improvement/revisions/release-apartment-014-auth-output-activation-supervision/verify-registry-expo.diff",
+      "originalBytes": 4817,
+      "originalSha256": "45f288a99e1c42819752545b400f20af7c36639f65d913059a2f1882e5d46cb0",
+      "bytes": 4817,
+      "sha256": "45f288a99e1c42819752545b400f20af7c36639f65d913059a2f1882e5d46cb0",
+      "byteExactOriginal": true,
+      "transformations": []
+    },
+    {
+      "path": "installed-expo-verification.json",
+      "externalOriginal": "/Users/ccheever/clique-improvement/revisions/release-apartment-014-auth-output-activation-supervision/installed-expo-verification.json",
+      "originalBytes": 19437,
+      "originalSha256": "aeb270c1ecdb1e4afe0d02f5961333fdb60f1697cf868a5fbebb2e866d668335",
+      "bytes": 19437,
+      "sha256": "aeb270c1ecdb1e4afe0d02f5961333fdb60f1697cf868a5fbebb2e866d668335",
+      "byteExactOriginal": true,
+      "transformations": []
+    },
+    {
+      "path": "installed-guide-fixes.json",
+      "externalOriginal": "/Users/ccheever/clique-improvement/revisions/release-apartment-014-auth-output-activation-supervision/installed-guide-fixes.json",
+      "originalBytes": 6641,
+      "originalSha256": "2c235b326ef484b666aaf619d734ab62960ca4aa12b0e61e471ce06d5c7e0fe5",
+      "bytes": 6641,
+      "sha256": "2c235b326ef484b666aaf619d734ab62960ca4aa12b0e61e471ce06d5c7e0fe5",
+      "byteExactOriginal": true,
+      "transformations": []
+    },
+    {
+      "path": "installed-files-before.json",
+      "externalOriginal": "/Users/ccheever/clique-improvement/revisions/release-apartment-014-auth-output-activation-supervision/installed-files-before.json",
+      "originalBytes": 16000,
+      "originalSha256": "cd9dc68af40cf3f2eb741ac2ef551090543b1ad85e1942cd6f8ead0a4d9e0f4b",
+      "bytes": 16000,
+      "sha256": "cd9dc68af40cf3f2eb741ac2ef551090543b1ad85e1942cd6f8ead0a4d9e0f4b",
+      "byteExactOriginal": true,
+      "transformations": []
+    },
+    {
+      "path": "installed-files-after.json",
+      "externalOriginal": "/Users/ccheever/clique-improvement/revisions/release-apartment-014-auth-output-activation-supervision/installed-files-after.json",
+      "originalBytes": 16000,
+      "originalSha256": "cd9dc68af40cf3f2eb741ac2ef551090543b1ad85e1942cd6f8ead0a4d9e0f4b",
+      "bytes": 16000,
+      "sha256": "cd9dc68af40cf3f2eb741ac2ef551090543b1ad85e1942cd6f8ead0a4d9e0f4b",
+      "byteExactOriginal": true,
+      "transformations": []
+    },
+    {
+      "path": "registry-observation.json",
+      "externalOriginal": "/Users/ccheever/clique-improvement/revisions/release-apartment-014-auth-output-activation-supervision/registry-observation.json",
+      "originalBytes": 3183,
+      "originalSha256": "37431197978dd831aa43ae8e8a061e51bfde6f65a7f729e0767e1fe2c7d47a4b",
+      "bytes": 3183,
+      "sha256": "37431197978dd831aa43ae8e8a061e51bfde6f65a7f729e0767e1fe2c7d47a4b",
+      "byteExactOriginal": true,
+      "transformations": []
+    },
+    {
+      "path": "registry-observation-02.json",
+      "externalOriginal": "/Users/ccheever/clique-improvement/revisions/release-apartment-014-auth-output-activation-supervision/registry-observation-02.json",
+      "originalBytes": 3265,
+      "originalSha256": "68f1e49ddff945eb280375ba2ad1e5f2422378271570f4be46de60cd62adef7c",
+      "bytes": 3265,
+      "sha256": "68f1e49ddff945eb280375ba2ad1e5f2422378271570f4be46de60cd62adef7c",
+      "byteExactOriginal": true,
+      "transformations": []
+    },
+    {
+      "path": "activation-intent.json",
+      "externalOriginal": "/Users/ccheever/clique-improvement/revisions/release-apartment-014-auth-output-activation-supervision/activation-intent.json",
+      "originalBytes": 516,
+      "originalSha256": "dc009f9f3dfaa151149dff5c4f36ad05555244bd6bebd8dc9953194fa6b830bd",
+      "bytes": 516,
+      "sha256": "dc009f9f3dfaa151149dff5c4f36ad05555244bd6bebd8dc9953194fa6b830bd",
+      "byteExactOriginal": true,
+      "transformations": []
+    },
+    {
+      "path": "activation-result.json",
+      "externalOriginal": "/Users/ccheever/clique-improvement/revisions/release-apartment-014-auth-output-activation-supervision/activation-result.json",
+      "originalBytes": 440,
+      "originalSha256": "abfd8e1507a9cb0d26e4b486bba5c3de3bb70257e06000e6bca2e6b88788ce31",
+      "bytes": 440,
+      "sha256": "abfd8e1507a9cb0d26e4b486bba5c3de3bb70257e06000e6bca2e6b88788ce31",
+      "byteExactOriginal": true,
+      "transformations": []
+    },
+    {
+      "path": "activation-events.jsonl",
+      "externalOriginal": "/Users/ccheever/clique-improvement/revisions/release-apartment-014-auth-output-activation-supervision/activation-events.jsonl",
+      "originalBytes": 21020,
+      "originalSha256": "b865053be10b2115e397da7193478956355ea0ebadc328f264057ce7aa23d26b",
+      "bytes": 21020,
+      "sha256": "b865053be10b2115e397da7193478956355ea0ebadc328f264057ce7aa23d26b",
+      "byteExactOriginal": true,
+      "transformations": []
+    },
+    {
+      "path": "stage-result.json",
+      "externalOriginal": "/Users/ccheever/clique-improvement/revisions/release-apartment-014-auth-output-activation-supervision/stage-result.json",
+      "originalBytes": 1474,
+      "originalSha256": "3f8f194ba5776c16b7c5d7adc1c2933e733acff257a54abd0d274b93ec3f96cc",
+      "bytes": 1473,
+      "sha256": "6f42f8104d95fca08313ab956462820cfb77760c05253b8cfb87583f4707628b",
+      "byteExactOriginal": false,
+      "transformations": [
+        {
+          "kind": "private-fleet-address-to-host-alias",
+          "hostAlias": "apartment-m1",
+          "occurrences": 1
+        }
+      ]
+    },
+    {
+      "path": "archive-receipt.json",
+      "externalOriginal": "/Users/ccheever/clique-improvement/revisions/release-apartment-014-auth-output-activation-supervision/archive-receipt.json",
+      "originalBytes": 1444,
+      "originalSha256": "69c0cca2c2c3674fed3f1ec494b05109aa1e58e961dd0ef011a997ff0656865a",
+      "bytes": 1444,
+      "sha256": "69c0cca2c2c3674fed3f1ec494b05109aa1e58e961dd0ef011a997ff0656865a",
+      "byteExactOriginal": true,
+      "transformations": []
+    },
+    {
+      "path": "preflight.json",
+      "externalOriginal": "/Users/ccheever/clique-improvement/revisions/release-apartment-014-auth-output-activation-supervision/preflight.json",
+      "originalBytes": 2714,
+      "originalSha256": "3871fbb93edfe5465c6959e7935eb660bcfa84ccbff15971b53af479e162d182",
+      "bytes": 2714,
+      "sha256": "3871fbb93edfe5465c6959e7935eb660bcfa84ccbff15971b53af479e162d182",
+      "byteExactOriginal": true,
+      "transformations": []
+    },
+    {
+      "path": "metric-own-append.jsonl",
+      "externalOriginal": "/Users/ccheever/clique-improvement/revisions/release-apartment-014-auth-output-activation-supervision/metric-own-append.jsonl",
+      "originalBytes": 266,
+      "originalSha256": "aa993c49fc8528011d1b5b779c97d45883ccb46f6a73b36c4d277c1b0177f571",
+      "bytes": 266,
+      "sha256": "aa993c49fc8528011d1b5b779c97d45883ccb46f6a73b36c4d277c1b0177f571",
+      "byteExactOriginal": true,
+      "transformations": []
+    },
+    {
+      "path": "logs/registry-expo.json",
+      "externalOriginal": "/Users/ccheever/clique-improvement/revisions/release-apartment-014-auth-output-activation-supervision/logs/registry-expo.json",
+      "originalBytes": 571,
+      "originalSha256": "f05a0090f575fec6a928c0fc5c2df49344188d51d2447f508275119575333fbb",
+      "bytes": 571,
+      "sha256": "f05a0090f575fec6a928c0fc5c2df49344188d51d2447f508275119575333fbb",
+      "byteExactOriginal": true,
+      "transformations": []
+    },
+    {
+      "path": "prior-prefix-refusal/REPORT.md",
+      "externalOriginal": "/Users/ccheever/clique-improvement/revisions/release-apartment-014-auth-activation-supervision/REPORT.md",
+      "originalBytes": 8585,
+      "originalSha256": "e99dab4923022e00c7dd66deb648f853dbc06dc7de9dc6ba84b3cddc69512bae",
+      "bytes": 8585,
+      "sha256": "e99dab4923022e00c7dd66deb648f853dbc06dc7de9dc6ba84b3cddc69512bae",
+      "byteExactOriginal": true,
+      "transformations": []
+    },
+    {
+      "path": "prior-prefix-refusal/terminal.json",
+      "externalOriginal": "/Users/ccheever/clique-improvement/revisions/release-apartment-014-auth-activation-supervision/terminal.json",
+      "originalBytes": 110,
+      "originalSha256": "60301711e1b357d09dfc3a3bc69f5537dfc49bc2411e00dc960de24bd88b4d1c",
+      "bytes": 110,
+      "sha256": "60301711e1b357d09dfc3a3bc69f5537dfc49bc2411e00dc960de24bd88b4d1c",
+      "byteExactOriginal": true,
+      "transformations": []
+    },
+    {
+      "path": "prior-prefix-refusal/activation-result.json",
+      "externalOriginal": "/Users/ccheever/clique-improvement/revisions/release-apartment-014-auth-activation-supervision/activation-result.json",
+      "originalBytes": 438,
+      "originalSha256": "5929e526c9a8d4499a41168536c799c79748c110f48db9b31c791e6e11b09547",
+      "bytes": 438,
+      "sha256": "5929e526c9a8d4499a41168536c799c79748c110f48db9b31c791e6e11b09547",
+      "byteExactOriginal": true,
+      "transformations": []
+    },
+    {
+      "path": "prior-output-refusal/REPORT.md",
+      "externalOriginal": "/Users/ccheever/clique-improvement/revisions/release-apartment-014-auth-prefix-activation-supervision/REPORT.md",
+      "originalBytes": 7914,
+      "originalSha256": "06f3f61838682e9423ceaaf5ef09334d1ad980b94c3db821b51bc6e2e6c3b390",
+      "bytes": 7914,
+      "sha256": "06f3f61838682e9423ceaaf5ef09334d1ad980b94c3db821b51bc6e2e6c3b390",
+      "byteExactOriginal": true,
+      "transformations": []
+    },
+    {
+      "path": "prior-output-refusal/terminal.json",
+      "externalOriginal": "/Users/ccheever/clique-improvement/revisions/release-apartment-014-auth-prefix-activation-supervision/terminal.json",
+      "originalBytes": 110,
+      "originalSha256": "14af29d0a6740e9696ddc7628ce3e3fa08df924df7960ffa58d64b55f2f23fb1",
+      "bytes": 110,
+      "sha256": "14af29d0a6740e9696ddc7628ce3e3fa08df924df7960ffa58d64b55f2f23fb1",
+      "byteExactOriginal": true,
+      "transformations": []
+    },
+    {
+      "path": "prior-output-refusal/activation-result.json",
+      "externalOriginal": "/Users/ccheever/clique-improvement/revisions/release-apartment-014-auth-prefix-activation-supervision/activation-result.json",
+      "originalBytes": 438,
+      "originalSha256": "1c271521cb725d28f6bb157687679553ec621baa83733823e7fd1d214fa4a50f",
+      "bytes": 438,
+      "sha256": "1c271521cb725d28f6bb157687679553ec621baa83733823e7fd1d214fa4a50f",
+      "byteExactOriginal": true,
+      "transformations": []
+    },
+    {
+      "path": "reviewed-parser-preparation/REPORT.md",
+      "externalOriginal": "/Users/ccheever/clique-improvement/revisions/release-apartment-014-auth-output-preparation/REPORT.md",
+      "originalBytes": 8695,
+      "originalSha256": "8de50c3426be4235e9351b50d946c760af02b3e3dca8ada770b7767152be7802",
+      "bytes": 8695,
+      "sha256": "8de50c3426be4235e9351b50d946c760af02b3e3dca8ada770b7767152be7802",
+      "byteExactOriginal": true,
+      "transformations": []
+    },
+    {
+      "path": "reviewed-parser-preparation/terminal.json",
+      "externalOriginal": "/Users/ccheever/clique-improvement/revisions/release-apartment-014-auth-output-preparation/terminal.json",
+      "originalBytes": 111,
+      "originalSha256": "17bad34919e52bb7c7275fcfb44ca577e3015b44a5176883d9a20e8552d9b606",
+      "bytes": 111,
+      "sha256": "17bad34919e52bb7c7275fcfb44ca577e3015b44a5176883d9a20e8552d9b606",
+      "byteExactOriginal": true,
+      "transformations": []
+    },
+    {
+      "path": "reviewed-parser-preparation/supervisor-final-custody.json",
+      "externalOriginal": "/Users/ccheever/clique-improvement/revisions/release-apartment-014-auth-output-preparation/supervisor-final-custody.json",
+      "originalBytes": 484,
+      "originalSha256": "a32bd76cc9e4f6c2ecb8219334fd22dbba18bc9db4cfa50504de48d7d8084e71",
+      "bytes": 484,
+      "sha256": "a32bd76cc9e4f6c2ecb8219334fd22dbba18bc9db4cfa50504de48d7d8084e71",
+      "byteExactOriginal": true,
+      "transformations": []
+    }
+  ],
+  "privateMetadataHandling": "Only allowlisted existing receipts are included; exact address substitutions are declared per leaf. No secret/config acquisition or qualification was performed."
+}

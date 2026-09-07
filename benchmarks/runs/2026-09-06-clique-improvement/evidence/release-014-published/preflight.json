@@ -1,0 +1,85 @@
+{
+  "epoch": 1788761108.274362,
+  "pid": 20940,
+  "bundleSha256": "87440737b078174fb50565f8638d40bd6c1cbc1821d086710d95220b48dc2f58",
+  "reportSha256": "8de50c3426be4235e9351b50d946c760af02b3e3dca8ada770b7767152be7802",
+  "priorTerminal": {
+    "terminal": {
+      "pid": 96938,
+      "exitCode": 0,
+      "endedEpoch": 1788760757.003237,
+      "elapsedSeconds": 1022.8332669734955
+    },
+    "priorOwnedPidsAbsent": [
+      96938,
+      96925
+    ],
+    "bundleSha256": "87440737b078174fb50565f8638d40bd6c1cbc1821d086710d95220b48dc2f58",
+    "leavesVerified": 11,
+    "reportBytes": 8695,
+    "reportSha256": "8de50c3426be4235e9351b50d946c760af02b3e3dca8ada770b7767152be7802",
+    "fullReportRead": true,
+    "noActivationAuthorizedBySupervisor": true
+  },
+  "runtimeLeaves": [
+    {
+      "path": "custody.py",
+      "sha256": "a2fe7fcf91e3b28f0ba12e87496e735ed2d180b4c320b438aab00a2c5486feef",
+      "mode": "0444"
+    },
+    {
+      "path": "control.py",
+      "sha256": "a326cad68484494ed18c110df17751b8dd41f7239d597ee44c40a44dded40265",
+      "mode": "0444"
+    },
+    {
+      "path": "remote.py",
+      "sha256": "76c7ac004940f9ca45ee6114bd08cf6a0e0b7bf34523b0505b75c8240dc9f599",
+      "mode": "0444"
+    },
+    {
+      "path": "office.py",
+      "sha256": "bd013f597db7e21bcbc408bd1d50555f7dd8e11365e34c09d125c10f9da0f20b",
+      "mode": "0444"
+    },
+    {
+      "path": "feeder.cjs",
+      "sha256": "122d85a4722308d7a0200735305e6e2b4d8d926425ac5a5b6bab345e7fa7c9b5",
+      "mode": "0444"
+    },
+    {
+      "path": "bindings.json",
+      "sha256": "db3f5eb0307e21c4838318a7c062f51971874e50dbf1786a07c396cc048a589a",
+      "mode": "0444"
+    },
+    {
+      "path": "inputs/artifact-inputs.json",
+      "sha256": "a38fffdc2cb7af0385b32e3a5ae9220849395eb9733c0c88cce69bd9fde90da2",
+      "mode": "0444"
+    },
+    {
+      "path": "inputs/endpoint.json",
+      "sha256": "eccc14fcbe9b173a61594c42e7e2e3c2253cdb8d77b8dc2dd13194d4a9e7609b",
+      "mode": "0444"
+    },
+    {
+      "path": "inputs/node-input-manifest.json",
+      "sha256": "e799a24c1d9b11b655c7b503b11e4f2763df71b695cef09b0d9cebd855d62579",
+      "mode": "0444"
+    },
+    {
+      "path": "inputs/resume-readiness.json",
+      "sha256": "2a7193d5b51e911304615e2f85f12a496737568f73eda010a9ce1155b7769d08",
+      "mode": "0444"
+    },
+    {
+      "path": "inputs/source-manifest.json",
+      "sha256": "400d0e34891a420b61fd8acdf242028bd918d6a04ef4cb7bb123d41f169560af",
+      "mode": "0444"
+    }
+  ],
+  "mechanicsChanges": "Only preparation path and bundle hash bindings relative to prior prefix activation supervision",
+  "sourceCommit": "0fdcc846bc7451bbcb1804194b49737418954506",
+  "invocationsAuthorized": 1,
+  "tokenAcquisition": false
+}

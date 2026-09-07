@@ -1,0 +1,22 @@
+{
+  "phase": "complete",
+  "outcome": "PUBLISHED_EXACT_014_PAIR_AND_FRESH_REGISTRY_VERIFICATION_PASSED",
+  "writerReleased": true,
+  "sourceCommit": "0fdcc846bc7451bbcb1804194b49737418954506",
+  "bundleSha256": "87440737b078174fb50565f8638d40bd6c1cbc1821d086710d95220b48dc2f58",
+  "activationCount": 1,
+  "publisherExitCode": 0,
+  "publisherSeconds": 39.319363209,
+  "activationExitCode": 1,
+  "initialFailure": "post-publisher E404; historical publicationUnknown retained",
+  "laterBothRegistrySRIAndLatestConfirmed": true,
+  "installedVerificationExitCode": 0,
+  "installedVerificationSeconds": 14.570708417,
+  "packedFileCount": 154,
+  "ownedCleanupVerified": true,
+  "metricRetainedExternally": true,
+  "sourceChanged": false,
+  "mainPush": false,
+  "cliTerminal": "Not predeclared; parent records actual terminal after return",
+  "epoch": 1788761724.142595
+}

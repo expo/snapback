@@ -1,0 +1,9 @@
+{
+  "base": "/Users/ccheever/clique-improvement/revisions/release-publication-014/verify-registry-expo.py",
+  "baseSha256": "88a9336e07b63af402c8de3df18e7aed5fa1e8c62faa4f365da013df8a61336d",
+  "derivedSha256": "f99b02f015cc22522561e48b51d0cfb2d48724e0be12503b9976eeac060d1fec",
+  "diff": "verify-registry-expo.diff",
+  "changes": "Current actual publisher and confirmed registry prerequisites; new evidence-relative paths; explicit token-free isolated env and pinned Node/npm; process identity uses executable instead of full argv. All 154-file, Expo, guide, backend/cache/package checks unchanged. All commands 30s/fetch15000/retries0; prior outer300s preserved.",
+  "hostAlias": "Office",
+  "standardProductionConsumersHostAlias": "Apartment"
+}

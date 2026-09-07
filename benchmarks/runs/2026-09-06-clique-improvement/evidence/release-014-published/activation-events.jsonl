@@ -1,0 +1,172 @@
+{"phase":"cleanup","status":"observed","epoch":1788761120.570456,"pid":20990,"ppid":20985,"pgid":20990,"started":1788761120.0,"executable":"ssh"}
+{"phase":"transport","status":"started","epoch":1788761120.570961,"pid":20990}
+{"phase":"custody","status":"started","epoch":1788761121.42819,"pid":87958}
+{"phase":"custody","status":"started","epoch":1788761121.431162,"pid":87959}
+{"phase":"custody","status":"pass","epoch":1788761121.4342139,"pid":87959,"exitCode":0,"seconds":0.005588375}
+{"phase":"custody","status":"started","epoch":1788761122.527717,"pid":87963}
+{"phase":"cleanup","status":"observed","epoch":1788761122.5351481,"pid":87963,"ppid":87958,"pgid":87963,"started":1788761122.0,"executable":"node"}
+{"phase":"custody","status":"heartbeat","epoch":1788761122.5949,"pid":87963,"seconds":0.010178291999999978}
+{"phase":"custody","status":"pass","epoch":1788761122.595055,"pid":87963,"exitCode":0,"seconds":0.070014209}
+{"phase":"ready","status":"ready","epoch":1788761122.6254551,"pid":87958,"load":[5.19921875,5.6337890625,5.33154296875]}
+{"phase":"cleanup","status":"observed","epoch":1788761122.751849,"pid":21013,"ppid":20985,"pgid":21013,"started":1788761122.0,"executable":"node"}
+{"phase":"acquisition","status":"started","epoch":1788761122.7521439,"pid":21013}
+{"phase":"acquisition","status":"sent","epoch":1788761123.116826,"source":"user"}
+{"phase":"acquisition","status":"sent","epoch":1788761123.345063,"source":"user"}
+{"phase":"auth","status":"started","epoch":1788761123.367255,"pid":87971}
+{"phase":"cleanup","status":"observed","epoch":1788761123.378579,"pid":87971,"ppid":87958,"pgid":87971,"started":1788761123.0,"executable":"node"}
+{"phase":"auth","status":"heartbeat","epoch":1788761123.5742831,"pid":87971,"seconds":0.2274172080000001}
+{"phase":"auth","status":"pass","epoch":1788761124.213593,"pid":87971,"exitCode":0,"seconds":0.866722875}
+{"phase":"auth","status":"observed","epoch":1788761124.214417,"stdoutUtf8Valid":true,"stdoutJsonValid":true,"stdoutJsonString":true,"expectedIdentity":true,"ownerRowsValid":false,"stderrPresent":false,"npmUpdateNoticeOnly":false,"npmWarningPresent":false,"nodeWarningPresent":false,"unexpectedStderr":false}
+{"phase":"auth","status":"pass","epoch":1788761124.214459}
+{"phase":"auth","status":"started","epoch":1788761124.216932,"pid":87986}
+{"phase":"cleanup","status":"observed","epoch":1788761124.220938,"pid":87986,"ppid":87958,"pgid":87986,"started":1788761124.0,"executable":"node"}
+{"phase":"auth","status":"pass","epoch":1788761124.577125,"pid":87986,"exitCode":0,"seconds":0.3626282500000002}
+{"phase":"auth","status":"observed","epoch":1788761124.577535,"stdoutUtf8Valid":true,"stdoutJsonValid":false,"stdoutJsonString":false,"expectedIdentity":true,"ownerRowsValid":true,"stderrPresent":false,"npmUpdateNoticeOnly":false,"npmWarningPresent":false,"nodeWarningPresent":false,"unexpectedStderr":false}
+{"phase":"auth","status":"pass","epoch":1788761124.577572,"package":"snapback2"}
+{"phase":"auth","status":"started","epoch":1788761124.5797381,"pid":88003}
+{"phase":"cleanup","status":"observed","epoch":1788761124.583128,"pid":88003,"ppid":87958,"pgid":88003,"started":1788761124.0,"executable":"node"}
+{"phase":"auth","status":"heartbeat","epoch":1788761124.583224,"pid":88003,"seconds":0.005628749999999627}
+{"phase":"auth","status":"pass","epoch":1788761125.252515,"pid":88003,"exitCode":0,"seconds":0.6748965}
+{"phase":"auth","status":"observed","epoch":1788761125.25283,"stdoutUtf8Valid":true,"stdoutJsonValid":false,"stdoutJsonString":false,"expectedIdentity":true,"ownerRowsValid":true,"stderrPresent":false,"npmUpdateNoticeOnly":false,"npmWarningPresent":false,"nodeWarningPresent":false,"unexpectedStderr":false}
+{"phase":"auth","status":"pass","epoch":1788761125.252865,"package":"snapback2-darwin-arm64"}
+{"phase":"custody","status":"pass","epoch":1788761126.306308}
+{"phase":"publisher","status":"started","epoch":1788761126.3094232,"pid":88017}
+{"phase":"cleanup","status":"observed","epoch":1788761126.313546,"pid":88017,"ppid":87958,"pgid":88017,"started":1788761126.0,"executable":"node"}
+{"phase":"cleanup","status":"observed","epoch":1788761126.4182458,"pid":88029,"ppid":88017,"pgid":88017,"started":1788761126.0,"executable":"snapback2-media"}
+{"phase":"publisher","status":"heartbeat","epoch":1788761126.444004,"pid":88017,"seconds":0.0072666670000005595}
+{"phase":"publisher","status":"heartbeat","epoch":1788761127.350415,"pid":88017,"seconds":1.0439859590000005}
+{"phase":"cleanup","status":"observed","epoch":1788761127.550106,"pid":88054,"ppid":88017,"pgid":88054,"started":1788761126.0,"executable":"other"}
+{"phase":"publisher","status":"heartbeat","epoch":1788761128.4124439,"pid":88017,"seconds":2.1058981670000003}
+{"phase":"publisher","status":"heartbeat","epoch":1788761129.493653,"pid":88017,"seconds":3.1871847090000003}
+{"phase":"publisher","status":"heartbeat","epoch":1788761130.588436,"pid":88017,"seconds":4.281861959}
+{"phase":"publisher","status":"heartbeat","epoch":1788761131.650501,"pid":88017,"seconds":5.343868042}
+{"phase":"publisher","status":"heartbeat","epoch":1788761132.718085,"pid":88017,"seconds":6.411566500000001}
+{"phase":"publisher","status":"heartbeat","epoch":1788761133.756062,"pid":88017,"seconds":7.449493709}
+{"phase":"publisher","status":"heartbeat","epoch":1788761134.834381,"pid":88017,"seconds":8.527823667}
+{"phase":"publisher","status":"heartbeat","epoch":1788761135.87831,"pid":88017,"seconds":9.571658917}
+{"phase":"publisher","status":"heartbeat","epoch":1788761136.9571211,"pid":88017,"seconds":10.650452167000001}
+{"phase":"cleanup","status":"observed","epoch":1788761137.224267,"pid":88325,"ppid":88017,"pgid":88325,"started":1788761137.0,"executable":"node"}
+{"phase":"cleanup","status":"observed","epoch":1788761137.2559621,"pid":88327,"ppid":88325,"pgid":88325,"started":1788761137.0,"executable":"snapback2"}
+{"phase":"cleanup","status":"observed","epoch":1788761137.6998222,"pid":88348,"ppid":88017,"pgid":88348,"started":1788761137.0,"executable":"node"}
+{"phase":"publisher","status":"heartbeat","epoch":1788761138.033171,"pid":88017,"seconds":11.726563792}
+{"phase":"cleanup","status":"observed","epoch":1788761138.232544,"pid":88355,"ppid":88017,"pgid":88355,"started":1788761137.0,"executable":"node"}
+{"phase":"cleanup","status":"observed","epoch":1788761138.265167,"pid":88356,"ppid":88355,"pgid":88355,"started":1788761137.0,"executable":"snapback2"}
+{"phase":"cleanup","status":"observed","epoch":1788761138.298221,"pid":88357,"ppid":88356,"pgid":88357,"started":1788761137.0,"executable":"node"}
+{"phase":"cleanup","status":"observed","epoch":1788761138.83524,"pid":88379,"ppid":88017,"pgid":88379,"started":1788761138.0,"executable":"node"}
+{"phase":"cleanup","status":"observed","epoch":1788761138.8669262,"pid":88380,"ppid":88379,"pgid":88379,"started":1788761138.0,"executable":"snapback2"}
+{"phase":"cleanup","status":"observed","epoch":1788761138.899295,"pid":88381,"ppid":88380,"pgid":88381,"started":1788761138.0,"executable":"node"}
+{"phase":"publisher","status":"heartbeat","epoch":1788761139.131354,"pid":88017,"seconds":12.824725749999999}
+{"phase":"cleanup","status":"observed","epoch":1788761139.439678,"pid":88404,"ppid":88017,"pgid":88404,"started":1788761139.0,"executable":"node"}
+{"phase":"cleanup","status":"observed","epoch":1788761139.986779,"pid":88428,"ppid":88404,"pgid":88404,"started":1788761139.0,"executable":"other"}
+{"phase":"publisher","status":"heartbeat","epoch":1788761140.147746,"pid":88017,"seconds":13.841100042}
+{"phase":"cleanup","status":"observed","epoch":1788761141.164374,"pid":88480,"ppid":88017,"pgid":88480,"started":1788761140.0,"executable":"node"}
+{"phase":"publisher","status":"heartbeat","epoch":1788761141.294229,"pid":88017,"seconds":14.987563375}
+{"phase":"cleanup","status":"observed","epoch":1788761141.687501,"pid":88482,"ppid":1,"pgid":88482,"started":1788761140.0,"executable":"snapback2"}
+{"phase":"cleanup","status":"observed","epoch":1788761141.687619,"pid":88482,"port":55806}
+{"phase":"cleanup","status":"observed","epoch":1788761141.722636,"pid":88483,"ppid":88482,"pgid":88483,"started":1788761140.0,"executable":"node"}
+{"phase":"cleanup","status":"observed","epoch":1788761141.787141,"pid":88508,"ppid":88017,"pgid":88508,"started":1788761141.0,"executable":"node"}
+{"phase":"cleanup","status":"observed","epoch":1788761141.82145,"pid":88511,"ppid":88508,"pgid":88508,"started":1788761141.0,"executable":"snapback2"}
+{"phase":"cleanup","status":"observed","epoch":1788761141.853784,"pid":88538,"ppid":88511,"pgid":88508,"started":1788761141.0,"executable":"snapback2"}
+{"phase":"cleanup","status":"observed","epoch":1788761141.8846369,"pid":88540,"ppid":88538,"pgid":88540,"started":1788761141.0,"executable":"node"}
+{"phase":"cleanup","status":"observed","epoch":1788761142.214217,"pid":88482,"port":55806}
+{"phase":"publisher","status":"heartbeat","epoch":1788761142.527956,"pid":88017,"seconds":16.221269625}
+{"phase":"cleanup","status":"observed","epoch":1788761142.731808,"pid":88482,"port":55806}
+{"phase":"cleanup","status":"observed","epoch":1788761142.837523,"pid":88625,"ppid":88017,"pgid":88625,"started":1788761142.0,"executable":"node"}
+{"phase":"cleanup","status":"observed","epoch":1788761142.866631,"pid":88628,"ppid":88625,"pgid":88625,"started":1788761142.0,"executable":"snapback2"}
+{"phase":"cleanup","status":"observed","epoch":1788761143.340656,"pid":88639,"ppid":88017,"pgid":88639,"started":1788761142.0,"executable":"node"}
+{"phase":"cleanup","status":"observed","epoch":1788761143.37279,"pid":88640,"ppid":88639,"pgid":88639,"started":1788761142.0,"executable":"snapback2"}
+{"phase":"cleanup","status":"observed","epoch":1788761143.404394,"pid":88641,"ppid":88640,"pgid":88641,"started":1788761142.0,"executable":"node"}
+{"phase":"publisher","status":"heartbeat","epoch":1788761143.533789,"pid":88017,"seconds":17.227083334}
+{"phase":"cleanup","status":"observed","epoch":1788761144.446072,"pid":88719,"ppid":88017,"pgid":88719,"started":1788761143.0,"executable":"node"}
+{"phase":"cleanup","status":"observed","epoch":1788761144.4772348,"pid":88720,"ppid":88719,"pgid":88719,"started":1788761144.0,"executable":"snapback2"}
+{"phase":"cleanup","status":"observed","epoch":1788761144.509166,"pid":88721,"ppid":88720,"pgid":88721,"started":1788761144.0,"executable":"node"}
+{"phase":"publisher","status":"heartbeat","epoch":1788761144.638932,"pid":88017,"seconds":18.3322055}
+{"phase":"cleanup","status":"observed","epoch":1788761145.075828,"pid":88803,"ppid":88017,"pgid":88803,"started":1788761145.0,"executable":"node"}
+{"phase":"cleanup","status":"observed","epoch":1788761145.576461,"pid":88809,"ppid":88803,"pgid":88803,"started":1788761145.0,"executable":"other"}
+{"phase":"publisher","status":"heartbeat","epoch":1788761145.738741,"pid":88017,"seconds":19.431996875}
+{"phase":"cleanup","status":"observed","epoch":1788761146.099149,"pid":88853,"ppid":88017,"pgid":88853,"started":1788761145.0,"executable":"node"}
+{"phase":"cleanup","status":"observed","epoch":1788761146.13114,"pid":88854,"ppid":88853,"pgid":88853,"started":1788761145.0,"executable":"snapback2"}
+{"phase":"cleanup","status":"observed","epoch":1788761146.162802,"pid":88855,"ppid":88854,"pgid":88855,"started":1788761145.0,"executable":"snapback2"}
+{"phase":"cleanup","status":"observed","epoch":1788761146.1961558,"pid":88856,"ppid":88855,"pgid":88856,"started":1788761145.0,"executable":"node"}
+{"phase":"cleanup","status":"observed","epoch":1788761146.7249181,"pid":88906,"ppid":88855,"pgid":88906,"started":1788761146.0,"executable":"snapback2-media"}
+{"phase":"publisher","status":"heartbeat","epoch":1788761146.946322,"pid":88017,"seconds":20.6395645}
+{"phase":"cleanup","status":"observed","epoch":1788761147.191689,"pid":88855,"port":55848}
+{"phase":"cleanup","status":"observed","epoch":1788761147.288474,"pid":88959,"ppid":88017,"pgid":88959,"started":1788761146.0,"executable":"node"}
+{"phase":"cleanup","status":"observed","epoch":1788761147.3219662,"pid":88960,"ppid":88959,"pgid":88959,"started":1788761146.0,"executable":"snapback2"}
+{"phase":"cleanup","status":"observed","epoch":1788761147.358016,"pid":88961,"ppid":88960,"pgid":88961,"started":1788761146.0,"executable":"node"}
+{"phase":"cleanup","status":"observed","epoch":1788761147.7417269,"pid":88855,"port":55848}
+{"phase":"cleanup","status":"observed","epoch":1788761147.838586,"pid":89018,"ppid":88960,"pgid":88959,"started":1788761147.0,"executable":"snapback2"}
+{"phase":"cleanup","status":"observed","epoch":1788761147.869316,"pid":89019,"ppid":89018,"pgid":89019,"started":1788761147.0,"executable":"node"}
+{"phase":"publisher","status":"heartbeat","epoch":1788761148.0610912,"pid":88017,"seconds":21.754312292}
+{"phase":"cleanup","status":"observed","epoch":1788761148.3197079,"pid":88855,"port":55848}
+{"phase":"cleanup","status":"observed","epoch":1788761148.881241,"pid":88855,"port":55848}
+{"phase":"publisher","status":"heartbeat","epoch":1788761149.19646,"pid":88017,"seconds":22.889662625}
+{"phase":"cleanup","status":"observed","epoch":1788761149.448728,"pid":88855,"port":55848}
+{"phase":"cleanup","status":"observed","epoch":1788761150.02081,"pid":88855,"port":55848}
+{"phase":"publisher","status":"heartbeat","epoch":1788761150.33742,"pid":88017,"seconds":24.030599709}
+{"phase":"cleanup","status":"observed","epoch":1788761150.599821,"pid":88855,"port":55848}
+{"phase":"cleanup","status":"observed","epoch":1788761151.1734169,"pid":88855,"port":55848}
+{"phase":"publisher","status":"heartbeat","epoch":1788761151.484,"pid":88017,"seconds":25.17716875}
+{"phase":"cleanup","status":"observed","epoch":1788761151.7683818,"pid":88855,"port":55848}
+{"phase":"cleanup","status":"observed","epoch":1788761152.336637,"pid":88855,"port":55848}
+{"phase":"publisher","status":"heartbeat","epoch":1788761152.64802,"pid":88017,"seconds":26.341170209}
+{"phase":"cleanup","status":"observed","epoch":1788761152.896661,"pid":88855,"port":55848}
+{"phase":"cleanup","status":"observed","epoch":1788761153.4844182,"pid":88855,"port":55848}
+{"phase":"publisher","status":"heartbeat","epoch":1788761153.797102,"pid":88017,"seconds":27.4902225}
+{"phase":"cleanup","status":"observed","epoch":1788761154.050195,"pid":88855,"port":55848}
+{"phase":"cleanup","status":"observed","epoch":1788761154.6349409,"pid":88855,"port":55848}
+{"phase":"cleanup","status":"observed","epoch":1788761154.794422,"pid":89838,"ppid":88960,"pgid":89838,"started":1788761154.0,"executable":"node"}
+{"phase":"cleanup","status":"observed","epoch":1788761155.154326,"pid":88855,"port":55848}
+{"phase":"cleanup","status":"observed","epoch":1788761155.3152618,"pid":89906,"ppid":88960,"pgid":89906,"started":1788761155.0,"executable":"node"}
+{"phase":"publisher","status":"heartbeat","epoch":1788761155.4045298,"pid":88017,"seconds":28.678987167000003}
+{"phase":"cleanup","status":"observed","epoch":1788761155.6760058,"pid":88855,"port":55848}
+{"phase":"publisher","status":"heartbeat","epoch":1788761155.9949172,"pid":88017,"seconds":29.687998999999998}
+{"phase":"cleanup","status":"observed","epoch":1788761156.2647738,"pid":88855,"port":55848}
+{"phase":"cleanup","status":"observed","epoch":1788761156.424,"pid":90039,"ppid":88960,"pgid":90039,"started":1788761156.0,"executable":"node"}
+{"phase":"cleanup","status":"observed","epoch":1788761156.783086,"pid":88855,"port":55848}
+{"phase":"cleanup","status":"observed","epoch":1788761156.9190269,"pid":90108,"ppid":88017,"pgid":90108,"started":1788761156.0,"executable":"node"}
+{"phase":"cleanup","status":"observed","epoch":1788761156.94867,"pid":90114,"ppid":90108,"pgid":90108,"started":1788761156.0,"executable":"snapback2"}
+{"phase":"publisher","status":"heartbeat","epoch":1788761157.0771232,"pid":88017,"seconds":30.770193749999997}
+{"phase":"cleanup","status":"observed","epoch":1788761157.351561,"pid":90120,"ppid":88017,"pgid":88017,"started":1788761157.0,"executable":"other"}
+{"phase":"cleanup","status":"observed","epoch":1788761157.885679,"pid":90175,"ppid":88017,"pgid":88017,"started":1788761157.0,"executable":"other"}
+{"phase":"publisher","status":"heartbeat","epoch":1788761158.090801,"pid":88017,"seconds":31.783847834}
+{"phase":"publisher","status":"heartbeat","epoch":1788761159.1657119,"pid":88017,"seconds":32.858646625}
+{"phase":"publisher","status":"heartbeat","epoch":1788761160.266003,"pid":88017,"seconds":33.958945209}
+{"phase":"publisher","status":"heartbeat","epoch":1788761161.2795022,"pid":88017,"seconds":34.972489667}
+{"phase":"cleanup","status":"observed","epoch":1788761162.2590668,"pid":90669,"ppid":88017,"pgid":88017,"started":1788761162.0,"executable":"other"}
+{"phase":"publisher","status":"heartbeat","epoch":1788761162.289192,"pid":88017,"seconds":35.982181125000004}
+{"phase":"cleanup","status":"observed","epoch":1788761162.8213649,"pid":90728,"ppid":88017,"pgid":88017,"started":1788761162.0,"executable":"other"}
+{"phase":"publisher","status":"heartbeat","epoch":1788761163.341881,"pid":88017,"seconds":37.034849625}
+{"phase":"publisher","status":"heartbeat","epoch":1788761164.5465071,"pid":88017,"seconds":38.239449167000004}
+{"phase":"publisher","status":"heartbeat","epoch":1788761165.6175091,"pid":88017,"seconds":39.310423}
+{"phase":"publisher","status":"pass","epoch":1788761165.626428,"pid":88017,"exitCode":0,"seconds":39.319363209}
+{"phase":"publisher","status":"observed","epoch":1788761165.626683,"step":"install tarballs","seconds":10.242699125,"ok":true}
+{"phase":"publisher","status":"observed","epoch":1788761165.626719,"step":"doctor","seconds":0.48317462500000147,"ok":true}
+{"phase":"publisher","status":"observed","epoch":1788761165.6267378,"step":"guide auth","seconds":0.04001758300000074,"ok":true}
+{"phase":"publisher","status":"observed","epoch":1788761165.6267588,"step":"public client and React exports","seconds":0.0449011249999985,"ok":true}
+{"phase":"publisher","status":"observed","epoch":1788761165.626776,"step":"todos init","seconds":0.6764147089999988,"ok":true}
+{"phase":"publisher","status":"observed","epoch":1788761165.626792,"step":"todos check","seconds":0.6775484159999996,"ok":true}
+{"phase":"publisher","status":"observed","epoch":1788761165.6268091,"step":"todos React bundle","seconds":1.6289183749999994,"ok":true}
+{"phase":"publisher","status":"observed","epoch":1788761165.6268249,"step":"todos dev","seconds":0.45379058299999997,"ok":true}
+{"phase":"publisher","status":"observed","epoch":1788761165.62684,"step":"React live query round trip","seconds":0.1388563750000012,"ok":true}
+{"phase":"publisher","status":"observed","epoch":1788761165.6268532,"step":"todos receipt","accepted":true,"verdict":"pass"}
+{"phase":"publisher","status":"observed","epoch":1788761165.626869,"step":"todos test","seconds":1.4286373750000003,"ok":true}
+{"phase":"publisher","status":"observed","epoch":1788761165.626883,"step":"todos stop","seconds":0.18050804200000128,"ok":true}
+{"phase":"publisher","status":"observed","epoch":1788761165.6268978,"step":"chat init","seconds":1.0451671249999999,"ok":true}
+{"phase":"publisher","status":"observed","epoch":1788761165.626912,"step":"chat check","seconds":1.0588302919999988,"ok":true}
+{"phase":"publisher","status":"observed","epoch":1788761165.6269262,"step":"chat React bundle","seconds":0.8092074170000014,"ok":true}
+{"phase":"publisher","status":"observed","epoch":1788761165.62694,"step":"chat dev","seconds":1.0330888749999976,"ok":true}
+{"phase":"publisher","status":"observed","epoch":1788761165.626953,"step":"chat receipt","accepted":true,"verdict":"pass"}
+{"phase":"publisher","status":"observed","epoch":1788761165.6269681,"step":"chat test","seconds":9.990314958000003,"ok":true}
+{"phase":"publisher","status":"observed","epoch":1788761165.626983,"step":"chat stop","seconds":0.2109385000000002,"ok":true}
+{"phase":"publisher","status":"complete","epoch":1788761165.627053,"exitCode":0,"publicationUnknown":false}
+{"phase":"publisher","status":"started","epoch":1788761165.629622,"pid":91071}
+{"phase":"cleanup","status":"observed","epoch":1788761165.633706,"pid":91071,"ppid":87958,"pgid":91071,"started":1788761165.0,"executable":"node"}
+{"phase":"publisher","status":"fail","epoch":1788761166.046656,"pid":91071,"exitCode":1,"seconds":0.4195684999999969}
+{"phase":"publisher","status":"unknown","epoch":1788761166.0469959,"package":"snapback2-darwin-arm64","registryState":"absent","code":"E404","publicationUnknown":true}
+{"phase":"terminal","status":"fail","epoch":1788761166.0470421,"code":"E404","publicationUnknown":true}
+{"phase":"cleanup","status":"complete","epoch":1788761166.3438249,"clean":true}
+{"phase":"terminal","status":"fail","epoch":1788761166.433559,"exitCode":1,"clean":true,"publicationUnknown":true}
+{"phase":"transport","status":"unknown","epoch":1788761166.5722828,"code":"TRANSPORT_UNKNOWN","publicationUnknown":true}
+{"phase":"cleanup","status":"complete","epoch":1788761166.602634,"clean":true}
+{"phase":"transport","status":"unknown","epoch":1788761166.6030369,"clean":true,"publicationUnknown":true}

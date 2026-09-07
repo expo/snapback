@@ -1,0 +1,410 @@
+{
+  "version": "0.0.14",
+  "source": "0fdcc846bc7451bbcb1804194b49737418954506",
+  "ok": true,
+  "scope": "fresh exact-version registry install compared with original qualified tarballs; untouched chat Expo init/check/guide; no native device execution",
+  "consumer_directory": "/Users/ccheever/clique-improvement/revisions/release-apartment-014-auth-output-activation-supervision/registry-installed-consumer",
+  "checks": [
+    {
+      "name": "registry-package-install",
+      "argv": [
+        "/Users/ccheever/.volta/tools/image/node/22.23.2/bin/node",
+        "/Users/ccheever/.volta/tools/image/node/22.23.2/lib/node_modules/npm/bin/npm-cli.js",
+        "install",
+        "--ignore-scripts",
+        "--no-audit",
+        "--no-fund",
+        "--legacy-peer-deps",
+        "--prefer-offline",
+        "--fetch-retries=0",
+        "--fetch-timeout=15000",
+        "snapback2-darwin-arm64@0.0.14",
+        "snapback2@0.0.14"
+      ],
+      "cwd": "/Users/ccheever/clique-improvement/revisions/release-apartment-014-auth-output-activation-supervision/registry-installed-consumer",
+      "timeout_seconds": 30,
+      "started_epoch": 1788761441.58494,
+      "pid": 22851,
+      "process_identity": "22851 Sun Sep  6 23:10:41 2026     /Users/ccheever/.volta/tools/image/node/22.23.2/bin/node",
+      "exit_code": 0,
+      "elapsed_seconds": 2.7236487499999997,
+      "log_sha256": "3f1512517b80af99782784702b6b20965d3108fa393c4cefa8f44db35a4ee4b9"
+    },
+    {
+      "name": "snapback2-darwin-arm64 all packed file equality",
+      "ok": true,
+      "files": 3
+    },
+    {
+      "name": "snapback2 all packed file equality",
+      "ok": true,
+      "files": 151
+    },
+    {
+      "name": "installed-guide-assets",
+      "argv": [
+        "node",
+        "/Users/ccheever/clique-improvement/revisions/release-apartment-014-auth-output-activation-supervision/registry-installed-consumer/node_modules/snapback2/bin/snapback2.mjs",
+        "guide",
+        "assets",
+        "--json"
+      ],
+      "cwd": "/Users/ccheever/clique-improvement/revisions/release-apartment-014-auth-output-activation-supervision/registry-installed-consumer",
+      "timeout_seconds": 30,
+      "started_epoch": 1788761444.5637429,
+      "pid": 22877,
+      "process_identity": "22877 Sun Sep  6 23:10:44 2026     node",
+      "exit_code": 0,
+      "elapsed_seconds": 0.850956042,
+      "log_sha256": "dee46a64a6aeb84edcd2bb2bf1dd6f0f470d7911a926e79a4bc62721f8c93371"
+    },
+    {
+      "name": "expo-installed-version",
+      "argv": [
+        "node",
+        "/Users/ccheever/clique-improvement/revisions/release-apartment-014-auth-output-activation-supervision/registry-installed-consumer/node_modules/snapback2/bin/snapback2.mjs",
+        "version"
+      ],
+      "cwd": "/Users/ccheever/clique-improvement/revisions/release-apartment-014-auth-output-activation-supervision/registry-installed-consumer",
+      "timeout_seconds": 30,
+      "started_epoch": 1788761445.422816,
+      "pid": 22881,
+      "process_identity": "22881 Sun Sep  6 23:10:45 2026     node",
+      "exit_code": 0,
+      "elapsed_seconds": 0.16097283299999976,
+      "log_sha256": "a1bd5a30c8d582f88d2cdb769515c235d634b9822d6be0f1fa53d55c26e58f46"
+    },
+    {
+      "name": "expo-installed-doctor",
+      "argv": [
+        "node",
+        "/Users/ccheever/clique-improvement/revisions/release-apartment-014-auth-output-activation-supervision/registry-installed-consumer/node_modules/snapback2/bin/snapback2.mjs",
+        "doctor",
+        "--json"
+      ],
+      "cwd": "/Users/ccheever/clique-improvement/revisions/release-apartment-014-auth-output-activation-supervision/registry-installed-consumer",
+      "timeout_seconds": 30,
+      "started_epoch": 1788761445.585175,
+      "pid": 22884,
+      "process_identity": "22884 Sun Sep  6 23:10:45 2026     node",
+      "exit_code": 0,
+      "elapsed_seconds": 0.2221427500000006,
+      "log_sha256": "a9cca99e9c9feb62fe3e64f9be94ad7f0c3f837b0fa9aa30b818a0c21f524b65"
+    },
+    {
+      "name": "expo-installed-media",
+      "argv": [
+        "/Users/ccheever/clique-improvement/revisions/release-apartment-014-auth-output-activation-supervision/registry-installed-consumer/node_modules/snapback2-darwin-arm64/bin/snapback2-media",
+        "capabilities"
+      ],
+      "cwd": "/Users/ccheever/clique-improvement/revisions/release-apartment-014-auth-output-activation-supervision/registry-installed-consumer",
+      "timeout_seconds": 30,
+      "started_epoch": 1788761445.8086321,
+      "pid": 22888,
+      "process_identity": "22888 Sun Sep  6 23:10:45 2026     /Users/ccheever/clique-improvement/revisions/release-apartment-014-auth-output-activation-supervision/registry-installed-consumer/node_modules/snapback2-darwin-arm64/bin/snapback2-media",
+      "exit_code": 0,
+      "elapsed_seconds": 0.49165958400000065,
+      "log_sha256": "a3145da94d0da5767e824df99dce5294b9f13dfe6b280dc3d16fb0aa9307d0cb"
+    },
+    {
+      "name": "expo-installed-init",
+      "argv": [
+        "node",
+        "/Users/ccheever/clique-improvement/revisions/release-apartment-014-auth-output-activation-supervision/registry-installed-consumer/node_modules/snapback2/bin/snapback2.mjs",
+        "init",
+        "/Users/ccheever/clique-improvement/revisions/release-apartment-014-auth-output-activation-supervision/registry-installed-consumer/chat-expo",
+        "--template",
+        "chat",
+        "--client",
+        "expo",
+        "--json"
+      ],
+      "cwd": "/Users/ccheever/clique-improvement/revisions/release-apartment-014-auth-output-activation-supervision/registry-installed-consumer",
+      "timeout_seconds": 30,
+      "started_epoch": 1788761446.301227,
+      "pid": 22891,
+      "process_identity": "22891 Sun Sep  6 23:10:46 2026     node",
+      "exit_code": 0,
+      "elapsed_seconds": 3.5873690840000005,
+      "log_sha256": "0ba9b06fa9e41c503aedcbb3ab98691f1c0274dcb9837b6c0e7adcf12fd1e3e7"
+    },
+    {
+      "name": "expo-installed-guide-before-check",
+      "argv": [
+        "node",
+        "/Users/ccheever/clique-improvement/revisions/release-apartment-014-auth-output-activation-supervision/registry-installed-consumer/node_modules/snapback2/bin/snapback2.mjs",
+        "guide",
+        "app",
+        "--project",
+        "/Users/ccheever/clique-improvement/revisions/release-apartment-014-auth-output-activation-supervision/registry-installed-consumer/chat-expo",
+        "--json"
+      ],
+      "cwd": "/Users/ccheever/clique-improvement/revisions/release-apartment-014-auth-output-activation-supervision/registry-installed-consumer",
+      "timeout_seconds": 30,
+      "started_epoch": 1788761449.9194,
+      "pid": 22898,
+      "process_identity": "22898 Sun Sep  6 23:10:49 2026     node",
+      "exit_code": 0,
+      "elapsed_seconds": 1.0668664999999997,
+      "log_sha256": "a6cfdb8e3879b0bbe40a1309ce8ece929066e662f080c1691c7f91f5b069fed8"
+    },
+    {
+      "name": "expo-installed-check",
+      "argv": [
+        "node",
+        "/Users/ccheever/clique-improvement/revisions/release-apartment-014-auth-output-activation-supervision/registry-installed-consumer/node_modules/snapback2/bin/snapback2.mjs",
+        "check",
+        "--project",
+        "/Users/ccheever/clique-improvement/revisions/release-apartment-014-auth-output-activation-supervision/registry-installed-consumer/chat-expo",
+        "--json"
+      ],
+      "cwd": "/Users/ccheever/clique-improvement/revisions/release-apartment-014-auth-output-activation-supervision/registry-installed-consumer",
+      "timeout_seconds": 30,
+      "started_epoch": 1788761450.9962308,
+      "pid": 22903,
+      "process_identity": "22903 Sun Sep  6 23:10:50 2026     node",
+      "exit_code": 0,
+      "elapsed_seconds": 3.6721005840000007,
+      "log_sha256": "670bd033444cda6f145c9b8bfbcd4eac3a09318d1126f076fbdbd188643b7892"
+    },
+    {
+      "name": "expo-installed-guide-after-check",
+      "argv": [
+        "node",
+        "/Users/ccheever/clique-improvement/revisions/release-apartment-014-auth-output-activation-supervision/registry-installed-consumer/node_modules/snapback2/bin/snapback2.mjs",
+        "guide",
+        "app",
+        "--project",
+        "/Users/ccheever/clique-improvement/revisions/release-apartment-014-auth-output-activation-supervision/registry-installed-consumer/chat-expo",
+        "--json"
+      ],
+      "cwd": "/Users/ccheever/clique-improvement/revisions/release-apartment-014-auth-output-activation-supervision/registry-installed-consumer",
+      "timeout_seconds": 30,
+      "started_epoch": 1788761454.677747,
+      "pid": 22917,
+      "process_identity": "22917 Sun Sep  6 23:10:54 2026     node",
+      "exit_code": 0,
+      "elapsed_seconds": 1.0262114580000006,
+      "log_sha256": "a6cfdb8e3879b0bbe40a1309ce8ece929066e662f080c1691c7f91f5b069fed8"
+    }
+  ],
+  "started_epoch": 1788761441.422567,
+  "tarballs": [
+    {
+      "package": "snapback2-darwin-arm64",
+      "path": "/Users/ccheever/projects/snapback-artifacts/clique-release/0.0.14-0fdcc846b-attempt02/snapback2-darwin-arm64-0.0.14.tgz",
+      "sha256": "92cc8ce2d95c55cb582c1af17da4aaf95f5c82331cc68cf199d4e34dc954c7fb",
+      "bytes": 4821150,
+      "integrity": "sha512-2UVxYTgIQJnGV+8V3gV3yQUTJ6yiftqinl5aeYW6elODy96c7yn7Lm2eq80HZqUhDIBjFjEBFWvd5R2Agfxz6w=="
+    },
+    {
+      "package": "snapback2",
+      "path": "/Users/ccheever/projects/snapback-artifacts/clique-release/0.0.14-0fdcc846b-attempt02/snapback2-0.0.14.tgz",
+      "sha256": "4b699eaa4c4a28cb5a508316d14f721bcb6004d65cc6f3888acebb1d15c9867e",
+      "bytes": 1797207,
+      "integrity": "sha512-dPm5mFSUA/DyWvICY6KwHIFCV6XppCogvYRZ3tX8BWV8h1QKIpQ/gPXRNDniRg0SJ4KyZfV1CKuBm2c/CdhX2w=="
+    }
+  ],
+  "guide_fixes": {
+    "README_sha256": "15402a2ce46e37551f93257102a32d37fee7a811fd2d9e66afe3b70812c1aed9",
+    "grammar_sha256": "c778cf5d578df41c182169e5f257df087b4ec77ad5152c1c1ec396365aeec824",
+    "exact_committed_packed_startup_prose": true,
+    "source_commit": "0fdcc846bc7451bbcb1804194b49737418954506",
+    "npx_README_route": true,
+    "source_grammar_route": true,
+    "assets_exact_first_README_paragraph_and_packaged_pointer": true,
+    "assets_content": "# `assets`\n\nGenerated image and video arguments accept either their closed record or a\nbrowser `File`. The client reads the operation's current manifest descriptors,\npreflights every file against its byte bound, uploads them, and substitutes the\nreturned records before invoking the mutation. An Expo source may instead be\n`{ uri, size?, fileSize?, type?, mimeType? }`, matching Expo ImagePicker's\n`uri`/`fileSize`/`mimeType` fields. The optional `expo-file-system` peer opens\n`file://` and `content://` URIs as a native Blob-compatible `File`; when neither size\nfield is supplied, its `File.size` provides the required upload length. The\nweb bundle does not include that peer, and URI bytes never pass through a\ncustom owner `fetch` supplied to `createClient`. Native File uploads use the\ndocumented direct File body through `expo/fetch`; progress reports whole-body\nstart and successful completion (0, then total) because that transport does\nnot expose streaming request progress.\n\nSee the packaged [README.md](../../README.md), section \"Assets\", for the full documentation.\n",
+    "prior_construct_count": 23,
+    "all_prior_construct_values_unchanged": true,
+    "construct_values": {
+      "maintain": {
+        "before_sha256": "30b9a7ff98bba57b92512bc20972466b238fc3ac1f6d8d751ccf95147af08255",
+        "after_sha256": "30b9a7ff98bba57b92512bc20972466b238fc3ac1f6d8d751ccf95147af08255"
+      },
+      "cap": {
+        "before_sha256": "0a6531ed6b3aa274eec21586de446471c151a2bca7ad55334adf944b5933a057",
+        "after_sha256": "0a6531ed6b3aa274eec21586de446471c151a2bca7ad55334adf944b5933a057"
+      },
+      "unique": {
+        "before_sha256": "78d45cc3b2dd77cc98b1a3996589d4e1633cc630f330be933b522ad1cafaffec",
+        "after_sha256": "78d45cc3b2dd77cc98b1a3996589d4e1633cc630f330be933b522ad1cafaffec"
+      },
+      "immutable": {
+        "before_sha256": "0362ad456957ec045d706b1ea667656b4af0369e715c67725c84409fd076a2a9",
+        "after_sha256": "0362ad456957ec045d706b1ea667656b4af0369e715c67725c84409fd076a2a9"
+      },
+      "public": {
+        "before_sha256": "a9c2827f505a1b036b870d6b2f89390f2f660c2ca372f6b6335995fe89ab1e27",
+        "after_sha256": "a9c2827f505a1b036b870d6b2f89390f2f660c2ca372f6b6335995fe89ab1e27"
+      },
+      "retain": {
+        "before_sha256": "522b0a5151ef73b5ba573cab634482774f5e2148464c34af21d85fd01507541d",
+        "after_sha256": "522b0a5151ef73b5ba573cab634482774f5e2148464c34af21d85fd01507541d"
+      },
+      "channel": {
+        "before_sha256": "b7bbd5049e85061fef372fac900a39de729c8c324fff12a0686ed28641da7ffe",
+        "after_sha256": "b7bbd5049e85061fef372fac900a39de729c8c324fff12a0686ed28641da7ffe"
+      },
+      "connected": {
+        "before_sha256": "c9c3aaf849d72a64068638be241a3deb9576f4b09230da80047b4e4569b49f97",
+        "after_sha256": "c9c3aaf849d72a64068638be241a3deb9576f4b09230da80047b4e4569b49f97"
+      },
+      "schedule": {
+        "before_sha256": "c8e596132c2f8013d9e92a3c58768a5edd51b950811e457c352c04f10d408796",
+        "after_sha256": "c8e596132c2f8013d9e92a3c58768a5edd51b950811e457c352c04f10d408796"
+      },
+      "job": {
+        "before_sha256": "8382102fcd5ddbc538d5ab1d4d6de9924cc09f7df96eed3e56e7826e398f388b",
+        "after_sha256": "8382102fcd5ddbc538d5ab1d4d6de9924cc09f7df96eed3e56e7826e398f388b"
+      },
+      "chunk": {
+        "before_sha256": "aedf556ee52025bbd2e7afa5e260af06c5fa2e75efe0e921f4383283595248f8",
+        "after_sha256": "aedf556ee52025bbd2e7afa5e260af06c5fa2e75efe0e921f4383283595248f8"
+      },
+      "shape": {
+        "before_sha256": "d5601b18082a9a1f863304075cf1e4569f2eda35d8159e7924a1dbb6dcb4032a",
+        "after_sha256": "d5601b18082a9a1f863304075cf1e4569f2eda35d8159e7924a1dbb6dcb4032a"
+      },
+      "merge": {
+        "before_sha256": "41a7d3e79134615587f249e1e68424826a2dc4e54587758cd4c944a16b5d1cd0",
+        "after_sha256": "41a7d3e79134615587f249e1e68424826a2dc4e54587758cd4c944a16b5d1cd0"
+      },
+      "after": {
+        "before_sha256": "18837bf954a5ee715e7a48ec648797574201609feb6d8e578e6f72f861ab8e96",
+        "after_sha256": "18837bf954a5ee715e7a48ec648797574201609feb6d8e578e6f72f861ab8e96"
+      },
+      "first": {
+        "before_sha256": "d201e0789ec67468a4313622b41bf687a72eb5beba4916afba08f440e6526e86",
+        "after_sha256": "d201e0789ec67468a4313622b41bf687a72eb5beba4916afba08f440e6526e86"
+      },
+      "last": {
+        "before_sha256": "d0ff7d8cc71dad17e3c6d89a981867071f51cbb76378f2cf96250bbcdde66174",
+        "after_sha256": "d0ff7d8cc71dad17e3c6d89a981867071f51cbb76378f2cf96250bbcdde66174"
+      },
+      "require": {
+        "before_sha256": "dbbd54290a87c133c712ed28b4c7afb454d222657432afac6b310cf498cf2ca2",
+        "after_sha256": "dbbd54290a87c133c712ed28b4c7afb454d222657432afac6b310cf498cf2ca2"
+      },
+      "match": {
+        "before_sha256": "83a8bcb20fa641ffd7159b08dec0d54d55bef612b800ffd64265e266b90bb0dd",
+        "after_sha256": "83a8bcb20fa641ffd7159b08dec0d54d55bef612b800ffd64265e266b90bb0dd"
+      },
+      "for": {
+        "before_sha256": "8f103967830cd7cdd094e65f28f41a930fe7b4c7b7bc316fb7a769f3353ece6b",
+        "after_sha256": "8f103967830cd7cdd094e65f28f41a930fe7b4c7b7bc316fb7a769f3353ece6b"
+      },
+      "emit": {
+        "before_sha256": "cf261ec6d8c9d1f605075ca2aaace4851c7a47f6249915612379e939abc9ce38",
+        "after_sha256": "cf261ec6d8c9d1f605075ca2aaace4851c7a47f6249915612379e939abc9ce38"
+      },
+      "tokens": {
+        "before_sha256": "8c2839eb577dc1cf879ccc5b8021bb055e5701319854a77246bbcc418b60d50c",
+        "after_sha256": "8c2839eb577dc1cf879ccc5b8021bb055e5701319854a77246bbcc418b60d50c"
+      },
+      "words": {
+        "before_sha256": "98a81aafd5c072c2a5c5a033e3841d764d833efc3fcae209546bb4b296d3bf74",
+        "after_sha256": "98a81aafd5c072c2a5c5a033e3841d764d833efc3fcae209546bb4b296d3bf74"
+      },
+      "divmod": {
+        "before_sha256": "207156bb33178eded812a50c21e351f12de72cc0b4ab12699327aec234438ce5",
+        "after_sha256": "207156bb33178eded812a50c21e351f12de72cc0b4ab12699327aec234438ce5"
+      }
+    },
+    "new_index_count": 24,
+    "old_original_tarball": "/Users/ccheever/projects/snapback-artifacts/clique-release/0.0.13-ae7d86a11/snapback2-0.0.13.tgz",
+    "old_tarball_sha256": "4c379cba193ad57e996145e378e7c58c606a8b1027ca69fb82404b08d72d38c5",
+    "old_keywords_sha256": "6471b0566d1705d3a33d1096824a105a803783a4e156df388531101cf3a6ed58"
+  },
+  "media": {
+    "heic": true,
+    "images": true
+  },
+  "expected_operations_receipt": "/Users/ccheever/projects/snapback-artifacts/clique-release/0.0.10-967f857e6/installed-verification.json",
+  "expected_operations_receipt_sha256": "dd1ac25a814f906a9adf372d30a701922c0136ea0f623ee3230cfe62cd4cc11e",
+  "guide_checks": [
+    {
+      "phase": "before-check",
+      "internalBinding": "deliveries._timerBinding_expireMessage",
+      "rawBindingPresent": true,
+      "bindingAbsentFromPublicOperations": true,
+      "publicPurgeRetained": true,
+      "operationCount": 26,
+      "exactCertifiedOperationSet": true,
+      "cacheUnchanged": true,
+      "backendUnchanged": true,
+      "operations": [
+        "deliveries.edit",
+        "deliveries.inbox",
+        "deliveries.post",
+        "deliveries.purgeMessage",
+        "deliveries.thread",
+        "deliveries.unsend",
+        "feeds.followingFeed",
+        "feeds.globalFeed",
+        "follows.setFollow",
+        "groups.groupCreate",
+        "groups.memberAdd",
+        "groups.memberLeave",
+        "groups.memberPromote",
+        "groups.memberRemove",
+        "messages.send",
+        "messages.sendClip",
+        "messages.sendOncePhoto",
+        "messages.sendPhoto",
+        "messages.summary",
+        "messages.thread",
+        "notifications.recordNotified",
+        "posts.createPost",
+        "profiles.byHandle",
+        "profiles.createMyProfile",
+        "profiles.mine",
+        "profiles.updateMyProfile"
+      ]
+    },
+    {
+      "phase": "after-check",
+      "internalBinding": "deliveries._timerBinding_expireMessage",
+      "rawBindingPresent": true,
+      "bindingAbsentFromPublicOperations": true,
+      "publicPurgeRetained": true,
+      "operationCount": 26,
+      "exactCertifiedOperationSet": true,
+      "cacheUnchanged": true,
+      "backendUnchanged": true,
+      "operations": [
+        "deliveries.edit",
+        "deliveries.inbox",
+        "deliveries.post",
+        "deliveries.purgeMessage",
+        "deliveries.thread",
+        "deliveries.unsend",
+        "feeds.followingFeed",
+        "feeds.globalFeed",
+        "follows.setFollow",
+        "groups.groupCreate",
+        "groups.memberAdd",
+        "groups.memberLeave",
+        "groups.memberPromote",
+        "groups.memberRemove",
+        "messages.send",
+        "messages.sendClip",
+        "messages.sendOncePhoto",
+        "messages.sendPhoto",
+        "messages.summary",
+        "messages.thread",
+        "notifications.recordNotified",
+        "posts.createPost",
+        "profiles.byHandle",
+        "profiles.createMyProfile",
+        "profiles.mine",
+        "profiles.updateMyProfile"
+      ]
+    }
+  ],
+  "installed_packages_unchanged": true,
+  "tarballs_unchanged": true,
+  "backend_unchanged": true,
+  "complete_initialized_project_unchanged": true,
+  "cache_unchanged_across_explicit_check": true,
+  "finished_epoch": 1788761455.7947478
+}

@@ -1,0 +1,22 @@
+{
+  "argv": [
+    "/usr/bin/python3",
+    "-B",
+    "verify-registry-expo.py"
+  ],
+  "cwd": "/Users/ccheever/clique-improvement/revisions/release-apartment-014-auth-output-activation-supervision",
+  "timeoutSeconds": 300.0,
+  "startedEpoch": 1788761441.294301,
+  "driverPid": 22847,
+  "startLoad": [
+    5.2333984375,
+    10.55078125,
+    18.7744140625
+  ],
+  "automaticRetry": false,
+  "pid": 22850,
+  "exitCode": 0,
+  "elapsedSeconds": 14.570708417,
+  "endedEpoch": 1788761455.864851,
+  "logSha256": "33cd9122e4a1c1ec28b8cad19380d42438efc4ed21db994659633076917558df"
+}

@@ -1,0 +1,21 @@
+{
+  "path": "/Users/ccheever/clique-improvement/revisions/release-apartment-014-auth-output-activation-supervision/nonsecret-bundle.tar",
+  "bytes": 1638400,
+  "sha256": "80a248c08ba73b61d485ca7315278c4f50a99d6ecf95ca769c8a05b18331bac7",
+  "files": {
+    "bundle.json": "87440737b078174fb50565f8638d40bd6c1cbc1821d086710d95220b48dc2f58",
+    "custody.py": "a2fe7fcf91e3b28f0ba12e87496e735ed2d180b4c320b438aab00a2c5486feef",
+    "control.py": "a326cad68484494ed18c110df17751b8dd41f7239d597ee44c40a44dded40265",
+    "remote.py": "76c7ac004940f9ca45ee6114bd08cf6a0e0b7bf34523b0505b75c8240dc9f599",
+    "office.py": "bd013f597db7e21bcbc408bd1d50555f7dd8e11365e34c09d125c10f9da0f20b",
+    "feeder.cjs": "122d85a4722308d7a0200735305e6e2b4d8d926425ac5a5b6bab345e7fa7c9b5",
+    "bindings.json": "db3f5eb0307e21c4838318a7c062f51971874e50dbf1786a07c396cc048a589a",
+    "inputs/artifact-inputs.json": "a38fffdc2cb7af0385b32e3a5ae9220849395eb9733c0c88cce69bd9fde90da2",
+    "inputs/endpoint.json": "eccc14fcbe9b173a61594c42e7e2e3c2253cdb8d77b8dc2dd13194d4a9e7609b",
+    "inputs/node-input-manifest.json": "e799a24c1d9b11b655c7b503b11e4f2763df71b695cef09b0d9cebd855d62579",
+    "inputs/resume-readiness.json": "2a7193d5b51e911304615e2f85f12a496737568f73eda010a9ce1155b7769d08",
+    "inputs/source-manifest.json": "400d0e34891a420b61fd8acdf242028bd918d6a04ef4cb7bb123d41f169560af"
+  },
+  "completeBeforeUpload": true,
+  "containsOnlyNonsecretBundle": true
+}

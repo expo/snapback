@@ -1,0 +1,79 @@
+{
+  "purpose": "Immutable external originals omitted from this compact repository packet; not reconstructed.",
+  "rawAuthOutput": "Never retained; no raw auth identity/token or output hash exists in this packet.",
+  "arbitraryPublisherOutput": "Discarded by the reviewed metadata-only protocol; no original raw log is claimed.",
+  "files": [
+    {
+      "externalOriginal": "/Users/ccheever/clique-improvement/revisions/release-apartment-014-auth-output-activation-supervision/metric-baseline.jsonl",
+      "bytes": 356648,
+      "sha256": "767df97a4d74b9b954bb9434120da61c08a98a739e1913d1149a534792ffcf8a",
+      "copied": false
+    },
+    {
+      "externalOriginal": "/Users/ccheever/clique-improvement/revisions/release-apartment-014-auth-output-activation-supervision/metric-all-original-bytes.jsonl",
+      "bytes": 356914,
+      "sha256": "0877e7abaa096913709bccb548b70cca458e5f29bcdf580b9c476dbfc601db1d",
+      "copied": false
+    },
+    {
+      "externalOriginal": "/Users/ccheever/clique-improvement/revisions/release-apartment-014-auth-output-activation-supervision/stopped-state-result.json",
+      "bytes": 36162,
+      "sha256": "20e5b3b98a5cd5f6cdc99e763b4b809cb64ff1ef2c29acc0bc960f6d9089c07d",
+      "copied": false
+    },
+    {
+      "externalOriginal": "/Users/ccheever/clique-improvement/revisions/release-apartment-014-auth-output-activation-supervision/expo-project-after-init.json",
+      "bytes": 4291,
+      "sha256": "9ad084ebb224eda407db5b3f0ff6c2f4c47437eabfa407038e9264a394c01d15",
+      "copied": false
+    },
+    {
+      "externalOriginal": "/Users/ccheever/clique-improvement/revisions/release-apartment-014-auth-output-activation-supervision/expo-project-after-check-guide.json",
+      "bytes": 4291,
+      "sha256": "9ad084ebb224eda407db5b3f0ff6c2f4c47437eabfa407038e9264a394c01d15",
+      "copied": false
+    },
+    {
+      "externalOriginal": "/Users/ccheever/clique-improvement/revisions/release-apartment-014-auth-output-activation-supervision/expo-backend-before.json",
+      "bytes": 1013,
+      "sha256": "d8adc1bad956c68c1d4f39bf2d4bc99b8b7d3cf8f48238a509d44b6e6929cd0a",
+      "copied": false
+    },
+    {
+      "externalOriginal": "/Users/ccheever/clique-improvement/revisions/release-apartment-014-auth-output-activation-supervision/expo-backend-after.json",
+      "bytes": 1013,
+      "sha256": "d8adc1bad956c68c1d4f39bf2d4bc99b8b7d3cf8f48238a509d44b6e6929cd0a",
+      "copied": false
+    },
+    {
+      "externalOriginal": "/Users/ccheever/clique-improvement/revisions/release-apartment-014-auth-output-activation-supervision/expo-cache-before-check-before.json",
+      "bytes": 1271,
+      "sha256": "62f1647725d233b351fa20e1601769ba2fc2f26fe49b97d552d1edb9711e89d2",
+      "copied": false
+    },
+    {
+      "externalOriginal": "/Users/ccheever/clique-improvement/revisions/release-apartment-014-auth-output-activation-supervision/expo-cache-before-check-after.json",
+      "bytes": 1271,
+      "sha256": "62f1647725d233b351fa20e1601769ba2fc2f26fe49b97d552d1edb9711e89d2",
+      "copied": false
+    },
+    {
+      "externalOriginal": "/Users/ccheever/clique-improvement/revisions/release-apartment-014-auth-output-activation-supervision/expo-cache-after-check-before.json",
+      "bytes": 1271,
+      "sha256": "62f1647725d233b351fa20e1601769ba2fc2f26fe49b97d552d1edb9711e89d2",
+      "copied": false
+    },
+    {
+      "externalOriginal": "/Users/ccheever/clique-improvement/revisions/release-apartment-014-auth-output-activation-supervision/expo-cache-after-check-after.json",
+      "bytes": 1271,
+      "sha256": "62f1647725d233b351fa20e1601769ba2fc2f26fe49b97d552d1edb9711e89d2",
+      "copied": false
+    },
+    {
+      "externalOriginal": "/Users/ccheever/clique-improvement/revisions/release-apartment-014-auth-output-activation-supervision/nonsecret-bundle.tar",
+      "bytes": 1638400,
+      "sha256": "80a248c08ba73b61d485ca7315278c4f50a99d6ecf95ca769c8a05b18331bac7",
+      "copied": false
+    }
+  ]
+}

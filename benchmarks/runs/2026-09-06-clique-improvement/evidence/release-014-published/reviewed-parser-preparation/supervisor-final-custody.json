@@ -1,0 +1,18 @@
+{
+  "terminal": {
+    "pid": 96938,
+    "exitCode": 0,
+    "endedEpoch": 1788760757.003237,
+    "elapsedSeconds": 1022.8332669734955
+  },
+  "priorOwnedPidsAbsent": [
+    96938,
+    96925
+  ],
+  "bundleSha256": "87440737b078174fb50565f8638d40bd6c1cbc1821d086710d95220b48dc2f58",
+  "leavesVerified": 11,
+  "reportBytes": 8695,
+  "reportSha256": "8de50c3426be4235e9351b50d946c760af02b3e3dca8ada770b7767152be7802",
+  "fullReportRead": true,
+  "noActivationAuthorizedBySupervisor": true
+}

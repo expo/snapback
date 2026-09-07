@@ -1,0 +1,226 @@
+{
+  "outcome": "REGISTRY_PAIR_CONFIRMED_AND_FRESH_INSTALLED_VERIFICATION_PASSED",
+  "sourceCommit": "0fdcc846bc7451bbcb1804194b49737418954506",
+  "version": "0.0.14",
+  "bundleSha256": "87440737b078174fb50565f8638d40bd6c1cbc1821d086710d95220b48dc2f58",
+  "activationInvocations": 1,
+  "actualPublisher": {
+    "phase": "publisher",
+    "status": "pass",
+    "epoch": 1788761165.626428,
+    "pid": 88017,
+    "exitCode": 0,
+    "seconds": 39.319363209
+  },
+  "consumerSteps": [
+    {
+      "phase": "publisher",
+      "status": "observed",
+      "epoch": 1788761165.626683,
+      "step": "install tarballs",
+      "seconds": 10.242699125,
+      "ok": true
+    },
+    {
+      "phase": "publisher",
+      "status": "observed",
+      "epoch": 1788761165.626719,
+      "step": "doctor",
+      "seconds": 0.48317462500000147,
+      "ok": true
+    },
+    {
+      "phase": "publisher",
+      "status": "observed",
+      "epoch": 1788761165.6267378,
+      "step": "guide auth",
+      "seconds": 0.04001758300000074,
+      "ok": true
+    },
+    {
+      "phase": "publisher",
+      "status": "observed",
+      "epoch": 1788761165.6267588,
+      "step": "public client and React exports",
+      "seconds": 0.0449011249999985,
+      "ok": true
+    },
+    {
+      "phase": "publisher",
+      "status": "observed",
+      "epoch": 1788761165.626776,
+      "step": "todos init",
+      "seconds": 0.6764147089999988,
+      "ok": true
+    },
+    {
+      "phase": "publisher",
+      "status": "observed",
+      "epoch": 1788761165.626792,
+      "step": "todos check",
+      "seconds": 0.6775484159999996,
+      "ok": true
+    },
+    {
+      "phase": "publisher",
+      "status": "observed",
+      "epoch": 1788761165.6268091,
+      "step": "todos React bundle",
+      "seconds": 1.6289183749999994,
+      "ok": true
+    },
+    {
+      "phase": "publisher",
+      "status": "observed",
+      "epoch": 1788761165.6268249,
+      "step": "todos dev",
+      "seconds": 0.45379058299999997,
+      "ok": true
+    },
+    {
+      "phase": "publisher",
+      "status": "observed",
+      "epoch": 1788761165.62684,
+      "step": "React live query round trip",
+      "seconds": 0.1388563750000012,
+      "ok": true
+    },
+    {
+      "phase": "publisher",
+      "status": "observed",
+      "epoch": 1788761165.6268532,
+      "step": "todos receipt",
+      "accepted": true,
+      "verdict": "pass"
+    },
+    {
+      "phase": "publisher",
+      "status": "observed",
+      "epoch": 1788761165.626869,
+      "step": "todos test",
+      "seconds": 1.4286373750000003,
+      "ok": true
+    },
+    {
+      "phase": "publisher",
+      "status": "observed",
+      "epoch": 1788761165.626883,
+      "step": "todos stop",
+      "seconds": 0.18050804200000128,
+      "ok": true
+    },
+    {
+      "phase": "publisher",
+      "status": "observed",
+      "epoch": 1788761165.6268978,
+      "step": "chat init",
+      "seconds": 1.0451671249999999,
+      "ok": true
+    },
+    {
+      "phase": "publisher",
+      "status": "observed",
+      "epoch": 1788761165.626912,
+      "step": "chat check",
+      "seconds": 1.0588302919999988,
+      "ok": true
+    },
+    {
+      "phase": "publisher",
+      "status": "observed",
+      "epoch": 1788761165.6269262,
+      "step": "chat React bundle",
+      "seconds": 0.8092074170000014,
+      "ok": true
+    },
+    {
+      "phase": "publisher",
+      "status": "observed",
+      "epoch": 1788761165.62694,
+      "step": "chat dev",
+      "seconds": 1.0330888749999976,
+      "ok": true
+    },
+    {
+      "phase": "publisher",
+      "status": "observed",
+      "epoch": 1788761165.626953,
+      "step": "chat receipt",
+      "accepted": true,
+      "verdict": "pass"
+    },
+    {
+      "phase": "publisher",
+      "status": "observed",
+      "epoch": 1788761165.6269681,
+      "step": "chat test",
+      "seconds": 9.990314958000003,
+      "ok": true
+    },
+    {
+      "phase": "publisher",
+      "status": "observed",
+      "epoch": 1788761165.626983,
+      "step": "chat stop",
+      "seconds": 0.2109385000000002,
+      "ok": true
+    }
+  ],
+  "activationResult": {
+    "pid": 20985,
+    "driverPid": 20982,
+    "startedEpoch": 1788761117.717304,
+    "endedEpoch": 1788761166.613151,
+    "elapsedSeconds": 48.895524125,
+    "exitCode": 1,
+    "metadataEvents": 172,
+    "unclassifiedOutputPresent": false,
+    "stderrPresent": false,
+    "rawOutputPersisted": false,
+    "localActivationReaped": true,
+    "automaticRetry": false,
+    "remoteOutcomeSource": "explicit reviewed helper metadata only; no inference from local exit"
+  },
+  "initialRegistryFailure": {
+    "phase": "publisher",
+    "status": "unknown",
+    "epoch": 1788761166.0469959,
+    "package": "snapback2-darwin-arm64",
+    "registryState": "absent",
+    "code": "E404",
+    "publicationUnknown": true
+  },
+  "historicalPublicationUnknownPreserved": true,
+  "laterRegistryObservation": "registry-observation-02.json",
+  "bothIntegrityAndLatestMatch": true,
+  "qualifiedOriginalArtifacts": [
+    {
+      "package": "snapback2-darwin-arm64",
+      "path": "/Users/ccheever/projects/snapback-artifacts/clique-release/0.0.14-0fdcc846b-attempt02/snapback2-darwin-arm64-0.0.14.tgz",
+      "sha256": "92cc8ce2d95c55cb582c1af17da4aaf95f5c82331cc68cf199d4e34dc954c7fb",
+      "bytes": 4821150,
+      "integrity": "sha512-2UVxYTgIQJnGV+8V3gV3yQUTJ6yiftqinl5aeYW6elODy96c7yn7Lm2eq80HZqUhDIBjFjEBFWvd5R2Agfxz6w=="
+    },
+    {
+      "package": "snapback2",
+      "path": "/Users/ccheever/projects/snapback-artifacts/clique-release/0.0.14-0fdcc846b-attempt02/snapback2-0.0.14.tgz",
+      "sha256": "4b699eaa4c4a28cb5a508316d14f721bcb6004d65cc6f3888acebb1d15c9867e",
+      "bytes": 1797207,
+      "integrity": "sha512-dPm5mFSUA/DyWvICY6KwHIFCV6XppCogvYRZ3tX8BWV8h1QKIpQ/gPXRNDniRg0SJ4KyZfV1CKuBm2c/CdhX2w=="
+    }
+  ],
+  "freshRegistryVerification": {
+    "hostAlias": "Office",
+    "pid": 22850,
+    "exitCode": 0,
+    "seconds": 14.570708417,
+    "regularFiles": 154,
+    "ok": true,
+    "receipt": "installed-expo-verification.json"
+  },
+  "standardProductionConsumerHostAlias": "Apartment",
+  "metricAppendSha256": "aa993c49fc8528011d1b5b779c97d45883ccb46f6a73b36c4d277c1b0177f571",
+  "cleanupReceipt": "cleanup.json",
+  "noReplay": true,
+  "noBuildRepackSourceChange": true
+}

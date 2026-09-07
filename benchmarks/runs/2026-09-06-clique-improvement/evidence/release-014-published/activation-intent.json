@@ -1,0 +1,18 @@
+{
+  "argv": [
+    "/usr/bin/python3",
+    "-B",
+    "/Users/ccheever/clique-improvement/revisions/release-apartment-014-auth-output-preparation/office.py",
+    "--activate-reviewed-production-014",
+    "87440737b078174fb50565f8638d40bd6c1cbc1821d086710d95220b48dc2f58"
+  ],
+  "startedEpoch": 1788761117.717304,
+  "driverPid": 20982,
+  "attempts": 1,
+  "environmentCapture": "none",
+  "publisherSeconds": 1800,
+  "consumerSeconds": 30,
+  "fetchMilliseconds": 15000,
+  "fetchRetries": 0,
+  "sshEnvelopeSeconds": 2100
+}

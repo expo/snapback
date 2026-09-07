@@ -1,0 +1,57 @@
+{
+  "sshArgvPrefix": [
+    "/usr/bin/ssh",
+    "-T",
+    "-o",
+    "BatchMode=yes",
+    "-o",
+    "StrictHostKeyChecking=yes",
+    "-o",
+    "ConnectTimeout=8",
+    "-o",
+    "ConnectionAttempts=1",
+    "-o",
+    "ForwardAgent=no",
+    "-o",
+    "ClearAllForwardings=yes",
+    "-o",
+    "ServerAliveInterval=10",
+    "-o",
+    "ServerAliveCountMax=2",
+    "ccheever@apartment-m1"
+  ],
+  "remoteCommandSource": "stage-remote.py",
+  "remoteCommandSha256": "fd426e17f6c128091a495868346b97c1837eb3382a4a457023e57ba7a7571de1",
+  "archiveSha256": "80a248c08ba73b61d485ca7315278c4f50a99d6ecf95ca769c8a05b18331bac7",
+  "sshPid": 20948,
+  "driverPid": 20944,
+  "outerSeconds": 60,
+  "elapsedSeconds": 1.6825187499999998,
+  "exitCode": 0,
+  "timedOut": false,
+  "stderrEmpty": true,
+  "unclassifiedOutputPresent": false,
+  "events": [
+    {
+      "phase": "stage",
+      "status": "started",
+      "pid": 87913,
+      "epoch": 1788761109.841242
+    },
+    {
+      "phase": "stage",
+      "status": "complete",
+      "pid": 87913,
+      "epoch": 1788761110.3002439,
+      "root": "/Users/ccheever/clique-improvement/revisions/release-apartment-014-auth-output-preparation/bundle",
+      "fileCount": 12,
+      "bundleSha256": "87440737b078174fb50565f8638d40bd6c1cbc1821d086710d95220b48dc2f58",
+      "allHashesAndModesMatch": true,
+      "activationInvoked": false
+    }
+  ],
+  "stagePassed": true,
+  "automaticRetry": false,
+  "tokenAcquisition": false,
+  "localChildReaped": true
+}

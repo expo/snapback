@@ -1,0 +1,21 @@
+{
+  "sourceCommit": "0fdcc846bc7451bbcb1804194b49737418954506",
+  "gitTrackedStatus": "",
+  "hostAlias": "Office",
+  "scopedSourceManifestSha256": "400d0e34891a420b61fd8acdf242028bd918d6a04ef4cb7bb123d41f169560af",
+  "scopedSourceLeaves": 938,
+  "remoteVerification": "Frozen custody.verify passed all938 and tool/artifact/resume checks before READY and again immediately before actual publisher (activation-events.jsonl). No repeat full source audit after execution; stopped state confirms restored219-row metric baseline.",
+  "selectedCurrentSourceSha256": {
+    "scripts/publish.mjs": "fc24c2c192119d11a6029ad7edfe91b7219a5623f8f91c1425607734c45bb3d2",
+    "scripts/consumer-smoke.mjs": "c26bbf0e64d18cbb9557c5cf97e40ecfc045ff271ade77b749235c70dc044cf3",
+    "metrics/loop.jsonl": "767df97a4d74b9b954bb9434120da61c08a98a739e1913d1149a534792ffcf8a",
+    "packages/snapback2/README.md": "15402a2ce46e37551f93257102a32d37fee7a811fd2d9e66afe3b70812c1aed9",
+    "packages/snapback2/guide/grammar.md": "c778cf5d578df41c182169e5f257df087b4ec77ad5152c1c1ec396365aeec824"
+  },
+  "bundleSha256": "87440737b078174fb50565f8638d40bd6c1cbc1821d086710d95220b48dc2f58",
+  "all11LocalFrozenLeavesUnchanged": true,
+  "immutableResumeSha256": "9f833af4bce8841f46da3049732ba3377556d8232b85fc50c935557b7e4d268d",
+  "immutableResumeEvidence": "Reviewed immediate remote custody; stopped working resume exact; no original mutation",
+  "sourceEdits": false,
+  "mainPush": false
+}

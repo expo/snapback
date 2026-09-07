@@ -1,0 +1,57 @@
+{
+  "observedEpoch": 1788762123.287485,
+  "actualTool": 81194,
+  "terminal": {
+    "pid": 19237,
+    "exitCode": 0,
+    "endedEpoch": 1788761731.8654678,
+    "elapsedSeconds": 851.4443440437317
+  },
+  "cliAndSupervisorAbsent": true,
+  "observedPids": [
+    19237,
+    19233
+  ],
+  "fullReportRead": true,
+  "publicationReceiptRead": true,
+  "freshVerificationRead": true,
+  "evidence": {
+    "REPORT.md": {
+      "bytes": 9728,
+      "sha256": "b93cd7fb50a87e71cfd0f24feb0444d5723e2028a39170304f81f88ced09c039"
+    },
+    "publication-receipt.json": {
+      "bytes": 6235,
+      "sha256": "a3ffa74111a1e348e7ebdb4d50fb6206bab18c4e7cb318ea42f572927d50dc09"
+    },
+    "terminal.json": {
+      "bytes": 111,
+      "sha256": "0217cf0e30b176b29bfa06e76002c213c3ba493b947ddaa7c2580ade1f623cab"
+    },
+    "phase.json": {
+      "bytes": 863,
+      "sha256": "1e060477d9428ff56bc3808632e347fefca48dac3ed5f4a954475f3f45a7ae1e"
+    },
+    "installed-expo-verification.json": {
+      "bytes": 19437,
+      "sha256": "aeb270c1ecdb1e4afe0d02f5961333fdb60f1697cf868a5fbebb2e866d668335"
+    },
+    "cleanup.json": {
+      "bytes": 1857,
+      "sha256": "c43285a13b4e6c5435fa53633174e0ccb91c339551b0ce9087d34a2a6239cd83"
+    },
+    "source-correspondence.json": {
+      "bytes": 1458,
+      "sha256": "53e0a28839e343d038b8bbb0b23750ad3f384b652aa613bf9620980a586941fa"
+    },
+    "metric-own-append.jsonl": {
+      "bytes": 266,
+      "sha256": "aa993c49fc8528011d1b5b779c97d45883ccb46f6a73b36c4d277c1b0177f571"
+    }
+  },
+  "originalActivationExitCode": 1,
+  "originalPublicationUnknownPreserved": true,
+  "laterBothRegistrySRIAndLatestMatch": true,
+  "fresh154FileExpoGuidePass": true,
+  "noAdditionalExecution": true
+}
