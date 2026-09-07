@@ -1042,20 +1042,23 @@
     ],
     "write_sites": [],
     "maintained_amplification": 0,
-    "constraint_checks": [],
+    "constraint_checks": [
+      "waitCounts:public-count-absence"
+    ],
     "max_examined": 1,
     "max_index_entries": 1,
     "max_rule_probes": 0,
-    "max_steps": 7,
-    "max_heap_bytes": 224,
+    "max_steps": 11,
+    "max_heap_bytes": 352,
     "max_output_bytes": 359,
-    "max_closure_bytes": 359,
+    "max_closure_bytes": 2017,
     "completeness": "Page",
     "prediction_sites": [],
     "read_time_granularity_ms": null,
     "halo_rows": 1,
     "indexes_required": [
-      "waitCounts.byGroup"
+      "waitCounts.byGroup",
+      "waitCounts.byId"
     ],
     "disclosures": [
       "E_DISCLOSURE: count waitlist summarized into waitCounts"

@@ -5,7 +5,7 @@
 **Systems:** `snapback2/crates/snapback2-core` (`store`, `registry`, `live`, `identity`, `successor`, the engine, the IR)
 **Author:** Claude Fable 5 (orchestrator) — implementer: codex gpt-5.6-sol, lane A
 **Date:** 2026-08-29
-**Revised:** 2026-09-07 (surviving-row uniqueness checked against each actual rebuild); 2026-09-07 (count-backed cap probes); 2026-09-06 (fixed complete local-runtime measurement roots: 66,000-byte ceiling, 64,000 target); 2026-09-06 (generation-owned policy hashes, pooled merge seeks and bounded shared templates); 2026-09-06 (measured full-entry search trade: 50,000-byte ceiling, 48,000 target); 2026-09-06 (session-delegated Unicode/search foundation and downstream contracts); 2026-09-06 (conditional result-page provenance and branch-scoped cursor validation); 2026-09-05 (Clique L12 — §3 receipt-only null invariant and §5.1 `connected`); 2026-09-05 (Clique L9 — bounded ASCII words builtin and constructed-text boundary); 2026-09-05 (Clique L10 — lazy merge, receipt retention and global local-pagination cursor rule); 2026-09-05 (Clique L8b — nested point-read shapes preserve page state; early exits preserve capped taint); 2026-09-05 (Clique L8a — prefix-local self-probe and decided-disjunction visibility proofs); 2026-09-05 (Clique L3 — honest bound refusals and patch-sensitive cap metering; LLP 1016 J2 — §1's system tables gain `_jobs` and `_timers`; LLP 1017 §1, then §2 and §3)
+**Revised:** 2026-09-07 (public Count paired absence proofs and admission reserve; implementer Codex); 2026-09-07 (surviving-row uniqueness checked against each actual rebuild); 2026-09-07 (count-backed cap probes); 2026-09-06 (fixed complete local-runtime measurement roots: 66,000-byte ceiling, 64,000 target); 2026-09-06 (generation-owned policy hashes, pooled merge seeks and bounded shared templates); 2026-09-06 (measured full-entry search trade: 50,000-byte ceiling, 48,000 target); 2026-09-06 (session-delegated Unicode/search foundation and downstream contracts); 2026-09-06 (conditional result-page provenance and branch-scoped cursor validation); 2026-09-05 (Clique L12 — §3 receipt-only null invariant and §5.1 `connected`); 2026-09-05 (Clique L9 — bounded ASCII words builtin and constructed-text boundary); 2026-09-05 (Clique L10 — lazy merge, receipt retention and global local-pagination cursor rule); 2026-09-05 (Clique L8b — nested point-read shapes preserve page state; early exits preserve capped taint); 2026-09-05 (Clique L8a — prefix-local self-probe and decided-disjunction visibility proofs); 2026-09-05 (Clique L3 — honest bound refusals and patch-sensitive cap metering; LLP 1016 J2 — §1's system tables gain `_jobs` and `_timers`; LLP 1017 §1, then §2 and §3)
 **Related:** LLP 1000, LLP 1002 (the loop that serves this), LLP 1003 (effects
 through the outbox this spec defines), LLP 0329.014.004 §7 (runtime), LLP
 0329.014.000 §6 (execution, trace, states), LLP 0329.016 §5.6 (no silent
@@ -527,6 +527,29 @@ A user mutation writing a maintained target is `Rejected(E_RULE)` by its rule.
 Successor rebuilds own exactly the union of target row IDs projected by the
 predecessor and successor maintain declarations: they replace or remove those
 IDs and preserve every other target row and index entry.
+
+A physical miss on a public/Allow Count target's full unique grouping index
+with valid scalar typed keys can acquire two independent facts for offline insertion: its empty group
+extent, represented by the existing empty ascending unbounded exhausted range
+receipt, and a canonical primary-ID absence proved by a separate actual
+`byId` lookup. Ordinary survivors make those addresses inequivalent. Keep the
+original point trace for OCC and live invalidation; the derived range must
+match that declared physical miss and exact scope, current policy hash, empty
+shape and a separately traced primary miss. Receipt-only evaluation cannot
+mint either additional fact from a partial local store. Invalid key domains
+and JSON/compound grouping descriptors omit the optional pair: wire erasure
+and schema retagging must preserve the exact native lookup address.
+
+Certification reserves the extra lookup steps, primary-index/constraint
+dependency and paired receipt bytes through sequential and branch composition.
+The group lookup and fallback can examine at most one row together. A
+schema-sized byte reserve is checked against the actual serialized proof pair;
+if it is too small (lookup keys/nominal IDs need not fit stored-row estimates),
+omit both optional proofs and preserve the original query result. This does
+not impose new ID limits. Public projection still exports only primary-index
+absence tuples; the group fact uses existing range custody. A stale cached zero
+alone does not authorize insertion. Protected targets and ordinary/sum tables
+gain no such proof. No new wire field or point-query completeness rule follows.
 
 Three rulings from the 2026-08-30 review (M3, M4, M8):
 
