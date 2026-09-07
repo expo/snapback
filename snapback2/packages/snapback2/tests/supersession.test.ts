@@ -11,7 +11,7 @@ import { indexedDbRangeStore } from "../dist/react.mjs";
 import { fileRangeStore } from "../dist/test.mjs";
 import { canonicalProgramJson } from "../dist/sqlite-test.mjs";
 import { FakeIndexedDb, FakeLocks } from "./fake-indexeddb.ts";
-import { certifiedDrainPage, certifiedDrainProgram } from "./offline-metadata-fixture.ts";
+import { certifiedDrainPage, certifiedDrainProgram, certifiedSuccessorPage, certifiedSuccessorProgram } from "./offline-metadata-fixture.ts";
 
 const hex = (n: number) => String(n).repeat(64);
 const json = (value: unknown, status = 200) => new Response(JSON.stringify(value), { status });
@@ -21,14 +21,19 @@ const digest = (value: unknown) => createHash("sha256").update(canonicalProgramJ
 const certified = certifiedDrainProgram();
 const certifiedSource = Object.values(certified.programs)[0] as any;
 const operationNames = ["messages.first", "messages.second", "messages.third", "messages.late", "messages.bob", "messages.log"] as const;
-const programs = Object.fromEntries(operationNames.map((name) => {
-  const ir = { ...certifiedSource.ir, name };
+const aliasPrograms = (source: any, names: readonly string[], drain = false) => Object.fromEntries(names.map((name) => {
+  const ir = { ...source.ir, name };
   const planHash = digest(ir);
-  return [name, { ...certifiedSource, ir, planHash,
-    certificate: { ...certifiedSource.certificate, program: name, plan_hash: planHash } }];
+  return [name, { ...source, ir, planHash,
+    certificate: { ...source.certificate, program: name, plan_hash: planHash },
+    ...(drain ? { drain: source.drain } : {}) }];
 }));
+const programs = aliasPrograms(certifiedSource, operationNames, true);
 const overlap = certifiedDrainPage(1);
 const overlapRow = overlap.rows[0];
+const successor = certifiedSuccessorProgram();
+const successorPrograms = aliasPrograms(successor.program, ["messages.second", "messages.third"]);
+const successorPage = certifiedSuccessorPage();
 async function eventually(check: () => Promise<boolean> | boolean) {
   for (let n = 0; n < 200; n++) { if (await check()) return; await pause(); }
   assert.fail("condition did not settle");
@@ -49,11 +54,15 @@ async function fixture(carrier: "file" | "IndexedDB" = "file", bearer = false) {
     mutation?: (request: any) => Promise<Response | undefined>;
     login?: () => Promise<Response>;
   } = {};
+  const packet = () => state.schemaHash === successor.schemaHash
+    ? { schema: successor.schema, programs: successorPrograms, page: successorPage }
+    : { schema: certified.schema, programs, page: overlap };
   const envelope = (request: any = {}) => ({
+    ...packet().page,
     protocol: 1, generation: state.generation, schemaHash: state.schemaHash,
-    planHash: (programs[request.op as keyof typeof programs] ?? programs["messages.first"]).planHash,
+    planHash: (packet().programs[request.op] ?? Object.values(packet().programs)[0] as any).planHash,
     authority: { principal: state.principal, authEpoch: state.epoch }, state: "complete",
-    data: overlap.data, next: null, seq: state.seq, rows: overlap.rows, receipt: overlap.receipt, validator: hex(6),
+    next: null, seq: state.seq, validator: hex(6),
   });
   const fetch = async (input: any, init?: RequestInit): Promise<Response> => {
     const url = new URL(String(input));
@@ -64,17 +73,18 @@ async function fixture(carrier: "file" | "IndexedDB" = "file", bearer = false) {
     }
     if (url.pathname === "/api/auth/logout") return json({ ok: true });
     if (url.pathname === "/api/manifest") return json({ generation: "schema", programGeneration: state.generation,
-      ops: Object.fromEntries(Object.entries(programs).map(([name, entry]: [string, any]) => [name,
+      ops: Object.fromEntries(Object.entries(packet().programs).map(([name, entry]: [string, any]) => [name,
         { kind: "query", planHash: entry.planHash, args: entry.ir.args, ...(entry.drain ? { drain: entry.drain } : {}) }])),
       channels: {}, auth: {} });
     if (url.pathname === "/api/program") {
       await hooks.program?.(init);
       if (url.searchParams.get("generation") !== state.generation) return json({ code: "E_OP_UNKNOWN", family: "op", message: "not active", guide: "op/manifest" }, 404);
-      return json({ generation: state.generation, schemaHash: state.schemaHash, schema: certified.schema, programs });
+      const current = packet();
+      return json({ generation: state.generation, schemaHash: state.schemaHash, schema: current.schema, programs: current.programs });
     }
     if (url.pathname === "/api/query") {
       const request = JSON.parse(String(init?.body));
-      queries.push({ ...request, principal: state.principal });
+      queries.push({ ...request, principal: state.principal, generation: state.generation, schemaHash: state.schemaHash });
       return await hooks.query?.(request) ?? json(envelope(request));
     }
     if (url.pathname === "/api/mutation") {
@@ -111,7 +121,12 @@ async function fixture(carrier: "file" | "IndexedDB" = "file", bearer = false) {
     },
     resets: () => resetCount,
     async rebuilt(op = "messages.second", generation = state.generation) {
-      await eventually(async () => (await store.coverage()).facts?.generation === generation && !(await store.coverage()).superseded && (await store.answer(op, {}))?.data?.generation === generation);
+      await eventually(async () => {
+        const coverage = await store.coverage(), answer = await store.answer(op, {});
+        return coverage.facts?.generation === generation && coverage.facts.schemaHash === state.schemaHash
+          && !coverage.superseded && answer?.state === "complete"
+          && queries.some(query => query.op === op && query.generation === generation && query.schemaHash === state.schemaHash);
+      });
     },
     async close() { hooks.resume = undefined; await client.close(); await pause(); await rm(root, { recursive: true, force: true }); },
   };
@@ -123,7 +138,8 @@ for (const carrier of ["file", "IndexedDB"] as const) {
     try {
       f.state.generation = hex(2);
       const live: any = await f.client.query(api.messages.second, {});
-      assert.equal(live.seq, 7);
+      assert.equal(live.state, "complete");
+      assert.equal(f.queries.at(-1).generation, hex(2), "the successful live response was requested from G2");
       await f.rebuilt();
       assert.equal(f.resets(), 1);
       assert.deepEqual(f.resumes[0], { protocol: 1, generation: hex(1), schemaHash: certified.schemaHash, authEpoch: 1, mounted: [] });
@@ -147,13 +163,14 @@ test("concurrent G2 and G3 deliveries coalesce into one reset with only G3 answe
     await f.client.query(api.messages.second, {}); // Must finish while reset is blocked.
     await eventually(() => f.resumes.length === 1);
     f.state.generation = hex(3);
+    f.state.schemaHash = successor.schemaHash;
     await f.client.query(api.messages.third, {});
     gate.resolve();
     await f.rebuilt();
     await f.rebuilt("messages.third");
     assert.equal(f.resets(), 1);
     assert.equal(f.resumes.length, 1);
-    assert.deepEqual((await f.store.coverage()).facts, { generation: hex(3), schemaHash: certified.schemaHash, authEpoch: 1 });
+    assert.deepEqual((await f.store.coverage()).facts, { generation: hex(3), schemaHash: successor.schemaHash, authEpoch: 1 });
     assert.equal((await f.store.answer("messages.second", {})).seq, 7);
     assert.equal(await f.store.answer("messages.first", {}), undefined);
     assert.equal(f.queries.filter(q => q.op === "messages.second").length, 2, "the buffered G2 answer was re-issued under G3");
@@ -194,7 +211,8 @@ for (const kind of ["transport", "refusal"] as const) {
       };
       f.state.generation = hex(2);
       const live: any = await f.client.query(api.messages.second, {});
-      assert.equal(live.seq, 7, "live read did not await the blocked reset");
+      assert.equal(live.state, "complete", "live read did not await the blocked reset");
+      assert.equal(f.queries.at(-1).generation, hex(2), "the live read came from the successor while reset stayed blocked");
       await eventually(() => f.resumes.length === 1);
       const online = f.client.online();
       await pause();
@@ -241,17 +259,19 @@ test("a mounted subscription cold-opens after supersession without Last-Event-ID
     await f.store.commit({ watermark: { op: "messages.log", args: { c: null }, watermark: "old-tail", validator: hex(6), updatedAt: 1 } });
     sub = f.client.subscribe(api.messages.first, {}, () => undefined);
     await eventually(() => f.streams.length === 1);
-    const emit = (stream: any, id: string) => stream.controller.enqueue(new TextEncoder().encode(`id: ${id}\ndata: ${JSON.stringify(f.envelope({}))}\n\n`));
-    emit(f.streams[0], "g1:7");
-    await sub.until((e: any) => e.data?.generation === hex(1), 1000);
+    const send = (stream: any, id: string, seq = f.state.seq) =>
+      stream.controller.enqueue(new TextEncoder().encode(`id: ${id}\ndata: ${JSON.stringify({ ...f.envelope({}), seq })}\n\n`));
+    send(f.streams[0], "g1:8", 8);
+    await sub.until((e: any) => e.seq === 8, 1000);
+    assert.equal((await f.store.coverage()).facts.generation, hex(1));
     f.state.generation = hex(2);
-    emit(f.streams[0], "g2:7");
+    send(f.streams[0], "g2:7");
     await eventually(() => f.streams.length === 2);
     assert.equal(f.streams[1].headers.get("Last-Event-ID"), null);
     assert.equal(f.streams[1].url.searchParams.get("validator"), null);
     assert.deepEqual(f.resumes[0].mounted, []);
     assert.equal(f.resumes[0].log, undefined, "the old drained log validator cannot cross the superseded fence");
-    emit(f.streams[1], "g2:7");
+    send(f.streams[1], "g2:7");
     await f.rebuilt("messages.first");
     assert.equal(f.resets(), 1);
   } finally { sub?.close(); await f.close(); }
@@ -746,15 +766,15 @@ test("reset clears a terminal subscription latch and cold-opens it again", async
   try {
     sub = f.client.subscribe(api.messages.first, {}, () => undefined);
     await eventually(() => f.streams.length === 1);
-    const refused = sub.until((e: any) => e.data?.generation === hex(2), 1000);
+    const refused = sub.until((e: any) => e.seq === 8, 1000);
     emit(f.streams[0], { state: "refused", code: "E_OP_UNKNOWN", family: "op", message: "replaced", guide: "op/manifest" });
     await assert.rejects(refused, (e: any) => e.code === "E_OP_UNKNOWN");
     await assert.rejects(sub.until(() => true), (e: any) => e.code === "E_OP_UNKNOWN");
     sub.reset();
     await eventually(() => f.streams.length === 2);
     assert.equal(f.streams[1].headers.get("Last-Event-ID"), null);
-    emit(f.streams[1], f.envelope({}), "new-id");
-    assert.equal((await sub.until((e: any) => e.data?.generation === hex(1), 1000)).state, "complete");
+    emit(f.streams[1], { ...f.envelope({}), seq: 8 }, "new-id");
+    assert.equal((await sub.until((e: any) => e.seq === 8, 1000)).state, "complete");
   } finally { sub?.close(); await f.close(); }
 });
 

@@ -19,6 +19,7 @@ export const planHash = "f".repeat(64);
 // certificate instead of teaching strict custody to accept synthetic metadata.
 const corpus = JSON.parse(readFileSync(new URL("../../../corpus/local-pagination-partial-clears-next.json", import.meta.url), "utf8"));
 const completeCorpus = JSON.parse(readFileSync(new URL("../../../corpus/opaque-cursor-complete-next-null.json", import.meta.url), "utf8"));
+const successorCorpus = JSON.parse(readFileSync(new URL("../../../corpus/named-inbox-maintained-complete.json", import.meta.url), "utf8"));
 export const certifiedDrain = {
   op: corpus.program.name as string,
   generation: "e".repeat(64), schemaHash: corpus.certificate.schema_hash as string,
@@ -84,6 +85,47 @@ export function certifiedDrainPage(page: 1 | 2) {
     ruleHash: source.rule_hash, rowIds, stop: page === 1 ? source.stop : "Exhausted", absence: source.absence,
     ...(page === 1 ? { haloId: source.halo.id } : {}),
   }], absences: [], verdicts: [] } };
+}
+
+/** A distinct, native-certified schema/program used to prove a schema-changing successor. */
+export function certifiedSuccessorProgram() {
+  return {
+    schemaHash: successorCorpus.certificate.schema_hash as string,
+    schema: successorCorpus.schema,
+    program: { kind: "query" as const, ir: successorCorpus.program,
+      planHash: successorCorpus.certificate.plan_hash as string, certificate: successorCorpus.certificate },
+  };
+}
+
+const wireTagged = (value: any): any => {
+  if (value === "Null") return null;
+  if (Array.isArray(value)) return value.map(wireTagged);
+  if (value === null || typeof value !== "object") return value;
+  const entries = Object.entries(value);
+  if (entries.length !== 1) return Object.fromEntries(entries.map(([name, item]) => [name, wireTagged(item)]));
+  const [tag, item] = entries[0]!;
+  if (["Bool", "Int", "Float", "String", "Bytes", "Id", "Time", "Decimal", "Asset", "Cursor"].includes(tag)) return wireTagged(item);
+  if (tag === "Row") return wireTagged(item);
+  if (tag === "Array") return (item as any[]).map(wireTagged);
+  if (tag === "Scalar") return { Scalar: wireTagged(item) };
+  return { [tag]: wireTagged(item) };
+};
+
+/** The exact successful result and receipt belonging to certifiedSuccessorProgram(). */
+export function certifiedSuccessorPage() {
+  const rows = successorCorpus.receipt.rows.map((entry: any) => ({
+    table: entry.table, id: entry.id, row: wireTagged(entry.row),
+  }));
+  const ranges = successorCorpus.receipt.ranges.map((range: any) => ({
+    site: range.site, table: range.table, index: range.index, prefix: wireTagged(range.prefix),
+    order: range.order, take: range.take, after: wireTagged(range.after), before: wireTagged(range.before),
+    gt: wireTagged(range.gt), gte: wireTagged(range.gte), lt: wireTagged(range.lt), lte: wireTagged(range.lte),
+    ruleHash: range.rule_hash, rowIds: range.row_ids, stop: range.stop, absence: range.absence,
+  }));
+  return {
+    data: [{ $row: { table: "unreads", id: "c1:u1" } }], rows,
+    receipt: { ranges, absences: successorCorpus.receipt.absences, verdicts: successorCorpus.receipt.verdicts },
+  };
 }
 
 export function certifiedDrainEnvelope(data: unknown, validator = "1".repeat(64), seq = 3) {
