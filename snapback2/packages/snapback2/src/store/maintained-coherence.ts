@@ -1,4 +1,4 @@
-// @ref LLP 1018.000#4-coherent-named-query-snapshots — source rows and their
+// @ref LLP 1018.000#4-one-observed-query-one-coherent-snapshot — source rows and their
 // engine-maintained targets cannot authorize different revisions of one named value.
 import { RowImage } from "../../../evaluator/src/row-image.js";
 import { asInt, canonicalValues, field, materializeOptionalFields } from "../../../evaluator/src/value-runtime.js";

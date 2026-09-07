@@ -130,6 +130,7 @@ export function retireOverlays(
     }
     const overlay = state.overlay[intent]!, seq = Number(committedSeq);
     const predicted = new Set(overlay.filter((row) => !row.removed).map(rowKey));
+    const ordinary = new Set(overlay.filter((row) => !targetTables().has(row.table)).map(rowKey));
     const committedWatermark = state.overlayWatermarks[intent] ?? undefined;
     const chainKey = committedWatermark ? canonical({ op: committedWatermark.op, args: committedWatermark.args,
       cursorArg: committedWatermark.cursorArg, watermark: committedWatermark.watermark, seq }) : "";
@@ -149,7 +150,14 @@ export function retireOverlays(
     }
     const pageArrived = predicted.size > 0 && committedWatermark !== undefined && pages.some((page) => page.seq >= seq
       && reached.has(pagePosition(page, committedWatermark)));
-    if (pageArrived) for (const row of overlay) if (!targetTables().has(row.table)) confirmed.add(rowKey(row));
+    // A mutation is one atomic write group. Exact arrival/absence of any
+    // ordinary row, or the selected log advancing past the commit, supersedes
+    // every ordinary prediction, including fan-out rows whose server ids
+    // differ. Engine-maintained targets keep row-by-row custody until their own
+    // authority arrives; an ordinary sibling cannot manufacture an aggregate.
+    if (pageArrived || [...confirmed].some((key) => ordinary.has(key))) {
+      for (const key of ordinary) confirmed.add(key);
+    }
     const arrived = confirmed.size === overlay.length;
     const advanced = committedWatermark !== undefined && swap.watermark !== undefined && tail !== undefined
       && answerKey(tail.op, tail.args) === answerKey(swap.watermark.op, swap.watermark.args)
