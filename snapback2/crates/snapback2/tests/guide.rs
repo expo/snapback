@@ -31,6 +31,18 @@ fn help_is_successful_without_a_project_or_compiler_and_has_no_side_effects() {
             assert!(String::from_utf8_lossy(&output.stdout).starts_with("usage: snapback2"));
         }
     }
+    for value_flag in ["--blocked", "--project"] {
+        for help in ["-h", "--help"] {
+            let output = std::process::Command::new(env!("CARGO_BIN_EXE_snapback2"))
+                .args(["test", value_flag, help])
+                .current_dir(&project.path)
+                .env("SNAPBACK2_COMPILER", project.path.join("missing-compiler"))
+                .output().unwrap();
+            assert!(output.status.success(), "{value_flag} {help}");
+            assert!(output.stderr.is_empty());
+            assert!(String::from_utf8_lossy(&output.stdout).starts_with("usage: snapback2 test"));
+        }
+    }
     assert_eq!(common::snapshot(&project.path), before);
     let unknown = std::process::Command::new(env!("CARGO_BIN_EXE_snapback2"))
         .args(["does-not-exist", "--help"])

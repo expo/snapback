@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { rm } from "node:fs/promises";
 import { basename, join, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
@@ -36,6 +37,13 @@ export function journey(name?: string, body?: JourneyBody): void {
     throw new TypeError("journey(name, fn) requires a name and function");
   }
   registered.push({ name, body });
+}
+
+// Identity covers the registered name and compiled function source, not captured state.
+function registrationIdentity(journeys: RegisteredJourney[]): string {
+  return createHash("sha256")
+    .update(JSON.stringify(journeys.map((check) => [check.name, Function.prototype.toString.call(check.body)])))
+    .digest("hex");
 }
 
 function argument(name: string): string | undefined {
@@ -95,7 +103,7 @@ async function runEntry(): Promise<void> {
     for (const file of files) {
       try {
         const journeys = await loadJourneyFile(file);
-        process.stdout.write(`${JSON.stringify({ runner: "list", file, journeys: journeys.map((check) => check.name) })}\n`);
+        process.stdout.write(`${JSON.stringify({ runner: "list", file, journeys: journeys.map((check) => check.name), registrationId: process.argv.includes("--identify") ? registrationIdentity(journeys) : undefined })}\n`);
       } catch (error) {
         process.stdout.write(`${JSON.stringify({ name: file, kind: "journey", verdict: "fail", ms: 0, detail: String(error) })}\n`);
         process.exitCode = 1;
@@ -114,13 +122,9 @@ async function runEntry(): Promise<void> {
     try {
       const journeys = await loadJourneyFile(files[0]!);
       // @ref LLP 1002#7-test-and-the-receipt — reject registration drift before a focused body can run.
-      const expectedNames = argument("--expected-journeys");
-      if (expectedNames !== undefined) {
-        const expected: unknown = JSON.parse(expectedNames);
-        if (!Array.isArray(expected) || expected.length !== journeys.length
-          || expected.some((name, i) => typeof name !== "string" || name !== journeys[i]!.name)) {
-          throw new Error("journey registrations changed between discovery and execution; keep names and order stable");
-        }
+      const expectedIdentity = argument("--expected-journeys");
+      if (expectedIdentity !== undefined && expectedIdentity !== registrationIdentity(journeys)) {
+        throw new Error("journey registrations changed between discovery and execution; keep names, body source and order stable");
       }
       const check = journeys[index];
       if (!check) throw new Error(`journey index ${index} is out of range`);

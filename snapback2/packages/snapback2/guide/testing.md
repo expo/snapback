@@ -1,7 +1,6 @@
 # Testing
 
-The seed is static data, applied as one system commit before derived checks and
-authored journeys:
+The static seed is one system commit before derived checks and journeys:
 
 ```ts
     profiles: [
@@ -39,12 +38,13 @@ writes `.snapback/receipts/<timestamp>.json`. Zero checks cannot pass. Use
 `snapback2 test --blocked "reason"` for an honest blocked receipt.
 
 Select: `snapback2 test --journey "todos round trip"`.
-Use `--journey=--help` or `--journey=-h` for option names; quotes do not escape them.
-Duplicates run; receipts record `scope.journey`. Focused processes check
-discovered names/order/count before each body; registration drift fails.
-Other journeys and top-level derived checks are skipped; embedded offline checks
-remain. Unknown names fail with available names. Compilation, certification and
-loading failures remain. Five-second host deadlines and process isolation remain.
+Literals: `--journey=--help` or `--journey=-h`, not just quotes.
+Duplicates run; scope is `scope.journey`. Focused processes compare
+names/body source/order/count; registration drift fails before a wrong body.
+Keep captured state stable: source identity cannot inspect it. Unsuccessful
+runner exits fail. Skips other journeys and top-level derived checks;
+embedded offline checks remain. Unknown names fail with available names;
+compile/load failures remain. Five-second deadlines and isolation remain.
 Cannot combine with `--derived-only` or `--blocked` or infer affected coverage.
 Plain `snapback2 test` runs the full suite.
 

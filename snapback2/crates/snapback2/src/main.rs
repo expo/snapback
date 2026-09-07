@@ -48,8 +48,8 @@ fn main() -> ExitCode {
         println!("{}", verbs::TOP_HELP);
         return ExitCode::SUCCESS;
     }
-    let help_values = if args[0] == "test" {
-        test::VALUE_FLAGS
+    let help_values: &[&str] = if args[0] == "test" {
+        &["--journey"]
     } else {
         &[]
     };

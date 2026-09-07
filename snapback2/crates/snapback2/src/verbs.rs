@@ -468,15 +468,13 @@ mod tests {
     }
 
     #[test]
-    fn help_detection_consumes_only_declared_values() {
+    fn help_detection_reserves_literal_values_only_for_journey() {
         for values in [
             vec!["test", "--journey", "-h"],
             vec!["test", "--journey=--help"],
-            vec!["test", "--project", "-h", "--journey=-h"],
-            vec!["test", "--blocked", "--help"],
         ] {
             assert!(
-                !help_requested(&args(&values), crate::test::VALUE_FLAGS),
+                !help_requested(&args(&values), &["--journey"]),
                 "{values:?}"
             );
         }
@@ -486,11 +484,12 @@ mod tests {
             vec!["test", "--journey=-h", "--help"],
             vec!["test", "--journey", "-h", "--help"],
             vec!["test", "--unknown", "--help"],
+            vec!["test", "--project", "-h", "--journey=-h"],
+            vec!["test", "--project", "--help"],
+            vec!["test", "--blocked", "-h"],
+            vec!["test", "--blocked", "--help"],
         ] {
-            assert!(
-                help_requested(&args(&values), crate::test::VALUE_FLAGS),
-                "{values:?}"
-            );
+            assert!(help_requested(&args(&values), &["--journey"]), "{values:?}");
         }
     }
 }

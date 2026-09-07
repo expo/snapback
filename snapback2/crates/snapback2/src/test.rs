@@ -749,7 +749,11 @@ fn run_journeys(root: &Path, owner: &OwnerInfo, selected: Option<&str>) -> Vec<C
     let mut matched = false;
     for file in files {
         let mut list = journey_command(&runner, owner);
-        list.arg("--list").arg("--").arg(&file);
+        list.arg("--list");
+        if selected.is_some() {
+            list.arg("--identify");
+        }
+        list.arg("--").arg(&file);
         let listed = match supervise_journey_runner(list) {
             Ok(output) => output,
             Err(error) => {
@@ -770,12 +774,16 @@ fn run_journeys(root: &Path, owner: &OwnerInfo, selected: Option<&str>) -> Vec<C
             ));
             continue;
         }
-        let names = listed
+        let discovery = listed
             .lines
             .iter()
             .filter_map(|line| serde_json::from_str::<Json>(line).ok())
             .find(|value| value.get("runner").and_then(Json::as_str) == Some("list"))
-            .and_then(|value| value.get("journeys").and_then(Json::as_array).cloned())
+            .unwrap_or(Json::Null);
+        let names = discovery
+            .get("journeys")
+            .and_then(Json::as_array)
+            .cloned()
             .unwrap_or_default()
             .into_iter()
             .filter_map(|name| name.as_str().map(ToOwned::to_owned))
@@ -797,9 +805,26 @@ fn run_journeys(root: &Path, owner: &OwnerInfo, selected: Option<&str>) -> Vec<C
             }
             continue;
         }
+        if listed.failed_exit() {
+            checks.push(journey_host_failure(
+                "journey runner",
+                &listed,
+                "journey discovery exited unsuccessfully",
+            ));
+            continue;
+        }
         available.extend(names.iter().cloned());
         // @ref LLP 1002#7-test-and-the-receipt — focused receipts bind discovery to execution, including duplicate registrations.
-        let expected_names = selected.map(|_| serde_json::to_string(&names).unwrap());
+        let identity = discovery.get("registrationId").and_then(Json::as_str);
+        if selected.is_some() && identity.is_none() {
+            checks.push(journey_host_failure(
+                "journey runner",
+                &listed,
+                "journey discovery omitted registration identity",
+            ));
+            continue;
+        }
+        let expected_identity = selected.and(identity);
         for (index, name) in names.into_iter().enumerate() {
             if selected.is_some_and(|selected| selected != name) {
                 continue;
@@ -807,7 +832,7 @@ fn run_journeys(root: &Path, owner: &OwnerInfo, selected: Option<&str>) -> Vec<C
             matched = true;
             let mut command = journey_command(&runner, owner);
             command.arg("--journey-index").arg(index.to_string());
-            if let Some(expected) = &expected_names {
+            if let Some(expected) = expected_identity {
                 command.arg("--expected-journeys").arg(expected);
             }
             command.arg("--").arg(&file);
@@ -843,7 +868,17 @@ fn run_journeys(root: &Path, owner: &OwnerInfo, selected: Option<&str>) -> Vec<C
                     },
                 ));
             } else {
+                let reported_failure = parsed
+                    .iter()
+                    .any(|check| matches!(check.verdict.as_str(), "fail" | "blocked"));
                 checks.extend(parsed);
+                if output.failed_exit() && !reported_failure {
+                    checks.push(journey_host_failure(
+                        &name,
+                        &output,
+                        "journey runner exited unsuccessfully after its receipt",
+                    ));
+                }
             }
         }
     }
@@ -872,6 +907,14 @@ struct JourneyRunnerOutput {
     stderr: String,
     timeout_name: Option<String>,
     capped: bool,
+    grace_terminated: bool,
+}
+
+impl JourneyRunnerOutput {
+    fn failed_exit(&self) -> bool {
+        // A natural nonzero exit still fails if it races grace cleanup.
+        self.status.map_or(!self.grace_terminated, |code| code != 0)
+    }
 }
 
 fn journey_command(runner: &Path, owner: &OwnerInfo) -> Command {
@@ -936,6 +979,7 @@ fn supervise_journey_runner(mut command: Command) -> Result<JourneyRunnerOutput,
     let mut lines = Vec::new();
     let mut capped = false;
     let mut timeout_name = None;
+    let mut grace_terminated = false;
     let status = loop {
         if let Some(exit) = child.try_wait()? {
             while let Ok(event) = receive.try_recv() {
@@ -948,6 +992,7 @@ fn supervise_journey_runner(mut command: Command) -> Result<JourneyRunnerOutput,
         }
         let now = Instant::now();
         if now >= deadline {
+            grace_terminated = completed;
             terminate_journey_runner(&mut child);
             if !completed {
                 timeout_name = Some(current.unwrap_or_else(|| "journey runner".to_owned()));
@@ -996,6 +1041,7 @@ fn supervise_journey_runner(mut command: Command) -> Result<JourneyRunnerOutput,
         stderr,
         timeout_name,
         capped,
+        grace_terminated,
     })
 }
 

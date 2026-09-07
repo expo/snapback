@@ -572,17 +572,28 @@ distinguish source validation from owner installation.
 **Focused verification (2026-09-07).** `test --journey "name"` executes only
 journeys registered under that exact name, including every duplicate within
 and across files. `--journey=VALUE` accepts literal option-shaped names such as
-`--help` and `-h`; help scanning respects the test verb's option values. Each
-focused body process verifies the discovered registration names and order
-before execution. Changed names, order or duplicate counts fail visibly;
-a discovery index alone is not execution identity. Plain full-suite execution
-keeps its existing path. Focused execution skips the top-level derived families;
+`--help` and `-h`; only a `--journey` value is exempt from help scanning.
+`test --blocked -h` and `test --project -h` retain baseline help behavior (also
+with `--help`). Each focused body process verifies the ordered discovery
+identity before execution: one SHA-256 of the ordered JSON list of name and
+compiled function-source pairs (`Function.prototype.toString`). The fixed-size
+identity avoids a per-registration command-argument tax. Changed names, body source,
+order or duplicate counts fail visibly, including swapped distinct bodies with
+one name. A discovery index or name vector alone is not execution identity.
+This does not inspect captured values or sandbox authored code; captured setup
+must remain stable across processes, and every stable duplicate still runs.
+Full-suite selection is unchanged; exit-status validation below applies to all runs. Focused execution skips the top-level derived families;
 durable journey clients still run embedded offline checks. It preserves backend
 compilation and certification plus per-journey process isolation and deadlines,
 and records `scope.journey` on success and failure receipts. A missing name fails
 with available names; loading or compilation failures remain failures. It cannot
 combine with `--derived-only` or `--blocked`. This is explicit selection, not
 an automatic affected-coverage claim; plain `test` still proves the full suite.
+
+A parsed passing receipt cannot mask an unsuccessful discovery/body process
+exit. Retain reported checks and add the host failure when no failure was
+already reported. The existing host termination after a completed receipt's
+250 ms exit grace remains cleanup, not a new journey failure.
 
 `test` starts a fresh owner (`--foreground`, ephemeral port, store at
 `.snapback/test-<ts>.sqlite`, deleted after), applies the seed, then runs

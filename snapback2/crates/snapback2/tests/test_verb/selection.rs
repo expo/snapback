@@ -144,3 +144,186 @@ for (const name of ["-h", "--list", "--blocked", "name=part"]) {
         );
     }
 }
+
+#[test]
+fn same_name_distinct_body_swap_refuses_instead_of_running_one_body_twice() {
+    let project = Project::new();
+    assert!(project.init("todos", "none").status.success());
+    let marker = project.path.join("bodies-ran");
+    let marker_literal = serde_json::to_string(&marker).unwrap();
+    let source = format!(
+        r#"import {{ journey }} from "snapback2/test";
+declare const process: {{
+  argv: string[];
+  getBuiltinModule(name: "fs"): {{ appendFileSync(path: string, data: string): void }};
+}};
+const pass = async () => {{ process.getBuiltinModule("fs").appendFileSync({marker_literal}, "pass\n"); }};
+const fail = async () => {{
+  process.getBuiltinModule("fs").appendFileSync({marker_literal}, "fail\n");
+  throw new Error("duplicate failure");
+}};
+const flag = process.argv.indexOf("--journey-index");
+const second = flag >= 0 && process.argv[flag + 1] === "1";
+for (const body of second ? [fail, pass] : [pass, fail]) journey("target", body);
+"#
+    );
+    let file = project.path.join("snapback/tests/todos.test.ts");
+    fs::write(&file, &source).unwrap();
+    let output = project.run(&["test", "--journey=target", "--json"]);
+    let receipt = json_stdout(&output);
+    assert_eq!(output.status.code(), Some(1), "{receipt}");
+    assert_eq!(receipt["scope"]["journey"], "target");
+    let checks = receipt["checks"].as_array().unwrap();
+    assert_eq!(checks.len(), 2, "{receipt}");
+    assert_eq!(checks[0]["name"], "target");
+    assert_eq!(checks[0]["verdict"], "pass");
+    assert_eq!(checks[1]["kind"], "journey");
+    assert_eq!(checks[1]["verdict"], "fail");
+    assert!(
+        checks[1]["detail"]
+            .to_string()
+            .contains("journey registrations changed"),
+        "{receipt}"
+    );
+    assert_eq!(fs::read_to_string(&marker).unwrap(), "pass\n");
+    assert_eq!(project.latest_receipt(), receipt);
+
+    // Both stable duplicate bodies still execute, including the failure.
+    fs::remove_file(&marker).unwrap();
+    fs::write(
+        file,
+        source.replace("second ? [fail, pass] : [pass, fail]", "[pass, fail]"),
+    )
+    .unwrap();
+    let output = project.run(&["test", "--journey=target", "--json"]);
+    let receipt = json_stdout(&output);
+    assert_eq!(output.status.code(), Some(1), "{receipt}");
+    let checks = receipt["checks"].as_array().unwrap();
+    assert_eq!(checks.len(), 2, "{receipt}");
+    assert!(
+        checks
+            .iter()
+            .all(|c| c["name"] == "target" && c["kind"] == "journey")
+    );
+    assert_eq!(checks[0]["verdict"], "pass");
+    assert_eq!(checks[1]["verdict"], "fail");
+    assert!(
+        checks[1]["detail"]
+            .to_string()
+            .contains("duplicate failure")
+    );
+    assert_eq!(fs::read_to_string(&marker).unwrap(), "pass\nfail\n");
+}
+
+#[test]
+fn a_passing_body_receipt_cannot_hide_an_unsuccessful_runner_exit() {
+    let project = Project::new();
+    assert!(project.init("todos", "none").status.success());
+    for (body, status, selected) in [
+        ("process.exitCode = 1;", 1, true),
+        (
+            "process.once('beforeExit', () => { process.exitCode = 2; });",
+            2,
+            true,
+        ),
+        ("process.exitCode = 1;", 1, false),
+    ] {
+        fs::write(
+            project.path.join("snapback/tests/todos.test.ts"),
+            format!(
+                r#"
+import {{ journey }} from "snapback2/test";
+declare const process: {{ exitCode: number; once(event: string, body: () => void): void }};
+journey("target", async () => {{ {body} }});
+"#
+            ),
+        )
+        .unwrap();
+        let args = if selected {
+            vec!["test", "--journey=target", "--json"]
+        } else {
+            vec!["test", "--json"]
+        };
+        let output = project.run(&args);
+        let receipt = json_stdout(&output);
+        assert_eq!(output.status.code(), Some(1), "{receipt}");
+        assert_eq!(receipt["verdict"], "fail", "{receipt}");
+        if selected {
+            assert_eq!(receipt["scope"]["journey"], "target");
+        } else {
+            assert!(receipt["scope"].get("journey").is_none());
+            assert_eq!(check(&receipt, "certify")["verdict"], "pass");
+        }
+        let checks = receipt["checks"].as_array().unwrap();
+        assert!(
+            checks
+                .iter()
+                .any(|c| c["name"] == "target" && c["verdict"] == "pass"),
+            "retain the body receipt: {receipt}"
+        );
+        let failed = checks
+            .iter()
+            .find(|c| c["name"] == "target" && c["verdict"] == "fail")
+            .unwrap();
+        assert_eq!(failed["detail"]["status"], status, "{receipt}");
+        assert!(
+            failed["detail"]["error"]
+                .as_str()
+                .unwrap()
+                .contains("exited unsuccessfully")
+        );
+        assert_eq!(project.latest_receipt(), receipt);
+    }
+}
+
+#[test]
+fn unsuccessful_discovery_cannot_admit_a_selected_body() {
+    let project = Project::new();
+    assert!(project.init("todos", "none").status.success());
+    fs::write(
+        project.path.join("snapback/tests/todos.test.ts"),
+        r#"
+import { journey } from "snapback2/test";
+declare const process: { argv: string[]; exitCode: number };
+if (process.argv.includes("--list")) process.exitCode = 3;
+journey("target", async () => { throw new Error("body must not run"); });
+"#,
+    )
+    .unwrap();
+    let output = project.run(&["test", "--journey=target", "--json"]);
+    let receipt = json_stdout(&output);
+    assert_eq!(output.status.code(), Some(1), "{receipt}");
+    assert_eq!(receipt["scope"]["journey"], "target");
+    let failure = check(&receipt, "journey runner");
+    assert_eq!(failure["detail"]["status"], 3);
+    assert_eq!(
+        failure["detail"]["error"],
+        "journey discovery exited unsuccessfully"
+    );
+    assert!(
+        !receipt["checks"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|c| c["name"] == "target"),
+        "{receipt}"
+    );
+    assert_eq!(project.latest_receipt(), receipt);
+}
+
+#[test]
+fn focused_identity_does_not_exhaust_argv_on_unselected_registrations() {
+    let project = Project::new();
+    assert!(project.init("todos", "none").status.success());
+    fs::write(project.path.join("snapback/tests/todos.test.ts"), r#"
+import { journey } from "snapback2/test";
+journey("target", async () => {});
+for (let i = 0; i < 2000; i++) journey("other", async () => { throw new Error("unselected body"); });
+"#).unwrap();
+    let output = project.run(&["test", "--journey=target", "--json"]);
+    let receipt = json_stdout(&output);
+    assert!(output.status.success(), "{receipt}");
+    assert_eq!(receipt["scope"]["journey"], "target");
+    assert_eq!(receipt["checks"].as_array().unwrap().len(), 1);
+    assert_eq!(check(&receipt, "target")["verdict"], "pass");
+}
