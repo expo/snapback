@@ -1159,9 +1159,7 @@ fn expression_depends_on_membership(
         Expr::Object(fields) => fields
             .values()
             .any(|value| expression_depends_on_membership(value, recipe, membership_values)),
-        Expr::Literal(_) | Expr::Input(_) | Expr::Scan(_) | Expr::Merge(_) => {
-            false
-        }
+        Expr::Literal(_) | Expr::Input(_) | Expr::Scan(_) | Expr::Merge(_) => false,
     }
 }
 

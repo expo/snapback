@@ -59,14 +59,20 @@ fn revocation_candidate_prefers_a_membership_guard_dependency() {
     assert!(!query_isolates_protected_table(
         &program, &reads, &recipe, "messages"
     ));
-    program.body.insert(0, Stmt::Const {
-        name: "expandedHelper".to_owned(),
-        value: Expr::Exists(membership),
-    });
-    program.body.insert(1, Stmt::Require {
-        condition: Expr::Variable("expandedHelper".to_owned()),
-        code: "MEMBERSHIP_REQUIRED".to_owned(),
-    });
+    program.body.insert(
+        0,
+        Stmt::Const {
+            name: "expandedHelper".to_owned(),
+            value: Expr::Exists(membership),
+        },
+    );
+    program.body.insert(
+        1,
+        Stmt::Require {
+            condition: Expr::Variable("expandedHelper".to_owned()),
+            code: "MEMBERSHIP_REQUIRED".to_owned(),
+        },
+    );
     assert!(query_isolates_protected_table(
         &program, &reads, &recipe, "messages"
     ));
