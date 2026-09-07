@@ -5,6 +5,7 @@ import type { FrontendDiagnostic } from "./ir";
 import { callLeaf } from "./lower/static";
 import { findNarrowestNode, hasExport, unwrapCall } from "./syntax";
 import { typeDiagnosticSite } from "./type-diagnostic-site";
+import { recordTypeDiagnosticCause } from "./type-diagnostic-cause";
 
 export function createProjectProgram(
   schemaPath: string,
@@ -74,7 +75,7 @@ export function projectTypeDiagnostics(
     const node = item.start === undefined ? item.file : findNarrowestNode(item.file, item.start);
     if (!include(node)) return [];
     const siteKind = typeDiagnosticSite(node, file);
-    return [typeDiagnostic(
+    return [recordTypeDiagnosticCause(typeDiagnostic(
       siteKind.code,
       siteKind.family,
       file,
@@ -83,7 +84,7 @@ export function projectTypeDiagnostics(
       message,
       typeDiagnosticRewrite(item.file, node, message),
       siteKind.guide,
-    )];
+    ), item, node, checker)];
   });
 }
 

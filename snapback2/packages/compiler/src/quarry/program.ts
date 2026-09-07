@@ -6,6 +6,7 @@ import type {
   MergeExpr,
   ObjectField,
   ProgramDecl,
+  QuarryDiagnostic,
   ScalarType,
   ShapeField,
   Site,
@@ -13,7 +14,7 @@ import type {
   TableCatalog,
 } from "./ast";
 import { idLiteral, keyCompatible, selectIndex } from "./catalog";
-import { refuse, typeError, unsupported } from "./diagnostics";
+import { QuarryError, refuse, typeError, unsupported } from "./diagnostics";
 import { quarryExpression, quarryWriteWithoutField } from "./print";
 import { narrowThenBindings } from "./narrowing";
 import { header, siteMark, typeCode } from "./schema";
@@ -49,20 +50,30 @@ class Writer {
     this.lines.push(text ? `${"  ".repeat(this.indent)}${text} ${siteMark(site ?? this.lastSite)}` : "");
   }
   statement(text: string, site: Site): void { this.raw(text, site); }
-  nested(run: () => void): void { this.indent += 1; run(); this.indent -= 1; }
+  nested(run: () => void): void { this.indent += 1; try { run(); } finally { this.indent -= 1; } }
 }
 
 class Environment {
   readonly bindings = new Map<string, Binding>();
+  readonly failedBindings = new Set<string>();
   focal?: Binding;
   inlineComparisons = false;
 
-  constructor(readonly catalog: TableCatalog, readonly program: ProgramDecl, readonly effects: Set<string>) {
-    for (const arg of program.args) this.bindings.set(arg.name, { code: `args.${arg.name}`, type: arg.type });
+  constructor(readonly catalog: TableCatalog, readonly program: ProgramDecl, readonly effects: Set<string>, readonly report?: (item: QuarryDiagnostic) => void) {
+    for (const arg of program.args) this.bind(arg.name, { code: `args.${arg.name}`, type: arg.type });
+  }
+
+  // @ref LLP 1002#3-the-compiler-worker-and-the-project-json — a fresh lexical
+  // binding replaces an inherited failure, only in this environment. Call after
+  // checking its initializer/domain under the previous bindings.
+  bind(name: string, binding: Binding): void {
+    this.bindings.set(name, binding);
+    this.failedBindings.delete(name);
   }
 
   clone(): Environment {
-    const clone = new Environment(this.catalog, this.program, this.effects);
+    const clone = new Environment(this.catalog, this.program, this.effects, this.report);
+    for (const name of this.failedBindings) clone.failedBindings.add(name);
     clone.bindings.clear();
     for (const [name, binding] of this.bindings) clone.bindings.set(name, {
       ...binding,
@@ -74,7 +85,7 @@ class Environment {
   }
 }
 
-export function emitPrograms(programs: ProgramDecl[], catalog: TableCatalog, sourceFile: string, effects: EffectDecl[] = []): string {
+export function emitPrograms(programs: ProgramDecl[], catalog: TableCatalog, sourceFile: string, effects: EffectDecl[] = [], report?: (item: QuarryDiagnostic) => void): string {
   refuseGeneratedImportCollisions(programs, effects);
   const rootSite = programs[0]?.site ?? effects[0]?.site ?? { file: sourceFile, line: 1, col: 1 };
   const writer = new Writer(rootSite);
@@ -86,7 +97,7 @@ export function emitPrograms(programs: ProgramDecl[], catalog: TableCatalog, sou
   writer.statement(`function orderedPair(left: any, right: any): [any, any] { return [left, right]; }`, { file: sourceFile, line: 1, col: 1 });
   writer.raw();
   for (const program of programs) {
-    emitProgram(program, catalog, writer, new Set(effects.map((effect) => effect.name)));
+    emitProgram(program, catalog, writer, new Set(effects.map((effect) => effect.name)), report);
     writer.raw();
   }
   return `${writer.lines.join("\n").trimEnd()}\n`;
@@ -133,8 +144,8 @@ function refuseGeneratedImportCollisions(programs: ProgramDecl[], effects: Effec
 // internal lowering target, so its binding namespace cannot constrain Quarry.
 function tableBinding(table: string): string { return `${table}$table`; }
 
-function emitProgram(program: ProgramDecl, catalog: TableCatalog, writer: Writer, effects: Set<string>): void {
-  const env = new Environment(catalog, program, effects);
+function emitProgram(program: ProgramDecl, catalog: TableCatalog, writer: Writer, effects: Set<string>, report?: (item: QuarryDiagnostic) => void): void {
+  const env = new Environment(catalog, program, effects, report);
   if (program.focalTable) env.focal = { code: "args", type: { kind: "row", table: program.focalTable, nullable: false } };
   const args = program.args.map((arg) => `${property(arg.name)}: ${typeCode(arg.type, tableBinding)}`).join(", ");
   writer.raw(`export const ${program.name} = ${program.kind === "job" ? "mutation" : program.kind}({ ${args} }, ({ db, ctx, args }) => {`, program.site);
@@ -150,8 +161,38 @@ function emitBody(body: Stmt[], env: Environment, writer: Writer, completion?: C
   }
   for (const [index, statement] of body.entries()) {
     const isLast = index === body.length - 1;
-    emitStatement(statement, env, writer, isLast ? completion : undefined, isLast && discardLast);
+    if (!env.report) emitStatement(statement, env, writer, isLast ? completion : undefined, isLast && discardLast);
+    else {
+      // @ref LLP 1002#3-the-compiler-worker-and-the-project-json — recovery is
+      // diagnostic-only. Discard a failed statement's emission and bindings;
+      // its dependants have no proved type and cannot supply further checks.
+      const checkpoint = env.clone(), length = writer.lines.length;
+      try {
+        emitStatement(statement, env, writer, isLast ? completion : undefined, isLast && discardLast);
+      } catch (error) {
+        if (!(error instanceof QuarryError) && !(error instanceof FailedBinding)) throw error;
+        writer.lines.length = length;
+        env.bindings.clear();
+        for (const [name, binding] of checkpoint.bindings) env.bindings.set(name, binding);
+        env.failedBindings.clear();
+        for (const name of checkpoint.failedBindings) env.failedBindings.add(name);
+        env.focal = checkpoint.focal;
+        env.inlineComparisons = checkpoint.inlineComparisons;
+        if (statement.kind === "bind") for (const name of statement.names) {
+          env.bindings.delete(name);
+          env.failedBindings.add(name);
+        }
+        if (error instanceof QuarryError) env.report(error.diagnostic);
+      }
+    }
   }
+}
+
+class FailedBinding extends Error {}
+
+function checkBinding(name: string, site: Site, env: Environment): void {
+  if (site.expandedFrom && ["viewer", "now", "commit", "new"].includes(name)) return;
+  if (env.failedBindings.has(name)) throw new FailedBinding(name);
 }
 
 function emitStatement(statement: Stmt, env: Environment, writer: Writer, completion?: Completion, discard = false): void {
@@ -167,7 +208,7 @@ function emitStatement(statement: Stmt, env: Environment, writer: Writer, comple
         for (const [offset, field] of ["quotient", "remainder"].entries()) {
           const name = statement.names[offset]!;
           writer.statement(`const ${name} = ${local}.${field};`, statement.site);
-          env.bindings.set(name, { code: name, type: (value.type as ObjectType).fields.get(field)! });
+          env.bind(name, { code: name, type: (value.type as ObjectType).fields.get(field)! });
         }
         finishNull(completion, writer, statement.site);
         return;
@@ -175,14 +216,14 @@ function emitStatement(statement: Stmt, env: Environment, writer: Writer, comple
       const left = emitExpr(statement.value.args[0]!, env, writer);
       const right = emitExpr(statement.value.args[1]!, env, writer);
       writer.statement(`const [${statement.names.join(", ")}] = orderedPair(${left.code}, ${right.code});`, statement.site);
-      env.bindings.set(statement.names[0]!, { code: statement.names[0]!, type: left.type });
-      env.bindings.set(statement.names[1]!, { code: statement.names[1]!, type: right.type });
+      env.bind(statement.names[0]!, { code: statement.names[0]!, type: left.type });
+      env.bind(statement.names[1]!, { code: statement.names[1]!, type: right.type });
     } else {
       const value = emitExpr(statement.value, env, writer);
       if (value.effectOnly) refuse(statement.site, "delete does not yield a value; return a confirmation value after the write");
       const name = statement.names[0]!;
       writer.statement(`const ${name} = ${value.code};`, statement.site);
-      env.bindings.set(name, { code: name, type: value.type });
+      env.bind(name, { code: name, type: value.type });
     }
     finishNull(completion, writer, statement.site);
     return;
@@ -261,7 +302,7 @@ function emitStatement(statement: Stmt, env: Environment, writer: Writer, comple
     writer.raw(`for (const ${statement.name} of ${domain.code}) {`, statement.site);
     writer.nested(() => {
       const nested = env.clone();
-      nested.bindings.set(statement.name, { code: statement.name, type: itemType });
+      nested.bind(statement.name, { code: statement.name, type: itemType });
       emitBody(statement.body, nested, writer);
     });
     writer.statement("}", statement.site);
@@ -286,7 +327,7 @@ function emitMatch(statement: Extract<Stmt, { kind: "match" }>, env: Environment
   writer.raw(`if (${local} !== null) {`, statement.site);
   writer.nested(() => {
     const nested = env.clone();
-    nested.bindings.set(statement.someName, { code: statement.someName, type: { kind: "row", table: statement.read.table, nullable: false } });
+    nested.bind(statement.someName, { code: statement.someName, type: { kind: "row", table: statement.read.table, nullable: false } });
     writer.statement(`const ${statement.someName} = ${local};`, statement.site);
     emitBody(statement.someBody, nested, writer, branchCompletion, discardBranchValues);
   });
@@ -382,6 +423,7 @@ function emitExpr(expr: Expr, env: Environment, writer: Writer, resultUsed = tru
 }
 
 function emitName(name: string, site: Site, env: Environment): Emitted {
+  checkBinding(name, site, env);
   const binding = site.expandedFrom && ["viewer", "now", "commit", "new"].includes(name) ? undefined : env.bindings.get(name);
   if (binding) return { ...binding, type: binding.narrowedType ?? binding.type };
   if (name === "viewer") return { code: "ctx.viewer", type: { kind: "principal", optional: false } };
@@ -747,12 +789,22 @@ function emitMerge(expr: MergeExpr, env: Environment, writer: Writer): Emitted {
     typeError(expr.lanes[0]!.site, `merge lane prefixes must leave at least one ${expr.table}.${index.name} suffix column`, "drop the last prefix key from every lane");
   }
   const seen = new Map<string, number>();
+  const mergeSite = `${expr.site.file}:${expr.site.line}:${expr.site.col}`;
+  const lanes: string[] = [];
   expr.lanes.forEach((lane, offset) => {
     const key = lane.prefix.map(quarryExpression).join("\u0000");
     if (seen.has(key)) typeError(lane.site, "merge lanes have structurally identical prefixes", "drop this duplicate lane");
     seen.set(key, offset);
+    // @ref LLP 1002#3-the-compiler-worker-and-the-project-json — establish the
+    // domain in the outer scope before checking dependent prefixes. Reuse its
+    // emission below: a second pass could repeat guards or authored operands.
+    const domain = lane.loop && emitRead(lane.loop.domain, env, writer);
     const nested = env.clone();
-    if (lane.loop) nested.bindings.set(lane.loop.name, { code: lane.loop.name, type: { kind: "row", table: lane.loop.domain.table, nullable: false } });
+    if (lane.loop && domain) {
+      const item = boundedItemType(domain.type);
+      if (!item) refuse(lane.loop.domain.site, "merge lane discovery needs a bounded range");
+      nested.bind(lane.loop.name, { code: lane.loop.name, type: item });
+    }
     lane.prefix.forEach((value, position) => {
       const actual = inferExpr(value, nested);
       const column = index.columns[position]!;
@@ -772,15 +824,6 @@ function emitMerge(expr: MergeExpr, env: Environment, writer: Writer): Emitted {
       (value) => inferExpr(value, nested),
       lane.site,
     );
-  });
-  const mergeSite = `${expr.site.file}:${expr.site.line}:${expr.site.col}`;
-  const lanes: string[] = [];
-  for (const lane of expr.lanes) {
-    const nested = env.clone();
-    const domain = lane.loop && emitRead(lane.loop.domain, env, writer);
-    if (lane.loop) nested.bindings.set(lane.loop.name, {
-      code: lane.loop.name, type: { kind: "row", table: lane.loop.domain.table, nullable: false },
-    });
     const localWriter = new Writer(lane.site);
     const scan = emitRead({
       kind: "read", table: expr.table,
@@ -794,7 +837,7 @@ function emitMerge(expr: MergeExpr, env: Environment, writer: Writer): Emitted {
 ${localWriter.lines.join("\n")}
 return ${scan.code};
 }` : scan.code} }`);
-  }
+  });
   return {
     code: `mergeByIndex([${lanes.join(", ")}], ${expr.take}, ${JSON.stringify(mergeSite)})`,
     type: { kind: "page", table: expr.table },
@@ -1207,6 +1250,7 @@ function assetShapeName(shape: AssetShape): string {
 
 function inferExpr(expr: Expr, env: Environment): ScalarType | undefined {
   if (expr.kind === "name") {
+    checkBinding(expr.name, expr.site, env);
     const binding = expr.site.expandedFrom && ["viewer", "now", "commit", "new"].includes(expr.name)
       ? undefined : env.bindings.get(expr.name)?.type;
     if (binding && isScalar(binding)) return binding;

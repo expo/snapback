@@ -20,8 +20,10 @@ import {
   withProject,
 } from "./quarry-check-helpers";
 import ts from "typescript";
+import { registerQuarryDiagnosticChecks } from "./quarry-diagnostic-checks";
 
 export function registerQuarryProgramChecks(test: Test, frontend: string): void {
+  registerQuarryDiagnosticChecks(test);
   const fixtures = resolve(frontend, "fixtures");
   const packageRoot = resolve(frontend, "../snapback2");
   test("Quarry table and operation names occupy separate generated bindings", async () => {

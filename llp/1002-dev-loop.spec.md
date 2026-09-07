@@ -5,7 +5,7 @@
 **Systems:** `snapback2/crates/snapback2` (the binary: owner, server, verbs), `snapback2/packages/compiler` (project lowering, worker), `snapback2/packages/snapback2` (authoring runtime, client, React, test runner, shim), `snapback2/scripts/measure.mjs`
 **Author:** Claude Fable 5 (orchestrator) — implementers: codex gpt-5.6-sol, lanes B0 (compiler + authoring surface), B1 (owner + server + verbs), B2 (`init`, `test`, `why`, `trace`, `guide`), D (client + React + evaluator)
 **Date:** 2026-08-29
-**Revised:** 2026-09-07 (preserve unrelated prefixed optional packages; staged platform dependency selection and exact-lock packaging regression; explicit named-journey verification and executable React startup; startup cleanup fixture custody); 2026-09-06 (app guide operation/certificate custody; native logical SSE body; CLI help and executable migration recovery; auth startup recovery and held transition reads; queued transitions, interrupted sync, live held reads); 2026-09-05 (keyword index fallback and recipe list; generated Quarry keyword guide, landed outbox/client custody; auth review: failed-transition custody, read restoration barrier, session kind, paused offline retries; client-owned auth restoration and retry lifecycle; catalog naming rewrites, Clique L2; shared live transport, bounded derived verification, mutation-read guidance, installed consumer qualification)
+**Revised:** 2026-09-07 (independent Quarry diagnostics, checked-type repair advice, lexical failure isolation and merge discovery ordering; implementer GPT-6 Astra); 2026-09-07 (preserve unrelated prefixed optional packages; staged platform dependency selection and exact-lock packaging regression; explicit named-journey verification and executable React startup; startup cleanup fixture custody); 2026-09-06 (app guide operation/certificate custody; native logical SSE body; CLI help and executable migration recovery; auth startup recovery and held transition reads; queued transitions, interrupted sync, live held reads); 2026-09-05 (keyword index fallback and recipe list; generated Quarry keyword guide, landed outbox/client custody; auth review: failed-transition custody, read restoration barrier, session kind, paused offline retries; client-owned auth restoration and retry lifecycle; catalog naming rewrites, Clique L2; shared live transport, bounded derived verification, mutation-read guidance, installed consumer qualification)
 **Related:** LLP 1000, LLP 1001 (the engine this serves), LLP 1003 (effects),
 LLP 0329.016 §5 (the design this implements verbatim where it can), LLP
 0329.016 §5.11 (the verb table — no verb exists without its row), LLP
@@ -354,6 +354,22 @@ replacement expression survives the Quarry diagnostic remap as executable
 `rewrite` text; guidance without a concrete edit remains a comment (Clique L2,
 GPT-6 Astra, 2026-09-05).
 A bare `refuse()` uses its message as the rewrite; unexpected caught failures do likewise.
+Recoverable Quarry statement failures retain independent virtual statements for
+checked-source diagnostics only. Failed statements roll back their emission and
+binding state; uses of failed bindings suppress dependent cascades. A fresh
+argument, binding, loop or match binder clears failure only in its lexical
+environment, after its initializer or domain has been validated. Merge discovery
+is validated and emitted in the outer scope before dependent lane prefixes, and
+that emission is reused once, including guards and ID allocation. Parser,
+schema and generated-helper collision failures remain fatal. Any recovered
+frontend refusal returns the complete bounded diagnostic envelope before effect
+lowering, program IR, API declarations or inspection artifacts can escape.
+Presence advice comes from checked source and contextual destination types:
+`! else CODE` is offered only when removing absence repairs the mismatch or
+dereference. A string assigned to a Boolean still needs `true` or `false`, even
+when the destination allows `undefined`; a null-only value needs a value.
+These cause facts live in a compiler-local WeakMap and add no wire fields.
+The diagnostic recovery controls are registered in `src/quarry-diagnostic-checks.ts`.
 The registered Quarry language checks live in `src/quarry-language-checks.ts`, keeping `src/test.ts` within the source line cap.
 
 `api.d.ts` (written to `.snapback/build/api.d.ts`, never committed) augments

@@ -14,7 +14,7 @@ import { callLeaf, moduleJsonConstants, objectOf, property, staticJson } from ".
 import { hasExport, propertyName, unwrapCall, walk } from "./syntax";
 import { capSites } from "./quarry/cap-sites";
 import { typeDiagnosticSite } from "./type-diagnostic-site";
-import { compileQuarry, quarryInspection, remapVirtualDiagnostic, remapVirtualSource, type QuarryInput, type QuarryVirtualModule } from "./quarry/index";
+import { boundQuarryDiagnostics, compileQuarry, quarryInspection, remapVirtualDiagnostic, remapVirtualSource, type QuarryInput, type QuarryVirtualModule } from "./quarry/index";
 import { createProjectProgram, projectTypeDiagnostics } from "./project-program";
 import { moduleSeedJsonConstants, staticSeedJson, validateSeedRow } from "./project-seed";
 import { sortSerdeMaps } from "./project-sort";
@@ -69,6 +69,7 @@ export async function lowerProject(root: string, options: LowerProjectOptions = 
   let schemaPath = tsSchemaPath;
   let schemaSource = hasTsSchema ? await readFile(tsSchemaPath, "utf8") : "";
   let virtualModules: QuarryVirtualModule[] = [];
+  let quarryRefusals: FrontendDiagnostic[] = [];
   if (hasQuarrySchema) {
     const inputs: QuarryInput[] = await Promise.all(quarryPaths.map(async (path) => ({
       path,
@@ -77,10 +78,12 @@ export async function lowerProject(root: string, options: LowerProjectOptions = 
     })));
     if (options.adhocSource !== undefined) inputs.push({ path: join(authoredRoot, "__adhoc.q"), fileName: "snapback/__adhoc.q", source: options.adhocSource });
     const compiled = compileQuarry(inputs);
-    if (!compiled.ok) return { ok: false, diagnostics: boundedDiagnostics(compiled.diagnostics, 50, "Quarry refusals"), ms: elapsed(started) };
-    schemaPath = compiled.schema.path;
-    schemaSource = compiled.schema.source;
-    virtualModules = [compiled.schema, ...compiled.modules];
+    if (!compiled.ok && !compiled.diagnosticSources) return { ok: false, diagnostics: boundedDiagnostics(compiled.diagnostics, 50, "Quarry refusals"), ms: elapsed(started) };
+    const emitted = compiled.ok ? compiled : compiled.diagnosticSources!;
+    if (!compiled.ok) quarryRefusals = compiled.diagnostics;
+    schemaPath = emitted.schema.path;
+    schemaSource = emitted.schema.source;
+    virtualModules = [emitted.schema, ...emitted.modules];
   }
   const virtualByFile = new Map(virtualModules.map((module) => [relativeSite(projectRoot, module.path), module]));
   const diskModuleSources = await Promise.all(tsModulePaths.map(async (path) => [path, await readFile(path, "utf8")] as const));
@@ -134,6 +137,12 @@ export async function lowerProject(root: string, options: LowerProjectOptions = 
     diagnostics.push(...projectTypeDiagnostics(effectChecked.program, projectRoot, effectSite, effectPaths).map((item) =>
       item.family === "effect" ? item : { ...item, code: "E_EFFECT_TYPE" as const, family: "effect" as const, guide: "effects/authoring" }));
   }
+  // @ref LLP 1002#3-the-compiler-worker-and-the-project-json — recovered
+  // statements exist only to collect independent checked-source diagnostics.
+  // A frontend refusal always stops before IR, API generation or effects.
+  if (quarryRefusals.length > 0) return { ok: false,
+    diagnostics: boundQuarryDiagnostics([...quarryRefusals, ...diagnostics.map(item => remapDiagnostic(item, virtualByFile, false))], virtualModules),
+    ms: elapsed(started) };
   const loweredEffects = lowerEffects(catalog, operations);
   diagnostics.push(...loweredEffects.diagnostics);
 
