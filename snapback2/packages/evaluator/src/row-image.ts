@@ -9,6 +9,16 @@ export const preparedChanges = Symbol();
 export const preparedProjection = Symbol();
 export const preparedDeliveryRows = Symbol();
 
+const imageKeyOwners = new WeakSet<object>();
+const rowImageOwners = new WeakMap<object, {
+  kind: 'Row' | 'Map';
+  schema: string;
+  table: string;
+  omitted: number[];
+  keys: ImageKeys;
+  digest?: string;
+}>();
+
 export function immutable<T>(value: T): T {
   if (value && typeof value === 'object') {
     for (const child of Object.values(value)) immutable(child);
@@ -17,15 +27,17 @@ export function immutable<T>(value: T): T {
   return value;
 }
 
-/** A body-free immutable component dictionary; private branding cannot be forged by shallow freeze. */
+/** A body-free immutable component dictionary; module-private ownership cannot be copied with descriptors. */
 export class ImageKeys {
   [name: string]: KeyImage[string];
-  #owned = true;
   private constructor(entries: KeyImage) {
     for (const [name,parts] of Object.entries(entries)) Object.defineProperty(this,name,{ value: parts,enumerable: true });
+    imageKeyOwners.add(this);
     Object.setPrototypeOf(this,Object.prototype); immutable(this);
   }
-  static is(value: unknown): value is ImageKeys { return !!value && typeof value === 'object' && #owned in value; }
+  static is(value: unknown): value is ImageKeys {
+    return !!value && typeof value === 'object' && imageKeyOwners.has(value);
+  }
   static restore(value: KeyImage): ImageKeys { return ImageKeys.is(value) ? value : new ImageKeys(clone(value)); }
   static forRow(schema: any, table: string, row: RowImage): ImageKeys {
     return new ImageKeys(Object.fromEntries(Object.keys(schema.tables[table].indexes)
@@ -34,39 +46,39 @@ export class ImageKeys {
 }
 
 // @ref LLP 1001#2-what-a-commit-records — execution materializes Optional Null; authenticated image custody preserves omission.
-// The private brand certifies deep isolation. A frozen external wrapper cannot acquire it.
+// Module-private ownership certifies deep isolation while keeping lazy caches outside the frozen public image.
 export class RowImage {
   declare readonly Row: Record<string, Value>;
-  #kind: 'Row' | 'Map';
-  #schema: string;
-  #table: string;
-  #omitted: number[];
-  #keys: ImageKeys;
-  #digest?: string;
   private constructor(schema: any, table: string, value: Value, identity: string, known?: ImageKeys) {
-    const entries = asObject(value); this.#kind = isVariant(value,'Row') ? 'Row' : 'Map';
-    this.#omitted = [];
+    const entries = asObject(value), kind = isVariant(value,'Row') ? 'Row' : 'Map', omitted: number[] = [];
     Object.keys(schema.tables[table].columns).sort(compareCodepoints).forEach((name, ordinal) => {
-      if (this.#kind === 'Row' && schema.tables[table].columns[name]?.Optional !== undefined && !Object.hasOwn(entries,name)) {
-        this.#omitted.push(ordinal); Object.defineProperty(entries,name,{ value: 'Null',enumerable: true,writable: true,configurable: true });
+      if (kind === 'Row' && schema.tables[table].columns[name]?.Optional !== undefined && !Object.hasOwn(entries,name)) {
+        omitted.push(ordinal); Object.defineProperty(entries,name,{ value: 'Null',enumerable: true,writable: true,configurable: true });
       }
     });
-    Object.defineProperty(this,this.#kind,{ value: immutable(entries),enumerable: true });
-    Object.setPrototypeOf(this,Object.prototype); this.#schema = identity; this.#table = table;
-    this.#keys = known ?? ImageKeys.forRow(schema,table,this);
-    Object.freeze(this.#omitted); Object.freeze(this);
+    Object.defineProperty(this,kind,{ value: immutable(entries),enumerable: true });
+    Object.setPrototypeOf(this,Object.prototype);
+    rowImageOwners.set(this,{ kind,schema: identity,table,omitted,keys: known ?? ImageKeys.forRow(schema,table,this) });
+    Object.freeze(omitted); Object.freeze(this);
   }
-  static is(value: unknown): value is RowImage { return !!value && typeof value === 'object' && #schema in value; }
+  static is(value: unknown): value is RowImage {
+    return !!value && typeof value === 'object' && rowImageOwners.has(value);
+  }
   static equal(left: unknown, right: RowImage): boolean {
-    return left === right || RowImage.is(left) && left.#kind === right.#kind && left.#schema === right.#schema
-      && left.#table === right.#table && left.#omitted.length === right.#omitted.length
-      && left.#omitted.every((ordinal,i) => ordinal === right.#omitted[i]) && canonicalValue(left) === canonicalValue(right);
+    if (left === right) return true;
+    if (!RowImage.is(left)) return false;
+    const a = rowImageOwners.get(left)!, b = rowImageOwners.get(right)!;
+    return a.kind === b.kind && a.schema === b.schema && a.table === b.table
+      && a.omitted.length === b.omitted.length && a.omitted.every((ordinal,i) => ordinal === b.omitted[i])
+      && canonicalValue(left) === canonicalValue(right);
   }
   static prepare(schema: any, table: string, value: Value, identity = sha256(canonicalSchemaJson(schema)), known?: ImageKeys): RowImage {
-    if (RowImage.is(value) && value.#schema === identity && value.#table === table) {
-      if (known) RowImage.keys(value,known); return value;
+    const image = RowImage.is(value) ? value : undefined;
+    const held = image && rowImageOwners.get(image)!;
+    if (image && held && held.schema === identity && held.table === table) {
+      if (known) RowImage.keys(image,known); return image;
     }
-    const owned = RowImage.is(value) ? RowImage.tagged(value) : clone(value);
+    const owned = image ? RowImage.tagged(image) : clone(value);
     validateWriteRow(schema,table,owned);
     return new RowImage(schema,table,owned,identity,known);
   }
@@ -78,19 +90,24 @@ export class RowImage {
     return new RowImage(schema,table,owned,identity ?? sha256(canonicalSchemaJson(schema)),known);
   }
   static keys(value: RowImage, known?: ImageKeys): ImageKeys {
-    if (known && value.#keys !== known) {
-      if (imageCanonical(value.#keys) !== imageCanonical(known)) throw new TypeError('conflicting immutable image keys');
-      value.#keys = known;
+    const state = rowImageOwners.get(value)!;
+    if (known && state.keys !== known) {
+      if (imageCanonical(state.keys) !== imageCanonical(known)) throw new TypeError('conflicting immutable image keys');
+      state.keys = known;
     }
-    return value.#keys;
+    return state.keys;
   }
-  static digest(value: RowImage): string { return value.#digest ??= sha256(imageCanonical(value)); }
+  static digest(value: RowImage): string {
+    const state = rowImageOwners.get(value)!;
+    return state.digest ??= sha256(imageCanonical(value));
+  }
   /** Only Row optionals materialize; Map/JSON retains its exact kind and key set. */
   static wire(value: RowImage): Record<string, unknown> { return wireJson(RowImage.tagged(value)) as Record<string, unknown>; }
   static tagged(value: RowImage): Value {
+    const state = rowImageOwners.get(value)!;
     const entries = { ...asObject(value) }, names = Object.keys(entries).sort(compareCodepoints);
-    for (const ordinal of value.#omitted) delete entries[names[ordinal]];
-    return { [value.#kind]: entries } as Value;
+    for (const ordinal of state.omitted) delete entries[names[ordinal]];
+    return { [state.kind]: entries } as Value;
   }
 }
 
