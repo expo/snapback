@@ -1,0 +1,980 @@
+{
+  "schemaVersion": 1,
+  "lane": "supabase",
+  "carrier": "web",
+  "brief": "social-messenger",
+  "harness": {
+    "name": "Codex API session",
+    "model": "gpt-6-astra",
+    "effort": "medium",
+    "environment": {
+      "node": "24.18.0",
+      "npm": "11.16.0",
+      "bun": "1.3.12",
+      "os": "macOS arm64 Apple M5 Max",
+      "@supabase/supabase-js": "2.112.4"
+    }
+  },
+  "timestamps": {
+    "startedAt": "2026-09-05T16:29:57.000Z",
+    "finishedAt": "2026-09-05T21:36:22.000Z"
+  },
+  "firstGreenProofAt": "2026-09-05T16:38:31.737Z",
+  "wallClock": {
+    "totalSeconds": 18385,
+    "phases": {
+      "orientation": null,
+      "authoring": null,
+      "verification": null,
+      "diagnosis": null,
+      "replay": 10693,
+      "m7Session": null
+    }
+  },
+  "tokens": {
+    "input": null,
+    "output": null,
+    "source": null,
+    "phases": {
+      "orientation": null,
+      "authoring": null,
+      "verification": null,
+      "diagnosis": null,
+      "replay": null,
+      "m7Session": null
+    }
+  },
+  "toolUses": null,
+  "correctionLoops": [
+    {
+      "attribution": "agent-error",
+      "summary": "error/retry attribution=agent-error source=diagnostic evidence=evidence/acceptance-m1.log; optional catch-all did not match root in Expo Router. Replaced with explicit index and catch-all routes.",
+      "evidence": "evidence/acceptance-m1.log"
+    },
+    {
+      "attribution": "agent-error",
+      "summary": "error attribution=agent-error source=diagnostic evidence=evidence/choreo-m1-console.log; choreography started before suite status existed; retry after suite.",
+      "evidence": "evidence/choreo-m1-console.log"
+    },
+    {
+      "attribution": "environment",
+      "summary": "workaround attribution=environment source=diagnostic evidence=choreography/json-schema.mjs; snapshot omitted generic JSON schema helper; AJV validates unchanged schema; copied harness imports relocated into lane.",
+      "evidence": "choreography/json-schema.mjs"
+    },
+    {
+      "attribution": "agent-error",
+      "summary": "error/retry attribution=agent-error source=diagnostic evidence=evidence/suite-m1-failure.json; Stack retained duplicate screen nodes; Slot fixed route shell.",
+      "evidence": "evidence/suite-m1-failure.json"
+    },
+    {
+      "attribution": "environment",
+      "summary": "correction-loop attribution=environment source=diagnostic evidence=evidence/debug-media.log,evidence/choreo-m2-console.log; React Native Web dropped kit accessibilityValue.text on divs. Added matching aria-valuetext to vendored kit without changing values, design, or assertions.",
+      "evidence": "evidence/debug-media.log,evidence/choreo-m2-console.log"
+    },
+    {
+      "attribution": "agent-error",
+      "summary": "correction-loop attribution=agent-error source=diagnostic evidence=evidence/choreo-m2-attempt1-console.log; feed navigation assumptions required globally accessible feed tabs on profile views; added app-shell tabs.",
+      "evidence": "evidence/choreo-m2-attempt1-console.log"
+    },
+    {
+      "attribution": "environment",
+      "summary": "error/workaround attribution=environment source=diagnostic evidence=evidence/video-poster.log,evidence/video-poster-fallback.log; host ffmpeg cannot load libx265. Extracted actual fixture frame using Chromium canvas. Missing poster was caught by second M2 choreography attempt.",
+      "evidence": "evidence/video-poster.log,evidence/video-poster-fallback.log"
+    },
+    {
+      "attribution": "agent-error",
+      "summary": "correction-loop attribution=agent-error source=diagnostic evidence=evidence/choreo-m3-attempt1-console.log; unthrottled typing requests delayed expiry; throttled at 700ms",
+      "evidence": "evidence/choreo-m3-attempt1-console.log"
+    },
+    {
+      "attribution": "ambiguous",
+      "summary": "error/retry attribution=ambiguous source=diagnostic evidence=evidence/choreo-m4-attempt1-console.log,evidence/debug-video.log; video metadata timed out in choreography, subsequent ordinary browser fetch returned HTTP200 readyState4 for both videos; unchanged retry",
+      "evidence": "evidence/choreo-m4-attempt1-console.log,evidence/debug-video.log"
+    },
+    {
+      "attribution": "agent-error",
+      "summary": "correction-loop attribution=agent-error source=diagnostic evidence=evidence/debug-live-media.log,evidence/debug-live-media-retry.log; overlapping polling starved live media requests. Serialized refreshes and cached verified token identity with per-request database revocation; live image now loaded at640px. Earlier ambiguous timeout attribution resolved to agent-error.",
+      "evidence": "evidence/debug-live-media.log,evidence/debug-live-media-retry.log"
+    },
+    {
+      "attribution": "environment",
+      "summary": "correction-loop attribution=environment source=diagnostic evidence=evidence/debug-settings.log,evidence/choreo-m5-console.log; RN Web dropped accessibilityState.selected as well as value. Server color and visible selection were correct. Added equivalent aria-selected compatibility props to non-poll kit controls.",
+      "evidence": "evidence/debug-settings.log,evidence/choreo-m5-console.log"
+    },
+    {
+      "attribution": "agent-error",
+      "summary": "error/retry attribution=agent-error source=diagnostic evidence=evidence/acceptance-m5-startup-failure.log,evidence/choreo-m5-startup-retry-console.log; suite started before restarted API listened; add health readiness before dependent commands. Harness fatal taxonomy preserved, root cause startup race.",
+      "evidence": "evidence/acceptance-m5-startup-failure.log,evidence/choreo-m5-startup-retry-console.log"
+    },
+    {
+      "attribution": "environment",
+      "summary": "correction-loop attribution=environment source=diagnostic evidence=evidence/debug-background.log,evidence/choreo-m5-console.log; RN Web Image exposes src on child img but harness observes root preview state. Exposed actual background reference without token as root aria-valuetext; harness still verifies real loaded image.",
+      "evidence": "evidence/debug-background.log,evidence/choreo-m5-console.log"
+    },
+    {
+      "attribution": "agent-error",
+      "summary": "correction-loop attribution=agent-error source=diagnostic evidence=evidence/setup-identity-before-npm-correction.json,setup-identity.json; actual npm is11.16.0, correcting previously assumed11.13.0 setup metadata; earlier receipt metadata retained rather than rewritten. Node24.18.0 and Bun1.3.12 verified.",
+      "evidence": "evidence/setup-identity-before-npm-correction.json,setup-identity.json"
+    },
+    {
+      "attribution": "agent-error",
+      "summary": "correction-loop attribution=agent-error source=diagnostic evidence=evidence/choreo-m8-attempt1-console.log; FeedCard active alias escaped earlier RN Web aria compatibility patch; added aria-selected. M8 frozen check expects inbox rows at base URL; added compact recent-chat inbox to home. No assertions changed.",
+      "evidence": "evidence/choreo-m8-attempt1-console.log"
+    },
+    {
+      "attribution": "agent-error",
+      "summary": "correction-loop attribution=agent-error source=diagnostic evidence=evidence/choreo-m8-attempt2-console.log,evidence/debug-m8-two.log; isolated badge works; repeated no-op receipt updates create multi-device lock contention. Added state-advancement predicate.",
+      "evidence": "evidence/choreo-m8-attempt2-console.log,evidence/debug-m8-two.log"
+    },
+    {
+      "attribution": "ambiguous",
+      "summary": "error/retry attribution=ambiguous source=diagnostic evidence=evidence/choreo-m8-attempt3-console.log; receipt fix passed cross-device read check, but other network/render checks timed out during concurrent native compilation. Independent Insights request took4.914s. Retry after native build settles; do not attribute to Supabase defect without evidence.",
+      "evidence": "evidence/choreo-m8-attempt3-console.log"
+    },
+    {
+      "attribution": "agent-error",
+      "summary": "correction-loop attribution=agent-error source=model knowledge evidence=scripts/mutations.sql; source review found repeated group-create could add a target outside member endpoint; existing group now returns without changing roster. Apply same canonical function in dev and fresh scale schema.",
+      "evidence": "scripts/mutations.sql"
+    },
+    {
+      "attribution": "agent-error",
+      "summary": "correction-loop attribution=agent-error source=diagnostic evidence=scripts/test-m8.mjs; rerun-safe zero-day assertion now checks actual empty day, because suite-owned old Trending fixture legitimately populates yesterday. No product assertion weakened.",
+      "evidence": "scripts/test-m8.mjs"
+    },
+    {
+      "attribution": "ambiguous",
+      "summary": "essay.md written after M8 before report timing/LOC/correction tally; conceptual comparisons explicitly separated from this lane evidence.",
+      "evidence": "run-log.md"
+    },
+    {
+      "attribution": "agent-error",
+      "summary": "native correction-loop attribution=agent-error source=diagnostic evidence=evidence/m8-xctest.log; generated UI-test target omitted PRODUCT_NAME and Xcode emitted empty runner paths. Set explicit CliqueUITests name, retain first xcresult, retry.",
+      "evidence": "evidence/m8-xctest.log"
+    },
+    {
+      "attribution": "ambiguous",
+      "summary": "scale error attribution=ambiguous source=diagnostic evidence=evidence/scale-clock.json Request rate limit reached",
+      "evidence": "evidence/scale-clock.json"
+    },
+    {
+      "attribution": "agent-error",
+      "summary": "scale correction-loop attribution=agent-error source=published docs evidence=https://supabase.com/docs/guides/auth/rate-limits,evidence/scale-attempt1-scale-clock.json; unpaced sustained token requests exhausted documented bucket. First attempt stopped after262 scale settlements. Retry uses new empty clqfa_scale2 schema/auth namespace,3000ms auth pacing and bounded30s backoff for retryable rate denial. No project rate limits changed.",
+      "evidence": "https://supabase.com/docs/guides/auth/rate-limits,evidence/scale-attempt1-scale-clock.json"
+    },
+    {
+      "attribution": "environment",
+      "summary": "native error/retry attribution=environment source=diagnostic evidence=evidence/m8-xctest-retry1.log; native setup hit same Auth rate limit, subsequent ordinary setup succeeded after refill.",
+      "evidence": "evidence/m8-xctest-retry1.log"
+    },
+    {
+      "attribution": "agent-error",
+      "summary": "native correction-loop attribution=agent-error source=diagnostic evidence=evidence/m8-xctest-retry2.log,evidence/native-retry2-attachments; native session restored but simctl deep link stayed on feed; proof now navigates actual Chats/row UI, with no app-state injection.",
+      "evidence": "evidence/m8-xctest-retry2.log,evidence/native-retry2-attachments"
+    },
+    {
+      "attribution": "agent-error",
+      "summary": "post-green correction source=model knowledge attribution=agent-error evidence=lib/Connection.tsx,evidence/post-green-typescript.log; prevent background reconnect timer reopening native presence and close web presence on actual visibility change; no replay-state effects.",
+      "evidence": "lib/Connection.tsx,evidence/post-green-typescript.log"
+    },
+    {
+      "attribution": "agent-error",
+      "summary": "native correction-loop attribution=agent-error source=diagnostic evidence=evidence/m8-xctest-retry3.log,evidence/native-retry3-attachments; rendered message existed but grouped kit accessibility hid its text. App-owned message wrapper now exposes actual text and pending/receipt value natively; XCTest asserts persisted pending and read values.",
+      "evidence": "evidence/m8-xctest-retry3.log,evidence/native-retry3-attachments"
+    },
+    {
+      "attribution": "agent-error",
+      "summary": "native correction-loop attribution=agent-error source=diagnostic evidence=evidence/m8-xctest-retry4.log,evidence/native-retry4-attachments; native Send taps dismissed keyboard instead of firing, leaving combined text in composer. Added handled keyboard taps and iOS keyboard avoidance to app scroll container. This was a real native usability gap exposed by the stronger proof.",
+      "evidence": "evidence/m8-xctest-retry4.log,evidence/native-retry4-attachments"
+    },
+    {
+      "attribution": "agent-error",
+      "summary": "correction-loop attribution=agent-error source=fixture evidence=instrument/social-messenger.md:733,scripts/aggregates.mjs; Insights posts and day buckets include all authored post rows, including replies; only Trending explicitly excludes replies. Dev API18417 picked this up on native reconnect. Pause recorded replay process PID=41021 for safe scale API maintenance; its clock continues.",
+      "evidence": "instrument/social-messenger.md:733,scripts/aggregates.mjs"
+    },
+    {
+      "attribution": "agent-error",
+      "summary": "correction attribution=agent-error source=diagnostic evidence=run-log.md; use symbolic SIGSTOP on macOS; prior numeric19 was SIGCONT and did not pause replay. PID41021 now suspended.",
+      "evidence": "run-log.md"
+    },
+    {
+      "attribution": "ambiguous",
+      "summary": "scale error attribution=ambiguous source=diagnostic evidence=evidence/scale-clock.json fetch failed",
+      "evidence": "evidence/scale-clock.json"
+    },
+    {
+      "attribution": "agent-error",
+      "summary": "replay correction-loop attribution=agent-error source=diagnostic evidence=evidence/scale-attempt2-interruption-clock.json,scripts/replay.mjs; API restart reset paused client connection. Resume from439 acknowledged actions on same initially-empty scale2 instance. Previously authorized unexpired/revocable SQL principals are retained; HTTP credentials obtained normally when needed. New real sessions persist privately inside lane for future recovery; bounded network retries added. Original clock includes repair downtime.",
+      "evidence": "evidence/scale-attempt2-interruption-clock.json,scripts/replay.mjs"
+    },
+    {
+      "attribution": "agent-error",
+      "summary": "M6 post-green native proof pass source=diagnostic attribution=agent-error correction-loop completed actual offline media/search/view-once and separate M8 queue proof; screenshots visually inspected; evidence=evidence/m6-native-proof.json",
+      "evidence": "evidence/m6-native-proof.json"
+    },
+    {
+      "attribution": "agent-error",
+      "summary": "final regression correction-loop attribution=agent-error source=diagnostic evidence=evidence/post-green-final-choreo-console.log; direct harness invocation omitted persona environment; retry through existing scripts/choreo.mjs fixture credential wrapper. No app assertion ran in failed startup.",
+      "evidence": "evidence/post-green-final-choreo-console.log"
+    },
+    {
+      "attribution": "ambiguous",
+      "summary": "scale error attribution=ambiguous source=diagnostic evidence=evidence/scale-clock.json Expected values to be strictly equal:",
+      "evidence": "evidence/scale-clock.json"
+    },
+    {
+      "attribution": "agent-error",
+      "summary": "scale correction-loop attribution=agent-error source=fixture evidence=evidence/scale-checkpoint10-verifier-failure-scale-run.log,scripts/scale-verify.mjs; all 10% entity and relation counts passed before named post check. Manifest reply kind maps to app text post with non-null parent. Fix verifier representation mapping, preserve actual state and original clock, resume at24777 acknowledged actions.",
+      "evidence": "evidence/scale-checkpoint10-verifier-failure-scale-run.log,scripts/scale-verify.mjs"
+    },
+    {
+      "attribution": "ambiguous",
+      "summary": "scale error attribution=ambiguous source=diagnostic evidence=evidence/scale-clock.json Replay principal expired or revoked",
+      "evidence": "evidence/scale-clock.json"
+    },
+    {
+      "attribution": "agent-error",
+      "summary": "scale correction-loop attribution=agent-error source=diagnostic evidence=evidence/scale-session-expiry-failure-scale-run.log,scripts/replay.mjs; principal expired during multi-actor authentication preflight, correctly rejected by database at next action. Recheck every required real session until all exceed two-minute margin immediately before procedure execution. Resume from27067 acknowledged actions on same instance and original clock; no lifetime changes or authorization bypass.",
+      "evidence": "evidence/scale-session-expiry-failure-scale-run.log,scripts/replay.mjs"
+    },
+    {
+      "attribution": "agent-error",
+      "summary": "post-green correction-loop attribution=agent-error source=diagnostic evidence=scripts/server.mjs; public profile directory had selected private contact email with p.*. Restrict explicit public fields; search/chat member responses already project public fields. Restart only developer API through recorded native controller; isolated replay API and read-probe query implementation remain unchanged.",
+      "evidence": "scripts/server.mjs"
+    },
+    {
+      "attribution": "environment",
+      "summary": "replay retry attribution=environment source=diagnostic operation=/replay/authorize attempt=0 error=network evidence=evidence/scale-full-receipts.jsonl",
+      "evidence": "evidence/scale-full-receipts.jsonl"
+    },
+    {
+      "attribution": "environment",
+      "summary": "replay retry attribution=environment source=diagnostic operation=/replay/authorize attempt=1 error=network evidence=evidence/scale-full-receipts.jsonl",
+      "evidence": "evidence/scale-full-receipts.jsonl"
+    },
+    {
+      "attribution": "environment",
+      "summary": "replay retry attribution=environment source=diagnostic operation=/replay/authorize attempt=2 error=network evidence=evidence/scale-full-receipts.jsonl",
+      "evidence": "evidence/scale-full-receipts.jsonl"
+    },
+    {
+      "attribution": "environment",
+      "summary": "replay retry attribution=environment source=diagnostic operation=/replay/authorize attempt=3 error=network evidence=evidence/scale-full-receipts.jsonl",
+      "evidence": "evidence/scale-full-receipts.jsonl"
+    },
+    {
+      "attribution": "ambiguous",
+      "summary": "scale error attribution=ambiguous source=diagnostic evidence=evidence/scale-clock.json fetch failed",
+      "evidence": "evidence/scale-clock.json"
+    },
+    {
+      "attribution": "agent-error",
+      "summary": "scale correction-loop attribution=agent-error source=diagnostic evidence=evidence/server-scale2-final.log,evidence/scale-idle-pool-failure-scale-clock.json,scripts/db.mjs; idle Postgres TLS read EADDRNOTAVAIL (environment trigger) emitted unhandled pool error and terminated API54797 at about1788639443. Add sanitized pool error listener. Reduce staged batches from1000 to100 to shorten multi-actor renewal barriers; auth pacing and lifetimes unchanged. Resume32005 acknowledged actions with original clock.",
+      "evidence": "evidence/server-scale2-final.log,evidence/scale-idle-pool-failure-scale-clock.json,scripts/db.mjs"
+    },
+    {
+      "attribution": "agent-error",
+      "summary": "server PID=41259 port=49304 replacement for crashed54797 source=diagnostic attribution=agent-error evidence=evidence/server-scale2-recovered.log; same scale2 schema/auth namespace, no fixture reset. Published pool error documentation https://node-postgres.com/apis/pool#error confirms handler obligation; crash log scanned with zero credential matches.",
+      "evidence": "evidence/server-scale2-recovered.log"
+    },
+    {
+      "attribution": "agent-error",
+      "summary": "replay pacing correction-loop attribution=agent-error source=published docs evidence=evidence/scale-auth-pacing-adjustment-clock.json,scripts/replay.mjs; stopped recorded replay client PID42687 only, after confirming lane cwd. Auth spacing3000ms to2100ms remains below documented /token1800 per hour with2s refill, retains30s rate cooldown. Session persistence now atomic rename. Server41259 and fixture state untouched; original clock includes restart.",
+      "evidence": "evidence/scale-auth-pacing-adjustment-clock.json,scripts/replay.mjs"
+    },
+    {
+      "attribution": "agent-error",
+      "summary": "auth issuance cache correction-loop attribution=agent-error source=model knowledge evidence=scripts/server.mjs,evidence/scale-auth-cache-adjustment-clock.json; Supabase successful signup/signin/refresh response already verifies identity; cache it for subsequent middleware, retaining per-request exp and database revocation checks. Stopped recorded client99742 and API41259 after cwd checks. New server PID=69969 port=49304; same instance, original clock. Warmed read-probe query paths unchanged.",
+      "evidence": "scripts/server.mjs,evidence/scale-auth-cache-adjustment-clock.json"
+    },
+    {
+      "attribution": "agent-error",
+      "summary": "correction-loop attribution=agent-error source=diagnostic production smoke imported uninstalled root playwright; corrected to installed lane choreography package evidence=scripts/web-final-smoke.mjs",
+      "evidence": "scripts/web-final-smoke.mjs"
+    },
+    {
+      "attribution": "agent-error",
+      "summary": "correction-loop attribution=agent-error source=diagnostic screenshot captured navigation before asynchronous feed data; strengthened production smoke to wait for a real feed card evidence=scripts/web-final-smoke.mjs,evidence/web-final-smoke-navigation-only.json",
+      "evidence": "scripts/web-final-smoke.mjs,evidence/web-final-smoke-navigation-only.json"
+    }
+  ],
+  "handAuthoredLoc": {
+    "lines": 1176,
+    "files": 82,
+    "sharedUiLines": 3595
+  },
+  "authParity": {
+    "posture": "production-auth",
+    "notes": "Managed Supabase identities and sessions; immediate signup uses server admin create + password signin; API owns app authorization."
+  },
+  "diary": "diary.md",
+  "notes": "User-requested full run; no M7. No external grader, driver-stamped orientation packet, complete token stream, or metering custody manifest was available. Base record is supplied; current composed schema may reject these missing external provenance/grading inputs rather than fabricate them. All raw milestone clocks and failed receipts retained. See final-report.md for proof limits.",
+  "socialMessenger": {
+    "extensionVersion": 2,
+    "instrumentVersion": "social-messenger@0.3.6-m8",
+    "typingObservationBoundaryVersion": "v2",
+    "observabilityProtocol": "social-messenger-observation.v1",
+    "setup": {
+      "schemaVersion": "social-messenger.setup-identity.v1",
+      "instrumentPin": "social-messenger@0.3.6-m8",
+      "backend": {
+        "kind": "external",
+        "version": "supabase-2.112.4"
+      },
+      "runtime": {
+        "qualifiedBinary": {
+          "claimed": false,
+          "reason": "Hosted Supabase"
+        },
+        "wrapper": {
+          "claimed": false,
+          "reason": "Lane Node API; no qualified binary claim"
+        }
+      },
+      "packageClosure": {
+        "mode": "hosted",
+        "prepack": "not-applicable",
+        "artifacts": [
+          {
+            "name": "@supabase/supabase-js",
+            "version": "2.112.4",
+            "sha256": null
+          }
+        ]
+      },
+      "toolchain": {
+        "node": {
+          "path": "/Users/ccheever/.volta/tools/image/node/24.18.0/bin/node",
+          "version": "v24.18.0"
+        },
+        "bun": "1.3.12",
+        "npm": "11.16.0",
+        "playwright": "1.62.1",
+        "browser": "chromium"
+      },
+      "host": {
+        "id": "Charlies-MacBook-Pro-M5Max-Black.local",
+        "platform": "darwin",
+        "arch": "arm64"
+      }
+    },
+    "runScope": "full",
+    "capFamily": "gpt-frontier",
+    "deploymentPosture": "local-dev-server",
+    "efficiencyScorecardEligibility": {
+      "eligible": false,
+      "correctionActionTargetEligible": false,
+      "ineligibilityReasons": [
+        "phase-usage-unavailable",
+        "orientation-evidence-unavailable",
+        "semantic-actions-non-claimed",
+        "recovery-episodes-non-claimed",
+        "restart-reseed-non-claimed",
+        "host-load-non-claimed",
+        "api-interruptions-non-claimed"
+      ]
+    },
+    "milestones": {
+      "M1": {
+        "status": "green",
+        "nonGreenCause": null,
+        "authoring": {
+          "wallSeconds": 514.7369999885559,
+          "tokens": {
+            "input": null,
+            "output": null,
+            "cacheRead": null,
+            "cacheWrite": null,
+            "reasoning": null
+          },
+          "firstGreenAt": "2026-09-05T16:38:31.737Z",
+          "suitePassAt": "2026-09-05T16:48:27.806Z",
+          "choreoPassAt": "2026-09-05T16:38:31.737Z",
+          "terminalAt": "2026-09-05T16:38:31.737Z",
+          "terminalSequence": 0,
+          "terminalReason": "green"
+        },
+        "caps": {
+          "wallCapSeconds": 14400,
+          "tokenCap": null
+        },
+        "charging": {
+          "chargedWallSeconds": 514.7369999885559,
+          "chargedTokens": null,
+          "flags": []
+        },
+        "semanticActions": {
+          "claimed": false,
+          "reason": "Complete driver observation stream unavailable in this session"
+        },
+        "failureToRecoveryEpisodes": {
+          "claimed": false,
+          "reason": "Complete driver observation stream unavailable in this session"
+        },
+        "restartReseed": {
+          "claimed": false,
+          "reason": "Complete driver observation stream unavailable in this session"
+        },
+        "browserAssertionWait": {
+          "suite": {
+            "claimed": false,
+            "reason": "Complete driver observation stream unavailable in this session"
+          },
+          "choreography": {
+            "claimed": false,
+            "reason": "Complete driver observation stream unavailable in this session"
+          }
+        },
+        "hostLoad": {
+          "claimed": false,
+          "reason": "Complete driver observation stream unavailable in this session"
+        },
+        "apiInterruptions": {
+          "claimed": false,
+          "reason": "Complete driver observation stream unavailable in this session"
+        }
+      },
+      "M2": {
+        "status": "green",
+        "nonGreenCause": null,
+        "authoring": {
+          "wallSeconds": 712.3659999370575,
+          "tokens": {
+            "input": null,
+            "output": null,
+            "cacheRead": null,
+            "cacheWrite": null,
+            "reasoning": null
+          },
+          "firstGreenAt": "2026-09-05T16:52:01.366Z",
+          "suitePassAt": "2026-09-05T16:44:06.308Z",
+          "choreoPassAt": "2026-09-05T16:52:01.366Z",
+          "terminalAt": "2026-09-05T16:52:01.366Z",
+          "terminalSequence": 1,
+          "terminalReason": "green"
+        },
+        "caps": {
+          "wallCapSeconds": 14400,
+          "tokenCap": null
+        },
+        "charging": {
+          "chargedWallSeconds": 712.3659999370575,
+          "chargedTokens": null,
+          "flags": []
+        },
+        "semanticActions": {
+          "claimed": false,
+          "reason": "Complete driver observation stream unavailable in this session"
+        },
+        "failureToRecoveryEpisodes": {
+          "claimed": false,
+          "reason": "Complete driver observation stream unavailable in this session"
+        },
+        "restartReseed": {
+          "claimed": false,
+          "reason": "Complete driver observation stream unavailable in this session"
+        },
+        "browserAssertionWait": {
+          "suite": {
+            "claimed": false,
+            "reason": "Complete driver observation stream unavailable in this session"
+          },
+          "choreography": {
+            "claimed": false,
+            "reason": "Complete driver observation stream unavailable in this session"
+          }
+        },
+        "hostLoad": {
+          "claimed": false,
+          "reason": "Complete driver observation stream unavailable in this session"
+        },
+        "apiInterruptions": {
+          "claimed": false,
+          "reason": "Complete driver observation stream unavailable in this session"
+        }
+      },
+      "M3": {
+        "status": "green",
+        "nonGreenCause": null,
+        "authoring": {
+          "wallSeconds": 534.8129999637604,
+          "tokens": {
+            "input": null,
+            "output": null,
+            "cacheRead": null,
+            "cacheWrite": null,
+            "reasoning": null
+          },
+          "firstGreenAt": "2026-09-05T17:02:54.813Z",
+          "suitePassAt": "2026-09-05T16:57:34.231Z",
+          "choreoPassAt": "2026-09-05T17:02:54.813Z",
+          "terminalAt": "2026-09-05T17:02:54.813Z",
+          "terminalSequence": 2,
+          "terminalReason": "green"
+        },
+        "caps": {
+          "wallCapSeconds": 14400,
+          "tokenCap": null
+        },
+        "charging": {
+          "chargedWallSeconds": 534.8129999637604,
+          "chargedTokens": null,
+          "flags": []
+        },
+        "semanticActions": {
+          "claimed": false,
+          "reason": "Complete driver observation stream unavailable in this session"
+        },
+        "failureToRecoveryEpisodes": {
+          "claimed": false,
+          "reason": "Complete driver observation stream unavailable in this session"
+        },
+        "restartReseed": {
+          "claimed": false,
+          "reason": "Complete driver observation stream unavailable in this session"
+        },
+        "browserAssertionWait": {
+          "suite": {
+            "claimed": false,
+            "reason": "Complete driver observation stream unavailable in this session"
+          },
+          "choreography": {
+            "claimed": false,
+            "reason": "Complete driver observation stream unavailable in this session"
+          }
+        },
+        "hostLoad": {
+          "claimed": false,
+          "reason": "Complete driver observation stream unavailable in this session"
+        },
+        "apiInterruptions": {
+          "claimed": false,
+          "reason": "Complete driver observation stream unavailable in this session"
+        }
+      },
+      "M4": {
+        "status": "green",
+        "nonGreenCause": null,
+        "authoring": {
+          "wallSeconds": 773.3239998817444,
+          "tokens": {
+            "input": null,
+            "output": null,
+            "cacheRead": null,
+            "cacheWrite": null,
+            "reasoning": null
+          },
+          "firstGreenAt": "2026-09-05T17:17:38.324Z",
+          "suitePassAt": "2026-09-05T17:16:28.578Z",
+          "choreoPassAt": "2026-09-05T17:17:38.324Z",
+          "terminalAt": "2026-09-05T17:17:38.324Z",
+          "terminalSequence": 3,
+          "terminalReason": "green"
+        },
+        "caps": {
+          "wallCapSeconds": 14400,
+          "tokenCap": null
+        },
+        "charging": {
+          "chargedWallSeconds": 773.3239998817444,
+          "chargedTokens": null,
+          "flags": []
+        },
+        "semanticActions": {
+          "claimed": false,
+          "reason": "Complete driver observation stream unavailable in this session"
+        },
+        "failureToRecoveryEpisodes": {
+          "claimed": false,
+          "reason": "Complete driver observation stream unavailable in this session"
+        },
+        "restartReseed": {
+          "claimed": false,
+          "reason": "Complete driver observation stream unavailable in this session"
+        },
+        "browserAssertionWait": {
+          "suite": {
+            "claimed": false,
+            "reason": "Complete driver observation stream unavailable in this session"
+          },
+          "choreography": {
+            "claimed": false,
+            "reason": "Complete driver observation stream unavailable in this session"
+          }
+        },
+        "hostLoad": {
+          "claimed": false,
+          "reason": "Complete driver observation stream unavailable in this session"
+        },
+        "apiInterruptions": {
+          "claimed": false,
+          "reason": "Complete driver observation stream unavailable in this session"
+        }
+      },
+      "M5": {
+        "status": "green",
+        "nonGreenCause": null,
+        "authoring": {
+          "wallSeconds": 1264.2730000019073,
+          "tokens": {
+            "input": null,
+            "output": null,
+            "cacheRead": null,
+            "cacheWrite": null,
+            "reasoning": null
+          },
+          "firstGreenAt": "2026-09-05T17:40:27.273Z",
+          "suitePassAt": "2026-09-05T17:36:40.372Z",
+          "choreoPassAt": "2026-09-05T17:40:27.273Z",
+          "terminalAt": "2026-09-05T17:40:27.273Z",
+          "terminalSequence": 4,
+          "terminalReason": "green"
+        },
+        "caps": {
+          "wallCapSeconds": 14400,
+          "tokenCap": null
+        },
+        "charging": {
+          "chargedWallSeconds": 1264.2730000019073,
+          "chargedTokens": null,
+          "flags": []
+        },
+        "semanticActions": {
+          "claimed": false,
+          "reason": "Complete driver observation stream unavailable in this session"
+        },
+        "failureToRecoveryEpisodes": {
+          "claimed": false,
+          "reason": "Complete driver observation stream unavailable in this session"
+        },
+        "restartReseed": {
+          "claimed": false,
+          "reason": "Complete driver observation stream unavailable in this session"
+        },
+        "browserAssertionWait": {
+          "suite": {
+            "claimed": false,
+            "reason": "Complete driver observation stream unavailable in this session"
+          },
+          "choreography": {
+            "claimed": false,
+            "reason": "Complete driver observation stream unavailable in this session"
+          }
+        },
+        "hostLoad": {
+          "claimed": false,
+          "reason": "Complete driver observation stream unavailable in this session"
+        },
+        "apiInterruptions": {
+          "claimed": false,
+          "reason": "Complete driver observation stream unavailable in this session"
+        }
+      },
+      "M6": {
+        "status": "green",
+        "nonGreenCause": null,
+        "authoring": {
+          "wallSeconds": 776.5190000534058,
+          "tokens": {
+            "input": null,
+            "output": null,
+            "cacheRead": null,
+            "cacheWrite": null,
+            "reasoning": null
+          },
+          "firstGreenAt": "2026-09-05T17:56:03.519Z",
+          "suitePassAt": "2026-09-05T17:53:50.060Z",
+          "choreoPassAt": "2026-09-05T17:56:03.519Z",
+          "terminalAt": "2026-09-05T17:56:03.519Z",
+          "terminalSequence": 5,
+          "terminalReason": "green"
+        },
+        "caps": {
+          "wallCapSeconds": 14400,
+          "tokenCap": null
+        },
+        "charging": {
+          "chargedWallSeconds": 776.5190000534058,
+          "chargedTokens": null,
+          "flags": []
+        },
+        "semanticActions": {
+          "claimed": false,
+          "reason": "Complete driver observation stream unavailable in this session"
+        },
+        "failureToRecoveryEpisodes": {
+          "claimed": false,
+          "reason": "Complete driver observation stream unavailable in this session"
+        },
+        "restartReseed": {
+          "claimed": false,
+          "reason": "Complete driver observation stream unavailable in this session"
+        },
+        "browserAssertionWait": {
+          "suite": {
+            "claimed": false,
+            "reason": "Complete driver observation stream unavailable in this session"
+          },
+          "choreography": {
+            "claimed": false,
+            "reason": "Complete driver observation stream unavailable in this session"
+          }
+        },
+        "hostLoad": {
+          "claimed": false,
+          "reason": "Complete driver observation stream unavailable in this session"
+        },
+        "apiInterruptions": {
+          "claimed": false,
+          "reason": "Complete driver observation stream unavailable in this session"
+        }
+      },
+      "M7": {
+        "status": "not-run",
+        "nonGreenCause": null,
+        "authoring": {
+          "wallSeconds": null,
+          "tokens": {
+            "input": null,
+            "output": null,
+            "cacheRead": null,
+            "cacheWrite": null,
+            "reasoning": null
+          },
+          "firstGreenAt": null,
+          "suitePassAt": null,
+          "choreoPassAt": null,
+          "terminalAt": null,
+          "terminalSequence": null,
+          "terminalReason": null
+        },
+        "caps": {
+          "wallCapSeconds": 14400,
+          "tokenCap": null
+        },
+        "charging": {
+          "chargedWallSeconds": null,
+          "chargedTokens": null,
+          "flags": []
+        },
+        "semanticActions": {
+          "claimed": false,
+          "reason": "Complete driver observation stream unavailable in this session"
+        },
+        "failureToRecoveryEpisodes": {
+          "claimed": false,
+          "reason": "Complete driver observation stream unavailable in this session"
+        },
+        "restartReseed": {
+          "claimed": false,
+          "reason": "Complete driver observation stream unavailable in this session"
+        },
+        "browserAssertionWait": {
+          "suite": {
+            "claimed": false,
+            "reason": "Complete driver observation stream unavailable in this session"
+          },
+          "choreography": {
+            "claimed": false,
+            "reason": "Complete driver observation stream unavailable in this session"
+          }
+        },
+        "hostLoad": {
+          "claimed": false,
+          "reason": "Complete driver observation stream unavailable in this session"
+        },
+        "apiInterruptions": {
+          "claimed": false,
+          "reason": "Complete driver observation stream unavailable in this session"
+        }
+      },
+      "M8": {
+        "status": "green",
+        "nonGreenCause": null,
+        "authoring": {
+          "wallSeconds": 1027.9360001087189,
+          "tokens": {
+            "input": null,
+            "output": null,
+            "cacheRead": null,
+            "cacheWrite": null,
+            "reasoning": null
+          },
+          "firstGreenAt": "2026-09-05T18:20:26.936Z",
+          "suitePassAt": "2026-09-05T18:18:40.990Z",
+          "choreoPassAt": "2026-09-05T18:20:26.936Z",
+          "terminalAt": "2026-09-05T18:20:26.936Z",
+          "terminalSequence": 6,
+          "terminalReason": "green"
+        },
+        "caps": {
+          "wallCapSeconds": 14400,
+          "tokenCap": null
+        },
+        "charging": {
+          "chargedWallSeconds": 1027.9360001087189,
+          "chargedTokens": null,
+          "flags": []
+        },
+        "semanticActions": {
+          "claimed": false,
+          "reason": "Complete driver observation stream unavailable in this session"
+        },
+        "failureToRecoveryEpisodes": {
+          "claimed": false,
+          "reason": "Complete driver observation stream unavailable in this session"
+        },
+        "restartReseed": {
+          "claimed": false,
+          "reason": "Complete driver observation stream unavailable in this session"
+        },
+        "browserAssertionWait": {
+          "suite": {
+            "claimed": false,
+            "reason": "Complete driver observation stream unavailable in this session"
+          },
+          "choreography": {
+            "claimed": false,
+            "reason": "Complete driver observation stream unavailable in this session"
+          }
+        },
+        "hostLoad": {
+          "claimed": false,
+          "reason": "Complete driver observation stream unavailable in this session"
+        },
+        "apiInterruptions": {
+          "claimed": false,
+          "reason": "Complete driver observation stream unavailable in this session"
+        }
+      }
+    },
+    "termination": {
+      "terminatedEarly": false,
+      "reason": null,
+      "afterMilestone": null
+    },
+    "compaction": {
+      "policy": "Harness automatic; exact event timestamps unavailable",
+      "events": []
+    },
+    "firstProductEdit": {
+      "at": null,
+      "orientationBytes": null,
+      "orientationTokens": {
+        "input": null,
+        "output": null,
+        "cacheRead": null,
+        "cacheWrite": null,
+        "reasoning": null
+      },
+      "selectedSkills": []
+    },
+    "coverageManifest": {
+      "path": "coverage-manifest.json",
+      "validated": true
+    },
+    "assertionManifest": {
+      "path": "instrument/schema/social-messenger/assertions.json"
+    },
+    "clocks": {
+      "grading": {
+        "sessions": []
+      },
+      "replay": {
+        "attempted": true,
+        "wallSeconds": 10206.768,
+        "capSeconds": null,
+        "capFractionUsed": null,
+        "capExhausted": false,
+        "probeWallSecondsExcluded": 486.23199999999997,
+        "tokens": {
+          "input": null,
+          "output": null,
+          "cacheRead": null,
+          "cacheWrite": null,
+          "reasoning": null
+        }
+      },
+      "m7Session": {
+        "wallSeconds": null,
+        "tokens": {
+          "input": null,
+          "output": null,
+          "cacheRead": null,
+          "cacheWrite": null,
+          "reasoning": null
+        },
+        "diary": null
+      }
+    },
+    "grading": {
+      "graderReportPath": null,
+      "graderFamily": null,
+      "sameFamilyGraded": false,
+      "usableGradingRecord": false
+    },
+    "suiteStatusLinkage": {
+      "input": {
+        "path": "suite-status.json",
+        "sha256": "sha256:4ab60df48ab3e5d7335b4a0b9a7b32f58980227ccba12ea8efb41fba27029409"
+      },
+      "milestones": [
+        {
+          "milestone": "M1",
+          "pass": true,
+          "receipt": {
+            "path": "evidence/suite-m1.json",
+            "sha256": "sha256:ac71fc762576c594a4fdc3736e2a3514c9701f3e4137e0ecc292bdec58a19599"
+          }
+        },
+        {
+          "milestone": "M2",
+          "pass": true,
+          "receipt": {
+            "path": "evidence/suite-m2.json",
+            "sha256": "sha256:90208cc3e6720c492541618fc2c527d25c4d055aa185cd9303200c96cb8cca39"
+          }
+        },
+        {
+          "milestone": "M3",
+          "pass": true,
+          "receipt": {
+            "path": "evidence/suite-m3.json",
+            "sha256": "sha256:46bf6e99584793f183c41e44ab73af74506ddf2f609fd1f4d2883768ba3d5975"
+          }
+        },
+        {
+          "milestone": "M4",
+          "pass": true,
+          "receipt": {
+            "path": "evidence/suite-m4.json",
+            "sha256": "sha256:f865d63e0f08ab6cca854a8692471c72f8564e907f2c96163a979f9245dd279c"
+          }
+        },
+        {
+          "milestone": "M5",
+          "pass": true,
+          "receipt": {
+            "path": "evidence/suite-m5.json",
+            "sha256": "sha256:e183bce7747a6dbfdd4386d1404f5ac0e146e392e56cb0117143a1f0ecca5030"
+          }
+        },
+        {
+          "milestone": "M6",
+          "pass": true,
+          "receipt": {
+            "path": "evidence/suite-m6.json",
+            "sha256": "sha256:fe8935f24a5b3f1a51972972f739bef252512603a37f2ca90ad26f3622cb053a"
+          }
+        },
+        {
+          "milestone": "M8",
+          "pass": true,
+          "receipt": {
+            "path": "evidence/suite-m8.json",
+            "sha256": "sha256:eda077767c4d9b464e57f8cc11253db3a7e5751f743318a5ad87c84c8fc39057"
+          }
+        }
+      ]
+    }
+  }
+}

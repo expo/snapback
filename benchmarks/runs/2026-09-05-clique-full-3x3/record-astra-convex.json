@@ -1,0 +1,202 @@
+{
+  "schemaVersion": 1,
+  "lane": "convex",
+  "laneVariant": "bare",
+  "carrier": "web",
+  "brief": "social-messenger",
+  "harness": {
+    "name": "Codex API session (version unavailable)",
+    "model": "gpt-6-astra",
+    "effort": "medium",
+    "environment": {
+      "backend": "convex@1.45.0 anonymous local CLI",
+      "host": "macOS arm64 Apple M5 Max",
+      "node": "24.18.0",
+      "expo": "55.0.31"
+    }
+  },
+  "timestamps": {
+    "startedAt": "2026-09-05T16:29:59Z",
+    "finishedAt": "2026-09-05T18:04:02Z"
+  },
+  "firstGreenProofAt": "2026-09-05T17:49:40.243Z",
+  "wallClock": {
+    "totalSeconds": 5643,
+    "phases": {
+      "orientation": null,
+      "authoring": null,
+      "verification": null,
+      "diagnosis": null
+    }
+  },
+  "tokens": {
+    "input": null,
+    "output": null,
+    "source": null,
+    "phases": {
+      "orientation": null,
+      "authoring": null,
+      "verification": null,
+      "diagnosis": null
+    }
+  },
+  "toolUses": null,
+  "correctionLoops": [
+    {
+      "attribution": "environment",
+      "summary": "Login shell overrode Node24 with Volta Node25.",
+      "evidence": "artifacts/npm-ci.log"
+    },
+    {
+      "attribution": "agent-error",
+      "summary": "Concurrent installs corrupted the dependency tree; stopped own installers and ran clean npm ci.",
+      "evidence": "artifacts/install-retry.log"
+    },
+    {
+      "attribution": "agent-error",
+      "summary": "Signing-key CLI argument began with hyphens; regenerated keys using the option terminator.",
+      "evidence": "scripts/setup-auth.mjs"
+    },
+    {
+      "attribution": "agent-error",
+      "summary": "Optional catchall did not match root; added index route.",
+      "evidence": "artifacts/inspect.png"
+    },
+    {
+      "attribution": "agent-error",
+      "summary": "Password provider duplicate-email behavior and customization placement needed correction.",
+      "evidence": "convex/auth.ts"
+    },
+    {
+      "attribution": "environment",
+      "summary": "Copied harness omitted its imported schema helper; added AJV2020 shim over unchanged schema.",
+      "evidence": "choreography/json-schema-portability.mjs"
+    },
+    {
+      "attribution": "environment",
+      "summary": "RNWeb dropped kit accessibility values; mirrored values to ARIA.",
+      "evidence": "vendor/ui/src/Avatar.tsx"
+    },
+    {
+      "attribution": "agent-error",
+      "summary": "Video preview needed a decoded first frame.",
+      "evidence": "components/Social.tsx"
+    },
+    {
+      "attribution": "agent-error",
+      "summary": "Feed tabs were not reachable from profile/thread; moved to persistent shell.",
+      "evidence": "artifacts/choreo-m2-retry-console.log"
+    },
+    {
+      "attribution": "agent-error",
+      "summary": "Overlapping M2 choreography produced a mixed stream; isolated rerun retained.",
+      "evidence": "artifacts/choreo-m2-retry2-console.log"
+    },
+    {
+      "attribution": "agent-error",
+      "summary": "Repeated router pushes accumulated root surfaces; switched to replacement.",
+      "evidence": "scripts/feed-debug.mjs"
+    },
+    {
+      "attribution": "environment",
+      "summary": "Default starter group has Erin without a harness browser; recorded exact default-case skip and used documented three-person group adapter.",
+      "evidence": "artifacts/choreo-adapter.json"
+    },
+    {
+      "attribution": "environment",
+      "summary": "M5 selected controls lacked web selected state; added explicit ARIA mirrors.",
+      "evidence": "artifacts/choreo-m5-console.log"
+    },
+    {
+      "attribution": "agent-error",
+      "summary": "Cache scope and view-once history identifiers needed tightening.",
+      "evidence": "components/cache.ts"
+    },
+    {
+      "attribution": "environment",
+      "summary": "Background observer reads root URI attributes while kit renders child image; mirrored the actual URI.",
+      "evidence": "vendor/ui/src/ChatSettingsForm.tsx"
+    },
+    {
+      "attribution": "agent-error",
+      "summary": "Terminated M5 harness retained timer and contaminated shared receipts; unique raw paths and exact-PID termination fixed it.",
+      "evidence": "scripts/choreo.mjs"
+    },
+    {
+      "attribution": "agent-error",
+      "summary": "Native picker JSX delimiters failed typecheck; corrected.",
+      "evidence": "artifacts/typecheck-m5-final.log"
+    },
+    {
+      "attribution": "agent-error",
+      "summary": "Expo native no-bundler launch selected default8081 URL; subsequent launches explicitly use49200. No8081 server was started.",
+      "evidence": "artifacts/native-build-m6.log"
+    },
+    {
+      "attribution": "agent-error",
+      "summary": "RN global window lacked browser event methods; feature detection fixed native launch crash.",
+      "evidence": "artifacts/native-m6-device.log"
+    },
+    {
+      "attribution": "environment",
+      "summary": "Expo rejected port with no-bundler; reused existing Metro with explicit port.",
+      "evidence": "artifacts/native-build-m6-retry.log"
+    },
+    {
+      "attribution": "agent-error",
+      "summary": "Extra dev command refused the running local backend; existing watcher had already deployed.",
+      "evidence": "artifacts/deploy-m8.log"
+    },
+    {
+      "attribution": "agent-error",
+      "summary": "FeedCard lacked observable selected state for M8 unliked selection; mirrored actual state.",
+      "evidence": "vendor/ui/src/FeedCard.tsx"
+    },
+    {
+      "attribution": "agent-error",
+      "summary": "M8 home route needed discoverable chat rows; added actual chat section.",
+      "evidence": "artifacts/choreo-m8-console.log"
+    },
+    {
+      "attribution": "agent-error",
+      "summary": "Admin migration used root config against scale URL; refused with BadAdminKey, corrected cwd.",
+      "evidence": "artifacts/metrics-backfill-full.log"
+    },
+    {
+      "attribution": "agent-error",
+      "summary": "Scale migration raced watcher deployment; retried after functions ready.",
+      "evidence": "scale-instance/artifacts/metrics-backfill-full.log"
+    },
+    {
+      "attribution": "agent-error",
+      "summary": "Media verifier used persona.handle instead of persona.id; corrected credential lookup.",
+      "evidence": "scale-instance/artifacts/replay-scale/media-verification.log"
+    },
+    {
+      "attribution": "agent-error",
+      "summary": "Media verifier output directory was relative to wrong cwd; rerun in scale directory.",
+      "evidence": "scale-instance/artifacts/replay-scale/media-verification-retry.log"
+    },
+    {
+      "attribution": "agent-error",
+      "summary": "Cached messages and quotes needed read-time expiry, and native view-once needed an in-memory data URI.",
+      "evidence": "artifacts/cache-policy-probe.json"
+    },
+    {
+      "attribution": "agent-error",
+      "summary": "Scale write-probe cleanup raced deployment; rerun after ready removed only exact generated keys.",
+      "evidence": "scale-instance/artifacts/celebrity-probe-cleanup-retry.log"
+    }
+  ],
+  "handAuthoredLoc": {
+    "lines": 651,
+    "files": 82,
+    "sharedUiLines": null
+  },
+  "authParity": {
+    "posture": "sessions",
+    "notes": "Real password auth; all protected application paths validate live session records."
+  },
+  "diary": "diary.md",
+  "notes": "Base-schema record only. Detailed milestone/coverage/replay/native receipts are adjacent artifacts. Composed social-messenger driver-custody record and native token stream were not available; no efficiency-scorecard eligibility or complete composed-record claim. Stable unavailable reason: native-usage-stream-unavailable-in-lane. Phase split unavailable; gross milestone boundary walls overlap the separately recorded replay execution. M7 explicitly not run. No held-out grading or complete O5 claim."
+}

@@ -1,0 +1,1506 @@
+{
+  "schemaVersion": 1,
+  "lane": "snapback",
+  "laneVariant": "bare",
+  "carrier": "web",
+  "brief": "social-messenger",
+  "harness": {
+    "name": "Codex API agent; version unavailable",
+    "model": "gpt-6-astra",
+    "effort": "medium",
+    "environment": {
+      "OS": "macOS arm64 Apple M5 Max",
+      "node": "25.9.0",
+      "npm": "11.12.1",
+      "@types/react-dom": "19.2.7",
+      "@types/react": "19.2.18",
+      "expo-crypto": "15.0.9",
+      "expo-file-system": "19.0.24",
+      "expo-image-picker": "17.0.11",
+      "expo-router": "6.0.24",
+      "expo-secure-store": "15.0.8",
+      "expo-sqlite": "16.0.10",
+      "expo-video": "3.0.16",
+      "expo": "54.0.37",
+      "react-dom": "19.1.0",
+      "react-native-safe-area-context": "5.6.0",
+      "react-native-screens": "4.16.0",
+      "react-native-web": "0.21.0",
+      "react-native": "0.81.5",
+      "react": "19.1.0",
+      "snapback2": "0.0.4",
+      "typescript": "5.9.2",
+      "vite": "7.3.6",
+      "snapback2-darwin-arm64": "0.0.4"
+    }
+  },
+  "timestamps": {
+    "startedAt": "2026-09-05T16:29:54Z",
+    "finishedAt": "2026-09-05T20:33:28Z"
+  },
+  "firstGreenProofAt": "2026-09-05T16:47:41.279000Z",
+  "wallClock": {
+    "totalSeconds": 14614,
+    "phases": {
+      "orientation": null,
+      "authoring": null,
+      "verification": null,
+      "diagnosis": null
+    }
+  },
+  "tokens": {
+    "input": null,
+    "output": null,
+    "source": null,
+    "phases": {
+      "orientation": null,
+      "authoring": null,
+      "verification": null,
+      "diagnosis": null
+    }
+  },
+  "toolUses": null,
+  "correctionLoops": [
+    {
+      "attribution": "agent-error",
+      "summary": "1788626181 correction loop attribution=agent-error Expo optional catch-all route unmatched; use index and catch-all entries evidence=evidence/debug.png,app/index.tsx. Hermes export passed before route runtime verification; will regenerate.",
+      "evidence": "run-log.md:12"
+    },
+    {
+      "attribution": "environment",
+      "summary": "1788626603 correction loop attribution=environment choreography default fixture directory escapes copied layout; adapter fixes to lane instrument/fixtures evidence=evidence/m2-choreo.log,choreography-adapter.json. Seed fixture passwords only used for auth, not persisted in app.",
+      "evidence": "run-log.md:17"
+    },
+    {
+      "attribution": "agent-error",
+      "summary": "1788626649 correction loop attribution=agent-error M2 choreography expects feed tabs reachable directly after profile navigation; shell now keeps feed tab navigation on detail screens evidence=tools/choreography/choreography.mjs:948,lib/Screen.tsx. Tests remain unmodified.",
+      "evidence": "run-log.md:18"
+    },
+    {
+      "attribution": "environment",
+      "summary": "1788626704 correction loop attribution=environment RN web 0.21 drops accessibilityValue.text; actual DOM has aria-label but no aria-valuetext evidence=scripts/ui-probe.mjs,evidence/m2-media-probe.png. Vendored kit import-only compatibility patch to lib/NativeCompat.tsx preserves declared semantic values as standard ARIA; frozen instrument unchanged; disclose UI copy deviation.",
+      "evidence": "run-log.md:19"
+    },
+    {
+      "attribution": "agent-error",
+      "summary": "1788626857 correction loop attribution=agent-error old unfinished M1 acceptance overwrote same receipt path after green; versioned suite receipt filenames now prevent races. Prior suite hash provenance lost, preserving initial receipt but rerunning M1 evidence now. M2 video kit Image preview cannot decode MP4; actual frame preview added (optional product poster), evidence=lib/videoPoster.web.ts.",
+      "evidence": "run-log.md:20"
+    },
+    {
+      "attribution": "agent-error",
+      "summary": "1788626907 correction loop attribution=agent-error Expo Stack retained hidden screens after push, causing duplicate controls and first-hidden test IDs. Replace navigation removes stale routes/subscriptions evidence=evidence/m2-choreo-2.log; all prior choreography runs now terminated. M1 retained green evidence=evidence/m1-choreography-retained.jsonl.",
+      "evidence": "run-log.md:21"
+    },
+    {
+      "attribution": "agent-error",
+      "summary": "1788627470 M3 error attribution=agent-error delivered acknowledgment failed offline but effect did not retry on transport reconnection; dependency now includes connection/live evidence=lib/Messaging.tsx,evidence/m3-choreo-original.log. Instrument skip attribution=environment default group receipt needs Erin client absent from harness; original result retained, fixture-choice adapter selects normal-write-path ABC Proof circle for separate proof evidence=evidence/platform-gaps.md.",
+      "evidence": "run-log.md:24"
+    },
+    {
+      "attribution": "ambiguous",
+      "summary": "1788627565 M3 isolated reconnect diagnostic: transport cut during auth/me restoration leaves useAuth showing signed-out; no automatic me retry after online observed. source=diagnostic attribution=ambiguous evidence=evidence/receipt-probe.log. Explicit online lifecycle now calls client.online and auth.me; no token substitution.",
+      "evidence": "run-log.md:25"
+    },
+    {
+      "attribution": "agent-error",
+      "summary": "1788628062 correction loop attribution=agent-error private photo used raw useAssetUrl in RN Image without auth headers; public avatars concealed mistake. Switched private render to documented AssetImage header-fetch path evidence=evidence/message-media-probe-2.log,lib/Messaging.tsx,node_modules/snapback2/README.md.",
+      "evidence": "run-log.md:30"
+    },
+    {
+      "attribution": "agent-error",
+      "summary": "1788628289 M4 correction loop attribution=agent-error video picker completion raced send; web FileInput now synchronously installs selected File, frame preview updates only if still selected. Isolated reaction picker passes evidence=evidence/reaction-probe.log; rerunning complete choreography without concurrent edits.",
+      "evidence": "run-log.md:31"
+    },
+    {
+      "attribution": "agent-error",
+      "summary": "1788629728 M5 correction loop attribution=agent-error reverse-chronological query with drain watched final oldest page, so new messages missed. Restore first-page subscription and separately prefetch history for warm search. ARIA compatibility wrapper now also preserves kit selection semantics for colors evidence=evidence/m5-choreo-1.log,lib/NativeCompat.tsx.",
+      "evidence": "run-log.md:36"
+    },
+    {
+      "attribution": "environment",
+      "summary": "1788629988 M5 correction loop attribution=environment frozen background observation examines src on testID node, while RN Image hides src in nested child. NativeCompat Image now uses semantic HTML img on web, preserving kit props; regular private image helper uses authenticated Blob URLs. Warm search navigation raced debounced session persistence; minimal text projection now persists synchronously on changes, background history prefetch enabled; no byte cache in this projection.",
+      "evidence": "run-log.md:37"
+    },
+    {
+      "attribution": "agent-error",
+      "summary": "1788630787 M5 correction loop attribution=agent-error view-once affordance appeared before per-recipient upload grant; gate availability on authoritative viewStatus. Chat color now also passed to message bubble tint. evidence=lib/OneView.tsx,lib/Messaging.tsx,evidence/m5-choreo-4.log",
+      "evidence": "run-log.md:39"
+    },
+    {
+      "attribution": "snapback-defect",
+      "summary": "1788631903 M6 correction loop attribution=snapback2-defect effect fetch drops provided headers: raw request uses application/x-www-form-urlencoded, no idempotency-key despite authored header. Provider dedup now uses messageId+target in JSON body; payload normalization happens in provider Node boundary. evidence=evidence/push-requests.jsonl,snapback/provider.ts",
+      "evidence": "run-log.md:48",
+      "subAttribution": "defect"
+    },
+    {
+      "attribution": "agent-error",
+      "summary": "1788632206 M6 native Release build installed. Expo launcher attempted localhost:8081 despite --no-bundler; no 8081 server started. Agent-error port URL default and Xcode default DerivedData outside lane; owned generated app copied to artifacts/m6/native. Future build explicitly pins port49101 and lane-derived output. evidence=evidence/m6-native-build.log,evidence/m6-native-launch.png",
+      "evidence": "run-log.md:49"
+    },
+    {
+      "attribution": "environment",
+      "summary": "1788632882 M8 correction loop attribution=environment frozen cross-device unread check navigates base URL and requires chat rows there, while app root was feed. Added visible chat panel to root hub. No harness edits. evidence=evidence/m8-choreo-1.log,lib/Screen.tsx",
+      "evidence": "run-log.md:54"
+    },
+    {
+      "attribution": "ambiguous",
+      "summary": "1788633654 M8 root cause isolated: after reconnect child useAuth hooks can have undefined viewer while parent stays authenticated, hiding own-message receipts. Bind retained identity to exact saved token even during revalidation; explicit auth.me retries continue while kind=retained, auth denials fence fallback. source=diagnostic attribution=ambiguous evidence=evidence/m8-diagnostic.log,lib/useIdentity.ts. Diagnostic copy never qualifies.",
+      "evidence": "run-log.md:58"
+    },
+    {
+      "attribution": "agent-error",
+      "summary": "1788634126 scale attempt1 failure attribution=agent-error membership cap100 conflicts with manifest u0001=1000 conversations. Attempt1 start1788633949 end1788634024 retained; M8 reopened for corrective implementation/verification within original4h limit. evidence=evidence/scale-result.json,evidence/scale-cap-correction-check.txt",
+      "evidence": "run-log.md:71"
+    },
+    {
+      "attribution": "agent-error",
+      "summary": "1788634409 correction attribution=agent-error seeds and suite tests were authored as Node JavaScript despite requested TypeScript. Implementation moved to .mts TypeScript modules; .mjs compatibility entrypoints retained, API demo remains required .mjs. Node native TypeScript execution used; no behavior change. evidence=scripts/{seed,acceptance,m2-tests,m3-tests,m4-tests,m5-tests,m6-tests,m8-tests,replay}.mts",
+      "evidence": "run-log.md:76"
+    },
+    {
+      "attribution": "ambiguous",
+      "summary": "1788634610 Post-M6 M1 regression fixed: offline carrier reports no replay grant immediately after signup. Signup now completes logout/login and auth.me under an opening state before profile editing, preventing grantless writes. attribution=ambiguous (published guide guarantees login grants; signup behavior differed). evidence=evidence/all-suites-regression.log,evidence/m1-offline-regression-fix.log,lib/Screen.tsx",
+      "evidence": "run-log.md:77"
+    },
+    {
+      "attribution": "agent-error",
+      "summary": "1788634851 Scale attempt2 interrupted after passing10% verification3234 checks: String(api reference) throws Cannot convert object to primitive value in probe reporting, attribution=agent-error. No mutation action failed. Resume retains original start1788634232, exact settled journal and fresh-instance lineage; interrupted result archived. Probe-time exclusion now measured explicitly for completed checkpoint probes.",
+      "evidence": "run-log.md:80"
+    },
+    {
+      "attribution": "agent-error",
+      "summary": "1788634870 Post-M8 M2 infinite-scroll regression corrected: async chat panel height shifted pointer into nested chat scroll; fixed panel height280 removes layout shift. Suite passes. attribution=agent-error evidence=evidence/m2-layout-regression-fix.log,lib/Screen.tsx",
+      "evidence": "run-log.md:83"
+    },
+    {
+      "attribution": "agent-error",
+      "summary": "1788634985 Post-M8 M3 regression fixed attribution=agent-error: async message search-index completion cleared a subsequently composed reply. Clear submitted composer state before await; preserve newer drafts on completion/failure. Same rule applied to post composer. evidence=evidence/m3-composer-regression-fix.log,lib/Messaging.tsx,lib/Posts.tsx",
+      "evidence": "run-log.md:85"
+    },
+    {
+      "attribution": "agent-error",
+      "summary": "1788635671 correction agent-error own-repost changed unique index requires explicit migration. E_SUCCESSOR_DESTRUCTIVE appeared on restart; recovered prior generation from own scale2 files then applied exact emitted plan via dev --apply-migration. server PID=19822 port49100. source=package guide,diagnostic evidence=evidence/root-migration-apply.txt. E_GUIDE_UNKNOWN for diagnostic successor/migrations and E_GUIDE_STALE for app were additional lookup gaps.",
+      "evidence": "run-log.md:90"
+    },
+    {
+      "attribution": "ambiguous",
+      "summary": "1788636409 correction-final-loop ambiguous multi-tab: official carrier kept intact with database-scoped Web Locks; readonly existing-DM lookup avoids grantless no-op writes; query drain warms new carrier grant. Second-tab probe and durable primary restart pass; M3/M6/M8 choreography green. History paging UI now tested. evidence=evidence/tab-route-probe-6.log,evidence/durable-tab-regression-2.log,evidence/m3-choreo-carrier.log,evidence/m6-choreo-carrier.log,evidence/m8-choreo-carrier.log,evidence/m3-history-page-suite.log",
+      "evidence": "run-log.md:93"
+    },
+    {
+      "attribution": "ambiguous",
+      "summary": "1788636559 correction-final-loop ambiguous final suite setup fixes: M2 fixed2s wheel sleep observed Loading posts before page completion; now awaits >20 rendered items up to15s, preserving assertion. M6 closed-client push sent during prior suite browser20s heartbeat lease; now waits read-only connected count0 before send. No latency claim upgraded. evidence=evidence/m2-acceptance.png,evidence/m2-suite-final-regression.log,evidence/m6-suite-final-regression.log,scripts/m2-tests.mts,scripts/m6-tests.mts",
+      "evidence": "run-log.md:94"
+    },
+    {
+      "attribution": "ambiguous",
+      "summary": "1788637077 correction-final-loop ambiguous upload stage ceiling after repeated media regression: exact E_ASSET_TOO_LARGE20objects/256MiB; published README/types expose upload but no discard/sweep API, E_GUIDE_UNKNOWN for diagnostic code. Stopped recorded root PID19822 for one normal-owner restart recovery attempt; no state mutation. In-flight M5 diagnostic cannot qualify across restart. source=package README/guide,diagnostic evidence=evidence/m2-settle-suite.log,evidence/m6-closed-suite.log,evidence/asset-storage-diagnostic.json",
+      "evidence": "run-log.md:96"
+    },
+    {
+      "attribution": "agent-error",
+      "summary": "1788640149 correction-final-loop attribution=agent-error supplemental verifier omitted parent-based reply postType; corrected normalization and re-read all7 named post types. Original failed receipt retained, prior unaffected checks preserved with hash-bound correction chain. evidence=evidence/scale-3-media-verification-initial.json,evidence/scale-3-post-type-recheck.json",
+      "evidence": "run-log.md:106"
+    }
+  ],
+  "handAuthoredLoc": {
+    "lines": 1445,
+    "files": 98,
+    "sharedUiLines": null
+  },
+  "authParity": {
+    "posture": "sessions",
+    "notes": "Real password signup/login and server sessions; public-npm local owner. No test persona bypass in application/replay writes."
+  },
+  "diary": "diary.md",
+  "socialMessenger": {
+    "qualification": "Authoring evidence only; external grader and full extension custody not claimed",
+    "milestones": [
+      {
+        "milestone": "m1",
+        "status": "aborted",
+        "start": 1788625794,
+        "initialBoundary": 1788626317,
+        "initialWallSeconds": 523,
+        "firstClaimedGreen": 1788626243.478,
+        "firstRetainedGreen": 1788626861.279,
+        "latestGreen": {
+          "path": "evidence/m1-choreography-retained.jsonl",
+          "recordedAt": "2026-09-05T16:47:41.279Z",
+          "green": true,
+          "suiteHashValid": true,
+          "assertions": {
+            "total": 3,
+            "required": 3,
+            "implemented": 3,
+            "passed": 3,
+            "failed": 0,
+            "skipped": 0,
+            "notImplemented": 0,
+            "requiredUnimplemented": 0
+          },
+          "nonGreenCause": null
+        },
+        "latestSuite": {
+          "pass": true,
+          "receipt": "m1-suite-1788636409535.json"
+        },
+        "latestChoreography": {
+          "path": "evidence/m1-choreography-reconciled.jsonl",
+          "recordedAt": "2026-09-05T19:32:46.027Z",
+          "green": false,
+          "suiteHashValid": true,
+          "assertions": {
+            "total": 3,
+            "required": 3,
+            "implemented": 3,
+            "passed": 2,
+            "failed": 1,
+            "skipped": 0,
+            "notImplemented": 0,
+            "requiredUnimplemented": 0
+          },
+          "nonGreenCause": "choreography-failed"
+        },
+        "nativeHermes": "artifacts/m1/ios",
+        "tokens": null,
+        "finalDisposition": {
+          "status": "aborted",
+          "at": 1788637220,
+          "reason": "Final accumulated-state media regression: unrecovered account upload staging quota; historical green preserved"
+        },
+        "validationEnd": 1788637220,
+        "validationSpanSeconds": 11426
+      },
+      {
+        "milestone": "m2",
+        "status": "aborted",
+        "start": 1788626317,
+        "initialBoundary": 1788627069,
+        "initialWallSeconds": 752,
+        "firstClaimedGreen": 1788626978.641,
+        "firstRetainedGreen": 1788626978.641,
+        "latestGreen": {
+          "path": "evidence/m2-choreography-5.jsonl",
+          "recordedAt": "2026-09-05T16:49:38.641Z",
+          "green": true,
+          "suiteHashValid": true,
+          "assertions": {
+            "total": 9,
+            "required": 9,
+            "implemented": 9,
+            "passed": 9,
+            "failed": 0,
+            "skipped": 0,
+            "notImplemented": 0,
+            "requiredUnimplemented": 0
+          },
+          "nonGreenCause": null
+        },
+        "latestSuite": {
+          "pass": false,
+          "receipt": "m2-suite-1788636711149.json",
+          "outcomeClass": "application"
+        },
+        "latestChoreography": {
+          "path": "evidence/m2-choreography-reconciled.jsonl",
+          "recordedAt": "2026-09-05T19:34:48.858Z",
+          "green": false,
+          "suiteHashValid": true,
+          "assertions": {
+            "total": 9,
+            "required": 9,
+            "implemented": 9,
+            "passed": 7,
+            "failed": 2,
+            "skipped": 0,
+            "notImplemented": 0,
+            "requiredUnimplemented": 0
+          },
+          "nonGreenCause": "choreography-failed"
+        },
+        "nativeHermes": "artifacts/m2/ios",
+        "tokens": null,
+        "finalDisposition": {
+          "status": "aborted",
+          "at": 1788637220,
+          "reason": "Final accumulated-state media regression: unrecovered account upload staging quota; historical green preserved"
+        },
+        "validationEnd": 1788637220,
+        "validationSpanSeconds": 10903
+      },
+      {
+        "milestone": "m3",
+        "status": "green",
+        "start": 1788627069,
+        "initialBoundary": 1788627777,
+        "initialWallSeconds": 708,
+        "firstClaimedGreen": 1788627710.266,
+        "firstRetainedGreen": 1788627710.266,
+        "latestGreen": {
+          "path": "evidence/m3-choreography-carrier.jsonl",
+          "recordedAt": "2026-09-05T19:24:33.571Z",
+          "green": true,
+          "suiteHashValid": true,
+          "assertions": {
+            "total": 7,
+            "required": 5,
+            "implemented": 6,
+            "passed": 6,
+            "failed": 0,
+            "skipped": 1,
+            "notImplemented": 1,
+            "requiredUnimplemented": 0
+          },
+          "nonGreenCause": null
+        },
+        "latestSuite": {
+          "pass": true,
+          "receipt": "m3-suite-1788636427080.json"
+        },
+        "latestChoreography": {
+          "path": "evidence/m3-choreography-carrier.jsonl",
+          "recordedAt": "2026-09-05T19:24:33.571Z",
+          "green": true,
+          "suiteHashValid": true,
+          "assertions": {
+            "total": 7,
+            "required": 5,
+            "implemented": 6,
+            "passed": 6,
+            "failed": 0,
+            "skipped": 1,
+            "notImplemented": 1,
+            "requiredUnimplemented": 0
+          },
+          "nonGreenCause": null
+        },
+        "nativeHermes": "artifacts/m3/ios",
+        "tokens": null,
+        "validationEnd": 1788636273.571,
+        "validationSpanSeconds": 9204.571
+      },
+      {
+        "milestone": "m4",
+        "status": "green",
+        "start": 1788627777,
+        "initialBoundary": 1788628369,
+        "initialWallSeconds": 592,
+        "firstClaimedGreen": 1788628305.264,
+        "firstRetainedGreen": 1788628305.264,
+        "latestGreen": {
+          "path": "evidence/m4-choreography-complete.jsonl",
+          "recordedAt": "2026-09-05T19:30:14.753Z",
+          "green": true,
+          "suiteHashValid": true,
+          "assertions": {
+            "total": 5,
+            "required": 5,
+            "implemented": 5,
+            "passed": 5,
+            "failed": 0,
+            "skipped": 0,
+            "notImplemented": 0,
+            "requiredUnimplemented": 0
+          },
+          "nonGreenCause": null
+        },
+        "latestSuite": {
+          "pass": true,
+          "receipt": "m4-suite-1788636434252.json"
+        },
+        "latestChoreography": {
+          "path": "evidence/m4-choreography-complete.jsonl",
+          "recordedAt": "2026-09-05T19:30:14.753Z",
+          "green": true,
+          "suiteHashValid": true,
+          "assertions": {
+            "total": 5,
+            "required": 5,
+            "implemented": 5,
+            "passed": 5,
+            "failed": 0,
+            "skipped": 0,
+            "notImplemented": 0,
+            "requiredUnimplemented": 0
+          },
+          "nonGreenCause": null
+        },
+        "nativeHermes": "artifacts/m4/ios",
+        "tokens": null,
+        "validationEnd": 1788636614.753,
+        "validationSpanSeconds": 8837.753
+      },
+      {
+        "milestone": "m5",
+        "status": "aborted",
+        "start": 1788628369,
+        "initialBoundary": 1788631439,
+        "initialWallSeconds": 3070,
+        "firstClaimedGreen": 1788631393.312,
+        "firstRetainedGreen": 1788631393.312,
+        "latestGreen": {
+          "path": "evidence/m5-choreography-5.jsonl",
+          "recordedAt": "2026-09-05T18:03:13.312Z",
+          "green": true,
+          "suiteHashValid": true,
+          "assertions": {
+            "total": 4,
+            "required": 2,
+            "implemented": 4,
+            "passed": 4,
+            "failed": 0,
+            "skipped": 0,
+            "notImplemented": 0,
+            "requiredUnimplemented": 0
+          },
+          "nonGreenCause": null
+        },
+        "latestSuite": {
+          "pass": true,
+          "receipt": "m5-suite-1788636439042.json"
+        },
+        "latestChoreography": {
+          "path": "evidence/m5-choreography-reconciled.jsonl",
+          "recordedAt": "2026-09-05T19:40:18.277Z",
+          "green": false,
+          "suiteHashValid": true,
+          "assertions": {
+            "total": 4,
+            "required": 2,
+            "implemented": 4,
+            "passed": 2,
+            "failed": 2,
+            "skipped": 0,
+            "notImplemented": 0,
+            "requiredUnimplemented": 0
+          },
+          "nonGreenCause": "choreography-failed"
+        },
+        "nativeHermes": "artifacts/m5/ios",
+        "tokens": null,
+        "finalDisposition": {
+          "status": "aborted",
+          "at": 1788637220,
+          "reason": "Final accumulated-state media regression: unrecovered account upload staging quota; historical green preserved"
+        },
+        "validationEnd": 1788637220,
+        "validationSpanSeconds": 8851
+      },
+      {
+        "milestone": "m6",
+        "status": "aborted",
+        "start": 1788631439,
+        "initialBoundary": 1788632315,
+        "initialWallSeconds": 876,
+        "firstClaimedGreen": 1788632002.83,
+        "firstRetainedGreen": 1788632002.83,
+        "latestGreen": {
+          "path": "evidence/m6-choreography-carrier.jsonl",
+          "recordedAt": "2026-09-05T19:24:37.551Z",
+          "green": true,
+          "suiteHashValid": true,
+          "assertions": {
+            "total": 1,
+            "required": 1,
+            "implemented": 1,
+            "passed": 1,
+            "failed": 0,
+            "skipped": 0,
+            "notImplemented": 0,
+            "requiredUnimplemented": 0
+          },
+          "nonGreenCause": null
+        },
+        "latestSuite": {
+          "pass": false,
+          "receipt": "m6-suite-1788636726916.json",
+          "outcomeClass": "application"
+        },
+        "latestChoreography": {
+          "path": "evidence/m6-choreography-carrier.jsonl",
+          "recordedAt": "2026-09-05T19:24:37.551Z",
+          "green": true,
+          "suiteHashValid": true,
+          "assertions": {
+            "total": 1,
+            "required": 1,
+            "implemented": 1,
+            "passed": 1,
+            "failed": 0,
+            "skipped": 0,
+            "notImplemented": 0,
+            "requiredUnimplemented": 0
+          },
+          "nonGreenCause": null
+        },
+        "nativeHermes": "artifacts/m6/ios",
+        "tokens": null,
+        "finalDisposition": {
+          "status": "aborted",
+          "at": 1788637220,
+          "reason": "Final accumulated-state media regression: unrecovered account upload staging quota; historical green preserved"
+        },
+        "validationEnd": 1788637220,
+        "validationSpanSeconds": 5781
+      },
+      {
+        "milestone": "m7",
+        "status": "not-run",
+        "reason": "Separate fresh session explicitly excluded",
+        "start": null,
+        "initialBoundary": null,
+        "tokens": null
+      },
+      {
+        "milestone": "m8",
+        "status": "green",
+        "start": 1788632315,
+        "initialBoundary": 1788633947,
+        "initialWallSeconds": 1632,
+        "firstClaimedGreen": 1788633679.038,
+        "firstRetainedGreen": 1788633679.038,
+        "latestGreen": {
+          "path": "evidence/m8-choreography-continued2.jsonl",
+          "recordedAt": "2026-09-05T19:44:45.000Z",
+          "green": true,
+          "suiteHashValid": true,
+          "assertions": {
+            "total": 5,
+            "required": 5,
+            "implemented": 5,
+            "passed": 5,
+            "failed": 0,
+            "skipped": 0,
+            "notImplemented": 0,
+            "requiredUnimplemented": 0
+          },
+          "nonGreenCause": null
+        },
+        "latestSuite": {
+          "pass": true,
+          "receipt": "m8-suite-1788637222963.json"
+        },
+        "latestChoreography": {
+          "path": "evidence/m8-choreography-continued2.jsonl",
+          "recordedAt": "2026-09-05T19:44:45.000Z",
+          "green": true,
+          "suiteHashValid": true,
+          "assertions": {
+            "total": 5,
+            "required": 5,
+            "implemented": 5,
+            "passed": 5,
+            "failed": 0,
+            "skipped": 0,
+            "notImplemented": 0,
+            "requiredUnimplemented": 0
+          },
+          "nonGreenCause": null
+        },
+        "nativeHermes": "artifacts/m8/ios",
+        "tokens": null,
+        "validationEnd": 1788637485.0,
+        "validationSpanSeconds": 5170.0
+      }
+    ],
+    "finalAcceptanceAt": 1788637485.0,
+    "replayAttempts": [
+      {
+        "label": "scale",
+        "receipt": "evidence/scale-result.json",
+        "start": 1788633949,
+        "end": 1788634024,
+        "finished": 1788634024,
+        "wallSeconds": 75,
+        "probeSeconds": 0.0,
+        "pass": false,
+        "error": "{\"state\":\"rejected\",\"code\":\"E_CONSTRAINT\",\"family\":\"schema\",\"message\":\"E_CONSTRAINT: memberships cap 100 reached\",\"guide\":\"schema/runtime\",\"rewrite\":\"fix the rejected mutation input and retry\"}",
+        "checkpoints": []
+      },
+      {
+        "label": "scale-2",
+        "receipt": "evidence/scale-2-result.json",
+        "start": 1788634232,
+        "end": 1788635048,
+        "finished": 1788635048,
+        "wallSeconds": 816,
+        "probeSeconds": 9.031,
+        "pass": false,
+        "error": "{\"state\":\"rejected\",\"code\":\"OWN_ORIGINAL\",\"family\":\"input\",\"message\":\"E_REQUIRE:OWN_ORIGINAL: program requirement failed\",\"guide\":\"input/runtime\",\"rewrite\":\"fix the rejected mutation input and retry\"}",
+        "checkpoints": [
+          {
+            "checkpoint": "10%",
+            "start": 1788634873768,
+            "end": 1788634874864,
+            "pass": true
+          }
+        ]
+      },
+      {
+        "label": "scale-3",
+        "receipt": "evidence/scale-3-result.json",
+        "start": 1788635584,
+        "end": 1788639465,
+        "finished": 1788639486,
+        "wallSeconds": 3881,
+        "probeSeconds": 23.767,
+        "pass": true,
+        "error": null,
+        "checkpoints": [
+          {
+            "checkpoint": "10%",
+            "start": 1788635988521,
+            "end": 1788635989425,
+            "pass": true
+          },
+          {
+            "checkpoint": "50%",
+            "start": 1788637511897,
+            "end": 1788637516388,
+            "pass": true
+          }
+        ]
+      }
+    ],
+    "finalReplayVerification": {
+      "pass": true,
+      "freshInstance": "scale-instance-3",
+      "replayStart": 1788635584,
+      "settleEnd": 1788639465,
+      "runnerFinished": 1788639486,
+      "replayWallSeconds": 3881,
+      "checkpointProbeSeconds": 23.767,
+      "finalVerificationEnd": 1788640105.629,
+      "manifestSha256": "a70c627cf32db9378861a2ff2e291311404e74e06ed02ead5908d565acde5a3f",
+      "scaleLogSha256": "b26bf1ae8ccf2d64c8ca34bca6562b63a5174956a40c33c123aff8050b6abba9",
+      "actions": {
+        "scaleActions": 167157,
+        "starterActions": 87,
+        "settledReceipts": 167244,
+        "uniqueReceiptKeys": 167244,
+        "allCommitted": true,
+        "expectedTotal": 167244,
+        "pass": true
+      },
+      "primaryChecks": 3258,
+      "supplementalChecks": 76,
+      "counts": {
+        "users": 1008,
+        "profiles": 1008,
+        "followEdges": 5921,
+        "posts": 50228,
+        "topLevelPosts": 48224,
+        "replies": 2004,
+        "activeLikes": 5008,
+        "activeReposts": 1004,
+        "conversations": 1002,
+        "dms": 901,
+        "groups": 101,
+        "memberships": 2054,
+        "messages": 100015,
+        "textMessages": 99105,
+        "mediaMessages": 910,
+        "quotedReplies": 2736,
+        "activeReactions": 2000,
+        "disappearingSettingsEnabled": 0
+      },
+      "evidence": {
+        "scale-3-result.json": "1f715b7ba77e8ebac29023ffe9fdf7f362da64795dc998d917a2e28a4a59a696",
+        "scale-3-full-verification.json": "c0dcf6bbe694e8b5119b281e39fe51d1fb842c8380836d84cc2480637e8184ba",
+        "scale-3-media-verification.json": "1164b8ca2380e00be2d26c0935a8d0bc8daf2e8a03c7cbbcbe58530bf7b6757e",
+        "scale-3-media-verification-initial.json": "4e06ea0f2cb7e5b79656d75ce55764d680b5a72c431a426b73d5b8be7e735f2a",
+        "scale-3-post-type-recheck.json": "00e1883fcaefa74eaf0f90b24a17f7d971d06488fb403161bf61f45c7eef5c7d",
+        "scale-3-action-verification.json": "9fa24853bddf70e92a29dcabc08dc0aba47febcf9239a0caeb65c51b83a2f39c"
+      }
+    },
+    "choreographyRuns": {
+      "m1": [
+        {
+          "path": "evidence/m1-choreography.jsonl",
+          "recordedAt": "2026-09-05T16:37:23.478Z",
+          "green": true,
+          "suiteHashValid": false,
+          "assertions": {
+            "total": 3,
+            "required": 3,
+            "implemented": 3,
+            "passed": 3,
+            "failed": 0,
+            "skipped": 0,
+            "notImplemented": 0,
+            "requiredUnimplemented": 0
+          },
+          "nonGreenCause": null
+        },
+        {
+          "path": "evidence/m1-choreography-retained.jsonl",
+          "recordedAt": "2026-09-05T16:47:41.279Z",
+          "green": true,
+          "suiteHashValid": true,
+          "assertions": {
+            "total": 3,
+            "required": 3,
+            "implemented": 3,
+            "passed": 3,
+            "failed": 0,
+            "skipped": 0,
+            "notImplemented": 0,
+            "requiredUnimplemented": 0
+          },
+          "nonGreenCause": null
+        },
+        {
+          "path": "evidence/m1-choreography-complete.jsonl",
+          "recordedAt": "2026-09-05T19:28:33.233Z",
+          "green": false,
+          "suiteHashValid": true,
+          "assertions": {
+            "total": 3,
+            "required": 3,
+            "implemented": 3,
+            "passed": 2,
+            "failed": 1,
+            "skipped": 0,
+            "notImplemented": 0,
+            "requiredUnimplemented": 0
+          },
+          "nonGreenCause": "choreography-failed"
+        },
+        {
+          "path": "evidence/m1-choreography-reconciled.jsonl",
+          "recordedAt": "2026-09-05T19:32:46.027Z",
+          "green": false,
+          "suiteHashValid": true,
+          "assertions": {
+            "total": 3,
+            "required": 3,
+            "implemented": 3,
+            "passed": 2,
+            "failed": 1,
+            "skipped": 0,
+            "notImplemented": 0,
+            "requiredUnimplemented": 0
+          },
+          "nonGreenCause": "choreography-failed"
+        }
+      ],
+      "m2": [
+        {
+          "path": "evidence/m2-choreography-2.jsonl",
+          "recordedAt": "2026-09-05T16:46:28.032Z",
+          "green": false,
+          "suiteHashValid": true,
+          "assertions": {
+            "total": 9,
+            "required": 9,
+            "implemented": 9,
+            "passed": 4,
+            "failed": 5,
+            "skipped": 0,
+            "notImplemented": 0,
+            "requiredUnimplemented": 0
+          },
+          "nonGreenCause": "choreography-failed"
+        },
+        {
+          "path": "evidence/m2-choreography.jsonl",
+          "recordedAt": "2026-09-05T16:47:33.210Z",
+          "green": false,
+          "suiteHashValid": false,
+          "assertions": {
+            "total": 9,
+            "required": 9,
+            "implemented": 9,
+            "passed": 2,
+            "failed": 7,
+            "skipped": 0,
+            "notImplemented": 0,
+            "requiredUnimplemented": 0
+          },
+          "nonGreenCause": "choreography-failed"
+        },
+        {
+          "path": "evidence/m2-choreography-3.jsonl",
+          "recordedAt": "2026-09-05T16:47:54.430Z",
+          "green": false,
+          "suiteHashValid": true,
+          "assertions": {
+            "total": 9,
+            "required": 9,
+            "implemented": 9,
+            "passed": 5,
+            "failed": 4,
+            "skipped": 0,
+            "notImplemented": 0,
+            "requiredUnimplemented": 0
+          },
+          "nonGreenCause": "choreography-failed"
+        },
+        {
+          "path": "evidence/m2-choreography-4.jsonl",
+          "recordedAt": "2026-09-05T16:49:02.817Z",
+          "green": false,
+          "suiteHashValid": true,
+          "assertions": {
+            "total": 9,
+            "required": 9,
+            "implemented": 9,
+            "passed": 8,
+            "failed": 1,
+            "skipped": 0,
+            "notImplemented": 0,
+            "requiredUnimplemented": 0
+          },
+          "nonGreenCause": "choreography-failed"
+        },
+        {
+          "path": "evidence/m2-choreography-5.jsonl",
+          "recordedAt": "2026-09-05T16:49:38.641Z",
+          "green": true,
+          "suiteHashValid": true,
+          "assertions": {
+            "total": 9,
+            "required": 9,
+            "implemented": 9,
+            "passed": 9,
+            "failed": 0,
+            "skipped": 0,
+            "notImplemented": 0,
+            "requiredUnimplemented": 0
+          },
+          "nonGreenCause": null
+        },
+        {
+          "path": "evidence/m2-choreography-complete.jsonl",
+          "recordedAt": "2026-09-05T19:29:39.009Z",
+          "green": false,
+          "suiteHashValid": true,
+          "assertions": {
+            "total": 9,
+            "required": 9,
+            "implemented": 9,
+            "passed": 8,
+            "failed": 1,
+            "skipped": 0,
+            "notImplemented": 0,
+            "requiredUnimplemented": 0
+          },
+          "nonGreenCause": "choreography-failed"
+        },
+        {
+          "path": "evidence/m2-choreography-reconciled.jsonl",
+          "recordedAt": "2026-09-05T19:34:48.858Z",
+          "green": false,
+          "suiteHashValid": true,
+          "assertions": {
+            "total": 9,
+            "required": 9,
+            "implemented": 9,
+            "passed": 7,
+            "failed": 2,
+            "skipped": 0,
+            "notImplemented": 0,
+            "requiredUnimplemented": 0
+          },
+          "nonGreenCause": "choreography-failed"
+        }
+      ],
+      "m3": [
+        {
+          "path": "evidence/m3-choreography-original.jsonl",
+          "recordedAt": "2026-09-05T16:57:16.409Z",
+          "green": false,
+          "suiteHashValid": true,
+          "assertions": {
+            "total": 7,
+            "required": 5,
+            "implemented": 6,
+            "passed": 4,
+            "failed": 2,
+            "skipped": 1,
+            "notImplemented": 1,
+            "requiredUnimplemented": 0
+          },
+          "nonGreenCause": "choreography-failed"
+        },
+        {
+          "path": "evidence/m3-choreography-2.jsonl",
+          "recordedAt": "2026-09-05T16:58:24.331Z",
+          "green": false,
+          "suiteHashValid": true,
+          "assertions": {
+            "total": 7,
+            "required": 5,
+            "implemented": 6,
+            "passed": 5,
+            "failed": 1,
+            "skipped": 1,
+            "notImplemented": 1,
+            "requiredUnimplemented": 0
+          },
+          "nonGreenCause": "choreography-failed"
+        },
+        {
+          "path": "evidence/m3-choreography-3.jsonl",
+          "recordedAt": "2026-09-05T17:00:06.695Z",
+          "green": false,
+          "suiteHashValid": true,
+          "assertions": {
+            "total": 7,
+            "required": 5,
+            "implemented": 6,
+            "passed": 4,
+            "failed": 2,
+            "skipped": 1,
+            "notImplemented": 1,
+            "requiredUnimplemented": 0
+          },
+          "nonGreenCause": "choreography-failed"
+        },
+        {
+          "path": "evidence/m3-choreography-4.jsonl",
+          "recordedAt": "2026-09-05T17:01:50.266Z",
+          "green": true,
+          "suiteHashValid": true,
+          "assertions": {
+            "total": 7,
+            "required": 5,
+            "implemented": 6,
+            "passed": 6,
+            "failed": 0,
+            "skipped": 1,
+            "notImplemented": 1,
+            "requiredUnimplemented": 0
+          },
+          "nonGreenCause": null
+        },
+        {
+          "path": "evidence/m3-choreography-history.jsonl",
+          "recordedAt": "2026-09-05T19:16:42.811Z",
+          "green": false,
+          "suiteHashValid": true,
+          "assertions": {
+            "total": 7,
+            "required": 5,
+            "implemented": 6,
+            "passed": 5,
+            "failed": 1,
+            "skipped": 1,
+            "notImplemented": 1,
+            "requiredUnimplemented": 0
+          },
+          "nonGreenCause": "choreography-failed"
+        },
+        {
+          "path": "evidence/m3-choreography-carrier.jsonl",
+          "recordedAt": "2026-09-05T19:24:33.571Z",
+          "green": true,
+          "suiteHashValid": true,
+          "assertions": {
+            "total": 7,
+            "required": 5,
+            "implemented": 6,
+            "passed": 6,
+            "failed": 0,
+            "skipped": 1,
+            "notImplemented": 1,
+            "requiredUnimplemented": 0
+          },
+          "nonGreenCause": null
+        }
+      ],
+      "m4": [
+        {
+          "path": "evidence/m4-choreography-2.jsonl",
+          "recordedAt": "2026-09-05T17:09:21.440Z",
+          "green": false,
+          "suiteHashValid": true,
+          "assertions": {
+            "total": 5,
+            "required": 5,
+            "implemented": 5,
+            "passed": 3,
+            "failed": 2,
+            "skipped": 0,
+            "notImplemented": 0,
+            "requiredUnimplemented": 0
+          },
+          "nonGreenCause": "choreography-failed"
+        },
+        {
+          "path": "evidence/m4-choreography-3.jsonl",
+          "recordedAt": "2026-09-05T17:11:45.264Z",
+          "green": true,
+          "suiteHashValid": true,
+          "assertions": {
+            "total": 5,
+            "required": 5,
+            "implemented": 5,
+            "passed": 5,
+            "failed": 0,
+            "skipped": 0,
+            "notImplemented": 0,
+            "requiredUnimplemented": 0
+          },
+          "nonGreenCause": null
+        },
+        {
+          "path": "evidence/m4-choreography-complete.jsonl",
+          "recordedAt": "2026-09-05T19:30:14.753Z",
+          "green": true,
+          "suiteHashValid": true,
+          "assertions": {
+            "total": 5,
+            "required": 5,
+            "implemented": 5,
+            "passed": 5,
+            "failed": 0,
+            "skipped": 0,
+            "notImplemented": 0,
+            "requiredUnimplemented": 0
+          },
+          "nonGreenCause": null
+        }
+      ],
+      "m5": [
+        {
+          "path": "evidence/m5-choreography-1.jsonl",
+          "recordedAt": "2026-09-05T17:32:04.079Z",
+          "green": false,
+          "suiteHashValid": true,
+          "assertions": {
+            "total": 4,
+            "required": 2,
+            "implemented": 4,
+            "passed": 1,
+            "failed": 3,
+            "skipped": 0,
+            "notImplemented": 0,
+            "requiredUnimplemented": 0
+          },
+          "nonGreenCause": "choreography-failed"
+        },
+        {
+          "path": "evidence/m5-choreography-2.jsonl",
+          "recordedAt": "2026-09-05T17:41:25.764Z",
+          "green": false,
+          "suiteHashValid": true,
+          "assertions": {
+            "total": 4,
+            "required": 2,
+            "implemented": 4,
+            "passed": 2,
+            "failed": 2,
+            "skipped": 0,
+            "notImplemented": 0,
+            "requiredUnimplemented": 0
+          },
+          "nonGreenCause": "choreography-failed"
+        },
+        {
+          "path": "evidence/m5-choreography-3.jsonl",
+          "recordedAt": "2026-09-05T17:49:40.869Z",
+          "green": false,
+          "suiteHashValid": true,
+          "assertions": {
+            "total": 4,
+            "required": 2,
+            "implemented": 4,
+            "passed": 1,
+            "failed": 3,
+            "skipped": 0,
+            "notImplemented": 0,
+            "requiredUnimplemented": 0
+          },
+          "nonGreenCause": "choreography-failed"
+        },
+        {
+          "path": "evidence/m5-choreography-4.jsonl",
+          "recordedAt": "2026-09-05T17:56:59.605Z",
+          "green": false,
+          "suiteHashValid": true,
+          "assertions": {
+            "total": 4,
+            "required": 2,
+            "implemented": 4,
+            "passed": 3,
+            "failed": 1,
+            "skipped": 0,
+            "notImplemented": 0,
+            "requiredUnimplemented": 0
+          },
+          "nonGreenCause": "choreography-failed"
+        },
+        {
+          "path": "evidence/m5-choreography-5.jsonl",
+          "recordedAt": "2026-09-05T18:03:13.312Z",
+          "green": true,
+          "suiteHashValid": true,
+          "assertions": {
+            "total": 4,
+            "required": 2,
+            "implemented": 4,
+            "passed": 4,
+            "failed": 0,
+            "skipped": 0,
+            "notImplemented": 0,
+            "requiredUnimplemented": 0
+          },
+          "nonGreenCause": null
+        },
+        {
+          "path": "evidence/m5-choreography-complete.jsonl",
+          "recordedAt": "2026-09-05T19:35:44.501Z",
+          "green": false,
+          "suiteHashValid": true,
+          "assertions": {
+            "total": 4,
+            "required": 2,
+            "implemented": 4,
+            "passed": 1,
+            "failed": 3,
+            "skipped": 0,
+            "notImplemented": 0,
+            "requiredUnimplemented": 0
+          },
+          "nonGreenCause": "choreography-failed"
+        },
+        {
+          "path": "evidence/m5-choreography-reconciled.jsonl",
+          "recordedAt": "2026-09-05T19:40:18.277Z",
+          "green": false,
+          "suiteHashValid": true,
+          "assertions": {
+            "total": 4,
+            "required": 2,
+            "implemented": 4,
+            "passed": 2,
+            "failed": 2,
+            "skipped": 0,
+            "notImplemented": 0,
+            "requiredUnimplemented": 0
+          },
+          "nonGreenCause": "choreography-failed"
+        }
+      ],
+      "m6": [
+        {
+          "path": "evidence/m6-choreography-1.jsonl",
+          "recordedAt": "2026-09-05T18:11:55.789Z",
+          "green": false,
+          "suiteHashValid": true,
+          "assertions": {
+            "total": 1,
+            "required": 1,
+            "implemented": 1,
+            "passed": 0,
+            "failed": 1,
+            "skipped": 0,
+            "notImplemented": 0,
+            "requiredUnimplemented": 0
+          },
+          "nonGreenCause": "choreography-failed"
+        },
+        {
+          "path": "evidence/m6-choreography-2.jsonl",
+          "recordedAt": "2026-09-05T18:13:22.830Z",
+          "green": true,
+          "suiteHashValid": true,
+          "assertions": {
+            "total": 1,
+            "required": 1,
+            "implemented": 1,
+            "passed": 1,
+            "failed": 0,
+            "skipped": 0,
+            "notImplemented": 0,
+            "requiredUnimplemented": 0
+          },
+          "nonGreenCause": null
+        },
+        {
+          "path": "evidence/m6-choreography-final.jsonl",
+          "recordedAt": "2026-09-05T18:50:55.527Z",
+          "green": true,
+          "suiteHashValid": true,
+          "assertions": {
+            "total": 1,
+            "required": 1,
+            "implemented": 1,
+            "passed": 1,
+            "failed": 0,
+            "skipped": 0,
+            "notImplemented": 0,
+            "requiredUnimplemented": 0
+          },
+          "nonGreenCause": null
+        },
+        {
+          "path": "evidence/m6-choreography-delivery.jsonl",
+          "recordedAt": "2026-09-05T19:14:46.985Z",
+          "green": true,
+          "suiteHashValid": true,
+          "assertions": {
+            "total": 1,
+            "required": 1,
+            "implemented": 1,
+            "passed": 1,
+            "failed": 0,
+            "skipped": 0,
+            "notImplemented": 0,
+            "requiredUnimplemented": 0
+          },
+          "nonGreenCause": null
+        },
+        {
+          "path": "evidence/m6-choreography-carrier.jsonl",
+          "recordedAt": "2026-09-05T19:24:37.551Z",
+          "green": true,
+          "suiteHashValid": true,
+          "assertions": {
+            "total": 1,
+            "required": 1,
+            "implemented": 1,
+            "passed": 1,
+            "failed": 0,
+            "skipped": 0,
+            "notImplemented": 0,
+            "requiredUnimplemented": 0
+          },
+          "nonGreenCause": null
+        }
+      ],
+      "m8": [
+        {
+          "path": "evidence/m8-choreography-1.jsonl",
+          "recordedAt": "2026-09-05T18:27:41.196Z",
+          "green": false,
+          "suiteHashValid": true,
+          "assertions": {
+            "total": 5,
+            "required": 5,
+            "implemented": 5,
+            "passed": 3,
+            "failed": 2,
+            "skipped": 0,
+            "notImplemented": 0,
+            "requiredUnimplemented": 0
+          },
+          "nonGreenCause": "choreography-failed"
+        },
+        {
+          "path": "evidence/m8-choreography-2.jsonl",
+          "recordedAt": "2026-09-05T18:28:51.053Z",
+          "green": false,
+          "suiteHashValid": true,
+          "assertions": {
+            "total": 5,
+            "required": 5,
+            "implemented": 5,
+            "passed": 2,
+            "failed": 3,
+            "skipped": 0,
+            "notImplemented": 0,
+            "requiredUnimplemented": 0
+          },
+          "nonGreenCause": "choreography-failed"
+        },
+        {
+          "path": "evidence/m8-choreography-3.jsonl",
+          "recordedAt": "2026-09-05T18:31:59.790Z",
+          "green": false,
+          "suiteHashValid": true,
+          "assertions": {
+            "total": 5,
+            "required": 5,
+            "implemented": 5,
+            "passed": 2,
+            "failed": 3,
+            "skipped": 0,
+            "notImplemented": 0,
+            "requiredUnimplemented": 0
+          },
+          "nonGreenCause": "choreography-failed"
+        },
+        {
+          "path": "evidence/m8-choreography-4.jsonl",
+          "recordedAt": "2026-09-05T18:34:04.329Z",
+          "green": false,
+          "suiteHashValid": true,
+          "assertions": {
+            "total": 5,
+            "required": 5,
+            "implemented": 5,
+            "passed": 4,
+            "failed": 1,
+            "skipped": 0,
+            "notImplemented": 0,
+            "requiredUnimplemented": 0
+          },
+          "nonGreenCause": "choreography-failed"
+        },
+        {
+          "path": "evidence/m8-choreography-5.jsonl",
+          "recordedAt": "2026-09-05T18:38:31.719Z",
+          "green": false,
+          "suiteHashValid": true,
+          "assertions": {
+            "total": 5,
+            "required": 5,
+            "implemented": 5,
+            "passed": 4,
+            "failed": 1,
+            "skipped": 0,
+            "notImplemented": 0,
+            "requiredUnimplemented": 0
+          },
+          "nonGreenCause": "choreography-failed"
+        },
+        {
+          "path": "evidence/m8-choreography-6.jsonl",
+          "recordedAt": "2026-09-05T18:41:19.038Z",
+          "green": true,
+          "suiteHashValid": true,
+          "assertions": {
+            "total": 5,
+            "required": 5,
+            "implemented": 5,
+            "passed": 5,
+            "failed": 0,
+            "skipped": 0,
+            "notImplemented": 0,
+            "requiredUnimplemented": 0
+          },
+          "nonGreenCause": null
+        },
+        {
+          "path": "evidence/m8-choreography-final.jsonl",
+          "recordedAt": "2026-09-05T18:51:13.736Z",
+          "green": true,
+          "suiteHashValid": true,
+          "assertions": {
+            "total": 5,
+            "required": 5,
+            "implemented": 5,
+            "passed": 5,
+            "failed": 0,
+            "skipped": 0,
+            "notImplemented": 0,
+            "requiredUnimplemented": 0
+          },
+          "nonGreenCause": null
+        },
+        {
+          "path": "evidence/m8-choreography-delivery.jsonl",
+          "recordedAt": "2026-09-05T19:15:03.373Z",
+          "green": true,
+          "suiteHashValid": true,
+          "assertions": {
+            "total": 5,
+            "required": 5,
+            "implemented": 5,
+            "passed": 5,
+            "failed": 0,
+            "skipped": 0,
+            "notImplemented": 0,
+            "requiredUnimplemented": 0
+          },
+          "nonGreenCause": null
+        },
+        {
+          "path": "evidence/m8-choreography-carrier.jsonl",
+          "recordedAt": "2026-09-05T19:24:54.962Z",
+          "green": true,
+          "suiteHashValid": true,
+          "assertions": {
+            "total": 5,
+            "required": 5,
+            "implemented": 5,
+            "passed": 5,
+            "failed": 0,
+            "skipped": 0,
+            "notImplemented": 0,
+            "requiredUnimplemented": 0
+          },
+          "nonGreenCause": null
+        },
+        {
+          "path": "evidence/m8-choreography-continued.jsonl",
+          "recordedAt": "2026-09-05T19:41:52.438Z",
+          "green": false,
+          "suiteHashValid": true,
+          "assertions": {
+            "total": 5,
+            "required": 5,
+            "implemented": 5,
+            "passed": 4,
+            "failed": 1,
+            "skipped": 0,
+            "notImplemented": 0,
+            "requiredUnimplemented": 0
+          },
+          "nonGreenCause": "choreography-failed"
+        },
+        {
+          "path": "evidence/m8-choreography-continued2.jsonl",
+          "recordedAt": "2026-09-05T19:44:45.000Z",
+          "green": true,
+          "suiteHashValid": true,
+          "assertions": {
+            "total": 5,
+            "required": 5,
+            "implemented": 5,
+            "passed": 5,
+            "failed": 0,
+            "skipped": 0,
+            "notImplemented": 0,
+            "requiredUnimplemented": 0
+          },
+          "nonGreenCause": null
+        }
+      ]
+    },
+    "metering": {
+      "adapter": "unavailable",
+      "reasonCode": "native-rollout-token-stream-not-exposed-in-lane",
+      "caps": null
+    },
+    "sessionCut": {
+      "lastLogEpoch": 1788636559,
+      "resumedEpoch": 1788636866,
+      "stateChangedByHarness": false
+    },
+    "native": {
+      "m6": {
+        "milestone": "m6",
+        "attempted": true,
+        "releaseBuild": true,
+        "installed": true,
+        "launched": true,
+        "proof": false,
+        "reason": "Release app launches to genuine authentication UI. No lane-native UI driver was implemented to sign in, prime media, stop backend and verify cold offline behavior. Native computer-use APIs are unavailable. Launch screenshot is not an offline proof.",
+        "artifacts": [
+          "artifacts/m6/native/Clique.app",
+          "evidence/m6-native-launch.png",
+          "evidence/m6-native-build.log"
+        ]
+      },
+      "m8": {
+        "milestone": "m8",
+        "attempted": true,
+        "releaseBuild": true,
+        "installed": true,
+        "launched": true,
+        "proof": false,
+        "reason": "Owned simulator runs the lane Release app, built with lane-local DerivedData. No native driver completed offline compose, app termination and replay verification. Native computer-use APIs are unavailable; launch evidence is not a durable-queue proof.",
+        "artifacts": [
+          "artifacts/m8/DerivedData/Build/Products/Release-iphonesimulator/Clique.app",
+          "evidence/m8-native-launch.png",
+          "evidence/m8-native-build.log"
+        ]
+      }
+    }
+  },
+  "notes": "Base-schema authoring record. Full social-messenger extension validation/qualification remains unclaimed: no external grader session, token rollout tree or measured driver custody/clock skew was exposed. Phase splits and tokens are null, never estimated. First M1 suite receipt bytes were overwritten; original claimed green and later hash-valid proof are distinguished. Post-M8 corrections and replay clocks overlap and must not be added as serial time. No M7. No other implementation/source checkout read."
+}

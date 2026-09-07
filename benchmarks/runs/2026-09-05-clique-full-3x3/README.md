@@ -51,8 +51,46 @@ astra-snapback2 grader runs on substitute ports 49120–49139 because 49100–49
 are held by the separate `clique-improvement` grading of the 0.0.6 build on this
 host (recorded as a deviation in that lane's trace). Grok and muse graders
 follow as load allows; the fresh-session M7 leg runs after each lane is graded,
-because M7 changes the artifact. Grading reports land here as
-`grading-<wave>-<backend>.json` when validated.
+because M7 changes the artifact. Grading reports are here as `grading-<wave>-<backend>.json` with the grader's
+sanitized `grading-<wave>-<backend>.trace.md`; M7 reports as `m7-<wave>-<backend>.md`;
+the three astra run records as `record-astra-<backend>.json`.
+
+#### Independent grading results (uncalibrated Claude Opus 5 grader, N=1 calibration)
+
+| Lane | pass / fail / not-run (of 101) | coverage | blocker / major / minor / cosmetic | O1 / O2 / O3 / O4 / O5 |
+| --- | --- | --- | --- | --- |
+| astra-snapback2 | 81 / 11 / 9 | honest | 1 / 1 / 5 / 2 | 40 / 30 / – / – / – |
+| astra-convex | 84 / 8 / 9 | honest | 0 / 2 / 3 / 1 | 74 / 48 / – / 55 / – |
+| astra-supabase | 92 / 0 / 9 | honest | 0 / 1 / 8 / 2 | 82 / 68 / – / 78 / – |
+| grok-snapback2 | 68 / 9 / 24 | dishonest | 0 / 4 / 6 / 1 | 15 / 30 / – / – / – |
+| grok-convex | 82 / 4 / 15 | dishonest | 1 / 5 / 5 / 1 | 45 / 25 / – / 40 / – |
+| grok-supabase | 56 / 17 / 28 | dishonest | 4 / 5 / 3 / 2 | 40 / 22 / – / – / – |
+| muse-snapback2 | 75 / 17 / 9 | dishonest | 1 / 6 / 3 / 0 | 30 / 25 / – / – / – |
+| muse-convex | 83 / 2 / 16 | dishonest | 2 / 5 / 2 / 1 | 68 / 27 / 30 / 34 / – |
+| muse-supabase | 80 / 12 / 9 | honest | 1 / 6 / 3 / 1 | 68 / 32 / – / 15 / – |
+
+O3 and O5 are null where the applicability manifest or the missing probe set makes them
+inapplicable. `dishonest` coverage means the grader's spot verification found the lane's
+coverage manifest claiming assertions its suite does not actually exercise.
+
+#### M7 day-2 evolution (fresh session, same model and effort as the build)
+
+| Lane | M7 status | wall (first line to end) |
+| --- | --- | --- |
+| astra-snapback2 | green | 19 min |
+| astra-convex | green | 13 min |
+| astra-supabase | green | 25 min |
+| grok-snapback2 | green | 31 min |
+| grok-convex | green | 22 min |
+| grok-supabase | pending | |
+| muse-snapback2 | pending | |
+| muse-convex | green | 429 min |
+| muse-supabase | pending | |
+
+
+muse-convex's wall includes hours of idle provider retries between turns. grok-supabase's first
+M7 session died after its suite passed and continues in a second session; muse-snapback2's first
+M7 attempt died at its first line on a provider outage and was relaunched.
 
 Per-lane records (`record-<wave>-<backend>.json`, validated with
 `benchmarks/tools/social-messenger/record-validator.mjs`), the grading reports,
