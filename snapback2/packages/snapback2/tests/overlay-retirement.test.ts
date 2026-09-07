@@ -775,6 +775,10 @@ test("a pre-manifest c snapshot needs fresh correctly named links after reopenin
       await store.commit({ deliveries: [{
         ...page("deliveries.inbox", { after: "start" }, 31, [row("deliveries", "link")], "middle"), cursorArg: "after",
       }] });
+      assert.ok((await store.outbox.overlay())[item.intent], `${name}: naming the persisted root does not prove progress past it`);
+      await store.commit({ deliveries: [{
+        ...page("deliveries.inbox", { after: "middle" }, 32, [row("deliveries", "past-link")], "tail"), cursorArg: "after",
+      }] });
       await assertRetired(store, item.intent, `${name}: a fresh engine-valid link uses the persisted snapshot`);
     } finally { await store.close?.(); }
   });

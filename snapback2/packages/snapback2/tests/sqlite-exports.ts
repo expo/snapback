@@ -12,4 +12,4 @@ export { canonicalProgramJson } from '../../evaluator/src/certificate-identity.j
 export { CURRENT_EVALUATOR, CURRENT_VALUE_MODEL_VERSION } from '../../evaluator/src/runner.js';
 export { Twin } from '../src/twin.js';
 export { ClientStore } from '../../evaluator/src/store.js';
-export { OfflineRuntime } from '../src/offline.js';
+export { OfflineRuntime, offlineView } from '../src/offline.js';

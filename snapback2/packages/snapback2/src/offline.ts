@@ -956,7 +956,14 @@ export class OfflineRuntime {
  */
 export function offlineView<Result>(held: HeldAnswer<Result> | undefined, local?: LocalAnswer): any {
   const exactHeld = held !== undefined && (held.state === "complete" || held.state === "capped");
-  const useLocal = local !== undefined && !held?.retained;
+  // A retained projection may have had all unproven literal fields purged when
+  // one referenced row was revoked. Prefer a complete local rerun when the
+  // independently held facts can reconstruct the authored result. A denied or
+  // partial rerun still falls back to the retained delivery: hidden history is
+  // not made less readable by the current rule.
+  const reconstructed = local !== undefined
+    && (local.state === "complete" || local.state === "capped" || local.state === "held");
+  const useLocal = local !== undefined && (!held?.retained || reconstructed);
   if (!useLocal) {
     if (!held) return { state: "hydrating", live: false, connection: "offline" };
     const {
