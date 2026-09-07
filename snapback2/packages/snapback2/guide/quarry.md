@@ -126,8 +126,9 @@ and >4,096 nodes refuse.
 `fn member(c: conversations, p: principal) = exists memberships[c,p]` is an
 expression helper; `fn member from access` imports it. Arguments evaluate once
 left-to-right. Parameters, `viewer`, query read time and bounded reads are valid;
-capture/focal, allocation, commit time, write/emit and recursion refuse. Nested
-shapes keep that boundary. Caller `require` owns its code.
+capture/focal, allocation, commit time, write/emit, authorization assertions and
+recursion refuse. Nested shapes keep that boundary. Caller `require` or
+`! else CODE` owns its code.
 
 `after` follows scan order: `after c` with `c: cursor ?`; `null` starts page one.
 Pass `next` unchanged. It encodes table/index/order, typed suffix, and last returned
@@ -174,7 +175,8 @@ Object literals work anywhere; `{ id: conversationId, creatorMembershipId }`
 uses shorthand. `count(x)` is
 `x.length` for bounded lists and pages. Bindings and captured list fields keep their selected element count;
 an object field named `length` remains that field's value. Other built-ins are `range`,
-`min`, `max`, `divmod`, and `share`. `sorted` is only `(lo, hi) = sorted(a, b)`.
+`min`, `max`, `divmod`, and `share`. `sorted` is only `(lo, hi) = sorted(a, b)`:
+it evaluates `a` then `b` once and returns the values in canonical scalar order.
 `!` or `! else CODE` requires a present value; `??` supplies a fallback. Program `=`/`!=` are total: absent equals absent, differs from present;
 `!=` is `not (=)`. Ordered comparison refuses an optional operand;
 use `!` or `??` first. `if x != null:` narrows a bound name or one-hop row field in that branch
