@@ -1,0 +1,137 @@
+{
+  "version": "before",
+  "schemaHash": "4e3289092099fe102b48f8eb3d3b402dd59002e3eb481c4c3fe87e4e6ab610f3",
+  "publicNativeAdmission": false,
+  "scope": "Direct standalone ClientStore on frozen native-certified schema; synthetic private receipts",
+  "shallowFreeze": [
+    {
+      "entry": "put",
+      "adoptedCallerObject": true,
+      "before": {
+        "Row": {
+          "id": {
+            "Id": "one"
+          },
+          "name": {
+            "String": "café"
+          },
+          "handle": "Null"
+        }
+      },
+      "after": {
+        "Row": {
+          "id": {
+            "Id": "one"
+          },
+          "name": {
+            "String": "quiet"
+          },
+          "handle": "Null"
+        }
+      },
+      "oldTerm": [
+        {
+          "Row": {
+            "id": {
+              "Id": "one"
+            },
+            "name": {
+              "String": "quiet"
+            },
+            "handle": "Null"
+          }
+        }
+      ],
+      "newTerm": []
+    },
+    {
+      "entry": "constructor",
+      "adoptedCallerObject": true,
+      "before": {
+        "Row": {
+          "id": {
+            "Id": "one"
+          },
+          "name": {
+            "String": "café"
+          },
+          "handle": "Null"
+        }
+      },
+      "after": {
+        "Row": {
+          "id": {
+            "Id": "one"
+          },
+          "name": {
+            "String": "quiet"
+          },
+          "handle": "Null"
+        }
+      },
+      "oldTerm": [
+        {
+          "Row": {
+            "id": {
+              "Id": "one"
+            },
+            "name": {
+              "String": "quiet"
+            },
+            "handle": "Null"
+          }
+        }
+      ],
+      "newTerm": []
+    },
+    {
+      "entry": "rehydrate",
+      "adoptedCallerObject": true,
+      "before": {
+        "Row": {
+          "id": {
+            "Id": "one"
+          },
+          "name": {
+            "String": "café"
+          },
+          "handle": "Null"
+        }
+      },
+      "after": {
+        "Row": {
+          "id": {
+            "Id": "one"
+          },
+          "name": {
+            "String": "quiet"
+          },
+          "handle": "Null"
+        }
+      },
+      "oldTerm": [
+        {
+          "Row": {
+            "id": {
+              "Id": "one"
+            },
+            "name": {
+              "String": "quiet"
+            },
+            "handle": "Null"
+          }
+        }
+      ],
+      "newTerm": []
+    }
+  ],
+  "failedReceiptReplacement": {
+    "before": true,
+    "error": {
+      "message": "null is not an object (evaluating 'left.length')"
+    },
+    "after": false,
+    "owners": 1,
+    "groups": 1
+  }
+}

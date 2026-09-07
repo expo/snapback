@@ -1,0 +1,21 @@
+{
+  "info": {
+    "id": "87fcd90b-1c55-4dc3-9307-65cc0268e4fd",
+    "cwd": "/Users/ccheever/clique-improvement/reviews/search-twin-r8-complete-r1/grok"
+  },
+  "session_summary": "Review search-twin commits e1c6e2b to 47a7f49",
+  "created_at": "2026-09-06T23:59:50.924310Z",
+  "updated_at": "2026-09-07T00:19:47.202294Z",
+  "num_messages": 629,
+  "num_chat_messages": 215,
+  "current_model_id": "grok-4.6",
+  "next_trace_turn": 1,
+  "chat_format_version": 1,
+  "request_id": "db290eb3-9946-445a-acfd-4c4557f78441",
+  "grok_home": "/Users/ccheever/.grok",
+  "last_active_at": "2026-09-07T00:19:47.202294Z",
+  "generated_title": "Review search-twin commits e1c6e2b to 47a7f49",
+  "agent_name": "grok-build-plan",
+  "sandbox_profile": "off",
+  "reasoning_effort": "xhigh"
+}

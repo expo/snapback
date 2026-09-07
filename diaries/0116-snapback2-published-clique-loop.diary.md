@@ -907,3 +907,10 @@ The deliberate CLI interruption also stopped its static web server; the backend 
 The cold build looked for an Expo guide while the existing app guide described certified backend facts. Both commands behaved as designed, but the package introduction did not make the startup route obvious. The README and existing grammar now lead to the Expo chat init command and distinguish init, auth and app guide roles. Locally installed README commands use npx.
 
 This is Snapback documentation friction rather than a new native capability. Keyword output and fenced examples remain unchanged; the first external prose checker had a wrong no-fences assumption, and its failure is preserved alongside the corrected pass. The narrow change is not yet published or injected into the current cold benchmark. [Source and validation evidence](../benchmarks/runs/2026-09-06-clique-improvement/evidence/guide-expo-startup/README.md).
+
+
+### 2026-09-06 — Full offline review finds three remaining entrypoint gaps
+
+The full review went back before the first R8 change instead of assuming that intermediate implementation was already reviewed. Astra reproduced two inherited standalone defects: externally frozen wrappers still allow nested caller mutation, and malformed receipt boundaries can destroy prior authority before refusing. Grok found a separate public offline projection path that bypasses the online denied/partial field filters. Both complete reviews require changes.
+
+The next repair covers these entrypoints together, after resident harness preparation releases the same writer. This is additional correctness work, not resource progress: 72,555 gzip bytes remains over budget, original movement deadlines remain failed, and realistic paginated resident measurement is pending. [Reviews and exact limits](../benchmarks/runs/2026-09-06-clique-improvement/evidence/offline-full-r8-review/README.md). Existing competitor baselines remain fixed.

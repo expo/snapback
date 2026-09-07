@@ -1,0 +1,20 @@
+{
+  "utc": "2026-09-07T00:17:35.488556+00:00",
+  "fullReportRead": true,
+  "reportBytes": 21482,
+  "reportSha256": "e0df2fc807b2651db8d208fc5efa960152e29324992287bd892f06b264fbd01d",
+  "terminal": {
+    "pid": 7180,
+    "exitCode": 0,
+    "endedEpoch": 1788740174.8292649,
+    "elapsedSeconds": 986.6606118679047
+  },
+  "pidAbsent": true,
+  "inputFiles": 97,
+  "inputOrigins": 96,
+  "artifacts": 16,
+  "errors": [],
+  "scope": "FULL e1c6 to47a7",
+  "verdict": "NEEDS_CHANGES;2 inherited standalone P2s; no native/public exploit claim",
+  "packetManifestSha256": "2347dc10a76ebec5d5475aab63517e123d58810b1d93aee1f7ad997d586f7201"
+}

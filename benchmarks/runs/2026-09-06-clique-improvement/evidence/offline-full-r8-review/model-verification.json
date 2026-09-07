@@ -1,0 +1,16 @@
+{
+  "utc": "2026-09-07T00:00:11.753988+00:00",
+  "astra": {
+    "path": "/Users/ccheever/.codex/sessions/2026/09/06/rollout-2026-09-06T16-59-48-01a07929-f655-7fa3-a0c2-5c796153b759.jsonl",
+    "session": "01a07929-f655-7fa3-a0c2-5c796153b759",
+    "model": "gpt-6-astra",
+    "effort": "xhigh"
+  },
+  "grok": {
+    "path": "/Users/ccheever/.grok/sessions/%2FUsers%2Fccheever%2Fclique-improvement%2Freviews%2Fsearch-twin-r8-complete-r1%2Fgrok/87fcd90b-1c55-4dc3-9307-65cc0268e4fd/summary.json",
+    "session": "87fcd90b-1c55-4dc3-9307-65cc0268e4fd",
+    "current_model_id": "grok-4.6",
+    "reasoning_effort": "xhigh",
+    "summarySha256AtRead": "813d7771b5d617b049d0fdce471659374d133ee6d2126a6696e92af7e5c16a82"
+  }
+}

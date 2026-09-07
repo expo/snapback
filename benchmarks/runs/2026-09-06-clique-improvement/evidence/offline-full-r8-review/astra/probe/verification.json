@@ -1,0 +1,104 @@
+{
+  "capturedInputFiles": 96,
+  "postProbeMismatches": [],
+  "executableVerifiedAfterProbe": true,
+  "captureScope": "Static transitive import closure, including type imports and an unused OfflineRuntime root; a conservative superset, not an onLoad trace.",
+  "runs": [
+    {
+      "source": "standalone-initial.ts",
+      "version": "source",
+      "inputVariant": "Unsupported range boundary",
+      "exit": 0
+    },
+    {
+      "source": "standalone-numeric-id.ts",
+      "version": "source",
+      "inputVariant": "Id numeric range boundary",
+      "exit": 0
+    },
+    {
+      "source": "standalone-numeric-id.ts",
+      "version": "before",
+      "inputVariant": "Id numeric range boundary",
+      "exit": 0
+    },
+    {
+      "source": "standalone.ts",
+      "version": "source",
+      "inputVariant": "Id null range boundary",
+      "exit": 0
+    },
+    {
+      "source": "standalone.ts",
+      "version": "before",
+      "inputVariant": "Id null range boundary",
+      "exit": 0
+    }
+  ],
+  "artifacts": {
+    "probe/captured-inputs.json": {
+      "sha256": "34a94304ef92fded2d4bf224ea9c55a05aaf54d32334f3c2fd290b5a412b7630",
+      "bytes": 24462
+    },
+    "probe/fixtures.json": {
+      "sha256": "e43fbff9ff92e1968a3769b16b0c822700256cdedac9728d0545e45bee05b4a2",
+      "bytes": 69989
+    },
+    "probe/standalone-before-result.json": {
+      "sha256": "a3124a23f7b34ab112d86040dafed1ea44df2d6c49dea5fc3bea4830117d8516",
+      "bytes": 2664
+    },
+    "probe/standalone-before.log": {
+      "sha256": "c1a5744816114da04d0a28016ddb36e4a835495bfd7c4de584146409c4f45ec6",
+      "bytes": 2665
+    },
+    "probe/standalone-initial-source-result.json": {
+      "sha256": "ad39644dc3d219f3c44f18ba537854aac95982bdb9e7d4f5952b9a7f03052491",
+      "bytes": 2574
+    },
+    "probe/standalone-initial-source.log": {
+      "sha256": "152eea9e30b5d1e6690263a74014ecacee737a47bbb25dac0ac2c8763f850d8c",
+      "bytes": 2575
+    },
+    "probe/standalone-initial.ts": {
+      "sha256": "a63cd08f578307a957eb90eabd0bbcd3af40f0b2cab4c723098b42853ac8cba0",
+      "bytes": 3042
+    },
+    "probe/standalone-numeric-id-before-result.json": {
+      "sha256": "948b26713f6aca32ed622556038844e45036323d3d413121d820ab9803d26252",
+      "bytes": 2574
+    },
+    "probe/standalone-numeric-id-before.log": {
+      "sha256": "0cab19d392093e9e98aa457f1f263ea15539cfbdf017906883934279e70d9f16",
+      "bytes": 2575
+    },
+    "probe/standalone-numeric-id-source-result.json": {
+      "sha256": "ad39644dc3d219f3c44f18ba537854aac95982bdb9e7d4f5952b9a7f03052491",
+      "bytes": 2574
+    },
+    "probe/standalone-numeric-id-source.log": {
+      "sha256": "152eea9e30b5d1e6690263a74014ecacee737a47bbb25dac0ac2c8763f850d8c",
+      "bytes": 2575
+    },
+    "probe/standalone-numeric-id.ts": {
+      "sha256": "31e47b0276acd03a516666475d992f5ddb718ffe224d0a63e1b472e6ff51b55a",
+      "bytes": 3030
+    },
+    "probe/standalone-source-result.json": {
+      "sha256": "130bd36a2f85d83827c1699864c2dcb60f490db3049e6f8b6219ab622a3b8bd9",
+      "bytes": 2664
+    },
+    "probe/standalone-source.log": {
+      "sha256": "60463bc96531f343a3c0f07590c0c0a05ec75bf0a8d25354207f77db6335885f",
+      "bytes": 2665
+    },
+    "probe/standalone.ts": {
+      "sha256": "e4420d3fab751396e79ecc49ba477d6f28dec1cc60e4dba48cca3af4c1982b56",
+      "bytes": 3032
+    },
+    "capture_probe.py": {
+      "sha256": "c67235ae2373696609c2685ae1083d2f00248095652c40c9d81848fc291ed2cf",
+      "bytes": 1835
+    }
+  }
+}

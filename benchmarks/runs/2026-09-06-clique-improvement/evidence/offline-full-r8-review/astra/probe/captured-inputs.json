@@ -1,0 +1,487 @@
+{
+  "probe/source/snapback2/packages/snapback2/src/offline.ts": {
+    "origin": "packet/source/snapback2/packages/snapback2/src/offline.ts",
+    "sha256": "40cd03c9f6a0edb2f76ab3225c4e13f0321f7eaaa9561ff8ab0d354ac642ded9",
+    "bytes": 41838
+  },
+  "probe/source/snapback2/packages/snapback2/src/types.ts": {
+    "origin": "packet/source/snapback2/packages/snapback2/src/types.ts",
+    "sha256": "d32085b58a952dd284e96778ad7bae188e25da73f560ee1e6512e294ff31459a",
+    "bytes": 20408
+  },
+  "probe/source/snapback2/packages/snapback2/src/store/range-store.ts": {
+    "origin": "packet/source/snapback2/packages/snapback2/src/store/range-store.ts",
+    "sha256": "920c489a931713c538b700f02e059ac72e38caf3f2f4ea98b3df618db3f00a56",
+    "bytes": 72135
+  },
+  "probe/source/snapback2/packages/snapback2/src/store/row-values.ts": {
+    "origin": "packet/source/snapback2/packages/snapback2/src/store/row-values.ts",
+    "sha256": "54fce7162e6b044dda4e05e28a838a2ac6fc9e7e2fc65f41e06529dec3fc5be9",
+    "bytes": 2356
+  },
+  "probe/source/snapback2/packages/snapback2/src/offline-protocol.ts": {
+    "origin": "packet/source/snapback2/packages/snapback2/src/offline-protocol.ts",
+    "sha256": "963387618b7bd7c79f8b33de5932dc482027ac16bd3f783478c88ea10d39b179",
+    "bytes": 28834
+  },
+  "probe/source/snapback2/packages/snapback2/src/offline-schema.ts": {
+    "origin": "packet/source/snapback2/packages/snapback2/src/offline-schema.ts",
+    "sha256": "a7ab61de526abb3948ea565258eef44bcbce0263d14fc2d485bf7604ca5d9111",
+    "bytes": 556
+  },
+  "probe/source/snapback2/packages/evaluator/src/hash.ts": {
+    "origin": "packet/source/snapback2/packages/evaluator/src/hash.ts",
+    "sha256": "470e2f7973cc86a35be29e9ba901f3c86f759e6e65796051f188cb3a68a75214",
+    "bytes": 4328
+  },
+  "probe/source/snapback2/packages/evaluator/src/certificate-identity.ts": {
+    "origin": "packet/source/snapback2/packages/evaluator/src/certificate-identity.ts",
+    "sha256": "f80407e5c2e289c24ac09fde2e0252c015e543c6722d33d995f178e3531a5eb0",
+    "bytes": 18228
+  },
+  "probe/source/snapback2/packages/evaluator/src/errors.ts": {
+    "origin": "packet/source/snapback2/packages/evaluator/src/errors.ts",
+    "sha256": "a2dc2e8ef8522ad82af1740c6f8656dc6b05418454226b50571630e777fe0795",
+    "bytes": 759
+  },
+  "probe/source/snapback2/packages/evaluator/src/types.ts": {
+    "origin": "packet/source/snapback2/packages/evaluator/src/types.ts",
+    "sha256": "afc6bc7ffd25fc007787b10e0fc8bdafbe4ae61cb12f7d2442f2c2df95686618",
+    "bytes": 6075
+  },
+  "probe/source/snapback2/packages/evaluator/src/search-key.ts": {
+    "origin": "packet/source/snapback2/packages/evaluator/src/search-key.ts",
+    "sha256": "347cd64b12798d7b46d120d56f142a912ca810f33e2bd0ce6673861bd032e871",
+    "bytes": 6040
+  },
+  "probe/source/snapback2/packages/evaluator/src/unicode.ts": {
+    "origin": "packet/source/snapback2/packages/evaluator/src/unicode.ts",
+    "sha256": "b2c6a188d9e74646674383473e9c56eb9720a76b68d9c1a2f93fb722fb85f370",
+    "bytes": 12302
+  },
+  "probe/source/snapback2/packages/evaluator/src/unicode-tables.ts": {
+    "origin": "packet/source/snapback2/packages/evaluator/src/unicode-tables.ts",
+    "sha256": "ab99f5f9a78ebe52ec3102525d51b6c9dd7c59cbd9f1b26932042982476b8412",
+    "bytes": 3128
+  },
+  "probe/source/snapback2/packages/evaluator/dist/unicode-tables.ts": {
+    "origin": "packet/source/snapback2/packages/evaluator/dist/unicode-tables.ts",
+    "sha256": "9eccdccd99e9b936a40dcbf8ae63c55d980086df1ae71f92019f9ab040f6a521",
+    "bytes": 17460
+  },
+  "probe/source/snapback2/packages/evaluator/src/value-runtime.ts": {
+    "origin": "packet/source/snapback2/packages/evaluator/src/value-runtime.ts",
+    "sha256": "19199d26cfa25b9014c03509aa152d7ee81a275944ba93c8b723bff3753878f4",
+    "bytes": 23616
+  },
+  "probe/source/snapback2/packages/evaluator/src/cursor.ts": {
+    "origin": "packet/source/snapback2/packages/evaluator/src/cursor.ts",
+    "sha256": "94f0efe7b7ff947c77294fdcc99f38f3493615d87e1c97c13bc3ee146aaa2b3f",
+    "bytes": 10419
+  },
+  "probe/source/snapback2/crates/snapback2-core/ir-contract.json": {
+    "origin": "packet/source/snapback2/crates/snapback2-core/ir-contract.json",
+    "sha256": "d09c63f52622b9b8fb2762b94b17b4e2c8882e9feecf0737d24470ec2bde0252",
+    "bytes": 148
+  },
+  "probe/source/snapback2/packages/compiler/src/ir.ts": {
+    "origin": "packet/source/snapback2/packages/compiler/src/ir.ts",
+    "sha256": "9426f7262e82fcafcb86fab7608448a4019fd3c0fac83f01a9fddd2e7a8edd51",
+    "bytes": 6553
+  },
+  "probe/source/snapback2/packages/evaluator/src/coverage.ts": {
+    "origin": "packet/source/snapback2/packages/evaluator/src/coverage.ts",
+    "sha256": "0144dc627632cce23acc838b7951aa87c6e6b56425b3cc9dcd4255ac772d1e02",
+    "bytes": 12422
+  },
+  "probe/source/snapback2/packages/evaluator/src/coverage-spans.ts": {
+    "origin": "packet/source/snapback2/packages/evaluator/src/coverage-spans.ts",
+    "sha256": "4261606a117545f2dfab9f366a84468e8b24d22da1d9e3076f480eb1aad21a8f",
+    "bytes": 2023
+  },
+  "probe/source/snapback2/packages/evaluator/src/ordered.ts": {
+    "origin": "packet/source/snapback2/packages/evaluator/src/ordered.ts",
+    "sha256": "e34f3707c6404e75ebbf02fbeb47827c4e4f576c12d463325f69a30d6b2a7b55",
+    "bytes": 4007
+  },
+  "probe/source/snapback2/packages/evaluator/src/search-runtime.ts": {
+    "origin": "packet/source/snapback2/packages/evaluator/src/search-runtime.ts",
+    "sha256": "e8a5749614e0f233330da391514cb109f6bf5dda79b2688d03146e032d05e0df",
+    "bytes": 2607
+  },
+  "probe/source/snapback2/packages/evaluator/src/index-store.ts": {
+    "origin": "packet/source/snapback2/packages/evaluator/src/index-store.ts",
+    "sha256": "9e81e7ddf6a49d5986325c13aff0b0b2f52c89a0faf5e57442af1a967fdf918b",
+    "bytes": 13237
+  },
+  "probe/source/snapback2/packages/evaluator/src/prefix-dictionary.ts": {
+    "origin": "packet/source/snapback2/packages/evaluator/src/prefix-dictionary.ts",
+    "sha256": "f2872a6a6055d2836686f711c735b7b3de79dda38e2b98cf09132a9788a7242c",
+    "bytes": 2007
+  },
+  "probe/source/snapback2/packages/evaluator/src/slot-tree.ts": {
+    "origin": "packet/source/snapback2/packages/evaluator/src/slot-tree.ts",
+    "sha256": "b2fcfaafb0f456bdc024cb4d0b1ac3c3907c749ebfa311d831fdb2ca00aa6aca",
+    "bytes": 3176
+  },
+  "probe/source/snapback2/packages/evaluator/src/posting-tree.ts": {
+    "origin": "packet/source/snapback2/packages/evaluator/src/posting-tree.ts",
+    "sha256": "82d08ebc5c086989885531de903fea689309391b213f8e3592a550f8383a3cab",
+    "bytes": 2128
+  },
+  "probe/source/snapback2/packages/snapback2/src/store/canonical.ts": {
+    "origin": "packet/source/snapback2/packages/snapback2/src/store/canonical.ts",
+    "sha256": "a0b38f5da995c3d8cc9fbbf5c6e144941caba36a2482e06a857f4e114330c07c",
+    "bytes": 501
+  },
+  "probe/source/snapback2/packages/snapback2/src/store/overlay-retirement.ts": {
+    "origin": "packet/source/snapback2/packages/snapback2/src/store/overlay-retirement.ts",
+    "sha256": "43fb0ab507b2299d4bc91be9d32cbb0f9ed4ee448c9de611c57675beece68b13",
+    "bytes": 3977
+  },
+  "probe/source/snapback2/packages/snapback2/src/store/byte-cache.ts": {
+    "origin": "packet/source/snapback2/packages/snapback2/src/store/byte-cache.ts",
+    "sha256": "70aa1dae3baec0ed00796b51bad0af6e8ed4c325b551b702f72cc25676315967",
+    "bytes": 18897
+  },
+  "probe/source/snapback2/packages/snapback2/src/store/asset-policy.ts": {
+    "origin": "packet/source/snapback2/packages/snapback2/src/store/asset-policy.ts",
+    "sha256": "ba76b1c6cc0a9322b03db40fc406670d4625303fcbf7670d35c2713bc29e72a1",
+    "bytes": 3065
+  },
+  "probe/source/snapback2/packages/snapback2/src/store/swap-journal.ts": {
+    "origin": "packet/source/snapback2/packages/snapback2/src/store/swap-journal.ts",
+    "sha256": "45c761dbc94d6cd87ffdb7b9db89ac805a23425cfcb6180b57ebc44faba1cf50",
+    "bytes": 6928
+  },
+  "probe/source/snapback2/packages/snapback2/src/store/extent-facts.ts": {
+    "origin": "packet/source/snapback2/packages/snapback2/src/store/extent-facts.ts",
+    "sha256": "154cd1d0af740d17615c3ac7e45f727e4ef59e0fac11e7a3a5b31a4c9239fa5c",
+    "bytes": 3350
+  },
+  "probe/source/snapback2/packages/snapback2/src/store/fact-integrity.ts": {
+    "origin": "packet/source/snapback2/packages/snapback2/src/store/fact-integrity.ts",
+    "sha256": "877f9fe773d3173a5ebab58dd1683187227a706b35b8ccbd77945f09c72be9cc",
+    "bytes": 15247
+  },
+  "probe/source/snapback2/packages/snapback2/src/store/fact-index.ts": {
+    "origin": "packet/source/snapback2/packages/snapback2/src/store/fact-index.ts",
+    "sha256": "db3a3dd4013e15793fe18604a97400e9b707bc91c1dc3361041787e6ef5038bd",
+    "bytes": 4081
+  },
+  "probe/source/snapback2/packages/snapback2/src/store/extent-index.ts": {
+    "origin": "packet/source/snapback2/packages/snapback2/src/store/extent-index.ts",
+    "sha256": "07d00755e4809da6def9fc3d5be41021cf1f56dd94ba000159052237577072db",
+    "bytes": 5801
+  },
+  "probe/source/snapback2/packages/snapback2/src/store/carrier-index.ts": {
+    "origin": "packet/source/snapback2/packages/snapback2/src/store/carrier-index.ts",
+    "sha256": "55a086697e62e398945509eb47e4af8b127772f7fc6a810f4ca1037542e84a6a",
+    "bytes": 12454
+  },
+  "probe/source/snapback2/packages/snapback2/src/held-program.ts": {
+    "origin": "packet/source/snapback2/packages/snapback2/src/held-program.ts",
+    "sha256": "cd5ffc54870809afc2c41a5901c3ff61f1f06e90d566e42f9089708e3f755665",
+    "bytes": 2578
+  },
+  "probe/source/snapback2/packages/evaluator/src/runner.ts": {
+    "origin": "packet/source/snapback2/packages/evaluator/src/runner.ts",
+    "sha256": "07fe1e5ac3641cd589820ac0d17feb0afda50d3df60ab2f8b53697b91f841e64",
+    "bytes": 52712
+  },
+  "probe/source/snapback2/packages/evaluator/src/store.ts": {
+    "origin": "packet/source/snapback2/packages/evaluator/src/store.ts",
+    "sha256": "1b85895fdbee4ea5d15347d3794ee938241fc7e3e8582dcabf76aefa085929d9",
+    "bytes": 15196
+  },
+  "probe/source/snapback2/packages/evaluator/src/held-directory.ts": {
+    "origin": "packet/source/snapback2/packages/evaluator/src/held-directory.ts",
+    "sha256": "aa7db5e9a0ee3131df6c3b1cc9e36a0a37fabfba7e410bed2810e15c3f762bd3",
+    "bytes": 4080
+  },
+  "probe/source/snapback2/packages/evaluator/src/text.ts": {
+    "origin": "packet/source/snapback2/packages/evaluator/src/text.ts",
+    "sha256": "c48d2672ce08544ab55b894ec29c1f63e01ea868e6e78552f99879e77796d152",
+    "bytes": 755
+  },
+  "probe/source/snapback2/packages/evaluator/src/merge.ts": {
+    "origin": "packet/source/snapback2/packages/evaluator/src/merge.ts",
+    "sha256": "a2363d11564f095e3fb705b0fd34e029f5d470162aa01e161ac65e87ba4cdecf",
+    "bytes": 2324
+  },
+  "probe/source/snapback2/packages/snapback2/src/api.ts": {
+    "origin": "packet/source/snapback2/packages/snapback2/src/api.ts",
+    "sha256": "a52f71467e02b8ade7ece42007794cc10e57682364c3dd4e1306a4552ac315f4",
+    "bytes": 1515
+  },
+  "probe/source/snapback2/packages/snapback2/src/twin.ts": {
+    "origin": "packet/source/snapback2/packages/snapback2/src/twin.ts",
+    "sha256": "2b75b19950c7d38af0bba7fed55f25fff5eccf693b4ffa787fcb78f6fca29342",
+    "bytes": 13919
+  },
+  "probe/source/snapback2/packages/snapback2/src/twin-hydrate.ts": {
+    "origin": "packet/source/snapback2/packages/snapback2/src/twin-hydrate.ts",
+    "sha256": "4f36f8cd2d446fcf0a4b9e26e1b78a06cc0470cbb60b4996e1d5abc9571e7939",
+    "bytes": 4536
+  },
+  "probe/source/snapback2/packages/snapback2/src/store/outbox.ts": {
+    "origin": "packet/source/snapback2/packages/snapback2/src/store/outbox.ts",
+    "sha256": "835417fd8b915241abc651187fb66680d26d263c9f61f871b4c60b4ba6dc3e81",
+    "bytes": 16931
+  },
+  "probe/source/snapback2/packages/snapback2/src/twin-store.ts": {
+    "origin": "packet/source/snapback2/packages/snapback2/src/twin-store.ts",
+    "sha256": "6ef3f3a9ea9321e25d1c9f3b7cf6d3c3a5b5c022c00f5e1125486b8a740852c0",
+    "bytes": 12891
+  },
+  "probe/source/snapback2/packages/snapback2/src/local-cursor.ts": {
+    "origin": "packet/source/snapback2/packages/snapback2/src/local-cursor.ts",
+    "sha256": "245f1fac9cbf8512967ebef1ddc482609284a533b09ef5a98502607375113165",
+    "bytes": 7000
+  },
+  "probe/source/snapback2/packages/snapback2/src/client-wire.ts": {
+    "origin": "packet/source/snapback2/packages/snapback2/src/client-wire.ts",
+    "sha256": "7fd567440aaa4b88f9cb97fc2e3602fea801667fac6e998a243235e318bad2c9",
+    "bytes": 15027
+  },
+  "probe/before/snapback2/packages/snapback2/src/offline.ts": {
+    "origin": "packet/before/snapback2/packages/snapback2/src/offline.ts",
+    "sha256": "1f28f20599756abded33c068c691c45b586a4a28a103a141da0063fecf026660",
+    "bytes": 42078
+  },
+  "probe/before/snapback2/packages/snapback2/src/types.ts": {
+    "origin": "packet/before/snapback2/packages/snapback2/src/types.ts",
+    "sha256": "d32085b58a952dd284e96778ad7bae188e25da73f560ee1e6512e294ff31459a",
+    "bytes": 20408
+  },
+  "probe/before/snapback2/packages/snapback2/src/store/range-store.ts": {
+    "origin": "packet/before/snapback2/packages/snapback2/src/store/range-store.ts",
+    "sha256": "6bec5339e8830640f632afd986d9f3b7ed5ceb7c4a605c1b5313f5d9d5fdc0e2",
+    "bytes": 66260
+  },
+  "probe/before/snapback2/packages/snapback2/src/store/row-values.ts": {
+    "origin": "packet/before/snapback2/packages/snapback2/src/store/row-values.ts",
+    "sha256": "54fce7162e6b044dda4e05e28a838a2ac6fc9e7e2fc65f41e06529dec3fc5be9",
+    "bytes": 2356
+  },
+  "probe/before/snapback2/packages/snapback2/src/offline-protocol.ts": {
+    "origin": "packet/before/snapback2/packages/snapback2/src/offline-protocol.ts",
+    "sha256": "963387618b7bd7c79f8b33de5932dc482027ac16bd3f783478c88ea10d39b179",
+    "bytes": 28834
+  },
+  "probe/before/snapback2/packages/snapback2/src/offline-schema.ts": {
+    "origin": "packet/before/snapback2/packages/snapback2/src/offline-schema.ts",
+    "sha256": "a7ab61de526abb3948ea565258eef44bcbce0263d14fc2d485bf7604ca5d9111",
+    "bytes": 556
+  },
+  "probe/before/snapback2/packages/evaluator/src/hash.ts": {
+    "origin": "packet/before/snapback2/packages/evaluator/src/hash.ts",
+    "sha256": "470e2f7973cc86a35be29e9ba901f3c86f759e6e65796051f188cb3a68a75214",
+    "bytes": 4328
+  },
+  "probe/before/snapback2/packages/evaluator/src/certificate-identity.ts": {
+    "origin": "packet/before/snapback2/packages/evaluator/src/certificate-identity.ts",
+    "sha256": "f80407e5c2e289c24ac09fde2e0252c015e543c6722d33d995f178e3531a5eb0",
+    "bytes": 18228
+  },
+  "probe/before/snapback2/packages/evaluator/src/errors.ts": {
+    "origin": "packet/before/snapback2/packages/evaluator/src/errors.ts",
+    "sha256": "a2dc2e8ef8522ad82af1740c6f8656dc6b05418454226b50571630e777fe0795",
+    "bytes": 759
+  },
+  "probe/before/snapback2/packages/evaluator/src/types.ts": {
+    "origin": "packet/before/snapback2/packages/evaluator/src/types.ts",
+    "sha256": "afc6bc7ffd25fc007787b10e0fc8bdafbe4ae61cb12f7d2442f2c2df95686618",
+    "bytes": 6075
+  },
+  "probe/before/snapback2/packages/evaluator/src/search-key.ts": {
+    "origin": "packet/before/snapback2/packages/evaluator/src/search-key.ts",
+    "sha256": "347cd64b12798d7b46d120d56f142a912ca810f33e2bd0ce6673861bd032e871",
+    "bytes": 6040
+  },
+  "probe/before/snapback2/packages/evaluator/src/unicode.ts": {
+    "origin": "packet/before/snapback2/packages/evaluator/src/unicode.ts",
+    "sha256": "5c17bfa9c0385ed179344dead423a48cbb2bf86abc5089511af934522831c724",
+    "bytes": 11468
+  },
+  "probe/before/snapback2/packages/evaluator/src/unicode-tables.ts": {
+    "origin": "packet/before/snapback2/packages/evaluator/src/unicode-tables.ts",
+    "sha256": "ab99f5f9a78ebe52ec3102525d51b6c9dd7c59cbd9f1b26932042982476b8412",
+    "bytes": 3128
+  },
+  "probe/before/snapback2/packages/evaluator/dist/unicode-tables.ts": {
+    "origin": "packet/before/snapback2/packages/evaluator/dist/unicode-tables.ts",
+    "sha256": "9eccdccd99e9b936a40dcbf8ae63c55d980086df1ae71f92019f9ab040f6a521",
+    "bytes": 17460
+  },
+  "probe/before/snapback2/packages/evaluator/src/value-runtime.ts": {
+    "origin": "packet/before/snapback2/packages/evaluator/src/value-runtime.ts",
+    "sha256": "19199d26cfa25b9014c03509aa152d7ee81a275944ba93c8b723bff3753878f4",
+    "bytes": 23616
+  },
+  "probe/before/snapback2/packages/evaluator/src/cursor.ts": {
+    "origin": "packet/before/snapback2/packages/evaluator/src/cursor.ts",
+    "sha256": "94f0efe7b7ff947c77294fdcc99f38f3493615d87e1c97c13bc3ee146aaa2b3f",
+    "bytes": 10419
+  },
+  "probe/before/snapback2/crates/snapback2-core/ir-contract.json": {
+    "origin": "packet/before/snapback2/crates/snapback2-core/ir-contract.json",
+    "sha256": "d09c63f52622b9b8fb2762b94b17b4e2c8882e9feecf0737d24470ec2bde0252",
+    "bytes": 148
+  },
+  "probe/before/snapback2/packages/compiler/src/ir.ts": {
+    "origin": "packet/before/snapback2/packages/compiler/src/ir.ts",
+    "sha256": "9426f7262e82fcafcb86fab7608448a4019fd3c0fac83f01a9fddd2e7a8edd51",
+    "bytes": 6553
+  },
+  "probe/before/snapback2/packages/evaluator/src/coverage.ts": {
+    "origin": "packet/before/snapback2/packages/evaluator/src/coverage.ts",
+    "sha256": "09a393ee56b7016ed6dbb4200725ae096c75b34e2db2014db63b2989f24175cd",
+    "bytes": 11964
+  },
+  "probe/before/snapback2/packages/evaluator/src/coverage-spans.ts": {
+    "origin": "packet/before/snapback2/packages/evaluator/src/coverage-spans.ts",
+    "sha256": "4261606a117545f2dfab9f366a84468e8b24d22da1d9e3076f480eb1aad21a8f",
+    "bytes": 2023
+  },
+  "probe/before/snapback2/packages/evaluator/src/ordered.ts": {
+    "origin": "packet/before/snapback2/packages/evaluator/src/ordered.ts",
+    "sha256": "83954c8a6b8fb6fd73ab663b971c0a366da851e97adbd09bb626542da7467059",
+    "bytes": 3493
+  },
+  "probe/before/snapback2/packages/evaluator/src/search-runtime.ts": {
+    "origin": "packet/before/snapback2/packages/evaluator/src/search-runtime.ts",
+    "sha256": "e8a5749614e0f233330da391514cb109f6bf5dda79b2688d03146e032d05e0df",
+    "bytes": 2607
+  },
+  "probe/before/snapback2/packages/evaluator/src/index-store.ts": {
+    "origin": "packet/before/snapback2/packages/evaluator/src/index-store.ts",
+    "sha256": "94fd6ecb70d7c9b452a4f2ad0ff04cf108305950ad6b8a33671c7f3f1ec3ed33",
+    "bytes": 11365
+  },
+  "probe/before/snapback2/packages/evaluator/src/prefix-dictionary.ts": {
+    "origin": "packet/before/snapback2/packages/evaluator/src/prefix-dictionary.ts",
+    "sha256": "f2872a6a6055d2836686f711c735b7b3de79dda38e2b98cf09132a9788a7242c",
+    "bytes": 2007
+  },
+  "probe/before/snapback2/packages/evaluator/src/slot-tree.ts": {
+    "origin": "packet/before/snapback2/packages/evaluator/src/slot-tree.ts",
+    "sha256": "b2fcfaafb0f456bdc024cb4d0b1ac3c3907c749ebfa311d831fdb2ca00aa6aca",
+    "bytes": 3176
+  },
+  "probe/before/snapback2/packages/evaluator/src/posting-tree.ts": {
+    "origin": "packet/before/snapback2/packages/evaluator/src/posting-tree.ts",
+    "sha256": "82d08ebc5c086989885531de903fea689309391b213f8e3592a550f8383a3cab",
+    "bytes": 2128
+  },
+  "probe/before/snapback2/packages/snapback2/src/store/canonical.ts": {
+    "origin": "packet/before/snapback2/packages/snapback2/src/store/canonical.ts",
+    "sha256": "a0b38f5da995c3d8cc9fbbf5c6e144941caba36a2482e06a857f4e114330c07c",
+    "bytes": 501
+  },
+  "probe/before/snapback2/packages/snapback2/src/store/overlay-retirement.ts": {
+    "origin": "packet/before/snapback2/packages/snapback2/src/store/overlay-retirement.ts",
+    "sha256": "43fb0ab507b2299d4bc91be9d32cbb0f9ed4ee448c9de611c57675beece68b13",
+    "bytes": 3977
+  },
+  "probe/before/snapback2/packages/snapback2/src/store/byte-cache.ts": {
+    "origin": "packet/before/snapback2/packages/snapback2/src/store/byte-cache.ts",
+    "sha256": "70aa1dae3baec0ed00796b51bad0af6e8ed4c325b551b702f72cc25676315967",
+    "bytes": 18897
+  },
+  "probe/before/snapback2/packages/snapback2/src/store/asset-policy.ts": {
+    "origin": "packet/before/snapback2/packages/snapback2/src/store/asset-policy.ts",
+    "sha256": "ba76b1c6cc0a9322b03db40fc406670d4625303fcbf7670d35c2713bc29e72a1",
+    "bytes": 3065
+  },
+  "probe/before/snapback2/packages/snapback2/src/store/swap-journal.ts": {
+    "origin": "packet/before/snapback2/packages/snapback2/src/store/swap-journal.ts",
+    "sha256": "45c761dbc94d6cd87ffdb7b9db89ac805a23425cfcb6180b57ebc44faba1cf50",
+    "bytes": 6928
+  },
+  "probe/before/snapback2/packages/snapback2/src/store/fact-integrity.ts": {
+    "origin": "packet/before/snapback2/packages/snapback2/src/store/fact-integrity.ts",
+    "sha256": "feb9fe40000f502e5f611511935f0d8bb085c6eb02cc75cd7e5426f70494d0bc",
+    "bytes": 4598
+  },
+  "probe/before/snapback2/packages/snapback2/src/held-program.ts": {
+    "origin": "packet/before/snapback2/packages/snapback2/src/held-program.ts",
+    "sha256": "cd5ffc54870809afc2c41a5901c3ff61f1f06e90d566e42f9089708e3f755665",
+    "bytes": 2578
+  },
+  "probe/before/snapback2/packages/evaluator/src/runner.ts": {
+    "origin": "packet/before/snapback2/packages/evaluator/src/runner.ts",
+    "sha256": "4bf87aad32940c6d5a6d63f60b92431ffe9bfaa85266e5a613866c3f24e739c1",
+    "bytes": 52321
+  },
+  "probe/before/snapback2/packages/evaluator/src/store.ts": {
+    "origin": "packet/before/snapback2/packages/evaluator/src/store.ts",
+    "sha256": "db2fb4706ec46ace02ceeabe8030f88be69f8e626639a6ff7c04192255c09ae7",
+    "bytes": 13653
+  },
+  "probe/before/snapback2/packages/evaluator/src/held-directory.ts": {
+    "origin": "packet/before/snapback2/packages/evaluator/src/held-directory.ts",
+    "sha256": "aa7db5e9a0ee3131df6c3b1cc9e36a0a37fabfba7e410bed2810e15c3f762bd3",
+    "bytes": 4080
+  },
+  "probe/before/snapback2/packages/evaluator/src/text.ts": {
+    "origin": "packet/before/snapback2/packages/evaluator/src/text.ts",
+    "sha256": "c48d2672ce08544ab55b894ec29c1f63e01ea868e6e78552f99879e77796d152",
+    "bytes": 755
+  },
+  "probe/before/snapback2/packages/evaluator/src/merge.ts": {
+    "origin": "packet/before/snapback2/packages/evaluator/src/merge.ts",
+    "sha256": "a2363d11564f095e3fb705b0fd34e029f5d470162aa01e161ac65e87ba4cdecf",
+    "bytes": 2324
+  },
+  "probe/before/snapback2/packages/snapback2/src/store/carrier-index.ts": {
+    "origin": "packet/before/snapback2/packages/snapback2/src/store/carrier-index.ts",
+    "sha256": "39d913b6f1b136f9ac78457f03ad75f605f654e7fe0870f1c586d4e2ae46d4d6",
+    "bytes": 7954
+  },
+  "probe/before/snapback2/packages/snapback2/src/api.ts": {
+    "origin": "packet/before/snapback2/packages/snapback2/src/api.ts",
+    "sha256": "a52f71467e02b8ade7ece42007794cc10e57682364c3dd4e1306a4552ac315f4",
+    "bytes": 1515
+  },
+  "probe/before/snapback2/packages/snapback2/src/twin.ts": {
+    "origin": "packet/before/snapback2/packages/snapback2/src/twin.ts",
+    "sha256": "2b75b19950c7d38af0bba7fed55f25fff5eccf693b4ffa787fcb78f6fca29342",
+    "bytes": 13919
+  },
+  "probe/before/snapback2/packages/snapback2/src/twin-hydrate.ts": {
+    "origin": "packet/before/snapback2/packages/snapback2/src/twin-hydrate.ts",
+    "sha256": "4f36f8cd2d446fcf0a4b9e26e1b78a06cc0470cbb60b4996e1d5abc9571e7939",
+    "bytes": 4536
+  },
+  "probe/before/snapback2/packages/snapback2/src/store/outbox.ts": {
+    "origin": "packet/before/snapback2/packages/snapback2/src/store/outbox.ts",
+    "sha256": "835417fd8b915241abc651187fb66680d26d263c9f61f871b4c60b4ba6dc3e81",
+    "bytes": 16931
+  },
+  "probe/before/snapback2/packages/snapback2/src/twin-store.ts": {
+    "origin": "packet/before/snapback2/packages/snapback2/src/twin-store.ts",
+    "sha256": "1622e6274fbf85d152e218965c2a31d984af26e9b651a2e90f167185a4c69c04",
+    "bytes": 12560
+  },
+  "probe/before/snapback2/packages/snapback2/src/local-cursor.ts": {
+    "origin": "packet/before/snapback2/packages/snapback2/src/local-cursor.ts",
+    "sha256": "245f1fac9cbf8512967ebef1ddc482609284a533b09ef5a98502607375113165",
+    "bytes": 7000
+  },
+  "probe/before/snapback2/packages/snapback2/src/client-wire.ts": {
+    "origin": "packet/before/snapback2/packages/snapback2/src/client-wire.ts",
+    "sha256": "7fd567440aaa4b88f9cb97fc2e3602fea801667fac6e998a243235e318bad2c9",
+    "bytes": 15027
+  },
+  "probe/fixtures.json": {
+    "origin": "packet/source/snapback2/packages/evaluator/src/test-search-v5-fixtures.json",
+    "sha256": "e43fbff9ff92e1968a3769b16b0c822700256cdedac9728d0545e45bee05b4a2",
+    "bytes": 69989
+  },
+  "executable": {
+    "path": "/Users/ccheever/.bun/bin/bun",
+    "sha256": "39e644cea4e6db24a3af36013695655d6f789b4b98f1f13bacb882ac6e5c3c18",
+    "bytes": 61405888
+  }
+}

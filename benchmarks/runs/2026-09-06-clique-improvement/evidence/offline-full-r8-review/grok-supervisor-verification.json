@@ -1,0 +1,20 @@
+{
+  "utc": "2026-09-07T00:22:13.561873+00:00",
+  "fullReportRead": true,
+  "reportBytes": 16810,
+  "reportSha256": "d1114b8ed94a3ee5d540f20c421ef63a765ee2e821f9fb1f8760131253d38ce9",
+  "terminal": {
+    "pid": 7179,
+    "exitCode": 0,
+    "endedEpoch": 1788740387.4608052,
+    "elapsedSeconds": 1199.3516459465027
+  },
+  "pidAbsent": true,
+  "actualNativeModel": "grok-4.6",
+  "actualNativeEffort": "xhigh",
+  "summaryPath": "/Users/ccheever/.grok/sessions/%2FUsers%2Fccheever%2Fclique-improvement%2Freviews%2Fsearch-twin-r8-complete-r1%2Fgrok/87fcd90b-1c55-4dc3-9307-65cc0268e4fd/summary.json",
+  "summarySha256": "e37fdc38fa4714226cdb9b881ea49fb51da2bedb86233c0261b23d7b6ac92763",
+  "packetFiles": 1495,
+  "packetErrors": [],
+  "verdict": "NEEDS_CHANGES;1 source-only P2 held offline public projection; no execution claimed"
+}
