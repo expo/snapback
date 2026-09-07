@@ -38,13 +38,12 @@ every journey through the headless wire client, removes the test store, and
 writes `.snapback/receipts/<timestamp>.json`. Zero checks cannot pass. Use
 `snapback2 test --blocked "reason"` for an honest blocked receipt.
 
-For a focused edit, run `snapback2 test --journey "todos round trip"` (substitute
-an exact name from `journey(name, ...)`). It executes every registration with
+Run `snapback2 test --journey "todos round trip"` with an exact authored name.
+It executes every registration with
 that name, skips other journeys and derived checks, and records `scope.journey`
 in the receipt. An unknown name fails and lists available names. Compilation
 and certification still validate the backend; loading failures remain failures.
-This is explicit selection, not automatic affected-test coverage. Run plain
-`snapback2 test` for the full suite. `--journey` cannot combine with
+Selection does not infer affected coverage. Run `snapback2 test` for the full suite. `--journey` cannot combine with
 `--derived-only` or `--blocked`; each selected journey retains its five-second
 host deadline and process isolation.
 
