@@ -383,7 +383,13 @@ export class MutationForwarding {
     invokedFollower: (ForwardingFollower & { followerId: string }) | undefined,
     recovery?: MutationRecovery, recovered?: RecoveryRecord,
   ): Promise<{ outcome: Promise<MutationQueued | MutationAdmissionUnknown> }> {
-    if (!this.currentFollower(invokedFollower, generation)) throw followerRefusal("client.mutation.forward");
+    if (!this.currentFollower(invokedFollower, generation)) {
+      if (recovery !== undefined && invokedFollower && recovered) {
+        this.verifyFollower(recovered, invokedFollower, digest);
+        return { outcome: Promise.resolve({ state: "admission-unknown", recovery }) };
+      }
+      throw followerRefusal("client.mutation.forward");
+    }
     const role = invokedFollower;
     let record: RecoveryRecord;
     if (recovery !== undefined) {
@@ -587,7 +593,13 @@ export class MutationForwarding {
       const follower = this.followerRole;
       if (follower && typeof message.writerIncarnation === "string" && validStatus(message.status)
         && this.validWriter(message, follower)) {
-        this.discovered = message; this.updateUnresponsive();
+        this.discovered = message;
+        for (const [requestId, waiter] of this.statusWaiters) {
+          if (waiter.writerIncarnation === message.writerIncarnation) continue;
+          clearTimeout(waiter.timer); this.statusWaiters.delete(requestId);
+          waiter.resolve(followerStatus("writer-discovery"));
+        }
+        this.updateUnresponsive();
       }
       return;
     }

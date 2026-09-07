@@ -234,6 +234,46 @@ test("account replacement invalidates unsent discovery and queued follower prepa
   }
 });
 
+test("a successor writer retires status work addressed to its predecessor", async () => {
+  const Original = globalThis.BroadcastChannel;
+  (globalThis as any).BroadcastChannel = MemoryBroadcastChannel;
+  MemoryBroadcastChannel.members.clear(); MemoryBroadcastChannel.messages = [];
+  MemoryBroadcastChannel.drop = () => false;
+  const context = { scope: "forwarding-status", principal: "principal-a", authEpoch: 7, partitionIncarnation: "partition-a" };
+  const ready = { ready: true, reason: "ready", action: "none", remaining: 0, fence: "inside" } as const;
+  const host = {
+    writer: () => context, status: async () => ready,
+    admit: async () => ({ state: "queued" as const, intent: "intent", ids: ["id"] }),
+    acknowledge: async () => undefined,
+    failure: (error: unknown) => ({ code: "E_TEST", family: "test", message: String(error), guide: "test" }),
+    admitted: () => undefined,
+  };
+  const first = new MutationForwarding(host), second = new MutationForwarding(host);
+  const follower = new MutationForwarding({ ...host, writer: () => undefined });
+  try {
+    first.writer(context);
+    follower.follower({ scope: context.scope, principal: context.principal, authEpoch: 7, established: true, persona: false });
+    assert.equal((await follower.status()).ready, true);
+    MemoryBroadcastChannel.drop = message => message.type === "status-answer";
+    const requests = MemoryBroadcastChannel.messages.filter(message => message.type === "status").length;
+    const stale = follower.status();
+    await until(() => MemoryBroadcastChannel.messages.filter(message => message.type === "status").length > requests,
+      "the predecessor-addressed status request");
+    first.stop(); second.writer(context);
+    assert.equal((await Promise.race([
+      stale,
+      new Promise((_, reject) => setTimeout(() => reject(new Error("successor announcement left predecessor status pending")), 100)),
+    ]) as any).reason, "writer-discovery");
+    assert.equal((follower as any).statusWaiters.size, 0);
+    assert.equal((follower as any).unresponsive, false, "the retired predecessor timeout cannot poison successor readiness");
+    MemoryBroadcastChannel.drop = () => false;
+    assert.equal((await follower.status()).ready, true);
+  } finally {
+    follower.stop(); first.stop(); second.stop(); MemoryBroadcastChannel.members.clear();
+    MemoryBroadcastChannel.drop = () => false; (globalThis as any).BroadcastChannel = Original;
+  }
+});
+
 test("a newer direct delivery fences a delayed local refresh and until sees later local revisions", async () => {
   type Event = { revision: number; source: "local" | "server" };
   const shared = new SharedSubscriptions();
@@ -744,16 +784,21 @@ test("forwarded mutation timeout, rediscovery and recovery preserve one request 
 
     writer.writer(undefined);
     const discovers = MemoryBroadcastChannel.messages.filter(message => message.type === "discover").length;
+    const blocker = follower.mutation("deliveries.post", { ...args, body: "known-unsent blocker" });
     const repeated = Array.from({ length: 65 }, () => follower.mutation("deliveries.post", args, token as any));
     await until(() => MemoryBroadcastChannel.messages.filter(message => message.type === "discover").length > discovers,
-      "the one shared recovery discovery");
-    assert.equal((follower as any).commands.size, 1,
-      "repeated observers of one recovery identity retain one logical command");
+      "the earlier command's discovery");
+    assert.equal((follower as any).commands.size, 2,
+      "repeated observers retain one recovery command behind the earlier invocation");
     assert.ok((follower as any).commands.get(record.requestId).recovery,
       "the logical command owns the one shared recovery preparation/outcome");
     follower.stop();
+    await assert.rejects(blocker,
+      (error: unknown) => isSnapbackRefusal(error) && error.code === "E_OFFLINE_FOLLOWER",
+      "the predecessor's command was known unsent when its generation stopped");
     assert.ok((await Promise.all(repeated)).every(result => result.state === "admission-unknown"
-      && (result as any).recovery === token), "all recovery observers share the unknown result");
+      && (result as any).recovery === token),
+    "a queued recovery preserves the prior send's unknown outcome when its generation stops");
     follower.follower({ scope: context.scope, principal: context.principal, authEpoch: 7, established: true, persona: false });
     writer.writer(context);
     assert.equal((await follower.status("deliveries.post")).ready, true);
