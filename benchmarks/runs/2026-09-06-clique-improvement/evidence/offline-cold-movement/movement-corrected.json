@@ -1,0 +1,13 @@
+{
+  "name": "movement-corrected",
+  "command": [
+    "/Users/ccheever/.bun/bin/bun",
+    "/Users/ccheever/clique-improvement/lanes/search-twin/r8-bound-exhaustion/movement-corrected.ts"
+  ],
+  "cwd": "/Users/ccheever/projects/snapback-worktrees/clique-search-twin",
+  "pid": 81793,
+  "exit": 0,
+  "deadlineSeconds": null,
+  "elapsedSeconds": 0.235211667,
+  "ended": "2026-09-07T02:19:15.829453+00:00"
+}

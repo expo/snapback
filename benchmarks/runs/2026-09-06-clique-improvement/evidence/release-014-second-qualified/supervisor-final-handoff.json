@@ -1,0 +1,16 @@
+{
+  "epoch": 1788748281.160403,
+  "actualTerminal": {
+    "pid": 35765,
+    "exitCode": 0,
+    "endedEpoch": 1788748120.6417642,
+    "elapsedSeconds": 1029.6823768615723
+  },
+  "writerReleased": true,
+  "sourceLeavesChecked": 938,
+  "mismatches": [],
+  "sourceClean": true,
+  "reportSha256": "68a7dc8c387bed9bb87897eaaecbb3c097983e44a63c86e2a342e8dbad45a3dc",
+  "qualifiedPairAndResumeExact": true,
+  "noInstalledAuditRepeated": true
+}

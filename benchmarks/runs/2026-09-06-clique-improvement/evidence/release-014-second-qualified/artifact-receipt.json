@@ -1,0 +1,50 @@
+{
+  "qualified_source": "0fdcc846bc7451bbcb1804194b49737418954506",
+  "standard_dry_run_exit": 0,
+  "installed_expo_pass": true,
+  "actual_npm_publication": false,
+  "tarballs": [
+    {
+      "source_tarball": "/Users/ccheever/projects/snapback-worktrees/clique-release-next/snapback2/dist/npm/publish-snapback2-darwin-arm64-0.0.14.dry-niO3B6/snapback2-darwin-arm64-0.0.14.tgz",
+      "retained_tarball": "/Users/ccheever/projects/snapback-artifacts/clique-release/0.0.14-0fdcc846b-attempt02/snapback2-darwin-arm64-0.0.14.tgz",
+      "name": "snapback2-darwin-arm64",
+      "version": "0.0.14",
+      "bytes": 4821150,
+      "sha256": "92cc8ce2d95c55cb582c1af17da4aaf95f5c82331cc68cf199d4e34dc954c7fb",
+      "integrity": "sha512-2UVxYTgIQJnGV+8V3gV3yQUTJ6yiftqinl5aeYW6elODy96c7yn7Lm2eq80HZqUhDIBjFjEBFWvd5R2Agfxz6w==",
+      "copy_equal_before_publisher_cleanup": true,
+      "mode": "0444",
+      "capture_receipt": "/Users/ccheever/projects/snapback-artifacts/clique-release/0.0.14-0fdcc846b-attempt02/npm-calls/1788747291205697000-55017.json"
+    },
+    {
+      "source_tarball": "/Users/ccheever/projects/snapback-worktrees/clique-release-next/snapback2/dist/npm/publish-snapback2-darwin-arm64-0.0.14.dry-niO3B6/snapback2-0.0.14.tgz",
+      "retained_tarball": "/Users/ccheever/projects/snapback-artifacts/clique-release/0.0.14-0fdcc846b-attempt02/snapback2-0.0.14.tgz",
+      "name": "snapback2",
+      "version": "0.0.14",
+      "bytes": 1797207,
+      "sha256": "4b699eaa4c4a28cb5a508316d14f721bcb6004d65cc6f3888acebb1d15c9867e",
+      "integrity": "sha512-dPm5mFSUA/DyWvICY6KwHIFCV6XppCogvYRZ3tX8BWV8h1QKIpQ/gPXRNDniRg0SJ4KyZfV1CKuBm2c/CdhX2w==",
+      "copy_equal_before_publisher_cleanup": true,
+      "mode": "0444",
+      "capture_receipt": "/Users/ccheever/projects/snapback-artifacts/clique-release/0.0.14-0fdcc846b-attempt02/npm-calls/1788747293772923000-55208.json"
+    }
+  ],
+  "engine": {
+    "path": "/Users/ccheever/projects/snapback-artifacts/clique-release/0.0.14-0fdcc846b-attempt02/qualified-artifacts/platform/package/bin/snapback2",
+    "sha256": "ad1bbd9271e40a8a28d15aa23002e57a1c7443b3e01837ed34ceff46f143ef36",
+    "bytes": 7029776
+  },
+  "media": {
+    "path": "/Users/ccheever/projects/snapback-artifacts/clique-release/0.0.14-0fdcc846b-attempt02/qualified-artifacts/platform/package/bin/snapback2-media",
+    "sha256": "f31d8e02cd6846fa94d3294fde2245536945721c19a6f9be59494cb1dc307f86",
+    "bytes": 2147984
+  },
+  "resume": {
+    "path": "/Users/ccheever/projects/snapback-artifacts/clique-release/0.0.14-0fdcc846b-attempt02/resume-ready.json",
+    "sha256": "9f833af4bce8841f46da3049732ba3377556d8232b85fc50c935557b7e4d268d",
+    "mode": "0444",
+    "origin": "Durable reconstruction of successful dry-run staged metadata from original captured tarballs and original producer metric. The dry-run itself does not emit a resume file.",
+    "future_custody": "Keep this original immutable; any later actual resume must use a separate0644 working copy. No working copy or actual publication created in this preparation."
+  },
+  "epoch": 1788747616.469283
+}

@@ -1,0 +1,14 @@
+{
+  "manifest": "/Users/ccheever/clique-improvement/revisions/asset-release-hermes/installed-hermes-artifacts.json",
+  "manifestSha256": "c31977c7210d959c15e07e76a5236a58ab5fc00a17f040ccd87d1f56b7366345",
+  "ibexCommit": "ae72807aeaef7a2215d3f0dcf5f4e548ffc4c218",
+  "hermesCommit": "6badada762121682b5481b6124e6c3a991ae6046",
+  "frameworks": "/Users/ccheever/clique-improvement/revisions/asset-release-hermes/install/Frameworks-vanilla",
+  "hermesc": "/Users/ccheever/clique-improvement/revisions/asset-release-hermes/install/bin/hermesc-macos-arm64",
+  "hermescSha256": "fa070c2feddee6968c6a5aef1c92bfb84c075be1471c4733ad0361b680d73132",
+  "archive": "/Users/ccheever/clique-improvement/revisions/asset-release-hermes/install/Frameworks-vanilla/macos-static/libhermesvm_a.a",
+  "archiveSha256": "9153b23a3dfdd4a0706018fc99401269f96b43190587a52b906bdeea6928a277",
+  "readOnlyQualifiedInstall": true,
+  "symbolHeaderAuditRepeated": false,
+  "hermesSourceBuildRequested": false
+}

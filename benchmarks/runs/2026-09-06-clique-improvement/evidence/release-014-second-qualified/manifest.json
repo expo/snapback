@@ -1,0 +1,125 @@
+{
+  "scope": "Completed second standard preparation only; first failure stays immutable. Actual npm publication is a separate active turn and is not claimed here. Full report references omitted artifacts in the external source directory.",
+  "files": {
+    "implementation-report.md": {
+      "bytes": 13807,
+      "sha256": "68a7dc8c387bed9bb87897eaaecbb3c097983e44a63c86e2a342e8dbad45a3dc",
+      "original": "/Users/ccheever/clique-improvement/revisions/release-preparation-014-attempt02/implementation-report.md"
+    },
+    "actual-identity.json": {
+      "bytes": 486,
+      "sha256": "ada1805c025e02de9b00a96ae1fc5391a62b9011bcda35e05ef4466c9cb4ef20",
+      "original": "/Users/ccheever/clique-improvement/revisions/release-preparation-014-attempt02/actual-identity.json"
+    },
+    "launch.json": {
+      "bytes": 661,
+      "sha256": "a623494ab13a9ebf9726b58b2a5c0af07737af6cc71a8d0ce6a7ff8442c11692",
+      "original": "/Users/ccheever/clique-improvement/revisions/release-preparation-014-attempt02/launch.json"
+    },
+    "terminal.json": {
+      "bytes": 112,
+      "sha256": "51a4c8211ff1b7983d300c87bfed950f329ec6707509620e9f5b2cc389492bf9",
+      "original": "/Users/ccheever/clique-improvement/revisions/release-preparation-014-attempt02/terminal.json"
+    },
+    "phase.json": {
+      "bytes": 1320,
+      "sha256": "113511f06ecaa93558d4156d53cbbd13d290f0ddcb1517dffde5129947fc7f15",
+      "original": "/Users/ccheever/clique-improvement/revisions/release-preparation-014-attempt02/phase.json"
+    },
+    "qualification-receipt.json": {
+      "bytes": 2147,
+      "sha256": "3885c3adeeec8c8760275f2f0d3177fd354a5962a9b97f51f49b98a8854e77e9",
+      "original": "/Users/ccheever/clique-improvement/revisions/release-preparation-014-attempt02/qualification-receipt.json"
+    },
+    "source-correspondence.json": {
+      "bytes": 979,
+      "sha256": "c711853c294b9dd80c042534374c04f3c4c3154f21c2aa7e79e56ee292a679b4",
+      "original": "/Users/ccheever/clique-improvement/revisions/release-preparation-014-attempt02/source-correspondence.json"
+    },
+    "artifact-receipt.json": {
+      "bytes": 3090,
+      "sha256": "b3685d9d929102e21cb420d1d82dd20c492597cdff7a752d85fa92c8ad39bac3",
+      "original": "/Users/ccheever/clique-improvement/revisions/release-preparation-014-attempt02/artifact-receipt.json"
+    },
+    "cleanup.json": {
+      "bytes": 3262,
+      "sha256": "237423efe53124dcb541a2e2d8b8ef38d1068fed50630c97dab1a34aebf22d58",
+      "original": "/Users/ccheever/clique-improvement/revisions/release-preparation-014-attempt02/cleanup.json"
+    },
+    "first-attempt-preservation.json": {
+      "bytes": 174,
+      "sha256": "0e7cb3421e44e9dfcf9dc9c0631145f87618821999be0072dde8f67e57660f8a",
+      "original": "/Users/ccheever/clique-improvement/revisions/release-preparation-014-attempt02/first-attempt-preservation.json"
+    },
+    "capacity-decision.json": {
+      "bytes": 368,
+      "sha256": "29acf1cdfbba83fe5388c8896d583e30a44fe79ff64b4c5f0327314eefb4a067",
+      "original": "/Users/ccheever/clique-improvement/revisions/release-preparation-014-attempt02/capacity-decision.json"
+    },
+    "capacity-prelaunch.json": {
+      "bytes": 2159,
+      "sha256": "e25d6be4ca90ade992e83dc16f8fca83e1585196ab3bbca657424c8b5cf11b04",
+      "original": "/Users/ccheever/clique-improvement/revisions/release-preparation-014-attempt02/capacity-prelaunch.json"
+    },
+    "procedure-correspondence.json": {
+      "bytes": 1770,
+      "sha256": "18deedd01e44aa4f7819240b27bbda18fedaa1eac1d7580087b24bd500b49edb",
+      "original": "/Users/ccheever/clique-improvement/revisions/release-preparation-014-attempt02/procedure-correspondence.json"
+    },
+    "standard-installed-react-consumer.json": {
+      "bytes": 1860,
+      "sha256": "788519eca15cff4829c6e0f45cc2b4494f56833e7432e7986a1251c2d8a91a83",
+      "original": "/Users/ccheever/clique-improvement/revisions/release-preparation-014-attempt02/standard-installed-react-consumer.json"
+    },
+    "installed-test-receipts.json": {
+      "bytes": 1240,
+      "sha256": "696723c7ab0ad359d76d7dc2bae7f49ffecbb8df8d5f0cda25cdf21557f80b0d",
+      "original": "/Users/ccheever/clique-improvement/revisions/release-preparation-014-attempt02/installed-test-receipts.json"
+    },
+    "installed-expo-verification.json": {
+      "bytes": 21164,
+      "sha256": "259dd523e57cc3c8bc72bc67559f69f08d0e8ad02b5f8f2d7cc03ce18edf6537",
+      "original": "/Users/ccheever/clique-improvement/revisions/release-preparation-014-attempt02/installed-expo-verification.json"
+    },
+    "installed-guide-fixes.json": {
+      "bytes": 6641,
+      "sha256": "2c235b326ef484b666aaf619d734ab62960ca4aa12b0e61e471ce06d5c7e0fe5",
+      "original": "/Users/ccheever/clique-improvement/revisions/release-preparation-014-attempt02/installed-guide-fixes.json"
+    },
+    "packed-file-inventory.json": {
+      "bytes": 32644,
+      "sha256": "8cf879479fa5de2d10edb117a4beced04cb8a79f46f06bda96837c59b5d3ab68",
+      "original": "/Users/ccheever/clique-improvement/revisions/release-preparation-014-attempt02/packed-file-inventory.json"
+    },
+    "metric-receipt.json": {
+      "bytes": 1251,
+      "sha256": "7634af74f7f377d65fe16296ba29f46e9a20bb13822f4c236a4676a6626f2527",
+      "original": "/Users/ccheever/clique-improvement/revisions/release-preparation-014-attempt02/metric-receipt.json"
+    },
+    "producer-metric-row.jsonl": {
+      "bytes": 265,
+      "sha256": "31ecb12c345ff19a8083d9a49da79be5f1b6781233ee8e75847d716c00cc2192",
+      "original": "/Users/ccheever/clique-improvement/revisions/release-preparation-014-attempt02/producer-metric-row.jsonl"
+    },
+    "npm-custody.json": {
+      "bytes": 8107,
+      "sha256": "4a5ef5ca0356c56c84d2a7b70f9be948b7ada9bded2e9215ea2e8f012855be82",
+      "original": "/Users/ccheever/clique-improvement/revisions/release-preparation-014-attempt02/npm-custody.json"
+    },
+    "hermes-binding.json": {
+      "bytes": 979,
+      "sha256": "1e7703888fda3edfd337694830f82f1f4a8025fb7bd9ddbfa9d5aeb651219c11",
+      "original": "/Users/ccheever/clique-improvement/revisions/release-preparation-014-attempt02/hermes-binding.json"
+    },
+    "supervisor-final-handoff.json": {
+      "bytes": 436,
+      "sha256": "91c7109af048ba4f14c57253a54b9a21b80a21340148a62e5e533f94d4b2c776",
+      "original": "/Users/ccheever/clique-improvement/revisions/release-preparation-014-attempt02/supervisor-final-handoff.json"
+    },
+    "receipts/production-dry-run.json": {
+      "bytes": 3508,
+      "sha256": "5c733b6258056ce475ce369099864b0d5fbe14102c79bb4db314b04fb5f003b2",
+      "original": "/Users/ccheever/clique-improvement/revisions/release-preparation-014-attempt02/receipts/production-dry-run.json"
+    }
+  }
+}

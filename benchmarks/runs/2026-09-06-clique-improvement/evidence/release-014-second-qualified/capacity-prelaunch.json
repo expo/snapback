@@ -1,0 +1,91 @@
+{
+  "started_epoch": 1788747248.9496791,
+  "load_before": [
+    15.92626953125,
+    10.884765625,
+    15.2275390625
+  ],
+  "commands": [
+    {
+      "label": "capacity-vm-before",
+      "argv": [
+        "vm_stat"
+      ],
+      "pid": 52034,
+      "exit_code": 0,
+      "bound_seconds": 15,
+      "elapsed_seconds": 0.081874958
+    },
+    {
+      "label": "capacity-top",
+      "argv": [
+        "top",
+        "-l",
+        "2",
+        "-s",
+        "2",
+        "-n",
+        "0"
+      ],
+      "pid": 52035,
+      "exit_code": 0,
+      "bound_seconds": 15,
+      "elapsed_seconds": 3.767567042
+    },
+    {
+      "label": "capacity-vm-after",
+      "argv": [
+        "vm_stat"
+      ],
+      "pid": 52334,
+      "exit_code": 0,
+      "bound_seconds": 15,
+      "elapsed_seconds": 0.0069026669999998624
+    },
+    {
+      "label": "capacity-swap",
+      "argv": [
+        "sysctl",
+        "vm.swapusage"
+      ],
+      "pid": 52336,
+      "exit_code": 0,
+      "bound_seconds": 15,
+      "elapsed_seconds": 0.008202624999999575
+    },
+    {
+      "label": "capacity-host",
+      "argv": [
+        "sysctl",
+        "hw.model",
+        "hw.memsize"
+      ],
+      "pid": 52337,
+      "exit_code": 0,
+      "bound_seconds": 15,
+      "elapsed_seconds": 0.007089917000000057
+    }
+  ],
+  "peer_receipt": "/Users/ccheever/clique-improvement/revisions/release-preparation-014-attempt02/peer-reservation.json",
+  "scope": "bounded aggregate capacity only; top -n0 excludes process rows; no foreign process inspection/interruption",
+  "ended_epoch": 1788747252.822007,
+  "load_after": [
+    17.61376953125,
+    11.31787109375,
+    15.35498046875
+  ],
+  "vm_swap_counter_delta": {
+    "Swapins": 0,
+    "Swapouts": 0
+  },
+  "cpu_lines": [
+    "CPU usage: 20.85% user, 26.15% sys, 52.98% idle ",
+    "CPU usage: 30.0% user, 18.34% sys, 51.65% idle "
+  ],
+  "memory_lines": [
+    "PhysMem: 43G used (2321M wired, 635M compressor), 20G unused.",
+    "PhysMem: 43G used (2323M wired, 635M compressor), 20G unused."
+  ],
+  "host": "hw.model: MacBookPro18,4\nhw.memsize: 68719476736",
+  "swap": "vm.swapusage: total = 0.00M  used = 0.00M  free = 0.00M  (encrypted)"
+}

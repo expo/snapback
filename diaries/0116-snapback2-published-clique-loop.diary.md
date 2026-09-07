@@ -957,3 +957,17 @@ The first 0.0.14 standard production attempt reached installed chat testing, the
 The first historical ordinary 10k Linux resident invocation exposed a harness ordering problem: an answer-envelope conflict fired before the intended durable-fact guard. Later atomicity and lifecycle assertions therefore remained unproven. A four-field warm-frame proposal preserves the negative frames and assertions while changing answer custody explicitly; its 500-to-501 answer count means old timings cannot be relabeled. [Original failure](../benchmarks/runs/2026-09-06-clique-improvement/evidence/resident-linux-first-failure/README.md) and [correction disposition](../benchmarks/runs/2026-09-06-clique-improvement/evidence/resident-linux-contradiction-proposal/README.md) remain separate from the newly authorized run. These historical arms do not qualify current P2 code.
 
 EPYC built the exact frozen native search owner with the existing matching Rust toolchain in 56.64 seconds; all 23 unchanged programs and certificate identities matched in 0.283 seconds. A complete source export mattered because the earlier narrow archive omitted required Unicode inputs. This proves Linux preparation and admission only. The original media helper lacks a build/source attestation, so its capability and the historical 910-message media projection need explicit preparation before a Linux scale derivative can run. [Native preparation and sanitized provenance](../benchmarks/runs/2026-09-06-clique-improvement/evidence/search-native-linux-owner-preparation/README.md). No M5 run, full Clique score, device proof or competitor rerun was added.
+
+
+### 2026-09-06 — Cold reopening must preserve issuing keys
+
+A bounded follow-up turned the remaining cold-movement review uncertainty into a concrete disagreement: moving two retained page members leaves the warm result partial, while reopen incorrectly restores an exact capped result using their current keys. The native initial page is unchanged; later matching-plan images are synthetic checked-admission controls. The fix must recover existing immutable issuing proof rather than infer old membership from today's row bodies.
+
+[Source-bound diagnostic](../benchmarks/runs/2026-09-06-clique-improvement/evidence/offline-cold-movement/README.md). The original wrong-planHash fixture was correctly refused and remains separate. Root authorized the narrow lifecycle repair alongside the two earlier P2s; no resource or integration pass follows from finding it.
+
+
+### 2026-09-06 — Second 0.0.14 preparation qualifies the unchanged package
+
+After deliberate fresh capacity observation and a brief hold on new owned heavy checks, the unchanged standard publisher passed in 89.344s (88.6s producer metric); chat passed in 25.016s under its original 30s limit. Fresh original-tarball Expo/guide verification passed in 17.320s, including all 154 packaged files, the unchanged 26 public operations and the source-derived assets lookup. The exact package bytes equal the first failed pair, with separate attempt custody. The first timeout remains a failure with no proven causal attribution; no deadlines or assertions changed.
+
+[Completed preparation and writer terminal](../benchmarks/runs/2026-09-06-clique-improvement/evidence/release-014-second-qualified/README.md). Actual registry publication is a separate authorized continuation; this preparation is not a benchmark or device result.

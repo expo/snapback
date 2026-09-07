@@ -1,0 +1,490 @@
+{
+  "head": "cb578e197535290d9c3c7394246584e12459e77a",
+  "sources": {
+    "issues/closed/20260906-snapback2-indexed-coverage-replacement-atomicity.md": {
+      "sha256": "23e482249d7ed538b8391b0127f5c527d6a08c44fe4f3e2b4023800b997c0e5e",
+      "bytes": 4206,
+      "copy": "/Users/ccheever/clique-improvement/lanes/search-twin/r8-bound-exhaustion/before-source/issues/closed/20260906-snapback2-indexed-coverage-replacement-atomicity.md"
+    },
+    "snapback2/crates/snapback2-core/ir-contract.json": {
+      "sha256": "d09c63f52622b9b8fb2762b94b17b4e2c8882e9feecf0737d24470ec2bde0252",
+      "bytes": 148,
+      "copy": "/Users/ccheever/clique-improvement/lanes/search-twin/r8-bound-exhaustion/before-source/snapback2/crates/snapback2-core/ir-contract.json"
+    },
+    "snapback2/packages/evaluator/dist/unicode-tables.ts": {
+      "sha256": "9eccdccd99e9b936a40dcbf8ae63c55d980086df1ae71f92019f9ab040f6a521",
+      "bytes": 17460,
+      "copy": "/Users/ccheever/clique-improvement/lanes/search-twin/r8-bound-exhaustion/before-source/snapback2/packages/evaluator/dist/unicode-tables.ts"
+    },
+    "snapback2/packages/evaluator/src/certificate-identity.ts": {
+      "sha256": "f80407e5c2e289c24ac09fde2e0252c015e543c6722d33d995f178e3531a5eb0",
+      "bytes": 18228,
+      "copy": "/Users/ccheever/clique-improvement/lanes/search-twin/r8-bound-exhaustion/before-source/snapback2/packages/evaluator/src/certificate-identity.ts"
+    },
+    "snapback2/packages/evaluator/src/coverage-spans.ts": {
+      "sha256": "4261606a117545f2dfab9f366a84468e8b24d22da1d9e3076f480eb1aad21a8f",
+      "bytes": 2023,
+      "copy": "/Users/ccheever/clique-improvement/lanes/search-twin/r8-bound-exhaustion/before-source/snapback2/packages/evaluator/src/coverage-spans.ts"
+    },
+    "snapback2/packages/evaluator/src/coverage.ts": {
+      "sha256": "c02c4afa1fade5bc001cd38c57b321f5fddf8666ab87ebbeee9addf7dabd8ca5",
+      "bytes": 13107,
+      "copy": "/Users/ccheever/clique-improvement/lanes/search-twin/r8-bound-exhaustion/before-source/snapback2/packages/evaluator/src/coverage.ts"
+    },
+    "snapback2/packages/evaluator/src/cursor.ts": {
+      "sha256": "94f0efe7b7ff947c77294fdcc99f38f3493615d87e1c97c13bc3ee146aaa2b3f",
+      "bytes": 10419,
+      "copy": "/Users/ccheever/clique-improvement/lanes/search-twin/r8-bound-exhaustion/before-source/snapback2/packages/evaluator/src/cursor.ts"
+    },
+    "snapback2/packages/evaluator/src/errors.ts": {
+      "sha256": "a2dc2e8ef8522ad82af1740c6f8656dc6b05418454226b50571630e777fe0795",
+      "bytes": 759,
+      "copy": "/Users/ccheever/clique-improvement/lanes/search-twin/r8-bound-exhaustion/before-source/snapback2/packages/evaluator/src/errors.ts"
+    },
+    "snapback2/packages/evaluator/src/evaluator.ts": {
+      "sha256": "a96cd7495593d627fc52b6640fb67ed08b1a0455dff95728f4d59896320083af",
+      "bytes": 6792,
+      "copy": "/Users/ccheever/clique-improvement/lanes/search-twin/r8-bound-exhaustion/before-source/snapback2/packages/evaluator/src/evaluator.ts"
+    },
+    "snapback2/packages/evaluator/src/hash.ts": {
+      "sha256": "470e2f7973cc86a35be29e9ba901f3c86f759e6e65796051f188cb3a68a75214",
+      "bytes": 4328,
+      "copy": "/Users/ccheever/clique-improvement/lanes/search-twin/r8-bound-exhaustion/before-source/snapback2/packages/evaluator/src/hash.ts"
+    },
+    "snapback2/packages/evaluator/src/held-directory.ts": {
+      "sha256": "aa7db5e9a0ee3131df6c3b1cc9e36a0a37fabfba7e410bed2810e15c3f762bd3",
+      "bytes": 4080,
+      "copy": "/Users/ccheever/clique-improvement/lanes/search-twin/r8-bound-exhaustion/before-source/snapback2/packages/evaluator/src/held-directory.ts"
+    },
+    "snapback2/packages/evaluator/src/index-store.ts": {
+      "sha256": "709ec7ad948c18d8d69e5f99a31f3a641aafdf4ba5b69dd438919dc5ca3c23e3",
+      "bytes": 13653,
+      "copy": "/Users/ccheever/clique-improvement/lanes/search-twin/r8-bound-exhaustion/before-source/snapback2/packages/evaluator/src/index-store.ts"
+    },
+    "snapback2/packages/evaluator/src/merge.ts": {
+      "sha256": "a2363d11564f095e3fb705b0fd34e029f5d470162aa01e161ac65e87ba4cdecf",
+      "bytes": 2324,
+      "copy": "/Users/ccheever/clique-improvement/lanes/search-twin/r8-bound-exhaustion/before-source/snapback2/packages/evaluator/src/merge.ts"
+    },
+    "snapback2/packages/evaluator/src/ordered.ts": {
+      "sha256": "e34f3707c6404e75ebbf02fbeb47827c4e4f576c12d463325f69a30d6b2a7b55",
+      "bytes": 4007,
+      "copy": "/Users/ccheever/clique-improvement/lanes/search-twin/r8-bound-exhaustion/before-source/snapback2/packages/evaluator/src/ordered.ts"
+    },
+    "snapback2/packages/evaluator/src/posting-tree.ts": {
+      "sha256": "82d08ebc5c086989885531de903fea689309391b213f8e3592a550f8383a3cab",
+      "bytes": 2128,
+      "copy": "/Users/ccheever/clique-improvement/lanes/search-twin/r8-bound-exhaustion/before-source/snapback2/packages/evaluator/src/posting-tree.ts"
+    },
+    "snapback2/packages/evaluator/src/prefix-dictionary.ts": {
+      "sha256": "f2872a6a6055d2836686f711c735b7b3de79dda38e2b98cf09132a9788a7242c",
+      "bytes": 2007,
+      "copy": "/Users/ccheever/clique-improvement/lanes/search-twin/r8-bound-exhaustion/before-source/snapback2/packages/evaluator/src/prefix-dictionary.ts"
+    },
+    "snapback2/packages/evaluator/src/runner.ts": {
+      "sha256": "07fe1e5ac3641cd589820ac0d17feb0afda50d3df60ab2f8b53697b91f841e64",
+      "bytes": 52712,
+      "copy": "/Users/ccheever/clique-improvement/lanes/search-twin/r8-bound-exhaustion/before-source/snapback2/packages/evaluator/src/runner.ts"
+    },
+    "snapback2/packages/evaluator/src/search-key.ts": {
+      "sha256": "347cd64b12798d7b46d120d56f142a912ca810f33e2bd0ce6673861bd032e871",
+      "bytes": 6040,
+      "copy": "/Users/ccheever/clique-improvement/lanes/search-twin/r8-bound-exhaustion/before-source/snapback2/packages/evaluator/src/search-key.ts"
+    },
+    "snapback2/packages/evaluator/src/search-runtime.ts": {
+      "sha256": "e8a5749614e0f233330da391514cb109f6bf5dda79b2688d03146e032d05e0df",
+      "bytes": 2607,
+      "copy": "/Users/ccheever/clique-improvement/lanes/search-twin/r8-bound-exhaustion/before-source/snapback2/packages/evaluator/src/search-runtime.ts"
+    },
+    "snapback2/packages/evaluator/src/slot-tree.ts": {
+      "sha256": "b2fcfaafb0f456bdc024cb4d0b1ac3c3907c749ebfa311d831fdb2ca00aa6aca",
+      "bytes": 3176,
+      "copy": "/Users/ccheever/clique-improvement/lanes/search-twin/r8-bound-exhaustion/before-source/snapback2/packages/evaluator/src/slot-tree.ts"
+    },
+    "snapback2/packages/evaluator/src/store.ts": {
+      "sha256": "1192f1ddefbd1040796e74c970e73c3ced929a061a12691a2d6a6754b19b4d02",
+      "bytes": 15401,
+      "copy": "/Users/ccheever/clique-improvement/lanes/search-twin/r8-bound-exhaustion/before-source/snapback2/packages/evaluator/src/store.ts"
+    },
+    "snapback2/packages/evaluator/src/test-indexed.ts": {
+      "sha256": "0a22525b0cf1731695f33ce76af4f84902f0cb3e0ab55245375126ec6a404d7a",
+      "bytes": 109300,
+      "copy": "/Users/ccheever/clique-improvement/lanes/search-twin/r8-bound-exhaustion/before-source/snapback2/packages/evaluator/src/test-indexed.ts"
+    },
+    "snapback2/packages/evaluator/src/test-merge.ts": {
+      "sha256": "936e2b88ab481776efc39cbd7f06c49c035527a6e959664949de9cd9f8329c93",
+      "bytes": 10348,
+      "copy": "/Users/ccheever/clique-improvement/lanes/search-twin/r8-bound-exhaustion/before-source/snapback2/packages/evaluator/src/test-merge.ts"
+    },
+    "snapback2/packages/evaluator/src/test-search-fixtures.json": {
+      "sha256": "001baa007a57b42fac8232542f93eede7b28f0a408adfce875518690aa5e4922",
+      "bytes": 24104,
+      "copy": "/Users/ccheever/clique-improvement/lanes/search-twin/r8-bound-exhaustion/before-source/snapback2/packages/evaluator/src/test-search-fixtures.json"
+    },
+    "snapback2/packages/evaluator/src/test-search-foundation.ts": {
+      "sha256": "f0d0d617d6a91db6848bafcaeb66661fd53baa3148d8df06ceed75ceb0eb366d",
+      "bytes": 11785,
+      "copy": "/Users/ccheever/clique-improvement/lanes/search-twin/r8-bound-exhaustion/before-source/snapback2/packages/evaluator/src/test-search-foundation.ts"
+    },
+    "snapback2/packages/evaluator/src/test-search-v4-fixtures.json": {
+      "sha256": "54d7db1be149431906762d63f960e8009d248c9a7acb46383a607cacc4d80d86",
+      "bytes": 30170,
+      "copy": "/Users/ccheever/clique-improvement/lanes/search-twin/r8-bound-exhaustion/before-source/snapback2/packages/evaluator/src/test-search-v4-fixtures.json"
+    },
+    "snapback2/packages/evaluator/src/test-search-v5-fixtures.json": {
+      "sha256": "e43fbff9ff92e1968a3769b16b0c822700256cdedac9728d0545e45bee05b4a2",
+      "bytes": 69989,
+      "copy": "/Users/ccheever/clique-improvement/lanes/search-twin/r8-bound-exhaustion/before-source/snapback2/packages/evaluator/src/test-search-v5-fixtures.json"
+    },
+    "snapback2/packages/evaluator/src/test.ts": {
+      "sha256": "ae39c9c682e834da7809cd5063538e825170de68ff3ab25586ce16558fa81121",
+      "bytes": 51278,
+      "copy": "/Users/ccheever/clique-improvement/lanes/search-twin/r8-bound-exhaustion/before-source/snapback2/packages/evaluator/src/test.ts"
+    },
+    "snapback2/packages/evaluator/src/text.ts": {
+      "sha256": "c48d2672ce08544ab55b894ec29c1f63e01ea868e6e78552f99879e77796d152",
+      "bytes": 755,
+      "copy": "/Users/ccheever/clique-improvement/lanes/search-twin/r8-bound-exhaustion/before-source/snapback2/packages/evaluator/src/text.ts"
+    },
+    "snapback2/packages/evaluator/src/types.ts": {
+      "sha256": "afc6bc7ffd25fc007787b10e0fc8bdafbe4ae61cb12f7d2442f2c2df95686618",
+      "bytes": 6075,
+      "copy": "/Users/ccheever/clique-improvement/lanes/search-twin/r8-bound-exhaustion/before-source/snapback2/packages/evaluator/src/types.ts"
+    },
+    "snapback2/packages/evaluator/src/unicode-tables.ts": {
+      "sha256": "ab99f5f9a78ebe52ec3102525d51b6c9dd7c59cbd9f1b26932042982476b8412",
+      "bytes": 3128,
+      "copy": "/Users/ccheever/clique-improvement/lanes/search-twin/r8-bound-exhaustion/before-source/snapback2/packages/evaluator/src/unicode-tables.ts"
+    },
+    "snapback2/packages/evaluator/src/unicode.ts": {
+      "sha256": "b2c6a188d9e74646674383473e9c56eb9720a76b68d9c1a2f93fb722fb85f370",
+      "bytes": 12302,
+      "copy": "/Users/ccheever/clique-improvement/lanes/search-twin/r8-bound-exhaustion/before-source/snapback2/packages/evaluator/src/unicode.ts"
+    },
+    "snapback2/packages/evaluator/src/value-runtime.ts": {
+      "sha256": "19199d26cfa25b9014c03509aa152d7ee81a275944ba93c8b723bff3753878f4",
+      "bytes": 23616,
+      "copy": "/Users/ccheever/clique-improvement/lanes/search-twin/r8-bound-exhaustion/before-source/snapback2/packages/evaluator/src/value-runtime.ts"
+    },
+    "snapback2/packages/snapback2/build.mjs": {
+      "sha256": "91234449cb1660862c86f8ff0e638e7e87d377931c25dcdbbd991343740aa4ce",
+      "bytes": 24625,
+      "copy": "/Users/ccheever/clique-improvement/lanes/search-twin/r8-bound-exhaustion/before-source/snapback2/packages/snapback2/build.mjs"
+    },
+    "snapback2/packages/snapback2/src/api.ts": {
+      "sha256": "a52f71467e02b8ade7ece42007794cc10e57682364c3dd4e1306a4552ac315f4",
+      "bytes": 1515,
+      "copy": "/Users/ccheever/clique-improvement/lanes/search-twin/r8-bound-exhaustion/before-source/snapback2/packages/snapback2/src/api.ts"
+    },
+    "snapback2/packages/snapback2/src/assets.ts": {
+      "sha256": "64946b0637024a84a2273793824f5c7e08f77e5086c42fb07eef6e5e910ac791",
+      "bytes": 14849,
+      "copy": "/Users/ccheever/clique-improvement/lanes/search-twin/r8-bound-exhaustion/before-source/snapback2/packages/snapback2/src/assets.ts"
+    },
+    "snapback2/packages/snapback2/src/client-assets.ts": {
+      "sha256": "c2716dc4e90cdb53e7dbec14c7fdaf5211142c19eecfa1cd10b26f7746c2a4dc",
+      "bytes": 5742,
+      "copy": "/Users/ccheever/clique-improvement/lanes/search-twin/r8-bound-exhaustion/before-source/snapback2/packages/snapback2/src/client-assets.ts"
+    },
+    "snapback2/packages/snapback2/src/client-auth.ts": {
+      "sha256": "fbc36bfed3292e175360197fe605661d88e9b12db11b80b663576a311e8df062",
+      "bytes": 12347,
+      "copy": "/Users/ccheever/clique-improvement/lanes/search-twin/r8-bound-exhaustion/before-source/snapback2/packages/snapback2/src/client-auth.ts"
+    },
+    "snapback2/packages/snapback2/src/client-offline.ts": {
+      "sha256": "3b1961758b9550d1ccc750d772f7cddcce258d041168a188fa8174c845ba70fc",
+      "bytes": 23258,
+      "copy": "/Users/ccheever/clique-improvement/lanes/search-twin/r8-bound-exhaustion/before-source/snapback2/packages/snapback2/src/client-offline.ts"
+    },
+    "snapback2/packages/snapback2/src/client-outbox.ts": {
+      "sha256": "30de04df64495403de5357810127ca46e2b6fc5790463a5cadfefae42dcd88d7",
+      "bytes": 17779,
+      "copy": "/Users/ccheever/clique-improvement/lanes/search-twin/r8-bound-exhaustion/before-source/snapback2/packages/snapback2/src/client-outbox.ts"
+    },
+    "snapback2/packages/snapback2/src/client-upload.ts": {
+      "sha256": "59b9b754809cf646b2ea84452eab9cc0dda626f5462a212b3b9bf0e5127cc13e",
+      "bytes": 18957,
+      "copy": "/Users/ccheever/clique-improvement/lanes/search-twin/r8-bound-exhaustion/before-source/snapback2/packages/snapback2/src/client-upload.ts"
+    },
+    "snapback2/packages/snapback2/src/client-wire.ts": {
+      "sha256": "7fd567440aaa4b88f9cb97fc2e3602fea801667fac6e998a243235e318bad2c9",
+      "bytes": 15027,
+      "copy": "/Users/ccheever/clique-improvement/lanes/search-twin/r8-bound-exhaustion/before-source/snapback2/packages/snapback2/src/client-wire.ts"
+    },
+    "snapback2/packages/snapback2/src/client.ts": {
+      "sha256": "731a9969526357d53a18b9e3adec23bb74b0064076d7255c33469f876e995a3f",
+      "bytes": 66704,
+      "copy": "/Users/ccheever/clique-improvement/lanes/search-twin/r8-bound-exhaustion/before-source/snapback2/packages/snapback2/src/client.ts"
+    },
+    "snapback2/packages/snapback2/src/drain.ts": {
+      "sha256": "10cfb92f16bcc34de4c00abbb3684899a7fe8b5fc39ab38621e701348f64f8e1",
+      "bytes": 7506,
+      "copy": "/Users/ccheever/clique-improvement/lanes/search-twin/r8-bound-exhaustion/before-source/snapback2/packages/snapback2/src/drain.ts"
+    },
+    "snapback2/packages/snapback2/src/held-program.ts": {
+      "sha256": "cd5ffc54870809afc2c41a5901c3ff61f1f06e90d566e42f9089708e3f755665",
+      "bytes": 2578,
+      "copy": "/Users/ccheever/clique-improvement/lanes/search-twin/r8-bound-exhaustion/before-source/snapback2/packages/snapback2/src/held-program.ts"
+    },
+    "snapback2/packages/snapback2/src/index.ts": {
+      "sha256": "abdb49c7fcb31153640db29dff50f83c3a68f1fab34fdf79fae9f9fc59923eda",
+      "bytes": 8084,
+      "copy": "/Users/ccheever/clique-improvement/lanes/search-twin/r8-bound-exhaustion/before-source/snapback2/packages/snapback2/src/index.ts"
+    },
+    "snapback2/packages/snapback2/src/live.ts": {
+      "sha256": "e4796bc313f49affbcaed0ecc0e00cde792d4c2e9437ff732c833cb13491ff95",
+      "bytes": 9861,
+      "copy": "/Users/ccheever/clique-improvement/lanes/search-twin/r8-bound-exhaustion/before-source/snapback2/packages/snapback2/src/live.ts"
+    },
+    "snapback2/packages/snapback2/src/local-cursor.ts": {
+      "sha256": "245f1fac9cbf8512967ebef1ddc482609284a533b09ef5a98502607375113165",
+      "bytes": 7000,
+      "copy": "/Users/ccheever/clique-improvement/lanes/search-twin/r8-bound-exhaustion/before-source/snapback2/packages/snapback2/src/local-cursor.ts"
+    },
+    "snapback2/packages/snapback2/src/offline-protocol.ts": {
+      "sha256": "963387618b7bd7c79f8b33de5932dc482027ac16bd3f783478c88ea10d39b179",
+      "bytes": 28834,
+      "copy": "/Users/ccheever/clique-improvement/lanes/search-twin/r8-bound-exhaustion/before-source/snapback2/packages/snapback2/src/offline-protocol.ts"
+    },
+    "snapback2/packages/snapback2/src/offline-schema.ts": {
+      "sha256": "a7ab61de526abb3948ea565258eef44bcbce0263d14fc2d485bf7604ca5d9111",
+      "bytes": 556,
+      "copy": "/Users/ccheever/clique-improvement/lanes/search-twin/r8-bound-exhaustion/before-source/snapback2/packages/snapback2/src/offline-schema.ts"
+    },
+    "snapback2/packages/snapback2/src/offline.ts": {
+      "sha256": "b6097e78b7fbcc255ad69b55ca83ea5d93f48cbf5605bd3340b34261403f7dea",
+      "bytes": 41984,
+      "copy": "/Users/ccheever/clique-improvement/lanes/search-twin/r8-bound-exhaustion/before-source/snapback2/packages/snapback2/src/offline.ts"
+    },
+    "snapback2/packages/snapback2/src/react-core.tsx": {
+      "sha256": "c03df287b45fafad77cce7eea84658ccdf9f6358318dac3b0694141c23f8d88c",
+      "bytes": 19351,
+      "copy": "/Users/ccheever/clique-improvement/lanes/search-twin/r8-bound-exhaustion/before-source/snapback2/packages/snapback2/src/react-core.tsx"
+    },
+    "snapback2/packages/snapback2/src/react-native/files.ts": {
+      "sha256": "6d37f34b234fafde06f5e102d6669c682958117727f43f4d7abf1713ec3b32a6",
+      "bytes": 8289,
+      "copy": "/Users/ccheever/clique-improvement/lanes/search-twin/r8-bound-exhaustion/before-source/snapback2/packages/snapback2/src/react-native/files.ts"
+    },
+    "snapback2/packages/snapback2/src/react.tsx": {
+      "sha256": "275bbc3ac8316f473068f0f5bb9b3266c15f00abe49589f23218b6ee1d5cdc0c",
+      "bytes": 8106,
+      "copy": "/Users/ccheever/clique-improvement/lanes/search-twin/r8-bound-exhaustion/before-source/snapback2/packages/snapback2/src/react.tsx"
+    },
+    "snapback2/packages/snapback2/src/sse-parser.ts": {
+      "sha256": "b128751cd87b46e0c3ed30f2d46664195c48fd46209fc53890d63061131c627b",
+      "bytes": 2656,
+      "copy": "/Users/ccheever/clique-improvement/lanes/search-twin/r8-bound-exhaustion/before-source/snapback2/packages/snapback2/src/sse-parser.ts"
+    },
+    "snapback2/packages/snapback2/src/sse.ts": {
+      "sha256": "88c3a7bcef3dc99f3d463e562113a3e16a1380845ff9fe5b03db2cbfa98720b0",
+      "bytes": 9441,
+      "copy": "/Users/ccheever/clique-improvement/lanes/search-twin/r8-bound-exhaustion/before-source/snapback2/packages/snapback2/src/sse.ts"
+    },
+    "snapback2/packages/snapback2/src/store/asset-policy.ts": {
+      "sha256": "ba76b1c6cc0a9322b03db40fc406670d4625303fcbf7670d35c2713bc29e72a1",
+      "bytes": 3065,
+      "copy": "/Users/ccheever/clique-improvement/lanes/search-twin/r8-bound-exhaustion/before-source/snapback2/packages/snapback2/src/store/asset-policy.ts"
+    },
+    "snapback2/packages/snapback2/src/store/byte-cache.ts": {
+      "sha256": "70aa1dae3baec0ed00796b51bad0af6e8ed4c325b551b702f72cc25676315967",
+      "bytes": 18897,
+      "copy": "/Users/ccheever/clique-improvement/lanes/search-twin/r8-bound-exhaustion/before-source/snapback2/packages/snapback2/src/store/byte-cache.ts"
+    },
+    "snapback2/packages/snapback2/src/store/canonical.ts": {
+      "sha256": "a0b38f5da995c3d8cc9fbbf5c6e144941caba36a2482e06a857f4e114330c07c",
+      "bytes": 501,
+      "copy": "/Users/ccheever/clique-improvement/lanes/search-twin/r8-bound-exhaustion/before-source/snapback2/packages/snapback2/src/store/canonical.ts"
+    },
+    "snapback2/packages/snapback2/src/store/carrier-index.ts": {
+      "sha256": "55a086697e62e398945509eb47e4af8b127772f7fc6a810f4ca1037542e84a6a",
+      "bytes": 12454,
+      "copy": "/Users/ccheever/clique-improvement/lanes/search-twin/r8-bound-exhaustion/before-source/snapback2/packages/snapback2/src/store/carrier-index.ts"
+    },
+    "snapback2/packages/snapback2/src/store/extent-facts.ts": {
+      "sha256": "154cd1d0af740d17615c3ac7e45f727e4ef59e0fac11e7a3a5b31a4c9239fa5c",
+      "bytes": 3350,
+      "copy": "/Users/ccheever/clique-improvement/lanes/search-twin/r8-bound-exhaustion/before-source/snapback2/packages/snapback2/src/store/extent-facts.ts"
+    },
+    "snapback2/packages/snapback2/src/store/extent-index.ts": {
+      "sha256": "07d00755e4809da6def9fc3d5be41021cf1f56dd94ba000159052237577072db",
+      "bytes": 5801,
+      "copy": "/Users/ccheever/clique-improvement/lanes/search-twin/r8-bound-exhaustion/before-source/snapback2/packages/snapback2/src/store/extent-index.ts"
+    },
+    "snapback2/packages/snapback2/src/store/fact-index.ts": {
+      "sha256": "db3a3dd4013e15793fe18604a97400e9b707bc91c1dc3361041787e6ef5038bd",
+      "bytes": 4081,
+      "copy": "/Users/ccheever/clique-improvement/lanes/search-twin/r8-bound-exhaustion/before-source/snapback2/packages/snapback2/src/store/fact-index.ts"
+    },
+    "snapback2/packages/snapback2/src/store/fact-integrity.ts": {
+      "sha256": "877f9fe773d3173a5ebab58dd1683187227a706b35b8ccbd77945f09c72be9cc",
+      "bytes": 15247,
+      "copy": "/Users/ccheever/clique-improvement/lanes/search-twin/r8-bound-exhaustion/before-source/snapback2/packages/snapback2/src/store/fact-integrity.ts"
+    },
+    "snapback2/packages/snapback2/src/store/file.ts": {
+      "sha256": "8bd5cf87e47fd77ab153552e956c12c51275d4f8043d5cb41cbd9737cf544270",
+      "bytes": 5008,
+      "copy": "/Users/ccheever/clique-improvement/lanes/search-twin/r8-bound-exhaustion/before-source/snapback2/packages/snapback2/src/store/file.ts"
+    },
+    "snapback2/packages/snapback2/src/store/indexeddb.ts": {
+      "sha256": "900346d4aa3478865fe19763ae44417246ad37753e16afd11ca1e227a83bb8c5",
+      "bytes": 10155,
+      "copy": "/Users/ccheever/clique-improvement/lanes/search-twin/r8-bound-exhaustion/before-source/snapback2/packages/snapback2/src/store/indexeddb.ts"
+    },
+    "snapback2/packages/snapback2/src/store/locks.ts": {
+      "sha256": "dfb922b4285d5b5b9503b0f2c6c63b2c2a2d53cf5c61f250f13f3b53cdba7160",
+      "bytes": 2004,
+      "copy": "/Users/ccheever/clique-improvement/lanes/search-twin/r8-bound-exhaustion/before-source/snapback2/packages/snapback2/src/store/locks.ts"
+    },
+    "snapback2/packages/snapback2/src/store/metadata.ts": {
+      "sha256": "a126e078aa672eae5287d42f001b5b15152fb6eb606d4486e274aad8b93bdafd",
+      "bytes": 1892,
+      "copy": "/Users/ccheever/clique-improvement/lanes/search-twin/r8-bound-exhaustion/before-source/snapback2/packages/snapback2/src/store/metadata.ts"
+    },
+    "snapback2/packages/snapback2/src/store/outbox.ts": {
+      "sha256": "835417fd8b915241abc651187fb66680d26d263c9f61f871b4c60b4ba6dc3e81",
+      "bytes": 16931,
+      "copy": "/Users/ccheever/clique-improvement/lanes/search-twin/r8-bound-exhaustion/before-source/snapback2/packages/snapback2/src/store/outbox.ts"
+    },
+    "snapback2/packages/snapback2/src/store/overlay-retirement.ts": {
+      "sha256": "43fb0ab507b2299d4bc91be9d32cbb0f9ed4ee448c9de611c57675beece68b13",
+      "bytes": 3977,
+      "copy": "/Users/ccheever/clique-improvement/lanes/search-twin/r8-bound-exhaustion/before-source/snapback2/packages/snapback2/src/store/overlay-retirement.ts"
+    },
+    "snapback2/packages/snapback2/src/store/projection.ts": {
+      "sha256": "a1b0d838be15637150772607e5b0a70da46245270736ca2405337de54a057b7e",
+      "bytes": 5635,
+      "copy": "/Users/ccheever/clique-improvement/lanes/search-twin/r8-bound-exhaustion/before-source/snapback2/packages/snapback2/src/store/projection.ts"
+    },
+    "snapback2/packages/snapback2/src/store/range-store.ts": {
+      "sha256": "920c489a931713c538b700f02e059ac72e38caf3f2f4ea98b3df618db3f00a56",
+      "bytes": 72135,
+      "copy": "/Users/ccheever/clique-improvement/lanes/search-twin/r8-bound-exhaustion/before-source/snapback2/packages/snapback2/src/store/range-store.ts"
+    },
+    "snapback2/packages/snapback2/src/store/row-values.ts": {
+      "sha256": "54fce7162e6b044dda4e05e28a838a2ac6fc9e7e2fc65f41e06529dec3fc5be9",
+      "bytes": 2356,
+      "copy": "/Users/ccheever/clique-improvement/lanes/search-twin/r8-bound-exhaustion/before-source/snapback2/packages/snapback2/src/store/row-values.ts"
+    },
+    "snapback2/packages/snapback2/src/store/sqlite-driver.conformance.ts": {
+      "sha256": "58cac15a5af8363f6e5deca555091d8893e85732f01a9fbf22d628df9b1496ec",
+      "bytes": 5595,
+      "copy": "/Users/ccheever/clique-improvement/lanes/search-twin/r8-bound-exhaustion/before-source/snapback2/packages/snapback2/src/store/sqlite-driver.conformance.ts"
+    },
+    "snapback2/packages/snapback2/src/store/sqlite-driver.ts": {
+      "sha256": "f6752ebfdfe5a1486ceb83e163af709c8974ee34e08097dcadf6640322a58563",
+      "bytes": 1028,
+      "copy": "/Users/ccheever/clique-improvement/lanes/search-twin/r8-bound-exhaustion/before-source/snapback2/packages/snapback2/src/store/sqlite-driver.ts"
+    },
+    "snapback2/packages/snapback2/src/store/sqlite-node.ts": {
+      "sha256": "8349b074a57f3e97fea240a3a7057253c62e433a59c403b676baf2e20f066630",
+      "bytes": 1983,
+      "copy": "/Users/ccheever/clique-improvement/lanes/search-twin/r8-bound-exhaustion/before-source/snapback2/packages/snapback2/src/store/sqlite-node.ts"
+    },
+    "snapback2/packages/snapback2/src/store/sqlite.ts": {
+      "sha256": "f5c0b1ac3cc27789ddd2d21854e00b1d57027139aa77743f5a023dc47c090606",
+      "bytes": 9170,
+      "copy": "/Users/ccheever/clique-improvement/lanes/search-twin/r8-bound-exhaustion/before-source/snapback2/packages/snapback2/src/store/sqlite.ts"
+    },
+    "snapback2/packages/snapback2/src/store/swap-journal.ts": {
+      "sha256": "45c761dbc94d6cd87ffdb7b9db89ac805a23425cfcb6180b57ebc44faba1cf50",
+      "bytes": 6928,
+      "copy": "/Users/ccheever/clique-improvement/lanes/search-twin/r8-bound-exhaustion/before-source/snapback2/packages/snapback2/src/store/swap-journal.ts"
+    },
+    "snapback2/packages/snapback2/src/test.ts": {
+      "sha256": "85ff4def8a242c24f7b3250759776753b057e466c382d84fe34a44d6193504d2",
+      "bytes": 11736,
+      "copy": "/Users/ccheever/clique-improvement/lanes/search-twin/r8-bound-exhaustion/before-source/snapback2/packages/snapback2/src/test.ts"
+    },
+    "snapback2/packages/snapback2/src/token-store.ts": {
+      "sha256": "731243d2c1e60058c188508e297d4e04b95ac516f0f03b66c91547f66795b2ce",
+      "bytes": 1756,
+      "copy": "/Users/ccheever/clique-improvement/lanes/search-twin/r8-bound-exhaustion/before-source/snapback2/packages/snapback2/src/token-store.ts"
+    },
+    "snapback2/packages/snapback2/src/twin-hydrate.ts": {
+      "sha256": "4f36f8cd2d446fcf0a4b9e26e1b78a06cc0470cbb60b4996e1d5abc9571e7939",
+      "bytes": 4536,
+      "copy": "/Users/ccheever/clique-improvement/lanes/search-twin/r8-bound-exhaustion/before-source/snapback2/packages/snapback2/src/twin-hydrate.ts"
+    },
+    "snapback2/packages/snapback2/src/twin-store.ts": {
+      "sha256": "6ef3f3a9ea9321e25d1c9f3b7cf6d3c3a5b5c022c00f5e1125486b8a740852c0",
+      "bytes": 12891,
+      "copy": "/Users/ccheever/clique-improvement/lanes/search-twin/r8-bound-exhaustion/before-source/snapback2/packages/snapback2/src/twin-store.ts"
+    },
+    "snapback2/packages/snapback2/src/twin.ts": {
+      "sha256": "2b75b19950c7d38af0bba7fed55f25fff5eccf693b4ffa787fcb78f6fca29342",
+      "bytes": 13919,
+      "copy": "/Users/ccheever/clique-improvement/lanes/search-twin/r8-bound-exhaustion/before-source/snapback2/packages/snapback2/src/twin.ts"
+    },
+    "snapback2/packages/snapback2/src/types.ts": {
+      "sha256": "d32085b58a952dd284e96778ad7bae188e25da73f560ee1e6512e294ff31459a",
+      "bytes": 20408,
+      "copy": "/Users/ccheever/clique-improvement/lanes/search-twin/r8-bound-exhaustion/before-source/snapback2/packages/snapback2/src/types.ts"
+    },
+    "snapback2/packages/snapback2/tests/client.test.ts": {
+      "sha256": "41c97144465cc8fb682c7654973761a5a7e80bd77eaa34c3e6d8fe2390842a67",
+      "bytes": 60906,
+      "copy": "/Users/ccheever/clique-improvement/lanes/search-twin/r8-bound-exhaustion/before-source/snapback2/packages/snapback2/tests/client.test.ts"
+    },
+    "snapback2/packages/snapback2/tests/fake-indexeddb.ts": {
+      "sha256": "6e44ef07b06668390df2fa0018f90335041430ee1ddc00678d4403d6be0a1108",
+      "bytes": 7512,
+      "copy": "/Users/ccheever/clique-improvement/lanes/search-twin/r8-bound-exhaustion/before-source/snapback2/packages/snapback2/tests/fake-indexeddb.ts"
+    },
+    "snapback2/packages/snapback2/tests/fake-owner.ts": {
+      "sha256": "0442c2a0c4e5e4b97ee0b5a063d12926a5110c10e49f83ca966f8e3ca3eb9c4e",
+      "bytes": 10838,
+      "copy": "/Users/ccheever/clique-improvement/lanes/search-twin/r8-bound-exhaustion/before-source/snapback2/packages/snapback2/tests/fake-owner.ts"
+    },
+    "snapback2/packages/snapback2/tests/live-fixture.ts": {
+      "sha256": "78fe835d3df93643fe9078677f6dd6d95ac72d620630f16f5b1f2d46a9fb2856",
+      "bytes": 4015,
+      "copy": "/Users/ccheever/clique-improvement/lanes/search-twin/r8-bound-exhaustion/before-source/snapback2/packages/snapback2/tests/live-fixture.ts"
+    },
+    "snapback2/packages/snapback2/tests/offline-bytes.test.ts": {
+      "sha256": "180e6a7b2b737a0ebaa146e93f5ffe3cac76923b83adc103c59e8d3e2d277634",
+      "bytes": 36356,
+      "copy": "/Users/ccheever/clique-improvement/lanes/search-twin/r8-bound-exhaustion/before-source/snapback2/packages/snapback2/tests/offline-bytes.test.ts"
+    },
+    "snapback2/packages/snapback2/tests/offline-protocol.test.ts": {
+      "sha256": "57112e0232ee6a13969cff59e7c61c39de96afdf025c157e6df81fbc4551d79e",
+      "bytes": 11977,
+      "copy": "/Users/ccheever/clique-improvement/lanes/search-twin/r8-bound-exhaustion/before-source/snapback2/packages/snapback2/tests/offline-protocol.test.ts"
+    },
+    "snapback2/packages/snapback2/tests/offline-store.test.ts": {
+      "sha256": "ed49c68bc6d83b0ed9076b8ea8d8cd102a38c5dcc2f4b17fafce653230512258",
+      "bytes": 73633,
+      "copy": "/Users/ccheever/clique-improvement/lanes/search-twin/r8-bound-exhaustion/before-source/snapback2/packages/snapback2/tests/offline-store.test.ts"
+    },
+    "snapback2/packages/snapback2/tests/sqlite-exports.ts": {
+      "sha256": "11d334f2447f77b79c0178414834134cf6f839a61a45f2b12994d5caa1a22238",
+      "bytes": 1116,
+      "copy": "/Users/ccheever/clique-improvement/lanes/search-twin/r8-bound-exhaustion/before-source/snapback2/packages/snapback2/tests/sqlite-exports.ts"
+    },
+    "snapback2/packages/snapback2/tests/sqlite-fixture.ts": {
+      "sha256": "f2b847c9d34487bcde568254d662a236dff5eb2cc2c22ca9ee18dc8bea8ace87",
+      "bytes": 547,
+      "copy": "/Users/ccheever/clique-improvement/lanes/search-twin/r8-bound-exhaustion/before-source/snapback2/packages/snapback2/tests/sqlite-fixture.ts"
+    },
+    "snapback2/packages/snapback2/tests/sqlite-state.ts": {
+      "sha256": "994c85be232a4b12e67281abb15a7d8f8af28a9e7dc60868e3a012a746d2ca4c",
+      "bytes": 3911,
+      "copy": "/Users/ccheever/clique-improvement/lanes/search-twin/r8-bound-exhaustion/before-source/snapback2/packages/snapback2/tests/sqlite-state.ts"
+    },
+    "snapback2/packages/snapback2/tests/sqlite.test.ts": {
+      "sha256": "d51df2973ce4780fbdaba799cb41759fc681a7d6714e224269359a572d0fdd1e",
+      "bytes": 20587,
+      "copy": "/Users/ccheever/clique-improvement/lanes/search-twin/r8-bound-exhaustion/before-source/snapback2/packages/snapback2/tests/sqlite.test.ts"
+    },
+    "snapback2/packages/snapback2/tests/store-review.test.ts": {
+      "sha256": "b40a1a3557915de1f1073dbb25cb36b666276ff496464247cc4d85ba064e7b8a",
+      "bytes": 96045,
+      "copy": "/Users/ccheever/clique-improvement/lanes/search-twin/r8-bound-exhaustion/before-source/snapback2/packages/snapback2/tests/store-review.test.ts"
+    },
+    "snapback2/packages/snapback2/tests/twin.test.ts": {
+      "sha256": "05b96fc2281f26d6e73b84d98957eb06f0175aea89f76447906d5627cf2b2709",
+      "bytes": 89708,
+      "copy": "/Users/ccheever/clique-improvement/lanes/search-twin/r8-bound-exhaustion/before-source/snapback2/packages/snapback2/tests/twin.test.ts"
+    }
+  }
+}

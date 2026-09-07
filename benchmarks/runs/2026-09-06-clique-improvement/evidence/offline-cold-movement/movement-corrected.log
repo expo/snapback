@@ -1,0 +1,618 @@
+{
+  "source": "cb578e197535290d9c3c7394246584e12459e77a",
+  "scope": "Native initial program/frame; synthetic later authenticated clock.read row pools, not native emitted movement",
+  "cases": [
+    {
+      "moved": [],
+      "initial": {
+        "state": "capped",
+        "data": {
+          "now": 1788747555731,
+          "rows": [
+            {
+              "at": 0,
+              "id": "r0"
+            },
+            {
+              "at": 1,
+              "id": "r1"
+            },
+            {
+              "at": 2,
+              "id": "r2"
+            },
+            {
+              "at": 3,
+              "id": "r3"
+            },
+            {
+              "at": 4,
+              "id": "r4"
+            },
+            {
+              "at": 5,
+              "id": "r5"
+            },
+            {
+              "at": 6,
+              "id": "r6"
+            },
+            {
+              "at": 7,
+              "id": "r7"
+            },
+            {
+              "at": 8,
+              "id": "r8"
+            },
+            {
+              "at": 9,
+              "id": "r9"
+            }
+          ]
+        },
+        "next": null,
+        "seq": 1,
+        "since": 1788747555694
+      },
+      "warm": {
+        "state": "capped",
+        "data": {
+          "now": 1788747555738,
+          "rows": [
+            {
+              "at": 0,
+              "id": "r0"
+            },
+            {
+              "at": 1,
+              "id": "r1"
+            },
+            {
+              "at": 2,
+              "id": "r2"
+            },
+            {
+              "at": 3,
+              "id": "r3"
+            },
+            {
+              "at": 4,
+              "id": "r4"
+            },
+            {
+              "at": 5,
+              "id": "r5"
+            },
+            {
+              "at": 6,
+              "id": "r6"
+            },
+            {
+              "at": 7,
+              "id": "r7"
+            },
+            {
+              "at": 8,
+              "id": "r8"
+            },
+            {
+              "at": 9,
+              "id": "r9"
+            }
+          ]
+        },
+        "next": null,
+        "seq": 2,
+        "since": 1788747555736
+      },
+      "cold": {
+        "state": "capped",
+        "data": {
+          "now": 1788747555749,
+          "rows": [
+            {
+              "at": 0,
+              "id": "r0"
+            },
+            {
+              "at": 1,
+              "id": "r1"
+            },
+            {
+              "at": 2,
+              "id": "r2"
+            },
+            {
+              "at": 3,
+              "id": "r3"
+            },
+            {
+              "at": 4,
+              "id": "r4"
+            },
+            {
+              "at": 5,
+              "id": "r5"
+            },
+            {
+              "at": 6,
+              "id": "r6"
+            },
+            {
+              "at": 7,
+              "id": "r7"
+            },
+            {
+              "at": 8,
+              "id": "r8"
+            },
+            {
+              "at": 9,
+              "id": "r9"
+            }
+          ]
+        },
+        "next": null,
+        "seq": 0,
+        "since": 1788747555736
+      },
+      "retained": {
+        "absences": [],
+        "ranges": [
+          {
+            "absence": false,
+            "after": null,
+            "before": null,
+            "gt": null,
+            "gte": null,
+            "haloId": "halo",
+            "index": "byAt",
+            "lt": null,
+            "lte": null,
+            "order": "Asc",
+            "prefix": [],
+            "rowIds": [
+              "r0",
+              "r1",
+              "r2",
+              "r3",
+              "r4",
+              "r5",
+              "r6",
+              "r7",
+              "r8",
+              "r9"
+            ],
+            "ruleHash": "75127f113f0cdaab190e505b9cd62b78c7a92d6a43028a5db3d98dcd342c95ca",
+            "site": "clock.range",
+            "stop": "Limit",
+            "table": "events",
+            "take": 10,
+            "heldSuffix": [
+              {
+                "Int": 9
+              },
+              {
+                "Id": "r9"
+              }
+            ]
+          }
+        ],
+        "verdicts": []
+      }
+    },
+    {
+      "moved": [
+        "r9"
+      ],
+      "initial": {
+        "state": "capped",
+        "data": {
+          "now": 1788747555769,
+          "rows": [
+            {
+              "at": 0,
+              "id": "r0"
+            },
+            {
+              "at": 1,
+              "id": "r1"
+            },
+            {
+              "at": 2,
+              "id": "r2"
+            },
+            {
+              "at": 3,
+              "id": "r3"
+            },
+            {
+              "at": 4,
+              "id": "r4"
+            },
+            {
+              "at": 5,
+              "id": "r5"
+            },
+            {
+              "at": 6,
+              "id": "r6"
+            },
+            {
+              "at": 7,
+              "id": "r7"
+            },
+            {
+              "at": 8,
+              "id": "r8"
+            },
+            {
+              "at": 9,
+              "id": "r9"
+            }
+          ]
+        },
+        "next": null,
+        "seq": 1,
+        "since": 1788747555755
+      },
+      "warm": {
+        "state": "capped",
+        "data": {
+          "now": 1788747555775,
+          "rows": [
+            {
+              "at": 0,
+              "id": "r0"
+            },
+            {
+              "at": 1,
+              "id": "r1"
+            },
+            {
+              "at": 2,
+              "id": "r2"
+            },
+            {
+              "at": 3,
+              "id": "r3"
+            },
+            {
+              "at": 4,
+              "id": "r4"
+            },
+            {
+              "at": 5,
+              "id": "r5"
+            },
+            {
+              "at": 6,
+              "id": "r6"
+            },
+            {
+              "at": 7,
+              "id": "r7"
+            },
+            {
+              "at": 8,
+              "id": "r8"
+            },
+            {
+              "at": 10,
+              "id": "halo"
+            }
+          ]
+        },
+        "next": null,
+        "seq": 2,
+        "since": 1788747555771
+      },
+      "cold": {
+        "state": "capped",
+        "data": {
+          "now": 1788747555788,
+          "rows": [
+            {
+              "at": 0,
+              "id": "r0"
+            },
+            {
+              "at": 1,
+              "id": "r1"
+            },
+            {
+              "at": 2,
+              "id": "r2"
+            },
+            {
+              "at": 3,
+              "id": "r3"
+            },
+            {
+              "at": 4,
+              "id": "r4"
+            },
+            {
+              "at": 5,
+              "id": "r5"
+            },
+            {
+              "at": 6,
+              "id": "r6"
+            },
+            {
+              "at": 7,
+              "id": "r7"
+            },
+            {
+              "at": 8,
+              "id": "r8"
+            },
+            {
+              "at": 10,
+              "id": "halo"
+            }
+          ]
+        },
+        "next": null,
+        "seq": 0,
+        "since": 1788747555771
+      },
+      "retained": {
+        "absences": [],
+        "ranges": [
+          {
+            "absence": false,
+            "after": null,
+            "before": null,
+            "gt": null,
+            "gte": null,
+            "haloId": "halo",
+            "index": "byAt",
+            "lt": null,
+            "lte": null,
+            "order": "Asc",
+            "prefix": [],
+            "rowIds": [
+              "r0",
+              "r1",
+              "r2",
+              "r3",
+              "r4",
+              "r5",
+              "r6",
+              "r7",
+              "r8",
+              "r9"
+            ],
+            "ruleHash": "75127f113f0cdaab190e505b9cd62b78c7a92d6a43028a5db3d98dcd342c95ca",
+            "site": "clock.range",
+            "stop": "Limit",
+            "table": "events",
+            "take": 10,
+            "heldSuffix": [
+              {
+                "Int": 9
+              },
+              {
+                "Id": "r9"
+              }
+            ]
+          }
+        ],
+        "verdicts": []
+      }
+    },
+    {
+      "moved": [
+        "r8",
+        "r9"
+      ],
+      "initial": {
+        "state": "capped",
+        "data": {
+          "now": 1788747555807,
+          "rows": [
+            {
+              "at": 0,
+              "id": "r0"
+            },
+            {
+              "at": 1,
+              "id": "r1"
+            },
+            {
+              "at": 2,
+              "id": "r2"
+            },
+            {
+              "at": 3,
+              "id": "r3"
+            },
+            {
+              "at": 4,
+              "id": "r4"
+            },
+            {
+              "at": 5,
+              "id": "r5"
+            },
+            {
+              "at": 6,
+              "id": "r6"
+            },
+            {
+              "at": 7,
+              "id": "r7"
+            },
+            {
+              "at": 8,
+              "id": "r8"
+            },
+            {
+              "at": 9,
+              "id": "r9"
+            }
+          ]
+        },
+        "next": null,
+        "seq": 1,
+        "since": 1788747555795
+      },
+      "warm": {
+        "state": "partial",
+        "data": {
+          "now": 1788747555812,
+          "rows": [
+            {
+              "at": 0,
+              "id": "r0"
+            },
+            {
+              "at": 1,
+              "id": "r1"
+            },
+            {
+              "at": 2,
+              "id": "r2"
+            },
+            {
+              "at": 3,
+              "id": "r3"
+            },
+            {
+              "at": 4,
+              "id": "r4"
+            },
+            {
+              "at": 5,
+              "id": "r5"
+            },
+            {
+              "at": 6,
+              "id": "r6"
+            },
+            {
+              "at": 7,
+              "id": "r7"
+            },
+            {
+              "at": 10,
+              "id": "halo"
+            },
+            {
+              "at": 100,
+              "id": "r8"
+            }
+          ]
+        },
+        "reason": "never-held",
+        "site": "clock.range",
+        "sites": [
+          {
+            "site": "clock.range",
+            "reason": "never-held"
+          }
+        ],
+        "seq": 2,
+        "since": 1788747555808
+      },
+      "cold": {
+        "state": "capped",
+        "data": {
+          "now": 1788747555821,
+          "rows": [
+            {
+              "at": 0,
+              "id": "r0"
+            },
+            {
+              "at": 1,
+              "id": "r1"
+            },
+            {
+              "at": 2,
+              "id": "r2"
+            },
+            {
+              "at": 3,
+              "id": "r3"
+            },
+            {
+              "at": 4,
+              "id": "r4"
+            },
+            {
+              "at": 5,
+              "id": "r5"
+            },
+            {
+              "at": 6,
+              "id": "r6"
+            },
+            {
+              "at": 7,
+              "id": "r7"
+            },
+            {
+              "at": 10,
+              "id": "halo"
+            },
+            {
+              "at": 100,
+              "id": "r8"
+            }
+          ]
+        },
+        "next": null,
+        "seq": 0,
+        "since": 1788747555808
+      },
+      "retained": {
+        "absences": [],
+        "ranges": [
+          {
+            "absence": false,
+            "after": null,
+            "before": null,
+            "gt": null,
+            "gte": null,
+            "haloId": "halo",
+            "index": "byAt",
+            "lt": null,
+            "lte": null,
+            "order": "Asc",
+            "prefix": [],
+            "rowIds": [
+              "r0",
+              "r1",
+              "r2",
+              "r3",
+              "r4",
+              "r5",
+              "r6",
+              "r7",
+              "r8",
+              "r9"
+            ],
+            "ruleHash": "75127f113f0cdaab190e505b9cd62b78c7a92d6a43028a5db3d98dcd342c95ca",
+            "site": "clock.range",
+            "stop": "Limit",
+            "table": "events",
+            "take": 10,
+            "heldSuffix": [
+              {
+                "Int": 9
+              },
+              {
+                "Id": "r9"
+              }
+            ]
+          }
+        ],
+        "verdicts": []
+      }
+    }
+  ]
+}

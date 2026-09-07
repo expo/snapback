@@ -1,0 +1,8 @@
+{
+  "at_epoch": 1788747274.2440178,
+  "start_one_attempt": true,
+  "evidence": "capacity-prelaunch.json plus peer-reservation.json",
+  "judgment": "reasonable present capacity: about52percent CPUidle,20GBunused,no swapdelta; two peers holding newheavy starts; no guarantee globalquiet and no hardload/RSS gate",
+  "limits_unchanged": true,
+  "no_foreign_stop": true
+}

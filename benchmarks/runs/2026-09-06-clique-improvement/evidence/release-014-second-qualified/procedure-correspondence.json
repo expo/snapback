@@ -1,0 +1,38 @@
+[
+  {
+    "path": "run.py",
+    "prior_sha256": "36f3a1727f55878d3dde65f4c7dd490dbab9ab530f5989f564e5a984539b11f8",
+    "current_sha256": "36f3a1727f55878d3dde65f4c7dd490dbab9ab530f5989f564e5a984539b11f8",
+    "change": "byte-identical, dynamic __file__ root selects new evidence/TMPDIR"
+  },
+  {
+    "path": "npm-capture.py",
+    "prior_sha256": "5b6cd0358f9693921fbe5fd451b0b51805b5f714ddd7b607c1a5a951b4dfdad9",
+    "current_sha256": "5b6cd0358f9693921fbe5fd451b0b51805b5f714ddd7b607c1a5a951b4dfdad9",
+    "change": "byte-identical, dynamic __file__ root selects new evidence/TMPDIR"
+  },
+  {
+    "path": "publish-driver.py",
+    "prior_sha256": "e11119bc52f127232921b8ba22c00c6d55ba830e76c77f50e3f6551e94ca6ef6",
+    "current_sha256": "e11119bc52f127232921b8ba22c00c6d55ba830e76c77f50e3f6551e94ca6ef6",
+    "change": "byte-identical, dynamic __file__ root selects new evidence/TMPDIR"
+  },
+  {
+    "path": "retain-consumer-receipts.py",
+    "prior_sha256": "449a924038cf0693ee558f3b8b789b7b026f83f6b88cbda42461dfd32bf372e6",
+    "current_sha256": "449a924038cf0693ee558f3b8b789b7b026f83f6b88cbda42461dfd32bf372e6",
+    "change": "byte-identical, dynamic __file__ root selects new evidence/TMPDIR"
+  },
+  {
+    "path": "verify-installed-expo.py",
+    "prior_sha256": "c5f3c8940afb433f1b29a72135e0fb029a6380257a6edc6e929d23af5462300d",
+    "current_sha256": "2778a624e702c29665e733d4b94b13a417bdfec19e78a9a528a48c9fe7447c1d",
+    "change": "only explicit new artifact/wrapper paths"
+  },
+  {
+    "path": "retain-qualified.py",
+    "prior_sha256": "fa2b4264dc37b57dc1924259dfd30cac41baaf88e0d8f4c5c791538b2abc05cb",
+    "current_sha256": "af95cc7bd7ff1814197c50aca725230149b18c74447ff266c96eddfa6c3646e8",
+    "change": "only explicit new artifact/wrapper paths"
+  }
+]

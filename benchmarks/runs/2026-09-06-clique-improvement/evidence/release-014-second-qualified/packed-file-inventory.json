@@ -1,0 +1,1084 @@
+{
+  "files": [
+    {
+      "package": "snapback2-darwin-arm64",
+      "path": "bin/snapback2",
+      "size": 7029776,
+      "mode": 493,
+      "sha256": "ad1bbd9271e40a8a28d15aa23002e57a1c7443b3e01837ed34ceff46f143ef36"
+    },
+    {
+      "package": "snapback2-darwin-arm64",
+      "path": "bin/snapback2-media",
+      "size": 2147984,
+      "mode": 493,
+      "sha256": "f31d8e02cd6846fa94d3294fde2245536945721c19a6f9be59494cb1dc307f86"
+    },
+    {
+      "package": "snapback2-darwin-arm64",
+      "path": "package.json",
+      "size": 347,
+      "mode": 420,
+      "sha256": "67bf6b7bd6c17a7316807ed26941feb3cbf39bc611e8aa18f6a132c3e13a9104"
+    },
+    {
+      "package": "snapback2",
+      "path": "README.md",
+      "size": 7032,
+      "mode": 420,
+      "sha256": "15402a2ce46e37551f93257102a32d37fee7a811fd2d9e66afe3b70812c1aed9"
+    },
+    {
+      "package": "snapback2",
+      "path": "android/build.gradle",
+      "size": 326,
+      "mode": 420,
+      "sha256": "e112b47c8c28d061c164f8033dafc6d0679badd3b5d54a6637e2665f3c8069e1"
+    },
+    {
+      "package": "snapback2",
+      "path": "android/src/main/AndroidManifest.xml",
+      "size": 72,
+      "mode": 420,
+      "sha256": "343d5be1ac17cdd45d1a2f2ddc616c509290e655869125a9422a96d88aa66066"
+    },
+    {
+      "package": "snapback2",
+      "path": "android/src/main/java/expo/modules/snapback2/SnapbackMemoryVideoModule.kt",
+      "size": 5123,
+      "mode": 420,
+      "sha256": "b56498cfc01b300da5ccffc6272b2695ddcaf96990e6a281ed02184c240e26a3"
+    },
+    {
+      "package": "snapback2",
+      "path": "bin/snapback2.mjs",
+      "size": 1516,
+      "mode": 493,
+      "sha256": "f97e1d0b9a9ebd3b1dbc416b7a1a6558494a3125cfb6aa05220fcaf554d8f47b"
+    },
+    {
+      "package": "snapback2",
+      "path": "dist/api.d.ts",
+      "size": 625,
+      "mode": 420,
+      "sha256": "703311d53a83b117bff6fd3b2784aa8abd1778592f42116402e6464f0380803e"
+    },
+    {
+      "package": "snapback2",
+      "path": "dist/assets.d.ts",
+      "size": 2249,
+      "mode": 420,
+      "sha256": "b724c9c610da92fcbe09b309d0b8036160da96a80a1d13aeea1948d39050f37f"
+    },
+    {
+      "package": "snapback2",
+      "path": "dist/client-assets.d.ts",
+      "size": 1791,
+      "mode": 420,
+      "sha256": "15b20c6a9519e77d750306e12a75b62f379534530b0e00cad83bd700319b7e23"
+    },
+    {
+      "package": "snapback2",
+      "path": "dist/client-auth.d.ts",
+      "size": 2747,
+      "mode": 420,
+      "sha256": "cb3bb061f04a4173ebfc1210743162e0825d37fb5f538dd742ed632ebdd606d7"
+    },
+    {
+      "package": "snapback2",
+      "path": "dist/client-offline.d.ts",
+      "size": 4665,
+      "mode": 420,
+      "sha256": "a275dc7fd96602018b83de301738b8b7fe486b05f89b0eaf9f9f1b46675d9157"
+    },
+    {
+      "package": "snapback2",
+      "path": "dist/client-outbox.d.ts",
+      "size": 2922,
+      "mode": 420,
+      "sha256": "1ad221fcd03f07194fb9126b90c154fe7e58a937605862a185438cc747b512fc"
+    },
+    {
+      "package": "snapback2",
+      "path": "dist/client-upload.d.ts",
+      "size": 3405,
+      "mode": 420,
+      "sha256": "a36098c9d072206049fbfdcdf610156757255c2256fec7b7b1686b7c1467b4de"
+    },
+    {
+      "package": "snapback2",
+      "path": "dist/client-wire.d.ts",
+      "size": 3223,
+      "mode": 420,
+      "sha256": "21089da5cf4413d01a15082ea6c0c3b46d578cb92e1254f11b99f89c8f12c01d"
+    },
+    {
+      "package": "snapback2",
+      "path": "dist/client.d.ts",
+      "size": 865,
+      "mode": 420,
+      "sha256": "99305ab504b22d40e3f2f97295e370ccf68009039ad66c59c4989ef1ce467319"
+    },
+    {
+      "package": "snapback2",
+      "path": "dist/client.mjs",
+      "size": 187453,
+      "mode": 420,
+      "sha256": "05102cbc258aaf15ecd17e896532d1ca8d679416bc34ffe171fa481c23204f5e"
+    },
+    {
+      "package": "snapback2",
+      "path": "dist/client.mjs.map",
+      "size": 818209,
+      "mode": 420,
+      "sha256": "96dba88a54ec35eb83e84605d7838a8727faf578a58aeec42fdd171fc7f2f77e"
+    },
+    {
+      "package": "snapback2",
+      "path": "dist/compiler-core.mjs",
+      "size": 352276,
+      "mode": 420,
+      "sha256": "49e6fa63fdeb01977d11c569617074e2a0f60ad132a3ecbdc28345ea4a4fdcd6"
+    },
+    {
+      "package": "snapback2",
+      "path": "dist/compiler-core.mjs.map",
+      "size": 1289743,
+      "mode": 420,
+      "sha256": "1f011ade9336a19b88b9b565ac48adf0472769b0d716db7e06f1a8e577e96bdd"
+    },
+    {
+      "package": "snapback2",
+      "path": "dist/compiler-lib.d.ts",
+      "size": 3297,
+      "mode": 420,
+      "sha256": "34b18fc99720579b7192de9d82065f2ddcbc375e3b5f1c76caa3b7eaf1299145"
+    },
+    {
+      "package": "snapback2",
+      "path": "dist/compiler.mjs",
+      "size": 2351,
+      "mode": 493,
+      "sha256": "9c93d2adc425eab14d977a2a8b0d1228a0a5c8c27c4e59bc889efe9863490a78"
+    },
+    {
+      "package": "snapback2",
+      "path": "dist/compiler.mjs.map",
+      "size": 7738,
+      "mode": 420,
+      "sha256": "1df52e541d9aafff1b44417552d30833f20da3f5f28bd72e09b57fa024f23ec7"
+    },
+    {
+      "package": "snapback2",
+      "path": "dist/drain.d.ts",
+      "size": 1700,
+      "mode": 420,
+      "sha256": "1ab31793d9c06ce2d47d819423567b184240784d820bd27db2d063509d6b9eac"
+    },
+    {
+      "package": "snapback2",
+      "path": "dist/effects-lib.d.ts",
+      "size": 434975,
+      "mode": 420,
+      "sha256": "13dd9d1f06641596a4c6ac1c080b3f45f083485baa55a4a378d5b8eba68b311d"
+    },
+    {
+      "package": "snapback2",
+      "path": "dist/expo.d.ts",
+      "size": 215,
+      "mode": 420,
+      "sha256": "edd3dc7b7182170876ee364ee9cd50decbbb25150f62443c1c6551bb5f87a10d"
+    },
+    {
+      "package": "snapback2",
+      "path": "dist/expo.mjs",
+      "size": 52308,
+      "mode": 420,
+      "sha256": "17da7b63445120299a313af3f46ad712f14963da5431269ad1fde12c624782ca"
+    },
+    {
+      "package": "snapback2",
+      "path": "dist/expo.mjs.map",
+      "size": 276581,
+      "mode": 420,
+      "sha256": "7ce31184f92297578f4b4be22e7891d618f40eebf8f58aa2abd1777d65701990"
+    },
+    {
+      "package": "snapback2",
+      "path": "dist/expo/files.d.ts",
+      "size": 217,
+      "mode": 420,
+      "sha256": "748637d3b4a3eba670a94d839b73cd94f68ecafe11c2267969f70861e5742ca9"
+    },
+    {
+      "package": "snapback2",
+      "path": "dist/expo/index.d.ts",
+      "size": 1121,
+      "mode": 420,
+      "sha256": "8f14f88e2ac4734e9fc6319cb87224927737187ff1c3b7b4af8e82e51b9909a1"
+    },
+    {
+      "package": "snapback2",
+      "path": "dist/expo/token-store.d.ts",
+      "size": 363,
+      "mode": 420,
+      "sha256": "c64059a4fd3ccc267e38f025333f2341f2d07776049a076f4094dfa08d67496e"
+    },
+    {
+      "package": "snapback2",
+      "path": "dist/expo/witness.d.ts",
+      "size": 1392,
+      "mode": 420,
+      "sha256": "a6d2e3ac0d94312c83c772ef4b5e482524f8913fdb692da9503faf0e554500cb"
+    },
+    {
+      "package": "snapback2",
+      "path": "dist/expo/witness.mjs",
+      "size": 5628,
+      "mode": 420,
+      "sha256": "45ccc4508e0856bf26ed2c80c71141b5b4e18ab637eafcde292ae12dad7e5d3c"
+    },
+    {
+      "package": "snapback2",
+      "path": "dist/expo/witness.mjs.map",
+      "size": 105182,
+      "mode": 420,
+      "sha256": "d14843bf0ee056b67c3171697ee7a4d76ac18d9e66d732a802165c12acd8f890"
+    },
+    {
+      "package": "snapback2",
+      "path": "dist/guide/auth.md",
+      "size": 4081,
+      "mode": 420,
+      "sha256": "09c5a8a82e9da8d48a288731811c3f1854a6e991910399b7ecab5fc860bf45d2"
+    },
+    {
+      "package": "snapback2",
+      "path": "dist/guide/effects.md",
+      "size": 4052,
+      "mode": 420,
+      "sha256": "3c89cc25b95bc09c7d9a5d82beaba0bccf9937b96534fdab33fc06b1561ff8d4"
+    },
+    {
+      "package": "snapback2",
+      "path": "dist/guide/families.json",
+      "size": 21227,
+      "mode": 420,
+      "sha256": "0cc6f63a60382bf0afe952131c9a66866eed14d8b585bb0ada210579cdcf6d6d"
+    },
+    {
+      "package": "snapback2",
+      "path": "dist/guide/grammar.md",
+      "size": 3487,
+      "mode": 420,
+      "sha256": "c778cf5d578df41c182169e5f257df087b4ec77ad5152c1c1ec396365aeec824"
+    },
+    {
+      "package": "snapback2",
+      "path": "dist/guide/job.md",
+      "size": 3944,
+      "mode": 420,
+      "sha256": "12dfa00fc148a5b4809f156c3e7448e51a223686b24cf3aa9fa9eada3ccac827"
+    },
+    {
+      "package": "snapback2",
+      "path": "dist/guide/keywords.json",
+      "size": 15857,
+      "mode": 420,
+      "sha256": "69942b4b0dd7167756dbf5321136fa58feb81cac62adb4623b80efc5d56f165e"
+    },
+    {
+      "package": "snapback2",
+      "path": "dist/guide/live-query.md",
+      "size": 5480,
+      "mode": 420,
+      "sha256": "df0f5fb16ca2e30aa99b440f94780f36b77cdb446e10d53dd7eaa5d49277a2a8"
+    },
+    {
+      "package": "snapback2",
+      "path": "dist/guide/offline.md",
+      "size": 4342,
+      "mode": 420,
+      "sha256": "f97c9c8b39937aba56a2c1d69cbecf16930d054e337478c305f75851510bd437"
+    },
+    {
+      "package": "snapback2",
+      "path": "dist/guide/operator.md",
+      "size": 4466,
+      "mode": 420,
+      "sha256": "9cbfa9123e7f68767df174a2c649736212e3e7198402eece177362cfab70cbdb"
+    },
+    {
+      "package": "snapback2",
+      "path": "dist/guide/personas.md",
+      "size": 495,
+      "mode": 420,
+      "sha256": "9c46d0bb067b8b0c7ea4260b91f73e3cbf6fe128b795d7fe2aee01674d7b5f03"
+    },
+    {
+      "package": "snapback2",
+      "path": "dist/guide/quarry.md",
+      "size": 15863,
+      "mode": 420,
+      "sha256": "97670544ffa897b81a6935fc5bec8580492ac19517f43f5ccd87c1c7c48b8961"
+    },
+    {
+      "package": "snapback2",
+      "path": "dist/guide/schedule.md",
+      "size": 2713,
+      "mode": 420,
+      "sha256": "a5541a51341ff03997f1de2ab23048f9fa0efad7355a6509fad860a8809a8c61"
+    },
+    {
+      "package": "snapback2",
+      "path": "dist/guide/testing.md",
+      "size": 3439,
+      "mode": 420,
+      "sha256": "3f5bbe0d894f8a47e2f18ab98d32161be00839745deb9d23228c7eb49b1c76f1"
+    },
+    {
+      "package": "snapback2",
+      "path": "dist/index.d.ts",
+      "size": 17624,
+      "mode": 420,
+      "sha256": "5a642a27bf868f568d1b024bd54a6bc61f31e6893cc49aa0fbb4195077860121"
+    },
+    {
+      "package": "snapback2",
+      "path": "dist/index.mjs",
+      "size": 23443,
+      "mode": 420,
+      "sha256": "3ef8b8eef470fa84ca37c049d62cebe44777946fc3440940ea727d0f7e1d17a3"
+    },
+    {
+      "package": "snapback2",
+      "path": "dist/index.mjs.map",
+      "size": 105977,
+      "mode": 420,
+      "sha256": "98d17a46367b559121d1cdf2b344fe446c8929babc0ecc5e0c6e98b42d0b6591"
+    },
+    {
+      "package": "snapback2",
+      "path": "dist/live.d.ts",
+      "size": 1105,
+      "mode": 420,
+      "sha256": "1d3c293f3973fd24e561c22c8545ce63e23cf306ef07c61c4c2bc60a6da0d326"
+    },
+    {
+      "package": "snapback2",
+      "path": "dist/offline-protocol.d.ts",
+      "size": 6483,
+      "mode": 420,
+      "sha256": "40f186b59252e29b4e2c7fd90d9b4c4882661727399a4d2c1ace47a59d72f5f5"
+    },
+    {
+      "package": "snapback2",
+      "path": "dist/offline-schema.d.ts",
+      "size": 59,
+      "mode": 420,
+      "sha256": "d7f0f535a39cfd58598606c32d3b9c23fc85096ca57bc29755a739edc75840c9"
+    },
+    {
+      "package": "snapback2",
+      "path": "dist/offline.d.ts",
+      "size": 8322,
+      "mode": 420,
+      "sha256": "79861db03537eb72a26d7c6b960a3c3bb4f33ade1d214a046befbbf0cfb59c83"
+    },
+    {
+      "package": "snapback2",
+      "path": "dist/react-core.d.ts",
+      "size": 4330,
+      "mode": 420,
+      "sha256": "00bc5ba076e791b3fbb333bdeb9e6f50cccce1f649990cd2e25606cc40e160cc"
+    },
+    {
+      "package": "snapback2",
+      "path": "dist/react-core.mjs",
+      "size": 8677,
+      "mode": 420,
+      "sha256": "3d3d844f99884cd13e6c5601f91914abc6cf2a12eb43456dc743eea8c799b468"
+    },
+    {
+      "package": "snapback2",
+      "path": "dist/react-core.mjs.map",
+      "size": 99921,
+      "mode": 420,
+      "sha256": "cc0a8d3e3625b7a81926fe334003aaaa007c1665301dda88a5e885c4c66ff3f2"
+    },
+    {
+      "package": "snapback2",
+      "path": "dist/react-native.d.ts",
+      "size": 247,
+      "mode": 420,
+      "sha256": "caf509969b0f3bdd51376d067514dcdb50fc72a40d6ee6a95d4a933df521dd54"
+    },
+    {
+      "package": "snapback2",
+      "path": "dist/react-native.mjs",
+      "size": 7072,
+      "mode": 420,
+      "sha256": "f278214972896182e672f120c04f1c2269fc77163cd33be686738167add28da0"
+    },
+    {
+      "package": "snapback2",
+      "path": "dist/react-native.mjs.map",
+      "size": 34848,
+      "mode": 420,
+      "sha256": "2888f3265b4abc8b5e8acf57abf8b17e2b6e1b8703171377cb9f9fa6429a8184"
+    },
+    {
+      "package": "snapback2",
+      "path": "dist/react-native/components.d.ts",
+      "size": 1125,
+      "mode": 420,
+      "sha256": "aca327ea6af352aec65b2b2fcadbe12ea45fcef7d643d42e18dd989464b03c4a"
+    },
+    {
+      "package": "snapback2",
+      "path": "dist/react-native/files.d.ts",
+      "size": 1984,
+      "mode": 420,
+      "sha256": "a9bcdce6a6ac48df8cf0cf4bf6d1cec2a7a9fd750d163e6e3cbfdd1d21c6ad86"
+    },
+    {
+      "package": "snapback2",
+      "path": "dist/react-native/memory-video.d.ts",
+      "size": 429,
+      "mode": 420,
+      "sha256": "95eca53ce2fb7ba0ad345e0a116c378e40e50cf41af8bf6a6e99763d204ddbd0"
+    },
+    {
+      "package": "snapback2",
+      "path": "dist/react-native/source.d.ts",
+      "size": 680,
+      "mode": 420,
+      "sha256": "58df38b8c4f3f150e6979d6f1b651f96d35928c5ab89d350e0188034c00f29ff"
+    },
+    {
+      "package": "snapback2",
+      "path": "dist/react.d.ts",
+      "size": 993,
+      "mode": 420,
+      "sha256": "bc2138aacb52002b41b05149c450ad02844b7be46d5fd5bbd4a640b1ada5194b"
+    },
+    {
+      "package": "snapback2",
+      "path": "dist/react.mjs",
+      "size": 40661,
+      "mode": 420,
+      "sha256": "b21f1d49671221a849dce61221b1ba94cb5098edf963d74aca15407e822994fa"
+    },
+    {
+      "package": "snapback2",
+      "path": "dist/react.mjs.map",
+      "size": 254350,
+      "mode": 420,
+      "sha256": "71527be97223b63ec34b55b792320ec79e5dc2214588e9e0188fd8683b8c6cb8"
+    },
+    {
+      "package": "snapback2",
+      "path": "dist/sqlite-test.mjs",
+      "size": 94069,
+      "mode": 420,
+      "sha256": "d09242c275eb95930ea52519ab60c86baa3cdacad76624e81c482e6b50c1885f"
+    },
+    {
+      "package": "snapback2",
+      "path": "dist/sqlite-test.mjs.map",
+      "size": 252809,
+      "mode": 420,
+      "sha256": "2c24d61ea4211db0ff86601f7ef0572362e434795631ab1b19fd280067c997b8"
+    },
+    {
+      "package": "snapback2",
+      "path": "dist/sse-parser.d.ts",
+      "size": 330,
+      "mode": 420,
+      "sha256": "843ee5e5f56c95b4db9d87247b6316a60a42218abbe0739f08cff89e1776725d"
+    },
+    {
+      "package": "snapback2",
+      "path": "dist/sse.d.ts",
+      "size": 1604,
+      "mode": 420,
+      "sha256": "487b829535bf173e30043f2cbbc2bb3ef0c41cba9bd1b533751fe21ad7b03076"
+    },
+    {
+      "package": "snapback2",
+      "path": "dist/store/asset-policy.d.ts",
+      "size": 594,
+      "mode": 420,
+      "sha256": "c1c092c8f9ec1a40eae29175a648e3fc90e8c5e38b244644f48f9f4e6639ea97"
+    },
+    {
+      "package": "snapback2",
+      "path": "dist/store/byte-cache.d.ts",
+      "size": 7626,
+      "mode": 420,
+      "sha256": "389a66f2acd7d6f36b1dd4f2356c6a5189b4c862572b0452cb80485e94f266b3"
+    },
+    {
+      "package": "snapback2",
+      "path": "dist/store/canonical.d.ts",
+      "size": 144,
+      "mode": 420,
+      "sha256": "fe9b8f24aa5e1f2e53d7c04f4692777985ef2282e7999964e74db24e83b02447"
+    },
+    {
+      "package": "snapback2",
+      "path": "dist/store/indexeddb.d.ts",
+      "size": 928,
+      "mode": 420,
+      "sha256": "06b5e9570b7c0516f1487780493eab922ba57961eb1fcdeb743b6608783d7518"
+    },
+    {
+      "package": "snapback2",
+      "path": "dist/store/locks.d.ts",
+      "size": 429,
+      "mode": 420,
+      "sha256": "71143fdb3893c05446bf813418ac3890bf97674abe6652d13e16794072f87053"
+    },
+    {
+      "package": "snapback2",
+      "path": "dist/store/outbox.d.ts",
+      "size": 5782,
+      "mode": 420,
+      "sha256": "204a093c279d079f7c13f0d37ee22d6e8e89a13a707471a406efdde597747b57"
+    },
+    {
+      "package": "snapback2",
+      "path": "dist/store/overlay-retirement.d.ts",
+      "size": 1128,
+      "mode": 420,
+      "sha256": "48cbf0daab7a97ea0d565f77a2703bfc6f5215bde58988a1c8e9ba13fb0a7bb9"
+    },
+    {
+      "package": "snapback2",
+      "path": "dist/store/projection.d.ts",
+      "size": 1225,
+      "mode": 420,
+      "sha256": "067aed7bbbc1eda815fa5d81fe46dcae9e5399ede08516d4512408c517fe4138"
+    },
+    {
+      "package": "snapback2",
+      "path": "dist/store/range-store.d.ts",
+      "size": 15152,
+      "mode": 420,
+      "sha256": "548768d8e08477b84bf4f98eac0d5ea1a3c597b69021c769abcd90a1938e5d90"
+    },
+    {
+      "package": "snapback2",
+      "path": "dist/store/row-values.d.ts",
+      "size": 613,
+      "mode": 420,
+      "sha256": "67224cb05df22657f9782484aace4f352f2c86cb2d274cb5c35510430ad7c0c9"
+    },
+    {
+      "package": "snapback2",
+      "path": "dist/store/sqlite-driver.conformance.d.ts",
+      "size": 387,
+      "mode": 420,
+      "sha256": "f289806fee31975955fc16a721924548e008d2646d7a9a2914183ae563eb8594"
+    },
+    {
+      "package": "snapback2",
+      "path": "dist/store/sqlite-driver.d.ts",
+      "size": 877,
+      "mode": 420,
+      "sha256": "ca8186b041d1a98a62dca46f396a5f0027c5735183cdec4b925d0297ba4246c6"
+    },
+    {
+      "package": "snapback2",
+      "path": "dist/store/sqlite-expo.d.ts",
+      "size": 206,
+      "mode": 420,
+      "sha256": "d677efa86e8fb3d044502cd845952dcdefb59a7d529171517205b2e36772078e"
+    },
+    {
+      "package": "snapback2",
+      "path": "dist/store/sqlite.d.ts",
+      "size": 1672,
+      "mode": 420,
+      "sha256": "e577a02879357495c5ac653d1f66edddbaae0e894f778bf05cfc9e14353a0dc6"
+    },
+    {
+      "package": "snapback2",
+      "path": "dist/templates/chat/expo/app.json",
+      "size": 305,
+      "mode": 420,
+      "sha256": "ad5ace68ecd0f82e562d33f27af2c10602892aad5b923054b13e25a657dfbe74"
+    },
+    {
+      "package": "snapback2",
+      "path": "dist/templates/chat/expo/App.tsx",
+      "size": 1371,
+      "mode": 420,
+      "sha256": "d6dbff9f99632f2e6ef174829072b0f5f74fd6f6748e6ef26476ad98c01e6e6b"
+    },
+    {
+      "package": "snapback2",
+      "path": "dist/templates/chat/expo/index.js",
+      "size": 99,
+      "mode": 420,
+      "sha256": "af10e01cf5fa6d399a83829926cc80d935c1dca8fb01313ab7cb54aab84c028b"
+    },
+    {
+      "package": "snapback2",
+      "path": "dist/templates/chat/expo/shared/log.js",
+      "size": 4010,
+      "mode": 420,
+      "sha256": "37ae65c8d755e5fb9a793c415a7a116b499628ccbd8946d6c25d954a6a5cc37b"
+    },
+    {
+      "package": "snapback2",
+      "path": "dist/templates/chat/expo/shared/log.ts",
+      "size": 6454,
+      "mode": 420,
+      "sha256": "7a3fe9c8461bd98166d69832b65ab6054e49ccb9c98a00be315f13ac4f87f5aa"
+    },
+    {
+      "package": "snapback2",
+      "path": "dist/templates/chat/expo/shared/offline.js",
+      "size": 1346,
+      "mode": 420,
+      "sha256": "3fc8f970044627aab41d2c7a4f079c9d6cfeab303715f4955400cad89770afa2"
+    },
+    {
+      "package": "snapback2",
+      "path": "dist/templates/chat/expo/shared/offline.ts",
+      "size": 1608,
+      "mode": 420,
+      "sha256": "04d78283ba4ba52228d8a1ddcb1ca9758242358694d31e6c6e809eaf20333fd6"
+    },
+    {
+      "package": "snapback2",
+      "path": "dist/templates/chat/expo/src/Chat.tsx",
+      "size": 1242,
+      "mode": 420,
+      "sha256": "1c4c152710915dc142a9ceb129c1ddf729808db5e8c6648784a99104c22cfae8"
+    },
+    {
+      "package": "snapback2",
+      "path": "dist/templates/chat/expo/src/Composer.tsx",
+      "size": 2213,
+      "mode": 420,
+      "sha256": "29173755ededf6c9593682132b64ab7c1e64f47ed7aec2c960acf5cd9f9545da"
+    },
+    {
+      "package": "snapback2",
+      "path": "dist/templates/chat/expo/src/MediaView.tsx",
+      "size": 1639,
+      "mode": 420,
+      "sha256": "adb2c30346bf7e86607b80ce9b0b5e541e5826bd373ff13f2edb5b38e57eb947"
+    },
+    {
+      "package": "snapback2",
+      "path": "dist/templates/chat/expo/src/screens/Inbox.tsx",
+      "size": 675,
+      "mode": 420,
+      "sha256": "f72af0b86e4a57dd5b9b8c65b1a28cd6de7c2a7321963bce60791215cb0b6ec1"
+    },
+    {
+      "package": "snapback2",
+      "path": "dist/templates/chat/expo/src/screens/Search.tsx",
+      "size": 672,
+      "mode": 420,
+      "sha256": "476beab04341b6fe017bc37b8a7d92c7b85de99cf8fb4d0dad2dba660866735b"
+    },
+    {
+      "package": "snapback2",
+      "path": "dist/templates/chat/expo/src/screens/Thread.tsx",
+      "size": 1931,
+      "mode": 420,
+      "sha256": "1d04683a10e7ffdfdc9adcd0085981d0358f2f430c02db888a6e70337bad73b4"
+    },
+    {
+      "package": "snapback2",
+      "path": "dist/templates/chat/expo/src/witness-state.ts",
+      "size": 4398,
+      "mode": 420,
+      "sha256": "6c021e679738bc152059ace701d5276023732d654162a1902cbefcf2b6e2f40c"
+    },
+    {
+      "package": "snapback2",
+      "path": "dist/templates/chat/expo/src/Witness.tsx",
+      "size": 8426,
+      "mode": 420,
+      "sha256": "8450b82ef7699811d96591385201e0c783c72b03c69f1e6d63c33b9b8866a1ba"
+    },
+    {
+      "package": "snapback2",
+      "path": "dist/templates/chat/expo/tsconfig.json",
+      "size": 172,
+      "mode": 420,
+      "sha256": "bbced9c08dff779a942114c75fd5209c6d1f1b669392a05e6e82cb60ade9c5be"
+    },
+    {
+      "package": "snapback2",
+      "path": "dist/templates/chat/react/index.html",
+      "size": 271,
+      "mode": 420,
+      "sha256": "733ae95dfcba812c06ebfedd7faba00a70987acc4b781953284005cb77d9713a"
+    },
+    {
+      "package": "snapback2",
+      "path": "dist/templates/chat/react/shared/log.js",
+      "size": 4010,
+      "mode": 420,
+      "sha256": "37ae65c8d755e5fb9a793c415a7a116b499628ccbd8946d6c25d954a6a5cc37b"
+    },
+    {
+      "package": "snapback2",
+      "path": "dist/templates/chat/react/shared/log.ts",
+      "size": 6454,
+      "mode": 420,
+      "sha256": "7a3fe9c8461bd98166d69832b65ab6054e49ccb9c98a00be315f13ac4f87f5aa"
+    },
+    {
+      "package": "snapback2",
+      "path": "dist/templates/chat/react/shared/offline.js",
+      "size": 1346,
+      "mode": 420,
+      "sha256": "3fc8f970044627aab41d2c7a4f079c9d6cfeab303715f4955400cad89770afa2"
+    },
+    {
+      "package": "snapback2",
+      "path": "dist/templates/chat/react/shared/offline.ts",
+      "size": 1608,
+      "mode": 420,
+      "sha256": "04d78283ba4ba52228d8a1ddcb1ca9758242358694d31e6c6e809eaf20333fd6"
+    },
+    {
+      "package": "snapback2",
+      "path": "dist/templates/chat/react/src/App.tsx",
+      "size": 1608,
+      "mode": 420,
+      "sha256": "e73f4a548db5b9405c70c4a16a5fdebf6f340c3261d1bd136c6357ad47d8ef82"
+    },
+    {
+      "package": "snapback2",
+      "path": "dist/templates/chat/react/src/Composer.tsx",
+      "size": 2845,
+      "mode": 420,
+      "sha256": "433abeb750f2f4251bb6718af950eaad0ddd3c0cbc49bd624b68a58f8dd85a57"
+    },
+    {
+      "package": "snapback2",
+      "path": "dist/templates/chat/react/src/env.d.ts",
+      "size": 79,
+      "mode": 420,
+      "sha256": "e36e1cd6ad438964910403b47a4b744d28c27aaa5dbc6baa0ebbf3ab8d19641a"
+    },
+    {
+      "package": "snapback2",
+      "path": "dist/templates/chat/react/src/Inbox.tsx",
+      "size": 839,
+      "mode": 420,
+      "sha256": "f0c9d196b4f0377ccb3a802bbee44f633a760b1a4e08714c5cf3a2486d5b1e4f"
+    },
+    {
+      "package": "snapback2",
+      "path": "dist/templates/chat/react/src/main.tsx",
+      "size": 933,
+      "mode": 420,
+      "sha256": "64c63bb7afd2b7cc26e1ffa103457dd6e524c3619edbbc680e8b4dcf0fccc413"
+    },
+    {
+      "package": "snapback2",
+      "path": "dist/templates/chat/react/src/Search.tsx",
+      "size": 1085,
+      "mode": 420,
+      "sha256": "6778fa51fbffd243ef1e8f04fc125cc3c361c38ed7100795354b3bacc426c0c5"
+    },
+    {
+      "package": "snapback2",
+      "path": "dist/templates/chat/react/src/Thread.tsx",
+      "size": 5466,
+      "mode": 420,
+      "sha256": "0ffccc8d9be97a5cb871b707056606a9eea00faf4986fb5ae3a04f4cf3762dcb"
+    },
+    {
+      "package": "snapback2",
+      "path": "dist/templates/chat/shared/log.js",
+      "size": 4010,
+      "mode": 420,
+      "sha256": "37ae65c8d755e5fb9a793c415a7a116b499628ccbd8946d6c25d954a6a5cc37b"
+    },
+    {
+      "package": "snapback2",
+      "path": "dist/templates/chat/shared/log.ts",
+      "size": 6454,
+      "mode": 420,
+      "sha256": "7a3fe9c8461bd98166d69832b65ab6054e49ccb9c98a00be315f13ac4f87f5aa"
+    },
+    {
+      "package": "snapback2",
+      "path": "dist/templates/chat/shared/offline.js",
+      "size": 1346,
+      "mode": 420,
+      "sha256": "3fc8f970044627aab41d2c7a4f079c9d6cfeab303715f4955400cad89770afa2"
+    },
+    {
+      "package": "snapback2",
+      "path": "dist/templates/chat/shared/offline.ts",
+      "size": 1608,
+      "mode": 420,
+      "sha256": "04d78283ba4ba52228d8a1ddcb1ca9758242358694d31e6c6e809eaf20333fd6"
+    },
+    {
+      "package": "snapback2",
+      "path": "dist/templates/chat/snapback/deliveries.q",
+      "size": 2437,
+      "mode": 420,
+      "sha256": "765a7807e84f358926bb304477c2479d797b8aec3483a8305cf7290f0427c498"
+    },
+    {
+      "package": "snapback2",
+      "path": "dist/templates/chat/snapback/delivery.ts",
+      "size": 1148,
+      "mode": 420,
+      "sha256": "ad73441f683c6a6024f8b54f0ea23dc037c01a89aa24364f2aec6d50d666a528"
+    },
+    {
+      "package": "snapback2",
+      "path": "dist/templates/chat/snapback/feeds.q",
+      "size": 424,
+      "mode": 420,
+      "sha256": "bfe02e3eec0c441572bc2215d51eb41b8262119590e28eb4febc3cfd1d39008b"
+    },
+    {
+      "package": "snapback2",
+      "path": "dist/templates/chat/snapback/follows.q",
+      "size": 413,
+      "mode": 420,
+      "sha256": "4e5faec00894e94c1c860bb9d21dde330c665767276bb7dc7372ef59b78c73f0"
+    },
+    {
+      "package": "snapback2",
+      "path": "dist/templates/chat/snapback/groups.q",
+      "size": 2117,
+      "mode": 420,
+      "sha256": "f6d1b3325d3aec1ffb63cd70fd3de39a70be2c55d3982081125b4202bc06c381"
+    },
+    {
+      "package": "snapback2",
+      "path": "dist/templates/chat/snapback/messages.q",
+      "size": 2227,
+      "mode": 420,
+      "sha256": "cd698245480cbbe1fae20375bdb4607dd1a03886aa10320fd7c2f968a4628406"
+    },
+    {
+      "package": "snapback2",
+      "path": "dist/templates/chat/snapback/notifications.q",
+      "size": 184,
+      "mode": 420,
+      "sha256": "02cf8894ae5ed7d28ea8e56e7258dbc7e973f5ae6f253eadd7e34e94d2fa7347"
+    },
+    {
+      "package": "snapback2",
+      "path": "dist/templates/chat/snapback/posts.q",
+      "size": 208,
+      "mode": 420,
+      "sha256": "683a4ab4e9733e88ad2f387d95d5a525725b1917dd79401ede09721b8d7a0df6"
+    },
+    {
+      "package": "snapback2",
+      "path": "dist/templates/chat/snapback/profiles.q",
+      "size": 919,
+      "mode": 420,
+      "sha256": "dc474dc4b739bd5346efb98d4bbfbc10850a91aa1833ae911aa5adf11af03e53"
+    },
+    {
+      "package": "snapback2",
+      "path": "dist/templates/chat/snapback/schema.q",
+      "size": 3962,
+      "mode": 420,
+      "sha256": "f4625d0f8a45175536ee3cd26f013df6da4fa91a5c6697391b509b09616e8e04"
+    },
+    {
+      "package": "snapback2",
+      "path": "dist/templates/chat/snapback/seed.ts",
+      "size": 2593,
+      "mode": 420,
+      "sha256": "669b7f9c19209d59f5cbda0b9798ac2929a9117784c12cdedea36284cd774436"
+    },
+    {
+      "package": "snapback2",
+      "path": "dist/templates/chat/snapback/tests/chat.test.ts",
+      "size": 43787,
+      "mode": 420,
+      "sha256": "73b5c728d98c10e0fee67eda8e288777868f4bb4f6603fd0c3c69d05d7d504f9"
+    },
+    {
+      "package": "snapback2",
+      "path": "dist/templates/react/index.html",
+      "size": 266,
+      "mode": 420,
+      "sha256": "6356b58a8c2c0743e542edb7cfb07899305ccff43510d574fedaedd983fc4c7c"
+    },
+    {
+      "package": "snapback2",
+      "path": "dist/templates/react/src/App.tsx",
+      "size": 164,
+      "mode": 420,
+      "sha256": "de2882330cd9d448ade3fe848df227493e0206245b4f9a8061d69ddf4e77509f"
+    },
+    {
+      "package": "snapback2",
+      "path": "dist/templates/react/src/main.tsx",
+      "size": 773,
+      "mode": 420,
+      "sha256": "ad4a5c70d42ebf22c1cba44805aaf7ed38f823fc41e23609b20fb19b17210322"
+    },
+    {
+      "package": "snapback2",
+      "path": "dist/templates/todos/snapback/schema.q",
+      "size": 212,
+      "mode": 420,
+      "sha256": "2f6dcba63d81eb0d4cc87baf951a863852f21a46d581011d72d1eee7c2f6d0f1"
+    },
+    {
+      "package": "snapback2",
+      "path": "dist/templates/todos/snapback/seed.ts",
+      "size": 204,
+      "mode": 420,
+      "sha256": "dc7823a5d1260b70af913acdb7c619c6d60d4fbf3c8d213e42f44c45f94c6882"
+    },
+    {
+      "package": "snapback2",
+      "path": "dist/templates/todos/snapback/tests/todos.test.ts",
+      "size": 560,
+      "mode": 420,
+      "sha256": "c3916dc63af647da48bbc1900657d4c4e9028923772dbf1853dbbea352e41cdc"
+    },
+    {
+      "package": "snapback2",
+      "path": "dist/templates/todos/snapback/todos.q",
+      "size": 165,
+      "mode": 420,
+      "sha256": "bacc72cee40548f50c8fd20b99ddb03f3d8ff9b0448fefe68713be3e356e04ca"
+    },
+    {
+      "package": "snapback2",
+      "path": "dist/test-runner.mjs",
+      "size": 399410,
+      "mode": 420,
+      "sha256": "9d6b7345fcfca5d3ec7e1ebc7d193e8bca50225f0e1e4471dd3f6c578b375499"
+    },
+    {
+      "package": "snapback2",
+      "path": "dist/test-runner.mjs.map",
+      "size": 849297,
+      "mode": 420,
+      "sha256": "9fdf997b9f815cec8ba37d9665f6d078a57b0e18f608dccaeb7a864a1e4100e7"
+    },
+    {
+      "package": "snapback2",
+      "path": "dist/test.d.ts",
+      "size": 1205,
+      "mode": 420,
+      "sha256": "ba89076c8027917233762710e2c4e4dae86dba7bb62f7fffb9d38ae3e9f9cc7e"
+    },
+    {
+      "package": "snapback2",
+      "path": "dist/test.mjs",
+      "size": 399403,
+      "mode": 420,
+      "sha256": "6ee87ae444bb5fbb1ef3443fde4b612f3c8a7a4d4fa2fff1f9f4db6f9be3195d"
+    },
+    {
+      "package": "snapback2",
+      "path": "dist/test.mjs.map",
+      "size": 849297,
+      "mode": 420,
+      "sha256": "9fdf997b9f815cec8ba37d9665f6d078a57b0e18f608dccaeb7a864a1e4100e7"
+    },
+    {
+      "package": "snapback2",
+      "path": "dist/token-store.d.ts",
+      "size": 498,
+      "mode": 420,
+      "sha256": "db0fd9b01851eb8fcab8f26f20f5a8c7ca125c395236235697b817a617a3712c"
+    },
+    {
+      "package": "snapback2",
+      "path": "dist/twin-hydrate.d.ts",
+      "size": 2022,
+      "mode": 420,
+      "sha256": "06d51350597125a15027662246ced7437c14388cb1654042b96f2707a3b10dda"
+    },
+    {
+      "package": "snapback2",
+      "path": "dist/twin.d.ts",
+      "size": 3318,
+      "mode": 420,
+      "sha256": "e333d605d5920a6ab42f1ecc0abfe456c43fe485795dd077481775e80a40358b"
+    },
+    {
+      "package": "snapback2",
+      "path": "dist/types.d.ts",
+      "size": 18787,
+      "mode": 420,
+      "sha256": "5f2a7d7f7fd796cc5ff6119a4ecd18f4930b9dcad666bc8acb30b69249d6bd97"
+    },
+    {
+      "package": "snapback2",
+      "path": "dist/unicode-LICENSE.txt",
+      "size": 1995,
+      "mode": 420,
+      "sha256": "e7a93b009565cfce55919a381437ac4db883e9da2126fa28b91d12732bc53d96"
+    },
+    {
+      "package": "snapback2",
+      "path": "dist/witness-test.mjs",
+      "size": 16117,
+      "mode": 420,
+      "sha256": "d3a49932f6de25d6533dc5975eb9a787de742f89e46ba92e94de082e13b2c6b8"
+    },
+    {
+      "package": "snapback2",
+      "path": "dist/witness-test.mjs.map",
+      "size": 54012,
+      "mode": 420,
+      "sha256": "cf810327b5b9270e0c05c4141e28924c79d87726aa47fae7ad678b3123fa49af"
+    },
+    {
+      "package": "snapback2",
+      "path": "expo-module.config.json",
+      "size": 179,
+      "mode": 420,
+      "sha256": "7613bacf02f6f57c0597d694c328ad8d76fe45f352013c52b274ddc36148ef27"
+    },
+    {
+      "package": "snapback2",
+      "path": "ios/MemoryVideoSource.swift",
+      "size": 1461,
+      "mode": 420,
+      "sha256": "0f8800aa34aa5877d502543f8f3b0e89818171962680405663988f5e8f3e8667"
+    },
+    {
+      "package": "snapback2",
+      "path": "ios/SnapbackMemoryVideo.podspec",
+      "size": 716,
+      "mode": 420,
+      "sha256": "63056cfbc843ad0287c65b8165c1a1930b0c361b13b7ddad004a883179bef3b0"
+    },
+    {
+      "package": "snapback2",
+      "path": "ios/SnapbackMemoryVideoModule.swift",
+      "size": 3459,
+      "mode": 420,
+      "sha256": "8abf764b437b285f0fdefa2a63a35d2fb64c3f9700a2742a360331409d683fb3"
+    },
+    {
+      "package": "snapback2",
+      "path": "package.json",
+      "size": 2865,
+      "mode": 420,
+      "sha256": "965abb05609bc08050a6cfa766f9b8cb84150c7c7d0718402aaab5fad47ba8c6"
+    }
+  ],
+  "count": 154,
+  "proof": "Original npm pack JSON file inventory joined to the completed isolated installed byte-equality verification; no second installed audit."
+}

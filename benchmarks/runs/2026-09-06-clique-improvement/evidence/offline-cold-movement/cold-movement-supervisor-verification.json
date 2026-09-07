@@ -1,0 +1,57 @@
+{
+  "utc": "2026-09-07T02:21:32.991116+00:00",
+  "source": "cb578e197535290d9c3c7394246584e12459e77a",
+  "sourceCopiesVerified": 97,
+  "errors": [],
+  "checks": {
+    "initialUnchanged": true,
+    "programUnchanged": true,
+    "allMatchingReadPlanHash": true,
+    "allAccepted": true,
+    "controlWarmCold": true,
+    "twoMoveWarmPartialColdCapped": true,
+    "coldTenthAt100": true,
+    "retainedLimit": true
+  },
+  "executionRecord": {
+    "name": "movement-corrected",
+    "command": [
+      "/Users/ccheever/.bun/bin/bun",
+      "/Users/ccheever/clique-improvement/lanes/search-twin/r8-bound-exhaustion/movement-corrected.ts"
+    ],
+    "cwd": "/Users/ccheever/projects/snapback-worktrees/clique-search-twin",
+    "pid": 81793,
+    "exit": 0,
+    "deadlineSeconds": null,
+    "elapsedSeconds": 0.235211667,
+    "ended": "2026-09-07T02:19:15.829453+00:00"
+  },
+  "artifacts": {
+    "cold-movement-finding.md": {
+      "sha256": "906936ae13cadb2dd14611805613ff21f49f0e70e22009b3e727533a9f2a7fc3",
+      "bytes": 2277
+    },
+    "movement-corrected.ts": {
+      "sha256": "46389c622125b67120cfdcb13c1953897eeecbdcdb79cb2e8150ddbb126dcc8b",
+      "bytes": 2319
+    },
+    "movement-corrected-inputs.json": {
+      "sha256": "f2d9d63ce58fd99ad827fab75eb790a1f213d95a8c01e2080da45c3a37c4f151",
+      "bytes": 16482
+    },
+    "movement-corrected.log": {
+      "sha256": "a6894f863e9b23c29ed640ce1409013f2b03ed1a39434d89209353bfdb02da43",
+      "bytes": 12508
+    },
+    "movement-corrected.json": {
+      "sha256": "98e83a8f3ed82bf9d8f97d21dc8de113eb429137513cdd06ca765e3dc07fba38",
+      "bytes": 403
+    },
+    "before-source.json": {
+      "sha256": "9a306fa9afb56a5cddbd4e013aa98f9a083a472bc4fe1616d112a686bc32a546",
+      "bytes": 31512
+    }
+  },
+  "supervisorProductExecutions": 0,
+  "scope": "native initial fixture/program; synthetic later matching-plan authenticated envelope; actual accept/commit; no native emitted movement or public transport claim"
+}

@@ -1,0 +1,24 @@
+{
+  "epoch": 1788747684.472415,
+  "path": "/Users/ccheever/projects/snapback-worktrees/clique-release-next/snapback2/metrics/loop.jsonl",
+  "baseline_rows": 219,
+  "after_rows": 220,
+  "restored_rows": 219,
+  "baseline_sha256": "767df97a4d74b9b954bb9434120da61c08a98a739e1913d1149a534792ffcf8a",
+  "after_sha256": "18d53931eeb1db00f90b9a9d5267385f50e12b32f44d264a060c179d429a79a5",
+  "append_sha256": "31ecb12c345ff19a8083d9a49da79be5f1b6781233ee8e75847d716c00cc2192",
+  "metric": {
+    "at": "2026-09-07T02:16:04.484Z",
+    "publish_s": 88.6,
+    "production_binary_bytes": 7029776,
+    "production_binary_without_engine_bytes": 3812208,
+    "production_binary_with_engine_bytes": 7029776,
+    "production_media_binary_bytes": 2147984,
+    "engine": "ibex2 + vanilla hermes",
+    "dry": true
+  },
+  "proof": "Exact committed baseline equals prior loop-before; after equals baseline plus exactly one JSON line equal to this publisher log metric. Only that own append restored after external full before/after/row retention. All historical bytes/order/row multiplicities unchanged. No other tracked or untracked changes at restoration.",
+  "historical_multiplicity_preserved": true,
+  "post_restore_status": "",
+  "publication_or_metric_push": false
+}

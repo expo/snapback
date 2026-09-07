@@ -1,0 +1,56 @@
+{
+  "attempt": 2,
+  "source": "0fdcc846bc7451bbcb1804194b49737418954506",
+  "status": "QUALIFIED_PREPARATION",
+  "historical_attempt_1": {
+    "status": "NOT-QUALIFIED",
+    "publisher_exit": 1,
+    "elapsed_seconds": 698.7994985,
+    "failure": "chat original 30000ms ETIMEDOUT",
+    "unchanged_evidence": "first-attempt-preservation.json"
+  },
+  "standard_command": [
+    "node",
+    "scripts/publish.mjs",
+    "--dry-run"
+  ],
+  "standard_exit": 0,
+  "standard_elapsed_seconds": 89.344149625,
+  "producer_metric_seconds": 88.6,
+  "standard_terminal": "receipts/production-dry-run.json",
+  "standard_stdout_stderr": "receipts/production-dry-run.log",
+  "media_tests": {
+    "passed": 4,
+    "skipped": 0,
+    "nextest_seconds": 1.029,
+    "source": "receipts/production-dry-run.log"
+  },
+  "production_checks": "Unchanged publisher completed full engine/Hermes, full media, dependency/deployment-floor, staged helper and installed React consumer path. Existing source-bound warm artifacts and permitted codec cache reused.",
+  "react_consumer": "standard-installed-react-consumer.json",
+  "durable_test_receipts": "installed-test-receipts.json",
+  "installed_expo_exit": 0,
+  "installed_expo_seconds": 17.319665124999997,
+  "installed_expo": "installed-expo-verification.json",
+  "installed_guide": "installed-guide-fixes.json",
+  "packed_file_count": 154,
+  "original_bounds": {
+    "consumerStepMs": 30000,
+    "consumerFetchMs": 15000,
+    "consumerRetries": 0,
+    "publisherCommandTimeout": null
+  },
+  "outer_containment_seconds": 1800,
+  "installed_verifier_outer_seconds": 300,
+  "actual_npm_publication": false,
+  "automatic_retries": 0,
+  "source_changes": false,
+  "limitations": [
+    "No native phone/device or full Clique benchmark run.",
+    "No new full test.sh or broad Rust battery claim.",
+    "No fresh registry install/publication or registry convergence claim from dry-run.",
+    "No root main/foreign worktree/remote modification.",
+    "Point capacity observations do not establish global quiet or causal explanation for attempt1 timeout."
+  ],
+  "resume_template": "artifact-receipt.json",
+  "cleanup": "cleanup.json"
+}

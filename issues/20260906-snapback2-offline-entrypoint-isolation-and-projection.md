@@ -22,3 +22,10 @@ Fresh mutually blind full e1c6→cb578 review finds two remaining P2s. Astra rep
 Root authorized shared complete-bound prevalidation before any persistent publication, exact refusal/outbox/reopen controls, and distinct page-value versus exhaustion evidence with deletion/movement, warm/cold and later actual Exhausted controls. Preserve the original native-initial-fixture versus synthetic malformed/queued-overlay boundaries. No native emission or public authorization bypass is claimed by those diagnostics. Repair, final full-delta reviews and integration remain pending; keep this ticket Open.
 
 [Full round 2 reports and evidence](../benchmarks/runs/2026-09-06-clique-improvement/evidence/offline-full-r8-review-r2/README.md). Complete runtime remains 72,709 gzip, 6,709 over 66,000. Original movement failures and current resident qualification remain separate unfinished work.
+
+
+## 2026-09-06 — Cold moved-key uncertainty reproduced
+
+The separate Grok uncertainty now has a bounded exact-cb578 diagnostic. Two later synthetic matching-plan row images move members outside the retained native Limit page. Warm evaluation remains partial, but cold reopen reports capped and selects a moved row ahead of a compatible unheld tail. No/one-move controls remain correct. The initial native program/frame is unchanged; later images are synthetic checked-admission controls, not native-emitted movement. The initial wrong-planHash fixture correctly refused and remains separately preserved.
+
+[Complete diagnostic and source custody](../benchmarks/runs/2026-09-06-clique-improvement/evidence/offline-cold-movement/README.md). Root authorized a narrow repair using existing immutable issuing key/extent proof with retention/GC/replacement/refusal controls. All three demonstrated findings need final repaired-source review; this ticket stays Open. No wire/privateformat/full-row-cache or resource-budget change is implied.

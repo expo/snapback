@@ -1,0 +1,634 @@
+{
+  "program": {
+    "generation": "7a96c3187569ca1f9a3369fb9f297bc40485b38945cfaedd5556f461bf1721a8",
+    "programs": {
+      "clock.fixed": {
+        "certificate": {
+          "bound_product": "clock.range take 10 (+2 reserve) × 1 calls on events = 12",
+          "completeness": "Page",
+          "constraint_checks": [],
+          "derived_scratch_bytes": 0,
+          "derived_steps": 0,
+          "disclosures": [],
+          "evaluator_version": "bounded-spike-rust-search-text-refinements-4",
+          "halo_rows": 1,
+          "indexes_required": [
+            "events.byAt"
+          ],
+          "maintained_amplification": 0,
+          "max_closure_bytes": 2012,
+          "max_examined": 12,
+          "max_heap_bytes": 2048,
+          "max_index_entries": 12,
+          "max_output_bytes": 2059,
+          "max_rule_probes": 0,
+          "max_steps": 64,
+          "plan_hash": "2b9fcb4f7fd169a3ea4f2a710cd027b58fe1d9e310fba783863c7f3f0f4e9d50",
+          "prediction_sites": [],
+          "program": "clock.fixed",
+          "read_sites": [
+            {
+              "complete": false,
+              "decided_true": true,
+              "hoist": true,
+              "index": "byAt",
+              "max_calls": 1,
+              "prefix_template": "Const",
+              "rule_probes_per_candidate": 0,
+              "site": "clock.range",
+              "table": "events",
+              "take": 10
+            }
+          ],
+          "read_time_granularity_ms": 1,
+          "rule_hashes": {
+            "events.read": "75127f113f0cdaab190e505b9cd62b78c7a92d6a43028a5db3d98dcd342c95ca"
+          },
+          "schema_hash": "e19cdc5f988de7a8d6326ad1af251e9b740a8890da3816c6ee823efcf3544243",
+          "tables": {
+            "events": {
+              "retain": "until-revoked"
+            }
+          },
+          "value_model_version": "i53-codepoint-bytes-unicode-search-text-refinements-v5",
+          "write_sites": []
+        },
+        "ir": {
+          "args": {},
+          "body": [
+            {
+              "Return": {
+                "Object": {
+                  "now": {
+                    "Input": "ReadTime"
+                  },
+                  "rows": {
+                    "Scan": {
+                      "after": null,
+                      "before": null,
+                      "index": "byAt",
+                      "merge_site": null,
+                      "order": "Asc",
+                      "prefix": [],
+                      "provenance": "Const",
+                      "range": null,
+                      "site": "clock.range",
+                      "table": "events",
+                      "take": {
+                        "Literal": 10
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          ],
+          "kind": "Query",
+          "name": "clock.fixed",
+          "read_time_granularity_ms": 1
+        },
+        "kind": "query",
+        "planHash": "2b9fcb4f7fd169a3ea4f2a710cd027b58fe1d9e310fba783863c7f3f0f4e9d50"
+      },
+      "clock.read": {
+        "certificate": {
+          "bound_product": "clock.range take 10 (+2 reserve) × 1 calls on events = 12",
+          "completeness": "Page",
+          "constraint_checks": [],
+          "derived_scratch_bytes": 0,
+          "derived_steps": 0,
+          "disclosures": [],
+          "evaluator_version": "bounded-spike-rust-search-text-refinements-4",
+          "halo_rows": 1,
+          "indexes_required": [
+            "events.byAt"
+          ],
+          "maintained_amplification": 0,
+          "max_closure_bytes": 2012,
+          "max_examined": 12,
+          "max_heap_bytes": 2080,
+          "max_index_entries": 12,
+          "max_output_bytes": 2059,
+          "max_rule_probes": 0,
+          "max_steps": 65,
+          "plan_hash": "6cf114cc8cf78b10a652aee9ed78463712e1528c0d4056715773fb498911b637",
+          "prediction_sites": [],
+          "program": "clock.read",
+          "read_sites": [
+            {
+              "complete": false,
+              "decided_true": true,
+              "hoist": true,
+              "index": "byAt",
+              "max_calls": 1,
+              "prefix_template": "Const",
+              "rule_probes_per_candidate": 0,
+              "site": "clock.range",
+              "table": "events",
+              "take": 10
+            }
+          ],
+          "read_time_granularity_ms": 1,
+          "rule_hashes": {
+            "events.read": "75127f113f0cdaab190e505b9cd62b78c7a92d6a43028a5db3d98dcd342c95ca"
+          },
+          "schema_hash": "e19cdc5f988de7a8d6326ad1af251e9b740a8890da3816c6ee823efcf3544243",
+          "tables": {
+            "events": {
+              "retain": "until-revoked"
+            }
+          },
+          "value_model_version": "i53-codepoint-bytes-unicode-search-text-refinements-v5",
+          "write_sites": []
+        },
+        "ir": {
+          "args": {},
+          "body": [
+            {
+              "Return": {
+                "Object": {
+                  "now": {
+                    "Input": "ReadTime"
+                  },
+                  "rows": {
+                    "Scan": {
+                      "after": null,
+                      "before": null,
+                      "index": "byAt",
+                      "merge_site": null,
+                      "order": "Asc",
+                      "prefix": [],
+                      "provenance": "Const",
+                      "range": {
+                        "gt": null,
+                        "gte": null,
+                        "lt": {
+                          "Input": "ReadTime"
+                        },
+                        "lte": null
+                      },
+                      "site": "clock.range",
+                      "table": "events",
+                      "take": {
+                        "Literal": 10
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          ],
+          "kind": "Query",
+          "name": "clock.read",
+          "read_time_granularity_ms": 1
+        },
+        "kind": "query",
+        "planHash": "6cf114cc8cf78b10a652aee9ed78463712e1528c0d4056715773fb498911b637"
+      },
+      "remove": {
+        "certificate": {
+          "bound_product": null,
+          "completeness": "Page",
+          "constraint_checks": [
+            "events:Unique(byId)"
+          ],
+          "derived_scratch_bytes": 0,
+          "derived_steps": 0,
+          "disclosures": [],
+          "evaluator_version": "bounded-spike-rust-search-text-refinements-4",
+          "halo_rows": 1,
+          "indexes_required": [],
+          "maintained_amplification": 0,
+          "max_closure_bytes": 0,
+          "max_examined": 0,
+          "max_heap_bytes": 288,
+          "max_index_entries": 0,
+          "max_output_bytes": 6,
+          "max_rule_probes": 0,
+          "max_steps": 9,
+          "plan_hash": "b7259cd5070a45cb4084a80d3ac7bb2696c1dc1fcf6814fb42f53aaecfb937ca",
+          "prediction_sites": [],
+          "program": "remove",
+          "read_sites": [],
+          "read_time_granularity_ms": null,
+          "rule_hashes": {
+            "events.delete": "75127f113f0cdaab190e505b9cd62b78c7a92d6a43028a5db3d98dcd342c95ca"
+          },
+          "schema_hash": "e19cdc5f988de7a8d6326ad1af251e9b740a8890da3816c6ee823efcf3544243",
+          "tables": {
+            "events": {
+              "retain": "until-revoked"
+            }
+          },
+          "value_model_version": "i53-codepoint-bytes-unicode-search-text-refinements-v5",
+          "write_sites": [
+            {
+              "kind": "Delete",
+              "max_rows": 1,
+              "table": "events"
+            }
+          ]
+        },
+        "ir": {
+          "args": {
+            "id": {
+              "Ref": {
+                "table": "events"
+              }
+            }
+          },
+          "body": [
+            {
+              "Delete": {
+                "key": {
+                  "Variable": "id"
+                },
+                "table": "events"
+              }
+            },
+            {
+              "Return": {
+                "Literal": "Null"
+              }
+            }
+          ],
+          "kind": "Mutation",
+          "name": "remove",
+          "read_time_granularity_ms": null
+        },
+        "kind": "mutation",
+        "planHash": "b7259cd5070a45cb4084a80d3ac7bb2696c1dc1fcf6814fb42f53aaecfb937ca"
+      }
+    },
+    "schema": {
+      "maintains": [],
+      "tables": {
+        "events": {
+          "columns": {
+            "at": "Time",
+            "id": "Id"
+          },
+          "constraints": [],
+          "indexes": {
+            "byAt": {
+              "components": [
+                {
+                  "Column": "at"
+                },
+                {
+                  "Column": "id"
+                }
+              ],
+              "unique": false
+            },
+            "byId": {
+              "components": [
+                {
+                  "Column": "id"
+                }
+              ],
+              "unique": true
+            }
+          },
+          "retain": "until-revoked",
+          "rules": {
+            "delete": "Allow",
+            "insert": "Allow",
+            "read": "Allow",
+            "update": "Allow"
+          }
+        }
+      }
+    },
+    "schemaHash": "e19cdc5f988de7a8d6326ad1af251e9b740a8890da3816c6ee823efcf3544243"
+  },
+  "initial": {
+    "authority": {
+      "authEpoch": 0,
+      "principal": "dev:alice"
+    },
+    "data": {
+      "now": 1788716955206,
+      "rows": [
+        {
+          "$row": {
+            "id": "r0",
+            "table": "events"
+          }
+        },
+        {
+          "$row": {
+            "id": "r1",
+            "table": "events"
+          }
+        },
+        {
+          "$row": {
+            "id": "r2",
+            "table": "events"
+          }
+        },
+        {
+          "$row": {
+            "id": "r3",
+            "table": "events"
+          }
+        },
+        {
+          "$row": {
+            "id": "r4",
+            "table": "events"
+          }
+        },
+        {
+          "$row": {
+            "id": "r5",
+            "table": "events"
+          }
+        },
+        {
+          "$row": {
+            "id": "r6",
+            "table": "events"
+          }
+        },
+        {
+          "$row": {
+            "id": "r7",
+            "table": "events"
+          }
+        },
+        {
+          "$row": {
+            "id": "r8",
+            "table": "events"
+          }
+        },
+        {
+          "$row": {
+            "id": "r9",
+            "table": "events"
+          }
+        }
+      ]
+    },
+    "generation": "7a96c3187569ca1f9a3369fb9f297bc40485b38945cfaedd5556f461bf1721a8",
+    "next": null,
+    "planHash": "2b9fcb4f7fd169a3ea4f2a710cd027b58fe1d9e310fba783863c7f3f0f4e9d50",
+    "protocol": 1,
+    "readTime": 1788716955206,
+    "receipt": {
+      "absences": [],
+      "ranges": [
+        {
+          "absence": false,
+          "after": null,
+          "before": null,
+          "gt": null,
+          "gte": null,
+          "haloId": "halo",
+          "index": "byAt",
+          "lt": null,
+          "lte": null,
+          "order": "Asc",
+          "prefix": [],
+          "rowIds": [
+            "r0",
+            "r1",
+            "r2",
+            "r3",
+            "r4",
+            "r5",
+            "r6",
+            "r7",
+            "r8",
+            "r9"
+          ],
+          "ruleHash": "75127f113f0cdaab190e505b9cd62b78c7a92d6a43028a5db3d98dcd342c95ca",
+          "site": "clock.range",
+          "stop": "Limit",
+          "table": "events",
+          "take": 10
+        }
+      ],
+      "verdicts": []
+    },
+    "rows": [
+      {
+        "id": "halo",
+        "row": {
+          "at": 10,
+          "id": "halo"
+        },
+        "table": "events"
+      },
+      {
+        "id": "r0",
+        "row": {
+          "at": 0,
+          "id": "r0"
+        },
+        "table": "events"
+      },
+      {
+        "id": "r1",
+        "row": {
+          "at": 1,
+          "id": "r1"
+        },
+        "table": "events"
+      },
+      {
+        "id": "r2",
+        "row": {
+          "at": 2,
+          "id": "r2"
+        },
+        "table": "events"
+      },
+      {
+        "id": "r3",
+        "row": {
+          "at": 3,
+          "id": "r3"
+        },
+        "table": "events"
+      },
+      {
+        "id": "r4",
+        "row": {
+          "at": 4,
+          "id": "r4"
+        },
+        "table": "events"
+      },
+      {
+        "id": "r5",
+        "row": {
+          "at": 5,
+          "id": "r5"
+        },
+        "table": "events"
+      },
+      {
+        "id": "r6",
+        "row": {
+          "at": 6,
+          "id": "r6"
+        },
+        "table": "events"
+      },
+      {
+        "id": "r7",
+        "row": {
+          "at": 7,
+          "id": "r7"
+        },
+        "table": "events"
+      },
+      {
+        "id": "r8",
+        "row": {
+          "at": 8,
+          "id": "r8"
+        },
+        "table": "events"
+      },
+      {
+        "id": "r9",
+        "row": {
+          "at": 9,
+          "id": "r9"
+        },
+        "table": "events"
+      }
+    ],
+    "schemaHash": "e19cdc5f988de7a8d6326ad1af251e9b740a8890da3816c6ee823efcf3544243",
+    "seq": 1,
+    "state": "capped",
+    "validator": "065de77b5e334c275d8ac093c39dcd8e7a51fb4e73c1e3a11162b8a6482c0761"
+  },
+  "frames": [
+    {
+      "authority": {
+        "authEpoch": 0,
+        "principal": "dev:alice"
+      },
+      "data": {
+        "now": 1788716955207,
+        "rows": []
+      },
+      "generation": "7a96c3187569ca1f9a3369fb9f297bc40485b38945cfaedd5556f461bf1721a8",
+      "next": null,
+      "planHash": "2b9fcb4f7fd169a3ea4f2a710cd027b58fe1d9e310fba783863c7f3f0f4e9d50",
+      "protocol": 1,
+      "readTime": 1788716955207,
+      "receipt": {
+        "ranges": [],
+        "absences": [],
+        "verdicts": []
+      },
+      "rows": [],
+      "schemaHash": "e19cdc5f988de7a8d6326ad1af251e9b740a8890da3816c6ee823efcf3544243",
+      "seq": 2,
+      "state": "capped",
+      "validator": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+    },
+    {
+      "authority": {
+        "authEpoch": 0,
+        "principal": "dev:alice"
+      },
+      "data": {
+        "now": 1788716955207,
+        "rows": [
+          {
+            "$row": {
+              "table": "events",
+              "id": "r9"
+            }
+          }
+        ]
+      },
+      "generation": "7a96c3187569ca1f9a3369fb9f297bc40485b38945cfaedd5556f461bf1721a8",
+      "next": null,
+      "planHash": "2b9fcb4f7fd169a3ea4f2a710cd027b58fe1d9e310fba783863c7f3f0f4e9d50",
+      "protocol": 1,
+      "readTime": 1788716955207,
+      "receipt": {
+        "ranges": [],
+        "absences": [],
+        "verdicts": []
+      },
+      "rows": [
+        {
+          "id": "r9",
+          "row": {
+            "at": 100,
+            "id": "r9"
+          },
+          "table": "events"
+        }
+      ],
+      "schemaHash": "e19cdc5f988de7a8d6326ad1af251e9b740a8890da3816c6ee823efcf3544243",
+      "seq": 2,
+      "state": "capped",
+      "validator": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+    },
+    {
+      "authority": {
+        "authEpoch": 0,
+        "principal": "dev:alice"
+      },
+      "data": {
+        "now": 1788716955207,
+        "rows": [
+          {
+            "$row": {
+              "table": "events",
+              "id": "r8"
+            }
+          },
+          {
+            "$row": {
+              "table": "events",
+              "id": "r9"
+            }
+          }
+        ]
+      },
+      "generation": "7a96c3187569ca1f9a3369fb9f297bc40485b38945cfaedd5556f461bf1721a8",
+      "next": null,
+      "planHash": "2b9fcb4f7fd169a3ea4f2a710cd027b58fe1d9e310fba783863c7f3f0f4e9d50",
+      "protocol": 1,
+      "readTime": 1788716955207,
+      "receipt": {
+        "ranges": [],
+        "absences": [],
+        "verdicts": []
+      },
+      "rows": [
+        {
+          "id": "r8",
+          "row": {
+            "at": 100,
+            "id": "r8"
+          },
+          "table": "events"
+        },
+        {
+          "id": "r9",
+          "row": {
+            "at": 101,
+            "id": "r9"
+          },
+          "table": "events"
+        }
+      ],
+      "schemaHash": "e19cdc5f988de7a8d6326ad1af251e9b740a8890da3816c6ee823efcf3544243",
+      "seq": 2,
+      "state": "capped",
+      "validator": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+    }
+  ]
+}
