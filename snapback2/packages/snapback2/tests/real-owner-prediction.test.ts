@@ -70,15 +70,15 @@ mutation allocate(principals: [principal] <=49):
     const scenarios = [
       { name: "held", principals: ["heldA", "heldB"], hold: ["heldA", "heldB"], predicted: true, final: [2, 2] },
       { name: "unheld", principals: ["unheldA", "unheldB"], hold: ["unheldA"], predicted: false, final: [2, 2] },
-      // The public zero query currently leaves this conservative: its receipt
-      // carries no count row or absence for the cap fast path to trust.
+      // A cached zero is still a scalar answer. It does not prove absence at
+      // both the canonical ID and unique group address for cap prediction.
       { name: "zero", principals: ["zero"], hold: ["zero"], predicted: false, final: [1] },
       { name: "overflow", principals: ["rollbackA", "full"], hold: ["rollbackA", "full"], predicted: false, final: [1, 3] },
     ];
     for (const scenario of scenarios) {
       const reads: any[] = [];
       let mutations = 0;
-      const client = createClient({ url: local.url, offline: { store: fileRangeStore(join(directory, scenario.name)) },
+      let client = createClient({ url: local.url, offline: { store: fileRangeStore(join(directory, scenario.name)) },
         fetch: async (input, init) => {
           const response = await fetch(input, init);
           const path = new URL(String(input)).pathname;
@@ -99,6 +99,20 @@ mutation allocate(principals: [principal] <=49):
         t.diagnostic(`zero public query receipt: ${JSON.stringify(reads)}`);
       }
       await client.offline();
+      const readsBeforeReopen = reads.length;
+      client = await client.restart();
+      clients.push(client);
+      if (scenario.name === "zero") {
+        const cold = await client.query(api.caps.countFor, { principal: "dev:zero" });
+        assert.equal(cold.state, "complete", "the delivered scalar answer remains cached");
+        assert.equal(cold.data, 0);
+        assert.equal(cold.live, false);
+        assert.ok(cold.stale, "a cached zero is a stale answer, not new group-absence authority");
+      } else {
+        assert.deepEqual(await Promise.all(scenario.hold.map(principal => count(client, principal))), before,
+          "held count rows remain complete after a cold offline carrier reopen");
+      }
+      assert.equal(reads.length, readsBeforeReopen, "cold held counts do not reacquire network evidence");
       const queued = await client.mutation(api.caps.allocate, { principals: scenario.principals.map(principal => `dev:${principal}`) });
       assert.equal(queued.state, "queued");
       assert.equal(mutations, 0, "offline allocation sends no mutation bytes");

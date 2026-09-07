@@ -652,3 +652,57 @@ failure cannot be concealed by a runtime pass, and each failure is diagnosable.
 The shared goal is less application correction and fewer independently owned
 interpretations, not fewer test names. Publication and cold-builder outcomes
 retain their existing qualification requirements.
+
+### Execution disposition — 2026-09-07
+
+The finite compiler reconciliation and touched-export census are recorded in
+LLP 1018.001 §6. They reuse all 32 repair dispositions and correct the final
+integrated source census to net **−7,533** after the 130-line diagnostics port.
+The direct compiler's own integration and qualification remain its lane's work;
+this follow-up neither duplicates it nor marks the Draft child Implemented.
+The real built-worker/copied-package negative typing witness is retained in
+`tests/typing.test.ts`. It verifies the landed generator import repair from
+`87def8b02` and qualifies the ambient-copy build correction from preparation
+candidate `367d263b8`: five typing checks pass, including both declaration
+settings with complete diagnostics.
+
+The zero-count investigation found a concrete two-proof boundary, recorded in
+[the still-open ticket](../issues/20260907-snapback2-public-zero-count-does-not-enable-offline-cap-prediction.md).
+Ordinary maintained-target survivors make group addresses and canonical IDs
+inequivalent. A tested additional primary probe supplied the missing primary
+absence, but the actual cold public client still correctly refused the target
+insert without unique-group absence/coverage. The incomplete optimization was
+removed; public receipt/eviction policy and uniqueness remain intact. The
+existing public witness now covers cold reopen for held, unheld, zero and
+overflow scenarios. Runtime replacement needs both proofs, not a scalar-zero
+shortcut. No store-persistence defect was found at this boundary.
+
+LLP 1018.002 §6 records the bounded invalidation audit: **defer new runtime
+hashes**. A conservative whole-table dependency subset can exclude disconnected
+tables but cannot exclude the changed messages descriptor in the original
+conflict. Stable terminal intents, unsettled replay, held coverage and verdicts
+have different existing identities/fences; no common hash is introduced.
+
+The architecture lane at `13e6de7cc` retains the browser settlement regression
+and its affected Expo/browser qualification. It records 41 passing focused
+supersession cases after certified-fixture repair, while the coherent suite
+and actual browser rerun remain outstanding. This follow-up makes no browser
+repair or lane-wide completion claim. Lifecycle work remains tied to those
+actual transitions; the count investigation adds no lifecycle framework.
+
+The final public cold-reopen witness passes all four scenarios on
+`045598b6a`: held counts predict, unheld/zero counts remain unpredicted,
+reconnect commits admissible allocations and atomically rejects overflow.
+Cold zero displays the owner's stale cached scalar; it grants no new insertion
+authority. The focused command uses a 60-second file allowance and completes
+in 32.59 seconds including owner bootstrap; it is not a pass at the broad
+suite's 10-second file deadline. The fresh [Astra source reviews](./reviews/1018-bounded-execution.astra.md)
+retain both the earlier assumption and its corrected final delta.
+The [broad-run record](../issues/20260901-snapback2-scripts-test-sh-flakes-under.md)
+retains its failures and interruptions; no complete-suite pass is claimed.
+
+After the broad run stopped, a fresh package build and the complete typing
+file passed again: **5/5 in 13.32 seconds**, including both generated-package
+declaration settings. Ref-check and caps passed. These scoped passes support
+the declaration/test delivery; they do not close the zero-count ticket or
+qualify the other architecture lane.

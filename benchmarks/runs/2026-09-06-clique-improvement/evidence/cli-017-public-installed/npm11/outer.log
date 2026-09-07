@@ -1,0 +1,23 @@
+Traceback (most recent call last):
+  File "/Users/ccheever/clique-improvement/revisions/cli-017-default-install-witness-preparation/verify-default-install-ci.py", line 194, in execute
+    code = child.wait(timeout=max(0, 30 - (time.monotonic() - start)))
+  File "/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/lib/python3.9/subprocess.py", line 1189, in wait
+    return self._wait(timeout=timeout)
+  File "/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/lib/python3.9/subprocess.py", line 1909, in _wait
+    raise TimeoutExpired(self.args, timeout)
+subprocess.TimeoutExpired: Command '['/Users/ccheever/clique-improvement/revisions/cli-016-release-qualification/tools/node-24.18.0/bin/node', '/Users/ccheever/clique-improvement/revisions/cli-016-release-qualification/tools/node-24.18.0/lib/node_modules/npm/bin/npm-cli.js', 'install', '--no-audit', '--no-fund', '--fetch-retries=0', '--fetch-timeout=15000', '--save-exact', 'snapback2@0.0.17', 'react@19.1.1']' timed out after 29.894481833 seconds
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/Users/ccheever/clique-improvement/revisions/cli-017-default-install-witness-preparation/verify-default-install-ci.py", line 288, in <module>
+    main()
+  File "/Users/ccheever/clique-improvement/revisions/cli-017-default-install-witness-preparation/verify-default-install-ci.py", line 254, in main
+    execute(out, 'default-install', INSTALL, producer, env, report['checks'])
+  File "/Users/ccheever/clique-improvement/revisions/cli-017-default-install-witness-preparation/verify-default-install-ci.py", line 196, in execute
+    kill_owned_group(record)
+  File "/Users/ccheever/clique-improvement/revisions/cli-017-default-install-witness-preparation/verify-default-install-ci.py", line 85, in kill_owned_group
+    require(current and current == record['processIdentity'], 'process identity unavailable/changed')
+  File "/Users/ccheever/clique-improvement/revisions/cli-017-default-install-witness-preparation/verify-default-install-ci.py", line 36, in require
+    raise RuntimeError(message)
+RuntimeError: process identity unavailable/changed

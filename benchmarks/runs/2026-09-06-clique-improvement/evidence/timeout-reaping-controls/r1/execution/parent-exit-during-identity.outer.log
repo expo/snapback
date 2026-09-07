@@ -1,0 +1,25 @@
+Traceback (most recent call last):
+  File "/Users/ccheever/clique-improvement/revisions/default-install-timeout-race-repair-r1/parent-helper.py", line 194, in execute
+    code = child.wait(timeout=max(0, 30 - (time.monotonic() - start)))
+  File "/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/lib/python3.9/subprocess.py", line 1189, in wait
+    return self._wait(timeout=timeout)
+  File "/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/lib/python3.9/subprocess.py", line 1909, in _wait
+    raise TimeoutExpired(self.args, timeout)
+subprocess.TimeoutExpired: Command '['/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/bin/python3.9', '-I', '-B', '/Users/ccheever/clique-improvement/revisions/default-install-timeout-race-repair-r1/controlled-child.py', '/Users/ccheever/clique-improvement/revisions/default-install-timeout-race-repair-r1/execution/parent-exit-during-identity/ready', '/Users/ccheever/clique-improvement/revisions/default-install-timeout-race-repair-r1/execution/parent-exit-during-identity/gate']' timed out after 0 seconds
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/Users/ccheever/clique-improvement/revisions/default-install-timeout-race-repair-r1/regression.py", line 243, in <module>
+    run_case(sys.argv[3])
+  File "/Users/ccheever/clique-improvement/revisions/default-install-timeout-race-repair-r1/regression.py", line 154, in run_case
+    helper.execute(out, 'probe', argv, out, env, checks)
+  File "/Users/ccheever/clique-improvement/revisions/default-install-timeout-race-repair-r1/parent-helper.py", line 196, in execute
+    kill_owned_group(record)
+  File "/Users/ccheever/clique-improvement/revisions/default-install-timeout-race-repair-r1/parent-helper.py", line 84, in kill_owned_group
+    current = identity(record['pid'])
+  File "/Users/ccheever/clique-improvement/revisions/default-install-timeout-race-repair-r1/regression.py", line 122, in identity
+    exit_during_inspection()
+  File "/Users/ccheever/clique-improvement/revisions/default-install-timeout-race-repair-r1/regression.py", line 97, in exit_during_inspection
+    with select.kqueue() as queue:
+AttributeError: __enter__

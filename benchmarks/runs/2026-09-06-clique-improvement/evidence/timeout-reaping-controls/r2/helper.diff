@@ -1,0 +1,32 @@
+--- /Users/ccheever/clique-improvement/revisions/cli-017-default-install-witness-preparation/verify-default-install-ci.py
++++ /Users/ccheever/clique-improvement/revisions/default-install-timeout-race-repair-r2/candidate-helper.py
+@@ -193,13 +193,26 @@
+         try:
+             code = child.wait(timeout=max(0, 30 - (time.monotonic() - start)))
+         except subprocess.TimeoutExpired:
+-            kill_owned_group(record)
+-            child.wait()
++            # The semantic deadline already failed, regardless of a later actual exit.
+             code = 124
++            record['timedOut'] = True
++            try:
++                if child.poll() is None:
++                    kill_owned_group(record)
++            except Exception as exc:
++                record['cleanupFailure'] = {'type': type(exc).__name__, 'message': str(exc)}
++            try:
++                # Observe only our Popen child; a refused identity is never signaled.
++                child.wait(timeout=2)
++            except subprocess.TimeoutExpired:
++                record['cleanupUnknown'] = True
+     record.update(exitCode=code, actualReturnCode=child.returncode,
+                   elapsedSeconds=time.monotonic() - start, endedEpoch=time.time(), logSha256=digest(log))
++    record['actualProcessWaitCompleted'] = child.returncode is not None
++    record['logComplete'] = record['actualProcessWaitCompleted']
+     write_json(out / 'receipts' / (label + '.json'), record)
+-    running.unlink()
++    if record['actualProcessWaitCompleted']:
++        running.unlink()
+     checks.append(record)
+     require(code == 0, label + ' failed; retain first failure and stop')
+ 

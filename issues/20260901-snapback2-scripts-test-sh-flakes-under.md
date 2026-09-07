@@ -129,3 +129,23 @@ separate execution cost from compiler/build cost while preserving coverage.
 Raw logs and the upstream JUnit record are retained under
 `.llp/ship-runs/20260907-1018-architecture/native-full-{1c79,origin-a75}.*`
 in the coordinating checkout.
+
+## Bounded LLP 1018 audit delivery — 2026-09-07
+
+The unchanged full script ran from the warm local lane on `8756e543f`.
+Package tests reported 232 passes and 19 file cancellations at the unchanged
+10-second deadline. Native compilation took 4m49s; after repeated owner-start
+timeouts and socket `WouldBlock` failures, the owned run was interrupted.
+Nextest reported 78/802 reached, 51 passed, 27 failed (including interrupted
+in-flight tests), 4 skipped, and 724 not run. The offline guide size failure
+reported 4,784 bytes in unchanged source. These observations do not establish
+a single root cause or independently reproduce every failure on the base.
+
+Doctests, compiler type checking, all 218 evaluator cases and both visibility
+checks passed. The compiler regression phase was also interrupted after
+remaining active without a result; the outer script exited 130. This is a
+failed, incomplete broad run, not qualification. No second broad retry or
+weakened suite deadline is claimed. The final delivery changes declarations
+and focused tests, with no native/evaluator/runtime semantic delta. Its
+separate affected checks are recorded in the execution ledger and LLP 1018.
+The full output remains in the ignored local ship-run evidence directory.

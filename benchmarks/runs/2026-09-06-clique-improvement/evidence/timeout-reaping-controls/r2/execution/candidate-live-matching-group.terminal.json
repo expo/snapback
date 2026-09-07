@@ -1,0 +1,24 @@
+{
+  "case": "candidate-live-matching-group",
+  "argv": [
+    "/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/bin/python3.9",
+    "-I",
+    "-B",
+    "/Users/ccheever/clique-improvement/revisions/default-install-timeout-race-repair-r2/regression.py",
+    "--execute-root-approved",
+    "--case",
+    "candidate-live-matching-group"
+  ],
+  "cwd": "/Users/ccheever/clique-improvement/revisions/default-install-timeout-race-repair-r2",
+  "timeoutSeconds": 15,
+  "startedEpoch": 1788819109.814743,
+  "actualReturnCode": 0,
+  "exitCode": 0,
+  "pid": 90019,
+  "processIdentity": "90019 Mon Sep  7 15:11:49 2026     /Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/bin/python3.9",
+  "processGroup": 90019,
+  "actualProcessWaitCompleted": true,
+  "endedEpoch": 1788819110.784729,
+  "elapsedSeconds": 0.9699792920000001,
+  "logSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+}

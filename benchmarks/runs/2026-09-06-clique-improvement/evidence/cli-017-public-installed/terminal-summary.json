@@ -1,0 +1,115 @@
+{
+  "expo": {
+    "tool": 8260,
+    "actualOuterExitCode": 0,
+    "chunk": "01f90f",
+    "actualChildPid": 74166,
+    "actualChildExitCode": 0,
+    "seconds": 77.791084708,
+    "commands": [
+      {
+        "name": "registry-package-install",
+        "pid": 74205,
+        "exitCode": 0,
+        "seconds": 15.850728958,
+        "bound": 30
+      },
+      {
+        "name": "installed-guide-assets",
+        "pid": 74306,
+        "exitCode": 0,
+        "seconds": 0.990201416999998,
+        "bound": 30
+      },
+      {
+        "name": "expo-installed-version",
+        "pid": 74313,
+        "exitCode": 0,
+        "seconds": 0.28746416599999947,
+        "bound": 30
+      },
+      {
+        "name": "expo-installed-doctor",
+        "pid": 74316,
+        "exitCode": 0,
+        "seconds": 0.49108233300000137,
+        "bound": 30
+      },
+      {
+        "name": "expo-installed-media",
+        "pid": 74321,
+        "exitCode": 0,
+        "seconds": 0.6020300829999989,
+        "bound": 30
+      },
+      {
+        "name": "installed-guide-init",
+        "pid": 74326,
+        "exitCode": 0,
+        "seconds": 0.29099454199999997,
+        "bound": 30
+      },
+      {
+        "name": "installed-guide-testing",
+        "pid": 74329,
+        "exitCode": 0,
+        "seconds": 0.40258150000000015,
+        "bound": 30
+      },
+      {
+        "name": "installed-guide-offline",
+        "pid": 74334,
+        "exitCode": 0,
+        "seconds": 0.38676204200000086,
+        "bound": 30
+      },
+      {
+        "name": "expo-installed-init",
+        "pid": 74338,
+        "exitCode": 0,
+        "seconds": 18.865909709,
+        "bound": 30
+      },
+      {
+        "name": "expo-installed-guide-before-check",
+        "pid": 74435,
+        "exitCode": 0,
+        "seconds": 7.821244625000006,
+        "bound": 30
+      },
+      {
+        "name": "expo-installed-check",
+        "pid": 74523,
+        "exitCode": 0,
+        "seconds": 19.195703291999997,
+        "bound": 30
+      },
+      {
+        "name": "expo-installed-guide-after-check",
+        "pid": 74606,
+        "exitCode": 0,
+        "seconds": 4.8513307089999955,
+        "bound": 30
+      }
+    ],
+    "all156PackedFilesEqual": true,
+    "resultSha256": "aed47c997a7550e4ee61a47a3610c99544cfc403c616545bb1c7d72f4f3da36e"
+  },
+  "npm11": {
+    "tool": 65977,
+    "actualOuterExitCode": 1,
+    "chunk": "a1d6aa",
+    "actualChildPid": 74847,
+    "actualChildExitCode": 1,
+    "seconds": 39.815663166,
+    "installPid": 74883,
+    "installExitCode": null,
+    "originalInstallLimit": 30,
+    "failure": "TimeoutExpired followed by cleanup identity unavailable/changed",
+    "ciExecuted": false,
+    "laterOwnedPidAndGroupObservationsEmpty": true,
+    "resultSha256": "359592b6d4b7beaaec1b4ba88042ec1f7062ac732c00869c66f8c7e2fa828719"
+  },
+  "retries": 0,
+  "publicationAlreadyReconciled": "/Users/ccheever/clique-improvement/revisions/cli-017-registry-reconciliation-r1/closure.json"
+}

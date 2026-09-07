@@ -161,6 +161,7 @@ function relativeSite(root: string, path: string): string {
 export function loadCompilerLib(effects = false): string {
   const moduleCandidates = [
     fileURLToPath(new URL("../lib.d.ts", import.meta.url)),
+    fileURLToPath(new URL("./authoring-lib.d.ts", import.meta.url)),
     fileURLToPath(new URL("./index.d.ts", import.meta.url)),
   ];
   const subsetCandidates = effects ? [

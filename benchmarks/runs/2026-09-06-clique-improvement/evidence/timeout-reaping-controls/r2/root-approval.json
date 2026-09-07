@@ -1,0 +1,14 @@
+{
+  "approved": true,
+  "regressionAuthorized": true,
+  "manifestSha256": "ff4af94efee07d421cc66ff0d7e42feecd983fcfb8756d53fc9793c5a7dff939",
+  "at": "2026-09-07T22:11:47.202351+00:00",
+  "scope": "Exactly six frozen controlled cases once; all original bounds unchanged, no npm or017 replay. Preserve r1 first failure. Stop unexpected failure.",
+  "rootReads": [
+    "e4d92e full correction+path diff",
+    "0d6e32 full report+actual closure",
+    "fa1129 independent32file hashes/modes unchanged helpers and workload-only path substitution"
+  ],
+  "priorRootReads": "r1 root-approval.json and full candidate/regression/runner reads retained",
+  "preparationClosure": "native86284+outer80585 actual0 ab45b5"
+}

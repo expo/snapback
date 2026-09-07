@@ -1,0 +1,20 @@
+--- /Users/ccheever/clique-improvement/revisions/default-install-timeout-race-repair-r1/regression.py
++++ /Users/ccheever/clique-improvement/revisions/default-install-timeout-race-repair-r2/regression.py
+@@ -94,13 +94,16 @@
+     def exit_during_inspection():
+         child = owned[0]
+         # Observe actual kernel exit without poll/wait, leaving reaping to execute().
+-        with select.kqueue() as queue:
++        queue = select.kqueue()
++        try:
+             event = select.kevent(child.pid, filter=select.KQ_FILTER_PROC,
+                                  flags=select.KQ_EV_ADD | select.KQ_EV_ENABLE | select.KQ_EV_ONESHOT,
+                                  fflags=select.KQ_NOTE_EXIT)
+             queue.control([event], 0, 0)
+             os.write(gate, b'0')
+             observed = queue.control(None, 1, 3)
++        finally:
++            queue.close()
+         assert len(observed) == 1 and observed[0].fflags & select.KQ_NOTE_EXIT
+         assert child.returncode is None, 'instrumentation must not reap the child'
+         state['exitEventsWithoutReaping'] += 1

@@ -1,0 +1,12 @@
+{
+  "at": "2026-09-07T22:03:59.801110+00:00",
+  "exactOwnedPids": [
+    85711,
+    85724,
+    85739
+  ],
+  "psExit": 1,
+  "stdout": "",
+  "stderr": "",
+  "limits": "Point-in-time liveness only. Outer exit1 and controller child return0 recorded separately; no absence-as-success."
+}

@@ -1,0 +1,18 @@
+{
+  "approved": true,
+  "regressionAuthorized": true,
+  "manifestSha256": "401f6c6a2e51aa51baf52e24649fa7f2cda79411722604a7f37893f2da4fd1c1",
+  "at": "2026-09-07T22:02:56.097882+00:00",
+  "scope": "Exactly six frozen controlled cases once,15s/case100s loop. No npm/release replay, source edits or deployment. Original017 remains failed/unknown npm exit. Stop unexpected failure, preserve receipts.",
+  "rootReads": [
+    "bddc69",
+    "ad8779",
+    "7b3a60",
+    "e20c20",
+    "5acd84",
+    "d1837c",
+    "362f2e"
+  ],
+  "independentHashCheck": "c01a35",
+  "preparationClosure": "supervisor-terminal-identity.json: native+outer0 chunk682db8"
+}

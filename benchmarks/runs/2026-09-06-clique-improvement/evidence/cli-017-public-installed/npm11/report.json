@@ -1,0 +1,59 @@
+{
+  "actualVersionsFromRootBoundReceipt": {
+    "actualVersionReceipt": {
+      "path": "/Users/ccheever/clique-improvement/revisions/cli-016-office-npm11-staging-preparation/execution/staging-report.json",
+      "sha256": "1fe059cc5897d35c59304c28e62b6ba2b3f745a7b9092df2ca5ac83878452304"
+    },
+    "actualVersions": {
+      "node": "24.18.0",
+      "npm": "11.16.0"
+    },
+    "copiedAndVerified": true,
+    "root": "/Users/ccheever/clique-improvement/revisions/cli-016-release-qualification/tools/node-24.18.0"
+  },
+  "artifacts": {
+    "snapback2": {
+      "bytes": 1851961,
+      "integrity": "sha512-dHeqyjAGEGsPQsbY2WcWRG7VjOCzpbIqZh+Du+msbO+ZizCoUqraF6iyykcVwol19Nzry+i0gVJLBvKK5gpyVw==",
+      "path": "/Users/ccheever/projects/snapback-artifacts/clique-release/0.0.17-a606383b6/snapback2-0.0.17.tgz",
+      "sha256": "5f5e0cc751329e27dae02b283de805db9b140372c7ab8db9924e4e13be3cf189"
+    },
+    "snapback2-darwin-arm64": {
+      "bytes": 4824518,
+      "integrity": "sha512-3AtpfedEx+8dltrjedRgGudJ5A0n2YQOqdcSHIYR+onjtIRgrs2rBz498JGpjLZpv/QAHXL2Zbt5kno29eZO2w==",
+      "path": "/Users/ccheever/projects/snapback-artifacts/clique-release/0.0.17-a606383b6/snapback2-darwin-arm64-0.0.17.tgz",
+      "sha256": "951ba61c117b18c7fa6ae7504d6060ac603cc0d0fcf0ca89c8cf45c29243c6bc"
+    }
+  },
+  "boundEvidence": {
+    "publicPairReceipt": "/Users/ccheever/clique-improvement/revisions/cli-017-registry-reconciliation-r1/registry-observation-01.json",
+    "qualificationReceipt": "/Users/ccheever/clique-improvement/revisions/cli-017-dry-preparation/packet/supervisor-terminal-identity.json",
+    "sourceReceipt": "/Users/ccheever/clique-improvement/revisions/cli-017-publication-preparation-r1/source-capsule-receipt.json",
+    "toolCustody": {
+      "distributionLeaves": 5773,
+      "donorManifestSha256": "4173c7e4140a9183ae9c00466b0a56553affa879a324541b34f03e139d3778e8",
+      "independentInodes": true,
+      "node": {
+        "path": "/Users/ccheever/clique-improvement/revisions/cli-016-release-qualification/tools/node-24.18.0/bin/node",
+        "sha256": "ee6fb0e015284d83a91e8ec5213f43a157f8a392b58555301682892ba928c04a"
+      },
+      "npmCli": {
+        "path": "/Users/ccheever/clique-improvement/revisions/cli-016-release-qualification/tools/node-24.18.0/lib/node_modules/npm/bin/npm-cli.js",
+        "sha256": "8e5f6f3429f8cdbe693cdc29904e9d5a7b127a494bd15c804bd54c7403bfcbe7"
+      },
+      "privateCompleteTreeEqual": true
+    }
+  },
+  "checks": [],
+  "endedEpoch": 1788817246.629555,
+  "failure": {
+    "message": "process identity unavailable/changed",
+    "type": "RuntimeError"
+  },
+  "ok": false,
+  "prior015RegularFileCount": 156,
+  "scope": "default public dependency install and exact-lock fresh ci only",
+  "source": "a606383b6e5ad7cf79555bbc4b810d6cf6ea0e92",
+  "startedEpoch": 1788817216.50075,
+  "version": "0.0.17"
+}

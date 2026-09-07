@@ -1410,6 +1410,17 @@ The missing generated `Column` and `RowOfColumns` imports are repaired. Insert a
 
 This removes a silent loss of editor/typechecker protection while preserving result inference. The eleven inherited ambient declaration errors remain a separate repair, and the new imports are not in the already-published 0.0.17 package. No new holistic score follows from this source landing.
 
+
+## 2026-09-07 — Public Expo success and default-install timeout
+
+The fresh public 0.0.17 Expo/guide witness passed all 12 commands and all 156 file comparisons, preserving 26 public operations and the whole generated project. Its total was 77.791 seconds. The separate default npm11 install exceeded 30 seconds; a process-identity cleanup race then prevented an actual install exit receipt, and ci never ran. The npm log says packages were added, but that cannot turn this attempt into a pass. [Complete evidence](../benchmarks/runs/2026-09-06-clique-improvement/evidence/cli-017-public-installed/README.md) retains both results and later owned-process absence without rerunning either witness.
+
+The timeout-reporting helper repair is assigned separately. The original timeout and existing publication timing reds remain; the cause of this slower install is not established. No new benchmark score follows.
+
+## 2026-09-07 — Timeout reporting controls
+
+The install witness could lose its command terminal when npm exited during timeout identity inspection. A narrow helper derivative now keeps the timeout failure separate from the actual child exit. Six controlled tests passed; changed identities receive no helper signal, and unknown receipts remain unknown even when the test controller later observes a clean exit. The first test attempt exposed a Python 3.9 kqueue context-manager incompatibility and is preserved alongside the correction. [Exact evidence](../benchmarks/runs/2026-09-06-clique-improvement/evidence/timeout-reaping-controls/README.md). This improves measurement reliability; it does not explain or fix the slow npm install, qualify 0.0.17 retroactively, or establish a better Clique score. Independent review is pending.
+
 ## 2026-09-07 — Real installed consumers expose a fan-out retirement seam
 
 The LLP 1018.000 candidate30e passes all10 actual Expo checks, including cold
