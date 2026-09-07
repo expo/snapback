@@ -119,6 +119,21 @@ table memberships:
 
 query ordered(group: groups, left: principal, right: principal):
   return exists memberships[group, left] or exists memberships[group, right]
+
+query skippedRead(group: groups, principal: principal):
+  return false and exists memberships[group, principal]
+
+query reachedRead(group: groups, principal: principal):
+  return true and exists memberships[group, principal]
+
+query fieldOrder(group: groups, left: principal, right: principal):
+  return memberships[group, left].principal = memberships[group, right].principal
+
+query refusalOrder(group: groups, n: int, zero: int):
+  return divmod(n, zero).quotient = count(memberships[group] first 1 by byGroupPrincipal)
+
+mutation skippedNew():
+  return false and new = new
 `;
     await withProject({ "snapback/schema.q": schema, "snapback/values.q": values }, async (root) => {
       const paths = ["schema", "values"].map((stem) => join(root, "snapback", `${stem}.q`));
@@ -141,22 +156,81 @@ query ordered(group: groups, left: principal, right: principal):
       const orderedDeclaration = prepared.prepared.documents[1]?.programs[1];
       assert(orderedDeclaration, "direct value fixture has no ordered-read operation");
       const ordered = lowerBoundQuarryProgram(bindQuarryProgram(orderedDeclaration, prepared.prepared.catalog));
-      deepStrictEqual(ordered.body, [
-        { Const: { name: "__operand0", value: { Exists: {
-          site: "values.ordered.0", table: "memberships", index: "byGroupPrincipal",
-          key: [{ Variable: "group" }, { Variable: "left" }], provenance: "Arg",
-        } } } },
-        { Const: { name: "__operand1", value: { Exists: {
-          site: "values.ordered.1", table: "memberships", index: "byGroupPrincipal",
-          key: [{ Variable: "group" }, { Variable: "right" }], provenance: "Arg",
-        } } } },
-        { Return: { Binary: { op: "Or", left: { Variable: "__operand0" }, right: { Variable: "__operand1" } } } },
-      ]);
+      const orderedBody = JSON.stringify(ordered.body);
+      assert(orderedBody.includes('"If"')
+        && orderedBody.indexOf('"values.ordered.0"') < orderedBody.indexOf('"values.ordered.1"'),
+      `ordered direct reads lost short circuiting or lexical site order: ${orderedBody}`);
       const orderedCheck = rustCheck([ordered], "synthetic", oracle.project.schema)[0]!;
       const orderedOracle = rustCheck([operation(oracle.project.programs, "values.ordered")], "synthetic", oracle.project.schema)[0]!;
       assert(!orderedCheck.error && orderedCheck.certificate, `ordered direct program did not certify: ${JSON.stringify(orderedCheck)}`);
       assert(!orderedOracle.error && orderedOracle.certificate, `ordered oracle program did not certify: ${JSON.stringify(orderedOracle)}`);
       deepStrictEqual(orderedCheck.certificate.read_sites, orderedOracle.certificate.read_sites);
+
+      const directProgram = (name: string): Program => {
+        const declaration = prepared.prepared.documents[1]?.programs.find((program) => program.name === name);
+        assert(declaration, `direct value fixture has no ${name} operation`);
+        return lowerBoundQuarryProgram(bindQuarryProgram(declaration, prepared.prepared.catalog));
+      };
+      const checkedProgram = (program: Program): RustCheckResult => {
+        const checked = rustCheck([program], "synthetic", oracle.project.schema)[0]!;
+        assert(!checked.error && checked.certificate, `${program.name} did not certify: ${JSON.stringify(checked)}`);
+        return checked;
+      };
+      const context = (args: Context["args"] = {}): Context => ({
+        viewer: "viewer-1", principal_kind: "user", auth_epoch: 1,
+        args, now: 1, new_ids: [], read_time: 1,
+      });
+      const readArgs = { group: { Id: "group-1" }, principal: { Id: "principal-1" } } satisfies Context["args"];
+      for (const [name, points] of [["skippedRead", 0], ["reachedRead", 1]] as const) {
+        const program = directProgram(name);
+        const checked = checkedProgram(program);
+        const execution = new ClientStore(oracle.project.schema).reexecute(program, context(readArgs), checked.certificate).execution;
+        assert(execution.trace.points.length === points,
+          `${name} executed ${execution.trace.points.length} point reads, expected ${points}: ${JSON.stringify(execution.trace)}`);
+      }
+      const skippedNew = directProgram("skippedNew");
+      const skippedNewCheck = checkedProgram(skippedNew);
+      const skippedNewExecution = new ClientStore(oracle.project.schema)
+        .applyMutation(skippedNew, context(), false, skippedNewCheck.certificate).execution;
+      deepStrictEqual(skippedNewExecution.result, { Bool: false });
+
+      const fieldOrder = directProgram("fieldOrder");
+      const fieldOrderOracle = operation(oracle.project.programs, "values.fieldOrder");
+      const fieldCertificate = checkedProgram(fieldOrder).certificate!;
+      const fieldOracleCertificate = checkedProgram(fieldOrderOracle).certificate!;
+      const receipt: ClosureReceipt = {
+        schema_hash: fieldCertificate.schema_hash as string,
+        rows: [], ranges: [], verdicts: [],
+        absences: [["memberships", "byGroupPrincipal", [{ Id: "group-1" }, { Id: "left-1" }]]],
+      };
+      const fieldArgs = { group: { Id: "group-1" }, left: { Id: "left-1" }, right: { Id: "right-1" } };
+      const fieldExecution = new ClientStore(oracle.project.schema, receipt)
+        .reexecute(fieldOrder, context(fieldArgs), fieldCertificate).execution;
+      const fieldOracleExecution = new ClientStore(oracle.project.schema, receipt)
+        .reexecute(fieldOrderOracle, context(fieldArgs), fieldOracleCertificate).execution;
+      deepStrictEqual(fieldExecution.result, fieldOracleExecution.result);
+      deepStrictEqual(fieldExecution.trace.points.map((point) => point.site), ["values.fieldOrder.0", "values.fieldOrder.1"]);
+
+      const refusalOrder = directProgram("refusalOrder");
+      const refusalOrderOracle = operation(oracle.project.programs, "values.refusalOrder");
+      const refusalCertificate = checkedProgram(refusalOrder).certificate!;
+      const refusalOracleCertificate = checkedProgram(refusalOrderOracle).certificate!;
+      const refusalArgs = { group: { Id: "group-1" }, n: { Int: 1 }, zero: { Int: 0 } };
+      const outcome = (program: Program, certificate: Record<string, unknown>) => {
+        try {
+          new ClientStore(oracle.project.schema).reexecute(program, context(refusalArgs), certificate);
+          return { code: undefined, points: [] as string[], ranges: [] as string[] };
+        } catch (error) {
+          const refusal = error as { code?: string; trace?: { points: Array<{ site: string }>; ranges: Array<{ site: string }> } };
+          return { code: refusal.code,
+            points: refusal.trace?.points.map((point) => point.site) ?? [],
+            ranges: refusal.trace?.ranges.map((range) => range.site) ?? [] };
+        }
+      };
+      const directRefusal = outcome(refusalOrder, refusalCertificate);
+      deepStrictEqual(directRefusal, outcome(refusalOrderOracle, refusalOracleCertificate));
+      assert(directRefusal.code !== undefined && directRefusal.points.length === 0 && directRefusal.ranges.length === 0,
+        `later read ran before the left refusal: ${JSON.stringify(directRefusal)}`);
     });
   });
 

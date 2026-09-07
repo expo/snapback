@@ -59,7 +59,26 @@ function lowerExpression(expression: BoundExpression, lowering: Lowering): Lower
   }
   if (expression.kind === "binary") return lowerBinary(expression, lowering);
   if (expression.kind === "member") {
-    const base = captureObservable(lowerExpression(expression.base, lowering), lowering);
+    const loweredBase = lowerExpression(expression.base, lowering);
+    if (expression.base.facts.presence === "optional") {
+      const baseName = temporary(lowering, "nullableBase");
+      const resultName = temporary(lowering, "nullableMember");
+      return {
+        setup: [
+          ...loweredBase.setup,
+          { Let: { name: baseName, value: loweredBase.value } },
+          { Let: { name: resultName, value: { Literal: "Null" } } },
+          { If: {
+            condition: { Binary: { op: "Ne", left: { Variable: baseName }, right: { Literal: "Null" } } },
+            then_body: [{ Assign: { name: resultName,
+              value: { Field: { base: { Variable: baseName }, name: expression.name } } } }],
+            else_body: [],
+          } },
+        ],
+        value: { Variable: resultName },
+      };
+    }
+    const base = captureObservable(loweredBase, lowering);
     return { setup: base.setup, value: { Field: { base: base.value, name: expression.name } } };
   }
   if (expression.kind === "builtin") {
@@ -94,9 +113,11 @@ function lowerBinary(
       value: { Variable: resultName },
     };
   }
-  if ((expression.op === "And" || expression.op === "Or") && right.setup.length > 0) {
+  if ((expression.op === "And" || expression.op === "Or")
+    && (right.setup.length > 0 || observableEvaluation(right.value))) {
     const leftName = temporary(lowering, "logicalLeft");
     const resultName = temporary(lowering, "logicalResult");
+    const reachedRight = captureObservable(right, lowering);
     const runRight = expression.op === "And"
       ? { Variable: leftName } satisfies Expr
       : { Unary: { op: "Not" as const, value: { Variable: leftName } } } satisfies Expr;
@@ -105,7 +126,8 @@ function lowerBinary(
         ...left.setup,
         { Let: { name: leftName, value: left.value } },
         { Let: { name: resultName, value: { Variable: leftName } } },
-        { If: { condition: runRight, then_body: [...right.setup, { Assign: { name: resultName, value: right.value } }], else_body: [] } },
+        { If: { condition: runRight,
+          then_body: [...reachedRight.setup, { Assign: { name: resultName, value: reachedRight.value } }], else_body: [] } },
       ],
       value: { Variable: resultName },
     };
@@ -237,6 +259,7 @@ function inlineObjectValue(value: Expr): boolean {
 function observableEvaluation(value: unknown): boolean {
   if (!value || typeof value !== "object") return false;
   if ("Input" in value && value.Input === "NewId") return true;
+  if ("Field" in value) return true;
   if (["Get", "Exists", "Scan", "Merge", "Builtin"].some((key) => key in value)) return true;
   if ("Binary" in value && value.Binary && typeof value.Binary === "object"
     && "op" in value.Binary && !["Eq", "Ne"].includes(String(value.Binary.op))) return true;
