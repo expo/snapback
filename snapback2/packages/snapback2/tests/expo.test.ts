@@ -1,5 +1,7 @@
 import assert from "node:assert/strict";
 import { readFile, mkdtemp, rm } from "node:fs/promises";
+import { statSync, realpathSync } from "node:fs";
+import { fileURLToPath } from "node:url";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { createRequire, register } from "node:module";
@@ -151,6 +153,48 @@ test("built native entries exclude node and IndexedDB, share react-core, and shi
   const core = await readFile(new URL("../dist/react-core.mjs", import.meta.url), "utf8");
   assert.match(core, /createContext/);
   assert.doesNotMatch(core, /node:|indexedDB/);
+});
+
+test("Metro resolves browser React before native while retaining native and default entries and types", async () => {
+  const require = createRequire(import.meta.url);
+  const { getDefaultConfig } = require("expo/metro-config");
+  const metroRequire = createRequire(require.resolve("expo/metro-config"));
+  const { resolvePackageTargetFromExports } = metroRequire("metro-resolver/private/PackageExportsResolve");
+  const ts = require("typescript");
+  const root = fileURLToPath(new URL("../", import.meta.url));
+  const pkg = JSON.parse(await readFile(join(root, "package.json"), "utf8"));
+  const { resolver } = getDefaultConfig(root);
+  // SDK 54 scopes react-native to iOS/Android; older/custom Metro configs also
+  // assert it globally, so web can receive BOTH browser and react-native.
+  for (const globalNative of [false, true]) {
+    for (const platform of ["web", "ios", "android", null]) {
+      const conditions = [...resolver.unstable_conditionNames, ...(globalNative ? ["react-native"] : [])];
+      const native = platform !== "web" && (globalNative || platform === "ios" || platform === "android");
+      const expected = native ? "react-native" : "react";
+      const context = {
+        isESMImport: true,
+        unstable_conditionNames: conditions,
+        unstable_conditionsByPlatform: resolver.unstable_conditionsByPlatform,
+        assetExts: new Set(resolver.assetExts),
+        fileSystemLookup(path: string) {
+          try { return { exists: true, type: statSync(path).isFile() ? "f" : "d", realPath: realpathSync(path) }; }
+          catch { return { exists: false }; }
+        },
+      };
+      const label = `${platform ?? "default"}, global native=${globalNative}`;
+      const resolved = resolvePackageTargetFromExports(context, root, "snapback2/react", "react", pkg.exports, platform);
+      assert.equal(resolved.filePath, join(root, `dist/${expected}.mjs`), label);
+      const declarations = ts.resolveModuleName("snapback2/react", join(root, "consumer.ts"), {
+        moduleResolution: ts.ModuleResolutionKind.Bundler,
+        customConditions: [...conditions, ...(resolver.unstable_conditionsByPlatform[platform] ?? [])],
+      }, ts.sys).resolvedModule;
+      assert.equal(declarations?.resolvedFileName, join(root, `dist/${expected}.d.ts`), `${label}: types`);
+    }
+  }
+  const web = await import("../dist/react.mjs");
+  assert.equal(typeof web.indexedDbRangeStore, "function");
+  assert.ok(!("indexedDbRangeStore" in nativeEntry));
+  assert.equal(typeof browserTokenStore, "function", "browser token custody is exported by client");
 });
 
 test("built Expo entry exports every native component and hook by name", () => {

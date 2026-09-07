@@ -118,8 +118,11 @@ const download = useAssetUrl(message.clip, { download: true });
 `AssetImage` measures its rendered box and header-fetches an appropriate image
 rung before creating a blob URL. `AssetVideo` mints one short-lived session
 carrier for its stream URL. React Native resolves the same import through the
-package's `react-native` condition; install `react-native`, `expo-video`, and
-`expo-file-system` in that application.
+package's `react-native` condition. Metro web uses the preceding `browser`
+condition, including when its configuration also asserts `react-native`.
+`indexedDbRangeStore` comes from `snapback2/react` on web;
+`browserTokenStore` comes from `snapback2/client`. For native, install
+`react-native`, `expo-video`, and `expo-file-system` in that application.
 
 Build and run the package tests against a real debug owner from this directory with:
 

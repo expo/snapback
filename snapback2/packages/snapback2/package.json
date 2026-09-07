@@ -15,6 +15,10 @@
       "import": "./dist/client.mjs"
     },
     "./react": {
+      "browser": {
+        "types": "./dist/react.d.ts",
+        "import": "./dist/react.mjs"
+      },
       "react-native": {
         "types": "./dist/react-native.d.ts",
         "import": "./dist/react-native.mjs"
