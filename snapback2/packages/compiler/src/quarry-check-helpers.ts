@@ -3,10 +3,16 @@ import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import ts from "typescript";
-import type { FrontendDiagnostic, Program } from "./ir";
-import { compileQuarry, type QuarryInput } from "./quarry/index";
+import { authoredTypeFromColumn, unknownType, type TableInfo } from "./authored-types";
+import type { FrontendDiagnostic, IndexComponent, Program, SchemaJson } from "./ir";
+import { frontendQuarryDiagnostic, prepareQuarry, type QuarryInput } from "./quarry/index";
+import { tryBindQuarryProject, type BoundQuarryProject } from "./quarry/bound-project";
 
 export type Test = (name: string, run: () => void | Promise<void>) => void;
+
+export type DirectTestCompileResult =
+  | { ok: true; project: BoundQuarryProject }
+  | { ok: false; diagnostics: FrontendDiagnostic[] };
 
 export function compileFixture(fixtures: string, name: string, stems: string[]) {
   const directory = resolve(fixtures, name, "snapback");
@@ -14,14 +20,41 @@ export function compileFixture(fixtures: string, name: string, stems: string[]) 
     const path = resolve(directory, `${stem}.q`);
     return { path, fileName: `snapback/${stem}.q`, source: readFileSync(path, "utf8") };
   });
-  return compileQuarry(inputs);
+  return compileDirect(inputs);
 }
 
 export function compileInline(inputs: Array<{ fileName: string; source: string }>) {
-  return compileQuarry(inputs.map((input) => ({
+  return compileDirect(inputs.map((input) => ({
     ...input,
     path: resolve("/virtual", input.fileName),
   })));
+}
+
+function compileDirect(inputs: QuarryInput[]): DirectTestCompileResult {
+  const prepared = prepareQuarry(inputs);
+  if (!prepared.ok) return prepared;
+  const bound = tryBindQuarryProject(prepared.prepared);
+  return bound.ok ? bound : { ok: false, diagnostics: bound.diagnostics.map(frontendQuarryDiagnostic) };
+}
+
+/** Adapter for legacy TypeScript-lowerer checks that need a table catalog but
+ * no generated Quarry TypeScript. */
+export function directTables(schema: SchemaJson): Map<string, TableInfo> {
+  return new Map(Object.entries(schema.tables).map(([name, table]) => {
+    const direct = table as typeof table & { columns?: Record<string, unknown>;
+      indexes?: Record<string, { components: IndexComponent[]; unique?: boolean }>; rules?: { read?: unknown } };
+    const columns = Object.fromEntries(Object.entries(direct.columns ?? {})
+      .map(([column, type]) => [column, authoredTypeFromColumn(type)]));
+    const indexes = Object.fromEntries(Object.entries(direct.indexes ?? {}).map(([index, declaration]) => [index, {
+      components: declaration.components,
+      types: declaration.components.map((component: IndexComponent) => "Column" in component
+        ? columns[component.Column] ?? unknownType
+        : { kind: "string" as const }),
+      ...(declaration.unique ? { unique: true } : {}),
+    }]));
+    return [name, { name, private: direct.rules?.read !== "Allow", columns, indexes,
+      readRule: direct.rules?.read } satisfies TableInfo];
+  }));
 }
 
 export async function withProject<T>(files: Record<string, string>, run: (root: string) => Promise<T>): Promise<T> {

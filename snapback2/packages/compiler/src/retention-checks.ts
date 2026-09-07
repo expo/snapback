@@ -3,7 +3,6 @@ import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { IR_CONTRACT } from "./ir";
 import { lowerProject } from "./project";
-import { compileQuarry } from "./quarry/index";
 import { lex } from "./quarry/lexer";
 import { parseDocument } from "./quarry/parser";
 
@@ -52,9 +51,6 @@ table historyRows:
       assert(refusal.rewrite.includes("retain until-revoked") && refusal.rewrite.includes("retain delivered-history"),
         `${name} retention refusal lost the two-spelling rewrite: ${refusal.rewrite}`);
       assert(refusal.guide === "quarry/grammar", `${name} retention refusal lost its guide page`);
-      const compiled = compileQuarry([{ path: "/virtual/snapback/schema.q", fileName: "snapback/schema.q", source }]);
-      assert(!compiled.ok && compiled.diagnostics.some((item) => item.code === "E_QUARRY_RETAIN" && item.family === "quarry"),
-        `${name} retention refusal lost the quarry family: ${JSON.stringify(compiled)}`);
     }
   });
 
@@ -66,8 +62,6 @@ table historyRows:
       const parsed = parseDocument(`snapback/${name}.q`, source);
       assert(parsed.diagnostics.some((item) => item.code === "E_QUARRY_SYNTAX"),
         `${name} did not refuse cleanly: ${JSON.stringify(parsed.diagnostics)}`);
-      const compiled = compileQuarry([{ path: `/virtual/snapback/${name}.q`, fileName: `snapback/${name}.q`, source }]);
-      assert(!compiled.ok, `${name} reached emission`);
     }
 
     const subtraction = "query subtract(a: int, b: int):\n  return a-b\n";

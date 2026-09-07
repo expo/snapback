@@ -1,0 +1,200 @@
+import { ClientStore, type ClosureReceipt, type Context } from "../../evaluator/src/evaluator";
+import type { Program } from "./ir";
+import { lowerProject } from "./project";
+import { rustCheck } from "./rust-check";
+import { assert, compileInline, diagnosticsText, operation, withProject, type Test } from "./quarry-check-helpers";
+
+/** Public contracts retained while deleting the generated-TypeScript oracle. */
+export function registerQuarryDirectContractChecks(test: Test): void {
+  test("direct Quarry range modifiers refuse noncanonical order and before with executable rewrites", () => {
+    const schema = "table posts:\n  author: principal\n  at: time\n  by byAuthorAt: author, at, id\n  public\n";
+    for (const item of [
+      { source: "query page(author: principal, c: cursor):\n  return posts[author] by byAuthorAt after c first 3\n",
+        rewrite: "-- posts[author] after c first 3 by byAuthorAt" },
+      { source: "query page(author: principal):\n  return posts[author] first 3 by byAuthorAt by byId\n",
+        rewrite: "-- posts[author] first 3 by byAuthorAt" },
+    ]) {
+      const refused = compileInline([
+        { fileName: "snapback/schema.q", source: schema },
+        { fileName: "snapback/ops.q", source: item.source },
+      ]);
+      const diagnostic = refused.ok ? undefined : refused.diagnostics.find((entry) => entry.code === "E_QUARRY_SYNTAX");
+      assert(diagnostic?.rewrite === item.rewrite, `range modifier rewrite changed: ${JSON.stringify(refused)}`);
+      const repaired = item.source.replace(item.source.split("\n")[1]!.trim().slice("return ".length), item.rewrite.slice(3));
+      const accepted = compileInline([
+        { fileName: "snapback/schema.q", source: schema },
+        { fileName: "snapback/ops.q", source: repaired },
+      ]);
+      assert(accepted.ok, `range modifier rewrite did not bind directly: ${JSON.stringify(accepted)}`);
+    }
+    const before = compileInline([
+      { fileName: "snapback/schema.q", source: schema },
+      { fileName: "snapback/ops.q", source: "query page(author: principal, c: cursor ?):\n  return posts[author] before c last 3 by byAuthorAt\n" },
+    ]);
+    const diagnostic = before.ok ? undefined : before.diagnostics.find((entry) => entry.code === "E_QUARRY_UNSUPPORTED");
+    assert(diagnostic?.site.startsWith("snapback/ops.q:2:") && diagnostic.rewrite.includes("use after c"),
+      `before refusal lost its forward rewrite: ${JSON.stringify(before)}`);
+  });
+
+  test("direct Quarry cursor indexes and pageable merges require a total id suffix", () => {
+    const operations = "query page(c: cursor ?):\n  return posts[] after c first 3 by byAuthorAt\n";
+    const schema = "table posts:\n  author: principal\n  at: time\n  by byAuthorAt: author, at\n  public\n";
+    const refused = compileInline([
+      { fileName: "snapback/schema.q", source: schema },
+      { fileName: "snapback/ops.q", source: operations },
+    ]);
+    const diagnostic = refused.ok ? undefined : refused.diagnostics.find((entry) => entry.code === "E_QUARRY_TYPE");
+    assert(diagnostic?.site.startsWith("snapback/schema.q:") && diagnostic.message.includes("snapback/ops.q:2:")
+      && diagnostic.rewrite === "-- by byAuthorAt: author, at, id",
+    `cursor total-index refusal changed: ${JSON.stringify(refused)}`);
+    if (!diagnostic) throw new Error("cursor total-index refusal had no diagnostic");
+    assert(compileInline([
+      { fileName: "snapback/schema.q", source: schema.replace("by byAuthorAt: author, at", diagnostic.rewrite.slice(3)) },
+      { fileName: "snapback/ops.q", source: operations },
+    ]).ok, "total-index cursor rewrite did not bind");
+
+    const merge = compileInline([
+      { fileName: "snapback/schema.q", source: "table posts:\n  author: principal\n  kind: text <=20\n  unique byActorKind: author, kind\n  public\n" },
+      { fileName: "snapback/ops.q", source: "query feed(c: cursor ?):\n  return merge posts after c first 3 by byActorKind:\n    [viewer]\n" },
+    ]);
+    const mergeDiagnostic = merge.ok ? undefined : merge.diagnostics.find((entry) => entry.code === "E_QUARRY_TYPE");
+    assert(mergeDiagnostic?.site.startsWith("snapback/schema.q:") && mergeDiagnostic.rewrite.includes("author, kind, id"),
+      `pageable merge total-index refusal changed: ${JSON.stringify(merge)}`);
+  });
+
+  test("direct Quarry alternate-key unreadable updates are NOT_FOUND while direct-id updates are E_RULE", async () => {
+    const schema = `table secrets:
+  owner: principal
+  label: text <=40
+  unique byOwner: owner
+  read <- .owner = viewer
+  insert <- allow
+  update <- .owner = viewer
+`;
+    const operations = `mutation alternate(owner: principal, label: text <=40):
+  update secrets[owner] { label }
+  return true
+
+mutation direct(id: secrets, label: text <=40):
+  update secrets[id] { label }
+  return true
+`;
+    await withProject({ "snapback/schema.q": schema, "snapback/ops.q": operations }, async (root) => {
+      const lowered = await lowerProject(root);
+      assert(lowered.ok, `unreadable update pair refused: ${lowered.ok ? "" : diagnosticsText(lowered.diagnostics)}`);
+      const checked = rustCheck(lowered.project.programs, "synthetic", lowered.project.schema);
+      assert(checked.every((entry) => !entry.error && entry.certificate), `unreadable update pair did not certify: ${JSON.stringify(checked)}`);
+      const receipt: ClosureReceipt = {
+        rows: [{ table: "secrets", id: "secret-1", row: { Row: {
+          id: { Id: "secret-1" }, owner: { Id: "owner-1" }, label: { String: "hidden" },
+        } } }], ranges: [], absences: [], verdicts: [],
+      };
+      const executeCode = (program: Program, args: Context["args"]): string => {
+        const context: Context = { viewer: "viewer-1", principal_kind: "user", auth_epoch: 1,
+          args, now: 1, new_ids: [], read_time: 1 };
+        try {
+          new ClientStore(lowered.project.schema, receipt).applyMutation(program, context);
+          return "green";
+        } catch (error) {
+          const refusal = error as { code?: string; authoredCode?: string | null };
+          return refusal.authoredCode ? `${refusal.code}:${refusal.authoredCode}` : refusal.code ?? "unknown";
+        }
+      };
+      assert(executeCode(operation(lowered.project.programs, "ops.alternate"), {
+        owner: { Id: "owner-1" }, label: { String: "changed" },
+      }) === "E_REQUIRE:NOT_FOUND", "alternate-key unreadable update did not return NOT_FOUND");
+      assert(executeCode(operation(lowered.project.programs, "ops.direct"), {
+        id: { Id: "secret-1" }, label: { String: "changed" },
+      }) === "E_RULE", "direct-id unreadable update did not preserve E_RULE");
+    });
+  });
+
+  test("direct Quarry one-hop ref narrowing is branch-only and symbol-scoped", () => {
+    const schema = "table nodes:\n  parent: nodes ?\n  public\n";
+    const accepted = compileInline([
+      { fileName: "snapback/schema.q", source: schema },
+      { fileName: "snapback/ops.q", source: `fn present(value: nodes) = exists nodes[value]
+query good(id: nodes):
+  row = nodes[id]! else MISSING
+  if row.parent != null:
+    return present(row.parent)
+  return false
+` },
+    ]);
+    assert(accepted.ok, `one-hop ref did not narrow in its then branch: ${JSON.stringify(accepted)}`);
+    for (const [name, body] of [
+      ["else", "  if row.parent != null:\n    return true\n  else:\n    return present(row.parent)\n"],
+      ["and", "  return row.parent != null and present(row.parent)\n"],
+      ["shadow", "  if row.parent != null:\n    row = nodes[other]! else OTHER\n    return present(row.parent)\n  return false\n"],
+    ] as const) {
+      const args = name === "shadow" ? "id: nodes, other: nodes" : "id: nodes";
+      const refused = compileInline([
+        { fileName: "snapback/schema.q", source: schema },
+        { fileName: `snapback/${name}.q`, source: `fn present(value: nodes) = exists nodes[value]\nquery bad(${args}):\n  row = nodes[id]! else MISSING\n${body}` },
+      ]);
+      assert(!refused.ok && refused.diagnostics.some((entry) => entry.code === "E_QUARRY_TYPE"),
+        `${name} incorrectly inherited ref narrowing: ${JSON.stringify(refused)}`);
+    }
+  });
+
+  test("direct Quarry recovers channel properties per line", () => {
+    const result = compileInline([{ fileName: "snapback/schema.q", source: `table rows:
+  value: int
+  public
+
+channel updates():
+  broken one
+  alsoBroken two
+  publish <- public
+  subscribe <- public
+  ttl 1s
+` }]);
+    assert(!result.ok && result.diagnostics.filter((entry) => entry.code === "E_QUARRY_SYNTAX"
+      && entry.message.includes("unknown channel property")).length === 2,
+    `channel recovery stopped before both defects: ${JSON.stringify(result)}`);
+  });
+
+  test("direct Quarry where repairs paste into an indexed certified query", async () => {
+    const schema = "table posts:\n  author: principal\n  visible: bool\n  at: time\n  by byAuthorAt: author, at, id\n  public\n";
+    const read = "posts[author = viewer] after c first 2 by byAuthorAt where true = .visible";
+    const source = `query page(c: cursor ?):\n  return ${read}\n`;
+    const refused = compileInline([
+      { fileName: "snapback/schema.q", source: schema },
+      { fileName: "snapback/feed.q", source },
+    ]);
+    const diagnostics = !refused.ok ? refused.diagnostics.filter((entry) => entry.code === "E_QUARRY_UNSUPPORTED") : [];
+    const schemaRepair = diagnostics.find((entry) => entry.site.startsWith("snapback/schema.q:"));
+    const readRepair = diagnostics.find((entry) => entry.site.startsWith("snapback/feed.q:"));
+    assert(schemaRepair?.rewrite === "-- by byAuthorVisibleAt: author, visible, at, id"
+      && readRepair?.rewrite === "-- posts[author = viewer, visible = true] after c first 2 by byAuthorVisibleAt",
+    `where repairs changed: ${JSON.stringify(refused)}`);
+    const repairedSchema = schema.replace("by byAuthorAt: author, at, id", `by byAuthorAt: author, at, id\n  ${schemaRepair.rewrite.slice(3)}`);
+    const repairedSource = source.replace(read, readRepair.rewrite.slice(3));
+    await withProject({ "snapback/schema.q": repairedSchema, "snapback/feed.q": repairedSource }, async (root) => {
+      const lowered = await lowerProject(root);
+      assert(lowered.ok, `where repairs did not bind: ${lowered.ok ? "" : diagnosticsText(lowered.diagnostics)}`);
+      assert(rustCheck(lowered.project.programs, "synthetic", lowered.project.schema).every((entry) => !entry.error),
+        "where repairs did not certify");
+    });
+  });
+
+  test("direct Quarry mutually exclusive writes retain a one-row certified bound", async () => {
+    await withProject({
+      "snapback/schema.q": "table counters:\n  owner: principal\n  value: int\n  insert <- .owner = viewer\n",
+      "snapback/counters.q": `mutation branchWrite(useFirst: bool):
+  if useFirst:
+    insert counters { owner: viewer, value: 1 }
+  else:
+    insert counters { owner: viewer, value: 2 }
+  return null
+`,
+    }, async (root) => {
+      const lowered = await lowerProject(root);
+      assert(lowered.ok, "branch-write fixture refused");
+      const checked = rustCheck([operation(lowered.project.programs, "counters.branchWrite")], "synthetic", lowered.project.schema)[0]!;
+      const sites = checked.certificate?.write_sites as Array<{ table: string; max_rows: number }> | undefined;
+      assert(!checked.error && sites?.some((site) => site.table === "counters" && site.max_rows === 1),
+        `mutually exclusive branch bound changed: ${JSON.stringify(checked)}`);
+    });
+  });
+}

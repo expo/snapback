@@ -3,8 +3,7 @@ import { registerCustodyChecks } from "./capture-custody-checks";
 import assert from "node:assert/strict";
 import { ClientStore } from "../../evaluator/src/store";
 import { lowerSource } from "./compiler";
-import { lowerSchema } from "./lower/schema";
-import { compileInline, type Test } from "./quarry-check-helpers";
+import { compileInline, directTables, type Test } from "./quarry-check-helpers";
 import { repairSchema } from "./capture-repair-checks";
 import type { Value } from "./ir";
 
@@ -131,7 +130,7 @@ export function registerProducerChecks(test: Test, lib: string): void {
   registerCustodyChecks(test);
   registerDomainOperandChecks(test);
   const schema=compileInline([{fileName:"snapback/schema.q",source:repairSchema}]); assert(schema.ok);
-  const tables=lowerSchema(schema.schema.source,"schema.ts",true).tables;
+  const tables=directTables(schema.project.schema);
   test("producer no-op capture preserves F14 bound upsert identity before native certification",()=>{
     for (const [expression,accepted] of [["itemId",true],["ctx.newId()",false]] as const) {
       const source=`import {mutation} from 'snapback2'; declare const records:any;

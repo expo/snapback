@@ -1,25 +1,16 @@
-import { deepStrictEqual } from "node:assert";
 import { existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
-import { ClientStore, scopedRuleHash, type ClosureReceipt, type Context, type Value } from "../../evaluator/src/evaluator";
 import { lowerSource } from "./compiler";
 import { lowerProject } from "./project";
 import { rustCheck } from "./rust-check";
-import { compileQuarry } from "./quarry/index";
-import { expandDocuments } from "./quarry/expand";
 import { parseDocument } from "./quarry/parser";
-import { quarryExpression, quarryShapeDeclaration } from "./quarry/print";
 import {
   assert,
-  compileFixture,
   compileInline,
   diagnosticsText,
-  generatedOperation,
-  occurrences,
   operation,
   type Test,
   withProject,
-  writeKeyNames,
 } from "./quarry-check-helpers";
 import { registerJobChecks } from "./quarry-job-checks";
 import { registerScheduleChecks } from "./quarry-schedule-checks";
@@ -28,6 +19,7 @@ import { registerQuarryDirectMutationChecks } from "./quarry-direct-mutation-che
 import { registerQuarryDirectValidationChecks } from "./quarry-direct-validation-checks";
 import { registerQuarryDirectProjectChecks } from "./quarry-direct-project-checks";
 import { registerQuarryDirectArgumentChecks } from "./quarry-direct-argument-checks";
+import { registerQuarryDirectContractChecks } from "./quarry-direct-contract-checks";
 import { runQuarryBoundApiChecks } from "./quarry-bound-api-checks";
 import { registerQuarryDirectSearchEligibilityChecks } from "./quarry-direct-search-eligibility-checks";
 import { registerQuarryChatCompositionChecks } from "./quarry-chat-composition-checks";
@@ -38,6 +30,7 @@ export function registerQuarryChecks(test: Test, frontend: string): void {
   registerQuarryDirectValidationChecks(test, frontend);
   registerQuarryDirectCoreChecks(test, frontend);
   registerQuarryDirectArgumentChecks(test);
+  registerQuarryDirectContractChecks(test);
   test("bound Quarry API follows direct result and custody facts", runQuarryBoundApiChecks);
   registerQuarryDirectSearchEligibilityChecks(test);
   registerQuarryDirectProjectChecks(test, frontend);
@@ -71,376 +64,10 @@ export function registerQuarryChecks(test: Test, frontend: string): void {
       assert(failures.length === 0, `${name} did not certify: ${JSON.stringify(failures)}`);
       assert(!existsSync(resolve(fixtures, name, "snapback/schema.ts")), `${name} wrote generated schema.ts into the authored tree`);
       assert(!existsSync(resolve(fixtures, name, "snapback/surface.q.ts")), `${name} wrote generated .q.ts into the authored tree`);
-      assert(lowered.quarry.every((item) => item.file.endsWith(".q") && item.generated.endsWith(".ts")
-        && item.source.startsWith("// GENERATED")), `${name} lost its Quarry inspection response`);
+      assert(lowered.quarry.every((item) => item.file.endsWith(".q") && item.generated.endsWith(".ir.json")
+        && ["{", "["].includes(item.source.trimStart()[0] ?? "")), `${name} lost its Quarry inspection response`);
     }
 
-    const compiled = compileFixture(fixtures, "quarry-surface", ["schema", "surface"]);
-    assert(compiled.ok, `surface front end refused: ${compiled.ok ? "" : diagnosticsText(compiled.diagnostics)}`);
-    const text = `${compiled.schema.source}\n${compiled.modules[0]!.source}`;
-    for (const spelling of [
-      "rule.and(", "rule.or(", "rule.not(", "rule.exists(", "channel({", "t.optional(", "t.enum(",
-      "t.principal()", "t.id()", "t.json(2048)", "t.bytes(1024)", "db.upsert(", "orderedPair(",
-      "mentionTokens(", "recurse(", "after:", "__q_matchResult", "db.get(users$table",
-    ]) assert(text.includes(spelling), `Quarry full-surface lowering lost ${spelling}`);
-    for (const line of text.split("\n").filter((line) => line.trim())) {
-      assert(/\/\/ q:.+:\d+:\d+$/.test(line), `generated Quarry line lacks file:line:column provenance: ${line}`);
-    }
-  });
-
-  test("Quarry named shapes expand in every use position and print as authored", async () => {
-    const schema = `table profiles:
-  displayName: text <=80
-  handle: text <=40
-  by byDisplayName: displayName, id
-  public
-
-table posts:
-  author: profiles
-  body: text <=500
-  public
-`;
-    const module = `shape card = { displayName, handle }
-shape labeledCard = { ...card, label: .displayName }
-shape postCard = { body, author: profiles[.author] card }
-
-query direct(id: profiles):
-  return profiles[id] card
-
-query boundRow(id: profiles):
-  row = profiles[id]! else MISSING
-  return row labeledCard
-
-query boundPage():
-  page = profiles[] first 2 by byDisplayName
-  return page card
-
-query nested(id: posts):
-  return posts[id] postCard
-`;
-    const parsed = parseDocument("snapback/cards.q", module);
-    assert(parsed.diagnostics.length === 0, `named-shape source did not parse: ${JSON.stringify(parsed.diagnostics)}`);
-    const expanded = expandDocuments([parsed.document]);
-    const direct = expanded.documents[0]!.programs.find((program) => program.name === "direct")!.body[0]!;
-    assert(direct.kind === "return" && quarryExpression(direct.value) === "(profiles[id]) card",
-      `expanded use did not print the authored shape name: ${direct.kind === "return" ? quarryExpression(direct.value) : direct.kind}`);
-    assert(quarryShapeDeclaration(parsed.document.shapes[1]!) === "shape labeledCard = { ...card, label: .displayName }",
-      "shape declaration printer did not preserve the authored declaration");
-
-    await withProject({ "snapback/schema.q": schema, "snapback/cards.q": module }, async (root) => {
-      const lowered = await lowerProject(root);
-      assert(lowered.ok, `named shapes refused: ${lowered.ok ? "" : diagnosticsText(lowered.diagnostics)}`);
-      const failures = rustCheck(lowered.project.programs, "synthetic", lowered.project.schema).filter((item) => item.error);
-      assert(failures.length === 0, `expanded shapes did not certify: ${JSON.stringify(failures)}`);
-      for (const name of ["cards.direct", "cards.boundRow", "cards.boundPage", "cards.nested"]) {
-        const serialized = JSON.stringify(operation(lowered.project.programs, name));
-        assert(serialized.includes("displayName"), `${name} lost the named projection: ${serialized}`);
-      }
-    });
-  });
-
-  test("Quarry nested named-shape collections isolate expansions and iterations under RBAC and cursors", async () => {
-    // Reduced from the immutable published-m3-check.log, retaining its messageCard and both page contexts.
-    const schema = `table profiles:
-  principal: principal
-  displayName: text <=20
-  handle: text <=20
-  avatar: text <=20
-  visible: bool
-  unique byPrincipal: principal
-  read <- .visible = true
-table conversations:
-  public
-table members:
-  conversation: conversations
-  principal: principal
-  by byPrincipal: principal, id
-  public
-table messages:
-  conversation: conversations
-  sender: principal
-  body: text <=20
-  quote: messages ?
-  at: time
-  by byConversation: conversation, at, id
-  public
-table targets:
-  conversation: conversations
-  message: messages
-  recipient: principal
-  reader: principal
-  membership: members
-  state: text <=10
-  by byConversationMessage: conversation, message, id
-  read <- .reader = viewer
-`;
-    const cards = `shape person = { principal, displayName, handle, avatar }
-shape target = { recipient, state, active: exists members[.membership] }
-shape messageCard = { *, author: profiles[.sender] person, quoted: messages[.quote] { id, body, sender }, targets: targets[.conversation, .id] first 50 by byConversationMessage target }
-`;
-    const queries = `query history(conversation: conversations, c: cursor ?):
-  return messages[conversation] after c last 20 by byConversation messageCard
-query inbox(c: cursor ?):
-  return members[viewer] after c first 2 by byPrincipal { id, recent: messages[.conversation] last 1 by byConversation messageCard }
-query pair(a: messages, b: messages):
-  return { first: messages[a] messageCard, second: messages[b] messageCard }
-`;
-    for (const imported of [false, true]) await withProject({
-      "snapback/schema.q": schema,
-      ...(imported ? { "snapback/cards.q": cards } : {}),
-      "snapback/chats.q": `${imported ? "shape messageCard from cards\n" : cards}${queries}`,
-    }, async (root) => {
-      const lowered = await lowerProject(root);
-      assert(lowered.ok, `nested named collections refused (imported=${imported}): ${lowered.ok ? "" : diagnosticsText(lowered.diagnostics)}`);
-      const { programs, schema: irSchema } = lowered.project;
-      const checked = rustCheck(programs, "synthetic", irSchema);
-      assert(checked.every((item) => !item.error), `nested shapes did not certify: ${JSON.stringify(checked)}`);
-      const certificate = (name: string) => checked.find((item) => item.program === `chats.${name}`)!.certificate;
-      for (const name of ["history", "inbox"]) {
-        const pages = Object.values(certificate(name)!.result_pages as Record<string, { table: string }>);
-        assert(pages.length === 1 && pages[0]!.table === (name === "history" ? "messages" : "members"),
-          `nested targets or recent messages stole ${name}'s cursor: ${JSON.stringify(pages)}`);
-      }
-      assert(!certificate("pair")!.result_pages, "object-nested pages acquired a result cursor");
-      const tooSmall = rustCheck([operation(programs, "chats.history")], "synthetic", irSchema, { examined: 10 });
-      assert(tooSmall[0]?.error, "nested shape reads escaped their resource ceiling");
-      const receipt: ClosureReceipt = { rows: [], ranges: [], verdicts: [],
-        schema_hash: certificate("history")!.schema_hash as string,
-        absences: [["members", "byId", [{ Id: "gone" }]], ["messages", "byId", ["Null"]]],
-      };
-      const add = (table: string, id: string, row: Record<string, Value>) => receipt.rows.push({
-        table, id, row: { Row: { id: { Id: id }, ...row } },
-      });
-      for (const id of ["a", "b"]) {
-        add("conversations", id, {});
-        add("members", id, { conversation: { Id: id }, principal: { Id: "u1" } });
-      }
-      for (const [id, visible] of [["u1", true], ["u2", false]] as const) add("profiles", id, {
-        principal: { Id: id }, displayName: { String: id }, handle: { String: id }, avatar: { String: id }, visible: { Bool: visible },
-      });
-      for (let i = 0; i < 23; i++) {
-        const conversation = { Id: i < 21 ? "a" : "b" };
-        add("messages", `m${i}`, { conversation, sender: { Id: i % 2 ? "u2" : "u1" }, body: { String: `body${i}` },
-          quote: i ? { Id: `m${i - 1}` } : "Null", at: { Int: i } });
-        if (i > 0) add("targets", `t${i}`, { conversation, message: { Id: `m${i}` }, recipient: { Id: `recipient${i}` }, reader: { Id: "u1" },
-          membership: { Id: i % 2 ? "gone" : "a" }, state: { String: i % 2 ? "read" : "sent" } });
-        add("targets", `hidden${i}`, { conversation, message: { Id: `m${i}` }, recipient: { Id: "hidden" }, reader: { Id: "u2" },
-          membership: { Id: "b" }, state: { String: "hidden" } });
-      }
-      for (const table of Object.keys(irSchema.tables as object)) receipt.ranges.push({
-        site: `held.${table}`, table, index: "byId", prefix: [], order: "Asc", take: 100,
-        after: null, before: null, gt: null, gte: null, lt: null, lte: null,
-        rule_hash: scopedRuleHash(irSchema, (irSchema.tables as any)[table].rules.read),
-        row_ids: receipt.rows.filter((row) => row.table === table).map((row) => row.id),
-        stop: "Exhausted", absence: false, halo: null, n2_suffix: null,
-      });
-      const store = new ClientStore(irSchema, receipt);
-      const run = (name: string, args: Context["args"]) => {
-        const replay = store.reexecute(operation(programs, `chats.${name}`), {
-          viewer: "u1", principal_kind: "user", auth_epoch: 1, args, now: 1, new_ids: [], read_time: 1,
-        }, certificate(name));
-        assert(replay.state === "fresh", `fixture lacks coverage for ${name}: ${JSON.stringify(replay.partialSites)}`);
-        return replay.execution;
-      };
-      const expectCard = (value: Value, i: number) => {
-        const card = (value as { Row: Record<string, Value> }).Row;
-        deepStrictEqual(card.id, { Id: `m${i}` });
-        deepStrictEqual(card.targets, { Array: i ? [{ Row: {
-          recipient: { Id: `recipient${i}` }, state: { String: i % 2 ? "read" : "sent" }, active: { Bool: i % 2 === 0 },
-        } }] : [] }, "targets leaked across iterations or RBAC");
-        deepStrictEqual(card.author, i % 2 ? "Null" : { Row: {
-          principal: { Id: "u1" }, displayName: { String: "u1" }, handle: { String: "u1" }, avatar: { String: "u1" },
-        } });
-        deepStrictEqual(card.quoted, i ? { Row: { id: { Id: `m${i - 1}` }, body: { String: `body${i - 1}` },
-          sender: { Id: (i - 1) % 2 ? "u2" : "u1" } } } : "Null");
-      };
-      const first = run("history", { conversation: { Id: "a" }, c: "Null" });
-      const history = (first.result as { Array: Value[] }).Array;
-      assert(history?.length === 20 && first.next, `history page failed: ${JSON.stringify(first)}`);
-      history.forEach((card, n) => expectCard(card, 20 - n));
-      const second = run("history", { conversation: { Id: "a" }, c: { String: first.next } });
-      const remaining = (second.result as { Array: Value[] }).Array;
-      assert(remaining?.length === 1, `history cursor followed a nested page: ${JSON.stringify(second)}`);
-      expectCard(remaining[0]!, 0);
-      const inbox = (run("inbox", { c: "Null" }).result as { Array: Array<{ Row: { recent: { Array: Value[] } } }> }).Array;
-      assert(inbox?.length === 2, "inbox lost a membership");
-      for (const [n, i] of [20, 22].entries()) {
-        assert(inbox[n]!.Row.recent.Array.length === 1, "recent page accumulated a prior iteration");
-        expectCard(inbox[n]!.Row.recent.Array[0]!, i);
-      }
-      const pair = (run("pair", { a: { Id: "m0" }, b: { Id: "m1" } }).result as { Row: Record<string, Value> }).Row;
-      expectCard(pair.first!, 0);
-      expectCard(pair.second!, 1);
-    });
-  });
-
-  test("Quarry named shapes refuse placement, cycles, depth, and carry definition plus use sites", () => {
-    const schema = "table profiles:\n  displayName: text <=80\n  public\n";
-    const placement = compileInline([
-      { fileName: "snapback/schema.q", source: `${schema}\nshape card = { displayName }\n` },
-      { fileName: "snapback/ops.q", source: "query one():\n  return null\n" },
-    ]);
-    assert(!placement.ok && placement.diagnostics.some((item) => item.code === "E_QUARRY_PLACEMENT"),
-      `schema shape did not receive a placement refusal: ${JSON.stringify(placement)}`);
-
-    for (const [name, declarations] of [
-      ["direct", "shape a = { ...a }"],
-      ["indirect", "shape a = { ...b }\nshape b = { ...a }"],
-    ] as const) {
-      const result = compileInline([
-        { fileName: "snapback/schema.q", source: schema },
-        { fileName: `snapback/${name}.q`, source: `${declarations}\nquery use(id: profiles):\n  return profiles[id] a\n` },
-      ]);
-      assert(!result.ok && result.diagnostics.some((item) => item.code === "E_QUARRY_UNSUPPORTED" && item.message.includes("shape cycle")),
-        `${name} shape cycle compiled: ${JSON.stringify(result)}`);
-    }
-
-    const chain = Array.from({ length: 9 }, (_, offset) =>
-      `shape s${offset + 1} = { ${offset === 8 ? "displayName" : `...s${offset + 2}`} }`).join("\n");
-    const deep = compileInline([
-      { fileName: "snapback/schema.q", source: schema },
-      { fileName: "snapback/deep.q", source: `${chain}\nquery use(id: profiles):\n  return profiles[id] s1\n` },
-    ]);
-    assert(!deep.ok && deep.diagnostics.some((item) => item.code === "E_QUARRY_UNSUPPORTED" && item.message.includes("depth 8")),
-      `nine-deep shape compiled: ${JSON.stringify(deep)}`);
-
-    const bad = compileInline([
-      { fileName: "snapback/schema.q", source: schema },
-      { fileName: "snapback/bad.q", source: "shape broken = { missing }\nquery use(id: profiles):\n  return profiles[id] broken\n" },
-    ]);
-    const refusal = bad.ok ? undefined : bad.diagnostics.find((item) => item.code === "E_QUARRY_UNKNOWN");
-    assert(refusal?.site === "snapback/bad.q:1:18" && refusal.message.includes("used at snapback/bad.q:3:"),
-      `expanded diagnostic lost its definition and use sites: ${JSON.stringify(bad)}`);
-
-    for (const keyword of ["shape", "fn", "cursor"]) {
-      const result = compileInline([
-        { fileName: "snapback/schema.q", source: schema },
-        { fileName: "snapback/reserved.q", source: `query bad(${keyword}: int):\n  return ${keyword}\n` },
-      ]);
-      assert(!result.ok && result.diagnostics.some((item) => item.code === "E_QUARRY_UNKNOWN" && item.message.includes("reserved")),
-        `${keyword} was not reserved as a binding: ${JSON.stringify(result)}`);
-    }
-  });
-
-  test("Quarry imported shapes share lexical projections, unique temporaries, and page provenance", async () => {
-    const files = {
-      "snapback/schema.q": `table profiles:
-  displayName: text <=80
-  handle: text <=40
-  friend: profiles ?
-  by byDisplayName: displayName, id
-  public
-`,
-      "snapback/cards.q": `shape card = { displayName }
-shape profileCard = { ...card, friend: .friend card, current: viewer }
-`,
-      "snapback/exports.q": "shape profileCard from cards\n",
-      "snapback/ops.q": `shape profileCard from exports
-shape card = { handle }
-query pair(id: profiles, viewer: principal):
-  row = profiles[id]! else MISSING
-  first = row profileCard
-  second = row profileCard
-  return { first, second }
-query page(c: cursor ?):
-  return profiles[] after c first 2 by byDisplayName profileCard
-`,
-    };
-    const compiled = compileInline(Object.entries(files).map(([fileName, source]) => ({ fileName, source })));
-    assert(compiled.ok, `imported shapes refused: ${compiled.ok ? "" : diagnosticsText(compiled.diagnostics)}`);
-    assert(compiled.modules.length === 1 && compiled.modules[0]!.authored === "snapback/ops.q",
-      "shape-only modules created phantom API modules");
-    await withProject(files, async (root) => {
-      const lowered = await lowerProject(root);
-      assert(lowered.ok, `cross-file/repeated shapes did not lower: ${lowered.ok ? "" : diagnosticsText(lowered.diagnostics)}`);
-      assert(lowered.project.programs.length === 2 && !lowered.apiDts.includes('readonly cards:'),
-        "shape-only modules generated API operations");
-      assert(compiled.modules[0]!.lineMap.some((site) => site?.file === "snapback/cards.q"),
-        "imported reads lost their definition source sites");
-      assert(rustCheck([operation(lowered.project.programs, "ops.page")], "synthetic", lowered.project.schema)[0]?.certificate?.result_pages,
-        "imported page projection lost cursor provenance");
-      const checked = rustCheck(lowered.project.programs, "synthetic", lowered.project.schema);
-      assert(checked.every((item) => !item.error), `imported shapes did not certify: ${JSON.stringify(checked)}`);
-      const store = new ClientStore(lowered.project.schema, {
-        rows: [
-          { table: "profiles", id: "one", row: { Row: {
-            id: { Id: "one" }, displayName: { String: "Alice" }, handle: { String: "alice" }, friend: { Id: "two" },
-          } } },
-          { table: "profiles", id: "two", row: { Row: {
-            id: { Id: "two" }, displayName: { String: "Bob" }, handle: { String: "bob" },
-          } } },
-        ], ranges: [], absences: [], verdicts: [],
-      });
-      const actual = store.reexecute(operation(lowered.project.programs, "ops.pair"), {
-        viewer: "actual-viewer", principal_kind: "user", auth_epoch: 1,
-        args: { id: { Id: "one" }, viewer: { Id: "argument-viewer" } }, now: 1, new_ids: [], read_time: 1,
-      }).execution.result;
-      const projected = { Row: {
-        current: { Id: "actual-viewer" }, displayName: { String: "Alice" }, friend: { Row: { displayName: { String: "Bob" } } },
-      } };
-      assert(JSON.stringify(actual) === JSON.stringify({ Row: { first: projected, second: projected } }),
-        `imported shapes captured a caller binding/shape or reused a temporary: ${JSON.stringify(actual)}`);
-    });
-  });
-
-  test("Quarry imported-shape lowering refusals rewrite the definition and identify its caller", async () => {
-    await withProject({
-      "snapback/schema.q": "table accounts:\n  amount: money USD\n  public\n",
-      "snapback/cards.q": "shape card = { total: .amount + 0.001 }\n",
-      "snapback/ops.q": "shape card from cards\nquery one(id: accounts):\n  return accounts[id] card\n",
-    }, async (root) => {
-      const result = await lowerProject(root);
-      const refusal = !result.ok && result.diagnostics.find((item) => item.code === "E_DECIMAL_SCALE");
-      assert(refusal && refusal.site === "snapback/cards.q:1:16"
-        && refusal.rewrite.startsWith("shape card = { total: .amount + 0.001 }")
-        && refusal.message.includes("used at snapback/ops.q:3:"),
-      `lowering refusal did not point to the imported source: ${JSON.stringify(result)}`);
-    });
-  });
-
-  test("Quarry shape imports refuse missing declarations, cycles, captures, and expansion blowups", () => {
-    const schema = "table profiles:\n  displayName: text <=80\n  public\n";
-    const compile = (files: Record<string, string>) => compileInline([
-      { fileName: "snapback/schema.q", source: schema },
-      ...Object.entries(files).map(([fileName, source]) => ({ fileName, source })),
-    ]);
-    const cases: Array<[string, Record<string, string>, string]> = [
-      ["missing module", { "snapback/ops.q": "shape card from missing\n" }, "unknown shape module missing"],
-      ["missing export", { "snapback/cards.q": "shape other = { displayName }\n", "snapback/ops.q": "shape card from cards\n" }, "unknown shape card"],
-      ["duplicate import", { "snapback/cards.q": "shape card = { displayName }\n", "snapback/ops.q": "shape card from cards\nshape card = { displayName }\n" }, "duplicate shape card"],
-      ["import cycle", { "snapback/a.q": "shape card from b\n", "snapback/b.q": "shape card from a\n" }, "shape import cycle"],
-      ["projection cycle", { "snapback/a.q": "shape b from b\nshape a = { ...b }\n", "snapback/b.q": "shape a from a\nshape b = { ...a }\n" }, "shape cycle"],
-      ["direct capture", { "snapback/cards.q": "shape card = { label: argument }\n", "snapback/ops.q": "shape card from cards\nquery one(id: profiles, argument: text <=80):\n  return profiles[id] card\n" }, "cannot capture operation name argument"],
-      ["object shorthand capture", { "snapback/cards.q": "shape card = { nested: { argument } }\n" }, "cannot capture operation name argument"],
-      ["nonimported use", { "snapback/cards.q": "shape card = { displayName }\n", "snapback/ops.q": "query one(id: profiles):\n  return profiles[id] card\n" }, "unknown shape card in snapback/ops.q"],
-    ];
-    for (const [label, files, message] of cases) {
-      const result = compile(files);
-      assert(!result.ok && result.diagnostics.some((item) => item.message.includes(message)
-        && item.site.startsWith("snapback/") && item.rewrite.length > 10 && item.guide.startsWith("quarry/")),
-        `${label} was not a sited actionable refusal: ${JSON.stringify(result)}`);
-    }
-    for (const leaf of ["displayName", ""]) {
-      const declarations = Array.from({ length: 7 }, (_, level) =>
-        `shape s${level} = { ${level === 6 ? leaf : Array.from({ length: 8 }, () => `...s${level + 1}`).join(", ")} }`).join("\n");
-      const result = compile({ "snapback/cards.q": `${declarations}\n` });
-      assert(!result.ok && result.diagnostics.some((item) => item.message.includes("4096 syntax nodes")),
-        `wide ${leaf ? "field" : "empty"} expansion escaped its budget: ${JSON.stringify(result)}`);
-    }
-    const mismatch = compile({
-      "snapback/cards.q": "shape card = { missing }\n",
-      "snapback/ops.q": "shape card from cards\nquery one(id: profiles):\n  return profiles[id] card\n",
-    });
-    assert(!mismatch.ok && mismatch.diagnostics.some((item) => item.site === "snapback/cards.q:1:16"
-      && item.message.includes("used at snapback/ops.q:3:")),
-      `cross-file field refusal lost the definition or use site: ${JSON.stringify(mismatch)}`);
-    const inferredContext = compileInline([
-      { fileName: "snapback/schema.q", source: "table profiles:\n  principal: principal\n  unique byPrincipal: principal\n  public\n" },
-      { fileName: "snapback/cards.q", source: "shape card = { current: profiles[viewer] { principal } }\n" },
-      { fileName: "snapback/ops.q", source: "shape card from cards\nquery one(id: profiles, viewer: text <=80):\n  return profiles[id] card\n" },
-    ]);
-    assert(inferredContext.ok && inferredContext.modules[0]!.source.includes('db.get(profiles$table.byPrincipal, [ctx.viewer])'),
-      `shape context inference captured the caller argument type: ${JSON.stringify(inferredContext)}`);
   });
 
   test("image once is column custody, carries through lowering, and video refuses with a range repair", async () => {
@@ -484,14 +111,6 @@ query page(c: cursor ?):
 
   test("Quarry image/video spellings lower as closed records through IR, manifest descriptors, and API types", async () => {
     const projectRoot = resolve(fixtures, "quarry-assets");
-    const compiled = compileFixture(fixtures, "quarry-assets", ["schema", "assets"]);
-    assert(compiled.ok, `asset spellings did not parse: ${compiled.ok ? "" : diagnosticsText(compiled.diagnostics)}`);
-    const generated = `${compiled.schema.source}\n${compiled.modules[0]!.source}`;
-    for (const spelling of [
-      "t.image(5000000)", "t.optional(t.image(5000000))", "t.video(50000000)", "t.optional(t.video(50000000))",
-      "t.list(t.image(12000000), { max: 4 })", "t.list(t.video(50000000), { max: 2 })",
-      "args.clip.duration", "args.photo.width",
-    ]) assert(generated.includes(spelling), `asset Quarry lowering lost ${spelling}:\n${generated}`);
 
     const lowered = await lowerProject(projectRoot);
       assert(lowered.ok, `asset project refused: ${lowered.ok ? "" : diagnosticsText(lowered.diagnostics)}`);
@@ -854,13 +473,6 @@ mutation empty_last(photos: [image <=5000000] <=4):
     const failures = rustCheck(lowered.project.programs, "synthetic", lowered.project.schema).filter((item) => item.error);
     assert(failures.length === 0, `quarry-money did not certify: ${JSON.stringify(failures)}`);
 
-    const compiled = compileFixture(fixtures, "quarry-money", ["schema", "money"]);
-    assert(compiled.ok, `quarry-money front end refused: ${compiled.ok ? "" : diagnosticsText(compiled.diagnostics)}`);
-    const generated = `${compiled.schema.source}\n${compiled.modules[0]!.source}`;
-    assert(generated.includes('t.money("USD")') && generated.includes('t.money("JPY", 0)')
-      && generated.includes("t.decimal(3)")
-      && generated.includes("price: 2.50") && generated.includes("+ 1.000"),
-    `Quarry lowering lost a descriptor or authored literal spelling:\n${generated}`);
   });
 
   test("Quarry money and decimal refusals are nominal, exact-scale, and sited", async () => {
@@ -930,38 +542,6 @@ mutation empty_last(photos: [image <=5000000] <=4):
   });
 
   test("Quarry composite unique-key writes lower through row identity and certify", async () => {
-    const compiled = compileFixture(fixtures, "quarry-surface", ["schema", "surface"]);
-    assert(compiled.ok, `composite write front end refused: ${compiled.ok ? "" : diagnosticsText(compiled.diagnostics)}`);
-    const source = compiled.modules[0]!.source;
-    const update = generatedOperation(source, "updateKeyedRow");
-    const upsert = generatedOperation(source, "upsertKeyedRow");
-    const authored = generatedOperation(source, "upsertKeyedRowWithId");
-    const remove = generatedOperation(source, "deleteKeyedRow");
-    const updateKeys = writeKeyNames(update);
-    const upsertKeys = writeKeyNames(upsert);
-    assert(updateKeys && update.includes(`db.get(keyedRows$table.byOwnerLabel, [${updateKeys[0]}, ${updateKeys[1]}])`)
-      && update.includes('db.require(__q_writeRow_')
-      && update.includes("db.update(keyedRows$table, __q_writeRow_")
-      && update.includes("{ value: args.value }")
-      && occurrences(update, "args.owner") === 1 && occurrences(update, "args.label") === 1,
-    `composite update did not bind its address once, elide same-key fields, and write by row id:\n${update}`);
-    assert(upsertKeys && upsert.includes(`db.get(keyedRows$table.byOwnerLabel, [${upsertKeys[0]}, ${upsertKeys[1]}])`)
-      && upsert.includes("?.id ?? ctx.newId()")
-      && upsert.includes("db.upsert(keyedRows$table, __q_upsertKey_")
-      && upsert.includes(`owner: ${upsertKeys[0]}, label: ${upsertKeys[1]}`)
-      && occurrences(upsert, "args.owner") === 1 && occurrences(upsert, "args.label") === 1,
-    `composite upsert did not bind/inject its key columns into the platform scalar db.upsert row:\n${upsert}`);
-    assert(authored.includes("?.id ?? ctx.newId()")
-      && authored.includes("db.upsert(keyedRows$table, __q_upsertKey_")
-      && !authored.includes("UPSERT_ID_"),
-    `migrated alternate upsert did not keep the present id or mint on absence:\n${authored}`);
-    assert(remove.includes("db.get(keyedRows$table.byOwnerLabel, [__q_writeKey1_")
-      && remove.includes('db.require(__q_writeRow_')
-      && remove.includes("db.delete(keyedRows$table, __q_writeRow_"),
-    `composite delete did not resolve and write by row id:\n${remove}`);
-    for (const line of source.split("\n").filter((line) => line.includes("__q_writeRow_") || line.includes("__q_upsertKey_") || line.includes("__q_writeKey"))) {
-      assert(/\/\/ q:snapback\/surface\.q:\d+:\d+$/.test(line), `generated indexed-write statement lost its .q site: ${line}`);
-    }
 
     const lowered = await lowerProject(resolve(fixtures, "quarry-surface"));
     assert(lowered.ok, `composite write project refused: ${lowered.ok ? "" : diagnosticsText(lowered.diagnostics)}`);
@@ -1029,8 +609,7 @@ mutation updateMismatch(owner: principal, label: text <=40, value: int):
       { fileName: "snapback/schema.q", source: schema },
       { fileName: "snapback/keyed.q", source: repaired },
     ]);
-    assert(fixed.ok && fixed.modules[0]!.source.includes("?.id ?? ctx.newId()"),
-      `drop-field rewrite did not restore the absent insert branch: ${JSON.stringify(fixed)}`);
+    assert(fixed.ok, `drop-field rewrite did not restore the absent insert branch: ${JSON.stringify(fixed)}`);
   });
 
   test("Quarry Clique M1-M3 plus Pay regression fixture lowers and certifies all 38 operations", async () => {
