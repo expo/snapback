@@ -7,6 +7,7 @@ import { after, before, test } from "node:test";
 import { build } from "esbuild";
 import { JSDOM } from "jsdom";
 import React, { act } from "react";
+import { flushSync } from "react-dom";
 import { createRoot, type Root } from "react-dom/client";
 import { api, createClient } from "../dist/client.mjs";
 import { indexedDbRangeStore, SnapbackProvider, useSnapbackClient, useSnapbackSnapshot } from "../dist/react.mjs";
@@ -134,7 +135,7 @@ class MemoryBroadcastChannel {
     MemoryBroadcastChannel.messages.push(copy);
     if (MemoryBroadcastChannel.drop(copy)) return;
     for (const peer of MemoryBroadcastChannel.members.get(this.name) ?? []) if (peer !== this) {
-      queueMicrotask(() => peer.onmessage?.({ data: structuredClone(copy) }));
+      setTimeout(() => peer.onmessage?.({ data: structuredClone(copy) }), 0);
     }
   }
   close() { MemoryBroadcastChannel.members.get(this.name)?.delete(this); }
@@ -422,14 +423,14 @@ test("partial history becomes one coherent view without remounting its pending b
 // @ref LLP 1018.000#8-account-sessions-and-durable-follower-admission — the
 // actual Composer treats a lost follower acknowledgment as an unresolved
 // request and recovers its opaque identity instead of submitting fresh args.
-test("a follower Composer keeps a lost-ack draft across route remounts and recovers the same admitted send", async () => {
+test("a follower Composer keeps a lost-ack draft across route remounts and recovers the same admitted send", async (t) => {
   const restore = installDom();
   const OriginalBroadcastChannel = globalThis.BroadcastChannel;
   (globalThis as any).BroadcastChannel = MemoryBroadcastChannel;
   MemoryBroadcastChannel.members.clear(); MemoryBroadcastChannel.messages = [];
   MemoryBroadcastChannel.drop = () => false;
   const database = new FakeIndexedDb(), locks = new FakeLocks();
-  const store = indexedDbRangeStore({ indexedDB: database as any, locks: locks as any });
+  const store = () => indexedDbRangeStore({ indexedDB: database as any, locks: locks as any });
   const serverPosts: any[] = [];
   const serverChanges: any[] = [];
   const transport = async (input: string | URL | Request, init?: RequestInit) => {
@@ -438,7 +439,7 @@ test("a follower Composer keeps a lost-ack draft across route remounts and recov
     if (new URL(String(input)).pathname === "/api/mutation" && ["deliveries.edit", "deliveries.unsend"].includes(body?.op)) serverChanges.push(body);
     return globalThis.fetch(input, init);
   };
-  const writer = createClient({ url: screenOwner.url, as: "alice", fetch: transport, offline: { store } });
+  const writer = createClient({ url: screenOwner.url, as: "alice", fetch: transport, offline: { store: store() } });
   let follower: ReturnType<typeof createClient> | undefined;
   let drain: any;
   const notes: string[] = [];
@@ -448,7 +449,18 @@ test("a follower Composer keeps a lost-ack draft across route remounts and recov
     while (!(await predicate())) {
       if (performance.now() - started > timeoutMs) throw new Error(`timed out waiting for ${label}`);
       await new Promise((resolve) => setTimeout(resolve, 20));
+      await act(async () => undefined);
     }
+  };
+  const typeForwarded = (input: HTMLInputElement, value: string) => {
+    const setter = Object.getOwnPropertyDescriptor(globalThis.HTMLInputElement.prototype, "value")!.set!;
+    const view = globalThis.window as any;
+    flushSync(() => {
+      input.focus();
+      input.dispatchEvent(new view.FocusEvent("focusin", { bubbles: true }));
+      setter.call(input, value);
+      input.dispatchEvent(new view.KeyboardEvent("keyup", { bubbles: true, key: "End" }));
+    });
   };
   function SendHarness({ conversationId, visible }: { conversationId: string; visible: boolean }) {
     const client = useSnapbackClient();
@@ -470,19 +482,20 @@ test("a follower Composer keeps a lost-ack draft across route remounts and recov
     await writer.ready;
     drain = writer.subscribe(api.deliveries.inbox, { c: null }, () => undefined, { drain: true });
     await drain.until((event: any) => event.caughtUp === true, 4_000);
-    follower = createClient({ url: screenOwner.url, as: "alice", fetch: transport, offline: { store } });
+    await waitForForwardedUi(async () => (await writer.outbox.status()).ready, "the writer replay grant");
+    follower = createClient({ url: screenOwner.url, as: "alice", fetch: transport, offline: { store: store() } });
     await follower.ready;
     await waitForForwardedUi(async () => (await follower!.outbox.status(api.deliveries.post)).ready,
-      "the follower writer route");
+      "the follower writer admission");
     const render = (conversationId: string, visible = true) => React.createElement(SnapbackProvider, { client: follower! },
       React.createElement(SendHarness, { conversationId, visible }));
-    act(() => reactRoot.render(render("conversation-1")));
+    flushSync(() => reactRoot.render(render("conversation-1")));
+    await waitForForwardedUi(() => document.querySelector<HTMLButtonElement>("form[aria-label=Composer] button[type=submit]")?.disabled === false,
+      "the mounted follower Composer to discover its writer route");
     let input = document.querySelector<HTMLInputElement>("form[aria-label=Composer] input")!;
-    await waitForForwardedUi(() => !document.querySelector<HTMLButtonElement>("form[aria-label=Composer] button[type=submit]")!.disabled,
-      "the follower Composer readiness");
     MemoryBroadcastChannel.drop = message => message.type === "mutation-answer";
-    await type(input, "one uncertain UI send");
-    await act(async () => document.querySelector<HTMLFormElement>("form[aria-label=Composer]")!.requestSubmit());
+    typeForwarded(input, "one uncertain UI send");
+    flushSync(() => document.querySelector<HTMLFormElement>("form[aria-label=Composer]")!.requestSubmit());
     await waitForForwardedUi(() => [...document.querySelectorAll("form[aria-label=Composer] button")]
       .some((button) => text(button) === "Check send"), "the same-send recovery action");
     assert.equal(input.value, "one uncertain UI send", "an unknown admission does not clear the draft");
@@ -492,25 +505,23 @@ test("a follower Composer keeps a lost-ack draft across route remounts and recov
     const initial = MemoryBroadcastChannel.messages.find(message => message.type === "mutation"
       && message.args?.body === "one uncertain UI send");
     assert.ok(initial, "the first forwarded request is observable");
-    act(() => reactRoot.render(render("conversation-1", false)));
+    flushSync(() => reactRoot.render(render("conversation-1", false)));
     assert.equal(document.querySelector("form[aria-label=Composer]"), null, "Inbox unmounts the Composer");
-    act(() => reactRoot.render(render("conversation-2")));
+    flushSync(() => reactRoot.render(render("conversation-2")));
     await waitForForwardedUi(() => document.querySelector("[data-send-unknown=conversation-1]") !== null, "the recovery notice on B");
     assert.match(text(document.querySelector("[data-send-unknown]")), /conversation-1.*Return there/);
     assert.equal(document.querySelector<HTMLButtonElement>("form[aria-label=Composer] button[type=submit]")!.disabled, true,
       "conversation B cannot send while A is unresolved");
     assert.equal([...document.querySelectorAll("form[aria-label=Composer] button")]
       .some((button) => text(button) === "Check send"), false, "only A offers recovery");
-    act(() => reactRoot.render(render("conversation-1")));
+    flushSync(() => reactRoot.render(render("conversation-1")));
     await waitForForwardedUi(() => [...document.querySelectorAll("form[aria-label=Composer] button")]
       .some((button) => text(button) === "Check send"), "the recovery after A-B-A navigation");
     input = document.querySelector<HTMLInputElement>("form[aria-label=Composer] input")!;
     await waitForForwardedUi(() => input.value === "one uncertain UI send", "the remounted exact draft");
     MemoryBroadcastChannel.drop = () => false;
-    await act(async () => {
-      [...document.querySelectorAll<HTMLButtonElement>("form[aria-label=Composer] button")]
-        .find((button) => text(button) === "Check send")!.click();
-    });
+    flushSync(() => [...document.querySelectorAll<HTMLButtonElement>("form[aria-label=Composer] button")]
+      .find((button) => text(button) === "Check send")!.click());
     await waitForForwardedUi(() => input.value === "" && ![...document.querySelectorAll("form[aria-label=Composer] button")]
       .some((button) => text(button) === "Check send"), "the recovered admission");
     const recovery = MemoryBroadcastChannel.messages.filter(message => message.type === "mutation"
@@ -523,25 +534,23 @@ test("a follower Composer keeps a lost-ack draft across route remounts and recov
     // has become the successor conversation; it must not install recovery UI
     // or overwrite that successor's note.
     MemoryBroadcastChannel.drop = message => message.type === "mutation-answer";
-    await type(input, "old conversation uncertainty");
-    await act(async () => document.querySelector<HTMLFormElement>("form[aria-label=Composer]")!.requestSubmit());
+    typeForwarded(input, "old conversation uncertainty");
+    flushSync(() => document.querySelector<HTMLFormElement>("form[aria-label=Composer]")!.requestSubmit());
     await waitForForwardedUi(() => MemoryBroadcastChannel.messages.some(message => message.type === "mutation"
       && message.args?.body === "old conversation uncertainty"), "the predecessor send");
     const noteCount = notes.length;
-    act(() => reactRoot.render(render("conversation-2")));
+    flushSync(() => reactRoot.render(render("conversation-2")));
     await waitForForwardedUi(() => document.querySelector("[data-send-unknown=conversation-1]") !== null,
       "the late predecessor recovery held while B is visible");
     assert.equal(notes.length, noteCount, "the predecessor result cannot update the successor conversation");
     assert.equal([...document.querySelectorAll("form[aria-label=Composer] button")]
       .some((button) => text(button) === "Check send"), false);
-    act(() => reactRoot.render(render("conversation-1")));
+    flushSync(() => reactRoot.render(render("conversation-1")));
     await waitForForwardedUi(() => [...document.querySelectorAll("form[aria-label=Composer] button")]
       .some((button) => text(button) === "Check send"), "the predecessor recovery on A");
     MemoryBroadcastChannel.drop = () => false;
-    await act(async () => {
-      [...document.querySelectorAll<HTMLButtonElement>("form[aria-label=Composer] button")]
-        .find((button) => text(button) === "Check send")!.click();
-    });
+    flushSync(() => [...document.querySelectorAll<HTMLButtonElement>("form[aria-label=Composer] button")]
+      .find((button) => text(button) === "Check send")!.click());
     await waitForForwardedUi(() => ![...document.querySelectorAll("form[aria-label=Composer] button")]
       .some((button) => text(button) === "Check send"), "the predecessor recovery settled");
     const lateRequests = MemoryBroadcastChannel.messages.filter(message => message.type === "mutation"
@@ -554,13 +563,13 @@ test("a follower Composer keeps a lost-ack draft across route remounts and recov
     // clicked in the same turn cannot replace that command's recovery identity.
     const renderChange = (conversationId: string) => React.createElement(SnapbackProvider, { client: follower! },
       React.createElement(ChangeHarness, { conversationId }));
-    act(() => reactRoot.render(renderChange("conversation-1")));
+    flushSync(() => reactRoot.render(renderChange("conversation-1")));
     await waitForForwardedUi(() => document.querySelector("li[data-message=message-1] .actions") !== null,
       "the editable real message");
     (globalThis.window as any).prompt = () => "one uncertain edit";
     const actionButtons = [...document.querySelectorAll<HTMLButtonElement>("li[data-message=message-1] .actions button")];
     MemoryBroadcastChannel.drop = message => message.type === "mutation-answer";
-    await act(async () => {
+    flushSync(() => {
       actionButtons.find((button) => text(button) === "Edit")!.click();
       actionButtons.find((button) => text(button) === "Unsend")!.click();
     });
@@ -575,19 +584,17 @@ test("a follower Composer keeps a lost-ack draft across route remounts and recov
     assert.equal(serverChanges.filter(request => request.op === "deliveries.edit"
       && request.args?.body === "one uncertain edit").length, 1);
 
-    act(() => reactRoot.render(renderChange("conversation-2")));
+    flushSync(() => reactRoot.render(renderChange("conversation-2")));
     await waitForForwardedUi(() => document.querySelector("[data-mutation-unknown=edit]") !== null,
       "the edit recovery while B is visible");
     assert.match(text(document.querySelector("[data-mutation-unknown=edit]")), /conversation-1.*Return there/);
     assert.equal([...document.querySelectorAll("button")].some((button) => text(button) === "Check edit"), false);
-    act(() => reactRoot.render(renderChange("conversation-1")));
+    flushSync(() => reactRoot.render(renderChange("conversation-1")));
     await waitForForwardedUi(() => [...document.querySelectorAll("button")].some((button) => text(button) === "Check edit"),
       "the edit recovery after A-B-A");
     MemoryBroadcastChannel.drop = () => false;
-    await act(async () => {
-      [...document.querySelectorAll<HTMLButtonElement>("button")]
-        .find((button) => text(button) === "Check edit")!.click();
-    });
+    flushSync(() => [...document.querySelectorAll<HTMLButtonElement>("button")]
+      .find((button) => text(button) === "Check edit")!.click());
     await waitForForwardedUi(() => document.querySelector("[data-mutation-unknown]") === null, "the edit recovery settled");
     const recoveredEdits = MemoryBroadcastChannel.messages.filter(message => message.type === "mutation"
       && message.op === "deliveries.edit" && message.args?.body === "one uncertain edit");
@@ -595,9 +602,12 @@ test("a follower Composer keeps a lost-ack draft across route remounts and recov
       "edit recovery preserves the original request identity");
     assert.equal(serverChanges.filter(request => request.op === "deliveries.edit"
       && request.args?.body === "one uncertain edit").length, 1);
+  } catch (error) {
+    t.diagnostic(`primary recovery failure before cleanup: ${error instanceof Error ? error.stack ?? error.message : String(error)}`);
+    throw error;
   } finally {
     MemoryBroadcastChannel.drop = () => false;
-    await act(async () => reactRoot.unmount());
+    flushSync(() => reactRoot.unmount());
     drain?.close(); await follower?.close(); await writer.close();
     MemoryBroadcastChannel.members.clear(); (globalThis as any).BroadcastChannel = OriginalBroadcastChannel;
     restore();
