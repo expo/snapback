@@ -781,7 +781,11 @@ fn rebuild_target(
         // @ref LLP 1001#4-generation-and-runtime-registryrs-successorrs — uniqueness
         // binds survivors and the replacement projection, after earlier rebuilds and
         // migration drops; only predecessor/successor-owned IDs leave the old image.
-        let existing = fetch_rows(transaction, target)?;
+        let mut existing = Vec::new();
+        for_row_batches(transaction, target, |row| {
+            existing.push(row);
+            Ok(())
+        })?;
         let mut final_rows = rows.values().collect::<Vec<_>>();
         for row in &existing {
             if !owned_ids.contains(row.field("id")?.as_str()?) {
