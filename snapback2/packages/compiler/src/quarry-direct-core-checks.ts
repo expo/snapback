@@ -13,6 +13,7 @@ import { prepareQuarry, type QuarryInput } from "./quarry/index";
 import { parseDocument } from "./quarry/parser";
 import {
   assert,
+  compileInline,
   deepKey,
   diagnosticsText,
   occurrences,
@@ -762,9 +763,10 @@ mutation explicitAmbientNames():
     assert(ambientNamedParameters.ok,
       `explicit fn parameters were mistaken for ambient inputs: ${ambientNamedParameters.ok ? "" : diagnosticsText(ambientNamedParameters.diagnostics)}`);
     if (ambientNamedParameters.ok) {
-      const returned = ambientNamedParameters.project.programs[0]?.body.at(-1);
-      assert(JSON.stringify(returned).includes('"Int":1') && JSON.stringify(returned).includes('"Int":4'),
-        `explicit ambient-named fn parameters did not lower from their actuals: ${JSON.stringify(returned)}`);
+      const body = JSON.stringify(ambientNamedParameters.project.programs[0]?.body);
+      assert(body.includes('"Int":1') && body.includes('"Int":4')
+        && !body.includes('"input":"Now"') && !body.includes('"input":"NewId"'),
+      `explicit ambient-named fn parameters did not lower from their actuals: ${body}`);
     }
     const schema = `table nodes:
   label: text <=40

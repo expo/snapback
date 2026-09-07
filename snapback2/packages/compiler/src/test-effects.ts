@@ -351,7 +351,7 @@ mutation fire():
         "snapback/bad.ts": `import { effect } from "snapback2"; import { ping } from "./ops";
           export const bad = effect({ grants: ["https://example.com"], run: async () => null, then: ping });`,
       }, "E_EFFECT_THEN_ARGS"],
-      [{ "snapback/ops.q": "effect missing from bad\n" }, "E_EFFECT_UNKNOWN"],
+      [{ "snapback/ops.q": "effect missing from bad\nquery ping():\n  return null\n" }, "E_EFFECT_UNKNOWN"],
       [{
         "snapback/ops.q": `effect notify from delivery
 query bad():
@@ -360,7 +360,7 @@ query bad():
 `,
         "snapback/delivery.ts": `import { effect } from "snapback2";
           export const notify = effect({ grants: ["https://example.com"], run: async () => null });`,
-      }, "E_QUARRY_UNSUPPORTED"],
+      }, "E_EMIT_IN_QUERY"],
     ];
     for (const [files, code] of cases) await withProject({ "snapback/schema.q": schema, ...files }, async root => {
       const result = await lowerProject(root);
