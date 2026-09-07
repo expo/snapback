@@ -8,6 +8,7 @@ type Lowering = {
   accessOrdinal: number;
   temporaryOrdinal: number;
   operandOrdinal: number;
+  reservedNames: Set<string>;
   focals: Map<string, Expr>;
   bindings: Map<string, Expr>;
 };
@@ -16,6 +17,7 @@ type LoweredValue = { setup: Stmt[]; value: Expr };
 export function lowerBoundQuarryProgram(program: BoundQuarryProgram): Program {
   const lowering: Lowering = {
     program: program.name, accessOrdinal: 0, temporaryOrdinal: 0, operandOrdinal: 0,
+    reservedNames: new Set(program.args.map((arg) => arg.name)),
     focals: new Map(), bindings: new Map(),
   };
   const body = program.body.flatMap((statement): Stmt[] => {
@@ -97,7 +99,10 @@ function lowerInvocation(expression: Extract<BoundExpression, { kind: "invoke" }
     const value = lowerExpression(binding.value, lowering);
     setup.push(...value.setup);
     const name = temporary(lowering, "fnArgument");
-    setup.push({ Const: { name, value: value.value } });
+    const captured = binding.coercion === "row-id"
+      ? { Field: { base: value.value, name: "id" } } satisfies Expr
+      : value.value;
+    setup.push({ Const: { name, value: captured } });
     prior.set(binding.symbol.id, lowering.bindings.get(binding.symbol.id));
     lowering.bindings.set(binding.symbol.id, { Variable: name });
   }
@@ -179,7 +184,7 @@ function lowerObjectFields(
     // Serde maps are sorted after lowering. Capture order-sensitive fields in
     // authored order before that sort; each input/read/member is evaluated once.
     if (!inlineObjectValue(value)) {
-      const name = `__operand${lowering.operandOrdinal++}`;
+      const name = operand(lowering);
       setup.push({ Const: { name, value } });
       value = { Variable: name };
     }
@@ -318,7 +323,7 @@ function captureMany(values: LoweredValue[], lowering: Lowering): { setup: Stmt[
 
 function captureObservable(value: LoweredValue, lowering: Lowering): LoweredValue {
   if (!observableEvaluation(value.value)) return value;
-  const name = `__operand${lowering.operandOrdinal++}`;
+  const name = operand(lowering);
   return { setup: [...value.setup, { Const: { name, value: value.value } }], value: { Variable: name } };
 }
 
@@ -343,9 +348,24 @@ function accessSite(lowering: Lowering): string {
 }
 
 function temporary(lowering: Lowering, stem: string): string {
-  const name = `__bound_${stem}_${lowering.temporaryOrdinal}`;
-  lowering.temporaryOrdinal += 1;
-  return name;
+  while (true) {
+    const name = `__bound_${stem}_${lowering.temporaryOrdinal}`;
+    lowering.temporaryOrdinal += 1;
+    if (!lowering.reservedNames.has(name)) {
+      lowering.reservedNames.add(name);
+      return name;
+    }
+  }
+}
+
+function operand(lowering: Lowering): string {
+  while (true) {
+    const name = `__operand${lowering.operandOrdinal++}`;
+    if (!lowering.reservedNames.has(name)) {
+      lowering.reservedNames.add(name);
+      return name;
+    }
+  }
 }
 
 function inlineObjectValue(value: Expr): boolean {

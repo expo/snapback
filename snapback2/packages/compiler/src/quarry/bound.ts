@@ -53,7 +53,11 @@ export type BoundExpression = BoundExpressionBase & (
   | { kind: "shape"; base: BoundExpression; focal: Extract<BoundExpression, { kind: "focal" }>;
       fields: Array<{ name: string; value: BoundExpression; source: BoundSourceStack }> }
   | { kind: "builtin"; builtin: string | Record<string, unknown>; args: BoundExpression[] }
-  | { kind: "invoke"; bindings: Array<{ symbol: BoundArgumentSymbol; value: BoundExpression }>; body: BoundExpression }
+  | { kind: "invoke"; bindings: Array<{
+      symbol: BoundArgumentSymbol;
+      value: BoundExpression;
+      coercion?: "row-id";
+    }>; body: BoundExpression }
   | { kind: "get" | "exists" | "scan" | "aggregate"; read: BoundRead }
 );
 
@@ -288,6 +292,10 @@ class ExpressionBinder {
 
   private name(name: string, site: Site): BoundExpression {
     const source = this.source(site);
+    if (this.helperDepth > 0 && name === "new") throw new QuarryError(
+      this.diagnosticSite(site), "new is mutation-only caller state and is not available inside fn expressions",
+      "E_QUARRY_UNSUPPORTED", "pass the new value as an explicit fn argument",
+    );
     if (this.namedShapeDepth > 0) {
       if (!CONTEXT_NAMES.has(name)) throw new QuarryError(
         this.diagnosticSite(site), `named shapes cannot capture operation name ${name}`,
@@ -300,10 +308,6 @@ class ExpressionBinder {
     if (this.helperDepth > 0 && !CONTEXT_NAMES.has(name)) throw new QuarryError(
       this.diagnosticSite(site), `fn expressions cannot capture caller name ${name}`,
       "E_QUARRY_UNKNOWN", `add an explicitly typed ${name} parameter to this fn`,
-    );
-    if (this.helperDepth > 0 && name === "new") throw new QuarryError(
-      this.diagnosticSite(site), "new is mutation-only caller state and is not available inside fn expressions",
-      "E_QUARRY_UNSUPPORTED", "pass the new value as an explicit fn argument",
     );
     if (CONTEXT_NAMES.has(name)) return this.contextName(name, source, site);
     refuse(site, `unknown name ${name}`);
@@ -432,11 +436,15 @@ class ExpressionBinder {
     useSite: Site | undefined,
     named: boolean,
   ): Array<{ name: string; value: BoundExpression; source: BoundSourceStack }> {
-    const prior = { focal: this.focal, use: this.expansionUse, named: this.namedShapeDepth, file: this.shapeFile };
+    const prior = {
+      focal: this.focal, use: this.expansionUse, named: this.namedShapeDepth,
+      shapeFile: this.shapeFile, functionFile: this.functionFile,
+    };
     this.focal = focal;
     this.expansionUse = useSite;
     this.namedShapeDepth += named ? 1 : 0;
     this.shapeFile = file;
+    this.functionFile = file;
     try {
       return fields.flatMap((field) => {
         if (field.kind === "namedSpread") {
@@ -457,7 +465,8 @@ class ExpressionBinder {
       this.focal = prior.focal;
       this.expansionUse = prior.use;
       this.namedShapeDepth = prior.named;
-      this.shapeFile = prior.file;
+      this.shapeFile = prior.shapeFile;
+      this.functionFile = prior.functionFile;
     }
   }
 
@@ -530,11 +539,12 @@ class ExpressionBinder {
         name: parameter.name, type: structuredClone(parameter.type), origin: value.facts.origin,
         source: sourceStack(parameter.site, this.expansionUse ?? expression.site),
       };
-      return { symbol, value };
+      return { symbol, value, ...(value.facts.type.kind === "row" ? { coercion: "row-id" as const } : {}) };
     });
     const prior = {
       scope: this.scope, use: this.expansionUse, helperDepth: this.helperDepth,
       namedShapeDepth: this.namedShapeDepth, functionFile: this.functionFile, shapeFile: this.shapeFile,
+      focal: this.focal,
     };
     this.scope = new Map(bindings.map((binding) => [binding.symbol.name, binding.symbol]));
     this.expansionUse = this.expansionUse ?? expression.site;
@@ -542,6 +552,7 @@ class ExpressionBinder {
     this.namedShapeDepth = 0;
     this.functionFile = document.file;
     this.shapeFile = document.file;
+    this.focal = undefined;
     this.expansionFrames.push(identity);
     try {
       const body = this.expression(declaration.body);
@@ -554,6 +565,7 @@ class ExpressionBinder {
       this.namedShapeDepth = prior.namedShapeDepth;
       this.functionFile = prior.functionFile;
       this.shapeFile = prior.shapeFile;
+      this.focal = prior.focal;
     }
   }
 
@@ -660,7 +672,7 @@ function decimalPlaces(text: string | undefined): number {
 function assignable(actual: BoundType, expected: ScalarType): boolean {
   if (actual.kind === "null") return expected.optional;
   if (actual.kind === "row") return expected.kind === "ref"
-    && actual.table.name === expected.table && (expected.optional || !actual.nullable);
+    && actual.table.name === expected.table && !actual.nullable;
   if (!isScalar(actual) || actual.kind !== expected.kind) return false;
   if (!expected.optional && actual.optional) return false;
   if (actual.kind === "text" && expected.kind === "text") {

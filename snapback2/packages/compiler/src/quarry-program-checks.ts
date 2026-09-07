@@ -3,7 +3,7 @@ import { readFileSync, readdirSync } from "node:fs";
 import { writeFile } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import { canonicalValue, ClientStore, scopedRuleHash, type ClosureReceipt, type Context, type Value } from "../../evaluator/src/evaluator";
-import type { Program } from "./ir";
+import type { Program, SchemaJson } from "./ir";
 import { lowerProject, lowerSeed } from "./project";
 import { rustCheck, type RustCheckResult } from "./rust-check";
 import { bindQuarryProgram } from "./quarry/bound";
@@ -409,6 +409,142 @@ mutation consumeOnce(p: principal):
         assert(refusal?.code === "E_INPUT", `unused fn argument did not evaluate exactly once: ${JSON.stringify(refusal)}`);
       });
     });
+  });
+
+  test("direct Quarry fn scopes are hygienic, module-local, pure, and row-ref typed", async () => {
+    const schema = `table nodes:
+  label: text <=40
+  public
+`;
+    const cards = `fn isKnown(node: nodes) = exists nodes[node]
+shape card = { id, label, known: isKnown(.) }
+`;
+    const operations = `shape card from cards
+
+query node(id: nodes):
+  return nodes[id] card
+
+fn add(left: int, right: int) = left + right
+query hygienic(__operand0: int, __bound_fnArgument_0: int):
+  return { sum: add(__operand0, __bound_fnArgument_0) }
+`;
+    await withProject({
+      "snapback/schema.q": schema,
+      "snapback/cards.q": cards,
+      "snapback/ops.q": operations,
+    }, async (root) => {
+      const inputs: QuarryInput[] = ["schema", "cards", "ops"].map((stem) => {
+        const path = join(root, "snapback", `${stem}.q`);
+        return { path, fileName: `snapback/${stem}.q`, source: readFileSync(path, "utf8") };
+      });
+      const prepared = prepareQuarry(inputs);
+      assert(prepared.ok, `direct fn hygiene preparation failed: ${JSON.stringify(prepared.ok ? [] : prepared.diagnostics)}`);
+      const nodeDeclaration = prepared.prepared.documents[2]?.programs.find((program) => program.name === "node");
+      assert(nodeDeclaration, "direct fn hygiene fixture has no node operation");
+      const nodeBound = bindQuarryProgram(nodeDeclaration, prepared.prepared.catalog, prepared.prepared.documents);
+      const nodeShape = nodeBound.body[0]!.value;
+      assert(nodeShape.kind === "shape", `imported card did not bind as a shape: ${JSON.stringify(nodeShape)}`);
+      const known = nodeShape.fields.find((field) => field.name === "known")?.value;
+      assert(known?.kind === "invoke" && known.bindings[0]?.coercion === "row-id"
+        && known.body.kind === "exists" && known.body.source.definition.file === "snapback/cards.q",
+      `shape-local fn did not resolve in its defining module or coerce the focal row once: ${JSON.stringify(known)}`);
+      const direct = lowerBoundQuarryProgram(nodeBound);
+      let runtimeSchema: SchemaJson | undefined;
+
+      await withProject({
+        "snapback/schema.q": schema,
+        "snapback/cards.q": "shape card = { id, label, known: exists nodes[.id] }\n",
+        "snapback/ops.q": `shape card from cards
+
+query node(id: nodes):
+  return nodes[id] card
+`,
+      }, async (inlineRoot) => {
+        const oracle = await lowerProject(inlineRoot);
+        assert(oracle.ok, `inlined row-ref fn oracle failed: ${oracle.ok ? "" : diagnosticsText(oracle.diagnostics)}`);
+        runtimeSchema = oracle.project.schema;
+        const legacy = operation(oracle.project.programs, "ops.node");
+        const directCheck = rustCheck([direct], "synthetic", oracle.project.schema)[0]!;
+        const legacyCheck = rustCheck([legacy], "synthetic", oracle.project.schema)[0]!;
+        assert(!directCheck.error && directCheck.certificate, `row-ref fn did not certify: ${JSON.stringify(directCheck)}`);
+        assert(!legacyCheck.error && legacyCheck.certificate, `row-ref oracle did not certify: ${JSON.stringify(legacyCheck)}`);
+        deepStrictEqual(directCheck.certificate.read_sites, legacyCheck.certificate.read_sites);
+        const receipt: ClosureReceipt = {
+          schema_hash: directCheck.certificate.schema_hash as string,
+          rows: [{ table: "nodes", id: "node-1", row: { Row: {
+            id: { Id: "node-1" }, label: { String: "first" },
+          } } }],
+          ranges: [], absences: [], verdicts: [],
+        };
+        const context: Context = { viewer: "viewer-1", principal_kind: "user", auth_epoch: 1,
+          args: { id: { Id: "node-1" } }, now: 1, new_ids: [], read_time: 1 };
+        const actual = new ClientStore(oracle.project.schema, receipt)
+          .reexecute(direct, context, directCheck.certificate).execution;
+        const expected = new ClientStore(oracle.project.schema, receipt)
+          .reexecute(legacy, context, legacyCheck.certificate).execution;
+        deepStrictEqual(actual.result, expected.result);
+        deepStrictEqual(actual.trace.points, expected.trace.points);
+      });
+
+      const hygieneDeclaration = prepared.prepared.documents[2]?.programs.find((program) => program.name === "hygienic");
+      assert(hygieneDeclaration, "direct fn hygiene fixture has no hygienic operation");
+      const hygienic = lowerBoundQuarryProgram(bindQuarryProgram(
+        hygieneDeclaration, prepared.prepared.catalog, prepared.prepared.documents,
+      ));
+      const declaredNames = (value: unknown): string[] => {
+        if (Array.isArray(value)) return value.flatMap(declaredNames);
+        if (!value || typeof value !== "object") return [];
+        const record = value as Record<string, unknown>;
+        const own = ["Const", "Let", "For"].flatMap((kind) => {
+          const declaration = record[kind];
+          return declaration && typeof declaration === "object" && "name" in declaration
+            ? [String((declaration as { name: unknown }).name)]
+            : declaration && typeof declaration === "object" && kind === "For" && "binding" in declaration
+              ? [String((declaration as { binding: unknown }).binding)] : [];
+        });
+        return [...own, ...Object.values(record).flatMap(declaredNames)];
+      };
+      const generatedNames = declaredNames(hygienic.body);
+      assert(!generatedNames.includes("__operand0") && !generatedNames.includes("__bound_fnArgument_0"),
+        `direct temps collided with legal authored args: ${JSON.stringify(generatedNames)}`);
+      assert(runtimeSchema, "row-ref oracle did not expose its compiled schema");
+      const checked = rustCheck([hygienic], "synthetic", runtimeSchema)[0]!;
+      assert(!checked.error && checked.certificate, `hygienic fn did not certify: ${JSON.stringify(checked)}`);
+      const context: Context = { viewer: "viewer-1", principal_kind: "user", auth_epoch: 1,
+        args: { __operand0: { Int: 2 }, __bound_fnArgument_0: { Int: 3 } }, now: 1, new_ids: [], read_time: 1 };
+      const execution = new ClientStore(runtimeSchema).reexecute(hygienic, context, checked.certificate).execution;
+      assert(canonicalValue(execution.result) === canonicalValue({ Row: { sum: { Int: 5 } } }),
+        `hygienic fn evaluated through a shadowed temp: ${canonicalValue(execution.result)}`);
+    });
+
+    const refusal = (cardsSource: string, operationSource: string) => {
+      const prepared = prepareQuarry([
+        { path: "/virtual/snapback/schema.q", fileName: "snapback/schema.q", source: schema },
+        { path: "/virtual/snapback/cards.q", fileName: "snapback/cards.q", source: cardsSource },
+        { path: "/virtual/snapback/ops.q", fileName: "snapback/ops.q", source: operationSource },
+      ]);
+      assert(prepared.ok, `fn scope refusal did not prepare: ${JSON.stringify(prepared.ok ? [] : prepared.diagnostics)}`);
+      const declaration = prepared.prepared.documents[2]?.programs[0];
+      assert(declaration, "fn scope refusal has no operation");
+      try {
+        bindQuarryProgram(declaration, prepared.prepared.catalog, prepared.prepared.documents);
+      } catch (error) {
+        return (error as { diagnostic?: { code: string; message: string } }).diagnostic;
+      }
+      return undefined;
+    };
+    const focalCapture = refusal(
+      "fn leak() = .id\nshape card = { leaked: leak() }\n",
+      "shape card from cards\nquery node(id: nodes):\n  return nodes[id] card\n",
+    );
+    assert(focalCapture?.code === "E_QUARRY_UNKNOWN" && focalCapture.message.includes("focal ."),
+      `fn captured its caller shape focal: ${JSON.stringify(focalCapture)}`);
+    const callerNew = refusal(
+      "shape leaking = { generated: new }\nfn leak(node: nodes) = node leaking\n",
+      "fn leak from cards\nmutation node(id: nodes):\n  return leak(id)\n",
+    );
+    assert(callerNew?.code === "E_QUARRY_UNSUPPORTED" && callerNew.message.includes("new is mutation-only caller state"),
+      `fn acquired caller new through a named shape: ${JSON.stringify(callerNew)}`);
   });
 
   test("direct Quarry shares shape recursion and depth guards with nested field uses", () => {
