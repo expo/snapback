@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // @ref LLP 1013#7-the-simulator-witness — scheduled native evidence, never a push gate.
 import assert from "node:assert/strict";
-import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { mkdir, readdir, writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { binary, workspace, project, dist, environment, prepareExpoProject, run } from "./expo-project.mjs";
@@ -20,6 +20,29 @@ const controlPort = 43219, ownerPort = 43220;
 const indexedSearchTerm = "CAFE\u0301";
 const log = (text) => process.stdout.write(`${text}\n`);
 const command = (...args) => control.command(...args);
+async function buildAndInstall(cli, buildEnv) {
+  const ios = resolve(project, "ios");
+  const derived = resolve(workspace, "target/e2-expo-derived");
+  const prebuild = await run(process.execPath, [cli, "prebuild", "--platform", "ios", "--no-install"],
+    { cwd: project, env: buildEnv, timeout: 300_000 });
+  const pods = await run("pod", ["install"], { cwd: ios, env: buildEnv, timeout: 600_000 });
+  const workspaceName = (await readdir(ios)).find((name) => name.endsWith(".xcworkspace"));
+  if (!workspaceName) throw new Error(`Expo prebuild did not create an Xcode workspace under ${ios}`);
+  const workspaceFile = resolve(ios, workspaceName);
+  const scheme = workspaceName.slice(0, -".xcworkspace".length);
+  const xcode = await run("xcodebuild", ["-workspace", workspaceFile, "-scheme", scheme,
+    "-configuration", "Release", "-destination", `id=${device}`, "-derivedDataPath", derived,
+    "-jobs", "4", "ONLY_ACTIVE_ARCH=YES", "build"], {
+    cwd: ios, env: { ...buildEnv, RCT_NO_LAUNCH_PACKAGER: "true" }, timeout: 1_200_000,
+  });
+  const products = resolve(derived, "Build/Products/Release-iphonesimulator");
+  const apps = (await readdir(products)).filter((name) => name.endsWith(".app"));
+  if (apps.length !== 1) throw new Error(`expected one simulator app in ${products}, found ${JSON.stringify(apps)}`);
+  const app = resolve(products, apps[0]);
+  await run("xcrun", ["simctl", "install", device, app], { timeout: 60_000 });
+  return ["## expo prebuild", prebuild, "## pod install", pods, "## xcodebuild", xcode,
+    `## installed\n${app}`].join("\n");
+}
 async function killApp() {
   if (!appPid) throw new Error("no pid recorded at launch");
   const pid = appPid;
@@ -92,11 +115,13 @@ const actions = [
     control = await controlServer(controlPort);
     const { cli } = await prepareExpoProject();
     owner = await ownerHarness(ownerPort); await owner.start(); seed = await seedWitness(owner.directUrl);
-    // SDK 54 uses --device for simulators too; --simulator is not an Expo flag.
-    const buildEnv = { ...environment, EXPO_PUBLIC_SNAPBACK_URL: owner.url, EXPO_PUBLIC_SNAPBACK_WITNESS: `ws://localhost:${controlPort}` };
-    const build = await run(process.execPath, [cli, "run:ios", "--device", device, "--configuration", "Release", "--no-bundler"], { cwd: project, env: buildEnv, timeout: 1_200_000 });
+    const buildEnv = { ...environment, NODE_BINARY: process.execPath, EXPO_PUBLIC_SNAPBACK_URL: owner.url,
+      EXPO_PUBLIC_SNAPBACK_WITNESS: `ws://localhost:${controlPort}` };
+    // Expo's run:ios unconditionally asks Simulator.app to activate after a
+    // successful build. Scheduled witnesses build and install through the same
+    // generated native project without requiring GUI automation permission.
+    const build = await buildAndInstall(cli, buildEnv);
     await writeFile(resolve(workspace, "target/e2-witness-ios-build.log"), build);
-    // run:ios may auto-launch; record that process via launch before killing it.
     await launch(false); await killApp();
     return { device, xcode: (await run("xcodebuild", ["-version"])).trim(), build: "target/e2-witness-ios-build.log", seed: { rooms: seed.rooms, doomed: seed.doomed, assets: seed.assets } };
   },
