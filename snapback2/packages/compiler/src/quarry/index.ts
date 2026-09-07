@@ -26,10 +26,23 @@ export type QuarryVirtualModule = {
 export type QuarryCompileResult =
   | { ok: true; schema: QuarryVirtualModule; modules: QuarryVirtualModule[] }
   | { ok: false; diagnostics: FrontendDiagnostic[] };
+export type PreparedQuarry = {
+  documents: Document[];
+  catalog: TableCatalog;
+  schedules: ReturnType<typeof prepareSchedules>;
+  diagnostics: QuarryDiagnostic[];
+};
+export type QuarryPrepareResult =
+  | { ok: true; prepared: PreparedQuarry }
+  | { ok: false; diagnostics: FrontendDiagnostic[] };
 
-// @ref LLP 1004#what-default-binds — Quarry is a compiler front end whose
-// generated TypeScript exists only in memory and retains authored source sites.
-export function compileQuarry(inputs: QuarryInput[]): QuarryCompileResult {
+// This is the shared authored-source front half. The legacy generated-TypeScript
+// oracle temporarily asks for its AST shape expansion; the direct route leaves
+// named forms intact for the bound elaborator.
+export function prepareQuarry(
+  inputs: QuarryInput[],
+  options: { legacyExpandShapes?: boolean } = {},
+): QuarryPrepareResult {
   const diagnostics: QuarryDiagnostic[] = [];
   let documents: Document[] = [];
   for (const input of inputs) {
@@ -39,10 +52,12 @@ export function compileQuarry(inputs: QuarryInput[]): QuarryCompileResult {
   }
   diagnostics.push(...placementDiagnostics(documents));
   if (diagnostics.length > 0) return { ok: false, diagnostics: diagnostics.map(frontend) };
-  const expansion = expandDocuments(documents);
-  documents = expansion.documents;
-  diagnostics.push(...expansion.diagnostics);
-  if (diagnostics.length > 0) return { ok: false, diagnostics: diagnostics.map(frontend) };
+  if (options.legacyExpandShapes) {
+    const expansion = expandDocuments(documents);
+    documents = expansion.documents;
+    diagnostics.push(...expansion.diagnostics);
+    if (diagnostics.length > 0) return { ok: false, diagnostics: diagnostics.map(frontend) };
+  }
 
   let catalog: TableCatalog;
   try {
@@ -56,6 +71,15 @@ export function compileQuarry(inputs: QuarryInput[]): QuarryCompileResult {
 
   let schedules: ReturnType<typeof prepareSchedules> = [];
   try { schedules = prepareSchedules(documents, catalog); } catch (error) { diagnostics.push(caughtDiagnostic(error)); }
+  return { ok: true, prepared: { documents, catalog, schedules, diagnostics } };
+}
+
+// @ref LLP 1004#what-default-binds — Quarry is a compiler front end whose
+// generated TypeScript exists only in memory and retains authored source sites.
+export function compileQuarry(inputs: QuarryInput[]): QuarryCompileResult {
+  const result = prepareQuarry(inputs, { legacyExpandShapes: true });
+  if (!result.ok) return result;
+  const { documents, catalog, schedules, diagnostics } = result.prepared;
 
   const schemaDocument = documents.find((document) => basename(document.file) === "schema.q")!;
   const schemaInput = inputs.find((input) => input.fileName === schemaDocument.file)!;

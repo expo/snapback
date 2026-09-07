@@ -6,7 +6,9 @@ import { canonicalValue, ClientStore, scopedRuleHash, type ClosureReceipt, type 
 import type { Program } from "./ir";
 import { lowerProject, lowerSeed } from "./project";
 import { rustCheck } from "./rust-check";
-import { compileQuarry } from "./quarry/index";
+import { bindQuarryProgram } from "./quarry/bound";
+import { lowerBoundQuarryProgram } from "./quarry/direct";
+import { compileQuarry, prepareQuarry, type QuarryInput } from "./quarry/index";
 import { parseDocument } from "./quarry/parser";
 import {
   assert,
@@ -24,6 +26,37 @@ import ts from "typescript";
 export function registerQuarryProgramChecks(test: Test, frontend: string): void {
   const fixtures = resolve(frontend, "fixtures");
   const packageRoot = resolve(frontend, "../snapback2");
+  test("direct Quarry binds and certifies one indexed existence query identically to the parity oracle", async () => {
+    const root = join(fixtures, "quarry-surface");
+    const inputs: QuarryInput[] = ["schema", "surface"].map((stem) => {
+      const path = join(root, "snapback", `${stem}.q`);
+      return { path, fileName: `snapback/${stem}.q`, source: readFileSync(path, "utf8") };
+    });
+    const prepared = prepareQuarry(inputs);
+    assert(prepared.ok, `direct Quarry preparation failed: ${JSON.stringify(prepared.ok ? [] : prepared.diagnostics)}`);
+    assert(prepared.prepared.diagnostics.length === 0,
+      `direct Quarry preparation retained diagnostics: ${JSON.stringify(prepared.prepared.diagnostics)}`);
+    const declaration = prepared.prepared.documents
+      .flatMap((document) => document.programs)
+      .find((program) => program.name === "hasMembership");
+    assert(declaration, "quarry-surface has no hasMembership declaration");
+
+    const bound = bindQuarryProgram(declaration, prepared.prepared.catalog);
+    const direct = lowerBoundQuarryProgram(bound);
+    const oracle = await lowerProject(root);
+    assert(oracle.ok, `generated-TypeScript parity oracle failed: ${oracle.ok ? "" : diagnosticsText(oracle.diagnostics)}`);
+    const legacy = operation(oracle.project.programs, "surface.hasMembership");
+    deepStrictEqual(direct, legacy);
+    deepStrictEqual(bound.resultType, { kind: "bool", optional: false });
+    deepStrictEqual(bound.source.definition, { file: "snapback/surface.q", line: 11, col: 1 });
+
+    const directCheck = rustCheck([direct], "synthetic", oracle.project.schema)[0]!;
+    const legacyCheck = rustCheck([legacy], "synthetic", oracle.project.schema)[0]!;
+    assert(!directCheck.error && directCheck.certificate,
+      `direct indexed existence query did not certify: ${JSON.stringify(directCheck)}`);
+    deepStrictEqual(directCheck, legacyCheck);
+  });
+
   test("Quarry table and operation names occupy separate generated bindings", async () => {
     const schema = `table messages:
   body: text <=100
