@@ -463,9 +463,15 @@ and `caps`); capability claims stay gated on a published cold run.
   amendment, ticket closure. Status at revision time: in progress; the
   landing commit is recorded in the run record when it lands.
 - **Quarry binding hygiene** (§5). Lane `s2/clique-quarry-collision`, codex
-  gpt-5.6-sol at xhigh; aliased table bindings, one printing helper,
-  failing-before regression, ticket closure. Status at revision time: in
-  progress; recorded in the run record when it lands.
+  gpt-5.6-sol at xhigh, 2026-09-07; landed on main as `37731e373` and
+  `c392dd5a6`: generated modules import each table as `<name>$table` and
+  print every table, reference, and index operand through one helper, so a
+  table and an operation may share a public name; an operation or effect
+  named like a generated helper is refused at its Quarry declaration with a
+  rename rewrite; chat and todos certificates byte-identical; failing-before
+  regression; the collision ticket closed. Review: blind codex and Grok
+  (`llp/reviews/1018-quarry-collision.*.md`); one material finding (effect
+  names met the same collision) fixed and confirmed.
 - **Filed, not built:** follower-write forwarding
   (`issues/20260907-snapback2-follower-tab-write-forwarding.md`); the
   second-tab ticket records what the follower closes and what it leaves open.
