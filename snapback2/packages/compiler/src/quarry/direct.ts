@@ -490,6 +490,15 @@ function lowerBinary(
     };
   }
   const operands = captureMany([left, right], lowering);
+  if (expression.scaleDivisor !== undefined) {
+    return {
+      setup: operands.setup,
+      value: { Field: { base: { Builtin: { builtin: { Divmod: { remainder_sink: "lexicographic-id" } }, args: [
+        { Binary: { op: expression.op, left: operands.values[0]!, right: operands.values[1]! } },
+        { Literal: { Int: expression.scaleDivisor } },
+      ] } }, name: "quotient" } },
+    };
+  }
   return {
     setup: operands.setup,
     value: { Binary: { op: expression.op, left: operands.values[0]!, right: operands.values[1]! } },
@@ -584,7 +593,9 @@ function keyValue(expression: BoundExpression, value: Expr): Expr {
 function literalValue(expression: Extract<BoundExpression, { kind: "literal" }>): Value {
   if (expression.value === null) return "Null";
   if (typeof expression.value === "boolean") return { Bool: expression.value };
-  if (typeof expression.value === "string") return { String: expression.value };
+  if (typeof expression.value === "string") return expression.wireKind === "id"
+    ? { Id: expression.value } : { String: expression.value };
+  if (expression.wireValue !== undefined) return { Int: expression.wireValue };
   if (expression.facts.type.kind === "numeric-literal") {
     unsupported(expression.source.definition, "an uncontextualized decimal literal in direct Quarry", "use a typed decimal or money position");
   }

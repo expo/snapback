@@ -20,9 +20,11 @@ export type BoundIndexSymbol = {
 };
 export type BoundArgumentSymbol = {
   kind: "argument"; id: string; name: string; type: ScalarType; origin: Provenance; source: BoundSourceStack;
+  narrowedMembers?: ReadonlySet<string>;
 };
 export type BoundLocalSymbol = {
   kind: "local"; id: string; name: string; facts: BoundValueFacts; source: BoundSourceStack;
+  narrowedMembers?: ReadonlySet<string>;
 };
 export type BoundValueSymbol = BoundArgumentSymbol | BoundLocalSymbol;
 
@@ -46,14 +48,14 @@ export type BoundValueFacts = {
 
 type BoundExpressionBase = { facts: BoundValueFacts; source: BoundSourceStack };
 export type BoundExpression = BoundExpressionBase & (
-  | { kind: "literal"; value: string | number | boolean | null; numericText?: string }
+  | { kind: "literal"; value: string | number | boolean | null; numericText?: string; wireValue?: number; wireKind?: "id" }
   | { kind: "variable"; symbol: BoundValueSymbol }
   | { kind: "focal"; id: string }
   | { kind: "input"; input: "Viewer" | "Now" | "NewId" | "ReadTime" }
   | { kind: "array"; items: BoundExpression[] }
   | { kind: "object"; fields: Array<{ name: string; value: BoundExpression; source: BoundSourceStack }> }
   | { kind: "unary"; op: "Not" | "Neg"; value: BoundExpression }
-  | { kind: "binary"; op: string; left: BoundExpression; right: BoundExpression }
+  | { kind: "binary"; op: string; left: BoundExpression; right: BoundExpression; scaleDivisor?: number }
   | { kind: "assert"; value: BoundExpression; code: string }
   | { kind: "member"; base: BoundExpression; name: string }
   | { kind: "shape"; base: BoundExpression; focal: Extract<BoundExpression, { kind: "focal" }>;
@@ -374,8 +376,14 @@ class ExpressionBinder {
       return { ...this.focal, source };
     }
     if (expression.kind === "array") {
-      const items = expression.items.map((item) => this.expression(item));
-      const itemType = items[0]?.facts.type ?? ({ kind: "null" } as const);
+      let items = expression.items.map((item) => this.expression(item));
+      const target = items.map((item) => contextualTarget(item.facts.type))
+        .find((type) => type && (brandedType(type) || type.kind === "ref" || type.kind === "id"));
+      if (target) items = items.map((item) => contextualValue(item, target, item.source.definition));
+      const itemType = items.slice(1).reduce<BoundType>(
+        (joined, item) => joinType(joined, item.facts.type, expression.site),
+        items[0]?.facts.type ?? ({ kind: "null" } as const),
+      );
       const type: ScalarType = { kind: "list", item: scalarType(itemType, expression.site), max: items.length, optional: false };
       return { kind: "array", items, facts: facts(type, combineOrigins(items), { max: items.length }), source };
     }
@@ -390,6 +398,10 @@ class ExpressionBinder {
     }
     if (expression.kind === "unary") {
       const value = this.expression(expression.value);
+      if (expression.op === "not") requireBool(value, expression.value.site);
+      else if (!numericAmount(value.facts.type)) typeError(expression.site,
+        `unary - requires a present numeric value, got ${typeName(value.facts.type)}`,
+        "negate an int, decimal, or money value");
       const type = expression.op === "not" ? boolType() : value.facts.type;
       return { kind: "unary", op: expression.op === "not" ? "Not" : "Neg", value, facts: facts(type, "Computed"), source };
     }
@@ -438,11 +450,19 @@ class ExpressionBinder {
     let key: BoundExpression[] = [];
     let addressedColumns: string[] = [];
     if (expression.op !== "insert") {
-      const keyed = expression.keys.map((part) => ({ authored: part.value, bound: this.expression(part.value) }));
+      let keyed = expression.keys.map((part) => ({ authored: part.value, bound: this.expression(part.value) }));
       const selected = selectIndex(this.catalog, expression.table, expression.keys, "point", undefined,
         (authored) => scalarForIndex(keyed.find((item) => item.authored === authored)?.bound.facts.type), expression.site);
       index = { kind: "index", id: `${table.id}:index:${selected.name}`, name: selected.name,
         declaration: selected, table, source: sourceStack(selected.site) };
+      keyed = keyed.map((item, offset) => {
+        const component = selected.components[offset];
+        if (!component || !("Column" in component)) return item;
+        const expected = component.Column === "id"
+          ? { kind: "ref", table: expression.table, optional: false } satisfies ScalarType
+          : info.columns.get(component.Column);
+        return expected ? { ...item, bound: contextualValue(item.bound, expected, item.authored.site) } : item;
+      });
       key = keyed.map((item) => item.bound);
       addressedColumns = ordinaryColumns(selected.components) ?? [];
       this.validateAddressedFields(expression, addressedColumns);
@@ -464,7 +484,11 @@ class ExpressionBinder {
           ? { kind: "id", optional: false } satisfies ScalarType
           : info.columns.get(field.name);
         if (!expected) typeError(this.diagnosticSite(field.site), `unknown ${expression.table} field ${field.name}`, `use a declared ${expression.table} column`);
-        const value = this.expression(field.value ?? { kind: "name", name: field.name, site: field.site });
+        const value = contextualValue(
+          this.expression(field.value ?? { kind: "name", name: field.name, site: field.site }),
+          expected,
+          this.diagnosticSite(field.site),
+        );
         if (!writeAssignable(value.facts.type, expected, field.value)) typeError(this.diagnosticSite(field.site),
           `${field.name} expects ${typeName(expected)}, got ${typeName(value.facts.type)}`, `use a ${typeName(expected)} value for ${field.name}`);
         return { name: field.name, value, expected,
@@ -553,16 +577,87 @@ class ExpressionBinder {
   }
 
   private binary(expression: Extract<Expr, { kind: "binary" }>): BoundExpression {
-    const left = this.expression(expression.left);
-    const right = this.expression(expression.right);
+    let left = this.expression(expression.left);
+    let right = this.expression(expression.right);
     const op = binaryOperator(expression.op);
     if (!op) unsupported(expression.site, `operator ${expression.op}`, "use a comparison, Boolean operator, +, -, or *");
-    let type: BoundType;
-    if (["Eq", "Ne", "Lt", "Lte", "Gt", "Gte", "And", "Or"].includes(op)) type = boolType();
-    else if (expression.op === "??") type = coalescedType(left.facts.type, right.facts.type);
-    else if (left.facts.type.kind === "time" && right.facts.type.kind === "time" && op === "Sub") type = { kind: "int", optional: false };
-    else type = requiredType(left.facts.type);
-    return { kind: "binary", op, left, right, facts: facts(type, "Computed"), source: this.source(expression.site) };
+    if (op === "And" || op === "Or") {
+      requireBool(left, expression.left.site);
+      requireBool(right, expression.right.site);
+      return { kind: "binary", op, left, right, facts: facts(boolType(), "Computed"), source: this.source(expression.site) };
+    }
+    if (expression.op === "??") {
+      [left, right] = contextualPair(left, right, expression.site);
+      if ((left.facts.type.kind === "ref" || left.facts.type.kind === "id")
+        && !idFallbackCompatible(right.facts.type, left.facts.type)) typeError(expression.right.site,
+          `Id fallback requires ${typeName(left.facts.type)}, got ${typeName(right.facts.type)}`,
+          "use a non-empty text literal or a reference to the same table");
+      return { kind: "binary", op, left, right, facts: facts(coalescedType(left.facts.type, right.facts.type), "Computed"),
+        source: this.source(expression.site) };
+    }
+    if (["Eq", "Ne", "Lt", "Lte", "Gt", "Gte"].includes(op)) {
+      const nullComparison = left.facts.type.kind === "null" || right.facts.type.kind === "null";
+      if (nullComparison && (op === "Eq" || op === "Ne")) {
+        return { kind: "binary", op, left, right, facts: facts(boolType(), "Computed"), source: this.source(expression.site) };
+      }
+      [left, right] = contextualPair(left, right, expression.site);
+      if (!comparable(left.facts.type, right.facts.type)) typeError(expression.site,
+        `cannot compare nominal ${typeName(left.facts.type)} with ${typeName(right.facts.type)}`,
+        "compare values with the same nominal type");
+      if (!["Eq", "Ne"].includes(op) && (left.facts.presence === "optional" || right.facts.presence === "optional")) {
+        typeError(expression.site, `ordered comparison ${expression.op} requires present operands`, "assert optional operands before comparing them");
+      }
+      return { kind: "binary", op, left, right, facts: facts(boolType(), "Computed"), source: this.source(expression.site) };
+    }
+    [left, right] = contextualPair(left, right, expression.site);
+    const leftType = left.facts.type;
+    const rightType = right.facts.type;
+    if (leftType.kind === "time" || rightType.kind === "time") {
+      const difference = op === "Sub" && leftType.kind === "time" && rightType.kind === "time";
+      const offset = (op === "Add" || op === "Sub") && leftType.kind === "time" && rightType.kind === "int"
+        || op === "Add" && leftType.kind === "int" && rightType.kind === "time";
+      if (left.facts.presence === "optional" || right.facts.presence === "optional" || (!difference && !offset)) typeError(expression.site,
+        `time arithmetic does not admit ${typeName(leftType)} ${expression.op} ${typeName(rightType)}`,
+        "time - time yields int; add or subtract an int offset from time");
+      const type: BoundType = { kind: difference ? "int" : "time", optional: false };
+      return { kind: "binary", op, left, right, facts: facts(type, "Computed"), source: this.source(expression.site) };
+    }
+    const leftBrand = brandedType(leftType);
+    const rightBrand = brandedType(rightType);
+    const brand = leftBrand ?? rightBrand;
+    if (brand && (expression.op === "/" || expression.op === "%")) typeError(expression.site,
+      `${typeName(brand)} does not admit ${expression.op}`,
+      `use divmod(left, right).${expression.op === "/" ? "quotient" : "remainder"}`);
+    if (op === "Div" || op === "Mod") typeError(expression.site,
+      `integer ${expression.op} is not an implicit rounding operation`,
+      `use divmod(left, right).${op === "Div" ? "quotient" : "remainder"}`);
+    if (brand && (op === "Add" || op === "Sub")) {
+      if (!leftBrand || !rightBrand || !sameBrand(leftBrand, rightBrand)) typeError(expression.site,
+        `${expression.op} requires matching ${typeName(brand)} values`, `use two matching ${typeName(brand)} values`);
+      return { kind: "binary", op, left, right, facts: facts(leftBrand, "Computed"), source: this.source(expression.site) };
+    }
+    if (brand && op === "Mul") {
+      if (leftBrand && rightBrand) {
+        if (leftBrand.kind === "money" && rightBrand.kind === "money") typeError(expression.site,
+          "money multiplied by money has no currency-squared value", "multiply money by a decimal rate or int");
+        const dropped = leftBrand.kind === "money" ? rightBrand
+          : rightBrand.kind === "money" ? leftBrand : rightBrand;
+        const result = leftBrand.kind === "money" ? leftBrand
+          : rightBrand.kind === "money" ? rightBrand : leftBrand;
+        return { kind: "binary", op, left, right, scaleDivisor: 10 ** dropped.scale,
+          facts: facts(result, "Computed"), source: this.source(expression.site) };
+      }
+      const other = leftBrand ? right : left;
+      if (other.facts.type.kind !== "int" || other.facts.presence === "optional") typeError(expression.site,
+        `${typeName(brand)} multiplication requires an int operand or decimal-typed rate`,
+        "use a present int operand or a declared decimal rate");
+      return { kind: "binary", op, left, right, facts: facts(brand, "Computed"), source: this.source(expression.site) };
+    }
+    if (leftType.kind !== "int" || rightType.kind !== "int"
+      || left.facts.presence === "optional" || right.facts.presence === "optional") typeError(expression.site,
+        `${expression.op} requires present numeric operands; got ${typeName(leftType)} and ${typeName(rightType)}`,
+        "use present int, decimal, or money values");
+    return { kind: "binary", op, left, right, facts: facts(requiredType(leftType), "Computed"), source: this.source(expression.site) };
   }
 
   private member(expression: Extract<Expr, { kind: "member" }>): BoundExpression {
@@ -579,10 +674,12 @@ class ExpressionBinder {
         ? { kind: "ref", table: baseType.table.name, optional: false } as ScalarType
         : this.catalog.get(baseType.table.name)?.columns.get(expression.name);
       if (column) type = { ...column, optional: column.optional || baseType.nullable } as ScalarType;
+      if (type && base.kind === "variable" && base.symbol.narrowedMembers?.has(expression.name)) type = requiredType(type) as ScalarType;
       origin = "Shape";
     } else if (baseType.kind === "object") {
       const field = baseType.fields.get(expression.name);
       if (field) type = baseType.nullable ? optionalType(field.type) : field.type;
+      if (type && base.kind === "variable" && base.symbol.narrowedMembers?.has(expression.name)) type = requiredType(type);
       origin = field?.origin ?? "Computed";
     } else if (baseType.kind === "image" || baseType.kind === "video") {
       if (["width", "height", "duration"].includes(expression.name)) type = { kind: "int", optional: baseType.optional };
@@ -770,7 +867,7 @@ class ExpressionBinder {
       "E_QUARRY_UNSUPPORTED", `inline or split the expression so it expands through at most ${MAX_EXPANSION_DEPTH} named shapes and functions`,
     );
     const bindings = declaration.args.map((parameter, index) => {
-      const value = actuals[index]!;
+      const value = contextualValue(actuals[index]!, parameter.type, this.diagnosticSite(expression.args[index]?.site ?? expression.site));
       if (!assignable(value.facts.type, parameter.type)) typeError(
         this.diagnosticSite(expression.args[index]?.site ?? expression.site),
         `fn ${expression.name} argument ${parameter.name} expects ${typeName(parameter.type)}, got ${typeName(value.facts.type)}`,
@@ -826,11 +923,19 @@ class ExpressionBinder {
     if (!tableInfo) refuse(expression.site, `unknown table ${expression.table}`);
     const table: BoundTableSymbol = { kind: "table", id: `table:${expression.table}`, name: expression.table,
       declaration: tableInfo.declaration, source: sourceStack(tableInfo.declaration.site) };
-    const keyed = expression.keys.map((part) => ({ authored: part.value, bound: this.expression(part.value) }));
+    let keyed = expression.keys.map((part) => ({ authored: part.value, bound: this.expression(part.value) }));
     const selected = selectIndex(this.catalog, expression.table, expression.keys, mode, expression.index,
       (authored) => scalarForIndex(keyed.find((item) => item.authored === authored)?.bound.facts.type), expression.site);
     const index: BoundIndexSymbol = { kind: "index", id: `${table.id}:index:${selected.name}`, name: selected.name,
       declaration: selected, table, source: sourceStack(selected.site) };
+    keyed = keyed.map((item, index) => {
+      const component = selected.components[index];
+      if (!component || !("Column" in component)) return item;
+      const expected = component.Column === "id"
+        ? { kind: "ref", table: expression.table, optional: false } satisfies ScalarType
+        : tableInfo.columns.get(component.Column);
+      return expected ? { ...item, bound: contextualValue(item.bound, expected, item.authored.site) } : item;
+    });
     const after = expression.range?.cursor ? this.expression(expression.range.cursor) : null;
     const range = expression.range && { components: selected.components,
       order: expression.range.order === "desc" ? "Desc" as const : "Asc" as const,
@@ -1016,12 +1121,19 @@ function narrowedScope(
 ): Map<string, BoundValueSymbol> {
   const narrowed = new Map(scope);
   if (condition.kind !== "binary" || !["Eq", "Ne"].includes(condition.op)) return narrowed;
-  const variable = condition.left.kind === "variable" && condition.right.kind === "literal" && condition.right.value === null
-    ? condition.left
-    : condition.right.kind === "variable" && condition.left.kind === "literal" && condition.left.value === null
+  const candidate = condition.right.kind === "literal" && condition.right.value === null
+    ? condition.left : condition.left.kind === "literal" && condition.left.value === null
       ? condition.right : undefined;
-  if (!variable || (condition.op === "Ne") !== thenBranch) return narrowed;
+  if (!candidate || (condition.op === "Ne") !== thenBranch) return narrowed;
+  const variable = candidate.kind === "variable" ? candidate
+    : candidate.kind === "member" && candidate.base.kind === "variable" ? candidate.base : undefined;
+  if (!variable) return narrowed;
   const symbol = variable.symbol;
+  if (candidate.kind === "member") {
+    narrowed.set(symbol.name, { ...symbol,
+      narrowedMembers: new Set([...(symbol.narrowedMembers ?? []), candidate.name]) });
+    return narrowed;
+  }
   if (symbol.kind === "argument") {
     narrowed.set(symbol.name, { ...symbol, type: requiredType(symbol.type) as ScalarType });
   } else {
@@ -1035,6 +1147,96 @@ function narrowedScope(
 function requireBool(value: BoundExpression, site: Site): void {
   if (value.facts.type.kind !== "bool" || value.facts.type.optional) typeError(site,
     `condition requires bool, got ${typeName(value.facts.type)}`, "use a required Boolean comparison");
+}
+
+function contextualValue(expression: BoundExpression, target: ScalarType, site: Site): BoundExpression {
+  if (numericLiteralExpression(expression) && numericTarget(target)) return contextualLiteral(expression, target, site);
+  if (stringLiteralExpression(expression) && (target.kind === "id" || target.kind === "ref")) {
+    return contextualLiteral(expression, target, site);
+  }
+  return expression;
+}
+
+function contextualPair(left: BoundExpression, right: BoundExpression, site: Site): [BoundExpression, BoundExpression] {
+  const leftTarget = contextualTarget(right.facts.type);
+  const rightTarget = contextualTarget(left.facts.type);
+  if (numericLiteralExpression(left) && leftTarget && numericTarget(leftTarget)) left = contextualLiteral(left, leftTarget, site);
+  if (numericLiteralExpression(right) && rightTarget && numericTarget(rightTarget)) right = contextualLiteral(right, rightTarget, site);
+  if (stringLiteralExpression(left) && leftTarget && (leftTarget.kind === "id" || leftTarget.kind === "ref")) {
+    left = contextualLiteral(left, leftTarget, site);
+  }
+  if (stringLiteralExpression(right) && rightTarget && (rightTarget.kind === "id" || rightTarget.kind === "ref")) {
+    right = contextualLiteral(right, rightTarget, site);
+  }
+  return [left, right];
+}
+
+function contextualTarget(type: BoundType): ScalarType | undefined {
+  if (type.kind === "row") return { kind: "ref", table: type.table.name, optional: type.nullable };
+  return isScalar(type) ? type : undefined;
+}
+
+function contextualLiteral(expression: BoundExpression, target: ScalarType, site: Site): BoundExpression {
+  if (expression.kind === "unary" && expression.op === "Neg") {
+    const value = contextualLiteral(expression.value, target, site);
+    return { ...expression, value, facts: facts({ ...target, optional: false } as ScalarType, expression.facts.origin) };
+  }
+  if (expression.kind !== "literal") return expression;
+  if (typeof expression.value === "string" && (target.kind === "id" || target.kind === "ref")) {
+    if (expression.value.length === 0) typeError(site, "Id literals cannot be empty", "use a non-empty Id literal");
+    return { ...expression, wireKind: "id", facts: facts({ ...target, optional: false } as ScalarType, expression.facts.origin) };
+  }
+  if (typeof expression.value !== "number" || !numericTarget(target)) return expression;
+  const text = expression.numericText ?? String(expression.value);
+  const scale = target.kind === "decimal" || target.kind === "money" ? target.scale : 0;
+  const wireValue = scaledInteger(text, scale);
+  if (wireValue === undefined) typeError(site,
+    `${decimalPlaces(text)} fractional digits do not fit ${typeName(target)}`,
+    target.kind === "decimal" || target.kind === "money" ? `use at most ${target.scale} fractional digits` : "use an integer literal");
+  return { ...expression, wireValue, facts: facts({ ...target, optional: false } as ScalarType, expression.facts.origin) };
+}
+
+function numericLiteralExpression(expression: BoundExpression): boolean {
+  return expression.kind === "literal" && typeof expression.value === "number"
+    || expression.kind === "unary" && expression.op === "Neg" && numericLiteralExpression(expression.value);
+}
+function stringLiteralExpression(expression: BoundExpression): boolean {
+  return expression.kind === "literal" && typeof expression.value === "string";
+}
+function numericTarget(type: ScalarType): type is Extract<ScalarType, { kind: "int" | "decimal" | "money" }> {
+  return ["int", "decimal", "money"].includes(type.kind);
+}
+function numericAmount(type: BoundType): boolean {
+  return (type.kind === "int" || type.kind === "decimal" || type.kind === "money") && !type.optional
+    || type.kind === "numeric-literal";
+}
+function brandedType(type: BoundType): Extract<ScalarType, { kind: "decimal" | "money" }> | undefined {
+  return type.kind === "decimal" || type.kind === "money" ? type : undefined;
+}
+function sameBrand(left: Extract<ScalarType, { kind: "decimal" | "money" }>, right: Extract<ScalarType, { kind: "decimal" | "money" }>): boolean {
+  return left.kind === "decimal" && right.kind === "decimal" && left.scale === right.scale
+    || left.kind === "money" && right.kind === "money" && left.currency === right.currency && left.scale === right.scale;
+}
+function comparable(left: BoundType, right: BoundType): boolean {
+  if (left.kind === "row") return right.kind === "row" && left.table.name === right.table.name
+    || right.kind === "ref" && left.table.name === right.table;
+  if (right.kind === "row") return comparable(right, left);
+  if (!isScalar(left) || !isScalar(right)) return false;
+  if (left.kind === "principal" || right.kind === "principal") return left.kind === "principal" && right.kind === "principal";
+  if (left.kind === "ref" || left.kind === "id") return right.kind === "id"
+    || right.kind === "ref" && (left.kind === "id" || left.table === right.table);
+  if (right.kind === "ref" || right.kind === "id") return false;
+  if ((left.kind === "enum" && right.kind === "text") || (left.kind === "text" && right.kind === "enum")) return true;
+  if (left.kind === "decimal" || right.kind === "decimal") return left.kind === "decimal" && right.kind === "decimal" && left.scale === right.scale;
+  if (left.kind === "money" || right.kind === "money") return left.kind === "money" && right.kind === "money"
+    && left.currency === right.currency && left.scale === right.scale;
+  return left.kind === right.kind;
+}
+function idFallbackCompatible(actual: BoundType, expected: Extract<ScalarType, { kind: "id" | "ref" }>): boolean {
+  if (actual.kind === "null") return expected.optional;
+  if (actual.kind === "row") return expected.kind === "ref" && actual.table.name === expected.table;
+  if (!isScalar(actual)) return false;
+  return actual.kind === "id" || actual.kind === "ref" && (expected.kind === "id" || actual.table === expected.table);
 }
 
 function facts(type: BoundType, origin: Provenance, extra: Partial<BoundValueFacts> = {}): BoundValueFacts {
@@ -1083,13 +1285,23 @@ function coalescedType(left: BoundType, right: BoundType): BoundType {
 function binaryOperator(operator: string): string | undefined {
   return new Map([
     ["=", "Eq"], ["!=", "Ne"], ["<", "Lt"], ["<=", "Lte"], [">", "Gt"], [">=", "Gte"],
-    ["+", "Add"], ["-", "Sub"], ["*", "Mul"], ["and", "And"], ["or", "Or"], ["??", "Coalesce"],
+    ["+", "Add"], ["-", "Sub"], ["*", "Mul"], ["/", "Div"], ["%", "Mod"],
+    ["and", "And"], ["or", "Or"], ["??", "Coalesce"],
   ]).get(operator);
 }
 function boolType(): Extract<ScalarType, { kind: "bool" }> { return { kind: "bool", optional: false }; }
 function decimalPlaces(text: string | undefined): number {
   const dot = text?.indexOf(".") ?? -1;
   return dot < 0 ? 0 : text!.length - dot - 1;
+}
+function scaledInteger(text: string, scale: number): number | undefined {
+  const match = text.match(/^(\d+)(?:\.(\d+))?$/);
+  if (!match) return undefined;
+  const fraction = match[2] ?? "";
+  if (fraction.length > scale) return undefined;
+  const value = BigInt(`${match[1]}${fraction.padEnd(scale, "0")}`);
+  const number = Number(value);
+  return Number.isSafeInteger(number) ? number : undefined;
 }
 function assignable(actual: BoundType, expected: ScalarType): boolean {
   if (actual.kind === "null") return expected.optional;
