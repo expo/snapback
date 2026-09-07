@@ -101,3 +101,31 @@ compare-and-set mutation within 4,350 bytes then passed the existing guide
 test. No assertions or deadlines were weakened, and no third full-suite run
 is claimed. The separate loop measurement's functional steps passed, but its
 timing overruns are retained in [the budget ticket](20260907-snapback2-loop-budget-overruns-in-parallel-papercut-lane.md).
+
+## Architecture integration and upstream timing control — 2026-09-07
+
+The LLP 1018.000 integration at `1c79e66ed` ran the canonical nextest
+`local-proof` profile with eight workers on the warm EPYC `enginefix` lane:
+840 tests ran, 838 passed, two failed, and four were skipped. Test execution
+took **77.100 s** (79.51 s including Cargo setup), exceeding the entire
+blocking-suite budget of 60 s before the JavaScript checks are counted.
+The two failures were obsolete grammar expectations and an auth fixture
+reading transitional successor state; their repairs retain the original
+deadlines. They are tracked separately from this timing observation.
+
+A subsequent upstream control at `a75c98406`, on the same named lane, Rust
+1.97.0, profile, eight workers and unchanged limits, ran 801 tests:
+800 passed, one stale offline-guide budget assertion failed, and four were
+skipped. Test execution took **76.826 s** (93.25 s including rebuilding the
+changed upstream test binaries). Doctests passed on both sources. The slowest
+upstream test was the existing silent-socket shutdown case at 31.241 s.
+
+These observations establish that upstream also exceeds the 60-second
+budget on this machine; they do not establish a meaningful performance
+difference from the 0.274-second gap or qualify the full blocking suite.
+Do not increase the limit, discard failed records, or rerun until green.
+The next repair should profile the inherited long-running journeys and
+separate execution cost from compiler/build cost while preserving coverage.
+Raw logs and the upstream JUnit record are retained under
+`.llp/ship-runs/20260907-1018-architecture/native-full-{1c79,origin-a75}.*`
+in the coordinating checkout.
