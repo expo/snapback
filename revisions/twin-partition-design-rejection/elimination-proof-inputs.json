@@ -1,0 +1,67 @@
+{
+  "utc": "2026-09-07T12:50:31.579891+00:00",
+  "sourceCommit": "0ecd6015a7a1f0c291a224baef37f832b6b3154a",
+  "author": "search_feasibility supervisor; no external author",
+  "disposition": "REJECT current indexed-partition consolidation as a size implementation recommendation",
+  "scope": "Static elimination proof only; source-derived examples unexecuted; no mathematical impossibility or gzip lower-bound claim",
+  "sourceReadScope": "Prior recommendation sources plus range-store ordered admission, publication/rollback and eviction/GC sections; FactTransaction preparation/check/close/blocking/ref accounting; full SwapJournal and StoreChanges. No whole-graph review claim.",
+  "inputs": [
+    {
+      "path": "/Users/ccheever/projects/snapback-worktrees/clique-domain-fallback/snapback2/packages/snapback2/src/store/range-store.ts",
+      "bytes": 74376,
+      "sha256": "744547e7e6a73f547397ed07a6050059c3849b6e67da275af45ad0f63ce94357"
+    },
+    {
+      "path": "/Users/ccheever/projects/snapback-worktrees/clique-domain-fallback/snapback2/packages/snapback2/src/twin-store.ts",
+      "bytes": 14433,
+      "sha256": "2d0cb8572529117a0424150599de76f38404801a9f08cd3977b8668f61d1ab87"
+    },
+    {
+      "path": "/Users/ccheever/projects/snapback-worktrees/clique-domain-fallback/snapback2/packages/evaluator/src/store.ts",
+      "bytes": 15470,
+      "sha256": "5e1d0c7cbea8b95b2594f68f21a6d1027461ba778b12a799d872287ed09fd0d5"
+    },
+    {
+      "path": "/Users/ccheever/projects/snapback-worktrees/clique-domain-fallback/snapback2/packages/evaluator/src/coverage.ts",
+      "bytes": 12514,
+      "sha256": "c0936f440370dcbf92b28677217fe5d36ac411ca86864de006e62b663a878781"
+    },
+    {
+      "path": "/Users/ccheever/projects/snapback-worktrees/clique-domain-fallback/snapback2/packages/snapback2/src/store/carrier-index.ts",
+      "bytes": 12872,
+      "sha256": "68a05f3a1cfae80c35473359f7aacab402f8a614d8dcc1aa9956d757e4782a0d"
+    },
+    {
+      "path": "/Users/ccheever/projects/snapback-worktrees/clique-domain-fallback/snapback2/packages/snapback2/src/store/fact-index.ts",
+      "bytes": 3834,
+      "sha256": "dcdc0771fde6d3d4c3c067acc09e76a923009dd830a816d89de9d92f2efb2a5e"
+    },
+    {
+      "path": "/Users/ccheever/projects/snapback-worktrees/clique-domain-fallback/snapback2/packages/snapback2/src/store/fact-integrity.ts",
+      "bytes": 15367,
+      "sha256": "9376fedbcbe7e7b29c3097e426ae968736eb4f7bbe8568df9bbd0dbfea2c39cf"
+    },
+    {
+      "path": "/Users/ccheever/projects/snapback-worktrees/clique-domain-fallback/snapback2/packages/snapback2/src/store/swap-journal.ts",
+      "bytes": 7221,
+      "sha256": "e624f877d108662399e82757d177c64bdafc62c893271571978a15046ff422aa"
+    },
+    {
+      "path": "/Users/ccheever/clique-improvement/lanes/search-twin/r8-after-codec-recommendation.md",
+      "bytes": 5103,
+      "sha256": "aa18ef19b8d5e8faf45c0bc16a99aaf4e12b9b50df9fc8537077947e669f470e"
+    },
+    {
+      "path": "/Users/ccheever/clique-improvement/lanes/search-twin/r8-structural-codec-experiment/historical-byte-attribution.json",
+      "bytes": 22052,
+      "sha256": "3ddb00ba296422eb1c76430449bbd27d5387689e3e4b3032fde462a9843e7d67"
+    },
+    {
+      "path": "/Users/ccheever/clique-improvement/lanes/search-twin/r8-post-unicode-design/PLAN.md",
+      "bytes": 15737,
+      "sha256": "3e78b762373a70ea1b0c575b3e896104fd287b5126040b118967de1c2d1c7ecc"
+    }
+  ],
+  "reportBytes": 11321,
+  "reportSha256": "9d70c8cdd0ec355dec1bd86cbdee329d540ee0ece1dc318c09d64d188d39c42b"
+}
