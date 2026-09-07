@@ -17,11 +17,16 @@ interface Observation {
 
 interface Entry<Event, Snapshot> {
   underlying: Subscription<Event>;
+  readonly spec: EntrySpec<Event, Snapshot>;
   readonly attachments: Set<Attachment<Event>>;
   readonly observations: Set<Observation>;
   readonly initial: Snapshot;
   snapshot: Snapshot;
   last?: Event;
+  epoch: number;
+  refreshPending: boolean;
+  refreshScheduled: boolean;
+  refreshing: boolean;
 }
 
 interface EntrySpec<Event, Snapshot> {
@@ -29,6 +34,8 @@ interface EntrySpec<Event, Snapshot> {
   initial: Snapshot;
   reduce(current: Snapshot, event: Event): Snapshot;
   open(fanout: (event: Event) => void): Subscription<Event>;
+  /** Reevaluate this query after a committed local input revision. */
+  refresh?(current: Snapshot): Promise<Event | undefined>;
 }
 
 interface ObservedSnapshot<Snapshot> {
@@ -54,18 +61,23 @@ export class SharedSubscriptions {
     let entry = this.entries.get(spec.key) as Entry<Event, Snapshot> | undefined;
     if (entry) return entry;
     const created: Entry<Event, Snapshot> = {
+      spec,
       attachments: new Set(),
       observations: new Set(),
       initial: spec.initial,
       snapshot: spec.initial,
+      epoch: 0,
+      refreshPending: false,
+      refreshScheduled: false,
+      refreshing: false,
       underlying: undefined as unknown as Subscription<Event>,
     };
-    created.underlying = spec.open((event) => {
+    const publish = (event: Event, direct: boolean) => {
       created.last = event;
       const next = spec.reduce(created.snapshot, event);
       const changed = next !== created.snapshot;
       created.snapshot = next;
-      for (const each of [...created.attachments]) {
+      if (direct || changed) for (const each of [...created.attachments]) {
         each.delivered = true;
         try { each.listener(event); } catch { /* one consumer's throw cannot starve the others */ }
       }
@@ -73,13 +85,15 @@ export class SharedSubscriptions {
         try { each.notify(); } catch { /* a snapshot observer cannot starve its peers */ }
       }
       this.release(spec.key, created);
-    });
+    };
+    created.underlying = spec.open((event) => publish(event, true));
     // A program reset forgets predecessor evidence before the fresh stream
     // answers. Both raw late-subscriber replay and observed snapshots reset.
     const resettable = created.underlying as Subscription<Event> & { reset?(): void };
     if (typeof resettable.reset === "function") {
       const reset = resettable.reset.bind(resettable);
       resettable.reset = () => {
+        created.epoch += 1;
         created.last = undefined;
         const changed = created.snapshot !== spec.initial;
         created.snapshot = spec.initial;
@@ -91,6 +105,37 @@ export class SharedSubscriptions {
     }
     this.entries.set(spec.key, created as Entry<unknown, unknown>);
     return created;
+  }
+
+  private queueRefresh<Event, Snapshot>(key: string, entry: Entry<Event, Snapshot>, spec: EntrySpec<Event, Snapshot>): void {
+    if (!spec.refresh) return;
+    entry.refreshPending = true;
+    if (entry.refreshScheduled || entry.refreshing) return;
+    entry.refreshScheduled = true;
+    setTimeout(() => {
+      entry.refreshScheduled = false;
+      if (this.entries.get(key) !== entry) return;
+      entry.refreshPending = false;
+      entry.refreshing = true;
+      const epoch = entry.epoch;
+      void spec.refresh!(entry.snapshot).then((event) => {
+        if (event === undefined || epoch !== entry.epoch || this.entries.get(key) !== entry) return;
+        entry.last = event;
+        const next = spec.reduce(entry.snapshot, event);
+        if (next === entry.snapshot) return;
+        entry.snapshot = next;
+        for (const each of [...entry.attachments]) {
+          each.delivered = true;
+          try { each.listener(event); } catch { /* one consumer cannot block the revision */ }
+        }
+        for (const each of [...entry.observations]) {
+          try { each.notify(); } catch { /* a snapshot observer cannot starve its peers */ }
+        }
+      }).catch(() => undefined).finally(() => {
+        entry.refreshing = false;
+        if (entry.refreshPending && this.entries.get(key) === entry) this.queueRefresh(key, entry, spec);
+      });
+    }, 0);
   }
 
   private release<Event, Snapshot>(key: string, entry: Entry<Event, Snapshot>): void {
@@ -163,6 +208,11 @@ export class SharedSubscriptions {
     return entry === undefined ? 0 : entry.attachments.size + entry.observations.size;
   }
 
+  /** Coalesce committed local input revisions to at most one evaluation per active entry at a time. */
+  refresh(): void {
+    for (const [key, entry] of this.entries) this.queueRefresh(key, entry, entry.spec);
+  }
+
   /** Retire subscribed views whose captured client authority is no longer current. */
   retireInactive(): void {
     for (const [key, entry] of [...this.entries]) {
@@ -182,6 +232,7 @@ export class SharedSubscriptions {
    */
   clear(except?: Subscription<unknown>): void {
     for (const [key, entry] of [...this.entries]) {
+      entry.epoch += 1;
       const owner = entry.underlying as Subscription<unknown> & { owns?(subscription: Subscription<unknown>): boolean };
       const preserved = except !== undefined && (owner === except || owner.owns?.(except) === true);
       if (preserved) { entry.last = undefined; entry.snapshot = entry.initial; }

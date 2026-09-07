@@ -153,6 +153,63 @@ test("closing a client retires an observed authority snapshot before later deliv
   stop();
 });
 
+// @ref LLP 1018#3-move-one-one-coherent-reactive-client — a committed local
+// overlay revision publishes one shared prediction; settlement rolls it back
+// without waiting for a transport frame, while grant bookkeeping stays silent.
+test("mounted query snapshots follow committed prediction and settlement revisions", async () => {
+  const database = new FakeIndexedDb(), locks = new FakeLocks();
+  const carrier = indexedDbRangeStore({ indexedDB: database as any, locks: locks as any });
+  const physical = carrier();
+  const owner = fakeOwner({ seed: true, cursorArg: "c" });
+  const client = createClient({ url: "http://local-revision.test", as: "alice", fetch: owner.fetch,
+    offline: { store: () => physical } });
+  await client.ready;
+  const args = { conversationId: "conversation-1", c: null };
+  const first = client.observe(api.deliveries.thread, args);
+  const second = client.observe(api.deliveries.thread, args);
+  let firstNotifies = 0, secondNotifies = 0;
+  const stopFirst = first.subscribe(() => { firstNotifies += 1; });
+  const stopSecond = second.subscribe(() => { secondNotifies += 1; });
+  await until(() => first.getSnapshot().state === "complete", "the held thread");
+  await new Promise<void>((resolve) => setTimeout(resolve, 20));
+  assert.strictEqual(first.getSnapshot(), second.getSnapshot());
+  assert.deepEqual([firstNotifies, secondNotifies], [1, 1], "the delivery's store commit does not publish a duplicate snapshot");
+  const initial = (first.getSnapshot() as any).data[0].message;
+  await client.offline();
+  await until(() => first.getSnapshot().live === false, "the mounted offline view");
+  assert.strictEqual(first.getSnapshot(), second.getSnapshot());
+  const intent = "local-prediction";
+  const entry = {
+    intent, grant: "test-grant", offset: 0, count: 1, ids: ["predicted-id"],
+    op: "deliveries.edit", args: { messageId: initial.id, body: "Predicted edit" }, issuedSeq: 5,
+    state: "queued" as const, predicted: true, trace: { points: [], verdicts: [] }, createdAt: 10, updatedAt: 10,
+  };
+  const beforePrediction = firstNotifies;
+  await physical.commit({ outbox: { put: [entry] }, overlay: { put: { [intent]: [{
+    table: "messages", id: initial.id, row: { ...initial, body: "Predicted edit" }, fields: ["body"],
+  }] } } });
+  await until(() => (first.getSnapshot() as any).predicted?.[0] === intent, "the shared local prediction");
+  assert.equal((first.getSnapshot() as any).data[0].message.body, "Predicted edit");
+  assert.strictEqual(first.getSnapshot(), second.getSnapshot(), "both consumers publish the same predicted snapshot");
+  assert.equal(firstNotifies, beforePrediction + 1);
+  assert.equal(secondNotifies, firstNotifies);
+
+  const beforeBookkeeping = firstNotifies;
+  await physical.commit({ grants: { put: [{ id: "bookkeeping", from: "s2id-0000000000000000000000000000000a-0000000000001000",
+    count: 8, mintedAt: 10, expiresAt: 20, used: 0 }], current: "bookkeeping" } });
+  await new Promise<void>((resolve) => setTimeout(resolve, 20));
+  assert.equal(firstNotifies, beforeBookkeeping, "grant bookkeeping does not reevaluate a query");
+
+  await physical.commit({ outbox: { put: [{ ...entry, state: "rejected", predicted: false, updatedAt: 11 }] } });
+  await until(() => (first.getSnapshot() as any).data?.[0]?.message?.body === "Welcome", "prediction settlement rollback");
+  assert.equal((first.getSnapshot() as any).predicted, undefined);
+  assert.strictEqual(first.getSnapshot(), second.getSnapshot(), "settlement is one coherent shared snapshot");
+  assert.equal(firstNotifies, beforeBookkeeping + 1);
+  assert.equal(secondNotifies, firstNotifies);
+  stopFirst(); stopSecond();
+  await client.close();
+});
+
 test("identical drains share one page walk and one tail", async () => {
   const owner = fakeOwner({ seed: true, cursorArg: "c" });
   const { counts, fetch } = counting(owner);

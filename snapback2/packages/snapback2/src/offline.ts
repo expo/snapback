@@ -196,6 +196,8 @@ export class OfflineRuntime {
   private drains: Record<string, DrainContract | undefined> = {};
   private resumeQueries: MountedQuery[] = [];
   private tail: Promise<void> = Promise.resolve();
+  private readonly inputListeners = new Set<() => void>();
+  private readonly stopInputChanges?: () => void;
   /** Fences deliveries already in flight when coverage or principal is replaced. */
   coverageRevision = 0;
 
@@ -215,6 +217,11 @@ export class OfflineRuntime {
       now: () => Date.now(),
       seq: () => this.latestSeq,
     });
+    this.stopInputChanges = this.store.subscribeInputs(() => {
+      for (const listener of [...this.inputListeners]) {
+        try { listener(); } catch { /* query observers cannot fail a committed swap */ }
+      }
+    });
   }
 
   get principal(): string | undefined { return this.partition; }
@@ -226,6 +233,12 @@ export class OfflineRuntime {
   get resetNeeded(): boolean { return this.superseded !== undefined; }
 
   get needsDrainMetadata(): boolean { return !!this.held && Object.values(this.held.programs).some(op => op.drain === undefined); }
+
+  /** Observe committed local inputs; each listener schedules and fences its own evaluation. */
+  subscribeInputs(listener: () => void): () => void {
+    this.inputListeners.add(listener);
+    return () => { this.inputListeners.delete(listener); };
+  }
 
   /** The twin's answer for a query, or `undefined` when it cannot run (no program, another generation). */
   async evaluate(op: string, args: unknown): Promise<LocalAnswer | undefined> {
@@ -403,6 +416,8 @@ export class OfflineRuntime {
     this.outbox.resetTrust();
     await this.tail;
     this.outbox.close();
+    this.stopInputChanges?.();
+    this.inputListeners.clear();
     this.bytes.forget();
     await this.store.close?.();
   }

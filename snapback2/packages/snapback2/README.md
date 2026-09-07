@@ -62,6 +62,8 @@ retries while its connection is reconnecting.
 first listener opens the shared subscription and its last listener releases
 it. Identical headless and React consumers read the same immutable `QueryView`;
 successor and account resets publish `hydrating` before new-authority data.
+Committed predictions, settlements, and coverage changes reevaluate mounted
+views once from the atomic store revision; bookkeeping-only commits stay silent.
 
 `useMutation` returns `{ run, inFlight, pending, ready, status, last, transport }`.
 `inFlight` marks an active call; `pending` lists this operation's durable queued

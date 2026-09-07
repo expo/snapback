@@ -45,8 +45,8 @@ import {
   wireSubscription,
 } from "./client-wire.js";
 import { admitDrain, type OfflineRuntime, type MountedQuery } from "./offline.js";
-import { SharedSubscriptions, TabFollower } from "./client-sessions.js";
-import { bindQueryRequest, oneShotQuery, queryEntry, queryIdentity } from "./client-observed.js";
+import { TabFollower } from "./client-sessions.js";
+import { ClientQueries } from "./client-observed.js";
 import { createChannel, type ChannelHost } from "./client-channels.js";
 import { ReconnectingSse } from "./sse.js";
 import type { SseResponse } from "./sse-parser.js";
@@ -55,7 +55,7 @@ import type {
   AssetInput, AssetRecord, AssetUploadOptions, AssetUploadSource, AssetUrlOptions,
   AuthMe, AuthSession, AuthTokenStore, ChannelHandle, ChannelPublishResult,
   ClientSnapshot, CreateClientOptions, ImageAsset, LiveQueryDelivery, Manifest,
-  MutationResult, ObservedQuery, OutboxApi, Principal, QueryMachineEvent,
+  MutationResult, ObservedQuery, OutboxApi, Principal,
   QueryResult, QueryRefusedDelivery, RefusalEnvelope, RefusedDelivery,
   SnapbackClient, Subscription, SubscriptionDelivery, VideoAsset,
 } from "./types.js";
@@ -108,7 +108,7 @@ class Client implements SnapbackClient {
   private readonly offlineRuntime?: OfflineRuntime;
   private readonly live: SharedSse;
   private readonly mounted = new Map<string, MountedQuery>();
-  private readonly shared = new SharedSubscriptions();
+  private readonly queries: ClientQueries;
   /** This browser tab while another tab holds the account's writer lock (LLP 1018 §3). */
   private readonly follower = new TabFollower<Authority>({
     runtime: () => this.offlineRuntime!, closed: () => this.closed,
@@ -170,6 +170,14 @@ class Client implements SnapbackClient {
     } catch (error) {
       throw this.offlineRefusal(error);
     }
+    this.queries = new ClientQueries({
+      identity: () => [this.authGeneration, this.operationFence],
+      active: ([generation, fence]) => !this.closed && this.authGeneration === generation && this.operationFence === fence,
+      open: (ref, args, callback, drain) => drain ? this.drain(ref, args, callback) : this.subscribeRegular(ref, args, callback),
+      query: (ref, args) => this.query(ref, args),
+      local: (ref, args, drain) => answerOffline(this.offlineRuntime, referenceName(ref), args, error => this.offlineRefusal(error), drain),
+    });
+    this.offlineRuntime?.subscribeInputs(() => this.queries.refresh());
     this.outbox = createOutboxApi(this.offlineRuntime, () => this.drainNow(), () => this.localReady, () => this.forcedOffline);
     this.auth = {
       signup: (input: { email: string; password: string }) => this.session("/api/auth/signup", input),
@@ -348,20 +356,7 @@ class Client implements SnapbackClient {
   observe<Args, Result>(
     ref: Op<Args, Result>, args: Args, options: { live?: false; drain?: boolean } = {},
   ): ObservedQuery<Result> {
-    const once = options.live === false, drain = options.drain === true;
-    if (once && drain) throw new TypeError("query observation drain requires a live subscription");
-    const request = bindQueryRequest(ref, args);
-    const generation = this.authGeneration, fence = this.operationFence;
-    const active = () => !this.closed && this.authGeneration === generation && this.operationFence === fence;
-    const mode = once ? "once" : drain ? "drain" : "live";
-    const spec = queryEntry<Result, SubscriptionDelivery<Result>>(
-      queryIdentity(this.authGeneration, this.operationFence, mode, request.op, request.args),
-      (fanout) => drain ? this.drain(request.ref, request.args, fanout) : this.subscribeRegular(request.ref, request.args, fanout),
-    );
-    if (once) return this.shared.observe(queryEntry<Result, QueryMachineEvent<Result>>(
-      spec.key, (fanout) => oneShotQuery(() => this.query(request.ref, request.args), fanout),
-    ), active);
-    return this.shared.observe(spec, active);
+    return this.queries.observe(ref, args, options);
   }
   subscribe<Args, Result>(
     ref: Op<Args, Result>,
@@ -369,16 +364,10 @@ class Client implements SnapbackClient {
     callback: (delivery: SubscriptionDelivery<Result>) => void,
     options: { drain?: boolean } = {},
   ): Subscription<SubscriptionDelivery<Result>> {
-    // One entry per (authority generation, kind, op, args): later consumers attach to the first one's stream.
-    const request = bindQueryRequest(ref, args), drain = options.drain === true;
-    const mode = drain ? "drain" : "live";
-    return this.shared.attach(queryEntry<Result, SubscriptionDelivery<Result>>(
-      queryIdentity(this.authGeneration, this.operationFence, mode, request.op, request.args),
-      (fanout) => drain ? this.drain(request.ref, request.args, fanout) : this.subscribeRegular(request.ref, request.args, fanout),
-    ), callback);
+    return this.queries.subscribe(ref, args, callback, options);
   }
   sharedConsumers(ref: Op<any, any>, args: unknown, drain = false): number {
-    return this.shared.consumers(queryIdentity(this.authGeneration, this.operationFence, drain ? "drain" : "live", referenceName(ref), args));
+    return this.queries.consumers(ref, args, drain);
   }
   private subscribeRegular<Args, Result>(
     ref: Op<Args, Result>,
@@ -1413,7 +1402,7 @@ class Client implements SnapbackClient {
 
   private closeTransports(except?: Subscription<unknown>): void {
     this.live.close();
-    this.shared.clear(except);
+    this.queries.clear(except);
     // The stream a terminal refusal came from stays open to deliver it, and so
     // does a drain whose tail that stream is: closing the drain would silence it.
     for (const subscription of [...this.subscriptions]) {
@@ -1465,7 +1454,7 @@ class Client implements SnapbackClient {
   }
 
   private publishAuthSnapshot(): void {
-    this.shared.retireInactive();
+    this.queries.retireInactive();
     this.patchSnapshot({ authGeneration: this.authGeneration, token: this.currentToken, auth: this.authState.value });
   }
 
