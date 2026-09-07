@@ -1,0 +1,23 @@
+{
+  "observedUtc": "2026-09-07T09:43:41.278153+00:00",
+  "pid": 74675,
+  "toolSession": 10873,
+  "actualToolExitCode": 0,
+  "pidAbsent": true,
+  "actualLauncher": {
+    "pid": 74675,
+    "exitCode": 0,
+    "endedEpoch": 1788774154.900713,
+    "elapsedSeconds": 1175.1066272258759
+  },
+  "reviewArtifactsChecked": 18,
+  "errors": [],
+  "reportFullyReadBySupervisor": true,
+  "reportVerbatim": true,
+  "report": {
+    "path": "REPORT.md",
+    "bytes": 24704,
+    "sha256": "78b17a49b9c6972bc9b1a7a73f16268636d29da5644b068c275033beefefdb51"
+  },
+  "disposition": "NEEDS_CHANGES: introduced malformed singleton loop-domain fallback canonical identity regression. Synthetic direct API, not native accepted IR or bypass. Grok READY with no new runtime probe does not refute;75815gzipFAIL separate."
+}

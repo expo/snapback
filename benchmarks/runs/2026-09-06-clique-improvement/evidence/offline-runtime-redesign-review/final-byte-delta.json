@@ -1,0 +1,154 @@
+{
+  "before": {
+    "minified": 231741,
+    "gzip": 75799,
+    "sha256": "9e7f739b3e215bf7fa9dabeadc9b976da52d92a9ab6dbaf3cb962a3e8331bd38"
+  },
+  "after": {
+    "minified": 230321,
+    "gzip": 75815,
+    "sha256": "5a8fc8cbe03fa2764352e65d1766f0393ec7d1df52f477fd7baab23ddb77a498"
+  },
+  "minifiedDelta": -1420,
+  "gzipDelta": 16,
+  "overCeiling": 9815,
+  "interpretation": "bytesInOutput is minified attribution, not additive gzip saving; unchanged full five-root actual Node gzip9 measure exit1",
+  "changedAttribution": [
+    {
+      "path": "../evaluator/src/certificate-identity.ts",
+      "before": 8986,
+      "after": 7779,
+      "delta": -1207
+    },
+    {
+      "path": "../evaluator/src/value-runtime.ts",
+      "before": 12360,
+      "after": 12372,
+      "delta": 12
+    },
+    {
+      "path": "src/offline-protocol.ts",
+      "before": 10197,
+      "after": 9689,
+      "delta": -508
+    },
+    {
+      "path": "src/offline.ts",
+      "before": 16383,
+      "after": 15984,
+      "delta": -399
+    },
+    {
+      "path": "src/store/asset-policy.ts",
+      "before": 1324,
+      "after": 1262,
+      "delta": -62
+    },
+    {
+      "path": "src/store/byte-cache.ts",
+      "before": 6960,
+      "after": 6910,
+      "delta": -50
+    },
+    {
+      "path": "src/store/projection.ts",
+      "before": 2158,
+      "after": 2236,
+      "delta": 78
+    },
+    {
+      "path": "src/store/range-store.ts",
+      "before": 27793,
+      "after": 26896,
+      "delta": -897
+    },
+    {
+      "path": "src/store/row-values.ts",
+      "before": 940,
+      "after": 2553,
+      "delta": 1613
+    }
+  ],
+  "largest": [
+    {
+      "path": "src/store/range-store.ts",
+      "bytes": 26896
+    },
+    {
+      "path": "../evaluator/src/runner.ts",
+      "bytes": 25447
+    },
+    {
+      "path": "../evaluator/dist/unicode-tables.ts",
+      "bytes": 17186
+    },
+    {
+      "path": "src/offline.ts",
+      "bytes": 15984
+    },
+    {
+      "path": "../evaluator/src/value-runtime.ts",
+      "bytes": 12372
+    },
+    {
+      "path": "src/offline-protocol.ts",
+      "bytes": 9689
+    },
+    {
+      "path": "../evaluator/src/certificate-identity.ts",
+      "bytes": 7779
+    },
+    {
+      "path": "../evaluator/src/store.ts",
+      "bytes": 7708
+    },
+    {
+      "path": "src/twin-store.ts",
+      "bytes": 7295
+    },
+    {
+      "path": "src/store/fact-integrity.ts",
+      "bytes": 7150
+    },
+    {
+      "path": "../evaluator/src/index-store.ts",
+      "bytes": 7085
+    },
+    {
+      "path": "src/store/byte-cache.ts",
+      "bytes": 6910
+    },
+    {
+      "path": "src/store/carrier-index.ts",
+      "bytes": 6238
+    },
+    {
+      "path": "src/store/outbox.ts",
+      "bytes": 6199
+    },
+    {
+      "path": "../evaluator/src/coverage.ts",
+      "bytes": 5561
+    },
+    {
+      "path": "../evaluator/src/cursor.ts",
+      "bytes": 5551
+    },
+    {
+      "path": "../evaluator/src/unicode.ts",
+      "bytes": 4985
+    },
+    {
+      "path": "../evaluator/src/range-preparation.ts",
+      "bytes": 4692
+    },
+    {
+      "path": "src/twin.ts",
+      "bytes": 4586
+    },
+    {
+      "path": "src/store/swap-journal.ts",
+      "bytes": 3003
+    }
+  ]
+}

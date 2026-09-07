@@ -1,0 +1,224 @@
+{
+  "completedUtc": "2026-09-07T09:42:03.016713+00:00",
+  "reviewer": "astra",
+  "model": {
+    "name": "gpt-6-astra",
+    "effort": "xhigh",
+    "localMetadata": "model.json",
+    "session": "01a07b2d-983d-7200-8525-efaeb27e3b93"
+  },
+  "source": {
+    "source": "82c43ca456022682670941494dd828e099fca3d8",
+    "before": "23a0e54e82106ae28090bd379e197fcb0f7717d6",
+    "r8-before": "e1c6e2b79a9e13ceb363f647f52807218aa2b57a"
+  },
+  "packetManifestSha256": "e2e33082e9dfbd7ceb2abf35731ce0aa6dc0b761871d2c197619b026a60ae40f",
+  "correctnessOwnershipVerdict": "NEEDS_CHANGES",
+  "findings": [
+    {
+      "id": "A1",
+      "priority": "P2",
+      "classification": "introduced",
+      "file": "snapback2/packages/evaluator/src/certificate-identity.ts",
+      "line": 198,
+      "summary": "Malformed singleton loop domains change canonical identity through unchanged fallback.",
+      "evidence": "probes/domain-fallback/stdout.json",
+      "scope": "Synthetic direct canonicalProgramJson API; no native admission/execution."
+    }
+  ],
+  "size": {
+    "gzip": 75815,
+    "ceiling": 66000,
+    "over": 9815,
+    "status": "FAIL",
+    "basis": "captured fixed-five-root measurement; no rerun"
+  },
+  "sourceFilesRechecked": {
+    "source": 453,
+    "before": 453
+  },
+  "directDelta": [
+    {
+      "path": "snapback2/packages/evaluator/src/certificate-identity.ts",
+      "beforeSha256": "f80407e5c2e289c24ac09fde2e0252c015e543c6722d33d995f178e3531a5eb0",
+      "candidateSha256": "3c116313a4c14ace66792f9b59b9b1e30152166d788e7133c4c26a871e61507e"
+    },
+    {
+      "path": "snapback2/packages/evaluator/src/test.ts",
+      "beforeSha256": "ae39c9c682e834da7809cd5063538e825170de68ff3ab25586ce16558fa81121",
+      "candidateSha256": "b7ebe8822106ca15c085881c8b56641fa654b9b93aff43380fa8727e4442fbdf"
+    },
+    {
+      "path": "snapback2/packages/snapback2/src/offline-protocol.ts",
+      "beforeSha256": "a9c75eec8d472e3ef95ae9fc563015b42f51d457534f9a9667380e102138f6f1",
+      "candidateSha256": "b81a52022c4cd5e20b645dd0fe06509c764890c7a4d6ce41a629dcde9cf17fd2"
+    },
+    {
+      "path": "snapback2/packages/snapback2/src/offline.ts",
+      "beforeSha256": "3999ecc08e67d6a6f49904753c4c28c8c8c2919d85ef6c2afa261202ffa15fdb",
+      "candidateSha256": "44ec56bcc1f98e4133eb959345d8e8c671e248b14ed485727a063f17e43052a6"
+    },
+    {
+      "path": "snapback2/packages/snapback2/src/store/asset-policy.ts",
+      "beforeSha256": "b2651386a009d425db4871ee933158330a6ca6960909280227b0119999c7e656",
+      "candidateSha256": "6ce7da7c95f3af709950961ce760213bcfec3960c87f414efe40ab392dd82e5c"
+    },
+    {
+      "path": "snapback2/packages/snapback2/src/store/byte-cache.ts",
+      "beforeSha256": "9ac35d2a5cce31edb79cca7f4da361afe670d04f6c0ee502f36b315783f682ca",
+      "candidateSha256": "6aae298f41e2e17777c9330483ac14e568683e88ecf06257e0b2e72c71d92f49"
+    },
+    {
+      "path": "snapback2/packages/snapback2/src/store/projection.ts",
+      "beforeSha256": "58d8ff56c39e848f9d99bc2a5214748ff3748120f3edbd03c15acba407263475",
+      "candidateSha256": "78273ad40bd96782239262b67110eced1251254bc47ccda52ca02aa59ba862ab"
+    },
+    {
+      "path": "snapback2/packages/snapback2/src/store/range-store.ts",
+      "beforeSha256": "959efa2a886cfab1b4b72df7694a4939d75ee5b8486788027de6d72b90429514",
+      "candidateSha256": "744547e7e6a73f547397ed07a6050059c3849b6e67da275af45ad0f63ce94357"
+    },
+    {
+      "path": "snapback2/packages/snapback2/src/store/row-values.ts",
+      "beforeSha256": "54fce7162e6b044dda4e05e28a838a2ac6fc9e7e2fc65f41e06529dec3fc5be9",
+      "candidateSha256": "7a7613cc7955dbe21a0f397e50e708aa099b905667bc8f93c27dfba969a17efa"
+    },
+    {
+      "path": "snapback2/packages/snapback2/tests/offline-protocol.test.ts",
+      "beforeSha256": "57112e0232ee6a13969cff59e7c61c39de96afdf025c157e6df81fbc4551d79e",
+      "candidateSha256": "5e0a95ae9de514fd53b2d569754a04c07943d26ed5a9581ba56271577e8ec3b7"
+    },
+    {
+      "path": "snapback2/packages/snapback2/tests/sqlite.test.ts",
+      "beforeSha256": "e7ef711c27ff6fa09ccd85b7bbb300ef717b507de8e409b0fff35f4d62886d4c",
+      "candidateSha256": "63453a6c83aaf99daa0135a117e4fb8ef02e525550f219755747a1496a30f1f0"
+    }
+  ],
+  "independentExecutions": [
+    {
+      "startedUtc": "2026-09-07T09:29:19.897792+00:00",
+      "elapsedSeconds": 0.05362700000000001,
+      "pid": 79616,
+      "argv": [
+        "/Users/ccheever/.bun/bin/bun",
+        "/Users/ccheever/clique-improvement/reviews/search-twin-runtime-redesign-r1/astra/probes/domain-fallback/probe.ts"
+      ],
+      "cwd": "/Users/ccheever/clique-improvement/reviews/search-twin-runtime-redesign-r1/astra/probes/domain-fallback",
+      "timeoutSeconds": 10,
+      "timedOut": false,
+      "exitCode": 0,
+      "runtimeVersion": "1.3.12",
+      "runtimeSha256": "39e644cea4e6db24a3af36013695655d6f789b4b98f1f13bacb882ac6e5c3c18",
+      "probeSha256": "1132b7fa195098e8c1aebbd6c803e31c44dec1130b2d8220d4efad54544a9e1f",
+      "stdoutSha256": "7972c9e206d57a285d6bc2c61e8f93381b636a7123e045498e938bfd2578682f",
+      "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "supervision": "Python subprocess communicate(timeout=10), kills only recorded child PID on timeout; no product/native execution"
+    }
+  ],
+  "restrictions": {
+    "allReviewerWritesUnder": "/Users/ccheever/clique-improvement/reviews/search-twin-runtime-redesign-r1/astra",
+    "productionCodeEdited": false,
+    "subagentsUsed": false,
+    "productTestsRerun": false,
+    "nativeCommandsRun": false,
+    "buildsOrInstallsRun": false,
+    "remoteExecution": false,
+    "sizeCapMovementRerun": false,
+    "residentPhoneQualification": false,
+    "standalonePeerOrAuthorReportsAccessed": false,
+    "movingSourcesAccessed": false
+  },
+  "artifacts": [
+    {
+      "path": "REPORT.md",
+      "bytes": 24704,
+      "sha256": "78b17a49b9c6972bc9b1a7a73f16268636d29da5644b068c275033beefefdb51"
+    },
+    {
+      "path": "model.json",
+      "bytes": 538,
+      "sha256": "948648d024bbd1ed9366bac9c7c62844ecefe4d9686381e0e0fb4825d147d627"
+    },
+    {
+      "path": "launch.json",
+      "bytes": 1238,
+      "sha256": "e996952e60ade44c6222390f70b81f4eb60207b897785b4e07fe5d1f45ecc2a7"
+    },
+    {
+      "path": "packet-verification.json",
+      "bytes": 1844,
+      "sha256": "a947d38fb2baf3c148344cb768c2478c348ffca941fe2c82b51169e97233b5f4"
+    },
+    {
+      "path": "source-graph-verification.json",
+      "bytes": 302905,
+      "sha256": "9c86d4ef7b55800c3cdcc34d97edd3aa1e11b12f9547b3b0e38923abdc437dd4"
+    },
+    {
+      "path": "probes/domain-fallback/before/certificate-identity.ts",
+      "bytes": 18228,
+      "sha256": "f80407e5c2e289c24ac09fde2e0252c015e543c6722d33d995f178e3531a5eb0"
+    },
+    {
+      "path": "probes/domain-fallback/before/errors.ts",
+      "bytes": 759,
+      "sha256": "a2dc2e8ef8522ad82af1740c6f8656dc6b05418454226b50571630e777fe0795"
+    },
+    {
+      "path": "probes/domain-fallback/before/hash.ts",
+      "bytes": 4328,
+      "sha256": "470e2f7973cc86a35be29e9ba901f3c86f759e6e65796051f188cb3a68a75214"
+    },
+    {
+      "path": "probes/domain-fallback/before/types.ts",
+      "bytes": 6075,
+      "sha256": "afc6bc7ffd25fc007787b10e0fc8bdafbe4ae61cb12f7d2442f2c2df95686618"
+    },
+    {
+      "path": "probes/domain-fallback/execution.json",
+      "bytes": 969,
+      "sha256": "3cf349a86f2b430b283d1ce24aa1e655b1bf4d41782067a3b3081d99bb61be8c"
+    },
+    {
+      "path": "probes/domain-fallback/probe.ts",
+      "bytes": 1490,
+      "sha256": "1132b7fa195098e8c1aebbd6c803e31c44dec1130b2d8220d4efad54544a9e1f"
+    },
+    {
+      "path": "probes/domain-fallback/source/certificate-identity.ts",
+      "bytes": 17783,
+      "sha256": "3c116313a4c14ace66792f9b59b9b1e30152166d788e7133c4c26a871e61507e"
+    },
+    {
+      "path": "probes/domain-fallback/source/errors.ts",
+      "bytes": 759,
+      "sha256": "a2dc2e8ef8522ad82af1740c6f8656dc6b05418454226b50571630e777fe0795"
+    },
+    {
+      "path": "probes/domain-fallback/source/hash.ts",
+      "bytes": 4328,
+      "sha256": "470e2f7973cc86a35be29e9ba901f3c86f759e6e65796051f188cb3a68a75214"
+    },
+    {
+      "path": "probes/domain-fallback/source/types.ts",
+      "bytes": 6075,
+      "sha256": "afc6bc7ffd25fc007787b10e0fc8bdafbe4ae61cb12f7d2442f2c2df95686618"
+    },
+    {
+      "path": "probes/domain-fallback/sources.json",
+      "bytes": 3479,
+      "sha256": "e3b77a2e6fee5c861075cbf546032b7b26ec49329bbd63b0ed890d02a8cd0941"
+    },
+    {
+      "path": "probes/domain-fallback/stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "probes/domain-fallback/stdout.json",
+      "bytes": 5939,
+      "sha256": "7972c9e206d57a285d6bc2c61e8f93381b636a7123e045498e938bfd2578682f"
+    }
+  ],
+  "note": "This receipt excludes its own hash and ongoing launcher logs. REPORT.md ends with the correctness/ownership verdict. Supplied executions are identified separately in the report."
+}

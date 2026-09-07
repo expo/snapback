@@ -1,0 +1,13 @@
+{
+  "observedUtc": "2026-09-07T09:23:47.699922+00:00",
+  "session": "01a07b2d-983d-7200-8525-efaeb27e3b93",
+  "pid": 74675,
+  "toolSession": 10873,
+  "requestedModel": "gpt-6-astra",
+  "requestedEffort": "xhigh",
+  "actualModel": "gpt-6-astra",
+  "actualEffort": "xhigh",
+  "turnContextTimestamp": "2026-09-07T09:23:04.904Z",
+  "metadataSource": "/Users/ccheever/.codex/sessions/2026/09/07/rollout-2026-09-07T02-23-00-01a07b2d-983d-7200-8525-efaeb27e3b93.jsonl",
+  "scope": "Actual turn_context metadata only; no model reasoning read."
+}

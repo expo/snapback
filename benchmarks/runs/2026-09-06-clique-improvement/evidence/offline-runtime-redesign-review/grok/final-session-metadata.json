@@ -1,0 +1,27 @@
+{
+  "observedUtc": "2026-09-07T09:41:11.112378+00:00",
+  "source": "/Users/ccheever/.grok/sessions/%2FUsers%2Fccheever%2Fclique-improvement%2Freviews%2Fsearch-twin-runtime-redesign-r1%2Fgrok/3717b56f-6af4-4743-a6ed-3a8ee017b2b9/summary.json",
+  "sha256": "85916d40d1e017814ba7d2720ff12cdf59408558d5d2830cd7b0cbc5c52e7176",
+  "metadata": {
+    "info": {
+      "id": "3717b56f-6af4-4743-a6ed-3a8ee017b2b9",
+      "cwd": "/Users/ccheever/clique-improvement/reviews/search-twin-runtime-redesign-r1/grok"
+    },
+    "session_summary": "Review frozen82c43ca45 vs 23a0 semantic delta",
+    "created_at": "2026-09-07T09:23:02.428252Z",
+    "updated_at": "2026-09-07T09:40:07.082302Z",
+    "num_messages": 375,
+    "num_chat_messages": 127,
+    "current_model_id": "grok-4.6",
+    "next_trace_turn": 1,
+    "chat_format_version": 1,
+    "session_kind": "headless",
+    "request_id": "47d75ac4-1b35-42a5-8581-162ed2657202",
+    "grok_home": "/Users/ccheever/.grok",
+    "last_active_at": "2026-09-07T09:40:07.082302Z",
+    "generated_title": "Review frozen82c43ca45 vs 23a0 semantic delta",
+    "agent_name": "grok-build-plan",
+    "sandbox_profile": "off",
+    "reasoning_effort": "xhigh"
+  }
+}

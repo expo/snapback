@@ -1,0 +1,46 @@
+{
+  "observedUtc": "2026-09-07T09:41:11.116483+00:00",
+  "pid": 74676,
+  "toolSession": 4042,
+  "actualToolExitCode": 0,
+  "pidAbsent": true,
+  "reportFullyReadBySupervisor": true,
+  "reportVerbatim": true,
+  "disposition": "READY correctness/ownership scoped to82c43 directdelta/currentgraph; no new runtimeprobes.75815gzipFAIL remains. Inherited hasher refusal caveats not introduced blockers.",
+  "withheldFrom": [
+    "live Astra reviewer",
+    "design author"
+  ],
+  "artifacts": [
+    {
+      "path": "REPORT.md",
+      "bytes": 15906,
+      "sha256": "0578c6422d5f0bd8c57c889c6194c240d7633c2013ea331c8d48578b5a9a9921"
+    },
+    {
+      "path": "terminal.json",
+      "bytes": 111,
+      "sha256": "90b5b20bc303267bf31228120cfde6348fa8b6562e8d3cafbe67de95f6fe9445"
+    },
+    {
+      "path": "launch.json",
+      "bytes": 1205,
+      "sha256": "85a0b7cf89bb602d7ab8383e8a5c237e93603be55370ce43f769e8278d147c9e"
+    },
+    {
+      "path": "model.json",
+      "bytes": 1501,
+      "sha256": "517e66ad38dd3d6b5258ed12b821a562381c8d65ab99fd938cc7ff76eeaf78a1"
+    },
+    {
+      "path": "final-session-metadata.json",
+      "bytes": 1186,
+      "sha256": "13b36d153e2faf24ba21fc1b22ecafbf520b0cca7a53921cada8f97c031f8256"
+    },
+    {
+      "path": "prompt.md",
+      "bytes": 524,
+      "sha256": "ed73ac7caa49abe2f26b10c75af5f0e73e69519c200baa39b9992af2bd4fb937"
+    }
+  ]
+}

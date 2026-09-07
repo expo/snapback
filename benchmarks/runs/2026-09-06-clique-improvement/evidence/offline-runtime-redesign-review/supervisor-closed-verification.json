@@ -1,0 +1,11 @@
+{
+  "observedUtc": "2026-09-07T09:48:07.551053+00:00",
+  "packetManifestSha256": "e2e33082e9dfbd7ceb2abf35731ce0aa6dc0b761871d2c197619b026a60ae40f",
+  "regularFiles": 5242,
+  "symlinkTargets": 6,
+  "allLeaves": 5248,
+  "bytesIncludingLinkTargets": 146785602,
+  "errors": [],
+  "bothActualReviewTerminalsVerified": true,
+  "scope": "Read-only final source/evidence custody check. No product execution, review substitution or qualification."
+}

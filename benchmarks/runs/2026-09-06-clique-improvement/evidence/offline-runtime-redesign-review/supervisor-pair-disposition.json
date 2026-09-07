@@ -1,0 +1,19 @@
+{
+  "observedUtc": "2026-09-07T09:44:17.856508+00:00",
+  "checkedSourcePairs": 8,
+  "checkedFiles": 16,
+  "errors": [],
+  "report": {
+    "astra": {
+      "bytes": 24704,
+      "sha256": "78b17a49b9c6972bc9b1a7a73f16268636d29da5644b068c275033beefefdb51",
+      "verdict": "NEEDS_CHANGES"
+    },
+    "grok": {
+      "bytes": 15906,
+      "sha256": "0578c6422d5f0bd8c57c889c6194c240d7633c2013ea331c8d48578b5a9a9921",
+      "verdict": "READY"
+    }
+  },
+  "scope": "Both actual terminals recorded; full reports read. One introduced malformed domain hash fallback regression; no valid native IR/auth bypass established. No peer crossfeed before closure. Current design-only author not given reports yet. Fixed five-root75815gzipFAIL remains."
+}

@@ -1,0 +1,50 @@
+{
+  "packetManifestSha256": "e2e33082e9dfbd7ceb2abf35731ce0aa6dc0b761871d2c197619b026a60ae40f",
+  "commits": {
+    "source": "82c43ca456022682670941494dd828e099fca3d8",
+    "before": "23a0e54e82106ae28090bd379e197fcb0f7717d6",
+    "r8-before": "e1c6e2b79a9e13ceb363f647f52807218aa2b57a"
+  },
+  "filesVerified": {
+    "file": 5242,
+    "symlink": 6
+  },
+  "bytesRead": 146785548,
+  "mismatches": [],
+  "reviewer": "astra",
+  "model": "GPT-6 Astra",
+  "scope": "read-only supplied immutable packet; no peer or moving source",
+  "checkedUtc": "2026-09-07T09:25:51.659312+00:00",
+  "symlinksVerified": [
+    {
+      "path": "before/snapback2/packages/snapback2/templates/chat/expo/shared",
+      "target": "../shared",
+      "sha256": "9d5e33ea197579b6ce429383d6f99ca863399a1e6b4c95da240422f134c51f83"
+    },
+    {
+      "path": "before/snapback2/packages/snapback2/templates/chat/react/shared",
+      "target": "../shared",
+      "sha256": "9d5e33ea197579b6ce429383d6f99ca863399a1e6b4c95da240422f134c51f83"
+    },
+    {
+      "path": "r8-before/snapback2/packages/snapback2/templates/chat/expo/shared",
+      "target": "../shared",
+      "sha256": "9d5e33ea197579b6ce429383d6f99ca863399a1e6b4c95da240422f134c51f83"
+    },
+    {
+      "path": "r8-before/snapback2/packages/snapback2/templates/chat/react/shared",
+      "target": "../shared",
+      "sha256": "9d5e33ea197579b6ce429383d6f99ca863399a1e6b4c95da240422f134c51f83"
+    },
+    {
+      "path": "source/snapback2/packages/snapback2/templates/chat/expo/shared",
+      "target": "../shared",
+      "sha256": "9d5e33ea197579b6ce429383d6f99ca863399a1e6b4c95da240422f134c51f83"
+    },
+    {
+      "path": "source/snapback2/packages/snapback2/templates/chat/react/shared",
+      "target": "../shared",
+      "sha256": "9d5e33ea197579b6ce429383d6f99ca863399a1e6b4c95da240422f134c51f83"
+    }
+  ]
+}
