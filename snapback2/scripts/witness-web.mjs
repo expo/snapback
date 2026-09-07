@@ -22,10 +22,11 @@ import { tmpdir } from "node:os";
 import { dirname, extname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { createRequire } from "node:module";
-import { build } from "esbuild";
 
 const workspace = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const packageRoot = resolve(workspace, "packages/snapback2");
+const packageRequire = createRequire(resolve(packageRoot, "package.json"));
+const { build } = packageRequire("esbuild");
 const dist = resolve(packageRoot, "dist");
 const binary = resolve(workspace, "target/debug/snapback2");
 const keep = process.argv.includes("--keep");
@@ -53,7 +54,7 @@ function precondition(condition, message) {
 
 async function loadPlaywright() {
   try {
-    return createRequire(resolve(packageRoot, "package.json"))("playwright-core");
+    return packageRequire("playwright-core");
   } catch {
     return undefined;
   }
