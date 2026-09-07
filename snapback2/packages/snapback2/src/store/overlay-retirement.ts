@@ -1,6 +1,7 @@
 // @ref LLP 1012#7-writes-offline — cursor identity is not order. Only held,
 // post-commit next links prove progress; explicit negatives settle deletions.
-import type { StoredAnswer, WatermarkRecord } from "./range-store.js";
+import { collectRefs, rowKey } from "./row-values.js";
+import type { PersistedRangeState, StoreSwap, StoredAnswer, WatermarkRecord } from "./range-store.js";
 import { canonical } from "./canonical.js";
 
 export interface OverlayWatermark extends Pick<WatermarkRecord, "op" | "args" | "watermark"> {
@@ -73,4 +74,98 @@ export function advanceOverlay(mark: OverlayWatermark, tail: WatermarkRecord | u
   mark.progress = tail.watermark;
   mark.consumed = [...new Set([...(mark.consumed ?? []), ...chain.slice(0, at + 1)])];
   return true;
+}
+
+/** Two post-commit resumes or proven tail advances retire a stranded prediction. */
+const OVERLAY_PATIENCE = 2;
+
+/** Retire committed prediction rows against the authority landed in this complete swap. */
+export function retireOverlays(
+  state: PersistedRangeState,
+  swap: StoreSwap,
+  authoritativeNegatives: Map<string, { seq: number; source: "absence" | "tombstone" }>,
+  clockOnly: Set<string>,
+  previousTail: WatermarkRecord | undefined,
+  tail: WatermarkRecord | undefined,
+  committedNow: Set<string>,
+  answerKey: (op: string, args: unknown) => string,
+  copy: <T>(value: T) => T,
+): void {
+  const answers = Object.keys(state.overlay).some((intent) => state.outbox[intent]?.state === "committed")
+    ? Object.values(state.answers) : [];
+  let maintainedTargets: Set<string> | undefined;
+  const targetTables = () => maintainedTargets ??= new Set(Object.values(state.programs).flatMap((program) => {
+    const maintains = (program.schema as { maintains?: Array<{ target?: unknown }> }).maintains ?? [];
+    return maintains.flatMap((maintain) => typeof maintain.target === "string" ? [maintain.target] : []);
+  }));
+  const pages = answers.filter((answer) => {
+    const nonempty = Array.isArray(answer.data) ? answer.data.length > 0 : collectRefs(answer.data).length > 0;
+    return !answer.clockOnly && !answer.retained && (answer.state === "complete" || answer.state === "capped") && answer.receipt !== undefined
+      && !answer.receipt.ranges.some((range) => (range.evictedIds?.length ?? 0) > 0)
+      && nonempty && answer.refs.length > 0 && answer.refs.every((ref) => state.rows[rowKey(ref)] !== undefined);
+  });
+  const chains = new Map<string, { chain: string[]; reached: Set<string | null | undefined> }>();
+  for (const intent of Object.keys(state.overlay)) {
+    const entry = state.outbox[intent];
+    if (entry === undefined || entry.state === "rejected" || entry.state === "expired") {
+      delete state.overlay[intent]; delete state.overlayMisses[intent]; delete state.overlayWatermarks[intent];
+      delete state.overlayNegatives[intent]; if (entry) delete entry.predicted; continue;
+    }
+    for (const row of state.overlay[intent]!) {
+      const key = rowKey(row), evidence = authoritativeNegatives.get(key);
+      if (evidence !== undefined && evidence.seq >= (state.overlayNegatives[intent]?.[key]?.seq ?? -1)) {
+        (state.overlayNegatives[intent] ??= {})[key] = evidence;
+      }
+    }
+    if (entry.state !== "committed") continue;
+    if (state.overlayWatermarks[intent] == null && tail !== undefined) {
+      const snapshot = committedNow.has(intent) && state.overlayWatermarks[intent] !== null ? previousTail ?? tail : tail;
+      state.overlayWatermarks[intent] = { op: snapshot.op, args: copy(snapshot.args), cursorArg: snapshot.cursorArg ?? "c",
+        watermark: snapshot.watermark };
+    }
+    const committedSeq = (entry.response as { seq?: unknown } | undefined)?.seq;
+    if (!Number.isSafeInteger(committedSeq)) {
+      delete state.overlay[intent]; delete state.overlayMisses[intent]; delete state.overlayWatermarks[intent];
+      delete state.overlayNegatives[intent]; delete entry.predicted; continue;
+    }
+    const overlay = state.overlay[intent]!, seq = Number(committedSeq);
+    const predicted = new Set(overlay.filter((row) => !row.removed).map(rowKey));
+    const committedWatermark = state.overlayWatermarks[intent] ?? undefined;
+    const chainKey = committedWatermark ? canonical({ op: committedWatermark.op, args: committedWatermark.args,
+      cursorArg: committedWatermark.cursorArg, watermark: committedWatermark.watermark, seq }) : "";
+    if (!chains.has(chainKey)) {
+      const chain = committedWatermark ? cursorChain(pages, committedWatermark, seq) : [];
+      chains.set(chainKey, { chain, reached: new Set(chain) });
+    }
+    const { chain, reached } = chains.get(chainKey)!;
+    const confirmed = new Set<string>();
+    for (const row of overlay) {
+      const key = rowKey(row), evidence = state.overlayNegatives[intent]?.[key];
+      if (evidence !== undefined && evidence.seq >= seq && (state.rowSeq[key] ?? -1) <= evidence.seq) confirmed.add(key);
+    }
+    for (const answer of answers) {
+      if (answer.seq < seq || answer.retained || answer.state === "denied") continue;
+      for (const ref of answer.refs) if (predicted.has(rowKey(ref)) && state.rows[rowKey(ref)] !== undefined) confirmed.add(rowKey(ref));
+    }
+    const pageArrived = predicted.size > 0 && committedWatermark !== undefined && pages.some((page) => page.seq >= seq
+      && reached.has(pagePosition(page, committedWatermark)));
+    if (pageArrived) for (const row of overlay) if (!targetTables().has(row.table)) confirmed.add(rowKey(row));
+    const arrived = confirmed.size === overlay.length;
+    const advanced = committedWatermark !== undefined && swap.watermark !== undefined && tail !== undefined
+      && answerKey(tail.op, tail.args) === answerKey(swap.watermark.op, swap.watermark.args)
+      && advanceOverlay(committedWatermark, tail, chain);
+    const onlyClock = !!swap.deliveries?.length && swap.deliveries.every((delivery) => clockOnly.has(answerKey(delivery.op, delivery.args)))
+      && !swap.refreshes?.length;
+    const moved = !onlyClock && (advanced || (swap.resumeSeq !== undefined && swap.resumeSeq > seq));
+    const misses = arrived ? 0 : (state.overlayMisses[intent] ?? 0) + (moved && !committedNow.has(intent) ? 1 : 0);
+    if (!arrived && confirmed.size > 0) {
+      state.overlay[intent] = overlay.filter((row) => !confirmed.has(rowKey(row)));
+      delete state.overlayMisses[intent];
+      const negatives = state.overlayNegatives[intent]; if (negatives) for (const key of confirmed) delete negatives[key];
+      continue;
+    }
+    if (!arrived && misses < OVERLAY_PATIENCE) { if (misses > 0) state.overlayMisses[intent] = misses; continue; }
+    delete state.overlay[intent]; delete state.overlayMisses[intent]; delete state.overlayWatermarks[intent];
+    delete state.overlayNegatives[intent]; delete entry.predicted;
+  }
 }

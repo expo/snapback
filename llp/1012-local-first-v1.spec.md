@@ -992,10 +992,13 @@ names the range in `partialRanges`; a fan-out row of which the viewer's own copy
 under another id than the server's is pinned by the three-member group journey; the
 author accepted this deviation on 2026-09-04 afternoon); an
 unheld engine-maintained aggregate target does not block it, and the omitted target names
-ride the prediction and the outbox entry (`omitted`); a committed intent's overlay is
-dropped by an answer at or after the commit seq that touches one of the overlay's tables
-or by any page of a drained op, never by an unrelated answer, and with no watermark and
-no such delivery it stays. An uncovered point read, an uncovered rule input, or a local
+ride the prediction and the outbox entry (`omitted`); authoritative evidence at or after
+the commit seq retires each matching predicted row while its unconfirmed siblings remain,
+and a proven page of a drained op or the bounded miss rule retires what remains. This keeps
+a maintained target's predicted value until its own authoritative row arrives instead of
+exposing a transaction assembled from an arrived source row and a stale aggregate. An
+unrelated answer still retires nothing, and with no watermark and no matching delivery the
+overlay stays. An uncovered point read, an uncovered rule input, or a local
 refusal still queues without a prediction and with an empty trace. With a partition open
 every write carries the replay envelope, online or not, or refuses `E_OFFLINE_ID_BLOCK`
 (no grant, unknown bound, spent grant) before any request; only a client with no store
@@ -1018,10 +1021,12 @@ reason until the inbox drain has earned a grant, and a refusal's rewrite is show
 retried blindly.
 
 **The retirement rule as landed (lane T1, three review rounds, 2026-09-04).** A committed
-prediction retires in its swap on authoritative evidence — the arrival of a predicted
-non-deleted row, or a primary point absence or tombstone at or after its commit seq for a
-predicted id that no newer held row supersedes, including evidence saved while the intent was
-still queued — or, for predictions with non-deleted rows, on a non-empty held page of the
+prediction retires matching rows in its swap on authoritative evidence — the arrival of a
+predicted non-deleted row, or a primary point absence or tombstone at or after its commit seq
+for a predicted id that no newer held row supersedes, including evidence saved while the
+intent was still queued. The intent retains `predicted` and every unconfirmed sibling row
+until its own evidence arrives. The remaining overlay can also retire, for predictions with
+non-deleted rows, on a non-empty held page of the
 selected log strictly beyond its persisted commit snapshot, reached through currently held
 next-links recorded at or after that seq; the chain's query identity uses the store's one
 canonical serializer, an ambiguous link or a cycle keeps only the proven prefix, and an
@@ -1030,6 +1035,19 @@ proven forward mark of the selected log or a successful resume strictly after th
 consumes at most one miss per swap, with consumed positions and the snapshot's cursor name
 persisted across a reopen, and two misses remove the overlay and clear `predicted` while the
 replay entry stays `committed`.
+
+Maintained rows add an authority dependency to that lifecycle. A source-row insertion,
+deletion, group move, or sum-input change at sequence *s* withdraws any older target row,
+primary absence, or target-table range that could otherwise supply a stale aggregate; this
+is missing authority, never a manufactured zero. Row-by-row retirement leaves an admitted
+mutation's predicted target over that hole until target authority at *s* arrives. If the
+bounded miss rule retires it first, the query is partial rather than exposing the pre-commit
+target. Arrival can run in the other order: a changed maintained target marks every older
+named answer that references it `partial/maintained-coherence`. That marker and the answer's
+authorized history survive a cold reopen, and a global-pool rerun cannot promote the record;
+only a new delivery for that named query, or one overlay carrying its source and target
+together, publishes another usable complete/capped value. Unrelated source-field updates
+whose maintained contribution is unchanged withdraw no target authority.
 
 **Retirement follow-up (2026-09-06).** Reset also clears each overlay's saved primary
 absences and tombstones: these are coverage facts, so a delayed terminal cannot use a

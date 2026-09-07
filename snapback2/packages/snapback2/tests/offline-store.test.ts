@@ -480,6 +480,25 @@ test("retained reconstruction keeps independent pages and falls back when the re
   await rm(root, { recursive: true, force: true });
 });
 
+test("a maintained-coherence partial waits for its named owner unless one overlay supplies the whole value", () => {
+  const held = {
+    op: "deliveries.conversationView", args: { conversationId: "c1" }, state: "partial" as const,
+    reason: "maintained-coherence", data: { messages: [{ id: "old" }], count: 2, preview: [] },
+    seq: 7, deliveredAt: 100,
+  };
+  const mixed = offlineView(held, {
+    state: "complete", data: { messages: [{ id: "old" }], count: 1, preview: [] }, next: null, seq: 8,
+  });
+  assert.equal(mixed.state, "partial");
+  assert.equal(mixed.reason, "maintained-coherence");
+  const predicted = offlineView(held, {
+    state: "complete", data: { messages: [{ id: "new" }, { id: "old" }], count: 3, preview: [{ id: "new" }] },
+    next: null, seq: 8, predicted: ["intent"],
+  });
+  assert.equal(predicted.state, "complete");
+  assert.deepEqual(predicted.predicted, ["intent"]);
+});
+
 test("sequence fences make absence, hidden, and tombstone evidence monotonic and deliveries idempotent", async () => {
   const root = await tempRoot();
   const store = fileRangeStore(root)();

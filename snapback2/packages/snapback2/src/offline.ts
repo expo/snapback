@@ -964,7 +964,13 @@ export function offlineView<Result>(held: HeldAnswer<Result> | undefined, local?
   // not made less readable by the current rule.
   const reconstructed = local !== undefined
     && (local.state === "complete" || local.state === "capped" || local.state === "held");
-  const useLocal = local !== undefined && (!held?.retained || reconstructed);
+  // A sibling query may deliver an engine-maintained target before this named
+  // query's source rows. The store marks this owner's prior answer partial;
+  // do not let a global-pool rerun upgrade that mixed generation. A real local
+  // prediction is coherent because its source and target share one overlay.
+  const waitingForCoherentOwner = held?.state === "partial" && held.reason === "maintained-coherence"
+    && !(local?.predicted?.length);
+  const useLocal = local !== undefined && !waitingForCoherentOwner && (!held?.retained || reconstructed);
   if (!useLocal) {
     if (!held) return { state: "hydrating", live: false, connection: "offline" };
     const {

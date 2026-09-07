@@ -404,6 +404,38 @@ test("a live indexed query preserves its authoritative state until its effective
   stop();
 });
 
+test("new local prediction and revocation remain visible under an older held answer sequence", async () => {
+  let publish!: (event: any) => void;
+  let local = { state: "capped", live: false, connection: "offline", seq: 7, next: null,
+    data: { messages: [{ id: "predicted", message: { id: "message" } }], count: 3, preview: [] }, predicted: ["intent"] };
+  const queries = new ClientQueries({
+    identity: () => [1, 1] as const,
+    active: () => true,
+    open: (_ref: unknown, _args: unknown, listener: (event: any) => void) => {
+      publish = listener;
+      return { close: () => undefined, until: async () => { throw new Error("must use shared until"); } };
+    },
+    query: async () => { throw new Error("unused"); },
+    local: async () => local,
+  } as any);
+  const observed = queries.observe(api.deliveries.conversationView, { conversationId: "conversation-1" });
+  const stop = observed.subscribe(() => undefined);
+  publish({ state: "capped", live: true, seq: 8, next: null,
+    data: { messages: [{ id: "server", message: { id: "server" } }], count: 2, preview: [] } });
+  queries.refresh();
+  await until(() => (observed.getSnapshot() as any).predicted?.[0] === "intent", "older-sequence prediction");
+  assert.equal((observed.getSnapshot() as any).data.count, 3,
+    "owner sequence is not a carrier revision fence for a new overlay");
+
+  local = { state: "capped", live: false, connection: "offline", seq: 7, next: null,
+    data: { messages: [{ id: "removed", message: null }], count: 2, preview: [] }, predicted: [] } as any;
+  queries.refresh();
+  await until(() => (observed.getSnapshot() as any).data.messages[0].message === null, "older-sequence revocation");
+  assert.equal((observed.getSnapshot() as any).data.count, 2,
+    "a newer local revocation cannot be hidden behind a newer owner sequence");
+  stop();
+});
+
 test("a drain local refresh cannot claim caught-up before its mark finishes", async () => {
   let publish!: (event: any) => void;
   let localData = [{ id: "persisted-page" }];
