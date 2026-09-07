@@ -432,7 +432,12 @@ for (const carrier of ["file", "IndexedDB"] as const) {
         f.store.commit({ deliveries: [{ op: "late", args: {}, ...f.envelope({}), seq: 9 }] }),
         /conflicting durable fact/,
       );
-      assert.equal((await f.store.coverage()).rows.length, 0);
+      const coverage = await f.store.coverage();
+      assert.equal(coverage.rows.some((row: any) => row.id === overlapRow.id), false);
+      assert.ok(coverage.evicted.some((row: any) => row.id === overlapRow.id));
+      const answer = await f.store.answer("messages.second", {});
+      assert.equal(answer.state, "partial");
+      assert.equal(answer.data[0], null, "the equal-seq row remains hidden while unrelated certified rows survive");
     } finally { await f.close(); }
   });
 }
@@ -782,9 +787,9 @@ test("reset clears a terminal subscription latch and cold-opens it again", async
     emit(f.streams[0], { ...f.envelope({}), seq: 8 }, "before-refusal");
     await sub.until((e: any) => e.seq === 8, 1000);
     const refused = sub.until((e: any) => e.seq === 9, 1000);
-    emit(f.streams[0], { state: "refused", code: "E_OP_UNKNOWN", family: "op", message: "replaced", guide: "op/manifest" });
-    await assert.rejects(refused, (e: any) => e.code === "E_OP_UNKNOWN");
-    await assert.rejects(sub.until(() => true), (e: any) => e.code === "E_OP_UNKNOWN");
+    emit(f.streams[0], { state: "refused", code: "E_TERMINAL_TEST", family: "query", message: "stopped", guide: "queries" });
+    await assert.rejects(refused, (e: any) => e.code === "E_TERMINAL_TEST");
+    await assert.rejects(sub.until(() => true), (e: any) => e.code === "E_TERMINAL_TEST");
     sub.reset();
     await eventually(() => f.streams.length === 2);
     assert.equal(f.streams[1].headers.get("Last-Event-ID"), null);
