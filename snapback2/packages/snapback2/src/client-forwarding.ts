@@ -108,6 +108,8 @@ interface Pending {
   command: ForwardingCommand;
   recovery: MutationRecovery;
   generation: number;
+  /** True once any transport accepted this request for delivery. */
+  sent: boolean;
   timedOut: boolean;
   targetWriterIncarnation?: string;
   attempt?: Attempt;
@@ -220,6 +222,8 @@ export class MutationForwarding {
   private discovered?: WriterAnnouncement;
   private inbound: Promise<void> = Promise.resolve();
   private readonly pending = new Map<string, Pending>();
+  /** Unsent invocations retained behind ordered discovery, bounded with pending commands. */
+  private readonly preparations = new Set<object>();
   private readonly statusWaiters = new Map<string, StatusWaiter>();
   private readonly listeners = new Set<() => void>();
   /** Serializes discovery and send publication in one follower's invocation order. */
@@ -271,6 +275,8 @@ export class MutationForwarding {
 
   stop(): void {
     this.generation += 1;
+    this.submissionTail = Promise.resolve();
+    this.preparations.clear();
     this.channel?.close();
     this.channel = undefined;
     this.writerRole = undefined;
@@ -297,7 +303,7 @@ export class MutationForwarding {
     if (this.unresponsive) return followerStatus("writer-unresponsive");
     const writer = await this.discover();
     if (!writer || !this.currentFollower(follower, generation)) return followerStatus("writer-discovery");
-    if (this.pending.size >= LOCAL_PENDING_LIMIT) return followerStatus("writer-capacity");
+    if (this.pending.size + this.preparations.size >= LOCAL_PENDING_LIMIT) return followerStatus("writer-capacity");
     const requestId = randomId();
     const { promise, resolve } = deferred<OutboxStatus>();
     const timer = setTimeout(() => {
@@ -315,10 +321,22 @@ export class MutationForwarding {
   async mutation(op: string, args: unknown, recovery?: MutationRecovery): Promise<MutationQueued | MutationAdmissionUnknown> {
     const generation = this.generation;
     const follower = this.followerRole;
-    const boundArgs = structuredClone(args);
-    const digest = payloadDigest(op, boundArgs);
-    const prepared = this.submissionTail.then(() =>
-      this.prepareMutation(op, boundArgs, digest, generation, follower, recovery));
+    const recovered = recovery === undefined ? undefined : decode(recovery);
+    const existing = recovered === undefined ? undefined : this.pending.get(recovered.requestId);
+    const reservation = existing ? undefined : {};
+    if (reservation && this.pending.size + this.preparations.size >= LOCAL_PENDING_LIMIT) {
+      throw new SnapbackRefusal({ code: "E_OFFLINE_FORWARDING_CAPACITY", family: "offline",
+        message: "this follower already has 64 preparing or unacknowledged mutation commands", site: "client.mutation.forward",
+        rewrite: "wait for acknowledgment or recover an existing command", guide: "offline" });
+    }
+    if (reservation) this.preparations.add(reservation);
+    let boundArgs: unknown, digest: string;
+    try { boundArgs = structuredClone(args); digest = payloadDigest(op, boundArgs); }
+    catch (error) { if (reservation) this.preparations.delete(reservation); throw error; }
+    const prepared = this.submissionTail.then(async () => {
+      try { return await this.prepareMutation(op, boundArgs, digest, generation, follower, recovery, recovered); }
+      finally { if (reservation) this.preparations.delete(reservation); }
+    });
     this.submissionTail = prepared.then(() => undefined, () => undefined);
     return (await prepared).outcome;
   }
@@ -326,13 +344,13 @@ export class MutationForwarding {
   private async prepareMutation(
     op: string, boundArgs: unknown, digest: string, generation: number,
     invokedFollower: (ForwardingFollower & { followerId: string }) | undefined,
-    recovery?: MutationRecovery,
+    recovery?: MutationRecovery, recovered?: RecoveryRecord,
   ): Promise<{ outcome: Promise<MutationQueued | MutationAdmissionUnknown> }> {
     if (!this.currentFollower(invokedFollower, generation)) throw followerRefusal("client.mutation.forward");
     const role = invokedFollower;
     let record: RecoveryRecord;
     if (recovery !== undefined) {
-      record = decode(recovery);
+      record = recovered ?? decode(recovery);
       if (record.payloadDigest !== digest) throw new TypeError("mutation recovery token does not match the operation and arguments");
     } else {
       if (!role) throw followerRefusal("client.mutation.forward");
@@ -393,7 +411,7 @@ export class MutationForwarding {
         this.updateUnresponsive();
       }, Math.max(recovery === undefined ? 0 : RESPONSE_TIMEOUT, record.expiresAt - Date.now()));
       (expiryTimer as { unref?: () => void }).unref?.();
-      pending = { command, recovery: token, generation: this.generation, timedOut: false, expiryTimer };
+      pending = { command, recovery: token, generation: this.generation, sent: false, timedOut: false, expiryTimer };
       this.pending.set(record.requestId, pending);
     }
     else if (recovery !== undefined && !pending.command.recovery) {
@@ -415,9 +433,18 @@ export class MutationForwarding {
     pending.targetWriterIncarnation = targetWriterIncarnation;
     pending.attempt = { promise, resolve, reject, timer, targetWriterIncarnation };
     if (!this.post({ protocol: PROTOCOL, type: "mutation", ...pending.command, targetWriterIncarnation })) {
-      clearTimeout(timer); clearTimeout(pending.expiryTimer);
-      pending.attempt = undefined; this.pending.delete(pending.command.requestId);
-      this.updateUnresponsive(); reject(followerRefusal("client.mutation.forward"));
+      clearTimeout(timer); pending.attempt = undefined;
+      if (pending.sent || pending.command.recovery) {
+        // This failed publication cannot disprove admission by an earlier
+        // successful publication represented by the recovery identity.
+        pending.timedOut = true; this.unresponsive = true; this.notify();
+        resolve({ state: "admission-unknown", recovery: pending.recovery });
+      } else {
+        clearTimeout(pending.expiryTimer); this.pending.delete(pending.command.requestId);
+        this.updateUnresponsive(); reject(followerRefusal("client.mutation.forward"));
+      }
+    } else {
+      pending.sent = true;
     }
     return promise;
   }
