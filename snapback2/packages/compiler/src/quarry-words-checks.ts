@@ -50,7 +50,7 @@ for (const [label, domain, max, width] of [
       const call = declaration.declarationList.declarations[0]!.initializer as ts.CallExpression;
       const columns = (result.project.schema.tables as any).docs.columns;
       const plan = analyzeOperationTypes({ source, sourceFile, fileName: "probe.ts", tables: new Map([
-        ["docs", { name: "docs", private: false, columns: Object.fromEntries(Object.entries(columns).map(([k, v]) => [k, authoredTypeFromColumn(v)])) }],
+        ["docs$table", { name: "docs", private: false, columns: Object.fromEntries(Object.entries(columns).map(([k, v]) => [k, authoredTypeFromColumn(v)])) }],
       ]) }, call);
       const handler = call.arguments[1] as ts.ArrowFunction;
       const domain = (handler.body as ts.Block).statements.find(ts.isForOfStatement)!.expression;

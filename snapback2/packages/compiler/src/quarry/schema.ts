@@ -254,7 +254,7 @@ function flattenBoolean(expr: Expr, op: "and" | "or"): Expr[] {
     : [expr];
 }
 
-export function typeCode(type: ScalarType): string {
+export function typeCode(type: ScalarType, tableReference: (table: string) => string = (table) => table): string {
   let code: string;
   if (type.kind === "cursor") code = "t.cursor()";
   else if (type.kind === "text") code = `t.text(${type.max})`;
@@ -273,8 +273,8 @@ export function typeCode(type: ScalarType): string {
   else if (type.kind === "image") code = `t.image(${type.max}${type.once ? ", { once: true }" : ""})`;
   else if (type.kind === "video") code = `t.video(${type.max})`;
   else if (type.kind === "enum") code = `t.enum([${type.variants.map((variant) => JSON.stringify(variant)).join(", ")}])`;
-  else if (type.kind === "ref") code = `t.ref(${type.table})`;
-  else code = `t.list(${typeCode({ ...type.item, optional: false })}, { max: ${type.max} })`;
+  else if (type.kind === "ref") code = `t.ref(${tableReference(type.table)})`;
+  else code = `t.list(${typeCode({ ...type.item, optional: false }, tableReference)}, { max: ${type.max} })`;
   return type.optional ? `t.optional(${code})` : code;
 }
 

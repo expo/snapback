@@ -4,7 +4,7 @@ import { writeFile } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import { canonicalValue, ClientStore, scopedRuleHash, type ClosureReceipt, type Context, type Value } from "../../evaluator/src/evaluator";
 import type { Program } from "./ir";
-import { lowerProject } from "./project";
+import { lowerProject, lowerSeed } from "./project";
 import { rustCheck } from "./rust-check";
 import { compileQuarry } from "./quarry/index";
 import { parseDocument } from "./quarry/parser";
@@ -24,6 +24,103 @@ import ts from "typescript";
 export function registerQuarryProgramChecks(test: Test, frontend: string): void {
   const fixtures = resolve(frontend, "fixtures");
   const packageRoot = resolve(frontend, "../snapback2");
+  test("Quarry table and operation names occupy separate generated bindings", async () => {
+    const schema = `table messages:
+  body: text <=100
+  public
+table reactions:
+  messageId: messages
+  emoji: text <=8
+  by byMessage: messageId, id
+  public
+`;
+    const module = `query reactions(messageId: messages):
+  return reactions[messageId] first 20 by byMessage
+`;
+    await withProject({
+      "snapback/schema.q": schema,
+      "snapback/api.q": module,
+      "snapback/seed.ts": `export default {
+  personas: ["alice"],
+  rows: {
+    messages: [{ id: "m1", body: "hello" }, { id: "m2", body: "other" }],
+    reactions: [
+      { id: "r1", messageId: "m1", emoji: ":+1:" },
+      { id: "r2", messageId: "m1", emoji: ":heart:" },
+      { id: "r3", messageId: "m2", emoji: ":wave:" },
+    ],
+  },
+};
+`,
+    }, async (root) => {
+      const lowered = await lowerProject(root);
+      assert(lowered.ok, `table/operation collision refused: ${lowered.ok ? "" : diagnosticsText(lowered.diagnostics)}`);
+      const seed = await lowerSeed(root);
+      assert(seed.ok && seed.seed.rows.reactions?.length === 3, "collision fixture seed did not lower");
+      const seededMessages = seed.seed.rows.messages as Array<{ id: string; body: string }>;
+      const seededReactions = seed.seed.rows.reactions as Array<{ id: string; messageId: string; emoji: string }>;
+      assert(lowered.apiDts.includes("type ReactionsRow = {")
+        && lowered.apiDts.includes("readonly reactions: Op<{ messageId: string }, Page<ReactionsRow>>;"),
+      `api.d.ts did not retain both the reactions row and api.reactions query: ${lowered.apiDts}`);
+
+      const generated = lowered.quarry?.find((item) => item.file === "snapback/api.q")?.source ?? "";
+      assert(generated.includes("reactions as reactions$table")
+        && generated.includes("db.scan(reactions$table.byMessage"),
+      `generated table references did not use the collision-proof alias: ${generated}`);
+
+      const program = operation(lowered.project.programs, "api.reactions");
+      const checked = rustCheck([program], "synthetic", lowered.project.schema)[0]!;
+      assert(!checked.error && checked.certificate, `collision query did not certify: ${JSON.stringify(checked)}`);
+      const reactionValue = (row: { id: string; messageId: string; emoji: string }): Value => ({ Row: {
+        id: { Id: row.id }, messageId: { Id: row.messageId }, emoji: { String: row.emoji },
+      } });
+      const reactionOne = reactionValue(seededReactions[0]!);
+      const reactionTwo = reactionValue(seededReactions[1]!);
+      const receipt: ClosureReceipt = {
+        schema_hash: checked.certificate.schema_hash as string,
+        rows: [
+          ...seededMessages.map((row) => ({
+            table: "messages", id: row.id, row: { Row: { id: { Id: row.id }, body: { String: row.body } } } as Value,
+          })),
+          ...seededReactions.map((row) => ({ table: "reactions", id: row.id, row: reactionValue(row) })),
+        ],
+        ranges: [], absences: [], verdicts: [],
+      };
+      const context: Context = {
+        viewer: "alice", principal_kind: "user", auth_epoch: 1,
+        args: { messageId: { Id: "m1" } }, now: 1, new_ids: [], read_time: 1,
+      };
+      const discovered = new ClientStore(lowered.project.schema, receipt)
+        .reexecute(program, context, checked.certificate);
+      assert(discovered.execution.trace.ranges.length === 1, "collision query did not execute its seeded range");
+      receipt.ranges = discovered.execution.trace.ranges.map((range) => ({
+        ...range, row_ids: ["r1", "r2"], stop: "Exhausted", absence: false, halo: null, n2_key: null,
+      }));
+      const replayed = new ClientStore(lowered.project.schema, receipt)
+        .reexecute(program, context, checked.certificate);
+      assert(replayed.state === "fresh", `seeded collision query was not locally complete: ${JSON.stringify(replayed)}`);
+      deepStrictEqual(replayed.execution.result, { Array: [reactionOne, reactionTwo] });
+    });
+  });
+
+  test("Quarry refuses operation names captured by generated imports at the declaration", () => {
+    const schema = "table rows:\n  public\n";
+    for (const fixture of [
+      { source: "query range():\n  return []\n", collision: "snapback2 helper" },
+      { source: "effect notify from delivery\nquery notify():\n  return null\n", collision: "effect import" },
+    ]) {
+      const compiled = compileInline([
+        { fileName: "snapback/schema.q", source: schema },
+        { fileName: "snapback/ops.q", source: fixture.source },
+      ]);
+      const diagnostic = !compiled.ok && compiled.diagnostics.find((item) => item.family === "quarry");
+      assert(diagnostic && diagnostic.site.startsWith("snapback/ops.q:")
+        && diagnostic.message.includes(fixture.collision)
+        && diagnostic.rewrite.includes("rename the "),
+      `generated-import collision did not produce a sited Quarry rename: ${JSON.stringify(compiled)}`);
+    }
+  });
+
   test("Quarry effects, maintains, aggregate sugar, returns, objects, and count reach IR", async () => {
     const chat = await lowerProject(resolve(fixtures, "quarry-chat"));
     const surface = await lowerProject(resolve(fixtures, "quarry-surface"));
@@ -1080,11 +1177,11 @@ table posts:
   test("Quarry focal detection covers every expression container used by patches", () => {
     const schema = "table users:\n  name: text <=50\n  public\n  by byName: name, id\n\ntable nodes:\n  parent: nodes?\n  public\n\ntable posts:\n  author: users\n  node: nodes\n  authorName: text <=50\n  payload: json <=2048\n  related: logs?\n  flag: bool\n  public\n\ntable logs:\n  post: posts\n  public\n";
     const cases: Array<[string, string, string]> = [
-      ["read", "authorName: users[.author].name", "db.get(users"],
+      ["read", "authorName: users[.author].name", "db.get(users$table"],
       ["array", "payload: [.author]", ".author"],
-      ["exists", "flag: exists users[.author]", "db.exists(users"],
+      ["exists", "flag: exists users[.author]", "db.exists(users$table"],
       ["walk", "payload: walk nodes[.node] up .parent depth 2", "recurse("],
-      ["nested write", "related: insert logs { post: .id }", "db.insert(logs"],
+      ["nested write", "related: insert logs { post: .id }", "db.insert(logs$table"],
       ["object literal", "payload: { author: .author }", "author:"],
     ];
     for (const [name, field, emitted] of cases) {
@@ -1108,7 +1205,7 @@ table posts:
     assert(result.ok, `focal patch refused: ${result.ok ? "" : diagnosticsText(result.diagnostics)}`);
     const source = result.modules[0]!.source;
     const callback = source.indexOf("(__q_old_");
-    const dereference = source.indexOf("db.get(users", callback);
+    const dereference = source.indexOf("db.get(users$table", callback);
     const firstField = source.indexOf("const __q_patch_", callback);
     const secondField = source.indexOf("const __q_patch_", firstField + 1);
     const returned = source.indexOf("return {", callback);
@@ -1125,7 +1222,7 @@ table posts:
         { fileName: "snapback/schema.q", source: schema },
         { fileName: "snapback/ops.q", source: unsafe },
       ]);
-      assert(compiled.ok && compiled.modules[0]!.source.includes("db.get(authors"),
+      assert(compiled.ok && compiled.modules[0]!.source.includes("db.get(authors$table"),
         `shaped reference field was not auto-dereferenced: ${compiled.ok ? compiled.modules[0]!.source : diagnosticsText(compiled.diagnostics)}`);
       const refused = await lowerProject(root);
       assert(!refused.ok && refused.diagnostics.some((item) => item.message.includes("undefined")
@@ -1149,7 +1246,7 @@ table posts:
     ]);
     assert(compiled.ok, `walk/page front end refused: ${compiled.ok ? "" : diagnosticsText(compiled.diagnostics)}`);
     const source = compiled.modules[0]!.source;
-    assert(!source.includes("db.get(nodes, ancestor)") && !source.includes("db.get(nodes, node)"),
+    assert(!source.includes("db.get(nodes$table, ancestor)") && !source.includes("db.get(nodes$table, node)"),
       `walked or shaped row was treated as a reference:\n${source}`);
     assert(source.includes("ancestor.name") && source.includes("node.name"), `row fields were not selected directly:\n${source}`);
     await withProject({ "snapback/schema.q": schema, "snapback/ops.q": module }, async (root) => {

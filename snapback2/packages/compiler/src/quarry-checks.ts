@@ -67,7 +67,7 @@ export function registerQuarryChecks(test: Test, frontend: string): void {
     for (const spelling of [
       "rule.and(", "rule.or(", "rule.not(", "rule.exists(", "channel({", "t.optional(", "t.enum(",
       "t.principal()", "t.id()", "t.json(2048)", "t.bytes(1024)", "db.upsert(", "orderedPair(",
-      "mentionTokens(", "recurse(", "after:", "__q_matchResult", "db.get(users",
+      "mentionTokens(", "recurse(", "after:", "__q_matchResult", "db.get(users$table",
     ]) assert(text.includes(spelling), `Quarry full-surface lowering lost ${spelling}`);
     for (const line of text.split("\n").filter((line) => line.trim())) {
       assert(/\/\/ q:.+:\d+:\d+$/.test(line), `generated Quarry line lacks file:line:column provenance: ${line}`);
@@ -425,7 +425,7 @@ query page(c: cursor ?):
       { fileName: "snapback/cards.q", source: "shape card = { current: profiles[viewer] { principal } }\n" },
       { fileName: "snapback/ops.q", source: "shape card from cards\nquery one(id: profiles, viewer: text <=80):\n  return profiles[id] card\n" },
     ]);
-    assert(inferredContext.ok && inferredContext.modules[0]!.source.includes('db.get(profiles.byPrincipal, [ctx.viewer])'),
+    assert(inferredContext.ok && inferredContext.modules[0]!.source.includes('db.get(profiles$table.byPrincipal, [ctx.viewer])'),
       `shape context inference captured the caller argument type: ${JSON.stringify(inferredContext)}`);
   });
 
@@ -925,25 +925,25 @@ mutation empty_last(photos: [image <=5000000] <=4):
     const remove = generatedOperation(source, "deleteKeyedRow");
     const updateKeys = writeKeyNames(update);
     const upsertKeys = writeKeyNames(upsert);
-    assert(updateKeys && update.includes(`db.get(keyedRows.byOwnerLabel, [${updateKeys[0]}, ${updateKeys[1]}])`)
+    assert(updateKeys && update.includes(`db.get(keyedRows$table.byOwnerLabel, [${updateKeys[0]}, ${updateKeys[1]}])`)
       && update.includes('db.require(__q_writeRow_')
-      && update.includes("db.update(keyedRows, __q_writeRow_")
+      && update.includes("db.update(keyedRows$table, __q_writeRow_")
       && update.includes("{ value: args.value }")
       && occurrences(update, "args.owner") === 1 && occurrences(update, "args.label") === 1,
     `composite update did not bind its address once, elide same-key fields, and write by row id:\n${update}`);
-    assert(upsertKeys && upsert.includes(`db.get(keyedRows.byOwnerLabel, [${upsertKeys[0]}, ${upsertKeys[1]}])`)
+    assert(upsertKeys && upsert.includes(`db.get(keyedRows$table.byOwnerLabel, [${upsertKeys[0]}, ${upsertKeys[1]}])`)
       && upsert.includes("?.id ?? ctx.newId()")
-      && upsert.includes("db.upsert(keyedRows, __q_upsertKey_")
+      && upsert.includes("db.upsert(keyedRows$table, __q_upsertKey_")
       && upsert.includes(`owner: ${upsertKeys[0]}, label: ${upsertKeys[1]}`)
       && occurrences(upsert, "args.owner") === 1 && occurrences(upsert, "args.label") === 1,
     `composite upsert did not bind/inject its key columns into the platform scalar db.upsert row:\n${upsert}`);
     assert(authored.includes("?.id ?? ctx.newId()")
-      && authored.includes("db.upsert(keyedRows, __q_upsertKey_")
+      && authored.includes("db.upsert(keyedRows$table, __q_upsertKey_")
       && !authored.includes("UPSERT_ID_"),
     `migrated alternate upsert did not keep the present id or mint on absence:\n${authored}`);
-    assert(remove.includes("db.get(keyedRows.byOwnerLabel, [__q_writeKey1_")
+    assert(remove.includes("db.get(keyedRows$table.byOwnerLabel, [__q_writeKey1_")
       && remove.includes('db.require(__q_writeRow_')
-      && remove.includes("db.delete(keyedRows, __q_writeRow_"),
+      && remove.includes("db.delete(keyedRows$table, __q_writeRow_"),
     `composite delete did not resolve and write by row id:\n${remove}`);
     for (const line of source.split("\n").filter((line) => line.includes("__q_writeRow_") || line.includes("__q_upsertKey_") || line.includes("__q_writeKey"))) {
       assert(/\/\/ q:snapback\/surface\.q:\d+:\d+$/.test(line), `generated indexed-write statement lost its .q site: ${line}`);

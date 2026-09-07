@@ -18,6 +18,12 @@ import { quarryExpression, quarryWriteWithoutField } from "./print";
 import { narrowThenBindings } from "./narrowing";
 import { header, siteMark, typeCode } from "./schema";
 
+const SNAPBACK2_IMPORT_BINDINGS = [
+  "deterministicShare", "divmod", "emit", "max", "mergeByIndex", "mentionTokens", "min",
+  "mutation", "query", "range", "recurse", "t", "words",
+] as const;
+const SNAPBACK2_IMPORT_BINDING_SET = new Set<string>(SNAPBACK2_IMPORT_BINDINGS);
+
 type ObjectType = { kind: "object"; fields: Map<string, ValueType>; nullable: boolean };
 type SequenceType = { kind: "sequence"; item: ValueType; max: number };
 type NumericLiteralType = { kind: "numeric-literal"; fractionalDigits: number };
@@ -69,11 +75,12 @@ class Environment {
 }
 
 export function emitPrograms(programs: ProgramDecl[], catalog: TableCatalog, sourceFile: string, effects: EffectDecl[] = []): string {
+  refuseGeneratedImportCollisions(programs, effects);
   const rootSite = programs[0]?.site ?? effects[0]?.site ?? { file: sourceFile, line: 1, col: 1 };
   const writer = new Writer(rootSite);
   writer.raw(header(sourceFile), rootSite);
-  writer.statement(`import { deterministicShare, divmod, emit, max, mergeByIndex, mentionTokens, min, mutation, query, range, recurse, t, words } from "snapback2";`, { file: sourceFile, line: 1, col: 1 });
-  if (catalog.size > 0) writer.statement(`import { ${[...catalog.keys()].join(", ")} } from "./schema";`, { file: sourceFile, line: 1, col: 1 });
+  writer.statement(`import { ${SNAPBACK2_IMPORT_BINDINGS.join(", ")} } from "snapback2";`, { file: sourceFile, line: 1, col: 1 });
+  if (catalog.size > 0) writer.statement(`import { ${[...catalog.keys()].map((table) => `${table} as ${tableBinding(table)}`).join(", ")} } from "./schema";`, { file: sourceFile, line: 1, col: 1 });
   for (const effect of effects) writer.statement(`import { ${effect.name} } from "./${effect.module}";`, effect.site);
   writer.raw();
   writer.statement(`function orderedPair(left: any, right: any): [any, any] { return [left, right]; }`, { file: sourceFile, line: 1, col: 1 });
@@ -85,10 +92,41 @@ export function emitPrograms(programs: ProgramDecl[], catalog: TableCatalog, sou
   return `${writer.lines.join("\n").trimEnd()}\n`;
 }
 
+function refuseGeneratedImportCollisions(programs: ProgramDecl[], effects: EffectDecl[]): void {
+  const effectNames = new Set(effects.map((effect) => effect.name));
+  for (const program of programs) {
+    if (SNAPBACK2_IMPORT_BINDING_SET.has(program.name)) {
+      refuse(
+        program.site,
+        `${program.kind} name ${program.name} collides with the generated snapback2 helper import ${program.name}`,
+        `rename the ${program.kind} ${program.name}; snapback2 helpers occupy generated module bindings`,
+      );
+    }
+    if (program.name === "orderedPair") {
+      refuse(
+        program.site,
+        `${program.kind} name orderedPair collides with a generated module helper`,
+        `rename the ${program.kind} orderedPair; generated helpers occupy module bindings`,
+      );
+    }
+    if (effectNames.has(program.name)) {
+      refuse(
+        program.site,
+        `${program.kind} name ${program.name} collides with the generated effect import ${program.name}`,
+        `rename the ${program.kind} ${program.name}; effects and operations share a generated module`,
+      );
+    }
+  }
+}
+
+// @ref LLP 1004#amendment-author-2026-09-02-quarry-only — TypeScript is an
+// internal lowering target, so its binding namespace cannot constrain Quarry.
+function tableBinding(table: string): string { return `${table}$table`; }
+
 function emitProgram(program: ProgramDecl, catalog: TableCatalog, writer: Writer, effects: Set<string>): void {
   const env = new Environment(catalog, program, effects);
   if (program.focalTable) env.focal = { code: "args", type: { kind: "row", table: program.focalTable, nullable: false } };
-  const args = program.args.map((arg) => `${property(arg.name)}: ${typeCode(arg.type)}`).join(", ");
+  const args = program.args.map((arg) => `${property(arg.name)}: ${typeCode(arg.type, tableBinding)}`).join(", ");
   writer.raw(`export const ${program.name} = ${program.kind === "job" ? "mutation" : program.kind}({ ${args} }, ({ db, ctx, args }) => {`, program.site);
   writer.nested(() => emitBody(program.body, env, writer, { kind: "return" }));
   writer.statement(`});`, program.site);
@@ -322,7 +360,7 @@ function emitExpr(expr: Expr, env: Environment, writer: Writer, resultUsed = tru
     const walked = temporary("walk", expr.site);
     const current = temporary("ancestor", expr.site);
     writer.statement(`const ${walked}: any[] = [];`, expr.site);
-    writer.raw(`for (const ${current} of recurse(${seed.code}, (current) => db.get(${expr.table}, current.${expr.column}), { depth: ${expr.depth}, fanout: 1 })) {`);
+    writer.raw(`for (const ${current} of recurse(${seed.code}, (current) => db.get(${tableBinding(expr.table)}, current.${expr.column}), { depth: ${expr.depth}, fanout: 1 })) {`);
     writer.nested(() => writer.statement(`${walked}.push(${current});`, expr.site));
     writer.statement("}", expr.site);
     return {
@@ -476,10 +514,10 @@ function emitMember(expr: Extract<Expr, { kind: "member" }>, env: Environment, w
       writer.statement(`const ${key} = ${base.code} ?? null;`, expr.site);
       writer.statement(`let ${local}: any = null;`, expr.site);
       writer.raw(`if (${key} !== null) {`);
-      writer.nested(() => writer.statement(`${local} = db.get(${refType.table}, ${key});`, expr.site));
+      writer.nested(() => writer.statement(`${local} = db.get(${tableBinding(refType.table)}, ${key});`, expr.site));
       writer.statement("}", expr.site);
     } else {
-      writer.statement(`const ${local} = db.get(${refType.table}, ${base.code});`, expr.site);
+      writer.statement(`const ${local} = db.get(${tableBinding(refType.table)}, ${base.code});`, expr.site);
     }
     base = { code: local, type: { kind: "row", table: refType.table, nullable: true } };
   }
@@ -632,7 +670,8 @@ function emitRead(expr: Extract<Expr, { kind: "read" }>, env: Environment, write
   const mode = expr.range ? "range" : exists ? "exists" : "point";
   const index = selectIndex(env.catalog, expr.table, expr.keys, mode, expr.index, (value) => inferExpr(value, env), expr.site);
   const keys = expr.keys.map((key) => keyBinding(emitExpr(key.value, env, writer)));
-  const target = index.name === "byId" ? expr.table : `${expr.table}.${index.name}`;
+  const table = tableBinding(expr.table);
+  const target = index.name === "byId" ? table : `${table}.${index.name}`;
   if (expr.range) {
     const remainingColumns = index.columns.slice(expr.keys.length);
     if (expr.range.cursor && remainingColumns.length === 0) {
@@ -763,10 +802,10 @@ function emitShape(expr: Extract<Expr, { kind: "shape" }>, env: Environment, wri
       writer.statement(`const ${key} = ${base.code} ?? null;`, expr.site);
       writer.statement(`let ${deref}: any = null;`, expr.site);
       writer.raw(`if (${key} !== null) {`);
-      writer.nested(() => writer.statement(`${deref} = db.get(${refType.table}, ${key});`, expr.site));
+      writer.nested(() => writer.statement(`${deref} = db.get(${tableBinding(refType.table)}, ${key});`, expr.site));
       writer.statement("}", expr.site);
     } else {
-      writer.statement(`const ${deref} = db.get(${refType.table}, ${base.code});`, expr.site);
+      writer.statement(`const ${deref} = db.get(${tableBinding(refType.table)}, ${base.code});`, expr.site);
     }
     base = { code: deref, type: { kind: "row", table: refType.table, nullable: true } };
   }
@@ -858,7 +897,7 @@ function emitWrite(expr: Extract<Expr, { kind: "write" }>, env: Environment, wri
   if (expr.op === "insert") {
     const fields = emitFields(expr.fields, env, writer, info.columns);
     if (!expr.fields.some((field) => field.name === "id")) fields.unshift("id: ctx.newId()");
-    return { code: `db.insert(${expr.table}, { ${fields.join(", ")} })`, type: { kind: "row", table: expr.table, nullable: false } };
+    return { code: `db.insert(${tableBinding(expr.table)}, { ${fields.join(", ")} })`, type: { kind: "row", table: expr.table, nullable: false } };
   }
   const index = selectIndex(env.catalog, expr.table, expr.keys, "point", undefined, (value) => inferExpr(value, env), expr.site);
   validateAddressedKeyFields(expr, index);
@@ -874,7 +913,7 @@ function emitWrite(expr: Extract<Expr, { kind: "write" }>, env: Environment, wri
   }
   const key = keys[0]!;
   if (expr.op === "delete") {
-    writer.statement(`db.delete(${expr.table}, ${key.code});`, expr.site);
+    writer.statement(`db.delete(${tableBinding(expr.table)}, ${key.code});`, expr.site);
     return { code: "null", type: { kind: "unknown" }, effectOnly: true };
   }
   const writeFields = expr.op === "update"
@@ -883,7 +922,7 @@ function emitWrite(expr: Extract<Expr, { kind: "write" }>, env: Environment, wri
   const usesFocal = writeFields.some((field) => field.value && mentionsFocal(field.value));
   if (!usesFocal && expr.op !== "upsert") {
     const fields = emitFields(writeFields, env, writer, info.columns);
-    writer.statement(`db.${expr.op}(${expr.table}, ${key.code}, { ${fields.join(", ")} });`, expr.site);
+    writer.statement(`db.${expr.op}(${tableBinding(expr.table)}, ${key.code}, { ${fields.join(", ")} });`, expr.site);
     return writeResult(expr, key.code, resultUsed, writer);
   }
 
@@ -891,7 +930,7 @@ function emitWrite(expr: Extract<Expr, { kind: "write" }>, env: Environment, wri
   const rowName = temporary("old", expr.site);
   env.focal = { code: rowName, type: { kind: "row", table: expr.table, nullable: expr.op === "upsert" } };
   try {
-    writer.raw(`db.${expr.op}(${expr.table}, ${key.code}, (${rowName}) => {`);
+    writer.raw(`db.${expr.op}(${tableBinding(expr.table)}, ${key.code}, (${rowName}) => {`);
     writer.nested(() => {
       const fields = emitEvaluatedFields(
         writeFields,
@@ -916,7 +955,7 @@ function emitWrite(expr: Extract<Expr, { kind: "write" }>, env: Environment, wri
 function writeResult(expr: Extract<Expr, { kind: "write" }>, key: string, resultUsed: boolean, writer: Writer): Emitted {
   if (!resultUsed) return { code: "null", type: { kind: "unknown" }, effectOnly: true };
   const result = temporary("written", expr.site);
-  writer.statement(`const ${result} = db.get(${expr.table}, ${key});`, expr.site);
+  writer.statement(`const ${result} = db.get(${tableBinding(expr.table)}, ${key});`, expr.site);
   return { code: result, type: { kind: "row", table: expr.table, nullable: true } };
 }
 
@@ -933,12 +972,12 @@ function emitIndexedWrite(
   resultUsed: boolean,
 ): Emitted {
   const row = temporary("writeRow", expr.site);
-  writer.statement(`const ${row} = db.get(${expr.table}.${index.name}, [${keys.map((key) => key.code).join(", ")}]);`, expr.site);
+  writer.statement(`const ${row} = db.get(${tableBinding(expr.table)}.${index.name}, [${keys.map((key) => key.code).join(", ")}]);`, expr.site);
   const addressedFields = new Map(index.columns.map((column, offset) => [column, keys[offset]!.code]));
 
   if (expr.op === "delete") {
     writer.statement(`db.require(${row} !== null, "NOT_FOUND");`, expr.site);
-    writer.statement(`db.delete(${expr.table}, ${row}!.id);`, expr.site);
+    writer.statement(`db.delete(${tableBinding(expr.table)}, ${row}!.id);`, expr.site);
     return { code: "null", type: { kind: "unknown" }, effectOnly: true };
   }
 
@@ -951,7 +990,7 @@ function emitIndexedWrite(
       const fields = patch.some((field) => field.value && mentionsFocal(field.value))
         ? emitEvaluatedFields(patch, env, writer, columns)
         : emitFields(patch, env, writer, columns);
-      writer.statement(`db.update(${expr.table}, ${row}!.id, { ${fields.join(", ")} });`, expr.site);
+      writer.statement(`db.update(${tableBinding(expr.table)}, ${row}!.id, { ${fields.join(", ")} });`, expr.site);
     } finally {
       env.focal = prior;
     }
@@ -974,7 +1013,7 @@ function emitIndexedWrite(
     writer.statement(`const ${key} = ${addressedId ? addressedId.value : `${row}?.id ?? ctx.newId()`};`, expr.site);
     const rowFields = fields.filter((field) => field.name !== "id").map(fieldCode);
     rowFields.unshift(`id: ${key}`);
-    writer.statement(`db.upsert(${expr.table}, ${key}, { ${rowFields.join(", ")} });`, expr.site);
+    writer.statement(`db.upsert(${tableBinding(expr.table)}, ${key}, { ${rowFields.join(", ")} });`, expr.site);
   } finally {
     env.focal = prior;
   }
