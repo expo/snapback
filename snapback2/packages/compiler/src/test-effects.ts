@@ -295,7 +295,7 @@ mutation fire():
       const result = await lowerProject(root);
       assert(!result.ok && result.diagnostics.length === 2, JSON.stringify(result));
       assert.deepEqual(result.diagnostics.map((item) => [item.family, item.site.split(":")[0]]).sort(),
-        [["effect", "snapback/provider.ts"], ["opaque", "snapback/programs.q"]]);
+        [["effect", "snapback/provider.ts"], ["quarry", "snapback/programs.q"]]);
     });
   });
 
