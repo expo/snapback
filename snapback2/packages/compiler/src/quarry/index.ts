@@ -29,6 +29,7 @@ export function prepareQuarry(inputs: QuarryInput[]): QuarryPrepareResult {
     diagnostics.push(...parsed.diagnostics);
   }
   diagnostics.push(...placementDiagnostics(documents));
+  diagnostics.push(...schemaDomainDiagnostics(documents));
   if (diagnostics.length > 0) return { ok: false, diagnostics: diagnostics.map(frontendQuarryDiagnostic) };
 
 
@@ -46,6 +47,33 @@ export function prepareQuarry(inputs: QuarryInput[]): QuarryPrepareResult {
   try { schedules = prepareSchedules(documents, catalog); } catch (error) { diagnostics.push(caughtDiagnostic(error)); }
   if (diagnostics.length > 0) return { ok: false, diagnostics: diagnostics.map(frontendQuarryDiagnostic) };
   return { ok: true, prepared: { documents, catalog, schedules, diagnostics } };
+}
+
+function schemaDomainDiagnostics(documents: Document[]): QuarryDiagnostic[] {
+  const diagnostics: QuarryDiagnostic[] = [];
+  const tables = new Map(documents.flatMap((document) => document.tables).map((table) => [table.name, table]));
+  for (const table of tables.values()) {
+    const columns = new Map(table.columns.map((column) => [column.name, column.type]));
+    for (const index of table.indexes) for (const component of index.components) {
+      if (!("Column" in component)) continue;
+      const type = columns.get(component.Column);
+      if (!type || !containsAsset(type)) continue;
+      diagnostics.push(new QuarryError(index.site,
+        `index ${table.name}.${index.name} column ${component.Column} has non-indexable type ${schemaTypeName(type)}`,
+        "E_SCHEMA_INDEX_COLUMN", `remove ${component.Column} from this index`, "schema/project").diagnostic);
+    }
+  }
+  for (const declaration of documents.flatMap((document) => document.maintains)) {
+    const source = tables.get(declaration.source);
+    for (const field of declaration.by) {
+      const type = source?.columns.find((column) => column.name === field)?.type;
+      if (!type || !containsAsset(type)) continue;
+      diagnostics.push(new QuarryError(declaration.site,
+        `maintain.by cannot use asset-typed source column ${declaration.source}.${field}`,
+        "E_SCHEMA_ASSET_MAINTAIN", "remove the asset column from maintain.by", "schema/project").diagnostic);
+    }
+  }
+  return diagnostics;
 }
 
 function placementDiagnostics(documents: Document[]): QuarryDiagnostic[] {
@@ -137,6 +165,12 @@ function containsAsset(type: ScalarType): boolean {
   return type.kind === "list" && containsAsset(type.item);
 }
 
+function schemaTypeName(type: ScalarType): string {
+  if (type.kind === "list") return `[${schemaTypeName(type.item)}]`;
+  if (type.kind === "image" || type.kind === "video") return `${type.kind} asset`;
+  return type.kind;
+}
+
 export function frontendQuarryDiagnostic(item: QuarryDiagnostic): FrontendDiagnostic {
   return {
     code: item.code,
@@ -144,7 +178,8 @@ export function frontendQuarryDiagnostic(item: QuarryDiagnostic): FrontendDiagno
       : item.code.startsWith("E_SCHEDULE_") ? "schedule"
         : item.code === "E_EMIT_IN_QUERY" ? "effect"
           : item.code === "E_DECIMAL_SCALE" ? "args"
-            : item.code.startsWith("E_OP_") ? "op" : "quarry",
+            : item.code.startsWith("E_OP_") ? "op"
+              : item.code.startsWith("E_UNBOUND_") ? "bound" : "quarry",
     message: item.message,
     site: `${item.file}:${item.line}:${item.col}`,
     rewrite: item.executableRewrite || item.code === "E_QUARRY_UNSUPPORTED" && item.rewrite === "deny"

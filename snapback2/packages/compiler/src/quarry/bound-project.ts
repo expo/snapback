@@ -3,7 +3,8 @@ import type { Program, QuarryGenerated, SchemaJson, SourceSite } from "../ir";
 import type { OperationSignature } from "../lower/effects";
 import { bindQuarrySchema } from "./bound-schema";
 import { bindQuarryProgram, type BoundQuarryProgram } from "./bound";
-import { lowerBoundQuarryProgram } from "./direct";
+import { orderedTables } from "./catalog";
+import { lowerBoundQuarryArtifact } from "./direct";
 import type { QuarryDiagnostic } from "./ast";
 import { QuarryError } from "./diagnostics";
 import type { PreparedQuarry } from "./index";
@@ -67,7 +68,8 @@ function assembleBoundQuarryProject(
   if (prepared.schedules.length > 0) schema.schedules = prepared.schedules.map(({ bindingName, ...schedule }) => ({
     ...schedule, binding: bindingName,
   }));
-  const programs = boundPrograms.map(lowerBoundQuarryProgram).sort((left, right) => left.name.localeCompare(right.name));
+  const artifacts = boundPrograms.map(lowerBoundQuarryArtifact);
+  const programs = artifacts.map((artifact) => artifact.program).sort((left, right) => left.name.localeCompare(right.name));
   const scheduleTargets = new Set(prepared.schedules.map((schedule) => schedule.target));
   const scheduleBindings = new Set(prepared.schedules.map((schedule) => schedule.bindingName));
   const clientPrograms = boundPrograms.filter((program) => program.kind !== "job"
@@ -86,7 +88,11 @@ function assembleBoundQuarryProject(
     kind: program.kind,
     boundArgs: program.args.map((argument) => ({ name: argument.name, type: argument.type })),
   }]));
-  const sourceEntries: Array<[string, SourceSite]> = boundPrograms.map((program) => [program.name, program.source.definition]);
+  const sourceEntries: Array<[string, SourceSite]> = [
+    ...schemaConstraintSources(prepared),
+    ...artifacts.flatMap((artifact) => artifact.sources),
+    ...boundPrograms.map((program): [string, SourceSite] => [program.name, program.source.definition]),
+  ];
   const sources = Object.fromEntries(sourceEntries
     .sort(([left], [right]) => left.localeCompare(right)));
   const inspection = prepared.documents.flatMap((document): QuarryGenerated[] => {
@@ -102,4 +108,21 @@ function assembleBoundQuarryProject(
     }];
   });
   return { prepared, schema, boundPrograms, programs, clientPrograms, effects, operationSignatures, sources, inspection };
+}
+
+function schemaConstraintSources(prepared: PreparedQuarry): Array<[string, SourceSite]> {
+  const entries: Array<[string, SourceSite]> = [];
+  for (const table of orderedTables(prepared.catalog)) {
+    if (table.name === "connected") continue;
+    let offset = 0;
+    const add = (site: SourceSite) => entries.push([`schema.tables.${table.name}.constraints[${offset++}]`, site]);
+    for (const index of table.indexes.filter((candidate) => candidate.unique)) add(index.site);
+    for (const cap of table.caps) add(cap.site);
+    for (const immutable of table.immutable) add(immutable.site);
+    for (const column of table.columns) {
+      if (column.type.kind === "text" && (column.type.min !== undefined || column.type.format)) add(column.site);
+    }
+    for (const finalExists of table.finalExists) add(finalExists.site);
+  }
+  return entries;
 }

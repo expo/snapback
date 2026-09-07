@@ -9,6 +9,7 @@ import { bindBuiltinCall } from "./bound-builtins";
 import { BoundFunctionRegistry, BoundShapeRegistry } from "./bound-declarations";
 import { validateCursorIndex, validatePageableMergeIndex } from "./bound-index-validation";
 import { siteText, sourceStack, typeName, withoutExpansion } from "./bound-source";
+import { quarryExpression, quarryWriteWithoutField } from "./print";
 import type { BoundArgumentSymbol, BoundExpression, BoundHeldSearch, BoundIndexSymbol, BoundLocalSymbol, BoundPresence,
   BoundMergeLane, BoundQuarryProgram, BoundRead, BoundSourceStack, BoundStatement, BoundTableSymbol, BoundType,
   BoundValueFacts, BoundValueSymbol } from "./bound-model";
@@ -89,8 +90,12 @@ class ExpressionBinder {
       } else if (statement.kind === "bind") {
         if (statement.names.length > 1 && (statement.names.length !== 2 || statement.value.kind !== "call"
           || !["divmod", "sorted"].includes(statement.value.name) || statement.value.args.length !== 2)) {
+          const pair = statement.value.kind === "call" && ["divmod", "sorted"].includes(statement.value.name)
+            && statement.value.args.length === 2
+            ? `(${statement.names.slice(0, 2).join(", ")}) = ${quarryExpression(statement.value)}`
+            : "(quotient, remainder) = divmod(dividend, divisor)";
           refuse(this.diagnosticSite(statement.site), "tuple bindings take exactly two names and sorted(a, b) or divmod(a, b)",
-            "(quotient, remainder) = divmod(dividend, divisor)");
+            pair, true);
         }
         const value = statement.names.length === 2 && statement.value.kind === "call" && statement.value.name === "sorted"
           ? this.sortedPair(statement.value)
@@ -146,7 +151,7 @@ class ExpressionBinder {
         bound.push({ kind: "if", condition, thenBody, elseBody, source });
       } else if (statement.kind === "for") {
         const domain = this.expression(statement.domain);
-        const item = loopItemFacts(domain, statement.domain.site);
+        const item = loopItemFacts(domain, statement.domain);
         const symbol: BoundLocalSymbol = {
           kind: "local", id: `${this.program.site.file}:${this.program.name}:loop:${this.localId++}`,
           name: statement.name, facts: item, source,
@@ -276,6 +281,22 @@ class ExpressionBinder {
     return refuse(expression.site, "created is valid only in an insert table rule");
   }
 
+  private expressionExpected(expression: Expr, expected: ScalarType): BoundExpression {
+    if (expression.kind !== "array" || expected.kind !== "list") {
+      return contextualValue(this.expression(expression), expected, this.diagnosticSite(expression.site));
+    }
+    const items = expression.items.map((item) => this.expressionExpected(item, expected.item));
+    const mismatch = items.find((item) => !assignableBoundValue(item.facts.type, expected.item));
+    if (mismatch) typeError(this.diagnosticSite(expression.site),
+      `list item expects ${typeName(expected.item)}, got ${typeName(mismatch.facts.type)}`,
+      `use ${typeName(expected.item)} values in this list`);
+    return { kind: "array", items, facts: facts({
+      kind: "list", item: structuredClone(expected.item), max: items.length, optional: false,
+    }, combineOrigins(items), { max: items.length,
+      ...(items.every((item) => item.facts.wholeUnits) ? { wholeUnits: true } : {}) }),
+    source: this.source(expression.site) };
+  }
+
   private write(expression: Extract<Expr, { kind: "write" }>): BoundExpression {
     if (this.helperDepth > 0) unsupported(this.diagnosticSite(expression.site),
       "fn expressions are read-pure and cannot write", "move the write into the calling mutation");
@@ -323,11 +344,8 @@ class ExpressionBinder {
           ? { kind: "id", optional: false } satisfies ScalarType
           : info.columns.get(field.name);
         if (!expected) typeError(this.diagnosticSite(field.site), `unknown ${expression.table} field ${field.name}`, `use a declared ${expression.table} column`);
-        const value = contextualValue(
-          this.expression(field.value ?? { kind: "name", name: field.name, site: field.site }),
-          expected,
-          this.diagnosticSite(field.site),
-        );
+        const value = this.expressionExpected(
+          field.value ?? { kind: "name", name: field.name, site: field.site }, expected);
         if (!writeAssignable(value.facts.type, expected, field.value)) {
           const message = `${field.name} expects ${typeName(expected)}, got ${typeName(value.facts.type)}`;
           const rewrite = `use a ${typeName(expected)} value for ${field.name}`;
@@ -360,16 +378,18 @@ class ExpressionBinder {
   private validateAddressedFields(expression: Extract<Expr, { kind: "write" }>, columns: string[]): void {
     if (expression.op === "delete") return;
     const authoredId = expression.fields.find((field) => field.name === "id");
-    if (authoredId) typeError(this.diagnosticSite(authoredId.site), expression.op === "upsert"
+    if (authoredId) throw new QuarryError(this.diagnosticSite(authoredId.site), expression.op === "upsert"
       ? "upsert rows may not name id; identity comes from the addressed row or is minted on insert"
-      : "update patches may not name id; row identity is immutable", `remove id from the ${expression.op} fields`);
+      : "update patches may not name id; row identity is immutable", "E_QUARRY_TYPE",
+      quarryWriteWithoutField(expression, authoredId), undefined, true);
     for (const [offset, column] of columns.entries()) {
       const field = expression.fields.find((candidate) => candidate.name === column);
       if (!field) continue;
       const value = field.value ?? { kind: "name", name: field.name, site: field.site } satisfies Expr;
       if (expressionText(value) === expressionText(expression.keys[offset]!.value)) continue;
-      typeError(this.diagnosticSite(field.site), `${expression.op} may not reassign addressed key column ${column}`,
-        `remove ${column} from the ${expression.op} fields`);
+      throw new QuarryError(this.diagnosticSite(field.site),
+        `${expression.op} may not reassign addressed key column ${column}`, "E_QUARRY_TYPE",
+        quarryWriteWithoutField(expression, field), undefined, true);
     }
   }
 
@@ -483,7 +503,7 @@ class ExpressionBinder {
         || op === "Add" && leftType.kind === "int" && rightType.kind === "time";
       if (left.facts.presence === "optional" || right.facts.presence === "optional" || (!difference && !offset)) typeError(expression.site,
         `time arithmetic does not admit ${typeName(leftType)} ${expression.op} ${typeName(rightType)}`,
-        "time - time yields int; add or subtract an int offset from time");
+        "time - time yields int milliseconds; add or subtract an int offset from time");
       const type: BoundType = { kind: difference ? "int" : "time", optional: false };
       return { kind: "binary", op, left, right, facts: facts(type, "Computed"), source: this.source(expression.site) };
     }
@@ -568,7 +588,10 @@ class ExpressionBinder {
     } else if (baseType.kind === "json" || baseType.kind === "unknown") {
       type = { kind: "unknown" };
     } else if (baseType.kind === "image" || baseType.kind === "video") {
-      if (["width", "height", "duration"].includes(expression.name)) type = { kind: "int", optional: baseType.optional };
+      const fields = baseType.kind === "image" ? ["width", "height"] : ["width", "height", "duration"];
+      if (fields.includes(expression.name)) type = { kind: "int", optional: baseType.optional };
+      else typeError(expression.site, `${baseType.kind} asset has no field ${expression.name}`,
+        `select ${quarryExpression(expression.base)}.${fields[0]}`);
     }
     if (!type) typeError(expression.site, `cannot select .${expression.name} from ${baseType.kind}`, "select a declared row or object field");
     return { kind: "member", base, name: expression.name, facts: facts(type, origin, {
@@ -750,13 +773,14 @@ class ExpressionBinder {
   }
 
   private functionCall(expression: Extract<Expr, { kind: "call" }>): BoundExpression {
-    const actuals = expression.args.map((argument) => this.expression(argument));
     const { declaration, document } = this.functions.resolve(this.functionFile, expression.name, expression.site);
-    if (actuals.length !== declaration.args.length) typeError(
+    if (expression.args.length !== declaration.args.length) typeError(
       this.diagnosticSite(expression.site),
-      `fn ${expression.name} expects ${declaration.args.length} arguments, got ${actuals.length}`,
+      `fn ${expression.name} expects ${declaration.args.length} arguments, got ${expression.args.length}`,
       `call ${expression.name}(${declaration.args.map((arg) => arg.name).join(", ")})`,
     );
+    const actuals = expression.args.map((argument, index) =>
+      this.expressionExpected(argument, declaration.args[index]!.type));
     const identity = `fn:${document.file}:${expression.name}`;
     if (this.expansionFrames.includes(identity)) throw new QuarryError(
       this.diagnosticSite(declaration.site, expression.site),
@@ -951,6 +975,8 @@ class ExpressionBinder {
       return expected ? { ...item, bound: contextualValue(item.bound, expected, item.authored.site) } : item;
     });
     const after = expression.range?.cursor ? this.expression(expression.range.cursor) : null;
+    if (after && after.facts.type.kind !== "cursor") typeError(expression.range!.cursor!.site,
+      `scan after expects a cursor, got ${typeName(after.facts.type)}`, "declare c: cursor ? and pass after c");
     const range = expression.range && { components: selected.components,
       order: expression.range.order === "desc" ? "Desc" as const : "Asc" as const,
       take: expression.range.take, after, opaqueCursor: after !== null };
@@ -1097,18 +1123,22 @@ function tupleFieldFacts(value: BoundValueFacts, name: string, site: Site): Boun
   return field;
 }
 
-function loopItemFacts(domain: BoundExpression, site: Site): BoundValueFacts {
+function loopItemFacts(domain: BoundExpression, authored: Expr): BoundValueFacts {
   const type = domain.facts.type;
   if (type.kind === "page") return type.item ?? facts({ kind: "row", table: type.table, nullable: false }, domain.facts.origin, {
     tableOrigin: type.table, readOrigin: domain.facts.readOrigin,
   });
   if (type.kind === "collection") return type.item;
   if (type.kind === "list") {
-    if (type.optional) typeError(site, "for cannot iterate an optional list", "supply an empty default before the loop");
+    if (type.optional) throw new QuarryError(authored.site,
+      "for cannot iterate an optional list", "E_QUARRY_TYPE", `${quarryExpression(authored)} ?? []`, undefined, true);
     return facts(type.item, domain.facts.origin, { max: type.max, tableOrigin: domain.facts.tableOrigin });
   }
   if (type.kind === "empty-list") return facts({ kind: "unknown" }, domain.facts.origin, { max: 0 });
-  typeError(site, `for cannot iterate ${typeName(type)}`, "iterate a bounded page or required capped list");
+  if (type.kind === "unknown") throw new QuarryError(authored.site,
+    "for cannot prove a static cardinality for an opaque value", "E_UNBOUND_LOOP",
+    "iterate a declared capped list or bounded page", "bound/loop");
+  typeError(authored.site, `for cannot iterate ${typeName(type)}`, "iterate a bounded page or required capped list");
 }
 
 function narrowedScope(

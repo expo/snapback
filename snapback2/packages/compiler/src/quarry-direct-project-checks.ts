@@ -27,6 +27,21 @@ export function registerQuarryDirectProjectChecks(test: Test, frontend: string):
       && Object.values(production.sources).every((site) => site.file.endsWith(".q"))
       && production.apiDts.includes("interface Api"),
     `production assembly retained generated TypeScript custody: ${JSON.stringify(production.quarry)}`);
+    const loops = Object.entries(production.sources).filter(([site]) => site.startsWith("messages.send/for/"));
+    assert(loops.length > 0 && loops.every(([, site]) => site.file === "snapback/messages.q"),
+      `generated loop sites did not retain authored Quarry locations: ${JSON.stringify(loops)}`);
+    for (const [table, descriptor] of Object.entries(production.project.schema.tables)) {
+      const constraints = (descriptor as unknown as { constraints: unknown[] }).constraints;
+      for (const [index, constraint] of constraints.entries()) {
+        const site = production.sources[`schema.tables.${table}.constraints[${index}]`];
+        const line = site && readFileSync(join(root, site.file), "utf8").split("\n")[site.line - 1]?.trim();
+        const kind = Object.keys(constraint as object)[0];
+        const marker = kind === "Unique" ? "unique " : kind === "Cap" ? "cap "
+          : kind === "Immutable" ? "immutable " : kind === "Text" ? ": text " : "after insert ";
+        assert(site?.file === "snapback/schema.q" && (line?.includes(marker) || kind === "Unique" && line?.startsWith("maintain ")),
+          `schema constraint ${table}[${index}] ${kind} lost its exact authored source: ${JSON.stringify({ site, line })}`);
+      }
+    }
 
     await withProject({
       "snapback/schema.q": "table rows:\n  public\n",
