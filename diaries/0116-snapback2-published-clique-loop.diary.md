@@ -1219,3 +1219,12 @@ The independent Astra xhigh audit finished, but fresh runtime phases aborted: th
 Source review exposed missing feed pagination/video playback, newest-ten Trending instead of the requested ranking, incomplete custom-client operations and incorrect digest counter wiring. Of 58 mapped acceptance entries, 13 mapped tests support their stated scope, 15 are partial and 30 unsupported. Passing suite labels therefore do not establish full functionality. All 110 assertions have fresh runtime not-run; source judgments remain distinct. Grok's holistic 63 remains below Convex 78; no both-backend win or native/full-scale completion is claimed.
 
 Evidence: [independent assertion audit](../benchmarks/runs/2026-09-06-clique-improvement/evidence/grok-015-assertion-audit/README.md). Root read the full report and independently checked 334 original/copy source and symlink pairs. The next execution decision depends on clean-install evidence, while compiler and web factory-setup repairs continue independently.
+
+
+## 2026-09-07 — Make browser carrier setup mistakes actionable
+
+The published client let `offline: { store: indexedDbRangeStore }` construct, then failed during login with E_OFFLINE_CARRIER and “this.store.open is not a function.” A minimal browser reproduction established the builder/factory mistake. The fix rejects it at construction with the corrected `indexedDbRangeStore()` spelling and adds the missing setup example to the offline guide. Valid custom factories and carrier failures retain their behavior.
+
+Candidate620616271 passed35 affected tests and real IndexedDB/Web Locks setup controls; independent Astra xhigh and Grok4.6 xhigh reviews both returned READY. Root integrated the five files unchanged. The guide-only budget grows512 bytes for432 bytes of setup guidance. This is an ergonomic repair, not proof of the original app's only failure, the offline bar, or a comparative benchmark win. Publication qualification remains separate.
+
+[Source review and evidence](../benchmarks/runs/2026-09-06-clique-improvement/evidence/web-carrier-setup-r1/README.md) preserve those limits and actual review identities.

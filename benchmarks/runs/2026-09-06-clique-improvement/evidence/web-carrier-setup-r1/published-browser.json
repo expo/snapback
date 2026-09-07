@@ -1,0 +1,83 @@
+{
+  "label": "published-final",
+  "pkg": "/Users/ccheever/clique-improvement/revisions/cli-015-publication-execution-r2/registry-installed-consumer/node_modules/snapback2",
+  "sourceHashes": {
+    "dist/client.mjs": "d776d48fd23d13b7b736fff61219b005b72a77e4b61e705b29be8acc27a549f4",
+    "dist/react.mjs": "c8e3a707248bb6cf25beb9cdbfd74e3c111febcdc71e1cb7866519283abcbd88",
+    "dist/react-core.mjs": "7747eb1ef3102fcc3f9756a2fe96b2bd2e30f768ebc5c021a19945c528afca2c",
+    "dist/guide/offline.md": "3639df79c25c25469b8b79eeeb2518cf39158fca3b9a9cc6d55cea001c07d751"
+  },
+  "bundleSha256": "fd0039fe528cd9bd56db60dcf5e9f0da5a8c8cfcc044806bb6e72cce2d8dc84e",
+  "host": "M1MacBookPro14in2021Office",
+  "node": "v22.23.2",
+  "nodeExecutable": "/Users/ccheever/.volta/tools/image/node/22.23.2/bin/node",
+  "pid": 45488,
+  "browserPid": 45495,
+  "browserVersion": "140.0.7339.186",
+  "port": 52900,
+  "result": {
+    "indexedDB": "function",
+    "webLocks": "function",
+    "mistakeConstructed": true,
+    "mistakeReady": true,
+    "login": {
+      "name": "SnapbackRefusal",
+      "message": "this.store.open is not a function",
+      "code": "E_OFFLINE_CARRIER",
+      "envelope": {
+        "code": "E_OFFLINE_CARRIER",
+        "family": "offline",
+        "message": "this.store.open is not a function",
+        "site": "RangeStore.open",
+        "rewrite": "install or configure the Tt2 carrier",
+        "guide": "offline"
+      }
+    },
+    "control": {
+      "ready": true,
+      "status": {
+        "ready": false,
+        "reason": "grant-missing",
+        "action": "resume",
+        "remaining": 0,
+        "fence": "inside"
+      },
+      "factoryCalls": 1,
+      "locks": {
+        "held": [
+          {
+            "clientId": "ce2ac233-6c23-432a-b94a-28f4fac0ca8c",
+            "mode": "exclusive",
+            "name": "snapback2:dev:control"
+          }
+        ],
+        "pending": []
+      },
+      "databases": [
+        {
+          "name": "web-carrier-setup:dev:control",
+          "version": 3
+        }
+      ],
+      "factoryCallsAfterOffline": 1,
+      "reopened": [
+        "stored in real IndexedDB"
+      ]
+    },
+    "unavailable": {
+      "name": "SnapbackRefusal",
+      "message": "IndexedDB and Web Locks are required",
+      "code": "E_OFFLINE_CARRIER",
+      "envelope": {
+        "code": "E_OFFLINE_CARRIER",
+        "family": "offline",
+        "message": "IndexedDB and Web Locks are required",
+        "site": "RangeStore.open",
+        "rewrite": "install or configure the IndexedDB carrier",
+        "guide": "offline"
+      }
+    }
+  },
+  "errors": [],
+  "cleanup": "owned browser server/context and HTTP server closed"
+}
