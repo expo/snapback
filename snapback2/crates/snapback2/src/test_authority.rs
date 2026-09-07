@@ -1044,6 +1044,7 @@ fn query_plan(
                 .filter(|(_, (program, certificate))| {
                     program.kind == ProgramKind::Query
                         && query_isolates_protected_table(
+                            program,
                             &certificate.read_sites,
                             recipe,
                             &protected.table,
@@ -1094,19 +1095,47 @@ fn query_plan(
 }
 
 fn query_isolates_protected_table(
+    program: &Program,
     read_sites: &[ReadSite],
     recipe: &Recipe,
     protected_table: &str,
 ) -> bool {
     // A discovery scan can legitimately become an empty global-search lane
     // after membership removal. The terminal-revocation witness therefore
-    // needs an explicit point membership guard, not mere table overlap.
+    // needs an explicit membership Require, not mere table overlap or take 1.
     read_sites
         .iter()
         .all(|site| site.table == recipe.membership_table || site.table == protected_table)
-        && read_sites
+        && program.body.iter().any(|statement| match statement {
+            Stmt::Require { condition, .. } => {
+                expression_reads_membership(condition, recipe)
+            }
+            _ => false,
+        })
+}
+
+fn expression_reads_membership(expression: &Expr, recipe: &Recipe) -> bool {
+    match expression {
+        Expr::Get(read) | Expr::Exists(read) => {
+            read.table == recipe.membership_table && read.index == recipe.membership_index
+        }
+        Expr::Field { base, .. } | Expr::Unary { value: base, .. } => {
+            expression_reads_membership(base, recipe)
+        }
+        Expr::Binary { left, right, .. } => {
+            expression_reads_membership(left, recipe)
+                || expression_reads_membership(right, recipe)
+        }
+        Expr::Builtin { args, .. } | Expr::Array(args) => args
             .iter()
-            .any(|site| site.table == recipe.membership_table && site.take == 1)
+            .any(|argument| expression_reads_membership(argument, recipe)),
+        Expr::Object(fields) => fields
+            .values()
+            .any(|value| expression_reads_membership(value, recipe)),
+        Expr::Literal(_) | Expr::Variable(_) | Expr::Input(_) | Expr::Scan(_) | Expr::Merge(_) => {
+            false
+        }
+    }
 }
 
 fn protected_write_eligible(
