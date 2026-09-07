@@ -1,0 +1,8 @@
+{
+  "counts": {
+    "todos": 6,
+    "chat": 30
+  },
+  "countsIncludeBuiltInChecksAndJourneys": true,
+  "allOriginalChecksPassed": true
+}

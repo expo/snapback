@@ -1365,3 +1365,8 @@ The ambient root now omits redundant `declare` modifiers while the standalone pr
 ## 2026-09-07 — Timeout helper independently accepted
 
 Review caught an overclaim in the first repair: waiting for one child does not prove every log writer has finished. The corrected helper removes that claim and records the log as a snapshot. All six controls still pass, and both fresh reviews returned READY. [R3 evidence](../benchmarks/runs/2026-09-06-clique-improvement/evidence/timeout-reaping-controls/r3/README.md) preserves the earlier review, harness failure, and unknown original install exit. This accepted helper becomes the base for the next public install witness; it improves the honesty and completeness of measurements without turning a timeout into success.
+
+
+## 2026-09-07 — Declaration fixes pass release qualification
+
+The 0.0.18 dry release passed all 19 installed-consumer results and the complete todos 6/chat 30 checks on Apartment M1. This source includes both generated API imports and the ambient declaration repair. [Original evidence](../benchmarks/runs/2026-09-06-clique-improvement/evidence/cli-018-dry/README.md) retains the actual publisher exit, complete receipts and artifact identities. Chat check still takes 1.056400375 seconds against its one-second target; publication and public-installed witnesses are next. A separate compiler optimization will test whether skipping discarded semantic checks reduces this wait without losing diagnostics. No performance gain or new holistic score is claimed.
