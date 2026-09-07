@@ -1394,9 +1394,7 @@ export class PersistentRangeStore implements RangeStore {
       delete state.rows[key];
       delete state.rowSeq[key];
       for (const answerKey of kind === "authority"
-        ? new Set([...candidates(key), ...candidates(key, true), ...Object.entries(state.answers)
-          .filter(([, answer]) => answer.receipt?.ranges.some((range) => range.table === eviction.table))
-          .map(([owner]) => owner)])
+        ? new Set([...candidates(key), ...candidates(key, true), ...(index.rangeTables.get(eviction.table) ?? []), ...changedAnswers])
         : candidates(key)) {
         const answer = state.answers[answerKey]; if (!answer) continue;
         remember(answerKey);
