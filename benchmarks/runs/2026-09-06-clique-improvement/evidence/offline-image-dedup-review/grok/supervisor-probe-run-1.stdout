@@ -1,0 +1,45 @@
+{
+  "extraProtoOwn": true,
+  "extraProtoEntries": [
+    "id",
+    "body",
+    "__proto__"
+  ],
+  "extraProtoDecode": {
+    "ok": false,
+    "name": "Error",
+    "path": "rows.t.__proto__",
+    "message": "rows.t.__proto__: has an unsupported schema descriptor"
+  },
+  "extraCtorDecode": {
+    "ok": false,
+    "name": "Error",
+    "path": "rows.t.constructor",
+    "message": "rows.t.constructor: has an unsupported schema descriptor"
+  },
+  "omittedVsNull": {
+    "equal": false,
+    "digestEqual": false,
+    "canonicalEqual": false
+  },
+  "frozenIsolation": {
+    "isRowImage": true,
+    "sameRef": false,
+    "taggedUnchanged": true,
+    "mutateThrew": false
+  },
+  "argFormatNull": {
+    "ok": false,
+    "name": "EvalError",
+    "code": "E_INPUT",
+    "message": "E_INPUT: arg x has invalid null format"
+  },
+  "colFormatNull": {
+    "ok": true
+  },
+  "jsonUndefinedParseThrows": {
+    "ok": false,
+    "name": "SyntaxError",
+    "message": "JSON Parse error: Unexpected identifier \"undefined\""
+  }
+}

@@ -1,0 +1,23 @@
+{
+  "inputs": [
+    {
+      "path": "/Users/ccheever/clique-improvement/reviews/search-twin-image-dedup-r1/astra/artifacts/snapback2/packages/snapback2/dist/sqlite-test.mjs",
+      "bytes": 390045,
+      "sha256": "828f7f62368d63d2c9a4f79c804effa04fb3382b246a0b5d57fa8a632126673c"
+    },
+    {
+      "path": "/Users/ccheever/clique-improvement/reviews/search-twin-image-dedup-r1/astra/artifacts/snapback2/packages/snapback2/dist/image-runtime.mjs",
+      "bytes": 47825,
+      "sha256": "e513ca26560d476218cbfaae4cc67be009b32a810dc71d19edc3fe695872c925"
+    },
+    {
+      "path": "/Users/ccheever/clique-improvement/reviews/search-twin-image-dedup-r1/packet/source/snapback2/packages/evaluator/src/test-search-v5-fixtures.json",
+      "bytes": 69989,
+      "sha256": "e43fbff9ff92e1968a3769b16b0c822700256cdedac9728d0545e45bee05b4a2"
+    }
+  ],
+  "fullSourceManifest": "/Users/ccheever/clique-improvement/reviews/search-twin-image-dedup-r1/packet/manifest.json",
+  "fullSourceManifestSha256": "e48a218e6d405db0c91d2eca6603fad30c3362544516060c1051741e0b7effeb",
+  "sourcePolicy": "Exact frozen packet; built JS from supplied candidate4 public-build archive. Base attribution is source-only, not old-build execution. Synthetic map driver; no native or physical SQLite execution by reviewer.",
+  "publicBuildArchiveSha256": "019e368b3168738b7b1a85d4d8f982c4665bb0af98f43a48ef24091187b20770"
+}

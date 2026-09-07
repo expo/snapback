@@ -1,0 +1,10 @@
+{"entry":"complete-local-runtime","minified":227718,"gzip":74399,"ceiling":66000,"target":64000,"inputs":["../evaluator/src/hash.ts","../evaluator/src/errors.ts","../evaluator/src/certificate-identity.ts","../evaluator/src/ordered.ts","../evaluator/src/slot-tree.ts","../evaluator/src/posting-tree.ts","../evaluator/src/prefix-dictionary.ts","../../crates/snapback2-core/ir-contract.json","../evaluator/src/cursor.ts","../evaluator/dist/unicode-tables.ts","../evaluator/src/unicode-tables.ts","../evaluator/src/unicode.ts","../evaluator/src/value-runtime.ts","../evaluator/src/search-key.ts","../evaluator/src/index-store.ts","../evaluator/src/row-image.ts","src/store/asset-policy.ts","../evaluator/src/search-runtime.ts","src/local-cursor.ts","../evaluator/src/merge.ts","../evaluator/src/text.ts","../evaluator/src/runner.ts","src/offline-schema.ts","src/held-program.ts","../evaluator/src/held-directory.ts","../evaluator/src/coverage-spans.ts","../evaluator/src/coverage.ts","../evaluator/src/store.ts","src/store/row-values.ts","src/offline-protocol.ts","src/twin-store.ts","src/store/outbox.ts","src/twin-hydrate.ts","src/twin.ts","src/store/canonical.ts","src/types.ts","src/store/extent-facts.ts","src/store/extent-index.ts","src/store/fact-integrity.ts","src/store/fact-index.ts","src/store/carrier-index.ts","src/store/swap-journal.ts","src/store/byte-cache.ts","src/store/overlay-retirement.ts","src/store/range-store.ts","src/client-wire.ts","src/offline.ts","src/store/metadata.ts","src/store/projection.ts","<stdin>"]}
+file:///home/ccheever/clique-tooling/search-twin-image-dedup-fca-candidate4-20260907T0613Z/source/snapback2/packages/snapback2/build.mjs:29
+  if (gzip > 66000) throw new Error(`twin exceeds 66000 gzip bytes: ${gzip}`);
+                          ^
+
+Error: twin exceeds 66000 gzip bytes: 74399
+    at file:///home/ccheever/clique-tooling/search-twin-image-dedup-fca-candidate4-20260907T0613Z/source/snapback2/packages/snapback2/build.mjs:29:27
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+
+Node.js v22.23.2

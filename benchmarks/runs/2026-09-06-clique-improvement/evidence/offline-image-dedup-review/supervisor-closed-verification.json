@@ -1,0 +1,62 @@
+{
+  "utc": "2026-09-07T07:14:18.363875+00:00",
+  "manifestSha256": "e48a218e6d405db0c91d2eca6603fad30c3362544516060c1051741e0b7effeb",
+  "counts": {
+    "file": 2202,
+    "symlink": 6
+  },
+  "totalFileBytes": 81390858,
+  "errors": [],
+  "reviews": {
+    "astra": {
+      "path": "/Users/ccheever/clique-improvement/reviews/search-twin-image-dedup-r1/astra/REPORT.md",
+      "bytes": 28270,
+      "sha256": "e96cde3d063d5cda31c9716f41ef9a1166c96a204583d6b7f67c4ca12f071e51",
+      "terminal": {
+        "pid": 31650,
+        "exitCode": 0,
+        "endedEpoch": 1788764737.414304,
+        "elapsedSeconds": 1101.0004420280457
+      },
+      "model": {
+        "session": "01a07a9f-02ee-7f02-8cd9-e627905c9a39",
+        "source": "/Users/ccheever/.codex/sessions/2026/09/06/rollout-2026-09-06T23-47-16-01a07a9f-02ee-7f02-8cd9-e627905c9a39.jsonl",
+        "timestamp": "2026-09-07T06:47:18.748Z",
+        "model": "gpt-6-astra",
+        "effort": "xhigh",
+        "cwd": "/Users/ccheever/clique-improvement/reviews/search-twin-image-dedup-r1/astra",
+        "actual": true,
+        "requestedMatches": true,
+        "pid": 31650,
+        "unifiedExec": 20189
+      }
+    },
+    "grok": {
+      "path": "/Users/ccheever/clique-improvement/reviews/search-twin-image-dedup-r1/grok/REPORT.md",
+      "bytes": 26537,
+      "sha256": "93623d52ef1e02a23001941f5f2930b02f9f4526dc24ab1ec5e504bd8669dcb2",
+      "terminal": {
+        "pid": 31651,
+        "exitCode": 0,
+        "endedEpoch": 1788764636.696251,
+        "elapsedSeconds": 1000.2683668136597
+      },
+      "model": {
+        "session": "07dcb1d1-cd12-4d0d-aa89-eeb963bc25ba",
+        "summaryPath": "/Users/ccheever/.grok/sessions/%2FUsers%2Fccheever%2Fclique-improvement%2Freviews%2Fsearch-twin-image-dedup-r1%2Fgrok/07dcb1d1-cd12-4d0d-aa89-eeb963bc25ba/summary.json",
+        "observedUtc": "2026-09-07T06:50:38.436458+00:00",
+        "current_model_id": "grok-4.6",
+        "reasoning_effort": "xhigh",
+        "pid": 31651,
+        "unifiedExec": 12477,
+        "actual": true
+      }
+    }
+  },
+  "ps": "",
+  "packetNotModified": true,
+  "fullReportsReadBySupervisor": true,
+  "sourceOnlyBaseAttributionForF1": true,
+  "totalBytesIncludingSymlinkTargets": 81390912,
+  "verificationCorrection": "Initial supervisor incorrectly expected a target property for symlinks. Manifest records target bytes/hash, so compare readlink bytes exactly. All six ../shared symlinks match; original diagnostic retained. No packet change or test execution."
+}

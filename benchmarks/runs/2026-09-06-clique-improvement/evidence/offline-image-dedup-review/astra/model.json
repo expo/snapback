@@ -1,0 +1,12 @@
+{
+  "session": "01a07a9f-02ee-7f02-8cd9-e627905c9a39",
+  "source": "/Users/ccheever/.codex/sessions/2026/09/06/rollout-2026-09-06T23-47-16-01a07a9f-02ee-7f02-8cd9-e627905c9a39.jsonl",
+  "timestamp": "2026-09-07T06:47:18.748Z",
+  "model": "gpt-6-astra",
+  "effort": "xhigh",
+  "cwd": "/Users/ccheever/clique-improvement/reviews/search-twin-image-dedup-r1/astra",
+  "actual": true,
+  "requestedMatches": true,
+  "pid": 31650,
+  "unifiedExec": 20189
+}

@@ -1,0 +1,54 @@
+{
+  "source": "2ce04895fa833ef40d8aad4e06b86c4ddae29a8c",
+  "runtime": {
+    "node": "v22.23.2",
+    "platform": "darwin",
+    "arch": "arm64",
+    "binarySha256": "18e387c90ab8a8400183e8bdd396376e1e875b91b4c874b894dcade7b35bf572"
+  },
+  "artifactSha256": "828f7f62368d63d2c9a4f79c804effa04fb3382b246a0b5d57fa8a632126673c",
+  "imageRuntimeSha256": "e513ca26560d476218cbfaae4cc67be009b32a810dc71d19edc3fe695872c925",
+  "fixtureSha256": "e43fbff9ff92e1968a3769b16b0c822700256cdedac9728d0545e45bee05b4a2",
+  "attribution": "Frozen native26c9 halo fixture through checked OfflineRuntime admission; public resetCoverage/completeReset/close/open; shipped SqliteBackend JS with synthetic transactional map driver. No native operations.",
+  "failedClearRolledBack": true,
+  "rebuiltRowCount": 11,
+  "successfulClear": {
+    "returned": true,
+    "resetNeeded": false,
+    "coverageHasSuperseded": false
+  },
+  "clearStatements": [
+    {
+      "sql": "INSERT OR REPLACE INTO state (partition, value) VALUES (?, ?)",
+      "params": [
+        "dev:alice",
+        "{\"version\":1,\"sealed\":false,\"clock\":2,\"watermarks\":{},\"rowFacts\":{},\"verdictFacts\":{},\"factSlots\":106,\"factFormat\":5,\"factImages\":{},\"factExtents\":{},\"extentGuards\":{},\"extentNegative\":{},\"grants\":{},\"overlay\":{},\"overlayMisses\":{},\"overlayWatermarks\":{},\"overlayNegatives\":{},\"bounds\":{},\"programs\":{},\"negative\":{},\"rowSeq\":{},\"assets\":{},\"viewed\":{},\"onceColumns\":{},\"facts\":{}}"
+      ]
+    }
+  ],
+  "staleMetadata": [
+    [
+      "[\"dev:alice\",\"[\\\"[\\\\\\\"superseded\\\\\\\",\\\\\\\"generation\\\\\\\"]\\\"]\"]",
+      "\"7a96c3187569ca1f9a3369fb9f297bc40485b38945cfaedd5556f461bf1721a8\""
+    ],
+    [
+      "[\"dev:alice\",\"[\\\"[\\\\\\\"superseded\\\\\\\",\\\\\\\"schemaHash\\\\\\\"]\\\"]\"]",
+      "\"e19cdc5f988de7a8d6326ad1af251e9b740a8890da3816c6ee823efcf3544243\""
+    ],
+    [
+      "[\"dev:alice\",\"[\\\"[\\\\\\\"superseded\\\\\\\",\\\\\\\"authEpoch\\\\\\\"]\\\"]\"]",
+      "0"
+    ]
+  ],
+  "reopened": {
+    "resetNeeded": true,
+    "superseded": {
+      "generation": "7a96c3187569ca1f9a3369fb9f297bc40485b38945cfaedd5556f461bf1721a8",
+      "schemaHash": "e19cdc5f988de7a8d6326ad1af251e9b740a8890da3816c6ee823efcf3544243",
+      "authEpoch": 0
+    }
+  },
+  "elapsedMs": 95.123375
+}
+(node:39904) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)

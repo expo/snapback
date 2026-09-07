@@ -1,0 +1,10 @@
+{
+  "utc": "2026-09-07T06:43:22.385783+00:00",
+  "sourceCheckpoint": "2ce04895fa833ef40d8aad4e06b86c4ddae29a8c",
+  "target": "llp/1013-expo-arm.spec.md",
+  "rootHead": "e3fa8747e40b90542794e67c4a5d28fdbf54fa1a",
+  "preimageSha": "6ea0b7cc5a13336cf86fce2269520c9b2c151d7d96bf54e78af5b191de01e57f",
+  "proposedSha": "bdabc6316719069cf50f5e362835f90249fdabf246f283018ab0716b6b0f6444",
+  "patchSha": "a2bc806159a4806864c9f4d80aee260d229ef86dc3c7c918899f08c64e5d8556",
+  "status": "external exact prose companion for review and eventual product landing; root and frozen source unmodified"
+}

@@ -1,0 +1,15 @@
+{
+  "utc": "2026-09-07T06:45:55.376099+00:00",
+  "manifestSha": "e48a218e6d405db0c91d2eca6603fad30c3362544516060c1051741e0b7effeb",
+  "entries": 2208,
+  "errors": [],
+  "prohibitedNarrativeFiles": [],
+  "sourceCommits": {
+    "source": "2ce04895fa833ef40d8aad4e06b86c4ddae29a8c",
+    "before": "fca223284a3a20cc9aa557ff75e87259d9d94337",
+    "r8-before": "e1c6e2b79a9e13ceb363f647f52807218aa2b57a"
+  },
+  "llpCompanionApprovedByRoot": true,
+  "reviewersNotLaunched": true,
+  "authorTerminalPending": true
+}

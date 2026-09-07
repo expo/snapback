@@ -1,0 +1,30 @@
+{
+  "sourceRollout": "/Users/ccheever/.codex/sessions/2026/09/06/rollout-2026-09-06T23-47-16-01a07a9f-02ee-7f02-8cd9-e627905c9a39.jsonl",
+  "sourceRolloutSha256": "837b425326eb8746aee913610c7c170e22d27e1d80f3e2a654b9d294d71c4f81",
+  "callId": "call_57FoLckWh1yXEV29l4NDTNSh",
+  "command": {
+    "line": 349,
+    "timestamp": "2026-09-07T07:00:00.550Z",
+    "tool": "exec",
+    "input": "text(await tools.apply_patch(\"*** Begin Patch\\n*** Update File: /Users/ccheever/clique-improvement/reviews/search-twin-image-dedup-r1/astra/probe-metadata.mjs\\n@@\\n await runtime.resetCoverage(halo.first.authority.authEpoch);\\n assert.equal(runtime.resetNeeded, true);\\n+await runtime.commit('clock.fixed', {}, await runtime.accept('clock.fixed', {}, halo.first));\\n+const rebuiltRowCount = (await runtime.coverage()).rows.length;\\n+assert.ok(rebuiltRowCount > 0);\\n const pending = (await runtime.coverage()).superseded;\\n@@\\n   failedClearRolledBack: true,\\n+  rebuiltRowCount,\\n*** End Patch\"));\ntext(await tools.exec_command({cmd:\"/Users/ccheever/.volta/tools/image/node/22.23.2/bin/node probe-metadata.mjs > probe-metadata.log 2>&1 && python3 - <<'PY'\\nimport json\\nx=json.load(open('probe-metadata-result.json')); print(json.dumps({k:x[k] for k in ['rebuiltRowCount','failedClearRolledBack','successfulClear','reopened','elapsedMs']},indent=2))\\nPY\",yield_time_ms:1000,max_output_tokens:1000}));\n"
+  },
+  "result": {
+    "line": 353,
+    "timestamp": "2026-09-07T07:00:00.805Z",
+    "output": [
+      {
+        "type": "input_text",
+        "text": "Script completed\nWall time 0.3 seconds\nOutput:\n"
+      },
+      {
+        "type": "input_text",
+        "text": "{}"
+      },
+      {
+        "type": "input_text",
+        "text": "{\"chunk_id\":\"bf5ac0\",\"wall_time_seconds\":0.078314,\"exit_code\":0,\"original_token_count\":117,\"output\":\"{\\n  \\\"rebuiltRowCount\\\": 11,\\n  \\\"failedClearRolledBack\\\": true,\\n  \\\"successfulClear\\\": {\\n    \\\"returned\\\": true,\\n    \\\"resetNeeded\\\": false,\\n    \\\"coverageHasSuperseded\\\": false\\n  },\\n  \\\"reopened\\\": {\\n    \\\"resetNeeded\\\": true,\\n    \\\"superseded\\\": {\\n      \\\"generation\\\": \\\"7a96c3187569ca1f9a3369fb9f297bc40485b38945cfaedd5556f461bf1721a8\\\",\\n      \\\"schemaHash\\\": \\\"e19cdc5f988de7a8d6326ad1af251e9b740a8890da3816c6ee823efcf3544243\\\",\\n      \\\"authEpoch\\\": 0\\n    }\\n  },\\n  \\\"elapsedMs\\\": 95.123375\\n}\\n\"}"
+      }
+    ]
+  },
+  "limitations": "Extracted tool records only. Shell wrapper wall_time_seconds is reported separately from the probe internal elapsedMs. No explicit configured execution deadline or launch-recorded owned PID was available. Node warning identifies second-run PID39904 only; not a launch-custody claim. No rerun."
+}
