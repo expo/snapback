@@ -1,0 +1,25 @@
+{
+  "at": "2026-09-07T15:18:17.665421+00:00",
+  "actualTerminal": {
+    "pid": 24206,
+    "exitCode": 0,
+    "elapsedSeconds": 342.18311405181885,
+    "endedEpoch": 1788794210.924269
+  },
+  "nativeSession": "23be09cf-df64-4e50-b115-5e4928cf69af",
+  "actualModel": "grok-4.6",
+  "actualEffort": "xhigh",
+  "score": 63,
+  "categoriesValidated": 13,
+  "preparedInputsVerified": 144,
+  "changedInputs": [],
+  "reportSha256": "60b2e4befb206dc67e56d075928b74308673f59fc1d8bafa63f0fcb2c73226c5",
+  "retainedBaselines": {
+    "snapback2_004": 57,
+    "convex": 78,
+    "supabase": 47
+  },
+  "comparison": "63 > 47 but 63 < 78; no both-backend win. New score single-backend narrative assessment, prior scores joint three-backend assessment; Office/M5 and N1 confounds remain.",
+  "independentOutcomeAudit": "still running, tool84727",
+  "goalComplete": false
+}

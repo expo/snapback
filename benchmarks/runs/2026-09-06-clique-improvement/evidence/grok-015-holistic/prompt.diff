@@ -1,0 +1,59 @@
+--- baseline-template
++++ single-backend-prompt
+@@ -1,23 +1,21 @@
+-You are {MODEL}. In this benchmark run, three sessions of your own model family each built the same production-shaped app, Clique (a social messenger), alone and timed, once on each of three backends: Snapback 2 (`snapback2@{SB2_VERSION}`, authored in Quarry), Convex (`convex@1.45.0`), and Supabase (`@supabase/supabase-js@2.112.4` against a hosted project). Your job now is to **score each backend out of 100**, holistically and by category, from the evidence those three sessions left behind.
++You are grok-4.6. In this benchmark run, a session of your own model family built the same production-shaped app, Clique (a social messenger), alone and timed, on Snapback 2 (`snapback2@0.0.15`, authored in Quarry). Your job now is to **score Snapback 2 out of 100**, holistically and by category, from the evidence that session left behind.
+ 
+ ## Read these, and only these
+ 
+-The brief: `{RUN_ROOT}/instrument/social-messenger.md` (skim for the milestone shape; you are scoring backends, not the app).
++The brief: `/Users/ccheever/clique-improvement/grading/grok-015/holistic/instrument/social-messenger.md` (skim for the milestone shape; you are scoring backends, not the app).
+ 
+-Your three lanes, each with `diary.md` (per-milestone build experience), `essay.md` (the closing comparison), `run-log.md` (timestamped events, attributions), `final-report.md` (status, results, correction loops, gaps), and `run-record.json` where present:
++Your completed lane, with `diary.md` (per-milestone build experience), `essay.md` (the closing comparison), `run-log.md` (timestamped events, attributions), `final-report.md` (status, results, correction loops, gaps), and `run-record.json` where present:
+ 
+-- `{RUN_ROOT}/lanes/{WAVE}-snapback2/`
+-- `{RUN_ROOT}/lanes/{WAVE}-convex/`
+-- `{RUN_ROOT}/lanes/{WAVE}-supabase/`
++- `/Users/ccheever/clique-improvement/grading/grok-015/holistic/lanes/grok-snapback2/`
+ 
+-Read the narrative files in full. You may open the lanes' source files to check a specific claim. Do **not** open any other lane under `{RUN_ROOT}/lanes/` (other model families' lanes, or `attempt1/`), any `grading/` directory, and never open or print `provider-secrets.env`. This is a read-only task: run nothing, write nothing, change nothing.
++Read the narrative files in full. You may open the lanes' source files to check a specific claim. Do **not** open any other lane under `/Users/ccheever/clique-improvement/grading/grok-015/holistic/lanes/` (other model families' lanes, or `attempt1/`), any other assessment directory, and never open or print `provider-secrets.env`. This is a read-only task: run nothing, write nothing, change nothing.
+ 
+ ## How to score
+ 
+ - **100** = ideal for this brief: every milestone expressible directly, no workaround, nothing to prove twice. **75** = good, occasional friction. **50** = usable with substantial workarounds or missing pieces. **25** = fought the build at every step. **0** = unusable for this brief.
+ - Score the backend **as experienced on this brief through its published surface**, not its reputation or what you know it can do elsewhere. Evidence in the lane files decides; when a lane lost time to its own mistakes or to the environment (attributions `agent-error`, `environment`, `ambiguous` in `run-log.md`), do not charge the backend for it. Charge the backend for `*-defect` attributions, platform gaps, missing capabilities, and documentation that misled.
+ - Where the milestone outcomes differ between backends, weigh **why** they differ: a lane that self-downgraded milestones because the platform refused a product-preserving design is a backend finding; a lane that ran out of time on client-side test plumbing is only partly one.
+-- Be consistent across the three backends: the same kind of friction gets the same kind of penalty. The **overall** score is your holistic judgement, not an average of the categories.
++- Be consistent across the categories: the same kind of friction gets the same kind of penalty. The **overall** score is your holistic judgement, not an average of the categories.
+ 
+ ## Categories (score each, 0–100, with a note of at most 40 words citing the evidence)
+ 
+@@ -41,7 +39,7 @@
+ 
+ ```json
+ {
+-  "scorer": {"family": "{WAVE}", "model": "{MODEL}", "basis": "own three lanes' narrative files"},
++  "scorer": {"family": "grok", "model": "grok-4.6", "basis": "own completed published 0.0.15 lane narratives; single-backend diagnostic rescore"},
+   "backends": {
+     "snapback2": {
+       "overall": {"score": 0, "note": "..."},
+@@ -59,12 +57,12 @@
+       "operations": {"score": 0, "note": "..."},
+       "verdict": "one sentence",
+       "would_use_again_for": "one sentence"
+-    },
+-    "convex": { "...same keys..." : 0 },
+-    "supabase": { "...same keys..." : 0 }
++    }
+   },
+-  "cross_backend_notes": ["up to five sentences on what most separated the three"]
++  "cross_backend_notes": ["up to five sentences on the documented experience and remaining evidence limits"]
+ }
+ ```
+ 
+-Scores are integers 0–100. Every category must be present for every backend. Notes cite the lane evidence (a milestone, a diagnostic, a run-log attribution), not general knowledge.
++Scores are integers 0–100. Every category must be present for Snapback 2. Notes cite the lane evidence (a milestone, a diagnostic, a run-log attribution), not general knowledge.
++
++Scope overlay: this is a single-backend narrative assessment using the unchanged anchors/categories, not a fresh three-backend comparison. Existing comparator runs/scores are retained externally and are not inputs; do not infer or rescore them. Cross-backend notes may describe the lane's recorded experience only, not unobserved comparator results. The host is Office M1 Max while earlier comparator runs used M5 Max; no speed ranking follows. Outcome grading is separate. Do not read baseline-template.md, any sibling directory or Root audits. You may use read-only file tools, but run no app/tests/builds or network queries and modify nothing. Emit the final JSON only.

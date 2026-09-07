@@ -1,0 +1,72 @@
+{
+  "scorer": {
+    "family": "grok",
+    "model": "grok-4.6",
+    "basis": "own completed published 0.0.15 lane narratives; single-backend diagnostic rescore"
+  },
+  "backends": {
+    "snapback2": {
+      "overall": {
+        "score": 63,
+        "note": "Compiler, password identity, live queries, and typed media made M1\u2013M2 green; M3 unique-null/ACL, web E_OFFLINE_CARRIER, and stubbed trending are product-preserving refusals. Suites passed; not a fight at every step."
+      },
+      "setup_and_docs": {
+        "score": 64,
+        "note": "Init `--template chat --client expo` succeeded (run-log); `npx snapback2 guide` was the grammar source. Check rejected `public` (docs defect); unique-null and web offline were error codes, not recipes."
+      },
+      "data_modeling": {
+        "score": 67,
+        "note": "Quarry expressed Clique tables, caps, maintains, and schedules; missing `concat` and unique-null on `dmA,dmB` (M3 E_CONSTRAINT, dmIndex workaround) plus whole-word `words()` forced TS prefix tables (M5)."
+      },
+      "authorization": {
+        "score": 58,
+        "note": "Membership/admin denials suite-green (M3/M5), but uniform reads blocked peer chatList/membership inserts (M3 E_RULE) and jobs vs insert-deny/pushLog membership left digest unproven (M8)."
+      },
+      "queries_and_live": {
+        "score": 77,
+        "note": "Live queries made M1\u2013M2 choreography green and M3 1:1 DMs plus typing ttl 5s pass; feeds paginate last 20. M8 trending is newest-10, not 24h like-rank (logged platform gap)."
+      },
+      "writes_and_transactions": {
+        "score": 79,
+        "note": "Set-state mutationIds and client message ids made likes/reactions/sends idempotent; edit/delete windows use now (M4). Seed and sample-50 reused the write path. E_STRUCTURAL_FANOUT forced cap-covering loops."
+      },
+      "offline_sync": {
+        "score": 44,
+        "note": "Web IndexedDB threw E_OFFLINE_CARRIER (snapback2-defect); the lane dropped the web store. Native createExpoClient({offline:{onTombstone}}) exists. M6/M8 simulator proofs were wall, not a native API pass."
+      },
+      "media_assets": {
+        "score": 70,
+        "note": "image/video/once File args committed without signed URLs (M1/M2/M4 suite). Diary: second openOnce still complete (query vs asset GET). Pending upload ceiling attributed environment/snapback2-defect."
+      },
+      "background_work": {
+        "score": 69,
+        "note": "Schedules/jobs/effects covered fanout, expireMessage, digestSweep every 2m, and emit notify. Check refused a jobs-only module. Digest insert-deny vs pushLog membership never closed-client certified (M8 gap)."
+      },
+      "client_integration": {
+        "score": 73,
+        "note": "Expo chat template, SnapbackProvider, generated api, and green custom-client-demo/API.md (M6). Web client omits offline; connected[] \u2260 Playwright setOffline (M3 defect). RN-web harness fights uncharged."
+      },
+      "diagnostics_dev_loop": {
+        "score": 71,
+        "note": "snapback2 check gave site+rewrite (E_STRUCTURAL_FANOUT, first 250). Runtime E_RULE/E_CONSTRAINT named sealed uniques. snapback2 test mixed: SSE worker-limit defect; unique-null missed until runtime."
+      },
+      "scale_and_limits": {
+        "score": 56,
+        "note": "Follow/member caps cover the 500/50 envelope; jobs chunk first 40 after E_STRUCTURAL_FANOUT. sample-50 settled 50/50; full scale.log unrun (wall). 24h trending rank unexpressible (M8)."
+      },
+      "operations": {
+        "score": 68,
+        "note": "Starter segments replayed through mutations and were idempotent after owner reset (final-report). seed.ts loads config/flags. snapback2 test mixed (empty maintains, SSE). M7 migration was out of session."
+      },
+      "verdict": "Snapback 2 ships this brief's live-query messenger core, then taxes the builder with Quarry gaps, uniform ACL, a refused web offline carrier, and unranked trending.",
+      "would_use_again_for": "Live membership-scoped messaging with native offline and in-schema jobs, not web-offline-first Clique or 24h ranked trending."
+    }
+  },
+  "cross_backend_notes": [
+    "This rescore uses only the grok-4.6 snapback2@0.0.15 lane narratives (diary, essay, run-log, final-report) plus source checks of cited claims; no sibling lanes or prior comparator scores were read.",
+    "M1\u2013M2 web choreography is green; M3\u2013M4 choreography failed with mixed agent-error, fixture, and snapback2-defect attributions; M5\u2013M8 choreography was not started after two consecutive capability-failures.",
+    "Acceptance suites M1\u2013M8 are recorded pass, but several M5/M8 checks are weak (view-once consume ORs success; trending asserts a stub), so suite-green is not revocation or ranking proof.",
+    "Full scale.log (167159 actions) and iOS simulator M6/M8 offline artifacts were not executed; remaining wall on this Office M1 Max host explains the gap, not a measured envelope result.",
+    "Web offline was dropped after E_OFFLINE_CARRIER; native offline APIs are present in-lane but were not simulator-proven, so native durability is an API claim rather than an observed M6/M8 receipt."
+  ]
+}
