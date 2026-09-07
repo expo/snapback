@@ -240,7 +240,8 @@ export async function main() {
         const detail = await actions[i](); steps.push({ step: i + 1, name: names[i], result: "pass", detail });
         log(`${i + 1}. PASS — ${names[i]} — ${JSON.stringify(detail)}`);
       } catch (error) {
-        failure = { step: i + 1, message: String(error) }; steps.push({ step: i + 1, name: names[i], result: "fail", error: failure.message });
+        const message = error instanceof Error ? error.stack ?? String(error) : String(error);
+        failure = { step: i + 1, message }; steps.push({ step: i + 1, name: names[i], result: "fail", error: failure.message });
         log(`${i + 1}. FAIL — ${names[i]}\n${failure.message}`);
       }
     }
