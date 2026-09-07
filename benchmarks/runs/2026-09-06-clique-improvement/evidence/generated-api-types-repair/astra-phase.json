@@ -1,0 +1,938 @@
+{
+  "candidate": "8f7c6c208926923e89eaf1111f914fa7fb8ca2da",
+  "parent": "fbaee64a17f024c991194d0f0f55bb232f3c13cc",
+  "at": "2026-09-07T21:38:24.632120+00:00",
+  "status": "review_complete_private",
+  "completedStages": [
+    "frozen_scope_and_llp_orientation",
+    "exact_parent_candidate_review",
+    "complete_author_report_and_evidence_review",
+    "prior_original_import_counterfactual_review",
+    "verification_selection_frozen",
+    "bootstrap-mkdir-01",
+    "bootstrap-upload-01",
+    "bootstrap-extract-01",
+    "setup-01",
+    "review-consumers-01",
+    "integrity-after-01",
+    "collect-01",
+    "download-01",
+    "local_archive_and_program_reconciliation",
+    "private_review_written"
+  ],
+  "commandCounts": {
+    "semanticCommands": 1,
+    "generatedConsumerPrograms": 4,
+    "registeredConsumerPrograms": 2,
+    "privateConsumerPrograms": 2,
+    "affectedSourceTypePrograms": 0,
+    "generatorInvocations": 2,
+    "remoteWorkloadCommands": 4,
+    "remoteBootstrapCommands": 2,
+    "remoteCommandsTotal": 6,
+    "sshScpTransports": 8,
+    "semanticReruns": 0,
+    "builds": 0,
+    "installs": 0,
+    "additionalAgents": 0
+  },
+  "selection": {
+    "at": "2026-09-07T21:27:36.800441+00:00",
+    "candidate": "8f7c6c208926923e89eaf1111f914fa7fb8ca2da",
+    "parent": "fbaee64a17f024c991194d0f0f55bb232f3c13cc",
+    "selectedCommands": [
+      "review-consumers-01"
+    ],
+    "consumerPrograms": 4,
+    "affectedSourcePrograms": 0,
+    "programOrder": [
+      "registered-insert",
+      "registered-merge",
+      "private-insert-unsuppressed",
+      "private-merge-unsuppressed"
+    ],
+    "population": "Exactly four generated-consumer Programs: registered fixed insert, registered fixed merge, then private insert and merge consumers using unchanged captured emitted declarations and real Expo config, unsuppressed number and unbranded Principal assignments plus exact field/key/args/result assertions. Each once. Optional affected source Program omitted.",
+    "packetSha256": "de581847013e6aa6d3ef5b901ce878208ae29af7b897e9649ef8fe6ed1fa6642",
+    "probeSha256": "8fc8d011edf69b92697223c3120d8f2989302f4a291ea393cbe139de562a7329",
+    "payloadSha256": "0a9387c82bf9a0ea8ae4ab494e6b0bd0089818806f6114ac198d3c7577e60b91",
+    "payloadFiles": {
+      "ack-dispatch.py": "9ce1cdc062ef8c225f521d52f97ab1c6d7c7237b1377e0c6b3963de81c4b6cf4",
+      "affected-types.cjs": "eda0a6103823ab0bf17cffce285f4518accef23ae39a3a704c77754ed1ec9641",
+      "bindings.json": "e62f0036e5859d4b1a661e670323141a66246945f9e125b1b9a6984f2712379d",
+      "bootstrap-dispatch.py": "444b17ca41529b784399c5d966bb9daca14b51b58bc2299f55c4a9aa698ce3fa",
+      "bootstrap.py": "f3efbb28ef5523adce2b8d1cb320a90ff43f06b76c7a83cac5b688afa367bfce",
+      "collect-dispatch.py": "49a159c4e7996ee92703bc93c054f53e4c32c8dc96cff704fc42c5151bb55300",
+      "dependency-lookup.json": "cec684accce9bc55fc3e6d65077661134aa423b6248a1b6209e8d051cd6afceb",
+      "dispatch.py": "55327058f873657e95da39717d6920737155e5fa2e335db2d46cb2b4e64ebc2f",
+      "fixed-source-manifest.json": "e106be0c94c33a9b92d40b3ba3ce888dbbda5f1a71d9f4252346d44cecea97f8",
+      "fixed-source.tar": "ab09fdf0238fa3edc9ad8366317ce64507031b6d71d9d4566b62345660e71a81",
+      "focused.ts": "f898ef8b0e35f3a306a8cb021b937f8ca87e4318f561d29f74cc5bd537bf8bf3",
+      "full-dependency-manifest.json": "eb983cc39681ea870adabdb6db29558b04c0f3bf34d6eaee0f9a02d6298b0bf9",
+      "pre-fix-source-manifest.json": "103c33b25a3ab5b823216216fbf329a2ff7f675616fef8eb78c8534b1d687e13",
+      "pre-fix-source.tar": "d8363243aee37df93bc9dbff4e57d20deefbab3b6e205cdbbdbddb8e3e726edd",
+      "process-identity.py": "1a5aeef0f42b979c05275e76b9f2db487b5dd1ce61dd7cfa3afbe656c8167613",
+      "remote-setup.py": "af2adcab471e0779cf0311fd9f23ca4df388ce124e9a4e94278d74acdf3b414a",
+      "review-probe.ts": "8fc8d011edf69b92697223c3120d8f2989302f4a291ea393cbe139de562a7329",
+      "run-remote.py": "b2af802a55882af2b615e3931b4e598be0b13946b05f96e8eabf518c45d891f6",
+      "sdk.tar": "f1e9c817f836ba7e97da52403872df82895ed955c68e4775d282a49f6c3b2331",
+      "transport.py": "4a3555a4e04d40a2a1d97bc866a6f8825b31c93313535242ace3999ece684cbf",
+      "workload-ready.json": "de581847013e6aa6d3ef5b901ce878208ae29af7b897e9649ef8fe6ed1fa6642"
+    },
+    "tools": {
+      "node": {
+        "path": "/home/ccheever/clique-tooling/epyc-linux-tooling-20260907T010007Z-0fd567d96f/node-v22.23.2-linux-x64/bin/node",
+        "sha256": "3517c2df0b2f8cd7f422b4b8450ef81c6889f08eb03e281d6de9079b15e6a327",
+        "mode": "0o755"
+      },
+      "bun": {
+        "path": "/home/ccheever/clique-tooling/epyc-linux-tooling-20260907T010007Z-0fd567d96f/bun-v1.3.12-linux-x64/bin/bun",
+        "sha256": "92a1cd8b6185f676010bb18e767dfc65c772273e79ae9984480843261939eeaa",
+        "mode": "0o755"
+      }
+    }
+  },
+  "remoteWorkloadChildren": [
+    {
+      "label": "setup-01",
+      "at": "2026-09-07T21:29:18.919304+00:00",
+      "load": [
+        0.00146484375,
+        0.7802734375,
+        1.12451171875
+      ],
+      "cpus": 96,
+      "memAvailableKb": 255874408,
+      "controllerIdentity": {
+        "pid": 259985,
+        "bootId": "76ef40aa-0ed8-4f57-85c6-898bb42ea7e4",
+        "startTicks": "117547717",
+        "state": "R",
+        "cmdline": "python3 /home/ccheever/clique-reviews/generated-api-types-repair-r1-8f7c6c20/astra/work/run-remote.py setup-01 1054bbc7bfe2eb065fce466998ac3db1c2a05db82ccfdf7e9e875be52426502b ",
+        "exe": "/usr/bin/python3.12",
+        "cwd": "/home/ccheever"
+      },
+      "controllerToolSha256": "1643dacd9feaedc58f3cc581e4d22577dfe25c09b10282936186ccf0f2e61118",
+      "argv": [
+        "/usr/bin/python3",
+        "/home/ccheever/clique-reviews/generated-api-types-repair-r1-8f7c6c20/astra/work/remote-setup.py",
+        "setup-01"
+      ],
+      "cwd": "/home/ccheever/clique-reviews/generated-api-types-repair-r1-8f7c6c20/astra/work",
+      "semantic": false,
+      "inboxExpected": "1054bbc7bfe2eb065fce466998ac3db1c2a05db82ccfdf7e9e875be52426502b",
+      "packetSha256": "de581847013e6aa6d3ef5b901ce878208ae29af7b897e9649ef8fe6ed1fa6642",
+      "executableSha256": "1643dacd9feaedc58f3cc581e4d22577dfe25c09b10282936186ccf0f2e61118",
+      "scriptSha256": "af2adcab471e0779cf0311fd9f23ca4df388ce124e9a4e94278d74acdf3b414a",
+      "pid": 259988,
+      "startIdentity": {
+        "pid": 259988,
+        "bootId": "76ef40aa-0ed8-4f57-85c6-898bb42ea7e4",
+        "startTicks": "117547767",
+        "state": "R",
+        "cmdline": "/usr/bin/python3 /home/ccheever/clique-reviews/generated-api-types-repair-r1-8f7c6c20/astra/work/remote-setup.py setup-01 ",
+        "exe": "/usr/bin/python3.12",
+        "cwd": "/home/ccheever/clique-reviews/generated-api-types-repair-r1-8f7c6c20/astra/work"
+      },
+      "deadlineSeconds": 30,
+      "deadlineEpoch": 1788816589.3918085,
+      "startEpoch": 1788816559.3918085,
+      "atTerminal": "2026-09-07T21:29:27.779119+00:00",
+      "elapsedSeconds": 8.38733571395278,
+      "exit": 0,
+      "timeout": false,
+      "waitedTerminal": true,
+      "postWaitIdentity": {
+        "pid": 259988,
+        "absent": true
+      },
+      "inboxAck": "1054bbc7bfe2eb065fce466998ac3db1c2a05db82ccfdf7e9e875be52426502b",
+      "stdoutSha256": "fdb8fe0e9c4d5ff76cbbaf9f4dfdd2f586615a4acc32a6a9a084028be08ff698",
+      "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "label": "review-consumers-01",
+      "at": "2026-09-07T21:30:06.724965+00:00",
+      "load": [
+        0.21484375,
+        0.73193359375,
+        1.08935546875
+      ],
+      "cpus": 96,
+      "memAvailableKb": 255606968,
+      "controllerIdentity": {
+        "pid": 260241,
+        "bootId": "76ef40aa-0ed8-4f57-85c6-898bb42ea7e4",
+        "startTicks": "117552497",
+        "state": "R",
+        "cmdline": "python3 /home/ccheever/clique-reviews/generated-api-types-repair-r1-8f7c6c20/astra/work/run-remote.py review-consumers-01 1054bbc7bfe2eb065fce466998ac3db1c2a05db82ccfdf7e9e875be52426502b ",
+        "exe": "/usr/bin/python3.12",
+        "cwd": "/home/ccheever"
+      },
+      "controllerToolSha256": "1643dacd9feaedc58f3cc581e4d22577dfe25c09b10282936186ccf0f2e61118",
+      "argv": [
+        "/home/ccheever/clique-tooling/epyc-linux-tooling-20260907T010007Z-0fd567d96f/bun-v1.3.12-linux-x64/bin/bun",
+        "/home/ccheever/clique-reviews/generated-api-types-repair-r1-8f7c6c20/astra/work/review-probe.ts",
+        "fixed",
+        "insert,merge"
+      ],
+      "cwd": "/home/ccheever/clique-reviews/generated-api-types-repair-r1-8f7c6c20/astra/work/sources/fixed/snapback2/packages/compiler",
+      "semantic": true,
+      "inboxExpected": "1054bbc7bfe2eb065fce466998ac3db1c2a05db82ccfdf7e9e875be52426502b",
+      "packetSha256": "de581847013e6aa6d3ef5b901ce878208ae29af7b897e9649ef8fe6ed1fa6642",
+      "executableSha256": "92a1cd8b6185f676010bb18e767dfc65c772273e79ae9984480843261939eeaa",
+      "scriptSha256": "8fc8d011edf69b92697223c3120d8f2989302f4a291ea393cbe139de562a7329",
+      "pid": 260242,
+      "startIdentity": {
+        "pid": 260242,
+        "bootId": "76ef40aa-0ed8-4f57-85c6-898bb42ea7e4",
+        "startTicks": "117552563",
+        "state": "R",
+        "cmdline": "/home/ccheever/clique-tooling/epyc-linux-tooling-20260907T010007Z-0fd567d96f/bun-v1.3.12-linux-x64/bin/bun /home/ccheever/clique-reviews/generated-api-types-repair-r1-8f7c6c20/astra/work/review-probe.ts fixed insert,merge ",
+        "exe": "/home/ccheever/clique-tooling/epyc-linux-tooling-20260907T010007Z-0fd567d96f/bun-v1.3.12-linux-x64/bin/bun",
+        "cwd": "/home/ccheever/clique-reviews/generated-api-types-repair-r1-8f7c6c20/astra/work/sources/fixed/snapback2/packages/compiler"
+      },
+      "deadlineSeconds": 30,
+      "deadlineEpoch": 1788816637.351016,
+      "startEpoch": 1788816607.351016,
+      "atTerminal": "2026-09-07T21:30:08.819428+00:00",
+      "elapsedSeconds": 1.4684370739851147,
+      "exit": 0,
+      "timeout": false,
+      "waitedTerminal": true,
+      "postWaitIdentity": {
+        "pid": 260242,
+        "absent": true
+      },
+      "inboxAck": "1054bbc7bfe2eb065fce466998ac3db1c2a05db82ccfdf7e9e875be52426502b",
+      "stdoutSha256": "cdbd5b65b17f798db4705349cc101734d2c3703222f806ad23338b5193fed5dd",
+      "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "label": "integrity-after-01",
+      "at": "2026-09-07T21:30:27.486782+00:00",
+      "load": [
+        0.1982421875,
+        0.68798828125,
+        1.0654296875
+      ],
+      "cpus": 96,
+      "memAvailableKb": 255363884,
+      "controllerIdentity": {
+        "pid": 260384,
+        "bootId": "76ef40aa-0ed8-4f57-85c6-898bb42ea7e4",
+        "startTicks": "117554573",
+        "state": "R",
+        "cmdline": "python3 /home/ccheever/clique-reviews/generated-api-types-repair-r1-8f7c6c20/astra/work/run-remote.py integrity-after-01 1054bbc7bfe2eb065fce466998ac3db1c2a05db82ccfdf7e9e875be52426502b ",
+        "exe": "/usr/bin/python3.12",
+        "cwd": "/home/ccheever"
+      },
+      "controllerToolSha256": "1643dacd9feaedc58f3cc581e4d22577dfe25c09b10282936186ccf0f2e61118",
+      "argv": [
+        "/usr/bin/python3",
+        "/home/ccheever/clique-reviews/generated-api-types-repair-r1-8f7c6c20/astra/work/remote-setup.py",
+        "integrity-after-01"
+      ],
+      "cwd": "/home/ccheever/clique-reviews/generated-api-types-repair-r1-8f7c6c20/astra/work",
+      "semantic": false,
+      "inboxExpected": "1054bbc7bfe2eb065fce466998ac3db1c2a05db82ccfdf7e9e875be52426502b",
+      "packetSha256": "de581847013e6aa6d3ef5b901ce878208ae29af7b897e9649ef8fe6ed1fa6642",
+      "executableSha256": "1643dacd9feaedc58f3cc581e4d22577dfe25c09b10282936186ccf0f2e61118",
+      "scriptSha256": "af2adcab471e0779cf0311fd9f23ca4df388ce124e9a4e94278d74acdf3b414a",
+      "pid": 260385,
+      "startIdentity": {
+        "pid": 260385,
+        "bootId": "76ef40aa-0ed8-4f57-85c6-898bb42ea7e4",
+        "startTicks": "117554621",
+        "state": "R",
+        "cmdline": "/usr/bin/python3 /home/ccheever/clique-reviews/generated-api-types-repair-r1-8f7c6c20/astra/work/remote-setup.py integrity-after-01 ",
+        "exe": "/usr/bin/python3.12",
+        "cwd": "/home/ccheever/clique-reviews/generated-api-types-repair-r1-8f7c6c20/astra/work"
+      },
+      "deadlineSeconds": 30,
+      "deadlineEpoch": 1788816657.9266596,
+      "startEpoch": 1788816627.9266596,
+      "atTerminal": "2026-09-07T21:30:33.656543+00:00",
+      "elapsedSeconds": 5.7299096579663455,
+      "exit": 0,
+      "timeout": false,
+      "waitedTerminal": true,
+      "postWaitIdentity": {
+        "pid": 260385,
+        "absent": true
+      },
+      "inboxAck": "1054bbc7bfe2eb065fce466998ac3db1c2a05db82ccfdf7e9e875be52426502b",
+      "stdoutSha256": "c22af9865d153f01cb3d874eb442b5942d7f1d329722439109fb8647d348d1ba",
+      "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "label": "collect-01",
+      "at": "2026-09-07T21:31:09.470453+00:00",
+      "load": [
+        0.18994140625,
+        0.6298828125,
+        1.02978515625
+      ],
+      "cpus": 96,
+      "memAvailableKb": 255622172,
+      "controllerIdentity": {
+        "pid": 260588,
+        "bootId": "76ef40aa-0ed8-4f57-85c6-898bb42ea7e4",
+        "startTicks": "117558772",
+        "state": "R",
+        "cmdline": "python3 /home/ccheever/clique-reviews/generated-api-types-repair-r1-8f7c6c20/astra/work/run-remote.py collect-01 1054bbc7bfe2eb065fce466998ac3db1c2a05db82ccfdf7e9e875be52426502b ",
+        "exe": "/usr/bin/python3.12",
+        "cwd": "/home/ccheever"
+      },
+      "controllerToolSha256": "1643dacd9feaedc58f3cc581e4d22577dfe25c09b10282936186ccf0f2e61118",
+      "argv": [
+        "/usr/bin/python3",
+        "/home/ccheever/clique-reviews/generated-api-types-repair-r1-8f7c6c20/astra/work/remote-setup.py",
+        "collect-01"
+      ],
+      "cwd": "/home/ccheever/clique-reviews/generated-api-types-repair-r1-8f7c6c20/astra/work",
+      "semantic": false,
+      "inboxExpected": "1054bbc7bfe2eb065fce466998ac3db1c2a05db82ccfdf7e9e875be52426502b",
+      "packetSha256": "de581847013e6aa6d3ef5b901ce878208ae29af7b897e9649ef8fe6ed1fa6642",
+      "executableSha256": "1643dacd9feaedc58f3cc581e4d22577dfe25c09b10282936186ccf0f2e61118",
+      "scriptSha256": "af2adcab471e0779cf0311fd9f23ca4df388ce124e9a4e94278d74acdf3b414a",
+      "pid": 260589,
+      "startIdentity": {
+        "pid": 260589,
+        "bootId": "76ef40aa-0ed8-4f57-85c6-898bb42ea7e4",
+        "startTicks": "117558820",
+        "state": "R",
+        "cmdline": "/usr/bin/python3 /home/ccheever/clique-reviews/generated-api-types-repair-r1-8f7c6c20/astra/work/remote-setup.py collect-01 ",
+        "exe": "/usr/bin/python3.12",
+        "cwd": "/home/ccheever/clique-reviews/generated-api-types-repair-r1-8f7c6c20/astra/work"
+      },
+      "deadlineSeconds": 30,
+      "deadlineEpoch": 1788816699.916324,
+      "startEpoch": 1788816669.916324,
+      "atTerminal": "2026-09-07T21:31:10.081294+00:00",
+      "elapsedSeconds": 0.16499356203712523,
+      "exit": 0,
+      "timeout": false,
+      "waitedTerminal": true,
+      "postWaitIdentity": {
+        "pid": 260589,
+        "absent": true
+      },
+      "inboxAck": "1054bbc7bfe2eb065fce466998ac3db1c2a05db82ccfdf7e9e875be52426502b",
+      "stdoutSha256": "e3dbe7f6621a010f62e8a46b0e11e4c11e07b4b5a1a54611a5f2b59c402b8e69",
+      "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  ],
+  "bootstrapCommands": [
+    {
+      "label": "bootstrap-mkdir-01",
+      "records": [
+        {
+          "launch": {
+            "pid": 259820,
+            "startTicks": "117538258",
+            "argv": [
+              "-c",
+              "mkdir"
+            ],
+            "cwd": "/home/ccheever",
+            "tool": "/usr/bin/python3.12",
+            "toolSha256": "1643dacd9feaedc58f3cc581e4d22577dfe25c09b10282936186ccf0f2e61118",
+            "deadlineSeconds": 30,
+            "deadlineEpoch": 1788816494.3265777
+          }
+        },
+        {
+          "terminal": {
+            "pid": 259820,
+            "startTicks": "117538258",
+            "argv": [
+              "-c",
+              "mkdir"
+            ],
+            "cwd": "/home/ccheever",
+            "tool": "/usr/bin/python3.12",
+            "toolSha256": "1643dacd9feaedc58f3cc581e4d22577dfe25c09b10282936186ccf0f2e61118",
+            "deadlineSeconds": 30,
+            "deadlineEpoch": 1788816494.3265777
+          },
+          "exit": 0,
+          "elapsedSeconds": 0.009057283401489258
+        }
+      ],
+      "sshWaitedExit": 0,
+      "remotePostWaitProcLookup": false,
+      "closureEvidence": "Nonforking supplied bootstrap terminal output followed by actually waited successful SSH transport."
+    },
+    {
+      "label": "bootstrap-extract-01",
+      "records": [
+        {
+          "launch": {
+            "pid": 259937,
+            "startTicks": "117544957",
+            "argv": [
+              "-c",
+              "extract"
+            ],
+            "cwd": "/home/ccheever",
+            "tool": "/usr/bin/python3.12",
+            "toolSha256": "1643dacd9feaedc58f3cc581e4d22577dfe25c09b10282936186ccf0f2e61118",
+            "deadlineSeconds": 30,
+            "deadlineEpoch": 1788816561.3158805
+          }
+        },
+        {
+          "terminal": {
+            "pid": 259937,
+            "startTicks": "117544957",
+            "argv": [
+              "-c",
+              "extract"
+            ],
+            "cwd": "/home/ccheever",
+            "tool": "/usr/bin/python3.12",
+            "toolSha256": "1643dacd9feaedc58f3cc581e4d22577dfe25c09b10282936186ccf0f2e61118",
+            "deadlineSeconds": 30,
+            "deadlineEpoch": 1788816561.3158805
+          },
+          "exit": 0,
+          "elapsedSeconds": 0.026865243911743164
+        }
+      ],
+      "sshWaitedExit": 0,
+      "remotePostWaitProcLookup": false,
+      "closureEvidence": "Nonforking supplied bootstrap terminal output followed by actually waited successful SSH transport."
+    }
+  ],
+  "transports": [
+    {
+      "label": "bootstrap-mkdir-01",
+      "outerToolSession": 56241,
+      "outerExitCode": 0,
+      "outerTerminalChunk": "8c664f",
+      "at": "2026-09-07T21:27:44.382090+00:00",
+      "argv": [
+        "ssh",
+        "-o",
+        "BatchMode=yes",
+        "-o",
+        "ConnectTimeout=10",
+        "ccheever@100.65.137.99",
+        "python3 -c 'from pathlib import Path\nimport os,sys,time,json,hashlib,signal,tarfile\nD=Path('\"'\"'/home/ccheever/clique-reviews/generated-api-types-repair-r1-8f7c6c20/astra/work'\"'\"');action=sys.argv[1];start=time.time();signal.alarm(30)\nstat=Path('\"'\"'/proc/self/stat'\"'\"').read_text();record={'\"'\"'pid'\"'\"':os.getpid(),'\"'\"'startTicks'\"'\"':stat[stat.rindex('\"'\"')'\"'\"')+2:].split()[19],'\"'\"'argv'\"'\"':sys.argv,'\"'\"'cwd'\"'\"':os.getcwd(),'\"'\"'tool'\"'\"':os.path.realpath(sys.executable),'\"'\"'toolSha256'\"'\"':hashlib.sha256(Path(sys.executable).read_bytes()).hexdigest(),'\"'\"'deadlineSeconds'\"'\"':30,'\"'\"'deadlineEpoch'\"'\"':start+30}\nprint(json.dumps({'\"'\"'launch'\"'\"':record}),flush=True)\ntry:\n if action=='\"'\"'mkdir'\"'\"':D.mkdir(parents=True,exist_ok=False)\n elif action=='\"'\"'extract'\"'\"':\n  with tarfile.open(D/'\"'\"'payload.tar'\"'\"') as t:\n   for m in t.getmembers():assert m.isfile() and not Path(m.name).is_absolute() and '\"'\"'..'\"'\"' not in Path(m.name).parts\n   t.extractall(D)\n else:raise ValueError(action)\n print(json.dumps({'\"'\"'terminal'\"'\"':record,'\"'\"'exit'\"'\"':0,'\"'\"'elapsedSeconds'\"'\"':time.time()-start}),flush=True)\nfinally:signal.alarm(0)\n' mkdir"
+      ],
+      "cwd": "/Users/ccheever/clique-improvement/reviews/generated-api-types-repair-r1/astra/work",
+      "pid": 66941,
+      "deadlineSeconds": 45,
+      "elapsedSeconds": 2.95921675,
+      "exit": 0,
+      "timeout": false,
+      "waitedTerminal": true,
+      "startIdentity": {
+        "pid": 66941,
+        "kernelIdentityKind": "PROC_PIDTBSDINFO",
+        "bytesReturned": 136,
+        "startSecUsec": [
+          1788816461,
+          431029
+        ],
+        "rawHex": "3040402002000000000000007d05010062050100f501000014000000f501000014000000f50100001400000000000000737368006f6e002e3900006e00726100737368006f6e002e3900006e0072617070657200000000000000000000000000190000007d05010000000000ffffffff00000000000000004d2c9f6a00000000b593060000000000"
+      },
+      "tool": {
+        "path": "/usr/bin/ssh",
+        "sha256": "af345c4ff9ed4d49177d6407d3bd317b8769eebf3ce65f68afb8ed249f173614"
+      },
+      "deadlineEpoch": 1788816506.3998091,
+      "handshakes": [],
+      "stdoutSha256": "b2d7f611038139244decdfba9cf0c8b20acb406e418a9f55cd50767d6b5d6b98",
+      "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "label": "bootstrap-upload-01",
+      "outerToolSession": 19611,
+      "outerExitCode": 0,
+      "outerTerminalChunk": "8338aa",
+      "at": "2026-09-07T21:28:20.437572+00:00",
+      "argv": [
+        "scp",
+        "-o",
+        "BatchMode=yes",
+        "-o",
+        "ConnectTimeout=10",
+        "/Users/ccheever/clique-improvement/reviews/generated-api-types-repair-r1/astra/work/payload.tar",
+        "ccheever@100.65.137.99:/home/ccheever/clique-reviews/generated-api-types-repair-r1-8f7c6c20/astra/work/payload.tar"
+      ],
+      "cwd": "/Users/ccheever/clique-improvement/reviews/generated-api-types-repair-r1/astra/work",
+      "pid": 67488,
+      "deadlineSeconds": 45,
+      "elapsedSeconds": 7.276426209,
+      "exit": 0,
+      "timeout": false,
+      "waitedTerminal": true,
+      "startIdentity": {
+        "pid": 67488,
+        "kernelIdentityKind": "PROC_PIDTBSDINFO",
+        "bytesReturned": 136,
+        "startSecUsec": [
+          1788816493,
+          163073
+        ],
+        "rawHex": "304040200200000000000000a00701008c070100f501000014000000f501000014000000f50100001400000000000000736370006f6e002e3900006e00726100736370006f6e002e3900006e007261707065720000000000000000000000000019000000a007010000000000ffffffff00000000000000006d2c9f6a00000000017d020000000000"
+      },
+      "tool": {
+        "path": "/usr/bin/scp",
+        "sha256": "3aa206ebc1afd26b23b8d1110459dd7c1719e22398b4a609d17ff73bbca4f854"
+      },
+      "deadlineEpoch": 1788816538.159246,
+      "handshakes": [],
+      "stdoutSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "label": "bootstrap-extract-01",
+      "outerToolSession": 3907,
+      "outerExitCode": 0,
+      "outerTerminalChunk": "29fc8c",
+      "at": "2026-09-07T21:28:51.391936+00:00",
+      "argv": [
+        "ssh",
+        "-o",
+        "BatchMode=yes",
+        "-o",
+        "ConnectTimeout=10",
+        "ccheever@100.65.137.99",
+        "python3 -c 'from pathlib import Path\nimport os,sys,time,json,hashlib,signal,tarfile\nD=Path('\"'\"'/home/ccheever/clique-reviews/generated-api-types-repair-r1-8f7c6c20/astra/work'\"'\"');action=sys.argv[1];start=time.time();signal.alarm(30)\nstat=Path('\"'\"'/proc/self/stat'\"'\"').read_text();record={'\"'\"'pid'\"'\"':os.getpid(),'\"'\"'startTicks'\"'\"':stat[stat.rindex('\"'\"')'\"'\"')+2:].split()[19],'\"'\"'argv'\"'\"':sys.argv,'\"'\"'cwd'\"'\"':os.getcwd(),'\"'\"'tool'\"'\"':os.path.realpath(sys.executable),'\"'\"'toolSha256'\"'\"':hashlib.sha256(Path(sys.executable).read_bytes()).hexdigest(),'\"'\"'deadlineSeconds'\"'\"':30,'\"'\"'deadlineEpoch'\"'\"':start+30}\nprint(json.dumps({'\"'\"'launch'\"'\"':record}),flush=True)\ntry:\n if action=='\"'\"'mkdir'\"'\"':D.mkdir(parents=True,exist_ok=False)\n elif action=='\"'\"'extract'\"'\"':\n  with tarfile.open(D/'\"'\"'payload.tar'\"'\"') as t:\n   for m in t.getmembers():assert m.isfile() and not Path(m.name).is_absolute() and '\"'\"'..'\"'\"' not in Path(m.name).parts\n   t.extractall(D)\n else:raise ValueError(action)\n print(json.dumps({'\"'\"'terminal'\"'\"':record,'\"'\"'exit'\"'\"':0,'\"'\"'elapsedSeconds'\"'\"':time.time()-start}),flush=True)\nfinally:signal.alarm(0)\n' extract"
+      ],
+      "cwd": "/Users/ccheever/clique-improvement/reviews/generated-api-types-repair-r1/astra/work",
+      "pid": 68027,
+      "deadlineSeconds": 45,
+      "elapsedSeconds": 2.525634667,
+      "exit": 0,
+      "timeout": false,
+      "waitedTerminal": true,
+      "startIdentity": {
+        "pid": 68027,
+        "kernelIdentityKind": "PROC_PIDTBSDINFO",
+        "bytesReturned": 136,
+        "startSecUsec": [
+          1788816528,
+          871748
+        ],
+        "rawHex": "304040200200000000000000bb090100ae090100f501000014000000f501000014000000f50100001400000000000000737368006f6e002e3900006e00726100737368006f6e002e3900006e007261707065720000000000000000000000000019000000bb09010000000000ffffffff0000000000000000902c9f6a00000000444d0d0000000000"
+      },
+      "tool": {
+        "path": "/usr/bin/ssh",
+        "sha256": "af345c4ff9ed4d49177d6407d3bd317b8769eebf3ce65f68afb8ed249f173614"
+      },
+      "deadlineEpoch": 1788816573.86715,
+      "handshakes": [],
+      "stdoutSha256": "6f401617cce8a259aa22049adb8bd7d2209521bbbfbe32b3db5f4e990de60fcd",
+      "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "label": "setup-01",
+      "outerToolSession": 3276,
+      "outerExitCode": 0,
+      "outerTerminalChunk": "f21809",
+      "at": "2026-09-07T21:29:27.835684+00:00",
+      "argv": [
+        "ssh",
+        "-o",
+        "BatchMode=yes",
+        "-o",
+        "ConnectTimeout=10",
+        "ccheever@100.65.137.99",
+        "python3 /home/ccheever/clique-reviews/generated-api-types-repair-r1-8f7c6c20/astra/work/run-remote.py setup-01 1054bbc7bfe2eb065fce466998ac3db1c2a05db82ccfdf7e9e875be52426502b"
+      ],
+      "cwd": "/Users/ccheever/clique-improvement/reviews/generated-api-types-repair-r1/astra/work",
+      "pid": 68442,
+      "deadlineSeconds": 45,
+      "elapsedSeconds": 11.435617834,
+      "exit": 0,
+      "timeout": false,
+      "waitedTerminal": true,
+      "startIdentity": {
+        "pid": 68442,
+        "kernelIdentityKind": "PROC_PIDTBSDINFO",
+        "bytesReturned": 136,
+        "startSecUsec": [
+          1788816556,
+          400573
+        ],
+        "rawHex": "3040402002000000000000005a0b0100460b0100f501000014000000f501000014000000f50100001400000000000000737368006f6e002e3900006e00726100737368006f6e002e3900006e0072617070657200000000000000000000000000190000005a0b010000000000ffffffff0000000000000000ac2c9f6a00000000bd1c060000000000"
+      },
+      "tool": {
+        "path": "/usr/bin/ssh",
+        "sha256": "af345c4ff9ed4d49177d6407d3bd317b8769eebf3ce65f68afb8ed249f173614"
+      },
+      "deadlineEpoch": 1788816601.393321,
+      "handshakes": [
+        {
+          "at": "2026-09-07T21:29:19.257787+00:00",
+          "ready": "1054bbc7bfe2eb065fce466998ac3db1c2a05db82ccfdf7e9e875be52426502b",
+          "currentSha256": "1054bbc7bfe2eb065fce466998ac3db1c2a05db82ccfdf7e9e875be52426502b",
+          "acknowledged": true
+        }
+      ],
+      "stdoutSha256": "222f292ca6fbdbd34b8474c5b3308ff6c2466034347716e089ac1247ac901083",
+      "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "label": "review-consumers-01",
+      "outerToolSession": 55337,
+      "outerExitCode": 0,
+      "outerTerminalChunk": "d0db82",
+      "at": "2026-09-07T21:30:08.881469+00:00",
+      "argv": [
+        "ssh",
+        "-o",
+        "BatchMode=yes",
+        "-o",
+        "ConnectTimeout=10",
+        "ccheever@100.65.137.99",
+        "python3 /home/ccheever/clique-reviews/generated-api-types-repair-r1-8f7c6c20/astra/work/run-remote.py review-consumers-01 1054bbc7bfe2eb065fce466998ac3db1c2a05db82ccfdf7e9e875be52426502b"
+      ],
+      "cwd": "/Users/ccheever/clique-improvement/reviews/generated-api-types-repair-r1/astra/work",
+      "pid": 70250,
+      "deadlineSeconds": 45,
+      "elapsedSeconds": 4.421477250000001,
+      "exit": 0,
+      "timeout": false,
+      "waitedTerminal": true,
+      "startIdentity": {
+        "pid": 70250,
+        "kernelIdentityKind": "PROC_PIDTBSDINFO",
+        "bytesReturned": 136,
+        "startSecUsec": [
+          1788816604,
+          460702
+        ],
+        "rawHex": "3040402002000000000000006a12010065120100f501000014000000f501000014000000f50100001400000000000000737368006f6e002e3900006e00726100737368006f6e002e3900006e0072617070657200000000000000000000000000190000006a12010000000000ffffffff0000000000000000dc2c9f6a000000009e07070000000000"
+      },
+      "tool": {
+        "path": "/usr/bin/ssh",
+        "sha256": "af345c4ff9ed4d49177d6407d3bd317b8769eebf3ce65f68afb8ed249f173614"
+      },
+      "deadlineEpoch": 1788816649.4510689,
+      "handshakes": [
+        {
+          "at": "2026-09-07T21:30:07.189462+00:00",
+          "ready": "1054bbc7bfe2eb065fce466998ac3db1c2a05db82ccfdf7e9e875be52426502b",
+          "currentSha256": "1054bbc7bfe2eb065fce466998ac3db1c2a05db82ccfdf7e9e875be52426502b",
+          "acknowledged": true
+        }
+      ],
+      "stdoutSha256": "202e716f5393e9c2c4ceda425cb0a6ea6dca34d03a787fda203ce8c102ee1bdb",
+      "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "label": "integrity-after-01",
+      "outerToolSession": 74877,
+      "outerExitCode": 0,
+      "outerTerminalChunk": "edd898",
+      "at": "2026-09-07T21:30:33.725883+00:00",
+      "argv": [
+        "ssh",
+        "-o",
+        "BatchMode=yes",
+        "-o",
+        "ConnectTimeout=10",
+        "ccheever@100.65.137.99",
+        "python3 /home/ccheever/clique-reviews/generated-api-types-repair-r1-8f7c6c20/astra/work/run-remote.py integrity-after-01 1054bbc7bfe2eb065fce466998ac3db1c2a05db82ccfdf7e9e875be52426502b"
+      ],
+      "cwd": "/Users/ccheever/clique-improvement/reviews/generated-api-types-repair-r1/astra/work",
+      "pid": 70380,
+      "deadlineSeconds": 45,
+      "elapsedSeconds": 8.476836209,
+      "exit": 0,
+      "timeout": false,
+      "waitedTerminal": true,
+      "startIdentity": {
+        "pid": 70380,
+        "kernelIdentityKind": "PROC_PIDTBSDINFO",
+        "bytesReturned": 136,
+        "startSecUsec": [
+          1788816625,
+          249552
+        ],
+        "rawHex": "304040200200000000000000ec120100e8120100f501000014000000f501000014000000f50100001400000000000000737368006f6e002e3900006e00726100737368006f6e002e3900006e007261707065720000000000000000000000000019000000ec12010000000000ffffffff0000000000000000f12c9f6a00000000d0ce030000000000"
+      },
+      "tool": {
+        "path": "/usr/bin/ssh",
+        "sha256": "af345c4ff9ed4d49177d6407d3bd317b8769eebf3ce65f68afb8ed249f173614"
+      },
+      "deadlineEpoch": 1788816670.245717,
+      "handshakes": [
+        {
+          "at": "2026-09-07T21:30:27.794615+00:00",
+          "ready": "1054bbc7bfe2eb065fce466998ac3db1c2a05db82ccfdf7e9e875be52426502b",
+          "currentSha256": "1054bbc7bfe2eb065fce466998ac3db1c2a05db82ccfdf7e9e875be52426502b",
+          "acknowledged": true
+        }
+      ],
+      "stdoutSha256": "7b1206765e3d164a32ba2b835022611d803b02f22e94b88e536110b441b57fb9",
+      "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "label": "collect-01",
+      "outerToolSession": 68925,
+      "outerExitCode": 0,
+      "outerTerminalChunk": "c7ccdf",
+      "at": "2026-09-07T21:31:10.146674+00:00",
+      "argv": [
+        "ssh",
+        "-o",
+        "BatchMode=yes",
+        "-o",
+        "ConnectTimeout=10",
+        "ccheever@100.65.137.99",
+        "python3 /home/ccheever/clique-reviews/generated-api-types-repair-r1-8f7c6c20/astra/work/run-remote.py collect-01 1054bbc7bfe2eb065fce466998ac3db1c2a05db82ccfdf7e9e875be52426502b"
+      ],
+      "cwd": "/Users/ccheever/clique-improvement/reviews/generated-api-types-repair-r1/astra/work",
+      "pid": 71121,
+      "deadlineSeconds": 45,
+      "elapsedSeconds": 2.9652999170000003,
+      "exit": 0,
+      "timeout": false,
+      "waitedTerminal": true,
+      "startIdentity": {
+        "pid": 71121,
+        "kernelIdentityKind": "PROC_PIDTBSDINFO",
+        "bytesReturned": 136,
+        "startSecUsec": [
+          1788816667,
+          181819
+        ],
+        "rawHex": "304040200200000000000000d1150100c7150100f501000014000000f501000014000000f50100001400000000000000737368006f6e002e3900006e00726100737368006f6e002e3900006e007261707065720000000000000000000000000019000000d115010000000000ffffffff00000000000000001b2d9f6a000000003bc6020000000000"
+      },
+      "tool": {
+        "path": "/usr/bin/ssh",
+        "sha256": "af345c4ff9ed4d49177d6407d3bd317b8769eebf3ce65f68afb8ed249f173614"
+      },
+      "deadlineEpoch": 1788816712.1778,
+      "handshakes": [
+        {
+          "at": "2026-09-07T21:31:09.780632+00:00",
+          "ready": "1054bbc7bfe2eb065fce466998ac3db1c2a05db82ccfdf7e9e875be52426502b",
+          "currentSha256": "1054bbc7bfe2eb065fce466998ac3db1c2a05db82ccfdf7e9e875be52426502b",
+          "acknowledged": true
+        }
+      ],
+      "stdoutSha256": "b535d598d2d930806b2ad0b5ff63b3e741a471bc2364f280028a23b091584ae8",
+      "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "label": "download-01",
+      "outerToolSession": 20018,
+      "outerExitCode": 0,
+      "outerTerminalChunk": "72ec0c",
+      "at": "2026-09-07T21:31:53.900138+00:00",
+      "argv": [
+        "scp",
+        "-o",
+        "BatchMode=yes",
+        "-o",
+        "ConnectTimeout=10",
+        "ccheever@100.65.137.99:/home/ccheever/clique-reviews/generated-api-types-repair-r1-8f7c6c20/astra/work/owned-results.tar",
+        "/Users/ccheever/clique-improvement/reviews/generated-api-types-repair-r1/astra/work/owned-results.tar"
+      ],
+      "cwd": "/Users/ccheever/clique-improvement/reviews/generated-api-types-repair-r1/astra/work",
+      "pid": 71671,
+      "deadlineSeconds": 45,
+      "elapsedSeconds": 12.530143375,
+      "exit": 0,
+      "timeout": false,
+      "waitedTerminal": true,
+      "startIdentity": {
+        "pid": 71671,
+        "kernelIdentityKind": "PROC_PIDTBSDINFO",
+        "bytesReturned": 136,
+        "startSecUsec": [
+          1788816701,
+          423950
+        ],
+        "rawHex": "304040200200000000000000f7170100f0170100f501000014000000f501000014000000f50100001400000000000000736370006f6e002e3900006e00726100736370006f6e002e3900006e007261707065720000000000000000000000000019000000f717010000000000ffffffff00000000000000003d2d9f6a000000000e78060000000000"
+      },
+      "tool": {
+        "path": "/usr/bin/scp",
+        "sha256": "3aa206ebc1afd26b23b8d1110459dd7c1719e22398b4a609d17ff73bbca4f854"
+      },
+      "deadlineEpoch": 1788816746.4223192,
+      "handshakes": [],
+      "stdoutSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  ],
+  "transportPostWait": {
+    "at": "2026-09-07T21:32:25.414701+00:00",
+    "observations": {
+      "review-consumers-01": {
+        "pid": 70250,
+        "kernelIdentityKind": "PROC_PIDTBSDINFO",
+        "bytesReturned": 0,
+        "startSecUsec": null,
+        "rawHex": "00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"
+      },
+      "integrity-after-01": {
+        "pid": 70380,
+        "kernelIdentityKind": "PROC_PIDTBSDINFO",
+        "bytesReturned": 0,
+        "startSecUsec": null,
+        "rawHex": "00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"
+      },
+      "bootstrap-upload-01": {
+        "pid": 67488,
+        "kernelIdentityKind": "PROC_PIDTBSDINFO",
+        "bytesReturned": 0,
+        "startSecUsec": null,
+        "rawHex": "00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"
+      },
+      "setup-01": {
+        "pid": 68442,
+        "kernelIdentityKind": "PROC_PIDTBSDINFO",
+        "bytesReturned": 0,
+        "startSecUsec": null,
+        "rawHex": "00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"
+      },
+      "download-01": {
+        "pid": 71671,
+        "kernelIdentityKind": "PROC_PIDTBSDINFO",
+        "bytesReturned": 0,
+        "startSecUsec": null,
+        "rawHex": "00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"
+      },
+      "bootstrap-mkdir-01": {
+        "pid": 66941,
+        "kernelIdentityKind": "PROC_PIDTBSDINFO",
+        "bytesReturned": 0,
+        "startSecUsec": null,
+        "rawHex": "00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"
+      },
+      "collect-01": {
+        "pid": 71121,
+        "kernelIdentityKind": "PROC_PIDTBSDINFO",
+        "bytesReturned": 0,
+        "startSecUsec": null,
+        "rawHex": "00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"
+      },
+      "bootstrap-extract-01": {
+        "pid": 68027,
+        "kernelIdentityKind": "PROC_PIDTBSDINFO",
+        "bytesReturned": 0,
+        "startSecUsec": null,
+        "rawHex": "00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"
+      }
+    }
+  },
+  "cleanup": [
+    {
+      "kind": "registered",
+      "name": "insert",
+      "root": "/home/ccheever/clique-reviews/generated-api-types-repair-r1-8f7c6c20/astra/work/private-tmp/snapback2-api-consumer-insert-2HECVf",
+      "absent": true
+    },
+    {
+      "kind": "private",
+      "name": "insert",
+      "root": "/home/ccheever/clique-reviews/generated-api-types-repair-r1-8f7c6c20/astra/work/private-tmp/review-private-insert-OecAHM",
+      "absent": true
+    },
+    {
+      "kind": "registered",
+      "name": "merge",
+      "root": "/home/ccheever/clique-reviews/generated-api-types-repair-r1-8f7c6c20/astra/work/private-tmp/snapback2-api-consumer-merge-sV71Jr",
+      "absent": true
+    },
+    {
+      "kind": "private",
+      "name": "merge",
+      "root": "/home/ccheever/clique-reviews/generated-api-types-repair-r1-8f7c6c20/astra/work/private-tmp/review-private-merge-jp3SZN",
+      "absent": true
+    }
+  ],
+  "custody": {
+    "unchanged": {
+      "dependency-owner": true,
+      "dependency-private": true,
+      "sdk": true,
+      "sdk-donor": true
+    },
+    "source": {
+      "pre-fix": {
+        "leaves": 190,
+        "manifestSha256": "103c33b25a3ab5b823216216fbf329a2ff7f675616fef8eb78c8534b1d687e13"
+      },
+      "fixed": {
+        "leaves": 190,
+        "manifestSha256": "e106be0c94c33a9b92d40b3ba3ce888dbbda5f1a71d9f4252346d44cecea97f8"
+      }
+    },
+    "linksUnchanged": true
+  },
+  "localFailures": [
+    {
+      "chunk": "f07f55",
+      "exit": 1,
+      "cause": "Original probe comparison used nonexistent input/helper-originals/review-probe.ts; original is focused.ts. Failed before writes or execution."
+    },
+    {
+      "chunk": "4b3d54",
+      "exit": 1,
+      "cause": "Local assertion incorrectly expected payload members to equal packet-bound members; prepared payload also includes six transport/bootstrap helpers. No upload or semantic execution. Repacked the exact original member list from same prepared files."
+    },
+    {
+      "chunk": "868233",
+      "exit": 1,
+      "cause": "Read-only author hash inspection initially addressed archives in author-evidence/work, where frozen packet retains them by reference. Used matching already-prepared work archives instead. No semantic execution repeated or bound input changed."
+    },
+    {
+      "chunk": "02509d",
+      "exit": 1,
+      "cause": "Read-only author closure summarizer treated remoteChildren list as a dict. Corrected list selection; no semantic work repeated."
+    },
+    {
+      "chunk": "72575e",
+      "exit": 1,
+      "cause": "Read-only reconciliation assumed counterfactual import ordering matched candidate; prior puts RowOfColumns directly after Column. Exact two-name-only delta confirmed using actual retained order; no semantic execution or input change."
+    }
+  ],
+  "unexpectedSemanticFailures": 0,
+  "expectedNegativeConsumerDiagnostics": {
+    "insert-unsuppressed": [
+      2322,
+      2322
+    ],
+    "merge-unsuppressed": [
+      2322,
+      2322
+    ]
+  },
+  "authorOriginalFailuresRetained": {
+    "preFixMergeExit": 1,
+    "preFixMergeDiagnostics": [
+      2578
+    ],
+    "priorOriginalInsertExpoDiagnostics": [
+      2578
+    ],
+    "priorOriginalInsertDeclarationDiagnostics": {
+      "2304": 4,
+      "2578": 1,
+      "1038": 11
+    },
+    "priorImportCounterfactualDeclarationDiagnostics": {
+      "1038": 11
+    },
+    "discoveryNotes": "../input/author-evidence/work/preparation-notes.json"
+  },
+  "unknownState": false,
+  "allOwnedChildrenActuallyWaited": true,
+  "allWorkloadChildrenPostWaitAbsent": true,
+  "allTransportChildrenPostWaitAbsent": true,
+  "bootstrapObservationLimit": "Bootstrap helper provides terminal output and waited SSH completion, without a separate post-wait remote /proc lookup. No additional process-observation command was added to the finite contract.",
+  "reviewSha256": "58b94714a77833a93ff761bf85a0d7cb0b0860ec5c62dc1bf78d4c0524b94017",
+  "findingsPrivateUntilBothActualClosures": true,
+  "identityEvidence": "Actual reviewer model/session identity and this process outer/native closure remain supervisor observations; requested identity alone is not evidence. No model/session logs were opened.",
+  "museReviewClaimed": false,
+  "writerReleased": true,
+  "ownActualClosure": "Supervisor must observe after return; not claimed prospectively."
+}

@@ -1339,3 +1339,10 @@ Enabling declaration checking also exposed eleven redundant ambient `declare` mo
 Version 0.0.17 is now public with the coordinated CLI fixes and reviewed compiler diagnostics. The standard publisher and all 19 consumer results passed. Its immediate registry check returned E404; a later separate observation verified both exact package SRIs and latest tags without republishing. The [publication evidence](../benchmarks/runs/2026-09-06-clique-improvement/evidence/cli-017-published/README.md) preserves the original failure and actual process closures.
 
 Chat check still misses its one-second target at 1.049318542 seconds, and the 17 measured steps total 35.026491876 seconds. Functional success does not erase these timing reds. Public-installed Expo/guide and npm11 witnesses are next. The independent generated-type repair has passed its affected before/after checks and entered blind review; the full benchmark continues on unchanged 0.0.16, with no new holistic score.
+
+
+## 2026-09-07 — Generated row type safety repaired
+
+The missing generated `Column` and `RowOfColumns` imports are repaired. Insert and merge consumers now keep their Boolean fields and reject numeric assignments under the actual Expo configuration. A pre-fix merge control failed as expected; both fixed consumers and affected source types passed. Independent Astra xhigh and Grok 4.6 xhigh reviews returned READY after actual closed runs. [Evidence and limits](../benchmarks/runs/2026-09-06-clique-improvement/evidence/generated-api-types-repair/README.md) preserve the original negative controls, private shape/Principal assertions, local setup errors, and incomplete broader declaration coverage.
+
+This removes a silent loss of editor/typechecker protection while preserving result inference. The eleven inherited ambient declaration errors remain a separate repair, and the new imports are not in the already-published 0.0.17 package. No new holistic score follows from this source landing.

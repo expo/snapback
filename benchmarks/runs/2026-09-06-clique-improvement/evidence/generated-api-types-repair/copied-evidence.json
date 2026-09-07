@@ -1,0 +1,77 @@
+{
+  "files": [
+    {
+      "source": "/Users/ccheever/clique-improvement/revisions/generated-api-types-repair-r1/REPORT.md",
+      "path": "author-REPORT.md",
+      "bytes": 5562,
+      "sha256": "4475577cfd0b4c23f75853ec065688043a0af624717f5053731cf7cb26adadf0"
+    },
+    {
+      "source": "/Users/ccheever/clique-improvement/revisions/generated-api-types-repair-r1/supervisor-terminal.json",
+      "path": "author-supervisor-terminal.json",
+      "bytes": 3802,
+      "sha256": "a2689f10632d6cc6bbfee30eb2a7b10a666d8cb1539b812031f5baf2823448c2"
+    },
+    {
+      "source": "/Users/ccheever/clique-improvement/revisions/generated-api-types-repair-r1/work/remote-evidence/results/pre-fix-merge-01/test-result.json",
+      "path": "pre-fix-merge-result.json",
+      "bytes": 2631,
+      "sha256": "b94308184417661cd994095b7e7144b83d8afba4ac8e707a506268d994ceddfb"
+    },
+    {
+      "source": "/Users/ccheever/clique-improvement/revisions/generated-api-types-repair-r1/work/remote-evidence/results/fixed-consumers-01/test-result.json",
+      "path": "fixed-consumer-results.json",
+      "bytes": 276,
+      "sha256": "c7adf053a00de01bb0463563a487a05f3ff6f63a1d7e15a6ada7917046835d6c"
+    },
+    {
+      "source": "/Users/ccheever/clique-improvement/revisions/generated-api-types-repair-r1/work/remote-evidence/results/affected-types-01/diagnostics.json",
+      "path": "affected-source-diagnostics.json",
+      "bytes": 3,
+      "sha256": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570"
+    },
+    {
+      "source": "/Users/ccheever/clique-improvement/reviews/generated-api-types-repair-r1/astra/work/review.md",
+      "path": "astra-review.md",
+      "bytes": 11275,
+      "sha256": "58b94714a77833a93ff761bf85a0d7cb0b0860ec5c62dc1bf78d4c0524b94017"
+    },
+    {
+      "source": "/Users/ccheever/clique-improvement/reviews/generated-api-types-repair-r1/astra/supervisor-terminal.json",
+      "path": "astra-supervisor-terminal.json",
+      "bytes": 1751,
+      "sha256": "c4f80a2d974e5742f76865b28638e5d4937cce7946ef392cf1633623c743e436"
+    },
+    {
+      "source": "/Users/ccheever/clique-improvement/reviews/generated-api-types-repair-r1/astra/work/phase.json",
+      "path": "astra-phase.json",
+      "bytes": 43008,
+      "sha256": "4262d831ab45637fcc2a61062b76dadf10c344c09b32188820b4e439ed52d6d1"
+    },
+    {
+      "source": "/Users/ccheever/clique-improvement/reviews/generated-api-types-repair-r1/grok/work/review.md",
+      "path": "grok-review.md",
+      "bytes": 10806,
+      "sha256": "f24b8fec2d744c247f712f516830c522292ec990acc93adf7017153ec110261c"
+    },
+    {
+      "source": "/Users/ccheever/clique-improvement/reviews/generated-api-types-repair-r1/grok/supervisor-terminal.json",
+      "path": "grok-supervisor-terminal.json",
+      "bytes": 1470,
+      "sha256": "3e70445206dca69fd78f11b2308dc6106f7f16850548306712a8fe6f825a883f"
+    },
+    {
+      "source": "/Users/ccheever/clique-improvement/reviews/generated-api-types-repair-r1/grok/work/phase.json",
+      "path": "grok-phase.json",
+      "bytes": 7642,
+      "sha256": "7cf1e54f588fe9e3ea20c79b037ef584108fd52d851014a304703f52fcfb1c80"
+    },
+    {
+      "source": "/Users/ccheever/clique-improvement/reviews/generated-api-types-repair-r1/closed-pair-custody.json",
+      "path": "closed-pair-custody.json",
+      "bytes": 65538,
+      "sha256": "1fdcfc2710bdf020362ebb6b0c22a8f720af2ab790a79a8aae3228deb42a9787"
+    }
+  ],
+  "copy": "Exact bytes; first failures and evidence limits retained."
+}
