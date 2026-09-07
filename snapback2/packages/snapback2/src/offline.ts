@@ -261,7 +261,7 @@ export class OfflineRuntime {
   /** A browser tab whose account another tab is writing: it waits for that partition's lock. */
   get following(): boolean { return this.followingPrincipal !== undefined; }
   /** Whether this carrier can wait for a held writer lock at all (IndexedDB can; SQLite refuses at once). */
-  get canFollow(): boolean { return typeof this.store.acquire === "function"; }
+  get canFollow(): boolean { return typeof this.store.acquire === "function" && typeof this.store.giveBack === "function"; }
 
   // @ref LLP 1018#3-move-one-one-coherent-reactive-client — the follower tab
   // waits outside the runtime queue, so its live reads keep flowing; when the

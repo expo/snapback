@@ -258,3 +258,31 @@ test("a terminal refusal reaches every consumer of the shared entry it originate
   second.close();
   await client.close();
 });
+
+test("a terminal refusal from a drain's tail reaches the drain's consumers", async () => {
+  const owner = fakeOwner({ seed: true, cursorArg: "c" });
+  let tails = 0;
+  const client = createClient({
+    url: "http://shared-drain-terminal.test",
+    tokenStore: { load: () => "expired-token", save: () => undefined },
+    fetch: async (input: string | URL | Request, init?: RequestInit) => {
+      const url = String(input);
+      if (url.includes("/api/subscribe")) {
+        tails += 1;
+        const frame = JSON.stringify({ state: "refused", code: "E_AUTH_SESSION", family: "auth", message: "expired", guide: "auth/session" });
+        return new Response(new ReadableStream<Uint8Array>({ start(controller) { controller.enqueue(new TextEncoder().encode(`data: ${frame}\n\n`)); } }),
+          { status: 200, headers: { "content-type": "text/event-stream" } });
+      }
+      return owner.fetch(input, init);
+    },
+  });
+  await client.ready;
+  const heard: string[] = [];
+  const first = client.subscribe(api.deliveries.inbox, { c: null }, (event) => { heard.push(`first:${event.state}`); }, { drain: true });
+  const second = client.subscribe(api.deliveries.inbox, { c: null }, (event) => { heard.push(`second:${event.state}`); }, { drain: true });
+  await until(() => heard.includes("first:refused") && heard.includes("second:refused"), "both drain consumers hearing the tail's refusal");
+  assert.equal(tails, 1, "one tail served both drains");
+  first.close();
+  second.close();
+  await client.close();
+});

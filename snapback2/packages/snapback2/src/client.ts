@@ -1406,8 +1406,12 @@ class Client implements SnapbackClient {
   private closeTransports(except?: Subscription<unknown>): void {
     this.live.close();
     this.shared.clear(except);
+    // The stream a terminal refusal came from stays open to deliver it, and so
+    // does a drain whose tail that stream is: closing the drain would silence it.
     for (const subscription of [...this.subscriptions]) {
-      if (subscription !== except) subscription.close();
+      const owner = subscription as Subscription<unknown> & { owns?(subscription: Subscription<unknown>): boolean };
+      if (subscription === except || (except !== undefined && owner.owns?.(except) === true)) continue;
+      subscription.close();
     }
   }
 
