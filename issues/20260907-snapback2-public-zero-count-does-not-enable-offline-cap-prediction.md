@@ -61,4 +61,6 @@ bounds, authority/generation fences, and native/twin uniqueness aligned.
 Do not bypass the target unique check or infer either fact from scalar zero.
 The existing public test now also cold-reopens every carrier: held nonzero
 counts remain usable, unheld/zero counts remain unpredicted, and reconnect
-retains owner commit/atomic-overflow behavior. The ticket remains open.
+retains owner commit/atomic-overflow behavior. An exact cached zero remains a
+complete stale answer through `offlineView`; that answer is not new authority
+for the target insertion. The ticket remains open.

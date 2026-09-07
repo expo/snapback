@@ -1070,7 +1070,10 @@ mutation allocate(principals: [principal] <=49):
       clients.push(client);
       if (scenario.name === "zero") {
         const cold = await client.query(api.caps.countFor, { principal: "dev:zero" });
-        assert.equal(cold.state, "partial", "cold zero remains unknown without group coverage");
+        assert.equal(cold.state, "complete", "the delivered scalar answer remains cached");
+        assert.equal(cold.data, 0);
+        assert.equal(cold.live, false);
+        assert.ok(cold.stale, "a cached zero is a stale answer, not new group-absence authority");
       } else {
         assert.deepEqual(await Promise.all(scenario.hold.map(principal => count(client, principal))), before,
           "held count rows remain complete after a cold offline carrier reopen");

@@ -101,3 +101,23 @@ compare-and-set mutation within 4,350 bytes then passed the existing guide
 test. No assertions or deadlines were weakened, and no third full-suite run
 is claimed. The separate loop measurement's functional steps passed, but its
 timing overruns are retained in [the budget ticket](20260907-snapback2-loop-budget-overruns-in-parallel-papercut-lane.md).
+
+## Bounded LLP 1018 audit delivery — 2026-09-07
+
+The unchanged full script ran from the warm local lane on `8756e543f`.
+Package tests reported 232 passes and 19 file cancellations at the unchanged
+10-second deadline. Native compilation took 4m49s; after repeated owner-start
+timeouts and socket `WouldBlock` failures, the owned run was interrupted.
+Nextest reported 78/802 reached, 51 passed, 27 failed (including interrupted
+in-flight tests), 4 skipped, and 724 not run. The offline guide size failure
+reported 4,784 bytes in unchanged source. These observations do not establish
+a single root cause or independently reproduce every failure on the base.
+
+Doctests, compiler type checking, all 218 evaluator cases and both visibility
+checks passed. The compiler regression phase was also interrupted after
+remaining active without a result; the outer script exited 130. This is a
+failed, incomplete broad run, not qualification. No second broad retry or
+weakened suite deadline is claimed. The final delivery changes declarations
+and focused tests, with no native/evaluator/runtime semantic delta. Its
+separate affected checks are recorded in the execution ledger and LLP 1018.
+The full output remains in the ignored local ship-run evidence directory.

@@ -678,7 +678,9 @@ tables but cannot exclude the changed messages descriptor in the original
 conflict. Stable terminal intents, unsettled replay, held coverage and verdicts
 have different existing identities/fences; no common hash is introduced.
 
-The architecture lane at `c9803c828` retains the browser settlement regression
-and its affected Expo/browser qualification. This follow-up makes no browser
+The architecture lane at `13e6de7cc` retains the browser settlement regression
+and its affected Expo/browser qualification. It records 41 passing focused
+supersession cases after certified-fixture repair, while the coherent suite
+and actual browser rerun remain outstanding. This follow-up makes no browser
 repair or lane-wide completion claim. Lifecycle work remains tied to those
 actual transitions; the count investigation adds no lifecycle framework.
