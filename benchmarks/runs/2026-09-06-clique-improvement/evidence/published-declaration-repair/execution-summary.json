@@ -1,0 +1,180 @@
+{
+  "public-consumer-01": {
+    "result": {
+      "status": "PASS",
+      "kind": "public",
+      "at": "2026-09-07T22:20:01.456Z"
+    },
+    "fullUnfilteredDiagnosticCount": 0,
+    "resolvedSourceFiles": 75,
+    "verifiedSourceHashCount": 75,
+    "sourceGroups": {
+      "private-bound-dependency": 58,
+      "new-built-package": 16,
+      "exact-consumer": 1
+    },
+    "roots": [
+      "/home/ccheever/clique-revisions/published-declaration-ambient-repair-r1-20260907/work/private-tmp/snapback2-offline-public-types-wQ5qCB/consumer.ts"
+    ],
+    "parsedOptions": {
+      "lib": [
+        "lib.es2022.d.ts",
+        "lib.dom.d.ts"
+      ],
+      "module": 99,
+      "moduleResolution": 100,
+      "noEmit": true,
+      "skipLibCheck": false,
+      "strict": true,
+      "target": 9,
+      "types": [],
+      "configFilePath": "/home/ccheever/clique-revisions/published-declaration-ambient-repair-r1-20260907/work/private-tmp/snapback2-offline-public-types-wQ5qCB/tsconfig.json"
+    },
+    "preciseTypes": {
+      "envelope": "DeliveryEnvelopeV1",
+      "protocol": "1",
+      "sequence": "number",
+      "verdict": "boolean",
+      "encoded": "string",
+      "path": "string",
+      "envelopeNotAny": "false",
+      "verdictNotAny": "false",
+      "pathNotAny": "false",
+      "wrongIsAny": "false"
+    },
+    "allInspectedBindingsNonAny": true,
+    "consumedExpectErrorDirectives": 6,
+    "rootStandaloneCompatibility": "PASS"
+  },
+  "standalone-consumer-01": {
+    "result": {
+      "status": "PASS",
+      "kind": "standalone",
+      "at": "2026-09-07T22:20:13.868Z"
+    },
+    "fullUnfilteredDiagnosticCount": 0,
+    "resolvedSourceFiles": 60,
+    "verifiedSourceHashCount": 60,
+    "sourceGroups": {
+      "private-bound-dependency": 58,
+      "new-built-package": 1,
+      "exact-consumer": 1
+    },
+    "roots": [
+      "/home/ccheever/clique-revisions/published-declaration-ambient-repair-r1-20260907/work/private-tmp/snapback2-offline-standalone-types-JsBQKL/consumer.ts"
+    ],
+    "parsedOptions": {
+      "lib": [
+        "lib.es2022.d.ts",
+        "lib.dom.d.ts"
+      ],
+      "module": 99,
+      "moduleResolution": 100,
+      "noEmit": true,
+      "skipLibCheck": false,
+      "strict": true,
+      "target": 9,
+      "types": [],
+      "configFilePath": "/home/ccheever/clique-revisions/published-declaration-ambient-repair-r1-20260907/work/private-tmp/snapback2-offline-standalone-types-JsBQKL/tsconfig.json"
+    },
+    "preciseTypes": {
+      "envelope": "DeliveryEnvelopeV1",
+      "protocol": "1",
+      "sequence": "number",
+      "verdict": "boolean",
+      "encoded": "string",
+      "path": "string",
+      "envelopeNotAny": "false",
+      "verdictNotAny": "false",
+      "pathNotAny": "false",
+      "wrongIsAny": "false"
+    },
+    "allInspectedBindingsNonAny": true,
+    "consumedExpectErrorDirectives": 5,
+    "rootStandaloneCompatibility": "standalone preservation PASS"
+  },
+  "source-type-01": {
+    "result": {
+      "status": "PASS",
+      "count": 0
+    },
+    "fullUnfilteredDiagnosticCount": 0,
+    "resolvedSourceFiles": 171,
+    "verifiedSourceHashCount": 171,
+    "sourceGroups": {
+      "private-bound-dependency": 170,
+      "bound-helper-source": 1
+    }
+  },
+  "standaloneModifiers": {
+    "count": 11,
+    "declarations": [
+      [
+        "class",
+        "DeliveryEnvelopeDecodeError"
+      ],
+      [
+        "function",
+        "decodeDeliveryEnvelope"
+      ],
+      [
+        "function",
+        "decodeDeliveryMessage"
+      ],
+      [
+        "function",
+        "encodeDeliveryEnvelope"
+      ],
+      [
+        "function",
+        "expandRows"
+      ],
+      [
+        "function",
+        "toClosureReceipt"
+      ],
+      [
+        "function",
+        "deliveryRangeExtent"
+      ],
+      [
+        "function",
+        "tagWireRow"
+      ],
+      [
+        "function",
+        "tagWireIndexValues"
+      ],
+      [
+        "function",
+        "tagWireBoundary"
+      ],
+      [
+        "function",
+        "tagWireValue"
+      ]
+    ],
+    "standaloneAstChecks": "PASS in the sole standalone consumer Program; exact emitted bytes retained",
+    "ambientCopyByteRelation": "same standalone text with only line-leading export declare normalized to export",
+    "rootSha256": "9421f44dba3885530a95327c7192d26ad0c37228ca1787e29b1dbe2ccc00fa48",
+    "standaloneSha256": "5e2f39ae67a2034215d6c8f4f258e95caff3353a325f6ea9014669e5a042c831"
+  },
+  "sdkLeaves": 153,
+  "sourceLeaves": 943,
+  "dependencyLeaves": 24010,
+  "integrity": {
+    "source": {
+      "manifestSha256": "3a019d106d01ad864e4d11123ac40f28d773e37f3f63d845a1587c3213da1eec",
+      "leaves": 943,
+      "unchanged": true
+    },
+    "dependenciesUnchanged": true,
+    "candidateUnchanged": true,
+    "linksUnchanged": true
+  },
+  "frozenInputsUnchanged": true,
+  "firstRuntimeFailure": null,
+  "retries": 0,
+  "sourceOrHelperChanges": 0,
+  "priorModeMismatch": "Preserved pre-execution discovery; corrected extraction/strict verification executed successfully once."
+}

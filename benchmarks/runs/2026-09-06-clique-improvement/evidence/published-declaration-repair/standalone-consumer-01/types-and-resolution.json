@@ -1,0 +1,402 @@
+{
+  "variables": [
+    {
+      "name": "envelope",
+      "type": "DeliveryEnvelopeV1",
+      "flags": 524288,
+      "any": false
+    },
+    {
+      "name": "protocol",
+      "type": "1",
+      "flags": 256,
+      "any": false
+    },
+    {
+      "name": "sequence",
+      "type": "number",
+      "flags": 8,
+      "any": false,
+      "intrinsicName": "number"
+    },
+    {
+      "name": "sequenceNumber",
+      "type": "number",
+      "flags": 8,
+      "any": false,
+      "intrinsicName": "number"
+    },
+    {
+      "name": "verdict",
+      "type": "boolean",
+      "flags": 1048592,
+      "any": false,
+      "intrinsicName": "boolean"
+    },
+    {
+      "name": "verdictBoolean",
+      "type": "boolean",
+      "flags": 1048592,
+      "any": false,
+      "intrinsicName": "boolean"
+    },
+    {
+      "name": "encoded",
+      "type": "string",
+      "flags": 4,
+      "any": false,
+      "intrinsicName": "string"
+    },
+    {
+      "name": "encodedString",
+      "type": "string",
+      "flags": 4,
+      "any": false,
+      "intrinsicName": "string"
+    },
+    {
+      "name": "error",
+      "type": "DeliveryEnvelopeDecodeError",
+      "flags": 524288,
+      "any": false
+    },
+    {
+      "name": "typeError",
+      "type": "TypeError",
+      "flags": 524288,
+      "any": false
+    },
+    {
+      "name": "path",
+      "type": "string",
+      "flags": 4,
+      "any": false,
+      "intrinsicName": "string"
+    },
+    {
+      "name": "pathString",
+      "type": "string",
+      "flags": 4,
+      "any": false,
+      "intrinsicName": "string"
+    },
+    {
+      "name": "message",
+      "type": "DeliveryMessage",
+      "flags": 1048576,
+      "any": false
+    },
+    {
+      "name": "data",
+      "type": "WireValue",
+      "flags": 1048576,
+      "any": false
+    },
+    {
+      "name": "closure",
+      "type": "EvaluatorClosureReceipt",
+      "flags": 524288,
+      "any": false
+    },
+    {
+      "name": "extent",
+      "type": "DeliveryRangeExtent",
+      "flags": 1048576,
+      "any": false
+    },
+    {
+      "name": "wrongVerdict",
+      "type": "number",
+      "flags": 8,
+      "any": false,
+      "intrinsicName": "number"
+    },
+    {
+      "name": "wrongSequence",
+      "type": "boolean",
+      "flags": 1048592,
+      "any": false,
+      "intrinsicName": "boolean"
+    },
+    {
+      "name": "wrongEncoding",
+      "type": "number",
+      "flags": 8,
+      "any": false,
+      "intrinsicName": "number"
+    },
+    {
+      "name": "wrongPath",
+      "type": "number",
+      "flags": 8,
+      "any": false,
+      "intrinsicName": "number"
+    },
+    {
+      "name": "envelopeNotAny",
+      "type": "false",
+      "flags": 512,
+      "any": false,
+      "intrinsicName": "false"
+    },
+    {
+      "name": "verdictNotAny",
+      "type": "false",
+      "flags": 512,
+      "any": false,
+      "intrinsicName": "false"
+    },
+    {
+      "name": "pathNotAny",
+      "type": "false",
+      "flags": 512,
+      "any": false,
+      "intrinsicName": "false"
+    },
+    {
+      "name": "wrongIsAny",
+      "type": "false",
+      "flags": 512,
+      "any": false,
+      "intrinsicName": "false"
+    }
+  ],
+  "imports": [
+    {
+      "specifier": "./node_modules/snapback2/dist/offline-protocol.js",
+      "declarations": [
+        {
+          "file": "/home/ccheever/clique-revisions/published-declaration-ambient-repair-r1-20260907/work/private-tmp/snapback2-offline-standalone-types-JsBQKL/node_modules/snapback2/dist/offline-protocol.d.ts",
+          "start": 101
+        }
+      ],
+      "exports": [
+        {
+          "name": "decodeDeliveryEnvelope",
+          "declarations": [
+            {
+              "file": "/home/ccheever/clique-revisions/published-declaration-ambient-repair-r1-20260907/work/private-tmp/snapback2-offline-standalone-types-JsBQKL/node_modules/snapback2/dist/offline-protocol.d.ts",
+              "start": 4557
+            }
+          ]
+        },
+        {
+          "name": "decodeDeliveryMessage",
+          "declarations": [
+            {
+              "file": "/home/ccheever/clique-revisions/published-declaration-ambient-repair-r1-20260907/work/private-tmp/snapback2-offline-standalone-types-JsBQKL/node_modules/snapback2/dist/offline-protocol.d.ts",
+              "start": 4724
+            }
+          ]
+        },
+        {
+          "name": "encodeDeliveryEnvelope",
+          "declarations": [
+            {
+              "file": "/home/ccheever/clique-revisions/published-declaration-ambient-repair-r1-20260907/work/private-tmp/snapback2-offline-standalone-types-JsBQKL/node_modules/snapback2/dist/offline-protocol.d.ts",
+              "start": 4803
+            }
+          ]
+        },
+        {
+          "name": "expandRows",
+          "declarations": [
+            {
+              "file": "/home/ccheever/clique-revisions/published-declaration-ambient-repair-r1-20260907/work/private-tmp/snapback2-offline-standalone-types-JsBQKL/node_modules/snapback2/dist/offline-protocol.d.ts",
+              "start": 4889
+            }
+          ]
+        },
+        {
+          "name": "toClosureReceipt",
+          "declarations": [
+            {
+              "file": "/home/ccheever/clique-revisions/published-declaration-ambient-repair-r1-20260907/work/private-tmp/snapback2-offline-standalone-types-JsBQKL/node_modules/snapback2/dist/offline-protocol.d.ts",
+              "start": 5053
+            }
+          ]
+        },
+        {
+          "name": "deliveryRangeExtent",
+          "declarations": [
+            {
+              "file": "/home/ccheever/clique-revisions/published-declaration-ambient-repair-r1-20260907/work/private-tmp/snapback2-offline-standalone-types-JsBQKL/node_modules/snapback2/dist/offline-protocol.d.ts",
+              "start": 5551
+            }
+          ]
+        },
+        {
+          "name": "tagWireRow",
+          "declarations": [
+            {
+              "file": "/home/ccheever/clique-revisions/published-declaration-ambient-repair-r1-20260907/work/private-tmp/snapback2-offline-standalone-types-JsBQKL/node_modules/snapback2/dist/offline-protocol.d.ts",
+              "start": 5782
+            }
+          ]
+        },
+        {
+          "name": "tagWireIndexValues",
+          "declarations": [
+            {
+              "file": "/home/ccheever/clique-revisions/published-declaration-ambient-repair-r1-20260907/work/private-tmp/snapback2-offline-standalone-types-JsBQKL/node_modules/snapback2/dist/offline-protocol.d.ts",
+              "start": 6002
+            }
+          ]
+        },
+        {
+          "name": "tagWireBoundary",
+          "declarations": [
+            {
+              "file": "/home/ccheever/clique-revisions/published-declaration-ambient-repair-r1-20260907/work/private-tmp/snapback2-offline-standalone-types-JsBQKL/node_modules/snapback2/dist/offline-protocol.d.ts",
+              "start": 6268
+            }
+          ]
+        },
+        {
+          "name": "tagWireValue",
+          "declarations": [
+            {
+              "file": "/home/ccheever/clique-revisions/published-declaration-ambient-repair-r1-20260907/work/private-tmp/snapback2-offline-standalone-types-JsBQKL/node_modules/snapback2/dist/offline-protocol.d.ts",
+              "start": 6496
+            }
+          ]
+        },
+        {
+          "name": "WireRowReference",
+          "declarations": [
+            {
+              "file": "/home/ccheever/clique-revisions/published-declaration-ambient-repair-r1-20260907/work/private-tmp/snapback2-offline-standalone-types-JsBQKL/node_modules/snapback2/dist/offline-protocol.d.ts",
+              "start": 101
+            }
+          ]
+        },
+        {
+          "name": "WireEscapedObject",
+          "declarations": [
+            {
+              "file": "/home/ccheever/clique-revisions/published-declaration-ambient-repair-r1-20260907/work/private-tmp/snapback2-offline-standalone-types-JsBQKL/node_modules/snapback2/dist/offline-protocol.d.ts",
+              "start": 199
+            }
+          ]
+        },
+        {
+          "name": "WireValue",
+          "declarations": [
+            {
+              "file": "/home/ccheever/clique-revisions/published-declaration-ambient-repair-r1-20260907/work/private-tmp/snapback2-offline-standalone-types-JsBQKL/node_modules/snapback2/dist/offline-protocol.d.ts",
+              "start": 298
+            }
+          ]
+        },
+        {
+          "name": "DeliveryRow",
+          "declarations": [
+            {
+              "file": "/home/ccheever/clique-revisions/published-declaration-ambient-repair-r1-20260907/work/private-tmp/snapback2-offline-standalone-types-JsBQKL/node_modules/snapback2/dist/offline-protocol.d.ts",
+              "start": 445
+            }
+          ]
+        },
+        {
+          "name": "DeliveryRange",
+          "declarations": [
+            {
+              "file": "/home/ccheever/clique-revisions/published-declaration-ambient-repair-r1-20260907/work/private-tmp/snapback2-offline-standalone-types-JsBQKL/node_modules/snapback2/dist/offline-protocol.d.ts",
+              "start": 549
+            }
+          ]
+        },
+        {
+          "name": "DeliveryVerdict",
+          "declarations": [
+            {
+              "file": "/home/ccheever/clique-revisions/published-declaration-ambient-repair-r1-20260907/work/private-tmp/snapback2-offline-standalone-types-JsBQKL/node_modules/snapback2/dist/offline-protocol.d.ts",
+              "start": 995
+            }
+          ]
+        },
+        {
+          "name": "DeliveryReceipt",
+          "declarations": [
+            {
+              "file": "/home/ccheever/clique-revisions/published-declaration-ambient-repair-r1-20260907/work/private-tmp/snapback2-offline-standalone-types-JsBQKL/node_modules/snapback2/dist/offline-protocol.d.ts",
+              "start": 1909
+            }
+          ]
+        },
+        {
+          "name": "DeliveryAuthority",
+          "declarations": [
+            {
+              "file": "/home/ccheever/clique-revisions/published-declaration-ambient-repair-r1-20260907/work/private-tmp/snapback2-offline-standalone-types-JsBQKL/node_modules/snapback2/dist/offline-protocol.d.ts",
+              "start": 2079
+            }
+          ]
+        },
+        {
+          "name": "DeliveryEnvelopeV1",
+          "declarations": [
+            {
+              "file": "/home/ccheever/clique-revisions/published-declaration-ambient-repair-r1-20260907/work/private-tmp/snapback2-offline-standalone-types-JsBQKL/node_modules/snapback2/dist/offline-protocol.d.ts",
+              "start": 2164
+            }
+          ]
+        },
+        {
+          "name": "DeliveryUnchanged",
+          "declarations": [
+            {
+              "file": "/home/ccheever/clique-revisions/published-declaration-ambient-repair-r1-20260907/work/private-tmp/snapback2-offline-standalone-types-JsBQKL/node_modules/snapback2/dist/offline-protocol.d.ts",
+              "start": 2793
+            }
+          ]
+        },
+        {
+          "name": "DeliveryMessage",
+          "declarations": [
+            {
+              "file": "/home/ccheever/clique-revisions/published-declaration-ambient-repair-r1-20260907/work/private-tmp/snapback2-offline-standalone-types-JsBQKL/node_modules/snapback2/dist/offline-protocol.d.ts",
+              "start": 2896
+            }
+          ]
+        },
+        {
+          "name": "TaggedValue",
+          "declarations": [
+            {
+              "file": "/home/ccheever/clique-revisions/published-declaration-ambient-repair-r1-20260907/work/private-tmp/snapback2-offline-standalone-types-JsBQKL/node_modules/snapback2/dist/offline-protocol.d.ts",
+              "start": 2966
+            }
+          ]
+        },
+        {
+          "name": "EvaluatorClosureReceipt",
+          "declarations": [
+            {
+              "file": "/home/ccheever/clique-revisions/published-declaration-ambient-repair-r1-20260907/work/private-tmp/snapback2-offline-standalone-types-JsBQKL/node_modules/snapback2/dist/offline-protocol.d.ts",
+              "start": 3241
+            }
+          ]
+        },
+        {
+          "name": "DeliveryEnvelopeDecodeError",
+          "declarations": [
+            {
+              "file": "/home/ccheever/clique-revisions/published-declaration-ambient-repair-r1-20260907/work/private-tmp/snapback2-offline-standalone-types-JsBQKL/node_modules/snapback2/dist/offline-protocol.d.ts",
+              "start": 4412
+            }
+          ]
+        },
+        {
+          "name": "DeliveryRangeExtent",
+          "declarations": [
+            {
+              "file": "/home/ccheever/clique-revisions/published-declaration-ambient-repair-r1-20260907/work/private-tmp/snapback2-offline-standalone-types-JsBQKL/node_modules/snapback2/dist/offline-protocol.d.ts",
+              "start": 5163
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

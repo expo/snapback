@@ -1394,7 +1394,7 @@ The compiler now reports the independent unknown-name and boolean mismatch toget
 
 The focused consumer investigation confirmed that a valid insert mutation can generate API types with unbound `Column` and `RowOfColumns` names. Under the actual Expo config, library diagnostics are skipped and a row boolean becomes error-derived `any`; a number assignment is incorrectly accepted. A private copy adding only the two imports restores the boolean and rejects the assignment. Four finite programs used the real 0.0.16 package and dependency graph. The [original evidence](../benchmarks/runs/2026-09-06-clique-improvement/evidence/generated-api-consumer/README.md) separates successful process execution from diagnostic cleanliness. The repair and generated-consumer coverage are assigned; no fix is claimed yet.
 
-Enabling declaration checking also exposed eleven redundant ambient `declare` modifiers in the packaged root types, unchanged by the import counterfactual. The package merge inserts emitted standalone declarations unchanged into its ambient module. This is recorded as a [separate follow-up](../issues/20260907-snapback2-published-declaration-ambient-modifiers.md), with the existing raw errors retained. Neither finding changes the immutable 0.0.17 release artifacts or the running benchmark app.
+Enabling declaration checking also exposed eleven redundant ambient `declare` modifiers in the packaged root types, unchanged by the import counterfactual. The package merge inserts emitted standalone declarations unchanged into its ambient module. This is recorded as a [separate follow-up](../issues/closed/20260907-snapback2-published-declaration-ambient-modifiers.md), with the existing raw errors retained. Neither finding changes the immutable 0.0.17 release artifacts or the running benchmark app.
 
 
 ## 2026-09-07 — Compiler diagnostic release published
@@ -1420,6 +1420,14 @@ The timeout-reporting helper repair is assigned separately. The original timeout
 ## 2026-09-07 — Timeout reporting controls
 
 The install witness could lose its command terminal when npm exited during timeout identity inspection. A narrow helper derivative now keeps the timeout failure separate from the actual child exit. Six controlled tests passed; changed identities receive no helper signal, and unknown receipts remain unknown even when the test controller later observes a clean exit. The first test attempt exposed a Python 3.9 kqueue context-manager incompatibility and is preserved alongside the correction. [Exact evidence](../benchmarks/runs/2026-09-06-clique-improvement/evidence/timeout-reaping-controls/README.md). This improves measurement reliability; it does not explain or fix the slow npm install, qualify 0.0.17 retroactively, or establish a better Clique score. Independent review is pending.
+
+## 2026-09-07 — Built package declaration checking repaired
+
+The ambient root now omits redundant `declare` modifiers while the standalone protocol declarations remain intact. Actual built-package consumers pass with library checking enabled and complete diagnostics; the old test filtered out the very library errors users could encounter. Both independent reviews returned READY. [Evidence](../benchmarks/runs/2026-09-06-clique-improvement/evidence/published-declaration-repair/README.md) retains the historical eleven errors, exact consumer populations, source checks, and review limits. This restores declaration checking for the affected consumers without asking app authors to suppress it. The fix and earlier generated API imports are awaiting the next release; no new Clique score is claimed.
+
+## 2026-09-07 — Timeout helper independently accepted
+
+Review caught an overclaim in the first repair: waiting for one child does not prove every log writer has finished. The corrected helper removes that claim and records the log as a snapshot. All six controls still pass, and both fresh reviews returned READY. [R3 evidence](../benchmarks/runs/2026-09-06-clique-improvement/evidence/timeout-reaping-controls/r3/README.md) preserves the earlier review, harness failure, and unknown original install exit. This accepted helper becomes the base for the next public install witness; it improves the honesty and completeness of measurements without turning a timeout into success.
 
 ## 2026-09-07 — Real installed consumers expose a fan-out retirement seam
 

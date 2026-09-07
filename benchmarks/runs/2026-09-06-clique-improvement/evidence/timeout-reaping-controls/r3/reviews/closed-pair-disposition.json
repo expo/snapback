@@ -1,0 +1,43 @@
+{
+  "pairClosed": true,
+  "disposition": "READY/READY",
+  "scope": "Exact r3 timeout metadata helper correction and existing controlled evidence only; no deployment/npm/performance or017 success claim",
+  "candidateSha256": "b66c1e0e7eddb99d6a17a3902a0d3fb116f35618c47068d16b8d97a87438fa0a",
+  "prelaunchFailures": "prelaunch-failure-01.json",
+  "original017ActualNpmExit": null,
+  "families": {
+    "astra": {
+      "reportPath": "/Users/ccheever/clique-improvement/reviews/default-install-timeout-race-r2/astra/review.md",
+      "reportBytes": 19668,
+      "reportSha256": "9999380f83b6c30b59250b6f95a90d5d06a8f76b2c28cbf4d629cb4d73e92ed7",
+      "terminalIdentity": "/Users/ccheever/clique-improvement/reviews/default-install-timeout-race-r2/astra/supervisor-terminal-identity.json",
+      "actualOuterExit": 0,
+      "actualNativeExit": 0,
+      "actualModelMatches": true,
+      "inputIntegrity": true,
+      "actualToolCounts": {
+        "command_execution": 48
+      },
+      "verdict": "READY"
+    },
+    "grok": {
+      "reportPath": "/Users/ccheever/clique-improvement/reviews/default-install-timeout-race-r2/grok/review.md",
+      "reportBytes": 19425,
+      "reportSha256": "fd32fe33b0a79e95d7aee1f37365799ad0a612340bc3a6c5ad12168a197c5233",
+      "terminalIdentity": "/Users/ccheever/clique-improvement/reviews/default-install-timeout-race-r2/grok/supervisor-terminal-identity.json",
+      "actualOuterExit": 0,
+      "actualNativeExit": 0,
+      "actualModelMatches": true,
+      "inputIntegrity": true,
+      "actualToolCounts": {
+        "read_file": 110,
+        "list_dir": 2,
+        "todo_write": 3,
+        "grep": 5,
+        "run_terminal_command": 2,
+        "write": 3
+      },
+      "verdict": "READY"
+    }
+  }
+}

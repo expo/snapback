@@ -1,21 +1,12 @@
 import assert from "node:assert/strict";
-import { after, test } from "node:test";
-import {
-  SnapbackRefusal,
-  api,
-  createClient,
-  initialQueryState,
-  reduceQueryState,
-} from "../dist/client.mjs";
-import { configureRealOwner, RealOwnerHarness } from "./owner-harness.ts";
-
-const owner = await configureRealOwner();
-after(async () => owner.close());
+import { test } from "node:test";
+import { api, createClient } from "../dist/client.mjs";
+import { RealOwnerHarness } from "./owner-harness.ts";
 
 // @ref LLP 1018#6-move-four-evolution-of-the-whole-application —
 // evolve populated data while real client intents remain in durable custody.
 test("durable client intents survive a schema successor and a lost acknowledgement survives operation removal", async (t) => {
-  if (!owner.owned) return t.skip("requires an isolated self-started successor owner");
+  if (process.env.SNAPBACK_URL) return t.skip("requires an isolated self-started successor owner");
   const { mkdtemp, readFile, writeFile, rm } = await import("node:fs/promises");
   const { tmpdir } = await import("node:os");
   const { join } = await import("node:path");

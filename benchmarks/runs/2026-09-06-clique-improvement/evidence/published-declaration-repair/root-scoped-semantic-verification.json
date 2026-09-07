@@ -1,0 +1,19 @@
+{
+  "at": "2026-09-07T22:25:07.667173+00:00",
+  "candidate": "367d263b8f44fda994397d5f8bb8b8110951d021",
+  "fullExecutionAndDiagnosticsRead": "0ec568",
+  "programOptionsAndTypeControlsRead": "792baf",
+  "diagnostics": {
+    "public": [],
+    "standalone": [],
+    "helperSource": []
+  },
+  "publicProgramFiles": 75,
+  "standaloneProgramFiles": 60,
+  "skipLibCheck": false,
+  "builtPackageLeaves": 153,
+  "collectedPackageBytesMatchManifest": true,
+  "ownerAndPrivateDependencyBeforeAfterEqual": true,
+  "sourceLeaves": 943,
+  "limits": "Scoped package declaration fix verified; author outer closure/reviews still pending. No full release/native/benchmark qualification."
+}

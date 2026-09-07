@@ -1,0 +1,28 @@
+{
+  "phase": "review complete",
+  "status": "complete",
+  "reviewComplete": true,
+  "writerReleased": true,
+  "candidate": "367d263b8f44fda994397d5f8bb8b8110951d021",
+  "parent": "ca6c082c3b0ad7a1160d0d4f8b21d93952494e32",
+  "reviewerFamily": "astra",
+  "verdict": "READY",
+  "materialBlockers": 0,
+  "optionalSuggestions": 2,
+  "executedTests": 0,
+  "executedPrograms": 0,
+  "executedBuilds": 0,
+  "executedInstalls": 0,
+  "executedRemoteWork": 0,
+  "executedNativeWork": 0,
+  "executedSubagents": 0,
+  "semanticExecution": 0,
+  "productHelperInputEdits": 0,
+  "reviewMode": "Exact source and retained factual evidence; bounded local inspections and mechanical byte comparisons only",
+  "artifacts": [
+    "work/review.md",
+    "work/inspection.json",
+    "work/phase.json"
+  ],
+  "nativeOuterIdentityAndExits": "supervisor-owned; not asserted by this writer"
+}

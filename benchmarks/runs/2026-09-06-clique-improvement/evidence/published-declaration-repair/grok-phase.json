@@ -1,0 +1,24 @@
+{
+  "stage": "REVIEW_COMPLETE",
+  "status": "READY",
+  "writerReleased": true,
+  "family": "grok",
+  "candidate": "367d263b8f44fda994397d5f8bb8b8110951d021",
+  "parent": "ca6c082c3b0ad7a1160d0d4f8b21d93952494e32",
+  "tree": "6d9c6d0457b11b2b8b2b5d99dfe401de15f1061d",
+  "review": "work/review.md",
+  "executed": {
+    "tests": 0,
+    "programs": 0,
+    "builds": 0,
+    "remoteOperations": 0,
+    "installs": 0,
+    "modelSubagents": 0,
+    "semanticReruns": 0
+  },
+  "blockers": 0,
+  "optionalSuggestions": 3,
+  "sdkDeclarationCleanClaim": false,
+  "releaseQualificationClaim": false,
+  "updatedAt": "2026-09-07T23:59:59+00:00"
+}

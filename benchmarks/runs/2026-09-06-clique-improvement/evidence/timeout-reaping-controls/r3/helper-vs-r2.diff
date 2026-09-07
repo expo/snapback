@@ -1,0 +1,15 @@
+--- /Users/ccheever/clique-improvement/revisions/default-install-timeout-race-repair-r2/candidate-helper.py
++++ /Users/ccheever/clique-improvement/revisions/default-install-timeout-race-repair-r3/candidate-helper.py
+@@ -206,10 +206,11 @@
+                 child.wait(timeout=2)
+             except subprocess.TimeoutExpired:
+                 record['cleanupUnknown'] = True
++    # logSha256 is a receipt-time snapshot; descendants may retain log writers.
+     record.update(exitCode=code, actualReturnCode=child.returncode,
+                   elapsedSeconds=time.monotonic() - start, endedEpoch=time.time(), logSha256=digest(log))
++    # Completion describes only the directly owned Popen child.
+     record['actualProcessWaitCompleted'] = child.returncode is not None
+-    record['logComplete'] = record['actualProcessWaitCompleted']
+     write_json(out / 'receipts' / (label + '.json'), record)
+     if record['actualProcessWaitCompleted']:
+         running.unlink()

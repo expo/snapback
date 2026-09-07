@@ -1,0 +1,40 @@
+{
+  "outerTool": 8251,
+  "actualOuterExitCode": 0,
+  "chunk": "9d0771",
+  "native": {
+    "pid": 52259,
+    "processIdentity": {
+      "pid": 52259,
+      "start": "Mon Sep 7 15:50:43 2026",
+      "executable": "/Users/ccheever/.grok/bin/grok",
+      "observed": true
+    },
+    "exitCode": 0,
+    "endedEpoch": 1788821945.786535,
+    "elapsedSeconds": 502.3333761692047,
+    "actualProcessWaitCompleted": true,
+    "stdoutSha256": "338310c15e3269f3b6865f9334a6be9469cfbafdee75f1795324744c8598f538",
+    "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "reportBytes": 19425,
+  "reportSha256": "fd32fe33b0a79e95d7aee1f37365799ad0a612340bc3a6c5ad12168a197c5233",
+  "reportPath": "/Users/ccheever/clique-improvement/reviews/default-install-timeout-race-r2/grok/review.md",
+  "identity": {
+    "requestedModel": "grok-4.6",
+    "requestedEffort": "xhigh",
+    "launchPid": 52259,
+    "observedAt": "2026-09-07T22:59:05.954591+00:00",
+    "sessionId": "dd47a105-4d50-4d71-9c9d-1fcd46e3bf2a",
+    "source": "/Users/ccheever/.grok/sessions/%2FUsers%2Fccheever%2Fclique-improvement%2Freviews%2Fdefault-install-timeout-race-r2%2Fgrok/dd47a105-4d50-4d71-9c9d-1fcd46e3bf2a/summary.json",
+    "sourceSha256": "6f1bdd66c102a937598eaac656e6a4cb48a1037769633ae0f58fd36540593f9d",
+    "current_model_id": "grok-4.6",
+    "reasoning_effort": "xhigh",
+    "identityMatchesRequest": true
+  },
+  "integrity": {
+    "unchanged": true,
+    "changedInputs": [],
+    "manifestSha256": "67ad108e72b1c75d56a5da09c7dfa40f6d8642481e3c4a9af59a3e36ad82c452"
+  }
+}

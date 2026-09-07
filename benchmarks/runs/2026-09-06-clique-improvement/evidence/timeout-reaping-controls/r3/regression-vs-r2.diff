@@ -1,0 +1,28 @@
+--- /Users/ccheever/clique-improvement/revisions/default-install-timeout-race-repair-r2/regression.py
++++ /Users/ccheever/clique-improvement/revisions/default-install-timeout-race-repair-r3/regression.py
+@@ -161,6 +161,8 @@
+         receipt = out / 'receipts/probe.json'
+         running = out / 'receipts/probe.running.json'
+         log = out / 'receipts/probe.log'
++        assert all('logComplete' not in json.loads(path.read_text())
++                   for path in (receipt, running) if path.exists())
+         if case.startswith('parent-'):
+             assert error and 'identity unavailable/changed' in error['message']
+             assert not receipt.exists() and running.exists() and checks == []
+@@ -178,7 +180,6 @@
+                 assert error and row['exitCode'] == 124 and row['timedOut'] is True
+                 if case == 'candidate-changed-identity':
+                     assert row['actualReturnCode'] is None and not row['actualProcessWaitCompleted']
+-                    assert row['logComplete'] is False
+                     assert row['cleanupUnknown'] is True and running.exists()
+                     assert row['cleanupFailure']['message'] == 'process identity unavailable/changed'
+                     assert child.poll() is None and state['signals'] == []
+@@ -194,7 +195,7 @@
+                     if expected == 0:
+                         assert state['exitEventsWithoutReaping'] == 1 and row['cleanupFailure']
+             if case != 'candidate-changed-identity':
+-                assert not running.exists() and row['logComplete'] is True
++                assert not running.exists()
+             result['helperReceipt'] = row
+         if case == 'candidate-live-matching-group':
+             assert state['signals'] == [{'pgid': child.pid, 'signal': signal.SIGKILL}]

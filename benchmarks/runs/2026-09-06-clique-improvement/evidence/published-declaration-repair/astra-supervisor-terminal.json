@@ -1,0 +1,113 @@
+{
+  "recordedAt": "2026-09-07T22:48:43.735387+00:00",
+  "outerSessionId": 68298,
+  "outerExitCode": 0,
+  "outerTerminalChunkId": "312c38",
+  "nativeTerminal": {
+    "pid": 5252,
+    "processIdentity": {
+      "pid": 5252,
+      "start": "Mon Sep 7 15:35:18 2026",
+      "executable": "/Users/ccheever/.volta/tools/image/packages/@openai/codex/lib/node_modules/@openai/codex/node_modules/@openai/codex-darwin-arm64/vendor/aarch64-apple-darwin/bin/codex",
+      "observed": true
+    },
+    "exitCode": 0,
+    "endedEpoch": 1788821183.499478,
+    "elapsedSeconds": 665.1245970726013,
+    "actualProcessWaitCompleted": true,
+    "stdoutSha256": "c25ef7c98be7c33e4a6773e16fd1b0e262aaca0f440658cb4dee7ff3afaa362a",
+    "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "actualIdentity": {
+    "requestedModel": "gpt-6-astra",
+    "requestedEffort": "xhigh",
+    "launchPid": 5252,
+    "observedAt": "2026-09-07T22:46:23.705356+00:00",
+    "sessionId": "01a07e02-f6fc-7f22-8fd1-0006adbbf19c",
+    "source": "/Users/ccheever/.codex/sessions/2026/09/07/rollout-2026-09-07T15-35-18-01a07e02-f6fc-7f22-8fd1-0006adbbf19c.jsonl",
+    "sourceSha256": "8cf13783473176bdb96eec85174f95018cac70ed8394562944dcf7a5aa40b560",
+    "turnContexts": [
+      {
+        "line": 8,
+        "model": "gpt-6-astra",
+        "effort": "xhigh",
+        "cwd": "/Users/ccheever/clique-improvement/reviews/published-declaration-ambient-repair-r1/astra",
+        "timestamp": "2026-09-07T22:35:22.179Z"
+      }
+    ],
+    "identityMatchesRequest": true
+  },
+  "inputIntegrity": {
+    "unchanged": true,
+    "changedInputs": [],
+    "manifestSha256": "b850df10d4b06f849c2b8e28f0c06666ea00d471f9830353a8b0ef80e66810d7"
+  },
+  "inputLeavesReverified": 291,
+  "inputMismatches": [],
+  "phase": {
+    "phase": "review complete",
+    "status": "complete",
+    "reviewComplete": true,
+    "writerReleased": true,
+    "candidate": "367d263b8f44fda994397d5f8bb8b8110951d021",
+    "parent": "ca6c082c3b0ad7a1160d0d4f8b21d93952494e32",
+    "reviewerFamily": "astra",
+    "verdict": "READY",
+    "materialBlockers": 0,
+    "optionalSuggestions": 2,
+    "executedTests": 0,
+    "executedPrograms": 0,
+    "executedBuilds": 0,
+    "executedInstalls": 0,
+    "executedRemoteWork": 0,
+    "executedNativeWork": 0,
+    "executedSubagents": 0,
+    "semanticExecution": 0,
+    "productHelperInputEdits": 0,
+    "reviewMode": "Exact source and retained factual evidence; bounded local inspections and mechanical byte comparisons only",
+    "artifacts": [
+      "work/review.md",
+      "work/inspection.json",
+      "work/phase.json"
+    ],
+    "nativeOuterIdentityAndExits": "supervisor-owned; not asserted by this writer"
+  },
+  "report": {
+    "path": "work/review.md",
+    "bytes": 18553,
+    "sha256": "d458719e81818b85e3dda2dc5b16546aa2317f4679bc95fe1efb44d9785e7a26"
+  },
+  "workArtifacts": [
+    {
+      "path": "README.md",
+      "bytes": 115,
+      "sha256": "ceeb1a76edc90fc00c11ee191580786db09997ff993a787c1f3583b540ee94ff",
+      "mode": "0o644"
+    },
+    {
+      "path": "inspection.json",
+      "bytes": 22998,
+      "sha256": "b4a08096b38169e381dce1fcba30c174b454cc21f6a9c776c512915738315f06",
+      "mode": "0o644"
+    },
+    {
+      "path": "phase.json",
+      "bytes": 863,
+      "sha256": "4e665f4cd77e8a6275ebb490af36167e168782a21ecd30f7a4d4091a5f0ac828",
+      "mode": "0o644"
+    },
+    {
+      "path": "review.md",
+      "bytes": 18553,
+      "sha256": "d458719e81818b85e3dda2dc5b16546aa2317f4679bc95fe1efb44d9785e7a26",
+      "mode": "0o644"
+    },
+    {
+      "path": "supervisor-inbox.md",
+      "bytes": 377,
+      "sha256": "769ef259db76a869ab7304babcc77e934273d18aaad8c6ec34b5c6759ce00e32",
+      "mode": "0o644"
+    }
+  ],
+  "blindness": "Both actual native and outer processes closed before either findings opened."
+}

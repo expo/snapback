@@ -1,0 +1,12 @@
+{
+  "requestedModel": "grok-4.6",
+  "requestedEffort": "xhigh",
+  "launchPid": 52259,
+  "observedAt": "2026-09-07T22:59:05.954591+00:00",
+  "sessionId": "dd47a105-4d50-4d71-9c9d-1fcd46e3bf2a",
+  "source": "/Users/ccheever/.grok/sessions/%2FUsers%2Fccheever%2Fclique-improvement%2Freviews%2Fdefault-install-timeout-race-r2%2Fgrok/dd47a105-4d50-4d71-9c9d-1fcd46e3bf2a/summary.json",
+  "sourceSha256": "6f1bdd66c102a937598eaac656e6a4cb48a1037769633ae0f58fd36540593f9d",
+  "current_model_id": "grok-4.6",
+  "reasoning_effort": "xhigh",
+  "identityMatchesRequest": true
+}

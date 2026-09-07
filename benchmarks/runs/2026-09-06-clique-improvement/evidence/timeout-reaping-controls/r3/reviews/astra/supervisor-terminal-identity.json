@@ -1,0 +1,47 @@
+{
+  "outerTool": 74584,
+  "actualOuterExitCode": 0,
+  "chunk": "85f4cd",
+  "native": {
+    "pid": 52268,
+    "processIdentity": {
+      "pid": 52268,
+      "start": "Mon Sep 7 15:50:43 2026",
+      "executable": "/Users/ccheever/.volta/tools/image/packages/@openai/codex/lib/node_modules/@openai/codex/node_modules/@openai/codex-darwin-arm64/vendor/aarch64-apple-darwin/bin/codex",
+      "observed": true
+    },
+    "exitCode": 0,
+    "endedEpoch": 1788821989.777178,
+    "elapsedSeconds": 546.0408689975739,
+    "actualProcessWaitCompleted": true,
+    "stdoutSha256": "52da0a95d448ccc84eef0fb0905ed7e9a514e7a392e7decd3974af5d7682fc2c",
+    "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "reportBytes": 19668,
+  "reportSha256": "9999380f83b6c30b59250b6f95a90d5d06a8f76b2c28cbf4d629cb4d73e92ed7",
+  "reportPath": "/Users/ccheever/clique-improvement/reviews/default-install-timeout-race-r2/astra/review.md",
+  "identity": {
+    "requestedModel": "gpt-6-astra",
+    "requestedEffort": "xhigh",
+    "launchPid": 52268,
+    "observedAt": "2026-09-07T22:59:49.916754+00:00",
+    "sessionId": "01a07e11-165a-7782-ae5d-93be1f67a2ad",
+    "source": "/Users/ccheever/.codex/sessions/2026/09/07/rollout-2026-09-07T15-50-44-01a07e11-165a-7782-ae5d-93be1f67a2ad.jsonl",
+    "sourceSha256": "7743d54e1e618b9db4af1f710ac7eb0ab5d82b612de6f3192f44873109595c6b",
+    "turnContexts": [
+      {
+        "line": 8,
+        "model": "gpt-6-astra",
+        "effort": "xhigh",
+        "cwd": "/Users/ccheever/clique-improvement/reviews/default-install-timeout-race-r2/astra",
+        "timestamp": "2026-09-07T22:50:46.482Z"
+      }
+    ],
+    "identityMatchesRequest": true
+  },
+  "integrity": {
+    "unchanged": true,
+    "changedInputs": [],
+    "manifestSha256": "67ad108e72b1c75d56a5da09c7dfa40f6d8642481e3c4a9af59a3e36ad82c452"
+  }
+}

@@ -1,0 +1,27 @@
+{
+  "roots": [
+    "/home/ccheever/clique-revisions/published-declaration-ambient-repair-r1-20260907/work/source/snapback2/packages/snapback2/tests/published-declaration-consumer.ts"
+  ],
+  "options": {
+    "noEmit": true,
+    "strict": true,
+    "skipLibCheck": false,
+    "esModuleInterop": true,
+    "allowImportingTsExtensions": true,
+    "module": 99,
+    "moduleResolution": 100,
+    "target": 9,
+    "lib": [
+      "lib.es2022.d.ts",
+      "lib.dom.d.ts"
+    ],
+    "types": [
+      "node"
+    ],
+    "typeRoots": [
+      "/home/ccheever/clique-revisions/published-declaration-ambient-repair-r1-20260907/work/source/snapback2/packages/snapback2/node_modules/@types"
+    ],
+    "configFilePath": "/home/ccheever/clique-revisions/published-declaration-ambient-repair-r1-20260907/work/source-check-config.json"
+  },
+  "configErrors": []
+}
