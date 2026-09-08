@@ -2,6 +2,8 @@ import { isSnapbackRefusal } from "./client-wire.js";
 import { referenceName, referencePath, type Op } from "./api.js";
 import { SharedSubscriptions } from "./client-sessions.js";
 import { summarize, type Snapshot } from "./snapshot.js";
+import { attachItems, type ItemInputs, type ItemRow, type Items, type ItemSnapshot } from "./client-items.js";
+import { carryItemInputs, cloneItemPublication, emptyItemInputs, itemInputs, rebindItemInputs, withItemInputs } from "./query-frame.js";
 import {
   initialQueryState,
   reduceQueryState,
@@ -14,7 +16,8 @@ import {
   type SubscriptionDelivery,
 } from "./types.js";
 
-type QuerySnapshot<Result> = { view: QueryView<Result>; snapshot: Snapshot<Result> };
+type QuerySnapshot<Result> = { view: QueryView<Result>; snapshot: Snapshot<Result>; inputs: ItemInputs };
+const snapshotProjection = {};
 
 interface Waiter<Event> {
   predicate: (event: Event) => boolean;
@@ -51,7 +54,7 @@ function freezeTree<Value>(value: Value, seen = new WeakSet<object>()): Value {
 
 /** One isolated, recursively immutable publication shared by every consumer. */
 function immutablePublication<Value>(value: Value): Value {
-  return freezeTree(structuredClone(value));
+  return freezeTree(cloneItemPublication(value));
 }
 
 /** Isolate a deferred query from caller mutation after observe/subscribe returns. */
@@ -71,23 +74,27 @@ export function queryIdentity(authGeneration: number, fence: number, mode: "live
 export function queryEntry<Result, Event extends QueryMachineEvent<Result>>(
   key: string,
   open: (fanout: (event: Event) => void) => Subscription<Event>,
-  refresh?: (current: QueryView<Result>, authoritative?: Event) => Promise<Event | undefined>,
+  refresh?: (current: QueryView<Result>, authoritative?: Event, inputs?: ItemInputs) => Promise<Event | undefined>,
   connection: () => import("./types.js").ConnectionState = () => "reconnecting",
 ) {
   const view = immutablePublication(initialQueryState<Result>());
-  const initial = freezeTree({ view, snapshot: summarize(view, connection()) });
+  const initial = freezeTree({ view, snapshot: summarize(view, connection()), inputs: emptyItemInputs });
   return {
     key,
     initial,
     publication: immutablePublication,
     reduce: (current: QuerySnapshot<Result>, event: Event) => {
       const next = freezeTree(reduceQueryState(current.view, event));
-      return next === current.view ? current : freezeTree({ view: next, snapshot: summarize(next, connection()) });
+      const received = itemInputs(event);
+      const inputs = received ? rebindItemInputs(received, "data" in event ? event.data : undefined, "data" in next ? next.data : undefined)
+        : "data" in next ? current.inputs : { ...emptyItemInputs, entries: current.inputs.entries };
+      if (next === current.view && inputs === current.inputs) return current;
+      return Object.freeze({ view: next, snapshot: next === current.view ? current.snapshot : freezeTree(summarize(next, connection())), inputs });
     },
     reproject: (current: QuerySnapshot<Result>) => current.snapshot.freshness.connection === connection()
-      ? current : freezeTree({ view: current.view, snapshot: summarize(current.view, connection()) }),
+      ? current : Object.freeze({ ...current, snapshot: freezeTree(summarize(current.view, connection())) }),
     open,
-    ...(refresh === undefined ? {} : { refresh: (current: QuerySnapshot<Result>, authoritative?: Event) => refresh(current.view, authoritative) }),
+    ...(refresh === undefined ? {} : { refresh: (current: QuerySnapshot<Result>, authoritative?: Event) => refresh(current.view, authoritative, current.inputs) }),
   };
 }
 
@@ -110,7 +117,7 @@ export class ClientQueries {
 
   private async local<Args, Result>(
     request: ReturnType<typeof bindQueryRequest<Args, Result>>, drain: boolean,
-    current: QueryView<Result>, fence: QueryFence, authoritative?: SubscriptionDelivery<Result>,
+    current: QueryView<Result>, fence: QueryFence, authoritative?: SubscriptionDelivery<Result>, inputs = emptyItemInputs,
   ): Promise<SubscriptionDelivery<Result> | undefined> {
     if (!this.host.active(fence)) return undefined;
     let event: QueryMachineEvent<Result>;
@@ -123,7 +130,11 @@ export class ClientQueries {
         : { code: "E_CLIENT", family: "owner", message: String(error), guide: "owner/connect" };
       return { state: "refused", live: false, ...envelope };
     }
-    if (!this.host.active(fence) || (current.live && event.state === "hydrating")) return undefined;
+    if (!this.host.active(fence)) return undefined;
+    if (current.live && event.state === "hydrating") {
+      // Keep the old value's own witnesses; a newer ledger does not advance them.
+      return withItemInputs({ ...current } as SubscriptionDelivery<Result>, { ...inputs, entries: itemInputs(event)?.entries ?? inputs.entries });
+    }
     // A drain is caught up only after DrainSubscription.mark has finished its
     // watermark and replay-grant work. A store-input refresh can see the page
     // committed by that mark while the mark is still pending; it may update the
@@ -132,20 +143,30 @@ export class ClientQueries {
     if (drain && event.state !== "refused") {
       const { caughtUp: _caughtUp, ...value } = event as QueryMachineEvent<Result> & { caughtUp?: boolean };
       const caughtUp = (current as QueryView<Result> & { caughtUp?: boolean }).caughtUp;
-      refreshed = { ...value, ...(caughtUp === undefined ? {} : { caughtUp }) } as QueryMachineEvent<Result>;
+      refreshed = carryItemInputs(event, { ...value, ...(caughtUp === undefined ? {} : { caughtUp }) } as QueryMachineEvent<Result>);
     }
     if (!current.live || event.state === "refused") return refreshed as SubscriptionDelivery<Result>;
     if (refreshed.state === "held" && authoritative
       && (authoritative.state === "complete" || authoritative.state === "capped")
-      && valueIdentity(refreshed) === valueIdentity(authoritative)) return authoritative;
+      && valueIdentity(refreshed) === valueIdentity(authoritative)) {
+      const captured = itemInputs(refreshed);
+      return withItemInputs({ ...authoritative }, captured && rebindItemInputs(captured,
+        "data" in refreshed ? refreshed.data : undefined, authoritative.data));
+    }
     const { connection: _connection, stale: _stale, ...fresh } = refreshed as QueryMachineEvent<Result> & {
       connection?: unknown; stale?: unknown;
     };
-    return { ...fresh, live: true } as SubscriptionDelivery<Result>;
+    return carryItemInputs(refreshed, { ...fresh, live: true } as SubscriptionDelivery<Result>);
   }
 
   observe<Args, Result>(
-    ref: Op<Args, Result>, args: Args, options: { live?: false; drain?: boolean } = {},
+    ref: Op<Args, Result>, args: Args, options?: { live?: false; drain?: boolean },
+  ): ObservedQuery<Result>;
+  observe<Args, Result, Row extends ItemRow, Draft>(
+    ref: Op<Args, Result>, args: Args, options: { live?: false; drain?: boolean; items: Items<Args, Result, Row, Draft> },
+  ): ObservedQuery<Result, ItemSnapshot<Result, Row, Draft>>;
+  observe<Args, Result, Row extends ItemRow, Draft>(
+    ref: Op<Args, Result>, args: Args, options: { live?: false; drain?: boolean; items?: Items<Args, Result, Row, Draft> } = {},
   ): ObservedQuery<Result> {
     const once = options.live === false, drain = options.drain === true;
     if (once && drain) throw new TypeError("query observation drain requires a live subscription");
@@ -153,16 +174,31 @@ export class ClientQueries {
     const active = () => this.host.active(fence);
     const mode: QueryMode = once ? "once" : drain ? "drain" : "live";
     const key = queryIdentity(fence[0], fence[1], mode, request.op, request.args);
+    const items = options.items;
+    if (items && items.query !== request.op) throw new TypeError("items must describe the observed query");
+    const projection = {
+      key: items ?? snapshotProjection,
+      project: (current: QuerySnapshot<Result>, previous?: Snapshot<Result>) => {
+        if (!items) return current.snapshot;
+        const before = previous as ItemSnapshot<Result, Row, Draft> | undefined;
+        const joined = attachItems(items, request.args, current.snapshot.data, current.inputs, before?.items);
+        if (before && before.items === joined && before.receipt === current.snapshot.receipt
+          && before.data === current.snapshot.data && before.freshness === current.snapshot.freshness
+          && before.local === current.snapshot.local && before.refusal === current.snapshot.refusal
+          && before.status === current.snapshot.status && before.reason === current.snapshot.reason) return before;
+        return freezeTree({ ...current.snapshot, items: joined });
+      },
+    };
     const observed = once ? this.shared.observe(queryEntry<Result, QueryMachineEvent<Result>>(
       key, (fanout) => oneShotQuery(() => this.host.query(request.ref, request.args), fanout),
       undefined, this.host.connection,
-    ), active) : this.shared.observe(queryEntry<Result, SubscriptionDelivery<Result>>(
+    ), active, projection) : this.shared.observe(queryEntry<Result, SubscriptionDelivery<Result>>(
       key,
       (fanout) => this.host.open(request.ref, request.args, fanout, drain),
-      (current, authoritative) => this.local(request, drain, current, fence, authoritative),
+      (current, authoritative, inputs) => this.local(request, drain, current, fence, authoritative, inputs),
       this.host.connection,
-    ), active);
-    return { getSnapshot: () => observed.getSnapshot().snapshot, subscribe: observed.subscribe };
+    ), active, projection);
+    return observed;
   }
 
   subscribe<Args, Result>(
@@ -173,7 +209,7 @@ export class ClientQueries {
     return this.shared.attach(queryEntry<Result, SubscriptionDelivery<Result>>(
       queryIdentity(fence[0], fence[1], mode, request.op, request.args),
       (fanout) => this.host.open(request.ref, request.args, fanout, drain),
-      (current, authoritative) => this.local(request, drain, current, fence, authoritative),
+      (current, authoritative, inputs) => this.local(request, drain, current, fence, authoritative, inputs),
       this.host.connection,
     ), callback);
   }

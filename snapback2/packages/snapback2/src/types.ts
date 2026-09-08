@@ -3,6 +3,7 @@ import type { Channel as ChannelRef, Op } from "./api.js";
 import type { AssetCache, ByteCacheEntry, ByteCacheStatus } from "./store/byte-cache.js";
 import type { OutboxEntry, RangeStoreFactory } from "./store/range-store.js";
 import type { Snapshot } from "./snapshot.js";
+import type { ItemRow, Items, ItemSnapshot } from "./client-items.js";
 import { canonical } from "./store/canonical.js";
 
 export type { OutboxEntry, OutboxGrant, OutboxState, OutboxTrace } from "./store/range-store.js";
@@ -317,6 +318,8 @@ export interface OutboxStatus {
 export interface OutboxApi {
   /** Every durable intent of the open partition, FIFO; empty without a store. */
   entries(): Promise<OutboxEntry[]>;
+  /** Lazy client-owned snapshot; one read per revision and distinct operation. */
+  observe<Args = unknown, Result = unknown>(op?: Op<Args, Result>): ObservedOutbox;
   /** Drops one settled entry; queued intents cannot be dismissed. */
   dismiss(intent: string): Promise<void>;
   /** Observes the outbox; called with the current entries at once and after every change. */
@@ -346,6 +349,12 @@ export interface OutboxApi {
   settled(): Promise<OutboxSettlement>;
 }
 
+export interface OutboxSnapshot { readonly entries: OutboxEntry[]; readonly status: OutboxStatus }
+export interface ObservedOutbox {
+  getSnapshot(): OutboxSnapshot;
+  subscribe(notify: () => void): () => void;
+}
+
 export interface SnapbackClient {
   readonly auth: AuthApi;
   readonly outbox: OutboxApi;
@@ -359,6 +368,10 @@ export interface SnapbackClient {
     args: NoInfer<Args>,
     options?: { live?: false; drain?: boolean },
   ): ObservedQuery<Result>;
+  observe<Args, Result, Row extends ItemRow, Draft>(
+    ref: Op<Args, Result>, args: NoInfer<Args>,
+    options: { live?: false; drain?: boolean; items: Items<Args, Result, Row, Draft> },
+  ): ObservedQuery<Result, ItemSnapshot<Result, Row, Draft>>;
   /** Diagnostic count of consumers attached to one shared observed-query identity. */
   sharedConsumers<Args, Result>(ref: Op<Args, Result>, args: NoInfer<Args>, drain?: boolean): number;
   mutation<Args, Result>(ref: Op<Args, Result>, args: NoInfer<AssetInput<Args>>): Promise<MutationResult<Result>>;
@@ -445,9 +458,9 @@ export type QueryView<Result> =
   /** `offline`: the twin had nothing held for this query (LLP 1012 §6), as opposed to the first render. */
   | { state: "hydrating"; live: false; offline?: true };
 export type QueryMachineEvent<Result> = QueryResult<Result> | SubscriptionDelivery<Result>;
-export interface ObservedQuery<Result> {
+export interface ObservedQuery<Result, Value extends Snapshot<Result> = Snapshot<Result>> {
   /** Referentially stable and recursively frozen until the shared query publishes a different view. */
-  getSnapshot(): Snapshot<Result>;
+  getSnapshot(): Value;
   /** Observes snapshot identity changes; read the value with `getSnapshot()`. */
   subscribe(notify: () => void): () => void;
 }

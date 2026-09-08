@@ -15,6 +15,7 @@ import { DeliveryEnvelopeDecodeError } from "./offline-protocol.js";
 import { tailWatermark, type AcceptedDelivery, type OfflineRuntime } from "./offline.js";
 import { replayEnvelope, type OutboxEntry } from "./store/outbox.js";
 import { referenceName } from "./api.js";
+import { observeOutbox } from "./client-outbox-observed.js";
 import type { MutationResult, OutboxApi, OutboxSettlement, OutboxStatus } from "./types.js";
 
 /** Records the grant a login/guest response carries; the value passes through untouched. */
@@ -340,6 +341,7 @@ export function createOutboxApi(
   ready: () => Promise<void> = async () => undefined,
   offline: () => boolean = () => false,
   forwarding?: { status(op?: string): Promise<OutboxStatus>; subscribe(listener: () => void): () => void },
+  identity: () => string = () => runtime?.principal ?? "",
 ): OutboxApi {
   const entries = async (): Promise<OutboxEntry[]> => {
     if (!runtime || runtime.principal === undefined) return [];
@@ -365,6 +367,10 @@ export function createOutboxApi(
   return {
     entries,
     status,
+    observe: observeOutbox(entries, status, notify => {
+      const stop = runtime?.outbox.subscribe(notify), stopForwarding = forwarding?.subscribe(notify);
+      return () => { stop?.(); stopForwarding?.(); };
+    }, identity),
     dismiss: async (intent) => {
       if (runtime && runtime.principal !== undefined) await runtime.outbox.dismiss(intent);
     },

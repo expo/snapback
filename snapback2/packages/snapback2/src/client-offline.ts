@@ -1,4 +1,5 @@
 import { isLocalCursor, serverArguments } from "./local-cursor.js";
+import { emptyItemInputs, itemInputs, withItemInputs } from "./query-frame.js";
 import { FullRevalidationRequired } from './store/fact-integrity.js';
 // @ref LLP 1012#8-the-delivery-envelope-the-validator-and-resume — offline transport coordination is isolated from auth custody and asset methods.
 import { throwIfAborted } from "./client-wire.js";
@@ -163,7 +164,7 @@ export async function decodeOfflineSubscription<Result>(options: {
     if (superseded) options.superseded?.();
     if (!options.current || options.current()) await options.observe?.();
   }
-  return value();
+  return options.runtime.withQueryItems(accepted, value());
 }
 
 export function settleSubscription<Result>(
@@ -199,7 +200,11 @@ export async function answerOffline<Result>(
     if (drain && runtime && !runtime.following) runtime.drainCursor(op);
     const held = await runtime?.answer<Result>(op, args);
     const local = await runtime?.evaluate(op, args);
-    return offlineView(held, local) as QueryResult<Result>;
+    const value = offlineView(held, local) as QueryResult<Result>;
+    if (!itemInputs(value) && runtime?.principal !== undefined) {
+      return withItemInputs(value, { ...emptyItemInputs, entries: await runtime.outbox.entries() });
+    }
+    return value;
   } catch (error) {
     throw failure(error);
   }

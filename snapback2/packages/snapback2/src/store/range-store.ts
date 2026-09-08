@@ -29,6 +29,8 @@ import {
 import { admitOverlayAuthority, markDeliveredArrivals, pagePosition, recordOverlayAuthorityEvidence, retireOverlays,
   type OverlayAuthorityEvidence, type OverlayWatermark } from "./overlay-retirement.js";
 import { canonical } from "./canonical.js";
+import { ItemCapture } from "../query-items.js";
+import { withItemInputs } from "../query-frame.js";
 import { sha256 } from "../../../evaluator/src/hash.js";
 import { compareArrays, totalCompare } from "../../../evaluator/src/value-runtime.js";
 import { prepareWireRow, preparedDeliveryRows, tagWireValue, type TaggedValue } from "../offline-protocol.js";
@@ -673,12 +675,15 @@ export class PersistentRangeStore implements RangeStore {
       const media = (this.referenceIndex ??= new CarrierIndex(this.state, this.referenceSchema)).assets;
       const { refs: _refs, order: _order, fingerprint: _fingerprint, cursorArg: _cursorArg, rowProofs: _rows, verdictProofs: _verdicts, extentProofs: _extents, clockOnly: _clockOnly, ...visible } = stored;
       const { data, ...answer } = clone(visible);
-      return {
+      const value = {
         ...answer,
         // A viewed view-once row reads as absent: the view was its one delivery (LLP 1012 §9).
         ...(data === undefined ? {} : { data: nullOnceMedia(expand(data, this.state.rows, media.exhausted), media.once) as Result }),
         ...(watermark === undefined ? {} : { caughtUp: true, watermark: watermark.watermark }),
       };
+      const capture = new ItemCapture(this.state, op, args);
+      capture.references(stored.data, value.data);
+      return withItemInputs(value, capture.inputs());
     });
   }
 

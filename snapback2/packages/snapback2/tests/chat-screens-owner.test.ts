@@ -251,7 +251,8 @@ test("the chat screens render the log, queue offline sends as pinned bubbles, se
     const publicSettlement = await client.outbox.settled();
     assert.deepEqual(publicSettlement, { stopped: false, remaining: 0 },
       "the public settlement joins the completed replay outside React's render flush");
-    await waitFor(async () => (await client.outbox.entries()).length === 0, "the settled outbox dismissal");
+    assert.equal((await client.outbox.entries()).find((entry: any) => entry.ids[0] === pinned)?.state, "committed",
+      "observing the server row retires its indicator without dismissing recovery history");
 
     // A live drain tail is incremental, while its observed value is the whole
     // held log. A post followed by a bodyless removal must not collapse the

@@ -10,6 +10,8 @@ import { onceAssetIds, onceColumns, RowAssets } from './store/asset-policy.js';
 import type { Context } from '../../evaluator/src/types.js';
 import type { HeldProgram, PersistedRangeState, StoredAnswer, StoredRow, OutboxEntry, OverlayRow } from './store/range-store.js';
 import type { StoreChange, StoreRevision } from './store/swap-journal.js';
+import { ItemCapture } from './query-items.js';
+import type { ItemActionKind } from './client-items.js';
 import type { PredictedRow } from './types.js';
 
 // Generic sources retain no mutable aliases; owned image leaves are already deeply isolated.
@@ -45,6 +47,7 @@ export class TwinStore {
   incarnation = 0;
   private fence = '';
   private contributions = new Map<string, Map<string, Contribution>>();
+  private effectiveWork = new Map<string, readonly { intent: string; kind: ItemActionKind }[]>();
   private intentRows = new Map<string, Set<string>>();
   private pending = new Ordered<OutboxEntry, string>(fifo);
   private pendingEntries = new Map<string, OutboxEntry>();
@@ -59,6 +62,7 @@ export class TwinStore {
     return [...this.pending.seek(() => 0)].flatMap(([, intent]) => (this.state.overlay[intent] ?? [])
       .filter(row => !row.removed).map(row => ({ table: row.table, id: row.id, intent })));
   }
+  captureItems(op: string, args: unknown): ItemCapture { return new ItemCapture(this.state, op, args, this.effectiveWork); }
 
   async sync(): Promise<boolean> {
     const program = this.sources.program(), principal = this.sources.principal();
@@ -74,7 +78,7 @@ export class TwinStore {
         (this.state.facts.generation !== program.generation || this.state.facts.schemaHash !== program.schemaHash))) return false;
       if (schemaDigest(program.schema) !== program.schemaHash) throw new TypeError('held schema identity mismatch');
       this.program = program; this.fence = fence; this.incarnation++;
-      this.contributions.clear(); this.intentRows.clear(); this.pendingEntries.clear(); this.pending = new Ordered(fifo);
+      this.contributions.clear(); this.effectiveWork.clear(); this.intentRows.clear(); this.pendingEntries.clear(); this.pending = new Ordered(fifo);
       this.assets = new RowAssets(onceColumns(program.schema)); this.evicted.clear(); this.holed.clear(); this.holes.clear(); this.answerHoles.clear();
       this.deliveries = new Ordered((a, b) => a[0] - b[0] || a[1].localeCompare(b[1])); this.answerTimes.clear();
       this.store = new ClientStore(program.schema, undefined, { readable: Object.entries(program.schema.tables ?? {})
@@ -151,6 +155,7 @@ export class TwinStore {
     let effective = base && !masked && (negative === undefined || (this.state.rowSeq[key] ?? -1) > negative) ? base : undefined;
     // Only the affected row's FIFO journal is replayed. Each contribution records assignments, not an earlier intent's image.
     const contributions = [...(this.contributions.get(key)?.values() ?? [])].sort((a, b) => fifo(a.entry, b.entry));
+    const owners = new Map<string, { intent: string; kind: ItemActionKind }>();
     for (const { entry, row } of contributions) {
       if (hole !== undefined && (masked || entry.issuedSeq <= hole.seq)) continue;
       const newerBase = base && (this.state.rowSeq[key] ?? -1) > (negative ?? -1);
@@ -172,17 +177,26 @@ export class TwinStore {
       }
       if (negative !== undefined && !createsOverProof && !updatesHeldRow
         && (!newerBase || entry.issuedSeq <= negative)) continue;
-      if (row.removed) effective = undefined;
+      if (row.removed) { effective = undefined; owners.clear(); }
       else if (row.fields) {
-        if (effective) effective = { table, id, row: { ...imageWire(effective.row), ...Object.fromEntries(row.fields.map(f => [f, row.row[f]])) } };
-      } else effective = row;
+        if (effective) {
+          effective = { table, id, row: { ...imageWire(effective.row), ...Object.fromEntries(row.fields.map(f => [f, row.row[f]])) } };
+          for (const field of row.fields) owners.set(field, { intent: entry.intent, kind: "update" });
+        }
+      } else {
+        effective = row; owners.clear();
+        const kind = entry.ids.includes(id) || basis === "absence" ? "create" : "update";
+        for (const field of Object.keys(row.row)) owners.set(field, { intent: entry.intent, kind });
+      }
     }
     const viewed = this.state.viewed[key], columns = this.state.onceColumns ?? onceColumns(this.program.schema);
     if (viewed && (!effective || !(columns[table]?.length) || (() => {
       const assets = onceAssetIds(columns, [effective!]); return assets.size > 0 && [...assets].every(id => viewed.assets.includes(id));
     })())) effective = undefined;
     let value = effective && prepareWireRow(this.program.schema,table,effective.row,this.program.schemaHash);
-    if (value && base && RowImage.is(base.row) && RowImage.equal(value,base.row)) value = base.row;
+    if (value && base && RowImage.is(base.row) && RowImage.equal(value,base.row)) { value = base.row; owners.clear(); }
+    if (value && owners.size) this.effectiveWork.set(key, [...new Map([...owners.values()].map(mark => [mark.intent, mark])).values()]);
+    else this.effectiveWork.delete(key);
     // Explicit negative/view-once authority is independent of answer membership and overlay settlement.
     this.store.setReceipt(`negative:${key}`, (!effective && (negative !== undefined || viewed)) ? {
       schema_hash: this.program.schemaHash, rows: [], ranges: [], absences: [[table, 'byId', [{ Id: id }]]], verdicts: [],

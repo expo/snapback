@@ -48,6 +48,7 @@ import {
 import { admitDrain, InvalidOfflineStoreError, type OfflineRuntime, type MountedQuery } from "./offline.js";
 import { TabFollower } from "./client-sessions.js";
 import { ClientQueries } from "./client-observed.js";
+import type { ItemRow, Items, ItemSnapshot } from "./client-items.js";
 import { ClientForwarding } from "./client-forwarding.js";
 import { performMutation, type MutationClient } from "./client-mutations.js";
 import { createChannel, type ChannelHost } from "./client-channels.js";
@@ -68,7 +69,7 @@ export { browserTokenStore } from "./token-store.js";
 export type { Api, ApiProxy, ChannelRef as Channel, Op };
 export * from "./types.js";
 export * from "./snapshot.js";
-export { defineItems, type Items, type QueryItem, type ItemAction } from "./client-items.js";
+export { defineItems, type Items, type QueryItem, type ItemAction, type ItemSnapshot } from "./client-items.js";
 export type {
   Coverage,
   CoverageFacts,
@@ -200,7 +201,7 @@ class Client implements SnapbackClient {
     });
     this.offlineRuntime?.subscribeInputs(() => this.queries.refresh());
     this.outbox = createOutboxApi(this.offlineRuntime, () => this.drainNow(), () => this.localReady,
-      () => this.forcedOffline, this.forwarding);
+      () => this.forcedOffline, this.forwarding, () => `${this.authGeneration}:${this.operationFence}`);
     this.auth = {
       signup: (input: { email: string; password: string }) => this.session("/api/auth/signup", input),
       login: (input: { email: string; password: string }) => this.session("/api/auth/login", input),
@@ -267,7 +268,8 @@ class Client implements SnapbackClient {
         const accepted = await acceptOffline<Result>(this.offlineRuntime, op, transportArgs, raw, wireShape,
           () => this.json("/api/query?receipt=1", { method: "POST", body: JSON.stringify({ op, args: transportArgs }) }, authority));
         const superseded = await commitOffline(this.offlineRuntime, op, transportArgs, accepted, (error) => this.offlineRefusal(error, "client.query.commit"), revision);
-        const result = wireQuery<Result>(accepted.result);
+        const decoded = wireQuery<Result>(accepted.result);
+        const result = this.offlineRuntime ? await this.offlineRuntime.withQueryItems(accepted, decoded) : decoded;
         this.validated(authority);
         if (superseded || revision !== this.offlineRuntime?.coverageRevision) this.scheduleSupersessionReset(authority, { op, args });
         if (this.offlineRuntime && this.createOptions.offlineReadObserver) {
@@ -348,7 +350,13 @@ class Client implements SnapbackClient {
     return this.offlineRuntime?.bytes;
   }
   observe<Args, Result>(
-    ref: Op<Args, Result>, args: Args, options: { live?: false; drain?: boolean } = {},
+    ref: Op<Args, Result>, args: Args, options?: { live?: false; drain?: boolean },
+  ): ObservedQuery<Result>;
+  observe<Args, Result, Row extends ItemRow, Draft>(
+    ref: Op<Args, Result>, args: Args, options: { live?: false; drain?: boolean; items: Items<Args, Result, Row, Draft> },
+  ): ObservedQuery<Result, ItemSnapshot<Result, Row, Draft>>;
+  observe<Args, Result, Row extends ItemRow, Draft>(
+    ref: Op<Args, Result>, args: Args, options: { live?: false; drain?: boolean; items?: Items<Args, Result, Row, Draft> } = {},
   ): ObservedQuery<Result> {
     return this.queries.observe(ref, args, options);
   }

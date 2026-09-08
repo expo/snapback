@@ -25,11 +25,23 @@ interface Observation {
   retire: () => void;
 }
 
+interface ProjectionSlot<Snapshot> {
+  refs: number;
+  value: unknown;
+  error?: { value: unknown };
+  project(snapshot: Snapshot, previous?: unknown): unknown;
+}
+export interface SnapshotProjection<Snapshot, Value> {
+  key: object;
+  project(snapshot: Snapshot, previous?: Value): Value;
+}
+
 interface Entry<Event, Snapshot> {
   underlying: Subscription<Event>;
   readonly spec: EntrySpec<Event, Snapshot>;
   readonly attachments: Set<Attachment<Event>>;
   readonly observations: Set<Observation>;
+  readonly projections: Map<object, ProjectionSlot<Snapshot>>;
   readonly initial: Snapshot;
   snapshot: Snapshot;
   last?: Event;
@@ -86,6 +98,15 @@ function refusalEvent(event: unknown): SnapbackRefusal | undefined {
 export class SharedSubscriptions {
   private readonly entries = new Map<string, Entry<unknown, unknown>>();
 
+  private project<Snapshot>(snapshot: Snapshot, slot: ProjectionSlot<Snapshot>): void {
+    try { slot.value = slot.project(snapshot, slot.value); slot.error = undefined; }
+    catch (value) { slot.error = { value }; }
+  }
+
+  private projectEntry<Event, Snapshot>(entry: Entry<Event, Snapshot>): void {
+    for (const slot of entry.projections.values()) this.project(entry.snapshot, slot);
+  }
+
   private publish<Event, Snapshot>(
     key: string, entry: Entry<Event, Snapshot>, spec: EntrySpec<Event, Snapshot>, event: Event, direct: boolean,
   ): void {
@@ -99,6 +120,7 @@ export class SharedSubscriptions {
     const next = spec.reduce(entry.snapshot, published);
     const changed = next !== entry.snapshot;
     entry.snapshot = next;
+    if (changed) this.projectEntry(entry);
     if (direct || changed) for (const each of [...entry.attachments]) {
       each.delivered = true;
       try { each.listener(published); } catch { /* one consumer's throw cannot starve the others */ }
@@ -117,6 +139,7 @@ export class SharedSubscriptions {
       spec,
       attachments: new Set(),
       observations: new Set(),
+      projections: new Map(),
       initial: spec.initial,
       snapshot: spec.initial,
       epoch: 0,
@@ -137,6 +160,7 @@ export class SharedSubscriptions {
         created.authoritative = undefined;
         const changed = created.snapshot !== spec.initial;
         created.snapshot = spec.initial;
+        this.projectEntry(created);
         if (changed) for (const each of [...created.observations]) {
           try { each.notify(); } catch { /* isolated like delivery */ }
         }
@@ -261,22 +285,64 @@ export class SharedSubscriptions {
   }
 
   /** A lazy external-store view over the same entry used by `attach`. */
-  observe<Event, Snapshot>(spec: EntrySpec<Event, Snapshot>, active: () => boolean = () => true): ObservedSnapshot<Snapshot> {
-    const fallback = spec.initial;
+  observe<Event, Snapshot, Value = Snapshot>(
+    spec: EntrySpec<Event, Snapshot>, active: () => boolean = () => true,
+    projection?: SnapshotProjection<Snapshot, Value>,
+  ): ObservedSnapshot<Value> {
+    const fallback = projection ? projection.project(spec.initial) : spec.initial as unknown as Value;
+    let source = spec.initial, cached = fallback;
     let retired = false;
     return {
-      getSnapshot: () => retired || !active()
-        ? fallback : (this.entries.get(spec.key) as Entry<Event, Snapshot> | undefined)?.snapshot ?? fallback,
+      getSnapshot: () => {
+        if (retired || !active()) return fallback;
+        const entry = this.entries.get(spec.key) as Entry<Event, Snapshot> | undefined;
+        if (!entry) return fallback;
+        if (!projection) return entry.snapshot as unknown as Value;
+        const slot = entry.projections.get(projection.key);
+        if (slot) {
+          if (slot.error) throw slot.error.value;
+          return slot.value as Value;
+        }
+        if (source !== entry.snapshot) { cached = projection.project(entry.snapshot, cached); source = entry.snapshot; }
+        return cached;
+      },
       subscribe: (notify) => {
         if (retired || !active()) return () => undefined;
         const entry = this.entry(spec);
-        const observation: Observation = { notify, active, retire: () => { retired = true; } };
+        if (projection) {
+          let slot = entry.projections.get(projection.key);
+          if (!slot) {
+            slot = { refs: 0, value: undefined, project: projection.project as ProjectionSlot<Snapshot>["project"] };
+            this.project(entry.snapshot, slot);
+            entry.projections.set(projection.key, slot);
+          }
+          slot.refs += 1;
+        }
+        let released = false;
+        const releaseProjection = () => {
+          if (released) return;
+          released = true;
+          const slot = projection && entry.projections.get(projection.key);
+          if (slot && --slot.refs === 0) entry.projections.delete(projection!.key);
+        };
+        const value = () => {
+          if (retired || !active()) return fallback;
+          const slot = projection && entry.projections.get(projection.key);
+          return slot ? slot.error ?? slot.value : entry.snapshot;
+        };
+        let seen = value();
+        const observation: Observation = { notify: () => {
+          const next = value();
+          if (Object.is(next, seen)) return;
+          seen = next; notify();
+        }, active, retire: () => { retired = true; releaseProjection(); } };
         entry.observations.add(observation);
         let closed = false;
         return () => {
           if (closed) return;
           closed = true;
           entry.observations.delete(observation);
+          releaseProjection();
           this.release(spec.key, entry);
         };
       },
@@ -305,6 +371,7 @@ export class SharedSubscriptions {
       const next = entry.spec.reproject?.(entry.snapshot);
       if (next === undefined || next === entry.snapshot) continue;
       entry.snapshot = next;
+      this.projectEntry(entry);
       for (const each of [...entry.observations]) {
         try { each.notify(); } catch { /* a snapshot observer cannot starve its peers */ }
       }

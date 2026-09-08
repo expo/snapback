@@ -13,6 +13,7 @@ import { createClient, isSnapbackRefusal, type SnapbackRefusal } from "./client.
 import { viewedAssetIds } from "./client-assets.js";
 import { referenceName, type Channel as ChannelRef, type Op } from "./api.js";
 import { readiness, type Readiness, type Snapshot } from "./snapshot.js";
+import type { ItemRow, Items, ItemSnapshot } from "./client-items.js";
 import {
   stableSerialize,
   type AuthApi,
@@ -149,9 +150,16 @@ export function useConnection(): ConnectionState {
 /** drain requires an ascending append log (after c first N, N <= 50); emits each page, then its tail.
  * Unsupported returned-page shapes remain refused. For newest-first data subscribe normally at c:null. */
 export function useQuery<Args, Result>(
+  ref: Op<Args, Result>, args: NoInfer<Args>, options?: { live?: false; drain?: boolean },
+): Snapshot<Result>;
+export function useQuery<Args, Result, Row extends ItemRow, Draft>(
+  ref: Op<Args, Result>, args: NoInfer<Args>,
+  options: { live?: false; drain?: boolean; items: Items<Args, Result, Row, Draft> },
+): ItemSnapshot<Result, Row, Draft>;
+export function useQuery<Args, Result, Row extends ItemRow, Draft>(
   ref: Op<Args, Result>,
   args: NoInfer<Args>,
-  options: { live?: false; drain?: boolean } = {},
+  options: { live?: false; drain?: boolean; items?: Items<Args, Result, Row, Draft> } = {},
 ): Snapshot<Result> {
   const { client, snapshot } = provider();
   const argsKey = stableSerialize(args);
@@ -161,8 +169,8 @@ export function useQuery<Args, Result>(
   const operation = referenceName(ref);
   const restoring = !!snapshot.token && snapshot.auth.state === "hydrating";
   const observed = useMemo(
-    () => client.observe(ref, stableArgs, live ? { drain: options.drain } : { live: false }),
-    [client, snapshot.authGeneration, operation, argsKey, live, options.drain, restoring],
+    () => client.observe(ref, stableArgs, { ...options }),
+    [client, snapshot.authGeneration, operation, argsKey, live, options.drain, options.items, restoring],
   );
   const state = useSyncExternalStore(observed.subscribe, observed.getSnapshot, observed.getSnapshot);
   return state;
@@ -200,32 +208,15 @@ export interface UseOutboxResult {
 // @ref LLP 1012#7-writes-offline — the outbox opens before the first request,
 // so a queued message is on screen at cold start before the network is tried.
 // @ref LLP 1018.003#4-pending-rows-attribution-settlement-and-failure — the runtime
-// records `entry.arrived` when a delivered row carries a committed intent's pinned id,
-// but neither it nor these hooks dismiss: the outbox notification precedes the
-// subscription delivery that puts the row on screen, so only the screen that renders
-// the row can retire the intent without a remount. `entries` is delivered as is.
+// exposes terminal history until explicit dismissal. Query items independently
+// resolve their indicators from the displayed target's observation evidence.
 function useOutboxState(op?: Op<any, any>): UseOutboxResult {
   const { client, snapshot } = provider();
   const operation = op === undefined ? undefined : referenceName(op);
   const identity = useMemo(() => ({}), [client, snapshot.authGeneration, operation]);
-  const initial: OutboxStatus = { ready: false, reason: "grant-missing", action: "resume", remaining: 0, fence: "inside" };
-  const [state, setState] = useState<{ identity?: object; entries: OutboxEntry[]; status: OutboxStatus }>({ entries: [], status: initial });
-  useEffect(() => {
-    let active = true;
-    let probe = 0;
-    const unsubscribe = client.outbox.subscribe((entries) => {
-      const current = ++probe;
-      const publish = (status: OutboxStatus) => {
-        if (active && current === probe) setState({ identity, entries, status });
-      };
-      void client.outbox.status(op).then(publish, () => publish({ ...initial, reason: "sealed", action: "login", fence: "past" }));
-    });
-    return () => { active = false; unsubscribe(); };
-  }, [identity]);
+  const observed = useMemo(() => client.outbox.observe(op), [identity]);
+  const { entries, status } = useSyncExternalStore(observed.subscribe, observed.getSnapshot, observed.getSnapshot);
   const dismiss = useCallback((intent: string) => client.outbox.dismiss(intent), [client]);
-  const mine = state.identity === identity;
-  const entries = mine ? state.entries : [];
-  const status = mine ? state.status : initial;
   const queued = useMemo(
     () => entries.filter((entry) => entry.state === "queued" && (operation === undefined || entry.op === operation)).length,
     [entries, operation],

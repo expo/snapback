@@ -34,6 +34,8 @@ import {
 } from "./store/range-store.js";
 import { ByteCache } from "./store/byte-cache.js";
 import { Twin, readsConnected, type LocalAnswer, type Prediction } from "./twin.js";
+import { carryItemInputs, emptyItemInputs, itemInputs, withItemInputs } from "./query-frame.js";
+import { deliveredItemInputs } from "./query-items.js";
 import type { DrainContract, Manifest, OfflineClientOptions, OutboxSettlement, RefusalEnvelope } from "./types.js";
 
 /**
@@ -234,6 +236,15 @@ export class OfflineRuntime {
   }
 
   get principal(): string | undefined { return this.partition; }
+
+  /** Bind a returned owner image to its own receipt after admission into this account. */
+  async withQueryItems<T extends object>(accepted: AcceptedDelivery<unknown>, value: T): Promise<T> {
+    const entries = this.partition === undefined ? [] : await this.outbox.entries();
+    if (accepted.envelope) return withItemInputs(value, deliveredItemInputs(accepted.envelope, (value as { data?: unknown }).data, entries));
+    // Unchanged carries the held answer's image evidence. A local refresh can
+    // subsequently use the newly ordered durable observation of that image.
+    return withItemInputs(value, { ...(itemInputs(accepted.result) ?? emptyItemInputs), entries });
+  }
   get authEpoch(): number | undefined { return this.sessionEpoch ?? this.facts?.authEpoch; }
   get partitionIncarnation(): string | undefined { return this.forwardingIncarnation; }
   get coordinationScope(): string | undefined { return this.store.coordinationScope; }
@@ -554,7 +565,7 @@ export class OfflineRuntime {
         ...(held.rule === undefined ? {} : { rule: held.rule }),
       } as AcceptedDelivery<Result>["result"];
       return {
-        result,
+        result: carryItemInputs(held, result),
         refresh: { op, args, seq: raw.seq as number, validator: raw.validator, deliveredAt: Date.now() },
         ...(full ? { revalidate: full } : {}),
       };
@@ -993,14 +1004,14 @@ export function offlineView<Result>(held: HeldAnswer<Result> | undefined, local?
       deliveredAt, data, next,
       ...answer
     } = held;
-    return {
+    return carryItemInputs(held, {
       ...answer,
       ...(held.state !== 'denied' && data !== undefined ? { data } : {}),
       ...(exactHeld && next !== undefined ? { next } : {}),
       live: false,
       connection: "offline",
       stale: { since: deliveredAt },
-    };
+    });
   }
   const { since, ...answer } = local;
   const facts = held === undefined ? {} : {
@@ -1008,11 +1019,11 @@ export function offlineView<Result>(held: HeldAnswer<Result> | undefined, local?
     ...(held.caughtUp === undefined ? {} : { caughtUp: held.caughtUp }),
     ...(held.watermark === undefined ? {} : { watermark: held.watermark }),
   };
-  return {
+  return carryItemInputs(local, {
     ...answer,
     ...facts,
     live: false,
     connection: "offline",
     stale: { since: held?.deliveredAt ?? since ?? Date.now() },
-  };
+  });
 }

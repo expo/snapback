@@ -1,10 +1,10 @@
-import { useEffect, useMemo, useRef, useState, useSyncExternalStore, useCallback } from "react";
-import { api, intentLabel, isSnapbackRefusal, type Api } from "snapback2/client";
+import { useMemo, useRef, useState, useSyncExternalStore, useCallback } from "react";
+import { api, isSnapbackRefusal, type Api } from "snapback2/client";
 import { AssetImage, useMutation, useOutbox, useQuery, useSnapbackClient, useSnapbackSnapshot } from "snapback2/react";
 import { Composer } from "./Composer";
+import { conversationItems, threadItems } from "../shared/thread";
 import { useAccountRecoveryCustody, type MessageChangeUncertainty, type RecoveryCustody, type SendUncertainty } from "../shared/recovery";
 
-type Args = { conversationId?: string; messageId?: string; body?: string };
 type ResultOf<T> = T extends { readonly __result?: infer Result } ? NonNullable<Result> : never;
 type ConversationView = ResultOf<Api["deliveries"]["conversationView"]>;
 type LogRow = ConversationView["messages"][number];
@@ -26,7 +26,7 @@ export function authorizedHistoryRows(result: { data?: unknown; status: string }
 function usePartialHistory(conversationId: string, active: boolean) {
   const client = useSnapbackClient();
   const generation = useSnapbackSnapshot().authGeneration;
-  const observed = useMemo(() => client.observe(api.deliveries.thread, { conversationId, c: null }), [client, generation, conversationId]);
+  const observed = useMemo(() => client.observe(api.deliveries.thread, { conversationId, c: null }, { items: threadItems }), [client, generation, conversationId]);
   const subscribe = useCallback((notify: () => void) => active ? observed.subscribe(notify) : () => undefined, [active, observed]);
   return useSyncExternalStore(subscribe, observed.getSnapshot, observed.getSnapshot);
 }
@@ -34,8 +34,8 @@ function usePartialHistory(conversationId: string, active: boolean) {
 // @ref LLP 1018.000#4-one-observed-query-one-coherent-snapshot — the list,
 // count, and preview come from one named composite; partial custody falls back
 // to the independently authorized paginated thread without inventing a count.
-// @ref LLP 1018.003#5-the-certified-thread-projection — both pages contain
-// message events only, so the screen filters null nested rows and reverses once.
+// @ref LLP 1018.003#8-declare-correspondence-once-keep-mechanics-in-the-sdk —
+// items already carry their own work and prediction provenance.
 export function Thread({ conversationId, viewer, onNote, sendCustody, changeCustody: ownedChangeCustody }: {
   conversationId: string;
   viewer: string | undefined;
@@ -43,12 +43,12 @@ export function Thread({ conversationId, viewer, onNote, sendCustody, changeCust
   sendCustody?: RecoveryCustody<SendUncertainty>;
   changeCustody?: RecoveryCustody<MessageChangeUncertainty>;
 }) {
-  const snapshot = useQuery(api.deliveries.conversationView, { conversationId });
+  const snapshot = useQuery(api.deliveries.conversationView, { conversationId }, { items: conversationItems });
   const [opened, setOpened] = useState<string[]>([]);
   const composite = usableConversationView(snapshot);
   const usingHistory = !composite && snapshot.status === "ready";
   const history = usePartialHistory(conversationId, usingHistory);
-  const { entries, dismiss } = useOutbox();
+  const { dismiss } = useOutbox();
   const edit = useMutation(api.deliveries.edit);
   const unsend = useMutation(api.deliveries.unsend);
   const client = useSnapbackClient();
@@ -63,21 +63,7 @@ export function Thread({ conversationId, viewer, onNote, sendCustody, changeCust
   const current = (captured: typeof visit) => activeVisit.current === captured
     && captured.client.snapshot.authGeneration === captured.generation;
   const sameAccount = (captured: typeof visit) => captured.client.snapshot.authGeneration === captured.generation;
-  const sourceRows = composite?.messages ?? (usingHistory ? authorizedHistoryRows(history) : []);
-  const rows = sourceRows.flatMap((row) => row.message ? [{ ...row, message: row.message }] : []).reverse();
-  const postFor = (messageId: string) => entries.find((entry) => entry.op === "deliveries.post" && entry.ids[0] === messageId);
-  const editFor = (messageId: string) => entries.find((entry) => entry.op === "deliveries.edit" && (entry.args as Args).messageId === messageId);
-  const unsendFor = (messageId: string) => entries.find((entry) => entry.op === "deliveries.unsend" && (entry.args as Args).messageId === messageId);
-  const unplaced = entries.filter((entry) => entry.op === "deliveries.post"
-    && (entry.args as Args).conversationId === conversationId && !rows.some((row) => row.messageId === entry.ids[0]));
-  const items = [...rows.map((row) => ({ key: row.messageId, row })), ...unplaced.map((entry) => ({ key: entry.ids[0] ?? entry.intent, entry }))];
-
-  // @ref LLP 1018.003#4-pending-rows-attribution-settlement-and-failure —
-  // arrival plus the rendered pinned id retires presentation, never arrival alone.
-  useEffect(() => {
-    for (const entry of entries) if (entry.state === "committed" && entry.arrived
-      && rows.some((row) => row.messageId === entry.ids[0])) void dismiss(entry.intent);
-  }, [entries, rows, dismiss]);
+  const items = composite ? snapshot.items : usingHistory && history.status === "ready" ? history.items : snapshot.items.filter(item => !item.data);
 
   const onEdit = async (messageId: string, body: string) => {
     if (busy || unknown) return;
@@ -162,23 +148,20 @@ export function Thread({ conversationId, viewer, onNote, sendCustody, changeCust
       </p> : null}
       <ol className="bubbles" data-view-state={state} data-view-seq={seq} data-view-source={usingHistory ? "partial-history" : "composite"}>
         {items.map((item) => {
-          if (!("row" in item)) return <li key={item.key} data-message={item.key} data-state={item.entry.state} className="bubble pending">
-            <p>{(item.entry.args as Args).body ?? ""}</p><small>{intentLabel(item.entry)}</small>
-            {item.entry.state !== "queued" ? <button type="button" onClick={() => { void dismiss(item.entry.intent); }}>Dismiss</button> : null}
-          </li>;
-          const { messageId, message, at } = item.row;
-          const post = postFor(messageId), pendingEdit = editFor(messageId), pendingUnsend = unsendFor(messageId), own = message.authorId === viewer;
-          return <li key={messageId} data-message={messageId} data-state={post?.state ?? "row"} className={own ? "bubble own" : "bubble"}>
-            <p>{message.body || (message.photo ? "[photo]" : message.clip ? "[clip]" : "")}</p>
-            {message.oncePhoto ? opened.includes(messageId)
+          const message = item.data, messageId = item.key;
+          const post = item.pending.find(action => action.kind === "create"), own = message?.authorId === viewer;
+          return <li key={messageId} data-message={messageId} data-state={post?.state ?? "row"} className={!message ? "bubble pending" : own ? "bubble own" : "bubble"}>
+            <p>{message?.body || item.draft?.body || (message?.photo ? "[photo]" : message?.clip ? "[clip]" : "")}</p>
+            {message?.oncePhoto ? opened.includes(messageId)
               ? <AssetImage asset={message.oncePhoto} width={240} />
               : <button type="button" onClick={() => setOpened((ids) => [...ids, messageId])}>View photo once</button> : null}
-            {post ? <small>{intentLabel(post)}</small> : <time dateTime={new Date(at).toISOString()}>{when(at)}</time>}
-            {pendingEdit ? <small data-edit={pendingEdit.state}>{`Edit ${intentLabel(pendingEdit).toLowerCase()}`}
-              {pendingEdit.state !== "queued" ? <button type="button" onClick={() => { void dismiss(pendingEdit.intent); }}>Dismiss</button> : null}</small> : null}
-            {pendingUnsend ? <small data-unsend={pendingUnsend.state}>{`Unsend ${intentLabel(pendingUnsend).toLowerCase()}`}
-              {pendingUnsend.state !== "queued" ? <button type="button" onClick={() => { void dismiss(pendingUnsend.intent); }}>Dismiss</button> : null}</small> : null}
-            {own && message.body && !post ? <span className="actions">
+            {message && !post && !item.predicted ? <time dateTime={new Date(message.at).toISOString()}>{when(message.at)}</time> : null}
+            {item.pending.map(action => <small key={action.intent}
+              data-edit={action.kind === "update" ? action.state : undefined} data-unsend={action.kind === "remove" ? action.state : undefined}>
+              {action.kind === "create" ? action.label : `${action.kind === "update" ? "Edit" : "Unsend"} ${action.label.toLowerCase()}`}
+              {action.dismissible ? <button type="button" onClick={() => { void dismiss(action.intent); }}>Dismiss</button> : null}
+            </small>)}
+            {own && message?.body && !post ? <span className="actions">
               <button type="button" disabled={busy || !!unknown} onClick={() => { void onEdit(messageId, message.body!); }}>Edit</button>
               <button type="button" disabled={busy || !!unknown} onClick={() => { void onUnsend(messageId); }}>Unsend</button>
             </span> : null}
