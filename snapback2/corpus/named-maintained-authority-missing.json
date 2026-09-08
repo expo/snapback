@@ -194,23 +194,25 @@
     "constraint_checks": [
       "counts:Unique(byGroup)",
       "counts:Unique(byId)",
+      "counts:public-count-absence",
       "events:Unique(byId)"
     ],
     "max_examined": 1,
     "max_index_entries": 1,
     "max_rule_probes": 0,
-    "max_steps": 15,
+    "max_steps": 19,
     "derived_steps": 0,
     "derived_scratch_bytes": 3130,
-    "max_heap_bytes": 3610,
+    "max_heap_bytes": 3738,
     "max_output_bytes": 963,
-    "max_closure_bytes": 3130,
+    "max_closure_bytes": 6580,
     "completeness": "Page",
     "prediction_sites": [],
     "read_time_granularity_ms": null,
     "halo_rows": 1,
     "indexes_required": [
-      "counts.byGroup"
+      "counts.byGroup",
+      "counts.byId"
     ],
     "disclosures": [],
     "bound_product": "optionalMaintain.count point read on counts × 1 calls = 1"
