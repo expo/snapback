@@ -576,7 +576,12 @@ async function main() {
     const queued = await page.$eval("li[data-state=queued]", (node) => ({ id: node.getAttribute("data-message"), text: node.textContent }));
     if (!/Sending…/.test(queued.text ?? "") || /\d:\d\d/.test(queued.text ?? "")) throw new Error(`pending bubble text was ${queued.text}`);
     await page.waitForSelector(`section[aria-label=Search] li[data-message="${queued.id}"]`, { timeout: 10_000 });
-    await page.waitForFunction(() => document.querySelector("section[aria-label=Search] .scope")?.getAttribute("data-state") === "held", null, { timeout: 10_000 });
+    await page.waitForFunction(() => {
+      const scope = document.querySelector("section[aria-label=Search] .scope");
+      return ["complete", "capped"].includes(scope?.getAttribute("data-state") ?? "")
+        && scope?.getAttribute("data-reason") === "predicted"
+        && /server has not confirmed/.test(scope.textContent ?? "");
+    }, null, { timeout: 10_000 });
     step("the mounted indexed search publishes the offline prediction; partial history hides composite count and preview", {
       queued, partialHistory,
     });

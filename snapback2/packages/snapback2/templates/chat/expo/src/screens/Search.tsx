@@ -13,6 +13,7 @@ function Results({ term, onOpen }: { term: string; onOpen(conversationId: string
     : result.receipt?.outcome === "capped" ? (next ? "Indexed result limit reached · more available" : "Indexed result limit reached")
     : result.status === "unavailable" ? (result.reason?.message ?? "Search unavailable")
     : result.reason?.code === "stale" ? "Showing stale indexed results"
+    : result.reason?.code === "predicted" ? result.reason.message
     : result.freshness.live ? "Live indexed results" : "Indexed results";
   return <View><Text testID="search-state">{status}</Text>{hits.map((row) =>
     <Pressable key={row.id} testID={`search-${row.id}`} onPress={() => onOpen(row.conversationId)}><Text>{row.body}</Text></Pressable>)}</View>;
