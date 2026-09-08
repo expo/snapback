@@ -355,7 +355,7 @@ test('a receipt-owned primary absence admits only a later predicted overlay imag
 
 test('primary absence admission survives answer custody changes but not later row authority', async () => {
   const { nativeR8: { movement } } = JSON.parse(await readFile(new URL('../../evaluator/src/test-search-v5-fixtures.json', import.meta.url), 'utf8'));
-  const setup = async () => {
+  const setup = async (issuedSeq = 0) => {
     let saved: any;
     const factory = () => new PersistentRangeStore({carrier:'memory',open:async()=>saved,replace:async state=>{saved=structuredClone(state);},close(){},wipe:async()=>{}});
     let runtime = new OfflineRuntime({store:factory});
@@ -363,7 +363,7 @@ test('primary absence admission survives answer custody changes but not later ro
     const absent = structuredClone(movement.hole);
     absent.receipt.absences = [['events','byId',['one']]];
     await runtime.commit('clock.bounded',{},await runtime.accept('clock.bounded',{},absent));
-    await runtime.store.commit({outbox:{put:[{...entry('predicted'),predicted:true,issuedSeq:0}]},
+    await runtime.store.commit({outbox:{put:[{...entry('predicted'),predicted:true,issuedSeq}]},
       overlay:{put:{predicted:[{table:'events',id:'one',row:{id:'one',at:9}}]}}});
     const rows = async () => (await runtime.twin.evaluate('clock.read',{}) as any)?.data?.rows ?? [];
     assert.deepEqual((await rows()).map((row:any)=>row.at),[9]);
@@ -415,15 +415,68 @@ test('primary absence admission survives answer custody changes but not later ro
     await state.runtime().close();
   }
   {
-    const state = await setup();
+    const state = await setup(10);
     const newer = structuredClone(movement.moved);
     newer.seq = 3; newer.readTime += 1;
     await state.runtime().commit('clock.read',{},await state.runtime().accept('clock.read',{},newer));
     assert.deepEqual((await state.rows()).map((row:any)=>row.at),[5],
-      'an old absence cannot let an older prediction overwrite a newer authoritative row');
-    await state.reopen(); assert.deepEqual((await state.rows()).map((row:any)=>row.at),[5],
-      'positive authority removes stale raw absence custody before a cold rebuild');
+      'an unrelated newer global counter cannot let a creation overwrite later row authority');
+    await state.runtime().store.commit({dropAnswers:['clock.read\0{}']});
+    assert.deepEqual(await state.rows(),[],
+      'positive authority remains a durable contradiction after its body owner is collected');
+    await state.reopen(); assert.deepEqual(await state.rows(),[],
+      'positive authority prevents stale creation resurrection after body GC and a cold rebuild');
     await state.runtime().close();
+  }
+  {
+    const state = await setup(10);
+    const laterAbsence = structuredClone(movement.hole);
+    laterAbsence.seq = 3; laterAbsence.readTime += 1;
+    laterAbsence.receipt.absences = [['events','byId',['one']]];
+    await state.runtime().commit('clock.bounded',{},await state.runtime().accept('clock.bounded',{},laterAbsence));
+    assert.deepEqual(await state.rows(),[],'a later absence contradicts rather than renews the admission proof');
+    await state.reopen(); assert.deepEqual(await state.rows(),[],'the later absence remains dominant cold');
+    await state.runtime().close();
+  }
+  for (const issuedSeq of [0,10]) for (const style of ['field','full'] as const) for (const revocation of ['absence','tombstone'] as const) {
+    let saved: any;
+    const factory = () => new PersistentRangeStore({carrier:'memory',open:async()=>saved,replace:async state=>{saved=structuredClone(state);},close(){},wipe:async()=>{}});
+    let runtime = new OfflineRuntime({store:factory});
+    await runtime.open(movement.first.authority.principal,true); await runtime.program(movement.packet);
+    const absent = structuredClone(movement.hole); absent.receipt.absences = [['events','byId',['one']]];
+    await runtime.commit('clock.bounded',{},await runtime.accept('clock.bounded',{},absent));
+    const base = structuredClone(movement.moved); base.seq = 3; base.readTime += 1;
+    await runtime.commit('clock.read',{},await runtime.accept('clock.read',{},base));
+    const intent = `update-${style}-${revocation}-${issuedSeq}`;
+    await runtime.store.commit({outbox:{put:[{...entry(intent),predicted:true,issuedSeq}]},overlay:{put:{[intent]:[{
+      table:'events',id:'one',row:{id:'one',at:9},...(style === 'field' ? {fields:['at']} : {}),
+    }]}}});
+    const rows = async () => (await runtime.twin.evaluate('clock.read',{}) as any)?.data?.rows ?? [];
+    assert.deepEqual((await rows()).map((row:any)=>row.at),[9],`a held-row ${style} update ignores unrelated global seq ${issuedSeq}`);
+    await runtime.close(); runtime = new OfflineRuntime({store:factory}); await runtime.open(movement.first.authority.principal,true);
+    assert.deepEqual((await rows()).map((row:any)=>row.at),[9],`the held-row ${style} admission survives cold seq ${issuedSeq}`);
+    const replacement = structuredClone(movement.moved); replacement.seq = 4; replacement.readTime += 2;
+    await runtime.commit('clock.read',{},await runtime.accept('clock.read',{},replacement));
+    assert.deepEqual((await rows()).map((row:any)=>row.at),[9],
+      `the queued ${style} assignment replays over a newer positive base`);
+    if (revocation === 'tombstone') await runtime.store.commit({tombstones:[{table:'events',id:'one',seq:5}]});
+    else {
+      const absentAgain = structuredClone(movement.hole); absentAgain.seq = 5; absentAgain.readTime += 3;
+      absentAgain.receipt.absences = [['events','byId',['one']]];
+      await runtime.commit('clock.bounded',{},await runtime.accept('clock.bounded',{},absentAgain));
+    }
+    assert.deepEqual(await rows(),[],`a later ${revocation} revokes the admitted ${style} update`);
+    assert.equal(saved.overlayNegatives[intent]?.['events\0one']?.contradictedAt,5,
+      `the ${revocation} contradiction remains attached to the admitted ${style} update`);
+    const restored = structuredClone(movement.moved); restored.seq = 6; restored.readTime += 4;
+    await runtime.commit('clock.read',{},await runtime.accept('clock.read',{},restored));
+    assert.equal(saved.overlayNegatives[intent]?.['events\0one']?.contradictedAt,5,
+      `later positive authority preserves the ${revocation} contradiction`);
+    assert.deepEqual((await rows()).map((row:any)=>row.at),[5],
+      `a later positive base does not revive the ${revocation}-revoked ${style} update`);
+    await runtime.close(); runtime = new OfflineRuntime({store:factory}); await runtime.open(movement.first.authority.principal,true);
+    assert.deepEqual((await rows()).map((row:any)=>row.at),[5],`the ${style} revocation remains dominant cold`);
+    await runtime.close();
   }
 });
 

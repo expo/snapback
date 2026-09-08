@@ -26,7 +26,7 @@ import {
   type ByteSwapRequest,
   type ViewedRecord,
 } from "./byte-cache.js";
-import { admitOverlayAbsences, pagePosition, retireOverlays, type OverlayWatermark } from "./overlay-retirement.js";
+import { admitOverlayAuthority, pagePosition, retireOverlays, type OverlayWatermark } from "./overlay-retirement.js";
 import { canonical } from "./canonical.js";
 import { sha256 } from "../../../evaluator/src/hash.js";
 import { compareArrays, totalCompare } from "../../../evaluator/src/value-runtime.js";
@@ -381,8 +381,8 @@ export interface PersistedRangeState extends ForwardingState {
   overlayMisses: Record<string, number>;
   /** The commit-time tail snapshot; null after reset until the next drain establishes a new head. */
   overlayWatermarks: Record<string, OverlayWatermark | null>;
-  /** Coverage-scoped primary absences and tombstones for each prediction's ids; cleared on reset. */
-  overlayNegatives: Record<string, Record<string, { seq: number; source: "absence" | "tombstone"; admitted?: true }>>;
+  /** Coverage-scoped admission/contradiction evidence for each prediction's ids; cleared on reset. */
+  overlayNegatives: Record<string, Record<string, { seq: number; source: "absence" | "tombstone" | "row"; admitted?: true; basis?: "absence" | "row"; admittedSeq?: number; contradictedAt?: number }>>;
   bounds: Record<string, number>;
   programs: Record<string, HeldProgram>;
   facts?: CoverageFacts;
@@ -808,7 +808,6 @@ export class PersistentRangeStore implements RangeStore {
         try { listener(); } catch { /* store durability cannot depend on an observer */ }
       }
 
-
     });
   }
 
@@ -920,7 +919,7 @@ export class PersistentRangeStore implements RangeStore {
     const schema = swap.schema ?? (swap.programs && Object.values(swap.programs)[0]?.schema);
     if (schema) { const columns = onceColumns(schema); if (canonical(columns) !== canonical(state.onceColumns)) state.onceColumns = columns; }
     const clockOnly = new Set<string>();
-    const authoritativeNegatives = changesCoverage(swap) ? this.applyCoverage(state, swap, bytes, clockOnly) : new Map<string, { seq: number; source: "absence" | "tombstone" }>();
+    const authoritativeEvidence = changesCoverage(swap) ? this.applyCoverage(state, swap, bytes, clockOnly) : new Map<string, { seq: number; source: "absence" | "tombstone" | "row" }>();
     if (swap.facts && canonical(state.facts) !== canonical(swap.facts)) state.facts = clone(swap.facts);
     if (swap.superseded === null) delete state.superseded;
     else if (swap.superseded) state.superseded = clone(swap.superseded);
@@ -977,12 +976,12 @@ export class PersistentRangeStore implements RangeStore {
       delete state.overlayMisses[intent];
       delete state.overlayWatermarks[intent];
       delete state.overlayNegatives[intent];
-      admitOverlayAbsences(state, intent, rows, key => {
+      admitOverlayAuthority(state, intent, rows, key => {
         const index = this.referenceIndex ??= new CarrierIndex(state, this.referenceSchema);
         return index.absences.get(key) ?? [];
       });
     }
-    retireOverlays(state, swap, authoritativeNegatives, clockOnly, previousTail, tail, committedNow, canonicalAnswerKey, clone);
+    retireOverlays(state, swap, authoritativeEvidence, clockOnly, previousTail, tail, committedNow, canonicalAnswerKey, clone);
     return state;
   }
 
@@ -1045,11 +1044,11 @@ export class PersistentRangeStore implements RangeStore {
     };
     // Keep provenance distinct from hidden-row and extent evictions. These facts
     // join each matching overlay below, even while its response is still queued.
-    const authoritativeNegatives = new Map<string, { seq: number; source: "absence" | "tombstone" }>();
+    const authoritativeEvidence = new Map<string, { seq: number; source: "absence" | "tombstone" | "row" }>();
     const recordNegative = (ref: StoreTombstone, source: "absence" | "tombstone") => {
       const key = rowKey(ref);
-      if ((authoritativeNegatives.get(key)?.seq ?? -1) <= ref.seq) {
-        authoritativeNegatives.set(key, { seq: ref.seq, source });
+      if ((authoritativeEvidence.get(key)?.seq ?? -1) <= ref.seq) {
+        authoritativeEvidence.set(key, { seq: ref.seq, source });
       }
       recordEviction(explicitEvictions, ref);
     };
@@ -1202,6 +1201,7 @@ export class PersistentRangeStore implements RangeStore {
         if (state.extentNegative[storageKey]) state.extentNegative[storageKey].active = false;
         state.rows[storageKey] = RowImage.is(row.row) ? { ...row } : clone(row);
         state.rowSeq[storageKey] = delivery.seq;
+        if ((authoritativeEvidence.get(storageKey)?.seq ?? -1) < delivery.seq) authoritativeEvidence.set(storageKey, { seq: delivery.seq, source: "row" });
       }
       let data = clone(delivery.data);
       let answerState = delivery.state;
@@ -1472,7 +1472,7 @@ export class PersistentRangeStore implements RangeStore {
     integrity.finish(before);
     for (const key of changedAnswers) state.factSlots += proofSlots(state.answers[key]) - proofSlots(before.get(key));
     checkFactSlots(state);
-    return authoritativeNegatives;
+    return authoritativeEvidence;
   }
 
   private ensureOpen(): void {

@@ -79,20 +79,26 @@ export function advanceOverlay(mark: OverlayWatermark, tail: WatermarkRecord | u
 /** Two post-commit resumes or proven tail advances retire a stranded prediction. */
 const OVERLAY_PATIENCE = 2;
 
-/** Bind an exact held absence to the intent that was admitted against it. */
-export function admitOverlayAbsences(state: PersistedRangeState, intent: string, rows: OverlayRow[],
+/** Bind the exact row or absence authority against which this intent was admitted. */
+export function admitOverlayAuthority(state: PersistedRangeState, intent: string, rows: OverlayRow[],
   owners: (key: string) => Iterable<string>): void {
   const entry = state.outbox[intent];
   if (entry?.predicted !== true) return;
   for (const row of rows) {
-    if (row.removed || row.fields) continue;
     const key = rowKey(row), seq = state.negative[key];
-    if (seq === undefined) continue;
+    const rowSeq = state.rows[key] && state.rowSeq[key];
+    if (rowSeq !== undefined && rowSeq > (seq ?? -1)) {
+      (state.overlayNegatives[intent] ??= {})[key] = {
+        seq: rowSeq, source: "row", admitted: true, basis: "row", admittedSeq: rowSeq,
+      };
+      continue;
+    }
+    if (row.removed || row.fields || seq === undefined) continue;
     const heldBeforeAdmission = [...owners(key)].some(owner => {
       const answer = state.answers[owner]; return answer?.seq === seq && answer.order < entry.order!;
     });
     if (heldBeforeAdmission) (state.overlayNegatives[intent] ??= {})[key] = {
-      seq, source: "absence", admitted: true,
+      seq, source: "absence", admitted: true, basis: "absence", admittedSeq: seq,
     };
   }
 }
@@ -101,7 +107,7 @@ export function admitOverlayAbsences(state: PersistedRangeState, intent: string,
 export function retireOverlays(
   state: PersistedRangeState,
   swap: StoreSwap,
-  authoritativeNegatives: Map<string, { seq: number; source: "absence" | "tombstone" }>,
+  authoritativeEvidence: Map<string, { seq: number; source: "absence" | "tombstone" | "row" }>,
   clockOnly: Set<string>,
   previousTail: WatermarkRecord | undefined,
   tail: WatermarkRecord | undefined,
@@ -130,11 +136,20 @@ export function retireOverlays(
       delete state.overlayNegatives[intent]; if (entry) delete entry.predicted; continue;
     }
     for (const row of state.overlay[intent]!) {
-      const key = rowKey(row), evidence = authoritativeNegatives.get(key);
+      const key = rowKey(row), evidence = authoritativeEvidence.get(key);
       const previous = state.overlayNegatives[intent]?.[key];
       if (evidence !== undefined && (evidence.seq > (previous?.seq ?? -1)
         || (evidence.seq === previous?.seq && evidence.source === "tombstone"))) {
-        (state.overlayNegatives[intent] ??= {})[key] = evidence;
+        const basis = previous?.basis ?? (previous?.admitted ? "absence" : undefined);
+        const admittedSeq = previous?.admittedSeq ?? previous?.seq;
+        const contradicts = admittedSeq !== undefined && (basis === "absence"
+          ? evidence.source !== "absence" || evidence.seq > admittedSeq
+          : basis === "row" && evidence.source !== "row" && evidence.seq >= admittedSeq);
+        (state.overlayNegatives[intent] ??= {})[key] = {
+          ...evidence, ...(previous?.admitted ? { admitted: true, basis, admittedSeq,
+            ...((previous.contradictedAt !== undefined || contradicts)
+              ? { contradictedAt: Math.max(previous.contradictedAt ?? -1, contradicts ? evidence.seq : -1) } : {}) } : {}),
+        };
       }
     }
     if (entry.state !== "committed") continue;
@@ -162,7 +177,8 @@ export function retireOverlays(
     const confirmed = new Set<string>();
     for (const row of overlay) {
       const key = rowKey(row), evidence = state.overlayNegatives[intent]?.[key];
-      if (evidence !== undefined && evidence.seq >= seq && (state.rowSeq[key] ?? -1) <= evidence.seq) confirmed.add(key);
+      if (evidence !== undefined && evidence.seq >= seq && (state.rowSeq[key] ?? -1) <= evidence.seq
+        && (!row.removed || evidence.source !== "row")) confirmed.add(key);
     }
     for (const answer of answers) {
       if (answer.seq < seq || answer.retained || answer.state === "denied") continue;

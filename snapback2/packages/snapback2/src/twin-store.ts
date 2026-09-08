@@ -128,12 +128,11 @@ export class TwinStore {
     }
     this.intentRows.set(intent, keys); this.pendingEntries.set(intent, entry); this.pending.set(entry, intent);
   }
-  private provedPrimaryAbsence(key: string, seq: number, entry: OutboxEntry): boolean {
+  private primaryAdmission(key: string, entry: OutboxEntry) {
     // @ref LLP 1012#8-the-delivery-envelope-the-validator-and-resume — the
     // durable intent records that this exact absence preceded admission.
-    const proved = this.state.overlayNegatives[entry.intent]?.[key];
-    return entry.predicted === true && proved?.admitted === true
-      && proved.source === "absence" && proved.seq === seq;
+    const evidence = this.state.overlayNegatives[entry.intent]?.[key];
+    return entry.predicted === true && evidence?.admitted === true ? evidence : undefined;
   }
   private row(key: string): boolean {
     const { table, id } = ref(key), negative = this.state.negative[key];
@@ -151,8 +150,23 @@ export class TwinStore {
     for (const { entry, row } of contributions) {
       if (hole !== undefined && (masked || entry.issuedSeq <= hole.seq)) continue;
       const newerBase = base && (this.state.rowSeq[key] ?? -1) > (negative ?? -1);
-      const createsOverProof = negative !== undefined && !newerBase && this.provedPrimaryAbsence(key, negative, entry);
-      if (negative !== undefined && !createsOverProof
+      const admission = this.primaryAdmission(key, entry);
+      const basis = admission?.basis ?? (admission ? "absence" : undefined);
+      const admittedSeq = admission?.admittedSeq ?? admission?.seq;
+      const contradicted = admission !== undefined && admittedSeq !== undefined && (admission.contradictedAt !== undefined
+        || (basis === "absence" && (admission.source !== "absence" || admission.seq !== admittedSeq))
+        || (basis === "row" && admission.source !== "row" && admission.seq >= admittedSeq));
+      const createsOverProof = negative !== undefined && !newerBase
+        && !contradicted && basis === "absence" && admission?.source === "absence" && admission.seq === negative;
+      const updatesHeldRow = basis === "row" && admission?.source === "row"
+        && !contradicted && admittedSeq !== undefined && (negative === undefined || negative < admittedSeq);
+      if (admission) {
+        if (contradicted) continue;
+        if (basis === "absence") {
+          if (admittedSeq === undefined || (this.state.rowSeq[key] ?? -1) > admittedSeq) continue;
+        } else if (!updatesHeldRow) continue;
+      }
+      if (negative !== undefined && !createsOverProof && !updatesHeldRow
         && (!newerBase || entry.issuedSeq <= negative)) continue;
       if (row.removed) effective = undefined;
       else if (row.fields) {
