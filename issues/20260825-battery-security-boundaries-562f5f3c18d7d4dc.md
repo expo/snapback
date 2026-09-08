@@ -13,11 +13,11 @@
 **Battery gate:** `security-boundaries`
 **Failure signature:** `sha256:562f5f3c18d7d4dcffd6c1f37427807ec89ee628628a9734cf63d9e3a7b2998e`
 **First observed run:** `local.20260825T115521Z.64e70df1e088`
-**Last observed run:** `local.20260908T030804Z.a75c98406a26`
-**Last processed run:** `local.20260908T030804Z.a75c98406a26`
+**Last observed run:** `local.20260908T125200Z.e6c89816b6d2`
+**Last processed run:** `local.20260908T125200Z.e6c89816b6d2`
 **Detected at revision:** `64e70df1e088d492cde44c9693463a2d052bbd7a`
-**Last observed revision:** `a75c98406a2678df2b2247b61481fdea5aac470d`
-**Consecutive red runs:** `29`
+**Last observed revision:** `e6c89816b6d292a5310cf59cdc3a43003b37af29`
+**Consecutive red runs:** `30`
 **Escalation:** `AUTHOR_ESCALATION_REQUIRED`
 **Related:** LLP 0189 D-1, LLP 0175 D2.3
 

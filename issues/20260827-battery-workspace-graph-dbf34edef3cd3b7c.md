@@ -10,11 +10,11 @@
 **Battery gate:** `workspace-graph`
 **Failure signature:** `sha256:dbf34edef3cd3b7c2793726256cd13b7e6e9a1f1a98face41d54ecd317874d3f`
 **First observed run:** `local.20260827T191659Z.cf68cae13934`
-**Last observed run:** `local.20260908T030804Z.a75c98406a26`
-**Last processed run:** `local.20260908T030804Z.a75c98406a26`
+**Last observed run:** `local.20260908T125200Z.e6c89816b6d2`
+**Last processed run:** `local.20260908T125200Z.e6c89816b6d2`
 **Detected at revision:** `cf68cae139349e56a221efac827ac435fc09be73`
-**Last observed revision:** `a75c98406a2678df2b2247b61481fdea5aac470d`
-**Consecutive red runs:** `31`
+**Last observed revision:** `e6c89816b6d292a5310cf59cdc3a43003b37af29`
+**Consecutive red runs:** `32`
 **Escalation:** `AUTHOR_ESCALATION_REQUIRED`
 **Related:** LLP 0189 D-1, LLP 0175 D2.3
 

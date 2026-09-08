@@ -10,11 +10,11 @@
 **Battery gate:** `demo-materialization`
 **Failure signature:** `sha256:e0358e5e41c038fa89fcf0a54715f7731ff01a0c952f8ecaffcb18cd9b2bc6bb`
 **First observed run:** `local.20260824T075727Z.59ae1a00e1c4`
-**Last observed run:** `local.20260908T030804Z.a75c98406a26`
-**Last processed run:** `local.20260908T030804Z.a75c98406a26`
+**Last observed run:** `local.20260908T125200Z.e6c89816b6d2`
+**Last processed run:** `local.20260908T125200Z.e6c89816b6d2`
 **Detected at revision:** `59ae1a00e1c4cd2323b959586fcadb8395814686`
-**Last observed revision:** `a75c98406a2678df2b2247b61481fdea5aac470d`
-**Consecutive red runs:** `28`
+**Last observed revision:** `e6c89816b6d292a5310cf59cdc3a43003b37af29`
+**Consecutive red runs:** `29`
 **Escalation:** `AUTHOR_ESCALATION_REQUIRED`
 **Related:** LLP 0189 D-1, LLP 0175 D2.3
 
