@@ -182,7 +182,7 @@ export class ClientInbox {
   }
 
   /** A follower's write: a durable row before this resolves (LLP 1018.004 §2). */
-  mutation(op: string, args: unknown): Promise<MutationQueued> {
+  mutation(op: string, args: unknown, presentation?: string): Promise<MutationQueued> {
     const follower = this.follower, runtime = this.host.runtime;
     if (!follower || !runtime) return Promise.reject(followerRefusal("client.mutation.inbox"));
     if (!follower.established) {
@@ -198,7 +198,7 @@ export class ClientInbox {
       try {
         key = await runtime.insertInbox({ kind: "mutation", scope: follower.scope, principal: follower.principal,
           ...(follower.authEpoch === undefined ? {} : { authEpoch: follower.authEpoch }), followerId: follower.followerId,
-          op, args, state: "queued", ids: [], createdAt: now, updatedAt: now });
+          op, args, ...(presentation === undefined ? {} : { presentation }), state: "queued", ids: [], createdAt: now, updatedAt: now });
       } catch (error) {
         // Compared by name: the carrier may come from another bundle of the same source (`snapback2/react`).
         if (error instanceof InboxFull || (error instanceof Error && error.name === "InboxFull")) {

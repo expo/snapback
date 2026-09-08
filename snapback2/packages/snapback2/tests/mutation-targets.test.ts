@@ -17,7 +17,7 @@ import type { HeldProgram, OutboxEntry } from "../src/store/range-store.ts";
 
 const bundled = await build({ stdin: { contents: "export * from './src/mutation-targets.ts'; export { wireReplayResponse } from './src/client-outbox.ts';",
   resolveDir: new URL("..", import.meta.url).pathname, loader: "ts" }, bundle: true, write: false, format: "esm", platform: "node" });
-const { admittedMutationTargets, certifiedMutationTargets, wireReplayResponse } =
+const { admittedMutationTargets, wireReplayResponse } =
   await import(`data:text/javascript;base64,${Buffer.from(bundled.outputFiles[0]!.contents).toString("base64")}`);
 const identity = { planHash: "a".repeat(64), schemaHash: "b".repeat(64) };
 (globalThis as any).IS_REACT_ACT_ENVIRONMENT = true;
@@ -46,7 +46,14 @@ test("certified sources resolve without a prediction; ambiguous, missing, and ma
   assert.deepEqual(admittedMutationTargets(held, "messages.post", {}, ["first", "second"])?.rows, []);
   for (const source of [{ newId: -1 }, { newId: 1, argument: "messageId" }, { argument: "unknown" }]) {
     op.certificate.mutation_targets.targets[0] = { table: "messages", kind: "create", source };
-    assert.equal(certifiedMutationTargets(op), undefined);
+    assert.equal(admittedMutationTargets(held, "messages.post", { messageId: "existing" }, ["first", "second"]), undefined);
+  }
+  const exact = { table: "messages", kind: "create", source: { newId: 1 } };
+  for (const invalid of [exact, { table: "deliveries", kind: "create", source: { newId: -1 } },
+    { table: "deliveries", kind: "create", unresolved: "unknown" }]) {
+    op.certificate.mutation_targets.targets = [exact, invalid];
+    assert.equal(admittedMutationTargets(held, "messages.post", {}, ["audit", "message"]), undefined,
+      "a later invalid or duplicate descriptor refuses the entire relation, including earlier exact targets");
   }
 });
 

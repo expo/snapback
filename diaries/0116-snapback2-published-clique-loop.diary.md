@@ -1691,3 +1691,37 @@ message; a read-only exact-row storage check found it intact. Immediate
 pre/post migration equality is useful evidence, while complete later API
 visibility remains a separate obligation. These are concrete packet, app and
 query-composition lessons, not a new comparison score against Convex or Supabase.
+
+## 2026-09-08 — semantic mutation targets on the current client
+
+The readiness and target slices now fit the current durable inbox and
+`withHistory` client. A paused writer offers Sync now even after a successful
+read; an active replay offers wait. The follower keeps its own durable admission
+readiness and observes writer activity separately. That removes an application
+guess about whether a connected client is actually delivering its writes.
+
+The shared thread declaration now names `mutationTarget(op, "messages")` for
+post, edit and unsend. Composers and controls submit those same handles. The
+writer certifies and persists the address, so moving an unrelated insert does
+not require a screen edit. The concrete integration trap was that the preserved
+target commit changed the composers before the selected handle had operation
+identity and admission plumbing; those required pieces were in a later,
+otherwise out-of-scope compaction commit. The actual Composer and follower
+tests now assert the selected table reaches the durable entry. Imported Quarry
+`proc` writes retain the target facts of their inlined body.
+
+This reduces a specific kind of Snapback bookkeeping: the application names
+the domain row instead of knowing the allocator's slice order. Ambiguous,
+conditional and repeated writes still keep intent-only presentation. No new
+Exact or Contract usage, native-device qualification, or competitor benchmark
+was part of this integration. The existing React/Expo threads are 96/48 lines
+and their shared declaration is 37; those are scoped counts, not a whole-app
+deletion claim.
+
+The affected Rust, compiler, generated consumers and 76 SDK cases pass. The
+real Composer passes. A successor SDK case initially timed out while native
+init was still running, then passed alone at the unchanged 10-second deadline.
+The fixed runtime measures 84,142 gzip bytes, 142 over the unchanged ceiling;
+the coordinating integration owns that remaining footprint work. Full-client
+exports measure 119,510 gzip bytes. Successful-history compaction and the
+separate presentation helper are outside this slice.

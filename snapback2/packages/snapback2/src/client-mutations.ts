@@ -5,6 +5,7 @@ import type { JsonRequestOptions } from "./client-wire.js";
 import { copyRefusal, followerRefusal, isSnapbackRefusal, isTerminalSession, SnapbackRefusal } from "./client-wire.js";
 import { withMutationUploads, type Authority, type UploadHost } from "./client-upload.js";
 import { referenceName, type Op } from "./api.js";
+import { mutationPresentation } from "./mutation-targets.js";
 import type { OfflineRuntime } from "./offline.js";
 import type { AssetInput, ClientSnapshot, Manifest, MutationResult, RefusalEnvelope } from "./types.js";
 
@@ -29,20 +30,20 @@ export interface MutationClient extends UploadHost {
 export async function performMutation<Args, Result>(
   host: MutationClient, ref: Op<Args, Result>, args: AssetInput<Args>,
 ): Promise<MutationResult<Result>> {
+  const op = referenceName(ref), presentation = mutationPresentation(ref);
   const authority = await host.operationAuthority();
-  const op = referenceName(ref);
   // @ref LLP 1018.004#2-the-inbox — a follower's write is a durable inbox row
   // before this resolves; there is no forwarded command and no unknown outcome.
   if (host.offlineRuntime?.following) {
     if (mayNeedAssetPlanning(args)) throw followerRefusal("client.mutation.upload");
-    return host.trackWrite(() => host.inbox.mutation(op, args), true);
+    return host.trackWrite(() => host.inbox.mutation(op, args, presentation), true);
   }
   return host.trackWrite(async () => {
     try {
       const result = await withMutationUploads(host, op, args, authority,
         () => host.manifestFor(authority), async (mutationArgs, onCustody) => {
           const result = await submitMutation<Result>({
-            runtime: host.offlineRuntime, offline: host.forcedOffline, op, args: mutationArgs,
+            runtime: host.offlineRuntime, offline: host.forcedOffline, op, args: mutationArgs, presentation,
             json: (path, init, onSend) => host.json(path, init, authority, { terminalSession: "after-cleanup", onSend }),
             failure: error => host.offlineRefusal(error), drain: () => host.drainNow(authority), onCustody,
             admitInbox: () => host.inbox.admit(),

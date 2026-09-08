@@ -38,8 +38,6 @@ import { prepareWireRow, preparedDeliveryRows, tagWireValue, type TaggedValue } 
 import { asRowRef, collectRefs, mapRowValues, purgeAnswerData, restoreRetained, rowKey, hiddenRefs } from "./row-values.js";
 import type { InboxConnection, InboxDelta, InboxRow } from "./inbox.js";
 import { MaintainedTransitions } from "./maintained-coherence.js";
-
-
 export type PrincipalPartition = string;
 export type RetentionPolicy = "until-revoked" | "delivered-history";
 
@@ -210,6 +208,7 @@ export interface OutboxEntry {
   issuedSeq: number;
   state: OutboxState;
   response?: unknown;
+  presentation?: string; // The submitter's table choice, fixed with admission.
   predicted?: boolean;
   /** A pinned or confirmed authoritative row arrived; dismiss only after rendering it. */
   arrived?: true;

@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { api, isSnapbackRefusal } from "../dist/client.mjs";
+import { api, isSnapbackRefusal, mutationTarget } from "../dist/client.mjs";
 import { indexedDbRangeStore } from "../dist/react.mjs";
 import { inboxAlias, INBOX_LIMIT } from "../dist/client-observed-test.mjs";
 import { fixtureClient as createClient } from "./live-fixture.ts";
@@ -46,7 +46,8 @@ test("a follower's write is a durable inbox row before run() resolves; the write
   const follower = open();
   await follower.ready;
   await until(async () => (await follower.outbox.status()).reason === "forwarding", "the follower's inbox route");
-  const sent = await follower.mutation(api.deliveries.post, { conversationId: "conversation-1", body: "from the follower" });
+  const target = mutationTarget(api.deliveries.post, "messages");
+  const sent = await follower.mutation(target, { conversationId: "conversation-1", body: "from the follower" });
   assert.equal(sent.state, "queued");
   assert.equal(sent.intent, inboxAlias(1), "the public intent is the row's alias");
   assert.deepEqual(sent.ids, [], "no ids until the writer admits");
@@ -61,6 +62,8 @@ test("a follower's write is a durable inbox row before run() resolves; the write
   assert.equal(admitted.length, 1, "an admitted row appears once, as its entry");
   assert.notEqual(admitted[0]!.intent, inboxAlias(1), "the entry carries the ledger intent");
   assert.equal(admitted[0]!.state, "committed");
+  assert.equal(admitted[0]!.presentation, "messages", "the selected target survives durable follower admission");
+  assert.equal(target.id(admitted[0]!), admitted[0]!.ids[0], "the writer attaches its certified message address");
   const writerEntries = await writer.outbox.entries();
   assert.deepEqual(writerEntries.map((entry) => entry.inbox), [1], "the writer's ledger records the row it admitted from");
   // The alias resolves to the entry on the follower and, being a settled entry, is dismissible from either tab.

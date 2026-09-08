@@ -48,4 +48,4 @@ export function referenceName(ref: ApiProxy): string {
 }
 
 // @ref LLP 1002#9-the-client-snapback2client-snapback2react-snapback2test — generated Api augmentation types the inert operation proxy.
-export const api: Api = proxy([]) as Api;
+export const api: Api = /* @__PURE__ */ proxy([]) as Api;

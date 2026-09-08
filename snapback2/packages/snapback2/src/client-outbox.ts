@@ -68,6 +68,7 @@ export interface SubmitMutationOptions {
   offline: boolean;
   op: string;
   args: unknown;
+  presentation?: string;
   json: Transport;
   failure(error: unknown): Error;
   drain(): Promise<{ stopped: boolean }>;
@@ -110,7 +111,7 @@ export async function submitMutation<Result>(options: SubmitMutationOptions): Pr
   const enqueue = async (): Promise<OutboxEntry> => {
     try {
       return await runtime.outbox.enqueue(
-        { op: options.op, args: options.args, issuedSeq: runtime.seq },
+        { op: options.op, args: options.args, issuedSeq: runtime.seq, presentation: options.presentation },
         (ids) => runtime.predict(options.op, options.args, ids),
         () => options.onCustody?.("outbox"),
       );

@@ -76,6 +76,7 @@ export interface EnqueueInput {
   op: string;
   args: unknown;
   issuedSeq: number;
+  presentation?: string;
   trace?: OutboxTrace;
   /** The inbox row this intent is admitted from (LLP 1018.004 §2). */
   inbox?: number;
@@ -367,6 +368,7 @@ export class OutboxLedger {
         count,
         ids,
         ...(targets ? { targets } : {}),
+        ...(input.presentation === undefined ? {} : { presentation: input.presentation }),
         op: input.op,
         args,
         issuedSeq: input.issuedSeq,
@@ -412,7 +414,7 @@ export class OutboxLedger {
       if (fresh.admitted !== undefined) return { outcome: "already", intent: fresh.admitted };
       if (fresh.kind !== "mutation" || fresh.op === undefined) return { outcome: "gone" };
       custody();
-      const entry = await this.enqueueNow({ op: fresh.op, args: fresh.args, issuedSeq, inbox: fresh.key }, predict, beforeCommit,
+      const entry = await this.enqueueNow({ op: fresh.op, args: fresh.args, issuedSeq, inbox: fresh.key, presentation: fresh.presentation }, predict, beforeCommit,
         (admitted) => ({ inbox: { put: [{ ...fresh, admitted: admitted.intent, ids: [...admitted.ids], updatedAt: this.options.now() }] } }));
       return { outcome: "admitted", entry };
     });

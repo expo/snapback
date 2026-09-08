@@ -24,6 +24,8 @@ export interface InboxRow {
   followerId: string;
   op?: string;
   args?: unknown;
+  /** The submitted semantic target's table; the writer certifies addresses at admission. */
+  presentation?: string;
   /** Dismiss rows: the ledger intent or `inbox:` alias to dismiss. */
   target?: string;
   state: InboxState;
@@ -78,6 +80,7 @@ export function isInboxRow(value: unknown): value is InboxRow {
     && (row.authEpoch === undefined || Number.isSafeInteger(row.authEpoch))
     && typeof row.followerId === "string"
     && (row.kind !== "mutation" || typeof row.op === "string")
+    && (row.presentation === undefined || typeof row.presentation === "string")
     && (row.kind !== "dismiss" || typeof row.target === "string")
     && (row.state === "queued" || row.state === "rejected")
     && (row.admitted === undefined || typeof row.admitted === "string")
@@ -96,6 +99,7 @@ export function inboxEntry(row: InboxRow): OutboxEntry {
     op: row.op ?? "", args: row.args, issuedSeq: 0, state: row.state,
     ...(row.response === undefined ? {} : { response: row.response }),
     createdAt: row.createdAt, updatedAt: row.updatedAt, inbox: row.key,
+    ...(row.presentation === undefined ? {} : { presentation: row.presentation }),
   };
 }
 
