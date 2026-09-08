@@ -9,7 +9,7 @@ import { JSDOM } from "jsdom";
 import React, { act } from "react";
 import { flushSync } from "react-dom";
 import { createRoot, type Root } from "react-dom/client";
-import { api, createClient } from "../dist/client.mjs";
+import { api, createClient, mutationTarget } from "../dist/client.mjs";
 import { indexedDbRangeStore, SnapbackProvider, useSnapbackClient, useSnapbackSnapshot } from "../dist/react.mjs";
 import { fileRangeStore } from "../dist/test.mjs";
 import { DAY, fakeOwner } from "./fake-owner.ts";
@@ -17,7 +17,7 @@ import { FakeIndexedDb, FakeLocks } from "./fake-indexeddb.ts";
 import { RealOwnerHarness } from "./owner-harness.ts";
 
 // @ref LLP 1012#7-writes-offline — the chat template's screens: the pending
-// bubble is keyed by the first pinned id, shows `args.body` and "Sending…"
+// bubble is keyed by its certified message target, shows `args.body` and "Sending…"
 // with no time, and becomes the server row on `committed` without remounting.
 
 const packageRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
@@ -208,9 +208,11 @@ test("the chat screens render the log, queue offline sends as pinned bubbles, se
     await waitFor(() => document.querySelector("li[data-state=queued]") !== null, "the pending fallback bubble");
     const [entry] = await client.outbox.entries();
     assert.equal(entry.state, "queued");
-    const pinned = entry.ids[0];
+    assert.equal(entry.presentation, "messages", "the actual Composer submits its selected semantic target");
+    const pinned = mutationTarget(api.deliveries.post, "messages").id(entry);
+    assert.ok(pinned, "the writer certifies the message address at admission");
     const pending = document.querySelector(`li[data-message="${pinned}"]`)!;
-    assert.ok(pending, "the pending bubble is keyed by the first pinned id");
+    assert.ok(pending, "the pending bubble is keyed by its certified message target");
     assert.equal(pending.getAttribute("data-state"), "queued");
     assert.match(text(pending), /queued while offline/);
     assert.match(text(pending), /Sending…/);

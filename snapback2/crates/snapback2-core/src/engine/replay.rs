@@ -339,7 +339,7 @@ fn settle_early(
         seq: current_seq,
         next: None,
     };
-    record_terminal(&transaction, principal, replay, &execution)?;
+    record_terminal(&transaction, principal, replay, &execution, None)?;
     transaction.commit()?;
     Ok(execution)
 }
@@ -371,7 +371,7 @@ fn settle_after_run(
         };
         execution.seq = current_seq;
         execution.next = None;
-        record_terminal(&transaction, principal, replay, &execution)?;
+        record_terminal(&transaction, principal, replay, &execution, None)?;
         transaction.commit()?;
         return Ok(execution);
     }
@@ -392,7 +392,7 @@ fn settle_after_run(
         emits: execution.trace.emits.len() as u64,
     };
     append_commit(&transaction, &record)?;
-    record_terminal(&transaction, principal, replay, &execution)?;
+    record_terminal(&transaction, principal, replay, &execution, Some(program))?;
     transaction.execute_batch(&format!("RELEASE {SAVEPOINT}"))?;
     transaction.commit()?;
     Ok(execution)
@@ -403,8 +403,13 @@ fn record_terminal(
     principal: &str,
     replay: &ReplayCommit,
     execution: &Execution,
+    program: Option<&Program>,
 ) -> Result<(), RuntimeError> {
-    let response = replay_mutation_response(execution, &replay.intent);
+    let plan_hash = program.map(crate::value::digest);
+    let identity = plan_hash
+        .as_deref()
+        .zip(execution.receipt.schema_hash.as_deref());
+    let response = replay_mutation_response(execution, &replay.intent, identity);
     Store::record_replay_terminal(transaction, principal, replay, &response, execution.seq)
 }
 

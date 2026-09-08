@@ -73,7 +73,11 @@ pub struct ReplayCommit {
 /// The exact terminal mutation object persisted for replay deduplication.
 // @ref LLP 1012#7-writes-offline — the intent ledger stores the same terminal
 // object returned on the wire, including typed rejections and conflicts.
-pub fn replay_mutation_response(execution: &Execution, intent: &str) -> Json {
+pub fn replay_mutation_response(
+    execution: &Execution,
+    intent: &str,
+    program: Option<(&str, &str)>,
+) -> Json {
     let mut response = match &execution.state {
         ExecutionState::Committed { seq } => json!({
             "state": "committed",
@@ -113,6 +117,18 @@ pub fn replay_mutation_response(execution: &Execution, intent: &str) -> Json {
             })
         }
     };
+    // @ref LLP 1018.003.001#3-semantic-mutation-targets — the ledger preserves the executing program, never the program current at retry.
+    if matches!(execution.state, ExecutionState::Committed { .. }) {
+        if let Some((plan_hash, schema_hash)) = program {
+            response
+                .as_object_mut()
+                .expect("mutation response is an object")
+                .insert(
+                    "program".to_owned(),
+                    json!({ "planHash": plan_hash, "schemaHash": schema_hash }),
+                );
+        }
+    }
     response
         .as_object_mut()
         .expect("mutation response is an object")

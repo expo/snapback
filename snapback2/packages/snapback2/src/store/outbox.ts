@@ -4,6 +4,7 @@
 // envelope. Settlement never deletes; `dismiss` is the app's choice.
 import type { OutboxStatus } from "../types.js";
 import { inboxKeyOf, type InboxRow } from "./inbox.js";
+import { admittedMutationTargets } from "../mutation-targets.js";
 import type {
   OutboxEntry,
   OutboxGrant,
@@ -75,6 +76,7 @@ export interface EnqueueInput {
   op: string;
   args: unknown;
   issuedSeq: number;
+  presentation?: string;
   trace?: OutboxTrace;
   /** The inbox row this intent is admitted from (LLP 1018.004 §2). */
   inbox?: number;
@@ -300,10 +302,9 @@ export class OutboxLedger {
     return true;
   }
 
-  /** Initializes the wipe-scoped identity while this client holds the partition lock. */
-  // @ref LLP 1012#7-writes-offline — the first id names the intent; the rest
-  // are the program's `new` envelope in order, as many as the certificate's
-  // persisted write bound allows. No bound, or no remaining ids, is a refusal,
+  // @ref LLP 1012#7-writes-offline — the full reserved slice is the program's
+  // `new` envelope; grant:offset names the intent independently. The certificate's
+  // persisted write bound prices the slice. No bound, or no remaining ids, is a refusal,
   // never a silent reuse or a guessed reservation.
   enqueue(input: EnqueueInput, predict?: (ids: string[]) => Promise<EnqueuePrediction>, beforeCommit?: () => void): Promise<OutboxEntry> {
     return this.serial(() => this.enqueueNow(input, predict, beforeCommit));
@@ -315,6 +316,7 @@ export class OutboxLedger {
     beforeCommit?: () => void,
     extra?: (entry: OutboxEntry, grant: OutboxGrant) => Partial<import("./range-store.js").StoreSwap>,
   ): Promise<OutboxEntry> {
+      const args = structuredClone(input.args);
       const grant = await this.grant();
       if (!grant) {
         throw new OutboxRefusal(
@@ -349,6 +351,8 @@ export class OutboxLedger {
         );
       }
       const ids = sliceIds(grant, grant.used, count);
+      const programs = await this.store.outbox.programs();
+      const targets = admittedMutationTargets(Object.values(programs)[0], input.op, args, ids);
       // @ref LLP 1012#7-writes-offline — the twin runs the mutation with the
       // slice as its `new` envelope, so the prediction and the commit mint the
       // same ids; the overlay and the trace land in the entry's own swap.
@@ -363,8 +367,10 @@ export class OutboxLedger {
         offset: grant.used,
         count,
         ids,
+        ...(targets ? { targets } : {}),
+        ...(input.presentation === undefined ? {} : { presentation: input.presentation }),
         op: input.op,
-        args: structuredClone(input.args),
+        args,
         issuedSeq: input.issuedSeq,
         state: "queued",
         ...(prediction?.predicted ? { predicted: true } : {}),
@@ -408,7 +414,7 @@ export class OutboxLedger {
       if (fresh.admitted !== undefined) return { outcome: "already", intent: fresh.admitted };
       if (fresh.kind !== "mutation" || fresh.op === undefined) return { outcome: "gone" };
       custody();
-      const entry = await this.enqueueNow({ op: fresh.op, args: fresh.args, issuedSeq, inbox: fresh.key }, predict, beforeCommit,
+      const entry = await this.enqueueNow({ op: fresh.op, args: fresh.args, issuedSeq, inbox: fresh.key, presentation: fresh.presentation }, predict, beforeCommit,
         (admitted) => ({ inbox: { put: [{ ...fresh, admitted: admitted.intent, ids: [...admitted.ids], updatedAt: this.options.now() }] } }));
       return { outcome: "admitted", entry };
     });

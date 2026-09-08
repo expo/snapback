@@ -279,7 +279,7 @@ export function useMutation<Args, Result>(ref: Op<Args, Result>): UseMutationRes
         ? { ...current, pending: Math.max(0, current.pending - 1) }
         : current);
     }
-  }, [identity]);
+  }, [identity, ref]);
   const fullDetail = useMemo(
     () => ({ status: detail.status, ...(visible.transport === undefined ? {} : { transport: visible.transport }),
       ...(detail.writer === undefined ? {} : { writer: detail.writer }) }),

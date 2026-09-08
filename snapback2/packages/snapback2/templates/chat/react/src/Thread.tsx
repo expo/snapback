@@ -2,7 +2,7 @@ import { useRef, useState } from "react";
 import { api, isSnapbackRefusal } from "snapback2/client";
 import { AssetImage, useMutation, useOutbox, useQuery, useSnapbackClient, useSnapbackSnapshot } from "snapback2/react";
 import { Composer } from "./Composer";
-import { conversationItems } from "../shared/thread";
+import { conversationItems, messageWrites } from "../shared/thread";
 
 const when = (at: number) => new Date(at).toLocaleTimeString();
 const describe = (error: unknown) => (isSnapbackRefusal(error) ? error.envelope.rewrite ?? error.message : String(error));
@@ -27,8 +27,8 @@ export function Thread({ conversationId, viewer, onNote }: {
   const composite = snapshot.itemsFrom === "query" ? snapshot.data : undefined;
   const history = snapshot.history;
   const { dismiss } = useOutbox();
-  const edit = useMutation(api.deliveries.edit);
-  const unsend = useMutation(api.deliveries.unsend);
+  const edit = useMutation(messageWrites.update);
+  const unsend = useMutation(messageWrites.remove);
   const client = useSnapbackClient();
   const generation = useSnapbackSnapshot().authGeneration;
   const visit = useRef({ conversationId, generation });

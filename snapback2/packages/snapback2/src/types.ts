@@ -103,7 +103,8 @@ export type OfflineQueryResult<Result> =
   | { state: "hydrating"; live: false; connection: "offline" };
 export type QueryResult<Result> = ServerQueryResult<Result> | OfflineQueryResult<Result>;
 
-export type MutationCommitted<Result> = { state: "committed"; seq: number; data: Result; intent?: string };
+export type MutationCommitted<Result> = { state: "committed"; seq: number; data: Result; intent?: string;
+  program?: import("./mutation-targets.js").MutationProgramIdentity };
 export type MutationRejected = {
   state: "rejected";
   code: string;
@@ -323,6 +324,8 @@ export interface OutboxStatus {
   /** Number of queued intents, including a follower's unadmitted rows; settled entries are excluded. */
   remaining: number;
   fence: "inside" | "past";
+  /** The partition writer is actively replaying; a connected read cannot establish this. */
+  draining?: true;
 }
 
 export interface OutboxApi {

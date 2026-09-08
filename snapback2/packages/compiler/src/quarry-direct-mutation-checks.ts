@@ -77,6 +77,12 @@ mutation remove(id: rows):
   delete rows[id]
   return true
 
+mutation afterLoop(id: rows):
+  alias = id
+  for ordinal in range(0, 1):
+    require ordinal >= 0 else NEGATIVE
+  delete rows[alias]
+
 mutation branch(owner: principal, flag: bool):
   if flag:
     insert rows { owner, label: 'left', count: 1 }
@@ -103,6 +109,13 @@ mutation branch(owner: principal, flag: bool):
         return [name, checked.certificate] as const;
       }));
       const serializedBlind = JSON.stringify(direct.get("blind")!.body);
+      const targets = (name: string) => (checks.get(name)!.mutation_targets as { targets: unknown[]; complete: boolean });
+      deepStrictEqual(targets("add"), { targets: [{ table: "rows", kind: "create", source: { newId: 0 } }], complete: true });
+      deepStrictEqual(targets("blind"), { targets: [{ table: "rows", kind: "update", source: { argument: "id" } }], complete: true });
+      deepStrictEqual(targets("remove"), { targets: [{ table: "rows", kind: "remove", source: { argument: "id" } }], complete: true });
+      deepStrictEqual(targets("afterLoop"), { targets: [{ table: "rows", kind: "remove", source: { argument: "id" } }], complete: true });
+      assert(JSON.stringify(targets("allocated")).includes('"unresolved":"ambiguous"'), "two inserts into one table acquired a guessed target");
+      assert(JSON.stringify(targets("indexed")).includes('"unresolved":"computed"'), "an index lookup guessed a row ID from an argument");
       assert(serializedBlind.includes('"Update"') && !serializedBlind.includes('"Get"'),
         `discarded direct update gained read authority: ${serializedBlind}`);
       const serializedFocal = JSON.stringify(direct.get("focal")!.body);

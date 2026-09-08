@@ -9,10 +9,9 @@ query thread(conversationId: conversations, c: cursor ?):
   return messages[conversationId] after c last 50
 ```
 
-`complete` and `capped` carry `next: Cursor | null`. Pass the opaque token back
-for the next page; it is bound to table/index/order and must not be inspected or
-constructed. Through aliases, shapes, and conditional branches, `next` follows
-the page returned. Reset it to `null` when switching index or order.
+`complete` and `capped` carry `next: Cursor | null`. Pass it back for the next
+page; never inspect or construct it. It binds table/index/order and follows the
+returned page through aliases, shapes and branches. Reset on index/order changes.
 
 `client.subscribe(api.messages.thread, args, listener)` emits query responses
 or refusals. Transport `live`/`stale` never replaces the certified outcome.
@@ -35,8 +34,9 @@ history.
 Use `{ items: spec }` with `useQuery`/`observe`. Declare `spec` once with
 `snapback2/client`'s `defineItems(query, { table, select, order, create, update,
 remove })`; object results also name `rows`. `select` returns an original row
-or null. Chat's typed `shared/thread.ts` binds each operation to its target;
-only its post recipe uses `ids[0]`.
+or null. Actions name `target: mutationTarget(op, "messages")`; submit that
+target to `useMutation`/`client.mutation` too. Table/action choices are typed;
+addresses are certified. Ambiguous or changed-program targets stay intent-only.
 
 Items have stable `key`, selected `data`, submitted `draft` while a create is
 pending, `predicted`, and FIFO `pending` actions. Drafts have no server time.
@@ -56,12 +56,11 @@ descending queries stay valid. See offline.
 
 ## Channels
 
-`channel name(args):` declares ephemeral events with `publish` and `subscribe`
-rules and `ttl Ns`. Use channels for transient signals such as typing;
-subscriptions carry events, not durable rows or replayable history.
-A heartbeat table is a workaround for recent activity such as foreground use.
-Its lag is the heartbeat interval plus the expiry delay; disconnects are seen late.
-Do not gate delivery on it: use durable receipts and a delayed unacknowledged check.
+`channel name(args):` declares ephemeral events with `publish`/`subscribe`
+rules and `ttl Ns`, for signals such as typing. Events are not replayable.
+A heartbeat table approximates foreground activity; lag includes its interval
+and expiry delay. Gate delivery on durable receipts and a delayed
+unacknowledged check, never heartbeats.
 
 ## Connected
 

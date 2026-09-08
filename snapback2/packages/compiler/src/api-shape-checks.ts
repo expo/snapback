@@ -377,30 +377,19 @@ async function installSnapbackTypes(root: string, types: string): Promise<void> 
 
 function operationResult(apiDts: string, operation: string): string | undefined {
   const [moduleName, exportName] = operation.split(".");
-  const moduleStart = apiDts.indexOf(`    readonly ${moduleName}: {`);
-  if (moduleStart < 0) return undefined;
-  const moduleEnd = apiDts.indexOf("\n    };", moduleStart);
-  const line = apiDts.slice(moduleStart, moduleEnd < 0 ? undefined : moduleEnd)
-    .split("\n").find((item) => item.includes(`readonly ${exportName}: Op<`))?.trim();
-  if (!line) return undefined;
-  const start = line.indexOf("Op<") + 3;
-  let depth = 0;
-  let quote = "";
-  for (let index = start; index < line.length; index += 1) {
-    const character = line[index]!;
-    if (quote) {
-      if (character === quote && line[index - 1] !== "\\") quote = "";
-      continue;
-    }
-    if (character === '"' || character === "'") {
-      quote = character;
-      continue;
-    }
-    if ("{[(<".includes(character)) depth += 1;
-    else if ("}])>".includes(character)) depth -= 1;
-    else if (character === "," && depth === 0) return line.slice(index + 2, -2);
-  }
-  return undefined;
+  const source = ts.createSourceFile("api.d.ts", apiDts, ts.ScriptTarget.Latest, true);
+  const augmentation = source.statements.find((node): node is ts.ModuleDeclaration =>
+    ts.isModuleDeclaration(node) && ts.isStringLiteral(node.name) && node.name.text === "snapback2/client");
+  if (!augmentation?.body || !ts.isModuleBlock(augmentation.body)) return undefined;
+  const api = augmentation.body.statements.find((node): node is ts.InterfaceDeclaration =>
+    ts.isInterfaceDeclaration(node) && node.name.text === "Api");
+  const member = (members: readonly ts.TypeElement[], name: string | undefined) => members.find((node): node is ts.PropertySignature =>
+    ts.isPropertySignature(node) && (ts.isIdentifier(node.name) || ts.isStringLiteral(node.name)) && node.name.text === name);
+  const module = api && member(api.members, moduleName)?.type;
+  const result = module && ts.isTypeLiteralNode(module) && member(module.members, exportName)?.type;
+  // @ref LLP 1018.003.001#3-semantic-mutation-targets — result and target metadata occupy separate Op arguments.
+  return result && ts.isTypeReferenceNode(result) && result.typeName.getText(source) === "Op"
+    ? result.typeArguments?.[1]?.getText(source) : undefined;
 }
 
 async function withCliqueJourney<T>(fixtures: string, snapbackTypes: string, journey: string, run: (root: string) => Promise<T>): Promise<T> {

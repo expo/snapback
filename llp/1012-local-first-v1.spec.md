@@ -883,9 +883,10 @@ for the same principal finishes its outbox. Ids are the engine's own
 `s2id-<namespace>-<sequence>` values reserved from the store's allocator, so
 there is no second id form and LLP 1006 §9a's namespace rule holds. At
 enqueue the client consumes a slice `1 + maxNewIds` for the program (the
-certificate's write bound already knows `maxNewIds`): the first id names the
-intent, the rest are its `new` envelope in order, so a later intent can
-reference a parent's ids before the server has seen either.
+certificate's write bound already knows `maxNewIds`). The entire slice is its
+`new` envelope in order; the separate `grant:offset` string names the intent.
+A later intent can reference a parent's certified target before the server
+has seen either. The extra reserved ID and allocation order are unchanged.
 
 **The envelope.**
 
@@ -1198,6 +1199,17 @@ own image evidence. No presentation read writes retirement state or dismisses
 an intent (LLP 1018.003 §10).
 The same item key spans draft, prediction, and server row. Missing-target changes
 and terminal failures remain accessible in the account's outbox history.
+
+**Semantic targets (LLP 1018.003.001 §3, 2026-09-08).** The admission swap
+also pins compiler-certified row addresses and their generation/program/schema
+identity as `entry.targets`, independently of prediction. Creates resolve exact
+`NewId` offsets; edits/removals can resolve required Id/Ref arguments. Unsupported
+control flow stays explicit. Committed replay terminals carry the actual execution's
+`program: { planHash, schemaHash }`, recorded atomically with commit and returned
+unchanged on matching retries before current-op/grant checks. Changed execution
+or query-frame identity prevents item attribution using the old admission proof;
+the intent remains recoverable. Replay request bytes and dedup precedence do not
+change. The generated `mutationTarget(op, table)` removes positional app bindings.
 
 ## 8. The delivery envelope, the validator, and resume
 

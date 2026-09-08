@@ -4,12 +4,12 @@ import { build } from "esbuild";
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { createClient, api, defineItems as publicItems } from "../dist/client.mjs";
+import { createClient, api, defineItems as publicItems, mutationTarget } from "../dist/client.mjs";
 import { fileRangeStore } from "../dist/test.mjs";
 import { indexedDbRangeStore } from "../dist/react.mjs";
 import { itemInputs as capturedInputs } from "../dist/image-runtime.mjs";
 import { FakeIndexedDb, FakeLocks } from "./fake-indexeddb.ts";
-import { fakeOwner } from "./fake-owner.ts";
+import { fakeOwner, generation, schemaHash } from "./fake-owner.ts";
 import type { Op } from "../src/api.ts";
 import type { OutboxEntry } from "../src/store/range-store.ts";
 import type { ItemInputs } from "../src/client-items.ts";
@@ -24,25 +24,33 @@ const { attachItems, itemAddress, defineItems, ItemCapture }: typeof import("../
 type Message = { id: string; body: string; at: number };
 type Query = { conversationId: string; c: string | null };
 const path: typeof import("../src/api.ts").referencePath = Symbol.for("snapback.referencePath") as never;
-const ref = <Args, Result>(op: string): Op<Args, Result> => ({ op, [path]: op });
+const ref = <Args, Result, Kind extends "create" | "update" | "remove" = "create">(op: string): Op<Args, Result, { messages: Kind }> => ({ op, [path]: op });
 const spec = defineItems(ref<Query, { message: Message | null }[]>("deliveries.thread"), {
   table: "messages", select: delivery => delivery.message, order: "reverse",
   create: {
-    op: ref<{ conversationId: string; body: string }, { id: string }>("deliveries.post"),
+    target: mutationTarget(ref<{ conversationId: string; body: string }, { id: string }>("deliveries.post"), "messages"),
     belongs: (args, query) => query.c === null && args.conversationId === query.conversationId,
-    key: entry => entry.ids[0], draft: args => ({ body: args.body }),
+    draft: args => ({ body: args.body }),
   },
-  update: { op: ref<{ messageId: string; body: string }, null>("deliveries.edit"), key: args => args.messageId },
-  remove: { op: ref<{ messageId: string }, null>("deliveries.unsend"), key: args => args.messageId },
+  update: { target: mutationTarget(ref<{ messageId: string; body: string }, null, "update">("deliveries.edit"), "messages") },
+  remove: { target: mutationTarget(ref<{ messageId: string }, null, "remove">("deliveries.unsend"), "messages") },
 });
 const args: Query = { conversationId: "chat", c: null };
-const entry = (delta: Partial<OutboxEntry> = {}): OutboxEntry => ({
-  intent: "grant:0", grant: "grant", offset: 0, count: 2, ids: ["m", "fanout"],
-  op: "deliveries.post", args: { conversationId: "chat", body: "submitted" },
-  issuedSeq: 40, state: "queued", order: 3, createdAt: 1, updatedAt: 1, ...delta,
-});
+const mutationProgram = { planHash: "e".repeat(64), schemaHash };
+const entry = (delta: Partial<OutboxEntry> = {}): OutboxEntry => {
+  const value: OutboxEntry = {
+    intent: "grant:0", grant: "grant", offset: 0, count: 2, ids: ["m", "fanout"],
+    op: "deliveries.post", args: { conversationId: "chat", body: "submitted" },
+    issuedSeq: 40, state: "queued", order: 3, createdAt: 1, updatedAt: 1, ...delta,
+  };
+  const kind = value.op.endsWith("edit") ? "update" : value.op.endsWith("unsend") ? "remove" : "create";
+  if (!("targets" in delta)) value.targets = { generation, ...mutationProgram, complete: false, unresolved: [],
+    rows: [{ table: "messages", kind, id: kind === "create" ? value.ids[0]! : (value.args as { messageId: string }).messageId }] };
+  if (value.response && !("program" in (value.response as object))) value.response = { ...(value.response as object), program: mutationProgram };
+  return value;
+};
 const inputs = (entries: OutboxEntry[], extra: Partial<ItemInputs> = {}): ItemInputs => ({
-  entries, observations: new Map(), predicted: new Map(), ...extra,
+  entries, observations: new Map(), predicted: new Map(), program: { generation, schemaHash }, ...extra,
 });
 const row: Message = Object.freeze({ id: "m", body: "current", at: 7 });
 const page = [{ message: row }];
@@ -68,6 +76,22 @@ test("one key survives an unpredicted send, commit without delivery, fan-out arr
   assert.equal(delivered[0]?.draft, undefined);
   assert.deepEqual(delivered[0]?.pending, []);
   assert.equal(committed.state, "committed", "the read never dismisses or rewrites the ledger");
+});
+
+test("program replacement and unsupported targets retain intent-only drafts without borrowing row identity", () => {
+  const unresolved = entry({ targets: { generation, ...mutationProgram, rows: [], complete: false,
+    unresolved: [{ table: "messages", kind: "create", reason: "ambiguous" }] } });
+  assert.equal(attachItems(spec, args, [], inputs([unresolved]))[0]?.key, `intent:${unresolved.intent}`);
+  const changed = entry({ state: "committed", response: { seq: 41, program: { ...mutationProgram, planHash: "f".repeat(64) } } });
+  const items = attachItems(spec, args, page, inputs([changed], { observations: new Map([[itemAddress("messages", "m"), { through: 42 }]]) }));
+  assert.deepEqual(items.find(item => item.key === "m")?.pending, []);
+  assert.equal(items.find(item => item.key === `intent:${changed.intent}`)?.pending[0]?.state, "committed");
+  const queued = entry();
+  assert.equal(attachItems(spec, args, [], inputs([queued], { program: { generation: "other", schemaHash } }))[0]?.key, `intent:${queued.intent}`);
+  const mismatchedPrediction = attachItems(spec, args, page, inputs([queued], { program: { generation: "other", schemaHash },
+    predicted: new Map([[itemAddress("messages", "m"), [{ intent: queued.intent, kind: "create" }]]]) }));
+  assert.deepEqual(mismatchedPrediction.find(item => item.key === "m")?.pending, []);
+  assert.equal(mismatchedPrediction.find(item => item.key === `intent:${queued.intent}`)?.draft?.body, "submitted");
 });
 
 test("an edit with no created IDs waits for its exact row; a later value can confirm it beneath another prediction", () => {
@@ -103,16 +127,15 @@ test("a fresh answer decides page membership without borrowing proof for a displ
 });
 
 test("retained history is indexed once and old creates are not visited on warm page publications", () => {
-  let belongs = 0, keys = 0;
+  let belongs = 0;
   const indexed = defineItems(ref<Query, Message[]>("messages.page"), { table: "messages", select: row => row,
-    create: { op: ref<{ conversationId: string; body: string }, unknown>("deliveries.post"),
-      key: entry => { keys++; return entry.ids[0]; }, belongs: () => { belongs++; return true; }, draft: args => ({ body: args.body }) } });
+    create: { target: mutationTarget(ref<{ conversationId: string; body: string }, unknown>("deliveries.post"), "messages"),
+      belongs: () => { belongs++; return true; }, draft: args => ({ body: args.body }) } });
   const entries = Array.from({ length: 10_000 }, (_, i) => entry({ intent: `old:${i}`, ids: [`old:${i}`],
     state: "committed", issuedSeq: i, response: { seq: i + 1 }, order: i }));
   const captured = inputs(entries, { selection: { through: 10_001 } });
   assert.deepEqual(attachItems(indexed, args, [], captured), []);
   assert.deepEqual(attachItems(indexed, args, [], captured), []);
-  assert.equal(keys, entries.length, "stable ledger records are indexed once across publications");
   assert.equal(belongs, 0, "a fresh page does not walk old successes through application selectors");
 });
 
@@ -231,7 +254,7 @@ for (const carrier of ["file", "indexeddb"]) test(`${carrier}: four shared obser
   const client = createClient({ url: "http://items.test", as: "alice", fetch: owner.fetch, offline: { store: () => store } });
   await client.ready;
   const spec = publicItems(api.deliveries.thread, { table: "messages", select: (value: any) => value.message,
-    update: { op: api.deliveries.edit, key: (args: any) => args.messageId } });
+    update: { target: mutationTarget(api.deliveries.edit, "messages") } });
   const args = { conversationId: "conversation-1", c: null };
   const observed = Array.from({ length: 4 }, () => client.observe(api.deliveries.thread, args, { items: spec }));
   const once = client.observe(api.deliveries.thread, args, { live: false, items: spec });

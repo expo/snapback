@@ -197,6 +197,7 @@ export interface OutboxTrace {
 // @ref LLP 1012#7-writes-offline — one durable intent: its pinned id slice, its
 // bytes, and its terminal response, so a retry is the same envelope.
 export interface OutboxEntry {
+  targets?: import("../mutation-targets.js").AdmittedMutationTargets;
   intent: string;
   grant: string;
   offset: number;
@@ -207,6 +208,7 @@ export interface OutboxEntry {
   issuedSeq: number;
   state: OutboxState;
   response?: unknown;
+  presentation?: string; // The submitter's table choice, fixed with admission.
   predicted?: boolean;
   /** A pinned or confirmed authoritative row arrived; dismiss only after rendering it. */
   arrived?: true;

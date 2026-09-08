@@ -4,19 +4,20 @@ import { Text, View } from "react-native";
 import { api, SnapbackRefusal, type AssetRecord, type ImageAsset, type RangeStore, type SnapbackClient, type Subscription } from "snapback2/client";
 import { createExpoClient, expoSqliteStore, expoSqliteDriver, SnapbackProvider } from "snapback2/expo";
 import { MediaView, type Media } from "./MediaView";
+import { messageWrites } from "../shared/thread";
 import { witnessControl, runSqliteDriverConformance, type WitnessHooks } from "snapback2/expo/witness";
 // @ref LLP 1018.003#4-pending-rows-attribution-settlement-and-failure — the witness reports the
 // same projection the thread screen renders: live message events keyed by pinned id, plus the
 // intents the twin could not place, so the driver's bubble assertions bind to product behavior.
 type LogRow = { kind?: string; messageId: string; conversationId: string; message?: { body?: string | null } | null };
-type Entry = { op: string; state: string; ids: string[]; intent: string; args: unknown };
+type Entry = Awaited<ReturnType<SnapbackClient["outbox"]["entries"]>>[number];
 function bubbles(rows: LogRow[], entries: Entry[], conversationId: string) {
   const live = rows.filter((row) => row.kind === "message" && row.message);
   const placed = live.map((row) => ({ key: row.messageId,
-    kind: entries.some((entry) => entry.op === "deliveries.post" && entry.state === "queued" && entry.ids[0] === row.messageId) ? "pending" : "row" }));
+    kind: entries.some((entry) => entry.op === "deliveries.post" && entry.state === "queued" && messageWrites.create.id(entry) === row.messageId) ? "pending" : "row" }));
   const unplaced = entries.filter((entry) => entry.op === "deliveries.post"
-    && (entry.args as { conversationId?: string }).conversationId === conversationId && !live.some((row) => row.messageId === entry.ids[0]))
-    .map((entry) => ({ key: entry.ids[0] ?? entry.intent, kind: "pending" }));
+    && (entry.args as { conversationId?: string }).conversationId === conversationId && !live.some((row) => row.messageId === messageWrites.create.id(entry)))
+    .map((entry) => ({ key: messageWrites.create.id(entry) ?? entry.intent, kind: "pending" }));
   return [...placed, ...unplaced];
 }
 import { configuration, persist, databaseState, markerSwap, listFiles, DATABASE } from "./witness-state";
@@ -88,7 +89,7 @@ export default function Witness({ url, controlUrl }: { url: string; controlUrl: 
           return { state: left.state, sameValue: left.data === right.data, consumers: [two, one],
             next: [left.next, right.next], data: left.data };
         }
-        if (verb === "send") return client.mutation(api.deliveries.post, {
+        if (verb === "send") return client.mutation(messageWrites.create, {
           conversationId: typeof args.conversationId === "string" ? args.conversationId : selected, body: String(args.body),
         });
         if (verb === "view") {

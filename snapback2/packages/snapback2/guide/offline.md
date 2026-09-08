@@ -11,7 +11,7 @@ const client = createClient({
 });
 ```
 
-Custom factories need `open()` or throw
+Factories need `open()` or throw
 `TypeError`. IndexedDB and Web Locks are required; no memory fallback.
 
 Expiry seals; session change wipes. One writer/account. Web followers read live, write
@@ -41,14 +41,14 @@ admits rows in key order, one swap with the entry, which records `inbox`; the
 alias names it on either tab. Follower status: `forwarding` or
 `writer-unresponsive` (ready), `inbox-full`, `follower` (no route).
 
-`useMutation(op).can`/`useOutbox().can` derive send/action/reason from
-`detail.status`, connection, and queue; a follower's `detail.writer` is the
-writer's announced status. `outbox.observe(op?)` feeds the hooks;
-`intentLabel` labels entries. Writes keep terminals until explicit
-`dismiss(intent)`; queued entries cannot be dismissed. `run()` success means
-committed, not shown. Query `items` resolve indicators from the target's own
-observation through commit, including no-ID edits; `arrived`/global sequence
-cannot substitute. Expose dismissal for failures.
+`useMutation(op).can`/`useOutbox().can`: send/action/reason from
+`detail.status`, connection and queue. `status.draining` means active replay:
+wait; paused work offers Sync, even after a connected read. Followers use
+inbox readiness; `detail.writer` holds announced status.
+`outbox.observe(op?)` feeds hooks; `intentLabel` labels entries.
+Terminals persist until `dismiss(intent)`; queued work cannot be dismissed.
+Committed does not mean shown: query `items` need the target's observation
+through commit. `arrived`/global sequence cannot substitute. Expose failures.
 
 `outbox.drain()`/`settled()`: `{ stopped, remaining }`; false is drained.
 Fence/transport/authority/offline/pending/writer-unresponsive pauses keep

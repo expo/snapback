@@ -143,6 +143,11 @@ test("durable client intents survive a schema successor and a lost acknowledgeme
     assert.equal(retried.length, 2, "one original attempt and one cold retry");
     assert.equal(retried[1].body, originalRequest.body, "exact request bytes survive operation removal");
     assert.deepEqual(retried[1].response, originalRequest.response, "the owner returns its stored terminal");
+    assert.match((originalRequest.response as any).program?.planHash, /^[a-f0-9]{64}$/);
+    assert.match((originalRequest.response as any).program?.schemaHash, /^[a-f0-9]{64}$/);
+    const terminal = (await retry.outbox.entries()).find(entry => entry.intent === uncertain.intent)!;
+    assert.equal((terminal.response as any).program.planHash, terminal.targets?.planHash,
+      "lost acknowledgement retains the original allocation proof after operation removal");
     assert.equal((await retry.outbox.entries()).find(entry => entry.intent === uncertain.intent)?.state, "committed");
     const final: any = await retry.query(api.messages.thread, { conversationId: "conversation-1", c: null });
     assert.equal(final.state, "complete");

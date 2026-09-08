@@ -174,6 +174,8 @@ export class OfflineRuntime {
   readonly outbox: OutboxLedger;
   /** The replay currently in flight; the next drain queues behind it. Never rejects. */
   drainTail: Promise<void> = Promise.resolve();
+  /** Activity of the existing serialized replay owner, independent of live reads. */
+  draining = false;
   /**
    * The last drain's outcome, rejection kept: `settled()` awaits this so a
    * non-retryable refusal that stopped the replay reaches the caller instead of

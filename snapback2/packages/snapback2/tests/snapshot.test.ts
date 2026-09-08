@@ -74,10 +74,14 @@ test("readiness maps every outbox status, the fence, and the op-scoped queue to 
     [status("ready"), "connected", 0, true, undefined, undefined],
     [status("ready"), "offline", 0, true, undefined, undefined],
     [status("ready"), "connected", 2, true, "connect", "pending"],
+    [status("ready", { draining: true }), "connected", 2, true, "wait", "pending"],
+    [status("ready", { draining: true }), "offline", 1, true, "wait", "pending"],
     [status("ready"), "offline", 1, true, "connect", "pending"],
     [status("ready", { fence: "past" }), "connected", 0, true, "connect", "fence"],
     [status("ready", { fence: "past" }), "offline", 3, true, "connect", "fence"],
+    [status("ready", { fence: "past", draining: true }), "connected", 3, true, "connect", "fence"],
     [status("sealed", { fence: "past" }), "connected", 0, false, "sign-in", "sealed"],
+    [status("sealed", { draining: true }), "connected", 1, false, "sign-in", "sealed"],
     [status("grant-missing"), "connected", 0, false, "connect", "grant-missing"],
     [status("grant-expired"), "offline", 0, false, "connect", "grant-expired"],
     [status("ids-exhausted"), "connected", 5, false, "connect", "ids-exhausted"],
@@ -98,7 +102,8 @@ test("readiness maps every outbox status, the fence, and the op-scoped queue to 
     if (code && code !== "pending") assert.equal(can.reason?.message, readinessMessages[code], label);
     assert.deepEqual(readiness(value, connection as any, queued), can, `${label}: pure`);
   }
-  assert.match(readiness(status("ready"), "connected", 2).reason!.message, /^2 queued · Waiting for the server\.$/);
+  assert.match(readiness(status("ready"), "connected", 2).reason!.message, /^2 queued · Sync to resume delivery\.$/);
+  assert.match(readiness(status("ready", { draining: true }), "connected", 2).reason!.message, /^2 queued · Waiting for the server\.$/);
   assert.match(readiness(status("ready"), "reconnecting", 1).reason!.message, /^1 queued · Waiting for connection\.$/);
   assert.match(readiness(status("forwarding", { ready: true }), "connected", 2).reason!.message, /^2 queued · Waiting for the sending tab\.$/);
   // The status's partition-wide `remaining` is not the op-scoped queue: it must not leak into the sentence.

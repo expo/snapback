@@ -77,6 +77,14 @@ export function registerQuarryProcChecks(test: Test, frontend: string): void {
         const certificate = checked.certificate!, handCertificate = handChecked.certificate!;
         deepStrictEqual(certificate.read_sites, handCertificate.read_sites);
         deepStrictEqual(certificate.write_sites, handCertificate.write_sites);
+        deepStrictEqual(certificate.mutation_targets, handCertificate.mutation_targets,
+          "proc expansion preserves the certified semantic targets of its inlined body");
+        deepStrictEqual(certificate.mutation_targets, { targets: [
+          { table: "deliveries", kind: "create", unresolved: "repeated" },
+          { table: "messages", kind: "create", source: { newId: 0 } },
+        ], complete: false });
+        assert(project.apiDts.includes('deliveries: "create"') && project.apiDts.includes('messages: "create"'),
+          "the generated operation types target tables written inside its proc");
         assert((certificate.write_sites as any[]).some((site) => site.table === "deliveries" && site.max_rows === 50), `the fan-out write bound was not priced: ${JSON.stringify(certificate.write_sites)}`);
         const receipt: ClosureReceipt = {
           schema_hash: certificate.schema_hash as string, rows: [
