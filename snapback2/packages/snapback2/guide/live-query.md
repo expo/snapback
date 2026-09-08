@@ -1,6 +1,6 @@
 # Live query
 
-Commits intersecting a query trace make it live. Bound scans. Cursor indexes
+Trace-intersecting commits make queries live. Bound scans. Cursor indexes
 end in `id`; pass `cursor ?` to `after`, with `null` for page one.
 
 ```q
@@ -10,8 +10,9 @@ query thread(conversationId: conversations, c: cursor ?):
 ```
 
 `complete` and `capped` carry `next: Cursor | null`. Pass it back for the next
-page; never inspect or construct it. It binds table/index/order and follows the
-returned page through aliases, shapes and branches. Reset on index/order changes.
+page; never inspect or construct it. It binds table/index/order. One cursor page
+can sit in a record beside count/fixed preview; aliases and shapes preserve it.
+Competing cursor pages have no continuation. Reset on index/order changes.
 
 `client.subscribe(api.messages.thread, args, listener)` emits query responses
 or refusals. Transport `live`/`stale` never replaces the certified outcome.
@@ -19,17 +20,16 @@ or refusals. Transport `live`/`stale` never replaces the certified outcome.
 `client.observe` shares one immutable snapshot with headless and React.
 `useQuery` returns it: `data`; certified `receipt` (`outcome`, `source`, `seq`,
 `next`); `freshness`; local prediction/retention/catch-up facts; and refusal.
-`status` (`loading`, `ready`, `unavailable`) and `reason` are derived. Effective
-local commits reevaluate once; bookkeeping stays silent. Resets load; transport
-state does not replace the certified outcome.
+`status` (`loading`, `ready`, `unavailable`) and `reason` are derived. Local
+commits reevaluate once; bookkeeping stays silent. Resets load.
 
 Use one query for list/count/preview. Declare history once:
 `withHistory(items, { items: threadItems, args: q => ({ ...q, c: null }) })`.
-`itemsFrom` is `query` for complete/capped data, `history` for readable
-history, else `drafts`. `history` holds history's snapshot iff the composite
-receipt is partial, even without data; never denial/refusal/reset. History
-gives no count/preview; usable composite data gives all three and detaches
-history.
+`itemsFrom === "query"` narrows `data` to the complete composite. `history`
+means readable fallback, else `drafts`. Its own `history` snapshot exists iff
+the composite is partial; never denial/refusal/reset. Retained mixed or purged
+projections are partial: readable rows give no count/preview. History cursors
+belong to that query; a usable composite detaches history.
 
 Use `{ items: spec }` with `useQuery`/`observe`. Declare `spec` once with
 `snapback2/client`'s `defineItems(query, { table, select, order, create, update,
@@ -42,9 +42,9 @@ Items have stable `key`, selected `data`, submitted `draft` while a create is
 pending, `predicted`, and FIFO `pending` actions. Drafts have no server time.
 Row evidence resolves indicators; receipt/status and durable history stay intact.
 
-One SSE connection carries up to 256 query/channel subscriptions per client,
-including HTTP/1.1. Adding/closing one leaves peers active. Unmount unused
-components; CSS hiding keeps queries active. Close the client with its scope.
+One SSE connection carries up to 256 query/channel subscriptions, including
+HTTP/1.1. Adding/closing one leaves peers active. Unmount unused components;
+CSS hiding keeps queries active. Close the client with its scope.
 Reconnect re-delivers query state, not ephemeral channel events.
 
 Keep newest-first subscriptions at `c: null`; fetch older pages separately with
