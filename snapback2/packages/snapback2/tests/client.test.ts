@@ -478,7 +478,6 @@ test("an empty capped page is the terminal drain state", async () => {
   assert.equal(requests, 1);
   value.close();
 });
-
 test("an exact-full non-uniform drain requests one terminal empty capped page then stops", async () => {
   const pages = [
     [{ id: "one" }, { id: "two" }],
@@ -512,7 +511,6 @@ test("an exact-full non-uniform drain requests one terminal empty capped page th
   assert.deepEqual(cursors, [null, "page-1", "page-2"]);
   value.close();
 });
-
 test("every HTTP wire state validates its state-specific required fields", async () => {
   const queryCases = [
     [{ state: "complete", seq: 1 }, "data"],
@@ -750,6 +748,7 @@ test("a refused frame without code becomes terminal E_WIRE_SHAPE", async () => {
 
 test("a valid refusal frame preserves code and family and is terminal", async () => {
   let opens = 0;
+  let delivered: any;
   const value = createClient({
     url: "http://wire.test",
     fetch: async () => {
@@ -763,10 +762,11 @@ test("a valid refusal frame preserves code and family and is terminal", async ()
       });
     },
   });
-  const sub = value.subscribe(api.messages.thread, {}, () => undefined);
-  const delivery = await sub.until((item) => item.state === "refused", 500);
-  assert.equal(delivery.code, "E_AUTH_REQUIRED");
-  assert.equal(delivery.family, "auth");
+  const sub = value.subscribe(api.messages.thread, {}, (delivery) => { delivered = delivery; });
+  await assert.rejects(sub.until((item) => item.state === "refused", 500),
+    (error: unknown) => error instanceof SnapbackRefusal && error.code === "E_AUTH_REQUIRED" && error.envelope.family === "auth");
+  assert.equal(delivered.code, "E_AUTH_REQUIRED");
+  assert.equal(delivered.family, "auth");
   await new Promise((resolve) => setTimeout(resolve, 300));
   assert.equal(opens, 1);
   sub.close();

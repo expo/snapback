@@ -19,7 +19,7 @@ fn by_id() -> BTreeMap<String, Index> {
     BTreeMap::from([(
         "byId".to_owned(),
         Index {
-            columns: vec!["id".to_owned()],
+            components: vec![snapback2_core::IndexComponent::Column("id".to_owned())],
             unique: true,
         },
     )])

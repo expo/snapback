@@ -57,7 +57,7 @@ interface EntrySpec<Event, Snapshot> {
   key: string;
   initial: Snapshot;
   /** Isolate the event once before reduction, replay, callbacks, or waiters see it. */
-  publication?(event: Event): Event;
+  publication?(event: Event, current: Snapshot): Event;
   reduce(current: Snapshot, event: Event): Snapshot;
   /** Reproject client-level facts without fabricating a query delivery. */
   reproject?(current: Snapshot): Snapshot;
@@ -110,7 +110,7 @@ export class SharedSubscriptions {
   private publish<Event, Snapshot>(
     key: string, entry: Entry<Event, Snapshot>, spec: EntrySpec<Event, Snapshot>, event: Event, direct: boolean,
   ): void {
-    const published = spec.publication?.(event) ?? event;
+    const published = spec.publication?.(event, entry.snapshot) ?? event;
     if (direct) {
       entry.epoch += 1;
       if (entry.refreshing) entry.refreshPending = true;

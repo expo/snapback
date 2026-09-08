@@ -7,7 +7,7 @@ import { join, resolve } from "node:path";
 import { test } from "node:test";
 import { SnapbackRefusal, api, browserTokenStore } from "../dist/client.mjs";
 import { fixtureClient as createClient } from "./live-fixture.ts";
-import { decodeDeliveryEnvelope } from "../dist/index.mjs";
+import { decodeDeliveryEnvelope, schemaDigest } from "../dist/index.mjs";
 import { indexedDbRangeStore } from "../dist/react.mjs";
 import { fileRangeStore } from "../dist/test.mjs";
 import { sqliteFactory } from "./sqlite-fixture.ts";
@@ -125,7 +125,6 @@ test("the IndexedDB carrier keeps rows, answers, outbox, meta, and bytes; the ve
   assert.deepEqual(database.storeNames(name), ["answers", "bytes", "meta", "outbox", "rows"], "version 3 deleted the projections");
   await upgraded.close?.();
 });
-
 test("a pooled row no answer references any more leaves the swap: a replaced closure drops what it stopped pooling, a dropped answer drops its pool", async () => {
   const root = await tempRoot();
   const store = fileRangeStore(root)();
@@ -992,19 +991,20 @@ test("held and unheld offline reads expose since and fenceDays never blocks read
 // held program's `tombstones` declaration; the schema JSON carries the rule encoding.
 test("the schema's tombstones declaration evicts the named body in the same delivery swap", async () => {
   const root = await tempRoot();
-  let call = 0;
+  let call = 0, declaredSchemaHash = schemaHash;
   const declared = async (input: RequestInfo | URL) => {
     const metadata = metadataResponse(input);
     if (!metadata || !String(input).includes("/api/program?")) return metadata;
     const program = await metadata.json();
     program.schema.tables.deliveries = {
       columns: { id: "Id", messageId: { Ref: { table: "messages" } }, kind: { Enum: { variants: ["message", "edit", "removed", "expired"] } } },
-      indexes: { byId: { columns: ["id"], unique: true } },
+      indexes: { byId: { components: [{ Column: "id" }], unique: true } },
       tombstones: [{ table: "messages", column: "messageId", when: { Or: [
         { Eq: [{ Field: "kind" }, { Literal: { String: "removed" } }] },
         { Eq: [{ Field: "kind" }, { Literal: { String: "expired" } }] },
       ] } }],
     };
+    program.schemaHash = declaredSchemaHash = schemaDigest(program.schema);
     return new Response(JSON.stringify(program), { status: 200 });
   };
   const client = createClient({
@@ -1018,7 +1018,7 @@ test("the schema's tombstones declaration evicts the named body in the same deli
         ref(call === 1 ? "messages" : "deliveries", call === 1 ? "m1" : "d1"),
         String(call).repeat(64),
         call,
-      );
+      ); delivered.schemaHash = declaredSchemaHash;
       delivered.rows = call === 1
         ? [row("messages", "m1", "secret")]
         : [{ table: "deliveries", id: "d1", row: { id: "d1", kind: "removed", messageId: "m1" } }];

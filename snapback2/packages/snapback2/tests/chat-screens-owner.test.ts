@@ -245,7 +245,8 @@ test("the chat screens render the log, queue offline sends as pinned bubbles, se
     assert.equal(summary.getAttribute("data-view-state"), bubbles.getAttribute("data-view-state"));
     assert.equal(summary.getAttribute("data-view-seq"), bubbles.getAttribute("data-view-seq"));
     assert.equal(bubbles.getAttribute("data-view-source"), "composite");
-    assert.equal(client.sharedConsumers(api.deliveries.conversationView, { conversationId: "conversation-1" }), 2);
+    assert.equal(client.sharedConsumers(api.deliveries.conversationView, { conversationId: "conversation-1" }), 1,
+      "one composite observer feeds both the summary and message list");
     assert.equal(summary.hasAttribute("data-count"), true);
     assert.equal(Number.isSafeInteger(Number(summary.getAttribute("data-count"))), true);
     const publicSettlement = await client.outbox.settled();

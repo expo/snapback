@@ -217,7 +217,7 @@ async function openChat(page, conversationId) {
     const summary = document.querySelector("section[aria-label=Thread] .thread-summary");
     const messages = document.querySelector("section[aria-label=Thread] ol.bubbles");
     const source = messages?.getAttribute("data-view-source");
-    return window.__snapback.sharedConsumers(window.__api.deliveries.conversationView, { conversationId: id }) === 2
+    return window.__snapback.sharedConsumers(window.__api.deliveries.conversationView, { conversationId: id }) === 1
       && (source === "composite"
         ? summary?.getAttribute("data-view-state") === messages?.getAttribute("data-view-state")
           && summary?.getAttribute("data-view-seq") === messages?.getAttribute("data-view-seq")
@@ -490,7 +490,7 @@ async function main() {
     for (const conversationId of opened) coherentViews.push(await openChat(page, conversationId));
     const listed = await page.$$eval("nav[aria-label=Inbox] li", (nodes) => nodes.length);
     if (listed !== 3) throw new Error(`the inbox listed ${listed} chats`);
-    if (coherentViews.some((view) => view.consumers !== 2 || (view.state !== "complete" && view.state !== "capped")
+    if (coherentViews.some((view) => view.consumers !== 1 || (view.state !== "complete" && view.state !== "capped")
       || !/^\d+$/.test(view.count ?? "") || !view.previewMessage || !view.rows.includes(view.previewMessage))) {
       throw new Error(`mounted composite consumers were incoherent: ${JSON.stringify(coherentViews)}`);
     }
@@ -576,7 +576,12 @@ async function main() {
     const queued = await page.$eval("li[data-state=queued]", (node) => ({ id: node.getAttribute("data-message"), text: node.textContent }));
     if (!/Sending…/.test(queued.text ?? "") || /\d:\d\d/.test(queued.text ?? "")) throw new Error(`pending bubble text was ${queued.text}`);
     await page.waitForSelector(`section[aria-label=Search] li[data-message="${queued.id}"]`, { timeout: 10_000 });
-    await page.waitForFunction(() => document.querySelector("section[aria-label=Search] .scope")?.getAttribute("data-state") === "held", null, { timeout: 10_000 });
+    await page.waitForFunction(() => {
+      const scope = document.querySelector("section[aria-label=Search] .scope");
+      return ["complete", "capped"].includes(scope?.getAttribute("data-state") ?? "")
+        && scope?.getAttribute("data-reason") === "predicted"
+        && /server has not confirmed/.test(scope.textContent ?? "");
+    }, null, { timeout: 10_000 });
     step("the mounted indexed search publishes the offline prediction; partial history hides composite count and preview", {
       queued, partialHistory,
     });
