@@ -248,7 +248,9 @@ test("the chat screens render the log, queue offline sends as pinned bubbles, se
     assert.equal(client.sharedConsumers(api.deliveries.conversationView, { conversationId: "conversation-1" }), 2);
     assert.equal(summary.hasAttribute("data-count"), true);
     assert.equal(Number.isSafeInteger(Number(summary.getAttribute("data-count"))), true);
-    await act(async () => { await client.outbox.settled(); });
+    const publicSettlement = await client.outbox.settled();
+    assert.deepEqual(publicSettlement, { stopped: false, remaining: 0 },
+      "the public settlement joins the completed replay outside React's render flush");
     await waitFor(async () => (await client.outbox.entries()).length === 0, "the settled outbox dismissal");
 
     // A live drain tail is incremental, while its observed value is the whole
