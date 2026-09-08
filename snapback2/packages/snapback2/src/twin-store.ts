@@ -48,6 +48,7 @@ export class TwinStore {
   private fence = '';
   private contributions = new Map<string, Map<string, Contribution>>();
   private effectiveWork = new Map<string, readonly { intent: string; kind: ItemActionKind }[]>();
+  private itemEntries?: OutboxEntry[];
   private intentRows = new Map<string, Set<string>>();
   private pending = new Ordered<OutboxEntry, string>(fifo);
   private pendingEntries = new Map<string, OutboxEntry>();
@@ -62,7 +63,10 @@ export class TwinStore {
     return [...this.pending.seek(() => 0)].flatMap(([, intent]) => (this.state.overlay[intent] ?? [])
       .filter(row => !row.removed).map(row => ({ table: row.table, id: row.id, intent })));
   }
-  captureItems(op: string, args: unknown): ItemCapture { return new ItemCapture(this.state, op, args, this.effectiveWork); }
+  captureItems(op: string, args: unknown): ItemCapture {
+    return new ItemCapture(this.state, op, args, this.effectiveWork,
+      this.itemEntries ??= Object.values(this.state.outbox).sort(fifo));
+  }
 
   async sync(): Promise<boolean> {
     const program = this.sources.program(), principal = this.sources.principal();
@@ -74,6 +78,7 @@ export class TwinStore {
     if (!change.snapshot && (fence !== this.fence || program !== this.program)) change = isolate(await this.sources.changes());
     if (change.snapshot) {
       this.state = change.snapshot;
+      this.itemEntries = undefined;
       if (this.state.sealed || this.state.superseded || (this.state.facts &&
         (this.state.facts.generation !== program.generation || this.state.facts.schemaHash !== program.schemaHash))) return false;
       if (schemaDigest(program.schema) !== program.schemaHash) throw new TypeError('held schema identity mismatch');
@@ -107,6 +112,7 @@ export class TwinStore {
       if (Object.keys(change.records?.['*'] ?? {}).some(k => ['rows', 'answers', 'negative', 'extentNegative', 'overlay', 'viewed', 'facts'].includes(k))
         || change.removed?.['*']?.includes('facts')) { this.revision = undefined; return this.sync(); }
       for (const intent of intents) this.intent(intent, rows);
+      if (changed.has('outbox')) this.itemEntries = undefined;
       let rowChanged = false, authorityChanged = false;
       for (const key of rows) rowChanged = this.row(key) || rowChanged;
       for (const key of answers) authorityChanged = this.answer(key, this.state.answers[key]) || authorityChanged;

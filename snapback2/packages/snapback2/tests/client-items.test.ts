@@ -83,6 +83,37 @@ test("an edit with no created IDs waits for its exact row; a later value can con
   assert.equal(result[0]?.predicted, true);
 });
 
+test("a fresh answer decides page membership without borrowing proof for a displayed row", () => {
+  const committed = entry({ state: "committed", response: { seq: 41 } });
+  const observations = new Map([[itemAddress("messages", "m"), { through: 40 }]]);
+  const oldPage = inputs([committed], { observations, selection: { through: 40 } });
+  const pending = attachItems(spec, args, [], oldPage);
+  assert.equal(pending.length, 1, "a commit and newer pool cannot advance the old page");
+  const freshPage = inputs([committed], { observations, selection: { through: 42 } });
+  assert.deepEqual(attachItems(spec, args, [], freshPage, pending), [], "an old success leaving the page is not a draft");
+  assert.deepEqual(attachItems(spec, args, [], freshPage), [], "remount has no hidden display memory to recover");
+  assert.equal(attachItems(spec, args, page, freshPage)[0]?.pending.length, 1,
+    "page membership cannot certify the contents of an actually displayed row");
+  assert.equal(attachItems(spec, args, [], inputs([entry({ state: "rejected" })], { selection: { through: 99 } })).length, 1);
+  const baseline = entry({ ...committed, issuedSeq: 41 });
+  assert.equal(attachItems(spec, args, [], inputs([baseline], { selection: { through: 41, order: 2 } })).length, 1);
+  assert.deepEqual(attachItems(spec, args, [], inputs([baseline], { selection: { through: 41, order: 4 } })), []);
+});
+
+test("retained history is indexed once and old creates are not visited on warm page publications", () => {
+  let belongs = 0, keys = 0;
+  const indexed = defineItems(ref<Query, Message[]>("messages.page"), { table: "messages", select: row => row,
+    create: { op: ref<{ conversationId: string; body: string }, unknown>("deliveries.post"),
+      key: entry => { keys++; return entry.ids[0]; }, belongs: () => { belongs++; return true; }, draft: args => ({ body: args.body }) } });
+  const entries = Array.from({ length: 10_000 }, (_, i) => entry({ intent: `old:${i}`, ids: [`old:${i}`],
+    state: "committed", issuedSeq: i, response: { seq: i + 1 }, order: i }));
+  const captured = inputs(entries, { selection: { through: 10_001 } });
+  assert.deepEqual(attachItems(indexed, args, [], captured), []);
+  assert.deepEqual(attachItems(indexed, args, [], captured), []);
+  assert.equal(keys, entries.length, "stable ledger records are indexed once across publications");
+  assert.equal(belongs, 0, "a fresh page does not walk old successes through application selectors");
+});
+
 test("a baseline at the commit sequence cannot confirm a write; a newly ordered unchanged observation can", () => {
   const edit = entry({ op: "deliveries.edit", args: { messageId: "m" }, issuedSeq: 41,
     state: "committed", response: { seq: 41 } });

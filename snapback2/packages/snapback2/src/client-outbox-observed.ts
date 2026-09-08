@@ -12,12 +12,21 @@ interface Slot {
   listeners: Set<() => void>;
 }
 
+function immutable<T>(value: T): T {
+  if (value && typeof value === "object") {
+    for (const child of Object.values(value)) immutable(child);
+    Object.freeze(value);
+  }
+  return value;
+}
+
 export function observeOutbox(
   entries: () => Promise<OutboxEntry[]>, status: (op?: Op<any, any>) => Promise<OutboxStatus>,
   subscribe: (notify: () => void) => () => void, identity: () => string,
 ): <Args, Result>(op?: Op<Args, Result>) => ObservedOutbox {
   const slots = new Map<string, Slot>();
   let unsubscribe: (() => void) | undefined, version = 0, scheduled = false;
+  let history = initial.entries, historyKey = "", historyAccount: string | undefined;
   const refresh = () => {
     version += 1;
     if (scheduled) return;
@@ -28,11 +37,16 @@ export function observeOutbox(
       const current = version, account = identity(), active = [...slots.values()];
       void Promise.all([entries(), Promise.all(active.map(slot => status(slot.op)))]).then(([entries, statuses]) => {
         if (current !== version || account !== identity()) return;
-        const rows = Object.freeze(structuredClone(entries)) as unknown as OutboxEntry[];
+        // Compare the ledger once for the client, independent of operation slots.
+        const key = JSON.stringify(entries);
+        if (key !== historyKey || historyAccount !== account) {
+          history = immutable(entries); historyKey = key; historyAccount = account;
+        }
         for (const [at, slot] of active.entries()) {
           if (slot.listeners.size === 0) continue;
-          const next = { entries: rows, status: Object.freeze(statuses[at]!) };
-          if (slot.identity === account && JSON.stringify(slot.snapshot) === JSON.stringify(next)) continue;
+          const next = { entries: history, status: Object.freeze(statuses[at]!) };
+          if (slot.identity === account && slot.snapshot.entries === history
+            && JSON.stringify(slot.snapshot.status) === JSON.stringify(next.status)) continue;
           slot.identity = account; slot.snapshot = Object.freeze(next);
           for (const notify of [...slot.listeners]) try { notify(); } catch { /* isolated consumers */ }
         }
@@ -60,7 +74,7 @@ export function observeOutbox(
           closed = true;
           slot!.listeners.delete(listener);
           if (slot!.listeners.size === 0) slots.delete(key);
-          if (slots.size === 0) { version += 1; unsubscribe?.(); unsubscribe = undefined; }
+          if (slots.size === 0) { version += 1; unsubscribe?.(); unsubscribe = undefined; history = initial.entries; historyKey = ""; historyAccount = undefined; }
         };
       },
     };

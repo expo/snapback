@@ -27,7 +27,8 @@ export function deliveredItemInputs(envelope: DeliveryEnvelopeV1, data: unknown,
     const address = itemAddress(table, key[0]);
     if (!observations.has(address)) observations.set(address, { through: envelope.seq, absent: true });
   }
-  return { entries, values, observations, predicted: new Map() };
+  return { entries, values, observations, predicted: new Map(),
+    ...(["complete", "capped"].includes(envelope.state) ? { selection: { through: envelope.seq } } : {}) };
 }
 
 /** Synchronous capture from the same durable image that answered the query. */
@@ -36,7 +37,7 @@ export class ItemCapture {
   private readonly observations = new Map<string, ItemObservation>();
   private readonly held: StoredAnswer | undefined;
   constructor(private readonly state: PersistedRangeState, op: string, args: unknown,
-    private readonly predicted: ItemInputs["predicted"] = new Map()) {
+    private readonly predicted: ItemInputs["predicted"] = new Map(), private readonly entries?: ItemInputs["entries"]) {
     this.held = state.answers[canonicalAnswerKey(op, args)];
     // Extent eviction and viewed-once bookkeeping are deliberately excluded.
     for (const [key, through] of Object.entries(state.negative)) {
@@ -81,8 +82,11 @@ export class ItemCapture {
     const entries = value.Array ?? value.Map ?? value.Row;
     if (entries) for (const key of Object.keys(entries)) this.evaluated((entries as Record<string, unknown>)[key], (data as Record<string, unknown>)[key]);
   }
-  inputs(): ItemInputs {
-    return { entries: Object.values(this.state.outbox).sort((a, b) => (a.order ?? a.createdAt) - (b.order ?? b.createdAt)
-      || a.intent.localeCompare(b.intent)), observations: this.observations, values: this.values, predicted: new Map(this.predicted) };
+  inputs(complete = true): ItemInputs {
+    const held = this.held;
+    return { entries: this.entries ?? Object.values(this.state.outbox).sort((a, b) => (a.order ?? a.createdAt) - (b.order ?? b.createdAt)
+      || a.intent.localeCompare(b.intent)), observations: this.observations, values: this.values, predicted: new Map(this.predicted),
+      ...(complete && held && !held.retained && !held.clockOnly && !held.needsFactProofs
+        && ["complete", "capped"].includes(held.state) ? { selection: { through: held.seq, order: held.order } } : {}) };
   }
 }

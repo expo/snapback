@@ -312,7 +312,7 @@ export class SharedSubscriptions {
         if (projection) {
           let slot = entry.projections.get(projection.key);
           if (!slot) {
-            slot = { refs: 0, value: undefined, project: projection.project as ProjectionSlot<Snapshot>["project"] };
+            slot = { refs: 0, value: cached, project: projection.project as ProjectionSlot<Snapshot>["project"] };
             this.project(entry.snapshot, slot);
             entry.projections.set(projection.key, slot);
           }

@@ -1090,20 +1090,22 @@ is bound to client, authentication, and operation identity, and the fence bounda
 expiry notify subscribers on a timer. Residuals are filed in the supersession follow-ups
 ticket of 2026-09-04.
 
-**Presentation note (LLP 1018.003 §4, 2026-09-07).** The runtime still never
-dismisses on arrival, and neither do the hooks. The runtime records
-`arrived` on a committed intent when a delivered row carries one of its
-pinned ids or its overlay is confirmed by arrival, judged after the swap's
-outbox puts; because the outbox notification precedes the subscription
-delivery that puts the row on screen, the screen that renders the row is the
-one that retires the intent, so the bubble never remounts. Automatic dismissal
-also requires `predicted` to have cleared: an arrived ordinary row can still
-have a maintained sibling under prediction custody. Full confirmation or the
-existing bounded retirement clears that custody; the latter is not proof of
-arrival. Explicit dismissal of a terminal entry remains available. The twin publishes
-predicted rows as `(table, id, intent)` so a screen marks a row pending by
-its id. A call that settles its own write reads the drain's recorded terminal
-outcome when something retired the entry first.
+**Presentation note (LLP 1018.003 §§7–11, 2026-09-07).** Online `run()` returns
+its terminal without deleting the durable entry. Online and initially queued
+writes share the same explicit-dismissal lifetime; hooks and screens never
+automatically dismiss. `outbox.observe()` supplies the shared history/readiness
+snapshot used by both hooks. Retained terminal history is not bounded or
+automatically compacted.
+
+Optional `items` on `observe`/`useQuery` attach declared creates, updates,
+removals, and effective prediction provenance to each row. An action's marker
+resolves only when its exact target's authoritative base was observed through
+at least its commit sequence, beyond admission, and the same intent's prediction
+no longer contributes to the displayed value. Explicit negative evidence can
+resolve a removal; page omission cannot. `arrived`, fan-out IDs, and generic
+overlay retirement remain custody facts, not proof of this displayed target.
+The same item key spans draft, prediction, and server row. Missing-target changes
+and terminal failures remain accessible in the account's outbox history.
 
 ## 8. The delivery envelope, the validator, and resume
 

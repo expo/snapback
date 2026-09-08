@@ -108,6 +108,8 @@ export interface ItemObservation {
 }
 export interface ItemInputs {
   readonly entries: readonly OutboxEntry[];
+  /** A complete answer to this query decides page membership, not row contents. */
+  readonly selection?: ItemObservation;
   readonly observations: ReadonlyMap<string, ItemObservation>;
   /** Only overlays contributing to this published value, beneath its selectors. */
   readonly predicted: ReadonlyMap<string, readonly { intent: string; kind: ItemActionKind }[]>;
@@ -127,6 +129,45 @@ function observed(entry: OutboxEntry, observation: ItemObservation | undefined, 
 }
 
 const noActions: readonly ItemAction[] = Object.freeze([]);
+type Work<Args, Draft> = { entry: OutboxEntry; binding: Binding<Args, Draft>; key?: string; position: number };
+interface WorkIndex<Args, Draft> {
+  targets: Map<string, Work<Args, Draft>[]>;
+  creates: Work<Args, Draft>[];
+  intents: Map<string, { entry: OutboxEntry; position: number }>;
+}
+const indexes = new WeakMap<object, WeakMap<object, WorkIndex<any, any>>>();
+// Committed creates below this cut have a post-admission, post-commit query
+// answer. Invalid/missing receipts and every non-success stay candidates.
+function selectionCut(entry: OutboxEntry): number {
+  const seq = (entry.response as { seq?: unknown } | undefined)?.seq;
+  return entry.state === "committed" && typeof seq === "number" && Number.isSafeInteger(seq)
+    ? Math.max(seq, entry.issuedSeq + 1) : Infinity;
+}
+function workIndex<Args, Result, Row extends ItemRow, Draft>(
+  spec: Items<Args, Result, Row, Draft>, entries: ItemInputs["entries"],
+): WorkIndex<Args, Draft> {
+  let specs = indexes.get(entries);
+  if (!specs) { specs = new WeakMap(); indexes.set(entries, specs); }
+  let index = specs.get(spec);
+  if (index) return index;
+  index = { targets: new Map(), creates: [], intents: new Map() };
+  const bindings = new Map<string, Binding<Args, Draft>[]>();
+  for (const binding of spec.bindings) bindings.set(binding.op, [...(bindings.get(binding.op) ?? []), binding]);
+  for (const [position, entry] of entries.entries()) {
+    index.intents.set(entry.intent, { entry, position });
+    for (const binding of bindings.get(entry.op) ?? []) {
+      const key = binding.key(entry), work = { entry, binding, key, position };
+      if (key !== undefined) {
+        const target = index.targets.get(key) ?? [];
+        target.push(work); index.targets.set(key, target);
+      }
+      if (binding.kind === "create") index.creates.push(work);
+    }
+  }
+  index.creates.sort((a, b) => selectionCut(b.entry) - selectionCut(a.entry) || a.position - b.position);
+  specs.set(spec, index);
+  return index;
+}
 /** Pure join. In particular, reading or projecting an intent never dismisses it. */
 export function attachItems<Args, Result, Row extends ItemRow, Draft>(
   spec: Items<Args, Result, Row, Draft>, args: Args, data: Result | undefined,
@@ -142,18 +183,21 @@ export function attachItems<Args, Result, Row extends ItemRow, Draft>(
     key: row.id, data: row, predicted: (!inputs.values || inputs.values.get(row) === itemAddress(spec.table, row.id))
       && inputs.predicted.has(itemAddress(spec.table, row.id)), pending: [],
   });
-  const bindings = new Map<string, Binding<Args, Draft>[]>();
-  for (const binding of spec.bindings) bindings.set(binding.op, [...(bindings.get(binding.op) ?? []), binding]);
-  const predictions = new Map<string, Binding<Args, Draft>[]>();
-  for (const item of items.values()) if (item.predicted) for (const prediction of inputs.predicted.get(itemAddress(spec.table, item.key)) ?? []) {
-    const related = predictions.get(prediction.intent) ?? [];
-    related.push({ op: "", kind: prediction.kind, key: () => item.key });
-    predictions.set(prediction.intent, related);
+  const index = workIndex(spec, inputs.entries), work = new Set<Work<Args, Draft>>();
+  for (const item of items.values()) {
+    for (const target of index.targets.get(item.key) ?? []) work.add(target);
+    if (item.predicted) for (const prediction of inputs.predicted.get(itemAddress(spec.table, item.key)) ?? []) {
+      const source = index.intents.get(prediction.intent);
+      if (source) work.add({ ...source, key: item.key, binding: { op: source.entry.op, kind: prediction.kind, key: () => item.key } });
+    }
+  }
+  for (const create of index.creates) {
+    if (selectionCut(create.entry) <= (inputs.selection?.through ?? -1)) break;
+    work.add(create);
   }
   const attached = new Map<string, Set<string>>();
-  for (const entry of inputs.entries) for (const binding of [...(bindings.get(entry.op) ?? []), ...(predictions.get(entry.intent) ?? [])]) {
+  for (const { entry, binding, key } of [...work].sort((a, b) => a.position - b.position)) {
     if (binding.belongs && !binding.belongs(entry, args)) continue;
-    const key = binding.key(entry);
     let item = key === undefined ? undefined : items.get(key);
     const selected = !item?.data || !inputs.values || inputs.values.get(item.data) === itemAddress(spec.table, key!);
     const observation = key === undefined || !selected ? undefined : inputs.observations.get(itemAddress(spec.table, key));
@@ -161,6 +205,9 @@ export function attachItems<Args, Result, Row extends ItemRow, Draft>(
     // row. Explicit absence can resolve an omitted target without inventing one.
     const contributing = key !== undefined && inputs.predicted.get(itemAddress(spec.table, key))?.some(mark => mark.intent === entry.intent);
     if (!contributing && (item || observation?.absent) && observed(entry, observation, binding.kind)) continue;
+    // A post-commit answer to this exact query may exclude an old create from
+    // this page. It cannot settle an indicator on a displayed, unobserved row.
+    if (!item && binding.kind === "create" && observed(entry, inputs.selection, "create")) continue;
     if (!item && binding.kind !== "create") continue;
     if (!item) {
       const stableKey = key ?? `intent:${entry.intent}`;
@@ -186,6 +233,14 @@ export function attachItems<Args, Result, Row extends ItemRow, Draft>(
   return result.length === previous.length && result.every((item, at) => item === previous[at]) ? previous : Object.freeze(result);
 }
 
-function sameValue(left: unknown, right: unknown): boolean {
-  return left === right || JSON.stringify(left) === JSON.stringify(right);
+function sameValue(left: unknown, right: unknown, seen = new WeakMap<object, object>()): boolean {
+  if (Object.is(left, right)) return true;
+  if (!left || !right || typeof left !== "object" || typeof right !== "object"
+    || Object.getPrototypeOf(left) !== Object.getPrototypeOf(right)) return false;
+  if (!Array.isArray(left) && Object.getPrototypeOf(left) !== Object.prototype) return false;
+  if (seen.has(left)) return seen.get(left) === right;
+  seen.set(left, right);
+  const keys = Object.keys(left);
+  return keys.length === Object.keys(right).length && keys.every(key => Object.hasOwn(right, key)
+    && sameValue((left as Record<string, unknown>)[key], (right as Record<string, unknown>)[key], seen));
 }

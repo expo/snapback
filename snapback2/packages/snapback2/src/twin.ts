@@ -103,7 +103,7 @@ export class Twin {
     if (fence.timed) fence.readTime = context.read_time!;
     const since = hydrated.deliveredAt;
     const capture = hydrated.captureItems(op, args);
-    const publish = <T extends LocalAnswer>(value: T): T => withItemInputs(value, capture.inputs());
+    const publish = <T extends LocalAnswer>(value: T): T => withItemInputs(value, capture.inputs(value.state !== "partial" && value.state !== "denied"));
     const base = {
       seq: this.sources.seq(),
       ...(since === undefined ? {} : { since }),

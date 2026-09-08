@@ -12,10 +12,10 @@ export function withItemInputs<T>(value: T, inputs: ItemInputs | undefined): T {
 }
 export function carryItemInputs<T>(from: unknown, to: T): T { return withItemInputs(to, itemInputs(from)); }
 
-/** Clone the pair together so identity keys still name the cloned public rows. */
+/** Isolate the public value; captured immutable records are shared across queries. */
 export function cloneItemPublication<T>(value: T): T {
-  const pair = structuredClone({ value, inputs: itemInputs(value) });
-  return withItemInputs(pair.value, pair.inputs);
+  const copy = structuredClone(value), inputs = itemInputs(value);
+  return withItemInputs(copy, inputs && rebindItemInputs(inputs, value, copy));
 }
 
 /** The reducer may preserve equal data identity; move its new evidence to those equal objects. */
@@ -31,4 +31,3 @@ export function rebindItemInputs(inputs: ItemInputs, from: unknown, to: unknown)
   walk(from, to);
   return { ...inputs, values };
 }
-
