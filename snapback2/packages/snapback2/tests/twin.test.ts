@@ -855,7 +855,7 @@ test("an unseen schema shape is hydrating: a novel index field or column payload
     ["a novel index field", (schema) => { schema.tables.memberships.indexes.byConvUser.shard = 3; }, /index field shard/],
     ["a novel column payload", (schema) => { schema.tables.messages.columns.body = { Text: { max: 4000, collation: "und" } }; }, /column\.Text field collation/],
     ["a novel channel-argument List field", (schema) => {
-      schema.channels = { typing: { args: { ids: { List: { of: "Id", max: 4, shard: 1 } } }, publish: "Allow", subscribe: "Allow", ttl_ms: 1_000 } };
+      schema.channels = { typing: { args: { ids: { List: { of: "Id", max: 4, shard: 1 } } }, value: { typing: "Bool" }, publish: "Allow", subscribe: "Allow", ttl_ms: 1_000 } };
     }, /arg\.List field shard/],
   ];
   for (const [label, mutate, refusal] of shapes) {
