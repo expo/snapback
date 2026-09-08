@@ -71,3 +71,17 @@ priority for both the latest fact and strongest negative. This landing keeps
 that implementation and ports the exact mixed-swap warm/cold regression plus
 the governing LLP note. The qualification numbers above remain historical
 evidence for `886f41706`, not measurements of the subsequently evolved main.
+
+
+## Integrated landing review and verification
+
+Independent `/root/invalidation_audit` returned **READY for `a0f3f61a8`;
+no material findings**. Read-only review confirmed that the shared evidence
+join preserves tombstone priority, retirement records the contradiction, and
+the twin suppresses the admitted overlay; historical evidence is distinguished
+from current main. No runtime source changes are introduced by this landing.
+
+The current package build and full store-custody file passed on Node 24.18.0:
+90 tests, no skips or failures, 21.601 seconds. Ref-check passed with 416
+documents and 7,816 references; all seven caps categories passed. The initial
+Snapback 1 overrun recorded above has been resolved by intervening main work.
