@@ -1,0 +1,66 @@
+{
+  "started": "2026-09-08T14:19:50.693Z",
+  "ended": "2026-09-08T14:22:15.080Z",
+  "url": "http://127.0.0.1:53123",
+  "results": [
+    {
+      "id": "m6-a08",
+      "pass": true,
+      "evidence": "results/api/grader-push-digest.json#m6-a08",
+      "at": "2026-09-08T14:19:50.859Z",
+      "summary": "push payload with Bob disconnected",
+      "hasTextPush": true,
+      "payload": {
+        "chatId": "d-alice-bob",
+        "preview": "PushRetry mtsraiau yyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy",
+        "senderDisplayName": "Alice Alvarez",
+        "targetUserId": "user:I6DqsKCodO2ajgsDF8u7lQ"
+      }
+    },
+    {
+      "id": "m6-a09-retry",
+      "pass": true,
+      "evidence": "results/api/grader-push-digest.json#m6-a09",
+      "at": "2026-09-08T14:19:50.859Z",
+      "summary": "view-once Photo preview with Bob disconnected",
+      "hasOnce": true
+    },
+    {
+      "id": "m8-a08",
+      "pass": false,
+      "evidence": "results/api/grader-push-digest.json#m8-a08",
+      "at": "2026-09-08T14:20:15.154Z",
+      "summary": "exactly one new bob digest after activity period",
+      "bobNewCount": 0,
+      "payload": null,
+      "aliceNewCount": 0
+    },
+    {
+      "id": "m8-a09",
+      "pass": true,
+      "evidence": "results/api/grader-push-digest.json#m8-a09",
+      "at": "2026-09-08T14:20:15.154Z",
+      "summary": "dave with no relevant activity received no digest",
+      "daveNewCount": 0
+    },
+    {
+      "id": "m8-a10",
+      "pass": false,
+      "evidence": "results/api/grader-push-digest.json#m8-a10",
+      "at": "2026-09-08T14:22:15.080Z",
+      "summary": "following empty period emitted no additional bob digest",
+      "bobEmptyNewCount": 1
+    },
+    {
+      "id": "m8-a12",
+      "pass": true,
+      "evidence": "results/api/grader-push-digest.json#m8-a12",
+      "at": "2026-09-08T14:22:15.080Z",
+      "summary": "dave received no digest from a group he is not in",
+      "daveNewCount": 0,
+      "bobUnread": null
+    }
+  ],
+  "passCount": 4,
+  "failCount": 2
+}

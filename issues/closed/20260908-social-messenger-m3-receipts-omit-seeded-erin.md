@@ -1,6 +1,7 @@
 # M3 group receipt choreography omits seeded recipient Erin
 
 **Date:** 2026-09-08
+**Status:** Closed as duplicate; underlying defect remains open
 **Area:** Clique benchmark instrument
 **Source:** Published Snapback2 0.0.19 cold diagnostic run; independent source audit
 
@@ -31,3 +32,10 @@ until the final expected transition. Preserve the current frozen instrument
 and report this wave’s result as limited by the inconsistency.
 
 Related: LLP0201; `benchmarks/runs/2026-09-08-release-cold-headroom/README.md`.
+
+## Resolution — 2026-09-08
+
+Consolidated recurring 0.0.19 evidence into the earlier
+[M3 seeded-actor ticket](../20260906-clique-m3-group-receipt-missing-seeded-actor.md).
+This closes duplicate tracking only. No fixture, app, or receipt semantics were
+changed, and no new passing M3 claim is made.

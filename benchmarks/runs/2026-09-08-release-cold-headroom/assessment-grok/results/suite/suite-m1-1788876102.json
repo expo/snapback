@@ -1,0 +1,62 @@
+{
+  "schemaVersion": "clique.acceptance.v1",
+  "milestone": "m1",
+  "start": 1788876097,
+  "backendUrl": "http://127.0.0.1:53123",
+  "webUrl": "http://127.0.0.1:53124",
+  "commands": [
+    {
+      "name": "snapback2-check",
+      "pass": true,
+      "code": 0,
+      "ms": 820,
+      "stdout": "{\"compilerMs\":51.03,\"generation\":\"e80099e9159695ea7e7812ce73b89bbb0b7a05fa70dde975b7424273e957a809\",\"ok\":true,\"operations\":55,\"schemaCertificate\":{\"disclosures\":[\"messages.onceImage: one image delivery per authenticated principal; owning row read rule; no device byte cache\"],\"schedules\":[{\"name\":\"dailyDigest\",\"target\":\"digests.digestSweep\",\"trigger\":{\"every\":{\"durationMs\":120000}}},{\"name\":\"expireTrending\",\"target\":\"digests.purgeTrending\",\"trigger\":{\"row\":{\"column\":\"expiresAt\",\"table\":\"trendingPosts\"}}},{\"name\":\"expireMessage\",\"target\":\"messages.purgeExpired\",\"trigger\":{\"row\":{\"column\":\"expiresAt\",\"table\":\"messages\"}}}]}}\n",
+      "stderr": ""
+    },
+    {
+      "name": "typescript",
+      "pass": true,
+      "code": 0,
+      "ms": 1625,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "name": "snapback2-authored-journeys",
+      "pass": true,
+      "code": 0,
+      "ms": 1725,
+      "stdout": "{\"binary\":{\"version\":\"0.0.19\",\"digest\":\"rust64:27840c11e1e9f1c6\"},\"generation\":\"e80099e9159695ea7e7812ce73b89bbb0b7a05fa70dde975b7424273e957a809\",\"commands\":[\"snapback2 dev --foreground --port 0\",\"seed\",\"snapback2 test --journeys-only\"],\"checks\":[{\"name\":\"profiles update through authenticated policy\",\"kind\":\"journey\",\"verdict\":\"pass\",\"ms\":31,\"detail\":{\"file\":\"/Users/ccheever/clique-cold-019-20260908/assessment/app/.snapback/test-run-1788876100475/project/.snapback/build/tests/clique.mjs\"}},{\"name\":\"follow post like and reply set-state\",\"kind\":\"journey\",\"verdict\":\"pass\",\"ms\":41,\"detail\":{\"file\":\"/Users/ccheever/clique-cold-019-20260908/assessment/app/.snapback/test-run-1788876100475/project/.snapback/build/tests/clique.mjs\"}},{\"name\":\"message receipts reactions and edits\",\"kind\":\"journey\",\"verdict\":\"pass\",\"ms\":37,\"detail\":{\"file\":\"/Users/ccheever/clique-cold-019-20260908/assessment/app/.snapback/test-run-1788876100475/project/.snapback/build/tests/clique.mjs\"}},{\"name\":\"scheduled digest emits once and skips empty periods\",\"kind\":\"journey\",\"verdict\":\"pass\",\"ms\":78,\"detail\":{\"file\":\"/Users/ccheever/clique-cold-019-20260908/assessment/app/.snapback/test-run-1788876100475/project/.snapback/build/tests/clique.mjs\"}}],\"arms\":[\"headless\"],\"verdict\":\"pass\",\"scope\":{\"changed\":[]},\"schedules\":{\"fired\":3,\"late\":3,\"rejected\":0}}\n",
+      "stderr": ""
+    }
+  ],
+  "tests": [
+    {
+      "name": "m1-auth-profile-assets-and-collisions",
+      "pass": true,
+      "ms": 163,
+      "detail": {
+        "viewer": "user:Q6-GYxhxHI64DURaNA5iYQ",
+        "handle": "accmtsqn6du",
+        "avatarBytes": 767
+      }
+    },
+    {
+      "name": "m1-visible-auth-errors-and-authenticated-screen",
+      "pass": true,
+      "ms": 528,
+      "detail": {
+        "visibleDuplicateEmailError": true,
+        "authenticatedSurface": true
+      }
+    }
+  ],
+  "coverage": {
+    "path": "coverage/m1.json",
+    "assertions": 7,
+    "expected": 7,
+    "complete": true
+  },
+  "pass": true,
+  "end": 1788876102
+}

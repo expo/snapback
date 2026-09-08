@@ -1,0 +1,36 @@
+{
+  "schemaVersion": "clique.coverage.v1",
+  "milestone": "m6",
+  "assertions": [
+    {
+      "assertionId": "m6-a08",
+      "test": "m6-push-custom-client-and-replay-adapter",
+      "source": "scripts/acceptance.mjs",
+      "note": "With Bob's clients closed, Alice messages him: the backend logs a push payload with the correct targetUserId, chatId, senderDisplayName, and preview (first 80 chars of text, or 'Photo'/'Video' for media)."
+    },
+    {
+      "assertionId": "m6-a09",
+      "test": "m6-push-custom-client-and-replay-adapter",
+      "source": "scripts/acceptance.mjs",
+      "note": "A view-once photo previews as 'Photo' in the logged push payload."
+    },
+    {
+      "assertionId": "m6-a10",
+      "test": "m6-push-custom-client-and-replay-adapter",
+      "source": "scripts/acceptance.mjs",
+      "note": "scripts/custom-client-demo.mjs runs green against the live backend from a clean checkout."
+    },
+    {
+      "assertionId": "m6-a11",
+      "test": "m6-push-custom-client-and-replay-adapter",
+      "source": "scripts/acceptance.mjs",
+      "note": "The demo script exercises every listed API operation: authenticate (or use an issued token), list conversations, page through message history, send a text message, and receive new messages (streaming or documented polling)."
+    },
+    {
+      "assertionId": "m6-a13",
+      "test": "m6-push-custom-client-and-replay-adapter",
+      "source": "scripts/acceptance.mjs",
+      "note": "The scale-replay adapter passes the fixture pack's action-schema conformance check: it replays a 50-action sample log green, harness-validated, on the dev instance (adapter authoring is inside M6's coverage manifest, cap, and authoring clock)."
+    }
+  ]
+}

@@ -1,0 +1,113 @@
+{
+  "schemaVersion": "clique.m8-assertion-results.v1",
+  "note": "Companion record outside the frozen grader-report.schema.json patternProperties ^m[1-7]-a[0-9]{2}$. Not used to populate assertionResults in grader-report.json.",
+  "assertionResults": {
+    "m8-a01": {
+      "result": "pass",
+      "method": "web-automation",
+      "evidence": "results/web/m8-insights.png",
+      "suiteResult": "pass",
+      "note": "Insights UI shows the six lifetime totals. Independent API totals were integers and posts matched profile-feed originals. Suite did not compare to seeded content."
+    },
+    "m8-a02": {
+      "result": "pass",
+      "method": "choreography-artifacts",
+      "evidence": "evidence/choreo-m8-1788873320.jsonl#m8-a02-insights-like-refresh"
+    },
+    "m8-a03": {
+      "result": "pass",
+      "method": "api",
+      "evidence": "results/api/grader-api.json#m8-a03",
+      "suiteResult": "pass"
+    },
+    "m8-a04": {
+      "result": "pass",
+      "method": "web-automation",
+      "evidence": "results/web/m8-insights.png",
+      "suiteResult": "pass",
+      "note": "UI renders 7 day rows and zero-fills omitted API days. Suite assertion was a tautology. API returned only the active UTC day."
+    },
+    "m8-a05": {
+      "result": "pass",
+      "method": "api",
+      "evidence": "results/api/grader-api.json#m8-a05",
+      "suiteResult": "pass",
+      "note": "Independent: a 2-like post ranked above a 0-like post. Suite never created an unequal like ranking."
+    },
+    "m8-a06": {
+      "result": "pass",
+      "method": "source-inspection",
+      "evidence": "app/snapback/posts.q trendingPosts expiresAt now+86400000; app/snapback/digests.q schedule expireTrending",
+      "suiteResult": "pass",
+      "note": "Current trending set had no candidate older than 24h. Could not mint a >24h post via API. Suite used a synthetic JS object. Source+schedule implement 24h TTL purge."
+    },
+    "m8-a07": {
+      "result": "pass",
+      "method": "api",
+      "evidence": "results/api/grader-api.json#m8-a07",
+      "suiteResult": "pass"
+    },
+    "m8-a08": {
+      "result": "pass",
+      "method": "api",
+      "evidence": "results/api/grader-digest-poll.json",
+      "note": "Bob digest payloads include newFollowers, newPostsInFollowing, unreadMessages, unreadChats, targetUserId, periodStart/periodEnd. One payload per unique period observed (6 then 7 unique periods). Job lags the 120s period boundary."
+    },
+    "m8-a09": {
+      "result": "pass",
+      "method": "api",
+      "evidence": "results/api/grader-idle-restart-after.json",
+      "note": "Fresh idle persona received zero digest rows after a period+job wait. Dave was not a valid inactive fixture after earlier follow activity."
+    },
+    "m8-a10": {
+      "result": "pass",
+      "method": "api",
+      "evidence": "results/api/grader-digest-poll.json",
+      "note": "After the delayed activity digest, a further ~140s empty wait produced zero additional Bob digests."
+    },
+    "m8-a11": {
+      "result": "pass",
+      "method": "api",
+      "evidence": "results/api/grader-idle-restart-after.json",
+      "note": "Owned backend restarted mid-period (stop PID 80444/80452, start 88573/88576). After wait, exactly one new Bob digest and duplicatePeriods=0. Supplied evidence/digest-restart-proof.json also pass=true with duplicatePeriods=0."
+    },
+    "m8-a12": {
+      "result": "pass",
+      "method": "api",
+      "evidence": "results/api/grader-push-digest.json#m8-a12",
+      "note": "Dave received no digest from Weekend Plans activity he is not a member of. Idle user also received none."
+    },
+    "m8-a13": {
+      "result": "pass",
+      "method": "choreography-artifacts",
+      "evidence": "evidence/choreo-m8-1788873320.jsonl#m8-a13-same-account-message-live"
+    },
+    "m8-a14": {
+      "result": "pass",
+      "method": "choreography-artifacts",
+      "evidence": "evidence/choreo-m8-1788873320.jsonl#m8-a14-cross-device-read-state"
+    },
+    "m8-a15": {
+      "result": "pass",
+      "method": "choreography-artifacts",
+      "evidence": "evidence/choreo-m8-1788873320.jsonl#m8-a15-dual-offline-convergence"
+    },
+    "m8-a16": {
+      "result": "pass",
+      "method": "choreography-artifacts",
+      "evidence": "evidence/choreo-m8-1788873320.jsonl#m8-a16-dual-offline-receipts"
+    },
+    "m8-a17": {
+      "result": "fail",
+      "method": "choreography-artifacts",
+      "evidence": "evidence/simulator-status.json",
+      "note": "simulator-status.json records pass=null and receipt=null. Launch screenshots/exports are not qualifying native proofs. No replacement native evidence was created."
+    },
+    "m8-a18": {
+      "result": "fail",
+      "method": "choreography-artifacts",
+      "evidence": "evidence/simulator-status.json",
+      "note": "simulator-status.json records pass=null and receipt=null. Launch screenshots/exports are not qualifying native proofs. No replacement native evidence was created."
+    }
+  }
+}

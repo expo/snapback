@@ -1,0 +1,39 @@
+{
+  "schemaVersion": "clique.digest-restart-proof.v1",
+  "generation": "e80099e9159695ea7e7812ce73b89bbb0b7a05fa70dde975b7424273e957a809",
+  "periodMilliseconds": 120000,
+  "before": {
+    "at": 1788873258385,
+    "users": {
+      "alice": { "count": 0, "periods": [], "duplicatePeriods": 0 },
+      "bob": { "count": 5, "periods": [14907274, 14907273, 14907271, 14907267, 14907260], "duplicatePeriods": 0 },
+      "carol": { "count": 4, "periods": [14907274, 14907273, 14907267, 14907260], "duplicatePeriods": 0 },
+      "dave": { "count": 0, "periods": [], "duplicatePeriods": 0 }
+    }
+  },
+  "restart": {
+    "stoppedOwnedForegroundSession": 4895,
+    "startedOwnedForegroundSession": 62788,
+    "samePersistedOwner": true,
+    "sameDigestPeriod": true
+  },
+  "retry": {
+    "program": "digests.digestSweep",
+    "runs": 2,
+    "jobs": [
+      { "id": "job_s2id-c2bc8b47d1afa714f8161321eccc70b4-00000000003f4001", "chunks": 2, "state": "done", "rowsWritten": {} },
+      { "id": "job_s2id-c2bc8b47d1afa714f8161321eccc70b4-00000000003f4c01", "chunks": 2, "state": "done", "rowsWritten": {} }
+    ]
+  },
+  "after": {
+    "at": 1788873302883,
+    "users": {
+      "alice": { "count": 0, "periods": [], "duplicatePeriods": 0 },
+      "bob": { "count": 5, "periods": [14907274, 14907273, 14907271, 14907267, 14907260], "duplicatePeriods": 0 },
+      "carol": { "count": 4, "periods": [14907274, 14907273, 14907267, 14907260], "duplicatePeriods": 0 },
+      "dave": { "count": 0, "periods": [], "duplicatePeriods": 0 }
+    }
+  },
+  "pass": true,
+  "basis": "A real owner restart and two same-period job retries produced no additional target/period emission and no duplicate period for any queried fixture account."
+}

@@ -92,7 +92,7 @@ suite timing issues remain open. A read-only independent audit by
 
 The M3 group receipt choreography also omits seeded recipient Erin while
 requiring aggregate read. Independent source inspection confirmed the
-[instrument inconsistency](../../../issues/20260908-social-messenger-m3-receipts-omit-seeded-erin.md).
+[instrument inconsistency](../../../issues/20260906-clique-m3-group-receipt-missing-seeded-actor.md).
 The cold run’s failed receipt remains evidence; this finding does not establish
 an independent app pass. The frozen instrument is unchanged.
 
@@ -117,3 +117,21 @@ The M5 stock React Native Web preview also has a confirmed
 loaded child media can change without the root snapshot changing. The
 independent source audit and bounded observations are retained; this finding
 does not establish full M5 success or modify the frozen instrument.
+
+## Independent assessment and fresh M7
+
+The initial Grok assessment ended and its frozen-schema report validates, but
+its supplemental web retry remained incomplete. Read the
+[original evidence and root adjudication](assessment-grok/README.md): coverage
+gaps and a missing feed-link handler are supported, while several receipt,
+search, pagination and total claims require narrower wording. Native proof
+remains absent. A fresh Sol/xhigh fallback is running separately, labeled
+same-family; the original Grok report is retained unchanged.
+
+Fresh M7 is also running in its own session on exact starter data. Before its
+first edit, the custom-client snapshot captured eight personas, two unique
+conversations and 15 messages (six quoted messages, 81 receipt rows across
+persona views). Media, reaction, edited, tombstoned and view-once populated
+classes were empty. The existing schema already had count structures; M7 must
+qualify the actual visible-count transition, not claim a newly added counter
+alone forced migration.

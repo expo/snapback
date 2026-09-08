@@ -1,0 +1,473 @@
+{
+  "schemaVersion": "clique.replay.v2",
+  "source": "/Users/ccheever/clique-cold-019-20260908/lanes/sol-snapback2/harness/benchmarks/fixtures/social-messenger/scale.log",
+  "url": "http://127.0.0.1:53122",
+  "scale": true,
+  "start": 1788869124,
+  "end": 1788870379,
+  "actions": 167157,
+  "settledActions": 167157,
+  "verbCounts": {
+    "register": 1000,
+    "profile-set": 1000,
+    "follow": 5909,
+    "group-create": 100,
+    "member-add": 48,
+    "dm-create": 900,
+    "post": 48200,
+    "reply": 2000,
+    "like": 5000,
+    "repost": 1000,
+    "send": 99090,
+    "send-media": 910,
+    "react": 2000
+  },
+  "checkpoints": [
+    {
+      "label": "10%",
+      "actions": 24777,
+      "profile": "u0005",
+      "at": 1788869351,
+      "verified": true,
+      "verification": {
+        "label": "10%",
+        "actions": 24777,
+        "observed": {
+          "u0500": {
+            "followingCount": 500,
+            "conversationMembershipCount": 100
+          },
+          "u0005": {
+            "followingCount": 5
+          },
+          "u0900": {
+            "followerCount": 900,
+            "postCount": 20
+          },
+          "u0901": {
+            "followingCount": 5,
+            "following": [
+              "u0001",
+              "u0002",
+              "u0003",
+              "u0004",
+              "u0900"
+            ]
+          },
+          "g0001": {
+            "memberCount": 50,
+            "members": [
+              "u0001",
+              "u0002",
+              "u0003",
+              "u0004",
+              "u0005",
+              "u0006",
+              "u0007",
+              "u0008",
+              "u0009",
+              "u0010",
+              "u0011",
+              "u0012",
+              "u0013",
+              "u0014",
+              "u0015",
+              "u0016",
+              "u0017",
+              "u0018",
+              "u0019",
+              "u0020",
+              "u0021",
+              "u0022",
+              "u0023",
+              "u0024",
+              "u0025",
+              "u0026",
+              "u0027",
+              "u0028",
+              "u0029",
+              "u0030",
+              "u0031",
+              "u0032",
+              "u0033",
+              "u0034",
+              "u0035",
+              "u0036",
+              "u0037",
+              "u0038",
+              "u0039",
+              "u0040",
+              "u0041",
+              "u0042",
+              "u0043",
+              "u0044",
+              "u0045",
+              "u0046",
+              "u0047",
+              "u0048",
+              "u0049",
+              "u0500"
+            ],
+            "messageCount": 1000
+          }
+        },
+        "verified": true,
+        "at": 1788869351
+      }
+    },
+    {
+      "label": "50%",
+      "actions": 88057,
+      "profile": "u0005",
+      "at": 1788869751,
+      "verified": true,
+      "verification": {
+        "label": "50%",
+        "actions": 88057,
+        "observed": {
+          "u0500": {
+            "followingCount": 500,
+            "conversationMembershipCount": 100
+          },
+          "u0005": {
+            "followingCount": 5
+          },
+          "u0900": {
+            "followerCount": 900,
+            "postCount": 100
+          },
+          "u0901": {
+            "followingCount": 5,
+            "following": [
+              "u0001",
+              "u0002",
+              "u0003",
+              "u0004",
+              "u0900"
+            ]
+          },
+          "g0001": {
+            "memberCount": 50,
+            "members": [
+              "u0001",
+              "u0002",
+              "u0003",
+              "u0004",
+              "u0005",
+              "u0006",
+              "u0007",
+              "u0008",
+              "u0009",
+              "u0010",
+              "u0011",
+              "u0012",
+              "u0013",
+              "u0014",
+              "u0015",
+              "u0016",
+              "u0017",
+              "u0018",
+              "u0019",
+              "u0020",
+              "u0021",
+              "u0022",
+              "u0023",
+              "u0024",
+              "u0025",
+              "u0026",
+              "u0027",
+              "u0028",
+              "u0029",
+              "u0030",
+              "u0031",
+              "u0032",
+              "u0033",
+              "u0034",
+              "u0035",
+              "u0036",
+              "u0037",
+              "u0038",
+              "u0039",
+              "u0040",
+              "u0041",
+              "u0042",
+              "u0043",
+              "u0044",
+              "u0045",
+              "u0046",
+              "u0047",
+              "u0048",
+              "u0049",
+              "u0500"
+            ],
+            "messageCount": 5000
+          }
+        },
+        "verified": true,
+        "at": 1788869751
+      }
+    }
+  ],
+  "verifications": [
+    {
+      "label": "10%",
+      "actions": 24777,
+      "observed": {
+        "u0500": {
+          "followingCount": 500,
+          "conversationMembershipCount": 100
+        },
+        "u0005": {
+          "followingCount": 5
+        },
+        "u0900": {
+          "followerCount": 900,
+          "postCount": 20
+        },
+        "u0901": {
+          "followingCount": 5,
+          "following": [
+            "u0001",
+            "u0002",
+            "u0003",
+            "u0004",
+            "u0900"
+          ]
+        },
+        "g0001": {
+          "memberCount": 50,
+          "members": [
+            "u0001",
+            "u0002",
+            "u0003",
+            "u0004",
+            "u0005",
+            "u0006",
+            "u0007",
+            "u0008",
+            "u0009",
+            "u0010",
+            "u0011",
+            "u0012",
+            "u0013",
+            "u0014",
+            "u0015",
+            "u0016",
+            "u0017",
+            "u0018",
+            "u0019",
+            "u0020",
+            "u0021",
+            "u0022",
+            "u0023",
+            "u0024",
+            "u0025",
+            "u0026",
+            "u0027",
+            "u0028",
+            "u0029",
+            "u0030",
+            "u0031",
+            "u0032",
+            "u0033",
+            "u0034",
+            "u0035",
+            "u0036",
+            "u0037",
+            "u0038",
+            "u0039",
+            "u0040",
+            "u0041",
+            "u0042",
+            "u0043",
+            "u0044",
+            "u0045",
+            "u0046",
+            "u0047",
+            "u0048",
+            "u0049",
+            "u0500"
+          ],
+          "messageCount": 1000
+        }
+      },
+      "verified": true,
+      "at": 1788869351
+    },
+    {
+      "label": "50%",
+      "actions": 88057,
+      "observed": {
+        "u0500": {
+          "followingCount": 500,
+          "conversationMembershipCount": 100
+        },
+        "u0005": {
+          "followingCount": 5
+        },
+        "u0900": {
+          "followerCount": 900,
+          "postCount": 100
+        },
+        "u0901": {
+          "followingCount": 5,
+          "following": [
+            "u0001",
+            "u0002",
+            "u0003",
+            "u0004",
+            "u0900"
+          ]
+        },
+        "g0001": {
+          "memberCount": 50,
+          "members": [
+            "u0001",
+            "u0002",
+            "u0003",
+            "u0004",
+            "u0005",
+            "u0006",
+            "u0007",
+            "u0008",
+            "u0009",
+            "u0010",
+            "u0011",
+            "u0012",
+            "u0013",
+            "u0014",
+            "u0015",
+            "u0016",
+            "u0017",
+            "u0018",
+            "u0019",
+            "u0020",
+            "u0021",
+            "u0022",
+            "u0023",
+            "u0024",
+            "u0025",
+            "u0026",
+            "u0027",
+            "u0028",
+            "u0029",
+            "u0030",
+            "u0031",
+            "u0032",
+            "u0033",
+            "u0034",
+            "u0035",
+            "u0036",
+            "u0037",
+            "u0038",
+            "u0039",
+            "u0040",
+            "u0041",
+            "u0042",
+            "u0043",
+            "u0044",
+            "u0045",
+            "u0046",
+            "u0047",
+            "u0048",
+            "u0049",
+            "u0500"
+          ],
+          "messageCount": 5000
+        }
+      },
+      "verified": true,
+      "at": 1788869751
+    },
+    {
+      "label": "final",
+      "actions": 167157,
+      "observed": {
+        "u0500": {
+          "followingCount": 500,
+          "conversationMembershipCount": 100
+        },
+        "u0005": {
+          "followingCount": 5
+        },
+        "u0900": {
+          "followerCount": 900,
+          "postCount": 200
+        },
+        "u0901": {
+          "followingCount": 5,
+          "following": [
+            "u0001",
+            "u0002",
+            "u0003",
+            "u0004",
+            "u0900"
+          ]
+        },
+        "g0001": {
+          "memberCount": 50,
+          "members": [
+            "u0001",
+            "u0002",
+            "u0003",
+            "u0004",
+            "u0005",
+            "u0006",
+            "u0007",
+            "u0008",
+            "u0009",
+            "u0010",
+            "u0011",
+            "u0012",
+            "u0013",
+            "u0014",
+            "u0015",
+            "u0016",
+            "u0017",
+            "u0018",
+            "u0019",
+            "u0020",
+            "u0021",
+            "u0022",
+            "u0023",
+            "u0024",
+            "u0025",
+            "u0026",
+            "u0027",
+            "u0028",
+            "u0029",
+            "u0030",
+            "u0031",
+            "u0032",
+            "u0033",
+            "u0034",
+            "u0035",
+            "u0036",
+            "u0037",
+            "u0038",
+            "u0039",
+            "u0040",
+            "u0041",
+            "u0042",
+            "u0043",
+            "u0044",
+            "u0045",
+            "u0046",
+            "u0047",
+            "u0048",
+            "u0049",
+            "u0500"
+          ],
+          "messageCount": 10000
+        }
+      },
+      "verified": true,
+      "at": 1788870379
+    }
+  ],
+  "manifest": {
+    "path": "/Users/ccheever/clique-cold-019-20260908/lanes/sol-snapback2/harness/benchmarks/fixtures/social-messenger/invariant-manifest-combined.json",
+    "sha256": "a70c627cf32db9378861a2ff2e291311404e74e06ed02ead5908d565acde5a3f"
+  },
+  "pass": true
+}

@@ -1,0 +1,137 @@
+{
+  "started": "2026-09-08T14:14:46.775Z",
+  "ended": "2026-09-08T14:16:16.208Z",
+  "webUrl": "http://127.0.0.1:53124",
+  "results": [
+    {
+      "id": "m1-a04-web",
+      "pass": true,
+      "evidence": "results/web/m1-duplicate-email-error.png",
+      "at": "2026-09-08T14:14:47.181Z",
+      "summary": "signup with existing email shows visible error",
+      "errorPresent": true
+    },
+    {
+      "id": "m1-a02-web",
+      "pass": true,
+      "evidence": "results/web/m1-authenticated-feed.png",
+      "at": "2026-09-08T14:14:47.390Z",
+      "summary": "sign-in lands on authenticated feed"
+    },
+    {
+      "id": "m1-a05",
+      "pass": true,
+      "evidence": "results/web/m1-session-persist.png",
+      "at": "2026-09-08T14:14:48.322Z",
+      "summary": "reload keeps Alice signed in"
+    },
+    {
+      "id": "m1-a06",
+      "pass": true,
+      "evidence": "results/web/m1-signed-out.png",
+      "at": "2026-09-08T14:14:49.965Z",
+      "summary": "logout then reload remains signed out",
+      "stillAuthed": 0
+    },
+    {
+      "id": "m1-a03-web",
+      "pass": true,
+      "evidence": "results/web/m1-duplicate-handle.png",
+      "at": "2026-09-08T14:14:50.272Z",
+      "summary": "signup whose derived handle is alice should surface visible error",
+      "errorVisible": true,
+      "feedVisible": false
+    },
+    {
+      "id": "m2-web-block",
+      "pass": false,
+      "evidence": "results/web/grader-web.json",
+      "at": "2026-09-08T14:15:23.598Z",
+      "summary": "feed/insights/search web block failed",
+      "error": "locator.click: Timeout 30000ms exceeded.\nCall log:\n  - waiting for getByTestId('sm-compose-submit')\n    - locator resolved to <button tabindex=\"0\" role=\"button\" type=\"button\" aria-label=\"Publish post\" data-testid=\"sm-compose-submit\" class=\"css-g5y9jx r-1loqt21 r-1otgn73 r-1awozwy r-rxdyg0 r-cpet4d r-1r8g8re r-1777fci r-1jkjb r-1qi8awa r-3o4zer\">…</button>\n  - attempting click action\n    2 × waiting for element to be visible, enabled and stable\n      - element is not enabled\n    - retrying click action\n    - waiting 20ms\n    2 × waiting for element to be visible, enabled and stable\n      - element is not enabled\n    - retrying click action\n      - waiting 100ms\n    56 × waiting for element to be visible, enabled and stable\n       - element is not enabled\n     - retrying click action\n       - waiting 500ms\n"
+    },
+    {
+      "id": "m3-a10-web",
+      "pass": true,
+      "evidence": "results/web/m3-quote.png",
+      "at": "2026-09-08T14:15:28.500Z",
+      "summary": "quoted excerpt visible in conversation",
+      "quoteCount": 3
+    },
+    {
+      "id": "m3-a11-web",
+      "pass": true,
+      "evidence": "results/web/m3-quote.png",
+      "at": "2026-09-08T14:15:28.512Z",
+      "summary": "clicked quoted excerpt"
+    },
+    {
+      "id": "m3-a06-web",
+      "pass": true,
+      "evidence": "results/web/m3-typing.png",
+      "at": "2026-09-08T14:15:43.448Z",
+      "summary": "typing indicator best-of-3 within 2s",
+      "measurementsMs": [
+        266,
+        31,
+        32
+      ]
+    },
+    {
+      "id": "m3-a07-web",
+      "pass": true,
+      "evidence": "results/web/m3-typing.png",
+      "at": "2026-09-08T14:15:43.448Z",
+      "summary": "typing indicator expiry best-of-3 within 5s",
+      "measurementsMs": [
+        4337,
+        4348,
+        4354
+      ]
+    },
+    {
+      "id": "m3-a09-web",
+      "pass": false,
+      "evidence": "results/web/m3-group-receipt.png",
+      "at": "2026-09-08T14:15:46.017Z",
+      "summary": "group receipt semantic after Bob saw message, Carol not in thread",
+      "receiptVal": null,
+      "receiptText": "✓",
+      "note": "wait-for-slowest expects sent until Carol delivers"
+    },
+    {
+      "id": "m5-a12-web",
+      "pass": false,
+      "evidence": "results/web/grader-web.json",
+      "at": "2026-09-08T14:16:16.185Z",
+      "summary": "warm-offline search web check failed",
+      "error": "locator.fill: Timeout 30000ms exceeded.\nCall log:\n  - waiting for getByTestId('sm-search-input')\n"
+    }
+  ],
+  "timings": [
+    {
+      "subject": "m3-a06",
+      "measurementsMs": [
+        266,
+        31,
+        32
+      ],
+      "bestMs": 31,
+      "boundMs": 2000,
+      "passed": true
+    },
+    {
+      "subject": "m3-a07",
+      "measurementsMs": [
+        4337,
+        4348,
+        4354
+      ],
+      "bestMs": 4337,
+      "boundMs": 5000,
+      "passed": true
+    }
+  ],
+  "passCount": 9,
+  "failCount": 3
+}

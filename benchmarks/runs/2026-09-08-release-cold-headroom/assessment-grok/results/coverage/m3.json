@@ -1,0 +1,48 @@
+{
+  "schemaVersion": "clique.coverage.v1",
+  "milestone": "m3",
+  "assertions": [
+    {
+      "assertionId": "m3-a03",
+      "test": "m3-dm-groups-quotes-permissions-idempotent-seed",
+      "source": "scripts/acceptance.mjs",
+      "note": "Starting the 'same' DM again reuses the existing channel (at most one DM channel per user pair)."
+    },
+    {
+      "assertionId": "m3-a04",
+      "test": "m3-dm-groups-quotes-permissions-idempotent-seed",
+      "source": "scripts/acceptance.mjs",
+      "note": "Create a group with Alice, Bob, and Carol."
+    },
+    {
+      "assertionId": "m3-a05",
+      "test": "m3-dm-groups-quotes-permissions-idempotent-seed",
+      "source": "scripts/acceptance.mjs",
+      "note": "A second group with the same three members coexists as a distinct group."
+    },
+    {
+      "assertionId": "m3-a10",
+      "test": "m3-dm-groups-quotes-permissions-idempotent-seed",
+      "source": "scripts/acceptance.mjs",
+      "note": "A quoted reply renders the quoted excerpt in its bubble."
+    },
+    {
+      "assertionId": "m3-a11",
+      "test": "m3-dm-groups-quotes-permissions-idempotent-seed",
+      "source": "scripts/acceptance.mjs",
+      "note": "Tapping the quoted excerpt scrolls/jumps to the original message."
+    },
+    {
+      "assertionId": "m3-a14",
+      "test": "m3-dm-groups-quotes-permissions-idempotent-seed",
+      "source": "scripts/acceptance.mjs",
+      "note": "A non-admin cannot remove members."
+    },
+    {
+      "assertionId": "m3-a15",
+      "test": "m3-dm-groups-quotes-permissions-idempotent-seed",
+      "source": "scripts/acceptance.mjs",
+      "note": "The seed is idempotent: a second run produces no duplicates - judged per installed segment, covering every starter-log segment installed so far (each milestone's suite re-runs this)."
+    }
+  ]
+}

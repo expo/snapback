@@ -1,0 +1,138 @@
+{
+  "schemaVersion": "clique.coverage.v1",
+  "milestone": "m2",
+  "assertions": [
+    {
+      "assertionId": "m2-a01",
+      "test": "m2-post-follow-feed-toggle-thread-pagination",
+      "source": "scripts/acceptance.mjs",
+      "note": "Create a text post."
+    },
+    {
+      "assertionId": "m2-a02",
+      "test": "m2-post-follow-feed-toggle-thread-pagination",
+      "source": "scripts/acceptance.mjs",
+      "note": "Create an image post with 2 fixture images."
+    },
+    {
+      "assertionId": "m2-a03",
+      "test": "m2-post-follow-feed-toggle-thread-pagination",
+      "source": "scripts/acceptance.mjs",
+      "note": "Create a video post."
+    },
+    {
+      "assertionId": "m2-a06",
+      "test": "m2-post-follow-feed-toggle-thread-pagination",
+      "source": "scripts/acceptance.mjs",
+      "note": "Bob follows Alice; Alice's posts appear in Bob's Following feed."
+    },
+    {
+      "assertionId": "m2-a08",
+      "test": "m2-post-follow-feed-toggle-thread-pagination",
+      "source": "scripts/acceptance.mjs",
+      "note": "After Bob unfollows, on next feed load Alice's posts (including older ones) no longer appear in his Following feed."
+    },
+    {
+      "assertionId": "m2-a09",
+      "test": "m2-post-follow-feed-toggle-thread-pagination",
+      "source": "scripts/acceptance.mjs",
+      "note": "After the unfollow, Alice's posts remain visible in the Global feed (unfollow is projection-scoped, not content revocation)."
+    },
+    {
+      "assertionId": "m2-a10",
+      "test": "m2-post-follow-feed-toggle-thread-pagination",
+      "source": "scripts/acceptance.mjs",
+      "note": "A post from a user Bob doesn't follow appears in his Global feed."
+    },
+    {
+      "assertionId": "m2-a11",
+      "test": "m2-post-follow-feed-toggle-thread-pagination",
+      "source": "scripts/acceptance.mjs",
+      "note": "That same post is absent from Bob's Following feed."
+    },
+    {
+      "assertionId": "m2-a12",
+      "test": "m2-post-follow-feed-toggle-thread-pagination",
+      "source": "scripts/acceptance.mjs",
+      "note": "An http(s) URL in a text post renders as tappable text opening the system browser."
+    },
+    {
+      "assertionId": "m2-a13",
+      "test": "m2-post-follow-feed-toggle-thread-pagination",
+      "source": "scripts/acceptance.mjs",
+      "note": "No preview card renders for the URL (no unfurling)."
+    },
+    {
+      "assertionId": "m2-a15",
+      "test": "m2-post-follow-feed-toggle-thread-pagination",
+      "source": "scripts/acceptance.mjs",
+      "note": "Unlike works: the like is cleared and the count decrements (idempotent set-state toggle)."
+    },
+    {
+      "assertionId": "m2-a16",
+      "test": "m2-post-follow-feed-toggle-thread-pagination",
+      "source": "scripts/acceptance.mjs",
+      "note": "Repost from client B; feeds show the repost attributed 'reposted by {display name}'."
+    },
+    {
+      "assertionId": "m2-a17",
+      "test": "m2-post-follow-feed-toggle-thread-pagination",
+      "source": "scripts/acceptance.mjs",
+      "note": "Reposting again removes the repost (toggle)."
+    },
+    {
+      "assertionId": "m2-a18",
+      "test": "m2-post-follow-feed-toggle-thread-pagination",
+      "source": "scripts/acceptance.mjs",
+      "note": "A repost by a followed user surfaces the original author's post in the Following feed."
+    },
+    {
+      "assertionId": "m2-a20",
+      "test": "m2-post-follow-feed-toggle-thread-pagination",
+      "source": "scripts/acceptance.mjs",
+      "note": "The thread screen shows the parent and its direct replies in chronological order."
+    },
+    {
+      "assertionId": "m2-a21",
+      "test": "m2-post-follow-feed-toggle-thread-pagination",
+      "source": "scripts/acceptance.mjs",
+      "note": "The reply is absent from both feeds (replies appear only on thread screens)."
+    },
+    {
+      "assertionId": "m2-a22",
+      "test": "m2-post-follow-feed-toggle-thread-pagination",
+      "source": "scripts/acceptance.mjs",
+      "note": "With >20 seeded posts, scrolling loads the next page (20 per page) in the Following tab."
+    },
+    {
+      "assertionId": "m2-a23",
+      "test": "m2-post-follow-feed-toggle-thread-pagination",
+      "source": "scripts/acceptance.mjs",
+      "note": "With >20 seeded posts, scrolling loads the next page in the Global tab."
+    },
+    {
+      "assertionId": "m2-a24",
+      "test": "m2-post-follow-feed-toggle-thread-pagination",
+      "source": "scripts/acceptance.mjs",
+      "note": "Feed pagination produces no duplicates and no gaps across pages in either tab."
+    },
+    {
+      "assertionId": "m2-a25",
+      "test": "m2-post-follow-feed-toggle-thread-pagination",
+      "source": "scripts/acceptance.mjs",
+      "note": "With no explicit self-follow edge, Bob's own original posts remain in his Following feed, including when he follows no other accounts."
+    },
+    {
+      "assertionId": "m2-a26",
+      "test": "m2-post-follow-feed-toggle-thread-pagination",
+      "source": "scripts/acceptance.mjs",
+      "note": "With no explicit self-follow edge, Bob's own reposts remain in his Following feed."
+    },
+    {
+      "assertionId": "m2-a27",
+      "test": "m2-post-follow-feed-toggle-thread-pagination",
+      "source": "scripts/acceptance.mjs",
+      "note": "Implicit self-follow feed membership does not change Bob's follower or following counts."
+    }
+  ]
+}

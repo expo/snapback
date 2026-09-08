@@ -1,0 +1,14 @@
+{
+  "m6": {
+    "id": "ios-simulator-m6",
+    "pass": null,
+    "receipt": null,
+    "reason": "Attempted an owned iPhone 17 Pro/iOS 26.5 simulator (2EA63CFF-3D4E-4EB8-A706-3E8D5770DFE3): release-style Hermes xcodebuild, install, and launch succeeded and rendered the native Clique sign-in screen, but the frozen simulator specification states that no generic app-side event/receipt driver exists. A launch screenshot cannot establish the required cold-offline interactions, so no proof was fabricated. Diagnostic artifact: artifacts/native-m6/release-launch-scheme.png."
+  },
+  "m8": {
+    "id": "ios-simulator-m8",
+    "pass": null,
+    "receipt": null,
+    "reason": "Attempted the owned iPhone 17 Pro/iOS 26.5 simulator (2EA63CFF-3D4E-4EB8-A706-3E8D5770DFE3): the final Release Hermes xcodebuild, install, and launch succeeded and rendered Clique. The frozen simulator specification provides no generic app-side event/receipt driver, so the required compose-offline, kill, cold-relaunch-offline, reconnect, ordered flush, and read-receipt sequence cannot be recorded from outside the app. No proof was fabricated. Diagnostic artifact: artifacts/native-m8/release-launch.png (sha256 cd086a9b09ab31f9ba6093e50a9b5750dcc35c784863a314f6e87e73dc83f3ca)."
+  }
+}

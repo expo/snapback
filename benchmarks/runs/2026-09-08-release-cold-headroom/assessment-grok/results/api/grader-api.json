@@ -1,0 +1,596 @@
+{
+  "started": "2026-09-08T14:14:46.590Z",
+  "ended": "2026-09-08T14:17:52.889Z",
+  "url": "http://127.0.0.1:53123",
+  "results": [
+    {
+      "id": "m1-a01",
+      "pass": true,
+      "evidence": "results/api/grader-api.json#m1-a01",
+      "at": "2026-09-08T14:14:46.762Z",
+      "summary": "signup returned a session",
+      "viewerPresent": true
+    },
+    {
+      "id": "m1-a02",
+      "pass": true,
+      "evidence": "results/api/grader-api.json#m1-a02",
+      "at": "2026-09-08T14:14:46.762Z",
+      "summary": "client authenticated after signup",
+      "authState": "authenticated"
+    },
+    {
+      "id": "m1-a08",
+      "pass": true,
+      "evidence": "results/api/grader-api.json#m1-a08",
+      "at": "2026-09-08T14:14:46.832Z",
+      "summary": "displayName/bio persisted",
+      "displayName": "Grader Updated",
+      "bio": "After"
+    },
+    {
+      "id": "m1-a10",
+      "pass": true,
+      "evidence": "results/api/grader-api.json#m1-a10",
+      "at": "2026-09-08T14:14:46.835Z",
+      "summary": "avatar uploaded",
+      "avatarBytes": 767
+    },
+    {
+      "id": "m1-a11",
+      "pass": true,
+      "evidence": "results/api/grader-api.json#m1-a11",
+      "at": "2026-09-08T14:14:46.835Z",
+      "summary": "avatar bytes fetchable after upload",
+      "avatarBytes": 767
+    },
+    {
+      "id": "m1-a03",
+      "pass": true,
+      "evidence": "results/api/grader-api.json#m1-a03",
+      "at": "2026-09-08T14:14:46.875Z",
+      "summary": "duplicate handle rejected at API",
+      "state": "rejected",
+      "code": "E_CONSTRAINT",
+      "note": "visible UI error is separately web-checked"
+    },
+    {
+      "id": "m1-a04",
+      "pass": true,
+      "evidence": "results/api/grader-api.json#m1-a04",
+      "at": "2026-09-08T14:14:46.881Z",
+      "summary": "duplicate email signup threw",
+      "note": "visible UI error is separately web-checked",
+      "errorClass": "thrown"
+    },
+    {
+      "id": "m1-a07",
+      "pass": true,
+      "evidence": "results/api/grader-api.json#m1-a07",
+      "at": "2026-09-08T14:14:46.886Z",
+      "summary": "revoked token cannot read profiles.mine",
+      "thrown": true,
+      "name": "A"
+    },
+    {
+      "id": "m2-a01",
+      "pass": true,
+      "evidence": "results/api/grader-api.json#m2-a01",
+      "at": "2026-09-08T14:14:46.894Z",
+      "summary": "text post committed",
+      "postId": "grader-text-mtsr3zrk"
+    },
+    {
+      "id": "m2-a02",
+      "pass": true,
+      "evidence": "results/api/grader-api.json#m2-a02",
+      "at": "2026-09-08T14:14:46.987Z",
+      "summary": "image post has two images"
+    },
+    {
+      "id": "m2-a03",
+      "pass": true,
+      "evidence": "results/api/grader-api.json#m2-a03",
+      "at": "2026-09-08T14:14:47.029Z",
+      "summary": "video post has video asset"
+    },
+    {
+      "id": "m2-a06",
+      "pass": true,
+      "evidence": "results/api/grader-api.json#m2-a06",
+      "at": "2026-09-08T14:14:47.042Z",
+      "summary": "Alice text post in Bob following after follow"
+    },
+    {
+      "id": "m2-a15",
+      "pass": true,
+      "evidence": "results/api/grader-api.json#m2-a15",
+      "at": "2026-09-08T14:14:47.052Z",
+      "summary": "unlike decremented like count",
+      "likeSet": {
+        "count": 1,
+        "liked": true
+      },
+      "likeClear": {
+        "count": 0,
+        "liked": false
+      }
+    },
+    {
+      "id": "m2-a16",
+      "pass": true,
+      "evidence": "results/api/grader-api.json#m2-a16",
+      "at": "2026-09-08T14:14:47.068Z",
+      "summary": "own repost present with actor displayName",
+      "actor": "Bob Bennett",
+      "note": "UI attribution string is web-checked"
+    },
+    {
+      "id": "m2-a26",
+      "pass": true,
+      "evidence": "results/api/grader-api.json#m2-a26",
+      "at": "2026-09-08T14:14:47.068Z",
+      "summary": "own repost present in following without self-follow edge"
+    },
+    {
+      "id": "m2-a17",
+      "pass": true,
+      "evidence": "results/api/grader-api.json#m2-a17",
+      "at": "2026-09-08T14:14:47.079Z",
+      "summary": "own repost removed after toggle"
+    },
+    {
+      "id": "m2-a18",
+      "pass": true,
+      "evidence": "results/api/grader-api.json#m2-a18",
+      "at": "2026-09-08T14:14:47.106Z",
+      "summary": "followed user's repost surfaces original author post in Dave following"
+    },
+    {
+      "id": "m2-a20",
+      "pass": true,
+      "evidence": "results/api/grader-api.json#m2-a20",
+      "at": "2026-09-08T14:14:47.120Z",
+      "summary": "thread has parent and replies ascending byParentTime",
+      "replyCount": 1,
+      "chrono": true
+    },
+    {
+      "id": "m2-a21",
+      "pass": true,
+      "evidence": "results/api/grader-api.json#m2-a21",
+      "at": "2026-09-08T14:14:47.141Z",
+      "summary": "reply absent from global and following",
+      "globalHasReply": false,
+      "followingHasReply": false
+    },
+    {
+      "id": "m2-a08",
+      "pass": true,
+      "evidence": "results/api/grader-api.json#m2-a08",
+      "at": "2026-09-08T14:14:47.157Z",
+      "summary": "unfollowed Alice originals absent from Bob following"
+    },
+    {
+      "id": "m2-a09",
+      "pass": true,
+      "evidence": "results/api/grader-api.json#m2-a09",
+      "at": "2026-09-08T14:14:47.166Z",
+      "summary": "unfollowed content remains in global"
+    },
+    {
+      "id": "m2-a10",
+      "pass": true,
+      "evidence": "results/api/grader-api.json#m2-a10",
+      "at": "2026-09-08T14:14:47.198Z",
+      "summary": "unfollowed author appears in global"
+    },
+    {
+      "id": "m2-a11",
+      "pass": true,
+      "evidence": "results/api/grader-api.json#m2-a11",
+      "at": "2026-09-08T14:14:47.198Z",
+      "summary": "unfollowed author absent from following"
+    },
+    {
+      "id": "m2-a23",
+      "pass": true,
+      "evidence": "results/api/grader-api.json#m2-a23",
+      "at": "2026-09-08T14:14:47.379Z",
+      "summary": "global first page 20 with cursor",
+      "page1": 20,
+      "page2": 20
+    },
+    {
+      "id": "m2-a22",
+      "pass": true,
+      "evidence": "results/api/grader-api.json#m2-a22",
+      "at": "2026-09-08T14:14:47.398Z",
+      "summary": "following first page 20 with cursor",
+      "page1": 20,
+      "page2": 20,
+      "hasNext": true
+    },
+    {
+      "id": "m2-a24",
+      "pass": true,
+      "evidence": "results/api/grader-api.json#m2-a24",
+      "at": "2026-09-08T14:14:47.398Z",
+      "summary": "no duplicate event ids across first two pages; global page2 not newer than page1 tail",
+      "globalDup": false,
+      "followDup": false,
+      "globalMono": true
+    },
+    {
+      "id": "m2-a25",
+      "pass": true,
+      "evidence": "results/api/grader-api.json#m2-a25",
+      "at": "2026-09-08T14:14:47.405Z",
+      "summary": "own originals appear in following without self-follow"
+    },
+    {
+      "id": "m2-a27",
+      "pass": true,
+      "evidence": "results/api/grader-api.json#m2-a27",
+      "at": "2026-09-08T14:14:47.416Z",
+      "summary": "own-post following membership did not change graph counts",
+      "before": {
+        "followers": 3,
+        "following": 1,
+        "id": "s2id-75fb870cfcbb7df03e2bb9b57c96614e-0000000000000c01",
+        "likesReceived": 1,
+        "posts": 26,
+        "principal": "user:I6DqsKCodO2ajgsDF8u7lQ",
+        "repliesReceived": 1,
+        "repostsReceived": 1
+      },
+      "after": {
+        "followers": 3,
+        "following": 1,
+        "id": "s2id-75fb870cfcbb7df03e2bb9b57c96614e-0000000000000c01",
+        "likesReceived": 1,
+        "posts": 49,
+        "principal": "user:I6DqsKCodO2ajgsDF8u7lQ",
+        "repliesReceived": 1,
+        "repostsReceived": 1
+      }
+    },
+    {
+      "id": "m2-a12",
+      "pass": true,
+      "evidence": "results/api/grader-api.json#m2-a12",
+      "at": "2026-09-08T14:14:47.420Z",
+      "summary": "URL stored in post body; tappable-open is web-checked",
+      "note": "API cannot observe system-browser navigation"
+    },
+    {
+      "id": "m2-a13",
+      "pass": true,
+      "evidence": "results/api/grader-api.json#m2-a13",
+      "at": "2026-09-08T14:14:47.420Z",
+      "summary": "API has no unfurl fields on posts; UI preview-card absence is web-checked",
+      "note": "source/API have no preview-card payload"
+    },
+    {
+      "id": "d-alice-bob",
+      "pass": true,
+      "evidence": "results/api/grader-api.json#m3-a03",
+      "at": "2026-09-08T14:14:47.425Z",
+      "summary": "repeat DM create reused channel"
+    },
+    {
+      "id": "m3-a04",
+      "pass": true,
+      "evidence": "results/api/grader-api.json#m3-a04",
+      "at": "2026-09-08T14:14:47.442Z",
+      "summary": "group contains Alice Bob Carol",
+      "handles": [
+        "alice",
+        "bob",
+        "carol"
+      ]
+    },
+    {
+      "id": "m3-a05",
+      "pass": true,
+      "evidence": "results/api/grader-api.json#m3-a05",
+      "at": "2026-09-08T14:14:47.455Z",
+      "summary": "second group is a distinct id",
+      "group1": "grader-group-mtsr3zrk",
+      "group2": "grader-group2-mtsr3zrk"
+    },
+    {
+      "id": "m3-a10",
+      "pass": true,
+      "evidence": "results/api/grader-api.json#m3-a10",
+      "at": "2026-09-08T14:14:47.473Z",
+      "summary": "quoted excerpt present on message",
+      "excerpt": "Quoted source"
+    },
+    {
+      "id": "m3-a11",
+      "pass": true,
+      "evidence": "results/api/grader-api.json#m3-a11",
+      "at": "2026-09-08T14:14:47.473Z",
+      "summary": "quote points at original id; tap-to-scroll is web-checked",
+      "replyTo": "grader-message-mtsr3zrk"
+    },
+    {
+      "id": "m3-a14",
+      "pass": true,
+      "evidence": "results/api/grader-api.json#m3-a14",
+      "at": "2026-09-08T14:14:47.478Z",
+      "summary": "non-admin memberRemove rejected",
+      "state": "rejected",
+      "code": "ADMIN_REQUIRED"
+    },
+    {
+      "id": "m3-a01-api",
+      "pass": true,
+      "evidence": "results/api/grader-api.json#m3-a01-api",
+      "at": "2026-09-08T14:14:47.518Z",
+      "summary": "Bob subscription received Alice DM",
+      "liveMs": 34,
+      "liveErr": null
+    },
+    {
+      "id": "m4-a01",
+      "pass": true,
+      "evidence": "results/api/grader-api.json#m4-a01",
+      "at": "2026-09-08T14:14:47.600Z",
+      "summary": "photo message present with image asset"
+    },
+    {
+      "id": "m4-a02-api",
+      "pass": true,
+      "evidence": "results/api/grader-api.json#m4-a02-api",
+      "at": "2026-09-08T14:14:47.603Z",
+      "summary": "Bob fetched photo bytes from query result",
+      "bytes": 2110
+    },
+    {
+      "id": "m4-a03",
+      "pass": true,
+      "evidence": "results/api/grader-api.json#m4-a03",
+      "at": "2026-09-08T14:14:47.647Z",
+      "summary": "video message present"
+    },
+    {
+      "id": "m4-a04-api",
+      "pass": true,
+      "evidence": "results/api/grader-api.json#m4-a04-api",
+      "at": "2026-09-08T14:14:47.647Z",
+      "summary": "video asset present for recipient query; playback is web-checked"
+    },
+    {
+      "id": "m4-a06",
+      "pass": true,
+      "evidence": "results/api/grader-api.json#m4-a06",
+      "at": "2026-09-08T14:14:47.662Z",
+      "summary": "Bob has at most one reaction, replaced with heart",
+      "bobReactions": [
+        {
+          "emoji": "❤️",
+          "reactor": "user:I6DqsKCodO2ajgsDF8u7lQ"
+        }
+      ]
+    },
+    {
+      "id": "m4-a07",
+      "pass": true,
+      "evidence": "results/api/grader-api.json#m4-a07",
+      "at": "2026-09-08T14:14:47.675Z",
+      "summary": "Bob reaction removed"
+    },
+    {
+      "id": "m4-a09",
+      "pass": true,
+      "evidence": "results/api/grader-api.json#m4-a09",
+      "at": "2026-09-08T14:14:47.699Z",
+      "summary": "edited flag and new body visible to Bob",
+      "edited": true,
+      "body": "Edited body"
+    },
+    {
+      "id": "m4-a11-api",
+      "pass": true,
+      "evidence": "results/api/grader-api.json#m4-a11-api",
+      "at": "2026-09-08T14:14:47.723Z",
+      "summary": "deleted photo is tombstoned for Bob"
+    },
+    {
+      "id": "m4-a12",
+      "pass": true,
+      "evidence": "results/api/grader-api.json#m4-a12",
+      "at": "2026-09-08T14:14:47.726Z",
+      "summary": "deleted photo asset URL fetch",
+      "served": false,
+      "thrown": true
+    },
+    {
+      "id": "m5-a04-meta",
+      "pass": true,
+      "evidence": "results/api/grader-api.json#m5-a04-meta",
+      "at": "2026-09-08T14:14:47.794Z",
+      "summary": "view-once metadata on history without ordinary image bytes"
+    },
+    {
+      "id": "m5-a04",
+      "pass": true,
+      "evidence": "results/api/grader-api.json#m5-a04",
+      "at": "2026-09-08T14:14:47.806Z",
+      "summary": "first once asset fetch succeeded",
+      "bytes": 2119
+    },
+    {
+      "id": "m5-a05",
+      "pass": true,
+      "evidence": "results/api/grader-api.json#m5-a05",
+      "at": "2026-09-08T14:14:47.810Z",
+      "summary": "second once URL fetch denied"
+    },
+    {
+      "id": "m5-a06",
+      "pass": true,
+      "evidence": "results/api/grader-api.json#m5-a06",
+      "at": "2026-09-08T14:14:47.816Z",
+      "summary": "post-view asset refused",
+      "secondDenied": true,
+      "directDenied": true
+    },
+    {
+      "id": "m5-a08",
+      "pass": true,
+      "evidence": "results/api/grader-api.json#m5-a08",
+      "at": "2026-09-08T14:14:47.822Z",
+      "summary": "non-admin rename rejected",
+      "state": "rejected"
+    },
+    {
+      "id": "m5-a09",
+      "pass": true,
+      "evidence": "results/api/grader-api.json#m5-a09",
+      "at": "2026-09-08T14:14:47.825Z",
+      "summary": "people search car -> carol"
+    },
+    {
+      "id": "m5-a10",
+      "pass": true,
+      "evidence": "results/api/grader-api.json#m5-a10",
+      "at": "2026-09-08T14:14:47.829Z",
+      "summary": "in-chat search found coffee"
+    },
+    {
+      "id": "m5-a11",
+      "pass": true,
+      "evidence": "results/api/grader-api.json#m5-a11",
+      "at": "2026-09-08T14:14:47.836Z",
+      "summary": "searchAll returns rows with conversationId (grouping key)",
+      "hits": 3,
+      "chats": 2,
+      "note": "UI grouping is web-checked; API is a flat page"
+    },
+    {
+      "id": "m6-a08",
+      "pass": false,
+      "evidence": "results/api/grader-api.json#m6-a08",
+      "at": "2026-09-08T14:14:47.961Z",
+      "summary": "push payload fields",
+      "previewLen": 80,
+      "hasPush": false
+    },
+    {
+      "id": "m6-a09",
+      "pass": true,
+      "evidence": "results/api/grader-api.json#m6-a09",
+      "at": "2026-09-08T14:14:47.962Z",
+      "summary": "view-once push preview Photo"
+    },
+    {
+      "id": "m6-a12",
+      "pass": true,
+      "evidence": "results/api/grader-api.json#m6-a12",
+      "at": "2026-09-08T14:14:47.977Z",
+      "summary": "API.md named conversation latest message",
+      "conversationTitle": "Weekend Plans",
+      "latestId": "sm0015",
+      "latestKind": "text"
+    },
+    {
+      "id": "m8-a01",
+      "pass": true,
+      "evidence": "results/api/grader-api.json#m8-a01",
+      "at": "2026-09-08T14:14:47.984Z",
+      "summary": "insights totals are integers and posts match profile-feed originals",
+      "stats": {
+        "posts": 12,
+        "likesReceived": 4,
+        "repostsReceived": 1,
+        "repliesReceived": 3,
+        "followers": 3,
+        "following": 2
+      },
+      "profileOriginals": 12,
+      "postsMatch": true
+    },
+    {
+      "id": "m8-a03",
+      "pass": true,
+      "evidence": "results/api/grader-api.json#m8-a03",
+      "at": "2026-09-08T14:14:48.008Z",
+      "summary": "today UTC bucket has posts",
+      "today": 20704,
+      "days": [
+        {
+          "day": 20704,
+          "posts": 13
+        }
+      ]
+    },
+    {
+      "id": "m8-a04",
+      "pass": false,
+      "evidence": "results/api/grader-api.json#m8-a04",
+      "at": "2026-09-08T14:14:48.008Z",
+      "summary": "API day rows vs required 7 UTC days",
+      "returnedDays": 1,
+      "omittedZeros": [
+        20703,
+        20702,
+        20701,
+        20700,
+        20699,
+        20698
+      ],
+      "note": "UI zero-fills omitted days in InsightsScreen"
+    },
+    {
+      "id": "m8-a05",
+      "pass": true,
+      "evidence": "results/api/grader-api.json#m8-a05",
+      "at": "2026-09-08T14:14:48.180Z",
+      "summary": "higher-like post ranks before lower-like post",
+      "highIdx": 0,
+      "lowIdx": -1,
+      "first": "grader-trend-high-mtsr3zrk"
+    },
+    {
+      "id": "m8-a07",
+      "pass": true,
+      "evidence": "results/api/grader-api.json#m8-a07",
+      "at": "2026-09-08T14:14:48.180Z",
+      "summary": "like-count tie newest-first",
+      "newIdx": 2,
+      "oldIdx": 3
+    },
+    {
+      "id": "m8-a06",
+      "pass": true,
+      "evidence": "results/api/grader-api.json#m8-a06",
+      "at": "2026-09-08T14:14:48.181Z",
+      "summary": "no trending candidate older than 24h in current set",
+      "olderThanDay": [],
+      "note": "could not mint a >24h post via API; observed current trending set + source TTL"
+    },
+    {
+      "id": "m4-a10",
+      "pass": true,
+      "evidence": "results/api/grader-api.json#m4-a10",
+      "at": "2026-09-08T14:15:48.713Z",
+      "summary": "edit after 60s window rejected",
+      "state": "rejected",
+      "code": "EDIT_WINDOW_EXPIRED",
+      "waitedMs": 61005
+    },
+    {
+      "id": "m5-a01",
+      "pass": true,
+      "evidence": "results/api/grader-api.json#m5-a01",
+      "at": "2026-09-08T14:17:52.882Z",
+      "summary": "expired disappearing message refused/absent",
+      "absent": true
+    }
+  ],
+  "passCount": 63,
+  "failCount": 2
+}

@@ -1,0 +1,137 @@
+{
+  "started": "2026-09-08T14:23:06.047Z",
+  "ended": "2026-09-08T14:27:27.512Z",
+  "snapshot1Counts": {
+    "bob": 5,
+    "dave": 2,
+    "alice": 4
+  },
+  "bobLogs": [
+    {
+      "id": "s2id-75fb870cfcbb7df03e2bb9b57c96614e-0000000000117802",
+      "period": 14907311,
+      "periodStart": 1788877320000,
+      "periodEnd": 1788877440000,
+      "at": 1788877501735,
+      "payload": {
+        "kind": "digest",
+        "newFollowers": 0,
+        "newPostsInFollowing": 3,
+        "periodEnd": 1788877440000,
+        "periodStart": 1788877320000,
+        "targetUserId": "user:I6DqsKCodO2ajgsDF8u7lQ",
+        "unreadChats": 0,
+        "unreadMessages": 0
+      }
+    },
+    {
+      "id": "s2id-75fb870cfcbb7df03e2bb9b57c96614e-00000000000c5404",
+      "period": 14907309,
+      "periodStart": 1788877080000,
+      "periodEnd": 1788877200000,
+      "at": 1788877261737,
+      "payload": {
+        "kind": "digest",
+        "newFollowers": 0,
+        "newPostsInFollowing": 1,
+        "periodEnd": 1788877200000,
+        "periodStart": 1788877080000,
+        "targetUserId": "user:I6DqsKCodO2ajgsDF8u7lQ",
+        "unreadChats": 2,
+        "unreadMessages": 4
+      }
+    },
+    {
+      "id": "s2id-75fb870cfcbb7df03e2bb9b57c96614e-00000000000a7404",
+      "period": 14907307,
+      "periodStart": 1788876840000,
+      "periodEnd": 1788876960000,
+      "at": 1788877021744,
+      "payload": {
+        "kind": "digest",
+        "newFollowers": 1,
+        "newPostsInFollowing": 0,
+        "periodEnd": 1788876960000,
+        "periodStart": 1788876840000,
+        "targetUserId": "user:I6DqsKCodO2ajgsDF8u7lQ",
+        "unreadChats": 2,
+        "unreadMessages": 9
+      }
+    },
+    {
+      "id": "s2id-75fb870cfcbb7df03e2bb9b57c96614e-000000000007e002",
+      "period": 14907301,
+      "periodStart": 1788876120000,
+      "periodEnd": 1788876240000,
+      "at": 1788876301741,
+      "payload": {
+        "kind": "digest",
+        "newFollowers": 0,
+        "newPostsInFollowing": 0,
+        "periodEnd": 1788876240000,
+        "periodStart": 1788876120000,
+        "targetUserId": "user:I6DqsKCodO2ajgsDF8u7lQ",
+        "unreadChats": 2,
+        "unreadMessages": 6
+      }
+    },
+    {
+      "id": "s2id-75fb870cfcbb7df03e2bb9b57c96614e-000000000007d404",
+      "period": 14907300,
+      "periodStart": 1788876000000,
+      "periodEnd": 1788876120000,
+      "at": 1788876181737,
+      "payload": {
+        "kind": "digest",
+        "newFollowers": 0,
+        "newPostsInFollowing": 0,
+        "periodEnd": 1788876120000,
+        "periodStart": 1788876000000,
+        "targetUserId": "user:I6DqsKCodO2ajgsDF8u7lQ",
+        "unreadChats": 1,
+        "unreadMessages": 1
+      }
+    },
+    {
+      "id": "s2id-75fb870cfcbb7df03e2bb9b57c96614e-0000000000030c04",
+      "period": 14907299,
+      "periodStart": 1788875880000,
+      "periodEnd": 1788876000000,
+      "at": 1788876061739,
+      "payload": {
+        "kind": "digest",
+        "newFollowers": 2,
+        "newPostsInFollowing": 6,
+        "periodEnd": 1788876000000,
+        "periodStart": 1788875880000,
+        "targetUserId": "user:I6DqsKCodO2ajgsDF8u7lQ",
+        "unreadChats": 2,
+        "unreadMessages": 10
+      }
+    }
+  ],
+  "newDuringPoll": [
+    {
+      "id": "s2id-75fb870cfcbb7df03e2bb9b57c96614e-0000000000117802",
+      "period": 14907311,
+      "periodStart": 1788877320000,
+      "periodEnd": 1788877440000,
+      "at": 1788877501735,
+      "payload": {
+        "kind": "digest",
+        "newFollowers": 0,
+        "newPostsInFollowing": 3,
+        "periodEnd": 1788877440000,
+        "periodStart": 1788877320000,
+        "targetUserId": "user:I6DqsKCodO2ajgsDF8u7lQ",
+        "unreadChats": 0,
+        "unreadMessages": 0
+      }
+    }
+  ],
+  "daveNewDuringPoll": [],
+  "newDuringEmptyWait": [],
+  "m8a08": true,
+  "m8a09": true,
+  "m8a10": true
+}

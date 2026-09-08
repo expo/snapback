@@ -1,0 +1,36 @@
+{
+  "schemaVersion": "clique.coverage.v1",
+  "milestone": "m4",
+  "assertions": [
+    {
+      "assertionId": "m4-a01",
+      "test": "m4-message-media-reaction-edit-delete-state",
+      "source": "scripts/acceptance.mjs",
+      "note": "Photo message end-to-end: Alice picks a fixture image and sends it as a message."
+    },
+    {
+      "assertionId": "m4-a03",
+      "test": "m4-message-media-reaction-edit-delete-state",
+      "source": "scripts/acceptance.mjs",
+      "note": "Video message end-to-end: a fixture video sends as a message."
+    },
+    {
+      "assertionId": "m4-a06",
+      "test": "m4-message-media-reaction-edit-delete-state",
+      "source": "scripts/acceptance.mjs",
+      "note": "Bob switches to ❤️: the new emoji replaces the previous one (at most one reaction per user per message)."
+    },
+    {
+      "assertionId": "m4-a07",
+      "test": "m4-message-media-reaction-edit-delete-state",
+      "source": "scripts/acceptance.mjs",
+      "note": "Bob taps ❤️ again: the reaction is removed."
+    },
+    {
+      "assertionId": "m4-a09",
+      "test": "m4-message-media-reaction-edit-delete-state",
+      "source": "scripts/acceptance.mjs",
+      "note": "The edited bubble shows an 'edited' label."
+    }
+  ]
+}

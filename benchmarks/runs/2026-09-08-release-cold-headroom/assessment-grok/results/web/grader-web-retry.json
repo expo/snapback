@@ -1,0 +1,102 @@
+{
+  "started": "2026-09-08T14:23:04.516Z",
+  "ended": "2026-09-08T14:24:47.936Z",
+  "webUrl": "http://127.0.0.1:53124",
+  "results": [
+    {
+      "id": "m2-a04-web",
+      "pass": true,
+      "evidence": "results/web/m2-live-global.png",
+      "at": "2026-09-08T14:23:14.492Z",
+      "summary": "Bob saw Alice global posts live",
+      "measurementsMs": [
+        429,
+        137,
+        160
+      ]
+    },
+    {
+      "id": "m2-a12-web",
+      "pass": true,
+      "evidence": "results/web/m2-url-in-feed.png",
+      "at": "2026-09-08T14:23:14.532Z",
+      "summary": "URL appears styled/tappable in feed card",
+      "clickable": true,
+      "preview": false,
+      "handlerCount": 4
+    },
+    {
+      "id": "m2-a13-web",
+      "pass": true,
+      "evidence": "results/web/m2-url-in-feed.png",
+      "at": "2026-09-08T14:23:14.532Z",
+      "summary": "no unfurl test id beside URL post",
+      "preview": false
+    },
+    {
+      "id": "m2-a05-web",
+      "pass": true,
+      "evidence": "results/web/m2-author-identity.png",
+      "at": "2026-09-08T14:23:14.557Z",
+      "summary": "feed author avatars present",
+      "avatarCount": 20
+    },
+    {
+      "id": "m8-a01-web",
+      "pass": true,
+      "evidence": "results/web/m8-insights.png",
+      "at": "2026-09-08T14:23:15.315Z",
+      "summary": "Insights six totals visible",
+      "days": 7
+    },
+    {
+      "id": "m8-a04-web",
+      "pass": true,
+      "evidence": "results/web/m8-insights.png",
+      "at": "2026-09-08T14:23:15.315Z",
+      "summary": "Insights bar list has 7 day rows",
+      "days": 7
+    },
+    {
+      "id": "m5-a11-web",
+      "pass": true,
+      "evidence": "results/web/m5-search.png",
+      "at": "2026-09-08T14:23:16.874Z",
+      "summary": "search grouped results",
+      "groups": 2,
+      "hits": 3
+    },
+    {
+      "id": "m5-a12-web",
+      "pass": false,
+      "evidence": "results/web/m5-offline-search.png",
+      "at": "2026-09-08T14:24:17.904Z",
+      "summary": "warm-offline search",
+      "offlineLabel": false,
+      "offlineHits": 0
+    },
+    {
+      "id": "m3-receipt-retry",
+      "pass": false,
+      "evidence": "results/web/grader-web-retry.json",
+      "at": "2026-09-08T14:24:47.908Z",
+      "summary": "receipt semantic retry failed",
+      "error": "locator.click: Timeout 30000ms exceeded.\nCall log:\n  - waiting for getByLabel('Clique home')\n"
+    }
+  ],
+  "timings": [
+    {
+      "subject": "m2-a04",
+      "measurementsMs": [
+        429,
+        137,
+        160
+      ],
+      "bestMs": 137,
+      "boundMs": 15000,
+      "passed": true
+    }
+  ],
+  "passCount": 7,
+  "failCount": 2
+}

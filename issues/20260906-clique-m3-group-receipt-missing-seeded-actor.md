@@ -11,3 +11,19 @@ The cold published Snapback2 0.0.13 run emitted application/choreography-failed,
 Resolve the fixture/scenario contract explicitly and validate the required actor choreography without changing the app's all-recipient rule, removing seeded members or weakening assertions. Preserve original failures, deadlines and source pins. Any future instrument correction must have an explicit comparison-validity decision; do not silently replace existing Convex/Supabase scores, relabel the supplemental pass or rerun the safety-blocked builder request.
 
 [Source binding and retained outcome](../benchmarks/runs/2026-09-06-clique-improvement/evidence/astra-013-terminal/m3-first-outcome/report.md). This ticket records the defect; no harness mutation or new benchmark execution is performed.
+
+## Reproduced on published 0.0.19 — 2026-09-08
+
+The frozen `social-messenger@0.3.6-m8` starter again includes Erin, while the
+receipt choreography drives Bob and Carol only. The control lane uses a
+three-person group and masks the discrepancy. The retained M3 receipt remains
+6/7; no application pass or prerequisite waiver is inferred.
+
+The fresh Grok assessment retained that failure but called it an application
+defect. A separate source/evidence audit confirms that attribution is not
+established: its supplemental observer also omits Erin and mishandles a null
+receipt attribute. Preserve the original report and its separate root
+adjudication in
+[the diagnostic run](../benchmarks/runs/2026-09-08-release-cold-headroom/README.md).
+The duplicate September 8 ticket is archived under `issues/closed/`; this
+September 6 ticket owns the unresolved fixture/calibration correction.

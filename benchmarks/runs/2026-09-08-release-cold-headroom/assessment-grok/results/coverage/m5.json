@@ -1,0 +1,42 @@
+{
+  "schemaVersion": "clique.coverage.v1",
+  "milestone": "m5",
+  "assertions": [
+    {
+      "assertionId": "m5-a04",
+      "test": "m5-once-permissions-and-search",
+      "source": "scripts/acceptance.mjs",
+      "note": "View-once photo: Bob can open it exactly once (first open works)."
+    },
+    {
+      "assertionId": "m5-a05",
+      "test": "m5-once-permissions-and-search",
+      "source": "scripts/acceptance.mjs",
+      "note": "Bob's second open of the view-once photo is denied."
+    },
+    {
+      "assertionId": "m5-a08",
+      "test": "m5-once-permissions-and-search",
+      "source": "scripts/acceptance.mjs",
+      "note": "A non-admin cannot rename the group."
+    },
+    {
+      "assertionId": "m5-a09",
+      "test": "m5-once-permissions-and-search",
+      "source": "scripts/acceptance.mjs",
+      "note": "People search finds 'car' -> Carol (case-insensitive word-prefix matching)."
+    },
+    {
+      "assertionId": "m5-a10",
+      "test": "m5-once-permissions-and-search",
+      "source": "scripts/acceptance.mjs",
+      "note": "In-chat search finds a known seeded string."
+    },
+    {
+      "assertionId": "m5-a11",
+      "test": "m5-once-permissions-and-search",
+      "source": "scripts/acceptance.mjs",
+      "note": "Global message search groups results by chat."
+    }
+  ]
+}

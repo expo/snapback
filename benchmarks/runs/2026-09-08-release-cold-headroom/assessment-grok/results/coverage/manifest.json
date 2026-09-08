@@ -1,0 +1,15 @@
+{
+  "schemaVersion": "clique-coverage-set.v1",
+  "instrumentPin": "social-messenger@0.3.6-m8",
+  "milestones": {
+    "m1": { "path": "coverage/m1.json", "sha256": "c37565349e2fcbdbbc0e8d705ab4fd9896065fe6dbb10fe85a5fe2cd4c929904" },
+    "m2": { "path": "coverage/m2.json", "sha256": "844a9fde342205f7a60ac0549c79a9b8ce8a0ec651a33a6d41e1f5b8c28c6064" },
+    "m3": { "path": "coverage/m3.json", "sha256": "f7d5f934d5ec829e28105e795c5c399e20fe91ca66812b29ecc26e3d2961df33" },
+    "m4": { "path": "coverage/m4.json", "sha256": "d183e3c832b2c1a96b30dd790574c79d15419cb0cfa1aa8ea399e98c942ec143" },
+    "m5": { "path": "coverage/m5.json", "sha256": "1e922f685a23e727fca56c3ef6f795df913c271fc34b95e9a7ee52d7773690f6" },
+    "m6": { "path": "coverage/m6.json", "sha256": "457c1cd5d727c2c295888c890f58a2dddf00ee07588a91dc04f2ef011169c0ab" },
+    "m8": { "path": "coverage/m8.json", "sha256": "c32a61d68490c995884ef83f6514fdbbc5e437ee5ce3fa8be90690c6e6ff3c43" }
+  },
+  "validated": true,
+  "note": "Each child manifest was independently accepted by the frozen milestone coverage validator. M7 is intentionally excluded by the run instruction."
+}

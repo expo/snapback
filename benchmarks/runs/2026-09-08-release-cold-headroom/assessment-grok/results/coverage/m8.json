@@ -1,0 +1,42 @@
+{
+  "schemaVersion": "clique.coverage.v1",
+  "milestone": "m8",
+  "assertions": [
+    {
+      "assertionId": "m8-a01",
+      "test": "m8-insights-activity-and-trending-policy",
+      "source": "scripts/acceptance.mjs",
+      "note": "Alice's Insights screen shows the six lifetime totals (posts, likes received, reposts received, replies received, followers, following) matching the seeded content."
+    },
+    {
+      "assertionId": "m8-a03",
+      "test": "m8-insights-activity-and-trending-policy",
+      "source": "scripts/acceptance.mjs",
+      "note": "The 7-day activity breakdown buckets a post created today under today (server-time UTC day boundaries)."
+    },
+    {
+      "assertionId": "m8-a04",
+      "test": "m8-insights-activity-and-trending-policy",
+      "source": "scripts/acceptance.mjs",
+      "note": "Days with no activity render as zero, not omitted."
+    },
+    {
+      "assertionId": "m8-a05",
+      "test": "m8-insights-activity-and-trending-policy",
+      "source": "scripts/acceptance.mjs",
+      "note": "Trending ranks the post with the most likes in the trailing 24 h first."
+    },
+    {
+      "assertionId": "m8-a06",
+      "test": "m8-insights-activity-and-trending-policy",
+      "source": "scripts/acceptance.mjs",
+      "note": "An older heavily-liked post (>24 h) is absent from Trending."
+    },
+    {
+      "assertionId": "m8-a07",
+      "test": "m8-insights-activity-and-trending-policy",
+      "source": "scripts/acceptance.mjs",
+      "note": "A like-count tie in Trending breaks newest-first."
+    }
+  ]
+}

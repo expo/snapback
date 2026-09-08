@@ -1,0 +1,48 @@
+{
+  "schemaVersion": "clique.coverage.v1",
+  "milestone": "m1",
+  "assertions": [
+    {
+      "assertionId": "m1-a01",
+      "test": "m1-auth-profile-assets-and-collisions",
+      "source": "scripts/acceptance.mjs",
+      "note": "Sign up as a new user with email + password (password >= 8 chars) succeeds."
+    },
+    {
+      "assertionId": "m1-a02",
+      "test": "m1-auth-profile-assets-and-collisions",
+      "source": "scripts/acceptance.mjs",
+      "note": "After signup the app lands in the authenticated state."
+    },
+    {
+      "assertionId": "m1-a03",
+      "test": "m1-auth-profile-assets-and-collisions",
+      "source": "scripts/acceptance.mjs",
+      "note": "Signing up with a duplicate handle is rejected with a visible error."
+    },
+    {
+      "assertionId": "m1-a04",
+      "test": "m1-auth-profile-assets-and-collisions",
+      "source": "scripts/acceptance.mjs",
+      "note": "Signing up with a duplicate email is rejected with a visible error."
+    },
+    {
+      "assertionId": "m1-a08",
+      "test": "m1-auth-profile-assets-and-collisions",
+      "source": "scripts/acceptance.mjs",
+      "note": "Editing display name and bio persists (updated values shown on own profile)."
+    },
+    {
+      "assertionId": "m1-a10",
+      "test": "m1-auth-profile-assets-and-collisions",
+      "source": "scripts/acceptance.mjs",
+      "note": "Uploading a fixture avatar succeeds."
+    },
+    {
+      "assertionId": "m1-a11",
+      "test": "m1-auth-profile-assets-and-collisions",
+      "source": "scripts/acceptance.mjs",
+      "note": "The uploaded avatar renders on the profile (avatars beside posts and messages are asserted at M2/M3, where those surfaces exist)."
+    }
+  ]
+}

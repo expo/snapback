@@ -1,0 +1,273 @@
+{
+  "originalPrivateRoot": "/Users/ccheever/projects/snapback-artifacts/clique-cold-019-20260908/assessment",
+  "rawReportSha256": "3152fe81d6ff6e3ecb7e8af542bbc7c71b09e76bb505491383b0432ad820dec7",
+  "rawM8Sha256": "601a5b9c99496a9cf36d6effa86027e7becbf6aa453983cbe4e02920f6a3cbd6",
+  "rawTraceSha256": "07860153c42a2ef2957dd442fd25116f0f939397b0c57a5db44a6e127a82cff6",
+  "publishedTraceSha256": "cf4ea8b113252012d415b5c9add8a3f0f8baec4649af50cef02a64506f49f502",
+  "reportAndM8Unchanged": true,
+  "traceTransformations": [
+    "abstract machine paths",
+    "add exact model provenance",
+    "disclose attempted outside-tree search without content delivery",
+    "link root adjudication"
+  ],
+  "models": {
+    "requested": "grok-4.6",
+    "session": "grok-4.6",
+    "selfReport": "Grok4.6",
+    "terminalModelUsageKey": "grok-4.6-build"
+  },
+  "session": {
+    "id": "0a20f906-f717-4368-86c5-934365ece45f",
+    "processStart": 1788875808.17897,
+    "processEnd": 1788878369.3336651,
+    "exit": 0,
+    "graderReportedStart": "2026-09-08T13:57:36Z",
+    "graderReportedEnd": "2026-09-08T14:39:14Z"
+  },
+  "sourceEquality": {
+    "regularFileHashes": 499,
+    "exactSymlinkTargets": 10,
+    "differences": []
+  },
+  "evidenceAliases": {
+    "results/api/grader-api.json#m3-a03": {
+      "jsonPointer": "/results/30",
+      "reason": "Grader script spread overwrote assertion id with DM id; original bytes preserved",
+      "sha256": "7953c77d9bdbd666a8c30d84a2d9e620b3a9c8006e9916a1cf4ff5b088eae82b"
+    }
+  },
+  "privateOnly": [
+    "scripts with fixture/ephemeral passwords",
+    "raw CLI transcript and logs",
+    "seed intermediates and idle-user-before record",
+    "app source available in original SHA-bound external archive"
+  ],
+  "publishedFiles": [
+    {
+      "path": "evidence/choreo-m1-1788855800.jsonl",
+      "sha256": "2b9591bb54cd089b1fcf831fadc7781f805087511836ee34d1e84c6306153db4",
+      "bytes": 4234
+    },
+    {
+      "path": "evidence/choreo-m2-1788859300.jsonl",
+      "sha256": "a5520320a36443626754e988b6c993013ad0c8be71f067ca80140da29d7644ad",
+      "bytes": 10024
+    },
+    {
+      "path": "evidence/choreo-m3-1788860310.jsonl",
+      "sha256": "167d1b87a95242a1e386f82be8be6f81da2a65a577806ae2c364c99c2d3d0d6b",
+      "bytes": 8077
+    },
+    {
+      "path": "evidence/choreo-m4-1788860510.jsonl",
+      "sha256": "b7cd4d0bc03fa0deeaffb2cf63892b52c49555dd6864634a2a4a728e06b13d2a",
+      "bytes": 5588
+    },
+    {
+      "path": "evidence/choreo-m5-1788867510.jsonl",
+      "sha256": "36ef2576ba28f1457bed3c6b13eec52e0477f5fe59e83380924b069a1a55041a",
+      "bytes": 4181
+    },
+    {
+      "path": "evidence/choreo-m8-1788873320.jsonl",
+      "sha256": "20783b0e7750231a4f27fc960b658882b430f5f19dc568ae1827584e45b47e66",
+      "bytes": 5499
+    },
+    {
+      "path": "evidence/digest-restart-proof.json",
+      "sha256": "94157dd675f22f261a415100f613021c561535854d30d4cb71d78999bb53d42b",
+      "bytes": 1715
+    },
+    {
+      "path": "evidence/replay-scale-m6.json",
+      "sha256": "bfe21018e8a2953f8c562bdfc28b7b3f3c8af65cd34333bbd8b714f1e4e20bec",
+      "bytes": 10411
+    },
+    {
+      "path": "evidence/simulator-status.json",
+      "sha256": "9ff4c5e467927a773fcbefc37303c6fe6d9269183c5a26d9e4ee2650c6966589",
+      "bytes": 1260
+    },
+    {
+      "path": "results/api/grader-api.json",
+      "sha256": "7953c77d9bdbd666a8c30d84a2d9e620b3a9c8006e9916a1cf4ff5b088eae82b",
+      "bytes": 17388
+    },
+    {
+      "path": "results/api/grader-digest-poll.json",
+      "sha256": "66e60e4c3f9765724160d1d6a9e16196372e165fe99fa781726737671fa76564",
+      "bytes": 3827
+    },
+    {
+      "path": "results/api/grader-idle-restart-after.json",
+      "sha256": "dc7a239dfab63b80d7500f9745a27b00e71eda07a9e7acae95c5b97a856ba4d1",
+      "bytes": 624
+    },
+    {
+      "path": "results/api/grader-push-digest.json",
+      "sha256": "ef52c24f0b5d28108e2527dd5ab6189507fc7096ab5e0b2d723e4ff3a952dc34",
+      "bytes": 2026
+    },
+    {
+      "path": "results/coverage/m1.json",
+      "sha256": "c37565349e2fcbdbbc0e8d705ab4fd9896065fe6dbb10fe85a5fe2cd4c929904",
+      "bytes": 1698
+    },
+    {
+      "path": "results/coverage/m2.json",
+      "sha256": "844a9fde342205f7a60ac0549c79a9b8ce8a0ec651a33a6d41e1f5b8c28c6064",
+      "bytes": 5352
+    },
+    {
+      "path": "results/coverage/m3.json",
+      "sha256": "f7d5f934d5ec829e28105e795c5c399e20fe91ca66812b29ecc26e3d2961df33",
+      "bytes": 1810
+    },
+    {
+      "path": "results/coverage/m4.json",
+      "sha256": "d183e3c832b2c1a96b30dd790574c79d15419cb0cfa1aa8ea399e98c942ec143",
+      "bytes": 1245
+    },
+    {
+      "path": "results/coverage/m5.json",
+      "sha256": "1e922f685a23e727fca56c3ef6f795df913c271fc34b95e9a7ee52d7773690f6",
+      "bytes": 1308
+    },
+    {
+      "path": "results/coverage/m6.json",
+      "sha256": "457c1cd5d727c2c295888c890f58a2dddf00ee07588a91dc04f2ef011169c0ab",
+      "bytes": 1716
+    },
+    {
+      "path": "results/coverage/m8.json",
+      "sha256": "c32a61d68490c995884ef83f6514fdbbc5e437ee5ce3fa8be90690c6e6ff3c43",
+      "bytes": 1550
+    },
+    {
+      "path": "results/coverage/manifest.json",
+      "sha256": "b753cf2c120dccfeffcbec7b1a781cc312c35b2103ddb181408db561bcb19b1d",
+      "bytes": 1136
+    },
+    {
+      "path": "results/grader-report.json",
+      "sha256": "3152fe81d6ff6e3ecb7e8af542bbc7c71b09e76bb505491383b0432ad820dec7",
+      "bytes": 33182
+    },
+    {
+      "path": "results/m8-assertion-results.json",
+      "sha256": "601a5b9c99496a9cf36d6effa86027e7becbf6aa453983cbe4e02920f6a3cbd6",
+      "bytes": 4951
+    },
+    {
+      "path": "results/replay/replay-sample-50.json",
+      "sha256": "b72cc79f811dad3d6beed1ca86b5f0e69943d1939d8a82d8d8636f788d435e21",
+      "bytes": 1035
+    },
+    {
+      "path": "results/sanitized-evidence.md",
+      "sha256": "cf4ea8b113252012d415b5c9add8a3f0f8baec4649af50cef02a64506f49f502",
+      "bytes": 8301
+    },
+    {
+      "path": "results/suite/suite-m1-1788876102.json",
+      "sha256": "75bf3613dc78e25d58ef687ab697ec8a166fac51fff2b96f1d467a768149057d",
+      "bytes": 3412
+    },
+    {
+      "path": "results/suite/suite-m2-1788876107.json",
+      "sha256": "942d66f56db417d7ce59424622dd4cf439ca811fcc1de1ee11645f3ff6305da7",
+      "bytes": 3267
+    },
+    {
+      "path": "results/suite/suite-m3-1788876116.json",
+      "sha256": "db660bfd3a9ceb048156a1064bc22189486c14fb5197b0403d6c0871e1336129",
+      "bytes": 3566
+    },
+    {
+      "path": "results/suite/suite-m4-1788876120.json",
+      "sha256": "5e18010440978d0d06da9efcff67baf19cf47d3e4d9cb1fc7f626d5bf5b061fa",
+      "bytes": 3178
+    },
+    {
+      "path": "results/suite/suite-m5-1788876124.json",
+      "sha256": "8cee54a39aa1fa53c37e8c5d0cd91a1f06167b8761d777eeb50eb51ca98b6772",
+      "bytes": 3149
+    },
+    {
+      "path": "results/suite/suite-m6-1788876130.json",
+      "sha256": "3bb4e93c1d02abced3b6927369ed884e101b2b9a92bb2b1db11b501dcdb01d6e",
+      "bytes": 4067
+    },
+    {
+      "path": "results/suite/suite-m8-1788876134.json",
+      "sha256": "f280505b9187a29bbac391b570de5b361d1e8f5ce450535ab8770c61011f0b58",
+      "bytes": 3465
+    },
+    {
+      "path": "results/web/grader-web-retry.json",
+      "sha256": "e879c46adf8cfb7c334cc6b7475ea0a0eb352739e6f8b4af410836e254644701",
+      "bytes": 2614
+    },
+    {
+      "path": "results/web/grader-web.json",
+      "sha256": "39c974fef5784b51648ef5ff2724213a83381a04bc9cd7d14d3712e42f62787a",
+      "bytes": 4476
+    },
+    {
+      "path": "results/web/m1-authenticated-feed.png",
+      "sha256": "01331382d9807107d00a63a3c34c49c7c92e2279525f3d1462bc999a18b0f6af",
+      "bytes": 19443
+    },
+    {
+      "path": "results/web/m1-duplicate-email-error.png",
+      "sha256": "1d1024063dfd3bcf0a0cb9ed99dbcf13a8ea2c95eecadd3d225757c7059f7e56",
+      "bytes": 19235
+    },
+    {
+      "path": "results/web/m1-duplicate-handle.png",
+      "sha256": "86db8407f2eac62554ae94b4b0235100434fb45196363aac990454ec1a8b5c43",
+      "bytes": 19461
+    },
+    {
+      "path": "results/web/m1-session-persist.png",
+      "sha256": "10cbf4c6462d44d4e3274475a8e8db89c0c39d874d137973497327201027a25e",
+      "bytes": 59735
+    },
+    {
+      "path": "results/web/m1-signed-out.png",
+      "sha256": "3afe5f0d7d0107326a0ddb40cdc7a43545177f5bc42bc8f8e69c8d39ee42a7c8",
+      "bytes": 14020
+    },
+    {
+      "path": "results/web/m2-author-identity.png",
+      "sha256": "7d69521de1633b135ee6e107b1efd6d332745957ebe7d3c0b5b489a0c685fb8c",
+      "bytes": 119788
+    },
+    {
+      "path": "results/web/m2-live-global.png",
+      "sha256": "7d69521de1633b135ee6e107b1efd6d332745957ebe7d3c0b5b489a0c685fb8c",
+      "bytes": 119788
+    },
+    {
+      "path": "results/web/m2-url-in-feed.png",
+      "sha256": "7d69521de1633b135ee6e107b1efd6d332745957ebe7d3c0b5b489a0c685fb8c",
+      "bytes": 119788
+    },
+    {
+      "path": "results/web/m3-quote.png",
+      "sha256": "2455861a4aae2f708058dd5bbba9b0ce40b45f30b94613476e5ee2c9d971348c",
+      "bytes": 58545
+    },
+    {
+      "path": "results/web/m5-search.png",
+      "sha256": "4326c4aa79be2e76b8c5479c900da003ed0924cdf4c0cea3799ce88b2123dde9",
+      "bytes": 33957
+    },
+    {
+      "path": "results/web/m8-insights.png",
+      "sha256": "3a3ba19c750a2fd93e1dfa7783a5044c821d451301ffb871a40e6d9cc6ed0205",
+      "bytes": 39490
+    }
+  ]
+}

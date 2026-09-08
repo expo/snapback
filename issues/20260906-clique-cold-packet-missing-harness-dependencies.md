@@ -35,3 +35,20 @@ checks, changing product requirements, or discarding the failed attempt.
 The current restoration is being prepared. No successful corrected choreography
 execution is claimed here. Existing competitor scores remain retained; restoring
 an omitted frozen helper does not itself change the scoring rubric.
+
+## 0.0.19 handoff observations — 2026-09-08
+
+The new continuous builder received the complete frozen benchmark layout,
+including metering and schema helpers, with Playwright provisioned before its
+clock. Its source archive retains all 509 source/instrument entries unchanged.
+No replacement validator was used. This repairs that lane's source closure;
+it is not a general packet-constructor qualification.
+
+The independent assessment copy installed app dependencies but initially omitted
+the choreography directory's separate locked install. Its first acceptance
+failed on missing Playwright, then passed after `npm ci` in that directory and
+Chromium installation. The attempt and one environment retry are retained.
+Fresh M7 preparation installs both locks before the author starts. Future
+handoffs must verify both imported source closure and nested harness dependency
+readiness; a successful app-only install is insufficient. See the
+[0.0.19 diagnostic record](../benchmarks/runs/2026-09-08-release-cold-headroom/README.md).

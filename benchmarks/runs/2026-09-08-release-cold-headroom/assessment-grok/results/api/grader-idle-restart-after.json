@@ -1,0 +1,26 @@
+{
+  "ended": "2026-09-08T14:32:25.271Z",
+  "bobAfterCount": 7,
+  "bobBeforeCount": 6,
+  "newAfterRestart": [
+    {
+      "id": "s2id-75fb870cfcbb7df03e2bb9b57c96614e-0000000000128402",
+      "period": 14907314,
+      "payload": {
+        "kind": "digest",
+        "newFollowers": 0,
+        "newPostsInFollowing": 0,
+        "periodEnd": 1788877800000,
+        "periodStart": 1788877680000,
+        "targetUserId": "user:I6DqsKCodO2ajgsDF8u7lQ",
+        "unreadChats": 1,
+        "unreadMessages": 1
+      }
+    }
+  ],
+  "duplicatePeriods": 0,
+  "uniquePeriods": 7,
+  "idleAfterCount": 0,
+  "m8a09": true,
+  "m8a11": true
+}
