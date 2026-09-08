@@ -197,7 +197,8 @@ mutation allocateRef(realms: [realmCounts] <=3):
       await client.close();
     }
 
-    assert.ok(longRealmRef.length > 144, "the Ref exceeds the ordinary identity domain");
+    const longRealmRefBytes = Buffer.byteLength(longRealmRef, "utf8");
+    assert.ok(longRealmRefBytes > 144, "the Ref exceeds the ordinary identity byte domain");
     const reads: any[] = [];
     let mutations = 0;
     const refCountFor = (api as any).caps.refCountFor;
@@ -231,7 +232,7 @@ mutation allocateRef(realms: [realmCounts] <=3):
     await refClient.online(); assert.deepEqual(await refClient.outbox.drain(), { stopped: false, remaining: 0 });
     const final: any = await observer.query(refCountFor, { realm: longRealmRef });
     assert.equal(final.state, "complete"); assert.equal(final.data, 1);
-    t.diagnostic(`long maintained Ref: ${JSON.stringify({ bytes: longRealmRef.length, cold: cold.data,
+    t.diagnostic(`long maintained Ref: ${JSON.stringify({ utf8Bytes: longRealmRefBytes, cold: cold.data,
       predicted: predicted.data, final: final.data })}`);
     await refClient.close();
   } finally {
