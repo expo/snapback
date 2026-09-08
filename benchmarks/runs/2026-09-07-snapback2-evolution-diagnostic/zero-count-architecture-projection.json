@@ -1,0 +1,170 @@
+{
+  "pinned": "02e13629b",
+  "file": "snapback2/packages/snapback2/src/twin-store.ts",
+  "sourceSha256": "2d0cb8572529117a0424150599de76f38404801a9f08cd3977b8668f61d1ab87",
+  "execution": "Complete pinned TwinStore module transpiled; actual sync, intent, and row methods executed with dependency stubs.",
+  "cases": [
+    {
+      "negative": false,
+      "mode": "cold",
+      "issuedSeq": 10,
+      "before": {
+        "count": 1,
+        "negativeReceipt": false,
+        "predicted": [
+          "fresh-create"
+        ],
+        "evicted": false
+      },
+      "after": {
+        "count": 1,
+        "negativeReceipt": false,
+        "predicted": [
+          "fresh-create"
+        ],
+        "evicted": false
+      }
+    },
+    {
+      "negative": true,
+      "mode": "cold",
+      "issuedSeq": 10,
+      "before": {
+        "count": null,
+        "negativeReceipt": true,
+        "predicted": [
+          "fresh-create"
+        ],
+        "evicted": true
+      },
+      "after": {
+        "count": null,
+        "negativeReceipt": true,
+        "predicted": [
+          "fresh-create"
+        ],
+        "evicted": true
+      }
+    },
+    {
+      "negative": false,
+      "mode": "cold",
+      "issuedSeq": 11,
+      "before": {
+        "count": 1,
+        "negativeReceipt": false,
+        "predicted": [
+          "fresh-create"
+        ],
+        "evicted": false
+      },
+      "after": {
+        "count": 1,
+        "negativeReceipt": false,
+        "predicted": [
+          "fresh-create"
+        ],
+        "evicted": false
+      }
+    },
+    {
+      "negative": true,
+      "mode": "cold",
+      "issuedSeq": 11,
+      "before": {
+        "count": null,
+        "negativeReceipt": true,
+        "predicted": [
+          "fresh-create"
+        ],
+        "evicted": true
+      },
+      "after": {
+        "count": null,
+        "negativeReceipt": true,
+        "predicted": [
+          "fresh-create"
+        ],
+        "evicted": true
+      }
+    },
+    {
+      "negative": false,
+      "mode": "incremental",
+      "issuedSeq": 10,
+      "before": {
+        "count": null,
+        "negativeReceipt": false,
+        "predicted": [],
+        "evicted": false
+      },
+      "after": {
+        "count": 1,
+        "negativeReceipt": false,
+        "predicted": [
+          "fresh-create"
+        ],
+        "evicted": false
+      }
+    },
+    {
+      "negative": true,
+      "mode": "incremental",
+      "issuedSeq": 10,
+      "before": {
+        "count": null,
+        "negativeReceipt": true,
+        "predicted": [],
+        "evicted": true
+      },
+      "after": {
+        "count": null,
+        "negativeReceipt": true,
+        "predicted": [
+          "fresh-create"
+        ],
+        "evicted": true
+      }
+    },
+    {
+      "negative": false,
+      "mode": "incremental",
+      "issuedSeq": 11,
+      "before": {
+        "count": null,
+        "negativeReceipt": false,
+        "predicted": [],
+        "evicted": false
+      },
+      "after": {
+        "count": 1,
+        "negativeReceipt": false,
+        "predicted": [
+          "fresh-create"
+        ],
+        "evicted": false
+      }
+    },
+    {
+      "negative": true,
+      "mode": "incremental",
+      "issuedSeq": 11,
+      "before": {
+        "count": null,
+        "negativeReceipt": true,
+        "predicted": [],
+        "evicted": true
+      },
+      "after": {
+        "count": null,
+        "negativeReceipt": true,
+        "predicted": [
+          "fresh-create"
+        ],
+        "evicted": true
+      }
+    }
+  ],
+  "conclusion": "With no committed base, a retained primary negative hides a fresh whole-row insert overlay at issuedSeq 10 equal to the negative sequence and at issuedSeq 11 greater than it; both cold and incremental sync reproduce. No-negative controls expose value 1.",
+  "limitations": "Isolated projection witness only. Entry uses admissible queued state with only fields consumed by these methods, not a fully validated production OutboxEntry. Principal is dev:alice. Wire preparation, ordered storage, schema digest, and ClientStore are stubbed. Does not execute predictor, native server, receipt acquisition, or public integration."
+}
