@@ -1045,7 +1045,11 @@ primary absence, or target-table range that could otherwise supply a stale aggre
 is missing authority, never a manufactured zero. Target-specific retirement leaves an
 admitted mutation's predicted target over that hole until target authority at *s* arrives. If the
 bounded miss rule retires it first, the query is partial rather than exposing the pre-commit
-target. Arrival can run in the other order: a changed maintained target marks every older
+target. An answer or row version already held at prediction admission cannot confirm that
+prediction, even when its sequence equals the commit sequence. Confirmation needs accepted
+evidence that advances the original admission, or a newly ordered authoritative answer;
+the unchanged baseline must not remove a predicted count while its target refresh is pending.
+Arrival can run in the other order: a changed maintained target marks every older
 named answer that references it `partial/maintained-coherence`. That marker and the answer's
 authorized history survive a cold reopen, and a global-pool rerun cannot promote the record;
 owners that proved sparse zero by a point absence or target range are fenced too. Only a new
