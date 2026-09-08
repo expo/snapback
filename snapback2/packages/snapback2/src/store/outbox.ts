@@ -414,6 +414,15 @@ export class OutboxLedger {
     });
   }
 
+  /** Drops a command row this partition will not honor (a dismissal from another backend, principal, or session). */
+  discardInbox(key: number): Promise<void> {
+    return this.serial(async () => {
+      if (!(await this.store.inboxRows?.())?.some((candidate) => candidate.key === key)) return;
+      await this.store.commit({ inbox: { remove: [key] } });
+      this.notify();
+    });
+  }
+
   /** A terminal refusal at admission: the row keeps its arguments and the reason, creates no entry, and is dismissible. */
   rejectInbox(row: InboxRow, response: unknown): Promise<void> {
     return this.serial(async () => {

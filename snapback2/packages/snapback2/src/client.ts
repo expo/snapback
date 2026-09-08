@@ -190,7 +190,7 @@ class Client implements SnapbackClient {
       },
       following: (principal, authenticated, authEpoch) => this.inbox.following(
         principal, authenticated, authEpoch, this.persona !== undefined),
-      admitInherited: () => this.inbox.admit(),
+      admitInherited: async () => { await this.inbox.admit(); },
       writer: () => this.inbox.activate(),
       stopped: () => this.inbox.stop(),
       takeover: () => this.takeover(), drain: (authority) => { void this.drainNow(authority).catch(() => undefined); },
@@ -1022,11 +1022,12 @@ class Client implements SnapbackClient {
       }
       await this.inbox.activate();
     } catch (error) {
-      // @ref LLP 1018.000#8-account-sessions-and-durable-follower-admission — on web a held writer lock makes this
-      // client a follower: live reads, forwarded replayable mutations, and partition takeover on writer close.
+      // @ref LLP 1018.004#2-the-inbox — a held writer lock makes this client a follower: live reads,
+      // durable inbox rows the writer admits, takeover on writer close; its first durable read precedes any network work.
       const code = error && typeof error === "object" ? (error as { code?: unknown }).code : undefined;
       if (code === "E_OFFLINE_LOCK" && this.offlineRuntime.canFollow) {
-        this.follower.begin(principal, authenticated, authEpoch);
+        await this.follower.begin(principal, authenticated, authEpoch);
+        await this.inbox.refresh();
         return;
       }
       throw this.offlineRefusal(error, "RangeStore.open");
@@ -1402,9 +1403,9 @@ class Client implements SnapbackClient {
     if (failure) throw failure;
   }
 
-  private trackWrite<Result>(run: () => Promise<Result>, forwardable = false): Promise<Result> {
-    // Non-forwardable follower work is refused here before uploads or channel bytes leave.
-    if (this.offlineRuntime?.following && !forwardable) return Promise.reject(followerRefusal("client.write"));
+  private trackWrite<Result>(run: () => Promise<Result>, viaInbox = false): Promise<Result> {
+    // Follower work that is not an inbox write is refused here before uploads or channel bytes leave.
+    if (this.offlineRuntime?.following && !viaInbox) return Promise.reject(followerRefusal("client.write"));
     const request = run();
     this.writes.add(request as Promise<unknown>);
     void request.finally(() => this.writes.delete(request as Promise<unknown>)).catch(() => undefined);
@@ -1413,6 +1414,7 @@ class Client implements SnapbackClient {
 
   private async settleWrites(): Promise<void> {
     while (this.writes.size > 0) await Promise.allSettled([...this.writes]);
+    await this.inbox.settled(); // a nudge- or poll-started admission holds captured custody too (LLP 1018.004 §2)
   }
 
   private closeTransports(except?: Subscription<unknown>): void {

@@ -13,7 +13,7 @@ import {
 } from "./client-wire.js";
 import { DeliveryEnvelopeDecodeError } from "./offline-protocol.js";
 import { tailWatermark, type AcceptedDelivery, type OfflineRuntime } from "./offline.js";
-import { replayEnvelope, type OutboxEntry } from "./store/outbox.js";
+import { OutboxRefusal, replayEnvelope, type OutboxEntry } from "./store/outbox.js";
 import { referenceName } from "./api.js";
 import { inboxKeyOf } from "./store/inbox.js";
 import { observeOutbox } from "./client-outbox-observed.js";
@@ -67,7 +67,7 @@ export interface SubmitMutationOptions {
   drain(): Promise<{ stopped: boolean }>;
   onCustody?(kind: "wire" | "outbox"): void;
   /** The writer admits every inbox row durable before this write, so a local write never overtakes them (LLP 1018.004 §4). */
-  admitInbox?(): Promise<void>;
+  admitInbox?(): Promise<{ stopped?: string } | void>;
 }
 
 /**
@@ -94,7 +94,13 @@ export async function submitMutation<Result>(options: SubmitMutationOptions): Pr
   // tab's queued intents would invert their order when that queue is inherited.
   if (runtime?.following) throw followerRefusal();
   if (!runtime || runtime.principal === undefined) return plain();
-  await options.admitInbox?.();
+  const gate = await options.admitInbox?.();
+  if (gate && gate.stopped !== undefined) {
+    // An older row another tab wrote is waiting on what this partition lacks; this write may not overtake it.
+    throw options.failure(new OutboxRefusal("E_OFFLINE_ID_BLOCK",
+      `an older write from another tab of this device is waiting for admission (${gate.stopped}); this write queues behind it`,
+      "client.outbox.enqueue", "resume online for a fresh grant, then send again"));
+  }
   const enqueue = async (): Promise<OutboxEntry> => {
     try {
       return await runtime.outbox.enqueue(
@@ -385,7 +391,7 @@ export function createOutboxApi(
     observe: observeOutbox(entries, status, notify => {
       const stop = runtime?.outbox.subscribe(notify), stopInbox = inbox?.subscribe(notify);
       return () => { stop?.(); stopInbox?.(); };
-    }, identity),
+    }, identity, () => (runtime?.following ? inbox?.writer : undefined)),
     // @ref LLP 1018.004#2-the-inbox — a follower's dismissal is a durable command row the writer consumes.
     dismiss: async (intent) => {
       if (runtime?.following) { await inbox?.dismiss(intent); return; }

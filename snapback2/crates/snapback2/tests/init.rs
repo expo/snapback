@@ -788,7 +788,7 @@ fn init_refuses_unreadable_managed_text_without_changing_bytes() {
 }
 
 #[test]
-fn chat_expo_scaffolds_shared_recovery_without_the_retired_log_reducer() {
+fn chat_expo_scaffolds_without_recovery_custody_or_the_retired_log_reducer() {
     let project = Project::new();
     let output = project.init("chat", "expo");
     assert!(
@@ -805,11 +805,13 @@ fn chat_expo_scaffolds_shared_recovery_without_the_retired_log_reducer() {
         "src/screens/Inbox.tsx",
         "src/screens/Thread.tsx",
         "src/screens/Search.tsx",
-        "shared/recovery.ts",
-        "shared/send.ts",
+        "shared/thread.ts",
     ] {
         assert!(project.path.join(path).is_file(), "missing {path}");
     }
+    // LLP 1018.004: a follower's write is a durable inbox row; the templates carry no recovery custody.
+    assert!(!project.path.join("shared/recovery.ts").exists());
+    assert!(!project.path.join("shared/send.ts").exists());
     let package: Json =
         serde_json::from_slice(&std::fs::read(project.path.join("package.json")).unwrap()).unwrap();
     assert_eq!(package["main"], "index.js");
@@ -826,11 +828,9 @@ fn chat_expo_scaffolds_shared_recovery_without_the_retired_log_reducer() {
             .unwrap()
             .contains(&serde_json::json!(".snapback/build/api.d.ts"))
     );
-    assert!(
-        std::fs::read_to_string(project.path.join("src/Composer.tsx"))
-            .unwrap()
-            .contains("../shared/send")
-    );
+    let composer = std::fs::read_to_string(project.path.join("src/Composer.tsx")).unwrap();
+    assert!(composer.contains("useMutation(api.deliveries.post)"), "{composer}");
+    assert!(!composer.contains("shared/send") && !composer.contains("shared/recovery"), "{composer}");
     assert!(!project.path.join("shared/log.ts").exists());
     assert!(!project.path.join("shared/offline.ts").exists());
     let thread = std::fs::read_to_string(project.path.join("src/screens/Thread.tsx")).unwrap();
@@ -842,7 +842,7 @@ fn chat_expo_scaffolds_shared_recovery_without_the_retired_log_reducer() {
 }
 
 #[test]
-fn chat_react_scaffolds_shared_recovery_without_the_retired_log_reducer() {
+fn chat_react_scaffolds_without_recovery_custody_or_the_retired_log_reducer() {
     let project = Project::new();
     let output = project.init("chat", "react");
     assert!(
@@ -850,8 +850,10 @@ fn chat_react_scaffolds_shared_recovery_without_the_retired_log_reducer() {
         "{}",
         String::from_utf8_lossy(&output.stderr)
     );
-    assert!(project.path.join("shared/recovery.ts").is_file());
-    assert!(project.path.join("shared/send.ts").is_file());
+    assert!(project.path.join("shared/thread.ts").is_file());
+    // LLP 1018.004: a follower's write is a durable inbox row; the templates carry no recovery custody.
+    assert!(!project.path.join("shared/recovery.ts").exists());
+    assert!(!project.path.join("shared/send.ts").exists());
     assert!(!project.path.join("shared/log.ts").exists());
     assert!(!project.path.join("shared/offline.ts").exists());
     let thread = std::fs::read_to_string(project.path.join("src/Thread.tsx")).unwrap();
@@ -859,8 +861,9 @@ fn chat_react_scaffolds_shared_recovery_without_the_retired_log_reducer() {
         thread.contains("api.deliveries.conversationView"),
         "{thread}"
     );
-    assert!(thread.contains("../shared/recovery"), "{thread}");
-    assert!(!thread.contains("shared/log"), "{thread}");
+    assert!(thread.contains("../shared/thread"), "{thread}");
+    assert!(!thread.contains("shared/recovery") && !thread.contains("shared/log"), "{thread}");
     let composer = std::fs::read_to_string(project.path.join("src/Composer.tsx")).unwrap();
-    assert!(composer.contains("../shared/send"), "{composer}");
+    assert!(composer.contains("useMutation(api.deliveries.post)"), "{composer}");
+    assert!(!composer.contains("shared/send"), "{composer}");
 }

@@ -192,6 +192,8 @@ export class OfflineRuntime {
   private inboxConnection?: InboxConnection;
   private inboxRowsCache: InboxRow[] = [];
   private inboxLedgerCache: Record<string, OutboxEntry> = {};
+  /** Per wait: the route's first durable read, so a client can order it before any network work (LLP 1018.004 §2). */
+  private readonly routeReady = new Map<object, Promise<void>>();
   private retention: Record<string, RetentionPolicy> = {};
   private cursors: Record<string, string> = {};
   private schema?: OfflineSchema;
@@ -330,7 +332,8 @@ export class OfflineRuntime {
     // follower with the hard refusal, not a broken wait.
     const waiting = this.store.acquire(principal, signal);
     waiting.catch(() => undefined);
-    if (this.store.inbox && this.followingWait === wait) {
+    const route = (async () => {
+      if (!this.store.inbox || this.followingWait !== wait) return;
       try {
         const connection = await this.store.inbox(principal);
         if (this.followingWait === wait && !signal.aborted) {
@@ -338,7 +341,9 @@ export class OfflineRuntime {
           await this.refreshInbox().catch(() => undefined);
         } else connection.close();
       } catch { /* the follower status reports the missing route */ }
-    }
+    })();
+    this.routeReady.set(wait, route);
+    await route;
     this.outbox.notify();
     try {
       await waiting;
@@ -359,11 +364,17 @@ export class OfflineRuntime {
 
   /** The takeover for `wait` finished, or failed: this tab is its writer now, or nothing. A newer wait's marker, even for the same principal, is not touched. */
   followed(wait: object): void {
+    this.routeReady.delete(wait);
     if (this.followingWait !== wait) return;
     this.followingPrincipal = undefined;
     this.followingWait = undefined;
     this.closeInbox();
     this.outbox.notify();
+  }
+
+  /** Resolves once the wait's inbox route has opened and read durable state, or failed to; never waits for the lock. */
+  routeOpened(wait: object): Promise<void> {
+    return this.routeReady.get(wait) ?? Promise.resolve();
   }
 
   /** A follower holds a live route to the partition's inbox; ends on `versionchange` (LLP 1018.004 §2). */
@@ -444,10 +455,15 @@ export class OfflineRuntime {
       state: "rejected" as const, code, family: "offline", message, site: "client.inbox.admit", rewrite, guide: "offline",
     });
     for (const row of rows) {
-      if (row.kind === "dismiss") { await this.outbox.consumeDismiss(row); continue; }
-      if (row.state !== "queued" || row.admitted !== undefined || row.op === undefined) continue;
       const epochMismatch = row.authEpoch !== undefined && this.authEpoch !== undefined && row.authEpoch !== this.authEpoch;
-      if (row.scope !== check.scope || row.principal !== this.partition || epochMismatch) {
+      const foreign = row.scope !== check.scope || row.principal !== this.partition || epochMismatch;
+      if (row.kind === "dismiss") {
+        // A dismissal from another backend, principal, or session cannot touch this ledger: the command is discarded.
+        if (foreign) await this.outbox.discardInbox(row.key); else await this.outbox.consumeDismiss(row);
+        continue;
+      }
+      if (row.state !== "queued" || row.admitted !== undefined || row.op === undefined) continue;
+      if (foreign) {
         await this.outbox.rejectInbox(row, refusal("E_OFFLINE_FORWARDING_IDENTITY",
           "this write was saved under another account session, backend, or partition", "send it again from the current session"));
         continue;
@@ -458,7 +474,13 @@ export class OfflineRuntime {
         continue;
       }
       try {
-        const outcome = await this.outbox.admitInbox(row, check.custody, this.seq, (ids) => this.predict(row.op!, row.args, ids));
+        // Custody is checked inside the serial, before and after prediction, and before the commit (LLP 1018.004 §2).
+        const outcome = await this.outbox.admitInbox(row, check.custody, this.seq, async (ids) => {
+          check.custody();
+          const prediction = await this.predict(row.op!, row.args, ids);
+          check.custody();
+          return prediction;
+        }, check.custody);
         if (outcome.outcome === "admitted") admitted += 1;
       } catch (error) {
         if (error instanceof OutboxRefusal) { stopped = error.code; break; }

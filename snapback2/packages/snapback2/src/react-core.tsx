@@ -192,8 +192,8 @@ export interface UseMutationResult<Args, Result> {
   /** This op's intents still queued in the durable outbox, FIFO (LLP 1012 §7). */
   pending: OutboxEntry[];
   last: MutationResult<Result> | undefined;
-  /** The mechanism behind `can`: the full outbox status and the last retryable transport refusal. */
-  detail: { status: OutboxStatus; transport?: SnapbackRefusal };
+  /** The mechanism behind `can`: the full outbox status, the last retryable transport refusal, and on a follower the writer's announced status. */
+  detail: { status: OutboxStatus; transport?: SnapbackRefusal; writer?: OutboxStatus };
 }
 
 /** The durable outbox of the open partition, FIFO, with `dismiss` for settled intents. */
@@ -201,7 +201,7 @@ export interface UseOutboxResult {
   entries: OutboxEntry[];
   /** Grant-present readiness: no particular write bound is implied. */
   can: Readiness;
-  detail: { status: OutboxStatus };
+  detail: { status: OutboxStatus; writer?: OutboxStatus };
   dismiss(intent: string): Promise<void>;
 }
 
@@ -215,14 +215,14 @@ function useOutboxState(op?: Op<any, any>): UseOutboxResult {
   const operation = op === undefined ? undefined : referenceName(op);
   const identity = useMemo(() => ({}), [client, snapshot.authGeneration, operation]);
   const observed = useMemo(() => client.outbox.observe(op), [identity]);
-  const { entries, status } = useSyncExternalStore(observed.subscribe, observed.getSnapshot, observed.getSnapshot);
+  const { entries, status, writer } = useSyncExternalStore(observed.subscribe, observed.getSnapshot, observed.getSnapshot);
   const dismiss = useCallback((intent: string) => client.outbox.dismiss(intent), [client]);
   const queued = useMemo(
     () => entries.filter((entry) => entry.state === "queued" && (operation === undefined || entry.op === operation)).length,
     [entries, operation],
   );
   const can = useMemo(() => readiness(status, snapshot.connection, queued), [status, snapshot.connection, queued]);
-  return useMemo(() => ({ entries, can, detail: { status }, dismiss }), [entries, can, status, dismiss]);
+  return useMemo(() => ({ entries, can, detail: { status, ...(writer === undefined ? {} : { writer }) }, dismiss }), [entries, can, status, writer, dismiss]);
 }
 
 export function useOutbox(): UseOutboxResult {
@@ -277,8 +277,9 @@ export function useMutation<Args, Result>(ref: Op<Args, Result>): UseMutationRes
     }
   }, [identity]);
   const fullDetail = useMemo(
-    () => (visible.transport === undefined ? { status: detail.status } : { status: detail.status, transport: visible.transport }),
-    [detail.status, visible.transport],
+    () => ({ status: detail.status, ...(visible.transport === undefined ? {} : { transport: visible.transport }),
+      ...(detail.writer === undefined ? {} : { writer: detail.writer }) }),
+    [detail.status, detail.writer, visible.transport],
   );
   return useMemo(
     () => ({ run, inFlight: visible.pending > 0, can, pending, last: visible.last, detail: fullDetail }),

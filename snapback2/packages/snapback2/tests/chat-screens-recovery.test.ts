@@ -16,9 +16,9 @@ import { DAY, fakeOwner } from "./fake-owner.ts";
 import { FakeIndexedDb, FakeLocks } from "./fake-indexeddb.ts";
 import { RealOwnerHarness } from "./owner-harness.ts";
 
-// @ref LLP 1012#7-writes-offline — the chat template's screens: the pending
-// bubble is keyed by the first pinned id, shows `args.body` and "Sending…"
-// with no time, and becomes the server row on `committed` without remounting.
+// @ref LLP 1018.004#5-hooks-and-templates — a follower tab's pending bubble is
+// keyed by its inbox alias until the writer assigns ids (one accepted rekey),
+// shows `args.body` and "Sending…" with no time, and becomes the server row.
 
 const packageRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const bundlePath = resolve(packageRoot, "dist/.chat-screens-recovery.test-bundle.mjs");

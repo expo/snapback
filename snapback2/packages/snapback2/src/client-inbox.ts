@@ -80,7 +80,7 @@ export class ClientInbox {
   private pollTimer?: ReturnType<typeof setTimeout>;
   private unresponsiveTimer?: ReturnType<typeof setTimeout>;
   private unresponsive = false;
-  private admitting?: Promise<void>;
+  private admitting?: Promise<{ stopped?: string }>;
   private admitAgain = false;
   private unsubscribeLedger?: () => void;
   private retryTimer?: ReturnType<typeof setTimeout>;
@@ -245,6 +245,9 @@ export class ClientInbox {
     if (!runtime || !this.follower) return;
     const changed = await runtime.refreshInbox().catch(() => false);
     if (runtime.inboxPending === 0) this.clearUnresponsive();
+    else this.armUnresponsive();
+    // Rows read from durable state, after a reload, need the same poll and timer a fresh insertion arms.
+    this.armFollowerPoll();
     if (changed) this.notify();
   }
 
@@ -253,11 +256,12 @@ export class ClientInbox {
    * pass. Runs whether or not the follower marker is still set, so takeover
    * can admit inherited rows before its first resume (LLP 1018.004 §4).
    */
-  admit(): Promise<void> {
+  admit(): Promise<{ stopped?: string }> {
     const runtime = this.host.runtime;
-    if (!runtime || !runtime.principal || !runtime.coordinationScope) return Promise.resolve();
+    if (!runtime || !runtime.principal || !runtime.coordinationScope) return Promise.resolve({});
     if (this.admitting) { this.admitAgain = true; return this.admitting; }
-    const run = (async () => {
+    const run = (async (): Promise<{ stopped?: string }> => {
+      let last: { stopped?: string } = {};
       do {
         this.admitAgain = false;
         const fence = this.host.fence(), principal = runtime.principal!;
@@ -269,9 +273,11 @@ export class ClientInbox {
         try { outcome = await runtime.admitInbox({ scope, custody }); }
         catch (error) { if (!this.host.closed()) this.host.failure(error, "client.inbox.admit"); }
         if (outcome.admitted > 0) this.host.admitted();
+        last = outcome.stopped === undefined ? {} : { stopped: outcome.stopped };
         this.post({ protocol: PROTOCOL, type: "ledger", scope });
         if (this.writerScope === scope) await this.announce();
       } while (this.admitAgain && !this.host.closed());
+      return last;
     })();
     this.admitting = run.finally(() => { this.admitting = undefined; });
     return this.admitting;

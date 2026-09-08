@@ -418,7 +418,7 @@ export class SharedSubscriptions {
 
 /** What the follower tab needs from the client: the runtime, and the client's own takeover steps. */
 export interface FollowerHost<Authority> {
-  runtime(): { follow(principal: string, signal: AbortSignal, wait: object): Promise<void>; followed(wait: object): void; reauthenticate(principal: string, authEpoch?: number): Promise<void> };
+  runtime(): { follow(principal: string, signal: AbortSignal, wait: object): Promise<void>; followed(wait: object): void; routeOpened?(wait: object): Promise<void>; reauthenticate(principal: string, authEpoch?: number): Promise<void> };
   closed(): boolean;
   /** The inherited partition is open: forget the predecessor's metadata and adopt the principal. */
   inherited(principal: string): void;
@@ -439,7 +439,7 @@ interface Wait { principal: string; controller: AbortController; authenticated: 
 
 /**
  * A browser tab whose account another tab is writing. It waits for that tab's
- * lock outside the startup path, keeps the follower marker (and forwarding
+ * lock outside the startup path, keeps the follower marker (and inbox
  * route) until the inherited partition is reauthenticated and
  * resumed, and withdraws the wait on close, restart, sign-out, session expiry,
  * and account change so a discarded tab can never take the lock later.
@@ -467,7 +467,8 @@ export class TabFollower<Authority> {
     return true;
   }
 
-  begin(principal: string, authenticated: boolean, authEpoch: number | undefined): void {
+  /** Resolves once the follower's inbox route has read durable state (or failed to), never when the lock is won (LLP 1018.004 §2). */
+  begin(principal: string, authenticated: boolean, authEpoch: number | undefined): Promise<void> {
     const wait: Wait = { principal, controller: new AbortController(), authenticated, authEpoch, inherited: false };
     this.wait = wait;
     this.host.following(principal, authenticated, authEpoch);
@@ -506,6 +507,7 @@ export class TabFollower<Authority> {
       if (wait.controller.signal.aborted || this.host.closed()) return;
       this.host.failed(error);
     });
+    return runtime.routeOpened?.(wait) ?? Promise.resolve();
   }
 
   stop(): void {

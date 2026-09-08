@@ -23,6 +23,7 @@ function immutable<T>(value: T): T {
 export function observeOutbox(
   entries: () => Promise<OutboxEntry[]>, status: (op?: Op<any, any>) => Promise<OutboxStatus>,
   subscribe: (notify: () => void) => () => void, identity: () => string,
+  writer: () => OutboxStatus | undefined = () => undefined,
 ): <Args, Result>(op?: Op<Args, Result>) => ObservedOutbox {
   const slots = new Map<string, Slot>();
   let unsubscribe: (() => void) | undefined, version = 0, scheduled = false;
@@ -42,11 +43,15 @@ export function observeOutbox(
         if (key !== historyKey || historyAccount !== account) {
           history = immutable(entries); historyKey = key; historyAccount = account;
         }
+        const announced = writer();
         for (const [at, slot] of active.entries()) {
           if (slot.listeners.size === 0) continue;
-          const next = { entries: history, status: Object.freeze(statuses[at]!) };
+          // @ref LLP 1018.004#3-readiness-on-a-follower — the writer's announced grant state rides beside a follower's own status.
+          const next: OutboxSnapshot = { entries: history, status: Object.freeze(statuses[at]!),
+            ...(announced === undefined ? {} : { writer: Object.freeze({ ...announced }) }) };
           if (slot.identity === account && slot.snapshot.entries === history
-            && JSON.stringify(slot.snapshot.status) === JSON.stringify(next.status)) continue;
+            && JSON.stringify(slot.snapshot.status) === JSON.stringify(next.status)
+            && JSON.stringify(slot.snapshot.writer) === JSON.stringify(next.writer)) continue;
           slot.identity = account; slot.snapshot = Object.freeze(next);
           for (const notify of [...slot.listeners]) try { notify(); } catch { /* isolated consumers */ }
         }

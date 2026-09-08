@@ -14,8 +14,8 @@ const client = createClient({
 Custom factories need `open()` or throw
 `TypeError`. IndexedDB and Web Locks are required; no memory fallback.
 
-Expiry seals; session change wipes. One writer/account. Web followers read live, forward
-replayable writes, and inherit its queue on close. Uploads,
+Expiry seals; session change wipes. One writer/account. Web followers read live, write
+inbox rows the writer admits, and inherit its queue when it closes. Uploads,
 channels, or no carrier refuse E_OFFLINE_FOLLOWER pre-byte; else:
 E_OFFLINE_LOCK. Beyond `fenceDays` (1..30), reads are stale; prediction/replay
 await resume. Queued writes survive; held reads/`offline()` bypass startup auth.
@@ -34,26 +34,26 @@ retains its watermark. Covered reads are exact; others partial.
 
 ## Recovery
 
-Offline `run()`: `{ state: "queued", intent, ids }`; replay is FIFO; results
-are terminal or durable. A non-writer tab inserts a durable `inbox` row and
-resolves `{ state: "queued", intent: "inbox:<key>", ids: [] }`; the writer
-admits rows in key order, one swap with the entry, recording `inbox`; the
+Offline `run()`: `{ state: "queued", intent, ids }`; replay is FIFO; every
+result is terminal or durable. A non-writer tab inserts a durable `inbox` row
+and resolves `{ state: "queued", intent: "inbox:<key>", ids: [] }`; the writer
+admits rows in key order, one swap with the entry, which records `inbox`; the
 alias names it on either tab. Follower status: `forwarding` or
 `writer-unresponsive` (ready), `inbox-full`, `follower` (no route).
 
 `useMutation(op).can`/`useOutbox().can` derive send/action/reason from
-`detail.status`, connection, and queue. `outbox.observe(op?)` shares
-`{ entries, status }` with the hooks; `intentLabel` labels entries. Writes
-retain terminals until explicit `dismiss(intent)`; queued entries cannot be
-dismissed. `run()` success means committed, not shown. Query `items` resolve
-indicators from the target's own observation through commit, including no-ID
-edits; `arrived`/global sequence cannot substitute. Expose dismissal for
-failures, missing targets, and old successes. See live-query.
+`detail.status`, connection, and queue; a follower's `detail.writer` is the
+writer's announced status. `outbox.observe(op?)` feeds the hooks;
+`intentLabel` labels entries. Writes keep terminals until explicit
+`dismiss(intent)`; queued entries cannot be dismissed. `run()` success means
+committed, not shown. Query `items` resolve indicators from the target's own
+observation through commit, including no-ID edits; `arrived`/global sequence
+cannot substitute. Expose dismissal for failures.
 
 `outbox.drain()`/`settled()`: `{ stopped, remaining }`; false is drained.
 Fence/transport/authority/offline/pending/writer-unresponsive pauses keep
-queued bytes. Retry `online()` or online drain; reconnect does not replay.
-Unclaimed media expires after 24h; grants cannot extend it. After refusal,
+queued bytes. Retry `online()` or an online drain; reconnect never replays.
+Unclaimed media expires in 24h; grants cannot extend it. After refusal,
 use a new upload/intent; never rewrite args.
 
 ## Resume

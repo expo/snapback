@@ -147,7 +147,8 @@ class IndexedDbInbox implements InboxConnection {
     // Count and insert in one readwrite transaction: IndexedDB serializes it against every other writer of this store.
     const existing = (await requestResult(store.getAll() as IDBRequest<InboxRecord[]>))
       .map(inboxRowOf).filter((candidate): candidate is InboxRow => candidate !== undefined);
-    if (existing.filter((candidate) => candidate.state === "queued").length >= INBOX_LIMIT) {
+    // The bound counts what readiness counts: mutation rows the writer has not admitted (LLP 1018.004 §3).
+    if (existing.filter((candidate) => candidate.kind === "mutation" && candidate.state === "queued" && candidate.admitted === undefined).length >= INBOX_LIMIT) {
       transaction.abort();
       throw new InboxFull();
     }

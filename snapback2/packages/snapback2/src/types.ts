@@ -357,7 +357,12 @@ export interface OutboxApi {
   settled(): Promise<OutboxSettlement>;
 }
 
-export interface OutboxSnapshot { readonly entries: OutboxEntry[]; readonly status: OutboxStatus }
+export interface OutboxSnapshot {
+  readonly entries: OutboxEntry[];
+  readonly status: OutboxStatus;
+  /** On a follower: the writer's announced ledger status, beside this tab's own (LLP 1018.004 §3). */
+  readonly writer?: OutboxStatus;
+}
 export interface ObservedOutbox {
   getSnapshot(): OutboxSnapshot;
   subscribe(notify: () => void): () => void;
