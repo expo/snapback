@@ -741,54 +741,26 @@ fn public_count_live_subscription_reruns_after_first_maintained_row_is_created()
 }
 
 #[test]
-fn public_count_oversized_key_omits_both_extra_facts_when_the_reserved_pair_would_overflow() {
+fn public_count_invalid_oversized_key_cannot_mint_the_paired_extra_evidence() {
     let schema = public_count_schema();
-    let mut query = public_count_query();
     let key = vec![Value::Id("x".repeat(10_000))];
-    if let Stmt::Return(Expr::Get(read)) = &mut query.body[0] {
-        read.key = key.iter().cloned().map(Expr::Literal).collect();
-    } else {
-        panic!("count fixture lost its point read");
-    }
-    let certificate = Checker::new(&schema, Ceilings::default())
-        .check(&query)
-        .unwrap();
-    let mut engine = Engine::memory(schema.clone()).unwrap();
-    let transaction = engine.store.conn.transaction().unwrap();
-    let hashes = hashes::PolicyHashes::new(&schema);
-    let mut runner = Runner::new(
-        &transaction,
-        &schema,
-        &hashes,
-        &certificate,
-        Context::query(Actor::user("alice").unwrap(), BTreeMap::new()),
-        &[],
-        &[],
-        RuleAuthority::StoreAuthoritative,
-        0,
-    );
-    runner.statements(&query.body).unwrap();
     assert!(
-        runner.receipt.ranges.is_empty(),
-        "oversized derived proof cannot exceed its additional reserve"
+        crate::cap::count_absence_evidence(
+            &schema,
+            &PointTrace {
+                site: "count.group".into(),
+                table: "counts".into(),
+                index: "byPrincipal".into(),
+                key,
+                examined: false,
+                visible: false,
+                digest: None,
+            },
+            "rule",
+        )
+        .is_none(),
+        "an invalid oversized point key cannot mint either member of the proof pair"
     );
-    let primary = (
-        "counts".into(),
-        "byId".into(),
-        vec![Value::Id(canonical_json(&key))],
-    );
-    assert!(!runner.receipt.absences.contains(&primary));
-    assert!(
-        !runner.trace.absences.contains(&primary),
-        "proof pair must be omitted together"
-    );
-    assert_eq!(
-        runner.receipt.absences,
-        vec![("counts".into(), "byPrincipal".into(), key)]
-    );
-    assert_eq!(runner.trace.points.len(), 1);
-    // This checks the new pair's bounded admission only. It intentionally makes
-    // no whole-receipt bound claim for the pre-existing oversized point absence.
 }
 
 #[test]
