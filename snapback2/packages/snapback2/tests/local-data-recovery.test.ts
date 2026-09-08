@@ -28,14 +28,14 @@ test("transport stops and successful retries report their remaining queue and pr
   const client = createClient({ url: "http://recovery.test", as: "alice", fetch: owner.fetch, offline: { store: fileRangeStore(root) } });
   try {
     await client.ready;
-    const result = await client.mutation(api.deliveries.post as any, { conversationId: "conversation-1", body: "retry once" });
+    const result = await client.mutation(api.messages.send as any, { conversationId: "conversation-1", body: "retry once" });
     assert.equal(result.state, "queued");
     assert.deepEqual(await client.outbox.settled(), { stopped: "transport", remaining: 1 });
     assert.deepEqual(await client.outbox.drain(), { stopped: false, remaining: 0 });
     assert.deepEqual(await client.outbox.settled(), { stopped: false, remaining: 0 });
     assert.equal(owner.executions.length, 1);
     await client.offline();
-    await client.mutation(api.deliveries.post as any, { conversationId: "conversation-1", body: "explicit offline" });
+    await client.mutation(api.messages.send as any, { conversationId: "conversation-1", body: "explicit offline" });
     assert.deepEqual(await client.outbox.settled(), { stopped: "offline", remaining: 1 }, "settled never reports an undrained queue as complete");
     assert.deepEqual(await client.outbox.drain(), { stopped: "offline", remaining: 1 });
     assert.equal(owner.executions.length, 1, "explicit offline does not reconnect implicitly");
@@ -54,15 +54,15 @@ test("grant expiry and exhausted IDs expose actionable admission without consumi
     await client.offline();
     const grant = (await store!.outbox.grant())!;
     await store!.commit({ grants: { put: [{ ...grant, expiresAt: Date.now() - 1 }] } });
-    const status = await client.outbox.status(api.deliveries.post as any);
+    const status = await client.outbox.status(api.messages.send as any);
     assert.equal(status.reason, "grant-expired");
     assert.equal(status.action, "resume");
-    assert.equal(await client.outbox.ready(api.deliveries.post as any), false);
-    await assert.rejects(client.mutation(api.deliveries.post as any, { conversationId: "conversation-1", body: "expired" }), (error: any) => error.code === "E_OFFLINE_ID_BLOCK" && /expired/.test(error.message));
+    assert.equal(await client.outbox.ready(api.messages.send as any), false);
+    await assert.rejects(client.mutation(api.messages.send as any, { conversationId: "conversation-1", body: "expired" }), (error: any) => error.code === "E_OFFLINE_ID_BLOCK" && /expired/.test(error.message));
     assert.equal((await client.outbox.entries()).length, 0);
     assert.equal((await store!.outbox.grant())!.used, grant.used);
     await store!.commit({ grants: { put: [{ ...grant, used: grant.count - 1 }] } });
-    assert.equal((await client.outbox.status(api.deliveries.post as any)).reason, "ids-exhausted");
+    assert.equal((await client.outbox.status(api.messages.send as any)).reason, "ids-exhausted");
     assert.equal((await client.outbox.status(api.missing.write as any)).reason, "program-missing");
   } finally { await client.close(); await rm(root, { recursive: true, force: true }); }
 });
@@ -83,13 +83,13 @@ test("retained reads, readiness and offline escape do not wait on stalled authen
   });
   try {
     await started.promise;
-    const answer = await bounded(client.query(api.deliveries.inbox as any, { c: null }));
+    const answer = await bounded(client.query(api.messages.inbox as any, { c: null }));
     assert.equal(answer.state, "complete");
     await bounded(client.offline());
     await bounded(client.ready);
     assert.equal((await bounded(client.outbox.status())).ready, false, "held answers need no replay grant");
     await store!.seal();
-    const sealed = await bounded(client.query(api.deliveries.inbox as any, { c: null }));
+    const sealed = await bounded(client.query(api.messages.inbox as any, { c: null }));
     assert.equal(sealed.state, "hydrating");
     assert.equal("data" in sealed, false);
     assert.equal((await client.outbox.status()).reason, "sealed");
@@ -117,7 +117,7 @@ test("repeated drain cursors refuse instead of looping or replacing the server w
   try {
     await client.ready;
     const before = (await store!.coverage()).watermarks;
-    subscription = client.subscribe(api.deliveries.inbox as any, { nextPage: null }, () => {}, { drain: true });
+    subscription = client.subscribe(api.messages.inbox as any, { nextPage: null }, () => {}, { drain: true });
     const event = await subscription.until((value: any) => value.state === "refused", 2_000);
     assert.equal(event.code, "E_OFFLINE_RESUME");
     assert.match(event.message, /cursor/);
@@ -134,11 +134,14 @@ test("real sessions change epochs across re-login, seal and cold auth; custom cu
   const clients: Array<ReturnType<typeof createClient>> = [];
   try {
     await writeFile(join(owner.root, "snapback/recovery.q"), "query page(nextPage: cursor ?):\n  return profiles[] after nextPage first 1 by byId\n\nmutation echo(value: text <=100):\n  return value\n");
-    for (let attempt = 0; attempt < 100; attempt++) {
+    let recoveryReady = false;
+    const deadline = Date.now() + 5_000;
+    while (Date.now() < deadline) {
       const manifest = await (await fetch(`${owner.url}/api/manifest`)).json();
-      if (manifest.ops["recovery.page"]) break;
+      if (manifest.ops["recovery.page"]) { recoveryReady = true; break; }
       await tick();
     }
+    assert.ok(recoveryReady, "the owner did not publish the recovery fixture generation");
     let failWrites = true;
     let holdQuery = false;
     const queryStarted = Promise.withResolvers<void>();
@@ -255,7 +258,7 @@ test("replacing an explicit bearer clears the old principal before persistence, 
     client = createClient({ url: "http://token-binding.test", tokenStore, fetch: stalled, offline: { store: factory } });
     await started.promise;
     let delivered = false;
-    const read = client.query(api.deliveries.inbox as any, { c: null }).then((result) => { delivered = true; return result; });
+    const read = client.query(api.messages.inbox as any, { c: null }).then((result) => { delivered = true; return result; });
     await tick();
     assert.equal(delivered, false, "a new bearer has no local principal until the owner confirms it");
     await bounded(client.offline());
@@ -313,11 +316,11 @@ test("authenticated startup restores a cleared token binding across restart and 
     await client.offline();
     client = await client.restart();
     assert.equal(principal, "dev:alice", "offline restart preserves the matching authenticated token binding");
-    assert.equal((await client.query(api.deliveries.inbox as any, { c: null })).state, "complete");
+    assert.equal((await client.query(api.messages.inbox as any, { c: null })).state, "complete");
     await client.close();
     client = createClient({ url: "http://confirmed-binding.test", tokenStore, startOffline: true, fetch: async () => { throw new Error("no network expected"); }, offline: { store: factory } });
     await client.ready;
-    assert.equal((await client.query(api.deliveries.inbox as any, { c: null })).state, "complete");
+    assert.equal((await client.query(api.messages.inbox as any, { c: null })).state, "complete");
   } finally { await client.close(); await rm(root, { recursive: true, force: true }); }
 });
 
@@ -350,7 +353,7 @@ test("a token-store write crossing hydration discards the mixed principal snapsh
     releasePrincipal.resolve();
     await ownerStarted.promise;
     let delivered = false;
-    const read = client.query(api.deliveries.inbox as any, { c: null }).then((result) => { delivered = true; return result; });
+    const read = client.query(api.messages.inbox as any, { c: null }).then((result) => { delivered = true; return result; });
     await tick();
     assert.equal(delivered, false, "the old principal must not be paired with the replacement token");
     await bounded(client.offline());
@@ -368,7 +371,7 @@ test("settled waits for cold local custody before reporting an offline queue", a
   try {
     await client.ready;
     await client.offline();
-    await client.mutation(api.deliveries.post as any, { conversationId: "conversation-1", body: "cold queued" });
+    await client.mutation(api.messages.send as any, { conversationId: "conversation-1", body: "cold queued" });
     await client.close();
     const openStarted = Promise.withResolvers<void>(), releaseOpen = Promise.withResolvers<void>();
     client = createClient({ url: "http://cold-settled.test", as: "alice", startOffline: true, offline: { store: () => {

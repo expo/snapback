@@ -613,7 +613,7 @@ test("an offline send is predicted into the thread in order with its trace, a de
 // @ref LLP 1012#7-writes-offline — exact ordinary-row arrival retires its
 // atomic write group; maintained siblings retain independent authority.
 test("a committed intent's ordinary overlay retires as one group and two resumes retire a stranded prediction", async () => {
-  const base = { grant: "g", offset: 0, count: 3, ids: ["m", "d", "x"], op: "deliveries.post", args: { conversationId: "c1" }, issuedSeq: 0, createdAt: 1, updatedAt: 1 };
+  const base = { grant: "g", offset: 0, count: 3, ids: ["m", "d", "x"], op: "messages.send", args: { conversationId: "c1" }, issuedSeq: 0, createdAt: 1, updatedAt: 1 };
   const overlay = [{ table: "messages", id: "m", row: { id: "m", body: "predicted" } }, { table: "deliveries", id: "d", row: { id: "d", messageId: "m" } }];
   const committed = { ...base, intent: "g:0", state: "committed" as const, predicted: true, response: { state: "committed", seq: 30, data: { id: "m" } } };
   const page = (op: string, args: unknown, seq: number, rows: Array<{ table: string; id: string; row: Record<string, unknown> }>) => ({
@@ -621,17 +621,17 @@ test("a committed intent's ordinary overlay retires as one group and two resumes
     receipt: { ranges: [], absences: [], verdicts: [] },
   });
   const cases: Array<[string, ReturnType<typeof page>, boolean]> = [
-    ["another conversation's thread page", page("deliveries.thread", { conversationId: "c2" }, 32, [
+    ["another conversation's thread page", page("messages.thread", { conversationId: "c2" }, 32, [
       { table: "deliveries", id: "d-c2", row: { id: "d-c2", messageId: "m-c2" } }, { table: "messages", id: "m-c2", row: { id: "m-c2", body: "elsewhere" } },
     ]), false],
-    ["an unrelated row of the predicted table", page("deliveries.thread", { conversationId: "c1" }, 32, [
+    ["an unrelated row of the predicted table", page("messages.thread", { conversationId: "c1" }, 32, [
       { table: "deliveries", id: "d-other", row: { id: "d-other", messageId: "m-other" } },
     ]), false],
-    ["an empty page at the held tail position", page("deliveries.inbox", { c: "cursor-9" }, 32, []), false],
-    ["a delivery holding only the predicted message row", page("deliveries.thread", { conversationId: "c1" }, 32, [
+    ["an empty page at the held tail position", page("messages.inbox", { c: "cursor-9" }, 32, []), false],
+    ["a delivery holding only the predicted message row", page("messages.thread", { conversationId: "c1" }, 32, [
       { table: "messages", id: "m", row: { id: "m", body: "predicted" } },
     ]), true],
-    ["a delivery holding both predicted rows", page("deliveries.thread", { conversationId: "c1" }, 32, [
+    ["a delivery holding both predicted rows", page("messages.thread", { conversationId: "c1" }, 32, [
       { table: "messages", id: "m", row: { id: "m", body: "predicted" } },
       { table: "deliveries", id: "d", row: { id: "d", messageId: "m" } },
     ]), true],
@@ -642,7 +642,7 @@ test("a committed intent's ordinary overlay retires as one group and two resumes
       const store = fileRangeStore(root)();
       await store.open("viewer");
       await store.commit({
-        watermark: { op: "deliveries.inbox", args: { c: null }, watermark: "cursor-9", updatedAt: 1 },
+        watermark: { op: "messages.inbox", args: { c: null }, watermark: "cursor-9", updatedAt: 1 },
         outbox: { put: [{ ...base, intent: "g:0", state: "queued", predicted: true }] }, overlay: { put: { "g:0": overlay } },
       });
       await store.commit({ outbox: { put: [committed] } });
@@ -662,7 +662,7 @@ test("a committed intent's ordinary overlay retires as one group and two resumes
     const store = fileRangeStore(root)();
     await store.open("viewer");
     await store.commit({
-      watermark: { op: "deliveries.inbox", args: { c: null }, cursorArg: "c", watermark: "cursor-9", updatedAt: 1 },
+      watermark: { op: "messages.inbox", args: { c: null }, cursorArg: "c", watermark: "cursor-9", updatedAt: 1 },
       outbox: { put: [{ ...base, intent: "g:0", state: "queued", predicted: true }] }, overlay: { put: { "g:0": overlay } },
     });
     await store.commit({ outbox: { put: [committed] } });

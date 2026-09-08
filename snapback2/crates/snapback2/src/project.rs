@@ -748,7 +748,9 @@ fn quarry_fanout_rewrite(
     let authored_line = source.lines().nth(source_site.line as usize - 1)?.trim();
     let (authored, _) = authored_line.strip_prefix("for ")?.split_once(" in ")?;
     let mut chars = authored.chars();
-    if !chars.next().is_some_and(|ch| ch == '_' || ch.is_ascii_alphabetic())
+    if !chars
+        .next()
+        .is_some_and(|ch| ch == '_' || ch.is_ascii_alphabetic())
         || !chars.all(|ch| ch == '_' || ch.is_ascii_alphanumeric())
     {
         return None;
@@ -1066,7 +1068,12 @@ for await (const line of createInterface({{ input: process.stdin }})) {{
             source: "{}".to_owned(),
         })
         .expect("direct IR inspection name should be admitted");
-        for generated in ["schema.ts", ".ir.json", "nested/schema.ir.json", "schema.ir.json.."] {
+        for generated in [
+            "schema.ts",
+            ".ir.json",
+            "nested/schema.ir.json",
+            "schema.ir.json..",
+        ] {
             let error = validate_quarry_generated(&QuarryGenerated {
                 file: "snapback/schema.q".to_owned(),
                 generated: generated.to_owned(),

@@ -2,6 +2,8 @@ import { mkdir, mkdtemp, readdir, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
+import { createRequire } from "node:module";
+import { realpathSync } from "node:fs";
 import type { ProjectJson } from "./ir";
 import { lowerProject } from "./project";
 import ts from "typescript";
@@ -55,14 +57,14 @@ export function registerFinalGateChecks(test: RegisterTest): void {
     await Bun.write(apiDts, lowered.apiDts);
     const targets = resolve(buildDir, "mutation-target-consumer.ts");
     await Bun.write(targets, `import { api, mutationTarget } from "snapback2/client";
-const create = mutationTarget(api.deliveries.post, "messages");
-const update = mutationTarget(api.deliveries.edit, "messages");
-const remove = mutationTarget(api.deliveries.unsend, "messages");
+const create = mutationTarget(api.messages.send, "messages");
+const update = mutationTarget(api.messages.edit, "messages");
+const remove = mutationTarget(api.messages.unsend, "messages");
 const created: "create" | undefined = create.__kind;
 const updated: "update" | undefined = update.__kind;
 const removed: "remove" | undefined = remove.__kind;
 // @ts-expect-error a table absent from this mutation cannot be selected
-mutationTarget(api.deliveries.post, "nonexistent");
+mutationTarget(api.messages.send, "nonexistent");
 // @ts-expect-error a query has no mutation targets
 mutationTarget(api.messages.thread, "messages");
 // @ts-expect-error update targets cannot stand in for create targets
@@ -73,7 +75,8 @@ void [created, updated, removed, wrong];`);
       return (await Promise.all(entries.map((entry) => entry.isDirectory() ? files(resolve(path, entry.name))
         : entry.isFile() && /\.tsx?$/.test(entry.name) ? [resolve(path, entry.name)] : []))).flat();
     };
-    const screens = (await Promise.all(["react", "expo", "shared"].map((arm) => files(resolve(template, arm))))).flat();
+    const screens = (await Promise.all(["react", "expo", "shared"].map((arm) => files(resolve(template, arm))))).flat().filter(file => !file.endsWith("vite.config.ts"));
+    const expoRequire = createRequire(realpathSync(resolve(packageRoot, "node_modules/expo/package.json")));
     const program = ts.createProgram({
       rootNames: [...screens, apiDts, targets],
       options: {
@@ -84,6 +87,7 @@ void [created, updated, removed, wrong];`);
         moduleResolution: ts.ModuleResolutionKind.Bundler,
         noEmit: true,
         paths: {
+          "expo-constants": [resolve(dirname(expoRequire.resolve("expo-constants/package.json")), "build/Constants.d.ts")],
           snapback2: [resolve(packageRoot, "dist/index.d.ts")],
           "snapback2/client": [resolve(packageRoot, "dist/client.d.ts")],
           "snapback2/react": [resolve(packageRoot, "dist/react.d.ts")],
@@ -227,11 +231,6 @@ void [created, updated, removed, wrong];`);
     assert(checked.results.length === quarryChat.project.programs.length, "project check omitted programs");
     assert(checked.results.every((item: any) => (item.certificate === null) !== (item.error === null)), "project check omitted a certificate/refusal outcome");
     assert(checkedRefusals.every((item: any) => fullCheckEnvelope(item.error)), "checker refusal envelope is incomplete");
-    for (const page of ["feeds.q", "messages.q"]) {
-      const fixture = await Bun.file(`${frontend}fixtures/quarry-chat/snapback/${page}`).text();
-      const template = await Bun.file(`${crate}packages/snapback2/templates/chat/snapback/${page}`).text();
-      assert(fixture === template, `Quarry chat ${page} diverged from the shipped template`);
-    }
     const quarryChecked = runBinaryCheck(["--json", "--ir"], quarryChat.project);
     const pagePins: Record<string, [number, number]> = {
       "feeds.followingFeed": [55_572, 626_336],

@@ -4,7 +4,9 @@ use super::*;
 
 #[derive(Clone)]
 pub(super) enum Repair {
-    Range { nested: bool },
+    Range {
+        nested: bool,
+    },
     Merge,
     Cap {
         name: String,

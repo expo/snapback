@@ -198,6 +198,7 @@ the commit clock, the same instant in mutations. `now` is pinned
 once per request rather than redrawn; `new` allocates a fresh ID on each
 evaluation.
 
+Inserts return rows; omit optional columns you do not use.
 Writes: `insert table { fields }`, `update table[key] { patch }`,
 `upsert table[key] { row }`, `delete table[key]`. Non-insert keys must be complete
 unique keys, including composite alternatives. Alternate-key update/delete
@@ -239,31 +240,27 @@ See `snapback2 guide effects` for the executable TypeScript recipe.
 `snapback/messages.q`:
 
 ```q
-effect notify from delivery
-fn isMember from access
-proc deliver from access
-
 query thread(conversationId: conversations, c: cursor ?):
   require isMember(conversationId, viewer) else MEMBERSHIP_REQUIRED
-  return messages[conversationId] after c last 50
-
+  page = deliveries[viewer, conversationId, 'message'] after c last 50 by byRecipientConversationKindAt
+  return page { *, message: messages[.messageId] }
 ```
 
 Send:
 
 ```q
-mutation send(conversationId: conversations, recipientId: profiles, body: text <=4000):
+mutation send(conversationId: conversations, body: text <=4000, expiresAt: time ?):
   require isMember(conversationId, viewer) else NOT_MEMBER
-  recipient = profiles[recipientId] ! else RECIPIENT_UNKNOWN
-  require isMember(conversationId, recipient.principal) else RECIPIENT_NOT_MEMBER
-  row = insert messages { conversationId, authorId: viewer, body, photo: null, clip: null, at: now }
+  row = insert messages { conversationId, authorId: viewer, body, expiresAt, at: now }
   deliver(conversationId, row.id, 'message')
-  emit notify { to: recipient.principal, body }
+  for member in conversationMembers(conversationId):
+    if member.principal != viewer:
+      emit notify { to: member.principal, body }
   return { id: row.id }
 ```
 
-Edit/unsend target current members. Departed recipients evict unsent bodies by
-point absence on held-page revalidation, not tombstones (LLP 1012 §5).
+Edit/unsend fan out to current members. Tombstones and held-page point
+absences evict removed bodies.
 
 ## Absence and bounds
 

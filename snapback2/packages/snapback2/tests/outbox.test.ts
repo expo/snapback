@@ -96,7 +96,7 @@ test("a resume whose grant persistence crosses a seal cannot restore trust; the 
       });
       await client.ready;
       now += 3 * DAY;
-      await client.mutation(api.deliveries.post as any, post("kept across seal"));
+      await client.mutation(api.messages.send as any, post("kept across seal"));
       assert.equal(mutations, 0);
       holdMe = true;
       const me = assert.rejects(client.auth.me(), (error: any) => error.code === "E_AUTH_SESSION");
@@ -155,7 +155,7 @@ test("no-facts recovery chooses the mounted drain ahead of another mounted candi
           "account.mine": { kind: "query", args: {}, planHash: "f".repeat(64) },
           ...(choice === "optional" ? {} : {
             "feed.global": { kind: "query", cursor: "c", args: { c: { Optional: "Cursor" } }, planHash: "f".repeat(64) },
-            "deliveries.inbox": { kind: "query", cursor: "c", args: { c: { Optional: "Cursor" } }, planHash: "f".repeat(64) },
+            "messages.inbox": { kind: "query", cursor: "c", args: { c: { Optional: "Cursor" } }, planHash: "f".repeat(64) },
           }),
         };
         const fetch: typeof globalThis.fetch = async (input, init) => {
@@ -171,23 +171,23 @@ test("no-facts recovery chooses the mounted drain ahead of another mounted candi
           await client.ready;
           await client.auth.login({ email: "alice@example.com", password: "pw" });
           await client.offline();
-          await client.mutation(api.deliveries.post as any, post(choice));
+          await client.mutation(api.messages.send as any, post(choice));
           await client.close();
           now += 3 * DAY;
           if (choice === "recorded") {
             const store = carrier.factory()();
             await store.open("dev:alice");
             // The log choice survived, but it has no generation/auth facts yet.
-            await store.commit({ watermark: { op: "deliveries.inbox", args: { c: null }, watermark: null, updatedAt: now } });
+            await store.commit({ watermark: { op: "messages.inbox", args: { c: null }, watermark: null, updatedAt: now } });
             await store.close?.();
           }
           client = createClient({ url: "http://seed-choice.test", fetch, token: "alice-token", offline: { store: carrier.factory(), fenceDays: 1 } });
           if (choice === "mounted") {
             subscriptions.push(client.subscribe(api.feed.global as any, { c: null }, () => {}));
-            subscriptions.push(client.subscribe(api.deliveries.inbox as any, { c: null }, () => {}, { drain: true }));
+            subscriptions.push(client.subscribe(api.messages.inbox as any, { c: null }, () => {}, { drain: true }));
           }
           await client.ready;
-          const expected = choice === "optional" ? "account.mine" : choice === "cursor" ? "feed.global" : "deliveries.inbox";
+          const expected = choice === "optional" ? "account.mine" : choice === "cursor" ? "feed.global" : "messages.inbox";
           assert.equal(queries[0], expected, `${carrier.name}: ${choice}`);
           assert.equal((await client.outbox.entries())[0]?.state, "committed");
           if (choice === "mounted") await (subscriptions[1] as any).until((value: any) => value.caughtUp === true, 2_000);
@@ -215,7 +215,7 @@ test("cold no-facts recovery exposes E_OFFLINE_RESUME in lastRefusal and online 
       await client.ready;
       await client.auth.login({ email: "alice@example.com", password: "pw" });
       await client.offline();
-      await client.mutation(api.deliveries.post as any, post("survives cold refusal"));
+      await client.mutation(api.messages.send as any, post("survives cold refusal"));
       await client.close();
       Date.now = () => originalNow() + 3 * DAY;
       client = createClient({ url: "http://cold-refusal.test", fetch: owner.fetch, token: "alice-token", offline: { store: carrier.factory(), fenceDays: 1 } });
@@ -227,7 +227,7 @@ test("cold no-facts recovery exposes E_OFFLINE_RESUME in lastRefusal and online 
       assert.deepEqual((await client.outbox.entries()).map((entry) => entry.state), ["queued"]);
       assert.equal(owner.executions.length, 0);
       // ready remains usable: an explicit receipt lets the same cold client recover.
-      await client.query(api.deliveries.inbox as any, { c: null });
+      await client.query(api.messages.inbox as any, { c: null });
       await client.online();
       assert.equal(client.snapshot.lastRefusal, undefined);
       assert.equal((await client.outbox.entries())[0]?.state, "committed");
@@ -262,11 +262,11 @@ test("live transport and a fresh login grant cannot release old intents; a grant
       });
       await client.ready;
       await client.auth.login({ email: "alice@example.com", password: "pw" });
-      await client.query(api.deliveries.inbox as any, { c: null });
+      await client.query(api.messages.inbox as any, { c: null });
       await client.offline();
-      await client.mutation(api.deliveries.post as any, post("old grant"));
+      await client.mutation(api.messages.send as any, post("old grant"));
       now += 3 * DAY;
-      await client.mutation(api.deliveries.post as any, post("past fence"));
+      await client.mutation(api.messages.send as any, post("past fence"));
       assert.equal(await client.outbox.ready(), true, "fence age does not gate custody");
       await assert.rejects(client.online(), (error: any) => error.code === "E_NETWORK" || error.retryable);
       // online() restored transport before its failed resume. Mutations would
@@ -290,10 +290,10 @@ test("live transport and a fresh login grant cannot release old intents; a grant
       // queue under the renewed trust and restart while cut.
       now += 3 * DAY;
       await client.offline();
-      await client.mutation(api.deliveries.post as any, post("renew again"));
+      await client.mutation(api.messages.send as any, post("renew again"));
       await client.online();
       await client.offline();
-      await client.mutation(api.deliveries.post as any, post("after grantless resume"));
+      await client.mutation(api.messages.send as any, post("after grantless resume"));
       assert.equal((await client.outbox.entries()).at(-1)?.predicted, true, "resume itself restored prediction");
       failResume = true;
       client = await client.restart();
@@ -301,7 +301,7 @@ test("live transport and a fresh login grant cannot release old intents; a grant
       const before = mutations;
       assert.equal((await client.outbox.drain()).stopped, "fence");
       assert.equal(mutations, before, `${carrier.name}: restart discarded the old runtime's trust`);
-      await client.mutation(api.deliveries.post as any, post("after restart"));
+      await client.mutation(api.messages.send as any, post("after restart"));
       assert.equal((await client.outbox.entries()).at(-1)?.predicted, false);
       failResume = false;
       await client.online();
@@ -334,9 +334,9 @@ test("partition change, seal, and wipe never inherit a successful resume for dra
       const id = engineId(1);
       await store.commit({
         grants: { current: id, put: [{ id, from: id, count: 8192, used: 52, mintedAt: now - 3 * DAY, expiresAt: now + 27 * DAY }] },
-        bounds: { "deliveries.post": 51 },
+        bounds: { "messages.send": 51 },
         outbox: { put: [{ intent: `${id}:0`, grant: id, offset: 0, count: 52, ids: [id],
-          op: "deliveries.post", args: post("Bob's old queue"), state: "queued", issuedSeq: 0,
+          op: "messages.send", args: post("Bob's old queue"), state: "queued", issuedSeq: 0,
           createdAt: now - 3 * DAY, updatedAt: now - 3 * DAY, trace: { points: [], verdicts: [] } }] },
       });
       await store.close?.();
@@ -362,8 +362,8 @@ test("partition change, seal, and wipe never inherit a successful resume for dra
       await client.ready;
       assert.equal(resumes, 1, "Alice successfully resumed");
       await client.auth.login({ email: "bob@example.com", password: "pw" });
-      await client.query(api.deliveries.inbox as any, { c: null });
-      await client.mutation(api.deliveries.post as any, post("Bob before resume"));
+      await client.query(api.messages.inbox as any, { c: null });
+      await client.mutation(api.messages.send as any, post("Bob before resume"));
       assert.equal((await client.outbox.entries()).at(-1)?.predicted, false);
       assert.equal((await client.outbox.drain()).stopped, "fence");
       assert.equal(mutations, 0, `${carrier.name}: Alice's resume authorized no Bob writes`);
@@ -379,9 +379,9 @@ test("partition change, seal, and wipe never inherit a successful resume for dra
           expireSession = false;
         } else await client.auth.logout();
         await client.auth.login({ email: "bob@example.com", password: "pw" });
-        await client.query(api.deliveries.inbox as any, { c: null });
+        await client.query(api.messages.inbox as any, { c: null });
         const before = mutations;
-        await client.mutation(api.deliveries.post as any, post(`after ${boundary}`));
+        await client.mutation(api.messages.send as any, post(`after ${boundary}`));
         assert.equal((await client.outbox.entries()).at(-1)?.predicted, false, `${carrier.name}: ${boundary} cleared prediction trust`);
         assert.equal((await client.outbox.drain()).stopped, "fence");
         assert.equal(mutations, before, `${carrier.name}: ${boundary} cleared replay trust`);
@@ -417,7 +417,7 @@ test("login then offline before any delivery resumes a three-day queue, includin
           const response = await owner.fetch(input, init);
           if (path !== "/api/manifest") return response;
           const manifest = await response.json();
-          manifest.ops = { "deliveries.inbox": { kind: "query", cursor: "c", args: { c: { Optional: "Cursor" } }, planHash: "f".repeat(64) } };
+          manifest.ops = { "messages.inbox": { kind: "query", cursor: "c", args: { c: { Optional: "Cursor" } }, planHash: "f".repeat(64) } };
           return jsonResponse(manifest);
         },
       });
@@ -425,14 +425,14 @@ test("login then offline before any delivery resumes a three-day queue, includin
       await client.auth.login({ email: "alice@example.com", password: "pw" });
       assert.equal(requests.includes("/api/query"), false, "login had no deliveries");
       await client.offline();
-      await client.mutation(api.deliveries.post as any, post("before any delivery"));
+      await client.mutation(api.messages.send as any, post("before any delivery"));
       now += 3 * DAY;
       const start = requests.length;
       await client.online();
       assert.deepEqual(requests.slice(start), ["/api/query", "/api/resume", "/api/mutation"], `${carrier.name}: real facts, then resume, then replay`);
       assert.equal((await client.outbox.entries())[0]?.state, "committed");
       await client.offline();
-      await client.mutation(api.deliveries.post as any, post("before reset"));
+      await client.mutation(api.messages.send as any, post("before reset"));
       now += 3 * DAY;
       reset = true;
       const resetStart = requests.length;
@@ -463,7 +463,7 @@ test("online refuses E_OFFLINE_RESUME and retains a past-fence queue when no que
       await client.ready;
       await client.auth.login({ email: "alice@example.com", password: "pw" });
       await client.offline();
-      await client.mutation(api.deliveries.post as any, post("kept"));
+      await client.mutation(api.messages.send as any, post("kept"));
       Date.now = () => originalNow() + 3 * DAY;
       await assert.rejects(client.online(), (error: any) => error.code === "E_OFFLINE_RESUME"
         && error.envelope.family === "offline" && error.envelope.site === "client.online.resume"
@@ -493,7 +493,7 @@ test("missing grant trust waits for resume and the client clock never expires an
     try {
       await client.ready;
       await client.offline();
-      await client.mutation(api.deliveries.post as any, post("owner judges age"));
+      await client.mutation(api.messages.send as any, post("owner judges age"));
       Date.now = () => mintedAt + 40 * DAY;
       const [entry] = await client.outbox.entries();
       await store!.commit({ grants: { current: null, remove: [entry!.grant] } });
@@ -535,7 +535,7 @@ test("useOutbox exposes fence inside and past while ready stays true, then updat
     assert.equal(outbox.can.send, true);
     assert.equal(outbox.detail.status.fence, "inside");
     Date.now = () => originalNow() + 3 * DAY;
-    await act(async () => { await client.mutation(api.deliveries.post as any, post("past")); });
+    await act(async () => { await client.mutation(api.messages.send as any, post("past")); });
     assert.equal(outbox.can.send, true, "fence does not disable accepting a write");
     assert.equal(outbox.detail.status.fence, "past");
     assert.equal(outbox.entries[0].reason, "fence");
@@ -559,11 +559,11 @@ test("enqueue consumes a grant slice of 1 + maxNewIds and refuses E_OFFLINE_ID_B
     await client.ready;
     assert.equal(owner.grantsMinted(), 1, `${carrier.name}: cold start resumed and earned a grant`);
     assert.equal(await client.outbox.ready(), true, `${carrier.name}: the grant itself is ready`);
-    assert.equal(await client.outbox.ready(api.deliveries.post as any), true, `${carrier.name}: the post slice fits initially`);
+    assert.equal(await client.outbox.ready(api.messages.send as any), true, `${carrier.name}: the post slice fits initially`);
     await client.offline();
-    const first = await client.mutation(api.deliveries.post as any, post("one"));
+    const first = await client.mutation(api.messages.send as any, post("one"));
     assert.equal(first.state, "queued");
-    const second = await client.mutation(api.deliveries.post as any, post("two"));
+    const second = await client.mutation(api.messages.send as any, post("two"));
     assert.equal(second.state, "queued");
     const entries = await client.outbox.entries();
     assert.deepEqual(entries.map((entry) => [entry.intent, entry.offset, entry.count, entry.state]), [
@@ -576,9 +576,9 @@ test("enqueue consumes a grant slice of 1 + maxNewIds and refuses E_OFFLINE_ID_B
     assert.deepEqual(entries[0]!.trace, { points: [], verdicts: [] }, "the twin's seam is left empty");
     assert.equal(first.state === "queued" && first.ids[0], engineId(100));
     assert.equal(await client.outbox.ready(), true, `${carrier.name}: a spent-down grant remains present`);
-    assert.equal(await client.outbox.ready(api.deliveries.post as any), false, `${carrier.name}: the remaining six ids cannot hold this op's slice`);
+    assert.equal(await client.outbox.ready(api.messages.send as any), false, `${carrier.name}: the remaining six ids cannot hold this op's slice`);
     await assert.rejects(
-      () => client.mutation(api.deliveries.post as any, post("three")),
+      () => client.mutation(api.messages.send as any, post("three")),
       (error: unknown) => error instanceof SnapbackRefusal && error.code === "E_OFFLINE_ID_BLOCK"
         && error.envelope.family === "offline" && typeof error.envelope.rewrite === "string",
       `${carrier.name}: 110 - 104 = 6 ids left cannot hold 52`,
@@ -597,16 +597,16 @@ test("a fresh partition without a grant refuses offline writes loudly and earns 
   assert.equal(owner.grantsMinted(), 0, "nothing held, nothing to resume");
   await client.offline();
   await assert.rejects(
-    () => client.mutation(api.deliveries.post as any, post("no grant")),
+    () => client.mutation(api.messages.send as any, post("no grant")),
     (error: unknown) => error instanceof SnapbackRefusal && error.code === "E_OFFLINE_ID_BLOCK",
   );
   await client.online();
-  const drain = client.subscribe(api.deliveries.inbox as any, { c: null }, () => undefined, { drain: true });
+  const drain = client.subscribe(api.messages.inbox as any, { c: null }, () => undefined, { drain: true });
   await drain.until((value) => value.state === "complete" && value.caughtUp === true, 2_000);
   await new Promise((resolve) => setTimeout(resolve, 20));
   assert.equal(owner.grantsMinted(), 1, "the drain reaching its watermark asked for a grant");
   await client.offline();
-  const queued = await client.mutation(api.deliveries.post as any, post("now queued"));
+  const queued = await client.mutation(api.messages.send as any, post("now queued"));
   assert.equal(queued.state, "queued");
   drain.close();
   client.close();
@@ -637,7 +637,7 @@ test("a grant arriving without an outbox entry change flips useOutbox().ready", 
   assert.deepEqual([outbox.can.send, outbox.entries.length], [false, 0], "no grant means not ready");
   let drain: any;
   await act(async () => {
-    drain = client.subscribe(api.deliveries.inbox as any, { c: null }, () => undefined, { drain: true });
+    drain = client.subscribe(api.messages.inbox as any, { c: null }, () => undefined, { drain: true });
     await drain.until((value: any) => value.state === "complete" && value.caughtUp === true, 2_000);
     await new Promise((resolve) => setTimeout(resolve, 10));
   });
@@ -656,8 +656,8 @@ test("the drain replays FIFO after resume, one envelope per request, and both se
     const client = createClient({ url: "http://fifo.test", as: "alice", fetch: owner.fetch, offline: { store: carrier.factory() } });
     await client.ready;
     await client.offline();
-    await client.mutation(api.deliveries.post as any, post("one"));
-    await client.mutation(api.deliveries.post as any, post("two"));
+    await client.mutation(api.messages.send as any, post("one"));
+    await client.mutation(api.messages.send as any, post("two"));
     await client.online();
     await client.outbox.settled();
     assert.deepEqual(owner.executions.map((item) => (item.args as any).body), ["one", "two"], carrier.name);
@@ -678,8 +678,8 @@ test("a 503 after a commit leaves the intent queued, stops the drain, and the re
     const client = createClient({ url: "http://exactly-once.test", as: "alice", fetch: owner.fetch, offline: { store: carrier.factory() } });
     await client.ready;
     await client.offline();
-    await client.mutation(api.deliveries.post as any, post("one"));
-    await client.mutation(api.deliveries.post as any, post("two"));
+    await client.mutation(api.messages.send as any, post("one"));
+    await client.mutation(api.messages.send as any, post("two"));
     await client.online();
     await client.outbox.settled();
     let entries = await client.outbox.entries();
@@ -699,15 +699,15 @@ test("a rejection and a trace conflict settle only their own intent and the drai
   for (const carrier of await carriers()) {
     const owner = fakeOwner({
       reject: (_intent, body) => body.args.body === "rejected",
-      conflict: (_intent, body) => body.op === "deliveries.edit",
+      conflict: (_intent, body) => body.op === "messages.edit",
     });
     await seededStore(carrier.factory());
     const client = createClient({ url: "http://settle.test", as: "alice", fetch: owner.fetch, offline: { store: carrier.factory() } });
     await client.ready;
     await client.offline();
-    await client.mutation(api.deliveries.post as any, post("rejected"));
-    await client.mutation(api.deliveries.edit as any, { messageId: "message-1", body: "mine", baseBody: "theirs" });
-    await client.mutation(api.deliveries.post as any, post("after"));
+    await client.mutation(api.messages.send as any, post("rejected"));
+    await client.mutation(api.messages.edit as any, { messageId: "message-1", body: "mine", baseBody: "theirs" });
+    await client.mutation(api.messages.send as any, post("after"));
     await client.online();
     await client.outbox.settled();
     const entries = await client.outbox.entries();
@@ -715,7 +715,7 @@ test("a rejection and a trace conflict settle only their own intent and the drai
     assert.equal((entries[0]!.response as any).code, "NOT_MEMBER");
     assert.deepEqual(
       { reason: (entries[1]!.response as any).reason, code: (entries[1]!.response as any).code, site: (entries[1]!.response as any).site },
-      { reason: "conflict", code: "E_OFFLINE_CONFLICT", site: "deliveries.edit.messages[messageId]" },
+      { reason: "conflict", code: "E_OFFLINE_CONFLICT", site: "messages.edit.messages[messageId]" },
     );
     await client.outbox.dismiss(entries[0]!.intent);
     await client.outbox.dismiss(entries[2]!.intent);
@@ -734,10 +734,10 @@ test("a three-day-old queue under fenceDays 1 waits for resume without predictio
     try {
       await client.ready;
       await client.offline();
-      await client.mutation(api.deliveries.post as any, post("three days old"));
+      await client.mutation(api.messages.send as any, post("three days old"));
       assert.equal((await client.outbox.entries())[0]?.predicted, true, `${carrier.name}: prediction starts inside the fence`);
       Date.now = () => originalNow() + 3 * DAY;
-      const pastFence = await client.mutation(api.deliveries.post as any, post("typed past the fence"));
+      const pastFence = await client.mutation(api.messages.send as any, post("typed past the fence"));
       assert.equal(pastFence.state, "queued", `${carrier.name}: the fence never refuses custody`);
       const queued = await client.outbox.entries();
       assert.equal(queued[1]?.predicted, false, `${carrier.name}: prediction is off past the fence`);
@@ -775,8 +775,8 @@ test("only the owner's E_OFFLINE_INTENT_EXPIRED refusal expires an intent and th
     const client = createClient({ url: "http://server-expiry.test", as: "alice", fetch: owner.fetch, offline: { store: carrier.factory() } });
     await client.ready;
     await client.offline();
-    await client.mutation(api.deliveries.post as any, post("server expired"));
-    await client.mutation(api.deliveries.post as any, post("after expiry"));
+    await client.mutation(api.messages.send as any, post("server expired"));
+    await client.mutation(api.messages.send as any, post("after expiry"));
     const before = owner.requests.filter((path) => path === "/api/mutation").length;
     await client.online();
     await client.outbox.settled();
@@ -813,7 +813,7 @@ test("a committed settlement lands in the same swap as the log tail rows, or not
   const client = createClient({ url: "http://atomic.test", as: "alice", fetch: owner.fetch, offline: { store } });
   await client.ready;
   await client.offline();
-  const queued = await client.mutation(api.deliveries.post as any, post("atomic"));
+  const queued = await client.mutation(api.messages.send as any, post("atomic"));
   assert.equal(queued.state, "queued");
   const pinned = queued.state === "queued" ? queued.ids[0]! : "";
   // Target the settlement, after the resume event and grant adoption writes.
@@ -834,7 +834,7 @@ test("a committed settlement lands in the same swap as the log tail rows, or not
   assert.deepEqual((await after.coverage()).rows.map((row) => [row.table, row.id]), [
     ["deliveries", `delivery-${pinned}`], ["messages", pinned],
   ], "the tail page holds the committed message and its derived delivery row");
-  const tail = await after.answer("deliveries.inbox", { c: "cursor-9" });
+  const tail = await after.answer("messages.inbox", { c: "cursor-9" });
   assert.equal((tail?.data as any[])[0]?.message?.id, pinned);
   await after.close?.();
   assert.equal(owner.executions.length, 1, "the replay after the failed swap was deduplicated");
@@ -861,7 +861,7 @@ test("online writes carry the replay envelope under custody; a transport failure
   // @ref LLP 1012#7-writes-offline — with a grant and a bound every write is
   // a durable intent replayed under the envelope, online too: the ledger makes
   // the online path exactly-once. Settlement keeps its durable terminal.
-  const online = await spying.mutation(api.deliveries.post as any, post("plain"));
+  const online = await spying.mutation(api.messages.send as any, post("plain"));
   assert.equal(online.state, "committed");
   const sent = JSON.parse(bodies[0]!);
   assert.equal(sent.replay?.intent, online.state === "committed" ? online.intent : undefined, "an online write under custody carries the replay envelope");
@@ -871,10 +871,10 @@ test("online writes carry the replay envelope under custody; a transport failure
     "returning committed does not prove that a query displays the target");
   spying.close();
   dead = true;
-  const queued = await client.mutation(api.deliveries.post as any, post("after failure"));
+  const queued = await client.mutation(api.messages.send as any, post("after failure"));
   assert.equal(queued.state, "queued", "a network failure enqueues instead of throwing");
   dead = false;
-  const behind = await client.mutation(api.deliveries.post as any, post("behind"));
+  const behind = await client.mutation(api.messages.send as any, post("behind"));
   assert.equal(behind.state, "committed", "the queued intent drained first, then the new write settled in its own call");
   // Every write under custody entered the ledger, in order.
   assert.deepEqual(owner.executions.map((item) => (item.args as any).body), ["plain", "after failure", "behind"]);
@@ -901,7 +901,7 @@ test("an online write settles in its own call even when an explicit dismissal ra
       void client.outbox.dismiss(entry.intent);
     }
   });
-  const result = await client.mutation(api.deliveries.post as any, post("racing the hook"));
+  const result = await client.mutation(api.messages.send as any, post("racing the hook"));
   assert.equal(result.state, "committed", "the settling call answers committed, not queued, after the subscriber retired its entry");
   assert.equal(owner.executions.length, 1, "exactly one execution");
   assert.ok(retired.length >= 1, "the subscriber retired the committed entry");
@@ -929,7 +929,7 @@ test("an online terminal survives zero, one, and four readers, missing target de
     try {
       await client.ready;
       for (let i = 0; i < count; i++) stops.push(client.outbox.subscribe(() => {}));
-      const result = await client.mutation(api.deliveries.post as any, post(`readers:${count}`));
+      const result = await client.mutation(api.messages.send as any, post(`readers:${count}`));
       assert.equal(result.state, "committed");
       const [terminal] = await client.outbox.entries();
       assert.equal(terminal?.state, "committed");
@@ -965,7 +965,7 @@ test("a store with an open partition never sends plain bytes: no grant or no bou
   await grantless.ready;
   assert.equal(owner.grantsMinted(), 0);
   await assert.rejects(
-    () => grantless.mutation(api.deliveries.post as any, post("no grant")),
+    () => grantless.mutation(api.messages.send as any, post("no grant")),
     (error: unknown) => error instanceof SnapbackRefusal && error.code === "E_OFFLINE_ID_BLOCK"
       && error.envelope.family === "offline" && /grant/.test(error.message) && typeof error.envelope.rewrite === "string",
   );
@@ -984,9 +984,9 @@ test("a store with an open partition never sends plain bytes: no grant or no bou
   await unbound.ready;
   assert.equal(owner.grantsMinted(), 1, "the resume minted a grant");
   assert.equal(await unbound.outbox.ready(), true, "grant-only readiness does not promise a write bound");
-  assert.equal(await unbound.outbox.ready(api.deliveries.post as any), false, "the op form refuses readiness until its bound is recorded");
+  assert.equal(await unbound.outbox.ready(api.messages.send as any), false, "the op form refuses readiness until its bound is recorded");
   await assert.rejects(
-    () => unbound.mutation(api.deliveries.post as any, post("no bound")),
+    () => unbound.mutation(api.messages.send as any, post("no bound")),
     (error: unknown) => error instanceof SnapbackRefusal && error.code === "E_OFFLINE_ID_BLOCK" && /bound/.test(error.message),
   );
   assert.deepEqual(bodies, [], "no bound: no request left the device");
@@ -995,8 +995,8 @@ test("a store with an open partition never sends plain bytes: no grant or no bou
   await rm(unboundRoot, { recursive: true, force: true });
   // No store: today's bytes, byte-identical.
   const plain = createClient({ url: "http://custody.test", as: "alice", fetch: spy });
-  assert.equal((await plain.mutation(api.deliveries.post as any, post("no store"))).state, "committed");
-  assert.deepEqual(bodies, [JSON.stringify({ op: "deliveries.post", args: post("no store") })], "no store, no envelope");
+  assert.equal((await plain.mutation(api.messages.send as any, post("no store"))).state, "committed");
+  assert.deepEqual(bodies, [JSON.stringify({ op: "messages.send", args: post("no store") })], "no store, no envelope");
   plain.close();
 });
 
@@ -1009,8 +1009,8 @@ test("useMutation resolves last queued offline with pending filtered by op, and 
   let outbox: any;
   let client: any;
   function Harness() {
-    posting = useMutation(api.deliveries.post as any);
-    editing = useMutation(api.deliveries.edit as any);
+    posting = useMutation(api.messages.send as any);
+    editing = useMutation(api.messages.edit as any);
     outbox = useOutbox();
     client = useSnapbackClient();
     return null;
@@ -1032,10 +1032,10 @@ test("useMutation resolves last queued offline with pending filtered by op, and 
   await act(async () => { await new Promise((resolve) => setTimeout(resolve, 10)); });
   assert.equal(posting.last.state, "queued");
   assert.equal(posting.last.intent, result.intent);
-  assert.deepEqual(posting.pending.map((entry: any) => entry.op), ["deliveries.post"], "pending is this op's queued intents");
-  assert.deepEqual(editing.pending.map((entry: any) => entry.op), ["deliveries.edit"]);
+  assert.deepEqual(posting.pending.map((entry: any) => entry.op), ["messages.send"], "pending is this op's queued intents");
+  assert.deepEqual(editing.pending.map((entry: any) => entry.op), ["messages.edit"]);
   assert.equal(posting.inFlight, false);
-  assert.deepEqual(outbox.entries.map((entry: any) => [entry.op, entry.state]), [["deliveries.post", "queued"], ["deliveries.edit", "queued"]]);
+  assert.deepEqual(outbox.entries.map((entry: any) => [entry.op, entry.state]), [["messages.send", "queued"], ["messages.edit", "queued"]]);
   await act(async () => { renderer!.unmount(); });
 
   // Cold start on the same partition with the network dead: the outbox is on screen before any request.
@@ -1063,7 +1063,7 @@ test("useOutbox survives restart(): the queue is intact and settles through the 
   const client = createClient({ url: "http://restart.test", as: "alice", fetch: owner.fetch, offline: { store: fileRangeStore(root) } });
   await client.ready;
   await client.offline();
-  await client.mutation(api.deliveries.post as any, post("before restart"));
+  await client.mutation(api.messages.send as any, post("before restart"));
   const cold = await client.restart();
   assert.equal(cold.snapshot.connection, "offline", "a restart of a cut device boots cut");
   const seen: any[][] = [];
@@ -1105,7 +1105,7 @@ test("SnapbackProvider under StrictMode creates one lock-holding client and surv
   });
   await act(async () => { await client.ready; await new Promise((resolve) => setTimeout(resolve, 20)); });
   assert.notEqual(client.snapshot.lastRefusal?.code, "E_OFFLINE_LOCK", "the discarded StrictMode client must not hold the principal's lock");
-  const held = await client.query(api.deliveries.inbox as any, { c: null });
+  const held = await client.query(api.messages.inbox as any, { c: null });
   assert.equal(held.state, "complete", "the surviving client is open after StrictMode's simulated unmount");
   assert.deepEqual(outbox.entries, []);
   await act(async () => { renderer!.unmount(); });
@@ -1119,11 +1119,11 @@ test("a cold start with the owner unreachable serves the held log and the outbox
   await seededStore(fileRangeStore(root));
   const warm = createClient({ url: "http://cold.test", as: "alice", fetch: owner.fetch, offline: { store: fileRangeStore(root) } });
   await warm.ready;
-  const drain = warm.subscribe(api.deliveries.inbox as any, { c: null }, () => undefined, { drain: true });
+  const drain = warm.subscribe(api.messages.inbox as any, { c: null }, () => undefined, { drain: true });
   await drain.until((value) => value.state === "complete" && value.caughtUp === true, 2_000);
   drain.close();
   await warm.offline();
-  const queued = await warm.mutation(api.deliveries.post as any, post("cold"));
+  const queued = await warm.mutation(api.messages.send as any, post("cold"));
   assert.equal(queued.state, "queued");
   warm.close();
   let dead = true;
@@ -1132,12 +1132,12 @@ test("a cold start with the owner unreachable serves the held log and the outbox
     return owner.fetch(input, init);
   }, offline: { store: fileRangeStore(root) } });
   await cold.ready;
-  const held = await cold.query<any, any>(api.deliveries.inbox as any, { c: null });
+  const held = await cold.query<any, any>(api.messages.inbox as any, { c: null });
   assert.equal(held.state, "complete");
   assert.equal("connection" in held && held.connection, "offline");
   assert.ok(Array.isArray(held.data) && held.data.some((row: any) => row.message?.body === "Welcome"), "the drained log answers from the store");
   assert.deepEqual((await cold.outbox.entries()).map((entry) => entry.state), ["queued"]);
-  const tail = cold.subscribe(api.deliveries.inbox as any, { c: null }, () => undefined, { drain: true });
+  const tail = cold.subscribe(api.messages.inbox as any, { c: null }, () => undefined, { drain: true });
   const caught = await tail.until((value) => (value.state === "complete" || value.state === "capped") && value.caughtUp === true, 3_000);
   assert.equal("connection" in caught && caught.connection, "offline", "the drain reaches its held watermark without the owner");
   tail.close();

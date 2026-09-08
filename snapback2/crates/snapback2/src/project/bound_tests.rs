@@ -2,10 +2,8 @@ use super::*;
 
 #[test]
 fn fanout_rewrite_uses_only_the_authored_loop_binding() {
-    let root = std::env::temp_dir().join(format!(
-        "snapback2-fanout-binding-{}",
-        std::process::id()
-    ));
+    let root =
+        std::env::temp_dir().join(format!("snapback2-fanout-binding-{}", std::process::id()));
     fs::create_dir_all(root.join("snapback")).unwrap();
     let generated = "__bound_loopItem_0";
     let repair = format!(

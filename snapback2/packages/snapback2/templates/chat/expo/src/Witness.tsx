@@ -6,16 +6,13 @@ import { createExpoClient, expoSqliteStore, expoSqliteDriver, SnapbackProvider }
 import { MediaView, type Media } from "./MediaView";
 import { messageWrites } from "../shared/thread";
 import { witnessControl, runSqliteDriverConformance, type WitnessHooks } from "snapback2/expo/witness";
-// @ref LLP 1018.003#4-pending-rows-attribution-settlement-and-failure — the witness reports the
-// same projection the thread screen renders: live message events keyed by pinned id, plus the
-// intents the twin could not place, so the driver's bubble assertions bind to product behavior.
 type LogRow = { kind?: string; messageId: string; conversationId: string; message?: { body?: string | null } | null };
 type Entry = Awaited<ReturnType<SnapbackClient["outbox"]["entries"]>>[number];
 function bubbles(rows: LogRow[], entries: Entry[], conversationId: string) {
   const live = rows.filter((row) => row.kind === "message" && row.message);
   const placed = live.map((row) => ({ key: row.messageId,
-    kind: entries.some((entry) => entry.op === "deliveries.post" && entry.state === "queued" && messageWrites.create.id(entry) === row.messageId) ? "pending" : "row" }));
-  const unplaced = entries.filter((entry) => entry.op === "deliveries.post"
+    kind: entries.some((entry) => entry.op === "messages.send" && entry.state === "queued" && messageWrites.create.id(entry) === row.messageId) ? "pending" : "row" }));
+  const unplaced = entries.filter((entry) => entry.op === "messages.send"
     && (entry.args as { conversationId?: string }).conversationId === conversationId && !live.some((row) => row.messageId === messageWrites.create.id(entry)))
     .map((entry) => ({ key: messageWrites.create.id(entry) ?? entry.intent, kind: "pending" }));
   return [...placed, ...unplaced];
@@ -62,27 +59,27 @@ export default function Witness({ url, controlUrl }: { url: string; controlUrl: 
         if (verb === "stores") return { stores: await databaseState(), files: listFiles() };
         if (!client || !store) throw new Error("construct first");
         if (verb === "drain") {
-          const sub = client.subscribe(api.deliveries.inbox, { c: null }, () => {}, { drain: true });
+          const sub = client.subscribe(api.messages.inbox, { c: null }, () => {}, { drain: true });
           subscriptions.push(sub);
           return sub.until((value) => "caughtUp" in value && value.caughtUp === true);
         }
         if (verb === "open") {
           selected = String(args.conversationId);
           const queryArgs = { conversationId: selected };
-          const first = client.subscribe(api.deliveries.conversationView, queryArgs, () => {});
-          const second = client.subscribe(api.deliveries.conversationView, queryArgs, () => {});
+          const first = client.subscribe(api.messages.conversationView, queryArgs, () => {});
+          const second = client.subscribe(api.messages.conversationView, queryArgs, () => {});
           const [left, right] = await Promise.all([
             first.until((value) => value.state === "complete" || value.state === "capped"),
             second.until((value) => value.state === "complete" || value.state === "capped"),
           ]);
           if ((left.state !== "complete" && left.state !== "capped")
             || (right.state !== "complete" && right.state !== "capped")) throw new Error("conversation view did not resolve");
-          const two = client.sharedConsumers(api.deliveries.conversationView, queryArgs);
+          const two = client.sharedConsumers(api.messages.conversationView, queryArgs);
           first.close();
-          const one = client.sharedConsumers(api.deliveries.conversationView, queryArgs);
+          const one = client.sharedConsumers(api.messages.conversationView, queryArgs);
           subscriptions.push(second);
           // Retain the paginated read's independent receipt for partial-history fallback.
-          await client.query(api.deliveries.thread, { conversationId: selected, c: null });
+          await client.query(api.messages.thread, { conversationId: selected, c: null });
           // Media mutations predate the delivery recipe; drain this named read to
           // hold their row leases too (messages.sendPhoto has no delivery fanout).
           await client.query(api.messages.thread, { conversationId: selected, c: null });
@@ -138,14 +135,11 @@ export default function Witness({ url, controlUrl }: { url: string; controlUrl: 
           return entries;
         }
         if (verb === "state") {
-          // @ref LLP 1018.006#5-surface — the composed observation the Thread
-          // screen renders, reported beside the direct queries so the witness
-          // qualifies the path the screen runs through.
           const composed = typeof args.conversationId === "string" ? await composedFacts(client, args.conversationId) : undefined;
           const answer = typeof args.conversationId === "string"
-            ? await client.query(api.deliveries.thread, { conversationId: args.conversationId, c: null }) : undefined;
+            ? await client.query(api.messages.thread, { conversationId: args.conversationId, c: null }) : undefined;
           const conversationView = typeof args.conversationId === "string"
-            ? await client.query(api.deliveries.conversationView, { conversationId: args.conversationId }) : undefined;
+            ? await client.query(api.messages.conversationView, { conversationId: args.conversationId }) : undefined;
           const entries = await client.outbox.entries();
           const rows = answer && "data" in answer && Array.isArray(answer.data) ? answer.data : [];
           const search = typeof args.search === "string"

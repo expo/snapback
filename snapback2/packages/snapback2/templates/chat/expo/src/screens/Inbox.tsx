@@ -4,9 +4,8 @@ import type { Api } from "snapback2/client";
 
 type ResultOf<T> = T extends { readonly __result?: infer Result } ? NonNullable<Result> : never;
 /** One row of the drained delivery log; the inbox, search, and every thread read the same held rows (LLP 1012 §3). */
-export type LogRow = ResultOf<Api["deliveries"]["inbox"]>[number];
+export type LogRow = ResultOf<Api["messages"]["inbox"]>[number];
 
-// @ref LLP 1018.003#5-the-certified-thread-projection — grouping by conversation is presentation and stays in the inbox screen.
 function conversations(rows: readonly LogRow[]) {
   const byConversation = new Map<string, { conversationId: string; latestAt: number; latestBody?: string; messages: number }>();
   for (const row of rows) {

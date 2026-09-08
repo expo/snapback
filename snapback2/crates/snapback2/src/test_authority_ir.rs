@@ -260,3 +260,37 @@ fn visit_scan(scan: &mut Scan, table: &str, retired: &mut usize) {
         .for_each(|value| visit_expr(value, table, retired));
     }
 }
+
+// A delivery-log projection keeps its own readable metadata when the protected
+// table becomes denied. Only complete nested row images are eligible for this proof.
+pub(super) fn projected_policy_data(
+    data: &serde_json::Value,
+    table: &snapback2_core::Table,
+) -> Result<serde_json::Value, String> {
+    use serde_json::Value as Json;
+    let Some(rows) = data.as_array() else {
+        return Err("protected projection is not a page".into());
+    };
+    let mut expected = rows.clone();
+    let mut found = false;
+    for row in &mut expected {
+        let Some(fields) = row.as_object_mut() else {
+            return Err("protected projection row is not an object".into());
+        };
+        for value in fields.values_mut() {
+            if let Some(image) = value.as_object() {
+                if image.len() != table.columns.len()
+                    || !table.columns.keys().all(|key| image.contains_key(key))
+                {
+                    return Err("protected projection contains an unrecognized nested image".into());
+                }
+                *value = Json::Null;
+                found = true;
+            }
+        }
+    }
+    if !found {
+        return Err("protected projection has no visible complete row image".into());
+    }
+    Ok(Json::Array(expected))
+}

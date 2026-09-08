@@ -1,5 +1,8 @@
 import type { OfflineClientOptions, RangeStoreFactory, SnapbackClient } from "./client";
 
+/** Read bytes relative to the authored journey file, including from its compiled copy. */
+export declare function fixture(name: string): Promise<Uint8Array<ArrayBuffer>>;
+
 export declare function fileRangeStore(root: string, options?: {
   beforeRename?: (temporaryPath: string, finalPath: string) => void | Promise<void>;
 }): RangeStoreFactory;

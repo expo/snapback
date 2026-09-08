@@ -40,12 +40,17 @@ Defaults: current directory, todos template, React client. Expo requires chat.
 
   snapback2 init my-app --template chat --client react
   cd my-app
-  npm install
-  snapback_url=$(npx snapback2 dev) && VITE_SNAPBACK_URL=\"${snapback_url#SNAPBACK_URL=}\" npm run dev
+  npm install && npx snapback2 dev && npm run dev
 
-This starts or attaches to the owner, then starts Vite with its actual URL.
-For an already-running owner, set VITE_SNAPBACK_URL to its printed URL before
-npm run dev. The owner chooses a free port; do not assume port 3210.
+The owner writes .snapback/dev-url; the Vite and Expo configs read it when
+VITE_SNAPBACK_URL or EXPO_PUBLIC_SNAPBACK_URL is unset. npm run dev starts
+the selected client. The owner chooses a free port; do not assume port 3210.
+Chat groups related operations in schema/access/messages/groups/profiles/feeds/posts/follows/notifications.
+messages.thread reads the delivery log; conversationView adds count and preview.
+messages.send accepts conversationId, body, and optional expiresAt; it delivers
+first, then notifies every other current member. Inserts return rows; omit
+unused optional columns. Seeds keep empty maintain arrays for the engine.
+Templates carry product comments, without design-corpus citations.
 Backends live in snapback/*.q; read snapback2 guide quarry next."
         }
         "dev" => {
@@ -54,7 +59,8 @@ Backends live in snapback/*.q; read snapback2 guide quarry next."
        snapback2 dev [--project dir] --stop [--json]
        snapback2 dev [--project dir] --apply-migration file [--json]
 
-Start or attach to the one owner and print SNAPBACK_URL. By default it detaches;
+Start or attach to the one owner, print SNAPBACK_URL, and write .snapback/dev-url.
+By default it detaches;
 --foreground stays attached. --serve refuses development persona headers.
 The owner watches sources and installs valid successors. A refused successor
 keeps the previous generation serving even when snapback2 check passes.

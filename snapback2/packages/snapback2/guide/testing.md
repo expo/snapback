@@ -4,22 +4,8 @@ The static seed is one system commit before derived checks and journeys:
 
 ```ts
     profiles: [
-      { id: "profile-alice", principal: "dev:alice", displayName: "Alice", handle: "alice", avatarUrl: "https://example.com/alice.png", bio: "", location: "", link: null },
-      { id: "profile-bob", principal: "dev:bob", displayName: "Bob", handle: "bob", avatarUrl: "https://example.com/bob.png", bio: "", location: "", link: null },
-    ],
-    conversations: [
-      { id: "conversation-1", title: "General", creatorId: "dev:alice" },
-      { id: "conversation-2", title: "Side room", creatorId: "dev:alice" },
-    ],
-    memberships: [
-      { id: "membership-1", conversationId: "conversation-1", principal: "dev:alice", role: "admin", joinedAt: 0 },
-      { id: "membership-2", conversationId: "conversation-1", principal: "dev:bob", role: "member", joinedAt: 0 },
-      { id: "membership-3", conversationId: "conversation-2", principal: "dev:alice", role: "admin", joinedAt: 0 },
-      { id: "membership-4", conversationId: "conversation-2", principal: "dev:charlie", role: "member", joinedAt: 0 },
-    ],
-    messages: [
-      { id: "message-1", conversationId: "conversation-1", authorId: "dev:alice", body: "Welcome", at: 1 },
-      { id: "message-2", conversationId: "conversation-2", authorId: "dev:alice", body: "Side note", at: 1 },
+      { id: "profile-alice", principal: "dev:alice", displayName: "Alice", handle: "alice", avatarUrl: "https://example.com/alice.png", bio: "", location: "" },
+      { id: "profile-bob", principal: "dev:bob", displayName: "Bob", handle: "bob", avatarUrl: "https://example.com/bob.png", bio: "", location: "" },
     ],
 ```
 
@@ -30,6 +16,9 @@ password hashes are deliberately absent from application seed rows. These
 absent because seeds cannot mint asset ledger rows (LLP 1006 §2a). The chat
 fixture also keeps `charlie` as an account/persona without a profile so the
 idempotent post-auth profile-creation path has a real absent-row proof.
+
+`fixture("fixtures/photo.jpg")` from `snapback2/test` reads bytes relative to
+the authored test file, even after compilation; commit media under `tests/fixtures/`.
 
 Write journeys with `journey(name, async ({ as, tick, url }) => …)`. The test
 verb starts a fresh isolated owner, runs all six derived check families, runs

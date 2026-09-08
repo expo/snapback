@@ -56,7 +56,6 @@ test("a real rejected mutation carries the complete refusal envelope", async (co
       op: "messages.send",
       args: {
         conversationId: "conversation-1",
-        recipientId: "profile-alice",
         body: "not a member",
       },
     }),
@@ -120,7 +119,6 @@ test("React-free hook driver reduces eight real-owner transitions including live
   const first = await live.until((delivery) => delivery.state === "complete", 2_000);
   const committed = await writer.mutation(api.messages.send, {
     conversationId: "conversation-1",
-    recipientId: "profile-alice",
     body: `hook-driver-${Date.now()}`,
   });
   assert.equal(committed.state, "committed");

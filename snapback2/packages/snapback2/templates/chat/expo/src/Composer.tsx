@@ -6,11 +6,6 @@ import { useMutation, useSnapbackClient, useSnapbackSnapshot } from "snapback2/r
 
 const describe = (error: unknown) => (isSnapbackRefusal(error) ? error.envelope.rewrite ?? error.message : String(error));
 
-// @ref LLP 1012#7-writes-offline — `run()` resolves only once the write is
-// durable on this device, so the draft clears only when custody is known.
-// @ref LLP 1018.004#5-hooks-and-templates — the native composer never had a
-// second tab to recover from; it keeps only the capture, the in-flight guard,
-// and clearing the exact text that was sent.
 export function Composer({ conversationId }: { conversationId: string }) {
   const post = useMutation(messageWrites.create);
   const client = useSnapbackClient();

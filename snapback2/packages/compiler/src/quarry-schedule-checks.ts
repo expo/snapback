@@ -77,13 +77,13 @@ export function registerScheduleChecks(test: Test, frontend: string): void {
     const page = readFileSync(resolve(frontend, "../snapback2/guide/schedule.md"), "utf8");
     const snippets = [...page.matchAll(/```q\n([\s\S]*?)\n```/g)].map((match) => match[1]!);
     const admin = readFileSync(resolve(fixture, "snapback/admin.q"), "utf8");
-    const deliveries = readFileSync(resolve(frontend, "../snapback2/templates/chat/snapback/deliveries.q"), "utf8");
+    const messages = readFileSync(resolve(frontend, "../snapback2/templates/chat/snapback/messages.q"), "utf8");
     assert(snippets.length === 2 && snippets.every((snippet) => admin.includes(snippet)), "guide recipe diverged from its fixture");
-    assert(deliveries.includes(snippets[0]!), "the template's expiry schedule diverged from the guide");
+    assert(messages.includes(snippets[0]!), "the template's expiry schedule diverged from the guide");
     const chat = await lowerProject(resolve(frontend, "../snapback2/templates/chat"));
     assert(chat.ok, JSON.stringify(chat));
     const schedules = chat.project.schema.schedules ?? [];
-    assert(schedules.length === 1 && schedules[0]!.target === "deliveries.purgeMessage", JSON.stringify(schedules));
+    assert(schedules.length === 1 && schedules[0]!.target === "messages.purgeMessage", JSON.stringify(schedules));
     assert(!chat.apiDts.includes("purgeExpired"), "a client-invoked purge survived");
     assert(!chat.apiDts.includes("purgeMessage") && chat.apiDts.includes("unsend"), "the schedule target is not a client operation; unsend still is");
     assert(chat.apiDts.includes("expiresAt"), "post lost its expiry argument");

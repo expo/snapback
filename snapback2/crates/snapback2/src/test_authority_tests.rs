@@ -57,7 +57,11 @@ fn revocation_candidate_prefers_a_membership_guard_dependency() {
         body: vec![Stmt::Return(Expr::Literal(Value::Null))],
     };
     assert!(!query_isolates_protected_table(
-        &program, &reads, &recipe, "messages"
+        &program,
+        &reads,
+        &recipe,
+        "messages",
+        &Schema::default()
     ));
     program.body.insert(
         0,
@@ -74,7 +78,11 @@ fn revocation_candidate_prefers_a_membership_guard_dependency() {
         },
     );
     assert!(query_isolates_protected_table(
-        &program, &reads, &recipe, "messages"
+        &program,
+        &reads,
+        &recipe,
+        "messages",
+        &Schema::default()
     ));
 }
 
@@ -358,4 +366,41 @@ fn post_revocation_probe_treats_any_object_as_a_leak() {
             "an object escaped the post-revocation leak check: {delivery}"
         );
     }
+}
+
+#[test]
+fn projected_policy_probe_requires_body_redaction_and_preserves_log_metadata() {
+    let schema = authority_schema(ColumnType::Principal);
+    let table = &schema.tables["documents"];
+    let mut body = serde_json::Map::new();
+    for key in table.columns.keys() {
+        body.insert(key.clone(), json!("protected"));
+    }
+    let initial = json!([{ "id": "delivery", "message": body }]);
+    let expected = projected_policy_data(&initial, table).unwrap();
+    assert_eq!(expected, json!([{ "id": "delivery", "message": null }]));
+    require_policy_filtered(
+        &json!({"state":"complete", "data":expected}),
+        "projection",
+        &expected,
+    )
+    .unwrap();
+    assert!(
+        require_policy_filtered(
+            &json!({"state":"complete", "data":initial}),
+            "projection",
+            &expected
+        )
+        .is_err()
+    );
+    assert!(
+        require_policy_filtered(
+            &json!({"state":"complete", "data":[]}),
+            "projection",
+            &expected
+        )
+        .is_err()
+    );
+    assert!(projected_policy_data(&json!([{ "id": "delivery", "message": null }]), table).is_err());
+    assert!(projected_policy_data(&json!([{ "message": {"unknown":"shape"} }]), table).is_err());
 }

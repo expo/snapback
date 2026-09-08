@@ -160,7 +160,7 @@ test("the composer is disabled until the inbox drain catches up and the first gr
   // keeping this fake narrowly avoids fabricating a composite certificate.
   const fetch = async (input: string | URL | Request, init?: RequestInit): Promise<Response> => {
     const op = String(input).includes("/api/query") && init?.body ? JSON.parse(String(init.body)).op : undefined;
-    if (op === "deliveries.inbox") await gate;
+    if (op === "messages.inbox") await gate;
     return owner.fetch(input, init);
   };
   let client: any;
@@ -175,13 +175,13 @@ test("the composer is disabled until the inbox drain catches up and the first gr
         React.createElement(Composer, { conversationId: "conversation-1", onNote: () => undefined }),
       ));
     });
-    const drain = client.subscribe(api.deliveries.inbox, { c: null }, () => undefined, { drain: true });
+    const drain = client.subscribe(api.messages.inbox, { c: null }, () => undefined, { drain: true });
     const send = () => document.querySelector<HTMLButtonElement>("form[aria-label=Composer] button[type=submit]")!;
     await type(document.querySelector<HTMLInputElement>("form[aria-label=Composer] input")!, "a draft before downloading");
     assert.equal(send().disabled, true, "send is enabled before a grant exists");
     assert.match(text(document.querySelector("form[aria-label=Composer] small[data-waiting=grant-missing]")), /Connect to enable sending/);
     assert.equal(owner.grantsMinted(), 0, "no grant was minted while the drain waited");
-    await assert.rejects(client.mutation(api.deliveries.post, { conversationId: "conversation-1", body: "too early" }), (error: any) =>
+    await assert.rejects(client.mutation(api.messages.send, { conversationId: "conversation-1", body: "too early" }), (error: any) =>
       error.code === "E_OFFLINE_ID_BLOCK" && /drain/.test(error.envelope.rewrite), "a write before the grant is refused with the rewrite the composer would surface");
     release();
     await waitFor(() => !send().disabled, "the grant");
@@ -209,7 +209,7 @@ test("the first identity confirmation during the inbox drain does not cost the d
   // The inbox drain's first page waits at the owner until /api/auth/me has answered.
   const fetch = async (input: string | URL | Request, init?: RequestInit): Promise<Response> => {
     const op = String(input).includes("/api/query") && init?.body ? JSON.parse(String(init.body)).op : undefined;
-    if (op === "deliveries.inbox") await identity;
+    if (op === "messages.inbox") await identity;
     const response = await owner.fetch(input, init);
     if (String(input).includes("/api/auth/me")) setTimeout(confirmed, 0);
     return response;

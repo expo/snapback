@@ -4,8 +4,8 @@ export default seed({
   personas: ["alice", "bob", "charlie"],
   rows: {
     profiles: [
-      { id: "profile-alice", principal: "dev:alice", displayName: "Alice", handle: "alice", avatarUrl: "https://example.com/alice.png", bio: "", location: "", link: null },
-      { id: "profile-bob", principal: "dev:bob", displayName: "Bob", handle: "bob", avatarUrl: "https://example.com/bob.png", bio: "", location: "", link: null },
+      { id: "profile-alice", principal: "dev:alice", displayName: "Alice", handle: "alice", avatarUrl: "https://example.com/alice.png", bio: "", location: "" },
+      { id: "profile-bob", principal: "dev:bob", displayName: "Bob", handle: "bob", avatarUrl: "https://example.com/bob.png", bio: "", location: "" },
     ],
     conversations: [
       { id: "conversation-1", title: "General", creatorId: "dev:alice" },

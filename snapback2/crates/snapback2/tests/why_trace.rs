@@ -40,7 +40,7 @@ mutation maybeNotify(shouldNotify: bool):
     let mutation = project.run(&[
         "run",
         "messages.send",
-        r#"{"conversationId":"conversation-1","recipientId":"profile-bob","body":"trace test"}"#,
+        r#"{"conversationId":"conversation-1","body":"trace test"}"#,
         "--as",
         "alice",
         "--json",
@@ -231,7 +231,6 @@ fn auth_recipe_executes_scoped_admin_reads_and_diagnoses_owner_only_absence() {
         // This fixture changes roster visibility; remove unrelated delivery fanout
         // operations that require the template's uniform roster read policy.
         fs::remove_file(project.path.join("snapback/messages.q")).unwrap();
-        fs::remove_file(project.path.join("snapback/deliveries.q")).unwrap();
         fs::remove_dir_all(project.path.join("snapback/tests")).unwrap();
         let checked = project.run(&["check", "--json"]);
         assert!(
