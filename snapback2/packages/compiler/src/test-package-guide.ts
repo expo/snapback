@@ -1,13 +1,19 @@
 import { mkdir, readFile, symlink } from "node:fs/promises";
-import { tmpdir } from "node:os";
 import { resolve } from "node:path";
 import ts from "typescript";
+import type { PackageBuildProof } from "./package-regression-checks";
 
 type Test = (name: string, run: () => void | Promise<void>) => void;
 type Assert = (condition: unknown, message: string) => asserts condition;
 type WithProject = (files: Record<string, string>, run: (root: string) => Promise<void>) => Promise<void>;
 
-export function registerPackageGuideChecks(test: Test, assert: Assert, withProject: WithProject, crate: string): void {
+export function registerPackageGuideChecks(
+  test: Test,
+  assert: Assert,
+  withProject: WithProject,
+  crate: string,
+  packageBuildProof: PackageBuildProof,
+): void {
   test("README mutation example typechecks with queued pending entries and an inFlight button", async () => {
     const packageRoot = resolve(crate, "packages/snapback2");
     const readme = await readFile(resolve(packageRoot, "README.md"), "utf8");
@@ -88,18 +94,8 @@ export function registerPackageGuideChecks(test: Test, assert: Assert, withProje
     assert(JSON.stringify(names) === JSON.stringify(documented), `guide recipes differ: ${names} vs ${documented}`);
   });
 
-  test("npm pack from a clean dist builds every exported module and declaration", async () => {
-    const packageRoot = `${crate}packages/snapback2`;
-    const packed = Bun.spawnSync({
-      cmd: ["npm", "pack", "--dry-run", "--json"],
-      cwd: packageRoot,
-      env: { ...process.env, npm_config_cache: resolve(tmpdir(), "snapback2-npm-test-cache") },
-      stdout: "pipe",
-      stderr: "pipe",
-    });
-    assert(packed.exitCode === 0, `npm pack --dry-run failed: ${new TextDecoder().decode(packed.stderr)}`);
-    const report = JSON.parse(new TextDecoder().decode(packed.stdout));
-    const files = new Set((report[0]?.files ?? []).map((item: { path: string }) => item.path));
+  test("npm pack from a clean dist builds every exported module and declaration", () => {
+    const files = packageBuildProof();
     for (const path of [
       "dist/compiler.mjs", "dist/compiler-core.mjs", "dist/index.mjs", "dist/client.mjs", "dist/react.mjs", "dist/test.mjs",
       "dist/test-runner.mjs", "dist/index.d.ts", "dist/authoring-lib.d.ts", "dist/client.d.ts", "dist/react.d.ts", "dist/test.d.ts",

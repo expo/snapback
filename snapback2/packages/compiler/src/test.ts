@@ -52,8 +52,8 @@ registerRetentionChecks(test);
 registerTombstoneChecks(test);
 registerQuarryFanoutChecks(test, frontend);
 registerEffectLanguageChecks(test, withProject, frontend);
-registerPackageRegressionChecks(test, assert, crate);
-registerPackageGuideChecks(test, assert, withProject, crate);
+const packageBuildProof = registerPackageRegressionChecks(test, assert, crate);
+registerPackageGuideChecks(test, assert, withProject, crate, packageBuildProof);
 registerFinalGateChecks(test);
 
 test("TypeScript data declarations refuse while effect-only modules remain on the production path", async () => {

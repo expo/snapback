@@ -4,13 +4,28 @@ import { dirname, join, resolve } from "node:path";
 
 type Test = (name: string, run: () => void | Promise<void>) => void;
 type Assert = (condition: unknown, message: string) => asserts condition;
+export type PackageBuildProof = () => Set<string>;
 
 function killLockHolder(pid: unknown): void {
   if (typeof pid !== "number" || !Number.isInteger(pid) || pid <= 1) return;
   try { process.kill(pid, 9); } catch {}
 }
 
-export function registerPackageRegressionChecks(test: Test, assert: Assert, crate: string): void {
+export function registerPackageRegressionChecks(test: Test, assert: Assert, crate: string): PackageBuildProof {
+  let reclaimedPackageFiles: Set<string> | undefined;
+  const pack = (): Set<string> => {
+    const packed = Bun.spawnSync({
+      cmd: ["npm", "pack", "--dry-run", "--json"],
+      cwd: `${crate}packages/snapback2`,
+      env: { ...process.env, npm_config_cache: resolve(tmpdir(), "snapback2-npm-test-cache") },
+      stdout: "pipe",
+      stderr: "pipe",
+    });
+    assert(packed.exitCode === 0, `npm pack --dry-run failed: ${new TextDecoder().decode(packed.stderr)}`);
+    const report = JSON.parse(new TextDecoder().decode(packed.stdout));
+    return new Set((report[0]?.files ?? []).map((item: { path: string }) => item.path));
+  };
+
   test("a killed package builder leaves a lock that the next build reclaims", async () => {
     const lock = resolve(crate, "target/b2-package-build.lock");
     await rm(lock, { force: true });
@@ -39,10 +54,7 @@ export function registerPackageRegressionChecks(test: Test, assert: Assert, crat
       killLockHolder(JSON.parse(held.trim()).pid);
       holder.kill(9);
       await holder.exited;
-      const rebuilt = Bun.spawnSync({
-        cmd: ["node", "build.mjs"], cwd: `${crate}packages/snapback2`, stdout: "pipe", stderr: "pipe",
-      });
-      assert(rebuilt.exitCode === 0, `next package build did not reclaim the killed holder's lock: ${new TextDecoder().decode(rebuilt.stderr)}`);
+      reclaimedPackageFiles = pack();
     } finally {
       try { killLockHolder(JSON.parse((await readFile(lock, "utf8")).trim()).pid); } catch {}
       if (holder.exitCode === null) holder.kill(9);
@@ -102,4 +114,8 @@ export function registerPackageRegressionChecks(test: Test, assert: Assert, crat
       await rm(directory, { recursive: true, force: true });
     }
   });
+
+  // If lock recovery failed before it reached the real package build, the
+  // package-content check still runs independently and reports its own result.
+  return () => reclaimedPackageFiles ?? pack();
 }
