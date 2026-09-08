@@ -1338,6 +1338,8 @@ fn first_schema_error(errors: Vec<RuntimeError>) -> RuntimeError {
 }
 
 #[cfg(test)]
+mod cap_count_tests;
+#[cfg(test)]
 mod cap_tests;
 #[cfg(test)]
 mod delivery_tests;
