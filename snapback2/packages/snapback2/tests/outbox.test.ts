@@ -142,7 +142,7 @@ test("a resume whose grant persistence crosses a seal cannot restore trust; the 
   }
 });
 
-test("no-facts recovery chooses the mounted drain ahead of another mounted candidate, then the recorded log, manifest Cursor, or optional query on both carriers", async () => {
+test("no-facts recovery chooses the mounted drain ahead of another mounted candidate, then the recorded log, native cursor metadata, or optional query on both carriers", async () => {
   for (const carrier of await carriers()) {
     const originalNow = Date.now;
     let now = originalNow();
@@ -154,8 +154,8 @@ test("no-facts recovery chooses the mounted drain ahead of another mounted candi
         const manifestOps = {
           "account.mine": { kind: "query", args: {}, planHash: "f".repeat(64) },
           ...(choice === "optional" ? {} : {
-            "feed.global": { kind: "query", args: { c: { Optional: "Cursor" } }, planHash: "f".repeat(64) },
-            "deliveries.inbox": { kind: "query", args: { c: { Optional: "Cursor" } }, planHash: "f".repeat(64) },
+            "feed.global": { kind: "query", cursor: "c", args: { c: { Optional: "Cursor" } }, planHash: "f".repeat(64) },
+            "deliveries.inbox": { kind: "query", cursor: "c", args: { c: { Optional: "Cursor" } }, planHash: "f".repeat(64) },
           }),
         };
         const fetch: typeof globalThis.fetch = async (input, init) => {
@@ -417,7 +417,7 @@ test("login then offline before any delivery resumes a three-day queue, includin
           const response = await owner.fetch(input, init);
           if (path !== "/api/manifest") return response;
           const manifest = await response.json();
-          manifest.ops = { "deliveries.inbox": { kind: "query", args: { c: { Optional: "Cursor" } }, planHash: "f".repeat(64) } };
+          manifest.ops = { "deliveries.inbox": { kind: "query", cursor: "c", args: { c: { Optional: "Cursor" } }, planHash: "f".repeat(64) } };
           return jsonResponse(manifest);
         },
       });

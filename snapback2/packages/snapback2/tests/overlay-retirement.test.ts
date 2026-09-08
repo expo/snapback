@@ -1033,7 +1033,7 @@ function resumeFetch(cursor: string, log: unknown, observed?: (request: any) => 
     const json = (value: unknown, status = 200) => new Response(JSON.stringify(value), { status });
     if (path === "/api/manifest") return json({
       generation: "schema-generation", programGeneration: generation, channels: {}, auth: {},
-      ops: { "deliveries.inbox": { kind: "query", planHash, args: { [cursor]: { Optional: "Cursor" } } } },
+      ops: { "deliveries.inbox": { kind: "query", planHash, cursor, args: { [cursor]: { Optional: "Cursor" } } } },
     });
     if (path === "/api/program") return json({ code: "E_ROUTE", family: "op", message: "not found", guide: "op/reference" }, 404);
     if (path === "/api/resume") {
