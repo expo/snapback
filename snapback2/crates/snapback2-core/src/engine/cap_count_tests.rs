@@ -842,10 +842,9 @@ fn public_count_derived_group_range_rejects_each_changed_authority_field() {
         ("stop", |range| range.stop = StopReason::Limit),
         ("absence", |range| range.absence = false),
         ("halo", |range| {
-            range.halo = Some(RowRecord {
+            range.halo = Some(RowRef {
                 table: "counts".into(),
                 id: "unobserved".into(),
-                row: crate::object([("id", Value::Id("unobserved".into()))]),
             })
         }),
         ("n2", |range| {
