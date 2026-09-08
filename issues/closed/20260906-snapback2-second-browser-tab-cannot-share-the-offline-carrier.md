@@ -35,7 +35,7 @@ closes; the wait is withdrawn on close, sign-out, and account change (LLP 1018 �
 LLP 1012 §4 amendment; `tests/client-sessions.test.ts`). Proposal 2's recipe is no
 longer needed: no per-tab database. Proposal 3's regression (an offline write in
 *each* tab, both settle) stays open by design and moves to
-`issues/20260907-snapback2-follower-tab-write-forwarding.md`.
+`issues/closed/20260907-snapback2-follower-tab-write-forwarding.md`.
 
 ## Resolution — 2026-09-08
 
