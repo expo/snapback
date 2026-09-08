@@ -1225,22 +1225,25 @@
     ],
     "write_sites": [],
     "maintained_amplification": 0,
-    "constraint_checks": [],
+    "constraint_checks": [
+      "cardCounts:public-count-absence"
+    ],
     "max_examined": 42,
     "max_index_entries": 42,
     "max_rule_probes": 0,
-    "max_steps": 316,
+    "max_steps": 396,
     "derived_steps": 0,
     "derived_scratch_bytes": 59086,
-    "max_heap_bytes": 69198,
+    "max_heap_bytes": 71758,
     "max_output_bytes": 23672,
-    "max_closure_bytes": 59086,
+    "max_closure_bytes": 101446,
     "completeness": "Page",
     "prediction_sites": [],
     "read_time_granularity_ms": null,
     "halo_rows": 1,
     "indexes_required": [
       "cardCounts.byGroup",
+      "cardCounts.byId",
       "columns.byParentOrder"
     ],
     "disclosures": [
