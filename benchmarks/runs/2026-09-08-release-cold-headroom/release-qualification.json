@@ -1,0 +1,134 @@
+{
+  "version": "0.0.19",
+  "qualified_source": "c170e53f9b78e7fae6d26f4c7aa92ff5265ea799",
+  "landed_version_commit": "c47c44ba3f1b0682eeabe0844aee3b6da9a6cab1",
+  "host": "apartment M1 Max; Node24.18.0; Rust1.97.0",
+  "command": "node snapback2/scripts/publish.mjs --dry-run",
+  "pid": 31357,
+  "exit": 0,
+  "metric": {
+    "at": "2026-09-08T06:41:31.757Z",
+    "publish_s": 313.6,
+    "production_binary_bytes": 7312592,
+    "production_binary_without_engine_bytes": 4078496,
+    "production_binary_with_engine_bytes": 7312592,
+    "production_media_binary_bytes": 2147984,
+    "engine": "ibex2 + vanilla hermes",
+    "dry": true
+  },
+  "consumer": {
+    "steps": [
+      {
+        "name": "install tarballs",
+        "seconds": 5.45330449999997,
+        "ok": true
+      },
+      {
+        "name": "doctor",
+        "seconds": 0.37793895899999186,
+        "ok": true
+      },
+      {
+        "name": "guide auth",
+        "seconds": 0.0436675830000313,
+        "ok": true
+      },
+      {
+        "name": "public client and React exports",
+        "seconds": 0.05604295800003456,
+        "ok": true
+      },
+      {
+        "name": "todos init",
+        "seconds": 0.8762143750000396,
+        "ok": true
+      },
+      {
+        "name": "todos check",
+        "seconds": 0.6417353749999893,
+        "ok": true
+      },
+      {
+        "name": "todos React bundle",
+        "seconds": 2.091092042000033,
+        "ok": true
+      },
+      {
+        "name": "todos dev",
+        "seconds": 0.28357995899999516,
+        "ok": true
+      },
+      {
+        "name": "React live query round trip",
+        "seconds": 0.1217055419999524,
+        "ok": true
+      },
+      {
+        "name": "todos receipt",
+        "accepted": true,
+        "verdict": "pass"
+      },
+      {
+        "name": "todos test",
+        "seconds": 1.1038484999999636,
+        "ok": true
+      },
+      {
+        "name": "todos stop",
+        "seconds": 0.24957012500002748,
+        "ok": true
+      },
+      {
+        "name": "chat init",
+        "seconds": 0.7826091669999878,
+        "ok": true
+      },
+      {
+        "name": "chat check",
+        "seconds": 0.7590422909999616,
+        "ok": true
+      },
+      {
+        "name": "chat React bundle",
+        "seconds": 1.0033897500000313,
+        "ok": true
+      },
+      {
+        "name": "chat dev",
+        "seconds": 5.712716167000006,
+        "ok": true
+      },
+      {
+        "name": "chat receipt",
+        "accepted": true,
+        "verdict": "pass"
+      },
+      {
+        "name": "chat test",
+        "seconds": 12.73218641699996,
+        "ok": true
+      },
+      {
+        "name": "chat stop",
+        "seconds": 0.22198345800000244,
+        "ok": true
+      }
+    ]
+  },
+  "log_sha256": "5791646b10427eca90bbbfb57e989e1d0e4bc26d753fa375c32b957c817a4562",
+  "publication": "not yet attempted",
+  "artifacts": [
+    {
+      "filename": "snapback2-0.0.19.tgz",
+      "bytes": 2955911,
+      "sha256": "74bcfc151792bee585f420d66d5ac0f016e50898cd0c244cb00af207bf9799f8",
+      "integrity": "sha512-eqFiv1JV+4NBP0dbnjojqlvqYps0wv+aGVaww0aLnLfK56by7xha0c6sHGItnpgV/cVbkfSQbYOji2Vk3lM6xg=="
+    },
+    {
+      "filename": "snapback2-darwin-arm64-0.0.19.tgz",
+      "bytes": 4998943,
+      "sha256": "dfb5a395041f8b0e6229a6dc11d6176805afbc5c3f5a4fe078053ca985ec837b",
+      "integrity": "sha512-Wty71iA7gBCZOGLtvkRTwCbeItbZUnjSr8Wwr8CAVkz+Fw7fW82A9fK3J6qatU6SNWzHGtO0f18s50Jo66932g=="
+    }
+  ]
+}
