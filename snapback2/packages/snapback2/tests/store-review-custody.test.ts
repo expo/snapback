@@ -478,6 +478,34 @@ test('primary absence admission survives answer custody changes but not later ro
     assert.deepEqual((await rows()).map((row:any)=>row.at),[5],`the ${style} revocation remains dominant cold`);
     await runtime.close();
   }
+  for (const reverse of [false,true]) {
+    let saved: any;
+    const factory = () => new PersistentRangeStore({carrier:'memory',open:async()=>saved,replace:async state=>{saved=structuredClone(state);},close(){},wipe:async()=>{}});
+    const runtime = new OfflineRuntime({store:factory});
+    await runtime.open(movement.first.authority.principal,true); await runtime.program(movement.packet);
+    const absent = structuredClone(movement.hole); absent.receipt.absences = [['events','byId',['one']]];
+    await runtime.commit('clock.bounded',{},await runtime.accept('clock.bounded',{},absent));
+    const base = structuredClone(movement.moved); base.seq = 3; base.readTime += 1;
+    await runtime.commit('clock.read',{},await runtime.accept('clock.read',{},base));
+    const intent = `atomic-update-${reverse}`;
+    await runtime.store.commit({outbox:{put:[{...entry(intent),predicted:true,issuedSeq:10}]},overlay:{put:{[intent]:[{
+      table:'events',id:'one',row:{id:'one',at:9},fields:['at'],
+    }]}}});
+    const absentAgain = structuredClone(movement.hole); absentAgain.seq = 5; absentAgain.readTime += 3;
+    absentAgain.receipt.absences = [['events','byId',['one']]];
+    const restored = structuredClone(movement.moved); restored.seq = 6; restored.readTime += 4;
+    const items = [
+      {op:'clock.bounded',args:{},accepted:await runtime.accept('clock.bounded',{},absentAgain)},
+      {op:'clock.read',args:{},accepted:await runtime.accept('clock.read',{},restored)},
+    ];
+    if (reverse) items.reverse();
+    await runtime.commitMany(items);
+    const rows = (await runtime.twin.evaluate('clock.read',{}) as any)?.data?.rows ?? [];
+    assert.deepEqual(rows.map((row:any)=>row.at),[5],
+      `one atomic negative/positive swap cannot revive the old update (${reverse?'positive first':'negative first'})`);
+    assert.equal(saved.overlayNegatives[intent]?.['events\0one']?.contradictedAt,5);
+    await runtime.close();
+  }
 });
 
 test('native-certified Unicode search accepts scope movement in either arrival order and retains exact Q custody cold', async () => {
