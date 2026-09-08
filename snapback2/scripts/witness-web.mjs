@@ -578,8 +578,12 @@ async function main() {
     await page.waitForSelector(`section[aria-label=Search] li[data-message="${queued.id}"]`, { timeout: 10_000 });
     await page.waitForFunction(() => {
       const scope = document.querySelector("section[aria-label=Search] .scope");
-      return ["complete", "capped"].includes(scope?.getAttribute("data-state") ?? "")
-        && scope?.getAttribute("data-reason") === "predicted"
+      return scope?.getAttribute("data-state") === "ready"
+        && scope.getAttribute("data-status") === "ready"
+        && scope.getAttribute("data-receipt") === "none"
+        && scope.getAttribute("data-reason") === "held"
+        && scope.getAttribute("data-predicted") === "true"
+        && /Downloaded indexed results/.test(scope.textContent ?? "")
         && /server has not confirmed/.test(scope.textContent ?? "");
     }, null, { timeout: 10_000 });
     step("the mounted indexed search publishes the offline prediction; partial history hides composite count and preview", {
@@ -605,9 +609,13 @@ async function main() {
     await page.fill("section[aria-label=Search] input", indexedSearchTerm);
     await page.waitForSelector(`section[aria-label=Search] li[data-message="${queued.id}"]`, { timeout: 10_000 });
     const coldSearch = await page.$eval("section[aria-label=Search] .scope", (node) => ({
-      state: node.getAttribute("data-state"), reason: node.getAttribute("data-reason"), text: node.textContent,
+      state: node.getAttribute("data-state"), status: node.getAttribute("data-status"),
+      receipt: node.getAttribute("data-receipt"), reason: node.getAttribute("data-reason"),
+      predicted: node.getAttribute("data-predicted"), text: node.textContent,
     }));
-    if (!["complete", "capped"].includes(coldSearch.state ?? "") || coldSearch.reason !== "predicted"
+    if (coldSearch.state !== "ready" || coldSearch.status !== "ready" || coldSearch.receipt !== "none"
+      || coldSearch.reason !== "held" || coldSearch.predicted !== "true"
+      || !/Downloaded indexed results/.test(coldSearch.text ?? "")
       || !/server has not confirmed/.test(coldSearch.text ?? "")) throw new Error(`cold indexed search was ${JSON.stringify(coldSearch)}`);
     if (coldPartialHistory?.source !== "partial-history" || coldPartialHistory.count !== null
       || coldPartialHistory.previewMessage !== null || !coldPartialHistory.historyState

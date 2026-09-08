@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { api } from "snapback2/client";
+import { api, reasonMessages } from "snapback2/client";
 import { useQuery } from "snapback2/react";
 
 function Results({ term, onOpen }: { term: string; onOpen(conversationId: string): void }) {
@@ -7,17 +7,19 @@ function Results({ term, onOpen }: { term: string; onOpen(conversationId: string
   const hits = result.data ?? [];
   const next = result.receipt?.next !== null && result.receipt?.next !== undefined;
   const limit = next ? "Indexed result limit reached · more available" : "Indexed result limit reached";
-  const status = result.status === "loading" ? "Searching…"
+  const predicted = hits.some((row) => result.local.predicted.some((item) => item.table === "messages" && item.id === row.id));
+  const primary = result.status === "loading" ? "Searching…"
     : result.reason?.code === "held" ? "Downloaded indexed results"
     : result.reason?.code === "partial" ? `Partial indexed results · ${result.reason.detail ?? result.reason.message}`
     : result.status === "unavailable" ? (result.reason?.message ?? "Search unavailable")
     : result.reason?.code === "stale" ? "Showing stale indexed results"
-    : result.reason?.code === "predicted" ? `${result.reason.message}${result.receipt?.outcome === "capped" ? ` · ${limit}` : ""}`
-    : result.receipt?.outcome === "capped" ? limit
     : result.freshness.live ? "Live indexed results" : "Indexed results";
+  const status = [primary, predicted ? reasonMessages.predicted : undefined,
+    result.receipt?.outcome === "capped" ? limit : undefined].filter(Boolean).join(" · ");
   return <>
-    <p className="scope" data-state={result.receipt?.outcome ?? result.status} data-reason={result.reason?.code}
-      data-next={next ? "available" : "none"}>{status}</p>
+    <p className="scope" data-state={result.receipt?.outcome ?? result.status} data-status={result.status}
+      data-receipt={result.receipt?.outcome ?? "none"} data-reason={result.reason?.code}
+      data-predicted={String(predicted)} data-next={next ? "available" : "none"}>{status}</p>
     <ul className="hits">
       {hits.map((row) => (
         <li key={row.id} data-message={row.id}>
