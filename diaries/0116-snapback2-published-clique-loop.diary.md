@@ -1462,3 +1462,25 @@ The 0.0.18 dry release passed all 19 installed-consumer results and the complete
 ## 2026-09-07 — Grok M3 reaches its original deadline
 
 The unchanged 0.0.16 benchmark reached M3's original four-hour boundary without a preserved green completion. Its last completed attempt had five passes, one membership-flow failure and one optional skip; voluntary leave did not become observable within 20 seconds. The builder remained live, and the exact boundary snapshot is [preserved](../benchmarks/runs/2026-09-06-clique-improvement/evidence/grok-016-m3-boundary/README.md). This is an intermediate measurement, not a final score or independent attribution of the failure to Snapback. The deadline is unchanged and later progress must retain its actual timing.
+
+## 2026-09-07 — Architecture consumer repairs and query selection
+
+The ordinary installed-consumer run at `c156228ef0` now passes the three-member
+offline chat journey: prediction settlement leaves one delivered message rather
+than a predicted fan-out beside the owner fan-out. Chrome's full Web and
+two-tab-session witnesses and Expo's ten simulator steps separately pass on the
+preceding equivalent runtime. The count/messages/preview query remains one
+observed value; the application does not need a second aggregate merge policy.
+
+Actual owner measurements also exposed a gap that direct runtime benchmarks
+missed: selecting affected prefixes and mapping IDs still scanned unrelated
+subscriptions. The core now seeks typed prefix paths, and the owner uses the
+existing subscription ID directly. The real owner/frame matrix varies total
+and affected subscriptions independently and preserves unrelated-client silence.
+
+The current loop is easier to use: installed consumer checks take 23.98 seconds
+and project check 0.561 seconds on the reserved Mac. First-start doctor still
+misses its target at 0.609 seconds; its second 0.040-second sample is not a
+replacement result. The new upstream public zero-count proof also exposed a
+valid long reference and an absence/prediction custody seam. Those integration
+repairs remain in progress; these passing samples do not qualify them.
