@@ -1,0 +1,51 @@
+#!/bin/zsh
+set -eu
+export PATH=/Users/ccheever/.volta/bin:/usr/bin:/bin:/usr/sbin:/sbin
+export NPM_CONFIG_CACHE=/Users/ccheever/snapback2-release-019/fresh-registry-cache
+W=/Users/ccheever/snapback2-release-019/builtin-name-witness
+cd "$W"
+
+node --version
+npm --version
+npm config get registry
+npm install --save-exact --ignore-scripts --no-audit --no-fund snapback2@0.0.19
+node -e 'const p=require("./node_modules/snapback2/package.json"); const q=require("./node_modules/snapback2-darwin-arm64/package.json"); console.log(JSON.stringify({shim:{name:p.name,version:p.version},platform:{name:q.name,version:q.version},resolvedOptionalDependencies:p.optionalDependencies},null,2))'
+
+./node_modules/.bin/snapback2 guide grammar
+./node_modules/.bin/snapback2 guide quarry
+for name in words tokens range min max count divmod share; do
+  ./node_modules/.bin/snapback2 guide "$name" || true
+done
+
+node write-fixtures.mjs
+./node_modules/.bin/snapback2 check --project matrix --json
+
+if lsof -nP -iTCP:53145 -sTCP:LISTEN; then
+  print -u2 'reserved port 53145 is occupied; refusing to start'
+  exit 90
+fi
+./node_modules/.bin/snapback2 dev --project matrix --port 53145 --json
+cp matrix/.snapback/owner.json matrix-owner.reproduction.json
+run_names=(wordsRead tokensWitness rangeWitness minWitness maxWitness countWitness divmodWitness shareWitness)
+for op in $run_names; do
+  ./node_modules/.bin/snapback2 run "witness.$op" --as alice --project matrix --json
+done
+./node_modules/.bin/snapback2 dev --project matrix --stop --json
+owner_pid=$(node -p 'JSON.parse(require("node:fs").readFileSync("matrix-owner.reproduction.json")).pid')
+if kill -0 "$owner_pid" 2>/dev/null; then
+  print -u2 "owner $owner_pid is still running"
+  exit 91
+fi
+if lsof -nP -iTCP:53145 -sTCP:LISTEN; then
+  print -u2 'port 53145 is still occupied'
+  exit 92
+fi
+
+set +e
+./node_modules/.bin/snapback2 check --project words-call --json
+words_rc=$?
+set -e
+if [[ "$words_rc" -ne 1 ]]; then
+  print -u2 "expected words-call check exit 1; received $words_rc"
+  exit 93
+fi

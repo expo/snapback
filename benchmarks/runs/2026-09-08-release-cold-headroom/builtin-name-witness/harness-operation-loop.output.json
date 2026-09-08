@@ -1,0 +1,1 @@
+{"code":"E_OP_UNKNOWN","family":"op","guide":"op/manifest","message":"unknown or ambiguous operation witness.wordsRead tokensWitness rangeWitness minWitness maxWitness countWitness divmodWitness shareWitness","rewrite":"use a qualified name from /api/manifest"}

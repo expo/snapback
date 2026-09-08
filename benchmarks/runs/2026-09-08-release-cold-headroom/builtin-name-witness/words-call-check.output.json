@@ -1,0 +1,1 @@
+{"code":"E_QUARRY_UNSUPPORTED","family":"quarry","message":"words() in direct Quarry is not part of the Snapback 2 platform","site":"snapback/words-call.q:3:60","rewrite":"-- use an engine-maintained wordPrefixes index","guide":"quarry/refusals"}

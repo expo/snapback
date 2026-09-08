@@ -1,0 +1,7 @@
+Setup-only failures, excluded from the product matrix:
+
+1. The first version of write-fixtures.mjs had a malformed JavaScript template expression and exited before creating fixtures or invoking snapback2. It was replaced by the retained corrected write-fixtures.mjs.
+
+2. The first runtime command loop assigned all operation names to one scalar under zsh, which does not split scalar values by default. It invoked one nonexistent operation named exactly:
+   witness.wordsRead tokensWitness rangeWitness minWitness maxWitness countWitness divmodWitness shareWitness
+The installed CLI returned exit 1 with E_OP_UNKNOWN. That output is retained in the files whose names begin with `run-wordsRead tokensWitness`. The owner PID 55147 used in that attempt was recorded, stopped, confirmed absent, and port 53145 was confirmed free before the corrected array-based run.

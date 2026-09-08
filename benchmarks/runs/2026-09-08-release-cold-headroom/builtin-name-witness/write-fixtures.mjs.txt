@@ -1,0 +1,79 @@
+import { cpSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
+import { resolve } from "node:path";
+
+const root = "/Users/ccheever/snapback2-release-019/builtin-name-witness";
+const matrix = resolve(root, "matrix");
+const wordsCall = resolve(root, "words-call");
+for (const dir of [matrix, wordsCall]) rmSync(dir, { recursive: true, force: true });
+
+const names = ["words", "tokens", "range", "min", "max", "count", "divmod", "share"];
+const schema = `use identity
+
+${names.map(name => `table ${name}:
+  value: int
+  public 'builtin-name acceptance witness'`).join("\n\n")}
+`;
+
+const ops = `query wordsRead():
+  row = words['words-row'] ! else NOT_FOUND
+  return { table: 'words', value: row.value }
+
+query tokensWitness():
+  row = tokens['tokens-row'] ! else NOT_FOUND
+  return { table: 'tokens', value: row.value, builtin: tokens('Hi @alice and @bob!') }
+
+query rangeWitness():
+  row = range['range-row'] ! else NOT_FOUND
+  return { table: 'range', value: row.value, builtin: range(1, 4) }
+
+query minWitness():
+  row = min['min-row'] ! else NOT_FOUND
+  return { table: 'min', value: row.value, builtin: min(row.value, 10) }
+
+query maxWitness():
+  row = max['max-row'] ! else NOT_FOUND
+  return { table: 'max', value: row.value, builtin: max(row.value, 10) }
+
+query countWitness():
+  row = count['count-row'] ! else NOT_FOUND
+  return { table: 'count', value: row.value, builtin: count(range(1, 4)) }
+
+query divmodWitness():
+  row = divmod['divmod-row'] ! else NOT_FOUND
+  return { table: 'divmod', value: row.value, builtin: divmod(row.value, 3) }
+
+query shareWitness():
+  row = share['share-row'] ! else NOT_FOUND
+  recipients = [viewer]
+  return { table: 'share', value: row.value, builtin: share(row.value, recipients, viewer) }
+`;
+
+const seedSource = `import { seed } from "snapback2";
+
+export default seed({
+  personas: ["alice"],
+  rows: {
+    ${names.map(name => `${name}: [{ id: "${name}-row", value: 7 }]`).join(",\n    ")}
+  },
+});
+`;
+
+function writeProject(dir) {
+  mkdirSync(resolve(dir, "snapback"), { recursive: true });
+  writeFileSync(resolve(dir, "package.json"), `${JSON.stringify({
+    name: `snapback2-019-${dir.split("/").at(-1)}`,
+    private: true,
+    type: "module",
+    dependencies: { snapback2: "0.0.19" },
+  }, null, 2)}\n`);
+  writeFileSync(resolve(dir, "snapback/schema.q"), schema);
+  writeFileSync(resolve(dir, "snapback/witness.q"), ops);
+  writeFileSync(resolve(dir, "snapback/seed.ts"), seedSource);
+}
+
+writeProject(matrix);
+cpSync(matrix, wordsCall, { recursive: true });
+writeFileSync(resolve(wordsCall, "snapback/words-call.q"), `query wordsWitness():
+  row = words['words-row'] ! else NOT_FOUND
+  return { table: 'words', value: row.value, builtin: words('Alpha beta') }
+`);

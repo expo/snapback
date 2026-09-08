@@ -1,0 +1,143 @@
+{
+  "source": "43e06fa90b4ee3884d4e9c2ac27c71b9586fce52",
+  "landing": "7b6edfee43bd5b05759156e85273a74d81d51332",
+  "reviewed_performance_source": "dee96c3442cf9ddfcfc7efebac2075827459ae38",
+  "reviews": {
+    "Sol xhigh": "READY",
+    "Grok4.6 xhigh": "READY"
+  },
+  "review_carry": "Same added/removed performance code delta after integration; combined-source verification rerun",
+  "runtime": {
+    "upstream_source": "f5d90cd54f5801f7c444081329124d8b39355ccc",
+    "upstream_minified": 256811,
+    "upstream_gzip": 83413,
+    "integrated_minified": 255964,
+    "integrated_gzip": 83227,
+    "saving_gzip": 186,
+    "ceiling": 84000,
+    "headroom": 773,
+    "working_target": 80000,
+    "target_gap": 3227,
+    "roots": "unchanged complete five-root runtime",
+    "node": "24.18.0",
+    "esbuild": "0.25.9",
+    "gzip_level": 9
+  },
+  "canonical": {
+    "label": "items-canonical",
+    "purpose": "Warm full canonical qualification after integrating the concurrent client-items runtime and test inventory",
+    "source": {
+      "branch": "llp-ship/20260908-loop-and-runtime/final-verification",
+      "commit": "43e06fa90b4ee3884d4e9c2ac27c71b9586fce52",
+      "tree": "4834cb3315148f655b3cfa0321bf978467672859",
+      "bundle": "items-integrated.bundle",
+      "bundleSha256": "9fa1e97d0f85d2aa77ee39d8144f1aea3062a860e18b67707b464b937eee1423",
+      "trackedSourceCleanAfterRun": true,
+      "inheritedDirt": [
+        "M vendor/llp",
+        "?? snapback2/.llp/"
+      ]
+    },
+    "host": {
+      "address": "100.65.137.99",
+      "lane": "/home/ccheever/lanes/enginefix",
+      "availableParallelism": 96,
+      "preRunLoadAverage": [
+        0.06,
+        0.72,
+        1.12
+      ],
+      "preRunMemoryAvailableGiB": 243,
+      "preRunDiskFreeGiB": 715,
+      "postRunLoadAverage": [
+        0.07,
+        1.27,
+        1.47
+      ],
+      "postRunDiskFreeGiB": 715
+    },
+    "toolchain": {
+      "cargo": "cargo 1.97.0 (c980f4866 2026-06-30)",
+      "rustc": "rustc 1.97.0 (2d8144b78 2026-07-07)",
+      "cargoNextest": "cargo-nextest 0.9.143 (60fa45f63 2026-08-04)",
+      "bun": "1.3.14",
+      "node": "v24.13.1"
+    },
+    "invocation": {
+      "command": "./scripts/test.sh",
+      "loginShell": true,
+      "rustTestThreadOverride": null,
+      "selectedRustTestThreads": 32,
+      "nodeFileTimeoutSeconds": 10,
+      "failFast": false,
+      "timestampWrapper": "/tmp/snapback-canonical-timestamped-run-20260908.sh"
+    },
+    "process": {
+      "pid": 697134,
+      "startedMs": 1788852369753,
+      "startedUtc": "2026-09-08T07:26:09.753Z",
+      "endedMs": 1788852453674,
+      "endedUtc": "2026-09-08T07:27:33.674Z",
+      "wallMs": 83921,
+      "exitStatus": 0,
+      "ownedPidExited": true,
+      "laneReleased": true
+    },
+    "phasesSeconds": {
+      "bundleCompilerWorkerAndClient": 3.118,
+      "nativeBuild": 0.118,
+      "node": 9.988,
+      "nextestPhase": 35.814,
+      "nextestReported": 36.118,
+      "doctests": 0.884,
+      "evaluator": 6.626,
+      "compilerTypecheck": 2.698,
+      "compilerTests": 24.537
+    },
+    "outcomes": {
+      "scriptSelfTest": "passed",
+      "node": {
+        "passed": 815,
+        "failed": 0,
+        "skipped": 0
+      },
+      "native": {
+        "passed": 865,
+        "failed": 0,
+        "skipped": 4,
+        "junitCases": 869
+      },
+      "doctests": {
+        "passed": true,
+        "failed": 0
+      },
+      "evaluator": {
+        "cases": 225,
+        "passed": 225,
+        "failed": 0,
+        "additionalTextualRegressionGroupsPassed": 2
+      },
+      "compiler": {
+        "passed": 214,
+        "failed": 0
+      }
+    },
+    "junit": {
+      "remoteMtimeEpoch": 1788852418,
+      "freshAfterRunStart": true,
+      "tests": 869,
+      "skipped": 4,
+      "failures": 0,
+      "errors": 0,
+      "reportedTimeSeconds": 36.118,
+      "runId": "a825f62c-985e-4066-8989-61c19b14fce9"
+    },
+    "artifacts": {
+      "items-canonical.log": "e199608102f9a7e556a140ce3d82a42d00acb5a3ef76cb9e47d9bc529f855274",
+      "items-canonical.meta": "65de06b3ebaebba5fdf519f59d0f8f453676b1358bd146c62fa8a08a87411cd7",
+      "items-canonical.pid": "6ba79a53eca9bd6e955753fa879a736ef21af3ddd50b309ca453dc6fec8f316b",
+      "items-canonical.junit.xml": "0f6eacc1c0496d924bd9c5ae4b1606a6ef748d2bc2f0f9780af789b7f6944aad"
+    }
+  },
+  "scope_note": "Main-source performance and concurrent client-item integration postdate npm0.0.19; do not assign these sizes or changes to the cold published019 app"
+}

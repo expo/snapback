@@ -1,0 +1,96 @@
+===== matrix/package.json =====
+{
+  "name": "snapback2-019-matrix",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "snapback2": "0.0.19"
+  }
+}
+===== matrix/snapback/schema.q =====
+use identity
+
+table words:
+  value: int
+  public 'builtin-name acceptance witness'
+
+table tokens:
+  value: int
+  public 'builtin-name acceptance witness'
+
+table range:
+  value: int
+  public 'builtin-name acceptance witness'
+
+table min:
+  value: int
+  public 'builtin-name acceptance witness'
+
+table max:
+  value: int
+  public 'builtin-name acceptance witness'
+
+table count:
+  value: int
+  public 'builtin-name acceptance witness'
+
+table divmod:
+  value: int
+  public 'builtin-name acceptance witness'
+
+table share:
+  value: int
+  public 'builtin-name acceptance witness'
+===== matrix/snapback/witness.q =====
+query wordsRead():
+  row = words['words-row'] ! else NOT_FOUND
+  return { table: 'words', value: row.value }
+
+query tokensWitness():
+  row = tokens['tokens-row'] ! else NOT_FOUND
+  return { table: 'tokens', value: row.value, builtin: tokens('Hi @alice and @bob!') }
+
+query rangeWitness():
+  row = range['range-row'] ! else NOT_FOUND
+  return { table: 'range', value: row.value, builtin: range(1, 4) }
+
+query minWitness():
+  row = min['min-row'] ! else NOT_FOUND
+  return { table: 'min', value: row.value, builtin: min(row.value, 10) }
+
+query maxWitness():
+  row = max['max-row'] ! else NOT_FOUND
+  return { table: 'max', value: row.value, builtin: max(row.value, 10) }
+
+query countWitness():
+  row = count['count-row'] ! else NOT_FOUND
+  return { table: 'count', value: row.value, builtin: count(range(1, 4)) }
+
+query divmodWitness():
+  row = divmod['divmod-row'] ! else NOT_FOUND
+  return { table: 'divmod', value: row.value, builtin: divmod(row.value, 3) }
+
+query shareWitness():
+  row = share['share-row'] ! else NOT_FOUND
+  recipients = [viewer]
+  return { table: 'share', value: row.value, builtin: share(row.value, recipients, viewer) }
+===== matrix/snapback/seed.ts =====
+import { seed } from "snapback2";
+
+export default seed({
+  personas: ["alice"],
+  rows: {
+    words: [{ id: "words-row", value: 7 }],
+    tokens: [{ id: "tokens-row", value: 7 }],
+    range: [{ id: "range-row", value: 7 }],
+    min: [{ id: "min-row", value: 7 }],
+    max: [{ id: "max-row", value: 7 }],
+    count: [{ id: "count-row", value: 7 }],
+    divmod: [{ id: "divmod-row", value: 7 }],
+    share: [{ id: "share-row", value: 7 }]
+  },
+});
+===== words-call/snapback/words-call.q =====
+query wordsWitness():
+  row = words['words-row'] ! else NOT_FOUND
+  return { table: 'words', value: row.value, builtin: words('Alpha beta') }

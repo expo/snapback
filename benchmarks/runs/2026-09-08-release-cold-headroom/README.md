@@ -53,7 +53,30 @@ Issue reconciliation landed at `12f4ff01b`: four closures, one stale open copy
 removed while preserving its existing closed record, and five concrete
 remainders retained. No new product execution was claimed by that audit.
 
-Performance is owned by the existing `20260908-loop-and-runtime` lane. Its
-reviewed implementation and exact measurements will be integrated separately;
-this release does not claim those pending source changes. Raw control and
-qualification state lives in the coordinating `.llp/ship-runs/` ledgers.
+Performance landed at `7b6edfee4`. After integrating the separately landed
+client-item surface, the full suite passed in 83.921s: 815 Node tests, 865
+native passes with four skips, doctests, 225 evaluator cases plus two visibility
+checks, and 214 compiler checks. The pinned same-upstream runtime pair is
+83,413 → 83,227 gzip bytes (186 saved), with 773 bytes under the independently
+adopted 84,000-byte allocation. The 80,000-byte runtime target and 60-second
+loop budget remain unmet. Historical 136.48s suite timing used a different
+toolchain, so it is not a controlled percentage comparison.
+
+Both independent performance code reviews are READY; the reviewed delta
+survived integration unchanged and combined-source checks passed. See
+[performance.json](performance.json) and LLP 1018.000 §10. These changes are
+on main after the 0.0.19 release; they are not part of that immutable package
+or its cold-build result. Raw control and qualification state lives in the
+coordinating `.llp/ship-runs/` ledgers.
+
+## Additional exact acceptance witness
+
+The builtin-named table ticket is now resolved on published 0.0.19: all eight
+table reads and all seven supported same-named calls pass. The retired
+`words()` call gives its documented refusal. See
+[builtin-name-witness/RESULTS.md](builtin-name-witness/RESULTS.md).
+
+The frozen grader report schema excludes M8 assertion keys. The diagnostic
+assessment will retain those outcomes in a companion record; the concrete
+[instrument follow-up](../../../issues/20260908-social-messenger-grader-schema-rejects-m8-assertions.md)
+keeps that reporting gap visible without altering this run’s instrument.
