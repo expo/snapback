@@ -1,6 +1,14 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { build } from "esbuild";
+import { mkdtemp, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { createClient, api, defineItems as publicItems } from "../dist/client.mjs";
+import { fileRangeStore } from "../dist/test.mjs";
+import { indexedDbRangeStore } from "../dist/react.mjs";
+import { FakeIndexedDb, FakeLocks } from "./fake-indexeddb.ts";
+import { fakeOwner } from "./fake-owner.ts";
 import type { Op } from "../src/api.ts";
 import type { OutboxEntry } from "../src/store/range-store.ts";
 import type { ItemInputs } from "../src/client-items.ts";
@@ -143,4 +151,61 @@ test("a contributing media prediction attaches its actual intent without an unpr
   assert.equal(result[0]?.pending[0]?.kind, "create");
   assert.equal(result[0]?.predicted, true);
   assert.deepEqual(attachItems(spec, args, [], state), [], "no unknown media draft or query membership is fabricated");
+});
+
+async function until(predicate: () => boolean, label: string): Promise<void> {
+  const deadline = Date.now() + 2000;
+  while (!predicate()) {
+    if (Date.now() > deadline) throw new Error(`waiting for ${label}`);
+    await new Promise(resolve => setTimeout(resolve, 10));
+  }
+}
+for (const carrier of ["file", "indexeddb"]) test(`${carrier}: four shared observers resolve a no-ID edit only from the displayed target's new image`, async () => {
+  const root = await mkdtemp(join(tmpdir(), "snapback-item-evidence-"));
+  const store = carrier === "file" ? fileRangeStore(root)()
+    : indexedDbRangeStore({ indexedDB: new FakeIndexedDb() as never, locks: new FakeLocks() as never })();
+  const owner = fakeOwner({ seed: true, cursorArg: "c" });
+  const client = createClient({ url: "http://items.test", as: "alice", fetch: owner.fetch, offline: { store: () => store } });
+  await client.ready;
+  const spec = publicItems(api.deliveries.thread, { table: "messages", select: (value: any) => value.message,
+    update: { op: api.deliveries.edit, key: (args: any) => args.messageId } });
+  const args = { conversationId: "conversation-1", c: null };
+  const observed = Array.from({ length: 4 }, () => client.observe(api.deliveries.thread, args, { items: spec }));
+  const stops = observed.map(value => value.subscribe(() => undefined));
+  try {
+    await client.ready;
+    await until(() => observed[0]!.getSnapshot().items.length === 1, "the original target");
+    const initial = observed[0]!.getSnapshot(), message = initial.items[0]!.data;
+    const seq = initial.receipt!.seq;
+    await client.offline();
+    const edit = entry({ intent: "edit-without-new-ids", ids: [], op: "deliveries.edit", args: { messageId: message.id, body: "edited" },
+      issuedSeq: seq, state: "committed", response: { seq: seq + 1 } });
+    await store.commit({ outbox: { put: [edit] } });
+    await until(() => observed[0]!.getSnapshot().items[0]?.pending.length === 1, "the unresolved committed edit");
+    const deliver = (table: string, id: string, row: Record<string, unknown>, through: number) => store.commit({ deliveries: [{
+      op: `test.${table}`, args: { id }, state: "complete", data: { $row: { table, id } },
+      rows: [{ table, id, row }], seq: through, next: null, receipt: { ranges: [], absences: [], verdicts: [] },
+    }] });
+    await deliver("messages", "unrelated", { ...message, id: "unrelated", conversationId: "conversation-2" }, seq + 20);
+    await new Promise(resolve => setTimeout(resolve, 30));
+    assert.equal(observed[0]!.getSnapshot().items[0]!.pending.length, 1);
+    await deliver("messages", message.id, { ...message, body: "later owner value" }, seq + 2);
+    await until(() => observed[0]!.getSnapshot().items[0]?.data?.body === "later owner value", "the displayed target update");
+    const settled = observed[0]!.getSnapshot();
+    assert.deepEqual(settled.items[0]!.pending, [], "a newer target value supersedes the committed edit without argument equality");
+    for (const other of observed) assert.strictEqual(other.getSnapshot(), settled, "one publication for all readers");
+    assert.equal((await client.outbox.entries()).length, 1, "no observer deletes terminal history");
+  } finally {
+    stops.forEach(stop => stop()); await client.close(); await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("a computed lookalike cannot borrow another row's observation or prediction", () => {
+  const edit = entry({ op: "deliveries.edit", args: { messageId: "m" }, state: "committed", response: { seq: 41 } });
+  const state = inputs([edit], { values: new Map([[row, itemAddress("messages", "m")]]),
+    observations: new Map([[itemAddress("messages", "m"), { through: 42 }]]),
+    predicted: new Map([[itemAddress("messages", "m"), [{ intent: "other", kind: "update" }]]]) });
+  const result = attachItems({ ...spec, select: () => ({ ...row, body: "computed" }) }, args, page, state);
+  assert.equal(result[0]!.predicted, false);
+  assert.equal(result[0]!.pending.length, 1);
 });
