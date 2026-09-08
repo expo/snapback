@@ -135,7 +135,8 @@ test("owner harness reaps its launched child and fixture when creation rejects",
     if (args.includes("--project")) root = args[args.indexOf("--project") + 1];
     return { status: 0, stdout: "ok fixture", stderr: "" };
   });
-  context.mock.method(processes, "spawn", () => {
+  context.mock.method(processes, "spawn", (_binary: string, args: string[]) => {
+    if (args.includes("--project")) root = args[args.indexOf("--project") + 1];
     // A real owned process stays alive after printing an invalid readiness line.
     launched = spawn(process.execPath, ["-e", "console.log('invalid'); setInterval(() => {}, 60000)"], { stdio: ["ignore", "pipe", "pipe"] });
     return launched;
