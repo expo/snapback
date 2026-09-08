@@ -190,7 +190,7 @@ fn quarry_keywords_print_grammar_and_definitions_beside_symbol_help() {
         ("merge", "combines structurally distinct"),
         ("shape", "splices"),
         ("retain", "keeps rows that went hidden"),
-        ("channel", "ephemeral events"),
+        ("channel", "typed latest state"),
         ("connected", "read-only virtual table"),
         ("schedule", "declares two triggers, one kind"),
         ("job", "A job can have several independent chunks"),
