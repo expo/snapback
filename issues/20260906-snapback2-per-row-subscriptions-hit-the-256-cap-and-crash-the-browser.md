@@ -30,3 +30,9 @@ missed under load (machine load 45–112 during these runs; possibly the same fa
 4. Reproduce the live-update miss: a chat surface under sustained writes with a second client,
    assert no update is lost without polling. If it reproduces only under machine load, say so and
    record the threshold.
+
+## Remaining scope — reconciled 2026-09-08
+
+Shared-query deduplication, composite-screen guidance (`guide/live-query.md`) and a named `E_OWNER_BUSY` refusal above 256 subscriptions are implemented. The actual owner witness covers 60 queries plus a channel; shared-consumer browser lifecycle is also witnessed. Retain this ticket for an executed 256/257 boundary control and the original sustained-write/no-polling crash reproduction, including any reproducible load threshold. Those narrower witnesses do not establish the full capacity claim.
+
+Read-only source and recorded-execution audit against main `2ac15dc2c`; no new test execution or publication is claimed by this update.
