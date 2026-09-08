@@ -5,9 +5,9 @@ Read this, then `rules/RULES.md` and `rules/NOT-DOING.md` at the repo root, then
 
 ```
 cargo build                          # data plane + binary; no JS engine, no bootstrap
-NEXTEST_TEST_THREADS=16 cargo nextest run \
+NEXTEST_TEST_THREADS=32 cargo nextest run \
   --config-file ../.config/nextest.toml --profile local-proof \
-  --workspace --no-fail-fast          # Rust executable tests (~40 s warm on 16+ CPUs)
+  --workspace --no-fail-fast          # Rust executable tests (~36 s on the measured EPYC host)
 cargo test --workspace --doc --no-fail-fast  # workspace doctests omitted by nextest
 scripts/test.sh                      # everything blocking (~97 s warm today; 60 s budget)
 node scripts/measure.mjs --check     # loop numbers → metrics/loop.jsonl; fails on regression

@@ -188,3 +188,40 @@ upstream controls establish an inherited overrun, not a measured attribution
 for this final timing. Exact process 385976, command, binary identities and raw
 SHA-256 `924f6d4e9a5ce459d35c3a8c65e4f712709a3d53ab666d62be71d386d0f960af`
 are retained in the architecture ship run's `final-e94/receipt.md`.
+
+## Native worker-capacity repair — 2026-09-08
+
+At `3891a97b1`, the same warm EPYC lane ran the unchanged native inventory
+with eight and sixteen nextest workers. Both ran **865 passing tests and four
+skips**, with unchanged assertions, deadlines, and no-fail-fast behavior.
+The separate compile preflight took 0.603 s. Native execution fell from
+**77.510 s to 39.856 s**; process elapsed time including Cargo setup fell
+from 77.907 s to 40.253 s. This is a measured scheduling improvement, not a
+product-code speedup. The historical full JUnit contained 600.563 aggregate
+test seconds, explaining why eight workers had a roughly 75-second floor.
+
+The full blocking-suite budget remains 60 seconds in total. Native execution
+alone meeting that number does not qualify the complete suite. The full script with the initial 16-worker change passed in 96.508 s.
+Its compiler phase was still 36.300 s; this is a measured full-script
+improvement from the earlier 136.48 s run, not a 60-second qualification. Raw paired logs, JUnit, and process receipts are retained in the
+coordinating checkout's `.llp/ship-runs/20260908-loop-and-runtime/`.
+
+The final native worker ceiling is 32, still bounded by the host's available
+CPUs and retaining the existing eight-worker floor and explicit override.
+One controlled 32-worker run passed the same 865 tests and four skips in
+**36.244 s** (36.636 s external elapsed), versus 39.856 s at sixteen workers.
+The original eight-worker run was 77.510 s.
+
+The compiler suite now shares one real package build between stale-lock
+recovery and the separately reported package-content assertions. Recovery
+starts with `dist` removed and must both produce the compiler bundle and
+release the dead holder's lock. If recovery fails before the package report
+exists, the content check still performs its own pack. The guide-validator
+self-test runs its synthetic fixtures directly, and the Node worker check
+consumes the built package. Real prepack, package exports, worker operations,
+and all-failure reporting remain covered.
+
+On the same EPYC lane, compiler type checking plus all **214 unchanged test
+names** passed in **27.023 s**, compared with 36.300 s before these setup
+reductions. These phase measurements preserve the complete suite and its
+existing deadlines; the 60-second total budget remains an open target.

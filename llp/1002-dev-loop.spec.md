@@ -1061,12 +1061,16 @@ carries the account-, relationship-, and scoped-role-relevant Clique M1–M3 sha
 ## 11. Measured
 
 The blocking suite schedules Rust executable tests at the host's available
-processor count, clamped to 8–16 workers, unless
+processor count, clamped to 8–32 workers, unless
 `SNAPBACK_RUST_TEST_THREADS` explicitly overrides it. Tests remain separate
 processes with the same inventory, deadlines, and no-fail-fast reporting. On
 the same warm 96-CPU EPYC source and build, nextest ran 865 tests with four
 skips in 39.856 s at 16 workers versus 77.510 s at eight; external wall times
 were 40.253 s and 77.907 s, and compile-only preparation took 0.603 s.
+A subsequent 32-worker run preserved all outcomes and took 36.244 s in
+nextest (36.636 s external elapsed). These measurements are native test
+execution on that EPYC host; the 60-second budget covers the entire blocking
+suite.
 
 `scripts/measure.mjs` measures `check_project_s` (`check` on the chat
 fixture), `init_to_dev_s` (`init` → `dev` ready, fresh dir), and
