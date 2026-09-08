@@ -1078,6 +1078,7 @@ fn channel_admission_evaluates_one_args_row_under_the_selected_rule() {
         )]),
     );
     let channel = Channel {
+        value: BTreeMap::from([("typing".to_owned(), ArgType::Bool)]),
         args: BTreeMap::from([("room".to_owned(), ArgType::Id)]),
         publish: RuleExpr::Public {
             reason: "typing is public to members".to_owned(),
@@ -1220,6 +1221,7 @@ fn channel_rules_are_refused_when_their_certified_probe_or_step_bound_exceeds_th
         channels: BTreeMap::from([(
             "typing".to_owned(),
             Channel {
+                value: BTreeMap::from([("typing".to_owned(), ArgType::Bool)]),
                 args: BTreeMap::from([("room".to_owned(), ArgType::Scalar)]),
                 publish: RuleExpr::And(vec![probe.clone(), probe]),
                 subscribe: RuleExpr::Allow,

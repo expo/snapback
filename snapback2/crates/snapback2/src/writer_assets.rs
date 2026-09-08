@@ -25,7 +25,7 @@ impl State {
             self.runtime_mut().unsubscribe(id);
         }
         self.live.clear();
-        self.channels.clear();
+        self.reset_channels();
         self.ledger.clear();
         self.operator_rejection = None;
         self.wake_effects();
@@ -421,6 +421,7 @@ mod tests {
             ledger: VecDeque::new(),
             operator_rejection: None,
             next_channel: 0,
+            channel_dirty: BTreeSet::new(),
             clock_offset_ms: 0,
             restarted_through_seq: 0,
             stop: Arc::new(AtomicBool::new(false)),

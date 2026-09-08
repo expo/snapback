@@ -8,10 +8,10 @@ export interface Op<Args, Result, Targets extends Record<string, "create" | "upd
   readonly __targets?: Targets;
 }
 
-export interface Channel<Args, Payload = unknown> {
+export interface Channel<Args, Value> {
   readonly [referencePath]: string;
   readonly __channelArgs?: (args: Args) => void;
-  readonly __payload?: Payload;
+  readonly __value?: Value;
 }
 
 export interface Api {}

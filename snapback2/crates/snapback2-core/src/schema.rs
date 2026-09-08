@@ -611,6 +611,7 @@ pub(crate) fn maintain_issues(schema: &Schema) -> Vec<MaintainIssue> {
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Channel {
     pub args: BTreeMap<String, ArgType>,
+    pub value: BTreeMap<String, ArgType>,
     pub publish: RuleExpr,
     pub subscribe: RuleExpr,
     pub ttl_ms: u32,
@@ -737,7 +738,9 @@ fn tombstone_term_kind(
                 messages.push(format!("tombstones when names unknown column {name}"));
                 None
             }
-            Some(ColumnType::Enum { .. } | ColumnType::Text { .. }) => Some(TombstoneTermKind::Text),
+            Some(ColumnType::Enum { .. } | ColumnType::Text { .. }) => {
+                Some(TombstoneTermKind::Text)
+            }
             Some(ColumnType::Bool) => Some(TombstoneTermKind::Bool),
             Some(kind) => {
                 messages.push(format!(

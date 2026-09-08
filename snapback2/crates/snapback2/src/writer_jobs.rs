@@ -75,6 +75,7 @@ fn fail(state: &mut State, refusal: Refusal) {
 }
 impl State {
     pub(super) fn background_turn(&mut self) -> Result<(), Refusal> {
+        self.sweep_channels();
         self.flush_connected();
         self.fire_due_timers_background_turn()?;
         if let Some(id) = self
@@ -101,6 +102,7 @@ impl State {
                 "state":outcome.job.state,"ms":started.elapsed().as_secs_f64()*1000.0,"chunkMs":chunk_ms,"refusal":outcome.job.last_error}),
             );
         }
+        self.flush_channels();
         Ok(())
     }
     fn job_operator(&mut self, identity: Identity) -> Result<String, Refusal> {

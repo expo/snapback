@@ -186,6 +186,7 @@ maintain convSpend = sum expenses of grand by conv:
   read <- exists members[.conv, viewer]
 
 channel typing(conv: conversations):
+  value: { typing: bool }
   publish <- exists members[conv, viewer]
   subscribe <- exists members[conv, viewer]
   ttl 5s

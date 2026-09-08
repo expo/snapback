@@ -882,7 +882,7 @@
       "read_sites": [],
       "read_time_granularity_ms": null,
       "rule_hashes": {},
-      "schema_hash": "6ce2ca6490c8478071a9d9065033ba364868a61ccd1848faf79ab5451e8ced56",
+      "schema_hash": "005bd50d94d26be8b98ea68e450669a329aeae293831aea1fb4f04683d7da0c1",
       "tables": {},
       "value_model_version": "i53-codepoint-bytes-unicode-search-text-refinements-v5",
       "write_sites": []
@@ -958,7 +958,34 @@
           },
           "publish": "Allow",
           "subscribe": "Allow",
-          "ttl_ms": 1000
+          "ttl_ms": 1000,
+          "value": {
+            "handle": {
+              "Text": {
+                "format": "handle",
+                "max": 200
+              }
+            },
+            "items": {
+              "List": {
+                "max": 2,
+                "of": {
+                  "Text": {
+                    "format": "handle",
+                    "max": 200
+                  }
+                }
+              }
+            },
+            "link": {
+              "Optional": {
+                "Text": {
+                  "format": "url",
+                  "max": 200
+                }
+              }
+            }
+          }
         }
       },
       "maintains": [],
@@ -969,7 +996,7 @@
     "certificate": {
       "program": "minimum",
       "plan_hash": "5adaa282549f2ba9703d5f868dd47b804b5f47af0b70e9748331334dd68f7ad3",
-      "schema_hash": "2a688c41b4ca4fa150b3c5cdc06278ed75c312315b82843d7703db349dc9bd54",
+      "schema_hash": "d6ab45a2aff59ad1e33363a073aa365e469b8171d4ca896c5277c24ca3073f34",
       "tables": {},
       "rule_hashes": {},
       "evaluator_version": "bounded-spike-rust-search-text-refinements-5",
@@ -1028,7 +1055,15 @@
           },
           "publish": "Allow",
           "subscribe": "Allow",
-          "ttl_ms": 1000
+          "ttl_ms": 1000,
+          "value": {
+            "term": {
+              "Text": {
+                "max": 4,
+                "min": 2
+              }
+            }
+          }
         }
       },
       "maintains": [],

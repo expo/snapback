@@ -168,20 +168,17 @@ test("real channel membership revocation ends the subscriber with a refusal", as
   if (!owner.owned) return context.skip("the enhanced temporary chat fixture belongs to the self-started harness");
   const alice = createClient({ url: owner.url, as: "alice" });
   const bob = createClient({ url: owner.url, as: "bob" });
+  context.after(async () => { await alice.close(); await bob.close(); });
   const channel = bob.channel(api.typing, { conversationId: "conversation-1" });
-  const events: any[] = [];
-  const sub = channel.subscribe((event) => events.push(event));
-  // A delivery on the same live connection witnesses channel registration;
-  // a fixed sleep can publish before the control batch reaches a busy owner.
-  const witness = bob.subscribe(api.messages.summary, { conversationId: "conversation-1" }, () => {});
-  await witness.until((event: any) => event.live === true, 2_000);
-  witness.close();
-  const typing = sub.until((event: any) => event.payload?.typing === true, 2_000);
+  const snapshots: any[] = [];
+  const sub = channel.subscribe(snapshot => snapshots.push(snapshot));
+  await sub.until(snapshot => snapshot.status === "ready", 2_000);
+  const typing = sub.until(snapshot => snapshot.entries.some((entry: any) => entry.value.typing), 2_000);
   assert.deepEqual(
-    await alice.channel(api.typing, { conversationId: "conversation-1" }).publish({ typing: true }),
+    await alice.channel(api.typing, { conversationId: "conversation-1" }).set({ typing: true }),
     { ok: true },
   );
-  assert.deepEqual((await typing as any).payload, { typing: true });
+  assert.deepEqual((await typing).entries[0].value, { typing: true });
   const terminal = sub.until(() => false, 2_000).then(
     () => undefined,
     (error: unknown) => error,
@@ -194,12 +191,13 @@ test("real channel membership revocation ends the subscriber with a refusal", as
   const terminalError = await terminal;
   assert.ok(terminalError instanceof SnapbackRefusal);
   assert.equal(terminalError.code, "E_RULE_CHANNEL_SUBSCRIBE");
-  assert.equal(events.at(-1)?.state, "refused");
-  assert.equal(events.at(-1)?.family, "rule");
-  assert.equal(events.at(-1)?.guide, "rule/channels");
+  assert.equal(snapshots.at(-1)?.status, "unavailable");
+  assert.equal(snapshots.at(-1)?.reason, "refused");
+  assert.deepEqual(snapshots.at(-1)?.entries, []);
+  assert.equal(snapshots.at(-1)?.key, undefined);
+  assert.equal(snapshots.at(-1)?.refusal.family, "rule");
+  assert.equal(snapshots.at(-1)?.refusal.guide, "live-query");
   sub.close();
-  alice.close();
-  bob.close();
 });
 
 test("a real stored session restores after a cut with identical snapshot views and no mounted query", async () => {

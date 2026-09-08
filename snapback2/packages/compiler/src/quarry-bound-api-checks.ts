@@ -53,21 +53,49 @@ void [author, edited, input, wrong];`;
 
   const collision = prepared([
     ["snapback/schema.q", `table rooms:\n  public\n\n${["typing", "presence", "op", "then", "toJSON"].map((name) =>
-      `channel ${name}(room: rooms):\n  publish <- allow\n  subscribe <- allow\n  ttl 5s\n`).join("\n")}`],
+      `channel ${name}(room: rooms):\n  value: { typing: bool }\n  publish <- allow\n  subscribe <- allow\n  ttl 5s\n`).join("\n")}`],
     ["snapback/channels.q", "query typing():\n  return null\n"],
     ["snapback/typing.q", "query ping():\n  return rooms[] first 3 by byId { * }\n"],
   ]);
   const collisionApi = api(collision);
-  match(collisionApi, /readonly typing: Op<\{\}, null> & Channel<\{ room: string \}, unknown>;/);
+  match(collisionApi, /readonly typing: Op<\{\}, null> & Channel<\{ room: string \}, \{ typing: boolean \}>;/);
   match(collisionApi, /readonly ping: Op<\{\}, Page<RoomsRow>>;/);
-  match(collisionApi, /^    readonly presence: Channel<\{ room: string \}, unknown>;$/m);
+  match(collisionApi, /^    readonly presence: Channel<\{ room: string \}, \{ typing: boolean \}>;$/m);
   for (const reserved of ["typing", "op", "then", "toJSON"]) {
     doesNotMatch(collisionApi, new RegExp(`^    readonly ${reserved}: Channel<`, "m"));
   }
   deepStrictEqual(apiConsumerDiagnostics(collisionApi, `import { api, type Channel, type Op } from "snapback2/client";
-const nested: Op<{}, null> & Channel<{ room: string }, unknown> = api.channels.typing;
-const alias: Channel<{ room: string }, unknown> = api.presence;
-void [nested, alias];`), []);
+const nested: Op<{}, null> & Channel<{ room: string }, { typing: boolean }> = api.channels.typing;
+const alias: Channel<{ room: string }, { typing: boolean }> = api.presence;
+type Value<T> = T extends Channel<infer _A, infer V> ? V : never;
+const valid: Value<typeof api.presence> = { typing: true };
+// @ts-expect-error channel values carry a typed bool
+const wrong: Value<typeof api.presence> = { typing: "true" };
+// @ts-expect-error required value fields cannot be omitted
+const missing: Value<typeof api.presence> = {};
+// @ts-expect-error channel value declarations are closed records
+const extra: Value<typeof api.presence> = { typing: true, extra: 1 };
+// @ts-expect-error the generated reference carries its value type
+const wrongRef: Channel<{ room: string }, { typing: string }> = api.presence;
+void [nested, alias, valid, wrong, missing, extra, wrongRef];`), []);
+
+  const optionalChannel = prepared([["snapback/schema.q", `table rooms:
+  public
+
+channel typing():
+  value: { note: text <=20 ?, modes: [enum('typing', 'idle')] <=2 ?, amount: decimal 2 ? }
+  publish <- allow
+  subscribe <- allow
+  ttl 4s
+`]]);
+  deepStrictEqual(apiConsumerDiagnostics(api(optionalChannel), `import { api, type Channel } from "snapback2/client";
+type Value<T> = T extends Channel<infer _A, infer V> ? V : never;
+const omitted: Value<typeof api.typing> = {};
+const empty: Value<typeof api.typing> = { note: null, modes: null, amount: null };
+const filled: Value<typeof api.typing> = { note: "hello", modes: ["typing"], amount: 123 };
+// @ts-expect-error enum list elements keep their declared variants
+const wrong: Value<typeof api.typing> = { modes: ["other"] };
+void [omitted, empty, filled, wrong];`), []);
 
   const schedules = fixture("quarry-schedules");
   const scheduleApi = api(schedules);

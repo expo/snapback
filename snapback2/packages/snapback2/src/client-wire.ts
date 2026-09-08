@@ -2,8 +2,8 @@
 import type {
   AuthMe,
   AuthSession,
-  ChannelDelivery,
-  ChannelPublishResult,
+  ChannelEntry,
+  ChannelWriteResult,
   Cursor,
   LiveQueryDelivery,
   Manifest,
@@ -188,21 +188,38 @@ export function wireSubscription<Result>(data: string, connected?: (value: boole
   return { ...wireQuery<Result>(record, surface), live: true };
 }
 
-export function wireChannelDelivery<Payload>(data: string): ChannelDelivery<Payload> {
+/** Private transport data. The lease must never reach a public snapshot. */
+export type ChannelFrame<Value> = {
+  state: "snapshot"; key: string; lease: string; entries: readonly ChannelEntry<Value>[];
+} | RefusedDelivery;
+
+export function wireChannelFrame<Value>(data: string): ChannelFrame<Value> {
   const surface = "channel delivery";
   const record = sseObject(data, surface);
   if (record.state === "refused") {
     return { state: "refused", ...wireRefusalEnvelope(record, `${surface} refusal`) } as RefusedDelivery;
   }
-  return {
-    from: stringField(record, "from", surface) as Principal,
-    payload: present(record, "payload", surface) as Payload,
-    at: numberField(record, "at", surface),
-  };
+  if (record.state !== "snapshot" || !Array.isArray(record.entries) || record.entries.length > 64) {
+    throw wireShape(`${surface} requires a bounded snapshot`);
+  }
+  const key = stringField(record, "key", surface), lease = stringField(record, "lease", surface);
+  if (!key || !lease) throw wireShape(`${surface} requires a key and lease`);
+  const keys = new Set<string>();
+  const entries = record.entries.map((value): ChannelEntry<Value> => {
+    const entry = wireObject(value, "channel entry");
+    const key = stringField(entry, "key", surface);
+    const from = stringField(entry, "from", surface) as Principal;
+    const expiresAt = numberField(entry, "expiresAt", surface);
+    const payload = wireObject(present(entry, "value", surface), "channel value") as Value;
+    if (!key || keys.has(key) || !from || !Number.isSafeInteger(expiresAt)) throw wireShape("invalid channel entry");
+    keys.add(key);
+    return { key, from, value: payload, expiresAt };
+  });
+  return { state: "snapshot", key, lease, entries };
 }
 
-export function wireChannelPublish(value: unknown): ChannelPublishResult {
-  const surface = "channel publish response";
+export function wireChannelWrite(value: unknown): ChannelWriteResult {
+  const surface = "channel write response";
   const record = wireObject(value, surface);
   if (record.ok === true) return { ok: true };
   if (record.state !== "refused") throw wireShape(`${surface} must contain ok: true or state: refused`);

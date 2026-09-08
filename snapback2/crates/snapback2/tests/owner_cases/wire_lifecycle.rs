@@ -421,18 +421,25 @@ query before(boundary: time):
         "/api/channel/typing/subscribe?args=%7B%22conversationId%22%3A%22conversation-1%22%7D",
         "bob",
     );
+    assert_eq!(typing.event()["entries"], json!([]));
+    let mut alice_typing = Sse::open(
+        port,
+        "/api/channel/typing/subscribe?args=%7B%22conversationId%22%3A%22conversation-1%22%7D",
+        "alice",
+    );
+    let alice_lease = alice_typing.event()["lease"].clone();
     let publish = request(
         port,
         "POST",
-        "/api/channel/typing/publish",
+        "/api/channel/typing/set",
         &[("X-Snapback-As", "alice")],
-        json!({ "args": { "conversationId": "conversation-1" }, "payload": { "typing": true } }),
+        json!({ "args": { "conversationId": "conversation-1" }, "lease": alice_lease, "version": 1, "value": { "typing": true } }),
     );
     assert_eq!(publish.body, json!({ "ok": true }));
     let typing_event = typing.event();
-    assert_eq!(typing.last_id, Some(committed_seq));
-    assert_eq!(typing_event["from"], "dev:alice");
-    assert_eq!(typing_event["payload"]["typing"], true);
+    assert_eq!(typing.last_id, None);
+    assert_eq!(typing_event["entries"][0]["from"], "dev:alice");
+    assert_eq!(typing_event["entries"][0]["value"]["typing"], true);
 
     let left = request(
         port,
@@ -446,7 +453,7 @@ query before(boundary: time):
     );
     assert_eq!(left.body["state"], "committed", "{}", left.body);
     let channel_refusal = typing.event();
-    assert_eq!(typing.last_id, left.body["seq"].as_u64());
+    assert_eq!(typing.last_id, None);
     assert_eq!(channel_refusal["state"], "refused", "{channel_refusal}");
     assert_eq!(channel_refusal["code"], "E_RULE_CHANNEL_SUBSCRIBE");
     assert_eq!(channel_refusal["family"], "rule");
@@ -460,7 +467,7 @@ query before(boundary: time):
             .as_str()
             .is_some_and(|value| !value.is_empty())
     );
-    assert_eq!(channel_refusal["guide"], "rule/channels");
+    assert_eq!(channel_refusal["guide"], "live-query");
 
     let before = status(port, &secret);
     let old_generation = before["generation"].as_str().unwrap().to_owned();

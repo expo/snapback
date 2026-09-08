@@ -91,6 +91,7 @@ maintain counterTotals = sum counters of value by owner:
   readable <- allow
 
 channel typing(group: groups):
+  value: { typing: bool }
   publish <- exists memberships[group, viewer]
   subscribe <- exists memberships[group, viewer]
   ttl 5s

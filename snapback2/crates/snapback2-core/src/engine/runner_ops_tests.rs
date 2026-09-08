@@ -333,10 +333,11 @@ fn generation_hashes_match_canonical_inputs_and_replace_atomically() {
     schema.channels.insert(
         "presence".into(),
         Channel {
+            value: BTreeMap::from([("typing".to_owned(), ArgType::Bool)]),
             args: BTreeMap::new(),
             publish: RuleExpr::Allow,
             subscribe: RuleExpr::Deny,
-            ttl_ms: 10,
+            ttl_ms: 1000,
         },
     );
     schema.tables.get_mut("cards").unwrap().rules.read = RuleExpr::Exists {

@@ -6,10 +6,10 @@ use crate::engine::{
     AuthoritativeTrace, ClosureReceipt, Context, Engine, Execution, ExecutionState, PointTrace,
     RuleInputTrace, RuntimeError,
 };
-use crate::ir::{ArgType, Expr, Program, ProgramKind, Stmt};
+use crate::ir::{Expr, Program, ProgramKind, Stmt};
 use crate::live::Subscriptions;
 use crate::schema::{Auth, RuleExpr, Schema, maintain_issues};
-use crate::store::{CommitRecord, Store, unix_millis};
+use crate::store::{Store, unix_millis};
 use crate::successor::{
     MigrationPlan, SuccessorRefusal, SuccessorReport, additive_refusal, apply_additive,
     apply_migration_drops, plan, projected_predecessor_ids, successor_refusal,
@@ -209,6 +209,14 @@ impl Generation {
             reserved_rule_reads.clear();
         }
         for (channel, definition) in &schema.channels {
+            for error in channels::schema_errors(&schema, channel, definition) {
+                errors.push((format!("channel.{channel}"), CheckError {
+                    site: Some(format!("channel.{channel}")),
+                    code: "E_SCHEMA".to_owned(),
+                    message: error.to_string(),
+                    rewrite: "declare a typed channel value and ttl from 1s to 30s; see snapback2 guide live-query".to_owned(),
+                }));
+            }
             collect_reserved_rule_reads(&definition.publish, &mut reserved_rule_reads);
             collect_reserved_rule_reads(&definition.subscribe, &mut reserved_rule_reads);
             for reserved in &reserved_rule_reads {
@@ -1066,83 +1074,6 @@ impl Runtime {
             })
             .collect()
     }
-
-    pub fn channel_admit(
-        &mut self,
-        name: &str,
-        side: ChannelSide,
-        args: &BTreeMap<String, Value>,
-        context: &Context,
-    ) -> Result<ChannelVerdict, RuntimeError> {
-        let channel = self
-            .generation
-            .schema
-            .channels
-            .get(name)
-            .cloned()
-            .ok_or_else(|| RuntimeError::Input(format!("unknown channel {name}")))?;
-        let mut args = args.clone();
-        crate::engine::complete_optional_args(&channel.args, &mut args);
-        if args.len() != channel.args.len() {
-            return Err(RuntimeError::Input(format!(
-                "channel {name} expected {} args, got {}",
-                channel.args.len(),
-                args.len()
-            )));
-        }
-        for (arg, kind) in &channel.args {
-            let value = args
-                .get(arg)
-                .ok_or_else(|| RuntimeError::Input(format!("channel {name} missing arg {arg}")))?;
-            crate::engine::validate_typed_arg_value(
-                &self.generation.schema,
-                kind,
-                value,
-                &format!("channel {name} arg {arg}"),
-            )?;
-            if matches!(kind, ArgType::Scalar)
-                && matches!(value, Value::Array(_) | Value::Row(_) | Value::Map(_))
-            {
-                return Err(RuntimeError::Input(format!(
-                    "channel {name} arg {arg} must be scalar"
-                )));
-            }
-        }
-        let certificates = self
-            .generation
-            .channel_certificates
-            .get(name)
-            .ok_or_else(|| {
-                RuntimeError::TraceSubset(format!("channel {name} lacks certificate"))
-            })?;
-        let (rule, certificate) = match side {
-            ChannelSide::Publish => (channel.publish, &certificates.publish),
-            ChannelSide::Subscribe => (channel.subscribe, &certificates.subscribe),
-        };
-        let row = Value::Row(args.clone().into());
-        let (admitted, trace) =
-            self.engine
-                .probe_rule(&rule, &row, context.clone(), Some(certificate))?;
-        Ok(ChannelVerdict {
-            admitted,
-            rule_inputs: trace.rule_inputs,
-            points: trace.points,
-        })
-    }
-
-    pub fn channel_touched(commit: &CommitRecord, verdict: &ChannelVerdict) -> bool {
-        commit.touched.iter().any(|touched| {
-            verdict.rule_inputs.iter().any(|input| {
-                input.table == touched.table
-                    && input.index == touched.index
-                    && input.key == touched.key
-            }) || verdict.points.iter().any(|point| {
-                point.table == touched.table
-                    && point.index == touched.index
-                    && point.key == touched.key
-            })
-        })
-    }
 }
 
 fn seed_program(
@@ -1497,3 +1428,6 @@ pub use operator::OperatorId;
 mod registry_jobs;
 #[path = "registry_timers.rs"]
 mod registry_timers;
+
+#[path = "channels.rs"]
+pub(crate) mod channels;

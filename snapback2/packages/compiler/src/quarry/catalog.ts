@@ -77,6 +77,8 @@ export function buildCatalog(documents: Document[]): TableCatalog {
       if (channelNames.has(channel.name)) refuse(channel.site, `duplicate channel ${channel.name}`);
       channelNames.add(channel.name);
       validateArgs(channel.args, catalog);
+      validateArgs(channel.value, catalog);
+      for (const field of channel.value) validateChannelValue(field.type, field.site);
     }
     const programNames = new Set<string>();
     for (const program of document.programs) {
@@ -97,6 +99,18 @@ function validateArgs(args: Array<{ name: string; type: ScalarType; site: Site }
     names.add(arg.name);
     validateType(arg.type, catalog, arg.site);
   }
+}
+
+// @ref LLP 1001.000#declaration-and-value — latest state owns no asset custody, byte stream or durable cursor.
+function validateChannelValue(type: ScalarType, site: Site): void {
+  if (["bytes", "image", "video", "cursor"].includes(type.kind)) throw new QuarryError(site,
+    `channel values do not support ${type.kind}`, "E_QUARRY_TYPE",
+    "use bounded text, json, scalars, enums, optionals or lists in value", "live-query");
+  if ((type.kind === "text" || type.kind === "json" || type.kind === "list")
+    && (!Number.isInteger(type.max) || type.max < 1 || type.max > 0xffff_ffff)) throw new QuarryError(site,
+    "channel value bounds must be positive integers no larger than 4294967295", "E_QUARRY_TYPE",
+    "use a positive bounded text, json or list type", "live-query");
+  if (type.kind === "list") validateChannelValue(type.item, site);
 }
 
 function validateType(type: ScalarType, catalog: TableCatalog, site: Site): void {

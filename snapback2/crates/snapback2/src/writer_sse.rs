@@ -1,4 +1,4 @@
-//! Bounded single-slot SSE handoff with live coalescing and channel overflow refusal.
+//! Bounded single-slot SSE handoff with replacement coalescing and sticky termination.
 
 use super::SseEvent;
 use std::sync::mpsc::RecvTimeoutError;
@@ -9,6 +9,7 @@ struct Queue {
     event: Option<SseEvent>,
     senders: usize,
     receiver_alive: bool,
+    terminal: bool,
     wake: Option<std::sync::mpsc::SyncSender<()>>,
 }
 
@@ -26,7 +27,6 @@ pub struct SseReceiver {
 }
 
 pub enum SendError {
-    Full,
     Disconnected,
 }
 
@@ -36,6 +36,7 @@ pub fn queue() -> (SseSender, SseReceiver) {
             event: None,
             senders: 1,
             receiver_alive: true,
+            terminal: false,
             wake: None,
         }),
         ready: Condvar::new(),
@@ -49,27 +50,17 @@ pub fn queue() -> (SseSender, SseReceiver) {
 }
 
 impl SseSender {
-    pub fn send_latest(&self, event: SseEvent) -> Result<(), SendError> {
-        let mut queue = self.shared.queue.lock().expect("SSE queue lock");
-        if !queue.receiver_alive {
-            return Err(SendError::Disconnected);
-        }
-        queue.event = Some(event);
-        self.shared.ready.notify_one();
-        if let Some(wake) = &queue.wake {
-            let _ = wake.try_send(());
-        }
-        Ok(())
+    pub fn is_alive(&self) -> bool {
+        let queue = self.shared.queue.lock().expect("SSE queue lock");
+        queue.receiver_alive && !queue.terminal
     }
 
-    pub fn try_send(&self, event: SseEvent) -> Result<(), SendError> {
+    pub fn send_latest(&self, event: SseEvent) -> Result<(), SendError> {
         let mut queue = self.shared.queue.lock().expect("SSE queue lock");
-        if !queue.receiver_alive {
+        if !queue.receiver_alive || queue.terminal {
             return Err(SendError::Disconnected);
         }
-        if queue.event.is_some() {
-            return Err(SendError::Full);
-        }
+        queue.terminal = event.terminal;
         queue.event = Some(event);
         self.shared.ready.notify_one();
         if let Some(wake) = &queue.wake {
@@ -174,16 +165,17 @@ mod tests {
     }
 
     #[test]
-    fn a_non_reading_client_has_one_bounded_slot() {
+    fn terminal_refusal_replaces_and_permanently_fences_data() {
         let (sender, receiver) = queue();
-        assert!(sender.try_send(event(1)).is_ok());
-        for value in 2..100 {
-            assert!(matches!(
-                sender.try_send(event(value)),
-                Err(SendError::Full)
-            ));
-        }
-        assert_eq!(receiver.recv_timeout(Duration::ZERO).unwrap().seq, Some(1));
+        sender.send_latest(event(1)).ok().unwrap();
+        let mut refused = event(2);
+        refused.terminal = true;
+        sender.send_latest(refused).ok().unwrap();
+        assert!(sender.send_latest(event(3)).is_err());
+        let frame = receiver.recv_timeout(Duration::ZERO).unwrap();
+        assert!(frame.terminal);
+        assert_eq!(frame.seq, Some(2));
+        assert!(sender.send_latest(event(4)).is_err());
     }
 
     #[test]

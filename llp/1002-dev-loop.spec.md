@@ -5,7 +5,7 @@
 **Systems:** `snapback2/crates/snapback2` (the binary: owner, server, verbs), `snapback2/packages/compiler` (project lowering, worker), `snapback2/packages/snapback2` (authoring runtime, client, React, test runner, shim), `snapback2/scripts/measure.mjs`
 **Author:** Claude Fable 5 (orchestrator) — implementers: codex gpt-5.6-sol, lanes B0 (compiler + authoring surface), B1 (owner + server + verbs), B2 (`init`, `test`, `why`, `trace`, `guide`), D (client + React + evaluator)
 **Date:** 2026-08-29
-**Revised:** 2026-09-08 (resource-aware blocking Rust test scheduling and paired timing); 2026-09-07 (generated insert/merge consumer type bindings; implementer GPT-6 Astra); 2026-09-07 (independent Quarry diagnostics, checked-type repair advice, lexical failure isolation and merge discovery ordering; implementer GPT-6 Astra); 2026-09-07 (preserve unrelated prefixed optional packages; staged platform dependency selection and exact-lock packaging regression; durable browser-follower admission and unknown-outcome recovery; client-owned observed query snapshots; explicit named-journey verification and executable React startup; startup cleanup fixture custody); 2026-09-06 (app guide operation/certificate custody; native logical SSE body; CLI help and executable migration recovery; auth startup recovery and held transition reads; queued transitions, interrupted sync, live held reads); 2026-09-05 (keyword index fallback and recipe list; generated Quarry keyword guide, landed outbox/client custody; auth review: failed-transition custody, read restoration barrier, session kind, paused offline retries; client-owned auth restoration and retry lifecycle; catalog naming rewrites, Clique L2; shared live transport, bounded derived verification, mutation-read guidance, installed consumer qualification)
+**Revised:** 2026-09-08 (LLP 1001.000 typed latest-state channels, leases and snapshot clients); 2026-09-08 (resource-aware blocking Rust test scheduling and paired timing); 2026-09-07 (generated insert/merge consumer type bindings; implementer GPT-6 Astra); 2026-09-07 (independent Quarry diagnostics, checked-type repair advice, lexical failure isolation and merge discovery ordering; implementer GPT-6 Astra); 2026-09-07 (preserve unrelated prefixed optional packages; staged platform dependency selection and exact-lock packaging regression; durable browser-follower admission and unknown-outcome recovery; client-owned observed query snapshots; explicit named-journey verification and executable React startup; startup cleanup fixture custody); 2026-09-06 (app guide operation/certificate custody; native logical SSE body; CLI help and executable migration recovery; auth startup recovery and held transition reads; queued transitions, interrupted sync, live held reads); 2026-09-05 (keyword index fallback and recipe list; generated Quarry keyword guide, landed outbox/client custody; auth review: failed-transition custody, read restoration barrier, session kind, paused offline retries; client-owned auth restoration and retry lifecycle; catalog naming rewrites, Clique L2; shared live transport, bounded derived verification, mutation-read guidance, installed consumer qualification)
 **Related:** LLP 1000, LLP 1001 (the engine this serves), LLP 1003 (effects),
 LLP 0329.016 §5 (the design this implements verbatim where it can), LLP
 0329.016 §5.11 (the verb table — no verb exists without its row), LLP
@@ -62,9 +62,9 @@ Implementers and date: codex gpt-5.6-sol (xhigh), lanes B0/B1/B2/D,
 
 ## 2. The authored surface (the `snapback2` module)
 
-The module exports inert descriptors — no body ever runs in the authoring
-process — plus the types the compiler checks against (`lib.d.ts` becomes the
-module's declaration; the compiler accepts and strips the import):
+The TypeScript sketch below is historical; Quarry is the current authoring
+surface (LLP 1004 and LLP 1018.000). Channel declarations and values now follow
+LLP 1001.000. The original inert-descriptor model was:
 
 ```ts
 import { schema, table, t, rule, channel, query, mutation, effect, emit, seed } from 'snapback2'
@@ -441,8 +441,9 @@ required fields in the client's public types as well as in its validator. Authen
 | `POST /api/query` | `{ op, args }` → complete/capped `{ state, data, seq, next: cursor \| null }`, partial `{ state, data?, seq, reason }`, or denied `{ state, seq, rule }` |
 | `POST /api/mutation` | `{ op, args }` → `{ state: "committed", seq, data }` \| `{ state: "rejected", code, family, message, rewrite? }` |
 | `GET /api/subscribe?op=&args=<urlencoded json>` | SSE; `id: <seq>`; each `data:` frame is **exactly a query response object** (`{ state: "complete" \| "capped" \| "partial" \| "denied", data, seq, … }`) or a refusal envelope (`{ state: "refused", code, family, message, … }`, terminal); the server never sends `live`/`stale` — those are client connection facts; a `: heartbeat` comment every 15 s (review ruling 2026-08-30) |
-| `POST /api/channel/<name>/publish` | `{ args, payload }` → `{ ok: true }` \| `{ state: "refused", code }` |
-| `GET /api/channel/<name>/subscribe?args=` | SSE; `data: { from, payload, at }`; the owner drops the stream when a commit touches the probe's key and re-admission fails |
+| `POST /api/channel/<name>/set` | `{ args, lease, version, value }` → `{ ok: true }` or the complete refusal envelope |
+| `POST /api/channel/<name>/clear` | `{ args, lease, version }` → `{ ok: true }` or the complete refusal envelope |
+| `GET /api/channel/<name>/subscribe?args=` | SSE; immediate and coalesced `{ state: "snapshot", key, lease, entries }`; entries contain `{ key, from, value, expiresAt }`, no durable sequence; subscribe revocation terminates and publish revocation removes the entry (LLP 1001.000) |
 | `GET /api/manifest` | `{ generation, ops: { "todos.list": { kind, args } }, channels, auth }` |
 
 **Shared live transport (2026-09-05; implementer: Codex, this change).** The
@@ -465,13 +466,17 @@ the mounted set does not interrupt other live queries or ephemeral channels.
 Physical connection loss makes each logical subscription retry through its
 existing stale/offline and authorization rules. Query reconnect is full
 re-delivery (or the existing receipt validator path), not event-id replay;
-channels do not replay missed ephemeral events. Heartbeats remain 15 seconds.
+channels mint fresh leases and deliver fresh room snapshots, with no replay
+or automatic value republish. Heartbeats remain 15 seconds and do not renew
+a stored channel value's TTL (LLP 1001.000).
 
 One physical stream consumes one SSE worker (48 available under the current
 server budget); one client supports 256 logical subscriptions. Each owner
-child retains its bounded single-slot queue: query deliveries coalesce and
-channel overflow disconnects that child. Client demultiplexing similarly bounds
-pending query data and refuses an overflowing channel consumer. The shared
+child retains its bounded single-slot queue: query and channel deliveries
+coalesce independently to their latest complete state, with terminal refusals
+taking precedence. Client demultiplexing also coalesces each child. Channels
+add 64 handles per room, 1024 per owner, 1 KiB scopes and 4 KiB values
+(LLP 1001.000); capacity refuses a new child rather than truncating a room. The shared
 stream lasts until client close, offline, authority replacement, or network
 loss; close explicitly releases its owner children. Standalone GET subscription
 routes remain available to raw wire consumers and the CLI proof harness.
@@ -852,8 +857,19 @@ await client.mutation(api.todos.add, { title })       // → committed | rejecte
 await client.recoverMutation(api.todos.add, { title }, recovery) // same forwarded request identity
 const sub = client.subscribe(api.todos.list, args, (r) => …)   // SSE; { state: live|stale|refused|partial }; sub.close(); sub.until(pred)
 const observed = client.observe(api.todos.list, args)       // lazy { getSnapshot, subscribe }; shares sub's entry
-client.channel(api.typing, args).publish(payload) / .subscribe(cb)
+const room = client.channel(api.typing, args) // lazy, typed ephemeral state
+room.getSnapshot(); room.subscribe(cb); await room.set({ typing: true })
+await room.clear(); room.close()
 ```
+
+`useChannel(api.typing, args)` owns this handle for React/Expo and returns its
+immutable `entries`, `key`, `status` (`loading | ready | unavailable`), reason,
+refusal, `set` and `clear`. The private wire lease never reaches callbacks.
+Transport loss and authority replacement erase its entries; reconnect receives
+a fresh snapshot. Headless handles stay open until `close`, even after their
+last listener detaches. Cold `clear` opens nothing and cancels older sets
+waiting for initial admission. No durable receipt, prediction or offline queue
+is implied; LLP 1001.000 is the complete lifecycle and version-fencing contract.
 
 `api` is a proxy (`api.todos.list` → `{ op: 'todos.list' }`) typed *only* by
 the `Api` augmentation in `.snapback/build/api.d.ts` (no index signature: a

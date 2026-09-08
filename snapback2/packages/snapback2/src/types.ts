@@ -166,14 +166,30 @@ export interface AuthApi {
   me(): Promise<AuthMe>;
 }
 
-export interface ChannelEvent<Payload = unknown> { from: Principal; payload: Payload; at: number }
-export type ChannelDelivery<Payload = unknown> = ChannelEvent<Payload> | RefusedDelivery;
-export type ChannelPublishResult =
+// @ref LLP 1001.000#observable-client-surface — ephemeral snapshots carry no durable receipt or private lease.
+export interface ChannelEntry<Value> {
+  readonly key: string;
+  readonly from: Principal;
+  readonly value: Value;
+  readonly expiresAt: number;
+}
+export interface ChannelSnapshot<Value> {
+  readonly entries: readonly ChannelEntry<Value>[];
+  readonly key?: string;
+  readonly status: "loading" | "ready" | "unavailable";
+  readonly reason?: "reconnecting" | "offline" | "refused" | "closed";
+  readonly refusal?: RefusalEnvelope;
+}
+export type ChannelWriteResult =
   | { ok: true }
   | ({ state: "refused" } & RefusalEnvelope);
-export interface ChannelHandle<Payload = unknown> {
-  publish(payload: Payload): Promise<ChannelPublishResult>;
-  subscribe(callback: (event: ChannelDelivery<Payload>) => void): Subscription<ChannelDelivery<Payload>>;
+export interface ChannelHandle<Value> {
+  getSnapshot(): ChannelSnapshot<Value>;
+  subscribe(callback: (snapshot: ChannelSnapshot<Value>) => void): Subscription<ChannelSnapshot<Value>>;
+  set(value: Value): Promise<ChannelWriteResult>;
+  clear(): Promise<ChannelWriteResult>;
+  /** Releases this handle's entry and connection, including when it has no listeners. */
+  close(): void;
 }
 
 export type DrainContract = { cursor: string } | { reason: string };
@@ -425,7 +441,7 @@ export interface SnapbackClient {
     callback: (delivery: SubscriptionDelivery<Result>) => void,
     options?: { drain?: boolean },
   ): Subscription<SubscriptionDelivery<Result>>;
-  channel<Args, Payload = unknown>(ref: ChannelRef<Args, Payload>, args: NoInfer<Args>): ChannelHandle<Payload>;
+  channel<Args, Value>(ref: ChannelRef<Args, Value>, args: NoInfer<Args>): ChannelHandle<Value>;
   manifest(): Promise<Manifest>;
   subscribeStatus(callback: (snapshot: ClientSnapshot) => void): () => void;
   /** Cut only this client's transport; the owner remains running. */

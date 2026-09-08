@@ -28,8 +28,8 @@ stop();
 ```
 
 The generated `.snapback/build/api.d.ts` is the only source of `api` members, so
-operation and channel arguments flow through the headless client and React hooks
-without committed generated code. Typos and extra arguments are compile errors.
+operation arguments and channel arguments/values flow through the headless client
+and React hooks without committed generated code. Typos and extra fields are compile errors.
 
 ```tsx
 import { SnapbackProvider, useMutation, useQuery } from "snapback2/react";
@@ -84,8 +84,38 @@ in the partition's own IndexedDB `inbox` store and resolves
 the partition lock admits rows in key order, in the same transaction as the
 entry each becomes, and that entry records `inbox` so the alias names it on
 either tab. Rows survive reloads and writer takeover; there is no forwarded
-command and no unknown outcome (LLP 1018.004). Uploads and channel publishes
+command and no unknown outcome (LLP 1018.004). Uploads and channel writes
 still refuse from a follower before sending bytes.
+
+## Channels
+
+Channels hold typed latest state in a scope. Declare `value: { typing: bool }`,
+durable `publish` and `subscribe` rules, and `ttl 4s` under
+`channel typing(conversationId: conversations):` in `schema.q`. TTL is required,
+from 1 through 30 seconds. Values use argument types; asset, byte and cursor
+fields are excluded. See `snapback2 guide channel` for the complete declaration.
+
+`useChannel(api.typing, { conversationId })` returns immutable `entries`,
+`status` (`loading`, `ready`, `unavailable`), optional `reason`/`refusal`, and
+`set({ typing: true })`/`clear()`. Each connection owns one entry with server-derived
+`key` and `from`, typed `value` and `expiresAt`. Set replaces the whole value and
+renews TTL; there is no automatic renewal. Two tabs have separate keys; group by
+`from` when displaying people. Reconnect can briefly overlap old and new keys.
+
+The headless `client.channel(ref, args)` is inert until `subscribe(listener)` or
+`set(value)`. Read `getSnapshot()` and close the handle with `close()` when done;
+an observation's `close()` only removes its listener. React owns and closes its
+handle. Clear with no connection succeeds locally without opening one. Opening
+requires subscribe permission; set also requires publish permission. Clear can
+release the owned entry after publish permission disappears.
+
+Subscribers receive the current room immediately, including empty rooms. Slow
+readers receive the newest replacement snapshot. Transport loss clears displayed
+state, and reconnect gets a fresh room without replaying your value. State
+expires or disappears on disconnect, revocation and restart. Writes are online,
+without prediction, retries or a durable queue; success means the owner applied
+the command. An ambiguous network outcome settles through snapshots and TTL.
+Channels have no history, durable queries, joins or transactions.
 
 ## Assets
 

@@ -1,91 +1,97 @@
 # Live query
 
-Trace-intersecting commits make queries live. Bound scans. Cursor indexes
-end in `id`; pass `cursor ?` to `after`, with `null` for page one.
+Bound scans. Cursor indexes end in `id`; pass `cursor ?` to `after`,
+with `null` for page one.
 
-```q
-query thread(conversationId: conversations, c: cursor ?):
-  require isMember(conversationId, viewer) else MEMBERSHIP_REQUIRED
-  return messages[conversationId] after c last 50
-```
+`complete`/`capped` carry opaque `next: Cursor | null`, bound to table/index/order.
+Pass it back; never inspect or construct it. A record may hold one cursor page
+beside count/fixed preview; aliases and shapes preserve it. Competing cursor
+pages have no continuation. Reset on index/order changes.
 
-`complete` and `capped` carry `next: Cursor | null`. Pass it back for the next
-page; never inspect or construct it. It binds table/index/order. One cursor page
-can sit in a record beside count/fixed preview; aliases and shapes preserve it.
-Competing cursor pages have no continuation. Reset on index/order changes.
+`client.subscribe(api.messages.thread, args, listener)` emits responses/refusals.
+`client.observe`/`useQuery` share an immutable snapshot: `data`, certified
+`receipt` (`outcome`, `source`, `seq`, `next`), `freshness`, local
+prediction/retention/catch-up facts, and refusal. Derived `status` is `loading`,
+`ready`, or `unavailable`, with `reason`. Local commits reevaluate once;
+bookkeeping is silent. Resets load; transport preserves the certified outcome.
 
-`client.subscribe(api.messages.thread, args, listener)` emits query responses
-or refusals. Transport `live`/`stale` never replaces the certified outcome.
-
-`client.observe` shares one immutable snapshot with headless and React.
-`useQuery` returns it: `data`; certified `receipt` (`outcome`, `source`, `seq`,
-`next`); `freshness`; local prediction/retention/catch-up facts; and refusal.
-`status` (`loading`, `ready`, `unavailable`) and `reason` are derived. Local
-commits reevaluate once; bookkeeping stays silent. Resets load.
-
-Use one query for list/count/preview. Declare history once:
+One query for list/count/preview; add history:
 `withHistory(items, { items: threadItems, args: q => ({ ...q, c: null }) })`.
-`itemsFrom === "query"` narrows `data` to the complete composite. `history`
-means readable fallback, else `drafts`. Its own `history` snapshot exists iff
-the composite is partial; never denial/refusal/reset. Retained mixed or purged
-projections are partial: readable rows give no count/preview. History cursors
-belong to that query; a usable composite detaches history.
+`itemsFrom === "query"` narrows `data` to the complete composite; readable
+fallback is `history`, else `drafts`. Its `history` snapshot exists iff the
+composite is partial; never denial/refusal/reset. Retained mixed or purged
+projections are partial: rows give no count/preview. History cursors belong to
+that query; a usable composite detaches history.
 
-Use `{ items: spec }` with `useQuery`/`observe`. Declare `spec` once with
-`snapback2/client`'s `defineItems(query, { table, select, order, create, update,
-remove })`; object results also name `rows`. `select` returns an original row
-or null. Actions name `target: mutationTarget(op, "messages")`; submit that
-target to `useMutation`/`client.mutation` too. Table/action choices are typed;
-addresses are certified. Ambiguous or changed-program targets stay intent-only.
+Declare `{ items: spec }` for `useQuery`/`observe` with `snapback2/client`'s
+`defineItems(query, { table, select, order, create, update, remove })`; record
+results also name `rows`. `select` returns an original row or null. Actions name
+`target: mutationTarget(op, "messages")`; submit that target to
+`useMutation`/`client.mutation` too. Choices are typed; addresses are certified.
+Ambiguous or changed-program targets stay intent-only.
 
-Items have stable `key`, selected `data`, submitted `draft` while a create is
-pending, `predicted`, and FIFO `pending` actions. Drafts have no server time.
-Row evidence resolves indicators; receipt/status and durable history stay intact.
+Items expose stable `key`, selected `data`, submitted `draft` during create,
+`predicted`, and FIFO `pending` actions. Drafts have no server time. Row evidence
+settles indicators; receipt/status and durable history stay intact.
 
-One SSE connection carries up to 256 query/channel subscriptions, including
-HTTP/1.1. Adding/closing one leaves peers active. Unmount unused components;
-CSS hiding keeps queries active. Close the client with its scope.
-Reconnect re-delivers query state, not ephemeral channel events.
+One SSE connection holds up to 256 query/channel subscriptions, including
+HTTP/1.1. Closing one leaves peers active; CSS hiding keeps queries active.
+Unmount unused components; close the client with its scope.
 
-Keep newest-first subscriptions at `c: null`; fetch older pages separately with
-`next`, preserving scope/state/freshness. History reads do not move the live head.
-`drain: true` in `client.subscribe`/`useQuery` follows an ascending append log
-(`after c first N`, N <=50), emitting each page then watching its tail. Unsupported
-returned shapes refuse E_OFFLINE_RESUME, `reason: "unsupported-log"`. Ordinary
-descending queries stay valid. See offline.
+Keep newest-first subscriptions at `c: null`; fetch history with `next`, preserving
+scope/state/freshness. `drain: true` in `subscribe`/`useQuery` pages then watches
+an ascending append log (`after c first N`, N <=50). Unsupported shapes refuse
+E_OFFLINE_RESUME, `reason: "unsupported-log"`. Descending queries stay valid. See offline.
 
 ## Channels
 
-`channel name(args):` declares ephemeral events with `publish`/`subscribe`
-rules and `ttl Ns`, for typing; events are not replayable. A heartbeat table
-is a workaround for recent activity. Lag is the heartbeat interval plus the expiry
-delay; disconnects are seen late. Do not gate delivery on it: use durable receipts
-and a delayed unacknowledged check.
+`channel name(args):` declares typed latest state scoped by its arguments.
+A heartbeat table is a workaround for durable recent activity. Its lag is the
+heartbeat interval plus the expiry delay; disconnects are seen late.
+Do not gate delivery on it: use durable receipts.
+
+```q
+channel typing(conversationId: conversations):
+  value: { typing: bool }
+  publish <- exists memberships[conversationId, viewer]
+  subscribe <- exists memberships[conversationId, viewer]
+  ttl 4s
+```
+
+`value` is a closed, nonempty record of argument types; no asset/bytes/cursor fields,
+even nested. Omitted optionals become null; wrong/extra fields refuse.
+`ttl` is integer seconds, 1–30.
+
+`useChannel(api.typing, { conversationId })` returns `entries`, `status`
+(`loading | ready | unavailable`), `set({ typing: true })` and `clear()`.
+Each handle owns one entry: `key`, server-derived `from`, typed `value`, `expiresAt`.
+Set replaces value and renews TTL; clear removes it. Presence renews explicitly.
+
+`client.channel(ref, args)` opens on `subscribe(listener)` or `set(value)`;
+read `getSnapshot()`. Observation `close()` detaches a listener; handle `close()`
+ends the connection. React cleans up; cold clear opens nothing. Snapshots arrive
+immediately, coalesce, and restart fresh on reconnect without republishing.
+Loss clears client state; disconnect/expiry/revocation/restart remove state.
+No history, queries or offline queue.
 
 ## Connected
 
-`connected` is a read-only virtual table: `exists connected[p]` tests a
-principal's live connection; `#connected[p]`
-counts authenticated SSE transports (including `--as`), once per transport,
-regardless of subscriptions. Pass one nonoptional principal (`viewer` for self).
-Do not declare this built-in in the schema. Query/mutation
-programs may read it; rules/maintains must use durable facts instead.
-Each read charges one probe and touches `_connected` at that principal. One
-immutable snapshot per program run covers every read. Connect/close is visible to the next
-execute; live reruns wait up to 1 s to coalesce. Revocation closes session streams;
-silent partitions surface on failed writes with no latency guarantee. Offline
-reads are `hydrating` and never predicted, even with a cache. Connection is no
-foreground/idle or delivery guarantee and adds no channel/subscriber broadcast.
+`connected` is a read-only virtual table: `exists connected[p]` tests connection;
+`#connected[p]` counts authenticated SSE transports once each (including `--as`).
+Pass a nonoptional principal (`viewer` for self).
+Programs may read it; rules/maintains use durable facts. A read costs one probe,
+touches `_connected` at that principal, and shares one immutable snapshot per program run.
+Connect/close affects the next execute; live reruns wait up to 1 s to coalesce.
+Revocation closes session streams; silent partitions surface on failed writes
+with no latency guarantee. Offline reads are `hydrating` and never predicted.
+Connection promises no foreground/idle or delivery guarantee or channel/subscriber broadcast.
 
 ## Unicode word-prefix search
 
-`wordPrefixes` is an engine-maintained nonunique index component over bounded
-text columns, between scope and ordering columns. Queries equality-bind scope
-and search; this index cannot serve point reads, rules, writes or aggregates.
+`wordPrefixes` is a maintained nonunique bounded text index, after scope and before
+ordering. Equality-bind scope/search; no point reads, rules, writes or maintains.
 
-The chat template declares
-`by bySearch: conversationId, wordPrefixes(body), at, id` on `messages` and
-binds it through this named query:
+`messages` declares `by bySearch: conversationId, wordPrefixes(body), at, id`:
 
 ```q
 query search(term: text <=128, c: cursor ?):
@@ -94,11 +100,10 @@ query search(term: text <=128, c: cursor ?):
   return page
 ```
 
-The pinned Unicode 17 contract is NFC, simple case fold, then NFC. Whitespace
-and Unicode punctuation separate words; accents remain significant. The term
-must normalize to exactly one word: zero words match nothing and multiple words
-are refused. The membership merge returns one page/cursor. Its held twin uses
+Unicode 17 applies NFC, simple case fold, then NFC; whitespace and Unicode
+punctuation split words. Accents matter. The term must normalize to exactly one word:
+zero words match nothing; multiple words refuse. The merge returns one page/cursor.
+Its held twin uses
 the same index and reports `held`, `partial`, or `capped`, never complete server search.
 
-Normalized words stay index-internal; no `words()` function. `tokens(text)`
-extracts mentions.
+`tokens(text)` extracts mentions; search words stay internal.

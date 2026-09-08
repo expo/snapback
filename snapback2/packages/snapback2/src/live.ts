@@ -161,12 +161,9 @@ export class SharedSse {
         this.finish(connection, entry);
       } else if ((entry.controller.desiredSize ?? 0) > 0) {
         entry.controller.enqueue(bytes);
-      } else if (entry.path.startsWith("/api/subscribe?")) {
-        // Latest-value queries coalesce while a slow decoder persists a receipt.
-        entry.pending = bytes;
       } else {
-        entry.controller.error(new TypeError("channel consumer fell behind the shared stream"));
-        this.finish(connection, entry);
+        // @ref LLP 1001.000#snapshot-and-transport — each child carries replaceable current state.
+        entry.pending = bytes;
       }
     }
     if (this.connection === connection) throw new TypeError("live connection closed");

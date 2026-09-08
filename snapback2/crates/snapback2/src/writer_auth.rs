@@ -257,7 +257,13 @@ impl State {
             .collect::<Vec<_>>();
         for id in channel_ids {
             if let Some(client) = self.channels.remove(&id) {
-                send_session_terminal(&client.events, seq);
+                if client.entry.is_some() {
+                    self.channel_dirty.insert(client.room);
+                }
+                writer_channels::terminal(
+                    &client.events,
+                    Refusal::from_identity(&IdentityError::Session),
+                );
             }
         }
     }
@@ -447,6 +453,11 @@ mod tests {
                 (
                     1,
                     ChannelClient {
+                        room: "fixture".to_owned(),
+                        key: "fixture".to_owned(),
+                        lease: "fixture".to_owned(),
+                        version: 0,
+                        entry: None,
                         name: "fixture.first".to_owned(),
                         args: BTreeMap::new(),
                         context: Context::query(Actor::user("fixture").unwrap(), BTreeMap::new()),
@@ -462,6 +473,11 @@ mod tests {
                 (
                     2,
                     ChannelClient {
+                        room: "fixture".to_owned(),
+                        key: "fixture".to_owned(),
+                        lease: "fixture".to_owned(),
+                        version: 0,
+                        entry: None,
                         name: "fixture.sibling".to_owned(),
                         args: BTreeMap::new(),
                         context: Context::query(Actor::user("fixture").unwrap(), BTreeMap::new()),
@@ -478,6 +494,7 @@ mod tests {
             ledger: VecDeque::new(),
             operator_rejection: None,
             next_channel: 3,
+            channel_dirty: BTreeSet::new(),
             clock_offset_ms: 0,
             restarted_through_seq: 0,
             stop: Arc::new(AtomicBool::new(false)),

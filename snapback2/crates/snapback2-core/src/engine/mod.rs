@@ -1291,6 +1291,9 @@ pub fn validate_schema(schema: &Schema) -> Result<(), Vec<RuntimeError>> {
         })
         .collect();
     for (name, channel) in &schema.channels {
+        errors.extend(crate::registry::channels::schema_errors(
+            schema, name, channel,
+        ));
         if channel.args.values().any(|arg| !arg.bounds_valid()) {
             errors.push(RuntimeError::Schema(format!(
                 "channel {name} text min exceeds max"

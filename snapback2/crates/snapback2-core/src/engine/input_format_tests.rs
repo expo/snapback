@@ -123,6 +123,7 @@ fn argument_formats_admit_before_query_mutation_and_channel_and_fence_v4() {
     schema.channels.insert(
         "topic".into(),
         Channel {
+            value: BTreeMap::from([("typing".to_owned(), ArgType::Bool)]),
             ttl_ms: 1000,
             args: args.clone(),
             publish: RuleExpr::Allow,

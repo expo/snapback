@@ -400,6 +400,7 @@ class Parser {
     );
   }
 
+  // @ref LLP 1001.000#declaration-and-value — one typed record per connection; repeated declarations never overwrite silently.
   private parseChannel(): ChannelDecl {
     const site = this.take("channel");
     const name = this.bindingName();
@@ -409,20 +410,45 @@ class Parser {
     this.takeKind("indent");
     let publish: Expr | undefined;
     let subscribe: Expr | undefined;
+    let value: ArgDecl[] | undefined;
     let ttlSeconds: number | undefined;
+    const properties = new Set<string>();
     while (!this.atKind("dedent") && !this.atKind("eof")) {
       this.skipNewlines();
       if (this.atKind("dedent")) break;
       try {
         const key = this.word();
-        if (key.value === "publish" || key.value === "subscribe") {
+        if (properties.has(key.value)) throw new QuarryError(key, `duplicate channel property ${key.value}`,
+          "E_QUARRY_SYNTAX", `keep one ${key.value} declaration`, "live-query");
+        properties.add(key.value);
+        if (key.value === "value") {
+          this.take(":");
+          this.take("{");
+          const fields: ArgDecl[] = [];
+          const names = new Set<string>();
+          while (!this.at("}")) {
+            const field = this.word();
+            if (names.has(field.value)) throw new QuarryError(field, `duplicate channel value field ${field.value}`,
+              "E_QUARRY_SYNTAX", `keep one ${field.value} field in value`, "live-query");
+            names.add(field.value);
+            this.take(":");
+            fields.push({ name: field.value, type: this.parseType(), site: field });
+            if (!this.maybe(",")) break;
+          }
+          this.take("}");
+          if (fields.length === 0) throw new QuarryError(key, "channel value requires a nonempty record declaration",
+            "E_QUARRY_SYNTAX", "value: { typing: bool }", "live-query");
+          value = fields;
+        } else if (key.value === "publish" || key.value === "subscribe") {
           this.take("<-");
           const value = this.expression(0, new Set(["<newline>"]));
           if (key.value === "publish") publish = currentRule(value);
           else subscribe = currentRule(value);
         } else if (key.value === "ttl") {
           const amount = this.number();
-          if (this.at("s")) this.take("s");
+          this.take("s");
+          if (!Number.isInteger(amount) || amount < 1 || amount > 30) throw new QuarryError(key,
+            "channel ttl must be an integer from 1 through 30 seconds", "E_QUARRY_SYNTAX", "ttl 4s", "live-query");
           ttlSeconds = amount;
         } else {
           syntax(key, `unknown channel property ${key.value}`);
@@ -434,10 +460,12 @@ class Parser {
       }
     }
     this.takeKind("dedent");
+    if (!value) throw new QuarryError(site, `channel ${name} requires value: { field: type }`,
+      "E_QUARRY_SYNTAX", "value: { typing: bool }", "live-query");
     if (!publish) syntax(site, `channel ${name} requires publish <- ...`);
     if (!subscribe) syntax(site, `channel ${name} requires subscribe <- ...`);
     if (ttlSeconds === undefined) syntax(site, `channel ${name} requires ttl Ns`);
-    return { name, args, publish, subscribe, ttlSeconds, site };
+    return { name, args, value, publish, subscribe, ttlSeconds, site };
   }
 
   private parseProgram(): ProgramDecl {

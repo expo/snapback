@@ -204,8 +204,8 @@ fn serve_refuses_personas_before_every_route_dispatch() {
         (
             "channel",
             "POST",
-            "/api/channel/typing/publish",
-            json!({ "args": { "conversationId": "conversation-1" }, "payload": {} }),
+            "/api/channel/typing/set",
+            json!({ "args": { "conversationId": "conversation-1" }, "lease": "invalid", "version": 1, "value": {} }),
             false,
         ),
         ("control", "GET", "/control/status", json!({}), true),

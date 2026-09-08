@@ -37,7 +37,7 @@ optional. `once` is image-column-only; `cursor` is operation-only. Text may add 
 - `immutable`: `immutable columns` forbids changes.
 - `public`: `public ['reason']` declares public reads.
 - `retain`: `retain until-revoked|delivered-history` controls hidden-row custody.
-- `channel`: `channel name(args):` declares publish, subscribe and ttl.
+- `channel`: `channel name(args):` declares value, publish, subscribe and ttl.
 - `connected`: `exists connected[p]` tests live connections; `#connected[p]` counts them (`p: principal`).
 - `schedule`: `schedule name on table at .column:` or `every Nm|Nh|Nd:`.
 - `job`: `job name(args):` declares independent sweeps.

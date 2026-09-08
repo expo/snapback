@@ -133,6 +133,7 @@ fn text_minimum_certification_execution_channel_and_semantic_fence() {
     schema.channels.insert(
         "topic".into(),
         Channel {
+            value: BTreeMap::from([("typing".to_owned(), ArgType::Bool)]),
             args: args.clone(),
             publish: RuleExpr::Allow,
             subscribe: RuleExpr::Allow,

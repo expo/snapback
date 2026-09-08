@@ -915,6 +915,7 @@ fn raw_certification_scopes_relational_terms_and_created_to_their_exact_effects(
     invalid.channels.insert(
         "presence".to_owned(),
         Channel {
+            value: BTreeMap::from([("typing".to_owned(), ArgType::Bool)]),
             args: BTreeMap::from([(
                 "role".to_owned(),
                 ArgType::Enum {

@@ -2,6 +2,14 @@
 import { parseSse } from "../src/sse-parser.ts";
 import { createClient as realClient } from "../dist/client.mjs";
 
+export function channelFrame<Value = unknown>(
+  entries: readonly { key: string; from: string; value: Value; expiresAt: number }[] = [],
+  key = "a".repeat(32),
+  lease = "b".repeat(64),
+) {
+  return { state: "snapshot" as const, key, lease, entries };
+}
+
 export function fixtureClient(options: Parameters<typeof realClient>[0]): ReturnType<typeof realClient> {
   return realClient({ ...options, fetch: multiplexFetch(options.fetch ?? globalThis.fetch.bind(globalThis)) });
 }

@@ -107,7 +107,7 @@ fn compiled(project: &ProjectJson, generation: Generation) -> CompiledProject {
     }
 }
 
-fn state(label: &str) -> State {
+pub(super) fn state(label: &str) -> State {
     let project = project(programs());
     let generation = Generation::certify(&project, Ceilings::default()).unwrap();
     let mut runtime = Runtime::open(Store::memory().unwrap(), generation.clone()).unwrap();
@@ -142,6 +142,7 @@ fn state(label: &str) -> State {
         ledger: VecDeque::new(),
         operator_rejection: None,
         next_channel: 0,
+        channel_dirty: BTreeSet::new(),
         clock_offset_ms: 0,
         restarted_through_seq: 0,
         stop: Arc::new(AtomicBool::new(false)),

@@ -538,15 +538,27 @@ fn handle(mut request: Request, context: Context, streams: live::Streams) {
                 }
             }
         }
-        ("POST", path) if channel_name(path, "/publish").is_some() => {
-            let name = channel_name(path, "/publish").unwrap_or_default();
+        ("POST", path)
+            if channel_name(path, "/set").is_some() || channel_name(path, "/clear").is_some() =>
+        {
+            let setting = channel_name(path, "/set");
+            let name = setting
+                .clone()
+                .or_else(|| channel_name(path, "/clear"))
+                .unwrap_or_default();
             call_json(
                 request,
                 &context,
-                Action::ChannelPublish {
+                Action::ChannelWrite {
                     name,
                     args: body.get("args").cloned().unwrap_or_else(|| json!({})),
-                    payload: body.get("payload").cloned().unwrap_or(Json::Null),
+                    lease: body
+                        .get("lease")
+                        .and_then(Json::as_str)
+                        .unwrap_or_default()
+                        .to_owned(),
+                    version: body.get("version").cloned().unwrap_or(Json::Null),
+                    value: setting.map(|_| body.get("value").cloned().unwrap_or(Json::Null)),
                     identity,
                 },
                 200,

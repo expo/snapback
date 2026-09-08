@@ -10,7 +10,7 @@ import ts from "typescript";
 const packageRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 
 // @ref LLP 1018.001#4-reconciliation-and-acceptance-evidence — a generated result must retain its types through the real package boundary, including Expo's skipped declaration checking.
-test("built Quarry API preserves inserted row types in a packaged Expo consumer", async (context) => {
+test("built Quarry API preserves row and channel types in a packaged Expo consumer", async (context) => {
   const root = await mkdtemp(join(tmpdir(), "snapback2-generated-consumer-"));
   try {
     const installed = join(root, "node_modules/snapback2");
@@ -31,6 +31,12 @@ test("built Quarry API preserves inserted row types in a packaged Expo consumer"
   done: bool
   ownerId: principal
   public
+
+channel typing(todoId: todos):
+  value: { typing: bool }
+  publish <- allow
+  subscribe <- allow
+  ttl 4s
 `);
     await writeFile(join(root, "snapback/todos.q"), `mutation add(done: bool ?):
   row = insert todos { title: 'typed row', done: done ?? false, ownerId: viewer }
@@ -44,12 +50,21 @@ test("built Quarry API preserves inserted row types in a packaged Expo consumer"
     assert.equal(output.ok, true, compiled.stdout);
     assert.equal(typeof output.apiDts, "string", "built worker did not return the generated API");
     await writeFile(join(root, ".snapback/build/api.d.ts"), output.apiDts);
-    await writeFile(join(root, "App.tsx"), `import { api } from "snapback2/client";
+    await writeFile(join(root, "App.tsx"), `import { api, createClient } from "snapback2/client";
 type Result = NonNullable<(typeof api.todos.add)["__result"]>;
 declare const result: Result;
 const done: boolean = result.row.done;
 // @ts-expect-error a boolean field is not a number, even with skipLibCheck
 const wrong: number = result.row.done;
+const client = createClient({ url: "http://typed.test" });
+const typing = client.channel(api.typing, { todoId: "todo-1" });
+typing.set({ typing: true });
+const active: boolean | undefined = typing.getSnapshot().entries[0]?.value.typing;
+// @ts-expect-error the generated value stays typed through the package boundary
+typing.set({ typing: "yes" });
+// @ts-expect-error the generated record is closed
+client.channel(api.channels.typing, { todoId: "todo-1" }).set({ typing: true, extra: 1 });
+void active;
 void [done, wrong];
 `);
     const config = ts.getParsedCommandLineOfConfigFile(join(root, "tsconfig.json"), {}, {
@@ -155,6 +170,24 @@ test("generated Api rejects typos, extra query args, and wrong channel args", as
         gallery: [{ uri: "asset-library://gallery" }],
         clip: { uri: "asset-library://clip", type: "video/mp4" },
       });
+      const room = client.channel(api.channels.typing, { conversationId: "general" });
+      const state: import("snapback2/client").ChannelSnapshot<{ typing: boolean }> = room.getSnapshot();
+      const writing: Promise<import("snapback2/client").ChannelWriteResult> = room.set({ typing: true });
+      const clearing: Promise<import("snapback2/client").ChannelWriteResult> = room.clear();
+      const watching = room.subscribe(snapshot => {
+        const typing: boolean | undefined = snapshot.entries[0]?.value.typing;
+        void typing;
+      });
+      // @ts-expect-error the value field must be a boolean
+      room.set({ typing: "yes" });
+      // @ts-expect-error snapshots expose no lease
+      const lease = state.lease;
+      // @ts-expect-error channel entries are immutable
+      state.entries.push({});
+      // @ts-expect-error the event-pipe method was removed
+      room.publish({ typing: true });
+      watching.close(); room.close();
+      void writing; void clearing; void lease;
       client.query(api.mesages.typo, {});
       client.query(api.messages.thread, { conversationId: "general", extra: true });
       client.channel(api.typing, { bogus: true });
@@ -177,8 +210,8 @@ test("generated Api rejects typos, extra query args, and wrong channel args", as
             gallery: (File | ImageAsset)[];
             clip: File | VideoAsset;
           }, unknown> };
-          channels: { typing: Channel<{ conversationId: string }, unknown> };
-          typing: Channel<{ conversationId: string }, unknown>;
+          channels: { typing: Channel<{ conversationId: string }, { typing: boolean }> };
+          typing: Channel<{ conversationId: string }, { typing: boolean }>;
         }
       }
       export {};
@@ -221,7 +254,7 @@ test("public refusal types require family and guide", async (context) => {
     const sample = join(root, "sample.ts");
     await writeFile(sample, `
       import type {
-        ChannelPublishResult,
+        ChannelWriteResult,
         MutationRejected,
         RefusalEnvelope,
         RefusedDelivery,
@@ -232,12 +265,12 @@ test("public refusal types require family and guide", async (context) => {
       const rejectedWithoutFamily: MutationRejected = { state: "rejected", code: "E_NO", message: "no", guide: "op/no" };
       const deliveryWithoutGuide: RefusedDelivery = { state: "refused", code: "E_NO", family: "op", message: "no" };
       const deliveryWithoutFamily: RefusedDelivery = { state: "refused", code: "E_NO", message: "no", guide: "op/no" };
-      const publishWithoutGuide: ChannelPublishResult = { state: "refused", code: "E_NO", family: "op", message: "no" };
-      const publishWithoutFamily: ChannelPublishResult = { state: "refused", code: "E_NO", message: "no", guide: "op/no" };
+      const writeWithoutGuide: ChannelWriteResult = { state: "refused", code: "E_NO", family: "op", message: "no" };
+      const writeWithoutFamily: ChannelWriteResult = { state: "refused", code: "E_NO", message: "no", guide: "op/no" };
       void envelopeWithoutGuide; void envelopeWithoutFamily;
       void rejectedWithoutGuide; void rejectedWithoutFamily;
       void deliveryWithoutGuide; void deliveryWithoutFamily;
-      void publishWithoutGuide; void publishWithoutFamily;
+      void writeWithoutGuide; void writeWithoutFamily;
     `);
     const program = ts.createProgram({
       rootNames: [sample],

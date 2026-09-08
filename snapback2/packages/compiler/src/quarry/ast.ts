@@ -116,7 +116,7 @@ export type TableDecl = {
   public?: { reason: string; site: Site };
   site: Site;
 };
-export type ChannelDecl = { name: string; args: ArgDecl[]; publish: Expr; subscribe: Expr; ttlSeconds: number; site: Site };
+export type ChannelDecl = { name: string; args: ArgDecl[]; value: ArgDecl[]; publish: Expr; subscribe: Expr; ttlSeconds: number; site: Site };
 export type MaintainDecl = {
   name: string;
   aggregate: "count" | "sum";

@@ -213,6 +213,7 @@ fn successor_rebinds_channel_subscriber_before_g1_publish() {
         "/api/channel/typing/subscribe?args=%7B%22conversationId%22%3A%22conversation-1%22%7D",
         "bob",
     );
+    let old_lease = retained.event()["lease"].clone();
     let mut project: Value =
         serde_json::from_slice(&fs::read(root.join(".snapback/build/project.json")).unwrap())
             .unwrap();
@@ -227,21 +228,18 @@ fn successor_rebinds_channel_subscriber_before_g1_publish() {
     assert_eq!(applied.status, 200, "{}", applied.body);
     assert_ne!(applied.body["to"], generation_g, "{}", applied.body);
 
-    let published = request(
+    let refused = request(
         port,
         "POST",
-        "/api/channel/typing/publish",
-        &[("X-Snapback-As", "alice")],
-        json!({
-            "args": { "conversationId": "conversation-1" },
-            "payload": { "generation": "g1" },
-        }),
+        "/api/channel/typing/set",
+        &[("X-Snapback-As", "bob")],
+        json!({ "args": {"conversationId":"conversation-1"}, "lease":old_lease, "version":1, "value":{"typing":true} }),
     );
-    assert_eq!(published.body, json!({ "ok": true }), "{}", published.body);
+    assert_eq!(refused.body["code"], "E_CHANNEL_LEASE");
 
     let refusal = retained.event();
     assert_eq!(refusal["state"], "refused", "{refusal}");
-    assert_eq!(refusal["code"], "E_RULE_CHANNEL_SUBSCRIBE", "{refusal}");
+    assert_eq!(refusal["code"], "E_CHANNEL_RESET", "{refusal}");
     retained.assert_closed();
 
     stop_owner(port, secret, &mut owner, "successor channel fence complete");
@@ -298,7 +296,7 @@ for await (const line of createInterface({ input: process.stdin, crlfDelay: Infi
 
 #[cfg(not(feature = "hermes"))]
 #[test]
-fn policy_only_successor_readmits_existing_channel_subscribers() {
+fn policy_only_successor_closes_existing_channel_leases() {
     let root = temp_root();
     copy_tree(&fixture().join("snapback"), &root.join("snapback"));
     let binary = env!("CARGO_BIN_EXE_snapback2");
@@ -319,6 +317,7 @@ fn policy_only_successor_readmits_existing_channel_subscribers() {
         "/api/channel/typing/subscribe?args=%7B%22conversationId%22%3A%22conversation-1%22%7D",
         "alice",
     );
+    assert_eq!(typing.event()["entries"], json!([]));
     let mut project: Value =
         serde_json::from_slice(&fs::read(root.join(".snapback/build/project.json")).unwrap())
             .unwrap();
@@ -334,7 +333,7 @@ fn policy_only_successor_readmits_existing_channel_subscribers() {
     assert_eq!(applied.status, 200, "{}", applied.body);
     let refused = typing.event();
     assert_eq!(refused["state"], "refused", "{refused}");
-    assert_eq!(refused["code"], "E_RULE_CHANNEL_SUBSCRIBE");
+    assert_eq!(refused["code"], "E_CHANNEL_RESET");
 
     stop_owner(port, secret, &mut owner, "policy successor test");
     fs::remove_dir_all(root).unwrap();
@@ -779,17 +778,6 @@ fn slow_sse_writers_do_not_consume_json_or_control_worker_capacity() {
         clients.push(stream);
     }
     thread::sleep(Duration::from_millis(300));
-    let publish = request(
-        port,
-        "POST",
-        "/api/channel/typing/publish",
-        &[("X-Snapback-As", "alice")],
-        json!({
-            "args": { "conversationId": "conversation-1" },
-            "payload": { "body": "x".repeat(900_000) },
-        }),
-    );
-    assert_eq!(publish.status, 200, "{}", publish.body);
     let mut last = std::net::TcpStream::connect(("127.0.0.1", port)).unwrap();
     write!(
         last,
@@ -901,3 +889,5 @@ fn successful_hot_apply_never_pairs_successor_trace_with_predecessor_certificate
     stop_owner(port, secret, &mut owner, "successful cache promotion test");
     fs::remove_dir_all(root).unwrap();
 }
+
+mod channels;

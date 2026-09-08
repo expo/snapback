@@ -165,7 +165,7 @@ mutation gate(p: principal):
 fn with_connected_owner(run: impl FnOnce(&Path, u16, &str, &str, &str, &Path)) {
     let root = temp_root();
     fs::create_dir_all(root.join("snapback")).unwrap();
-    fs::write(root.join("snapback/schema.q"), "use identity password\ntable notes:\n  body: text <=100\n  public\nchannel activity():\n  publish <- allow\n  subscribe <- allow\n  ttl 5s\n").unwrap();
+    fs::write(root.join("snapback/schema.q"), "use identity password\ntable notes:\n  body: text <=100\n  public\nchannel activity():\n  value: { ready: bool }\n  publish <- allow\n  subscribe <- allow\n  ttl 5s\n").unwrap();
     fs::write(
         root.join("snapback/presence.q"),
         "query count(p: principal):\n  return #connected[p]\nquery ping():\n  return true\n",
@@ -264,6 +264,7 @@ fn connected_counts_legacy_query_and_channel_transports_and_fences_both_on_logou
         assert_eq!(query.event()["data"], true);
         let mut channel =
             Sse::open_bearer(port, "/api/channel/activity/subscribe?args=%7B%7D", token);
+        assert_eq!(channel.event()["entries"], json!([]));
         assert_eq!(count(port, principal), 2);
         call(port, "/api/auth/logout", json!({}), Some(token));
         for stream in [&mut query, &mut channel] {
@@ -455,14 +456,7 @@ fn connected_silent_socket_shutdown_and_legacy_close_drop_counts_slow() {
         query.event();
         let mut channel =
             Sse::open_bearer(port, "/api/channel/activity/subscribe?args=%7B%7D", token);
-        // Legacy channels have no initial frame; publish one to witness delivery.
-        call(
-            port,
-            "/api/channel/activity/publish",
-            json!({"args":{}, "payload":{"ready":true}}),
-            Some(token),
-        );
-        assert_eq!(channel.event()["payload"], json!({"ready":true}));
+        assert_eq!(channel.event()["entries"], json!([]));
         assert_eq!(count(port, principal), 3);
         live.shutdown();
         query.shutdown();

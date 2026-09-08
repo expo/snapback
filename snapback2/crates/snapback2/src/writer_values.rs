@@ -82,14 +82,27 @@ pub(super) fn channel_args(
             "op/channels",
         )
     })?;
-    let object = args.as_object().ok_or_else(|| {
+    typed_record(&channel.args, args, "channel args")
+}
+
+pub(super) fn typed_record(
+    types: &BTreeMap<String, ArgType>,
+    value: &Json,
+    label: &str,
+) -> Result<BTreeMap<String, Value>, Refusal> {
+    let object = value.as_object().ok_or_else(|| {
         Refusal::input(
-            "channel args must be a JSON object",
-            "pass {\"arg\": value}",
+            format!("{label} must be a JSON object"),
+            "pass the declared fields in a JSON object",
         )
     })?;
-    channel
-        .args
+    if object.keys().any(|field| !types.contains_key(field)) {
+        return Err(Refusal::input(
+            format!("{label} has undeclared fields"),
+            "remove fields not declared by the channel",
+        ));
+    }
+    types
         .iter()
         .map(|(name, kind)| {
             let value = match object.get(name) {
@@ -97,8 +110,8 @@ pub(super) fn channel_args(
                 None if matches!(kind, ArgType::Optional(_)) => Value::Null,
                 None => {
                     return Err(Refusal::input(
-                        format!("channel is missing arg {name}"),
-                        "pass every required channel arg",
+                        format!("{label} is missing {name}"),
+                        "pass every required channel field",
                     ));
                 }
             };

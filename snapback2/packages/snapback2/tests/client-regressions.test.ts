@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { createRequire } from "node:module";
+import { channelFrame } from "./live-fixture.ts";
 import React from "react";
 import TestRenderer, { act } from "react-test-renderer";
 import { SnapbackRefusal, api, createClient } from "../dist/client.mjs";
@@ -250,27 +251,30 @@ test("native Response preserves shared query/channel delivery and independent te
     await waitForNative(() => wire.controls.flatMap(command => command.add ?? []).length === 2);
     const queryId = wire.child("/api/subscribe?"), channelId = wire.child("/api/channel/");
     const row = { state: "complete", data: [{ body: "native history" }], seq: 1, next: null };
-    const typing = { from: "principal-b", payload: { typing: true }, at: 10 };
+    const typing = channelFrame([{ key: "writer", from: "principal-b", value: { typing: true }, expiresAt: 10 }]);
     wire.send({ id: channelId, seq: null, data: typing, terminal: false });
     wire.send({ id: queryId, seq: 1, data: row, terminal: false });
     await waitForNative(() => queries.length > 0 || value.snapshot.lastRefusal !== undefined);
     assert.equal(value.snapshot.lastRefusal, undefined);
     await query.until(event => event.state === "complete", 1_000);
-    await channel.until(event => "payload" in event, 1_000);
+    await channel.until(snapshot => snapshot.status === "ready", 1_000);
     assert.deepEqual(queries, [{ ...row, live: true }]);
-    assert.deepEqual(channels, [typing]);
+    const ready = { status: "ready", key: typing.key, entries: typing.entries };
+    assert.deepEqual(channels, [{ status: "loading", entries: [] }, ready]);
 
     const denied = { state: "refused", code: "E_RULE", family: "rule", guide: "rule/runtime", message: "membership removed" };
     wire.send({ id: queryId, seq: null, data: denied, terminal: true });
     await assert.rejects(query.until(() => false, 1_000), error => error instanceof SnapbackRefusal && error.code === "E_RULE");
     wire.send({ id: queryId, seq: 2, data: { ...row, seq: 2 }, terminal: false });
-    wire.send({ id: channelId, seq: null, data: { ...typing, at: 11 }, terminal: false });
-    await channel.until(event => "at" in event && event.at === 11, 1_000);
+    const updated = { ...typing, entries: [{ ...typing.entries[0], expiresAt: 11 }] };
+    wire.send({ id: channelId, seq: null, data: updated, terminal: false });
+    await channel.until(snapshot => snapshot.entries[0]?.expiresAt === 11, 1_000);
     assert.deepEqual(queries, [{ ...row, live: true }, { ...denied, live: false }]);
-    assert.deepEqual(channels, [typing, { ...typing, at: 11 }]);
+    assert.deepEqual(channels, [{ status: "loading", entries: [] }, ready, { ...ready, entries: updated.entries }]);
     wire.send({ id: channelId, seq: null, data: denied, terminal: true });
     await assert.rejects(channel.until(() => false, 1_000), error => error instanceof SnapbackRefusal && error.code === "E_RULE");
-    assert.deepEqual(channels.at(-1), denied);
+    const { state: _state, ...refusal } = denied;
+    assert.deepEqual(channels.at(-1), { status: "unavailable", reason: "refused", entries: [], refusal });
     await waitForNative(() => [queryId, channelId].every(id => wire.controls.some(command => command.remove?.includes(id))));
     assert.equal(wire.requests.filter(request => request.path === "/api/live").length, 1);
     assert.equal(wire.signal?.aborted, false);
@@ -289,7 +293,8 @@ test("native Response cancellation keeps peers live and preserves removed-child 
   try {
     await value.ready;
     const query = value.subscribe(api.messages.thread, {}, event => queries.push(event));
-    const channel = value.channel(api.typing, {}).subscribe(event => channels.push(event));
+    const room = value.channel(api.typing, {});
+    const channel = room.subscribe(event => channels.push(event));
     await waitForNative(() => wire.controls.flatMap(command => command.add ?? []).length === 2);
     const queryId = wire.child("/api/subscribe?"), channelId = wire.child("/api/channel/");
     const row = { state: "complete", data: [], seq: 1, next: null };
@@ -302,17 +307,18 @@ test("native Response cancellation keeps peers live and preserves removed-child 
     await assert.rejects(pending, { name: "AbortError" });
     await waitForNative(() => wire.controls.some(command => command.remove?.includes(queryId)));
     wire.send({ id: queryId, seq: 2, data: { ...row, seq: 2 }, terminal: false });
-    const typing = { from: "principal-b", payload: { typing: true }, at: 20 };
+    const typing = channelFrame([{ key: "writer", from: "principal-b", value: { typing: true }, expiresAt: 20 }]);
     wire.send({ id: channelId, seq: null, data: typing, terminal: false });
-    await channel.until(event => "at" in event && event.at === 20, 1_000);
+    await channel.until(snapshot => snapshot.entries[0]?.expiresAt === 20, 1_000);
     assert.deepEqual(queries, [{ ...row, live: true }]);
-    assert.deepEqual(channels, [typing]);
+    assert.deepEqual(channels, [{ status: "loading", entries: [] }, { status: "ready", key: typing.key, entries: typing.entries }]);
     assert.equal(wire.signal?.aborted, false);
     // A removed child's bytes may already be in flight. Ordinary data is
     // suppressed, but terminal evidence still retires that exact bearer.
     wire.send({ id: queryId, seq: null, data: { state: "refused", ...refusal("E_AUTH_SESSION", "expired") }, terminal: true });
     await waitForNative(() => stored === null && value.snapshot.token === undefined);
     assert.deepEqual(queries, [{ ...row, live: true }]);
+    assert.deepEqual(room.getSnapshot().entries, []);
     assert.equal(wire.requests.filter(request => request.path === "/api/live").length, 1);
   } finally { await value.close(); }
   await waitForNative(() => wire.cancelled === 1 && !wire.body.locked);

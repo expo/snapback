@@ -45,6 +45,12 @@ export function bindQuarrySchemaArtifact(documents: Document[], catalog: TableCa
   const channels: Record<string, unknown> = Object.create(null);
   for (const declaration of documents.flatMap((document) => document.channels)) {
     channels[declaration.name] = bindChannel(declaration, catalog);
+    const site = `schema.channels.${declaration.name}`;
+    sources.push([site, declaration.site], [`${site}.publish`, declaration.publish.site],
+      [`${site}.subscribe`, declaration.subscribe.site]);
+    for (const [kind, fields] of [["args", declaration.args], ["value", declaration.value]] as const) {
+      for (const field of fields) sources.push([`${site}.${kind}.${field.name}`, field.site]);
+    }
   }
   const identity = documents.find((document) => document.identity)?.identity;
   const schema: SchemaJson = {
@@ -272,12 +278,15 @@ function bindMaintain(declaration: MaintainDecl, catalog: TableCatalog): unknown
 function bindChannel(declaration: ChannelDecl, catalog: TableCatalog): unknown {
   const args: Record<string, unknown> = Object.create(null);
   for (const arg of declaration.args) args[arg.name] = bindArgument(arg.type, catalog, arg.site);
+  const value: Record<string, ArgType> = Object.create(null);
+  for (const field of declaration.value) value[field.name] = bindArgument(field.type, catalog, field.site);
   const context: RuleContext = {
     names: new Set(declaration.args.map((arg) => arg.name)),
     args: new Map(declaration.args.map((arg) => [arg.name, arg.type])),
   };
   return {
     args,
+    value,
     publish: bindRuleExpr(declaration.publish, catalog, context),
     subscribe: bindRuleExpr(declaration.subscribe, catalog, context),
     ttl_ms: declaration.ttlSeconds * 1000,

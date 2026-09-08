@@ -167,7 +167,7 @@ export function registerQuarryChecks(test: Test, frontend: string): void {
         "snapback2.d.ts": readFileSync(resolve(frontend, "lib.d.ts"), "utf8"),
         "client.d.ts": `declare module "snapback2/client" {
           export interface Op<Args, Result> { readonly __args?: (args: Args) => void; readonly __result?: Result }
-          export interface Channel<Args, Payload = unknown> { readonly __args?: Args; readonly __payload?: Payload }
+          export interface Channel<Args, Value> { readonly __channelArgs?: (args: Args) => void; readonly __value?: Value }
           export interface Api {}
         }`,
         "api.d.ts": lowered.apiDts,

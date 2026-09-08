@@ -1,8 +1,7 @@
 import { createClient as realClient } from "../dist/client.mjs";
-import { fixtureClient as createClient, multiplexFetch } from "./live-fixture.ts";
+import { fixtureClient as createClient, multiplexFetch, channelFrame } from "./live-fixture.ts";
 import assert from "node:assert/strict";
-import { createServer, type IncomingMessage, type Server, type ServerResponse } from "node:http";
-import { once } from "node:events";
+import { MockOwner } from "./mock-owner.ts";
 import { test, before, after } from "node:test";
 import React from "react";
 import TestRenderer, { act } from "react-test-renderer";
@@ -22,30 +21,12 @@ import {
 
 (globalThis as any).IS_REACT_ACT_ENVIRONMENT = true;
 
-type Session = { viewer: string; kind: string };
-type QueryStream = { response: ServerResponse; op: string; args: unknown };
-type ChannelStream = { response: ServerResponse; key: string };
-
 const refusal = (code: string, message: string) => ({
   code,
   family: code.startsWith("E_AUTH") ? "auth" : "op",
   message,
   guide: code.startsWith("E_AUTH") ? "auth/session" : "op/reference",
 });
-
-async function body(request: IncomingMessage): Promise<any> {
-  const chunks: Buffer[] = [];
-  for await (const chunk of request) chunks.push(Buffer.from(chunk));
-  return chunks.length === 0 ? {} : JSON.parse(Buffer.concat(chunks).toString("utf8"));
-}
-
-function json(response: ServerResponse, status: number, value: unknown): void {
-  response.writeHead(status, {
-    "Access-Control-Allow-Origin": "*",
-    "Content-Type": "application/json",
-  });
-  response.end(JSON.stringify(value));
-}
 
 function fetchJson(value: unknown, status = 200): Response {
   return new Response(JSON.stringify(value), {
@@ -103,243 +84,6 @@ function isWireShape(error: unknown, missing: string): boolean {
     && error.code === "E_WIRE_SHAPE"
     && error.envelope.family === "op"
     && error.message.includes(missing);
-}
-
-function channelKey(name: string, args: unknown): string {
-  return `${name}:${stableSerialize(args)}`;
-}
-
-class MockOwner {
-  readonly mode: "dev" | "serve";
-  readonly rows: Array<{ id: string; conversationId: string; body: string }> = [];
-  readonly lastEventIds: string[] = [];
-  readonly personaHeaders: string[] = [];
-  private server: Server | undefined;
-  private port: number | undefined;
-  private seq = 0;
-  private tokenCounter = 0;
-  private rowCounter = 0;
-  private readonly tokens = new Map<string, Session>();
-  private readonly accounts = new Map<string, { password: string; viewer: string }>();
-  private readonly queryStreams = new Set<QueryStream>();
-  private readonly channelStreams = new Set<ChannelStream>();
-  private readonly sockets = new Set<import("node:net").Socket>();
-
-  constructor(mode: "dev" | "serve" = "dev") {
-    this.mode = mode;
-  }
-
-  get url(): string {
-    if (this.port === undefined) throw new Error("mock owner is not started");
-    return `http://127.0.0.1:${this.port}`;
-  }
-
-  async start(): Promise<void> {
-    if (this.server) return;
-    const server = createServer((request, response) => {
-      void this.handle(request, response).catch((error) => {
-        if (!response.headersSent) json(response, 500, refusal("E_OWNER_MOCK", String(error)));
-        else response.destroy(error instanceof Error ? error : new Error(String(error)));
-      });
-    });
-    server.on("connection", (socket) => {
-      this.sockets.add(socket);
-      socket.on("close", () => this.sockets.delete(socket));
-    });
-    server.listen(this.port ?? 0, "127.0.0.1");
-    await once(server, "listening");
-    const address = server.address();
-    if (!address || typeof address === "string") throw new Error("mock owner has no TCP address");
-    this.port = address.port;
-    this.server = server;
-  }
-
-  async stop(): Promise<void> {
-    const server = this.server;
-    if (!server) return;
-    this.server = undefined;
-    for (const stream of this.queryStreams) stream.response.destroy();
-    for (const stream of this.channelStreams) stream.response.destroy();
-    this.queryStreams.clear();
-    this.channelStreams.clear();
-    for (const socket of this.sockets) socket.destroy();
-    server.close();
-    await once(server, "close");
-  }
-
-  private session(request: IncomingMessage): Session | undefined {
-    const persona = request.headers["x-snapback-as"];
-    if (typeof persona === "string" && this.mode === "dev") {
-      this.personaHeaders.push(persona);
-      return { viewer: persona, kind: "persona" };
-    }
-    const authorization = request.headers.authorization;
-    return authorization?.startsWith("Bearer ") ? this.tokens.get(authorization.slice(7)) : undefined;
-  }
-
-  private mint(viewer: string, kind: string): { token: string; viewer: string; kind: string } {
-    const token = `token-${++this.tokenCounter}`;
-    this.tokens.set(token, { viewer, kind });
-    return { token, viewer, kind };
-  }
-
-  private openSse(response: ServerResponse): void {
-    response.writeHead(200, {
-      "Access-Control-Allow-Origin": "*",
-      "Cache-Control": "no-cache",
-      Connection: "keep-alive",
-      "Content-Type": "text/event-stream",
-    });
-    response.write(": heartbeat\n\n");
-  }
-
-  private queryResult(op: string): unknown {
-    if (op === "states.capped") {
-      return { state: "capped", data: this.rows, seq: this.seq, next: null };
-    }
-    if (op === "states.partial") {
-      return { state: "partial", data: this.rows, seq: this.seq, reason: "coverage" };
-    }
-    if (op === "states.denied") {
-      return { state: "denied", seq: this.seq, rule: "members only" };
-    }
-    return { state: "complete", data: this.rows, seq: this.seq, next: null };
-  }
-
-  private sendQuery(stream: QueryStream): void {
-    if (stream.response.destroyed) return;
-    stream.response.write(`id: ${this.seq}\n`);
-    stream.response.write(`data: ${JSON.stringify(this.queryResult(stream.op))}\n\n`);
-  }
-
-  private broadcastQueries(): void {
-    for (const stream of this.queryStreams) this.sendQuery(stream);
-  }
-
-  private async handle(request: IncomingMessage, response: ServerResponse): Promise<void> {
-    const parsed = new URL(request.url ?? "/", this.url);
-    const persona = request.headers["x-snapback-as"];
-    if (this.mode === "serve" && typeof persona === "string" && parsed.pathname.startsWith("/api/")) {
-      json(response, 403, refusal("E_AUTH_PERSONA_NOT_DEV", "development personas are refused by serve mode"));
-      return;
-    }
-
-    if (request.method === "GET" && parsed.pathname === "/") {
-      json(response, 200, { ok: true, version: "0.0.1", generation: 1, mode: this.mode, url: this.url });
-      return;
-    }
-    if (request.method === "POST" && parsed.pathname === "/api/auth/guest") {
-      json(response, 200, this.mint(`guest-${this.tokenCounter + 1}`, "guest"));
-      return;
-    }
-    if (request.method === "POST" && parsed.pathname === "/api/auth/signup") {
-      const input = await body(request);
-      const viewer = `user-${this.accounts.size + 1}`;
-      this.accounts.set(input.email, { password: input.password, viewer });
-      json(response, 200, this.mint(viewer, "user"));
-      return;
-    }
-    if (request.method === "POST" && parsed.pathname === "/api/auth/login") {
-      const input = await body(request);
-      const account = this.accounts.get(input.email);
-      if (!account || account.password !== input.password) {
-        json(response, 401, refusal("E_AUTH_LOGIN", "email or password did not match"));
-      } else {
-        json(response, 200, this.mint(account.viewer, "user"));
-      }
-      return;
-    }
-    if (request.method === "POST" && parsed.pathname === "/api/auth/logout") {
-      json(response, 200, { ok: true });
-      return;
-    }
-    if (request.method === "GET" && parsed.pathname === "/api/auth/me") {
-      const session = this.session(request);
-      if (!session) json(response, 401, refusal("E_AUTH_REQUIRED", "a session is required"));
-      else json(response, 200, session);
-      return;
-    }
-    if (request.method === "GET" && parsed.pathname === "/api/manifest") {
-      json(response, 200, {
-        generation: "mock-generation",
-        programGeneration: "mock-program-generation",
-        ops: { "messages.thread": { kind: "query", args: { conversationId: "id" }, planHash: "mock-plan" } },
-        channels: { typing: { args: { conversationId: "id" } } },
-        auth: { password: true, guests: true },
-      });
-      return;
-    }
-    if (request.method === "POST" && parsed.pathname === "/api/query") {
-      const input = await body(request);
-      if (!["states.complete", "states.capped", "states.partial", "states.denied", "messages.thread"].includes(input.op)) {
-        json(response, 404, refusal("E_OP_UNKNOWN", `unknown operation ${input.op}`));
-      } else {
-        json(response, 200, this.queryResult(input.op));
-      }
-      return;
-    }
-    if (request.method === "POST" && parsed.pathname === "/api/mutation") {
-      const input = await body(request);
-      if (input.op === "messages.reject" || input.args?.body === "reject") {
-        json(response, 200, { state: "rejected", ...refusal("RECIPIENT_UNKNOWN", "mutation rejected") });
-        return;
-      }
-      if (input.op !== "messages.send") {
-        json(response, 404, refusal("E_OP_UNKNOWN", `unknown operation ${input.op}`));
-        return;
-      }
-      const id = `message-${++this.rowCounter}`;
-      this.rows.push({ id, conversationId: input.args.conversationId, body: input.args.body });
-      this.seq += 1;
-      json(response, 200, { state: "committed", seq: this.seq, data: { id } });
-      queueMicrotask(() => this.broadcastQueries());
-      return;
-    }
-    if (request.method === "GET" && parsed.pathname === "/api/subscribe") {
-      const stream = {
-        response,
-        op: parsed.searchParams.get("op") ?? "",
-        args: JSON.parse(parsed.searchParams.get("args") ?? "{}"),
-      };
-      const lastEventId = request.headers["last-event-id"];
-      if (typeof lastEventId === "string") this.lastEventIds.push(lastEventId);
-      this.openSse(response);
-      this.queryStreams.add(stream);
-      response.on("close", () => this.queryStreams.delete(stream));
-      queueMicrotask(() => this.sendQuery(stream));
-      return;
-    }
-
-    const channel = /^\/api\/channel\/([^/]+)\/(publish|subscribe)$/.exec(parsed.pathname);
-    if (channel) {
-      const name = decodeURIComponent(channel[1]);
-      if (request.method === "GET" && channel[2] === "subscribe") {
-        const args = JSON.parse(parsed.searchParams.get("args") ?? "{}");
-        const stream = { response, key: channelKey(name, args) };
-        this.openSse(response);
-        this.channelStreams.add(stream);
-        response.on("close", () => this.channelStreams.delete(stream));
-        return;
-      }
-      if (request.method === "POST" && channel[2] === "publish") {
-        const input = await body(request);
-        const session = this.session(request);
-        if (!session) {
-          json(response, 200, { state: "refused", code: "E_AUTH_REQUIRED" });
-          return;
-        }
-        const event = { from: session.viewer, payload: input.payload, at: Date.now() };
-        for (const stream of this.channelStreams) {
-          if (stream.key === channelKey(name, input.args) && !stream.response.destroyed) {
-            stream.response.write(`data: ${JSON.stringify(event)}\n\n`);
-          }
-        }
-        json(response, 200, { ok: true });
-        return;
-      }
-    }
-    json(response, 404, refusal("E_OP_UNKNOWN", `${request.method} ${parsed.pathname}`));
-  }
 }
 
 const externalUrl = process.env.SNAPBACK_URL;
@@ -610,10 +354,12 @@ test("every HTTP wire state validates its state-specific required fields", async
 
   const publishing = createClient({
     url: "http://wire.test",
-    fetch: async () => fetchJson({ state: "refused" }),
+    fetch: async input => new URL(String(input)).pathname.endsWith("/subscribe")
+      ? hangingSse(`data: ${JSON.stringify(channelFrame())}\n\n`)
+      : fetchJson({ state: "refused" }),
   });
   await assert.rejects(
-    () => publishing.channel(api.typing, {}).publish({ typing: true }),
+    () => publishing.channel(api.typing, {}).set({ typing: true }),
     (error: unknown) => isWireShape(error, "code"),
   );
   publishing.close();
@@ -712,16 +458,18 @@ test("malformed subscription and channel frames deliver E_WIRE_SHAPE", async (co
   let channelDelivery: any;
   const channelClient = createClient({
     url: "http://wire.test",
-    fetch: async () => fetchSse({ from: "alice", at: 1 }),
+    fetch: async () => fetchSse({ state: "snapshot", key: "alice", lease: "private" }),
   });
   const channelSub = channelClient.channel(api.typing, {}).subscribe((event) => { channelDelivery = event; });
   context.after(() => { channelSub.close(); channelClient.close(); });
   await assert.rejects(
     () => channelSub.until(() => false, 500),
-    (error: unknown) => isWireShape(error, "payload"),
+    (error: unknown) => isWireShape(error, "snapshot"),
   );
-  assert.equal(channelDelivery.state, "refused");
-  assert.equal(channelDelivery.code, "E_WIRE_SHAPE");
+  assert.equal(channelDelivery.status, "unavailable");
+  assert.equal(channelDelivery.reason, "refused");
+  assert.deepEqual(channelDelivery.entries, []);
+  assert.equal(channelDelivery.refusal.code, "E_WIRE_SHAPE");
   channelSub.close();
   channelClient.close();
 });
@@ -999,7 +747,8 @@ test("subscription loss preserves data and seq from the same receipt", async (co
   value.close();
 });
 
-test("channel publish and subscribe carry ephemeral payloads", async () => {
+// @ref LLP 1001.000#observable-client-surface — channel observations expose latest entries without the private lease.
+test("channel set and subscribe carry typed ephemeral snapshots", async () => {
   const reader = client(externalUrl ? { as: "alice" } : {});
   const writer = client(externalUrl ? { as: "bob" } : {});
   if (!externalUrl) await Promise.all([reader.auth.guest(), writer.auth.guest()]);
@@ -1007,13 +756,18 @@ test("channel publish and subscribe carry ephemeral payloads", async () => {
   const receiving = reader.channel<typeof args, { typing: boolean }>(api.typing, args);
   const publishing = writer.channel<typeof args, { typing: boolean }>(api.channels.typing, args);
   const sub = receiving.subscribe(() => undefined);
-  await new Promise((resolve) => setTimeout(resolve, 25));
-  const next = sub.until((event) => event.payload.typing === true, 2_000);
-  assert.deepEqual(await publishing.publish({ typing: true }), { ok: true });
-  const event = await next;
-  assert.deepEqual(event.payload, { typing: true });
-  assert.ok(event.from.length > 0);
+  const initial = await sub.until(snapshot => snapshot.status === "ready", 2_000);
+  assert.deepEqual(initial.entries, []);
+  const next = sub.until(snapshot => snapshot.entries.some(entry => entry.value.typing), 2_000);
+  assert.deepEqual(await publishing.set({ typing: true }), { ok: true });
+  const snapshot = await next;
+  assert.equal(snapshot.entries.length, 1);
+  assert.deepEqual(snapshot.entries[0].value, { typing: true });
+  assert.ok(snapshot.entries[0].from.length > 0);
+  assert.equal("lease" in snapshot, false);
   sub.close();
+  receiving.close();
+  publishing.close();
 });
 
 test("terminal channel refusals reach callbacks and reject until immediately", async () => {
@@ -1029,9 +783,11 @@ test("terminal channel refusals reach callbacks and reject until immediately", a
     (error: unknown) => error instanceof SnapbackRefusal && error.code === "E_AUTH_REQUIRED",
   );
   assert.ok(Date.now() - started < 500, "until waited for its timeout instead of rejecting the refusal");
-  assert.equal(delivered.state, "refused");
-  assert.equal(delivered.code, "E_AUTH_REQUIRED");
-  assert.equal(delivered.family, "auth");
+  assert.equal(delivered.status, "unavailable");
+  assert.equal(delivered.reason, "refused");
+  assert.deepEqual(delivered.entries, []);
+  assert.equal(delivered.refusal.code, "E_AUTH_REQUIRED");
+  assert.equal(delivered.refusal.family, "auth");
   sub.close();
   value.close();
 });

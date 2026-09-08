@@ -1,3 +1,4 @@
+import { deepStrictEqual } from "node:assert/strict";
 import { ClientStore, type ClosureReceipt, type Context } from "../../evaluator/src/evaluator";
 import type { Program } from "./ir";
 import { lowerProject } from "./project";
@@ -183,12 +184,75 @@ query good(id: nodes):
     }
   });
 
+  test("direct Quarry channels bind a typed record and bounded lifetime", () => {
+    const result = compileInline([{ fileName: "snapback/schema.q", source: `table rooms:
+  public
+
+channel typing(room: rooms, segment: text <=10 ?):
+  value: { typing: bool, note: text 1..20 ?, owner: principal, room: rooms, modes: [enum('typing', 'idle')] <=2, amount: decimal 2, extra: json <=100 }
+  publish <- allow
+  subscribe <- allow
+  ttl 30s
+` }]);
+    assert(result.ok, `typed channel declaration refused: ${JSON.stringify(result)}`);
+    deepStrictEqual(JSON.parse(JSON.stringify(result.project.schema.channels.typing)), {
+      args: { room: { Ref: { table: "rooms" } }, segment: { Optional: { Text: { max: 10 } } } },
+      value: {
+        typing: "Bool", note: { Optional: { Text: { max: 20, min: 1 } } }, owner: "Principal",
+        room: { Ref: { table: "rooms" } }, modes: { List: { of: { Enum: { variants: ["typing", "idle"] } }, max: 2 } },
+        amount: { Decimal: { scale: 2 } }, extra: { Json: { max_bytes: 100 } },
+      },
+      publish: "Allow", subscribe: "Allow", ttl_ms: 30_000,
+    });
+    assert(result.project.sources["schema.channels.typing.value.typing"]?.line === 5
+      && result.project.sources["schema.channels.typing.publish"]?.line === 6,
+    "channel value/rule diagnostics lost their authored source lines");
+  });
+
+  test("direct Quarry channels reject missing, duplicate and invalid value declarations", () => {
+    const declaration = "table rooms:\n  public\n\nchannel typing():\n  value: { typing: bool }\n  publish <- allow\n  subscribe <- allow\n  ttl 4s\n";
+    const variants: Array<[string, string, string]> = [
+      ["missing value", declaration.replace("  value: { typing: bool }\n", ""), "requires value"],
+      ["empty value", declaration.replace("{ typing: bool }", "{}"), "nonempty record"],
+      ["duplicate field", declaration.replace("{ typing: bool }", "{ typing: bool, typing: int }"), "duplicate channel value field"],
+      ["empty enum", declaration.replace("typing: bool", "typing: enum()"), "enum variants"],
+      ["duplicate enum", declaration.replace("typing: bool", "typing: enum('a', 'a')"), "enum variants"],
+      ["unknown ref", declaration.replace("typing: bool", "typing: absent"), "unknown table"],
+      ["oversized bound", declaration.replace("typing: bool", "typing: text <=4294967296"), "bounds must"],
+      ["empty text bound", declaration.replace("typing: bool", "typing: text <=0"), "bounds must"],
+      ["text minimum", declaration.replace("typing: bool", "typing: text 5..4"), "text minimum"],
+      ["empty list bound", declaration.replace("typing: bool", "typing: [bool] <=0"), "bounds must"],
+      ["empty json bound", declaration.replace("typing: bool", "typing: json <=0"), "bounds must"],
+    ];
+    for (const property of ["value: { typing: bool }", "publish <- allow", "subscribe <- allow", "ttl 4s"]) {
+      variants.push([`duplicate ${property}`, declaration.replace(`  ${property}\n`, `  ${property}\n  ${property}\n`), "duplicate channel property"]);
+    }
+    for (const kind of ["bytes <=10", "image <=10", "video <=10", "cursor"]) {
+      for (const type of [kind, `${kind} ?`, `[${kind}] <=2`, `[[${kind}] <=2] <=2 ?`]) {
+        variants.push([type, declaration.replace("typing: bool", `typing: ${type}`), "channel values do not support"]);
+      }
+    }
+    for (const ttl of ["0s", "31s", "999999999999999999s", "1.5s", "1", "1m"]) {
+      variants.push([`ttl ${ttl}`, declaration.replace("ttl 4s", `ttl ${ttl}`), ""]);
+    }
+    variants.push(["missing ttl", declaration.replace("  ttl 4s\n", ""), "requires ttl"]);
+    for (const [name, source, message] of variants) {
+      const result = compileInline([{ fileName: "snapback/schema.q", source }]);
+      assert(!result.ok && result.diagnostics.some(entry => entry.site.startsWith("snapback/schema.q:")
+        && entry.message.includes(message) && entry.rewrite.length > 0),
+      `${name} was not refused with an authored site and repair: ${JSON.stringify(result)}`);
+    }
+    const minimum = compileInline([{ fileName: "snapback/schema.q", source: declaration.replace("ttl 4s", "ttl 1s") }]);
+    assert(minimum.ok, `minimum channel ttl refused: ${JSON.stringify(minimum)}`);
+  });
+
   test("direct Quarry recovers channel properties per line", () => {
     const result = compileInline([{ fileName: "snapback/schema.q", source: `table rows:
   value: int
   public
 
 channel updates():
+  value: { typing: bool }
   broken one
   alsoBroken two
   publish <- public

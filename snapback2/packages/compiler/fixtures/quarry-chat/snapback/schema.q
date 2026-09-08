@@ -135,6 +135,7 @@ maintain messageCounts = count messages by conversationId:
   read <- exists memberships[.conversationId, viewer]
 
 channel typing(conversationId: conversations):
+  value: { typing: bool }
   publish <- exists memberships[conversationId, viewer]
   subscribe <- exists memberships[conversationId, viewer]
   ttl 4s

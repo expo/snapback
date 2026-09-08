@@ -33,7 +33,9 @@ fn exact_logout_fences_only_one_epoch_and_successors_cannot_resurrect_it() {
     let mut second_query = Sse::open_bearer(port, THREAD_PATH, &second_token);
     assert_eq!(second_query.event()["state"], "complete");
     let mut first_channel = Sse::open_bearer(port, TYPING_PATH, &first_token);
+    let _first_channel_lease = first_channel.event()["lease"].clone();
     let mut second_channel = Sse::open_bearer(port, TYPING_PATH, &second_token);
+    let second_channel_lease = second_channel.event()["lease"].clone();
 
     let logout = bearer_request(port, "POST", "/api/auth/logout", &first_token, json!({}));
     assert_eq!(logout.status, 200, "{}", logout.body);
@@ -54,9 +56,12 @@ fn exact_logout_fences_only_one_epoch_and_successors_cannot_resurrect_it() {
     );
     assert_eq!(retained_query.status, 200, "{}", retained_query.body);
     assert_eq!(retained_query.body["state"], "complete");
-    let publish = publish_typing(port, &second_token, "after-logout");
+    let publish = publish_typing(port, &second_token, &second_channel_lease);
     assert_eq!(publish.status, 200, "{}", publish.body);
-    assert_eq!(second_channel.event()["payload"]["phase"], "after-logout");
+    assert_eq!(
+        second_channel.event()["entries"][0]["value"]["typing"],
+        true
+    );
 
     let revoked_query = bearer_request(
         port,
@@ -138,13 +143,17 @@ fn exact_logout_fences_only_one_epoch_and_successors_cannot_resurrect_it() {
     });
     assert_eq!(applied["status"], "ready");
     assert_eq!(applied["generation"], generation);
+    assert_eq!(second_channel.event()["code"], "E_CHANNEL_RESET");
+    second_channel.assert_closed();
+    second_channel = Sse::open_bearer(port, TYPING_PATH, &second_token);
+    let successor_lease = second_channel.event()["lease"].clone();
     assert_eq!(second_query.event()["state"], "complete");
     assert_eq!(status(port, &secret)["subscriptions"], 1);
     assert_eq!(status(port, &secret)["channelSubscriptions"], 1);
     assert_auth_session(&bearer_request(
         port,
         "POST",
-        "/api/channel/typing/publish",
+        "/api/channel/typing/set",
         &first_token,
         json!({
             "args": { "conversationId": "conversation-1", "c": null },
@@ -152,12 +161,12 @@ fn exact_logout_fences_only_one_epoch_and_successors_cannot_resurrect_it() {
         }),
     ));
     assert_eq!(
-        publish_typing(port, &second_token, "after-successor").status,
+        publish_typing(port, &second_token, &successor_lease).status,
         200
     );
     assert_eq!(
-        second_channel.event()["payload"]["phase"],
-        "after-successor"
+        second_channel.event()["entries"][0]["value"]["typing"],
+        true
     );
 
     for exposed in [
@@ -196,6 +205,7 @@ fn idle_expiry_and_clock_boundary_terminally_fence_query_and_channel() {
     let mut idle_query = Sse::open_bearer(port, THREAD_PATH, &idle_token);
     assert_eq!(idle_query.event()["state"], "complete");
     let mut idle_channel = Sse::open_bearer(port, TYPING_PATH, &idle_token);
+    let _idle_channel_lease = idle_channel.event()["lease"].clone();
     let near_expiry = request(
         port,
         "POST",
@@ -220,6 +230,7 @@ fn idle_expiry_and_clock_boundary_terminally_fence_query_and_channel() {
     let mut boundary_query = Sse::open_bearer(port, THREAD_PATH, &boundary_token);
     assert_eq!(boundary_query.event()["state"], "complete");
     let mut boundary_channel = Sse::open_bearer(port, TYPING_PATH, &boundary_token);
+    let _boundary_channel_lease = boundary_channel.event()["lease"].clone();
     let boundary = request(
         port,
         "POST",
@@ -257,6 +268,7 @@ fn negative_clock_advance_preserves_offset_session_and_live_state() {
     let mut query = Sse::open_bearer(port, THREAD_PATH, &token);
     assert_eq!(query.event()["state"], "complete");
     let mut channel = Sse::open_bearer(port, TYPING_PATH, &token);
+    let channel_lease = channel.event()["lease"].clone();
 
     let before = request(
         port,
@@ -292,8 +304,8 @@ fn negative_clock_advance_preserves_offset_session_and_live_state() {
     assert_eq!(status(port, &secret)["subscriptions"], 1);
     assert_eq!(status(port, &secret)["channelSubscriptions"], 1);
     query.assert_silent(Duration::from_millis(200));
-    assert_eq!(publish_typing(port, &token, "after-refusal").status, 200);
-    assert_eq!(channel.event()["payload"]["phase"], "after-refusal");
+    assert_eq!(publish_typing(port, &token, &channel_lease).status, 200);
+    assert_eq!(channel.event()["entries"][0]["value"]["typing"], true);
 
     stop_owner(port, &secret, &mut owner, "negative clock refused");
     fs::remove_dir_all(root).unwrap();
@@ -323,14 +335,16 @@ fn startup_and_persona_headers_do_not_issue_sessions() {
         "{}",
         persona_query.body
     );
+    let mut typed_channel = Sse::open(port, TYPING_PATH, "alice");
+    let lease = typed_channel.event()["lease"].clone();
     let channel = request(
         port,
         "POST",
-        "/api/channel/typing/publish",
+        "/api/channel/typing/set",
         &[("X-Snapback-As", "alice")],
         json!({
             "args": { "conversationId": "conversation-1" },
-            "payload": { "phase": "allocator-read-only" },
+            "value": { "typing": true }, "lease": lease, "version": 1,
         }),
     );
     assert_eq!(channel.status, 200, "{}", channel.body);
@@ -599,15 +613,15 @@ fn bearer_request(
 }
 
 #[cfg(not(feature = "hermes"))]
-fn publish_typing(port: u16, token: &str, phase: &str) -> super::owner_wire::Response {
+fn publish_typing(port: u16, token: &str, lease: &Value) -> super::owner_wire::Response {
     bearer_request(
         port,
         "POST",
-        "/api/channel/typing/publish",
+        "/api/channel/typing/set",
         token,
         json!({
             "args": { "conversationId": "conversation-1" },
-            "payload": { "phase": phase },
+            "value": { "typing": true }, "lease": lease, "version": 1,
         }),
     )
 }

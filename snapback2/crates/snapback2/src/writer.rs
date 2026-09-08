@@ -26,6 +26,8 @@ use std::time::{Duration, Instant};
 mod writer_assets;
 #[path = "writer_auth.rs"]
 mod writer_auth;
+#[path = "writer_channels.rs"]
+mod writer_channels;
 #[path = "writer_connected.rs"]
 mod writer_connected;
 #[path = "writer_data.rs"]
@@ -58,6 +60,7 @@ mod writer_values;
 
 use writer_assets::asset_record;
 use writer_auth::{SessionFence, actor};
+use writer_channels::ChannelClient;
 use writer_ledger::CommitLedger;
 pub(crate) use writer_offline::OfflineOptions;
 pub(crate) use writer_rehearsal::rehearsal_args;
@@ -206,10 +209,12 @@ pub enum Action {
     ChannelUnsubscribe {
         id: u64,
     },
-    ChannelPublish {
+    ChannelWrite {
         name: String,
         args: Json,
-        payload: Json,
+        lease: String,
+        version: Json,
+        value: Option<Json>,
         identity: Identity,
     },
     Signup {
@@ -379,16 +384,6 @@ struct LiveClient {
     events: SseSender,
 }
 
-#[derive(Clone)]
-struct ChannelClient {
-    name: String,
-    args: BTreeMap<String, Value>,
-    context: Context,
-    session: Option<SessionFence>,
-    verdict: ChannelVerdict,
-    events: SseSender,
-}
-
 struct State {
     connected: writer_connected::Connections,
     runtime: Option<Runtime>,
@@ -406,6 +401,7 @@ struct State {
     ledger: VecDeque<CommitLedger>,
     operator_rejection: Option<Json>,
     next_channel: u64,
+    channel_dirty: BTreeSet<String>,
     clock_offset_ms: i64,
     restarted_through_seq: u64,
     stop: Arc<AtomicBool>,
@@ -455,6 +451,7 @@ pub fn spawn_writer(
                     ledger: VecDeque::new(),
                     operator_rejection: None,
                     next_channel: 0,
+                    channel_dirty: BTreeSet::new(),
                     clock_offset_ms: 0,
                     restarted_through_seq,
                     stop,
@@ -532,6 +529,12 @@ impl State {
     }
 
     fn handle(&mut self, action: Action) -> Result<Json, Refusal> {
+        let result = self.dispatch(action);
+        self.flush_channels();
+        result
+    }
+
+    fn dispatch(&mut self, action: Action) -> Result<Json, Refusal> {
         match action {
             Action::ConnectedOpen { identity, events } => self.connected_open(identity, events),
             Action::ConnectedClose { id } => {
@@ -607,15 +610,17 @@ impl State {
                 events,
             } => self.channel_subscribe(name, args, identity, events),
             Action::ChannelUnsubscribe { id } => {
-                self.channels.remove(&id);
+                self.channel_unsubscribe(id);
                 Ok(json!({ "ok": true }))
             }
-            Action::ChannelPublish {
+            Action::ChannelWrite {
                 name,
                 args,
-                payload,
+                lease,
+                version,
+                value,
                 identity,
-            } => self.channel_publish(name, args, payload, identity),
+            } => self.channel_write(name, args, lease, version, value, identity),
             Action::Signup { email, password } => {
                 let now = self.now();
                 let session = self
@@ -828,7 +833,9 @@ impl State {
                     ));
                 }
                 self.clock_offset_ms = self.clock_offset_ms.saturating_add(advance_ms);
+                self.advance_channel_clock(advance_ms);
                 self.sweep_expired_sessions()?;
+                self.sweep_channels();
                 self.sweep_offline_now()?;
                 self.sweep_assets_now()?;
                 let subscriptions = self.live.keys().copied().collect::<Vec<_>>();
@@ -1115,160 +1122,6 @@ impl State {
         Ok(json!({ "id": id, "seq": execution.seq }))
     }
 
-    fn channel_subscribe(
-        &mut self,
-        name: String,
-        args: Json,
-        identity: Identity,
-        events: SseSender,
-    ) -> Result<Json, Refusal> {
-        let authority = self.resolve_authority(identity)?;
-        let args = channel_args(self.runtime().generation(), &name, &args)?;
-        let context = self.execution_context(&authority, BTreeMap::new())?;
-        let verdict = self
-            .runtime_mut()
-            .channel_admit(&name, ChannelSide::Subscribe, &args, &context)
-            .map_err(|error| Refusal::from_runtime(&error))?;
-        if !verdict.admitted {
-            return Err(Refusal::new(
-                "E_RULE_CHANNEL_SUBSCRIBE",
-                "rule",
-                format!("principal is not admitted to channel {name}"),
-                "use channel arguments and a principal admitted by the subscribe rule",
-                "rule/channels",
-            ));
-        }
-        self.next_channel += 1;
-        let id = self.next_channel;
-        self.channels.insert(
-            id,
-            ChannelClient {
-                name,
-                args,
-                context,
-                session: authority.session,
-                verdict,
-                events,
-            },
-        );
-        Ok(json!({ "id": id }))
-    }
-
-    fn channel_publish(
-        &mut self,
-        name: String,
-        args: Json,
-        payload: Json,
-        identity: Identity,
-    ) -> Result<Json, Refusal> {
-        let authority = self.resolve_authority(identity)?;
-        let args = channel_args(self.runtime().generation(), &name, &args)?;
-        let context = self.execution_context(&authority, BTreeMap::new())?;
-        let verdict = self
-            .runtime_mut()
-            .channel_admit(&name, ChannelSide::Publish, &args, &context)
-            .map_err(|error| Refusal::from_runtime(&error))?;
-        if !verdict.admitted {
-            let seq = self
-                .runtime()
-                .store()
-                .commit_seq()
-                .map_err(|error| Refusal::from_runtime(&error))?;
-            return Ok(refusal_frame(
-                Refusal::new(
-                    "E_RULE_CHANNEL_PUBLISH",
-                    "rule",
-                    format!("principal is not admitted to publish on channel {name}"),
-                    "use channel arguments and a principal admitted by the publish rule",
-                    "rule/channels",
-                ),
-                seq,
-            )
-            .0);
-        }
-        let at = self.now();
-        let seq = self
-            .runtime()
-            .store()
-            .commit_seq()
-            .map_err(|error| Refusal::from_runtime(&error))?;
-        let event = SseEvent {
-            seq: Some(seq),
-            data: json!({ "from": authority.principal.id, "payload": payload, "at": at }),
-            terminal: false,
-        };
-        self.sweep_expired_sessions()?;
-        self.channels.retain(|_, subscriber| {
-            if subscriber.name == name && subscriber.args == args {
-                subscriber.events.try_send(event.clone()).is_ok()
-            } else {
-                true
-            }
-        });
-        Ok(json!({ "ok": true }))
-    }
-
-    fn readmit_channels(&mut self, commit: &snapback2_core::CommitRecord) {
-        let touched: Vec<u64> = self
-            .channels
-            .iter()
-            .filter_map(|(id, client)| {
-                Runtime::channel_touched(commit, &client.verdict).then_some(*id)
-            })
-            .collect();
-        self.readmit_channel_ids(&touched, commit.seq);
-    }
-
-    fn readmit_all_channels(&mut self) {
-        let channels = self.channels.keys().copied().collect::<Vec<_>>();
-        let seq = self.runtime().store().commit_seq().unwrap_or_default();
-        self.readmit_channel_ids(&channels, seq);
-    }
-
-    fn readmit_channel_ids(&mut self, ids: &[u64], seq: u64) {
-        for id in ids {
-            let Some(client) = self.channels.get(id).cloned() else {
-                continue;
-            };
-            match self.runtime_mut().channel_admit(
-                &client.name,
-                ChannelSide::Subscribe,
-                &client.args,
-                &client.context,
-            ) {
-                Ok(verdict) if verdict.admitted => {
-                    if let Some(current) = self.channels.get_mut(id) {
-                        current.verdict = verdict;
-                    }
-                }
-                result => {
-                    let refusal = result
-                        .err()
-                        .map(|error| Refusal::from_runtime(&error))
-                        .unwrap_or_else(|| {
-                            Refusal::new(
-                                "E_RULE_CHANNEL_SUBSCRIBE",
-                                "rule",
-                                format!(
-                                    "principal is no longer admitted to channel {}",
-                                    client.name
-                                ),
-                                "restore channel membership or use arguments admitted by the subscribe rule",
-                                "rule/channels",
-                            )
-                        });
-                    let (data, terminal) = refusal_frame(refusal, seq);
-                    let _ = client.events.send_latest(SseEvent {
-                        seq: Some(seq),
-                        data,
-                        terminal,
-                    });
-                    self.channels.remove(id);
-                }
-            }
-        }
-    }
-
     fn apply(
         &mut self,
         compiled: CompiledProject,
@@ -1302,9 +1155,7 @@ impl State {
         }
         self.owner.generation = self.compiled.generation.hash();
         self.sweep_expired_sessions()?;
-        // @ref LLP 1001#4-generation-and-runtime-registryrs-successorrs — retained
-        // channel handles must be re-admitted under the one active generation.
-        self.readmit_all_channels();
+        self.reset_channels();
         self.phase = Json::String("ready".to_owned());
         let clients = self.live.keys().copied().collect::<Vec<_>>();
         let _ = self.rerun_live(&clients, true);

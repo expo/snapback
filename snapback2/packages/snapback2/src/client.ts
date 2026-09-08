@@ -56,7 +56,7 @@ import type { SseResponse } from "./sse-parser.js";
 import { stableSerialize } from "./types.js";
 import type {
   AssetInput, AssetRecord, AssetUploadOptions, AssetUploadSource, AssetUrlOptions,
-  AuthMe, AuthSession, AuthTokenStore, ChannelHandle, ChannelPublishResult,
+  AuthMe, AuthSession, AuthTokenStore, ChannelHandle,
   ClientSnapshot, CreateClientOptions, ImageAsset, LiveQueryDelivery, Manifest,
   MutationResult, ObservedQuery, OutboxApi, Principal,
   QueryResult, QueryRefusedDelivery, RefusalEnvelope, RefusedDelivery,
@@ -519,7 +519,7 @@ class Client implements SnapbackClient {
     });
   }
 
-  channel<Args, Payload = unknown>(ref: ChannelRef<Args, Payload>, args: Args): ChannelHandle<Payload> {
+  channel<Args, Value>(ref: ChannelRef<Args, Value>, args: Args): ChannelHandle<Value> {
     return createChannel(this.channelHost(), ref, args);
   }
   private channelHost(): ChannelHost<Authority, SessionExpiration> {

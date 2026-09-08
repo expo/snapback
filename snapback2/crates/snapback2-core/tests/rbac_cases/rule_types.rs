@@ -82,7 +82,7 @@ fn valid_project_json() -> Json {
                             { "Eq": ["Viewer", { "Literal": { "Id": "system" } }] }
                         ]
                     },
-                    "ttl_ms": 4000
+                    "value": {"typing":"Bool"}, "ttl_ms": 4000
                 }
             }
         },

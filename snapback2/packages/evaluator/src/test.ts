@@ -994,7 +994,8 @@ const expectCode = (run: () => unknown, code: string, label: string) => {
   try { canonicalSchemaJson(withListColumnField); } catch (error) { refused = error; }
   assert(refused instanceof EvalError && refused.code === "E_SCHEMA" && /column\.List field shard/.test(refused.message), "a novel column List field was hashed instead of refused");
   const withChannel = structuredClone(known) as any;
-  withChannel.channels = { typing: { args: { ids: { List: { of: "Id", max: 4 } } }, publish: "Allow", subscribe: "Allow", ttl_ms: 1_000 } };
+  withChannel.channels = { typing: { args: { ids: { List: { of: "Id", max: 4 } } },
+    value: { typing: "Bool", note: { Optional: { Text: { max: 20 } } } }, publish: "Allow", subscribe: "Allow", ttl_ms: 1_000 } };
   const channelHash = sha256(canonicalSchemaJson(withChannel));
   assert(channelHash !== knownHash && canonicalSchemaJson(withChannel).includes('"ids":{"List":{"of":"Id","max":4}}'), "the channel List argument did not hash in serde order");
   const withListArgField = structuredClone(withChannel) as any;
@@ -1002,6 +1003,24 @@ const expectCode = (run: () => unknown, code: string, label: string) => {
   refused = undefined;
   try { canonicalSchemaJson(withListArgField); } catch (error) { refused = error; }
   assert(refused instanceof EvalError && refused.code === "E_SCHEMA" && /arg\.List field shard/.test(refused.message), "a novel channel-argument List field was hashed instead of refused");
+  const withValue = structuredClone(withChannel);
+  withValue.channels.typing.value.typing = "Int";
+  assert(sha256(canonicalSchemaJson(withValue)) !== channelHash, "a changed channel value descriptor reused its schema hash");
+  const sortedValue = structuredClone(withChannel);
+  sortedValue.channels.typing.value = { note: { Optional: { Text: { max: 20 } } }, typing: "Bool" };
+  assert(sha256(canonicalSchemaJson(sortedValue)) === channelHash, "channel value field order changed its schema hash");
+  const novelValue = structuredClone(withChannel);
+  novelValue.channels.typing.value.note.Optional.Text.novel = true;
+  refused = undefined;
+  try { canonicalSchemaJson(novelValue); } catch (error) { refused = error; }
+  assert(refused instanceof EvalError && refused.code === "E_SCHEMA", "a novel channel-value descriptor field was silently dropped");
+  for (const value of [undefined, null, [], {}]) {
+    const invalid = structuredClone(withChannel);
+    invalid.channels.typing.value = value;
+    refused = undefined;
+    try { canonicalSchemaJson(invalid); } catch (error) { refused = error; }
+    assert(refused instanceof EvalError && refused.code === "E_SCHEMA", "missing or empty channel value declaration was admitted");
+  }
   assert(channelHash === sha256(canonicalSchemaJson(structuredClone(withChannel))), "the known channel hash moved");
   // The known schema itself still hashes as before the strictness landed.
   assert(knownHash === sha256(canonicalSchemaJson(structuredClone(known))), "the known hash moved");

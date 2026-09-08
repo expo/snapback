@@ -1,5 +1,5 @@
 import { createClient as rawClient } from "../dist/client.mjs";
-import { fixtureClient as createClient } from "./live-fixture.ts";
+import { fixtureClient as createClient, channelFrame } from "./live-fixture.ts";
 // @ref LLP 1002#9-the-client-snapback2client-snapback2react-snapback2test —
 // custody transitions serialize persistence, transports, delayed responses,
 // and React cache identity around one explicit authority owner.
@@ -284,12 +284,18 @@ test("ready blocks every data transport until explicit token restore settles", a
       if (path === "/api/query") return json({ state: "complete", data: ["query"], seq: 1, next: null });
       if (path === "/api/mutation") return json({ state: "committed", data: "mutation", seq: 2 });
       if (path === "/api/auth/me") return json({ viewer: "principal-a", kind: "account" });
-      if (path.endsWith("/publish")) return json({ ok: true });
+      if (path.endsWith("/set")) {
+        const command = JSON.parse(String(init?.body));
+        assert.equal(command.lease, channelFrame().lease);
+        assert.equal(command.version, 1);
+        assert.deepEqual(command.value, { typing: true });
+        return json({ ok: true });
+      }
       if (path === "/api/subscribe") {
         return hangingSse({ state: "complete", data: ["live"], seq: 3, next: null });
       }
       if (path.endsWith("/subscribe")) {
-        return hangingSse({ from: "principal-a", payload: { typing: true }, at: 4 });
+        return hangingSse(channelFrame([{ key: "writer", from: "principal-a", value: { typing: true }, expiresAt: 4000 }]));
       }
       throw new Error(`unexpected path ${path}`);
     },
@@ -300,9 +306,9 @@ test("ready blocks every data transport until explicit token restore settles", a
   const querySubscription = value.subscribe(api.messages.thread, {}, () => undefined);
   const queryDelivery = querySubscription.until((event) => event.state === "complete");
   const channel = value.channel(api.typing, {});
-  const publish = channel.publish({ typing: true });
+  const set = channel.set({ typing: true });
   const channelSubscription = channel.subscribe(() => undefined);
-  const channelDelivery = channelSubscription.until((event) => "payload" in event);
+  const channelDelivery = channelSubscription.until(snapshot => snapshot.status === "ready");
   const me = value.auth.me();
 
   await flush();
@@ -311,7 +317,7 @@ test("ready blocks every data transport until explicit token restore settles", a
 
   restored.resolve("restored-token");
   await value.ready;
-  await Promise.all([query, mutation, queryDelivery, publish, channelDelivery, me]);
+  await Promise.all([query, mutation, queryDelivery, set, channelDelivery, me]);
   assert.equal(requests.length, 6);
   assert.ok(requests.every((request) => request.bearer === "Bearer restored-token"), requests);
   querySubscription.close();
@@ -699,6 +705,7 @@ test("E_AUTH_SESSION clears custody only for the auth refusal family", async () 
   };
   let stored: string | null = "current-token";
   let clears = 0;
+  let channelOpens = 0;
   const value = createClient({
     url: "http://auth.test",
     tokenStore: {
@@ -712,7 +719,10 @@ test("E_AUTH_SESSION clears custody only for the auth refusal family", async () 
       const requestPath = pathOf(input);
       if (requestPath === "/api/query") return json(impostor, 401);
       if (requestPath === "/api/mutation") return json({ state: "rejected", ...impostor });
-      if (requestPath.endsWith("/publish")) return json({ state: "refused", ...impostor });
+      if (requestPath.endsWith("/set")) return json({ state: "refused", ...impostor });
+      if (requestPath.startsWith("/api/channel/") && requestPath.endsWith("/subscribe") && channelOpens++ === 0) {
+        return hangingSse(channelFrame());
+      }
       if (requestPath.endsWith("/subscribe")) {
         return hangingSse({ state: "refused", ...impostor });
       }
@@ -724,17 +734,17 @@ test("E_AUTH_SESSION clears custody only for the auth refusal family", async () 
 
   await assert.rejects(value.query(api.messages.thread, {}), isCode("E_AUTH_SESSION"));
   assert.equal((await value.mutation(api.messages.send, {})).state, "rejected");
-  assert.equal((await value.channel(api.typing, {}).publish({ typing: true })).state, "refused");
+  assert.equal((await value.channel(api.typing, {}).set({ typing: true })).state, "refused");
 
   const querySubscription = value.subscribe(api.messages.thread, {}, () => undefined);
   const queryDelivery = await querySubscription.until((delivery) => delivery.state === "refused");
   assert.equal((queryDelivery as { family?: string }).family, "rule");
   querySubscription.close();
 
-  const channelSubscription = value.channel(api.typing, {}).subscribe(() => undefined);
-  const channelDelivery = await channelSubscription.until((delivery) =>
-    "state" in delivery && delivery.state === "refused");
-  assert.equal((channelDelivery as { family?: string }).family, "rule");
+  const channel = value.channel(api.typing, {});
+  const channelSubscription = channel.subscribe(() => undefined);
+  await assert.rejects(channelSubscription.until(() => false), isCode("E_AUTH_SESSION"));
+  assert.equal(channel.getSnapshot().refusal?.family, "rule");
   channelSubscription.close();
 
   assert.equal(clears, 0);
@@ -936,7 +946,8 @@ test("a transition during slow terminal cleanup suppresses typed mutation and ch
         if (path === "/api/mutation") {
           return json({ state: "rejected", ...refusal("E_AUTH_SESSION") });
         }
-        if (path.endsWith("/publish")) {
+        if (path.endsWith("/subscribe")) return hangingSse(channelFrame());
+        if (path.endsWith("/set")) {
           return json({ state: "refused", ...refusal("E_AUTH_SESSION") });
         }
         if (path === "/api/auth/login") {
@@ -950,7 +961,7 @@ test("a transition during slow terminal cleanup suppresses typed mutation and ch
     await value.ready;
     const old = surface === "mutation"
       ? value.mutation(api.messages.send, {})
-      : value.channel(api.typing, {}).publish({ typing: true });
+      : value.channel(api.typing, {}).set({ typing: true });
     await clearStarted.promise;
     const login = value.auth.login({ email: "a@example.com", password: "password" });
     await flush();
@@ -1266,7 +1277,12 @@ test("token-store clear failures stay visible on every request-based terminal pa
           if (token === null) throw new Error("storage unavailable");
         },
       },
-      fetch: async input => pathOf(input) === "/api/auth/me" ? json({ viewer: "principal-a", kind: "account" }) : response,
+      fetch: async input => {
+        const path = pathOf(input);
+        if (path === "/api/auth/me") return json({ viewer: "principal-a", kind: "account" });
+        if (path.startsWith("/api/channel/") && path.endsWith("/subscribe")) return hangingSse(channelFrame());
+        return response;
+      },
     });
     await value.ready;
     const generation = value.snapshot.authGeneration;
@@ -1282,7 +1298,7 @@ test("token-store clear failures stay visible on every request-based terminal pa
   await exercise(json({ state: "rejected", ...refusal("E_AUTH_SESSION") }), (value) =>
     value.mutation(api.messages.send, {}));
   await exercise(json({ state: "refused", ...refusal("E_AUTH_SESSION") }), (value) =>
-    value.channel(api.typing, {}).publish({ typing: true }));
+    value.channel(api.typing, {}).set({ typing: true }));
   await exercise(json({ ok: true }), (value) => value.auth.logout());
 });
 

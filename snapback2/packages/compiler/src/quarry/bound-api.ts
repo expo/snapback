@@ -38,6 +38,7 @@ export function generateBoundApiDts(
     })
     .join("\n");
 
+  // @ref LLP 1001.000#declaration-and-value — the shared value type accepts ordinary argument optionals and numeric minor units.
   const channelDeclarations = documents.flatMap((document) => document.channels)
     .sort((left, right) => compare(left.name, right.name));
   const channelByName = new Map(channelDeclarations.map((channel) => [channel.name, channel]));
@@ -55,12 +56,12 @@ export function generateBoundApiDts(
     const items = channelPrograms.map((program) => {
       const name = operationParts(program.name)[1];
       const channel = channelByName.get(name);
-      const intersection = channel ? ` & Channel<${printArgs(channel.args, false)}, unknown>` : "";
+      const intersection = channel ? ` & Channel<${printArgs(channel.args, false)}, ${printArgs(channel.value, false)}>` : "";
       return `      readonly ${quoteProperty(name)}: ${operationType(program, rowAliases)}${intersection};`;
     });
     for (const channel of channelDeclarations) {
       if (!channelProgramNames.has(channel.name)) {
-        items.push(`      readonly ${quoteProperty(channel.name)}: Channel<${printArgs(channel.args, false)}, unknown>;`);
+        items.push(`      readonly ${quoteProperty(channel.name)}: Channel<${printArgs(channel.args, false)}, ${printArgs(channel.value, false)}>;`);
       }
     }
     const catalogText = items.length === 0
@@ -69,7 +70,7 @@ export function generateBoundApiDts(
     const occupied = new Set([...grouped.keys(), "channels", "op", "then", "toJSON"]);
     const aliases = channelDeclarations
       .filter((channel) => !occupied.has(channel.name))
-      .map((channel) => `    readonly ${quoteProperty(channel.name)}: Channel<${printArgs(channel.args, false)}, unknown>;`);
+      .map((channel) => `    readonly ${quoteProperty(channel.name)}: Channel<${printArgs(channel.args, false)}, ${printArgs(channel.value, false)}>;`);
     channels = [catalogText, ...aliases].join("\n");
   }
 

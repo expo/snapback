@@ -22,6 +22,8 @@ import {
   type AssetInput,
   type AssetUrlOptions,
   type ChannelHandle,
+  type ChannelSnapshot,
+  type ChannelWriteResult,
   type ClientSnapshot,
   type ConnectionState,
   type CreateClientOptions,
@@ -308,13 +310,32 @@ export function useAuth(): UseAuthResult {
   return { ...snapshot.auth, token: snapshot.token, ...client.auth };
 }
 
-export function useChannel<Args, Payload = unknown>(ref: ChannelRef<Args, Payload>, args: NoInfer<Args>): ChannelHandle<Payload> {
+export interface UseChannelResult<Value> extends ChannelSnapshot<Value> {
+  set(value: Value): Promise<ChannelWriteResult>;
+  clear(): Promise<ChannelWriteResult>;
+}
+
+export function useChannel<Args, Value>(ref: ChannelRef<Args, Value>, args: NoInfer<Args>): UseChannelResult<Value> {
   const { client, snapshot } = provider();
   const argsKey = stableSerialize(args);
-  return useMemo(
-    () => client.channel<Args, Payload>(ref, args),
+  const room = useMemo(
+    () => client.channel<Args, Value>(ref, args),
     [client, snapshot.authGeneration, referenceName(ref), argsKey],
   );
+  const pendingClose = useRef<{ room: ChannelHandle<Value>; timer: ReturnType<typeof setTimeout> } | undefined>(undefined);
+  useEffect(() => {
+    if (pendingClose.current?.room === room) {
+      clearTimeout(pendingClose.current.timer);
+      pendingClose.current = undefined;
+    }
+    return () => { pendingClose.current = { room, timer: setTimeout(() => room.close(), 0) }; };
+  }, [room]);
+  const subscribe = useCallback((notify: () => void) => {
+    const observation = room.subscribe(notify);
+    return () => observation.close();
+  }, [room]);
+  const state = useSyncExternalStore(subscribe, room.getSnapshot, room.getSnapshot);
+  return useMemo(() => ({ ...state, set: room.set, clear: room.clear }), [state, room]);
 }
 
 type AssetUrlValue = string | (string | undefined)[] | undefined;

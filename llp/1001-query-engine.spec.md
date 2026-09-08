@@ -878,11 +878,12 @@ appear in receipts, traces, owner status, URLs, app rows, or logs.
 ## 7. Channels (`schema.channels`)
 
 ```rust
-pub struct Channel { pub args: BTreeMap<String, ArgType>, pub publish: RuleExpr, pub subscribe: RuleExpr, pub ttl_ms: u32 }
+pub struct Channel { pub args: BTreeMap<String, ArgType>, pub value: BTreeMap<String, ArgType>, pub publish: RuleExpr, pub subscribe: RuleExpr, pub ttl_ms: u32 }
 pub struct ChannelVerdict { pub admitted: bool, pub rule_inputs: Vec<RuleInputTrace>, pub points: Vec<PointTrace> }
 impl Runtime {
     pub fn channel_admit(&mut self, name: &str, side: ChannelSide, args: &BTreeMap<String, Value>, context: &Context) -> Result<ChannelVerdict, RuntimeError>;
-    pub fn channel_touched(&self, commit: &CommitRecord, verdict: &ChannelVerdict) -> bool;   // does this commit overlap the verdict's traced keys
+    pub fn channel_value(&self, name: &str, value: BTreeMap<String, Value>) -> Result<BTreeMap<String, Value>, RuntimeError>;
+    pub fn channel_touched(commit: &CommitRecord, verdict: &ChannelVerdict) -> bool;   // does this commit overlap the verdict's traced keys
 }
 ```
 
@@ -895,8 +896,25 @@ an authoritative rule probe. Generation certification emits separate
 publish/subscribe rule certificates with transitive probe and step ceilings;
 channel admission presents the selected certificate to the runner, which
 enforces both ceilings.
-No persistence, no receipt, no prediction (LLP 0329.014.000 §8). The fan-out
-itself is the loop's (LLP 1002 §4).
+The channel is a typed latest-state resource (LLP 1001.000). `value` declares
+one nonempty closed record, validated using ordinary argument types with
+optional-field normalization. Value descriptors exclude assets, bytes and
+cursors recursively. Generation admission checks descriptors and requires an
+integer TTL of 1–30 seconds. The owner retains one value per subscribed
+connection, its exact principal/session epoch, and its publish verdict;
+commit-triggered revocation removes values whose publish authority disappears
+and closes children whose subscribe authority disappears. All affected checks
+finish before another room snapshot is selected.
+
+The owner sends complete replacement snapshots, including an immediate empty
+snapshot for an empty room. Each live handle has an owner-minted public key and
+private lease; authenticated set/clear commands bind the exact normalized
+scope, name and session and carry increasing version watermarks. TTL expiry
+uses monotonic time, preserves the live handle, and removes its value. Reset,
+succession and disconnect close the lease. Successors send `E_CHANNEL_RESET`
+and clients reconnect for fresh state. The bounds and complete wire/client
+contract are LLP 1001.000. No persistence, receipt, prediction, query language
+or replay is added; the fanout itself remains the loop's (LLP 1002 §4).
 
 **Authorization amendment (2026-08-30).** `RuleExpr::Exists` has no authored
 `input_visibility` field, and `rule.exists` has no `hidden` option.

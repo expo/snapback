@@ -330,7 +330,8 @@ test("sixty live queries and a channel share one connection through add, remove 
   const remember = (name: string) => (event: any) => deliveries.set(name, {
     state: event?.state, live: event?.live, seq: event?.seq,
     rows: Array.isArray(event?.data) ? event.data.length : undefined,
-    typing: event?.payload?.typing,
+    typing: event?.entries?.some((entry: any) => entry.value.typing),
+    channelStatus: event?.status,
   });
   let phase = "opening sixty queries";
   try {
@@ -340,15 +341,17 @@ test("sixty live queries and a channel share one connection through add, remove 
     await Promise.all(subscriptions.map(sub => sub.until((event: any) => event.live === true, 5_000)));
     assert.equal(streams, 1);
     phase = "admitting channel with summary query";
-    const channel = client.channel(api.typing, { conversationId: "conversation-1" }).subscribe(remember("channel"));
+    const room = client.channel(api.typing, { conversationId: "conversation-1" });
+    const channel = room.subscribe(remember("channel"));
     subscriptions.push(channel);
-    // A query registered in the same control batch witnesses channel admission.
+    // A query registered in the same control batch exercises mixed child admission.
     const witness = client.subscribe(api.messages.summary, { conversationId: "conversation-1" }, remember("summary"));
     subscriptions.push(witness);
     await witness.until((event: any) => event.live === true, 2_000);
-    phase = "receiving channel publish";
-    await client.channel(api.typing, { conversationId: "conversation-1" }).publish({ typing: true });
-    await channel.until((event: any) => event.payload?.typing === true, 2_000);
+    await channel.until(snapshot => snapshot.status === "ready", 2_000);
+    phase = "receiving channel state";
+    await room.set({ typing: true });
+    await channel.until(snapshot => snapshot.entries.some((entry: any) => entry.value.typing), 2_000);
     phase = "receiving unknown-operation refusal";
     const refused = client.subscribe(api.missing.operation, {}, remember("missing"));
     subscriptions.push(refused);
@@ -362,11 +365,17 @@ test("sixty live queries and a channel share one connection through add, remove 
     assert.equal(streams, 1, "changing the subscription set does not restart the connection");
     const denied = await fetch(`${owner.url}/api/live/control`, { method: "POST", headers: { "Content-Type": "application/json", "X-Snapback-As": "bob" }, body: JSON.stringify({ session, close: true }) });
     assert.equal(denied.status, 400, "another principal cannot control this stream");
+    const oldKey = room.getSnapshot().key;
+    const invalidated = channel.until(snapshot => snapshot.status === "unavailable", 2_000);
     await fetch(`${owner.url}/api/live/control`, { method: "POST", headers: { "Content-Type": "application/json", "X-Snapback-As": "alice" }, body: JSON.stringify({ session, close: true }) });
+    assert.deepEqual((await invalidated).entries, []);
     phase = "receiving stale after owner-forced close";
     await subscriptions[0].until((event: any) => event.state === "stale", 2_000);
     phase = "receiving live delivery after reconnect";
     await subscriptions[0].until((event: any) => event.live === true, 3_000);
+    const reconnected = await channel.until(snapshot => snapshot.status === "ready", 3_000);
+    assert.notEqual(reconnected.key, oldKey);
+    assert.deepEqual(reconnected.entries, [], "a reconnected handle must not republish its old value");
     assert.equal(streams, 2);
     assert.ok(controls < 15, "subscriptions are batched, not one control connection per query");
   } catch (error) {

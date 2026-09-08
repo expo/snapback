@@ -145,9 +145,15 @@ function normalizeIndex(index: any): any {
 }
 
 function normalizeChannel(channel: any): any {
-  known(channel, ["args", "publish", "subscribe", "ttl_ms"], "channel");
+  // @ref LLP 1001.000#declaration-and-value — typed latest state participates in the schema identity in Rust field order.
+  known(channel, ["args", "value", "publish", "subscribe", "ttl_ms"], "channel");
+  if (channel.value === undefined || channel.value === null || typeof channel.value !== "object"
+    || Array.isArray(channel.value) || Object.keys(channel.value).length === 0) {
+    throw new EvalError("E_SCHEMA", "channel value requires a nonempty record declaration");
+  }
   return {
     args: sortedMap(channel.args ?? {}, normalizeArgType),
+    value: sortedMap(channel.value, normalizeArgType),
     publish: normalizeRule(channel.publish),
     subscribe: normalizeRule(channel.subscribe),
     ttl_ms: channel.ttl_ms,
