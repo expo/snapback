@@ -1381,10 +1381,11 @@ fn every_frozen_corpus_case_replays_its_certification_outcome() {
     // Public Words retirement removed exactly edge-ascii-words,
     // search-words-optional-null, and search-words-unicode. The declared
     // tombstone schema-identity scenario was added later; Unicode index/search
-    // coverage remains in the retained cases.
+    // coverage remains in the retained cases. Composite continuation adds 13
+    // range/merge/alias/ambiguity witnesses.
     assert_eq!(
         cases.len(),
-        250,
+        263,
         "the complete frozen corpus must be checked"
     );
     assert!(

@@ -1,4 +1,4 @@
-export const referencePath: unique symbol = Symbol.for("snapback.referencePath");
+export const referencePath: unique symbol = /* @__PURE__ */ Symbol.for("snapback.referencePath");
 
 export interface Op<Args, Result, Targets extends Record<string, "create" | "update" | "remove"> = {}> {
   readonly op: string;

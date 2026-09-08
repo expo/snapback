@@ -57,10 +57,10 @@ descending queries stay valid. See offline.
 ## Channels
 
 `channel name(args):` declares ephemeral events with `publish`/`subscribe`
-rules and `ttl Ns`, for signals such as typing. Events are not replayable.
-A heartbeat table approximates foreground activity; lag includes its interval
-and expiry delay. Gate delivery on durable receipts and a delayed
-unacknowledged check, never heartbeats.
+rules and `ttl Ns`, for typing; events are not replayable. A heartbeat table
+is a workaround for recent activity. Lag is the heartbeat interval plus the expiry
+delay; disconnects are seen late. Do not gate delivery on it: use durable receipts
+and a delayed unacknowledged check.
 
 ## Connected
 
@@ -79,11 +79,9 @@ foreground/idle or delivery guarantee and adds no channel/subscriber broadcast.
 
 ## Unicode word-prefix search
 
-`wordPrefixes` is an engine-maintained nonunique index component over one or
-more bounded text columns. Put ordinary scope columns before it and ordinary
-ordering columns after it. A query must equality-bind every scope column and
-the search component; it cannot use the index for point reads, rules, writes,
-or maintained aggregates.
+`wordPrefixes` is an engine-maintained nonunique index component over bounded
+text columns, between scope and ordering columns. Queries equality-bind scope
+and search; this index cannot serve point reads, rules, writes or aggregates.
 
 The chat template declares
 `by bySearch: conversationId, wordPrefixes(body), at, id` on `messages` and

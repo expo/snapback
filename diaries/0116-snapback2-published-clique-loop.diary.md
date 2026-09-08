@@ -1725,3 +1725,34 @@ The fixed runtime measures 84,142 gzip bytes, 142 over the unchanged ceiling;
 the coordinating integration owns that remaining footprint work. Full-client
 exports measure 119,510 gzip bytes. Successful-history compaction and the
 separate presentation helper are outside this slice.
+
+## 2026-09-08 — composite continuation and typed partial history
+
+The shipped conversation query now accepts its own optional cursor. The message
+page can live beside the maintained count and fixed preview without losing its
+continuation. A real owner test creates 51 messages, crosses the production
+50-row boundary without overlap, checks that the two reads keep the same count
+and preview, then reopens the carrier cold offline and reconstructs both pages.
+That test passes. The screen still observes the live head; this is a composable
+query capability, not an infinite-scroll widget or automatic page merger.
+
+`itemsFrom === "query"` now narrows the TypeScript result to usable composite
+data. The React and Expo screens delete their result casts. The important
+implementation discovery was below the type: eviction could clear a projected
+count while retained rows still made the answer look complete or capped.
+Retention now preserves readable bodies without claiming a complete result;
+the existing `withHistory` declaration supplies the separately authorized rows.
+Its cursor belongs to the history query, not the composite.
+
+Review found two less obvious identity assumptions. A predicted row could
+bypass an unresolved semantic target and receive a second pending action; the
+binding now owns that correspondence exclusively. Local cursor routing also
+assumed the first formal cursor argument, which fails when a composite's
+selected page uses another argument. Native page provenance must own that
+choice, while transport independently removes local tokens from typed cursor
+arguments. Those are SDK responsibilities that an app should not reconstruct.
+
+No new Exact or Contract work, competitor timing comparison, non-chat proof,
+successful-history compaction, or native-device qualification belongs to this
+entry. The broad local test attempt hit timeouts under parallel load; its
+results are retained separately from focused passing checks.
