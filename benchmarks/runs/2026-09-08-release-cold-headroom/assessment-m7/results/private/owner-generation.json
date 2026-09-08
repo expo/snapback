@@ -1,0 +1,29 @@
+{
+  "at": 1788889181.375873,
+  "generation": "030479ec81d67bc3fb9ef9bc7b0f27a3848dd6d9300f4b74dc4738ea3274bb03",
+  "status": "ready",
+  "mode": "dev",
+  "seq": 718,
+  "jobs": {
+    "parked": 0,
+    "queued": 0,
+    "running": 0
+  },
+  "schedules": {
+    "fired": 53,
+    "late": 52,
+    "rejected": 0
+  },
+  "timers": {
+    "due": 0,
+    "next_at": 1788889286174,
+    "rejected": 0
+  },
+  "project": "/Users/ccheever/clique-cold-019-20260908/assessment-m7/app",
+  "listen": "127.0.0.1:53132",
+  "ownedPids": [
+    34728,
+    34730,
+    34731
+  ]
+}

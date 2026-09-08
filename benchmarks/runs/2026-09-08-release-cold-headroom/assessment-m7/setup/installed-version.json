@@ -1,0 +1,9 @@
+{
+  "command": [
+    "node_modules/.bin/snapback2",
+    "version"
+  ],
+  "exit": 0,
+  "stdout": "snapback2 0.0.19\n",
+  "at": 1788888899.129761
+}

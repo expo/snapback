@@ -51,8 +51,8 @@ The fresh session started at 2026-09-08T06:58:29.447490+00:00 (session
 `01a07fcf-a3b8-7761-b378-d22df2d7d8aa`). It completed and exited0. See [continuous closeout](continuous-closeout.md)
 for passing local receipts, the M3 abort/dependency deviation, clock corrections,
 replay scope and missing native proof. Both continuous assessments are retained;
-the first M7 attempt aborted on mixed backend bindings, and one clean retry is
-in progress.
+the first M7 attempt aborted on mixed backend bindings, and the clean retry has
+passing local M7 receipts. Its independent postcheck is complete.
 
 ## Other authorized work
 
@@ -151,8 +151,12 @@ prevents a clean-isolation claim for this fallback.
 
 [First M7 attempt](m7-aborted.md) is aborted-contamination. Its assigned-backend
 migration snapshots remain separate evidence; the late20-row API view missed
-an original message that a read-only storage check found intact. One fresh
-M7 retry starts from the original source and starter state with isolated Expo
-caches, cleared exports and active endpoint checks. It receives no prior M7
-implementation or findings. Final M7 acceptance and independent postcheck remain
-pending; no whole-program benchmark qualification is claimed.
+an original message that a read-only storage check found intact. The
+[clean M7 retry](m7-retry/README.md) started from original source and starter
+state with isolated Expo caches, cleared exports and active endpoint checks.
+It received no prior M7 implementation or findings. Its suite, required local
+regressions and frozen live/offline poll choreography pass. The
+[independent M7 assessment](assessment-m7/README.md) is complete and records nine
+passes, with root qualifications for method, coverage and preservation scope.
+All owned services are stopped and recoverable source/data remain preserved.
+No whole-program benchmark qualification is claimed.

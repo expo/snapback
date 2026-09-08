@@ -1,0 +1,15 @@
+{
+  "tried": [
+    {
+      "target": "http://127.0.0.1:53133/conversation/group/Weekend%20Plans/settings",
+      "status": "http://127.0.0.1:53133/conversation/group/Weekend%20Plans/settings",
+      "count": "10",
+      "body": null,
+      "loading": 0,
+      "members": 4
+    }
+  ],
+  "uiCount": 10,
+  "error": null,
+  "htmlSnippet": null
+}

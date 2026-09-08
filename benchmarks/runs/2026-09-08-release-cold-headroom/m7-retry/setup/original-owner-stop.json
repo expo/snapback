@@ -1,0 +1,12 @@
+[
+  {
+    "pid": 9726,
+    "at": 1788888890.003097,
+    "command": "node node_modules/.bin/snapback2 dev --foreground --port 53134"
+  },
+  {
+    "pid": 9727,
+    "at": 1788888890.0085912,
+    "command": "/Users/ccheever/clique-cold-019-20260908/m7-retry/app/node_modules/snapback2-darwin-arm64/bin/snapback2 dev --foreground --port 53134"
+  }
+]

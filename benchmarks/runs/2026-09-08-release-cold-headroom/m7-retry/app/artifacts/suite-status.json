@@ -1,0 +1,30 @@
+{
+  "m1": {
+    "pass": true,
+    "receipt": "suite-m1-1788887530.json"
+  },
+  "m2": {
+    "pass": true,
+    "receipt": "suite-m2-1788887535.json"
+  },
+  "m4": {
+    "pass": true,
+    "receipt": "suite-m4-1788887540.json"
+  },
+  "m5": {
+    "pass": true,
+    "receipt": "suite-m5-1788887545.json"
+  },
+  "m6": {
+    "pass": true,
+    "receipt": "suite-m6-1788887550.json"
+  },
+  "m8": {
+    "pass": true,
+    "receipt": "suite-m8-1788887554.json"
+  },
+  "m7": {
+    "pass": true,
+    "receipt": "suite-m7-1788887554.json"
+  }
+}

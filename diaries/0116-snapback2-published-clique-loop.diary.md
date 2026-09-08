@@ -1661,7 +1661,7 @@ full log settled 167,157 actions, but only named fixture invariants were checked
 Both native Release apps built and reached the sign-in UI. That is useful setup
 evidence; offline restart, media/search and FIFO proof remain missing. The independent Grok assessment and Sol fallback are retained with root
 adjudication. Fresh-session M7 has a pre-upgrade API snapshot and separate clock;
-its first attempt aborted and a clean retry is now running.
+its first attempt aborted, and the clean retry's author has now completed.
 
 Separately, reviewed performance work landed after 0.0.19: the pinned integrated
 suite passes in 83.921 seconds and its runtime is 83,227 gzip bytes. Same-upstream
@@ -1691,6 +1691,48 @@ message; a read-only exact-row storage check found it intact. Immediate
 pre/post migration equality is useful evidence, while complete later API
 visibility remains a separate obligation. These are concrete packet, app and
 query-composition lessons, not a new comparison score against Convex or Supabase.
+
+## 2026-09-08 — clean M7 author closeout
+
+The [fresh retry](../benchmarks/runs/2026-09-08-release-cold-headroom/m7-retry/README.md)
+reached a passing suite and frozen live/offline poll choreography in about 76
+minutes. A new stored message count was backfilled through the documented
+optional-column/job/required-narrowing sequence. Existing discriminator values
+survived because the author added a separate logical type after the required
+enum-widening successor was refused. The canonical pre/post API captures match
+for their 15 starter messages; empty media/reaction classes and the third
+stored conversation stay outside that preservation claim.
+
+The author's experience shows where composition still costs work. Embedding
+poll detail in every history row exceeded certified bounds, so it became a
+separate bounded query. The frozen poll kit needed explicit DOM semantics, and
+the UI initially counted settled durable ledger entries as pending. The
+installed mutation hook's queued-only pending collection supplied the intended
+busy state. These are concrete distinctions an app author had to understand;
+they do not show that the underlying primitives are missing.
+
+Some friction belonged to the run itself: a login shell selected the wrong
+Node version, malformed commands caused setup failures, and a new expiry test
+advanced the shared clock before an inherited digest assertion. Those failures
+remain recorded. The proposed hydration/store-lock cause is unresolved; the
+per-tab database prefix does not change the installed driver's lock name, and
+the two-context probes checked form visibility. Final local success does not
+establish tab-close recovery or native behavior. The fresh independent assessor
+completed and recorded all nine M7 assertions passing. Its API recovered all
+15 starter message IDs through the root-page history query; its late check
+covers 13 message fields, not all receipt/persona views. Its independent
+browser run observed live tallies and an offline pending vote converging on
+the other client. The stronger pending-clear check remains supplied by the
+author's frozen choreography. The retained method limits keep these useful
+observations from becoming broader claims than the run supports.
+
+The ordinary thread's missing continuation was inherited app composition:
+an object containing a page has no root cursor under the installed contract,
+while the app's API notes promised pagination anyway. Correcting that app
+recipe must preserve membership policy; the active-member offline query is
+not automatically interchangeable with retained history. The existing M7
+follow-up now records that distinction. All owned services are stopped and
+the source, data and failed attempts remain recoverable.
 
 ## 2026-09-08 — semantic mutation targets on the current client
 

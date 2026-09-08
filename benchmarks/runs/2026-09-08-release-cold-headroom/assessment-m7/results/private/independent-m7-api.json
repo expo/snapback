@@ -1,0 +1,217 @@
+{
+  "endpoint": "http://127.0.0.1:53132",
+  "at": "2026-09-08T17:49:01.515Z",
+  "checks": {
+    "a06": {
+      "dm": {
+        "settingsCount": 42,
+        "storedVisibleMessageCount": 42,
+        "disappearing": "off",
+        "offlineRows": 42,
+        "visibleRows": 42,
+        "tombstoned": 0,
+        "expiredPresent": 0,
+        "polls": 0,
+        "threadRows": 20,
+        "threadState": [
+          {
+            "state": "capped",
+            "next": null,
+            "n": 20
+          }
+        ],
+        "starterIdsInOffline": {
+          "sm0001": true,
+          "sm0002": true,
+          "sm0003": true,
+          "sm0004": true,
+          "sm0005": true,
+          "sm0006": true
+        },
+        "starterIdsInThread": {
+          "sm0001": false,
+          "sm0002": false,
+          "sm0003": false,
+          "sm0004": false,
+          "sm0005": false,
+          "sm0006": false
+        },
+        "match": true
+      },
+      "group": {
+        "settingsCount": 10,
+        "storedVisibleMessageCount": 10,
+        "disappearing": "off",
+        "offlineRows": 10,
+        "visibleRows": 10,
+        "tombstoned": 0,
+        "expiredPresent": 0,
+        "polls": 1,
+        "threadRows": 10,
+        "threadState": [
+          {
+            "state": "capped",
+            "next": null,
+            "n": 10
+          }
+        ],
+        "starterIdsInOffline": {
+          "sm0007": true,
+          "sm0008": true,
+          "sm0009": true,
+          "sm0010": true,
+          "sm0011": true,
+          "sm0012": true,
+          "sm0013": true,
+          "sm0014": true,
+          "sm0015": true
+        },
+        "starterIdsInThread": {
+          "sm0007": true,
+          "sm0008": true,
+          "sm0009": true,
+          "sm0010": true,
+          "sm0011": true,
+          "sm0012": true,
+          "sm0013": true,
+          "sm0014": true,
+          "sm0015": true
+        },
+        "match": true
+      },
+      "pass": true
+    },
+    "a08starterFieldsViaOfflineHistory": {
+      "sm0001": {
+        "present": true,
+        "diffs": []
+      },
+      "sm0002": {
+        "present": true,
+        "diffs": []
+      },
+      "sm0003": {
+        "present": true,
+        "diffs": []
+      },
+      "sm0004": {
+        "present": true,
+        "diffs": []
+      },
+      "sm0005": {
+        "present": true,
+        "diffs": []
+      },
+      "sm0006": {
+        "present": true,
+        "diffs": []
+      },
+      "sm0007": {
+        "present": true,
+        "diffs": []
+      },
+      "sm0008": {
+        "present": true,
+        "diffs": []
+      },
+      "sm0009": {
+        "present": true,
+        "diffs": []
+      },
+      "sm0010": {
+        "present": true,
+        "diffs": []
+      },
+      "sm0011": {
+        "present": true,
+        "diffs": []
+      },
+      "sm0012": {
+        "present": true,
+        "diffs": []
+      },
+      "sm0013": {
+        "present": true,
+        "diffs": []
+      },
+      "sm0014": {
+        "present": true,
+        "diffs": []
+      },
+      "sm0015": {
+        "present": true,
+        "diffs": []
+      }
+    },
+    "a01": {
+      "rejected": {
+        "emptySecond": true,
+        "longQuestion": true,
+        "longOption": true,
+        "dm": true
+      },
+      "created": {
+        "questionLen": 200,
+        "optionCount": 4,
+        "option0Len": 50
+      },
+      "countDelta": 1,
+      "pass": true
+    },
+    "a03": {
+      "countA": 0,
+      "countB": 1,
+      "vote": "assess-m7-b-mtsyriks",
+      "pass": true
+    },
+    "a04": {
+      "countB": 1,
+      "vote": "assess-m7-b-mtsyriks",
+      "pass": true
+    },
+    "a07api": {
+      "beforeText": 1,
+      "afterText": 2,
+      "afterTombstone": 1,
+      "pass": true
+    },
+    "a02apiSubscription": {
+      "timings": [
+        {
+          "attempt": 1,
+          "elapsedMs": 30,
+          "saw": true,
+          "before": 0,
+          "after": 1,
+          "pass": true
+        },
+        {
+          "attempt": 2,
+          "elapsedMs": 6,
+          "saw": true,
+          "before": 0,
+          "after": 1,
+          "pass": true
+        },
+        {
+          "attempt": 3,
+          "elapsedMs": 5,
+          "saw": true,
+          "before": 0,
+          "after": 1,
+          "pass": true
+        }
+      ],
+      "bestMs": 5,
+      "pass": true
+    }
+  },
+  "browserFixture": {
+    "conversationId": "assess-m7-group-mtsyriks",
+    "title": "Assess M7 mtsyriks",
+    "pollId": "assess-m7-live-mtsyriks",
+    "optionA": "assess-live-a-mtsyriks",
+    "optionB": "assess-live-b-mtsyriks",
+    "settingsCount": 2
+  }
+}

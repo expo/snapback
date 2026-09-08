@@ -1,0 +1,16 @@
+{
+  "schemaVersion": "clique.export-endpoint-check.v1",
+  "checkedAt": 1788886700,
+  "navigationOccurredBeforeCheck": false,
+  "exportDirectory": "/Users/ccheever/clique-cold-019-20260908/m7-retry/app/artifacts/m7-web-2",
+  "entryBundle": {
+    "path": "artifacts/m7-web-2/_expo/static/js/web/entry-d398f6f4ad9969955a7a3baae9994ef5.js",
+    "sha256": "a155b67d480235ee955afb0174afa8f1f2490d9d550c3c90041d6faaeaf845a5"
+  },
+  "activeBackendUrls": [
+    "http://127.0.0.1:53134"
+  ],
+  "assignedBackend": "http://127.0.0.1:53134",
+  "unexpectedLocalhostPorts": [],
+  "pass": true
+}

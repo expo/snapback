@@ -1,0 +1,28 @@
+{
+  "snapshot": "pre-m7-snapshot.json",
+  "sha256": "2f670249a6354baf5e5c23bb677f37e7b9079c3c112f0feabdc99cbd220ff9a3",
+  "bytes": 51633,
+  "scriptSha256": "e55c2550f3bbf3b7132470b1a0f6fcf08de4bdcd20cebb58f15431abd5ebd212",
+  "coverage": {
+    "personas": 8,
+    "personaConversationViews": 6,
+    "uniqueConversations": 2,
+    "visibleMessageCopies": 48,
+    "uniqueMessages": 15,
+    "imageMessages": 0,
+    "videoMessages": 0,
+    "reactedMessages": 0,
+    "quotedMessages": 6,
+    "receiptRows": 81,
+    "editedMessages": 0,
+    "tombstonedMessages": 0,
+    "viewOnceMessages": 0
+  },
+  "scopeLimits": [
+    "chats.list enumerates active-member conversations visible through the documented API",
+    "messages.thread embeds at most10 reactions and50 receipt rows per message; no arbitrary larger-roster proof",
+    "Media preservation covers reference fields, not fetched byte integrity"
+  ],
+  "capturedBeforeAuthor": true,
+  "at": 1788882689.478909
+}

@@ -1,0 +1,481 @@
+{
+  "viewer": "user:AvQls6uw1wF5SY8rXZbqQg",
+  "endpoint": "http://127.0.0.1:53132",
+  "chats": {
+    "pageCount": 2,
+    "meta": [
+      {
+        "state": "capped",
+        "next": "WzEsIm1lbWJlcnNoaXBzIiwiYnlQcmluY2lwYWxBY3RpdmVDb252ZXJzYXRpb24iLCJBc2MiLFt7Im5hbWUiOiJjb252ZXJzYXRpb25JZCIsImtpbmQiOnsiUmVmIjp7InRhYmxlIjoiY29udmVyc2F0aW9ucyJ9fX0seyJuYW1lIjoiaWQiLCJraW5kIjoiSWQifV0sW3siSWQiOiJtNy1hY2NlcHRhbmNlLWdyb3VwIn0seyJJZCI6InMyaWQtODc1NWRjOWFjOTMwOTc1YTdkZTRkZWViMTdhNmM3MzQtMDAwMDAwMDAwMDA3OGMwMSJ9XV0",
+        "n": 3
+      },
+      {
+        "state": "complete",
+        "next": null,
+        "n": 0
+      }
+    ],
+    "items": [
+      {
+        "id": "d-alice-bob",
+        "kind": "dm",
+        "title": "",
+        "unread": 3,
+        "latest": "custom-demo-mtsxgjk7"
+      },
+      {
+        "id": "g-starter",
+        "kind": "group",
+        "title": "Weekend Plans",
+        "unread": 0,
+        "latest": "m7-choreography-poll"
+      },
+      {
+        "id": "m7-acceptance-group",
+        "kind": "group",
+        "title": "M7 Acceptance",
+        "unread": 0,
+        "latest": "m7-forward-text-mtsxg0hg"
+      }
+    ]
+  },
+  "dmThread": {
+    "pageCount": 1,
+    "meta": [
+      {
+        "state": "capped",
+        "next": null,
+        "n": 20
+      }
+    ],
+    "ids": [
+      "custom-demo-mtsxgjk7",
+      "accept-push-once-mtsxgjea",
+      "accept-push-mtsxgjea",
+      "accept-once-mtsxgfs9",
+      "accept-video-message-mtsxgc3h",
+      "accept-photo-mtsxgc3h",
+      "custom-demo-mtsx8r2b",
+      "accept-push-once-mtsx8qw3",
+      "accept-push-mtsx8qw3",
+      "accept-once-mtsx8naq",
+      "accept-video-message-mtsx8jnm",
+      "accept-photo-mtsx8jnm",
+      "custom-demo-mtswwjfn",
+      "accept-push-once-mtswwj9q",
+      "accept-push-mtswwj9q",
+      "accept-once-mtswwfn2",
+      "accept-video-message-mtswwbyz",
+      "accept-photo-mtswwbyz",
+      "custom-demo-mtswsiha",
+      "accept-push-once-mtswsic2"
+    ],
+    "n": 20,
+    "kinds": [
+      {
+        "id": "custom-demo-mtsxgjk7",
+        "kind": "text",
+        "messageType": null,
+        "tombstoned": false,
+        "viewOnce": false,
+        "expiresAt": null,
+        "body": "Hello from the custom Snapback client"
+      },
+      {
+        "id": "accept-push-once-mtsxgjea",
+        "kind": "image",
+        "messageType": null,
+        "tombstoned": false,
+        "viewOnce": true,
+        "expiresAt": null,
+        "body": "Push once"
+      },
+      {
+        "id": "accept-push-mtsxgjea",
+        "kind": "text",
+        "messageType": null,
+        "tombstoned": false,
+        "viewOnce": false,
+        "expiresAt": null,
+        "body": "Push mtsxgjea xxxxxxxxxxxxxxxxxxxxxxxxxx"
+      },
+      {
+        "id": "accept-once-mtsxgfs9",
+        "kind": "image",
+        "messageType": null,
+        "tombstoned": false,
+        "viewOnce": true,
+        "expiresAt": null,
+        "body": "Acceptance once"
+      },
+      {
+        "id": "accept-video-message-mtsxgc3h",
+        "kind": "video",
+        "messageType": null,
+        "tombstoned": false,
+        "viewOnce": false,
+        "expiresAt": null,
+        "body": "Acceptance video"
+      },
+      {
+        "id": "accept-photo-mtsxgc3h",
+        "kind": "image",
+        "messageType": null,
+        "tombstoned": false,
+        "viewOnce": false,
+        "expiresAt": null,
+        "body": "Acceptance photo edited"
+      },
+      {
+        "id": "custom-demo-mtsx8r2b",
+        "kind": "text",
+        "messageType": null,
+        "tombstoned": false,
+        "viewOnce": false,
+        "expiresAt": null,
+        "body": "Hello from the custom Snapback client"
+      },
+      {
+        "id": "accept-push-once-mtsx8qw3",
+        "kind": "image",
+        "messageType": null,
+        "tombstoned": false,
+        "viewOnce": true,
+        "expiresAt": null,
+        "body": "Push once"
+      },
+      {
+        "id": "accept-push-mtsx8qw3",
+        "kind": "text",
+        "messageType": null,
+        "tombstoned": false,
+        "viewOnce": false,
+        "expiresAt": null,
+        "body": "Push mtsx8qw3 xxxxxxxxxxxxxxxxxxxxxxxxxx"
+      },
+      {
+        "id": "accept-once-mtsx8naq",
+        "kind": "image",
+        "messageType": null,
+        "tombstoned": false,
+        "viewOnce": true,
+        "expiresAt": null,
+        "body": "Acceptance once"
+      },
+      {
+        "id": "accept-video-message-mtsx8jnm",
+        "kind": "video",
+        "messageType": null,
+        "tombstoned": false,
+        "viewOnce": false,
+        "expiresAt": null,
+        "body": "Acceptance video"
+      },
+      {
+        "id": "accept-photo-mtsx8jnm",
+        "kind": "image",
+        "messageType": null,
+        "tombstoned": false,
+        "viewOnce": false,
+        "expiresAt": null,
+        "body": "Acceptance photo edited"
+      },
+      {
+        "id": "custom-demo-mtswwjfn",
+        "kind": "text",
+        "messageType": null,
+        "tombstoned": false,
+        "viewOnce": false,
+        "expiresAt": null,
+        "body": "Hello from the custom Snapback client"
+      },
+      {
+        "id": "accept-push-once-mtswwj9q",
+        "kind": "image",
+        "messageType": null,
+        "tombstoned": false,
+        "viewOnce": true,
+        "expiresAt": null,
+        "body": "Push once"
+      },
+      {
+        "id": "accept-push-mtswwj9q",
+        "kind": "text",
+        "messageType": null,
+        "tombstoned": false,
+        "viewOnce": false,
+        "expiresAt": null,
+        "body": "Push mtswwj9q xxxxxxxxxxxxxxxxxxxxxxxxxx"
+      },
+      {
+        "id": "accept-once-mtswwfn2",
+        "kind": "image",
+        "messageType": null,
+        "tombstoned": false,
+        "viewOnce": true,
+        "expiresAt": null,
+        "body": "Acceptance once"
+      },
+      {
+        "id": "accept-video-message-mtswwbyz",
+        "kind": "video",
+        "messageType": null,
+        "tombstoned": false,
+        "viewOnce": false,
+        "expiresAt": null,
+        "body": "Acceptance video"
+      },
+      {
+        "id": "accept-photo-mtswwbyz",
+        "kind": "image",
+        "messageType": null,
+        "tombstoned": false,
+        "viewOnce": false,
+        "expiresAt": null,
+        "body": "Acceptance photo edited"
+      },
+      {
+        "id": "custom-demo-mtswsiha",
+        "kind": "text",
+        "messageType": null,
+        "tombstoned": false,
+        "viewOnce": false,
+        "expiresAt": null,
+        "body": "Hello from the custom Snapback client"
+      },
+      {
+        "id": "accept-push-once-mtswsic2",
+        "kind": "image",
+        "messageType": null,
+        "tombstoned": false,
+        "viewOnce": true,
+        "expiresAt": null,
+        "body": "Push once"
+      }
+    ]
+  },
+  "groupThread": {
+    "pageCount": 1,
+    "meta": [
+      {
+        "state": "capped",
+        "next": null,
+        "n": 10
+      }
+    ],
+    "ids": [
+      "m7-choreography-poll",
+      "sm0015",
+      "sm0014",
+      "sm0013",
+      "sm0012",
+      "sm0011",
+      "sm0010",
+      "sm0009",
+      "sm0008",
+      "sm0007"
+    ],
+    "n": 10
+  },
+  "dmOffline": {
+    "pageCount": 3,
+    "meta": [
+      {
+        "state": "capped",
+        "next": "WzEsIm1lc3NhZ2VzIiwiYnlDb252ZXJzYXRpb25UaW1lIiwiQXNjIixbeyJuYW1lIjoiYXQiLCJraW5kIjoiVGltZSJ9LHsibmFtZSI6ImlkIiwia2luZCI6IklkIn1dLFt7IkludCI6MTc4ODg4NjYwNzA5M30seyJJZCI6ImFjY2VwdC12aWRlby1tZXNzYWdlLW10c3d3Ynl6In1dXQ",
+        "n": 20
+      },
+      {
+        "state": "capped",
+        "next": "WzEsIm1lc3NhZ2VzIiwiYnlDb252ZXJzYXRpb25UaW1lIiwiQXNjIixbeyJuYW1lIjoiYXQiLCJraW5kIjoiVGltZSJ9LHsibmFtZSI6ImlkIiwia2luZCI6IklkIn1dLFt7IkludCI6MTc4ODg4NzU0OTk2Mn0seyJJZCI6ImN1c3RvbS1kZW1vLW10c3hnams3In1dXQ",
+        "n": 16
+      },
+      {
+        "state": "capped",
+        "next": null,
+        "n": 0
+      }
+    ],
+    "ids": [
+      "sm0001",
+      "sm0002",
+      "sm0003",
+      "sm0004",
+      "sm0005",
+      "sm0006",
+      "accept-photo-mtswbs47",
+      "accept-video-message-mtswbs47",
+      "accept-once-mtswbvra",
+      "accept-push-mtswbzc7",
+      "accept-push-once-mtswbzc7",
+      "custom-demo-mtswbzi7",
+      "accept-photo-mtswsb2n",
+      "accept-video-message-mtswsb2n",
+      "accept-once-mtswseql",
+      "accept-push-mtswsic2",
+      "accept-push-once-mtswsic2",
+      "custom-demo-mtswsiha",
+      "accept-photo-mtswwbyz",
+      "accept-video-message-mtswwbyz",
+      "accept-once-mtswwfn2",
+      "accept-push-mtswwj9q",
+      "accept-push-once-mtswwj9q",
+      "custom-demo-mtswwjfn",
+      "accept-photo-mtsx8jnm",
+      "accept-video-message-mtsx8jnm",
+      "accept-once-mtsx8naq",
+      "accept-push-mtsx8qw3",
+      "accept-push-once-mtsx8qw3",
+      "custom-demo-mtsx8r2b",
+      "accept-photo-mtsxgc3h",
+      "accept-video-message-mtsxgc3h",
+      "accept-once-mtsxgfs9",
+      "accept-push-mtsxgjea",
+      "accept-push-once-mtsxgjea",
+      "custom-demo-mtsxgjk7"
+    ],
+    "n": 36
+  },
+  "groupOffline": {
+    "pageCount": 2,
+    "meta": [
+      {
+        "state": "capped",
+        "next": "WzEsIm1lc3NhZ2VzIiwiYnlDb252ZXJzYXRpb25UaW1lIiwiQXNjIixbeyJuYW1lIjoiYXQiLCJraW5kIjoiVGltZSJ9LHsibmFtZSI6ImlkIiwia2luZCI6IklkIn1dLFt7IkludCI6MTc4ODg4NTYzMzI0OH0seyJJZCI6Im03LWNob3Jlb2dyYXBoeS1wb2xsIn1dXQ",
+        "n": 10
+      },
+      {
+        "state": "capped",
+        "next": null,
+        "n": 0
+      }
+    ],
+    "ids": [
+      "sm0007",
+      "sm0008",
+      "sm0009",
+      "sm0010",
+      "sm0011",
+      "sm0012",
+      "sm0013",
+      "sm0014",
+      "sm0015",
+      "m7-choreography-poll"
+    ],
+    "n": 10
+  },
+  "dmSettings": {
+    "messageCount": 36,
+    "conversation": {
+      "id": "d-alice-bob",
+      "kind": "dm",
+      "title": "",
+      "disappearing": "off",
+      "visibleMessageCount": 36
+    },
+    "memberCount": 2
+  },
+  "groupSettings": {
+    "messageCount": 10,
+    "conversation": {
+      "id": "g-starter",
+      "kind": "group",
+      "title": "Weekend Plans",
+      "disappearing": "off",
+      "visibleMessageCount": 10
+    },
+    "memberCount": 4
+  },
+  "starterHits": {
+    "sm0001": {
+      "dmThread": false,
+      "groupThread": false,
+      "dmOffline": true,
+      "groupOffline": false
+    },
+    "sm0002": {
+      "dmThread": false,
+      "groupThread": false,
+      "dmOffline": true,
+      "groupOffline": false
+    },
+    "sm0003": {
+      "dmThread": false,
+      "groupThread": false,
+      "dmOffline": true,
+      "groupOffline": false
+    },
+    "sm0004": {
+      "dmThread": false,
+      "groupThread": false,
+      "dmOffline": true,
+      "groupOffline": false
+    },
+    "sm0005": {
+      "dmThread": false,
+      "groupThread": false,
+      "dmOffline": true,
+      "groupOffline": false
+    },
+    "sm0006": {
+      "dmThread": false,
+      "groupThread": false,
+      "dmOffline": true,
+      "groupOffline": false
+    },
+    "sm0007": {
+      "dmThread": false,
+      "groupThread": true,
+      "dmOffline": false,
+      "groupOffline": true
+    },
+    "sm0008": {
+      "dmThread": false,
+      "groupThread": true,
+      "dmOffline": false,
+      "groupOffline": true
+    },
+    "sm0009": {
+      "dmThread": false,
+      "groupThread": true,
+      "dmOffline": false,
+      "groupOffline": true
+    },
+    "sm0010": {
+      "dmThread": false,
+      "groupThread": true,
+      "dmOffline": false,
+      "groupOffline": true
+    },
+    "sm0011": {
+      "dmThread": false,
+      "groupThread": true,
+      "dmOffline": false,
+      "groupOffline": true
+    },
+    "sm0012": {
+      "dmThread": false,
+      "groupThread": true,
+      "dmOffline": false,
+      "groupOffline": true
+    },
+    "sm0013": {
+      "dmThread": false,
+      "groupThread": true,
+      "dmOffline": false,
+      "groupOffline": true
+    },
+    "sm0014": {
+      "dmThread": false,
+      "groupThread": true,
+      "dmOffline": false,
+      "groupOffline": true
+    },
+    "sm0015": {
+      "dmThread": false,
+      "groupThread": true,
+      "dmOffline": false,
+      "groupOffline": true
+    }
+  }
+}

@@ -1,0 +1,126 @@
+{
+  "schemaVersion": "clique.acceptance.v1",
+  "milestone": "m7",
+  "start": 1788889486,
+  "backendUrl": "http://127.0.0.1:53132",
+  "webUrl": "http://127.0.0.1:53133",
+  "commands": [
+    {
+      "name": "snapback2-check",
+      "pass": true,
+      "code": 0,
+      "ms": 905,
+      "stdout": "{\"compilerMs\":53.46,\"generation\":\"030479ec81d67bc3fb9ef9bc7b0f27a3848dd6d9300f4b74dc4738ea3274bb03\",\"ok\":true,\"operations\":59,\"schemaCertificate\":{\"disclosures\":[\"messages.onceImage: one image delivery per authenticated principal; owning row read rule; no device byte cache\"],\"schedules\":[{\"name\":\"dailyDigest\",\"target\":\"digests.digestSweep\",\"trigger\":{\"every\":{\"durationMs\":120000}}},{\"name\":\"expireTrending\",\"target\":\"digests.purgeTrending\",\"trigger\":{\"row\":{\"column\":\"expiresAt\",\"table\":\"trendingPosts\"}}},{\"name\":\"expireMessage\",\"target\":\"messages.purgeExpired\",\"trigger\":{\"row\":{\"column\":\"expiresAt\",\"table\":\"messages\"}}}]}}\n",
+      "stderr": ""
+    },
+    {
+      "name": "typescript",
+      "pass": true,
+      "code": 0,
+      "ms": 1806,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "name": "snapback2-authored-journeys",
+      "pass": true,
+      "code": 0,
+      "ms": 2080,
+      "stdout": "{\"binary\":{\"version\":\"0.0.19\",\"digest\":\"rust64:27840c11e1e9f1c6\"},\"generation\":\"030479ec81d67bc3fb9ef9bc7b0f27a3848dd6d9300f4b74dc4738ea3274bb03\",\"commands\":[\"snapback2 dev --foreground --port 0\",\"seed\",\"snapback2 test --journeys-only\"],\"checks\":[{\"name\":\"profiles update through authenticated policy\",\"kind\":\"journey\",\"verdict\":\"pass\",\"ms\":31,\"detail\":{\"file\":\"/Users/ccheever/clique-cold-019-20260908/assessment-m7/app/.snapback/test-run-1788889488819/project/.snapback/build/tests/clique.mjs\"}},{\"name\":\"follow post like and reply set-state\",\"kind\":\"journey\",\"verdict\":\"pass\",\"ms\":39,\"detail\":{\"file\":\"/Users/ccheever/clique-cold-019-20260908/assessment-m7/app/.snapback/test-run-1788889488819/project/.snapback/build/tests/clique.mjs\"}},{\"name\":\"message receipts reactions and edits\",\"kind\":\"journey\",\"verdict\":\"pass\",\"ms\":38,\"detail\":{\"file\":\"/Users/ccheever/clique-cold-019-20260908/assessment-m7/app/.snapback/test-run-1788889488819/project/.snapback/build/tests/clique.mjs\"}},{\"name\":\"m7 poll set-state and visible-message count maintenance\",\"kind\":\"journey\",\"verdict\":\"pass\",\"ms\":67,\"detail\":{\"file\":\"/Users/ccheever/clique-cold-019-20260908/assessment-m7/app/.snapback/test-run-1788889488819/project/.snapback/build/tests/clique.mjs\"}},{\"name\":\"scheduled digest emits once and skips empty periods\",\"kind\":\"journey\",\"verdict\":\"pass\",\"ms\":83,\"detail\":{\"file\":\"/Users/ccheever/clique-cold-019-20260908/assessment-m7/app/.snapback/test-run-1788889488819/project/.snapback/build/tests/clique.mjs\"}},{\"name\":\"m7 scheduled expiry decrements visible-message count\",\"kind\":\"journey\",\"verdict\":\"pass\",\"ms\":51,\"detail\":{\"file\":\"/Users/ccheever/clique-cold-019-20260908/assessment-m7/app/.snapback/test-run-1788889488819/project/.snapback/build/tests/clique.mjs\"}}],\"arms\":[\"headless\"],\"verdict\":\"pass\",\"scope\":{\"changed\":[]},\"schedules\":{\"fired\":6,\"late\":6,\"rejected\":0}}\n",
+      "stderr": ""
+    },
+    {
+      "name": "regression-m1",
+      "pass": true,
+      "code": 0,
+      "ms": 5434,
+      "stdout": "{\"milestone\":\"m1\",\"pass\":true,\"receipt\":\"/Users/ccheever/clique-cold-019-20260908/assessment-m7/app/artifacts/suite-m1-1788889496.json\",\"coverage\":\"/Users/ccheever/clique-cold-019-20260908/assessment-m7/app/coverage/m1.json\",\"tests\":[{\"name\":\"m1-auth-profile-assets-and-collisions\",\"pass\":true},{\"name\":\"m1-visible-auth-errors-and-authenticated-screen\",\"pass\":true}]}\n",
+      "stderr": ""
+    },
+    {
+      "name": "regression-m2",
+      "pass": true,
+      "code": 0,
+      "ms": 5209,
+      "stdout": "{\"milestone\":\"m2\",\"pass\":true,\"receipt\":\"/Users/ccheever/clique-cold-019-20260908/assessment-m7/app/artifacts/suite-m2-1788889501.json\",\"coverage\":\"/Users/ccheever/clique-cold-019-20260908/assessment-m7/app/coverage/m2.json\",\"tests\":[{\"name\":\"m2-post-follow-feed-toggle-thread-pagination\",\"pass\":true}]}\n",
+      "stderr": ""
+    },
+    {
+      "name": "regression-m4",
+      "pass": true,
+      "code": 0,
+      "ms": 4787,
+      "stdout": "{\"milestone\":\"m4\",\"pass\":true,\"receipt\":\"/Users/ccheever/clique-cold-019-20260908/assessment-m7/app/artifacts/suite-m4-1788889506.json\",\"coverage\":\"/Users/ccheever/clique-cold-019-20260908/assessment-m7/app/coverage/m4.json\",\"tests\":[{\"name\":\"m4-message-media-reaction-edit-delete-state\",\"pass\":true}]}\n",
+      "stderr": ""
+    },
+    {
+      "name": "regression-m5",
+      "pass": true,
+      "code": 0,
+      "ms": 4769,
+      "stdout": "{\"milestone\":\"m5\",\"pass\":true,\"receipt\":\"/Users/ccheever/clique-cold-019-20260908/assessment-m7/app/artifacts/suite-m5-1788889511.json\",\"coverage\":\"/Users/ccheever/clique-cold-019-20260908/assessment-m7/app/coverage/m5.json\",\"tests\":[{\"name\":\"m5-once-permissions-and-search\",\"pass\":true}]}\n",
+      "stderr": ""
+    },
+    {
+      "name": "regression-m6",
+      "pass": true,
+      "code": 0,
+      "ms": 5176,
+      "stdout": "{\"milestone\":\"m6\",\"pass\":true,\"receipt\":\"/Users/ccheever/clique-cold-019-20260908/assessment-m7/app/artifacts/suite-m6-1788889516.json\",\"coverage\":\"/Users/ccheever/clique-cold-019-20260908/assessment-m7/app/coverage/m6.json\",\"tests\":[{\"name\":\"m6-push-custom-client-and-replay-adapter\",\"pass\":true}]}\n",
+      "stderr": ""
+    },
+    {
+      "name": "regression-m8",
+      "pass": true,
+      "code": 0,
+      "ms": 4725,
+      "stdout": "{\"milestone\":\"m8\",\"pass\":true,\"receipt\":\"/Users/ccheever/clique-cold-019-20260908/assessment-m7/app/artifacts/suite-m8-1788889521.json\",\"coverage\":\"/Users/ccheever/clique-cold-019-20260908/assessment-m7/app/coverage/m8.json\",\"tests\":[{\"name\":\"m8-insights-activity-and-trending-policy\",\"pass\":true}]}\n",
+      "stderr": ""
+    }
+  ],
+  "tests": [
+    {
+      "name": "m7-polls-count-backfill-maintenance",
+      "pass": true,
+      "ms": 210,
+      "detail": {
+        "baselineCounts": {
+          "dm": 36,
+          "group": 10
+        },
+        "pollId": "m7-acceptance-poll-mtsym597",
+        "boundsRejected": 4,
+        "pollDelta": 1,
+        "textDelta": 1,
+        "tombstoneDelta": -1
+      }
+    },
+    {
+      "name": "m7-prior-green-regressions",
+      "pass": true,
+      "ms": 30100,
+      "detail": {
+        "passed": [
+          "m1",
+          "m2",
+          "m4",
+          "m5",
+          "m6",
+          "m8"
+        ],
+        "excludedPriorFailure": "m3"
+      }
+    }
+  ],
+  "coverage": {
+    "path": "coverage/m7.json",
+    "sha256": "29cab2533f1113f7900c5d1940afcf129636561539d26f61a365c1487b911d7f",
+    "assertions": 6,
+    "expected": 6,
+    "exactAssertionIds": true,
+    "mappingsReferencePassingTests": true,
+    "complete": true
+  },
+  "pass": true,
+  "end": 1788889521
+}

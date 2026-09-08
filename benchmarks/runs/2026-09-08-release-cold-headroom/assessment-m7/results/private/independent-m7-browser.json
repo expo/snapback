@@ -1,0 +1,86 @@
+{
+  "webUrl": "http://127.0.0.1:53133",
+  "backendUrl": "http://127.0.0.1:53132",
+  "title": "Assess M7 mtsyriks",
+  "pollId": "assess-browser-poll-mtsytv6h",
+  "optionA": "assess-browser-a-mtsytv6h",
+  "optionB": "assess-browser-b-mtsytv6h",
+  "attempts": [
+    {
+      "n": 1,
+      "label": "alice->bob A",
+      "ms": 117,
+      "before": 0,
+      "after": 1,
+      "pass": true
+    },
+    {
+      "n": 2,
+      "label": "alice->bob B",
+      "ms": 121,
+      "before": 0,
+      "after": 1,
+      "pass": true
+    },
+    {
+      "n": 3,
+      "label": "bob->alice A",
+      "ms": 120,
+      "before": 0,
+      "after": 1,
+      "pass": true
+    }
+  ],
+  "settings": {
+    "uiCount": 3,
+    "apiCountBeforeBrowserPoll": 3,
+    "pass": true
+  },
+  "offline": {
+    "pendingObserved": true,
+    "before": 1,
+    "after": 2,
+    "pass": true
+  },
+  "compose": {
+    "attempted": true,
+    "visiblePoll": 1
+  },
+  "errors": [
+    "locator.waitFor: Timeout 20000ms exceeded.\nCall log:\n  - waiting for getByTestId('sm-chatsettings-messagecount') to be visible\n\n    at /Users/ccheever/clique-cold-019-20260908/assessment-m7/results/scripts/independent-m7-browser.mjs:212:63"
+  ],
+  "a02": {
+    "pass": true,
+    "bestMs": 117,
+    "attempts": [
+      {
+        "n": 1,
+        "label": "alice->bob A",
+        "ms": 117,
+        "before": 0,
+        "after": 1,
+        "pass": true
+      },
+      {
+        "n": 2,
+        "label": "alice->bob B",
+        "ms": 121,
+        "before": 0,
+        "after": 1,
+        "pass": true
+      },
+      {
+        "n": 3,
+        "label": "bob->alice A",
+        "ms": 120,
+        "before": 0,
+        "after": 1,
+        "pass": true
+      }
+    ]
+  },
+  "a07ui": {
+    "assessGroupUiCount": 3,
+    "pass": false
+  }
+}

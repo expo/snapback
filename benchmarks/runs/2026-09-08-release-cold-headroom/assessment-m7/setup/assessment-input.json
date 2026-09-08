@@ -1,0 +1,28 @@
+{
+  "scope": "Fresh M7-only independent uncalibrated diagnostic; neutral handoff, not a scored run record",
+  "version": "snapback2@0.0.19",
+  "builderFamily": "Codex",
+  "sourceManifest": "setup/final-source-manifest.json",
+  "sourceManifestSha256": "035ef999a9f5d804d32a06a0265245305663fd01e670cc19d2ba84802da0dcf1",
+  "evidenceManifest": "setup/evidence-manifest.json",
+  "preSnapshot": "setup/pre-m7-snapshot.json",
+  "postMigrationSnapshot": "evidence/migration/post-migration-snapshot.json",
+  "supervisorPostAuthorSnapshot": "setup/root-post-author-snapshot.json",
+  "previouslyLocallyGreen": [
+    "M1",
+    "M2",
+    "M4",
+    "M5",
+    "M6",
+    "M8"
+  ],
+  "priorM3": "not green; no repair obligation in M7",
+  "preM7Schema": "setup/pre-m7-schema.q",
+  "ports": {
+    "backend": 53132,
+    "web": 53133
+  },
+  "data": "Exact stopped migrated starter database copy, not reseeded; original baseline preserved outside assessor tree",
+  "formalScores": "Unavailable: uncalibrated, no preregistered probes; O1\u2013O5 null",
+  "excluded": "Builder narratives/selfscores/transcripts and prior grader/root conclusions"
+}

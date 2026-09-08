@@ -1,0 +1,70 @@
+{
+  "schemaVersion": "clique.acceptance.v1",
+  "milestone": "m6",
+  "start": 1788887181,
+  "backendUrl": "http://127.0.0.1:53134",
+  "webUrl": "http://127.0.0.1:53135",
+  "commands": [
+    {
+      "name": "snapback2-check",
+      "pass": true,
+      "code": 0,
+      "ms": 891,
+      "stdout": "{\"compilerMs\":52.88,\"generation\":\"030479ec81d67bc3fb9ef9bc7b0f27a3848dd6d9300f4b74dc4738ea3274bb03\",\"ok\":true,\"operations\":59,\"schemaCertificate\":{\"disclosures\":[\"messages.onceImage: one image delivery per authenticated principal; owning row read rule; no device byte cache\"],\"schedules\":[{\"name\":\"dailyDigest\",\"target\":\"digests.digestSweep\",\"trigger\":{\"every\":{\"durationMs\":120000}}},{\"name\":\"expireTrending\",\"target\":\"digests.purgeTrending\",\"trigger\":{\"row\":{\"column\":\"expiresAt\",\"table\":\"trendingPosts\"}}},{\"name\":\"expireMessage\",\"target\":\"messages.purgeExpired\",\"trigger\":{\"row\":{\"column\":\"expiresAt\",\"table\":\"messages\"}}}]}}\n",
+      "stderr": ""
+    },
+    {
+      "name": "typescript",
+      "pass": true,
+      "code": 0,
+      "ms": 1326,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "name": "snapback2-authored-journeys",
+      "pass": true,
+      "code": 0,
+      "ms": 2085,
+      "stdout": "{\"binary\":{\"version\":\"0.0.19\",\"digest\":\"rust64:27840c11e1e9f1c6\"},\"generation\":\"030479ec81d67bc3fb9ef9bc7b0f27a3848dd6d9300f4b74dc4738ea3274bb03\",\"commands\":[\"snapback2 dev --foreground --port 0\",\"seed\",\"snapback2 test --journeys-only\"],\"checks\":[{\"name\":\"profiles update through authenticated policy\",\"kind\":\"journey\",\"verdict\":\"pass\",\"ms\":30,\"detail\":{\"file\":\"/Users/ccheever/clique-cold-019-20260908/m7-retry/app/.snapback/test-run-1788887184105/project/.snapback/build/tests/clique.mjs\"}},{\"name\":\"follow post like and reply set-state\",\"kind\":\"journey\",\"verdict\":\"pass\",\"ms\":40,\"detail\":{\"file\":\"/Users/ccheever/clique-cold-019-20260908/m7-retry/app/.snapback/test-run-1788887184105/project/.snapback/build/tests/clique.mjs\"}},{\"name\":\"message receipts reactions and edits\",\"kind\":\"journey\",\"verdict\":\"pass\",\"ms\":38,\"detail\":{\"file\":\"/Users/ccheever/clique-cold-019-20260908/m7-retry/app/.snapback/test-run-1788887184105/project/.snapback/build/tests/clique.mjs\"}},{\"name\":\"m7 poll set-state and visible-message count maintenance\",\"kind\":\"journey\",\"verdict\":\"pass\",\"ms\":65,\"detail\":{\"file\":\"/Users/ccheever/clique-cold-019-20260908/m7-retry/app/.snapback/test-run-1788887184105/project/.snapback/build/tests/clique.mjs\"}},{\"name\":\"scheduled digest emits once and skips empty periods\",\"kind\":\"journey\",\"verdict\":\"pass\",\"ms\":83,\"detail\":{\"file\":\"/Users/ccheever/clique-cold-019-20260908/m7-retry/app/.snapback/test-run-1788887184105/project/.snapback/build/tests/clique.mjs\"}},{\"name\":\"m7 scheduled expiry decrements visible-message count\",\"kind\":\"journey\",\"verdict\":\"pass\",\"ms\":51,\"detail\":{\"file\":\"/Users/ccheever/clique-cold-019-20260908/m7-retry/app/.snapback/test-run-1788887184105/project/.snapback/build/tests/clique.mjs\"}}],\"arms\":[\"headless\"],\"verdict\":\"pass\",\"scope\":{\"changed\":[]},\"schedules\":{\"fired\":6,\"late\":6,\"rejected\":0}}\n",
+      "stderr": ""
+    },
+    {
+      "name": "custom-client-demo",
+      "pass": true,
+      "code": 0,
+      "ms": 148,
+      "stdout": "{\"pass\":true,\"url\":\"http://127.0.0.1:53134\",\"viewer\":\"user:AvQls6uw1wF5SY8rXZbqQg\",\"conversations\":3,\"historyPages\":1,\"sent\":\"custom-demo-mtsx8r2b\",\"receivedLive\":true}\n",
+      "stderr": ""
+    },
+    {
+      "name": "sample-50-replay",
+      "pass": true,
+      "code": 0,
+      "ms": 320,
+      "stdout": "{\"phase\":\"verification\",\"label\":\"sample-50\",\"actions\":50,\"verbs\":[\"dm-create\",\"follow\",\"group-create\",\"like\",\"member-add\",\"post\",\"profile-set\",\"react\",\"register\",\"reply\",\"repost\",\"send\",\"send-media\"],\"verified\":true,\"at\":1788887186}\n{\"phase\":\"complete\",\"receipt\":\"/Users/ccheever/clique-cold-019-20260908/m7-retry/app/artifacts/replay-sample-50.json\",\"pass\":true,\"actions\":50}\n",
+      "stderr": ""
+    }
+  ],
+  "tests": [
+    {
+      "name": "m6-push-custom-client-and-replay-adapter",
+      "pass": true,
+      "ms": 628,
+      "detail": {
+        "pushId": "s2id-8755dc9ac930975a7de4deeb17a6c734-000000000017a004"
+      }
+    }
+  ],
+  "coverage": {
+    "path": "coverage/m6.json",
+    "sha256": "2448fb017e7314b6a5a67f29aabc773e4abee9916fb7f1c68225efb92236bbd4",
+    "assertions": 5,
+    "expected": 5,
+    "exactAssertionIds": true,
+    "mappingsReferencePassingTests": true,
+    "complete": true
+  },
+  "pass": true,
+  "end": 1788887186
+}

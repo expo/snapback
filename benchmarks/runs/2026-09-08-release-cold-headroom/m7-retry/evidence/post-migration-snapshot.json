@@ -1,0 +1,1508 @@
+{
+  "startedAt": "2026-09-08T16:33:48.341Z",
+  "completedAt": "2026-09-08T16:33:48.643Z",
+  "endpoint": "http://127.0.0.1:53134",
+  "method": "Authenticated custom-client chats.list and messages.thread; every starter persona; every returned cursor page; no message mutations",
+  "fieldMapping": [
+    "id",
+    "conversationId",
+    "sender",
+    "at",
+    "kind",
+    "body",
+    "image",
+    "video",
+    "edited",
+    "tombstoned",
+    "replyTo",
+    "viewOnce",
+    "expiresAt"
+  ],
+  "scopeLimits": [
+    "chats.list enumerates active-member conversations visible through the documented API",
+    "messages.thread embeds at most10 reactions and50 receipt rows per message; no arbitrary larger-roster proof",
+    "Media preservation covers reference fields, not fetched byte integrity"
+  ],
+  "personas": [
+    {
+      "persona": "alice",
+      "viewer": "user:AvQls6uw1wF5SY8rXZbqQg",
+      "chatPages": 2,
+      "conversations": [
+        {
+          "id": "d-alice-bob",
+          "kind": "dm",
+          "title": "",
+          "messagePages": 1,
+          "messages": [
+            {
+              "id": "sm0001",
+              "conversationId": "d-alice-bob",
+              "sender": "user:AvQls6uw1wF5SY8rXZbqQg",
+              "at": 1788882688975,
+              "kind": "text",
+              "body": "Coffee after work?",
+              "image": null,
+              "video": null,
+              "edited": false,
+              "tombstoned": false,
+              "replyTo": null,
+              "viewOnce": false,
+              "expiresAt": null,
+              "reactions": [],
+              "receipts": [
+                {
+                  "id": "s2id-8755dc9ac930975a7de4deeb17a6c734-0000000000026802",
+                  "recipient": "user:aO_5S1KiOOVkSrsBf3FZeQ",
+                  "status": "sent"
+                },
+                {
+                  "id": "s2id-8755dc9ac930975a7de4deeb17a6c734-0000000000026801",
+                  "recipient": "user:AvQls6uw1wF5SY8rXZbqQg",
+                  "status": "read"
+                }
+              ],
+              "reactionSummary": [],
+              "ownReceipt": "sent"
+            },
+            {
+              "id": "sm0002",
+              "conversationId": "d-alice-bob",
+              "sender": "user:aO_5S1KiOOVkSrsBf3FZeQ",
+              "at": 1788882689006,
+              "kind": "text",
+              "body": "Yes. Corner place?",
+              "image": null,
+              "video": null,
+              "edited": false,
+              "tombstoned": false,
+              "replyTo": "sm0001",
+              "viewOnce": false,
+              "expiresAt": null,
+              "reactions": [],
+              "receipts": [
+                {
+                  "id": "s2id-8755dc9ac930975a7de4deeb17a6c734-0000000000028c01",
+                  "recipient": "user:AvQls6uw1wF5SY8rXZbqQg",
+                  "status": "sent"
+                }
+              ],
+              "reactionSummary": [],
+              "ownReceipt": null
+            },
+            {
+              "id": "sm0003",
+              "conversationId": "d-alice-bob",
+              "sender": "user:AvQls6uw1wF5SY8rXZbqQg",
+              "at": 1788882689012,
+              "kind": "text",
+              "body": "Exactly. Six thirty.",
+              "image": null,
+              "video": null,
+              "edited": false,
+              "tombstoned": false,
+              "replyTo": "sm0002",
+              "viewOnce": false,
+              "expiresAt": null,
+              "reactions": [],
+              "receipts": [
+                {
+                  "id": "s2id-8755dc9ac930975a7de4deeb17a6c734-0000000000029002",
+                  "recipient": "user:aO_5S1KiOOVkSrsBf3FZeQ",
+                  "status": "sent"
+                },
+                {
+                  "id": "s2id-8755dc9ac930975a7de4deeb17a6c734-0000000000029001",
+                  "recipient": "user:AvQls6uw1wF5SY8rXZbqQg",
+                  "status": "read"
+                }
+              ],
+              "reactionSummary": [],
+              "ownReceipt": "sent"
+            },
+            {
+              "id": "sm0004",
+              "conversationId": "d-alice-bob",
+              "sender": "user:aO_5S1KiOOVkSrsBf3FZeQ",
+              "at": 1788882689018,
+              "kind": "text",
+              "body": "I will bring the route map.",
+              "image": null,
+              "video": null,
+              "edited": false,
+              "tombstoned": false,
+              "replyTo": null,
+              "viewOnce": false,
+              "expiresAt": null,
+              "reactions": [],
+              "receipts": [
+                {
+                  "id": "s2id-8755dc9ac930975a7de4deeb17a6c734-0000000000029401",
+                  "recipient": "user:AvQls6uw1wF5SY8rXZbqQg",
+                  "status": "sent"
+                }
+              ],
+              "reactionSummary": [],
+              "ownReceipt": null
+            },
+            {
+              "id": "sm0005",
+              "conversationId": "d-alice-bob",
+              "sender": "user:AvQls6uw1wF5SY8rXZbqQg",
+              "at": 1788882689022,
+              "kind": "text",
+              "body": "Perfect, see you there.",
+              "image": null,
+              "video": null,
+              "edited": false,
+              "tombstoned": false,
+              "replyTo": null,
+              "viewOnce": false,
+              "expiresAt": null,
+              "reactions": [],
+              "receipts": [
+                {
+                  "id": "s2id-8755dc9ac930975a7de4deeb17a6c734-0000000000029802",
+                  "recipient": "user:aO_5S1KiOOVkSrsBf3FZeQ",
+                  "status": "sent"
+                },
+                {
+                  "id": "s2id-8755dc9ac930975a7de4deeb17a6c734-0000000000029801",
+                  "recipient": "user:AvQls6uw1wF5SY8rXZbqQg",
+                  "status": "read"
+                }
+              ],
+              "reactionSummary": [],
+              "ownReceipt": "sent"
+            },
+            {
+              "id": "sm0006",
+              "conversationId": "d-alice-bob",
+              "sender": "user:aO_5S1KiOOVkSrsBf3FZeQ",
+              "at": 1788882689027,
+              "kind": "text",
+              "body": "On my way.",
+              "image": null,
+              "video": null,
+              "edited": false,
+              "tombstoned": false,
+              "replyTo": "sm0005",
+              "viewOnce": false,
+              "expiresAt": null,
+              "reactions": [],
+              "receipts": [
+                {
+                  "id": "s2id-8755dc9ac930975a7de4deeb17a6c734-0000000000029c01",
+                  "recipient": "user:AvQls6uw1wF5SY8rXZbqQg",
+                  "status": "sent"
+                }
+              ],
+              "reactionSummary": [],
+              "ownReceipt": null
+            }
+          ]
+        },
+        {
+          "id": "g-starter",
+          "kind": "group",
+          "title": "Weekend Plans",
+          "messagePages": 1,
+          "messages": [
+            {
+              "id": "sm0007",
+              "conversationId": "g-starter",
+              "sender": "user:AvQls6uw1wF5SY8rXZbqQg",
+              "at": 1788882689033,
+              "kind": "text",
+              "body": "Saturday plan: coffee, lake, then noodles.",
+              "image": null,
+              "video": null,
+              "edited": false,
+              "tombstoned": false,
+              "replyTo": null,
+              "viewOnce": false,
+              "expiresAt": null,
+              "reactions": [],
+              "receipts": [
+                {
+                  "id": "s2id-8755dc9ac930975a7de4deeb17a6c734-000000000002a006",
+                  "recipient": "user:aO_5S1KiOOVkSrsBf3FZeQ",
+                  "status": "sent"
+                },
+                {
+                  "id": "s2id-8755dc9ac930975a7de4deeb17a6c734-000000000002a001",
+                  "recipient": "user:AvQls6uw1wF5SY8rXZbqQg",
+                  "status": "read"
+                },
+                {
+                  "id": "s2id-8755dc9ac930975a7de4deeb17a6c734-000000000002a002",
+                  "recipient": "user:QAqQJCxsAsaeU-1KwR5-sQ",
+                  "status": "sent"
+                },
+                {
+                  "id": "s2id-8755dc9ac930975a7de4deeb17a6c734-000000000002a00a",
+                  "recipient": "user:qZp6d5tO4jYyGmAcQwmjwg",
+                  "status": "sent"
+                }
+              ],
+              "reactionSummary": [],
+              "ownReceipt": "sent"
+            },
+            {
+              "id": "sm0008",
+              "conversationId": "g-starter",
+              "sender": "user:qZp6d5tO4jYyGmAcQwmjwg",
+              "at": 1788882689064,
+              "kind": "text",
+              "body": "Coffee is a definite yes.",
+              "image": null,
+              "video": null,
+              "edited": false,
+              "tombstoned": false,
+              "replyTo": "sm0007",
+              "viewOnce": false,
+              "expiresAt": null,
+              "reactions": [],
+              "receipts": [
+                {
+                  "id": "s2id-8755dc9ac930975a7de4deeb17a6c734-000000000002c401",
+                  "recipient": "user:AvQls6uw1wF5SY8rXZbqQg",
+                  "status": "sent"
+                }
+              ],
+              "reactionSummary": [],
+              "ownReceipt": null
+            },
+            {
+              "id": "sm0009",
+              "conversationId": "g-starter",
+              "sender": "user:QAqQJCxsAsaeU-1KwR5-sQ",
+              "at": 1788882689096,
+              "kind": "text",
+              "body": "I can meet everyone at ten.",
+              "image": null,
+              "video": null,
+              "edited": false,
+              "tombstoned": false,
+              "replyTo": null,
+              "viewOnce": false,
+              "expiresAt": null,
+              "reactions": [],
+              "receipts": [
+                {
+                  "id": "s2id-8755dc9ac930975a7de4deeb17a6c734-000000000002e801",
+                  "recipient": "user:AvQls6uw1wF5SY8rXZbqQg",
+                  "status": "sent"
+                }
+              ],
+              "reactionSummary": [],
+              "ownReceipt": null
+            },
+            {
+              "id": "sm0010",
+              "conversationId": "g-starter",
+              "sender": "user:aO_5S1KiOOVkSrsBf3FZeQ",
+              "at": 1788882689103,
+              "kind": "text",
+              "body": "The west trail is dry now.",
+              "image": null,
+              "video": null,
+              "edited": false,
+              "tombstoned": false,
+              "replyTo": null,
+              "viewOnce": false,
+              "expiresAt": null,
+              "reactions": [],
+              "receipts": [
+                {
+                  "id": "s2id-8755dc9ac930975a7de4deeb17a6c734-000000000002ec01",
+                  "recipient": "user:AvQls6uw1wF5SY8rXZbqQg",
+                  "status": "sent"
+                }
+              ],
+              "reactionSummary": [],
+              "ownReceipt": null
+            },
+            {
+              "id": "sm0011",
+              "conversationId": "g-starter",
+              "sender": "user:AvQls6uw1wF5SY8rXZbqQg",
+              "at": 1788882689110,
+              "kind": "text",
+              "body": "West trail it is.",
+              "image": null,
+              "video": null,
+              "edited": false,
+              "tombstoned": false,
+              "replyTo": "sm0010",
+              "viewOnce": false,
+              "expiresAt": null,
+              "reactions": [],
+              "receipts": [
+                {
+                  "id": "s2id-8755dc9ac930975a7de4deeb17a6c734-000000000002f005",
+                  "recipient": "user:aO_5S1KiOOVkSrsBf3FZeQ",
+                  "status": "sent"
+                },
+                {
+                  "id": "s2id-8755dc9ac930975a7de4deeb17a6c734-000000000002f001",
+                  "recipient": "user:AvQls6uw1wF5SY8rXZbqQg",
+                  "status": "read"
+                },
+                {
+                  "id": "s2id-8755dc9ac930975a7de4deeb17a6c734-000000000002f002",
+                  "recipient": "user:QAqQJCxsAsaeU-1KwR5-sQ",
+                  "status": "sent"
+                },
+                {
+                  "id": "s2id-8755dc9ac930975a7de4deeb17a6c734-000000000002f008",
+                  "recipient": "user:qZp6d5tO4jYyGmAcQwmjwg",
+                  "status": "sent"
+                }
+              ],
+              "reactionSummary": [],
+              "ownReceipt": "sent"
+            },
+            {
+              "id": "sm0012",
+              "conversationId": "g-starter",
+              "sender": "user:qZp6d5tO4jYyGmAcQwmjwg",
+              "at": 1788882689116,
+              "kind": "text",
+              "body": "I will bring snacks.",
+              "image": null,
+              "video": null,
+              "edited": false,
+              "tombstoned": false,
+              "replyTo": null,
+              "viewOnce": false,
+              "expiresAt": null,
+              "reactions": [],
+              "receipts": [
+                {
+                  "id": "s2id-8755dc9ac930975a7de4deeb17a6c734-000000000002f401",
+                  "recipient": "user:AvQls6uw1wF5SY8rXZbqQg",
+                  "status": "sent"
+                }
+              ],
+              "reactionSummary": [],
+              "ownReceipt": null
+            },
+            {
+              "id": "sm0013",
+              "conversationId": "g-starter",
+              "sender": "user:QAqQJCxsAsaeU-1KwR5-sQ",
+              "at": 1788882689123,
+              "kind": "text",
+              "body": "Should I book dinner?",
+              "image": null,
+              "video": null,
+              "edited": false,
+              "tombstoned": false,
+              "replyTo": null,
+              "viewOnce": false,
+              "expiresAt": null,
+              "reactions": [],
+              "receipts": [
+                {
+                  "id": "s2id-8755dc9ac930975a7de4deeb17a6c734-000000000002f801",
+                  "recipient": "user:AvQls6uw1wF5SY8rXZbqQg",
+                  "status": "sent"
+                }
+              ],
+              "reactionSummary": [],
+              "ownReceipt": null
+            },
+            {
+              "id": "sm0014",
+              "conversationId": "g-starter",
+              "sender": "user:aO_5S1KiOOVkSrsBf3FZeQ",
+              "at": 1788882689129,
+              "kind": "text",
+              "body": "Please do, for four.",
+              "image": null,
+              "video": null,
+              "edited": false,
+              "tombstoned": false,
+              "replyTo": "sm0013",
+              "viewOnce": false,
+              "expiresAt": null,
+              "reactions": [],
+              "receipts": [
+                {
+                  "id": "s2id-8755dc9ac930975a7de4deeb17a6c734-000000000002fc01",
+                  "recipient": "user:AvQls6uw1wF5SY8rXZbqQg",
+                  "status": "sent"
+                }
+              ],
+              "reactionSummary": [],
+              "ownReceipt": null
+            },
+            {
+              "id": "sm0015",
+              "conversationId": "g-starter",
+              "sender": "user:AvQls6uw1wF5SY8rXZbqQg",
+              "at": 1788882689136,
+              "kind": "text",
+              "body": "Locked in. See you Saturday.",
+              "image": null,
+              "video": null,
+              "edited": false,
+              "tombstoned": false,
+              "replyTo": null,
+              "viewOnce": false,
+              "expiresAt": null,
+              "reactions": [],
+              "receipts": [
+                {
+                  "id": "s2id-8755dc9ac930975a7de4deeb17a6c734-0000000000030005",
+                  "recipient": "user:aO_5S1KiOOVkSrsBf3FZeQ",
+                  "status": "sent"
+                },
+                {
+                  "id": "s2id-8755dc9ac930975a7de4deeb17a6c734-0000000000030001",
+                  "recipient": "user:AvQls6uw1wF5SY8rXZbqQg",
+                  "status": "read"
+                },
+                {
+                  "id": "s2id-8755dc9ac930975a7de4deeb17a6c734-0000000000030002",
+                  "recipient": "user:QAqQJCxsAsaeU-1KwR5-sQ",
+                  "status": "sent"
+                },
+                {
+                  "id": "s2id-8755dc9ac930975a7de4deeb17a6c734-0000000000030008",
+                  "recipient": "user:qZp6d5tO4jYyGmAcQwmjwg",
+                  "status": "sent"
+                }
+              ],
+              "reactionSummary": [],
+              "ownReceipt": "sent"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "persona": "bob",
+      "viewer": "user:aO_5S1KiOOVkSrsBf3FZeQ",
+      "chatPages": 2,
+      "conversations": [
+        {
+          "id": "d-alice-bob",
+          "kind": "dm",
+          "title": "",
+          "messagePages": 1,
+          "messages": [
+            {
+              "id": "sm0001",
+              "conversationId": "d-alice-bob",
+              "sender": "user:AvQls6uw1wF5SY8rXZbqQg",
+              "at": 1788882688975,
+              "kind": "text",
+              "body": "Coffee after work?",
+              "image": null,
+              "video": null,
+              "edited": false,
+              "tombstoned": false,
+              "replyTo": null,
+              "viewOnce": false,
+              "expiresAt": null,
+              "reactions": [],
+              "receipts": [
+                {
+                  "id": "s2id-8755dc9ac930975a7de4deeb17a6c734-0000000000026802",
+                  "recipient": "user:aO_5S1KiOOVkSrsBf3FZeQ",
+                  "status": "sent"
+                }
+              ],
+              "reactionSummary": [],
+              "ownReceipt": null
+            },
+            {
+              "id": "sm0002",
+              "conversationId": "d-alice-bob",
+              "sender": "user:aO_5S1KiOOVkSrsBf3FZeQ",
+              "at": 1788882689006,
+              "kind": "text",
+              "body": "Yes. Corner place?",
+              "image": null,
+              "video": null,
+              "edited": false,
+              "tombstoned": false,
+              "replyTo": "sm0001",
+              "viewOnce": false,
+              "expiresAt": null,
+              "reactions": [],
+              "receipts": [
+                {
+                  "id": "s2id-8755dc9ac930975a7de4deeb17a6c734-0000000000028c05",
+                  "recipient": "user:aO_5S1KiOOVkSrsBf3FZeQ",
+                  "status": "read"
+                },
+                {
+                  "id": "s2id-8755dc9ac930975a7de4deeb17a6c734-0000000000028c01",
+                  "recipient": "user:AvQls6uw1wF5SY8rXZbqQg",
+                  "status": "sent"
+                }
+              ],
+              "reactionSummary": [],
+              "ownReceipt": "sent"
+            },
+            {
+              "id": "sm0003",
+              "conversationId": "d-alice-bob",
+              "sender": "user:AvQls6uw1wF5SY8rXZbqQg",
+              "at": 1788882689012,
+              "kind": "text",
+              "body": "Exactly. Six thirty.",
+              "image": null,
+              "video": null,
+              "edited": false,
+              "tombstoned": false,
+              "replyTo": "sm0002",
+              "viewOnce": false,
+              "expiresAt": null,
+              "reactions": [],
+              "receipts": [
+                {
+                  "id": "s2id-8755dc9ac930975a7de4deeb17a6c734-0000000000029002",
+                  "recipient": "user:aO_5S1KiOOVkSrsBf3FZeQ",
+                  "status": "sent"
+                }
+              ],
+              "reactionSummary": [],
+              "ownReceipt": null
+            },
+            {
+              "id": "sm0004",
+              "conversationId": "d-alice-bob",
+              "sender": "user:aO_5S1KiOOVkSrsBf3FZeQ",
+              "at": 1788882689018,
+              "kind": "text",
+              "body": "I will bring the route map.",
+              "image": null,
+              "video": null,
+              "edited": false,
+              "tombstoned": false,
+              "replyTo": null,
+              "viewOnce": false,
+              "expiresAt": null,
+              "reactions": [],
+              "receipts": [
+                {
+                  "id": "s2id-8755dc9ac930975a7de4deeb17a6c734-0000000000029404",
+                  "recipient": "user:aO_5S1KiOOVkSrsBf3FZeQ",
+                  "status": "read"
+                },
+                {
+                  "id": "s2id-8755dc9ac930975a7de4deeb17a6c734-0000000000029401",
+                  "recipient": "user:AvQls6uw1wF5SY8rXZbqQg",
+                  "status": "sent"
+                }
+              ],
+              "reactionSummary": [],
+              "ownReceipt": "sent"
+            },
+            {
+              "id": "sm0005",
+              "conversationId": "d-alice-bob",
+              "sender": "user:AvQls6uw1wF5SY8rXZbqQg",
+              "at": 1788882689022,
+              "kind": "text",
+              "body": "Perfect, see you there.",
+              "image": null,
+              "video": null,
+              "edited": false,
+              "tombstoned": false,
+              "replyTo": null,
+              "viewOnce": false,
+              "expiresAt": null,
+              "reactions": [],
+              "receipts": [
+                {
+                  "id": "s2id-8755dc9ac930975a7de4deeb17a6c734-0000000000029802",
+                  "recipient": "user:aO_5S1KiOOVkSrsBf3FZeQ",
+                  "status": "sent"
+                }
+              ],
+              "reactionSummary": [],
+              "ownReceipt": null
+            },
+            {
+              "id": "sm0006",
+              "conversationId": "d-alice-bob",
+              "sender": "user:aO_5S1KiOOVkSrsBf3FZeQ",
+              "at": 1788882689027,
+              "kind": "text",
+              "body": "On my way.",
+              "image": null,
+              "video": null,
+              "edited": false,
+              "tombstoned": false,
+              "replyTo": "sm0005",
+              "viewOnce": false,
+              "expiresAt": null,
+              "reactions": [],
+              "receipts": [
+                {
+                  "id": "s2id-8755dc9ac930975a7de4deeb17a6c734-0000000000029c04",
+                  "recipient": "user:aO_5S1KiOOVkSrsBf3FZeQ",
+                  "status": "read"
+                },
+                {
+                  "id": "s2id-8755dc9ac930975a7de4deeb17a6c734-0000000000029c01",
+                  "recipient": "user:AvQls6uw1wF5SY8rXZbqQg",
+                  "status": "sent"
+                }
+              ],
+              "reactionSummary": [],
+              "ownReceipt": "sent"
+            }
+          ]
+        },
+        {
+          "id": "g-starter",
+          "kind": "group",
+          "title": "Weekend Plans",
+          "messagePages": 1,
+          "messages": [
+            {
+              "id": "sm0007",
+              "conversationId": "g-starter",
+              "sender": "user:AvQls6uw1wF5SY8rXZbqQg",
+              "at": 1788882689033,
+              "kind": "text",
+              "body": "Saturday plan: coffee, lake, then noodles.",
+              "image": null,
+              "video": null,
+              "edited": false,
+              "tombstoned": false,
+              "replyTo": null,
+              "viewOnce": false,
+              "expiresAt": null,
+              "reactions": [],
+              "receipts": [
+                {
+                  "id": "s2id-8755dc9ac930975a7de4deeb17a6c734-000000000002a006",
+                  "recipient": "user:aO_5S1KiOOVkSrsBf3FZeQ",
+                  "status": "sent"
+                }
+              ],
+              "reactionSummary": [],
+              "ownReceipt": null
+            },
+            {
+              "id": "sm0008",
+              "conversationId": "g-starter",
+              "sender": "user:qZp6d5tO4jYyGmAcQwmjwg",
+              "at": 1788882689064,
+              "kind": "text",
+              "body": "Coffee is a definite yes.",
+              "image": null,
+              "video": null,
+              "edited": false,
+              "tombstoned": false,
+              "replyTo": "sm0007",
+              "viewOnce": false,
+              "expiresAt": null,
+              "reactions": [],
+              "receipts": [
+                {
+                  "id": "s2id-8755dc9ac930975a7de4deeb17a6c734-000000000002c408",
+                  "recipient": "user:aO_5S1KiOOVkSrsBf3FZeQ",
+                  "status": "sent"
+                }
+              ],
+              "reactionSummary": [],
+              "ownReceipt": null
+            },
+            {
+              "id": "sm0009",
+              "conversationId": "g-starter",
+              "sender": "user:QAqQJCxsAsaeU-1KwR5-sQ",
+              "at": 1788882689096,
+              "kind": "text",
+              "body": "I can meet everyone at ten.",
+              "image": null,
+              "video": null,
+              "edited": false,
+              "tombstoned": false,
+              "replyTo": null,
+              "viewOnce": false,
+              "expiresAt": null,
+              "reactions": [],
+              "receipts": [
+                {
+                  "id": "s2id-8755dc9ac930975a7de4deeb17a6c734-000000000002e805",
+                  "recipient": "user:aO_5S1KiOOVkSrsBf3FZeQ",
+                  "status": "sent"
+                }
+              ],
+              "reactionSummary": [],
+              "ownReceipt": null
+            },
+            {
+              "id": "sm0010",
+              "conversationId": "g-starter",
+              "sender": "user:aO_5S1KiOOVkSrsBf3FZeQ",
+              "at": 1788882689103,
+              "kind": "text",
+              "body": "The west trail is dry now.",
+              "image": null,
+              "video": null,
+              "edited": false,
+              "tombstoned": false,
+              "replyTo": null,
+              "viewOnce": false,
+              "expiresAt": null,
+              "reactions": [],
+              "receipts": [
+                {
+                  "id": "s2id-8755dc9ac930975a7de4deeb17a6c734-000000000002ec07",
+                  "recipient": "user:aO_5S1KiOOVkSrsBf3FZeQ",
+                  "status": "read"
+                },
+                {
+                  "id": "s2id-8755dc9ac930975a7de4deeb17a6c734-000000000002ec01",
+                  "recipient": "user:AvQls6uw1wF5SY8rXZbqQg",
+                  "status": "sent"
+                },
+                {
+                  "id": "s2id-8755dc9ac930975a7de4deeb17a6c734-000000000002ec04",
+                  "recipient": "user:QAqQJCxsAsaeU-1KwR5-sQ",
+                  "status": "sent"
+                },
+                {
+                  "id": "s2id-8755dc9ac930975a7de4deeb17a6c734-000000000002ec08",
+                  "recipient": "user:qZp6d5tO4jYyGmAcQwmjwg",
+                  "status": "sent"
+                }
+              ],
+              "reactionSummary": [],
+              "ownReceipt": "sent"
+            },
+            {
+              "id": "sm0011",
+              "conversationId": "g-starter",
+              "sender": "user:AvQls6uw1wF5SY8rXZbqQg",
+              "at": 1788882689110,
+              "kind": "text",
+              "body": "West trail it is.",
+              "image": null,
+              "video": null,
+              "edited": false,
+              "tombstoned": false,
+              "replyTo": "sm0010",
+              "viewOnce": false,
+              "expiresAt": null,
+              "reactions": [],
+              "receipts": [
+                {
+                  "id": "s2id-8755dc9ac930975a7de4deeb17a6c734-000000000002f005",
+                  "recipient": "user:aO_5S1KiOOVkSrsBf3FZeQ",
+                  "status": "sent"
+                }
+              ],
+              "reactionSummary": [],
+              "ownReceipt": null
+            },
+            {
+              "id": "sm0012",
+              "conversationId": "g-starter",
+              "sender": "user:qZp6d5tO4jYyGmAcQwmjwg",
+              "at": 1788882689116,
+              "kind": "text",
+              "body": "I will bring snacks.",
+              "image": null,
+              "video": null,
+              "edited": false,
+              "tombstoned": false,
+              "replyTo": null,
+              "viewOnce": false,
+              "expiresAt": null,
+              "reactions": [],
+              "receipts": [
+                {
+                  "id": "s2id-8755dc9ac930975a7de4deeb17a6c734-000000000002f407",
+                  "recipient": "user:aO_5S1KiOOVkSrsBf3FZeQ",
+                  "status": "sent"
+                }
+              ],
+              "reactionSummary": [],
+              "ownReceipt": null
+            },
+            {
+              "id": "sm0013",
+              "conversationId": "g-starter",
+              "sender": "user:QAqQJCxsAsaeU-1KwR5-sQ",
+              "at": 1788882689123,
+              "kind": "text",
+              "body": "Should I book dinner?",
+              "image": null,
+              "video": null,
+              "edited": false,
+              "tombstoned": false,
+              "replyTo": null,
+              "viewOnce": false,
+              "expiresAt": null,
+              "reactions": [],
+              "receipts": [
+                {
+                  "id": "s2id-8755dc9ac930975a7de4deeb17a6c734-000000000002f805",
+                  "recipient": "user:aO_5S1KiOOVkSrsBf3FZeQ",
+                  "status": "sent"
+                }
+              ],
+              "reactionSummary": [],
+              "ownReceipt": null
+            },
+            {
+              "id": "sm0014",
+              "conversationId": "g-starter",
+              "sender": "user:aO_5S1KiOOVkSrsBf3FZeQ",
+              "at": 1788882689129,
+              "kind": "text",
+              "body": "Please do, for four.",
+              "image": null,
+              "video": null,
+              "edited": false,
+              "tombstoned": false,
+              "replyTo": "sm0013",
+              "viewOnce": false,
+              "expiresAt": null,
+              "reactions": [],
+              "receipts": [
+                {
+                  "id": "s2id-8755dc9ac930975a7de4deeb17a6c734-000000000002fc07",
+                  "recipient": "user:aO_5S1KiOOVkSrsBf3FZeQ",
+                  "status": "read"
+                },
+                {
+                  "id": "s2id-8755dc9ac930975a7de4deeb17a6c734-000000000002fc01",
+                  "recipient": "user:AvQls6uw1wF5SY8rXZbqQg",
+                  "status": "sent"
+                },
+                {
+                  "id": "s2id-8755dc9ac930975a7de4deeb17a6c734-000000000002fc04",
+                  "recipient": "user:QAqQJCxsAsaeU-1KwR5-sQ",
+                  "status": "sent"
+                },
+                {
+                  "id": "s2id-8755dc9ac930975a7de4deeb17a6c734-000000000002fc08",
+                  "recipient": "user:qZp6d5tO4jYyGmAcQwmjwg",
+                  "status": "sent"
+                }
+              ],
+              "reactionSummary": [],
+              "ownReceipt": "sent"
+            },
+            {
+              "id": "sm0015",
+              "conversationId": "g-starter",
+              "sender": "user:AvQls6uw1wF5SY8rXZbqQg",
+              "at": 1788882689136,
+              "kind": "text",
+              "body": "Locked in. See you Saturday.",
+              "image": null,
+              "video": null,
+              "edited": false,
+              "tombstoned": false,
+              "replyTo": null,
+              "viewOnce": false,
+              "expiresAt": null,
+              "reactions": [],
+              "receipts": [
+                {
+                  "id": "s2id-8755dc9ac930975a7de4deeb17a6c734-0000000000030005",
+                  "recipient": "user:aO_5S1KiOOVkSrsBf3FZeQ",
+                  "status": "sent"
+                }
+              ],
+              "reactionSummary": [],
+              "ownReceipt": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "persona": "carol",
+      "viewer": "user:qZp6d5tO4jYyGmAcQwmjwg",
+      "chatPages": 2,
+      "conversations": [
+        {
+          "id": "g-starter",
+          "kind": "group",
+          "title": "Weekend Plans",
+          "messagePages": 1,
+          "messages": [
+            {
+              "id": "sm0007",
+              "conversationId": "g-starter",
+              "sender": "user:AvQls6uw1wF5SY8rXZbqQg",
+              "at": 1788882689033,
+              "kind": "text",
+              "body": "Saturday plan: coffee, lake, then noodles.",
+              "image": null,
+              "video": null,
+              "edited": false,
+              "tombstoned": false,
+              "replyTo": null,
+              "viewOnce": false,
+              "expiresAt": null,
+              "reactions": [],
+              "receipts": [
+                {
+                  "id": "s2id-8755dc9ac930975a7de4deeb17a6c734-000000000002a00a",
+                  "recipient": "user:qZp6d5tO4jYyGmAcQwmjwg",
+                  "status": "sent"
+                }
+              ],
+              "reactionSummary": [],
+              "ownReceipt": null
+            },
+            {
+              "id": "sm0008",
+              "conversationId": "g-starter",
+              "sender": "user:qZp6d5tO4jYyGmAcQwmjwg",
+              "at": 1788882689064,
+              "kind": "text",
+              "body": "Coffee is a definite yes.",
+              "image": null,
+              "video": null,
+              "edited": false,
+              "tombstoned": false,
+              "replyTo": "sm0007",
+              "viewOnce": false,
+              "expiresAt": null,
+              "reactions": [],
+              "receipts": [
+                {
+                  "id": "s2id-8755dc9ac930975a7de4deeb17a6c734-000000000002c408",
+                  "recipient": "user:aO_5S1KiOOVkSrsBf3FZeQ",
+                  "status": "sent"
+                },
+                {
+                  "id": "s2id-8755dc9ac930975a7de4deeb17a6c734-000000000002c401",
+                  "recipient": "user:AvQls6uw1wF5SY8rXZbqQg",
+                  "status": "sent"
+                },
+                {
+                  "id": "s2id-8755dc9ac930975a7de4deeb17a6c734-000000000002c405",
+                  "recipient": "user:QAqQJCxsAsaeU-1KwR5-sQ",
+                  "status": "sent"
+                },
+                {
+                  "id": "s2id-8755dc9ac930975a7de4deeb17a6c734-000000000002c40b",
+                  "recipient": "user:qZp6d5tO4jYyGmAcQwmjwg",
+                  "status": "read"
+                }
+              ],
+              "reactionSummary": [],
+              "ownReceipt": "sent"
+            },
+            {
+              "id": "sm0009",
+              "conversationId": "g-starter",
+              "sender": "user:QAqQJCxsAsaeU-1KwR5-sQ",
+              "at": 1788882689096,
+              "kind": "text",
+              "body": "I can meet everyone at ten.",
+              "image": null,
+              "video": null,
+              "edited": false,
+              "tombstoned": false,
+              "replyTo": null,
+              "viewOnce": false,
+              "expiresAt": null,
+              "reactions": [],
+              "receipts": [
+                {
+                  "id": "s2id-8755dc9ac930975a7de4deeb17a6c734-000000000002e808",
+                  "recipient": "user:qZp6d5tO4jYyGmAcQwmjwg",
+                  "status": "sent"
+                }
+              ],
+              "reactionSummary": [],
+              "ownReceipt": null
+            },
+            {
+              "id": "sm0010",
+              "conversationId": "g-starter",
+              "sender": "user:aO_5S1KiOOVkSrsBf3FZeQ",
+              "at": 1788882689103,
+              "kind": "text",
+              "body": "The west trail is dry now.",
+              "image": null,
+              "video": null,
+              "edited": false,
+              "tombstoned": false,
+              "replyTo": null,
+              "viewOnce": false,
+              "expiresAt": null,
+              "reactions": [],
+              "receipts": [
+                {
+                  "id": "s2id-8755dc9ac930975a7de4deeb17a6c734-000000000002ec08",
+                  "recipient": "user:qZp6d5tO4jYyGmAcQwmjwg",
+                  "status": "sent"
+                }
+              ],
+              "reactionSummary": [],
+              "ownReceipt": null
+            },
+            {
+              "id": "sm0011",
+              "conversationId": "g-starter",
+              "sender": "user:AvQls6uw1wF5SY8rXZbqQg",
+              "at": 1788882689110,
+              "kind": "text",
+              "body": "West trail it is.",
+              "image": null,
+              "video": null,
+              "edited": false,
+              "tombstoned": false,
+              "replyTo": "sm0010",
+              "viewOnce": false,
+              "expiresAt": null,
+              "reactions": [],
+              "receipts": [
+                {
+                  "id": "s2id-8755dc9ac930975a7de4deeb17a6c734-000000000002f008",
+                  "recipient": "user:qZp6d5tO4jYyGmAcQwmjwg",
+                  "status": "sent"
+                }
+              ],
+              "reactionSummary": [],
+              "ownReceipt": null
+            },
+            {
+              "id": "sm0012",
+              "conversationId": "g-starter",
+              "sender": "user:qZp6d5tO4jYyGmAcQwmjwg",
+              "at": 1788882689116,
+              "kind": "text",
+              "body": "I will bring snacks.",
+              "image": null,
+              "video": null,
+              "edited": false,
+              "tombstoned": false,
+              "replyTo": null,
+              "viewOnce": false,
+              "expiresAt": null,
+              "reactions": [],
+              "receipts": [
+                {
+                  "id": "s2id-8755dc9ac930975a7de4deeb17a6c734-000000000002f407",
+                  "recipient": "user:aO_5S1KiOOVkSrsBf3FZeQ",
+                  "status": "sent"
+                },
+                {
+                  "id": "s2id-8755dc9ac930975a7de4deeb17a6c734-000000000002f401",
+                  "recipient": "user:AvQls6uw1wF5SY8rXZbqQg",
+                  "status": "sent"
+                },
+                {
+                  "id": "s2id-8755dc9ac930975a7de4deeb17a6c734-000000000002f404",
+                  "recipient": "user:QAqQJCxsAsaeU-1KwR5-sQ",
+                  "status": "sent"
+                },
+                {
+                  "id": "s2id-8755dc9ac930975a7de4deeb17a6c734-000000000002f40a",
+                  "recipient": "user:qZp6d5tO4jYyGmAcQwmjwg",
+                  "status": "read"
+                }
+              ],
+              "reactionSummary": [],
+              "ownReceipt": "sent"
+            },
+            {
+              "id": "sm0013",
+              "conversationId": "g-starter",
+              "sender": "user:QAqQJCxsAsaeU-1KwR5-sQ",
+              "at": 1788882689123,
+              "kind": "text",
+              "body": "Should I book dinner?",
+              "image": null,
+              "video": null,
+              "edited": false,
+              "tombstoned": false,
+              "replyTo": null,
+              "viewOnce": false,
+              "expiresAt": null,
+              "reactions": [],
+              "receipts": [
+                {
+                  "id": "s2id-8755dc9ac930975a7de4deeb17a6c734-000000000002f808",
+                  "recipient": "user:qZp6d5tO4jYyGmAcQwmjwg",
+                  "status": "sent"
+                }
+              ],
+              "reactionSummary": [],
+              "ownReceipt": null
+            },
+            {
+              "id": "sm0014",
+              "conversationId": "g-starter",
+              "sender": "user:aO_5S1KiOOVkSrsBf3FZeQ",
+              "at": 1788882689129,
+              "kind": "text",
+              "body": "Please do, for four.",
+              "image": null,
+              "video": null,
+              "edited": false,
+              "tombstoned": false,
+              "replyTo": "sm0013",
+              "viewOnce": false,
+              "expiresAt": null,
+              "reactions": [],
+              "receipts": [
+                {
+                  "id": "s2id-8755dc9ac930975a7de4deeb17a6c734-000000000002fc08",
+                  "recipient": "user:qZp6d5tO4jYyGmAcQwmjwg",
+                  "status": "sent"
+                }
+              ],
+              "reactionSummary": [],
+              "ownReceipt": null
+            },
+            {
+              "id": "sm0015",
+              "conversationId": "g-starter",
+              "sender": "user:AvQls6uw1wF5SY8rXZbqQg",
+              "at": 1788882689136,
+              "kind": "text",
+              "body": "Locked in. See you Saturday.",
+              "image": null,
+              "video": null,
+              "edited": false,
+              "tombstoned": false,
+              "replyTo": null,
+              "viewOnce": false,
+              "expiresAt": null,
+              "reactions": [],
+              "receipts": [
+                {
+                  "id": "s2id-8755dc9ac930975a7de4deeb17a6c734-0000000000030008",
+                  "recipient": "user:qZp6d5tO4jYyGmAcQwmjwg",
+                  "status": "sent"
+                }
+              ],
+              "reactionSummary": [],
+              "ownReceipt": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "persona": "dave",
+      "viewer": "user:LD-4d6vtpi1pmV9v4XjBoA",
+      "chatPages": 1,
+      "conversations": []
+    },
+    {
+      "persona": "erin",
+      "viewer": "user:QAqQJCxsAsaeU-1KwR5-sQ",
+      "chatPages": 2,
+      "conversations": [
+        {
+          "id": "g-starter",
+          "kind": "group",
+          "title": "Weekend Plans",
+          "messagePages": 1,
+          "messages": [
+            {
+              "id": "sm0007",
+              "conversationId": "g-starter",
+              "sender": "user:AvQls6uw1wF5SY8rXZbqQg",
+              "at": 1788882689033,
+              "kind": "text",
+              "body": "Saturday plan: coffee, lake, then noodles.",
+              "image": null,
+              "video": null,
+              "edited": false,
+              "tombstoned": false,
+              "replyTo": null,
+              "viewOnce": false,
+              "expiresAt": null,
+              "reactions": [],
+              "receipts": [
+                {
+                  "id": "s2id-8755dc9ac930975a7de4deeb17a6c734-000000000002a002",
+                  "recipient": "user:QAqQJCxsAsaeU-1KwR5-sQ",
+                  "status": "sent"
+                }
+              ],
+              "reactionSummary": [],
+              "ownReceipt": null
+            },
+            {
+              "id": "sm0008",
+              "conversationId": "g-starter",
+              "sender": "user:qZp6d5tO4jYyGmAcQwmjwg",
+              "at": 1788882689064,
+              "kind": "text",
+              "body": "Coffee is a definite yes.",
+              "image": null,
+              "video": null,
+              "edited": false,
+              "tombstoned": false,
+              "replyTo": "sm0007",
+              "viewOnce": false,
+              "expiresAt": null,
+              "reactions": [],
+              "receipts": [
+                {
+                  "id": "s2id-8755dc9ac930975a7de4deeb17a6c734-000000000002c405",
+                  "recipient": "user:QAqQJCxsAsaeU-1KwR5-sQ",
+                  "status": "sent"
+                }
+              ],
+              "reactionSummary": [],
+              "ownReceipt": null
+            },
+            {
+              "id": "sm0009",
+              "conversationId": "g-starter",
+              "sender": "user:QAqQJCxsAsaeU-1KwR5-sQ",
+              "at": 1788882689096,
+              "kind": "text",
+              "body": "I can meet everyone at ten.",
+              "image": null,
+              "video": null,
+              "edited": false,
+              "tombstoned": false,
+              "replyTo": null,
+              "viewOnce": false,
+              "expiresAt": null,
+              "reactions": [],
+              "receipts": [
+                {
+                  "id": "s2id-8755dc9ac930975a7de4deeb17a6c734-000000000002e805",
+                  "recipient": "user:aO_5S1KiOOVkSrsBf3FZeQ",
+                  "status": "sent"
+                },
+                {
+                  "id": "s2id-8755dc9ac930975a7de4deeb17a6c734-000000000002e801",
+                  "recipient": "user:AvQls6uw1wF5SY8rXZbqQg",
+                  "status": "sent"
+                },
+                {
+                  "id": "s2id-8755dc9ac930975a7de4deeb17a6c734-000000000002e804",
+                  "recipient": "user:QAqQJCxsAsaeU-1KwR5-sQ",
+                  "status": "read"
+                },
+                {
+                  "id": "s2id-8755dc9ac930975a7de4deeb17a6c734-000000000002e808",
+                  "recipient": "user:qZp6d5tO4jYyGmAcQwmjwg",
+                  "status": "sent"
+                }
+              ],
+              "reactionSummary": [],
+              "ownReceipt": "sent"
+            },
+            {
+              "id": "sm0010",
+              "conversationId": "g-starter",
+              "sender": "user:aO_5S1KiOOVkSrsBf3FZeQ",
+              "at": 1788882689103,
+              "kind": "text",
+              "body": "The west trail is dry now.",
+              "image": null,
+              "video": null,
+              "edited": false,
+              "tombstoned": false,
+              "replyTo": null,
+              "viewOnce": false,
+              "expiresAt": null,
+              "reactions": [],
+              "receipts": [
+                {
+                  "id": "s2id-8755dc9ac930975a7de4deeb17a6c734-000000000002ec04",
+                  "recipient": "user:QAqQJCxsAsaeU-1KwR5-sQ",
+                  "status": "sent"
+                }
+              ],
+              "reactionSummary": [],
+              "ownReceipt": null
+            },
+            {
+              "id": "sm0011",
+              "conversationId": "g-starter",
+              "sender": "user:AvQls6uw1wF5SY8rXZbqQg",
+              "at": 1788882689110,
+              "kind": "text",
+              "body": "West trail it is.",
+              "image": null,
+              "video": null,
+              "edited": false,
+              "tombstoned": false,
+              "replyTo": "sm0010",
+              "viewOnce": false,
+              "expiresAt": null,
+              "reactions": [],
+              "receipts": [
+                {
+                  "id": "s2id-8755dc9ac930975a7de4deeb17a6c734-000000000002f002",
+                  "recipient": "user:QAqQJCxsAsaeU-1KwR5-sQ",
+                  "status": "sent"
+                }
+              ],
+              "reactionSummary": [],
+              "ownReceipt": null
+            },
+            {
+              "id": "sm0012",
+              "conversationId": "g-starter",
+              "sender": "user:qZp6d5tO4jYyGmAcQwmjwg",
+              "at": 1788882689116,
+              "kind": "text",
+              "body": "I will bring snacks.",
+              "image": null,
+              "video": null,
+              "edited": false,
+              "tombstoned": false,
+              "replyTo": null,
+              "viewOnce": false,
+              "expiresAt": null,
+              "reactions": [],
+              "receipts": [
+                {
+                  "id": "s2id-8755dc9ac930975a7de4deeb17a6c734-000000000002f404",
+                  "recipient": "user:QAqQJCxsAsaeU-1KwR5-sQ",
+                  "status": "sent"
+                }
+              ],
+              "reactionSummary": [],
+              "ownReceipt": null
+            },
+            {
+              "id": "sm0013",
+              "conversationId": "g-starter",
+              "sender": "user:QAqQJCxsAsaeU-1KwR5-sQ",
+              "at": 1788882689123,
+              "kind": "text",
+              "body": "Should I book dinner?",
+              "image": null,
+              "video": null,
+              "edited": false,
+              "tombstoned": false,
+              "replyTo": null,
+              "viewOnce": false,
+              "expiresAt": null,
+              "reactions": [],
+              "receipts": [
+                {
+                  "id": "s2id-8755dc9ac930975a7de4deeb17a6c734-000000000002f805",
+                  "recipient": "user:aO_5S1KiOOVkSrsBf3FZeQ",
+                  "status": "sent"
+                },
+                {
+                  "id": "s2id-8755dc9ac930975a7de4deeb17a6c734-000000000002f801",
+                  "recipient": "user:AvQls6uw1wF5SY8rXZbqQg",
+                  "status": "sent"
+                },
+                {
+                  "id": "s2id-8755dc9ac930975a7de4deeb17a6c734-000000000002f804",
+                  "recipient": "user:QAqQJCxsAsaeU-1KwR5-sQ",
+                  "status": "read"
+                },
+                {
+                  "id": "s2id-8755dc9ac930975a7de4deeb17a6c734-000000000002f808",
+                  "recipient": "user:qZp6d5tO4jYyGmAcQwmjwg",
+                  "status": "sent"
+                }
+              ],
+              "reactionSummary": [],
+              "ownReceipt": "sent"
+            },
+            {
+              "id": "sm0014",
+              "conversationId": "g-starter",
+              "sender": "user:aO_5S1KiOOVkSrsBf3FZeQ",
+              "at": 1788882689129,
+              "kind": "text",
+              "body": "Please do, for four.",
+              "image": null,
+              "video": null,
+              "edited": false,
+              "tombstoned": false,
+              "replyTo": "sm0013",
+              "viewOnce": false,
+              "expiresAt": null,
+              "reactions": [],
+              "receipts": [
+                {
+                  "id": "s2id-8755dc9ac930975a7de4deeb17a6c734-000000000002fc04",
+                  "recipient": "user:QAqQJCxsAsaeU-1KwR5-sQ",
+                  "status": "sent"
+                }
+              ],
+              "reactionSummary": [],
+              "ownReceipt": null
+            },
+            {
+              "id": "sm0015",
+              "conversationId": "g-starter",
+              "sender": "user:AvQls6uw1wF5SY8rXZbqQg",
+              "at": 1788882689136,
+              "kind": "text",
+              "body": "Locked in. See you Saturday.",
+              "image": null,
+              "video": null,
+              "edited": false,
+              "tombstoned": false,
+              "replyTo": null,
+              "viewOnce": false,
+              "expiresAt": null,
+              "reactions": [],
+              "receipts": [
+                {
+                  "id": "s2id-8755dc9ac930975a7de4deeb17a6c734-0000000000030002",
+                  "recipient": "user:QAqQJCxsAsaeU-1KwR5-sQ",
+                  "status": "sent"
+                }
+              ],
+              "reactionSummary": [],
+              "ownReceipt": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "persona": "frank",
+      "viewer": "user:MYY21QG40N4561Bl1q02Vw",
+      "chatPages": 1,
+      "conversations": []
+    },
+    {
+      "persona": "grace",
+      "viewer": "user:4FgVLKUWVKfJcJkoYad_Og",
+      "chatPages": 1,
+      "conversations": []
+    },
+    {
+      "persona": "henry",
+      "viewer": "user:UsEY8-18Nc0ZvdKCJI-DXg",
+      "chatPages": 1,
+      "conversations": []
+    }
+  ],
+  "coverage": {
+    "personas": 8,
+    "personaConversationViews": 6,
+    "uniqueConversations": 2,
+    "visibleMessageCopies": 48,
+    "uniqueMessages": 15,
+    "imageMessages": 0,
+    "videoMessages": 0,
+    "reactedMessages": 0,
+    "quotedMessages": 6,
+    "receiptRows": 81,
+    "editedMessages": 0,
+    "tombstonedMessages": 0,
+    "viewOnceMessages": 0
+  }
+}

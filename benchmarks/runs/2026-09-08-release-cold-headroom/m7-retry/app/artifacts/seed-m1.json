@@ -1,0 +1,18 @@
+{
+  "schemaVersion": "clique.replay.v2",
+  "source": "/Users/ccheever/clique-cold-019-20260908/m7-retry/app/harness/benchmarks/fixtures/social-messenger/starter-m1.log",
+  "url": "http://127.0.0.1:53134",
+  "scale": false,
+  "start": 1788882686,
+  "end": 1788882687,
+  "actions": 16,
+  "settledActions": 16,
+  "verbCounts": {
+    "register": 8,
+    "profile-set": 8
+  },
+  "checkpoints": [],
+  "verifications": [],
+  "manifest": null,
+  "pass": true
+}

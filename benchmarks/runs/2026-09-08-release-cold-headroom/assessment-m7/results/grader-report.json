@@ -1,0 +1,144 @@
+{
+  "reportVersion": 1,
+  "lane": {
+    "backend": "snapback2",
+    "runRecordPath": "setup/assessment-input.json",
+    "runScope": "full"
+  },
+  "wave": {
+    "id": "uncalibrated-diagnostic-m7-snapback2-0.0.19",
+    "probeSetSha256": "not-preregistered"
+  },
+  "grader": {
+    "family": "Grok",
+    "model": "grok-4.6",
+    "sameFamilyGraded": false,
+    "calibrationPassed": false,
+    "sessionOutcome": "completed",
+    "rerunsUsed": 0,
+    "contaminated": false
+  },
+  "assertionManifest": {
+    "path": "app/instrument/benchmarks/schema/social-messenger/assertions.json",
+    "version": "0.3.0-m8",
+    "sha256": "e15c3952856148fef9872f9d509159b47fe0066bdca904330ae96196ba732d04"
+  },
+  "assertionResults": {
+    "m7-a01": {
+      "result": "pass",
+      "method": "api",
+      "suiteResult": "pass",
+      "evidence": "results/sanitized-evidence.md#m7-a01",
+      "note": "Independent custom-client polls.create accepted a 200-char question with four 50-char options in a group and rejected empty-option, 201-char question, 51-char option, and DM poll creation. Suite test m7-polls-count-backfill-maintenance reported pass."
+    },
+    "m7-a02": {
+      "result": "pass",
+      "method": "web-automation",
+      "suiteResult": "not-covered",
+      "evidence": "results/sanitized-evidence.md#m7-a02",
+      "bestOf3Ms": [
+        117,
+        121,
+        120
+      ],
+      "note": "Independent two-context headless Playwright: Alice then Bob votes updated the other member live tally by +1 on all three retained attempts (117/121/120 ms). Author-session choreography attempt-6 also recorded pass with visibleMs 168.4/168.1/170.8. API subscription deliveries also updated within 30 ms."
+    },
+    "m7-a03": {
+      "result": "pass",
+      "method": "api",
+      "suiteResult": "pass",
+      "evidence": "results/sanitized-evidence.md#m7-a03",
+      "note": "Independent setVote moved Alice from option A to B: counts 1/0 then 0/1 with vote.optionId on B. Browser live attempt 2 reproduced the change on the other client."
+    },
+    "m7-a04": {
+      "result": "pass",
+      "method": "api",
+      "suiteResult": "pass",
+      "evidence": "results/sanitized-evidence.md#m7-a04",
+      "note": "Retry of the same selected=true mutationId left option B count at 1. Unique-by-voter set-state in snapback/polls.q."
+    },
+    "m7-a05": {
+      "result": "pass",
+      "method": "web-automation",
+      "suiteResult": "not-covered",
+      "evidence": "results/sanitized-evidence.md#m7-a05",
+      "note": "Independent Playwright: Bob context setOffline(true), vote click showed aria-busy or data-pending, reconnect settled Alice tally 1->2. Author-session choreography attempt-6 also passed."
+    },
+    "m7-a06": {
+      "result": "pass",
+      "method": "api",
+      "suiteResult": "pass",
+      "evidence": "results/sanitized-evidence.md#m7-a06",
+      "note": "Independent offlineHistory paging: d-alice-bob visible count 42 equals groups.settings.messageCount/visibleMessageCount 42; g-starter 10 equals 10 including one poll. All 15 pre-M7 starter IDs present in offlineHistory. Pre-M7 schema already had raw messageCounts; M7 added visibleMessageCount plus visibleMessageCounts by tombstoned and a backfill job."
+    },
+    "m7-a07": {
+      "result": "pass",
+      "method": "web-automation",
+      "suiteResult": "pass",
+      "evidence": "results/sanitized-evidence.md#m7-a07",
+      "note": "API: poll +1, text +1, tombstone restored prior count. Chat settings UI sm-chatsettings-messagecount showed 3 on the isolated assess group and 10 on Weekend Plans, matching API visible counts."
+    },
+    "m7-a08": {
+      "result": "pass",
+      "method": "snapshot-comparison",
+      "suiteResult": "not-covered",
+      "evidence": "results/sanitized-evidence.md#m7-a08",
+      "note": "pre-m7-snapshot vs post-migration-snapshot: unique message payloads equal, 15/15 IDs, 0 field diffs, 0 receipt changes. Preflight API snapshot on 53132 matched supervisor root-post-author snapshot on identities/fields/receipts except endpoint/timestamps. Starter IDs still present via offlineHistory with zero M6-field diffs vs pre-M7. Thread last-20 capped-without-next hides older DM rows from the snapshot helper; that is query scope, not missing rows. Empty pre-M7 image/video/reaction/edit/tombstone/view-once classes. Final match does not prove uninterrupted availability during migration."
+    },
+    "m7-a09": {
+      "result": "pass",
+      "method": "builder-suite",
+      "suiteResult": "pass",
+      "evidence": "results/sanitized-evidence.md#m7-a09",
+      "note": "npm run acceptance -- --milestone m7 nested regression-m1/m2/m4/m5/m6/m8 all passed on 53132/53133. M3 excluded as prior failure with no M7 repair obligation."
+    }
+  },
+  "coverageSpotVerification": {
+    "verdict": "honest",
+    "sampledAssertionIds": [
+      "m7-a01",
+      "m7-a03",
+      "m7-a04",
+      "m7-a06",
+      "m7-a07",
+      "m7-a09"
+    ],
+    "dishonestMilestones": [],
+    "detail": "coverage/m7.json maps m7-a01/a03/a04/a06/a07 to m7-polls-count-backfill-maintenance and m7-a09 to m7-prior-green-regressions. Those tests actually create a bounded group poll, change and retry a vote, read pre-existing settings counts and starter IDs, increment/tombstone counts, and spawn previously-green milestone suites. m7-a06 pre-existing oracle in the suite is a floor (>=6/>=9) plus ID presence; exact visible-count equality was independently verified, not by that floor. Mapping is incomplete on exact backfill equality but not a false mapping. Post-suite coverage sha256 remained 29cab2533f1113f7900c5d1940afcf129636561539d26f61a365c1487b911d7f."
+  },
+  "defects": [
+    {
+      "id": "d-01",
+      "severity": "major",
+      "summary": "messages.thread pages last-20 and can return state=capped with next=null, so clients following the documented stop-when-next-is-null rule cannot reach older history once a conversation exceeds 20 visible messages.",
+      "milestone": "M7",
+      "evidence": "results/sanitized-evidence.md#thread-cursor",
+      "relatedAssertionIds": [
+        "m7-a08"
+      ]
+    }
+  ],
+  "probeResults": [],
+  "oDimensionScores": {
+    "O1": null,
+    "O2": null,
+    "O3": null,
+    "O4": null,
+    "O5": null
+  },
+  "timingRecords": [
+    {
+      "subject": "m7-a02",
+      "measurementsMs": [
+        117,
+        121,
+        120
+      ],
+      "bestMs": 117,
+      "boundMs": null,
+      "passed": true
+    }
+  ],
+  "evidenceTracePath": "results/sanitized-evidence.md",
+  "notes": "Uncalibrated M7-only diagnostic on snapback2@0.0.19, builder family Codex, grader grok-4.6. calibrationPassed=false, sameFamilyGraded=false. No B8 score, overall winner, performance campaign, native rerun, or comparison commissioned. Holdout probes were not preregistered for this session (probeSetSha256=not-preregistered); probeResults remains []. O1-O5 recorded null as commissioned. Excluded from this postcheck: M1-M6/M8 assertion keys except as m7-a09 regression, native/simulator re-run, builder diaries/self-scores/transcripts. Own clock: 2026-09-08T17:37:00Z to 2026-09-08T17:53:10Z. Neutral handoff setup/assessment-input.json. Owner generation 030479ec81d67bc3fb9ef9bc7b0f27a3848dd6d9300f4b74dc4738ea3274bb03 on 127.0.0.1:53132; web export artifacts/assessment-web served on 53133 with ClientProvider and CliqueApp bindings inlined to http://127.0.0.1:53132."
+}

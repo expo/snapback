@@ -1,0 +1,51 @@
+{
+  "schemaVersion": "clique.replay.v2",
+  "source": "/Users/ccheever/clique-cold-019-20260908/m7-retry/app/harness/benchmarks/fixtures/social-messenger/sample-50.log",
+  "url": "http://127.0.0.1:53134",
+  "scale": false,
+  "start": 1788887550,
+  "end": 1788887550,
+  "actions": 50,
+  "settledActions": 50,
+  "verbCounts": {
+    "register": 4,
+    "profile-set": 4,
+    "follow": 4,
+    "post": 8,
+    "like": 4,
+    "repost": 3,
+    "reply": 4,
+    "dm-create": 1,
+    "group-create": 1,
+    "member-add": 2,
+    "send": 7,
+    "send-media": 3,
+    "react": 5
+  },
+  "checkpoints": [],
+  "verifications": [
+    {
+      "label": "sample-50",
+      "actions": 50,
+      "verbs": [
+        "dm-create",
+        "follow",
+        "group-create",
+        "like",
+        "member-add",
+        "post",
+        "profile-set",
+        "react",
+        "register",
+        "reply",
+        "repost",
+        "send",
+        "send-media"
+      ],
+      "verified": true,
+      "at": 1788887550
+    }
+  ],
+  "manifest": null,
+  "pass": true
+}

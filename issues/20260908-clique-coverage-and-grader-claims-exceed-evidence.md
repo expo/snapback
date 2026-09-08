@@ -44,3 +44,20 @@ original application archive and assessment under
 read-only `/root/invalidation_audit` source/evidence review. Related:
 [M3 actor mismatch](20260906-clique-m3-group-receipt-missing-seeded-actor.md),
 [report-schema M8 gap](20260908-social-messenger-grader-schema-rejects-m8-assertions.md).
+
+## M7 postcheck — 2026-09-08
+
+The [fresh M7 assessment](../benchmarks/runs/2026-09-08-release-cold-headroom/assessment-m7/README.md)
+records nine passing assertions and an `honest` mapping verdict. Its concrete
+observations support a bounded positive diagnostic, but the mapped pre-existing
+count test uses a floor and the mapped a07 test has no settings UI check.
+Supplemental API equality and browser display observations do not make those
+mapped tests complete.
+
+Retain the assessor's precise method limits: the late `offlineHistory` probe
+recovers 15 IDs and 13 message fields through Alice, not every late receipt or
+persona view; the offline browser probe observes pending and remote convergence,
+not pending clearance; exact count populations contain no tombstones or expired
+rows. The earlier frozen author choreography supplies stronger pending-clear
+evidence. Preserve the failed settings navigation and successful fresh-page
+retry. These scope corrections do not themselves demonstrate a new app failure.

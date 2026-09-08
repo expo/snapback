@@ -1,0 +1,430 @@
+{
+  "sourceArchiveSha256": "ff7ab819ec96aeab6763dc8215f958ad6fac654bb8ab268b26c8a67dfc563099",
+  "sourceManifestSha256": "035ef999a9f5d804d32a06a0265245305663fd01e670cc19d2ba84802da0dcf1",
+  "sourceEntries": 512,
+  "privateArtifacts": "Full source archive, original CLI transcript, runtime data, export bundles and terminal output retained in private artifact custody; never supplied to grader as narratives",
+  "privateTerminalSha256": "e36f8366c855bed3a1de85e594efb762538204c65311ba666d39ba78a45ff9e0",
+  "files": [
+    {
+      "path": "app/artifacts/replay-sample-50.json",
+      "bytes": 1033,
+      "sha256": "b2c72683c1e503ecc4c212376afd82307c0db726931757e65aeef7159098db0e",
+      "kind": "verbatim retained artifact"
+    },
+    {
+      "path": "app/artifacts/seed-m1.json",
+      "bytes": 452,
+      "sha256": "d43fae1e362c973d37b312b79ed6764d76744da0edc4ceefd1750776ebd6a721",
+      "kind": "verbatim retained artifact"
+    },
+    {
+      "path": "app/artifacts/seed-m2.json",
+      "bytes": 493,
+      "sha256": "605c9c0038d0b3a42dfa3b93f62fea32c5a41b5981134ae4297b20a7ede9acfa",
+      "kind": "verbatim retained artifact"
+    },
+    {
+      "path": "app/artifacts/seed-m3.json",
+      "bytes": 491,
+      "sha256": "521d6ee007893ce0652558482bd842282df817c2b32f53e05996c03cfc43fe69",
+      "kind": "verbatim retained artifact"
+    },
+    {
+      "path": "app/artifacts/suite-m1-1788885638.json",
+      "bytes": 4111,
+      "sha256": "0b55e42dac1c4cf49c73b5fee8e1fee323227d4b226fe0ba0ca68877fd78afed",
+      "kind": "verbatim retained artifact"
+    },
+    {
+      "path": "app/artifacts/suite-m1-1788886409.json",
+      "bytes": 4111,
+      "sha256": "8cda85bd6c1488f93bdfad386d8b61cb9a3c063f2a9fb97bbbf3d857b8c44e9c",
+      "kind": "verbatim retained artifact"
+    },
+    {
+      "path": "app/artifacts/suite-m1-1788886597.json",
+      "bytes": 4111,
+      "sha256": "8983fbabdddec23e12afeabeb01728e1b8dc4c7fd0834a6b89019a7571695c96",
+      "kind": "verbatim retained artifact"
+    },
+    {
+      "path": "app/artifacts/suite-m1-1788887167.json",
+      "bytes": 4112,
+      "sha256": "494a43ba67eadfc969c2200adde754f84598a32805088393fd399245af223c57",
+      "kind": "verbatim retained artifact"
+    },
+    {
+      "path": "app/artifacts/suite-m1-1788887530.json",
+      "bytes": 4111,
+      "sha256": "71381975b0b1c868523214cb0d7820c05ae84d8965e3185cfdca45cf44450dfb",
+      "kind": "verbatim retained artifact"
+    },
+    {
+      "path": "app/artifacts/suite-m2-1788885643.json",
+      "bytes": 3966,
+      "sha256": "38ac4703e970dd6fe785ef85f10a5b4cfaab8e5e88d1da6288afbcbcd8cf75c7",
+      "kind": "verbatim retained artifact"
+    },
+    {
+      "path": "app/artifacts/suite-m2-1788886414.json",
+      "bytes": 3966,
+      "sha256": "4801948e75266b0e1b0a86dcafdcf6343bf68cccc2fb2822edc2c20cddaade45",
+      "kind": "verbatim retained artifact"
+    },
+    {
+      "path": "app/artifacts/suite-m2-1788886602.json",
+      "bytes": 3966,
+      "sha256": "67ebfaf2d1a2c054aa9683e3f85a12446ff7018769666442efd7c6724919ee65",
+      "kind": "verbatim retained artifact"
+    },
+    {
+      "path": "app/artifacts/suite-m2-1788887172.json",
+      "bytes": 3966,
+      "sha256": "e878251377f8b846747a4e7543d2f2ba22a99ad4bff4a87bbb30dc00bf06b99c",
+      "kind": "verbatim retained artifact"
+    },
+    {
+      "path": "app/artifacts/suite-m2-1788887535.json",
+      "bytes": 3966,
+      "sha256": "88e6c7ad75f1d299a795c3981c3405a3692a5df93756e626a89cc7acf6b7b7cd",
+      "kind": "verbatim retained artifact"
+    },
+    {
+      "path": "app/artifacts/suite-m4-1788885648.json",
+      "bytes": 3877,
+      "sha256": "b464f965ebdc75ece88094e9351475232533d780881ac0ce557d63829451113f",
+      "kind": "verbatim retained artifact"
+    },
+    {
+      "path": "app/artifacts/suite-m4-1788886419.json",
+      "bytes": 3877,
+      "sha256": "6e0104e8316e771c313f6194a7da7165ee5918f133d8c39950424cc00a54face",
+      "kind": "verbatim retained artifact"
+    },
+    {
+      "path": "app/artifacts/suite-m4-1788886607.json",
+      "bytes": 3877,
+      "sha256": "80e80b3f79aa96cc29f6b3d4931262aa6097f8bf09961fa9761caea87c1c153d",
+      "kind": "verbatim retained artifact"
+    },
+    {
+      "path": "app/artifacts/suite-m4-1788887176.json",
+      "bytes": 3877,
+      "sha256": "fcdb7c6b18e6844570029ec506e7ba2843ac7c11fee1646f3e6859234d5a0b5a",
+      "kind": "verbatim retained artifact"
+    },
+    {
+      "path": "app/artifacts/suite-m4-1788887540.json",
+      "bytes": 3877,
+      "sha256": "cd1a6645b4852554501e8e820f58a1758d572cb05781c908c26e8abb6a4905a9",
+      "kind": "verbatim retained artifact"
+    },
+    {
+      "path": "app/artifacts/suite-m5-1788885652.json",
+      "bytes": 3848,
+      "sha256": "34d8c0d1390bc34a2669caf395e50f07c52ad7cae3eceda0eb85702ab9739d3a",
+      "kind": "verbatim retained artifact"
+    },
+    {
+      "path": "app/artifacts/suite-m5-1788886424.json",
+      "bytes": 3848,
+      "sha256": "1eeac2fa99224a7000e250c24d21db774da82465b6c1f0e7fce30df04a061a41",
+      "kind": "verbatim retained artifact"
+    },
+    {
+      "path": "app/artifacts/suite-m5-1788886611.json",
+      "bytes": 3848,
+      "sha256": "6e06d25610eb17ffb0c8976aae07a6c133658061109c9e3b0c7f7be76f4fdde2",
+      "kind": "verbatim retained artifact"
+    },
+    {
+      "path": "app/artifacts/suite-m5-1788887181.json",
+      "bytes": 3848,
+      "sha256": "172047813eefe353d055ca15170b963659888e37e483e9266d7ee9f802ee8000",
+      "kind": "verbatim retained artifact"
+    },
+    {
+      "path": "app/artifacts/suite-m5-1788887545.json",
+      "bytes": 3848,
+      "sha256": "9c84a3ced43b6f119b12699b5f12ded59b3cf33f5732e09c94a12027e9dae08a",
+      "kind": "verbatim retained artifact"
+    },
+    {
+      "path": "app/artifacts/suite-m6-1788885659.json",
+      "bytes": 4765,
+      "sha256": "1370137e84d8d6e33834a243a8cdc8af6b567def826b4e6c5308cfa69569650e",
+      "kind": "verbatim retained artifact"
+    },
+    {
+      "path": "app/artifacts/suite-m6-1788886429.json",
+      "bytes": 4763,
+      "sha256": "5adabfeb590bc5d071b68264368f49271e929bcfc4b040139fdc53a46289bb18",
+      "kind": "verbatim retained artifact"
+    },
+    {
+      "path": "app/artifacts/suite-m6-1788886617.json",
+      "bytes": 4763,
+      "sha256": "e5e4d05b64f6a76ff488a1aabccda8b422e1416a520bd76319b09db3c7884458",
+      "kind": "verbatim retained artifact"
+    },
+    {
+      "path": "app/artifacts/suite-m6-1788887186.json",
+      "bytes": 4763,
+      "sha256": "c363876a8fd7c28312f838a285151942d7ea7e89848935ad74c37f0725b24d23",
+      "kind": "verbatim retained artifact"
+    },
+    {
+      "path": "app/artifacts/suite-m6-1788887550.json",
+      "bytes": 4763,
+      "sha256": "983e318237c1a9454860f7ddd713626f41343e910cce9fea2e5a39c3b61eba0f",
+      "kind": "verbatim retained artifact"
+    },
+    {
+      "path": "app/artifacts/suite-m7-1788885663.json",
+      "bytes": 7074,
+      "sha256": "5a4ad524a08027ed70d4421b8bc5ee7aa2b8cb188ae3121663431bc1a6e0270c",
+      "kind": "verbatim retained artifact"
+    },
+    {
+      "path": "app/artifacts/suite-m7-1788886433.json",
+      "bytes": 7394,
+      "sha256": "b5754367d9c65812915808f1e8a857b5aefa25c334b6e137f64478f117517739",
+      "kind": "verbatim retained artifact"
+    },
+    {
+      "path": "app/artifacts/suite-m7-1788886621.json",
+      "bytes": 7076,
+      "sha256": "1f9e5fb281294a6d41638c893d713435422528ce1547ec15581cb7ae05bcbce2",
+      "kind": "verbatim retained artifact"
+    },
+    {
+      "path": "app/artifacts/suite-m7-1788887191.json",
+      "bytes": 7076,
+      "sha256": "5649d4bfd41e062c17d9454ced7242c7636235a10b974d0173fa793e7810fab7",
+      "kind": "verbatim retained artifact"
+    },
+    {
+      "path": "app/artifacts/suite-m7-1788887554.json",
+      "bytes": 7076,
+      "sha256": "2584f8a79fafb94b450527912c168f2e4484b8e7f5472908d483049619fccad4",
+      "kind": "verbatim retained artifact"
+    },
+    {
+      "path": "app/artifacts/suite-m8-1788885663.json",
+      "bytes": 4165,
+      "sha256": "c240b7a7aaf588e4d126055c8303ca19df02a945fb15606abc1f27cdd4f13131",
+      "kind": "verbatim retained artifact"
+    },
+    {
+      "path": "app/artifacts/suite-m8-1788886433.json",
+      "bytes": 4166,
+      "sha256": "697501c5fef3067baf52e51c420b0223a504d288f19d093dbf486d17aadfdd61",
+      "kind": "verbatim retained artifact"
+    },
+    {
+      "path": "app/artifacts/suite-m8-1788886621.json",
+      "bytes": 4166,
+      "sha256": "ee34ef0f441a212fbfb15e18615bd09408f00e9649d73bc1faf6c375828e23a0",
+      "kind": "verbatim retained artifact"
+    },
+    {
+      "path": "app/artifacts/suite-m8-1788887191.json",
+      "bytes": 4166,
+      "sha256": "f6e288a1292ca328782447615c1201f6cc31edf90dbbeecdc1e6569f30f65b59",
+      "kind": "verbatim retained artifact"
+    },
+    {
+      "path": "app/artifacts/suite-m8-1788887554.json",
+      "bytes": 4167,
+      "sha256": "af261ca5d78fb8c395b513a48dab2a33ea4d2df122e3aa49fbfe03ec720f22dc",
+      "kind": "verbatim retained artifact"
+    },
+    {
+      "path": "app/artifacts/suite-status.json",
+      "bytes": 528,
+      "sha256": "24aa52dc6a1fabc8061c6593bdd33e247df43b6d53e21498da64394808007749",
+      "kind": "verbatim retained artifact"
+    },
+    {
+      "path": "app/m7-diary.md",
+      "bytes": 4412,
+      "sha256": "9052fe6fcd51e625b0c8577a0b6e3dec4f5764877267e163d784861f657864fe",
+      "kind": "verbatim retained artifact"
+    },
+    {
+      "path": "app/m7-essay.md",
+      "bytes": 2213,
+      "sha256": "66064e8d786ec3d057754b1278643b0aa0cc197d5e00adef098e88add87daed0",
+      "kind": "verbatim retained artifact"
+    },
+    {
+      "path": "app/m7-report.md",
+      "bytes": 7340,
+      "sha256": "90a4797a8423e6a7150582e0d0bc87ea6a7c256fa34888034126129cd97d9d9d",
+      "kind": "verbatim retained artifact"
+    },
+    {
+      "path": "app/m7-run-log.md",
+      "bytes": 11324,
+      "sha256": "603bff14fa01bdb16560fbfe12dfff74ea40d7953b3b8be48d52d4e8be6c5f1f",
+      "kind": "verbatim retained artifact"
+    },
+    {
+      "path": "app/m7-run-record.json",
+      "bytes": 11472,
+      "sha256": "0cdbb7dfd7206a06a19c315b283e434793b453ada1fa9dca619d30bbb33f4e4f",
+      "kind": "verbatim retained artifact"
+    },
+    {
+      "path": "evidence/m7-choreography-attempt-1.jsonl",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "kind": "verbatim retained artifact"
+    },
+    {
+      "path": "evidence/m7-choreography-attempt-1.observations.jsonl",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "kind": "verbatim retained artifact"
+    },
+    {
+      "path": "evidence/m7-choreography-attempt-2.jsonl",
+      "bytes": 3914,
+      "sha256": "ce4520e74547658d31598e9d443253f1f2d356d395ab90542a5c36305f7d040a",
+      "kind": "verbatim retained artifact"
+    },
+    {
+      "path": "evidence/m7-choreography-attempt-2.observations.jsonl",
+      "bytes": 1338,
+      "sha256": "90e4ae46a6285f7cb772fad2fc8e5172c6ba7607955ab0bc6f3383bf53167fed",
+      "kind": "verbatim retained artifact"
+    },
+    {
+      "path": "evidence/m7-choreography-attempt-3.jsonl",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "kind": "verbatim retained artifact"
+    },
+    {
+      "path": "evidence/m7-choreography-attempt-3.observations.jsonl",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "kind": "verbatim retained artifact"
+    },
+    {
+      "path": "evidence/m7-choreography-attempt-5.jsonl",
+      "bytes": 3811,
+      "sha256": "7a27191a517ead91983f0ce1ec91852a39856f5e4655b54729fc25db8b346c33",
+      "kind": "verbatim retained artifact"
+    },
+    {
+      "path": "evidence/m7-choreography-attempt-5.observations.jsonl",
+      "bytes": 1332,
+      "sha256": "ae536e77e5f52cf204aab33cb5a4ffa9e3cd4efc4df762450df41415e4d87df3",
+      "kind": "verbatim retained artifact"
+    },
+    {
+      "path": "evidence/m7-choreography-attempt-6.jsonl",
+      "bytes": 3735,
+      "sha256": "ce469977719e3ce4bb5f38b4a9e6dfac058db8537a2300e36f6ea32dda011e0c",
+      "kind": "verbatim retained artifact"
+    },
+    {
+      "path": "evidence/m7-choreography-attempt-6.observations.jsonl",
+      "bytes": 1330,
+      "sha256": "0184e42a687b45c0ff5ba53dc8885f7cacff0836bb311858282ef862a88b5248",
+      "kind": "verbatim retained artifact"
+    },
+    {
+      "path": "evidence/m7-export-2-endpoint-check.json",
+      "bytes": 580,
+      "sha256": "e071f93d9375aaacf76193623157a8952052ab9b72298fe43f19f2492e014edd",
+      "kind": "verbatim retained artifact"
+    },
+    {
+      "path": "evidence/m7-export-3-endpoint-check.json",
+      "bytes": 580,
+      "sha256": "f39ec34603bcb8fbb87d19f12d3926b16b205253049ab161817679008e651f22",
+      "kind": "verbatim retained artifact"
+    },
+    {
+      "path": "evidence/m7-export-4-endpoint-check.json",
+      "bytes": 580,
+      "sha256": "ea7c6eb0a7733516ea47743967dcb80e8cbb660de450ef27b18c536d69f2028e",
+      "kind": "verbatim retained artifact"
+    },
+    {
+      "path": "evidence/m7-export-endpoint-check.json",
+      "bytes": 1463,
+      "sha256": "fdbb1348b914cc61ecf52d8fb86a56c4f5887a58768e3f415427c9822d4f15b5",
+      "kind": "verbatim retained artifact"
+    },
+    {
+      "path": "evidence/m7-setup-identity.json",
+      "bytes": 1246,
+      "sha256": "c5d4a683906863be85a9e8fae333dd23c89bde8796ceba38b8cf2a4135d1e67f",
+      "kind": "verbatim retained artifact"
+    },
+    {
+      "path": "evidence/post-migration-snapshot-node26-attempt.json",
+      "bytes": 51633,
+      "sha256": "8636d1e8766d330a38f30b4a1f77c2c3f1c4322a91b6019a0568f29c981e61cc",
+      "kind": "verbatim retained artifact"
+    },
+    {
+      "path": "evidence/post-migration-snapshot.json",
+      "bytes": 51633,
+      "sha256": "64ca0e085c27f076b762f74fe72279d912a7fe09d1ebc093dff44e65e22a837c",
+      "kind": "verbatim retained artifact"
+    },
+    {
+      "path": "root-preservation-comparison.json",
+      "bytes": 16541,
+      "sha256": "4472b95a2d67e77825baac0e5a603779b851993c5770c473b8796c095c8ed6e4",
+      "kind": "verbatim retained artifact"
+    },
+    {
+      "path": "setup/installed-version.json",
+      "bytes": 146,
+      "sha256": "86bbfc09051728c685131b32cf531f4322a87488c70885023db3383984b45f11",
+      "kind": "verbatim retained artifact"
+    },
+    {
+      "path": "setup/original-owner-stop.json",
+      "bytes": 345,
+      "sha256": "ee3475ae37f6d849856ef3301811c8cd10b32fc0a5514cde9b30bc968ee9351f",
+      "kind": "verbatim retained artifact"
+    },
+    {
+      "path": "setup/pre-m7-snapshot-receipt.json",
+      "bytes": 957,
+      "sha256": "b8fb43cea5c5c8e0404dc274868fd6baf81509b76be26648ff4c36d6fce8a411",
+      "kind": "verbatim retained artifact"
+    },
+    {
+      "path": "setup/pre-m7-snapshot.json",
+      "bytes": 51633,
+      "sha256": "2f670249a6354baf5e5c23bb677f37e7b9079c3c112f0feabdc99cbd220ff9a3",
+      "kind": "verbatim retained artifact"
+    },
+    {
+      "path": "setup/root-post-author-snapshot.json",
+      "bytes": 113440,
+      "sha256": "a8d91166774afaebe02f017dced6b8182b809c9e24e756d9b806cd4406bf611a",
+      "kind": "verbatim retained artifact"
+    },
+    {
+      "path": "setup/root-snapshot-receipt.json",
+      "bytes": 801,
+      "sha256": "1530772ba646ef6bcc9104cad05520dd0014a77b95c5b8c818bdd9671a5cbf76",
+      "kind": "verbatim retained artifact"
+    },
+    {
+      "path": "six-dm-row-presence.json",
+      "bytes": 1718,
+      "sha256": "18f40a6e708ac59535a557f701517b44a58a4a636cdc25adde7f0ebd9cc79691",
+      "kind": "verbatim retained artifact"
+    }
+  ],
+  "publicScan": "No exact fixture passwords or bearer-token pattern matches in these copied files"
+}

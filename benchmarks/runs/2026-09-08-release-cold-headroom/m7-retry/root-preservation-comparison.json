@@ -1,0 +1,550 @@
+{
+  "beforeSha256": "2f670249a6354baf5e5c23bb677f37e7b9079c3c112f0feabdc99cbd220ff9a3",
+  "afterSha256": "a8d91166774afaebe02f017dced6b8182b809c9e24e756d9b806cd4406bf611a",
+  "baselineVisibleMessageCopiesChecked": 36,
+  "baselineReceiptRowsChecked": 63,
+  "baselineCoverage": {
+    "personas": 8,
+    "personaConversationViews": 6,
+    "uniqueConversations": 2,
+    "visibleMessageCopies": 48,
+    "uniqueMessages": 15,
+    "imageMessages": 0,
+    "videoMessages": 0,
+    "reactedMessages": 0,
+    "quotedMessages": 6,
+    "receiptRows": 81,
+    "editedMessages": 0,
+    "tombstonedMessages": 0,
+    "viewOnceMessages": 0
+  },
+  "currentCoverage": {
+    "personas": 8,
+    "personaConversationViews": 9,
+    "uniqueConversations": 3,
+    "visibleMessageCopies": 104,
+    "uniqueMessages": 38,
+    "imageMessages": 3,
+    "videoMessages": 3,
+    "reactedMessages": 0,
+    "quotedMessages": 3,
+    "receiptRows": 170,
+    "editedMessages": 3,
+    "tombstonedMessages": 4,
+    "viewOnceMessages": 7
+  },
+  "preservedBaselineFields": false,
+  "changes": [
+    {
+      "path": "alice/d-alice-bob/sm0001",
+      "before": {
+        "id": "sm0001",
+        "conversationId": "d-alice-bob",
+        "sender": "user:AvQls6uw1wF5SY8rXZbqQg",
+        "at": 1788882688975,
+        "kind": "text",
+        "body": "Coffee after work?",
+        "image": null,
+        "video": null,
+        "edited": false,
+        "tombstoned": false,
+        "replyTo": null,
+        "viewOnce": false,
+        "expiresAt": null,
+        "reactions": [],
+        "receipts": [
+          {
+            "id": "s2id-8755dc9ac930975a7de4deeb17a6c734-0000000000026802",
+            "recipient": "user:aO_5S1KiOOVkSrsBf3FZeQ",
+            "status": "sent"
+          },
+          {
+            "id": "s2id-8755dc9ac930975a7de4deeb17a6c734-0000000000026801",
+            "recipient": "user:AvQls6uw1wF5SY8rXZbqQg",
+            "status": "read"
+          }
+        ],
+        "reactionSummary": [],
+        "ownReceipt": "sent"
+      },
+      "after": null
+    },
+    {
+      "path": "alice/d-alice-bob/sm0002",
+      "before": {
+        "id": "sm0002",
+        "conversationId": "d-alice-bob",
+        "sender": "user:aO_5S1KiOOVkSrsBf3FZeQ",
+        "at": 1788882689006,
+        "kind": "text",
+        "body": "Yes. Corner place?",
+        "image": null,
+        "video": null,
+        "edited": false,
+        "tombstoned": false,
+        "replyTo": "sm0001",
+        "viewOnce": false,
+        "expiresAt": null,
+        "reactions": [],
+        "receipts": [
+          {
+            "id": "s2id-8755dc9ac930975a7de4deeb17a6c734-0000000000028c01",
+            "recipient": "user:AvQls6uw1wF5SY8rXZbqQg",
+            "status": "sent"
+          }
+        ],
+        "reactionSummary": [],
+        "ownReceipt": null
+      },
+      "after": null
+    },
+    {
+      "path": "alice/d-alice-bob/sm0003",
+      "before": {
+        "id": "sm0003",
+        "conversationId": "d-alice-bob",
+        "sender": "user:AvQls6uw1wF5SY8rXZbqQg",
+        "at": 1788882689012,
+        "kind": "text",
+        "body": "Exactly. Six thirty.",
+        "image": null,
+        "video": null,
+        "edited": false,
+        "tombstoned": false,
+        "replyTo": "sm0002",
+        "viewOnce": false,
+        "expiresAt": null,
+        "reactions": [],
+        "receipts": [
+          {
+            "id": "s2id-8755dc9ac930975a7de4deeb17a6c734-0000000000029002",
+            "recipient": "user:aO_5S1KiOOVkSrsBf3FZeQ",
+            "status": "sent"
+          },
+          {
+            "id": "s2id-8755dc9ac930975a7de4deeb17a6c734-0000000000029001",
+            "recipient": "user:AvQls6uw1wF5SY8rXZbqQg",
+            "status": "read"
+          }
+        ],
+        "reactionSummary": [],
+        "ownReceipt": "sent"
+      },
+      "after": null
+    },
+    {
+      "path": "alice/d-alice-bob/sm0004",
+      "before": {
+        "id": "sm0004",
+        "conversationId": "d-alice-bob",
+        "sender": "user:aO_5S1KiOOVkSrsBf3FZeQ",
+        "at": 1788882689018,
+        "kind": "text",
+        "body": "I will bring the route map.",
+        "image": null,
+        "video": null,
+        "edited": false,
+        "tombstoned": false,
+        "replyTo": null,
+        "viewOnce": false,
+        "expiresAt": null,
+        "reactions": [],
+        "receipts": [
+          {
+            "id": "s2id-8755dc9ac930975a7de4deeb17a6c734-0000000000029401",
+            "recipient": "user:AvQls6uw1wF5SY8rXZbqQg",
+            "status": "sent"
+          }
+        ],
+        "reactionSummary": [],
+        "ownReceipt": null
+      },
+      "after": null
+    },
+    {
+      "path": "alice/d-alice-bob/sm0005",
+      "before": {
+        "id": "sm0005",
+        "conversationId": "d-alice-bob",
+        "sender": "user:AvQls6uw1wF5SY8rXZbqQg",
+        "at": 1788882689022,
+        "kind": "text",
+        "body": "Perfect, see you there.",
+        "image": null,
+        "video": null,
+        "edited": false,
+        "tombstoned": false,
+        "replyTo": null,
+        "viewOnce": false,
+        "expiresAt": null,
+        "reactions": [],
+        "receipts": [
+          {
+            "id": "s2id-8755dc9ac930975a7de4deeb17a6c734-0000000000029802",
+            "recipient": "user:aO_5S1KiOOVkSrsBf3FZeQ",
+            "status": "sent"
+          },
+          {
+            "id": "s2id-8755dc9ac930975a7de4deeb17a6c734-0000000000029801",
+            "recipient": "user:AvQls6uw1wF5SY8rXZbqQg",
+            "status": "read"
+          }
+        ],
+        "reactionSummary": [],
+        "ownReceipt": "sent"
+      },
+      "after": null
+    },
+    {
+      "path": "alice/d-alice-bob/sm0006",
+      "before": {
+        "id": "sm0006",
+        "conversationId": "d-alice-bob",
+        "sender": "user:aO_5S1KiOOVkSrsBf3FZeQ",
+        "at": 1788882689027,
+        "kind": "text",
+        "body": "On my way.",
+        "image": null,
+        "video": null,
+        "edited": false,
+        "tombstoned": false,
+        "replyTo": "sm0005",
+        "viewOnce": false,
+        "expiresAt": null,
+        "reactions": [],
+        "receipts": [
+          {
+            "id": "s2id-8755dc9ac930975a7de4deeb17a6c734-0000000000029c01",
+            "recipient": "user:AvQls6uw1wF5SY8rXZbqQg",
+            "status": "sent"
+          }
+        ],
+        "reactionSummary": [],
+        "ownReceipt": null
+      },
+      "after": null
+    },
+    {
+      "path": "bob/d-alice-bob/sm0001",
+      "before": {
+        "id": "sm0001",
+        "conversationId": "d-alice-bob",
+        "sender": "user:AvQls6uw1wF5SY8rXZbqQg",
+        "at": 1788882688975,
+        "kind": "text",
+        "body": "Coffee after work?",
+        "image": null,
+        "video": null,
+        "edited": false,
+        "tombstoned": false,
+        "replyTo": null,
+        "viewOnce": false,
+        "expiresAt": null,
+        "reactions": [],
+        "receipts": [
+          {
+            "id": "s2id-8755dc9ac930975a7de4deeb17a6c734-0000000000026802",
+            "recipient": "user:aO_5S1KiOOVkSrsBf3FZeQ",
+            "status": "sent"
+          }
+        ],
+        "reactionSummary": [],
+        "ownReceipt": null
+      },
+      "after": null
+    },
+    {
+      "path": "bob/d-alice-bob/sm0002",
+      "before": {
+        "id": "sm0002",
+        "conversationId": "d-alice-bob",
+        "sender": "user:aO_5S1KiOOVkSrsBf3FZeQ",
+        "at": 1788882689006,
+        "kind": "text",
+        "body": "Yes. Corner place?",
+        "image": null,
+        "video": null,
+        "edited": false,
+        "tombstoned": false,
+        "replyTo": "sm0001",
+        "viewOnce": false,
+        "expiresAt": null,
+        "reactions": [],
+        "receipts": [
+          {
+            "id": "s2id-8755dc9ac930975a7de4deeb17a6c734-0000000000028c05",
+            "recipient": "user:aO_5S1KiOOVkSrsBf3FZeQ",
+            "status": "read"
+          },
+          {
+            "id": "s2id-8755dc9ac930975a7de4deeb17a6c734-0000000000028c01",
+            "recipient": "user:AvQls6uw1wF5SY8rXZbqQg",
+            "status": "sent"
+          }
+        ],
+        "reactionSummary": [],
+        "ownReceipt": "sent"
+      },
+      "after": null
+    },
+    {
+      "path": "bob/d-alice-bob/sm0003",
+      "before": {
+        "id": "sm0003",
+        "conversationId": "d-alice-bob",
+        "sender": "user:AvQls6uw1wF5SY8rXZbqQg",
+        "at": 1788882689012,
+        "kind": "text",
+        "body": "Exactly. Six thirty.",
+        "image": null,
+        "video": null,
+        "edited": false,
+        "tombstoned": false,
+        "replyTo": "sm0002",
+        "viewOnce": false,
+        "expiresAt": null,
+        "reactions": [],
+        "receipts": [
+          {
+            "id": "s2id-8755dc9ac930975a7de4deeb17a6c734-0000000000029002",
+            "recipient": "user:aO_5S1KiOOVkSrsBf3FZeQ",
+            "status": "sent"
+          }
+        ],
+        "reactionSummary": [],
+        "ownReceipt": null
+      },
+      "after": null
+    },
+    {
+      "path": "bob/d-alice-bob/sm0004",
+      "before": {
+        "id": "sm0004",
+        "conversationId": "d-alice-bob",
+        "sender": "user:aO_5S1KiOOVkSrsBf3FZeQ",
+        "at": 1788882689018,
+        "kind": "text",
+        "body": "I will bring the route map.",
+        "image": null,
+        "video": null,
+        "edited": false,
+        "tombstoned": false,
+        "replyTo": null,
+        "viewOnce": false,
+        "expiresAt": null,
+        "reactions": [],
+        "receipts": [
+          {
+            "id": "s2id-8755dc9ac930975a7de4deeb17a6c734-0000000000029404",
+            "recipient": "user:aO_5S1KiOOVkSrsBf3FZeQ",
+            "status": "read"
+          },
+          {
+            "id": "s2id-8755dc9ac930975a7de4deeb17a6c734-0000000000029401",
+            "recipient": "user:AvQls6uw1wF5SY8rXZbqQg",
+            "status": "sent"
+          }
+        ],
+        "reactionSummary": [],
+        "ownReceipt": "sent"
+      },
+      "after": null
+    },
+    {
+      "path": "bob/d-alice-bob/sm0005",
+      "before": {
+        "id": "sm0005",
+        "conversationId": "d-alice-bob",
+        "sender": "user:AvQls6uw1wF5SY8rXZbqQg",
+        "at": 1788882689022,
+        "kind": "text",
+        "body": "Perfect, see you there.",
+        "image": null,
+        "video": null,
+        "edited": false,
+        "tombstoned": false,
+        "replyTo": null,
+        "viewOnce": false,
+        "expiresAt": null,
+        "reactions": [],
+        "receipts": [
+          {
+            "id": "s2id-8755dc9ac930975a7de4deeb17a6c734-0000000000029802",
+            "recipient": "user:aO_5S1KiOOVkSrsBf3FZeQ",
+            "status": "sent"
+          }
+        ],
+        "reactionSummary": [],
+        "ownReceipt": null
+      },
+      "after": null
+    },
+    {
+      "path": "bob/d-alice-bob/sm0006",
+      "before": {
+        "id": "sm0006",
+        "conversationId": "d-alice-bob",
+        "sender": "user:aO_5S1KiOOVkSrsBf3FZeQ",
+        "at": 1788882689027,
+        "kind": "text",
+        "body": "On my way.",
+        "image": null,
+        "video": null,
+        "edited": false,
+        "tombstoned": false,
+        "replyTo": "sm0005",
+        "viewOnce": false,
+        "expiresAt": null,
+        "reactions": [],
+        "receipts": [
+          {
+            "id": "s2id-8755dc9ac930975a7de4deeb17a6c734-0000000000029c04",
+            "recipient": "user:aO_5S1KiOOVkSrsBf3FZeQ",
+            "status": "read"
+          },
+          {
+            "id": "s2id-8755dc9ac930975a7de4deeb17a6c734-0000000000029c01",
+            "recipient": "user:AvQls6uw1wF5SY8rXZbqQg",
+            "status": "sent"
+          }
+        ],
+        "reactionSummary": [],
+        "ownReceipt": "sent"
+      },
+      "after": null
+    }
+  ],
+  "monotonicReceiptAdvances": [
+    {
+      "path": "alice/g-starter/sm0007/receipt/s2id-8755dc9ac930975a7de4deeb17a6c734-000000000002a006/status",
+      "before": "sent",
+      "after": "read"
+    },
+    {
+      "path": "alice/g-starter/sm0008/receipt/s2id-8755dc9ac930975a7de4deeb17a6c734-000000000002c401/status",
+      "before": "sent",
+      "after": "read"
+    },
+    {
+      "path": "alice/g-starter/sm0009/receipt/s2id-8755dc9ac930975a7de4deeb17a6c734-000000000002e801/status",
+      "before": "sent",
+      "after": "read"
+    },
+    {
+      "path": "alice/g-starter/sm0010/receipt/s2id-8755dc9ac930975a7de4deeb17a6c734-000000000002ec01/status",
+      "before": "sent",
+      "after": "read"
+    },
+    {
+      "path": "alice/g-starter/sm0011/receipt/s2id-8755dc9ac930975a7de4deeb17a6c734-000000000002f005/status",
+      "before": "sent",
+      "after": "read"
+    },
+    {
+      "path": "alice/g-starter/sm0012/receipt/s2id-8755dc9ac930975a7de4deeb17a6c734-000000000002f401/status",
+      "before": "sent",
+      "after": "read"
+    },
+    {
+      "path": "alice/g-starter/sm0013/receipt/s2id-8755dc9ac930975a7de4deeb17a6c734-000000000002f801/status",
+      "before": "sent",
+      "after": "read"
+    },
+    {
+      "path": "alice/g-starter/sm0014/receipt/s2id-8755dc9ac930975a7de4deeb17a6c734-000000000002fc01/status",
+      "before": "sent",
+      "after": "read"
+    },
+    {
+      "path": "alice/g-starter/sm0015/receipt/s2id-8755dc9ac930975a7de4deeb17a6c734-0000000000030005/status",
+      "before": "sent",
+      "after": "read"
+    },
+    {
+      "path": "bob/g-starter/sm0007/receipt/s2id-8755dc9ac930975a7de4deeb17a6c734-000000000002a006/status",
+      "before": "sent",
+      "after": "read"
+    },
+    {
+      "path": "bob/g-starter/sm0008/receipt/s2id-8755dc9ac930975a7de4deeb17a6c734-000000000002c408/status",
+      "before": "sent",
+      "after": "read"
+    },
+    {
+      "path": "bob/g-starter/sm0009/receipt/s2id-8755dc9ac930975a7de4deeb17a6c734-000000000002e805/status",
+      "before": "sent",
+      "after": "read"
+    },
+    {
+      "path": "bob/g-starter/sm0010/receipt/s2id-8755dc9ac930975a7de4deeb17a6c734-000000000002ec01/status",
+      "before": "sent",
+      "after": "read"
+    },
+    {
+      "path": "bob/g-starter/sm0011/receipt/s2id-8755dc9ac930975a7de4deeb17a6c734-000000000002f005/status",
+      "before": "sent",
+      "after": "read"
+    },
+    {
+      "path": "bob/g-starter/sm0012/receipt/s2id-8755dc9ac930975a7de4deeb17a6c734-000000000002f407/status",
+      "before": "sent",
+      "after": "read"
+    },
+    {
+      "path": "bob/g-starter/sm0013/receipt/s2id-8755dc9ac930975a7de4deeb17a6c734-000000000002f805/status",
+      "before": "sent",
+      "after": "read"
+    },
+    {
+      "path": "bob/g-starter/sm0014/receipt/s2id-8755dc9ac930975a7de4deeb17a6c734-000000000002fc01/status",
+      "before": "sent",
+      "after": "read"
+    },
+    {
+      "path": "bob/g-starter/sm0015/receipt/s2id-8755dc9ac930975a7de4deeb17a6c734-0000000000030005/status",
+      "before": "sent",
+      "after": "read"
+    },
+    {
+      "path": "carol/g-starter/sm0008/receipt/s2id-8755dc9ac930975a7de4deeb17a6c734-000000000002c408/status",
+      "before": "sent",
+      "after": "read"
+    },
+    {
+      "path": "carol/g-starter/sm0008/receipt/s2id-8755dc9ac930975a7de4deeb17a6c734-000000000002c401/status",
+      "before": "sent",
+      "after": "read"
+    },
+    {
+      "path": "carol/g-starter/sm0012/receipt/s2id-8755dc9ac930975a7de4deeb17a6c734-000000000002f407/status",
+      "before": "sent",
+      "after": "read"
+    },
+    {
+      "path": "carol/g-starter/sm0012/receipt/s2id-8755dc9ac930975a7de4deeb17a6c734-000000000002f401/status",
+      "before": "sent",
+      "after": "read"
+    },
+    {
+      "path": "erin/g-starter/sm0009/receipt/s2id-8755dc9ac930975a7de4deeb17a6c734-000000000002e805/status",
+      "before": "sent",
+      "after": "read"
+    },
+    {
+      "path": "erin/g-starter/sm0009/receipt/s2id-8755dc9ac930975a7de4deeb17a6c734-000000000002e801/status",
+      "before": "sent",
+      "after": "read"
+    },
+    {
+      "path": "erin/g-starter/sm0013/receipt/s2id-8755dc9ac930975a7de4deeb17a6c734-000000000002f805/status",
+      "before": "sent",
+      "after": "read"
+    },
+    {
+      "path": "erin/g-starter/sm0013/receipt/s2id-8755dc9ac930975a7de4deeb17a6c734-000000000002f801/status",
+      "before": "sent",
+      "after": "read"
+    }
+  ],
+  "scope": "Compares every original persona/conversation/message and original receipt identity/fields through API snapshots using only exposed cursors. A missing row may reflect query-window/cursor limits and is not by itself deletion evidence. New rows allowed; monotonic receipt advancement recorded separately. Existing embedded reaction lists/summaries compared exactly. Media reference fields only; empty baseline classes do not establish populated-value preservation."
+}

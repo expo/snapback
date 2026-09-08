@@ -1,0 +1,28 @@
+{
+  "command": [
+    "node",
+    "../setup/snapshot.mjs",
+    "/Users/ccheever/clique-cold-019-20260908/assessment-m7-preparing/setup/root-post-author-snapshot.json"
+  ],
+  "pid": 33359,
+  "start": 1788888889.481143,
+  "end": 1788888889.9813051,
+  "exit": 0,
+  "helperSha256": "e55c2550f3bbf3b7132470b1a0f6fcf08de4bdcd20cebb58f15431abd5ebd212",
+  "snapshotSha256": "a8d91166774afaebe02f017dced6b8182b809c9e24e756d9b806cd4406bf611a",
+  "coverage": {
+    "personas": 8,
+    "personaConversationViews": 9,
+    "uniqueConversations": 3,
+    "visibleMessageCopies": 104,
+    "uniqueMessages": 38,
+    "imageMessages": 3,
+    "videoMessages": 3,
+    "reactedMessages": 0,
+    "quotedMessages": 3,
+    "receiptRows": 170,
+    "editedMessages": 3,
+    "tombstonedMessages": 4,
+    "viewOnceMessages": 7
+  }
+}
