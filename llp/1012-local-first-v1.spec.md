@@ -410,6 +410,9 @@ absence" arm could never fire for a row inside a range (§1).
    evicts the row its reference column names, before rule 1 proves it. The
    chat recipe declares `removed` and `expired` kinds; the client no longer
    takes an application callback for this (amended 2026-09-07).
+   Within one atomic swap, tombstone provenance dominates an equal-sequence
+   primary absence; a full receipt cannot preserve an earlier prediction after
+   the same batch revoked it. This dominance persists across cold reopen.
 4. **Hidden keeps or evicts, by the table's word.** A fresh authorized
    answer in which a held row's slot became `null` with no absence, or a
    fresh `denied` state for a held answer, is the *hidden* signal: the
