@@ -52,7 +52,7 @@ function coldStores(cold) {
 function coldAssertions(state) {
   assert.equal(state.outbox.filter((entry) => entry.state === "queued").length, 2);
   const facts = state.answer ? { state: state.answer.state, connection: state.answer.connection, live: state.answer.live, stale: state.answer.stale, predicted: state.answer.predicted, site: state.answer.site, reason: state.answer.reason, hydrating: state.answer.state === "hydrating", rows: Array.isArray(state.answer.data) ? state.answer.data.length : null, twin: state.twin } : null;
-  assert.ok((state.answer?.predicted ?? []).includes(queued[0].intent), `predicted intent must be on the query result; answer facts: ${JSON.stringify(facts)}; outbox: ${JSON.stringify(state.outbox.map((entry) => ({ state: entry.state, predicted: entry.predicted, intent: entry.intent })))}`);
+  assert.ok((state.answer?.predicted ?? []).some((row) => row.intent === queued[0].intent && row.table === "messages" && row.id === queued[0].ids[0]), `predicted intent must be on the query result; answer facts: ${JSON.stringify(facts)}; outbox: ${JSON.stringify(state.outbox.map((entry) => ({ state: entry.state, predicted: entry.predicted, intent: entry.intent })))}`);
   assert.ok(state.answer.data.some((row) => row.message?.body === "offline first"), "queued send must be inside the never-opened query's data");
   assert.ok(state.bubbles.some((bubble) => bubble.key === queued[0].ids[0] && bubble.kind === "pending"));
   for (const room of seed.rooms) assert.ok(state.coverage.rows.some((row) => row.table === "deliveries" && row.row.conversationId === room));

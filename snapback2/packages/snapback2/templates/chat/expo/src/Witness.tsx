@@ -5,8 +5,30 @@ import { api, SnapbackRefusal, type AssetRecord, type ImageAsset, type RangeStor
 import { createExpoClient, expoSqliteStore, expoSqliteDriver, SnapbackProvider } from "snapback2/expo";
 import { MediaView, type Media } from "./MediaView";
 import { witnessControl, runSqliteDriverConformance, type WitnessHooks } from "snapback2/expo/witness";
-import { chatOffline } from "../shared/offline.js";
-import { searchHeld, threadBubbles } from "../shared/log.js";
+// @ref LLP 1018.003#4-pending-rows-attribution-settlement-and-failure — the witness reports the
+// same projection the thread screen renders: live message events keyed by pinned id, plus the
+// intents the twin could not place, so the driver's bubble assertions bind to product behavior.
+type LogRow = { kind?: string; messageId: string; conversationId: string; message?: { body?: string | null } | null };
+type Entry = { op: string; state: string; ids: string[]; intent: string; args: unknown };
+function bubbles(rows: LogRow[], entries: Entry[], conversationId: string) {
+  const live = rows.filter((row) => row.kind === "message" && row.message);
+  const placed = live.map((row) => ({ key: row.messageId,
+    kind: entries.some((entry) => entry.op === "deliveries.post" && entry.state === "queued" && entry.ids[0] === row.messageId) ? "pending" : "row" }));
+  const unplaced = entries.filter((entry) => entry.op === "deliveries.post"
+    && (entry.args as { conversationId?: string }).conversationId === conversationId && !live.some((row) => row.messageId === entry.ids[0]))
+    .map((entry) => ({ key: entry.ids[0] ?? entry.intent, kind: "pending" }));
+  return [...placed, ...unplaced];
+}
+function searchHeld(rows: LogRow[], term: string) {
+  const needle = term.trim().toLowerCase();
+  const seen = new Set<string>();
+  return needle ? rows.filter((row) => {
+    const body = row.message?.body;
+    if (row.kind !== "message" || !body || seen.has(row.messageId) || !body.toLowerCase().includes(needle)) return false;
+    seen.add(row.messageId);
+    return true;
+  }) : [];
+}
 import { configuration, persist, databaseState, markerSwap, listFiles, DATABASE } from "./witness-state";
 import { Chat } from "./Chat";
 
@@ -37,7 +59,7 @@ export default function Witness({ url, controlUrl }: { url: string; controlUrl: 
         rewrite: "send fault(none), then construct", guide: "offline",
       }); };
       live = createExpoClient({ url, as: config.name, startOffline: config.offline,
-        offline: { ...chatOffline, store: () => store! } });
+        offline: { store: () => store! } });
       try { await live.ready; setClient(live); setError(undefined); return live; }
       catch (error) { setError(String(error)); throw error; }
     };
@@ -116,8 +138,8 @@ export default function Witness({ url, controlUrl }: { url: string; controlUrl: 
           const entries = await client.outbox.entries();
           const rows = answer && "data" in answer && Array.isArray(answer.data) ? answer.data : [];
           return { snapshot: client.snapshot, coverage: await store.coverage(), outbox: entries,
-            bubbles: typeof args.conversationId === "string" ? threadBubbles(rows, entries, args.conversationId) : [],
-            search: typeof args.search === "string" ? searchHeld(rows, args.search) : [],
+            bubbles: typeof args.conversationId === "string" ? bubbles(rows as LogRow[], entries as Entry[], args.conversationId) : [],
+            search: typeof args.search === "string" ? searchHeld(rows as LogRow[], args.search) : [],
             answer, twin: twinLastDecline(), stores: await databaseState(), files: listFiles(), media: currentMedia ? { loaded: currentMedia.loaded, uri: currentMedia.uri } : null };
         }
         throw new Error(`unknown witness command ${verb}`);

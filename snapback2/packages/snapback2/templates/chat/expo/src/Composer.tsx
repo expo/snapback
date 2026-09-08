@@ -1,16 +1,15 @@
 import React, { useState } from "react";
 import { Button, Text, TextInput, View } from "react-native";
 import { api, isSnapbackRefusal } from "snapback2/client";
-import { useConnection, useMutation, useSnapbackClient } from "snapback2/react-native";
-import { sendingStatus } from "../shared/offline.js";
+import { useMutation, useSnapbackClient } from "snapback2/react-native";
+
+// @ref LLP 1018.003#2-derive-never-add — `can` gates the send, supplies the sentence, and `connect` offers `client.online()`.
 export function Composer({ conversationId }: { conversationId: string }) {
   const post = useMutation(api.deliveries.post);
   const client = useSnapbackClient();
-  const connection = useConnection();
   const [body, setBody] = useState("");
   const [note, setNote] = useState("");
   const [syncing, setSyncing] = useState(false);
-  const status = sendingStatus(post.status, connection, post.pending.length);
   const sync = async () => {
     setSyncing(true);
     try {
@@ -21,7 +20,7 @@ export function Composer({ conversationId }: { conversationId: string }) {
     finally { setSyncing(false); }
   };
   const send = async () => {
-    if (!body.trim() || !post.ready || post.inFlight) return;
+    if (!body.trim() || !post.can.send || post.inFlight) return;
     try {
       const result = await post.run({ conversationId, body: body.trim() });
       if (result.state === "rejected") setNote(result.rewrite ?? result.message);
@@ -29,9 +28,9 @@ export function Composer({ conversationId }: { conversationId: string }) {
     } catch (error) { setNote(isSnapbackRefusal(error) ? error.envelope.rewrite ?? error.message : String(error)); }
   };
   return <View style={{ padding: 16 }}><TextInput accessibilityLabel="Message" placeholder="Message" value={body} onChangeText={setBody} multiline />
-    <Button title="Send" disabled={!post.ready || post.inFlight || !body.trim()} onPress={() => { void send(); }} />
-    {status ? <Text accessibilityRole="text">{status.message}</Text> : null}
-    {status?.canSync ? <Button title={syncing ? "Syncing…" : "Sync now"} disabled={syncing} onPress={() => { void sync(); }} /> : null}
+    <Button title="Send" disabled={!post.can.send || post.inFlight || !body.trim()} onPress={() => { void send(); }} />
+    {post.can.reason ? <Text accessibilityRole="text">{post.can.reason.message}</Text> : null}
+    {post.can.action === "connect" ? <Button title={syncing ? "Syncing…" : "Sync now"} disabled={syncing} onPress={() => { void sync(); }} /> : null}
     {note ? <Text accessibilityRole="alert">{note}</Text> : null}
   </View>;
 }

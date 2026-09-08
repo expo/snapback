@@ -146,7 +146,7 @@ test("concurrent byte consumers acquire exactly one view-once allowance", async 
 });
 
 test("schema once image column keeps native media off disk", async () => {
-  const { chatOffline } = await import("../dist/templates/chat/shared/offline.js");
+  const chatOffline = {};
   const f = await nativeFixture({ once: true });
   const held = delivery(); held.seq = 2;
   await f.store.commit({ schema: { tables: { messages: { columns: { photo: { Image: { max: 5000000, once: true } } } } } }, deliveries: [held] }); const renderer = await mount(f);

@@ -4,14 +4,11 @@ A commit intersecting a query's read trace makes it live. Bound every scan.
 Cursor indexes end in intrinsic `id`; pass a `cursor ?` argument to `after`.
 `null` means page one.
 
-```ts
-export const thread = query({ conversationId: t.ref(conversations) }, ({ db, ctx, args }) => {
-  db.require(
-    db.exists(memberships.byConversationPrincipal, [args.conversationId, ctx.viewer]),
-    "MEMBERSHIP_REQUIRED",
-  );
-  return db.scan(messages.byConvTime, [args.conversationId], { order: "desc", take: 50 });
-});
+```q
+query thread(conversationId: conversations, c: cursor ?):
+  require exists memberships[conversationId, viewer] else MEMBERSHIP_REQUIRED
+  page = deliveries[viewer, conversationId, 'message'] after c last 50 by byRecipientConversationKindAt
+  return page { *, message: messages[.messageId] }
 ```
 
 `complete` and `capped` receipts carry `next: Cursor | null`. Pass that opaque
@@ -21,21 +18,19 @@ constructed by application code. A conditional query can return a different
 range or merge from each branch, through aliases and shapes; `next` follows the
 branch that returns. Reset the cursor to `null` when switching index or order.
 
-Subscribe through `client.subscribe(api.messages.thread, args, listener)`.
-Each SSE data frame is a query response or refusal. Connection `live`/`stale`
-facts belong to the client and never replace `complete`/`capped`/`denied`.
+Subscribe through `client.subscribe(api.deliveries.thread, args, listener)`.
+Each SSE data frame is a query response or refusal.
 
-One SSE connection carries up to 256 query/channel subscriptions per client,
-including HTTP/1.1. Adding/closing one leaves peers active. Unmount unused
-components; CSS hiding keeps queries active. Close the client with its scope.
-Reconnect re-delivers query state, not ephemeral channel events.
+## Reading a query
 
-Keep newest-first subscriptions at `c: null`; fetch older pages separately with
-`next`, preserving scope/state/freshness. History reads do not move the live head.
-`drain: true` in `client.subscribe`/`useQuery` follows an ascending append log
-(`after c first N`, N <=50), emitting each page then watching its tail. Unsupported
-returned shapes refuse E_OFFLINE_RESUME, `reason: "unsupported-log"`. Ordinary
-descending queries stay valid. See offline.
+`useQuery(op, args)` returns one snapshot: `data`, `status` (`loading`, `ready`,
+`unavailable`), and at most one `reason` (`code` plus a sentence). `ready` means
+readable data, not server confirmation. The facts stay one property down:
+`receipt` (`outcome` complete/capped/partial/denied, `source` server/twin,
+`seq`, `next`), `freshness` (`live`, `staleSince`, `connection`),
+`local.predicted` (rows a queued write predicted: table, id, intent), `refusal`.
+A partial composite is `ready` with reason `partial`; check it before trusting
+nested fields. `summarize(view, connection)` is the same projection headless.
 
 ## Channels
 

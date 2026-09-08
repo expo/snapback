@@ -39,12 +39,12 @@ offline traversal keeps server watermark. Covered reads exact; others partial.
 ## Recovery
 
 `run()` queues offline: `{ state: "queued", intent, ids }`; replay is FIFO.
-`useOutbox()`: entries/dismiss/ready/status/fence (inside/past).
-Readiness: `useMutation(op).status`, `client.outbox.status(op)`:
-reason: ready/sealed/grant-missing/grant-expired/ids-exhausted/program-missing/follower;
-action: none/login/resume/load-program; remaining: queued count; fence.
-Expired grants stop admission; owner judges queued writes.
-Prediction previews; commit confirms.
+`useMutation(op).can` and `useOutbox().can`: `send`; `action` sign-in/connect/
+other-tab; `reason` code plus sentence. `intentLabel(entry)` labels an entry.
+`detail.status` keeps the mechanism: reason ready/sealed/grant-missing/
+grant-expired/ids-exhausted/program-missing/follower; action; remaining; fence.
+A committed intent leaves the hooks once its row arrives (`entry.arrived`);
+rejected/expired wait for `dismiss`. Expired grants stop admission.
 
 `outbox.drain()`/`settled()`: `{ stopped, remaining }`; false means drained;
 fence/transport/authority/offline/pending means paused; queued bytes stay.

@@ -157,7 +157,8 @@ test("container-wide witness scan finds private payloads in URLSession cache, tm
   } finally { await rm(root, { recursive: true, force: true }); }
 });
 
-test("fresh chat Expo scaffold from dist resolves every relative import including shared JS", async () => {
+// @ref LLP 1018.003#5-the-certified-thread-projection — the scaffold ships no shared reducer module; every relative import still resolves.
+test("fresh chat Expo scaffold from dist resolves every relative import", async () => {
   const root = await mkdtemp(join(tmpdir(), "e2-scaffold-"));
   try {
     await execute(join(workspace, "target/debug/snapback2"), ["init", root, "--template", "chat", "--client", "expo", "--json"], {
@@ -174,7 +175,7 @@ test("fresh chat Expo scaffold from dist resolves every relative import includin
         assert.ok((await Promise.all(candidates.map((path) => stat(path).then((s) => s.isFile(), () => false)))).some(Boolean), `${file}: unresolved ${match[1]}`);
       }
     }
-    assert.ok(imports > 15);
+    assert.ok(imports >= 12, `expected the scaffold's own relative imports, saw ${imports}`);
   } finally { await rm(root, { recursive: true, force: true }); }
 });
 

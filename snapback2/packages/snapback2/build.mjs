@@ -172,20 +172,11 @@ const fixtures = resolve(here, "../compiler/fixtures");
 const templateDist = resolve(dist, "templates");
 for (const name of ["todos", "chat"]) {
   await cp(resolve(here, `templates/${name}/snapback`), resolve(templateDist, name, "snapback"), { recursive: true });
-  for (const arm of ["react", "expo", "shared"]) {
+  // @ref LLP 1018.003#5-the-certified-thread-projection — the chat template ships no
+  // shared reducer module: each arm's screens read the snapshot record directly.
+  for (const arm of ["react", "expo"]) {
     const source = resolve(here, `templates/${name}/${arm}`);
     if (existsSync(source)) await cp(source, resolve(templateDist, name, arm), { recursive: true, dereference: true });
-  }
-  if (name === "chat") {
-    // Metro 54 does not resolve an explicit .js import to its .ts source. Build
-    // the shared reducers ahead; ship their TS beside JS for generated-API types.
-    // shared/ is flattened by init; react/shared and expo/shared are the
-    // dereferenced template arms used directly by previews and qualification.
-    // All three need the JS leaves: Metro does not resolve .js imports to .ts.
-    for (const directory of ["shared", "react/shared", "expo/shared"]) await build({
-      entryPoints: [resolve(here, "templates/chat/shared/log.ts"), resolve(here, "templates/chat/shared/offline.ts")],
-      outdir: resolve(templateDist, name, directory), format: "esm", platform: "neutral", target: "es2022",
-    });
   }
 }
 await cp(resolve(here, "templates/react"), resolve(templateDist, "react"), { recursive: true });

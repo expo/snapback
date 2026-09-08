@@ -94,10 +94,6 @@ const transport: typeof fetch = async (input, init) => {
 };
 const offline = {
   store: indexedDbRangeStore({ beforeReplace: () => (window as any).__witnessBarrier?.() }),
-  onTombstone: (item: { table: string; row: Record<string, unknown> }) =>
-    item.table === "deliveries" && (item.row.kind === "removed" || item.row.kind === "expired") && typeof item.row.messageId === "string"
-      ? [{ table: "messages", id: item.row.messageId }]
-      : [],
 };
 function Expose() {
   const client = useSnapbackClient();

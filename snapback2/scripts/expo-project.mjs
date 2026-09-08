@@ -32,9 +32,6 @@ export async function prepareExpoProject() {
   // user edits: refresh its frontend after rebuilding the package.
   await cp(resolve(dist, "templates/chat/snapback"), resolve(project, "snapback"), { recursive: true });
   await cp(resolve(dist, "templates/chat/expo"), project, { recursive: true, dereference: true });
-  // `init` places `shared/` only when absent; a rebuilt package must refresh it too, or the
-  // project mixes revisions (fresh screens over stale reducers).
-  await cp(resolve(dist, "templates/chat/shared"), resolve(project, "shared"), { recursive: true, dereference: true });
   await cp(resolve(workspace, "scripts/witness-expo/metro.config.cjs"), resolve(project, "metro.config.cjs"));
   const modules = resolve(project, "node_modules");
   await mkdir(modules, { recursive: true });
