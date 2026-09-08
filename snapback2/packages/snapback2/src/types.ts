@@ -66,6 +66,8 @@ export type QueryPartial<Result> = {
   seq: number;
   reason: string;
 };
+/** A retained projection may keep its owner's certified page boundary, never a locally minted partial cursor. */
+type RetainedContinuation = { next?: Cursor | null };
 export type QueryDenied = {
   state: "denied";
   seq: number;
@@ -96,7 +98,7 @@ export type OfflineQueryResult<Result> =
   | (QueryHeld<Result> & OfflineFacts)
   | (QueryComplete<Result> & OfflineFacts)
   | (QueryCapped<Result> & OfflineFacts)
-  | (QueryPartial<Result> & OfflineFacts)
+  | (QueryPartial<Result> & OfflineFacts & RetainedContinuation)
   | (QueryDenied & OfflineFacts)
   | { state: "hydrating"; live: false; connection: "offline" };
 export type QueryResult<Result> = ServerQueryResult<Result> | OfflineQueryResult<Result>;
@@ -463,7 +465,7 @@ export type QueryView<Result> =
   | (QueryHeld<Result> & ViewFacts)
   | (QueryComplete<Result> & ViewFacts)
   | (QueryCapped<Result> & ViewFacts)
-  | (QueryPartial<Result> & ViewFacts)
+  | (QueryPartial<Result> & ViewFacts & RetainedContinuation)
   | (QueryDenied & ViewFacts)
   | { state: "refused"; live: false; refusal: RefusalEnvelope }
   | StaleView<Result>
@@ -519,7 +521,8 @@ export function reduceQueryState<Result>(
       break;
     case "partial":
       next = { state: "partial", live, source, ...(data === undefined ? {} : { data: data as Result }),
-        seq: event.seq, reason: event.reason, ...facts };
+        seq: event.seq, reason: event.reason, ...facts,
+        ...("retained" in event && event.retained === true && "next" in event ? { next: event.next } : {}) };
       break;
     case "denied":
       next = { state: "denied", live, source, rule: event.rule, seq: event.seq, ...facts };

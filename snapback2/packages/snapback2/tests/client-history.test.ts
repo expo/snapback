@@ -1,7 +1,12 @@
 import assert from "node:assert/strict";
+import { mkdtemp, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { test } from "node:test";
 import { api } from "../dist/client.mjs";
 import { ClientQueries, composeHistory, defineItems, withHistory } from "../dist/client-observed-test.mjs";
+import { fileRangeStore } from "../dist/test.mjs";
+import { offlineView } from "../dist/sqlite-test.mjs";
 
 // @ref LLP 1018.006#6-checks — the derivation over every input, then the
 // composition's acquisition, retirement, sharing, and identity contract
@@ -101,6 +106,66 @@ function host() {
   return { queries, publish, reset: () => { identity = [2, 2]; queries.clear(); }, clear: () => { queries.clear(); } };
 }
 const message = { messageId: "m", message: row("m") };
+
+test("retained projections stay partial while their certified page boundary and readable rows survive", async () => {
+  const root = await mkdtemp(join(tmpdir(), "snapback2-retained-composite-"));
+  const store = fileRangeStore(root)();
+  const ref = (id: string) => ({ $row: { table: "messages", id } });
+  const image = (id: string) => ({ table: "messages", id, row: row(id) });
+  const data = (hidden: boolean) => [
+    { position: "first", message: ref("m1") },
+    { position: "second", message: hidden ? null : ref("m2") },
+  ];
+  const receipt = { ranges: [], absences: [], verdicts: [] };
+  const { queries, publish } = host();
+  const observed = queries.observe(api.deliveries.conversationView, viewArgs, { items: conversationItems });
+  const stop = observed.subscribe(() => undefined);
+  try {
+    await store.open("alice");
+    for (const hidden of [false, true]) await store.commit({ retention: { messages: "delivered-history" }, deliveries: [{
+      op: "deliveries.conversationView", args: viewArgs, state: "capped", seq: hidden ? 11 : 10,
+      data: { messages: data(hidden), count: hidden ? 1 : 2, preview: [data(hidden)[1]] },
+      next: "composite-page-2", rows: hidden ? [image("m1")] : [image("m1"), image("m2")], receipt,
+    }, {
+      op: "deliveries.thread", args: threadArgs, state: "capped", seq: hidden ? 11 : 10,
+      data: data(hidden), next: "history-page-2", rows: hidden ? [image("m1")] : [image("m1"), image("m2")], receipt,
+    }] });
+    const show = async (count: number | null) => {
+      const held = await store.answer<any>("deliveries.conversationView", viewArgs);
+      const history = await store.answer<any>("deliveries.thread", threadArgs);
+      assert.equal(held?.state, "partial", "retained old bodies beside a current scalar do not form a certified composite");
+      assert.equal(held?.data.count, count);
+      assert.equal(offlineView({ ...held!, state: "capped" }, { state: "partial", reason: "never-held", seq: 12 }).state,
+        "partial", "an older retained receipt cannot certify its locally altered projection");
+      assert.equal(history?.state, "partial", "an altered array projection also loses whole-result completeness");
+      assert.equal(history?.next, "history-page-2", "the old certified boundary does not depend on restored scalar fields");
+      publish("deliveries.conversationView", offlineView(held, { state: "partial", reason: "never-held", seq: 12 }));
+      publish("deliveries.thread", offlineView(history, { state: "denied", rule: "MEMBERSHIP_REQUIRED", seq: 12 }));
+      const snapshot = observed.getSnapshot();
+      assert.equal(snapshot.itemsFrom, "history", "partial custody never lends a retained count to the composite");
+      assert.equal(snapshot.receipt?.outcome, "partial");
+      assert.equal(snapshot.receipt?.next, "composite-page-2", "the primary keeps its own boundary, never history's");
+      assert.equal(snapshot.history?.status, "ready", "downloaded row bodies remain readable");
+      assert.equal(snapshot.history?.receipt?.outcome, "partial");
+      assert.equal(snapshot.history?.receipt?.next, "history-page-2");
+      assert.equal(snapshot.history?.local.retained, true);
+      assert.equal(snapshot.items.find(item => item.key === "m1")?.data?.body, "m1");
+      publish("deliveries.thread", { state: "partial", data: [], reason: "never-held", seq: 12, live: false, next: "unproved" });
+      assert.equal(observed.getSnapshot().history?.receipt?.next, null, "an ordinary local partial cannot introduce a cursor");
+    };
+    await show(1);
+    await store.commit({ tombstones: [{ table: "messages", id: "m2", seq: 12 }] });
+    await show(null);
+    await store.close?.(); await store.open("alice");
+    await show(null);
+    const repairedRow = { position: "first", message: row("m1") };
+    const repaired = { state: "capped" as const, data: { messages: [repairedRow], count: 1, preview: [repairedRow] }, next: null, seq: 13 };
+    publish("deliveries.conversationView", offlineView(await store.answer("deliveries.conversationView", viewArgs), repaired));
+    assert.equal(observed.getSnapshot().itemsFrom, "query", "an exact local reconstruction restores usable composite data");
+    assert.equal(observed.getSnapshot().data?.count, 1);
+    assert.equal(observed.getSnapshot().history, undefined);
+  } finally { stop(); await store.close?.(); await rm(root, { recursive: true, force: true }); }
+});
 
 test("the composition acquires history at subscribe time, releases it on a usable composite, and shares one object", () => {
   const { queries, publish } = host();

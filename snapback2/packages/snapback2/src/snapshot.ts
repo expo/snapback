@@ -65,7 +65,8 @@ function receiptOf<T>(view: QueryView<T>): Snapshot<T>["receipt"] | undefined {
     return { outcome: view.state, source: view.source ?? "server", seq: view.seq, next: view.next };
   }
   if (view.state === "partial") {
-    return { outcome: "partial", source: view.source ?? "server", seq: view.seq, next: null, reason: view.reason, ...(view.sites === undefined ? {} : { sites: view.sites }) };
+    return { outcome: "partial", source: view.source ?? "server", seq: view.seq,
+      next: view.retained === true ? view.next ?? null : null, reason: view.reason, ...(view.sites === undefined ? {} : { sites: view.sites }) };
   }
   if (view.state === "denied") {
     return { outcome: "denied", source: view.source ?? "server", seq: view.seq, next: null, rule: view.rule };

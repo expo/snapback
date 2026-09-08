@@ -494,6 +494,19 @@ program and certificate on the wire (§8), receipt custody, successor and
 auth-epoch fences, canonical hashing, and the five outcome classes proven
 against the server.
 
+**Retained projections and page boundaries (2026-09-08).** Retention keeps
+authorized row bodies; restoring older bodies into a newer answer or purging
+projection literals does not preserve the exact whole-query result. Such
+answers are `partial`, including array projections. The retained rows remain
+readable, while count, preview and other composite fields cannot claim a
+complete typed result. An exact local reconstruction or fresh full delivery
+can restore completeness. The local partial may preserve its already-certified
+owner `next` as a positional page boundary; it neither certifies the altered
+projection nor creates complete range coverage. Authority invalidation clears
+that boundary. Ordinary incomplete local executions mint no continuation, and
+wire partials still carry none. The reducer and Snapshot preserve a partial's
+continuation only with its existing `retained` fact.
+
 Mounted named queries subscribe to the carrier's committed input revisions.
 After a swap changes rows, coverage, authority, a query clock, or the prediction
 overlay, each active shared entry reevaluates against the finished atomic state

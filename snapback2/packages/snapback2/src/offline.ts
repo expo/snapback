@@ -1139,13 +1139,16 @@ export class OfflineRuntime {
  * The offline view uses the twin's current local answer. For retained history,
  * a complete/capped/held rerun can reconstruct conservatively purged literals;
  * a denied, partial, or unavailable rerun falls back to the readable retained
- * answer. A maintained sibling delivery leaves its named owner partial until
+ * answer, whose altered projection is partial even when its rows remain readable.
+ * Its old certified cursor is a page boundary, not full-result completeness.
+ * A maintained sibling delivery leaves its named owner partial until
  * that owner delivers again. Held owner facts (`seq`, the drain watermark and
  * `caughtUp`) stay with reconstructed data: the stored answer is the covered
  * case, not a second mechanism (LLP 1012 §6).
  */
 export function offlineView<Result>(held: HeldAnswer<Result> | undefined, local?: LocalAnswer): any {
-  const exactHeld = held !== undefined && (held.state === "complete" || held.state === "capped");
+  const heldContinuation = held !== undefined && (held.state === "complete" || held.state === "capped"
+    || (held.state === "partial" && held.retained === true));
   // A retained projection may have had all unproven literal fields purged when
   // one referenced row was revoked. Prefer a complete local rerun when the
   // independently held facts can reconstruct the authored result. A denied or
@@ -1181,8 +1184,9 @@ export function offlineView<Result>(held: HeldAnswer<Result> | undefined, local?
     } = held;
     return carryItemInputs(held, {
       ...answer,
+      ...(held.retained && (held.state === "complete" || held.state === "capped") ? { state: "partial", reason: "retained" } : {}),
       ...(held.state !== 'denied' && data !== undefined ? { data } : {}),
-      ...(exactHeld && next !== undefined ? { next } : {}),
+      ...(heldContinuation && next !== undefined ? { next } : {}),
       live: false,
       connection: "offline",
       stale: { since: deliveredAt },

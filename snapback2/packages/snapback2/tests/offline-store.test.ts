@@ -449,6 +449,7 @@ test("retained reconstruction keeps independent pages and falls back when the re
 
   const retained = await store.answer<any>("thread", { c: null });
   assert.equal(retained?.retained, true, "revoking one row conservatively purges its retained projection");
+  assert.equal(retained?.state, "partial", "retention keeps rows, not a claim that purged scalar fields have their declared types");
   const secondPage = await store.answer<any>("thread", { c: "server-page-2" });
   assert.deepEqual(secondPage?.data.map((entry: any) => entry.message.id), ["m3", "m4"],
     "history outside the bounded answer remains in its independently held page");

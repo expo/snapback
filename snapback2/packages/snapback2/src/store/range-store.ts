@@ -38,8 +38,6 @@ import { prepareWireRow, preparedDeliveryRows, tagWireValue, type TaggedValue } 
 import { asRowRef, collectRefs, mapRowValues, purgeAnswerData, restoreRetained, rowKey, hiddenRefs } from "./row-values.js";
 import type { InboxConnection, InboxDelta, InboxRow } from "./inbox.js";
 import { MaintainedTransitions } from "./maintained-coherence.js";
-
-
 export type PrincipalPartition = string;
 export type RetentionPolicy = "until-revoked" | "delivered-history";
 
@@ -1219,11 +1217,13 @@ export class PersistentRangeStore implements RangeStore {
           retained = true;
         } else recordEviction(explicitEvictions, { ...ref, seq: delivery.seq });
       }
+      // @ref LLP 1012#6-reads-offline — retained row bodies do not prove a complete result.
       if (delivery.state === "denied" && old && retainedRefs.size > 0) {
         data = clone(old.data);
-        answerState = old.state;
+        answerState = "partial";
       } else if (old && retainedRefs.size > 0) {
         data = restoreRetained(old.data, data, retainedRefs, clone);
+        answerState = "partial";
       }
       // Preserve the delivered pool order and retain every same-pool halo/rule input.
       const refs = (delivery.rows ?? []).map(({ table, id }) => ({ table, id }));
@@ -1249,7 +1249,7 @@ export class PersistentRangeStore implements RangeStore {
         ...(delivery.receipt === undefined ? {} : { receipt: index.receipt(delivery.receipt, frame.pool, delivery.op) }),
         deliveredAt: delivery.deliveredAt ?? Date.now(),
         ...(retained ? { retained: true } : {}),
-        ...(delivery.reason === undefined ? {} : { reason: delivery.reason }),
+        ...(retained ? { reason: "retained" } : delivery.reason === undefined ? {} : { reason: delivery.reason }),
         ...(delivery.rule === undefined ? {} : { rule: delivery.rule }),
         ...(delivery.readTime === undefined ? {} : { readTime: delivery.readTime }),
         refs,
@@ -1431,12 +1431,12 @@ export class PersistentRangeStore implements RangeStore {
         }
         answer.refs = answer.refs.filter((ref) => rowKey(ref) !== key);
         if (answer.data !== undefined) answer.data = purgeAnswerData(answer.data, eviction);
-        if (answer.state !== "denied" && (!answer.retained || kind === "authority")) {
+        if (answer.state !== "denied") {
           answer.state = "partial";
           answer.reason = answer.reason === "maintained-coherence"
             ? answer.reason
             : kind === "authority" ? "missing-authority" : "evicted";
-          delete answer.next;
+          if (!answer.retained || kind === "authority") delete answer.next;
         }
       }
     }
