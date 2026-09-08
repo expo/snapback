@@ -471,13 +471,14 @@ test("a live indexed query preserves its authoritative state until its effective
 
 test("new local prediction and revocation remain visible under an older held answer sequence", async () => {
   let publish!: (event: any) => void;
+  let connection: "connected" | "reconnecting" | "offline" = "connected";
   let local = { state: "capped", live: false, connection: "offline", seq: 7, next: null,
     data: { messages: [{ id: "predicted", message: { id: "message" } }], count: 3, preview: [] },
     predicted: [{ table: "messages", id: "message", intent: "intent" }] };
   const queries = new ClientQueries({
     identity: () => [1, 1] as const,
     active: () => true,
-    connection: () => "connected",
+    connection: () => connection,
     open: (_ref: unknown, _args: unknown, listener: (event: any) => void) => {
       publish = listener;
       return { close: () => undefined, until: async () => { throw new Error("must use shared until"); } };
@@ -489,8 +490,19 @@ test("new local prediction and revocation remain visible under an older held ans
   const stop = observed.subscribe(() => undefined);
   publish({ state: "capped", live: true, seq: 8, next: null,
     data: { messages: [{ id: "server", message: { id: "server" } }], count: 2, preview: [] } });
+  assert.equal(observed.getSnapshot().receipt?.source, "server", "the owner delivery keeps owner provenance");
   queries.refresh();
   await until(() => observed.getSnapshot().local.predicted[0]?.intent === "intent", "older-sequence prediction");
+  assert.equal(observed.getSnapshot().receipt?.source, "twin",
+    "a twin evaluation stays twin-authored while the transport remains live");
+  const twinData = observed.getSnapshot().data;
+  connection = "reconnecting";
+  queries.reproject();
+  assert.equal(observed.getSnapshot().freshness.connection, "reconnecting");
+  assert.equal(observed.getSnapshot().receipt?.source, "twin", "transport reprojection does not rewrite evaluation provenance");
+  assert.strictEqual(observed.getSnapshot().data, twinData, "transport reprojection keeps value identity");
+  connection = "connected";
+  queries.reproject();
   assert.equal((observed.getSnapshot() as any).data.count, 3,
     "owner sequence is not a carrier revision fence for a new overlay");
 
@@ -498,6 +510,7 @@ test("new local prediction and revocation remain visible under an older held ans
     data: { messages: [{ id: "removed", message: null }], count: 2, preview: [] }, predicted: [] } as any;
   queries.refresh();
   await until(() => (observed.getSnapshot() as any).data.messages[0].message === null, "older-sequence revocation");
+  assert.equal(observed.getSnapshot().receipt?.source, "twin");
   assert.equal((observed.getSnapshot() as any).data.count, 2,
     "a newer local revocation cannot be hidden behind a newer owner sequence");
   stop();

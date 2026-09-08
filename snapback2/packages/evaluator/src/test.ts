@@ -1037,6 +1037,14 @@ const expectCode = (run: () => unknown, code: string, label: string) => {
   const empty = structuredClone(bare) as any;
   empty.tables.deliveries.tombstones = [];
   assert(sha256(canonicalSchemaJson(empty)) === bareHash, "an empty tombstones list moved a hash serde would not");
+  for (const value of [{}, null, "removed"]) {
+    const malformed = structuredClone(bare) as any;
+    malformed.tables.deliveries.tombstones = value;
+    let refusedContainer: unknown;
+    try { canonicalSchemaJson(malformed); } catch (error) { refusedContainer = error; }
+    assert(refusedContainer instanceof EvalError && refusedContainer.code === "E_SCHEMA" && /table tombstones must be an array/.test(refusedContainer.message),
+      `malformed present tombstones ${JSON.stringify(value)} was omitted from the hash or threw an untyped error`);
+  }
   const when = { Or: [{ Eq: [{ Field: "kind" }, { Literal: { String: "removed" } }] }, { Eq: [{ Field: "kind" }, { Literal: { String: "expired" } }] }] };
   const declared = structuredClone(bare) as any;
   declared.tables.deliveries.tombstones = [{ when, column: "messageId", table: "messages" }];

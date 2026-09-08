@@ -120,8 +120,11 @@ function normalizeTable(table: any): any {
   };
   // @ref LLP 1012#5-retention-revocation-and-the-fence — serde skips an empty
   // list, so a table without the word keeps the bytes it had before it existed.
-  if (table.tombstones !== undefined && table.tombstones.length > 0) {
-    canonical.tombstones = table.tombstones.map(normalizeTombstone);
+  if (table.tombstones !== undefined) {
+    if (!Array.isArray(table.tombstones)) {
+      throw new EvalError("E_SCHEMA", "table tombstones must be an array");
+    }
+    if (table.tombstones.length > 0) canonical.tombstones = table.tombstones.map(normalizeTombstone);
   }
   return canonical;
 }
