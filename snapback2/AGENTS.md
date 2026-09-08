@@ -10,7 +10,7 @@ NEXTEST_TEST_THREADS="$rust_test_threads" cargo nextest run \
   --config-file ../.config/nextest.toml --profile local-proof \
   --workspace --no-fail-fast          # Rust executable tests (~36 s on the measured EPYC host)
 cargo test --workspace --doc --no-fail-fast  # workspace doctests omitted by nextest
-scripts/test.sh                      # everything blocking (~97 s warm today; 60 s budget)
+scripts/test.sh                      # everything blocking (~84 s warm on EPYC; 60 s total budget)
 node scripts/measure.mjs --check     # loop numbers → metrics/loop.jsonl; fails on regression
 node scripts/publish.mjs --dry-run   # production build WITH the engine + npm pack; drop --dry-run to ship
 scripts/hermes test -p snapback2-effects   # the engine proof (Ibex 2 + vanilla Hermes); never blocking

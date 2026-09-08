@@ -235,3 +235,28 @@ expected packaging failures**. Downstream guide, declaration, template,
 compiler-worker and binary checks passed; the compiler bundle remained present
 and the build lock was absent. Cleanup now matches only the fixture's unique
 launch token and recorded PID. The ordinary one-build path is unchanged.
+
+## Integrated warm result — 2026-09-08
+
+Candidate `43e06fa90`, including the concurrent client-item feature, passes
+the complete canonical script in **83.921 s** on the warm EPYC lane.
+The actual inventory is 815 Node tests, 865 native passes plus four skips,
+doctests, 225 evaluator cases plus two visibility checks, and 214 compiler
+checks. Native execution takes 36.118 s. Compiler type checking plus tests
+takes 27.235 s. Tools are Rust/Cargo 1.97.0, Node 24.13.1, Bun 1.3.14,
+and nextest 0.9.143. The earlier paired worker/compiler wrappers did not
+record runtime tool versions; the historical 136.48-second result used
+different tooling and is not a controlled percentage comparison.
+
+The preceding `dee96c344` passes in 83.978 s warm and 118.832 s with first
+compilation. An initial 43.790-second run lacked Cargo in its non-login PATH,
+failed several dependent phases and produced no fresh native JUnit; it is
+retained as invalid qualification, not a fast pass. Final hash-bound receipts
+and all failures are in `.llp/ship-runs/20260908-loop-and-runtime/`.
+
+This ticket remains open: **83.921 s still exceeds the 60-second total
+budget**. Further reduction needs less work in the remaining serial phases
+or safe overlap of independent checks. Package rebuild tests mutate `dist`,
+so they cannot run concurrently with its readers without first isolating
+that fixture ownership. No assertion, deadline, inventory item or budget
+was removed to obtain these improvements.

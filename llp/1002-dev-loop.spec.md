@@ -1072,6 +1072,18 @@ nextest (36.636 s external elapsed). These measurements are native test
 execution on that EPYC host; the 60-second budget covers the entire blocking
 suite.
 
+After compiler fixture reuse and the concurrent client-item integration,
+`43e06fa90` passes the complete canonical script in **83.921 s warm** on the
+EPYC lane: 815 Node tests, 865 native passes and four skips, doctests,
+225 evaluator cases plus two visibility checks, and 214 compiler checks.
+Native execution is 36.118 s; compiler type checking plus tests takes
+27.235 s. The qualified tools are Rust/Cargo 1.97.0, Node 24.13.1,
+Bun 1.3.14 and nextest 0.9.143. Earlier worker/compiler wrappers did not
+record runtime tool versions, so their paired phase measurements are kept
+separate from historical full-suite comparisons using different tooling.
+The 60-second total budget remains open; the existing timing issue retains
+the failed samples, phase evidence and remaining work.
+
 `scripts/measure.mjs` measures `check_project_s` (`check` on the chat
 fixture), `init_to_dev_s` (`init` → `dev` ready, fresh dir), and
 `consumer_smoke_s` (pack the current binary/helper and built shim, install
