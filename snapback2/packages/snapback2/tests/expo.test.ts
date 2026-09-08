@@ -7,6 +7,7 @@ import { join } from "node:path";
 import { createRequire, register } from "node:module";
 import { DatabaseSync } from "node:sqlite";
 import { test } from "node:test";
+import { build } from "esbuild";
 import React, { act } from "react";
 import TestRenderer from "react-test-renderer";
 import { api, browserTokenStore, createClient, SnapbackRefusal } from "../dist/client.mjs";
@@ -23,6 +24,97 @@ const coreEntry = await import("../dist/react-core.mjs");
 const { SnapbackProvider, createExpoClient, expoSecureTokenStore, expoSqliteDriver } = expoEntry;
 const { useSnapbackClient, useConnection, useAuth, useMutation, useOutbox, useSnapbackSnapshot } = nativeEntry;
 const { witnessControl, runSqliteDriverConformance } = await import("../dist/expo/witness.mjs");
+
+test("Expo opens held history only for a partial composite and reuses the observer after detach", async () => {
+  const bundlePath = fileURLToPath(new URL("../dist/.expo-thread-history.test-bundle.mjs", import.meta.url));
+  const bundled = await build({
+    stdin: {
+      contents: 'export { Thread } from "./screens/Thread";',
+      resolveDir: fileURLToPath(new URL("../templates/chat/expo/src", import.meta.url)),
+      sourcefile: "expo-thread.tsx",
+      loader: "tsx",
+    },
+    bundle: true,
+    write: false,
+    format: "esm",
+    platform: "node",
+    target: "es2022",
+    jsx: "automatic",
+    external: ["react", "react/jsx-runtime", "react-native"],
+    plugins: [{
+      name: "package-dist",
+      setup(plugin) {
+        plugin.onResolve({ filter: /^snapback2\/(react-native|client)$/ }, (args) => ({
+          path: `./${args.path.slice("snapback2/".length)}.mjs`, external: true,
+        }));
+      },
+    }],
+  });
+  await writeFile(bundlePath, bundled.outputFiles[0]!.text);
+  const { Thread } = await import(`${pathToFileURL(bundlePath).href}?fresh=${Date.now()}`);
+  const compositeListeners = new Set<() => void>(), historyListeners = new Set<() => void>();
+  const message = { messageId: "message-held", at: 1, kind: "message",
+    message: { id: "message-held", authorId: "profile-alice", body: "independently held" } };
+  let composite: any = { status: "unavailable", receipt: { outcome: "partial", source: "twin", seq: 1 },
+    freshness: { live: false, connection: "offline" }, local: { predicted: [], retained: false } };
+  const history: any = { status: "ready", data: [message],
+    freshness: { live: false, connection: "offline" }, local: { predicted: [], retained: true },
+    reason: { code: "held", message: "Held on this device." } };
+  const observation = (snapshot: () => any, listeners: Set<() => void>) => ({
+    getSnapshot: snapshot,
+    subscribe(notify: () => void) { listeners.add(notify); return () => { listeners.delete(notify); }; },
+  });
+  const client: any = {
+    ready: Promise.resolve(),
+    snapshot: { authGeneration: 1, connection: "offline", auth: { state: "authenticated", viewer: "profile-alice" } },
+    observe(ref: any) {
+      return ref.op === "deliveries.conversationView"
+        ? observation(() => composite, compositeListeners)
+        : observation(() => history, historyListeners);
+    },
+    subscribeStatus() { return () => undefined; },
+    manifest: async () => ({}),
+    mutation: async () => ({ state: "rejected" }),
+    recoverMutation: async () => ({ state: "admission-unknown" }),
+    outbox: {
+      subscribe(notify: (entries: any[]) => void) { notify([]); return () => undefined; },
+      status: async () => ({ ready: false, reason: "sealed", action: "login", remaining: 0, fence: "past" }),
+      dismiss: async () => undefined,
+    },
+  };
+  let renderer: TestRenderer.ReactTestRenderer | undefined;
+  const publish = async (next: any) => {
+    composite = next;
+    await act(async () => { for (const notify of [...compositeListeners]) notify(); });
+  };
+  try {
+    await act(async () => { renderer = TestRenderer.create(React.createElement(SnapbackProvider, { client },
+      React.createElement(Thread, { conversationId: "conversation-1" }))); });
+    assert.equal(historyListeners.size, 1, "a data-less partial mounts held history");
+    assert.match(JSON.stringify(renderer!.toJSON()), /independently held/);
+
+    const value = { messages: [message], count: 1, preview: [message] };
+    await publish({ status: "ready", data: value, receipt: { outcome: "complete", source: "owner", seq: 2 },
+      freshness: { live: true, connection: "connected" }, local: { predicted: [], retained: false } });
+    assert.equal(historyListeners.size, 0, "a usable complete composite detaches history");
+    await publish({ status: "unavailable", receipt: { outcome: "partial", source: "twin", seq: 3 },
+      freshness: { live: false, connection: "offline" }, local: { predicted: [], retained: false } });
+    assert.equal(historyListeners.size, 1, "a later partial reattaches the same lazy history resource");
+
+    for (const ineligible of [
+      { status: "unavailable", receipt: { outcome: "denied", source: "owner", seq: 4 } },
+      { status: "unavailable", refusal: { code: "E_TEST", family: "input", message: "refused", guide: "test" } },
+      { status: "loading" },
+      { status: "ready", data: value, receipt: { outcome: "capped", source: "owner", seq: 5 } },
+    ]) {
+      await publish({ ...ineligible, freshness: { live: false, connection: "offline" }, local: { predicted: [], retained: false } });
+      assert.equal(historyListeners.size, 0, "denied, refused, reset, and capped snapshots keep history detached");
+    }
+  } finally {
+    await act(async () => { renderer?.unmount(); });
+    await rm(bundlePath, { force: true });
+  }
+});
 
 function secureFake() {
   const values = new Map<string, string>();

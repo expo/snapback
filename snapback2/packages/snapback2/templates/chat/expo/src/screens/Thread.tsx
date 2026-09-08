@@ -1,7 +1,7 @@
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import { Button, ScrollView, Text, View } from "react-native";
 import { api, intentLabel, type Api } from "snapback2/client";
-import { AssetImage, AssetVideo, useOutbox, useQuery } from "snapback2/react-native";
+import { AssetImage, AssetVideo, useOutbox, useQuery, useSnapbackClient, useSnapbackSnapshot } from "snapback2/react-native";
 import type { RecoveryCustody, SendUncertainty } from "../../shared/recovery";
 import { Composer } from "../Composer";
 
@@ -15,6 +15,18 @@ function usable(result: { data?: unknown; receipt?: { outcome: string } }): Conv
     ? data as ConversationView : undefined;
 }
 
+function usePartialHistory(conversationId: string, active: boolean) {
+  const client = useSnapbackClient();
+  const generation = useSnapbackSnapshot().authGeneration;
+  const observed = useMemo(() => client.observe(api.deliveries.thread, { conversationId, c: null }), [client, generation, conversationId]);
+  const subscribe = useCallback((notify: () => void) => active ? observed.subscribe(notify) : () => undefined, [active, observed]);
+  return useSyncExternalStore(subscribe, observed.getSnapshot, observed.getSnapshot);
+}
+
+function authorizedHistoryRows(result: { data?: unknown; status: string }): readonly LogRow[] {
+  return result.status === "ready" && Array.isArray(result.data) ? result.data as LogRow[] : [];
+}
+
 // @ref LLP 1018.000#4-one-observed-query-one-coherent-snapshot — list, count,
 // and preview render from one named composite when its receipt is complete;
 // the paginated query contributes history only when that composite is partial.
@@ -26,11 +38,11 @@ export function Thread({ conversationId, sendCustody }: {
 }) {
   const [opened, setOpened] = useState<string[]>([]);
   const snapshot = useQuery(api.deliveries.conversationView, { conversationId });
-  const history = useQuery(api.deliveries.thread, { conversationId, c: null });
   const composite = usable(snapshot);
-  const usingHistory = !composite && snapshot.status === "ready";
+  const usingHistory = !composite && snapshot.receipt?.outcome === "partial";
+  const history = usePartialHistory(conversationId, usingHistory);
   const { entries, dismiss } = useOutbox();
-  const sourceRows = composite?.messages ?? (usingHistory ? history.data ?? [] : []);
+  const sourceRows = composite?.messages ?? (usingHistory ? authorizedHistoryRows(history) : []);
   const rows = sourceRows.flatMap((row) => row.message ? [{ ...row, message: row.message }] : []).reverse();
   const postFor = (messageId: string) => entries.find((entry) => entry.op === "deliveries.post" && entry.ids[0] === messageId);
   const unsendFor = (messageId: string) => entries.find((entry) => entry.op === "deliveries.unsend" && (entry.args as Args).messageId === messageId);

@@ -22,6 +22,10 @@ export function authorizedHistoryRows(result: { data?: unknown; status: string }
   return result.status === "ready" && Array.isArray(result.data) ? result.data as LogRow[] : [];
 }
 
+export function needsPartialHistory(result: { receipt?: { outcome: string } }): boolean {
+  return result.receipt?.outcome === "partial";
+}
+
 /** Opens the existing paginated query only while the composite cannot vouch for all three fields. */
 function usePartialHistory(conversationId: string, active: boolean) {
   const client = useSnapbackClient();
@@ -46,7 +50,7 @@ export function Thread({ conversationId, viewer, onNote, sendCustody, changeCust
   const snapshot = useQuery(api.deliveries.conversationView, { conversationId });
   const [opened, setOpened] = useState<string[]>([]);
   const composite = usableConversationView(snapshot);
-  const usingHistory = !composite && snapshot.status === "ready";
+  const usingHistory = !composite && needsPartialHistory(snapshot);
   const history = usePartialHistory(conversationId, usingHistory);
   const { entries, dismiss } = useOutbox();
   const edit = useMutation(api.deliveries.edit);

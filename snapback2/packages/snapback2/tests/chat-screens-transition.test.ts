@@ -183,6 +183,8 @@ test("partial history becomes one coherent view without remounting its pending b
       React.createElement(Thread, { conversationId, viewer: "dev:alice", onNote: () => undefined }))));
     await waitFor(() => document.querySelector("ol.bubbles")?.getAttribute("data-view-source") === "partial-history",
       "the independently covered history fallback");
+    assert.equal(client.sharedConsumers(api.deliveries.thread, { conversationId, c: null }), 1,
+      "the partial composite opens one independently authorized history observer");
     assert.match(text(document.querySelector(".thread-history-note")), /Count and preview unavailable/);
     assert.match(text(document.querySelector(".thread-summary")), /Message count unavailable/);
     assert.equal(document.querySelector(".thread-summary")?.hasAttribute("data-count"), false,
@@ -199,6 +201,8 @@ test("partial history becomes one coherent view without remounting its pending b
     assert.strictEqual(document.querySelector(`li[data-message="${result.ids[0]}"]`), pending,
       "the BubbleList ancestor and keyed row survive partial history to composite publication");
     assert.equal(document.querySelector(".thread-history-note"), null, "the fallback unmounts once the composite is usable");
+    assert.equal(client.sharedConsumers(api.deliveries.thread, { conversationId, c: null }), 0,
+      "the history observer detaches once the composite is complete or capped");
     assert.equal(client.sharedConsumers(api.deliveries.conversationView, { conversationId }), 1,
       "the composite alone remains subscribed after the fallback retires");
   } finally {

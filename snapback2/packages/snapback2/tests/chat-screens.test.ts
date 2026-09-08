@@ -27,6 +27,7 @@ let Thread: (props: { conversationId: string; viewer: string | undefined; onNote
 let useAccountRecoveryCustody: <Unknown>(client: any, generation: number) => any;
 let usableConversationView: (result: any) => any;
 let authorizedHistoryRows: (result: any) => unknown[];
+let needsPartialHistory: (result: any) => boolean;
 
 before(async () => {
   const bundled = await build({
@@ -36,7 +37,7 @@ before(async () => {
       contents: [
         'export { App } from "./App";',
         'export { Composer } from "./Composer";',
-        'export { Thread, usableConversationView, authorizedHistoryRows } from "./Thread";',
+        'export { Thread, usableConversationView, authorizedHistoryRows, needsPartialHistory } from "./Thread";',
         'export { useAccountRecoveryCustody } from "../shared/recovery";',
       ].join("\n"),
       resolveDir: resolve(packageRoot, "templates/chat/react/src"),
@@ -58,7 +59,7 @@ before(async () => {
     }],
   });
   await writeFile(bundlePath, bundled.outputFiles[0]!.text);
-  ({ App, Composer, Thread, useAccountRecoveryCustody, usableConversationView, authorizedHistoryRows }
+  ({ App, Composer, Thread, useAccountRecoveryCustody, usableConversationView, authorizedHistoryRows, needsPartialHistory }
     = await import(pathToFileURL(bundlePath).href));
 });
 
@@ -167,6 +168,24 @@ test("the composite selector admits only complete outcomes and never bypasses de
     authorizedHistoryRows({ status, data: history }), [],
     `${status} cannot expose fallback rows even when stale data is attached`,
   );
+  assert.equal(needsPartialHistory({ status: "unavailable", receipt: { outcome: "partial" } }), true,
+    "a data-less partial opens independently authorized history");
+  assert.equal(needsPartialHistory({ status: "ready", data: composite, receipt: { outcome: "partial" } }), true,
+    "a partial with data uses the same fallback path");
+  for (const result of [
+    { status: "ready", data: composite },
+    { status: "loading" },
+    { status: "unavailable", receipt: { outcome: "denied" } },
+    { status: "unavailable", refusal: { code: "NO" } },
+    { status: "ready", data: composite, receipt: { outcome: "complete" } },
+    { status: "ready", data: composite, receipt: { outcome: "capped" } },
+  ]) assert.equal(needsPartialHistory(result), false,
+    "held, reset, denied, refused, complete, and capped snapshots do not open fallback history");
+  assert.deepEqual([
+    needsPartialHistory({ status: "unavailable", receipt: { outcome: "partial" } }),
+    needsPartialHistory({ status: "ready", receipt: { outcome: "complete" } }),
+    needsPartialHistory({ status: "unavailable", receipt: { outcome: "partial" } }),
+  ], [true, false, true], "the eligibility transition detaches on completion and reattaches on a later partial");
 });
 
 // @ref LLP 1012#7-writes-offline — a device with a store writes only under a
