@@ -6,7 +6,7 @@ export class QuarryError extends Error {
   constructor(site: Site, message: string, code: QuarryCode = "E_QUARRY_UNKNOWN", rewrite = message, guide = guideFor(code), executableRewrite = false) {
     const expanded = site.expandedFrom;
     const contextualMessage = expanded
-      ? `${message} (from a named shape used at ${expanded.file}:${expanded.line}:${expanded.col})`
+      ? `${message} (from a shape, fn, or proc used at ${expanded.file}:${expanded.line}:${expanded.col})`
       : message;
     super(contextualMessage);
     this.diagnostic = { ...site, code, message: contextualMessage, rewrite, guide, executableRewrite };

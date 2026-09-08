@@ -7,7 +7,7 @@ import type {
   Document,
   Expr,
   FunctionDecl,
-  FunctionImport,
+  FunctionImport, ProcDecl, ProcImport,
   IndexDecl,
   KeyPart,
   MaintainDecl,
@@ -53,6 +53,8 @@ class Parser {
   private readonly shapeImports: ShapeImport[] = [];
   private readonly functions: FunctionDecl[] = [];
   private readonly functionImports: FunctionImport[] = [];
+  private readonly procs: ProcDecl[] = [];
+  private readonly procImports: ProcImport[] = [];
   private readonly programs: ProgramDecl[] = [];
   private readonly schedules: ScheduleDecl[] = [];
   private identity: Document["identity"];
@@ -77,6 +79,7 @@ class Parser {
         else if (this.at("effect")) this.effects.push(this.parseEffect());
         else if (this.at("shape")) this.parseShapeDeclaration();
         else if (this.at("fn")) this.parseFunctionDeclaration();
+        else if (this.at("proc")) this.parseProcDeclaration();
         else if (this.at("cursor")) unsupported(token, token.value, `${token.value} is reserved for a future Quarry form; rename this declaration`);
         else if (this.at("schedule")) this.schedules.push(this.parseSchedule());
         else if (this.at("index") || this.at("unique")) syntax(token, "top-level indexes are invalid; place by/unique inside the table block", "move the index line into its table block");
@@ -98,6 +101,8 @@ class Parser {
       shapeImports: this.shapeImports,
       functions: this.functions,
       functionImports: this.functionImports,
+      procs: this.procs,
+      procImports: this.procImports,
       programs: this.programs,
       schedules: this.schedules,
     };
@@ -504,6 +509,22 @@ class Parser {
     const body = this.expression(0, new Set(["<newline>"]));
     this.newline();
     this.functions.push({ name, args, body, site });
+  }
+
+  // @ref LLP 1018.005#1-grammar — `proc name(args):` and an indented block, or `proc name from module`.
+  private parseProcDeclaration(): void {
+    const site = this.take("proc");
+    const name = this.bindingName();
+    if (this.maybe("from")) {
+      const module = this.word().value;
+      this.newline();
+      this.procImports.push({ name, module, site });
+      return;
+    }
+    const args = this.parseArgs();
+    this.take(":");
+    this.newline();
+    this.procs.push({ name, args, body: this.parseBlock(), site });
   }
 
   private bindingName(): string { return this.word().value; }
@@ -1120,7 +1141,7 @@ class Parser {
   private recoverTopLevel(): void {
     this.recoverLine();
     let depth = 0;
-    const declarations = new Set(["use", "table", "maintain", "channel", "query", "mutation", "effect", "shape", "fn", "cursor", "schedule", "index", "unique", "device", "oblivious"]);
+    const declarations = new Set(["use", "table", "maintain", "channel", "query", "mutation", "effect", "shape", "fn", "proc", "cursor", "schedule", "index", "unique", "device", "oblivious"]);
     while (!this.atKind("eof")) {
       if (this.atKind("indent")) { depth += 1; this.position += 1; continue; }
       if (this.atKind("dedent")) { depth = Math.max(0, depth - 1); this.position += 1; continue; }

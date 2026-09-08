@@ -191,6 +191,28 @@ function lowerStatements(statements: BoundStatement[], lowering: Lowering): Stmt
       body.push(...condition.setup, { If: { condition: condition.value, then_body: thenBody, else_body: elseBody } });
       continue;
     }
+    if (statement.kind === "invoke") {
+      // @ref LLP 1018.005#3-the-bound-tree-and-its-lowering — one Const per
+      // argument, then the body's statements; the whole binding map is restored
+      // after, so nothing the proc bound becomes an export of the invocation.
+      const outerBindings = new Map(lowering.bindings);
+      for (const binding of statement.bindings) {
+        const value = lowerExpression(binding.value, lowering);
+        body.push(...value.setup);
+        const name = temporary(lowering, "procArgument");
+        const captured = binding.coercion === "row-id"
+          ? { Field: { base: value.value, name: "id" } } satisfies Expr
+          : value.value;
+        body.push({ Const: { name, value: captured } });
+        lowering.bindings.set(binding.symbol.id, { Variable: name });
+      }
+      try {
+        body.push(...lowerStatements(statement.body, lowering));
+      } finally {
+        lowering.bindings = outerBindings;
+      }
+      continue;
+    }
     if (statement.kind === "for") {
       const domain = statement.domain.kind === "range"
         ? { setup: [], value: { Literal: "Null" } as Expr }
@@ -203,7 +225,8 @@ function lowerStatements(statements: BoundStatement[], lowering: Lowering): Stmt
       } else if (statement.domain.facts.type.kind === "page" && "Scan" in domain.value) {
         loopDomain = { Page: domain.value.Scan };
       } else if (statement.domain.facts.type.kind === "list" && statement.domain.kind === "variable"
-        && statement.domain.symbol.kind === "argument") {
+        && statement.domain.symbol.kind === "argument" && !lowering.bindings.has(statement.domain.symbol.id)) {
+        // A program's own list argument; a fn or proc parameter has a lowered binding and loops over its captured actual (LLP 1018.005 §2).
         loopDomain = { ArgList: { name: statement.domain.symbol.name, max: statement.domain.facts.type.max } };
       } else {
         const max = statement.domain.facts.max

@@ -21,7 +21,7 @@ ultra, grok-4.6 at xhigh), `llp/reviews/1011-quarry-ergonomics.*`
 **Implementer:** codex gpt-5.6-sol (xhigh), lane `s2/quarry-ergo`
 (`~/projects/snapback-s2`), orchestrated and landed by Claude Fable 5.1
 **Date:** 2026-09-03
-**Revised:** 2026-09-07 (expression helpers refuse authorization assertions throughout nested shapes); 2026-09-07 (typed bound shape/function elaboration and one decimal representation); 2026-09-06 (session-delegated Unicode key/cursor integration contract, foundation only); 2026-09-06 (nested named-shape collection snapshots implemented by GPT-6 Astra; conditional page returns implemented by GPT-6 Astra; certification-derived provenance); 2026-09-05 (null keys and non-empty Id literals implemented by GPT-6 Astra, Clique L2); 2026-09-05 (d — Codex implements imported shapes, read-authorized
+**Revised:** 2026-09-08 (statement helpers, LLP 1018.005); 2026-09-07 (expression helpers refuse authorization assertions throughout nested shapes); 2026-09-07 (typed bound shape/function elaboration and one decimal representation); 2026-09-06 (session-delegated Unicode key/cursor integration contract, foundation only); 2026-09-06 (nested named-shape collection snapshots implemented by GPT-6 Astra; conditional page returns implemented by GPT-6 Astra; certification-derived provenance); 2026-09-05 (null keys and non-empty Id literals implemented by GPT-6 Astra, Clique L2); 2026-09-05 (d — Codex implements imported shapes, read-authorized
 write results, and order-preserving filter repairs under the author's request
 to advance Quarry); 2026-09-03 (c — implemented: §8 records the two lane commits
 and the one re-pinned expectation); 2026-09-03 (b — after the panel: `fn` deferred and `shape` kept;
@@ -244,6 +244,19 @@ refusal remains.
 
 **Cost.** Parser, bound elaborator, guide, tests for cycles and depth. No
 platform change.
+
+### Statement helpers (2026-09-08, LLP 1018.005)
+
+`proc name(arg: type, …):` and an indented block declare a module-local
+statement helper; `proc name from module` imports it; `name(args)` on its own
+line calls it. The body elaborates at each call under the caller's program:
+arguments bind once as for `fn`, caller locals are invisible, writes, `emit`,
+and `require` bind where the caller allows them (a `require` inside a proc
+refuses the caller with its own code), `return` refuses, effect names resolve
+in the proc's module, and a parameter's declared type is the bound the
+certificate prices. `fn` stays expression-only. The chat recipe's delivery
+fan-out is one `proc deliver` used eight times. Decision and review record:
+LLP 1018.005.
 
 ### Expression-only functions (2026-09-07)
 

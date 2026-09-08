@@ -9,8 +9,8 @@ Quarry is the backend language. `check` compiles in memory; inspection goes in
 Other `.q` files hold operations/shapes; stems name API namespaces:
 `messages.q` exports `api.messages.thread`.
 
-TypeScript in `snapback/` is only seeds, tests, and effect I/O. Tables, rules,
-channels, maintains, and operations use Quarry. Effect/`.q` stems must differ.
+TypeScript in `snapback/` is only seeds, tests, and effect I/O; everything
+else is Quarry. Effect/`.q` stems must differ.
 
 ## Types and tables
 
@@ -23,14 +23,14 @@ Columns and arguments use `principal`, `id`, table references, `int`, `time`,
 and money scales are integers 0–12 (money defaults to 2; its currency is three
 uppercase letters). Add `?` for optional. Text may add `format handle`/`format url` after its bound; minimums and
 formats are enforced, maximums stay part of the type.
-Text forbids C0 controls except tab, LF, and CR.
+Text forbids C0 controls but tab, LF, CR.
 
 `image <=N` is a byte-bounded closed record `{ id, width, height }`; `video <=N`
 adds integer-millisecond `duration`. Both admit `?` and bounded lists, but no
 indexes or `maintain.by`. `once` is image-column-only, never on arguments.
 Authenticated readers get one original 200, `private, no-store`;
 anonymous gets 404 on public rows too. HEAD is free; width, Range and
-conditionals cannot bypass 410 `E_ASSET_VIEWED`. Recovery: `guide operator`. Add `once`: prior views unrecorded; removal is destructive.
+conditionals cannot bypass 410 `E_ASSET_VIEWED`. Add `once`: prior views unrecorded; removal is destructive.
 
 ```q
 mutation inspect(photo: image <=5000000, clip: video <=50000000):
@@ -47,19 +47,18 @@ decimal → left brand; money × money refuses.
 `divmod(a,int)` keeps numeric brands; time gives int. Euclidean remainder is
 nonnegative; quotient floors for positive divisors. `share` keeps the amount
 brand, needs matching bounded recipients, and gives remainder units in ascending
-value order. Share/branded multiplication floors with positive divisors; i53
-products can overflow. Wire arguments use integer minor units. Seeds normalize
-whole-unit JSON numbers or decimal strings; exponents and excess precision refuse.
+value order. Wire arguments use integer minor units; seeds normalize
+whole-unit JSON numbers or decimal strings, refusing exponents and excess precision.
 Typed decimal/money boundaries scale whole-unit literals once: an absent
 `[decimal 3]? ?? [2,3]` yields `[2000,3000]`; supplied `[1250]` and untyped
-`[2,3]` stay unchanged. Captures, returns and writes keep one representation.
-Shapes and pages keep their brands.
+`[2,3]` stay unchanged. Captures, returns, writes, shapes, and pages keep one
+representation.
 
-`viewer` has nominal type `principal`, distinct from table references and `id`
-despite their shared wire shape. Columns used with `viewer` must be `principal`.
+`viewer` is a nominal `principal`, distinct from table references and `id`
+despite the shared wire shape. Columns used with `viewer` must be `principal`.
 A non-empty text literal in an Id position (key, merge prefix, equality,
 or `??` fallback) is an Id on the wire; text expressions and wrong-table refs
-refuse. A cursor position takes the opaque token, never an Id literal.
+refuse. A cursor position takes the token, never an Id literal.
 
 Tables get `id` and `byId` implicitly. `by name: a, b` declares a named
 ordering; `by a, b` infers `byAB`. `unique name: a, b` declares a named unique
@@ -97,13 +96,13 @@ so is an `or` with an arm proven true by the prefix.
 value matches its int/decimal/money source. The group
 index is unique; the block gives its read rule; user writes are denied.
 
-`readable <- rule` deliberately discloses an aggregate: certification may rely
-on its summary when raw-source reads are non-uniform (`E_DISCLOSURE` in the
-certificate). The target's ordinary `read` rule still applies.
+`readable <- rule` discloses an aggregate so certification may rely on its
+summary when raw-source reads are non-uniform (`E_DISCLOSURE`); the target's
+`read` rule still applies.
 
-`total[key]` reads the target row through the unique grouping index.
-`#total[key]` yields its typed value or typed zero when absent/unreadable. A
-later `#` read in a mutation reflects its earlier writes.
+`total[key]` reads the target row through the unique grouping index;
+`#total[key]` yields its typed value or typed zero when absent/unreadable, and
+a later `#` read in a mutation reflects earlier writes.
 
 ```q
 maintain messageCounts = count messages by conversationId:
@@ -131,6 +130,13 @@ left-to-right. Parameters, context, and bounded reads are valid; capture,
 allocation, commit time, writes, assertions, and recursion refuse. Callers own
 their `require`/`! else CODE`.
 
+`proc deliver(c: conversations, id: messages, kind: enum('message')):` and a
+block declare a statement helper; `proc deliver from access` imports it;
+`deliver(c, row.id, 'message')` on its own line calls it. The body elaborates
+at each call in the caller's context: parameters bind once, caller locals are
+invisible, writes, `emit`, and `require` bind where the caller allows, `return`
+refuses, and a parameter's type is the priced bound.
+
 `after` follows scan order: `after c` with `c: cursor ?`; `null` starts page one.
 Pass `next` unchanged. It encodes table/index/order, typed suffix, and last returned
 row, never a hidden position. `E_INPUT` rejects noncanonical arguments before
@@ -150,8 +156,8 @@ partial (chat `conversationView`).
 distinct `[prefix keys]` lanes (named or positional), optionally `for name in`
 a bounded range. Prefixes share widths/types and leave a suffix; equal prefixes
 and bounds collapse. SQLite streams merge by suffix, deduplicate `id`, and
-return N rows. Uniform cost: L heads + N advances + 2 lookahead + discovery;
-non-uniform lanes retain per-lane reserves. Retention prices each of these.
+return N rows; cost is L heads + N advances + 2 lookahead + discovery,
+non-uniform lanes keeping per-lane reserves, all priced by retention.
 Local merges need a certificate. System reads bypass rule capping, not execution
 limits. No runtime lanes yields an empty page. Shapes, `for`, and `count` work
 as for ranges. Pageable indexes end in `id`; one cursor applies to every lane.
@@ -168,14 +174,14 @@ The recipe admits 50 follows; more is `capped`. `complete` requires exhausted
 lanes and at most N rows in their deduplicated union.
 
 `require condition else CODE` aborts when false. `match read: some name: … none: …`
-branches on presence; it is a statement, not a binding expression. Other statements
+branches on presence as a statement, not a binding. Other statements
 bind expressions or `sorted` tuples, `return`, `if/else`, or bounded `for`;
 `return` works in all arms and a body's last expression is an implicit return.
 
 Object literals work anywhere; `{ id: conversationId, creatorMembershipId }`
 uses shorthand. `count(x)` is
 `x.length` for bounded lists and pages. Bindings and captured list fields keep their selected element count;
-an object field named `length` remains that field's value. Other built-ins are `range`,
+a field named `length` stays that field. Other built-ins are `range`,
 `min`, `max`, `divmod`, and `share`. `sorted` is only `(lo, hi) = sorted(a, b)`:
 it evaluates `a` then `b` once and returns the values in canonical scalar order.
 `!` or `! else CODE` requires a present value; `??` supplies a fallback. Program `=`/`!=` are total: absent equals absent, differs from present;
@@ -202,11 +208,11 @@ Key expressions evaluate once and supply omitted upsert key columns. A row or
 patch may repeat a key column only with that key expression; otherwise
 `E_QUARRY_TYPE` names the field and its removal. Upsert cannot spell `id`:
 by-id uses the key; alternate-key preserves a hit's id or mints one on insertion.
-Insert yields its row. Binding/returning update or upsert reads the result once
-immediately after writing: a snapshot, or absence when its read rule denies
-the caller (including self-revocation). `! else CODE` requires that view and
+Insert yields its row. A bound or returned update/upsert reads its result once
+right after writing: a snapshot, or absence when its read rule denies the
+caller (including self-revocation). `! else CODE` requires that view and
 rolls back on refusal. Ignored update/upsert adds no result read. Delete yields
-no value. A body's final write is an implicit return.
+no value. A body's final write is an implicit return; never in a proc.
 
 ## Effects
 
@@ -235,7 +241,7 @@ See `snapback2 guide effects` for the executable TypeScript recipe.
 ```q
 effect notify from delivery
 fn isMember from access
-fn conversationMembers from access
+proc deliver from access
 
 query thread(conversationId: conversations, c: cursor ?):
   require isMember(conversationId, viewer) else MEMBERSHIP_REQUIRED
@@ -251,13 +257,10 @@ mutation send(conversationId: conversations, recipientId: profiles, body: text <
   recipient = profiles[recipientId] ! else RECIPIENT_UNKNOWN
   require isMember(conversationId, recipient.principal) else RECIPIENT_NOT_MEMBER
   row = insert messages { conversationId, authorId: viewer, body, photo: null, clip: null, at: now }
-  for m in conversationMembers(conversationId):
-    insert deliveries { recipient: m.principal, conversationId, messageId: row.id, kind: 'message', at: now }
+  deliver(conversationId, row.id, 'message')
   emit notify { to: recipient.principal, body }
   return { id: row.id }
 ```
-
-`conversationMembers` retains the cap-50 bounded fanout.
 
 Edit/unsend target current members. Departed recipients evict unsent bodies by
 point absence on held-page revalidation, not tombstones (LLP 1012 §5).

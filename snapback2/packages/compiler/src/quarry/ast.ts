@@ -32,6 +32,9 @@ export type ShapeDecl = { name: string; fields: ShapeField[]; site: Site };
 export type ShapeImport = { name: string; module: string; site: Site };
 export type FunctionDecl = { name: string; args: ArgDecl[]; body: Expr; site: Site };
 export type FunctionImport = { name: string; module: string; site: Site };
+/** `proc name(args):` a statement block elaborated at each call under the caller's context (LLP 1018.005). */
+export type ProcDecl = { name: string; args: ArgDecl[]; body: Stmt[]; site: Site };
+export type ProcImport = { name: string; module: string; site: Site };
 
 export type Expr =
   | { kind: "name"; name: string; site: Site }
@@ -141,6 +144,8 @@ export type Document = {
   shapeImports: ShapeImport[];
   functions: FunctionDecl[];
   functionImports: FunctionImport[];
+  procs: ProcDecl[];
+  procImports: ProcImport[];
   programs: ProgramDecl[];
   schedules: ScheduleDecl[];
 };

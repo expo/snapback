@@ -8,13 +8,15 @@ const FALLBACK = "use an index whose prefix pins the predicate, a table invarian
 // reaches lowering; catalog facts turn the narrow equality form into two sited repairs.
 export function whereRepairDiagnostics(documents: Document[], catalog: TableCatalog): QuarryDiagnostic[] {
   const diagnostics: QuarryDiagnostic[] = [];
+  const visit = (expr: Expr) => {
+    if (expr.kind !== "read" || !expr.range?.where) return;
+    diagnostics.push(...repair(expr, catalog));
+  };
   for (const document of documents) {
-    for (const program of document.programs) {
-      walkStatements(program.body, (expr) => {
-        if (expr.kind !== "read" || !expr.range?.where) return;
-        diagnostics.push(...repair(expr, catalog));
-      });
-    }
+    for (const program of document.programs) walkStatements(program.body, visit);
+    // Helper bodies are authored reads too; a where inside one was silently discarded before LLP 1018.005.
+    for (const helper of document.functions) walk(helper.body, visit);
+    for (const proc of document.procs) walkStatements(proc.body, visit);
   }
   return diagnostics;
 }

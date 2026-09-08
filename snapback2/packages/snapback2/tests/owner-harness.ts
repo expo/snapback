@@ -44,14 +44,7 @@ query inboxObject(after: cursor ?, label: text <=40 ?):
 
 query inboxProjected(after: cursor ?, label: text <=40 ?):
   return deliveries[viewer] after after first 1 by byRecipientAt { id, kind }
-${withDeliveries ? `
-mutation logMessage(messageId: messages):
-  msg = messages[messageId] ! else NOT_FOUND
-  require msg.authorId = viewer else NOT_AUTHOR
-  for m in memberships[msg.conversationId] first 50 by byConversationPrincipal:
-    insert deliveries { recipient: m.principal, conversationId: msg.conversationId, messageId, kind: 'message', at: now }
-  return null
-` : ""}`);
+`);
 }
 
 async function exited(child: ChildProcessWithoutNullStreams, timeoutMs = 5_000): Promise<void> {

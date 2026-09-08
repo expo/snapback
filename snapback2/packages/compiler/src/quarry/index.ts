@@ -1,6 +1,7 @@
 import { columnComponents } from "../index-components";
 import { basename } from "node:path";
 import type { Document, QuarryDiagnostic, RuleDecl, ScalarType, TableCatalog, TableDecl } from "./ast";
+import { firstReturn } from "./bound";
 import { buildCatalog } from "./catalog";
 import { QuarryError } from "./diagnostics";
 import { parseDocument } from "./parser";
@@ -88,10 +89,17 @@ function placementDiagnostics(documents: Document[]): QuarryDiagnostic[] {
       ?? (document.identity ? { file: document.file, line: 1, col: 1 } : undefined);
     if (!isSchema && declarationSite) diagnostics.push(placement(document.file, declarationSite.line, declarationSite.col, "tables, maintains, channels, and use identity belong in schema.q", "move this declaration to snapback/schema.q"));
     if (isSchema && (document.shapes.length > 0 || document.shapeImports.length > 0
-      || document.functions.length > 0 || document.functionImports.length > 0)) {
+      || document.functions.length > 0 || document.functionImports.length > 0
+      || document.procs.length > 0 || document.procImports.length > 0)) {
       const site = (document.shapes[0] ?? document.shapeImports[0]
-        ?? document.functions[0] ?? document.functionImports[0])!.site;
-      diagnostics.push(placement(document.file, site.line, site.col, "shape and fn declarations belong in an operations .q module, not schema.q", "move this declaration to snapback/<module>.q"));
+        ?? document.functions[0] ?? document.functionImports[0] ?? document.procs[0] ?? document.procImports[0])!.site;
+      diagnostics.push(placement(document.file, site.line, site.col, "shape, fn, and proc declarations belong in an operations .q module, not schema.q", "move this declaration to snapback/<module>.q"));
+    }
+    // @ref LLP 1018.005#1-grammar — a proc has no value: a return anywhere in its body refuses at the authored site.
+    for (const proc of document.procs) {
+      const returned = firstReturn(proc.body);
+      if (returned) diagnostics.push(placement(document.file, returned.line, returned.col,
+        `proc ${proc.name} cannot return; a proc has no value`, "return from the caller after the call, or make the helper a fn"));
     }
     if (isSchema && (document.programs.length > 0 || document.effects.length > 0)) {
       const site = document.programs[0]?.site ?? document.effects[0]!.site;
@@ -99,10 +107,11 @@ function placementDiagnostics(documents: Document[]): QuarryDiagnostic[] {
     }
     if (!isSchema && document.programs.length === 0 && document.schedules.length === 0
       && document.shapes.length === 0 && document.shapeImports.length === 0
-      && document.functions.length === 0 && document.functionImports.length === 0) {
-      diagnostics.push(placement(document.file, 1, 1, `${basename(document.file)} must declare at least one query, mutation, shape, or fn`, "add a query, mutation, shape, or fn, or remove the empty module"));
+      && document.functions.length === 0 && document.functionImports.length === 0
+      && document.procs.length === 0 && document.procImports.length === 0) {
+      diagnostics.push(placement(document.file, 1, 1, `${basename(document.file)} must declare at least one query, mutation, shape, fn, or proc`, "add a query, mutation, shape, fn, or proc, or remove the empty module"));
     }
-    if (!isSchema && document.programs.length === 0 && document.effects.length > 0) diagnostics.push(placement(document.file, document.effects[0]!.site.line, document.effects[0]!.site.col, "effect imports need a query or mutation in this module", "move this effect import to the mutation module that emits it"));
+    if (!isSchema && document.programs.length === 0 && document.procs.length === 0 && document.effects.length > 0) diagnostics.push(placement(document.file, document.effects[0]!.site.line, document.effects[0]!.site.col, "effect imports need a query, mutation, or proc in this module", "move this effect import to the mutation module that emits it"));
     const stem = basename(document.file).slice(0, -2);
     if (!/^[A-Za-z_$][A-Za-z0-9_$-]*$/.test(stem)) diagnostics.push(placement(document.file, 1, 1, `file stem ${stem} cannot become an API namespace`, "rename the module to an identifier-like stem"));
   }

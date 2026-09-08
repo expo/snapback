@@ -178,6 +178,7 @@ fn quarry_keywords_print_grammar_and_definitions_beside_symbol_help() {
     assert!(search.contains("must normalize to exactly one word"));
     assert!(search.contains("Its held twin uses\nthe same index"));
     let definitions = [
+        ("proc", "statement helper"),
         ("maintain", "count/sum"),
         ("cap", "holds every group at N rows"),
         (
@@ -413,7 +414,7 @@ fn quarry_grammar_and_refusal_guides_ship_without_double_fences() {
         assert!(output.status.success(), "{page}");
         let content = String::from_utf8_lossy(&output.stdout);
         assert!(
-            content.contains("`shape`, `fn`, and `cursor` are reserved bindings"),
+            content.contains("`shape`, `fn`, `proc`, and `cursor` are reserved bindings"),
             "{content}"
         );
         for line in content.lines().filter(|line| line.starts_with("- `")) {

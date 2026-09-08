@@ -29,12 +29,14 @@ test("chat once photo uses one message and upload, each member gets one server d
     const ordinary = await sender.upload(new Blob([png], { type: "image/png" }), { kind: "image" });
     const normal = await sender.mutation(api.messages.sendPhoto, { conversationId: "conversation-1", photo: ordinary });
     assert.equal(normal.state, "committed");
-    assert.equal((await sender.mutation(api.integration.logMessage, { messageId: normal.data.id })).state, "committed");
+    // @ref LLP 1018.005#4-the-recipe — a photo send fans out through `proc deliver` like a message: one delivery per recipient, no harness workaround.
     const manifest: any = await alice.manifest();
     assert.equal(manifest.tables.messages.columns.oncePhoto.Optional.Image.once, true);
     for (const client of [alice, bob]) {
       const thread: any = await client.query(api.deliveries.thread, { conversationId: "conversation-1", c: null });
       assert.ok(thread.data.some((row: any) => row?.message?.oncePhoto?.id === photo.id));
+      assert.equal(thread.data.filter((row: any) => row?.message?.id === normal.data.id).length, 1,
+        "sendPhoto delivers exactly one message event per recipient");
       const ordinaryUrl = (await client.assetUrl(ordinary))!;
       await client.assetBlob(ordinaryUrl);
       assert.equal(await client.assetCache!.viewOnce(photo.id), true);

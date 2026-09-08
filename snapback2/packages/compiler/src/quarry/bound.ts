@@ -6,7 +6,7 @@ import { selectIndex } from "./catalog";
 import { decimalScale, opaque, QuarryError, refuse, typeError, unsupported } from "./diagnostics";
 import { completionFacts } from "./bound-control";
 import { bindBuiltinCall } from "./bound-builtins";
-import { BoundFunctionRegistry, BoundShapeRegistry } from "./bound-declarations";
+import { BoundFunctionRegistry, BoundProcRegistry, BoundShapeRegistry } from "./bound-declarations";
 import { validateCursorIndex, validatePageableMergeIndex } from "./bound-index-validation";
 import { siteText, sourceStack, typeName, withoutExpansion } from "./bound-source";
 import { assignableBoundValue, binaryOperator, boolType, brandedType, coalescedType, combineOrigins, comparable,
@@ -77,7 +77,7 @@ function bindProgram(
   }
   const binder = new ExpressionBinder(
     program, catalog, new Map(args.map((arg) => [arg.name, arg])),
-    new BoundShapeRegistry(documents), new BoundFunctionRegistry(documents),
+    new BoundShapeRegistry(documents), new BoundFunctionRegistry(documents), new BoundProcRegistry(documents),
     { nodes: 0, expansionId: 0, shapeId: 0 }, focal,
     new Map(documents.find((document) => document.file === program.site.file)?.effects
       .map((effect) => [effect.name, `${effect.module}.${effect.name}`] as const) ?? []),
@@ -112,9 +112,10 @@ class ExpressionBinder {
     private scope: Map<string, BoundValueSymbol>,
     private readonly shapes: BoundShapeRegistry,
     private readonly functions: BoundFunctionRegistry,
+    private readonly procs: BoundProcRegistry,
     private readonly budget: ExpansionBudget,
     initialFocal?: Extract<BoundExpression, { kind: "focal" }>,
-    private readonly effects = new Map<string, string>(),
+    private effects = new Map<string, string>(),
     private readonly diagnostics?: QuarryDiagnostic[],
   ) {
     this.shapeFile = program.site.file;
@@ -258,6 +259,9 @@ class ExpressionBinder {
           this.failedBindings = priorFailed;
         }
         bound.push({ kind: "match", value: point, symbol, someBody, noneBody, source });
+      } else if (statement.kind === "expr" && statement.value.kind === "call"
+        && this.procs.has(this.functionFile, statement.value.name)) {
+        bound.push(this.procCall(statement.value));
       } else if (statement.kind === "expr") {
         const value = this.expression(statement.value);
         if (!completes && value.kind !== "write") refuse(this.diagnosticSite(statement.site),
@@ -282,7 +286,7 @@ class ExpressionBinder {
           this.scope.delete(name);
           this.failedBindings.add(name);
         }
-        if (error instanceof QuarryError) this.diagnostics.push(error.diagnostic);
+        if (error instanceof QuarryError) this.diagnostics.push((this.fromExpansion(error) as QuarryError).diagnostic);
       }
     }
     return bound;
@@ -803,6 +807,8 @@ class ExpressionBinder {
           this.expression(field.value), "constructed",
         ), source }];
       });
+    } catch (error) {
+      throw this.fromExpansion(error);
     } finally {
       this.focal = prior.focal;
       this.expansionUse = prior.use;
@@ -823,6 +829,8 @@ class ExpressionBinder {
   }
 
   private call(expression: Extract<Expr, { kind: "call" }>): BoundExpression {
+    if (this.procs.has(this.functionFile, expression.name)) typeError(this.diagnosticSite(expression.site),
+      `proc ${expression.name} is a statement; call it on its own line`, `${expression.name}(${expression.args.map(quarryExpression).join(", ")})`);
     if (this.functions.has(this.functionFile, expression.name)) return this.functionCall(expression);
     if (expression.name === "words") unsupported(expression.site, "words() in direct Quarry", "use an engine-maintained wordPrefixes index");
     const args = expression.args.map((argument) => this.expression(argument));
@@ -899,6 +907,84 @@ class ExpressionBinder {
     return { kind: "invoke", bindings, body, facts: body.facts, source };
   }
 
+  // @ref LLP 1018.005#2-elaboration — a proc call binds its arguments exactly as
+  // a fn call does, then binds the body under the caller's program with a
+  // parameter-only scope, the proc module's shapes, fns, and effects, no focal,
+  // completion off, and no helper depth: the body may do what the caller may.
+  private procCall(expression: Extract<Expr, { kind: "call" }>): BoundStatement {
+    const { declaration, document } = this.procs.resolve(this.functionFile, expression.name, expression.site);
+    if (expression.args.length !== declaration.args.length) typeError(
+      this.diagnosticSite(expression.site),
+      `proc ${expression.name} expects ${declaration.args.length} arguments, got ${expression.args.length}`,
+      `call ${expression.name}(${declaration.args.map((arg) => arg.name).join(", ")})`,
+    );
+    const returned = firstReturn(declaration.body);
+    if (returned) throw new QuarryError(
+      this.diagnosticSite(returned, expression.site),
+      `proc ${expression.name} cannot return; a proc has no value`, "E_QUARRY_PLACEMENT",
+      "return from the caller after the call, or make the helper a fn",
+    );
+    const actuals = expression.args.map((argument, index) =>
+      this.expressionExpected(argument, declaration.args[index]!.type));
+    const identity = `proc:${document.file}:${expression.name}`;
+    if (this.expansionFrames.includes(identity)) throw new QuarryError(
+      this.diagnosticSite(declaration.site, expression.site),
+      `proc call cycle ${[...this.expansionFrames, identity].join(" -> ")} is not supported`,
+      "E_QUARRY_UNSUPPORTED", `remove the recursive ${expression.name} call`,
+    );
+    if (this.expansionFrames.length + 1 > MAX_EXPANSION_DEPTH) throw new QuarryError(
+      this.diagnosticSite(declaration.site, expression.site),
+      `proc expansion exceeds depth ${MAX_EXPANSION_DEPTH}; proc ${expression.name} was used at ${siteText(expression.site)}`,
+      "E_QUARRY_UNSUPPORTED", `inline or split the block so it expands through at most ${MAX_EXPANSION_DEPTH} named shapes, fns, and procs`,
+    );
+    const bindings = declaration.args.map((parameter, index) => {
+      const value = contextualValue(actuals[index]!, parameter.type, this.diagnosticSite(expression.args[index]?.site ?? expression.site));
+      if (!assignableBoundValue(value.facts.type, parameter.type)) {
+        const site = this.diagnosticSite(expression.args[index]?.site ?? expression.site);
+        const message = `proc ${expression.name} argument ${parameter.name} expects ${typeName(parameter.type)}, got ${typeName(value.facts.type)}`;
+        const rewrite = `pass ${parameter.name}: ${typeName(parameter.type)}`;
+        if (representationMismatch(value.facts.type, parameter.type)) decimalScale(site, message, rewrite);
+        typeError(site, message, rewrite);
+      }
+      const symbol: BoundArgumentSymbol = {
+        kind: "argument", id: `${identity}:call:${this.budget.expansionId++}:argument:${index}`,
+        name: parameter.name, type: structuredClone(parameter.type), origin: value.facts.origin,
+        source: sourceStack(parameter.site, this.expansionUse ?? expression.site),
+      };
+      return { symbol, value, ...(value.facts.type.kind === "row" ? { coercion: "row-id" as const } : {}) };
+    });
+    const prior = {
+      scope: this.scope, failedBindings: this.failedBindings, use: this.expansionUse,
+      namedShapeDepth: this.namedShapeDepth, functionFile: this.functionFile, shapeFile: this.shapeFile,
+      focal: this.focal, effects: this.effects,
+    };
+    this.scope = new Map(bindings.map((binding) => [binding.symbol.name, binding.symbol]));
+    this.failedBindings = new Set();
+    this.expansionUse = this.expansionUse ?? expression.site;
+    this.namedShapeDepth = 0;
+    this.functionFile = document.file;
+    this.shapeFile = document.file;
+    this.focal = undefined;
+    this.effects = new Map(document.effects.map((effect) => [effect.name, `${effect.module}.${effect.name}`] as const));
+    this.expansionFrames.push(identity);
+    try {
+      const body = this.statements(declaration.body, false, false);
+      return { kind: "invoke", bindings, body, source: this.source(expression.site) };
+    } catch (error) {
+      throw this.fromExpansion(error);
+    } finally {
+      this.expansionFrames.pop();
+      this.scope = prior.scope;
+      this.failedBindings = prior.failedBindings;
+      this.expansionUse = prior.use;
+      this.namedShapeDepth = prior.namedShapeDepth;
+      this.functionFile = prior.functionFile;
+      this.shapeFile = prior.shapeFile;
+      this.focal = prior.focal;
+      this.effects = prior.effects;
+    }
+  }
+
   private functionCall(expression: Extract<Expr, { kind: "call" }>): BoundExpression {
     const { declaration, document } = this.functions.resolve(this.functionFile, expression.name, expression.site);
     if (expression.args.length !== declaration.args.length) typeError(
@@ -952,6 +1038,8 @@ class ExpressionBinder {
     try {
       const body = this.expression(declaration.body);
       return { kind: "invoke", bindings, body, facts: body.facts, source: this.source(expression.site) };
+    } catch (error) {
+      throw this.fromExpansion(error);
     } finally {
       this.expansionFrames.pop();
       this.scope = prior.scope;
@@ -1143,8 +1231,8 @@ class ExpressionBinder {
       this.budget.nodes += 1;
       if (this.budget.nodes > MAX_EXPANDED_NODES) throw new QuarryError(
         this.diagnosticSite(site),
-        `named shapes expand beyond ${MAX_EXPANDED_NODES} syntax nodes in one operation or declaration`,
-        "E_QUARRY_UNSUPPORTED", "remove repeated shape spreads or split the operation into smaller bounded projections",
+        `named shapes, fns, and procs expand beyond ${MAX_EXPANDED_NODES} syntax nodes in one operation or declaration`,
+        "E_QUARRY_UNSUPPORTED", "reduce the named shape, fn, or proc expansions or split the operation into smaller bounded pieces",
       );
       this.budget.expansionId += 1;
     }
@@ -1154,6 +1242,28 @@ class ExpressionBinder {
   private diagnosticSite(site: Site, useSite = this.expansionUse): Site {
     return useSite ? { ...site, expandedFrom: useSite } : site;
   }
+
+  // @ref LLP 1018.005#2-elaboration — a refusal authored inside a shape, fn, or
+  // proc body names the use site however it was raised: validation helpers
+  // take raw sites, so the frame attaches the trail once on the way out.
+  private fromExpansion(error: unknown): unknown {
+    if (!(error instanceof QuarryError) || error.diagnostic.expandedFrom || !this.expansionUse) return error;
+    const { code, rewrite, guide, executableRewrite, message: _message, expandedFrom: _from, ...site } = error.diagnostic;
+    return new QuarryError({ ...site, expandedFrom: this.expansionUse }, error.diagnostic.message, code, rewrite, guide, executableRewrite);
+  }
+}
+
+/** The site of the first `return` in a block, at any nesting, or undefined. */
+export function firstReturn(statements: QuarryStatement[]): Site | undefined {
+  for (const statement of statements) {
+    if (statement.kind === "return") return statement.site;
+    const nested = statement.kind === "if" ? [...statement.thenBody, ...statement.elseBody]
+      : statement.kind === "for" ? statement.body
+        : statement.kind === "match" ? [...statement.someBody, ...statement.noneBody] : [];
+    const found = firstReturn(nested);
+    if (found) return found;
+  }
+  return undefined;
 }
 
 function tupleFieldFacts(value: BoundValueFacts, name: string, site: Site): BoundValueFacts {

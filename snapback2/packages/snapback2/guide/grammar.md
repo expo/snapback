@@ -26,10 +26,11 @@ Types: `principal`, `id`, table references, `int`, `time`, `bool`,
 `decimal <scale>`, `money <CUR> [scale]`, `text <=N`, `text M..N`, `json <=N`,
 `bytes <=N`, `image <=N [once]`, `video <=N`, `enum(...)`, `[type] <=N`; `?` is
 optional. `once` is image-column-only; `cursor` is operation-only. Text may add a format.
-`shape`, `fn`, and `cursor` are reserved bindings.
+`shape`, `fn`, `proc`, and `cursor` are reserved bindings.
 
 ## Constructs
 
+- `proc`: `proc name(args):` and a block; a statement helper elaborated at each call.
 - `maintain`: `maintain name = count table by fields:`; sum uses `sum table of column`.
 - `cap`: `cap N by columns` bounds each group; reserve is N/N/5N per write, or 1/1/5 with an exact same-`by` count maintain.
 - `unique`: `unique [name:] columns` declares a unique index.

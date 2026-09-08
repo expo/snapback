@@ -27,9 +27,10 @@ export function registerQuarryDirectProjectChecks(test: Test, frontend: string):
       && Object.values(production.sources).every((site) => site.file.endsWith(".q"))
       && production.apiDts.includes("interface Api"),
     `production assembly retained generated TypeScript custody: ${JSON.stringify(production.quarry)}`);
+    // @ref LLP 1018.005#4-the-recipe — the fan-out loop is the proc's, defined in access.q; the use site is messages.q.
     const loops = Object.entries(production.sources).filter(([site]) => site.startsWith("messages.send/for/"));
-    assert(loops.length > 0 && loops.every(([, site]) => site.file === "snapback/messages.q"),
-      `generated loop sites did not retain authored Quarry locations: ${JSON.stringify(loops)}`);
+    assert(loops.length > 0 && loops.every(([, site]) => site.file === "snapback/access.q"),
+      `generated loop sites did not retain the proc's authored Quarry location: ${JSON.stringify(loops)}`);
     for (const [table, descriptor] of Object.entries(production.project.schema.tables)) {
       const constraints = (descriptor as unknown as { constraints: unknown[] }).constraints;
       for (const [index, constraint] of constraints.entries()) {

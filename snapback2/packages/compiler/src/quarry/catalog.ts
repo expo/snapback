@@ -84,6 +84,8 @@ export function buildCatalog(documents: Document[]): TableCatalog {
       programNames.add(program.name);
       validateArgs(program.args, catalog);
     }
+    // Helper parameters get the same validation as operation arguments (LLP 1018.005 §2).
+    for (const helper of [...document.functions, ...document.procs]) validateArgs(helper.args, catalog);
   }
   return catalog;
 }
